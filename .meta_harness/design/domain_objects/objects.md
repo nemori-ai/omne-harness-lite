@@ -153,7 +153,7 @@
 - **宿主**：正文未述。已采用并提供的元入口在 Agent 装配后各占一个常驻槽位
 - **身份**：按入口名称，由产品定义及采用范围确定；装配方不能增删必需绑定，候选和占位不计作已提供入口
 - **生灭**：装配 → 在位，没有别的状态；不可禁用、不可替换、不可移除。门自身无状态，「门后的东西有状态」
-- **依据**：[元能力：meta](../product/meta-capabilities/design.md#使用者与范围)（rev 3）；[元能力：产品规则](../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 3）
+- **依据**：[元能力：meta](../product/meta-capabilities/design.md#使用者与范围)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
 - **未裁**：它与工具及资产的精确关系尚未裁定；采用多命令形态不自动决定其对象或资产身份。归元能力与工具产品拥有者
 
 ## 流转与授权
@@ -291,9 +291,9 @@
 ### UL-terminal-session · 终端会话
 
 - **宿主**：[执行环境](#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没）
-- **身份**：各自有标识，`create_session` 时返回；给一个不存在的标识必须明确失败
+- **身份**：可以同时存在多个，各有身份；标识何时给出正文未述；指定已关闭或不存在的终端会话必须明确失败
 - **生灭**：`create_session` → 开着 → 关闭（agent `close_session`）· 随环境消失（agent 必须被告知）
-- **依据**：[元能力：Shell 终端会话](../product/meta-capabilities/design.md#meta-shell)（rev 3）
+- **依据**：[元能力：Shell 终端会话](../product/meta-capabilities/design.md#meta-shell)（rev 4）
 
 ### UL-facility-descriptor · 设施声明
 
@@ -422,7 +422,7 @@
 - **宿主**：它所属的那次派发
 - **身份**：每次派发至多一份
 - **生灭**：子干完时交出 → 派发者的等待结束，这次派发随之终结。此后留存多久正文未述
-- **依据**：[元能力：一次报告与后续消息](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 3）
+- **依据**：[元能力：一次报告与后续消息](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 4）
 - **未裁**：`handoff` 有没有自主报告，正文未述。其派发调用只确认创建、不等报告；自主报告范围归元能力产品拥有者
 
 ### UL-decision-card · 决策卡片
@@ -437,14 +437,14 @@
 - **宿主**：[会话](#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在）
 - **身份**：每个会话一份
 - **生灭**：空 → 攒着几笔 → 里面有撤回；只追加，不回头改，不归零
-- **依据**：[元能力：会话授权上下文](../product/meta-capabilities/design.md#会话授权上下文)（rev 3）；[PF-015 §5.7](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里)（rev 21）
+- **依据**：[元能力：会话授权上下文](../product/meta-capabilities/design.md#会话授权上下文)（rev 4）；[PF-015 §5.7](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里)（rev 21）
 
 ### UL-authorization-expression · 授权表达
 
 - **宿主**：[会话授权上下文](#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，由具备资格的主体[按规则写入租户层权限设置](../product/meta-capabilities/design.md#会话授权上下文)，表达不等于设置已生效
 - **身份**：正文未述；只要求**有先后**、**分得出是哪一笔**
 - **生灭**：用户表达出来即追加一笔 → 此后不改、不删；**撤回是往后再追加一笔**，不是擦掉先前那笔
-- **依据**：[元能力：一笔授权表达有三个维度](../product/meta-capabilities/design.md#会话授权上下文)（rev 3）；[元能力：产品规则](../product/meta-capabilities/design.md#动作放行与环境准入)（rev 3）
+- **依据**：[元能力：一笔授权表达有三个维度](../product/meta-capabilities/design.md#会话授权上下文)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#动作放行与环境准入)（rev 4）
 - **并入**：「决策记录」——[产品负责人 2026-09-22 裁为一物两名](../ubiquitous_language/conflicts.md)，正文当同一物用
 
 ### UL-inbound-arrival · 入站到达
@@ -512,7 +512,7 @@
 - **宿主**：[会话](#ul-session--会话)——它活在一次会话里，不跨会话继承
 - **身份**：正文只要求「每条待办有自己的身份」，在一次会话内分得出这一条与那一条，否则去掉与标成做完都指不准；靠什么标识，正文未述
 - **生灭**：加一条 → 未完成 → 标成做完（做完了还留着）；或被去掉（不做了才去掉）。两者必须分得出。加一条不会让系统去做它。会话被归档时它怎么办，正文未述
-- **依据**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 3）；[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
+- **依据**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 4）；[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 
 ### UL-business-calendar · 业务日历
 

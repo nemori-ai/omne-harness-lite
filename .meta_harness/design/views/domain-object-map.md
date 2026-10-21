@@ -163,7 +163,7 @@
 | 待裁项 | 谁来裁 |
 |---|---|
 | [存储](../domain_objects/pending.md#存储) | PF-006 的 owner |
-| [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人——它要不要做、归哪个 topic，都还没有人说过；由元能力产品保留跨会话对象缺项 |
+| [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者 |
 | [一次派发](../domain_objects/pending.md#一次派发) | 系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义 |
 | [agent 之间的消息](../domain_objects/pending.md#agent-之间的消息) | 元能力、Session 与入站拥有者 |
 | [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | 元能力产品拥有者 |

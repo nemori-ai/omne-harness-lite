@@ -215,21 +215,23 @@
 
 ### UL-session-run-mode · 会话运行模式 · Session Run Mode
 
-> **中**：**这个[会话](#ul-session--会话--session)里，「本该问人」的那一刻改怎么办。****恰好三档**：
-> **`never`**——一律当作被拒，**不问任何人**；
-> **`auto_permission`**——**拿已经形成的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)算**，算不出来**就问人**；
-> **`bypass-permissions`**——**直接放行**。
+> **中**：**这个[会话](#ul-session--会话--session)里，「本该问人」的那一刻改怎么办。**
+> 权限结果为「问一下」、而已有的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)也没有让这次动作获准时，才轮到它。**恰好三档**：
+> **`never`**——当作被拒，**不问任何人**；
+> **`auto_permission`**——**请求人工判断**；
+> **`bypass-permissions`**——**跳过这次询问**。
 > **它不决定哪些动作要问人**，只决定**问不成的那一刻**怎么处置。
 >
 > **EN**: **What this session does at the moment something would otherwise be put to a
-> person.** Exactly three: **`never`** — treat every such moment as a refusal, asking no
-> one; **`auto_permission`** — **compute from the authorization expressions already on hand**, and
-> **ask a person when they do not settle it**; **`bypass-permissions`** — let it through. **It
-> does not decide which actions need asking**, only what happens at that moment.
+> person.** It applies only when the permission result is "ask" and the authorization
+> expressions already on hand do not permit the action. Exactly three: **`never`** — treat it
+> as a refusal, asking no one; **`auto_permission`** — **ask a person to decide**;
+> **`bypass-permissions`** — skip this ask. **It does not decide which actions need asking**,
+> only what happens at that moment.
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 3）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 4）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
@@ -240,10 +242,10 @@
 - **注意 ②**：**`bypass-permissions` 跳过的是「问」，不是「禁」**——
   **任何层的明确禁止，它一样翻不了案**
 - **注意 ③**：**`never` 连带一个后果**——
-  [`Ask().request_approval` 在这个会话里不可用](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)，
+  [`Ask().request_approval` 在这个会话里不可用](../../product/meta-capabilities/design.md#协作模式与命令限制)，
   **而 `Ask()` 这扇门还在**，`never` 本身不禁 `ask`，其交互可用性另受会话协作模式约束
 - **维度**：本词专指权限维度，运行时可变；不包括独立的[会话协作模式](#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode)。
-- **注意 ④**：**它往子会话传**——[父是 `never`，子的 `request_approval` 一并不可用](../../product/meta-capabilities/design.md#动作放行与环境准入)
+- **注意 ④**：**它的限制往子会话传**——[父处于 `never` 时，子不能借自己的 `request_approval` 取得更宽权限](../../product/meta-capabilities/design.md#动作放行与环境准入)；[父的权限与模式限制不能由子会话绕过](../../product/meta-capabilities/design.md#协作模式与命令限制)
 
 ### UL-session-collaboration-mode · 会话协作模式 · Session Collaboration Mode
 

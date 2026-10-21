@@ -550,14 +550,14 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 3）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 4）·
   [PF-015 §5.6 第 13 项](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
   **一份条目清单，不是一份计划文档**
 - **注意 ②**：**未完成的那些是一项
-  [meta runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)**（第 14 项）
+  [meta runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)**（第 13 项）
 - **注意 ③**：**写是逐条的，不是整份覆盖**——失手的代价不同：
   错一条只错一条，**整份覆盖会连带改写或丢掉其余几条，而且不容易发现**
 
