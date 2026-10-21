@@ -48,7 +48,7 @@ flowchart TB
 
 Cordis 4.0.4 的 Service 方法 `this.ctx` 是调用方 Context。Model/Tool 的 schedule 若直接在此处 `this.ctx.plugin(...)`，从 Agent 调用时会生成 Agent 子 fiber，违反独立寿命。采用的宿主设计在构造时捕获执行宿主自己的 Context，schedule 将显式业务身份交入该宿主，由其在自己 Context 上建立实例贡献 fiber。实际注册在该实例插件内调用目录 Service.register，继续遵守 IC-13 的 caller-fiber 归属。捕获宿主只用于生命周期，不用于推断租户或绕过当前资格。
 
-注册表用 `this.ctx.effect` 配对登记与条件撤除。登记项带稳定工作键、实例身份、代次及 contribution token。受信宿主必须先证明该实例合法在场；冲突登记拒绝，仅同一 fiber 的原贡献同值认回；新贡献先等旧贡献明确撤除。精确 register 输入、资格依赖、回执和 release 归三份成员集成页。旧 disposer 仅在 token 与当前项一致时移除，不能撤新实例。查询核当前身份/tenant/资源动作，返回受限句柄或无活体路由；无活体不证明事实不存在。注册表不另记贡献者清单或等待用户手动注销。
+注册表用 `this.ctx.effect` 配对登记与条件撤除。登记项带目录键（Model/Tool 为稳定工作键，Agent 为租户加实例身份）、实例身份、代次及 contribution token。受信宿主必须先证明该实例合法在场；冲突登记拒绝，仅同一 fiber 的原贡献同值认回；新贡献先等旧贡献明确撤除（Agent 的后继登记按其 SPEC 原子取代旧登记）。精确 register 输入、资格依赖、回执和撤除方式归三份成员集成页。旧撤除仅在 token 与当前项一致时移除，不能撤新实例。查询核当前身份/tenant/资源动作，返回受限句柄或无活体路由；无活体不证明事实不存在。除 IC-13 允许的目录写法外，注册表不另记贡献者清单或等待用户手动注销。
 
 API 门面可以将 directory 暴露为只读查询面，但宿主注册必须经自身 fiber 的 `ctx.get(目录键).register`。不得通过 Agent 缓存的目录代理登记，不把普通对象 `ctx.provide` 当具有 caller-context 跟踪的注册表。
 
@@ -67,7 +67,7 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 | 共同性质 | 共同触碰的权威对象与拥有者 | 必须的提供者条件 |
 | --- | --- | --- |
 | Session 唯一推进、cancel/reload/finish 竞争 | Session 的原工作条目范围、operation identity、当前治理 revision/advance | Session 参加者在同一 Storage transactionDomain 内保护原状态及提交尾部 |
-| Agent 会话输入与普通终结 | Session 已受理输入、Run/attempt/control，Agent 输入 frontier、责任及 execution | 专用 Journal 提供者在输入受理时同提交登记原引用，在终结时共同核验并提交；延迟唤醒不得造成遗漏 |
+| Agent 会话输入与普通终结 | Session 已受理输入、Run/attempt/control，Agent 输入水位线、责任及 execution | 会话专用的 Journal 提供者以提交参加者身份，把会话输入受理与普通终结纳入同一提交边界；延迟唤醒不得造成遗漏。精确行为归 Agent SPEC 的[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)与[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结) |
 | Model/Tool 受理与当前工作资格 | 原 Session governance/consumer binding，生产者原 call/admission/capacity 或队列责任 | 固定 combinationVersion 同事务执行领域参加者；外域当前资格有实际受信参加者，不能先读后写冒称共同成立 |
 | 结果保管及生产确认 | Session 消费版本项、独立材料记录，Model custody 或 Tool delivery | 各域确认顺序及双路径证据，不要求跨域一个 SQL 事务；交接前始终有人保管，未知不解除 |
 | 撤权/取消与真实发起 | 当前权威许可、原工作资格、生产者 send/start 意图及实际效果启动边界 | 同一实际排序围栏封闭资格变化与 S；数据库事务不包含网络，部署必须提供可验证的排除/发起协议 |
@@ -75,7 +75,7 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 
 前五行由具体 Storage、身份授权和执行提供者兑现，Cordis 仅决定能力对象装载、可见与撤除。这里没有扩大跨提供者私有事务读例外；参加者通过已登记协议和精确版本组合，不让 Agent 导入 Model/Tool 存储实现。迁往多进程时，同提交、启动排序、目录路由、时钟和结果流分别需要运输/一致性协议；Context、Fiber、闭包与本地锁不跨边界。
 
-Agent 独立装配只要求本域输入受理与终结的条件提交，不依赖 Session 完成回调。会话绑定则必须证明上述共同保证；服务键存在、同进程或同数据库均不单独构成证据。已成立的取消可先结束 Run，随后沿原控制收束 Agent，不能恢复旧资格或重新裁定 Run。精确协议归[Agent 消费与会话协调](../../../packages/agent/agent-contract/docs/context.md#独立消费与会话协调)。
+Agent 独立装配只要求本域输入受理与终结的条件提交，不依赖 Session 完成回调。会话绑定则必须证明上述共同保证；服务键存在、同进程或同数据库均不单独构成证据。已成立的取消可先结束 Run，随后沿原控制收束 Agent，不能恢复旧资格或重新裁定 Run。精确协议归 Agent SPEC 的[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)与[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结)；外部协调者一侧的前提见[消费与系统定位](../../../packages/agent/agent-contract/docs/context.md#外部协调者的前提)。
 
 ## 事件与作用域
 
@@ -98,7 +98,7 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 装配入口通过拥有者服务定义提供实际对象，具体插件 inject 取得。发行层声明稳定行 id、包 ./cordis 导出及配置；运维层按行 id 整行替换、停用或插入。指向不存在行 id 失败；打印最终树和每行来源。缺必需依赖导致 fiber PENDING，不能把 await plugin 返回当作业务就绪；非法配置导致 FAILED，两者分别诊断。
 
-候选发行行是 session-provider、agent-host、model-host、tool-host 与各必要提供者/目录行。精确包导出和配置由后继应用装配实现时登记；本候选不发布一个可运行的假插件树。运行时创建的实例贡献 fiber 不进两层树。Session 作用域只是显式身份和本次贡献，既不是根 Context，也不是组织/租户配置层。
+候选发行行是 session-provider、agent-host、agent-instances、model-host、tool-host 与各必要提供者/目录行。精确包导出和配置由后继应用装配实现时登记；本候选不发布一个可运行的假插件树。运行时创建的实例贡献 fiber 不进两层树。Session 作用域只是显式身份和本次贡献，既不是根 Context，也不是组织/租户配置层。
 
 ## IC 逐项对账
 
@@ -116,7 +116,7 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 | 10 | 上述四种通知名称 | 设计静态核对，未来源码生成矩阵 |
 | 11 | 定义入口唯一Events增补 | 后继声明及派发对应测试 |
 | 12 | parallel捕获，控制用操作；新增异步控制用serial | 真实serial/bail及通知抛错探针；不证明业务持久 |
-| 13 | 本域实例贡献fiber内register及条件撤除 | 真实贡献撤除和错误caller归属变体 |
+| 13 | 本域实例贡献fiber内register及条件撤除；Agent 目录声明采用 IC-13 的目录写法，Model 与 Tool 是否沿用原句由其成员集成页说明 | 真实贡献撤除和错误caller归属变体 |
 | 14 | 同步Standard Schema与加载失败 | kernel-basis真实配置/异步校验拒绝测试；四成员具体Schema待实现 |
 | 15 | 发行层/运维层 | 应用后继两层树接受场景，本卡不实现加载器 |
 | 16 | 稳定行id、来源及运行对象服务注入 | 应用后继悬空修改/产物/来源打印验证 |
