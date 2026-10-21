@@ -1,5 +1,9 @@
 import { expectTypeOf, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+import type {
+  ContentBlock,
+  ReferenceContentBlock,
+  ThinkingContentBlock,
+} from '@omne-harness/content-block'
 import {
   judgeMessage,
   type AssistantMessage,
@@ -8,6 +12,7 @@ import {
   type IncompleteToolCallPart,
   type LogMessageRole,
   type Message,
+  type MessageContentBlock,
   type MessageId,
   type MessageRoleMap,
   type SystemReminderMessage,
@@ -20,7 +25,8 @@ import {
 } from '@omne-harness/message'
 
 declare const id: MessageId
-declare const block: ContentBlock
+declare const block: MessageContentBlock
+declare const thinking: ThinkingContentBlock
 declare const marker: ToolResultPart
 declare const call: ToolCallPart
 declare const incomplete: IncompleteToolCallPart
@@ -52,13 +58,17 @@ it('Message is the union of the six role types, told apart by role', () => {
 
 it('each role type has the blocks that its role allows, and at least one', () => {
   expectTypeOf<UserMessage>().toEqualTypeOf<
-    Readonly<{ id: MessageId; role: 'user'; blocks: readonly [ContentBlock, ...ContentBlock[]] }>
+    Readonly<{
+      id: MessageId
+      role: 'user'
+      blocks: readonly [MessageContentBlock, ...MessageContentBlock[]]
+    }>
   >()
   expectTypeOf<ToolInternalMessage['blocks']>().toEqualTypeOf<
-    readonly [ContentBlock, ...ContentBlock[]]
+    readonly [MessageContentBlock, ...MessageContentBlock[]]
   >()
   expectTypeOf<SystemReminderMessage['blocks']>().toEqualTypeOf<
-    readonly [ContentBlock, ...ContentBlock[]]
+    readonly [MessageContentBlock, ...MessageContentBlock[]]
   >()
   expectTypeOf<AssistantMessage['blocks']>().toEqualTypeOf<
     readonly [ContentBlock | CallPart, ...(ContentBlock | CallPart)[]]
@@ -67,7 +77,7 @@ it('each role type has the blocks that its role allows, and at least one', () =>
     ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart
   >()
   expectTypeOf<ToolMessage['blocks']>().toEqualTypeOf<
-    readonly [ToolResultPart, ...ContentBlock[]]
+    readonly [ToolResultPart, ...MessageContentBlock[]]
   >()
 })
 
@@ -106,6 +116,27 @@ it('an assistant message has content and call parts, and no marker', () => {
   // @ts-expect-error a marker is not allowed in an assistant message
   const withMarker: AssistantMessage['blocks'] = [block, marker]
   expectTypeOf(withMarker).not.toBeAny()
+})
+
+it('MessageContentBlock leaves out the thinking block and nothing else', () => {
+  expectTypeOf<Exclude<ContentBlock, MessageContentBlock>>().toEqualTypeOf<ThinkingContentBlock>()
+  expectTypeOf<ReferenceContentBlock>().toExtend<MessageContentBlock>()
+})
+
+it('a thinking block is allowed in an assistant message only', () => {
+  const assistant: Message = { id, role: 'assistant', blocks: [thinking, call] }
+  expectTypeOf(assistant).toExtend<Message>()
+  // @ts-expect-error a thinking block is not allowed in a user message
+  const user: UserMessage['blocks'] = [thinking]
+  // @ts-expect-error a thinking block is not allowed in a tool_internal message
+  const internal: ToolInternalMessage['blocks'] = [thinking]
+  // @ts-expect-error a thinking block is not allowed in a system_reminder message
+  const reminder: SystemReminderMessage['blocks'] = [thinking]
+  // @ts-expect-error a thinking block is not allowed in a compaction summary
+  const summary: CompactionMessage['blocks'] = [thinking]
+  // @ts-expect-error a thinking block is not allowed in the body of a tool message
+  const body: ToolMessage['blocks'] = [marker, thinking]
+  expectTypeOf([user, internal, reminder, summary, body]).not.toBeAny()
 })
 
 it('no message has an empty list of blocks', () => {

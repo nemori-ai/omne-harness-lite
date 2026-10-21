@@ -28,6 +28,7 @@ export { judgePart } from './parts.ts'
 export type {
   CallPart,
   IncompleteToolCallPart,
+  MessageContentBlock,
   MessagePart,
   ToolCallPart,
   ToolPart,

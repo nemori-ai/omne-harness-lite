@@ -13,19 +13,19 @@
 | `Message`、`MessageRoleMap`、`UserMessage`、`AssistantMessage`、`ToolMessage`、`ToolInternalMessage`、`SystemReminderMessage` | 类型 | [src/message.ts](../src/message.ts) |
 | `MessageId`、`MessageIdParse`、`MessageIdParseError`、`LogMessageRole`、`MessageRejection`、`MessageJudgment` | 类型 | [src/message.ts](../src/message.ts) |
 | `judgeMessage`、`parseMessageId`、`messageIdEquals` | 函数 | [src/message.ts](../src/message.ts) |
-| `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`CallPart`、`ToolResultPart`、`ToolPart`、`MessagePart` | 类型 | [src/parts.ts](../src/parts.ts) |
+| `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`CallPart`、`ToolResultPart`、`ToolPart`、`MessagePart`、`MessageContentBlock` | 类型 | [src/parts.ts](../src/parts.ts) |
 | `judgePart` | 函数 | [src/parts.ts](../src/parts.ts) |
 
-每个角色的 `blocks` 类型只含该角色允许的部件，也都至少有一块，与 `judgeMessage` 的运行时规则一一对应。`CallPart` 是三种调用部件的联合。
+每个角色的 `blocks` 类型只含该角色允许的部件，也都至少有一块，与 `judgeMessage` 的运行时规则一一对应。`CallPart` 是三种调用部件的联合，`MessageContentBlock` 是除 `thinking` 块以外的内容块。
 
 | 角色 | `blocks` 允许的部件 |
 | --- | --- |
-| `user`、`tool_internal`、`system_reminder` | 只有内容块 |
-| `assistant` | 内容块和三种调用部件，没有标记 |
-| `tool` | 第一块是标记 `tool_result`，其余是内容块 |
-| `compaction` | 只有内容块，是摘要 |
+| `user`、`tool_internal`、`system_reminder` | 只有不含 `thinking` 的内容块 |
+| `assistant` | 全部内容块（含 `thinking`）和三种调用部件，没有标记 |
+| `tool` | 第一块是标记 `tool_result`，其余是不含 `thinking` 的内容块 |
+| `compaction` | 只有不含 `thinking` 的内容块，是摘要 |
 
-失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `tool-blocks`、`duplicate-id`、`covers`、`retained`、`derivation`，这几个只有整条消息的判定才会给出。压缩变体的导出在下一节。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
+失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `misplaced-part`、`duplicate-id`、`covers`、`retained`、`derivation`，这几个只有整条消息的判定才会给出。压缩变体的导出在下一节。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
 
 ## 压缩变体
 
@@ -55,7 +55,7 @@
 - `tool_call_unparsed`：参数收齐，但累计文本不能解码成值树，或名字不合法的调用。`raw` 是原样累计文本。它登记调用身份，不执行，可以被同 `callId` 的工具消息回答，对 `visibility` 没有另外限制。`name` 不要求非空，也不要求是合法工具名。
 - `tool_result`：关联标记，不嵌套内容，不带结果状态。正文是同一条消息里紧随其后的已封闭内容块。一条工具消息恰好承载一个调用的结果，按 `callId` 配对。
 
-整条消息的规则：`tool` 角色的消息第一块必须是标记，其余块是通过内容块判定的非工具部件，全消息恰有一个标记。标记只能出现在 `tool` 角色的消息里。三种调用部件只能出现在 `assistant` 角色的消息里。块身份在整条消息内唯一，不同消息之间不比较。允许哪些内容种类放进工具消息的正文，归结果投影方的政策，本包只判结构。
+整条消息的规则：`tool` 角色的消息第一块必须是标记，其余块是通过内容块判定的、不含 `thinking` 的内容块，全消息恰有一个标记。标记只能出现在 `tool` 角色的消息里。三种调用部件和 `thinking` 块只能出现在 `assistant` 角色的消息里。部件不在角色允许的集合里，判 `misplaced-part`，`blockIndex` 指向第一个放错的块。块身份在整条消息内唯一，不同消息之间不比较。允许哪些内容种类放进工具消息的正文，归结果投影方的政策，本包只判结构。
 
 本包没有结局字段，所以不判定半截调用出现的条件：完整结局的消息不含半截调用由流的结算方保证，派生请求剔除半截调用归请求组装方。调用与结果的配对完整性只由 `judgeCompaction` 在核对压缩记录时判定；`judgeMessage` 和 `judgePart` 不判定。
 
@@ -120,22 +120,28 @@
 | `result.callId` | 正 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"call-1"}]` | `ok` |
 | `result.callId` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":""}]` | `rejected:callId@0` |
 | `role.tool-first` | 正 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `ok` |
-| `role.tool-first` | 反 | `tool` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:tool-blocks@0` |
-| `role.tool-first` | 反 | `tool` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:tool-blocks@0` |
+| `role.tool-first` | 反 | `tool` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:misplaced-part@0` |
+| `role.tool-first` | 反 | `tool` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:misplaced-part@0` |
 | `role.tool-single-marker` | 正 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `ok` |
-| `role.tool-single-marker` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_result","id":"r2","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:tool-blocks@1` |
+| `role.tool-single-marker` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_result","id":"r2","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:misplaced-part@1` |
 | `role.tool-body` | 正 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"text","id":"t2","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `ok` |
-| `role.tool-body` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:tool-blocks@1` |
-| `role.tool-body` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_call_incomplete","id":"i1","visibility":{"toHuman":false,"toModel":false},"callId":"k","name":"echo","partial":"{"}]` | `rejected:tool-blocks@1` |
-| `role.tool-body` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_call_unparsed","id":"u1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","raw":"{"}]` | `rejected:tool-blocks@1` |
+| `role.tool-body` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:misplaced-part@1` |
+| `role.tool-body` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_call_incomplete","id":"i1","visibility":{"toHuman":false,"toModel":false},"callId":"k","name":"echo","partial":"{"}]` | `rejected:misplaced-part@1` |
+| `role.tool-body` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"tool_call_unparsed","id":"u1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","raw":"{"}]` | `rejected:misplaced-part@1` |
 | `role.marker-only-in-tool` | 正 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `ok` |
-| `role.marker-only-in-tool` | 反 | `user` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:tool-blocks@0` |
-| `role.marker-only-in-tool` | 反 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:tool-blocks@1` |
+| `role.marker-only-in-tool` | 反 | `user` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:misplaced-part@0` |
+| `role.marker-only-in-tool` | 反 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"}]` | `rejected:misplaced-part@1` |
 | `role.calls-only-in-assistant` | 正 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}},{"kind":"tool_call_incomplete","id":"i1","visibility":{"toHuman":false,"toModel":false},"callId":"k","name":"echo","partial":"{"},{"kind":"tool_call_unparsed","id":"u1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","raw":"{"}]` | `ok` |
-| `role.calls-only-in-assistant` | 反 | `user` | `[{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:tool-blocks@0` |
-| `role.calls-only-in-assistant` | 反 | `tool_internal` | `[{"kind":"tool_call_incomplete","id":"i1","visibility":{"toHuman":false,"toModel":false},"callId":"k","name":"echo","partial":"{"}]` | `rejected:tool-blocks@0` |
-| `role.calls-only-in-assistant` | 反 | `system_reminder` | `[{"kind":"tool_call_unparsed","id":"u1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","raw":"{"}]` | `rejected:tool-blocks@0` |
-| `role.calls-only-in-assistant` | 反 | `compaction` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:tool-blocks@1` |
+| `role.calls-only-in-assistant` | 反 | `user` | `[{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:misplaced-part@0` |
+| `role.calls-only-in-assistant` | 反 | `tool_internal` | `[{"kind":"tool_call_incomplete","id":"i1","visibility":{"toHuman":false,"toModel":false},"callId":"k","name":"echo","partial":"{"}]` | `rejected:misplaced-part@0` |
+| `role.calls-only-in-assistant` | 反 | `system_reminder` | `[{"kind":"tool_call_unparsed","id":"u1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","raw":"{"}]` | `rejected:misplaced-part@0` |
+| `role.calls-only-in-assistant` | 反 | `compaction` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:misplaced-part@1` |
+| `role.thinking-only-in-assistant` | 正 | `assistant` | `[{"kind":"thinking","id":"k1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `ok` |
+| `role.thinking-only-in-assistant` | 反 | `user` | `[{"kind":"thinking","id":"k1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:misplaced-part@0` |
+| `role.thinking-only-in-assistant` | 反 | `tool_internal` | `[{"kind":"thinking","id":"k1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:misplaced-part@0` |
+| `role.thinking-only-in-assistant` | 反 | `system_reminder` | `[{"kind":"thinking","id":"k1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:misplaced-part@0` |
+| `role.thinking-only-in-assistant` | 反 | `compaction` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"thinking","id":"k1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:misplaced-part@1` |
+| `role.thinking-only-in-assistant` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"thinking","id":"k1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:misplaced-part@1` |
 | `id.unique` | 正 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `ok` |
 | `id.unique` | 反 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"t1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:duplicate-id@1` |
 | `id.unique` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"text","id":"r1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:duplicate-id@1` |

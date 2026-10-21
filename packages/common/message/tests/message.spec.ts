@@ -131,5 +131,8 @@ it('reads blocks by index, not through an iterator the input defines', () => {
       yield text
     },
   })
-  expect(judgeMessage(message('user', blocks))).toEqual({ rejected: 'tool-blocks', blockIndex: 1 })
+  expect(judgeMessage(message('user', blocks))).toEqual({
+    rejected: 'misplaced-part',
+    blockIndex: 1,
+  })
 })

@@ -28,7 +28,7 @@
 
 ### 形状
 
-`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`user`、`tool_internal`、`system_reminder` 的块全是内容块，`assistant` 可以另有三种调用部件，`tool` 的第一块是标记、其余是内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。
+`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。
 
 | 键 | 含义 |
 | --- | --- |

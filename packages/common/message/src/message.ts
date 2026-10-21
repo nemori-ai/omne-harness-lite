@@ -13,6 +13,7 @@ import {
   isToolPart,
   judgePart,
   type CallPart,
+  type MessageContentBlock,
   type MessagePart,
   type ToolResultPart,
 } from './parts.ts'
@@ -66,7 +67,7 @@ type Blocks<Part extends MessagePart> = readonly [Part, ...Part[]]
 
 export interface UserMessage extends MessageBase {
   readonly role: 'user'
-  readonly blocks: Blocks<ContentBlock>
+  readonly blocks: Blocks<MessageContentBlock>
 }
 
 /** An assistant message is the only one that has the call parts. */
@@ -78,23 +79,23 @@ export interface AssistantMessage extends MessageBase {
 /** A tool message carries the result of one call: its marker, then the body content blocks. */
 export interface ToolMessage extends MessageBase {
   readonly role: 'tool'
-  readonly blocks: readonly [ToolResultPart, ...ContentBlock[]]
+  readonly blocks: readonly [ToolResultPart, ...MessageContentBlock[]]
 }
 
 export interface ToolInternalMessage extends MessageBase {
   readonly role: 'tool_internal'
-  readonly blocks: Blocks<ContentBlock>
+  readonly blocks: Blocks<MessageContentBlock>
 }
 
 export interface SystemReminderMessage extends MessageBase {
   readonly role: 'system_reminder'
-  readonly blocks: Blocks<ContentBlock>
+  readonly blocks: Blocks<MessageContentBlock>
 }
 
 /** The compaction variant. `blocks` is the summary. */
 export interface CompactionMessage extends MessageBase {
   readonly role: 'compaction'
-  readonly blocks: Blocks<ContentBlock>
+  readonly blocks: Blocks<MessageContentBlock>
   readonly covers: CompactedRange
   readonly retained: readonly RecordEntryRef[]
   readonly derivation: CompactionDerivation
@@ -134,7 +135,7 @@ export type MessageRejection =
   | 'partial'
   | 'raw'
   | 'json'
-  | 'tool-blocks'
+  | 'misplaced-part'
   | 'duplicate-id'
   | CompactionKeyRejection
   | ContentBlockRejection
@@ -224,20 +225,20 @@ function judgeBlocks(blocks: NonEmpty<unknown>): { readonly ok: NonEmpty<Message
 /** Whether a part may stand at an index of a message. One rule for each kind of message. */
 type Stands = (part: MessagePart, index: number) => boolean
 
-/** A `tool` message has its marker first, then body content with no tool part. */
+/** The roles other than `assistant` have content only: no marker, no call, no thinking block. */
+const standsAsContent: Stands = part => !isToolPart(part) && part.kind !== 'thinking'
+
+/** A `tool` message has its marker first, then body content as above. */
 const standsInTool: Stands = (part, index) =>
-  index === 0 ? part.kind === 'tool_result' : !isToolPart(part)
+  index === 0 ? part.kind === 'tool_result' : standsAsContent(part, index)
 
-/** An `assistant` message has the three call parts, and no marker. */
+/** An `assistant` message has the three call parts and the thinking block, and no marker. */
 const standsInAssistant: Stands = part => part.kind !== 'tool_result'
-
-/** The other roles have content only: no marker and no call. A compaction summary is one. */
-const standsAsContent: Stands = part => !isToolPart(part)
 
 /** The role check of a `tool` message, and the proof that its blocks are a marker and a body. */
 function isToolBlocks(
   parts: NonEmpty<MessagePart>,
-): parts is readonly [ToolResultPart, ...ContentBlock[]] {
+): parts is readonly [ToolResultPart, ...MessageContentBlock[]] {
   return parts.every(standsInTool)
 }
 
@@ -246,14 +247,17 @@ function isAssistantBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<Conten
   return parts.every(standsInAssistant)
 }
 
-/** The role check of the other roles and of a compaction summary: no tool part at all. */
-function isContentBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<ContentBlock> {
+/** The role check of the other roles and of a compaction summary: content, never thinking. */
+function isContentBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<MessageContentBlock> {
   return parts.every(standsAsContent)
 }
 
 /** The failure of a role check: the first block that may not stand where it is. */
 function misplaced(stands: Stands, parts: NonEmpty<MessagePart>): Rejected {
-  return { rejected: 'tool-blocks', blockIndex: parts.findIndex((part, at) => !stands(part, at)) }
+  return {
+    rejected: 'misplaced-part',
+    blockIndex: parts.findIndex((part, at) => !stands(part, at)),
+  }
 }
 
 function judgeUniqueIds(parts: readonly MessagePart[]): Rejected | undefined {
@@ -270,6 +274,10 @@ function admitted(message: Message): MessageJudgment {
   return judgeUniqueIds(message.blocks) ?? { ok: message }
 }
 
+/**
+ * One case for each role and no default: a role added to `LOG_MESSAGE_ROLES` without its own
+ * case leaves the end reachable, and the declared return type then fails to compile.
+ */
 function roleMessage(
   id: MessageId,
   role: Exclude<LogMessageRole, 'compaction'>,
@@ -290,14 +298,7 @@ function roleMessage(
       return isContentBlocks(parts)
         ? admitted({ id, role, blocks: parts })
         : misplaced(standsAsContent, parts)
-    default:
-      return unknownRole(role)
   }
-}
-
-/** A role added to `LOG_MESSAGE_ROLES` without its own case fails to compile here. */
-function unknownRole(role: never): never {
-  throw new Error(`no block rule for role ${String(role)}`)
 }
 
 function compactionMessage(

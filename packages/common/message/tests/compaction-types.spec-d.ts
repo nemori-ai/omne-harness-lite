@@ -1,5 +1,4 @@
 import { expectTypeOf, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
 import {
   judgeCompaction,
   judgeMessage,
@@ -11,6 +10,7 @@ import {
   type CompactionRejection,
   type CoveredEntry,
   type Message,
+  type MessageContentBlock,
   type MessageId,
   type MessageRejection,
   type RecordEntryRef,
@@ -18,7 +18,7 @@ import {
 } from '@omne-harness/message'
 
 declare const id: MessageId
-declare const block: ContentBlock
+declare const block: MessageContentBlock
 declare const range: CompactedRange
 declare const derivation: CompactionDerivation
 declare const ref: RecordEntryRef
@@ -28,7 +28,7 @@ it('CompactionMessage is a compaction message whose summary has no tool part', (
     Readonly<{
       id: MessageId
       role: 'compaction'
-      blocks: readonly [ContentBlock, ...ContentBlock[]]
+      blocks: readonly [MessageContentBlock, ...MessageContentBlock[]]
       covers: CompactedRange
       retained: readonly RecordEntryRef[]
       derivation: CompactionDerivation

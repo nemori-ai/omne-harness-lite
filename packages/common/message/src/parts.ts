@@ -5,6 +5,7 @@ import {
   type BlockId,
   type ContentBlock,
   type ContentBlockRejection,
+  type ThinkingContentBlock,
   type Visibility,
 } from '@omne-harness/content-block'
 import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
@@ -46,6 +47,9 @@ export type ToolResultPart = Readonly<{
   visibility: Visibility
   callId: string
 }>
+
+/** A content block that any role may have: every one except the thinking block, which only an assistant has. */
+export type MessageContentBlock = Exclude<ContentBlock, ThinkingContentBlock>
 
 /** The three parts of a call. Only an `assistant` message has them. */
 export type CallPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart

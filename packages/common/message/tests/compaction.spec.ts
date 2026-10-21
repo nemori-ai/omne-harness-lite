@@ -282,7 +282,7 @@ describe('the three compaction keys of judgeMessage', () => {
   it('does not admit a tool part in the summary', () => {
     const marker = { kind: 'tool_result', id: 'r1', visibility, callId: 'k' }
     expect(judgeMessage(compaction({ blocks: [text, marker] }))).toEqual({
-      rejected: 'tool-blocks',
+      rejected: 'misplaced-part',
       blockIndex: 1,
     })
   })

@@ -136,6 +136,8 @@ const EXPECTED_ROWS: Readonly<Record<string, number>> = {
   'role.marker-only-in-tool/反': 2,
   'role.calls-only-in-assistant/正': 1,
   'role.calls-only-in-assistant/反': 4,
+  'role.thinking-only-in-assistant/正': 1,
+  'role.thinking-only-in-assistant/反': 5,
   'id.unique/正': 1,
   'id.unique/反': 3,
 }
