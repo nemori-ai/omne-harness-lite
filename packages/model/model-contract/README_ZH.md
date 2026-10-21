@@ -9,7 +9,7 @@
 1. 已有：凭据的纯契约，即引用、查询、存在性与解析结果、`CredentialPort`、`decodeCredentialId` 与 `sameCredentialHolder`。声明在 [`src/credential.ts`](src/credential.ts) 与 [`src/credential-values.ts`](src/credential-values.ts)。保管与判定不在本包：本地保管归 [model-host-local](../model-host-local/README_ZH.md)，判定归 [model](../model/README_ZH.md)，Cordis 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。
 2. 本包已实现：根入口导出 160 个类型和 21 个运行时值。`./testing` 入口导出受控替代提供者、替代传输和提供者符合性断言 `checkModelProviderConformance`，共 27 个名字。替代提供者与替代传输的结果由测试脚本给出，不证明真实提供者的行为。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
 3. 尚未实现或验证：本包不含执行实现。`executeModel`、`createModelRuntime`、完整宿主与其他提供者不在本包。
-4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。SPEC 的[推理回放](SPEC.md#推理回放)设计待接受，第 2 类已把它的三个函数计入。
+4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。SPEC 的[推理回放](SPEC.md#推理回放)设计已接受。第 2 类计入它的三个函数；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。
 
 ## 使用
 

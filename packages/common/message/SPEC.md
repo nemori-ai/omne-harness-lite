@@ -10,13 +10,14 @@
 
 本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
 
-状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态已实现，设计待接受，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
+状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态已实现，设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
 
 依据如下。
 
 - 产品规则 [运行感知与一次模型请求 §7](../../../.meta_harness/design/product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 3）：覆盖范围从历史起点开始；压缩之后，模型看到的历史依次是保留名单里的消息、压缩记录和覆盖范围之后的全部模型可读消息；未结工作要么进保留名单，要么留在覆盖范围之后；工具调用和结果在模型视图里同时出现或同时不出现。
 - 统一语言 [压缩记录](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)、[压缩覆盖范围](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)、[保留名单](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-retained-set--保留名单--retained-set)、[记录条目](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry)。
-- 推理续接状态：产品负责人在[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 定下可见推理与加密推理分成两种块，回放范围与位置索引放在消息上。这些说法目前没有产品正文出处，与统一语言「内容块」七类清单的冲突登记为 [C-66](../../../.meta_harness/design/ubiquitous_language/conflicts.md#c-66内容块的种类是否含推理续接状态)。
+- 产品规则 [模型调用：推理状态的续接](../../../.meta_harness/design/product/model-invocation/design.md#推理状态的续接)（rev 3）：可读推理与推理状态分成两种块，每条回复记下推理回放范围，每次发出只带能消费的推理状态。
+- 统一语言 [推理续接状态](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state)、[推理回放](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)、[推理回放范围](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)。
 - 块标注的 `toModel` 位归 `@omne-harness/content-block`，本文件只读它，不改它的含义。
 
 本文件不出现任何调用方的类型。记录条目引用由历史持有者给出，派生证据由派生方给出，本成员都不解释其内部。
@@ -171,7 +172,7 @@ flowchart LR
 
 - **推理续接状态部件**：`kind` 为 `reasoning_state` 的部件，装一段供应商交回的不透明推理状态。
 - **回放描述**：assistant 消息上的 `replay` 键，说明这条消息的推理内容由谁产出、是什么格式、续接状态部件在 `blocks` 的哪些位置。
-- **回放范围**：`replay.scope`，一个不透明字符串。哪些模型能消费哪个范围，由 Model 契约的档案声明，本成员不解释。
+- **回放范围**：`replay.scope`，即统一语言的推理回放范围，一个不透明字符串。本节的「回放」都指推理回放，不是 Agent 接续时的回放。哪些模型能消费哪个范围，由 Model 契约的档案声明，本成员不解释。
 
 ### 形状
 

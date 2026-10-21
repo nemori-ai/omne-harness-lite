@@ -352,7 +352,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 
 ### 推理回放场景
 
-行为正文见 SPEC [推理回放](../SPEC.md#推理回放)，该设计待接受。回放声明的校验与回放投影是本包的纯函数，[`tests/replay.spec.ts`](../tests/replay.spec.ts) 运行了下表前四行；第三行只运行到 `judgeReplayDeclaration` 给出的 `field`，档案变更本身归提供者。其余各行需要适配器、重试策略或计量器，归 Model 运行时实现，当前没有运行。
+行为正文见 SPEC [推理回放](../SPEC.md#推理回放)。回放声明的校验与回放投影是本包的纯函数，[`tests/replay.spec.ts`](../tests/replay.spec.ts) 运行了下表前四行；第三行只运行到 `judgeReplayDeclaration` 给出的 `field`，档案变更本身归提供者。其余各行需要适配器、重试策略或计量器，归 Model 运行时实现，当前没有运行。
 
 | 场景 | 必须观察 |
 | --- | --- |
