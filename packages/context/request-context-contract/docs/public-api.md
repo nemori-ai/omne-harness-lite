@@ -55,7 +55,7 @@
 | 名称 | 块键 | 条款 |
 | --- | --- | --- |
 | 当前压缩设置的块声明 | `context.compaction-settings`：供给块，`model`，`stable`，`reread` | [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
-| 窗口占用比例的块声明 | `context.window-usage`：供给块，`model`，`per-request`，`recompute` | [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
+| 窗口占用比例的块声明 | `context.window-usage`：供给块，`model`，`per-request`，`recompute`；值是该作用域最近一次固定请求的占用比例 | [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
 
 两条块声明的导出名与 `ContextBlocks` 增补随实现进入。
 

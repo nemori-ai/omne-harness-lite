@@ -12,9 +12,9 @@ This package puts the mechanism of [request-context](../request-context/README.m
 Status: Service implementation member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page and the [SPEC](SPEC.md).
 
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
-- Not implemented: the concrete subclass, the plugin, the configuration schema, the contribution registry, and the factory of the root entry.
-- Not verified: the intercept part of property 2 and the filter part of property 3 are assumptions now. They depend on mechanism readings that are not in the basis yet. None of the eight verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
-- A Cordis caller reaches the configured operations through `assembly(scope)`. The operations read the contributions of that scope at each call. The plugin subscribes to four kinds of change and forwards them to the mechanism instance through `notify(change)`. Open item: the SPEC does not say how the root factory differs from the mechanism factory. See the [Cordis page](docs/cordis.md#插件与服务).
+- Not implemented: the concrete subclass, the plugin, the configuration schema, and the contribution registry. The root entry stays empty.
+- Not verified: the intercept part of property 2 is an assumption now. It depends on a mechanism reading that is not in the basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- A Cordis caller reaches the configured operations through `assembly(scope, ports)` and gives the three ports on each call. The operations read the contributions of that scope at each call. The plugin gives only contribution-registry changes to the mechanism instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
 
 No application loads this plugin now, and no package depends on this package.
 
@@ -23,9 +23,9 @@ No application loads this plugin now, and no package depends on this package.
 The package has two entries:
 
 - `@omne-harness/request-context-cordis/cordis` holds the plugin. An application assembler adds one row for this plugin to the plugin tree and supplies the configuration.
-- `@omne-harness/request-context-cordis` holds a factory that does not depend on Cordis. The factory returns the same implementation as the plugin.
+- `@omne-harness/request-context-cordis` exports nothing. A caller without Cordis takes the mechanism factory from [request-context](../request-context/README.md).
 
-Contributors and callers that assemble requests do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin and the factory are not implemented, so no runnable example exists now.
+Contributors and callers that assemble requests do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin is not implemented, so no runnable example exists now.
 
 ## Contracts
 
@@ -37,14 +37,14 @@ Contributors and callers that assemble requests do not import this package. They
 The fiber of this plugin owns the service instance, the mechanism instance, and the strategy instances. When the plugin unloads, removal runs in a fixed order:
 
 1. Refuse new registrations and assemblies.
-2. Wait for in-flight assemblies to settle.
+2. Cancel in-flight assemblies. Removal does not wait without limit.
 3. Discard the registry and the cache.
 
-The fiber of the contributor plugin owns a contribution registration and its rendering. Removal does not take back candidates, plans, or transitions that it gave out.
+The fiber of the contributor plugin owns a contribution registration. Only the mechanism instance holds the section rendering. Removal does not take back candidates, plans, or transitions that it gave out.
 
 ## Design
 
-`./cordis` has five parts: configuration and strategy selection, service subclass, contribution registry, event dispatch, and removal. The outside dependencies are request-context-contract, request-context-cordis-contract, request-context, and `@deepseek-ai/cordis`. Removal runs in one effect. The service reads the scope on each call. A strategy selection failure fails the load and does not fall back. A rendering is removed together with its registration. The package opens no fiber per request. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the objects.
+`./cordis` has five parts: configuration and strategy selection, service subclass, contribution registry, event dispatch, and removal. The outside dependencies are request-context-contract, request-context-cordis-contract, request-context, and `@deepseek-ai/cordis`. Removal runs in one effect. The service reads the scope on each call. A strategy selection failure fails the load and does not fall back. Registration and removal both notify the mechanism instance. Ports arrive on each call. Runtime Context is an optional dependency. The package opens no fiber per request. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 

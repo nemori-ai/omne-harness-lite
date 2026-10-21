@@ -22,7 +22,7 @@
 
 ### 独立使用
 
-不装配 Cordis 的调用方用根入口的工厂。它输出与插件相同的实现。调用方自己选定策略、给出构造依赖并收集提示词贡献，做法与 [request-context 的独立使用](../../request-context/docs/context.md#独立使用)相同。
+本成员的根入口不导出任何东西。不装配 Cordis 的调用方直接从 request-context 取机制工厂，自己选定策略、在构造时给出三项端口并收集提示词贡献，做法见 [request-context 的独立使用](../../request-context/docs/context.md#独立使用)。
 
 ### 初始化与释放
 
@@ -39,6 +39,7 @@ flowchart LR
   RQI[request-context] --> RQC
   RQP[request-context-cordis] --> RQD
   RQP --> RQI
+  RQP -.->|可选，子 fiber 登记两块| RCD[runtime-context-cordis-contract]
   App[应用装配者] --> RQP
   Users[贡献者与组装请求的调用方] --> RQD
 ```
@@ -46,7 +47,7 @@ flowchart LR
 | 使用方 | 怎样使用 | 用什么 |
 | --- | --- | --- |
 | 应用装配者 | 在插件树里加一行本插件 | `./cordis` 的插件与配置 |
-| 不装配 Cordis 的调用方 | 调用根入口的工厂 | 工厂 |
+| 不装配 Cordis 的调用方 | 不使用本成员，从 request-context 取工厂 | 无 |
 
 贡献者与组装请求的调用方不依赖本成员。它们依赖服务定义，按服务键取用（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 

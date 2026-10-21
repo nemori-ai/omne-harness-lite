@@ -1,6 +1,6 @@
 # runtime-context-cordis 的对象模型
 
-本成员没有自己的领域对象。块声明、注册、读取资格、生产者句柄、绑定读者与变化材料归 [runtime-context-contract 的对象模型](../../runtime-context-contract/docs/object-model.md)。四张表、观察链与读者游标归 [runtime-context 的对象模型](../../runtime-context/docs/object-model.md)。本成员只有两个技术对象：服务实例与插件配置。它们不自动成为产品领域对象。
+本成员没有自己的领域对象。块声明、注册、读取资格、生产者句柄、绑定读者与变化材料归 [runtime-context-contract 的对象模型](../../runtime-context-contract/docs/object-model.md)。五张表、观察链与读者游标归 [runtime-context 的对象模型](../../runtime-context/docs/object-model.md)。本成员只有两个技术对象：服务实例与插件配置。它们不自动成为产品领域对象。
 
 本成员没有运行实现。类名与字段名随实现确定。
 
@@ -8,8 +8,8 @@
 
 | 对象 | 身份 | 拥有者 | 可变性 | 关联 |
 | --- | --- | --- | --- | --- |
-| 服务实例 | 一个 isolate 标签下的服务键 `runtimeContext` | 本插件的 fiber | 实例状态：开放、撤除中 | `extends` 服务定义的抽象类。拥有一个机制实例 |
-| 插件配置 | 一次装载 | 装配者给出，静态 `Config` 校验 | 装载后不变。改配置即重新装载 | 观察链保留上限传给机制实例，诊断级别留在服务实例 |
+| 服务实例 | 一个 isolate 标签下的服务键 `runtimeContext` | 本插件的 fiber | 实例状态：开放、撤除中 | `extends` 服务定义的抽象类。拥有一个机制实例，把变化出口回调交给它 |
+| 插件配置 | 一次装载 | 装配者给出，静态 `Config` 校验 | 装载后不变。改配置即重新装载 | 观察链保留上限与超时传给机制实例，超时也用于撤除；诊断级别留在服务实例 |
 
 ```mermaid
 classDiagram
@@ -25,6 +25,7 @@ classDiagram
   }
   class PluginConfig {
     retentionLimit
+    callTimeout
     diagnosticsLevel
   }
   class MechanismInstance
@@ -40,8 +41,8 @@ classDiagram
 | 对象 | 创建 | 变化 | 结束 |
 | --- | --- | --- | --- |
 | 插件配置 | 装配者装载插件 | 不变 | 插件卸载 |
-| 服务实例 | 配置校验通过后构造子类，以键登记 | 开放 → 撤除中 | 撤除的四步完成，键上不再有服务 |
-| 机制实例 | 服务实例构造时调用工厂 | 见 runtime-context | 撤除的最后一步关闭它 |
+| 服务实例 | 配置校验通过后构造子类，以键登记 | 开放 → 撤除中 | 撤除的五步完成，键上不再有服务 |
+| 机制实例 | 服务实例构造时调用工厂，交入配置与变化出口 | 见 runtime-context | 撤除的最后一步关闭它 |
 
 本成员定义的协议还约束三类运行期事物，它们的实例都不归本成员：
 

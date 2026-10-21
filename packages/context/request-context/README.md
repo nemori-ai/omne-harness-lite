@@ -16,13 +16,13 @@ Status: mechanism member, `draft`. The adoption basis is the [member decompositi
 - Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
 - Not implemented: the factory, the candidate cache, the derivations, the default strategies, the trimmer, and close.
 - Not verified: none of the ten verification scenarios in the SPEC has a test. The default strategy values come from evidence about similar systems. They take effect as initial values only after a recheck against the metering of this project.
-- The instance receives change notifications through `notify(change)`. A trimming step is always followed by a summary step. The instance learns that a candidate is fixed only from the input "adopted". See the [architecture page](docs/architecture.md) and the [API page](docs/public-api.md).
+- The instance receives only contribution-registry changes through `notify(change)`. The other groups are compared by the revisions that the input carries. The cache does not store outcomes. A trimming step is always followed by a summary step. The instance learns that a candidate is fixed only from the input "adopted". See the [architecture page](docs/architecture.md) and the [API page](docs/public-api.md).
 
 No package depends on this package now.
 
 ## Usage
 
-The package has one entry: `@omne-harness/request-context`. A system that assembles Cordis does not import it directly. request-context-cordis selects the strategies by configuration and calls the factory. A caller without Cordis calls the factory directly. That caller supplies the five construction dependencies, collects prompt contributions, and stores plan progress itself. See the [usage page](docs/context.md#独立使用).
+The package has one entry: `@omne-harness/request-context`. A system that assembles Cordis does not import it directly. request-context-cordis selects the strategies by configuration and calls the factory. The caller that assembles a request gives the three ports on each `assembly(scope, ports)` call. A caller without Cordis calls the factory of this package directly. That caller gives the three ports and the two strategies at construction, collects prompt contributions, and stores plan progress and the block material of the most recent full read itself. See the [usage page](docs/context.md#独立使用).
 
 A caller that needs only the pure operations without a cache uses request-context-contract and does not need this package.
 
@@ -35,7 +35,7 @@ The implementation will fix the name and signature of the factory. No runnable e
 - The [request-context-contract SPEC](../request-context-contract/SPEC.md) owns the inputs, results, and failures of the pure operations, in clauses RQ-01 to RQ-11.
 - The [object model](docs/object-model.md) owns identity and lifecycle of the internal objects.
 
-The party that calls the factory owns the instance and closes it. After close, a new assembly returns unavailable. Close waits for in-flight assemblies to settle. Then it releases the cache. Close does not take back candidates, plans, or transitions that it gave out. If a construction dependency is absent or unavailable, the related operation returns unavailable with a diagnostic.
+The party that calls the factory owns the instance and closes it. After close, a new assembly returns unavailable. Close cancels in-flight assemblies. Then it releases the cache. Close does not take back candidates, plans, or transitions that it gave out. If a dependency port is absent or unavailable, the related operation returns unavailable with a diagnostic.
 
 ## Design
 

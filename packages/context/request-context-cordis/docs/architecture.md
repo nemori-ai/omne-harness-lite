@@ -8,25 +8,27 @@
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/request-context-cordis` | `src/index.ts` | 一个不依赖 Cordis 的工厂，输入契约端口、策略实现与配置，输出与插件相同的实现（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 模板标记 |
+| `@omne-harness/request-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径从 request-context 取机制工厂 | 模板标记 |
 | `@omne-harness/request-context-cordis/cordis` | `src/cordis.ts` | `RequestContextService` 的具体子类、插件与配置 Schema | 模板标记 |
 
-`./cordis` 内部按 Cordis 责任分成五块：
+`./cordis` 内部按 Cordis 责任分成六块：
 
 | 模块 | 职责 | 依据 |
 | --- | --- | --- |
 | 配置与策略选择 | 静态 `Config` 的 Standard Schema，按配置构造两个策略实例，指向不存在的策略即加载失败 | [配置与策略选择](cordis.md#配置与策略选择) |
-| 服务子类 | 持有机制实例与贡献登记表，实现登记面三项方法 | 性质 2、6 |
-| 贡献登记表 | 按作用域与层保存登记，核重名，按作用域解析遮蔽，维护登记修订 | 性质 2、3 |
-| 事件派发 | 贡献变化后派发带修订的事件，捕获监听者失败 | 性质 3 |
-| 撤除 | 一个 effect 内完成拒绝新请求、等在途组装、丢弃登记表与缓存 | 性质 5 |
+| 服务子类 | 持有机制实例与贡献登记表，实现登记面三项方法与 `assembly(scope, ports)`，把逐次交入的端口转交机制实例 | 性质 2、6、9 |
+| 贡献登记表 | 按作用域与层保存登记，核重名，按作用域解析遮蔽，按层维护登记修订与实例代次，给机制实例一个读口 | 性质 2、3、8 |
+| 通知与事件派发 | 贡献变化后先 `notify('contributions', …)` 机制实例，再派发带该层修订与实例代次的事件，捕获监听者失败 | 性质 3、8 |
+| 两块的生产者 | 在 `ctx.inject(['runtimeContext'], …)` 的子 fiber 里登记两块的生产者 | 性质 10 |
+| 撤除 | 一个 effect 内完成拒绝新请求、取消在途组装、丢弃登记表与缓存 | 性质 5 |
 
 ```mermaid
 flowchart LR
-  Root[根入口：工厂] --> RQI[request-context]
-  Root --> RQC[request-context-contract]
+  Root[根入口：空]
   Cordis[./cordis：子类与插件] --> RQD[request-context-cordis-contract]
-  Cordis --> RQI
+  Cordis --> RQI[request-context]
+  Cordis --> RQC[request-context-contract]
+  Cordis -.->|可选，子 fiber| RCD[runtime-context-cordis-contract]
   Cordis --> Lib["@deepseek-ai/cordis"]
   RQD --> RQC
   RQI --> RQC
@@ -34,22 +36,21 @@ flowchart LR
 
 包外依赖：
 
-- `@omne-harness/request-context-contract`：类型与端口。
+- `@omne-harness/request-context-contract`：类型、端口与两块的声明，只由 `./cordis` 使用。
 - `@omne-harness/request-context-cordis-contract`：抽象类、键、事件增补与策略选择的配置形状，只由 `./cordis` 使用。
-- `@omne-harness/request-context`：工厂与默认策略。
+- `@omne-harness/request-context`：工厂与默认策略，只由 `./cordis` 使用。
+- `@omne-harness/runtime-context-cordis-contract`：可选依赖，只用于在子 fiber 里登记两块的生产者。Runtime Context 不在场时本插件照常可用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
 
-现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余三项随实现进入。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余四项随实现进入。本插件不 `inject` 作用域持有者或模型侧的服务，三项端口由调用方逐次交入。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
-明确缺项：
-
-- SPEC 没有写明根入口的工厂与 request-context 的工厂怎样分工。两者都「输入契约端口与配置，输出实现」。实现进入前要由 SPEC 拥有者确定：根入口是直接重导出机制工厂，还是在它之外加本成员自己的配置校验与策略选择。
+根入口不导出任何东西。同一份机制工厂只有一个公开名字，就是 request-context 的根入口。
 
 ## 关键机制与理由
 
 ### 撤除放在一个 effect 里
 
-撤除有严格次序：先拒绝新的登记与组装，再等在途组装结算，最后丢弃登记表与缓存。Cordis 卸载 fiber 时，不同 effect 的撤除函数并发运行（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以三步必须写在一个 effect 里按顺序 `await`，不能各注册一个 effect。
+撤除有严格次序：先拒绝新的登记与组装，再取消在途组装，最后丢弃登记表与缓存。取消而不等待，是因为在途组装可能停在调用方交入的端口上，等待没有上界（[RQ-09](../../request-context-contract/SPEC.md#rq-09-取消恢复与迟到) 允许取消组装）。Cordis 卸载 fiber 时，不同 effect 的撤除函数并发运行（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以三步必须写在一个 effect 里按顺序 `await`，不能各注册一个 effect。
 
 代价：撤除函数里的一步抛出时，Cordis 只记日志，不上抛。撤除函数要自己捕获每一步，并保证后续步骤仍然执行。
 
@@ -61,9 +62,17 @@ flowchart LR
 
 配置指向不存在的策略，或策略参数不合 Schema，插件加载失败，fiber 进入 `FAILED`（性质 4）。理由：静默回退到默认策略会让装配者以为自己选的策略在用。错误不能静默变成成功。代价是一个配置错误会使整个服务不可用，装配者必须修正配置才能继续。
 
-### 渲染结果随登记一起撤除
+### 渲染结果只归机制实例
 
-撤除函数移除登记的同时丢弃这条贡献的渲染结果（性质 2）。理由：渲染结果只是登记的派生物，登记不在了，留下的渲染结果会被后续组装误用。两件事写在同一个撤除函数里，不依赖两个 effect 的释放次序。
+撤除函数移除登记，再调用机制实例的 `notify('contributions', …)`；机制实例重读该层，丢弃已撤除段的渲染结果（性质 2、8）。本插件不持有渲染结果。理由：渲染结果如果同时归登记表与机制实例，两处的寿命与丢弃时点会不一致，后续组装可能用到另一处留下的旧渲染。只有机制实例持有，提供者撤除时释放机制实例就释放了全部渲染结果。移除与通知写在同一个撤除函数里，不依赖两个 effect 的释放次序。
+
+### 只通知贡献变化，不订阅别的变化
+
+本插件只把贡献登记的变化交给机制实例。它不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更（性质 8）。理由：订阅持有者与模型选择要导入对方的服务定义；订阅 Runtime Context 的事件只能全局监听，而那是约定禁止的；正确性本来只靠每次调用时比较输入携带的修订，订阅不增加正确性。
+
+### 端口逐次交入，Runtime Context 是可选依赖
+
+历史源读口、计量端口与转换件结果端口由调用方在每次 `assembly(scope, ports)` 时交入（性质 6）。本插件不 `inject` 持有者或模型侧的服务，所以它的寿命不随它们换代。两块的生产者登记放在 `ctx.inject(['runtimeContext'], …)` 的子 fiber 里（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)、性质 10）：Runtime Context 不在场时本插件照常提供组装，两块读到缺项；Runtime Context 到场或换代时只有子 fiber 运行或重跑。
 
 ### 不为每次请求开运行对象
 
@@ -83,9 +92,9 @@ flowchart LR
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口没有 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 工厂进入后，核对导出集合并确认不导入 Cordis |
+| 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 实现进入后仍断言根入口没有导出 |
 | `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，核对导出集合 |
-| SPEC 的八项验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
+| SPEC 的验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：
 

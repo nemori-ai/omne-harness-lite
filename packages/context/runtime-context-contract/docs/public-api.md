@@ -38,7 +38,7 @@
 | `ContextNeed` | 类型 | 上下文需要 | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) |
 | `NeedBinding` | 类型 | 需要绑定，可带翻译纯函数 | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) |
 | `Registration` | 类型 | 注册，带注册修订 | [RC-02](../SPEC.md#rc-02-块声明注册与参数) |
-| `ProducerHandle` | 类型 | 生产者句柄，带代际 | [RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
+| `ProducerHandle` | 类型 | 生产者句柄，带生产者身份与代际；代际由实现每次登记新取 | [RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
 | `Eligibility` | 类型 | 读取资格：资格身份、允许的块键集合、允许的需要绑定集合等；重签时带取代的资格身份 | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项) |
 | `ContextReader` | 类型 | 绑定读者：`snapshot()`、`changes(cursor)`、`read(needs)` | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项)、[RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) |
 | `Snapshot`、`Changes` | 类型 | 完整快照与增量，带视图修订与游标 | [RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) |

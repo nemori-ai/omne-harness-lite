@@ -27,4 +27,4 @@
 | [context.md](context.md) | 经 Cordis 使用与独立使用两条路径，以及定位 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-当前缺口：工厂与全部模块都还没有进入 `src/`。SPEC 的十个持续验证场景都没有测试。通知入口 `notify(change)`、修剪步之后的摘要步、固定状态的来源与贡献变化的重算范围，已在 SPEC 写定，还没有实现。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：工厂与全部模块都还没有进入 `src/`。SPEC 的持续验证场景都没有测试。通知入口 `notify(change)`（只有 `contributions` 一种）、缓存不存结局、七组的按组失效、修剪步之后的摘要步、固定状态的来源与计划绑定策略，已在 SPEC 写定，还没有实现。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

@@ -12,9 +12,9 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 状态：Service 实现成员，`draft`。采用依据是系统页的[成员与 Cordis 落位](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
-- 未实现：具体子类、插件、配置 Schema、贡献登记表与根入口的工厂。
-- 未验证：性质 2 的 intercept 部分与性质 3 的过滤部分依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的八项验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
-- 经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组，操作组每次调用时现取该作用域的贡献；本插件订阅四种变化，经 `notify(change)` 转交机制实例。明确缺项：根入口工厂与机制工厂怎样分工，SPEC 没有写明，见 [Cordis 说明](docs/cordis.md#插件与服务)。
+- 未实现：具体子类、插件、配置 Schema、贡献登记表。根入口保持为空。
+- 未验证：性质 2 的 intercept 部分依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
+- 经 Cordis 的调用方用 `assembly(scope, ports)` 取得已配置的操作组，并逐次交入三项端口；操作组每次调用时现取该作用域的贡献。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给机制实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
 现在没有应用装配本插件，也没有包依赖本成员。
 
@@ -23,9 +23,9 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 本成员有两个入口：
 
 - `@omne-harness/request-context-cordis/cordis`：插件。应用装配者在插件树里加一行本插件并给出配置。
-- `@omne-harness/request-context-cordis`：不依赖 Cordis 的工厂，输出与插件相同的实现。
+- `@omne-harness/request-context-cordis`：不导出任何东西。不装配 Cordis 的调用方从 [request-context](../request-context/README_ZH.md) 取机制工厂。
 
-贡献者与组装请求的调用方不导入本成员，它们经服务定义使用服务。装配行与独立使用见[使用与定位](docs/context.md#使用方式)。插件与工厂都没有实现，现在没有可运行的示例。
+贡献者与组装请求的调用方不导入本成员，它们经服务定义使用服务。装配行与独立使用见[使用与定位](docs/context.md#使用方式)。插件没有实现，现在没有可运行的示例。
 
 ## 契约
 
@@ -34,11 +34,11 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 - 插件、配置与策略选择、isolate 绑定、贡献登记表、变化事件派发与撤除顺序归 [Cordis 说明](docs/cordis.md)。
 - 服务键、抽象类、intercept 配置、事件与策略选择的配置形状归 [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md)。
 
-服务实例、机制实例与策略实例归本插件的 fiber。插件卸载时按固定顺序撤除：拒绝新的登记，新的组装返回不可用，等在途组装结算，丢弃登记表与缓存。一条贡献的登记与渲染结果归贡献者插件的 fiber。撤除不撤回已交出的候选、计划或转换。
+服务实例、机制实例与策略实例归本插件的 fiber。插件卸载时按固定顺序撤除：拒绝新的登记，新的组装返回不可用，取消在途组装，丢弃登记表与缓存。一条贡献的登记归贡献者插件的 fiber，段渲染结果只归机制实例。撤除不撤回已交出的候选、计划或转换。
 
 ## 设计
 
-`./cordis` 分为配置与策略选择、服务子类、贡献登记表、事件派发与撤除五块。包外依赖是 request-context-contract、request-context-cordis-contract、request-context 与 `@deepseek-ai/cordis`。撤除放在一个 effect 里，作用域每次调用时读取，策略选择失败即加载失败、不回退，渲染结果随登记一起撤除，不为每次请求开 fiber。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+`./cordis` 分为配置与策略选择、服务子类、贡献登记表、事件派发与撤除五块。包外依赖是 request-context-contract、request-context-cordis-contract、request-context 与 `@deepseek-ai/cordis`。撤除放在一个 effect 里，作用域每次调用时读取，策略选择失败即加载失败、不回退，登记与撤除都通知机制实例，端口逐次交入，Runtime Context 是可选依赖，不为每次请求开 fiber。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

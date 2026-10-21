@@ -12,8 +12,8 @@ This package puts the mechanism of [runtime-context](../runtime-context/README.m
 Status: Service implementation member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位) of the system page and the [SPEC](SPEC.md).
 
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
-- Not implemented: the concrete subclass, the plugin, the configuration schema, and the factory of the root entry.
-- Not verified: properties 2, 3, and 4 of the SPEC depend on three mechanism readings that are not in the basis yet. They are assumptions now. None of the six verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- Not implemented: the concrete subclass, the plugin, and the configuration schema. The root entry stays empty.
+- Not verified: properties 2 and 4 of the SPEC depend on mechanism readings that are not in the basis yet. They are assumptions now. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
 
 No application loads this plugin now, and no package depends on this package.
 
@@ -22,9 +22,9 @@ No application loads this plugin now, and no package depends on this package.
 The package has two entries:
 
 - `@omne-harness/runtime-context-cordis/cordis` holds the plugin. An application assembler adds one row for this plugin to the plugin tree and supplies the configuration.
-- `@omne-harness/runtime-context-cordis` holds a factory that does not depend on Cordis. The factory returns the same implementation as the plugin.
+- `@omne-harness/runtime-context-cordis` exports nothing. A caller without Cordis takes the mechanism factory from [runtime-context](../runtime-context/README.md).
 
-Producers, scope holders, and readers do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin and the factory are not implemented, so no runnable example exists now.
+Producers, scope holders, and readers do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin is not implemented, so no runnable example exists now.
 
 ## Contracts
 
@@ -41,7 +41,7 @@ The fiber of this plugin owns the service instance and the mechanism instance. W
 
 ## Configuration and operation
 
-A Standard Schema checks the plugin configuration. The fields are the retention limit of the observation chain and the diagnostics level. Default values are only initial values. If the configuration is not valid, the plugin does not load and the fiber goes to `FAILED`. One isolate label holds one copy of the plugin. A second load under the same label fails.
+A Standard Schema checks the plugin configuration. The fields are the retention limit of the observation chain, the timeout for source calls and callbacks, and the diagnostics level. Default values are only initial values. If the configuration is not valid, the plugin does not load and the fiber goes to `FAILED`. One isolate label holds one copy of the plugin. A second load under the same label fails.
 
 This stage has no durable storage port. The scope holder stores registrations and step commits outside the service. A `persisted` supplied block reads as missing until its producer publishes again. The package needs no other environment and reads no resources at run time.
 

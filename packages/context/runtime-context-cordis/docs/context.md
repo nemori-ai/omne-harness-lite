@@ -13,7 +13,7 @@
 ```text
 行 id：runtime-context
 插件：@omne-harness/runtime-context-cordis 的 ./cordis 导出
-配置：{ 观察链保留上限, 诊断级别 }
+配置：{ 观察链保留上限, 来源调用与回调的超时, 诊断级别 }
 ```
 
 字段名与默认值随实现确定。一个 isolate 标签下只加一行。配置错误时装载失败，装配者据此停下整个装配。
@@ -22,7 +22,7 @@
 
 ### 独立使用
 
-不装配 Cordis 的调用方用根入口的工厂。它输出与插件相同的实现。调用方自己承担代际、撤除与唤醒，做法与 [runtime-context 的独立使用](../../runtime-context/docs/context.md#独立使用)相同。
+本成员的根入口不导出任何东西。不装配 Cordis 的调用方直接从 runtime-context 取机制工厂，自己承担撤除与唤醒的接线，做法见 [runtime-context 的独立使用](../../runtime-context/docs/context.md#独立使用)。
 
 ### 初始化与释放
 
@@ -46,7 +46,7 @@ flowchart LR
 | 使用方 | 怎样使用 | 用什么 |
 | --- | --- | --- |
 | 应用装配者 | 在插件树里加一行本插件 | `./cordis` 的插件与配置 |
-| 不装配 Cordis 的调用方 | 调用根入口的工厂 | 工厂 |
+| 不装配 Cordis 的调用方 | 不使用本成员，从 runtime-context 取工厂 | 无 |
 
 生产者、作用域持有者与读者不依赖本成员。它们依赖服务定义，按服务键取用（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 

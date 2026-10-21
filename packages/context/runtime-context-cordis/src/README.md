@@ -18,4 +18,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 `index.ts` 与 `cordis.ts` 现在都只有 `PACKAGE_TEMPLATE_DRAFT` 标记与空导出。这个标记表示实现还没有进入源码。
 
-当前缺口：具体子类、插件、配置 Schema 与根入口的工厂都还没有进入。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+当前缺口：具体子类、插件与配置 Schema 都还没有进入。根入口不导出任何东西，独立调用方从 `runtime-context` 取机制工厂。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。

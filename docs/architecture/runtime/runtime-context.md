@@ -124,7 +124,7 @@ sequenceDiagram
 |---|---|---|
 | [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md) | module | 作用域引用、块键、两类块声明、空块表、需要、绑定、注册、资格、读者、快照与变化、更新与步提交、变化材料；纯函数 `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder` 与解码 |
 | [runtime-context-cordis-contract](../../../packages/context/runtime-context-cordis-contract/SPEC.md) | service-contract | 唯一服务定义 `runtimeContext`、intercept 配置 `{ consumer }`、事件 `runtime-context-cordis-contract/changed` |
-| [runtime-context](../../../packages/context/runtime-context/SPEC.md) | module | 登记表、生产者表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
+| [runtime-context](../../../packages/context/runtime-context/SPEC.md) | module | 登记表、生产者表、资格表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
 | [runtime-context-cordis](../../../packages/context/runtime-context-cordis/SPEC.md) | service-provider | Service 实现：一个 isolate 一个服务，作用域为参数；按作用域过滤唤醒；登记即效应 |
 
 服务分三面：
@@ -137,15 +137,15 @@ sequenceDiagram
 
 读取资格有资格身份。持有者使读者游标作废的操作是重签该读者的资格：`issueEligibility` 带「取代的资格身份」签发新资格，旧资格随之失效，读者沿新资格继续，游标作废。压缩提交之后，持有者对模型类读者这样做。收窄授权范围也经重签，不必先撤销。重签不拒绝读取。撤销资格用 `revokeEligibility`，之后该资格的读取按拒绝（无权）。
 
-读取资格带两个集合：允许的块键集合与允许的需要绑定集合。带翻译的需要由后者授权，被翻译的块不进前者。
+读取资格带两个集合：允许的块键集合与允许的需要绑定集合。带翻译的需要由后者授权，被翻译的块不进前者。资格由 Runtime Context 保管，状态是有效、被取代或已撤销；每次读取核对资格状态，并核对资格的租户等于作用域所属租户。作用域所属租户由持有者每次注册时给出。
 
-Cordis 承载机制，不承载数据。生产者登记在调用方 fiber 的效应里，代际取自 fiber，卸载即撤（[IC-13](../cordis-integration-conventions.md#ic-13)）。`runtime-context-cordis-contract/changed` 只作唤醒，按作用域过滤监听者。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
+Cordis 承载机制，不承载数据。生产者登记在调用方 fiber 的效应里，代际由 Runtime Context 每次登记新取，卸载即撤本代登记（[IC-13](../cordis-integration-conventions.md#ic-13)）。`runtime-context-cordis-contract/changed` 只作唤醒，载荷只有作用域引用与修订，派发方按作用域过滤监听者。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
 
-读取资格是消费者类的权威。调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取。这条核对依赖的 Cordis 机制读数还是假设，待补的探针见 [runtime-context-cordis-contract 的机制读数与假设](../../../packages/context/runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。
+读取资格是消费者类的权威。调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取。这条核对是一致性检查，不是访问控制；访问边界是读取资格。这条核对依赖的 Cordis 机制读数还是假设，待补的探针见 [runtime-context-cordis-contract 的机制读数与假设](../../../packages/context/runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。
 
 发布带作用域：生产者句柄的每次发布指明作用域引用加块键。作用域无关的供给块（宿主事实、租户元信息、当前档案）由 Runtime Context 驱动供值：生产者登记时给出按作用域供值的回调，持有者注册该块、生产者后登记、生产者使当前值失效这三种时点，Runtime Context 都对各已注册作用域调用回调。生产者不需要知道作用域列表。
 
-Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供给块的权威持久者是生产者，重启后由生产者重新发布；注册、自有值与步提交由作用域持有者保存；进程内表重启后由持有者重新注册、生产者重新登记重建（[IC-19](../cordis-integration-conventions.md#ic-19)）。
+Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供给块的权威持久者是生产者，重启后由生产者重新发布；注册、自有值与步提交由作用域持有者保存；注册修订的唯一权威是持有者的耐久提交，Runtime Context 的表是按提交顺序应用的投影；进程内表重启后由持有者按耐久顺序重放注册并重新签发资格、生产者重新登记重建（[IC-19](../cordis-integration-conventions.md#ic-19)）。
 
 ## 观测与性能责任
 

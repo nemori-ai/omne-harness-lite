@@ -27,6 +27,8 @@
 
 Runtime Context 的三面（生产者面、持有者面、读者面）与 Request Context 的纯操作经公开契约交接；跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。登记与步提交是持有者各自单独的提交；压缩转换是持有者与协调者的共同提交，唯一提交点归两方契约。本组成员只给材料。
 
+请求组装有两条入口。托管路径：装配了 Cordis 的系统里，协调者一侧的适配器调用服务定义 [request-context-cordis-contract](request-context-cordis-contract/README.md) 的 `assembly(scope, ports)`，逐次交入历史源读口、计量端口与转换件结果端口；贡献从登记面现取，策略与缓存在提供者里。独立路径：不装配 Cordis 的调用方调用 [request-context](request-context/README.md) 的机制工厂，在构造时给出三项端口与两个策略，自己传入贡献；只要纯操作、不要缓存时直接用 [request-context-contract](request-context-contract/README.md) 的根入口。两个 `-cordis` 成员的根入口不导出任何东西。
+
 ## 组合验证
 
 契约成员的验证覆盖纯函数与导出面。跨成员性质（一次模型请求的上下文闭环、块变化到模型可见、压缩后重给快照）由持有者、协调者与本组成员联合验证，验证入口随各成员 `verification/` 与真实协调者维护。当前八个成员没有实现与运行验证；骨架通过不证明行为。

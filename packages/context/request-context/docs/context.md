@@ -8,7 +8,7 @@
 
 ### 经 Cordis 使用
 
-装配 Cordis 的系统不直接导入本成员。[request-context-cordis](../../request-context-cordis/docs/cordis.md) 在插件加载时按配置选定两个策略实现，再调用工厂。贡献者经服务定义 [request-context-cordis-contract](../../request-context-cordis-contract/docs/context.md) 登记提示词贡献。经 Cordis 的调用方怎样用到这个实例，服务定义还没有写明，见它的 [Cordis 说明](../../request-context-cordis-contract/docs/cordis.md#服务定义)。
+装配 Cordis 的系统不直接导入本成员。[request-context-cordis](../../request-context-cordis/docs/cordis.md) 在插件加载时按配置选定两个策略实现，再调用工厂，交入登记面读口，不交三项端口。贡献者经服务定义 [request-context-cordis-contract](../../request-context-cordis-contract/docs/context.md) 登记提示词贡献。组装请求的调用方经服务的 `assembly(scope, ports)` 用到这个实例：每次调用交入历史源读口、计量端口与转换件结果端口，提供者经实例的按调用交入端口的入口转交（[Cordis 说明的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。
 
 ### 独立使用
 
@@ -22,7 +22,8 @@
   { 修剪阈值, 缓存容量 })
 
 组装：结果 = 实例.assemble(七组输入)
-      七组逐项相同时返回已有候选，不重算
+      增量读取时第三组带自己保存的最近一次完整读取的块材料
+      七组逐项相同时复用层内容；⑥、装入裁定与结局每次按输入重算
       候选成立：自己交 Model 准备、固定，并保存覆盖证据
       需要压缩：计划 = 实例.planCompaction(七组输入)
                 逐步 实例.deriveStep(计划, 进度, 上一步结果)
@@ -34,10 +35,11 @@
 
 独立调用方要自己承担下列事项：
 
-1. 给出五项构造依赖。任一依赖缺席时，相关操作返回不可用。
+1. 在构造时给出三项端口与两个策略。任一依赖缺席时，相关操作返回不可用。
 2. 选定两个策略实现。默认实现的数值只是配置初值，可以按自己的模型窗口与计量口径调整。
 3. 自己收集提示词贡献，作为第四组输入传入。经 Cordis 时由登记面提供。
 4. 保存计划进度、覆盖证据与压缩转换。本成员不持有耐久状态。
+5. 跨请求保存最近一次完整读取的块材料，增量读取时随第三组交入。本成员不保存它。
 
 访问系统托管的历史、档案或其他资源时，仍适用原来源契约的身份、资格及保留责任（[RQ-01](../../request-context-contract/SPEC.md#rq-01-调用方与计算边界)）。
 
@@ -45,7 +47,7 @@
 
 ### 初始化与释放
 
-工厂调用即初始化，没有其他前提。调用工厂的一方拥有实例，负责关闭它。关闭后新的组装返回不可用，关闭先等在途组装结算，再释放缓存。关闭不撤回已交出的候选、计划或转换。
+工厂调用即初始化，没有其他前提。调用工厂的一方拥有实例，负责关闭它。关闭后新的组装返回不可用，关闭先取消在途组装，再释放缓存。关闭不撤回已交出的候选、计划或转换。
 
 ## 消费者与定位
 
@@ -61,7 +63,7 @@ flowchart LR
 
 | 使用方 | 怎样使用 | 本成员给什么 |
 | --- | --- | --- |
-| [request-context-cordis](../../request-context-cordis/README.md) | 插件加载时选策略并调用工厂，插件卸载时关闭实例 | 带缓存的纯操作实现与默认策略 |
+| [request-context-cordis](../../request-context-cordis/README.md) | 插件加载时选策略并调用工厂，交入登记面读口；每次 `assembly(scope, ports)` 把端口转交实例；插件卸载时关闭实例 | 带缓存的纯操作实现与默认策略 |
 | 独立调用方 | 直接调用工厂 | 同上。贡献收集、进度与证据保存由调用方自己承担 |
 
 组内只有 request-context-cordis 依赖本成员。贡献者与组装请求的调用方不直接依赖本成员，它们依赖服务定义或纯契约（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。

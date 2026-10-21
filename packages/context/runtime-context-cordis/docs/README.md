@@ -27,4 +27,4 @@
 | [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
 | [context.md](context.md) | 装配与独立使用两条路径，以及定位 |
 
-当前缺口：两个入口都没有源码。机制实例通知投影变化的方式还没有定义。监听者的作用域标记键（`scope`，由 runtime-context-cordis-contract 定义）与根入口工厂的分工（只重导出机制工厂）已在 SPEC 写定。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：两个入口都没有源码。已在 SPEC 写定：机制实例经变化出口 `onChange(scope, revision)` 通知视图修订前进；监听者的作用域标记键（`scope`，由 runtime-context-cordis-contract 定义）；根入口为空，独立路径从 runtime-context 取机制工厂；代际由机制新取。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

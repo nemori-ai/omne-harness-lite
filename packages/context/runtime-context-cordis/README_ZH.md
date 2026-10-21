@@ -12,8 +12,8 @@ Runtime Context 的 Service 实现成员，`service-provider` 变体。
 状态：Service 实现成员，`draft`。采用依据是[系统页的成员与 Cordis 落位](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
-- 未实现：具体子类、插件、配置 Schema、根入口的工厂。
-- 未验证：SPEC 的性质 2、3、4 依赖三条还没有进入 basis 的机制读数，现在是假设。SPEC 列出的六项验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
+- 未实现：具体子类、插件、配置 Schema。根入口保持为空。
+- 未验证：SPEC 的性质 2、4 依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
 
 现在没有应用装配本插件，也没有包依赖本成员。
 
@@ -22,9 +22,9 @@ Runtime Context 的 Service 实现成员，`service-provider` 变体。
 本成员有两个入口：
 
 - `@omne-harness/runtime-context-cordis/cordis`：插件。应用装配者在插件树里加一行本插件并给出配置。
-- `@omne-harness/runtime-context-cordis`：不依赖 Cordis 的工厂，输出与插件相同的实现。
+- `@omne-harness/runtime-context-cordis`：不导出任何东西。不装配 Cordis 的调用方从 [runtime-context](../runtime-context/README_ZH.md) 取机制工厂。
 
-生产者、作用域持有者与读者不导入本成员，它们经服务定义使用服务。装配写法与独立使用见[使用与定位](docs/context.md#使用方式)。插件与工厂都还没有实现，现在没有可运行的示例。
+生产者、作用域持有者与读者不导入本成员，它们经服务定义使用服务。装配写法与独立使用见[使用与定位](docs/context.md#使用方式)。插件还没有实现，现在没有可运行的示例。
 
 ## 契约
 
@@ -41,7 +41,7 @@ Runtime Context 的 Service 实现成员，`service-provider` 变体。
 
 ## 配置与运行
 
-插件配置用 Standard Schema 校验，字段是观察链保留上限与诊断级别。默认值只是初值。配置错误时插件加载失败，fiber 进入 `FAILED`。一个 isolate 标签下只装一份，重复装载失败。
+插件配置用 Standard Schema 校验，字段是观察链保留上限、来源调用与回调的超时、诊断级别。默认值只是初值。配置错误时插件加载失败，fiber 进入 `FAILED`。一个 isolate 标签下只装一份，重复装载失败。
 
 本阶段没有耐久存储端口。持有者在服务之外保存注册与步提交，`persisted` 供给块在生产者重新发布前读到缺项。本成员没有其他环境前提，运行时不读取资源。
 

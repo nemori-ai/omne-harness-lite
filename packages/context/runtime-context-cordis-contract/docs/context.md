@@ -31,17 +31,18 @@ export const inject = {
 
 ```text
 inject: ['runtimeContext']
-插件体：handle = ctx.runtimeContext.registerProducer(块键, 生产者)
-        用 handle 发布、使失效；插件卸载时登记自动撤除
+插件体：handle = ctx.runtimeContext.registerProducer(块键, 生产者身份, 块声明, 按作用域供值的回调？)
+        用 handle 发布、使失效；插件卸载时本代登记自动撤除
+        插件体重跑时以同一身份再登记，得到新代际
 ```
 
 ### 作用域持有者的适配器
 
-持有者的适配器用数组形式 `inject`，调用 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`。注册与步提交的耐久保存仍归持有者自己。
+持有者的适配器用数组形式 `inject`，调用 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`。注册与步提交的耐久保存仍归持有者自己。服务重建或提供者换代之后，持有者按耐久顺序重放注册提交、交回 `checkpointed` 状态块的全值、重新签发资格（[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。
 
 ### 只监听唤醒的一方
 
-不 `inject`。用 `import type {}` 取得事件类型，在标了作用域引用的扩展 ctx 上 `ctx.on('runtime-context-cordis-contract/changed', …)`。监听者同步执行，不返回 Promise。
+不 `inject`。用 `import type {}` 取得事件类型，在以属性键 `scope` 标了作用域引用的扩展 ctx 上 `ctx.on('runtime-context-cordis-contract/changed', …)`。不用全局监听。载荷只有作用域引用与视图修订，监听者被唤醒后经绑定读者读取变化。监听者同步执行，不返回 Promise。
 
 ### 独立使用
 

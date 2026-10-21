@@ -27,9 +27,11 @@ flowchart LR
   RQI[request-context] --> RQC
   RQP[request-context-cordis] --> RQD
   RQP --> RQI
+  RQP -.->|可选| RCD
   Producers[块的语义拥有者包] --> RCC
   Readers[消费者适配器] --> RCD
-  Coordinator[协调者适配器] --> RQC
+  Coordinator[协调者适配器] -->|托管组装入口 assembly| RQD
+  Coordinator -->|类型| RQC
   Holder[持有者适配器] --> RQC
   App[应用装配者] --> RCP
   App --> RQP
@@ -38,7 +40,9 @@ flowchart LR
 - 纯契约与机制实现不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `-cordis-contract` 与 `-cordis` 的 `./cordis` 导出。
 - `request-context-contract` 依赖 `runtime-context-contract` 的读取结果类型与块声明的 `volatility`。它另外依赖 model-contract、tool-contract、content-block、message 的公开值。
 - 两块的契约都不依赖 agent-contract、session-contract 或 execution-environment 的契约。要供给块的成员依赖 `runtime-context-contract` 并导出自己的块声明；要读块的成员经适配器依赖 `runtime-context-cordis-contract`；要组装请求的协调者经适配器依赖 `request-context-contract`。
-- 提供者注入纯工厂，不反向决定契约。
+- 提供者注入纯工厂，不反向决定契约。两个 `-cordis` 成员的根入口不导出任何东西；独立路径从机制成员取工厂。
+- `request-context-cordis` 对 `runtime-context-cordis-contract` 是可选依赖（虚线）：它在 `ctx.inject(['runtimeContext'], …)` 的子 fiber 里登记 `context.compaction-settings` 与 `context.window-usage` 的生产者。Runtime Context 不在场时两块读到缺项，到场后再登记。它不 `inject` 作用域持有者或模型侧的服务；历史源读口、计量端口与转换件结果端口由调用方经 `assembly(scope, ports)` 逐次交入。
+- 协调者的组装入口有两条：托管路径经 `request-context-cordis-contract` 的 `assembly(scope, ports)`；不装配 Cordis 时经 `request-context` 的机制工厂。
 
 ## 主题与唯一拥有者
 

@@ -14,13 +14,13 @@ Request Context 的机制实现成员，`module` 变体。
 - 已实现：没有。`src/index.ts` 只有模板标记，根入口没有导出。
 - 未实现：工厂、候选缓存、派生物、默认策略、修剪器与关闭。
 - 未验证：SPEC 列出的十个持续验证场景都没有测试。默认策略的数值来自同类系统的取证，按本项目的计量口径重核之后才作为初值生效。
-- 实例经 `notify(change)` 接收变化通知。修剪步之后必有摘要步。实例只从输入「已采用」得知候选已经固定。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
+- 实例经 `notify(change)` 只接收贡献登记面的变化通知，其余各组靠输入携带的修订比较。缓存不存结局。修剪步之后必有摘要步。实例只从输入「已采用」得知候选已经固定。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
 
 现在没有包依赖本成员。
 
 ## 使用
 
-本成员只有根入口 `@omne-harness/request-context`。装配 Cordis 的系统不直接导入它，由 request-context-cordis 按配置选定策略并调用工厂。不装配 Cordis 的调用方直接调用工厂，自己给出五项构造依赖、收集提示词贡献、保存计划进度，见[使用与定位](docs/context.md#独立使用)。
+本成员只有根入口 `@omne-harness/request-context`。装配 Cordis 的系统不直接导入它，由 request-context-cordis 按配置选定策略并调用工厂，三项端口由组装请求的调用方经 `assembly(scope, ports)` 逐次交入。不装配 Cordis 的调用方直接调用本成员的工厂，在构造时给出三项端口与两个策略，自己收集提示词贡献、保存计划进度与最近一次完整读取的块材料，见[使用与定位](docs/context.md#独立使用)。
 
 只需要纯操作、不需要缓存的调用方使用 request-context-contract，不需要本成员。
 
@@ -33,7 +33,7 @@ Request Context 的机制实现成员，`module` 变体。
 - 纯操作的输入、结果与失败归 [request-context-contract SPEC](../request-context-contract/SPEC.md)，条款 RQ-01 至 RQ-11。
 - 内部对象的身份与生灭归[对象模型](docs/object-model.md)。
 
-调用工厂的一方拥有实例，负责关闭它。关闭后新的组装返回不可用，关闭先等在途组装结算，再释放缓存。关闭不撤回已交出的候选、计划或转换。任一构造依赖缺席或不可用时，相关操作返回不可用，带诊断。
+调用工厂的一方拥有实例，负责关闭它。关闭后新的组装返回不可用，关闭先取消在途组装，再释放缓存。关闭不撤回已交出的候选、计划或转换。任一依赖端口缺席或不可用时，相关操作返回不可用，带诊断。
 
 ## 设计
 

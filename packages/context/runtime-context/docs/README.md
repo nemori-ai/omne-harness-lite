@@ -27,4 +27,4 @@
 | [context.md](context.md) | 经 Cordis 使用与独立使用两条路径，以及定位 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-当前缺口：工厂与全部机制都还没有进入 `src/`。SPEC 的十个持续验证场景都没有测试。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：工厂与全部机制都还没有进入 `src/`。SPEC 的持续验证场景都没有测试。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

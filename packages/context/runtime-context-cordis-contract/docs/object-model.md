@@ -9,8 +9,8 @@
 | 对象 | 身份 | 拥有者 | 可变性 | 关联 |
 | --- | --- | --- | --- | --- |
 | `RuntimeContextService` 抽象类 | 服务键 `runtimeContext` | 本成员 | 静态，随包发布 | `extends` Cordis 的 `Service`，`implements` 契约的三面操作类型。提供者 `extends` 它 |
-| intercept 配置 `{ consumer }` | 消费者插件 fiber 上的一份配置 | 声明它的消费者插件 | 随该插件的 `inject` 声明，运行时不改 | `consumer` 是契约的 `ConsumerClass`。`bind` 拿它与读取资格核对 |
-| 事件载荷 | 一次派发 | 派发它的提供者 | 值，派发即完 | 作用域引用加块键集合，事件名 `runtime-context-cordis-contract/changed` |
+| intercept 配置 `{ consumer }` | 消费者插件 fiber 上的一份配置 | 声明它的消费者插件 | 随该插件的 `inject` 声明，运行时不改 | `consumer` 是契约的 `ConsumerClass`。`bind` 拿它与读取资格做一致性核对，这不是访问控制 |
+| 事件载荷 | 一次派发 | 派发它的提供者 | 值，派发即完 | 作用域引用加视图修订，不带块键，事件名 `runtime-context-cordis-contract/changed` |
 
 ```mermaid
 classDiagram
@@ -30,7 +30,7 @@ classDiagram
   }
   class ChangedPayload {
     scope
-    keys
+    revision
   }
   class ProviderService
   Service <|-- RuntimeContextService
@@ -51,5 +51,5 @@ classDiagram
 
 本成员定义的协议还约束两类运行期事物，它们的实例都不归本成员：
 
-- 生产者登记：归生产者插件的 fiber，在插件卸载、`dispose` 句柄或服务撤除时结束。协议见 [Cordis 说明](cordis.md#登记与撤除协议)。
+- 生产者登记：归生产者插件的 fiber，在插件卸载、`dispose` 句柄或服务撤除时结束。撤除只移除本代登记。协议见 [Cordis 说明](cordis.md#登记与撤除协议)。
 - 事件监听：经 `ctx.on` 注册，归监听者的 fiber，随它结束。

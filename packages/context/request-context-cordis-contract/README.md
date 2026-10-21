@@ -24,7 +24,7 @@ Status: Cordis definition member, `draft`. The adoption basis is the [prompt con
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the abstract class, the key constant, the intercept configuration type, the strategy selection shape, the `Context` and `Events` augmentations, and the type re-exports of the root entry.
 - Not verified: one Cordis mechanism reading is not in the basis yet. Thus property 7 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
-- A Cordis caller uses `assembly(scope)` to reach the cached implementation with the selected strategies. A contributor declares the global layer with `scope: null`. Open items: the SPEC does not name the source of `ScopeRef` or the side that filters the event by scope. See the [Cordis page](docs/cordis.md).
+- A Cordis caller uses `assembly(scope, ports)` to reach the cached implementation with the selected strategies. The caller gives the three ports on each call. A contributor declares the global layer with `scope: null`. Listeners filter the event by its payload. Open item: the SPEC does not name the source of `ScopeRef`. See the [Cordis page](docs/cordis.md).
 
 No package depends on this package now.
 
@@ -43,7 +43,7 @@ inject: { requestContext: { scope: <scope reference> } }
 plugin body: dispose = ctx.requestContext.contributeSection(section)
 ```
 
-Cordis removes the registration when the contributor plugin unloads. A caller that assembles a request uses `inject: ['requestContext']`. It calls `assembly(scope)` to get the pure operations that are bound to the configured strategies. At each call, those operations read the contributions of that scope from the registration surface. The caller does not pass the contributions. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
+Cordis removes the registration when the contributor plugin unloads. A caller that assembles a request uses `inject: ['requestContext']`. It calls `assembly(scope, ports)` with the three ports to get the pure operations that are bound to the configured strategies. At each call, those operations read the contributions of that scope from the registration surface. The caller does not pass the contributions. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
 
 Independent use does not need this package. A caller without Cordis collects prompt contributions itself and uses the root entries of request-context-contract and request-context.
 

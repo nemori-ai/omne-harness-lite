@@ -27,4 +27,4 @@
 | [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
 | [context.md](context.md) | 各类依赖方的用法与定位 |
 
-当前缺口：两个入口都没有源码。经 Cordis 的组装入口 `assembly(scope)` 与全局层的表达 `scope: null` 已在 SPEC 写定。`ScopeRef` 的来源与事件的过滤位置还没有定义。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：两个入口都没有源码。经 Cordis 的组装入口 `assembly(scope, ports)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 的来源还没有定义。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
