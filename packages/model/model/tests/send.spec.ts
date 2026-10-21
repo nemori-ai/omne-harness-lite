@@ -18,6 +18,52 @@ import {
 } from './send-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
 
+for (const [stage, acquired, released] of [
+  ['acquire', 0, []],
+  ['prepare', 1, ['resource']],
+  ['materialize', 1, ['prepared', 'resource']],
+] as const)
+  it(`reports a safe not-started failure and releases owned resources when ${stage} throws`, async () => {
+    const f = await sendFixture()
+    const sender = f.makeSender({
+      resources: {
+        async acquire(input) {
+          if (stage === 'acquire') throw new Error(synthetic)
+          const resource = unbox(await f.resources.acquire(input))
+          return {
+            ok: {
+              ...resource,
+              transport: {
+                async prepare(request, supplier) {
+                  if (stage === 'prepare') throw new Error(synthetic)
+                  const prepared = unbox(await resource.transport.prepare(request, supplier))
+                  return {
+                    ok: {
+                      ...prepared,
+                      async materialize() {
+                        throw new Error(synthetic)
+                      },
+                    },
+                  }
+                },
+              },
+            },
+          }
+        },
+      },
+    })
+    expect(await sender.send(f.demand, signal())).toEqual({
+      kind: 'not-started',
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-send',
+        diagnostic: 'transport-prepare-failed',
+      },
+    })
+    expect(f.counts()).toMatchObject({ acquired, starts: 0, pulls: 0, returns: 0 })
+    expect(f.events).toEqual(released)
+  })
+
 it('preserves two original receive windows using only public send results and rejects crossed bindings', async () => {
   const judged = judgeContentBlock({
     kind: 'text',

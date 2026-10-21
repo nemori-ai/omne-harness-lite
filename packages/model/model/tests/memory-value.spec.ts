@@ -22,7 +22,9 @@ it('preserves rejection order and never invokes object accessors', () => {
   })
   expect(() => canonical(value)).toThrow('Model values must be data')
   expect(invoked).toBe(false)
-  expect(() => canonical([, 1])).toThrow('Model arrays must be dense')
+  const sparse: number[] = []
+  sparse[1] = 1
+  expect(() => canonical(sparse)).toThrow('Model arrays must be dense')
   for (const unsupported of [undefined, NaN, Infinity, 1n])
     expect(() => canonical(unsupported)).toThrow('Model values must be finite data')
   const cyclic: unknown[] = []
