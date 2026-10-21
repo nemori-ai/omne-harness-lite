@@ -9,7 +9,8 @@
 //
 // - 临时简化，1.3–1.9 按节点表收紧: every node from E3 on writes one commit when it ends, and the
 //   commit moves `position` to the next node. The exact commit points of the node table are not
-//   followed yet. Three groups write no commit: U0 to Q4 run before the execution exists; E1, E2 and
+//   followed yet. Q1 never writes one (NA-Q1-1). Three groups write no commit: U0 to Q4 run before
+//   the execution exists; E1, E2 and
 //   E4 only read, because a commit there would overwrite the `position` that E4 reads (the initial
 //   E3); and after F3 the execution is ended, so F4, O0 and E9 use their own records only.
 // - 待 #558 M04-1: the producer event is carried by the commit that follows `recordResult` at M3.
@@ -96,7 +97,7 @@ export type ExecutionEntry<P> = Readonly<{
   operation: AgentOperationId
   initial: AcceptedInput
   grant: Evidence | null
-  /** E9: the runtime gives its execution slot back and returns to idle. */
+  /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
 }>
 
@@ -106,7 +107,9 @@ export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 export interface ExecutionCoordinator {
   /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
   accept(): Promise<Outcome<Authority, Halted>>
-  /** E1 to E9, after `accept`: the Loop until the runtime is idle again. */
+  /**
+   * E1 to E9, after `accept`: the Loop until the runtime is idle again or the run stops.
+   */
   runExecution(): Promise<Outcome<void, Halted>>
 }
 
@@ -128,13 +131,18 @@ type Write = Readonly<{
 type Step = Readonly<{ on: Label; commit: Write | null }>
 type Handler = () => Promise<Outcome<Step, Failure>>
 
-/** A candidate that Q1 to Q4 admit, and the fixed call position that Q4 returns to. */
+/**
+ * A candidate that Q1 to Q4 admit, and the fixed call position that Q4 returns to. The type ties
+ * each source to its call position (Q1): an external input to U0, a Model reply to I3.
+ */
 type Candidate = Readonly<{
-  source: MessageSource
   candidate: Message
   operation: (after: ExecutionRevision | null) => AgentOperationId
-  returnTo: 'U0' | 'I3'
-}>
+}> &
+  (
+    | Readonly<{ source: Extract<MessageSource, { kind: 'external-input' }>; returnTo: 'U0' }>
+    | Readonly<{ source: Extract<MessageSource, { kind: 'model-reply' }>; returnTo: 'I3' }>
+  )
 
 /** The facts of one iteration, filled as its nodes run. Each field is set by the node named. */
 type Iteration = {
@@ -193,6 +201,15 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
 function required<T>(value: T | null, what: string): T {
   if (value === null) throw new Error(`coordinator defect: ${what} is not set`)
   return value
+}
+
+/** Diagnostic conversion must not throw while handling a node's thrown value. */
+function diagnosticOf(error: unknown): string {
+  try {
+    return error instanceof Error ? String(error.message) : String(error)
+  } catch {
+    return 'the thrown value could not be converted to diagnostic text'
+  }
 }
 
 function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {
@@ -281,8 +298,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         }
         node = to
       } catch (error) {
-        const diagnostic = error instanceof Error ? error.message : String(error)
-        return fail({ node: at, failure: defect(diagnostic) })
+        return fail({ node: at, failure: defect(diagnosticOf(error)) })
       }
     }
     return succeed(node)
@@ -353,7 +369,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   // ------------------------------------------------------------------------------------------
-  // admitMessage: U0, Q1, Q2, Q4 (Q5 is #502 1.3 and 1.7)
+  // admitMessage: U0, Q1, Q2, Q4 (Q5 is #502 4.1)
 
   const admitMessage = {
     /** U0: the input of invoke becomes a candidate; once admitted it goes to E0. */
@@ -371,9 +387,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       candidate = null
       return step('admitted', null)
     },
-    /** Q1: the candidate is lawful. Its checks against source and position come with #502 1.3. */
+    /**
+     * Q1: a candidate whose source fits its call position (the type of Candidate ensures it) goes
+     * straight to Q2, with no commit. The lawfulness checks that reject to Q5 are #502 4.1.
+     */
     async Q1() {
-      return step('valid', authority === null ? null : {})
+      return step('valid', null)
     },
     /** Q2: MessageHandoff.accept; the main reply's admission fact goes with the commit. */
     async Q2() {
@@ -388,7 +407,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       })
       if ('failure' in accepted) return accepted
       if (accepted.ok.kind !== 'accepted')
-        return fail(notYet('Q2', 'a rejected candidate', 'Q5 (#502 1.3 and 1.7)'))
+        return fail(notYet('Q2', 'a rejected candidate', 'Q5 (#502 4.1 and 1.7)'))
       admission = accepted.ok.admission
       if (subject.source.kind !== 'model-reply') return step('accepted', null)
       const { step: of, action, call, result } = subject.source
@@ -403,7 +422,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         },
       })
     },
-    /** Q4: back to the fixed call position. */
+    /** Q4: back to the fixed call position of the source, once; nothing is retried. */
     async Q4() {
       const subject = required(candidate, 'candidate')
       return step(`return-${subject.returnTo}`, authority === null ? null : {})
@@ -433,10 +452,19 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       checkpoint = initial.ok
       return step('authority', null)
     },
-    /** E1: the execution state and the attachment. The access re-check comes with #502 1.4. */
+    /**
+     * E1: the execution state and the attachment. The access re-check comes with #502 1.4. A
+     * revision that is not the last one this coordinator knows means that the Journal moved the
+     * execution on without it: `open` gave back the receipt of an execution that already ran, for
+     * example after a restart. This coordinator does not drive it; that is recovery (stage 5).
+     */
     async E1() {
       const read = await load()
       if ('failure' in read) return read
+      if (read.ok.revision !== revision) {
+        entry.idle()
+        return step('found-existing', null)
+      }
       const advancement = advancementOf(read.ok)
       if (advancement.kind !== 'current' || read.ok.state.kind === 'ended')
         return fail(notYet('E1', `an advancement that is ${advancement.kind}`, '#502 1.4'))

@@ -92,6 +92,7 @@ export type Label =
   | 'admitted'
   | 'authority'
   | 'allowed'
+  | 'found-existing'
   | 'reconciled'
   | 'passage-pending'
   | 'passed'
@@ -127,6 +128,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'U0', on: 'admitted', to: 'E0' },
   { from: 'E0', on: 'authority', to: 'E1' },
   { from: 'E1', on: 'allowed', to: 'E2' },
+  // #502 1.3: an idempotent open found an execution that already advanced. Recovery is stage 5.
+  { from: 'E1', on: 'found-existing', to: null },
   { from: 'E2', on: 'reconciled', to: 'E4' },
   { from: 'E4', on: 'passage-pending', to: 'E3' },
   { from: 'E3', on: 'passed', to: 'E4' },
