@@ -8,7 +8,14 @@ import {
   decodeModelOperationId,
   decodeModelInstanceId,
 } from '@omne-harness/model-contract'
-import type { ModelCommands, ModelCallId, Settlement, Lookup } from '@omne-harness/model-contract'
+import type {
+  ModelCommands,
+  ModelCallId,
+  ModelFailure,
+  Termination,
+  Settlement,
+  Lookup,
+} from '@omne-harness/model-contract'
 import {
   MemoryState,
   authFailure,
@@ -18,9 +25,72 @@ import {
   missingReceipt,
   tasks,
   unresolved,
+  type MemoryCall,
+  type TenantState,
 } from './state.ts'
 import { cursor, digest, invalid, resultVersion, revision } from './value.ts'
 
+function settlementFailure(call: MemoryCall, termination: Termination): ModelFailure | null {
+  const pending = settlementPendingFailure(call)
+  if (pending) return pending
+  const actual = settlementActualFailure(call, termination)
+  if (actual) return actual
+  if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
+    return invalid('termination', 'encoded-byte-limit')
+  return null
+}
+function settlementPendingFailure(call: MemoryCall): ModelFailure | null {
+  const latest = call.dispatches.at(-1)
+  if (call.retryPosition && call.retry === null) return invalid('termination', 'retry-pending')
+  if (call.retry?.kind === 'retry') return invalid('termination', 'retry-pending')
+  if (latest && [...latest.windows.values()].includes('open'))
+    return invalid('termination', 'receive-pending')
+  return undecidedRetryFailure(call)
+}
+function settlementActualFailure(call: MemoryCall, termination: Termination): ModelFailure | null {
+  const latest = call.dispatches.at(-1)
+  const terminal = latest?.logicalTerminal
+  const stopped = call.retry?.kind === 'stop' ? { kind: 'failed', fault: call.retry.fault } : null
+  const actual = stopped ?? terminal
+  const beforeSendControl =
+    !latest &&
+    call.state.control.kind === 'requested' &&
+    termination.kind === 'interrupted' &&
+    termination.control === call.state.control.operation
+  if (
+    !beforeSendControl &&
+    (actual === null || actual === undefined || digest(actual) !== digest(termination))
+  )
+    return invalid('termination', 'not-actual')
+  return null
+}
+function undecidedRetryFailure(call: MemoryCall): ModelFailure | null {
+  const latest = call.dispatches.at(-1)
+  const terminal = latest?.logicalTerminal
+  if (
+    terminal?.kind === 'failed' &&
+    latest?.record.firstContent === 'none-proven' &&
+    !['input-over-limit', 'excluded', 'credential', 'input-rejected', 'modality'].includes(
+      terminal.fault.cause,
+    ) &&
+    call.retry === null &&
+    call.state.control.kind === 'none'
+  )
+    return invalid('termination', 'retry-not-decided')
+  return null
+}
+function pendingCalls(root: TenantState): readonly ModelCallId[] {
+  return [
+    ...new Set([
+      ...[...root.calls.values()]
+        .filter(call => tasks(call, unresolved(root, call.state.call)).length > 0)
+        .map(call => call.state.call),
+      ...[...root.operations.values()]
+        .filter(operation => operation.status === 'unknown')
+        .map(operation => operation.call),
+    ]),
+  ].sort()
+}
 export function callCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
@@ -218,45 +288,8 @@ export function callCommands<P>(
                   revision: call.state.revision,
                 },
               }
-            const latest = call.dispatches.at(-1)
-            if (call.retryPosition && call.retry === null)
-              return { failure: invalid('termination', 'retry-pending') }
-            if (call.retry?.kind === 'retry')
-              return { failure: invalid('termination', 'retry-pending') }
-            const terminal = latest?.logicalTerminal
-            const stopped =
-              call.retry?.kind === 'stop' ? { kind: 'failed', fault: call.retry.fault } : null
-            if (latest && [...latest.windows.values()].includes('open'))
-              return { failure: invalid('termination', 'receive-pending') }
-            if (
-              terminal?.kind === 'failed' &&
-              latest?.record.firstContent === 'none-proven' &&
-              ![
-                'input-over-limit',
-                'excluded',
-                'credential',
-                'input-rejected',
-                'modality',
-              ].includes(terminal.fault.cause) &&
-              call.retry === null &&
-              call.state.control.kind === 'none'
-            )
-              return { failure: invalid('termination', 'retry-not-decided') }
-            const actual = stopped ?? terminal
-            const beforeSendControl =
-              !latest &&
-              call.state.control.kind === 'requested' &&
-              input.termination.kind === 'interrupted' &&
-              input.termination.control === call.state.control.operation
-            if (
-              !beforeSendControl &&
-              (actual === null ||
-                actual === undefined ||
-                digest(actual) !== digest(input.termination))
-            )
-              return { failure: invalid('termination', 'not-actual') }
-            if (encodedBytes(input.termination) > MAX_TERMINATION_BYTES)
-              return { failure: invalid('termination', 'encoded-byte-limit') }
+            const legality = settlementFailure(call, input.termination)
+            if (legality) return { failure: legality }
             const version = resultVersion()
             const settlement: Settlement = {
               version,
@@ -290,6 +323,19 @@ export function recoveryCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
+  function scanPage(scope: string, after: string | null, limit: number) {
+    const root = store.root(scope)
+    const start = after === null ? null : scans.get(after)
+    if (after !== null && (!start || start.tenant !== scope))
+      return { failure: invalid('after', 'scan-cursor') }
+    const ids = start?.calls ?? pendingCalls(root)
+    const offset = start?.offset ?? 0
+    const calls = ids.slice(offset, offset + limit)
+    const end = offset + calls.length
+    const next = end < ids.length ? `scan_${randomUUID()}` : null
+    if (next) scans.set(next, { tenant: scope, calls: ids, offset: end })
+    return { ok: { calls, next } }
+  }
   return {
     scanPending: input =>
       store.run(() => {
@@ -303,28 +349,7 @@ export function recoveryCommands<P>(
           input.limit > store.options.limits.scanPageCalls
         )
           return { failure: invalid('limit', 'out-of-range') }
-        const root = store.root(scope)
-        const start = input.after === null ? null : scans.get(input.after)
-        if (input.after !== null && (!start || start.tenant !== scope))
-          return { failure: invalid('after', 'scan-cursor') }
-        const ids =
-          start?.calls ??
-          [
-            ...new Set([
-              ...[...root.calls.values()]
-                .filter(call => tasks(call, unresolved(root, call.state.call)).length > 0)
-                .map(c => c.state.call),
-              ...[...root.operations.values()]
-                .filter(operation => operation.status === 'unknown')
-                .map(operation => operation.call),
-            ]),
-          ].sort()
-        const offset = start?.offset ?? 0
-        const calls = ids.slice(offset, offset + input.limit)
-        const end = offset + calls.length
-        const next = end < ids.length ? `scan_${randomUUID()}` : null
-        if (next) scans.set(next, { tenant: scope, calls: ids, offset: end })
-        return { ok: { calls, next } }
+        return scanPage(scope, input.after, input.limit)
       }),
     loadRecovery: input =>
       store.run(() =>

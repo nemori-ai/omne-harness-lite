@@ -670,3 +670,39 @@ it('atomically saves supplier accounts, recognizes events and rejects wrong subj
   )
   expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(updated)
 })
+
+it('accepts an account after terminal in the same batch and rejects later content atomically', async () => {
+  const f = await running()
+  const window = 'terminal-account'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const account = {
+    subject: { kind: 'model_call', id: f.admit.call },
+    usage: [],
+    cost: [],
+    trimmed: { state: 'known', lexeme: '0', unit: 'token' },
+    place: 'supplier',
+    duration: { state: 'unknown' },
+    receipt: 'received',
+    revision: '1',
+  } satisfies import('@omne-harness/call-account').CallAccount
+  const facts: TransportFact[] = [
+    { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } },
+    { kind: 'account', event: 'tail', value: account },
+  ]
+  const before = await f.commands.loadRecovery(f.admit)
+  expect(
+    await f.commands.preserve({
+      ...(await f.write()),
+      dispatch: f.dispatch,
+      window,
+      facts: [...facts, { kind: 'block-open', index: '0', mode: 'append', content: 'text' }],
+    }),
+  ).toEqual({ failure: { kind: 'invalid', field: 'facts', reason: 'after-terminal' } })
+  expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toBeNull()
+  unbox(await f.commands.preserve({ ...(await f.write()), dispatch: f.dispatch, window, facts }))
+  expect(unbox(await f.commands.dispatches(f.admit))[0]).toMatchObject({
+    terminal: { kind: 'completed', reason: 'limit' },
+    account,
+  })
+})
