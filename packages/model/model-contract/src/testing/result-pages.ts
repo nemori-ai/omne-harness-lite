@@ -62,41 +62,47 @@ export function resultPage(
     settlement,
   }
 }
+function invalidTrim(trim: ResultTrim): boolean {
+  return (
+    !trim ||
+    Object.keys(trim).some(key => key !== 'removed' && key !== 'reason') ||
+    typeof trim.removed !== 'string' ||
+    !/^(0|[1-9][0-9]*)(\.[0-9]+)?$/u.test(trim.removed) ||
+    typeof trim.reason !== 'string' ||
+    !trim.reason
+  )
+}
+function validateSealedPart(part: Extract<ResultPart, { kind: 'sealed' }>): void {
+  const judged = judgePart(part.block)
+  if (
+    'rejected' in judged ||
+    (part.block.kind === 'tool_call' && part.trims.length > 0) ||
+    !['text', 'thinking', 'voice', 'image', 'file', 'tool_call'].includes(part.block.kind)
+  )
+    throw new ScriptedModelError('invalid-script', 'invalid sealed result')
+}
+function validatePartialPart(part: ResultPart): void {
+  if (
+    part.kind !== 'partial' ||
+    !['text', 'thinking', 'voice', 'tool-arguments'].includes(part.content) ||
+    typeof part.value !== 'string'
+  )
+    throw new ScriptedModelError('invalid-script', 'invalid partial result')
+}
+function validatePart(part: ResultPart): void {
+  if (!part || typeof part !== 'object' || !denseArray(part.trims))
+    throw new ScriptedModelError('invalid-script', 'invalid result part')
+  const keys =
+    part.kind === 'sealed' ? ['kind', 'block', 'trims'] : ['kind', 'content', 'value', 'trims']
+  if (Object.keys(part).some(key => !keys.includes(key)))
+    throw new ScriptedModelError('invalid-script', 'unknown result part field')
+  if (part.trims.some(invalidTrim))
+    throw new ScriptedModelError('invalid-script', 'invalid result trim')
+  if (part.kind === 'sealed') validateSealedPart(part)
+  else validatePartialPart(part)
+}
 export function validateParts(parts: readonly ResultPart[]): void {
   if (!denseArray(parts))
     throw new ScriptedModelError('invalid-script', 'parts must be a dense array')
-  for (const part of parts) {
-    if (!part || typeof part !== 'object' || !denseArray(part.trims))
-      throw new ScriptedModelError('invalid-script', 'invalid result part')
-    const keys =
-      part.kind === 'sealed' ? ['kind', 'block', 'trims'] : ['kind', 'content', 'value', 'trims']
-    if (Object.keys(part).some(key => !keys.includes(key)))
-      throw new ScriptedModelError('invalid-script', 'unknown result part field')
-    if (
-      part.trims.some(
-        (trim: ResultTrim) =>
-          !trim ||
-          Object.keys(trim).some(key => key !== 'removed' && key !== 'reason') ||
-          typeof trim.removed !== 'string' ||
-          !/^(0|[1-9][0-9]*)(\.[0-9]+)?$/u.test(trim.removed) ||
-          typeof trim.reason !== 'string' ||
-          !trim.reason,
-      )
-    )
-      throw new ScriptedModelError('invalid-script', 'invalid result trim')
-    if (part.kind === 'sealed') {
-      const judged = judgePart(part.block)
-      if (
-        'rejected' in judged ||
-        (part.block.kind === 'tool_call' && part.trims.length > 0) ||
-        !['text', 'thinking', 'voice', 'image', 'file', 'tool_call'].includes(part.block.kind)
-      )
-        throw new ScriptedModelError('invalid-script', 'invalid sealed result')
-    } else if (
-      part.kind !== 'partial' ||
-      !['text', 'thinking', 'voice', 'tool-arguments'].includes(part.content) ||
-      typeof part.value !== 'string'
-    )
-      throw new ScriptedModelError('invalid-script', 'invalid partial result')
-  }
+  for (const part of parts) validatePart(part)
 }

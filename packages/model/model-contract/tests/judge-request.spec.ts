@@ -1018,3 +1018,39 @@ it('copies null prototypes and refuses a data __proto__ key without changing out
   expect(judgeFixedModelRequest(input)).toEqual({ failure: { field: '', reason: 'unknown-field' } })
   expect(Object.hasOwn(Object.prototype, 'polluted')).toBe(false)
 })
+
+it('keeps first rejection across request groups and payload capture', () => {
+  const failures = [
+    { patch: { profile: null, suppliers: [] }, field: '/profile', reason: 'type' },
+    { patch: { suppliers: [], fallback: 'no' }, field: '/suppliers', reason: 'value' },
+    { patch: { fallback: 'no', retryPolicy: null }, field: '/fallback', reason: 'type' },
+    { patch: { retryPolicy: null, parameters: [{}] }, field: '/retryPolicy', reason: 'type' },
+    { patch: { parameters: [{}], system: [null] }, field: '/parameters/0/kind', reason: 'missing' },
+    { patch: { system: [null], messages: [null] }, field: '/system/0', reason: 'content' },
+    { patch: { messages: [null], tools: [null] }, field: '/messages/0', reason: 'message' },
+    { patch: { tools: [null], toolChoice: 'invalid' }, field: '/tools/0', reason: 'type' },
+    {
+      patch: { toolChoice: 'invalid', representation: null },
+      field: '/toolChoice',
+      reason: 'type',
+    },
+    {
+      patch: { representation: null, parameterAdoptions: [null] },
+      field: '/representation',
+      reason: 'type',
+    },
+    {
+      patch: { parameterAdoptions: [null], source: null },
+      field: '/parameterAdoptions/0',
+      reason: 'type',
+    },
+  ]
+  for (const { patch, field, reason } of failures)
+    expect(judgeFixedModelRequest({ ...request, ...patch })).toEqual({ failure: { field, reason } })
+  const input = admission('priority')
+  expect(
+    judgeAdmit({ ...input, call: 'invalid', request: { ...request, secret: () => true } }),
+  ).toEqual({
+    failure: { field: '/request', reason: 'type' },
+  })
+})

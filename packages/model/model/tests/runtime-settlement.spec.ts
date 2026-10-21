@@ -249,10 +249,12 @@ for (const effect of ['applied', 'not-applied'] as const)
 
 it('replays a committed settle whose original receipt is temporarily unavailable without creating another intent', async () => {
   const writes: Settle[] = []
+  const references: Settle[] = []
   const f = runtimeFixture(batching, commands => ({
     ...commands,
     settle: async input => {
       writes.push(structuredClone(input))
+      references.push(input)
       const result = await commands.settle(input)
       return writes.length < 3
         ? { failure: { kind: 'unavailable', dependency: 'receipt', diagnostic: 'offline' } }
@@ -265,6 +267,8 @@ it('replays a committed settle whose original receipt is temporarily unavailable
     expect(await f.drive()).toMatchObject({ failure: { kind: 'unavailable' } })
     unbox(await f.drive())
     expect(writes).toHaveLength(3)
+    expect(references[1]).toBe(references[0])
+    expect(references[2]).toBe(references[0])
     expect(writes.every(input => JSON.stringify(input) === JSON.stringify(writes[0]))).toBe(true)
     expect(await settlement(f)).toEqual(original)
   } finally {
