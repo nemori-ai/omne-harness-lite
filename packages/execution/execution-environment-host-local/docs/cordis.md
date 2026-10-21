@@ -1,6 +1,6 @@
 # execution-environment-host-local 的 Cordis 集成
 
-本页是执行环境的 Service 实现正文：Service 子类与插件、配置、登记即效应、撤除顺序、isolate 绑定、调用方类与块发布的现状。它是组内「服务键之外的 Service 实现、撤除与资源清理」的唯一拥有者，主题表见[组架构](../../docs/architecture.md#主题与唯一拥有者)。行为编号与章节指本成员 [SPEC](../SPEC.md)。
+本页是执行环境的 Service 实现正文：Service 子类与插件、配置、登记即效应、撤除顺序、isolate 绑定、调用方类与块发布的现状。它是组内「Service 实现、插件、配置与撤除顺序」的唯一拥有者，主题表见[组架构](../../docs/architecture.md#主题与唯一拥有者)。行为编号与章节指本成员 [SPEC](../SPEC.md)。
 
 服务键、抽象类、intercept 配置与登记协议归 [execution-environment-cordis-contract 的 Cordis 说明](../../execution-environment-cordis-contract/docs/cordis.md)，本成员继承这些定义，不重复提供键。登记表机制归 [execution-environment](../../execution-environment/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 

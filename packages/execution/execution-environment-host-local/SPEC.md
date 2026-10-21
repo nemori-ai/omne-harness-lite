@@ -11,7 +11,7 @@
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
-两个入口的模板标记写明还没有接受的部分：`files` 的其余八项操作、`command` 与 `terminal` 的提供者、平台前提的探测、Runtime Context 生产者插件、调用方类的核对。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
+两个入口的模板标记写明还没有接受的部分：`files` 的其余八项操作、`command` 与 `terminal` 的提供者、平台前提的探测、Runtime Context 生产者插件、调用方类的核对。`command` 与 `terminal` 由宿主提供者承担的部分未实现，见[宿主命令与终端](#宿主命令与终端未实现)。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
 ## 结果与不变量
 
@@ -41,7 +41,7 @@
 
 ### 宿主文件使用
 
-本节已由 PanQiWei 接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它落实契约[设施协议](../execution-environment-contract/SPEC.md#设施协议)里文件操作的最小调用事实。请求携带访问身份 `access`（主体加租户）、绑定 `binding`、原调用引用 `origin` 和这次请求身份 `requestId`。设施和租约的定义在[契约对象模型](../execution-environment-contract/docs/object-model.md)。存储编码仍未另定。宿主机上的打开和身份核对在[架构](docs/architecture.md#宿主文件使用)。根入口导出宿主文件使用的 `createHostFiles` 与 `hostObjectToken`，`./cordis` 导出登记它的 `hostFilesPlugin`。路径上没有对象时结果是未解析。（本次补充）跨租户拒绝由登记表的租约视图在调用本设施之前执行，测试在 [execution-environment](../execution-environment/tests/registry.spec.ts)；直接调用 `createHostFiles` 得到的设施不核对租户。授予根限制没有包测试。活句柄还开着时关闭失败现已有包测试；观察记录在架构页。PanQiWei 接受时的包测试只在 Node v26.0.0、darwin 上运行过。（本次补充）2026-10-21 在 Node v24.18.0、linux 上运行了本成员的包测试，记录在[组合与验证](#组合与验证)。
+本节已由 PanQiWei 接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它落实契约[设施协议](../execution-environment-contract/SPEC.md#设施协议)里文件操作的最小调用事实。请求携带访问身份 `access`（主体加租户）、绑定 `binding`、原调用引用 `origin` 和这次请求身份 `requestId`。设施和租约的定义在[契约对象模型](../execution-environment-contract/docs/object-model.md)。存储编码仍未另定。宿主机上的打开和身份核对在[架构](docs/architecture.md#宿主文件使用)。根入口导出宿主文件使用的 `createHostFiles` 与 `hostObjectToken`，`./cordis` 导出登记它的 `hostFilesPlugin`。路径上没有对象时结果是未解析。授予根限制没有包测试。活句柄还开着时关闭失败有包测试；观察记录在架构页。当前包测试在 Node v24.18.0、linux 上运行，记录在[组合与验证](#组合与验证)。
 
 这一次文件使用只包含读取、查看、写入和关闭。编辑、补丁、按名查找、按内容查找和图片附件留在 `Files()`。列表、移动、复制、删除和建目录若以后进入设施，必须复用同一次对象绑定。本节不定它们的产品结果。
 
@@ -54,6 +54,13 @@
 读取完成不表示写入完成。后一次请求重新确认。关闭是另一次请求。关闭成功只表示该句柄代际已得到成功回执。没有成功回执时，关闭结果是未知，已读到或写到的结果仍留在原来的请求上。调用方丢掉引用不是关闭成功。对已经关闭的描述符再次关闭，不是一次活句柄关闭失败。
 
 授权点名可以用替身核对。文件字节、符号链接和对象替换使用真实文件系统。同一次请求身份只有一种确认。
+
+#### 接受之后的补充（未接受）
+
+下列句子是接受之后补写的现状，不在上面的接受范围内：
+
+- 跨租户拒绝由登记表的租约视图在调用本设施之前执行，测试在 [execution-environment](../execution-environment/tests/registry.spec.ts)。直接调用 `createHostFiles` 得到的设施不核对租户。
+- PanQiWei 接受时，本成员的包测试只在 Node v26.0.0、darwin 上运行过。
 
 ### 宿主文件设施的其余现行行为
 
@@ -81,6 +88,18 @@
 - `filesFacilityPlugin` 与 `hostFilesPlugin` 的 `inject` 都是服务键常量。`filesFacilityPlugin` 装载时经 `ctx.executionEnvironment` 登记 `files` 设施声明，不登记提供者。`hostFilesPlugin` 装载时用配置的 `drainBoundMs` 登记一个新的宿主文件提供者，不登记声明。提供者的退役超过上界时，诊断经 `ctx.logger('executionEnvironment.hostFiles')` 以错误级写出。声明的生灭与宿主提供者的生灭分开：只装 `hostFilesPlugin` 时，需要 `files` 的落点解析返回 `missingFacility`。
 - 本成员不读取调用方类的 intercept 配置，不按调用方类拒绝调用。
 - 本成员不登记 Runtime Context 的生产者，不发布 `execution.placement` 与 `execution.host-facts` 两条块。
+- 装配规则：宿主提供者插件 `hostFilesPlugin` 与 Service `ExecutionEnvironmentRegistry` 在同一插件树里一起装载，不单独卸载。这条规则现在没有强制执行点，见[明确缺项](#明确缺项)。
+
+### 宿主命令与终端（未实现）
+
+本节写 `command` 与 `terminal` 由宿主提供者承担的部分。这些部分都没有实现。机制设计见[架构的宿主命令与终端机制](docs/architecture.md#宿主命令与终端机制设计未实现)，机制级流程见[流程](docs/flows.md)。
+
+- 提供者：`command` 与 `terminal` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。这样宿主层仍由一个提供者提供全部所需设施，需要 `files` 加 `command` 的工具不会得到 `missingFacility` 或 `ambiguousEnvironment`。
+- 平台前提：Linux 的用户 systemd 与可用的用户管理器、真实的 Bash、GNU `env`、`stty` 与 node-pty。缺任一项时，宿主提供者对 `command` 与 `terminal` 的操作报 `unavailable`，不改用猜测的进程号或假的后端。宿主事实块报告前提满足、不满足或未知；探测被接受之前报未知。
+- 隔离：宿主提供者只能确认进程隔离，不能确认文件系统根或无网络。
+- 策略数值：输出的缓冲上限与单块上限、等待的上界与终端的缺省尺寸都是配置，代码里的数值只是配置初值。
+- 停止确认：宿主提供者先强制结束执行域里的全部进程，再停止执行域，之后查询执行域的状态。状态为不活动或已不存在时才报 `confirmed`。宿主机重启过（启动身份变了）时直接视为不活动。原启动尚未隔离或尚未排空时不确认缺席。其余情况报 `unconfirmed`，保留处置责任。
+- 冷恢复：受管资源的恢复引用是执行域的坐标。`recover` 按坐标查询执行域的状态，再按停止确认的条件停止与确认，不重启命令，不重建 shell。
 
 ### 撤除顺序
 
@@ -136,4 +155,5 @@
 ### 明确缺项
 
 - 长期运行的保留与淘汰策略待定（应可配置）：宿主文件设施的已签发句柄表只增不减，当前随进程结束释放。
+- 宿主提供者插件与 Service 一起装载、不单独卸载的装配规则，现在没有强制执行点：`hostFilesPlugin` 可以单独卸载。这条规则与产品正文第 2 版「宿主机提供者随执行环境一起在场，不单独装卸」的关系，以及与 #278 已接受的插件形状谁先谁后，待产品负责人与契约拥有者确认。
 - 两个插件仍是手写的插件对象，没有经过 kernel-basis 的 `definePlugin`，空配置 Schema 与 `hostFilesPlugin` 的配置 Schema 仍在本成员（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。加依赖需要更新工作区锁文件，待派发者裁定。

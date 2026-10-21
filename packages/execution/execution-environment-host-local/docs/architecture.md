@@ -63,7 +63,7 @@ flowchart LR
 
 ### 账本关闭由登记表的门核对
 
-提供者不读账本。经租约的每个文件操作在登记表的门里先核对本次获取账本的 `closed` 信号（[INV-EE15](../../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。理由：门是所有设施操作的唯一入口，核对放在门里只做一次。本提供者没有在门之外自己发起的效果，所以不另查。代价：直接调用 `createHostFilesProvider` 得到的租约原件不经过门，不查账本。
+提供者不读账本。经租约的每个文件操作在登记表的门里先核对这次获取的账本的 `closed` 信号（[INV-EE15](../../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。理由：门是所有设施操作的唯一入口，核对放在门里只做一次。本提供者没有在门之外自己发起的效果，所以不另查。代价：直接调用 `createHostFilesProvider` 得到的租约原件不经过门，不查账本。
 
 ### Service 子类转发，登记落在调用方 fiber
 
@@ -81,13 +81,13 @@ flowchart LR
 
 服务卸载与提供者撤除在退役待处置时抛出 `RetirementPending`。理由：撤除函数正常返回会被当作资源已清理。待处置的受管资源仍在集成方账本里，由维护者处置（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。代价：fiber 卸载时 Cordis 只把这个抛出写入 `ctx.logger`，卸载本身照常完成。装配从 `ctx.logger` 与登记表的结果观察待处置，不从卸载结果观察。
 
-代价：Cordis 怎样处置撤除函数抛出的错误，现在没有 basis 条目。
+Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md) 的第二条：并发驱动时异常只写日志，不上抛。
 
 ## 宿主文件使用
 
 状态：PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它不改写契约[获取与租约](../../execution-environment-contract/SPEC.md#获取与租约)的准备顺序，也不新建设施目录或沙箱实现。
 
-文件使用发生在落点已经算完之后。条件选择仍按 [INV-EE02](../../execution-environment-contract/SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)（本次修订，未接受）决定宿主机或沙箱。环境提供者只对宿主机落点提供这一次文件使用。执行适配核对使用对象。观察与控制按同一次请求身份记下一种结果。`Files()` 消费读取、查看、写入和关闭这四项。编辑、补丁、查找和图片附件留在工具。`Shell()` 不进入这次确认。命令碰到的文件也不进入。
+文件使用发生在落点已经算完之后。条件选择仍按 [INV-EE02](../../execution-environment-contract/SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) 决定宿主机或沙箱。环境提供者只对宿主机落点提供这一次文件使用。执行适配核对使用对象。观察与控制按同一次请求身份记下一种结果。`Files()` 消费读取、查看、写入和关闭这四项。编辑、补丁、查找和图片附件留在工具。`Shell()` 不进入这次确认。命令碰到的文件也不进入。
 
 一次使用的结果只能是下面一种。
 
@@ -100,7 +100,6 @@ flowchart LR
 | 拒绝 | 带有拒绝原因。落点保持为请求里的那一个 |
 | 未知 | 请求身份仍在。不知道动作是否已经作用到对象上。关闭没有成功回执时用这一结果 |
 
-（本次补充）这六种结果对应契约的设施结果四态：前三种是 `done`，未解析是 `unresolved`，拒绝是 `rejected`，未知是 `unknown`。同一次请求身份 `requestId` 只得到其中一种。
 
 句柄代际由使用时点的设备号、inode，以及提供者为这次使用发出的代次组成。同一次设施里，成功的读取、查看和写入各发出一个新代次，从 `1` 递增。元数据版本可以参与对象身份。它单独不是原子的外部写入防护。
 
@@ -116,23 +115,83 @@ flowchart LR
 
 写入（替换模式）在身份一致后先把文件截断，再写入新字节。截断已经发生而后续没有写完时，结果是未知。文件可能已经变短。
 
-读取、查看或写入返回前尝试关闭本次打开的描述符。关闭成功时该句柄代次得到成功回执；关闭失败时该描述符被保留在内部 pending-close 集合中，每次公开操作前会再次尝试关闭，仍然失败则结果保持未知，不抹掉已返回的读取或写入事实。身份不一致、读取/写入失败或 fstat 失败等错误路径同样保留无法关闭的描述符，而不是在 catch 中丢弃唯一引用。这些未发出句柄的描述符没有公开清理接缝，由本设施实例在后续操作中重试；实例释放时由运行时回收。
+读取、查看或写入返回前尝试关闭这次操作打开的描述符。关闭成功时该句柄代次得到成功回执；关闭失败时该描述符被保留在内部 pending-close 集合中，每次公开操作前会再次尝试关闭，仍然失败则结果保持未知，不抹掉已返回的读取或写入事实。身份不一致、读取/写入失败或 fstat 失败等错误路径同样保留无法关闭的描述符，而不是在 catch 中丢弃唯一引用。这些未发出句柄的描述符没有公开清理接缝，由本设施实例在后续操作中重试；实例释放时由运行时回收。
 
 2026-10-16 在 Node v26.0.0、darwin 上，`FileHandle.close()` 对已经关闭的句柄再调用一次没有报错；句柄关闭之后对原来的 fd 调用 `closeSync` 得到 `ERR_OUT_OF_RANGE`。这两次都不是活句柄还开着时关闭失败。
 
-（本次补充）2026-10-21 在 Node v24.18.0、linux 上，本成员的包测试 `pnpm --filter @omne-harness/execution-environment-host-local test` 的 5 个测试文件、50 个测试全部通过，退出码 0。其中包括读取、查看与写入时关闭失败后关闭返回未知的三个测试。这次运行没有重做上一段的两次 `close` 观察。
-
 授权决定可以用替身。文件字节、符号链接和对象替换使用真实文件系统。
+
+### 接受之后的补充（未接受）
+
+下列内容是接受之后补写的，不在上面的接受范围内：
+
+- 上面「条件选择仍按 INV-EE02」引用的 INV-EE02 已按产品正文第 2 版改写：策略在域外求值，执行环境只在允许清单内匹配。改写后的 INV-EE02 未经技术接受。
+- 上表的六种结果对应契约的设施结果四态：前三种是 `done`，未解析是 `unresolved`，拒绝是 `rejected`，未知是 `unknown`。同一次请求身份 `requestId` 只得到其中一种。
+- 本成员的包测试在 Node v24.18.0、linux 上的运行记录见 [SPEC 的组合与验证](../SPEC.md#组合与验证)。其中包括读取、查看与写入时关闭失败后关闭返回未知的三个测试。这些运行没有重做 2026-10-16 的两次 `close` 观察。
+
+## 宿主命令与终端机制（设计，未实现）
+
+本节是宿主提供者承担 `command` 与 `terminal` 的机制设计。它不是实现：本成员现在没有 `command` 与 `terminal` 的提供者，SPEC 把这部分列为[未实现](../SPEC.md#宿主命令与终端未实现)。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令) 与 [`terminal`](../../execution-environment-contract/docs/architecture.md#terminal终端)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局) 与 [F-EEC08](../../execution-environment-contract/docs/flows.md#f-eec08-终端腿)。
+
+`command` 与 `terminal` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）；再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。保持「一层一个提供者提供全部所需设施」，就不会出现这两种结果。
+
+| 机制 | 设计 |
+| --- | --- |
+| 执行域 | 每个受管资源一个 systemd 用户 scope：`systemd-run --user --scope --unit=omne-host-<uuid>.scope --property=KillMode=control-group` 启动一个门进程。坐标 `{ unit, boot_id }` 是进程身份的耐久引用，也是 `ManagedResource.reference`。隔离断言只能确认 `process`，不能确认 `filesystem-root` 或 `network-none` |
+| 门与许可 | 门进程先核对 `/proc/self/cgroup` 含有自己的 unit，再报就绪。GO 信号只能由唯一的写端发一次，GO 之前不启动用户命令。GO 对应资源账本的 `permit` 已确认；账本 `closed` 时关闭 GO 的写端 |
+| PTY | 门内用 node-pty 以显式的列数与行数启动命令。环境变量显式给出，另补 `PWD` 为工作目录、`TERM` 为显式值或 `xterm`，不继承宿主的变量。尺寸来自请求，缺省值归提供者的配置 |
+| 增量转发 | PTY 的原始字节按单块上限切块，经 base64 编进分隔的 JSON 帧，经私有的标准输出管道送到管理端。管道写端返回 false 时暂停 PTY，`drain` 后恢复。管理端按行解析并限制帧大小，非法帧使资源失效 |
+| 有界缓冲 | 管理端的缓冲不超过缓冲上限，超出的字节丢弃并计数。只有一个读者；读者放弃之后，后续字节全部计入丢弃。`observedOffset` 由管理端给出 |
+| 完成回执 | 一次性命令由门内的启动器包一层，退出码写入身份目录下的回执文件（独占新建，权限 0600）。PTY 退出且传输没有暂停时，门用 `O_NOFOLLOW` 读回执，发出带退出码或信号的完成帧。缺回执或传输不完整时发出 `failed`。`CommandOutcome` 的 `completed` 只在收到回执时给出，否则为 `failed`（`effectUnknown`） |
+| 终端腿 | 持久 Bash 在 PTY 里。每条腿写一个脚本文件，用 `builtin source` 执行。腿带显式工作目录或环境变量时，整段包进子 shell 并 `builtin wait`。完成信号是私有转义序列 `ESC ] 777 ; omne ; <腿 id> ; <退出码> BEL`，由管理端从字节流里剥出，普通 ANSI 原样透传。收到回执之后，核对 `cgroup.procs` 没有非僵尸的残留进程，用 `readlink /proc/<shell>/cwd` 读新的工作目录，再给出带退出码与工作目录的完成 |
+| 失效 | 重复的就绪、未发送就收到已创建、帧 id 不匹配、完成后仍有数据、帧过大、管理进程关闭，都使资源失效。在途的腿以 `failed`（`effectUnknown`）结算，并强制停止 |
+| 停止与确认 | 先 `systemctl --user kill --kill-who=all --signal=SIGKILL`，再 `stop`，之后用 `systemctl --user show -p LoadState -p ActiveState` 核对 scope 为 `inactive` 或 `not-found`，才报 `confirmed`。`boot_id` 变了直接视为不活动。原启动尚未隔离或尚未排空时不确认缺席。冷恢复按坐标核对 scope 的状态 |
+| 超时 | 等待有上界。超时不取消原生操作，也不丢弃原控制。准备超时返回 `unknown`，保留控制对象，关闭 GO 的写端 |
+| 身份目录 | 每个资源一个以坐标命名的目录，放请求、输入、脚本与回执。命令处置或终端清理时删除。冷清理覆盖这两类目录。清理经账本的 `stopped` 确认 |
+| 平台前提 | Linux 的用户 systemd、可用的用户管理器、真实的 Bash、GNU `env`、`stty`、node-pty。缺任一项时提供者报 `unavailable`，不用猜测的进程号或假后端顶替。`execution.host-facts` 报告前提是否满足 |
+
+下图是一次一次性命令的时序：管理端在宿主提供者里，门进程在执行域里。
+
+```mermaid
+sequenceDiagram
+  participant M as 管理端（宿主提供者）
+  participant R as 资源账本
+  participant S as systemd 用户 scope
+  participant G as 门进程
+  participant T as PTY 与命令
+  M->>R: plan(坐标)
+  M->>S: systemd-run 启动门进程
+  G->>G: 核对 /proc/self/cgroup 含自己的 unit
+  G-->>M: ready
+  M->>R: permit
+  R-->>M: confirmed
+  M->>G: GO（唯一写端，只发一次）
+  G->>T: node-pty 启动命令（显式尺寸与环境变量）
+  loop 增量转发
+    T-->>G: 原始字节
+    G-->>M: 分隔的 JSON 帧（私有管道，写满时暂停 PTY）
+    M->>M: 有界缓冲，超出丢弃并计数
+  end
+  T-->>G: 退出，启动器写回执文件
+  G->>G: O_NOFOLLOW 读回执
+  G-->>M: completed 帧，或缺回执时 failed
+  M->>S: kill（SIGKILL）与 stop
+  M->>S: systemctl --user show
+  S-->>M: inactive 或 not-found
+  M->>R: stopped(坐标, confirmed)
+```
+
+终端腿沿用同一个执行域、门与转发；差别是一个 PTY 承载多条腿，每条腿以私有转义序列与残留检查确认完成，见上表的「终端腿」一行。
 
 ## SOLID 与扩展边界
 
 | 原则 | 本成员的具体选择 | 必须防止的反例 |
 | --- | --- | --- |
 | 单一职责 | 宿主文件设施只管宿主机上的对象身份与字节，提供者只管事实与租约原件，Service 子类只管转发与生命周期 | 在宿主文件设施里核对租户或问守卫，或在 Service 子类里重写匹配规则 |
-| 开闭 | `command` 与 `terminal` 的宿主提供者以新的提供者与插件加入，经同一个登记面登记。沙箱是新的 Service 实现成员，不改本成员 | 为新设施在宿主文件提供者或 Service 子类里加分支 |
+| 开闭 | `command` 与 `terminal` 加在同一个宿主提供者上，宿主层仍由一个提供者提供全部所需设施。沙箱是新的提供者，放在新的提供者成员里，登记到同一个登记表，不是新的 Service 实现，不改本成员 | 为新设施另立宿主提供者，使宿主层出现两个提供者；在 Service 子类里为某种设施加分支 |
 | 里氏替换 | 宿主文件提供者满足契约的 `EnvironmentProvider`：真实声明只支持宿主层、不确认隔离、没有受管资源与恢复；退役先停止接纳新操作，再在 `drainBoundMs` 内等在途操作结束，超界报待处置；前提未探测时报未知 | 声明不支持的绑定层或隔离断言；在途操作未结束或退役待处置时报告已排空；未探测就报前提已满足 |
 | 接口隔离 | 根入口只给宿主文件设施与提供者，`./cordis` 只给插件与 Service 子类 | 让调用方导入 `./cordis` 的子类来调用环境操作 |
-| 依赖倒置 | 本成员依赖契约、服务定义与登记表工厂。恢复授权由装配作为插件工厂参数给出，租户与授权随操作参数进入 | 从 `ctx`、isolate 标签或插件实例推断租户或恢复授权 |
+| 依赖倒置 | 本成员依赖契约、服务定义与登记表工厂。恢复授权由装配经服务键 `executionRecoveryAuthority` 提供，Service 现取；租户与授权随操作参数进入 | 从 `ctx`、isolate 标签或插件实例推断租户或恢复授权 |
 
 ## 验证与维护
 
@@ -144,6 +203,7 @@ flowchart LR
 | 退役等在途操作、超界待处置与诊断 | [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts)，用 `vi.mock` 让一次 `open` 停住，其余是真实文件系统与真实 Cordis | 无 |
 | 根入口不导入 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新增根入口模块时加入文件清单 |
 | 两条块的发布 | 没有 | 随 Runtime Context 生产者插件进入 |
+| `command` 与 `terminal` 的宿主机制 | 没有，只有[设计](#宿主命令与终端机制设计未实现) | 实现时按机制表补测试，在满足平台前提的真实 Linux 上运行 |
 
 维护规则：
 

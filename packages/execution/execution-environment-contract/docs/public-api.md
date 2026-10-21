@@ -174,6 +174,18 @@ schema 的规则：
 
 采用身份的字段：`owner` 是 `execution-environment`，`name` 是 `environment-need`，`revision` 是 `1`，`digest` 是 `sha256:` 加 JSON Schema 文件字节的 SHA-256 十六进制值。读者可以重新计算 `digest`。工具定义里存采用身份加声明值，Tool 契约经 schema-provider 按采用身份解析 schema，不导入本成员。schema 文件的字节变化时必须同步 `digest`；声明的形状变化时，还要前进 `revision`。
 
+
+### 示例：Shell 工具的环境声明
+
+[examples/shell-needs.ts](../examples/shell-needs.ts) 演示一个命令行工具包怎样使用上面三个导出与 `FacilitySet`：
+
+1. 写下环境声明：需要 `command` 与 `terminal`，需要确认 `process` 隔离，能在 `host_machine`、`session_sandbox` 与 `tenant_sandbox` 工作。
+2. 从声明推出执行者的设施类型 `FacilitySet`，执行者取不到声明没有点名的 `files`。
+3. 把 `environmentNeedAdoption` 与声明值一起存进工具定义。
+4. 在一个终端里执行一段脚本，读取流式输出与终局。
+
+落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供，与 `files` 一样；这两项的宿主提供者现在只有设计，没有实现，见 [execution-environment-host-local 的宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。这个示例只在类型层面成立，没有提供者，不能单独运行。类型测试 [tests/facility-set.spec-d.ts](../tests/facility-set.spec-d.ts) 导入它，由 `pnpm --filter @omne-harness/execution-environment-contract typecheck`（`tsc -p tsconfig.test.json`）编译。示例与公开入口不一致时，这次编译失败。
+
 ### 两条块声明
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
@@ -196,4 +208,4 @@ schema 的规则：
 | `volatility` | `stable` | 变化频率是 `stable`，不是每步或每次请求 |
 | `recovery` | `recompute` | 恢复时从当前事实重算，不持久保存 |
 
-`blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）。
+`blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者。生产者是 host-local 的 Service 实现。当前还没有发布。

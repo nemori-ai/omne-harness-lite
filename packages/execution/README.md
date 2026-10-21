@@ -8,14 +8,14 @@
 
 ## 成员与依赖
 
-Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 `packages/` 下其他按这四段切分的组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。宿主文件设施的实现与测试从旧单包迁入 `-host-local`，其余成员当前是骨架。
+Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 `packages/` 下其他按这四段切分的组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。四个成员都有源码与包测试：契约成员有类型、设施声明、schema 与纯函数；Cordis 定义成员有抽象 Service 与键；机制成员有登记表；Service 实现成员有 Service、插件与宿主 `files` 提供者。
 
 | 成员 | 变体 | 责任 |
 | --- | --- | --- |
 | [execution-environment-contract](execution-environment-contract/README.md) | module | 访问身份、绑定层、连续性、环境要求、落点、获取、采用记录、租约、受管资源；三个需要端口（资源账本、设施守卫、恢复授权）；设施协议与 `files`、`command`、`terminal` 三个设施的形状；工具环境声明的 schema 与采用身份；两条块声明 |
 | [execution-environment-cordis-contract](execution-environment-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `executionEnvironment`、intercept 配置类型；恢复两操作在同一服务上 |
 | [execution-environment](execution-environment/README.md) | module | 不含 Cordis 的登记表机制：提供者与设施表、按允许绑定顺序匹配、获取状态与幂等键、租约视图与逐操作门、恢复编排 |
-| [execution-environment-host-local](execution-environment-host-local/README.md) | service-provider | Service 实现与撤除保留；宿主 `files` 提供者（已迁入四项操作）；`command`、`terminal` 提供者待实现 |
+| [execution-environment-host-local](execution-environment-host-local/README.md) | service-provider | Service 实现与撤除保留；宿主 `files` 提供者（读取、查看、写入与关闭四项操作）；`command`、`terminal` 的宿主机制只有设计，没有实现 |
 | [image](image/README.md) | module | 图像预算、打开、编码与关闭；公开入口是 `imageBudget`、`open` 与句柄上的 encode 和 close |
 
 依赖方向：`execution-environment-cordis-contract` 与 `execution-environment` 各自只依赖 `execution-environment-contract`；`execution-environment-host-local` 依赖这三个成员。契约成员依赖 `runtime-context-contract`（作用域引用与块声明类型）、`legal-identity`、`operation-result`、`json-text`、`schema-provider`；不依赖 Tool、Session、授权的契约，它们依赖本组。图像成员与 Execution Environment 没有交接。精确依赖图见[组架构](docs/architecture.md)。
@@ -30,4 +30,4 @@ Execution Environment 按纯契约、Cordis 服务定义、机制实现、Servic
 
 ## 维护
 
-公开承诺改契约成员的 `SPEC.md` 与 `docs/`，机制改 `execution-environment`，装配与宿主机制改 `-host-local`；新增提供者（沙箱）是新的 `service-provider` 成员，不改契约。新增成员或改依赖方向同步[包组织](../../docs/package-organization.md)、本页与 `documentation.json`。新建实现先核对[成员文档规范](../../docs/member-documentation.md)和[包创建入口](../../docs/development.md#创建和整改产品包)。具名维护者由负责人指定。
+公开承诺改契约成员的 `SPEC.md` 与 `docs/`，机制改 `execution-environment`，装配与宿主机制改 `-host-local`；新增提供者（沙箱）是新的 `service-provider` 成员，登记到同一个登记表，不改契约，也不是新的 Service 实现。新增成员或改依赖方向同步[包组织](../../docs/package-organization.md)、本页与 `documentation.json`。新建实现先核对[成员文档规范](../../docs/member-documentation.md)和[包创建入口](../../docs/development.md#创建和整改产品包)。具名维护者由负责人指定。

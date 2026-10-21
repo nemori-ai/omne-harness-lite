@@ -13,17 +13,24 @@ flowchart LR
   IMG[image<br/>module]
   RCC[runtime-context-contract]
   LI[legal-identity · operation-result · json-text · schema-provider]
-  EEC --> EECC --> HL
-  EEC --> EE --> HL
+  EECC --> EEC
+  EE --> EEC
+  HL --> EEC
+  HL --> EECC
+  HL --> EE
   EEC --> RCC
   EEC --> LI
 ```
+
+图例：箭头从依赖方指向被依赖方，即 `A --> B` 表示 A 的 `package.json` 依赖 B。成员页的依赖图用同一方向。
 
 - 契约成员是 Cordis-free 的根。它导出全部值类型、端口类型、设施形状、块声明与纯函数，不含任何提供者实现。
 - Cordis 定义成员只导出抽象 Service 与键，不实现。
 - 机制成员实现登记表，不依赖 Cordis，也不碰机器资源。
 - Service 实现成员把机制装进 Cordis，并提供宿主机上的设施提供者。
 - 图像成员独立，不依赖本组其他成员，也不被它们依赖。
+
+沙箱以新的提供者加入：它放在新的提供者成员里，经同一个服务登记到同一个登记表，不是新的 Service 实现。一个 isolate 标签下只有一个 Service 实现与一个登记表。宿主层的新设施（`command`、`terminal`）也加在已有的宿主提供者上，不另立宿主提供者，所以一层仍由一个提供者提供全部所需设施。
 
 Tool 宿主依赖契约成员与 Cordis 定义成员。Tool 契约不依赖本组：工具的环境声明是 JSON 值加 schema 采用身份，schema 与采用身份归契约成员，Tool 契约经 schema-provider 校验。
 
@@ -40,6 +47,7 @@ Tool 宿主依赖契约成员与 Cordis 定义成员。Tool 契约不依赖本�
 | 服务键、intercept 配置、调用方类 | [execution-environment-cordis-contract Cordis 说明](../execution-environment-cordis-contract/docs/cordis.md) |
 | 提供者与设施表、匹配、获取状态的机制、租约视图、恢复编排 | [execution-environment 架构](../execution-environment/docs/architecture.md) |
 | 宿主文件使用、宿主机制、撤除保留 | [execution-environment-host-local 架构](../execution-environment-host-local/docs/architecture.md) |
+| Service 实现、插件、配置与撤除顺序 | [execution-environment-host-local Cordis 说明](../execution-environment-host-local/docs/cordis.md) |
 | 图像预算与编码 | [image 架构](../image/docs/architecture.md) |
 
 ## 验证分工

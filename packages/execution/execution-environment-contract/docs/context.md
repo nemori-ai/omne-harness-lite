@@ -64,7 +64,7 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 4. 可能跨进程存活的资源先在 `ProviderAcquireInput.ledger` 里计划并取得许可，再发出首个外部效果（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。经租约的设施操作由登记表的门查账本的 `closed` 信号。提供者在门之外自己发起的效果，发出前自己查这个信号。
 5. 支持恢复的提供者同时实现 `listRecoveryResources` 与 `recover`。枚举失败返回不可用，不返回空列表。不支持恢复的提供者两者都不实现。受管资源按 `ProviderAcquireInput.scope`（请求方作用域）登记，枚举时按它查找。
 6. `retire` 先拒新租约，再排空。清理未完时返回待处置并列出未停的资源。`acquire` 与 `retire` 在提供者自己配置的上界内返回：`retire` 超界答待处置，`acquire` 超界先释放已分配的部分再以 `providerUnavailable` 拒绝（[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
-7. host-local 的 Service 实现作为两条块的生产者（当前没有成员发布这两条块），发布 `execution.placement` 与 `execution.host-facts`（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
+7. 提供者不发布 `execution.placement` 与 `execution.host-facts`。这两条块的生产者是 host-local 的 Service 实现。当前还没有发布（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 
 `registerProvider` 返回撤除函数。撤除登记等于退役开始。宿主提供者的实际做法见 [execution-environment-host-local](../../execution-environment-host-local/README.md)。
 
@@ -137,7 +137,7 @@ Tool 契约 P03 的各步怎样对到本成员的操作。集成方是工具宿�
 
 | Tool 契约 P03 | 本成员 | 说明 |
 | --- | --- | --- |
-| 先提交 `PreparationRecord`，再 prepare | 先在账本里记下获取键与落点，再 `resolvePlacement` 与 `acquire` | 获取键取自准备记录的操作身份，所以对端按同一操作去重 |
+| 先提交 `PreparationRecord`，再 prepare | 先 `resolvePlacement` 得到落点，再在账本里记下获取键与落点，然后 `acquire` | 获取键取自准备记录的操作身份，所以对端按同一操作去重 |
 | 对端按同一操作去重 | 同一获取键返回同一状态，不重新分配 | 同键配不同落点按参数冲突拒绝 |
 | `inspectPreparation` 查询原分配 | `inspectAcquisition` | 本成员的实现重启后答复 `unrecorded`，不表示没有分配过。工具宿主据账本走恢复 |
 | `prepared` 返回重新连接能力与持久证据 | `Acquired`：租约与采用记录 | 采用记录是持久证据，由工具宿主随准备记录保存。租约是进程内的使用入口 |

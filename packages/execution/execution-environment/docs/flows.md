@@ -17,7 +17,7 @@ sequenceDiagram
   participant T as 获取表
   participant P as 提供者
   I->>R: resolvePlacement(访问身份, 请求方作用域与要求)
-  R->>R: matchProviders（清单顺序，层内登记顺序）
+  R->>R: matchProviders（清单顺序；同层多个合格提供者按歧义拒绝）
   R-->>I: 落点或拒绝
   I->>R: acquire(访问身份, 幂等键, 原调用, 请求方作用域, 落点, 账本, 守卫)
   alt 键已存在
@@ -62,7 +62,7 @@ flowchart TD
   B -->|否| X1[rejected invalidInput]
   B -->|是| C{租约仍接纳新操作}
   C -->|否，已失效或释放已发起| X2[rejected closed]
-  C -->|是| L{本次获取的账本未关闭}
+  C -->|是| L{这次获取的账本未关闭}
   L -->|否| X2
   L -->|是| U{此刻的设施声明列出该操作}
   U -->|否| X6[rejected unsupported]

@@ -1,8 +1,8 @@
 # 执行环境契约的协议流程
 
-本页给出本成员的六条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。
+本页给出本成员的九条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07 与 F-EEC08 是设计，当前没有提供者实现 `command` 与 `terminal`。
 
-图中的「执行环境」是 `ExecutionEnvironment` 的实现。不含 Cordis 的登记表机制归 [execution-environment](../../execution-environment/README.md)，它的机制级流程见该成员的 `docs/flows.md`。跨成员流程 F-EX01 至 F-EX04 归组的[协作入口](../../docs/key-flows.md)，本页编号与它一致。对象的状态与转移见[对象模型](object-model.md#生命周期)。设施协议的规则见 SPEC [设施协议](../SPEC.md#设施协议)，逐设施的展开见[内部架构](architecture.md#设施协议)。
+图中的「执行环境」是 `ExecutionEnvironment` 的实现。不含 Cordis 的登记表机制归 [execution-environment](../../execution-environment/README.md)，它的机制级流程见该成员的 `docs/flows.md`。跨成员流程 F-EX01 至 F-EX04 归组的[协作入口](../../docs/key-flows.md)。本页各条注明对应的组流程 F-EX。对象的状态与转移见[对象模型](object-model.md#生命周期)。设施协议的规则见 SPEC [设施协议](../SPEC.md#设施协议)，逐设施的展开见[内部架构](architecture.md#设施协议)。
 
 图中只出现通用角色：集成方、执行环境、提供者、设施拥有者、设施守卫、资源账本、维护者、恢复授权端口与观察者。设施守卫、资源账本与恢复授权端口都由集成方实现。
 
@@ -76,7 +76,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 核对请求方 | 请求里的租户等于获取方的租户。租约只绑定租户，主体由设施守卫判断 | 不相等时以 `notAuthorized` 拒绝 |
 | 核对租约 | 租约未失效或释放 | 失效或释放后的新操作以 `closed` 拒绝 |
-| 核对账本 | 本次获取的账本没有关闭 | 账本关闭后的新操作以 `closed` 拒绝，不发出操作。门是所有设施操作的唯一入口，所以这项核对只在门里做 |
+| 核对账本 | 这次获取的账本没有关闭 | 账本关闭后的新操作以 `closed` 拒绝，不发出操作。门是所有设施操作的唯一入口，所以这项核对只在门里做 |
 | 核对声明 | 设施键的声明仍有效 | 声明已撤除时以 `unsupported` 拒绝 |
 | 设施守卫 | 只有答 `authorized` 时操作才发出。执行环境不知道守卫的依据 | 答不允许时拒绝。守卫不可用时操作不发出，结果按对象模型的[设施请求](object-model.md#设施请求)记录。撤权在下一次操作时生效 |
 | 发出效果 | 按[设施协议](architecture.md#设施协议)执行 | 文件对象被换掉或核对不了时拒绝，不改按路径字符串放行，也不改落宿主机 |
@@ -86,7 +86,7 @@ sequenceDiagram
 
 条款：[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。组的 F-EX02 在这里结束。
 
-前提：受管资源是可能跨进程寿命存活的进程、终端或文件批次。资源账本由集成方实现，耐久，每次获取一份。
+前提：受管资源是可能跨进程寿命存活的进程、终端或文件批次。资源账本由集成方实现，耐久，每次获取一份。本条只写三种资源共用的账本协议。命令、终端与文件批次各自的流程见 [F-EEC07](#f-eec07-命令的增量输出与终局)、[F-EEC08](#f-eec08-终端腿)、[F-EEC09](#f-eec09-文件批次的提交与认回)。
 
 ```mermaid
 sequenceDiagram
@@ -113,7 +113,7 @@ sequenceDiagram
 | 运行 | 资源的恢复引用是 JSON，不是活句柄或裸进程号 | 原调用的终局与资源许可写在集成方账本的同一耐久顺序里 |
 | 接续 | 提供者在 `acquire` 内调用 `adopt(键)`。账本核对通过后，资源记入这次获取，不重新启动 | 账本核对记录是否存在、资源是否仍在运行、访问身份与作用域是否和记录一致。不一致时账本答 `unavailable`，提供者以 `unavailable` 拒绝这次获取。执行环境不另核 |
 | 停止 | 控制请求、实际停止与账本记录分别确认 | 确认不了停止的资源记为未确认，保留处置责任与查询入口，不写成已停。超时或没有返回不写成进程已退出 |
-| 文件批次的终态 | 已提交与未知是终态 | 释放时它们不算未停的受管资源。认回只读清单、目标与收据，不续发布，不回滚 |
+| 文件批次的终态 | 已提交与未知是终态 | 释放时它们不算未停的受管资源。提交与认回见 [F-EEC09](#f-eec09-文件批次的提交与认回) |
 
 ### F-EEC04 租约失效、提供者退役与释放
 
@@ -192,7 +192,7 @@ sequenceDiagram
 
 条款：[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、Runtime Context 的 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。对应组的 F-EX04。
 
-前提：两条块声明由本成员导出，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）。块的注册、读取与恢复规则归 Runtime Context。
+前提：两条块声明由本成员导出。生产者是 host-local 的 Service 实现。当前还没有发布。块的注册、读取与恢复规则归 Runtime Context。
 
 ```mermaid
 sequenceDiagram
@@ -216,9 +216,130 @@ sequenceDiagram
 | 读取 | 消费者类 `model`、`tool`、`extension` 可以读两条块 | 读者看到落点变化，不能据此认定原进程已停、数据已迁移或原工具已收场。凭据不进入块 |
 | 恢复 | 两条块的恢复方式都是重算 | 生产者不在场时读取得到缺项，不得到旧值 |
 
+### F-EEC07 命令的增量输出与终局
+
+状态：设计，提供者未实现。当前没有成员提供 `command` 设施。宿主机上的机制设计见 host-local 的[宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。
+
+条款：[设施协议](../SPEC.md#设施协议)、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`command`](architecture.md#command命令)。
+
+前提：租约暴露 `command`。集成方为这次启动给出新的请求身份，以及按允许名单组成的显式环境变量。
+
+```mermaid
+sequenceDiagram
+  participant I as 集成方（读者）
+  participant L as 租约
+  participant G as 设施守卫
+  participant P as 提供者的命令设施
+  participant R as 资源账本
+  participant X as 进程
+  I->>L: start(请求身份、访问身份、原调用、绑定层、可执行文件、参数、工作目录、环境变量、输出模式)
+  L->>G: authorize(command, start, 请求)
+  G-->>L: authorized
+  L->>P: start
+  P->>R: plan(进程) 与 permit
+  R-->>P: confirmed
+  P->>X: 许可确认之后启动进程
+  P-->>I: done：ProcessHandle（进程身份加代）
+  loop 一个读者迭代 output
+    P-->>I: OutputChunk（一路、原始字节、observedOffset）
+  end
+  opt 停止
+    I->>P: stop(graceful 或 forced)
+    P-->>I: confirmed 或 unconfirmed
+  end
+  P-->>I: result：completed 或 failed
+  P->>R: stopped(键, confirmed 或 unconfirmed)
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 启动前 | 先过设施守卫，再在账本里计划并取得许可，许可确认之后才启动进程 | 守卫答不允许或不可用时不启动。许可冲突或账本已关闭时不启动 |
+| 启动 | `done` 交出 `ProcessHandle`，表示进程实际已启动。进程身份是提供者给的身份加代，不是裸进程号 | 被接纳但进程映像没有启动时为 `rejected`，原因 `unavailable`。启动与否不可确认时为 `unknown` |
+| 增量输出 | `output` 是唯一的输出主体，只允许一个读者。每块是原始字节，不按行或字符切分，大小不超过单块上限 | 不承诺逐字节、逐行或实时送达。读者调用 `return()` 只放弃读取权，不停止进程，之后的字节都计入丢弃 |
+| 有界缓冲 | 缓冲不超过缓冲上限 | 无人读、慢读或读者离开时，新字节被丢弃并计数，不阻塞终局与停止。`observedOffset` 的空隙标出丢弃的位置 |
+| 终局 | `completed` 只用于进程完成已确认，带退出码、信号或未知退出，以及时长与输出计数 | 完成不可确认时为 `failed`（`unavailable` 或 `effectUnknown`），仍交出截至失联的时长与输出计数。`result` 不会永不结算。重复或并发等待不再启动任何东西 |
+| 停止 | `stop` 在有界时间内返回 `confirmed` 或 `unconfirmed` | 未确认的停止保留处置责任，不写成已停。进程已退出只认对该进程身份记录的回收状态，不认父进程退出、完成通知或一次查不到 |
+| 四件事分开 | 输出结束、进程终局、停止请求与资源已停分别判断 | 失败或未知的回执不伪造退出码 |
+
+### F-EEC08 终端腿
+
+状态：设计，提供者未实现。当前没有成员提供 `terminal` 设施。宿主机上的机制设计见 host-local 的[宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。
+
+条款：[设施协议](../SPEC.md#设施协议)、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`terminal`](architecture.md#terminal终端)。
+
+前提：租约暴露 `terminal`。终端是一个受管资源，每条腿是另一个受管资源。
+
+```mermaid
+sequenceDiagram
+  participant I as 集成方
+  participant L as 租约
+  participant P as 提供者的终端设施
+  participant R as 资源账本
+  participant S as 持久 shell
+  I->>L: create(工作目录、环境变量、尺寸)
+  L->>P: 过守卫之后 create
+  P->>R: plan(终端) 与 permit
+  P->>S: 许可确认之后启动 shell
+  P-->>I: done：TerminalRef（身份加代）
+  I->>L: execute(终端、脚本、可选的工作目录与环境变量)
+  L->>P: 过守卫之后 execute
+  P->>R: plan(这条腿) 与 permit
+  P->>S: 执行这一段
+  P-->>I: done：ProcessHandle（输出模式 terminal）
+  S-->>P: 回执、输出边界、无残留的后代
+  P-->>I: result：completed
+  I->>L: execute(下一条腿)
+  I->>L: close(终端)
+  P-->>I: confirmed 或 unconfirmed
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 创建 | 交出新的 `TerminalRef`。终端归原实例的代 | 新实例使用新身份，不复活旧终端的状态。只提供命令而不提供终端的环境拒绝终端请求，不降成一次性执行 |
+| 一条腿 | 同一终端同一时刻只有一条在途的腿。每条腿是独立的请求，各自过守卫、各自计划与许可，各自有 `ProcessHandle` | 已有在途的腿时以 `busy` 拒绝，不排队 |
+| 状态持续 | 工作目录、变量、函数与 shell 选项跨腿持续 | 带显式工作目录或环境变量的腿在子 shell 里运行，不改写终端的基态 |
+| 完成 | 有效回执、观察到的输出边界与无残留的后代三者都成立时，这条腿才完成。回执不是输出字节 | 已发布的完成不改写。完成未知时不接纳后继的腿 |
+| 失效 | 控制损坏、超时、`exit` 或 `exec`、重复回执、完成后仍有数据、空闲时出现数据、确认不了后代已停，终端都失效 | 失效不换新 shell 假装继续。在途的腿以 `failed`（`effectUnknown`）结算。无效的终端引用由终端设施明确失败 |
+| 停止与关闭 | `stop` 可能停止整个终端；`close` 的结果是 `confirmed` 或 `unconfirmed` | 旧腿确认完成后，不误停新腿。未确认的关闭保留处置责任 |
+
+### F-EEC09 文件批次的提交与认回
+
+条款：[设施协议](../SPEC.md#设施协议)、[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的[文件设施](architecture.md#files文件)。当前的宿主文件设施只实现读取、查看、写入与关闭，批次的两项操作返回 `unsupported`。
+
+前提：租约暴露 `files`。每条目标带路径、点名对象、字节与期望版本。
+
+```mermaid
+sequenceDiagram
+  participant I as 集成方
+  participant P as 提供者的文件设施
+  participant R as 资源账本
+  participant F as 文件系统
+  I->>P: 过守卫之后 commitBatch(各条目标)
+  P->>F: 预检整批的每个目标
+  P->>R: plan(批次) 与 permit
+  R-->>P: confirmed
+  P->>F: 暂存全部条目
+  loop 每条路径
+    P->>F: 发布这条路径
+    F-->>P: 发布收据
+  end
+  P-->>I: committed，或 unknown 带原因与已发布的路径
+  I->>P: 过守卫之后 recoverBatch(批次)
+  P->>F: 读写入清单、目标与收据
+  P-->>I: 完整、部分、中断、冲突或待确认
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 预检 | 整批每个目标都通过 | 任何一条不通过，整批都不改动 |
+| 计划与许可 | 批次作为受管资源先计划并取得许可 | 许可冲突或账本已关闭时不暂存，不发布 |
+| 逐条发布 | 每条路径有自己的发布收据。系统不承诺多条路径同时生效 | 某条路径的收据丢失时，后续路径停止发布，结果为 `unknown`，原因取 `effectUnknown`、`conflict`、`closed` 或 `unavailable` |
+| 终态 | 已提交与未知都是批次的终态 | 释放时它们不算未停的受管资源 |
+| 认回 | `recoverBatch` 把这一批认成五种之一。`published` 只含有耐久发布收据的路径 | 认回不续发布，不回滚，不覆盖外部的新写入。当前字节与暂存一致不等于有收据 |
+
 ## 失败与生命周期
 
-下表汇总六条流程共用的失败、取消与生命周期规则。每条规则的正文在所列条款里，本页只做定位。
+下表汇总各条流程共用的失败、取消与生命周期规则。每条规则的正文在所列条款里，本页只做定位。
 
 | 情形 | 结果 | 责任方 | 条款 |
 | --- | --- | --- | --- |

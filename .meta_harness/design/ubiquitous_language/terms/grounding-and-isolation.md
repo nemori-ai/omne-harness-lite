@@ -243,7 +243,7 @@
   那是**实现时的契约**，**不是「默认取哪一档」**
 - **注意 ⑥**：**「这个工具能不能用[宿主机](#ul-host-machine--宿主机--host-machine)」没有第二项权限在管**——
   不是 `never-allow` 只表示该项策略未禁止宿主机；`auto_place` 的实际选择、设施及隔离条件仍须满足
-- **注意 ⑦**：**三个策略词在执行环境之外求值**：发起协调者求出设置的有效值，工具宿主把它与工具声明翻译成一份有序的[绑定层](#ul-environment-binding--绑定层--environment-binding)清单；执行环境只在清单内匹配，不认识这三个词
+- **注意 ⑦**：**三个策略词在执行环境之外求值**：发起协调者求出这项权限的有效值，工具宿主把它与工具声明的[目标环境](#ul-target-environment--目标环境--target-environment)翻译成一份有序的[绑定层](#ul-environment-binding--绑定层--environment-binding)清单；执行环境只在清单内匹配，不认识这三个词
 - **弃用**：~~「执行安全策略」~~（指的是**把这一项配成 `never-allow`** 那件事，是同一项权限的配值） ·
   ~~「使用宿主机的资格」~~（＝**这一项不是 `never-allow`**）
 
@@ -297,7 +297,7 @@
 
 - **形态**：属性
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
-- **别混**：不是[目标环境](#ul-target-environment--目标环境--target-environment)。目标环境是工具的一项设置，说工具要什么；环境要求是这项设置经策略求值、再与工具声明翻译之后交给执行环境的结果
+- **别混**：不是[目标环境](#ul-target-environment--目标环境--target-environment)。目标环境是工具声明的一项设置，说工具要什么。被求值的是[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)：发起协调者求出它的有效值（三个策略词之一），工具宿主把这个值与工具声明的目标环境翻译成允许清单。环境要求是翻译之后交给执行环境的结果。目标环境词条的旧出处另有说法，见 [conflicts C-67](../conflicts.md#c-67目标环境的求值结果是不是这次执行的要求)
 
 ### UL-facility-descriptor · 设施声明 · Facility Descriptor
 
@@ -334,7 +334,7 @@
 
 > **中**：集成方按一个[落点](#ul-placement--落点--placement)向执行环境要一份[租约](#ul-environment-lease--租约--environment-lease)的那一次事务。它以集成方给的幂等键识别：同键重复请求返回同一状态，不重新分配。它从落点成立起，经提供者临时回执、执行环境核验、签发[采用记录](#ul-environment-adoption--采用记录--environment-adoption)，到释放确认为止；状态归集成方的耐久账本保存。
 >
-> **EN**: The transaction in which an integrator asks the execution environment for a lease at one placement. It is identified by the idempotency key the integrator supplies: a repeated request with the same key returns the same state and allocates nothing new. It runs from the placement, through the provider's provisional receipt, the registry's verification and the issue of an adoption record, to confirmed release. Its state is kept in the caller's durable ledger.
+> **EN**: The transaction in which an integrator asks the execution environment for a lease at one placement. It is identified by the idempotency key the integrator supplies: a repeated request with the same key returns the same state and allocates nothing new. It runs from the placement, through the provider's provisional receipt, the execution environment's verification and the issue of an adoption record, to confirmed release. Its state is kept in the caller's durable ledger.
 
 - **形态**：对象
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
@@ -344,7 +344,7 @@
 
 > **中**：执行环境在一次[获取](#ul-environment-acquisition--获取--environment-acquisition)核验通过后签发的那份记录：落点、提供者名与代、实例身份与代、[连续性](#ul-environment-continuity--连续性--environment-continuity)、提供者证据。它由集成方随自己的准备记录持久保存。提供者证据不是提供者自签的权限。
 >
-> **EN**: The record the registry issues after one acquisition passes verification: the placement, the provider's name and generation, the instance identity and generation, the continuity, and the provider's evidence. The integrator persists it with its own preparation record. The provider's evidence is not a permission the provider signed for itself.
+> **EN**: The record the execution environment issues after one acquisition passes verification: the placement, the provider's name and generation, the instance identity and generation, the continuity, and the provider's evidence. The integrator persists it with its own preparation record. The provider's evidence is not a permission the provider signed for itself.
 
 - **形态**：属性
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
@@ -398,7 +398,7 @@
 
 - **形态**：属性
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
-- **注意**：作用域级释放由应用装配层的协调者发起，不由执行环境从任何逻辑状态推断作用域已结束
+- **注意**：作用域级释放由应用装配层的协调者以维护者身份、凭恢复授权发起，不由执行环境从任何逻辑状态推断作用域已结束
 
 ### UL-isolation-claim · 隔离断言 · Isolation Claim
 

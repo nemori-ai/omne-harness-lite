@@ -254,7 +254,7 @@
 | [UL-facility-request](terms/grounding-and-isolation.md#ul-facility-request--设施请求--facility-request) | 设施请求 | Facility Request | 一次设施操作所带的身份：请求、访问、原调用、绑定；**一请求一确认**，结果四态 |
 | [UL-placement](terms/grounding-and-isolation.md#ul-placement--落点--placement) | 落点 | Placement | 允许清单内选中的层与提供者；不授设施不授资源 |
 | [UL-environment-acquisition](terms/grounding-and-isolation.md#ul-environment-acquisition--获取--environment-acquisition) | 获取 | Environment Acquisition | 按落点要一份租约的那次事务，**幂等键为身份**；临时回执经核验才交付 |
-| [UL-environment-adoption](terms/grounding-and-isolation.md#ul-environment-adoption--采用记录--environment-adoption) | 采用记录 | Environment Adoption | 核验通过后登记方签发的记录：落点、提供者与代、实例与代、连续性；**不是提供者自签** |
+| [UL-environment-adoption](terms/grounding-and-isolation.md#ul-environment-adoption--采用记录--environment-adoption) | 采用记录 | Environment Adoption | 核验通过后执行环境签发的记录：落点、提供者与代、实例与代、连续性；**不是提供者自签** |
 | [UL-environment-lease](terms/grounding-and-isolation.md#ul-environment-lease--租约--environment-lease) | 租约 | Environment Lease | 只暴露要求里的设施、每操作过守卫的使用入口；释放两态；丢引用不是释放 |
 | [UL-managed-resource](terms/grounding-and-isolation.md#ul-managed-resource--受管资源--managed-resource) | 受管资源 | Managed Resource | 可能跨进程存活、要进耐久账本的东西：进程 · 终端 · 文件批次；**未确认不写成已停** |
 | [UL-resource-ledger](terms/grounding-and-isolation.md#ul-resource-ledger--资源账本--resource-ledger) | 资源账本 | Resource Ledger | 集成方实现的耐久承诺：**许可先于首个外部效果**，终局与许可同一耐久顺序 |

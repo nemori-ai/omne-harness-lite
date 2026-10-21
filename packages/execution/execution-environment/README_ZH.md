@@ -12,7 +12,7 @@ PACKAGE_TEMPLATE_DRAFT
 状态：机制实现成员，`draft`。采用依据是组的[主题与唯一拥有者](../docs/architecture.md#主题与唯一拥有者)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
 - 已实现：工厂 `createEnvironmentRegistry`、错误类 `RetirementPending`，以及 SPEC 写的落点解析、获取与核验、租约视图、释放、描述、登记与退役、恢复与关闭。
-- 未实现：SPEC [明确缺项](SPEC.md#明确缺项)列出的各项：受管设施操作经账本许可、进程内各表的保留策略。根入口的模板标记写明：受管设施操作对账本的使用、Runtime Context 块的生产与契约验证套件还没有接受。
+- 待定的事项列在 SPEC 的[明确缺项](SPEC.md#明确缺项)：受管设施操作的账本计划与许可由提供者承担，本成员不调用账本；进程内各表的保留策略待定；块生产者的读取面待定。受管设施操作对账本的使用与契约验证套件还没有接受。
 - 未验证：本成员不宣称持久化、跨进程一致性或真实资源停止。
 
 现在 execution-environment-host-local 依赖本成员。

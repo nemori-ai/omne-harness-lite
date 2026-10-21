@@ -403,3 +403,12 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：词条形态改为对象，定义按 rev 4 改写，封存出处保留为旧说法；[objects.md](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) 立条目。「会话」改为「作用域持有者」，本版持有者是会话。
 - **负责与闭合条件**：负责人 PanQiWei。Context 成员契约按对象读法写登记条款；封存 PF-015 不回改。契约落地后闭合。
 - **状态**：已裁定（随产品页 rev 4）。成员契约已按对象读法写定登记条款（[RC-02](../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）；随契约接受闭合。
+
+### C-67：目标环境的求值结果是不是这次执行的要求
+
+- **类型**：定义打架。2026-10-21 核对环境要求与执行环境权限的说法时发现。
+- **来源**：[目标环境](terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)按封存的 [PF-006 §6.8](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求)（rev 24）与 [PF-002 §4 Tool](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）写成：目标环境是一项被求值的设置，「求值出来的那一份就是这次执行的要求」。[执行环境产品正文的环境要求与落点](../product/execution-environments/design.md#环境要求与落点)（rev 2）写成：被求值的是[执行环境权限](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)，工具宿主把它的有效值与目标环境翻译成允许清单，交给执行环境的是[环境要求](terms/grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement)。
+- **差别**：第一种读法里，目标环境本身经求值成为这次执行的要求；第二种读法里，目标环境只是翻译的一项输入，要求是权限有效值与目标环境翻译之后的结果。下游照第一种建，会把工具声明当成执行环境的输入；照第二种建，执行环境只收允许清单。
+- **处置**：目标环境词条的出处不是执行环境产品正文，它的定义不随执行环境产品正文改写。环境要求词条按执行环境产品正文写，并在「别混」指到这里。
+- **负责与闭合条件**：负责人 PanQiWei。工具与设置的产品正文拥有者核对目标环境的定义，与执行环境产品正文对齐后改写目标环境词条，之后闭合。
+- **状态**：待裁。

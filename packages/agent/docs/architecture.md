@@ -52,7 +52,7 @@ flowchart LR
 
 ### 系统与领域
 
-外域概念的含义与当前资格不归本组，下表不登记它们。这些概念归各自成员的公开规格：[Model](../../model/model-contract/SPEC.md)、[Tool](../../tool/tool-contract/SPEC.md)、[Runtime Context](../../context/runtime-context/SPEC.md)、[Request Context](../../context/request-context-contract/SPEC.md)、[HITL](../../human-intervention/human-intervention/SPEC.md)、[授权](../../identity/authorization/SPEC.md)、[Session](../../session/session/SPEC.md)和[装配](../../assembly/assembly/SPEC.md)。Agent 页只写“消费哪些公开事实、谁负责当前资格”，不定义这些概念的含义。
+外域概念的含义与当前资格不归本组，下表不登记它们。这些概念归各自成员的公开规格：[Model](../../model/model-contract/SPEC.md)、[Tool](../../tool/tool-contract/SPEC.md)、[Runtime Context](../../context/runtime-context-contract/SPEC.md)、[Request Context](../../context/request-context-contract/SPEC.md)、[HITL](../../human-intervention/human-intervention/SPEC.md)、[授权](../../identity/authorization/SPEC.md)、[Session](../../session/session/SPEC.md)和[装配](../../assembly/assembly/SPEC.md)。Agent 页只写“消费哪些公开事实、谁负责当前资格”，不定义这些概念的含义。
 
 | 主题 | 唯一规范拥有者 | 其他位置允许的内容 | 状态 |
 | --- | --- | --- | --- |

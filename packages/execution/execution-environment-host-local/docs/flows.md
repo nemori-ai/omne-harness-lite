@@ -1,6 +1,6 @@
 # execution-environment-host-local 的机制流程
 
-本页给出本成员的三条机制级流程。每条有一张图和一张「失败与责任交接」表。行为以 [SPEC](../SPEC.md) 为准，图只投影它。
+本页给出本成员的六条机制级流程。每条有一张图和一张「失败与责任交接」表。行为以 [SPEC](../SPEC.md) 为准，图只投影它。F-EEH04 至 F-EEH06 是设计，本成员现在没有 `command` 与 `terminal` 的提供者；机制见[架构的宿主命令与终端机制](architecture.md#宿主命令与终端机制设计未实现)。
 
 协议级流程归 [execution-environment-contract 的流程](../../execution-environment-contract/docs/flows.md)。登记表内部的获取、过门、释放与恢复归 [execution-environment 的流程](../../execution-environment/docs/flows.md)。登记协议的定义归 [execution-environment-cordis-contract 的流程](../../execution-environment-cordis-contract/docs/flows.md)。
 
@@ -107,10 +107,101 @@ sequenceDiagram
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
 | 两个插件的卸载先后 | 不固定 | 各自独立，先后不影响结果 |
-| 已交租约 | 失效，之后的设施操作返回 `closed` | 集成方释放租约，或丢弃引用 |
+| 已交租约 | 失效，之后的设施操作返回 `closed` | 集成方释放租约。丢掉引用不是释放，获取表保留记录 |
 | 退役待处置 | 撤除函数抛出 `RetirementPending`。fiber 卸载时这个错误只进 `ctx.logger`；调用方直接调用撤除函数时可以重试 | 未停的受管资源在集成方账本里，由维护者处置。宿主文件提供者没有受管资源；它的待处置表示在途文件操作超过上界仍未结束，诊断写明数目，这些操作的结果仍交回原请求 |
 | 服务卸载时依赖它的插件 | 随之卸载或重跑，与 `close()` 并发 | 同一个提供者的退役共用一次 `retire()` |
 | 外部效果 | 不撤回 | 已写入的字节留在文件里 |
+
+### F-EEH04 宿主命令：门、许可与转发（设计，未实现）
+
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)、[架构的宿主命令与终端机制](architecture.md#宿主命令与终端机制设计未实现)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
+
+```mermaid
+sequenceDiagram
+  participant M as 管理端（宿主提供者）
+  participant R as 资源账本
+  participant S as systemd 用户 scope
+  participant G as 门进程
+  participant T as PTY 与命令
+  M->>R: plan(坐标 unit 与 boot_id)
+  M->>S: systemd-run --user --scope 启动门进程
+  G->>G: 核对 /proc/self/cgroup 含自己的 unit
+  G-->>M: ready
+  M->>R: permit
+  R-->>M: confirmed
+  M->>G: GO（唯一写端，只发一次）
+  G->>T: node-pty 以显式尺寸与环境变量启动命令
+  loop 增量转发
+    T-->>G: 原始字节
+    G-->>M: base64 的分隔 JSON 帧，经私有标准输出管道
+    M->>M: 有界缓冲，超出丢弃并计数
+  end
+  T-->>G: 退出，启动器写回执文件
+  G->>G: O_NOFOLLOW 读回执
+  G-->>M: 带退出码或信号的完成帧，缺回执时 failed
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 平台前提 | 用户 systemd、可用的用户管理器、真实的 Bash、GNU `env`、`stty`、node-pty 都在 | 缺任一项时报 `unavailable`，不用猜测的进程号或假后端顶替 |
+| 门就绪 | 门进程核对自己在 scope 的 cgroup 里，才报就绪 | 重复的就绪使资源失效 |
+| GO | 账本 `permit` 确认之后才发 GO，GO 之前不启动用户命令 | 账本已关闭时关闭 GO 的写端，命令不启动。准备超时返回 `unknown`，保留控制对象，关闭 GO 的写端 |
+| 转发 | 管道写端返回 false 时暂停 PTY，`drain` 后恢复 | 非法帧、帧过大或帧 id 不匹配使资源失效 |
+| 完成 | 只在收到回执时给出 `completed` | 缺回执或传输不完整时为 `failed`（`effectUnknown`） |
+
+### F-EEH05 终端腿与回执（设计，未实现）
+
+依据：同 F-EEH04。协议级流程是契约的 [F-EEC08](../../execution-environment-contract/docs/flows.md#f-eec08-终端腿)。
+
+```mermaid
+sequenceDiagram
+  participant M as 管理端（宿主提供者）
+  participant R as 资源账本
+  participant B as PTY 里的持久 Bash
+  M->>R: plan(这条腿) 与 permit
+  M->>B: 写脚本文件，builtin source 执行
+  B-->>M: 输出字节
+  B-->>M: 私有转义序列 OSC 777（带腿 id 与退出码）
+  M->>M: 从字节流剥出完成信号，普通 ANSI 原样透传
+  M->>M: 核对 cgroup.procs 没有非僵尸残留
+  M->>M: readlink /proc/<shell>/cwd 读新的工作目录
+  M-->>M: 完成：退出码与工作目录
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 覆盖工作目录或环境变量 | 整段包进子 shell 并 `builtin wait`，不改写终端的基态 | 无 |
+| 完成信号 | 私有转义序列只由管理端解析，不作为输出交给读者 | 重复的回执、完成后仍有数据使终端失效 |
+| 残留检查 | `cgroup.procs` 没有非僵尸的残留进程，才报完成 | 确认不了后代已停时终端失效 |
+| 失效 | 在途的腿以 `failed`（`effectUnknown`）结算，终端被强制停止 | 不换新 shell 假装继续 |
+
+### F-EEH06 停止确认与冷恢复（设计，未实现）
+
+依据：同 F-EEH04。协议级流程是契约的 [F-EEC05](../../execution-environment-contract/docs/flows.md#f-eec05-恢复授权收场与作用域释放)。
+
+```mermaid
+sequenceDiagram
+  participant M as 管理端（宿主提供者）
+  participant S as systemd 用户管理器
+  participant R as 资源账本
+  M->>S: systemctl --user kill --kill-who=all --signal=SIGKILL
+  M->>S: systemctl --user stop
+  M->>S: systemctl --user show -p LoadState -p ActiveState
+  S-->>M: 状态
+  alt inactive 或 not-found，或 boot_id 已变
+    M->>R: stopped(坐标, confirmed)
+  else 其他状态，或查询失败
+    M->>R: stopped(坐标, unconfirmed)
+  end
+  Note over M: 冷恢复：recover 按受管资源的坐标核对 scope 状态，再走同样的停止与确认
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 停止 | 强制结束执行域的全部进程，再停止执行域 | 超时不取消原生操作，不丢弃原控制 |
+| 确认 | scope 为 `inactive` 或 `not-found` 才报 `confirmed`；`boot_id` 变了视为不活动 | 原启动尚未隔离或尚未排空时不确认缺席。其余情况为 `unconfirmed`，保留处置责任 |
+| 冷恢复 | 进程重启后，`recover` 按坐标核对 scope 状态 | 不重启命令，不重建 shell，不重授旧许可 |
+| 身份目录 | 处置或清理时删除；冷清理覆盖命令与终端两类目录 | 清理经账本的 `stopped` 确认 |
 
 ## 失败与生命周期
 

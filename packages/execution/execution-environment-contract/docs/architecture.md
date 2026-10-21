@@ -119,17 +119,17 @@ flowchart BT
 
 ### 两条块声明
 
-`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明。本成员是它们的语义拥有者，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。块的值按本成员的解码函数核对，块的字段见[公开接口页](public-api.md#两条块声明)。
+`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明。本成员是它们的语义拥有者（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。生产者是 host-local 的 Service 实现。当前还没有发布。块的值按本成员的解码函数核对，块的字段见[公开接口页](public-api.md#两条块声明)。
 
 理由：块值的意思由决定这份意思的一方说明，所以声明归语义拥有者，不归生产者（[RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）。换一个提供者或新增沙箱提供者时，声明不变，读者不用重新核对。块是观察，不是控制。读者看到落点变化，不能据此认定原进程已停或数据已迁移。
 
 ### 工具环境声明的 schema 与采用身份
 
-工具包以 JSON 写下自己的 `EnvironmentNeedDeclaration`：设施键、隔离断言、能工作的绑定层（[工具环境声明](../SPEC.md#工具环境声明)）。本成员同时发布两份等价的 schema：`schema/environment-need.schema.json` 是 JSON Schema 文件，`environmentNeedSchema` 是同形的 Standard Schema。`environmentNeedAdoption` 是 schema 的稳定采用身份，它的 `digest` 是 JSON Schema 文件字节的 SHA-256。设施键与隔离断言是开放词汇，schema 只核对它们是非空字符串；绑定层是封闭的四种。
+工具包以 JSON 写下自己的 `EnvironmentNeedDeclaration`。schema、采用身份与解码的规则只在[公开接口页的工具环境声明](public-api.md#工具环境声明)写全。
 
 理由：Tool 契约不导入本成员。工具定义里存的是采用身份加声明值，Tool 契约经 schema-provider 按采用身份解析 schema 校验这个值。这样 Tool 契约与本成员各自演进，交接面只有一份 JSON 与一个身份。`FacilitySet<K>` 是规范实例类型：工具执行者按声明的设施键取得设施子集，没有声明的设施在类型上取不到。
 
-代价：schema 文件的任何字节变化都会改变 `digest`。改 schema 文件时必须同步 `digest`，测试核对它与文件字节一致；声明的形状变化时，还要前进 `revision`。
+代价：schema 文件的每次字节变化都要同步采用身份，测试核对两者一致。
 
 ## 设施协议
 
@@ -213,7 +213,7 @@ flowchart BT
 | 原则 | 本成员的具体选择 | 必须防止的反例 |
 | --- | --- | --- |
 | 单一职责 | 每个模块只因一类变化而改：设施协议随设施操作改，租约与获取随获取协议改，块声明随观察内容改，纯函数随核对规则改 | 纯函数模块持有登记表、缓存或计时器。类型模块里出现服务键或提供者实现 |
-| 开闭 | 新设施只在设施拥有者的包里增补 `EnvironmentFacilities`。新隔离种类增补 `IsolationClaims`。新沙箱是新的提供者成员 | 本成员为某个提供者或某种上层工作流加特例分支，或在绑定层里加入上层工作流的标识 |
+| 开闭 | 新设施只在设施拥有者的包里增补 `EnvironmentFacilities`。新隔离种类增补 `IsolationClaims`。新沙箱是新的提供者，放在新的提供者成员里，登记到同一个登记表，不是新的 Service 实现 | 本成员为某个提供者或某种上层工作流加特例分支，或在绑定层里加入上层工作流的标识 |
 | 里氏替换 | 每个提供者实现同一个 `EnvironmentProvider`。没有 `listRecoveryResources` 与 `recover` 的提供者明确记为不支持恢复，不伪造空列表 | 提供者以统一形状虚构它不支持的设施或隔离断言。按提供者名字判断能力 |
 | 接口隔离 | 集成方用 `ExecutionEnvironment`，提供者与设施拥有者用 `ProviderRegistrations`，维护者只用恢复两操作。三个端口各管一件事 | 一个聚合接口同时暴露获取、登记与恢复。设施守卫兼管资源许可 |
 | 依赖倒置 | 本成员只定义账本、守卫与恢复授权的端口，实现由集成方注入。本成员只依赖通用基础包与 Runtime Context 契约 | 导入 Cordis、Tool、授权或上层工作流的契约。纯函数调用存储端口或服务 |

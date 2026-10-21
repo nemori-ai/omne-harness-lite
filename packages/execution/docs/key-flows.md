@@ -7,7 +7,7 @@
 | 编号 | 流程 | 参与成员 | 唯一流程位置 |
 | --- | --- | --- | --- |
 | F-EX01 | 集成方取落点、获取租约、按键取设施 | execution-environment-contract、execution-environment、execution-environment-host-local | 见[成员流程 F-EEC01、F-EEC02](../execution-environment-contract/docs/flows.md) |
-| F-EX02 | 设施操作先过守卫与账本再发出外部效果 | execution-environment-contract、execution-environment | 见[成员流程 F-EEC03](../execution-environment-contract/docs/flows.md) |
+| F-EX02 | 设施操作先过守卫与账本再发出外部效果 | execution-environment-contract、execution-environment | 见[成员流程 F-EEC02、F-EEC03](../execution-environment-contract/docs/flows.md)；命令、终端与文件批次的展开见 F-EEC07 至 F-EEC09 |
 | F-EX03 | 释放、失效与作用域恢复 | execution-environment-contract、execution-environment、execution-environment-host-local | 见[成员流程 F-EEC04、F-EEC05](../execution-environment-contract/docs/flows.md) |
 | F-EX04 | 落点与宿主事实经 Runtime Context 到达观察者 | execution-environment-contract、execution-environment-host-local | 见[成员流程 F-EEC06](../execution-environment-contract/docs/flows.md) |
 
@@ -15,7 +15,7 @@
 
 | 读者 | 起点 | 接着读 | 读到这里就够 |
 | --- | --- | --- | --- |
-| 集成方：工具宿主或独立调用者 | [execution-environment-contract 消费说明](../execution-environment-contract/docs/context.md) | [契约 SPEC](../execution-environment-contract/SPEC.md)、[公开定义](../execution-environment-contract/docs/public-api.md) | 知道要翻译成什么要求、要提供哪两个端口、拿回什么 |
+| 集成方：工具宿主或独立调用者 | [execution-environment-contract 消费说明](../execution-environment-contract/docs/context.md) | [契约 SPEC](../execution-environment-contract/SPEC.md)、[公开定义](../execution-environment-contract/docs/public-api.md) | 知道要翻译成什么要求、要实现哪三个端口（资源账本、设施守卫、恢复授权）、拿回什么 |
 | 工具作者：声明工具需要的环境 | [execution-environment-contract 公开定义](../execution-environment-contract/docs/public-api.md) | [契约 SPEC](../execution-environment-contract/SPEC.md) | 知道声明的形状、采用身份与规范实例 |
 | 提供者作者：宿主或沙箱 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) | [execution-environment-host-local 架构](../execution-environment-host-local/docs/architecture.md) | 知道登记条件、租约原件与撤除协议 |
 | 维护者：恢复与结算作用域资源 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) | [成员流程](../execution-environment-contract/docs/flows.md) | 知道恢复两操作做什么、不做什么 |
