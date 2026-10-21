@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-10-19
+- 生成时间：2026-10-21
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **51** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **9** 项。
+对象 **51** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **12** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -17,8 +17,8 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话、作业会话 | PF-015（sealed provenance） | — |
-| [运行](../domain_objects/objects.md#ul-run--运行) | [UL-run](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | [会话](../domain_objects/objects.md#ul-session--会话)（附着在恰好一个会话上） | — | PF-012（sealed provenance） | — |
+| [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话、作业会话 | PF-015（sealed provenance） | sessions-and-work（草稿） tool-execution（草稿） |
+| [运行](../domain_objects/objects.md#ul-run--运行) | [UL-run](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | [会话](../domain_objects/objects.md#ul-session--会话)（附着在恰好一个会话上） | — | PF-012（sealed provenance） | sessions-and-work（草稿） |
 | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [UL-agent-runtime](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | 会话路径中是[会话](../domain_objects/objects.md#ul-session--会话)；独立调用（不创建会话）时，产品正文未述，已接受的 Agent 对象模型写装配者创建它，宿主发布并撤登记，见补充依据。所推进的是 [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)，会话路径中该执行对应 Run 的一段推进；Model／Tool runtime 不寄宿于它 | — | PD-agent-progression | 012（sealed provenance） |
 | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行) | [UL-agent-execution](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-execution--agent-执行--agent-execution) | —（换执行挂接或换 agent runtime 接续仍是同一次，不随 [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) 或执行挂接的更替而没；会话路径中它与运行的对应由外部协调者维护，Agent 一侧不要求） | — | PD-agent-progression | — |
 | [执行挂接](../domain_objects/objects.md#ul-execution-attachment--执行挂接) | [UL-execution-attachment](../ubiquitous_language/terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)——挂接是为某一次执行取得的承接。产品正文未述挂接的寿命，已接受的 Agent 对象模型称终止后的围栏记录保留到所属执行的保留期结束，见补充依据 | — | PD-agent-progression | — |
@@ -152,6 +152,9 @@
 | [使用成本明细](../domain_objects/pending.md#使用成本明细) | 产品负责人——「观测与计量」这一块还没有 topic |
 | [压缩策略](../domain_objects/pending.md#压缩策略) | PF-010 与 PF-015 的 owner |
 | [通知发送与投递结果](../domain_objects/pending.md#通知发送与投递结果) | 系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围 |
+| [工具贡献与登记键](../domain_objects/pending.md#工具贡献与登记键) | 系统架构设计，即 Tool 契约的拥有者（PanQiWei）。不是产品问题 |
+| [换代协调者](../domain_objects/pending.md#换代协调者) | 系统架构设计，即 Tool 契约与 Tool 宿主的拥有者（PanQiWei）。不是产品问题 |
+| [作者插件 fiber](../domain_objects/pending.md#作者插件-fiber) | 系统架构设计，即 Tool 契约与 Cordis 集成约定的拥有者（PanQiWei） |
 
 ### 没有任何产品正文链接到的对象词条
 
