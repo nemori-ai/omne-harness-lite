@@ -1,16 +1,18 @@
 # docs 索引
 
-<!-- documentation:placeholder -->
-
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
+本文件列出本目录的文件与阅读路径。职责说明见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
+- [architecture.md](architecture.md)：边界、模块、关键机制与理由、SOLID 与扩展边界
+- [flows.md](flows.md)：每个插件一条流程，失败与生命周期
+- [object-model.md](object-model.md)：运行对象、身份对应与生命周期
+- [public-api.md](public-api.md)：导出入口与定义索引
+- [context.md](context.md)：装配步骤、消费者与定位
+- [cordis.md](cordis.md)：`inject`、提供的键、登记与撤除、IC 符合性
 
-- [architecture.md](architecture.md)：内部模块、状态与资源归属、关键机制及理由
-- [flows.md](flows.md)：关键业务流程与数据流
-- [object-model.md](object-model.md)：内部对象模型
-- [public-api.md](public-api.md)：公开边界与定义导航
-- [context.md](context.md)：消费侧使用与系统定位
-- [cordis.md](cordis.md)：Cordis 适用性与集成责任
+## 阅读路径
+
+- 装配本成员：[context.md](context.md)，再读 [cordis.md](cordis.md)。
+- 实现一个插件：[../SPEC.md](../SPEC.md) 的对应插件节，再读 [flows.md](flows.md) 与 [cordis.md](cordis.md)。
+- 修改本成员：[architecture.md](architecture.md)、[public-api.md](public-api.md)，再读 SPEC 的[组合与验证](../SPEC.md#组合与验证)。
