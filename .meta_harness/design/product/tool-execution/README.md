@@ -2,7 +2,7 @@
 id: PD-tool-execution
 title: 工具执行
 status: draft
-revision: 1
+revision: 2
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 工具执行
 
-本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品采用仍待确认，正式维护位置不表示技术接受或实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
+本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；会话常驻工具的集合与形状规则、同形接替及会话冻结判定依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 及 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)写回，整体产品采用仍待确认，正式维护位置不表示技术接受或实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
 
 ## 阅读入口
 
