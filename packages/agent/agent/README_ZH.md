@@ -62,7 +62,7 @@ flowchart TD
 
 #### 受理
 
-表内固定租户与 execution 身份。「同一操作」相对于已受理记录或匹配的 R0 待查项。内存中已记住的匹配优先于另一操作的 R0 待查项。
+表内固定租户与 execution 身份。「同一操作」要求操作与 execution 两个身份都相同。内存中已记住的匹配优先于另一操作的 R0 待查项。其余情形存在 R0 待查项时，优先读该列，不读「本 execution 占槽」列。
 
 | 输入 | 本 execution 占槽 | 另一 execution 占槽 | 槽空闲 | 存在 R0 待查项 |
 | --- | --- | --- | --- | --- |
@@ -109,7 +109,7 @@ Q2 `handoff.accept` 回执未知时，invoke 返回带本次操作身份的 `com
 stateDiagram-v2
     state "free (observe: idle)" as free
     state "reserved，含或不含 R0 待查项 (observe: idle)" as reserved
-    state "停止后仍占槽，槽状态 running (observe: occupied)" as running
+    state "running，正常运行或停止后占槽 (observe: occupied)" as running
     [*] --> free
     free --> reserved: invoke
     reserved --> free: 新受理失败，或 open 已排除
@@ -137,7 +137,7 @@ stateDiagram-v2
 - Q2 回执采用 [R0 重试](#r0-重试)中的阶段 1 读法。按 #558 S-13，以同一操作与同一候选再次调用 `accept` 即是查询。
 - E1 发现 Journal 修订号已超过原 open 回执时返回 `found-existing`。转移表正常结束本次协调，避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向。这是阶段 1 的读法。
 - 已 open 而修订号尚未推进的 execution，仍会由新 runtime 使用原 Authority 驱动。两个存活 runtime 因此可能同时驱动它。`attach` 围栏尚未交付。
-- 阶段 1 在槽空闲时，允许同一操作身份换一个 execution 身份后建立第二个执行。识别这种复用需要跨 execution 的操作索引。索引属 Journal 提供者，不在阶段 1。
+- 阶段 1 在 free、reserved、running 三种槽状态下，都不将同一操作换 execution 识别为同一次受理。槽空闲时可建立第二个执行。槽被占用时按现有路由处理，通常答 busy。识别这种复用需要跨 execution 的操作索引。索引属 Journal 提供者，不在阶段 1。
 - I1 把 `prepare` 返回的 assembled 或 ready 都转 P0（伪代码 `prepareRequest`）；节点表 I1 行只为 `resume` 写了 ready。
 - 最终请求记录在 `JournalCommit` 中没有字段（M04-2），M0 不写它。E1 不重核 Access（1.4）。循环判断这一受信系统扩展不在 M4 运行（阶段 3、7）。
 

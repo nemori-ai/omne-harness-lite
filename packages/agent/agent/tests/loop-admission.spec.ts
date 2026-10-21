@@ -347,6 +347,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
       kind: 'conflict',
       operation: operation('invoke-exec-1'),
     })
+    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([])
     expect(
       failure(
         await assembly.provider.runtime.invoke({
@@ -357,8 +358,10 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
           grant: null,
         }),
       ),
-    ).toEqual({ kind: 'conflict', operation: operation('invoke-exec-1') })
-    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([])
+    ).toEqual({ kind: 'busy' })
+    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([
+      'query invoke-exec-1',
+    ])
     expect(opens(assembly.record)).toBe(1)
     expect(assembly.record.accepts).toHaveLength(1)
     expect(await shown(assembly)).toEqual(before)
@@ -367,6 +370,45 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(failure(await invoke(assembly, 'exec-1', other))).toMatchObject({ kind: 'conflict' })
     expect(opens(assembly.record)).toBe(2)
     expect(await shown(assembly)).toEqual(idle)
+  })
+
+  it('NA-E0-2: a remembered operation with another input queries the Journal while another execution reserves the slot', async () => {
+    const opening = gate()
+    let reserved = false
+    const record: Record = { log: [], accepts: [], commits: [] }
+    const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => {
+      const wrapped = recording(record)(dependencies)
+      return {
+        ...wrapped,
+        journal: {
+          ...wrapped.journal,
+          async open(input) {
+            if (input.execution === execution('exec-2')) {
+              reserved = true
+              await opening.opened
+            }
+            return wrapped.journal.open(input)
+          },
+        },
+      }
+    })
+    assembly.release.open()
+    await eventsOf(ok(await invoke(assembly)))
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    const second = invoke(assembly, 'exec-2')
+    await eventually(async () => reserved)
+    const before = await shown(assembly)
+    try {
+      expect(
+        failure(await invoke(assembly, 'exec-1', { input: acceptedInput('other', 'other') })),
+      ).toEqual({ kind: 'conflict', operation: operation('invoke-exec-1') })
+      expect(record.log.slice(-3)).toEqual(['query invoke-exec-1', 'accept external-input', 'open'])
+      expect(await shown(assembly)).toEqual(before)
+      expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
+    } finally {
+      opening.open()
+    }
+    await eventsOf(ok(await second))
   })
 
   it('NA-E0-2: a failed adoption lookup for an earlier operation returns its failure without changing the held slot', async () => {

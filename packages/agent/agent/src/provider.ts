@@ -383,13 +383,14 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(handleOf(input.execution))
   }
 
-  // SPEC 804: the same operation with the same input gets the original handle back, whether the
-  // run goes on, stopped or ended. SPEC 774: a remembered operation with another input conflicts
+  // SPEC 804: matching operation, execution and input return the original handle.
+  // This holds during the run, after a stop and after the end. SPEC 774: another input conflicts
   // while its original execution holds the slot. Otherwise the Journal checks the input.
   function answerRemembered(
     input: InvokeInput<P>,
   ): Outcome<AgentExecutionHandle<P>, Failure> | undefined {
-    if (accepted?.operation !== input.operation) return undefined
+    if (accepted?.operation !== input.operation || accepted.execution !== input.execution)
+      return undefined
     if (accepted.input === inputText(input)) return succeed(handleOf(accepted.execution))
     if (slot.kind !== 'free' && slot.execution === accepted.execution)
       return fail({ kind: 'conflict', operation: input.operation })

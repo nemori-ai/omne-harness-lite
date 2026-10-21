@@ -62,7 +62,7 @@ flowchart TD
 
 #### Admission
 
-The table keeps the tenant and execution identity fixed. The same operation refers to an existing admission or the matching R0 item. A remembered match takes precedence over an R0 item of another operation.
+The table keeps the tenant and execution identity fixed. A same-operation match requires both operation and execution identities. A remembered match takes precedence over an R0 item of another operation. Otherwise the R0 item column takes precedence over the column for this execution holding the slot.
 
 | Input | This execution holds the slot | Another execution holds the slot | Slot free | R0 item exists |
 | --- | --- | --- | --- | --- |
@@ -109,7 +109,7 @@ The diagram below shows the states of the slot. Each state shows in brackets wha
 stateDiagram-v2
     state "free (observe: idle)" as free
     state "reserved, with or without an R0 item (observe: idle)" as reserved
-    state "stopped execution keeps slot state running (observe: occupied)" as running
+    state "running, including a stopped execution holding the slot (observe: occupied)" as running
     [*] --> free
     free --> reserved: invoke
     reserved --> free: new admission fails, or open is excluded
@@ -137,7 +137,7 @@ These choices describe phase 1 readings and mechanisms not delivered. The node t
 - The Q2 receipt uses the phase 1 reading in [R0 retries](#r0-retries). Under #558 S-13, calling `accept` again with the same operation and candidate is the query.
 - E1 returns `found-existing` when the Journal revision advanced beyond the original open receipt. The transition table ends coordination successfully to avoid a second Loop for an accepted operation. The node table's E1 row has no such edge. This is a phase 1 reading.
 - An execution opened without any later revision can still run under its original Authority in a new runtime. Two live runtimes can therefore drive it. Fencing with `attach` is not delivered.
-- Phase 1 can create a second execution when the same operation identity names another execution while the slot is free. Detecting this requires an index across executions. The Journal provider owns that index. Phase 1 does not provide it.
+- In free, reserved and running slots, phase 1 does not recognize the same operation naming another execution as the same admission. A free slot can admit a second execution. A held slot follows normal routing and usually returns busy. Detecting this reuse requires an index across executions. The Journal provider owns that index. Phase 1 does not provide it.
 - I1 sends what `prepare` returns, assembled or ready, to P0 (pseudocode `prepareRequest`). The I1 row of the node table names ready only for `resume`.
 - `JournalCommit` has no field for the final request record (M04-2), so M0 does not write it. E1 does not check the Access again (1.4). The loop judgment, a trusted system extension, does not run at M4 (stages 3 and 7).
 

@@ -12,8 +12,11 @@
 
 - `loop-transitions.spec.ts` 与 `loop-evaluator.spec.ts` 直接导入 `src/loop/nodes.ts`，并读评估器的导入图。转移表是纯数据。C1 核对正常路径与节点表。E1 的临时例外见下文。
 - `canonical.spec.ts` 直接调用 `src/canonical.ts` 的纯函数，核对其注释承诺的输入等价性。
-- `loop-coordinator.spec.ts` 直接调用协调者，核对 E1 `found-existing` 返回成功。公开观察只能读到 idle，不能区分随后正常结束还是缺少转移行的缺陷。此测试只读协调结果，不读私有状态。
+- `loop-coordinator.spec.ts` 直接调用协调者，核对 E1 `found-existing` 返回成功，以及节点抛错时返回的停止节点与 failure 种类。公开观察没有停止原因，不能区分这些协调结果。此测试只读返回值，不读私有状态。
 
+## 测试范围
+
+各文件核对以下行为：
 
 - `public-entry.spec.ts` 核对两个入口的导出名、源码与构建产物的导入图、清单依赖，以及生产安装闭包不到达 Cordis。它读 `package.json` 与 `dist`，所以先构建再运行。
 - `memory-journal.spec.ts` 用内存 Journal 核对[同形清单](../docs/architecture/mechanisms.md#两种实现必须同形的事实)。替身只有一个进程，不覆盖耐久性、崩溃与跨进程接管。
@@ -26,7 +29,7 @@
 - 同文件核对 C1：最近受理的操作在运行中、停止后与 ended 后均认回原句柄。重复调用不再次 open。事件序号保持为 1、2、3。
 - 同文件核对另一 execution 占槽时的原记录查找。更早操作经 query 与幂等受理认回，当前槽不变，原执行不再推进。定义解析失败原样返回。accept 回执未知时，返回值使用本次 invoke 的操作身份。
 - 同文件核对新 runtime 认回 Journal 原记录。修订号已推进时，E1 结束协调。修订号未推进时，新 runtime 使用原 Authority 驱动。`loop-coordinator.spec.ts` 另断言前一种路径成功返回，不形成缺少转移行的缺陷。
-- 同文件核对输入冲突。已记住的同一操作配另一输入时，原 execution 占槽则直接返回 conflict。该路径不查询 Journal，也不动槽。槽空闲或另一 execution 占槽时，由 Journal 判定 conflict。
+- 同文件核对输入冲突。已记住的同一操作与 execution 配另一输入时，原 execution 占槽则直接返回 conflict。该路径不查询 Journal，也不动槽。槽空闲或另一 execution 占槽时，由 Journal 判定 conflict。
 - 同文件核对 busy 与路由。预约中、运行中、已停止、open 未定各有 busy 用例。只有操作与 execution 都匹配 R0 待查项才进入重试查询。查询进行中，预约仍挡住另一 invoke。Journal 查询的 denied 读作 busy，unavailable 原样返回，unknown 返回本次操作的 commit-unknown。
 - 同文件核对 C2：Q2 accept 回执未知时，invoke 返回原操作的 commit-unknown，新受理释放槽。同一操作以同一候选再次调用 accept 即查询，并取得原结果。此测试核对两次 accept 的操作身份与候选相同。
 - 同文件核对 E0 的 R0 路径。pending、applied、dropped 故障配合 settle，覆盖 unknown、committed、excluded 三种查询结果。committed 后重试在 open 前失败保留预约，excluded 后同样的失败释放预约。查询失败原样返回并保留 R0 待查项。
