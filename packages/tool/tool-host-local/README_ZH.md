@@ -49,6 +49,19 @@ const authority = createLocalStartCoordinator({
 
 ## 验证
 
+在仓库根使用 Node.js 24 或更高版本和 pnpm 10.28.1。准备一次 workspace 依赖后，构建并运行本成员检查：
+
+```sh
+pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build
+pnpm --filter @omne-harness/tool-host-local run typecheck
+pnpm --filter @omne-harness/tool-host-local run test
+```
+
+两个成员命令应以 0 退出。找不到模块或声明时，先在本检出准备依赖并构建。非法 `commitAttempts` 在构造时抛错。资格或记录仓不可读时返回具名失败，不能当作启动已确认，详见 [失败行为](SPEC.md#6-身份租户与失败)。
+
+普通调用、分页与交付解除的教学见 [Tool 教程](../tool/examples/README.md)。该教程使用内存 start authority。本包测试在非耐久记录仓上验证真实本地协调器，两类证据分别说明范围。二者均不提供生产宿主、耐久恢复或真实 Agent/Session 接入。
+
+
 `pnpm turbo run test --filter=@omne-harness/tool-host-local` 先构建本包及其依赖，再运行测试。测试核对非耐久记录仓上的协调器，以及真实 Tool runtime、账本与推进协程下的协调器。[tests/README](tests/README.md) 列出每项行为对应的测试。耐久性、进程崩溃与第二个进程都没有覆盖。
 
 ## 维护

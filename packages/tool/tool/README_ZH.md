@@ -83,6 +83,24 @@ abort 阻止该连接的新读取、调度和命令。已发出的 ledger/source
 
 final 没有实际结束时钟 marker。running 计时保留 unknown、原 segment、已知累计与 blocked clock 任务，不以晚到 elapsed 或零伪造时长。完整条件见 [收场规则](SPEC.md#26-原结果收场与释放责任)。
 
+## 运行教学示例
+
+使用 Node.js 24 或更高版本和 pnpm 10.28.1。在仓库根执行：
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build
+pnpm --filter @omne-harness/tool run examples
+```
+
+锁文件未变且依赖已准备时，复用现有依赖。源码改变后重新构建。示例消费本检出的公开 `dist` 出口。
+
+[带注释教程](examples/README.md)让真实函数作者经过 invoke、driver 收场与模型可见的 Tools 分页。预期输出含 `pages:3`、`sections:3`、`sourceExecutions:1` 和 `next:null`。完整参数失败与确认的发起前排除也各自产生可读结果并解除交付。每次 help/read_result 同样处理并解除自己的 delivery。最终输出三条 `PASS`，退出码为 0。
+
+本例无需凭据、模型服务、数据库或 Cordis。[教学专用装配](tests/example-assembly.ts)使用公开非耐久 testing 提供者。它不证明生产授权、真实 Agent/Session、重启恢复或完整环境清理。
+
+找不到模块或声明时，在本检出准备依赖并重新构建。Node 不支持 TypeScript 语法时，使用 Node.js 24 或更高版本。出现 unknown 时，保留原请求、完整 consumer、reference 或 operation，沿原身份查询后再行动，不能自动换消费位置重试。[教程错误说明](examples/README.md#common-errors-and-limits)还解释预算、资格与交付失败。主流程或清理失败都以非零码退出。
+
 ## 使用
 
 账本第五参数 `ToolLedgerPorts` 必须显式提供 `{ custody, releaseInspection: environments, content }`。`content` 为字节读口或 `null`。`content:null` 使字节读取回复 `unsupported`，不关闭结果页或 raw 元数据读取。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。

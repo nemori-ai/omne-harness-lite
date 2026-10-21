@@ -49,6 +49,19 @@ The assembly owns all inputs. `guardsOf` declares which guard resources apply to
 
 ## Verification
 
+From the repository root, use Node.js 24 or later and pnpm 10.28.1. Prepare workspace dependencies once, then build and run this member's checks:
+
+```sh
+pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build
+pnpm --filter @omne-harness/tool-host-local run typecheck
+pnpm --filter @omne-harness/tool-host-local run test
+```
+
+Both member commands should exit with code 0. Missing modules or declarations require dependency preparation and a build in this checkout. Invalid `commitAttempts` throws at construction. Unreadable authorization or store state returns a named failure. See [failure behavior](SPEC.md#6-身份租户与失败) before treating a start as confirmed.
+
+See the [Tool tutorial](../tool/examples/README.md) for ordinary invocation, pagination, and delivery release. That tutorial uses a memory start authority. This member's tests exercise the real local coordinator on a non-durable store. The two evidence scopes remain separate. Neither provides a production host, durable recovery, or a real Agent/Session integration.
+
+
 `pnpm turbo run test --filter=@omne-harness/tool-host-local` builds the package and its dependencies, then runs the tests. They check the coordinator over the non-durable store, and the coordinator under the real Tool runtime, ledger and driver. [tests/README](tests/README.md) maps each behavior to its test. Durability, crash of the process and a second process are not covered.
 
 ## Maintenance

@@ -92,3 +92,17 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 公共数组的行为范围归 [SPEC 第 18 条](../SPEC.md#18-非耐久记录仓testing)。组合覆盖原 operation 回执、异输入冲突、stale-revision、未知认回与可靠否定、迟到旧提交和同身份 fresh retry、资格撤销与跨租户拒绝的零 IO。域分区单独由 Store 数组验证。测试使用真实 ledger 和非耐久 store，clock/custody/environment 为契约测试替身，不证明生产身份系统、引用适配、真实执行、数据库耐久、多连接、跨重启或断电恢复。
 
 `ledger-store-conformance.spec.ts` 还在合法变序的读提供者上运行全部 25 项公共用例，冻结 records 数组以检查比较器不原地排序。`ledger-store-negative.spec.ts` 的浅复制负控每次复制记录和值的外壳，但共享深层数组与对象，必须触发 `store.output-copy` 的深层副本断言。原有完整输出别名负控仍保留。另在深度冻结的独立快照上运行全部 25 项用例，确认只读输出也符合副本隔离承诺。
+
+## 教学与独立验收
+
+[example-assembly.ts](example-assembly.ts)是[可运行教程](../examples/README.md)专用的非耐久装配。它使用公开 testing 提供者，实际运行作者、runtime、ledger、driver 与 Tools。它不导入既有单元测试辅助器，不提供正式验收 oracle，也不把终局写入 fixture。examples 和本文件都纳入类型检查。
+
+在仓库根先按教程构建公开 dist，再执行：
+
+```sh
+pnpm --filter @omne-harness/tool run typecheck
+pnpm --filter @omne-harness/tool run examples
+pnpm --filter @omne-harness/tool run acceptance
+```
+
+examples 是可读教学与可重复运行的消费检查。正式三条场景由独立验收者维护，入口和判据见 [acceptance/README](../acceptance/README.md)。验收不导入教学装配或既有测试 oracle。单元测试、教程和正式场景分别说明自己的范围，均不证明生产耐久或真实模型接入。

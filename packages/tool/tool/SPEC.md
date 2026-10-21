@@ -314,6 +314,8 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 ## 验证
 
+[可运行教学](examples/README.md)通过公开 dist 消费本页现行承诺，展示成功、完整参数失败、确认的发起前排除，以及模型可见 Tools 续读与交付解除。[独立场景](acceptance/README.md)另行维护其装配与判据。教学不是新增行为契约或生产耐久证据。
+
 [tests/README](tests/README.md) 列出每条规则对应的测试。每条测试名以本页所属规则的编号开头，`vitest -t` 可按编号单独运行。
 
 文档导航见 [index](index.md)。

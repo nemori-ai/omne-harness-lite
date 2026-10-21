@@ -55,6 +55,10 @@
         {
           "id": "ledger-store-conformance",
           "anchor": "ledger-store-conformance"
+        },
+        {
+          "id": "learning-example",
+          "anchor": "run-the-learning-example"
         }
       ]
     },
@@ -103,6 +107,10 @@
         {
           "id": "ledger-store-conformance",
           "anchor": "记录仓一致性用例"
+        },
+        {
+          "id": "learning-example",
+          "anchor": "运行教学示例"
         }
       ]
     },
@@ -511,7 +519,20 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "run",
+          "anchor": "prepare-and-run"
+        },
+        {
+          "id": "success",
+          "anchor": "follow-the-success-journey"
+        },
+        {
+          "id": "scope",
+          "anchor": "common-errors-and-limits"
+        }
+      ]
     },
     {
       "id": "examples-index",
