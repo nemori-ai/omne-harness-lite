@@ -64,7 +64,7 @@ R3. 已装载的常驻工具被卸载或暂时不可用时，会话以同形的�
 R4. 会话持久保存每个常驻工具首次装载的 definition（会话事实 `tool-resident-admitted`）。当前固定版本从 Run 依据派生，不另写会话事实。
 R5. 常驻工具的实现变更且新定义与首次定义不同形时：
    - R5a 固定的旧实现仍可装载时，会话留在旧实现，继续可用。
-   - R5b 固定的旧实现不可装载，且存在不同形的合法胜者时，会话冻结。"不可装载"要耐久证据：包 digest 缺失，或装载被确定性拒绝。冻结只在采用点判定。冻结后在途 Run 自然收场，会话不再派发新 Run，并进入不可逆的 archive。
+   - R5b 固定的旧实现不可装载，且存在不同形的合法胜者时，会话冻结。"不可装载"要耐久证据：包 digest 缺失，或装载被确定性拒绝。冻结只在采用点判定。冻结后在途 Run 自然收场，会话不再派发新 Run。更正标注（2026-10-21，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596）：冻结是 Session 域拥有的独立生命周期状态，不是 archive；冻结不可逆，冻结后的会话仍可按会话自己的规则归档。原文"进入不可逆的 archive"按此理解。
    - 暂时缺席、未知、撤权一律按 R3 处理，不冻结。
 
 非常驻工具不受 R1–R5 约束。MCP 不在本提案范围。
@@ -108,14 +108,14 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 换代协调者 `toolGenerations` 是 Tool 宿主的 Service，也是 `ctx.plugin` 句柄的唯一持有者。下文的"协调者"都指它。它有三个动词。每个动词都向目标态收敛，可以重复调用。
 
 - `ensureLoaded({ authority })`：读资产实现引用，核包 digest，动态 import 实现包，`ctx.plugin` 作者插件。同键已装且同 digest 认回。
-- `unload({ key })`：先读会话引用。有未归档会话引用、且没有同形的 serving 替代时，返回 `retained`，什么都不动。否则按顺序做五步：把登记表条目标记为 draining，新 Run 不再选它，固定采用继续 resolve；等在途调用收场；按 P09 交接；release 贡献；dispose 作者插件 fiber。五步做完返回 `released`。任一步未完成返回 `draining`，再调用一次从未完成的那一步继续。
+- `unload({ key })`：先读会话引用。有未归档会话引用、且没有同形的 serving 替代时，返回 `retained`，什么都不动。否则按顺序做五步：把登记表条目标记为 draining，新 Run 不再选它，固定采用继续 resolve；等在途调用收场；按 P09 交接；release 贡献；dispose 作者插件 fiber。五步做完返回 `released`。任一步未完成返回 `draining`，再调用一次从未完成的那一步继续。更正标注（2026-10-21，同上决定）：按键排空与交接依赖 P09 的 `inspectDrain({ executor })` 范围，归 #421 的 6.8；在那之前协调者在有在途调用时停在 `draining`。
 - `sweep()`：恢复后重装未归档会话固定的键。对无引用、且不再是任何胜者的贡献调用 `unload`。
 
 保留义务：有未归档会话引用且无同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生（端口 `ToolResidencyReader.referencing`），协调者不建账。已归档但在途 Run 未收场的会话也算引用。包字节保留，同 digest 可重新 import。
 
 替换 = `ensureLoaded(新版本)`；旧版本在引用归零后由 `unload` 或 `sweep` 收走。不存在原地替换。突然失依赖（fiber 被 Cordis 撤除）不经协调者：登记由 effect 撤除，会话看到 R3 不可用件，在途调用保持 unknown。
 
-协调者的 `unload` 和 `sweep` 是系统作用域操作，`Access` 用系统主体并显式标记 `scope: 'system'`；端口只返回会话身份与 shape，不传正文。
+协调者的 `unload` 和 `sweep` 是系统作用域操作。更正标注（2026-10-21，同上决定）：`ToolResidencyReader` 端口不用 `Access<P>`，输入为 `{ scope: 'system', key }`，只返回会话身份与 shape，不传正文；IC-18 为系统作用域操作加一条例外。
 
 ### 验收判据（SYS-DYNAMIC 对 Tool）
 
@@ -124,12 +124,12 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 1. 装载前后，`toolRuntime`、`toolCommands`、`toolReads`、`toolInstances` 提供者的 fiber uid 不变。
 2. 同键认回与 conflict；release 只撤自己；晚到旧 release 不删后继。
 3. 有引用且无同形替代时，`unload` 返回 `retained`，贡献仍 live。
-4. 无引用时，`unload` 经 draining 到 released。此后旧固定请求的 `resolve` 返回 unavailable，fiber 为 DISPOSED。
+4. 无引用且无在途调用时，`unload` 经 draining 到 released。此后旧固定请求的 `resolve` 返回 unavailable，fiber 为 DISPOSED。有在途调用的排空在 6.8 验收。
 5. 新旧版本并存；旧会话解析到旧键，新会话到新键。
 6. 同形新版只在采用点前进；Run 中的刷新不改键。
 7. 不同形新版：留旧，会话可用。
 8. 突然撤除 fiber：同定义 known-unavailable；在途调用 recover 为 unknown；重新装载后下一采用点为 continues。
-9. 旧包缺失且不同形胜者存在：下一采用点判冻结；会话归档一次，重复为 no-op；不再派发新 Run；在途 Run 收场。
+9. 旧包缺失且不同形胜者存在：下一采用点判冻结；会话进入冻结状态一次，重复为 no-op；不再派发新 Run；在途 Run 收场。
 10. 全过程中无关能力的调用零失败；P16 的目录与 Catalog 缺席语义不变。
 
 | 受影响拥有者 | 现行保证或机制 | 拟改变内容 | 必须保持的条件与例外 |
@@ -137,7 +137,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 | 项目要求（PanQiWei） | SYS-DYNAMIC 验收判据未定；119 行刷新可改定义 | 增加 Tool 的验收判据（上节 10 条）；119 行改为"刷新可改可用性与实现，常驻项 name 与参数形状在会话内不变" | 定义 / 装配 / 活体三分法、两个采用入口不变 |
 | 架构：装配求值与动态变更（PanQiWei） | 81 行刷新可改定义；39/53 行采用只在两个入口 | 81 行收窄同上；增加"新能力身份在采用点加入常驻集合"；增加"同形才跟"例外的引用 | 层序求值归 assets 与装配 |
 | 架构：Cordis 与部署生命周期（PanQiWei） | LIFECYCLE-M02 待办 | Tool 部分由 `toolGenerations` 承接；写明作者插件 fiber 形态与保留义务 | 工具实现不进 Agent 宿主 inject |
-| 架构：Session、Run 与输入承接；领域 sessions-and-work | 日志准入列表；Tool 不拥有自动归档规则 | 新增事实种类 `tool-resident-admitted`；新增归档 cause `tool-shape-lost`；实现 `ToolResidencyReader / Actions` 端口 | Tool 只给 cause，归档由会话执行 |
+| 架构：Session、Run 与输入承接；领域 sessions-and-work | 日志准入列表；Tool 不拥有自动归档规则 | 新增事实种类 `tool-resident-admitted`；新增会话生命周期状态"冻结"与原因 `tool-shape-lost`（更正标注：原写为归档 cause）；实现 `ToolResidencyReader / Actions` 端口 | Tool 只给判定与原因，状态转换由会话执行 |
 | Tool 契约 SPEC（PanQiWei） | 423 行"同形不是永久冻结 schema"；425 行"先按共同选择规则更新实现"；877 行装载顺序；G7 | 423 行改为会话内常驻项冻结；425 行加"不同形候选不替换常驻项"例外；877 行改为先有实现形状再派生定义；G7 写登记键、conflict、来源层、保留义务 | 固定采用、P16、"撤登记只阻止后续采用"不变 |
 | tool-contract 类型 | `ToolDefinitionMetadata`、`ToolAuthorRegistration`、`ToolLoadedRegistration`、`ToolLoader`、`ToolBindingRegistry`、`ToolAvailability`、tool body | 见「验证与消费者切换」的类型变更清单 | `ToolDefinition` 形状不变 |
 | tool-cordis-contract、tool-host-local 文档 | 登记输入段；"实际工具插件经 ToolLoader 取得固定定义再构造作者注册" | 登记输入改为 `ToolAuthority`；新键 `toolContributionAuthority`、`toolGenerations`；事件 `binding-changed`；作者插件措辞 | 服务键只在 tool-cordis-contract 定义 |
@@ -185,7 +185,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 | `packages/tool/tool/examples/report-tool.ts`、Tools 元工具（`tools-commands.ts`） | 改为实现侧字段 + 作者插件 | Tool 实现成员 |
 | `tool-contract` 的 `testing-*` 套件、`tool-cordis-contract/testing` 登记套件与内存替身 | 新输入形状 | Tool 契约成员 |
 | `tool-host-local` 的 `start-coordinator` | 消费 `availability.layer` | Tool 宿主成员 |
-| sessions-and-work | 事实种类、归档 cause、端口实现 | 会话成员 |
+| sessions-and-work | 事实种类、冻结状态与原因、端口实现 | 会话成员 |
 | assets | body 契约消费者 | assets 成员 |
 | 阶段二子卡 #439–#443 | 依赖与验收措辞 | #421 正文单写者 |
 
@@ -205,7 +205,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 | 81 行收窄；新能力在采用点加入；同形才跟的引用 | `docs/architecture/runtime/assembly-and-change.md` | 待写回 | 未切换 |
 | 已知能力不可用与替换的措辞 | `docs/architecture/runtime/tool-runtime.md` | 待写回 | 未切换 |
 | LIFECYCLE-M02 的 Tool 部分 | `docs/architecture/deployment/cordis-and-lifecycle.md` | 待写回 | 未切换 |
-| 新事实种类与归档 cause | `docs/architecture/runtime/session-and-run.md`、`docs/domains/sessions-and-work/` | 待写回 | 未切换；需会话拥有者接受 |
+| 新事实种类、冻结状态与原因 | `docs/architecture/runtime/session-and-run.md`、`docs/domains/sessions-and-work/` | 待写回 | 未切换；需会话拥有者接受 |
 | 换代协调者归属 | `docs/domains/assembly-and-handoff/README.md`、`docs/domains/tool-execution/README.md` | 待写回 | 未切换 |
 | 对象链、R1–R5、G7、协调者、P16 补充 | `packages/tool/tool-contract/SPEC.md`、`docs/object-model.md`、`docs/public-api.md` | 待写回 | 未切换 |
 | 登记输入、新键、事件 | `packages/tool/tool-cordis-contract/docs/cordis.md` | 待写回 | 未切换 |
