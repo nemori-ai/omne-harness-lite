@@ -83,7 +83,7 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 | 候选通知 | 声明拥有者及模式 | 载荷、失败与消费者 |
 | --- | --- | --- |
-| session-cordis-contract/work-committed | Session 定义入口，parallel | tenant、SessionId、revision、原 source；恢复调度者按身份过滤，再读权威状态 |
+| session-cordis-contract/committed | Session 定义入口，parallel | tenant、SessionId、revision、原 source、本次提交的事件种类集合；调度器按身份过滤，再读权威状态 |
 | agent-cordis-contract/instance-retired | Agent 定义入口，parallel | tenant、AgentInstanceId、发布代次、原因；观察/路由刷新，不表示 Run 终态 |
 | model-cordis-contract/call-changed | Model 定义入口，parallel | tenant、call、revision；读原调用，不携带正文/秘密 |
 | tool-cordis-contract/call-changed | Tool 定义入口，parallel | tenant、call、revision；读原事实，不据通知解除 delivery |

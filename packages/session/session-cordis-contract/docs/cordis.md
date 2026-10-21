@@ -1,50 +1,116 @@
-# Session 的 Cordis 集成候选
+# Session 的 Cordis 定义
 
-本页消费[根操作候选](../../session-contract/docs/public-api.md)，尚未技术接受或实现。共同生命周期、事件、树和IC对账归[四成员集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)。本页只确定本成员独有的定义和依赖；不以加载成功宣称业务就绪。
+本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
-## 服务定义与入口
+现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，两个入口都没有导出。下文是 SPEC 固定的目标形状，不是源码事实。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
-候选 `@omne-harness/session-cordis-contract/cordis` 唯一拥有下列抽象门面及表中本域接缝的服务定义。具体插件由 [session-cordis](../../session-cordis/docs/cordis.md) 提供。根接口尚未导出，因此代码是未来声明形状，不是当前可导入示例。实现不得复制方法形状，索引类型随根契约同步。
+## 服务定义
+
+| 定义 | 形状 | 依据 |
+| --- | --- | --- |
+| 服务键 | `session`，只由 `SessionService` 的 `static readonly provide` 给出。`./cordis` 导出的键常量取自它 | 性质 1，[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) |
+| 抽象类 | `SessionService extends Service`，以 `work`、`management`、`reconciliation`、`history` 四个属性暴露契约根入口的四个面。类型取自 `session-contract`，同一组签名不写两份 | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) |
+| 类的 JSDoc | `@owner packages/session/session-contract` | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) |
+| intercept 配置类型 | `{ caller: SessionCallerClass }`，`SessionCallerClass` 取自契约根入口 | 性质 4 |
+| 事件 | `session-cordis-contract/committed`，模式 `parallel` | 性质 5，[IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) |
+
+四个面挂在同一个键上，是因为它们共享同一条权威提交序列与同一组构造依赖；按调用方切分由面与调用方类表达，不由服务键表达。
+
+## intercept 配置与调用方类
+
+调用方插件用对象形式的 `inject` 声明自己以哪个调用方类调用：
 
 ```ts
-import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionService } from '@omne-harness/session-contract'
-
-/** @owner packages/session/session-cordis-contract */
-export abstract class SessionWorkService<P> extends Service implements SessionService<P> {
-  static readonly provide = 'sessionWork'
-  constructor(ctx: Context) { super(ctx, SessionWorkService.provide) }
-  abstract readonly work: SessionService<P>['work']
-  abstract readonly management: SessionService<P>['management']
-  abstract readonly reconciliation: SessionService<P>['reconciliation']
-  abstract readonly history: SessionService<P>['history']
+export const inject = {
+  session: { caller: 'intake' },
 }
-export const sessionWorkKey = SessionWorkService.provide
 ```
 
-定义入口将 Context 的 `sessionWork` 增补为这一抽象类，主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次ctx.provide这个键。消费者导入定义入口的键常量，提供者选择归应用装配。
+对象形式仍然是必需依赖。对象里的值只是给这项服务的 intercept 配置，不是「可选」标记（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)）。服务方法用 `this[Service.resolveConfig]()` 取得配置；服务方法里的 `this.ctx` 是调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)），所以不同调用方插件各自取到自己的配置。这一点现在是源码读数，见[机制读数与假设](#机制读数与假设)。
 
-## 依赖与定义拥有者
+| 调用方类 | 典型调用方 | 可调用的面 |
+| --- | --- | --- |
+| `intake` | 受理入口的适配插件、宿主接入 | `work` 的受理操作，`management` 的会话管理操作 |
+| `coordinator` | Agent 提交参加者与事件消费插件、Model 与 Tool 受理点守卫插件 | `work` 的推进、绑定、保管与消费操作 |
+| `maintainer` | 恢复扫描、待决认回、级联推进、空闲取证与自动归档 | `reconciliation` 的全部操作，以及 `management` 的空闲取证与自动归档裁定。这些操作只开放给 `maintainer` |
+| `reader` | 历史读取者、Request Context 的历史源对接插件、人读界面 | `history` |
 
-表中每个本域键对应根契约中同名操作端口的唯一抽象Service定义，类命名为端口名加Service；静态provide只在定义类声明，导出键取自它。目录采用含register逻辑的具体Service，不用抽象接口冒充登记机制。跨域行引用原定义拥有者，不在本成员再声明同键。后继实现需逐项生成服务/依赖图核对这一设计，当前表不冒称源码事实。
+逐个操作的归属与调用资格由 [session-contract SPEC](../../session-contract/SPEC.md) 的四面操作表给出，本表只给面与类的对应。调用方类是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。服务把配置里的调用方类与被调用的面核对，不一致即拒绝；这条核对是一致性检查，不计为访问控制。访问边界是每个操作的调用资格。经 `ctx.get` 现取服务的调用方没有这份配置，调用被拒绝，所以调用方必须用对象形式 `inject`。
 
-| 候选键 | 根操作形状 | 定义拥有者 | 必需性及责任 |
+## 端口服务键
+
+七个构造依赖端口与三个出站端口各有一个服务键。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
+
+| 键 | 端口 | 谁提供 | 必需性 |
 | --- | --- | --- | --- |
-| sessionTransactions | SessionTransactionPort | Session | 权威读/写必需；同提交参加者和原操作认回归真实提供者 |
-| sessionIdentity | SessionIdentityBridge | Session | 变更阶段必需；读接口由transaction port独立核权，不靠可见性授权 |
-| sessionEvidence | SessionEvidenceBridge | Session | 依命令局部必需；缺某采用源仅阻止需要它的命令，完整参加者集合仍必需 |
-| sessionClock | SessionClock | Session | 空闲取证/等待阶段必需；原时间来源与连续性不能由宿主墙钟替代 |
-| sessionIdleInput | SessionIdleInput | Session | 空闲维护/裁定阶段必需；完整源范围及同提交参加者，缺席不阻断无关操作 |
-| sessionContextInput | SessionContextInput | Session | 创建/声明/推进采用阶段必需；消费Runtime Context原决定和当前条件 |
-| sessionNotifier | SessionNotifier | Session | 可选，不在inject；每次提交后现取，缺席/失败不回滚提交 |
+| `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 必需。权威读写、共同提交与原操作认回都经它 |
+| `sessionIdentity` | `SessionIdentityBridge` | [session-adapters](../../session-adapters/README.md) | 变更操作必需 |
+| `sessionEvidence` | `SessionEvidenceBridge` | session-adapters | 按命令局部必需；缺某个采用来源只阻止需要它的命令 |
+| `sessionClock` | `SessionClock` | 应用装配 | 空闲取证与等待必需 |
+| `sessionIdleInput` | `SessionIdleInput` | session-adapters | 空闲维护与裁定必需 |
+| `sessionContextInput` | `SessionContextInput` | session-adapters | 创建、声明修改与推进采用必需 |
+| `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 可选，不进 `inject`；每次提交后现取，缺席或失败不回滚提交 |
+| `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 推进、续入、恢复与预热必需 |
+| `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 归档后的作用域释放必需 |
+| `sessionToolStartFence` | `ToolStartFencePort`：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 控制传播与归档必需 |
 
-## 配置、通知和撤除
+出站端口的接口在契约成员（本域只说自己要什么），键在本成员，实现在 session-adapters，由 session-cordis 注入。session-cordis 与 session-adapters 之间没有编译期依赖，靠这两个键在装配时接上。
 
-定义入口唯一声明 `session-cordis-contract/work-committed`，载荷为tenant、SessionId、SessionRevision、原提交source。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。会话事件先按显式身份过滤，数据动作再核权。
+## 事件
+
+`session-cordis-contract/committed` 是本成员唯一的事件。名称的范围取声明它的包名，事件部分用过去分词（[IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)）。`./cordis` 增补 `Events`，JSDoc 写 `@mode parallel` 与载荷各项的 `@param`（[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11)）。模式与另外三个运行成员的通知一致，见[运行契约集成的事件与作用域](../../../../docs/architecture/runtime/runtime-contract-integration.md#事件与作用域)。
+
+| 项 | 内容 |
+| --- | --- |
+| 载荷 | 租户、会话身份、会话修订、原提交证据、本次提交的事件种类集合。不带消息正文、凭据或附件地址 |
+| 含义 | 只是唤醒提示，不是事实源。修订与原提交证据取自该次提交的原回执，重试保持原值；先提交的通知晚到时仍带它自己的修订，不拼接最新快照 |
+| 监听者 | 派发方在提交之后派发，不等待监听者完成。监听者失败只记录诊断，不改变已提交的结果（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)） |
+| 过滤 | 监听者按载荷里的租户与会话身份自行过滤，数据动作再按调用资格核权 |
+| 丢失 | 不影响正确性。调度器按权威扫描补查 |
+
+## 依赖分类
+
+| 依赖方 | 怎样依赖 | 换代或缺席时 |
+| --- | --- | --- |
+| 调用方插件 | 对象形式 `inject: { session: { caller } }`，用定义包导出的键常量或字符串字面量（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)） | 提供者换代时插件体先卸载再重跑（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。在途操作按原操作身份认回，不因重跑换身份 |
+| 端口提供插件 | `extends` 对应的端口抽象类，不另写键 | 卸载时 Session 服务因必需依赖缺席停在 `PENDING`；已提交的业务事实不变 |
+| 只监听唤醒的一方 | 不 `inject`。用 `ctx.on` 监听事件，类型增补用 `import type {} from '@omne-harness/session-cordis-contract/cordis'` 取得（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)） | 提供者不在场时没有唤醒。正确性不依赖唤醒 |
+| 提供者 [session-cordis](../../session-cordis/docs/cordis.md) | `extends SessionService`，不另写键，不自己 `ctx.provide` 这个键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)） | 不适用 |
+| 只需要契约类型的包 | 从 [session-contract](../../session-contract/README.md) 根入口 `import type`。不需要本成员 | 不适用 |
+
+依赖方只引用本成员与契约成员，不导入提供者的实现入口（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。提供者选择归应用装配。
+
+## 靠装配兑现的保证
+
+每个租户同一时刻只有一个恢复扫描者，这一条第一版靠装配单实例兑现：应用装配只装一个 session-cordis 提供者并在其中绑定扫描者。跨进程的第二道保护是操作幂等与 Agent 的条件提交围栏，不是锁。租约接口预留，换成多实例前须先定义租约协议（[IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19)）。
+
+## IC 符合性映射
+
+| 规则 | 本成员怎样符合 | 现在的证据 |
+| --- | --- | --- |
+| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 每个键只在对应抽象类的 `provide`，键常量取自它，提供者 `extends` 不写键 | 没有源码 |
+| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner` | 抽象类的属性取契约类型，JSDoc 写 `@owner packages/session/session-contract` | 没有源码 |
+| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口只重导出契约类型，Cordis 定义只在 `./cordis` | 没有源码 |
+| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 本成员每个接缝只定义一个键。重复装载的处置归提供者 | 归 session-cordis |
+| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | `session-cordis-contract/committed`，在 `./cordis` 增补 `Events` | 没有源码 |
+| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 本成员不定义登记操作。提交参加者的登记归登记它的适配插件 | 归 session-adapters |
+| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 租户与会话是操作参数，不为会话建 fiber 或 isolate | 没有源码 |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | intercept 配置只声明调用方类，不授予资格 | 没有源码 |
+| [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 靠同进程成立的保证写明兑现方式 | 见[靠装配兑现的保证](#靠装配兑现的保证) | 没有源码 |
+
+## 机制读数与假设
+
+| 机制 | 依据 | 支撑 |
+| --- | --- | --- |
+| 服务方法里的 `this.ctx` 是调用方上下文 | [service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md) | 性质 4 |
+| 必需服务换提供者，插件体重跑 | [plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md) | 依赖分类 |
+| `inject` 没有可选形式 | [inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md) | 性质 4；通知能力因此不进 `inject` |
+| isolate 只隔离实例可见性 | [isolate-hides-instances-not-data](../../../../.meta_harness/design/basis/cordis/isolate-hides-instances-not-data.md) | 性质 6 |
+
+对象形式 `inject` 的值到达服务方法的 `this[Service.resolveConfig]()`，不同插件各自取到自己的值：这一条只有源码读数，与 [Runtime Context 的同一条候选](../../../context/runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)共用一个待补的 probe。补齐之前，性质 4 是假设，不是已核验的保证。Cordis 升版时，先按 IC 约定重跑相关 probe。
 
 ## 验证义务
 
-本成员实现至少验证根入口不加载绑定、定义入口不引具体提供者、静态键唯一、必需/局部/可选依赖的实际撤除范围、旧引用拒绝及当前身份核验。当前真实4.0.4探针仅支持共同页所列机制，根操作的持久性、跨进程、外部效果和业务接受须另由实际提供者证明。
+本成员自己验证：根入口没有运行导出，也不导入 `@deepseek-ai/cordis`；`./cordis` 不导入任何提供者（性质 7）；每个导出的键常量等于对应抽象类的 `provide`。
 
-
-具体注入、阶段 fiber 与卸载交接由 [session-cordis](../../session-cordis/docs/cordis.md) 拥有。
+继承这些定义的提供者验证：两个调用方类的插件各取到自己的配置，调用方类与面不一致时被拒绝；必需端口缺席时服务停在 `PENDING`，通知能力缺席不阻止提交；事件载荷不含正文。这些义务归 [session-cordis](../../session-cordis/docs/cordis.md)。

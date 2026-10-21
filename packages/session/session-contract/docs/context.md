@@ -41,7 +41,7 @@ sequenceDiagram
   participant S as Session
   participant New as New Agent
   participant M as Model or Tool
-  Old->>S: bind original call and continuation
+  Old->>S: bind original call
   Old->>M: admit original call
   S->>S: commit handover and revoke old advance
   New->>S: read original recovery state
@@ -73,7 +73,7 @@ sequenceDiagram
 
 ## 资格与输入分类检查
 
-principal、tenant、Session/Run/attempt、原操作及当前动作参数显式传入。固定定义、请求及原 continuation 被可靠保管，当前权限仍由参加者在提交/实际发起点核验。identity/evidence/transactions/clock/idle/context 是构造能力，notifier 是调用期可选取得，页容量属于纯配置。Context 与 Fiber 不进入这份业务数据契约。
+principal、tenant、Session/Run/attempt、原操作及当前动作参数显式传入。固定定义与请求被可靠保管。Session 不保存接续值，只保存指向 Agent 权威记录的执行引用（[值与结果项的约束](../SPEC.md#值与结果项的约束)）。当前权限仍由参加者在提交/实际发起点核验。identity/evidence/transactions/clock/idle/context 是构造能力，notifier 是调用期可选取得，页容量属于纯配置。Context 与 Fiber 不进入这份业务数据契约。
 
 SESSION 的 root 操作没有公开 append(events) 或直接修改推进布尔的方法。recordProgress 的 Agent 材料须经精确 schema 和原位置验证；未知 JSON 不能得到可信结论。原生产 facts 同样验证原 source，不让任意调用者自报工具完成或 Model ACK。
 
@@ -86,3 +86,16 @@ SESSION 的 root 操作没有公开 append(events) 或直接修改推进布尔�
 R1 完成后 notifier 延迟，R2 已提交。通知仍传 R1 回执的 revision/source；不能通过 readWork 取 R2.source 给 R1 使用。通知失败不回滚 R1，扫描按原持久事实接续。
 
 首次添加 Context 块时，接入准备绑定原 operation 的未生效变更材料，调用 Session.change。Session 共同提交注册与恢复事实后，Runtime Context 才消费该决定。Session 返回拒绝不改变注册；返回未知则查询同 operation，不能先注册再补日志。更新/移除同样由 Session 提交，并核材料所引用的前注册仍是当前版本。
+
+## 与 Agent Loop 的分界
+
+Session 的协调器与调度器只在 Agent 执行之外决定三件事：何时开始、何时续入输入、何时恢复。执行之内的一切归 Agent。所以它们不构成第二个 Loop。条款见 [SPEC 的运行契约候选](../SPEC.md#运行契约候选)，系统层说明见[协调器与调度器](../../../../docs/architecture/runtime/session-and-run.md#协调器与调度器)。
+
+| 事项 | Agent 拥有 | Session 拥有 |
+| --- | --- | --- |
+| 推进 | 一个执行内的 Loop 节点、等待与唤醒，挂接的交还与接续 | Run 的业务状态：何时开 Run、何时承接输入、何时成立终态 |
+| 等待 | 执行内对模型、工具与卡片的等待 | 跨执行的等待位置与资格：原等待、人工答复的分流 |
+| 恢复 | 执行的对账与原节点接续；提供查询、读执行记录与接续 | 发现哪些会话要恢复、何时扫描、怎样退避 |
+| 控制 | 控制在执行内的处置，以及向 Model 与 Tool 的传播 | 控制意图的保存、范围解析、传播责任与对账、终态时点 |
+| 终态 | 执行的结束 | Run 的 completed、failed 或 cancelled，与 Agent 的条件终结在同一次提交中成立 |
+| 输入 | 输入水位线与批次读取 | 受理、分流、待处理资格与批界 |

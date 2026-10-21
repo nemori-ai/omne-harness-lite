@@ -392,8 +392,8 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **来源**：[压缩记录](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)与[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)当时按封存的 PF-009、PF-010 写成以块为单位的排除名单：压缩记录点名一批块，从此不再模型可读。PanQiWei 2026-10-20 定下的语义相反：压缩后模型只看到压缩记录指定保留的消息、压缩记录本身和它之后的消息。
 - **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
 - **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
-- **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页与产品页模型调用的措辞已改为保留名单。仍写「排除名单」或「精确原块集合」的正式正文只剩 Session 契约 SPEC 的派生提交条款，由其拥有者回改。回改后闭合。
-- **状态**：已裁定，待外域回改。Request Context 一侧已由 [request-context-contract 的 RQ-06](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)按保留名单写定。
+- **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页、产品页模型调用与 Session 契约 SPEC 都已改为保留名单：压缩消息带压缩覆盖范围与保留名单，形状归 message 包。
+- **状态**：已闭合（2026-10-21）。Request Context 一侧由 [request-context-contract 的 RQ-06](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)按保留名单写定。上列来源与差别保留发现时的写法，现行含义以词条为准。
 
 ### C-66：内容块的种类是否含推理续接状态
 
@@ -420,4 +420,13 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **差别**：第一种读法里，目标环境本身经求值成为这次执行的要求；第二种读法里，目标环境只是翻译的一项输入，要求是权限有效值与目标环境翻译之后的结果。下游照第一种建，会把工具声明当成执行环境的输入；照第二种建，执行环境只收允许清单。
 - **处置**：目标环境词条的出处不是执行环境产品正文，它的定义不随执行环境产品正文改写。环境要求词条按执行环境产品正文写，并在「别混」指到这里。
 - **负责与闭合条件**：负责人 PanQiWei。工具与设置的产品正文拥有者核对目标环境的定义，与执行环境产品正文对齐后改写目标环境词条，之后闭合。
+- **状态**：待裁。
+
+### C-69：在途状态由谁持有、失去连续性后是否还在
+
+- **类型**：定义打架。2026-10-21 评审会话与工作产品页时发现。
+- **来源**：[在途状态](terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)按封存的 [PF-009 §9.2](../product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）写成：在途内容由运行时持有，运行时失去连续性它就没了。[会话与工作：在协作历史中看清发生过什么](../product/sessions-and-work/design.md#在协作历史中看清发生过什么)（rev 3）与系统页[用户可见内容的两处来源](../../../docs/architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)写成：用户可见的在途增量只来自生产方已经可靠保管的批次，故障后只可能缺从未展示过的片段。
+- **差别**：第一种读法里，已展示的在途内容会随运行时一起丢失；第二种读法里，已展示的部分由生产方保管，故障后仍可取回。下游照第一种建，不会为在途增量做保管；照第二种建，生产方必须先保管再发布。
+- **处置**：词条暂不改。在途状态的定义归模型调用与工具执行的产品正文，会话与工作只写用户可见的来源。
+- **负责与闭合条件**：负责人 PanQiWei。模型调用与工具执行的产品正文拥有者核对在途状态的持有方与丢失条件，改写词条出处到现行产品正文后闭合。
 - **状态**：待裁。

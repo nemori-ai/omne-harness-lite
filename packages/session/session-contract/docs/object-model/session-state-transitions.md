@@ -58,6 +58,78 @@ stateDiagram-v2
 
 图及 ST21/ST22 说明已就绪会话的正常归档路径，不增加删除、过期或失败这类第五状态。初始化阶段的接续或结束沿原创建/初始化契约裁定，不从图中推导未就绪会话归档后即成为就绪休眠。初始化缺项仍单独可查，不能靠生命周期标签假装工作可开展。未成立的创建/初始化操作沿其原责任处理，不把资源清理报告成成功归档。归档后旧执行的真实收尾只改变关联和待办，不改变四态；休眠可仍有后台或 Run 外调用。
 
+## Run 与 attempt 的两层状态
+
+本节是候选修订，技术接受前不扩大本页既有承诺。
+
+Run 是 Session 里一次逻辑工作的治理记录，执行归 Agent 的执行。Run 与 Agent 执行一一对应，attempt 与执行挂接一一对应，reload 与恢复沿同一个执行。Run 状态分两层：
+
+- Run 层：`none → active → completed | failed | cancelled`。终态三选一，不可反转。
+- attempt 层：只在 `active` 内，`granted → advancing ⇄ waiting → released | superseded`。交还或被取代后，新 attempt 回到 `granted`。
+
+等待是 attempt 层的阶段，不是 Run 的状态。转移条款、守卫、写入与并发裁定归 [SPEC](../../SPEC.md) 的 Run 两层状态机，下面两张图与它一致。
+
+### Run 层
+
+```mermaid
+stateDiagram-v2
+    [*] --> none
+    none --> active: startRun
+    active --> completed: finishRun complete
+    active --> failed: finishRun fail
+    active --> cancelled: control cancel-run, control archive, considerAutoArchive due
+    completed --> [*]
+    failed --> [*]
+    cancelled --> [*]
+```
+
+| 转移 | 触发命令 | 写入 | 对应守卫 |
+| --- | --- | --- | --- |
+| `none → active` | `startRun` | SE13、SE15，采用变化时 SE08 | ST06 |
+| `active → completed` | `finishRun(complete)`，在 Agent 条件终结的提交内参加 | SE26 完成、SE16 | ST20 |
+| `active → failed` | `finishRun(fail)`，在 Agent 条件终结的提交内参加；或由 Session 在下列情形提交 | SE26 失败、SE16 | ST20 |
+| `active → cancelled` | `control(cancel-run)`、`control(archive)`、`considerAutoArchive` 裁定到期 | SE24、SE25、SE26 被取消、SE16；归档另有 SE27 | ST18b、ST21、ST24b |
+
+Session 自己提交失败终态只有下列情形，每种都以已有的耐久依据收束，不从实现反推终态：
+
+1. 恢复者确认 Agent 的执行记录无法解释。判据是按调度策略重试读取或接续到上限后，原记录或精确采用仍不可读。上限是策略的配置字段。
+2. Agent 执行已经结束，而 Session 没有终态。
+3. 首批输入在 Agent 发起时被消息准入拒收，执行没有建立。依据是准入拒绝。
+
+情形 1 与 2 是对恢复者边界的具名前提，由 Agent 一侧确认。前提不成立时，恢复者不收束，Run 保持 `active`，恢复任务保留并报告。
+
+### attempt 层
+
+```mermaid
+stateDiagram-v2
+    [*] --> granted: startRun
+    granted --> advancing: invoke or resume, Agent attach
+    advancing --> waiting: recordProgress or bindCall, waiting set not empty
+    waiting --> advancing: completeConsumption, card decisions then recordProgress, control
+    advancing --> released: release
+    waiting --> released: release
+    released --> granted: claim or reload, new attempt
+    advancing --> superseded: claim takeover or reload
+    waiting --> superseded: claim takeover or reload
+    superseded --> granted: same batch, new attempt
+```
+
+| 转移 | 触发命令 | 写入 | 对应守卫 |
+| --- | --- | --- | --- |
+| 进入 `granted` | `startRun` | SE15 | ST06 |
+| `granted → advancing` | Agent 的 `invoke` 或 `resume` 打开或接续执行，Session 只读参加核对推进资格依据 | 无 Session 条目 | ST08 |
+| `advancing → waiting` | `recordProgress` 给出非空等待集合；`bindCall` 的阻塞范围 | SE22、SE18 阻塞范围 | ST14、ST17a |
+| `waiting → advancing` | `completeConsumption` 原位置处理；整批卡片决定交回后的 `recordProgress`；`control` 取消原等待 | SE21、SE23、SE25 | ST16b、ST17b、ST17c、ST18a |
+| `advancing`、`waiting` → `released` | `release` | SE16 | ST10 |
+| `released → granted` | `claim`、`reload`，新 attempt | SE15；`reload` 另有 SE08 | ST09、ST11 |
+| `advancing`、`waiting` → `superseded` → `granted` | `claim` 接管、`reload`，同批 | 旧 attempt 的 SE16 与新 attempt 的 SE15 | ST09、ST11 |
+
+`granted` 与 `advancing` 的区别是 Agent 是否已经授予执行挂接。这是 Agent 的事实，Session 不写条目，组合视图标明外部来源。Session 日志能区分的是 `advance` 是否为空（SE15、SE16）与等待集合。
+
+开始 Run 与 Agent 受理执行是两次提交，顺序固定：先提交 `startRun`，再以本 attempt 的 SE15 耐久证据作为推进资格依据调用 `invoke`。`claim` 与 `reload` 同样先于 `resume`，`resume` 失败不撤销已提交的 SE15。Agent 打开或接续执行时，Session 参加者只读核对该 attempt 仍是当前 attempt 且 Run 未终结，核对失败时 Agent 拒绝。旧 attempt 的后续写入得到 `stale-advance`。失去连续性的判定归 Agent 执行挂接的状态与接管资格，Session 不从目录或超时推断。
+
+Session 在 `active` 的 Run 上只保存 `ExecutionRef = { execution, revision, evidence }`，不保存接续值。推进命令不携带接续数据。恢复者从 Agent 的执行恢复服务读取原记录，再请 Agent 接续原执行，见 Agent [恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)。
+
 ## 命令守卫与完整结果
 
 所有变更先取得可信主体与明确作用域，认回原操作，再以一致治理状态检查当前资格、原目标和业务条件。并发变化重新决定，不能给旧计算条目改序号后直接提交。下表按一次可独立提交的业务阶段列必要事实组合。同组字母分支可以在不同时间分别成立，只引用已经取得的前置事实，不要求后续阶段提前出现。一次提交中的结果必须完整，不是要求调用者手工拼接。SE26 在一批内也只存在一个有效终结事实，SE27 仅引用该事实，不另造归档专属 Run 终态。

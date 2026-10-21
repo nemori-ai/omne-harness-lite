@@ -24,9 +24,9 @@ flowchart LR
   Service -. 提交后按次取得，可选 .-> Notify[SessionNotifier]
 ```
 
-图中箭头表示使用关系，不表示共享线程、存储事务或父子资源寿命。具体依赖是否必需、何时取得以及失败时保留什么责任，分别由 [SPEC 候选](../../../session-contract/SPEC.md#342-主干运行契约候选)和 [Cordis 设计](../../../session-cordis-contract/docs/cordis.md)确定。
+图中箭头表示使用关系，不表示共享线程、存储事务或父子资源寿命。具体依赖是否必需、何时取得以及失败时保留什么责任，分别由 [SPEC 候选](../../../session-contract/SPEC.md#运行契约候选)和 [Cordis 设计](../../../session-cordis-contract/docs/cordis.md)确定。
 
-SessionService 的提交协调逻辑在原提交成功后取得通知能力。TransactionPort 不依赖 SessionNotifier。通知缺席或失败不改变原成功回执，完整条件归 [SPEC](../../../session-contract/SPEC.md#342-当前增量与后续接口)。
+SessionService 的提交协调逻辑在原提交成功后取得通知能力。TransactionPort 不依赖 SessionNotifier。通知缺席或失败不改变原成功回执，完整条件归 [SPEC](../../../session-contract/SPEC.md#sessionnotifier)。
 
 ## 机制与设计理由
 

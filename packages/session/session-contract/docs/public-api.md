@@ -2,18 +2,20 @@
 
 当前根入口为 `export {}`，尚无工作治理和日志操作的生产导出。
 
-实际导出与公开校验由 [src/index.ts](../src/index.ts) 及其导出模块拥有。下列声明是 #342 尚未技术接受、尚未实现的唯一候选定义，不是现有包的使用承诺。后继实现接管精确定义时，本页改为源码导航，不保留第二套手写签名。
+实际导出与公开校验由 [src/index.ts](../src/index.ts) 及其导出模块拥有。下列声明是尚未技术接受、尚未实现的唯一候选定义，不是现有包的使用承诺。后继实现接管精确定义时，本页改为源码导航，不保留第二套手写签名。
 
-行为、调用资格、参数与依赖分类归 [SPEC 的候选章节](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model/README.md)。
+行为、调用资格、结果与认回归 [SPEC 的运行契约候选](../SPEC.md#运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model/README.md)。本页只给形状，不重复行为。
 
 ## 值、当前工作与原位置
 
-[行为与约束](../SPEC.md#342-值当前工作与原位置)。
+[行为与约束](../SPEC.md#值与结果项的约束)。
+
+Session 不保存接续值。`RunState.active.execution` 是指向 Agent 权威记录的 `ExecutionRef`，推进命令不带接续参数。
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { Message } from '@omne-harness/message'
+import type { Message, CompactionMessage } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 
 declare const sessionIdentity: unique symbol
@@ -26,17 +28,27 @@ export type BatchId = SessionIdentity<'SessionBatchId'>
 export type SessionOperationId = SessionIdentity<'SessionOperationId'>
 export type SessionRevision = SessionIdentity<'SessionRevision'>
 export type ConsumptionId = SessionIdentity<'SessionConsumptionId'>
+/** Crosses the boundary encoded as the message package's RecordEntryRef. */
 export type EntryId = SessionIdentity<'SessionEntryId'>
 export type Adoption = Readonly<{ owner: string; name: string; revision: string; digest: string }>
 export type DurableEvidence = Readonly<{ owner: string; record: string; revision: string; digest: string }>
 export type ConsumerRef = Readonly<{ owner: string; work: string; position: string; purpose: string }>
 export type AgentInstanceRef = Readonly<{ owner: 'agent'; id: string }>
+export type SessionCallerClass = 'intake' | 'coordinator' | 'maintainer' | 'reader'
 export type Access<P> = Readonly<{ principal: P; tenant: TenantId; session: SessionId }>
 export type Mutation<P> = Access<P> & Readonly<{ operation: SessionOperationId }>
 export type AdvanceRef = Readonly<{ run: RunId; attempt: AttemptId; instance: AgentInstanceRef }>
-export type AdvanceWrite<P> = Mutation<P> & Readonly<{ advance: AdvanceRef; expected: SessionRevision }>
-export type Continuation = Readonly<{
-  position: string; definition: Adoption; schema: Adoption; value: JsonValue
+/** Points at the Agent's authoritative record. revision and evidence are null before the first participated Agent commit. */
+export type ExecutionRef = Readonly<{
+  execution: string; revision: string | null; evidence: DurableEvidence | null
+}>
+/** P-2 material handed over by the execution record provider when Session acts as a commit participant. */
+export type ExecutionParticipation = Readonly<{
+  execution: string; operation: string; joint: string
+  expected: string | null; written: string; handover: DurableEvidence
+}>
+export type AdvanceWrite<P> = Mutation<P> & Readonly<{
+  advance: AdvanceRef; expected: SessionRevision; participation: ExecutionParticipation | null
 }>
 export type ProducerRef =
   | Readonly<{ kind: 'model'; call: string }>
@@ -54,8 +66,7 @@ export type ResultConsumption = Readonly<{
   release: 'pending' | 'confirmed'
 }>
 export type Consumption = Readonly<{
-  id: ConsumptionId; binding: CallBinding
-  results: readonly ResultConsumption[]; resume: Continuation | null
+  id: ConsumptionId; binding: CallBinding; results: readonly ResultConsumption[]
 }>
 export type InputBatch = Readonly<{
   id: BatchId; boundary: SessionRevision; ordered: readonly InputId[]
@@ -67,7 +78,7 @@ export type RunState =
   | Readonly<{ kind: 'none' }>
   | Readonly<{
       kind: 'active'; run: RunId; adoption: Adoption; batch: InputBatch
-      advance: AdvanceRef | null; ordinal: string; continuation: Continuation
+      advance: AdvanceRef | null; ordinal: string; execution: ExecutionRef
     }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
 export type Waiting =
@@ -83,11 +94,13 @@ export type ControlTarget =
 export type ControlProgress = Readonly<{
   operation: SessionOperationId; target: ControlTarget; intent: ControlIntent
   state: 'committed' | 'propagating' | 'reconciled'; pending: readonly ProducerRef[]
+  startFence: 'not-required' | 'pending' | 'effective'
 }>
 export type ControlIntent =
   | Readonly<{ kind: 'control'; value: Control }>
   | Readonly<{ kind: 'interrupt'; run: RunId; urgent: Extract<RoutedInput, { kind: 'ordinary' }>; decision: DurableEvidence }>
   | Readonly<{ kind: 'auto-archive'; idleEvidence: DurableEvidence }>
+export type ScopeReleaseDisposition = 'released' | 'pending' | 'unsupported' | 'unavailable' | 'not-authorized'
 export type RecoveryTask =
   | Readonly<{
       kind: 'initialization'; item: string; owner: string; protocol: Adoption
@@ -102,6 +115,10 @@ export type RecoveryTask =
   | Readonly<{
       kind: 'routed-input'; originalOperation: SessionOperationId
       value: Exclude<RoutedInput, { kind: 'ordinary' }>; state: 'pending' | 'unknown'
+    }>
+  | Readonly<{
+      kind: 'scope-release'; archive: SessionOperationId; scope: string
+      state: 'pending' | 'unknown'; last: readonly ScopeReleaseDisposition[]
     }>
 export type WorkSnapshot = Readonly<{
   session: SessionId; tenant: TenantId; revision: SessionRevision; interpreter: Adoption; source: DurableEvidence
@@ -118,7 +135,9 @@ export type WorkSnapshot = Readonly<{
 
 ## 输入、推进、结果及终态操作
 
-[行为与约束](../SPEC.md#342-输入推进结果及终态操作)。
+[行为与约束](../SPEC.md#sessionwork)。命令与事件见[命令表](../SPEC.md#命令表)。
+
+`claim.continuity` 是指向 Agent 原记录的耐久证据，绑定读得的修订与来源，不是接续值。`reload` 只收交接证明 `handover`。
 
 ```ts
 export type RoutedInput =
@@ -133,7 +152,13 @@ export type SessionFailure =
   | Readonly<{ kind: 'commit-unknown'; operation: SessionOperationId }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
-  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' | 'stale-advance' | 'blocked' }>
+  | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
+  | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
+  | Readonly<{ kind: 'blocked'; reasons: readonly BlockReason[] }>
+  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' }>
+export type BlockReason =
+  | 'pending-inputs' | 'waiting' | 'open-consumption' | 'mode-check'
+  | 'before-terminal-missing' | 'pending-call' | 'card-batch'
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
   operation: SessionOperationId; revision: SessionRevision
@@ -145,12 +170,12 @@ export type OperationResolution =
   | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'unknown' }>
 export type StartedRun = Readonly<{
-  receipt: CommitReceipt; advance: AdvanceRef; adopted: Adoption; inputs: InputBatch
+  receipt: CommitReceipt; advance: AdvanceRef; adopted: Adoption; inputs: InputBatch; execution: string
 }>
 export type Completion = Readonly<{
   consumption: ConsumptionId; result: ProducedResult; position: string
   processing: DurableEvidence; message: Message | null
-  extensionConclusions: readonly DurableEvidence[]; resume: Continuation
+  extensionConclusions: readonly DurableEvidence[]
 }>
 export type ExternalCompletion = Readonly<{
   consumption: ConsumptionId; result: ProducedResult; position: string
@@ -173,8 +198,14 @@ export type Control =
 export type RunConclusion =
   | Readonly<{ kind: 'complete'; beforeTerminal: DurableEvidence }>
   | Readonly<{ kind: 'fail'; cause: DurableEvidence }>
+  | Readonly<{ kind: 'cancelled'; control: SessionOperationId }>
+/** Bounded close by Session. Always ends as failed. "No record yet" is not uninterpretable. */
+export type BoundedClose =
+  | Readonly<{ kind: 'uninterpretable'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'execution-ended'; conclusion: DurableEvidence }>
+  | Readonly<{ kind: 'admission-rejected'; rejection: DurableEvidence }>
 export type DerivedMessage =
-  | Readonly<{ kind: 'compaction'; message: Message; derivation: DurableEvidence; original: DurableEvidence }>
+  | Readonly<{ kind: 'compaction'; message: CompactionMessage }>
   | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
   | Readonly<{ kind: 'background-placeholder'; message: Message; producer: Extract<ProducerRef, { kind: 'tool' }>; source: DurableEvidence }>
 export interface SessionWork<P> {
@@ -183,18 +214,17 @@ export interface SessionWork<P> {
   readBatch(input: Access<P> & Readonly<{ batch: BatchId; cursor: string | null }>): Reply<BatchPage>
   readRequest(input: Access<P> & Readonly<{ consumption: ConsumptionId }>): Reply<FixedRequestMaterial>
   startRun(input: Mutation<P> & Readonly<{
-    candidate: Adoption; initial: Continuation; instance: AgentInstanceRef
+    candidate: Adoption; instance: AgentInstanceRef
   }>): Reply<StartedRun>
   takeInputs(input: AdvanceWrite<P> & Readonly<{ position: string }>): Reply<Readonly<{ receipt: CommitReceipt; batch: InputBatch }>>
   claim(input: Mutation<P> & Readonly<{
     run: RunId; instance: AgentInstanceRef; continuity: DurableEvidence
   }>): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
   reload(input: Mutation<P> & Readonly<{
-    run: RunId; candidate: Adoption; instance: AgentInstanceRef; resume: Continuation; handover: DurableEvidence
+    run: RunId; candidate: Adoption; instance: AgentInstanceRef
+    expected: SessionRevision; handover: DurableEvidence
   }>): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
-  bindCall(input: AdvanceWrite<P> & Readonly<{
-    binding: CallBinding; resume: Continuation
-  }>): Reply<Readonly<{ receipt: CommitReceipt; consumption: ConsumptionId }>>
+  bindCall(input: AdvanceWrite<P> & Readonly<{ binding: CallBinding }>): Reply<Readonly<{ receipt: CommitReceipt; consumption: ConsumptionId }>>
   bindExternalCall(input: Mutation<P> & Readonly<{
     expected: SessionRevision; qualification: DurableEvidence
     binding: CallBinding & Readonly<{ initiatingAttempt: null }>
@@ -207,30 +237,42 @@ export interface SessionWork<P> {
     expected: SessionRevision; qualification: DurableEvidence; completion: ExternalCompletion
   }>): Reply<DurableEvidence>
   recordProgress(input: AdvanceWrite<P> & Readonly<{
-    passage: DurableEvidence; resume: Continuation; waiting: readonly Waiting[]
+    passage: DurableEvidence; waiting: readonly Waiting[]
   }>): Reply<CommitReceipt>
-  commitDerived(input: AdvanceWrite<P> & Readonly<{
-    value: DerivedMessage; judgment: DurableEvidence; resume: Continuation
-  }>): Reply<CommitReceipt>
-  release(input: AdvanceWrite<P> & Readonly<{ resume: Continuation }>): Reply<CommitReceipt>
+  commitDerived(input:
+    | (AdvanceWrite<P> & Readonly<{
+        value: Exclude<DerivedMessage, { kind: 'context-reminder' }>; judgment: DurableEvidence
+      }>)
+    | (Mutation<P> & Readonly<{
+        expected: SessionRevision; value: Extract<DerivedMessage, { kind: 'context-reminder' }>
+      }>)
+  ): Reply<CommitReceipt>
+  release(input: AdvanceWrite<P> & Readonly<{ handover: DurableEvidence }>): Reply<CommitReceipt>
   control(input: Mutation<P> & Readonly<{ intent: Control }>): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
-  finishRun(input: AdvanceWrite<P> & Readonly<{ conclusion: RunConclusion }>): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
+  finishRun(input:
+    | (AdvanceWrite<P> & Readonly<{ conclusion: RunConclusion }>)
+    | (Mutation<P> & Readonly<{ run: RunId; expected: SessionRevision; bounded: BoundedClose }>)
+  ): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
   queryOperation(input: Access<P> & Readonly<{ operation: SessionOperationId }>): Reply<OperationResolution>
   loadRecovery(input: Access<P>): Reply<WorkSnapshot>
 }
 ```
 
+`DerivedMessage.compaction` 只带 message 包的压缩消息。消息自身的 `covers`、`retained` 与 `derivation` 是唯一的一份证据，形状与规则归 [message 包](../../../common/message/SPEC.md#形状)。`context-reminder.source` 指 Runtime Context 变化材料的证据。
+
 ## 同提交守卫与跨成员使用
 
-[行为与约束](../SPEC.md#342-同提交守卫与跨成员使用)。
+[共同提交与共享事务域](../SPEC.md#共同提交与共享事务域)、[Agent 提交参加者](../SPEC.md#agent-提交参加者)。
 
 ## 控制、恢复与保管边界
 
-[行为与约束](../SPEC.md#342-控制恢复与保管边界)。
+[推进映射、claim 与 reload](../SPEC.md#推进映射claim-与-reload)、[事件消费与交付责任解除](../SPEC.md#事件消费与交付责任解除)、[Run 两层状态机与不变量](../SPEC.md#run-两层状态机与不变量)。
 
 ## 创建、声明与历史
 
-[行为与约束](../SPEC.md#342-创建声明与历史)。
+[行为与约束](../SPEC.md#sessionmanagement)、[SessionReconciliation](../SPEC.md#sessionreconciliation)、[SessionHistory](../SPEC.md#sessionhistory)。
+
+`change` 的维度名为 `permission-mode`、`collaboration-mode`、`environment-mode`、`model`、`workspace`、`declaration`、`context-registration`、`context-step-commit`、`recovery-input`。Runtime Context 的需要、绑定与参数值以带 schema 的 JSON 进入本契约，翻译在 session-adapters。
 
 ```ts
 export type Modes = Readonly<{
@@ -251,13 +293,23 @@ export type InitializationResult = Readonly<{
   result: Readonly<{ kind: 'ready'; evidence: DurableEvidence }>
     | Readonly<{ kind: 'failed'; diagnostic: string; recovery: DurableEvidence }>
 }>
+export type ContextMaterial = Readonly<{ schema: Adoption; value: JsonValue }>
 export type DeclarationChange =
   | Readonly<{ kind: 'permission-mode'; value: Modes['permission']; authorization: DurableEvidence }>
   | Readonly<{ kind: 'collaboration-mode'; value: Modes['collaboration']; authorization: DurableEvidence }>
-  | Readonly<{ kind: 'environment-mode'; value: Adoption; authorization: DurableEvidence }>
+  | Readonly<{ kind: 'environment-mode'; value: Adoption; authorization: DurableEvidence; setting: DurableEvidence }>
   | Readonly<{ kind: 'workspace'; value: Adoption | null; basis: DurableEvidence }>
   | Readonly<{ kind: 'model'; name: string; basis: DurableEvidence }>
-  | Readonly<{ kind: 'context-registration'; registration: DurableEvidence }>
+  | Readonly<{ kind: 'declaration'; item: string; value: JsonValue | null; basis: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-registration'; registration: DurableEvidence
+      need: ContextMaterial; binding: ContextMaterial; parameters: ContextMaterial
+    }>
+  | Readonly<{
+      kind: 'context-step-commit'; basis: DurableEvidence
+      updates: readonly Readonly<{ block: string; value: ContextMaterial }>[]
+    }>
+  | Readonly<{ kind: 'recovery-input'; item: string; value: DurableEvidence; basis: DurableEvidence }>
 export type Relation =
   | Readonly<{ kind: 'main'; resident: boolean }>
   | Readonly<{ kind: 'child'; parent: SessionId; basis: DurableEvidence }>
@@ -276,6 +328,7 @@ export type IdleObservation =
     }>
   | Readonly<{ kind: 'interrupted'; at: ClockSample; cause: DurableEvidence; source: DurableEvidence }>
   | Readonly<{ kind: 'unknown'; at: ClockSample; scope: DurableEvidence; source: DurableEvidence }>
+export type AutoArchivePolicy = Readonly<{ kind: 'disabled' }> | Readonly<{ kind: 'enabled'; idleMs: string }>
 export interface SessionManagement<P> {
   inspectIdle(input: Access<P>): Reply<IdleObservation>
   recordIdle(input: Mutation<P> & Readonly<{
@@ -285,9 +338,7 @@ export interface SessionManagement<P> {
   completeInitialization(input: Mutation<P> & Readonly<{ result: InitializationResult }>): Reply<CommitReceipt>
   change(input: Mutation<P> & Readonly<{ declaration: DeclarationChange }>): Reply<CommitReceipt>
   setRelation(input: Mutation<P> & Readonly<{ relation: Relation }>): Reply<CommitReceipt>
-  configureAutoArchive(input: Mutation<P> & Readonly<{
-    policy: Readonly<{ kind: 'disabled' }> | Readonly<{ kind: 'enabled'; idleMs: string }>
-  }>): Reply<CommitReceipt>
+  configureAutoArchive(input: Mutation<P> & Readonly<{ policy: AutoArchivePolicy }>): Reply<CommitReceipt>
   considerAutoArchive(input: Mutation<P> & Readonly<{ idleEvidence: DurableEvidence }>): Reply<Readonly<{
     result: 'archived' | 'not-due' | 'exempt' | 'disabled'; receipt: CommitReceipt | null
   }>>
@@ -302,15 +353,20 @@ export type ProducerFact =
   | Readonly<{ kind: 'control'; control: SessionOperationId; source: DurableEvidence }>
   | Readonly<{ kind: 'cascade'; child: SessionId; childOperation: SessionOperationId; source: DurableEvidence }>
   | Readonly<{ kind: 'routed-input'; originalOperation: SessionOperationId; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'scope-release'; archive: SessionOperationId; scope: string
+      dispositions: readonly ScopeReleaseDisposition[]; source: DurableEvidence
+    }>
+export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'idle-due'
 export interface SessionReconciliation<P> {
   receive(input: Mutation<P> & Readonly<{ fact: ProducerFact }>): Reply<CommitReceipt>
-  pending(input: Readonly<{ principal: P; tenant: TenantId; after: string | null; limit: number }>): Reply<Readonly<{
-    sessions: readonly SessionId[]; next: string | null
-  }>>
+  pending(input: Readonly<{
+    principal: P; tenant: TenantId; after: string | null; limit: number; reason?: PendingReason
+  }>): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
 }
 export type HistoryEntry = Readonly<{
   id: EntryId; revision: SessionRevision; kind: string; schema: Adoption
-  payload: JsonValue; origin: DurableEvidence
+  payload: JsonValue; origin: Readonly<{ owner: string; via: string | null; source: DurableEvidence }>
 }>
 export type HistoryPage = Readonly<{
   source: string; interpreter: Adoption; upper: SessionRevision
@@ -319,9 +375,12 @@ export type HistoryPage = Readonly<{
 }>
 export interface SessionHistory<P> {
   begin(input: Access<P> & Readonly<{
-    kinds: readonly string[]; from: EntryId | null; pageBytes: number
+    kinds: readonly string[]; from: EntryId | null; direction: 'forward' | 'backward'; pageBytes: number
   }>): Reply<HistoryPage>
   next(input: Access<P> & Readonly<{ cursor: string }>): Reply<HistoryPage>
+  since(input: Access<P> & Readonly<{
+    after: EntryId; kinds: readonly string[]; pageBytes: number
+  }>): Reply<HistoryPage>
 }
 export interface SessionService<P> {
   readonly work: SessionWork<P>
@@ -331,9 +390,132 @@ export interface SessionService<P> {
 }
 ```
 
+`HistoryEntry.origin.via` 只供人与诊断使用，不参与治理。
+
+## 领域服务与归约
+
+[行为与约束](../SPEC.md#领域服务与归约)。十个领域服务与 `reduce` 都是纯函数。`openWork` 只有一个实现。
+
+```ts
+export type AdvanceJudgment =
+  | Readonly<{ kind: 'ok' }>
+  | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
+  | Readonly<{ kind: 'changed'; revision: SessionRevision }>
+  | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
+  | Readonly<{ kind: 'archived' }>
+export type AdvanceClaim =
+  | Readonly<{ kind: 'attempt'; advance: AdvanceRef; expected: SessionRevision }>
+  | Readonly<{ kind: 'bounded'; run: RunId; expected: SessionRevision; basis: BoundedClose }>
+export type RouteJudgment =
+  | Readonly<{ kind: 'queue'; destination: 'current-run' | 'next-run' }>
+  | Readonly<{ kind: 'card'; destination: DurableEvidence }>
+  | Readonly<{ kind: 'business'; owner: string }>
+  | Readonly<{ kind: 'rejected'; reason: 'archived' | 'invalid' }>
+export type BatchJudgment = Readonly<{ kind: 'batch'; batch: InputBatch }> | Readonly<{ kind: 'empty' }>
+export type EntryClass = 'interactive' | 'dispatch'
+export type RunStartJudgment =
+  | Readonly<{ kind: 'eligible'; batch: InputBatch }>
+  | Readonly<{ kind: 'not-ready' | 'archived' | 'run-active' | 'no-input' | 'login-required' }>
+export type OpenWork = Readonly<{
+  unreadInputs: readonly InputId[]; pending: readonly InputId[]
+  waiting: readonly Waiting[]; backgroundPlaceholders: readonly ConsumptionId[]
+  unresolved: readonly SessionOperationId[]
+}>
+export type CompletionJudgment =
+  | Readonly<{ kind: 'allowed' }>
+  | Readonly<{ kind: 'blocked'; reasons: readonly BlockReason[] }>
+  | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
+export type ControlScope =
+  | Readonly<{
+      kind: 'scope'; producers: readonly ProducerRef[]; revokes: readonly ('advance' | 'pending' | 'delivery')[]
+      cancelsRun: RunId | null; cascade: readonly RecoveryTask[]; scopeRelease: boolean
+    }>
+  | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+export type IdleJudgment =
+  | Readonly<{ kind: 'due' | 'not-due' | 'exempt' | 'disabled' }>
+  | Readonly<{ kind: 'unavailable'; reason: string }>
+export type OperationJudgment =
+  | Readonly<{ kind: 'new' }>
+  | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
+  | Readonly<{ kind: 'conflict'; operation: SessionOperationId }>
+export type OperationRecord = Readonly<{ operation: SessionOperationId; digest: string; receipt: CommitReceipt }>
+export type CommittedBatch = Readonly<{ revision: SessionRevision; entries: readonly HistoryEntry[] }>
+export type ReduceResult =
+  | Readonly<{ kind: 'reduced'; snapshot: WorkSnapshot }>
+  | Readonly<{ kind: 'quarantined'; diagnostic: string }>
+
+export declare function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment
+export declare function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJudgment
+export declare function formBatch(snapshot: WorkSnapshot): BatchJudgment
+export declare function judgeRunStart(snapshot: WorkSnapshot, entry: EntryClass): RunStartJudgment
+export declare function openWork(snapshot: WorkSnapshot): OpenWork
+export declare function judgeCompletion(snapshot: WorkSnapshot, conclusion: RunConclusion): CompletionJudgment
+export declare function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope
+export declare function resolveCascade(snapshot: WorkSnapshot, children: readonly SessionId[]): readonly RecoveryTask[]
+export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
+  observation: IdleObservation; policy: AutoArchivePolicy; coverage: IdleCoverage
+}>): IdleJudgment
+export declare function resolveOperation(record: OperationRecord | null, operation: SessionOperationId, digest: string): OperationJudgment
+export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): ReduceResult
+```
+
+## 出站端口与块声明
+
+[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)、[会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点)。出站端口的参数只含本成员的值与不透明证据。服务键归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)。
+
+```ts
+export type DriveFailure =
+  | Readonly<{ kind: 'denied' | 'busy' | 'terminal' | 'changed' | 'stale-advance' | 'unsupported' }>
+  | Readonly<{ kind: 'invalid'; reason: string; rejection: DurableEvidence }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'commit-unknown'; operation: string }>
+export type DriveReply<T> = Promise<Outcome<T, DriveFailure>>
+export type DriveTarget = Readonly<{ tenant: TenantId; session: SessionId; execution: string; operation: string }>
+export type ExecutionStatus = Readonly<{
+  revision: string | null
+  state: 'missing' | 'open' | 'suspended' | 'ended'
+  attachment: 'active' | 'detached' | 'superseded' | null
+  conclusion: DurableEvidence | null; evidence: DurableEvidence
+}>
+export interface AgentDrivePort {
+  invoke(input: DriveTarget & Readonly<{ inputs: InputBatch; source: DurableEvidence; grant: DurableEvidence }>): DriveReply<DurableEvidence>
+  submit(input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>): DriveReply<DurableEvidence>
+  resume(input: DriveTarget & Readonly<{ recovery: DurableEvidence; grant: DurableEvidence }>): DriveReply<DurableEvidence>
+  control(input: DriveTarget & Readonly<{ control: SessionOperationId; intent: Control }>): DriveReply<DurableEvidence>
+  detach(input: DriveTarget & Readonly<{ attempt: AdvanceRef }>): DriveReply<DurableEvidence>
+  query(input: DriveTarget): DriveReply<'committed' | 'not-committed' | 'excluded' | 'unknown'>
+  inspect(input: Omit<DriveTarget, 'operation'>): DriveReply<ExecutionStatus>
+  /** Not called until the Agent host instance-creation entry exists (SPEC P-7). */
+  prewarm(input: Readonly<{ tenant: TenantId; session: SessionId; adoption: Adoption; counters: DurableEvidence }>): DriveReply<'requested'>
+}
+export interface ToolStartFencePort {
+  invalidate(input: Readonly<{
+    tenant: TenantId; session: SessionId; operation: SessionOperationId
+    scope: Readonly<{ kind: 'run'; run: RunId }> | Readonly<{ kind: 'attempt'; advance: AdvanceRef }> | Readonly<{ kind: 'session' }>
+    revision: SessionRevision
+  }>): Promise<'effective' | 'pending' | 'unavailable' | 'commit-unknown'>
+}
+export type ScopeReleaseReadback = Readonly<{
+  dispositions: readonly ScopeReleaseDisposition[]; source: DurableEvidence
+}>
+export interface ScopeReleasePort {
+  release(input: Readonly<{
+    tenant: TenantId; session: SessionId; task: SessionOperationId; scope: string
+  }>): Promise<ScopeReleaseReadback>
+}
+export type SessionBlockDeclaration = Readonly<{
+  name: 'session.modes'; kind: 'supplied'; recovery: 'persisted'; volatility: 'stable'
+  consumers: readonly ('model' | 'coordinator')[]; schema: Adoption
+}>
+export declare const sessionModesBlock: SessionBlockDeclaration
+```
+
+`ScopeReleasePort` 的参数不含恢复授权。恢复授权由应用装配层的维护拥有者签发，经装配注入端口实现。
+
 ## 当前增量与后续接口
 
-[行为与约束](../SPEC.md#342-当前增量与后续接口)。
+[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)。
 
 ```ts
 export type MutationName =
@@ -382,15 +564,18 @@ export interface SessionTransactionPort<P> {
   readRequest(input: Access<P> & Readonly<{ consumption: ConsumptionId }>): Reply<FixedRequestMaterial>
   queryOperation(input: Access<P> & Readonly<{ operation: SessionOperationId }>): Reply<OperationResolution>
   readonly history: SessionHistory<P>
-  pending(input: Readonly<{ principal: P; tenant: TenantId; after: string | null; limit: number }>): Reply<Readonly<{
-    sessions: readonly SessionId[]; next: string | null
-  }>>
+  pending(input: Readonly<{
+    principal: P; tenant: TenantId; after: string | null; limit: number; reason?: PendingReason
+  }>): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
 }
 export interface SessionNotifier {
-  committed(input: Readonly<{ tenant: TenantId; session: SessionId; revision: SessionRevision; source: DurableEvidence }>): Promise<void>
+  committed(input: Readonly<{
+    tenant: TenantId; session: SessionId; revision: SessionRevision
+    source: DurableEvidence; kinds: readonly string[]
+  }>): Promise<void>
 }
 ```
 
 ## 实现工厂
 
-配置、依赖聚合及构造函数由 [通用实现](../../session/docs/public-api.md) 拥有。这里的提供者端口仍是可替换边界，不指定实现。
+配置、依赖聚合及构造函数由 [通用实现](../../session/docs/public-api.md) 拥有。调度策略是 `session` 工厂配置的一部分，不在本成员定义。有界恢复者重试的上限是该策略的配置字段，默认值只是初值。这里的提供者端口仍是可替换边界，不指定实现。
