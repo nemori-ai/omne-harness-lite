@@ -1,4 +1,4 @@
-// Test support for the proxy seam: a local HTTP proxy that answers CONNECT in one of three ways and
+// Test support for the proxy seam: a local HTTP proxy that answers CONNECT in one of four ways and
 // records the target of every CONNECT it receives. It never terminates TLS: a tunnel carries the
 // client's TLS session to the target unchanged.
 import { createServer, type IncomingMessage } from 'node:http'
@@ -9,8 +9,9 @@ import type { Duplex } from 'node:stream'
  * - `tunnel`: connects to the requested target, answers 200 and relays bytes both ways.
  * - `refuse-then-reset`: answers 403, then resets the connection a moment later.
  * - `silent`: keeps the connection open and never answers.
+ * - `close`: closes the connection without an answer.
  */
-export type ProxyMode = 'tunnel' | 'refuse-then-reset' | 'silent'
+export type ProxyMode = 'tunnel' | 'refuse-then-reset' | 'silent' | 'close'
 
 /** The delay between the 403 and the reset: long enough that the client reads the 403 first. */
 const RESET_DELAY_MS = 50
@@ -54,6 +55,9 @@ export async function startConnectProxy(mode: ProxyMode): Promise<ConnectProxy> 
         }, RESET_DELAY_MS)
         return
       case 'silent':
+        return
+      case 'close':
+        client.end()
         return
       default: {
         const _exhaustive: never = mode

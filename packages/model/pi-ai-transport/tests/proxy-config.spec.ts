@@ -61,6 +61,18 @@ describe('network resources: proxy configuration', () => {
       await resources.close()
     },
   )
+
+  // `URL` accepts these; Node's own reading of the raw text throws with the whole URL, password
+  // included, in its message. This is the guarantee that construction never reports the URL.
+  it.each([
+    ['a trailing newline', `http://user:${SECRET}@proxy.example:8080\n`],
+    ['an embedded carriage return', `http://user:${SECRET}@proxy.exa\rmple:8080`],
+    ['an embedded tab', `http://user:${SECRET}@proxy.example:80\t80`],
+  ])('a URL with %s builds the resources without any error', async (_case, url) => {
+    const resources = createNetworkResources(withProxy({ url, bypass: [] }))
+    expect(resources.closed).toBe(false)
+    await resources.close()
+  })
 })
 
 describe('network resources: the Node version that a proxy requires', () => {

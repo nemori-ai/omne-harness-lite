@@ -5,7 +5,7 @@ import type { JsonLimits } from '@omne-harness/json-text'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { TransportDiagnostic } from '../src/diagnostics.ts'
 import { readProtocolFrames } from '../src/frames.ts'
-import { startExchange, type ExchangeResult } from '../src/http.ts'
+import { startExchange, type ExchangeResult, type HttpExchange } from '../src/http.ts'
 import type { NetworkConfig, NetworkResources } from '../src/network.ts'
 import { readSseEvents } from '../src/sse.ts'
 import { startConnectProxy, type ConnectProxy, type ProxyMode } from './support/connect-proxy.ts'
@@ -163,9 +163,39 @@ describe('connecting through a proxy', () => {
     }
   })
 
+  // Node reads the raw `HTTPS_PROXY` text: it connects directly, without an error, unless the text
+  // starts with a lower-case `http://` or `https://`. `URL` accepts each of these forms.
+  it.each([
+    ['an upper-case scheme', (url: string) => url.replace('http://', 'HTTP://')],
+    ['leading whitespace', (url: string) => ` ${url}`],
+    ['a trailing newline', (url: string) => `${url}\n`],
+  ])('a proxy URL with %s still carries the exchange through the proxy', async (_case, spell) => {
+    const server = await startHttpsServer(certificate, res => res.end('proxied'))
+    try {
+      await withProxy('tunnel', async proxy => {
+        const resources = proxied(spell(String(proxy.url)))
+        const exchange = started(
+          startExchange(
+            resources,
+            input(server.url, await held(resources)),
+            new AbortController().signal,
+          ),
+        )
+        expect(await readToEnd(claimed(await exchange.result))).toBe('proxied')
+        await exchange.stopped
+        expect(proxy.connects).toEqual([server.url.host])
+        return resources
+      })
+    } finally {
+      await server.close()
+    }
+  })
+
   it('the connect timeout ends when the tunnel hands over a connected socket, not at the response', async () => {
+    // CONNECT, tunnel and TLS take well under the timeout even on a loaded machine; the response
+    // comes only after it. A timer that ran until the response would fail the exchange.
     const server = await startHttpsServer(certificate, async res => {
-      await sleep(600)
+      await sleep(3_000)
       res.end('late')
     })
     try {
@@ -174,7 +204,7 @@ describe('connecting through a proxy', () => {
         const exchange = started(
           startExchange(
             resources,
-            input(server.url, await held(resources), { connectTimeoutMs: 300 }),
+            input(server.url, await held(resources), { connectTimeoutMs: 1_500 }),
             new AbortController().signal,
           ),
         )
@@ -205,6 +235,28 @@ describe('a proxy that fails the connection', () => {
       await sleep(100)
       expect(reservation.state).toBe('released')
       expectCleanedUp(resources, signal)
+      return resources
+    })
+  })
+
+  it('a proxy that closes the connection before it answers CONNECT gives connect-failed without a timeout', async () => {
+    await withProxy('close', async proxy => {
+      const resources = proxied(proxy.url)
+      const reservation = await held(resources)
+      const exchange = started(
+        startExchange(
+          resources,
+          input(new URL('https://127.0.0.1:1/'), reservation),
+          new AbortController().signal,
+        ),
+      )
+      expect(await within(exchange.result, PROMPT_MS)).toEqual({
+        kind: 'connect-failed',
+        timeout: false,
+      })
+      await exchange.stopped
+      expect(proxy.connects).toEqual(['127.0.0.1:1'])
+      expect(reservation.state).toBe('released')
       return resources
     })
   })
@@ -368,7 +420,55 @@ describe('stopping while a connection is built through a proxy', () => {
   })
 })
 
+describe('the connection cancel and a socket the pool already holds', () => {
+  // A stops in the same tick that its kept-alive socket goes back to the pool, and B takes that
+  // socket. A's cancel signal fires then. It must not destroy the socket that B now uses.
+  it.each([false, true])(
+    'a stop in the tick the socket is freed leaves the socket to the next exchange (through a proxy: %s)',
+    async viaProxy => {
+      const server = await startHttpsServer(certificate, res => res.end('reused'))
+      try {
+        await withProxy('tunnel', async proxy => {
+          const resources = network(certificate.cert, {
+            maxConnections: 2,
+            ...(viaProxy ? { proxy: { url: String(proxy.url), bypass: [] } } : {}),
+          })
+          const first = started(
+            startExchange(
+              resources,
+              input(server.url, await held(resources)),
+              new AbortController().signal,
+            ),
+          )
+          const second = await held(resources)
+          let next: HttpExchange | undefined
+          resources.agent.once('free', () => {
+            next = started(
+              startExchange(resources, input(server.url, second), new AbortController().signal),
+            )
+            first.stop()
+          })
+          const result = await first.result
+          if (result.kind === 'ok') await readToEnd(claimed(result)).catch(() => undefined)
+          await first.stopped
+          await expect.poll(() => next !== undefined).toBe(true)
+          if (next === undefined) throw new Error('the next exchange did not start')
+          expect(await readToEnd(claimed(await next.result))).toBe('reused')
+          await next.stopped
+          expect(server.openedSockets()).toBe(1)
+          expect(proxy.connects).toHaveLength(viaProxy ? 1 : 0)
+          return resources
+        })
+      } finally {
+        await server.close()
+      }
+    },
+  )
+})
+
 describe('the proxy URL as a secret', () => {
+  // Node's own messages carry the proxy URL, and these cases show that none reaches a result or
+  // a diagnostic. That the construction never reports the URL is proven in proxy-config.spec.ts.
   const SECRET = 'proxy-secret-value'
 
   function leaks(value: ExchangeResult | readonly TransportDiagnostic[], proxy: ConnectProxy) {

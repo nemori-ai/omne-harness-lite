@@ -42,7 +42,8 @@ export interface NetworkResources extends ExchangeResources {
 export function createNetworkResources(config: NetworkConfig): NetworkResources {
   requirePositiveInteger(config.maxConnections, 'maxConnections')
   requireTimerDuration(config.idleConnectionTimeoutMs, 'idleConnectionTimeoutMs')
-  if (config.proxy !== undefined) requireProxy(config.proxy, process.versions.node)
+  const proxyEnv =
+    config.proxy === undefined ? undefined : proxyEnvOf(config.proxy, process.versions.node)
   const diagnostics =
     config.diagnostics === undefined
       ? SILENT
@@ -58,12 +59,7 @@ export function createNetworkResources(config: NetworkConfig): NetworkResources 
     keepAlive: true,
     maxSockets: Number.POSITIVE_INFINITY,
     timeout: config.idleConnectionTimeoutMs,
-    // Only the upper-case keys: Node prefers a lower-case key when both are present.
-    ...(config.proxy === undefined
-      ? {}
-      : {
-          proxyEnv: { HTTPS_PROXY: config.proxy.url, NO_PROXY: config.proxy.bypass.join(',') },
-        }),
+    ...(proxyEnv === undefined ? {} : { proxyEnv }),
   })
   const inFlight = new Set<InFlightExchange>()
   let draining: Promise<void> | undefined
@@ -113,18 +109,32 @@ function requireTimerDuration(value: number, name: string): void {
 const PROXY_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:'])
 const BYPASS_SEPARATOR = /[\s,]/
 
-/** The messages name the field and the rule only: the URL may carry credentials. */
-function requireProxy(proxy: ProxyConfig, nodeVersion: string): void {
+/**
+ * The `proxyEnv` that Node's pool takes, from a checked configuration. The messages name the field
+ * and the rule only: the URL may carry credentials.
+ *
+ * Node gets the URL as `URL` serializes it, never as given. `URL.canParse` accepts what Node's own
+ * reading of `HTTPS_PROXY` refuses or ignores: Node throws on a CR or LF, with the whole URL in the
+ * message, and connects directly, without an error, when the text does not start with a lower-case
+ * `http://` or `https://` (an upper-case scheme or leading whitespace). The serialized form has
+ * neither. Only the upper-case keys are set: Node prefers a lower-case key when both are present.
+ */
+function proxyEnvOf(
+  proxy: ProxyConfig,
+  nodeVersion: string,
+): Readonly<{ HTTPS_PROXY: string; NO_PROXY: string }> {
   const { url, bypass } = proxy
   if (typeof url !== 'string' || !URL.canParse(url))
     throw new RangeError('proxy.url must be a valid URL')
-  if (!PROXY_PROTOCOLS.has(new URL(url).protocol))
+  const parsed = new URL(url)
+  if (!PROXY_PROTOCOLS.has(parsed.protocol))
     throw new RangeError('proxy.url must use the http: or https: protocol')
   if (!Array.isArray(bypass) || !bypass.every(isBypassEntry))
     throw new RangeError(
       'proxy.bypass entries must be non-empty strings without commas or whitespace',
     )
   if (!supportsProxyEnv(nodeVersion)) throw new RangeError('proxy requires Node 24.5.0 or later')
+  return { HTTPS_PROXY: parsed.href, NO_PROXY: bypass.join(',') }
 }
 
 function isBypassEntry(entry: unknown): boolean {

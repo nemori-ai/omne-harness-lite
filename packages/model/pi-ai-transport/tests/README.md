@@ -21,13 +21,16 @@ http.spec.ts 与 network.spec.ts 用 vitest 的模块替身把 `node:https` 的 
 - 本地 HTTPS 服务：记录收到的方法、路径、头与体，由每个用例决定怎样响应。
 - 黑洞监听：接受 TCP 连接但从不完成 TLS 握手，用于连接超时。
 
-[support/connect-proxy.ts](support/connect-proxy.ts) 是本地 `http:` CONNECT 代理，用 `http.createServer` 的 `connect` 事件实现，记录每个 CONNECT 的目标。它有三种模式：
+[support/connect-proxy.ts](support/connect-proxy.ts) 是本地 `http:` CONNECT 代理，用 `http.createServer` 的 `connect` 事件实现，记录每个 CONNECT 的目标。它有四种模式：
 
 - `tunnel`：连接目标，回复 200，双向转发字节。代理不终止 TLS。
 - `refuse-then-reset`：回复 403，50 毫秒后重置连接。这是 Node 缺陷的回归用例：没有连接池的规避时，重置使测试运行报告未处理的 `ECONNRESET`。
 - `silent`：保持连接，从不回复。
+- `close`：不回复，直接关闭连接。
 
-proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超时的用例要求交换在 1 秒左右之内结束，所以结束不可能来自 Node 的隧道超时。这些用例同时锁住 Node 把请求选项传到 `createConnection` 的行为，原因见[内部架构“经代理建立连接”](../docs/architecture.md#经代理建立连接)。
+proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超时的用例要求交换在 1 秒左右之内结束，所以结束不可能来自 Node 的隧道超时。这些用例同时锁住 Node 把请求选项传到 `createConnection` 的行为，原因见[内部架构“经代理建立连接”](../docs/architecture.md#经代理建立连接)。一个用例让交换在它的套接字回到连接池的同一 tick 停止，下一个交换复用这个套接字：它核对取消只作用于连接池尚未持有的套接字。
+
+代理 URL 不外泄的保证分两处。构造时的保证在 proxy-config.spec.ts：URL 含换行、回车或制表符时构造也不报错，Node 含完整 URL 的错误消息不会出现。proxy.spec.ts 的秘密用例只核对 Node 运行时的错误消息不进入结果与诊断。
 
 [live/openrouter.spec.ts](live/openrouter.spec.ts) 是真实网络用例，由 `pnpm --filter @omne-harness/pi-ai-transport run test:live` 运行。它只在 `OMNE_LIVE_TESTS=1` 时运行，否则在用例体内用 `ctx.skip()` 跳过。它不用 `skipIf`：慢层的预解析会丢弃整个文件，即使设了开关。用例在测试边界把 `HTTPS_PROXY` 与 `NO_PROXY` 映射为代理配置，凭据头只写占位值 `Bearer placeholder`，由代理替换为真实凭据。设了开关而没有 `HTTPS_PROXY` 时，用例失败。用例不读取也不输出任何密钥。
 
