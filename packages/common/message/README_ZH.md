@@ -51,7 +51,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 ## 设计
 
-`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`Message`、`ToolMessage`、`CompactionMessage`、`judgeMessage` 和 `isCompactionMessage`。`src/compaction-shape.ts` 拥有记录条目引用、`covers`、`retained` 和 `derivation`。`src/compaction.ts` 拥有 `judgeCompaction` 及其 context。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
+`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`Message`、`ToolMessage`、`CompactionMessage`、`judgeMessage` 和 `isCompactionMessage`。`src/compaction-shape.ts` 拥有记录条目引用、`covers`、`retained` 和 `derivation`。`src/compaction.ts` 拥有 `judgeCompaction` 及其 context。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
 
 消息字段挂在会话日志里的事实记录上。`SystemMessage` 在请求组装时现算，不进入这份日志。
 

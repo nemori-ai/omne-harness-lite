@@ -79,7 +79,7 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
 }
 
 /** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
-function hasUnreadableOwn(value: object): boolean {
+export function hasUnreadableOwn(value: object): boolean {
   return Object.getOwnPropertyNames(value).some(key => {
     const descriptor = Object.getOwnPropertyDescriptor(value, key)
     return descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)
@@ -103,7 +103,7 @@ export function isCallPart(part: MessagePart): boolean {
   return CALL_KINDS.includes(part.kind)
 }
 
-function nonEmpty(value: unknown): value is string {
+export function nonEmpty(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 

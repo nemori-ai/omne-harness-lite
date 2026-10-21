@@ -116,34 +116,48 @@ interface MessageFields {
   readonly id: MessageId
   readonly role: LogMessageRole
   readonly blocks: readonly unknown[]
+  /** The legal keys with the one value read for each. Nothing later reads the input again. */
+  readonly read: Readonly<Record<string, unknown>>
 }
 
 /** Only an own `role` that is exactly `compaction` adds the three compaction keys. */
-function legalKeys(value: Record<string, unknown>): readonly string[] {
-  return Object.hasOwn(value, 'role') && value.role === 'compaction'
+function legalKeys(value: Record<string, unknown>, role: unknown): readonly string[] {
+  return Object.hasOwn(value, 'role') && role === 'compaction'
     ? COMPACTION_MESSAGE_KEYS
     : MESSAGE_KEYS
+}
+
+/**
+ * The legal keys of the message with the one value read for each. An accessor can answer
+ * differently each time, so every field is read once, and the key set, the checks and the copy
+ * all use that one value.
+ */
+function readFields(
+  value: Record<string, unknown>,
+): { readonly ok: Readonly<Record<string, unknown>> } | { readonly rejected: MessageRejection } {
+  const role = value.role
+  const keys = legalKeys(value, role)
+  if (Object.keys(value).some(key => !keys.includes(key))) return { rejected: 'extra' }
+  if (keys.some(key => !(key in value))) return { rejected: 'missing' }
+  const read = Object.fromEntries(keys.map(key => [key, key === 'role' ? role : value[key]]))
+  if (keys.some(key => read[key] === null)) return { rejected: 'null' }
+  return { ok: read }
 }
 
 function messageFields(
   value: Record<string, unknown>,
 ): { readonly ok: MessageFields } | { readonly rejected: MessageRejection } {
-  const keys = legalKeys(value)
-  if (Object.keys(value).some(key => !keys.includes(key))) return { rejected: 'extra' }
-  if (keys.some(key => !(key in value))) return { rejected: 'missing' }
-  if (keys.some(key => value[key] === null)) return { rejected: 'null' }
-  if (
-    typeof value.id !== 'string' ||
-    typeof value.role !== 'string' ||
-    !Array.isArray(value.blocks)
-  ) {
+  const fields = readFields(value)
+  if ('rejected' in fields) return fields
+  const read = fields.ok
+  if (typeof read.id !== 'string' || typeof read.role !== 'string' || !Array.isArray(read.blocks)) {
     return { rejected: 'shape' }
   }
-  const id = parseMessageId(value.id)
+  const id = parseMessageId(read.id)
   if (!id.ok) return { rejected: id.error }
-  if (!isLogRole(value.role)) return { rejected: 'unknown' }
-  if (value.blocks.length === 0) return { rejected: 'empty' }
-  return { ok: { id: id.value, role: value.role, blocks: value.blocks } }
+  if (!isLogRole(read.role)) return { rejected: 'unknown' }
+  if (read.blocks.length === 0) return { rejected: 'empty' }
+  return { ok: { id: id.value, role: read.role, blocks: read.blocks, read } }
 }
 
 function judgeBlocks(
@@ -179,7 +193,11 @@ function judgeUniqueIds(parts: readonly MessagePart[]): Rejected | undefined {
   return undefined
 }
 
-/** Narrows an admitted message to the compaction variant. It does not judge the shape again. */
+/**
+ * Narrows a message to the compaction variant. It checks only the role and that the three keys
+ * exist, so it can be trusted only for a success value of `judgeMessage`. It does not judge
+ * the shape again.
+ */
 export function isCompactionMessage(message: Message): message is CompactionMessage {
   return message.role === 'compaction' && COMPACTION_KEYS.every(key => Object.hasOwn(message, key))
 }
@@ -193,7 +211,8 @@ export function judgeMessage(value: unknown): MessageJudgment {
   if (!isRecord(value)) return { rejected: 'shape' }
   const fields = messageFields(value)
   if ('rejected' in fields) return { rejected: fields.rejected }
-  const compaction = fields.ok.role === 'compaction' ? judgeCompactionKeys(value) : undefined
+  const compaction =
+    fields.ok.role === 'compaction' ? judgeCompactionKeys(fields.ok.read) : undefined
   if (compaction !== undefined && 'rejected' in compaction) return compaction
   const blocks = judgeBlocks(fields.ok.blocks)
   if ('rejected' in blocks) return blocks

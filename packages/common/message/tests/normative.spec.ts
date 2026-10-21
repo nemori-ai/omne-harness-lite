@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
+  isCompactionMessage,
   judgeCompaction,
   judgeMessage,
   parseRecordEntryRef,
@@ -369,20 +370,14 @@ describe('the compaction table', () => {
 /** The success value keeps the three keys as they were, and no later change of the input reaches it. */
 function expectCopy(message: Record<string, unknown>): void {
   const judged = judgeMessage(message)
-  if (!('ok' in judged)) throw new Error('expected an admitted message')
-  const kept = judged.ok as unknown as Record<string, unknown>
-  const before = structuredClone({
-    covers: kept.covers,
-    retained: kept.retained,
-    derivation: kept.derivation,
-  })
+  if (!('ok' in judged) || !isCompactionMessage(judged.ok)) {
+    throw new Error('expected an admitted compaction message')
+  }
+  const { covers, retained, derivation } = judged.ok
+  const before = structuredClone({ covers, retained, derivation })
   ;(message.retained as unknown[]).push('e9')
   ;(message.covers as Record<string, unknown>).to = 'e9'
   ;(message.derivation as Record<string, unknown>).digest = 'changed'
-  expect({ covers: kept.covers, retained: kept.retained, derivation: kept.derivation }).toEqual(
-    before,
-  )
-  for (const key of ['covers', 'retained', 'derivation']) {
-    expect(Object.isFrozen(kept[key]), key).toBe(true)
-  }
+  expect({ covers, retained, derivation }).toEqual(before)
+  for (const kept of [covers, retained, derivation]) expect(Object.isFrozen(kept)).toBe(true)
 }

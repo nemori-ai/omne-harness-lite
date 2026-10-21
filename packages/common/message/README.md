@@ -51,7 +51,7 @@ Role rules: the first block of a `tool` message is a `tool_result`, and the othe
 
 ## Design
 
-`src/message.ts` owns the role list, the brand, `parseMessageId`, `messageIdEquals`, `Message`, `ToolMessage`, `CompactionMessage`, `judgeMessage`, and `isCompactionMessage`. `src/compaction-shape.ts` owns the entry reference, `covers`, `retained`, and `derivation`. `src/compaction.ts` owns `judgeCompaction` and its context. `src/parts.ts` owns the tool part types and `judgePart`. `src/index.ts` only exports them. The block identity rules and the value tree rules are not here: they come from content-block and json-text.
+`src/message.ts` owns the role list, the brand, `parseMessageId`, `messageIdEquals`, `Message`, `ToolMessage`, `CompactionMessage`, `judgeMessage`, and `isCompactionMessage`. `src/compaction-shape.ts` owns the entry reference, `covers`, `retained`, and `derivation`. `src/compaction.ts` owns `judgeCompaction` and its context. `src/parts.ts` owns the tool part types and `judgePart`. `src/values.ts` reads a closed plain object by key name and detects repeated items. `src/index.ts` only exports them. The block identity rules and the value tree rules are not here: they come from content-block and json-text.
 
 The message field sits on a fact record in the session log. `SystemMessage` is assembled for a request and stays off that log.
 

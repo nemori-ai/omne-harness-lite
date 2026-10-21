@@ -1,4 +1,5 @@
-import { isPlainRecord } from './parts.ts'
+import { nonEmpty } from './parts.ts'
+import { closedFields, hasDuplicates } from './values.ts'
 
 declare const recordEntryRefBrand: unique symbol
 /** Opaque reference to one record entry. The history holder mints it; consumers compare it exactly. */
@@ -14,8 +15,6 @@ export type CompactionDerivation = Readonly<{
 
 export type CompactedRange = Readonly<{ from: RecordEntryRef; to: RecordEntryRef }>
 
-export type CompactionKeyRejection = 'covers' | 'retained' | 'derivation'
-
 /** The three keys that only a `compaction` message has. */
 export interface CompactionKeys {
   readonly covers: CompactedRange
@@ -23,14 +22,27 @@ export interface CompactionKeys {
   readonly derivation: CompactionDerivation
 }
 
+export const COMPACTION_KEYS = [
+  'covers',
+  'retained',
+  'derivation',
+] as const satisfies readonly (keyof CompactionKeys)[]
+
+export type CompactionKeyRejection = (typeof COMPACTION_KEYS)[number]
+
 export type CompactionKeysJudgment =
   | { readonly ok: CompactionKeys }
   | { readonly rejected: CompactionKeyRejection }
 
-export const COMPACTION_KEYS = ['covers', 'retained', 'derivation'] as const
-
-const COVERS_KEYS = ['from', 'to'] as const
-const DERIVATION_KEYS = ['owner', 'record', 'revision', 'digest'] as const
+// A listed key that the type lacks fails to compile. A key that the type has and the list lacks
+// fails where `readCovers` and `readDerivation` build the value.
+const COVERS_KEYS = ['from', 'to'] as const satisfies readonly (keyof CompactedRange)[]
+const DERIVATION_KEYS = [
+  'owner',
+  'record',
+  'revision',
+  'digest',
+] as const satisfies readonly (keyof CompactionDerivation)[]
 
 function isRecordEntryRef(raw: string): raw is RecordEntryRef {
   return raw.length > 0
@@ -45,38 +57,16 @@ function entryRef(value: unknown): RecordEntryRef | null {
   return typeof value === 'string' ? parseRecordEntryRef(value) : null
 }
 
-function nonEmptyText(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0
+function readCovers(raw: unknown): CompactedRange | undefined {
+  const fields = closedFields(raw, COVERS_KEYS)
+  if (fields === undefined) return undefined
+  const from = entryRef(fields.from)
+  const to = entryRef(fields.to)
+  if (from === null || to === null) return undefined
+  return Object.freeze({ from, to })
 }
 
-/**
- * The values of a plain object whose own keys are exactly `keys`, each an enumerable data
- * property. An accessor is never called: it makes the object unreadable, as does a symbol key.
- */
-function closedValues(value: unknown, keys: readonly string[]): readonly unknown[] | undefined {
-  if (!isPlainRecord(value)) return undefined
-  const own = Reflect.ownKeys(value)
-  if (own.length !== keys.length || !keys.every(key => own.includes(key))) return undefined
-  const values: unknown[] = []
-  for (const key of keys) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key)
-    if (descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)) {
-      return undefined
-    }
-    values.push(descriptor.value)
-  }
-  return values
-}
-
-function judgeCovers(raw: unknown): CompactedRange | undefined {
-  const values = closedValues(raw, COVERS_KEYS)
-  if (values === undefined) return undefined
-  const from = entryRef(values[0])
-  const to = entryRef(values[1])
-  return from === null || to === null ? undefined : Object.freeze({ from, to })
-}
-
-function judgeRetained(raw: unknown): readonly RecordEntryRef[] | undefined {
+function readRetained(raw: unknown): readonly RecordEntryRef[] | undefined {
   if (!Array.isArray(raw)) return undefined
   const items: readonly unknown[] = raw
   const refs: RecordEntryRef[] = []
@@ -85,14 +75,16 @@ function judgeRetained(raw: unknown): readonly RecordEntryRef[] | undefined {
     if (ref === null) return undefined
     refs.push(ref)
   }
-  return new Set(refs).size === refs.length ? Object.freeze(refs) : undefined
+  return hasDuplicates(refs) ? undefined : Object.freeze(refs)
 }
 
-function judgeDerivation(raw: unknown): CompactionDerivation | undefined {
-  const values = closedValues(raw, DERIVATION_KEYS)
-  const [owner, record, revision, digest] = values ?? []
-  if (!nonEmptyText(owner) || !nonEmptyText(record)) return undefined
-  if (!nonEmptyText(revision) || !nonEmptyText(digest)) return undefined
+function readDerivation(raw: unknown): CompactionDerivation | undefined {
+  const fields = closedFields(raw, DERIVATION_KEYS)
+  if (fields === undefined) return undefined
+  const { owner, record, revision, digest } = fields
+  if (!nonEmpty(owner) || !nonEmpty(record) || !nonEmpty(revision) || !nonEmpty(digest)) {
+    return undefined
+  }
   return Object.freeze({ owner, record, revision, digest })
 }
 
@@ -100,12 +92,14 @@ function judgeDerivation(raw: unknown): CompactionDerivation | undefined {
  * The three keys of a `compaction` message, in the order covers, retained, derivation. The first
  * failure is returned. Each success value is a frozen copy that shares nothing with the input.
  */
-export function judgeCompactionKeys(value: Record<string, unknown>): CompactionKeysJudgment {
-  const covers = judgeCovers(value.covers)
+export function judgeCompactionKeys(
+  fields: Readonly<Record<string, unknown>>,
+): CompactionKeysJudgment {
+  const covers = readCovers(fields.covers)
   if (covers === undefined) return { rejected: 'covers' }
-  const retained = judgeRetained(value.retained)
+  const retained = readRetained(fields.retained)
   if (retained === undefined) return { rejected: 'retained' }
-  const derivation = judgeDerivation(value.derivation)
+  const derivation = readDerivation(fields.derivation)
   if (derivation === undefined) return { rejected: 'derivation' }
   return { ok: { covers, retained, derivation } }
 }

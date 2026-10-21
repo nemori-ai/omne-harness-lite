@@ -5,6 +5,8 @@ import {
   type CompactionMessage,
   type Message,
 } from './message.ts'
+import type { ToolPart } from './parts.ts'
+import { hasDuplicates } from './values.ts'
 
 /** One entry of the compacted range, in log order. `message` is null for an entry that carries no message. */
 export type CoveredEntry = Readonly<{ ref: RecordEntryRef; message: Message | null }>
@@ -39,44 +41,40 @@ function isModelReadable(message: Message): boolean {
   return message.role !== 'tool_internal' && message.blocks.some(part => part.visibility.toModel)
 }
 
-function hasDuplicate(refs: readonly RecordEntryRef[]): boolean {
-  return new Set(refs).size !== refs.length
-}
-
 function rangeFailure(message: CompactionMessage, context: CompactionContext): Failure | undefined {
   const { covered, after } = context
-  const first = covered[0]
-  const last = covered[covered.length - 1]
+  const refs = covered.map(entry => entry.ref)
   const broken =
-    first === undefined ||
-    last === undefined ||
-    first.ref !== message.covers.from ||
-    last.ref !== message.covers.to ||
-    hasDuplicate(covered.map(entry => entry.ref)) ||
+    refs.at(0) !== message.covers.from ||
+    refs.at(-1) !== message.covers.to ||
+    hasDuplicates(refs) ||
     after.some(later => later.role === 'compaction')
   return broken ? fail('range', null) : undefined
 }
 
-/** Walks `retained` in order against the position of each covered entry. */
+/**
+ * Walks `retained` in order against the position of each covered entry. `judgeMessage` has
+ * refused a repeated reference, so a position that is not after the previous one is earlier.
+ */
 function retainedFailure(
   message: CompactionMessage,
   covered: readonly CoveredEntry[],
 ): Failure | undefined {
-  const position = new Map<string, number>(covered.map((entry, at) => [entry.ref, at]))
+  const found = new Map(covered.map((entry, at) => [entry.ref, { entry, at }] as const))
   let previous = -1
   for (const ref of message.retained) {
-    const at = position.get(ref)
-    if (at === undefined) return fail('retained-outside', ref)
-    if (at <= previous) return fail('retained-order', ref)
-    const kept = covered[at]?.message ?? null
+    const hit = found.get(ref)
+    if (hit === undefined) return fail('retained-outside', ref)
+    if (hit.at <= previous) return fail('retained-order', ref)
+    const { message: kept } = hit.entry
     if (kept === null || !isModelReadable(kept)) return fail('retained-not-model', ref)
-    previous = at
+    previous = hit.at
   }
   return undefined
 }
 
 /** A message with a flag that says whether the model sees it once the range is summarized. */
-interface Placed {
+interface ViewEntry {
   readonly message: Message
   /** Null for a message after the range, which has no reference in the context. */
   readonly ref: RecordEntryRef | null
@@ -84,46 +82,51 @@ interface Placed {
 }
 
 /** The messages of the range that carry one, then the messages after it, in history order. */
-function placeHistory(context: CompactionContext, retained: ReadonlySet<string>): Placed[] {
-  const placed: Placed[] = []
+function layoutHistory(
+  context: CompactionContext,
+  retained: ReadonlySet<RecordEntryRef>,
+): ViewEntry[] {
+  const layout: ViewEntry[] = []
   for (const { ref, message } of context.covered) {
-    if (message !== null) placed.push({ message, ref, inView: retained.has(ref) })
+    if (message !== null) layout.push({ message, ref, inView: retained.has(ref) })
   }
-  for (const message of context.after) placed.push({ message, ref: null, inView: true })
-  return placed
+  for (const message of context.after) layout.push({ message, ref: null, inView: true })
+  return layout
 }
 
-/** The `callId` of each call that a tool message can answer. An incomplete call is not one. */
-function answerableCallIds(message: Message): readonly string[] {
-  if (message.role !== 'assistant') return []
-  const ids: string[] = []
-  for (const part of message.blocks) {
-    if (part.kind === 'tool_call' || part.kind === 'tool_call_unparsed') ids.push(part.callId)
-  }
-  return ids
+/**
+ * The `callId` of each part of one of these kinds. The context messages passed `judgeMessage`,
+ * so a call part is only in an `assistant` message and a marker only in a `tool` message.
+ */
+function callIdsOf(message: Message, kinds: readonly string[]): string[] {
+  return message.blocks
+    .filter((part): part is ToolPart => kinds.includes(part.kind))
+    .map(part => part.callId)
 }
 
-/** The `callId` a tool message answers, from its marker. */
-function answeredCallId(message: Message): string | undefined {
-  const marker = message.role === 'tool' ? message.blocks[0] : undefined
-  return marker?.kind === 'tool_result' ? marker.callId : undefined
-}
+/** An incomplete call is not one a tool message can answer. */
+const ANSWERABLE: readonly string[] = ['tool_call', 'tool_call_unparsed']
+const MARKER: readonly string[] = ['tool_result']
 
-/** The pair member that the failure points at: the one in the range, the kept one if both are. */
-function pairRef(call: Placed, answer: Placed): RecordEntryRef | null {
-  if (call.ref !== null && answer.ref !== null) return call.inView ? call.ref : answer.ref
-  return call.ref ?? answer.ref
+/**
+ * The pair member that the failure points at: the one in the range, the kept one if both are.
+ * A failed pair is never two messages after the range, and a call is before its answer, so the
+ * call is in the range.
+ */
+function pairRef(call: ViewEntry, answer: ViewEntry): RecordEntryRef | null {
+  return answer.ref !== null && !call.inView ? answer.ref : call.ref
 }
 
 /** Each tool message is paired with the nearest earlier call of the same `callId`. */
-function pairingFailure(placed: readonly Placed[]): Failure | undefined {
-  const nearest = new Map<string, Placed>()
-  for (const entry of placed) {
-    for (const callId of answerableCallIds(entry.message)) nearest.set(callId, entry)
-    const answered = answeredCallId(entry.message)
-    const call = answered === undefined ? undefined : nearest.get(answered)
-    if (call !== undefined && call.inView !== entry.inView) {
-      return fail('pairing', pairRef(call, entry))
+function pairingFailure(layout: readonly ViewEntry[]): Failure | undefined {
+  const nearest = new Map<string, ViewEntry>()
+  for (const entry of layout) {
+    for (const callId of callIdsOf(entry.message, ANSWERABLE)) nearest.set(callId, entry)
+    for (const callId of callIdsOf(entry.message, MARKER)) {
+      const call = nearest.get(callId)
+      if (call !== undefined && call.inView !== entry.inView) {
+        return fail('pairing', pairRef(call, entry))
+      }
     }
   }
   return undefined
@@ -132,9 +135,9 @@ function pairingFailure(placed: readonly Placed[]): Failure | undefined {
 function openWorkFailure(
   covered: readonly CoveredEntry[],
   open: readonly RecordEntryRef[],
-  retained: ReadonlySet<string>,
+  retained: ReadonlySet<RecordEntryRef>,
 ): Failure | undefined {
-  const pending = new Set<string>(open)
+  const pending = new Set<RecordEntryRef>(open)
   const entry = covered.find(({ ref }) => pending.has(ref) && !retained.has(ref))
   return entry === undefined ? undefined : fail('open-work', entry.ref)
 }
@@ -149,11 +152,11 @@ export function judgeCompaction(message: unknown, context: CompactionContext): C
   const judged = judgeMessage(message)
   if ('rejected' in judged || !isCompactionMessage(judged.ok)) return fail('message', null)
   const admitted = judged.ok
-  const retained = new Set<string>(admitted.retained)
+  const retained = new Set<RecordEntryRef>(admitted.retained)
   return (
     rangeFailure(admitted, context) ??
     retainedFailure(admitted, context.covered) ??
-    pairingFailure(placeHistory(context, retained)) ??
+    pairingFailure(layoutHistory(context, retained)) ??
     openWorkFailure(context.covered, context.open, retained) ?? { ok: admitted }
   )
 }
