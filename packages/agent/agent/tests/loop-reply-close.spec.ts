@@ -255,6 +255,7 @@ describe('#515 reply admission and iteration close', () => {
     )
     assembly.release.open()
     ok(await running)
+    ok(await c.runExecution())
     const batches = commits.flatMap(item =>
       item.events.flatMap(event => (event.kind === 'input-taken' ? [event.batch] : [])),
     )

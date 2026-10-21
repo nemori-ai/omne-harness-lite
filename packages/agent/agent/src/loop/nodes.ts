@@ -169,10 +169,11 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'E4', on: 'resume-E9', to: 'E9' },
   // I8 remains an evaluator decision when reached via E4.
   { from: 'E4', on: 'try-finish', to: 'F1' },
-  // Node table R0 and phase 1 J2: retain the continuation, save one wait, then return.
+  // R0 retains the original slot. W0 yields one drive segment; after its wait the driver enters E1.
   { from: 'R0', on: 'reconciled', to: 'E4' },
   { from: 'R0', on: 'wait', to: 'W0' },
-  { from: 'W0', on: 'saved-wait', to: null },
+  { from: 'W0', on: 'saved-wait', to: 'E1' },
+  { from: 'W0', on: 'reconciled', to: 'E1' },
   { from: 'I0', on: 'taken', to: 'I1' },
   // I1's first prepare yields assembled; ready is produced only by P1's review (#558 S-11).
   { from: 'I1', on: 'prepared', to: 'P0' },

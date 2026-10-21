@@ -20,7 +20,7 @@
 // - M04-7: `open` writes no event (the memory Journal's reading of SPEC).
 // - M04-5: `recordResult.transfer` is processed without a declared participant.
 //
-// E1/E2 dependency failures and unresolved R0 operations save one wait and return (J2). Other
+// E1/E2 dependency failures save a W0 wait. Unknown R0 operations keep their original revision. Other
 // Unsupported outcomes stop with a named failure. Its owner distinguishes a port failure,
 // an unimplemented stage and a coordinator defect:
 //
@@ -83,6 +83,8 @@ import {
   stepOf,
   type Message,
 } from './identities.ts'
+import { canonical } from '../canonical.ts'
+import { waitForExecutionChange } from './wait.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 import { consumeModelResult, type ModelResult, type ModelOutcome } from './model-result.ts'
 import {
@@ -130,6 +132,10 @@ export interface ExecutionCoordinator {
    * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
    */
   runExecution(): Promise<Outcome<void, Halted>>
+  /** W0's local resources belong to this awaited window, never to the producer. */
+  waitForWake(
+    input: Readonly<{ reconciliationDelayMs: number; signal: AbortSignal }>,
+  ): Promise<Outcome<'ready' | 'stopped' | 'cancelled', Halted>>
   /** Original runtime only, after its old driver stopped. No attach, takeover or public resume. */
   continueExecution(authority: Authority): Promise<Outcome<void, Halted>>
 }
@@ -372,6 +378,28 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let excludedNode: LoopNode | null = null
   let finishRefused = false
   let waits: readonly Waiting[] = []
+  let waitingAt: LoopNode = 'E1'
+  let yieldedWait = false
+  let waking = false
+  let resumeState: OpenState = state
+  let reconciliationOperations: readonly AgentOperationId[] = []
+  let recheckDependency: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null =
+    null
+  let activeDrive = false
+  let activeWait = false
+
+  async function exclusive<T>(
+    node: LoopNode,
+    run: () => Promise<Outcome<T, Halted>>,
+  ): Promise<Outcome<T, Halted>> {
+    if (activeDrive || activeWait) return fail({ node, failure: { kind: 'busy' } })
+    activeDrive = true
+    try {
+      return await run()
+    } finally {
+      activeDrive = false
+    }
+  }
   const acknowledged: Acknowledged[] = []
   const unknownReleases = new Set<AgentOperationId>()
 
@@ -441,6 +469,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             return fail({ node: at, failure: committed.failure })
           }
         }
+        // W0 yields this segment. The sole driver waits before taking its E1 successor.
+        if (at === 'W0' && ran.ok.on === 'saved-wait') return succeed(to)
         node = to
       } catch (error) {
         return fail({ node: at, failure: defect(diagnosticOf(error)) })
@@ -533,7 +563,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     })
   }
 
-  function waitFor(node: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
+  function waitFor(
+    node: LoopNode,
+    failure: Extract<Failure, { kind: 'unavailable' }>,
+    recheck: (read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>,
+  ) {
+    waitingAt = node
+    recheckDependency = recheck
     waits = [{ kind: 'dependency', owner: failure.owner, position: node }]
     return step('wait', null)
   }
@@ -549,7 +585,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     if (evaluated.ok.kind === 'stop')
       return fail(notYet(node, `a stop (${evaluated.ok.reason})`, '#502 1.4 and stage 5'))
     decided = evaluated.ok
-    if (evaluated.ok.kind === 'wait') waits = evaluated.ok.waiting
+    if (evaluated.ok.kind === 'wait') {
+      recheckDependency = null
+      waits = evaluated.ok.waiting
+      waitingAt = node
+    }
     return step(evaluated.ok.kind, null)
   }
 
@@ -646,11 +686,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async E1() {
       const read = await load()
       if ('failure' in read)
-        return read.failure.kind === 'unavailable' ? waitFor('E1', read.failure) : read
+        return read.failure.kind === 'unavailable'
+          ? waitFor('E1', read.failure, async latest => succeed(latest))
+          : read
       const advancement = advancementOf(read.ok)
       if (advancement.kind === 'ended') return step('terminal', null)
       if (advancement.kind === 'superseded') return step('superseded', null)
-      if (read.ok.revision !== revision && pendingCommit === null) {
+      if (read.ok.revision !== revision && pendingCommit === null && !waking) {
         entry.idle()
         return step('found-existing', null)
       }
@@ -658,17 +700,22 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return fail(notYet('E1', `an advancement that is ${advancement.kind}`, '#502 1.4'))
       checkpoint = read.ok.checkpoint
       revision = read.ok.revision
-      if (read.ok.state.kind !== 'ended') state = read.ok.state
+      if (read.ok.state.kind !== 'ended')
+        state = waking && read.ok.state.kind === 'waiting' ? resumeState : read.ok.state
+      waking = false
       return step('allowed', null)
     },
     /** E2: the facts of the decision, read only. */
     async E2() {
       const loaded = await load()
       if ('failure' in loaded)
-        return loaded.failure.kind === 'unavailable' ? waitFor('E2', loaded.failure) : loaded
+        return loaded.failure.kind === 'unavailable'
+          ? waitFor('E2', loaded.failure, async latest => succeed(latest))
+          : loaded
       checkpoint = loaded.ok.checkpoint
       revision = loaded.ok.revision
-      if (loaded.ok.state.kind !== 'ended') state = loaded.ok.state
+      if (loaded.ok.state.kind !== 'ended' && loaded.ok.state.kind !== 'waiting')
+        state = loaded.ok.state
       // Do not read business facts under an attachment the latest snapshot has already revoked.
       if (advancementOf(loaded.ok).kind !== 'current') return step('reconciled', null)
       const unresolved = loaded.ok.unresolved
@@ -676,9 +723,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         pendingCommit === null || unresolved.includes(pendingCommit.operation)
           ? loaded.ok
           : { ...loaded.ok, unresolved: [...unresolved, pendingCommit.operation] }
+      // Reconcile every original slot before loading business facts or saving another revision.
+      if (snapshot.unresolved.length > 0) return step('reconciled', null)
       const read = await readFacts(snapshot)
       if ('failure' in read)
-        return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure) : read
+        return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure, readFacts) : read
       facts = read.ok
       return step('reconciled', null)
     },
@@ -791,50 +840,62 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
     /** J2: one atomic wait record, retaining the original continuation and the occupied slot. */
     async W0() {
+      // No alternate waiting write may invalidate an original conditional operation.
+      const original =
+        pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
+      if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
+      resumeState = state.kind === 'waiting' ? resumeState : state
+      if (
+        snapshot?.state.kind === 'waiting' &&
+        canonical(snapshot.state.waits) === canonical(waits)
+      ) {
+        yieldedWait = true
+        return step('saved-wait', null)
+      }
       const saved = await commit('W0', required(checkpoint, 'checkpoint').position, {
         state: { kind: 'waiting', waits },
         events: [{ kind: 'waiting', waits }],
       })
-      if ('failure' in saved) return saved
+      if ('failure' in saved) {
+        if (saved.failure.kind !== 'changed') return saved
+        waking = true
+        return step('reconciled', null)
+      }
+      yieldedWait = true
       return step('saved-wait', null)
     },
     /** R0: committed follows the saved successor; excluded re-evaluates the original local node. */
     async R0() {
-      const terminalQuery = pendingCommit?.node === 'F3'
+      const originalCommit = pendingCommit
+      const terminalQuery = originalCommit?.node === 'F3'
       const terminalExpected = revision
+      let resolvedOriginal = false
       let before = required(snapshot, 'snapshot')
       if (finishRefused) {
         const latest = await load()
         if ('failure' in latest) return latest
         before = latest.ok
       }
-      const original = terminalQuery ? pendingCommit?.operation : undefined
+      const original = originalCommit?.operation
       if (original !== undefined && !before.unresolved.includes(original))
         before = { ...before, unresolved: [original, ...before.unresolved] }
+      reconciliationOperations = before.unresolved
       for (const operation of before.unresolved) {
         const queried = await ports.journal.query({ ...access, execution, operation })
-        if ('failure' in queried)
-          return !terminalQuery && queried.failure.kind === 'unavailable'
-            ? waitFor('R0', queried.failure)
-            : queried
+        if ('failure' in queried) return queried
         if (queried.ok.kind !== 'unknown' && pendingCommit?.operation === operation) {
           excludedNode = queried.ok.kind === 'excluded' ? pendingCommit.node : null
-          pendingCommit = null
+          resolvedOriginal = true
         }
         if (queried.ok.kind === 'unknown') {
-          // An uncertain terminal operation must not be invalidated by a waiting commit.
-          if (terminalQuery) return fail({ kind: 'commit-unknown', operation })
-          waits = [
-            { kind: 'dependency', owner: 'agentJournal', position: before.checkpoint.position },
-          ]
-          return step('wait', null)
+          // A waiting commit must not change the expected revision of the original operation.
+          return fail({ kind: 'commit-unknown', operation })
         }
       }
       const loaded = await load()
-      if ('failure' in loaded)
-        return !terminalQuery && loaded.failure.kind === 'unavailable'
-          ? waitFor('R0', loaded.failure)
-          : loaded
+      if ('failure' in loaded) return loaded
+      if (resolvedOriginal) pendingCommit = null
+      reconciliationOperations = []
       snapshot = {
         ...loaded.ok,
         unresolved: loaded.ok.unresolved.filter(
@@ -847,11 +908,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       checkpoint = snapshot.checkpoint
       revision = snapshot.revision
-      if (snapshot.state.kind !== 'ended') state = snapshot.state
+      if (snapshot.state.kind !== 'ended')
+        state = snapshot.state.kind === 'waiting' ? resumeState : snapshot.state
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       const read = await readFacts(snapshot)
       if ('failure' in read)
-        return read.failure.kind === 'unavailable' ? waitFor('R0', read.failure) : read
+        return read.failure.kind === 'unavailable' ? waitFor('R0', read.failure, readFacts) : read
       facts = read.ok
       if (finishRefused) {
         finishRefused = false
@@ -1032,32 +1094,44 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const current = required(iteration, 'iteration')
       const advance = required(authority, 'authority')
       const history = required(snapshot, 'snapshot').history
-      const conditions = await ports.conditions.read({
-        ...access,
-        advance,
-        previous: required(checkpoint, 'checkpoint').priorConditions,
-      })
+      const readConditions = () =>
+        ports.conditions.read({
+          ...access,
+          advance,
+          previous: required(checkpoint, 'checkpoint').priorConditions,
+        })
+      const conditions = await readConditions()
       if ('failure' in conditions)
         return conditions.failure.kind === 'unavailable'
-          ? waitFor('I1', conditions.failure)
+          ? waitFor('I1', conditions.failure, readConditions)
           : conditions
       const selected = await select(conditions.ok)
       if ('failure' in selected)
-        return selected.failure.kind === 'unavailable' ? waitFor('I1', selected.failure) : selected
-      const context = await ports.modelContext.read({
-        ...access,
-        advance,
-        position: current.position,
-        recipient: selected.ok.recipient,
-        history,
-        adopted: required(checkpoint, 'checkpoint').adoptedContext,
-        transition: null,
-      })
+        return selected.failure.kind === 'unavailable'
+          ? waitFor('I1', selected.failure, () => select(conditions.ok))
+          : selected
+      const readContext = () =>
+        ports.modelContext.read({
+          ...access,
+          advance,
+          position: current.position,
+          recipient: selected.ok.recipient,
+          history,
+          adopted: required(checkpoint, 'checkpoint').adoptedContext,
+          transition: null,
+        })
+      const context = await readContext()
       if ('failure' in context)
-        return context.failure.kind === 'unavailable' ? waitFor('I1', context.failure) : context
+        return context.failure.kind === 'unavailable'
+          ? waitFor('I1', context.failure, readContext)
+          : context
       const prepared = await prepare(conditions.ok, selected.ok, context.ok, null, null)
       if ('failure' in prepared)
-        return prepared.failure.kind === 'unavailable' ? waitFor('I1', prepared.failure) : prepared
+        return prepared.failure.kind === 'unavailable'
+          ? waitFor('I1', prepared.failure, () =>
+              prepare(conditions.ok, selected.ok, context.ok, null, null),
+            )
+          : prepared
       current.conditions = conditions.ok
       current.selected = selected.ok
       current.context = context.ok
@@ -1223,7 +1297,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         })
         if ('failure' in recalled) return modelWait('M6', recalled.failure)
         // An unknown write is never repeated in this turn, even if inspection cannot yet find it.
-        if (recalled.ok.kind !== 'found') return producerWait(pending)
+        if (recalled.ok.kind !== 'found') return producerWait('M6', pending)
       } else if (admitted.ok.reference !== pending.reference) {
         return fail(defect('M6: admission returned another reference'))
       }
@@ -1235,8 +1309,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const current = required(iteration, 'iteration')
       const settled = await settlementOf(required(current.pending, 'pending call').reference)
       if ('failure' in settled)
-        return settled.failure.kind === 'unavailable' ? waitFor('M1', settled.failure) : settled
-      if (settled.ok === null) return producerWait(required(current.pending, 'pending call'))
+        return settled.failure.kind === 'unavailable'
+          ? waitFor('M1', settled.failure, () =>
+              settlementOf(required(current.pending, 'pending call').reference),
+            )
+          : settled
+      if (settled.ok === null) return producerWait('M1', required(current.pending, 'pending call'))
       current.settlement = settled.ok
       return step('settled', null)
     },
@@ -1499,7 +1577,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed(undefined)
   }
 
-  function producerWait(pending: PendingCall) {
+  function producerWait(node: 'M1' | 'M6', pending: PendingCall) {
+    waitingAt = node
+    recheckDependency = null
     waits = [{ kind: 'producer', pending }]
     return step('wait', null)
   }
@@ -1507,7 +1587,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   function modelWait(node: LoopNode, failure: M.ModelFailure) {
     const converted = modelFailure(node, failure)
     return failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
-      ? waitFor(node, converted)
+      ? waitFor(node, converted, async () => {
+          const pending = required(required(iteration, 'iteration').pending, 'pending call')
+          const read = await ports.models.calls.inspect({ ...access, reference: pending.reference })
+          return 'failure' in read ? fail(modelFailure(node, read.failure)) : read
+        })
       : fail(converted)
   }
 
@@ -1529,25 +1613,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     if ('failure' in inspected) return fail(modelFailure('M1', inspected.failure))
     if (inspected.ok.kind !== 'found') return succeed(null)
     if (inspected.ok.state.phase === 'settled') return succeed(inspected.ok.state.settlement)
-    const route = await ports.models.instances.connect({ ...access, reference })
-    if ('failure' in route) return fail(modelFailure('M1', route.failure))
-    if (route.ok.kind !== 'live') return succeed(null)
-    const controller = new AbortController()
-    try {
-      for await (const seen of route.ok.handle.observe({ ...access, signal: controller.signal })) {
-        if (seen.kind === 'ended') break
-        if (seen.value.state.phase === 'settled') return succeed(seen.value.state.settlement)
-      }
-      const final = await ports.models.calls.inspect({ ...access, reference })
-      if ('failure' in final) return fail(modelFailure('M1', final.failure))
-      return succeed(
-        final.ok.kind === 'found' && final.ok.state.phase === 'settled'
-          ? final.ok.state.settlement
-          : null,
-      )
-    } finally {
-      controller.abort()
-    }
+    return succeed(null)
   }
 
   /** Keep acquired pages until processing is bound. A closed complete Read never needs reopening.
@@ -1756,59 +1822,104 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return succeed(required(authority, 'authority'))
     },
     async continueExecution(original) {
-      authority = original
-      const read = await load()
-      if ('failure' in read) return fail({ node: 'E1', failure: read.failure })
-      if (!sameAuthority(read.ok.executionAttachment, original))
-        return fail({ node: 'E1', failure: { kind: 'stale-advance' } })
-      const at = read.ok.checkpoint
-      const ready = at.requestPreparation
-      // I2 has the ready request and step, but M0 has not saved an intent yet. The same identity
-      // rule as normal I2 reconstructs its frame. Unknown Journal operations need R0, not this cut.
-      const beforeIntent =
-        at.position === 'I2' && at.calls.length === 0 && read.ok.unresolved.length === 0
-      const pending =
-        beforeIntent && ready?.kind === 'ready' ? mainPending(at.step, ready) : at.calls[0]
-      if (
-        (!beforeIntent && !['M6', 'M3', 'M4', 'M5', 'I3'].includes(at.position)) ||
-        pending?.kind !== 'model' ||
-        pending.purpose !== 'main' ||
-        ready?.kind !== 'ready' ||
-        !sameEvidence(pending.fixed, ready.source) ||
-        (read.ok.results.some(item => item.consumption === pending.consumption) &&
-          !read.ok.results.some(
-            item => item.consumption === pending.consumption && item.completion !== null,
-          ))
-      )
-        return fail({ node: 'E4', failure: { kind: 'unsupported' } })
-      revision = read.ok.revision
-      checkpoint = at
-      if (beforeIntent) excludedNode = 'I2'
-      // No input batch is reconstructed: only its ID is saved. The call path never prepares again.
-      iteration = {
-        step: at.step,
-        batch: null,
-        action: pending.action,
-        consumption: pending.consumption,
-        position: pending.position,
-        conditions: null,
-        selected: null,
-        context: null,
-        preparation: ready,
-        ready,
-        pending,
-        settlement: null,
-        result: null,
-        processing: null,
-        read: null,
+      return exclusive('E1', async () => {
+        authority = original
+        const read = await load()
+        if ('failure' in read) return fail({ node: 'E1', failure: read.failure })
+        if (!sameAuthority(read.ok.executionAttachment, original))
+          return fail({ node: 'E1', failure: { kind: 'stale-advance' } })
+        const at = read.ok.checkpoint
+        const ready = at.requestPreparation
+        // I2 has the ready request and step, but M0 has not saved an intent yet. The same identity
+        // rule as normal I2 reconstructs its frame. Unknown Journal operations need R0, not this cut.
+        const beforeIntent =
+          at.position === 'I2' && at.calls.length === 0 && read.ok.unresolved.length === 0
+        const pending =
+          beforeIntent && ready?.kind === 'ready' ? mainPending(at.step, ready) : at.calls[0]
+        if (
+          (!beforeIntent && !['M6', 'M3', 'M4', 'M5', 'I3'].includes(at.position)) ||
+          pending?.kind !== 'model' ||
+          pending.purpose !== 'main' ||
+          ready?.kind !== 'ready' ||
+          !sameEvidence(pending.fixed, ready.source) ||
+          (read.ok.results.some(item => item.consumption === pending.consumption) &&
+            !read.ok.results.some(
+              item => item.consumption === pending.consumption && item.completion !== null,
+            ))
+        )
+          return fail({ node: 'E4', failure: { kind: 'unsupported' } })
+        revision = read.ok.revision
+        checkpoint = at
+        if (beforeIntent) excludedNode = 'I2'
+        // No input batch is reconstructed: only its ID is saved. The call path never prepares again.
+        iteration = {
+          step: at.step,
+          batch: null,
+          action: pending.action,
+          consumption: pending.consumption,
+          position: pending.position,
+          conditions: null,
+          selected: null,
+          context: null,
+          preparation: ready,
+          ready,
+          pending,
+          settlement: null,
+          result: null,
+          processing: null,
+          read: null,
+        }
+        // The first available recovery snapshot already owns these unknown identities. Query
+        // them before another fallible read can take the normal E1 -> W0 route.
+        reconciliationOperations = read.ok.unresolved
+        const ran = await drive(
+          pendingCommit !== null || reconciliationOperations.length > 0 ? 'R0' : 'E1',
+          null,
+        )
+        return 'failure' in ran ? ran : succeed(undefined)
+      })
+    },
+    async waitForWake(input) {
+      if (activeDrive || activeWait) return fail({ node: 'W0', failure: { kind: 'busy' } })
+      if (!yieldedWait && pendingCommit === null && reconciliationOperations.length === 0)
+        return succeed('stopped')
+      const operations = [
+        ...new Set([
+          ...reconciliationOperations,
+          ...(pendingCommit === null ? [] : [pendingCommit.operation]),
+        ]),
+      ]
+      activeWait = true
+      try {
+        const result = await waitForExecutionChange({
+          ports,
+          access,
+          execution,
+          expected: required(revision, 'revision'),
+          operations,
+          waits: operations.length > 0 ? [] : waits,
+          recheck: operations.length > 0 ? null : recheckDependency,
+          position: waitingAt,
+          ...input,
+        })
+        return 'failure' in result ? fail({ node: 'W0', failure: result.failure }) : result
+      } catch (error) {
+        return fail({ node: 'W0', failure: defect(diagnosticOf(error)) })
+      } finally {
+        activeWait = false
       }
-      const ran = await drive('E1', null)
-      return 'failure' in ran ? ran : succeed(undefined)
     },
     async runExecution() {
-      const ran = await drive(pendingCommit?.node === 'F3' ? 'R0' : 'E1', null)
-      if ('failure' in ran) return ran
-      return succeed(undefined)
+      return exclusive('E1', async () => {
+        waking = yieldedWait
+        yieldedWait = false
+        const ran = await drive(
+          pendingCommit !== null || reconciliationOperations.length > 0 ? 'R0' : 'E1',
+          null,
+        )
+        if ('failure' in ran) return ran
+        return succeed(undefined)
+      })
     },
   }
 }

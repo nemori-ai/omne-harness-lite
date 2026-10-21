@@ -29,7 +29,12 @@ import type {
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AccessGuard } from './access.ts'
-import type { AgentDependencies, AgentProvider, AgentRuntimeBinding } from './construction.ts'
+import type {
+  AgentConfiguration,
+  AgentDependencies,
+  AgentProvider,
+  AgentRuntimeBinding,
+} from './construction.ts'
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
 
@@ -118,6 +123,7 @@ function inputText<P>(input: InvokeInput<P>): string {
 
 export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
+  configuration: Pick<AgentConfiguration, 'reconciliationDelayMs'>
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
 }>
@@ -311,7 +317,22 @@ export function createProvider<P, B extends ContentBlock>(
     const attachment = opened.ok.executionAttachment
     occupy({ kind: 'running', execution, attachment })
     // drive catches node failures and defects. A stopped run keeps its occupied slot.
-    void coordinator.runExecution().catch(() => {
+    const drive = async () => {
+      const controller = new AbortController()
+      try {
+        for (;;) {
+          await coordinator.runExecution()
+          const wake = await coordinator.waitForWake({
+            reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
+            signal: controller.signal,
+          })
+          if ('failure' in wake || wake.ok !== 'ready') return
+        }
+      } finally {
+        controller.abort()
+      }
+    }
+    void drive().catch(() => {
       // Node 24 ends the process on an unhandled rejection; discard it and keep the slot occupied.
     })
     return succeed(handleOf(execution))

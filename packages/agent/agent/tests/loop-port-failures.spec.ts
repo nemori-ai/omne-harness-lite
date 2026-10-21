@@ -38,6 +38,13 @@ function failing<I, O>(
   }
 }
 
+// W0 retries a failed read before sleeping. A stable-stop assertion needs a dependency
+// that remains unavailable; recovered one-shot failures are covered by the W0 regression.
+const fromNth =
+  (n: number) =>
+  (_: unknown, call: number): boolean =>
+    call >= n
+
 const nth =
   (n: number) =>
   (_: unknown, call: number): boolean =>
@@ -97,19 +104,22 @@ const CASES: readonly Case[] = [
     'E1',
     'journal.load',
     'E3',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(1)) }),
+    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), fromNth(1)) }),
   ],
   [
     'E2',
     'journal.inputs',
     'E3',
-    d => journal(d, { inputs: failing(d.journal.inputs, fail(PORT_FAILURE), nth(1)) }),
+    d => journal(d, { inputs: failing(d.journal.inputs, fail(PORT_FAILURE), fromNth(1)) }),
   ],
   [
     'E2',
     'conditions.read',
     'E3',
-    d => ({ ...d, conditions: { read: failing(d.conditions.read, fail(PORT_FAILURE), nth(1)) } }),
+    d => ({
+      ...d,
+      conditions: { read: failing(d.conditions.read, fail(PORT_FAILURE), fromNth(1)) },
+    }),
   ],
   [
     'E3',
@@ -127,13 +137,19 @@ const CASES: readonly Case[] = [
     'I1',
     'conditions.read',
     'I1',
-    d => ({ ...d, conditions: { read: failing(d.conditions.read, fail(PORT_FAILURE), nth(2)) } }),
+    d => ({
+      ...d,
+      conditions: { read: failing(d.conditions.read, fail(PORT_FAILURE), fromNth(2)) },
+    }),
   ],
   [
     'I1',
     'selection.select',
     'I1',
-    d => ({ ...d, selection: { select: failing(d.selection.select, fail(PORT_FAILURE), nth(1)) } }),
+    d => ({
+      ...d,
+      selection: { select: failing(d.selection.select, fail(PORT_FAILURE), fromNth(1)) },
+    }),
   ],
   [
     'I1',
@@ -141,7 +157,7 @@ const CASES: readonly Case[] = [
     'I1',
     d => ({
       ...d,
-      modelContext: { read: failing(d.modelContext.read, fail(PORT_FAILURE), nth(1)) },
+      modelContext: { read: failing(d.modelContext.read, fail(PORT_FAILURE), fromNth(1)) },
     }),
   ],
   [
@@ -150,7 +166,10 @@ const CASES: readonly Case[] = [
     'I1',
     d => ({
       ...d,
-      requests: { ...d.requests, prepare: failing(d.requests.prepare, fail(PORT_FAILURE), nth(1)) },
+      requests: {
+        ...d.requests,
+        prepare: failing(d.requests.prepare, fail(PORT_FAILURE), fromNth(1)),
+      },
     }),
   ],
   [
@@ -187,7 +206,7 @@ const CASES: readonly Case[] = [
     'M6',
     d =>
       models(d, {
-        calls: { inspect: failing(d.models.calls.inspect, fail(MODEL_FAILURE), nth(2)) },
+        calls: { inspect: failing(d.models.calls.inspect, fail(MODEL_FAILURE), fromNth(2)) },
       }),
   ],
   [

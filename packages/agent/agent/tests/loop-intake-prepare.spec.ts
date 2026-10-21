@@ -175,8 +175,17 @@ describe('I0 fixes one batch at a legal input boundary', () => {
   it('an input accepted during the live call preserves the fixed request through M3 custody', async () => {
     let before: AgentCheckpoint | null = null
     let after: AgentCheckpoint | null = null
+    let stopAtI8 = false
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
+      conditions: {
+        read: async input => {
+          const at = ok(await d.journal.load({ ...alice, execution: execution() }))
+          return stopAtI8 && at.checkpoint.position === 'I8'
+            ? fail({ kind: 'unavailable', owner: 'test-boundary', diagnostic: 'stop at I8' })
+            : d.conditions.read(input)
+        },
+      },
       models: {
         ...d.models,
         instances: {
@@ -194,16 +203,18 @@ describe('I0 fixes one batch at a legal input boundary', () => {
               }),
             )
             after = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
-            assembly.controls.conditions.read.once(() =>
-              fail({ kind: 'unavailable', owner: 'test-boundary', diagnostic: 'stop at I8' }),
-            )
+            stopAtI8 = true
             assembly.release.open()
             return d.models.instances.connect(input)
           },
         },
       },
     }))
-    expect(failure(await run(assembly))).toMatchObject({
+    const c = coordinator(assembly)
+    ok(await c.accept())
+    ok(await c.runExecution())
+    ok(await c.waitForWake({ reconciliationDelayMs: 1000, signal: new AbortController().signal }))
+    expect(failure(await c.runExecution())).toMatchObject({
       node: 'I8',
       failure: { kind: 'unavailable' },
     })
