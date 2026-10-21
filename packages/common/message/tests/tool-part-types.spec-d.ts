@@ -7,6 +7,7 @@ import type {
   MessageContentBlock,
   MessageId,
   MessagePart,
+  ReasoningStatePart,
   ToolCallPart,
   ToolMessage,
   ToolPart,
@@ -66,8 +67,8 @@ it('ToolPart is the union of the four parts and has no index signature', () => {
   >()
 })
 
-it('a message part is a content block or a tool part', () => {
-  expectTypeOf<MessagePart>().toEqualTypeOf<ContentBlock | ToolPart>()
+it('a message part is a content block, a tool part or a reasoning state part', () => {
+  expectTypeOf<MessagePart>().toEqualTypeOf<ContentBlock | ToolPart | ReasoningStatePart>()
 })
 
 it('ToolMessage is a tool message that starts with its marker', () => {

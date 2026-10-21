@@ -10,7 +10,7 @@
 
 本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
 
-状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态是设计，尚未实现，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；实现之前，本文件「推理续接状态」一节（形状、规则与判定）是它的唯一定义；实现之后，形状以 [src/](src) 为准，规则与判定顺序仍归该节。
+状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态已实现，设计待接受，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
 
 依据如下。
 
@@ -30,7 +30,7 @@
 
 ### 形状
 
-`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder`、`compaction` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。assistant 还将允许推理续接状态部件与可选键 `replay`，这一设计见[推理续接状态](#推理续接状态)，实现前不改变本段所述的现行形状。
+`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder`、`compaction` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。assistant 另允许推理续接状态部件与可选键 `replay`，见[推理续接状态](#推理续接状态)；本段的形状描述不含这两项。
 
 | 键 | 含义 |
 | --- | --- |
@@ -98,7 +98,7 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 `judgeMessage` 的「消息自己的字段」一步按下面的顺序检查，返回第一个失败。输入不是对象或是数组时，先判 `shape`。顶层不检查原型。
 
-1. **多余键。**合法键集是 `id`、`role`、`blocks`；输入的 `role` 自有属性严格等于字符串 `compaction` 时，再加 `covers`、`retained`、`derivation`。此时角色还没有校验，未知角色、非字符串角色和其他五种角色都只用前三个键；`assistant` 的可选键 `replay` 是设计，见[推理续接状态](#judgemessage-与-judgepart-的判定)。有键不在合法键集里：`extra`。只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。
+1. **多余键。**合法键集是 `id`、`role`、`blocks`；输入的 `role` 自有属性严格等于字符串 `compaction` 时，再加 `covers`、`retained`、`derivation`。此时角色还没有校验，未知角色、非字符串角色和其他五种角色都只用前三个键；`assistant` 的可选键 `replay` 见[推理续接状态](#judgemessage-与-judgepart-的判定)。有键不在合法键集里：`extra`。只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。
 2. **缺键。**必需键集与第 1 项的合法键集相同。按 `in` 判定，继承来的键也算存在。缺任一个：`missing`。
 3. **null。**合法键集里任一个键的值为 `null`：`null`。
 4. **类型。**`id`、`role` 不是字符串，或 `blocks` 不是数组：`shape`。
@@ -275,4 +275,4 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 [docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、访问器、稀疏数组）和成功值不与输入共享，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。
 
-推理续接状态实现时，把「`judgeMessage` 与 `judgePart` 的判定」各项，以及 RS-03、RS-04（含投影重写 `at` 后仍合法）、RS-05 的正反例写成 public-api 中的一张用例表，由 `tests/normative.spec.ts` 逐行执行；JSON 写不出的边界输入和成功值的冻结副本由单独的测试锁定。RS-01、RS-02 约束产出方，RS-06 约束消费方，本成员给不出它们的反例，由 Model 契约的适配器验证义务覆盖。
+[docs/public-api.md](docs/public-api.md#推理续接状态用例表) 的推理续接状态用例表把「`judgeMessage` 与 `judgePart` 的判定」各项，以及 RS-03、RS-04（含投影重写 `at` 后仍合法）、RS-05 的正反例写成行，由 `tests/normative.spec.ts` 逐行执行并固定每条规则必须展示的极性与行数；JSON 写不出的边界输入（访问器、不可枚举键、symbol 键、非普通原型、稀疏数组）、顶层 `replay` 的读取次数和成功值的冻结副本，由 [tests/reasoning.spec.ts](tests/reasoning.spec.ts) 锁定，公开类型由 [tests/reasoning-types.spec-d.ts](tests/reasoning-types.spec-d.ts) 锁定。RS-01、RS-02 约束产出方，RS-06 约束消费方，本成员给不出它们的反例，由 Model 契约的适配器验证义务覆盖。

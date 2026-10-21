@@ -9,7 +9,6 @@ import {
   type RecordEntryRef,
 } from './compaction-shape.ts'
 import {
-  isRecord,
   isToolPart,
   judgePart,
   type CallPart,
@@ -17,6 +16,8 @@ import {
   type MessagePart,
   type ToolResultPart,
 } from './parts.ts'
+import { judgeReplay, type ReasoningReplay, type ReasoningStatePart } from './reasoning.ts'
+import { isRecord } from './values.ts'
 
 export const LOG_MESSAGE_ROLES = [
   'user',
@@ -70,10 +71,14 @@ export interface UserMessage extends MessageBase {
   readonly blocks: Blocks<MessageContentBlock>
 }
 
-/** An assistant message is the only one that has the call parts. */
+/**
+ * An assistant message is the only one that has the call parts, the reasoning state parts and
+ * `replay`. `replay` is there when a state part is, and may be there when only `thinking` is.
+ */
 export interface AssistantMessage extends MessageBase {
   readonly role: 'assistant'
-  readonly blocks: Blocks<ContentBlock | CallPart>
+  readonly blocks: Blocks<ContentBlock | CallPart | ReasoningStatePart>
+  readonly replay?: ReasoningReplay
 }
 
 /** A tool message carries the result of one call: its marker, then the body content blocks. */
@@ -137,6 +142,9 @@ export type MessageRejection =
   | 'json'
   | 'misplaced-part'
   | 'duplicate-id'
+  | 'payload'
+  | 'pairs'
+  | 'replay'
   | CompactionKeyRejection
   | ContentBlockRejection
 
@@ -146,6 +154,8 @@ export type MessageJudgment =
 
 const MESSAGE_KEYS: readonly string[] = ['id', 'role', 'blocks']
 const COMPACTION_MESSAGE_KEYS: readonly string[] = [...MESSAGE_KEYS, ...COMPACTION_KEYS]
+const REPLAY_KEY = 'replay'
+const ASSISTANT_MESSAGE_KEYS: readonly string[] = [...MESSAGE_KEYS, REPLAY_KEY]
 
 type Rejected = { readonly rejected: MessageRejection; readonly blockIndex: number }
 
@@ -165,13 +175,18 @@ interface MessageFields {
   readonly blocks: NonEmpty<unknown>
   /** The legal keys with the one value read for each. Nothing later reads the input again. */
   readonly read: Readonly<Record<string, unknown>>
+  /** The checked copy of `replay`, or `undefined` when the message does not have it. */
+  readonly replay: ReasoningReplay | undefined
 }
 
-/** Only an own `role` that is exactly `compaction` adds the three compaction keys. */
+/**
+ * Only an own `role` that is exactly `compaction` adds the three compaction keys, and only one
+ * that is exactly `assistant` adds the optional `replay`.
+ */
 function legalKeys(value: Record<string, unknown>, role: unknown): readonly string[] {
-  return Object.hasOwn(value, 'role') && role === 'compaction'
-    ? COMPACTION_MESSAGE_KEYS
-    : MESSAGE_KEYS
+  if (!Object.hasOwn(value, 'role')) return MESSAGE_KEYS
+  if (role === 'compaction') return COMPACTION_MESSAGE_KEYS
+  return role === 'assistant' ? ASSISTANT_MESSAGE_KEYS : MESSAGE_KEYS
 }
 
 /**
@@ -185,9 +200,14 @@ function readFields(
   const role = value.role
   const keys = legalKeys(value, role)
   if (Object.keys(value).some(key => !keys.includes(key))) return { rejected: 'extra' }
-  if (keys.some(key => !(key in value))) return { rejected: 'missing' }
-  const read = Object.fromEntries(keys.map(key => [key, key === 'role' ? role : value[key]]))
-  if (keys.some(key => read[key] === null)) return { rejected: 'null' }
+  if (keys.some(key => key !== REPLAY_KEY && !(key in value))) return { rejected: 'missing' }
+  const present = keys.filter(key => key !== REPLAY_KEY || key in value)
+  const entries = present.map(key => [key, key === 'role' ? role : value[key]] as const)
+  // `replay` read as `undefined` is the same as no `replay`.
+  const read = Object.fromEntries(
+    entries.filter(([key, item]) => key !== REPLAY_KEY || item !== undefined),
+  )
+  if (Object.values(read).some(item => item === null)) return { rejected: 'null' }
   return { ok: read }
 }
 
@@ -205,7 +225,11 @@ function messageFields(
   if (!isLogRole(read.role)) return { rejected: 'unknown' }
   const blocks: readonly unknown[] = read.blocks
   if (!isNonEmpty(blocks)) return { rejected: 'empty' }
-  return { ok: { id: id.value, role: read.role, blocks, read } }
+  if (!(REPLAY_KEY in read))
+    return { ok: { id: id.value, role: read.role, blocks, read, replay: undefined } }
+  const replay = judgeReplay(read.replay)
+  if (replay === undefined) return { rejected: 'replay' }
+  return { ok: { id: id.value, role: read.role, blocks, read, replay } }
 }
 
 /** Each block through `judgePart`, in order. The first failure carries the index of its block. */
@@ -225,14 +249,15 @@ function judgeBlocks(blocks: NonEmpty<unknown>): { readonly ok: NonEmpty<Message
 /** Whether a part may stand at an index of a message. One rule for each kind of message. */
 type Stands = (part: MessagePart, index: number) => boolean
 
-/** The roles other than `assistant` have content only: no marker, no call, no thinking block. */
-const standsAsContent: Stands = part => !isToolPart(part) && part.kind !== 'thinking'
+/** The roles other than `assistant` have content only: no marker, no call, no thinking block, no reasoning state. */
+const standsAsContent: Stands = part =>
+  !isToolPart(part) && part.kind !== 'thinking' && part.kind !== 'reasoning_state'
 
 /** A `tool` message has its marker first, then body content as above. */
 const standsInTool: Stands = (part, index) =>
   index === 0 ? part.kind === 'tool_result' : standsAsContent(part, index)
 
-/** An `assistant` message has the three call parts and the thinking block, and no marker. */
+/** An `assistant` message has the three call parts, the thinking block and reasoning state, and no marker. */
 const standsInAssistant: Stands = part => part.kind !== 'tool_result'
 
 /** The role check of a `tool` message, and the proof that its blocks are a marker and a body. */
@@ -243,7 +268,9 @@ function isToolBlocks(
 }
 
 /** The role check of an `assistant` message, and the proof that it has no marker. */
-function isAssistantBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<ContentBlock | CallPart> {
+function isAssistantBlocks(
+  parts: NonEmpty<MessagePart>,
+): parts is Blocks<ContentBlock | CallPart | ReasoningStatePart> {
   return parts.every(standsInAssistant)
 }
 
@@ -269,9 +296,74 @@ function judgeUniqueIds(parts: readonly MessagePart[]): Rejected | undefined {
   return undefined
 }
 
-/** Block identity is the last check, so a message that gets here has passed the role rules. */
+/** Block identity comes after the role rules, so a message that gets here has passed them. */
 function admitted(message: Message): MessageJudgment {
   return judgeUniqueIds(message.blocks) ?? { ok: message }
+}
+
+type Refused = Extract<MessageJudgment, { readonly rejected: MessageRejection }>
+
+function isReasoningState(part: MessagePart): part is ReasoningStatePart {
+  return part.kind === 'reasoning_state'
+}
+
+/**
+ * The first state part, in block order, with a pair that is not the identity of a block of this
+ * message, or that names a state part, itself included.
+ */
+function judgePairs(parts: readonly MessagePart[]): Refused | undefined {
+  const kinds = new Map(parts.map(part => [part.id, part.kind] as const))
+  const index = parts.findIndex(
+    part =>
+      isReasoningState(part) &&
+      part.pairs.some(pair => {
+        const kind = kinds.get(pair)
+        return kind === undefined || kind === 'reasoning_state'
+      }),
+  )
+  return index < 0 ? undefined : { rejected: 'pairs', blockIndex: index }
+}
+
+/** The first `at` item that is out of the blocks, or that names a block that is not a state part. */
+function judgeAtItems(parts: readonly MessagePart[], at: readonly number[]): Refused | undefined {
+  for (const index of at) {
+    const part = parts[index]
+    if (part === undefined) return { rejected: 'replay' }
+    if (!isReasoningState(part)) return { rejected: 'replay', blockIndex: index }
+  }
+  return undefined
+}
+
+/** The checks of `replay` against the blocks, in the order that SPEC.md gives them. */
+function judgeReplayAt(
+  parts: readonly MessagePart[],
+  replay: ReasoningReplay | undefined,
+): Refused | undefined {
+  const first = parts.findIndex(isReasoningState)
+  if (replay === undefined) {
+    return first < 0 ? undefined : { rejected: 'replay', blockIndex: first }
+  }
+  if (first < 0 && !parts.some(part => part.kind === 'thinking')) return { rejected: 'replay' }
+  const unlisted = parts.findIndex((part, at) => isReasoningState(part) && !replay.at.includes(at))
+  return (
+    judgeAtItems(parts, replay.at) ??
+    (unlisted < 0 ? undefined : { rejected: 'replay', blockIndex: unlisted })
+  )
+}
+
+/** An `assistant` message: block identity, then the pairs of the state parts, then `replay`. */
+function admittedAssistant(
+  id: MessageId,
+  parts: Blocks<ContentBlock | CallPart | ReasoningStatePart>,
+  replay: ReasoningReplay | undefined,
+): MessageJudgment {
+  const message: AssistantMessage =
+    replay === undefined
+      ? { id, role: 'assistant', blocks: parts }
+      : { id, role: 'assistant', blocks: parts, replay }
+  return (
+    judgeUniqueIds(parts) ?? judgePairs(parts) ?? judgeReplayAt(parts, replay) ?? { ok: message }
+  )
 }
 
 /**
@@ -282,6 +374,7 @@ function roleMessage(
   id: MessageId,
   role: Exclude<LogMessageRole, 'compaction'>,
   parts: NonEmpty<MessagePart>,
+  replay: ReasoningReplay | undefined,
 ): MessageJudgment {
   switch (role) {
     case 'tool':
@@ -290,7 +383,7 @@ function roleMessage(
         : misplaced(standsInTool, parts)
     case 'assistant':
       return isAssistantBlocks(parts)
-        ? admitted({ id, role, blocks: parts })
+        ? admittedAssistant(id, parts, replay)
         : misplaced(standsInAssistant, parts)
     case 'user':
     case 'tool_internal':
@@ -320,19 +413,21 @@ function withParts(
 }
 
 /**
- * Admit one log message field. The order of checks is: the fields of the message, the three
- * compaction keys of a `compaction` message, each part, the role rules, then block identity
- * within the message. The first failure is returned. This package does not mint ids.
+ * Admit one log message field. The order of checks is: the fields of the message, with the shape
+ * of `replay` after the empty-blocks check, the three compaction keys of a `compaction` message,
+ * each part, the role rules, block identity within the message, then for an `assistant` message
+ * the pairs of its reasoning state parts and the position index `replay.at`. The first failure
+ * is returned. This package does not mint ids.
  */
 export function judgeMessage(value: unknown): MessageJudgment {
   if (!isRecord(value)) return { rejected: 'shape' }
   const fields = messageFields(value)
   if ('rejected' in fields) return { rejected: fields.rejected }
-  const { id, role, blocks, read } = fields.ok
+  const { id, role, blocks, read, replay } = fields.ok
   if (role === 'compaction') {
     const keys = judgeCompactionKeys(read)
     if ('rejected' in keys) return keys
     return withParts(blocks, parts => compactionMessage(id, parts, keys.ok))
   }
-  return withParts(blocks, parts => roleMessage(id, role, parts))
+  return withParts(blocks, parts => roleMessage(id, role, parts, replay))
 }

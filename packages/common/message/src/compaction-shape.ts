@@ -1,5 +1,4 @@
-import { nonEmpty } from './parts.ts'
-import { closedFields, hasDuplicates, hasOnlyDataItems } from './values.ts'
+import { closedFields, hasDuplicates, hasOnlyDataItems, nonEmpty } from './values.ts'
 
 declare const recordEntryRefBrand: unique symbol
 /** Opaque reference to one record entry. The history holder mints it; consumers compare it exactly. */

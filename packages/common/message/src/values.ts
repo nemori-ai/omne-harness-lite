@@ -1,4 +1,24 @@
-import { hasUnreadableOwn, isPlainRecord } from './parts.ts'
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+/** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
+export function hasUnreadableOwn(value: object): boolean {
+  return Object.getOwnPropertyNames(value).some(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)
+  })
+}
+
+export function nonEmpty(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
 
 const ARRAY_INDEX = /^(0|[1-9]\d*)$/u
 

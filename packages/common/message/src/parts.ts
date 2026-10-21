@@ -9,6 +9,12 @@ import {
   type Visibility,
 } from '@omne-harness/content-block'
 import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
+import {
+  REASONING_STATE_FIELDS,
+  judgeReasoningState,
+  type ReasoningStatePart,
+} from './reasoning.ts'
+import { hasUnreadableOwn, isPlainRecord, isRecord, nonEmpty } from './values.ts'
 
 /** A call whose arguments arrived whole and decode to a value tree. */
 export type ToolCallPart = Readonly<{
@@ -56,12 +62,20 @@ export type CallPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallP
 
 export type ToolPart = CallPart | ToolResultPart
 
-export type MessagePart = ContentBlock | ToolPart
+export type MessagePart = ContentBlock | ToolPart | ReasoningStatePart
 
 type ToolKind = ToolPart['kind']
+const REASONING_STATE_KIND = 'reasoning_state'
 type ToolField = 'id' | 'visibility' | 'callId' | 'name' | 'arguments' | 'partial' | 'raw'
 
-export type PartRejection = 'extra' | 'unknown' | 'json' | ToolField | ContentBlockRejection
+export type PartRejection =
+  | 'extra'
+  | 'unknown'
+  | 'json'
+  | 'payload'
+  | 'pairs'
+  | ToolField
+  | ContentBlockRejection
 
 export type PartJudgment = { readonly ok: MessagePart } | { readonly rejected: PartRejection }
 
@@ -73,38 +87,20 @@ const TOOL_FIELDS: Readonly<Record<ToolKind, readonly ToolField[]>> = {
   tool_result: ['id', 'visibility', 'callId'],
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-export function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  if (!isRecord(value)) return false
-  const proto = Object.getPrototypeOf(value)
-  return proto === Object.prototype || proto === null
-}
-
-/** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
-export function hasUnreadableOwn(value: object): boolean {
-  return Object.getOwnPropertyNames(value).some(key => {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key)
-    return descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)
-  })
-}
-
 function isToolKind(kind: string): kind is ToolKind {
   return Object.hasOwn(TOOL_FIELDS, kind)
 }
 
 function isKnownPartKind(kind: string): boolean {
-  return CONTENT_BLOCK_KINDS.some(known => known === kind) || isToolKind(kind)
+  return (
+    CONTENT_BLOCK_KINDS.some(known => known === kind) ||
+    isToolKind(kind) ||
+    kind === REASONING_STATE_KIND
+  )
 }
 
 export function isToolPart(part: MessagePart): part is ToolPart {
   return isToolKind(part.kind)
-}
-
-export function nonEmpty(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0
 }
 
 function reject(rejected: PartRejection): PartJudgment {
@@ -112,8 +108,10 @@ function reject(rejected: PartRejection): PartJudgment {
 }
 
 /** Closed keys come first. A value with any other key is refused before a field is read. */
-function keyRejection(kind: ToolKind, value: Record<string, unknown>): PartRejection | undefined {
-  const fields = TOOL_FIELDS[kind]
+function keyRejection(
+  fields: readonly PartRejection[],
+  value: Record<string, unknown>,
+): PartRejection | undefined {
   if (Object.keys(value).some(key => key !== 'kind' && !fields.some(field => field === key))) {
     return 'extra'
   }
@@ -145,7 +143,7 @@ function judgeUnparsed(value: Record<string, unknown>, base: Base): PartJudgment
 type Base = Readonly<{ id: BlockId; visibility: Visibility; callId: string }>
 
 function judgeToolPart(kind: ToolKind, value: Record<string, unknown>): PartJudgment {
-  const closed = keyRejection(kind, value)
+  const closed = keyRejection(TOOL_FIELDS[kind], value)
   if (closed !== undefined) return reject(closed)
   const identity = judgeBlockIdentity(value)
   if ('rejected' in identity) return reject(identity.rejected)
@@ -163,6 +161,14 @@ function judgeToolPart(kind: ToolKind, value: Record<string, unknown>): PartJudg
   }
 }
 
+/** Its keys are closed like a tool part's, then `id`, `visibility`, `payload`, `pairs` in order. */
+function judgeReasoningPart(value: Record<string, unknown>): PartJudgment {
+  const closed = keyRejection(REASONING_STATE_FIELDS, value)
+  if (closed !== undefined) return reject(closed)
+  const judged = judgeReasoningState(value)
+  return 'rejected' in judged ? reject(judged.rejected) : { ok: judged.ok }
+}
+
 function isReadable(value: Record<string, unknown>): boolean {
   return isPlainRecord(value) && !hasUnreadableOwn(value)
 }
@@ -171,6 +177,7 @@ function isReadable(value: Record<string, unknown>): boolean {
 function judgeByKind(value: unknown): PartJudgment | undefined {
   if (!isPlainRecord(value) || typeof value.kind !== 'string') return undefined
   if (isToolKind(value.kind)) return judgeToolPart(value.kind, value)
+  if (value.kind === REASONING_STATE_KIND) return judgeReasoningPart(value)
   return isKnownPartKind(value.kind) ? undefined : reject('unknown')
 }
 

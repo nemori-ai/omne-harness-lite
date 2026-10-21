@@ -4,7 +4,7 @@
 
 ## 导出入口
 
-`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`judgeCompaction`、`parseRecordEntryRef` 七个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
+`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`judgeCompaction`、`parseRecordEntryRef`、`REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` 九个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
 
 ## 定义索引
 
@@ -14,18 +14,20 @@
 | `MessageId`、`MessageIdParse`、`MessageIdParseError`、`LogMessageRole`、`MessageRejection`、`MessageJudgment` | 类型 | [src/message.ts](../src/message.ts) |
 | `judgeMessage`、`parseMessageId`、`messageIdEquals` | 函数 | [src/message.ts](../src/message.ts) |
 | `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`CallPart`、`ToolResultPart`、`ToolPart`、`MessagePart`、`MessageContentBlock` | 类型 | [src/parts.ts](../src/parts.ts) |
+| `ReasoningStatePart`、`ReasoningReplay` | 类型 | [src/reasoning.ts](../src/reasoning.ts) |
+| `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | [src/reasoning.ts](../src/reasoning.ts) |
 | `judgePart` | 函数 | [src/parts.ts](../src/parts.ts) |
 
-每个角色的 `blocks` 类型只含该角色允许的部件，也都至少有一块，与 `judgeMessage` 的运行时规则一一对应。`CallPart` 是三种调用部件的联合，`MessageContentBlock` 是除 `thinking` 块以外的内容块。
+每个角色的 `blocks` 类型只含该角色允许的部件，也都至少有一块，与 `judgeMessage` 的运行时规则一一对应。`CallPart` 是三种调用部件的联合，`MessageContentBlock` 是除 `thinking` 块以外的内容块，`MessagePart` 是内容块、四种工具部件与推理续接状态部件的联合。推理续接状态部件与 `replay` 见[推理续接状态](#推理续接状态)。
 
 | 角色 | `blocks` 允许的部件 |
 | --- | --- |
 | `user`、`tool_internal`、`system_reminder` | 只有不含 `thinking` 的内容块 |
-| `assistant` | 全部内容块（含 `thinking`）和三种调用部件，没有标记 |
+| `assistant` | 全部内容块（含 `thinking`）、三种调用部件和推理续接状态部件，没有标记 |
 | `tool` | 第一块是标记 `tool_result`，其余是不含 `thinking` 的内容块 |
 | `compaction` | 只有不含 `thinking` 的内容块，是摘要 |
 
-失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `misplaced-part`、`duplicate-id`、`covers`、`retained`、`derivation`，这几个只有整条消息的判定才会给出。压缩变体的导出在下一节。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
+失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `misplaced-part`、`duplicate-id`、`covers`、`retained`、`derivation`、`replay`，这几个只有整条消息的判定才会给出。压缩变体的导出在下一节。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
 
 ## 压缩变体
 
@@ -46,17 +48,18 @@
 
 `MessageRejection` 含 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型是 `Message`，可以用 `role` 收窄，例如 `message.role === 'compaction'` 得到 `CompactionMessage`。消费者也可以直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为与判定顺序见 [SPEC.md](../SPEC.md)，用例见下面的[压缩用例表](#压缩用例表)。
 
-## 推理续接状态（设计，尚未实现）
+## 推理续接状态
 
-assistant 消息将可以带推理续接状态部件 `reasoning_state` 和可选的回放描述 `replay`。实现之前，形状、规则与判定顺序以 [SPEC.md 的推理续接状态](../SPEC.md#推理续接状态)为唯一定义，本节只列计划中的导出；上文的角色表、导出计数与「判定顺序」描述现行实现，实现时一并更新。实现时本节改为与上一节相同的定义索引，并补用例表。
+assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的回放描述 `replay`。形状、规则与判定顺序以 [SPEC.md 的推理续接状态](../SPEC.md#推理续接状态)为唯一定义，本节是导出索引。下表每行是一个导出，签名以定义位置的源码为准，公开类型由 [tests/reasoning-types.spec-d.ts](../tests/reasoning-types.spec-d.ts) 锁定。
 
-| 计划导出 | 种类 | 含义 |
-| --- | --- | --- |
-| `ReasoningStatePart` | 类型 | 推理续接状态部件，只在 `assistant` 消息里 |
-| `ReasoningReplay` | 类型 | 回放描述 `{ scope, format, at }` |
-| `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | 载荷与 `scope`、`format` 的长度上限 |
+| 导出 | 种类 | 含义 | 定义位置 |
+| --- | --- | --- | --- |
+| `ReasoningStatePart` | 类型 | 推理续接状态部件 `{ kind, id, visibility, payload, pairs }`，只在 `assistant` 消息里 | [src/reasoning.ts](../src/reasoning.ts) |
+| `ReasoningReplay` | 类型 | 回放描述 `{ scope, format, at }` | [src/reasoning.ts](../src/reasoning.ts) |
+| `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | 载荷与 `scope`、`format` 的长度上限，单位是 UTF-16 码元 | [src/reasoning.ts](../src/reasoning.ts) |
+| `AssistantMessage` | 类型 | 可选键 `replay`，`blocks` 另允许 `ReasoningStatePart` | [src/message.ts](../src/message.ts) |
 
-`MessageRejection` 将增加 `payload`、`pairs`、`replay` 三个值；`judgePart` 只会给出前两个。
+`MessageRejection` 含 `payload`、`pairs`、`replay` 三个值；`judgePart` 只给出前两个，`replay` 只有整条消息的判定才会给出。`payload`、`pairs` 来自部件自身，`pairs` 另可由整条消息的配对检查给出，两处都带 `blockIndex`。`replay` 的形状失败和多数位置索引失败不带 `blockIndex`，指向某个块的失败才带。判定顺序、`replay` 的存在口径与成功值的副本规则见 [SPEC.md](../SPEC.md#judgemessage-与-judgepart-的判定)，用例见下面的[推理续接状态用例表](#推理续接状态用例表)。
 
 ## 语义
 
@@ -71,19 +74,21 @@ assistant 消息将可以带推理续接状态部件 `reasoning_state` 和可选
 
 本包没有结局字段，所以不判定半截调用出现的条件：完整结局的消息不含半截调用由流的结算方保证，派生请求剔除半截调用归请求组装方。调用与结果的配对完整性只由 `judgeCompaction` 在核对压缩记录时判定；`judgeMessage` 和 `judgePart` 不判定。
 
+推理续接状态部件 `reasoning_state` 与工具部件同形、键闭合，装产出方交回的不透明推理状态：`payload` 是非空字符串，本包只读它的长度，`pairs` 列出与它配对的、同一条消息里不是续接状态的块的身份，`toHuman` 恒为 false。assistant 消息上的 `replay` 说明这条消息的推理由谁产出（`scope`）、什么格式（`format`），以及全部续接状态部件的下标（`at`）。本包不解释 `scope`、`format`、`payload`，规则与理由见 [SPEC.md](../SPEC.md#推理续接状态)。
+
 块身份的铸造方各自负责：在消息内唯一、重放或重试时不变。流的结算方铸造开块头的 `id`，半截与未解析的变体沿用该头的 `id`。结果投影方铸造标记的 `id`。占位追加方若追加 `tool` 角色消息，铸造标记与正文块的 `id`。本包只检查，不铸造。
 
 ## 判定顺序
 
-`judgePart` 先看部件本身：有访问器、非枚举自有键或非普通原型的对象判 `json`，部件自身键上的 getter 不被调用；嵌套位置（`visibility`、`arguments`）由各自的判定读取。再按 `kind` 分派：不认识的字符串 `kind` 判 `unknown`，没有 `kind` 或 `kind` 不是字符串则交给内容块判定。对工具部件，先检查键是否闭合（多键判 `extra`，缺键报缺的字段名），然后依次判 `id`、`visibility`、`callId`，最后判该种类自己的字段（`name`、`arguments`、`partial`、`raw`；`tool_call_incomplete` 先判 `visibility` 两位为 false）。键不闭合的部件在第一步被拒，其中的深对象不会被遍历。只有 `arguments` 被递归遍历，且只经 `judgeJsonValue`，`judgeJsonValue` 的任一失败都报 `arguments`，不外泄结构路径。
+`judgePart` 先看部件本身：有访问器、非枚举自有键或非普通原型的对象判 `json`，部件自身键上的 getter 不被调用；嵌套位置（`visibility`、`arguments`）由各自的判定读取。再按 `kind` 分派：不认识的字符串 `kind` 判 `unknown`，没有 `kind` 或 `kind` 不是字符串则交给内容块判定。对推理续接状态部件，先检查键是否闭合（规则同工具部件），然后依次判 `id`、`visibility`（`toHuman` 必须为 false）、`payload`、`pairs`。对工具部件，先检查键是否闭合（多键判 `extra`，缺键报缺的字段名），然后依次判 `id`、`visibility`、`callId`，最后判该种类自己的字段（`name`、`arguments`、`partial`、`raw`；`tool_call_incomplete` 先判 `visibility` 两位为 false）。键不闭合的部件在第一步被拒，其中的深对象不会被遍历。只有 `arguments` 被递归遍历，且只经 `judgeJsonValue`，`judgeJsonValue` 的任一失败都报 `arguments`，不外泄结构路径。
 
-`judgeMessage` 依次检查消息自己的字段、`compaction` 角色的三个键、逐个部件、角色规则、块身份唯一，返回第一个失败。
+`judgeMessage` 依次检查消息自己的字段（`assistant` 的可选键 `replay` 的形状排在空块之后）、`compaction` 角色的三个键、逐个部件、角色规则、块身份唯一，对 `assistant` 再检查推理续接状态的配对与 `replay.at` 的位置索引，返回第一个失败。
 
-顶层消息对象的规则：输入必须是对象且不是数组，否则判 `shape`，顶层不检查原型。「多余键」只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。「缺键」按 `in` 判定，继承来的键也算存在。对所有角色，顶层字段的访问器会被调用，每个合法键至多一次：`role` 先读，其余键在通过这两项后读，之后的判定和成功值都用读到的那个值。这与部件不同：部件自身的键不调用 getter。`covers`、`derivation` 与 `retained` 的元素不调用 getter，且 `covers`、`derivation` 比部件更严，会拒绝 symbol 键。
+顶层消息对象的规则：输入必须是对象且不是数组，否则判 `shape`，顶层不检查原型。「多余键」只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。「缺键」按 `in` 判定，继承来的键也算存在。对所有角色，顶层字段的访问器会被调用，每个合法键至多一次：`role` 先读，其余键在通过这两项后读，之后的判定和成功值都用读到的那个值。这与部件不同：部件自身的键不调用 getter。`covers`、`derivation` 与 `retained` 的元素不调用 getter，且 `covers`、`derivation` 比部件更严，会拒绝 symbol 键。`assistant` 的 `replay` 按 `in` 判存在，与其他合法键一样至多读一次，读到 `undefined` 视为不带；其他角色有自有可枚举键 `replay` 判 `extra`。`replay` 本身按 `covers` 的口径判普通对象，`replay.at` 与 `pairs` 的数组规则同 `retained`，两者都不调用 getter。
 
 ## 验证义务
 
-[tests/tool-parts.spec.ts](../tests/tool-parts.spec.ts) 逐个失败值锁定四种部件的规则、`arguments` 的副本与同 json-text 的组合。[tests/tool-roles.spec.ts](../tests/tool-roles.spec.ts) 锁定角色规则与块身份唯一。[tests/tool-part-types.spec-d.ts](../tests/tool-part-types.spec-d.ts) 锁定工具部件的公开类型，[tests/message-types.spec-d.ts](../tests/message-types.spec-d.ts) 锁定按 `role` 判别的联合：`MessageRoleMap` 的键与日志角色一致，六个角色类型，按 `role` 穷举。[tests/compaction-types.spec-d.ts](../tests/compaction-types.spec-d.ts) 锁定压缩变体的公开类型，包括缺键的 `compaction` 值和带 `covers` 的 `user` 值赋不给 `Message`。[tests/compaction.spec.ts](../tests/compaction.spec.ts) 锁定 `parseRecordEntryRef`，顶层字段只读一次，消息的形状边界，三个键的边界输入（符号键、非普通原型、非枚举键、访问器、`retained` 数组上的多余自有键、稀疏数组），成功值不与输入共享，以及配对的就近、顺序和模型可读判定。[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行下面的示例表与压缩用例表，并规定两张表必须展示哪些规则的正反两面。本包不验证结果投影方的输出，也不验证流的结算方交出的部件。
+[tests/tool-parts.spec.ts](../tests/tool-parts.spec.ts) 逐个失败值锁定四种部件的规则、`arguments` 的副本与同 json-text 的组合。[tests/tool-roles.spec.ts](../tests/tool-roles.spec.ts) 锁定角色规则与块身份唯一。[tests/tool-part-types.spec-d.ts](../tests/tool-part-types.spec-d.ts) 锁定工具部件的公开类型，[tests/message-types.spec-d.ts](../tests/message-types.spec-d.ts) 锁定按 `role` 判别的联合：`MessageRoleMap` 的键与日志角色一致，六个角色类型，按 `role` 穷举。[tests/compaction-types.spec-d.ts](../tests/compaction-types.spec-d.ts) 锁定压缩变体的公开类型，包括缺键的 `compaction` 值和带 `covers` 的 `user` 值赋不给 `Message`。[tests/compaction.spec.ts](../tests/compaction.spec.ts) 锁定 `parseRecordEntryRef`，顶层字段只读一次，消息的形状边界，三个键的边界输入（符号键、非普通原型、非枚举键、访问器、`retained` 数组上的多余自有键、稀疏数组），成功值不与输入共享，以及配对的就近、顺序和模型可读判定。[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行下面的示例表、压缩用例表与推理续接状态用例表，并规定三张表必须展示哪些规则的正反两面。[tests/reasoning.spec.ts](../tests/reasoning.spec.ts) 锁定推理续接状态中 JSON 写不出的边界输入（访问器、不可枚举键、symbol 键、非普通原型、稀疏数组）、顶层 `replay` 的读取次数与继承口径、成功值的冻结副本，以及被保留的消息原样保留续接状态。[tests/reasoning-types.spec-d.ts](../tests/reasoning-types.spec-d.ts) 锁定 `ReasoningStatePart` 只出现在 `AssistantMessage.blocks`、`replay` 只出现在 `AssistantMessage`。本包不验证结果投影方的输出，也不验证流的结算方交出的部件。
 
 ## 示例表
 
@@ -212,3 +217,108 @@ assistant 消息将可以带推理续接状态部件 `reasoning_state` 和可选
 | `history.open-work` | 反 | `{"covers":{"from":"e1","to":"e6"}}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"],["e5","text"],["e6","text"]],"after":[],"open":["e6","e4"]}` | `rejected:open-work@e4` |
 | `history.repeat` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","compaction"],["e3","text"]],"after":[],"open":[]}` | `ok` |
 | `history.first-failure` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e9"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"]],"after":[],"open":["e4"]}` | `rejected:retained-outside@e9` |
+
+## 推理续接状态用例表
+
+每行是推理续接状态一条规则的一个示例，用 `judgeMessage` 判。表同时是文档和测试：[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行，删掉一行或改变一个结论都会变红。
+
+- `消息`：对基准消息的覆盖。基准是 `{"id":"msg_abcdefghijklmnopqrstuv","role":"assistant","blocks":["thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[1]}}`，格里写的键替换基准里的同名键。值为 `"<absent>"` 时删去这个键，值为 `"<undefined>"` 时这个键存在而值为 `undefined`，值为 `"<getter>"` 时在这个位置放一个访问器，访问器记录自己是否被调用，值为 `"<length:N>"` 时是长度为 N 的字符串。
+- 块简写：`blocks` 的每项是下列字符串，或一个完整的块对象。`text:ID` 是文本块，`thinking:ID` 是 `thinking` 块，`call:ID` 是 `tool_call` 部件，`marker:ID` 是 `tool_result` 部件，`state:ID` 是推理续接状态部件（`toHuman` 为 false、`toModel` 为 true、`payload` 非空），`state:ID>A+B` 是 `pairs` 为 A、B 的推理续接状态部件。其余块对 `toHuman`、`toModel` 都为 true。
+- `state`：覆盖基准里第 1 块（`state:s1>k1`）的若干键，写法与 `<absent>` 等值同上。
+- `role` 为 `compaction` 时，测试补上一组固定的合法 `covers`、`retained`、`derivation`。
+- `结论`：`ok`，或 `rejected:<拒绝值>`，带 `@<blockIndex>` 表示拒绝值带这个 `blockIndex`，不带表示结论里没有 `blockIndex` 键。用 `;` 分隔的附加断言：`getter 未被调用`，`成功值没有 replay 键`，`成功值是冻结副本`（`replay`、`replay.at`、每个续接状态部件的 `pairs` 已冻结，判定后修改输入，成功值不变）。
+
+| 规则 | 极性 | 消息 | 结论 |
+| --- | --- | --- | --- |
+| `state.keys` | 正 | `{}` | `ok` |
+| `state.keys` | 反 | `{"state":{"tenant":"a"}}` | `rejected:extra@1` |
+| `state.keys` | 反 | `{"state":{"payload":"<absent>"}}` | `rejected:payload@1` |
+| `state.keys` | 反 | `{"state":{"pairs":"<absent>"}}` | `rejected:pairs@1` |
+| `state.keys` | 反 | `{"state":{"visibility":"<absent>"}}` | `rejected:visibility@1` |
+| `state.keys` | 反 | `{"state":{"payload":"<absent>","tenant":"a"}}` | `rejected:extra@1` |
+| `state.identity` | 正 | `{"state":{"visibility":{"toHuman":false,"toModel":false}}}` | `ok` |
+| `state.identity` | 反 | `{"state":{"id":""}}` | `rejected:id@1` |
+| `state.identity` | 反 | `{"state":{"visibility":{"toHuman":false,"toModel":true,"tenant":"a"}}}` | `rejected:extra@1` |
+| `state.identity` | 反 | `{"state":{"visibility":{"toHuman":true,"toModel":true}}}` | `rejected:visibility@1` |
+| `state.identity` | 反 | `{"state":{"id":"","visibility":{"toHuman":true,"toModel":true}}}` | `rejected:id@1` |
+| `state.identity` | 反 | `{"state":{"visibility":{"toHuman":true,"toModel":true},"payload":""}}` | `rejected:visibility@1` |
+| `state.payload` | 正 | `{"state":{"payload":"<length:1048576>"}}` | `ok` |
+| `state.payload` | 反 | `{"state":{"payload":"<length:1048577>"}}` | `rejected:payload@1` |
+| `state.payload` | 反 | `{"state":{"payload":""}}` | `rejected:payload@1` |
+| `state.payload` | 反 | `{"state":{"payload":1}}` | `rejected:payload@1` |
+| `state.payload` | 反 | `{"state":{"payload":null}}` | `rejected:payload@1` |
+| `state.payload` | 反 | `{"state":{"payload":"","pairs":"k1"}}` | `rejected:payload@1` |
+| `state.pairs` | 正 | `{"state":{"pairs":[]}}` | `ok` |
+| `state.pairs` | 反 | `{"state":{"pairs":"k1"}}` | `rejected:pairs@1` |
+| `state.pairs` | 反 | `{"state":{"pairs":["k1","k1"]}}` | `rejected:pairs@1` |
+| `state.pairs` | 反 | `{"state":{"pairs":[""]}}` | `rejected:pairs@1` |
+| `state.pairs` | 反 | `{"state":{"pairs":[1]}}` | `rejected:pairs@1` |
+| `state.pairs` | 反 | `{"state":{"pairs":["<getter>"]}}` | `rejected:pairs@1; getter 未被调用` |
+| `pairs.target` | 正 | `{"blocks":["thinking:k1","thinking:k2","state:s1>k1+k2"],"replay":{"scope":"sc","format":"f1","at":[2]}}` | `ok` |
+| `pairs.target` | 正 | `{"blocks":["call:c1","state:s1>c1"]}` | `ok` |
+| `pairs.target` | 反 | `{"state":{"pairs":["zz"]}}` | `rejected:pairs@1` |
+| `pairs.target` | 反 | `{"state":{"pairs":["s1"]}}` | `rejected:pairs@1` |
+| `pairs.target` | 反 | `{"blocks":["thinking:k1","state:s1>k1","state:s2>s1"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `rejected:pairs@2` |
+| `pairs.target` | 反 | `{"blocks":["thinking:k1","state:s1>zz","state:s2>s1"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `rejected:pairs@1` |
+| `pairs.target` | 反 | `{"blocks":["thinking:k1","state:k1>zz"]}` | `rejected:duplicate-id@1` |
+| `pairs.target` | 反 | `{"blocks":["state:s1>zz"],"replay":"<absent>"}` | `rejected:pairs@0` |
+| `role.state-only-in-assistant` | 正 | `{}` | `ok` |
+| `role.state-only-in-assistant` | 反 | `{"role":"user","blocks":["text:t1","state:s1"],"replay":"<absent>"}` | `rejected:misplaced-part@1` |
+| `role.state-only-in-assistant` | 反 | `{"role":"tool_internal","blocks":["state:s1"],"replay":"<absent>"}` | `rejected:misplaced-part@0` |
+| `role.state-only-in-assistant` | 反 | `{"role":"system_reminder","blocks":["state:s1"],"replay":"<absent>"}` | `rejected:misplaced-part@0` |
+| `role.state-only-in-assistant` | 反 | `{"role":"compaction","blocks":["text:t1","state:s1"],"replay":"<absent>"}` | `rejected:misplaced-part@1` |
+| `role.state-only-in-assistant` | 反 | `{"role":"tool","blocks":["marker:r1","state:s1"],"replay":"<absent>"}` | `rejected:misplaced-part@1` |
+| `replay.keys` | 正 | `{"blocks":["text:t1"],"replay":"<absent>"}` | `ok; 成功值没有 replay 键` |
+| `replay.keys` | 正 | `{"blocks":["text:t1"],"replay":"<undefined>"}` | `ok; 成功值没有 replay 键` |
+| `replay.keys` | 反 | `{"blocks":["state:s1"],"replay":"<undefined>"}` | `rejected:replay@0` |
+| `replay.keys` | 反 | `{"role":"user","blocks":["text:t1"]}` | `rejected:extra` |
+| `replay.keys` | 反 | `{"role":"user","blocks":["text:t1"],"replay":"<undefined>"}` | `rejected:extra` |
+| `replay.keys` | 反 | `{"role":"tool","blocks":["marker:r1"]}` | `rejected:extra` |
+| `replay.keys` | 反 | `{"role":"compaction","blocks":["text:t1"]}` | `rejected:extra` |
+| `replay.keys` | 反 | `{"replay":null}` | `rejected:null` |
+| `replay.order` | 反 | `{"blocks":[],"replay":"x"}` | `rejected:empty` |
+| `replay.order` | 反 | `{"id":"bad","replay":"x"}` | `rejected:prefix` |
+| `replay.order` | 反 | `{"blocks":["text:t1",{"kind":"nope"}],"replay":"x"}` | `rejected:replay` |
+| `replay.shape` | 正 | `{"replay":{"scope":"<length:256>","format":"<length:256>","at":[1]}}` | `ok` |
+| `replay.shape` | 反 | `{"replay":"x"}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":[]}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[1],"tokens":1}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","at":[1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"","format":"f1","at":[1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"<length:257>","format":"f1","at":[1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":1,"format":"f1","at":[1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"","at":[1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"<length:257>","at":[1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"<getter>","format":"f1","at":[1]}}` | `rejected:replay; getter 未被调用` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":"1"}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[-1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[1.5]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":["1"]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[9007199254740992]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[1,1]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[1,0]}}` | `rejected:replay` |
+| `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":["<getter>"]}}` | `rejected:replay; getter 未被调用` |
+| `replay.presence` | 正 | `{"blocks":["thinking:k1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `ok` |
+| `replay.presence` | 正 | `{"blocks":["thinking:k1"],"replay":"<absent>"}` | `ok; 成功值没有 replay 键` |
+| `replay.presence` | 正 | `{"blocks":["state:s1"],"replay":{"scope":"sc","format":"f1","at":[0]}}` | `ok` |
+| `replay.presence` | 反 | `{"blocks":["text:t1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay` |
+| `replay.presence` | 反 | `{"blocks":["call:c1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay` |
+| `replay.presence` | 反 | `{"replay":"<absent>"}` | `rejected:replay@1` |
+| `replay.presence` | 反 | `{"blocks":["text:t1","state:s1","state:s2"],"replay":"<absent>"}` | `rejected:replay@1` |
+| `replay.at` | 正 | `{"blocks":["state:s1","text:t1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[0,2]}}` | `ok` |
+| `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[5]}}` | `rejected:replay` |
+| `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[1,5]}}` | `rejected:replay` |
+| `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[0]}}` | `rejected:replay@0` |
+| `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[0,5]}}` | `rejected:replay@0` |
+| `replay.at` | 反 | `{"blocks":["thinking:k1","state:s1>k1","text:t1"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `rejected:replay@2` |
+| `replay.at` | 反 | `{"blocks":["thinking:k1","state:s1>k1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `rejected:replay@2` |
+| `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay@1` |
+| `replay.at` | 反 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[5]}}` | `rejected:replay` |
+| `replay.copy` | 正 | `{"blocks":["thinking:k1","state:s1>k1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `ok; 成功值是冻结副本` |
+| `replay.projection` | 正 | `{"blocks":["text:t1","thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[2]}}` | `ok` |
+| `replay.projection` | 正 | `{"blocks":["thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `ok` |
+| `replay.projection` | 反 | `{"blocks":["thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[2]}}` | `rejected:replay` |
+| `replay.projection` | 正 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[0,1]}}` | `ok` |
+| `replay.projection` | 反 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `rejected:replay` |
+| `replay.projection` | 正 | `{"blocks":["text:t1"],"replay":"<absent>"}` | `ok; 成功值没有 replay 键` |
+| `replay.projection` | 反 | `{"blocks":["text:t1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay` |
