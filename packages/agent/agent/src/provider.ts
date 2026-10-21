@@ -8,7 +8,7 @@
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
-// occupied, and the next invoke answers busy; the stop is recorded inside only (S-14 of #558). The
+// occupied, and the next invoke answers busy (S-14 of #558). The
 // registration handle only receives a projection: a report that throws is dropped, because `report`
 // returns void and the contract gives its failure no channel (待拥有者); the slot and `observe` stay
 // authoritative.
@@ -31,7 +31,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AccessGuard } from './access.ts'
 import type { AgentDependencies, AgentProvider, AgentRuntimeBinding } from './construction.ts'
 import { canonical } from './canonical.ts'
-import { createExecutionCoordinator, DEFECT_OWNER } from './loop/coordinator.ts'
+import { createExecutionCoordinator } from './loop/coordinator.ts'
+import { stepOf } from './loop/identities.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -87,8 +88,7 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
  * The one execution slot (SPEC "受理与单执行槽"). `reserved`: an invoke holds it until `open` has
  * answered. When `open` answered commit-unknown, `unresolved` is the R0 item: the operation whose
  * `open` nobody knows yet, and the reservation stays until a retry of that operation finds it with
- * `query`. `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it; the
- * stop is kept in `stopped` only, for the waits and recovery of #502 1.9 and stage 5.
+ * `query`. `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
  */
 type Slot =
   | Readonly<{ kind: 'free' }>
@@ -101,7 +101,6 @@ type Slot =
       kind: 'running'
       execution: AgentExecutionId
       attachment: ExecutionAttachmentId
-      stopped: Readonly<{ at: string; failure: Failure }> | null
     }>
 
 /** The last invoke that this runtime accepted, and the text of its input (SPEC 804). */
@@ -311,27 +310,9 @@ export function createProvider<P, B extends ContentBlock>(
     }
     accepted = { operation, execution, input: inputText(input) }
     const attachment = opened.ok.executionAttachment
-    occupy({ kind: 'running', execution, attachment, stopped: null })
-    const stop = (at: string, failure: Failure) => {
-      if (slot.kind === 'running' && slot.execution === execution)
-        occupy({ ...slot, stopped: { at, failure } })
-    }
-    // runExecution does not reject; if it ever does, that is recorded as a stop too.
-    void coordinator
-      .runExecution()
-      .then(ran => {
-        if ('failure' in ran) stop(ran.failure.node, ran.failure.failure)
-        // The Journal already moved this execution on: it is not driven here (recovery is stage 5).
-        else if (ran.ok === 'not-driven' && slot.kind === 'running' && slot.execution === execution)
-          release()
-      })
-      .catch((error: unknown) =>
-        stop('runExecution', {
-          kind: 'unavailable',
-          owner: DEFECT_OWNER,
-          diagnostic: error instanceof Error ? error.message : String(error),
-        }),
-      )
+    occupy({ kind: 'running', execution, attachment })
+    // drive catches node failures and defects. A stopped run keeps its occupied slot.
+    void coordinator.runExecution()
     return succeed(handleOf(execution))
   }
 
@@ -357,15 +338,46 @@ export function createProvider<P, B extends ContentBlock>(
         ? found
         : fail({ kind: 'commit-unknown', operation: input.operation })
     }
-    return admit(input, held)
+    return admit(input, found.ok.kind === 'excluded' ? { kind: 'free' } : held)
+  }
+
+  /** A held slot cannot hide an earlier admission (SPEC 804 and mechanisms.md). */
+  async function findAccepted(
+    input: InvokeInput<P>,
+  ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
+    const found = await dependencies.journal.query(input)
+    if ('failure' in found || found.ok.kind !== 'committed') return fail({ kind: 'busy' })
+    const resolved = await dependencies.adoptions.resolve({
+      principal: input.principal,
+      tenant: input.tenant,
+      adoption: binding.definition,
+    })
+    if ('failure' in resolved) return resolved
+    const initial = resolved.ok.evaluator.initial({
+      definition: binding.definition,
+      step: stepOf(0),
+    })
+    if ('failure' in initial) return initial
+    const opened = await dependencies.journal.open({
+      principal: input.principal,
+      tenant: input.tenant,
+      execution: input.execution,
+      operation: input.operation,
+      instance,
+      grant: input.grant,
+      initial: input.initial,
+      checkpoint: initial.ok,
+    })
+    if ('failure' in opened) return opened
+    return succeed(handleOf(input.execution))
   }
 
   const invoke: AgentProvider<P>['runtime']['invoke'] = async input => {
     const passed = await guard(input, 'invoke', onInstance)
     if ('failure' in passed) return passed
     // SPEC 804: the same operation with the same input gets the original handle back, whether the
-    // run goes on, stopped or ended. Another input goes on below: busy while the slot is held,
-    // and the Journal's conflict once it is free.
+    // run goes on, stopped or ended. Another input is busy while its execution holds the slot;
+    // otherwise the Journal checks it for conflict.
     if (accepted?.operation === input.operation && accepted.input === inputText(input))
       return succeed(handleOf(accepted.execution))
     if (
@@ -375,7 +387,8 @@ export function createProvider<P, B extends ContentBlock>(
     )
       return retryUnresolved(input, slot)
     // SPEC 646: a new invoke while the slot is held answers busy; it is never queued.
-    if (slot.kind !== 'free') return fail({ kind: 'busy' })
+    if (slot.kind !== 'free')
+      return slot.execution === input.execution ? fail({ kind: 'busy' }) : findAccepted(input)
     occupy({ kind: 'reserved', execution: input.execution, unresolved: null })
     return admit(input, { kind: 'free' })
   }

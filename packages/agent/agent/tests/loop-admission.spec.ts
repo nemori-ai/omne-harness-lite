@@ -32,6 +32,7 @@ import {
   invoke,
   loopAssembly,
   shown,
+  stoppedAt,
   type LoopAssembly,
 } from './loop-support.ts'
 
@@ -238,6 +239,87 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(await shown(assembly)).toEqual(idle)
   })
 
+  it('NA-E0-2: an earlier ended operation is found while another execution holds the slot', async () => {
+    const holding = gate()
+    const record: Record = { log: [], accepts: [], commits: [] }
+    const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => {
+      const wrapped = recording(record)(dependencies)
+      return {
+        ...wrapped,
+        conditions: {
+          async read(input) {
+            if (input.advance.execution === execution('exec-2')) await holding.opened
+            return wrapped.conditions.read(input)
+          },
+        },
+      }
+    })
+    assembly.release.open()
+    const first = ok(await invoke(assembly))
+    await eventsOf(first)
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    ok(await invoke(assembly, 'exec-2'))
+    const before = await shown(assembly)
+    const commits = record.commits.length
+    const accepts = record.accepts.length
+    const again = ok(await invoke(assembly))
+    expect(again.execution).toBe(first.execution)
+    expect(await sequences(again)).toEqual(ENDED_EVENTS)
+    expect(record.log.slice(-2)).toEqual(['query invoke-exec-1', 'open'])
+    expect(record.commits).toHaveLength(commits)
+    expect(record.accepts).toHaveLength(accepts)
+    expect(await shown(assembly)).toEqual(before)
+    expect(before).toMatchObject({ kind: 'occupied', execution: execution('exec-2') })
+    expect(
+      failure(await invoke(assembly, 'exec-1', { input: acceptedInput('other', 'other') })),
+    ).toMatchObject({ kind: 'conflict' })
+    expect(await shown(assembly)).toEqual(before)
+    holding.open()
+  })
+
+  it('NA-E0-2: after the run stopped, the same operation neither opens nor drives it again', async () => {
+    const assembly = await recorded()
+    assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
+    const first = ok(await invoke(assembly))
+    expect((await stoppedAt(assembly, 'E3')).kind).not.toBe('ended')
+    const commits = assembly.record.commits.length
+    expect(ok(await invoke(assembly)).execution).toBe(first.execution)
+    expect((await stoppedAt(assembly, 'E3')).kind).not.toBe('ended')
+    expect(opens(assembly.record)).toBe(1)
+    expect(assembly.record.commits).toHaveLength(commits)
+  })
+
+  it('NA-E0-2: a new runtime drives an opened execution whose revision did not advance', async () => {
+    const loading = gate()
+    const record: Record = { log: [], accepts: [], commits: [] }
+    let loads = 0
+    const assembly = await loopAssembly([execution()], dependencies => {
+      const wrapped = recording(record)(dependencies)
+      return {
+        ...wrapped,
+        journal: {
+          ...wrapped.journal,
+          async load(input) {
+            loads += 1
+            if (loads === 1) await loading.opened
+            return wrapped.journal.load(input)
+          },
+        },
+      }
+    })
+    ok(await invoke(assembly))
+    await eventually(async () => loads === 1)
+    const restarted = ok(await createAgentRuntime(assembly.dependencies, options()))
+    assembly.release.open()
+    expect(await sequences(ok(await invoke({ provider: restarted })))).toEqual(ENDED_EVENTS)
+    await eventually(async () => (await shown({ provider: restarted })).kind === 'idle')
+    const commits = record.commits.length
+    loading.open()
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    expect(opens(record)).toBe(2)
+    expect(record.commits).toHaveLength(commits)
+  })
+
   it('NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven', async () => {
     const assembly = await recorded()
     assembly.release.open()
@@ -337,7 +419,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     assembly.release.open()
     expect(await sequences(ok(await invoke(assembly)))).toEqual(ENDED_EVENTS)
     const queries = assembly.record.log.filter(entry => entry.startsWith('query'))
-    expect(queries).toEqual(['query invoke-exec-1', 'query invoke-exec-1'])
+    expect(queries).toEqual(['query invoke-exec-1', 'query invoke-exec-2', 'query invoke-exec-1'])
     expect(opens(assembly.record)).toBe(2)
   })
 
@@ -374,5 +456,21 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     assembly.release.open()
     expect(await sequences(ok(await invoke(assembly)))).toEqual(ENDED_EVENTS)
+  })
+
+  it('NA-E0-4: an excluded open followed by a failure before open frees the slot', async () => {
+    const assembly = await recorded()
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+    const refused = { kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' } as const
+    assembly.controls.handoff.accept.once(() => fail(refused))
+    expect(failure(await invoke(assembly))).toEqual(refused)
+    expect(opens(assembly.record)).toBe(1)
+    ok(await invoke(assembly, 'exec-2'))
+    expect(await shown(assembly)).toMatchObject({
+      kind: 'occupied',
+      execution: execution('exec-2'),
+    })
+    assembly.release.open()
   })
 })

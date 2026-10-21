@@ -61,25 +61,27 @@ flowchart TD
 
 受理（#502 1.3）：
 
-- 同一操作以同一输入再次 `invoke`，取回原句柄。运行继续、已停止或已 ended 时都如此。runtime 不再次调用 `open`，也不启动第二个 Loop。
-- 同一 Journal 上新建的 runtime 不认识该操作。它调用 `open`，`open` 返回原回执与 Authority。E1 随后发现 Journal 的修订号不是 `open` 的修订号。runtime 返回句柄，不驱动该 execution，回到 idle。驱动这种 execution 属于恢复（#502 阶段 5）。
-- 同一操作配另一输入：槽被占用时返回 `busy`。槽空闲时 Journal 返回 `conflict`，`invoke` 原样返回。
-- 槽被占用时，另一操作的 `invoke` 返回 `busy`。预约中、`open` 未定、运行中、运行已停止时都如此。`invoke` 不排队。
+- 同一操作以同一输入再次 `invoke`，取回原句柄。运行继续、已停止或已 ended 时都如此。runtime 记住最近受理的操作，直接返回该句柄，不再次调用 `open`，也不启动第二个 Loop。
+- 另一 execution 占槽时，runtime 先从 Journal 查询更早的操作。已提交的操作通过幂等 `open` 认回原句柄或得到 `conflict`。这次查找不预约槽，也不驱动原执行。其他查询结果返回 `busy`。
+- 同一 Journal 上新建的 runtime 调用 `open`，认回原回执与 Authority。若 execution 的修订号已经推进，E1 返回 `found-existing`，转移表结束本次协调。runtime 回到 idle，不驱动该 execution。恢复这种 execution 属于 #502 阶段 5。
+- 若 execution 已 open 而修订号尚未推进，E1 使用原 Authority 驱动它。因此，两个存活的 runtime 可能同时尝试驱动该 execution。存活 runtime 之间的围栏由 #502 阶段 5 的 `attach` 处理。
+- 同一操作配另一输入：原 execution 占槽时返回 `busy`。槽空闲或另一 execution 占槽时，Journal 返回 `conflict`，`invoke` 原样返回。
+- 槽被占用时，新操作的 `invoke` 返回 `busy`。预约中、`open` 未定、运行中、运行已停止时都如此。`invoke` 不排队。
 - Q2 `handoff.accept` 返回 commit-unknown 时，`invoke` 返回带 `invoke` 操作身份的 `commit-unknown`。此时还没有 execution，槽释放。同一操作再次调用即是查询：U0、Q2 以同一操作身份与同一候选再次调用 `accept`，得到原结果。外部输入的接纳回执不另存（#558 S-13）。
-- E0 `open` 返回 commit-unknown 时，`invoke` 返回 `commit-unknown`。runtime 保留预约，记为 R0 待查项：操作身份与 execution 身份。同一操作再次调用时，先以该操作身份调用 `query`。`committed`：同一 `open` 返回原回执，从 E1 继续。`excluded`：以同一身份重新受理。`unknown`：再次返回 `commit-unknown`，预约保留。重试在 `open` 之前失败时同样保留 R0 待查项，因为原 `open` 可能已提交。没有定时器检查 R0 待查项（等待属 #502 1.9）。
+- E0 `open` 返回 commit-unknown 时，`invoke` 返回 `commit-unknown`。runtime 保留预约，记为 R0 待查项：操作身份与 execution 身份。同一操作再次调用时，先以该操作身份调用 `query`。`committed`：同一 `open` 返回原回执，从 E1 继续。`excluded`：以同一身份重新受理。`unknown`：再次返回 `commit-unknown`，预约保留。查询为 `committed` 后，重试在 `open` 之前失败时保留 R0 待查项。查询为 `excluded` 后，同样的失败释放槽。没有定时器检查 R0 待查项（等待属 #502 1.9）。
 - Q1 不提交。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次，不重试。被拒收的候选（Q5）属 #502 4.1，此前以具名的 `unavailable` 停止。
 
 停止：
 
 - 正常路径之外的结果使运行停在该节点。停止不当作成功。
 - 停止之后执行槽保持占用，`observe` 显示 occupied。Journal 保留最后一次提交的 `position`。新的 `invoke` 返回 `busy`。
-- runtime 只在内部记录停止（#558 S-14）。协调者保留失败的 `owner`：端口失败保留端口的 `owner`，`@omne-harness/agent` 表示由后续卡处理的结果，`@omne-harness/agent#defect` 表示协调者自身的缺陷。#502 1.9 的等待让停止可读。
+- 协调者在内部返回停止及其失败，保留失败的 `owner`（#558 S-14）：端口失败保留端口的 `owner`，`@omne-harness/agent` 表示由后续卡处理的结果，`@omne-harness/agent#defect` 表示协调者自身的缺陷。#502 1.9 的等待让停止可读。
 
 槽的规则：
 
 - 槽只有三种状态：空闲、预约、运行。预约包括 R0 待查项。已停止的运行仍算运行。
 - `observe` 只投影已存在的 execution。空闲与预约显示 idle，运行显示 occupied。
-- `open` 之前的任何失败都释放槽。只有 `open` 的 commit-unknown 保留预约。
+- 新受理在 `open` 之前失败时释放槽。`open` 的 commit-unknown 保留预约，直到查询判定结果。查询为 committed 后，重试失败仍保留 R0 待查项；查询为 excluded 后允许释放。
 - 登记句柄只接收投影。`report` 抛出时被丢弃，`invoke` 照常返回，槽与 `observe` 不变。待拥有者：`report` 返回 void，契约没有给它的失败通道。
 
 下图是执行槽的状态，括号里是 `observe` 显示的状态。
@@ -91,7 +93,7 @@ stateDiagram-v2
     state "running，停止后仍是 (observe: occupied)" as running
     [*] --> free
     free --> reserved: invoke
-    reserved --> free: open 之前失败，或 open 确定未提交
+    reserved --> free: 新受理失败，或 open 已排除
     reserved --> reserved: open 返回 commit-unknown（R0 待查项）
     reserved --> running: open 受理
     running --> free: E9，或 E1 发现 execution 已被推进

@@ -97,7 +97,7 @@ export type ExecutionEntry<P> = Readonly<{
   operation: AgentOperationId
   initial: AcceptedInput
   grant: Evidence | null
-  /** E9: the runtime gives its execution slot back and returns to idle. */
+  /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
 }>
 
@@ -108,10 +108,9 @@ export interface ExecutionCoordinator {
   /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
   accept(): Promise<Outcome<Authority, Halted>>
   /**
-   * E1 to E9, after `accept`: the Loop until the runtime is idle again. `not-driven`: E1 found that
-   * the Journal moved the execution on after its `open`, so another run owns it (see E1).
+   * E1 to E9, after `accept`: the Loop until the runtime is idle again or the run stops.
    */
-  runExecution(): Promise<Outcome<'idle' | 'not-driven', Halted>>
+  runExecution(): Promise<Outcome<void, Halted>>
 }
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
@@ -234,7 +233,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let iteration: Iteration | null = null
   let intent: FinishIntent | null = null
   const acknowledged: Acknowledged[] = []
-  let notDriven = false
 
   async function commit(
     node: LoopNode,
@@ -456,8 +454,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const read = await load()
       if ('failure' in read) return read
       if (read.ok.revision !== revision) {
-        notDriven = true
-        return fail(notYet('E1', 'an execution that the Journal moved on', 'stage 5'))
+        entry.idle()
+        return step('found-existing', null)
       }
       const advancement = advancementOf(read.ok)
       if (advancement.kind !== 'current' || read.ok.state.kind === 'ended')
@@ -959,8 +957,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
     async runExecution() {
       const ran = await drive('E1', null)
-      if ('failure' in ran) return notDriven ? succeed('not-driven') : ran
-      return succeed('idle')
+      if ('failure' in ran) return ran
+      return succeed(undefined)
     },
   }
 }

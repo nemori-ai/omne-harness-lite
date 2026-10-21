@@ -101,9 +101,9 @@ describe('C1 the transition table follows the node table on the normal path', ()
   })
 
   it('has exactly these rows', () => {
-    expect(TRANSITIONS.map(row => [row.from, row.on, row.to])).toEqual(
-      NORMAL_PATH.map(([from, on, to]) => [from, on, to]),
-    )
+    const expected = NORMAL_PATH.map(([from, on, to]) => [from, on, to])
+    expected.splice(7, 0, ['E1', 'found-existing', null])
+    expect(TRANSITIONS.map(row => [row.from, row.on, row.to])).toEqual(expected)
   })
 
   it('has one successor per node and outcome', () => {
