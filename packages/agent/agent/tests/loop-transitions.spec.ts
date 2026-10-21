@@ -109,6 +109,10 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['E2', 'wait', 'W0'],
       ['I1', 'wait', 'W0'],
       ['I1', 'try-finish', 'F1'],
+      ['I3', 'try-finish', 'F1'],
+      ['I3', 'partial', 'I8'],
+      ['M6', 'wait', 'W0'],
+      ['M1', 'wait', 'W0'],
       ...[
         'R0',
         'I0',

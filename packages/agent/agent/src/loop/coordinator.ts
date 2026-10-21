@@ -14,7 +14,8 @@
 //   the execution exists; E1, E2 and
 //   E4 only read, because a commit there would overwrite the `position` that E4 reads (the initial
 //   E3); and after F3 the execution is ended, so F4, O0 and E9 use their own records only.
-// - 待 #558 M04-1: the producer event is carried by the commit that follows `recordResult` at M3.
+// - #514: I2 is local; M0 commits PendingCall, the fixed request adoption and the effect together.
+//   M6, M1 settlement, M4 (without extensions) and M5 make no checkpoint commit. M3 carries producer.
 // - M04-8 的读法: the input-taken event is written by the I0 commit.
 // - M04-7: `open` writes no event (the memory Journal's reading of SPEC).
 // - M04-5: `recordResult.transfer` is processed without a declared participant.
@@ -78,11 +79,16 @@ import {
   mainInvocation,
   modelOperation,
   ordinalOf,
-  replyMessageId,
   stepOf,
   type Message,
 } from './identities.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
+import { consumeModelResult, type ModelResult, type ModelOutcome } from './model-result.ts'
+import {
+  processedModelMaterial,
+  readProcessedModelMaterial,
+  type ProcessedModelIdentity,
+} from './processed-result.ts'
 
 /** The ports the coordinator uses. None of them depends on the content block type. */
 export type LoopPorts<P> = Pick<
@@ -95,6 +101,7 @@ export type LoopPorts<P> = Pick<
   | 'modelContext'
   | 'handoff'
   | 'clock'
+  | 'materials'
 >
 
 export type ExecutionEntry<P> = Readonly<{
@@ -122,6 +129,8 @@ export interface ExecutionCoordinator {
    * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
    */
   runExecution(): Promise<Outcome<void, Halted>>
+  /** Original runtime only, after its old driver stopped. No attach, takeover or public resume. */
+  continueExecution(authority: Authority): Promise<Outcome<void, Halted>>
 }
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
@@ -158,7 +167,7 @@ type Candidate = Readonly<{
 /** The facts of one iteration, filled as its nodes run. Each field is set by the node named. */
 type Iteration = {
   step: StepId
-  batch: InputBatch
+  batch: InputBatch | null
   action: ActionId
   consumption: ConsumptionId
   position: ConsumerRef
@@ -169,8 +178,16 @@ type Iteration = {
   ready: ReadyPreparation | null // P1
   pending: ModelPendingCall | null // I2
   settlement: M.Settlement | null // M1
-  produced: ProducedResult | null // M3
-  reply: Message | null // M3
+  result: ModelOutcome | null // restored from the Journal-bound completion, not a Model cache
+  processing: ModelResult | null
+  read: ResultReadFrame | null
+}
+
+type ResultReadFrame = {
+  attempt: number
+  read: M.ReadId | null
+  parts: M.ResultPart[]
+  complete: boolean
 }
 
 /** A result whose Model acknowledgement O0 records as the release of its responsibility. */
@@ -200,11 +217,17 @@ function notYet(node: LoopNode, what: string, card: string): Failure {
 }
 
 /** A Model failure, kept as what it is: the Model runtime did not give the step its answer. */
-function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
+function modelFailure(
+  node: LoopNode,
+  failure: M.ModelFailure,
+): Extract<Failure, { kind: 'unavailable' }> {
   return {
     kind: 'unavailable',
     owner: 'modelRuntime',
-    diagnostic: `${node}: the Model runtime answered ${failure.kind}`,
+    diagnostic:
+      failure.kind === 'unavailable'
+        ? `${node}: ${failure.dependency}: ${failure.diagnostic}`
+        : `${node}: the Model runtime answered ${failure.kind}`,
   }
 }
 
@@ -232,6 +255,26 @@ function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {
     a.profile.name === b.profile.name &&
     a.profile.revision === b.profile.revision &&
     a.profile.digest === b.profile.digest
+  )
+}
+
+function sameEvidence(left: Evidence, right: Evidence): boolean {
+  return (
+    left.owner === right.owner &&
+    left.record === right.record &&
+    left.revision === right.revision &&
+    left.digest === right.digest
+  )
+}
+
+function sameAuthority(left: Authority | null, right: Authority): boolean {
+  return (
+    left !== null &&
+    left.execution === right.execution &&
+    left.executionAttachment === right.executionAttachment &&
+    left.instance === right.instance &&
+    left.generation === right.generation &&
+    sameEvidence(left.source, right.source)
   )
 }
 
@@ -328,6 +371,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let excludedNode: LoopNode | null = null
   let waits: readonly Waiting[] = []
   const acknowledged: Acknowledged[] = []
+  const unknownReleases = new Set<AgentOperationId>()
 
   async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
     const base = required(checkpoint, 'checkpoint')
@@ -380,7 +424,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           return fail({ node: at, failure: defect(`${at} has no transition on ${ran.ok.on}`) })
         if (ran.ok.commit !== null && to !== null) {
           const committed = await commit(at, to, ran.ok.commit)
-          if ('failure' in committed) return fail({ node: at, failure: committed.failure })
+          if ('failure' in committed) {
+            if (committed.failure.kind === 'changed' && ['M0', 'M3'].includes(at)) {
+              const refreshed = await currentAttachment()
+              if ('failure' in refreshed) return fail({ node: at, failure: refreshed.failure })
+              node = at
+              continue
+            }
+            return fail({ node: at, failure: committed.failure })
+          }
         }
         node = to
       } catch (error) {
@@ -405,8 +457,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const own = required(authority, 'authority')
     const source = read.executionAttachment?.source ?? own.source
     if (read.state.kind === 'ended') return { kind: 'ended', source }
-    if (read.executionAttachment?.executionAttachment !== own.executionAttachment)
-      return { kind: 'superseded', source }
+    if (!sameAuthority(read.executionAttachment, own)) return { kind: 'superseded', source }
     return { kind: 'current', source }
   }
 
@@ -648,16 +699,30 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     /** O0: the release of each acknowledged result is recorded. */
     async O0() {
       for (const item of acknowledged) {
+        const operation = journalOperation('O0', `release/${item.consumption}`, null)
+        if (unknownReleases.has(operation)) {
+          const queried = await ports.journal.query({ ...access, execution, operation })
+          if ('failure' in queried) return queried
+          if (queried.ok.kind === 'unknown') return fail({ kind: 'commit-unknown', operation })
+          unknownReleases.delete(operation)
+          if (queried.ok.kind === 'committed') {
+            revision = queried.ok.receipt.revision
+            continue
+          }
+        }
         const released = await ports.journal.recordResult({
           ...access,
           execution,
-          operation: journalOperation('O0', `release/${item.consumption}`, revision),
+          operation,
           result: item.produced,
           consumption: item.consumption,
           transfer: { kind: 'none' },
           release: { kind: 'confirmed', receipt: item.receipt },
         })
-        if ('failure' in released) return released
+        if ('failure' in released) {
+          if (released.failure.kind === 'commit-unknown') unknownReleases.add(operation)
+          return released
+        }
         revision = released.ok.revision
       }
       return step('delivered', null)
@@ -728,12 +793,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         batch: at.batch,
         action: mainAction(next),
         consumption: mainConsumption(next),
-        position: {
-          owner: AGENT_OWNER,
-          work: `${execution}/${next}`,
-          position: 'I3',
-          purpose: 'main',
-        },
+        position: mainPosition(next),
         conditions: null,
         selected: null,
         context: null,
@@ -741,8 +801,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         ready: null,
         pending: null,
         settlement: null,
-        produced: null,
-        reply: null,
+        result: null,
+        processing: null,
+        read: null,
       }
       // M04-8 的读法: the input-taken event goes with the commit that fixes the batch and the step.
       return step('taken', {
@@ -758,9 +819,43 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     /** I3: the reply enters Q1; when Q4 brings it back admitted, the call is closed and I4 follows. */
     async I3() {
       const current = required(iteration, 'iteration')
+      const restored = await readCompletion(current)
+      if ('failure' in restored) return restored
+      const result = restored.ok.result
+      current.result = result
+      const recalled = await recallAcknowledgement(current, result, restored.ok.completion)
+      if ('failure' in recalled) return recalled
+      if (result.kind === 'no-reply') {
+        if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
+          const instant = await ports.clock.now()
+          if ('failure' in instant) return instant
+          const call = invocationParts(
+            required(current.pending, 'pending call').reference,
+            access.tenant,
+          ).call
+          const failure: FailureCandidate = {
+            kind: 'no-reply',
+            step: current.step,
+            at: instant.ok,
+            source: result.settlement.source,
+            call,
+            result: result.produced,
+          }
+          decided = {
+            kind: 'try-finish',
+            conclusion: {
+              kind: 'fail',
+              cause: agentEvidence(`${execution}/${current.step}/no-reply`, failure),
+            },
+            failure,
+          }
+        }
+        return step('try-finish', null)
+      }
+      if (result.kind === 'partial') return step('partial', { checkpoint: { calls: [] } })
       if (admission === null) {
         const pending = required(current.pending, 'pending call')
-        const produced = required(current.produced, 'produced result')
+        const produced = result.produced
         candidate = {
           source: {
             kind: 'model-reply',
@@ -769,7 +864,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             call: invocationParts(pending.reference, access.tenant).call,
             result: produced,
           },
-          candidate: required(current.reply, 'reply'),
+          candidate: result.reply,
           operation: after => journalOperation('Q2', 'handoff', after),
           returnTo: 'I3',
         }
@@ -783,7 +878,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async I4() {
       admission = null
       candidate = null
-      const reply = required(required(iteration, 'iteration').reply, 'reply')
+      const result = required(required(iteration, 'iteration').result, 'model result')
+      if (result.kind !== 'reply') return fail(defect('I4 without a complete reply'))
+      const reply = result.reply
       if (reply.blocks.some(block => block.kind === 'tool_call'))
         return fail(notYet('I4', 'a reply with tool calls', '#502 stage 2'))
       return step('empty')
@@ -914,7 +1011,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       purpose: 'main',
       position: current.position,
       history: required(snapshot, 'snapshot').history,
-      inputs: current.batch,
+      inputs: required(current.batch, 'input batch'),
       conditions,
       selection,
       context,
@@ -925,27 +1022,35 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   // ------------------------------------------------------------------------------------------
-  // callModel: I2, M0, M6, M1, M3, M4, M5 (M2 is #502 1.6 and stage 3)
+  // callModel: I2, M0, M6, M1, M3, M4, M5 (M2 remains stage 3)
+
+  function mainPosition(step: StepId): ConsumerRef {
+    return { owner: AGENT_OWNER, work: `${execution}/${step}`, position: 'I3', purpose: 'main' }
+  }
+
+  function mainPending(step: StepId, ready: ReadyPreparation): ModelPendingCall {
+    return {
+      kind: 'model',
+      action: mainAction(step),
+      consumption: mainConsumption(step),
+      position: mainPosition(step),
+      fixed: ready.source,
+      reference: mainInvocation(access.tenant, execution, step),
+      purpose: 'main',
+    }
+  }
 
   const callModel = {
     /**
      * I2: the PendingCall of the main call, whose return position is I3. Its ModelInvocationRef is
      * encoded here from the call and admission that the coordinator derives, so the commit of this
-     * node saves it before the first admit at M6.
+     * M0 saves it with the effect before the first admit at M6.
      */
     async I2() {
       const current = required(iteration, 'iteration')
       const ready = required(current.ready, 'ready preparation')
-      current.pending = {
-        kind: 'model',
-        action: current.action,
-        consumption: current.consumption,
-        position: current.position,
-        fixed: ready.source,
-        reference: mainInvocation(access.tenant, execution, current.step),
-        purpose: 'main',
-      }
-      return step('call', { checkpoint: { calls: [current.pending] } })
+      current.pending = mainPending(current.step, ready)
+      return step('call', null)
     },
     /** M0: the adopted context and the effect intent are committed before the Model admits. */
     async M0() {
@@ -953,16 +1058,29 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const pending = required(current.pending, 'pending call')
       // #558 M04-2: the inherited ready preparation records the final request in this commit.
       return step('recorded', {
-        checkpoint: { adoptedContext: required(current.ready, 'ready preparation').coverage },
+        checkpoint: {
+          calls: [pending],
+          adoptedContext: required(current.ready, 'ready preparation').coverage,
+        },
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
       })
     },
-    /** M6: the Model admits the fixed request once. */
+    /** M6: inspect the saved reference before admitting the fixed request. */
     async M6() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
-      const ready = required(current.ready, 'ready preparation')
+      const found = await ports.models.calls.inspect({ ...access, reference: pending.reference })
+      if ('failure' in found) return modelWait('M6', found.failure)
+      if (found.ok.kind === 'found') {
+        state = { kind: 'advancing' }
+        return step('admitted', null)
+      }
       const { call, admission } = invocationParts(pending.reference, access.tenant)
+      if (found.ok.operation !== admission)
+        return fail(defect('M6: not-accepted names another admission'))
+      const eligible = await currentAttachment()
+      if ('failure' in eligible) return eligible
+      const ready = required(current.ready, 'ready preparation')
       const admitted = await ports.models.calls.admit({
         ...access,
         call,
@@ -971,167 +1089,394 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         consumer: pending.position,
         capacity: ready.capacity,
       })
-      if ('failure' in admitted) return fail(modelFailure('M6', admitted.failure))
-      // The Model returns the reference of the admitted call. It is the saved one, or the Model
-      // admitted another call than the one this PendingCall names.
-      if (admitted.ok.reference !== pending.reference)
-        return fail({
-          kind: 'unavailable',
-          owner: 'modelRuntime',
-          diagnostic: 'M6: the Model answered another reference than the saved one',
+      if ('failure' in admitted) {
+        if (admitted.failure.kind !== 'commit-unknown')
+          return fail(modelFailure('M6', admitted.failure))
+        const recalled = await ports.models.calls.inspect({
+          ...access,
+          reference: pending.reference,
         })
-      return step('admitted')
+        if ('failure' in recalled) return modelWait('M6', recalled.failure)
+        // An unknown write is never repeated in this turn, even if inspection cannot yet find it.
+        if (recalled.ok.kind !== 'found') return producerWait(pending)
+      } else if (admitted.ok.reference !== pending.reference) {
+        return fail(defect('M6: admission returned another reference'))
+      }
+      state = { kind: 'advancing' }
+      return step('admitted', null)
     },
-    /** M1: the observation of the original call until it is really settled. */
+    /** M1 waits for the original call, without interpreting or publishing its content. */
     async M1() {
       const current = required(iteration, 'iteration')
       const settled = await settlementOf(required(current.pending, 'pending call').reference)
-      if ('failure' in settled) return settled
+      if ('failure' in settled)
+        return settled.failure.kind === 'unavailable' ? waitFor('M1', settled.failure) : settled
+      if (settled.ok === null) return producerWait(required(current.pending, 'pending call'))
       current.settlement = settled.ok
-      return step('settled')
+      return step('settled', null)
     },
-    /**
-     * M3: the reply is read in full and kept on the processed path (M04-5), then the Model is
-     * acknowledged. 待 #558 M04-1: the producer event goes with the commit after recordResult.
-     */
+    /** M3 processes one real result, saves its completion, then releases the Model responsibility. */
     async M3() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
-      // The same iteration retains its original PendingCall and processed result. A failed
-      // checkpoint commit does not reopen that call's already acknowledged result read.
-      if (current.produced !== null && current.reply !== null)
-        return step('kept', {
-          events: [
-            { kind: 'producer', result: current.produced, consumption: current.consumption },
-          ],
-        })
-      const settlement = required(current.settlement, 'settlement')
-      const { termination } = settlement
-      if (termination.kind !== 'completed' || termination.reason !== 'stop')
-        return fail(notYet('M3', `a call that ended ${termination.kind}`, '#502 1.6'))
       const { call } = invocationParts(pending.reference, access.tenant)
-      const parts = await readResult(pending.reference, call, current.step, settlement.version)
-      if ('failure' in parts) return parts
-      const blocks: Extract<Message, { role: 'assistant' }>['blocks'][number][] = []
-      for (const part of parts.ok) {
-        if (part.kind !== 'sealed') return fail(notYet('M3', 'a partial result part', '#502 1.6'))
-        blocks.push(part.block)
+      const saved = await completionOf(current)
+      if ('failure' in saved) return saved
+      if (saved.ok === null && current.processing === null) {
+        const settlement = required(current.settlement, 'settlement')
+        const parts = await readResult(current, pending.reference, call, settlement.version)
+        if ('failure' in parts) return parts
+        const dispatches = await ports.models.calls.dispatches({ ...access, call })
+        if ('failure' in dispatches) return fail(modelFailure('M3', dispatches.failure))
+        const produced: ProducedResult = {
+          producer: { kind: 'model', call },
+          version: settlement.version,
+          delivery: null,
+          source: settlement.source,
+        }
+        const consumed = consumeModelResult([execution, current.step], {
+          produced,
+          settlement,
+          parts: parts.ok,
+          dispatches: dispatches.ok,
+        })
+        if ('failure' in consumed) return consumed
+        current.processing = consumed.ok
       }
-      const [first, ...rest] = blocks
-      if (first === undefined) return fail(notYet('M3', 'a reply without blocks', '#502 1.6'))
-      const reply: Extract<Message, { role: 'assistant' }> = {
-        id: replyMessageId(execution, current.step),
-        role: 'assistant',
-        blocks: [first, ...rest],
-      }
-      const produced: ProducedResult = {
-        producer: { kind: 'model', call },
-        version: settlement.version,
-        delivery: null,
-        source: settlement.source,
-      }
-      const completion = agentEvidence(`${execution}/${current.consumption}/processed`, reply)
-      const recorded = await ports.journal.recordResult({
-        ...access,
-        execution,
-        operation: journalOperation('M3', 'result', revision),
-        result: produced,
-        consumption: current.consumption,
-        transfer: {
-          kind: 'processed',
-          result: produced,
+      if (!acknowledged.some(item => item.consumption === current.consumption)) {
+        if (saved.ok === null) {
+          const result = required(current.processing, 'processed result')
+          const preserved = await ports.materials.preserve({
+            ...access,
+            identity: `${execution}/${current.consumption}/processed/1`,
+            consumer: pending.position,
+            value: processedModelMaterial(processedIdentity(current, result.produced), result),
+          })
+          if ('failure' in preserved) return preserved
+          const completion = preserved.ok
+          if (completion.owner !== pending.position.owner)
+            return fail({
+              kind: 'invalid',
+              field: 'materials.owner',
+              reason: 'completion owner differs from original consumer',
+            })
+          const recorded = await ports.journal.recordResult({
+            ...access,
+            execution,
+            operation: journalOperation('M3', `result/${current.consumption}`, null),
+            result: result.produced,
+            consumption: current.consumption,
+            transfer: {
+              kind: 'processed',
+              result: result.produced,
+              consumption: current.consumption,
+              completion,
+            },
+            release: { kind: 'pending' },
+          })
+          if ('failure' in recorded) {
+            if (recorded.failure.kind === 'commit-unknown')
+              pendingCommit = { operation: recorded.failure.operation, node: 'M3' }
+            return recorded
+          }
+          revision = recorded.ok.revision
+        }
+        // Record the binding's revision before a material read can fail. A later retry must not
+        // mistake this coordinator's own successful binding for another driver's progress.
+        const bound = await currentAttachment()
+        if ('failure' in bound) return bound
+        const restored = await readCompletion(current)
+        if ('failure' in restored) return restored
+        const { result, completion } = restored.ok
+        current.result = result
+        // Material reads can suspend while the current attachment changes. Check again before ACK.
+        const refreshed = await currentAttachment()
+        if ('failure' in refreshed) return refreshed
+        const acked = await ports.models.consumption.acknowledge({
+          ...access,
+          call,
+          operation: modelOperation(execution, current.step, 'ack'),
+          result: result.settlement.version,
+          evidence: { kind: 'processed', completion },
+        })
+        if ('failure' in acked) return fail(modelFailure('M3', acked.failure))
+        acknowledged.push({
+          produced: result.produced,
           consumption: current.consumption,
-          completion,
-        },
-        release: { kind: 'pending' },
-      })
-      if ('failure' in recorded) return recorded
-      revision = recorded.ok.revision
-      const acked = await ports.models.consumption.acknowledge({
-        ...access,
-        call,
-        operation: modelOperation(execution, current.step, 'ack'),
-        result: settlement.version,
-        evidence: { kind: 'processed', completion },
-      })
-      if ('failure' in acked) return fail(modelFailure('M3', acked.failure))
-      acknowledged.push({
-        produced,
-        consumption: current.consumption,
-        receipt: acked.ok.custody.receipt,
-      })
-      current.produced = produced
-      current.reply = reply
+          receipt: acked.ok.custody.receipt,
+        })
+      }
+      const restored = await readCompletion(current)
+      if ('failure' in restored) return restored
+      current.result = restored.ok.result
       return step('kept', {
-        events: [{ kind: 'producer', result: produced, consumption: current.consumption }],
+        events: [
+          {
+            kind: 'producer',
+            result: restored.ok.result.produced,
+            consumption: current.consumption,
+          },
+        ],
       })
     },
     /** M4: no extension is adopted at after_model_call, so the passage proceeds. */
     async M4() {
-      return step('proceed')
+      return step('proceed', null)
     },
     /** M5: back to the return position that the PendingCall saved. */
     async M5() {
       const pending = required(required(iteration, 'iteration').pending, 'pending call')
       if (pending.position.position !== 'I3')
         return fail(notYet('M5', `a return to ${pending.position.position}`, '#502 stage 4'))
-      return step('return-I3')
+      return step('return-I3', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  /** The settlement of a call, from its live observation. Any other end stops M1. */
+  function processedIdentity(current: Iteration, produced: ProducedResult): ProcessedModelIdentity {
+    return {
+      tenant: access.tenant,
+      execution,
+      step: current.step,
+      consumption: current.consumption,
+      consumer: required(current.pending, 'pending call').position,
+      produced,
+    }
+  }
+
+  async function completionOf(current: Iteration) {
+    const read = await load()
+    if ('failure' in read) return read
+    return succeed(read.ok.results.find(item => item.consumption === current.consumption) ?? null)
+  }
+
+  async function readCompletion(
+    current: Iteration,
+  ): Promise<Outcome<{ result: ModelOutcome; completion: Evidence }, Failure>> {
+    const saved = await completionOf(current)
+    if ('failure' in saved) return saved
+    const item = saved.ok
+    const pending = required(current.pending, 'pending call')
+    const call = invocationParts(pending.reference, access.tenant).call
+    if (
+      !item?.completion ||
+      item.result.producer.kind !== 'model' ||
+      item.result.producer.call !== call ||
+      item.completion.owner !== pending.position.owner
+    )
+      return fail({
+        kind: 'invalid',
+        field: 'processed-result',
+        reason: 'missing original Journal completion binding',
+      })
+    const material = await ports.materials.read({ ...access, source: item.completion })
+    if ('failure' in material) return material
+    const result = readProcessedModelMaterial(material.ok, processedIdentity(current, item.result))
+    if ('failure' in result) return result
+    if (
+      current.settlement !== null &&
+      (current.settlement.version !== result.ok.settlement.version ||
+        !sameEvidence(current.settlement.source, result.ok.settlement.source))
+    )
+      return fail({
+        kind: 'invalid',
+        field: 'processed-result',
+        reason: 'settlement differs from original call',
+      })
+    return succeed({ result: result.ok, completion: item.completion })
+  }
+
+  /** M4/M5/I3 continuation can bypass M3 after producer committed. Recover the real original ACK
+   * confirmation for this main consumption, so existing O0 can close its Journal responsibility. */
+  async function recallAcknowledgement(
+    current: Iteration,
+    result: ModelOutcome,
+    completion: Evidence,
+  ): Promise<Outcome<void, Failure>> {
+    if (acknowledged.some(item => item.consumption === current.consumption))
+      return succeed(undefined)
+    const eligible = await currentAttachment()
+    if ('failure' in eligible) return eligible
+    const pending = required(current.pending, 'pending call')
+    const call = invocationParts(pending.reference, access.tenant).call
+    const inspected = await ports.models.calls.inspect({ ...access, reference: pending.reference })
+    if ('failure' in inspected) return fail(modelFailure('I3', inspected.failure))
+    if (
+      inspected.ok.kind !== 'found' ||
+      inspected.ok.state.phase !== 'settled' ||
+      inspected.ok.state.custody.kind !== 'acknowledged'
+    )
+      return fail({
+        kind: 'unavailable',
+        owner: 'modelRuntime',
+        diagnostic: 'I3: original acknowledgement is not confirmed',
+      })
+    const state = inspected.ok.state
+    const consumer = state.consumer
+    const custody = inspected.ok.state.custody
+    if (
+      state.call !== call ||
+      state.settlement.version !== result.settlement.version ||
+      !sameEvidence(state.settlement.source, result.settlement.source) ||
+      consumer.owner !== pending.position.owner ||
+      consumer.work !== pending.position.work ||
+      consumer.position !== pending.position.position ||
+      consumer.purpose !== pending.position.purpose ||
+      custody.operation !== modelOperation(execution, current.step, 'ack') ||
+      !sameEvidence(custody.receipt, completion)
+    )
+      return fail({
+        kind: 'invalid',
+        field: 'model-acknowledgement',
+        reason: 'confirmation differs from original result or consumer',
+      })
+    acknowledged.push({
+      produced: result.produced,
+      consumption: current.consumption,
+      receipt: custody.receipt,
+    })
+    return succeed(undefined)
+  }
+
+  function producerWait(pending: PendingCall) {
+    waits = [{ kind: 'producer', pending }]
+    return step('wait', null)
+  }
+
+  function modelWait(node: LoopNode, failure: M.ModelFailure) {
+    const converted = modelFailure(node, failure)
+    return failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
+      ? waitFor(node, converted)
+      : fail(converted)
+  }
+
+  /** Recheck the actual attachment before admission/ACK, and adopt its current revision. */
+  async function currentAttachment(): Promise<Outcome<void, Failure>> {
+    const read = await load()
+    if ('failure' in read) return read
+    if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+    revision = read.ok.revision
+    checkpoint = read.ok.checkpoint
+    return succeed(undefined)
+  }
+
+  /** Inspect is authoritative even when the original live observation has disappeared. */
   async function settlementOf(
     reference: M.ModelInvocationRef,
-  ): Promise<Outcome<M.Settlement, Failure>> {
+  ): Promise<Outcome<M.Settlement | null, Failure>> {
+    const inspected = await ports.models.calls.inspect({ ...access, reference })
+    if ('failure' in inspected) return fail(modelFailure('M1', inspected.failure))
+    if (inspected.ok.kind !== 'found') return succeed(null)
+    if (inspected.ok.state.phase === 'settled') return succeed(inspected.ok.state.settlement)
     const route = await ports.models.instances.connect({ ...access, reference })
     if ('failure' in route) return fail(modelFailure('M1', route.failure))
-    if (route.ok.kind !== 'live')
-      return fail(notYet('M1', 'a call without a live route', '#502 1.6'))
+    if (route.ok.kind !== 'live') return succeed(null)
     const controller = new AbortController()
     try {
       for await (const seen of route.ok.handle.observe({ ...access, signal: controller.signal })) {
-        if (seen.kind === 'ended')
-          return fail(notYet('M1', `an observation that ended ${seen.reason}`, '#502 1.6'))
+        if (seen.kind === 'ended') break
         if (seen.value.state.phase === 'settled') return succeed(seen.value.state.settlement)
       }
-      return fail(notYet('M1', 'an observation without an end', '#502 1.6'))
+      const final = await ports.models.calls.inspect({ ...access, reference })
+      if ('failure' in final) return fail(modelFailure('M1', final.failure))
+      return succeed(
+        final.ok.kind === 'found' && final.ok.state.phase === 'settled'
+          ? final.ok.state.settlement
+          : null,
+      )
     } finally {
       controller.abort()
     }
   }
 
-  /** Every part of the settled result, page by page; the read is closed afterwards. */
+  /** Keep acquired pages until processing is bound. A closed complete Read never needs reopening.
+   * Failed incomplete reads are closed first, then a new deterministic read attempt may reread the
+   * same original result. A failed close retains its Read identity and is retried before any new read. */
   async function readResult(
+    current: Iteration,
     reference: M.ModelInvocationRef,
     call: M.ModelCallId,
-    of: StepId,
     version: M.ResultVersion,
   ): Promise<Outcome<readonly M.ResultPart[], Failure>> {
+    const frame = (current.read ??= { attempt: 0, read: null, parts: [], complete: false })
+    async function close(): Promise<Outcome<void, Failure>> {
+      if (frame.read === null) return succeed(undefined)
+      try {
+        const closed = await ports.models.consumption.closeRead({
+          ...access,
+          call,
+          read: frame.read,
+        })
+        if ('failure' in closed) return fail(modelFailure('M3', closed.failure))
+        if (closed.ok.kind !== 'ended') return fail(defect('M3: closeRead left a Read open'))
+        frame.read = null
+        if (!frame.complete) {
+          frame.attempt++
+          frame.parts = []
+        }
+        return succeed(undefined)
+      } catch (error) {
+        return fail(defect(diagnosticOf(error)))
+      }
+    }
+    // A previous call could have stopped on closeRead. Finish that close before further work.
+    if (frame.read !== null) {
+      const closed = await close()
+      if ('failure' in closed) return closed
+    }
+    if (frame.complete) return succeed(frame.parts)
     const begun = await ports.models.consumption.beginRead({
       ...access,
       reference,
-      operation: modelOperation(execution, of, 'read'),
+      operation: modelOperation(
+        execution,
+        current.step,
+        frame.attempt === 0 ? 'read' : `read_${frame.attempt}`,
+      ),
       result: version,
     })
     if ('failure' in begun) return fail(modelFailure('M3', begun.failure))
     if (begun.ok.kind !== 'started')
-      return fail(notYet('M3', 'a result acknowledged before it was read', '#502 1.6'))
-    const read = begun.ok.read
-    const parts: M.ResultPart[] = []
+      return fail(notYet('M3', 'a result acknowledged before processing was bound', '#502 1.6'))
+    frame.read = begun.ok.read
     let page = begun.ok.value
-    for (;;) {
-      if (page.kind !== 'reading')
-        return fail(notYet('M3', `a read that ended ${page.reason}`, '#502 1.6'))
-      parts.push(...page.page.parts)
-      if (page.page.next === null) break
-      const after = page.page.next
-      const following = await ports.models.consumption.readNext({ ...access, call, read, after })
-      if ('failure' in following) return fail(modelFailure('M3', following.failure))
-      page = following.ok
+    let failure: Failure | null = null
+    try {
+      for (;;) {
+        if (page.kind !== 'reading') {
+          failure = modelFailure('M3', {
+            kind: 'unavailable',
+            dependency: 'model-read',
+            diagnostic: `read ended ${page.reason}`,
+          })
+          break
+        }
+        if (page.page.settlement.version !== version) {
+          failure = defect('M3: result page changed its version')
+          break
+        }
+        frame.parts.push(...page.page.parts)
+        if (page.page.next === null) {
+          frame.complete = true
+          break
+        }
+        const following = await ports.models.consumption.readNext({
+          ...access,
+          call,
+          read: frame.read,
+          after: page.page.next,
+        })
+        if ('failure' in following) {
+          failure = modelFailure('M3', following.failure)
+          break
+        }
+        page = following.ok
+      }
+    } catch (error) {
+      failure = defect(diagnosticOf(error))
     }
-    const closed = await ports.models.consumption.closeRead({ ...access, call, read })
-    if ('failure' in closed) return fail(modelFailure('M3', closed.failure))
-    return succeed(parts)
+    const closed = await close()
+    if ('failure' in closed) return closed
+    return failure === null ? succeed(frame.parts) : fail(failure)
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1164,7 +1509,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         beforeTerminal: null,
         failure: next.failure,
       }
-      return step('fixed', { state: { kind: 'settling', intent } })
+      return step('fixed', {
+        state: { kind: 'settling', intent },
+        ...(next.failure?.kind === 'no-reply' ? { checkpoint: { calls: [] } } : {}),
+      })
     },
     /** F2: no extension is adopted at before_terminal; the passage proceeds and binds the candidate. */
     async F2() {
@@ -1229,6 +1577,56 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const ran = await drive('U0', 'E1')
       if ('failure' in ran) return ran
       return succeed(required(authority, 'authority'))
+    },
+    async continueExecution(original) {
+      authority = original
+      const read = await load()
+      if ('failure' in read) return fail({ node: 'E1', failure: read.failure })
+      if (!sameAuthority(read.ok.executionAttachment, original))
+        return fail({ node: 'E1', failure: { kind: 'stale-advance' } })
+      const at = read.ok.checkpoint
+      const ready = at.requestPreparation
+      // I2 has the ready request and step, but M0 has not saved an intent yet. The same identity
+      // rule as normal I2 reconstructs its frame. Unknown Journal operations need R0, not this cut.
+      const beforeIntent =
+        at.position === 'I2' && at.calls.length === 0 && read.ok.unresolved.length === 0
+      const pending =
+        beforeIntent && ready?.kind === 'ready' ? mainPending(at.step, ready) : at.calls[0]
+      if (
+        (!beforeIntent && !['M6', 'M3', 'M4', 'M5', 'I3'].includes(at.position)) ||
+        pending?.kind !== 'model' ||
+        pending.purpose !== 'main' ||
+        ready?.kind !== 'ready' ||
+        !sameEvidence(pending.fixed, ready.source) ||
+        (read.ok.results.some(item => item.consumption === pending.consumption) &&
+          !read.ok.results.some(
+            item => item.consumption === pending.consumption && item.completion !== null,
+          ))
+      )
+        return fail({ node: 'E4', failure: { kind: 'unsupported' } })
+      revision = read.ok.revision
+      checkpoint = at
+      if (beforeIntent) excludedNode = 'I2'
+      // No input batch is reconstructed: only its ID is saved. The call path never prepares again.
+      iteration = {
+        step: at.step,
+        batch: null,
+        action: pending.action,
+        consumption: pending.consumption,
+        position: pending.position,
+        conditions: null,
+        selected: null,
+        context: null,
+        preparation: ready,
+        ready,
+        pending,
+        settlement: null,
+        result: null,
+        processing: null,
+        read: null,
+      }
+      const ran = await drive('E1', null)
+      return 'failure' in ran ? ran : succeed(undefined)
     },
     async runExecution() {
       const ran = await drive('E1', null)

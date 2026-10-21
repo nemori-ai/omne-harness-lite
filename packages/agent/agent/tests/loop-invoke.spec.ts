@@ -155,13 +155,8 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
       ['I1', 'P0'],
       ['P0', 'P1'],
       ['P1', 'I2'],
-      ['I2', 'M0'],
       ['M0', 'M6'],
-      ['M6', 'M1'],
-      ['M1', 'M3'],
       ['M3', 'M4'],
-      ['M4', 'M5'],
-      ['M5', 'I3'],
       ['Q2', 'Q4'],
       ['Q4', 'I3'],
       ['I3', 'I4'],
@@ -412,6 +407,6 @@ describe('the ModelInvocationRef of the main call (model-contract SPEC 可保存
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    expect(log).toEqual(['commit I2', 'admit'])
+    expect(log).toEqual(['commit M0', 'admit'])
   })
 })

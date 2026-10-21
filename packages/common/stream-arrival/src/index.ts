@@ -138,20 +138,21 @@ const PART_KINDS = [
   'file',
   'tool_call',
   'tool_result',
+  'reasoning_state',
 ] as const
 const STEP_KEYS: Readonly<Record<StreamArrivalStep, readonly string[]>> = {
   open: ['step', 'index', 'mode', 'head'],
   fill: ['step', 'index', 'seq', 'chunk'],
   close: ['step', 'index', 'block'],
   trim: ['step', 'index', 'removed', 'reason'],
-  finish: ['step', 'index'],
+  finish: ['step', 'index', 'replay'],
 }
 
 type PartKind = (typeof PART_KINDS)[number]
 type AppendKind = 'text' | 'thinking' | 'voice' | 'tool_call'
 
 /**
- * Body field for a fill. Image, file, and tool_result have no append form. The `arguments` field of
+ * Body field for a fill. Image, file, tool_result, and reasoning_state have no append form. The `arguments` field of
  * `tool_call` only exists to refuse a head that carries arguments: an implicit close of a
  * `tool_call` is always refused, because the accumulated text is not a value tree.
  */
@@ -163,6 +164,7 @@ const BODY: Readonly<Record<PartKind, { readonly field?: 'text' | 'inline' | 'ar
   file: {},
   tool_call: { field: 'arguments' },
   tool_result: {},
+  reasoning_state: {},
 }
 
 /**
@@ -250,9 +252,17 @@ interface TrimStep {
   readonly reason: string
 }
 
+/** The replay scope and format that a `finish` brings. The assembly writes `at` itself. */
+interface ReplayRange {
+  readonly scope: string
+  readonly format: string
+}
+
 interface FinishStep {
   readonly step: 'finish'
   readonly index: string
+  /** Present only when the step carries it. An absent key is never an own `undefined`. */
+  readonly replay?: ReplayRange
 }
 
 type AssemblyStep = OpenStep | FillStep | CloseStep | TrimStep | FinishStep
@@ -301,7 +311,7 @@ function isPartKind(kind: string): kind is PartKind {
   return (PART_KINDS as readonly string[]).includes(kind)
 }
 
-/** Append image, file, and tool_result cannot be constructed. */
+/** Append image, file, tool_result, and reasoning_state cannot be constructed. */
 function appendKind(kind: PartKind): AppendKind | undefined {
   switch (kind) {
     case 'text':
@@ -312,6 +322,7 @@ function appendKind(kind: PartKind): AppendKind | undefined {
     case 'image':
     case 'file':
     case 'tool_result':
+    case 'reasoning_state':
       return undefined
   }
 }
@@ -399,7 +410,7 @@ function parseStep(value: unknown): Parsed {
   const index = admitted.ok.index
   if (decimalIndex(index) === undefined) return { rejected: 'index' }
   if (name === 'close') return parseClose(value, index)
-  if (name === 'finish') return { step: { step: name, index } }
+  if (name === 'finish') return parseFinish(value, index)
   if (name === 'open') return parseOpen(value, index)
   if (name === 'fill') return parseFill(value, index)
   return parseTrim(value, index)
@@ -417,8 +428,12 @@ const TOOL_HEAD_KEYS: Readonly<Record<'tool_call' | 'tool_result', readonly stri
   tool_result: ['kind', 'id', 'visibility', 'callId'],
 }
 
+/** A reasoning state head has the identity keys only. `payload` and `pairs` arrive in the close. */
+const REASONING_STATE_HEAD_KEYS: readonly string[] = ['kind', 'id', 'visibility']
+
 function headKeysOf(kind: PartKind): readonly string[] {
   if (kind === 'tool_call' || kind === 'tool_result') return TOOL_HEAD_KEYS[kind]
+  if (kind === 'reasoning_state') return REASONING_STATE_HEAD_KEYS
   return CONTENT_BLOCK_HEAD_KEYS[kind]
 }
 
@@ -485,6 +500,31 @@ function parseClose(value: Record<string, unknown>, index: string): Parsed {
   const part = judgePart(value.block)
   if ('rejected' in part) return { rejected: 'block', detail: part.rejected }
   return { step: { step: 'close', index, block: part.ok } }
+}
+
+const REPLAY_KEYS: readonly string[] = ['scope', 'format']
+
+/**
+ * The `replay` of a `finish`: a plain object with exactly `scope` and `format`, both text. Whether
+ * the text is empty or too long is `judgeMessage`'s rule, so it is judged when the message is made.
+ */
+function parseReplay(raw: unknown): ReplayRange | undefined {
+  if (!isPlainRecord(raw) || hasUnreadableOwn(raw)) return undefined
+  // A missing key reads as a non-string below, so only unknown keys are checked here.
+  if (hasUnknownKey(raw, REPLAY_KEYS)) return undefined
+  const { scope, format } = raw
+  if (typeof scope !== 'string' || typeof format !== 'string') return undefined
+  return { scope, format }
+}
+
+/** A `replay` of `undefined` is no replay, the same as `judgeMessage` reads it. */
+function parseFinish(value: Record<string, unknown>, index: string): Parsed {
+  // The key is read once, so the check and the copy see the same value even from an accessor.
+  const raw: unknown = Object.hasOwn(value, 'replay') ? value.replay : undefined
+  if (raw === undefined) return { step: { step: 'finish', index } }
+  const replay = parseReplay(raw)
+  if (replay === undefined) return refuse('replay')
+  return { step: { step: 'finish', index, replay } }
 }
 
 function parseFill(value: Record<string, unknown>, index: string): Parsed {
@@ -660,11 +700,24 @@ function applyTrim(state: LiveState, step: TrimStep): Applied {
   return { state: { ...state, trims: [...state.trims, record] } }
 }
 
-function applyFinish(state: LiveState): Applied {
+/** The positions of the reasoning state parts among the sealed parts, in order. */
+function reasoningStateAt(blocks: readonly MessagePart[]): readonly number[] {
+  return blocks.flatMap((part, at) => (part.kind === 'reasoning_state' ? [at] : []))
+}
+
+/** The message input for `judgeMessage`. `replay` is in it only when the `finish` carried it. */
+function messageInput(state: LiveState, blocks: readonly MessagePart[], step: FinishStep) {
+  const { id, role } = state.target
+  if (step.replay === undefined) return { id, role, blocks }
+  const { scope, format } = step.replay
+  return { id, role, blocks, replay: { scope, format, at: reasoningStateAt(blocks) } }
+}
+
+function applyFinish(state: LiveState, step: FinishStep): Applied {
   if (state.blocks.some(block => block.slot === 'open')) return { rejected: 'open' }
   const blocks = closedParts(state)
   if (blocks.length === 0) return { rejected: 'empty' }
-  const judged = judgeMessage({ id: state.target.id, role: state.target.role, blocks })
+  const judged = judgeMessage(messageInput(state, blocks, step))
   if ('rejected' in judged) {
     if (judged.rejected === 'empty') return { rejected: 'empty' }
     return { rejected: 'block', detail: judged.rejected }
@@ -687,7 +740,8 @@ const APPLY: Readonly<
   fill: (state, step) => (step.step === 'fill' ? applyFill(state, step) : { rejected: 'step' }),
   close: (state, step) => (step.step === 'close' ? applyClose(state, step) : { rejected: 'step' }),
   trim: (state, step) => (step.step === 'trim' ? applyTrim(state, step) : { rejected: 'step' }),
-  finish: (state, step) => (step.step === 'finish' ? applyFinish(state) : { rejected: 'step' }),
+  finish: (state, step) =>
+    step.step === 'finish' ? applyFinish(state, step) : { rejected: 'step' },
 }
 
 function applyLive(state: LiveState, step: AssemblyStep): Applied {

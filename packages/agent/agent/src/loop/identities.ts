@@ -100,7 +100,7 @@ export function mainCall(execution: AgentExecutionId, step: StepId): ModelCallId
 export function modelOperation(
   execution: AgentExecutionId,
   step: StepId,
-  what: 'admit' | 'read' | 'ack',
+  what: 'admit' | 'read' | 'ack' | `read_${number}`,
 ): ModelOperationId {
   const text = `mop_${modelBody(execution, step)}_${what}`
   return minted(decodeModelOperationId(text), text)

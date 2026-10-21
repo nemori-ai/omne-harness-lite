@@ -172,7 +172,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     expect(batches).toEqual([['input-exec-1'], ['input-exec-2']])
   })
 
-  it('an input accepted during the live call preserves the fixed request; M1 changed recovery is not delivered', async () => {
+  it('an input accepted during the live call preserves the fixed request through M3 custody', async () => {
     let before: AgentCheckpoint | null = null
     let after: AgentCheckpoint | null = null
     const assembly = await loopAssembly([execution()], d => ({
@@ -194,17 +194,23 @@ describe('I0 fixes one batch at a legal input boundary', () => {
               }),
             )
             after = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
+            assembly.controls.conditions.read.once(() =>
+              fail({ kind: 'unavailable', owner: 'test-boundary', diagnostic: 'stop at I8' }),
+            )
             assembly.release.open()
             return d.models.instances.connect(input)
           },
         },
       },
     }))
-    expect(failure(await run(assembly))).toEqual({ node: 'M1', failure: { kind: 'changed' } })
+    expect(failure(await run(assembly))).toMatchObject({
+      node: 'I8',
+      failure: { kind: 'unavailable' },
+    })
     expect(after).toEqual(before)
     const at = (await snapshot(assembly)).checkpoint
     expect(at.requestPreparation?.kind).toBe('ready')
-    expect(at.position).toBe('M1')
+    expect(at.position).toBe('I8')
     expect(assembly.controls.requests.prepare.calls).toHaveLength(2)
   })
 })
