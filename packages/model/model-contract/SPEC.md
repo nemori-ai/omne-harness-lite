@@ -677,7 +677,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 ## 推理回放
 
-本节是设计，尚未实现，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；本页其余已接受范围不因本节扩大。推理续接状态部件与回放描述 `replay` 的形状归 [message 成员](../../common/message/SPEC.md#推理续接状态)，本节规定谁产出它们、每次发出带不带它们、上游拒绝时怎样处理，以及怎样计量。
+本节接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；本页其余已接受范围不因本节扩大。回放声明、`ModelBlock`、`replay-rejected`、关闭回放与回放投影已实现于本包；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。推理续接状态部件与回放描述 `replay` 的形状归 [message 成员](../../common/message/SPEC.md#推理续接状态)，本节规定谁产出它们、每次发出带不带它们、上游拒绝时怎样处理，以及怎样计量。
 
 回放投影是 Model 在每次发出时做的表示选择，是「请求表示选择与组装在本域之外」的一项例外。理由是一次调用可能按策略回退到另一个供应商，只有每次发出才知道实际供应商；计量器与编码器对同一供应商使用同一投影，计量组合固定所用的声明，所以计量与实际发送一致。其余表示选择仍归请求组装。
 

@@ -4,7 +4,7 @@
 
 ## 根入口
 
-[index.ts](index.ts) 是根入口，以 `export type *` 转出各章文件的全部类型（凭据章用 `export *`，同时带出 `MODEL_SEND`），并按名导出 18 个运行值。下表列出各文件对应的[公开页](../docs/public-api.md)章，公开页各章链接回这些文件：
+[index.ts](index.ts) 是根入口，以 `export type *` 转出各章文件的全部类型（凭据章用 `export *`，同时带出 `MODEL_SEND`），并按名导出 22 个运行值。下表列出各文件对应的[公开页](../docs/public-api.md)章，公开页各章链接回这些文件：
 
 | 文件 | 章 |
 | --- | --- |
@@ -17,6 +17,7 @@
 | [conversion.ts](conversion.ts) | 消息转换 |
 | [tokenizer.ts](tokenizer.ts) | 文本分词与完整计量依据 |
 | [driver.ts](driver.ts) | 受信宿主驱动 |
+| [replay-values.ts](replay-values.ts) | 推理回放的声明与投影 |
 | [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 |
 | [diagnostics.ts](diagnostics.ts) | 供应商尝试诊断 |
 

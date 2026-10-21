@@ -31,6 +31,7 @@ import {
   instance,
   consumer,
   operation,
+  reasoningState,
   result,
   revision,
   tenant,
@@ -202,8 +203,14 @@ it('ToolSuggestion is the shared whole tool call and nothing of its own', () => 
   expectTypeOf<ToolSuggestion>().toEqualTypeOf<ToolCallPart>()
 })
 
+it('replay-rejected is a fault cause that reports nothing besides the common fields', () => {
+  const rejected: ModelFault = { cause: 'replay-rejected', diagnostic: 'd', upstreamStatus: '400' }
+  const cause: ModelFaultCause = 'replay-rejected'
+  void [rejected, cause]
+})
+
 it('ModelBlock holds a content block or a whole call, never a call without whole arguments', () => {
-  const blocks: ModelBlock[] = [block, toolCall]
+  const blocks: ModelBlock[] = [block, toolCall, reasoningState]
   // @ts-expect-error a call whose arguments did not all arrive is not a suggestion
   const incomplete: ModelBlock = incompleteCall
   // @ts-expect-error a call whose arguments do not decode is not a suggestion

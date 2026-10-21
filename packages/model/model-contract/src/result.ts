@@ -1,7 +1,7 @@
 // Declarations of the public-api chapter "结果、失败和状态".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ToolCallPart } from '@omne-harness/message'
+import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message'
 import type { LimitMetric } from './profile.ts'
 import type {
   Adoption,
@@ -30,7 +30,7 @@ export type ModelFailure =
   | Readonly<{ kind: 'handoff-invalid'; reason: string }>
 export type Reply<T> = Promise<Outcome<T, ModelFailure>>
 export type ToolSuggestion = ToolCallPart
-export type ModelBlock = ContentBlock | ToolSuggestion
+export type ModelBlock = ContentBlock | ToolSuggestion | ReasoningStatePart
 export type ModelFaultCause =
   | 'profile-withdrawn'
   | 'excluded'
@@ -38,6 +38,7 @@ export type ModelFaultCause =
   | 'credential'
   | 'input-rejected'
   | 'input-over-limit'
+  | 'replay-rejected'
   | 'upstream-unavailable'
   | 'stream-lost'
   | 'runtime-lost'

@@ -9,6 +9,7 @@ it('the root entry exports exactly the landed runtime values', async () => {
       'MODEL_SEND',
       'compareOutputCursors',
       'compareRevisions',
+      'continuedMessages',
       'decodeCredentialId',
       'decodeDispatchId',
       'decodeModelCallId',
@@ -21,6 +22,9 @@ it('the root entry exports exactly the landed runtime values', async () => {
       'decodeResultVersion',
       'decodeRevision',
       'deriveGuardControlOperation',
+      'expandReplayDeclaration',
+      'judgeReplayDeclaration',
+      'projectReplay',
       'sameCredentialHolder',
     ].sort(),
   )

@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 153 个类型和 18 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 160 个类型和 22 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的四个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -137,6 +137,21 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 全部模态是四种：文字、图片、语音和视频，词表归 [`@omne-harness/modality`](../../../common/modality/docs/public-api.md)。本包不转出它，消费者直接从该成员导入 `Modality`。`ModelModality` 是 Model 本阶段支持的三种，由 `Modality` 派生。`ModelProfileDefinition` 的输入输出用 `ModelModality`，`ModalityRequirement` 用 `Modality`。
 
 `ProfileSupplier` 没有凭据字段。求值的 credential 只说明当前可用性，不返回秘密或授予发送资格。ModelProfileMaintenance 的身份参数不是跨层维护许可。精确键和摘要规则由实际提供者采用并验证，不把任意字符串当可信证明。
+
+`ProfileSupplier.replay` 是该供应商的[回放声明](../SPEC.md#推理回放)，三项都可省略，省略的项取默认值；`ReplayDeclaration` 是展开后的完整声明。`AssembledModelInput.replay` 与 `FixedModelRequest.replay` 只有一个取值 `'off'`：本次请求关闭回放，对每次发出都有效。`ReplayProjectionInput`、`ReplayProjection`、`ReplayTreatment` 与 `ReplayDiagnostic` 是回放投影的输入与输出，函数见[推理回放的声明与投影](#推理回放的声明与投影)。
+
+## 推理回放的声明与投影
+
+[行为与约束](../SPEC.md#推理回放)。
+
+本章给档案维护方、Model 适配器作者和输入计量器作者：回放声明的展开与校验，以及适配器与计量器共用的回放投影。类型在[档案与请求准备](#档案与请求准备)一章。
+
+- 声明：[`src/replay-values.ts`](../src/replay-values.ts)。
+- 行为测试：[`tests/replay.spec.ts`](../tests/replay.spec.ts)。
+
+- `expandReplayDeclaration(supplier)` 把缺省项展开成完整声明，不做检查。`judgeReplayDeclaration(supplier, index)` 展开并按 SPEC 检查，返回 `Outcome`；失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `produces`、`accepts`、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking` 中第一个不满足的项。
+- `projectReplay(input)` 对 `messages` 里每条 assistant 消息给出一条 `ReplayTreatment`，按输入次序，并给出诊断。`carry` 与 `omit` 是推理续接状态部件的位置（来自 `replay.at`），`thinking` 说明 `thinking` 块的写法：`native` 或 `foreignThinking` 的取值。诊断只含消息身份、`scope`、`format` 与略去的部件个数。函数不读取任何块，也不读取载荷。
+- `continuedMessages(projection)` 返回这次投影中可续接的消息身份。上游以 `replay-rejected` 拒绝后，再发把它们作为 `resent` 传入。
 
 ## 消息转换
 
