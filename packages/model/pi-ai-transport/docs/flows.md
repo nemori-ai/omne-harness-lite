@@ -98,8 +98,9 @@ sequenceDiagram
 - 2xx 响应体读取中连接被对方关闭或重置：结果仍是 `ok`，读者的迭代以 `ResponseBodyReadError` 结束，响应关闭之后名额归还。
 - 错误体超过上限：本包关闭连接，结果是 `http-error`，错误体为 `too-large`，投递 `error-body-too-large` 诊断。
 - 错误体读取中连接中断：结果是 `http-error`，错误体为 `read-failed`。
-- 新建连接在 `connectTimeoutMs` 内没有完成 TLS 握手：本包销毁请求，结果是 `connect-failed`，`timeout` 为 `true`。
-- 连接被拒绝或在响应之前关闭：结果是 `connect-failed`，`timeout` 为 `false`。
+- 发起之后 `connectTimeoutMs` 内请求没有取得已连接的套接字：本包销毁请求，结果是 `connect-failed`，`timeout` 为 `true`。新建的直连要完成 TLS 握手。经代理的连接要完成 CONNECT、隧道与经隧道的 TLS 握手。
+- 连接被拒绝或在响应之前关闭：结果是 `connect-failed`，`timeout` 为 `false`。经代理时，代理拒绝 CONNECT、代理不可达与经隧道的 TLS 握手失败也是这个结果。
+- 经代理正在建立连接时停止、连接超时或关闭网络资源：本包同时结束这个建立中的连接，交换不等 Node 的隧道超时就物理关闭。
 - 响应没有状态码或错误体的块不是字节：本包销毁连接，物理关闭之后 `result` 拒绝。
 - 调用方认领了 2xx 响应体却不读完、也不停止：响应、连接与名额一直被占用。本包不回收它们。
 - 所有路径上，名额都在请求与响应物理关闭、错误体读取结束之后才归还，然后 `stopped` 完成。

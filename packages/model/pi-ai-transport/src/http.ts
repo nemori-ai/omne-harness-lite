@@ -5,6 +5,7 @@ import type { ConnectionCapacity, ConnectionReservation, ConsumedSeat } from './
 import type { IsolatedDiagnostics } from './diagnostics.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { isPositiveInteger, isTimerDuration } from './limits.ts'
+import { CONNECTION_CANCEL } from './pool-agent.ts'
 
 export type TlsOptions = Readonly<{ ca: string | Buffer }>
 
@@ -32,7 +33,11 @@ export type ExchangeInput = Readonly<{
   body: Uint8Array
   /** A held reservation of the resources' capacity. The exchange consumes it and returns the slot after its physical end. */
   reservation: ConnectionReservation
-  /** Applies to a new socket only, from TCP connect to the TLS handshake; `null` disables it. At most `MAX_TIMER_MS`. */
+  /**
+   * Runs from the start until the request has a connected socket: a new one through its TLS
+   * handshake, through the proxy's CONNECT, tunnel and TLS when proxied; a reused one ends it at
+   * once. `null` disables it. At most `MAX_TIMER_MS`.
+   */
   connectTimeoutMs: number | null
   /** A non-2xx body beyond this many bytes is dropped as a whole and the connection is closed. */
   maxErrorBodyBytes: number
@@ -250,6 +255,8 @@ function runExchange(
   let phase: Phase = { kind: 'requesting' }
   let response: IncomingMessage | undefined
   let clearConnectTimeout: () => void = noop
+  /** Reaches the pool: a connection still being built for this request ends with the request. */
+  const connecting = new AbortController()
   /** Set by every local stop: `stop()`, the signal, or the close of the resources. */
   let stopRequested = false
   let req: ClientRequest
@@ -261,12 +268,14 @@ function runExchange(
   }
 
   try {
-    req = request(input.url, {
+    const options = {
       method: 'POST',
       agent: resources.agent,
       ...(resources.tls === undefined ? {} : { ca: resources.tls.ca }),
       headers: { ...input.headers, 'content-length': String(input.body.byteLength) },
-    })
+      [CONNECTION_CANCEL]: connecting.signal,
+    }
+    req = request(input.url, options)
     req.on('error', noop) // Every error ends in 'close', which decides the outcome.
     req.end(input.body)
     if (dequeue(resources.agent, req)) {
@@ -278,6 +287,7 @@ function runExchange(
     throw error
   }
   // The pool hands the socket, the response and the close over on later ticks, never here.
+  startConnectTimeout()
   req.once('socket', onSocket)
   req.once('response', onResponse)
   req.once('close', onRequestClose)
@@ -286,14 +296,28 @@ function runExchange(
   diagnostics.emit({ kind: 'exchange-started', level: 'info' })
   return handle
 
-  function onSocket(socket: Socket): void {
-    // A reused socket is already connected: the connect timeout is for a new one only.
-    if (input.connectTimeoutMs === null || !socket.connecting) return
+  function startConnectTimeout(): void {
+    if (input.connectTimeoutMs === null) return
     const timer = setTimeout(onConnectTimeout, input.connectTimeoutMs)
-    const clear = (): void => {
+    clearConnectTimeout = () => {
       clearTimeout(timer)
-      socket.removeListener('secureConnect', clear)
       clearConnectTimeout = noop
+    }
+  }
+
+  /**
+   * A reused socket, and one that came through a proxy's tunnel, is connected when the request gets
+   * it: the timeout ends here. A new direct socket is still connecting: it ends at its handshake.
+   */
+  function onSocket(socket: Socket): void {
+    if (!socket.connecting) {
+      clearConnectTimeout()
+      return
+    }
+    const clearTimer = clearConnectTimeout
+    const clear = (): void => {
+      socket.removeListener('secureConnect', clear)
+      clearTimer()
     }
     socket.once('secureConnect', clear)
     clearConnectTimeout = clear
@@ -303,7 +327,7 @@ function runExchange(
     if (phase.kind !== 'requesting') return
     phase = { kind: 'concluding', outcome: { kind: 'connect-failed', timeout: true } }
     diagnostics.emit({ kind: 'connect-failed', level: 'error' })
-    req.destroy()
+    destroyRequest()
   }
 
   function onResponse(res: IncomingMessage): void {
@@ -396,6 +420,11 @@ function runExchange(
 
   function destroyConnection(): void {
     response?.destroy()
+    destroyRequest()
+  }
+
+  function destroyRequest(): void {
+    connecting.abort()
     req.destroy()
   }
 

@@ -12,6 +12,7 @@
 - [sse.ts](sse.ts)：字节流到 SSE 事件 data 文本，改编自 pi
 - [frames.ts](frames.ts)：SSE data 文本到协议帧
 - [http.ts](http.ts)：一次同步发起的 HTTPS 交换，含读者看到的错误类型
-- [network.ts](network.ts)：网络资源的组合与关闭排空
+- [network.ts](network.ts)：网络资源的组合、代理配置的校验与关闭排空
+- [pool-agent.ts](pool-agent.ts)：连接池 `PoolAgent`：经代理建立连接时的缺陷规避与建连取消，以及 Node 版本是否支持代理
 - [iteration.ts](iteration.ts)：读者提前结束时关闭来源的包装
 - [limits.ts](limits.ts)：限额与计时值的校验

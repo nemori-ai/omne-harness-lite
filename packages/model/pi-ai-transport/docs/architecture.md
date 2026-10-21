@@ -14,8 +14,9 @@
 | [limits.ts](../src/limits.ts) | 哪些数是合法限额：正的安全整数，以及 Node 定时器的最大延迟 | 无 |
 | [sse.ts](../src/sse.ts) | 字节怎样成为事件：UTF-8 解码器状态、当前行、当前事件的 data 行与字节计数 | iteration.ts；改编自 pi |
 | [frames.ts](../src/frames.ts) | 事件怎样成为协议帧：是否已过 end-marker | family.ts、iteration.ts、json-text、operation-result |
-| [http.ts](../src/http.ts) | 怎样发一次并收场：一次交换的相位、未关闭的物理句柄、座位、结果，以及读者看到的错误类型 | Node `https`、`http`、`net`，iteration.ts、limits.ts，capacity.ts 与 diagnostics.ts（类型） |
-| [network.ts](../src/network.ts) | 怎样组合与排空：容量、连接池、在途登记、诊断隔离与关闭状态 | Node `https`，capacity.ts、diagnostics.ts、limits.ts，http.ts（类型） |
+| [http.ts](../src/http.ts) | 怎样发一次并收场：一次交换的相位、未关闭的物理句柄、座位、结果、连接超时与建连取消信号，以及读者看到的错误类型 | Node `https`、`http`、`net`，iteration.ts、limits.ts、pool-agent.ts，capacity.ts 与 diagnostics.ts（类型） |
+| [pool-agent.ts](../src/pool-agent.ts) | 连接池怎样建立连接：Node 缺陷的规避、把交换的停止接到正在建立的连接，以及 Node 版本是否支持 `proxyEnv` | Node `https`，Node `stream`（类型） |
+| [network.ts](../src/network.ts) | 怎样组合与排空：代理配置的校验、容量、连接池、在途登记、诊断隔离与关闭状态 | capacity.ts、diagnostics.ts、limits.ts、pool-agent.ts，http.ts（类型） |
 
 下图画出表中的全部依赖，虚线是只有类型的依赖：
 
@@ -36,14 +37,16 @@ flowchart LR
   http -. 类型 .-> capacity
   http -. 类型 .-> diagnostics[diagnostics.ts]
   http --> node["Node https"]
+  http --> pool[pool-agent.ts]
+  pool --> node
   network[network.ts] --> capacity
   network --> diagnostics
   network --> limits
+  network --> pool
   network -. 类型 .-> http
-  network --> node
 ```
 
-依赖方向只从组合者指向机制。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
+依赖方向只从组合者指向机制。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只从 pool-agent.ts 取得建连取消信号的选项键。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
 
 运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
 
@@ -113,7 +116,8 @@ stateDiagram-v2
 
 - 容量在授予或取消时移除信号监听器。
 - 交换在 `closed` 时移除信号监听器。
-- 交换在 TLS 握手完成、收到响应或关闭时清除连接超时定时器。
+- 交换在请求取得已连接的套接字、收到响应或关闭时清除连接超时定时器。新建的直连在 TLS 握手完成时才算已连接。
+- 连接池在把套接字交给请求或收到建连错误时，移除建连取消信号上的监听器。直连时 Node 不调用这个回调，监听器随交换的取消控制器一起被回收。
 - 诊断隔离只在 thenable 完成时调整计数，派生的 Promise 不会拒绝。
 
 ### 同步发起与发送围栏
@@ -125,12 +129,36 @@ model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不�
 因此 `maxConnections` 限制同时进行的交换数，不限制物理连接数。下列连接不占名额，连接数可以超过容量：
 
 - 空闲连接。连接池在连接空闲 `idleConnectionTimeoutMs` 后关闭它，这个值是连接池的 `timeout` 选项。
-- 交换已停止、但连接仍在握手的连接。交换在连接池交出套接字之前停止时（例如在发起的同一 tick 内），Node 已经为请求新建了套接字。Node 在 `onSocketNT` 中发现请求已销毁，对套接字发出 `free`。连接池于是把这个套接字收为空闲套接字，即使 TLS 握手尚未完成。本包的连接超时已随交换结束而清除，所以这个连接按 `idleConnectionTimeoutMs` 结束，不按 `connectTimeoutMs` 结束。这一行为按 Node 26.12.0 的 `lib/_http_client.js` 核对。
+- 交换已停止、但直连仍在握手的连接。交换在连接池交出套接字之前停止时（例如在发起的同一 tick 内），Node 已经为请求新建了套接字。Node 在 `onSocketNT` 中发现请求已销毁，对套接字发出 `free`。连接池于是把这个套接字收为空闲套接字，即使 TLS 握手尚未完成。本包的连接超时已随交换结束而清除，所以这个连接按 `idleConnectionTimeoutMs` 结束，不按 `connectTimeoutMs` 结束。这一行为按 Node 26.12.0 的 `lib/_http_client.js` 核对。
 - 正在关闭、尚未移出连接池的套接字。下一段说明，套接字到它自己的 `close` 事件才移出计数。在这之前，等待者可能已经新建连接，物理连接数短暂超过容量。
 
 本包不用 `maxSockets` 对齐容量，原因是 Node 与本包的计数时刻不同。本包在请求与响应的 `close` 事件时归还名额，等待者在下一个 microtask 发起。Node 的连接池对不保留的套接字在请求的 `close` 同一个 tick 销毁它，但只在该套接字自己的 `close` 事件到达时才把它移出 `agent.sockets` 的计数，这是事件循环的下一轮。不保留的情况有：服务端声明 `Keep-Alive: timeout=1`，低于 Node 的复用余量；套接字已不可写。于是在 `maxSockets` 等于容量时，前一个交换 `stopped` 之后立即发起的请求会看到计数仍然占满，进入 `agent.requests`，尽管它持有名额。总上限 `maxTotalSockets` 还会把其他接收方的空闲连接计入总量，同样让持有名额的请求排队。这一顺序按 Node 26.12.0 的 `lib/_http_client.js` 与 `lib/_http_agent.js` 核对：`responseKeepAlive` 在 nextTick 里先投递请求的 `close`，再投递套接字的 `free`；`free` 的处理里不保留的套接字被 `destroy()`；`removeSocket` 只在套接字 `close` 时调用。
 
 发起后，本包仍同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。网络资源创建的连接池不让请求排队。排队只在配置被绕过等缺陷下出现，例如有人改小了 `agent.maxSockets`。进入等待队列违反“返回前已发出”，本包按缺陷处理：销毁请求、把它移出 `agent.requests`（队列空时删除该键）、归还名额、抛出 `ExchangeQueuedError`，不把它当成已发起的交换。移出队列是必要的：`req.destroy()` 不把请求移出 `agent.requests`，而连接池在任何套接字关闭时（`removeSocket`）都会为队列中的请求新建连接，`agent.destroy()` 之后也是如此。本包只读写 `requests` 这一已文档化属性。名额在请求与响应物理关闭之后才归还。
+
+### 经代理建立连接
+
+配置了代理时，network.ts 把 `proxy` 映射为 Node 连接池的 `proxyEnv`，CONNECT 隧道由 Node 实现。本包不自写隧道。network.ts 在构造时校验配置，并检查 Node 版本：24.5.0 之前的 24.x 没有 `proxyEnv`，会静默忽略它而直连，绕过调用方要求的代理。network.ts 交给 Node 的是 `URL` 规范化后的 `href`，不是原文。Node 读取原文时只按小写的 `http://` 或 `https://` 前缀判断，并对回车与换行抛出含完整 URL 的错误。`URL` 却接受这些写法。用原文会让校验通过的配置静默直连，或泄露代理凭据。
+
+经代理时，Node 的连接池在两点上与本包的契约不一致。连接池因此是 pool-agent.ts 中 `https.Agent` 的子类 `PoolAgent`，只覆盖已文档化的 `createConnection(options, callback)`。两点都只发生在 Node 以回调交出套接字的建连路径上。直连时 Node 同步返回套接字，并在同一调用中把它交给请求，不调用回调，所以覆盖不改变直连的行为。网络资源总是使用 `PoolAgent`，不按是否配置代理分支。
+
+| 问题 | Node 的行为 | `PoolAgent` 的处理 | 删除条件 |
+| --- | --- | --- | --- |
+| 拒绝后重置使进程崩溃 | 代理以 200 以外的状态回复 CONNECT 时，Node 移除代理套接字上的错误监听器，把错误与该套接字一起交给回调，但不销毁套接字。连接池的回调丢弃套接字。代理随后重置连接时，套接字发出没有监听器的 `error`，进程以未处理的 `ECONNRESET` 崩溃 | 回调收到错误与套接字时，先给套接字加一个空的 `error` 监听器并销毁它，再调用原回调 | 引擎下限到达自行销毁该套接字的 Node 版本时删除 |
+| 停止等不到建立中的连接 | 建立期间套接字在连接池，不在请求上。`req.destroy()` 只标记请求，请求的 `close` 要等 Node 交出套接字或错误。CONNECT 阶段要等 Node 的隧道超时（取 `idleConnectionTimeoutMs`）。隧道返回 200 之后，Node 清除这个超时，所以经隧道停滞的 TLS 握手没有上限。`agent.destroy()` 不处理建立中的套接字 | http.ts 为每个交换建一个取消控制器，把它的信号放在请求选项中以包内私有的 symbol（`CONNECTION_CANCEL`）为键。销毁请求时（停止、连接超时或网络资源关闭）同时取消它。`createConnection` 从选项读到信号。信号在 Node 交出套接字之前取消时，`PoolAgent` 以错误销毁它返回的套接字，Node 随即把错误交给请求 | Node 的 `req.destroy()` 自己结束建立中的代理连接时删除 |
+
+第二点依赖一个没有写进 Node 文档的行为：Node 把请求选项传到 `createConnection`。`ClientRequest` 把选项交给 `addRequest`，`addRequest` 与 `createSocket` 各自复制自有键，symbol 键也被复制。这一路径按 Node 26.12.0 的 `lib/_http_client.js`、`lib/_http_agent.js` 与 `lib/https.js` 核对。[proxy.spec.ts](../tests/proxy.spec.ts) 中的下列用例锁住这一依赖：
+
+- 代理不回复时按连接超时结束；
+- 隧道内 TLS 不完成时按连接超时结束；
+- CONNECT 期间 `stop()` 及时结束；
+- 隧道内 TLS 期间网络资源 `close()` 及时结束。
+
+Node 不再把信号传到 `createConnection` 时，这些用例以“未在时限内完成”失败。第一点由同一文件中“代理拒绝后重置”的用例锁住：去掉规避时，测试运行报告未处理的 `ECONNRESET`。
+
+`PoolAgent` 只判断套接字是否在已文档化的 `sockets` 与 `freeSockets` 中，不读取 Node 的内部符号。连接池已经计入的套接字由请求自己的关闭路径处理，取消信号对它不起作用。
+
+连接超时从交换发起时开始计时，原因是经代理时 Node 在隧道与 TLS 都完成之后才把套接字交给请求。如果仍从套接字交给请求时开始计时，连接超时就不覆盖代理阶段。对直连与复用的连接，起点只提前到发起的同一 tick。
 
 ### 不迁移旧的脱敏策略
 

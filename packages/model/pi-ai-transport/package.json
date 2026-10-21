@@ -22,7 +22,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "test:live": "vitest run --mode slow --typecheck.enabled=false tests/live"
   },
   "dependencies": {
     "@omne-harness/content-block": "workspace:*",
