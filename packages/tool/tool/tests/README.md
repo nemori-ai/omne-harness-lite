@@ -9,9 +9,11 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 | [public-entry.spec.ts](public-entry.spec.ts)           | 根入口导出独立执行函数、`createToolLedger`、`createToolRuntime`、`recordKey`、宿主记录用的 `isTenantShape` 与 `canonicalDigest` 以及两个采用；`./testing` 导出非耐久记录仓与显式依赖装配。根入口和 testing 的源码、产物和声明导入图都不含 Cordis、`tool-cordis-contract` 与 `tool-host-local`，均不依赖 tests 源码；根入口另不引入 testing 或 node:assert。清单依赖契约包，不依赖它们。完整生产安装闭包不含 Cordis                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | [managed-admission.spec.ts](managed-admission.spec.ts) | 10：缺租户、半段名字不对的租户、守卫判为未铸造的同形状租户、换租户、伪造来源与不可读守卫的拒绝，每个公开操作对他租户主体回复带本操作动作名的 `denied`，不合词法的身份与请求回复 `invalid` 且不写记录；资格守卫、来源守卫或记录仓抛出时回复不含异常消息里的秘密；受理只需 `admit` 资格；两租户同号调用的五种证据 `record` 与 `digest` 都不同；范围授予由该范围拥有者声明的核验器核对，缺失、他租户、他调用方、他键或他拥有者的授予与没有声明核验器的拥有者都回复 `denied` 且不写记录，不可读或抛出的核验器回复 `unavailable`；同拥有者同键的两个租户各有自己的队列，序号都从 1 起。11：围栏排除稍后落盘的在途提交，围栏前落盘的提交被认回，围栏未知或不可用不给否定答案，围栏不使当前状态的持有者失效；并发同操作受理只受理一次且重复者 `recovered`，并发异操作一方 `stale-revision`；冲突重试用尽配置的次数后 `unavailable`。11：同身份同输入重送得原回执与 `recovered`，异输入 `conflict`，已受理调用再受理 `stale-revision`，写入上下文的修订门，从未受理的调用被围栏两次后状态修订号仍是 `0`，提交未知（已落盘、抛出、丢弃）后 `queryOperation` 认回且不受理第二次，读取失败 `unavailable`。12：dummy 不解析参数、不碰任何端口；完整非法参数（原文重复键、生效文本半截）形成 `arguments` 失败；`complete=false` 不受理；真实工具被受理为 `accepted`，只带 `queue` 待办，回复前分配序号并唤醒推进协程，不碰其他端口。12 另查一次提交同时写入调用、操作、结果、账目与交付任务。13：未许可脚本调用 `unsupported` 且不受理，许可的脚本调用通过，dummy 不受许可约束，后台起步需作者许可，dummy 与参数失败也一样；发起即后台的调用，占位来源为 `launched`。14：在途受理被否定答案排除后回复固定诊断的 `unavailable` 且不落盘，之后同身份同输入恰好受理一次、异输入也是首次受理；围栏前落盘的操作在重试时被认回而不被排除；后一次否定替换围栏并排除读过旧围栏的在途命令，读过最新围栏的命令不被它排除；受理提交删除 `exclusion` 记录；他租户主体、无资格主体与守卫不可用的否定探测零次读写 |
 | [managed-reads.spec.ts](managed-reads.spec.ts)         | 14：lookup 认回受理与 `not-accepted`，读取失败不是缺席，另一操作号不是受理；`queryOperation` 给出提交修订号与指向操作记录的回执。15：分页按完整块读全文，各页同元数据，`next` 绑定版本；另一结果的游标、坏游标、未知版本被拒绝；位置等于或超过块数的游标是 `past-the-end`；他租户同调用同版本的游标是另一结果；超页的单块是具名拒绝；没有内容块的结果有一个空首页且没有游标指向它；dummy 的账目只有替换件处理账 |
-| [managed-delivery.spec.ts](managed-delivery.spec.ts)   | 16：retained 与 processed 都得到 `released` 与 Tool 侧回执，解除后状态与全文一致；再次解除认回已解除状态不再写；另一消费位置 `conflict`；非消费者证据、错交付号、未知版本、坏证据种类被拒绝；同操作异证据 `conflict`；提交未知后认回再解除；一次提交写入解除、回执与状态并删除交付任务；未受理的调用是 `unknown-call`；带函数或多余字段的消费位置与证据在摘要前被拒绝 |
+| [managed-delivery.spec.ts](managed-delivery.spec.ts)   | 16：retained 与 processed 都得到 `released` 与 Tool 侧回执，解除后状态与全文一致；再次解除认回已解除状态不再写；另一消费位置 `conflict`；非消费者证据、错交付号、未知版本、坏证据种类被拒绝；同操作异证据 `conflict`；两种 handoff 各经真实 invoke 验证 unknown-dropped 与 unknown-applied，保留原 operation，查询不可读时不重发，核精确任务与全文，可靠否定后明确解除或认回原释放；一次提交写入解除、回执与状态并删除交付任务；未受理的调用是 `unknown-call`；带函数或多余字段的消费位置与证据在摘要前被拒绝 |
+| [delivery-version.spec.ts](delivery-version.spec.ts) | 16：通过公开 store.commit 安装契约合法的已有结果快照，保留原始逻辑终局。两种 handoff 按原始优先与晚到优先分别解除三个版本，核其他 delivery 完整不变、只结束目标任务、固定内容保持以及重入不写。只验证释放隔离，不验证晚到结果生成、来源认证或耐久保管 |
 | [runtime-factory.spec.ts](runtime-factory.spec.ts)     | 17：配置超范围、缺端口（含 `admissions` 与 `queues`）与非法实例身份在构造时抛出，账本检查它读取的三个配置字段，`driverStepsPerRun` 缺省合法、给出时须为正安全整数，`driverRetryDelayMs` 缺省合法、给出时须为 1 到 2147483647 的整数（0 与超过定时器上限的值被拒绝）；后续增量的每个操作回复具名 `unsupported` 且不抛；`inspect` 原样回复 Catalog 的答案；构造时装入推进协程且不读写记录仓；目录与 catalog 是依赖本身，runtime 与 provider 冻结 |
 | [start-exclusion.spec.ts](start-exclusion.spec.ts) | 14：否定答案在 `planPreparation`、`enqueue`、`prepareStart`、`rejectPending` 与 `recordStart` 第一次读取之后、事务之前给出时，命令回复固定诊断的 `unavailable`，不写操作记录、状态不变，同身份重做后落盘；`prepareStart` 的队列步骤保留，重做认回它；`recordStart` 在否定答案先于时钟时不开始计时段；推进协程在后续的运行里把被排除的启动意图重做（什么触发这些运行见 driver-retrigger），之后名额由已提交的启动持有且执行者只运行一次。22：调用收场并释放条目后重送 admit 不重建条目，下一个同 key 调用启动；调用在受理与序号分配之间、在 `planPreparation` 读取与队列步骤之间收场，都不留下条目。每个场景结束都核对队列条目的账（`auditQueues`） |
+| [binding-start.spec.ts](binding-start.spec.ts) | 21：经受信测试桥 consume 后进入契约内存执行者，计数实际 launch。覆盖重复推进与跨 driver、recordStart 已落与未落的丢回执、consume 后失败或抛错、unknown 查询原绑定的 live/unknown/lost/settled/失败/抛错、排除失败及已落丢回执、失败标记已提交但回执未知的跨 driver 认回、失败标记未知与未提交重试、否定查询排除在途标记、发起前端口失败及未知异常对象传播和名额保留、启动抛错后查询异常不清除失败观察、矛盾围栏，以及标记未落且进程观察丢失后原 start 的首次受理。替身不证明真实持久化或生产执行桥 |
 | [managed-start.spec.ts](managed-start.spec.ts) | 19：每个写命令对他租户主体、他租户、缺租户与缺主体在读记录仓之前回复 `denied`；他租户主体的推进运行不改变任何记录。20：受理回复前按受理顺序分配序号；环境先于排队准备，绑定取得该环境；环境拒绝先排除再以 `unavailable` 收场、不启动、释放位置；环境端口失败停在 `preparing`；计划只接受 `initial` 与受理时的请求，拒绝时不写；`prepared` 只接受本调用计划的准备且只一次；上限 1 时三个调用不论推进顺序都按受理顺序尝试启动；持有的名额让下一个调用在队首等待；仍在准备的较早调用不被越过；后台运行的调用保留名额；`null` 上限不限数量；超出容量的受理是 `tool-queue` 的 `unavailable` 且不提交，释放后有空位；dummy 不计入容量。21：受理后撤回启动许可的调用先排除再以 `unavailable` 收场，`effect` 为 `not-started`；启动守卫不可读时不启动也不收场；围栏拒绝的启动收场并释放名额；`recordStart` 回复丢失（已落盘或未落盘）后执行者不被调用第二次；崩溃丢失 `recordStart` 后新的运行从围栏认回；`unknown` 的围栏答案不启动；`not-started` 与 `unknown` 各以自己的操作记录并保留启动记录；非 `queued` 的调用不能取得启动意图；有启动记录的调用不能 `rejectPending`。22：拒绝后漏掉的队列释放由待办重做；调用域回复丢失的启动意图只占一个名额；受理时没分配上的序号由计划分配。23：一次运行最多 `driverStepsPerRun` 步，用完预算且仍有工作的运行自己请求再运行，缺省值让一次运行到达启动。每个场景结束都核对队列条目的账（`auditQueues`） |
 | [queue-release.spec.ts](queue-release.spec.ts) | 22：调用在创建条目的步骤（admit 的序号分配、`planPreparation`）读它之后收场，创建提交遇到已落盘未知、延迟落盘、之后读取失败或没有后续（崩溃）时，队列里都没有该调用的条目，延迟的提交落盘时冲突，重送 admit 与过期的计划都不重建条目；释放在同一提交里删除条目并写带排除证据的墓碑，没有条目的调用也写墓碑；只有调用域持有释放依据才删除条目（单凭收场的调用保留条目且不写墓碑），等待者的对账删除漏掉释放的条目并唤醒同 key 的等待者，依据在而待办已无时也删除；条目由移动它的操作认回，另一个操作在 `enqueue`、`prepareStart` 的队列步与越过 `preparing` 之后的创建步（`planPreparation`）回复 `conflict`，同一操作丢失调用域回复后认回；对账从不把别的调用的 `held` 条目改回 `ready`，读调用域不写 `exclusion` 记录，所以拥有者在途的启动意图照常提交 |
 | [driver-retrigger.spec.ts](driver-retrigger.spec.ts) | 23：被否定答案排除而留下 `held` 条目的启动意图，由同一次运行重做；步数只有一步时每个已提交的步骤让下一次运行立即被请求；整轮只有被排除（反复被否定答案排除）、修订号陈旧或提交未知的步骤不算进展，等 `driverRetryDelayMs` 而不空转；读取失败后的运行在 `driverRetryDelayMs` 之后再运行而不更早；环境答 `pending` 或 `unknown` 时按延迟再运行并重读 `inspectPreparation`，不再次请求；运行被中止后，排在后面的等待者的对账请求宿主运行持有名额的调用并完成启动；新的推进协程（没有等待表）在受理唤醒或等待者对账之后完成孤立的启动；端口不可用的运行按延迟反复再运行，判定（拒绝）不重复，只遇到提交未知的运行等延迟而不立即再运行，被中止的运行即使结束在会重调度的失败上也不再运行 |
@@ -33,8 +35,74 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 固定输入归 [fixtures](fixtures/index.md)。目录导航见 [index](index.md)。
 
-普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：独立调用、首个 await 前固定、未知提交认回、排除围栏、调度失败、recovered 违约、来源失败、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
+普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：同意图认回、首个 await 前固定、未知提交认回、排除围栏、调度失败、来源未知、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
 
 [invocation-runtime.spec.ts](invocation-runtime.spec.ts) 的再次释放回包丢失用例验证真实 ledger 不写入该次操作、原操作查询可靠否定，再明确释放取得原回执且不新增写入。[managed-delivery.spec.ts](managed-delivery.spec.ts) 保留首次释放、原回执重入及首次未知提交认回。
 
 普通 `instances.connect` 的边界回归使用可控目录，核对原 handle 对象透传、目录更新不替换旧观察、显式重连返回新 handle，以及退出观察不提交控制或新操作。该测试不提供生产观察提供者的 stale-instance 流结束证明。lookup 的真实账本回归核对释放前 pending、释放后当前 released，以及精确 result、delivery 和 consumer。
+
+[caught-rejection.ts](caught-rejection.ts) 由 `binding-start.spec.ts` 启动独立 Node 子进程。它捕获真实 driver 的标记写入拒绝，等待两个事件循环检查点，核对原错误对象及额外 `unhandledRejection` 为零。子进程使用源码条件，测试运行器拥有其启动和退出。该样本不证明真实执行桥或后端耐久性。
+
+[binding-races.spec.ts](binding-races.spec.ts) 保留 C430-1 的旧否定读调度，并在 permit 返回、环境返回、进入 start 前分别暂停。每个暂停点验证 consume/exclude 两种先后，分别断言方法尝试、authority 唯一 acceptance 与契约内存 executor 的实际 launch。已越过 authority 查询的旧读者可以进入方法，但永久排除后不能受理或执行。正常首次启动仍要求 acceptance/launch 各恰好一次。工具参数相同但 consumer 不同的两次公开 invoke 另测独立引用及失败状态，不能作为内部原 start 恢复的证据。
+
+上述范围采用 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)。旧全局方法次数禁令已被取代。
+
+测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复或物理收场；事实 ACK 的组合覆盖见下文。
+
+[公开幂等与恢复组合](invoke-recovery.spec.ts)使用真实 runtime、配对来源与内存 ledger，覆盖双 runtime 共享来源、同键竞争、冲突、未知、撤权及一次实际启动。控制测试的 commands/reads 共用替身操作记录，只验证门面。managed 与 start/queue 专测的具名调用现由受信内部 admission fixture 建立，不证明公开来源恢复。
+
+[source-principal.spec.ts](source-principal.spec.ts)验证语义快照保留 class 与不可序列化 opaque 凭据的认证意义、异步及事后变异隔离、bindings 诊断隔离、快照失败无关联写入和真实 reserved→issued 故障续做。`invoke-recovery.spec.ts` 另覆盖真实 prepareStart 提交后中止、starting 重入补 wake 及一次实际 launch。
+
+[facts-receive.spec.ts](facts-receive.spec.ts) 复用真实启动 fixture 和非耐久 store，验证 P05/P08 的 process/final 原子保管、批/事件认回、来源换版拒绝、不透明连续游标、整体拒绝、unknown 重投和历史过程状态。failed terminal 的数组与嵌套数组 cause 必须整批拒绝，合法字符串 cause 保存原值。final 测试直接向契约内存源发送回执，令源停止提供批次，再重建 ledger 按 settle basis 读原事实。旧批不复活 ACK 使用受控已确认存储状态。测试不声明来源确认命令、runtime 自动续读、resume 或生产耐久已交付。
+
+[fact-acknowledgement.spec.ts](fact-acknowledgement.spec.ts) 使用真实启动的契约内存执行源、真实 ledger 和配对 recover 绑定，覆盖来源 ACK 丢答、确认与任务同提交、原 operation 认回、同身份异输入、历史 progress、新 operation 可查询回执、伪 proof、跨租户、异步输入突变及 P01 围栏。测试提供者均为非耐久，尚不证明 runtime 自动续读或物理收场。
+
+[driver-facts.spec.ts](driver-facts.spec.ts) 从真实 runtime.invoke 进入真实 ledger 与绑定源，验证 run 返回后 emit 的 process/final 自动保管和 ACK、源释放后重建 final、每 start 单 reader/next、一个 ready、不同 call 独立推进、发起前及在途取消、return 拒绝、清理中的新 signal、注册竞争、cursor 重连和拒绝唤醒。200 字符 admission 的用例经受信内部 admission fixture 启动，验证自动保管与 ACK 清除、确认操作可查询，以及提交未知后重试保持原操作与回执。该用例不验证公开来源签发。受控 settled 恢复快照只验证相应 ACK 路径，不代替真实收场组合。inspectStart settled 缺原批时保留任务。资源画像复用两批自动组合，通过 next/return 与宿主监听计数观察回收，使用 verbose reporter 输出 FACT_RESOURCE。它不增加普通门面的调试 API，不证明生产资源退出时限。
+
+## 原结果收场验证
+
+[ledger-settlement.spec.ts](ledger-settlement.spec.ts) 验证第 26 条的原 final 资格、主动 retain、唯一原结果、call/queue 未知与恢复、可信结束及计时未知。其中 canonical plan 在途提交被否定答案排除的用例，核对同提交各 operation 的否定围栏，不以主操作检查代替 canonical plan 身份检查。[ledger-environment-release.spec.ts](ledger-environment-release.spec.ts) 验证 canonical 计划、全部历史闭包、原环境 inspectRelease、Mutation 输入固定及受限 blocked facts。[exclusion-interleavings.spec.ts](exclusion-interleavings.spec.ts) 验证交付释放与受理的否定答案交错、修订号比较和围栏清除。
+
+[driver-settlement.spec.ts](driver-settlement.spec.ts) 使用真实 runtime 与非耐久 ledger/custody/executor，观察原作者计数、原结果和下一同 slot 调用。它覆盖 ACK 离线仍收场、正常 reader 关闭及 ACK 恢复、异常 late process/end/throw/失联、取消不误标源失败，以及成功后仍有 queue 待办时具名 blocked 并停止热循环。内存组合不证明生产耐久、完整环境 release 驱动或跨进程。
+
+
+## 固定结果与内容读取
+
+[content-reads.spec.ts](content-reads.spec.ts) 从真实 runtime 与 ledger 读取已保管原结果，验证完整附件关联、任意 bytes 分页、UTF-8 中间边界、空源、输入变更、IO 撤权、byte/block 游标隔离、错身份、假 EOF、原输出资格与 null provider。字节及 custody 为非耐久内存资源，不证明真实存储或生产耐久。原多页块拼接与元数据继续由 managed-reads 验证，收场与幂等仍由既有组合测试验证。
+
+
+原件字节回归保留旧版两次异步资格的失败反例。现行用例暂停末次 `read-raw-content` 判定后，分别撤销基础 raw、content 或租户关系，验证没有字节返回。测试 guard 从同一基础权限视图计算合取，不通过撤销新增标签代替真实权限变化。另核判定异常/不可用、后续页重新核权、最终允许后无外部读取、raw metadata 输入固定、summary 独立 ref 及窄读口冻结。
+
+
+地址别名回归核对两个独立判断：完整五字段建立原结果关联，已关联描述的 storage/key 决定原件资格。已登记 mediaType/bytes/digest 变体不能降权，未登记同地址变体仍拒绝关联，不同地址同 digest 的合法普通内容保持普通内容资格。提供者继续独立验证完整描述和真实字节。
+
+`tools.spec.ts` 经真实作者注册与非耐久内存 runtime 检查 help/read_result、多模态 ref、固定引用、参数预算、附件 base64、原件资格拒绝、元回应再次分页及精确 JSON 预算。收取端用 readReply，完整回应收齐后才投影。坏 provider 用例单独检查无进展、元数据变化和读取上限。`tools.spec-d.ts` 固定公开工厂签名与窄读依赖。它们不证明真实模型、生产存储或 Cordis 组合。
+
+
+`tools-model-loop.spec.ts` 经 `tools-model-values.ts` 建立受信宿主和只接收投影及实际 help 的 PagingModel。真实源 executor 执行一次，模型读取至少三页原内容，每次新 meta 调用使用新消费位置与引用。宿主断言固定源结果及各 meta 结果的归属，并先用 readReply 收齐再次分页的回应。失败原终态、内容结束、附件跨 UTF-8 字节页、源仓读取失败、错误公开凭据、换租户、后续撤权及原件同地址描述变体各有组合断言。交付解除后重建适配器仍能使用先前可见引用。测试不依赖时间型 TTL，也不声称真实模型、生产存储、Cordis 或跨进程支持。
+
+## 记录仓公共一致性用例
+
+[ledger-store-conformance.spec.ts](ledger-store-conformance.spec.ts) 从公开 testing 入口消费两组 case 数组，每项创建新 memory fixture。两组全部 passed，不能把缺手柄算通过。[ledger-store-controls.spec.ts](ledger-store-controls.spec.ts) 逐项移除所需手柄，核既有 not-applicable 和零 IO，并核提供者异常原样失败。
+
+[ledger-store-negative.spec.ts](ledger-store-negative.spec.ts) 将每项 store/业务 case 映射到具名违约 store 或故障控制，要求目标 AssertionError 与稳定消息。违约实现包括忽略 CAS、快照漏项、空写不推进、域键折叠、输入或输出共享、未知落地错态、延迟跳过 expected，以及[负控 helper](ledger-store-negative-values.ts)中的旧复制失败部分写路径。DataCloneError 本身不是检出依据，后续完整快照断言才是。
+
+[ledger-store-qualification.spec.ts](ledger-store-qualification.spec.ts) 通过内部依赖接线，只把真实 ledger 的 access guard 改为 always-allow，核授权断言会失败。它是设施授权 oracle 自证，不是 store 违约证明。公开 fixture 没有可替换 ledger 或业务 oracle 的配置。
+
+公共数组的行为范围归 [SPEC 第 18 条](../SPEC.md#18-非耐久记录仓testing)。组合覆盖原 operation 回执、异输入冲突、stale-revision、未知认回与可靠否定、迟到旧提交和同身份 fresh retry、资格撤销与跨租户拒绝的零 IO。域分区单独由 Store 数组验证。测试使用真实 ledger 和非耐久 store，clock/custody/environment 为契约测试替身，不证明生产身份系统、引用适配、真实执行、数据库耐久、多连接、跨重启或断电恢复。
+
+`ledger-store-conformance.spec.ts` 还在合法变序的读提供者上运行全部 25 项公共用例，冻结 records 数组以检查比较器不原地排序。`ledger-store-negative.spec.ts` 的浅复制负控每次复制记录和值的外壳，但共享深层数组与对象，必须触发 `store.output-copy` 的深层副本断言。原有完整输出别名负控仍保留。另在深度冻结的独立快照上运行全部 25 项用例，确认只读输出也符合副本隔离承诺。
+
+## 教学与独立验收
+
+[example-assembly.ts](example-assembly.ts)是[可运行教程](../examples/README.md)专用的非耐久装配。它使用公开 testing 提供者，实际运行作者、runtime、ledger、driver 与 Tools。它不导入既有单元测试辅助器，不提供正式验收 oracle，也不把终局写入 fixture。examples 和本文件都纳入类型检查。
+
+在仓库根先按教程构建公开 dist，再执行：
+
+```sh
+pnpm --filter @omne-harness/tool run typecheck
+pnpm --filter @omne-harness/tool run examples
+pnpm --filter @omne-harness/tool run acceptance
+```
+
+examples 是可读教学与可重复运行的消费检查。正式三条场景由独立验收者维护，入口和判据见 [acceptance/README](../acceptance/README.md)。验收不导入教学装配或既有测试 oracle。单元测试、教程和正式场景分别说明自己的范围，均不证明生产耐久或真实模型接入。

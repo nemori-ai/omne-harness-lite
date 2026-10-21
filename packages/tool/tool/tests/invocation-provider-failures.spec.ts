@@ -55,54 +55,15 @@ const sourceFailures = [
 ] satisfies readonly Readonly<{ name: string; failure: ToolDefiniteFailure }>[]
 
 describe('invoke provider failures', () => {
-  it.each(preservedFailures)(
-    'preserves an identity provider $name before source issuance or admission',
-    async ({ failure }) => {
-      const base = observedAssembly()
-      const bind = vi.spyOn(base.dependencies.sourceIssuer, 'bind')
-      const admit = vi.spyOn(base.dependencies.admissions, 'admit')
-      const runtime = createToolRuntime(
-        {
-          ...base.dependencies,
-          invocationIdentities: { newInvocation: () => Promise.resolve(fail(failure)) },
-        },
-        base.configuration,
-      ).runtime
-      expect(
-        await runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
-      ).toEqual({ kind: 'rejected', failure })
-      expect(bind).not.toHaveBeenCalled()
-      expect(admit).not.toHaveBeenCalled()
-      expect(base.host.scheduled).toHaveLength(0)
-    },
-  )
-
-  it('rejects a legal call paired with an illegal admission before source issuance or admission', async () => {
-    const base = observedAssembly()
-    base.identities.planInvocation('legal-call', 'has space')
-    const bind = vi.spyOn(base.dependencies.sourceIssuer, 'bind')
-    const admit = vi.spyOn(base.dependencies.admissions, 'admit')
-    const runtime = createToolRuntime(base.dependencies, base.configuration).runtime
-    expect(
-      await runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
-    ).toMatchObject({
-      kind: 'rejected',
-      failure: { kind: 'unavailable', dependency: 'toolIdentities' },
-    })
-    expect(bind).not.toHaveBeenCalled()
-    expect(admit).not.toHaveBeenCalled()
-    expect(base.host.scheduled).toHaveLength(0)
-  })
-
   it.each(sourceFailures)(
-    'preserves a source issuer $name without sending admission',
+    'preserves source rejection $name before admission',
     async ({ failure }) => {
       const base = observedAssembly()
       const admit = vi.spyOn(base.dependencies.admissions, 'admit')
       const runtime = createToolRuntime(
         {
           ...base.dependencies,
-          sourceIssuer: { bind: () => Promise.resolve(fail(failure)) },
+          sourceIssuer: { resolve: async () => ({ kind: 'rejected', failure }) },
         },
         base.configuration,
       ).runtime
@@ -110,49 +71,36 @@ describe('invoke provider failures', () => {
         await runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
       ).toEqual({ kind: 'rejected', failure })
       expect(admit).not.toHaveBeenCalled()
-      expect(base.host.scheduled).toHaveLength(0)
     },
   )
 
-  it.each(['unknown', 'throw'] as const)(
-    'names the source dependency after issuer %s and never sends admission',
+  it.each(['throw', 'invalid-call', 'invalid-admission', 'unknown'] as const)(
+    'keeps %s source association unknown without admission',
     async fault => {
       const base = observedAssembly()
       const admit = vi.spyOn(base.dependencies.admissions, 'admit')
-      const secret = 'private issuer connection string'
       const runtime = createToolRuntime(
         {
           ...base.dependencies,
           sourceIssuer: {
-            bind: () =>
-              fault === 'throw'
-                ? Promise.reject(new Error(secret))
-                : Promise.resolve(
-                    fail({ kind: 'commit-unknown', operation: operationId('source-operation') }),
-                  ),
+            resolve: async () => {
+              if (fault === 'throw') throw new Error('private source connection')
+              if (fault === 'unknown') return { kind: 'association-unknown' }
+              return {
+                kind: 'issuance-unknown',
+                call: (fault === 'invalid-call' ? 'has space' : 'call') as never,
+                admission: (fault === 'invalid-admission' ? 'has space' : 'admit') as never,
+              }
+            },
           },
         },
         base.configuration,
       ).runtime
-      const outcome = await runtime.invoke({
-        principal: principalA,
-        tenant: tenantA,
-        request: request(),
-      })
-      expect(outcome).toMatchObject({
-        kind: 'rejected',
-        failure: {
-          kind: 'unavailable',
-          dependency: 'toolInvocationSource',
-          diagnostic: expect.any(String),
-        },
-      })
-      if (outcome.kind !== 'rejected' || outcome.failure.kind !== 'unavailable')
-        throw new Error('expected unavailable source')
-      expect(outcome.failure.diagnostic.length).toBeGreaterThan(0)
-      expect(outcome.failure.diagnostic).not.toContain(secret)
+      expect(
+        await runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
+      ).toEqual({ kind: 'association-unknown' })
       expect(admit).not.toHaveBeenCalled()
-      expect(base.host.scheduled).toHaveLength(0)
+      expect(base.store.commits).toBe(0)
     },
   )
 
@@ -177,8 +125,7 @@ describe('invoke provider failures', () => {
     { name: 'missing principal', input: { tenant: tenantA, request: request() } },
   ])('rejects $name invoke input before allocating identities', async ({ input }) => {
     const base = observedAssembly()
-    const mint = vi.spyOn(base.dependencies.invocationIdentities, 'newInvocation')
-    const bind = vi.spyOn(base.dependencies.sourceIssuer, 'bind')
+    const bind = vi.spyOn(base.dependencies.sourceIssuer, 'resolve')
     const admit = vi.spyOn(base.dependencies.admissions, 'admit')
     const runtime = createToolRuntime(base.dependencies, base.configuration).runtime
     // @ts-expect-error Deliberately submit an untyped caller input to the public boundary.
@@ -186,7 +133,6 @@ describe('invoke provider failures', () => {
       kind: 'rejected',
       failure: { kind: 'denied', action: 'admit' },
     })
-    expect(mint).not.toHaveBeenCalled()
     expect(bind).not.toHaveBeenCalled()
     expect(admit).not.toHaveBeenCalled()
   })

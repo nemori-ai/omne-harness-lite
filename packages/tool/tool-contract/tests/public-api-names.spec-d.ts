@@ -224,7 +224,7 @@ export type {
   ToolReferenceFailure,
   ToolInvocationParts,
   ToolOperationParts,
-  ToolInvocationIdentities,
+  ToolInvocationSourceOutcome,
   ToolOperationIdentities,
   ToolInstanceIdentities,
   ToolInvocationSourceIssuer,

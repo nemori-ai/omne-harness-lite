@@ -111,7 +111,7 @@ const entries: readonly Entry[] = [
   },
   {
     name: 'content.raw',
-    action: 'read-content',
+    action: 'read-raw',
     field: 'reference',
     command: false,
     run: (r, input) => untrusted(r.content.raw, input),
@@ -176,8 +176,7 @@ describe.each(entries)('$name reference boundary', entry => {
         commands: { ...assembly.dependencies.commands },
       },
     }
-    const { reads, commands, instances, invocationIdentities, operationIdentities, sourceIssuer } =
-      base.dependencies
+    const { reads, commands, instances, operationIdentities, sourceIssuer } = base.dependencies
     const downstream = [
       vi.spyOn(reads, 'lookup'),
       vi.spyOn(reads, 'operation'),
@@ -190,9 +189,8 @@ describe.each(entries)('$name reference boundary', entry => {
       vi.spyOn(reads.content, 'raw'),
       vi.spyOn(commands, 'releaseDelivery'),
       vi.spyOn(instances.directory, 'connect'),
-      vi.spyOn(invocationIdentities, 'newInvocation'),
       vi.spyOn(operationIdentities, 'newOperation'),
-      vi.spyOn(sourceIssuer, 'bind'),
+      vi.spyOn(sourceIssuer, 'resolve'),
     ]
     const runtime = createRuntime(base)
     const failure: ToolDefiniteFailure = testCase.invalid
@@ -207,7 +205,7 @@ describe.each(entries)('$name reference boundary', entry => {
 })
 
 it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'content.raw'))(
-  '$name retains its unsupported outcome for a valid reference',
+  '$name forwards a valid reference without allocating a read operation',
   async entry => {
     const base = testAssembly()
     const mint = vi.spyOn(base.dependencies.operationIdentities, 'newOperation')
@@ -215,9 +213,9 @@ it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'cont
     expect(result).toMatchObject(
       entry.command
         ? { kind: 'rejected', failure: { kind: 'unsupported' } }
-        : { failure: { kind: 'unsupported' } },
+        : { failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' } },
     )
-    expect(mint).not.toHaveBeenCalled()
+    expect(mint).toHaveBeenCalledTimes(entry.name === 'control' ? 1 : 0)
     expect(base.store.commits).toBe(0)
   },
 )

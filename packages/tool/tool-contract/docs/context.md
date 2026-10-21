@@ -61,7 +61,7 @@ runtime 实施中发现的契约缺口按同一协议处理：先记为候选，
 
 独立程序把实际参数、ToolExecutor、有限环境能力和自己的 ToolExecutionScope 交 executeTool。Scope 提供本次执行的 context，其 signal、emit 接收端和 wait 应答端由调用者显式接好。包装器把 context 交给作者，并在作者退出后 finish；过程能力缺失返回 unsupported，不能默认吞输出或代答。它直接取得 R 或具体失败，不要求租户、外部工作对象或存储，local 回执不声称耐久。普通返回经明确 TextRenderer 转为整个文本；结构化作者另返回 ToolResult，不能凭字段猜格式。实际使用托管资源仍由环境和执行适配器检查其访问规则。作者示例见 [emit 与 wait](flows.md#作者调用-emit-和-wait)。
 
-托管独立调用使用自己的 resource scope（owner、key 与授予证据 grant）和 consumer，显式给出 principal/tenant/call/operation。admit 成功后由 Tool 宿主准备环境、按原顺序排队、取得名额并在真实启动前复核资格。观察者退出后这些责任继续。lookup 和 queryOperation 可在没有活体时核对原事实，不能借 no-live-route 重跑。
+普通托管调用使用自己的 resource scope（owner、key 与授予证据 grant）和完整 consumer，显式给出 principal/tenant，保存原意图后 invoke；call/admission 由来源分配或认回。受信内部 admission 与 programmatic reservation 才显式携带原 call/operation。admit 成功后由 Tool 宿主准备环境、按原顺序排队、取得名额并在真实启动前复核资格。观察者退出后这些责任继续。lookup 和 queryOperation 可在没有活体时核对原事实，不能借 no-live-route 重跑。
 
 ## 脚本编排
 

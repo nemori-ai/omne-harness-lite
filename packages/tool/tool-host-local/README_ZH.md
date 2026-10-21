@@ -12,13 +12,13 @@
 
 检出范围和跨包总表见[工具执行组的支持范围](../README.md#支持范围)。本节只写本包的部分。验证范围只说明测试核对了什么，不说明测试范围之外的行为已成立。
 
-| 档 | 本包的状态 | 入口 | 验证范围 |
-| --- | --- | --- | --- |
-| 公开类型已导出 | 已导出：`LocalStartCoordinatorInput`、`StartCoordinatorAccess`、`GuardResource`，以及 `startCoordinatorAdoption`、`START_COORDINATOR_OWNER` 与 `START_COORDINATOR_DOMAIN_KEY`。当前没有 `./cordis` 入口 | 根入口 | `tests/public-entry.spec.ts` 核对根导出，并核对根入口的导入图不含 Cordis。`tests/entry-boundary.spec.ts` 核对 Node 以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 拒绝 `./cordis` |
-| 纯契约函数已实现 | 无。契约函数在 `tool-contract` | 无 | 无 |
-| 独立执行已实现 | 无。它在 `tool` | 无 | 无 |
-| runtime 已实现的路径 | 本包没有 runtime。它给 runtime 提供启动排序的提供者：`createLocalStartCoordinator` 实现 `ToolStartAuthority`，含许可、consume、inspect、invalidate 与 exclude，受理台账放在记录仓的 `host` 域。它为一台机器上的一个进程服务。已实现 P01 的失效与排除操作绑定：同输入认回首次证据，异输入答 conflict。每个成功的排除操作都绑定本次理由，包括对已排除调用的操作 | 根入口。应用装配把协调器作为 `ToolDependencies.authority` 交给 runtime | `tests/start-coordinator.spec.ts` 在 `@omne-harness/tool/testing` 的非耐久记录仓上核对协调器。`tests/start-composition.spec.ts` 在真实 Tool runtime、账本与推进协程下运行它，执行绑定用替身。`tests/start-authority-conformance.spec.ts` 对它运行 `tool-contract/testing` 的启动围栏套件，19 项一致性用例全部通过，无不适用项。套件核对 P01 冲突与同输入认回，包括 SA13、SA14。协调器测试还核对历史失效、排除别名、重建、完整守卫字段与租户隔离。这是该套件目前唯一的真实实现对照。耐久性、进程崩溃与第二个进程都没有覆盖 |
-| 尚未交付的宿主与提供者 | 宿主时钟（[G4](../tool-contract/SPEC.md#342-契约缺口决定)）。绑定登记表（[G7](../tool-contract/SPEC.md#342-契约缺口决定)）。`./cordis` 上的 Cordis 插件。跨进程的启动排序域。耐久记录仓提供者（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)） | 无 | 无 |
+| 档                     | 本包的状态                                                                                                                                                                                                                                                                                                                                                    | 入口                                                                   | 验证范围                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 公开类型已导出         | 已导出：`LocalStartCoordinatorInput`、`StartCoordinatorAccess`、`GuardResource`，以及 `startCoordinatorAdoption`、`START_COORDINATOR_OWNER` 与 `START_COORDINATOR_DOMAIN_KEY`。当前没有 `./cordis` 入口                                                                                                                                                       | 根入口                                                                 | `tests/public-entry.spec.ts` 核对根导出，并核对根入口的导入图不含 Cordis。`tests/entry-boundary.spec.ts` 核对 Node 以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 拒绝 `./cordis`                                                                                                                                                                                                                                                                                                                                                     |
+| 纯契约函数已实现       | 无。契约函数在 `tool-contract`                                                                                                                                                                                                                                                                                                                                | 无                                                                     | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 独立执行已实现         | 无。它在 `tool`                                                                                                                                                                                                                                                                                                                                               | 无                                                                     | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| runtime 已实现的路径   | 本包没有 runtime。它给 runtime 提供启动排序的提供者：`createLocalStartCoordinator` 实现 `ToolStartAuthority`，含许可、consume、inspect、invalidate 与 exclude，受理台账放在记录仓的 `host` 域。它为一台机器上的一个进程服务。已实现 P01 的失效与排除操作绑定：同输入认回首次证据，异输入答 conflict。每个成功的排除操作都绑定本次理由，包括对已排除调用的操作 | 根入口。应用装配把协调器作为 `ToolDependencies.authority` 交给 runtime | `tests/start-coordinator.spec.ts` 在 `@omne-harness/tool/testing` 的非耐久记录仓上核对协调器。`tests/start-composition.spec.ts` 在真实 Tool runtime、账本与推进协程下运行它，执行绑定用替身。`tests/start-authority-conformance.spec.ts` 对它运行 `tool-contract/testing` 的启动围栏套件，19 项一致性用例全部通过，无不适用项。套件核对 P01 冲突与同输入认回，包括 SA13、SA14。协调器测试还核对历史失效、排除别名、重建、完整守卫字段与租户隔离。这是该套件目前唯一的真实实现对照。耐久性、进程崩溃与第二个进程都没有覆盖 |
+| 尚未交付的宿主与提供者 | 宿主时钟（[G4](../tool-contract/SPEC.md#342-契约缺口决定)）。绑定登记表（[G7](../tool-contract/SPEC.md#342-契约缺口决定)）。`./cordis` 上的 Cordis 插件。跨进程的启动排序域。耐久记录仓提供者（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）                                                                                            | 无                                                                     | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## 使用
 
@@ -28,7 +28,12 @@
 const authority = createLocalStartCoordinator({
   store, // createToolLedger 也使用的 ToolLedgerStore
   access, // 回答主体与租户的 start 和 invalidate 资格
-  guardsOf: request => [{ owner: 'permissions', resource: `${request.scope.owner}/${request.availability.definition.name}` }],
+  guardsOf: request => [
+    {
+      owner: 'permissions',
+      resource: `${request.scope.owner}/${request.availability.definition.name}`,
+    },
+  ],
   commitAttempts: 8,
 })
 ```
@@ -48,6 +53,18 @@ const authority = createLocalStartCoordinator({
 全部输入由装配拥有。`guardsOf` 声明哪些守卫资源适用于一个请求，每个资源成为许可里的一个守卫，它的拥有者经 `invalidate` 使它失效。`commitAttempts` 限制修订冲突后的重读次数。没有默认值。
 
 ## 验证
+
+在仓库根使用 Node.js 24 或更高版本和 pnpm 10.28.1。准备一次 workspace 依赖后，构建并运行本成员检查：
+
+```sh
+pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build
+pnpm --filter @omne-harness/tool-host-local run typecheck
+pnpm --filter @omne-harness/tool-host-local run test
+```
+
+两个成员命令应以 0 退出。找不到模块或声明时，先在本检出准备依赖并构建。非法 `commitAttempts` 在构造时抛错。资格或记录仓不可读时返回具名失败，不能当作启动已确认，详见 [失败行为](SPEC.md#6-身份租户与失败)。
+
+普通调用、分页与交付解除的教学见 [Tool 教程](../tool/examples/README.md)。该教程使用内存 start authority。本包测试在非耐久记录仓上验证真实本地协调器，两类证据分别说明范围。二者均不提供生产宿主、耐久恢复或真实 Agent/Session 接入。
 
 `pnpm turbo run test --filter=@omne-harness/tool-host-local` 先构建本包及其依赖，再运行测试。测试核对非耐久记录仓上的协调器，以及真实 Tool runtime、账本与推进协程下的协调器。[tests/README](tests/README.md) 列出每项行为对应的测试。耐久性、进程崩溃与第二个进程都没有覆盖。
 

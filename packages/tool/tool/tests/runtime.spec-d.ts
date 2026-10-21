@@ -8,6 +8,7 @@ import type {
   ToolCommands,
   ToolProvider,
   ToolReads,
+  ToolContentReader,
   ToolState,
 } from '@omne-harness/tool-contract'
 import {
@@ -18,7 +19,9 @@ import {
   type ToolLedgerConfiguration,
   type ToolLedgerGuards,
   type ToolLedgerQueues,
+  type ToolLedgerFacts,
   type ToolLedgerStore,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 
 it('createToolRuntime takes the dependencies and the configuration and answers a ToolProvider', () => {
@@ -35,7 +38,8 @@ it('createToolRuntime dependencies carry no factory-level instance identity', ()
   type Dependencies = ToolDependencies<{ subject: string }, ContentBlock, null>
   // @ts-expect-error TS2339: the runtime factory takes no instance identity; the host passes it to the driver.
   expectTypeOf<Dependencies['instance']>().toEqualTypeOf<never>()
-  expectTypeOf<Dependencies['invocationIdentities']>().not.toBeNever()
+  // @ts-expect-error Ordinary identity allocation belongs to source.resolve.
+  expectTypeOf<Dependencies['invocationIdentities']>().toBeAny()
   expectTypeOf<Dependencies['operationIdentities']>().not.toBeNever()
   expectTypeOf<Dependencies['sourceIssuer']>().not.toBeNever()
 })
@@ -48,6 +52,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
       ToolLedgerGuards<P, ContentBlock>,
       ToolClock,
       ToolLedgerConfiguration,
+      ToolLedgerPorts<P>,
     ]
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
@@ -60,8 +65,16 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         ): Reply<Readonly<{ state: ToolState; recovered: boolean }>>
       }>
       queues: ToolLedgerQueues<P>
+      facts: ToolLedgerFacts<P, ContentBlock>
     }>
   >()
   // The runtime configuration fits where the ledger configuration is asked for.
   expectTypeOf<ToolConfiguration>().toExtend<ToolLedgerConfiguration>()
+})
+
+it('ledger content provider is explicit and may be disabled with null', () => {
+  expectTypeOf<ToolLedgerPorts<string>['content']>().toEqualTypeOf<Pick<
+    ToolContentReader<string>,
+    'read'
+  > | null>()
 })

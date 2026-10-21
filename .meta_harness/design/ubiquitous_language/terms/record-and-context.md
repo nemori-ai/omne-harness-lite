@@ -100,8 +100,8 @@
   [§5.11 外面进来的事，怎么到 agent 眼前](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 25）
 - **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
 - **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
-  （**它只往后追加一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**——摘要是内容，
-  名单它自己带着；**前面的消息一个字没改，标注也一位没翻**），
+  （**它只往后追加一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**，摘要是内容，
+  覆盖范围和保留名单它自己带着；**前面的消息一个字没改，标注也一位没翻**），
   [结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)也不是
   （**原始结果从来没进过日志**），agent 取回全文是**往后追加两条**
 - **注意 ②**：**它归[会话](agent-runtime-loop.md#ul-session--会话--session)，不归[运行](agent-runtime-loop.md#ul-run--运行--run)**
@@ -424,8 +424,8 @@
   **没长完的工具调用两边都不给**——**留在[会话日志](#ul-session-log--会话日志--session-log)里备查**
 - **注意 ③**：**它是[压缩](#ul-context-compaction--上下文压缩--context-compaction)能成立的前提**——
   **压缩要先知道哪些块是给谁的，才谈得上压谁、留谁**。
-  **但压缩不翻这一位**：它另带一份[名单](#ul-compaction-record--压缩记录--compaction-record)，
-  两样合起来才算得出此刻哪些块还模型可读
+  **但压缩不翻这一位**：它另带一份[保留名单](#ul-retained-set--保留名单--retained-set)，
+  块标注和最近一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)合起来才算得出此刻模型看到什么
 
 ### UL-incremental-arrival · 增量到达 · Incremental Arrival
 
@@ -673,61 +673,95 @@
 > 它**在三个联合目标之间取平衡**：**保前缀 · 保信息 · 降长度**——
 > **三者两两相冲，押住任意两个，第三个必然吃亏**，所以**不存在「最优的压缩」**。
 >
-> **它能做的只有两件事，不能做的有三件事：**
->
-> | | |
-> |---|---|
-> | **能** | 对一段历史**生成一段摘要** · **点名一批[内容块](#ul-content-block--内容块--content-block)，从此不再模型可读**。**两件事交出来的是同一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**——摘要是它的内容，名单它自己带着 |
-> | **不能** | **从持久化的记录中擦除一条消息**（无论是否还模型可读）· **压上一次模型请求之后新来的消息** · **点名那些悬着的东西的占位** |
+> **一次压缩做三件事，交出同一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)：**
+> 定下一段[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)，
+> 为这段范围**生成一段摘要**，并从范围里点名一份[保留名单](#ul-retained-set--保留名单--retained-set)。
+> **它不能做三件事**：从持久化的记录中擦除一条消息；把上一次模型请求之后新来的消息放进覆盖范围而不保留；把悬着的东西的占位摘要掉。
 >
 > **EN**: Shrinking the conversation block of the model-facing context. It **balances
-> three joint goals — preserving the prefix, preserving information, reducing length —
-> which conflict pairwise**: hold any two and the third suffers, so **there is no
-> optimal compaction**. It **may** summarise a stretch of history and **name a set of
-> content blocks that the model will no longer see** — both delivered as **one and the
-> same compaction record**. It **may not** erase any message from the durable record,
-> compact anything that arrived after the last model request, or name the placeholders
-> of things still outstanding.
+> three joint goals: preserving the prefix, preserving information, and reducing length.
+> They conflict pairwise**. Hold any two and the third suffers, so **there is no optimal
+> compaction**. One compaction fixes a compacted range, summarises that range, and names a
+> retained set inside it. All three travel in **one compaction record**. It **may not**
+> erase any message from the durable record. It may not cover a message that arrived after
+> the last model request without retaining it. It may not summarise away the placeholder
+> of anything still outstanding.
 
 - **形态**：过程
-- **出处**：[PF-010 §5.6](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标) ·
-  [§5.7](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#57-压缩能做的只有两件事) ·
-  [§5.8](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#58-压缩不能做的有三件事)（rev 8）
+- **出处**：[PF-010 §5.6](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标)（rev 8） ·
+  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 3）
 - **⚠️ 注意 ①**：**它不回头去翻[块上那一位](#ul-block-annotation--块标注--block-annotation)。**
-  那一位由产生这个块的人在落盘那一刻写下，**之后不再变**；
-  **压缩写的是另一样东西——一份跟着摘要走的名单**。
-  两者合起来才算得出「此刻哪些块还模型可读」：**那一位标着给模型读，
-  且没有任何排在它前面的压缩记录点过它的名**
+  那一位由产生这个块的人在落盘那一刻写下，**之后不再变**。
+  压缩之后模型看到什么，由块标注和最近一条压缩记录共同算出，见[压缩记录](#ul-compaction-record--压缩记录--compaction-record)
 - **注意 ②**：**「不给模型看」不等于「可以删」。**
-  被点名之后，**它对模型不存在了，但它对人、对排查、对回溯一直都在**——
+  被摘要的消息对模型只剩摘要，**但它对人、对排查、对回溯一直都在**。
   **[会话日志 append only](#ul-session-log--会话日志--session-log) 这条，压缩不是例外**
-- **注意 ③**：**模型还没看过的东西不能先替它压掉**——这划的是**输入区间的上界**，
-  上界是「**上一次模型请求**」，**不是「现在」**。
+- **注意 ③**：**模型还没看过的东西不能先替它压掉。**上界是「**上一次模型请求**」，**不是「现在」**。
+  这类消息要么进保留名单，要么留在覆盖范围之后。
   **下界不是死的**：已有的摘要可以被再次收走
-- **注意 ④**：**悬着的东西的占位不许被点名**——没答完的卡片、转后台还没回来的执行，
-  **占位一旦对模型不可见，agent 就不知道自己还有东西在外面跑**
+- **注意 ④**：**悬着的东西的占位不许被摘要**。没答完的卡片、转后台还没回来的执行，
+  它们的占位要么进保留名单，要么留在覆盖范围之后。**占位一旦对模型不可见，agent 就不知道自己还有东西在外面跑**
 - **注意 ⑤**：**取哪个平衡是策略，不是产品设计的事**
 
 ### UL-compaction-record · 压缩记录 · Compaction Record
 
-> **中**：压缩留下的那条消息（类型名 `CompactionMessage`）：**前面那一大段，概括起来是这样。**
-> **摘要是它的内容，「从我之后这些块不再模型可读」那份名单是它自己带着的**——
-> 两样一条消息，**追加进日志，前面一个字不动**。
-> **有它时，[给模型看的上下文](#ul-model-facing-context--给模型看的上下文--model-facing-context)的组装边界由它来定。**
+> **中**：压缩留下的那条消息（类型名 `CompactionMessage`）：**前面那一段，概括起来是这样。**
+> 它的块是摘要，另带[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)和[保留名单](#ul-retained-set--保留名单--retained-set)。
+> 它**追加进日志，前面一个字不动**。
+> 有它时，[给模型看的上下文](#ul-model-facing-context--给模型看的上下文--model-facing-context)的会话那一块依次是：
+> 保留名单里的消息（按原顺序）、这条压缩记录、排在覆盖范围之后的全部模型可读消息。
 >
 > **EN**: The message compaction leaves behind (type name `CompactionMessage`): *this is
-> what that stretch amounts to*. **The summary is its content; the list of blocks the
-> model may no longer see travels with it** — one message carrying both, **appended to
-> the log, changing nothing before it**. **When present, it determines the boundary of the
-> model-facing assembly.**
+> what that stretch amounts to*. Its blocks are the summary. It also carries a compacted
+> range and a retained set, and it is **appended to the log, changing nothing before it**.
+> When present, the conversation block of the model-facing context is the retained messages
+> in original order, then this record, then every model-readable message after the
+> compacted range.
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
-- **出处**：[PF-009 §4 CompactionMessage](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#compactionmessage)（rev 9）·
-  [PF-010 §6.4](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#64-有压缩记录时边界由压缩记录定)（rev 8）
-- **⚠️ 注意**：**边界不是一条截断线。**压缩标的是**块**，而**块可以散布**——
-  所以「这次取哪一段」的答案**本来就不是一个起点**，而是
-  **「哪些块还模型可读」**，**它们可能落在最后一条摘要之前**。
-  见 [PF-010 §5.9](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#59-块级标记解释了组装边界为什么不是一条线)
+- **出处**：[PF-009 §4 CompactionMessage](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#compactionmessage)（rev 9） ·
+  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 3）
+- **⚠️ 注意**：**边界不是一条截断线。**覆盖范围之前仍要原样给模型看的消息，靠保留名单留下，
+  所以模型看到的旧消息可能落在压缩记录之前。保留名单以**消息**为单位，在压缩时固定，之后不变
+- **弃用**：~~「排除名单」~~（现在用[保留名单](#ul-retained-set--保留名单--retained-set)表达同一次压缩的结果）
+
+### UL-compacted-range · 压缩覆盖范围 · Compacted Range
+
+> **中**：一条压缩记录摘要的那段历史：从会话日志起点开始、在压缩点之前某条条目结束的一个连续区间，用起止两条[记录条目](#ul-record-entry--记录条目--record-entry)的引用表示。
+> 范围终点可以早于压缩点前一条，范围之后、压缩点之前的消息照常给模型。
+> 范围内没有进保留名单的模型可读消息，之后只以摘要出现。上一条压缩记录和它的保留项落在新范围内。
+>
+> **EN**: The stretch of history one compaction record summarises: a contiguous interval
+> that starts at the beginning of the session log and ends at some entry before the
+> compaction point, given by references to its first and last record entries. The range may
+> end earlier than the entry just before the compaction point. Messages after the range and
+> before the compaction point still reach the model. Model-readable messages in the range that are not
+> retained appear afterwards only through the summary. An earlier compaction record and its
+> retained messages fall inside the new range.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 3）
+- **别混**：与 Request Context 覆盖证据里的 `coverage` 不是一回事。`coverage` 记一次组装读了哪些输入，覆盖范围记一次压缩摘要了哪段历史
+
+### UL-retained-set · 保留名单 · Retained Set
+
+> **中**：一条压缩记录在自己的覆盖范围内点名、仍原样交给模型的消息引用，按原日志顺序排列，在压缩时固定。
+> 名单只能引用范围内模型可读的消息，不能引用标注或控制条目。工具调用和它的结果都在范围内时，一起在名单里或一起不在；结果在范围之后时，调用一侧必须在名单里。
+>
+> **EN**: The message references a compaction record names inside its compacted range, which
+> the model still receives verbatim. They keep original log order and are fixed at
+> compaction time. The set may reference only model-readable messages inside the range, never
+> annotations or control entries. When a tool call and its result are both inside the range,
+> they are either both in the set or both out. When the result lies after the range, the call
+> must be in the set.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 3）
+- **别混**：与[块标注](#ul-block-annotation--块标注--block-annotation)的「给模型看吗」不是一回事。块标注在块落盘时写下，之后不变；保留名单是压缩记录的属性，不改任何块的标注
+- **注意**：未结工作的消息（上一次模型请求之后新来的输入、悬着的东西的占位）是名单的下界：它们在覆盖范围内时必须进名单
+- **弃用**：~~「排除名单」~~
 
 
 ### UL-business-calendar · 业务日历 · Business Calendar

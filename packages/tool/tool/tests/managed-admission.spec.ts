@@ -48,11 +48,9 @@ function rejected(outcome: ToolInvokeOutcome) {
 }
 
 function readmit(assembly: Harness, call: string, operation: string) {
-  const binding = assembly.source.bindings().find(bound => bound.call === callId(call))
-  if (binding === undefined) throw new Error(`${call} was never bound by the entry`)
-  return assembly.ledger.admissions.admit(
-    admission(call, operation, { ...binding.request, invocation: binding.invocation }),
-  )
+  const fixed = assembly.internalBindings[Number(call.replace('call-', '')) - 1]
+  if (fixed === undefined) throw new Error(`${call} was never bound by the entry`)
+  return assembly.ledger.admissions.admit(admission(call, operation, fixed))
 }
 
 describe('10 boundary and qualification', () => {
@@ -109,11 +107,11 @@ describe('10 boundary and qualification', () => {
   it('10 boundary: a port that throws is unavailable with a diagnostic that carries no secret text', async () => {
     const secret = 'connect ECONNREFUSED postgres://user:pass@host'
     const guarded = harness({ accessThrows: secret })
-    const denied = rejected(await guarded.invoke(dummyRequest())).failure
+    const denied = rejected(await guarded.admitInternal(dummyRequest())).failure
     expect(denied).toMatchObject({ kind: 'unavailable', dependency: 'access-guard' })
     expect(JSON.stringify(denied)).not.toContain('pass')
     const unverified = harness({ sourceThrows: secret })
-    const untrusted = rejected(await unverified.invoke(dummyRequest())).failure
+    const untrusted = rejected(await unverified.admitInternal(dummyRequest())).failure
     expect(untrusted).toEqual({
       kind: 'unavailable',
       dependency: 'source-guard',
@@ -139,7 +137,7 @@ describe('10 boundary and qualification', () => {
 
   it('10 boundary: a principal of another tenant is denied by every operation and learns nothing', async () => {
     const assembly = harness()
-    accepted(await assembly.invoke(dummyRequest()))
+    accepted(await assembly.admitInternal(dummyRequest()))
     const reference = assembly.referenceOf('call-1')
     const theirs = { principal: principalB, tenant: tenantA }
     const probes = {
@@ -188,8 +186,8 @@ describe('10 boundary and qualification', () => {
     ).toEqual({
       failure: { kind: 'denied', action: 'lookup' },
     })
-    assembly.identities.planInvocation('call-1', 'op-1')
-    accepted(await assembly.invoke(dummyRequest(), principalB, tenantB))
+
+    accepted(await assembly.admitInternal(dummyRequest(), principalB, tenantB))
     const ownReference = assembly.referenceOf('call-1')
     expect(
       await assembly.runtime.queries.lookup({
@@ -236,7 +234,7 @@ describe('10 boundary and qualification', () => {
     ).toEqual({ failure: { kind: 'denied', action: 'admit' } })
     expect(forged.store.commits).toBe(0)
     const blind = harness({ accessUnavailable: 'directory down' })
-    expect(await blind.invoke(dummyRequest())).toEqual({
+    expect(await blind.admitInternal(dummyRequest())).toEqual({
       kind: 'rejected',
       failure: { kind: 'unavailable', dependency: 'access-guard', diagnostic: 'directory down' },
     })
@@ -253,7 +251,7 @@ describe('10 boundary and qualification', () => {
       ])
     const invoke = (grants: ReadonlyMap<string, ScopeGrant>) => {
       const guarded = harness({ grants })
-      return guarded.invoke(request()).then(answer => ({
+      return guarded.admitInternal(request()).then(answer => ({
         answer,
         commits: guarded.store.commits,
       }))
@@ -276,7 +274,7 @@ describe('10 boundary and qualification', () => {
 
   it('10 boundary: a scope whose owner has no declared verifier is denied like a missing grant', async () => {
     const none = harness({ grantOwners: [] })
-    expect(await none.invoke(request())).toEqual({
+    expect(await none.admitInternal(request())).toEqual({
       kind: 'rejected',
       failure: { kind: 'denied', action: 'admit' },
     })
@@ -284,17 +282,17 @@ describe('10 boundary and qualification', () => {
     // Another owner is not covered by the declared one.
     const other = request({ scope: { ...request().scope, owner: 'undeclared-owner' } })
     const declared = harness()
-    expect(await declared.invoke(other)).toEqual({
+    expect(await declared.admitInternal(other)).toEqual({
       kind: 'rejected',
       failure: { kind: 'denied', action: 'admit' },
     })
     expect(declared.store.commits).toBe(0)
-    accepted(await declared.invoke(request()))
+    accepted(await declared.admitInternal(request()))
   })
 
   it('10 boundary: a grant source that cannot be read is unavailable and admits nothing', async () => {
     const unread = harness({ grantUnavailable: 'grant registry down' })
-    expect(await unread.invoke(request())).toEqual({
+    expect(await unread.admitInternal(request())).toEqual({
       kind: 'rejected',
       failure: {
         kind: 'unavailable',
@@ -304,7 +302,7 @@ describe('10 boundary and qualification', () => {
     })
     const secret = 'connect ECONNREFUSED postgres://user:pass@host'
     const thrown = harness({ grantThrows: secret })
-    expect(await thrown.invoke(request())).toEqual({
+    expect(await thrown.admitInternal(request())).toEqual({
       kind: 'rejected',
       failure: {
         kind: 'unavailable',
@@ -317,8 +315,8 @@ describe('10 boundary and qualification', () => {
 
   it('10 boundary: the same scope owner and key in two tenants never share a queue', async () => {
     const assembly = harness()
-    accepted(await assembly.invoke(request()))
-    accepted(await assembly.invoke(request(), principalB, tenantB))
+    accepted(await assembly.admitInternal(request()))
+    accepted(await assembly.admitInternal(request(), principalB, tenantB))
     const ordinals = async (within: typeof tenantA) => {
       const read = await assembly.store.read({ kind: 'queue', tenant: within, key: queueKey() })
       if (read.kind !== 'complete') throw new Error('the queue domain is unreadable')
@@ -333,7 +331,7 @@ describe('10 boundary and qualification', () => {
 
   it('10 boundary: an admission needs only the admit permission, not the query permission', async () => {
     const assembly = harness({ deniedActions: ['query-operation'] })
-    accepted(await assembly.invoke(dummyRequest()))
+    accepted(await assembly.admitInternal(dummyRequest()))
     const recalled = ok(await readmit(assembly, 'call-1', 'op-1'))
     expect(recalled.recovered).toBe(true)
     expect(
@@ -348,8 +346,7 @@ describe('10 boundary and qualification', () => {
   it('10 boundary: two tenants with the same call identity get different evidence of every kind', async () => {
     const assembly = harness()
     const evidenceOf = async (principal: Principal, within: typeof tenantA) => {
-      assembly.identities.planInvocation('call-1', 'op-1')
-      const admitted = accepted(await assembly.invoke(dummyRequest(), principal, within))
+      const admitted = accepted(await assembly.admitInternal(dummyRequest(), principal, within))
       const access = { principal, tenant: within, reference: admitted.reference }
       const page = ok(
         await assembly.runtime.queries.readResult({
@@ -649,7 +646,7 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: a fence does not make the holder of the current state stale', async () => {
     const assembly = harness()
     const { ledger, runtime } = assembly
-    const first = accepted(await assembly.invoke(dummyRequest()))
+    const first = accepted(await assembly.admitInternal(dummyRequest()))
     const reference = assembly.referenceOf('call-1')
     // A negative lookup fences the domain; the state and its revision stay as they were.
     expect(
@@ -741,7 +738,7 @@ describe('11 operation idempotency (P01)', () => {
 
   it('11 idempotency: a read failure of the store is unavailable, never a missing call', async () => {
     const assembly = harness()
-    accepted(await assembly.invoke(dummyRequest()))
+    accepted(await assembly.admitInternal(dummyRequest()))
     assembly.store.injectRead('unavailable')
     expect(
       await assembly.runtime.queries.lookup({
@@ -761,7 +758,7 @@ describe('12 logical terminals (P02)', () => {
     const body = dummyRequest({
       arguments: { original: '{"path":', effective: 'not json at all', complete: false },
     })
-    const admitted = accepted(await assembly.invoke(body))
+    const admitted = accepted(await assembly.admitInternal(body))
     const state = judged(admitted.state)
     expect(settledTerminal(state)).toEqual({
       kind: 'unavailable',
@@ -782,7 +779,7 @@ describe('12 logical terminals (P02)', () => {
 
   it('12 logical terminal: one commit holds the call, the operation, the result, the account and the deliver task', async () => {
     const assembly = harness()
-    accepted(await assembly.invoke(dummyRequest()))
+    accepted(await assembly.admitInternal(dummyRequest()))
     expect(assembly.store.commits).toBe(1)
     const read = await assembly.store.read({
       kind: 'call',
@@ -817,7 +814,7 @@ describe('12 logical terminals (P02)', () => {
     const body = request({
       arguments: { original: '{"path":"a","path":"b"}', effective: '{"path":"b"}', complete: true },
     })
-    const admitted = accepted(await assembly.invoke(body))
+    const admitted = accepted(await assembly.admitInternal(body))
     const state = judged(admitted.state)
     expect(settledTerminal(state)).toEqual({
       kind: 'failed',
@@ -833,7 +830,7 @@ describe('12 logical terminals (P02)', () => {
     const body = request({
       arguments: { original: '{"path":"a"}', effective: '{"path":"a', complete: true },
     })
-    const admitted = accepted(await assembly.invoke(body))
+    const admitted = accepted(await assembly.admitInternal(body))
     expect(settledTerminal(admitted.state)).toEqual({
       kind: 'failed',
       cause: 'arguments',
@@ -844,7 +841,7 @@ describe('12 logical terminals (P02)', () => {
   it('12 logical terminal: incomplete arguments are not parsed and not admitted', async () => {
     const assembly = harness()
     const body = request({ arguments: { original: '{', effective: '{', complete: false } })
-    expect(await assembly.invoke(body)).toEqual({
+    expect(await assembly.admitInternal(body)).toEqual({
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'request.arguments.complete', reason: 'incomplete' },
     })
@@ -853,7 +850,7 @@ describe('12 logical terminals (P02)', () => {
 
   it('12 logical terminal: a well-formed call to an available tool is accepted with its queue task, and nothing runs at admit', async () => {
     const assembly = harness()
-    const admitted = accepted(await assembly.invoke(request()))
+    const admitted = accepted(await assembly.admitInternal(request()))
     expect(judged(admitted.state)).toMatchObject({
       phase: 'accepted',
       relation: 'foreground',
@@ -922,15 +919,15 @@ describe('13 invocation permission', () => {
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'request.mode', reason: 'background-not-allowed' },
     }
-    expect(await assembly.invoke(request({ mode: 'background' }))).toEqual(refused)
+    expect(await assembly.admitInternal(request({ mode: 'background' }))).toEqual(refused)
     // A dummy and an argument failure would settle without running; the request is still one
     // that the definition does not permit, so it gets the same refusal and nothing is admitted.
-    expect(await assembly.invoke(dummyRequest({ mode: 'background' }))).toEqual(refused)
+    expect(await assembly.admitInternal(dummyRequest({ mode: 'background' }))).toEqual(refused)
     const broken = request({
       mode: 'background',
       arguments: { original: '{', effective: '{', complete: true },
     })
-    expect(await assembly.invoke(broken)).toEqual(refused)
+    expect(await assembly.admitInternal(broken)).toEqual(refused)
     expect(assembly.store.commits).toBe(0)
   })
 
@@ -941,7 +938,7 @@ describe('13 invocation permission', () => {
       mode: 'background',
       availability: { kind: 'available', definition, executor: { ...definition.adoption } },
     })
-    const admitted = accepted(await assembly.invoke(launched))
+    const admitted = accepted(await assembly.admitInternal(launched))
     expect(judged(admitted.state)).toMatchObject({
       relation: 'background',
       foreground: { kind: 'background', call: 'call-1', source: { kind: 'launched' } },
@@ -1086,7 +1083,7 @@ describe('14 exclusion fence (P01)', () => {
     expect(await recordsOf(store)).toEqual([
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
     ])
-    const admitted = accepted(await assembly.invoke(dummyRequest()))
+    const admitted = accepted(await assembly.admitInternal(dummyRequest()))
     expect((await recordsOf(store)).map(record => record.kind).sort()).toEqual([
       'account',
       'call',

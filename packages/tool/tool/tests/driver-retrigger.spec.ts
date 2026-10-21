@@ -223,7 +223,9 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
     second.host.scheduled.splice(0)
     expect(
       ok(
-        await second.ledger.admissions.admit(admission('c1', 'op-c1', fixedOf(first.source, 'c1'))),
+        await second.ledger.admissions.admit(
+          admission('c1', 'op-c1', fixedOf(first.internalRequests, 'c1')),
+        ),
       ).recovered,
     ).toBe(true)
     await second.host.schedule(wake('c1'))

@@ -1,3 +1,7 @@
+import {
+  createMemoryToolEnvironment,
+  createMemoryToolOutputCustody,
+} from '@omne-harness/tool-contract/testing'
 // Builders and controllable ports for the managed-runtime tests. Each builder returns a fresh
 // value, so a test can change one field and keep the rest legal. Every port the logical-result
 // path must not touch is a throwing stub that counts its calls.
@@ -53,6 +57,7 @@ import {
   type ToolLedger,
   type ToolLedgerAction,
   type ToolLedgerGuards,
+  type ToolInvokeAuthority,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -294,10 +299,38 @@ function qualify(
     return { kind: 'unavailable', diagnostic: options.accessUnavailable }
   if (options.minted !== undefined && !options.minted.has(input.tenant))
     return { kind: 'denied', reason: 'not-a-minted-tenant' }
-  if (options.deniedActions?.includes(input.action) === true)
+  const baseActions: readonly ToolLedgerAction[] =
+    input.action === 'read-raw-content' ? ['read-content', 'read-raw'] : [input.action]
+  if (baseActions.some(action => options.deniedActions?.includes(action) === true))
     return { kind: 'denied', reason: 'action-not-granted' }
   const member = input.principal.tenants.includes(tenantKeyOf(input.tenant))
   return member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' }
+}
+
+/** Test credentials contain mutable tenant membership data and a stable subject string. */
+export function snapshotTestPrincipal(principal: Principal): Principal {
+  return { subject: principal.subject, tenants: [...principal.tenants] }
+}
+
+/** Explicit test authority: only the two minted tenants and the declared consumer owner. */
+export function invokeAuthority(options: GuardOptions = {}): ToolInvokeAuthority<Principal> {
+  return {
+    qualify: async input => {
+      if (input.tenant !== tenantA && input.tenant !== tenantB)
+        return { kind: 'denied', reason: 'not-minted' }
+      if (
+        input.consumer.owner !== 'consumer' ||
+        input.consumer.work !== 'work-1' ||
+        input.consumer.purpose !== 'tool-result'
+      )
+        return { kind: 'denied', reason: 'consumer-not-owned' }
+      return qualify(options, { ...input, call: callId('qualification-only'), action: 'admit' })
+    },
+    samePrincipal: async ({ current, original }) =>
+      current.subject === original.subject
+        ? { kind: 'allowed' }
+        : { kind: 'denied', reason: 'different-subject' },
+  }
 }
 
 function grantVerdict(
@@ -318,6 +351,10 @@ function grantVerdict(
 
 export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, Block> {
   return {
+    factAcknowledgements: {
+      verify: () =>
+        Promise.resolve({ kind: 'unavailable', diagnostic: 'no fact source in this fixture' }),
+    },
     access: {
       qualify: input => new Promise(resolve => resolve(qualify(options, input))),
     },
@@ -408,6 +445,8 @@ export type TestHost = ToolInstanceHost<Principal> &
   Readonly<{
     driver(): ToolDriver<Principal>
     readonly scheduled: Readonly<{ tenant: typeof tenantA; call: ToolCallId }>[]
+    readonly scheduleAttempts: readonly ToolCallId[]
+    readonly dispatches: readonly ToolCallId[]
     instanceOf(call: ToolCallId, within?: typeof tenantA): Promise<ToolInstanceId>
     runCall(call: ToolCallId, principal?: Principal, within?: typeof tenantA): Promise<void>
     runScheduled(): Promise<number>
@@ -416,6 +455,8 @@ export type TestHost = ToolInstanceHost<Principal> &
 export function testHost(spies: Spies, identities: ToolInstanceIdentities): TestHost {
   let installed: ToolDriver<Principal> | null = null
   const scheduled: { tenant: typeof tenantA; call: ToolCallId }[] = []
+  const scheduleAttempts: ToolCallId[] = []
+  const dispatches: ToolCallId[] = []
   const slots = new Map<string, ToolInstanceId>()
   const driver = (): ToolDriver<Principal> => {
     if (installed === null) throw new Error('no driver was installed')
@@ -441,13 +482,23 @@ export function testHost(spies: Spies, identities: ToolInstanceIdentities): Test
       return { release: () => Promise.resolve() }
     },
     schedule: input => {
-      scheduled.push({ tenant: input.tenant as typeof tenantA, call: input.call })
+      scheduleAttempts.push(input.call)
+      if (
+        !scheduled.some(
+          next =>
+            tenantKeyOf(next.tenant) === tenantKeyOf(input.tenant) && next.call === input.call,
+        )
+      )
+        scheduled.push({ tenant: input.tenant as typeof tenantA, call: input.call })
       return Promise.resolve(succeed({ queued: true } as const))
     },
     driver,
     scheduled,
+    scheduleAttempts,
+    dispatches,
     instanceOf,
     runCall: async (call, principal = principalA, within = tenantA) => {
+      dispatches.push(call)
       await driver().run({
         principal,
         tenant: within,
@@ -459,6 +510,7 @@ export function testHost(spies: Spies, identities: ToolInstanceIdentities): Test
     runScheduled: async () => {
       let runs = 0
       for (let next = scheduled.shift(); next !== undefined; next = scheduled.shift()) {
+        dispatches.push(next.call)
         const principal = next.tenant === tenantB ? principalB : principalA
         await driver().run({
           ...next,
@@ -481,8 +533,9 @@ export type Harness = Readonly<{
   spies: Spies
   host: TestHost
   source: TestInvocationSource<Principal>
+  internalBindings: FixedToolRequest[]
   identities: TestToolIdentities
-  invoke(
+  admitInternal(
     body: ToolInvokeRequest,
     principal?: Principal,
     within?: typeof tenantA,
@@ -502,30 +555,40 @@ export function harness(options: HarnessOptions = {}): Harness {
     'waitUntil',
   ])
   const config = configurationOf(options)
-  const source = createTestInvocationSource<Principal>(
-    options.sourceThrows === undefined ? {} : { throws: options.sourceThrows },
-  )
+  const source = createTestInvocationSource<Principal>({
+    authority: invokeAuthority(options),
+    snapshotPrincipal: snapshotTestPrincipal,
+    ...(options.sourceThrows === undefined ? {} : { throws: options.sourceThrows }),
+  })
   const identities = createTestToolIdentities()
-  const ledger = createToolLedger(store, guards(options), clock, config)
+  const custody = stub<ToolDependencies<Principal, Block, null>['custody']>(spies, 'custody', [
+    'preserve',
+    'inspect',
+    'retainResult',
+  ])
+  const environments = stub<ToolDependencies<Principal, Block, null>['environments']>(
+    spies,
+    'environments',
+    ['prepare', 'inspectPreparation', 'release', 'inspectRelease'],
+  )
+  const settlement = { custody, releaseInspection: environments, content: null }
+  const ledger = createToolLedger(store, guards(options), clock, config, settlement)
   const publicLedger = createToolLedger(
     store,
     { ...guards(options), sources: source.guard },
     clock,
     config,
+    settlement,
   )
   const host = testHost(spies, identities.instanceIdentities)
   const dependencies: ToolDependencies<Principal, Block, null> = {
     commands: publicLedger.commands,
     admissions: publicLedger.admissions,
     queues: publicLedger.queues,
+    facts: publicLedger.facts,
     reads: publicLedger.reads,
     bindings: stub(spies, 'bindings', ['inspect', 'resolve', 'recover']),
-    environments: stub(spies, 'environments', [
-      'prepare',
-      'inspectPreparation',
-      'release',
-      'inspectRelease',
-    ]),
+    environments,
     decisions: stub(spies, 'decisions', [
       'inspectOperation',
       'ensure',
@@ -545,22 +608,50 @@ export function harness(options: HarnessOptions = {}): Harness {
       'invalidate',
       'resolve',
     ]),
-    custody: stub(spies, 'custody', ['preserve', 'inspect', 'retainResult']),
+    custody,
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
     children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
-    invocationIdentities: identities.invocationIdentities,
     operationIdentities: identities.operationIdentities,
     sourceIssuer: source.issuer,
   }
   const provider = createToolRuntime(dependencies, config)
   const invoked = new Map<string, ToolInvocationRef>()
-  const invoke: Harness['invoke'] = async (body, principal = principalA, within = tenantA) => {
-    const outcome = await provider.runtime.invoke({ principal, tenant: within, request: body })
-    if (outcome.kind !== 'rejected') {
-      const parts = readToolInvocationRef(outcome.reference)
-      invoked.set(parts.call, outcome.reference)
+  // Trusted internal admission fixture for the ledger-specific suites. This does not exercise
+  // the public source association protocol. Each tenant has independent named test identities.
+  const counters = new Map<string, number>()
+  const internalBindings: FixedToolRequest[] = []
+  const admitInternal: Harness['admitInternal'] = async (
+    body,
+    principal = principalA,
+    within = tenantA,
+  ) => {
+    const key = tenantKeyOf(within)
+    const ordinal = (counters.get(key) ?? 0) + 1
+    counters.set(key, ordinal)
+    const call = callId(`call-${ordinal}`)
+    const operation = operationId(`op-${ordinal}`)
+    const fixed = fixedRequestForNamedSourceGuard(body)
+    internalBindings.push(fixed)
+    const admitted = await ledger.admissions.admit({
+      principal,
+      tenant: within,
+      call,
+      operation,
+      request: fixed,
+    })
+    const reference = referenceFor(call, operation, within)
+    invoked.set(call, reference)
+    if ('failure' in admitted)
+      return admitted.failure.kind === 'commit-unknown'
+        ? { kind: 'commit-unknown', reference }
+        : { kind: 'rejected', failure: admitted.failure }
+    if (admitted.ok.state.phase === 'accepted') await host.schedule({ tenant: within, call })
+    return {
+      kind: 'accepted',
+      reference,
+      state: admitted.ok.state,
+      recovered: admitted.ok.recovered,
     }
-    return outcome
   }
   const referenceOf = (call: string): ToolInvocationRef => {
     const reference = invoked.get(call)
@@ -576,7 +667,8 @@ export function harness(options: HarnessOptions = {}): Harness {
     host,
     source,
     identities,
-    invoke,
+    admitInternal,
+    internalBindings,
     referenceOf,
     operationRefOf: (call, operation) => {
       const encoded = encodeToolOperationRef({
@@ -598,7 +690,13 @@ export function ledgerOver(
 ): ToolLedger<Principal, Block> {
   const spies: Spies = { calls: new Map() }
   const clock = stub<ToolDependencies<Principal, Block, null>['clock']>(spies, 'clock', ['now'])
-  return createToolLedger(store, guards(options), clock, configurationOf(options))
+  return createToolLedger(
+    store,
+    guards(options),
+    clock,
+    configurationOf(options),
+    testSettlementPorts(),
+  )
 }
 
 /** Every state the runtime answers must pass the contract's closed judgment. */
@@ -635,10 +733,13 @@ export function admission(
   }
 }
 
-export function fixedOf(source: TestInvocationSource<Principal>, call: string): FixedToolRequest {
-  const binding = source.bindings().find(bound => bound.call === callId(call))
-  if (binding === undefined) throw new Error(`${call} was never bound by the entry`)
-  return { ...binding.request, invocation: binding.invocation }
+export function fixedOf(
+  requests: ReadonlyMap<string, FixedToolRequest>,
+  call: string,
+): FixedToolRequest {
+  const request = requests.get(call)
+  if (request === undefined) throw new Error(`${call} was never admitted by the internal fixture`)
+  return request
 }
 
 export function referenceFor(
@@ -709,4 +810,12 @@ export function putsOperation(operation: string): (input: LedgerCommitInput<Bloc
 /** Whether a commit writes an exclusion record: the fence of a negative answer. */
 export function putsExclusion(input: LedgerCommitInput<Block>): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
+}
+
+export function testSettlementPorts() {
+  return {
+    content: null,
+    custody: createMemoryToolOutputCustody<Principal>(),
+    releaseInspection: createMemoryToolEnvironment<Principal>(),
+  }
 }

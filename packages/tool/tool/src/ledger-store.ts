@@ -8,7 +8,14 @@ import type {
   ReleasedDelivery,
   DurableEvidence,
   Effect,
+  RawOutput,
+  ReleaseRecord,
+  ReleaseProgress,
   FixedToolRequest,
+  FactReceipt,
+  FactProgress,
+  ProcessBlock,
+  ToolExecutionFact,
   PreparationRecord,
   ToolCallId,
   ToolCommands,
@@ -85,6 +92,10 @@ export type OperationReceipt =
     }>
   | Readonly<{ kind: 'reject-pending'; state: ToolState }>
   | Readonly<{ kind: 'record-start'; state: ToolState }>
+  | Readonly<{ kind: 'preserve-result'; state: ToolState }>
+  | Readonly<{ kind: 'plan-release'; release: ReleaseRecord }>
+  | Readonly<{ kind: 'record-release' | 'record-task'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'fact-acknowledgement'; progress: FactProgress }>
 
 export type OperationRecord = Readonly<{
   tenant: TenantId
@@ -93,6 +104,30 @@ export type OperationRecord = Readonly<{
   inputDigest: string
   revision: ToolRevision
   receipt: OperationReceipt
+}>
+
+export type CleanupDuty =
+  | Readonly<{ kind: 'planned'; operation: ToolOperationId }>
+  | Readonly<{
+      kind: 'awaiting-independent-custody'
+      preparation: ToolOperationId
+      diagnostic: string
+    }>
+
+export type ResultCustody =
+  | Readonly<{ kind: 'synthetic' }>
+  | Readonly<{
+      kind: 'execution'
+      final: DurableEvidence
+      raw: RawOutput
+      retainOperation: ToolOperationId
+      retained: DurableEvidence
+      cleanup: CleanupDuty
+    }>
+
+export type EnvironmentReleaseRecord = Readonly<{
+  release: ReleaseRecord
+  progress: ReleaseProgress
 }>
 
 /** One result version with its delivery relation. `settledBy` is the operation that made it. */
@@ -108,6 +143,7 @@ export type ResultRecord<B extends ContentBlock> = Readonly<{
   delivery: DeliveryState
   source: DurableEvidence
   settledBy: ToolOperationId
+  custody: ResultCustody
 }>
 
 export type AccountRecord = Readonly<{
@@ -118,6 +154,55 @@ export type AccountRecord = Readonly<{
   event: string
   value: CallAccount
 }>
+
+/** Original facts are immutable custody records, separate from their downstream tasks. */
+export type SavedFact<B extends ContentBlock> = Readonly<{
+  start: ToolStartRecord
+  source: DurableEvidence
+  event: string
+  fact: ToolExecutionFact<B>
+  evidence: DurableEvidence
+}>
+export type FactEventRecord<B extends ContentBlock> = SavedFact<B> &
+  Readonly<{
+    tenant: TenantId
+    call: ToolCallId
+    key: string
+  }>
+export type FactBatchRecord = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  source: DurableEvidence
+  batch: string
+  after: string | null
+  cursor: string
+  events: readonly string[]
+  receipt: FactReceipt
+  acknowledgement:
+    | Readonly<{ kind: 'pending' }>
+    | Readonly<{ kind: 'confirmed'; sourceReceipt: DurableEvidence }>
+}>
+export type FactStreamRecord = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  source: DurableEvidence
+  cursor: string
+}>
+export type ProcessRecord = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  block: ProcessBlock
+}>
+
+/** Canonical tuple identities never interpret separators inside provider text. */
+export function factKey(start: ToolStartRecord, owner: string, identity?: string): string {
+  return JSON.stringify(
+    identity === undefined ? [start.operation, owner] : [start.operation, owner, identity],
+  )
+}
 
 /**
  * The exclusion fence of one negative answer (P01). A reader that found no record of `operation`
@@ -156,8 +241,8 @@ export type ReleaseBasis =
   /** The start fence excluded the whole invocation: it never started and never will. */
   | Readonly<{ kind: 'pre-start-rejection'; exclusion: DurableEvidence }>
   /**
-   * The execution physically ended, or was proven excluded (execution-facts increment). Declared so that the
-   * release path has its one place for it; nothing in this increment builds it.
+   * The original saved final proves that the execution physically ended. The call domain also
+   * holds the confirmed result custody before this basis reaches the queue.
    */
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
 
@@ -177,7 +262,12 @@ export type LedgerRecord<B extends ContentBlock> =
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
   | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
   | Readonly<{ kind: 'account'; account: AccountRecord }>
+  | Readonly<{ kind: 'environment-release'; environmentRelease: EnvironmentReleaseRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
+  | Readonly<{ kind: 'fact-event'; fact: FactEventRecord<B> }>
+  | Readonly<{ kind: 'fact-batch'; batch: FactBatchRecord }>
+  | Readonly<{ kind: 'fact-stream'; stream: FactStreamRecord }>
+  | Readonly<{ kind: 'process'; process: ProcessRecord }>
   | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
   | Readonly<{ kind: 'queue-entry'; entry: QueueEntryRecord }>
   | Readonly<{ kind: 'queue-counter'; counter: QueueCounterRecord }>
@@ -194,10 +284,20 @@ export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): stri
       return `operation:${record.operation.operation}`
     case 'result':
       return `result:${record.result.result}`
+    case 'environment-release':
+      return `environment-release:${record.environmentRelease.release.preparation}`
     case 'account':
       return `account:${record.account.event}`
     case 'task':
       return taskKey(record.task)
+    case 'fact-event':
+      return `fact-event:${record.fact.key}`
+    case 'fact-batch':
+      return `fact-batch:${factKey(record.batch.start, record.batch.source.owner, record.batch.batch)}`
+    case 'fact-stream':
+      return `fact-stream:${factKey(record.stream.start, record.stream.source.owner)}`
+    case 'process':
+      return `process:${JSON.stringify([record.process.start.operation, record.process.block.index])}`
     case 'exclusion':
       return exclusionKey(record.exclusion.operation)
     case 'host':

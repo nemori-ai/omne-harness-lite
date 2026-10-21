@@ -72,7 +72,7 @@ async function survey<P, B extends ContentBlock>(
     const owned = await ops.read({ kind: 'call', tenant, call: peer.call })
     if ('failure' in owned) return owned
     if (owned.ok.call === null) continue
-    const basis = releaseBasisOf(owned.ok.call)
+    const basis = releaseBasisOf(owned.ok)
     if (basis !== null) releases.push({ call: peer.call, basis })
     if (owned.ok.tasks.some(task => task.kind === 'queue')) redrive.push(peer.call)
   }

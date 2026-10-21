@@ -25,7 +25,7 @@ const access = { principal: principalA, tenant: tenantA }
 describe('14 queries (P01)', () => {
   it('14 queries: lookup by the reference answers the authoritative state', async () => {
     const assembly = harness()
-    const admitted = await assembly.invoke(dummyRequest())
+    const admitted = await assembly.admitInternal(dummyRequest())
     if (admitted.kind !== 'accepted') throw new Error('not accepted')
     const found = ok(
       await assembly.runtime.queries.lookup({ ...access, reference: admitted.reference }),
@@ -48,7 +48,7 @@ describe('14 queries (P01)', () => {
 
   it('14 queries: another operation of the same call is not the admission', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     expect(
       await assembly.runtime.queries.lookup({
         ...access,
@@ -61,7 +61,7 @@ describe('14 queries (P01)', () => {
 
   it('14 queries: queryOperation answers the commit revision and a receipt that points at the operation', async () => {
     const assembly = harness()
-    const admitted = await assembly.invoke(dummyRequest())
+    const admitted = await assembly.admitInternal(dummyRequest())
     if (admitted.kind !== 'accepted') throw new Error('not accepted')
     const resolved = ok(
       await assembly.runtime.queries.queryOperation({
@@ -91,7 +91,7 @@ describe('14 queries (P01)', () => {
     // A durable store need not keep key order (a JSONB column sorts keys), so the digest of a
     // record read back must not depend on it.
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const operation = assembly.operationRefOf('call-1', 'op-1')
     const plain = ok(await assembly.runtime.queries.queryOperation({ ...access, operation }))
     const reordering: ToolLedgerStore<Block> = {
@@ -148,7 +148,7 @@ describe('15 result pages and the account (P08, P09)', () => {
   it('15 pages: readResult reads the full text of the logical result in whole-block pages', async () => {
     // Four blocks of 13 characters, under 100 bytes each as JSON; a page holds two of them.
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
-    const admitted = await assembly.invoke(dummyRequest())
+    const admitted = await assembly.admitInternal(dummyRequest())
     if (admitted.kind !== 'accepted' || admitted.state.phase !== 'settled')
       throw new Error('not settled')
     const pages = await allPages(assembly.runtime, admitted.state.result)
@@ -175,8 +175,8 @@ describe('15 result pages and the account (P08, P09)', () => {
 
   it('15 pages: a cursor of another result, a malformed cursor and an unknown version are refused', async () => {
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
-    await assembly.invoke(dummyRequest())
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const first = ok(
       await assembly.runtime.queries.readResult({
         principal: principalA,
@@ -227,7 +227,7 @@ describe('15 result pages and the account (P08, P09)', () => {
   it('15 pages: a cursor at or after the end of the result is past-the-end, never an empty page', async () => {
     // Four blocks; a cursor of this result at block 4 or later was never issued.
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const reference = referenceFor('call-1', 'op-1')
     const first = ok(
       await assembly.runtime.queries.readResult({
@@ -263,10 +263,10 @@ describe('15 result pages and the account (P08, P09)', () => {
 
   it('15 pages: a cursor of another tenant with the same call and version is another result', async () => {
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
-    assembly.identities.planInvocation('call-1', 'op-1')
-    await assembly.invoke(dummyRequest())
-    assembly.identities.planInvocation('call-1', 'op-1')
-    await assembly.invoke(dummyRequest(), principalB, tenantB)
+
+    await assembly.admitInternal(dummyRequest())
+
+    await assembly.admitInternal(dummyRequest(), principalB, tenantB)
     const mine = ok(
       await assembly.runtime.queries.readResult({
         principal: principalA,
@@ -295,7 +295,7 @@ describe('15 result pages and the account (P08, P09)', () => {
       attachments: [],
     }
     const assembly = harness({ results: { text: () => succeed(empty) } })
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const reference = referenceFor('call-1', 'op-1')
     const first = ok(
       await assembly.runtime.queries.readResult({
@@ -330,7 +330,7 @@ describe('15 result pages and the account (P08, P09)', () => {
 
   it('15 pages: a block larger than the page is a named refusal, never a cut block', async () => {
     const assembly = harness({ resultPageBytes: 16 })
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const refused = failure(
       await assembly.runtime.queries.readResult({
         principal: principalA,
@@ -348,7 +348,7 @@ describe('15 result pages and the account (P08, P09)', () => {
 
   it('15 account: the account of a dummy is the replacement processing only, without usage or cost', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     expect(
       await assembly.runtime.queries.account({
         principal: principalA,

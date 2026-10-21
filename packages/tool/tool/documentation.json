@@ -51,6 +51,14 @@
         {
           "id": "maintenance",
           "anchor": "maintenance"
+        },
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "ledger-store-conformance"
+        },
+        {
+          "id": "learning-example",
+          "anchor": "run-the-learning-example"
         }
       ]
     },
@@ -95,6 +103,14 @@
         {
           "id": "maintenance",
           "anchor": "维护"
+        },
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "记录仓一致性用例"
+        },
+        {
+          "id": "learning-example",
+          "anchor": "运行教学示例"
         }
       ]
     },
@@ -126,7 +142,24 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "settlement",
+          "anchor": "26-原结果收场与释放责任"
+        },
+        {
+          "id": "content-reads",
+          "anchor": "27-固定结果与内容读取"
+        },
+        {
+          "id": "tools-result-adapter",
+          "anchor": "28-tools-固定结果适配器"
+        },
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "18-非耐久记录仓testing"
+        }
+      ]
     },
     {
       "id": "docs-overview",
@@ -216,7 +249,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "reference-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "ledger-store-conformance-testing"
+        }
+      ]
     },
     {
       "id": "context",
@@ -291,7 +329,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "记录仓公共一致性用例"
+        }
+      ]
     },
     {
       "id": "tests-index",
@@ -381,7 +424,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "settlement-release",
+          "anchor": "原结果与队列释放模型"
+        }
+      ]
     },
     {
       "id": "verification-models-index",
@@ -471,7 +519,20 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "run",
+          "anchor": "prepare-and-run"
+        },
+        {
+          "id": "success",
+          "anchor": "follow-the-success-journey"
+        },
+        {
+          "id": "scope",
+          "anchor": "common-errors-and-limits"
+        }
+      ]
     },
     {
       "id": "examples-index",
