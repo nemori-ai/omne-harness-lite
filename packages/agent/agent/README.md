@@ -16,13 +16,13 @@ The tiers are defined in the [member documentation requirements](../../../docs/m
 | Pure contract functions implemented | None in this package. The contract functions are in `agent-contract` | None | None |
 | Independent execution implemented | None | None | None |
 | Runtime paths implemented | The creation checks of `createAgentRuntime`. A configuration item out of range or a malformed binding field returns `invalid`, and `field` gives the item path. A registration handle for another instance returns `denied`. An absent required dependency (10 of them) returns `unavailable`, and `diagnostic` names it. A `jointCommits` kind that the Journal does not declare returns `unsupported`. A failure builds no runtime and calls no dependency method. A success gives an idle provider. The access guard: each public operation of the four faces first checks the tenant of the Access. A missing tenant, or a tenant that legal-identity did not mint, is `invalid`. Another tenant is `denied`. None of them calls `access.check`. `observe` is the exception: the contract gives it no `invalid` end reason, so a missing or malformed tenant ends it with `denied` (see the 待拥有者 item below). Then the operation calls `access.check` once. It does not cache `allowed`, and `denied` or `unavailable` stops the operation. After `allowed`, `observe` shows the current state, then each new state, and ends with `closed` when the signal aborts. The operations other than `invoke` and `observe` return `unavailable` with the `diagnostic` "<operation> is not implemented until #502 stage N". This answer is temporary for the stage. It is not a contract result | Root entry | `tests/factory.spec.ts` checks each of the four creation failures and the idle success. `tests/provider-access.spec.ts` checks, for each public operation, the tenant check, the three results of `access.check` and the single call. `tests/assembly.spec.ts` builds an idle provider from the test assembly and checks that the creation calls no dependency. The checks listed below as not implemented have no test |
-| Normal Loop path (skeleton, #502 1.2) | `invoke` takes one input through the normal path without tools or extensions. It returns the handle when `open` accepts the execution. The Loop then runs to ended by itself. The same operation again gets the original handle, and a held slot gives `busy` (#502 1.3). An outcome off the normal path stops the run, and the stopped run holds the slot. See [Normal Loop path](#normal-loop-path) for the steps, the diagrams, the admission, the stops and the slot rules | Root entry | `tests/loop-transitions.spec.ts` checks each row of the transition table against the node table (C1). `tests/loop-evaluator.spec.ts` checks the decisions at E4 and I8, the encoder and `unsupported` off the normal path. It runs 500 seeded `LoopFacts`. For each, it checks that the same facts give the same `Next`, that the input does not change and that each step has a row (C1). `tests/loop-invoke.spec.ts` runs one input to ended against the scripted Model and the memory Journal (C2). It also checks the guarded event reads, a reply of several pages and the minted identities. `tests/loop-admission.spec.ts` checks the admission: the same operation again (C1), the lost receipt of `accept` (C2), `busy` and the R0 item. Each test name starts with its row of the node acceptance table. `tests/loop-slot.spec.ts` checks the slot release, `observe` and the projection to the registration handle. `tests/loop-port-failures.spec.ts` checks that a port failure at each node of the path stops the run with the Journal `position` at that node. Failure branches, waits and recovery have no test |
+| Normal Loop path and admission | `invoke` takes one input through the normal path without tools or extensions. It returns the handle when `open` accepts the execution. The Loop then runs to ended by itself. The same operation with the same input gets the original handle. A remembered operation with another input gets `conflict` while its execution holds the slot. A new operation meets `busy` when the slot is held. An outcome off the normal path stops the run, and the stopped run holds the slot. See [Normal Loop path](#normal-loop-path) for the steps, the diagrams, the admission, the stops and the slot rules | Root entry | `tests/loop-transitions.spec.ts` checks the normal path against the node table (C1). It also checks the temporary E1 `found-existing` row. `tests/loop-evaluator.spec.ts` checks the decisions at E4 and I8, the encoder and `unsupported` off the normal path. It runs 500 seeded `LoopFacts`. For each, it checks that the same facts give the same `Next`, that the input does not change and that each step has a row (C1). `tests/loop-invoke.spec.ts` runs one input to ended against the scripted Model and the memory Journal (C2). It also checks the guarded event reads, a reply of several pages and the minted identities. `tests/loop-admission.spec.ts` checks the admission: the same operation again (C1), the lost receipt of `accept` (C2), `busy` and the R0 item. Each test name starts with its row of the node acceptance table. `tests/loop-slot.spec.ts` checks the slot release, `observe` and the projection to the registration handle. `tests/loop-port-failures.spec.ts` checks that a port failure at each node of the path stops the run with the Journal `position` at that node. Failure branches, waits and recovery have no test |
 | Test assembly (`./testing`) | `createMemoryAgentJournal`: a single-process, non-durable `AgentJournal`. It implements all 18 members by facts 1 to 15 of the [same-shape list](docs/architecture/mechanisms.md#两种实现必须同形的事实). Options set the declared participants. A test can script `unavailable` and three kinds of `commit-unknown` on chosen operations. Scriptable doubles of the other ports, `createManualAgentClock` and a hand-written `ToolRuntime` double. `createTestAgentDependencies` returns the 17 dependencies (`registration` is null) and the control handle of each double. `models` is the scripted provider of `model-contract/testing` | `./testing` | `tests/memory-journal.spec.ts` checks each fact of the same-shape list. Each test name has the fact number. `tests/fixtures.spec.ts` has one test for each scripting interface. There is only one process. Durability, crashes and cross-process use are not covered |
 | Hosts and providers not delivered | The operation bodies of the four faces other than `invoke` and `observe`. The handle's `submit` (no stage assigned in #502 yet), `control` and `acknowledge`. The exact commit points, waits and failure branches of the Loop nodes from E1 on (#502 1.4 to 1.9). The nodes off the normal path: the A, T, C and X subgraphs, F0, H0, Q5, M2 and W0, and R0 other than the retry of an unresolved `open`. The evaluator's `decode` (stage 5). The durable Journal provider `agent-journal-local`. Real Context, HITL, authorization, Session adapters and material storage | None | No evidence |
 
 ### Normal Loop path
 
-The skeleton of #502 1.2 runs one input through the normal path. It has no tools, no extensions, no failure branches and no waits. #502 1.3 adds the exact admission.
+The runtime admits one input and runs the normal Loop path. It has no tools or extensions. Full failure branches and background waits are not delivered.
 
 `invoke` does these steps:
 
@@ -35,10 +35,11 @@ The skeleton of #502 1.2 runs one input through the normal path. It has no tools
 The Loop then runs by itself:
 
 - It goes from E1 to E9. After E9 the runtime is idle again.
-- Only the transition table in `src/loop/nodes.ts` decides where a node goes. Each row comes from the row of its node in the node table, normally from the column 如何返回.
+- Only the transition table in `src/loop/nodes.ts` decides where a node goes. Normal path rows follow the node table or its pseudocode. The E1 `found-existing` row is a phase 1 exception. See [Temporary choices](#temporary-choices).
 - At E4 and I8 the pure evaluator's `Next` decides.
 - I2 encodes the `ModelInvocationRef` of the main call with the contract's `encodeModelInvocationRef`. The I2 commit saves it in the PendingCall before the first admit at M6. M6, M1 and M3 read the call back from it with `resolveModelInvocationRef`.
 - The coordinator admits the Model call and observes it until it settles. Then it reads the result in full. It records the result on the processed path with `recordResult` and acknowledges it.
+- Q1 does not commit (NA-Q1-1). The candidate type binds its source to its call position: external input to U0, Model reply to I3. Q4 returns each admission to that position once. Rejected candidates at Q5 are not delivered and stop with a named `unavailable`.
 - The handle's `output.read` and `output.events` read the Journal events under the guard. The events are input-taken, producer and ended only. Their sequence numbers start at 1.
 
 The normal path in the diagram below has thick borders on the nodes that write one commit. The Q1, Q2 and Q4 loop runs two times: once for the input before `open`, and once for the reply. The diamonds are the decision points E4 and I8.
@@ -59,29 +60,47 @@ flowchart TD
     classDef commit stroke-width:3px
 ```
 
-Admission (#502 1.3):
+#### Admission
 
-- The same operation with the same input gets the original handle back. This applies while the run continues, after it stops and after it ends. The runtime remembers its last accepted operation and returns that handle without another `open` or Loop.
-- If another execution holds the slot, the runtime first queries the earlier operation in the Journal. A committed operation repeats the admission path: idempotent `handoff.accept` and `open` return its original handle or `conflict`. This lookup neither reserves the slot nor drives the earlier execution. An excluded or denied query gives `busy`. Other query failures return unchanged. An unknown query gives `commit-unknown` with the operation of this `invoke`.
-- A new runtime over the same Journal calls `open` to find the original receipt and Authority. If the execution revision already advanced, E1 returns `found-existing`. The transition table ends this coordinator, and the runtime returns to idle without driving the execution. Recovery of that execution belongs to #502 stage 5.
-- If the execution is open but its revision did not advance, E1 drives it with the original Authority. Two live runtimes can therefore try to drive that execution. Fencing between live runtimes belongs to `attach` in #502 stage 5.
-- The same operation with another input gets `busy` while its execution holds the slot. When the slot is free or another execution holds it, the Journal gives `conflict`. `invoke` returns that failure unchanged.
-- A held slot gives `busy` to an `invoke` of a new operation. This is true while the slot is reserved, while `open` is unresolved, while the run continues and after the run stopped. `invoke` does not queue it.
-- A commit-unknown of `handoff.accept` at Q2 makes `invoke` return `commit-unknown` with the operation of the `invoke`. No execution exists yet, so the slot is free again. The same operation again is the query: U0 and Q2 call `accept` again with the same operation and the same candidate and get the original result. The receipt of an external input is not kept elsewhere (#558 S-13).
-- A commit-unknown of `open` at E0 makes `invoke` return `commit-unknown`. The runtime keeps the reservation as an R0 item: the operation and the execution. The same operation again first calls `query` with that operation. `committed`: the same `open` gives back the original receipt, and the run continues at E1. `excluded`: the operation is admitted again with the same identity. `unknown`: `invoke` returns `commit-unknown` again, and the reservation stays. A retry that fails before `open` keeps the R0 item when the query says `committed`. If the query says `excluded`, that failure frees the slot. No timer checks the R0 item (waits are #502 1.9).
-- Q1 does not commit. The type of the candidate ties each source to its call position: an external input to U0 and a Model reply to I3. Q4 returns each admission to that position one time and does not retry. A rejected candidate (Q5) is #502 4.1. Until then it stops with a named `unavailable`.
+The table keeps the tenant and execution identity fixed. The same operation refers to an existing admission or the matching R0 item. A remembered match takes precedence over an R0 item of another operation.
+
+| Input | This execution holds the slot | Another execution holds the slot | Slot free | R0 item exists |
+| --- | --- | --- | --- | --- |
+| Same operation, same input | Remembered: handle, slot unchanged. Admission still in progress: busy, reservation unchanged. | Remembered: handle. Otherwise Journal lookup. Current slot unchanged. | Remembered: handle, still free. Otherwise Journal result after reservation. Success: running, or free if E1 finds an advanced execution. Failure: release reservation. Unknown open: keep reserved. | Matching operation and execution: R0 query. Return and reservation follow [R0 retries](#r0-retries). A remembered handle leaves the reservation unchanged. |
+| Same operation, another input | Remembered: conflict, no query, slot unchanged. Admission still in progress: busy, reservation unchanged. | Journal lookup returns conflict for different input in the original record. Current slot unchanged. | Journal admission returns conflict for different input in the original record. It releases the temporary reservation. | Matching operation and execution: R0 query. The Journal checks the input after a committed or excluded query. Reservation follows [R0 retries](#r0-retries). |
+| New operation | Busy, slot unchanged. | Journal lookup. No original record: busy, current slot unchanged. | Journal admission. Success: handle, slot becomes running. Failure: release reservation. Unknown open: keep reserved. | This execution: busy. Another execution: Journal lookup. Original reservation unchanged. |
+
+Journal lookup calls `query` first. A committed result repeats idempotent `handoff.accept` and `open` to return the original handle or a port result. An excluded or denied query gives `busy`. Other failures pass through unchanged. An unknown query gives `commit-unknown` with this invoke's operation. Lookup neither reserves the slot nor drives the original execution.
+
+The access guard checks the tenant and principal before lookup. SPEC line 61 hides a missing object as `denied`. Here that means no original record, so new work meets a held slot and receives `busy` under SPEC 646.
+
+Journal admission reserves the slot and runs U0 through E0. Success returns the handle and sets the slot to running. A failure before `open` releases a new reservation. An unknown `open` keeps it reserved. An idempotent open can find an execution that already advanced. See the E1 reading in [Temporary choices](#temporary-choices).
+
+#### R0 retries
+
+An unknown E0 `open` leaves an R0 item with its operation and execution identities. Only a retry matching both identities enters this R0 path. A different execution goes through Journal lookup and leaves the original reservation unchanged.
+
+- `committed`: repeat the same `open` to obtain the original receipt and Authority. Continue at E1. A retry failure before `open` preserves the R0 item and reservation.
+- `excluded`: admit again under the same identity. A retry failure before `open` releases the reservation.
+- `unknown`: return `commit-unknown` with the invoke operation and preserve the reservation. A failed query returns that failure and also preserves the reservation.
+
+No background timer checks the R0 item. Background waits are not delivered.
+
+At Q2, an unknown `handoff.accept` receipt returns `commit-unknown` with the invoke operation. A new admission releases the slot because no execution exists yet. Calling again with the same operation is the query. U0 and Q2 repeat `accept` with the same operation and candidate to obtain the original result (#558 S-13).
+
+This is the phase 1 reading of the node table's Q2 `commit-unknown` edge to R0, where an unknown result waits. The caller performs the retry because background waits are not delivered. The external input has no separate acceptance receipt under #558 S-13.
 
 Stops:
 
 - An outcome off the normal path stops the run at its node. No stop becomes a success.
 - After a stop the slot stays occupied, and `observe` shows occupied. The Journal keeps the `position` of the last commit. A new `invoke` gets `busy`.
-- The coordinator returns a stop with the failure and its `owner` internally (#558 S-14): a port failure keeps the `owner` of the port, `@omne-harness/agent` marks an outcome that a later card handles, and `@omne-harness/agent#defect` marks a defect of the coordinator. The waits of #502 1.9 make the stop readable.
+- The coordinator returns the failure and its `owner` internally (#558 S-14). A port failure keeps its owner. `@omne-harness/agent` marks an outcome outside current support. `@omne-harness/agent#defect` marks a coordinator defect. There is no public stop reason. Waits are not delivered.
 
 Slot rules:
 
-- The slot has three states: free, reserved and running. A reservation includes an R0 item. A stopped run is still running.
+- The slot has three states: free, reserved and running. A reservation may contain an R0 item. A stopped execution keeps the slot occupied. Its slot state remains `running`.
 - `observe` shows only an execution that exists. Free and reserved show idle. Running shows occupied.
-- A new admission that fails before `open` gives the slot back. A commit-unknown of `open` keeps the reservation until a query decides it. A committed query keeps the R0 item if the retry fails. An excluded query permits release.
+- Admission failures and uncertain receipts follow [R0 retries](#r0-retries).
 - The registration handle only receives a projection. A `report` that throws is dropped. `invoke` returns as usual, and the slot and `observe` do not change. Waiting for the owner (待拥有者): `report` returns void, and the contract gives its failure no channel.
 
 The diagram below shows the states of the slot. Each state shows in brackets what `observe` shows.
@@ -90,12 +109,12 @@ The diagram below shows the states of the slot. Each state shows in brackets wha
 stateDiagram-v2
     state "free (observe: idle)" as free
     state "reserved, with or without an R0 item (observe: idle)" as reserved
-    state "running, also after a stop (observe: occupied)" as running
+    state "stopped execution keeps slot state running (observe: occupied)" as running
     [*] --> free
     free --> reserved: invoke
     reserved --> free: new admission fails, or open is excluded
-    reserved --> reserved: open answers commit-unknown (R0 item)
-    reserved --> running: open accepts
+    reserved --> reserved: open unknown, or retry fails before open after query committed
+    reserved --> running: first open accepted, or retry accepted after query committed
     running --> free: E9, or E1 finds an execution that moved on
 ```
 
@@ -106,14 +125,19 @@ The factory does not implement these creation checks, because no input of the fa
 - Waiting for #558 M04-3: how an external coordinator declares its participation. The factory compares only the `CallerCommit` kinds that `capabilities.participants` can name. An independent assembly (`jointCommits` empty) is created as before.
 - Waiting for the owner (待拥有者): the contract gives `observe` no `invalid` end reason for an Access with a missing or malformed tenant. The current code does not call `access.check` and ends with `denied`, so the failure stays closed.
 
-The Loop skeleton uses these temporary choices. The source comments, the test names and [tests/README](tests/README.md) name each one. Later #502 cards or the #558 decisions tighten them.
+#### Temporary choices
 
-- 临时简化，1.3–1.9 按节点表收紧 (temporary simplification): from E3 on, every node writes one commit when it ends, and the commit moves `position` to the next node. The exact commit points of the node table are not followed. U0 to Q4 run before the execution exists and do not commit. Q1 never commits (NA-Q1-1). E1, E2 and E4 only read. A commit there would overwrite the `position` that E4 reads. F3 uses `tryFinish`. After ended the Journal refuses commits, so F4, O0 and E9 use their own record methods only.
+These choices describe phase 1 readings and mechanisms not delivered. The node table owns the target behavior. [tests/README](tests/README.md) states the test coverage.
+
+- 临时简化，1.3–1.9 按节点表收紧 (temporary simplification): the skeleton commits once at the end of each node that writes a checkpoint. Each commit moves `position` to the next node. The exact commit points of the node table are not followed. U0 to Q4 run before the execution exists and do not commit. E1, E2 and E4 only read. A commit there would overwrite the `position` that E4 reads. F3 uses `tryFinish`. After ended the Journal refuses commits, so F4, O0 and E9 use their own record methods only.
 - Waiting for #558 M04-1: the commit that follows `recordResult` at M3 carries the producer event.
 - Waiting for #558 M04-8 (this reading): the I0 commit carries the input-taken event.
 - Waiting for #558 M04-7: `open` writes no event.
 - Waiting for #558 M04-5: in an independent assembly `recordResult.transfer` is processed without a declared participant.
-- Waiting for #558 S-13: the coordinator does not keep the handoff acceptance receipt of the external input. Q2 runs before `open`, and no write carries the receipt.
+- The Q2 receipt uses the phase 1 reading in [R0 retries](#r0-retries). Under #558 S-13, calling `accept` again with the same operation and candidate is the query.
+- E1 returns `found-existing` when the Journal revision advanced beyond the original open receipt. The transition table ends coordination successfully to avoid a second Loop for an accepted operation. The node table's E1 row has no such edge. This is a phase 1 reading.
+- An execution opened without any later revision can still run under its original Authority in a new runtime. Two live runtimes can therefore drive it. Fencing with `attach` is not delivered.
+- Phase 1 can create a second execution when the same operation identity names another execution while the slot is free. Detecting this requires an index across executions. The Journal provider owns that index. Phase 1 does not provide it.
 - I1 sends what `prepare` returns, assembled or ready, to P0 (pseudocode `prepareRequest`). The I1 row of the node table names ready only for `resume`.
 - `JournalCommit` has no field for the final request record (M04-2), so M0 does not write it. E1 does not check the Access again (1.4). The loop judgment, a trusted system extension, does not run at M4 (stages 3 and 7).
 
@@ -156,6 +180,8 @@ Run `pnpm turbo run test --filter=@omne-harness/agent` from the repository root,
 - the same-shape facts and the three temporary choices of the memory Journal
 - the scripting interface of each double
 - the transition table, the evaluator and one input to ended on the normal Loop path
+- admission: repeated operations (C1), conflicting inputs, busy, commit-unknown and the R0 retry routes
+- canonical input equality and successful completion of E1 found-existing coordination
 
 The tests do not establish runtime support off the normal path. [tests/README](tests/README.md) describes how the tests are organized.
 

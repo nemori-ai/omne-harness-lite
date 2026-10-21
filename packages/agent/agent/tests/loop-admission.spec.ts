@@ -338,15 +338,81 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(opens(assembly.record)).toBe(2)
   })
 
-  it('the same operation with another input: busy while the slot is held, the conflict of the Journal once it is free', async () => {
+  it('NA-E0-2: the remembered operation with another input conflicts without a query or a slot change', async () => {
     const assembly = await recorded()
     const other = { input: acceptedInput('input-other', 'other') }
     ok(await invoke(assembly))
-    expect(failure(await invoke(assembly, 'exec-1', other))).toEqual({ kind: 'busy' })
+    const before = await shown(assembly)
+    expect(failure(await invoke(assembly, 'exec-1', other))).toEqual({
+      kind: 'conflict',
+      operation: operation('invoke-exec-1'),
+    })
+    expect(
+      failure(
+        await assembly.provider.runtime.invoke({
+          ...alice,
+          execution: execution('exec-2'),
+          operation: operation('invoke-exec-1'),
+          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          grant: null,
+        }),
+      ),
+    ).toEqual({ kind: 'conflict', operation: operation('invoke-exec-1') })
+    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([])
+    expect(opens(assembly.record)).toBe(1)
+    expect(assembly.record.accepts).toHaveLength(1)
+    expect(await shown(assembly)).toEqual(before)
     assembly.release.open()
     await eventually(async () => (await shown(assembly)).kind === 'idle')
     expect(failure(await invoke(assembly, 'exec-1', other))).toMatchObject({ kind: 'conflict' })
+    expect(opens(assembly.record)).toBe(2)
     expect(await shown(assembly)).toEqual(idle)
+  })
+
+  it('NA-E0-2: a failed adoption lookup for an earlier operation returns its failure without changing the held slot', async () => {
+    const assembly = await recorded()
+    assembly.release.open()
+    await eventsOf(ok(await invoke(assembly)))
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
+    ok(await invoke(assembly, 'exec-2'))
+    await eventually(async () => assembly.record.log.includes('commit E3'))
+    const before = await shown(assembly)
+    const refused = {
+      kind: 'unavailable',
+      owner: 'test-adoptions',
+      diagnostic: 'lookup failed',
+    } as const
+    assembly.controls.adoptions.resolve.once(() => fail(refused))
+    const opened = opens(assembly.record)
+    const accepts = assembly.record.accepts.length
+    expect(failure(await invoke(assembly))).toBe(refused)
+    expect(opens(assembly.record)).toBe(opened)
+    expect(assembly.record.accepts).toHaveLength(accepts)
+    expect(await shown(assembly)).toEqual(before)
+  })
+
+  it('NA-E0-2: a lost acceptance receipt while finding an earlier operation names the invoke operation and preserves the slot', async () => {
+    const assembly = await recorded()
+    assembly.release.open()
+    await eventsOf(ok(await invoke(assembly)))
+    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
+    ok(await invoke(assembly, 'exec-2'))
+    const before = await shown(assembly)
+    const opened = opens(assembly.record)
+    const lostOperations: string[] = []
+    assembly.controls.handoff.accept.once(input => {
+      lostOperations.push(input.operation)
+      return fail({ kind: 'commit-unknown', operation: input.operation })
+    })
+    expect(failure(await invoke(assembly))).toEqual({
+      kind: 'commit-unknown',
+      operation: operation('invoke-exec-1'),
+    })
+    expect(lostOperations).toEqual(['invoke-exec-1/Q2'])
+    expect(opens(assembly.record)).toBe(opened)
+    expect(await shown(assembly)).toEqual(before)
   })
 })
 
@@ -482,6 +548,139 @@ describe('NA-Q2-2 (C2): a lost receipt of accept is found by calling it again', 
 
 describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an R0 item', () => {
   const unresolved = { kind: 'commit-unknown', operation: operation('invoke-exec-1') }
+
+  it('NA-E0-4: a reservation without an unresolved open answers busy without querying or retrying', async () => {
+    const opening = gate()
+    const record: Record = { log: [], accepts: [], commits: [] }
+    const assembly = await loopAssembly([execution()], dependencies => {
+      const wrapped = recording(record)(dependencies)
+      return {
+        ...wrapped,
+        journal: {
+          ...wrapped.journal,
+          async open(input) {
+            await opening.opened
+            return wrapped.journal.open(input)
+          },
+        },
+      }
+    })
+    const first = invoke(assembly)
+    await eventually(async () => record.accepts.length === 1)
+    try {
+      expect(failure(await invoke(assembly))).toEqual({ kind: 'busy' })
+      expect(record.log.filter(entry => entry.startsWith('query'))).toEqual([])
+      expect(record.accepts).toHaveLength(1)
+    } finally {
+      opening.open()
+      assembly.release.open()
+    }
+    await eventsOf(ok(await first))
+  })
+
+  it('NA-E0-4: a different operation for the reserved execution does not retry the unresolved open', async () => {
+    const assembly = await recorded()
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+    expect(
+      failure(
+        await assembly.provider.runtime.invoke({
+          ...alice,
+          execution: execution(),
+          operation: operation('other-invoke'),
+          initial: acceptedInput('other-input'),
+          grant: null,
+        }),
+      ),
+    ).toEqual({ kind: 'busy' })
+    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([])
+    expect(opens(assembly.record)).toBe(1)
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+  })
+
+  it('NA-E0-4: the same operation with another execution queries that execution without retrying the R0 item', async () => {
+    const queries: { execution: string; operation: string }[] = []
+    const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        query(input) {
+          queries.push({ execution: input.execution, operation: input.operation })
+          return dependencies.journal.query(input)
+        },
+      },
+    }))
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+    expect(
+      failure(
+        await assembly.provider.runtime.invoke({
+          ...alice,
+          execution: execution('exec-2'),
+          operation: operation('invoke-exec-1'),
+          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          grant: null,
+        }),
+      ),
+    ).toEqual({ kind: 'busy' })
+    expect(queries).toEqual([
+      { execution: execution('exec-2'), operation: operation('invoke-exec-1') },
+    ])
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+  })
+
+  it('NA-E0-4: a failed retry query returns the original failure and preserves the R0 item', async () => {
+    const refused = fail({
+      kind: 'unavailable',
+      owner: 'test-journal',
+      diagnostic: 'query failed',
+    } as const)
+    let queries = 0
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        async query(input) {
+          queries += 1
+          return queries === 1 ? refused : dependencies.journal.query(input)
+        },
+      },
+    }))
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+    expect(await invoke(assembly)).toBe(refused)
+    expect(await shown(assembly)).toEqual(idle)
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+    expect(queries).toBe(2)
+  })
+
+  it('NA-E0-4: another invoke stays busy while the retry query is in progress', async () => {
+    const querying = gate()
+    let queries = 0
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        async query(input) {
+          queries += 1
+          if (queries === 1) await querying.opened
+          return dependencies.journal.query(input)
+        },
+      },
+    }))
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await invoke(assembly))).toEqual(unresolved)
+    const retry = invoke(assembly)
+    await eventually(async () => queries === 1)
+    try {
+      expect(failure(await invoke(assembly))).toEqual({ kind: 'busy' })
+      expect(queries).toBe(1)
+      expect(await shown(assembly)).toEqual(idle)
+    } finally {
+      querying.open()
+    }
+    expect(failure(await retry)).toEqual(unresolved)
+  })
 
   it('NA-E0-4: pending, then applied: the retry queries the original operation, then runs on', async () => {
     const assembly = await recorded()

@@ -383,14 +383,24 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(handleOf(input.execution))
   }
 
+  // SPEC 804: the same operation with the same input gets the original handle back, whether the
+  // run goes on, stopped or ended. SPEC 774: a remembered operation with another input conflicts
+  // while its original execution holds the slot. Otherwise the Journal checks the input.
+  function answerRemembered(
+    input: InvokeInput<P>,
+  ): Outcome<AgentExecutionHandle<P>, Failure> | undefined {
+    if (accepted?.operation !== input.operation) return undefined
+    if (accepted.input === inputText(input)) return succeed(handleOf(accepted.execution))
+    if (slot.kind !== 'free' && slot.execution === accepted.execution)
+      return fail({ kind: 'conflict', operation: input.operation })
+    return undefined
+  }
+
   const invoke: AgentProvider<P>['runtime']['invoke'] = async input => {
     const passed = await guard(input, 'invoke', onInstance)
     if ('failure' in passed) return passed
-    // SPEC 804: the same operation with the same input gets the original handle back, whether the
-    // run goes on, stopped or ended. Another input is busy while its execution holds the slot;
-    // otherwise the Journal checks it for conflict.
-    if (accepted?.operation === input.operation && accepted.input === inputText(input))
-      return succeed(handleOf(accepted.execution))
+    const remembered = answerRemembered(input)
+    if (remembered !== undefined) return remembered
     if (
       slot.kind === 'reserved' &&
       slot.unresolved === input.operation &&
