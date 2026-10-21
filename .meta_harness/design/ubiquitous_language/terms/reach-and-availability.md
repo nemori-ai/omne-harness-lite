@@ -48,6 +48,32 @@
 - **别混**：**它是那份 Agent Definition 或 Plugin 上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
+- **注意 ②**：一个会话里的常驻工具组成[常驻工具集合](#ul-resident-tool-set--常驻工具集合--resident-tool-set)。集合只增不减，每一项的名字与参数形状在会话内不变，依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+
+### UL-resident-tool-set · 常驻工具集合 · Resident Tool Set
+
+> **中**：一个会话里全部[常驻](#ul-residency--常驻--residency)工具，连同每一项首次采用时的[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)。
+> 会话初始化时确定这个集合。此后集合只增不减。会话只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)加入此前未装载的常驻工具，Run 中途不加入。
+> 集合里每一项的名字与参数形状在会话内不变：实现可以换，但新定义必须与首次采用的定义[同形](#ul-same-shape--同形--same-shape)。
+> 某一项被卸载或暂时不可用时，会话用同形的[替换件](#ul-stand-in--替换件--stand-in)占住它。
+> 会话为每一项保存一条首次采用的事实，集合从这些事实算出；当前固定的版本从 Run 的[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)算出，不另存。
+>
+> **EN**: All resident tools of one session, together with the tool definition that each one
+> had when the session first adopted it. The session fixes this set at initialization. After
+> that the set only grows. The session adds a resident tool that it has not loaded before only
+> at an adoption point, never in the middle of a Run. The name and argument shape of each item
+> stay the same for the life of the session: the implementation may change, but the new
+> definition must have the same shape as the first one. When an item is unloaded or
+> temporarily unavailable, the session holds its place with a stand-in of the same shape. The
+> session records one first-admission fact per item, and the set is computed from these facts.
+> The currently pinned version is computed from the Run's adoption basis and is not stored
+> separately.
+
+- **形态**：视图
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 2）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
+- **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作不在这些规则的范围内
+- **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆
 
 ### UL-current-availability · 当下可用性 · Current Availability
 
@@ -63,14 +89,17 @@
 
 > **中**：**一个工具或技能[当下不可用](#ul-current-availability--当下可用性--current-availability)时，
 > 占在它原位上的那份同形呈现。**它与原件**同形**——工具的名字与调用参数一致，技能的名字一致——
-> 相对会话最后合法采用的定义形状，**只有说明被换掉**，换成讲清「这个现在用不了，原因是什么」。
+> 被替换的是[常驻工具](#ul-resident-tool-set--常驻工具集合--resident-tool-set)时，形状取会话首次采用它的那份定义；其余情形，取会话最后合法采用的定义形状。
+> 与那份形状相比，**只有说明被换掉**，换成讲清「这个现在用不了，原因是什么」。
 > **被调用时它不做原来那件事**：不论怎么调，**都必定给出「不可用」这一种
 > [收场](execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome)**，带着原因，**正常返回，不是报错**。
 > **它没有自己的身份**——身份仍是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里原来那个条目的。
 >
 > **EN**: **What occupies a tool's or skill's own place, in the same shape, while it is
 > unavailable.** It matches the original in shape — same name, and for a tool the same
-> argument schema — and relative to the last lawfully adopted definition **only its description is replaced**, stating that this cannot be
+> argument schema. For a resident tool the reference shape is the definition that the session
+> first adopted; otherwise it is the last lawfully adopted definition. Relative to that shape
+> **only its description is replaced**, stating that this cannot be
 > used right now and why. **Called, it never does the original work**: whatever the
 > arguments, it **always yields the "unavailable" outcome**, carrying the reason, **returned
 > normally, not raised as an error**. **It has no identity of its own** — the identity
@@ -82,6 +111,26 @@
 - **注意 ①**：**不可用时装的是它，不是「不装」**——**藏起来 agent 会以为自己没这个能力，而实际只是暂时用不了**
 - **注意 ②**：**说明不是闸**，agent 读到了照样可能调它——所以它的行为只有一种。
   读到「不可用」该**绕路，不该重试**
+- **注意 ③**：常驻工具被卸载、暂时缺席、状态未知或被撤权时，会话都用它替代，不进入[会话冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。RFC-0012 与 Tool 契约把它写作「同形不可用件」，指的就是它；依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R3）
+
+### UL-same-shape · 同形 · Same Shape
+
+> **中**：两份[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)之间的一种相等：名字、工具种类、参数契约与命令表都相等。
+> 参数契约按 schema 的规范 JSON，以及词汇表的拥有者、名称与摘要比较。命令表先按命令名排序，再逐个比较各命令的参数契约或「由执行者拥有」标记。
+> 说明、参数说明、命令摘要、返回声明、其余声明、采用版本与执行者都不参与比较。
+>
+> **EN**: An equality between two tool definitions: the name, the tool kind, the argument
+> contract and the command table are all equal. The argument contract is compared by the
+> canonical JSON of its schema and by the owner, name and digest of its vocabulary. The command
+> table is sorted by command name, and then each command's argument contract or its
+> executor-owned mark is compared. Descriptions, argument descriptions, command summaries,
+> return declarations, other declarations, the adopted version and the executor take no part
+> in the comparison.
+
+- **形态**：规则
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 2）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **别混**：不是「同一个能力身份」。同一个能力身份下，不同层的资产可以派生出不同形的定义
+- **注意**：比较按文本规范化进行。语义等价但文本不同的两份 schema 判为不同形，这时会话留在原版本，不会因此误判冻结
 
 ### UL-dependency-declaration · 依赖声明 · Dependency Declaration
 
@@ -116,14 +165,14 @@
 
 ### UL-session-asset-registry · 会话资产注册表 · Session Asset Registry
 
-> **中**：会话保存并向消费者提供某类资产当前采用结果的视图。Tool、Skill、MCP 的已知身份保留；当前定义数据、实现选择与不可用原因可更新。reload 更新所指定来源的采用结果，不清空已知能力身份。人的斜杠命令入口仍按自己的可见性与撤权规则更新，不继承能力身份单调性。
+> **中**：会话保存并向消费者提供某类资产当前采用结果的视图。Tool、Skill、MCP 的已知身份保留；当前定义数据、实现选择与不可用原因可更新。常驻工具例外：它的名字与参数形状在会话内不变，定义与实现只在采用点、且只向同形的新定义更新。reload 更新所指定来源的采用结果，不清空已知能力身份。人的斜杠命令入口仍按自己的可见性与撤权规则更新，不继承能力身份单调性。
 >
-> **EN**: A session view exposing the adopted result for an asset category. Known Tool, Skill and MCP identities are retained while current definition data, implementation selection and unavailability reasons may change. Reload updates its selected sources without erasing known capability identities. Human slash-command entry points retain their own visibility and revocation rules rather than capability-identity monotonicity.
+> **EN**: A session view exposing the adopted result for an asset category. Known Tool, Skill and MCP identities are retained while current definition data, implementation selection and unavailability reasons may change. Resident tools are the exception: their name and argument shape stay fixed for the session, and their definition and implementation change only at an adoption point and only to a definition of the same shape. Reload updates its selected sources without erasing known capability identities. Human slash-command entry points retain their own visibility and revocation rules rather than capability-identity monotonicity.
 
 - **形态**：视图
 - **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
   [§4「谁可以使用它」是各类资产共用的一项权限](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
+  [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）；常驻工具的例外见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1、R5）
 - **别混**：不是历史装配清单，不是资产所有权目录；保留历史可见身份不授予继续使用的权利。
 
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check

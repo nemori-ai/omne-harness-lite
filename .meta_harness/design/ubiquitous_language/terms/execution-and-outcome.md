@@ -13,7 +13,7 @@
 >
 > ```text
 > 工具定义 ──装配──→ 动作空间里的条目 ──调用──→ 工具执行
->  数据，长期           会话已知条目         计算资源，绑会话
+>  装载时派生           会话已知条目         计算资源，绑会话
 > ```
 >
 > **最要紧的是第三段绑在会话上**，不绑 agent runtime 、也不绑发起它的那次运行。
@@ -23,15 +23,14 @@
 
 ### UL-tool-definition · 工具定义 · Tool Definition
 
-> **中**：**一个[工具](capabilities-and-composition.md#ul-tool--工具--tool)在数据与治理层面的
-> 身份与表示**——叫什么、干什么的说明、收什么参数（每个参数各带说明）、返回什么，以及它的可选声明（能不能后台、需要什么设施等）；
+> **中**：**一个[工具](capabilities-and-composition.md#ul-tool--工具--tool)在模型与执行面前的那份完整表示**——叫什么、干什么的说明、收什么参数（每个参数各带说明）、返回什么，以及它的可选声明（能不能后台、需要什么设施等）；
 > **工具说明与每个参数的说明必填**，缺了就不是一份完整的定义。
 > 其中**目标环境与转后台阈值两项声明的是[设置项](capabilities-and-composition.md#ul-setting--设置--setting)的形状与默认值**，各层配值；
 > 声明之外，**前台上限与并发上限两项偏好类设置的默认值也由它给**。
 > **多命令工具在模型面前只有一种样子——一份一行一命令的紧凑命令清单**：每个命令那一行说明必填；
 > 作者带不带各命令的完整参数由他定，带了只供系统校验与 `inspect`/`help` 答用法，**不进模型面前**。
-> **它可以自带实现，直到自带一份完整的实现 package**；共同打包不合并定义数据与执行实现的版本或生命周期。
-> **它是数据，长期存在**，谁持有它就归谁。
+> 它不是作者直接写下的数据。系统装载工具实现时，从工具资产的一个已发布版本与该资产引用的实现派生它：名字、所需能力与可编程声明取自资产；参数形状、命令表、说明、能不能后台与其余声明取自实现。它记下的采用版本等于那个资产版本。
+> 资产的名字、能力名与定义的名字必须一致，不一致时系统拒绝装载。
 >
 > **EN**: **A tool's identity and representation at the data and governance level** — its
 > name, a description of what it does, the arguments it takes (each with its own description),
@@ -45,16 +44,22 @@
 > list**: each command's line of description is required; whether the author includes each command's
 > full arguments is the author's call, and if included they serve only validation and `inspect`/`help`,
 > **never reaching the model**.
-> **It may carry its own implementation, up to a complete implementation package**; co-packaging does not merge data and implementation versions or lifetimes. **It is
-> data and long-lived**, belonging to whoever holds it.
+> It is not data that an author writes directly. When the system loads a tool implementation,
+> it derives the definition from one published version of the tool asset and the
+> implementation that the asset references. The name, the required capabilities and the
+> programmable declaration come from the asset. The argument shape, the command table, the
+> descriptions, background permission and the other declarations come from the implementation.
+> The adopted version it records equals that asset version. The asset name, the capability
+> name and the definition name must match; the system refuses to load a mismatch.
 
-- **形态**：属性
+- **形态**：视图
 - **出处**：[PF-006 §5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
+  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-66工具定义由长期数据改为装载时派生)
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
-  工具是那一类资产，**工具定义是它在数据与治理层面的那一份表示**；
-  **同一个身份下可以有平台、组织、租户各自的一份**
+  工具是那一类资产，**工具定义是资产与实现合成出的那一份表示**；
+  同一个身份下，官方、组织、租户、工作区各层的资产各自派生自己的一份，形状可以不同
+- **注意 ⓪**：会话为每个[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)保存它首次采用的那一份定义，作为判断[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)的基准
 - **注意 ①**：**有三样刻意不在定义里**——[等待态](#ul-tool-wait-state--工具等待态--tool-wait-state)、[发帧](#ul-frame-emission--发帧--frame-emission)，
   以及[这一次的结果要不要卸载](#ul-result-offloading--结果卸载--result-offloading)。
   **三样都取决于这一次跑成什么样**，而定义里写的是这个工具跟参数无关的固有属性
@@ -502,7 +507,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 2）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 1）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 2）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 2）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 3）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
@@ -556,7 +561,7 @@
 > rejection ends that model call normally, and a new model call starts after back-off.
 
 - **形态**：属性
-- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 2）；
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 3）；
   原定义见封存 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被拒收的回复不是故障，不交给重试挂件，也不算试过一家
 - **弃用**：~~连续否决上限~~ ~~Consecutive Veto Limit~~——现行规则没有这项上限，不另起替代词；已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#回复准入与动作处理) 写法相同
