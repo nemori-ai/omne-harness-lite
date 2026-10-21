@@ -13,6 +13,7 @@
 | 数据去向 | 输入与受理事实进会话日志；交入回执与承接事实作为新事实提交；批界由 Agent 决定 |
 | 失败分支 | 受理提交未知时按操作身份认回，查不到不等于未提交；提交后出站调用未发出，由推进触发按同一操作身份重放；首条输入被消息准入拒收时 Run 以失败结束，其余输入留给下一个 Run；后续输入被拒收时只有这条输入失去资格，Run 继续 |
 | 来源成员 | 受理与裁定：`session-contract`、`session`；入站与出站：`session-adapters`；提交：`session-storage-sql` |
+| 成员流程 | 契约协议 [F-SC01](../session-contract/docs/flows/scenarios.md#f-sc01-打开执行与交入输入)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[输入受理与分流](../../../docs/architecture/runtime/session-and-run.md#输入受理与分流)与[受理流水线与业务流程拓展点](../../../docs/architecture/runtime/session-and-run.md#受理流水线与业务流程拓展点)。
 
@@ -25,6 +26,7 @@
 | 数据去向 | Agent 执行的派生事实进会话日志；Run 的完成与失败在读到结束事件时按 Agent 的结论成立；游标随事实保存；确认交回 Agent |
 | 失败分支 | 提交后确认丢失，重读时按执行与序号去重；读到缺口时经恢复入口读完整快照后对账；消息进历史、压缩转换、保管与处理完成走提交参加者路径，与 Agent 的记录共同提交，事件到达时不写第二份 |
 | 来源成员 | 事件目录：`session-contract`；读取与确认：`session-adapters`；归约：`session` |
+| 成员流程 | 契约协议 [F-SC07](../session-contract/docs/flows/scenarios.md#f-sc07-从-agent-事件派生事实)、[F-SC02](../session-contract/docs/flows/scenarios.md#f-sc02-消息进历史的共同提交)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 ### F-SE03 控制传播
 
@@ -35,6 +37,7 @@
 | 数据去向 | 控制意图与对账结果进会话日志；失效生效计入对账进度；Run 状态按 Run 两层状态机转换 |
 | 失败分支 | 送达未确认、部分生产者未答复或失效尚未确认生效时，控制重放按间隔重放；超过策略上限时，控制停在传播中并报告；Session 不直接控制模型调用或工具执行 |
 | 来源成员 | 裁定与状态机：`session-contract`；协调与重放：`session`；送达与 `invalidate`：`session-adapters` |
+| 成员流程 | 契约协议 [F-SC08](../session-contract/docs/flows/scenarios.md#f-sc08-条件终结与-run-终态)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[取消与归档](../../../docs/architecture/runtime/control-and-recovery.md#取消与归档)。
 
@@ -47,6 +50,7 @@
 | 数据去向 | 级联与释放的读回结果进会话日志；释放读回事实是已释放作用域的耐久账本；对人的时间线只记「已发起释放」与读回结果 |
 | 失败分支 | 读回结果按五类处置：已释放、待续、不支持、不可用、未获授权；还有待续或不可用的部分时任务保留，由级联推进再次驱动；超过策略上限时，释放与级联任务保持未结并报告维护拥有者。执行环境提供者换代时，释放插件对已归档会话的作用域按页重新释放；执行环境重启到重新释放之间的窗口是与执行环境契约拥有者的联合前提 |
 | 来源成员 | 级联裁定：`session-contract`；协调：`session`；`invalidate` 与释放调用：`session-adapters` |
+| 成员流程 | 契约协议 [F-SC16](../session-contract/docs/flows/scenarios.md#f-sc16-作用域释放与换代后重新释放)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
 
@@ -59,6 +63,7 @@
 | 数据去向 | 认回的事实与恢复结论进会话日志 |
 | 失败分支 | Agent 记录无法解释时，有界恢复者依据会话已保存的事实把 Run 收束为失败；Agent 执行已结束而会话没有 Run 终态时，读取结束事实，按 Agent 的结论写终态；执行尝试已授予而 Agent 尚未受理时按同一操作身份重放发起 |
 | 来源成员 | 恢复快照读取：`session-storage-sql`；协调与扫描：`session`；Agent 侧发现：`session-adapters` |
+| 成员流程 | 契约协议 [F-SC09](../session-contract/docs/flows/scenarios.md#f-sc09-推进映射与换代)、[F-SC06](../session-contract/docs/flows/scenarios.md#f-sc06-交付责任解除与重发)、[F-SC10](../session-contract/docs/flows/scenarios.md#f-sc10-迟到结果与终态后的后台结果)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[恢复的发现与收束](../../../docs/architecture/runtime/control-and-recovery.md#恢复的发现与收束)。
 
@@ -71,6 +76,7 @@
 | 数据去向 | 压缩消息进会话日志；原消息保留，人读历史按压缩记录加标记 |
 | 失败分支 | 校验失败时拒绝这次提交，原模型视图不变 |
 | 来源成员 | 派生消息形状：`session-contract`；校验：`session`；新代索引：`session-storage-sql` |
+| 成员流程 | 契约协议 [F-SC03](../session-contract/docs/flows/scenarios.md#f-sc03-压缩转换的共同提交与-epoch-新代)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。
 
@@ -83,6 +89,7 @@
 | 数据去向 | 只读，不写日志 |
 | 失败分支 | 证据过期或代已更换时拒绝，调用方按新代重读；读路径不可用时如实返回不可用 |
 | 来源成员 | 读口形状：`session-contract`；读路径：`session-storage-sql`；对接：`session-adapters` |
+| 成员流程 | 契约协议 [F-SC13](../session-contract/docs/flows/scenarios.md#f-sc13-epoch-视图读取)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 ### F-SE08 时间线投影与在途收敛
 
@@ -93,6 +100,7 @@
 | 数据去向 | 只读，不写日志 |
 | 失败分支 | 故障后只可能缺从未展示过的在途片段；恢复后的展示说明缺口，不补造 |
 | 来源成员 | 投影：`session`；分页与预加载：`session-storage-sql` |
+| 成员流程 | 契约协议 [F-SC11](../session-contract/docs/flows/scenarios.md#f-sc11-时间线投影与在途收敛)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[用户可见内容的两处来源](../../../docs/architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)。
 
@@ -105,6 +113,7 @@
 | 数据去向 | 收场事实、经准入的消息、保管或处理事实与账目进会话日志 |
 | 失败分支 | 各阶段崩溃时，按生产者已保管的批次与日志已提交的事实对账；迟到结果由消费适配器读生产者事实后补交 |
 | 来源成员 | 事件映射：`session-contract`；消费与确认：`session-adapters` |
+| 成员流程 | 契约协议 [F-SC12](../session-contract/docs/flows/scenarios.md#f-sc12-流到日志)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[三条流不逐块进会话日志](../../../docs/architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)。
 
@@ -117,6 +126,7 @@
 | 数据去向 | 采用依据随 Run 开始的事实进会话日志；候选的缓存与「对哪些会话预求值」的策略归装配协调者 |
 | 失败分支 | 候选校验失败时保留原合法采用并说明原因；会话租户失效时拒绝新 Run。Agent 宿主创建实例的入口定义之前，调度器只触发预求值，不调用 Agent 预建实例，见[联合前提与具名待决](../../../docs/architecture/runtime/session-and-run.md#联合前提与具名待决) |
 | 来源成员 | 裁定：`session-contract`；调度：`session`；预热请求：`session-adapters` |
+| 成员流程 | 契约协议 [F-SC09](../session-contract/docs/flows/scenarios.md#f-sc09-推进映射与换代)、[F-SC14](../session-contract/docs/flows/scenarios.md#f-sc14-会话冻结)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[何时重装](../../../docs/architecture/runtime/assembly-and-change.md#何时重装)。
 
