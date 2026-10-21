@@ -1,29 +1,19 @@
 # tests/fixtures
 
-<!-- documentation:placeholder -->
-
 本目录承载测试使用的固定输入。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 测试数据文件与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-固定输入不能代替规格；数据的来源与生成方式写在本 README。
+固定输入不能代替规格。数据的来源与生成方式写在本 README。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 输入格式或来源变化时，同步引用它的测试。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空。现有测试的输入都写在测试文件里，`need-declaration.spec.ts` 直接读取包根的 [schema 文件](../../schema/environment-need.schema.json)。设施与提供者的契约验证套件进入后，这里可以放环境要求、设施请求与块值的样本，并在本节写明它们对应的 SPEC 条款与生成方式。

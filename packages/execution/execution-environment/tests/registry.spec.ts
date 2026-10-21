@@ -303,23 +303,72 @@ it('does not show an acquisition to another tenant that reuses its key', async (
   const registry = createEnvironmentRegistry<string>({ recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
-  registry.registerProvider(
-    stubProvider({
-      name: 'host-command',
-      bindingKinds: ['host_machine'],
-      continuity: { kind: 'not_guaranteed' },
-      facilities: { command: commandStub(calls) },
-      keys: ['command'],
-    }),
-  )
-  const placement = await placed(registry, requirement([host], ['command']))
-  await registry.acquire(accessA, acquireInput(placement))
-  expect(await registry.acquire(accessB, acquireInput(placement))).toEqual({
-    kind: 'rejected',
-    reason: 'notAuthorized',
+  const provider = stubProvider({
+    name: 'host-command',
+    bindingKinds: ['host_machine'],
+    continuity: { kind: 'not_guaranteed' },
+    facilities: { command: commandStub(calls) },
+    keys: ['command'],
   })
+  registry.registerProvider(provider)
+  const placement = await placed(registry, requirement([host], ['command']))
+  const first = await registry.acquire(accessA, acquireInput(placement))
   expect(await registry.inspectAcquisition(accessB, acquisitionRef('acq-1'))).toEqual({
     kind: 'unrecorded',
+  })
+  const second = await registry.acquire(accessB, acquireInput(placement))
+  expect(provider.calls.acquire).toBe(2)
+  if (first.kind !== 'acquired' || second.kind !== 'acquired') throw new Error('expected leases')
+  expect(second.lease).not.toBe(first.lease)
+  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+    kind: 'acquired',
+    adoption: first.adoption,
+  })
+})
+
+it('refuses the same key with a different placement as a parameter conflict', async () => {
+  const registry = createEnvironmentRegistry<string>({ recovery })
+  registry.registerFacility(commandFacility)
+  const calls: Calls = { acquire: 0, retire: 0, start: 0 }
+  const provider = stubProvider({
+    name: 'both-layers',
+    bindingKinds: ['host_machine', 'session_sandbox'],
+    continuity: { kind: 'not_guaranteed' },
+    facilities: { command: commandStub(calls) },
+    keys: ['command'],
+  })
+  registry.registerProvider(provider)
+  const onHost = await placed(registry, requirement([host], ['command']))
+  const inSandbox = await placed(
+    registry,
+    requirement([{ kind: 'session_sandbox', scope: scope('scope-1') }], ['command']),
+  )
+  const first = await registry.acquire(accessA, acquireInput(onHost))
+  expect(first.kind).toBe('acquired')
+  expect(await registry.acquire(accessA, acquireInput(inSandbox))).toEqual({
+    kind: 'rejected',
+    reason: 'invalidInput',
+  })
+  expect(provider.calls.acquire).toBe(1)
+})
+
+it('refuses placement as ambiguous when two providers of one layer both qualify', async () => {
+  const registry = createEnvironmentRegistry<string>({ recovery })
+  registry.registerFacility(commandFacility)
+  const calls: Calls = { acquire: 0, retire: 0, start: 0 }
+  for (const name of ['host-command-a', 'host-command-b'])
+    registry.registerProvider(
+      stubProvider({
+        name,
+        bindingKinds: ['host_machine'],
+        continuity: { kind: 'not_guaranteed' },
+        facilities: { command: commandStub(calls) },
+        keys: ['command'],
+      }),
+    )
+  expect(await registry.resolvePlacement(accessA, requirement([host], ['command']))).toEqual({
+    kind: 'rejected',
+    reason: 'ambiguousEnvironment',
   })
 })
 

@@ -1,29 +1,26 @@
 # schema
 
-<!-- documentation:placeholder -->
-
 本目录承载本包对外的 Schema、稳定身份与发布消费说明。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 JSON Schema 文件与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-占位不是已发布的 Schema。Schema 的身份不随目录搬迁而改变；发布范围由对应责任明确声明。
+Schema 的身份不随目录搬迁而改变。发布范围由对应责任明确声明。本目录的说明不代替 schema 文件本身。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-Schema 变化时，同步消费者、示例与验证资源。
+Schema 变化时，同步消费者、示例与验证资源。本目录的文件字节变化时，必须同步采用身份 `environmentNeedAdoption` 的 `digest`，否则 `need-declaration.spec.ts` 失败。声明的形状变化时，还要前进 `revision`。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+本目录有一份 Schema：[environment-need.schema.json](environment-need.schema.json)，即工具环境声明 `EnvironmentNeedDeclaration` 的 JSON Schema（draft 2020-12）。
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+- `$id`：`urn:omne-harness:execution-environment:environment-need:1`。
+- 采用身份：`environmentNeedAdoption`，`owner` 为 `execution-environment`，`name` 为 `environment-need`，`revision` 为 `1`，`digest` 为本文件字节的 SHA-256。
+- 同形的 Standard Schema：`environmentNeedSchema`，由根入口导出。
+- 消费者：工具包把声明值与采用身份写进工具定义；Tool 契约经 schema-provider 按采用身份解析 schema 并校验，不导入本成员。
+
+字段规则与采用身份的含义见[公开接口页](../docs/public-api.md#工具环境声明)，条款见 SPEC 的[工具环境声明](../SPEC.md#工具环境声明)。逐操作参数与结果的 schema 还没有进入本目录。

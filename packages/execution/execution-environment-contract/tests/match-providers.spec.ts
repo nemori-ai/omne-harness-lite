@@ -49,6 +49,23 @@ it('follows the order of allowed bindings, not the order of providers', () => {
   expect(second).toEqual({ kind: 'matched', provider: host, binding: hostBinding })
 })
 
+it('refuses as ambiguous when two providers of the same layer both qualify', () => {
+  const otherSandbox: Named = { ...sandbox, name: 'other-sandbox' }
+  const result = matchProviders([sandbox, otherSandbox], {
+    allowedBindings: [sessionBinding],
+    facilities: ['files'],
+    isolation: ['process'],
+  })
+  expect(result).toEqual({ kind: 'rejected', reason: 'ambiguousEnvironment' })
+
+  const onlyOneQualifies = matchProviders([sandbox, { ...otherSandbox, facilities: ['files'] }], {
+    allowedBindings: [sessionBinding],
+    facilities: ['files', 'command'],
+    isolation: ['process'],
+  })
+  expect(onlyOneQualifies).toEqual({ kind: 'matched', provider: sandbox, binding: sessionBinding })
+})
+
 it('never picks a layer outside the allowed list', () => {
   const result = matchProviders([host], {
     allowedBindings: [sessionBinding],

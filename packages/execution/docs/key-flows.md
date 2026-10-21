@@ -6,10 +6,10 @@
 
 | 编号 | 流程 | 参与成员 | 唯一流程位置 |
 | --- | --- | --- | --- |
-| F-EX01 | 集成方取落点、获取租约、按键取设施 | execution-environment-contract、execution-environment、execution-environment-host-local | 见[成员流程 F-EE01、F-EE02](../execution-environment-contract/docs/flows.md) |
-| F-EX02 | 设施操作先过守卫与账本再发出外部效果 | execution-environment-contract、execution-environment | 见[成员流程 F-EE03](../execution-environment-contract/docs/flows.md) |
-| F-EX03 | 释放、失效与作用域恢复 | execution-environment-contract、execution-environment、execution-environment-host-local | 见[成员流程 F-EE04、F-EE05](../execution-environment-contract/docs/flows.md) |
-| F-EX04 | 落点与宿主事实经 Runtime Context 到达观察者 | execution-environment-contract、execution-environment-host-local | 见[成员流程 F-EE06](../execution-environment-contract/docs/flows.md) |
+| F-EX01 | 集成方取落点、获取租约、按键取设施 | execution-environment-contract、execution-environment、execution-environment-host-local | 见[成员流程 F-EEC01、F-EEC02](../execution-environment-contract/docs/flows.md) |
+| F-EX02 | 设施操作先过守卫与账本再发出外部效果 | execution-environment-contract、execution-environment | 见[成员流程 F-EEC03](../execution-environment-contract/docs/flows.md) |
+| F-EX03 | 释放、失效与作用域恢复 | execution-environment-contract、execution-environment、execution-environment-host-local | 见[成员流程 F-EEC04、F-EEC05](../execution-environment-contract/docs/flows.md) |
+| F-EX04 | 落点与宿主事实经 Runtime Context 到达观察者 | execution-environment-contract、execution-environment-host-local | 见[成员流程 F-EEC06](../execution-environment-contract/docs/flows.md) |
 
 ## 按读者选择阅读路径
 

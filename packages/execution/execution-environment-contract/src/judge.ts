@@ -36,9 +36,10 @@ const closeness: Readonly<Record<MatchFailure, number>> = {
 }
 
 /**
- * Walks `allowedBindings` in order and returns the first provider that declares the layer and covers
- * every facility key and isolation claim. It never picks a layer outside the list. On failure the
- * reason is the closest miss over all layers.
+ * Walks `allowedBindings` in order and returns the one provider of the first layer that declares
+ * the layer and covers every facility key and isolation claim. It never picks a layer outside the
+ * list. Two or more qualifying providers in the same layer are an ambiguity, refused rather than
+ * resolved by registration order. On failure the reason is the closest miss over all layers.
  */
 export function matchProviders<T extends ProviderCapabilities>(
   providers: readonly T[],
@@ -49,6 +50,7 @@ export function matchProviders<T extends ProviderCapabilities>(
     if (closeness[reason] > closeness[miss]) miss = reason
   }
   for (const binding of requirement.allowedBindings) {
+    const qualifying: T[] = []
     for (const provider of providers) {
       if (!provider.bindingKinds.includes(binding.kind)) continue
       if (!requirement.facilities.every(key => provider.facilities.includes(key))) {
@@ -59,8 +61,11 @@ export function matchProviders<T extends ProviderCapabilities>(
         record('isolationUnconfirmed')
         continue
       }
-      return Object.freeze({ kind: 'matched', provider, binding })
+      qualifying.push(provider)
     }
+    if (qualifying.length > 1) return Object.freeze({ kind: 'rejected', reason: 'ambiguousEnvironment' })
+    const [provider] = qualifying
+    if (provider !== undefined) return Object.freeze({ kind: 'matched', provider, binding })
   }
   return Object.freeze({ kind: 'rejected', reason: miss })
 }

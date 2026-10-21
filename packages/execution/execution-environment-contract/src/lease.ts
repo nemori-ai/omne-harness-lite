@@ -47,7 +47,7 @@ export interface EnvironmentLease<K extends FacilityKey = FacilityKey> {
   readonly continuity: EnvironmentContinuity
   /** Only keys of the requirement resolve; any other key gives `undefined`. */
   facility<F extends K>(key: F): EnvironmentFacilities[F] | undefined
-  /** Settles when the provider retires, the scope is released or the registry closes. */
+  /** Settles when the provider retires, the scope is released, the registry closes, the environment is reclaimed at its lifetime bound, or the instance is lost or replaced. */
   readonly invalidated: Promise<{ readonly reason: string }>
   /** Releases this acquisition only; a shared environment is not destroyed. */
   release(): Promise<LeaseRelease>

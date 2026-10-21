@@ -1,29 +1,31 @@
 # tests
 
-<!-- documentation:placeholder -->
-
 本目录承载本包适用的持续测试。测试种类的责任与边界见仓库[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)。
 
 ## 允许的内容
 
-<!-- documentation:placeholder -->
-
-`*.spec.ts` 等测试文件、测试辅助代码，以及 `fixtures/` 下的固定输入。
+`*.spec.ts` 运行测试、`*.spec-d.ts` 类型测试、测试辅助代码，以及 `fixtures/` 下的固定输入。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-说明每类测试用到的真实依赖与替身。测试通过不代替规格或验收。
+本成员没有提供者与运行实现。测试不需要真实存储、服务、宿主资源或 Cordis，也不使用替身。测试只覆盖本成员自己的纯函数、声明与类型，不代替组合验证、规格或验收。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。
+公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。导出变化时，同一次修改要更新 `public-entry.spec.ts`。改 schema 文件时，`need-declaration.spec.ts` 的摘要核对会失败，直到采用身份的 `digest` 同步。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+现在有四个运行测试文件与一个类型测试文件：
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+| 文件 | 覆盖什么 | 条款 |
+| --- | --- | --- |
+| [public-entry.spec.ts](public-entry.spec.ts) | 根入口导出三个设施声明、需要声明的 schema 与采用身份、两条块声明与两个纯函数；三个核心设施的每项操作都须授权；两条块是稳定的供给块，恢复方式是重算；任何模块都不导入 Cordis | [设施协议](../SPEC.md#设施协议)、[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) |
+| [judge-requirement.spec.ts](judge-requirement.spec.ts) | 解码环境要求并保留租户对象；拒绝不带作用域引用的绑定层；拒绝带策略词的要求；用块的 schema 核对落点块的值 | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) |
+| [match-providers.spec.ts](match-providers.spec.ts) | 按允许清单的顺序匹配，不按提供者的登记顺序；不选清单外的层；缺设施时拒绝为 `missingFacility`；隔离不满足时拒绝为 `isolationUnconfirmed` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足) |
+| [need-declaration.spec.ts](need-declaration.spec.ts) | 接受未登记的设施键；拒绝未知字段、非字符串元素与不存在的绑定层；`digest` 等于 schema 文件字节的摘要 | [工具环境声明](../SPEC.md#工具环境声明) |
+| [facility-set.spec-d.ts](facility-set.spec-d.ts) | 示例按公开入口编译；`FacilitySet` 只给出声明点名的设施；三个核心设施键已登记且键集开放；声明不能写不存在的绑定层；租约按键给出设施类型 | [工具环境声明](../SPEC.md#工具环境声明)、[设施协议](../SPEC.md#设施协议) |
+
+运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/execution-environment-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。`vitest.config.ts` 为 `*.spec-d.ts` 打开了类型检查。
+
+当前缺口：落点的歧义拒绝、获取的幂等与重新核对、租约视图与恢复编排归 [execution-environment](../../execution-environment/README.md) 验证，本目录不覆盖；真实设施行为归提供者成员验证。SPEC 的[持续验证义务](../SPEC.md#持续验证义务)大部分需要组合验证。设施与提供者的契约验证套件还没有进入。具名维护者由负责人指定。

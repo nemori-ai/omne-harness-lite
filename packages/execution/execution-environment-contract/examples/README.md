@@ -1,29 +1,26 @@
 # examples
 
-<!-- documentation:placeholder -->
-
 本目录承载面向真实公开入口的使用示例。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 可运行的示例代码与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 示例只用公开入口，并写明运行前提。示例不代替测试或规格。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-公开入口变化时，同步示例并确认它仍能运行。
+公开入口变化时，同步示例并确认它仍能编译。`facility-set.spec-d.ts` 导入本目录的示例，示例与公开入口不一致时类型测试失败。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+本目录有一个示例：[shell-needs.ts](shell-needs.ts)。它演示一个命令行工具包怎样：
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+1. 写下自己的环境声明：需要 `command` 与 `terminal`，需要确认进程隔离，能在 `host_machine`、`session_sandbox` 与 `tenant_sandbox` 三种绑定层工作。
+2. 从声明推出执行者的设施类型 `FacilitySet`，执行者取不到声明没有点名的 `files`。
+3. 把 schema 的采用身份与声明值一起存进工具定义。
+4. 在一个终端里执行一段脚本，读取流式输出与终局。
+
+运行前提：示例只依赖本成员的公开入口。它是类型层面的示例，由本包的类型测试编译核对；它没有提供者，不能单独运行出真实结果。取得真实设施需要机制成员与提供者成员，见[使用与定位](../docs/context.md#使用方式)。具名维护者由负责人指定。

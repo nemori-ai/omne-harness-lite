@@ -135,9 +135,23 @@ function adoptionOf(state: AcquisitionState): EnvironmentAdoption | null {
 export function createEnvironmentRegistry<P>(deps: RegistryDependencies): EnvironmentRegistry<P> {
   const providers: ProviderEntry[] = []
   const facilities = new Map<FacilityKey, StoredDescriptor>()
-  const records = new Map<AcquisitionRef, AcquisitionRecord>()
+  // Keyed by the integrator's idempotency key; one record per tenant under a key, so another
+  // tenant reusing the key neither sees nor disturbs the first tenant's acquisition.
+  const records = new Map<AcquisitionRef, AcquisitionRecord[]>()
   const releasedScopes = new Set<string>()
   let closed = false
+
+  function* allRecords(): Generator<AcquisitionRecord> {
+    for (const list of records.values()) yield* list
+  }
+
+  const findRecord = (acquisition: AcquisitionRef, tenant: TenantId) =>
+    records.get(acquisition)?.find(record => sameTenant(record.tenant, tenant))
+
+  const samePlacement = (left: Placement, right: Placement) =>
+    sameBinding(left.binding, right.binding) &&
+    left.provider.name === right.provider.name &&
+    left.provider.generation === right.provider.generation
   let closing: Promise<Retirement> | undefined
 
   const scopeReleased = (binding: EnvironmentBinding) => {
@@ -171,7 +185,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
 
   const retireEntry = (entry: ProviderEntry): Promise<Retirement> => {
     entry.active = false
-    for (const record of records.values())
+    for (const record of allRecords())
       if (record.entry === entry) record.invalidate('providerRetired')
     entry.retiring ??= (async (): Promise<Retirement> => {
       let result: Retirement
@@ -231,11 +245,11 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     },
 
     async acquire(access, input) {
-      const existing = records.get(input.acquisition)
+      const existing = findRecord(input.acquisition, access.tenant)
       if (existing !== undefined)
-        return sameTenant(existing.tenant, access.tenant)
+        return samePlacement(existing.placement, input.placement)
           ? current(existing)
-          : rejected('notAuthorized')
+          : rejected('invalidInput')
       if (closed) return rejected('ownerStopped')
       const placement = input.placement
       if (foreignTenantBinding(placement.binding, access.tenant)) return rejected('notAuthorized')
@@ -255,7 +269,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
         lease: null,
         invalidate: () => undefined,
       }
-      records.set(input.acquisition, record)
+      records.set(input.acquisition, [...(records.get(input.acquisition) ?? []), record])
       if (entry === undefined) return settleRejected(record, 'providerUnavailable')
       if (scopeReleased(placement.binding)) return settleRejected(record, 'referenceExpired')
       const listed = placement.requirement.allowedBindings.some(binding =>
@@ -332,16 +346,15 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     },
 
     async inspectAcquisition(access, acquisition) {
-      const record = records.get(acquisition)
-      if (record === undefined || !sameTenant(record.tenant, access.tenant))
-        return { kind: 'unrecorded' }
+      const record = findRecord(acquisition, access.tenant)
+      if (record === undefined) return { kind: 'unrecorded' }
       return record.state
     },
 
     async describe(access, scope) {
       if (closed) return rejected('ownerStopped')
       const descriptions: EnvironmentDescription[] = []
-      for (const record of records.values()) {
+      for (const record of allRecords()) {
         if (!sameTenant(record.tenant, access.tenant)) continue
         if (!sameScope(bindingScope(record.placement.binding), scope)) continue
         if (record.state.kind === 'released') continue
@@ -373,7 +386,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       const decision = await authorize(access, scope)
       if (decision !== 'authorized') return rejected(decision)
       releasedScopes.add(scope.ref)
-      for (const record of records.values())
+      for (const record of allRecords())
         if (sameScope(bindingScope(record.placement.binding), scope))
           record.invalidate('scopeReleased')
       return driveRecovery(scope, providers)
@@ -418,7 +431,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     close() {
       closing ??= (async (): Promise<Retirement> => {
         closed = true
-        for (const record of records.values()) record.invalidate('registryClosed')
+        for (const record of allRecords()) record.invalidate('registryClosed')
         const results = await Promise.all([...providers].map(retireEntry))
         const resources = results.flatMap(result =>
           result.kind === 'pending' ? result.resources : [],
@@ -436,7 +449,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     scope: ScopeRef,
   ): Promise<'authorized' | 'notAuthorized' | 'unavailable'> {
     const known: ManagedResource[] = []
-    for (const record of records.values())
+    for (const record of allRecords())
       if (
         record.state.kind === 'pendingRelease' &&
         sameScope(bindingScope(record.placement.binding), scope)
