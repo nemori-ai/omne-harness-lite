@@ -20,7 +20,7 @@ The package does not own governance rules, scheduling, or storage. [session-cont
 Status: adapter member, `draft`. The [SPEC](SPEC.md) is a candidate design. Technical acceptance has not happened for it.
 
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers.
-- Not implemented: all sixteen plugins and port providers.
+- Not implemented: all seventeen plugins and port providers.
 - Blocked by named premises: the history source, the intake extension points, and the residency ports. Two Agent entries also block work: the late-result entry and the execution views with no live runtime. The [SPEC](SPEC.md#具名前提与明确缺项) lists each premise and the behavior before it closes.
 
 ## Usage

@@ -62,33 +62,32 @@ flowchart LR
 
 ### FA-04 历史源读取与未结工作下界
 
-对应 [AD-04](../SPEC.md#ad-04)。本流程待 [NP-01](../SPEC.md#np-01) 与 [NP-02](../SPEC.md#np-02) 闭合。
+对应 [AD-04](../SPEC.md#ad-04)。本流程待 [NP-02](../SPEC.md#np-02) 闭合。
 
-1. 一次组装开始时，插件先完成 FA-03 第 4 步的补拉，再给出历史依据：epoch、上界、作用域引用与访问身份。
-2. Request Context 以 `HistorySource.read` 带依据、游标与字节预算读取。插件返回一页，每行带前缀摘要。
-3. epoch 已变时，插件返回 `epoch-changed`。Request Context 用新依据重取。
+1. 一次组装开始时，插件先完成 FA-03 第 4 步的补拉，再以 `basis` 为 null 调 `readModelView` 取当前 epoch 与上界，给出历史依据：epoch、上界、作用域引用与访问身份。
+2. Request Context 以 `HistorySource.read` 带依据、游标与字节预算读取。插件以 `readModelView` 读一页，原样交出每行的序号、条目位置、字节数、前缀摘要与消息。
+3. `readModelView` 返回 `epoch-changed` 时，插件返回 epoch 已变与当前依据。Request Context 用新依据重取。`denied`、`invalid`、`unavailable` 分别交为无资格、无效与不可用。
 4. 需要压缩时，插件以 `readWork` 与 `openWork` 求出未结工作的条目引用集合，交给压缩计划作为下界。
 5. 压缩转换经 FA-01 的 `context-transition` 提交。提交之后的重签见 FA-03 第 5 步。
 
-### FA-05 Model 的交付责任解除与账目
+### FA-05 Model 的账目与收场
 
 对应 [AD-05](../SPEC.md#ad-05)。
 
-1. SE20 或 SE21 提交成功。插件由提交通知或恢复协调的读取得知。
-2. 插件以 `consumption.acknowledge` 发出 ACK，证据取自该提交的原回执。
-3. Model 确认后，插件以 `receive(release)` 写回确认。Model 未就绪时，`release` 保持 pending。
-4. Agent 不在场时，插件以 `calls.inspect` 与 `calls.dispatches` 读收场与账目，以 `receive(execution)` 与 `receive(account)` 提交。
+1. Agent 不在场时，插件以 `calls.inspect` 与 `calls.dispatches` 读收场与账目。
+2. 插件以 `receive(execution)` 与 `receive(account)` 提交。读不到时保持未知。
+3. Session 单方保管结果时，插件以 `consumption.beginRead`、`readNext`、`closeRead` 读原结果。
 
-受理点守卫的参加不在本流程里：协议闭合之前，会话的 owner 声明为免守卫。
+ACK 由 FA-14 发出。受理点守卫的参加不在本流程里：协议闭合之前，会话的 owner 声明为免守卫。
 
-### FA-06 Tool 的交付责任解除、查询与后台结果
+### FA-06 Tool 的查询与后台结果
 
 对应 [AD-06](../SPEC.md#ad-06)。
 
-1. SE20 或 SE21 提交成功后，插件以 `commands.releaseDelivery` 解除交付责任。
-2. 结果为 `released` 时，插件以 `receive(release)` 写回原生产者的回执。结果未知时，插件以 `queries.queryOperation` 查询。
-3. 对账与恢复时，插件以 `queries.lookup`、`queries.readResult`、`content.read` 与 `queries.account` 读取，再以 `receive` 提交收场、转后台确认与账目。
-4. Run 终态后到达、仍有投递资格的后台结果：插件先登记结果，再以 `accept(business)` 交给受理。原 Run 不复活。
+1. 对账与恢复时，插件以 `queries.lookup`、`queries.readResult`、`content.read` 与 `queries.account` 读取，再以 `receive` 提交收场、转后台确认与账目。
+2. Run 终态后到达、仍有投递资格的后台结果：插件先登记结果，再以 `accept(business)` 交给受理。原 Run 不复活。
+
+交付释放由 FA-14 发出。
 
 ### FA-07 模型选择
 
@@ -117,13 +116,15 @@ flowchart LR
 3. Session 把材料放进同一次提交。材料不全时，命令不提交。
 4. 端口不可用时，只有需要它的命令返回 `unavailable`。
 
-证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，推进协调随后调用 `freeze`。
+`GuardCommand.participant` 填材料的拥有者，不填存储参加者。
+
+证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
 
 ### FA-10 Tool 驻留端口
 
 对应 [AD-13](../SPEC.md#ad-13)。本流程待 [P-8](../../session-contract/SPEC.md#具名前提与明确缺项) 闭合。
 
-1. Tool 宿主的协调者调用 `ToolResidencyReader.referencing`。读取插件把登记键编码为 `ResidentKey`，以 `references` 逐页读取并返回。
+1. Tool 宿主的协调者调用 `ToolResidencyReader.referencing`。读取插件把登记键编码为 `ResidentKey`，以 `references` 逐页读取并返回。事务域目录缺席时，`references` 返回 `unavailable`，读取插件原样交回，不返回空页。
 2. Tool 宿主的协调者调用 `ToolResidencyActions.freeze`。动作插件取得租户，以 `freeze` 提交。重复调用认回原回执。
 
 ### FA-11 驱动 Agent
@@ -171,7 +172,8 @@ flowchart LR
 1. 归档协调或级联推进以任务的操作身份调用 `release`。
 2. 插件解码作用域引用，带装配交入的恢复授权调用 `releaseScope`。
 3. 插件把读回逐项对应为处置，交回 Session。Session 以 `receive(scope-release)` 写读回事实。
-4. 执行环境提供者换代时，插件按页重新释放已归档会话的作用域。
+4. 执行环境提供者换代时，重新释放子插件以 `releasedScopes` 按页取得已归档会话的作用域，按原任务的操作身份再调用 `releaseScope`。重新释放不写新的会话条目。
+5. 事务域目录缺席或 `releasedScopes` 返回 `unavailable` 时，子插件停止本轮并报告不可用，按策略重试。它不把不可用当作没有作用域。
 
 ### FA-13 Tool 启动资格失效
 
@@ -180,6 +182,34 @@ flowchart LR
 1. 撤销资格的提交成功后，控制传播、归档协调或推进协调调用 `invalidate`。
 2. 插件编码 `StartGuard` 与操作身份，调用 `toolStartAuthority.invalidate`。
 3. 成功时返回 `effective`，Session 以 `receive(start-fence)` 计入对账进度。其他结果使任务保留并重放。
+
+### FA-14 交付责任解除
+
+对应 [AD-17](../SPEC.md#ad-17)，翻译依据在 [AD-05](../SPEC.md#ad-05) 与 [AD-06](../SPEC.md#ad-06)。
+
+```mermaid
+sequenceDiagram
+  participant C as session 协调
+  participant R as AD-17
+  participant M as Model
+  participant T as Tool
+  C->>R: release，带结果、consumption 与证据
+  alt producer 为 model
+    R->>M: consumption.acknowledge
+    M-->>R: ACK 回执、未就绪、不可用或未知
+  else producer 为 tool
+    R->>T: commands.releaseDelivery
+    T-->>R: released、rejected、不可用或未知
+  end
+  R-->>C: confirmed、not-ready、unavailable 或 commit-unknown
+  C->>C: confirmed 时 receive(release)
+```
+
+1. `preserveResult`、`completeConsumption` 或 `completeExternalConsumption` 提交成功后，发起提交的协调调用 `release`。恢复协调以 `pending(release)` 找回仍为 pending 的结果版本后重发。
+2. 插件按 `ProducedResult.producer.kind` 选择生产者，按 AD-05 或 AD-06 的表翻译输入。
+3. 生产者确认时，插件返回 `confirmed` 与来源。协调以 `receive(release)` 写回，`release` 改为 confirmed。
+4. 其余结果都使 `release` 保持 pending。Session 以同一操作身份重发。
+5. Tool 的结果未知后重发时，插件先以原操作引用查询，再决定是否再次释放。原操作引用丢失且交付未释放时，插件返回 `commit-unknown` 并报告。
 
 ## 失败与生命周期
 

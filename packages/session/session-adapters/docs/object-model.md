@@ -8,9 +8,9 @@
 
 | 运行对象 | 关联的 Session 对象 | 关联的邻域对象 | 持有什么 |
 | --- | --- | --- | --- |
-| 入站插件（AD-01 至 AD-08、AD-13） | 命令与 `ProducerFact` | `CallerCommit`、Agent 事件、读取资格、`HistorySource`、ACK、`releaseDelivery`、`SelectedModel` | 订阅、上一份已过滤快照、前缀摘要缓存 |
-| 构造依赖端口实现（AD-09 至 AD-12） | `GuardCommand`、`ContextMaterial` | 身份材料、候选采用、`NeedBinding` | 无业务状态 |
-| 出站端口实现（AD-14 至 AD-16） | `AdvanceRef`、`ExecutionRef`、`DurableEvidence`、作用域引用 | `AgentRuntime`、执行句柄、`StartGuard`、`RecoveryAccess` | 执行句柄；恢复授权的引用 |
+| 入站插件（AD-01 至 AD-08、AD-13） | 命令、`ProducerFact`、`ModelViewRead` | `CallerCommit`、Agent 事件、读取资格、`HistorySource`、`SelectedModel` | 订阅、上一份已过滤快照、前缀摘要缓存 |
+| 构造依赖端口实现（AD-09 至 AD-12） | `GuardCommand`（`participant` 为材料拥有者）、`ContextMaterial`、`FreezeVerdict` | 身份材料、候选采用、`NeedBinding` | 无业务状态 |
+| 出站端口实现（AD-14 至 AD-17） | `AdvanceRef`、`ExecutionRef`、`DurableEvidence`、作用域引用、`ReleasedScope`、`ProducedResult` | `AgentRuntime`、执行句柄、`StartGuard`、`RecoveryAccess`、ACK、`releaseDelivery` 的操作引用 | 执行句柄；恢复授权的引用；Tool 释放操作引用的对应 |
 | 翻译函数 | 操作身份、模式值 | 邻域的操作身份、`DecisionMode`、元能力宿主的两个布尔值 | 无。纯函数 |
 
 ```mermaid
@@ -42,7 +42,10 @@ classDiagram
 
 | Session 一侧 | 邻域一侧 | 对应方式 |
 | --- | --- | --- |
-| `SessionOperationId` 与出站操作身份 | Agent、Tool 的操作身份 | 确定编码，不另存映射 |
+| `SessionOperationId` 与出站操作身份 | Agent、Model 的操作身份 | 确定编码，不另存映射 |
+| `DeliveryReleasePort.release` 的操作身份 | Tool `releaseDelivery` 的操作引用 | Tool 为每次调用分配新引用。AD-17 在进程内保存对应，丢失时按 AD-06 的认回步骤处理 |
+| `ProducedResult.producer` | Model 的原调用；Tool 的原调用引用 | 按 `kind` 选生产者，`call` 原样交出 |
+| `ModelViewRow.entry` | `RecordEntryRef` | 按 message 包的编码 |
 | `ExecutionRef.execution` | `AgentExecutionId` | 经 Agent 的受信解码 |
 | `ConsumptionId` | Agent 的 `ConsumptionId`；Model、Tool 的原调用 | 经 Agent 的受信解码；原调用按生产者的引用 |
 | 作用域引用 | Runtime Context 与执行环境的作用域引用 | 经 Runtime Context 根入口的解码函数 |
@@ -53,6 +56,7 @@ classDiagram
 
 - 插件与端口实现随插件 fiber 装载与卸载。卸载不改变任何会话事实。
 - 执行句柄从 `invoke` 或 `resume` 取得，执行结束、句柄失效或插件卸载时丢弃。
+- Tool 释放操作引用的对应在 `releaseDelivery` 返回时记下，交付确认、插件卸载或进程结束时丢弃。
 - 上一份已过滤快照在每次成功读取后替换，游标作废或进程结束时丢弃。
 - 前缀摘要缓存按 epoch 键入，只淘汰，不失效。
 - 恢复授权的生命周期归签发它的维护拥有者，本成员只持有引用。

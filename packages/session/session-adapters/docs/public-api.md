@@ -22,7 +22,7 @@
 | 结果对应函数 | 根入口 | 把邻域结果对应为 Session 结果或参加者响应 | 各插件的对应表 |
 | 入站插件 AD-01 至 AD-08、AD-13 | `./cordis` | 邻域调用本成员或本成员读取邻域 | [插件清单](../SPEC.md#插件清单) |
 | 构造依赖端口提供者 AD-09 至 AD-12 | `./cordis` | `sessionIdentity`、`sessionEvidence`、`sessionIdleInput`、`sessionContextInput` | 同上 |
-| 出站端口提供者 AD-14 至 AD-16 | `./cordis` | `sessionAgentDrive`、`sessionScopeRelease`、`sessionToolStartFence` | 同上 |
+| 出站端口提供者 AD-14 至 AD-17 | `./cordis` | `sessionAgentDrive`、`sessionScopeRelease`、`sessionToolStartFence`、`sessionDeliveryRelease` | 同上 |
 | 模型选择提供者 AD-07 | `./cordis` | `agentModelSelection` | [AD-07](../SPEC.md#ad-07) |
 | `ContextBlocks` 增补 | `./cordis` | 把 `session.modes` 加入 Runtime Context 的块目录 | [AD-03](../SPEC.md#ad-03) |
 | AD-15 的构造入口 | `./cordis` | 装配入口交入恢复授权 | [AD-15](../SPEC.md#ad-15) |
