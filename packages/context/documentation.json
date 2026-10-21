@@ -47,67 +47,7 @@
       ]
     },
     {
-      "id": "target-runtime-context-spec",
-      "path": "packages/context/runtime-context/SPEC.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "target-runtime-context-design",
-      "path": "packages/context/runtime-context/docs/internals.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "target-request-context-spec",
-      "path": "packages/context/request-context/SPEC.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "target-request-context-design",
-      "path": "packages/context/request-context/docs/internals.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-context-docs-architecture-md",
+      "id": "architecture",
       "path": "packages/context/docs/architecture.md",
       "kind": "architecture",
       "required": true,
@@ -122,68 +62,8 @@
       "requiredSections": []
     },
     {
-      "id": "placed-packages-context-runtime-context-docs-key-flows-md",
-      "path": "packages/context/runtime-context/docs/key-flows.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-context-docs-key-flows-md",
+      "id": "key-flows",
       "path": "packages/context/docs/key-flows.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-context-runtime-context-docs-open-questions-md",
-      "path": "packages/context/runtime-context/docs/open-questions.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-context-request-context-docs-key-flows-md",
-      "path": "packages/context/request-context/docs/key-flows.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-context-request-context-docs-open-questions-md",
-      "path": "packages/context/request-context/docs/open-questions.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",

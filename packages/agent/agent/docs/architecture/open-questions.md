@@ -91,7 +91,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 | 项 | 内容 |
 | --- | --- |
-| 拥有者 | Context。涉及[系统页](../../../../../docs/architecture/runtime/runtime-context.md)、[Runtime Context 的 RC-04](../../../../context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)和 [Context 的关键流程](../../../../context/docs/key-flows.md) |
+| 拥有者 | Context。涉及[系统页](../../../../../docs/architecture/runtime/runtime-context.md)、[Runtime Context 的 RC-04](../../../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)和 [Context 的关键流程](../../../../context/docs/key-flows.md) |
 | Agent 所需保证 | 读取时点已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受为“执行开始或挂接建立”，系统页与 Context 规格按此写回。Agent 在主请求准备、模型选择变化和压缩提交之后再次读取。full 还是 incremental 由 Context 决定。仍需 Context 的请求准备接缝提供有限多步的压缩计划，并接受实际收件模型的选择结果 |
 | 阻塞的能力 | 上下文与模型（CAP-AG04）的压缩计划 |
 | Agent 侧已产出的边界 | SPEC 的“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”写明 Agent 的五个拉取时点，前两个与系统页的时点对应。压缩计划的接缝缺口见[实施差异](../../../agent-contract/verification/coverage.md#实施差异) |

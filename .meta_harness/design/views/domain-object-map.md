@@ -7,7 +7,7 @@
 - 生成时间：2026-10-21
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **51** 个，变体 **28** 个，形态未定的词条 **0** 个，待裁 **9** 项。
+对象 **66** 个，变体 **30** 个，形态未定的词条 **0** 个，待裁 **7** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -65,6 +65,12 @@
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [UL-tenant-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-tenant-sandbox--租户级沙箱--tenant-scoped-sandbox) | [租户](../domain_objects/objects.md#ul-tenant--租户) | — | PF-005（sealed provenance） | — |
 | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) | [UL-sandbox-data](../ubiquitous_language/terms/grounding-and-isolation.md#ul-sandbox-data--沙箱数据--sandbox-data) | [租户](../domain_objects/objects.md#ul-tenant--租户)（寿命上）；[租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱)（归属上） | — | PF-005（sealed provenance） | — |
 | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) | [UL-terminal-session](../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没） | — | PD-meta-capabilities | — |
+| [设施声明](../domain_objects/objects.md#ul-facility-descriptor--设施声明) | [UL-facility-descriptor](../ubiquitous_language/terms/grounding-and-isolation.md#ul-facility-descriptor--设施声明--facility-descriptor) | 发布它的那种设施的拥有者；登记到撤除 | — | PD-execution-environments（草稿） | — |
+| [获取](../domain_objects/objects.md#ul-environment-acquisition--获取) | [UL-environment-acquisition](../ubiquitous_language/terms/grounding-and-isolation.md#ul-environment-acquisition--获取--environment-acquisition) | 发起它的集成方的耐久账本；账本关闭它不再推进 | — | PD-execution-environments（草稿） | — |
+| [租约](../domain_objects/objects.md#ul-environment-lease--租约) | [UL-environment-lease](../ubiquitous_language/terms/grounding-and-isolation.md#ul-environment-lease--租约--environment-lease) | 它所属的[获取](../domain_objects/objects.md#ul-environment-acquisition--获取)；提供者退役、作用域释放、执行环境关闭、寿命到期回收、实例丢失或换代使它失效 | — | PD-execution-environments（草稿） | — |
+| [受管资源](../domain_objects/objects.md#ul-managed-resource--受管资源) | [UL-managed-resource](../ubiquitous_language/terms/grounding-and-isolation.md#ul-managed-resource--受管资源--managed-resource) | 造出它的[环境提供者](../domain_objects/objects.md#ul-environment-provider--环境提供者)；耐久部分在集成方账本 | — | PD-execution-environments（草稿） | — |
+| [环境提供者](../domain_objects/objects.md#ul-environment-provider--环境提供者) | [UL-environment-provider](../ubiquitous_language/terms/grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider) | 登记它的插件；卸载即撤除 | — | PD-execution-environments（草稿） | — |
+| [文件批次](../domain_objects/objects.md#ul-file-batch--文件批次) | [UL-file-batch](../ubiquitous_language/terms/grounding-and-isolation.md#ul-file-batch--文件批次--file-batch) | 造出它的[环境提供者](../domain_objects/objects.md#ul-environment-provider--环境提供者)的文件设施；清单在集成方账本 | — | PD-execution-environments（草稿） | — |
 | [会话据点](../domain_objects/objects.md#ul-session-base--会话据点) | [UL-session-base](../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 正文未述——正文只给了一条消失路径「这一处的那份数据被清除」，没说身份里那个账号那一头没了它怎么办（账号本版无注销，那一问正文无从谈起）。**它不寄宿于任何进程**：「此刻有没有进程在服务它」与「它在不在」是两件事 | — | PF-016（sealed provenance） | — |
 | [治理中心](../domain_objects/objects.md#ul-governance-center--治理中心) | [UL-governance-center](../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | —（独立于任何人的机器。会话据点的身份里带着它，那是**据点依赖它**，不是它寄宿于谁） | — | PF-016（sealed provenance） | 017（sealed provenance） |
 
@@ -87,6 +93,9 @@
 | [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009（sealed provenance） | runtime-context（草稿） |
 | [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | 推理续接状态 | PF-009（sealed provenance） | — |
 | [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PD-meta-capabilities | 015（sealed provenance） |
+| [请求候选](../domain_objects/objects.md#ul-request-candidate--请求候选) | [UL-request-candidate](../ubiquitous_language/terms/record-and-context.md#ul-request-candidate--请求候选--request-candidate) | 持有它的调用方（会话路径上是发起请求的协调者）；正文未述它在调用方内的寿命边界 | — | PD-runtime-context（草稿） | — |
+| [提示词贡献](../domain_objects/objects.md#ul-prompt-contribution--提示词贡献) | [UL-prompt-contribution](../ubiquitous_language/terms/record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution) | 登记它的贡献者；贡献者卸载它随之撤销 | — | PD-runtime-context（草稿） | — |
+| [压缩计划](../domain_objects/objects.md#ul-compaction-plan--压缩计划) | [UL-compaction-plan](../ubiquitous_language/terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 它所属的[请求候选](../domain_objects/objects.md#ul-request-candidate--请求候选)；一个候选身份至多一个计划 | — | PD-runtime-context（草稿） | — |
 | [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021（sealed provenance） | — |
 | [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属业务日历可追溯，未规定随其退出而删除 | — | PF-021（sealed provenance） | — |
 
@@ -96,6 +105,12 @@
 |---|---|---|---|---|---|
 | [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 寿命宿主正文未述。Omne Host 托管工作区的治理所有者为一个[租户](../domain_objects/objects.md#ul-tenant--租户)，登记外部仓库的工作区则无 Omne 治理所有者、各接入租户均为参与者；治理归属及参与关系不据此成为寿命宿主 | Git 工作区 | PF-020（sealed provenance） | 002（sealed provenance） |
 | [工作区实例](../domain_objects/objects.md#ul-workspace-instance--工作区实例) | [UL-workspace-instance](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 部署节点上的一次工作区装载，可接入用户已有的本地目录；它代表一个工作区，但不拥有工作区 | — | PF-020（sealed provenance） | — |
+| [运行时 context 注册](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) | [UL-runtime-context-registration](../ubiquitous_language/terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration) | 它所属的作用域；本版的作用域持有者是[会话](../domain_objects/objects.md#ul-session--会话)，作用域结束它随之结束 | — | PD-runtime-context（草稿） | — |
+| [runtime context 块](../domain_objects/objects.md#ul-context-block--runtime-context-块) | [UL-context-block](../ubiquitous_language/terms/scope-and-resolution.md#ul-context-block--runtime-context-块--context-block) | [运行时 context 注册](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册)——注册移除或作用域结束，它就退出 | 供给块、状态块 | PD-runtime-context（草稿） | — |
+| [块声明](../domain_objects/objects.md#ul-context-block-descriptor--块声明) | [UL-context-block-descriptor](../ubiquitous_language/terms/scope-and-resolution.md#ul-context-block-descriptor--块声明--context-block-descriptor) | 发布它的包，即值的语义拥有者；不随作用域 | — | PD-runtime-context（草稿） | — |
+| [生产者句柄](../domain_objects/objects.md#ul-producer-handle--生产者句柄) | [UL-producer-handle](../ubiquitous_language/terms/scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle) | 登记供给的那个生产者所在的插件；插件卸载它随之撤销 | — | PD-runtime-context（草稿） | — |
+| [绑定读者](../domain_objects/objects.md#ul-bound-reader--绑定读者) | [UL-bound-reader](../ubiquitous_language/terms/scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader) | 建立它的那份读取资格；资格撤销或失效它就结束 | — | PD-runtime-context（草稿） | — |
+| [步提交](../domain_objects/objects.md#ul-step-commit--步提交) | [UL-step-commit](../ubiquitous_language/terms/scope-and-resolution.md#ul-step-commit--步提交--step-commit) | 它所属的作用域 | — | PD-runtime-context（草稿） | — |
 
 ## 主体与归属
 
@@ -115,7 +130,7 @@
 
 | 宿主 | 寄宿在它身上的 |
 |---|---|
-| [会话](../domain_objects/objects.md#ul-session--会话) | [运行](../domain_objects/objects.md#ul-run--运行)、[agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)、[装配清单](../domain_objects/objects.md#ul-assembly-manifest--装配清单)、[会话级沙箱](../domain_objects/objects.md#ul-session-sandbox--会话级沙箱)、[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)、[一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用)、[决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片)、[会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)、[入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达)、[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)、[待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) |
+| [会话](../domain_objects/objects.md#ul-session--会话) | [运行时 context 注册](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册)、[运行](../domain_objects/objects.md#ul-run--运行)、[agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)、[装配清单](../domain_objects/objects.md#ul-assembly-manifest--装配清单)、[会话级沙箱](../domain_objects/objects.md#ul-session-sandbox--会话级沙箱)、[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)、[一次模型调用](../domain_objects/objects.md#ul-model-call--一次模型调用)、[决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片)、[会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)、[入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达)、[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)、[待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) |
 | [租户](../domain_objects/objects.md#ul-tenant--租户) | [工作区](../domain_objects/objects.md#ul-workspace--工作区)、[会话](../domain_objects/objects.md#ul-session--会话)、[租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱)、[沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) |
 | [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | [无状态沙箱](../domain_objects/objects.md#ul-stateless-sandbox--无状态沙箱)、[附件](../domain_objects/objects.md#ul-attachment--附件)、[被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果)、[决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
 | [组织](../domain_objects/objects.md#ul-organization--组织) | [邀请](../domain_objects/objects.md#ul-invitation--邀请)、[隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求)、[租户](../domain_objects/objects.md#ul-tenant--租户) |
@@ -123,13 +138,17 @@
 | [账号](../domain_objects/objects.md#ul-account--账号) | [登录状态](../domain_objects/objects.md#ul-login-state--登录状态)、[租户](../domain_objects/objects.md#ul-tenant--租户) |
 | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行) | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)、[执行挂接](../domain_objects/objects.md#ul-execution-attachment--执行挂接) |
 | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)、[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) |
+| [环境提供者](../domain_objects/objects.md#ul-environment-provider--环境提供者) | [受管资源](../domain_objects/objects.md#ul-managed-resource--受管资源)、[文件批次](../domain_objects/objects.md#ul-file-batch--文件批次) |
+| [运行时 context 注册](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) | [runtime context 块](../domain_objects/objects.md#ul-context-block--runtime-context-块) |
 | [资产](../domain_objects/objects.md#ul-asset--资产) | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) |
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) |
 | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境) | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) |
+| [获取](../domain_objects/objects.md#ul-environment-acquisition--获取) | [租约](../domain_objects/objects.md#ul-environment-lease--租约) |
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) |
 | [运行](../domain_objects/objects.md#ul-run--运行) | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
 | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) |
 | [消息](../domain_objects/objects.md#ul-message--消息) | [内容块](../domain_objects/objects.md#ul-content-block--内容块) |
+| [请求候选](../domain_objects/objects.md#ul-request-candidate--请求候选) | [压缩计划](../domain_objects/objects.md#ul-compaction-plan--压缩计划) |
 
 ## 还悬着的
 
@@ -144,17 +163,15 @@
 | 待裁项 | 谁来裁 |
 |---|---|
 | [存储](../domain_objects/pending.md#存储) | PF-006 的 owner |
-| [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人——它要不要做、归哪个 topic，都还没有人说过；由元能力产品保留跨会话对象缺项 |
-| [runtime context 的一块](../domain_objects/pending.md#runtime-context-的一块) | PF-015 的 owner |
+| [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者 |
 | [一次派发](../domain_objects/pending.md#一次派发) | 系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义 |
 | [agent 之间的消息](../domain_objects/pending.md#agent-之间的消息) | 元能力、Session 与入站拥有者 |
 | [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | 元能力产品拥有者 |
 | [使用成本明细](../domain_objects/pending.md#使用成本明细) | 产品负责人——「观测与计量」这一块还没有 topic |
-| [压缩策略](../domain_objects/pending.md#压缩策略) | PF-010 与 PF-015 的 owner |
 | [通知发送与投递结果](../domain_objects/pending.md#通知发送与投递结果) | 系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围 |
 
 ### 没有任何产品正文链接到的对象词条
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、业务日历、业务日历版本、工作区、工作区实例、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

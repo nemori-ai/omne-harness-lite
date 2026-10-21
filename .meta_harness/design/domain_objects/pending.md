@@ -25,22 +25,15 @@
 
 ### 跨会话的那个对象
 
-- **现象**：元能力产品说待办「活在一次会话里，不跨会话继承。跨会话的东西不装在这扇门后面」，并在边界一节登记为「尚无归属」。它曾被叫作「目标」，但设计链里没有它的定义
-- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 3）；[元能力：产品规则](../product/meta-capabilities/design.md#协作拥有者与非目标)（rev 3）
-- **谁来裁**：产品负责人——它要不要做、归哪个 topic，都还没有人说过；由元能力产品保留跨会话对象缺项
+- **现象**：元能力产品说待办「归当前 Session，不跨会话继承」，「跨会话工作对象不由此入口补造」。它的边界一节写「跨会话待办对象仍待原产品与领域对象拥有者处理」，未决一节把它列为由领域对象待裁维护的缺项。它曾被叫作「目标」，但设计链里没有它的定义
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#协作拥有者与非目标)；[元能力：由其他拥有者维护的缺项](../product/meta-capabilities/design.md#由其他拥有者维护的缺项)（rev 4）
+- **谁来裁**：产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者
 - **闭合条件**：有 topic 认领它，或明确本版不做
-
-### runtime context 的一块
-
-- **现象**：PF-015 说 runtime context「是一块一块的，不是一个大袋子，每一块是一份数据」，每块有生产者与消费者、就地更新、要能恢复。词条 UL-runtime-context 指的是整批（形态为总称），真正可指认的单位「块」没有词条；而十四项里有的是实时算的、没有持久状态。PF-015 §6.18 已定义会话内注册声明为属性，支持增删与恢复；这不替各类块的数据本身裁定独立对象身份
-- **牵涉**：[PF-015 §4 runtime context](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 21）；[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
-- **谁来裁**：PF-015 的 owner
-- **闭合条件**：正文写明「块」是不是一个要被标识的单位；是的话给它名字并立词条
 
 ### 一次派发
 
 - **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。元能力产品已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
-- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-agents)（rev 3）；[元能力：产品规则](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 3）
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-agents)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 4）
 - **挂着谁**：[派发报告](objects.md#ul-dispatch-report--派发报告)的宿主
 - **谁来裁**：系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义
 - **闭合条件**：明确一次派发与承载工具执行的身份关系，不把它等同子会话或某一个 Run
@@ -48,14 +41,14 @@
 ### agent 之间的消息
 
 - **现象**：元能力产品定义了「谁能给谁发」的两条规则；普通消息已沿接收会话的输入与 Run 规则处理，但无派发关系主会话通信的精确身份、重试、不存在目标以及持久交接协议仍未闭合，不由入口命令名补造
-- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 3）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
+- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 4）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
 - **谁来裁**：元能力、Session 与入站拥有者
 - **闭合条件**：实际入站与消息拥有者明确普通通信的身份、持久交接、重试和目标不存在协议，并对应到消息类别
 
 ### 外部 harness 的 agent
 
 - **现象**：能被派发指向、「能不能派给它」本身是一项要被授予的权限；但它在本系统里有没有一条登记记录，完全未述
-- **牵涉**：[元能力：派给外部 harness 的 agent](../product/meta-capabilities/design.md#外部-harness-派发)（rev 3）
+- **牵涉**：[元能力：派给外部 harness 的 agent](../product/meta-capabilities/design.md#外部-harness-派发)（rev 4）
 - **谁来裁**：元能力产品拥有者
 - **闭合条件**：正文写明它靠什么被指到、由谁登记与撤销
 
@@ -65,13 +58,6 @@
 - **牵涉**：[PF-001 §6.4](../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
-
-### 压缩策略
-
-- **现象**：PF-015 把「当前使用的 ContextCompactionSettings」列为一项 meta runtime context，没有指明它定义在哪；它是一份独立的设置对象，还是某个对象上的一项值，无从判断
-- **牵涉**：[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
-- **谁来裁**：PF-010 与 PF-015 的 owner
-- **闭合条件**：PF-010 认领它并说明它挂在哪
 
 ### 通知发送与投递结果
 

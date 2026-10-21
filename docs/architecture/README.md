@@ -117,7 +117,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 工作区指导加载 | 首次访问的判据、指导文件规范版本和合并协议。 | 工作区指导加载与 Runtime Context 拥有者；[更新、通知与读取](runtime/runtime-context.md#更新通知与读取)。 |
 | 模型适配与失联判定 | 状态码映射、退避参数、请求快照格式及失联判据。 | Model runtime 与模型适配器拥有者；[验证责任与细化范围](runtime/model-runtime.md#验证责任与细化范围)。 |
 | 策略参数与故障兜底 | 循环守卫、预算、时限、轮数、重试、退避和超时的具体规则及参数。 | 各策略与能力拥有者；[循环守卫与终态扩展](runtime/loop-extensions.md#循环守卫与终态扩展)、[长期运行与验证义务](runtime/agent-runtime.md#长期运行与验证义务)、[存储与关键服务降级](runtime/control-and-recovery.md#存储与关键服务降级)。 |
-| 长期会话的算法与性能指标 | 上下文组装、压缩和缓存算法，代表规模、查询与恢复成本、TTFT 场景及目标数值。 | 上下文、数据与性能验证拥有者；[长期会话的性能与验证](runtime/request-context.md#长期会话的性能与验证)、[长期读取与派生状态](data-and-state.md#长期读取与派生状态)、[长期会话与并行工作](drivers-and-constraints.md#长期会话与并行工作)。 |
+| 长期会话的算法与性能指标 | 上下文组装、压缩和缓存算法，代表规模、查询与恢复成本、TTFT 场景及目标数值。 | 上下文、数据与性能验证拥有者；[长期运行作用域的性能与验证](runtime/request-context.md#长期运行作用域的性能与验证)、[长期读取与派生状态](data-and-state.md#长期读取与派生状态)、[长期会话与并行工作](drivers-and-constraints.md#长期会话与并行工作)。 |
 | 执行环境提供者 | 候选排序、池化、探测、节点选择、设施命名、限额、保留期及异构恢复协议。 | 执行环境提供者与部署设计；[环境选择与资源准备](runtime/execution-environment.md#环境选择与资源准备)、[失效重建与数据责任](runtime/execution-environment.md#失效重建与数据责任)、[观测与验证责任](runtime/execution-environment.md#观测与验证责任)。 |
 | 持久化与提交协议 | 必需状态和 Schema、持久确认条件、跨拥有者事务、未知提交的查询与对账。 | 数据拥有者、存储提供者与协调方；[状态分类与持久边界](data-and-state.md#状态分类与持久边界)、[事务与一致性](data-and-state.md#事务与一致性)。 |
 | 数据保留、备份和迁移 | 各类内容的保留与删除范围、备份覆盖与灾备目标、迁移的中断及恢复协议。 | 对应产品政策、数据拥有者和存储提供者；[数据生命周期与演进](data-and-state.md#数据生命周期与演进)。 |

@@ -47,37 +47,7 @@
       ]
     },
     {
-      "id": "target-execution-environment-spec",
-      "path": "packages/execution/execution-environment/SPEC.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "target-execution-environment-design",
-      "path": "packages/execution/execution-environment/docs/internals.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages#execution#docs#architecture",
+      "id": "architecture",
       "path": "packages/execution/docs/architecture.md",
       "kind": "architecture",
       "required": true,
@@ -92,8 +62,8 @@
       "requiredSections": []
     },
     {
-      "id": "placed-packages#execution#execution-environment#docs#key-flows",
-      "path": "packages/execution/execution-environment/docs/key-flows.md",
+      "id": "key-flows",
+      "path": "packages/execution/docs/key-flows.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",
@@ -101,7 +71,7 @@
       "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
+        "anchor": "能力组文档要求"
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
