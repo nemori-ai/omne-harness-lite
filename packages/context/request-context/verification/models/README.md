@@ -1,29 +1,19 @@
 # verification/models
 
-<!-- documentation:placeholder -->
-
 本目录承载本包的形式模型，例如 TLA+、Alloy 或 SMT 模型。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 模型源文件、配置与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-说明模型对应的 `SPEC.md` 条款、抽象前提与未覆盖的部分。模型通过不等于实现符合。
+说明模型对应的 `SPEC.md` 行为、抽象前提与未覆盖的部分。模型通过不等于实现符合。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 承诺或实现结构变化时，复核模型的抽象是否仍然成立。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空，本成员没有形式模型。SPEC 没有要求哪个场景必须用模型验证。可能的对象是缓存在来源修订并发前进时不返回旧候选，以及组装期间 epoch 变化时不拼接两页。以后建立模型时，在这里写明对应的 SPEC 行为、前提与运行命令。

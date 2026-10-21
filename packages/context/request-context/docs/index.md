@@ -1,16 +1,18 @@
 # docs 索引
 
-<!-- documentation:placeholder -->
-
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
+本文件列出本目录的文件与阅读路径。职责说明见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
+- [architecture.md](architecture.md)：模块与依赖、关键机制与理由、SOLID 与扩展边界
+- [flows.md](flows.md)：F-RQI01 至 F-RQI03 机制流程，失败与生命周期
+- [object-model.md](object-model.md)：内部对象与关系、生命周期、实例状态
+- [public-api.md](public-api.md)：导出入口与定义索引
+- [context.md](context.md)：经 Cordis 使用、独立使用与定位
+- [cordis.md](cordis.md)：不适用 Cordis 集成的理由
 
-- [architecture.md](architecture.md)：内部模块、状态与资源归属、关键机制及理由
-- [flows.md](flows.md)：关键业务流程与数据流
-- [object-model.md](object-model.md)：内部对象模型
-- [public-api.md](public-api.md)：公开边界与定义导航
-- [context.md](context.md)：消费侧使用与系统定位
-- [cordis.md](cordis.md)：Cordis 适用性与集成责任
+## 阅读路径
+
+- 实现缓存与默认策略：[../SPEC.md](../SPEC.md)、[architecture.md](architecture.md)，再读 [flows.md](flows.md)。
+- 不装配 Cordis，直接使用缓存与默认策略：[context.md](context.md#独立使用)，再读 [public-api.md](public-api.md)。
+- 修改本成员：[architecture.md](architecture.md)、[object-model.md](object-model.md)，再读 SPEC 的[组合与验证](../SPEC.md#组合与验证)。

@@ -3,71 +3,101 @@
 PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-Draft service-provider package.
+The Service implementation member of Request Context. Variant: `service-provider`.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+This package puts the mechanism of [request-context](../request-context/README.md) into the service `requestContext` that [request-context-cordis-contract](../request-context-cordis-contract/README.md) defines. It owns the contribution registry, the strategy selection by configuration, the configuration check failure, the isolate binding, and removal. [request-context-contract](../request-context-contract/README.md) owns domain behavior, and request-context owns mechanism behavior. Neither is in this package.
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+Status: Service implementation member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page and the [SPEC](SPEC.md).
+
+- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
+- Not implemented: the concrete subclass, the plugin, the configuration schema, the contribution registry, and the factory of the root entry.
+- Not verified: the intercept part of property 2 and the filter part of property 3 are assumptions now. They depend on mechanism readings that are not in the basis yet. None of the seven verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- Open items: the service definition has no assembly entry, so the SPEC does not say how a Cordis caller reaches the mechanism instance. The SPEC also does not say how the mechanism instance learns about contribution changes, or how the root factory differs from the mechanism factory. See the [Cordis page](docs/cordis.md#插件与服务).
+
+No application loads this plugin now, and no package depends on this package.
 
 ## Usage
 
-<!-- documentation:placeholder -->
+The package has two entries:
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+- `@omne-harness/request-context-cordis/cordis` holds the plugin. An application assembler adds one row for this plugin to the plugin tree and supplies the configuration.
+- `@omne-harness/request-context-cordis` holds a factory that does not depend on Cordis. The factory returns the same implementation as the plugin.
+
+Contributors and callers that assemble requests do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin and the factory are not implemented, so no runnable example exists now.
 
 ## Contracts
 
-<!-- documentation:placeholder -->
+- `src/` owns the public shapes. It is empty now. The [API page](docs/public-api.md) indexes the exports.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 7.
+- The [Cordis page](docs/cordis.md) owns the plugin, the configuration and strategy selection, the isolate binding, the contribution registry, the change event dispatch, and the removal order.
+- [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md) owns the service key, the abstract class, the intercept configuration, the event, and the strategy selection shape.
 
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The fiber of this plugin owns the service instance, the mechanism instance, and the strategy instances. When the plugin unloads, removal runs in a fixed order:
+
+1. Refuse new registrations and assemblies.
+2. Wait for in-flight assemblies to settle.
+3. Discard the registry and the cache.
+
+The fiber of the contributor plugin owns a contribution registration and its rendering. Removal does not take back candidates, plans, or transitions that it gave out.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+`./cordis` has five parts: configuration and strategy selection, service subclass, contribution registry, event dispatch, and removal. The outside dependencies are request-context-contract, request-context-cordis-contract, request-context, and `@deepseek-ai/cordis`. Removal runs in one effect. The service reads the scope on each call. A strategy selection failure fails the load and does not fall back. A rendering is removed together with its registration. The package opens no fiber per request. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
+A Standard Schema checks the plugin configuration. The configuration has these fields:
 
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+- the compaction strategy selection and its parameters
+- the representation strategy selection and its preference order
+- the trim threshold
+- the cache capacity
+
+Default values are only initial values, and request-context owns them. The plugin does not load when the configuration points to a strategy that does not exist. It also does not load when a parameter does not match the schema. In both cases the fiber goes to `FAILED`. The plugin does not fall back to the default strategy. One isolate label holds one copy of the plugin. A second load under the same label fails.
+
+The package needs no environment, reads no resources at run time, and does not access storage. After a process failure, contributors register again.
 
 ## Verification
 
-<!-- documentation:placeholder -->
+From the repository root, run:
 
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+```sh
+pnpm turbo run test --filter=@omne-harness/request-context-cordis
+```
+
+In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The seven verification obligations of the SPEC arrive with the implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+- When the service definition changes, update the concrete subclass, the [Cordis page](docs/cordis.md), and the tests.
+- When the factory, the default strategies, or the configuration of request-context change, update the configuration schema and the [API page](docs/public-api.md).
+- Before a Cordis upgrade, run the basis probes that the service definition members list.
+- The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
 
 ## Directory structure and documentation roles
 
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the public types
+SPEC.md                   Behavior beyond the types, properties 1 to 7
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
-├── architecture.md       Modules, state and resource ownership, mechanisms
-├── flows.md              Key business flows and data flows
-├── object-model.md       Internal object model
-├── public-api.md         Public boundary and definition index
-├── context.md            Consumer use and position in the system
-└── cordis.md             Cordis applicability and integration
-src/                      Public definitions, validation, and implementation
-tests/                    Continuous tests; fixtures/ holds test inputs
-schema/                   External schemas
-verification/             models/ and proofs/
-adr/                      Implementation decisions with continuing consumers
-examples/                 Examples against the public entry
-resources/                Non-source runtime resources
-acceptance/               Independent acceptance; fixtures/ holds its inputs
+├── architecture.md       Two entries, modules, dependencies, mechanisms and reasons
+├── flows.md              Mechanism flows F-RQP01 to F-RQP03
+├── object-model.md       Service instance, plugin configuration, contribution registry
+├── public-api.md         Export entries and definition index
+├── context.md            Assembly, independent use, position
+└── cordis.md             Plugin, strategies, isolate, registry, event, removal, IC map
+src/                      index.ts and cordis.ts, template markers only now
+tests/                    Two entry tests, fixtures/ is empty now
+schema/                   Empty, the configuration schema goes in src/
+verification/             models/ and proofs/, empty now
+adr/                      Empty now
+examples/                 Empty now
+resources/                Empty now
+acceptance/               Empty now, fixtures/ is also empty
 ```
 
-Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.
+Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.
