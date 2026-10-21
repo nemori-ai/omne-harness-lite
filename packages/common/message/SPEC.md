@@ -10,7 +10,7 @@
 
 本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
 
-状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态是设计，尚未实现，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；实现之前，本文件「推理续接状态」一节的形状表是它的唯一定义。
+状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态是设计，尚未实现，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；实现之前，本文件「推理续接状态」一节（形状、规则与判定）是它的唯一定义；实现之后，形状以 [src/](src) 为准，规则与判定顺序仍归该节。
 
 依据如下。
 
@@ -30,7 +30,7 @@
 
 ### 形状
 
-`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder`、`compaction` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。
+`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder`、`compaction` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。assistant 还将允许推理续接状态部件与可选键 `replay`，这一设计见[推理续接状态](#推理续接状态)，实现前不改变本段所述的现行形状。
 
 | 键 | 含义 |
 | --- | --- |
@@ -98,7 +98,7 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 `judgeMessage` 的「消息自己的字段」一步按下面的顺序检查，返回第一个失败。输入不是对象或是数组时，先判 `shape`。顶层不检查原型。
 
-1. **多余键。**合法键集是 `id`、`role`、`blocks`；输入的 `role` 自有属性严格等于字符串 `compaction` 时，再加 `covers`、`retained`、`derivation`。此时角色还没有校验，未知角色、非字符串角色和其他五种角色都只用前三个键。有键不在合法键集里：`extra`。只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。
+1. **多余键。**合法键集是 `id`、`role`、`blocks`；输入的 `role` 自有属性严格等于字符串 `compaction` 时，再加 `covers`、`retained`、`derivation`。此时角色还没有校验，未知角色、非字符串角色和其他五种角色都只用前三个键；`assistant` 的可选键 `replay` 是设计，见[推理续接状态](#judgemessage-与-judgepart-的判定)。有键不在合法键集里：`extra`。只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。
 2. **缺键。**必需键集与第 1 项的合法键集相同。按 `in` 判定，继承来的键也算存在。缺任一个：`missing`。
 3. **null。**合法键集里任一个键的值为 `null`：`null`。
 4. **类型。**`id`、`role` 不是字符串，或 `blocks` 不是数组：`shape`。
@@ -180,7 +180,7 @@ flowchart LR
 | --- | --- |
 | `kind` | 固定为 `reasoning_state` |
 | `id` | 块身份，由 `content-block` 的 `judgeBlockIdentity` 判定 |
-| `visibility` | 块标注。`toHuman` 必须为 false；`toModel` 不限 |
+| `visibility` | 块标注。`toHuman` 必须为 false。`toModel` 不限：为 false 时这段状态不给任何模型 |
 | `payload` | 不透明载荷，非空字符串，长度不超过 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576 个 UTF-16 码元）。本成员不读取其内容 |
 | `pairs` | 与它配对的块的身份，按块身份全等比较。每项是同一条消息里一个不是推理续接状态部件的块，比如它对应的 `thinking` 块，或签名挂在上面的调用部件。可以为空；不重复 |
 
@@ -191,7 +191,7 @@ flowchart LR
 | `scope` | 回放范围，非空字符串，长度不超过 `REPLAY_TAG_MAX_LENGTH`（256 个 UTF-16 码元） |
 | `format` | 这条消息推理内容的格式与版本，非空字符串，长度上限同 `scope`。由产出它的适配器给出，本成员不解释 |
 | `at` | 全部推理续接状态部件在 `blocks` 中的下标，严格递增；消息里没有这类部件时为空数组 |
-| `tokens` | 上游为这次回复报告的推理 token 数，是不带前导零的十进制整数字符串；上游没有报告时为 `null` |
+| `tokens` | 上游为这次回复报告的推理 token 数，是非负十进制整数字符串（`0` 或不以 `0` 开头的数字串，不带符号），长度上限同 `scope`；上游没有报告时为 `null` |
 
 assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理续接状态部件。其他五种角色的 `blocks` 不能含它。
 
@@ -211,7 +211,9 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 <a id="rs-04"></a>
 
-**RS-04 位置索引可信。**`at` 恰好列出全部推理续接状态部件的下标，由 `judgeMessage` 在受理时核对。消息写入后不变，压缩只整条保留或整条摘要，所以下标在写入后一直有效。通过 `judgeMessage` 的消息，消费者按 `at` 取部件，不需要扫描 `blocks` 查找它们。
+**RS-04 位置索引可信。**`at` 恰好列出全部推理续接状态部件的下标，由 `judgeMessage` 在受理时核对。消息写入后不变，压缩只整条保留或整条摘要，所以历史里的消息下标一直有效。通过 `judgeMessage` 的消息，消费者按 `at` 取部件，不需要扫描 `blocks` 查找它们。
+
+从一条消息去掉块、形成新消息值的投影方（例如按块的 `toModel` 位过滤的请求组装方），必须按剩余推理续接状态部件的新下标重写 `at`，`replay` 的其余三项不变；去掉全部续接状态部件、也没有剩下 `thinking` 块时，去掉 `replay`。这样投影后的值仍通过 `judgeMessage`，下游照样按 `at` 取部件。
 
 <a id="rs-05"></a>
 
@@ -223,25 +225,28 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 ### `judgeMessage` 与 `judgePart` 的判定
 
+本节的判定条目用名字称呼，不编号，以免与上文 `judgeCompaction` 的步骤号混淆。
+
 `judgePart` 对 `kind` 为 `reasoning_state` 的部件，按工具部件的顺序判：先查键是否闭合（多键判 `extra`，缺键报缺的字段名），再依次判 `id`、`visibility`、`payload`、`pairs`。
 
-1. **`visibility`。**先由 `judgeBlockIdentity` 判；`toHuman` 不为 false 时判 `visibility`。
-2. **`payload`。**不是字符串、是空串或超过长度上限：`payload`。
-3. **`pairs`。**不是数组；自有键不只是下标和 `length`；有元素不是非空字符串；或有两个元素相同：`pairs`。访问器不被调用。
+- **`visibility`。**先由 `judgeBlockIdentity` 判；`toHuman` 不为 false 时判 `visibility`。
+- **`payload`。**不是字符串、是空串或超过长度上限：`payload`。只读长度，不读内容。
+- **`pairs`。**不是数组；自有键不只是下标和 `length`（有访问器元素、不可枚举元素、symbol 键或其他命名键）；有元素不是非空字符串；或有两个元素相同：`pairs`。稀疏数组的空位按非字符串处理。访问器不被调用。
 
 `judgeMessage` 在「消息自己的字段」一步增加下列检查。
 
-1. **多余键。**输入的 `role` 自有属性严格等于字符串 `assistant` 时，合法键集另加 `replay`。`replay` 不在必需键集里。其他角色带 `replay` 判 `extra`。
-2. **回放描述的形状。**仅在 `assistant` 角色带 `replay` 时，排在「空块」之后判。`replay` 不是普通对象；自有键不恰好是 `scope`、`format`、`at`、`tokens`；`scope` 或 `format` 不是非空字符串或超过长度上限；`at` 不是数组、自有键不只是下标和 `length`、有元素不是非负安全整数、或不严格递增；`tokens` 既不是 `null` 也不是不带前导零的十进制整数字符串：`replay`。普通对象的含义与 `covers` 相同，访问器不被调用。
+- **多余键。**输入的 `role` 自有属性严格等于字符串 `assistant` 时，合法键集另加 `replay`。其他角色的消息有自有可枚举键 `replay` 时判 `extra`。
+- **是否带 `replay`。**`replay` 不在必需键集里。`assistant` 角色的输入按 `in` 有 `replay` 时，与其他合法键一样读一次它的值（访问器至多调用一次）。读到 `undefined` 时视为不带，成功值里没有这个键；读到 `null` 时判 `null`；其他值进入下一项。
+- **回放描述的形状。**排在「空块」之后判。`replay` 不是普通对象；自有键不恰好是 `scope`、`format`、`at`、`tokens`；`scope` 或 `format` 不是非空字符串或超过长度上限；`at` 不是数组、自有键不只是下标和 `length`（括注与空位规则同 `pairs`）、有元素不是非负安全整数、或不严格递增；`tokens` 既不是 `null`，也不是长度不超过上限的非负十进制整数字符串：`replay`。普通对象的含义与 `covers` 相同，访问器不被调用。
 
-部件、角色规则与块身份唯一都通过之后，`judgeMessage` 再判两步。
+部件、角色规则与块身份唯一都通过之后，`judgeMessage` 再判下面两项。
 
-3. **配对。**按块的顺序，找第一个推理续接状态部件，其 `pairs` 有一项不是本消息里某个块的身份，或指向另一个推理续接状态部件：`pairs`，`blockIndex` 指向这个部件。
-4. **位置索引。**下列任一情形：`replay`。
-   - 消息含推理续接状态部件而不带 `replay`，`blockIndex` 指向第一个这类部件；
-   - `at` 有下标不小于块数，或该位置的块不是推理续接状态部件，`blockIndex` 指向 `at` 中第一个这样的下标，下标不小于块数时不带 `blockIndex`；
-   - 有推理续接状态部件的下标不在 `at` 里，`blockIndex` 指向第一个这样的部件；
-   - 带 `replay`，而消息既没有 `thinking` 块也没有推理续接状态部件，不带 `blockIndex`。
+- **配对。**按块的顺序，找第一个推理续接状态部件，其 `pairs` 有一项不是本消息里某个块的身份，或指向任何推理续接状态部件（含它自己）：`pairs`，`blockIndex` 指向这个部件。
+- **位置索引。**按下列次序检查，返回第一个成立的情形，拒绝值都是 `replay`：
+  1. 带 `replay`，而消息既没有 `thinking` 块也没有推理续接状态部件：不带 `blockIndex`。
+  2. 消息含推理续接状态部件而不带 `replay`：`blockIndex` 指向第一个这类部件。
+  3. 按 `at` 的顺序逐项看，第一项下标不小于块数时不带 `blockIndex`；第一项指向的块不是推理续接状态部件时，`blockIndex` 是这个下标。
+  4. 按块的顺序，第一个下标不在 `at` 里的推理续接状态部件：`blockIndex` 指向它。
 
 推理续接状态部件放在非 `assistant` 角色的消息里，由角色规则判 `misplaced-part`。
 
@@ -271,4 +276,4 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 [docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、访问器、稀疏数组）和成功值不与输入共享，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。
 
-推理续接状态实现时，同样把 RS-01 至 RS-06 与上面各判定步骤的正反例写成 public-api 中的一张用例表，由 `tests/normative.spec.ts` 逐行执行；JSON 写不出的边界输入和成功值的冻结副本由单独的测试锁定。
+推理续接状态实现时，把「`judgeMessage` 与 `judgePart` 的判定」各项，以及 RS-03、RS-04（含投影重写 `at` 后仍合法）、RS-05 的正反例写成 public-api 中的一张用例表，由 `tests/normative.spec.ts` 逐行执行；JSON 写不出的边界输入和成功值的冻结副本由单独的测试锁定。RS-01、RS-02 约束产出方，RS-06 约束消费方，本成员给不出它们的反例，由 Model 契约的适配器验证义务覆盖。
