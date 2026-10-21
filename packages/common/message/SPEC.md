@@ -28,11 +28,11 @@
 
 ### 形状
 
-`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。
+`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`thinking` 块只在 `assistant` 消息里允许。`user`、`tool_internal`、`system_reminder`、`compaction` 的块全是不含 `thinking` 的内容块，`assistant` 是全部内容块（含 `thinking`）加三种调用部件，`tool` 的第一块是标记、其余是不含 `thinking` 的内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。
 
 | 键 | 含义 |
 | --- | --- |
-| `blocks` | 摘要正文。至少一块，全部是内容块，不含工具部件。摘要就是消息的块，不另设键 |
+| `blocks` | 摘要正文。至少一块，全部是不含 `thinking` 的内容块，不含工具部件。摘要就是消息的块，不另设键 |
 | `covers` | 压缩覆盖范围 `{ from, to }`：被摘要的那段历史的首条与末条记录条目引用。`from` 是历史的第一条，`to` 在压缩点之前，可以早于压缩点前一条。范围连续，包含之前的压缩记录和它们的保留项。`from` 可以等于 `to` |
 | `retained` | 保留名单：范围内仍原样交给模型的消息引用，按原历史顺序排列，可以为空 |
 | `derivation` | 派生证据 `{ owner, record, revision, digest }`，四项都是非空字符串，证明摘要与 `covers`、`retained` 出自同一次派生 |
