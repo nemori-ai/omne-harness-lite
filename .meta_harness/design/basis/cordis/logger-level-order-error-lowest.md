@@ -11,7 +11,7 @@ lines:
   - "logger.ts:22-27"
   - "logger.ts:154-158"
   - "logger.ts:231-237"
-probe: packages/core/kernel-basis/tests/basis/logger-level-order-error-lowest.test.ts
+probe: packages.0.0.1.legacy/core/kernel-basis/tests/basis/logger-level-order-error-lowest.test.ts
 checked: 2026-09-23
 ---
 

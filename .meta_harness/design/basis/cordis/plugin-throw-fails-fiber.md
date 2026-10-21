@@ -12,7 +12,7 @@ lines:
   - "fiber.ts:142-151"
   - "fiber.ts:576-578"
   - "fiber.ts:641-643"
-probe: packages/core/kernel-basis/tests/basis/plugin-throw-fails-fiber.test.ts
+probe: packages.0.0.1.legacy/core/kernel-basis/tests/basis/plugin-throw-fails-fiber.test.ts
 checked: 2026-09-23
 ---
 
@@ -40,7 +40,7 @@ checked: 2026-09-23
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis`，对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）：
+probe 在 `packages.0.0.1.legacy/core/kernel-basis`，对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）：
 
 1. 插件体抛 `Error('missing signing key')`：`await` 该 fiber 以同一错误拒绝，`fiber.state === FAILED`。
 2. config `{ ttl: 0 }` 不过 `positive` 校验：拒绝且错误匹配 `/invalid config/`，`fiber.state === FAILED`，插件体没跑，`ctx.get('offers')` 为 `undefined`。

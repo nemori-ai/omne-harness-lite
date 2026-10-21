@@ -136,6 +136,7 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 | `apply` 返回后 effect 里的 Promise 拒绝 | 探针结果 | fiber 的 `state` 仍是 2。拒绝进入 `unhandledRejection`，消息是 `after-active` |
 | 配置在插件体之前按 Standard Schema 校验 | 探针结果 | 非法配置时 `apply` 不运行，失败稳定后的 fiber 状态是 `FAILED`。`validate` 返回 Promise 时抛出 `TypeError`，消息是 `Async config validation is not supported`。合法配置把 schema 的 `value` 交给 `apply`。类型里的 Promise 分支保留。 |
 | effect 释放次序 | 探针结果 | 同一条 fiber 上，后登记的 effect 可以在先登记的 effect 仍在释放时结束。同一个 effect 内部，disposer 按登记逆序运行，并等待前一个 Promise。该完成顺序不是产品关闭顺序。 |
+| 根已 `ACTIVE` 后装载并撤除一个带登记的插件 | 探针结果 | 插件不提供服务键，在插件体里用 `ctx.effect` 向注册表 `Service` 的 Map 写入一条登记。装载后 Map 有这条登记，`dispose` 后没有，fiber `state` 是 4（`DISPOSED`）。注册表提供者与已有消费者的插件体都只运行一次，fiber uid 不变，根仍是 2。探针是 `tests/late-plugin-load-unload-does-not-rerun-others.spec.ts`，对应 basis 条目 `late-plugin-load-unload-does-not-rerun-others`，2026-10-21 在 Node.js v26.12.0 上通过 |
 | `ACTIVE` 不是业务就绪 | 项目陈述 | 生命周期页 |
 
 已发布源码里 `_getState` 在 fiber 仍有 uid、没有 `_error`、epoch 不是 inactive 时返回 2。上表的 2 是这个返回值。
