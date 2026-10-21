@@ -62,7 +62,7 @@ flowchart TD
 受理（#502 1.3）：
 
 - 同一操作以同一输入再次 `invoke`，取回原句柄。运行继续、已停止或已 ended 时都如此。runtime 记住最近受理的操作，直接返回该句柄，不再次调用 `open`，也不启动第二个 Loop。
-- 另一 execution 占槽时，runtime 先从 Journal 查询更早的操作。已提交的操作通过幂等 `open` 认回原句柄或得到 `conflict`。这次查找不预约槽，也不驱动原执行。其他查询结果返回 `busy`。
+- 另一 execution 占槽时，runtime 先从 Journal 查询更早的操作。已提交的操作复用原受理路径，通过幂等 `handoff.accept` 与 `open` 认回原句柄或得到 `conflict`。这次查找不预约槽，也不驱动原执行。查询为 `excluded` 或 `denied` 时返回 `busy`；其他查询失败原样返回；查询为 `unknown` 时返回带本次 `invoke` 操作身份的 `commit-unknown`。
 - 同一 Journal 上新建的 runtime 调用 `open`，认回原回执与 Authority。若 execution 的修订号已经推进，E1 返回 `found-existing`，转移表结束本次协调。runtime 回到 idle，不驱动该 execution。恢复这种 execution 属于 #502 阶段 5。
 - 若 execution 已 open 而修订号尚未推进，E1 使用原 Authority 驱动它。因此，两个存活的 runtime 可能同时尝试驱动该 execution。存活 runtime 之间的围栏由 #502 阶段 5 的 `attach` 处理。
 - 同一操作配另一输入：原 execution 占槽时返回 `busy`。槽空闲或另一 execution 占槽时，Journal 返回 `conflict`，`invoke` 原样返回。

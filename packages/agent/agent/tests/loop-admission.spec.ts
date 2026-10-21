@@ -265,9 +265,10 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     const again = ok(await invoke(assembly))
     expect(again.execution).toBe(first.execution)
     expect(await sequences(again)).toEqual(ENDED_EVENTS)
-    expect(record.log.slice(-2)).toEqual(['query invoke-exec-1', 'open'])
+    expect(record.log.slice(-3)).toEqual(['query invoke-exec-1', 'accept external-input', 'open'])
     expect(record.commits).toHaveLength(commits)
-    expect(record.accepts).toHaveLength(accepts)
+    expect(record.accepts).toHaveLength(accepts + 1)
+    expect(record.accepts.at(-1)?.input).toEqual(record.accepts[0]?.input)
     expect(await shown(assembly)).toEqual(before)
     expect(before).toMatchObject({ kind: 'occupied', execution: execution('exec-2') })
     expect(
@@ -350,6 +351,82 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
 })
 
 describe('NA-E0-3: a slot held by another operation answers busy, never a queue', () => {
+  it('NA-E0-3: a failed query for another execution returns the original failure and keeps the slot', async () => {
+    const refused = fail({
+      kind: 'unavailable',
+      owner: 'test-journal',
+      diagnostic: 'query failed',
+    } as const)
+    let queries = 0
+    const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        async query() {
+          queries += 1
+          return refused
+        },
+      },
+    }))
+    ok(await invoke(assembly))
+    const before = await shown(assembly)
+    expect(await invoke(assembly, 'exec-2')).toBe(refused)
+    expect(queries).toBe(1)
+    expect(await shown(assembly)).toEqual(before)
+    expect(before).toMatchObject({ kind: 'occupied', execution: execution() })
+    assembly.release.open()
+  })
+
+  it('NA-E0-3: an unknown query for another execution returns commit-unknown with that invoke operation', async () => {
+    const assembly = await recorded()
+    ok(await invoke(assembly))
+    const before = await shown(assembly)
+    const other = ok(await createAgentRuntime(assembly.dependencies, options()))
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await invoke({ provider: other }, 'exec-2')).kind).toBe('commit-unknown')
+    const opensBeforeQuery = opens(assembly.record)
+    const accepts = assembly.record.accepts.length
+    expect(failure(await invoke(assembly, 'exec-2'))).toEqual({
+      kind: 'commit-unknown',
+      operation: operation('invoke-exec-2'),
+    })
+    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([
+      'query invoke-exec-2',
+    ])
+    expect(opens(assembly.record)).toBe(opensBeforeQuery)
+    expect(assembly.record.accepts).toHaveLength(accepts)
+    expect(await shown(assembly)).toEqual(before)
+    assembly.release.open()
+  })
+
+  it('NA-E0-3: an excluded query for another execution answers busy without admitting it', async () => {
+    const assembly = await recorded()
+    ok(await invoke(assembly))
+    const other = ok(await createAgentRuntime(assembly.dependencies, options()))
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
+    expect(failure(await invoke({ provider: other }, 'exec-2')).kind).toBe('commit-unknown')
+    expect(
+      ok(
+        await assembly.controls.journal.port.query({
+          ...alice,
+          execution: execution('exec-2'),
+          operation: operation('invoke-exec-2'),
+        }),
+      ).kind,
+    ).toBe('excluded')
+    const before = await shown(assembly)
+    const opensBeforeQuery = opens(assembly.record)
+    const accepts = assembly.record.accepts.length
+    expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
+    expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([
+      'query invoke-exec-2',
+    ])
+    expect(opens(assembly.record)).toBe(opensBeforeQuery)
+    expect(assembly.record.accepts).toHaveLength(accepts)
+    expect(await shown(assembly)).toEqual(before)
+    assembly.release.open()
+  })
+
   it('NA-E0-3: while the first invoke is reserved, in the same turn', async () => {
     const assembly = await recorded()
     const [first, second] = await Promise.all([invoke(assembly), invoke(assembly, 'exec-2')])

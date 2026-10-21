@@ -32,7 +32,6 @@ import type { AccessGuard } from './access.ts'
 import type { AgentDependencies, AgentProvider, AgentRuntimeBinding } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
-import { stepOf } from './loop/identities.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -312,7 +311,9 @@ export function createProvider<P, B extends ContentBlock>(
     const attachment = opened.ok.executionAttachment
     occupy({ kind: 'running', execution, attachment })
     // drive catches node failures and defects. A stopped run keeps its occupied slot.
-    void coordinator.runExecution()
+    void coordinator.runExecution().catch(() => {
+      // Node 24 ends the process on an unhandled rejection; discard it and keep the slot occupied.
+    })
     return succeed(handleOf(execution))
   }
 
@@ -346,29 +347,39 @@ export function createProvider<P, B extends ContentBlock>(
     input: InvokeInput<P>,
   ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
     const found = await dependencies.journal.query(input)
-    if ('failure' in found || found.ok.kind !== 'committed') return fail({ kind: 'busy' })
+    if ('failure' in found) {
+      // SPEC 61 hides absence as denied; after the access guard, this means a new invoke meets a held slot (SPEC 646).
+      return found.failure.kind === 'denied' ? fail({ kind: 'busy' }) : found
+    }
+    if (found.ok.kind === 'unknown')
+      return fail({ kind: 'commit-unknown', operation: input.operation })
+    if (found.ok.kind === 'excluded') return fail({ kind: 'busy' })
     const resolved = await dependencies.adoptions.resolve({
       principal: input.principal,
       tenant: input.tenant,
       adoption: binding.definition,
     })
     if ('failure' in resolved) return resolved
-    const initial = resolved.ok.evaluator.initial({
-      definition: binding.definition,
-      step: stepOf(0),
-    })
-    if ('failure' in initial) return initial
-    const opened = await dependencies.journal.open({
-      principal: input.principal,
-      tenant: input.tenant,
+    const coordinator = createExecutionCoordinator({
+      ports: dependencies,
+      binding,
+      evaluator: resolved.ok.evaluator,
+      access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,
       operation: input.operation,
-      instance,
-      grant: input.grant,
       initial: input.initial,
-      checkpoint: initial.ok,
+      grant: input.grant,
+      idle: () => {},
     })
-    if ('failure' in opened) return opened
+    const opened = await coordinator.accept()
+    if ('failure' in opened) {
+      const { failure } = opened.failure
+      return fail(
+        failure.kind === 'commit-unknown'
+          ? { kind: 'commit-unknown', operation: input.operation }
+          : failure,
+      )
+    }
     return succeed(handleOf(input.execution))
   }
 

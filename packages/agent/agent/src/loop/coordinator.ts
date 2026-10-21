@@ -203,6 +203,15 @@ function required<T>(value: T | null, what: string): T {
   return value
 }
 
+/** Diagnostic conversion must not throw while handling a node's thrown value. */
+function diagnosticOf(error: unknown): string {
+  try {
+    return error instanceof Error ? String(error.message) : String(error)
+  } catch {
+    return 'the thrown value could not be converted to diagnostic text'
+  }
+}
+
 function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {
   const a = left.recipient
   const b = right.recipient
@@ -289,8 +298,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         }
         node = to
       } catch (error) {
-        const diagnostic = error instanceof Error ? error.message : String(error)
-        return fail({ node: at, failure: defect(diagnostic) })
+        return fail({ node: at, failure: defect(diagnosticOf(error)) })
       }
     }
     return succeed(node)

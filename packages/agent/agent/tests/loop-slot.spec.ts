@@ -113,6 +113,26 @@ describe('slot release before E1 (SPEC 受理与单执行槽)', () => {
 })
 
 describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
+  it('NA-E4-1: a thrown value that cannot become text stops at E4 without an unhandled rejection', async () => {
+    const assembly = await loopAssembly([execution()])
+    adopt(assembly, {
+      ...agentEvaluator,
+      next: () => {
+        throw Object.create(null)
+      },
+    })
+    const rejections: unknown[] = []
+    const onRejection = (reason: unknown) => rejections.push(reason)
+    process.on('unhandledRejection', onRejection)
+    try {
+      ok(await invoke(assembly))
+      expect((await stoppedAt(assembly, 'E4')).kind).not.toBe('ended')
+      expect(rejections).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onRejection)
+    }
+  })
+
   it.each(['terminal', 'superseded'] as const)(
     'NA-E4-1: a stop (%s) keeps the execution at E4',
     async reason => {
