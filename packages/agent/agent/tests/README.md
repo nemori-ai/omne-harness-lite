@@ -17,13 +17,14 @@
 - `loop-intake-prepare.spec.ts` 直接调用协调者，以区分等待完成、提供者违约和阶段不支持的结果。它只读返回值与 Journal 已存事实，不读取私有状态。公开 invoke 用例另核对同一 runtime 的两次输入无重叠。
 - `loop-reply-close.spec.ts` 直接调用协调者，核对公开面未呈现的 I3/I4/I8 提交切点与停止结果。用例只读取 Journal 已存事实及返回值，不读私有帧。
 - `loop-main-call.spec.ts` 直接调用协调者，按原调用身份核对主调用接缝。NA-M0-1 提交前切点与两个 C1 用例丢弃旧协调者，只从同一内存 Journal 的 I2 ready/step 或 M6 PendingCall 重建固定帧，保留原 runtime/Access/Authority，不传旧 iteration。提交前用例将恢复后的 PendingCall/EffectIntent 与原 M0 提交候选逐项比对，并核对未重做 prepare、只受理一次。另有 reply/partial/no-reply 三个用例在 ACK 后丢弃结果缓存与旧协调者，从 Journal completion 读取已存材料后接续到相同 I3 结果，不向 Model 再读全文。它们不验证进程耐久、公开 resume、挂接恢复或通用结果帧水合。
+- `loop-wait-reconcile.spec.ts` 核对公开驱动的失通知计时重读、提交回执丢失的 committed/unknown/excluded、普通原提交与 W0 自身未知时的零干扰写入、监听窗口新输入、单驱动互斥、零间隔让出、时钟边界与观察/计时清理失败。另核对同一及新协调者窄接续时先查询未知 M3，依赖在 W0 保存后恢复时先重查再决定休眠，I1 四类读取的一次失败都可不推进时钟而接续，并以严格 Node 子进程验证慢观察清理期间 Clock 拒绝仍可见且不形成未处理拒绝。内存 Journal 与脚本 Model 不证明进程耐久或真实提供者组合。
 - `loop-recovery.spec.ts` 直接导入协调者及其纯路由。它核对 E1/E2 只读认回、E4 路由、R0 原操作与 W0 保存等待。公开资格失败由 `provider-access.spec.ts` 的真实守卫测试验证，协调者不接收人为注入的准入结果。主调用用例在同一协调者停止后再入，不模拟进程退出，不证明公开 resume 或跨进程恢复。
 
 ## 测试范围
 
 各文件核对以下行为：
 
-- `loop-reply-close.spec.ts` 核对 NA-I3-1/2、NA-I4-1 与 NA-I8-1/2/3：准入与接续同 revision、原交接回执未知后同候选认回、message 事件、真实空批、最终失败 no-reply、完成候选与终态区分、在途 Journal.submit 到 step-2、终态释放后新 invoke，以及未处理结果等待。ordinary limit 保留真实 trim，部分与中断不准入消息或工具动作。测试仅用脚本化 Model、内存 Journal 与材料，不证明公开 submit、真实唤醒、控制请求、耐久性或完整恢复。
+- `loop-reply-close.spec.ts` 核对 NA-I3-1/2、NA-I4-1 与 NA-I8-1/2/3：准入与接续同 revision、原交接回执未知后同候选认回、message 事件、真实空批、最终失败 no-reply、完成候选与终态区分、在途 Journal.submit 到 step-2、终态释放后新 invoke，以及未处理结果等待。ordinary limit 保留真实 trim，部分与中断不准入消息或工具动作。测试仅用脚本化 Model、内存 Journal 与材料，不证明公开 submit、控制请求、耐久性或完整恢复。
 
 - `public-entry.spec.ts` 核对两个入口的导出名、源码与构建产物的导入图、清单依赖，以及生产安装闭包不到达 Cordis。它读 `package.json` 与 `dist`，所以先构建再运行。
 - `memory-journal.spec.ts` 用内存 Journal 核对[同形清单](../docs/architecture/mechanisms.md#两种实现必须同形的事实)。替身只有一个进程，不覆盖耐久性、崩溃与跨进程接管。

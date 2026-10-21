@@ -259,7 +259,13 @@ describe('E1 and E2 read-only recognition', () => {
           return read
         }
       } else assembly.controls.journal.failNextRead(method)
-      ok(await c.runExecution())
+      const ran = await c.runExecution()
+      if (method === 'query') {
+        expect(failure(ran).failure.kind).toBe('unavailable')
+        expect((await load(assembly)).state.kind).toBe('advancing')
+        return
+      }
+      ok(ran)
       expect((await load(assembly)).state).toMatchObject({
         kind: 'waiting',
         waits: [{ kind: 'dependency', position: 'E2' }],
@@ -297,7 +303,7 @@ describe('R0 and W0 coordination', () => {
           query: async input => {
             queried.push(input.operation)
             queryCount += 1
-            if (queryCount === 2 && outcome !== 'unknown') expect(settle()).toBe(true)
+            if (queryCount === 1 && outcome !== 'unknown') expect(settle()).toBe(true)
             return d.journal.query(input)
           },
         },
@@ -326,10 +332,10 @@ describe('R0 and W0 coordination', () => {
         ),
       ).toMatchObject({ kind: 'commit-unknown' })
       const ran = await c.runExecution()
-      expect(queried).toEqual([pending, pending])
+      expect(queried).toEqual([pending])
       if (outcome === 'unknown') {
-        ok(ran)
-        expect((await load(assembly)).state.kind).toBe('waiting')
+        expect(failure(ran).failure).toEqual({ kind: 'commit-unknown', operation: pending })
+        expect((await load(assembly)).state.kind).toBe('advancing')
       } else {
         expect(failure(ran)).toEqual({ node: 'E4', failure: STOP })
         expect((await load(assembly)).state.kind).not.toBe('waiting')
@@ -420,7 +426,7 @@ describe('R0 and W0 coordination', () => {
           },
           query: input => {
             queries += 1
-            if (queries === 2 && original !== null && when === 'at-R0')
+            if (queries === 1 && original !== null && when === 'at-R0')
               expect(assembly.controls.journal.settle(execution(), original, outcome)).toBe(true)
             return d.journal.query(input)
           },
@@ -467,7 +473,7 @@ describe('R0 and W0 coordination', () => {
         expect(assembly.controls.journal.settle(execution(), original, outcome)).toBe(true)
       ok(await c.runExecution())
       expect(original).not.toBeNull()
-      expect(queries).toBe(2)
+      expect(queries).toBe(1)
       expect(admits).toBe(1)
       expect(connects).toBe(0)
       expect(reads).toBe(1)
@@ -579,7 +585,7 @@ describe('R0 and W0 coordination', () => {
     resuming = true
     ok(await c.runExecution())
     resuming = false
-    expect(connects).toBe(1)
+    expect(connects).toBe(0)
     expect(idle).toBe(1)
     const saved = await load(assembly)
     expect(saved.executionAttachment).toBeNull()
@@ -689,9 +695,9 @@ describe('R0 and W0 coordination', () => {
     const before = await load(assembly)
     expect(failure(await c.runExecution())).toEqual({ node: 'E4', failure: STOP })
     expect((await load(assembly)).revision).toBe(before.revision)
-    expect(queried).toEqual([operation('invoke-exec-1'), operation('invoke-exec-1')])
-    expect(inputReads).toBe(2)
-    expect(admissionReads).toBe(2)
+    expect(queried).toEqual([operation('invoke-exec-1')])
+    expect(inputReads).toBe(1)
+    expect(admissionReads).toBe(1)
   })
 })
 
@@ -702,13 +708,15 @@ describe('saved waiting through invoke', () => {
       ...d,
       journal: {
         ...d.journal,
+        // Hold the failure through W0's readiness reread; a one-shot read now recovers immediately.
+        inputs: async () =>
+          fail({ kind: 'unavailable', owner: 'test-inputs', diagnostic: 'offline' }),
         commit: input => {
           writes.push(input)
           return d.journal.commit(input)
         },
       },
     }))
-    assembly.controls.journal.failNextRead('inputs')
     ok(await invoke(assembly))
     const state = await stoppedAt(assembly, 'E3')
     expect(state.kind).toBe('waiting')

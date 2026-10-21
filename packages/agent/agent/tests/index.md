@@ -17,6 +17,7 @@
 - [loop-main-call.spec.ts](loop-main-call.spec.ts)：主调用的一次提交、原身份认回、结果责任、最终失败、部分结果、窄接续与推理回放限制
 - [loop-intake-prepare.spec.ts](loop-intake-prepare.spec.ts)：I0 完整输入批、新 step 与 I1 顺序准备、W0、真实不能装下和阶段压缩限制
 - [loop-admission.spec.ts](loop-admission.spec.ts)：受理幂等、输入冲突、busy、commit-unknown 与 R0 重试路由
+- [loop-wait-reconcile.spec.ts](loop-wait-reconcile.spec.ts)：W0 失通知、观察窗口、检查时刻、原操作对账、窄接续的未知保护、依赖重查与严格 Node 清理失败
 - [loop-recovery.spec.ts](loop-recovery.spec.ts)：E1/E2 只读认回与挂接撤销、E4 恢复路由、R0 原提交切点的 committed/excluded 接续与 W0 保存等待
 - [loop-coordinator.spec.ts](loop-coordinator.spec.ts)：E1 found-existing 正常结束协调
 - [canonical.spec.ts](canonical.spec.ts)：输入等价性、元素边界与字节视图

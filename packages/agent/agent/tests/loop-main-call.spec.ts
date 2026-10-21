@@ -1257,8 +1257,17 @@ describe('#514 main call boundary', () => {
 
   it('NA-I2-2: input submitted while Model is in flight leaves its fixed request and reference unchanged', async () => {
     let accepted = false
+    let stopAtI8 = false
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
+      conditions: {
+        read: async input => {
+          const at = ok(await d.journal.load({ ...alice, execution: execution() }))
+          return stopAtI8 && at.checkpoint.position === 'I8'
+            ? fail({ kind: 'unavailable', owner: 'boundary', diagnostic: 'next boundary' })
+            : d.conditions.read(input)
+        },
+      },
       models: {
         ...d.models,
         calls: {
@@ -1286,10 +1295,9 @@ describe('#514 main call boundary', () => {
     )
     assembly.release.open()
     // A later step is outside this seam check: stop after the original reply is admitted.
-    assembly.controls.conditions.read.once(() =>
-      fail({ kind: 'unavailable', owner: 'boundary', diagnostic: 'next boundary' }),
-    )
+    stopAtI8 = true
     await running
+    await c.runExecution()
     const after = await load(assembly)
     expect(after.effects[0]).toEqual(before.effects[0])
     expect(after.checkpoint.requestPreparation).toEqual(before.checkpoint.requestPreparation)
