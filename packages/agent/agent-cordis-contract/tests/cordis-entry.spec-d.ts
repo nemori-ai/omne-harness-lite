@@ -3,6 +3,7 @@
 import type { Context, Events } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
+  AgentClock,
   AgentInstanceHost,
   AgentInstanceId,
   AgentRegistrationId,
@@ -43,6 +44,7 @@ it('types the injected Agent services on the context, with the principal left op
   expectTypeOf(ctx.agentJournal).toEqualTypeOf<AgentJournalService<unknown>>()
   expectTypeOf(ctx.agentAccessCheck).toEqualTypeOf<AgentAccessCheckService<unknown>>()
   expectTypeOf(ctx.agentClock).toEqualTypeOf<AgentClockService>()
+  expectTypeOf(ctx.agentClock.now).toEqualTypeOf<AgentClock['now']>()
   expectTypeOf(ctx.agentInstanceHost).toEqualTypeOf<AgentInstanceHostService<unknown>>()
   expectTypeOf(ctx.agentInstances).toEqualTypeOf<AgentInstancesService<unknown>>()
   expectTypeOf(ctx.agentPublicationAuthority).toEqualTypeOf<

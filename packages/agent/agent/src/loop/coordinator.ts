@@ -36,6 +36,7 @@ import type {
   AgentEvaluator,
   AgentEventBody,
   AgentExecutionId,
+  AgentInstant,
   AgentOperationId,
   Authority,
   ConsumerRef,
@@ -47,6 +48,7 @@ import type {
   ExecutionSnapshot,
   ExecutionState,
   Failure,
+  FailureCandidate,
   FinishIntent,
   InputBatch,
   LoopFacts,
@@ -85,7 +87,14 @@ import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 /** The ports the coordinator uses. None of them depends on the content block type. */
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
-  'journal' | 'models' | 'conditions' | 'requests' | 'selection' | 'modelContext' | 'handoff'
+  | 'journal'
+  | 'models'
+  | 'conditions'
+  | 'requests'
+  | 'selection'
+  | 'modelContext'
+  | 'handoff'
+  | 'clock'
 >
 
 export type ExecutionEntry<P> = Readonly<{
@@ -737,7 +746,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       // M04-8 的读法: the input-taken event goes with the commit that fixes the batch and the step.
       return step('taken', {
-        checkpoint: { step: next, inputBatch: at.batch.id },
+        checkpoint: {
+          step: next,
+          inputBatch: at.batch.id,
+          requestPreparation: null,
+          compaction: null,
+        },
         events: [{ kind: 'input-taken', batch: at.batch }],
       })
     },
@@ -801,9 +815,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         advance,
         previous: required(checkpoint, 'checkpoint').priorConditions,
       })
-      if ('failure' in conditions) return conditions
+      if ('failure' in conditions)
+        return conditions.failure.kind === 'unavailable'
+          ? waitFor('I1', conditions.failure)
+          : conditions
       const selected = await select(conditions.ok)
-      if ('failure' in selected) return selected
+      if ('failure' in selected)
+        return selected.failure.kind === 'unavailable' ? waitFor('I1', selected.failure) : selected
       const context = await ports.modelContext.read({
         ...access,
         advance,
@@ -813,17 +831,32 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         adopted: required(checkpoint, 'checkpoint').adoptedContext,
         transition: null,
       })
-      if ('failure' in context) return context
+      if ('failure' in context)
+        return context.failure.kind === 'unavailable' ? waitFor('I1', context.failure) : context
       const prepared = await prepare(conditions.ok, selected.ok, context.ok, null, null)
-      if ('failure' in prepared) return prepared
+      if ('failure' in prepared)
+        return prepared.failure.kind === 'unavailable' ? waitFor('I1', prepared.failure) : prepared
       current.conditions = conditions.ok
       current.selected = selected.ok
       current.context = context.ok
       current.preparation = prepared.ok
-      // What `prepare` returns, assembled or ready, goes to P0 (pseudocode prepareRequest).
-      if (prepared.ok.kind !== 'assembled' && prepared.ok.kind !== 'ready')
-        return fail(notYet('I1', `a ${prepared.ok.kind} preparation`, '#502 1.5 and stage 4'))
-      return step('prepared', { checkpoint: { requestPreparation: prepared.ok } })
+      // #558 S-11: only P1's review can yield ready on the phase 1 path.
+      if (prepared.ok.kind === 'ready')
+        return fail({
+          kind: 'unavailable',
+          owner: 'requestPreparation',
+          diagnostic: 'I1: the first prepare returned ready before the before-model passage',
+        })
+      const write = {
+        checkpoint: { requestPreparation: prepared.ok, priorConditions: conditions.ok.source },
+      }
+      if (prepared.ok.kind === 'needs-compaction') {
+        // #513 revision 2: preserve Context's answer without inventing a cannot-fit cause.
+        // Stage 4 owns the C subgraph. Keep I1 as the unsupported continuation in this phase.
+        const saved = await commit('I1', 'I1', write)
+        return 'failure' in saved ? saved : fail({ kind: 'unsupported' as const })
+      }
+      return step(prepared.ok.kind === 'cannot-fit' ? 'try-finish' : 'prepared', write)
     },
     /** P0: no extension is adopted at before_model_call, so the passage proceeds. */
     async P0() {
@@ -1107,6 +1140,19 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   const settle = {
     /** F1: the candidate of the evaluator is fixed with the current input boundary. */
     async F1() {
+      const at = required(checkpoint, 'checkpoint')
+      const preparation = at.requestPreparation
+      // Derive only from the committed preparation. An unknown I1 commit therefore follows the
+      // same F1 route after committed reconciliation, or prepares again only when excluded.
+      if (
+        preparation?.kind === 'cannot-fit' &&
+        (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'cannot-fit')
+      ) {
+        const instant = await ports.clock.now()
+        if ('failure' in instant) return instant
+        decided = cannotFit(at.step, preparation, instant.ok)
+      }
+      // Keep the same candidate, including its timestamp, if an F1 commit is excluded.
       const next = required(decided, 'decision')
       if (next.kind !== 'try-finish') throw new Error(`coordinator defect: F1 after ${next.kind}`)
       const read = await load()
@@ -1151,6 +1197,23 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return step('observed', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
+
+  function cannotFit(
+    of: StepId,
+    preparation: Extract<Preparation, { kind: 'cannot-fit' }>,
+    at: AgentInstant,
+  ): Extract<Next, { kind: 'try-finish' }> {
+    const failure: FailureCandidate = {
+      kind: 'cannot-fit',
+      step: of,
+      at,
+      source: preparation.source,
+      reason: preparation.reason,
+      context: preparation.source,
+    }
+    const cause = agentEvidence(`${execution}/${of}/cannot-fit`, failure)
+    return { kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure }
+  }
 
   const handlers: Partial<Record<LoopNode, Handler>> = {
     ...admitMessage,

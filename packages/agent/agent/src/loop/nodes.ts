@@ -172,9 +172,10 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'R0', on: 'wait', to: 'W0' },
   { from: 'W0', on: 'saved-wait', to: null },
   { from: 'I0', on: 'taken', to: 'I1' },
-  // 如何返回 of I1 says "assembled 转 P0"; a ready answer of `prepare` goes there too, as the
-  // pseudocode prepareRequest calls P0 after every prepare that needs no compaction.
+  // I1's first prepare yields assembled; ready is produced only by P1's review (#558 S-11).
   { from: 'I1', on: 'prepared', to: 'P0' },
+  { from: 'I1', on: 'wait', to: 'W0' },
+  { from: 'I1', on: 'try-finish', to: 'F1' },
   { from: 'P0', on: 'proceed', to: 'P1' },
   { from: 'P1', on: 'ready', to: 'I2' },
   { from: 'I2', on: 'call', to: 'M0' },

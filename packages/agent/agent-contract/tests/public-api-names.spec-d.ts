@@ -814,6 +814,8 @@ describe('the discriminants of the coordination chapter', () => {
       AsyncIterable<AgentObservation>
     >()
     expectTypeOf<ReturnType<AgentRegistrationHandle<string>['report']>>().toEqualTypeOf<void>()
+    expectTypeOf<Parameters<AgentClock['now']>>().toEqualTypeOf<[]>()
+    expectTypeOf<ReturnType<AgentClock['now']>>().toEqualTypeOf<Reply<AgentInstant>>()
     expectTypeOf<ReturnType<AgentClock['waitUntil']>>().toEqualTypeOf<
       Reply<'elapsed' | 'cancelled'>
     >()

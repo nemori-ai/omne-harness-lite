@@ -105,7 +105,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | materials | agentMaterials | 局部必需：Model 结果走 custody 路径时 | custody 路径不可用，不解除交付责任。processed 路径不受影响 | 绑定未知期间保留孤立材料 |
 | reads | agentReads | 局部必需：扩展使用具名读取时 | 该读取返回 unavailable，经过保留原状态 | 已捕获的读取值不重读 |
 | registration | 无服务键 | 可选：只在需要目录路由和重启后发现时。端口是宿主为本实例提供的 AgentRegistrationHandle，runtime 不取得整个宿主 | 实例不被发布。runtime 只能经返回的 provider 使用，connect 与 resolve 不可用，quiesce 跳过撤登记 | 换宿主前先 quiesce 或 detach。新宿主为新的预约提供新的句柄，旧登记不能撤后继 |
-| clock | agentClock | 必需 | 创建返回 unavailable | 换时钟不改变逻辑终态，时钟只调度退避与对账间隔 |
+| clock | agentClock | 必需 | 创建返回 unavailable | now 为新失败候选读取 UTC 当前时刻，失败为 unavailable（owner 为 agentClock）；waitUntil 调度退避与对账间隔。换时钟不改变逻辑终态 |
 
 ## 工厂配置
 
