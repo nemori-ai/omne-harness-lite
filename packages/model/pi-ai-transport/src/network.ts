@@ -1,4 +1,3 @@
-import { Agent } from 'node:https'
 import { createConnectionCapacity, type ConnectionCapacity } from './capacity.ts'
 import {
   createDiagnosticSink,
@@ -7,6 +6,15 @@ import {
 } from './diagnostics.ts'
 import type { ExchangeResources, InFlightExchange, TlsOptions } from './http.ts'
 import { isTimerDuration, MAX_TIMER_MS } from './limits.ts'
+import { PoolAgent, supportsProxyEnv } from './pool-agent.ts'
+
+/** An HTTPS proxy for every exchange whose host the bypass list does not match. */
+export type ProxyConfig = Readonly<{
+  /** An `http:` or `https:` proxy URL. It may carry credentials: it never enters a message, result or diagnostic. */
+  url: string
+  /** Hosts reached directly, in Node's `NO_PROXY` forms: host, `.suffix`, `*.suffix`, IP, IP range, `host:port`. May be empty. */
+  bypass: readonly string[]
+}>
 
 /** Every limit comes from the caller; the package holds no default policy. */
 export type NetworkConfig = Readonly<{
@@ -15,6 +23,8 @@ export type NetworkConfig = Readonly<{
   /** A pooled idle socket is closed after this long without traffic. At most `MAX_TIMER_MS`. */
   idleConnectionTimeoutMs: number
   tls?: TlsOptions
+  /** Absent: every exchange connects directly. Requires Node 24.5.0 or later. */
+  proxy?: ProxyConfig
   /** Absent: nothing is observed and the counters stay at zero. */
   diagnostics?: Readonly<{ observer: DiagnosticObserver; maxPending: number }>
 }>
@@ -32,6 +42,7 @@ export interface NetworkResources extends ExchangeResources {
 export function createNetworkResources(config: NetworkConfig): NetworkResources {
   requirePositiveInteger(config.maxConnections, 'maxConnections')
   requireTimerDuration(config.idleConnectionTimeoutMs, 'idleConnectionTimeoutMs')
+  if (config.proxy !== undefined) requireProxy(config.proxy, process.versions.node)
   const diagnostics =
     config.diagnostics === undefined
       ? SILENT
@@ -43,10 +54,16 @@ export function createNetworkResources(config: NetworkConfig): NetworkResources 
   // idle ones. A socket limit equal to the capacity would queue a request that holds a slot: Node
   // takes a socket it does not keep out of the pool's count only when the socket's close arrives,
   // a turn of the loop after the request's close, where the slot returns and the next waiter starts.
-  const agent = new Agent({
+  const agent = new PoolAgent({
     keepAlive: true,
     maxSockets: Number.POSITIVE_INFINITY,
     timeout: config.idleConnectionTimeoutMs,
+    // Only the upper-case keys: Node prefers a lower-case key when both are present.
+    ...(config.proxy === undefined
+      ? {}
+      : {
+          proxyEnv: { HTTPS_PROXY: config.proxy.url, NO_PROXY: config.proxy.bypass.join(',') },
+        }),
   })
   const inFlight = new Set<InFlightExchange>()
   let draining: Promise<void> | undefined
@@ -91,4 +108,25 @@ function requirePositiveInteger(value: number, name: string): void {
 function requireTimerDuration(value: number, name: string): void {
   if (!isTimerDuration(value))
     throw new RangeError(`${name} must be a positive integer of at most ${MAX_TIMER_MS}`)
+}
+
+const PROXY_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:'])
+const BYPASS_SEPARATOR = /[\s,]/
+
+/** The messages name the field and the rule only: the URL may carry credentials. */
+function requireProxy(proxy: ProxyConfig, nodeVersion: string): void {
+  const { url, bypass } = proxy
+  if (typeof url !== 'string' || !URL.canParse(url))
+    throw new RangeError('proxy.url must be a valid URL')
+  if (!PROXY_PROTOCOLS.has(new URL(url).protocol))
+    throw new RangeError('proxy.url must use the http: or https: protocol')
+  if (!Array.isArray(bypass) || !bypass.every(isBypassEntry))
+    throw new RangeError(
+      'proxy.bypass entries must be non-empty strings without commas or whitespace',
+    )
+  if (!supportsProxyEnv(nodeVersion)) throw new RangeError('proxy requires Node 24.5.0 or later')
+}
+
+function isBypassEntry(entry: unknown): boolean {
+  return typeof entry === 'string' && entry !== '' && !BYPASS_SEPARATOR.test(entry)
 }
