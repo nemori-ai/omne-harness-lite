@@ -1,4 +1,4 @@
-import type { Ack } from '@omne-harness/operation-result'
+import type { Outcome } from '@omne-harness/operation-result'
 
 /**
  * `held`: granted and not yet used. `consumed`: an exchange owns it until its physical end.
@@ -10,14 +10,26 @@ export type ReservationState = 'held' | 'consumed' | 'released'
 export type ConsumeRefusal = Exclude<ReservationState, 'held'>
 
 /**
- * One granted connection slot. It never expires: it stays valid until `release()`. A consumer
- * calls `consume()` once before it sends and `release()` after the physical end of its work.
+ * The only way back for a consumed slot. The exchange that consumed the reservation keeps the
+ * seat and releases it after its physical end; nobody else can return the slot earlier.
+ */
+export interface ConsumedSeat {
+  /** Returns the slot and grants the next waiter. Idempotent. */
+  release(): void
+}
+
+/**
+ * One granted connection slot. It never expires: it stays valid until it is released. A
+ * consumer calls `consume()` once before it sends; the seat it gets back returns the slot.
  */
 export interface ConnectionReservation {
   readonly state: ReservationState
   /** Moves `held` to `consumed`. Any other state refuses with the current state, without a throw. */
-  consume(): Ack<ConsumeRefusal>
-  /** Returns the slot from `held` or `consumed` and grants the next waiter. Idempotent. */
+  consume(): Outcome<ConsumedSeat, ConsumeRefusal>
+  /**
+   * Returns a `held` slot and grants the next waiter. Does nothing once the reservation is
+   * consumed: only the seat returns that slot. Idempotent after release.
+   */
   release(): void
 }
 
@@ -88,6 +100,13 @@ export function createConnectionCapacity(maximum: number): ConnectionCapacity {
 
 function createReservation(returnSlot: () => void): ConnectionReservation {
   let state: ReservationState = 'held'
+  const seat: ConsumedSeat = {
+    release() {
+      if (state !== 'consumed') return
+      state = 'released'
+      returnSlot()
+    },
+  }
   return {
     get state() {
       return state
@@ -95,10 +114,10 @@ function createReservation(returnSlot: () => void): ConnectionReservation {
     consume() {
       if (state !== 'held') return { failure: state }
       state = 'consumed'
-      return { ok: true }
+      return { ok: seat }
     },
     release() {
-      if (state === 'released') return
+      if (state !== 'held') return
       state = 'released'
       returnSlot()
     },

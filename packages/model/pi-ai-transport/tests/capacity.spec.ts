@@ -1,6 +1,10 @@
 import { getEventListeners } from 'node:events'
 import { describe, expect, it } from 'vitest'
-import { createConnectionCapacity, type ConnectionReservation } from '../src/capacity.ts'
+import {
+  createConnectionCapacity,
+  type ConnectionReservation,
+  type ConsumedSeat,
+} from '../src/capacity.ts'
 
 /** Lets every queued promise job and one macrotask run. */
 async function settle(): Promise<void> {
@@ -26,6 +30,12 @@ async function grantedNow(
   const reservation = await capacity.reserve(new AbortController().signal)
   if (reservation === undefined) throw new Error('expected an immediate grant')
   return reservation
+}
+
+function consumedNow(reservation: ConnectionReservation): ConsumedSeat {
+  const consumed = reservation.consume()
+  if (!('ok' in consumed)) throw new Error(`expected a seat, got ${consumed.failure}`)
+  return consumed.ok
 }
 
 describe('reserving connection capacity', () => {
@@ -148,8 +158,8 @@ describe('reserving connection capacity', () => {
     const used = await grantedNow(capacity)
 
     capacity.close()
-    expect(used.consume()).toEqual({ ok: true })
-    used.release()
+    const seat = consumedNow(used)
+    seat.release()
     unused.release()
     expect([unused.state, used.state]).toEqual(['released', 'released'])
     await expect(capacity.reserve(new AbortController().signal)).resolves.toBeUndefined()
@@ -173,25 +183,42 @@ describe('reserving connection capacity', () => {
     const capacity = createConnectionCapacity(1)
     const reservation = await grantedNow(capacity)
 
-    expect(reservation.consume()).toEqual({ ok: true })
+    const seat = consumedNow(reservation)
     expect(reservation.state).toBe('consumed')
     expect(reservation.consume()).toEqual({ failure: 'consumed' })
-    reservation.release()
+    seat.release()
     expect(reservation.consume()).toEqual({ failure: 'released' })
     expect(reservation.state).toBe('released')
   })
 
-  it('US-5: a consumed reservation keeps its slot until release, then admits the next waiter', async () => {
+  it('US-15: releasing a consumed reservation itself keeps the slot; only the seat returns it', async () => {
     const capacity = createConnectionCapacity(1)
     const reservation = await grantedNow(capacity)
-    reservation.consume()
+    const seat = consumedNow(reservation)
     const next = watch(capacity.reserve(new AbortController().signal))
-    await settle()
-    expect(next.done).toBe(false)
 
     reservation.release()
     await settle()
+    expect(reservation.state).toBe('consumed')
+    expect(next.done).toBe(false)
+
+    seat.release()
+    await settle()
+    expect(reservation.state).toBe('released')
     expect(next.value?.state).toBe('held')
+  })
+
+  it('US-5: a repeated seat release returns the slot once and admits only one waiter', async () => {
+    const capacity = createConnectionCapacity(1)
+    const seat = consumedNow(await grantedNow(capacity))
+    const second = watch(capacity.reserve(new AbortController().signal))
+    const third = watch(capacity.reserve(new AbortController().signal))
+
+    seat.release()
+    seat.release()
+    await settle()
+    expect(second.value?.state).toBe('held')
+    expect(third.done).toBe(false)
   })
 
   it('US-5: a released reservation that was never consumed cannot be consumed', async () => {
