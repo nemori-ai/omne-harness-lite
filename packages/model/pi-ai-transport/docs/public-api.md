@@ -36,5 +36,5 @@
 | HTTP 交换 | [http.ts](../src/http.ts)，含错误类 `ResponseBodyStoppedError`、`ResponseBodyReadError` 与 `ExchangeQueuedError` | [SPEC“发起交换”](../SPEC.md#发起交换)至[“连接超时与连接池”](../SPEC.md#连接超时与连接池)，以及[“秘密与对外事实”](../SPEC.md#秘密与对外事实) |
 | SSE 分帧 | [sse.ts](../src/sse.ts) | [SPEC“SSE 分帧”](../SPEC.md#sse-分帧) |
 | 协议帧 | [frames.ts](../src/frames.ts) | [SPEC“协议帧”](../SPEC.md#协议帧) |
-| 网络资源 | [network.ts](../src/network.ts) | [SPEC“网络资源”](../SPEC.md#网络资源) |
+| 网络资源，含代理配置 `ProxyConfig` | [network.ts](../src/network.ts)；连接池 [pool-agent.ts](../src/pool-agent.ts) | [SPEC“网络资源”](../SPEC.md#网络资源)、[“代理”](../SPEC.md#代理) |
 | 诊断隔离 | [diagnostics.ts](../src/diagnostics.ts) | [SPEC“诊断隔离”](../SPEC.md#诊断隔离) |

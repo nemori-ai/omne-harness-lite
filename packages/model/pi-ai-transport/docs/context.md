@@ -67,6 +67,18 @@ await start.exchange.stopped // 名额已归还。
 await network.close()
 ```
 
+需要经 HTTPS 代理发出请求时，装配在边界把环境映射为 `proxy`，再交给 `createNetworkResources`。本包自己不读取环境变量。例中 `env` 是装配持有的环境对象：
+
+```ts
+const network = createNetworkResources({
+  maxConnections: 4,
+  idleConnectionTimeoutMs: 30_000,
+  proxy: { url: env.HTTPS_PROXY, bypass: env.NO_PROXY.split(',').filter(entry => entry !== '') },
+})
+```
+
+代理的行为、失败映射与 Node 版本要求见 [SPEC“代理”](../SPEC.md#代理)。
+
 初始化与释放责任见 [SPEC“调用方责任”](../SPEC.md#调用方责任)。
 
 ## 消费者与定位

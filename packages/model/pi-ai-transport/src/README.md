@@ -18,4 +18,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-本目录已实现五个公开类型、六个包内机制与两个机制共用的小工具（[iteration.ts](iteration.ts)、[limits.ts](limits.ts)）。`ModelTransport` 没有实现。
+本目录已实现五个公开类型、六个包内机制、网络资源使用的连接池 [pool-agent.ts](pool-agent.ts)，以及两个机制共用的小工具（[iteration.ts](iteration.ts)、[limits.ts](limits.ts)）。`ModelTransport` 没有实现。

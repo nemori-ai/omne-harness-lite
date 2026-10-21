@@ -10,8 +10,8 @@
 
 测试名描述被测对象的可观察行为。`describe` 块对应 [SPEC.md](../SPEC.md) 的小节，SPEC“组合与验证”的表把每项义务对应到测试文件。测试分两层：
 
-- 快层：容量、诊断隔离、SSE 分帧、协议帧、提前结束的包装、发起前的拒绝、配置校验、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。拒绝用例同步核对连接池没有套接字也没有排队的请求。
-- 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts) 与 [network.spec.ts](network.spec.ts)。它们对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。连接池的用例让服务端声明 `Keep-Alive: timeout=1`，使 Node 不保留套接字，以此核对同一接收方的下一次发起不受连接池影响，以及容量是唯一的并发上限。排队即缺陷的用例改小真实连接池的 `agent.maxSockets`，模拟配置被绕过。连接计时器的清除经 `process.getActiveResourcesInfo()` 的计时器数核对。
+- 快层：容量、诊断隔离、SSE 分帧、协议帧、提前结束的包装、发起前的拒绝、配置校验（含代理配置与 Node 版本守卫）、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。拒绝用例同步核对连接池没有套接字也没有排队的请求。
+- 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts)、[network.spec.ts](network.spec.ts)、[proxy.spec.ts](proxy.spec.ts) 与 [live/openrouter.spec.ts](live/openrouter.spec.ts)。前三个对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。连接池的用例让服务端声明 `Keep-Alive: timeout=1`，使 Node 不保留套接字，以此核对同一接收方的下一次发起不受连接池影响，以及容量是唯一的并发上限。排队即缺陷的用例改小真实连接池的 `agent.maxSockets`，模拟配置被绕过。连接计时器的清除经 `process.getActiveResourcesInfo()` 的计时器数核对。
 
 http.spec.ts 与 network.spec.ts 用 vitest 的模块替身把 `node:https` 的 `request` 换成一个委托真实函数并记录每个请求的包装。http.spec.ts 用它在 `startExchange` 返回后同步核对请求已经写出。network.spec.ts 用它核对排队即缺陷时被判定排队的请求已经销毁。其他行为都经真实的 Node `https`。
 
@@ -21,9 +21,19 @@ http.spec.ts 与 network.spec.ts 用 vitest 的模块替身把 `node:https` 的 
 - 本地 HTTPS 服务：记录收到的方法、路径、头与体，由每个用例决定怎样响应。
 - 黑洞监听：接受 TCP 连接但从不完成 TLS 握手，用于连接超时。
 
+[support/connect-proxy.ts](support/connect-proxy.ts) 是本地 `http:` CONNECT 代理，用 `http.createServer` 的 `connect` 事件实现，记录每个 CONNECT 的目标。它有三种模式：
+
+- `tunnel`：连接目标，回复 200，双向转发字节。代理不终止 TLS。
+- `refuse-then-reset`：回复 403，50 毫秒后重置连接。这是 Node 缺陷的回归用例：没有连接池的规避时，重置使测试运行报告未处理的 `ECONNRESET`。
+- `silent`：保持连接，从不回复。
+
+proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超时的用例要求交换在 1 秒左右之内结束，所以结束不可能来自 Node 的隧道超时。这些用例同时锁住 Node 把请求选项传到 `createConnection` 的行为，原因见[内部架构“经代理建立连接”](../docs/architecture.md#经代理建立连接)。
+
+[live/openrouter.spec.ts](live/openrouter.spec.ts) 是真实网络用例，由 `pnpm --filter @omne-harness/pi-ai-transport run test:live` 运行。它只在 `OMNE_LIVE_TESTS=1` 时运行，否则在用例体内用 `ctx.skip()` 跳过。它不用 `skipIf`：慢层的预解析会丢弃整个文件，即使设了开关。用例在测试边界把 `HTTPS_PROXY` 与 `NO_PROXY` 映射为代理配置，凭据头只写占位值 `Bearer placeholder`，由代理替换为真实凭据。设了开关而没有 `HTTPS_PROXY` 时，用例失败。用例不读取也不输出任何密钥。
+
 [support/exchange.ts](support/exchange.ts) 提供交换的输入、预约与观察工具，含清理断言与连接池队列的读取。其中的限额只是本套测试的初值，不是本包的默认值。[support/sources.ts](support/sources.ts) 提供记录读者行为的字节源，供分帧层的提前结束用例使用。
 
-这些测试只证明本地 HTTPS 服务上的行为，不证明真实供应商、代理、公网 TLS 或 `ModelTransport` 的组合。完整的覆盖与未覆盖见 [SPEC“组合与验证”](../SPEC.md#组合与验证)。
+持续运行的测试只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为，不证明真实供应商、真实代理、`https:` 协议的代理、公网 TLS 或 `ModelTransport` 的组合。`test:live` 的证据只来自手动运行。完整的覆盖与未覆盖见 [SPEC“组合与验证”](../SPEC.md#组合与验证)。
 
 ## 维护
 
@@ -33,10 +43,14 @@ http.spec.ts 与 network.spec.ts 用 vitest 的模块替身把 `node:https` 的 
 pnpm turbo run test --filter=@omne-harness/pi-ai-transport
 pnpm turbo run test:fast --filter=@omne-harness/pi-ai-transport
 pnpm turbo run test:slow --filter=@omne-harness/pi-ai-transport
+OMNE_LIVE_TESTS=1 pnpm --filter @omne-harness/pi-ai-transport run test:live
 ```
 
-慢层需要 PATH 中有 `openssl`。
+慢层需要 PATH 中有 `openssl`。最后一条命令发出真实请求，会产生少量费用。
 
 ## 本包事实
 
 测试通过不代替规格或验收。本目录没有固定输入文件，原因见 [fixtures](fixtures/README.md)。
+
+- `test:live` 没有单独的 Vitest 配置。包模板没有这个配置的位置，加上它会使模板扫描的结构检查失败。所以 `test` 与 `test:slow` 也收录 `tests/live/`。未设开关时用例跳过。turbo 的严格模式滤掉未声明的环境变量，所以经 turbo 运行时它总是跳过。快层不收录它。
+- 慢层用例在 Node 26.12.0 上通过。代理缺陷与建连取消的事实按同一版本的 Node 源码核对。
