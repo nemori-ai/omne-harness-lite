@@ -275,5 +275,7 @@
 - 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出。
 - 请求里的原调用与获取的原调用是否一致，现在没有核对点。由设施守卫还是门核对，待本契约的拥有者裁定。
 - 作用域与租户绑定的统一说法（本契约不核对作用域的租户归属，Runtime Context 在首次注册时记下作用域所属租户）待本契约与 Runtime Context 契约的拥有者裁定。
+- 提供者抛出的错误一律映射成闭合失败（例如 `acquire` 的 `providerUnavailable`，释放的待处置结果），包括执行环境不认识的错误。这与[防御指导 DP-01](../../../docs/defensive-patterns.md#dp-01-独立事实分别报告)「边界只捕获能识别的已知错误，未知错误原样向上抛」不一致。保留映射并在 DP-01 登记例外，还是只映射可识别的错误，待本契约拥有者裁定。
+- 未铸造租户查询 `inspectAcquisition` 答复 `unrecorded`，因为 `AcquisitionState` 没有表示无效输入的答复（见[拒绝原因](#拒绝原因)前一段）。是否给 `AcquisitionState` 增加无效输入答复，待本契约拥有者裁定。
 
 本规格没有生产实现的运行验证。当前只有宿主文件使用在 [execution-environment-host-local](../execution-environment-host-local/SPEC.md) 有运行记录。候选、自检、独立审阅和实施接受分别判断。

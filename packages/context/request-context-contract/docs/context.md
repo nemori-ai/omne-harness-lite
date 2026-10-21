@@ -194,7 +194,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 - Runtime Context 读者面的服务定义 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/README.md)。
 - Model 的请求准备与计量端口。
 
-这个包现在没有建立。
+这个包现在没有建立，由哪张卡建立、谁维护尚未指定，已登记在 Context 运行时实现卡 [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542)。跨请求保存 ④ 层块材料（见[对不上的字段](#对不上的字段)）由这个包承担。
 
 **翻译什么。**适配器按[字段对应](#字段对应)翻译输入与结果，并承担下列职责：
 

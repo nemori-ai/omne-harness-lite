@@ -576,7 +576,7 @@ specific.
 - **形态**：对象
 - **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）；旧说法见 [PF-015 §6.18](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）
 - **别混**：不是共享数据源的创建或删除；也不是[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)——声明说「这种块长什么样、谁拥有」，注册说「这个作用域用了它」
-- **注意**：形态由属性改为对象的依据与影响见 [C-66](../conflicts.md#c-66运行时-context-注册是属性还是对象)。本版的作用域持有者是会话
+- **注意**：形态由属性改为对象的依据与影响见 [C-67](../conflicts.md#c-67运行时-context-注册是属性还是对象)。本版的作用域持有者是会话
 
 ### UL-context-block · runtime context 块 · Context Block
 

@@ -395,7 +395,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页与产品页模型调用的措辞已改为保留名单。仍写「排除名单」或「精确原块集合」的正式正文只剩 Session 契约 SPEC 的派生提交条款，由其拥有者回改。回改后闭合。
 - **状态**：已裁定，待外域回改。Request Context 一侧已由 [request-context-contract 的 RQ-06](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)按保留名单写定。
 
-### C-66：运行时 context 注册是属性还是对象
+### C-67：运行时 context 注册是属性还是对象
 
 - **类型**：定义打架。2026-10-20 承接 Runtime Context 产品页 rev 4 时发现。
 - **来源**：[运行时 context 注册](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)原按封存 [PF-015 §6.18](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）写成会话上的一项属性：会话纳入一块的来源、配置与消费者声明。[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）把它写成作用域持有者为一个作用域固定的清单，身份是作用域加块键，必需项在作用域创建时固定、可选项可增删，并带需要绑定与参数。
@@ -404,7 +404,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：负责人 PanQiWei。Context 成员契约按对象读法写登记条款；封存 PF-015 不回改。契约落地后闭合。
 - **状态**：已裁定（随产品页 rev 4）。成员契约已按对象读法写定登记条款（[RC-02](../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）；随契约接受闭合。
 
-### C-67：目标环境的求值结果是不是这次执行的要求
+### C-68：目标环境的求值结果是不是这次执行的要求
 
 - **类型**：定义打架。2026-10-21 核对环境要求与执行环境权限的说法时发现。
 - **来源**：[目标环境](terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)按封存的 [PF-006 §6.8](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求)（rev 24）与 [PF-002 §4 Tool](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）写成：目标环境是一项被求值的设置，「求值出来的那一份就是这次执行的要求」。[执行环境产品正文的环境要求与落点](../product/execution-environments/design.md#环境要求与落点)（rev 2）写成：被求值的是[执行环境权限](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)，工具宿主把它的有效值与目标环境翻译成允许清单，交给执行环境的是[环境要求](terms/grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement)。

@@ -297,7 +297,7 @@
 
 - **形态**：属性
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
-- **别混**：不是[目标环境](#ul-target-environment--目标环境--target-environment)。目标环境是工具声明的一项设置，说工具要什么。被求值的是[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)：发起协调者求出它的有效值（三个策略词之一），工具宿主把这个值与工具声明的目标环境翻译成允许清单。环境要求是翻译之后交给执行环境的结果。目标环境词条的旧出处另有说法，见 [conflicts C-67](../conflicts.md#c-67目标环境的求值结果是不是这次执行的要求)
+- **别混**：不是[目标环境](#ul-target-environment--目标环境--target-environment)。目标环境是工具声明的一项设置，说工具要什么。被求值的是[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)：发起协调者求出它的有效值（三个策略词之一），工具宿主把这个值与工具声明的目标环境翻译成允许清单。环境要求是翻译之后交给执行环境的结果。目标环境词条的旧出处另有说法，见 [conflicts C-68](../conflicts.md#c-68目标环境的求值结果是不是这次执行的要求)
 
 ### UL-facility-descriptor · 设施声明 · Facility Descriptor
 

@@ -332,5 +332,7 @@
 - 工作区指导的首次访问判据，归产品 [CONTEXT-E02](../../../.meta_harness/design/product/runtime-context/design.md#context-e02)。本成员只供给当前值，不拥有加载规则。
 - 本成员的 `src/` 现在只有共享类型。需要、绑定、注册、资格、读者、更新、步提交、变化材料的类型，四种读取结果与游标作废的类型名，五个纯函数与两个解码函数随实现进入，形状以本页和 [docs/object-model.md](docs/object-model.md) 为准。
 - 三条 Cordis 机制读数仍是假设，列在 [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md)。
+- 唤醒载荷是否受对象存在性披露规则约束，待本契约拥有者确认。现在的写法是载荷只带作用域引用与视图修订，不带块键与值（[runtime-context-cordis-contract](../runtime-context-cordis-contract/SPEC.md)），据此认为它不披露块的存在；监听者能否从修订前进推断某块存在，尚未裁定。
+- 唤醒丢失后，持有者最迟何时补拉变化没有上界。[RC-04](#rc-04-读取时点观察与变化材料) 只要求下一次拉取补齐。这个上界与持有者的重放、保留上一份快照两项义务一起，归作用域持有者的契约（[#580](https://github.com/nemori-ai/omne-harness-lite/issues/580)）。
 
 这些缺项不允许降低已定的访问、历史和恢复责任。当前没有运行实现，不宣称接口、租户隔离、并发、断电耐久或性能通过。作者自检和结构检查不授予接受。
