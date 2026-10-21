@@ -90,13 +90,13 @@
 
 下列声明补齐可独立消费的定义、参数和结果适配。不要求 Cordis 或任何外部工作对象。托管路径还必须走前述准入。具体操作协议归 [protocols](../SPEC.md#tool-操作协议)，输入与依赖归 [object-model](object-model.md)。
 
-ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，生成唯一 ToolDefinition 投影。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
+ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，生成实现侧的 ToolImplementation。装载时 `deriveDefinition` 把它与资产治理声明派生为唯一 ToolDefinition，见[定义完整性与呈现](../SPEC.md#定义完整性与呈现)。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。RFC-0012 的类型迁移尚未交付：源码仍导出 `ToolDefinitionMetadata` 与 `ToolAuthorRegistration`，还没有 `ToolGovernance`、`ToolImplementationFacts`、`ToolImplementation`、`ToolImplementationModule`、`ToolAuthority` 与可用结果的 `layer`。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
 
 - [authoring.ts](../src/authoring.ts)：声明与设置、消费方档案 `ToolConsumerProfile`、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、作者注册、装载器、绑定登记表、文本结果工厂与可用性事实。
 - [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。句柄与注册是当前执行域的能力，不交给脚本。
 - [binding.ts](../src/binding.ts)：子路径入口 `@omne-harness/tool-contract/binding`，只供受信的执行绑定提供者（G7）导入。`readToolOperation` 与 `readToolRegistration` 读取句柄内的作者与注册内的操作表（`ToolOperationSlot`、`ToolRegistrationSlot`）；不是 registration.ts 构造的值读作 `undefined`。根入口不导出它们，所以只持有句柄或注册的代码取不到 executor。`readOwnSlot(value, key)` 按自有属性读取不可信的值，答 `OwnSlot`：属性不存在（`absent`）、是访问器（`accessor`）或带值（`value`）；各实现用它以同一方式读取外来值，不触发 getter。这个入口与根入口一样不依赖 Cordis。
 - [judge-release.ts](../src/judge-release.ts)：`judgeConsumerRef` 与 `judgeHandoff`，即 releaseDelivery（P08）的消费位置与交接证据的封闭检查。多出的字段是 `unknown-field`，非文本值是 `type`，返回冻结副本。它们不核证据归属，提供者再比对证据的 `owner` 与消费者。
-- [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。
+- [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。按 [P02](../SPEC.md#p02-定义准入与队列)，可用结果带来源层 `layer`；源码尚未迁移。
 - [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键、半截 JSON 与不是对象的输入返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。`judgeToolArguments(input, limits)` 是受理时的判定：原参数与生效参数都完整解析（`ParsedToolArguments`），`complete=false` 返回 `incomplete`，任一文本失败返回 `invalid` 并指明 `original` 或 `effective`，输入或预算形状不对返回 `shape`（`ToolArgumentsRejection`）。它不替代作者 codec 在执行时的解析。
 
 ## 持久状态与协议记录

@@ -275,7 +275,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolCommands 提供者 | 契约只规定接口和行为。提供者自己的存储、资格核验和队列守卫见 tool 对象模型（`tool/docs/object-model.md`） | WriteContext 或 Mutation、明确协议值 | 不可用返回 unavailable/commit-unknown；不能换内存实现冒称耐久 |
 | ToolCall 决定器 | 无外部服务，只读已核 guard 快照 | 当前状态、具名命令 | 纯计算结果含变更与任务；事务端再次核 revision/queue/guard |
 | ToolDriver | Commands、ToolBindings、ToolEnvironment、ToolStartAuthority、ToolDecisionBridge、ToolResourceResponses、ToolOutputCustody、ToolClock、ToolChildren 的阶段适配器 | tenant/call、host 提供的 instance、宿主取消 signal（`run`） | 从事实重建协调，不重放外部调用；查询未知仍能承担责任 |
-| ToolLoader / ToolBindingRegistry | 合法定义/设置快照适配器、schema、作者工厂、资格守卫 / 已核装载贡献 | 精确 definition/executor/settings、来源 / ToolLoadedRegistration、登记依据 | C 为构造配置，A 为调用参数，E 为服务依赖；不互相替代 |
+| ToolLoader / ToolBindingRegistry | 设置快照适配器、schema、资格守卫 / 已核装载贡献 | load 输入 `{ asset, settings, module, services }` / ToolLoadedRegistration（带登记键、派生 definition 与 shape）与 ToolAuthority | C 为构造配置，A 为调用参数，E 为服务依赖；不互相替代。登记表按登记键查，不做层序；同键规则见 [G7](../SPEC.md#342-契约缺口决定) |
 | ToolBindings | 资产/装配的合法采用解析、执行提供者映射 | 固定 adoption、原 start 或消费方档案 | resolve 新发起与 recover 原查询分面；不自动取最新实现 |
 | ToolRecoveryBinding | `ToolBindings.recover` 按原启动记录交出的恢复面 | 原 start、事实回执、暂停记录、控制派发 | 只有原事实查询与控制（acknowledge、inspectStart、inspectSuspension、stop、inspectControl），没有 start；撤权后仍须有受权托管者处理原责任 |
 | ToolEnvironment | 环境拥有者的准备与释放能力 | 原 PreparationRecord 或 ReleaseRecord | 按同一操作去重，inspect 认回原分配；缺条件拒绝，不降级到更宽松环境 |
@@ -290,12 +290,14 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolWaitResponseValidator | 原请求、固定 schema、受信身份和业务守卫 | 原 wait/submission/source 与候选回应 | 反馈非法提交；valid 不等于有效决定已提交 |
 | ToolReturnValidator / ToolProgramOutput | 精确输出采用、返回检查与程序编码规则 | 原 A 与真实 unknown 返回 / 已验证 R | 不以泛型或 codec 代替校验；程序值与展示内容属同一结果版本 |
 | ToolOperation | 一个 ToolAuthor、参数说明与返回声明 | defineToolOperation 的完整输入 | 封闭单操作 A/R，保留 E/B 兼容性；不公开 executor；不代表已可用 |
-| ToolAuthorRegistration | 工具元数据、一个操作或命令名到操作的表 | 构造时给定命令 summary 与操作 | 生成唯一 ToolDefinition；作为 ToolBindings 的依赖，按原采用保持；不进入数据契约 |
+| ToolImplementation | 实现侧事实（description、backgroundAllowed、declarations）、一个操作或命令名到操作的表 | 构造时给定命令 summary 与操作 | 不含 name、adoption 与治理字段；装载时与资产治理声明派生唯一 ToolDefinition；登记后由 ToolBindings 按登记键持有；不进入数据契约 |
+| ToolImplementationModule | 实现包导出的 executor 与 createAuthor，与作者插件同包导出 | createAuthor 的 construction | 是 ToolLoader 的 load 输入；不是数据契约 |
+| 换代协调者 toolGenerations | Tool 宿主的 Service，唯一持有 ctx.plugin 句柄；会话引用读取端口 ToolResidencyReader | ensureLoaded 的 authority；unload 的登记键；sweep 无参数 | 每个动词向目标态收敛，可重复调用；有引用且无同形 serving 替代时不 dispose，契约见 [cordis](../../tool-cordis-contract/docs/cordis.md#换代协调者契约) |
 | PreparedEnvironment | 环境拥有者产生受限 E 和持久资源身份 | 不接受任意重绑定 | E 不可序列化；清理通过环境协议，非对象销毁即业务完成 |
 | ToolDecisionBridge | 决策方的 ensure/inspect/resolve/invalidate 适配 | 原 wait、请求登记、决定和终局依据 | 决定仍由决策方唯一拥有，不把普通消息当决定 |
 | ToolResourceResponses | 各资源协议登记、认回、到期、失效及资格校验器 | 原等待、受信应答/到期证据 | 与决策方分开；没有默认资源超时 |
 | ToolOutputCustody / ContentReader | 耐久内容与附件提供者、当前读取资格 | 原 operation、codec/bytes 或精确结果引用 | 返回耐久证据；临时 URL 不够；读取与删除权分开 |
-| ToolCatalog | 合法定义选择、消费者能力与设置读取 | inspect/search/usage 的范围 | 同实例数据变化可重求值，不依赖 Cordis 重跑 |
+| ToolCatalog | 合法定义选择、消费者能力与设置读取 | inspect/search/usage 的范围 | 同实例数据变化可重求值，不依赖 Cordis 重跑；会话常驻项的 name 与参数形状在会话内不变（[R1](../SPEC.md#会话常驻规则r1r5)） |
 | ToolInstanceHost | 长期宿主上下文、调度器、目录及发布资格 | 安装 driver，按 call 唤醒 | 不挂在调用方下；同 call 提示归并；可从扫描补偿 |
 | ToolDirectory / ToolHandle | 发布资格与贡献 token / 原实例投影源 | connect / after + signal | 只提供观察路由；旧 handle 不暗连后继 |
 | ToolChildren | 本域持久关联、受信来源签发、子调用门面 | parent/ordinal、子受理及保管回执 | 父程序退出后继续；程序拿不到此端口 |
@@ -322,8 +324,8 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 
 | 能力 | 建模落点 | 必须验证 |
 | --- | --- | --- |
-| [CAP-TL01](../verification/README.md#产品到成员的覆盖) 定义呈现取用 | ToolDefinition、ToolCatalog、ParameterCodec、ToolPresentation | 呈现与采用的定义一致，包装来源不能洗白，未声明 programmable 即不可程序调用 |
-| [CAP-TL02](../verification/README.md#产品到成员的覆盖) 动态可用及 dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability | 可用性列出全部未满足条件；dummy 不解析参数、不分配环境、不启动 |
+| [CAP-TL01](../verification/README.md#产品到成员的覆盖) 定义呈现取用 | ToolDefinition、ToolGovernance、ToolImplementationFacts、ToolCatalog、ParameterCodec、ToolPresentation | 呈现与采用的定义一致，定义由资产治理与实现派生且 name 不一致即拒绝装载，包装来源不能洗白，未声明 programmable 即不可程序调用 |
+| [CAP-TL02](../verification/README.md#产品到成员的覆盖) 动态可用及 dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability（含 layer）、ToolBindingRegistry、换代协调者 | 可用性列出全部未满足条件；dummy 不解析参数、不分配环境、不启动；常驻项按 R1–R5 保持同形，冻结只在采用点且要耐久证据 |
 | [CAP-TL03](../verification/README.md#产品到成员的覆盖) 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit、ToolStartAuthority | 同身份异输入被拒；资格失效后旧请求不能再发起 |
 | [CAP-TL04](../verification/README.md#产品到成员的覆盖) 设置限额队列 | QueueReservation、QueuePosition、ResourceScope（含 grant） | 同 key 的 FIFO 与名额原子裁定；授予缺失或属于他方即拒绝；不同租户不共队列 |
 | [CAP-TL05](../verification/README.md#产品到成员的覆盖) 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | 转后台须许可；重复转换只产生一个占位；不回前台 |
