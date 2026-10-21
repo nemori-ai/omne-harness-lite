@@ -12,7 +12,7 @@ Session 保存会话身份、历史和治理状态。Run 组织一次逻辑工�
 
 1. Session 拥有业务治理与耐久事实，不是第四个 runtime。它拥有身份与归属、只增不改的会话日志、输入受理与分流、Run 与 attempt 的唯一推进资格、等待与消费位置、控制意图、终态、模式与选择、会话关系与归档。它不执行 Loop，不发模型请求，不运行工具，也不解释其他生产者的 Runtime Context 块内容。
 2. Session 认识全部邻域，邻域都不认识 Session。Agent、Model、Tool、Runtime Context、Request Context 和执行环境的契约只使用通用角色。Session 是这些角色在会话路径上的具名实现者。名称与形状的翻译只发生在 Session 的适配成员里。
-3. 只有一条权威提交序列。会话日志提交、Agent 的输入受理与终结、Runtime Context 的注册决定、压缩转换，凡需要共同成立，都在同一个存储事务域的一次提交里成立。两次独立写入、事件队列或回调都不算共同成立。
+3. 只有一条权威提交序列。会话日志提交、Agent 的输入受理与终结、压缩转换，凡需要共同成立，都在同一个存储事务域的一次提交里成立。两次独立写入、事件队列或回调都不算共同成立。Runtime Context 的注册决定不与其他事实共同提交：它是作用域持有者单独的一次提交，Runtime Context 在提交之后应用它，见 [RC-02](../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。
 4. 逻辑收口与物理收场分开。取消、归档、换代和释放只改变资格与责任。模型是否发出、工具是否停止、环境是否关闭，由各自拥有者报告，Session 只对账。
 5. 日志是唯一的业务写入口。外部调用方不能直接追加事件。每个意图经一个具名操作进入，守卫在同一次裁定里检查当前资格与前提，归约只解释已经提交的事实。
 
@@ -33,20 +33,20 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | 邻域 | Session 担任的通用角色 | 公开契约 |
 |---|---|---|
 | Agent | 外部协调者、提交参加者、事件消费者、恢复发现者 | [托管协调与运行实例](../../../packages/agent/agent-contract/SPEC.md#托管协调与运行实例)、[外部协调者的前提](../../../packages/agent/agent-contract/docs/context.md#外部协调者的前提) |
-| Model | 消费位置拥有者（受理点守卫的参加者）、结果承接与 ACK 的消费侧、模型选择的保存者 | [资格、共同提交与实际发送](../../../packages/model/model-contract/SPEC.md#资格共同提交与实际发送)、[ACK 的前提与效果](../../../packages/model/model-contract/SPEC.md#ack-的前提与效果) |
-| Tool | 消费位置拥有者（受理点守卫的参加者）、对账与投影的读者 | [可靠交接与处理的两条路径](../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)、[接续原调用与确认自身失联](../../../packages/tool/tool-contract/SPEC.md#接续原调用与确认自身失联) |
+| Model | 消费位置拥有者（受理点守卫的参加者，以资格参加者协议闭合为前提，见[联合前提与具名待决](#联合前提与具名待决)）、结果承接与 ACK 的消费侧、模型选择的保存者 | [资格、共同提交与实际发送](../../../packages/model/model-contract/SPEC.md#资格共同提交与实际发送)、[ACK 的前提与效果](../../../packages/model/model-contract/SPEC.md#ack-的前提与效果) |
+| Tool | 启动围栏 ToolStartAuthority 的资格版本拥有者：撤销推进资格之后调用 `invalidate`，等到失效已生效；对账与投影的读者 | [P04 实际发起围栏](../../../packages/tool/tool-contract/SPEC.md#p04-实际发起围栏)、[可靠交接与处理的两条路径](../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)、[接续原调用与确认自身失联](../../../packages/tool/tool-contract/SPEC.md#接续原调用与确认自身失联) |
 | Runtime Context | 作用域持有者、会话块的生产者、变化材料的消费者 | [Runtime Context 契约](../../../packages/context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影 | [历史源读口与 epoch 视图](../../../packages/context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[压缩共同结果](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) |
-| 执行环境 | 不直接认识。经两条间接线：目标环境设置经 Agent 的设置端口进入工具调用请求；归档后的作用域释放由 Session 的适配插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
+| 执行环境 | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
 
-Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：受理点守卫的参加、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
+Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Model 受理点守卫的参加者，Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
 
 ```mermaid
 flowchart LR
     Gov[Session 治理与会话日志] --- Adapters[Session 适配成员]
     Adapters -->|外部协调者 · 提交参加者 · 事件消费者| Agent[Agent]
     Adapters -->|受理点守卫 · ACK 与账目| Model[Model]
-    Adapters -->|受理点守卫 · 对账读取| Tool[Tool]
+    Adapters -->|资格版本与 invalidate · 对账读取| Tool[Tool]
     Adapters -->|作用域持有者 · 块生产者| RC[Runtime Context]
     Adapters -->|历史持有者| RQ[Request Context]
     Adapters -->|维护者发起作用域释放| EE[执行环境]
@@ -77,7 +77,7 @@ flowchart LR
 | 轴 | 会话保存的值 | 谁使用这个值 |
 |---|---|---|
 | 权限处理 | `never`、`auto_permission`、`bypass-permissions` | 授权域按它决定仍需询问时的处理方式。`bypass-permissions` 只跳过询问，不越过结构化权限限制。 |
-| 执行环境 | 目标环境设置的会话值 | 协调者在发起工具调用之前求出目标环境设置，放进工具调用请求。 |
+| 执行环境 | 会话层的目标环境设置声明 | 设置求值拥有者按默认、组织、租户、工作区、会话的次序求出有效值，上层锁定照常生效。Tool 装载时由设置读取适配器取得有效值，固定在 `FixedToolRequest.settings`。 |
 | 协作 | `co-work`、`auto-drive` | 元能力宿主按它开放或关闭向人提问。`auto-drive` 另外增加目标完成检查。 |
 
 谁能改模式：
@@ -90,26 +90,35 @@ flowchart LR
 
 - 通用创建入口没有显式初值时，采用租户默认并形成本会话值。租户默认之后的变化只影响后续创建。会话恢复或重新装配不重新套用默认。
 - 已经发出的请求保持发出时的模式。
-- 目标环境设置在协调者发起工具调用时固定。之后的模式变化只影响后续调用。
+- 目标环境设置在 Tool 装载时固定在 `FixedToolRequest.settings`。之后的模式变化不改这份快照，只影响之后装载的工具调用。
 - 运行中的消费者经 Runtime Context 的变化协议感知新值。新的 Agent 执行开始或建立新的执行挂接时，消费者取得当前块快照，见[Runtime Context](runtime-context.md)。
 
-Session 作为生产者向 Runtime Context 供给两个块：`session.modes` 保存三轴的当前值，`session.tool-environment-policy` 保存目标环境设置的会话值。两个块都由 Session 持久保存，恢复时由 Session 重新发布原值。消费者类是模型与协调者，Tool 与扩展不是这两个块的消费者。两个块分开，是因为消费者和变化频率不同：模式供模型感知与动作准入使用，目标环境设置只供协调者求值。
+Session 作为生产者向 Runtime Context 供给一个块 `session.modes`，保存三轴的当前值。这个块由 Session 持久保存，恢复时由 Session 重新发布原值。消费者类是模型与协调者，Tool 与扩展不是它的消费者。
 
 模式词到各消费者取值的翻译是 Session 适配成员里的纯函数，带来源证据，经 Runtime Context 的需要绑定交给消费者。授权域与元能力宿主只读自己的值，不认识模式词。Session 的契约不出现执行环境的类型。翻译表归[适配成员](../../../packages/session/session-adapters/SPEC.md)。
 
-块缺项或设置链不可用时，设置端口答不可用，工具调用不发出。系统不回退到工具声明的缺省值：缺项说明会话层有没有覆盖值仍未知，回退会让用户设置的禁止项静默失效。拒绝带原因，由 Agent 按自己的规则形成拒绝消息。
+目标环境设置不经 Runtime Context 块，走设置求值：
+
+1. 执行环境模式变化时，Session 在同一次提交里写一条会话层的目标环境设置声明。它是会话设置声明的一种，计入[设置声明修订](../../domains/sessions-and-work/architecture.md#设置声明修订)。模式词到这条声明的翻译是[会话契约](../../../packages/session/session-contract/SPEC.md)里的纯函数，在模式变化时算好，不在工具调用时翻译。
+2. 设置求值的拥有者按默认、组织、租户、工作区、会话的次序求出有效值，取最具体的合法值，上层锁定照常生效，见[配置资产的行为，同时守住权限上界](../../../.meta_harness/design/product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)。
+3. Tool 装载时，设置读取适配器取得有效值，固定在 `FixedToolRequest.settings`。执行、收场与恢复都用这份快照，见 Tool 契约的 [P15 配置声明与合法装载](../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载)。
+
+Session 不要求 Agent 增加传递设置的端口，也不为每次工具调用翻译模式。
+
+设置缺项或求值不可用时，Tool 一侧不猜落点，这次工具调用不发出，见执行环境的[产品规则](../../../.meta_harness/design/product/execution-environments/design.md#产品需求描述)「无法取得允许依据时不能猜测许可」。系统不回退到工具声明的缺省值：缺项说明会话层有没有覆盖值仍未知，回退会让用户设置的禁止项静默失效。拒绝带原因，由 Agent 按自己的规则形成拒绝消息。
 
 ```mermaid
 flowchart LR
     Tenant[本会话租户] -->|修改| Modes[会话模式值]
     Human[人经 HITL 显式授权] -->|Agent 发起的修改| Modes
     Modes --> Block1[session.modes 块]
-    Modes --> Block2[session.tool-environment-policy 块]
     Block1 --> Translate[适配成员翻译]
     Translate --> Auth[授权域的处理方式]
     Translate --> Meta[元能力宿主的提问开关]
-    Block2 --> Coord[协调者求目标环境设置]
-    Coord -->|缺项时不发出调用| Request[工具调用请求的设置]
+    Modes -->|执行环境模式变化，同一次提交| Decl[会话层目标环境设置声明]
+    Decl --> Eval[设置求值<br/>默认 · 组织 · 租户 · 工作区 · 会话]
+    Eval --> Load[Tool 装载时固定到 FixedToolRequest.settings]
+    Load -->|缺项或求值不可用时不发出调用| Call[工具调用]
 ```
 
 ## 输入受理与分流
@@ -280,8 +289,8 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 |---|---|
 | 受理流水线 | 按受理前拓展点、受理提交、受理后拓展点的顺序处理一次到达。 |
 | Agent 推进 | 决定何时开始、续入输入和恢复 Agent 执行；担任 Agent 的提交参加者；按序读取 Agent 事件，保存事实与游标之后再确认。 |
-| 控制传播 | 把已保存的控制意图传到原执行，收集各生产者的实际结果，全部核对后标为已对账。 |
-| 归档与级联 | 归档提交之后传播控制，推进子会话级联，发起作用域释放，把回执作为新事实提交。 |
+| 控制传播 | 把已保存的控制意图传到原执行，收集各生产者的实际结果。撤销推进资格之后调用 Tool 的 `invalidate`，等到失效已生效，这一步计入对账进度。全部核对后标为已对账。 |
+| 归档与级联 | 归档提交之后传播控制，并在撤销资格之后调用 Tool 的 `invalidate`；推进子会话级联，发起作用域释放，把回执作为新事实提交。 |
 | 恢复 | 读取恢复快照，按类别把未结事项交给对应的协调器或拥有者。 |
 
 调度器只决定什么时候再检查、检查哪个会话，检查结果交给协调器：
@@ -294,7 +303,7 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 | 待决认回 | 对结果未知的提交按操作身份查询，把已提交的回执交回原协调器。 |
 | 控制重放 | 对尚未全部对账的控制按间隔重放传播。 |
 | 级联推进 | 对待完成的级联任务与作用域释放任务按间隔重新驱动。 |
-| 预求值与预热 | 资产、工作区或设置变化时比对作用域变更计数。计数变化时在后台求值并缓存已校验候选；采用会变化时，请 Agent 宿主按新采用预建空闲实例。 |
+| 预求值与预热 | 资产、工作区或设置变化时比对本会话采用依据的作用域变更计数。计数变化时请装配协调者对本会话预求值。已校验装配候选的缓存，以及对哪些会话预求值的策略，都归[装配协调者](assembly-and-change.md#比对代替求值)。预热要请 Agent 宿主按新采用预建空闲实例，依赖 Agent 宿主创建实例的入口，见[联合前提与具名待决](#联合前提与具名待决)。入口定义之前，本调度器只触发预求值，不调用 Agent。 |
 
 三条共同规则：
 
@@ -383,8 +392,9 @@ flowchart TD
 | 调用登记、进度、派生消息与消费完成 | Agent | Session 参加者在同一事务域里提交对应的会话事实。 |
 | Agent 条件终结与 Run 终态 | Agent | Session 参加者运行完成检查并提交 Run 终态。有未交输入时，参加者以冲突响应。 |
 | 结果保管与生产者交付责任 | Agent | Session 参加者提交保管与消费完成，回执供 Model 的 ACK 与 Tool 的交付责任解除使用。 |
-| Model 或 Tool 受理与消费位置 | Model 或 Tool 的受理点 | Session 守卫参加者只读当前 Run、推进资格与控制事实。拒绝即生产者拒绝受理。 |
-| Runtime Context 注册决定 | Session | Runtime Context 提供材料，并在提交之后应用已确认的决定。 |
+| Model 受理与消费位置 | Model 的受理点 | Session 守卫参加者只读当前 Run、推进资格与控制事实。拒绝即 Model 拒绝受理。这一行以资格参加者协议闭合为前提，见[联合前提与具名待决](#联合前提与具名待决)。 |
+| Tool 启动资格失效 | Session 先提交撤销资格，Tool 再在自己的启动排序域里使资格失效 | Session 作为 ToolStartAuthority 的资格版本拥有者调用 `invalidate`，等到 Tool 确认失效已生效。这是两次提交，顺序固定。失效生效之前，不能声称 Tool 的新发起已被阻止。 |
+| Runtime Context 注册决定 | Session 单独一次提交 | Runtime Context 只提供材料，不参加这次提交，在提交之后应用已确认的决定。 |
 | 压缩转换 | 协调者的权威提交 | Session 作为历史持有者参加，提交压缩记录。 |
 | 自动归档 | Session | 空闲输入的参加者重新核对全部范围。 |
 
@@ -435,10 +445,18 @@ Agent 工作推进的产品责任见[Agent 定义与工作推进](../../../.meta
 
 本节是候选修订，技术接受前不扩大本页既有承诺。
 
-| 事项 | 拥有者 | 对本页的影响 |
+每行写明缺什么、谁拥有，以及闭合之前本系统怎样表现。
+
+| 事项 | 拥有者 | 闭合之前本系统怎样表现 |
 |---|---|---|
-| 共享存储事务域 | Agent 与存储拥有者联合 | [共同提交与参加关系](#共同提交与参加关系)以它为前提。退化为两次提交加对账的方案不在本版。 |
+| 共享存储事务域 | Agent 与存储拥有者联合 | [共同提交与参加关系](#共同提交与参加关系)以它为前提。没有共享事务域的装配被拒绝。退化为两次提交加对账的方案不在本版。 |
 | [压缩转换的协调者一侧](https://github.com/nemori-ai/omne-harness-lite/issues/558) | 压缩转换的协调者拥有者 | Session 只承担持有者一侧的参加。协调者一侧的唯一提交点待定。 |
 | 受理拓展点的语义 | 命令域与 hooks 拥有者 | Session 只规定[受理流水线](#受理流水线与业务流程拓展点)的顺序与提交边界。 |
-| 迟到账目与收场的读取资格 | Model 与 Tool 拥有者 | Session 的消费适配器凭此读取生产者事实。 |
-| 有界恢复者 | Agent 拥有者 | 见[有界恢复者](control-and-recovery.md#有界恢复者)。 |
+| 迟到账目与收场的读取资格 | Model 与 Tool 拥有者 | Agent 不在场时，迟到的账目与收场保持未知，只能经 Agent 事件到达。不以查不到当作未发生。 |
+| 有界恢复者 | Agent 拥有者 | 恢复者不收束，Run 保持未终结，恢复任务保留并报告。见[有界恢复者](control-and-recovery.md#有界恢复者)。 |
+| Model 资格参加者协议：守卫读数在提交内的载体、载体拥有者与参加者先后保证，见 [Model 受理点](../../../packages/model/model-contract/SPEC.md#资格共同提交与实际发送) | 存储契约拥有者与 Model 契约拥有者 | 会话路径上 Session 不能作为受守卫的 owner 装配到 Model。Model 一侧读守卫的兜底保护点不存在，控制只经 Agent 送达。失效推进者发起的新模型调用只由 Agent 的条件提交与动作发出围栏阻止。 |
+| 参加者冲突映射：推进资格已被新 attempt 取代时，Agent 把 Session 参加者的冲突映射为 `stale-advance` | Agent 拥有者 | Session 先提交 `claim` 或 `reload`，再请 Agent 接续。接续失败不撤销已提交的推进授予。其间旧 runtime 的共同提交得到 `changed`，窗口的上界是恢复扫描周期。 |
+| 参加者材料带本次写入的 revision：共同提交的材料同时带 expected revision 与本次写入的 revision | Agent 拥有者 | 材料缺项时 Session 参加者响应「不支持」，不保存任何一半，这次共同提交不成立。 |
+| Agent 宿主创建实例的入口：宿主按指定采用预建空闲实例的公开入口，见 Agent 开放问题[宿主怎样创建并持有实例的 AgentProvider](../../../packages/agent/agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider) | Agent 开放问题页的拥有者 | [预求值与预热](#协调器与调度器)调度器只触发预求值，不调用 Agent 预建实例。新 Run 照常在入口取得采用。 |
+| 执行环境维护者角色的对应 | 执行环境契约拥有者（复核） | 本版应用装配层把维护者角色交给 Session 的作用域释放插件，恢复授权由装配注入，与执行环境契约「维护者由应用装配层的协调者担任」一致，见[作用域释放](control-and-recovery.md#作用域释放)。 |
+| 执行环境重启到重新释放之间的窗口 | 执行环境契约拥有者，与 Session 联合 | 执行环境重启后不记得已释放的作用域。作用域释放插件在执行环境提供者换代时按页重新释放；重新释放完成之前，已归档会话的作用域可能仍有资源。 |

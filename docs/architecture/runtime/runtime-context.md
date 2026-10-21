@@ -52,7 +52,7 @@ Runtime Context 是作用域内共享数据的供给中介与合并协议。它�
 
 本节是候选修订，技术接受前不扩大本页既有承诺。
 
-会话模式的拥有者是 Session，模式的维度、修改者与生效时点见[会话模式](session-and-run.md#会话模式)。Runtime Context 只承载 `session.modes` 与 `session.tool-environment-policy` 两个块的当前值，并按本页协议通知变化。
+会话模式的拥有者是 Session，模式的维度、修改者与生效时点见[会话模式](session-and-run.md#会话模式)。Runtime Context 只承载 `session.modes` 一个块的当前值，并按本页协议通知变化。目标环境设置不经 Runtime Context，它是会话层的设置声明，由设置求值给出有效值。
 
 新的逻辑执行开始，或协调者为执行建立执行挂接（接续或换代之后）时，取得当前数据块快照，弥补空闲期间的变化。只有在生产者允许读取、块注册有效并满足资格时才纳入，不凭旧日志恢复已经撤回的访问权。
 

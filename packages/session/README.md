@@ -12,7 +12,7 @@
 | [session-cordis-contract](session-cordis-contract/README.md) | 唯一 Cordis 服务定义：四个面挂同一个服务键，调用方类，出站端口的服务键与事件 |
 | [session](session/README.md) | 无 Cordis 的治理机制：命令处理、归约、投影、受理流水线拓展点编排、协调器与调度器的决策算法、缓存与策略对象 |
 | [session-cordis](session-cordis/README.md) | Cordis 服务实现：计时与通知订阅，事务、身份、时钟与出站端口的装配，扫描者单实例绑定 |
-| [session-adapters](session-adapters/README.md) | 与六个邻域相接的全部适配插件，是组内唯一导入邻域契约的成员 |
+| [session-adapters](session-adapters/README.md) | 与六个邻域以及身份、空闲来源相接的适配插件，是组内唯一导入邻域契约的成员 |
 | [session-storage-sql](session-storage-sql/README.md) | 事务端口的 SQL 实现：迁移片段、存储参加者模块、权威表与派生索引、读路径与符合性套件 |
 
 依赖方向、落位判据与 Cordis 落位见[组架构](docs/architecture.md)。

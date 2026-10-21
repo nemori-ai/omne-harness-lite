@@ -6,7 +6,7 @@
 
 本组按六个成员划分：纯契约、唯一服务定义、通用机制、Cordis 服务实现、邻域适配和存储介质。分法依据是变化原因，不是对象。治理规则变了，改契约与通用机制；邻域契约变了，只改适配插件；换存储介质，只换存储成员。受理、日志、Run、执行尝试、控制和消费是设计责任，不自动拆成包、数据表、服务或进程。
 
-Session 在六个邻域中扮演邻域契约里的通用角色：对 Agent 是外部协调者、提交参加者、事件消费者和恢复发现者；对 Model 与 Tool 是消费位置拥有者，参加它们的受理点守卫；对 Runtime Context 是作用域持有者与 `session.*` 块生产者；对 Request Context 是历史持有者；对执行环境只经两条间接线相接。完整角色表见[会话与工作](../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。
+Session 在六个邻域中扮演邻域契约里的通用角色：对 Agent 是外部协调者、提交参加者、事件消费者和恢复发现者；对 Model 是消费位置拥有者，以资格参加者协议闭合为前提参加它的受理点守卫；对 Tool 是启动围栏 ToolStartAuthority 的资格版本拥有者，撤销资格后调用 `invalidate`；对 Runtime Context 是作用域持有者与 `session.*` 块生产者；对 Request Context 是历史持有者；对执行环境只经两条间接线相接。完整角色表见[会话与工作](../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。
 
 ## 安装与源码依赖
 
@@ -20,7 +20,7 @@ flowchart LR
   Provider --> Contract
   Adapters[session-adapters] --> Definitions
   Adapters --> Contract
-  Adapters --> Neighbors[六个邻域的契约与服务定义]
+  Adapters --> Neighbors[六个邻域以及身份、空闲来源的契约与服务定义]
   Storage[session-storage-sql] --> Contract
   Storage --> StorageContract[存储契约成员]
   App[应用装配者] --> Provider
@@ -66,7 +66,7 @@ flowchart LR
 | 原则 | 本组的具体选择 | 必须防止的反例 |
 | --- | --- | --- |
 | 单一职责 | 六处各管一件事：领域服务裁定允许或拒绝，命令处理编排一次提交，调度器决定何时检查，协调器决定发出什么，适配插件决定怎样调用邻域，存储成员管介质 | 协调器里写允许或拒绝的规则；存储成员里写治理判断 |
-| 开闭 | 新的控制种类、派生消息和恢复任务类型是目录与联合类型的新变体；新邻域是一个新适配插件 | 为接入一个新邻域而改 `session-contract` |
+| 开闭 | 新的控制种类、派生消息和恢复任务类型是目录与联合类型的新变体。开闭只对入站邻域成立：新的入站邻域是一个新适配插件，不改 `session-contract`。新增出站方向时，在 `session-contract` 加一个出站端口接口，这是唯一允许的契约改动，因为依赖倒置要求出站接口由本域声明 | 为接入一个新的入站邻域而改 `session-contract`；新增出站方向时让 `session` 直接导入邻域契约，绕过出站端口接口 |
 | 里氏替换 | 存储、身份、时钟、空闲与 Context 输入的替身与真实实现可以互换；调度器可以整体换成外部工作流引擎，只要它仍只产生带同一操作身份的命令 | 替身返回真实实现不会给出的结局 |
 | 接口隔离 | 四个面按调用方切分：受理方拿不到开始 Run，Agent 协调方拿不到创建会话，读取方拿不到任何变更操作 | 一个什么都能做的服务面 |
 | 依赖倒置 | `session` 依赖端口接口；出站端口的接口在契约成员，键在服务定义成员，实现在适配成员 | `session` 直接导入邻域契约 |
