@@ -103,6 +103,9 @@ export function createToolsAuthor<P>(
     if ('failure' in operation) throw new TypeError('Invalid Tools operation')
     commands[descriptor.name] = { summary: descriptor.summary, operation: operation.ok }
   }
+  // Stage one implements only help and read_result, not the complete Tools meta-tool.
+  // The complete implementation must live in a separate source package.
+  // Migrate this definition and its supporting implementation there when that version is delivered.
   const registration = defineCommandTool({
     metadata: {
       adoption: toolsAdoption,
