@@ -15,7 +15,7 @@
 | 面 | 本插件加的责任 | 机制实例做的事 |
 | --- | --- | --- |
 | 生产者面 `registerProducer` | 在调用方 fiber 上登记效应，代际取该 fiber 的 `uid`，撤除时等本代在途读取 | 生产者表、代际比较、旧代丢弃 |
-| 持有者面 `prepareRegistration`、`issueEligibility`、`applyCommit` | 关闭后拒绝 | 注册修订比较、资格签发、步提交写入 |
+| 持有者面 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit` | 关闭后拒绝 | 注册修订比较、资格签发与撤销、步提交写入 |
 | 读者面 `bind` | 取调用方的 intercept 配置并核对消费者类，关闭后拒绝 | 读取资格、翻译、快照与变化 |
 
 投影变化后，本插件派发唤醒事件，见[按作用域过滤的唤醒](#按作用域过滤的唤醒)。
@@ -57,22 +57,19 @@
 2. 代际取 `this.ctx` 所在 fiber 的 `uid`，传给机制实例。
 3. 撤除函数先等本代在途读取结算，再从机制实例移除登记。两步写在同一个撤除函数里，因为不同 effect 之间的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
 
-生产者插件卸载后，依赖该块的读取读到缺项或未知，不读到旧值。
+生产者插件卸载后，依赖该块的读取读到缺项，不读到旧值。
 
 ## 按作用域过滤的唤醒
 
 投影变化后，本插件派发事件 `runtime-context-cordis-contract/changed`，载荷是作用域引用与块键集合（性质 4）：
 
-1. 派发走 `this.ctx.emit`。派发对象带 `Context.filter`。filter 读监听者 ctx 上的作用域标记，只有标记等于本次作用域引用的监听者被调用。
+1. 派发走 `this.ctx.emit`。派发对象带 `Context.filter`。filter 读监听者 ctx 上属性键 `scope` 的作用域标记，只有标记等于本次作用域引用的监听者被调用。
 2. 每次派发不建 fiber，不建 isolate（[IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。
 3. 派发放在 `try` 中。监听者同步执行，不得返回 Promise。监听者抛出时只记录诊断，不改变已提交的结果（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。Cordis 4.0.4 的 `emit` 不捕获监听者的异常，排在抛出者后面的监听者这一轮不被调用（[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)）。所以一个坏监听者会让同一作用域的其他监听者错过这一次唤醒。唤醒丢失不影响正确性，下一次读取承接。
 
-明确缺项：
+监听者标记作用域所用的属性键是 `scope`，由服务定义成员定义，见 [runtime-context-cordis-contract 的事件](../../runtime-context-cordis-contract/docs/cordis.md#事件)。
 
-- 监听者标记作用域所用的属性键还没有定义，归服务定义成员，见 [runtime-context-cordis-contract 的事件](../../runtime-context-cordis-contract/docs/cordis.md#事件)。
-- 机制实例怎样把投影变化告诉本插件，runtime-context 的公开接口还没有写明，见它的[公开接口页](../../runtime-context/docs/public-api.md)。
-
-这两项确定之前，按作用域过滤的唤醒不能实现。
+明确缺项：机制实例怎样把投影变化告诉本插件，runtime-context 的公开接口还没有写明，见它的[公开接口页](../../runtime-context/docs/public-api.md)。这一项确定之前，按作用域过滤的唤醒不能实现。
 
 ## 撤除顺序
 

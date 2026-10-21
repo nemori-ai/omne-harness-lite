@@ -24,7 +24,7 @@ Status: Cordis definition member, `draft`. The adoption basis is the [prompt con
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the abstract class, the key constant, the intercept configuration type, the strategy selection shape, the `Context` and `Events` augmentations, and the type re-exports of the root entry.
 - Not verified: one Cordis mechanism reading is not in the basis yet. Thus property 7 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
-- Open items: the service has no assembly entry. Thus the SPEC does not say how a Cordis caller uses the cached implementation with the selected strategies. The SPEC also does not say how a contributor declares the global layer. It does not name the source of `ScopeRef` or the side that filters the event by scope. See the [Cordis page](docs/cordis.md).
+- A Cordis caller uses `assembly(scope)` to reach the cached implementation with the selected strategies. A contributor declares the global layer with `scope: null`. Open items: the SPEC does not name the source of `ScopeRef` or the side that filters the event by scope. See the [Cordis page](docs/cordis.md).
 
 No package depends on this package now.
 
@@ -43,7 +43,7 @@ inject: { requestContext: { scope: <scope reference> } }
 plugin body: dispose = ctx.requestContext.contributeSection(section)
 ```
 
-Cordis removes the registration when the contributor plugin unloads. A caller that assembles a request uses `inject: ['requestContext']` and calls `contributions(scope)`. Then it passes the result to the pure operations of request-context-contract. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
+Cordis removes the registration when the contributor plugin unloads. A caller that assembles a request uses `inject: ['requestContext']` and calls `contributions(scope)`. It calls `assembly(scope)` to get the pure operations that are bound to the configured strategies and the registration surface. Then it passes the contributions to those operations. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
 
 Independent use does not need this package. A caller without Cordis collects prompt contributions itself and uses the root entries of request-context-contract and request-context.
 

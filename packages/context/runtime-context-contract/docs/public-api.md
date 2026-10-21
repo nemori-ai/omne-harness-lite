@@ -50,5 +50,7 @@
 | `judgeRegistration` | 纯函数 | 核对一条注册材料 | [RC-02](../SPEC.md#rc-02-块声明注册与参数) |
 | `reduceStep` | 纯函数 | 把一组更新按声明的 `reduce` 合并成步提交材料 | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交) |
 | `diffForReminder` | 纯函数 | 从两份快照算出变化材料 | [RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) |
+| 作用域引用与块键的两个解码函数 | 纯函数 | 从字符串得到 `ScopeRef` 与 `ContextBlockKey` 品牌类型，不用类型断言。名称随实现确定 | [RC-01](../SPEC.md#rc-01-消费者身份与范围) |
+| 三面操作类型 | 类型 | `registerProducer`、`prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`bind` | [三面操作](../SPEC.md#三面操作) |
 
-读取有五种结果：成功、拒绝、缺项、未知、游标作废，见对象模型的[领域特有的结果与提交](object-model.md#领域特有的结果与提交)。承载这五种结果的类型名现在没有确定，随读者与观察模块一起进入。
+读取有四种结果：成功、拒绝、缺项、未知（[读取结果](../SPEC.md#读取结果)）；`changes` 另有游标作废，见对象模型的[领域特有的结果与提交](object-model.md#领域特有的结果与提交)。承载这些结果的类型名现在没有确定，随读者与观察模块一起进入。

@@ -14,7 +14,7 @@ Request Context 的 Cordis 定义成员，`service-contract` 变体。
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：抽象类、键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补，以及根入口的类型重导出。
 - 未验证：一条 Cordis 机制读数还没有进入 basis，所以 SPEC 的性质 7 是假设，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
-- 明确缺项：服务上没有组装入口，SPEC 没有写明经 Cordis 的调用方怎样用到带缓存与选定策略的实现。全局层怎样表达、`ScopeRef` 从哪里来、事件由哪一侧按作用域过滤，SPEC 也没有写明，见 [Cordis 说明](docs/cordis.md)。
+- 经 Cordis 的调用方用 `assembly(scope)` 用到带缓存与选定策略的实现；全局层以 `scope: null` 表达。明确缺项：`ScopeRef` 从哪里来、事件由哪一侧按作用域过滤，SPEC 没有写明，见 [Cordis 说明](docs/cordis.md)。
 
 现在没有包依赖本成员。
 
@@ -33,7 +33,7 @@ inject: { requestContext: { scope: 作用域引用 } }
 插件体：dispose = ctx.requestContext.contributeSection(段)
 ```
 
-登记随贡献者插件卸载自动撤除。组装请求的调用方用 `inject: ['requestContext']`，调用 `contributions(scope)`，再把结果交给 request-context-contract 的纯操作。各类依赖方的完整用法见[使用与定位](docs/context.md#使用方式)。
+登记随贡献者插件卸载自动撤除。组装请求的调用方用 `inject: ['requestContext']`，调用 `contributions(scope)`；再调用 `assembly(scope)` 取得已按配置绑定策略与登记面的一组纯操作，把贡献集合交给这组操作。各类依赖方的完整用法见[使用与定位](docs/context.md#使用方式)。
 
 独立使用不需要本成员。不装配 Cordis 的调用方自己收集提示词贡献，直接使用 request-context-contract 与 request-context 的根入口。
 

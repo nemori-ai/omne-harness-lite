@@ -28,13 +28,15 @@ inject: { requestContext: { scope: 作用域引用 } }
 inject: ['requestContext']
 贡献集合 = ctx.requestContext.contributions(作用域引用)
 组装输入的系统提示词一组 = 贡献集合与组装上下文
+操作组 = ctx.requestContext.assembly(作用域引用)
+结局 = 操作组.assemble(组装输入)
 ```
 
-作用域层的贡献遮蔽全局层的同名贡献。组装本身从 [request-context-contract](../../request-context-contract/docs/context.md) 的根入口调用，不经服务。
+作用域层的贡献遮蔽全局层的同名贡献。`assembly(scope)` 返回的操作组已按该 isolate 的配置绑定选定的策略与登记面；组装本身仍是纯函数，类型归 [request-context-contract](../../request-context-contract/docs/context.md)。
 
 ### 只监听变化事件的一方
 
-不 `inject`。用 `import type {}` 取得事件类型，再 `ctx.on('request-context-cordis-contract/changed', …)`。监听者按载荷里的作用域键过滤，同步执行，不返回 Promise。事件只是失效提示。读到什么以 `contributions(scope)` 的结果为准。
+不 `inject`。用 `import type {}` 取得事件类型，再 `ctx.on('request-context-cordis-contract/changed', …)`。监听者按载荷里的作用域引用过滤，同步执行，不返回 Promise。事件只是失效提示。读到什么以 `contributions(scope)` 的结果为准。
 
 ### 独立使用
 

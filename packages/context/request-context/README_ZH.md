@@ -14,7 +14,7 @@ Request Context 的机制实现成员，`module` 变体。
 - 已实现：没有。`src/index.ts` 只有模板标记，根入口没有导出。
 - 未实现：工厂、候选缓存、派生物、默认策略、修剪器与关闭。
 - 未验证：SPEC 列出的十个持续验证场景都没有测试。默认策略的数值来自同类系统的取证，按本项目的计量口径重核之后才作为初值生效。
-- 明确缺项：工厂没有接收变化通知的入口。修剪后「超限」比较的是什么、实例怎样得知候选已经固定，SPEC 都没有写明，见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
+- 实例经 `notify(change)` 接收变化通知。修剪步之后必有摘要步。实例只从输入「已采用」得知候选已经固定。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
 
 现在没有包依赖本成员。
 
@@ -55,7 +55,7 @@ pnpm turbo run test --filter=@omne-harness/request-context
 
 ## 维护
 
-- 契约的输入分组、七层布局或前缀变化原因改变时，同步[内部架构](docs/architecture.md)、[机制流程](docs/flows.md)与测试。
+- 契约的输入分组、六层布局或前缀变化原因改变时，同步[内部架构](docs/architecture.md)、[机制流程](docs/flows.md)与测试。
 - 新增配置项或改默认值时，同步 SPEC、[公开接口页](docs/public-api.md)与 request-context-cordis 的配置 Schema。
 - 工厂签名改变时，同步唯一的组内使用方 request-context-cordis。
 - 成员关系与依赖方向归[组入口](../README.md)。具名维护者由负责人指定。

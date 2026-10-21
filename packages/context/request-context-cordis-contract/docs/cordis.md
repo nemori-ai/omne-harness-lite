@@ -11,21 +11,20 @@
 | 服务键 | `requestContext`，只由 `RequestContextService` 的 `static readonly provide` 给出。`./cordis` 导出的键常量取自它，常量名随实现确定。提供者不另写键 | 性质 1，[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7) |
 | 抽象类 | `RequestContextService extends Service`，构造函数以 `RequestContextService.provide` 调 `super`。它 `implements` 契约根入口的登记面操作类型，同一组签名不写两份 | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) |
 | 类的 JSDoc | `@owner packages/context/request-context-contract`。登记面出自协议形状，没有契约 ID，所以写 `@owner`，不写 `@contract` | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) |
-| intercept 配置类型 | `{ scope: ScopeRef }`，由贡献者插件以对象形式 `inject` 声明 | 性质 7 |
-| 事件 | `request-context-cordis-contract/changed`，模式 `emit`，载荷是作用域键与登记修订 | 性质 6，[IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) |
+| intercept 配置类型 | `{ scope: ScopeRef \| null }`，由贡献者插件以对象形式 `inject` 声明；`null` 表示全局层 | 性质 4、7 |
+| 事件 | `request-context-cordis-contract/changed`，模式 `emit`，载荷是作用域引用与登记修订 | 性质 6，[IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) |
 | 策略选择的配置形状 | 选择压缩策略与表示策略实现的配置字段。本成员只定义形状，不定义策略数值 | 性质 8，[IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) |
 
-服务方法只有登记面的三项。方法的输入、结果与失败归契约，本表只说明谁调用、本成员加了什么 Cordis 承诺。
+服务方法是登记面的三项与组装入口 `assembly(scope)`。方法的输入、结果与失败归契约，本表只说明谁调用、本成员加了什么 Cordis 承诺。
 
 | 方法 | 调用方 | 本成员加的 Cordis 承诺 |
 | --- | --- | --- |
-| `contributeSection` | 贡献者插件，在自己的插件体里调用 | 登记即效应，登记落在调用方 fiber 上。作用域键取自调用方的 intercept 配置。带逐请求变化变量的段在登记时拒绝。见[登记与撤除协议](#登记与撤除协议) |
+| `contributeSection` | 贡献者插件，在自己的插件体里调用 | 登记即效应，登记落在调用方 fiber 上。作用域引用取自调用方的 intercept 配置。带逐请求变化变量的段在登记时拒绝。见[登记与撤除协议](#登记与撤除协议) |
 | `contributeVariable` | 贡献者插件，在自己的插件体里调用 | 同上 |
 | `contributions(scope)` | 要组装系统提示词的调用方，例如协调者一侧的适配器 | 作用域是参数，不是 Context 或 isolate。解析时作用域层遮蔽全局层（性质 4、9） |
+| `assembly(scope)` | 要组装请求的调用方，例如协调者一侧的适配器 | 返回一组纯操作，已按该 isolate 的配置绑定选定的策略与该作用域的登记面。组装本身仍是纯函数。提供者卸载时结算经这组操作发起的在途组装（性质 2） |
 
-`assemble`、`planCompaction` 这类纯操作不在服务上。调用方从 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口直接调用它们（性质 2）。本成员不定义第二个服务键，也不为每个贡献者或每个作用域建服务。
-
-明确缺项：服务上没有组装入口，而提供者按配置选的策略只在机制实例的纯操作里起作用。经 Cordis 的调用方怎样用到这份带缓存和选定策略的实现，SPEC 没有写明。[request-context-cordis 的性质 5](../../request-context-cordis/SPEC.md#结果与不变量) 要求卸载时结算在途组装，它也以存在这样一条路径为前提。这条路径确定之前，经 Cordis 的组装路径不能实现。
+`assemble`、`planCompaction` 这类纯操作不直接写成服务方法。它们的类型由 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口定义（性质 2）。经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组：提供者按配置选的策略与带缓存的机制实例经这个入口起作用，[request-context-cordis 的性质 5](../../request-context-cordis/SPEC.md#结果与不变量) 结算的在途组装也就是经这组操作发起的组装。独立调用方不经服务，从根入口的机制工厂取得同一组操作。本成员不定义第二个服务键，也不为每个贡献者或每个作用域建服务。
 
 ## intercept 配置与作用域
 
@@ -39,11 +38,10 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 服务方法用 `this[Service.resolveConfig]()` 取得配置。服务方法里的 `this.ctx` 是调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)），所以取到的是调用方 fiber 声明的配置。不同贡献者插件各自取到自己的作用域。「对象形式 `inject` 的值到达服务方法的 `resolveConfig`」这一条还没有进入 basis，见[机制读数与假设](#机制读数与假设)。
 
-作用域键是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。它只决定一条贡献登记在哪一层。作用域是不透明引用，不是 Context，也不是 isolate（[IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。按 [request-context-cordis 的性质 2](../../request-context-cordis/SPEC.md#结果与不变量)，取不到 intercept 配置的登记被拒绝。所以贡献者必须用对象形式 `inject`，不能经 `ctx.get` 现取服务再登记。
+全局层的贡献以 `{ scope: null }` 登记（性质 4、7）。作用域引用是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。它只决定一条贡献登记在哪一层。作用域是不透明引用，不是 Context，也不是 isolate（[IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。按 [request-context-cordis 的性质 2](../../request-context-cordis/SPEC.md#结果与不变量)，取不到 intercept 配置的登记被拒绝。所以贡献者必须用对象形式 `inject`，不能经 `ctx.get` 现取服务再登记。
 
 明确缺项：
 
-- 性质 4 区分作用域层与全局层，但 SPEC 没有写明全局层的贡献怎样在 `{ scope: ScopeRef }` 里表达。
 - `ScopeRef` 的来源没有点名。request-context-contract 的[公开接口页](../../request-context-contract/docs/public-api.md)没有列出这个类型。
 
 ## 事件
@@ -52,16 +50,16 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 | 项 | 内容 |
 | --- | --- |
-| 载荷 | 作用域键与登记修订。不带段文本或变量值 |
+| 载荷 | 作用域引用与登记修订。不带段文本或变量值 |
 | 何时发 | 贡献变化即发，每次带新的登记修订 |
 | 含义 | 只是失效提示，不是事实源。缓存按登记修订判断提示词这一组是否变了（[request-context SPEC](../../request-context/SPEC.md#候选缓存)） |
-| 过滤 | 监听者按载荷里的作用域键过滤 |
+| 过滤 | 监听者按载荷里的作用域引用过滤 |
 | 监听者 | 同步执行，不得返回 Promise。派发方把 `emit` 放在 `try` 中，监听者失败只记录诊断，不改变已成立的登记（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)、[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)） |
 | 丢失 | 不改变组装结果。缓存项按修订比较，修订落后的缓存项作废（[request-context SPEC](../../request-context/SPEC.md#候选缓存)） |
 
 Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发方过滤（源码读数：`events.ts` 的 `dispatch`）。本事件的过滤由监听者按载荷完成，所以监听者收到其他作用域的事件时要自己丢弃。
 
-明确缺项：[request-context-cordis 的组合与验证](../../request-context-cordis/SPEC.md#组合与验证)把「按作用域到达」的过滤部分列为依赖机制读数的假设，而本成员的性质 6 把过滤放在监听者一侧。过滤由派发方用 `Context.filter` 完成，还是只由监听者按载荷完成，两份 SPEC 没有统一。全局层的贡献变化时载荷带哪个作用域键，SPEC 也没有写明。
+明确缺项：[request-context-cordis 的组合与验证](../../request-context-cordis/SPEC.md#组合与验证)把「按作用域到达」的过滤部分列为依赖机制读数的假设，而本成员的性质 6 把过滤放在监听者一侧。过滤由派发方用 `Context.filter` 完成，还是只由监听者按载荷完成，两份 SPEC 没有统一。全局层的贡献变化时，载荷的作用域引用为 `null`（性质 6）。
 
 ## 依赖分类
 
@@ -80,7 +78,7 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发�
 本成员按 [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 的「登记即效应」定义 `contributeSection` 与 `contributeVariable`（性质 3）：
 
 1. 贡献者插件在自己的插件体里调用登记方法。
-2. 提供者用 `this[Service.resolveConfig]()` 取调用方的作用域键。取不到时拒绝。
+2. 提供者用 `this[Service.resolveConfig]()` 取调用方的作用域引用。取不到时拒绝。
 3. 提供者核对：同一层已有同名贡献时拒绝，不覆盖（性质 4）。段带逐请求变化的变量时拒绝（性质 5、[RQ-02](../../request-context-contract/SPEC.md#rq-02-组装的前置输入)）。
 4. 提供者在方法里用 `this.ctx.effect` 登记。`this.ctx` 是调用方的上下文，所以效应落在贡献者插件的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。方法返回 effect 的撤除函数。
 5. 登记成立后，登记修订前进，提供者派发变化事件。

@@ -80,7 +80,7 @@ flowchart LR
 | 需要面 | 消费者契约的作者 | 集成方 | 在消费者自己的定义里声明 `ContextNeed`，不点名块键 | 需要类型、`judgeNeed` |
 | 生产者面 | [runtime-context](../../runtime-context/README.md) 的机制，经 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/docs/cordis.md) 的服务提供 | 生产者 | 生产者在自己的插件生命周期里登记供值，得到生产者句柄 | `ProducerHandle` 与代际规则 |
 | 持有者面 | 同上 | 作用域持有者，它在注册时是集成方 | 经同一服务提交注册、签发资格、提交步 | `Registration`、`Eligibility`、`StepCommit` 材料，`judgeRegistration`、`judgeBinding`、`reduceStep`、`diffForReminder` |
-| 读者面 | 同上 | 消费者一侧的适配器，按消费者类读取 | 按持有者签发的资格建立绑定读者 | `ContextReader`、`Snapshot`、`Changes` 与五种读取结果 |
+| 读者面 | 同上 | 消费者一侧的适配器，按消费者类读取 | 按持有者签发的资格建立绑定读者 | `ContextReader`、`Snapshot`、`Changes` 与四种读取结果、游标作废 |
 | 请求组装 | [request-context-contract](../../request-context-contract/README.md) | 发起请求的协调者 | 依赖本成员的读取结果类型与块声明的 `volatility` | 读取结果类型、`volatility` |
 
 服务键、各面方法名与消费者类的读取方式归 runtime-context-cordis-contract，本页不复制。

@@ -37,7 +37,7 @@ inject: ['runtimeContext']
 
 ### 作用域持有者的适配器
 
-持有者的适配器用数组形式 `inject`，调用 `prepareRegistration`、`issueEligibility`、`applyCommit`。注册与步提交的耐久保存仍归持有者自己。
+持有者的适配器用数组形式 `inject`，调用 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`。注册与步提交的耐久保存仍归持有者自己。
 
 ### 只监听唤醒的一方
 
@@ -71,7 +71,7 @@ flowchart LR
 | [runtime-context-cordis](../../runtime-context-cordis/README.md) | `extends RuntimeContextService` | 抽象类、键、事件增补 |
 | 消费者一侧的适配器 | 对象形式 `inject`，按 [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 取类型 | `bind` |
 | 生产者插件 | 数组形式 `inject` | `registerProducer` |
-| 作用域持有者的适配器 | 数组形式 `inject` | `prepareRegistration`、`issueEligibility`、`applyCommit` |
+| 作用域持有者的适配器 | 数组形式 `inject` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit` |
 | 监听唤醒的一方 | `import type {}` 与 `ctx.on` | 事件 |
 
 依赖方不导入提供者的实现入口（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。

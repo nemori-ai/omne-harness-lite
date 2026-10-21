@@ -14,12 +14,12 @@
 
 | 方法 | 本插件加的责任 | 交给谁 |
 | --- | --- | --- |
-| `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域键，核对重名与逐请求变量，在调用方 fiber 上登记效应，派发变化事件。关闭后拒绝 | 段文本的预计算交给机制实例 |
+| `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，派发变化事件。关闭后拒绝 | 段文本的预计算交给机制实例 |
 | `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方，作为组装输入的系统提示词一组 |
 
 本成员不导出第二个服务键，不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
 
-明确缺项：服务定义上没有组装入口（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)），而性质 5 要求卸载时结算在途组装、关闭后拒绝组装。经 Cordis 的调用方怎样调用本插件持有的机制实例，SPEC 没有写明。机制实例怎样得知贡献的登记与撤销，request-context 的公开接口也没有写明，见它的[公开接口页](../../request-context/docs/public-api.md#随实现进入的导出)。
+经 Cordis 的调用方用服务的 `assembly(scope)` 取得已按配置绑定策略与登记面的一组纯操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。性质 5 结算的在途组装就是经这组操作发起的组装。本插件经机制实例的 `notify(change)` 把贡献的登记与撤销告诉实例（[request-context 的公开接口页](../../request-context/docs/public-api.md)）。
 
 ## 配置与策略选择
 
@@ -53,7 +53,7 @@
 
 登记方法按 [request-context-cordis-contract 的登记协议](../../request-context-cordis-contract/docs/cordis.md#登记与撤除协议)实现（性质 2、3、[IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13)）：
 
-1. 用 `this[Service.resolveConfig]()` 取调用方 fiber 的 intercept 配置里的作用域键。取不到即拒绝，不默认为任何一层。经 `ctx.get` 现取服务的调用方没有这份配置，所以会被拒绝。
+1. 用 `this[Service.resolveConfig]()` 取调用方 fiber 的 intercept 配置里的作用域引用。取不到即拒绝，不默认为任何一层。经 `ctx.get` 现取服务的调用方没有这份配置，所以会被拒绝。
 2. 同一层已有同名登记时拒绝，不覆盖。段带逐请求变化的变量时拒绝。
 3. 在方法里用 `this.ctx.effect` 登记。`this.ctx` 是调用方的上下文，效应落在贡献者插件的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。
 4. 登记修订前进，派发变化事件，见[变化事件派发](#变化事件派发)。
@@ -61,13 +61,13 @@
 
 撤除函数移除登记，丢弃这条贡献的渲染结果，再派发变化事件（性质 2）。显式调用撤除函数与贡献者 fiber 卸载走同一个函数。一条登记的移除与渲染结果的丢弃写在同一个撤除函数里，因为不同 effect 之间的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
 
-`contributions(scope)` 按作用域键解析：作用域层的贡献遮蔽全局层的同名贡献。登记表只在本插件的进程内，不耐久。进程失败后由贡献者重新登记来重建（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)）。
+`contributions(scope)` 按作用域引用解析：作用域层的贡献遮蔽全局层的同名贡献。登记表只在本插件的进程内，不耐久。进程失败后由贡献者重新登记来重建（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)）。
 
 贡献者插件卸载后，`contributions(scope)` 不再返回它的贡献，后续组装不再包含它。已经交出的候选不撤回。
 
 ## 变化事件派发
 
-登记成功即派发 `request-context-cordis-contract/changed`，载荷带作用域键与新的登记修订（性质 3）。撤除时同样派发，因为服务定义规定贡献变化即发（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。
+登记成功即派发 `request-context-cordis-contract/changed`，载荷带作用域引用与新的登记修订（性质 3）。撤除时同样派发，因为服务定义规定贡献变化即发（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 
 1. 派发走 `this.ctx.emit`，模式 `emit`。
 2. 派发放在 `try` 中。监听者同步执行，不得返回 Promise。监听者抛出时只记录诊断，已成立的登记不变（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。Cordis 4.0.4 的 `emit` 不捕获监听者的异常，排在抛出者后面的监听者这一轮不被调用（[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)）。错过事件不改变组装结果，因为缓存按修订比较。
@@ -76,7 +76,7 @@
 明确缺项：
 
 - 服务定义的性质 6 把作用域过滤放在监听者一侧。本成员的[组合与验证](../SPEC.md#组合与验证)把「按作用域到达」的过滤部分列为依赖机制读数的假设，那条读数是派发方用 `Context.filter` 过滤。两份 SPEC 没有统一过滤由哪一侧完成。
-- 全局层的贡献变化时载荷带哪个作用域键，SPEC 没有写明。
+- 全局层的贡献变化时，载荷的作用域引用为 `null`（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 
 ## 撤除顺序
 

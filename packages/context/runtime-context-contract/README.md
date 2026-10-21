@@ -53,11 +53,11 @@ Independent use needs only this package. It needs no scope holder and no Cordis.
 ## Contracts
 
 - `src/index.ts` owns the public shapes.
-- The [SPEC](SPEC.md) owns behavior beyond the types, in clauses RC-01 to RC-07.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in clauses RC-01 to RC-08.
 - The [API page](docs/public-api.md) indexes the exports. It lists current exports and planned exports in two separate tables.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
 
-A read has five results: success, refusal, missing, unknown, and cursor invalidated. Registration, block content, and step commit are three separate commits. None of them happens inside this package. The package gives only check results and merge material. It holds no resources and has nothing to dispose.
+A read has four results: success, refusal, missing, and unknown. `changes` can also return cursor invalidated. Registration, block content, and step commit are three separate commits. None of them happens inside this package. The package gives only check results and merge material. It holds no resources and has nothing to dispose.
 
 ## Design
 
@@ -89,7 +89,7 @@ In this directory, run `pnpm typecheck` for the type check. The current test che
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the public types, RC-01 to RC-07
+SPEC.md                   Behavior beyond the public types, RC-01 to RC-08
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, dependencies, mechanisms and reasons

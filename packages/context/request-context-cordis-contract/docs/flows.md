@@ -18,14 +18,14 @@ sequenceDiagram
   participant S as 提供者（requestContext）
   participant T as 贡献登记表
   CF->>S: contributeSection(段) 或 contributeVariable(变量)
-  S->>S: resolveConfig() 取调用方的作用域键
+  S->>S: resolveConfig() 取调用方的作用域引用
   S->>T: 核对同层重名；核对段里的变量
   alt 取不到作用域、同层重名或带逐请求变量
     S-->>CF: 拒绝，登记表不变
   else 核对通过
     S->>CF: this.ctx.effect(登记)，效应落在调用方 fiber
     S->>T: 写入登记，登记修订前进
-    S->>S: emit changed(作用域键, 登记修订)
+    S->>S: emit changed(作用域引用, 登记修订)
     S-->>CF: 撤除函数
   end
   alt 贡献者插件卸载
@@ -34,12 +34,12 @@ sequenceDiagram
     CF->>S: 同一撤除函数
   end
   S->>T: 移除登记，登记修订前进
-  S->>S: emit changed(作用域键, 登记修订)
+  S->>S: emit changed(作用域引用, 登记修订)
 ```
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
-| 取作用域 | 作用域键来自调用方 fiber 的 intercept 配置 | 取不到时拒绝。贡献者改用对象形式 `inject`。这条机制现在是假设，见 [Cordis 说明](cordis.md#机制读数与假设) |
+| 取作用域 | 作用域引用来自调用方 fiber 的 intercept 配置 | 取不到时拒绝。贡献者改用对象形式 `inject`。这条机制现在是假设，见 [Cordis 说明](cordis.md#机制读数与假设) |
 | 核对 | 同层同名与带逐请求变量的段都被拒绝 | 拒绝不覆盖已有登记。贡献者改名，或把逐请求变化的事实改走 runtime context 块（[RQ-02](../../request-context-contract/SPEC.md#rq-02-组装的前置输入)） |
 | 登记 | 登记的寿命等于贡献者插件 fiber 的寿命 | 调用方 fiber 已在卸载时，`effect` 抛 `INACTIVE_EFFECT`，登记不成立 |
 | 在根 Context 上登记 | 效应属于根 fiber，不随任何贡献者撤除 | 只允许测试或装配入口这样用 |
@@ -63,8 +63,8 @@ sequenceDiagram
   S->>S: try：emit(changed, A, 修订)
   S-->>LA: 同步调用
   S-->>LB: 同步调用
-  LA->>LA: 作用域键是 A，接受
-  LB->>LB: 作用域键不是 B，丢弃
+  LA->>LA: 作用域引用是 A，接受
+  LB->>LB: 作用域引用不是 B，丢弃
   Note over LA,C: 事件只是失效提示
   C->>S: 下一次组装前 contributions(A)
   S-->>C: 当前贡献集合与登记修订
@@ -72,8 +72,8 @@ sequenceDiagram
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
-| 派发 | 载荷只有作用域键与登记修订 | 派发方把 `emit` 放在 `try` 中。监听者抛出时只记录诊断，已成立的登记不变 |
-| 过滤 | 监听者按载荷的作用域键过滤 | 派发方是否另用 `Context.filter` 过滤，SPEC 没有统一，见 [Cordis 说明的事件](cordis.md#事件) |
+| 派发 | 载荷只有作用域引用与登记修订 | 派发方把 `emit` 放在 `try` 中。监听者抛出时只记录诊断，已成立的登记不变 |
+| 过滤 | 监听者按载荷的作用域引用过滤 | 派发方是否另用 `Context.filter` 过滤，SPEC 没有统一，见 [Cordis 说明的事件](cordis.md#事件) |
 | 监听者执行 | 同步执行，不返回 Promise | 要做异步工作的监听者自己处理失败 |
 | 事件丢失 | 不改变组装结果 | 缓存项按修订比较，修订落后即作废（[request-context SPEC](../../request-context/SPEC.md#候选缓存)） |
 | 不建运行对象 | 每次派发不建 fiber，不建 isolate | 作用域只是载荷里的键，不是 Context 或 isolate |

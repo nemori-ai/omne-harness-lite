@@ -10,11 +10,11 @@
 
 ## 结果与不变量
 
-1. 一个 isolate 标签下只装一份本插件（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。重复装载在 `provide` 时失败，不静默覆盖。
-2. 贡献登记表的寿命随贡献者 fiber：`contributeSection`、`contributeVariable` 在方法内 `this.ctx.effect` 登记；贡献者卸载时撤除函数移除登记并丢弃它的渲染结果（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。作用域键从调用方 fiber 的 intercept 配置取得；取不到即拒绝。
-3. 同层同名登记拒绝。带逐请求变化变量的段拒绝。登记成功即发 `request-context-cordis-contract/changed`，载荷带作用域键与新修订；派发放在 `try` 中，监听者失败只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
-4. 策略实现在插件加载时按配置选择。配置里指向不存在的策略、或策略参数不合 schema，插件加载失败，fiber 进入 `FAILED`，不静默回退到默认策略。
-5. 撤除顺序：插件卸载时先拒绝新的登记与组装，再等在途组装结算，再丢弃登记表与缓存。撤除不撤回已交出的候选、计划或转换。
+1. 一个 isolate 标签下只装一份本插件（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。重复装载不静默覆盖。假设：重复装载在 `provide` 时失败，这一点只有源码读数，未经 basis 核验。
+2. 贡献登记表的寿命随贡献者 fiber：`contributeSection`、`contributeVariable` 在方法内 `this.ctx.effect` 登记；贡献者卸载时撤除函数移除登记并丢弃它的渲染结果（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。作用域引用从调用方 fiber 的 intercept 配置取得：`scope: null` 登记到全局层；取不到配置即拒绝。
+3. 同层同名登记拒绝。带逐请求变化变量的段拒绝。登记成功即发 `request-context-cordis-contract/changed`，载荷带作用域引用与新修订；派发放在 `try` 中，监听者失败只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
+4. 策略实现在插件加载时按配置选择。配置里指向不存在的策略、或策略参数不合 schema，插件加载失败，不静默回退到默认策略。假设：此时 fiber 进入 `FAILED`，Service 子类的这条路径未经 basis 核验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
+5. 撤除顺序：插件卸载时先拒绝新的登记与组装，再等在途组装结算，再丢弃登记表与缓存。撤除不撤回已交出的候选、计划或转换。本页的「组装」与「在途组装」都指经服务的 `assembly(scope)` 交出的操作组发起的组装（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 6. 本成员不为每次请求开 fiber，不用 `inject` 表达输入，不发第二种事件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。租户、作用域与资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 7. 本成员不导入任何协调者或持有者的契约。
 

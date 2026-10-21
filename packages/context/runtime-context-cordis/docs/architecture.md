@@ -39,7 +39,7 @@ flowchart LR
 
 现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余三项随实现进入。本成员不导入任何上层领域的契约（性质 7）。没有包应依赖本成员的 `./cordis` 来调用三面操作。消费者依赖服务定义，提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
-明确缺项：SPEC 没有写明根入口的工厂与 runtime-context 的工厂怎样分工。两者都「输入契约端口与配置，输出实现三面操作的对象」。实现进入前要由 SPEC 拥有者确定：根入口是直接重导出机制工厂，还是在它之外加本成员自己的配置校验。
+根入口不另写工厂，只重导出 runtime-context 的机制工厂；Cordis 绑定只在 `./cordis` 加上。经根入口使用时没有 intercept 配置，`bind` 的消费者类取自读取资格（[SPEC 范围与依据](../SPEC.md#范围与依据)）。
 
 ## 关键机制与理由
 

@@ -81,8 +81,9 @@ sequenceDiagram
         C->>H: 步边界合并成步提交，持有者写成事实
     end
     alt 模型可读且存在未闭合运行
-        C->>H: 变化材料
-        H->>H: 追加变化提醒到历史
+        C-->>H: 唤醒（只提示去拉）
+        H->>C: 用游标拉取 changes
+        H->>H: diffForReminder 算出变化材料，追加变化提醒到历史
         H-->>Q: 后续请求读取变化链
     else 仅工具或扩展可读
         C-->>R: 向获准读者提供变化
@@ -93,9 +94,9 @@ sequenceDiagram
 
 ### 读取：完整与增量
 
-读者有游标。第一次读或游标失效后，读到的是完整快照；否则读到自游标以来的变化。游标在授权范围变化、生产者换代、进程重建之后失效。作用域持有者也可以主动使游标失效，压缩提交之后它对模型类读者这样做；Runtime Context 自己不认识压缩。完整还是增量由 Runtime Context 的游标状态决定，不由读者猜测。
+读者有游标。第一次读或游标失效后，读到的是完整快照；否则读到自游标以来的变化。游标在五种情形下失效：授权范围变化、生产者换代、进程重建、作用域持有者重签该读者的资格、游标早于观察链保留下界。持有者重签是主动使游标失效的做法，压缩提交之后它对模型类读者这样做；Runtime Context 自己不认识压缩。完整还是增量由 Runtime Context 的游标状态决定，不由读者猜测。
 
-模型侧：完整快照由请求组装放进请求，成为锚定在固定位置的快照提醒，不进历史；变化由持有者的变化消费路径生成提醒追加进历史，平常靠变化链保持连续理解，不能只保留最新一条提醒。逐请求变化的块不进快照也不进变化提醒，只进请求最末的尾部易变提醒。位置与形态归[请求上下文](request-context.md#七层装载布局与前缀)。
+模型侧：完整快照由请求组装放进请求，成为锚定在固定位置的快照提醒，不进历史；变化由持有者的变化消费路径生成提醒追加进历史，平常靠变化链保持连续理解，不能只保留最新一条提醒。逐请求变化的块不进快照也不进变化提醒，只进请求最末的尾部易变提醒。位置与形态归[请求上下文](request-context.md#装载布局与前缀)。
 
 模型可读块变化产生提醒。仅工具或扩展读取的数据变化不通知模型。空闲推送可以丢弃，因为下次执行开始或挂接建立时必须主动读当前值。这不允许丢弃业务上必须持久保存的原始输入。快照是否带前值，以及状态变化提醒和事件提醒的写法，见产品[当前值与变化感知](../../../.meta_harness/design/product/runtime-context/design.md#5-当前值与变化感知)。
 
@@ -136,7 +137,7 @@ sequenceDiagram
 | [runtime-context](../../../packages/context/runtime-context/SPEC.md) | module | 登记表、生产者表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
 | [runtime-context-cordis](../../../packages/context/runtime-context-cordis/SPEC.md) | service-provider | Service 实现：一个 isolate 一个服务，作用域为参数；按作用域过滤唤醒；登记即效应 |
 
-三面服务：生产者面 `registerProducer` 返回生产者句柄；持有者面 `prepareRegistration`、`issueEligibility`、`applyCommit`；读者面 `bind` 返回绑定读者。持有者使读者游标作废的操作是重签该读者的资格：`issueEligibility` 给出新资格即作废旧游标，压缩提交之后持有者对模型类读者这样做。Cordis 承载机制，不承载数据：生产者登记在调用方 fiber 的效应里，代际取自 fiber，卸载即撤（[IC-13](../cordis-integration-conventions.md)）；`runtime-context-cordis-contract/changed` 只作唤醒，按作用域过滤监听者。读取资格是消费者类的权威；调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取（机制探针待补，见[装配与变化](assembly-and-change.md)）。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
+三面服务：生产者面 `registerProducer` 返回生产者句柄；持有者面 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`；读者面 `bind` 返回绑定读者。持有者使读者游标作废的操作是重签该读者的资格：`issueEligibility` 给出新资格即作废旧游标，压缩提交之后持有者对模型类读者这样做。重签不拒绝读取；撤销资格用 `revokeEligibility`，之后该资格的读取按拒绝（无权）。Cordis 承载机制，不承载数据：生产者登记在调用方 fiber 的效应里，代际取自 fiber，卸载即撤（[IC-13](../cordis-integration-conventions.md)）；`runtime-context-cordis-contract/changed` 只作唤醒，按作用域过滤监听者。读取资格是消费者类的权威；调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取（机制探针待补，见[装配与变化](assembly-and-change.md)）。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
 
 发布带作用域：生产者句柄的每次发布指明作用域引用加块键。作用域无关的供给块（宿主事实、租户元信息、当前档案）由生产者在持有者注册该块时按回调供值，之后对每个已注册的作用域重发。
 

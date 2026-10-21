@@ -27,7 +27,7 @@ Runtime Context 的机制实现成员，`module` 变体。
 
 - 公开形状归 `src/`，现在为空。导出索引归[公开接口页](docs/public-api.md)。
 - 本成员的本地行为归 [SPEC](SPEC.md)：表与投影、本地行为、关闭与重建。
-- 三面操作的输入、结果与失败归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)，条款 RC-01 至 RC-07。
+- 三面操作的输入、结果与失败归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)，条款 RC-01 至 RC-08。
 - 内部对象的身份与生灭归[对象模型](docs/object-model.md)。
 
 调用工厂的一方拥有机制实例，负责关闭它。关闭先拒绝新请求，再结束读者、等在途读取结算，最后释放表。关闭不撤回已交出的变化材料或外部效果。

@@ -14,10 +14,10 @@
 | 投影 | `project`（模型侧）、`projectForHuman`（人侧），两者共用同一套块标注规则 | [RQ-03](../SPEC.md#rq-03-历史与块投影) |
 | 提示词组装 | `PromptContribution`、`assembleSystemPrompt` | [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
 | 声明投影 | `declareTools`：从完整工具定义形成直接集合与脚本可调用集合 | [RQ-02](../SPEC.md#rq-02-组装的前置输入)、[RQ-04](../SPEC.md#rq-04-模态与可追溯表示) |
-| 放置 | `placeContext`、`SnapshotReminder`、`TailFacts` | [七层装载布局与前缀](../SPEC.md#七层装载布局与前缀)的 R4、R5、R6 |
+| 放置 | `placeContext`、`SnapshotReminder`、`TailFacts` | [装载布局与前缀](../SPEC.md#装载布局与前缀)的 R4、R5、R6 |
 | 表示选择 | `chooseRepresentations`、`RepresentationChoice` | [RQ-04](../SPEC.md#rq-04-模态与可追溯表示) |
 | 预算裁定 | `judgeBudget`、`FitVerdict` | [RQ-05](../SPEC.md#rq-05-完整预算与候选完成) |
-| 组装与覆盖证据 | `assemble`、`Coverage`，以及契约常量：七层顺序、快照锚点规则、前缀变化原因的取值 | [RQ-02](../SPEC.md#rq-02-组装的前置输入)、[七层装载布局与前缀](../SPEC.md#七层装载布局与前缀) |
+| 组装与覆盖证据 | `assemble`、`Coverage`，以及契约常量：六层顺序、快照锚点规则、前缀变化原因的取值 | [RQ-02](../SPEC.md#rq-02-组装的前置输入)、[装载布局与前缀](../SPEC.md#装载布局与前缀) |
 | 计划与步 | `planCompaction`、`deriveStep`、`resume`、`CompactionPlan`、`PlanProgress`、`StepRequest`、`ContextTransition` | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界)、[RQ-07](../SPEC.md#rq-07-扩展修改发起与固定采用)、[RQ-09](../SPEC.md#rq-09-取消恢复与迟到) |
 | 历史源与策略端口 | `HistorySource`、`HistoryEvidence`、压缩策略端口、表示策略端口 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图)、[RQ-04](../SPEC.md#rq-04-模态与可追溯表示)、[RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
 
@@ -95,7 +95,7 @@ flowchart LR
 
 ### 为什么快照锚点取历史尾部
 
-上下文快照提醒锚定在完整读取发生时的模型可见历史尾部（[七层装载布局与前缀](../SPEC.md#七层装载布局与前缀)的 R4）。在下一次完整读取之前，每次请求都把它放在同一锚点，变化只以提醒追加到锚点之后。这样快照之前的内容逐字不变，请求开头可以保持稳定，供应商的前缀缓存能够命中。
+上下文快照提醒锚定在完整读取发生时的模型可见历史尾部（[装载布局与前缀](../SPEC.md#装载布局与前缀)的 R4）。在下一次完整读取之前，每次请求都把它放在同一锚点，变化只以提醒追加到锚点之后。这样快照之前的内容逐字不变，请求开头可以保持稳定，供应商的前缀缓存能够命中。
 
 锚点不含本次请求承接的新输入。理由是新输入属于历史体，如果锚点放在新输入之后，下一次请求的新输入会落在快照之前，开头就会变化。锚点记在覆盖证据里，经「已采用」回到下一次组装，所以本成员不需要记住上一次调用。
 
@@ -130,5 +130,5 @@ flowchart LR
 维护规则：
 
 1. 新增或改名导出时，同步[公开接口页](public-api.md)、[src 索引](../src/index.md)与导出测试。
-2. 改变七组输入、四种结果、三类失败、七层顺序或前缀变化原因的取值时，同步依赖方：request-context-cordis-contract、request-context、request-context-cordis，以及协调者一侧的适配器，见[字段对应](context.md#字段对应)。
+2. 改变七组输入、四种结果、三类失败、六层顺序或前缀变化原因的取值时，同步依赖方：request-context-cordis-contract、request-context、request-context-cordis，以及协调者一侧的适配器，见[字段对应](context.md#字段对应)。
 3. 以下情形出现时，重新判断本页的模块切分：步出现第三种类型，出现第二种历史源读口，或独立入口的字节编码确定。

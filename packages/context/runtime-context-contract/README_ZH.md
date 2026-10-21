@@ -50,11 +50,11 @@ export const localeBlock: SuppliedBlockDescriptor<'example.locale', { tag: strin
 ## 契约
 
 - 公开形状归 [src/index.ts](src/index.ts)。
-- 类型以外的行为归 [SPEC](SPEC.md)，条款 RC-01 至 RC-07。
+- 类型以外的行为归 [SPEC](SPEC.md)，条款 RC-01 至 RC-08。
 - 导出索引归[公开接口页](docs/public-api.md)，它分开列出现有导出与随实现进入的导出。
 - 对象的身份、拥有者与生灭归[对象模型](docs/object-model.md)。
 
-读取有五种结果：成功、拒绝、缺项、未知、游标作废。注册、块内容与步提交是三笔分开的提交，都不在本成员内发生，本成员只给核对结果与合并材料。本成员不持有资源，没有需要释放的对象。
+读取有四种结果：成功、拒绝、缺项、未知；`changes` 另有游标作废。注册、块内容与步提交是三笔分开的提交，都不在本成员内发生，本成员只给核对结果与合并材料。本成员不持有资源，没有需要释放的对象。
 
 ## 设计
 
@@ -86,7 +86,7 @@ pnpm turbo run test --filter=@omne-harness/runtime-context-contract
 ```text
 README.md、README_ZH.md   入口：用途、状态与本结构图
 index.md                  全包的阅读路径
-SPEC.md                   公开类型以外的行为，RC-01 至 RC-07
+SPEC.md                   公开类型以外的行为，RC-01 至 RC-08
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       模块与依赖、关键机制与理由

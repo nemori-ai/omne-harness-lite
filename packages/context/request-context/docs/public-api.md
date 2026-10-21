@@ -32,6 +32,6 @@
 
 两个默认策略要能被 request-context-cordis 按配置选中，所以要从根入口可达。它们是单独导出，还是由工厂按配置构造，SPEC 没有写明，随实现确定。
 
-明确缺项：SPEC 把贡献登记的变化事件、历史持有者的提交通知、runtime context 的唤醒与模型选择变更列为失效来源，也要求段渲染结果在贡献登记或撤销时预计算。工厂的五项构造依赖里没有接收这些通知的入口。这个入口确定之前，预计算与按通知失效不能实现。[request-context-cordis 的性质 2](../../request-context-cordis/SPEC.md#结果与不变量) 要求提供者在撤除登记时丢弃渲染结果，所以提供者至少要能把贡献的登记与撤销告诉实例。
+实例的通知入口是 `notify(change)`，`change` 的种类是 `history`、`runtime-context`、`contributions`、`model-selection` 四个枚举值之一，各带来源修订或计数（[候选缓存](../SPEC.md#候选缓存)）。[request-context-cordis](../../request-context-cordis/SPEC.md#结果与不变量) 经这个入口把贡献的登记与撤销告诉实例。
 
-组装结果的种类沿契约：四种结局与三类失败（[RQ-05](../../request-context-contract/SPEC.md#rq-05-完整预算与候选完成)）。本成员不增加结果种类。任一构造依赖缺席时，相关操作返回不可用（[本地行为](../SPEC.md#本地行为)）。
+组装结果的种类沿契约的[组装的结果](../../request-context-contract/SPEC.md#组装的结果)表：四种结局、三类失败与未知。本成员不增加结果种类。任一构造依赖缺席时，相关操作返回不可用（[本地行为](../SPEC.md#本地行为)）。

@@ -23,11 +23,11 @@
 | 定义 | 种类 | 输入与输出 | 依据 |
 | --- | --- | --- | --- |
 | 机制工厂 | 函数，名称随实现确定 | 输入契约的端口与配置，输出一个机制实例 | [SPEC 范围与依据](../SPEC.md#范围与依据) |
-| 机制实例 | 工厂的返回值 | 实现契约的三面操作：生产者面 `registerProducer`，持有者面 `prepareRegistration`、`issueEligibility`、`applyCommit`，读者面 `bind`。另有实例关闭 | [SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期) |
+| 机制实例 | 工厂的返回值 | 实现契约的三面操作：生产者面 `registerProducer`，持有者面 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`，读者面 `bind`。另有实例关闭 | [SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期) |
 | 配置 | 工厂的参数 | 观察链保留上限。默认值只是初值 | [SPEC 本地行为](../SPEC.md#本地行为) |
 
 三面操作的签名在契约里写一次。本成员不另写。契约现在还没有导出这些操作类型，见契约的[随实现切片进入的导出](../../runtime-context-contract/docs/public-api.md#随实现切片进入的导出)。
 
 明确缺项：SPEC 没有写明机制实例怎样把投影变化告诉它的使用方。runtime-context-cordis 要据此派发唤醒事件（[runtime-context-cordis 的唤醒](../../runtime-context-cordis/docs/cordis.md#按作用域过滤的唤醒)）。这个出口随工厂一起确定之前，Cordis 一侧的唤醒不能实现。
 
-读取结果的种类沿契约：成功、拒绝、缺项、未知、游标作废。本成员另有「不在场」，表示可选块没有当前值，它不是失败（[SPEC 本地行为](../SPEC.md#本地行为)）。
+读取结果的种类沿契约的[读取结果](../../runtime-context-contract/SPEC.md#读取结果)表：成功、拒绝、缺项、未知；`changes` 另有游标作废。可选需要没有当前值时，成功结果里该项标「无值」，它不是失败（[SPEC 本地行为](../SPEC.md#本地行为)）。本成员不返回表外的结果。

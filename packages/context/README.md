@@ -16,7 +16,7 @@
 | [runtime-context-cordis-contract](runtime-context-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `runtimeContext`、intercept 配置类型、事件增补 |
 | [runtime-context](runtime-context/README.md) | module | 不含 Cordis 的供给机制：登记表、生产者表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
 | [runtime-context-cordis](runtime-context-cordis/README.md) | service-provider | Service 实现：一个 isolate 一个服务、作用域为参数、按作用域过滤唤醒、登记即效应 |
-| [request-context-contract](request-context-contract/README.md) | module | 组装输入、九项纯操作（压缩计划的三个操作算一项）、候选与装入裁定、压缩计划、七层装载布局与锚点常量、历史源与策略端口类型 |
+| [request-context-contract](request-context-contract/README.md) | module | 组装输入、九项纯操作（压缩计划的三个操作算一项）、候选与装入裁定、压缩计划、装载布局与锚点常量、历史源与策略端口类型 |
 | [request-context-cordis-contract](request-context-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `requestContext`：提示词贡献登记面与策略选择 |
 | [request-context](request-context/README.md) | module | 不含 Cordis 的派生计算：索引、缓存、默认压缩策略、默认表示策略、修剪器 |
 | [request-context-cordis](request-context-cordis/README.md) | service-provider | Service 实现：贡献登记表、作用域遮蔽、策略实现选择与配置校验 |

@@ -55,17 +55,17 @@ sequenceDiagram
   participant M as 机制实例
   participant C as 组装请求的调用方
   CF->>S: contributeSection(段)
-  S->>S: resolveConfig() 取作用域键
+  S->>S: resolveConfig() 取作用域引用
   S->>T: 核同层重名与逐请求变量
   S->>CF: this.ctx.effect(登记)
   S->>T: 写入登记，登记修订前进
   S->>M: 预计算段文本
-  S->>S: try：emit changed(作用域键, 修订)
+  S->>S: try：emit changed(作用域引用, 修订)
   CF->>CF: 插件卸载
   CF->>S: 运行撤除函数
   S->>T: 移除登记，登记修订前进
   S->>M: 丢弃渲染结果
-  S->>S: try：emit changed(作用域键, 修订)
+  S->>S: try：emit changed(作用域引用, 修订)
   C->>S: contributions(作用域)
   S-->>C: 不含已卸载贡献者的贡献集合
 ```

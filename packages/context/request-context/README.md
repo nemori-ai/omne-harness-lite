@@ -16,7 +16,7 @@ Status: mechanism member, `draft`. The adoption basis is the [member decompositi
 - Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
 - Not implemented: the factory, the candidate cache, the derivations, the default strategies, the trimmer, and close.
 - Not verified: none of the ten verification scenarios in the SPEC has a test. The default strategy values come from evidence about similar systems. They take effect as initial values only after a recheck against the metering of this project.
-- Open items: the factory has no input that receives change notifications. The SPEC does not say what "still over the limit" compares after trimming, or how the instance learns that a candidate is fixed. See the [architecture page](docs/architecture.md) and the [API page](docs/public-api.md).
+- The instance receives change notifications through `notify(change)`. A trimming step is always followed by a summary step. The instance learns that a candidate is fixed only from the input "adopted". See the [architecture page](docs/architecture.md) and the [API page](docs/public-api.md).
 
 No package depends on this package now.
 
@@ -68,7 +68,7 @@ In this directory, run `pnpm typecheck` for the type check. The current test che
 
 ## Maintenance
 
-- When the input groups, the seven-layer layout, or the prefix change reasons change in the contract, update the [architecture page](docs/architecture.md), the [flows page](docs/flows.md), and the tests.
+- When the input groups, the six-layer layout, or the prefix change reasons change in the contract, update the [architecture page](docs/architecture.md), the [flows page](docs/flows.md), and the tests.
 - When you add a configuration item or change a default value, update the SPEC, the [API page](docs/public-api.md), and the configuration schema of request-context-cordis.
 - When the factory signature changes, update request-context-cordis, the only user in the group.
 - The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.

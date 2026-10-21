@@ -7,7 +7,7 @@ The pure contract member of Request Context. Variant: `module`.
 
 ## Responsibility and status
 
-This package owns the protocol for the derived computation of one model request input. It defines the seven input groups, the request candidate, coverage evidence, the fit verdict, and representation choices. It also defines the compaction plan and its steps, the seven-layer layout, and the snapshot anchor rule. It also defines the types of the history source port and the policy ports. It defines eight single pure operations and three compaction plan operations.
+This package owns the protocol for the derived computation of one model request input. It defines the seven input groups, the request candidate, coverage evidence, the fit verdict, and representation choices. It also defines the compaction plan and its steps, the six-layer layout, and the snapshot anchor rule. It also defines the types of the history source port and the policy ports. It defines eight single pure operations and three compaction plan operations.
 
 Every fact that the package reads belongs to another owner. The package owns no facts, sends no request, fixes no adoption, and writes no history. It knows only generic roles: coordinator, history holder, integrator, contributor, and caller.
 
@@ -39,7 +39,7 @@ Independent use needs only this package. It needs no coordinator, no history hol
 - The [API page](docs/public-api.md) indexes the exports.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
 
-One assembly has exactly four outcomes: candidate that still passes the extension position, candidate that can be fixed, needs compaction, and cannot fit. Failures have three classes: not eligible, invalid, and unavailable. An unknown limit is not a failure. The compaction transition and the final request record are two joint commits. Neither happens inside this package. The package gives only the material. It holds no resources and has nothing to dispose.
+One assembly has exactly four outcomes: candidate that still passes the extension position, candidate that can be fixed, needs compaction, and cannot fit. Failures have three classes: not permitted, invalid, and unavailable. A result can also be unknown. An unknown limit is not a failure. A fixed part that exceeds the limit gives the outcome "cannot fit". It is not a failure. The compaction transition and the final request record are two joint commits. Neither happens inside this package. The package gives only the material. It holds no resources and has nothing to dispose.
 
 ## Design
 

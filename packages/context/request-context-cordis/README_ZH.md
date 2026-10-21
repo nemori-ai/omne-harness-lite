@@ -14,7 +14,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：具体子类、插件、配置 Schema、贡献登记表与根入口的工厂。
 - 未验证：性质 2 的 intercept 部分与性质 3 的过滤部分依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的七项验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
-- 明确缺项：服务定义上没有组装入口，SPEC 没有写明经 Cordis 的调用方怎样用到机制实例。机制实例怎样得知贡献变化、根入口工厂与机制工厂怎样分工，SPEC 也没有写明，见 [Cordis 说明](docs/cordis.md#插件与服务)。
+- 经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组；本插件经 `notify(change)` 把贡献变化告诉机制实例。明确缺项：根入口工厂与机制工厂怎样分工，SPEC 没有写明，见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
 现在没有应用装配本插件，也没有包依赖本成员。
 

@@ -25,12 +25,12 @@
 | --- | --- | --- | --- |
 | `RequestContextService` | `./cordis` | 抽象类，`static readonly provide = 'requestContext'` | [性质 1、2](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
 | 服务键常量 | `./cordis` | 常量，取自 `RequestContextService.provide`。常量名随实现确定 | 性质 1 |
-| intercept 配置类型 | `./cordis` | 类型 `{ scope: ScopeRef }`。类型名随实现确定 | 性质 7、[intercept 配置与作用域](cordis.md#intercept-配置与作用域) |
+| intercept 配置类型 | `./cordis` | 类型 `{ scope: ScopeRef \| null }`，`null` 表示全局层。类型名随实现确定 | 性质 7、[intercept 配置与作用域](cordis.md#intercept-配置与作用域) |
 | 策略选择的配置形状 | `./cordis` | 类型，选择压缩策略与表示策略的实现。类型名随实现确定 | 性质 8、[策略选择](cordis.md#策略选择) |
 | `Events` 增补 | `./cordis` | 事件 `request-context-cordis-contract/changed`，`@mode emit` | 性质 6、[事件](cordis.md#事件) |
 | `Context` 增补 | `./cordis` | `requestContext` 属性的类型为 `RequestContextService` | 性质 1 |
 | 契约词汇类型的重导出 | 根入口 | 只有类型。具体清单随实现确定，以契约的[公开接口页](../../request-context-contract/docs/public-api.md)为准 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) |
 
-`RequestContextService` 的方法是契约登记面操作类型的方法：`contributeSection`、`contributeVariable`、`contributions(scope)`。它们的签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。服务上没有 `assemble`、`planCompaction` 等纯操作，它们从契约根入口导出（性质 2）。
+`RequestContextService` 的方法是契约登记面操作类型的方法：`contributeSection`、`contributeVariable`、`contributions(scope)`，另有组装入口 `assembly(scope)`。它们的签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。`assemble`、`planCompaction` 等纯操作不直接写成服务方法；`assembly(scope)` 返回已按配置绑定策略与登记面的一组纯操作，操作的类型从契约根入口导出（性质 2）。
 
 明确缺项：契约的[公开接口页](../../request-context-contract/docs/public-api.md)现在没有列出登记面操作类型与 `ScopeRef`。这两项进入契约之后，本成员的抽象类与 intercept 配置类型才能实现。

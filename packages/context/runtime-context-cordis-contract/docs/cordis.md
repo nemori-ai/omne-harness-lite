@@ -19,7 +19,7 @@
 | 面 | 方法 | 调用方 | 本成员加的 Cordis 承诺 |
 | --- | --- | --- | --- |
 | 生产者面 | `registerProducer` | 生产者插件，在自己的插件体里调用 | 登记即效应，登记落在调用方 fiber 上，代际取登记时的 fiber `uid`。见[登记与撤除协议](#登记与撤除协议) |
-| 持有者面 | `prepareRegistration`、`issueEligibility`、`applyCommit` | 作用域持有者的适配器 | 没有额外的 Cordis 承诺。注册、资格与步提交都是参数与结果，提交归持有者（[RC-02](../../runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-05](../../runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)） |
+| 持有者面 | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit` | 作用域持有者的适配器 | 没有额外的 Cordis 承诺。注册、资格与步提交都是参数与结果，提交归持有者（[RC-02](../../runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-05](../../runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)） |
 | 读者面 | `bind` | 消费者一侧的适配器插件 | 消费者类从调用方 fiber 的 intercept 配置读出，与读取资格核对。见 [intercept 配置与消费者类](#intercept-配置与消费者类) |
 
 本成员不定义第二个服务键，不定义块级服务。块是数据，不是服务。没有任何一方 `inject` 一个块。必需块缺席是读取时的缺项（[RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)），不让消费者 fiber 进入 `PENDING`（性质 7）。
@@ -48,11 +48,11 @@ export const inject = {
 | --- | --- |
 | 载荷 | 作用域引用，加上变化涉及的块键集合。不带值，不带修订，不带前值 |
 | 含义 | 只是唤醒提示，不是事实源。监听者被唤醒后经绑定读者读取，读到什么以读取结果为准（[RC-04](../../runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)） |
-| 过滤 | 按作用域过滤。派发对象带 `Context.filter`，只到达在带该作用域引用的扩展 ctx 上 `on` 的监听者。精确派发归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md) |
+| 过滤 | 按作用域过滤。监听者在扩展 ctx 上以属性键 `scope` 标出作用域引用；派发对象带 `Context.filter`，只到达标记等于本次作用域引用、并在那里 `on` 的监听者。精确派发归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md) |
 | 监听者 | 同步执行，不得返回 Promise。派发方把 `emit` 放在 `try` 中，监听者失败只记录诊断，不改变已提交的结果（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)、[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)） |
 | 丢失 | 不影响正确性。下一次执行开始或挂接建立时，调用方主动取完整快照承接（[RC-04](../../runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)） |
 
-明确缺项：监听者在扩展 ctx 上标记作用域所用的属性键，SPEC 现在没有点名。派发方的 filter 与监听者必须共用这个键。按 [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1)，它应随本成员的服务定义维护。这个键确定之前，按作用域过滤不能实现。
+监听者在扩展 ctx 上标记作用域所用的属性键是 `scope`（[性质 5](../SPEC.md#结果与不变量)）。派发方的 filter 与监听者共用这个键。按 [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1)，它随本成员的服务定义维护。
 
 Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤（源码读数：`events.ts` 的 `dispatch`）。监听本事件的一方不得用全局监听，否则会收到所有作用域的唤醒。
 

@@ -29,7 +29,7 @@ The implementation will fix the name and signature of the factory. No runnable e
 
 - `src/` owns the public shapes. It is empty now. The [API page](docs/public-api.md) indexes the exports.
 - The [SPEC](SPEC.md) owns the local behavior: tables and projection, local rules, close and rebuild.
-- The [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md) owns the inputs, results, and failures of the three faces, in clauses RC-01 to RC-07.
+- The [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md) owns the inputs, results, and failures of the three faces, in clauses RC-01 to RC-08.
 - The [object model](docs/object-model.md) owns identity and lifecycle of the internal objects.
 
 The party that calls the factory owns the mechanism instance and closes it. Close first refuses new requests. Then it ends the readers and waits for in-flight reads to settle. Last, it releases the tables. Close does not take back change material that it gave out, or any outside effect.

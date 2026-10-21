@@ -36,7 +36,7 @@ sequenceDiagram
 | 取代际 | 代际取登记时的 fiber `uid` | 这是源码读数，见 [Cordis 说明](cordis.md#机制读数与假设)。实现不另造代际 |
 | 在根 Context 上登记 | 效应属于根 fiber，不随任何生产者撤除 | 只允许测试或装配入口这样用 |
 | 撤除 | 先结算本代在途读取，再移除登记 | 结算与移除写在同一个 effect 里。不同 effect 之间的释放并发，不能靠两个 effect 的注册顺序排次序 |
-| 撤除之后 | 依赖该块的读取读到缺项或未知，不读到旧值 | 读取结果的语义归 [RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)、[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
+| 撤除之后 | 依赖该块的读取读到缺项，不读到旧值 | 读取结果的语义归 [RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)、[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
 | 提供者换代 | 生产者插件体重跑，重新登记，得到新代际 | 旧代迟到的发布被丢弃，机制归 [runtime-context](../../runtime-context/docs/flows.md) |
 
 ### F-RCD02 唤醒按作用域过滤

@@ -17,14 +17,15 @@
 ```text
 实例 = 工厂(契约端口, { 观察链保留上限 })
 
-生产者：句柄 = 实例.registerProducer(块键, 代际)
+生产者：句柄 = 实例.registerProducer(块键, 代际, 按作用域供值的回调？)
         代际由调用方给出，必须可比较；旧代际的发布被丢弃
-        用句柄发布、使失效；不再供值时 dispose
+        用句柄按作用域发布、使失效；不再供值时 dispose
 
 作用域持有者：核对结果 = 实例.prepareRegistration(注册材料)
               在自己的存储里提交注册决定
               实例.applyCommit(已提交的结果)
-              资格 = 实例.issueEligibility(…)
+              资格 = 实例.issueEligibility(…)；重签只作废游标
+              实例.revokeEligibility(资格)；之后该资格的读取按拒绝（无权）
 
 读者：读者 = 实例.bind(资格)
       第一次 snapshot 取完整快照与游标

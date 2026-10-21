@@ -21,6 +21,7 @@ classDiagram
     registerProducer()
     prepareRegistration()
     issueEligibility()
+    revokeEligibility()
     applyCommit()
     bind()
   }

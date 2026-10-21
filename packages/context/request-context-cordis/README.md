@@ -14,7 +14,7 @@ Status: Service implementation member, `draft`. The adoption basis is the [membe
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the concrete subclass, the plugin, the configuration schema, the contribution registry, and the factory of the root entry.
 - Not verified: the intercept part of property 2 and the filter part of property 3 are assumptions now. They depend on mechanism readings that are not in the basis yet. None of the seven verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
-- Open items: the service definition has no assembly entry, so the SPEC does not say how a Cordis caller reaches the mechanism instance. The SPEC also does not say how the mechanism instance learns about contribution changes, or how the root factory differs from the mechanism factory. See the [Cordis page](docs/cordis.md#插件与服务).
+- A Cordis caller reaches the configured operations through `assembly(scope)`. The plugin tells the mechanism instance about contribution changes through `notify(change)`. Open item: the SPEC does not say how the root factory differs from the mechanism factory. See the [Cordis page](docs/cordis.md#插件与服务).
 
 No application loads this plugin now, and no package depends on this package.
 
