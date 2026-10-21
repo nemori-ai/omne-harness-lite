@@ -50,7 +50,9 @@ Runtime Context 是作用域内共享数据的供给中介与合并协议。它�
 
 ## 模式与 context 初始化
 
-模式事实由作用域持有者作为块供给。Runtime Context 只供给当前值及变化。模式规则见产品正文[三个模式维度独立](../../../.meta_harness/design/product/runtime-context/design.md#4-三个模式维度独立)。
+本节是候选修订，技术接受前不扩大本页既有承诺。
+
+会话模式的拥有者是 Session，模式的维度、修改者与生效时点见[会话模式](session-and-run.md#会话模式)。Runtime Context 只承载 `session.modes` 与 `session.tool-environment-policy` 两个块的当前值，并按本页协议通知变化。
 
 新的逻辑执行开始，或协调者为执行建立执行挂接（接续或换代之后）时，取得当前数据块快照，弥补空闲期间的变化。只有在生产者允许读取、块注册有效并满足资格时才纳入，不凭旧日志恢复已经撤回的访问权。
 
