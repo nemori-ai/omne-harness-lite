@@ -70,10 +70,15 @@ await network.close()
 需要经 HTTPS 代理发出请求时，装配在边界把环境映射为 `proxy`，再交给 `createNetworkResources`。本包自己不读取环境变量。例中 `env` 是装配持有的环境对象：
 
 ```ts
+const proxyUrl = env.HTTPS_PROXY
+const bypass = (env.NO_PROXY ?? '')
+  .split(',')
+  .map(entry => entry.trim())
+  .filter(entry => entry !== '')
 const network = createNetworkResources({
   maxConnections: 4,
   idleConnectionTimeoutMs: 30_000,
-  proxy: { url: env.HTTPS_PROXY, bypass: env.NO_PROXY.split(',').filter(entry => entry !== '') },
+  ...(proxyUrl === undefined || proxyUrl === '' ? {} : { proxy: { url: proxyUrl, bypass } }),
 })
 ```
 

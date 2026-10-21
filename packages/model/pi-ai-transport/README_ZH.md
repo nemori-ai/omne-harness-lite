@@ -65,7 +65,7 @@ pnpm run lint:deps
 pnpm run check:docs
 ```
 
-经真实代理向 OpenRouter 发一次请求（会产生少量费用）。在成员目录运行，不经 turbo：
+经真实代理向 OpenRouter 发一次请求（会产生少量费用）。在仓库根运行，不经 turbo：
 
 ```sh
 OMNE_LIVE_TESTS=1 pnpm --filter @omne-harness/pi-ai-transport run test:live

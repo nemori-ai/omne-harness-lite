@@ -74,7 +74,7 @@ pnpm run lint:deps
 pnpm run check:docs
 ```
 
-To send one request to OpenRouter through a real proxy (this costs a small amount), run this command without turbo:
+To send one request to OpenRouter through a real proxy (this costs a small amount), run this command from the repository root, without turbo:
 
 ```sh
 OMNE_LIVE_TESTS=1 pnpm --filter @omne-harness/pi-ai-transport run test:live

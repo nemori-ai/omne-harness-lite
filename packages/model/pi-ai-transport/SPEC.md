@@ -126,7 +126,7 @@
 
 配置了代理时：
 
-- 本包把 `url` 作为 `HTTPS_PROXY`、把 `bypass` 以逗号连接作为 `NO_PROXY`，交给 Node 连接池的 `proxyEnv` 选项。本包只设这两个大写键。
+- 本包把 `url` 经 `URL` 规范化后的形式（`href`）作为 `HTTPS_PROXY`、把 `bypass` 以逗号连接作为 `NO_PROXY`，交给 Node 连接池的 `proxyEnv` 选项。本包只设这两个大写键。规范化去掉首尾空白与 URL 中的制表符、回车和换行，并把协议改为小写。所以 `URL` 接受的每个代理 URL 都经代理生效：Node 直接读取原文时，会对回车或换行抛出含完整 URL 的错误，并对大写协议或前导空白静默直连。
 - 主机命中 `bypass` 的交换直连。`bypass` 的写法按 Node 的 `NO_PROXY`：主机、`.后缀`、`*.后缀`、IP、IP 范围或 `主机:端口`。
 - 其他交换先连接代理，发送 CONNECT，在代理回复 200 之后经隧道与接收方完成 TLS 握手。代理看到接收方的主机与端口，看不到请求内容。
 
@@ -243,7 +243,7 @@
 
 - `url` 不能解析为 URL，或协议不是 `http:` 与 `https:`；
 - `bypass` 不是数组，或某一项不是字符串、为空、含逗号或含空白；
-- 当前 Node 低于 24.5.0。更早的 Node 不支持 `proxyEnv`，会静默忽略它而直连，所以本包拒绝构造。
+- 当前 Node 低于 24.5.0。24.5.0 之前的 24.x 不支持 `proxyEnv`，会静默忽略它而直连，所以本包拒绝构造。
 
 这些消息只写字段名与规则，不含 URL 的任何部分。
 
@@ -293,8 +293,8 @@
 | 提前结束的包装本身：`return()`、`throw()` 与 `asyncDispose` 关闭来源，启动后不重复关闭，来源关闭失败时生成器仍完成 | [iteration.spec.ts](tests/iteration.spec.ts) | 快 |
 | 同步发起、停止、2xx、响应体读取错误的类型、非 2xx、错误体、连接超时与计时器清除、关闭后的清理 | [http.spec.ts](tests/http.spec.ts) | 慢 |
 | 网络资源关闭与连接池，含同一接收方连续发起不受连接池影响、容量是唯一的并发上限、多接收方不排队与排队即缺陷 | [network.spec.ts](tests/network.spec.ts) | 慢 |
-| 代理配置校验与 Node 版本守卫，含消息不含 URL | [proxy-config.spec.ts](tests/proxy-config.spec.ts) | 快 |
-| 经代理的交换：隧道成功、直连项、拒绝后重置不崩溃、代理不可达、CONNECT 与隧道内 TLS 的连接超时、建立中的停止与关闭、代理 URL 不进入结果与诊断 | [proxy.spec.ts](tests/proxy.spec.ts) | 慢 |
+| 代理配置校验与 Node 版本守卫，含构造时任何消息都不含 URL（URL 含换行、回车或制表符时也不报错） | [proxy-config.spec.ts](tests/proxy-config.spec.ts) | 快 |
+| 经代理的交换：隧道成功、直连项、大写协议与前导空白的 URL 仍经代理、拒绝后重置不崩溃、代理不可达、代理未回复即关闭、CONNECT 与隧道内 TLS 的连接超时、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断 | [proxy.spec.ts](tests/proxy.spec.ts) | 慢 |
 | 经真实代理到 OpenRouter 的一次流式请求读到 end-marker。只在 `OMNE_LIVE_TESTS=1` 时运行 | [live/openrouter.spec.ts](tests/live/openrouter.spec.ts) | 慢；未设开关时跳过 |
 | 根入口与类型形状 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |
