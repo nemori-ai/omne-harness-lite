@@ -17,15 +17,15 @@
 
 | 行号 | 节点 | 阶段与部分 | 子卡 | 用例名 | SC-AG | 实现用例 |
 | --- | --- | --- | --- | --- | --- | --- |
-| NA-U0-1 | U0 | 1 | 1.3（#511） | invoke 交出的输入经 U0、Q1、Q2 接纳后，Journal.inputs 返回的内容与 invoke 交出的内容相同 | SC-AG-01 | 待实现 |
-| NA-Q1-1 | Q1 | 1 | 1.3（#511） | 合法的外部输入候选由 Q1 直接转 Q2，Q1 与 Q2 之间没有扩展调用，Q1 不改变 Journal 修订号 | 新增场景 | 待实现 |
-| NA-Q2-1 | Q2 | 1 | 1.3（#511） | accept 返回 accepted 时，接纳回执随 checkpoint 提交，节点转 Q4 | 新增场景 | 待实现 |
-| NA-Q2-2 | Q2 | 1 | 1.3（#511） | accept 的提交回执未知时，以同一操作身份与同一候选再次调用 accept 得到原回执，没有第二个操作身份 | SC-AG-163 | 待实现 |
-| NA-Q4-1 | Q4 | 1 | 1.3（#511） | Q4 把接纳结果交回固定调用位置：外部输入回 U0 的受理方，模型回复回 I3，Q4 不重试 | 新增场景 | 待实现 |
-| NA-E0-1 | E0 | 1（open） | 1.3（#511） | invoke 先预约单执行槽，再以 open 保存输入内容与初始 checkpoint，取得 Authority 后节点转 E1 | SC-AG-01 | 待实现 |
-| NA-E0-2 | E0 | 1（open） | 1.3（#511） | 同一操作身份重复 invoke 认回原执行与原挂接，不再次 open，不新建执行 | SC-AG-40 | 待实现 |
-| NA-E0-3 | E0 | 1（open） | 1.3（#511） | 执行占用执行槽时，另一个新 invoke 返回 busy，不进入隐藏队列 | SC-AG-12 | 待实现 |
-| NA-E0-4 | E0 | 1（open） | 1.3（#511） | open 的提交回执未知时，执行槽预约保留，R0 以原操作身份查询，不以新身份再次 open | SC-AG-163 | 待实现 |
+| NA-U0-1 | U0 | 1 | 1.3（#511） | invoke 交出的输入经 U0、Q1、Q2 接纳后，Journal.inputs 返回的内容与 invoke 交出的内容相同 | SC-AG-01 | `agent/tests/loop-admission.spec.ts`：`NA-U0-1: Journal.inputs returns the content that invoke handed over` |
+| NA-Q1-1 | Q1 | 1 | 1.3（#511） | 合法的外部输入候选由 Q1 直接转 Q2，Q1 与 Q2 之间没有扩展调用，Q1 不改变 Journal 修订号 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q1-1: Q1 passes a lawful candidate straight to Q2, with no call and no commit between` |
+| NA-Q2-1 | Q2 | 1 | 1.3（#511） | accept 返回 accepted 时，接纳回执随 checkpoint 提交，节点转 Q4 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4`；外部输入部分为 `NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged`，回执不另存，见 #558 S-13 裁决 |
+| NA-Q2-2 | Q2 | 1 | 1.3（#511） | accept 的提交回执未知时，以同一操作身份与同一候选再次调用 accept 得到原回执，没有第二个操作身份 | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on` |
+| NA-Q4-1 | Q4 | 1 | 1.3（#511） | Q4 把接纳结果交回固定调用位置：外部输入回 U0 的受理方，模型回复回 I3，Q4 不重试 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q4-1: Q4 returns each admission to its call position once: the input to U0 and E0, the reply to I3` |
+| NA-E0-1 | E0 | 1（open） | 1.3（#511） | invoke 先预约单执行槽，再以 open 保存输入内容与初始 checkpoint，取得 Authority 后节点转 E1 | SC-AG-01 | `agent/tests/loop-admission.spec.ts`：`NA-E0-1: the slot is reserved while open runs; after the Authority the node goes to E1` |
+| NA-E0-2 | E0 | 1（open） | 1.3（#511） | 同一操作身份重复 invoke 认回原执行与原挂接，不再次 open，不新建执行 | SC-AG-40 | `agent/tests/loop-admission.spec.ts`：`NA-E0-2: while the run goes on`、`NA-E0-2: after the execution ended`、`NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven` |
+| NA-E0-3 | E0 | 1（open） | 1.3（#511） | 执行占用执行槽时，另一个新 invoke 返回 busy，不进入隐藏队列 | SC-AG-12 | `agent/tests/loop-admission.spec.ts`：`NA-E0-3: while the first invoke is reserved, in the same turn`、`NA-E0-3: while the first run is running`、`NA-E0-3: while the first run is stopped`、`NA-E0-3: while the open of the first invoke is unresolved` |
+| NA-E0-4 | E0 | 1（open） | 1.3（#511） | open 的提交回执未知时，执行槽预约保留，R0 以原操作身份查询，不以新身份再次 open | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-E0-4: pending, then applied: the retry queries the original operation, then runs on`、`NA-E0-4: applied: the query finds it committed, and the same open gives the original receipt back`、`NA-E0-4: dropped: the query finds it excluded, and the same operation opens anew`、`NA-E0-4: a failure of the retry before open keeps the R0 item, because the open may have committed` |
 | NA-E1-1 | E1 | 1 | 1.4（#512） | 资格核验允许时 E1 转 E2，E1 不写业务状态 | SC-AG-161 | 待实现 |
 | NA-E1-2 | E1 | 1 | 1.4（#512） | 资格核验不可用时 E1 转 W0，执行状态为 waiting，节点不进入 E2 | 新增场景 | 待实现 |
 | NA-E1-3 | E1 | 1 | 1.4（#512） | 执行状态已为终态时 E1 转 F4，节点不进入 E2 | 新增场景 | 待实现 |

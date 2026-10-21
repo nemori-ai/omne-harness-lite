@@ -16,18 +16,18 @@ PACKAGE_TEMPLATE_DRAFT
 | 纯契约函数已实现 | 本包没有。契约函数在 `agent-contract` | 无 | 无 |
 | 独立执行已实现 | 无 | 无 | 无 |
 | runtime 已实现的路径 | `createAgentRuntime` 的创建校验：配置七项越界或绑定字段非法返回 `invalid`（`field` 写配置项路径），登记句柄的 instance 与绑定不一致返回 `denied`，十项必需依赖缺席返回 `unavailable`（`diagnostic` 指名缺席的依赖），`jointCommits` 有一种未被 Journal 声明返回 `unsupported`。失败时不创建 runtime，不调用任何依赖的方法。成功得到 idle 的 provider。访问守卫：四个面的每个公开操作先核对 Access 的租户：缺租户或租户不是 legal-identity 签发的 `TenantId` 时返回 `invalid`，跨租户返回 `denied`，都不调用 `access.check`。`observe` 例外：契约没有 `invalid` 的结束原因，缺租户或租户非法都以 `denied` 结束（见下文待拥有者一项），再调用一次 `access.check`，不缓存 allowed，`denied` 与 `unavailable` 不放行。`observe` 放行后给出当前状态，状态变化时给出新状态，signal 中止时以 `closed` 结束。`invoke` 与 `observe` 之外的操作放行后返回 `unavailable`，`diagnostic` 写「<操作> is not implemented until #502 stage N」：这是阶段性临时做法，不是契约结果 | 根入口 | `tests/factory.spec.ts` 逐项核对四种创建失败与成功的 idle。`tests/provider-access.spec.ts` 对每个公开操作核对租户核对、`access.check` 三态与恰一次。`tests/assembly.spec.ts` 用测试装配得到 idle 的 provider，核对创建没有调用任何依赖。没有覆盖下面列出的未实现校验 |
-| Loop 正常路径（骨架，#502 1.2） | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。正常路径之外的停止是 halt，halt 占住执行槽。步骤、图、halt 与槽的规则见 [Loop 正常路径](#loop-正常路径) | 根入口 | `tests/loop-transitions.spec.ts` 逐行核对转移表与节点表（C1）。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-slot.spec.ts` 核对槽的规则、halt 与登记投影。`tests/loop-port-failures.spec.ts` 核对路径上每个节点的端口失败都停在该节点并保留端口的 `owner`。失败分支、等待与恢复没有用例 |
+| Loop 正常路径（骨架，#502 1.2） | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作再次 `invoke` 取回原句柄，槽被占用时返回 `busy`（#502 1.3）。正常路径之外的结果使运行停止，停止的运行占住执行槽。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径) | 根入口 | `tests/loop-transitions.spec.ts` 逐行核对转移表与节点表（C1）。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对路径上每个节点的端口失败都使运行停止，Journal 的 `position` 停在该节点。失败分支、等待与恢复没有用例 |
 | 测试装配（`./testing`） | `createMemoryAgentJournal`：单进程、非耐久的内存 `AgentJournal`，按[同形清单](docs/architecture/mechanisms.md#两种实现必须同形的事实)第 1 至 15 条实现全部 18 个成员，参加者集合由选项给定，可在指定操作上编排 `unavailable` 与三种 `commit-unknown`。各端口的可编排替身、`createManualAgentClock` 与手写的 `ToolRuntime` 替身。`createTestAgentDependencies` 返回 17 项依赖（`registration` 为 null）与各替身的控制手柄，`models` 是 `model-contract/testing` 的脚本化提供者 | `./testing` | `tests/memory-journal.spec.ts` 按同形清单逐条核对，用例名带条目号。`tests/fixtures.spec.ts` 为每个编排接口各有一条用例。只有一个进程，耐久性、崩溃与跨进程没有覆盖 |
-| 尚未交付的宿主与提供者 | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。Loop 节点的精确提交点、等待与失败分支（#502 1.3 至 1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2、W0、R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储 | 无 | 没有证据 |
+| 尚未交付的宿主与提供者 | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。自 E1 起 Loop 节点的精确提交点、等待与失败分支（#502 1.4 至 1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2、W0，以及 open 未定重试之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储 | 无 | 没有证据 |
 
 ### Loop 正常路径
 
-#502 1.2 的骨架让一条输入走完正常路径，没有工具、扩展、失败分支与等待。
+#502 1.2 的骨架让一条输入走完正常路径，没有工具、扩展、失败分支与等待。#502 1.3 补齐受理的精确语义。
 
 `invoke` 依次做下列步骤：
 
 1. 过访问守卫。
-2. 预约单执行槽。槽被占用时，第二个 `invoke` 返回 `unavailable`（busy 属 #502 1.3）。
+2. 槽被占用时，新的 `invoke` 返回 `busy`（见下文「受理」）。否则预约单执行槽。
 3. 经 `adoptions.resolve` 取绑定定义的评估器。采用了扩展时返回 `unavailable`（扩展属 #502 阶段 3）。
 4. 走 U0、Q1、Q2、Q4、U0、E0：`handoff.accept` 准入输入，`open` 受理 execution。
 5. 返回句柄，不等 Loop 结束。
@@ -51,7 +51,7 @@ flowchart TD
     E4b -->|take-inputs| I0[I0]:::commit --> I1[I1]:::commit --> P0[P0]:::commit --> P1[P1]:::commit
     P1 --> I2[I2]:::commit --> M0[M0]:::commit --> M6[M6]:::commit --> M1[M1]:::commit
     M1 --> M3[M3]:::commit --> M4[M4]:::commit --> M5[M5]:::commit --> I3a[I3]
-    I3a --> Q1b[Q1]:::commit --> Q2b[Q2]:::commit --> Q4b[Q4]:::commit --> I3b[I3]:::commit
+    I3a --> Q1b[Q1] --> Q2b[Q2]:::commit --> Q4b[Q4]:::commit --> I3b[I3]:::commit
     I3b --> I4[I4]:::commit --> I8{{I8 evaluator}}:::commit
     I8 -->|take-inputs| I0
     I8 -->|try-finish| F1[F1]:::commit --> F2[F2]:::commit --> F3[F3 tryFinish]
@@ -59,22 +59,27 @@ flowchart TD
     classDef commit stroke-width:3px
 ```
 
-halt：
+受理（#502 1.3）：
 
-- 正常路径之外的结果以具名的 `unavailable` 停在该节点，这次停止称为 halt。
-- halt 之后执行槽保持占用，`observe` 显示 occupied，runtime 不回 idle。halt 不当作成功。
-- 停止的 `owner` 区分来源：
-  - 端口的失败保留端口的 `owner`。
-  - `@omne-harness/agent` 表示契约已定义、由后续卡处理的结果。
-  - `@omne-harness/agent#defect` 表示协调者自身的缺陷：抛出的错误、缺少的前序值、没有处理函数的节点、没有转移行的结果。它不表示依赖不可用。
-- 待拥有者：契约没有给 halt 状态或通道。下一次 `invoke` 的 `diagnostic` 写明占用槽的 execution、停止的节点与失败，调用方从这里读到 halt。
+- 同一操作以同一输入再次 `invoke`，取回原句柄。运行继续、已停止或已 ended 时都如此。runtime 不再次调用 `open`，也不启动第二个 Loop。
+- 同一 Journal 上新建的 runtime 不认识该操作。它调用 `open`，`open` 返回原回执与 Authority。E1 随后发现 Journal 的修订号不是 `open` 的修订号。runtime 返回句柄，不驱动该 execution，回到 idle。驱动这种 execution 属于恢复（#502 阶段 5）。
+- 同一操作配另一输入：槽被占用时返回 `busy`。槽空闲时 Journal 返回 `conflict`，`invoke` 原样返回。
+- 槽被占用时，另一操作的 `invoke` 返回 `busy`。预约中、`open` 未定、运行中、运行已停止时都如此。`invoke` 不排队。
+- Q2 `handoff.accept` 返回 commit-unknown 时，`invoke` 返回带 `invoke` 操作身份的 `commit-unknown`。此时还没有 execution，槽释放。同一操作再次调用即是查询：U0、Q2 以同一操作身份与同一候选再次调用 `accept`，得到原结果。外部输入的接纳回执不另存（#558 S-13）。
+- E0 `open` 返回 commit-unknown 时，`invoke` 返回 `commit-unknown`。runtime 保留预约，记为 R0 待查项：操作身份与 execution 身份。同一操作再次调用时，先以该操作身份调用 `query`。`committed`：同一 `open` 返回原回执，从 E1 继续。`excluded`：以同一身份重新受理。`unknown`：再次返回 `commit-unknown`，预约保留。重试在 `open` 之前失败时同样保留 R0 待查项，因为原 `open` 可能已提交。没有定时器检查 R0 待查项（等待属 #502 1.9）。
+- Q1 不提交。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次，不重试。被拒收的候选（Q5）属 #502 4.1，此前以具名的 `unavailable` 停止。
+
+停止：
+
+- 正常路径之外的结果使运行停在该节点。停止不当作成功。
+- 停止之后执行槽保持占用，`observe` 显示 occupied。Journal 保留最后一次提交的 `position`。新的 `invoke` 返回 `busy`。
+- runtime 只在内部记录停止（#558 S-14）。协调者保留失败的 `owner`：端口失败保留端口的 `owner`，`@omne-harness/agent` 表示由后续卡处理的结果，`@omne-harness/agent#defect` 表示协调者自身的缺陷。#502 1.9 的等待让停止可读。
 
 槽的规则：
 
-- `open` 之前的任何失败都释放槽，包括 Q2 `handoff.accept` 的 commit-unknown。
-- 只有 E0 `open` 返回 commit-unknown 时保留预约。
-- 待 #558 S-14：契约没有「预约中、open 结果未知」的状态。`observe` 取失败即关闭的读法，显示 `draining` 并把该 execution 列为 unresolved。下一次 `invoke` 写明原因。
-- 尚未得到 `open` 回答的预约仍显示 idle。
+- 槽只有三种状态：空闲、预约、运行。预约包括 R0 待查项。已停止的运行仍算运行。
+- `observe` 只投影已存在的 execution。空闲与预约显示 idle，运行显示 occupied。
+- `open` 之前的任何失败都释放槽。只有 `open` 的 commit-unknown 保留预约。
 - 登记句柄只接收投影。`report` 抛出时被丢弃，`invoke` 照常返回，槽与 `observe` 不变。待拥有者：`report` 返回 void，契约没有给它的失败通道。
 
 下图是执行槽的状态，括号里是 `observe` 显示的状态。
@@ -82,17 +87,14 @@ halt：
 ```mermaid
 stateDiagram-v2
     state "free (observe: idle)" as free
-    state "reserved (observe: idle)" as reserved
-    state "open-unknown (observe: draining, 待 #558 S-14)" as unknown
-    state "running (observe: occupied)" as running
-    state "halted (observe: occupied)" as halted
+    state "reserved，含或不含 R0 待查项 (observe: idle)" as reserved
+    state "running，停止后仍是 (observe: occupied)" as running
     [*] --> free
     free --> reserved: invoke
     reserved --> free: open 之前失败，或 open 确定未提交
-    reserved --> unknown: open 返回 commit-unknown
+    reserved --> reserved: open 返回 commit-unknown（R0 待查项）
     reserved --> running: open 受理
-    running --> free: E9
-    running --> halted: 正常路径之外的 halt
+    running --> free: E9，或 E1 发现 execution 已被推进
 ```
 
 工厂没有实现下列创建校验，因为工厂收到的输入判定不了它们。它们留给拥有者或后续的卡：
@@ -104,7 +106,7 @@ stateDiagram-v2
 
 Loop 骨架取下列临时做法。每项在源码注释、测试名与 [tests/README](tests/README.md) 中写明，由 #502 的后续卡或 #558 的裁定收紧：
 
-- 临时简化，1.3–1.9 按节点表收紧：自 E3 起每个节点结束时写一次提交，提交把 `position` 前移到下一节点，不区分节点表规定的精确提交点。U0 至 Q4 在 execution 存在之前运行，不提交；E1、E2、E4 只读，不提交，否则会覆盖 E4 要读的 `position`；F3 用 `tryFinish`；ended 之后 Journal 拒绝提交，F4、O0、E9 只用各自的记录方法。
+- 临时简化，1.3–1.9 按节点表收紧：自 E3 起每个节点结束时写一次提交，提交把 `position` 前移到下一节点，不区分节点表规定的精确提交点。U0 至 Q4 在 execution 存在之前运行，不提交；Q1 从不提交（NA-Q1-1）；E1、E2、E4 只读，不提交，否则会覆盖 E4 要读的 `position`；F3 用 `tryFinish`；ended 之后 Journal 拒绝提交，F4、O0、E9 只用各自的记录方法。
 - 待 #558 M04-1：producer 事件由 M3 的 `recordResult` 之后紧随的一次提交承载。
 - 待 #558 M04-8（本读法）：input-taken 事件由 I0 的提交承载。
 - 待 #558 M04-7：`open` 不写事件。

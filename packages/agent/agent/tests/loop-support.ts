@@ -15,7 +15,13 @@ import {
 } from '@omne-harness/agent/testing'
 import {
   decodeInputBatchId,
+  type AcceptedInput,
+  type AgentEvent,
+  type AgentExecutionHandle,
   type AgentExecutionId,
+  type AgentObservation,
+  type AgentState,
+  type ExecutionSnapshot,
   type ControlRecord,
   type InputBatch,
   type LoopFacts,
@@ -35,10 +41,12 @@ import {
   type ResultPart,
 } from '@omne-harness/model-contract'
 import {
+  acceptedInput,
   adoption,
   checkpoint,
   consumption,
   evidence,
+  execution,
   inputId,
   modelCall,
   ok,
@@ -263,3 +271,84 @@ export async function loopAssembly(
 }
 
 export const alice = { principal: 'alice', tenant: tenantA } as const
+
+/** The invoke of execution `id` under operation `invoke-<id>`, with its own input unless `input`. */
+export function invoke(
+  assembly: Pick<LoopAssembly, 'provider'>,
+  id = 'exec-1',
+  change: Readonly<{ input?: AcceptedInput }> = {},
+) {
+  return assembly.provider.runtime.invoke({
+    ...alice,
+    execution: execution(id),
+    operation: operation(`invoke-${id}`),
+    initial: change.input ?? acceptedInput(`input-${id}`, `hello ${id}`),
+    grant: null,
+  })
+}
+
+/** Every event of the execution through the handle, until the ended event. */
+export async function eventsOf(handle: AgentExecutionHandle<Principal>): Promise<AgentEvent[]> {
+  const events: AgentEvent[] = []
+  const controller = new AbortController()
+  for await (const page of handle.output.events({
+    ...alice,
+    execution: handle.execution,
+    after: null,
+    signal: controller.signal,
+  })) {
+    const read = ok(page)
+    if (read.kind !== 'page') throw new Error('a gap in a new execution')
+    events.push(...read.events)
+    if (read.events.some(event => event.body.kind === 'ended')) break
+  }
+  controller.abort()
+  return events
+}
+
+/** The state that `observe` shows now. */
+export async function shown(assembly: Pick<LoopAssembly, 'provider'>): Promise<AgentState> {
+  const controller = new AbortController()
+  for await (const seen of assembly.provider.observation.observe({
+    ...alice,
+    signal: controller.signal,
+  }) as AsyncIterable<AgentObservation>) {
+    controller.abort()
+    if (seen.kind === 'state') return seen.value
+  }
+  throw new Error('observe showed no state')
+}
+
+/** Calls `probe` on later turns of the event loop until it holds, at most 200 times. */
+export async function eventually(probe: () => Promise<boolean>): Promise<void> {
+  for (let turn = 0; turn < 200; turn += 1) {
+    if (await probe()) return
+    await new Promise(resolve => setTimeout(resolve, 0))
+  }
+  throw new Error('the condition never held')
+}
+
+/**
+ * Waits until the run of exec-1 has stopped with `position` in the Journal, read through the
+ * unwrapped memory Journal so that a test's counted port sees no extra call. A stop has no public
+ * channel yet (S-14 of #558): the position must stay for 20 more turns, and `observe` must still show
+ * the execution occupied. Returns the state of the execution.
+ */
+export async function stoppedAt(
+  assembly: LoopAssembly,
+  position: string,
+): Promise<ExecutionSnapshot['state']> {
+  const read = async () => {
+    const loaded = await assembly.controls.journal.port.load({ ...alice, execution: execution() })
+    return 'ok' in loaded ? loaded.ok : null
+  }
+  await eventually(async () => (await read())?.checkpoint.position === position)
+  for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
+  const snapshot = await read()
+  if (snapshot?.checkpoint.position !== position)
+    throw new Error(`the run went on past ${position}: ${snapshot?.checkpoint.position}`)
+  const state = await shown(assembly)
+  if (state.kind !== 'occupied' || state.execution !== execution())
+    throw new Error(`the runtime shows ${state.kind}, not the stopped execution`)
+  return snapshot.state
+}

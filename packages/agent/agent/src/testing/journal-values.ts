@@ -10,30 +10,15 @@ import {
   type InputBatchId,
 } from '@omne-harness/agent-contract'
 import type { Outcome } from '@omne-harness/operation-result'
+import { canonical } from '../canonical.ts'
 
 /** The owner name of every evidence that the memory Journal mints. */
 export const JOURNAL_OWNER = 'memory-agent-journal'
 
 /**
- * A canonical text of a data value: object members in key order, arrays in order, byte views as
- * their bytes. Two inputs are the same semantic input when their texts are equal. The Access
- * members `principal` and `tenant` are left out by `semanticKey`, not here.
+ * The semantic key of one write: the method and the canonical text of the input without its Access
+ * members `principal` and `tenant`.
  */
-export function canonical(value: unknown): string {
-  if (value === undefined) return 'undefined'
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (ArrayBuffer.isView(value)) {
-    return `bytes(${[...new Uint8Array(value.buffer, value.byteOffset, value.byteLength)].join(',')})`
-  }
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
-  if (value instanceof Set) return `set(${[...value].map(canonical).sort().join(',')})`
-  const members = Object.entries(value)
-    .filter(([, member]) => member !== undefined)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-  return `{${members.map(([key, member]) => `${JSON.stringify(key)}:${canonical(member)}`).join(',')}}`
-}
-
-/** The semantic key of one write: the method and the input without its Access members. */
 export function semanticKey(method: string, input: object): string {
   const rest = Object.fromEntries(
     Object.entries(input).filter(([key]) => key !== 'principal' && key !== 'tenant'),

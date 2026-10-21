@@ -17,8 +17,9 @@
 - `loop-transitions.spec.ts`（C1）以一张独立写出的期望表逐行核对转移表：每行的去向，以及决定去向的原话确在该节点于 `docs/architecture/loop-algorithm.md` 节点表中那一行的指定列：通常是「如何返回」；U0 接纳转 E0 取「终止或进展条件」列，I3 转 Q1 取正常路径伪代码的 `admitMessage(model-reply, reply)`，每行写明出处；另核对表没有多余的行，节点词汇与节点表一致，正常路径只凭表就能从 U0 走到结束。
 - `loop-evaluator.spec.ts`（C1）核对评估器在 E4 与 I8 的决定，以及正常路径之外的事实（控制、stopping、在途调用、生产者、未交清的结果、其他位置）返回 `unsupported`。编码用例核对布尔、有限数与 null 的写法、省略缺席成员，非有限数与函数抛出 `TypeError`。属性测试沿 `packages/tool/tool/tests/json-tree-wait.spec.ts` 的种子生成器，生成 500 组 `LoopFacts`：同一事实与其深拷贝得到相同的 `Next`，深度冻结的输入不被改动，每个步骤只在 E4 或 I8 产生且转移表中有行。导入图测试断言评估器只到达 `nodes.ts`，不导入协调者、testing 入口或 Node 模块。
 - `loop-invoke.spec.ts`（C2）对脚本化 Model 与内存 Journal 走一条输入：`invoke` 在受理后、主调用收场之前返回句柄；经句柄读到 input-taken、producer、ended，序号 1、2、3；runtime 从 occupied 回 idle；Journal 中 execution 为 ended，结果走 processed 路径并在 ACK 后释放；`handoff` 依次准入外部输入与助手回复；同一 runtime 能接着跑第二个 execution。脚本化 Model 在测试打开闸门之后才收场被受理的调用。同文件另核对句柄的 `output.read` 与 `output.events`：守卫的 denied 与 unavailable、跨租户与读另一个 execution 的身份都被拒绝；分页读取的多页结果按次序进入同一条回复；调用、操作与回复消息的身份由 execution 的摘要与 step 序号派生。另核对主调用的 `ModelInvocationRef` 随 I2 的提交在首次 admit 之前保存，且 admit 返回同一引用、指向所受理的调用。
-- `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`，运行停在该节点，停止保留端口的 `owner`（不是 `#defect`），F3 之前 execution 不终结，runtime 不显示 idle。`open` 之前的端口失败（`adoptions.resolve`、Q2 `handoff.accept`、E0 `open`）是 `invoke` 的回答，并释放槽。
-- `loop-slot.spec.ts` 核对单执行槽：第二个 `invoke` 在槽预约中与运行中都被拒绝；halt 保持槽被占用，下一次 `invoke` 的 `diagnostic` 写明停止的节点与失败，端口失败保留端口的 `owner`，后续卡处理的结果（E4 的 stop）属 `@omne-harness/agent`，没有转移行的结果属 `@omne-harness/agent#defect`；E0 `open` 的 commit-unknown 保留预约、`observe` 显示 draining（名称带「待 #558」），Q2 的 commit-unknown 与扩展拒绝都释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle。halt 由自定义评估器或 Journal 的编排故障造成，只核对可读到的停止原因，不核对失败分支的语义（属后续卡）。它另核对 P1 再选择与第一次不一致时具名停在 P1（#502 1.2 的替代做法，1.5 补自环），以及在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied。
+- `loop-admission.spec.ts` 核对 #502 1.3 的受理，用例名以节点验收表的行号开头：U0 交出的内容经 `Journal.inputs` 读回；Q1 直接转 Q2，中间没有调用与提交；Q2 接纳模型回复时回执随 checkpoint 提交并转 Q4，接纳外部输入时不另存回执（#558 S-13）；Q4 把输入交回 U0、把回复交回 I3，各一次；E0 先预约槽再 `open`，`open` 的输入是 invoke 的内容与初始 checkpoint。C1：同一操作在运行中、ended 之后、同一 Journal 上新建 runtime 时都取回原句柄，前两种不再次 `open`，第三种 `open` 认回原执行而不驱动，事件序号仍是 1、2、3。同一操作配另一输入在槽被占用时得到 `busy`、槽空闲后得到 Journal 的 `conflict`。四种占槽情形（预约中、运行中、已停止、`open` 未定）各一条 `busy`。C2：`accept` 第一次返回 commit-unknown，`invoke` 返回带原操作身份的 `commit-unknown` 并释放槽，同一操作重试以同一操作身份与同一候选得到原结果并走完。E0 未定：`failNext('open')` 的 pending、applied、dropped 三种，配合 `settle`，核对重试先以原操作 `query`，之后按 unknown、committed、excluded 三种去向处理；重试在 `open` 之前失败时保留 R0 待查项。
+- `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`，运行停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14），#502 1.9 接 W0 时再从公开行为断言。`open` 之前的端口失败（`adoptions.resolve`、Q2 `handoff.accept`、E0 `open`）是 `invoke` 的回答，并释放槽。
+- `loop-slot.spec.ts` 核对单执行槽：扩展拒绝在 `open` 之前释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle；在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied；P1 再选择与第一次不一致时运行停在 P1（#502 1.2 的替代做法，1.5 补自环）。
 - `provider-access.spec.ts` 对四个面的每个公开操作核对：跨租户 `denied`，缺租户或租户非法 `invalid`（`observe` 以 `denied` 结束），都不调用 `access.check`。`access.check` 的 denied、unavailable、reject 与契约之外的回答都不放行。每次操作恰好调用一次，不缓存 allowed。
 
 测试通过不代替规格或验收。
@@ -46,16 +47,15 @@
 
 骨架的临时做法在源码注释、下列测试名与[成员 README](../README_ZH.md#支持范围)中写明：
 
-- `loop-invoke.spec.ts` 中「临时简化，1.3–1.9 按节点表收紧」的用例固定每节点一次提交的次序与 `position` 的去向：自 E3 至 F2 每个节点各一次，U0 至 Q4、E1、E2、E4、F3 之后不提交。补齐某节点精确提交点的卡改写这条用例中该节点的期望。
+- `loop-invoke.spec.ts` 中「临时简化，1.3–1.9 按节点表收紧」的用例固定每节点一次提交的次序与 `position` 的去向：自 E3 至 F2 每个节点各一次（Q1 除外，NA-Q1-1），U0 至 Q4、E1、E2、E4、F3 之后不提交。补齐某节点精确提交点的卡改写这条用例中该节点的期望。
 - 同文件「待 #558 M04-1……M04-8……」的用例固定事件的承载：input-taken 随 I0 的提交，producer 随 M3 `recordResult` 之后的提交。M04-7（`open` 不写事件）由事件序号从 1 起即 input-taken 体现。M04-5（processed 不声明参加者）由结果的完成依据体现。
 - `loop-transitions.spec.ts` 中 I1 行与 I3 进入 Q1 的行注明是 #502 1.2 的读法：I1 把 `prepare` 返回的 assembled 或 ready 都转 P0（伪代码 `prepareRequest`），I3 把回复交 Q1（伪代码 `runIter`、`admitMessage`）。
 - `loop-evaluator.spec.ts` 中「stage-temporary (#502 stage 5)」的用例固定 `decode` 返回 `unsupported`。
 
-失败分支、等待、恢复与 busy 都没有用例：骨架遇到正常路径之外的结果，以具名的 `unavailable` 停在该节点，不回 idle；`loop-slot.spec.ts` 只核对这种停止可被读到。节点验收表（agent-contract 的 `verification/node-acceptance.md`）的「实现用例」列不在本包写范围。下表是骨架用例与后续各卡的临时对应，#502 1.3 至 1.9 各卡把用例写入节点验收表之后删去本表：
+自 E1 起的失败分支、等待与恢复都没有用例：运行遇到正常路径之外的结果，以具名的 `unavailable` 停在该节点，不回 idle；`loop-port-failures.spec.ts` 只核对这种停止。U0、Q1、Q2、Q4、E0 的用例已写入节点验收表（agent-contract 的 `verification/node-acceptance.md`）的「实现用例」列。下表是骨架用例与后续各卡的临时对应，#502 1.4 至 1.9 各卡把用例写入节点验收表之后删去本表：
 
 | 节点 | 骨架用例 | 补齐的卡 |
 | --- | --- | --- |
-| U0、Q1、Q2、Q4、E0 | `loop-invoke.spec.ts` 的受理与 handoff 用例 | 1.3 |
 | E1、E2、E4 | 转移表的 E 行；评估器 E4 用例 | 1.4 |
 | I0、I1、P0、P1 | 转移表的 I、P 行；input-taken 的承载用例 | 1.5 |
 | I2、M0、M6、M1、M3、M4、M5 | 转移表的 M 行；producer 的承载用例 | 1.6 |

@@ -1,23 +1,17 @@
 // The normal-path-only limit of #502 1.2: a port that fails at any node of the path stops the run at
-// that node. The stop keeps the port's owner (never `@omne-harness/agent#defect`), the execution
-// does not end before F3, and the runtime never shows idle. The failure branches of these nodes are the work of
-// #502 1.3 to 1.9; this test only pins that no failure becomes a success or a silent stop.
+// that node. The Journal keeps the `position` of the last commit before it, the execution does not
+// end before F3, and the runtime never shows idle. The stop keeps the port's owner apart from
+// `@omne-harness/agent#defect` inside the coordinator only; the waits of #502 1.9 make that
+// readable. The failure branches of these nodes are the work of #502 1.3 to 1.9; this test only
+// pins that no failure becomes a success or a silent stop.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type { Failure } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
-import {
-  acceptedInput,
-  execution,
-  failure,
-  instance,
-  ok,
-  operation,
-  type Principal,
-} from './journal-support.ts'
-import { alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
+import { execution, failure, ok, type Principal } from './journal-support.ts'
+import { invoke, loopAssembly, stoppedAt } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 
@@ -57,7 +51,7 @@ const of =
 type Case = readonly [
   node: string,
   port: string,
-  owner: string,
+  position: string,
   inject: (dependencies: Dependencies) => Dependencies,
 ]
 
@@ -92,49 +86,49 @@ const CASES: readonly Case[] = [
   [
     'E1',
     'journal.load',
-    'test-port',
+    'E3',
     d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(1)) }),
   ],
   [
     'E2',
     'journal.inputs',
-    'test-port',
+    'E3',
     d => journal(d, { inputs: failing(d.journal.inputs, fail(PORT_FAILURE), nth(1)) }),
   ],
   [
     'E2',
     'conditions.read',
-    'test-port',
+    'E3',
     d => ({ ...d, conditions: { read: failing(d.conditions.read, fail(PORT_FAILURE), nth(1)) } }),
   ],
   [
     'E3',
     'journal.commit',
-    'test-port',
+    'E3',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('E3')) }),
   ],
   [
     'I0',
     'journal.commit',
-    'test-port',
+    'E4',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('I0')) }),
   ],
   [
     'I1',
     'conditions.read',
-    'test-port',
+    'I1',
     d => ({ ...d, conditions: { read: failing(d.conditions.read, fail(PORT_FAILURE), nth(2)) } }),
   ],
   [
     'I1',
     'selection.select',
-    'test-port',
+    'I1',
     d => ({ ...d, selection: { select: failing(d.selection.select, fail(PORT_FAILURE), nth(1)) } }),
   ],
   [
     'I1',
     'modelContext.read',
-    'test-port',
+    'I1',
     d => ({
       ...d,
       modelContext: { read: failing(d.modelContext.read, fail(PORT_FAILURE), nth(1)) },
@@ -143,7 +137,7 @@ const CASES: readonly Case[] = [
   [
     'I1',
     'requests.prepare',
-    'test-port',
+    'I1',
     d => ({
       ...d,
       requests: { ...d.requests, prepare: failing(d.requests.prepare, fail(PORT_FAILURE), nth(1)) },
@@ -152,13 +146,13 @@ const CASES: readonly Case[] = [
   [
     'P1',
     'selection.select',
-    'test-port',
+    'P1',
     d => ({ ...d, selection: { select: failing(d.selection.select, fail(PORT_FAILURE), nth(2)) } }),
   ],
   [
     'P1',
     'requests.prepare',
-    'test-port',
+    'P1',
     d => ({
       ...d,
       requests: { ...d.requests, prepare: failing(d.requests.prepare, fail(PORT_FAILURE), nth(2)) },
@@ -167,20 +161,20 @@ const CASES: readonly Case[] = [
   [
     'M0',
     'journal.commit',
-    'test-port',
+    'M0',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('M0')) }),
   ],
   [
     'M6',
     'models.calls.admit',
-    'modelRuntime',
+    'M6',
     d =>
       models(d, { calls: { admit: failing(d.models.calls.admit, fail(MODEL_FAILURE), nth(1)) } }),
   ],
   [
     'M1',
     'models.instances.connect',
-    'modelRuntime',
+    'M1',
     d =>
       models(d, {
         instances: { connect: failing(d.models.instances.connect, fail(MODEL_FAILURE), nth(1)) },
@@ -189,7 +183,7 @@ const CASES: readonly Case[] = [
   [
     'M3',
     'models.consumption.beginRead',
-    'modelRuntime',
+    'M3',
     d =>
       models(d, {
         consumption: {
@@ -200,14 +194,14 @@ const CASES: readonly Case[] = [
   [
     'M3',
     'journal.recordResult',
-    'test-port',
+    'M3',
     d =>
       journal(d, { recordResult: failing(d.journal.recordResult, fail(PORT_FAILURE), of('M3')) }),
   ],
   [
     'M3',
     'models.consumption.acknowledge',
-    'modelRuntime',
+    'M3',
     d =>
       models(d, {
         consumption: {
@@ -218,97 +212,58 @@ const CASES: readonly Case[] = [
   [
     'Q2',
     'handoff.accept',
-    'test-port',
+    'I3',
     d => ({ ...d, handoff: { accept: failing(d.handoff.accept, fail(PORT_FAILURE), nth(2)) } }),
   ],
   [
     'I8',
     'journal.load',
-    'test-port',
+    'I8',
     d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(2)) }),
   ],
   [
     'F1',
     'journal.load',
-    'test-port',
+    'F1',
     d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(3)) }),
   ],
   [
     'F1',
     'journal.commit',
-    'test-port',
+    'F1',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('F1')) }),
   ],
   [
     'F3',
     'journal.tryFinish',
-    'test-port',
+    'F3',
     d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), nth(1)) }),
   ],
   [
     'F4',
     'journal.load',
-    'test-port',
+    'F3',
     d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(4)) }),
   ],
   [
     'O0',
     'journal.recordResult',
-    'test-port',
+    'F3',
     d =>
       journal(d, { recordResult: failing(d.journal.recordResult, fail(PORT_FAILURE), of('O0')) }),
   ],
 ]
 
-function invoke(assembly: LoopAssembly, id = 'exec-1') {
-  return assembly.provider.runtime.invoke({
-    ...alice,
-    execution: execution(id),
-    operation: operation(`invoke-${id}`),
-    initial: acceptedInput(`input-${id}`, `hello ${id}`),
-    grant: null,
-  })
-}
-
-/** The diagnostic of the halt of exec-1, read from the refusal of a later invoke. */
-async function haltOf(assembly: LoopAssembly): Promise<string> {
-  for (let turn = 0; turn < 200; turn += 1) {
-    const refused = failure(await invoke(assembly, 'exec-2'))
-    if (refused.kind === 'unavailable' && refused.diagnostic.includes('halted'))
-      return refused.diagnostic
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
-  throw new Error('the run never halted')
-}
-
-describe('a port failure on the normal path halts at its node with the port owner (#502 1.2 limit)', () => {
-  it.each(CASES)('%s: %s fails', async (node, _, owner, inject) => {
+describe('a port failure on the normal path stops the run at its node (#502 1.2 limit)', () => {
+  it.each(CASES)('%s: %s fails', async (node, _, position, inject) => {
     const assembly = await loopAssembly([execution(), execution('exec-2')], inject)
     assembly.release.open()
     ok(await invoke(assembly))
-    const halt = await haltOf(assembly)
-    expect(halt).toContain(`halted at ${node}:`)
-    expect(halt).toContain(`"owner":"${owner}"`)
-    expect(halt).not.toContain('#defect')
     // Before F3 the execution never ends. A failure at F4 or O0 comes after the ended commit, so
     // the execution is ended, but the runtime still holds the slot and does not show idle.
-    const loaded = ok(
-      await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-    )
-    if (node === 'F4' || node === 'O0') expect(loaded.state.kind).toBe('ended')
-    else expect(loaded.state.kind).not.toBe('ended')
-    const controller = new AbortController()
-    for await (const seen of assembly.provider.observation.observe({
-      ...alice,
-      signal: controller.signal,
-    })) {
-      controller.abort()
-      expect(seen).toMatchObject({
-        kind: 'state',
-        value: { kind: 'occupied', instance: instance() },
-      })
-      break
-    }
+    const state = await stoppedAt(assembly, position)
+    if (node === 'F4' || node === 'O0') expect(state.kind).toBe('ended')
+    else expect(state.kind).not.toBe('ended')
   })
 })
 

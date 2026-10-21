@@ -8,7 +8,6 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
-  AgentEvent,
   AgentExecutionHandle,
   AgentObservation,
   AgentState,
@@ -24,38 +23,16 @@ import {
   otherTenant,
   type Principal,
 } from './journal-support.ts'
-import { REPLY_TEXT, alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
+import {
+  REPLY_TEXT,
+  alice,
+  eventsOf,
+  invoke,
+  loopAssembly,
+  type LoopAssembly,
+} from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
-
-function invoke(assembly: LoopAssembly, id = 'exec-1') {
-  return assembly.provider.runtime.invoke({
-    ...alice,
-    execution: execution(id),
-    operation: operation(`invoke-${id}`),
-    initial: acceptedInput(`input-${id}`, `hello ${id}`),
-    grant: null,
-  })
-}
-
-/** Every event of the execution through the handle, until the ended event. */
-async function eventsOf(handle: AgentExecutionHandle<Principal>): Promise<AgentEvent[]> {
-  const events: AgentEvent[] = []
-  const controller = new AbortController()
-  for await (const page of handle.output.events({
-    ...alice,
-    execution: handle.execution,
-    after: null,
-    signal: controller.signal,
-  })) {
-    const read = ok(page)
-    if (read.kind !== 'page') throw new Error('a gap in a new execution')
-    events.push(...read.events)
-    if (read.events.some(event => event.body.kind === 'ended')) break
-  }
-  controller.abort()
-  return events
-}
 
 /** The states the instance shows, until `until` holds for one of them. */
 async function statesUntil(
@@ -170,8 +147,8 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    // U0 to Q4 run before the execution exists, E1, E2 and E4 only read, F3 is tryFinish, and F4,
-    // O0 and E9 come after ended: none of them writes a commit.
+    // U0 to Q4 run before the execution exists, E1, E2 and E4 only read, Q1 never commits
+    // (NA-Q1-1), F3 is tryFinish, and F4, O0 and E9 come after ended: none of them writes a commit.
     expect(log).toEqual([
       ['E3', 'E4'],
       ['I0', 'I1'],
@@ -185,7 +162,6 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
       ['M3', 'M4'],
       ['M4', 'M5'],
       ['M5', 'I3'],
-      ['Q1', 'Q2'],
       ['Q2', 'Q4'],
       ['Q4', 'I3'],
       ['I3', 'I4'],
