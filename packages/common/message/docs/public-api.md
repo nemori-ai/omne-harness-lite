@@ -317,6 +317,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `replay.copy` | 正 | `{"blocks":["thinking:k1","state:s1>k1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `ok; 成功值是冻结副本` |
 | `replay.projection` | 正 | `{"blocks":["text:t1","thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[2]}}` | `ok` |
 | `replay.projection` | 正 | `{"blocks":["thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `ok` |
+| `replay.projection` | 正 | `{"blocks":["text:t1","state:s1"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `ok` |
 | `replay.projection` | 反 | `{"blocks":["thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[2]}}` | `rejected:replay` |
 | `replay.projection` | 正 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[0,1]}}` | `ok` |
 | `replay.projection` | 反 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `rejected:replay` |

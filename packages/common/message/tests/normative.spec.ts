@@ -528,7 +528,7 @@ const EXPECTED_REASONING_ROWS: Readonly<Record<string, number>> = {
   'replay.at/正': 1,
   'replay.at/反': 8,
   'replay.copy/正': 1,
-  'replay.projection/正': 4,
+  'replay.projection/正': 5,
   'replay.projection/反': 3,
 }
 
