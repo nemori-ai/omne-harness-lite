@@ -3,7 +3,7 @@
 // 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -242,13 +242,19 @@ describe('影响面计划（真实规则）', () => {
     expect(describe_(result)).toContain('个计划成员，含必要依赖准备')
   })
 
-  it('Makefile：只跑 pytest 与常驻检查——make check 只经它跑常驻的几步与 make test，成员测试不经 make', () => {
-    const result = plan(['Makefile'])
-    expect(result.mode).toBe('scoped')
-    expect(result.files[0]?.category).toBe('python')
-    expect(result.python.run).toBe(true)
-    expect(result.test).toEqual([])
-    expect(result.build).toEqual(RESIDENT_BUILD)
+  it('根 package.json 与 scripts 下的入口脚本：全量——命令入口只在这两处，与 scripts/check.sh 同等对待', () => {
+    for (const path of [
+      'package.json',
+      'scripts/check.sh',
+      'scripts/check-design.sh',
+      'scripts/metrics.sh',
+      'scripts/slot-unless-plan-only.sh',
+      'scripts/test-tier.sh',
+    ]) {
+      const result = plan([path])
+      expect(result.mode, path).toBe('full')
+      expect(result.files[0]?.category, path).toBe('global')
+    }
   })
 
   it('锁文件：全量', () => {
@@ -382,7 +388,7 @@ describe('计划文件', () => {
   const baseRef = fixed.targetBase ?? head
   const base = coordinates(ROOT, baseRef).base
   const planFile = (overrides: Record<string, unknown>) => {
-    const dir = mkdtempSync(join(tmpdir(), 'check-plan-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'check-plan-')))
     dirs.push(dir)
     const path = join(dir, 'plan.json')
     const file = { head, dirty: false, base, plan: plan([]) }
@@ -422,7 +428,7 @@ describe('取改动', () => {
   }
 
   it('改名拆成删与增、非 ASCII 文件名原样：工作树改动与单个提交的改动都是如此', () => {
-    const root = mkdtempSync(join(tmpdir(), 'affected-rename-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'affected-rename-')))
     roots.push(root)
     run(root, 'init', '-q')
     run(root, 'config', 'user.email', 'x@example.com')

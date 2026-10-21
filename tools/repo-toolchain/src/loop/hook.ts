@@ -151,7 +151,7 @@ export function fingerprintOf(findings: readonly Finding[]): string {
 const HEAD = '收工前的结构读数（事实，不是指令）。这次变更里有下面几处读数落在线外：'
 const TAIL = [
   '这些要在交付说明里逐条交代：已处理，或保留及理由。同一组读数不会再提醒第二次。',
-  '完整输出：make loop-status BASE=<任务基线>',
+  '完整输出：pnpm run loop:status --base <任务基线>',
 ]
 
 /**

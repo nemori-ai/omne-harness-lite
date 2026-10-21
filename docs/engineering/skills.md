@@ -15,6 +15,8 @@
 
 参与本项目迭代维护前，人或agent须在实际使用的coding agent harness中安装并启用来源表指定版本的pstack与Matt插件。版本与revision以本表为准，安装完整插件不扩大方法采用范围。初始化、升级后复核和缺口处置沿[开发初始化](../development.md#初始化-coding-agent-插件)，负责人核对沿[给人的指南](../development_human.md#开始前准备-coding-agent-环境)。已有一台机器的安装记录不替代新机器、cloud环境或新宿主的初始化。
 
+Claude Code on the web 环境按负责人要求跟随上游最新版本：每次会话启动时，[会话脚本](../../.meta_harness/agents/cloud/claude-code/README.md)把 pstack port 与 Matt 插件更新到各自默认分支的最新版本。所以该环境的实际版本可能比本表新。版本差异按[开发初始化](../development.md#初始化-coding-agent-插件)核对和报告。跟随最新版本不改变本表的采用范围。
+
 Cursor Cloud 镜像把 Matt 这一 revision 的完整插件装进 ubuntu 用户的 `~/.agents/skills`，并链接到 `~/.cursor/skills`。步骤在[镜像说明](../development.md#cursor-cloud-agent-镜像)。这次安装不改变本表的采用范围，也不运行 `setup-matt-pocock-skills`。
 
 ## 阅读与实际加载
@@ -135,7 +137,7 @@ port 的 [Claude hooks](https://github.com/michael-denyer/pstack-claude/blob/60a
 
 文件与来源、宿主发现、原生调用、本次正文读取、hook 信任及执行、步骤遵循和行为结果分别提供证据。提醒不能证明加载；加载不能证明所有判断正确；有限行为通过不能推出未覆盖范围通过。单次任务记录精确源、跳过理由及实际检查，留任务 tmp。
 
-`make docs-inventory` 当前只检查登记的位置和结构；外部依赖闭包、宿主加载、实际遵循及行为结果未覆盖。`make agents-check` 也不能证明宿主发现或模型行为。
+`pnpm run docs:inventory` 当前只检查登记的位置和结构；外部依赖闭包、宿主加载、实际遵循及行为结果未覆盖。`pnpm run check:agents` 也不能证明宿主发现或模型行为。
 
 ## 完整 port 采用待定
 

@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -18,7 +19,7 @@ const runsAsRoot = process.getuid?.() === 0
 
 let root: string
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'omne-state-'))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-state-')))
 })
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })

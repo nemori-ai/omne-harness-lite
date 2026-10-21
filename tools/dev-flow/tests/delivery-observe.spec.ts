@@ -10,6 +10,7 @@ import {
   mkdirSync,
   symlinkSync,
   linkSync,
+  realpathSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -433,7 +434,7 @@ describe('delivery card layouts', () => {
       attempt: 'template-2',
       responsible: 'human',
       branch: 'human/template-2',
-      route: { kind: 'global', owners: ['human'] },
+      route: { kind: 'global', track: 'runtime', owners: ['human'] },
       completionTarget: 'main',
       taskBase: 'a'.repeat(40),
       writeScope: ['.github/ISSUE_TEMPLATE'],
@@ -806,7 +807,7 @@ describe('actual offline CLI', () => {
   it.each(['chain', 'reverse', 'two-chains', 'directory-parent'])(
     'rejects %s dangling output aliases with real target identities',
     mode => {
-      const dir = mkdtempSync(join(tmpdir(), 'delivery-chain-'))
+      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
       try {
         const cfg = join(dir, 'config.json'),
           missing = join(dir, 'missing.json'),
@@ -864,7 +865,7 @@ describe('actual offline CLI', () => {
   it.each(['cycle', 'long-chain'])(
     'rejects %s output symlink resolution before any write',
     mode => {
-      const dir = mkdtempSync(join(tmpdir(), 'delivery-cycle-'))
+      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-cycle-')))
       try {
         const cfg = join(dir, 'config.json'),
           cap = join(dir, 'capture.json'),
@@ -905,7 +906,7 @@ describe('actual offline CLI', () => {
     },
   )
   it('allows distinct dangling output targets without replacing capture data', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'delivery-distinct-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-distinct-')))
     try {
       const cfg = join(dir, 'config.json'),
         saved = join(dir, 'capture.json'),
@@ -944,7 +945,7 @@ describe('actual offline CLI', () => {
   })
 
   it('rejects dangling output aliases before live reads or writes', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'delivery-dangling-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-dangling-')))
     try {
       const cfg = join(dir, 'config.json'),
         missing = join(dir, 'missing.json'),
@@ -986,7 +987,7 @@ describe('actual offline CLI', () => {
   })
 
   it('rejects symlink and hardlink output aliases of input files', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'delivery-alias-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-alias-')))
     try {
       const cfg = join(dir, 'config.json'),
         cap = join(dir, 'capture.json'),
@@ -1022,7 +1023,7 @@ describe('actual offline CLI', () => {
   })
 
   it('produces a comparable report and exits zero with unknowns', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'delivery-cli-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-cli-')))
     try {
       const cfg = join(dir, 'config.json'),
         cap = join(dir, 'capture.json'),
@@ -1062,7 +1063,7 @@ describe('actual offline CLI', () => {
     }
   })
   it('rejects invalid/mismatched input without writing an empty report', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'delivery-cli-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-cli-')))
     try {
       const cfg = join(dir, 'config.json'),
         cap = join(dir, 'capture.json'),
@@ -1116,7 +1117,7 @@ describe('retired delivery structures', () => {
     expect(() => parseCapture({ ...capture(), protocolVersion: 1 })).toThrow()
   })
   it('real CLI rejects old formats and retired structural keys with exit 2', () => {
-    const root = mkdtempSync(join(tmpdir(), 'delivery-retired-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
     const cli = new URL('../src/delivery/cli.ts', import.meta.url).pathname
     const report = observeDelivery(config(), capture([issue(1)]))
     const cases = [

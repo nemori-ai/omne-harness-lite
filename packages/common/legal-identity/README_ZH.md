@@ -114,7 +114,7 @@ tenantCodec.encode(pair)
 | `tests/identity-type-names.spec.ts` | 名单本身，以及 `LoginIdentifier` 不在名单里 |
 | `tests/codec-variance.spec-d.ts` | 把 `accountCodec` 赋给账号与组织联合类型的 codec 是类型错误 |
 
-在本目录运行 `pnpm test`。它先构建 `dist`，再运行测试。运行 `pnpm typecheck` 按源码类型检查测试。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/legal-identity`。turbo 先构建 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。运行 `pnpm turbo run typecheck --filter=@omne-harness/legal-identity` 按源码类型检查测试。
 
 测试不覆盖对手写对象的类型层禁止，因为已接受的设计允许它们通过类型检查。测试也不覆盖重复 JSON 键，以及同时加载两份本包的情况。
 

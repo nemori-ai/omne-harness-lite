@@ -32,6 +32,7 @@ import type {
   FinishResult,
   InputBatchId,
   ModelReplyAdmission,
+  PendingCall,
   ReplyAdmissionPage,
   ResultResponsibility,
   TerminalObservation,
@@ -39,6 +40,7 @@ import type {
   Access,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   attachmentIdOf,
@@ -263,6 +265,17 @@ function sameResult(left: ResultResponsibility['result'], right: ResultResponsib
     left.producer.call === right.producer.call &&
     left.version === right.version
   )
+}
+
+/**
+ * The producer call that a pending call names: a Tool call keeps its id, and a Model call is read
+ * back from its saved ModelInvocationRef for the execution's tenant. A reference that does not
+ * resolve for that tenant names no call of this execution.
+ */
+function callOf(pending: PendingCall, tenant: TenantId): string | undefined {
+  if (pending.kind === 'tool') return pending.call
+  const parts = resolveModelInvocationRef(pending.reference, tenant)
+  return 'failure' in parts ? undefined : parts.ok.call
 }
 
 function sameEvidence(left: Evidence | null, right: Evidence | null): boolean {
@@ -975,7 +988,9 @@ export function createMemoryAgentJournal<P>(
         const command = input.command
         if (command.kind !== 'cancel' && command.kind !== 'suspend') {
           const call = command.call
-          if (!execution.checkpoint.calls.some(pending => pending.call === call)) {
+          if (
+            !execution.checkpoint.calls.some(pending => callOf(pending, execution.tenant) === call)
+          ) {
             return answer(fail(invalid('command.call', 'not a call of this execution')))
           }
         }

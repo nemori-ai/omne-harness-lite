@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
 import {
   access,
@@ -27,7 +28,10 @@ async function inspected(scripted: ReturnType<typeof scriptedProvider>, name: st
   return must(
     await scripted.provider.runtime.calls.inspect({
       ...access(name),
-      admission: operation(`admit-${name}`),
+      reference: invocationReference({
+        ...access(name),
+        admission: operation(`admit-${name}`),
+      }),
     }),
   )
 }
@@ -55,6 +59,7 @@ describe('a write whose commit is unknown', () => {
       call: call('a'),
       revision: '1',
       recovered: true,
+      reference: access('a').reference,
     })
     expect(await inspected(scripted, 'a')).toMatchObject({
       kind: 'found',
@@ -88,6 +93,7 @@ describe('a write whose commit is unknown', () => {
       call: call('a'),
       revision: '1',
       recovered: false,
+      reference: access('a').reference,
     })
     expect(must(await scripted.controller.queryCommit(query))).toEqual({
       kind: 'committed',
@@ -401,7 +407,12 @@ describe('a principal who lost access', () => {
     })
     const denial = (action: string) => ({ kind: 'denied', action })
     expect(
-      failureOf(await calls.inspect({ ...access('a'), admission: operation('admit-a') })),
+      failureOf(
+        await calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+        }),
+      ),
     ).toEqual(denial('inspect'))
     expect(failureOf(await calls.dispatches(access('a')))).toEqual(denial('dispatches'))
     expect(failureOf(await instances.connect(access('a')))).toEqual(denial('connect'))
@@ -421,7 +432,14 @@ describe('a principal who lost access', () => {
     expect(failureOf(await calls.admit(admission('a')))).toEqual(denial('admit'))
 
     const other = { ...access('a'), principal: bob }
-    expect(must(await calls.inspect({ ...other, admission: operation('admit-a') }))).toMatchObject({
+    expect(
+      must(
+        await calls.inspect({
+          ...other,
+          reference: invocationReference({ ...other, admission: operation('admit-a') }),
+        }),
+      ),
+    ).toMatchObject({
       kind: 'found',
       state: { call: call('a'), phase: 'settled' },
     })
@@ -439,7 +457,12 @@ describe('a principal who lost access', () => {
       action: 'cancel',
     })
     expect(
-      must(await calls.inspect({ ...access('a'), admission: operation('admit-a') })).kind,
+      must(
+        await calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+        }),
+      ).kind,
     ).toBe('found')
     scripted.controller.start({
       ...callRef('a'),

@@ -4,11 +4,13 @@
 
 ## 根入口
 
-[index.ts](index.ts) 是根入口，以 `export type *` 转出各章文件的全部类型（凭据章用 `export *`，同时带出 `MODEL_SEND`），并按名导出 18 个运行值。下表列出各文件对应的[公开页](../docs/public-api.md)章，公开页各章链接回这些文件：
+[index.ts](index.ts) 是根入口，以 `export type *` 或具名导出公开类型，并导出运行值。凭据章用 `export *`，同时带出 `MODEL_SEND`。完整导出清单见[公开页](../docs/public-api.md)。下表列出公开声明文件及其对应章节：
 
 | 文件 | 章 |
 | --- | --- |
-| [root.ts](root.ts)、[identity-values.ts](identity-values.ts)、[mint.ts](mint.ts) | 根入口的值与请求；身份解码与品牌铸造点 |
+| [root.ts](root.ts)、[identity-values.ts](identity-values.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；身份与解码 |
+| [reference.ts](reference.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；可保存引用的编码、解码与解析 |
+| [judge-request.ts](judge-request.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；`judgeFixedModelRequest`、`judgeAdmit`、输入拒绝与限额 |
 | [result.ts](result.ts) | 结果、失败和状态 |
 | [call-surface.ts](call-surface.ts) | 普通调用面与实例观察 |
 | [provider.ts](provider.ts) | 独立执行与提供者操作 |
@@ -20,15 +22,26 @@
 | [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 |
 | [diagnostics.ts](diagnostics.ts) | 供应商尝试诊断 |
 
+## 根入口的内部实现
+
+下列文件协作实现根入口的公开能力。公开导出以 [index.ts](index.ts) 为准。
+
+| 文件 | 内容 |
+| --- | --- |
+| [mint.ts](mint.ts) | 内部品牌铸造点 |
+| [input-tree.ts](input-tree.ts) | 输入树快照、资源限制与拒绝；`MODEL_INPUT_LIMITS` 经 `judge-request.ts` 从根入口导出 |
+| [request-shape.ts](request-shape.ts) | 固定请求的内部封闭字段判断 |
+
 ## `./testing` 入口
 
-[testing/](testing/index.ts) 是 `./testing` 入口，对应公开页的「受控替代提供者」一章。入口文件按名导出，其余是叶子文件：
+[testing/](testing/index.ts) 是 `./testing` 入口，对应公开页的「受控替代提供者」一章。公开名字以入口文件的具名导出为准。下表同时列出内部协作文件：
 
 | 文件 | 内容 |
 | --- | --- |
 | [testing/provider.ts](testing/provider.ts) | `createScriptedModelProvider`：装配 `calls`、`consumption`、`instances`、`recover`、`quiesce` 和控制器 |
 | [testing/controller.ts](testing/controller.ts) | 脚本控制器：推进调用、撤除或替换实例、撤销资格、脚本化提交未知、查询提交 |
 | [testing/calls.ts](testing/calls.ts)、[testing/consumption.ts](testing/consumption.ts) | `admit`、`inspect`、`dispatches`、`cancel` 与读取、确认 |
+| [testing/reference.ts](testing/reference.ts)、[testing/reference-input.ts](testing/reference-input.ts) | 内部引用失败映射；脚本夹具的引用构造与保留值负例 |
 | [testing/directory.ts](testing/directory.ts)、[testing/observation.ts](testing/observation.ts) | 实例目录与句柄；观察流 |
 | [testing/core.ts](testing/core.ts)、[testing/writes.ts](testing/writes.ts)、[testing/mint.ts](testing/mint.ts) | 共享状态与资格规则；写操作与提交未知；由数字铸造修订、游标与读取 id |
 | [testing/result-pages.ts](testing/result-pages.ts) | 最终项校验、规范 JSON 字节、完整项目标组页 |

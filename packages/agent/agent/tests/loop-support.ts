@@ -8,7 +8,11 @@ import {
   type AgentDependencies,
   type AgentProvider,
 } from '@omne-harness/agent'
-import { createTestAgentDependencies, type TestAgentControls } from '@omne-harness/agent/testing'
+import {
+  createTestAgentDependencies,
+  testAdoption,
+  type TestAgentControls,
+} from '@omne-harness/agent/testing'
 import {
   decodeInputBatchId,
   type AgentExecutionId,
@@ -26,6 +30,7 @@ import {
   decodeDispatchId,
   decodeModelOperationId,
   decodeResultVersion,
+  encodeModelInvocationRef,
   type ModelRuntime,
   type ResultPart,
 } from '@omne-harness/model-contract'
@@ -82,8 +87,13 @@ export const pendingCall: PendingCall = {
   consumption: consumption('step-1/main/reply'),
   position: { owner: 'agent', work: 'exec-1/step-1', position: 'I3', purpose: 'main' },
   fixed: evidence('fixed'),
-  call: modelCall('one'),
-  admission: ok(decodeModelOperationId('mop_one')),
+  reference: ok(
+    encodeModelInvocationRef({
+      tenant: tenantA,
+      call: modelCall('one'),
+      admission: ok(decodeModelOperationId('mop_one')),
+    }),
+  ),
   purpose: 'main',
 }
 
@@ -135,7 +145,8 @@ export function loopFacts(position: string, overrides: Partial<LoopFacts> = {}):
 // The Loop assembly
 
 export const selected: SelectedModel = {
-  recipient: { route: 'route-1', profile: adoption('profile') },
+  // A Model request accepts only an adoption whose digest is 64 hex digits, as testAdoption mints.
+  recipient: { route: 'route-1', profile: testAdoption('profile') },
   resolution: stub({ kind: 'resolved', selectable: true }),
   parameters: [],
   tools: evidence('tools'),

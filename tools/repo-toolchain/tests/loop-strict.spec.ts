@@ -1,6 +1,6 @@
 // @module-tag slow
 // 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
-// 严格模式（make check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
+// 严格模式（pnpm run check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'

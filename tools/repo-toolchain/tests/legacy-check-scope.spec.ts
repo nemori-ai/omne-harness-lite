@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -11,7 +11,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture(): string {
-  const root = mkdtempSync(join(tmpdir(), 'omne-legacy-scope-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-legacy-scope-')))
   roots.push(root)
   return root
 }

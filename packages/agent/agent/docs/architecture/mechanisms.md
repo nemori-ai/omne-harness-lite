@@ -423,8 +423,8 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 发起前后 | 输入已受理、尚未唤醒 | 权威输入水位线与受理时保存的内容（Journal.inputs）。有提交参加者时还有参加者的共同绑定 | 外部协调者或宿主发现后 resume。E2 读水位线，E4 回 I0 承接 | 因内存队列空提前完成。用调用方另存的副本代替受理内容 | E4 回 I0 | SC-AG-160、SC-AG-161 |
 | 发起前后 | 等待已保存，通知丢失或先于监听到达 | Waiting 列表与下一检查时刻随执行状态 waiting 提交。下一检查时刻的承载字段见 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入) | 唤醒后重读来源。进度已变即重新调度。到检查时刻按 reconciliationDelayMs 重读 | 把没有通知当作没有进展。把唤醒写成新挂接 | W0 回 E1、E2、E4 | SC-AG-161、SC-AG-185 |
 | 发起前后 | 纯求值后、意图未提交 | 没有合法外部效果。checkpoint 停在上一个 revision | 重读并重算。相同输入得到相同下一步 | 认为内存计算已完成业务 | E4 按 `position` 回原节点 | SC-AG-160、SC-AG-164 |
-| 发起前后 | 意图已存、尚未向生产者受理 | `effects` 中的 EffectIntent 与 PendingCall。生产者的 admission 可查询 | 按原 admission 查询生产者。已受理则等待。可信排除且当前仍合法时按原身份受理一次 | 分配第二个逻辑调用。用新的随机身份重试 | R0 回 A2 或 M6 | SC-AG-160、SC-AG-162 |
-| 发起前后 | 生产者已受理、回执丢失 | 原 call 与 admission 可由生产者认回 | 认回原受理。仍在途时在 M1 或 T0 等待 | 把超时等同没有发出 | M6 转 M1，A2 转 T0 | SC-AG-162 |
+| 发起前后 | 意图已存、尚未向生产者受理 | `effects` 中的 EffectIntent 与 PendingCall。Model 的 reference 已在首次 admit 前编码并保存；Tool 保持其原关联 | Model 凭 reference 和当前资格 inspect，已受理则等待，未知保持原意图；可信 not-accepted 且当前仍合法时沿原身份受理一次。Tool 按其原协议查询及恢复 | 分配第二个逻辑调用。用新的随机身份重试 | R0 回 A2 或 M6 | SC-AG-160、SC-AG-162 |
+| 发起前后 | 生产者已受理、回执丢失 | Model 原 reference 与固定输入已保存；Tool 保持其原 call/admission 关系 | Model 凭原 reference 对账，不依赖成功回包；Tool 按其协议认回。仍在途时在 M1 或 T0 等待 | 把超时等同没有发出 | M6 转 M1，A2 转 T0 | SC-AG-162 |
 | 提交回执丢失 | Journal 提交回执丢失 | 原操作身份、持久索引与接管围栏 | query 原操作。committed 取原结果回后继。unknown 等待。excluded 才重新求值 | 用新的随机身份重试。把查无记录当作 excluded | R0 回 E4 | SC-AG-163 |
 | 提交回执丢失 | 消息准入的提交回执未知（Q2） | accept 以操作身份加来源身份幂等 | 以同一操作身份与同一候选重新调用 accept 即是查询。接纳回执随 checkpoint 提交 | 换候选或换身份重新 accept。把拒收当作未调用 | Q2 转 R0，再 Q4 | SC-AG-163 |
 | 输出后 | Model 已接收首片、保存窗口未确认。拥有者 Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) | 接收窗口把首内容状态置为 uncertain。preserve 关闭窗口 | Model 按其协议收场：无法证明没有内容时保持 uncertain，以 runtime-lost 收场。Agent 在 M1 等待该收场 | 以未保存首片或用户没有看到为由重新请求。Agent 产生新的调用 | M1 转 M3 | SC-AG-165 |

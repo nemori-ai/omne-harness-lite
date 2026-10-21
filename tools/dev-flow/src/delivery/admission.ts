@@ -1,4 +1,4 @@
-import { runGhRead, type GhRead } from './github-read.ts'
+import { judgeParent, runGhRead, type GhRead } from './github-read.ts'
 import { declaredIssueParents, observeDelivery } from './observe.ts'
 import {
   array,
@@ -12,6 +12,12 @@ import {
 } from './protocol.ts'
 
 export type AdmissionScope = { task: string; authority: string }
+/**
+ * The task's Project state when a trusted source already read it: the item that proves
+ * membership in the configured Project and the Stage snapshot. With it, admission skips its own
+ * Project reads; the source is responsible for confirming the Stage field.
+ */
+export type AdmissionProject = { id: string; item: string; stage: string | null }
 export type AdmissionCapture = {
   schemaVersion: 1
   kind: 'github-admission-capture'
@@ -51,7 +57,6 @@ function issueNumber(repository: string, url: string): number {
     throw new InputError('Admission requires an exact same-repository Issue URL')
   return number
 }
-const PARENT = 'query($id:ID!){node(id:$id){... on Issue{id parent{url}}}}'
 const MEMBERSHIPS =
   'query($id:ID!,$cursor:String){node(id:$id){... on Issue{id url projectItems(first:100,after:$cursor,includeArchived:true){pageInfo{hasNextPage endCursor} nodes{id project{id}}}}}}'
 const FIELDS =
@@ -63,6 +68,7 @@ export function collectAdmission(
   config: DeliveryConfig,
   scope: AdmissionScope,
   read: GhRead = runGhRead,
+  project?: AdmissionProject,
 ): AdmissionCapture {
   const taskNumber = issueNumber(config.repository, scope.task)
   const authority = /^(.*)#issuecomment-([1-9]\d*)$/.exec(scope.authority)
@@ -76,18 +82,23 @@ export function collectAdmission(
     issues = new Map<string, CapturedIssue>(),
     closure = new Set([scope.task])
   let requests = 0
-  function request(argv: string[]): unknown {
+  /** Counts one request against the budgets and returns its timeout. */
+  function slot(): number {
     if (requests >= 200 || Date.now() >= deadline)
       throw new InputError('Admission request or time limit reached')
     requests += 1
+    return Math.min(15_000, Math.max(1, deadline - Date.now()))
+  }
+  function request(argv: string[]): unknown {
+    const timeoutMs = slot()
     try {
-      return read(argv, Math.min(15_000, Math.max(1, deadline - Date.now())))
+      return read(argv, timeoutMs)
     } catch {
       throw new InputError('Admission GitHub read failed. API output omitted.')
     }
   }
-  function rest(path: string): unknown {
-    return request([
+  function restArgv(path: string): string[] {
+    return [
       'api',
       '--method',
       'GET',
@@ -96,7 +107,18 @@ export function collectAdmission(
       '-H',
       'X-GitHub-Api-Version: 2026-03-10',
       `repos/${config.repository}/${path}`,
-    ])
+    ]
+  }
+  function rest(path: string): unknown {
+    return request(restArgv(path))
+  }
+  /** The native parent URL, null when GitHub states there is none; anything else refuses. */
+  function parentOf(number: number): string | null {
+    const timeoutMs = slot(),
+      parent = judgeParent(() => read(restArgv(`issues/${number}/parent`), timeoutMs))
+    if (parent.kind === 'unknown')
+      throw new InputError('Admission parent relation unknown. API output omitted.')
+    return parent.kind === 'parent' ? parent.url : null
   }
   function paged(path: string): unknown[] {
     const items: unknown[] = []
@@ -177,7 +199,7 @@ export function collectAdmission(
           text(record(item, 'dependency').html_url, 'dependency.url'),
         )
       : []
-    const parent = includeRelations ? node(PARENT, id).parent : null
+    const parentIssue = includeRelations ? parentOf(number) : null
     const issue: CapturedIssue = {
       number,
       url,
@@ -192,7 +214,7 @@ export function collectAdmission(
       commentsComplete: true,
       relationsComplete: includeRelations,
       blockedBy,
-      parentIssue: parent === null ? null : text(record(parent, 'parent').url, 'parent.url'),
+      parentIssue,
       stage: null,
     }
     issues.set(url, issue)
@@ -251,41 +273,55 @@ export function collectAdmission(
     }
   }
   fetchIssue(authorityUrl, false)
-  const fields = connection(FIELDS, projectId, 'fields', () => {})
-  const singleSelectFields = fields.flatMap(item => {
-    const field = record(item, 'Project field')
-    return text(field.__typename, 'Project field type') === 'ProjectV2SingleSelectField'
-      ? [text(field.id, 'Project field ID')]
-      : []
-  })
-  if (!singleSelectFields.includes(stageId))
-    throw new InputError('Configured Stage field is not confirmed on Project')
+  /** Confirms the Stage field, the task's unique membership and its Stage value over GraphQL. */
+  function readProjectState(task: CapturedIssue): void {
+    const fields = connection(FIELDS, projectId, 'fields', () => {})
+    const singleSelectFields = fields.flatMap(item => {
+      const field = record(item, 'Project field')
+      return text(field.__typename, 'Project field type') === 'ProjectV2SingleSelectField'
+        ? [text(field.id, 'Project field ID')]
+        : []
+    })
+    if (!singleSelectFields.includes(stageId))
+      throw new InputError('Configured Stage field is not confirmed on Project')
+    const memberships = connection(MEMBERSHIPS, task.id, 'projectItems', value => {
+      if (value.url !== task.url) throw new InputError('Project membership Issue identity mismatch')
+    }).map(item => record(item, 'Project membership'))
+    const matching = memberships.filter(
+      item =>
+        text(record(item.project, 'membership.project').id, 'membership.project.id') === projectId,
+    )
+    const membership = matching[0]
+    if (matching.length !== 1 || membership === undefined)
+      throw new InputError('Task Project membership is missing or ambiguous')
+    const values = connection(
+      VALUES,
+      text(membership.id, 'membership.id'),
+      'fieldValues',
+      value => {
+        if (record(value.project, 'item.project').id !== projectId)
+          throw new InputError('Project item identity mismatch')
+      },
+    )
+    let stageSeen = false
+    for (const item of values) {
+      const value = record(item, 'Project value')
+      if (text(value.__typename, 'Project value type') !== 'ProjectV2ItemFieldSingleSelectValue')
+        continue
+      if (text(record(value.field, 'value.field').id, 'value.field.id') !== stageId) continue
+      if (stageSeen) throw new InputError('Task Stage value is duplicated')
+      stageSeen = true
+      task.stage = text(value.name, 'Task Stage')
+    }
+  }
   const task = issues.get(scope.task)
   if (task === undefined || task.number !== taskNumber)
     throw new InputError('Admission task was not read')
-  const memberships = connection(MEMBERSHIPS, task.id, 'projectItems', value => {
-    if (value.url !== task.url) throw new InputError('Project membership Issue identity mismatch')
-  }).map(item => record(item, 'Project membership'))
-  const matching = memberships.filter(
-    item =>
-      text(record(item.project, 'membership.project').id, 'membership.project.id') === projectId,
-  )
-  const membership = matching[0]
-  if (matching.length !== 1 || membership === undefined)
-    throw new InputError('Task Project membership is missing or ambiguous')
-  const values = connection(VALUES, text(membership.id, 'membership.id'), 'fieldValues', value => {
-    if (record(value.project, 'item.project').id !== projectId)
-      throw new InputError('Project item identity mismatch')
-  })
-  let stageSeen = false
-  for (const item of values) {
-    const value = record(item, 'Project value')
-    if (text(value.__typename, 'Project value type') !== 'ProjectV2ItemFieldSingleSelectValue')
-      continue
-    if (text(record(value.field, 'value.field').id, 'value.field.id') !== stageId) continue
-    if (stageSeen) throw new InputError('Task Stage value is duplicated')
-    stageSeen = true
-    task.stage = text(value.name, 'Task Stage')
+  if (project === undefined) readProjectState(task)
+  else {
+    if (project.id !== projectId) throw new InputError('Project facts belong to another Project')
+    if (project.item.trim() === '') throw new InputError('Project facts membership is empty')
+    task.stage = project.stage
   }
   const result = snapshot()
   observeAdmission(config, result)

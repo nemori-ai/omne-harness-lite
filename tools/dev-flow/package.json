@@ -15,6 +15,8 @@
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
     "package:template": "node --experimental-strip-types src/package-template/cli.ts",
     "delivery": "node --experimental-strip-types src/delivery/cli.ts"
   },

@@ -1,10 +1,21 @@
 import { encodedBytes, MAX_SETTLEMENT_BYTES, MAX_TERMINATION_BYTES } from './pages.ts'
 import { checkedEvidence } from './value.ts'
-import { validateRequest } from './request.ts'
 import { randomUUID } from 'node:crypto'
 import { tenantKey } from './value.ts'
-import { decodeModelOperationId, decodeModelInstanceId } from '@omne-harness/model-contract'
-import type { ModelCommands, ModelCallId, Settlement, Lookup } from '@omne-harness/model-contract'
+import {
+  judgeAdmit,
+  encodeModelInvocationRef,
+  decodeModelOperationId,
+  decodeModelInstanceId,
+} from '@omne-harness/model-contract'
+import type {
+  ModelCommands,
+  ModelCallId,
+  ModelFailure,
+  Termination,
+  Settlement,
+  Lookup,
+} from '@omne-harness/model-contract'
 import {
   MemoryState,
   authFailure,
@@ -14,15 +25,87 @@ import {
   missingReceipt,
   tasks,
   unresolved,
+  type MemoryCall,
+  type TenantState,
 } from './state.ts'
-import { cursor, decimal, digest, invalid, resultVersion, revision } from './value.ts'
+import { cursor, digest, invalid, resultVersion, revision } from './value.ts'
 
+function settlementFailure(call: MemoryCall, termination: Termination): ModelFailure | null {
+  const pending = settlementPendingFailure(call)
+  if (pending) return pending
+  const actual = settlementActualFailure(call, termination)
+  if (actual) return actual
+  if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
+    return invalid('termination', 'encoded-byte-limit')
+  return null
+}
+function settlementPendingFailure(call: MemoryCall): ModelFailure | null {
+  const latest = call.dispatches.at(-1)
+  if (call.retryPosition && call.retry === null) return invalid('termination', 'retry-pending')
+  if (call.retry?.kind === 'retry') return invalid('termination', 'retry-pending')
+  if (latest && [...latest.windows.values()].includes('open'))
+    return invalid('termination', 'receive-pending')
+  return undecidedRetryFailure(call)
+}
+function settlementActualFailure(call: MemoryCall, termination: Termination): ModelFailure | null {
+  const latest = call.dispatches.at(-1)
+  const terminal = latest?.logicalTerminal
+  const stopped = call.retry?.kind === 'stop' ? { kind: 'failed', fault: call.retry.fault } : null
+  const actual = stopped ?? terminal
+  const beforeSendControl =
+    !latest &&
+    call.state.control.kind === 'requested' &&
+    termination.kind === 'interrupted' &&
+    termination.control === call.state.control.operation
+  if (
+    !beforeSendControl &&
+    (actual === null || actual === undefined || digest(actual) !== digest(termination))
+  )
+    return invalid('termination', 'not-actual')
+  return null
+}
+function undecidedRetryFailure(call: MemoryCall): ModelFailure | null {
+  const latest = call.dispatches.at(-1)
+  const terminal = latest?.logicalTerminal
+  if (
+    terminal?.kind === 'failed' &&
+    latest?.record.firstContent === 'none-proven' &&
+    !['input-over-limit', 'excluded', 'credential', 'input-rejected', 'modality'].includes(
+      terminal.fault.cause,
+    ) &&
+    call.retry === null &&
+    call.state.control.kind === 'none'
+  )
+    return invalid('termination', 'retry-not-decided')
+  return null
+}
+function pendingCalls(root: TenantState): readonly ModelCallId[] {
+  return [
+    ...new Set([
+      ...[...root.calls.values()]
+        .filter(call => tasks(call, unresolved(root, call.state.call)).length > 0)
+        .map(call => call.state.call),
+      ...[...root.operations.values()]
+        .filter(operation => operation.status === 'unknown')
+        .map(operation => operation.call),
+    ]),
+  ].sort()
+}
 export function callCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
   return {
-    admit: input =>
-      store.run(() => {
+    admit: raw => {
+      const checked = judgeAdmit(raw)
+      if ('failure' in checked)
+        return Promise.resolve({
+          failure:
+            checked.failure.field === '/tenant' && checked.failure.reason === 'identity'
+              ? { kind: 'denied', action: 'tenant' }
+              : { kind: 'invalid', ...checked.failure },
+        })
+      const input = checked.ok
+      return store.run(() => {
         const { call, operation, request, consumer, capacity } = input
         const fields = { call, operation, request, consumer, capacity }
         return store.write({
@@ -30,14 +113,9 @@ export function callCommands<P>(
           method: 'admit',
           fields,
           check: (previous, _root, replay) => {
-            const failure = authFailure(
+            return authFailure(
               store.authorize(input, replay ? 'facts' : 'admit', previous, call, consumer),
             )
-            if (failure) return failure
-            const invalidRequest = validateRequest(request)
-            return invalidRequest && replay
-              ? { kind: 'conflict', operation, revision: previous?.state.revision ?? revision() }
-              : invalidRequest
           },
           apply: draft => {
             if (draft.call)
@@ -46,12 +124,6 @@ export function callCommands<P>(
               }
             const owner = store.owner(consumer.owner)
             if (!owner) return { failure: invalid('consumer.owner', 'undeclared') }
-            if (
-              !decimal(capacity.bytes, true) ||
-              !decimal(capacity.blocks, true) ||
-              !decimal(capacity.attachmentBytes)
-            )
-              return { failure: invalid('capacity', 'integer') }
             for (const field of ['bytes', 'blocks', 'attachmentBytes'] as const) {
               const used = store.reserved(field)
               if (used + BigInt(capacity[field]) > BigInt(store.options.limits.capacity[field]))
@@ -59,8 +131,15 @@ export function callCommands<P>(
             }
             const actor = store.authorize(input, 'admit', undefined, call, consumer)
             if ('failure' in actor) return actor
+            const reference = encodeModelInvocationRef({
+              tenant: input.tenant,
+              call,
+              admission: operation,
+            })
+            if ('failure' in reference)
+              return { failure: invalid('reference', 'reference-' + reference.failure.reason) }
             const first = revision('1')
-            const admission = { call, revision: first, recovered: false }
+            const admission = { call, revision: first, recovered: false, reference: reference.ok }
             draft.call = {
               state: {
                 call,
@@ -85,6 +164,10 @@ export function callCommands<P>(
               snapshots: new Map(),
               reads: new Map(),
               cleanupFailure: null,
+              resultPaging: {
+                resultPageParts: store.options.limits.resultPageParts,
+                resultPageTargetBytes: store.options.limits.resultPageTargetBytes,
+              },
             }
             return {
               ok: { value: admission, receipt: { kind: 'admit', admission: { ...admission } } },
@@ -95,7 +178,8 @@ export function callCommands<P>(
               ? { ok: { ...binding.receipt.admission, recovered: true } }
               : missingReceipt(),
         })
-      }),
+      })
+    },
     recall: input =>
       store.run<Lookup>(() => {
         const key = store.identity(input)
@@ -204,45 +288,8 @@ export function callCommands<P>(
                   revision: call.state.revision,
                 },
               }
-            const latest = call.dispatches.at(-1)
-            if (call.retryPosition && call.retry === null)
-              return { failure: invalid('termination', 'retry-pending') }
-            if (call.retry?.kind === 'retry')
-              return { failure: invalid('termination', 'retry-pending') }
-            const terminal = latest?.logicalTerminal
-            const stopped =
-              call.retry?.kind === 'stop' ? { kind: 'failed', fault: call.retry.fault } : null
-            if (latest && [...latest.windows.values()].includes('open'))
-              return { failure: invalid('termination', 'receive-pending') }
-            if (
-              terminal?.kind === 'failed' &&
-              latest?.record.firstContent === 'none-proven' &&
-              ![
-                'input-over-limit',
-                'excluded',
-                'credential',
-                'input-rejected',
-                'modality',
-              ].includes(terminal.fault.cause) &&
-              call.retry === null &&
-              call.state.control.kind === 'none'
-            )
-              return { failure: invalid('termination', 'retry-not-decided') }
-            const actual = stopped ?? terminal
-            const beforeSendControl =
-              !latest &&
-              call.state.control.kind === 'requested' &&
-              input.termination.kind === 'interrupted' &&
-              input.termination.control === call.state.control.operation
-            if (
-              !beforeSendControl &&
-              (actual === null ||
-                actual === undefined ||
-                digest(actual) !== digest(input.termination))
-            )
-              return { failure: invalid('termination', 'not-actual') }
-            if (encodedBytes(input.termination) > MAX_TERMINATION_BYTES)
-              return { failure: invalid('termination', 'encoded-byte-limit') }
+            const legality = settlementFailure(call, input.termination)
+            if (legality) return { failure: legality }
             const version = resultVersion()
             const settlement: Settlement = {
               version,
@@ -276,6 +323,19 @@ export function recoveryCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
+  function scanPage(scope: string, after: string | null, limit: number) {
+    const root = store.root(scope)
+    const start = after === null ? null : scans.get(after)
+    if (after !== null && (!start || start.tenant !== scope))
+      return { failure: invalid('after', 'scan-cursor') }
+    const ids = start?.calls ?? pendingCalls(root)
+    const offset = start?.offset ?? 0
+    const calls = ids.slice(offset, offset + limit)
+    const end = offset + calls.length
+    const next = end < ids.length ? `scan_${randomUUID()}` : null
+    if (next) scans.set(next, { tenant: scope, calls: ids, offset: end })
+    return { ok: { calls, next } }
+  }
   return {
     scanPending: input =>
       store.run(() => {
@@ -289,28 +349,7 @@ export function recoveryCommands<P>(
           input.limit > store.options.limits.scanPageCalls
         )
           return { failure: invalid('limit', 'out-of-range') }
-        const root = store.root(scope)
-        const start = input.after === null ? null : scans.get(input.after)
-        if (input.after !== null && (!start || start.tenant !== scope))
-          return { failure: invalid('after', 'scan-cursor') }
-        const ids =
-          start?.calls ??
-          [
-            ...new Set([
-              ...[...root.calls.values()]
-                .filter(call => tasks(call, unresolved(root, call.state.call)).length > 0)
-                .map(c => c.state.call),
-              ...[...root.operations.values()]
-                .filter(operation => operation.status === 'unknown')
-                .map(operation => operation.call),
-            ]),
-          ].sort()
-        const offset = start?.offset ?? 0
-        const calls = ids.slice(offset, offset + input.limit)
-        const end = offset + calls.length
-        const next = end < ids.length ? `scan_${randomUUID()}` : null
-        if (next) scans.set(next, { tenant: scope, calls: ids, offset: end })
-        return { ok: { calls, next } }
+        return scanPage(scope, input.after, input.limit)
       }),
     loadRecovery: input =>
       store.run(() =>

@@ -37,9 +37,9 @@ design-reviewer 的判据不内联：三种判断各一页，在手册的 `refer
 
 **两个产品设计角色刻意不挂品味**：它们站在 product manager 视角，明令不做技术判断。
 product-design-reviewer 还明写不评判设计品味。工程品味会把它们往技术设计上拉。它们仍要按开工框架约束产品判断。
-`tooling/tests/test_role_sources.py` 守住这条：新角色忘了先挂框架、研发角色忘了接着挂品味，或产品角色误挂品味，`make test` 都会失败。
+`tooling/tests/test_role_sources.py` 守住这条：新角色忘了先挂框架、研发角色忘了接着挂品味，或产品角色误挂品味，`pnpm run test:python` 都会失败。
 
-改品味只改这一个文件，然后按工具入口重编生成物并运行 `make agents-check`；
+改品味只改这一个文件，然后按工具入口重编生成物并运行 `pnpm run check:agents`；
 已开着的 Claude Code 会话在启动时就固化了角色定义，要开新会话才会用上新正文。
 根 `AGENTS.md` 的同名一节只是给主会话的简短投影，原则级变化时再同步它。
 

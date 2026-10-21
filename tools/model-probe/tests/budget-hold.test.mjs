@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openLedger } from '../src/budget.mjs'
@@ -19,7 +19,7 @@ const reservation = (estimateUsd, stage = 'research') => ({
   estimateUsd,
 })
 async function fixture(t, state = 'unknown', estimateUsd = '1', stage = 'research') {
-  const directory = await mkdtemp(join(tmpdir(), 'omne-budget-hold-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-budget-hold-')))
   const path = join(directory, 'ledger.json')
   let ledger = await openLedger(path, budget)
   t.after(async () => {

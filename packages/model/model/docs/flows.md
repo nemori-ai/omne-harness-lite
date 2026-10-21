@@ -376,7 +376,8 @@ sequenceDiagram
   else 校验当前可知事实通过
     V-->>F: FixedModelRequest，不带预算
     F->>R: admit 固定call、operation、consumer与容量
-    R->>D: 可靠受理并保留待办
+    R->>R: 同步judgeAdmit；结构拒绝不进入Commands
+    R->>D: 合法输入沿原资格与容量事务受理
     D-->>R: 已受理或原提交未知
     R-->>F: 原受理结果，未知按原身份核实
     R->>H: 已确认受理后schedule；通知丢失由扫描补齐
@@ -405,6 +406,8 @@ deferred-media 只表示已经检查可知事实且列出了必要待核验引�
 
 承接 J-MD04..07。独立程序选择是否需要托管，二者都不创建隐式的域外工作身份。两种路径的输入合法性、当前访问和真实发送规则一致，恢复与保管责任不同。
 
+非托管 executeModel 已实现。下面的完整托管路径仍是目标行为。createModelRuntime 已实现受理、查询、取消意图、原流保存与最小实例观察，已支持[有限的原终局收场](../SPEC.md#已实现的调用收场)，结果读取与 processed ACK 已实现，retained ACK、自动清理及恢复仍未实现。
+
 ```mermaid
 sequenceDiagram
   participant C as 独立程序
@@ -416,14 +419,19 @@ sequenceDiagram
     C->>E: 固定请求、transport、signal
     E->>T: prepare并materialize
     alt 拒绝或start前取消
+      E->>T: 释放已取得资源
       E-->>C: not-started及原因
     else 最终资格允许
       E->>T: start一次
-      T-->>E: 规范化事实及真实终止
-      E-->>C: 原事实，无自动重试和ACK
+      loop 非终局事实
+        T-->>E: 规范化非终局事实
+        E-->>C: 原非终局事实
+      end
+      T-->>E: 首个真实终止
+      E->>T: 结束读取并尝试两级close
+      E-->>C: 原终局，无自动重试和ACK
       C->>S: 按自己的交付承诺保存必要事实
     end
-    E->>T: 结束后释放本次资源
   else 托管独立调用
     C->>R: admit原call、operation及consumer位置
     R-->>C: 原受理结果
@@ -438,6 +446,8 @@ sequenceDiagram
 ```
 
 非托管调用的 signal 取消只请求实际停止，完成竞争保留真实结局，失联不冒充停止已确认。需要发布给用户的独立程序自行兑现保留责任；需要故障恢复、有限重试和结果保管时选择托管路径。流迭代器提前退出须结束本次读取并释放所持资源，不能证明已撤回供应商执行；实际资源终止仍沿传输协议。
+
+独立执行在终局交付前完成全部清理尝试。清理失败保留原业务终局，后续 next、return 或 throw 报固定安全异常；消费者早退则在该次推进报告。原生 generator 的 return 等待已排队的 next，不提供抢占或关闭时限。具体边界归 [独立执行规格](../SPEC.md#独立执行)。
 
 托管程序退出不取消调用。恢复用原 admission/consumer 找回，不以新 call 重试未知受理。两条路径都按真实费用记账，未获得托管身份的事实由调用者持有独立关联，不能伪造 dispatch 进入他人原调用。
 

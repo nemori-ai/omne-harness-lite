@@ -91,7 +91,7 @@ it('engineering loop carries all task baselines and rejects stale context', asyn
 })
 
 function wrapperFixture() {
-  const home = mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-'))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-')))
   homes.push(home)
   const runner = join(home, 'runner'),
     subject = join(home, 'subject')
@@ -117,8 +117,12 @@ node() {
   local script=
   for argument in "$@"; do case "$argument" in --*) ;; *) script=$argument; break ;; esac; done
   case "$script" in
-    */testing/cli.ts) if [[ "$3" == plan ]]; then record plan "$@"; else record "$4" "$@"; fi ;;
-    */integration/cli.ts) printf '{"targetBase":"%s"}' "$BASELINE" ;;
+    */testing/cli.ts)
+      case "$3" in
+        baseline) printf '{"targetBase":"%s"}' "$BASELINE" ;;
+        plan) record plan "$@" ;;
+        *) record "$4" "$@" ;;
+      esac ;;
     */src/cli.ts) record rules "$@" ;;
     *) command node "$@" ;;
   esac
@@ -140,7 +144,6 @@ bash() {
     *) command bash "$@" ;;
   esac
 }
-make() { record make "$@"; }
 pnpm() { record pnpm "$@"; }
 `,
   )
@@ -174,7 +177,7 @@ it('runs the ordinary local check even when a subject root is set', () => {
   expect(result.status, result.stdout + result.stderr).toBe(0)
   const trace = readFileSync(f.trace, 'utf8')
   expect(trace).toContain(`plan --base ${f.base}`)
-  expect(trace).toContain('loop-status STRICT=1')
+  expect(trace).toContain(`loop:status --strict --base ${f.base}`)
   expect(trace).not.toContain('--scope engineering')
 })
 it('reads the hook root and each worktree own immutable task baseline', async () => {

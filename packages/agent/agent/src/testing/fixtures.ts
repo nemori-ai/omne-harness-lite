@@ -8,6 +8,7 @@
 // other doubles answer `unavailable` until scripted (selection, adoptions and conditions outside
 // their tables, extensions, cards, materials and reads; `derive` and `resume` answer
 // `unsupported`), so an unscripted path there cannot look like a success.
+import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   ActionAdmission,
@@ -42,9 +43,18 @@ export function testEvidence(record: string): Evidence {
   return { owner: TEST_OWNER, record, revision: '1', digest: `test:${record}` }
 }
 
-/** An adoption value that a double mints for a test. It names no real artifact. */
+/**
+ * An adoption value that a double mints for a test. It names no real artifact. Its digest is the
+ * SHA-256 of the name in lowercase hex, the form that the Model contract's request judgment
+ * requires, so an adoption from here can stand in a fixed Model request.
+ */
 export function testAdoption(name: string): Adoption {
-  return { owner: TEST_OWNER, name, revision: '1', digest: `test:${name}` }
+  return {
+    owner: TEST_OWNER,
+    name,
+    revision: '1',
+    digest: createHash('sha256').update(name).digest('hex'),
+  }
 }
 
 /** The failure of a port whose answer the test did not script. */

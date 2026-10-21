@@ -2,7 +2,7 @@
 
 本包拥有有界的口令派生与校验。身份成员保存本包给出的不透明材料，不拆开里面的参数。本包不登录、不保存账号、不保管密钥。
 
-成员位置是 `packages/identity/scrypt`。不在 Node 24 上重跑。测量平台是 darwin 25.5.0、arm64、Node v26.0.0、OpenSSL 3.6.2。包的 `engines` 写 `>=24.18.0 <25`，与同组其他包一致，这里不放宽。
+成员位置是 `packages/identity/scrypt`。不在 Node 24 上重跑。测量平台是 darwin 25.5.0、arm64、Node v26.0.0、OpenSSL 3.6.2。包的 `engines` 写 `>=24`，与其他成员一致；它只声明下限，不表示 Node 24 已验证。
 
 ## 参数
 

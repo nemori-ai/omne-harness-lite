@@ -1,5 +1,6 @@
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import {
+  deliver,
   judgePresence,
   judgeResolution,
   type Binding,
@@ -10,9 +11,11 @@ import {
   decodeCredentialId,
   type CredentialQuery,
   type CredentialReference,
+  type CredentialResolution,
+  type CredentialPort,
   type SendFace,
 } from '@omne-harness/model-contract'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 function identity(account: string, organization: string) {
   const a = accountCodec.parse(account)
@@ -94,16 +97,46 @@ it('denies without looking at bindings when the state is closed, the send is una
   expect(judgePresence(state(bindings), other)).toEqual({ kind: 'denied' })
 })
 
-it('reports presence by holder: the same id under another tenant is not present', () => {
-  expect(judgePresence(state([held('active')]), reference)).toMatchObject({
+it.each([
+  { label: 'active', bindings: [held('active')], present: true },
+  { label: 'revoked', bindings: [held('revoked')], present: true },
+  { label: 'unreadable', bindings: [held('unreadable')], present: true },
+  { label: 'no binding', bindings: [], present: false },
+  { label: 'same id under another tenant', bindings: [held('active', tenantB)], present: false },
+])('reports the complete known presence for $label', ({ bindings, present }) => {
+  expect(judgePresence(state(bindings), reference)).toEqual({
     kind: 'known',
-    present: true,
-  })
-  expect(judgePresence(state([held('active', tenantB)]), reference)).toMatchObject({
-    kind: 'known',
-    present: false,
+    id: reference.id,
+    tenant: tenantA,
+    purpose: MODEL_SEND,
+    present,
   })
 })
+
+it.each([
+  { kind: 'value', scope: 'tenant', value: 'synth-delivered' },
+  { kind: 'absent' },
+  { kind: 'denied' },
+  { kind: 'unreadable' },
+  { kind: 'unavailable' },
+] satisfies readonly CredentialResolution[])(
+  'deliver preserves the record and sends only a value for $kind',
+  resolution => {
+    const record = { reference }
+    const resolve = vi.fn<CredentialPort['resolve']>(() => resolution)
+    const result = deliver(record, { resolve }, face)
+    expect(resolve).toHaveBeenCalledTimes(1)
+    expect(resolve.mock.calls[0]?.[0]).toBe(record.reference)
+    expect(resolve.mock.calls[0]?.[1]).toBe(face)
+    expect(result.record).toBe(record)
+    expect(result).toStrictEqual({
+      record,
+      send:
+        resolution.kind === 'value' ? { sent: true, value: 'synth-delivered' } : { sent: false },
+    })
+    if (resolution.kind !== 'value') expect(result.send).not.toHaveProperty('value')
+  },
+)
 
 it('denies a querying tenant that was never minted, however official the send is', () => {
   const unminted = structuredClone(tenantA)

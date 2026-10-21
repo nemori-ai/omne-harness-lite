@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 153 个类型和 18 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 163 个类型和 28 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -25,10 +25,14 @@
 
 [行为与约束](../SPEC.md#342-根入口的值与请求)。
 
-本章给所有调用方：身份品牌与解码函数、受理请求的值形状。
+本章给所有调用方：身份品牌与解码函数、受理请求的值形状与共享封闭判断。
 
-- 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)。
-- 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)。
+`judgeFixedModelRequest(unknown)` 判断独立固定请求。`judgeAdmit<P>(ModelAdmitCandidate<P>)` 保留 typed Access，只将五个 payload 字段视为未知输入。二者返回现有 Outcome。成功值独立深冻结；admit 根浅冻结，P 与已铸造 tenant 保持原对象。失败为 ModelInputRejection 的 field/reason，field 是规范 JSON Pointer。字段集合、资源限制、失败顺序与 Proxy 限制归 [SPEC](../SPEC.md#封闭输入判断)。结构通过不授予资格、采用或容量。
+
+- 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
+- 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)、[`tests/reference.spec-d.ts`](../tests/reference.spec-d.ts)、[`tests/judge-request.spec-d.ts`](../tests/judge-request.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)、[`tests/reference.spec.ts`](../tests/reference.spec.ts)、[`tests/judge-request.spec.ts`](../tests/judge-request.spec.ts)。
+
+可保存引用的格式、失败顺序与恢复责任见 [SPEC](../SPEC.md#可保存调用引用)。三个普通入口使用 ModelReferenceAccess，底层 ModelInstanceDirectory 仍使用 CallAccess。
 
 身份和序列的文本规则如下，行为条款归[根入口的值与请求](../SPEC.md#342-根入口的值与请求)。
 
@@ -37,9 +41,9 @@
 - 身份类（`ModelCallId`、`DispatchId`、`ModelInstanceId`、`ModelOperationId`、`ResultVersion`、`ReadId`、`ModelDiagnosticId`、`ModelDiagnosticCursor`）是固定前缀加主体。前缀见 `MODEL_IDENTITY_PREFIXES`，主体是 1 个以上 `[A-Za-z0-9_-]` 字符。只比较相等，用 `===`。
 - 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions` 与 `compareOutputCursors`，按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
 - 无前缀类（只有 `CredentialId`）由人在凭据保管的配置路径上命名，不由 Model 铸造，所以没有前缀。它的字符规则不同，见[凭据引用与解析端口](#凭据引用与解析端口)。
-- 全部品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
+- 上述单一身份品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
 - 失败值的 `field` 是品牌键 `ModelIdentityKey`（例如 `'ModelDispatchId'`），不是导出类型名（`DispatchId`）。品牌键带领域前缀，跨领域日志中不会与 Tool 的同名身份混淆。
-- 品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。品牌相等即文本相等，不发布相等函数。
+- 上述单一身份品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。ModelInvocationRef 和 ModelOperationRef 另有编码函数与 1024 上限。品牌相等即文本相等，不发布相等函数。
 - `ModelOperationId` 的主体不得以 `--` 开头。该前缀保留给守卫派生的控制 operation（见[消费者 owner 的装配声明](#消费者-owner-的装配声明)）。`decodeModelOperationId` 仍只核格式，不拒绝它。接受调用方提交的 `ModelOperationId` 的公开方法在收到保留值时按[资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送)返回 `invalid`。
 
 ## 结果、失败和状态
@@ -78,6 +82,8 @@ ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)
 
 - 声明：[`src/provider.ts`](../src/provider.ts)。
 - 类型探针：[`tests/provider.spec-d.ts`](../tests/provider.spec-d.ts)。
+
+ModelSendBoundary 的 started 结果同时包含已确认的原 window 和唯一 facts 流。消费者将返回的 window 用于 preserve；Commands 仍核原调用、执行、分派与租户绑定。未知记录认回沿 [接收窗口行为](../SPEC.md#342-重试失联与恢复)，不再次 start。
 
 ToolDeclaration 是 Model 的请求值，只表达名称、已组装说明和参数 JSON Schema。请求组装者负责从工具定义形成该值并保存原工具及命令路由，Model 不读取 ToolDefinition、programmable 或工具注册表。ModelToolPayloadAdapter 将该请求值转换为供应商私有 payload。工具调用输出采用 [共享 ToolCallPart](../../../common/message/docs/public-api.md)，不复制消息关联身份。
 
@@ -206,7 +212,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 本章给诊断提供者和有诊断授权的只读调用方：诊断记录、分页与两个身份解码函数。
 
-- 声明：[`src/diagnostics.ts`](../src/diagnostics.ts)、[`src/identity-values.ts`](../src/identity-values.ts)。
+- 声明：[`src/diagnostics.ts`](../src/diagnostics.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)。
 - 类型探针：[`tests/diagnostics.spec-d.ts`](../tests/diagnostics.spec-d.ts)。
 
 诊断是独立授权的只读面，不挂到普通调用句柄上，也不要求所有 ModelRuntime 消费者依赖它。提供者从原调用和 dispatch 的耐久事实投影，不接受普通调用者提交诊断内容。
@@ -221,7 +227,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - `ScriptedWriteAction` 是 `src/testing/writes.ts` 里 `WriteAction` 的导出别名，由 [`src/testing/index.ts`](../src/testing/index.ts) 声明。
 - 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
 
-`@omne-harness/model-contract/testing` 入口给领域外的协调者和契约符合性测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，不核验请求内容或媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。同一入口还有[符合性断言](#符合性断言)，任何提供者都可以用它检查自己。
+`@omne-harness/model-contract/testing` 入口给领域外的协调者和契约符合性测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。同一入口还有[符合性断言](#符合性断言)，任何提供者都可以用它检查自己。
 
 `controller.settle` 显式接收 parts、pageSize 和 pageTargetBytes，不从 play 自动结算。它校验最终项、真实 trim 的形状和原受理容量，在发布结算前按固定页源深复制。首项总能入页，超目标单项独页；后项按规范 parts 数组字节及项数贪心组页。整个 ResultPage（含 Settlement、next 和包装）不得超过原 C。超额或非法输入抛 ScriptedModelError，保留原生命周期。配置或返回对象的后续修改不改变原结果。具体领取与 partial 资格见 [普通调用面](#普通调用面与实例观察)。
 
@@ -260,7 +266,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 | `admission-conflict-on-different-input` | 同 operation 配不同固定输入返回 `conflict`，并指名这个 operation | [逐操作行为](../SPEC.md#342-逐操作行为) | |
 | `operation-not-reused-across-methods` | 受理用过的 operation 再用于取消不成功，调用状态不变 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
 | `admission-is-not-a-send` | 刚受理的调用不显示已开始的发送 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `reserved-operation-refused` | `admit`、`cancel`、`inspect`、`beginRead`、`acknowledge` 收到保留 operation 返回 `invalid`，字段名取承载 operation 的字段 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
+| `reserved-operation-refused` | `admit`、`cancel`、`inspect`、`beginRead`、`acknowledge` 收到保留 operation 返回 `invalid`，字段名取承载 operation 的字段；引用内的保留 admission 由 reference 拒绝 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
 | `refused-admission-forms-no-call` | 被拒的受理不形成调用：同一调用用别的 operation 再受理，是首次受理 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
 | `commit-unknown-keeps-operation` | 受理提交未知后，失败值指名原 operation；同 operation 重试认回原调用；另一个调用用这个 operation 不成功。`applied` 与 `dropped` 各检查一次 | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | `failNextWrite` |
 | `commit-unknown-not-reported-as-refusal` | 已生效的受理回答提交未知后，`inspect` 不报 `not-accepted` | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite` |
