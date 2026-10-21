@@ -18,7 +18,9 @@
 | 纯契约函数已实现 | 本包没有。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | `createIndependentToolScope` 与 `executeTool`。作用域用本地接收者、显式上限和内存等待历史。回执只有 `local` | 根入口 | 作用域与包装器的 P11 规则，用可控的接收者与提供者替身核对。没有真实执行环境，不含 Cordis |
 | runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者。driver 自动保管原 live 的 process/final 并确认来源，支持信号取消和 cursor 续接，并从已存原 final 收场、修复名额释放及保留异常输出责任。环境清理支持计划和报告核验。内容字节页与原件元数据按当前资格读取，字节读取须显式提供者 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
-| 尚未交付的宿主与提供者 | 真实环境 release 自动驱动、完整异常源恢复。控制、完整计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
+| 尚未交付的宿主与提供者 | 真实环境 release 自动驱动、完整异常源恢复、晚到结果生成。控制、完整计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
+
+交付解除核对 `retained` 与 `processed` 证据是否属于原 consumer。测试对两条路径分别注入已落地与未落地的未知提交，查询原 operation、核对交付任务并读取固定版本。已有记录夹具按两种顺序解除原始版本和两个 supplement，核对各版本独立释放。夹具不验证晚到结果生成。上述验证均使用非耐久内存记录仓。
 
 已启动调用在原 final 独立保管及收场提交前保持名额。driver 随后按原操作修复 queue 释放；原调用成功回执本身不证明 queue 待办已经关闭。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。账本通过 `commands.recordFactAcknowledgement` 保存来源确认。runtime 推进协程自动续读原事实并确认来源；已支持名额释放，环境资源释放仍是独立责任。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
 
@@ -151,7 +153,11 @@ tool/
 
 完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
 
-普通调用方使用 `runtime.invoke({ principal, tenant, request })` 并保存返回的调用引用。同租户、完整 consumer 与固定请求认回原调用；新执行须新 consumer。queries.lookup 按原 admission 定位并返回当前权威状态，包含交付状态。invoke 的 state 保留受理时状态；commands.releaseDelivery 成功返回 released 与生产者原耐久回执，不附操作引用，也不承诺新增写入。未知回执用其操作引用经 queries.queryOperation 查询。可靠否定只否定该次操作，调用方此后可明确再次释放以取得已有回执；未知或不可读时不能自动重发。持久读取和交付不要求连接实例目录。每次访问都核当前主体与租户，引用不授予权限。完整响应丢失后，以原完整意图再次 invoke 认回；association-unknown 没有引用。
+普通调用方使用 `runtime.invoke({ principal, tenant, request })` 并保存返回的调用引用。同租户、完整 consumer 与固定请求认回原调用；新执行须新 consumer。queries.lookup 按原 admission 定位并返回当前权威状态，包含交付状态。invoke 的 state 保留受理时状态；commands.releaseDelivery 成功返回 released 与生产者原耐久回执，不附操作引用，也不承诺新增写入。未知回执用其操作引用经 queries.queryOperation 查询。可靠否定只否定该次操作，调用方此后可明确再次释放以取得已有回执。
+
+未知答复不等于交付仍为 pending。提交已落地时，原操作查询为 committed，lookup 可见 released。尚未解除的交付首次提交未落地且得到可靠否定时，pending 交付与任务保持。未知或不可读时不能自动重发。生产者确认尚未认回前，保存原操作引用及消费方的保管或完成责任。
+
+解除不删除全文、原附件和必要过程，固定版本仍可读取。持久读取和交付不要求连接实例目录。每次访问都核当前主体与租户，引用不授予权限。完整响应丢失后，以原完整意图再次 invoke 认回；association-unknown 没有引用。
 
 装配者提供受信身份端口与真实来源签发器，本包不提供生产默认签发器。测试须显式装配 createTestInvocationSource({ authority, snapshotPrincipal }) 的配对 issuer/guard；来源自身原子分配调用身份，createTestToolIdentities 只提供操作和实例身份。宿主向 driver.run 显式提供实例身份，同一存活实例重复唤醒沿用。测试替身不证明生产 host、claim、接管或耐久性。
 

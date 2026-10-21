@@ -172,7 +172,11 @@
 
 `releaseDelivery` 先用契约的 `judgeConsumerRef` 与 `judgeHandoff` 封闭检查消费位置与交接证据，再比较或计算摘要。多出的字段回复 `invalid`（`unknown-field`），函数等非文本值回复 `invalid`（`type`），字段前缀是 `consumer.` 或 `evidence.`。之后核版本、交付号与消费位置都是记录的值：未知调用回复 `invalid`（`call: unknown-call`），交付号不符回复 `invalid`（`delivery: mismatch`），版本未知回复 `invalid`（`result: unknown-version`），消费位置不同回复 `conflict`，`operation` 是形成该版本的操作。`retained` 的 `custody` 或 `processed` 的 `completion` 的 `owner` 必须等于消费者的 `owner`，否则回复 `invalid`（`evidence.<custody|completion>.owner: owner-mismatch`）。
 
-通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取。
+通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取，原附件和必要过程也独立保留。解除交付不授权删除内容。
+
+未知答复不等于交付必然 `pending`。内存记录仓的 `unknown-dropped` 不应用写集合，首次解除后查询原操作得到 `not-committed`，目标交付、原 `deliver` 任务与内容保持。`unknown-applied` 已应用写集合，查询原操作得到 `committed`，`lookup` 可见目标已 `released`，该版本的任务已经结束。查询不可读时保留原操作与承接责任，不自动重发。可靠否定后明确再次解除时，若尚未解除才提交，若已有释放事实则返回原回执。
+
+版本隔离按已有结果记录兑现。解除原始版本只更新其 delivery；解除 supplement 只更新 result 相同的 supplement。其他版本的完整 delivery、交付任务与固定版本内容保持不变。每个版本使用自己的 result、delivery 和原 consumer。当前 `recordLateResult` 尚未实现，多版本释放测试采用已有记录夹具，只验证释放隔离，不证明晚到结果生成。
 
 ### 17 工厂与后续增量
 
