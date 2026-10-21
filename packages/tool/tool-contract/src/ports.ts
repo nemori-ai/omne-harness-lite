@@ -26,6 +26,7 @@ import type {
   ToolDirectory,
   ToolHandle,
   ToolInvokeRequest,
+  ToolDefiniteFailure,
   ToolRuntime,
 } from './operations.ts'
 import type {
@@ -198,29 +199,34 @@ export interface ToolInstanceHost<P> {
   readonly directory: ToolDirectory<P>
 }
 /**
- * The identity mints of the trusted providers. A new invocation is a fresh pair of a call and its
- * admission; a new operation is a fresh operation of an admitted call; a new instance is the
+ * The operation and instance identity mints of trusted providers. Invocation identities belong
+ * to the source association. A new operation belongs to an admitted call; a new instance is the
  * identity of one hosted instance the host creates. A mint never reuses a value it returned
  * before, also not after a restart of the provider.
  */
-export interface ToolInvocationIdentities {
-  newInvocation(): Reply<Readonly<{ call: ToolCallId; admission: ToolOperationId }>>
-}
 export interface ToolOperationIdentities {
   newOperation(): Reply<ToolOperationId>
 }
 export interface ToolInstanceIdentities {
   newInstance(): Reply<ToolInstanceId>
 }
-/**
- * The trusted entry binds the invocation source of an ordinary invoke. The bind persists the
- * whole binding: the principal, the tenant, the call and the admission, the fixed payload, the
- * consumer and the scope, and the real entrance. The answered invocation is what the admission
- * carries; the source guard later verifies a request against this binding. A caller cannot
- * supply the invocation, so an arbitrary JSON is never signed as `direct`.
- */
+/** The source owns the atomic tenant/consumer association and its original identities. */
+export type ToolInvocationSourceOutcome =
+  | Readonly<{
+      kind: 'bound'
+      call: ToolCallId
+      admission: ToolOperationId
+      invocation: ToolInvocation
+      recovered: boolean
+    }>
+  | Readonly<{ kind: 'issuance-unknown'; call: ToolCallId; admission: ToolOperationId }>
+  | Readonly<{ kind: 'association-unknown' }>
+  | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
+
 export interface ToolInvocationSourceIssuer<P> {
-  bind(input: Mutation<P> & Readonly<{ request: ToolInvokeRequest }>): Reply<ToolInvocation>
+  resolve(
+    input: Access<P> & Readonly<{ request: ToolInvokeRequest }>,
+  ): Promise<ToolInvocationSourceOutcome>
 }
 export interface ToolDriver<P> {
   run(

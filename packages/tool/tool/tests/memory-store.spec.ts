@@ -271,4 +271,54 @@ describe('18 the non-durable store', () => {
     }
     expect(await store.read(other)).toEqual({ kind: 'complete', revision: '0', records: [] })
   })
+  it('18 store: a rejected copy preserves every record and the revision', async () => {
+    const store = createMemoryToolLedgerStore<Block>()
+    const host: LedgerDomain = { kind: 'host', tenant: tenantA, key: 'atomic-copy' }
+    const kept: LedgerRecord<Block> = { kind: 'host', host: { key: 'kept', value: { n: 1 } } }
+    const removed: LedgerRecord<Block> = { kind: 'host', host: { key: 'removed', value: [2] } }
+    const next = {
+      kind: 'host',
+      host: { key: 'next', value: { n: 3 } },
+    } satisfies LedgerRecord<Block>
+    await store.commit({
+      domain: host,
+      expected: ok(decodeToolRevision('0')),
+      revision: ok(decodeToolRevision('1')),
+      writes: [kept, removed].map(record => ({ kind: 'put', record })),
+    })
+    const before = await store.read(host)
+    let failure: unknown
+    try {
+      await store.commit({
+        domain: host,
+        expected: ok(decodeToolRevision('1')),
+        revision: ok(decodeToolRevision('2')),
+        writes: [
+          { kind: 'delete', key: recordKey(removed) },
+          { kind: 'put', record: next },
+          { kind: 'put', record: { kind: 'host', host: { key: 'bad', value: () => null } } },
+        ],
+      })
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(await store.read(host)).toEqual(before)
+    expect(
+      await store.commit({
+        domain: host,
+        expected: ok(decodeToolRevision('1')),
+        revision: ok(decodeToolRevision('2')),
+        writes: [
+          { kind: 'delete', key: recordKey(removed) },
+          { kind: 'put', record: next },
+        ],
+      }),
+    ).toEqual({ kind: 'committed' })
+    expect(await store.read(host)).toEqual({
+      kind: 'complete',
+      revision: '2',
+      records: [kept, next],
+    })
+  })
 })

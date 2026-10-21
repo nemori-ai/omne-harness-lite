@@ -53,7 +53,7 @@ export interface MemoryToolLedgerStore<B extends ContentBlock> extends ToolLedge
 
 type Domain<B extends ContentBlock> = {
   revision: ToolRevision
-  readonly records: Map<string, LedgerRecord<B>>
+  records: Map<string, LedgerRecord<B>>
 }
 
 /** The key of a domain: the JSON of its parts, so no identity text can collide with another. */
@@ -85,10 +85,12 @@ export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToo
   }
 
   const apply = (target: Domain<B>, input: LedgerCommitInput<B>): void => {
+    const records = new Map(target.records)
     for (const write of input.writes) {
-      if (write.kind === 'put') target.records.set(recordKey(write.record), copy(write.record))
-      else target.records.delete(write.key)
+      if (write.kind === 'put') records.set(recordKey(write.record), copy(write.record))
+      else records.delete(write.key)
     }
+    target.records = records
     target.revision = input.revision
   }
 

@@ -228,11 +228,11 @@ sequenceDiagram
     participant A as 共同启动围栏
     participant X as 固定执行绑定
     C->>R: invoke主体 租户 payload
-    R->>R: 分配身份 绑定受信来源
+    R->>R: 先固定请求 再由来源原子建立或认回身份
     R->>T: admit原身份和固定请求
     T->>T: 状态 回执 待办同提交
     T-->>R: 原受理回执
-    R-->>C: accepted调用引用和状态
+    R-->>C: accepted原调用引用 原受理状态 recovered
     H->>T: loadRecovery及认领协调权
     H->>T: planPreparation
     H->>E: prepare原操作
@@ -679,3 +679,9 @@ sequenceDiagram
 [问题登记](../../../../.meta_harness/design/product/tool-execution/design.md#未决问题与待定事项)继续拥有 TOOL-M01 至 TOOL-M04 与 TOOL-E01 技术兑现。本页不生成新产品默认或另一套问题 JSON。精确 Schema/API、发起共同有效边界、认领围栏、控制传播与级联、未知提交、结果交接确认、连续等待资源、在途耐久、分页和性能分别由工具成员、发起或消费协调者、决策方、存储及提供者承担；图中语义路径可读不表示这些机制已兑现。
 
 [成员持续验证义务](../SPEC.md#持续验证义务)与[旅程能力验证入口](../SPEC.md#旅程能力与验证入口)规定工具、存储、控制、模态、故障、外部效果及性能验证的范围。结构和图检查不证明这些运行保证。
+
+## 普通调用丢答后的重入
+
+调用方先保存原 consumer 与完整固定请求。来源 resolve 先核当前资格，再原子建立或认回原关联。来源、admission 与宿主各自拥有签发、受理及唤醒责任。accepted.state 是原回执，当前状态通过 lookup 读取。
+
+association-unknown 时没有引用，继续提交原意图。commit-unknown 时已有原引用，仍沿原 invoke 续做来源或准入。请求冲突不替换关联，撤权不泄露原身份，settled 不重跑。每次公开 control 生成新 operation；旧 unknown 用旧引用独立查询，新 committed 不能替它收场。行为唯一正文见 [普通操作](../SPEC.md#342-普通操作与实例目录)。

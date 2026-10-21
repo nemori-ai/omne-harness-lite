@@ -15,6 +15,7 @@ import {
   referenceFor,
   tenantA,
   type Block,
+  testSettlementPorts,
 } from './runtime-values.ts'
 import { testAssembly } from './testing-values.ts'
 
@@ -97,27 +98,54 @@ describe('17 the runtime factory and later increments', () => {
       ['queueCapacity', 2.5],
     ] as const)
       expect(() =>
-        createToolLedger(store, guards(), clock, configuration({ [key]: value })),
+        createToolLedger(
+          store,
+          guards(),
+          clock,
+          configuration({ [key]: value }),
+          testSettlementPorts(),
+        ),
       ).toThrow(`configuration.${key}: range`)
-    expect(() => createToolLedger(store, guards(), clock, null as never)).toThrow(
-      'configuration: type',
-    )
+    expect(() =>
+      createToolLedger(store, guards(), clock, null as never, testSettlementPorts()),
+    ).toThrow('configuration: type')
+  })
+
+  it('requires explicit settlement ports without the old construction fallback', () => {
+    const store = createMemoryToolLedgerStore<Block>()
+    const clock = testAssembly().dependencies.clock
+    const ports = testSettlementPorts()
+    expect(() =>
+      createToolLedger(store, guards(), clock, configuration(), undefined as never),
+    ).toThrow('settlement.custody.retainResult: missing')
+    expect(() =>
+      createToolLedger(store, guards(), clock, configuration(), {
+        ...ports,
+        releaseInspection: {} as never,
+      }),
+    ).toThrow('settlement.releaseInspection.inspectRelease: missing')
+    expect(() =>
+      createToolLedger(store, guards(), clock, configuration(), {
+        ...ports,
+        content: undefined as never,
+      }),
+    ).toThrow('settlement.content.read: missing')
   })
 
   it('17 factory: the trusted construction ports are required at construction', () => {
     const { dependencies } = testAssembly()
     expect(() =>
       createToolRuntime(
-        { ...dependencies, invocationIdentities: undefined as never },
-        configuration(),
-      ),
-    ).toThrow('dependencies.invocationIdentities: missing')
-    expect(() =>
-      createToolRuntime(
         { ...dependencies, operationIdentities: undefined as never },
         configuration(),
       ),
     ).toThrow('dependencies.operationIdentities: missing')
+    expect(() =>
+      createToolRuntime({ ...dependencies, facts: undefined as never }, configuration()),
+    ).toThrow('dependencies.facts: missing')
+    expect(() =>
+      createToolRuntime({ ...dependencies, facts: {} as never }, configuration()),
+    ).toThrow('dependencies.facts.read: missing')
     expect(() =>
       createToolRuntime({ ...dependencies, sourceIssuer: undefined as never }, configuration()),
     ).toThrow('dependencies.sourceIssuer: missing')
@@ -137,14 +165,6 @@ describe('17 the runtime factory and later increments', () => {
       recover: provider.recover({ principal: principalA, tenant: tenantA }),
       quiesce: provider.quiesce(),
       inspectDrain: provider.inspectDrain({ principal: principalA, tenant: tenantA }),
-      contentRead: runtime.content.read({
-        ...access,
-        reference,
-        result: 'v1' as never,
-        attachment: { storage: 's', key: 'k', mediaType: 'text/plain', bytes: '1', digest: 'x' },
-        after: null,
-        maxBytes: 16,
-      }),
     }
     for (const [name, probe] of Object.entries(later)) {
       const answer = await probe
@@ -159,7 +179,6 @@ describe('17 the runtime factory and later increments', () => {
               failure: { kind: 'unsupported', reason: expect.stringContaining('not implemented') },
             },
       ])
-      // The runtime names itself; content.read is answered by the ledger, which names itself.
       const failure =
         name === 'control'
           ? ((answer as { failure?: { kind: string; adoption?: { name: string } } }).failure ??
