@@ -12,6 +12,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { LoopPorts } from './coordinator.ts'
+import { diagnosticOf } from './diagnostic.ts'
 
 export async function waitForExecutionChange<P>(
   input: Readonly<{
@@ -57,7 +58,7 @@ export async function waitForExecutionChange<P>(
     pumpFailure ??= {
       kind: 'unavailable',
       owner: '@omne-harness/agent#defect',
-      diagnostic: String(error),
+      diagnostic: diagnosticOf(error),
     }
     wake(fail(pumpFailure))
   }
@@ -154,7 +155,7 @@ export async function waitForExecutionChange<P>(
           fail({
             kind: 'unavailable' as const,
             owner: '@omne-harness/agent#defect',
-            diagnostic: String(error),
+            diagnostic: diagnosticOf(error),
           }),
       )
       const stop = () => wake(succeed('cancelled'))
