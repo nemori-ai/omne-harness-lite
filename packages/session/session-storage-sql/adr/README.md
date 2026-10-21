@@ -1,29 +1,21 @@
 # adr
 
-<!-- documentation:placeholder -->
-
 本目录承载有持续消费者的实现取舍与必要理由。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 每项取舍一份 Markdown 文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 只保留现行理由。单次评审、提案过程与执行日志归任务 tmp，不进本目录。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 取舍被替换时，更新或删除对应文件，并同步引用它的设计正文。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+现在为空。本包的取舍与理由已经写在[内部架构](../docs/architecture.md#关键机制与理由)：一个参加者与材料打包、命令到条目只编码一次、派生物在提交时维护、固定上界与签名游标、退路与诚实的未知、不删除与隔离。介质差异的取舍（JSON 载荷用 `text`、先不用部分索引）写在 SPEC 的 [SQLite 与 PostgreSQL](../SPEC.md#sqlite-与-postgresql) 表里。
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+实现进入后，出现一项有持续消费者、又不属于架构页的取舍时，才在这里加文件。候选是游标签名算法的选择，以及重建索引时的批大小与进度行格式。

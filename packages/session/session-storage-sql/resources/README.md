@@ -1,29 +1,19 @@
 # resources
 
-<!-- documentation:placeholder -->
-
 本目录承载本包运行所需的非源码资源。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 数据、模板、模型文件及其许可文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 每项资源写明来源、许可、读取方式与发布要求。资源是否随包发布由对应责任明确声明。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 资源更新时，同步来源与许可说明，以及读取它的代码。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空，运行时也不读取任何非源码资源。表与索引的迁移片段是 `src/` 里按版本排序的只读列表，随源码发布（[对象模型](../docs/object-model.md)、SPEC 的[迁移与生命周期](../SPEC.md#迁移与生命周期)），不放在本目录。配置值由装配传入，游标签名密钥由装配注入，都不从文件读取。数据库文件、连接与 PRAGMA 归存储提供者。如果以后迁移片段改为独立的 `.sql` 文件，才在这里放它们，并写明读取方式与随包发布范围。

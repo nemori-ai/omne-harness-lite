@@ -1,29 +1,21 @@
 # examples
 
-<!-- documentation:placeholder -->
-
 本目录承载面向真实公开入口的使用示例。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 可运行的示例代码与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 示例只用公开入口，并写明运行前提。示例不代替测试或规格。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 公开入口变化时，同步示例并确认它仍能运行。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+现在为空。两个入口都没有导出，没有可以运行的行为。存储契约也没有可依赖的 workspace 成员，示例没有可用的提供者。装配与独立使用的职责伪代码在[使用与定位](../docs/context.md#使用方式)里。
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+工厂进入根入口、存储契约给出入口之后，这里放一个不装配 Cordis 的可运行示例。运行前提是本机可用的 SQLite 提供者。示例要完成：登记组合版本并执行迁移，构造事务端口，提交一条命令，用 `queryOperation` 认回，再用历史分页读回，最后关闭端口。示例不用内存替身。
