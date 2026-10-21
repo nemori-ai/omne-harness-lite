@@ -68,6 +68,7 @@ export type ModelFault = Readonly<{
           limit: string | null
           actual: string | null
         }>
+        replayCarried?: true
       }>
   )
 export type Termination =

@@ -4,7 +4,7 @@
 
 ## 导出入口
 
-`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`judgeCompaction`、`parseRecordEntryRef`、`REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` 九个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
+`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`judgeCompaction`、`parseRecordEntryRef`、`REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH`、`isReplayTag` 十个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
 
 ## 定义索引
 
@@ -16,6 +16,7 @@
 | `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`CallPart`、`ToolResultPart`、`ToolPart`、`MessagePart`、`MessageContentBlock` | 类型 | [src/parts.ts](../src/parts.ts) |
 | `ReasoningStatePart`、`ReasoningReplay` | 类型 | [src/reasoning.ts](../src/reasoning.ts) |
 | `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | [src/reasoning.ts](../src/reasoning.ts) |
+| `isReplayTag` | 函数 | [src/reasoning.ts](../src/reasoning.ts) |
 | `judgePart` | 函数 | [src/parts.ts](../src/parts.ts) |
 
 每个角色的 `blocks` 类型只含该角色允许的部件，也都至少有一块，与 `judgeMessage` 的运行时规则一一对应。`CallPart` 是三种调用部件的联合，`MessageContentBlock` 是除 `thinking` 块以外的内容块，`MessagePart` 是内容块、四种工具部件与推理续接状态部件的联合。推理续接状态部件与 `replay` 见[推理续接状态](#推理续接状态)。
@@ -57,6 +58,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `ReasoningStatePart` | 类型 | 推理续接状态部件 `{ kind, id, visibility, payload, pairs }`，只在 `assistant` 消息里 | [src/reasoning.ts](../src/reasoning.ts) |
 | `ReasoningReplay` | 类型 | 回放描述 `{ scope, format, at }` | [src/reasoning.ts](../src/reasoning.ts) |
 | `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | 载荷与 `scope`、`format` 的长度上限，单位是 UTF-16 码元 | [src/reasoning.ts](../src/reasoning.ts) |
+| `isReplayTag` | 函数 | 谓词 `(value: unknown) => value is string`：是否是合法的 `scope` 或 `format`（非空字符串，长度不超过 `REPLAY_TAG_MAX_LENGTH`）；声明了同类标签的下游用它，不另写一份 | [src/reasoning.ts](../src/reasoning.ts) |
 | `AssistantMessage` | 类型 | 可选键 `replay`，`blocks` 另允许 `ReasoningStatePart` | [src/message.ts](../src/message.ts) |
 
 `MessageRejection` 含 `payload`、`pairs`、`replay` 三个值；`judgePart` 只给出前两个，`replay` 只有整条消息的判定才会给出。`payload`、`pairs` 来自部件自身，`pairs` 另可由整条消息的配对检查给出，两处都带 `blockIndex`。`replay` 的形状失败和多数位置索引失败不带 `blockIndex`，指向某个块的失败才带。判定顺序、`replay` 的存在口径与成功值的副本规则见 [SPEC.md](../SPEC.md#judgemessage-与-judgepart-的判定)，用例见下面的[推理续接状态用例表](#推理续接状态用例表)。
@@ -279,6 +281,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `replay.order` | 反 | `{"blocks":[],"replay":"x"}` | `rejected:empty` |
 | `replay.order` | 反 | `{"id":"bad","replay":"x"}` | `rejected:prefix` |
 | `replay.order` | 反 | `{"blocks":["text:t1",{"kind":"nope"}],"replay":"x"}` | `rejected:replay` |
+| `replay.order` | 反 | `{"blocks":["text:t1",{"kind":"nope"}],"replay":{"scope":"sc","format":"f1","at":[1.5]}}` | `rejected:replay` |
 | `replay.shape` | 正 | `{"replay":{"scope":"<length:256>","format":"<length:256>","at":[1]}}` | `ok` |
 | `replay.shape` | 反 | `{"replay":"x"}` | `rejected:replay` |
 | `replay.shape` | 反 | `{"replay":[]}` | `rejected:replay` |

@@ -239,19 +239,33 @@ export interface ModelInputMeter {
     }>,
   ): Outcome<RequestBudget, TransportFailure>
 }
-/** What a message of the role assistant does with its reasoning in one dispatch. */
+/**
+ * What a message of the role assistant does with its reasoning in one dispatch. A message that
+ * continues has `carry` (the reasoning state parts to write, equal to `replay.at`) and `thinking`
+ * is `native`; a message that does not has `omit` (the parts to leave out, equal to `replay.at`)
+ * and `thinking` is the foreign-thinking rule. Neither side has the other's list.
+ */
 export type ReplayTreatment = Readonly<{
   /** The position of the message in the messages that were projected. */
   index: number
   message: MessageId
-  continuable: boolean
-  /** The positions of the reasoning state parts to write. Equals `replay.at` when `continuable`. */
-  carry: readonly number[]
-  /** The positions of the reasoning state parts to leave out. Equals `replay.at` when not. */
-  omit: readonly number[]
-  /** How to write `thinking` blocks: native to the format, or by the foreign-thinking rule. */
-  thinking: 'native' | ForeignThinking
-}>
+}> &
+  (
+    | Readonly<{
+        continuable: true
+        /** The positions of the reasoning state parts to write. Equals `replay.at`. */
+        carry: readonly number[]
+        /** How to write `thinking` blocks: native to the format. */
+        thinking: 'native'
+      }>
+    | Readonly<{
+        continuable: false
+        /** The positions of the reasoning state parts to leave out. Equals `replay.at`. */
+        omit: readonly number[]
+        /** How to write `thinking` blocks: by the foreign-thinking rule. */
+        thinking: ForeignThinking
+      }>
+  )
 /** A part-count diagnostic of one message. It never holds a payload. */
 export type ReplayDiagnostic = Readonly<{
   message: MessageId

@@ -85,7 +85,8 @@ export function judgeReasoningState(value: Record<string, unknown>): ReasoningSt
   return { ok: { kind: 'reasoning_state', ...identity.ok, payload, pairs } }
 }
 
-function isTag(value: unknown): value is string {
+/** True for a replay `scope` or `format`: a non-empty string of at most `REPLAY_TAG_MAX_LENGTH` code units. */
+export function isReplayTag(value: unknown): value is string {
   return nonEmpty(value) && value.length <= REPLAY_TAG_MAX_LENGTH
 }
 
@@ -112,7 +113,7 @@ export function judgeReplay(raw: unknown): ReasoningReplay | undefined {
   const fields = closedFields(raw, REPLAY_KEYS)
   if (fields === undefined) return undefined
   const { scope, format } = fields
-  if (!isTag(scope) || !isTag(format)) return undefined
+  if (!isReplayTag(scope) || !isReplayTag(format)) return undefined
   const at = readAt(fields.at)
   if (at === undefined) return undefined
   return Object.freeze({ scope, format, at })

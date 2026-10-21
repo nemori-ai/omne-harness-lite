@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { REPLAY_TAG_MAX_LENGTH, judgeMessage, type Message } from '@omne-harness/message'
 import {
   continuedMessages,
-  expandReplayDeclaration,
   judgeReplayDeclaration,
   projectReplay,
   type ForeignThinking,
@@ -99,7 +98,6 @@ describe('projectReplay: when a message can continue', () => {
         message: messageId('a'),
         continuable: true,
         carry: [1],
-        omit: [],
         thinking: 'native',
       },
     ])
@@ -108,7 +106,13 @@ describe('projectReplay: when a message can continue', () => {
 
   it('does not continue a message whose scope is not accepted, and says so once', () => {
     const result = project([withState('a', 'B')])
-    expect(result.treatments[0]).toMatchObject({ continuable: false, carry: [], omit: [1] })
+    expect(result.treatments[0]).toEqual({
+      index: 0,
+      message: messageId('a'),
+      continuable: false,
+      omit: [1],
+      thinking: 'omit',
+    })
     expect(result.diagnostics).toEqual([
       { message: messageId('a'), scope: 'B', format: 'f1', omittedParts: 1 },
     ])
@@ -138,7 +142,7 @@ describe('projectReplay: when a message can continue', () => {
   it('does not continue any message when replay is off, even a known scope and format', () => {
     const result = project([withState('a', 'A'), thinkingOnly('b', 'A')], { off: true })
     expect(result.treatments.map(item => item.continuable)).toEqual([false, false])
-    expect(result.treatments.map(item => item.omit)).toEqual([[1], []])
+    expect(result.treatments.map(item => ('omit' in item ? item.omit : null))).toEqual([[1], []])
     expect(result.diagnostics.map(item => item.message)).toEqual([messageId('a')])
   })
 })
@@ -146,10 +150,11 @@ describe('projectReplay: when a message can continue', () => {
 describe('projectReplay: messages without state parts', () => {
   it('continues a message with only thinking and writes the thinking natively', () => {
     const result = project([thinkingOnly('a', 'A')])
-    expect(result.treatments[0]).toMatchObject({
+    expect(result.treatments[0]).toEqual({
+      index: 0,
+      message: messageId('a'),
       continuable: true,
       carry: [],
-      omit: [],
       thinking: 'native',
     })
     expect(result.diagnostics).toEqual([])
@@ -177,7 +182,13 @@ describe('projectReplay: messages without state parts', () => {
 
   it('gives a message without thinking or replay the same unremarkable treatment', () => {
     const result = project([plain('a')])
-    expect(result.treatments[0]).toMatchObject({ continuable: false, carry: [], omit: [] })
+    expect(result.treatments[0]).toEqual({
+      index: 0,
+      message: messageId('a'),
+      continuable: false,
+      omit: [],
+      thinking: 'omit',
+    })
     expect(result.diagnostics).toEqual([])
   })
 
@@ -302,9 +313,15 @@ function supplier(replay?: ProfileSupplier['replay']): ProfileSupplier {
   return replay === undefined ? base : { ...base, replay }
 }
 
-describe('expandReplayDeclaration', () => {
+describe('judgeReplayDeclaration: the expanded declaration', () => {
+  function expanded(replay?: ProfileSupplier['replay']): unknown {
+    const judged = judgeReplayDeclaration(supplier(replay), 0)
+    if (!('ok' in judged)) throw new Error(`fixture declaration: ${JSON.stringify(judged)}`)
+    return judged.ok
+  }
+
   it('defaults to the exact model identity, accepting only itself, omitting foreign thinking', () => {
-    expect(expandReplayDeclaration(supplier())).toEqual({
+    expect(expanded()).toEqual({
       produces: 'vendor/model-1',
       accepts: ['vendor/model-1'],
       foreignThinking: 'omit',
@@ -312,7 +329,7 @@ describe('expandReplayDeclaration', () => {
   })
 
   it('defaults accepts to the declared produces', () => {
-    expect(expandReplayDeclaration(supplier({ produces: 'family' }))).toEqual({
+    expect(expanded({ produces: 'family' })).toEqual({
       produces: 'family',
       accepts: ['family'],
       foreignThinking: 'omit',
@@ -321,15 +338,16 @@ describe('expandReplayDeclaration', () => {
 
   it('keeps every declared item', () => {
     const declared = { produces: 'p', accepts: ['q', 'p'], foreignThinking: 'text' } as const
-    expect(expandReplayDeclaration(supplier(declared))).toEqual(declared)
+    expect(expanded(declared)).toEqual(declared)
   })
 
-  it('returns a frozen copy of accepts', () => {
+  it('returns a frozen declaration with a frozen copy of accepts', () => {
     const accepts = ['p']
-    const expanded = expandReplayDeclaration(supplier({ produces: 'p', accepts }))
+    const result = expanded({ produces: 'p', accepts }) as ReplayDeclaration
     accepts.push('q')
-    expect(expanded.accepts).toEqual(['p'])
-    expect(Object.isFrozen(expanded.accepts)).toBe(true)
+    expect(result.accepts).toEqual(['p'])
+    expect(Object.isFrozen(result.accepts)).toBe(true)
+    expect(Object.isFrozen(result)).toBe(true)
   })
 })
 
@@ -442,6 +460,101 @@ describe('judgeReplayDeclaration', () => {
     expect(judgeReplayDeclaration(stored({ produces: 'p', accepts: ['p', , 'q'] }), 2)).toEqual(
       invalid('accepts'),
     )
+  })
+
+  it('rejects a foreign-thinking of null as foreign-thinking, not as the default', () => {
+    const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
+    expect(judgeReplayDeclaration(stored({ foreignThinking: null }), 2)).toEqual(
+      invalid('foreign-thinking'),
+    )
+  })
+
+  it('rejects a replay that is not a plain object, a Map included', () => {
+    const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
+    expect(judgeReplayDeclaration(stored(new Map()), 2)).toEqual(invalid('replay'))
+    expect(judgeReplayDeclaration(stored(new (class Declared {})()), 2)).toEqual(invalid('replay'))
+  })
+
+  it('does not read produces or accepts from the prototype chain', () => {
+    const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
+    expect(judgeReplayDeclaration(stored(Object.create({ produces: 'p' })), 2)).toEqual(
+      invalid('replay'),
+    )
+    expect(judgeReplayDeclaration(stored(Object.create({ accepts: ['p'] })), 2)).toEqual(
+      invalid('replay'),
+    )
+  })
+
+  it('admits a replay without a prototype', () => {
+    const bare = Object.assign(Object.create(null) as object, { produces: 'p' })
+    expect(judgeReplayDeclaration(supplier(bare as ProfileSupplier['replay']), 2)).toMatchObject({
+      ok: { produces: 'p', accepts: ['p'] },
+    })
+  })
+
+  it('rejects an accessor of produces as replay and never calls it', () => {
+    let calls = 0
+    const hostile = {}
+    Object.defineProperty(hostile, 'produces', {
+      enumerable: true,
+      get() {
+        calls += 1
+        return 'p'
+      },
+    })
+    const stored = supplier(hostile as ProfileSupplier['replay'])
+    expect(judgeReplayDeclaration(stored, 2)).toEqual(invalid('replay'))
+    expect(calls).toBe(0)
+  })
+
+  it('rejects a key that is not enumerable or is a symbol, and an item of accepts that is an accessor', () => {
+    const hidden = {}
+    Object.defineProperty(hidden, 'produces', { value: 'p', enumerable: false })
+    const symbolic = { produces: 'p', [Symbol('x')]: 1 }
+    expect(judgeReplayDeclaration(supplier(hidden as ProfileSupplier['replay']), 2)).toEqual(
+      invalid('replay'),
+    )
+    expect(judgeReplayDeclaration(supplier(symbolic as ProfileSupplier['replay']), 2)).toEqual(
+      invalid('replay'),
+    )
+    let calls = 0
+    const accepts = ['p']
+    Object.defineProperty(accepts, 1, {
+      enumerable: true,
+      get() {
+        calls += 1
+        return 'q'
+      },
+    })
+    expect(judgeReplayDeclaration(supplier({ produces: 'p', accepts }), 2)).toEqual(
+      invalid('accepts'),
+    )
+    expect(calls).toBe(0)
+  })
+
+  it('reads a key whose value is undefined as not declared', () => {
+    const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
+    const undeclared = { produces: undefined, accepts: undefined, foreignThinking: undefined }
+    expect(judgeReplayDeclaration(stored(undeclared), 2)).toEqual(
+      judgeReplayDeclaration(supplier(), 2),
+    )
+    expect(judgeReplayDeclaration(stored({ produces: 'p', accepts: undefined }), 2)).toMatchObject({
+      ok: { produces: 'p', accepts: ['p'] },
+    })
+  })
+
+  it('reads replay of the supplier once', () => {
+    let calls = 0
+    const counting = {
+      recipient: 'vendor',
+      model: 'model-1',
+      get replay() {
+        calls += 1
+        return { produces: 'p' }
+      },
+    }
+    expect(judgeReplayDeclaration(counting, 0)).toMatchObject({ ok: { produces: 'p' } })
+    expect(calls).toBe(1)
   })
 
   it('names the supplier by its position in the field', () => {

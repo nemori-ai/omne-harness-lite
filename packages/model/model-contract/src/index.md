@@ -4,7 +4,7 @@
 
 ## 根入口
 
-[index.ts](index.ts) 是根入口，以 `export type *` 转出各章文件的全部类型（凭据章用 `export *`，同时带出 `MODEL_SEND`），并按名导出 22 个运行值。下表列出各文件对应的[公开页](../docs/public-api.md)章，公开页各章链接回这些文件：
+[index.ts](index.ts) 是根入口，以 `export type *` 转出各章文件的全部类型（凭据章用 `export *`，同时带出 `MODEL_SEND`），并按名导出 21 个运行值。下表列出各文件对应的[公开页](../docs/public-api.md)章，公开页各章链接回这些文件：
 
 | 文件 | 章 |
 | --- | --- |

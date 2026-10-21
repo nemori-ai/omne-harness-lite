@@ -33,9 +33,4 @@ export {
   decodeRevision,
 } from './identity-values.ts'
 export { deriveGuardControlOperation } from './guard-control.ts'
-export {
-  continuedMessages,
-  expandReplayDeclaration,
-  judgeReplayDeclaration,
-  projectReplay,
-} from './replay-values.ts'
+export { continuedMessages, judgeReplayDeclaration, projectReplay } from './replay-values.ts'

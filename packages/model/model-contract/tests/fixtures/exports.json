@@ -171,7 +171,6 @@
         {
           "title": "推理回放的声明与投影",
           "names": [
-            { "name": "expandReplayDeclaration", "kind": "value", "pending": false },
             { "name": "judgeReplayDeclaration", "kind": "value", "pending": false },
             { "name": "projectReplay", "kind": "value", "pending": false },
             { "name": "continuedMessages", "kind": "value", "pending": false }

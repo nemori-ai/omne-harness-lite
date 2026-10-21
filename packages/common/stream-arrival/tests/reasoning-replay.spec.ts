@@ -271,6 +271,21 @@ describe('finish and the replay of a message', () => {
     expect(calls).toBe(0)
   })
 
+  it('reads the replay key of a finish step once, and checks and copies that one value', () => {
+    let calls = 0
+    const step = { ...finish }
+    Object.defineProperty(step, 'replay', {
+      enumerable: true,
+      get() {
+        calls += 1
+        return calls === 1 ? { ...replay } : null
+      },
+    })
+    const result = run([...withState, step])
+    expect(calls).toBe(1)
+    expect(completed(result)).toMatchObject({ replay: { scope: 'provider-x', format: 'v1' } })
+  })
+
   it('does not take the replay of the caller object by reference', () => {
     const mutable = { ...replay }
     const result = run([...withState, { ...finish, replay: mutable }])

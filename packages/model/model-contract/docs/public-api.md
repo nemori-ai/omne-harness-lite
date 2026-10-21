@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 160 个类型和 22 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的四个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 160 个类型和 21 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -144,13 +144,13 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 
 [行为与约束](../SPEC.md#推理回放)。
 
-本章给档案维护方、Model 适配器作者和输入计量器作者：回放声明的展开与校验，以及适配器与计量器共用的回放投影。类型在[档案与请求准备](#档案与请求准备)一章。
+本章给档案维护方、Model 适配器作者和输入计量器作者：回放声明的读取、展开与校验，以及适配器与计量器共用的回放投影。类型在[档案与请求准备](#档案与请求准备)一章。
 
 - 声明：[`src/replay-values.ts`](../src/replay-values.ts)。
 - 行为测试：[`tests/replay.spec.ts`](../tests/replay.spec.ts)。
 
-- `expandReplayDeclaration(supplier)` 把缺省项展开成完整声明，不做检查。`judgeReplayDeclaration(supplier, index)` 展开并按 SPEC 检查，返回 `Outcome`；失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `replay`（从存储或配置读到的声明不是只有三个键的普通对象）、`produces`（不是文本、为空或过长）、`accepts`（不是稠密的文本数组，或有一项为空或过长）、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking` 中第一个不满足的项。
-- `projectReplay(input)` 对 `messages` 里每条 assistant 消息给出一条 `ReplayTreatment`，按输入次序，并给出诊断。`carry` 与 `omit` 是推理续接状态部件的位置（来自 `replay.at`），`thinking` 说明 `thinking` 块的写法：`native` 或 `foreignThinking` 的取值。诊断只含消息身份、`scope`、`format` 与略去的部件个数。函数不读取任何块，也不读取载荷。
+- `judgeReplayDeclaration(supplier, index)` 读取并展开供应商的回放声明，再按 SPEC 检查，返回 `Outcome`，成功值是展开后的完整声明（冻结）。`supplier.replay` 的类型是 `unknown`，因为它从存储或配置读来：只有 `undefined`（或没有该键）取全部默认值；否则必须是原型为 `Object.prototype` 或 `null` 的普通对象，自有键只能是 `produces`、`accepts`、`foreignThinking`，每个键是可枚举的数据属性，每个字段只读一次，访问器从不调用，原型链上的键不读；值为 `undefined` 的键视为未声明，取该项默认值。失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `replay`（不满足上述读取规则）、`produces`（不是文本、为空或过长，包括默认值过长）、`accepts`（不是数组，或有一项是空洞、访问器、空文本或超长文本）、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking`（不是三个取值之一，包括 `null`）中第一个不满足的项。展开函数不对外导出。
+- `projectReplay(input)` 对 `messages` 里每条 assistant 消息给出一条 `ReplayTreatment`，按输入次序，并给出诊断。`ReplayTreatment` 按 `continuable` 判别：可续接的有 `carry`（要写入的推理续接状态部件位置，来自 `replay.at`），`thinking` 为 `native`；不可续接的有 `omit`（要略去的部件位置，来自 `replay.at`），`thinking` 为 `foreignThinking` 的取值。两边都没有对方的位置列表。诊断只含消息身份、`scope`、`format` 与略去的部件个数。函数不读取任何块，也不读取载荷。
 - `continuedMessages(projection)` 返回这次投影中可续接的消息身份。上游以 `replay-rejected` 拒绝后，再发把它们作为 `resent` 传入。
 
 ## 消息转换

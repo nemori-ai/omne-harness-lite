@@ -3,6 +3,7 @@ import {
   REASONING_STATE_PAYLOAD_MAX_LENGTH,
   REPLAY_TAG_MAX_LENGTH,
   judgeCompaction,
+  isReplayTag,
   judgeMessage,
   judgePart,
   parseRecordEntryRef,
@@ -84,6 +85,19 @@ describe('the limits', () => {
   })
 })
 
+describe('isReplayTag', () => {
+  it('is true only for a non-empty string of at most the longest length', () => {
+    expect(isReplayTag('a')).toBe(true)
+    expect(isReplayTag('x'.repeat(REPLAY_TAG_MAX_LENGTH))).toBe(true)
+    expect(isReplayTag('')).toBe(false)
+    expect(isReplayTag('x'.repeat(REPLAY_TAG_MAX_LENGTH + 1))).toBe(false)
+    expect(isReplayTag(1)).toBe(false)
+    expect(isReplayTag(null)).toBe(false)
+    expect(isReplayTag(undefined)).toBe(false)
+    expect(isReplayTag(['a'])).toBe(false)
+  })
+})
+
 describe('judgePart on a reasoning state part', () => {
   it('admits it as a new object, and does not freeze the part', () => {
     const input = { ...state }
@@ -134,6 +148,18 @@ describe('judgePart on a reasoning state part', () => {
       expect(judgePart(stateWith(pairs))).toEqual({ rejected: 'pairs' })
     }
     expect(accessor.calls()).toBe(0)
+  })
+
+  it('refuses a part whose own key has no descriptor, as json, without throwing', () => {
+    const hostile = new Proxy(
+      {},
+      { ownKeys: () => ['a'], getOwnPropertyDescriptor: () => undefined },
+    )
+    expect(judgePart(hostile)).toEqual({ rejected: 'json' })
+    expect(judgeMessage(assistant({ blocks: [hostile, thinking], replay: undefined }))).toEqual({
+      rejected: 'json',
+      blockIndex: 0,
+    })
   })
 
   it('does not look at a symbol key of the part itself, as for a tool part', () => {

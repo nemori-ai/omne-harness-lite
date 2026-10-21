@@ -22,7 +22,6 @@ it('the root entry exports exactly the landed runtime values', async () => {
       'decodeResultVersion',
       'decodeRevision',
       'deriveGuardControlOperation',
-      'expandReplayDeclaration',
       'judgeReplayDeclaration',
       'projectReplay',
       'sameCredentialHolder',

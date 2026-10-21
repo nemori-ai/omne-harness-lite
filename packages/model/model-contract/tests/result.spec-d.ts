@@ -103,6 +103,9 @@ it('an input-over-limit fault reports only what the upstream gave, and no other 
     upstreamStatus: null,
     reported: { metric: null, limit: null, actual: null },
   }
+  const carriedOverLimit: ModelFault = { ...given, replayCarried: true }
+  // @ts-expect-error a send without reasoning state has no replayCarried key
+  const deniedOverLimit: ModelFault = { ...given, replayCarried: false }
   const byMeter: ModelFault = {
     ...given,
     reported: { metric: 'image-bytes', limit: '1', actual: '2' },
@@ -117,7 +120,7 @@ it('an input-over-limit fault reports only what the upstream gave, and no other 
   const stray: ModelFault = { ...fault, reported: given.reported }
   expectTypeOf<ModelFaultCause>().toEqualTypeOf<ModelFault['cause']>()
   expectTypeOf<OverLimitMetric>().toExtend<string>()
-  void [silent, byMeter, noReport, metric, numeric, stray]
+  void [silent, carriedOverLimit, deniedOverLimit, byMeter, noReport, metric, numeric, stray]
 })
 
 it('CallState keeps the phase apart from control and custody', () => {

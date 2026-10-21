@@ -352,6 +352,43 @@ it('a replay projection is made of treatments and diagnostics that carry no payl
   >()
 })
 
+it('a replay treatment has the list that fits its side and the thinking that fits it', () => {
+  const message = 'msg_aaaaaaaaaaaaaaaaaaaaaa' as ReplayTreatment['message']
+  const continues: ReplayTreatment = {
+    index: 0,
+    message,
+    continuable: true,
+    carry: [1],
+    thinking: 'native',
+  }
+  const leaves: ReplayTreatment = {
+    index: 0,
+    message,
+    continuable: false,
+    omit: [1],
+    thinking: 'text',
+  }
+  const impossible: ReplayTreatment[] = [
+    // @ts-expect-error a message that continues has no omit list
+    { index: 0, message, continuable: true, carry: [1], omit: [], thinking: 'native' },
+    // @ts-expect-error a message that does not continue has no carry list
+    { index: 0, message, continuable: false, omit: [1], carry: [], thinking: 'omit' },
+    // @ts-expect-error a message that continues writes thinking natively
+    { index: 0, message, continuable: true, carry: [1], thinking: 'text' },
+    // @ts-expect-error a message that does not continue never writes thinking natively
+    { index: 0, message, continuable: false, omit: [1], thinking: 'native' },
+    // @ts-expect-error a message that continues needs its carry list
+    { index: 0, message, continuable: true, thinking: 'native' },
+  ]
+  void [continues, leaves, impossible]
+  expectTypeOf<
+    Extract<ReplayTreatment, { continuable: true }>['thinking']
+  >().toEqualTypeOf<'native'>()
+  expectTypeOf<
+    Extract<ReplayTreatment, { continuable: false }>['thinking']
+  >().toEqualTypeOf<ForeignThinking>()
+})
+
 it('media measurements and meter representations are closed by kind', () => {
   const media: MediaMeasurementFact[] = [
     {

@@ -520,7 +520,7 @@ const EXPECTED_REASONING_ROWS: Readonly<Record<string, number>> = {
   'role.state-only-in-assistant/反': 5,
   'replay.keys/正': 2,
   'replay.keys/反': 6,
-  'replay.order/反': 3,
+  'replay.order/反': 4,
   'replay.shape/正': 1,
   'replay.shape/反': 18,
   'replay.presence/正': 4,
