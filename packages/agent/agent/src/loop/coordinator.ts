@@ -749,15 +749,17 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const { call } = invocationParts(pending.reference, access.tenant)
       const parts = await readResult(pending.reference, call, current.step, settlement.version)
       if ('failure' in parts) return parts
-      const blocks: Message['blocks'][number][] = []
+      const blocks: Extract<Message, { role: 'assistant' }>['blocks'][number][] = []
       for (const part of parts.ok) {
         if (part.kind !== 'sealed') return fail(notYet('M3', 'a partial result part', '#502 1.6'))
         blocks.push(part.block)
       }
-      const reply: Message = {
+      const [first, ...rest] = blocks
+      if (first === undefined) return fail(notYet('M3', 'a reply without blocks', '#502 1.6'))
+      const reply: Extract<Message, { role: 'assistant' }> = {
         id: replyMessageId(execution, current.step),
         role: 'assistant',
-        blocks,
+        blocks: [first, ...rest],
       }
       const produced: ProducedResult = {
         producer: { kind: 'model', call },
