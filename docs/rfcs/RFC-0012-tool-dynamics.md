@@ -2,13 +2,13 @@
 id: RFC-0012
 title: 工具的动态性：运行时加载、卸载与替换实现
 revision: 1
-status: review
+status: accepted
 owner: PanQiWei
 ---
 
 # RFC-0012：工具的动态性：运行时加载、卸载与替换实现
 
-规则与维护责任见[RFC入口](README.md)。本页不是当前规范。提案采用、规范写回、实现和交付接受分别判断。来源是 [#618](https://github.com/nemori-ai/omne-harness-lite/issues/618) 的设计讨论；过程材料在该卡工作树的 `tmp/issue-618/`。
+规则与维护责任见[RFC入口](README.md)。本页不是当前规范。提案采用、规范写回、实现和交付接受分别判断。2026-10-21 采用本提案 revision 1，记录见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)。写回由 [#618](https://github.com/nemori-ai/omne-harness-lite/issues/618) 按「写回现行正文」表承接。来源是 [#618](https://github.com/nemori-ai/omne-harness-lite/issues/618) 的设计讨论；过程材料在该卡工作树的 `tmp/issue-618/`。
 
 ## 问题与有效输入
 
@@ -191,9 +191,9 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 ## 决定范围
 
-- 有权决定者：PanQiWei（项目要求、架构、Tool 契约、assets SPEC 的拥有者）。sessions-and-work 与 assets 的写回接受由各自拥有者作出。两个新服务键需 IC-6 评审。
-- 决定日期及对应revision：未决定。
-- 采用范围：尚未采用。
+- 有权决定者：PanQiWei（项目要求、架构、Tool 契约、assets SPEC 的拥有者），决定记录见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)。sessions-and-work 与 assets 的写回接受由各自拥有者作出。两个新服务键需 IC-6 评审。
+- 决定日期及对应revision：2026-10-21，revision 1。
+- 采用范围：「建议与改变范围」全部条款：对象链、会话常驻规则 R1–R5 与同形判据、采用点判定表与刷新点表、绑定登记表的键与 conflict 政策、换代协调者的三个动词与保留义务、SYS-DYNAMIC 对 Tool 的十条验收判据，以及「受影响拥有者」表所列改变。采用不表示规范已切换或实现完成。
 - 不采用范围及必要理由：层序求值算法、变体、Profile 对象、MCP 动态规则、远端加载提供者、协调者 GC 策略。它们各有接缝，由后续提案承接。
 - 未决与依赖停止点：`WorkspaceId` 的拥有者（归 workspaces 域或 identity 域；Tool 在边界用不透明品牌文本，拥有者定义后替换）；协调者系统主体的授予写法（IC 评审）。两者不阻塞本提案采用。
 
