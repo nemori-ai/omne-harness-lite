@@ -15,8 +15,8 @@
 | [runtime-context-contract](runtime-context-contract/README.md) | module | 作用域引用、块声明（供给块与状态块）、上下文需要与需要绑定、登记、资格、绑定读者、更新与步提交、变化材料；纯函数与解码 |
 | [runtime-context-cordis-contract](runtime-context-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `runtimeContext`、intercept 配置类型、事件增补 |
 | [runtime-context](runtime-context/README.md) | module | 不含 Cordis 的供给机制：登记表、生产者表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
-| [runtime-context-cordis](runtime-context-cordis/README.md) | service-provider | Service 实现：一个 isolate 一个服务、作用域为参数、按作用域过滤唤醒、登记即效应、持久化端口接入 |
-| [request-context-contract](request-context-contract/README.md) | module | 组装输入、八个纯操作、候选与装入裁定、压缩计划、七层装载布局与锚点常量、历史源与策略端口类型 |
+| [runtime-context-cordis](runtime-context-cordis/README.md) | service-provider | Service 实现：一个 isolate 一个服务、作用域为参数、按作用域过滤唤醒、登记即效应 |
+| [request-context-contract](request-context-contract/README.md) | module | 组装输入、九项纯操作（压缩计划的三个操作算一项）、候选与装入裁定、压缩计划、七层装载布局与锚点常量、历史源与策略端口类型 |
 | [request-context-cordis-contract](request-context-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `requestContext`：提示词贡献登记面与策略选择 |
 | [request-context](request-context/README.md) | module | 不含 Cordis 的派生计算：索引、缓存、默认压缩策略、默认表示策略、修剪器 |
 | [request-context-cordis](request-context-cordis/README.md) | service-provider | Service 实现：贡献登记表、作用域遮蔽、策略实现选择与配置校验 |
@@ -25,7 +25,7 @@
 
 ## 关键协作
 
-Runtime Context 的三面（生产者面、持有者面、读者面）与 Request Context 的纯操作经公开契约交接；跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。共同提交（登记、步提交、压缩转换）由持有者与协调者在各自契约内兑现，本组成员只给材料。
+Runtime Context 的三面（生产者面、持有者面、读者面）与 Request Context 的纯操作经公开契约交接；跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。登记与步提交是持有者各自单独的提交；压缩转换是持有者与协调者的共同提交，唯一提交点归两方契约。本组成员只给材料。
 
 ## 组合验证
 

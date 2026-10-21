@@ -403,7 +403,7 @@ next 是纯函数，不读时钟、当前注册或数据库，不发请求。相
 
 1. Agent 不自己决定是否压缩。只有 Context 返回 needs-compaction，Agent 才进入压缩节点。
 2. Agent 不为某个模型改写请求内容。请求按实际收件模型由 Context 组装，Model 在受理时再核对一次。
-3. Agent 不理解模态细节。模态转换的时点与失败分类归 [request-context 的 RQ-04](../../context/request-context/SPEC.md#rq-04-模态与可追溯表示) 与 [Model 转换件共同契约](../../model/model-contract/SPEC.md#转换件的共同契约)。转换失败时，Agent 按原用途处理所在路径返回的失败。
+3. Agent 不理解模态细节。模态转换的时点与失败分类归 [request-context 的 RQ-04](../../context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示) 与 [Model 转换件共同契约](../../model/model-contract/SPEC.md#转换件的共同契约)。转换失败时，Agent 按原用途处理所在路径返回的失败。
 
 #### 模型选择
 
@@ -424,7 +424,7 @@ Agent 经 ModelContextReader.read 取得模型可读的 Runtime Context。读取
 2. 已接受的 [Runtime Context 系统页](../../../docs/architecture/runtime/runtime-context.md)把读取时点写作执行开始或执行挂接建立。前两个时点与它对应，Agent 的拉取时点是它的超集，二者不冲突。
 3. 模型可读块与工具、扩展的私有块分开读取。ModelContextReader 在装配时绑定到模型这一个消费者，调用方不能用参数改成其他消费者。它只返回标为模型可读、且当前资格允许的块。
 4. 私有块包括权限输入。它们只经工具与扩展各自的注入能力读取，例如动作准入和扩展的 needs 能力，每次读取都核验当前资格。私有块不进入模型请求、事件、失败诊断和遥测。RuntimeConditions 的 context 只是条件依据的引用，不含块内容，也不是模型可读的读取结果。
-5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
+5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
 6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。
 7. 空闲期间的变化由新 execution 开始和建立挂接时的拉取承接，不依赖逐条推送。同一 execution 长时间等待后继续推进时，下一次主请求准备前的读取传入 checkpoint 的 adoptedContext，Context 沿提醒链返回 incremental 或 full；Agent 不因等待时长改为要求某一种。
 8. 每次读取都核验当前资格，不用旧日志恢复已撤回的访问权。读取不可用时请求不准备，Agent 不用旧快照冒充当前。
@@ -458,21 +458,21 @@ CurrentConditions.read 的 previous 是上一次已用于请求准备的条件�
 8. 压缩之后位置：提交成功之后才经过压缩之后位置。它只面对已提交的事实，不能改写已提交的摘要和排除范围。因此没有任何扩展位置能改写压缩候选。
 9. 重新准备：提交成功后，Agent 先经 CurrentConditions.read 取当前条件，再重新选择模型，再带压缩转换依据读取 Runtime Context，然后调用 RequestPreparation.resume。选择的输入含当前条件，所以读取条件在选择之前。Context 从 original 与压缩转换依据重算 Context 与预算。结果种类由 original 中记录的调模型之前位置经过决定：该经过为 null 时，装得下返回 assembled；非空时，装得下返回 ready。仍装不下时返回 cannot-fit 或 needs-compaction，后者按第 4 条处理。
 
-压缩选择与排除仍归 Request Context，保护边界见 [RQ-06](../../context/request-context/SPEC.md#rq-06-压缩共同结果与保护边界)。commitment 只在具名的 Context 协议中解析，不能当任意 JSON patch 或业务回调执行。derive 从保管的原内容核验结果的来源，所以不用当前新历史替代原范围。commitment 与实际消息、原准备和每一步的消费依据绑定。同一个 commitment 不能配另一条消息。
+压缩选择与排除仍归 Request Context，保护边界见 [RQ-06](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)。commitment 只在具名的 Context 协议中解析，不能当任意 JSON patch 或业务回调执行。derive 从保管的原内容核验结果的来源，所以不用当前新历史替代原范围。commitment 与实际消息、原准备和每一步的消费依据绑定。同一个 commitment 不能配另一条消息。
 
 压缩内部模型调用的结果确认和崩溃接续，沿 Model 契约和“持久性与交付责任”。
 
 #### 无法装下
 
 1. 无法装下的原因只有两类：固定内容超限（fixed），压缩后仍超限（after-compaction）。
-2. 限额未知不是失败，规则见 [RQ-05](../../context/request-context/SPEC.md#rq-05-完整预算与候选完成)。表示不可用，例如没有可用表示或转换缺少能力，按 Context 的原结果以 Failure 转交。Agent 不新增第三类原因。
+2. 限额未知不是失败，规则见 [RQ-05](../../context/request-context-contract/SPEC.md#rq-05-完整预算与候选完成)。表示不可用，例如没有可用表示或转换缺少能力，按 Context 的原结果以 Failure 转交。Agent 不新增第三类原因。
 3. 压缩之前位置否决压缩后，请求仍然装不下。失败原因记为 after-compaction，表示允许的处理之后仍装不下，并记录否决依据。压缩用途的调模型之前位置否决某一步时，该步骤请求不发出，计划按压缩失败收场，原因同样记为 after-compaction，并记录否决依据。Agent 不回到同一步重新经过该位置。
 4. 无法装下时，Agent 沿真实原因进入失败候选，由统一的终态出口收束。Agent 不换模型，不删除历史，不分叉，也不无限压缩。出口是有限的，因为计划有上界，同一次准备（以主请求的 step 为身份）至多进入一个计划，压缩请求不递归。
 5. 失败保留原因、历史、设置和已有结果。调用方在条件改变后发起新的工作，失败的 execution 不复活。
 
 #### 调模型之前的复核与最终请求
 
-1. 调模型之前位置的输入是 assembled 的请求。经过该位置之后，Agent 总要再调用一次 prepare，带上 previous、改写依据（没有改写时为空）和该位置的经过。扩展给出改写或 select_model 时，Agent 先重新选择，实际收件模型变化时重新读取。同一次经过不重跑该扩展位置，completedPassages 防止同一经过再次自触发。扩展修改之后的重组装与复核义务归 [RQ-07](../../context/request-context/SPEC.md#rq-07-扩展修改发起与固定采用)。
+1. 调模型之前位置的输入是 assembled 的请求。经过该位置之后，Agent 总要再调用一次 prepare，带上 previous、改写依据（没有改写时为空）和该位置的经过。扩展给出改写或 select_model 时，Agent 先重新选择，实际收件模型变化时重新读取。同一次经过不重跑该扩展位置，completedPassages 防止同一经过再次自触发。扩展修改之后的重组装与复核义务归 [RQ-07](../../context/request-context-contract/SPEC.md#rq-07-扩展修改发起与固定采用)。
 2. 这次 prepare 的结果为 ready 时继续。结果为 cannot-fit 时进入失败候选。结果为 needs-compaction 时按“请求准备与压缩”第 4 条处理：本 step 尚未进入计划时进入一次计划，提交之后的 RequestPreparation.resume 在装得下时直接返回 ready；已经进入计划时以 cannot-fit 失败，原因是 after-compaction。
 3. 记录最终请求之前，Agent 再选择一次模型，核对结果与 ready 的实际收件模型一致。不一致时重新读取并重新准备，不用旧的实际收件模型。这次重新准备返回 needs-compaction 时，同样按第 4 条处理。
 4. 复核通过后，Agent 记录 FinalRequest：ready 中 Model 返回的固定请求、实际收件模型、采用的覆盖和已应用的改写依据。FinalRequest 是 Agent 对这次请求的采用记录，不是另一次固定。Agent 先保存原操作登记和覆盖采用，再向 Model 受理。记录之后不再改写。
@@ -600,7 +600,7 @@ Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/do
 
 外部输入的内容政策归输入受理方：它在交给 Agent 之前对外部输入做内容处理，例如展开、脱敏或否决。这些处理在受理边界完成，Agent 只看到受理后的内容。独立调用路径的最小提供者集合尚无拥有者，登记在[开放问题](../agent/docs/architecture/open-questions.md#独立调用路径的最小装配由谁拥有)。Agent 不实现消息的长期保存。Agent 仍保证自己的执行耐久与消息交接前提：接纳回执随 checkpoint 提交，恢复时按原操作身份认回，已接纳的消息不重复提交，拒收的候选不进入历史。
 
-模态转换是提供者的义务。候选来自 Tool 内容 ref 以外的来源，并且含需要转换的块时，提供者在接纳之前调用系统装配的转换件完成转换。Tool 内容 ref 不在接纳前加载，在 Model 实际请求时加载。转换的时点、失败分类与适用块归 [request-context 的 RQ-04](../../context/request-context/SPEC.md#rq-04-模态与可追溯表示) 与 [Model 转换件共同契约](../../model/model-contract/SPEC.md#转换件的共同契约)。Agent 只看到接纳后的消息与派生表示，不理解模态细节。
+模态转换是提供者的义务。候选来自 Tool 内容 ref 以外的来源，并且含需要转换的块时，提供者在接纳之前调用系统装配的转换件完成转换。Tool 内容 ref 不在接纳前加载，在 Model 实际请求时加载。转换的时点、失败分类与适用块归 [request-context 的 RQ-04](../../context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示) 与 [Model 转换件共同契约](../../model/model-contract/SPEC.md#转换件的共同契约)。Agent 只看到接纳后的消息与派生表示，不理解模态细节。
 
 #### 卡片与准入端口的逐操作要素
 

@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | F-CX01 | 一次模型请求的上下文闭环 | runtime-context-contract、request-context-contract | 见[成员流程 F-RC03、F-RC04](../runtime-context-contract/docs/flows.md)与[成员流程 F-RQ01](../request-context-contract/docs/flows.md) |
 | F-CX02 | 块变化到模型可见 | runtime-context-contract、request-context-contract | 见[成员流程 F-RC06](../runtime-context-contract/docs/flows.md)与[成员流程 F-RQ02](../request-context-contract/docs/flows.md) |
-| F-CX03 | 压缩后重给快照 | request-context-contract、runtime-context-contract | 见[成员流程 F-RQ03](../request-context-contract/docs/flows.md)与[成员流程 F-RC04](../runtime-context-contract/docs/flows.md) |
+| F-CX03 | 压缩后重给快照 | request-context-contract、runtime-context-contract；触发者是作用域持有者（重签模型类读者的资格） | 见[成员流程 F-RQ03](../request-context-contract/docs/flows.md)与[成员流程 F-RC04](../runtime-context-contract/docs/flows.md) |
 
 ## 按读者选择阅读路径
 

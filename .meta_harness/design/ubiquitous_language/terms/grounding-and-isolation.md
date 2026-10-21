@@ -332,7 +332,7 @@
 
 ### UL-environment-acquisition · 获取 · Environment Acquisition
 
-> **中**：集成方按一个[落点](#ul-placement--落点--placement)向执行环境要一份[租约](#ul-environment-lease--租约--environment-lease)的那一次事务。它以集成方给的幂等键识别：同键重复请求返回同一状态，不重新分配。它从落点成立起，经提供者临时回执、登记方核验、签发[采用记录](#ul-environment-adoption--采用记录--environment-adoption)，到释放确认为止；状态归调用方的耐久账本保存。
+> **中**：集成方按一个[落点](#ul-placement--落点--placement)向执行环境要一份[租约](#ul-environment-lease--租约--environment-lease)的那一次事务。它以集成方给的幂等键识别：同键重复请求返回同一状态，不重新分配。它从落点成立起，经提供者临时回执、执行环境核验、签发[采用记录](#ul-environment-adoption--采用记录--environment-adoption)，到释放确认为止；状态归集成方的耐久账本保存。
 >
 > **EN**: The transaction in which an integrator asks the execution environment for a lease at one placement. It is identified by the idempotency key the integrator supplies: a repeated request with the same key returns the same state and allocates nothing new. It runs from the placement, through the provider's provisional receipt, the registry's verification and the issue of an adoption record, to confirmed release. Its state is kept in the caller's durable ledger.
 
@@ -342,7 +342,7 @@
 
 ### UL-environment-adoption · 采用记录 · Environment Adoption
 
-> **中**：登记方在一次[获取](#ul-environment-acquisition--获取--environment-acquisition)核验通过后签发的那份记录：落点、提供者名与代、实例身份与代、[连续性](#ul-environment-continuity--连续性--environment-continuity)、提供者证据。它由集成方随自己的准备记录持久保存。提供者证据不是提供者自签的权限。
+> **中**：执行环境在一次[获取](#ul-environment-acquisition--获取--environment-acquisition)核验通过后签发的那份记录：落点、提供者名与代、实例身份与代、[连续性](#ul-environment-continuity--连续性--environment-continuity)、提供者证据。它由集成方随自己的准备记录持久保存。提供者证据不是提供者自签的权限。
 >
 > **EN**: The record the registry issues after one acquisition passes verification: the placement, the provider's name and generation, the instance identity and generation, the continuity, and the provider's evidence. The integrator persists it with its own preparation record. The provider's evidence is not a permission the provider signed for itself.
 
@@ -362,7 +362,7 @@
 
 ### UL-managed-resource · 受管资源 · Managed Resource
 
-> **中**：执行环境里**可能跨进程寿命存活**、因此要在调用方耐久账本里登记的东西：一个进程、一条终端、一个文件批次。它的值是键、提供者与一份 JSON 引用；引用用于恢复时认回，不是活句柄或裸进程号。它从计划、许可、（接续）、运行到已停，已停分确认与未确认，未确认不写成已停。
+> **中**：执行环境里**可能跨进程寿命存活**、因此要在集成方耐久账本里登记的东西：一个进程、一条终端、一个文件批次。它的值是键、提供者与一份 JSON 引用；引用用于恢复时认回，不是活句柄或裸进程号。它从计划、许可、（接续）、运行到已停，已停分确认与未确认，未确认不写成已停。
 >
 > **EN**: Something inside an execution environment that **may outlive the process** and is therefore recorded in the caller's durable ledger: a process, a terminal, a file batch. Its value is a key, the provider, and a JSON reference. The reference is for recognition during recovery. It is not a live handle or a bare process id. It moves from planned, permitted, optionally adopted, running, to stopped. Stopped is either confirmed or unconfirmed, and unconfirmed is never written as stopped.
 
