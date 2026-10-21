@@ -33,4 +33,18 @@ export {
   decodeRevision,
 } from './identity-values.ts'
 export { deriveGuardControlOperation } from './guard-control.ts'
+
+export type * from './reference.ts'
+export {
+  MODEL_REFERENCE_MAX_LENGTH,
+  encodeModelInvocationRef,
+  encodeModelOperationRef,
+  decodeModelInvocationRef,
+  decodeModelOperationRef,
+  resolveModelInvocationRef,
+  resolveModelOperationRef,
+} from './reference.ts'
+
+export type { ModelAdmitCandidate, ModelInputRejection } from './judge-request.ts'
+export { judgeFixedModelRequest, judgeAdmit, MODEL_INPUT_LIMITS } from './judge-request.ts'
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from './replay-values.ts'

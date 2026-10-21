@@ -1,3 +1,6 @@
+import { referenceRejected } from './reference.ts'
+import type { ModelReferenceAccess } from '../root.ts'
+import { resolveModelInvocationRef } from '../reference.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   AckInput,
@@ -112,8 +115,12 @@ export function createConsumption<P>(core: Core<P>): ModelConsumption<P> {
   }
 
   async function beginRead(
-    input: Mutation<P> & Readonly<{ result: ResultVersion }>,
+    original: ModelReferenceAccess<P> &
+      Readonly<{ operation: import('../root.ts').ModelOperationId; result: ResultVersion }>,
   ): Reply<ReadStart> {
+    const resolved = resolveModelInvocationRef(original.reference, original.tenant)
+    if ('failure' in resolved) return referenceRejected(resolved.failure, 'beginRead')
+    const input = { ...original, ...resolved.ok }
     if (isReserved(input.operation)) return reservedOperation('operation')
     const target = resolve(core, input, 'read')
     if (target === null || target.record === null) return denied('read')

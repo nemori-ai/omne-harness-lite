@@ -99,6 +99,7 @@ export type ToolRecovery<B extends ContentBlock> = Readonly<{
 }>
 export interface ToolCommands<P, B extends ContentBlock> {
   admit(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): Reply<ToolState>
+  /** Same operation and fixed intent recall the original receipt; public control allocates a new operation. */
   control(input: Mutation<P> & Readonly<{ intent: ToolControl }>): Reply<ControlReceipt>
   acceptDecision(
     input: Mutation<P> & Readonly<{ wait: ToolWaitId; decision: DurableEvidence }>,

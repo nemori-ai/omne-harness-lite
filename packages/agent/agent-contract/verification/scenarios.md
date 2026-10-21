@@ -263,9 +263,9 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
-| SC-AG-160 | 逐切点注入崩溃。对一次主模型调用与一个获准的工具动作，分别在效果意图提交前后、生产者受理前后、结果保管前后、交付责任解除前后各注入一次崩溃 | 每个切点恢复后，真实调用身份不变，真实发出次数为一，费用记录一笔。意图未提交的切点重算后得到同一意图。意图已提交未受理的切点按原 admission 查询后至多受理一次。已受理的切点等待原调用。已保管的切点只对账解除。没有任何切点产生第二个逻辑调用 | 生产者的受理记录按 call 去重为一；PendingCall 与 EffectIntent 的身份在崩溃前后相同；query 的结果序列只从 unknown 变为 committed 或 excluded；每个切点的回归节点与切点表一致 |
+| SC-AG-160 | 逐切点注入崩溃。对一次主模型调用与一个获准的工具动作，分别在效果意图提交前后、生产者受理前后、结果保管前后、交付责任解除前后各注入一次崩溃 | 每个切点恢复后，真实调用身份不变，真实发出次数为一，费用记录一笔。意图未提交的切点重算后得到同一意图。Model 意图在首次 admit 前保存 reference；意图已提交未受理的切点凭原 reference 和当前资格 inspect，只有可信 not-accepted 才沿原身份至多受理一次。Tool 按原协议查询及恢复。已受理的切点等待原调用。已保管的切点只对账解除。没有任何切点产生第二个逻辑调用 | 生产者的受理记录按 call 去重为一；PendingCall 与 EffectIntent 的身份在崩溃前后相同；query 的结果序列只从 unknown 变为 committed 或 excluded；每个切点的回归节点与切点表一致 |
 | SC-AG-161 | 输入已受理、尚未唤醒时进程退出。另一次通知先于监听到达，监听登记后监听丢失，runtime 没有退出 | 第一次恢复后 E2 读到水位线以内的输入，E4 回 I0 承接，不因内存队列空完成。第二次唤醒丢失，到检查时刻后按 reconciliationDelayMs 重读来源，读到进度变化后调度。唤醒不回 reconciling | Journal.inputs 返回受理时保存的内容；第一次的节点序列为 E0、E1、E2、E4、I0；第二次没有 ended，重读间隔不短于 reconciliationDelayMs；唤醒后的状态等于进入 W0 之前的状态，没有新挂接 |
-| SC-AG-162 | 效果意图已提交、生产者尚未受理时崩溃。另一次生产者已受理、回执丢失时崩溃 | 第一次按原 admission 查询生产者：未受理且可信排除时以原身份受理一次，已受理则等待。第二次认回原受理，在 M1 或 T0 等待。两次都不分配第二个逻辑调用，不把超时等同没有发出 | 生产者侧的受理记录只有一条；admission 与 EffectIntent 一致；没有新的 PendingCall；超时后状态仍为在途或未知 |
+| SC-AG-162 | 效果意图已提交、生产者尚未受理时崩溃。另一次生产者已受理、回执丢失时崩溃 | 第一次对 Model 凭预存 reference inspect：可信 not-accepted 且当前仍合法时沿原身份受理一次，已受理则等待。第二次对 Model 凭原 reference 认回，不依赖成功回包。Tool 两个切点均按原协议查询及恢复，在 M1 或 T0 等待。两次都不分配第二个逻辑调用，不把超时等同没有发出 | 生产者侧的受理记录只有一条；Model reference 与 EffectIntent 一致且在首次 admit 前可构造；Tool 保持其原关联；没有新的 PendingCall；超时后状态仍为在途或未知 |
 | SC-AG-163 | Journal 提交回执丢失。另一次 MessageHandoff.accept 的提交回执未知 | 第一次 query 原操作：committed 取原结果回后继，unknown 等待，excluded 才重新求值。第二次以同一操作身份与同一候选重新调用 accept 即是查询，得到原结果。两次都不用新身份重试，不把查无记录当作 excluded | query 的操作身份与原提交相同；没有第二个操作身份；excluded 带排除原写入与迟到提交的依据；accept 幂等返回同一回执 |
 | SC-AG-164 | 纯求值后、意图未提交时崩溃 | 重读后重算得到相同的下一步。没有外部效果。checkpoint 的 revision 不变 | 没有生产者受理；两次 next 的输出相同；修订号不变 |
 
@@ -373,4 +373,3 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-213 | 实例重新启用后，旧贡献 fiber 晚到卸载 | 后继登记已取代旧登记之后，旧贡献 fiber 才卸载。旧贡献的撤除比较登记身份，目录中的后继条目不被删除，后继仍可 resolve。旧卸载不发出第二个 `instance-retired` | 卸载前后目录条目的登记身份不变；后继的发布代次不变；`instance-retired` 只对旧登记发出一次，原因是 superseded |
 | SC-AG-214 | 消费者的依赖闭包 | 只消费 Cordis 服务的插件，依赖闭包含 agent-cordis-contract 与 agent-contract，不含 agent-host-local 与 agent。独立调用者的闭包含 agent-contract 与 agent，不含 Cordis。四个成员的根入口都不导入 `@deepseek-ai/cordis`，agent-cordis-contract 的根入口也不导入任何提供者 | 完整生产安装闭包；移除 monorepo 路径别名后仍成立；根入口源码与生成的声明中没有 Cordis 引用；agent-cordis-contract 的 `./cordis` 不引入 agent 与 agent-host-local |
 | SC-AG-215 | 每次调用在一个位置核验主体资格 | 20 个 `AgentAccessOperation` 的每次调用，只在实际执行它的一个位置调用 `agentAccessCheck`：runtime 的公开操作、宿主、目录、宿主恢复入口或长期执行记录适配器。同一操作名可以出现在两个位置，一次调用只经过其中一个。resume 遇到旧挂接仍 active 时，同一位置另以 takeover 核验一次。工厂、宿主和目录得到的是同一个服务实例。runtime 在已核验的公开操作之内调用 Journal 时不再次核验。没有任何操作绕过核验 | 以可记录的核验替身运行每个公开操作：每次调用只有一个核验调用，唯一的例外是 resume 在旧挂接仍 active 时有 resume 与 takeover 两个核验调用；操作名与 Cordis 页的调用位置表一致；三处使用的服务实例同一；撤权后的下一次调用被拒绝 |
-

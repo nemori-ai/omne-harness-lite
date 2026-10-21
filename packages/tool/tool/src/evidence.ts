@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolDeliveryId,
+  decodeToolOperationId,
   decodeToolResultVersion,
   decodeToolRevision,
   type DurableEvidence,
@@ -54,7 +55,15 @@ export function digestOf(value: unknown): string {
 }
 
 /** The record kinds the ledger mints evidence for. Each kind is one purpose (P01, P08, P09). */
-export type EvidenceKind = 'state' | 'result' | 'delivery' | 'operation' | 'account'
+export type EvidenceKind =
+  | 'state'
+  | 'result'
+  | 'delivery'
+  | 'operation'
+  | 'account'
+  | 'fact-event'
+  | 'fact-custody'
+  | 'fact-reader'
 
 /**
  * Where an evidence points: always the tenant and the call, because the identity of every Tool
@@ -116,4 +125,13 @@ export function resultVersion(ordinal: number): ToolResultVersion {
 
 export function deliveryId(ordinal: number): ToolDeliveryId {
   return minted(decodeToolDeliveryId(`d${ordinal}`), `d${ordinal}`)
+}
+
+/** Purpose and full locator determine a distinct task identity within the call domain. */
+export function factTaskOperation(
+  purpose: 'settle' | 'fact-ack' | 'facts-blocked',
+  locator: unknown,
+) {
+  const text = `${purpose}:${digestOf(locator)}`
+  return minted(decodeToolOperationId(text), text)
 }

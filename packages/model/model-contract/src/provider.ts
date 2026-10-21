@@ -41,7 +41,7 @@ import type {
 import type {
   DispatchRecord,
   GrowingContentKind,
-  ModelDirectory,
+  LiveRoute,
   ModelHandle,
   ModelRuntime,
   ReadState,
@@ -265,13 +265,17 @@ export interface ModelClock {
   now(): string
   waitUntil(instant: string, signal: AbortSignal): Promise<'elapsed' | 'cancelled'>
 }
+/** Low-level call routing. The host must enforce current observation access. */
+export interface ModelInstanceDirectory<P> {
+  connect(input: CallAccess<P>): Reply<LiveRoute<P>>
+}
 export interface ModelInstanceHost<P> {
   schedule(
     input: Readonly<{ tenant: TenantId; call: ModelCallId }>,
   ): Reply<Readonly<{ queued: true }>>
   publish(input: ExecutionRef, handle: ModelHandle<P>): Reply<Publication>
   withdraw(input: Publication): Reply<Readonly<{ removed: boolean }>>
-  directory: ModelDirectory<P>
+  directory: ModelInstanceDirectory<P>
 }
 export interface ModelProvider<P> {
   readonly runtime: ModelRuntime<P>

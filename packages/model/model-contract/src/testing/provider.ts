@@ -20,10 +20,11 @@ export type ScriptedModelProvider<P> = Readonly<{
 }>
 
 /**
- * A provider that keeps its calls in memory and lets the test script what happens to them. It
- * implements the ordinary call surface with the recognition and idempotence rules of the
- * contract, and holds no state outside the closure. It does not run a model, store anything
- * durably, or check evidence or request content.
+ * A provider that keeps calls in memory and lets tests script their outcomes. It implements
+ * the contract's recognition and idempotence rules and holds all state in the closure.
+ * Admission uses the public judgeAdmit function for closed request structure checks.
+ * Evidence checks compare only against evidence registered by the script, when any is registered.
+ * It does not verify external evidence or real supplier behavior, run a model, or store state durably.
  */
 export function createScriptedModelProvider<P>(
   options: ScriptedModelProviderOptions<P>,

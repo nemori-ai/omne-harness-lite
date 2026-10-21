@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgePart } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -415,7 +416,12 @@ describe('a scripted call that was given evidence', () => {
       reason: 'the evidence is not one that the script gave for the call',
     })
     expect(
-      must(await calls.inspect({ ...access('a'), admission: operation('admit-a') })),
+      must(
+        await calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+        }),
+      ),
     ).toMatchObject({ kind: 'found', state: { custody: { kind: 'producer' } } })
     const receipt = must(await consumption.acknowledge(ackInput('a', 'given')))
     expect(receipt.custody.receipt).toEqual(evidence('given'))
@@ -494,7 +500,12 @@ describe('a scripted directory that cannot be reached', () => {
       failureOf(await instances.connect({ ...access('a'), principal: { name: 'bob' } })),
     ).toEqual(expected)
     expect(
-      must(await calls.inspect({ ...access('a'), admission: operation('admit-a') })).kind,
+      must(
+        await calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+        }),
+      ).kind,
     ).toBe('found')
   })
 

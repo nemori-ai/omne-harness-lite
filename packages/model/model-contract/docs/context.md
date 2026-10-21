@@ -21,7 +21,9 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract 的根入口已导出全部 160 个类型声明（含引用共享 `ToolCallPart` 的声明）与 22 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现；本地凭据保管及其插件在 model-host-local。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
+model-contract 的[公开接口页](public-api.md)导航根入口与 `./testing` 的声明，实际名字见[导出清单](../tests/fixtures/exports.json)。根入口包含引用共享 `ToolCallPart` 的声明。`./testing` 提供受控替代提供者与替代传输，给领域外的协调者练习失败路径，不是生产提供者。提供者作者可用 `checkModelProviderConformance` 检查自己的提供者是否守住公开面上可观察的契约义务。
+
+model-cordis-contract 的抽象 Service、凭据服务、实例目录与转换目录见其[公开接口页](../../model-cordis-contract/docs/public-api.md)。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现。本地凭据保管及其插件在 model-host-local。下表描述托管运行接口的消费路径，现有凭据入口见 model 的公开文档。
 
 | 使用任务 | 安装与导入 |
 | --- | --- |
@@ -187,4 +189,4 @@ Tool 内容 ref 沿 deferred 结果保留，准备和历史投影不读二进制
 
 从 beginRead/readNext 按页序遍历 parts。sealed 使用原 ModelBlock，partial 保管原累计 value；两者都处理 trims 与真实 Settlement。partial 不是可执行工具调用，也不自动具有展示或播放资格。可靠保管须独立于可以清理的 Model 唯一副本。页字节目标不是硬报文上限，完整页可接近原容量 C。类型、预算和消费边界见 [公开指导](public-api.md#最终结果项与页预算)。
 
-实际调用教学见 model 的[四个独立脚本](../../model/examples/README.md)。它们使用真实 runtime、产品 sender 和内存测试端口，不证明生产耐久或厂商发送。
+实际调用教学见 model 的[五个独立脚本](../../model/examples/README.md)。它们使用真实 runtime、产品 sender 和内存测试端口，不证明生产耐久或厂商发送。

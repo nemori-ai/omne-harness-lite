@@ -3,7 +3,6 @@ import type { FixedToolRequest, Mutation } from '@omne-harness/tool-contract'
 import { testAssembly } from './testing-values.ts'
 import {
   dummyRequest,
-  ok,
   operationId,
   callId,
   principalA,
@@ -93,8 +92,14 @@ async function issued() {
     call: callId('call'),
     operation: operationId('admit'),
   }
-  const invocation = ok(await base.source.issuer.bind({ ...access, request: payload }))
-  const input = { ...access, request: { ...payload, invocation } }
+  const bound = await base.source.issuer.resolve({ ...access, request: payload })
+  if (bound.kind !== 'bound') throw new Error(JSON.stringify(bound))
+  const input = {
+    ...access,
+    call: bound.call,
+    operation: bound.admission,
+    request: { ...payload, invocation: bound.invocation },
+  }
   return { ...base, input }
 }
 

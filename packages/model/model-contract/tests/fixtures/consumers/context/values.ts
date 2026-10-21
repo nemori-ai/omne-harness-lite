@@ -51,7 +51,7 @@ export const adoption = (name: string): Adoption => ({
   owner: 'fixture',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: '0'.repeat(64),
 })
 
 export const evidence = (label: string): DurableEvidence => ({
@@ -127,7 +127,7 @@ export function userMessage(name: string, blocks: readonly MessagePart[]): Messa
   const parsed = parseMessageId(`msg_${name.padEnd(22, 'x')}`)
   if (!parsed.ok) throw new Error('the fixture message id is invalid')
   const judged = judgeMessage({ id: parsed.value, role: 'user', blocks })
-  if ('rejected' in judged) throw new Error(`the fixture message is invalid: ${judged.rejected}`)
+  if (!('ok' in judged)) throw new Error(`the fixture user message is invalid: ${judged.rejected}`)
   return judged.ok
 }
 

@@ -34,13 +34,13 @@ Agent 自己的执行结束由本域条件提交成立。外部协调者的业�
 
 执行记录由 Agent 经 Journal 保存，控制记录与否决历史也保存在执行记录中。业务消息由消息的拥有者保存。流事件由 Agent 的事件序列保存，规则见“事件流与读取”。诊断日志按“性能、诊断与维护”处理。外部协调者把哪些 Agent 事实写入自己的日志，由该协调者的文档规定。Agent 通过事件序列与读取操作提供原事实。
 
-登记的最小对接是现行规则。这张表适用于所有调用方，包括外部协调者和独立调用者。
+登记的最小对接是现行规则。这张表适用于所有调用方，包括外部协调者和独立调用者。Model 的引用与受理前身份由 [Model 引用契约](../../model/model-contract/SPEC.md#可保存调用引用)固定。Tool 的来源关联由 Tool 契约拥有，不从 Model 推广共同铸造规则。
 
 始终要有调用身份、固定输入的引用、原消费位置和发起者。调用方自己的业务关联只在这次调用实际具有它们时才以消费位置携带，Agent 不为独立调用制造这些身份，也不要求它们。托管访问把租户当作参数。缺租户或跨租户默认拒绝。
 
 | 项 | 规则 |
 | --- | --- |
-| 关联身份 | 发起者在登记时生成的调用身份。Agent 为推进某个 execution 发起的调用，发起者是 Agent，并关联该 execution。独立调用的发起者是那个调用方。 |
+| 关联身份 | Model 调用方在首次 admit 前固定 call/admission 并保存 ModelInvocationRef。Agent 为推进 execution 发起的 Model 调用关联该 execution。独立 Model 调用保留调用方原身份。Tool 的来源关联由 Tool 契约拥有。 |
 | 必要参数 | 调用身份、固定输入的引用、原消费位置、发起者。租户显式携带。调用方实际具有的消费位置一并带上。 |
 | 成功 | 登记已提交。登记不等于已经发出。 |
 | 拒绝 | Agent 发起的调用所属的执行挂接已失去推进资格，输入尚未固定，或该调用身份已经绑了另一组参数。 |
@@ -373,7 +373,7 @@ Agent 将明确事实求成下一步，再通过公开端口协调工作。外�
 
 [本节定义](docs/public-api/README.md#身份原位置与纯求值)。
 
-StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。admission 保存每个生产者原受理操作，用于 inspect/lookup，不能只保存 call。
+StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。PendingCall.model 保存 ModelInvocationRef，用于 inspect/connect/beginRead。首次 admit 前即可由已固定的 tenant/call/admission 编码，意图先保存。Tool 分支仍保存其 call/admission，具体关联由 Tool 契约拥有。
 
 AgentCheckpoint 由 Agent 解释并通过 AgentJournal 保存。外部协调者的提交参加者可以把它纳入自己的原子提交，但不得另行维护第二份 Agent 工作状态。效果协调层把生产者公开状态投影为 ProducerDecisionView，纯 Evaluator 不解释外域状态编码。查询不可用返回失败，原状态未定保持 unresolved，不用空集合或结束状态代替。decode 必须核对精确采用、身份关系和完整性，不能把任意 JsonValue 当 AgentCheckpoint。编码只允许数据，不含运行对象。
 

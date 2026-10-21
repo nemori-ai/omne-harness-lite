@@ -1,3 +1,5 @@
+import type { ModelInvocationRef } from '@omne-harness/model-contract'
+declare const reference: ModelInvocationRef
 import { expectTypeOf, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolCallPart } from '@omne-harness/message'
@@ -169,7 +171,7 @@ it('Lookup, Admission and DurableEvidence connect the lookup and the evidence', 
   }
   const found: Lookup = { kind: 'found', state: base }
   const absent: Lookup = { kind: 'not-accepted', operation }
-  const admission: Admission = { call, revision, recovered: false }
+  const admission: Admission = { call, revision, recovered: false, reference }
   const durable: DurableEvidence = evidence
   void [found, absent, admission, durable]
 })

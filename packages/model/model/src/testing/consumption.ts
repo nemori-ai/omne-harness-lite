@@ -6,9 +6,37 @@ import type {
   ReadStart,
 } from '@omne-harness/model-contract'
 import { decodeReadId, decodeResultVersion } from '@omne-harness/model-contract'
-import { MemoryState, authFailure, bump, missingReceipt, unresolved } from './state.ts'
+import {
+  MemoryState,
+  authFailure,
+  bump,
+  missingReceipt,
+  unresolved,
+  type MemoryCall,
+} from './state.ts'
 import { invalid, readId } from './value.ts'
 
+function expireReads(call: MemoryCall, now: () => string, idleMs: number): void {
+  for (const read of call.reads.values()) {
+    if (
+      read.state.kind === 'reading' &&
+      Date.parse(now()) - Date.parse(read.lastProgress) >= idleMs
+    )
+      read.state = { kind: 'ended', reason: 'stalled' }
+  }
+}
+function releaseMaterial(call: MemoryCall): void {
+  call.request = null
+  call.snapshots.clear()
+  for (const dispatch of call.dispatches) {
+    dispatch.blocks = []
+    dispatch.assembly = null
+    dispatch.nextSeq.clear()
+    dispatch.trims.clear()
+    dispatch.hadContent.clear()
+    dispatch.windows.clear()
+  }
+}
 export function consumptionCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {
@@ -183,14 +211,7 @@ export function consumptionCommands<P>(
               return {
                 ok: { value: structuredClone(call.state.custody), receipt: { kind: 'cleanup' } },
               }
-            for (const read of call.reads.values()) {
-              if (
-                read.state.kind === 'reading' &&
-                Date.parse(store.options.clock.now()) - Date.parse(read.lastProgress) >=
-                  store.options.limits.readIdleMs
-              )
-                read.state = { kind: 'ended', reason: 'stalled' }
-            }
+            expireReads(call, () => store.options.clock.now(), store.options.limits.readIdleMs)
             const active = [...call.reads.values()].some(r => r.state.kind === 'reading')
             const pending =
               unresolved(draft.tenant, input.call).length > 0 ||
@@ -202,18 +223,7 @@ export function consumptionCommands<P>(
               (active ? 'active-read' : pending ? 'unresolved-write-or-receive' : null)
             const cleanup = diagnostic === null ? 'released' : 'blocked'
             call.state = { ...call.state, custody: { ...call.state.custody, cleanup, diagnostic } }
-            if (cleanup === 'released') {
-              call.request = null
-              call.snapshots.clear()
-              for (const d of call.dispatches) {
-                d.blocks = []
-                d.assembly = null
-                d.nextSeq.clear()
-                d.trims.clear()
-                d.hadContent.clear()
-                d.windows.clear()
-              }
-            }
+            if (cleanup === 'released') releaseMaterial(call)
             bump(call)
             return {
               ok: { value: structuredClone(call.state.custody), receipt: { kind: 'cleanup' } },

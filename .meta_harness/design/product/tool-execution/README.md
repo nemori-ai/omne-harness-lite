@@ -18,6 +18,7 @@ relations:
 - [产品正文](design.md)包含需求、能力状态、阶段承诺及未决事项。
 - [领域责任](../../../../docs/domains/tool-execution/README.md)解释已接受分工与采用范围。
 - [能力组](../../../../packages/tool/README.md)导航工程关系及成员契约。
+- [阶段一验收场景](acceptance.md)登记有限的持续验证路径，不改变产品采用状态。
 
 ## 维护
 

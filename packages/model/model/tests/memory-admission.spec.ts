@@ -15,11 +15,15 @@ for (const kind of numeric) {
       control.injectUnknown({ ...f.admit, method: 'admit', effect: 'applied' })
       const invalid = { ...f.admit, request: { ...f.admit.request, parameters: [{ kind, value }] } }
       f.denied.add('admit')
-      expect(await commands.admit(invalid)).toMatchObject({ failure: { kind: 'denied' } })
+      expect(await commands.admit(invalid)).toMatchObject({
+        failure: { kind: 'invalid', reason: 'range' },
+      })
       f.denied.delete('admit')
       const reply = commands.admit(invalid)
       expect(reply).toBeInstanceOf(Promise)
-      expect(await reply).toEqual({ failure: { kind: 'invalid', field: kind, reason: 'range' } })
+      expect(await reply).toEqual({
+        failure: { kind: 'invalid', field: '/request/parameters/0/value', reason: 'range' },
+      })
       expect(unbox(await commands.recall({ ...f.admit, admission: f.admit.operation })).kind).toBe(
         'not-accepted',
       )
@@ -28,17 +32,21 @@ for (const kind of numeric) {
         request: { ...f.admit.request, parameters: [{ kind, value: 1 }] },
       }
       expect(await commands.admit(valid)).toMatchObject({ failure: { kind: 'commit-unknown' } })
-      expect(await commands.admit(invalid)).toMatchObject({ failure: { kind: 'conflict' } })
+      expect(await commands.admit(invalid)).toMatchObject({
+        failure: { kind: 'invalid', reason: 'range' },
+      })
       expect(await commands.admit(valid)).toMatchObject({ failure: { kind: 'commit-unknown' } })
       control.reveal({ ...f.admit, result: 'committed' })
       expect(unbox(await commands.admit(valid)).recovered).toBe(true)
-      expect(await commands.admit(invalid)).toMatchObject({ failure: { kind: 'conflict' } })
+      expect(await commands.admit(invalid)).toMatchObject({
+        failure: { kind: 'invalid', reason: 'range' },
+      })
       expect(
         await commands.admit({
           ...valid,
           request: { ...valid.request, parameters: [{ kind, value: 3 }] },
         }),
-      ).toMatchObject({ failure: { kind: 'conflict' } })
+      ).toMatchObject({ failure: { kind: 'invalid', reason: 'range' } })
       expect(
         await commands.admit({
           ...valid,
@@ -161,7 +169,7 @@ it('keeps an unknown unapplied admission bound while rejecting different illegal
         ...original,
         request: { ...original.request, parameters: [{ kind: 'temperature', value }] },
       }),
-    ).toMatchObject({ failure: { kind: 'conflict' } })
+    ).toMatchObject({ failure: { kind: value === 0.5 ? 'conflict' : 'invalid' } })
   expect(unbox(await commands.query(original)).kind).toBe('unknown')
   expect(await commands.admit(original)).toMatchObject({ failure: { kind: 'commit-unknown' } })
   control.reveal({ ...original, result: 'rolled-back' })
@@ -201,7 +209,13 @@ for (const location of ['applied', 'requested'] as const) {
         }
         const reply = commands.admit(input)
         expect(reply).toBeInstanceOf(Promise)
-        expect(await reply).toEqual({ failure: { kind: 'invalid', field: kind, reason: 'range' } })
+        expect(await reply).toEqual({
+          failure: {
+            kind: 'invalid',
+            field: `/request/parameterAdoptions/0/${location === 'applied' ? 'applied' : 'origin/requested'}/value`,
+            reason: 'range',
+          },
+        })
         expect(await commands.query(input)).toEqual({ ok: { kind: 'not-committed' } })
         const valid = {
           ...input,
@@ -210,7 +224,7 @@ for (const location of ['applied', 'requested'] as const) {
         expect(await commands.admit(valid)).toMatchObject({ failure: { kind: 'commit-unknown' } })
       }
     })
-    it(`keeps ${location} ${kind} conflicts and current qualification ahead of replay`, async () => {
+    it(`rejects malformed ${location} ${kind} before replay and current qualification`, async () => {
       for (const mode of ['committed', 'applied', 'not-applied'] as const) {
         const f = fixture()
         const { commands, control } = createMemoryModelCommands(f.options)
@@ -227,9 +241,13 @@ for (const location of ['applied', 'requested'] as const) {
             request: adoptedRequest(f.admit.request, location, { kind, value }),
           }
           f.denied.add('facts')
-          expect(await commands.admit(changed)).toMatchObject({ failure: { kind: 'denied' } })
+          expect(await commands.admit(changed)).toMatchObject({
+            failure: { kind: 'invalid', reason: 'range' },
+          })
           f.denied.delete('facts')
-          expect(await commands.admit(changed)).toMatchObject({ failure: { kind: 'conflict' } })
+          expect(await commands.admit(changed)).toMatchObject({
+            failure: { kind: 'invalid', reason: 'range' },
+          })
         }
         if (mode === 'committed') expect(unbox(await commands.admit(original)).recovered).toBe(true)
         else {
@@ -348,7 +366,9 @@ for (const middle of [false, true]) {
         control.injectUnknown({ ...f.admit, method: 'admit', effect })
         const input = { ...f.admit, request }
         f.denied.add('admit')
-        expect(await commands.admit(input)).toMatchObject({ failure: { kind: 'denied' } })
+        expect(await commands.admit(input)).toMatchObject({
+          failure: { kind: 'invalid', reason: 'sparse' },
+        })
         f.denied.delete('admit')
         const pending = commands.admit(input)
         expect(pending).toBeInstanceOf(Promise)
@@ -375,9 +395,13 @@ for (const middle of [false, true]) {
         await commands.admit(f.admit)
         const changed = { ...f.admit, request }
         f.denied.add('facts')
-        expect(await commands.admit(changed)).toMatchObject({ failure: { kind: 'denied' } })
+        expect(await commands.admit(changed)).toMatchObject({
+          failure: { kind: 'invalid', reason: 'sparse' },
+        })
         f.denied.delete('facts')
-        expect(await commands.admit(changed)).toMatchObject({ failure: { kind: 'conflict' } })
+        expect(await commands.admit(changed)).toMatchObject({
+          failure: { kind: 'invalid', reason: 'sparse' },
+        })
         if (mode === 'committed') expect(unbox(await commands.admit(f.admit)).recovered).toBe(true)
         else {
           expect(await commands.admit(f.admit)).toMatchObject({

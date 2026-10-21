@@ -184,10 +184,31 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../agent-contract
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
     devDependencies:
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      '@typescript/typescript6':
+        specifier: 'catalog:'
+        version: 6.0.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -1102,6 +1123,9 @@ importers:
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../tool-contract
+      '@omne-harness/unix-format':
+        specifier: workspace:*
+        version: link:../../util/unix-format
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

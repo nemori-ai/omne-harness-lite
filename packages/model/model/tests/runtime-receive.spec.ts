@@ -7,7 +7,13 @@ const open: TransportFact = { kind: 'block-open', index: '0', mode: 'append', co
 const delta = (text: string): TransportFact => ({ kind: 'block-delta', index: '0', delta: text })
 const end: TransportFact = { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } }
 async function observer(f: ReturnType<typeof runtimeFixture>) {
-  const route = unbox(await f.provider.runtime.instances.connect(f.admit))
+  const route = unbox(
+    await f.provider.runtime.instances.connect({
+      principal: f.principal,
+      tenant: f.tenant,
+      reference: f.reference,
+    }),
+  )
   if (route.kind !== 'live') throw new Error('missing live route')
   return route.handle
     .observe({ ...f.admit, signal: new AbortController().signal })
@@ -138,6 +144,28 @@ it('makes the byte threshold change positive-delay batch boundaries and saves te
     await f.dispose()
   }
 })
+for (const outputBatchBytes of [66, 67]) {
+  it(`flushes the 66-byte opening fact at the exact ${outputBatchBytes}-byte batch boundary`, async () => {
+    expect(Buffer.byteLength(JSON.stringify(open), 'utf8')).toBe(66)
+    const f = runtimeFixture({ outputBatchDelayMs: 100, outputBatchBytes })
+    try {
+      unbox(await f.provider.runtime.calls.admit(f.admit))
+      await f.start(f.admit.call)
+      await f.show(f.admit.call, [open, delta('a'), end])
+      expect(f.preserveInputs.map(input => input.facts)).toEqual(
+        outputBatchBytes === 66 ? [[open], [delta('a'), end]] : [[open, delta('a')], [end]],
+      )
+      expect(new Set(f.preserveInputs.map(input => input.window)).size).toBe(2)
+      expect((await snapshot(f)).blocks).toMatchObject([{ value: 'a' }])
+      expect(f.channel(f.admit.call).starts).toBe(1)
+      expect(f.channel(f.admit.call).closes).toBe(1)
+      expect(f.channel(f.admit.call).returns).toBe(1)
+    } finally {
+      await f.dispose()
+    }
+    expect(f.controls.clock.pending()).toBe(0)
+  })
+}
 it('keeps first content when replacement empties the final view in the same positive-delay batch', async () => {
   const f = runtimeFixture({ outputBatchDelayMs: 100, outputBatchBytes: 10000 })
   try {
@@ -292,6 +320,7 @@ for (const method of ['preserve', 'openReceiveWindow'] as const) {
         const replay = writes.filter(input => input.operation === originalOperation)
         expect(replay).toHaveLength(2)
         expect(replay[1]).toEqual(replay[0])
+        expect(replay[1]).toBe(replay[0])
         expect((await snapshot(f)).blocks).toMatchObject([{ value: 'after' }])
         expect(f.channel(f.admit.call).starts).toBe(1)
         expect(f.channel(f.admit.call).closes).toBe(1)

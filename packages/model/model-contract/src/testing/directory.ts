@@ -1,11 +1,16 @@
+import { referenceRejected } from './reference.ts'
+import type { ModelReferenceAccess } from '../root.ts'
+import { resolveModelInvocationRef } from '../reference.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { LiveRoute, ModelDirectory, Reply } from '../index.ts'
-import type { CallAccess } from '../root.ts'
 import { denied, openCall, type Core } from './core.ts'
 import { handleFor } from './observation.ts'
 
 export function createDirectory<P>(core: Core<P>): ModelDirectory<P> {
-  async function connect(input: CallAccess<P>): Reply<LiveRoute<P>> {
+  async function connect(original: ModelReferenceAccess<P>): Reply<LiveRoute<P>> {
+    const resolved = resolveModelInvocationRef(original.reference, original.tenant)
+    if ('failure' in resolved) return referenceRejected(resolved.failure, 'connect')
+    const input = { principal: original.principal, ...resolved.ok }
     if (core.state.directoryDown)
       return fail({
         kind: 'unavailable',

@@ -76,6 +76,7 @@ flowchart LR
 | 包角色、依赖与安装边界 | 本页的“成员分解与邻接协作”和“安装与源码依赖”两节 | 包 README 介绍自身角色。项目[包组织](../../../docs/package-organization.md)登记实际成员 | 现存 |
 | 主题与唯一拥有者 | 本页本节 | 其他文件不另设拥有者索引 | 现存 |
 | 组级关键协作入口与按读者选择的阅读路径 | [关键流程入口](key-flows.md) | 只导航到成员的流程页与规格页，不写流程和规则 | 现存 |
+| 封存件的逐文件去向 | 本页的“迁移清单”一节 | 其他页只引用本节，不另列文件的去向 | 现存 |
 
 ### agent-contract
 
@@ -124,3 +125,130 @@ flowchart LR
 | 本域对 IC-1 至 IC-19 的符合性映射 | [Cordis 服务定义](../agent-cordis-contract/docs/cordis.md#符合性映射)的符合性映射节 | 本地宿主装配页只写具体插件特有的项，并引用本映射 | 现存 |
 | 本地宿主的依赖、fiber、撤除、候选发行行与插件配置 | [本地宿主装配](../agent-host-local/docs/cordis.md) | 系统集成页只写共同保证与适用前提 | 现存 |
 | 本地宿主提供者责任 | [agent-host-local SPEC](../agent-host-local/SPEC.md) | 其他页引用提供者责任，不复述。纯契约保证归 agent-contract 的 SPEC | 现存 |
+
+## 迁移清单
+
+本节给阶段 1 至 7 的实施者一张逐文件的去向表。实施者按文件名查去向，不再自己判断是否读封存件。
+
+范围是封存目录 [`packages.0.0.1.legacy`](../../../packages.0.0.1.legacy/README.md) 中五个包的 `src/` 源码，共 53 个文件，版本是父分支提交 `453f7498`。五个包是 `core/agent-definition`、`core/loop-extension`、`core/agent-loop`、`core/loop-extension-runner` 与 `agent-loop/loop-extension-runner-local`。
+
+判据来自 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 与 [#504](https://github.com/nemori-ai/omne-harness-lite/issues/504) 的“目标与范围”，原文如下：
+
+> 迁／改／弃看新领域边界和契约，不看 legacy 的结构；凡编码了 legacy 领域边界的代码一律弃，不论能否运行。
+
+封存件编码的旧领域边界有四类。
+
+1. Session 的 attempt 直接当推进资格。
+2. Session 的访问与范围当授权边界。系统页[Loop extensions 的依据](../../../docs/architecture/runtime/loop-extensions.md#依据)写明，Agent 不要求也不解释 Session、Run、attempt。
+3. 三个旧扩展位置。`attempt_started` 由按 Agent 执行触发的 `execution_started` 取代。`before_persist_message` 与 `after_persist_message` 不属于 Agent，归会话的业务流程拓展点。九处位置与两种消息持久化位置的归属见同一节的已作出的设计决定，九处位置的名称见契约包的 `POSITIONS`。
+4. 日志即 Journal。
+
+下表的理由引用这四类边界、契约包已经重写的事实，或现行拥有者的具体条款。
+
+| 类 | 含义 | 实施者怎样使用 |
+| --- | --- | --- |
+| 迁 | 原样可用，且不编码任何 legacy 领域边界。行内写明这一点 | 直接迁入 |
+| 改 | 保留算法，按新边界改写后进入新包。行内写明新包与节点 | 按行内的新包与节点改写 |
+| 弃 | 编码 legacy 领域边界，或已由契约包重写，或其事实已由现行拥有者规定，或属于旧装配 | 不读该文件 |
+| 取证 | 只读其算法事实作参考，不复制类型、边界与依赖。行内写明子卡与节点，事实用 ①②… 逐条编号，一行供两个节点时每条事实标明节点 | 只读该行编号的事实 |
+
+“去向”列的写法如下：取证行写“供〈子卡〉（〈节点〉）取证”，改行写新包与节点，其他行写“无”。子卡编号见 #502 的“阶段与子任务”。节点 ID 见 Loop 算法页的[节点表](../agent/docs/architecture/loop-algorithm.md#节点表)。
+
+封存件中的算法事实与下列现行拥有者不一致时，以拥有者为准：agent-contract 的 [SPEC](../agent-contract/SPEC.md)、[扩展作者协议](../agent-contract/docs/public-api/extensions.md)、Loop 算法页的[节点表](../agent/docs/architecture/loop-algorithm.md#节点表)、Loop 实现的[机制页](../agent/docs/architecture/mechanisms.md)、系统页 [Loop extensions](../../../docs/architecture/runtime/loop-extensions.md)，以及契约源码 [judge-output.ts](../agent-contract/src/judge-output.ts) 中的 `judgeExtensionOutput` 与 `POSITION_OUTPUTS`。拥有者已经写明的事实，引用拥有者的条款，不从封存件取。拥有者尚未规定的行为，不从封存件反推。本清单不评价代码质量，也不决定新接口。
+
+### 汇总
+
+| 类 | 行数 |
+| --- | --- |
+| 迁 | 0 |
+| 改 | 0 |
+| 弃 | 53 |
+| 取证 | 0 |
+| 合计 | 53 |
+
+在仓库根目录用 bash 运行下面四条命令核对。第一条数封存件的源码文件，第二条数本节的文件行，两者都应输出 53。第三条比对封存件的文件集合与本节的文件列，应没有输出。第四条按类统计本节的文件行，各类之和应为 53。
+
+```sh
+git ls-tree -r --name-only 453f7498 packages.0.0.1.legacy/core/agent-definition/src packages.0.0.1.legacy/core/loop-extension/src packages.0.0.1.legacy/core/agent-loop/src packages.0.0.1.legacy/core/loop-extension-runner/src packages.0.0.1.legacy/agent-loop/loop-extension-runner-local/src | grep -c '\.ts$'
+sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep -c '^| `[^`]*\.ts` |'
+diff <(git ls-tree -r --name-only 453f7498 packages.0.0.1.legacy/core/agent-definition/src packages.0.0.1.legacy/core/loop-extension/src packages.0.0.1.legacy/core/agent-loop/src packages.0.0.1.legacy/core/loop-extension-runner/src packages.0.0.1.legacy/agent-loop/loop-extension-runner-local/src | grep '\.ts$' | sed -E 's#^packages\.0\.0\.1\.legacy/(.*)/src/#\1/#' | LC_ALL=C sort) <(sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | awk '/^### /{p=$2; sub(/（.*/,"",p)} /^\| `[^`]*\.ts` \|/{split($0,a,"`"); print p"/"a[2]}' | LC_ALL=C sort)
+sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep '^| `[^`]*\.ts` |' | cut -d'|' -f3 | LC_ALL=C sort | LC_ALL=C uniq -c
+```
+
+### core/agent-definition（3）
+
+| 文件 | 类 | 去向 | 理由 |
+| --- | --- | --- | --- |
+| `index.ts` | 弃 | 无 | 定义正文的判定已由契约包的 `judgeAgentDefinition` 重写。 |
+| `schema-inputs.ts` | 弃 | 无 | 它把旧定义 schema 与旧资产、身份 schema 绑成一张图，定义判定已由契约包重写。 |
+| `schema.ts` | 弃 | 无 | 它只调用旧定义 schema 的生成校验器，定义判定已由契约包重写。 |
+
+### core/loop-extension（11）
+
+| 文件 | 类 | 去向 | 理由 |
+| --- | --- | --- | --- |
+| `body.ts` | 弃 | 无 | 它向旧资产模型登记扩展正文，正文契约已由契约包重写并向 assets 登记。 |
+| `declarations.ts` | 弃 | 无 | 它的位置枚举含三个旧扩展位置，声明判定已由契约包的 `judgeLoopExtensions` 重写。 |
+| `index.ts` | 弃 | 无 | 它只重新导出本包的声明、schema 与判定，这些都已由契约包重写。 |
+| `json.ts` | 弃 | 无 | 键序无关的相等已由 SPEC“扩展输出判断”第 7 步规定，十进制数值比较与同节第 3、7 步的普通数据结构相等不一致，不取。 |
+| `judge.ts` | 弃 | 无 | 它判定十一处位置的输入、输出与结论，含三个旧扩展位置，输出判定已由契约包的 `judgeExtensionOutput` 重写。 |
+| `rewrite.ts` | 弃 | 无 | 可改写字段之外逐一比较已由 SPEC“扩展输出判断”第 7 步与 `POSITION_OUTPUTS` 规定，被拒动作的结果整体不可改写与扩展作者协议“位置与作者可见的 subject”中 `after_action` 单结果范围可改写 `candidate.blocks` 不一致，不取。 |
+| `schema-inputs.ts` | 弃 | 无 | 它把旧扩展 schema 与旧消息、资产、身份等 schema 绑成一张图，扩展判定已由契约包重写。 |
+| `schema.ts` | 弃 | 无 | 它只调用旧扩展 schema 的生成校验器，扩展判定已由契约包重写。 |
+| `tables.ts` | 弃 | 无 | 它的位置表含三个旧扩展位置，位置与输出表已由契约包的 `POSITIONS` 与 `POSITION_OUTPUTS` 重写。 |
+| `types.ts` | 弃 | 无 | 它的主体类型带 Session 的 attempt 身份与三个旧扩展位置的主体，扩展类型已由契约包重写。 |
+| `values.ts` | 弃 | 无 | 它把旧表示转换为本包的旧扩展类型，含三个旧扩展位置的主体。 |
+
+### core/agent-loop（7）
+
+| 文件 | 类 | 去向 | 理由 |
+| --- | --- | --- | --- |
+| `capabilities.ts` | 弃 | 无 | 交回未完成时责任不解除已由 SPEC“持久性与交付责任”与节点表 O0 行（`recordResult`、`acknowledge` 在各责任交清时记录）规定，能力闭包的预先捕获属于旧 attempt 能力集，没有新的对应。 |
+| `decision.ts` | 弃 | 无 | 它以 Run 的 attempt 与 continuation 判断能否推进，编码了 Session 的 attempt 当推进资格。 |
+| `drive-input.ts` | 弃 | 无 | 它捕获的驱动输入带 `AttemptPermit`，编码了 Session 的 attempt 当推进资格。 |
+| `drive-result.ts` | 弃 | 无 | 它按 Session 日志的源令牌核对驱动结果，编码了日志即 Journal。 |
+| `drive.ts` | 弃 | 无 | 它以 `AttemptPermit` 驱动每一步，编码了 Session 的 attempt 当推进资格。 |
+| `index.ts` | 弃 | 无 | 它只重新导出本包的决策与驱动，这些文件都已弃。 |
+| `types.ts` | 弃 | 无 | 它的事实与能力类型绑定 `AttemptPermit` 与 Session 日志的源令牌，编码了旧领域边界。 |
+
+### core/loop-extension-runner（18）
+
+| 文件 | 类 | 去向 | 理由 |
+| --- | --- | --- | --- |
+| `action-types.ts` | 弃 | 无 | 它的动作请求带 Session 的访问、范围与 attempt 身份，编码了旧领域边界。 |
+| `admission-digest.ts` | 弃 | 无 | 它只为旧 runner 的准入令牌计算参数摘要，新边界下准入证据由 `ActionAdmission` 以 `Evidence` 提供。 |
+| `conclusion-codec.ts` | 弃 | 无 | 它把扩展结论编码为 Session 日志条目，编码了日志即 Journal。 |
+| `cordis.ts` | 弃 | 无 | 它注册旧 runner 的 Cordis 服务，属于旧装配。 |
+| `effect.ts` | 弃 | 无 | 纯归约、否决结束链与 ask 暂停链已由[机制页“扩展协议的边界”](../agent/docs/architecture/mechanisms.md#扩展协议的边界)、系统页“有序组合与参数改写”和扩展作者协议“调用协议”规定，`stop`、`retry` 是否结束链、是否必须是最后一条，拥有者尚未规定，不取，select_model 替换主体与 SPEC“模型选择”第 5 条不一致，不可用即否决漏掉扩展作者协议“不可用与报错”中干预力被收窄时跳过的分支，这两条也不取。 |
+| `implementation-registry-types.ts` | 弃 | 无 | 它声明旧 runner 的实现与官方准入登记接口，接口参数是 Session 的访问与范围。 |
+| `index.ts` | 弃 | 无 | 它只重新导出本包的类型与函数，这些文件都已弃。 |
+| `keys.ts` | 弃 | 无 | 它生成 Session 日志条目的去重键，编码了日志即 Journal。 |
+| `pass-history-types.ts` | 弃 | 无 | 它的经过历史从 Session 日志条目读取，编码了日志即 Journal。 |
+| `reminder-log-types.ts` | 弃 | 无 | 它声明把系统提醒写入旧日志的适配器，编码了日志即 Journal。 |
+| `retry-history.ts` | 弃 | 无 | 它从 Session 日志条目读回重试结论，编码了日志即 Journal。 |
+| `run-log-types.ts` | 弃 | 无 | 它声明把扩展结论写入旧日志的适配器，编码了日志即 Journal。 |
+| `run-pass-types.ts` | 弃 | 无 | 它的端口类型以 Session 日志条目读写结论，编码了日志即 Journal。 |
+| `runner-admission-token.ts` | 弃 | 无 | 它把准入令牌编码为指向旧日志键的定位符，新边界下准入证据由 `ActionAdmission` 以 `Evidence` 提供。 |
+| `runner-chain-types.ts` | 弃 | 无 | 它从 Session 范围的装配清单与 Session 租户服务取扩展链的来源，编码了旧领域边界。 |
+| `runner-chain.ts` | 弃 | 无 | 它按 Session 读装配清单头与资产历史取扩展链，新边界下扩展调用使用装配给出的精确采用。 |
+| `service-types.ts` | 弃 | 无 | 它的服务宿主接口以 attempt 与 Session 日志的绑定定义调度范围，编码了旧领域边界。 |
+| `task-owner-types.ts` | 弃 | 无 | 它声明旧物理日志的任务所有者，编码了日志即 Journal。 |
+
+### agent-loop/loop-extension-runner-local（14）
+
+| 文件 | 类 | 去向 | 理由 |
+| --- | --- | --- | --- |
+| `action-batch.ts` | 弃 | 无 | 官方准入在每条链末尾、链间并行而链内串行、准入不可用时整批不放行、等全部链结论后才放行，已由 SPEC“整批判断屏障与动作准入”第 1、2、4 条规定。 |
+| `action-request.ts` | 弃 | 无 | 参数块未完整到达不解析已由节点表 I4 行规定，把不可解析或不完整的调用排除在动作批之外，拥有者尚未规定，不取。 |
+| `action-round.ts` | 弃 | 无 | 对整批调用一次准入、结果条数与批次不等时按不可用，与逐动作的 `ActionAdmission.admit` 及 SPEC“整批判断屏障与动作准入”第 1 条不一致，不取，任一候选不可用时整批不放行与等全部链结论已由同节第 2、4 条规定。 |
+| `admission-pass-source.ts` | 弃 | 无 | 准入所用参数在本轮固定已由 SPEC“整批判断屏障与动作准入”第 7 条（准入、卡片与发起使用同一份生效参数）规定，准入轮次记录的回读与鉴权在逐动作的 `ActionAdmission.admit` 下没有对应。 |
+| `cordis.ts` | 弃 | 无 | 它以 Session 日志与 Session 访问服务注册旧 runner 插件，属于旧装配。 |
+| `implementation-registry.ts` | 弃 | 无 | 调用开始前撤回映射为 `notStartedUnavailable`、`invoke` 抛出异常时怎样分类，拥有者尚未规定，不取（系统页“不可用、报错与系统扩展”对不可用与报错的定义只是推断时的参考，不是规则），调用中撤回得到 `errored` 与扩展作者协议“结构换代与未完成判断”的“已开始的扩展调用保留精确采用”和“新采用只影响尚未开始的扩展调用”不一致，关闭或取消得到 `controlUnavailable` 与“调用协议”对 `controlUnavailable` 和 `signal` 的规定不一致，按名称登记与精确采用不一致，这些都不取。 |
+| `index.ts` | 弃 | 无 | 它只重新导出本包的旧 runner 装配，这些文件都已弃。 |
+| `pass-history.ts` | 弃 | 无 | 它从 Session 日志条目重建经过历史，编码了日志即 Journal。 |
+| `reminder-log.ts` | 弃 | 无 | 它把系统提醒写入 Session 日志，编码了日志即 Journal。 |
+| `run-log.ts` | 弃 | 无 | 它把扩展结论绑定到一代 Session 日志，编码了日志即 Journal。 |
+| `run-pass.ts` | 弃 | 无 | 它以 Session 日志执行一次经过并含三个旧扩展位置的分支，报错与不可用的处置已由扩展作者协议重写。 |
+| `service-ports.ts` | 弃 | 无 | 它为每个动作把结论与提醒端口绑定到 Session 日志，编码了日志即 Journal。 |
+| `service.ts` | 弃 | 无 | 它以 Session 访问与 Session 日志装配旧 runner 服务，属于旧装配。 |
+| `task-owner.ts` | 弃 | 无 | 它持有旧物理日志的读写任务与恢复，编码了日志即 Journal。 |

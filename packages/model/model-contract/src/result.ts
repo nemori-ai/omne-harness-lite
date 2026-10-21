@@ -2,6 +2,7 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message'
+import type { ModelInvocationRef } from './reference.ts'
 import type { LimitMetric } from './profile.ts'
 import type {
   Adoption,
@@ -118,7 +119,12 @@ export type ControlState =
 export type Lookup =
   | Readonly<{ kind: 'found'; state: CallState }>
   | Readonly<{ kind: 'not-accepted'; operation: ModelOperationId }>
-export type Admission = Readonly<{ call: ModelCallId; revision: Revision; recovered: boolean }>
+export type Admission = Readonly<{
+  call: ModelCallId
+  revision: Revision
+  recovered: boolean
+  reference: ModelInvocationRef
+}>
 export type DurableEvidence = Readonly<{
   owner: string
   record: string

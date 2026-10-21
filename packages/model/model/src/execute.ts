@@ -97,6 +97,22 @@ async function closeResources(actions: readonly (() => unknown)[]): Promise<void
   if (failure !== null) throw failure
 }
 
+async function readFact(
+  source: AsyncIterator<TransportFact>,
+): Promise<
+  | { kind: 'ended'; value: Extract<TransportFact, { kind: 'ended' }> }
+  | { kind: 'fact'; value: Exclude<TransportFact, { kind: 'ended' }> }
+> {
+  try {
+    const step = await source.next()
+    if (step.done) return { kind: 'ended', value: streamLost('eof') }
+    const value = step.value
+    return value.kind === 'ended' ? { kind: 'ended', value } : { kind: 'fact', value }
+  } catch {
+    return { kind: 'ended', value: streamLost('read') }
+  }
+}
+
 async function* execute(
   request: FixedModelRequest,
   transport: ModelTransport,
@@ -122,10 +138,11 @@ async function* execute(
     return fact
   }
 
-  try {
+  async function prepareResources(): Promise<
+    Outcome<MaterializedTransport, Extract<Terminal, { kind: 'not-started' }>>
+  > {
     if (signal.aborted) {
-      yield await terminal({ kind: 'not-started', reason: 'cancelled' })
-      return
+      return fail({ kind: 'not-started', reason: 'cancelled' })
     }
     const preparationResult = await preparation(
       () => transport.prepare(request, supplier),
@@ -133,16 +150,14 @@ async function* execute(
     )
     if ('ok' in preparationResult) prepared = preparationResult.ok
     if (signal.aborted) {
-      yield await terminal({ kind: 'not-started', reason: 'cancelled' })
-      return
+      return fail({ kind: 'not-started', reason: 'cancelled' })
     }
     if ('failure' in preparationResult) {
-      yield await terminal({
+      return fail({
         kind: 'not-started',
         reason: 'rejected',
         failure: preparationResult.failure,
       })
-      return
     }
 
     const materialization = await preparation(
@@ -151,17 +166,25 @@ async function* execute(
     )
     if ('ok' in materialization) materialized = materialization.ok
     if (signal.aborted) {
-      yield await terminal({ kind: 'not-started', reason: 'cancelled' })
-      return
+      return fail({ kind: 'not-started', reason: 'cancelled' })
     }
     if ('failure' in materialization) {
-      yield await terminal({
+      return fail({
         kind: 'not-started',
         reason: 'rejected',
         failure: materialization.failure,
       })
+    }
+    return succeed(materialization.ok)
+  }
+
+  try {
+    const materialization = await prepareResources()
+    if ('failure' in materialization) {
+      yield await terminal(materialization.failure)
       return
     }
+
     const receipt = await preparation(
       () =>
         receiptMatches(materialization.ok, expected)
@@ -185,20 +208,9 @@ async function* execute(
       ending = streamLost('start')
     }
     while (source !== undefined && ending === undefined) {
-      let fact: TransportFact | undefined
-      try {
-        const step = await source.next()
-        if (step.done) ending = streamLost('eof')
-        else {
-          const value = step.value
-          if (value.kind === 'ended') ending = value
-          else fact = value
-        }
-      } catch {
-        ending = streamLost('read')
-        break
-      }
-      if (fact !== undefined) yield fact
+      const step = await readFact(source)
+      if (step.kind === 'ended') ending = step.value
+      else yield step.value
     }
     yield await terminal(ending ?? streamLost('start'))
   } finally {

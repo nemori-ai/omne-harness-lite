@@ -84,13 +84,17 @@ async function convertedHistory(
   for (const message of history) {
     const blocks = await convertedParts(conversion, message.blocks, signal)
     if (!('ok' in blocks)) return fail(blocks.failure)
-    // Each role allows its own parts, so the converted message is judged again before use.
-    const judged = judgeMessage({ ...message, blocks: blocks.ok })
-    if ('rejected' in judged)
-      throw new Error(`the converted message is invalid: ${judged.rejected}`)
-    out.push(judged.ok)
+    out.push(withBlocks(message, blocks.ok))
   }
   return succeed(out)
+}
+
+/** The message again with converted blocks; its role still decides which blocks it may hold. */
+function withBlocks(message: Message, blocks: readonly MessagePart[]): Message {
+  const judged = judgeMessage({ ...message, blocks })
+  if (!('ok' in judged))
+    throw new Error(`converted ${message.role} message is not a message: ${judged.rejected}`)
+  return judged.ok
 }
 
 function assemble(

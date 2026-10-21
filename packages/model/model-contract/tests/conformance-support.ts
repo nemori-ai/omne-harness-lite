@@ -1,3 +1,4 @@
+import { referenceParts } from './reference-input.ts'
 // Support for the tests of the conformance suite: a way to wrap the scripted subject in a provider
 // that breaks exactly one obligation, and to read which obligations the suite then fails.
 import type {
@@ -135,7 +136,9 @@ export function observedThrough(map: ObservationMap) {
         handle: {
           instance: handle.instance,
           observe: input =>
-            mapped(handle.observe(input), (item, position) => map(item, position, access)),
+            mapped(handle.observe(input), (item, position) =>
+              map(item, position, referenceParts(access)),
+            ),
         },
       })
     },

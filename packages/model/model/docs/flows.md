@@ -376,7 +376,8 @@ sequenceDiagram
   else 校验当前可知事实通过
     V-->>F: FixedModelRequest，不带预算
     F->>R: admit 固定call、operation、consumer与容量
-    R->>D: 可靠受理并保留待办
+    R->>R: 同步judgeAdmit；结构拒绝不进入Commands
+    R->>D: 合法输入沿原资格与容量事务受理
     D-->>R: 已受理或原提交未知
     R-->>F: 原受理结果，未知按原身份核实
     R->>H: 已确认受理后schedule；通知丢失由扫描补齐

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
@@ -38,7 +38,13 @@ function preparedReceipt(
     expect(result.failure).toMatchObject({ kind: 'unavailable', dependency: 'model-send' })
 }
 async function watch(f: ReturnType<typeof assembled>) {
-  const route = unbox(await f.provider.runtime.instances.connect(f.admit))
+  const route = unbox(
+    await f.provider.runtime.instances.connect({
+      principal: f.principal,
+      tenant: f.tenant,
+      reference: f.reference,
+    }),
+  )
   if (route.kind !== 'live') throw new Error('missing route')
   return {
     handle: route.handle,
@@ -118,3 +124,76 @@ it('ends the original instance and publishes a successor without pretending to r
     value: { kind: 'ended', reason: 'unavailable' },
   })
 })
+
+for (const close of ['return', 'abort'] as const) {
+  it(`closes by ${close} before a silent directory reconnect returns and never exposes its late snapshot`, async () => {
+    const base = assembled()
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const returned = Promise.withResolvers<void>()
+    let block = false
+    let connects = 0
+    const directory = base.dependencies.instances.directory
+    const provider = createModelRuntime(
+      {
+        ...base.dependencies,
+        instances: {
+          ...base.dependencies.instances,
+          directory: {
+            async connect(input) {
+              connects++
+              const result = await directory.connect(input)
+              if (block) {
+                entered.resolve()
+                await release.promise
+                returned.resolve()
+              }
+              return result
+            },
+          },
+        },
+      },
+      configuration,
+    )
+    const f = { ...base, provider }
+    unbox(await provider.runtime.calls.admit(f.admit))
+    preparedReceipt(await provider.driver.drive(f.drive, new AbortController().signal))
+    const { handle, iterator: unused } = await watch(f)
+    await unused.return?.()
+    const abort = new AbortController()
+    const add = vi.spyOn(abort.signal, 'addEventListener')
+    const remove = vi.spyOn(abort.signal, 'removeEventListener')
+    const iterator = handle.observe({ ...f.admit, signal: abort.signal })[Symbol.asyncIterator]()
+    try {
+      expect(await iterator.next()).toMatchObject({ value: { kind: 'snapshot' } })
+      const pending = iterator.next()
+      await waiting(f)
+      block = true
+      f.controls.clock.advanceTo('2026-10-19T00:00:00.025Z')
+      await entered.promise
+      expect(f.controls.clock.pending()).toBe(0)
+      if (close === 'return') {
+        expect(await iterator.return?.()).toEqual({ done: true, value: undefined })
+        expect(await pending).toEqual({ done: true, value: undefined })
+      } else {
+        abort.abort()
+        expect(await pending).toEqual({
+          done: false,
+          value: { kind: 'ended', reason: 'observer-closed' },
+        })
+      }
+      expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]?.[1])
+      const before = connects
+      release.resolve()
+      await returned.promise
+      expect(await iterator.next()).toEqual({ done: true, value: undefined })
+      expect(connects).toBe(before)
+      expect(f.controls.clock.pending()).toBe(0)
+    } finally {
+      release.resolve()
+      await iterator.return?.()
+      add.mockRestore()
+      remove.mockRestore()
+    }
+  })
+}

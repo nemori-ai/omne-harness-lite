@@ -1,3 +1,4 @@
+import { invocationReference, referenceParts } from './reference-input.ts'
 import { decodeModelInstanceId } from '@omne-harness/model-contract'
 import type { CallState, ModelHandle, Snapshot } from '@omne-harness/model-contract'
 import {
@@ -48,7 +49,7 @@ describe('the conformance suite on access, routes and quiesce', () => {
             return outcome
           },
           async inspect(input) {
-            return known.has(input.call) && input.tenant !== subject.tenant
+            return known.has(referenceParts(input).call) && input.tenant !== subject.tenant
               ? fail(unreachable)
               : calls.inspect(input)
           },
@@ -466,7 +467,11 @@ describe('the conformance suite on the other ways that access, routes and quiesc
           async admit(input) {
             if (!quiesced) {
               const outcome = await calls.admit(input)
-              const seen = await calls.inspect({ ...input, admission: input.operation })
+              if ('failure' in outcome) return outcome
+              const seen = await calls.inspect({
+                ...input,
+                reference: invocationReference({ ...input, admission: input.operation }),
+              })
               if ('ok' in seen && seen.ok.kind === 'found') known = seen.ok.state
               return outcome
             }
@@ -476,7 +481,7 @@ describe('the conformance suite on the other ways that access, routes and quiesc
           async inspect(input) {
             const outcome = await calls.inspect(input)
             if ('ok' in outcome && outcome.ok.kind === 'found') known = outcome.ok.state
-            return left.has(input.admission) && known !== undefined
+            return left.has(referenceParts(input).admission) && known !== undefined
               ? succeed({ kind: 'found', state: known })
               : outcome
           },
