@@ -174,7 +174,7 @@ agent 从[任务地图](../context-map.md)取得必要上下文，再沿受影�
 
 | 差距 | 目标与继续承接的拥有者 |
 |---|---|
-| 固定代整代停止及串行重建 | [局部依赖范围](deployment/cordis-and-lifecycle.md#依赖换代与就绪)与[reload交接](runtime/assembly-and-change.md#reload-与推进权交接)要求无关工作保持运行。当前限制分别见[LIFECYCLE-M01 关闭机制的局部依赖范围](deployment/cordis-and-lifecycle.md#lifecycle-m01)、[LIFECYCLE-M02 插件加载与换代的影响范围](deployment/cordis-and-lifecycle.md#lifecycle-m02)及[LIFECYCLE-M03 治理宿主的装配停止范围](deployment/cordis-and-lifecycle.md#lifecycle-m03)；由相应机制及装配拥有者共同修复，验证真实消费者范围。 |
+| 固定代整代停止及串行重建 | [局部依赖范围](deployment/cordis-and-lifecycle.md#依赖换代与就绪)与[reload交接](runtime/assembly-and-change.md#reload-与推进权交接)要求无关工作保持运行。当前限制分别见[LIFECYCLE-M01 关闭机制的局部依赖范围](deployment/cordis-and-lifecycle.md#lifecycle-m01)、[LIFECYCLE-M02 插件加载与换代的影响范围](deployment/cordis-and-lifecycle.md#lifecycle-m02)及[LIFECYCLE-M03 治理宿主的装配停止范围](deployment/cordis-and-lifecycle.md#lifecycle-m03)；由相应机制及装配拥有者共同修复，验证真实消费者范围。LIFECYCLE-M02 的 Tool 部分由换代协调者 `toolGenerations` 承接，仍待办的范围见该条。 |
 | 无Session的完整模型消费协议覆盖 | [独立调用](runtime/model-runtime.md#独立调用)不要求隐式Session。现有Session关联十五操作及单次invokeModel不能代替独立的可靠消费、ACK和恢复；[MODEL-V01 无 Session 的完整消费协议覆盖](runtime/model-runtime.md#model-v01)由模型公共契约及提供者拥有者承接。 |
 | 双清理失败的保留 | [有序清理](deployment/cordis-and-lifecycle.md#有序退出与清理失败)要求分别保留结果。当前[CLIENT-M01 本地状态关闭中的多重失败保留](layers-and-dependencies.md#client-m01)会覆盖前一失败；提供者及组合关闭拥有者须修复并验证双失败。 |
 | 业务确认与提供者弱耐久配置 | [确认保存的耐久边界](data-and-state.md#已确认保存的耐久边界)不能由SQLite NORMAL的提交返回替代。当前限制及承接责任见[耐久差距](deployment/infrastructure-policy.md#耐久目标与提供者保证)，由Storage、SQL提供者及业务确认协调者继续处理。 |
