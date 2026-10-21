@@ -113,7 +113,7 @@ describe('slot release before E1 (SPEC 受理与单执行槽)', () => {
 })
 
 describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
-  it('NA-E4-1: a thrown value that cannot become text stops at E4 without an unhandled rejection', async () => {
+  it('a thrown value that cannot become text stops at E4 without an unhandled rejection', async () => {
     const assembly = await loopAssembly([execution()])
     adopt(assembly, {
       ...agentEvaluator,
@@ -134,7 +134,7 @@ describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
   })
 
   it.each(['terminal', 'superseded'] as const)(
-    'NA-E4-1: a stop (%s) keeps the execution at E4',
+    'a stop (%s) keeps the execution at E4',
     async reason => {
       const assembly = await loopAssembly([execution()])
       adopt(assembly, {
@@ -146,7 +146,7 @@ describe('E4 stops outside the normal path (#502 1.2 limit)', () => {
     },
   )
 
-  it('NA-E4-1: an outcome without a table row stops as a coordinator defect', async () => {
+  it('an outcome without a table row stops as a coordinator defect', async () => {
     const assembly = await loopAssembly([execution()])
     adopt(assembly, {
       ...agentEvaluator,

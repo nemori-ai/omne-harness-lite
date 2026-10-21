@@ -45,7 +45,7 @@ describe('the coordinator result of an admission already advanced in the Journal
 })
 
 describe('the coordinator result when a node throws', () => {
-  it('NA-E4-1: a thrown evaluator value returns the stopped node and a defect failure', async () => {
+  it('a thrown evaluator value returns the stopped node and a defect failure', async () => {
     const assembly = await loopAssembly([execution()])
     const coordinator = createExecutionCoordinator({
       ports: assembly.dependencies,

@@ -8,7 +8,8 @@
 // in nodes.ts. #502 1.2 covers the decisions of the normal path only: E4 after the execution-start
 // passage opens the first iteration, and I8 opens the next one or proposes completion. Facts that
 // only a later card handles (controls, an advancement that is stopping, producers still owed, a
-// position that is a continuation point) answer `unsupported`: a named failure, never a guessed step.
+// position that is a continuation point) answer `unsupported`. J5 routes those positions in the
+// coordinator without extending LoopFacts or Next.
 import {
   decodeStepId,
   judgeAdoption,
@@ -87,14 +88,22 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
   if (facts.controls.length > 0) return unsupported
   switch (facts.checkpoint.position) {
     case 'E4':
-      // The 1.2 stand-in for E4's "新 iter 或原输入边界转 I0": position E4 means that the
-      // execution-start passage has just ended, so this is the first iteration. #502 1.4 replaces
-      // the position check with the batch and progression basis of a new iteration.
+    case 'I0':
+      // J5: only an empty input boundary is delegated here. The coordinator routes recovery.
+      if (
+        facts.checkpoint.calls.length > 0 ||
+        facts.checkpoint.passages.length > 0 ||
+        facts.checkpoint.batch !== null ||
+        facts.checkpoint.compaction !== null ||
+        facts.checkpoint.requestPreparation !== null ||
+        facts.checkpoint.inputBatch !== null
+      )
+        return unsupported
       return succeed({ kind: 'take-inputs', position: 'I0' })
     case 'I8':
       return afterIteration(facts)
     default:
-      // A continuation point of another node is E4's mapping to R0 (#502 1.4).
+      // The coordinator routes stored continuation points (J5).
       return unsupported
   }
 }
