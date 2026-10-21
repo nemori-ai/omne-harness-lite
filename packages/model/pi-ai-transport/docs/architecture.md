@@ -95,7 +95,7 @@ stateDiagram-v2
 
 交换记住是否发生过本地停止。响应体在到达末尾之前结束时，读者按这个记录得到两种错误之一：有本地停止是 `ResponseBodyStoppedError`，没有本地停止是 `ResponseBodyReadError`，后者带 Node 报告的 `cause`。读者按类型分支，不解释 Node 的错误码。
 
-响应体的读者提前结束迭代时，本包销毁响应。未启动的异步生成器不运行 `finally`，所以 `claim()` 返回的迭代器、`readSseEvents` 与 `readProtocolFrames` 都经 [iteration.ts](../src/iteration.ts) 包装：读者在第一次 `next()` 之前调用 `return()` 或 `throw()` 时，包装先关闭来源。三层组合提前结束时，关闭逐层到达响应。
+响应体的读者提前结束迭代时，本包销毁响应。未启动的异步生成器不运行 `finally`，所以 `claim()` 返回的迭代器、`readSseEvents` 与 `readProtocolFrames` 都经 [iteration.ts](../src/iteration.ts) 包装：读者在第一次 `next()` 之前调用 `return()` 或 `throw()` 时，包装先关闭来源。来源关闭失败时，包装仍让生成器完成，之后的 `next()` 返回 done，失败本身传给读者。三层组合提前结束时，关闭逐层到达响应。
 
 ### 资源所有权
 
@@ -120,9 +120,11 @@ stateDiagram-v2
 
 model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不得 await 或排队。因此 `startExchange` 是同步函数：校验输入、消费预约、调用 `https.request` 与 `end(body)`，然后返回句柄。容量的等待放在发起之前，由 `reserve` 完成，后续由[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 materialize 调用。
 
-同时进行的交换数由容量限制。连接池只为每个接收方设置 `maxSockets`，等于 `maxConnections`；它不设总套接字上限。总上限会把其他接收方的空闲连接计入总量：一个接收方留下的空闲连接会让下一个发往另一个接收方的请求进入连接池的等待队列，尽管它持有名额。请求发往同一个接收方时，上一次交换的连接在名额归还之前已经回到空闲池，或已经离开连接池，所以持有名额的请求不排队。
+同时进行的交换数只由容量限制。连接池不设套接字上限：`maxSockets` 是 `Infinity`，也不设 `maxTotalSockets`。连接池只负责 keep-alive 复用与空闲超时。
 
-发起后，本包同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。进入等待队列违反“返回前已发出”，本包按缺陷处理：销毁请求、归还名额、抛出 `ExchangeQueuedError`，不把它当成已发起的交换。名额在请求与响应物理关闭之后才归还，使名额数与真实的活动套接字一致。
+本包不用 `maxSockets` 对齐容量，原因是 Node 与本包的计数时刻不同。本包在请求与响应的 `close` 事件时归还名额，等待者在下一个 microtask 发起。Node 的连接池对不保留的套接字在请求的 `close` 同一个 tick 销毁它，但只在该套接字自己的 `close` 事件到达时才把它移出 `agent.sockets` 的计数，这是事件循环的下一轮。不保留的情况有：服务端声明 `Keep-Alive: timeout=1`，低于 Node 的复用余量；套接字已不可写。于是在 `maxSockets` 等于容量时，前一个交换 `stopped` 之后立即发起的请求会看到计数仍然占满，进入 `agent.requests`，尽管它持有名额。总上限 `maxTotalSockets` 还会把其他接收方的空闲连接计入总量，同样让持有名额的请求排队。这一顺序按 Node 26.12.0 的 `lib/_http_client.js` 与 `lib/_http_agent.js` 核对：`responseKeepAlive` 在 nextTick 里先投递请求的 `close`，再投递套接字的 `free`；`free` 的处理里不保留的套接字被 `destroy()`；`removeSocket` 只在套接字 `close` 时调用。
+
+发起后，本包仍同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。网络资源创建的连接池不让请求排队。排队只在配置被绕过等缺陷下出现，例如有人改小了 `agent.maxSockets`。进入等待队列违反“返回前已发出”，本包按缺陷处理：销毁请求、把它移出 `agent.requests`（队列空时删除该键）、归还名额、抛出 `ExchangeQueuedError`，不把它当成已发起的交换。移出队列是必要的：`req.destroy()` 不把请求移出 `agent.requests`，而连接池在任何套接字关闭时（`removeSocket`）都会为队列中的请求新建连接，`agent.destroy()` 之后也是如此。本包只读写 `requests` 这一已文档化属性。名额在请求与响应物理关闭之后才归还。
 
 ### 不迁移旧的脱敏策略
 
@@ -131,6 +133,7 @@ model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不�
 ### 与封存件的差异
 
 - 取消的报告方式：封存件把“在 Node 连接池队列中被取消”报为本地失败。本包把发出之后的取消统一报为 `stopped`，并以 `responded` 区分是否已有响应。发起前已取消的信号得到拒绝原因 `cancelled`，不发出请求。
+- 连接池上限：封存件把 `maxSockets` 与 `maxTotalSockets` 都设为连接数。本包不设套接字上限，并发只由容量限制，原因见上文“同步发起与发送围栏”。
 - 发起：封存件在 send 内等待容量。本包把等待移到 `reserve`，发起本身同步。
 - 地址：封存件固定 OpenRouter 路径。本包只接收调用方给出的完整 https 地址。
 - 诊断上限：封存件复用连接数作为诊断在途上限。本包的 `maxPending` 独立配置。

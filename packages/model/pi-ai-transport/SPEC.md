@@ -47,7 +47,7 @@
 `startExchange(resources, input, signal)` 同步返回 `started` 或 `refused`。
 
 - 返回 `started` 时，本包已把请求交给 Node 的 `https.request`，并已调用 `end(body)`。函数不返回惰性对象，不在内部等待容量或其他 Promise。
-- 返回 `started` 之前，本包同步核对请求没有进入连接池的等待队列。请求进入等待队列是缺陷：本包销毁该请求，归还名额，然后抛出 `ExchangeQueuedError`。该请求不写出任何字节，连接池之后把一个连接分配给它时丢弃它。
+- 返回 `started` 之前，本包同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。网络资源创建的连接池没有套接字上限，不让请求排队。请求进入等待队列只在配置被绕过等缺陷下出现。此时本包销毁该请求，把它移出等待队列（队列空时删除该键），归还名额，然后抛出 `ExchangeQueuedError`。该请求不写出任何字节。连接池之后也不为它建立连接，网络资源 `close()` 之后同样不建立。
 - 结果、停止与响应体都经返回的交换句柄取得：结果与物理关闭用 Promise，响应体用异步迭代。
 - 一次交换只对应一次物理发出。本包不重试，不跟随重定向。3xx 响应是 HTTP 错误。
 - 请求方法是 POST。本包按调用方给出的值发送请求头，只另加 `content-length`，其值是 `body` 的字节数。
@@ -69,7 +69,7 @@
 - 凡是未发起的交换，本包都归还仍为 `held` 的预约。本包只归还本资源的容量授予的预约。已消费的预约属于另一个交换，其他容量的预约与冒充预约的对象不归本包，本包都不改动。
 - 容量给自己授予的每个预约打不可伪造的归属标记。复制预约的方法或属性得到的对象没有这个标记。
 - `cancelled` 表示请求没有发出。发出之后的取消由结果 `stopped` 表示。调用方据此区分“未发出”与“已发出后取消”。
-- 发起时出现拒绝原因以外的同步异常时，本包先归还仍为 `held` 的预约，再原样抛出该异常。`signal` 不是 `AbortSignal` 时，该异常是 `TypeError`。
+- 发起时出现拒绝原因以外的同步异常时，本包先归还仍为 `held` 的预约，再原样抛出该异常。`signal` 不是 `AbortSignal` 时，该异常是 `TypeError`。归还本身因输入或资源有缺陷而失败时（例如读取 `input.reservation` 抛出，或 `resources` 不是对象），本包仍抛出原异常，不用归还时的异常替换它。
 
 ### 交换结果
 
@@ -108,8 +108,9 @@
 
 - `connectTimeoutMs` 只作用于新建连接。计时从新套接字交给请求时开始，到 TLS 握手完成时结束，覆盖 TCP 连接与 TLS 握手。复用的连接不计时。`null` 表示不设连接超时。上限是 2147483647，即 Node 定时器接受的最大延迟。
 - 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。
-- 同时进行的交换数由容量限制。连接池对每个接收方的套接字上限等于 `maxConnections`。连接池没有总套接字上限：不同接收方的空闲连接同时保留在池中，总数可以超过 `maxConnections`。
-- 持有名额的请求不进入连接池的等待队列。进入等待队列是缺陷，见“发起交换”。
+- 同时进行的交换数只由容量限制。连接池不设套接字上限：没有每个接收方的上限（`maxSockets`），也没有总上限（`maxTotalSockets`）。连接池只负责复用连接与关闭空闲连接。空闲连接保留在池中，总数可以超过 `maxConnections`。
+- 本包不用 `maxSockets` 对齐容量，原因是两者的计数时刻不同。本包在请求与响应关闭时归还名额，等待者随即发起。Node 对不保留的套接字（例如服务端声明 `Keep-Alive: timeout=1`，或套接字已不可写）在请求关闭时销毁它，但要到该套接字自己的 `close` 事件到达时才把它移出连接池的计数，这是事件循环的下一轮。套接字上限等于容量时，这一轮之内发起的请求会进入等待队列，尽管它持有名额。
+- 持有名额的请求因此不进入连接池的等待队列。进入等待队列是缺陷，见“发起交换”。
 - 连接池关闭空闲时间超过 `idleConnectionTimeoutMs` 的连接。
 
 ### SSE 分帧
@@ -140,7 +141,7 @@
 
 - 只有解码器自身的错误映射为 `invalid-utf8`。字节源抛出的其他错误原样传出。
 - 失败时本包结束对字节源的迭代，字节源随之关闭。
-- 读者提前结束事件迭代时，本包结束对字节源的迭代。读者在第一个事件之前结束时也是如此。
+- 读者提前结束事件迭代时，本包结束对字节源的迭代。读者在第一个事件之前结束时也是如此。字节源的结束失败时，读者的 `return()` 或 `throw()` 以该失败拒绝，事件迭代仍已结束，之后的 `next()` 返回 done。
 
 ### 协议帧
 
@@ -151,7 +152,7 @@
 - 其他 data 文本由 `@omne-harness/json-text` 的 `readJsonText` 按调用方给出的 `JsonLimits` 无损解析。大整数保留原文词法。
 - data 文本不是一个合法 JSON 文档，或超出限额时，本包产出一次 `invalid-json` 失败，然后结束。
 - 失败之后，本包结束对事件源的迭代。SSE 层的异常原样穿过帧层。
-- 读者提前结束帧迭代时，本包结束对事件源的迭代。读者在第一帧之前结束时也是如此。因此读者提前结束 `readProtocolFrames(readSseEvents(body))` 时，`body` 随之关闭。
+- 读者提前结束帧迭代时，本包结束对事件源的迭代。读者在第一帧之前结束时也是如此。因此读者提前结束 `readProtocolFrames(readSseEvents(body))` 时，`body` 随之关闭。事件源的结束失败时，读者的 `return()` 或 `throw()` 以该失败拒绝，帧迭代仍已结束，之后的 `next()` 返回 done。
 - 事件结束只结束帧序列，不产出终局帧。终局是否合法由家族 decoder 判断。
 
 ### 诊断隔离
@@ -221,7 +222,7 @@
 
 - 四种结果、七种拒绝原因、三种错误体状态、两种响应体读取错误与 SSE、帧的失败原因覆盖 Node 契约内的全部情况。
 - 本包只在 Node 契约以外的情况下拒绝 `result` 或抛出异常：
-  - 请求进入连接池的等待队列：`startExchange` 抛出 `ExchangeQueuedError`，名额已归还。
+  - 请求进入连接池的等待队列：`startExchange` 抛出 `ExchangeQueuedError`。抛出之前，请求已销毁并移出队列，名额已归还。
   - `signal` 不是 `AbortSignal`：`startExchange` 抛出 `TypeError`，名额已归还。
   - 响应没有状态码，或错误体的块不是字节：`result` 拒绝。
   - 响应体的块不是字节：读者的迭代以普通的 `Error` 结束。
@@ -246,10 +247,11 @@
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
 | 协议帧 | [frames.spec.ts](tests/frames.spec.ts) | 快 |
-| 拒绝发起与配置校验，含预约归属、计时上限与拒绝时不触网 | [http-refusals.spec.ts](tests/http-refusals.spec.ts) | 快 |
+| 拒绝发起与配置校验，含预约归属、计时上限、拒绝时不触网，以及同步异常时原异常不被归还掩盖 | [http-refusals.spec.ts](tests/http-refusals.spec.ts) | 快 |
 | 读者提前结束时关闭来源，含第一个事件或第一帧之前 | [sse.spec.ts](tests/sse.spec.ts)、[frames.spec.ts](tests/frames.spec.ts)；对真实响应见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
-| 同步发起、停止、2xx、响应体读取错误的类型、非 2xx、错误体、连接超时、关闭后的清理 | [http.spec.ts](tests/http.spec.ts) | 慢 |
-| 网络资源关闭与连接池，含多接收方不排队与排队即缺陷 | [network.spec.ts](tests/network.spec.ts) | 慢 |
+| 提前结束的包装本身：`return()`、`throw()` 与 `asyncDispose` 关闭来源，启动后不重复关闭，来源关闭失败时生成器仍完成 | [iteration.spec.ts](tests/iteration.spec.ts) | 快 |
+| 同步发起、停止、2xx、响应体读取错误的类型、非 2xx、错误体、连接超时与计时器清除、关闭后的清理 | [http.spec.ts](tests/http.spec.ts) | 慢 |
+| 网络资源关闭与连接池，含同一接收方连续发起不受连接池影响、容量是唯一的并发上限、多接收方不排队与排队即缺陷 | [network.spec.ts](tests/network.spec.ts) | 慢 |
 | 根入口与类型形状 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |
 

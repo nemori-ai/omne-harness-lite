@@ -10,8 +10,8 @@
 
 测试名描述被测对象的可观察行为。`describe` 块对应 [SPEC.md](../SPEC.md) 的小节，SPEC“组合与验证”的表把每项义务对应到测试文件。测试分两层：
 
-- 快层：容量、诊断隔离、SSE 分帧、协议帧、发起前的拒绝、配置校验、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。拒绝用例同步核对连接池没有套接字也没有排队的请求。
-- 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts) 与 [network.spec.ts](network.spec.ts)。它们对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。
+- 快层：容量、诊断隔离、SSE 分帧、协议帧、提前结束的包装、发起前的拒绝、配置校验、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。拒绝用例同步核对连接池没有套接字也没有排队的请求。
+- 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts) 与 [network.spec.ts](network.spec.ts)。它们对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。连接池的用例让服务端声明 `Keep-Alive: timeout=1`，使 Node 不保留套接字，以此核对同一接收方的下一次发起不受连接池影响，以及容量是唯一的并发上限。排队即缺陷的用例改小真实连接池的 `agent.maxSockets`，模拟配置被绕过。连接计时器的清除经 `process.getActiveResourcesInfo()` 的计时器数核对。
 
 http.spec.ts 用 vitest 的模块替身把 `node:https` 的 `request` 换成一个委托真实函数并记录每个请求的包装，用于在 `startExchange` 返回后同步核对请求已经写出。其他行为都经真实的 Node `https`。
 

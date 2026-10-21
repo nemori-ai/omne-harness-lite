@@ -52,7 +52,7 @@ The network resources compose and inject the capacity, the socket pool and the d
 
 The caller gives every limit. The package has no default values:
 
-- Network resources: `maxConnections` is the capacity, and the socket limit of the pool for each recipient. After `idleConnectionTimeoutMs` the pool closes an idle connection. `tls.ca` and a diagnostic observer with `maxPending` are optional.
+- Network resources: `maxConnections` is the capacity, the number of exchanges in flight at once. The pool itself has no socket limit. After `idleConnectionTimeoutMs` the pool closes an idle connection. `tls.ca` and a diagnostic observer with `maxPending` are optional.
 - Each exchange: `connectTimeoutMs` (new connections only, `null` for no limit) and `maxErrorBodyBytes`.
 - SSE framing: `maxEventBytes`. Protocol frames: `endMarker` and the JSON limits.
 - Each timer value is at most 2147483647 ms, the largest delay a Node timer takes.

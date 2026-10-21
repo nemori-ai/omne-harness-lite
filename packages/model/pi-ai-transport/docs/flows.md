@@ -91,7 +91,7 @@ sequenceDiagram
 ## 失败与生命周期
 
 - 发起前已取消：`startExchange` 返回 `refused('cancelled')`，不建立连接，归还预约。
-- 请求进入连接池的等待队列：缺陷。`startExchange` 销毁请求、归还名额并抛出 `ExchangeQueuedError`，没有交换句柄。
+- 请求进入连接池的等待队列：缺陷，只在配置被绕过时出现。`startExchange` 销毁请求、把它移出队列、归还名额并抛出 `ExchangeQueuedError`，没有交换句柄，之后也不为它建立连接。
 - 收到响应之前取消或调用 `stop()`：本包销毁请求。物理关闭之后，结果是 `stopped`，`responded` 为 `false`，然后名额归还。
 - 读取错误体时取消：结果是 `stopped`，`responded` 为 `true`。错误体被丢弃。
 - 2xx 响应体读取中取消、调用 `stop()` 或关闭网络资源：结果仍是 `ok`，读者的迭代以 `ResponseBodyStoppedError` 结束，响应关闭之后名额归还。

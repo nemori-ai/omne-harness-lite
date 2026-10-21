@@ -43,7 +43,7 @@
 
 所有限额都由调用方给出，本包不设默认值：
 
-- 网络资源：`maxConnections`（容量，也是连接池对每个接收方的套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`，以及可选的诊断观察者与 `maxPending`。
+- 网络资源：`maxConnections`（容量，即同时在途的交换数；连接池本身不设套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`，以及可选的诊断观察者与 `maxPending`。
 - 每次交换：`connectTimeoutMs`（只作用于新建连接，`null` 表示不设）与 `maxErrorBodyBytes`。
 - SSE 分帧：`maxEventBytes`。协议帧：`endMarker` 与 JSON 限额。
 - 每个计时值最多 2147483647 毫秒，即 Node 定时器接受的最大延迟。

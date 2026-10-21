@@ -63,7 +63,7 @@ classDiagram
 | 交换 | 一次 POST 的发起、结果与物理关闭 | 相位与未关闭的物理句柄集合，见[内部架构](architecture.md#交换的相位) |
 | 响应体 | 把 2xx 响应体交给唯一的读者 | 未认领或已认领 |
 | 诊断隔离 | 把事件的冻结副本交给观察者，隔离观察者的故障 | `failed`、`pending` 与 `dropped` 三个计数 |
-| 连接池 | Node 的 `https.Agent`，keepAlive，每个接收方的套接字上限等于名额数，没有总上限 | 由网络资源创建并销毁 |
+| 连接池 | Node 的 `https.Agent`，keepAlive，不设套接字上限，只负责复用与空闲超时 | 由网络资源创建并销毁 |
 
 ## 生命周期
 
