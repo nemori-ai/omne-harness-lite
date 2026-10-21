@@ -76,6 +76,9 @@ function validate(dependencies: unknown, configuration: unknown): void {
     )
       throw new TypeError('invalid Model instance directory')
   }
+  validateConfiguration(configuration)
+}
+function validateConfiguration(configuration: unknown): void {
   if (!record(configuration)) throw new TypeError('Model configuration must be an object')
   const fields = {
     outputBatchBytes: 1,

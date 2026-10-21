@@ -320,6 +320,7 @@ for (const method of ['preserve', 'openReceiveWindow'] as const) {
         const replay = writes.filter(input => input.operation === originalOperation)
         expect(replay).toHaveLength(2)
         expect(replay[1]).toEqual(replay[0])
+        expect(replay[1]).toBe(replay[0])
         expect((await snapshot(f)).blocks).toMatchObject([{ value: 'after' }])
         expect(f.channel(f.admit.call).starts).toBe(1)
         expect(f.channel(f.admit.call).closes).toBe(1)

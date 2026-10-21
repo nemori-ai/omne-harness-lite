@@ -383,3 +383,30 @@ it('groups whole 4KiB text and tool calls by the byte target even when ten parts
     )
   }
 })
+
+it('keeps authorization, explicit end and idle expiry ahead of malformed page cursors', async () => {
+  const f = await completed()
+  const started = unbox(await f.commands.acquireRead(f.readInput))
+  if (started.kind !== 'started') throw new Error('read')
+  const input = { ...f.admit, read: started.read, after: 'not-a-page' }
+  expect(await f.commands.nextRead(input)).toEqual({
+    failure: { kind: 'invalid', field: 'after', reason: 'page' },
+  })
+  f.advance('2026-10-19T00:00:01.000Z')
+  expect(await f.commands.endRead(input)).toEqual({ ok: { kind: 'ended', reason: 'closed' } })
+  expect(await f.commands.nextRead(input)).toEqual({ ok: { kind: 'ended', reason: 'closed' } })
+  f.denied.add('content')
+  expect(await f.commands.nextRead(input)).toEqual({
+    failure: { kind: 'denied', action: 'content' },
+  })
+  f.denied.delete('content')
+  expect(await f.commands.nextRead(input)).toEqual({ ok: { kind: 'ended', reason: 'denied' } })
+  const other = unbox(
+    await f.commands.acquireRead({ ...f.readInput, operation: op('idle-priority') }),
+  )
+  if (other.kind !== 'started') throw new Error('read')
+  f.advance('2026-10-19T00:00:02.000Z')
+  expect(await f.commands.nextRead({ ...input, read: other.read })).toEqual({
+    ok: { kind: 'ended', reason: 'stalled' },
+  })
+})

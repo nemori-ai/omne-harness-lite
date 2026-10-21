@@ -1,7 +1,7 @@
 import { invocationReference } from './reference-input.ts'
 import { expect, it } from 'vitest'
 import { ScriptedModelError } from '@omne-harness/model-contract/testing'
-import { canonical } from '../src/testing/result-pages.ts'
+import { canonical, validateParts } from '../src/testing/result-pages.ts'
 import { judgePart } from '@omne-harness/message'
 import type { ResultPart, ResultPage, ResultTrim, Termination } from '@omne-harness/model-contract'
 import {
@@ -458,4 +458,23 @@ it('preserves legal sealed thinking, voice, image and file values without readin
   })
   f.settle(parts, 100000)
   expect((await f.read()).page.parts).toEqual(parts)
+})
+
+it('preserves result validation messages and first-failure priority', () => {
+  const partial = { kind: 'partial', content: 'text', value: 'kept', trims: [] }
+  const cases = [
+    { parts: [null], message: 'invalid result part' },
+    { parts: [{ ...partial, trims: {}, extra: true }], message: 'invalid result part' },
+    { parts: [{ ...partial, trims: [null], extra: true }], message: 'unknown result part field' },
+    { parts: [{ ...partial, kind: 'invented', trims: [null] }], message: 'invalid result trim' },
+    { parts: [{ ...partial, kind: 'invented' }], message: 'invalid partial result' },
+    { parts: [{ kind: 'sealed', block: null, trims: [] }], message: 'invalid sealed result' },
+  ]
+  for (const { parts, message } of cases)
+    expect(() => Reflect.apply(validateParts, undefined, [parts])).toThrow(message)
+  const sparse = [partial]
+  sparse.length = 2
+  expect(() => Reflect.apply(validateParts, undefined, [sparse])).toThrow(
+    'parts must be a dense array',
+  )
 })

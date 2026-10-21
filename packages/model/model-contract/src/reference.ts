@@ -92,13 +92,11 @@ function parse(text: unknown, field: Field): Outcome<Parsed, ModelReferenceRejec
   if (tuple.length !== (field === 'ModelInvocationRef' ? 5 : 6)) return reject(field, 'shape')
   return partsOf(tuple[2], tuple[3], tuple[4], tuple[5], field)
 }
-/** Capture closed data fields without reading accessors or invoking toJSON. */
-function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRejection> {
-  if (typeof value !== 'object' || value === null) return reject(field, 'shape')
-  const keys =
-    field === 'ModelInvocationRef'
-      ? ['tenant', 'call', 'admission']
-      : ['tenant', 'call', 'admission', 'operation']
+function captureDescriptors(
+  value: object,
+  keys: readonly string[],
+  field: Field,
+): Outcome<PropertyDescriptorMap, ModelReferenceRejection> {
   let descriptors: PropertyDescriptorMap
   try {
     const prototype = Object.getPrototypeOf(value)
@@ -113,6 +111,18 @@ function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRe
   } catch {
     return reject(field, 'unreadable')
   }
+  return succeed(descriptors)
+}
+/** Capture closed data fields without reading accessors or invoking toJSON. */
+function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRejection> {
+  if (typeof value !== 'object' || value === null) return reject(field, 'shape')
+  const keys =
+    field === 'ModelInvocationRef'
+      ? ['tenant', 'call', 'admission']
+      : ['tenant', 'call', 'admission', 'operation']
+  const captured = captureDescriptors(value, keys, field)
+  if ('failure' in captured) return captured
+  const descriptors = captured.ok
   if (keys.some(key => !descriptors[key]?.enumerable || !('value' in descriptors[key]!)))
     return reject(field, 'shape')
   const tenant = tenantCodec.encode(descriptors.tenant!.value)
