@@ -486,6 +486,30 @@
       "requiredSections": []
     },
     {
+      "id": "verification-obligations",
+      "path": "packages/session/session-storage-sql/verification/obligations.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "组-d派生等于重算"
+        },
+        {
+          "id": "section-2",
+          "anchor": "未覆盖"
+        }
+      ]
+    },
+    {
       "id": "verification-models-readme",
       "path": "packages/session/session-storage-sql/verification/models/README.md",
       "kind": "entry",

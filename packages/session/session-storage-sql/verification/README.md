@@ -1,29 +1,23 @@
 # verification
 
-<!-- documentation:placeholder -->
-
-本目录承载本包的持续验证资源：模型、论证或证明。
+本目录承载本包的持续验证资源：验证义务、模型、论证或证明。
 
 ## 允许的内容
 
-<!-- documentation:placeholder -->
-
-`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
+[obligations.md](obligations.md) 的验证义务，`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-每份资源说明所验证的性质、前提、运行命令、覆盖与限制。单次运行的原始输出留任务 tmp，不进本目录。
+每份资源说明所验证的性质、前提、运行命令、覆盖与限制。义务是后继实现必须通过的可观察结果，不是已运行的证据。单次运行的原始输出与基准读数留任务 tmp，不进本目录。数值进入 [SPEC](../SPEC.md) 的声明边界之前不写进义务。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-被验证的承诺变化时，同步模型、证明与本目录 `index.md`。
+被验证的承诺变化时，同步义务、模型、证明与本目录 `index.md`。[SPEC](../SPEC.md) 的条款编号变化时，先改义务表的「条款」列。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+- 验证义务在 [obligations.md](obligations.md)：组 D 派生等于重算，组 R 读路径的复杂度与退化，组 W 写路径与并发写裁定，组 F 失败分类与耐久。
+- 符合性套件的规则在 [SPEC 的符合性](../SPEC.md#符合性)，派生等于重算的检查方式是影子表集合差。
+- `models/` 与 `proofs/` 目前没有内容。候选模型是两个进程对同一 `tail` 的并发提交裁定（[W6](../SPEC.md#w6)），尚未立项。
+- 没有可运行的验证资源，也没有可依赖的存储契约成员。全部义务以真实 SQLite 或 PostgreSQL 提供者为前提，没有内存替身。
+- 断电耐久归存储线的 SQL-T01，本目录不记录耐久证据。
