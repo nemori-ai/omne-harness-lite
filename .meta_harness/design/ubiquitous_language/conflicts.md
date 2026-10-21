@@ -400,6 +400,6 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **类型**：定义打架。2026-10-21 承接加密推理回放的设计时发现。
 - **来源**：[内容块](terms/record-and-context.md#ul-content-block--内容块--content-block)把块的种类列为七类封闭清单：文本、思考、语音、图、文件、工具调用、工具结果。PanQiWei 2026-10-21 定下可见推理与加密推理分成两种块；[message 成员的推理续接状态](../../../packages/common/message/SPEC.md#推理续接状态)据此设计了只在 assistant 消息里出现的推理续接状态部件，装供应商交回的不透明推理状态。
 - **差别**：按词表的七类读，加密推理没有位置，只能塞进「思考」，与产品负责人的分块裁定相反；按设计读，块多出第八类，词表的封闭清单不再成立。推理续接状态、回放范围、回放声明和外来可见推理四个说法目前只在成员规格里定义，没有产品正文出处。
-- **处置**：设计按产品负责人的分块裁定写在成员规格里，状态为待接受。是否为这几个说法立词条、内容块清单是否加入第八类，需要先有产品正文出处或产品负责人对现行词义的直接裁定。
-- **负责与闭合条件**：负责人 PanQiWei。任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计被接受，且内容块词条的种类清单与之一致（立词条或写明不立的理由）后闭合。
-- **状态**：待裁定。
+- **处置**：PanQiWei 2026-10-21 接受任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计，并要求在本卡内消解本项。[模型调用：推理状态的续接](../product/model-invocation/design.md#推理状态的续接)（rev 3）成为产品出处。内容块改为八类，新立[推理续接状态](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state)（内容块的变体）、[推理回放](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)与[推理回放范围](terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；首 token、模态、媒体类型三条随之改。英文 `Replay` 已是 Agent 接续时的[回放](terms/agent-runtime-loop.md#ul-replay--回放--replay)，所以新词都带「推理」限定，两条词条互相写明别混。回放声明与外来可见推理只在 Model 一个领域使用，不立词条，定义留在 [Model 契约的推理回放](../../../packages/model/model-contract/SPEC.md#推理回放)。
+- **负责与闭合条件**：负责人 PanQiWei。产品出处、词条与内容块清单已一致。
+- **状态**：已闭合（2026-10-21）。上列来源与差别保留发现时的写法，现行含义以词条为准。
