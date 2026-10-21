@@ -120,12 +120,20 @@ export type ToolDefiniteFailure = Exclude<ToolFailure, { kind: 'commit-unknown' 
 
 /**
  * The outcome of an ordinary invoke. `accepted` carries the original admission state, which is a
- * receipt, not the latest state. `commit-unknown` means the admission may have committed; the
+ * receipt, not the latest state. `recovered` includes source or admission recall.
+ * `association-unknown` has no proven reference. Repeat the original intent to reconcile it.
+ * `commit-unknown` means source issuance or admission may be pending; the
  * reference queries it under the original admission. `rejected` carries a definite failure rather than an unknown admission outcome.
  */
 export type ToolInvokeOutcome =
-  | Readonly<{ kind: 'accepted'; reference: ToolInvocationRef; state: ToolState }>
+  | Readonly<{
+      kind: 'accepted'
+      reference: ToolInvocationRef
+      state: ToolState
+      recovered: boolean
+    }>
   | Readonly<{ kind: 'commit-unknown'; reference: ToolInvocationRef }>
+  | Readonly<{ kind: 'association-unknown' }>
   | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
 
 /**
@@ -210,8 +218,8 @@ export interface ToolInvocationContentReader<P> {
 }
 
 /**
- * The ordinary runtime. `invoke` admits the payload as a new call and answers a reference the
- * caller saves; invoking the same payload again is another independent call. The other members
+ * The ordinary runtime. `invoke` resolves the tenant and complete consumer to its original call.
+ * The caller saves the fixed request and consumer before invoking; repeats recover that call. The other members
  * locate by the reference. Dropping a reference or stopping an observation undoes nothing.
  */
 export interface ToolRuntime<P, B extends ContentBlock> {

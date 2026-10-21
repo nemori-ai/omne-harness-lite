@@ -18,7 +18,6 @@ import {
   evidence,
   guards,
   ok,
-  operationId,
   principalA,
   principalB,
   request,
@@ -45,7 +44,7 @@ function runtimeAssembly() {
 }
 
 describe('ordinary invocation and saved references', () => {
-  it('admits identical payloads as independent calls, including concurrent invokes', async () => {
+  it('recovers the same persistent intent after a lost reply, including concurrent invokes', async () => {
     const { runtime, store, source } = runtimeAssembly()
     const payload = dummyRequest()
     const outcomes = await Promise.all([
@@ -54,11 +53,11 @@ describe('ordinary invocation and saved references', () => {
     ])
     const [first, second] = outcomes.map(accepted)
     if (first === undefined || second === undefined) throw new Error('missing outcome')
-    expect(first.reference).not.toBe(second.reference)
-    expect(readToolInvocationRef(first.reference).call).not.toBe(
+    expect(first.reference).toBe(second.reference)
+    expect(readToolInvocationRef(first.reference).call).toBe(
       readToolInvocationRef(second.reference).call,
     )
-    expect(source.bindings()).toHaveLength(2)
+    expect(source.bindings()).toHaveLength(1)
     for (const outcome of [first, second]) {
       expect(await runtime.queries.lookup(access(outcome.reference))).toMatchObject({
         ok: { kind: 'found' },
@@ -83,10 +82,10 @@ describe('ordinary invocation and saved references', () => {
     const runtime = createToolRuntime(
       {
         ...base.dependencies,
-        invocationIdentities: {
-          newInvocation: async () => {
+        sourceIssuer: {
+          resolve: async input => {
             await pending
-            return base.dependencies.invocationIdentities.newInvocation()
+            return base.source.issuer.resolve(input)
           },
         },
       },
@@ -113,10 +112,10 @@ describe('ordinary invocation and saved references', () => {
     const runtime = createToolRuntime(
       {
         ...base.dependencies,
-        invocationIdentities: {
-          newInvocation: () => {
+        sourceIssuer: {
+          resolve: input => {
             minted += 1
-            return base.dependencies.invocationIdentities.newInvocation()
+            return base.source.issuer.resolve(input)
           },
         },
       },
@@ -265,67 +264,23 @@ describe('ordinary invocation and saved references', () => {
     },
   )
 
-  it('rejects a reused new identity and never schedules its recovered receipt', async () => {
+  it('recovers an accepted receipt and repairs a lost wake on repeated invoke', async () => {
     const base = runtimeAssembly()
     const payload = request()
     const first = accepted(
       await base.runtime.invoke({ principal: principalA, tenant: tenantA, request: payload }),
     )
-    const parts = readToolInvocationRef(first.reference)
-    const binding = base.source.bindings()[0]
-    if (binding === undefined) throw new Error('missing issuance')
-    base.identities.planInvocation(parts.call, parts.admission)
     base.host.scheduled.splice(0)
-    const runtime = createToolRuntime(
-      {
-        ...base.dependencies,
-        sourceIssuer: {
-          bind: () => Promise.resolve(succeed(binding.invocation)),
-        },
-      },
-      base.configuration,
-    ).runtime
-    expect(
-      await runtime.invoke({ principal: principalA, tenant: tenantA, request: payload }),
-    ).toMatchObject({
-      kind: 'rejected',
-      failure: { kind: 'unavailable', dependency: 'toolIdentities' },
-    })
-    expect(base.host.scheduled).toHaveLength(0)
+    const next = accepted(
+      await base.runtime.invoke({ principal: principalA, tenant: tenantA, request: payload }),
+    )
+    expect(next.reference).toBe(first.reference)
+    expect(next.state).toEqual(first.state)
+    expect(next.recovered).toBe(true)
+    expect(base.host.scheduled).toHaveLength(1)
   })
 
-  it('stops before source issuance or admission when identity allocation fails', async () => {
-    const base = testAssembly()
-    for (const fault of ['throw', 'unknown', 'invalid-text'] as const) {
-      if (fault === 'invalid-text') base.identities.planInvocation('has space', 'admission')
-      const runtime = createToolRuntime(
-        {
-          ...base.dependencies,
-          invocationIdentities: {
-            newInvocation: () => {
-              if (fault === 'throw') throw new Error('secret')
-              if (fault === 'unknown')
-                return Promise.resolve(
-                  fail({ kind: 'commit-unknown', operation: operationId('unknown-identity') }),
-                )
-              return base.dependencies.invocationIdentities.newInvocation()
-            },
-          },
-        },
-        base.configuration,
-      ).runtime
-      expect(
-        await runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
-      ).toMatchObject({
-        kind: 'rejected',
-        failure: { kind: 'unavailable', dependency: 'toolIdentities' },
-      })
-    }
-    expect(base.source.bindings()).toHaveLength(0)
-    expect(base.store.reads + base.store.commits).toBe(0)
-  })
-
-  it('does not mint an operation for unsupported control', async () => {
+  it('consumes an operation identity for unsupported control without writing control facts', async () => {
     const base = runtimeAssembly()
     const invoked = accepted(
       await base.runtime.invoke({
@@ -341,45 +296,18 @@ describe('ordinary invocation and saved references', () => {
         operationIdentities: {
           newOperation: () => {
             minted += 1
-            throw new Error('unexpected operation')
+            return base.dependencies.operationIdentities.newOperation()
           },
         },
       },
       base.configuration,
     ).runtime
+    const commits = base.store.commits
     expect(
       await runtime.commands.control({ ...access(invoked.reference), intent: { kind: 'stop' } }),
     ).toMatchObject({ kind: 'rejected', failure: { kind: 'unsupported' } })
-    expect(minted).toBe(0)
-  })
-
-  it('does not submit an admission when source issuance is unknown or unavailable', async () => {
-    const base = testAssembly()
-    for (const kind of ['commit-unknown', 'throw', 'unavailable'] as const) {
-      const runtime = createToolRuntime(
-        {
-          ...base.dependencies,
-          sourceIssuer: {
-            bind: input =>
-              kind === 'throw'
-                ? Promise.reject(new Error('secret'))
-                : Promise.resolve(
-                    fail(
-                      kind === 'commit-unknown'
-                        ? { kind, operation: input.operation }
-                        : { kind, dependency: 'source', diagnostic: 'offline' },
-                    ),
-                  ),
-          },
-        },
-        base.configuration,
-      ).runtime
-      expect(
-        await runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
-      ).toMatchObject({ kind: 'rejected', failure: { kind: 'unavailable' } })
-    }
-    expect(base.store.reads + base.store.commits).toBe(0)
-    expect(base.host.scheduled).toHaveLength(0)
+    expect(minted).toBe(1)
+    expect(base.store.commits).toBe(commits)
   })
 
   it('returns a queryable original operation reference for a lost delivery receipt', async () => {

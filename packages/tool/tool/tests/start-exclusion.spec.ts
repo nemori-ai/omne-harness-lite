@@ -122,7 +122,7 @@ async function stage(harness: StartHarness, until: 'accepted' | 'prepared' | 'qu
   const preparation = ok(
     await harness.commands.planPreparation({
       ...(await writeContext(harness, 'c1', 'c1/plan')),
-      request: fixedOf(harness.source, 'c1'),
+      request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial',
     }),
   )
@@ -150,7 +150,7 @@ describe('14 exclusion of the commands on the way to a start', () => {
     const before = await harness.state('c1')
     const input = {
       ...(await writeContext(harness, 'c1', 'op-c1/plan')),
-      request: fixedOf(harness.source, 'c1'),
+      request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial' as const,
     }
     arm(1, 'op-c1/plan')
@@ -311,7 +311,7 @@ describe('22 queue entries of calls that settled', () => {
       tenant: tenantA,
       call: callId('c1'),
       operation: operationId('op-c1'),
-      request: fixedOf(harness.source, 'c1'),
+      request: fixedOf(harness.internalRequests, 'c1'),
     })
     expect(ok(again).recovered).toBe(true)
     expect(await harness.queue()).toEqual([])
@@ -365,7 +365,7 @@ describe('22 queue entries of calls that settled', () => {
     armed = true
     const refused = await harness.commands.planPreparation({
       ...(await writeContext(harness, 'c1', 'op-c1/plan')),
-      request: fixedOf(harness.source, 'c1'),
+      request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial',
     })
     // The settlement moved the state revision on, so the transaction refuses the stale plan.

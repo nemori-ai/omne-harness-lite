@@ -1,8 +1,7 @@
-# tool 使用示例索引
+# Tool tutorial index
 
-<!-- documentation:placeholder -->
-
-- [目录职责与待补内容](README.md)。
-- [包索引](../index.md)。
-
-本目录当前没有其他资源。
+- [Preparation, output, walkthrough, and limits](README.md).
+- [Public invocation and model-visible pagination](journey.ts).
+- [Function definition and report executor](report-tool.ts).
+- [Dedicated non-durable tutorial assembly](../tests/example-assembly.ts).
+- [Package index](../index.md).
