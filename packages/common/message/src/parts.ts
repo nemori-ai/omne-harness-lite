@@ -5,6 +5,7 @@ import {
   type BlockId,
   type ContentBlock,
   type ContentBlockRejection,
+  type ThinkingContentBlock,
   type Visibility,
 } from '@omne-harness/content-block'
 import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
@@ -47,7 +48,13 @@ export type ToolResultPart = Readonly<{
   callId: string
 }>
 
-export type ToolPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart | ToolResultPart
+/** A content block that any role may have: every one except the thinking block, which only an assistant has. */
+export type MessageContentBlock = Exclude<ContentBlock, ThinkingContentBlock>
+
+/** The three parts of a call. Only an `assistant` message has them. */
+export type CallPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart
+
+export type ToolPart = CallPart | ToolResultPart
 
 export type MessagePart = ContentBlock | ToolPart
 
@@ -66,20 +73,18 @@ const TOOL_FIELDS: Readonly<Record<ToolKind, readonly ToolField[]>> = {
   tool_result: ['id', 'visibility', 'callId'],
 }
 
-const CALL_KINDS: readonly string[] = ['tool_call', 'tool_call_incomplete', 'tool_call_unparsed']
-
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false
   const proto = Object.getPrototypeOf(value)
   return proto === Object.prototype || proto === null
 }
 
 /** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
-function hasUnreadableOwn(value: object): boolean {
+export function hasUnreadableOwn(value: object): boolean {
   return Object.getOwnPropertyNames(value).some(key => {
     const descriptor = Object.getOwnPropertyDescriptor(value, key)
     return descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)
@@ -98,12 +103,7 @@ export function isToolPart(part: MessagePart): part is ToolPart {
   return isToolKind(part.kind)
 }
 
-/** A call part of any of the three kinds. The marker is not one. */
-export function isCallPart(part: MessagePart): boolean {
-  return CALL_KINDS.includes(part.kind)
-}
-
-function nonEmpty(value: unknown): value is string {
+export function nonEmpty(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
