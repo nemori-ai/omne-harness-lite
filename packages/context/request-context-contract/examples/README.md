@@ -1,29 +1,19 @@
 # examples
 
-<!-- documentation:placeholder -->
-
 本目录承载面向真实公开入口的使用示例。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 可运行的示例代码与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 示例只用公开入口，并写明运行前提。示例不代替测试或规格。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 公开入口变化时，同步示例并确认它仍能运行。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空。根入口现在是空导出，没有可以运行的行为。调用顺序的职责伪代码在[对象模型](../docs/object-model.md#调用方怎样使用)里，独立消费的步骤在[使用与定位](../docs/context.md#独立消费)里。纯操作进入根入口后，这里放一次组装与一次完整压缩计划的可运行示例。
