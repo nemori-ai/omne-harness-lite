@@ -133,7 +133,9 @@ erDiagram
 | `CursorCodec` | R2、R5、R8、R10、R11 游标的签名与校验 | 纯函数，密钥由装配注入 |
 | `MigrationFragments` | 权威表与派生表的 DDL 与数据迁移 | 按版本排序的只读列表 |
 
-`SessionParticipant` 导入 `session-contract` 的 OP-00 派生、九个领域服务与 `reduce`。命令到条目批次的编码函数的拥有者是[明确缺项](../SPEC.md#明确缺项)。
+`SessionParticipant` 导入 `session-contract` 的 OP-00 派生、`decide` 与 `reduce`。`decide` 是命令到条目批次的唯一编码，它在内部调用领域服务与守卫。`SessionParticipant` 不另调用领域服务（[编码与归约的拥有者](../SPEC.md#编码与归约的拥有者)）。`decide` 产出的 `EncodedEntry` 没有 `id` 与 `revision`，`SessionParticipant` 分配 `position` 后补上，见下表的 `HistoryEntry` 一行。
+
+`SessionReadPort` 在 R2 的每一页经 R6 读 `sl_annotation_idx`，填充 `HistoryPage.annotations`（[R6](../SPEC.md#r6)）。
 
 ### 领域类型到列的对应
 
@@ -142,7 +144,9 @@ erDiagram
 | `EntryId` | `sl_entry.position` 的十进制文本 |
 | `SessionRevision` | `sl_journal.tail` 的十进制文本 |
 | `HistoryEntry` | `sl_entry` 一行：`id` 取 `position`，`revision` 取 `commit_seq` 所属批次的 `last_position`，`kind`、`schema`、`payload`（内联或从 `sl_blob` 取回）、`origin` 三列 |
+| `EncodedEntry` | `decide` 的产出。写入时成为 `sl_entry` 一行，`position` 由本包分配 |
 | `HistoryPage.upper` | 游标里的 H |
+| `HistoryPage.annotations` | `sl_annotation_idx` 中目标与本页位置范围相交、`position ≤ H` 且不在本页的行，按 `position` 读出的 `sl_entry` |
 | `CommitReceipt` | `sl_operation.receipt` |
 | `WorkSnapshot` | `sl_state.snapshot`，加 `revision = covered`、`source = sl_journal.source` |
 | `ModelViewBasis` | `sl_journal.epoch` 与读取时的 `tail` |

@@ -20,10 +20,11 @@ sequenceDiagram
     T->>P: commit(identity, combinationVersion, [{ participant: session, facts }])
     P->>P: 受理前核对；BEGIN IMMEDIATE；按身份读回执
     P->>M: execute(facts, port)
-    M->>D: 点查 sl_operation
-    M->>D: 读 sl_journal.tail 与 sl_state
-    M->>M: 核对材料集合、expected == tail、领域服务裁定
-    M->>D: 写 sl_blob、sl_entry、派生索引行
+    M->>M: 核对材料集合
+    M->>D: 点查 sl_operation 得到操作记录
+    M->>D: 读 sl_journal.tail 与 sl_state，核 covered == tail
+    M->>M: decide(快照, command, guards, 操作记录)
+    M->>D: 为批次分配 position；写 sl_blob、sl_entry、派生索引行
     M->>M: reduce(前状态, 本批)
     M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_batch、sl_operation；更新 sl_journal
     M-->>P: 参加
@@ -38,11 +39,12 @@ sequenceDiagram
 | 分支 | 发生在 | 结果 |
 | --- | --- | --- |
 | 受理前拒绝 | 提供者 | `unavailable`，`owner` 为存储参加者，不进事务 |
-| 同身份同摘要 | 提供者第 13 步或模块点查 | 不写行，返回原回执，`recovered` 为真 |
-| 同身份异摘要 | 提供者 | `conflict` |
+| 同身份同摘要 | 提供者第 13 步，或模块里 `decide` 返回 `recovered` | 不写行，返回原回执，`recovered` 为真 |
+| 同身份异摘要 | 提供者，或模块里 `decide` 返回 `conflict` | `conflict` |
 | 材料集合不符 | 模块 | 「不支持」，映射为 `invalid`，明确回滚 |
-| `expected ≠ tail` | 模块 | 「冲突」，`changed` 带当前 `revision`，明确回滚；`session` 重做流水线 |
-| 领域服务拒绝 | 模块 | 「冲突」，明确回滚；没有响应通道时本包在事务外重算拒绝原因（W1 第 9 步） |
+| `expected ≠ tail` | 模块里的 `decide` | 「冲突」，`changed` 带当前 `revision`，明确回滚。`session` 重做流水线 |
+| `decide` 返回其他拒绝 | 模块 | 「冲突」，明确回滚。没有响应通道时本包在事务外再调用一次 `decide` 求拒绝原因（W1 第 9 步） |
+| `reduce` 对 `decide` 的批次返回 `quarantined` | 模块 | 「失败」，不写行。这是契约实现的缺陷 |
 | `sl_state` 落后 | 模块 | 「失败」，`unavailable`；R9 追赶 |
 | 语句失败 | 提供者关闭端口 | 「失败」，`rolled_back` 或 `unknown` |
 | `COMMIT` 结果不确定、锁等待超时 | 提供者 | `commit-unknown`；调用方按原身份 `queryOperation` |
@@ -65,7 +67,7 @@ sequenceDiagram
     P->>M: execute(session facts, port)
     M->>M: 核对 joint 与材料；按 OP-00 派生 Session 操作身份
     M->>D: 点查 sl_operation；读 sl_journal、sl_state
-    M->>M: judgeAdvance 参加分支（压缩时另加 judgeCompaction、openWork）
+    M->>M: decide 参加分支（内部调用 judgeAdvance）
     M->>D: 写条目、派生行、sl_state（含 ExecutionRef.revision、evidence）、sl_batch、sl_operation、sl_journal
     M-->>P: 参加
     P->>P: 写回执；COMMIT
@@ -83,7 +85,7 @@ sequenceDiagram
 
 ### 压缩提交
 
-前提：Request Context 形成压缩记录，经执行记录提供者的 `context-transition` 交接到达。本包按 [W4](../SPEC.md#w4) 在参加者路径的裁定与写入两步里执行。
+前提：Request Context 形成压缩记录，经执行记录提供者的 `context-transition` 交接到达。本包按 [W4](../SPEC.md#w4) 在参加者路径的裁定与写入两步里执行。压缩判定在 `decide` 里，本包只备齐它的历史输入，经 `DecideReads.compaction` 交入。
 
 ```mermaid
 sequenceDiagram
@@ -92,11 +94,11 @@ sequenceDiagram
     participant V as sl_model_view
     participant J as sl_journal
     M->>E: 范围读 covers 内条目、covers.to 之后的消息
-    M->>M: openWork(快照) 映射为条目引用集合
-    M->>M: judgeCompaction(covered, after, open, C)
-    alt 判定失败
+    M->>E: 经 R4 定位未结工作所在的条目引用
+    M->>M: decide（内部调用 openWork 与 judgeCompaction）
+    alt decide 返回 rejected
         M-->>M: 「冲突」，不写行
-    else 判定通过
+    else decide 返回 entries
         M->>E: 写 SE10 压缩记录 C、SE33 标注（target = covers）
         M->>V: 读旧 epoch 中 position > covers.to 的行
         M->>V: 写新 epoch：retained ‖ C ‖ 旧尾，重编 seq 与 prefix_digest

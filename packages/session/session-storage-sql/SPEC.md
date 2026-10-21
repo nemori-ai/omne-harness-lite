@@ -65,7 +65,9 @@
 | XP-3 | 事务外的读入口：在同一事务域上执行只读语句，读到已提交状态，不进入受理队列 | R1 至 R11 全部是事务外读取。存储契约写明 SQLite 提供者的权威读取与 `query` 都用写连接，不增加读连接 | 全部读操作不可用 |
 | XP-4 | `SqlValue`、`QueryRows` 的精确形状，以及 BigInt 在 `params` 与行里的表示 | 64 位位置以 BigInt 读写 | 位置列退化为文本比较，排序与范围查询失去原生整数比较。本成员不接受这种退化 |
 | XP-5 | 迁移片段的挂接：本成员的 DDL 与数据迁移随提供者的原子迁移一起执行，失败回到迁移前 | 派生表重建与格式升级 | 不能升级格式。旧格式的读写照常 |
-| XP-6 | 事务域目录：系统作用域读取要枚举本部署里全部租户的事务域 | 存储契约把一个事务域绑定一个租户。R10 与 R11 跨租户 | `references` 与 `releasedScopes` 只能回答调用方点名的租户 |
+| XP-6 | 事务域目录：系统作用域读取要枚举本部署里全部租户的事务域 | 存储契约把一个事务域绑定一个租户。R10 与 R11 跨租户 | `references` 与 `releasedScopes` 返回 `unavailable`，不返回空页，也不只回答部分租户 |
+
+XP-2、XP-6 与 [TB-04](#tb-04) 的大载荷保管链路也是 Session 契约记下的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)。本表的「缺它时」与契约那里写的表现一致，拥有者以契约为准。
 
 存储契约对 SQLite 提供者只保留一条写连接，并写明「以后要增加读连接，由新的设计明确写出」。本页的读路径按一条独立读连接设计，复杂度不变，但在现行契约下读取与提交在同一个 Worker 消息队列里串行。这是一条明确缺项，见[组合与验证](#明确缺项)。
 
@@ -110,7 +112,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 | `sl_kind_idx` | `(tenant, session, kind, position)` | R2 的 `kinds` 过滤 |
 | `sl_ref_idx` | `(tenant, session, ref_kind, ref_id, position)` | R3、R4、R10 的 shape 定位 |
 | `sl_model_view` | `(tenant, session, epoch, seq)` 加 `position`、`bytes`、`prefix_digest` | R5 |
-| `sl_annotation_idx` | `(tenant, session, target_from, target_to, position)` | R6 |
+| `sl_annotation_idx` | `(tenant, session, target_from, target_to, position)` | R6，即 R2 每页的 `annotations` |
 | `sl_pending_idx` | `(tenant, reason, session)` | R8 |
 | `sl_resident_idx` | `(resident_key, tenant, session)` 加 `capability`、`admitted_position` | R10 |
 | `sl_released_scope_idx` | `(tenant, session, scope)` 加 `task`、`position` | R11 |
@@ -134,12 +136,15 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 1. 构造存储操作身份：`tenant` 为命令的租户，`transactionDomain` 为该租户的事务域，`operation` 为 OP-00 派生的 `SessionOperationId`，`protocolVersion` 为 `1`，`operationKey` 为 `SessionOperationId` 的文本。规范化 `{ command, guards }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，没有 BigInt、`undefined`、`Date` 或函数。
 2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 映射为 `unavailable`，`owner` 为存储参加者，不改写为业务拒绝。`identity_conflict` 映射为 `conflict`。
 3. Worker 内，`session` 模块收到 `facts` 与语句端口。先核对材料：每个 `GuardCommand` 的 `owner`、`participant`、`protocol` 与该命令种类要求的材料集合一致。集合按[共同提交表](../session-contract/SPEC.md#共同提交与共享事务域)的「参加者」列固定在本成员的材料表里。缺一项或多一项，响应「不支持」，不写任何行。
-4. 点查 `sl_operation`。同操作同摘要：响应「参加」，不写行，提交方的提交照常成立，`commit` 之后读回原回执，`recovered` 为真。同操作不同摘要：响应「冲突」。
-5. 读 `sl_journal` 与 `sl_state`。`sl_state.covered` 不等于 `sl_journal.tail`，或归约版本不是当前版本：响应「失败」，原因为 `unavailable`，`owner` 为本成员，由 R9 追赶后重试。命令的 `expected` 不等于 `tail`：响应「冲突」，结局为 `changed` 并带当前 `revision`。
-6. 调用命令表指定的领域服务。拒绝类结局响应「冲突」，依据为结局本身。`ok` 类结局继续。
-7. 把命令与结局编码为条目批次（编码函数见[编码与归约的拥有者](#编码与归约的拥有者)），逐条分配 `position`。先写 blob，再写 `sl_entry`，再写 [TB-02](#tb-02) 的派生行，见 [W3](#w3)。调用 `reduce(前状态, 本批次)`，得到新快照。`quarantined` 响应「失败」，不写任何行。替换 `sl_state`，比较新旧快照维护 `sl_pending_idx`。写 `sl_batch`、`sl_operation`，更新 `sl_journal.tail` 与 `commit_seq`。
+4. 点查 `sl_operation`，得到该操作的 `OperationRecord`，没有时为 null。认回由第 6 步的 `decide` 判定，本步只读行。
+5. 读 `sl_journal` 与 `sl_state`。`sl_state.covered` 不等于 `sl_journal.tail`，或归约版本不是当前版本：响应「失败」，原因为 `unavailable`，`owner` 为本成员，由 R9 追赶后重试。核对通过时，交给 `decide` 的快照的 `revision` 等于 `tail`。
+6. 调用 `session-contract` 的 `decide(快照, command, guards, 操作记录)`（[领域服务与归约](../session-contract/SPEC.md#领域服务与归约)）。`decide` 认回原操作，按命令调用领域服务与守卫，并比较命令的 `expected` 与快照的 `revision`。本成员不另调用领域服务，也不另写允许或拒绝的规则。按 `Decision` 的三种结果处理：
+   - `recovered`：响应「参加」，不写行。提交方的提交照常成立，`commit` 之后读回原回执，`recovered` 为真。
+   - `rejected`：响应「冲突」，依据为其中的 `SessionFailure`。`expected` 不等于 `tail` 时它是 `changed` 并带当前 `revision`；同操作不同摘要时它是 `conflict`。
+   - `entries`：继续第 7 步。
+7. 为 `decide` 产出的 `EncodedEntry` 逐条分配 `position`，补上 `id` 与 `revision`（[TB-03](#tb-03)）。先写 blob，再写 `sl_entry`，再写 [TB-02](#tb-02) 的派生行，见 [W3](#w3)。调用 `reduce(前状态, 本批次)`，得到新快照。`decide` 与 `reduce` 共用同一解释版本，`reduce` 解释 `decide` 的批次必须得到命令要求的后态。`reduce` 返回 `quarantined` 说明两者不互逆，这是契约实现的缺陷：响应「失败」，不写任何行。替换 `sl_state`，比较新旧快照维护 `sl_pending_idx`。写 `sl_batch`、`sl_operation`，更新 `sl_journal.tail` 与 `commit_seq`。
 8. 提供者 `COMMIT`。本成员在事务外读回 `sl_operation` 得到 `CommitReceipt`，返回给 `session`。
-9. 存储契约返回 `rolled_back` 时，本成员在事务外以 R1 重读快照并重放第 6 步的领域服务：结局相同则返回该拒绝；快照已变则返回 `changed`。这是 [XP-2](#xp-table) 缺席时的退路，它只对 Session 自己提交的命令成立。`unknown` 原样映射为 `commit-unknown`，不改写，不换身份。
+9. 存储契约返回 `rolled_back` 时，本成员在事务外以 R1 重读快照与 `sl_operation`，再调用一次 `decide`：得到相同的 `rejected` 则返回该拒绝；快照已变则返回 `changed`。这是 [XP-2](#xp-table) 缺席时的退路，它只对 Session 自己提交的命令成立。`unknown` 原样映射为 `commit-unknown`，不改写，不换身份。
 
 `attempt-rejected`：存储契约的 `writer_not_current` 与锁等待超时属于本次尝试未生效。本成员把它们映射为 `commit-unknown`，不映射为 `not-committed`。只有存储 `query` 返回带五项证明的 `not_committed` 时，R7 才给出 `not-committed`。
 
@@ -147,11 +152,11 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 **W2 Session 为参加者的提交。**执行记录提供者发起的提交里，`session` 模块按 [W1](#w1) 第 3 至第 7 步执行，差别如下。时序见[参加者路径](docs/flows.md#写路径session-为参加者)。
 
-- 第 3 步的材料是 `Participation` 与载荷。`joint` 不是四种之一，或缺项：响应「不支持」。
+- 第 3 步的材料是带 `Participation` 的 Session 命令与版本化载荷。`joint` 不是四种之一，或缺项：响应「不支持」。
 - 第 4 步的操作身份按 OP-00 从 execution、提交方操作身份与 `joint` 派生。
-- 第 5 步不核对 `expected`。事务本身保证提交方读到的状态与写入的状态一致。
-- 第 6 步只用 `judgeAdvance` 的参加分支，压缩分支另加 `judgeCompaction` 与 `openWork`（[W4](#w4)）。
-- 第 7 步同时更新快照里的 `ExecutionRef.revision` 与 `evidence`。
+- 参加的命令没有 `expected`。事务本身保证提交方读到的状态与写入的状态一致。
+- 第 6 步的 `decide` 走参加分支，在其中调用 `judgeAdvance`。压缩分支的判定也在 `decide` 里，本成员只备齐它需要的历史输入（[W4](#w4)）。
+- 第 7 步的批次与新快照同时更新 `ExecutionRef.revision` 与 `evidence`。
 - 只读参加（JC-26、JC-27）只执行第 3 至第 6 步，不写行，不更新快照。
 - 本成员不调用 `COMMIT`，也不能结束提供者的事务。提交方失败时两侧都不保存。
 
@@ -182,9 +187,9 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 **W4 压缩提交开新 epoch。**`commitDerived(compaction)` 的参加者在同一事务里按下列顺序执行。时序见[压缩提交](docs/flows.md#压缩提交)。
 
-1. 读覆盖范围 `covers` 内的全部条目、`covers.to` 之后到压缩点之前的消息，以及 `openWork(快照)` 映射的条目引用集合。三组都从 `sl_entry` 按范围读，O(log N + |covers| + |after|)。
-2. 调用 `judgeCompaction`。任一项失败响应「冲突」，依据为判定结果，不写任何行。
-3. 写 SE10 压缩记录与 SE33 标注。标注的 `refs.target` 是 `covers` 范围，`sl_annotation_idx` 一行。
+1. 备齐压缩判定的历史输入：覆盖范围 `covers` 内的全部条目、`covers.to` 之后到压缩点之前的消息，以及未结工作所在的条目引用。前两组从 `sl_entry` 按范围读，O(log N + |covers| + |after|)；第三组经 [R4](#r4) 按关联定位。三组输入经 `DecideReads.compaction` 交入 `decide`（[契约](../session-contract/SPEC.md#领域服务与归约)）。
+2. 调用 `decide`。压缩判定（`openWork` 与 message 包的 `judgeCompaction`）在 `decide` 里执行，本成员不另调用。结果为 `rejected` 时响应「冲突」，依据为判定结果，不写任何行。
+3. 写 `decide` 产出的 SE10 压缩记录与 SE33 标注。标注的 `refs.target` 是 `covers` 范围，`sl_annotation_idx` 一行。
 4. 计算新 epoch 的行序列：`rows = retained（按原日志顺序）‖ C ‖ 旧 epoch 中 position > covers.to 的行`。为 `rows` 从 1 重编 `seq`，重算 `prefix_digest`，写入 `sl_model_view` 的新 epoch。只复制索引行（`position`、`bytes`、摘要），不复制内容。
 5. `sl_journal.epoch` 加一，`epoch_base` 记为 C 的 `position`。
 
@@ -196,7 +201,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 <a id="w6"></a>
 
-**W6 并发写的裁定。**同一会话基于同一旧 `tail` 的两次提交只允许一个后继。SQLite 由单写连接与 `BEGIN IMMEDIATE` 串行化，PostgreSQL 由 `sl_journal` 该行的 `UPDATE ... WHERE tail = :expected` 的受影响行数裁定。两种介质下落后者都在 [W1 第 5 步](#w1) 得到 `changed`。本成员不用进程内锁或内存 CAS 代替这条核对。
+**W6 并发写的裁定。**同一会话基于同一旧 `tail` 的两次提交只允许一个后继。SQLite 由单写连接与 `BEGIN IMMEDIATE` 串行化，PostgreSQL 由 `sl_journal` 该行的 `UPDATE ... WHERE tail = :expected` 的受影响行数裁定。两种介质下落后者都在 [W1 第 6 步](#w1) 由 `decide` 得到 `changed`。本成员不用进程内锁或内存 CAS 代替这条核对。
 
 ### 读路径
 
@@ -237,13 +242,14 @@ next(access, cursor):
         流 ← k 路按 position 归并，backward 时逆序                                          O(K log k)
     逐条按 kind 核该主体的披露资格；不可见则跳过，仍计入 K
     累计 bytes ≤ pageBytes 且 K ≤ maxScanPerPage 时继续
-    返回 { entries, scannedThrough = 最后检查的 position, next = 未到边界时的新 cursor, exhausted = 已到 H 或起点 }
+    annotations ← R6(本页 entries 的位置范围, H)
+    返回 { entries, annotations, scannedThrough = 最后检查的 position, next = 未到边界时的新 cursor, exhausted = 已到 H 或起点 }
 
 since(access, after, kinds, pageBytes):
     H ← sl_journal.tail；同 next，pos = after，direction = forward，只返回一页，next 为 null
 ```
 
-复杂度 O(k log M + K log k + B)，无过滤 O(log N + K + B)。同一轮内新追加不出现。空页仍带 `scannedThrough` 推进。退化：过滤极稀疏或主体几乎无权时，K 达到 `maxScanPerPage` 仍没有可见条目，返回空页与进度，不声称恒定耗时。`maxScanPerPage` 与 `pageBytes` 的上限是策略配置。游标是签名的自描述值，服务端不保存读会话；签名密钥归装配。
+复杂度 O(k log M + K log k + B)，无过滤 O(log N + K + B)，另加 R6 的标注读取。同一轮内新追加不出现。空页仍带 `scannedThrough` 推进。退化：过滤极稀疏或主体几乎无权时，K 达到 `maxScanPerPage` 仍没有可见条目，返回空页与进度，不声称恒定耗时。`maxScanPerPage` 与 `pageBytes` 的上限是策略配置。游标是签名的自描述值，服务端不保存读会话；签名密钥归装配。
 
 <a id="r3"></a>
 
@@ -273,7 +279,9 @@ readModelView(access, basis, after, pageBytes):
 
 <a id="r6"></a>
 
-**R6 按目标定位标注。**内部读路径：给定一页条目的位置范围 `[lo, hi]`，在 `sl_annotation_idx` 上取 `target_to ≥ lo` 且 `target_from ≤ hi` 的行，得到指向这些条目的标注位置。O(log M + a)，a 为命中的标注数。它服务对人时间线的「已压缩进摘要」「保留」「已更正」标记。契约的 `HistoryPage` 没有携带标注的字段，也没有按目标读标注的操作。人侧投影从尾部向起点分页时，标注的位置总在目标之后，先于目标被读到，所以不需要 R6。从中间位置跳转读取时需要 R6，这是一条[对契约的疑问](#组合与验证)，闭合前跳转读取以 `kinds` 过滤只读标注种类向前扫描到 H，代价 O(标注数)。
+**R6 填充页内标注：`HistoryPage.annotations`。**R2 每返回一页都执行 R6。给定本页条目的位置范围 `[lo, hi]`，在 `sl_annotation_idx` 上取 `target_to ≥ lo`、`target_from ≤ hi` 且 `position ≤ H` 的行，去掉位置已在本页 `entries` 里的行，再按位置读出这些标注条目，放进 `annotations`（[SessionHistory](../session-contract/SPEC.md#sessionhistory)）。标注条目与 `entries` 一样逐条按 `kind` 核该主体的披露资格，不可见的不放进 `annotations`。O(log M + a log N + B_a)，a 为命中的标注数，B_a 为它们的字节数。空页没有 `[lo, hi]`，`annotations` 为空。
+
+R6 让从中间位置跳转的读取也能看到后来的更正与标注，服务对人时间线的「已压缩进摘要」「保留」「已更正」标记。从尾部向起点分页时，标注多数已经在更早的页里，R6 仍按上面的规则放入不在本页的标注，读者可以按条目身份去重。退化：一个条目被大量标注指向时 a 大，`annotations` 不受 `pageBytes` 截断，代价随 a 线性。
 
 <a id="r7"></a>
 
@@ -412,7 +420,13 @@ releasedScopes(principal, scope = system, after, limit):
 
 ### 编码与归约的拥有者
 
-参加者模块在 Worker 内运行，不能回调 `session` 进程。它需要四组纯函数：OP-00 的身份派生、九个领域服务、`reduce`、以及命令加结局到条目批次的编码。前三组由 `session-contract` 导出。第四组与 `reduce` 的解码必须互逆，本成员要求它与 `reduce` 由同一拥有者提供，并以同一个归约版本号标识。闭合前本成员的材料表只能核对材料集合，不能生成条目。这是一条[对契约的疑问](#组合与验证)。
+参加者模块在 Worker 内运行，不能回调 `session` 进程。它用 `session-contract` 导出的三组纯函数：OP-00 的身份派生、`decide` 与 `reduce`（[领域服务与归约](../session-contract/SPEC.md#领域服务与归约)）。
+
+- `decide` 是命令到条目批次的唯一编码。它认回原操作，调用九个领域服务与守卫，产出 `EncodedEntry` 批次、原回执或拒绝结局。本成员不另写编码，也不在 `decide` 之外调用领域服务。
+- `reduce` 是同一编码的解码。`decide` 与 `reduce` 共用一个解释版本，`sl_batch.interpreter` 记录每批的解释版本。同一解释版本下，`reduce` 解释 `decide` 的批次得到命令要求的后态。
+- 本成员只做 `decide` 不能做的事：读出它的输入（快照、操作记录、压缩的历史输入），为它产出的条目分配位置与身份，写行，维护派生物。
+
+本成员不直接依赖 message 包的判定函数。压缩判定经 `decide` 传递到 message 包。本成员只用 message 包的类型解码 SE10 载荷里的消息与压缩记录（[R5](#r5)、[W4](#w4) 第 4 步），C-01 的视图重算按 CM-01 推导。
 
 ### 事务、并发与取消
 
@@ -469,10 +483,12 @@ releasedScopes(principal, scope = system, after, limit):
 | 存储契约 `commit`、`query`、`registerCombination` 的结果模型与拒绝顺序 | [存储事务行为](../../storage/docs/storage-contract/SPEC.md#提交) | W1 的映射表 |
 | 参加者端口与语句限制 | [参加者端口](../../storage/docs/storage-contract/SPEC.md#参加者端口) | 参加者模块只用 `execute`，`params` 只用五种允许类型 |
 | SQLite 提供者的启动、受理队列、两段回滚、未知条件 | [SQLite 提供者设计](../../storage/docs/storage-contract/sqlite-provider.md) | 失败分类表 |
-| `SessionTransactionPort` 六条义务 | [SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport) | W1 第 3 步核对完整材料；W1 第 5 步与 W6 返回 `changed`；TB-04 的保管前提；W1 的 `attempt-rejected` 映射；读路径逐页核权；W5 的游标同存 |
+| `SessionTransactionPort` 六条义务 | [SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport) | W1 第 3 步核对完整材料；W1 第 6 步与 W6 返回 `changed`；TB-04 的保管前提；W1 的 `attempt-rejected` 映射；读路径逐页核权；W5 的游标同存 |
 | 历史面四个读操作与三个对账读操作的结果与拒绝原因 | [SessionHistory](../session-contract/SPEC.md#sessionhistory)、[SessionReconciliation](../session-contract/SPEC.md#sessionreconciliation) | R2、R5、R8、R10、R11 |
 | 事件目录的封套与 38 类 | [事件目录](../session-contract/docs/object-model/session-log-events.md#原生事实类别) | `sl_entry` 列与 W3 的派生规则 |
-| 模型视图 CM-01 至 CM-06 与 `judgeCompaction` | [message SPEC](../../common/message/SPEC.md#模型视图) | W4 第 2 步与第 4 步 |
+| `decide`、`reduce` 与 OP-00 的纯函数，以及它们共用的解释版本 | [领域服务与归约](../session-contract/SPEC.md#领域服务与归约)、[OP-00](../session-contract/SPEC.md#op-00) | W1 第 6、7、9 步；W2；W4 第 2 步；R9 |
+| 模型视图 CM-01 至 CM-06 与消息类型 | [message SPEC](../../common/message/SPEC.md#模型视图) | W4 第 4 步的新 epoch 行；R5 的消息解码；C-01 的视图重算。压缩判定经 `decide` 传递，本成员不直接调用 |
+| `HistoryPage.annotations` 的含义 | [SessionHistory](../session-contract/SPEC.md#sessionhistory) | R2 每页经 R6 填充 |
 | 历史源读口 H1 至 H5 | [request-context-contract](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图) | R5 |
 
 ### 自有义务的验证
@@ -485,6 +501,8 @@ releasedScopes(principal, scope = system, after, limit):
 | C-02、C-03 分页完整与游标 | 属性测试与篡改用例 |
 | C-04 前缀摘要 | 属性测试 |
 | W1 至 W6 写路径 | 每个 JC 行一个用例，核对派生行与 `sl_state` |
+| `decide` 往返 | `reduce(前状态, decide(...) 的批次)` 等于命令要求的后态与提交后的 `sl_state` |
+| R6 页内标注 | 跳转读取，`annotations` 与按 SE33 全量扫描的集合比较 |
 | R1 至 R11 复杂度与退化 | 基准：N 从 10³ 到 10⁶，R1、R3、R5、R7、R8 不随 N 增长，R2 随 K 与 B 线性 |
 | W6 并发写裁定 | 两个进程基于同一 `tail` 提交，只有一个成功 |
 | 断电耐久 | 故障注入，介质声明；归 SQL-T01 |
@@ -494,11 +512,10 @@ releasedScopes(principal, scope = system, after, limit):
 
 | 缺什么 | 谁来补 | 补上之前本成员怎样表现 |
 | --- | --- | --- |
-| [XP-1 至 XP-6](#xp-table) 的存储契约入口 | 存储线（[issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)） | 对应操作 `unavailable`，`owner` 为存储参加者 |
+| [XP-1 至 XP-6](#xp-table) 的存储契约入口。XP-2 与 XP-6 也在 Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)里 | 存储线（[issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）；XP-2 与 Agent 的拥有者联合，XP-6 与应用装配联合 | 对应操作 `unavailable`，`owner` 为存储参加者。XP-2 缺席时按 [W1](#w1) 第 9 步的退路 |
 | SQLite 的独立读连接 | 存储线 | 读与提交在同一 Worker 队列串行。复杂度不变，吞吐由验证计划实测 |
 | 对象存储作为 blob 去向 | [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) | 只有同库 `sl_blob` |
-| 命令到条目批次的编码函数及其拥有者 | 契约拥有者裁定 | 参加者模块只能核对材料，不能写条目 |
+| 超过 `maxCommandBytes` 的内容先由内容拥有者保管、再以耐久引用进入条目的链路（Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)） | 存储的拥有者与各内容拥有者 | 条目只带已达到耐久条件的引用（[TB-04](#tb-04)）。拿不到耐久引用时命令返回 `unavailable` |
 | 数值目标：每页延迟、每秒提交数、重建时长、`maxScanPerPage` 与 `pageBytes` 的初值 | 本成员，按验证计划实测后写进本页的声明边界 | 不声明任何数值。策略配置没有默认值时装配必须给出 |
 | 断电耐久 | 存储线 SQL-T01 | 本成员只声明进程级持久依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 |
-| 跳转读取时按目标取标注的公开读口（R6） | 契约拥有者 | 从尾部向起点分页不需要；跳转读取以 `kinds` 过滤向前扫描 |
 | 登记键到能力身份的绑定（R10 的 `capability` 列） | Tool 契约与事件目录对 SE08 载荷的细化 | 本成员假定 SE08 的登记键按能力身份列出；不成立时 `ResidentReference.capability` 不可填，R10 不可用 |

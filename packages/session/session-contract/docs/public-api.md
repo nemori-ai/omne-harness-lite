@@ -15,7 +15,7 @@ Session 不保存接续值。`RunState.active.execution` 是指向 Agent 权威�
 ```ts
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { Message, CompactionMessage } from '@omne-harness/message'
+import type { Message, CompactionMessage, CompactionContext } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 
 declare const sessionIdentity: unique symbol
@@ -561,7 +561,9 @@ export type Decision =
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
 /** Runs the domain services for one command and encodes the batch. reduce(decide(...)) round-trips under one interpreter. */
-export declare function decide(previous: WorkSnapshot, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null): Decision
+/** History the storage participant reads inside the transaction. Only commitDerived(compaction) needs it; null otherwise. open holds the entry references of the open work that openWork names. */
+export type DecideReads = Readonly<{ compaction: CompactionContext | null }>
+export declare function decide(previous: WorkSnapshot, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null, reads: DecideReads): Decision
 ```
 
 ## 出站端口与块声明
