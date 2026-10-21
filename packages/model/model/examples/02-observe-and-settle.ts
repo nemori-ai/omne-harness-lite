@@ -28,6 +28,8 @@ const admitted = await provider.runtime.calls.admit({
   capacity: example.capacity,
 })
 if ('failure' in admitted) throw new Error(`Admission failed: ${JSON.stringify(admitted.failure)}`)
+// Reuse the returned locator with current Access for both observation and facts.
+const reference = admitted.ok.reference
 // driver belongs to the trusted host. A normal caller receives only provider.runtime.
 // driveInput carries principal/tenant for current authority, call for the logical invocation,
 // instance for its live executor, operation for the original claim, and continuity as the
@@ -45,7 +47,7 @@ try {
   ])
   const connected = await provider.runtime.instances.connect({
     ...example.access,
-    call: example.call,
+    reference,
   })
   if ('failure' in connected)
     throw new Error(`Connect failed: ${JSON.stringify(connected.failure)}`)
@@ -68,8 +70,7 @@ try {
   console.log('observation:', changed.value.kind)
   const lookup = await provider.runtime.calls.inspect({
     ...example.access,
-    call: example.call,
-    admission,
+    reference,
   })
   if ('failure' in lookup) throw new Error(`Inspection failed: ${JSON.stringify(lookup.failure)}`)
   if (lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled')

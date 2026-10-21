@@ -1,6 +1,6 @@
 import type { CredentialSelection, SendCoordinator, SendStart } from '../send.ts'
 import type { MemorySendSource } from './types.ts'
-import { validateRequest } from './request.ts'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeModelCallId,
@@ -132,6 +132,15 @@ export type WriteIdentity = Pick<ExecutionRef, 'tenant' | 'call'> & {
 export type Draft = { tenant: TenantState; call: MemoryCall | undefined }
 export type Applied<T> = { value: T; receipt: Receipt }
 
+type WriteArguments<T> = {
+  input: WriteIdentity
+  method: MemoryWriteMethod
+  fields: unknown
+  check: (call: MemoryCall | undefined, root: TenantState, replay: boolean) => ModelFailure | null
+  apply: (draft: Draft) => Outcome<Applied<T>, ModelFailure>
+  replay: (call: MemoryCall | undefined, binding: Binding) => Outcome<T, ModelFailure>
+}
+
 function copyCall(call: MemoryCall): MemoryCall {
   const { execution, dispatches, ...plain } = call
   return {
@@ -166,21 +175,17 @@ export function unresolved(state: TenantState, call: ModelCallId): ModelOperatio
     op.call === call && op.status === 'unknown' ? [id] : [],
   )
 }
-export function tasks(
-  call: MemoryCall,
-  pending: readonly ModelOperationId[],
-): ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[] {
-  const result: ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[] = []
-  if (call.state.phase !== 'settled' && call.state.custody.kind === 'producer')
-    result.push('execute')
-  if (
-    call.state.control.kind === 'requested' &&
-    call.state.control.propagation !== 'sent' &&
-    call.state.custody.kind === 'producer'
-  )
+type RecoveryTask = 'execute' | 'control' | 'handoff' | 'cleanup' | 'account'
+function producerTasks(call: MemoryCall): RecoveryTask[] {
+  const result: RecoveryTask[] = []
+  if (call.state.phase !== 'settled') result.push('execute')
+  if (call.state.control.kind === 'requested' && call.state.control.propagation !== 'sent')
     result.push('control')
-  if (call.state.phase === 'settled' && call.state.custody.kind === 'producer')
-    result.push('handoff')
+  if (call.state.phase === 'settled') result.push('handoff')
+  return result
+}
+export function tasks(call: MemoryCall, pending: readonly ModelOperationId[]): RecoveryTask[] {
+  const result = call.state.custody.kind === 'producer' ? producerTasks(call) : []
   if (call.state.custody.kind === 'acknowledged' && call.state.custody.cleanup !== 'released')
     result.push('cleanup')
   if (pending.length > 0 || call.dispatches.some(d => d.record.send === 'unknown'))
@@ -418,28 +423,23 @@ export class MemoryState<P> {
     }
     return work(call, root)
   }
-  write<T>(args: {
-    input: WriteIdentity
-    method: MemoryWriteMethod
-    fields: unknown
-    check: (call: MemoryCall | undefined, root: TenantState, replay: boolean) => ModelFailure | null
-    apply: (draft: Draft) => Outcome<Applied<T>, ModelFailure>
-    replay: (call: MemoryCall | undefined, binding: Binding) => Outcome<T, ModelFailure>
-  }): Outcome<T, ModelFailure> {
-    const { input } = args
+  private writeIdentity(input: WriteIdentity): string | ModelFailure {
     const key = this.identity(input)
-    if (typeof key !== 'string') return { failure: key }
+    if (typeof key !== 'string') return key
     if (
       'failure' in decodeModelOperationId(input.operation) ||
       input.operation.startsWith('mop_--')
     )
-      return { failure: invalid('operation', 'reserved-or-invalid') }
-    const root = this.root(key)
-    const original = root.calls.get(input.call)
-    const binding = root.operations.get(input.operation)
-    const checked = args.check(original, root, binding !== undefined)
-    if (checked) return { failure: checked }
-    const fingerprint = digest({ version: 1, fields: args.fields })
+      return invalid('operation', 'reserved-or-invalid')
+    return key
+  }
+  private replayWrite<T>(
+    args: WriteArguments<T>,
+    original: MemoryCall | undefined,
+    binding: Binding | undefined,
+    fingerprint: string,
+  ): Outcome<T, ModelFailure> | null {
+    const { input } = args
     if (binding) {
       if (
         binding.call !== input.call ||
@@ -457,6 +457,13 @@ export class MemoryState<P> {
         return { failure: { kind: 'commit-unknown', operation: input.operation } }
       if (binding.status === 'committed') return args.replay(original, binding)
     }
+    return null
+  }
+  private pendingWrite(
+    root: TenantState,
+    call: ModelCallId,
+    method: MemoryWriteMethod,
+  ): ModelFailure | null {
     const orderedMethods: readonly MemoryWriteMethod[] = [
       'admit',
       'claim',
@@ -468,27 +475,36 @@ export class MemoryState<P> {
       'decideRetry',
       'settle',
     ]
-    if (orderedMethods.includes(args.method)) {
+    if (orderedMethods.includes(method)) {
       const pending = [...root.operations].find(
         ([, operation]) =>
-          operation.call === input.call &&
-          operation.method === args.method &&
-          operation.status === 'unknown',
+          operation.call === call && operation.method === method && operation.status === 'unknown',
       )
-      if (pending) return { failure: { kind: 'commit-unknown', operation: pending[0] } }
+      if (pending) return { kind: 'commit-unknown', operation: pending[0] }
     }
-    const tenant = { calls: new Map(root.calls), operations: new Map(root.operations) }
-    const draft: Draft = { tenant, call: original === undefined ? undefined : copyCall(original) }
-    const applied = args.apply(draft)
-    if ('failure' in applied) return applied
-    if (draft.call) {
-      if (
-        draft.call.request !== null &&
-        materialBytes(draft.call) > BigInt(draft.call.capacity.bytes)
-      )
-        return { failure: { kind: 'capacity', required: draft.call.capacity } }
-      tenant.calls.set(input.call, draft.call)
-    }
+    return null
+  }
+  private storeDraftCall(
+    tenant: TenantState,
+    id: ModelCallId,
+    call: MemoryCall | undefined,
+  ): ModelFailure | null {
+    if (!call) return null
+    if (call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes))
+      return { kind: 'capacity', required: call.capacity }
+    tenant.calls.set(id, call)
+    return null
+  }
+  private bindWrite<T>(
+    key: string,
+    root: TenantState,
+    tenant: TenantState,
+    call: MemoryCall | undefined,
+    args: WriteArguments<T>,
+    applied: Applied<T>,
+    fingerprint: string,
+  ): { tenant: TenantState; unknown: boolean; planKey: string } {
+    const { input } = args
     const planKey = `${key}:${input.operation}`
     const plan = this.plans.get(planKey)
     const matched = plan?.call === input.call && plan.method === args.method ? plan : undefined
@@ -496,8 +512,8 @@ export class MemoryState<P> {
       call: input.call,
       method: args.method,
       fingerprint,
-      revision: draft.call?.state.revision ?? revision(),
-      receipt: applied.ok.receipt,
+      revision: call?.state.revision ?? revision(),
+      receipt: applied.receipt,
     }
     const nextBinding: Binding =
       matched === undefined
@@ -508,9 +524,32 @@ export class MemoryState<P> {
       tenant.operations = new Map(root.operations)
     }
     tenant.operations.set(input.operation, nextBinding)
-    this.roots.set(key, tenant)
-    if (matched) {
-      this.plans.delete(planKey)
+    return { tenant, unknown: matched !== undefined, planKey }
+  }
+  write<T>(args: WriteArguments<T>): Outcome<T, ModelFailure> {
+    const { input } = args
+    const key = this.writeIdentity(input)
+    if (typeof key !== 'string') return { failure: key }
+    const root = this.root(key)
+    const original = root.calls.get(input.call)
+    const binding = root.operations.get(input.operation)
+    const checked = args.check(original, root, binding !== undefined)
+    if (checked) return { failure: checked }
+    const fingerprint = digest({ version: 1, fields: args.fields })
+    const replayed = this.replayWrite(args, original, binding, fingerprint)
+    if (replayed) return replayed
+    const pending = this.pendingWrite(root, input.call, args.method)
+    if (pending) return { failure: pending }
+    const tenant = { calls: new Map(root.calls), operations: new Map(root.operations) }
+    const draft: Draft = { tenant, call: original === undefined ? undefined : copyCall(original) }
+    const applied = args.apply(draft)
+    if ('failure' in applied) return applied
+    const capacity = this.storeDraftCall(tenant, input.call, draft.call)
+    if (capacity) return { failure: capacity }
+    const publication = this.bindWrite(key, root, tenant, draft.call, args, applied.ok, fingerprint)
+    this.roots.set(key, publication.tenant)
+    if (publication.unknown) {
+      this.plans.delete(publication.planKey)
       return { failure: { kind: 'commit-unknown', operation: input.operation } }
     }
     return { ok: applied.ok.value }
@@ -532,8 +571,11 @@ export class MemoryState<P> {
       if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
         return invalid('call', 'send-no-longer-valid')
     }
-    const requestFailure = validateRequest(input.request)
-    if (requestFailure) return requestFailure
+    return this.requestBinding(input, call)
+  }
+  private requestBinding(input: SendDemand<P>, call: MemoryCall): ModelFailure | null {
+    const checked = judgeFixedModelRequest(input.request)
+    if ('failure' in checked) return invalid(checked.failure.field, checked.failure.reason)
     if (
       digest(input.request) !== call.requestDigest ||
       digest(input.consumer) !== digest(call.state.consumer) ||
@@ -544,6 +586,51 @@ export class MemoryState<P> {
     return !dispatch || digest(dispatch.record.supplier) !== digest(input.supplier)
       ? invalid('dispatch', 'send-not-prepared')
       : null
+  }
+  private currentCredential(
+    input: SendDemand<P>,
+    call: MemoryCall,
+    receipt: MaterializationReceipt,
+    window: string,
+    registered: readonly MemorySendSource<P>[],
+  ): Outcome<CredentialSelection, ModelFailure> {
+    const failure = this.sendBinding(input, call)
+    if (failure) return { failure }
+    const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
+    if (
+      !dispatch?.record.materialization ||
+      dispatch.record.send !== 'prepared' ||
+      digest(dispatch.record.materialization.receipt) !== digest(receipt) ||
+      dispatch.windows.get(window) !== 'open'
+    )
+      return { failure: invalid('dispatch', 'send-not-prepared') }
+    const source = registered.find(
+      source =>
+        digest(source.profile) === digest(input.request.profile) &&
+        digest(source.supplier) === digest(input.supplier.adoption) &&
+        source.recipient === input.supplier.recipient &&
+        source.model === input.supplier.model,
+    )
+    if (!source) return { failure: unavailable('model-send-source', 'source-not-registered') }
+    return this.sourceCredential(input, source)
+  }
+  private sourceCredential(
+    input: SendDemand<P>,
+    source: MemorySendSource<P>,
+  ): Outcome<CredentialSelection, ModelFailure> {
+    const current = source.current(input)
+    if ('failure' in current) return current
+    if (!current.ok.authorized) return { failure: { kind: 'denied', action: 'send-source' } }
+    const credential = input.supplier.credential
+    if (credential.kind === 'tenant') return { ok: { id: credential.id, scope: 'tenant' as const } }
+    if (
+      source.credential.kind !== 'factory' ||
+      source.credential.official !== true ||
+      !current.ok.noTenantBinding ||
+      'failure' in decodeCredentialId(source.credential.queryId)
+    )
+      return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
+    return { ok: { id: source.credential.queryId, scope: 'factory' as const } }
   }
   sendCoordinator(sources: readonly MemorySendSource<P>[]): SendCoordinator<P> {
     const registered = sources.map(source => ({
@@ -564,40 +651,7 @@ export class MemoryState<P> {
       withinCurrent: (input, receipt: MaterializationReceipt, window, start) =>
         this.exclusive(() => {
           const checked = this.read<CredentialSelection>(input, 'send', call => {
-            const failure = this.sendBinding(input, call)
-            if (failure) return { failure }
-            const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
-            if (
-              !dispatch?.record.materialization ||
-              dispatch.record.send !== 'prepared' ||
-              digest(dispatch.record.materialization.receipt) !== digest(receipt) ||
-              dispatch.windows.get(window) !== 'open'
-            )
-              return { failure: invalid('dispatch', 'send-not-prepared') }
-            const source = registered.find(
-              source =>
-                digest(source.profile) === digest(input.request.profile) &&
-                digest(source.supplier) === digest(input.supplier.adoption) &&
-                source.recipient === input.supplier.recipient &&
-                source.model === input.supplier.model,
-            )
-            if (!source)
-              return { failure: unavailable('model-send-source', 'source-not-registered') }
-            const current = source.current(input)
-            if ('failure' in current) return current
-            if (!current.ok.authorized)
-              return { failure: { kind: 'denied', action: 'send-source' } }
-            const credential = input.supplier.credential
-            if (credential.kind === 'tenant')
-              return { ok: { id: credential.id, scope: 'tenant' as const } }
-            if (
-              source.credential.kind !== 'factory' ||
-              source.credential.official !== true ||
-              !current.ok.noTenantBinding ||
-              'failure' in decodeCredentialId(source.credential.queryId)
-            )
-              return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
-            return { ok: { id: source.credential.queryId, scope: 'factory' as const } }
+            return this.currentCredential(input, call, receipt, window, registered)
           })
           if ('failure' in checked) return refused(checked.failure)
           const key = this.identity(input)
@@ -617,12 +671,13 @@ export class MemoryState<P> {
         }),
     }
   }
-  updateRead(
+  private authorizedRead(
     input: Access<P> & { readonly call: ModelCallId },
     read: ReadId,
-    action: 'next' | 'end' | 'refresh',
-    after?: string,
-  ): Outcome<ReadState, ModelFailure> {
+  ): Outcome<
+    { key: string; root: TenantState; call: MemoryCall; relation: MemoryRead },
+    ModelFailure
+  > {
     const key = this.identity(input)
     if (typeof key !== 'string') return { failure: key }
     const root = this.root(key)
@@ -639,7 +694,46 @@ export class MemoryState<P> {
       }
       return auth
     }
-    if (relation.state.kind === 'ended') return { ok: structuredClone(relation.state) }
+    return { ok: { key, root, call, relation } }
+  }
+  private readOffset(
+    call: MemoryCall,
+    relation: MemoryRead,
+    after: string | undefined,
+  ): Outcome<{ offset: number; total: number }, ModelFailure> {
+    if (after === undefined || !decimal(after) || BigInt(after) > BigInt(Number.MAX_SAFE_INTEGER))
+      return { failure: invalid('after', 'page') }
+    const offset = Number(after)
+    if (
+      offset === 0 ||
+      offset >= resultParts(call).length ||
+      offset >
+        pageEnd(
+          resultParts(call),
+          relation.furthest,
+          call.resultPaging.resultPageParts,
+          call.resultPaging.resultPageTargetBytes,
+        )
+    )
+      return { failure: invalid('after', 'page') }
+    let boundary = 0
+    const parts = resultParts(call)
+    while (boundary < offset)
+      boundary = pageEnd(
+        parts,
+        boundary,
+        call.resultPaging.resultPageParts,
+        call.resultPaging.resultPageTargetBytes,
+      )
+    if (boundary !== offset) return { failure: invalid('after', 'page') }
+    return { ok: { offset, total: parts.length } }
+  }
+  private advanceRead(
+    call: MemoryCall,
+    relation: MemoryRead,
+    action: 'next' | 'end' | 'refresh',
+    after: string | undefined,
+  ): Outcome<MemoryRead['state'], ModelFailure> {
     if (action === 'end') relation.state = { kind: 'ended', reason: 'closed' }
     else if (
       Date.parse(this.options.clock.now()) - Date.parse(relation.lastProgress) >=
@@ -647,48 +741,38 @@ export class MemoryState<P> {
     )
       relation.state = { kind: 'ended', reason: 'stalled' }
     else if (action === 'next') {
-      if (after === undefined || !decimal(after) || BigInt(after) > BigInt(Number.MAX_SAFE_INTEGER))
-        return { failure: invalid('after', 'page') }
-      const offset = Number(after)
-      if (
-        offset === 0 ||
-        offset >= resultParts(call).length ||
-        offset >
-          pageEnd(
-            resultParts(call),
-            relation.furthest,
-            call.resultPaging.resultPageParts,
-            call.resultPaging.resultPageTargetBytes,
-          )
-      )
-        return { failure: invalid('after', 'page') }
-      let boundary = 0
-      const parts = resultParts(call)
-      while (boundary < offset)
-        boundary = pageEnd(
-          parts,
-          boundary,
-          call.resultPaging.resultPageParts,
-          call.resultPaging.resultPageTargetBytes,
-        )
-      if (boundary !== offset) return { failure: invalid('after', 'page') }
+      const checked = this.readOffset(call, relation, after)
+      if ('failure' in checked) return checked
+      const { offset, total } = checked.ok
       relation.state =
-        offset === parts.length
-          ? { kind: 'ended', reason: 'complete' }
-          : { kind: 'reading', offset }
+        offset === total ? { kind: 'ended', reason: 'complete' } : { kind: 'reading', offset }
       if (offset > relation.furthest) {
         relation.furthest = offset
         relation.lastProgress = this.options.clock.now()
       }
     }
+    return { ok: relation.state }
+  }
+  updateRead(
+    input: Access<P> & { readonly call: ModelCallId },
+    read: ReadId,
+    action: 'next' | 'end' | 'refresh',
+    after?: string,
+  ): Outcome<ReadState, ModelFailure> {
+    const authorized = this.authorizedRead(input, read)
+    if ('failure' in authorized) return authorized
+    const { key, root, call, relation } = authorized.ok
+    if (relation.state.kind === 'ended') return { ok: structuredClone(relation.state) }
+    const advanced = this.advanceRead(call, relation, action, after)
+    if ('failure' in advanced) return advanced
     if (call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes))
       return { failure: { kind: 'capacity', required: structuredClone(call.capacity) } }
     this.publish(key, root, call)
     return {
       ok:
-        relation.state.kind === 'ended'
-          ? structuredClone(relation.state)
-          : this.page(call, relation.state.offset),
+        advanced.ok.kind === 'ended'
+          ? structuredClone(advanced.ok)
+          : this.page(call, advanced.ok.offset),
     }
   }
   page(call: MemoryCall, offset: number): ReadState {

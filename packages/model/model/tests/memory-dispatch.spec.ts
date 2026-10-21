@@ -171,7 +171,7 @@ it('stores a retry position and bounds its decision to the original policy and a
       window: 'failure',
     }),
   )
-  const facts: TransportFact[] = [
+  const facts = [
     {
       kind: 'ended',
       termination: {
@@ -179,9 +179,9 @@ it('stores a retry position and bounds its decision to the original policy and a
         fault: { cause: 'upstream-unavailable', diagnostic: 'offline', upstreamStatus: '503' },
       },
     },
-  ]
+  ] satisfies [TransportFact]
   f.completeWindows.add(`${f.admit.call}/failure/${digest(facts)}`)
-  unbox(
+  const failed = unbox(
     await f.commands.preserve({
       ...(await f.write()),
       dispatch: f.dispatch,
@@ -189,6 +189,11 @@ it('stores a retry position and bounds its decision to the original policy and a
       facts,
     }),
   )
+  expect(failed.state).toMatchObject({
+    phase: 'running',
+    dispatch: f.dispatch,
+    firstContent: 'none-proven',
+  })
   expect(
     await f.commands.settle({
       ...(await f.write()),
@@ -218,6 +223,42 @@ it('stores a retry position and bounds its decision to the original policy and a
       : '',
   )
   expect(unbox(await f.commands.loadRecovery(f.admit)).retry).toEqual(decision)
+  const retryDispatch = unbox(decodeDispatchId('mdisp_retry'))
+  unbox(
+    await f.commands.prepareDispatch({
+      ...(await f.write()),
+      dispatch: retryDispatch,
+      supplier: decision.supplier,
+      policyDecision: decisionInput.source,
+    }),
+  )
+  for (const window of ['still-open', 'proven-empty'])
+    unbox(
+      await f.commands.openReceiveWindow({
+        ...(await f.write()),
+        dispatch: retryDispatch,
+        window,
+      }),
+    )
+  f.completeWindows.add(`${f.admit.call}/proven-empty/${digest([])}`)
+  const mixed = unbox(
+    await f.commands.preserve({
+      ...(await f.write()),
+      dispatch: retryDispatch,
+      window: 'proven-empty',
+      facts: [],
+    }),
+  )
+  expect(mixed.state).toMatchObject({
+    phase: 'running',
+    dispatch: retryDispatch,
+    firstContent: 'uncertain',
+  })
+  expect(unbox(await f.commands.loadRecovery(f.admit)).state).toEqual(mixed.state)
+  expect(unbox(await f.commands.dispatches(f.admit))).toMatchObject([
+    { dispatch: f.dispatch, firstContent: 'none-proven', terminal: facts[0].termination },
+    { dispatch: retryDispatch, firstContent: 'uncertain', terminal: null },
+  ])
 })
 it('input-over-limit cannot prepare a retry and late terminal facts preserve logical settlement', async () => {
   const f = await running()
@@ -628,4 +669,40 @@ it('atomically saves supplier accounts, recognizes events and rejects wrong subj
     }),
   )
   expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(updated)
+})
+
+it('accepts an account after terminal in the same batch and rejects later content atomically', async () => {
+  const f = await running()
+  const window = 'terminal-account'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const account = {
+    subject: { kind: 'model_call', id: f.admit.call },
+    usage: [],
+    cost: [],
+    trimmed: { state: 'known', lexeme: '0', unit: 'token' },
+    place: 'supplier',
+    duration: { state: 'unknown' },
+    receipt: 'received',
+    revision: '1',
+  } satisfies import('@omne-harness/call-account').CallAccount
+  const facts: TransportFact[] = [
+    { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } },
+    { kind: 'account', event: 'tail', value: account },
+  ]
+  const before = await f.commands.loadRecovery(f.admit)
+  expect(
+    await f.commands.preserve({
+      ...(await f.write()),
+      dispatch: f.dispatch,
+      window,
+      facts: [...facts, { kind: 'block-open', index: '0', mode: 'append', content: 'text' }],
+    }),
+  ).toEqual({ failure: { kind: 'invalid', field: 'facts', reason: 'after-terminal' } })
+  expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toBeNull()
+  unbox(await f.commands.preserve({ ...(await f.write()), dispatch: f.dispatch, window, facts }))
+  expect(unbox(await f.commands.dispatches(f.admit))[0]).toMatchObject({
+    terminal: { kind: 'completed', reason: 'limit' },
+    account,
+  })
 })

@@ -1,4 +1,4 @@
-import { validateRequest } from './request.ts'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract'
 import type {
   ModelRetryPolicy,
   RetryResolution,
@@ -37,8 +37,9 @@ export function createMemoryRetryPolicy<P>(store: MemoryState<P>) {
           const id = key(input)
           const plan = plans.get(id)
           if (!plan) return { failure: unavailable('model-retry-policy', 'no-plan') }
-          const requestFailure = validateRequest(input.request)
-          if (requestFailure) return { failure: requestFailure }
+          const checked = judgeFixedModelRequest(input.request)
+          if ('failure' in checked)
+            return { failure: invalid(checked.failure.field, checked.failure.reason) }
           if (
             digest(input.request) !== call.requestDigest ||
             digest(input.initiator) !== digest(call.initiator)

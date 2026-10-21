@@ -1,6 +1,8 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 // The values that the paths of this fixture send and read. Every identity comes from a decoder of
 // a public package, so no value is made by an assertion.
 import {
+  tenantCodec,
   accountCodec,
   organizationCodec,
   tenant,
@@ -61,7 +63,7 @@ const adoption = (name: string): Adoption => ({
   owner: 'fixture',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: '0'.repeat(64),
 })
 
 const supplier: Supplier = {
@@ -126,8 +128,12 @@ export function newProvider() {
       await runtime.calls.inspect({
         principal: reader,
         tenant: tenantA,
-        call: call(name),
-        admission: admissionOf(name),
+        reference: invocationReference({
+          principal: reader,
+          tenant: tenantA,
+          call: call(name),
+          admission: admissionOf(name),
+        }),
       }),
     )
     expect(found.kind === 'found', `the provider does not know the call ${name}`)
@@ -147,4 +153,23 @@ export function newProvider() {
       return (await state(name)).revision
     },
   }
+}
+
+/** This installed consumer uses only the package codec for ordinary locators. */
+export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
+  parts: T,
+) {
+  return must(
+    encodeModelInvocationRef({
+      tenant: parts.tenant,
+      call: parts.call,
+      admission: parts.admission,
+    }),
+  )
+}
+/** A raw reserved locator is used only for an intentionally invalid boundary request. */
+export function reservedReference(parts: Parameters<typeof encodeModelInvocationRef>[0]): string {
+  const tenant = tenantCodec.encode(parts.tenant)
+  if (!tenant.ok) throw new Error('fixture tenant')
+  return JSON.stringify(['model-invocation', 1, tenant.value, parts.call, parts.admission])
 }

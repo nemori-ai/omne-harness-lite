@@ -105,8 +105,7 @@ export type PendingCall = Readonly<{
   (
     | Readonly<{
         kind: 'model'
-        call: M.ModelCallId
-        admission: M.ModelOperationId
+        reference: M.ModelInvocationRef
         purpose: ModelPurpose
       }>
     | Readonly<{

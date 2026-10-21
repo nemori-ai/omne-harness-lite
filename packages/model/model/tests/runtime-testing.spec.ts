@@ -526,7 +526,14 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
           const pending = f.dependencies.retry.decide(invalid)
           expect(pending).toBeInstanceOf(Promise)
           expect(await pending).toMatchObject({
-            failure: { kind: 'invalid', field: kind, reason: 'range' },
+            failure: {
+              kind: 'invalid',
+              field:
+                location === 'parameters'
+                  ? '/parameters/0/value'
+                  : `/parameterAdoptions/0/${location === 'applied' ? 'applied' : 'origin/requested'}/value`,
+              reason: 'range',
+            },
           })
         }
       }
@@ -863,7 +870,14 @@ it('returns send failures for illegal parameters in every request carrier withou
         expect(pending).toBeInstanceOf(Promise)
         expect(await pending).toMatchObject({
           kind: 'not-started',
-          failure: { kind: 'invalid', field: kind, reason: 'range' },
+          failure: {
+            kind: 'invalid',
+            field:
+              location === 'parameters'
+                ? '/parameters/0/value'
+                : `/parameterAdoptions/0/${location === 'applied' ? 'applied' : 'origin/requested'}/value`,
+            reason: 'range',
+          },
         })
       }
     }

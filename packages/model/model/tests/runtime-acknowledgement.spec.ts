@@ -60,7 +60,13 @@ for (const method of ['acquireRead', 'nextRead', 'endRead', 'handoff'] as const)
             principal: input.access.principal === principal ? f.principal : input.access.principal,
           },
         })
-      const base = { ...f.admit, principal, operation: op('read'), result: settled.version }
+      const base = {
+        reference: f.reference,
+        ...f.admit,
+        principal,
+        operation: op('read'),
+        result: settled.version,
+      }
       let read
       if (method === 'nextRead' || method === 'endRead') {
         const started = unbox(await f.provider.runtime.consumption.beginRead(base))
@@ -68,6 +74,7 @@ for (const method of ['acquireRead', 'nextRead', 'endRead', 'handoff'] as const)
         read = started.read
       }
       const input = {
+        reference: f.reference,
         ...completion(f, settled.version),
         principal,
         read: read ?? unbox(decodeReadId('mread_placeholder')),
@@ -133,6 +140,7 @@ for (const method of ['nextRead', 'handoff'] as const) {
       const settled = await settleRuntime(f)
       const first = unbox(
         await f.provider.runtime.consumption.beginRead({
+          reference: f.reference,
           ...f.admit,
           operation: op('read'),
           result: settled.version,
@@ -274,7 +282,12 @@ it('protects live reads during cleanup, releases after close and preserves the c
   const f = runtimeFixture()
   try {
     const settled = await settleRuntime(f)
-    const readInput = { ...f.admit, operation: op('read'), result: settled.version }
+    const readInput = {
+      reference: f.reference,
+      ...f.admit,
+      operation: op('read'),
+      result: settled.version,
+    }
     const first = unbox(await f.provider.runtime.consumption.beginRead(readInput))
     if (first.kind !== 'started') throw new Error('missing read')
     expect(

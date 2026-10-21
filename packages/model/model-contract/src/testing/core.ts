@@ -5,6 +5,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type {
   CallState,
+  ModelInvocationRef,
   ControlState,
   CustodyState,
   DispatchRecord,
@@ -87,6 +88,7 @@ export type CallRecord<P> = {
   readonly call: ModelCallId
   readonly capacity: ResultCapacity
   readonly admission: ModelOperationId
+  readonly reference: ModelInvocationRef
   readonly consumer: ConsumerRef
   /** Counts every change of the call; the revision and the output cursor are both built from it. */
   revision: number

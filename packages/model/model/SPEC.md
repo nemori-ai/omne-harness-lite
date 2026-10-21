@@ -2,6 +2,8 @@
 
 本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
+受理入口在解构和 await 前同步调用共同 judgeAdmit。直接 Memory Commands 在 store.run 前执行同一判断；sendBinding 使用 judgeFixedModelRequest 后仍核原 digest。畸形重放先 invalid，合法异输入仍 conflict。预算、不可变性、资格例外及失败 Pointer 归[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)，不代表供应商 token/context 检查。
+
 ## 独立执行
 
 独立函数 `executeModel` 执行一次供应商请求，不重试、不保管、不 ACK。其 signal 请求该次传输停止，返回事实仍须区分请求取消与真实停止。托管模式的观察 signal 不传给它。托管模式只有原调用的有效控制可以请求传输停止。
@@ -116,7 +118,7 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 
 根 createModelRuntime 校验五依赖的方法形状及全部八配置字段。缺项或错误类型抛 TypeError，数值非有限整数或超界抛 RangeError。构造不调用依赖，不绑定、排队或启动网络。
 
-calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、recall、dispatches、control。Commands 拥有当前资格、租户隔离、原 operation 认回及原子提交。受理和取消成功后调用 instances.schedule；排队失败不撤销已提交事实，后续恢复扫描仍须接续责任。未知提交原样返回，不能当作明确拒绝。取消只提交意图，返回实际 ControlState，不代表供应商已经停止。
+calls.admit、dispatches、cancel 分别委托 Commands 的 admit、dispatches、control。inspect 先解析 invocation reference，再将 call/admission 交原 recall。普通 connect 和 beginRead 同样先解析引用，再将 call 交低层目录与 acquireRead；beginRead.operation 仍为读取操作。引用拒绝及三个入口的资格差别归[共同引用契约](../model-contract/SPEC.md#可保存调用引用)。Commands 拥有当前资格、租户隔离、原 operation 认回及原子提交。受理和取消成功后调用 instances.schedule；排队失败不撤销已提交事实，后续恢复扫描仍须接续责任。未知提交原样返回，不能当作明确拒绝。取消只提交意图，返回实际 ControlState，不代表供应商已经停止。
 
 受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写，取得当前资格后，保护覆盖接收、异步等待与原资源释放。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
 
@@ -130,7 +132,7 @@ calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、re
 
 observerBufferBytes 是每实例观察登记与每观察者未读通知的逻辑额度，不是 JavaScript 堆精确字节数。登记占64字节，最多 floor(observerBufferBytes/64) 个 observer；不足64时新观察明确 ended/unavailable。每个未读版本计32字节，超过额度结束该慢 observer。共享初始 Snapshot 的正文不重复计入每 observer 额度。每 observer 最多一个在途 next，并发 next 结束该观察为 unavailable，不形成 Promise 队列。
 
-各入口只投影其声明字段，外层附加值不进入快照。入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
+calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)拒绝附加字段。其余入口只投影其声明字段，外层附加值不进入快照。入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
 
 | 操作 | 当前支持及剩余阶段 |
 | --- | --- |

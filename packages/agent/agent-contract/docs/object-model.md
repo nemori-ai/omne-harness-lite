@@ -34,7 +34,7 @@ Agent 建模自己承担的推进和协作责任。只有决定下一步、恢�
 | 分类 | Agent 内的表示 | 原拥有者保留的责任 |
 | --- | --- | --- |
 | 本域对象 | Execution、ExecutionAttachment、Checkpoint、Step、Action 与 Batch、Passage、自己的等待与控制 | Agent 解释规则、顺序和接续，不替调用方治理逻辑工作 |
-| Model 消费事实 | 实际收件模型、原 call 与 admission、固定请求、model-active 与 model-settled、结果与消费责任 | 供应商请求、tokenizer、Dispatch 重试和模型资源生命周期 |
+| Model 消费事实 | 实际收件模型、首次 admit 前保存的 ModelInvocationRef、固定请求、model-active 与 model-settled、结果与消费责任 | 供应商请求、tokenizer、Dispatch 重试和模型资源生命周期 |
 | Tool 消费事实 | 原动作及调用、工具运行、等待与结果、可用控制、确认的后台占位 | Tool executor、内部 wait schema、响应校验、执行与结果保留状态机 |
 | Context 消费事实 | 请求准备阶段、容量结果、压缩计划的进度、模型可读上下文的读取与已采用覆盖、实际派生消息及提交承诺引用 | 选择与排除规则、压缩算法、token 计算及上下文内部结构 |
 | HITL 消费事实 | Agent 自己的 Passage、原卡、答复与处理进度 | 答复资格、唯一决定、展示和通知。Tool 内部等待仍归 Tool |
@@ -67,7 +67,7 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | AgentRegistration | AgentRegistrationId | AgentInstanceHost.publish 受理时创建。宿主重新发布同一个存活实例时创建后继登记 | published、withdrawing、withdrawn。转换见下文状态图 | 宿主。runtime 只经 AgentRegistrationHandle 报告状态和撤除本实例当前的登记 | withdrawn 之后保留身份记录，使同一撤除操作可认回，旧身份不能作用于后继登记 |
 | AgentDirectory 与 AgentInstanceHost | 目录键是租户加 AgentInstanceId，宿主没有自己的对象身份 | 由装配者选择的宿主提供 | 状态属于登记，目录没有独立状态 | 宿主 | 目录不授业务权，不保存恢复真相。目录条目缺席不证明工作结束 |
 | Passage | PassageId，固定位置、维度、用途、扩展采用、动作和链序号 | Loop 到达位置时由 Journal 提交 requested 后产生，一次扩展调用一个 | requested、asked、resolved、applied。其中的每项能力操作经历 requested、resolved、applied，每轮卡片 CardRound 经历 requested、presented、answered、processed，呈现确定失败时为 present-failed。转换见下文状态图 | Agent，由 Journal 保存 | 随 execution 保留。已有最终 Conclusion 后不再调用扩展，不迁移到新版语义，也不重判 |
-| PendingCall | ActionId、ConsumptionId 与生产者调用身份 | Agent 发起调用时登记，先保存后受理 | 状态由生产者事实投影：unresolved、model-active、model-settled、tool-active、tool-result、tool-background | 生产者拥有执行，Agent 拥有关联与消费责任 | 不随执行挂接更换重建。结果责任释放前不得删除关联 |
+| PendingCall | ActionId、ConsumptionId 与生产者调用身份。Model 分支为 reference，Tool 分支保持原 call/admission | Model 在首次 admit 前编码并保存 reference 与固定输入，再受理 | 状态由生产者事实投影：unresolved、model-active、model-settled、tool-active、tool-result、tool-background | 生产者拥有执行，Agent 拥有关联与消费责任 | 不随执行挂接更换重建。结果责任释放前不得删除关联 |
 
 下表列出 execution 内保存的值与台账。
 

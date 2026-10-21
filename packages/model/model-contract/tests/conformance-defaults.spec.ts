@@ -1,3 +1,4 @@
+import { judgeFixedModelRequest } from '@omne-harness/model-contract'
 import type {
   Admit,
   ConsumerRef,
@@ -106,7 +107,7 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(supplier.model).not.toBe('')
   })
 
-  it('names every adoption by an owner, a name, a revision and a digest that holds the name', async () => {
+  it('names every adoption by an owner, a name, a revision and a 64-character hexadecimal digest', async () => {
     const { request } = firstAdmission(await sent(subject => subject))
     for (const adoption of [
       request.profile,
@@ -117,7 +118,7 @@ describe('the values that the conformance suite sends when the subject gives non
     ]) {
       expect(adoption).toMatchObject({ owner: 'conformance', revision: '1' })
       expect(adoption?.name).not.toBe('')
-      expect(adoption?.digest).toBe(`digest-${adoption?.name}`)
+      expect(adoption?.digest).toMatch(/^[0-9a-f]{64}$/u)
     }
   })
 
@@ -255,4 +256,56 @@ describe('what the conformance suite asks of the hooks', () => {
     expect(ends.length).toBeGreaterThan(0)
     expect([...byCall.values()].every(list => list.length === 1)).toBe(true)
   })
+})
+
+it('checks a different valid fixed request when the original digest starts with a nonzero digit', async () => {
+  const standard = firstAdmission(await sent(subject => subject)).request
+  const request: FixedModelRequest = {
+    ...standard,
+    source: { ...standard.source, digest: '1' + '0'.repeat(63) },
+  }
+  expect(judgeFixedModelRequest(request)).toEqual({ ok: request })
+  const log: Log = { admitted: [], prepared: [], pages: [], closed: [] }
+  const correct = await checkModelProviderConformance({
+    subject: () => recorded({ ...createScriptedConformanceSubject(), request }, log),
+    waitMs: 300,
+  })
+  expect(correct.ok).toBe(true)
+  expect(
+    correct.results.find(result => result.obligation === 'admission-conflict-on-different-input'),
+  ).toEqual({ obligation: 'admission-conflict-on-different-input', status: 'pass', detail: '' })
+  const variants = log.admitted
+    .map(input => input.request)
+    .filter(input => input.source.digest !== request.source.digest)
+  expect(variants).toHaveLength(1)
+  const variant = variants[0]
+  if (variant === undefined) throw new Error('the conflict check submitted a different request')
+  expect(judgeFixedModelRequest(variant)).toEqual({ ok: variant })
+  expect(variant).toEqual({
+    ...request,
+    source: { ...request.source, digest: '0'.repeat(64) },
+  })
+  expect(variant).not.toEqual(request)
+
+  const incorrect = await checkModelProviderConformance({
+    subject: () =>
+      patched(
+        { ...createScriptedConformanceSubject(), request },
+        {
+          calls: calls => ({
+            ...calls,
+            admit: input => calls.admit({ ...input, request }),
+          }),
+        },
+      ),
+    waitMs: 300,
+  })
+  expect(incorrect.ok).toBe(false)
+  expect(incorrect.results.filter(result => result.status !== 'pass')).toEqual([
+    {
+      obligation: 'admission-conflict-on-different-input',
+      status: 'fail',
+      detail: expect.stringContaining('the changed admission succeeded'),
+    },
+  ])
 })
