@@ -22,6 +22,7 @@ flowchart LR
   Adapters --> Contract
   Adapters --> Neighbors[六个邻域以及身份、空闲来源的契约与服务定义]
   Storage[session-storage-sql] --> Contract
+  Storage -->|./cordis 入口| Definitions
   Storage --> StorageContract[存储契约成员]
   App[应用装配者] --> Provider
   App --> Adapters
