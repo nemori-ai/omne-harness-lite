@@ -15,9 +15,9 @@ sequenceDiagram
     participant Caller as 调用方或协调器
     participant CP as 命令处理器
     participant Op as 操作记录
-    participant DS as 领域服务
+    participant DS as decide（契约导出的纯函数）
     participant Br as 身份桥、证据桥、Context 与空闲输入
-    participant Tx as SessionTransactionPort
+    participant Tx as SessionTransactionPort 与存储参加者
     participant N as SessionNotifier
     Caller->>CP: 命令与 Access
     CP->>Op: 按 OP-00 派生身份后点查
@@ -25,12 +25,13 @@ sequenceDiagram
         CP-->>Caller: 原回执，recovered 为真
     else 未见
         CP->>Tx: readWork，记下 expected
-        CP->>DS: 裁定
-        alt 拒绝类结局
+        CP->>DS: 事务外调用 decide，只取拒绝原因与所需材料
+        alt 拒绝结局
             CP-->>Caller: 失败，不提交
         else 允许
             CP->>Br: 按命令要材料
             CP->>Tx: commit(命令, 材料)
+            Note over Tx: 事务内核对 expected，调用 decide 取得条目批次后写入
             alt changed
                 Note over CP: 回到点查重做，次数受策略上限
             else commit-unknown
@@ -43,7 +44,7 @@ sequenceDiagram
     end
 ```
 
-Session 为参加者时（[CP-02](../SPEC.md#cp-02)），同一条流水线在执行记录提供者的事务里运行，第五步改为写自己的事实语句，由提交方提交。
+命令到条目的编码只在 `decide` 里。事务外的 `decide` 只决定是否拒绝与要收哪些材料，结果不进入提交。Session 为参加者时（[CP-02](../SPEC.md#cp-02)），存储参加者在执行记录提供者的事务里调用 `decide` 并写条目，由提交方提交。
 
 ### C1 受理流水线
 
@@ -74,8 +75,10 @@ sequenceDiagram
     participant AD as AgentDrivePort
     S1->>C2: judgeRunStart 为 eligible
     C2->>CP: startRun
-    alt frozen 且快照 frozen 为空
-        C2->>CP: freeze（候选带回的判定）
+    alt frozen 且 verdict 非 null
+        C2->>CP: freeze(verdict)
+    else frozen 且 verdict 为 null
+        Note over C2: 会话已冻结，不调用 freeze，不开 Run
     else 成功
         CP-->>C2: SE13、SE15 回执
         C2->>AD: invoke(首条输入身份, SE13 回执, SE15 证据)
@@ -105,7 +108,7 @@ sequenceDiagram
 
 ### C2 Agent 推进协调器：事件消费与游标
 
-对应 [RD-01](../SPEC.md#rd-01) 至 RD-07，依据 [EC-01](../../session-contract/SPEC.md#ec-01)、[EC-02](../../session-contract/SPEC.md#ec-02)。细化组根的 [F-SE02](../../docs/key-flows.md#f-se02-agent-事件到日志条目)。
+对应 [RD-01](../SPEC.md#rd-01) 至 RD-07，依据 [EC-01](../../session-contract/SPEC.md#ec-01)、[EC-02](../../session-contract/SPEC.md#ec-02)。不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进，这是 EC-02 的规则。细化组根的 [F-SE02](../../docs/key-flows.md#f-se02-agent-事件到日志条目)。
 
 ```mermaid
 sequenceDiagram
@@ -170,8 +173,8 @@ sequenceDiagram
     C2->>CP: startRun 或 reload
     CP->>EB: 取候选采用材料
     EB-->>CP: 材料带回 FreezeVerdict
-    CP-->>C2: frozen，不提交
-    C2->>CP: 快照 frozen 为空时 freeze(判定)
+    CP-->>C2: frozen 失败，verdict 为该判定，不提交
+    C2->>CP: verdict 非 null 时 freeze(verdict)
     CP-->>C2: SE37，没有 Run 时同批 SE38
     Note over C2,CP: 两步之间崩溃：下一次触发重新取材料，判定相同，freeze 首次提交或认回
     TA->>CP: freeze(session, tool-shape-lost, 证据)
@@ -230,7 +233,7 @@ sequenceDiagram
     SR-->>C4: 恢复结果或拒绝
     C4->>CP: receive(scope-release) 写 SE25，按五类处置解除或保留
     S6->>C4: 对保留的任务按 cascade.intervalMs 再次驱动
-    Note over CP,S6: 冻结的会话照常归档；撤销归档后按归约回 dormant、frozen 或 active
+    Note over CP,S6: 冻结的会话照常手动归档，也照常参加自动归档裁定；撤销归档后按归约回 dormant、frozen 或 active
 ```
 
 ### C5 恢复协调器
@@ -247,7 +250,7 @@ flowchart TD
     L --> Ctl[controls 为 propagating] --> C3[C3 控制传播]
     L --> Run[run.active 的各行] --> C2[C2：重放 invoke、补交 submit、release、claim 后 resume、读结束事实]
     L --> Cons[结果已报告而未保管] --> Cust["recordResult(custody) 参加写 SE20；记录已删除时 preserveResult"]
-    L --> Rel[release 为 pending] --> Ack["重发交付责任解除，receive(release)"]
+    L --> Rel[release 为 pending] --> Ack["以同一身份调用 DeliveryReleasePort.release，confirmed 后 receive(release)"]
     Run --> B{记录持续不可读，达到上限}
     B -->|是| FR[finishRun 有界收束 failed]
     B -->|否| C2
@@ -256,6 +259,36 @@ flowchart TD
 ```
 
 任一拥有者返回 `unavailable` 时保留该项，退避归 S3。
+
+### C5 交付责任解除
+
+对应 [C5](../SPEC.md#c5-release) 的交付责任解除行，依据 [EC-04](../../session-contract/SPEC.md#ec-04)、[EC-05](../../session-contract/SPEC.md#ec-05)、[DeliveryReleasePort](../../session-contract/SPEC.md#deliveryreleaseport)。契约层的协议流程见[契约流程](../../session-contract/docs/flows/README.md)。
+
+```mermaid
+sequenceDiagram
+    participant Src as 发起时点
+    participant C5 as C5 恢复协调器
+    participant DR as DeliveryReleasePort
+    participant CP as 命令处理器
+    participant S3 as S3 恢复扫描
+    alt C5 发起的 preserveResult 或参加保管
+        Src->>C5: 回执为 committed
+    else completeExternalConsumption
+        Src->>C5: 命令处理器交来回执
+    else 执行记录提供者发起的参加提交
+        Src->>C5: 提交通知，或 S3 的 pending(release)
+    end
+    C5->>DR: release，身份从 consumption 与结果版本派生
+    alt confirmed
+        DR-->>C5: 生产者确认的来源
+        C5->>CP: receive(release) 写 SE19，release 为 confirmed
+    else not-ready、unavailable 或 commit-unknown
+        DR-->>C5: 未得到确认
+        Note over C5: release 保持 pending，按 deliveryRelease.retryIntervalMs 以同一身份重发
+    end
+    S3->>C5: 重启后以 release 原因找回
+    Note over C5: 超过 deliveryRelease.maxAttempts 时保持 pending 并报告维护者
+```
 
 ### 调度器与协调器的接续
 
@@ -266,6 +299,7 @@ flowchart LR
     N[提交通知] --> S1[S1 推进触发]
     N --> S2[S2 空闲与自动归档]
     N --> S4[S4 待决认回]
+    N -->|SE20、SE21| C5[C5 恢复]
     T[时钟] --> S2
     T --> S3[S3 恢复扫描]
     T --> S5[S5 控制重放]
@@ -275,9 +309,10 @@ flowchart LR
     S3 -->|启动时补触发| S1
     S3 -->|启动时重建计时| S2
     S3 -->|idle-due| S2
+    S3 -->|release| C5
     S1 --> C2[C2 Agent 推进]
     S2 -->|archived| C4[C4 归档与级联]
-    S3 --> C5[C5 恢复]
+    S3 --> C5
     S4 -->|committed 回执| Orig[原协调器]
     S5 --> C3[C3 控制传播]
     S6 --> C4
@@ -305,6 +340,7 @@ sequenceDiagram
     participant CP as 命令处理器
     participant C4 as C4
     S2->>S2: waitUntil(SE31 起点 + idleMs)
+    Note over S2: 冻结不改变空闲计算，冻结的会话照常参加自动归档裁定
     S2->>CP: inspectIdle
     alt 观察为 unknown
         Note over S2: 不写条目，按 idle.checkIntervalMs 再看
@@ -328,6 +364,7 @@ flowchart LR
     P --> R2[controls] --> C5
     P --> R3[tasks] --> C5
     P --> R4[idle-due] --> S2[S2]
+    P --> R5[release] --> C5
     All --> C5
     U[C2、C3 上报] --> One[单个会话] --> C5
     C5 -->|unavailable| BO[按 sessionBackoff 退避后再交]

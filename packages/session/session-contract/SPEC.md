@@ -1451,7 +1451,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 
 交付责任解除是提交后的外部动作，按 [EC-04](#ec-04) 与 [EC-05](#ec-05) 发出。
 
-- 时点：`preserveResult`、`completeConsumption` 或 `completeExternalConsumption` 提交成功之后，发起提交的协调调用 `release`。提交未知期间不调用。恢复协调以 `pending(release)` 找回仍为 pending 的结果版本后重发。
+- 时点：`preserveResult`、`completeConsumption` 或 `completeExternalConsumption` 提交成功之后，Session 的协调调用 `release`：Session 自己提交或参加的命令由发起它的协调调用，外部协调者提交的 `completeExternalConsumption` 由恢复协调按提交回执调用。提交未知期间不调用。恢复协调以 `pending(release)` 找回仍为 pending 的结果版本后重发。
 - 参数：租户、会话、本次解除的操作身份（从 consumption 与结果版本派生，重发保持同值）、consumption、完整的 `ProducedResult` 与保管或完成证据。参数不含 Model 或 Tool 的类型，翻译在 session-adapters。
 - 结果：`confirmed` 带生产者确认的来源，协调随后以 `receive(release)` 写回，`release` 改为 confirmed。`not-ready` 表示生产者尚不具备确认条件，`unavailable` 与 `commit-unknown` 表示未得到确认；三者都使 `release` 保持 pending，按策略以同一操作身份重发。
 - 责任：发出时点与重发归 Session。核对、清理与确认归生产者（[P-6](#具名前提与明确缺项)）。
