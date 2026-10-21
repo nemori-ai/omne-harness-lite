@@ -423,6 +423,7 @@ for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'
       expect(sent.kind).toBe('started')
       expect(fault.inputs).toHaveLength(2)
       expect(fault.inputs[1]).toEqual(fault.inputs[0])
+      expect(fault.references[1]).toBe(fault.references[0])
       expect(f.counts()).toMatchObject({ starts: 1, acquired: 1, pulls: 0, returns: 0 })
       if (sent.kind !== 'started') throw new Error('send fixture')
       const iterator = sent.facts[Symbol.asyncIterator]()
@@ -747,45 +748,47 @@ it('a repeated coordinator closure still starts only once and hands out the firs
   if (sent.kind !== 'started') throw new Error('send fixture')
   await collect(sent.facts)
 })
-it('returns the original started stream when the coordinator throws after successful start', async () => {
-  const f = await sendFixture()
-  const coordinator = f.controls.send.coordinator
-  let fences = 0
-  let started: SendStart | undefined
-  const sender = f.makeSender({
-    coordinator: {
-      ...coordinator,
-      withinCurrent(input, receipt, window, start) {
-        fences += 1
-        coordinator.withinCurrent(input, receipt, window, selection => {
-          started = start(selection)
-          return started
-        })
-        if (started?.kind !== 'started') throw new Error('successful start fixture')
-        throw new Error(synthetic)
+for (const aftermath of ['throws', 'returns-refusal'] as const)
+  it(`returns the original started stream when the coordinator ${aftermath} after successful start`, async () => {
+    const f = await sendFixture()
+    const coordinator = f.controls.send.coordinator
+    let fences = 0
+    let started: SendStart | undefined
+    const sender = f.makeSender({
+      coordinator: {
+        ...coordinator,
+        withinCurrent(input, receipt, window, start) {
+          fences += 1
+          coordinator.withinCurrent(input, receipt, window, selection => {
+            started = start(selection)
+            return started
+          })
+          if (started?.kind !== 'started') throw new Error('successful start fixture')
+          if (aftermath === 'throws') throw new Error(synthetic)
+          return { kind: 'refused', failure: { kind: 'denied', action: 'later-result' } }
+        },
       },
-    },
+    })
+    const sent = await sender.send(f.demand, signal())
+    expect(sent.kind).toBe('started')
+    expect(started?.kind).toBe('started')
+    expect(unbox(await f.dependencies.commands.dispatches(f.admit))[0]?.send).toBe('started')
+    expect(f.counts()).toMatchObject({ starts: 1, acquired: 1, pulls: 0, returns: 0 })
+    expect(f.events).toEqual([])
+    if (sent.kind !== 'started') throw new Error('send fixture')
+    const facts = await collect(sent.facts)
+    expect(facts).toEqual([
+      { kind: 'block-open', index: 'one', mode: 'append', content: 'text' },
+      { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
+    ])
+    expect(facts).toHaveLength(f.delivered.length)
+    facts.forEach((fact, index) => expect(fact).toBe(f.delivered[index]))
+    expect(() => sent.facts[Symbol.asyncIterator]()).toThrow('facts-already-consumed')
+    expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    expect(fences).toBe(1)
+    expect(f.counts()).toMatchObject({ starts: 1, acquired: 1 })
   })
-  const sent = await sender.send(f.demand, signal())
-  expect(sent.kind).toBe('started')
-  expect(started?.kind).toBe('started')
-  expect(unbox(await f.dependencies.commands.dispatches(f.admit))[0]?.send).toBe('started')
-  expect(f.counts()).toMatchObject({ starts: 1, acquired: 1, pulls: 0, returns: 0 })
-  expect(f.events).toEqual([])
-  if (sent.kind !== 'started') throw new Error('send fixture')
-  const facts = await collect(sent.facts)
-  expect(facts).toEqual([
-    { kind: 'block-open', index: 'one', mode: 'append', content: 'text' },
-    { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
-  ])
-  expect(facts).toHaveLength(f.delivered.length)
-  facts.forEach((fact, index) => expect(fact).toBe(f.delivered[index]))
-  expect(() => sent.facts[Symbol.asyncIterator]()).toThrow('facts-already-consumed')
-  expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
-  expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
-  expect(fences).toBe(1)
-  expect(f.counts()).toMatchObject({ starts: 1, acquired: 1 })
-})
 
 it('rejects invalid retention bounds before acquiring anything', async () => {
   const f = await sendFixture()
@@ -1087,4 +1090,109 @@ it('access denial cannot disclose an unresolved local send, while a first stale 
     failure: { kind: 'stale-instance' },
   })
   expect(stale.counts()).toMatchObject({ starts: 0, acquired: 0 })
+})
+
+for (const record of ['confirmed', 'rejected'] as const)
+  it(`preserves the ${record} refusal's busy boundary while resource release is pending`, async () => {
+    const f = await sendFixture()
+    let finishRelease!: () => void
+    let reachedRelease!: () => void
+    const pendingRelease = new Promise<void>(resolve => {
+      finishRelease = resolve
+    })
+    const releasing = new Promise<void>(resolve => {
+      reachedRelease = resolve
+    })
+    let writes = 0
+    const sender = f.makeSender({
+      credentials: credentialPort({ kind: 'absent' }),
+      commands: {
+        ...f.dependencies.commands,
+        recordSend(input) {
+          writes += 1
+          return record === 'confirmed'
+            ? f.dependencies.commands.recordSend(input)
+            : Promise.resolve({ failure: { kind: 'denied', action: 'record-refused' } })
+        },
+      },
+      resources: {
+        async acquire(input) {
+          const acquired = await f.resources.acquire(input)
+          if ('failure' in acquired) return acquired
+          return {
+            ok: {
+              ...acquired.ok,
+              async release() {
+                reachedRelease()
+                await pendingRelease
+                await acquired.ok.release()
+              },
+            },
+          }
+        },
+      },
+    })
+    const first = sender.send(f.demand, signal())
+    try {
+      await releasing
+      for (let step = 0; step < 50; step++) await Promise.resolve()
+      const repeat = sender.send(f.demand, signal())
+      for (let step = 0; step < 50; step++) await Promise.resolve()
+      expect(writes).toBe(record === 'confirmed' ? 2 : 1)
+      if (record === 'rejected')
+        expect(await repeat).toMatchObject({ kind: 'unknown', diagnostic: 'original-send-busy' })
+      finishRelease()
+      expect(await first).toMatchObject({
+        kind: 'not-started',
+        failure: { dependency: 'model-credential', diagnostic: 'credential-absent' },
+      })
+      await repeat
+      if (record === 'rejected') {
+        expect(await sender.send(f.demand, signal())).toMatchObject({ kind: 'not-started' })
+        expect(writes).toBe(2)
+      }
+      expect(f.counts()).toMatchObject({ acquired: 1, starts: 0 })
+      expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+    } finally {
+      finishRelease()
+      await first
+    }
+  })
+
+it('records the send before a microtask queued by its synchronous start can run', async () => {
+  const f = await sendFixture()
+  const order: string[] = []
+  const sender = f.makeSender({
+    commands: {
+      ...f.dependencies.commands,
+      recordSend(input) {
+        order.push('record-send')
+        return f.dependencies.commands.recordSend(input)
+      },
+    },
+    resources: {
+      async acquire(input) {
+        const acquired = await f.resources.acquire(input)
+        if ('failure' in acquired) return acquired
+        return {
+          ok: {
+            ...acquired.ok,
+            startWithCredential(...args) {
+              order.push('start')
+              queueMicrotask(() => order.push('later-microtask'))
+              return acquired.ok.startWithCredential(...args)
+            },
+          },
+        }
+      },
+    },
+  })
+  const sent = await sender.send(f.demand, signal())
+  if (sent.kind !== 'started') throw new Error('send fixture')
+  try {
+    expect(order).toEqual(['start', 'record-send', 'later-microtask'])
+    expect(f.counts()).toMatchObject({ acquired: 1, starts: 1, pulls: 0 })
+  } finally {
+    await collect(sent.facts)
+  }
 })
