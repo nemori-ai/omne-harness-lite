@@ -208,6 +208,19 @@ describe('a scripted call that is fed upstream facts', () => {
     expect(await shown([seal('0', image)])).toEqual([{ kind: 'sealed', index: '0', block: image }])
   })
 
+  it('seals a whole reasoning state part at an index that was never opened', async () => {
+    const judged = judgePart({
+      kind: 'reasoning_state',
+      id: 'rs',
+      visibility: { toHuman: false, toModel: true },
+      payload: 'opaque',
+      pairs: [],
+    })
+    if (!('ok' in judged) || judged.ok.kind !== 'reasoning_state') throw new Error('fixture part')
+    const state: ModelBlock = judged.ok
+    expect(await shown([seal('0', state)])).toEqual([{ kind: 'sealed', index: '0', block: state }])
+  })
+
   it('seals a text block only with a text block that holds the gathered value', async () => {
     expect(
       await shown([open('0', 'text'), delta('0', 'ab'), seal('0', textBlock('s', 'ab'))]),

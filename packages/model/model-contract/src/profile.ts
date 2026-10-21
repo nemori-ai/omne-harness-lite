@@ -5,7 +5,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Modality } from '@omne-harness/modality'
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
-import type { Message } from '@omne-harness/message'
+import type { Message, MessageId } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Access,
@@ -51,7 +51,21 @@ export type ContextLimits = Readonly<{
   output: TokenLimit
   compactionTriggerPercent: string
 }>
-export type ProfileSupplier = Omit<Supplier, 'credential'>
+/** How a supplier treats thinking that another supplier or an unknown source produced. */
+export type ForeignThinking = 'omit' | 'text' | 'adapter'
+/** What a profile may say of the replay of one supplier. A missing item takes its default. */
+export type ProfileReplay = Readonly<{
+  produces?: string
+  accepts?: readonly string[]
+  foreignThinking?: ForeignThinking
+}>
+/** The replay declaration of one supplier with every default applied. */
+export type ReplayDeclaration = Readonly<{
+  produces: string
+  accepts: readonly string[]
+  foreignThinking: ForeignThinking
+}>
+export type ProfileSupplier = Omit<Supplier, 'credential'> & Readonly<{ replay?: ProfileReplay }>
 export type ModelProfileDefinition = Readonly<{
   suppliers: readonly [ProfileSupplier, ...ProfileSupplier[]]
   fallback: boolean
@@ -174,6 +188,8 @@ export type AssembledModelInput = Readonly<{
   tools: readonly ToolDeclaration[]
   toolChoice: FixedModelRequest['toolChoice']
   parameters: readonly Parameter[]
+  /** `'off'` makes every message unable to continue for every supplier of this request. */
+  replay?: 'off'
   representation: Adoption
   source: Adoption
 }>
@@ -223,3 +239,51 @@ export interface ModelInputMeter {
     }>,
   ): Outcome<RequestBudget, TransportFailure>
 }
+/**
+ * What a message of the role assistant does with its reasoning in one dispatch. A message that
+ * continues has `carry` (the reasoning state parts to write, equal to `replay.at`) and `thinking`
+ * is `native`; a message that does not has `omit` (the parts to leave out, equal to `replay.at`)
+ * and `thinking` is the foreign-thinking rule. Neither side has the other's list.
+ */
+export type ReplayTreatment = Readonly<{
+  /** The position of the message in the messages that were projected. */
+  index: number
+  message: MessageId
+}> &
+  (
+    | Readonly<{
+        continuable: true
+        /** The positions of the reasoning state parts to write. Equals `replay.at`. */
+        carry: readonly number[]
+        /** How to write `thinking` blocks: native to the format. */
+        thinking: 'native'
+      }>
+    | Readonly<{
+        continuable: false
+        /** The positions of the reasoning state parts to leave out. Equals `replay.at`. */
+        omit: readonly number[]
+        /** How to write `thinking` blocks: by the foreign-thinking rule. */
+        thinking: ForeignThinking
+      }>
+  )
+/** A part-count diagnostic of one message. It never holds a payload. */
+export type ReplayDiagnostic = Readonly<{
+  message: MessageId
+  scope: string
+  format: string
+  omittedParts: number
+}>
+export type ReplayProjectionInput = Readonly<{
+  messages: readonly Message[]
+  declaration: ReplayDeclaration
+  /** The `format` values that the adapter knows. */
+  formats: ReadonlySet<string>
+  /** True when the assembled input turned replay off. */
+  off: boolean
+  /** Messages that a rejected dispatch continued: they cannot continue in this re-dispatch. */
+  resent: ReadonlySet<MessageId>
+}>
+export type ReplayProjection = Readonly<{
+  treatments: readonly ReplayTreatment[]
+  diagnostics: readonly ReplayDiagnostic[]
+}>
