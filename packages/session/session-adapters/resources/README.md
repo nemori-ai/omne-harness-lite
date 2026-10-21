@@ -1,29 +1,19 @@
 # resources
 
-<!-- documentation:placeholder -->
-
 本目录承载本包运行所需的非源码资源。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 数据、模板、模型文件及其许可文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 每项资源写明来源、许可、读取方式与发布要求。资源是否随包发布由对应责任明确声明。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 资源更新时，同步来源与许可说明，以及读取它的代码。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空。模式翻译表写在 SPEC 的[模式翻译表](../SPEC.md#模式翻译表)里，以后由翻译纯函数实现，不作为数据文件随包发布。运行时不读取任何非源码资源。只有某个插件需要随包发布的数据时，这里才会有内容。

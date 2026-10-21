@@ -1,29 +1,19 @@
 # schema
 
-<!-- documentation:placeholder -->
-
 本目录承载本包对外的 Schema、稳定身份与发布消费说明。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 JSON Schema 文件与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-占位不是已发布的 Schema。Schema 的身份不随目录搬迁而改变；发布范围由对应责任明确声明。
+没有 Schema 文件就表示没有发布 Schema。Schema 的身份不随目录搬迁而改变。发布范围由对应责任明确声明。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 Schema 变化时，同步消费者、示例与验证资源。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空，本成员不发布 Schema。本成员不导出新的端口接口、服务键或事件，见[公开接口](../docs/public-api.md)。端口接口归 [session-contract](../../session-contract/docs/public-api.md#出站端口与块声明)，服务键与事件归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md)。本成员只翻译与实现这些定义，没有自己的对外数据形状需要发布。

@@ -1,29 +1,19 @@
 # verification
 
-<!-- documentation:placeholder -->
-
 本目录承载本包的持续验证资源：模型、论证或证明。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 `models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 每份资源说明所验证的性质、前提、运行命令、覆盖与限制。单次运行的原始输出留任务 tmp，不进本目录。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 被验证的承诺变化时，同步模型、证明与本目录 `index.md`。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空，`models/` 与 `proofs/` 都没有资源。本成员的持续验证义务列在 SPEC 的[持续验证义务与未覆盖](../SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](../SPEC.md#候选的持续验证义务)，组合场景在[协议级流程](../docs/flows/scenarios.md)。SPEC 要求在技术接受前补并发与故障行为模型；模型的承载位置与是否放在本目录，待实际承载确定后再定。现在由测试承担的部分见 [tests/](../tests/README.md)，目前没有测试覆盖这些义务。
