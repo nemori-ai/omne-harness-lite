@@ -172,7 +172,7 @@ scripts/                       仓库自动化
 <a id="模型组的成员与采用范围"></a>
 ### 模型组的成员与采用范围
 
-`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员，非 pi-ai 设计已接受，并按下表职责拥有文档。各成员的源码状态见下表「初始化状态」。`pi-ai-*` 传输与厂商家族成员及 tokenizer 成员尚未初始化。不保留聚合全部实现的安装门面。
+`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local 与 pi-ai-transport 已是 workspace 成员，非 pi-ai 设计已接受，并按下表职责拥有文档。各成员的源码状态见下表「初始化状态」。pi-ai 厂商家族成员及 tokenizer 成员尚未初始化。不保留聚合全部实现的安装门面。
 
 | 成员，位于 packages/model 下 | 包边界 | 设计状态 | 初始化状态 |
 | --- | --- | --- | --- |
@@ -180,7 +180,7 @@ scripts/                       仓库自动化
 | model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 | workspace 成员；已发布全部声明并有测试 |
 | model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md) |
 | model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
-| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | 未初始化 |
+| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；骨架已建立，机制按 #461 实施中，ModelTransport 未实现，公开入口尚未导出 |
 | pi-ai-openai、pi-ai-anthropic、pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
 | tokenizer-tiktoken、tokenizer-huggingface | 封装分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | 未初始化 |
 
