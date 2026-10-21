@@ -1,6 +1,6 @@
 // 对一个成员调用 Stryker：成员目录为工作目录，vitest runner，只跑快层；sandbox 放在与成员同深度的被忽略目录，跑完删掉。
 // 同深度是因为不少测试用 `import.meta.dirname` 拼相对路径读成员外的文件（规格、根配置），sandbox 换了深度就读不到。
-import { existsSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +22,7 @@ export const PREFLIGHT_FAILED_ENV = 'OMNE_MUTATION_PREFLIGHT_FAILED'
 export const PREFLIGHT_TIMEOUT_MS = 5 * 60_000
 
 const require = createRequire(import.meta.url)
+const GUARDED_VITEST = fileURLToPath(new URL('./guarded-vitest.ts', import.meta.url))
 const SANDBOX_BUILD = fileURLToPath(new URL('./sandbox-build.ts', import.meta.url))
 
 function packageDir(name: string): string {
@@ -55,11 +56,10 @@ export interface StrykerRun {
 }
 
 export function strykerConfig(target: MutationTarget, run: StrykerRun): Record<string, unknown> {
-  const paths = strykerPaths()
   const slug = slugOf(target.member.path)
   return {
-    testRunner: 'vitest',
-    plugins: [paths.vitestRunner],
+    testRunner: 'omne-vitest',
+    plugins: [GUARDED_VITEST],
     // 不按「直接导入了被变异文件」挑测试：不少成员的测试按自己的包名导入，走的是 sandbox 里重新构建的 dist，
     // vitest 认不出它们与 src 的关系，挑出来就漏了（只用包名导入的成员一条测试都不跑）。初跑跑全部快层，
     // 每个变异体该跑哪些测试仍由逐条覆盖决定。
@@ -88,6 +88,11 @@ export interface StrykerResult extends SpawnResult {
 
 export async function runStryker(target: MutationTarget, run: StrykerRun): Promise<StrykerResult> {
   const slug = slugOf(target.member.path)
+  const reportPath = join(run.runDir, `${slug}.mutation.json`)
+  if (existsSync(reportPath)) {
+    const history = mkdtempSync(join(run.runDir, `${slug}.history-`))
+    renameSync(reportPath, join(history, `${slug}.mutation.json`))
+  }
   const config = strykerConfig(target, run)
   const configPath = join(run.runDir, `${slug}.stryker.json`)
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
@@ -113,7 +118,7 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
   if (existsSync(container)) rmSync(container, { recursive: true, force: true })
   return {
     ...result,
-    reportPath: join(run.runDir, `${slug}.mutation.json`),
+    reportPath,
     logPath,
     preflightFailed: existsSync(preflightMark),
   }

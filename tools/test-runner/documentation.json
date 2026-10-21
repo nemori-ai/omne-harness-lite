@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "tool:test-runner",
+    "kind": "member",
+    "source": {
+      "path": "docs/verification.md"
+    }
+  },
+  "documents": [
+    {
+      "id": "entry",
+      "path": "tools/test-runner/README.md",
+      "kind": "reference",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/verification.md"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "guide",
+      "path": "tools/test-runner/README_ZH.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/verification.md"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "mutation-verification",
+      "path": "tools/test-runner/tests/README.md",
+      "kind": "verification",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/verification.md"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}
