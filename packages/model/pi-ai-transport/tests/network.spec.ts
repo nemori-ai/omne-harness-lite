@@ -1,7 +1,8 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits
 // for real idle timeouts and physical socket closure.
-import type { ServerResponse } from 'node:http'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { ClientRequest, ServerResponse } from 'node:http'
+import type { RequestOptions } from 'node:https'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ExchangeQueuedError, startExchange } from '../src/http.ts'
 import {
   claimed,
@@ -17,6 +18,18 @@ import {
   watch,
 } from './support/exchange.ts'
 import { createCertificate, startHttpsServer, type Certificate } from './support/https-server.ts'
+
+/** Every request Node built for this file, recorded by a delegate of the real `https.request`. */
+const built = vi.hoisted((): { readonly requests: ClientRequest[] } => ({ requests: [] }))
+vi.mock('node:https', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:https')>()
+  const request = (url: URL, options: RequestOptions): ClientRequest => {
+    const req = actual.request(url, options)
+    built.requests.push(req)
+    return req
+  }
+  return { ...actual, request }
+})
 
 let certificate: Certificate
 beforeAll(() => {
@@ -205,7 +218,7 @@ describe('the socket pool', () => {
     }
   })
 
-  it('a pool that queues a request although a slot is held is a defect: the request leaves the queue, nothing is sent for it, not even after close()', async () => {
+  it('a pool that queues a request although a slot is held is a defect: the request leaves the queue and is destroyed, nothing is sent for it, not even after close()', async () => {
     const server = await startHttpsServer(certificate, () => {}) // Keeps the first request pending.
     const resources = network(server.ca, { maxConnections: 2 })
     // A deliberate bypass of the configuration, which the network resources never build: the pool
@@ -220,10 +233,14 @@ describe('the socket pool', () => {
         ),
       )
       const second = await held(resources)
+      const before = built.requests.length
       expect(() =>
         startExchange(resources, input(server.url, second), new AbortController().signal),
       ).toThrow(ExchangeQueuedError)
-      // In the same tick: the slot is back, the request is out of the queue, nothing waits.
+      // In the same tick: the slot is back, the request is out of the queue and destroyed,
+      // nothing waits.
+      expect(built.requests).toHaveLength(before + 1)
+      expect(built.requests.at(-1)?.destroyed).toBe(true)
       expect(second.state).toBe('released')
       expect(resources.agent.requests).toEqual({})
       expect(resources.inFlight.size).toBe(1)
