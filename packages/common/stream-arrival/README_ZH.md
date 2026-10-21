@@ -50,7 +50,7 @@ assembleStream({
 
 `from` 必须是同一次 `id` 与 `role` 的先前返回值。终态之后，已接受步骤的同值重放保持该终态。新的步骤是 `late`。准入时复制 `id`、`role` 和 `head`。之后修改调用方对象不改变已返回的装配。手写的 `{ phase: 'live' }` 被拒绝。`stopped` 即使还没有封块也是终态。之后的 `close` 或 `finish` 是 `late`。带块的步骤和开块头先判定、后复制，见下面几段。
 
-开块头有 `kind`、`id`、`visibility`。`tool_call` 的头另有非空的 `callId` 和任意字符串 `name`（可为空串）。`tool_result` 的头另有 `callId`。`reasoning_state` 的头只有三个身份键。voice、image 的头可以带 `mediaType`，file 的头可以带 `storage`、`key`、`mediaType`：这些键取自 content-block 的 `CONTENT_BLOCK_HEAD_KEYS`，值必须是文本。头里没有正文字段，`kind` 也不能是变体名。`id` 与 `visibility` 由 content-block 的 `judgeBlockIdentity` 判定，头保存它返回的 `visibility`。违反规则的头得到 `step`，`detail` 是 `json`（带访问器、非枚举键或非普通原型）、`kind`、`extra`（未知键、正文字段、别的种类的键，或 `visibility` 里的未知键）、`id`、`visibility`，或某个文本键的名字。头先判定、后复制，所以头里的深对象在它的键处被拒绝，不会抛异常。
+开块头有 `kind`、`id`、`visibility`。`tool_call` 的头另有非空的 `callId` 和任意字符串 `name`（可为空串）。`tool_result` 的头另有 `callId`。`reasoning_state` 的头只有 `kind`、`id`、`visibility`。voice、image 的头可以带 `mediaType`，file 的头可以带 `storage`、`key`、`mediaType`：这些键取自 content-block 的 `CONTENT_BLOCK_HEAD_KEYS`，值必须是文本。头里没有正文字段，`kind` 也不能是变体名。`id` 与 `visibility` 由 content-block 的 `judgeBlockIdentity` 判定，头保存它返回的 `visibility`。违反规则的头得到 `step`，`detail` 是 `json`（带访问器、非枚举键或非普通原型）、`kind`、`extra`（未知键、正文字段、别的种类的键，或 `visibility` 里的未知键）、`id`、`visibility`，或某个文本键的名字。头先判定、后复制，所以头里的深对象在它的键处被拒绝，不会抛异常。
 
 `close` 可以带 `block`。message 的 `judgePart` 在查看步骤之前先判定这个块，被拒绝时是 `block`，`detail` 是 `judgePart` 的拒绝值。缺省时封住开块头与累积文本。封住的部件在每个键上都必须与开块头相同：`kind`、`id`、`visibility`，以及每个文本键（`callId`、`name`、`mediaType`、`storage`、`key`）。任何不同是 `conflict`。它的 `text` 或 `inline` 与累积文本不一致时，拒绝码也是 `conflict`。这些情况下先前的装配都保持不变。
 
@@ -60,7 +60,7 @@ assembleStream({
 
 `stopped`、`cancelled`、`failed` 收场的终态只带已封口的部件和削减记录，也不当作消息来判定。仍然开着的 `tool_call` 不在其中。有块开着时 `finish` 是 `open`。流的结算方取已封口的部件，加上它构造的半截调用部件，自己对整条消息做判定。`tool_result` 没有追加形式，标记是整块到达的。
 
-`reasoning_state` 部件同样没有追加形式，只整块到达：以替换模式开块，再由带完整部件的封块封口。追加模式开块是 `mode`，开块与封块之间的 `fill` 也是 `mode`，与 `tool_result` 相同。不带 `block` 的封块是 `block`，`detail` 为 `payload`，因为头里没有载荷。部件由 message 的 `judgePart` 判定，所以 `toHuman` 为真、载荷为空或 `pairs` 不合法的部件得到 `block`，`detail` 是 `judgePart` 的拒绝值。封口的部件必须与头的 `id`、`visibility` 相同，别的种类的部件是 `conflict`。头里没有别的键。
+`reasoning_state` 部件与 `finish.replay` 是 [STREAM-T01](../../../docs/architecture/runtime/streaming-and-consumption.md#stream-t01) 的候选修订，待接受。`reasoning_state` 部件同样没有追加形式，只整块到达：以替换模式开块，再由带完整部件的封块封口。追加模式开块是 `mode`，开块与封块之间的 `fill` 也是 `mode`，与 `tool_result` 相同。不带 `block` 的封块是 `block`，`detail` 为 `payload`，因为头里没有载荷。部件由 message 的 `judgePart` 判定，所以 `toHuman` 为真、载荷为空或 `pairs` 不合法的部件得到 `block`，`detail` 是 `judgePart` 的拒绝值。封口的部件必须与头的 `id`、`visibility` 相同，别的种类的部件是 `conflict`。头里没有别的键。
 
 `finish` 可以带 `replay: { scope, format }`，不带别的键。`replay` 的值为 `undefined` 时视为不带，与 `judgeMessage` 相同。`replay` 必须是普通对象，自有键恰好是 `scope`、`format`，没有访问器，两个值都是文本。其他形状得到 `step`，`detail` 为 `replay`，先前的装配保持不变。文本是否为空、是否过长是 message 的规则，在组成消息时判定。`finish` 被受理时，装配自己写 `at`：已封口部件中 `reasoning_state` 部件的下标，按顺序排列。它把 `{ id, role, blocks, replay: { scope, format, at } }` 交给 `judgeMessage`。`finish` 没带 `replay` 时只交 `{ id, role, blocks }`，此时有续接状态部件的消息是 `block`，`detail` 为 `replay`。有 `thinking`、没有续接状态部件的消息可以带 `replay`，`at` 为空。两者都没有的消息，以及目标不是 assistant 消息时的 `replay`，由 `judgeMessage` 拒绝，分别是 `block` 加 `replay` 与 `extra`。`stopped`、`cancelled`、`failed` 的终态只留已封口的部件，结算方组成消息时自己写 `replay`。用量与费用不在 `replay` 里，也不在任何步骤里。
 

@@ -326,7 +326,10 @@ flowchart TD
   outside --> call["工具调用部件（形状归 message）"]
   outside --> result["工具结果部件（形状归 message）"]
   outside --> growing["仍在增长的块"]
+  outside --> state["推理续接状态部件（形状归 message，候选）"]
 ```
+
+候选修订，技术接受前不扩大本项既有承诺：推理续接状态部件 `reasoning_state` 不是这个成员的值，形状由 `packages/common/message` 发布，见 [COMMON-T03](#common-t03) 的候选修订。
 
 承接责任为共同内容、消息、Model、Tool 与各内容消费者。
 
