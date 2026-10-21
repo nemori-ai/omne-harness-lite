@@ -11,6 +11,7 @@ import type {
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import {
   decodeDispatchId,
+  decodeModelCallId,
   decodeModelOperationId,
   decodeResultVersion,
   resolveModelInvocationRef,
@@ -141,7 +142,11 @@ describe('#514 main call boundary', () => {
     'unknown',
     'unconfirmed',
     'version',
+    'call',
     'consumer',
+    'consumer-owner',
+    'consumer-work',
+    'consumer-purpose',
     'receipt',
     'operation',
   ] as const)(
@@ -200,11 +205,32 @@ describe('#514 main call boundary', () => {
                       },
                     },
                   })
+                if (fault === 'call')
+                  return succeed({
+                    kind: 'found',
+                    state: { ...state, call: ok(decodeModelCallId('mcall_wrong')) },
+                  })
                 if (fault === 'consumer')
                   return succeed({
                     kind: 'found',
                     state: { ...state, consumer: { ...state.consumer, position: 'other' } },
                   })
+                if (
+                  fault === 'consumer-owner' ||
+                  fault === 'consumer-work' ||
+                  fault === 'consumer-purpose'
+                ) {
+                  const field =
+                    fault === 'consumer-owner'
+                      ? 'owner'
+                      : fault === 'consumer-work'
+                        ? 'work'
+                        : 'purpose'
+                  return succeed({
+                    kind: 'found',
+                    state: { ...state, consumer: { ...state.consumer, [field]: 'other' } },
+                  })
+                }
                 if (fault === 'receipt')
                   return succeed({
                     kind: 'found',
@@ -240,7 +266,27 @@ describe('#514 main call boundary', () => {
       const authority = await discardAtCommittedProducer(assembly)
       recovering = true
       const fresh = coordinator(assembly)
-      expect(failure(await fresh.continueExecution(authority))).toMatchObject({ node: 'I3' })
+      const stoppedBy = failure(await fresh.continueExecution(authority))
+      expect(stoppedBy).toEqual({
+        node: 'I3',
+        failure:
+          fault === 'unavailable' || fault === 'unknown' || fault === 'unconfirmed'
+            ? {
+                kind: 'unavailable',
+                owner: 'modelRuntime',
+                diagnostic:
+                  fault === 'unavailable'
+                    ? 'I3: original-ACK: not readable'
+                    : fault === 'unknown'
+                      ? 'I3: the Model runtime answered commit-unknown'
+                      : 'I3: original acknowledgement is not confirmed',
+              }
+            : {
+                kind: 'invalid',
+                field: 'model-acknowledgement',
+                reason: 'confirmation differs from original result or consumer',
+              },
+      })
       const stopped = await load(assembly)
       expect(stopped.state.kind).toBe('advancing')
       expect(stopped.results[0]?.release.kind).toBe('pending')
