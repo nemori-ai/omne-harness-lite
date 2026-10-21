@@ -192,4 +192,4 @@ schema 的规则：
 | `volatility` | `stable` | 变化频率是 `stable`，不是每步或每次请求 |
 | `recovery` | `recompute` | 恢复时从当前事实重算，不持久保存 |
 
-`blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者，host-local 的 Service 实现作为生产者（DV-4：本卡未发布）。
+`blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）。
