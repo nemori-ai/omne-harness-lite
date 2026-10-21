@@ -59,12 +59,12 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 提供者作者实现 `EnvironmentProvider`，并通过 `ProviderRegistrations.registerProvider` 登记。规则如下：
 
 1. 如实声明绑定层、连续性、设施键与隔离断言。不以统一形状虚构不支持的能力（[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
-2. `acquire` 只交回临时回执：租约原件与证据。不自签采用记录（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原输入和版本)）。
+2. `acquire` 只交回临时回执：租约原件与证据。不自签采用记录（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本)）。
 3. 只提供已有声明的设施，并为声明里须授权的操作接受设施守卫。缺任一项，获取对该键返回 `unsupportedFacility`（[设施协议](../SPEC.md#设施协议)）。
 4. 可能跨进程存活的资源先在 `ProviderAcquireInput.ledger` 里计划并取得许可，再发出首个外部效果（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。
 5. 支持恢复的提供者同时实现 `listRecoveryResources` 与 `recover`。枚举失败返回不可用，不返回空列表。不支持恢复的提供者两者都不实现。
 6. `retire` 先拒新租约，再排空。清理未完时返回待处置并列出未停的资源。
-7. 提供者成员是两条块的生产者，发布 `execution.placement` 与 `execution.host-facts`（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
+7. host-local 的 Service 实现作为两条块的生产者（当前没有成员发布这两条块），发布 `execution.placement` 与 `execution.host-facts`（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 
 `registerProvider` 返回撤除函数。撤除登记等于退役开始。宿主提供者的实际做法见 [execution-environment-host-local](../../execution-environment-host-local/README.md)。
 

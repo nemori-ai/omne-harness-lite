@@ -52,10 +52,10 @@ Independent use needs only this package. It needs no Cordis. To get a placement 
 ## Contracts
 
 - `src/index.ts` owns the public shapes.
-- The [SPEC](SPEC.md) owns behavior beyond the types: invariants INV-EE01 to INV-EE18 and verification obligations V-EE01 to V-EE21.
+- The [SPEC](SPEC.md) owns behavior beyond the types: invariants INV-EE01 to INV-EE18 and verification obligations V-EE01 to V-EE22.
 - The [API page](docs/public-api.md) indexes the exports. It also owns the need schema and the two block declarations.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
-- The [architecture page](docs/architecture.md#设施协议) owns each rule of the facility protocol.
+- The [SPEC](SPEC.md#设施协议) is the single source of the facility protocol rules. The [architecture page](docs/architecture.md#设施协议) expands each facility and gives the reasons.
 
 A facility operation has four results: done, unresolved, rejected, and unknown. The integrator's idempotency key identifies an acquisition. A repeated request with the same key does not allocate again. The implementation of this contract issues the adoption record after it checks the provider receipt. The package commits no durable fact. The integrator's ledger keeps resource permits, outcomes, adoption records, and release records.
 
@@ -82,7 +82,7 @@ In this directory, run `pnpm test` for the runtime and type tests, and `pnpm typ
 - When a public export changes, update the SPEC, the [API page](docs/public-api.md), the [src index](src/index.md), and the export test.
 - When facility operations, the four results, or reject reasons change, update the [facility protocol](docs/architecture.md#设施协议), the mechanism member, and provider members.
 - When the schema file changes, update the `digest` of the adoption identity (and its `revision` when the shape changes), the [schema directory](schema/README.md), and the tool-side adoption.
-- When block fields change, update the producer in the provider member and the Runtime Context readers.
+- When block fields change, update the producer in the host-local Service implementation and the Runtime Context readers.
 - A facility owner adds a new facility in its own package. A new sandbox is a new provider member. This package does not change in either case.
 - The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
 

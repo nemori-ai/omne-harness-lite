@@ -49,10 +49,10 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 ## 契约
 
 - 公开形状归 [src/index.ts](src/index.ts)。
-- 类型以外的行为归 [SPEC](SPEC.md)，不变量 INV-EE01 至 INV-EE18，持续验证义务 V-EE01 至 V-EE21。
+- 类型以外的行为归 [SPEC](SPEC.md)，不变量 INV-EE01 至 INV-EE18，持续验证义务 V-EE01 至 V-EE22。
 - 导出索引、需要声明的 schema 与两条块声明归[公开接口页](docs/public-api.md)。
 - 对象的身份、拥有者与生灭归[对象模型](docs/object-model.md)。
-- 设施协议的逐条规则归[内部架构](docs/architecture.md#设施协议)。
+- 设施协议的规则以 [SPEC](SPEC.md#设施协议) 为唯一源，[内部架构](docs/architecture.md#设施协议)逐设施展开并说明理由。
 
 设施操作的结果有四态：完成、未找到对象、拒绝、未知。获取以集成方的幂等键识别，同键重复请求不重新分配。采用记录由本成员的实现在核验提供者回执之后签发。本成员不提交任何耐久事实：资源许可、终局、采用记录与释放记录都由集成方的账本保存。
 
@@ -79,7 +79,7 @@ pnpm turbo run test --filter=@omne-harness/execution-environment-contract
 - 公开导出变化时，同步 SPEC、[公开接口页](docs/public-api.md)、[src 索引](src/index.md)与导出测试。
 - 设施操作、结果四态或拒绝原因变化时，同步[设施协议](docs/architecture.md#设施协议)、机制成员与提供者成员。
 - schema 文件变化时，同步采用身份的 `digest`（形状变化时还有 `revision`）、[schema 目录](schema/README.md)与工具侧的采用。
-- 块字段变化时，同步提供者成员的生产者与 Runtime Context 的读者。
+- 块字段变化时，同步 host-local 的 Service 实现里的生产者与 Runtime Context 的读者。
 - 新设施由设施拥有者在自己的包里增补，新沙箱是新的提供者成员，本成员都不改。
 - 成员关系与依赖方向归[组入口](../README.md)。具名维护者由负责人指定。
 

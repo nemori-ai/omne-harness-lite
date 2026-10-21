@@ -235,7 +235,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 分类：技术后续义务。准备完成后取消、权限变更或新选择到达，迟到准备仍可能已分配资源。
 
-产品影响：影响 CAP-EE02、03、06 及 [INV-EE03](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee03-必需设施和隔离不得降低满足)、[INV-EE05](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee05-实际执行捕获原输入和版本)、[INV-EE15](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)的可实施性。
+产品影响：影响 CAP-EE02、03、06 及 [INV-EE03](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee03-必需设施和隔离不得降低满足)、[INV-EE05](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee05-实际执行捕获原落点与版本)、[INV-EE15](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)的可实施性。
 
 维护责任：条件协调、环境资源与原工具调用拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment-contract/docs/architecture.md)。
 

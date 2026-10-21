@@ -8,7 +8,7 @@
 
 ## 成员与依赖
 
-Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 agent、model、tool、context 组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。宿主文件设施的实现与测试从旧单包迁入 `-host-local`，其余成员当前是骨架。
+Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 `packages/` 下其他按这四段切分的组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。宿主文件设施的实现与测试从旧单包迁入 `-host-local`，其余成员当前是骨架。
 
 | 成员 | 变体 | 责任 |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # 执行环境契约的公开接口导航
 
-本页是导出索引，不是第二套签名。精确类型归 [src/index.ts](../src/index.ts) 及其再导出的模块，非类型行为归 [SPEC](../SPEC.md)，对象的身份与生灭归[对象模型](object-model.md)，设施协议的逐条规则归[内部架构](architecture.md#设施协议)。每个定义的输入、输出与失败行为按所列条款查找。
+本页是导出索引，不是第二套签名。精确类型归 [src/index.ts](../src/index.ts) 及其再导出的模块，非类型行为归 [SPEC](../SPEC.md)，对象的身份与生灭归[对象模型](object-model.md)，设施协议的规则归 SPEC [设施协议](../SPEC.md#设施协议)，逐设施的展开见[内部架构](architecture.md#设施协议)。每个定义的输入、输出与失败行为按所列条款查找。
 
 工具环境声明的 schema 与采用身份、两条块声明以本页为唯一说明位置，见[组架构](../../docs/architecture.md#主题与唯一拥有者)。
 
@@ -30,7 +30,7 @@
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
-| `Access` | 类型 | 访问身份：主体加租户。主体类型由集成方给出，本成员只比较与传递 | [INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[对象模型 身份](object-model.md#身份) |
+| `Access` | 类型 | 访问身份：主体加租户。主体类型由集成方给出，执行环境只传递主体，租约只比较租户 | [INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[对象模型 身份](object-model.md#身份) |
 | `OriginRef` | 类型 | 不透明的原调用引用，资源与采用记录挂在它上面 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
 | `AcquisitionRef` | 类型 | 集成方给一次获取的幂等键 | [获取与租约](../SPEC.md#获取与租约) |
 | `originRef` | 函数 | 把非空字符串接受为原调用引用。空串抛出 `TypeError` | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
@@ -127,7 +127,7 @@
 | `Placement` | 类型 | 落点：原环境要求、选中的绑定层与提供者、连续性。它不授予设施或资源 | [获取与租约](../SPEC.md#获取与租约) |
 | `RejectReason` | 类型 | 获取与落点的拒绝原因 | 同上 |
 | `Rejected` | 类型 | 带拒绝原因的结果 | 同上 |
-| `EnvironmentAdoption` | 类型 | 采用记录：获取键、原调用、落点、提供者、实例、连续性与提供者证据。由本成员的实现签发，不由提供者自签 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原输入和版本) |
+| `EnvironmentAdoption` | 类型 | 采用记录：获取键、原调用、落点、提供者、实例、连续性与提供者证据。由本成员的实现签发，不由提供者自签 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
 | `EnvironmentLease` | 接口 | 租约：落点、实例、连续性、按键取设施、失效信号与释放 | [获取与租约](../SPEC.md#获取与租约)、[对象模型 获取](object-model.md#获取) |
 | `LeaseRelease` | 类型 | 释放的结果：已释放，或待处置并列出未停的受管资源 | 同上 |
 | `AcquisitionState` | 类型 | 一次获取的状态，按获取键查询。`unrecorded` 表示没有调用方能看到的记录 | 同上 |
@@ -141,7 +141,7 @@
 | `EnvironmentProvider` | 接口 | 提供者：名称与代、绑定层、连续性、设施键、隔离断言；描述、获取、退役，以及可选的恢复枚举与认回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
 | `ProviderFacts` | 类型 | 提供者声明的事实：名称与代、平台、设施键、隔离断言、运行前提是否满足。它是观察，不是控制 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
 | `ProviderAcquireInput` | 类型 | 执行环境交给提供者的获取输入：获取键、原调用、落点、租户与账本 | [获取与租约](../SPEC.md#获取与租约) |
-| `ProviderAcquisition` | 类型 | 提供者的临时回执：租约原件与证据，或拒绝 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原输入和版本) |
+| `ProviderAcquisition` | 类型 | 提供者的临时回执：租约原件与证据，或拒绝 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
 | `Retirement` | 类型 | 退役的结果：已排空，或待处置并列出未停的受管资源 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `RecoveryListing` | 类型 | 恢复枚举的结果：列出的资源，或不可用。不可用不是空集 | [恢复](../SPEC.md#恢复) |
 | `ResourceRecovery` | 类型 | 一项资源的认回结果：已确认停止、待处置或不支持，带证据 | 同上 |
@@ -192,4 +192,4 @@ schema 的规则：
 | `volatility` | `stable` | 变化频率是 `stable`，不是每步或每次请求 |
 | `recovery` | `recompute` | 恢复时从当前事实重算，不持久保存 |
 
-`blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者，提供者成员是生产者。
+`blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者，host-local 的 Service 实现作为生产者（DV-4：本卡未发布）。

@@ -31,13 +31,13 @@
 - `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交回一个租约原件：实例身份是 `host` 加提供者的代，`facility('files')` 返回同一个宿主文件设施，释放总是已释放。证据记录提供者名称与代。
 - 一个提供者只有一个宿主文件设施实例。这个提供者交出的全部租约共用它。
 - 本提供者的文件操作不留下受管资源。它不调用账本，也没有 `listRecoveryResources` 与 `recover`。恢复编排把它记为不支持。
-- `retire()` 把提供者标为已退役，使它交出的全部租约原件以 `providerRetired` 失效，然后返回已排空。
+- `retire()` 把提供者标为已退役，使它交出的全部租约原件以 `providerRetired` 失效，然后立即返回已排空，不等在途文件操作。前提：在途的文件操作在自己返回前完成关闭，退役不等待它们；关闭失败而挂起的描述符由实例释放时回收；本提供者没有受管资源。这是对契约排空定义的偏离（契约的排空见 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
 
 前提一律为已满足，不是探测的结果。平台前提的探测还没有接受。
 
 ### 宿主文件使用
 
-本节已由 PanQiWei 接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它落实契约[设施协议](../execution-environment-contract/SPEC.md#设施协议)里文件操作的最小调用事实。请求携带访问身份 `access`（主体加租户）、绑定 `binding`、原调用引用 `origin` 和这次请求身份 `requestId`。设施和租约的定义在[契约对象模型](../execution-environment-contract/docs/object-model.md)。存储编码仍未另定。宿主机上的打开和身份核对在[架构](docs/architecture.md#宿主文件使用)。根入口导出宿主文件使用的 `createHostFiles` 与 `hostObjectToken`，`./cordis` 导出登记它的 `hostFilesPlugin`。路径上没有对象时结果是未解析。跨租户拒绝由登记表的租约视图在调用本设施之前执行，测试在 [execution-environment](../execution-environment/tests/registry.spec.ts)；直接调用 `createHostFiles` 得到的设施不核对租户。授予根限制没有包测试。活句柄还开着时关闭失败现已有包测试；观察记录在架构页。PanQiWei 接受时的包测试只在 Node v26.0.0、darwin 上运行过。2026-10-21 在 Node v24.18.0、linux 上运行了本成员的包测试，记录在[组合与验证](#组合与验证)。
+本节已由 PanQiWei 接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它落实契约[设施协议](../execution-environment-contract/SPEC.md#设施协议)里文件操作的最小调用事实。请求携带访问身份 `access`（主体加租户）、绑定 `binding`、原调用引用 `origin` 和这次请求身份 `requestId`。设施和租约的定义在[契约对象模型](../execution-environment-contract/docs/object-model.md)。存储编码仍未另定。宿主机上的打开和身份核对在[架构](docs/architecture.md#宿主文件使用)。根入口导出宿主文件使用的 `createHostFiles` 与 `hostObjectToken`，`./cordis` 导出登记它的 `hostFilesPlugin`。路径上没有对象时结果是未解析。（本次补充）跨租户拒绝由登记表的租约视图在调用本设施之前执行，测试在 [execution-environment](../execution-environment/tests/registry.spec.ts)；直接调用 `createHostFiles` 得到的设施不核对租户。授予根限制没有包测试。活句柄还开着时关闭失败现已有包测试；观察记录在架构页。PanQiWei 接受时的包测试只在 Node v26.0.0、darwin 上运行过。（本次补充）2026-10-21 在 Node v24.18.0、linux 上运行了本成员的包测试，记录在[组合与验证](#组合与验证)。
 
 这一次文件使用只包含读取、查看、写入和关闭。编辑、补丁、按名查找、按内容查找和图片附件留在 `Files()`。列表、移动、复制、删除和建目录若以后进入设施，必须复用同一次对象绑定。本节不定它们的产品结果。
 
@@ -62,7 +62,7 @@
 - 读取接受起点与上限两个字节数。两者必须是非负安全整数，否则返回 `invalidInput`。读取目录返回 `unsupported`。完成时带字节、下一次读取的起点与是否已到文件末尾。
 - 查看完成时带对象类型（文件或目录）、字节数与修改时间。
 - 版本是修改时间与字节数的组合。替换写入带预期版本而当前版本不同时返回 `conflict`，文件不变。
-- 写入有两种模式。替换模式按上一节写入。路径上没有对象时，替换模式返回未解析。这与契约「`unresolved` 只用于读取、查看与列表」不一致，本成员保留接受时的映射。
+- 写入有两种模式。替换模式按上一节写入。路径上没有对象时，替换模式返回未解析。
 - 新建模式的 `named` 是父目录。本设施在独占新建前后各核对一次父目录的设备号与 inode。新建模式带预期版本，或路径以斜杠结尾，返回 `invalidInput`。父目录不存在返回 `notFound`。目标已存在返回 `conflict`。新建之后父目录身份变了，返回未知，已建的文件留在原处。
 - 本设施在调用时取下请求身份与待写字节的副本。调用方在调用之后改动请求对象，不影响这次操作。
 
@@ -79,7 +79,7 @@
 ### 撤除顺序
 
 - `hostFilesPlugin` 卸载时，它的两个效应并发撤除（[effect-disposal-concurrent-not-ordered](../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）：`files` 设施声明从登记表移除，宿主文件提供者开始退役。退役使它交出的租约以 `providerRetired` 失效，之后 `files` 不再有提供者，宿主层的落点解析返回 `noMatchingEnvironment`。
-- `ExecutionEnvironmentRegistry` 卸载时，它在构造时登记的效应调用登记表的 `close()`：先拒新的落点、获取与登记，再使全部租约以 `registryClosed` 失效，然后并发退役全部提供者。结果是待处置时，撤除函数抛出 `RetirementPending`，不以正常返回报告完成。
+- `ExecutionEnvironmentRegistry` 卸载时，它在构造时登记的效应调用登记表的 `close()`。关闭顺序归 [execution-environment SPEC 的关闭](../execution-environment/SPEC.md#关闭)。本成员只承担一件事：关闭结果是待处置时，撤除函数抛出 `RetirementPending`，不以正常返回报告完成。
 - 服务卸载时，`inject` 了本服务的插件随之卸载或重跑，它们的效应与服务的关闭并发运行。提供者退役共用一次 `retire()` 调用，不因两条撤除路径而退役两次。
 - 撤除不撤回任何外部效果。已经写入宿主文件的字节留在文件里。
 

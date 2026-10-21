@@ -168,7 +168,7 @@ flowchart TD
 | 情形 | 结果 | 责任方 | 依据 |
 | --- | --- | --- | --- |
 | 进程失败 | 四张表丢失，重启后按键查询答复 `unrecorded` | 集成方据账本处置 | [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) |
-| 重启后对旧键再 `acquire` | 作为新获取调用提供者 | 集成方先查账本 | [SPEC 明确缺项](../SPEC.md#明确缺项) |
+| 重启后对旧键再 `acquire` | 作为新获取调用提供者 | 集成方先查账本，不对已有记录的键再调用 `acquire` | [SPEC 获取](../SPEC.md#获取) |
 | 提供者 `acquire` 抛出 | `providerUnavailable` 拒绝 | 提供者 | [SPEC 获取](../SPEC.md#获取) |
 | 提供者 `retire()` 抛出 | 按待处置处理，资源列表为空 | 提供者与维护者 | [SPEC 登记与退役](../SPEC.md#登记与退役) |
 | 守卫抛出 | `unavailable` 拒绝 | 集成方 | [SPEC 租约视图与逐操作门](../SPEC.md#租约视图与逐操作门) |

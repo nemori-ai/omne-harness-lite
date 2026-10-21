@@ -27,9 +27,9 @@
 | 提供者 | 名称加代 `ProviderIdentity` | 提供者 |
 | 落点 `Placement` | 绑定层加提供者身份 | `resolvePlacement` 算出 |
 | 获取 | 集成方给的幂等键 `AcquisitionRef` | 集成方 |
-| 采用记录 `EnvironmentAdoption` | 所属获取加实例身份与代 | 本成员签发 |
+| 采用记录 `EnvironmentAdoption` | 所属获取加实例身份与代 | 执行环境签发 |
 | 实例 `InstanceIdentity` | 实例身份加代 | 提供者 |
-| 租约 `EnvironmentLease` | 所属获取加实例代 | 本成员交付 |
+| 租约 `EnvironmentLease` | 所属获取加实例代 | 执行环境交付 |
 | 设施请求 | 请求身份 `FacilityRequest.requestId` | 集成方按请求给 |
 | 受管资源 `ManagedResource` | 资源键加所属提供者 | 提供者计划时给，账本记录 |
 | 恢复授权 `RecoveryAccess` | 不可序列化的原对象 | 集成方的维护拥有者 |
@@ -125,15 +125,15 @@ classDiagram
 
 几条关系的含义：
 
-- 环境要求是输入，不是对象。它由集成方在域外翻译而成，本成员不保存它，只在解析落点与获取时读它。
+- 环境要求是输入，不是对象。它由集成方在域外翻译而成，执行环境不保存它，只在解析落点与获取时读它。
 - 落点是算出来的值，不是租约。落点只说明选中了哪里；从落点到租约要经过获取。
-- 采用记录与租约同属一次获取。采用记录是耐久事实，由集成方保存；租约是进程内的使用入口，随本成员的登记表存在。
+- 采用记录与租约同属一次获取。采用记录是耐久事实，由集成方保存；租约是进程内的使用入口，随执行环境的登记表存在。
 - 受管资源不属于租约，属于造出它的提供者；账本里的记录是它的耐久一半。租约失效不使受管资源消失。
 - 恢复授权与访问身份互不替代。访问身份走获取与设施操作，恢复授权只走 `recoverOwned` 与 `releaseScope`。
 
 ### 两条块声明
 
-`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明，语义拥有者是本成员，生产者是提供者成员。块的值是 JSON，按声明的解码函数核对。落点块按作用域给出该作用域内各原调用的当前落点；宿主事实块给出每个已登记提供者的事实。两条块都是观察，读者不能据此推定物理完成。块的注册与读取规则归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。
+`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明，语义拥有者是本成员，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）。块的值是 JSON，按声明的解码函数核对。落点块按作用域给出该作用域内各原调用的当前落点；宿主事实块给出每个已登记提供者的事实。两条块都是观察，读者不能据此推定物理完成。块的注册与读取规则归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。
 
 ## 生命周期
 
@@ -145,10 +145,10 @@ stateDiagram-v2
   unrecorded --> acquiring : acquire(key)
   acquiring --> rejected : 落点核对失败 / 无匹配
   acquiring --> provisional : 提供者交回临时回执
-  provisional --> acquired : 本成员核验通过，签发采用记录
+  provisional --> acquired : 执行环境核验通过，签发采用记录
   provisional --> rejected : 核验失败，释放成功
   provisional --> pendingRelease : 核验失败，释放待处置
-  acquired --> invalidated : 提供者退役 / 作用域释放 / 本成员关闭 / 寿命到期回收 / 实例丢失或换代
+  acquired --> invalidated : 提供者退役 / 作用域释放 / 执行环境关闭 / 寿命到期回收 / 实例丢失或换代
   acquired --> releasing : release()
   invalidated --> releasing : release()
   releasing --> released : 释放确认
@@ -158,7 +158,7 @@ stateDiagram-v2
   rejected --> [*]
 ```
 
-同一幂等键的重复请求返回当前状态，不改变状态。`unrecorded` 是本成员对不认识的键的答复：从未见过，或本成员重启之后。集成方据自己的账本判断是哪一种。状态名与 `AcquisitionState` 一致。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
+同一幂等键的重复请求返回当前状态，不改变状态。`unrecorded` 是执行环境对不认识的键的答复：从未见过，或执行环境的实现重启之后。集成方据自己的账本判断是哪一种。状态名与 `AcquisitionState` 一致。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
 
 ### 受管资源
 
@@ -182,11 +182,11 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> requested
-  requested --> rejected : 访问身份不等于获取方 / 租约已失效 / 键不在要求里
+  requested --> rejected : 租户不等于获取方的租户 / 租约已失效 / 键不在要求里
   requested --> authorized : 守卫答允许
   requested --> rejected : 守卫答不允许 / 守卫不可用（操作未发出，原因 unavailable）
   authorized --> done : 完成
-  authorized --> unresolved : 路径上没有对象（读取、查看、列表）
+  authorized --> unresolved : 路径上没有对象（读取、查看、列表、替换模式的写入）
   authorized --> rejected : 设施拒绝，带原因
   authorized --> unknown : 效果不可确认
   done --> [*]

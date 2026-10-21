@@ -14,7 +14,7 @@ This package implements the registry of the execution environment. It keeps the 
 Status: mechanism member, `draft`. The adoption basis is the [topic owner table](../docs/architecture.md#主题与唯一拥有者) of the group and the [SPEC](SPEC.md).
 
 - Implemented: the factory `createEnvironmentRegistry`, the error class `RetirementPending`, and the SPEC behavior for placement, acquisition and check, lease views, release, describe, registration and retirement, recovery, and close.
-- Not implemented: the four contract clauses in the SPEC [gap list](SPEC.md#明确缺项). They are the facility descriptor check during placement, the refusal on a facility object held after its descriptor goes away, no new allocation for an old key after a restart, and ledger permission for managed facility operations. The template marker of the root entry says that ledger use for managed facility operations, Runtime Context block production, and the contract verification suites are not accepted yet.
+- Not implemented: the four contract clauses in the SPEC [gap list](SPEC.md#明确缺项). They are the facility descriptor check during placement, the refusal on a facility object held after its descriptor goes away, ledger permission for managed facility operations, and the gate check of the ledger close signal. The template marker of the root entry says that ledger use for managed facility operations, Runtime Context block production, and the contract verification suites are not accepted yet.
 - Not verified: no direct test covers release retry, pending retirement, or a failed recovery listing. The package does not claim persistence, cross-process consistency, or real resource stop.
 
 execution-environment-host-local depends on this package now.

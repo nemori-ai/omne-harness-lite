@@ -32,13 +32,13 @@ Tool 宿主依赖契约成员与 Cordis 定义成员。Tool 契约不依赖本�
 | 主题 | 唯一拥有者 |
 | --- | --- |
 | 访问身份、绑定层、连续性、环境要求、落点 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) |
-| 获取、采用记录、租约、受管资源与它们的状态 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) |
-| 设施协议、`files`、`command`、`terminal` 的形状与规则 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) |
+| 获取、采用记录、租约、受管资源，以及获取状态的语义 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) |
+| 设施协议、`files`、`command`、`terminal` 的规则 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md#设施协议)；逐设施的展开与理由在[契约内部架构](../execution-environment-contract/docs/architecture.md#设施协议) |
 | 三个需要端口与许可先于效果 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) |
 | 工具环境声明的 schema 与采用身份 | [execution-environment-contract 公开定义](../execution-environment-contract/docs/public-api.md) |
 | 两条块声明 | [execution-environment-contract 公开定义](../execution-environment-contract/docs/public-api.md) |
 | 服务键、intercept 配置、调用方类 | [execution-environment-cordis-contract Cordis 说明](../execution-environment-cordis-contract/docs/cordis.md) |
-| 提供者与设施表、匹配、获取状态、租约视图、恢复编排 | [execution-environment 架构](../execution-environment/docs/architecture.md) |
+| 提供者与设施表、匹配、获取状态的机制、租约视图、恢复编排 | [execution-environment 架构](../execution-environment/docs/architecture.md) |
 | 宿主文件使用、宿主机制、撤除保留 | [execution-environment-host-local 架构](../execution-environment-host-local/docs/architecture.md) |
 | 图像预算与编码 | [image 架构](../image/docs/architecture.md) |
 

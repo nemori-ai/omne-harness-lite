@@ -73,7 +73,7 @@ export const inject = {
 
 ## 事件
 
-本成员不声明事件，不增补 `Events`（性质 6）。理由：执行环境的变化对读者是观察，不是控制。落点与宿主事实经 Runtime Context 的两条块声明 `execution.placement` 与 `execution.host-facts` 到达观察者（[INV-EE17](../../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。块声明的语义拥有者是契约成员，生产者是提供者成员。
+本成员不声明事件，不增补 `Events`（性质 6）。理由：执行环境的变化对读者是观察，不是控制。落点与宿主事实经 Runtime Context 的两条块声明 `execution.placement` 与 `execution.host-facts` 到达观察者（[INV-EE17](../../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。块声明的语义拥有者是契约成员，host-local 的 Service 实现作为生产者（DV-4：本卡未发布）。
 
 ## 依赖分类
 

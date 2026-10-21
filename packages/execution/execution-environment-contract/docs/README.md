@@ -12,7 +12,7 @@
 
 SPEC 点名由本目录承载三项内容：
 
-- 设施协议的逐条规则归 [architecture.md](architecture.md#设施协议)。
+- 设施协议的规则归 [SPEC](../SPEC.md#设施协议)，逐设施的展开与理由在 [architecture.md](architecture.md#设施协议)。
 - 技术后续设计与来源缺项归 [architecture.md](architecture.md#技术后续设计与来源缺项)。
 - Tool 契约的适配映射归 [context.md](context.md#邻域交接)。
 

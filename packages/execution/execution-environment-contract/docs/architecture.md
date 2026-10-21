@@ -16,7 +16,7 @@
 | `facility.ts` | 开放的设施表 `EnvironmentFacilities`、设施声明、设施请求、设施结果四态、拒绝原因，以及 `describeFacility` | [设施协议](../SPEC.md#设施协议) |
 | `facilities/files.ts`、`facilities/command.ts`、`facilities/terminal.ts` | 三个核心设施的接口与声明。三个文件各自增补 `EnvironmentFacilities` | [设施协议](../SPEC.md#设施协议)、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) |
 | `ports.ts` | 受管资源 `ManagedResource`，三个需要端口 `FacilityGuard`、`ResourceLedger`、`RecoveryAuthority`，恢复授权 `RecoveryAccess` 与 `createRecoveryAccess` | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)、[恢复](../SPEC.md#恢复) |
-| `lease.ts` | 提供者身份、实例身份、落点、采用记录、租约、获取状态、释放结果、拒绝原因与 `FacilitySet` | [获取与租约](../SPEC.md#获取与租约)、[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原输入和版本) |
+| `lease.ts` | 提供者身份、实例身份、落点、采用记录、租约、获取状态、释放结果、拒绝原因与 `FacilitySet` | [获取与租约](../SPEC.md#获取与租约)、[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
 | `environment.ts` | 提供者接口 `EnvironmentProvider` 及其事实、回执、退役与恢复结果；操作面 `ExecutionEnvironment`；登记面 `ProviderRegistrations` | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `need-declaration.ts` | 工具环境声明 `EnvironmentNeedDeclaration`、它的 Standard Schema 与采用身份 | [工具环境声明](../SPEC.md#工具环境声明) |
 | `blocks.ts` | 两条块声明及其值类型，增补 Runtime Context 的 `ContextBlocks` | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
@@ -63,7 +63,7 @@ flowchart BT
 
 ### 域盲身份
 
-本成员只认通用角色（[范围与依据](../SPEC.md#范围与依据)）。访问身份 `Access<P>` 是主体加租户：主体的类型由集成方给出，本成员只比较与传递，不解释它。作用域引用、原调用引用与获取键都是不透明字符串。`originRef` 与 `acquisitionRef` 只拒绝空串，不解析内容。
+本成员只认通用角色（[范围与依据](../SPEC.md#范围与依据)）。访问身份 `Access<P>` 是主体加租户：主体的类型由集成方给出，执行环境只传递主体，不比较也不解释它。租约只绑定租户，主体由设施守卫判断。作用域引用、原调用引用与获取键都是不透明字符串。`originRef` 与 `acquisitionRef` 只拒绝空串，不解析内容。
 
 理由：同一个执行环境要服务不同的作用域持有者与独立调用者。如果本成员认识上层工作流的类型，换一种持有者就要改契约，所有提供者都要跟着核对。代价是每个调用方都要把自己的身份翻译成这几样。路径、节点、Cordis Context 或插件实例都不能代替访问身份成为租户权限的依据（[INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)）。
 
@@ -91,17 +91,17 @@ flowchart BT
 
 获取以集成方给的 `AcquisitionRef` 识别。同键重复请求返回同一状态，不重新分配。`AcquisitionState` 列出获取的全部状态，其中 `unrecorded` 表示本成员的实现没有调用方能看到的记录。`Pending` 只用于获取存在但现在没有可用租约的状态。
 
-理由：答复可能丢失。集成方用同一个键再问，得到原来那次获取的状态，资源不会分配两次。获取的耐久状态归集成方的账本，实现里的登记表只有进程内副本。重启之后，本成员的实现对同一个键答复 `unrecorded`，不重新分配；集成方据账本里的记录走恢复。跨租户查询同一个键也按无记录处理，不泄露另一租户是否有这个键。
+理由：答复可能丢失。集成方用同一个键再问，得到原来那次获取的状态，资源不会分配两次。获取的耐久状态归集成方的账本，实现里的登记表只有进程内副本。重启之后，执行环境的实现对同一个键的 `inspectAcquisition` 答复 `unrecorded`；对同一个键再调用 `acquire` 会被当作新获取。所以集成方先查自己的账本，对账本里已有记录的键走恢复，不再调用 `acquire`（[获取与租约](../SPEC.md#获取与租约)）。跨租户查询同一个键也按无记录处理，不泄露另一租户是否有这个键。
 
 ### 采用记录由本成员签发
 
-提供者的 `acquire` 只交回 `ProviderAcquisition`：一份租约原件加提供者证据。它是临时回执。本成员的实现核验回执与落点、访问身份相符，且提供者仍在场，之后才签发 `EnvironmentAdoption` 并交付租约（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原输入和版本)）。
+提供者的 `acquire` 只交回 `ProviderAcquisition`：一份租约原件加提供者证据。它是临时回执。执行环境的实现核验回执之后才签发 `EnvironmentAdoption` 并交付租约。核验的各项归 SPEC [获取与租约](../SPEC.md#获取与租约)：提供者仍在场、执行环境没有关闭、作用域没有释放、回执的绑定层与落点一致、要求里的设施键都能从租约取到。访问身份由获取记录绑定，不在回执里核验（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本)）。
 
 理由：如果提供者自签采用记录，它就能凭自己的回执给自己授权。签发与核验放在本成员一侧，提供者证据只是证据。核验失败时实现尝试释放这份临时资源。释放待处置时，资源保留在原提供者的登记上，不当成没有分配。
 
 ### 账本先许可，后效果
 
-`ResourceLedger` 是集成方实现的耐久端口。可能跨进程寿命存活的受管资源先 `plan`，再 `permit`，许可确认之后才发出首个外部效果；停止用 `stopped` 记下已确认或未确认；接续已有资源用 `adopt`，不重新启动它。`closed` 信号表示账本已关闭，之后不再发新许可（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。`ManagedResource.reference` 是提供者定义的 JSON 恢复引用，不是活句柄，也不是裸进程号。
+`ResourceLedger` 是集成方实现的耐久端口。可能跨进程寿命存活的受管资源先 `plan`，再 `permit`，许可确认之后才发出首个外部效果；停止用 `stopped` 记下已确认或未确认；接续已有资源时，提供者在 `acquire` 内调用 `adopt`，账本核对记录与访问身份、作用域，不一致时答 `unavailable`；接续不重新启动资源。`closed` 信号表示账本已关闭，之后不再发新许可；提供者在发出效果前查这个信号，不再开始新的设施操作（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。`ManagedResource.reference` 是提供者定义的 JSON 恢复引用，不是活句柄，也不是裸进程号。
 
 理由：任何已经发出外部效果的资源在账本里都有记录，重启后的恢复从这些记录出发，不靠猜进程号。本成员自己不提交耐久事实，所以端口由集成方实现。代价是集成方必须有耐久账本。独立调用者用不耐久的账本时，重启后认不回来的资源由它自己承担，见产品正文[受管资源与资源账本](../../../../.meta_harness/design/product/execution-environments/design.md#受管资源与资源账本先许可后效果)。
 
@@ -113,7 +113,7 @@ flowchart BT
 
 ### 两条块声明
 
-`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明。本成员是它们的语义拥有者，提供者成员是生产者（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。块的值按本成员的解码函数核对，块的字段见[公开接口页](public-api.md#两条块声明)。
+`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明。本成员是它们的语义拥有者，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。块的值按本成员的解码函数核对，块的字段见[公开接口页](public-api.md#两条块声明)。
 
 理由：块值的意思由决定这份意思的一方说明，所以声明归语义拥有者，不归生产者（[RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）。换一个提供者或新增沙箱提供者时，声明不变，读者不用重新核对。块是观察，不是控制。读者看到落点变化，不能据此认定原进程已停或数据已迁移。
 
@@ -127,7 +127,7 @@ flowchart BT
 
 ## 设施协议
 
-本节是 SPEC [设施协议](../SPEC.md#设施协议)点名的协议规则的唯一位置。流程见[流程](flows.md#f-eec02-一次设施操作)，产品含义见产品正文[设施的声明、请求与守卫](../../../../.meta_harness/design/product/execution-environments/design.md#设施的声明请求与守卫)与[文件设施与文件批次](../../../../.meta_harness/design/product/execution-environments/design.md#文件设施与文件批次)。
+本节是 SPEC [设施协议](../SPEC.md#设施协议)的展开与理由。规则的唯一源是 SPEC 的设施协议节；本节逐个设施展开它，两处不一致时以 SPEC 为准。流程见[流程](flows.md#f-eec02-一次设施操作)，产品含义见产品正文[设施的声明、请求与守卫](../../../../.meta_harness/design/product/execution-environments/design.md#设施的声明请求与守卫)与[文件设施与文件批次](../../../../.meta_harness/design/product/execution-environments/design.md#文件设施与文件批次)。
 
 ### 共同规则
 
@@ -136,7 +136,7 @@ flowchart BT
 3. `done` 只表示这次请求确认的那一项成功。读取完成不表示写入完成，启动被接纳不表示进程已启动或已退出。
 4. 后一次操作即使参数相同，也是另一个请求，要重新核对。
 5. 拒绝原因只取 `FacilityReason` 的十个值：`invalidInput`、`notAuthorized`、`notFound`、`conflict`、`busy`、`capacity`、`unsupported`、`closed`、`unavailable`、`effectUnknown`。
-6. `unresolved` 只用于文件设施里路径上没有对象的读取、查看与列表。其他操作不返回 `unresolved`。
+6. `unresolved` 只用于文件设施里路径上没有对象的读取、查看、列表，以及替换模式的写入。其他操作不返回 `unresolved`。
 7. 未知不当成失败，也不当成没有发生。有副作用的操作不因未知而自动重试（[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)）。
 8. 三个核心设施的全部操作都是须授权的操作，每次发出前先过设施守卫。
 9. 可能造出受管资源的操作在守卫允许之后，先在资源账本里计划并取得许可，再发出效果。进程、终端与文件批次是受管资源。
@@ -177,17 +177,18 @@ flowchart BT
 
 命令设施只有一项操作：`start` 启动一个进程。
 
-1. 请求带可执行文件、参数、工作目录、显式环境变量，可选标准输入、输出模式与终端尺寸。子进程只取得请求里给出的环境变量，不继承宿主的整份环境（[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)）。
+1. 请求带可执行文件、参数、工作目录、显式环境变量，可选标准输入、输出模式与终端尺寸。请求里给出的环境变量由集成方按该消费者允许的名单与宿主实际具有的值组成（[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)）；子进程只取得请求里给出的环境变量，不继承宿主的整份环境（[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)）。
 2. 进程是受管资源。守卫允许之后，提供者先在账本里计划并取得许可，再启动进程。
-3. `done` 交出 `ProcessHandle`。它只表示启动被接纳，不表示进程已启动或已退出。
-4. 进程身份是提供者给的身份加代，不是裸进程号。
-5. 输出模式是 `separate`（标准输出与标准错误分开）或 `terminal`（合成一路终端输出）。
-6. 增量流式输出：`output` 是唯一的输出主体，只允许一个读者。读者调用 `return()` 只放弃读取权，不停止进程。
-7. 每个输出块是原始字节，保留换行、ANSI 序列与回车，不按行或字符切分。`observedOffset` 是这一路此前观察到的字节数。与上一块之间有空隙，表示中间有字节被丢弃。
-8. 有界缓冲：`OutputPolicy` 给出缓冲上限与单块上限。溢出时丢弃，结果里的 `OutputSummary` 按每一路给出观察到与丢弃的字节数。
-9. `result` 给出终局。`completed` 带退出码、信号或未知退出，以及时长与输出计数；`failed` 带 `unavailable` 或 `effectUnknown`，以及观察到的时长与输出计数。重复或并发地等待终局不会再启动任何东西。
-10. 进程已退出只来自域外监督者对该进程身份记录的回收状态。超时或没有返回不写成已退出（[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)）。
-11. 停止有两种方式：`graceful` 与 `forced`。结果只有两态：`confirmed` 或 `unconfirmed`。未确认的停止保留处置责任，不写成已停。
+3. `done` 交出 `ProcessHandle`。它表示进程实际已启动，句柄带进程身份。它不表示进程已退出。
+4. 提供者接纳了请求，但进程映像没有启动时，结果是 `rejected`，原因 `unavailable`，不是 `done`。启动与否不可确认时，结果是 `unknown`。
+5. 进程身份是提供者给的身份加代，不是裸进程号。
+6. 输出模式是 `separate`（标准输出与标准错误分开）或 `terminal`（合成一路终端输出）。
+7. 增量流式输出：`output` 是唯一的输出主体，只允许一个读者。读者调用 `return()` 只放弃读取权，不停止进程。
+8. 每个输出块是原始字节，保留换行、ANSI 序列与回车，不按行或字符切分。`observedOffset` 是这一路此前观察到的字节数。与上一块之间有空隙，表示中间有字节被丢弃。
+9. 有界缓冲：`OutputPolicy` 给出缓冲上限与单块上限。溢出时丢弃，结果里的 `OutputSummary` 按每一路给出观察到与丢弃的字节数。
+10. `result` 给出终局。`completed` 带退出码、信号或未知退出，以及时长与输出计数；`failed` 带 `unavailable` 或 `effectUnknown`，以及观察到的时长与输出计数。`failed` 只用于已启动的进程之后失联或效果未知，不表示启动失败。启动失败是第 4 条的 `rejected`。重复或并发地等待终局不会再启动任何东西。
+11. 进程已退出只来自域外监督者对该进程身份记录的回收状态。超时或没有返回不写成已退出（[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)）。
+12. 停止有两种方式：`graceful` 与 `forced`。结果只有两态：`confirmed` 或 `unconfirmed`。未确认的停止保留处置责任，不写成已停。
 
 ### `terminal`：终端
 
@@ -236,7 +237,7 @@ flowchart BT
 
 先核对实际已有的公开承诺，再形成技术设计。公开形状、协调机制和耐久证明不由本页猜定。
 
-影响：影响 CAP-EE02、03、06 及 [INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足)、[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原输入和版本)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致) 的可实施性。
+影响：影响 CAP-EE02、03、06 及 [INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足)、[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致) 的可实施性。
 
 ### Q-EE03 受限执行域、宿主桥接与监督证据
 
@@ -296,7 +297,7 @@ flowchart BT
 
 既定约束：
 
-- 作用域、推进实例、设施、计算、数据和原调用各有寿命。
+- 作用域、调用方实例、设施、计算、数据和原调用各有寿命。
 - 控制受理不等于实际停止或关闭。查询不重做动作。
 - 原结果的保管独立于临时设施，披露按当前资格。Runtime Context 只供给真实变化。
 
@@ -345,12 +346,12 @@ flowchart BT
 | 匹配沿允许清单的顺序，不选清单外的层，拒绝原因取最接近的一项 | `match-providers.spec.ts` | 落点的歧义拒绝与获取时的重新核对由机制成员验证 |
 | 需要声明接受开放的设施键，拒绝未知字段与不存在的绑定层，`digest` 等于 schema 文件字节的摘要 | `need-declaration.spec.ts` | 改 schema 文件时同步 `digest`，形状变化时前进 `revision` |
 | `FacilitySet` 只给出声明点名的设施，示例按公开入口编译 | `facility-set.spec-d.ts` | 无 |
-| SPEC 的其余行为条款 | 没有。本成员没有运行实现 | [持续验证义务](../SPEC.md#持续验证义务) V-EE01 至 V-EE21，由机制成员、提供者与集成方的组合验证 |
+| SPEC 的其余行为条款 | 没有。本成员没有运行实现 | [持续验证义务](../SPEC.md#持续验证义务) V-EE01 至 V-EE22，由机制成员、提供者与集成方的组合验证 |
 
 维护规则：
 
 1. 新增或改名导出时，同步[公开接口页](public-api.md)、[src 索引](../src/index.md)与导出测试。
 2. 改设施操作、结果四态或拒绝原因时，同步本页的[设施协议](#设施协议)、SPEC、提供者成员与 [execution-environment](../../execution-environment/README.md) 的逐操作门。
 3. 改 schema 文件时，同步 `digest`（形状变化时还有 `revision`）、[schema 目录](../schema/README.md)与 Tool 侧的采用。
-4. 改块字段时，同步提供者成员的生产者与 Runtime Context 的读者。
+4. 改块字段时，同步 host-local 的 Service 实现里的生产者与 Runtime Context 的读者。
 5. 以下情形出现时，重新判断本页的模块切分：逐操作参数与结果的 schema 进入、出现第一个沙箱提供者、出现受限执行域的提供者。

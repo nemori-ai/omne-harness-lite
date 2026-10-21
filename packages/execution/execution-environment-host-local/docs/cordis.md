@@ -83,7 +83,7 @@
 
 ## 块的发布
 
-契约要求提供者成员作为 Runtime Context 的生产者发布 `execution.placement` 与 `execution.host-facts` 两条块（[INV-EE17](../../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。本成员现在不登记生产者，不发布这两条块。模板标记写明 Runtime Context 生产者插件还没有接受。观察者现在只能经 `describe` 读落点，经宿主文件提供者的 `describe` 读宿主事实。
+契约要求本成员的 Service 实现作为 Runtime Context 的生产者发布 `execution.placement` 与 `execution.host-facts` 两条块（[INV-EE17](../../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。本成员现在不登记生产者，不发布这两条块。模板标记写明 Runtime Context 生产者插件还没有接受。观察者现在只能经 `describe` 读落点，经宿主文件提供者的 `describe` 读宿主事实。
 
 ## IC 符合性映射
 
