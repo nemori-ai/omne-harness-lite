@@ -56,6 +56,7 @@ import {
   type Principal,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
+import { memoryMaterials, proofModels } from './materials-support.ts'
 
 /**
  * A value whose consumer reads only the fields given. The rest of the contract shape is left out on
@@ -254,6 +255,9 @@ export async function loopAssembly(
   reply: ScriptedReply = ONE_TEXT,
 ): Promise<LoopAssembly> {
   const { dependencies, controls } = createTestAgentDependencies<Principal>()
+  const materials = memoryMaterials<Principal>()
+  controls.materials.preserve.always(input => materials.preserve(input))
+  controls.materials.read.always(input => materials.read(input))
   const release = gate()
   controls.adoptions.define(adoption('definition'), {
     definition: stub({ category: 'AgentDefinition', name: 'test' }),
@@ -266,8 +270,9 @@ export async function loopAssembly(
     ...dependencies,
     models: respondingModels(dependencies.models, controls.models, release.opened, reply),
   })
-  const provider = ok(await createAgentRuntime(assembled, options()))
-  return { provider, dependencies: assembled, controls, release }
+  const guarded = { ...assembled, models: proofModels(assembled) }
+  const provider = ok(await createAgentRuntime(guarded, options()))
+  return { provider, dependencies: guarded, controls, release }
 }
 
 export const alice = { principal: 'alice', tenant: tenantA } as const

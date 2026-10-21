@@ -14,6 +14,8 @@
 - [loop/nodes.ts](loop/nodes.ts)：节点词汇与转移表（正常路径），每行来自该节点在节点表中的行
 - [loop/evaluator.ts](loop/evaluator.ts)：纯评估器 `agentEvaluator` 与 `agentCheckpointSchema`，在 E4 与 I8 决定去向
 - [loop/coordinator.ts](loop/coordinator.ts)：执行协调者，按伪代码分组的节点处理与驱动
+- [loop/processed-result.ts](loop/processed-result.ts)：本包 processed facts 的版本采用、原关联与解释读取；被根入口证据适配接缝采用
+- [loop/model-result.ts](loop/model-result.ts)：原 Model 收场的回复、部分结果与无回复分类，以及缺推理回放元数据时的支持边界
 - [loop/identities.ts](loop/identities.ts)：确定派生的操作身份、调用身份与依据
 - [testing/index.ts](testing/index.ts)：`./testing` 入口与 `createTestAgentDependencies`
 - [testing/journal.ts](testing/journal.ts)：内存 Journal

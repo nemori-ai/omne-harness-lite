@@ -104,6 +104,7 @@ export type Label =
   | 'recorded'
   | 'settled'
   | 'kept'
+  | 'partial'
   | 'empty'
   | 'fixed'
   | 'ended'
@@ -181,6 +182,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I2', on: 'call', to: 'M0' },
   { from: 'M0', on: 'recorded', to: 'M6' },
   { from: 'M6', on: 'admitted', to: 'M1' },
+  { from: 'M6', on: 'wait', to: 'W0' },
+  { from: 'M1', on: 'wait', to: 'W0' },
   { from: 'M1', on: 'settled', to: 'M3' },
   { from: 'M3', on: 'kept', to: 'M4' },
   { from: 'M4', on: 'proceed', to: 'M5' },
@@ -190,6 +193,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I3', on: 'admit', to: 'Q1' },
   { from: 'Q4', on: 'return-I3', to: 'I3' },
   { from: 'I3', on: 'admitted', to: 'I4' },
+  { from: 'I3', on: 'partial', to: 'I8' },
+  { from: 'I3', on: 'try-finish', to: 'F1' },
   { from: 'I4', on: 'empty', to: 'I8' },
   { from: 'I8', on: 'take-inputs', to: 'I0' },
   { from: 'I8', on: 'try-finish', to: 'F1' },

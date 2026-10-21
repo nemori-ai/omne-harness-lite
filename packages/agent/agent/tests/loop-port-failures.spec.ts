@@ -81,6 +81,16 @@ function models(
   }
 }
 
+/** Inject at a persisted boundary, independently of the extra qualification reads at M6. */
+function failLoadAt(d: Dependencies, position: string): Dependencies['journal']['load'] {
+  return async input => {
+    const loaded = await d.journal.load(input)
+    return 'ok' in loaded && loaded.ok.checkpoint.position === position
+      ? fail(PORT_FAILURE)
+      : loaded
+  }
+}
+
 /** Every port call of the normal path after `open`, in path order. E9 calls no port. */
 const CASES: readonly Case[] = [
   [
@@ -161,7 +171,7 @@ const CASES: readonly Case[] = [
   [
     'M0',
     'journal.commit',
-    'M0',
+    'I2',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('M0')) }),
   ],
   [
@@ -173,17 +183,17 @@ const CASES: readonly Case[] = [
   ],
   [
     'M1',
-    'models.instances.connect',
-    'M1',
+    'models.calls.inspect',
+    'M6',
     d =>
       models(d, {
-        instances: { connect: failing(d.models.instances.connect, fail(MODEL_FAILURE), nth(1)) },
+        calls: { inspect: failing(d.models.calls.inspect, fail(MODEL_FAILURE), nth(2)) },
       }),
   ],
   [
     'M3',
     'models.consumption.beginRead',
-    'M3',
+    'M6',
     d =>
       models(d, {
         consumption: {
@@ -194,14 +204,14 @@ const CASES: readonly Case[] = [
   [
     'M3',
     'journal.recordResult',
-    'M3',
+    'M6',
     d =>
       journal(d, { recordResult: failing(d.journal.recordResult, fail(PORT_FAILURE), of('M3')) }),
   ],
   [
     'M3',
     'models.consumption.acknowledge',
-    'M3',
+    'M6',
     d =>
       models(d, {
         consumption: {
@@ -212,21 +222,11 @@ const CASES: readonly Case[] = [
   [
     'Q2',
     'handoff.accept',
-    'I3',
+    'M4',
     d => ({ ...d, handoff: { accept: failing(d.handoff.accept, fail(PORT_FAILURE), nth(2)) } }),
   ],
-  [
-    'I8',
-    'journal.load',
-    'I8',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(3)) }),
-  ],
-  [
-    'F1',
-    'journal.load',
-    'F1',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(4)) }),
-  ],
+  ['I8', 'journal.load', 'I8', d => journal(d, { load: failLoadAt(d, 'I8') })],
+  ['F1', 'journal.load', 'F1', d => journal(d, { load: failLoadAt(d, 'F1') })],
   [
     'F1',
     'journal.commit',
@@ -239,12 +239,7 @@ const CASES: readonly Case[] = [
     'F3',
     d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), nth(1)) }),
   ],
-  [
-    'F4',
-    'journal.load',
-    'F3',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(5)) }),
-  ],
+  ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadAt(d, 'F3') })],
   [
     'O0',
     'journal.recordResult',

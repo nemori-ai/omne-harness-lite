@@ -366,7 +366,8 @@ describe('R0 and W0 coordination', () => {
     }))
     const c = coordinator(assembly)
     ok(await c.accept())
-    expect(failure(await c.runExecution()).node).toBe('M1')
+    ok(await c.runExecution())
+    expect((await load(assembly)).state.kind).toBe('waiting')
     const call = (await load(assembly)).checkpoint.calls[0]
     assembly.release.open()
     ok(await c.runExecution())
@@ -380,7 +381,7 @@ describe('R0 and W0 coordination', () => {
   })
 
   it.each(
-    ['I0', 'I2', 'M0', 'M1', 'M3', 'Q2', 'Q4', 'I3', 'I8', 'F1', 'F2'].flatMap(target =>
+    ['I0', 'M0', 'M3', 'Q2', 'Q4', 'I3', 'I8', 'F1', 'F2'].flatMap(target =>
       (['applied', 'dropped'] as const).flatMap(outcome =>
         (['at-R0', 'before-reentry'] as const).map(when => [target, outcome, when] as const),
       ),
@@ -468,7 +469,7 @@ describe('R0 and W0 coordination', () => {
       expect(original).not.toBeNull()
       expect(queries).toBe(2)
       expect(admits).toBe(1)
-      expect(connects).toBe(target === 'M1' && outcome === 'dropped' ? 2 : 1)
+      expect(connects).toBe(0)
       expect(reads).toBe(1)
       expect(acknowledgements).toBe(1)
       expect(processed).toBe(1)
@@ -561,7 +562,8 @@ describe('R0 and W0 coordination', () => {
       },
     })
     authority = ok(await c.accept())
-    expect(failure(await c.runExecution()).node).toBe('M1')
+    ok(await c.runExecution())
+    expect((await load(assembly)).state.kind).toBe('waiting')
     const before = await load(assembly)
     assembly.release.open()
     resuming = true
@@ -792,14 +794,10 @@ describe('checkpoint positions saved by the current assembly', () => {
       P0: 'P0',
       P1: 'P0',
       I2: 'P1',
-      M0: 'M0',
       M6: 'M6',
-      M1: 'M1',
-      M3: 'M3',
       M4: 'M4',
-      M5: 'M5',
-      I3: 'I3',
       Q4: 'Q4',
+      I3: 'I3',
       I4: 'I4',
       I8: 'evaluate',
       F1: 'F1',

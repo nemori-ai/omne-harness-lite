@@ -124,10 +124,17 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
     const { log, commits } = assembly.record
-    // The external input: accept, then open. The Model reply: the M5 commit, then accept.
+    // The external input: accept, then open. The Model reply: the M3 producer commit, then accept.
     expect(log.slice(0, 2)).toEqual(['accept external-input', 'open'])
     const reply = log.indexOf('accept model-reply')
-    expect(log[reply - 1]).toBe('commit M5')
+    // I3 reads the Journal-bound processed material before Q1. No new write or extension call
+    // intervenes between the producer commit and this reply admission.
+    expect(
+      log
+        .slice(0, reply)
+        .filter(item => item.startsWith('commit '))
+        .at(-1),
+    ).toBe('commit M3')
     expect(commits.map(commit => commit.operation.split('/')[0])).not.toContain('Q1')
   })
 
