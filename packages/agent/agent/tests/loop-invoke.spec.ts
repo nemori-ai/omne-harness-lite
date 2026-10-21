@@ -81,7 +81,7 @@ describe('C2 one input, one reply, ended', () => {
     await eventsOf(handle)
   })
 
-  it('the caller reads input-taken, producer and ended, numbered 1, 2, 3', async () => {
+  it('the caller reads input-taken, producer, message and ended, numbered 1 through 4', async () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     assembly.release.open()
@@ -89,11 +89,13 @@ describe('C2 one input, one reply, ended', () => {
     expect(events.map(event => [event.sequence, event.body.kind])).toEqual([
       ['1', 'input-taken'],
       ['2', 'producer'],
-      ['3', 'ended'],
+      ['3', 'message'],
+      ['4', 'ended'],
     ])
-    const [taken, producer, ended] = events.map(event => event.body)
+    const [taken, producer, message, ended] = events.map(event => event.body)
     expect(taken).toMatchObject({ kind: 'input-taken', batch: { ordered: ['input-exec-1'] } })
     expect(producer).toMatchObject({ kind: 'producer', result: { version: 'mrver_1' } })
+    expect(message).toMatchObject({ kind: 'message', message: { role: 'assistant' } })
     expect(ended).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
   })
 
@@ -136,7 +138,12 @@ describe('C2 one input, one reply, ended', () => {
     await eventsOf(ok(await invoke(assembly)))
     await statesUntil(assembly, state => state.kind === 'idle')
     const second = await eventsOf(ok(await invoke(assembly, 'exec-2')))
-    expect(second.map(event => event.body.kind)).toEqual(['input-taken', 'producer', 'ended'])
+    expect(second.map(event => event.body.kind)).toEqual([
+      'input-taken',
+      'producer',
+      'message',
+      'ended',
+    ])
   })
 })
 
@@ -188,6 +195,7 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     expect(withEvents).toEqual([
       ['I0', ['input-taken']],
       ['M3', ['producer']],
+      ['Q2', ['message']],
     ])
   })
 })

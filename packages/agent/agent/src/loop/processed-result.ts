@@ -20,6 +20,7 @@ import {
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   decodeOutputCursor,
+  decodeModelOperationId,
   decodeResultVersion,
   type ModelBlock,
   type ModelFault,
@@ -159,7 +160,9 @@ function termination(value: unknown): value is Termination {
     (value.kind === 'completed'
       ? typeof value.reason === 'string' &&
         ['stop', 'limit', 'tool-suggestions'].includes(value.reason)
-      : value.kind === 'failed' && fault(value.fault))
+      : value.kind === 'failed'
+        ? fault(value.fault)
+        : value.kind === 'interrupted' && 'ok' in decodeModelOperationId(value.control))
   )
 }
 function settlement(value: unknown): Settlement | null {

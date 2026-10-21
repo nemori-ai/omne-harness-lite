@@ -80,6 +80,17 @@ describe('next at the decision segments E4 and I8', () => {
     ).toEqual({ kind: 'take-inputs', position: 'I0' })
   })
 
+  it.each([
+    loopFacts('I8', { checkpoint: { ...loopFacts('I8').checkpoint, calls: [pendingCall] } }),
+    loopFacts('I8', { producers: [unresolvedProducer] }),
+    loopFacts('I8', { consumption: [responsibility('owed')] }),
+  ])('NA-I8-3: unfinished responsibility waits instead of proposing completion', facts => {
+    expect(ok(agentEvaluator.next(facts))).toMatchObject({
+      kind: 'wait',
+      waiting: [expect.any(Object)],
+    })
+  })
+
   it('an ended or superseded advancement stops, whatever the position', () => {
     const at = (kind: 'ended' | 'superseded') =>
       loopFacts('I8', { advancement: { kind, source: adoptionEvidence() } })
@@ -98,12 +109,6 @@ describe('next answers unsupported outside the normal path, never a guessed step
       loopFacts('I8', { advancement: { kind: 'stopping', source: adoptionEvidence() } }),
     ],
     ['a control', loopFacts('I8', { controls: [cancelControl] })],
-    [
-      'an open call at I8',
-      loopFacts('I8', { checkpoint: { ...loopFacts('I8').checkpoint, calls: [pendingCall] } }),
-    ],
-    ['a producer at I8', loopFacts('I8', { producers: [unresolvedProducer] })],
-    ['an owed result at I8', loopFacts('I8', { consumption: [responsibility('owed')] })],
     ['the continuation point I1', loopFacts('I1')],
     ['the passage position E3', loopFacts('E3')],
   ]
@@ -248,7 +253,7 @@ describe('C1 property: next is a pure function whose steps the table can take', 
       }
     }
     // The seeds reach every answer of this card.
-    expect([...seen].sort()).toEqual(['stop', 'take-inputs', 'try-finish', 'unsupported'])
+    expect([...seen].sort()).toEqual(['stop', 'take-inputs', 'try-finish', 'unsupported', 'wait'])
   })
 })
 

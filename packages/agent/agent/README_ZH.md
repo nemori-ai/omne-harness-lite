@@ -18,8 +18,9 @@ PACKAGE_TEMPLATE_DRAFT
 | runtime 已实现的路径    | `createAgentRuntime` 的创建校验：配置七项越界或绑定字段非法返回 `invalid`（`field` 写配置项路径），登记句柄的 instance 与绑定不一致返回 `denied`，十项必需依赖缺席返回 `unavailable`（`diagnostic` 指名缺席的依赖），`jointCommits` 有一种未被 Journal 声明返回 `unsupported`。失败时不创建 runtime，不调用任何依赖的方法。成功得到 idle 的 provider。访问守卫：四个面的每个公开操作先核对 Access 的租户：缺租户或租户不是 legal-identity 签发的 `TenantId` 时返回 `invalid`，跨租户返回 `denied`，都不调用 `access.check`。`observe` 例外：契约没有 `invalid` 的结束原因，缺租户或租户非法都以 `denied` 结束（见下文待拥有者一项），再调用一次 `access.check`，不缓存 allowed，`denied` 与 `unavailable` 不放行。`observe` 放行后给出当前状态，状态变化时给出新状态，signal 中止时以 `closed` 结束。`invoke` 与 `observe` 之外的操作放行后返回 `unavailable`，`diagnostic` 写「<操作> is not implemented until #502 stage N」：这是阶段性临时做法，不是契约结果 | 根入口                       | `tests/factory.spec.ts` 逐项核对四种创建失败与成功的 idle。`tests/provider-access.spec.ts` 对每个公开操作核对租户核对、`access.check` 三态与恰一次。`tests/assembly.spec.ts` 用测试装配得到 idle 的 provider，核对创建没有调用任何依赖。没有覆盖下面列出的未实现校验                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Loop 正常路径与受理     | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。未支持的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择、I0 输入批、I1 准备与一次等待保存已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 根入口                       | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对 E1/E2/I1/M1 的端口失败保存等待，其余受测节点的端口失败使运行停止。`tests/loop-intake-prepare.spec.ts` 核对 I0/I1 与准备失败，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
 | 主调用接缝              | I2/M0 在首次受理前固定原调用、最终请求与效果意图。M6 先查原 reference，M1 等待真实收场。M3 以 processed 路径处理并解除 Model 责任，随后条件提交 producer。最终失败且无有效回复经 M4/M5/I3 形成 no-reply；部分失败不执行工具建议。Agent stream 与缺元数据的推理结果仍未支持，见[主调用与结果消费](#主调用与结果消费)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `invoke`；窄接续仅为内部入口 | `tests/loop-main-call.spec.ts` 核对原调用身份、受理回执丢失、原 Authority、M1 等待、在途输入、processed/ACK 次序、费用关联与 Read 收尾。`tests/loop-recovery.spec.ts` 保留真实提交点的 committed/excluded 矩阵。只用脚本化 Model 与内存 Journal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 回复准入与 iter 收口 | I3 接纳事实、message 与接续同 revision。I4 保存空动作批。I8 选择 F1、新 step 或一次等待保存。 | `invoke`；测试直接 Journal.submit | `tests/loop-reply-close.spec.ts` 与 `tests/loop-recovery.spec.ts` 的原操作矩阵。仅脚本化 Model 与内存 Journal。 |
 | 测试装配（`./testing`） | `createMemoryAgentJournal`：单进程、非耐久的内存 `AgentJournal`，按[同形清单](docs/architecture/mechanisms.md#两种实现必须同形的事实)第 1 至 15 条实现全部 18 个成员，参加者集合由选项给定，可在指定操作上编排 `unavailable` 与三种 `commit-unknown`。各端口的可编排替身、`createManualAgentClock` 与手写的 `ToolRuntime` 替身。`createTestAgentDependencies` 返回 17 项依赖（`registration` 为 null）与各替身的控制手柄，`models` 是 `model-contract/testing` 的脚本化提供者                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `./testing`                  | `tests/memory-journal.spec.ts` 按同形清单逐条核对，用例名带条目号。`tests/fixtures.spec.ts` 为每个编排接口各有一条用例。只有一个进程，耐久性、崩溃与跨进程没有覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 尚未交付的宿主与提供者  | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。其余节点的精确提交点与失败分支（#502 1.7 至 1.9），以及真实等待与唤醒（1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2，以及 open 重试和经 E4 恢复之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 无                           | 没有证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 尚未交付的宿主与提供者  | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。其余节点的精确提交点与失败分支（#502 1.8 至 1.9），以及真实等待与唤醒（1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2，以及 open 重试和经 E4 恢复之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 无                           | 没有证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ### Loop 正常路径
 
@@ -41,7 +42,7 @@ Loop 随后自行推进：
 - I2 以契约的 `encodeModelInvocationRef` 编码主调用的 `ModelInvocationRef`，M0 在 M6 首次 admit 之前把它随 PendingCall、最终请求采用与效果意图一次保存。M6、M1、M3 经 `resolveModelInvocationRef` 从它读回调用身份。
 - 协调者向 Model 受理调用，观察到真实收场后读完结果，以 `recordResult` 走 processed 路径保管，再 `acknowledge`。
 - Q1 不提交（NA-Q1-1）。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次。被拒收的候选（Q5）尚未交付，当前以具名的 `unavailable` 停止。
-- 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。正常路径的事件为 input-taken、producer、ended，序号从 1 连续。
+- 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。正常路径的事件为 input-taken、producer、message、ended，序号从 1 连续。
 
 下图是正常路径。粗边框的节点各写一次提交。Q1、Q2、Q4 走两次：一次在 `open` 之前准入输入，一次准入回复。菱形是决定点 E4 与 I8。
 
@@ -86,8 +87,7 @@ runtime 继续占用执行槽。公开 observe 不呈现这一内部停止原因
 
 输入测试直接调用内存 Journal.submit，不表示公开 input.submit 已交付。
 主调用真实在途时，新输入不改已固定请求。M3 的条件提交因新输入返回 changed 时，协调者重读当前挂接与修订号，复用原结果再提交，不重新准备或受理。
-用例在原回复准入后的 I8 边界停止，完整 SC-AG-157 的迭代与终结交错仍由后续卡闭合。
-另一用例核对回复保管之前受理的新输入进入下一 step。两条边界分别验证。
+主调用接缝用例在 I8 停止，回复收口用例继续到 step-2，并核对原输入不再承接。终结竞争仍由后续卡闭合。
 
 #### 主调用与结果消费
 
@@ -115,7 +115,7 @@ producer 由之后的条件提交携带。ACK 或 producer 回执丢失后认回
 完整读取的结果页在账目读取或材料保存失败后仍保留。不完整读取先关闭原 Read，再用新的确定读取身份重领同一 call/version/consumption；这不增加逻辑调用或受理。
 closeRead 失败保留原 Read，重入先重试关闭，再决定是否重新读取。
 
-没有扩展时，M4/M5 直通且不提交。最终失败且无有效回复由 I3 生成 no-reply 候选，再交 F1 固定终态意图。
+没有扩展时，M4/M5 直通且不提交。首内容前最终失败且无有效回复由 I3 生成 no-reply 候选，再交 F1 固定终态意图。
 候选时刻来自 AgentClock.now。取时失败不写候选，同一已形成候选重试不再次取时。
 部分失败回 I8，完整的工具参数也不因失败收场而获准执行。
 
@@ -131,6 +131,27 @@ closeRead 失败保留原 Read，重入先重试关闭，再决定是否重新�
 该入口覆盖意图提交前后、受理回执丢失，以及 processed completion 已存而尚未完成 I3 的切点。ACK 后只从消费侧材料接续，不向 Model 索全文；它不证明公开 resume、挂接恢复或进程耐久。
 producer 已提交后，M4/M5 不再经过 M3，统一在 I3 接续。原 ACK 回执缓存丢失时，I3 以原 reference 查询真实 acknowledged 事实，核原结果版本、consumer、ACK 操作和 completion 回执，恢复原确认依据；不再次 ACK。
 既有 O0 以稳定的原 consumption 操作记录结果 release。写入未知时查询原操作，unknown 不当作 excluded 或成功；ACK 未确认或不可读时停止接续并保留责任。本卡只闭合已支持主调用切点，不代表后续 O0 整体交清已接受。
+
+#### 回复准入与 iter 收口
+
+I3 读取 Journal 绑定的 processed 结果。Q2 在同一 revision 提交 admitted 的 ModelReplyAdmission、message 事件与 Q4 接续。
+Q4 回 I3 后关闭主调用，再进入 I4。回执保持原操作与原候选关联。
+Journal 回执未知时认回原操作。excluded 后重评不增加第二次逻辑回复。
+I4 在进入 I8 前保存完整空 ActionBatch。工具动作仍属后续阶段。
+
+I8 在原挂接下重读快照、revision、输入边界、准入投影与当前条件。
+没有输入或未完等待时，I8 只提出 F1 完成候选，不自行写终态。
+已受理的新输入开启新 step，并分配新 action/call 身份。在途生产者或尚无保管与完成依据的结果保存一次 W0 等待，续点保留 I8。
+已有结果需要后续消费节点时保持 unsupported。真实唤醒与完整恢复尚未交付。
+I8 选择下一 step 或候选时清除已消费的空批。
+
+ordinary completed/limit 的合法全 sealed 内容可以准入为回复。原 trims 与 settlement 保存在 processed 材料中，不合成 trim 或提醒。
+部分内容与 interrupted 结果无回复准入、无可执行动作，回 I8 按事实分流，不直接决定完成。
+interrupted 保留原控制身份。控制请求协议与阶段记录仍由后续卡交付。
+
+测试通过在途 Journal.submit 证明同一 execution 的 step-2。
+终态释放后，新公开 invoke 在新 execution 开启首 step。公开 submit 尚未交付。
+这些用例不允许占槽时用新 invoke 绕过输入边界。
 
 #### 恢复路由
 
