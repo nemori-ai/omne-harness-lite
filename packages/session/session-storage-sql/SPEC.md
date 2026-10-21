@@ -493,7 +493,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 ### 自有义务的验证
 
-每条义务的验证方法、前提与未覆盖写在 [verification/obligations.md](verification/obligations.md)。下表只给对应关系。全部义务都是后继实现必须通过的可观察结果，不是已执行的测试。
+每条义务的验证方法、前提与未覆盖写在 [verification/obligations.md](docs/verification-obligations.md)。下表只给对应关系。全部义务都是后继实现必须通过的可观察结果，不是已执行的测试。
 
 | 义务 | 验证 |
 | --- | --- |

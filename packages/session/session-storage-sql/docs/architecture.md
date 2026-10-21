@@ -106,12 +106,12 @@ flowchart LR
 | 对象存储作为 blob 去向 | 只有同库 `sl_blob` | [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) |
 | 超过 `maxCommandBytes` 的内容 | 不能内联，也不能进同事务 blob。必须先由内容拥有者保管，再以耐久引用进入条目 | 存储的拥有者与各内容拥有者，见 [TB-04](../SPEC.md#tb-04) |
 | 登记键到能力身份的绑定 | 假定 SE08 的登记键按能力身份列出。不成立时 R10 不可用 | Tool 契约与事件目录 |
-| 数值目标 | 不声明任何数值。没有初值的策略配置由装配给出 | 本成员，按 [verification/obligations.md](../verification/obligations.md) 实测后写进 SPEC |
+| 数值目标 | 不声明任何数值。没有初值的策略配置由装配给出 | 本成员，按 [verification/obligations.md](verification-obligations.md) 实测后写进 SPEC |
 | 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | 存储线 SQL-T01 |
 
 ## 验证与维护
 
-SPEC 的[自有义务的验证](../SPEC.md#自有义务的验证)列出对应关系，方法、前提与未覆盖在 [verification/obligations.md](../verification/obligations.md)。现在没有实现，也没有执行过的行为测试。
+SPEC 的[自有义务的验证](../SPEC.md#自有义务的验证)列出对应关系，方法、前提与未覆盖在 [verification/obligations.md](verification-obligations.md)。现在没有实现，也没有执行过的行为测试。
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |

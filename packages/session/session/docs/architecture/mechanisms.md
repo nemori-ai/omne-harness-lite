@@ -212,7 +212,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 
 ## SW-M01 技术兑现义务
 
-本节原列三项待细化技术设计。三项的设计已经闭合：精确适配契约与参加者条款在[会话契约](../../../session-contract/SPEC.md#运行契约候选)，机制、协调器与崩溃矩阵在本成员的 [SPEC](../../SPEC.md)，故障场景在[故障场景](../../verification/fault-scenarios.md)。闭合指条款与机制已写定，不表示技术接受、实现或验证已经完成。下面每项只给闭合位置；尚需实测的部分列在[明确缺项](#尚需实测的明确缺项)。
+本节原列三项待细化技术设计。三项的设计已经闭合：精确适配契约与参加者条款在[会话契约](../../../session-contract/SPEC.md#运行契约候选)，机制、协调器与崩溃矩阵在本成员的 [SPEC](../../SPEC.md)，故障场景在[故障场景](../fault-scenarios.md)。闭合指条款与机制已写定，不表示技术接受、实现或验证已经完成。下面每项只给闭合位置；尚需实测的部分列在[明确缺项](#尚需实测的明确缺项)。
 
 ### SW-M01-A 输入绑定与 Agent 终结的共同提交
 
@@ -221,7 +221,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 精确适配契约与参加者协议 | [Session 与 Agent 的两条通道](../../../session-contract/SPEC.md#session-与-agent-的两条通道)、[与 Agent 的参加与核对](../../../session-contract/SPEC.md#与-agent-的参加与核对)（PA-01 至 PA-09）、[共同提交与共享事务域](../../../session-contract/SPEC.md#共同提交与共享事务域)（JC 表） |
 | 参与者版本 | [PA-04](../../../session-contract/SPEC.md#pa-04)、[P-2](../../../session-contract/SPEC.md#具名前提与明确缺项) |
 | 原操作查询 | [OP-00](../../../session-contract/SPEC.md#op-00)、[PA-05](../../../session-contract/SPEC.md#pa-05) |
-| 受理与终结两种顺序、接受后未唤醒崩溃、提交未知、取消竞争 | 契约 [VC-A01 至 VC-A09](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[CR-02 至 CR-07](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-A-01 至 FS-A-10](../../verification/fault-scenarios.md#组-a输入绑定与-agent-终结的共同提交) |
+| 受理与终结两种顺序、接受后未唤醒崩溃、提交未知、取消竞争 | 契约 [VC-A01 至 VC-A09](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[CR-02 至 CR-07](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-A-01 至 FS-A-10](../fault-scenarios.md#组-a输入绑定与-agent-终结的共同提交) |
 | 无法兑现的组合拒绝装配 | [P-1](../../../session-contract/SPEC.md#具名前提与明确缺项) |
 
 ### SW-M01-B 推进映射与重装配交接
@@ -231,7 +231,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 候选准备、原推进撤除、新推进授予、映射提交、故障恢复的操作边界 | [推进映射、claim 与 reload](../../../session-contract/SPEC.md#推进映射claim-与-reload)（PM-01 至 PM-14） |
 | 各阶段的原操作查询与责任接管 | [PM-07](../../../session-contract/SPEC.md#pm-07) |
 | 取消优先 | [PM-08](../../../session-contract/SPEC.md#pm-08) |
-| 候选失败、撤旧后授新回执丢失、旧实例晚到、重复重装请求、无活体取消 | 契约 [VC-B01 至 VC-B15](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[C5](../../SPEC.md#c5)、[CR-10 至 CR-13](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-B-01 至 FS-B-09](../../verification/fault-scenarios.md#组-b推进映射与重装配交接) |
+| 候选失败、撤旧后授新回执丢失、旧实例晚到、重复重装请求、无活体取消 | 契约 [VC-B01 至 VC-B15](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[C5](../../SPEC.md#c5)、[CR-10 至 CR-13](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-B-01 至 FS-B-09](../fault-scenarios.md#组-b推进映射与重装配交接) |
 | 实际发出的围栏 | Tool 经[ToolStartFencePort](../../../session-contract/SPEC.md#toolstartfenceport)；Model 以 [P-4](../../../session-contract/SPEC.md#具名前提与明确缺项) 为前提 |
 | 何时重装 | 系统页[何时重装](../../../../../docs/architecture/runtime/assembly-and-change.md#何时重装) |
 
@@ -243,7 +243,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 消费游标与确认 | [EC-01](../../../session-contract/SPEC.md#ec-01)、[EC-02](../../../session-contract/SPEC.md#ec-02)；机制 [RD](../../SPEC.md#rd-01) |
 | 原操作认回 | [OP-00](../../../session-contract/SPEC.md#op-00)、[EC-04](../../../session-contract/SPEC.md#ec-04) 至 [EC-06](../../../session-contract/SPEC.md#ec-06) |
 | 保留政策与读路径 | [存储成员](../../../session-storage-sql/SPEC.md) |
-| 日志提交后确认丢失、生产者已确认后恢复、归档后迟到结果、长历史读取 | 契约 [VC-C01 至 VC-C10](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [CR-06 至 CR-09](../../SPEC.md#cr-崩溃矩阵)、[CA](../../SPEC.md#ca-1)；场景 [FS-C-01 至 FS-C-10](../../verification/fault-scenarios.md#组-c日志消费责任与恢复投影) |
+| 日志提交后确认丢失、生产者已确认后恢复、归档后迟到结果、长历史读取 | 契约 [VC-C01 至 VC-C10](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [CR-06 至 CR-09](../../SPEC.md#cr-崩溃矩阵)、[CA](../../SPEC.md#ca-1)；场景 [FS-C-01 至 FS-C-10](../fault-scenarios.md#组-c日志消费责任与恢复投影) |
 | 逐片展示耐久 | 流式拥有者，见[三条流不逐块进会话日志](../../../../../docs/architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志) |
 
 ### 尚需实测的明确缺项

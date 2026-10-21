@@ -341,7 +341,7 @@
 
 ## 验证
 
-当前入口测试只检查根入口为空。下列义务是后继实现必须通过的可观察结果，不是本次已执行的测试。契约的 [VC 表](../session-contract/SPEC.md#候选的持续验证义务)继续适用；本节只列机制自有的义务与崩溃矩阵。故障场景的前置、注入与期望观察在 [verification/fault-scenarios.md](verification/fault-scenarios.md)。
+当前入口测试只检查根入口为空。下列义务是后继实现必须通过的可观察结果，不是本次已执行的测试。契约的 [VC 表](../session-contract/SPEC.md#候选的持续验证义务)继续适用；本节只列机制自有的义务与崩溃矩阵。故障场景的前置、注入与期望观察在 [verification/fault-scenarios.md](docs/fault-scenarios.md)。
 
 ### VM 机制的持续验证义务
 

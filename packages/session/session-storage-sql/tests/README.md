@@ -20,4 +20,4 @@
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-storage-sql`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：[验证义务](../verification/obligations.md)里的各组都还没有测试，包括派生等于重算、读路径复杂度与退化、写路径与并发写裁定、失败分类。[Cordis 集成的验证义务](../docs/cordis.md#验证义务)列出的八项也还没有测试。复杂度场景需要测量，不只是断言。具名维护者由负责人指定。
+当前缺口：[验证义务](../docs/verification-obligations.md)里的各组都还没有测试，包括派生等于重算、读路径复杂度与退化、写路径与并发写裁定、失败分类。[Cordis 集成的验证义务](../docs/cordis.md#验证义务)列出的八项也还没有测试。复杂度场景需要测量，不只是断言。具名维护者由负责人指定。

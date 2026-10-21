@@ -1,5 +1,6 @@
 # @omne-harness/session
 
+PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 会话组的机制实现成员，`module` 变体。
@@ -82,7 +83,7 @@
 pnpm turbo run test --filter=@omne-harness/session
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有导出，不证明任何行为。SPEC 的[验证义务](SPEC.md#vm-机制的持续验证义务)与[故障场景](verification/fault-scenarios.md)是后继实现必须通过的结果，不是已运行的测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有导出，不证明任何行为。SPEC 的[验证义务](SPEC.md#vm-机制的持续验证义务)与[故障场景](docs/fault-scenarios.md)是后继实现必须通过的结果，不是已运行的测试。结构检查通过不表示行为已验证。
 
 ## 维护
 

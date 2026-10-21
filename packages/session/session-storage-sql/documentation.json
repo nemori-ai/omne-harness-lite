@@ -487,7 +487,7 @@
     },
     {
       "id": "verification-obligations",
-      "path": "packages/session/session-storage-sql/verification/obligations.md",
+      "path": "packages/session/session-storage-sql/docs/verification-obligations.md",
       "kind": "guide",
       "required": true,
       "visibility": "internal",

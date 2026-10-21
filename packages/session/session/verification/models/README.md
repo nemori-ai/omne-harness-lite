@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-目前没有模型。候选模型是 Run 两层状态机（[RS-01 至 RS-10](../../../session-contract/SPEC.md#run-两层状态机与不变量)）与 `claim` 到 `resume` 之间的窗口（[PM-05](../../../session-contract/SPEC.md#pm-05)），尚未立项，没有负责人。故障场景先在 [fault-scenarios.md](../fault-scenarios.md) 以可观察结果表达。
+目前没有模型。候选模型是 Run 两层状态机（[RS-01 至 RS-10](../../../session-contract/SPEC.md#run-两层状态机与不变量)）与 `claim` 到 `resume` 之间的窗口（[PM-05](../../../session-contract/SPEC.md#pm-05)），尚未立项，没有负责人。故障场景先在 [fault-scenarios.md](../../docs/fault-scenarios.md) 以可观察结果表达。

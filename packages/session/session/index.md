@@ -30,5 +30,5 @@
 | 不装配 Cordis 的独立宿主 | [docs/context.md](docs/context.md#独立装配) | [docs/public-api.md](docs/public-api.md)、[会话契约 SPEC](../session-contract/SPEC.md) |
 | session-cordis 的实现者 | [docs/public-api.md](docs/public-api.md) | [docs/context.md](docs/context.md#框架装配)、[session-cordis 的 Cordis 说明](../session-cordis/docs/cordis.md) |
 | 调整调度策略数值的一方 | SPEC 的 [SchedulingPolicy](SPEC.md#schedulingpolicy) | [docs/public-api.md](docs/public-api.md#配置) |
-| 验证设计者 | SPEC 的[验证](SPEC.md#验证) | [verification/fault-scenarios.md](verification/fault-scenarios.md)、[tests/](tests/README.md) |
+| 验证设计者 | SPEC 的[验证](SPEC.md#验证) | [verification/fault-scenarios.md](docs/fault-scenarios.md)、[tests/](tests/README.md) |
 | 本成员的维护者 | [docs/architecture/README.md](docs/architecture/README.md) | [docs/architecture/mechanisms.md](docs/architecture/mechanisms.md)、[docs/object-model.md](docs/object-model.md) |

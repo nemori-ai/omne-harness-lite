@@ -133,4 +133,4 @@ flowchart LR
 7. 撤除后新操作返回 `unavailable`，在途语句跑完，已提交条目经新实例仍可读，提供者连接未被关闭。
 8. 根入口不导入 `@deepseek-ai/cordis`，也不导入 `./cordis`。
 
-不覆盖：事务端口的写读行为本身，它归 SPEC 的 W 与 R 义务（[verification/obligations.md](../verification/obligations.md)）；多实例恢复扫描者的租约；真实 session-cordis 与执行记录提供者的端到端组合。
+不覆盖：事务端口的写读行为本身，它归 SPEC 的 W 与 R 义务（[verification/obligations.md](verification-obligations.md)）；多实例恢复扫描者的租约；真实 session-cordis 与执行记录提供者的端到端组合。

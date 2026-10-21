@@ -919,7 +919,7 @@
     },
     {
       "id": "verification-fault-scenarios",
-      "path": "packages/session/session/verification/fault-scenarios.md",
+      "path": "packages/session/session/docs/fault-scenarios.md",
       "kind": "guide",
       "required": true,
       "visibility": "internal",

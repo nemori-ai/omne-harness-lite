@@ -5,6 +5,6 @@
 ## 内容
 
 - [README.md](README.md)：验证资源的范围与运行方式
-- [fault-scenarios.md](fault-scenarios.md)：故障场景，组 A、B、C、F
+- [fault-scenarios.md](../docs/fault-scenarios.md)：故障场景，组 A、B、C、F
 - [models/](models/index.md)：形式模型（目前为空）
 - [proofs/](proofs/index.md)：论证与证明（目前为空）

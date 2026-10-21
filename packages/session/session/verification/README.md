@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-[fault-scenarios.md](fault-scenarios.md) 的故障场景，`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
+[fault-scenarios.md](../docs/fault-scenarios.md) 的故障场景，`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
 
 ## 边界
 
@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-- 故障场景在 [fault-scenarios.md](fault-scenarios.md)：组 A 输入绑定与 Agent 终结的共同提交，组 B 推进映射与重装配交接，组 C 日志、消费责任与恢复投影，组 F 会话冻结。崩溃矩阵在 [SPEC](../SPEC.md#cr-崩溃矩阵)。
+- 故障场景在 [fault-scenarios.md](../docs/fault-scenarios.md)：组 A 输入绑定与 Agent 终结的共同提交，组 B 推进映射与重装配交接，组 C 日志、消费责任与恢复投影，组 F 会话冻结。崩溃矩阵在 [SPEC](../SPEC.md#cr-崩溃矩阵)。
 - 机制自有的验证义务在 [SPEC 的 VM 表](../SPEC.md#vm-机制的持续验证义务)；契约的验证义务在[会话契约的 VC 表](../../session-contract/SPEC.md#候选的持续验证义务)。
 - `models/` 与 `proofs/` 目前没有内容。候选的形式模型是 Run 两层状态机与 `claim` 到 `resume` 之间的窗口，尚未立项。
 - 没有可运行的验证资源。根入口为空，当前测试只检查入口为空。

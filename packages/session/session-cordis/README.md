@@ -1,5 +1,6 @@
 # @omne-harness/session-cordis
 
+PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The Service implementation member of Session. Variant: `service-provider`.

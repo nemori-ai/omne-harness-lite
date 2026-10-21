@@ -31,5 +31,5 @@
 | 实现事务端口与读路径的开发者 | [SPEC.md](SPEC.md) | [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md) |
 | 改表、索引或迁移的开发者 | [docs/object-model.md](docs/object-model.md) | SPEC 的[派生行表](SPEC.md#w3)与[符合性](SPEC.md#符合性) |
 | 存储线的拥有者，核对本成员对存储契约的期望 | SPEC 的 [XP 表](SPEC.md#xp-table) | [docs/architecture.md](docs/architecture.md#当前设计限制) |
-| 验证者 | [verification/obligations.md](verification/obligations.md) | SPEC 的[自有义务的验证](SPEC.md#自有义务的验证)、[tests/](tests/README.md) |
+| 验证者 | [verification/obligations.md](docs/verification-obligations.md) | SPEC 的[自有义务的验证](SPEC.md#自有义务的验证)、[tests/](tests/README.md) |
 | 本包的维护者 | [docs/architecture.md](docs/architecture.md#验证与维护) | SPEC 的[组合与验证](SPEC.md#组合与验证) |

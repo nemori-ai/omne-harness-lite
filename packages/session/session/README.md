@@ -1,5 +1,6 @@
 # @omne-harness/session
 
+PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The mechanism member of the Session group. Variant: `module`.
@@ -82,7 +83,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The current test only checks that the root entry has no exports. It does not show any behavior. The duties in the [SPEC](SPEC.md#vm-机制的持续验证义务) and the [fault scenarios](verification/fault-scenarios.md) are results that the implementation must pass later. They are not test runs. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The current test only checks that the root entry has no exports. It does not show any behavior. The duties in the [SPEC](SPEC.md#vm-机制的持续验证义务) and the [fault scenarios](docs/fault-scenarios.md) are results that the implementation must pass later. They are not test runs. A passing structure check does not prove behavior.
 
 ## Maintenance
 

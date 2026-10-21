@@ -1,5 +1,6 @@
 # @omne-harness/session-cordis
 
+PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Session 的 Service 实现成员，`service-provider` 变体。

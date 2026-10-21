@@ -20,4 +20,4 @@
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：SPEC 的[验证义务](../SPEC.md#vm-机制的持续验证义务)、[崩溃矩阵](../SPEC.md#cr-崩溃矩阵)与[故障场景](../verification/fault-scenarios.md)都还没有测试，随实现进入。具名维护者由负责人指定。
+当前缺口：SPEC 的[验证义务](../SPEC.md#vm-机制的持续验证义务)、[崩溃矩阵](../SPEC.md#cr-崩溃矩阵)与[故障场景](../docs/fault-scenarios.md)都还没有测试，随实现进入。具名维护者由负责人指定。

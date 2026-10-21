@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-目前没有模型。候选模型是两个进程基于同一 `tail` 的并发提交裁定（[W6](../../SPEC.md#w6)）与 R9 追赶期间治理读的可用性（[R9](../../SPEC.md#r9)），尚未立项，没有负责人。对应的可观察结果先在 [obligations.md](../obligations.md) 的 VS-W02 与 VS-R06 表达。
+目前没有模型。候选模型是两个进程基于同一 `tail` 的并发提交裁定（[W6](../../SPEC.md#w6)）与 R9 追赶期间治理读的可用性（[R9](../../SPEC.md#r9)），尚未立项，没有负责人。对应的可观察结果先在 [obligations.md](../../docs/verification-obligations.md) 的 VS-W02 与 VS-R06 表达。

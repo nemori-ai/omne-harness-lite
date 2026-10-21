@@ -67,7 +67,7 @@ Session 的存储成员，`cordis-module` 变体。
 pnpm turbo run test --filter=@omne-harness/session-storage-sql
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口导出为空，见 [tests/](tests/README.md)。SPEC 的义务按[验证义务](verification/obligations.md)随实现进入：派生等于重算的影子表集合差、分页与游标的属性测试、每个共同提交行一个写路径用例、读路径复杂度基准（N 从 10³ 到 10⁶）、失败分类表的注入用例。全部义务以真实的 SQLite 或 PostgreSQL 提供者为前提，等存储线给出入口。数值目标在实测之前不声明。断电耐久归存储线的 SQL-T01，本成员不宣称。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口导出为空，见 [tests/](tests/README.md)。SPEC 的义务按[验证义务](docs/verification-obligations.md)随实现进入：派生等于重算的影子表集合差、分页与游标的属性测试、每个共同提交行一个写路径用例、读路径复杂度基准（N 从 10³ 到 10⁶）、失败分类表的注入用例。全部义务以真实的 SQLite 或 PostgreSQL 提供者为前提，等存储线给出入口。数值目标在实测之前不声明。断电耐久归存储线的 SQL-T01，本成员不宣称。结构检查通过不表示行为已验证。
 
 ## 维护
 
