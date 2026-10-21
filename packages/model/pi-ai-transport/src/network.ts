@@ -10,7 +10,7 @@ import { isTimerDuration, MAX_TIMER_MS } from './limits.ts'
 
 /** Every limit comes from the caller; the package holds no default policy. */
 export type NetworkConfig = Readonly<{
-  /** The connection capacity, and the socket limit of the pool for each recipient. */
+  /** The connection capacity: how many exchanges may be in flight at once. The pool has no socket limit. */
   maxConnections: number
   /** A pooled idle socket is closed after this long without traffic. At most `MAX_TIMER_MS`. */
   idleConnectionTimeoutMs: number
@@ -39,11 +39,13 @@ export function createNetworkResources(config: NetworkConfig): NetworkResources 
           maxPending: config.diagnostics.maxPending,
         })
   const capacity = createConnectionCapacity(config.maxConnections)
-  // The capacity bounds the active exchanges. `maxSockets` only mirrors it for each recipient; a
-  // total limit would count idle sockets of other recipients and queue a request that holds a slot.
+  // The capacity alone bounds the exchanges in flight; the pool only reuses sockets and closes
+  // idle ones. A socket limit equal to the capacity would queue a request that holds a slot: Node
+  // takes a socket it does not keep out of the pool's count only when the socket's close arrives,
+  // a turn of the loop after the request's close, where the slot returns and the next waiter starts.
   const agent = new Agent({
     keepAlive: true,
-    maxSockets: config.maxConnections,
+    maxSockets: Number.POSITIVE_INFINITY,
     timeout: config.idleConnectionTimeoutMs,
   })
   const inFlight = new Set<InFlightExchange>()

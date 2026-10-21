@@ -17,6 +17,7 @@ import {
 import type { NetworkResources } from '../src/network.ts'
 import { readSseEvents } from '../src/sse.ts'
 import {
+  activeTimers,
   claimed,
   clientSockets,
   decoder,
@@ -599,6 +600,33 @@ describe('connecting', () => {
         'connect-failed',
         'exchange-stopped',
       ])
+    } finally {
+      await resources.close()
+      await hole.close()
+    }
+  })
+
+  it('a stop before the TLS handshake clears the connect timer together with the exchange', async () => {
+    const hole = await startBlackHole()
+    const resources = network(certificate.cert)
+    try {
+      const reservation = await held(resources)
+      const timersBefore = activeTimers()
+      const exchange = started(
+        startExchange(
+          resources,
+          input(hole.url, reservation, { connectTimeoutMs: 60_000 }),
+          new AbortController().signal,
+        ),
+      )
+      await settle() // The pool hands the socket over on a later tick; the timer starts then.
+      expect(activeTimers()).toBe(timersBefore + 1)
+
+      exchange.stop()
+      expect(await exchange.result).toEqual({ kind: 'stopped', responded: false })
+      await exchange.stopped
+      expect(activeTimers()).toBe(timersBefore)
+      expect(reservation.state).toBe('released')
     } finally {
       await resources.close()
       await hole.close()

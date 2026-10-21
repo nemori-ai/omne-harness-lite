@@ -120,6 +120,11 @@ export function queuedRequests(resources: Pick<NetworkResources, 'agent'>): numb
   return Object.values(resources.agent.requests).flatMap(queue => queue ?? []).length
 }
 
+/** The timers that keep the process alive right now, through `process.getActiveResourcesInfo()`. */
+export function activeTimers(): number {
+  return process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
+}
+
 /** After `stopped`: the abort listener left the signal and the exchange left the registry. */
 export function expectCleanedUp(resources: NetworkResources, signal: AbortSignal): void {
   expect(getEventListeners(signal, 'abort')).toHaveLength(0)

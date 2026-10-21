@@ -15,11 +15,11 @@ export function closeSourceOnEarlyEnd<T>(
       return generator.next(...args)
     },
     async return(value) {
-      if (!started) await closeSource()
+      if (!started) await closeSourceFirst()
       return generator.return(value)
     },
     async throw(error) {
-      if (!started) await closeSource()
+      if (!started) await closeSourceFirst()
       return generator.throw(error)
     },
     [Symbol.asyncIterator]() {
@@ -30,6 +30,18 @@ export function closeSourceOnEarlyEnd<T>(
     },
   }
   return wrapped
+
+  /**
+   * The generator completes even when the close fails, so a later `next()` is done. The failure
+   * still reaches the reader, as a failing cleanup of a started generator would.
+   */
+  async function closeSourceFirst(): Promise<void> {
+    try {
+      await closeSource()
+    } finally {
+      await generator.return()
+    }
+  }
 }
 
 /** Ends one iterator of `source`: the way a `for await` loop closes it when the loop exits early. */

@@ -111,8 +111,10 @@ export class ResponseBodyReadError extends Error {
 
 /**
  * A defect: the pool queued the request although the caller held a slot, so it was not on its
- * way when `startExchange` would have returned. The request is destroyed and the slot is back
- * in the capacity before this is thrown. Nothing was sent.
+ * way when `startExchange` would have returned. The pool built by the network resources has no
+ * socket limit and never queues; only a pool bypassed by other configuration does. The request
+ * is destroyed, taken out of the pool's queue and the slot is back in the capacity before this
+ * is thrown. Nothing was sent, and no connection is built for the request later.
  */
 export class ExchangeQueuedError extends Error {
   constructor() {
@@ -125,7 +127,8 @@ export class ExchangeQueuedError extends Error {
  * Sends one POST at once: after the return the request is on its way, with no await and no
  * queue in between. The caller must hold a reservation of the resources' capacity; a refusal
  * returns it. One call is one physical send: nothing is retried and no redirect is followed.
- * Any synchronous throw returns the held reservation first.
+ * Any synchronous throw returns the held reservation first, and is the error reported even when
+ * that return fails on a defective input.
  */
 export function startExchange(
   resources: ExchangeResources,
@@ -156,11 +159,19 @@ function begin(
   return { kind: 'started', exchange: runExchange(resources, input, signal, consumed.ok) }
 }
 
-/** Returns the reservation if it is ours and still held. A foreign or consumed one is not touched. */
+/**
+ * Returns the reservation if it is ours and still held. A foreign or consumed one is not touched.
+ * Total over any shape of `resources` and `input`: when the reservation cannot be read or the
+ * resources have no capacity, nothing is returned and the error that led here stays the one
+ * reported.
+ */
 function returnIfHeld(resources: ExchangeResources, input: ExchangeInput): void {
-  if (!isObject(input)) return
-  const { reservation } = input
-  if (resources.capacity.owns(reservation)) reservation.release()
+  try {
+    const { reservation } = input
+    if (resources.capacity.owns(reservation)) reservation.release()
+  } catch {
+    // A defective input or resources; the caller reports the error it already has.
+  }
 }
 
 const HEADER_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
@@ -258,7 +269,7 @@ function runExchange(
     })
     req.on('error', noop) // Every error ends in 'close', which decides the outcome.
     req.end(input.body)
-    if (isQueued(resources.agent, req)) {
+    if (dequeue(resources.agent, req)) {
       req.destroy()
       throw new ExchangeQueuedError()
     }
@@ -423,9 +434,22 @@ function runExchange(
   }
 }
 
-/** `agent.requests` holds the requests the pool has not given a socket yet. */
-function isQueued(agent: Agent, req: ClientRequest): boolean {
-  return Object.values(agent.requests).some(queue => queue?.includes(req) === true)
+/**
+ * `agent.requests`, Node's documented queue of the requests the pool has not given a socket yet.
+ * A request found there is taken out, and an emptied queue leaves the object as Node leaves it,
+ * so the pool never builds a connection for the request later: `destroy()` on the request does
+ * not remove it, and a socket that closes, even after `agent.destroy()`, serves the queue.
+ */
+function dequeue(agent: Agent, req: ClientRequest): boolean {
+  for (const [name, queue] of Object.entries(agent.requests)) {
+    if (queue === undefined) continue
+    const index = queue.indexOf(req)
+    if (index === -1) continue
+    queue.splice(index, 1)
+    if (queue.length === 0) Reflect.deleteProperty(agent.requests, name)
+    return true
+  }
+  return false
 }
 
 function createBody(res: IncomingMessage, stoppedLocally: () => boolean): ResponseBody {

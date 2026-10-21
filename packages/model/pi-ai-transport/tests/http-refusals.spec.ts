@@ -206,6 +206,38 @@ describe('refusing an exchange before anything is sent', () => {
   })
 })
 
+describe('a synchronous throw inside startExchange', () => {
+  it('reports the first error although reading the reservation throws again while the slot is returned', async () => {
+    const network = fresh()
+    const reservation = await held(network)
+    let reads = 0
+    const defective: ExchangeInput = {
+      ...input(reservation),
+      get reservation(): ConnectionReservation {
+        reads += 1
+        throw new Error(`read ${reads}`)
+      },
+    }
+
+    expect(() => startExchange(network, defective, new AbortController().signal)).toThrow('read 1')
+    expectNoNetworkUse(network)
+    expect(reservation.state).toBe('held') // Never reached: the input hid it behind the throw.
+    reservation.release()
+  })
+
+  it('reports the first error although the resources are not an object', async () => {
+    const network = fresh()
+    const reservation = await held(network)
+
+    // @ts-expect-error The runtime boundary must hold for a caller without the types.
+    expect(() => startExchange(null, input(reservation), new AbortController().signal)).toThrow(
+      /reading 'closed'/,
+    )
+    expect(reservation.state).toBe('held')
+    reservation.release()
+  })
+})
+
 describe('configuring the network resources', () => {
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
     'rejects maxConnections %s synchronously with a RangeError',

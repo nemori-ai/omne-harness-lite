@@ -1,10 +1,8 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits
 // for real idle timeouts and physical socket closure.
-import { Agent } from 'node:https'
+import type { ServerResponse } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createConnectionCapacity, type ConnectionCapacity } from '../src/capacity.ts'
-import { createDiagnosticSink } from '../src/diagnostics.ts'
-import { ExchangeQueuedError, startExchange, type ExchangeResources } from '../src/http.ts'
+import { ExchangeQueuedError, startExchange } from '../src/http.ts'
 import {
   claimed,
   held,
@@ -207,20 +205,14 @@ describe('the socket pool', () => {
     }
   })
 
-  it('a pool that queues a request although a slot is held is a defect: nothing is sent and the slot returns', async () => {
-    const server = await startHttpsServer(certificate, res => res.end('one'))
-    // A deliberate mismatch the network resources never build: two slots, one socket per recipient.
-    const capacity = createConnectionCapacity(2)
-    const resources: ExchangeResources & Readonly<{ capacity: ConnectionCapacity }> = {
-      agent: new Agent({ keepAlive: true, maxSockets: 1, timeout: 60_000 }),
-      tls: { ca: server.ca },
-      diagnostics: createDiagnosticSink(() => undefined, { maxPending: 1 }),
-      inFlight: new Set(),
-      closed: false,
-      capacity,
-    }
+  it('a pool that queues a request although a slot is held is a defect: the request leaves the queue, nothing is sent for it, not even after close()', async () => {
+    const server = await startHttpsServer(certificate, () => {}) // Keeps the first request pending.
+    const resources = network(server.ca, { maxConnections: 2 })
+    // A deliberate bypass of the configuration, which the network resources never build: the pool
+    // now has one socket for the recipient and queues the second request although a slot is held.
+    resources.agent.maxSockets = 1
     try {
-      const first = started(
+      started(
         startExchange(
           resources,
           input(server.url, await held(resources)),
@@ -231,16 +223,103 @@ describe('the socket pool', () => {
       expect(() =>
         startExchange(resources, input(server.url, second), new AbortController().signal),
       ).toThrow(ExchangeQueuedError)
+      // In the same tick: the slot is back, the request is out of the queue, nothing waits.
       expect(second.state).toBe('released')
+      expect(resources.agent.requests).toEqual({})
       expect(resources.inFlight.size).toBe(1)
+      await server.nextRequest()
+      expect(server.openedSockets()).toBe(1)
 
-      expect(await readToEnd(claimed(await first.result))).toBe('one')
-      await first.stopped
-      await expect.poll(() => queuedRequests(resources)).toBe(0)
-      await sleep(50)
+      // The close of the first socket would hand a connection to a request still in the queue.
+      await resources.close()
+      await expect.poll(() => server.closedSockets()).toBe(1)
+      await sleep(100)
+      expect(server.openedSockets()).toBe(1)
       expect(server.requests).toHaveLength(1)
     } finally {
-      resources.agent.destroy()
+      await resources.close()
+      await server.close()
+    }
+  })
+})
+
+describe('the capacity as the only limit of the exchanges in flight', () => {
+  // `Keep-Alive: timeout=1` is below the reuse margin of Node's agent: the pool destroys the
+  // socket at the request's close and takes it out of its count only when the socket's close
+  // arrives, on a later turn of the loop. The slot is back at the request's close already.
+  function answerWithoutKeepingTheSocket(res: ServerResponse, body: string): void {
+    res.setHeader('keep-alive', 'timeout=1')
+    res.end(body)
+  }
+
+  it('the next exchange to the same recipient starts right after stopped, although the pool did not keep the socket', async () => {
+    const server = await startHttpsServer(certificate, res =>
+      answerWithoutKeepingTheSocket(res, 'again'),
+    )
+    const resources = network(server.ca, { maxConnections: 1 })
+    try {
+      for (let turn = 0; turn < 3; turn += 1) {
+        const exchange = started(
+          startExchange(
+            resources,
+            input(server.url, await held(resources)),
+            new AbortController().signal,
+          ),
+        )
+        expect(await readToEnd(claimed(await exchange.result))).toBe('again')
+        await exchange.stopped
+      }
+      expect(server.requests).toHaveLength(3)
+    } finally {
+      await resources.close()
+      await server.close()
+    }
+  })
+
+  it('twelve callers through a capacity of three to one recipient all complete, never more than three at once', async () => {
+    let pending = 0
+    let mostPending = 0
+    const answers: (() => void)[] = []
+    let answering: NodeJS.Timeout | undefined
+    // The server answers once the whole capacity is in use, after a pause in which one request
+    // too many would still arrive and be counted; much later if fewer ever arrive together.
+    const server = await startHttpsServer(certificate, res => {
+      pending += 1
+      mostPending = Math.max(mostPending, pending)
+      answers.push(() => {
+        pending -= 1
+        answerWithoutKeepingTheSocket(res, 'ok')
+      })
+      clearTimeout(answering)
+      answering = setTimeout(
+        () => {
+          for (const answer of answers.splice(0)) answer()
+        },
+        answers.length === 3 ? 50 : 500,
+      )
+    })
+    const resources = network(server.ca, { maxConnections: 3 })
+    try {
+      const outcomes = await Promise.all(
+        Array.from({ length: 12 }, async () => {
+          const exchange = started(
+            startExchange(
+              resources,
+              input(server.url, await held(resources)),
+              new AbortController().signal,
+            ),
+          )
+          const result = await exchange.result
+          if (result.kind === 'ok') await readToEnd(claimed(result))
+          await exchange.stopped
+          return result.kind
+        }),
+      )
+      expect(outcomes).toEqual(Array.from({ length: 12 }, () => 'ok'))
+      expect(mostPending).toBe(3)
+      expect(server.requests).toHaveLength(12)
+    } finally {
+      await resources.close()
       await server.close()
     }
   })
