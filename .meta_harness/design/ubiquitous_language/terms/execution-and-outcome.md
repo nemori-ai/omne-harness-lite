@@ -210,13 +210,13 @@
 ### UL-first-token · 首 token · First Token
 
 > **中**：**一次模型调用的回复交出的第一样内容，不论[模态](record-and-context.md#ul-modality--模态--modality)。**
-> 能一点点长的块（文本 · 思考 · 工具调用的参数 · 语音），**第一片到了**算；开口之后整个交出来的块（图 · 文件），**整块交出来了**才算。
+> 能一点点长的块（文本 · 思考 · 工具调用的参数 · 语音），**第一片到了**算；开口之后整个交出来的块（图 · 文件 · 推理续接状态），**整块交出来了**才算。
 > 响应头到了、整交的块只开了口，**都不算**——判据是「交出了内容」，不是「流有了动静」。
 > **它是一次调用「已经开口说话了」的那条分界**：在它之前停了，可以照常再发；在它之后，一律不重发、不回在途。
 >
 > **EN**: **The first piece of content a model call's reply hands over, whatever its modality.** For a
 > block that grows piece by piece (text, thinking, tool-call arguments, voice) it is **the first
-> fragment's arrival**; for a block that opens and is then handed over whole (image, file) it is **the
+> fragment's arrival**; for a block that opens and is then handed over whole (image, file, reasoning state) it is **the
 > moment the whole block is handed over**. Response headers arriving, or a whole-delivery block merely
 > opening, **do not count** — the test is content handed over, not the stream stirring. **It is the line
 > past which a call "has started speaking"**: stopped before it, the call may simply be sent again;
@@ -514,7 +514,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 2）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 4）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 2）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 4）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 2）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
