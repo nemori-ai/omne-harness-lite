@@ -7,16 +7,20 @@ import { createManualModelClock } from './clock.ts'
 import { createMemoryInstanceHost } from './host.ts'
 import { memoryAssembly } from './memory.ts'
 import { createMemoryRetryPolicy } from './retry.ts'
-import { createMemorySend, type TestSendPlan } from './send.ts'
-import type { MemoryModelCommandsOptions } from './types.ts'
+import { scriptedSendResources, type TestSendPlan } from './send.ts'
+import { createModelSendBoundary, type ModelSendBoundaryOptions } from '../send.ts'
+import type { CredentialPort } from '@omne-harness/model-contract'
+import type { MemoryModelCommandsOptions, MemorySendSource } from './types.ts'
 
 export { createMemoryModelCommands } from './memory.ts'
 export type {
+  MemorySendSource,
   MemoryAction,
   MemoryResource,
   MemoryModelAuthority,
   MemoryModelEvidence,
   MemoryModelLimits,
+  ResultPaging,
   MemoryModelCommandsOptions,
   MemoryModelControl,
   MemoryWriteMethod,
@@ -30,21 +34,42 @@ export type TestModelDependenciesOptions<P> = Omit<MemoryModelCommandsOptions<P>
     maxWaiters: number
     maxQueued: number
     sends: readonly TestModelSendPlan[]
+    sending?: Readonly<{
+      credentials: CredentialPort
+      sources: readonly MemorySendSource<P>[]
+      maxRetainedAttempts: number
+    }>
   }>
 export function createTestModelDependencies<P>(options: TestModelDependenciesOptions<P>) {
   const clock = createManualModelClock(options.start, options.maxWaiters)
   const memory = memoryAssembly({ ...options, clock: clock.clock })
-  const send = createMemorySend(
-    memory.store,
-    memory.commands,
+  const scripted = scriptedSendResources<P, ScriptedTransportScript>(
     options.sends,
     createScriptedTransport,
+    async input => {
+      const current = await memory.commands.loadRecovery(input)
+      return 'ok' in current ? current.ok.admission : null
+    },
   )
+  const coordinator = memory.store.sendCoordinator(options.sending?.sources ?? [])
+  const createSender = (overrides: Partial<ModelSendBoundaryOptions<P>> = {}) =>
+    createModelSendBoundary({
+      commands: memory.commands,
+      coordinator,
+      credentials: options.sending?.credentials ?? {
+        present: () => ({ kind: 'unavailable' }),
+        resolve: () => ({ kind: 'unavailable' }),
+      },
+      resources: scripted.resources,
+      maxRetainedAttempts: options.sending?.maxRetainedAttempts ?? 1,
+      ...overrides,
+    })
+  const send = createSender()
   const retry = createMemoryRetryPolicy(memory.store)
   const instances = createMemoryInstanceHost(memory.store, options.maxQueued)
   const dependencies = {
     commands: memory.commands,
-    send: send.send,
+    send,
     retry: retry.retry,
     instances: instances.host,
     clock: clock.clock,
@@ -53,7 +78,7 @@ export function createTestModelDependencies<P>(options: TestModelDependenciesOpt
     dependencies,
     controls: {
       commands: memory.control,
-      send: send.control,
+      send: { ...scripted.control, createSender, coordinator },
       retry: retry.control,
       instances: instances.control,
       clock: clock.control,

@@ -2,9 +2,18 @@
 // caller outside the repository delivers a call through injected credential ports and judges a
 // custodian snapshot. Any failed assertion exits non-zero and fails the closure report.
 import assert from 'node:assert/strict'
-import { deliver, judgePresence, judgeResolution } from '@omne-harness/model'
-import { MODEL_SEND, decodeCredentialId } from '@omne-harness/model-contract'
+import { deliver, executeModel, judgePresence, judgeResolution } from '@omne-harness/model'
+import {
+  MODEL_SEND,
+  decodeCredentialId,
+  encodeModelInvocationRef,
+  decodeModelCallId,
+  decodeModelOperationId,
+  decodeModelInstanceId,
+} from '@omne-harness/model-contract'
+import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { judgeContentBlock } from '@omne-harness/content-block'
 
 function identity(account, organization) {
   const a = accountCodec.parse(account)
@@ -61,7 +70,7 @@ assert.equal(judgePresence(state, reference).present, true)
 console.log('scenario ok: value, denied, absent and a minted-tenant judgment')
 
 const testing = await import('@omne-harness/model/testing')
-const { createModelRuntime } = await import('@omne-harness/model')
+const { createModelRuntime, createModelSendBoundary } = await import('@omne-harness/model')
 assert.deepEqual(Object.keys(testing).sort(), [
   'createMemoryModelCommands',
   'createTestModelDependencies',
@@ -89,6 +98,7 @@ const shell = createModelRuntime(assembled.dependencies, {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
   observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
   readIdleMs: 1000,
   resultPageTargetBytes: 128,
   retryBackoffMs: 0,
@@ -98,7 +108,348 @@ assert.deepEqual(await shell.quiesce(), {
   failure: {
     kind: 'unavailable',
     dependency: 'model-runtime',
-    diagnostic: 'managed-runtime-not-implemented',
+    diagnostic: 'managed-runtime-not-implemented operation=quiesce stage=5.5',
   },
 })
+const decodedCall = decodeModelCallId('mcall_installed')
+assert.ok('ok' in decodedCall, 'fixture model call id')
+assert.deepEqual(
+  await shell.runtime.instances.connect({
+    tenant: owner,
+    principal: 'synthetic',
+    reference: decoded(
+      encodeModelInvocationRef({
+        tenant: owner,
+        call: decodedCall.ok,
+        admission: decoded(decodeModelOperationId('mop_installed-admit')),
+      }),
+    ),
+  }),
+  {
+    failure: { kind: 'denied', action: 'fixture' },
+  },
+)
 assert.equal('driver' in shell.runtime, false)
+
+const adoption = name => ({
+  owner: 'installed-consumer',
+  name,
+  revision: '1',
+  digest: 'a'.repeat(64),
+})
+const request = {
+  profile: adoption('profile'),
+  suppliers: [
+    {
+      adoption: adoption('supplier'),
+      recipient: 'fixture',
+      model: 'fixture',
+      credential: { kind: 'factory' },
+    },
+  ],
+  fallback: false,
+  retryPolicy: adoption('retry'),
+  parameters: [],
+  system: [],
+  messages: [],
+  tools: [],
+  toolChoice: 'none',
+  representation: adoption('representation'),
+  parameterAdoptions: [],
+  source: adoption('source'),
+}
+const ending = { kind: 'completed', reason: 'stop' }
+const scripted = createScriptedTransport({
+  receipt: {
+    supplier: request.suppliers[0].adoption,
+    representation: request.representation,
+    payloadDigest: 'installed-payload',
+  },
+  facts: [],
+  ending: { kind: 'terminated', termination: ending },
+  rejection: null,
+})
+const independent = []
+for await (const fact of executeModel(request, scripted.transport, new AbortController().signal))
+  independent.push(fact)
+assert.deepEqual(independent, [{ kind: 'ended', termination: ending }])
+assert.deepEqual(scripted.counts(), {
+  prepare: 1,
+  materialize: 1,
+  start: 1,
+  closePrepared: 1,
+  closeMaterialized: 1,
+})
+console.log('scenario ok: standalone executeModel sent once and closed both resources')
+
+function decoded(outcome) {
+  assert.ok('ok' in outcome, JSON.stringify(outcome))
+  return outcome.ok
+}
+const evidence = {
+  owner: 'installed',
+  record: decodedCall.ok,
+  revision: '1',
+  digest: 'a'.repeat(64),
+}
+const principal = { prove: () => true }
+const runtimeDependencies = testing.createTestModelDependencies({
+  owners: [{ consumerOwner: 'installed', work: { kind: 'exempt' }, evidence: request.profile }],
+  evidence: [
+    {
+      adoption: request.profile,
+      continuity: input => ({ ok: input.source }),
+      materialization: input => ({
+        ok: { ...evidence, record: `${input.call}/${input.dispatch}` },
+      }),
+      lateFact: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      retry: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      handoff: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      receive: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+    },
+  ],
+  authority: {
+    authorize: input =>
+      input.access.principal === principal && input.access.tenant === owner
+        ? { ok: { owner: 'identity', subject: 'installed', revision: '1' } }
+        : { failure: { kind: 'denied', action: input.action } },
+    execution: () => ({ ok: { owner: 'host', subject: 'installed', revision: '1' } }),
+  },
+  limits: {
+    scanPageCalls: 2,
+    resultPageParts: 1,
+    resultPageTargetBytes: 1024,
+    readIdleMs: 1000,
+    capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+  },
+  start: '2026-10-19T00:00:00Z',
+  maxWaiters: 2,
+  maxQueued: 10,
+  sends: [],
+  sending: {
+    maxRetainedAttempts: 4,
+    credentials: {
+      present: () => ({ kind: 'unavailable' }),
+      resolve: (ref, face) => {
+        assert.equal(ref.id, 'official-installed-query')
+        assert.equal(ref.tenant, owner)
+        assert.deepEqual(face, { authorized: true, official: true })
+        return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
+      },
+    },
+    sources: [
+      {
+        profile: request.profile,
+        supplier: request.suppliers[0].adoption,
+        recipient: request.suppliers[0].recipient,
+        model: request.suppliers[0].model,
+        credential: {
+          kind: 'factory',
+          official: true,
+          queryId: credentialId('official-installed-query'),
+        },
+        current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+      },
+    ],
+  },
+})
+const provider = createModelRuntime(runtimeDependencies.dependencies, {
+  outputBatchBytes: 1024,
+  outputBatchDelayMs: 0,
+  observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
+  readIdleMs: 1000,
+  resultPageTargetBytes: 128,
+  retryBackoffMs: 0,
+  cleanupRetryMs: 0,
+})
+const admission = {
+  tenant: owner,
+  principal,
+  call: decodedCall.ok,
+  operation: decoded(decodeModelOperationId('mop_installed-admit')),
+  request,
+  consumer: { owner: 'installed', work: 'work', position: 'position', purpose: 'test' },
+  capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
+}
+decoded(await provider.runtime.calls.admit(admission))
+runtimeDependencies.controls.commands.configureResultPaging({
+  tenant: owner,
+  call: admission.call,
+  resultPageParts: 2,
+  resultPageTargetBytes: 128,
+})
+const drive = {
+  ...admission,
+  operation: decoded(decodeModelOperationId('mop_installed-claim')),
+  instance: decoded(decodeModelInstanceId('minst_installed')),
+  continuity: evidence,
+}
+assert.equal(
+  (await provider.driver.drive(drive, new AbortController().signal)).failure.kind,
+  'unavailable',
+)
+assert.equal(
+  (await provider.driver.drive(drive, new AbortController().signal)).failure.kind,
+  'unavailable',
+)
+const dispatches = decoded(await provider.runtime.calls.dispatches(admission))
+assert.equal(dispatches.length, 1)
+assert.equal(dispatches[0].send, 'prepared')
+assert.equal(dispatches[0].materialization, null)
+const installedRoute = decoded(
+  await provider.runtime.instances.connect({
+    ...admission,
+    reference: decoded(
+      encodeModelInvocationRef({
+        tenant: owner,
+        call: admission.call,
+        admission: admission.operation,
+      }),
+    ),
+  }),
+)
+assert.equal(installedRoute.kind, 'live')
+const installedObserver = installedRoute.handle
+  .observe({ principal, tenant: owner, signal: new AbortController().signal })
+  [Symbol.asyncIterator]()
+const installedSnapshot = await installedObserver.next()
+assert.equal(installedSnapshot.value.kind, 'snapshot')
+assert.equal(installedSnapshot.value.value.call, admission.call)
+assert.equal(installedSnapshot.value.value.cursor, '0')
+assert.deepEqual(installedSnapshot.value.value.blocks, [])
+await installedObserver.return()
+
+assert.equal(
+  decoded(
+    await provider.runtime.calls.inspect({
+      ...admission,
+      reference: decoded(
+        encodeModelInvocationRef({
+          tenant: owner,
+          call: admission.call,
+          admission: admission.operation,
+        }),
+      ),
+    }),
+  ).kind,
+  'found',
+)
+assert.equal(
+  (
+    await provider.runtime.calls.inspect({
+      ...admission,
+      tenant: stranger,
+      reference: decoded(
+        encodeModelInvocationRef({
+          tenant: owner,
+          call: admission.call,
+          admission: admission.operation,
+        }),
+      ),
+    })
+  ).failure.kind,
+  'denied',
+)
+console.log(
+  'scenario ok: installed runtime admitted, recalled and prepared exactly one unsent dispatch',
+)
+
+const managedBlock = judgeContentBlock({
+  kind: 'text',
+  id: 'installed-send-text',
+  visibility: { toHuman: true, toModel: true },
+  text: 'installed sender output',
+})
+assert.ok('ok' in managedBlock)
+const managedSourceFacts = [
+  { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
+  { kind: 'block-delta', index: '0', delta: 'installed sender output' },
+  { kind: 'block-seal', index: '0', block: managedBlock.ok },
+]
+const managedTransport = createScriptedTransport({
+  receipt: {
+    supplier: request.suppliers[0].adoption,
+    representation: request.representation,
+    payloadDigest: 'b'.repeat(64),
+  },
+  facts: managedSourceFacts,
+  ending: { kind: 'terminated', termination: ending },
+  rejection: null,
+})
+const sender = createModelSendBoundary({
+  commands: runtimeDependencies.dependencies.commands,
+  coordinator: runtimeDependencies.controls.send.coordinator,
+  credentials: {
+    present: () => ({ kind: 'unavailable' }),
+    resolve: (ref, face) => {
+      assert.equal(ref.id, 'official-installed-query')
+      assert.equal(ref.tenant, owner)
+      assert.deepEqual(face, { authorized: true, official: true })
+      return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
+    },
+  },
+  maxRetainedAttempts: 4,
+  resources: {
+    async acquire() {
+      return {
+        ok: {
+          transport: managedTransport.transport,
+          startWithCredential(materialized, secret, signal) {
+            assert.equal(secret, 'synthetic-send')
+            return materialized.start(signal)
+          },
+          async release() {},
+        },
+      }
+    },
+  },
+})
+const recovery = decoded(await runtimeDependencies.dependencies.commands.loadRecovery(admission))
+const demand = {
+  ...admission,
+  execution: recovery.execution,
+  dispatch: dispatches[0].dispatch,
+  supplier: dispatches[0].supplier,
+  initiator: recovery.initiator,
+}
+const result = await sender.send(demand, new AbortController().signal)
+assert.equal(result.kind, 'started')
+assert.equal(typeof result.window, 'string')
+assert.notEqual(result.window, '')
+const managedFacts = []
+for await (const fact of result.facts) managedFacts.push(fact)
+assert.deepEqual(managedFacts, [...managedSourceFacts, { kind: 'ended', termination: ending }])
+const preserved = decoded(
+  await runtimeDependencies.dependencies.commands.preserve({
+    ...demand.execution,
+    operation: decoded(decodeModelOperationId('mop_installed-preserve')),
+    expected: decoded(await runtimeDependencies.dependencies.commands.loadRecovery(admission)).state
+      .revision,
+    dispatch: demand.dispatch,
+    window: result.window,
+    facts: managedFacts,
+  }),
+)
+assert.equal(preserved.call, demand.call)
+assert.deepEqual(preserved.blocks, [{ kind: 'sealed', index: '0', block: managedBlock.ok }])
+assert.equal(managedTransport.counts().start, 1)
+assert.equal(managedTransport.counts().closePrepared, 1)
+assert.equal(managedTransport.counts().closeMaterialized, 1)
+assert.equal((await sender.send(demand, new AbortController().signal)).kind, 'unknown')
+assert.equal(managedTransport.counts().start, 1)
+assert.equal(
+  decoded(await runtimeDependencies.dependencies.commands.dispatches(admission))[0].send,
+  'started',
+)
+console.log(
+  'scenario ok: installed sender returned its window, preserved its facts and started once',
+)

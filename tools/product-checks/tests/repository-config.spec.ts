@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test } from 'vitest'
@@ -12,7 +12,7 @@ afterEach(() => {
 
 /** 根 tsconfig 只写 extends；别名在被继承的那份配置里。 */
 function repository(base: string): string {
-  root = mkdtempSync(join(tmpdir(), 'omne-repository-config-'))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-repository-config-')))
   mkdirSync(join(root, 'packages/a/b/src'), { recursive: true })
   writeFileSync(join(root, 'packages/a/b/src/target.ts'), 'export const value = 1\n')
   writeFileSync(join(root, 'packages/a/b/src/user.ts'), "import { value } from '@alias'\n")

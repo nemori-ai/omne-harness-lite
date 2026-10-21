@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 // The checks of who may reach a call and where it is served: other tenants and revoked principals
 // are refused without a sign of whether the call exists, a lost or replaced instance ends only the
 // observation, and a quiescing provider takes no new call.
@@ -97,7 +98,13 @@ export function routeChecks<P>(): readonly Check<P>[] {
         const other = scene.subject.otherTenant
         const operation = operationId('hidden')
         const probes = (call: ModelCallId) => ({
-          inspect: calls.inspect({ ...accessOf(scene, call, other), admission: operation }),
+          inspect: calls.inspect({
+            ...accessOf(scene, call, other),
+            reference: invocationReference({
+              ...accessOf(scene, call, other),
+              admission: operation,
+            }),
+          }),
           dispatches: calls.dispatches(accessOf(scene, call, other)),
           cancel: calls.cancel(mutationOf(scene, call, operation, other)),
           connect: instances.connect(accessOf(scene, call, other)),
@@ -146,7 +153,13 @@ export function routeChecks<P>(): readonly Check<P>[] {
           action: 'all',
         })
         refusedAs(
-          await calls.inspect({ ...accessOf(scene, call.call), admission: call.operation }),
+          await calls.inspect({
+            ...accessOf(scene, call.call),
+            reference: invocationReference({
+              ...accessOf(scene, call.call),
+              admission: call.operation,
+            }),
+          }),
           'denied',
           'the inspection after the revoke',
         )

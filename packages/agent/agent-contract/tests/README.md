@@ -2,7 +2,7 @@
 
 ## 运行
 
-在本成员目录执行 `pnpm test` 和 `pnpm typecheck`。测试通过包名消费真实入口，不深层导入实现。
+在仓库根执行 `pnpm turbo run test --filter=@omne-harness/agent-contract`，在本成员目录执行 `pnpm typecheck`。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试通过包名消费真实入口，不深层导入实现。
 
 ## 覆盖
 
@@ -30,7 +30,7 @@
 
 ## 维护
 
-测试名用字面文本，不用 `describe.each`、`it.each` 的模板名，也不在循环里拼名字。理由是按用例名挑测试的运行看不见生成用例的名字。`make mutation` 只跑快层，快层经 vitest 的 `experimental.preParse` 静态读取用例名，见[测试运行器的分层说明](../../../../tools/test-runner/README_ZH.md#测试运行)。只被生成用例覆盖的变异体会因没有用例被选中而显示为存活。本目录已有的生成用例覆盖的行，要由同一文件里一条字面名字的用例再覆盖一次，变异测试才量得到。[identity.spec.ts](identity.spec.ts) 末尾的字面名字用例就为这个目的而写。
+测试名用字面文本，不用 `describe.each`、`it.each` 的模板名，也不在循环里拼名字。理由是按用例名挑测试的运行看不见生成用例的名字。`pnpm run mutation` 只跑快层，快层经 vitest 的 `experimental.preParse` 静态读取用例名，见[测试运行器的分层说明](../../../../tools/test-runner/README_ZH.md#测试运行)。只被生成用例覆盖的变异体会因没有用例被选中而显示为存活。本目录已有的生成用例覆盖的行，要由同一文件里一条字面名字的用例再覆盖一次，变异测试才量得到。[identity.spec.ts](identity.spec.ts) 末尾的字面名字用例就为这个目的而写。
 
 ## 边界
 

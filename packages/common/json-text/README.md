@@ -65,14 +65,13 @@ The scanner splits `01` into two numbers and accepts `1.` as one number. The rea
 
 Applicable tests are unit tests and contract tests from the public entry. `tests/consumption-sample.spec.ts` is the independent-consumption check. It runs a local `{ parse, encode }` only after `kind === 'ok'`, and it checks that `src` imports only its own modules and `jsonc-parser`. The tests use the real `jsonc-parser`. Integration tests and end-to-end journey tests do not apply, because this package has no storage, service, or user journey.
 
-Run these commands from this directory:
+Run this command from the repository root:
 
 ```sh
-pnpm run build
-pnpm test
+pnpm turbo run test --filter=@omne-harness/json-text
 ```
 
-`pnpm test` builds first and then runs Vitest. Tests in the slow tier measure the time of 999 keys of 50,000 equal-length units for the reader, the judgment and the writer. The other tests do not measure performance.
+turbo builds this package and its dependencies first, then runs Vitest. `pnpm test` in this directory runs Vitest only and does not build. Tests in the slow tier measure the time of 999 keys of 50,000 equal-length units for the reader, the judgment and the writer. The other tests do not measure performance.
 
 ## Maintenance
 

@@ -3,7 +3,7 @@
 This directory owns `typescript-package@3.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
 The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
-This generator emits a `build` script that deletes `dist` first, `erasableSyntaxOnly` on the build configuration, and `"files": ["dist"]`. It emits the `source` export condition before `types`. Published packages omit `source`. It emits `tests/public-entry.spec.ts`, which imports the package name and checks the current public exports. Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
+This generator emits a `build` script that deletes `dist` first, `erasableSyntaxOnly` on the build configuration, and `"files": ["dist"]`. It emits the `source` export condition before `types`. Published packages omit `source`. It emits `tests/public-entry.spec.ts`, which imports the package name and checks the current public exports. The generated `package.json` has three test scripts: `test`, `test:fast` and `test:slow`. The vitest mode selects the tier. These scripts do not build. From the repository root, run `pnpm turbo run test --filter=<package name>`. Turbo builds the member and its dependencies first. Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
 
 ## Create and inspect
 

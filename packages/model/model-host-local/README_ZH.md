@@ -24,7 +24,19 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-host-local typecheck`、`pnpm --filter @omne-harness/model-host-local test` 与 `make docs-check`。测试覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新与保存确认未知，并用真实 Cordis 4.0.4 核对插件发布与撤除。它们不证明其他宿主能力，也不证明跨机器或网络文件系统上的锁语义。
+在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。实际验证过的 Node.js 版本以各次运行报告为准。
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model-host-local
+pnpm turbo run test --filter=@omne-harness/model-host-local
+pnpm turbo run test:fast --filter=@omne-harness/model-host-local
+pnpm turbo run test:slow --filter=@omne-harness/model-host-local
+pnpm run check:docs
+```
+
+Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model-host-local test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
+
+测试覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新与保存确认未知，并用真实 Cordis 4.0.4 核对插件发布与撤除。它们不证明其他宿主能力，也不证明跨机器或网络文件系统上的锁语义。
 
 ## 维护
 

@@ -52,7 +52,7 @@ missingModalities(['image', 'voice'], ['text', 'image']) // ['voice']
 | `tests/modality-types.spec-d.ts` | `Modality` 的精确类型与各判定的拒绝原因 |
 | `tests/public-entry.spec.ts` | 运行时导出的精确集合、`dependencies` 为空、只有 `.` 入口、产物不含导入 |
 
-在本目录运行 `pnpm test`，它先构建 `dist` 再运行测试。运行 `pnpm typecheck` 对照源码类型检查测试。
+turbo 先构建 `dist` 及其依赖，再运行测试：`pnpm turbo run test --filter=@omne-harness/modality`。本目录里的 `pnpm test` 只运行 Vitest，不构建。运行 `pnpm typecheck` 对照源码类型检查测试。
 
 ## 维护
 

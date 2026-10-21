@@ -1,22 +1,17 @@
 #!/usr/bin/env node
-// 验收锁入口：`--base <ref>` 给任务基线。退出码 0 表示没有不该改验收的角色动过它，1 表示锁被破，2 表示用法或 Git 出错。
-import { auditRanges, baselines } from '../core/task-context.ts'
+// 验收锁入口：`--base <ref>` 给任务基线；不给时按统一规则取（环境变量 BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main）。退出码 0 表示没有不该改验收的角色动过它，1 表示锁被破，2 表示用法或 Git 出错。
+import { auditRanges, resolveBaseline } from '../core/task-context.ts'
 import { resolve } from 'node:path'
 import { inspect, readAcceptanceLockConfig, render } from './lock.ts'
 import { subjectRoot } from '../core/subject.ts'
 
-const USAGE = '用法：--base <基线提交或分支> [--root <检出目录>]'
+const USAGE = '用法：[--base <基线提交或分支>] [--root <检出目录>]'
 
 function main(argv: readonly string[]): number {
   let base: string | undefined
-  let defaultBase = false
   let root = subjectRoot()
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
-    if (arg === '--default-base') {
-      defaultBase = true
-      continue
-    }
     const value = argv[index + 1]
     if ((arg !== '--base' && arg !== '--root') || value === undefined || value === '')
       throw new Error(`认不出的参数 ${arg ?? ''}\n${USAGE}`)
@@ -25,11 +20,10 @@ function main(argv: readonly string[]): number {
     index += 1
   }
   const config = readAcceptanceLockConfig()
-  const selected = baselines(root, base)
-  base = selected.targetBase ?? (defaultBase ? 'main' : undefined)
-  if (base === undefined) throw new Error(USAGE)
+  const selected = resolveBaseline(root, base)
+  base = selected.targetBase
   const ranges = auditRanges(root, base)
-  if (ranges.length === 0) ranges.push({ label: 'legacy task', base: base ?? 'main', head: 'HEAD' })
+  if (ranges.length === 0) ranges.push({ label: 'legacy task', base, head: 'HEAD' })
   const reports = ranges.map(range =>
     inspect(root, range.base, config, range.head, selected.state === 'bound'),
   )

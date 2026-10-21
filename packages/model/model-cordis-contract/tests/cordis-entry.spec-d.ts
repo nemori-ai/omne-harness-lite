@@ -5,9 +5,12 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   ModelCallId,
   ModelConverterCatalog,
-  ModelDirectory,
+  ModelInstanceDirectory,
   ModelOperationId,
+  ModelSendBoundary,
   Revision,
+  SendResult,
+  TransportFact,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { expectTypeOf, it } from 'vitest'
@@ -71,6 +74,13 @@ it('types the injected Model services on the context', () => {
   expectTypeOf(ctx.modelRuntime).toEqualTypeOf<ModelRuntimeService<unknown>>()
   expectTypeOf(ctx.modelCommands).toEqualTypeOf<ModelCommandsService<unknown>>()
   expectTypeOf(ctx.modelSendBoundary).toEqualTypeOf<ModelSendBoundaryService<unknown>>()
+  expectTypeOf<ModelSendBoundaryService<unknown>['send']>().toEqualTypeOf<
+    ModelSendBoundary<unknown>['send']
+  >()
+  expectTypeOf(ctx.modelSendBoundary.send).returns.toEqualTypeOf<Promise<SendResult>>()
+  expectTypeOf<Extract<SendResult, { kind: 'started' }>>().toEqualTypeOf<
+    Readonly<{ kind: 'started'; window: string; facts: AsyncIterable<TransportFact> }>
+  >()
   expectTypeOf(ctx.modelInstanceHost).toEqualTypeOf<ModelInstanceHostService<unknown>>()
   expectTypeOf(ctx.modelInstances).toEqualTypeOf<ModelInstancesService<unknown>>()
   expectTypeOf(ctx.modelPublicationAuthority).toEqualTypeOf<
@@ -91,7 +101,7 @@ it('gives the converter catalog the catalog operation of the contract and a regi
 
 it('gives the instance directory the directory operation of the contract and a registration of its own', () => {
   expectTypeOf<ModelInstancesService<string>['connect']>().toEqualTypeOf<
-    ModelDirectory<string>['connect']
+    ModelInstanceDirectory<string>['connect']
   >()
   expectTypeOf<ModelInstancesService<string>['register']>().toEqualTypeOf<
     (

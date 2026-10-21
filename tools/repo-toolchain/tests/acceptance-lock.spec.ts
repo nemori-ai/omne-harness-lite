@@ -1,6 +1,6 @@
 // 验收锁的正反夹具：拥有者与人改验收放行，实施角色改验收、未提交的验收改动报出。
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -147,7 +147,7 @@ describe('验收锁：读 Git', () => {
 
   /** 一个带一份验收与一份源码的仓库；返回它的根与基线提交。 */
   function repository(): { root: string; base: string } {
-    const root = mkdtempSync(join(tmpdir(), 'acceptance-lock-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'acceptance-lock-')))
     made.push(root)
     git(root, 'init', '-q')
     write(root, SPEC, 'expect(version()).toBe("0.0.0")\n')
@@ -237,11 +237,14 @@ describe('验收锁：读 Git', () => {
     expect(report.violations).toHaveLength(1)
   })
 
-  it('入口：锁没破退出 0，破了退出 1，缺参数或基线不存在退出 2', () => {
+  it('入口：锁没破退出 0，破了退出 1，不给基线时取 main，认不出的参数或基线不存在退出 2', () => {
     const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+    // `pnpm run check` 把解析出的基线导成 BASELINE；这里要的是不给基线时的缺省，所以去掉它。
+    const { BASELINE: _inherited, ...env } = process.env
     const run = (...args: string[]) =>
       spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
         encoding: 'utf8',
+        env,
       })
     const { root, base } = repository()
     expect(run('--base', base, '--root', root).status).toBe(0)
@@ -250,7 +253,35 @@ describe('验收锁：读 Git', () => {
     const broken = run('--base', base, '--root', root)
     expect(broken.status).toBe(1)
     expect(broken.stdout).toContain('Agent-Role: tui-developer')
-    expect(run('--root', root).status).toBe(2)
+    git(root, 'checkout', '-q', '-B', 'work')
+    git(root, 'branch', '-f', 'main', base)
+    const byDefault = run('--root', root)
+    expect(byDefault.status).toBe(1)
+    expect(byDefault.stdout).toContain('验收锁（基线 main，')
+    expect(run('--bogus', '--root', root).status).toBe(2)
     expect(run('--base', 'no-such-ref', '--root', root).status).toBe(2)
+  })
+
+  it('入口：不给基线时按统一规则取，BASELINE 与 origin/main 都先于 main', () => {
+    const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+    const { BASELINE: _inherited, ...inherited } = process.env
+    const run = (env: Record<string, string>) =>
+      spawnSync(process.execPath, ['--experimental-strip-types', cli, '--root', root], {
+        encoding: 'utf8',
+        env: { ...inherited, ...env },
+      })
+    const { root, base } = repository()
+    write(root, SPEC, 'expect(true).toBe(true)\n')
+    commit(root, 'fix\n\nAgent-Role: tui-developer')
+    git(root, 'checkout', '-q', '-B', 'work')
+    git(root, 'branch', '-f', 'main', 'HEAD')
+    expect(run({}).status).toBe(0)
+    git(root, 'update-ref', 'refs/remotes/origin/main', base)
+    const remote = run({})
+    expect(remote.status).toBe(1)
+    expect(remote.stdout).toContain('验收锁（基线 origin/main，')
+    const explicit = run({ BASELINE: 'main' })
+    expect(explicit.status).toBe(0)
+    expect(explicit.stdout).toContain('验收锁（基线 main，')
   })
 })

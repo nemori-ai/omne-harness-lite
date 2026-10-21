@@ -13,11 +13,9 @@ import { IntegrationError } from './parse.ts'
 import { registeredTrack, type Policy } from './policy.ts'
 import { targetHead } from './transport.ts'
 
-/** The remote branch a task route integrates into. */
+/** The remote branch a task route integrates into: the named track's branch for every route kind. */
 export function routeTarget(policy: Policy, route: Route): string {
-  return route.kind === 'track'
-    ? `refs/heads/${registeredTrack(policy, route.track).branch}`
-    : 'refs/heads/main'
+  return `refs/heads/${registeredTrack(policy, route.track).branch}`
 }
 /** Reads the current commit of the route target; an unreadable or missing branch is an error. */
 export function remoteTarget(root: string, policy: Policy, ref: string): string {

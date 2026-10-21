@@ -1,6 +1,7 @@
 // 覆盖率层：逐成员、串行地跑它自己的测试并收集 v8 覆盖率，只计本成员 `src/` 下的源码。
-// 不少成员的测试经包名导入自己，执行的是 `dist/`；所以把 `dist/**` 一并纳入，由 sourcemap
+// 不少成员的测试经包名导入自己，执行的是 `dist/`；所以把 `dist/**/*.js` 一并纳入，由 sourcemap
 // 映射回 `src/`（2026-10-01 在 core/messages 上核过：只纳入 src 时 475 条语句命中 0）。
+// 只纳入 `.js`：`.map` 与 `.d.ts` 不是执行的代码，纳入后会被当成 JS 解析并报警告。
 // 这要求 dist 由当前源码构建——本层不重建，只报告哪些成员的 dist 早于源码。
 // 别的成员的 dist 与子进程里执行的代码不计入。
 import { spawnSync } from 'node:child_process'
@@ -131,7 +132,7 @@ export function measureCoverage(
           '--coverage.provider=v8',
           '--coverage.reporter=json',
           '--coverage.include=src/**',
-          '--coverage.include=dist/**',
+          '--coverage.include=dist/**/*.js',
           ...archiveArgs,
           // 测试失败时照样出报告；失败由退出码单独记下。
           '--coverage.reportOnFailure',

@@ -6,7 +6,7 @@ import type {
   ExecutionRef,
   LiveRoute,
   ModelCallId,
-  ModelDirectory,
+  ModelInstanceDirectory,
   ModelHandle,
   Reply,
 } from '@omne-harness/model-contract'
@@ -126,7 +126,7 @@ function createDirectory<P>(authority: ModelPublicationAuthority<P>) {
     connect: async ({
       tenant,
       call,
-    }: Parameters<ModelDirectory<P>['connect']>[0]): Reply<LiveRoute<P>> => {
+    }: Parameters<ModelInstanceDirectory<P>['connect']>[0]): Reply<LiveRoute<P>> => {
       const key = keyOf(tenant, call)
       if (key === undefined)
         return fail({
@@ -162,10 +162,10 @@ function createDirectory<P>(authority: ModelPublicationAuthority<P>) {
  * the fiber of the caller.
  * @owner packages/model/model-cordis-contract
  */
-export class ModelInstancesService<P> extends Service implements ModelDirectory<P> {
+export class ModelInstancesService<P> extends Service implements ModelInstanceDirectory<P> {
   static readonly provide = 'modelInstances'
 
-  readonly connect: ModelDirectory<P>['connect']
+  readonly connect: ModelInstanceDirectory<P>['connect']
   readonly register: (
     input: ModelRegistrationInput<P>,
   ) => Promise<Outcome<ModelRegistration, ModelRegistrationFailure>>

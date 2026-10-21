@@ -389,8 +389,11 @@ describe('the discriminants of the evaluation chapter', () => {
     expectTypeOf<KindOf<PendingCall>>().toEqualTypeOf<'model' | 'tool'>()
     const model = null as unknown as Extract<PendingCall, { kind: 'model' }>
     const tool = null as unknown as Extract<PendingCall, { kind: 'tool' }>
-    expectTypeOf(model.call).toEqualTypeOf<M.ModelCallId>()
-    expectTypeOf(model.admission).toEqualTypeOf<M.ModelOperationId>()
+    expectTypeOf(model.reference).toEqualTypeOf<M.ModelInvocationRef>()
+    // @ts-expect-error Model intent uses the pre-admission locator.
+    void model.call
+    // @ts-expect-error Admission operation is encoded in the locator.
+    void model.admission
     expectTypeOf(model.purpose).toEqualTypeOf<ModelPurpose>()
     expectTypeOf(tool.call).toEqualTypeOf<T.ToolCallId>()
     expectTypeOf(tool.admission).toEqualTypeOf<T.ToolOperationId>()

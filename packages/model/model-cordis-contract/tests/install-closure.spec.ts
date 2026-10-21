@@ -2,7 +2,15 @@
 // Runs the install-closure CLI as a child process (node, and pnpm for the real member) on inputs
 // that it must refuse. The pure judgments are in install-judgment.spec.ts.
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +24,7 @@ const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const policyPath = join(packageDirectory, 'tests/fixtures/install-policy.json')
 const cli = join(packageDirectory, 'tests/install/cli.ts')
-const temporary = mkdtempSync(join(tmpdir(), 'install-closure-'))
+const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'install-closure-')))
 const consumers = join(workspaceRoot, 'tmp/install-closure')
 const workDirectories = ['negative', 'offline'].map(name =>
   join(consumers, `model-cordis-contract-closure-${name}`),

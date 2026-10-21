@@ -7,7 +7,7 @@ import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
   compareRevisions,
   type ModelCallId,
-  type ModelOperationId,
+  type ModelInvocationRef,
   type Revision,
 } from '@omne-harness/model-contract'
 import { ModelRuntimeService, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -44,7 +44,7 @@ export type FollowerConfig = Readonly<{
   tracked: readonly Readonly<{
     call: ModelCallId
     /** The operation under which the call was admitted, which finds the call again. */
-    admission: ModelOperationId
+    reference: ModelInvocationRef
     known: Revision
   }>[]
   followed: Followed
@@ -61,9 +61,9 @@ export const followerPlugin = {
     if (!(runtime instanceof ModelRuntimeService))
       throw new Error(`the service on ${modelRuntimeKey} is not the model runtime definition`)
     const { followed } = config
-    const admissions = new Map<ModelCallId, ModelOperationId>()
+    const admissions = new Map<ModelCallId, ModelInvocationRef>()
     for (const item of config.tracked) {
-      admissions.set(item.call, item.admission)
+      admissions.set(item.call, item.reference)
       followed.known.set(item.call, item.known)
     }
     followed.started += 1
@@ -73,16 +73,15 @@ export const followerPlugin = {
     // keeps the committed change; the plugin does not catch it.
     ctx.on('model-cordis-contract/call-changed', async (tenant, call, notified) => {
       if (!tenantEquals(tenant, config.tenant)) return
-      const admission = admissions.get(call)
+      const reference = admissions.get(call)
       const known = followed.known.get(call)
-      if (admission === undefined || known === undefined) return
+      if (reference === undefined || known === undefined) return
       if (compareRevisions(notified, known) <= 0) return
 
       const found = await ctx.modelRuntime.calls.inspect({
         principal: config.principal,
         tenant: config.tenant,
-        call,
-        admission,
+        reference,
       })
       if ('failure' in found) {
         if (found.failure.kind !== 'denied')

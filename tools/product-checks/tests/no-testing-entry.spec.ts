@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { collectSources, runRules } from '@omne-harness/repo-toolchain/core/scan'
@@ -12,7 +12,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), 'omne-testing-entry-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-testing-entry-')))
   roots.push(root)
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true })
@@ -110,7 +110,11 @@ describe('no-testing-import 与包声明的 ./testing 入口', () => {
       'packages/dist/package.json': declared,
       'packages/old.legacy/package.json': '{ broken',
     })
-    expect(collectTestingEntries(root)).toEqual({ entries: new Set(), unparsable: [] })
+    expect(collectTestingEntries(root)).toEqual({
+      entries: new Set(),
+      acceptanceDirectories: new Set(),
+      unparsable: [],
+    })
   })
 
   it('入口集合按扫描根各自计算：一个根的声明不豁免另一个根里同一相对路径', () => {
@@ -127,5 +131,71 @@ describe('no-testing-import 与包声明的 ./testing 入口', () => {
     const file = { path: 'packages/b/src/testing.ts', text: IMPORT }
     const rule = RULES.find(item => item.id === 'no-testing-import')
     expect(rule?.check([file])).toHaveLength(1)
+  })
+})
+
+describe('no-testing-import 与成员根 acceptance', () => {
+  it.each([
+    ['packages', 'domain/b'],
+    ['apps', 'b'],
+    ['.', '.'],
+  ])('扫描根 %s 内的成员 %s 直接验收目录及 fixtures 可导入 testing', (scanRoot, member) => {
+    const root = fixture({
+      [join(scanRoot, member, 'package.json')]: JSON.stringify({ name: '@omne-harness/b' }),
+      [join(scanRoot, member, 'acceptance/001.scenario.ts')]: IMPORT,
+      [join(scanRoot, member, 'acceptance/fixtures/runtime.ts')]: IMPORT,
+      [join(scanRoot, member, 'src/runtime.ts')]: IMPORT,
+      [join(scanRoot, member, 'src/acceptance/runtime.ts')]: IMPORT,
+      [join(scanRoot, member, 'acceptance-other/runtime.ts')]: IMPORT,
+      [join(scanRoot, member, 'acceptance.ts')]: IMPORT,
+    })
+    expect(testingViolations(join(root, scanRoot))).toEqual(
+      [
+        'acceptance-other/runtime.ts',
+        'acceptance.ts',
+        'src/acceptance/runtime.ts',
+        'src/runtime.ts',
+      ].map(path => `${join(member, path).replaceAll('\\', '/')}:1`),
+    )
+  })
+
+  it('只按本次扫描根的成员事实豁免，未声明的相邻路径继续拒绝', () => {
+    const declaring = fixture({
+      'b/package.json': JSON.stringify({ name: '@omne-harness/b' }),
+      'b/acceptance/fixtures/runtime.ts': IMPORT,
+      'b-other/acceptance/fixtures/runtime.ts': IMPORT,
+    })
+    const other = fixture({ 'b/acceptance/fixtures/runtime.ts': IMPORT })
+    expect(testingViolations(declaring)).toEqual(['b-other/acceptance/fixtures/runtime.ts:1'])
+    expect(testingViolations(other)).toEqual(['b/acceptance/fixtures/runtime.ts:1'])
+  })
+
+  it.each(['null', '[]', '"member"', '{}', '{"name": 1}', '{"name": ""}', '{"name": "   "}'])(
+    '无有效成员对象的 manifest %s 不能授予验收豁免',
+    text => {
+      const root = fixture({
+        'b/package.json': text,
+        'b/acceptance/fixtures/runtime.ts': IMPORT,
+      })
+      expect(testingViolations(root)).toEqual(['b/acceptance/fixtures/runtime.ts:1'])
+    },
+  )
+
+  it('无法解析 manifest 时保留诊断，验收目录也不豁免', () => {
+    const root = fixture({
+      'b/package.json': '{ broken',
+      'b/acceptance/fixtures/runtime.ts': IMPORT,
+    })
+    expect(testingViolations(root)).toEqual([
+      'b/package.json:1',
+      'b/acceptance/fixtures/runtime.ts:1',
+    ])
+  })
+
+  it('默认规则没有扫描根事实，acceptance 路径仍拒绝', () => {
+    const rule = RULES.find(item => item.id === 'no-testing-import')
+    expect(rule?.check([{ path: 'b/acceptance/fixtures/runtime.ts', text: IMPORT }])).toHaveLength(
+      1,
+    )
   })
 })

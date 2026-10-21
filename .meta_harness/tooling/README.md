@@ -32,7 +32,7 @@ spec、realization、registry 三个旧根不得重新出现，空目录、普�
 持续正控与拒绝反例位于 `tests/test_source_links.py`。
 角色上下文入口见 [spec-tools](../../tools/spec-tools/README.md#按角色读取上下文)。
 
-该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `make design-check` 组合本检查与领域对象对账，不隐式执行形式模型。
+该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `pnpm run check:design` 组合本检查与领域对象对账，不隐式执行形式模型。
 
 ## 领域对象对账
 
@@ -143,6 +143,7 @@ python .meta_harness/tooling/src/link_agents.py --project-root . --check
 创建、冲突保护、只读核对和整体目录移动后的相对链接有效性由工具测试覆盖。
 
 `agents/cloud/<host>/` 存在且本次选中该宿主时，编译把其中的运行时文件复制到该宿主的 package 根。现在只有 `cursor/`，输出是 `.cursor/`。`README.md` 留在源目录，不进入投影。
+`claude-code` 例外：它的目录只有 `setup.sh` 和 `session-start.sh`，两者都必须可执行。编译检查它们，不产生投影，因为 Claude Code 从云端环境设置读取 setup 脚本。
 没有 `cloud/`，或选中的宿主没有自己的目录时，不产生这三份文件。平铺在 `cloud/` 根上的运行时文件会被拒绝。`install.sh` 必须可执行。`environment.json` 的 `build.dockerfile` 必须是 `Dockerfile`，
 `install` 必须是非空字符串。这三份需要提交：Cursor 在安装脚本之前从检出读取它们。
 skills、agents 和 hooks 仍由 `.meta_harness/.gitignore` 排除，检出后重新编译。

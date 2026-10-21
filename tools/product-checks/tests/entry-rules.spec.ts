@@ -1,7 +1,7 @@
 // 入口层包（governance-center-entry）的规则：包尚未建（波次 2 同期），所以每条都在内存夹具里
 // 两向自测，另在临时目录里造出整个包，经 collectSources 与 CLI 证明「真有违反就退出 1」。
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -577,7 +577,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   })
 
   const writeTree = (files: Record<string, string>) => {
-    root = mkdtempSync(join(tmpdir(), 'ts-checks-entry-'))
+    root = realpathSync(mkdtempSync(join(tmpdir(), 'ts-checks-entry-')))
     for (const [path, text] of Object.entries(files)) {
       const full = join(root, path)
       mkdirSync(dirname(full), { recursive: true })

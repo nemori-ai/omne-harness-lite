@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +21,7 @@ export interface Sandbox {
 }
 
 export function createSandbox(): Sandbox {
-  const root = mkdtempSync(join(tmpdir(), 'omne-cli-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-cli-')))
   const home = join(root, 'home')
   const cwd = join(root, 'cwd')
   mkdirSync(home)

@@ -49,7 +49,7 @@ The assembly owns all inputs. `guardsOf` declares which guard resources apply to
 
 ## Verification
 
-`OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-host-local test` builds the package and runs the tests. They check the coordinator over the non-durable store, and the coordinator under the real Tool runtime, ledger and driver. [tests/README](tests/README.md) maps each behavior to its test. Durability, crash of the process and a second process are not covered.
+`pnpm turbo run test --filter=@omne-harness/tool-host-local` builds the package and its dependencies, then runs the tests. They check the coordinator over the non-durable store, and the coordinator under the real Tool runtime, ledger and driver. [tests/README](tests/README.md) maps each behavior to its test. Durability, crash of the process and a second process are not covered.
 
 ## Maintenance
 

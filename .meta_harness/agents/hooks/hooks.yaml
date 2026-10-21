@@ -10,7 +10,7 @@ hooks:
     # 跑哪一份脚本：当前工作树里有这份脚本且装了依赖，就跑它自己的（它可能正在改这套工具）；
     # 否则跑主检出里的那一份——刚建的工作树还没装依赖，脚本加载不了解析器，量的仍是会话所在的那棵工作树。
     # 主检出取公共 git 目录的上一级；先进到工作树根再问，Git 2.25 在子目录里给的相对路径不可靠。
-    # 不在 git 仓库里：退出 0，什么都不做。不经 make：make 失败退出 2，宿主把 2 一律当成拦截。
+    # 不在 git 仓库里：退出 0，什么都不做。由 node 直接运行、不经包装命令：宿主把退出码 2 一律当成拦截，退出码只由脚本自己定。
     command: >-
       unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
       GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE;
