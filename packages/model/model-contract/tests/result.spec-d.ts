@@ -203,10 +203,35 @@ it('ToolSuggestion is the shared whole tool call and nothing of its own', () => 
   expectTypeOf<ToolSuggestion>().toEqualTypeOf<ToolCallPart>()
 })
 
-it('replay-rejected is a fault cause that reports nothing besides the common fields', () => {
-  const rejected: ModelFault = { cause: 'replay-rejected', diagnostic: 'd', upstreamStatus: '400' }
+it('replay-rejected is a fault cause that always says the send carried reasoning state', () => {
+  const rejected: ModelFault = {
+    cause: 'replay-rejected',
+    diagnostic: 'd',
+    upstreamStatus: '400',
+    replayCarried: true,
+  }
+  // @ts-expect-error a replay-rejected send carried reasoning state, so the key is required
+  const silent: ModelFault = { cause: 'replay-rejected', diagnostic: 'd', upstreamStatus: '400' }
   const cause: ModelFaultCause = 'replay-rejected'
-  void [rejected, cause]
+  void [rejected, silent, cause]
+})
+
+it('replayCarried is true or absent, never false', () => {
+  const carried: ModelFault = {
+    cause: 'input-rejected',
+    diagnostic: 'd',
+    upstreamStatus: '400',
+    replayCarried: true,
+  }
+  const plain: ModelFault = { cause: 'input-rejected', diagnostic: 'd', upstreamStatus: '400' }
+  const denied: ModelFault = {
+    cause: 'input-rejected',
+    diagnostic: 'd',
+    upstreamStatus: '400',
+    // @ts-expect-error a send without reasoning state has no replayCarried key
+    replayCarried: false,
+  }
+  void [carried, plain, denied]
 })
 
 it('ModelBlock holds a content block or a whole call, never a call without whole arguments', () => {

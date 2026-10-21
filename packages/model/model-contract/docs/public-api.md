@@ -149,7 +149,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 - 声明：[`src/replay-values.ts`](../src/replay-values.ts)。
 - 行为测试：[`tests/replay.spec.ts`](../tests/replay.spec.ts)。
 
-- `expandReplayDeclaration(supplier)` 把缺省项展开成完整声明，不做检查。`judgeReplayDeclaration(supplier, index)` 展开并按 SPEC 检查，返回 `Outcome`；失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `produces`、`accepts`、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking` 中第一个不满足的项。
+- `expandReplayDeclaration(supplier)` 把缺省项展开成完整声明，不做检查。`judgeReplayDeclaration(supplier, index)` 展开并按 SPEC 检查，返回 `Outcome`；失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `replay`（从存储或配置读到的声明不是只有三个键的普通对象）、`produces`（不是文本、为空或过长）、`accepts`（不是稠密的文本数组，或有一项为空或过长）、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking` 中第一个不满足的项。
 - `projectReplay(input)` 对 `messages` 里每条 assistant 消息给出一条 `ReplayTreatment`，按输入次序，并给出诊断。`carry` 与 `omit` 是推理续接状态部件的位置（来自 `replay.at`），`thinking` 说明 `thinking` 块的写法：`native` 或 `foreignThinking` 的取值。诊断只含消息身份、`scope`、`format` 与略去的部件个数。函数不读取任何块，也不读取载荷。
 - `continuedMessages(projection)` 返回这次投影中可续接的消息身份。上游以 `replay-rejected` 拒绝后，再发把它们作为 `resent` 传入。
 

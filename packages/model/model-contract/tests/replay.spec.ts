@@ -400,6 +400,34 @@ describe('judgeReplayDeclaration', () => {
     expect(judgeReplayDeclaration(supplier(odd), 2)).toEqual(invalid('foreign-thinking'))
   })
 
+  it('reports produces before accepts when both fail', () => {
+    expect(judgeReplayDeclaration(supplier({ produces: '', accepts: ['p', ''] }), 2)).toEqual(
+      invalid('produces'),
+    )
+  })
+
+  it('reports a repeated item before a missing produces when both fail', () => {
+    expect(judgeReplayDeclaration(supplier({ produces: 'p', accepts: ['q', 'q'] }), 2)).toEqual(
+      invalid('accepts-duplicate'),
+    )
+  })
+
+  it('rejects a stored replay of the wrong shape instead of reading it loosely', () => {
+    const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
+    expect(judgeReplayDeclaration(stored({ produces: 'a', accepts: 'ab' }), 2)).toEqual(
+      invalid('accepts'),
+    )
+    expect(judgeReplayDeclaration(stored({ accepts: 5 }), 2)).toEqual(invalid('accepts'))
+    expect(judgeReplayDeclaration(stored({ accepts: null }), 2)).toEqual(invalid('accepts'))
+    expect(judgeReplayDeclaration(stored({ produces: null }), 2)).toEqual(invalid('produces'))
+    expect(judgeReplayDeclaration(stored({ produce: 'p' }), 2)).toEqual(invalid('replay'))
+    expect(judgeReplayDeclaration(stored(null), 2)).toEqual(invalid('replay'))
+    // eslint-disable-next-line no-sparse-arrays
+    expect(judgeReplayDeclaration(stored({ produces: 'p', accepts: ['p', , 'q'] }), 2)).toEqual(
+      invalid('accepts'),
+    )
+  })
+
   it('names the supplier by its position in the field', () => {
     expect(judgeReplayDeclaration(supplier({ produces: '' }), 0)).toEqual(invalid('produces', 0))
   })

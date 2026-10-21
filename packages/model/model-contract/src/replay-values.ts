@@ -41,16 +41,40 @@ function invalid(index: number, reason: string) {
   return fail({ kind: 'invalid', field: `suppliers[${index}].replay`, reason } as const)
 }
 
+const REPLAY_KEYS: readonly string[] = ['produces', 'accepts', 'foreignThinking']
+
+/**
+ * The reason a declared value read from a store or a configuration does not have the declared
+ * shape, or null. `replay` is a plain object with only the three keys, `produces` is text and
+ * `accepts` is a dense array of text; an absent key takes its default.
+ */
+function shapeReason(declared: unknown): string | null {
+  if (declared === undefined) return null
+  if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) return 'replay'
+  if (Object.keys(declared).some(key => !REPLAY_KEYS.includes(key))) return 'replay'
+  const produces = 'produces' in declared ? declared.produces : undefined
+  const accepts = 'accepts' in declared ? declared.accepts : undefined
+  if (produces !== undefined && typeof produces !== 'string') return 'produces'
+  if (accepts === undefined) return null
+  if (!Array.isArray(accepts)) return 'accepts'
+  for (let i = 0; i < accepts.length; i += 1) {
+    if (!Object.hasOwn(accepts, i) || typeof accepts[i] !== 'string') return 'accepts'
+  }
+  return null
+}
+
 /**
  * Expands and checks the declaration of the supplier at `index` of a profile definition. The first
- * failure in this order is returned: `produces` (also when it is a default that is too long),
- * each item of `accepts`, duplicates, `produces` missing from `accepts`, `foreignThinking`.
- * `field` is `suppliers[index].replay`.
+ * failure in this order is returned: the shape of `replay` as stored, `produces` (also when it is
+ * a default that is too long), each item of `accepts`, duplicates, `produces` missing from
+ * `accepts`, `foreignThinking`. `field` is `suppliers[index].replay`.
  */
 export function judgeReplayDeclaration(
   supplier: Pick<ProfileSupplier, 'recipient' | 'model' | 'replay'>,
   index: number,
 ): Outcome<ReplayDeclaration, Extract<ModelFailure, { kind: 'invalid' }>> {
+  const shape = shapeReason(supplier.replay)
+  if (shape !== null) return invalid(index, shape)
   const declaration = expandReplayDeclaration(supplier)
   if (!isTag(declaration.produces)) return invalid(index, 'produces')
   if (!declaration.accepts.every(isTag)) return invalid(index, 'accepts')

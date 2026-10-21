@@ -49,15 +49,18 @@ export type ModelFaultCause =
 export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric
 /**
  * `replayCarried` is present only when the failed send carried reasoning state, so the original
- * consumer can try again in a new call with replay off.
+ * consumer can try again in a new call with replay off. A `replay-rejected` send always carried it.
  */
 export type ModelFault = Readonly<{
   diagnostic: string
   upstreamStatus: string | null
-  replayCarried?: true
 }> &
   (
-    | Readonly<{ cause: Exclude<ModelFaultCause, 'input-over-limit'> }>
+    | Readonly<{
+        cause: Exclude<ModelFaultCause, 'input-over-limit' | 'replay-rejected'>
+        replayCarried?: true
+      }>
+    | Readonly<{ cause: 'replay-rejected'; replayCarried: true }>
     | Readonly<{
         cause: 'input-over-limit'
         reported: Readonly<{
