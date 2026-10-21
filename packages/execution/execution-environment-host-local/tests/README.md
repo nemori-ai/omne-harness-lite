@@ -1,29 +1,31 @@
 # tests
 
-<!-- documentation:placeholder -->
-
 本目录承载本包适用的持续测试。测试种类的责任与边界见仓库[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)。
 
 ## 允许的内容
 
-<!-- documentation:placeholder -->
-
-`*.spec.ts` 等测试文件、测试辅助代码，以及 `fixtures/` 下的固定输入。
+`*.spec.ts` 运行测试、`*.spec-d.ts` 类型测试、测试辅助代码，以及 `fixtures/` 下的固定输入。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-说明每类测试用到的真实依赖与替身。测试通过不代替规格或验收。
+文件字节、符号链接与对象替换用真实文件系统，测试在系统临时目录下建文件，结束后删除。Cordis 装载用真实 Cordis 4.0.4。授权决定、账本与守卫用替身。替身就绪不证明真实授权或数据耐久。测试通过不代替规格或验收。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。
+SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文件使用的测试覆盖已接受的行为，改它们之前先确认对应的行为已重新接受。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+现在有五个测试文件，共五十个测试：
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+- [host-file-results.spec.ts](host-file-results.spec.ts)：宿主文件使用的结果：点名、空字节、未解析、符号链接、对象替换、关闭失败、代次、尾部斜杠、目录、快照与错误路径的描述符保留。
+- [host-files.spec.ts](host-files.spec.ts)：工作区目录外的读取、字节范围、查看、新建、父目录核对与预期版本。
+- [host-files-unsupported.spec.ts](host-files-unsupported.spec.ts)：八项未实现操作返回 `unsupported` 且不触碰文件系统。
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务与 `hostFilesPlugin` 的装载、经租约读文件、两种卸载、恢复授权缺省与注入。
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合，根入口可达的模块不导入 Cordis。
+
+没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/execution-environment-host-local test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
+
+运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过。2026-10-21 在 Node v24.18.0、linux 上，五十个测试全部通过，退出码 0。
+
+当前缺口：授予根限制、同一 isolate 标签下重复装载、配置校验失败、退役待处置时撤除函数抛出，都没有测试。具名维护者由负责人指定。

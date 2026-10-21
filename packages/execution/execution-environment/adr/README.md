@@ -1,29 +1,19 @@
 # adr
 
-<!-- documentation:placeholder -->
-
 本目录承载有持续消费者的实现取舍与必要理由。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 每项取舍一份 Markdown 文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 只保留现行理由。单次评审、提案过程与执行日志归任务 tmp，不进本目录。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 取舍被替换时，更新或删除对应文件，并同步引用它的设计正文。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空。获取时重新核对、先写获取表、采用记录由本成员签发、租约视图作为逐操作门、撤除即退役、恢复授权一次核对、关闭不清空表这几项取舍的理由写在[内部架构](../docs/architecture.md#关键机制与理由)。出现一项有持续消费者、又不属于内部架构的实现取舍时，才在这里加文件。

@@ -1,17 +1,39 @@
-# 公开接口导航
+# 执行环境 Cordis 定义的公开接口导航
 
-<!-- documentation:placeholder -->
-
-本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，非类型行为的唯一正文是 [SPEC.md](../SPEC.md)。不手写第二套签名。
+本页是导出索引，不是第二套签名。精确类型归 `src/`，非类型行为归 [SPEC](../SPEC.md)，Cordis 定义的正文归 [Cordis 说明](cordis.md)。八个方法的输入、输出与失败归 [execution-environment-contract SPEC](../../execution-environment-contract/SPEC.md)。
 
 ## 导出入口
 
-<!-- documentation:placeholder -->
+| 入口 | 源码 | 发布产物 | 调用者 |
+| --- | --- | --- | --- |
+| `@omne-harness/execution-environment-cordis-contract` | [src/index.ts](../src/index.ts) | `dist/index.js`、`dist/index.d.ts` | 没有调用者。根入口是空导出 |
+| `@omne-harness/execution-environment-cordis-contract/cordis` | [src/cordis.ts](../src/cordis.ts) | `dist/cordis.js`、`dist/cordis.d.ts` | 集成方、维护者、提供者与设施拥有者的插件，只需要类型增补的一方，以及 Service 实现 execution-environment-host-local |
 
-待补：`package.json` 的每个导出入口、调用者资格与对应源码。
+根入口与 Cordis 无关（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。需要契约类型的一方直接依赖 execution-environment-contract。`./cordis` 只有服务定义，不导入任何实现成员（[性质 8](../SPEC.md#结果与不变量)）。只需要 `Context` 增补的一方用 `import type {} from '@omne-harness/execution-environment-cordis-contract/cordis'`（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
 
 ## 定义索引
 
-<!-- documentation:placeholder -->
+### 根入口
 
-待补：公开定义的链接，以及输入输出与失败行为在 SPEC 中的条款。
+根入口没有导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言导出为空。
+
+### `./cordis`
+
+| 名称 | 种类 | 依据 |
+| --- | --- | --- |
+| `ExecutionEnvironmentService<P>` | 抽象类，`static readonly provide = 'executionEnvironment'`，八个抽象方法 | [性质 1、2](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
+| `executionEnvironmentKey` | 常量，取自 `ExecutionEnvironmentService.provide` | 性质 1 |
+| `ExecutionEnvironmentIntercept` | 类型 `{ caller: 'integrator' \| 'maintainer' \| 'provider' }` | 性质 4、[intercept 配置与调用方类](cordis.md#intercept-配置与调用方类) |
+| `Context` 增补 | `executionEnvironment` 属性的类型为 `ExecutionEnvironmentService<unknown>` | 性质 3 |
+
+运行时导出只有 `ExecutionEnvironmentService` 与 `executionEnvironmentKey`。[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对这个集合。`ExecutionEnvironmentIntercept` 与 `Context` 增补只是类型。
+
+`ExecutionEnvironmentService` 的八个方法是契约两个操作类型的方法：
+
+| 方法 | 契约类型 | 失败与结果的位置 |
+| --- | --- | --- |
+| `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe` | `ExecutionEnvironment<P>` | [契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约) |
+| `recoverOwned`、`releaseScope` | `ExecutionEnvironment<P>` | [契约的恢复](../../execution-environment-contract/SPEC.md#恢复) |
+| `registerFacility`、`registerProvider` | `ProviderRegistrations` | [契约的设施协议](../../execution-environment-contract/SPEC.md#设施协议)、[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
+
+这些签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。契约的导出索引见[契约的公开接口页](../../execution-environment-contract/docs/public-api.md)。

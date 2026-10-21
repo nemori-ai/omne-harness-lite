@@ -3,71 +3,102 @@
 PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-Draft service-provider package.
+The Service implementation and host provider member of the execution environment. Variant: `service-provider`.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+This package does two jobs. First, it puts the registry of [execution-environment](../execution-environment/README.md) into the service `executionEnvironment` that [execution-environment-cordis-contract](../execution-environment-cordis-contract/README.md) defines. It owns registration as effect, the close on service removal, and the report of a failed removal. Second, it provides the `files` facility on the host machine. The facility reads, stats, writes, and closes files by the named object identity. [execution-environment-contract](../execution-environment-contract/README.md) owns the domain behavior.
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+Status: Service implementation member, `draft`. The host file use section is accepted. See [host file use in the SPEC](SPEC.md#宿主文件使用). The adoption basis also includes the [system page](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备) and the [topic owner table](../docs/architecture.md#主题与唯一拥有者) of the group.
+
+- Implemented: read, stat, write, and close of the host files facility. The host files provider. The Service subclass `ExecutionEnvironmentRegistry`, the plugin factory `executionEnvironmentRegistryWith`, and the plugin `hostFilesPlugin`.
+- Not implemented: the other eight `files` operations (they reply `unsupported` now), the `command` and `terminal` providers, the platform prerequisite probe, the grant root restriction, publication of the two Runtime Context blocks, and the caller-class check.
+- Not verified: no test covers a second load under one isolate label, a configuration check failure, or a removal function that throws on a pending retirement.
+
+No application assembles this package now, and no package depends on it.
 
 ## Usage
 
-<!-- documentation:placeholder -->
+The package has two entries:
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+- `@omne-harness/execution-environment-host-local/cordis` holds the plugins. An application assembler loads the service and the host files plugin.
+- `@omne-harness/execution-environment-host-local` holds the host files facility, the object identity reader, and the host files provider. It does not depend on Cordis.
+
+```ts
+import { Context } from '@deepseek-ai/cordis'
+import {
+  executionEnvironmentRegistryWith,
+  hostFilesPlugin,
+} from '@omne-harness/execution-environment-host-local/cordis'
+
+const ctx = new Context()
+await ctx.plugin(executionEnvironmentRegistryWith(myRecoveryAuthority))
+await ctx.plugin(hostFilesPlugin)
+```
+
+`myRecoveryAuthority` is the recovery authority port that the maintenance owner of the integrator implements. Calling plugins use the service through the service definition. They do not import this package. The execution adapter names an object with `hostObjectToken` from the root entry. The [usage page](docs/context.md#使用方式) covers assembly, naming, and independent use.
 
 ## Contracts
 
-<!-- documentation:placeholder -->
+- `src/` owns the public shapes. The [API page](docs/public-api.md) indexes the exports.
+- The [SPEC](SPEC.md) owns behavior beyond the types: host provider facts, host file use (accepted), other current behavior, the Service implementation, and the removal order.
+- The [host file use section of the architecture page](docs/architecture.md#宿主文件使用) owns the mechanism and the run records.
+- The [Cordis page](docs/cordis.md) owns the plugins, the configuration, registration as effect, the removal order, and the IC map.
+- [execution-environment-cordis-contract](../execution-environment-cordis-contract/docs/cordis.md) owns the service key and the abstract class.
 
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The fiber of the service plugin owns the service instance and the registry instance. On service removal, the package closes the registry: it refuses new requests, invalidates leases, and retires all providers. When a retirement stays pending, the removal function throws `RetirementPending`. The fiber of `hostFilesPlugin` owns the `files` descriptor registration and the host files provider registration. Removal does not undo bytes already written.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+The root entry has two modules: the host files facility and the host files provider. `./cordis` has the Service subclass and two plugins. The outside dependencies are execution-environment-contract, execution-environment, execution-environment-cordis-contract, and `@deepseek-ai/cordis`. The host files facility checks only the object identity. The lease view of the registry checks the tenant and the guard. One provider shares one facility instance. The Service subclass only forwards calls and manages life. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives three mechanism flows. The [object model](docs/object-model.md) lists the objects.
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
+The three assembly units share one configuration schema. It accepts only an absent value, `null`, or an empty object. The package has no tunable parameter. The recovery authority port comes as the argument of `executionEnvironmentRegistryWith`. It does not go into the plugin tree. One isolate label holds one service.
 
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+The host files facility runs on Node. It checks the object identity with `O_NOFOLLOW`, the device number, and the inode. `package.json` declares the engine `>=24`. The platform in the host facts comes from `process.platform`. The prerequisites always read as satisfied. No probe runs.
 
 ## Verification
 
-<!-- documentation:placeholder -->
+From the repository root, run:
 
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+```sh
+pnpm --filter @omne-harness/execution-environment-host-local test
+```
+
+In this directory, run `pnpm typecheck` for the type check. The five test files hold fifty tests. See [tests/](tests/README.md). File bytes, symbolic links, and object replacement use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. On 2026-10-21, on Node v24.18.0 and linux, all fifty tests passed. No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+- A change to the accepted host file use behavior needs a new acceptance through the original acceptance entry. Then update the SPEC, the [architecture section](docs/architecture.md#宿主文件使用), and the tests.
+- When the service definition changes, update the Service subclass, the [Cordis page](docs/cordis.md), and the tests.
+- When the registry factory changes, update the Service subclass and `executionEnvironmentRegistryWith`.
+- When a new host facility arrives, update the host provider facts in the SPEC, the [API page](docs/public-api.md), and the Cordis page.
+- Before a Cordis upgrade, run the basis probes that the service definition member lists.
+- The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
 
 ## Directory structure and documentation roles
 
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the public types
+SPEC.md                   Host provider, host file use (accepted), Service, removal order
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
-├── architecture.md       Modules, state and resource ownership, mechanisms
-├── flows.md              Key business flows and data flows
-├── object-model.md       Internal object model
-├── public-api.md         Public boundary and definition index
-├── context.md            Consumer use and position in the system
-└── cordis.md             Cordis applicability and integration
-src/                      Public definitions, validation, and implementation
-tests/                    Continuous tests; fixtures/ holds test inputs
-schema/                   External schemas
-verification/             models/ and proofs/
-adr/                      Implementation decisions with continuing consumers
-examples/                 Examples against the public entry
-resources/                Non-source runtime resources
-acceptance/               Independent acceptance; fixtures/ holds its inputs
+├── architecture.md       Modules, dependencies, mechanisms, host file use (accepted)
+├── flows.md              Mechanism flows F-EEH01 to F-EEH03
+├── object-model.md       Service instance, provider, facility instance, handle generations
+├── public-api.md         Export entries and definition index
+├── context.md            Assembly, naming, independent use, position
+└── cordis.md             Plugins, configuration, registration, removal order, IC map
+src/                      index.ts, host-files.ts, host-provider.ts, cordis.ts
+tests/                    Five test files, fixtures/ is empty now
+schema/                   Empty, the configuration schema is in src/cordis.ts
+verification/             models/ and proofs/, empty now
+adr/                      Empty now
+examples/                 Empty now
+resources/                Empty now
+acceptance/               Empty now, fixtures/ is also empty
 ```
 
-Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.
+Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.
