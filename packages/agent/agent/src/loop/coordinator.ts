@@ -65,11 +65,12 @@ import type { AgentDependencies, AgentRuntimeBinding } from '../construction.ts'
 import {
   AGENT_OWNER,
   agentEvidence,
+  invocationParts,
   invokeOperation,
   journalOperation,
   mainAction,
-  mainCall,
   mainConsumption,
+  mainInvocation,
   modelOperation,
   ordinalOf,
   replyMessageId,
@@ -531,7 +532,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             kind: 'model-reply',
             step: current.step,
             action: current.action,
-            call: pending.call,
+            call: invocationParts(pending.reference, access.tenant).call,
             result: produced,
           },
           candidate: required(current.reply, 'reply'),
@@ -672,7 +673,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // callModel: I2, M0, M6, M1, M3, M4, M5 (M2 is #502 1.6 and stage 3)
 
   const callModel = {
-    /** I2: the PendingCall of the main call, whose return position is I3. */
+    /**
+     * I2: the PendingCall of the main call, whose return position is I3. Its ModelInvocationRef is
+     * encoded here from the call and admission that the coordinator derives, so the commit of this
+     * node saves it before the first admit at M6.
+     */
     async I2() {
       const current = required(iteration, 'iteration')
       const ready = required(current.ready, 'ready preparation')
@@ -682,8 +687,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         consumption: current.consumption,
         position: current.position,
         fixed: ready.source,
-        call: mainCall(execution, current.step),
-        admission: modelOperation(execution, current.step, 'admit'),
+        reference: mainInvocation(access.tenant, execution, current.step),
         purpose: 'main',
       }
       return step('call', { checkpoint: { calls: [current.pending] } })
@@ -703,21 +707,30 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
       const ready = required(current.ready, 'ready preparation')
+      const { call, admission } = invocationParts(pending.reference, access.tenant)
       const admitted = await ports.models.calls.admit({
         ...access,
-        call: pending.call,
-        operation: pending.admission,
+        call,
+        operation: admission,
         request: ready.request,
         consumer: pending.position,
         capacity: ready.capacity,
       })
       if ('failure' in admitted) return fail(modelFailure('M6', admitted.failure))
+      // The Model returns the reference of the admitted call. It is the saved one, or the Model
+      // admitted another call than the one this PendingCall names.
+      if (admitted.ok.reference !== pending.reference)
+        return fail({
+          kind: 'unavailable',
+          owner: 'modelRuntime',
+          diagnostic: 'M6: the Model answered another reference than the saved one',
+        })
       return step('admitted')
     },
     /** M1: the observation of the original call until it is really settled. */
     async M1() {
       const current = required(iteration, 'iteration')
-      const settled = await settlementOf(required(current.pending, 'pending call').call)
+      const settled = await settlementOf(required(current.pending, 'pending call').reference)
       if ('failure' in settled) return settled
       current.settlement = settled.ok
       return step('settled')
@@ -733,7 +746,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const { termination } = settlement
       if (termination.kind !== 'completed' || termination.reason !== 'stop')
         return fail(notYet('M3', `a call that ended ${termination.kind}`, '#502 1.6'))
-      const parts = await readResult(pending.call, current.step, settlement.version)
+      const { call } = invocationParts(pending.reference, access.tenant)
+      const parts = await readResult(pending.reference, call, current.step, settlement.version)
       if ('failure' in parts) return parts
       const blocks: Message['blocks'][number][] = []
       for (const part of parts.ok) {
@@ -746,7 +760,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         blocks,
       }
       const produced: ProducedResult = {
-        producer: { kind: 'model', call: pending.call },
+        producer: { kind: 'model', call },
         version: settlement.version,
         delivery: null,
         source: settlement.source,
@@ -770,7 +784,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       revision = recorded.ok.revision
       const acked = await ports.models.consumption.acknowledge({
         ...access,
-        call: pending.call,
+        call,
         operation: modelOperation(execution, current.step, 'ack'),
         result: settlement.version,
         evidence: { kind: 'processed', completion },
@@ -801,8 +815,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   } satisfies Partial<Record<LoopNode, Handler>>
 
   /** The settlement of a call, from its live observation. Any other end stops M1. */
-  async function settlementOf(call: M.ModelCallId): Promise<Outcome<M.Settlement, Failure>> {
-    const route = await ports.models.instances.connect({ ...access, call })
+  async function settlementOf(
+    reference: M.ModelInvocationRef,
+  ): Promise<Outcome<M.Settlement, Failure>> {
+    const route = await ports.models.instances.connect({ ...access, reference })
     if ('failure' in route) return fail(modelFailure('M1', route.failure))
     if (route.ok.kind !== 'live')
       return fail(notYet('M1', 'a call without a live route', '#502 1.6'))
@@ -821,13 +837,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
 
   /** Every part of the settled result, page by page; the read is closed afterwards. */
   async function readResult(
+    reference: M.ModelInvocationRef,
     call: M.ModelCallId,
     of: StepId,
     version: M.ResultVersion,
   ): Promise<Outcome<readonly M.ResultPart[], Failure>> {
     const begun = await ports.models.consumption.beginRead({
       ...access,
-      call,
+      reference,
       operation: modelOperation(execution, of, 'read'),
       result: version,
     })

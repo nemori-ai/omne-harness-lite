@@ -37,6 +37,7 @@ The Loop then runs by itself:
 - It goes from E1 to E9. After E9 the runtime is idle again.
 - Only the transition table in `src/loop/nodes.ts` decides where a node goes. Each row comes from the row of its node in the node table, normally from the column 如何返回.
 - At E4 and I8 the pure evaluator's `Next` decides.
+- I2 encodes the `ModelInvocationRef` of the main call with the contract's `encodeModelInvocationRef`. The I2 commit saves it in the PendingCall before the first admit at M6. M6, M1 and M3 read the call back from it with `resolveModelInvocationRef`.
 - The coordinator admits the Model call and observes it until it settles. Then it reads the result in full. It records the result on the processed path with `recordResult` and acknowledges it.
 - The handle's `output.read` and `output.events` read the Journal events under the guard. The events are input-taken, producer and ended only. Their sequence numbers start at 1.
 
@@ -143,7 +144,7 @@ Pass business identities as operation inputs. Pure contract and implementation p
 
 ## Verification
 
-`OMNE_TEST_TIER=fast pnpm --filter @omne-harness/agent test` builds the package and runs the tests. `pnpm --filter @omne-harness/agent typecheck` checks the types. The tests check these items:
+Run `pnpm turbo run test --filter=@omne-harness/agent` from the repository root, and `pnpm typecheck` in this directory. turbo builds this package and its dependencies first. `pnpm turbo run test:fast --filter=@omne-harness/agent` runs only the fast tier. `pnpm test` in this directory runs Vitest only and does not build, and the import-graph tests read the built output of this package and its dependencies. The tests check these items:
 
 - the public entries, the import graphs and the manifest dependencies
 - the four creation failures and the idle success of the factory

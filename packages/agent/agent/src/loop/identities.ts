@@ -19,10 +19,15 @@ import {
   type LoopFacts,
   type StepId,
 } from '@omne-harness/agent-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
 import {
   decodeModelCallId,
   decodeModelOperationId,
+  encodeModelInvocationRef,
+  resolveModelInvocationRef,
   type ModelCallId,
+  type ModelInvocationParts,
+  type ModelInvocationRef,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -103,6 +108,35 @@ export function modelOperation(
 
 /** A message of the history, named through the contract so this package needs no message import. */
 export type Message = LoopFacts['inputs'][number]
+
+/**
+ * The saved locator of the main call of one step (model-contract SPEC "可保存调用引用"): the tenant,
+ * the call and its admission operation, encoded by the contract before the first admit, so the
+ * PendingCall that holds it can be committed before the Model is asked.
+ */
+export function mainInvocation(
+  tenant: TenantId,
+  execution: AgentExecutionId,
+  step: StepId,
+): ModelInvocationRef {
+  const parts = {
+    tenant,
+    call: mainCall(execution, step),
+    admission: modelOperation(execution, step, 'admit'),
+  }
+  return minted(encodeModelInvocationRef(parts), `${parts.call}/${parts.admission}`)
+}
+
+/**
+ * The call and admission that a saved locator names, read back through the contract for the tenant
+ * of the execution. The locator was encoded for that tenant, so a refusal is a defect.
+ */
+export function invocationParts(
+  reference: ModelInvocationRef,
+  tenant: TenantId,
+): ModelInvocationParts {
+  return minted(resolveModelInvocationRef(reference, tenant), 'the saved Model reference')
+}
 
 /** The message identity of the main reply of one step. */
 export function replyMessageId(execution: AgentExecutionId, step: StepId): Message['id'] {

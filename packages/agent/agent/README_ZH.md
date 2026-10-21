@@ -37,6 +37,7 @@ Loop 随后自行推进：
 - 从 E1 走到 E9。E9 之后 runtime 回 idle。
 - 节点的去向只取 `src/loop/nodes.ts` 的转移表。每行来自该节点在节点表中的行，通常是「如何返回」一列。
 - E4 与 I8 的去向由纯评估器的 `Next` 决定。
+- I2 以契约的 `encodeModelInvocationRef` 编码主调用的 `ModelInvocationRef`，I2 的提交在 M6 首次 admit 之前把它随 PendingCall 保存。M6、M1、M3 经 `resolveModelInvocationRef` 从它读回调用身份。
 - 协调者向 Model 受理调用，观察到真实收场后读完结果，以 `recordResult` 走 processed 路径保管，再 `acknowledge`。
 - 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。事件只有 input-taken、producer、ended，序号从 1 连续。
 
@@ -143,7 +144,7 @@ Loop 骨架取下列临时做法。每项在源码注释、测试名与 [tests/R
 
 ## 验证
 
-`OMNE_TEST_TIER=fast pnpm --filter @omne-harness/agent test` 先构建再运行测试，`pnpm --filter @omne-harness/agent typecheck` 核对类型。测试核对公开入口、导入图与清单依赖，工厂的四种创建失败与 idle，四个面的访问守卫，内存 Journal 的同形清单与三项临时做法，每个替身的编排接口，以及 Loop 骨架的转移表、评估器与一条输入到 ended 的正常路径。测试不证明正常路径之外的运行能力已经支持。测试的组织见 [tests/README](tests/README.md)。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/agent`，在本目录运行 `pnpm typecheck`。turbo 先构建本包及其依赖。只跑快层用 `pnpm turbo run test:fast --filter=@omne-harness/agent`。本目录里的 `pnpm test` 只运行 Vitest，不构建，而导入图测试读取本包及其依赖的构建产物。测试核对公开入口、导入图与清单依赖，工厂的四种创建失败与 idle，四个面的访问守卫，内存 Journal 的同形清单与三项临时做法，每个替身的编排接口，以及 Loop 骨架的转移表、评估器与一条输入到 ended 的正常路径。测试不证明正常路径之外的运行能力已经支持。测试的组织见 [tests/README](tests/README.md)。
 
 ## 维护
 

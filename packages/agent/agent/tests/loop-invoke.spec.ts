@@ -4,6 +4,7 @@
 // input-taken, producer and ended, numbered from 1; the runtime is idle again. The skeleton's
 // temporary choices are pinned by the tests that name them (tests/README.md).
 import { describe, expect, it } from 'vitest'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
@@ -395,5 +396,46 @@ describe('the reply and the identities the coordinator mints', () => {
       await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
     )
     expect(loaded.checkpoint.step).toBe('step-1')
+  })
+})
+
+describe('the ModelInvocationRef of the main call (model-contract SPEC 可保存调用引用)', () => {
+  it('is committed with the PendingCall before the first admit and names the admitted call', async () => {
+    const log: string[] = []
+    let saved: unknown = null
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        commit(input: JournalCommit<Principal>) {
+          const [pending] = input.checkpoint.calls
+          if (pending?.kind === 'model' && saved === null) {
+            saved = pending.reference
+            log.push(`commit ${input.operation.split('/')[0]}`)
+          }
+          return dependencies.journal.commit(input)
+        },
+      },
+      models: {
+        ...dependencies.models,
+        calls: {
+          ...dependencies.models.calls,
+          async admit(input) {
+            log.push('admit')
+            const admitted = await dependencies.models.calls.admit(input)
+            if ('ok' in admitted) {
+              const parts = ok(resolveModelInvocationRef(admitted.ok.reference, input.tenant))
+              expect(admitted.ok.reference).toBe(saved)
+              expect(parts).toMatchObject({ call: input.call, admission: input.operation })
+            }
+            return admitted
+          },
+        },
+      },
+    }))
+    const handle = ok(await invoke(assembly))
+    assembly.release.open()
+    await eventsOf(handle)
+    expect(log).toEqual(['commit I2', 'admit'])
   })
 })
