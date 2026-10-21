@@ -20,10 +20,19 @@ it('M1 admits an assistant message with one text block', () => {
   })
 })
 
+const compactionKeys = {
+  covers: { from: 'e1', to: 'e1' },
+  retained: [],
+  derivation: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+}
+
 it('M2 admits each of the other five log roles', () => {
-  for (const role of ['user', 'tool_internal', 'system_reminder', 'compaction']) {
+  for (const role of ['user', 'tool_internal', 'system_reminder']) {
     expect(judgeMessage(message(role))).toEqual({ ok: { id, role, blocks: [text] } })
   }
+  expect(judgeMessage({ ...message('compaction'), ...compactionKeys })).toEqual({
+    ok: { id, role: 'compaction', blocks: [text], ...compactionKeys },
+  })
   const marker = { kind: 'tool_result', id: 'r1', visibility: text.visibility, callId: 'c1' }
   expect(judgeMessage(message('tool', [marker, text]))).toEqual({
     ok: { id, role: 'tool', blocks: [marker, text] },
@@ -104,5 +113,26 @@ it('rejects a tool part whose required fields are not enumerable', () => {
 it('rejects a part whose kind and callId are only inherited', () => {
   expect(judgePart(Object.create({ kind: 'tool_call', callId: 'c1' }))).toEqual({
     rejected: 'json',
+  })
+})
+
+it('reads blocks by index, not through an iterator the input defines', () => {
+  const call = {
+    kind: 'tool_call_unparsed',
+    id: 'b2',
+    visibility: text.visibility,
+    callId: 'c1',
+    name: 'n',
+    raw: '{',
+  }
+  const blocks = [text, call]
+  Object.defineProperty(blocks, Symbol.iterator, {
+    value: function* () {
+      yield text
+    },
+  })
+  expect(judgeMessage(message('user', blocks))).toEqual({
+    rejected: 'misplaced-part',
+    blockIndex: 1,
   })
 })

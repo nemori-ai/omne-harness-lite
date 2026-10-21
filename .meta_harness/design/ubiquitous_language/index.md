@@ -72,6 +72,8 @@
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |
 | [UL-scope-composition-semantics](terms/scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics) | 作用域合成语义 | Scope Composition Semantics | 覆盖 / 收窄 / 组合三种 |
 | [UL-two-pass-resolution](terms/scope-and-resolution.md#ul-two-pass-resolution--两轮求值--two-pass-resolution) | 两轮求值 | Two-Pass Resolution | 先算哪个资产，再算它的属性项 |
+| [UL-adoption-change-counter](terms/scope-and-resolution.md#ul-adoption-change-counter--采用变更计数--adoption-change-counter) | 采用变更计数 | Adoption Change Counter | 来源拥有者按作用域维护的单调计数；**全部相同就不必重新求值** |
+| [UL-validated-assembly-candidate](terms/scope-and-resolution.md#ul-validated-assembly-candidate--已校验装配候选--validated-assembly-candidate) | 已校验装配候选 | Validated Assembly Candidate | 入口之前预先算好并校验的装配结果；**只在入口成为采用依据** |
 | [UL-immutable-marker](terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker) | 不可覆盖标记 | Immutable Marker | 把「默认这样」变成「必须这样」的那个标记 |
 | [UL-attribute-assignment](terms/scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment) | 属性配值 | Attribute Assignment | 一份资产持有上、一个属性项的一个值，**设置与权限真正被读写的最小单位** |
 | [UL-attribute-projection](terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection) | 属性投影 | Attribute Projection | 「组织的设置」是视图不是对象 |
