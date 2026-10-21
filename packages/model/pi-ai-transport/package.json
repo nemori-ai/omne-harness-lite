@@ -24,7 +24,12 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
