@@ -41,6 +41,13 @@ export type SessionCallerClass = 'intake' | 'coordinator' | 'maintainer' | 'read
 export type Access<P> = Readonly<{ principal: P; tenant: TenantId; session: SessionId }>
 export type Mutation<P> = Access<P> & Readonly<{ operation: SessionOperationId }>
 export type AdvanceRef = Readonly<{ run: RunId; attempt: AttemptId; instance: AgentInstanceRef }>
+/** Registration key of one resident-tool contribution, minted by Tool. Only session-adapters parses it. */
+export type ResidentKey = SessionIdentity<'ResidentKey'>
+/** First-loaded definition of one resident tool, as Tool reported it. shape is opaque to this member. */
+export type ResidentTool = Readonly<{
+  capability: string; version: string; shape: JsonValue; admitted: DurableEvidence
+}>
+export type SessionFrozen = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence; commit: DurableEvidence }>
 /**
  * Points at the Agent's authoritative record. revision and evidence come from the latest Agent event
  * read or the latest participated commit; both are null before the first one. readThrough is the
@@ -134,7 +141,8 @@ export type RecoveryTask =
     }>
 export type WorkSnapshot = Readonly<{
   session: SessionId; tenant: TenantId; revision: SessionRevision; interpreter: Adoption; source: DurableEvidence
-  lifecycle: 'initializing' | 'dormant' | 'active' | 'archived'
+  lifecycle: 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived'
+  frozen: SessionFrozen | null; residents: readonly ResidentTool[]
   definition: Readonly<{ name: string; adopted: Adoption }>
   execution: Adoption; declarations: DurableEvidence
   revisions: Readonly<{ workspace: string; declarations: string }>
@@ -163,6 +171,7 @@ export type SessionOperationElements =
   | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
   | Readonly<{ kind: 'idle'; session: SessionId; observation: DurableEvidence }>
   | Readonly<{ kind: 'auto-archive'; session: SessionId; idleEvidence: DurableEvidence }>
+  | Readonly<{ kind: 'freeze'; session: SessionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'fact'; fact: ProducerFact }>
 export type DriveOperationElements =
   | Readonly<{ kind: 'invoke'; execution: string; first: InputId; started: DurableEvidence }>
@@ -196,7 +205,7 @@ export type SessionFailure =
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
-  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' }>
+  | Readonly<{ kind: 'archived' | 'frozen' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
   operation: SessionOperationId; revision: SessionRevision
@@ -363,6 +372,8 @@ export type IdleObservation =
   | Readonly<{ kind: 'interrupted'; at: ClockSample; cause: DurableEvidence; source: DurableEvidence }>
   | Readonly<{ kind: 'unknown'; at: ClockSample; scope: DurableEvidence; source: DurableEvidence }>
 export type AutoArchivePolicy = Readonly<{ kind: 'disabled' }> | Readonly<{ kind: 'enabled'; idleMs: string }>
+/** Tool's adoption-point verdict that a resident tool cannot keep its shape. */
+export type FreezeVerdict = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence }>
 export interface SessionManagement<P> {
   inspectIdle(input: Access<P>): Reply<IdleObservation>
   recordIdle(input: Mutation<P> & Readonly<{
@@ -379,6 +390,8 @@ export interface SessionManagement<P> {
   interrupt(input: Mutation<P> & Readonly<{
     run: RunId; urgent: Extract<RoutedInput, { kind: 'ordinary' }>; decision: DurableEvidence
   }>): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
+  /** Idempotent by state: a frozen session returns the original receipt with recovered = true. */
+  freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
 }
 export type AgentEventFact =
   | Readonly<{ kind: 'input-taken'; batch: InputBatch }>
@@ -412,11 +425,17 @@ export type ProducerFact =
   | Readonly<{ kind: 'start-fence'; operation: SessionOperationId; advance: AdvanceRef; source: DurableEvidence }>
 /** unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; idle-due: confirmed idle evidence is due under the current policy. */
 export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'idle-due'
+/** One session that references a resident key. Carries the first-loaded shape, never the definition body. */
+export type ResidentReference = Readonly<{ tenant: TenantId; session: SessionId; capability: string; shape: JsonValue }>
 export interface SessionReconciliation<P> {
   receive(input: Mutation<P> & Readonly<{ fact: ProducerFact }>): Reply<CommitReceipt>
   pending(input: Readonly<{
     principal: P; tenant: TenantId; after: string | null; limit: number; reason?: PendingReason
   }>): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
+  /** System scope. No Access<P>: the query spans tenants and returns identities and shapes only. */
+  references(input: Readonly<{
+    principal: P; scope: 'system'; key: ResidentKey; after: string | null; limit: number
+  }>): Reply<Readonly<{ sessions: readonly ResidentReference[]; next: string | null }>>
 }
 export type HistoryEntry = Readonly<{
   id: EntryId; revision: SessionRevision; kind: string; schema: Adoption
@@ -466,10 +485,10 @@ export type RouteJudgment =
   | Readonly<{ kind: 'queue'; destination: 'current-run' | 'next-run' }>
   | Readonly<{ kind: 'card'; destination: DurableEvidence }>
   | Readonly<{ kind: 'business'; owner: string }>
-  | Readonly<{ kind: 'rejected'; reason: 'archived' | 'invalid' }>
+  | Readonly<{ kind: 'rejected'; reason: 'archived' | 'frozen' | 'invalid' }>
 export type RunStartJudgment =
   | Readonly<{ kind: 'eligible'; first: InputId }>
-  | Readonly<{ kind: 'not-ready' | 'archived' | 'run-active' | 'no-input' | 'login-required' }>
+  | Readonly<{ kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required' }>
 /** Six parts, all derived from the snapshot. unreadEvents: Agent events after readThrough count as open work. */
 export type OpenWork = Readonly<{
   pending: readonly InputId[]; handed: readonly InputId[]
@@ -586,7 +605,7 @@ export type MutationName =
   | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption'
   | 'bindExternalCall' | 'commitDerived' | 'release'
   | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change'
-  | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'receive'
+  | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'freeze' | 'receive'
 type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>
 export type SessionCommand = {
   readonly [K in MutationName]: Readonly<{
@@ -628,6 +647,9 @@ export interface SessionTransactionPort<P> {
   pending(input: Readonly<{
     principal: P; tenant: TenantId; after: string | null; limit: number; reason?: PendingReason
   }>): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
+  references(input: Readonly<{
+    principal: P; scope: 'system'; key: ResidentKey; after: string | null; limit: number
+  }>): Reply<Readonly<{ sessions: readonly ResidentReference[]; next: string | null }>>
 }
 export interface SessionNotifier {
   committed(input: Readonly<{

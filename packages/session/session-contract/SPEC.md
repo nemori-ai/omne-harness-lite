@@ -258,7 +258,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 
 归档后拒绝新任务，迟到结果与费用仍保存原归属但不入任务队列。执行方可继续真实收场，不能伪记物理中断，也不能据此恢复会话等待。归档不删除历史、会话授权、工作区或实际费用。
 
-撤销归档回休眠，从撤销时刻重新开始空闲计时，不恢复原取消任务、Run、调用或卡片，不顺带恢复子会话。原取消调用此后迟到的结果仍不自动入队，用户需要重新工作时须显式提交新任务。当前保存的模式和注册恢复，实时权限按当前来源核对。旧晚到reload或原调用不能重新启动已取消工作。
+撤销归档回休眠；冻结的会话撤销归档后回到冻结（[常驻工具与会话冻结](#常驻工具与会话冻结)）。两种情形都从撤销时刻重新开始空闲计时，不恢复原取消任务、Run、调用或卡片，不顺带恢复子会话。原取消调用此后迟到的结果仍不自动入队，用户需要重新工作时须显式提交新任务。当前保存的模式和注册恢复，实时权限按当前来源核对。旧晚到reload或原调用不能重新启动已取消工作。
 
 ## 自动归档与模式变化
 
@@ -424,6 +424,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | EC | 事件消费与交付责任解除 |
 | RS | Run 两层状态机的转移 |
 | I-R | Run 不变量 |
+| I-F | 会话冻结不变量 |
 | P | 具名前提 |
 | VC | 本节的持续验证义务 |
 
@@ -490,6 +491,7 @@ Session 命令：
 | `control`、`interrupt`、`create`、`completeInitialization`、`change`、`setRelation`、`configureAutoArchive` | 调用方交来的提交身份 |
 | `recordIdle` | session、观察摘要 |
 | `considerAutoArchive` | session、`idleEvidence` |
+| `freeze` | session、冻结判定的证据 |
 | `receive` | 事实来源的稳定身份：Agent 事件的 execution 与序号；交入回执的 execution 与 `InputId`；生产者记录身份与修订；子方操作；释放读回；启动资格失效读回的操作与范围；实例退出的 attempt 与实例 |
 
 出站调用（`AgentDrivePort`）：
@@ -530,12 +532,12 @@ Session 命令：
 
 | 操作 | 拒绝的原因 | 未知 | 认回 | 责任 |
 | --- | --- | --- | --- | --- |
-| `accept` | `denied`；`invalid`（内容或引用不可靠，或去处不明）；`archived`；`conflict`（同身份异内容）；`unavailable`（存储或保管） | `commit-unknown`。未知期间不报告未受理，不新建提交 | `queryOperation`；同身份同内容认回 | 输入耐久与去处归 Session；业务流程拓展点的结论归命令域与 hooks 拥有者 |
+| `accept` | `denied`；`invalid`（内容或引用不可靠，或去处不明）；`archived`；`frozen`（普通输入到达已冻结且没有未终结 Run 的会话）；`conflict`（同身份异内容）；`unavailable`（存储或保管） | `commit-unknown`。未知期间不报告未受理，不新建提交 | `queryOperation`；同身份同内容认回 | 输入耐久与去处归 Session；业务流程拓展点的结论归命令域与 hooks 拥有者 |
 | `readWork`、`loadRecovery` | `denied`；`unavailable`（不能读）；`quarantined`（缺批、损坏或未知相关类别）。不返回部分状态 | 只读，没有未知 | 不适用 | 归约归本成员，介质归存储提供者 |
 | `readInput` | `denied`；`invalid`（不存在或不属于本会话）；`unavailable`（内容暂不可恢复）。不以空正文代替 | 只读，没有未知 | 不适用 | 内容耐久归 Session 的保管参加者 |
-| `startRun` | `no-input`；`run-active`；`archived`；`not-ready`（初始化未完成）；`login-required`；`denied`（新 Run 准入）；`invalid`（候选）；`changed`（采用边界已变）；`unavailable`（桥） | `commit-unknown` | `queryOperation`。认回为 `committed` 时从回执读 `AdvanceRef` 与首条输入，再发起执行（[PM-02](#pm-02)） | 两次提交的顺序归 Session |
+| `startRun` | `no-input`；`run-active`；`archived`；`frozen`（会话已冻结，或候选采用带回冻结判定）；`not-ready`（初始化未完成）；`login-required`；`denied`（新 Run 准入）；`invalid`（候选）；`changed`（采用边界已变）；`unavailable`（桥） | `commit-unknown` | `queryOperation`。认回为 `committed` 时从回执读 `AdvanceRef` 与首条输入，再发起执行（[PM-02](#pm-02)） | 两次提交的顺序归 Session |
 | `claim` | `stale-advance`；`changed`；`terminal`；`archived`；`denied`（接管资格）；`invalid`（`continuity`） | `commit-unknown` | [PM-10](#pm-10) | 资格判断归 Session；挂接授予归执行记录提供者 |
-| `reload` | `invalid`（候选，或定义标识不同）；`changed`（修订或交接证明过期）；`terminal`；`archived`；`conflict`；`unavailable`（桥） | `commit-unknown` | [PM-10](#pm-10) | 采用合法性归装配；转换证明归 Agent |
+| `reload` | `invalid`（候选，或定义标识不同）；`changed`（修订或交接证明过期）；`terminal`；`archived`；`frozen`（同 `startRun`）；`conflict`；`unavailable`（桥） | `commit-unknown` | [PM-10](#pm-10) | 采用合法性归装配；转换证明归 Agent |
 | `recordMessage` | `invalid`（执行不是本 Run 的执行，或消息分类不符）；`archived`（归档后不再追加） | 由提交方返回 | [PA-05](#pa-05) | 消息准入归 Agent；历史条目归 Session 参加者 |
 | `preserveResult` | `invalid`（版本或来源）；`conflict`（同版本异摘要）；`denied`（保管者资格）；`unavailable`（内容不可靠） | 参加时由提交方返回；Session 提交时为 `commit-unknown`。认回为 `committed` 之前不发交付责任解除 | 参加时 [PA-05](#pa-05)；Session 提交时 `queryOperation`，同版本认回 | 保管归保管者；交付责任解除见 [EC-04](#ec-04) |
 | `completeConsumption` | `invalid`（consumption 不属于本会话，或结果版本不符）；`conflict`（同版本异完成依据） | 由提交方返回 | [PA-05](#pa-05) | 原位置处理归 Agent；完成事实归 Session 参加者 |
@@ -560,6 +562,7 @@ Session 命令：
 | `configureAutoArchive` | `intake`；租户设置资格 | 调用方交来的提交身份 | 自动归档策略 | 回执 |
 | `considerAutoArchive` | `maintainer`；空闲维护资格 | session 与 `idleEvidence` | `idleEvidence` | `archived`、`not-due`、`exempt` 或 `disabled`。`archived` 时另有回执 |
 | `interrupt` | `intake`；控制资格 | 调用方交来的提交身份 | run、加急输入、处置决定 | 回执与 `ControlProgress` |
+| `freeze` | `coordinator`；Tool 在采用点给出的冻结判定 | session 与判定证据 | `FreezeVerdict`：原因 `tool-shape-lost` 与耐久证据 | 回执。会话已冻结时返回原回执，`recovered` 为真 |
 
 | 操作 | 拒绝的原因 | 未知 | 认回 | 责任 |
 | --- | --- | --- | --- | --- |
@@ -572,6 +575,7 @@ Session 命令：
 | `configureAutoArchive` | `denied`；`invalid`（`idleMs` 不是正十进制毫秒数）；`unavailable`（设置源） | `commit-unknown` | `queryOperation` | 配置源归租户设置拥有者 |
 | `considerAutoArchive` | `unavailable`（来源不可达、观察为 `unknown` 或组合缺席）；`invalid`（`idleEvidence` 不指向已确认的 SE31）；`denied` | `archived` 分支为 `commit-unknown`；其他结果不提交，没有未知 | `queryOperation`；同依据认回 | 归档复用 `control(archive)` 的完整结果。仍有未结工作时返回 `not-due`，不以空集合冒充已覆盖 |
 | `interrupt` | `terminal`；`archived`；`invalid`（加急消息准入或处置决定）；`denied`；`conflict` | `commit-unknown` | `queryOperation`；同次插队不重复插入消息 | 实际转换由 Tool 确认，经 `receive` 承接 |
+| `freeze` | `invalid`（原因不是 `tool-shape-lost`，或证据不是耐久证据）；`not-ready`（初始化未完成）；`denied` | `commit-unknown` | `queryOperation`；已冻结时按状态认回，不论证据是否相同 | 判定与证据归 Tool；状态转换归 Session（[常驻工具与会话冻结](#常驻工具与会话冻结)） |
 
 #### SessionReconciliation
 
@@ -579,11 +583,13 @@ Session 命令：
 | --- | --- | --- | --- | --- |
 | `receive` | `coordinator`、`maintainer`；事实来源的核实资格 | 事实来源的稳定身份 | `ProducerFact` | 回执；对应责任或任务解除 |
 | `pending` | `maintainer`；显式租户的恢复资格 | 只读 | 租户、游标、`limit`、可选的 `reason` | 会话身份页与下一游标 |
+| `references` | `maintainer`；系统作用域的读取资格 | 只读 | `scope` 为 `system`、`ResidentKey`、游标、`limit` | `ResidentReference` 页与下一游标 |
 
 | 操作 | 拒绝的原因 | 未知 | 认回 | 责任 |
 | --- | --- | --- | --- | --- |
 | `receive` | `invalid`（事实拥有者、版本或原关联不可信；Agent 事件的执行不是本 Run 的执行；`release` 缺生产者确认）；`conflict`（同身份异事实）；`denied` | `commit-unknown` | `queryOperation`；重放的事实同身份认回，不重复写入 | 事实语义归其拥有者。本操作不授予推进资格，不改变生产者的终局或费用，不复活已终态的 Run |
 | `pending` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空完成） | 只读，没有未知 | 不适用 | 待办只在相应操作成功后由归约解除。读取不删除待办 |
+| `references` | `denied`；`invalid`（游标错域，或键不可解析）；`unavailable`（不返回空页） | 只读，没有未知 | 不适用 | 引用从会话事实派生（[常驻工具与会话冻结](#常驻工具与会话冻结)）；键的含义归 Tool |
 
 `PendingReason` 的取值：`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`idle-due` 指有已确认的空闲依据且按当前策略已到期，等待裁定。
 
@@ -602,7 +608,7 @@ Session 命令：
 - 品牌身份与修订只防误用。服务端仍核对来源、租户、对象关系与当前资格。
 - `ProducerRef` 的字符串由生产领域的编解码解析，并核对原关联。`AgentInstanceRef`、`ExecutionRef.execution`、`BatchId` 与 `ConsumptionId` 由 Agent 的受信适配解析。Session 不定义另一套生产者或执行身份格式。
 - `AttemptId` 是 (Run, 序号) 的确定编码，从日志派生，不另存。
-- `WorkSnapshot` 来自一个完整权威提交位置。`lifecycle` 由事实归约得出，不单独写入。`active` 当且仅当有未终结的 Run。`ordinal` 只是已提交 attempt 的开始顺序，不单独证明 `advance` 有效。`revisions` 公开两类修订计数：所选工作区（每次 SE05 加一）与设置声明（每次 SE06 加一）。
+- `WorkSnapshot` 来自一个完整权威提交位置。`lifecycle` 由事实归约得出，不单独写入。取值的优先次序是 `archived`、`active`、`frozen`、`dormant`：冻结的会话有未终结 Run 时为 `active`，`frozen` 字段非空。`residents` 是 SE36 的累积，只增不减。`active` 当且仅当有未终结的 Run。`ordinal` 只是已提交 attempt 的开始顺序，不单独证明 `advance` 有效。`revisions` 公开两类修订计数：所选工作区（每次 SE05 加一）与设置声明（每次 SE06 加一）。
 - `RunState.active.execution` 是 `ExecutionRef = { execution, revision, evidence, readThrough }`。它指向 Agent 的权威记录，Session 不保存接续值。`revision` 与 `evidence` 取自 Session 读到的最新 Agent 事件或参加提交的回执，第一次之前为空。`readThrough` 是已读到并保存的 Agent 事件序号，初值为 `"0"`（[EC-02](#ec-02)）。
 - `pending` 是有待处理资格的普通输入的有序集合。`handed` 是其中已交入执行而尚未承接的子集。`pending` 为空只在权威读成功时有意义，读取故障不变成空集合。
 - `InputBatch` 是 Agent 承接事件给出的批次：批次身份、水位线与精确有序成员。Session 不重选批界或顺序。
@@ -614,14 +620,14 @@ Session 命令：
 
 ### 命令表
 
-下表列 22 个变更命令。`accept` 是一个命令，按 `RoutedInput` 分三类处理。每个命令的第一步都调用 `resolveOperation`，表中不再列出。事件族与 SE 编号的完整对应归[事件目录](docs/object-model/session-log-events.md#原生事实类别)。「参加者」一列说明提交由谁发起：Session 提交时，桥只提供参加者材料。
+下表列 23 个变更命令。`accept` 是一个命令，按 `RoutedInput` 分三类处理。每个命令的第一步都调用 `resolveOperation`，表中不再列出。事件族与 SE 编号的完整对应归[事件目录](docs/object-model/session-log-events.md#原生事实类别)。「参加者」一列说明提交由谁发起：Session 提交时，桥只提供参加者材料。
 
 | # | 命令 | 面 | 领域服务 | 写入的事件族（SE） | 参加者 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `accept` | `SessionWork` | `routeInput` | 历史消息（SE10）、受理与分流（SE11）；卡片答复另有扩展与人工决定（SE23），授权类答复另有账目、更正与授权（SE34）；拒绝时只有受理与分流的留痕（SE12） | Session 提交 |
-| 2 | `startRun` | `SessionWork` | `judgeRunStart` | Run、批次与 attempt（SE13、SE15）；采用变化时会话身份与声明（SE08） | Session 提交。Agent 受理执行是第二次提交（[PM-02](#pm-02)） |
+| 2 | `startRun` | `SessionWork` | `judgeRunStart` | Run、批次与 attempt（SE13、SE15）；采用变化时会话身份与声明（SE08）；新纳入常驻工具时 SE36 | Session 提交。Agent 受理执行是第二次提交（[PM-02](#pm-02)） |
 | 3 | `claim` | `SessionWork` | `judgeAdvance` | Run、批次与 attempt（SE15，必要时 SE16） | Session 提交。接续原执行是第二次提交（[PM-05](#pm-05)） |
-| 4 | `reload` | `SessionWork` | `judgeAdvance` | 会话身份与声明（SE08）；Run、批次与 attempt（SE15、SE16） | Session 提交。接续原执行是第二次提交（[PM-06](#pm-06)） |
+| 4 | `reload` | `SessionWork` | `judgeAdvance` | 会话身份与声明（SE08；新纳入常驻工具时 SE36）；Run、批次与 attempt（SE15、SE16） | Session 提交。接续原执行是第二次提交（[PM-06](#pm-06)） |
 | 5 | `recordMessage` | `SessionWork` | `judgeAdvance`（参加分支） | 历史消息（SE10） | Session 参加执行记录提供者的 `message` 提交 |
 | 6 | `preserveResult` | `SessionWork` | 无；守卫核对版本唯一与来源 | 调用与结果（SE20） | Session 参加 `custody` 提交；Agent 记录已删除时由合格保管者经 Session 提交 |
 | 7 | `completeConsumption` | `SessionWork` | `judgeAdvance`（参加分支） | 调用与结果（SE21） | Session 参加 `processed` 提交 |
@@ -629,17 +635,18 @@ Session 命令：
 | 9 | `bindExternalCall` | `SessionWork` | 无；守卫核对外部关联与当前准入 | 调用与结果（SE18） | Session 提交 |
 | 10 | `completeExternalConsumption` | `SessionWork` | 无；守卫核对原外部位置与投递资格 | 调用与结果（SE21）；必要时历史消息（SE10） | Session 提交 |
 | 11 | `release` | `SessionWork` | `judgeAdvance` | Run、批次与 attempt（SE16） | Session 提交 |
-| 12 | `control` | `SessionWork` | `resolveControlScope`；`archive` 另用 `resolveCascade` | 控制与终态（SE24、SE25）；`cancel-run` 与 `archive` 同批有 SE26 与 SE16；`archive` 另有归档、关系与空闲（SE27）；`unarchive` 另有 SE28、SE31 | Session 提交 |
-| 13 | `finishRun` | `SessionWork` | `judgeAdvance`（有界收束分支） | 控制与终态（SE26）；Run、批次与 attempt（SE16）；准入拒绝分支另有受理与分流（SE35） | Session 提交 |
-| 14 | `create` | `SessionManagement` | 无；守卫核对入口契约的必填项 | 会话身份与声明（SE01，必要时 SE07、SE08）；有初始输入时另有 SE10、SE11 | Session 提交 |
+| 12 | `control` | `SessionWork` | `resolveControlScope`；`archive` 另用 `resolveCascade` | 控制与终态（SE24、SE25）；`cancel-run` 与 `archive` 同批有 SE26 与 SE16；`archive` 另有归档、冻结、关系与空闲（SE27）；`unarchive` 另有 SE28、SE31；冻结的会话里 `cancel-run` 另有 SE38 | Session 提交 |
+| 13 | `finishRun` | `SessionWork` | `judgeAdvance`（有界收束分支） | 控制与终态（SE26）；Run、批次与 attempt（SE16）；准入拒绝分支另有受理与分流（SE35）；冻结的会话里另有 SE38 | Session 提交 |
+| 14 | `create` | `SessionManagement` | 无；守卫核对入口契约的必填项 | 会话身份与声明（SE01，必要时 SE07、SE08；初始化确定常驻集合时 SE36）；有初始输入时另有 SE10、SE11 | Session 提交 |
 | 15 | `completeInitialization` | `SessionManagement` | 无；守卫核对原项与负责方 | 会话身份与声明（SE02） | Session 提交 |
 | 16 | `change` | `SessionManagement` | 无；守卫核对维度独立、上界与人的授权 | 会话身份与声明：按维度写 SE03、SE04、SE05、SE06、SE07 或 SE09；执行环境模式同批写 SE03 与 SE06 | Session 提交 |
-| 17 | `setRelation` | `SessionManagement` | 无；守卫核对主子与常驻互斥 | 归档、关系与空闲（SE29；常驻标记为 SE30） | Session 提交 |
+| 17 | `setRelation` | `SessionManagement` | 无；守卫核对主子与常驻互斥 | 归档、冻结、关系与空闲（SE29；常驻标记为 SE30） | Session 提交 |
 | 18 | `configureAutoArchive` | `SessionManagement` | 无；守卫核对格式与资格 | 会话身份与声明（SE06） | Session 提交 |
 | 19 | `considerAutoArchive` | `SessionManagement` | `judgeIdle`；到期时 `resolveControlScope`、`resolveCascade` | 到期时同 `control(archive)`；否则不写条目 | Session 提交；空闲输入的参加者重新核对全部范围 |
-| 20 | `recordIdle` | `SessionManagement` | 无；守卫核对覆盖证明与起点连续 | 归档、关系与空闲（SE31） | Session 提交；空闲输入的参加者核对覆盖 |
+| 20 | `recordIdle` | `SessionManagement` | 无；守卫核对覆盖证明与起点连续 | 归档、冻结、关系与空闲（SE31） | Session 提交；空闲输入的参加者核对覆盖 |
 | 21 | `interrupt` | `SessionManagement` | `resolveControlScope`（插队分支） | 历史消息（SE10）、受理与分流（SE11）、控制与终态（SE24、SE25） | Session 提交 |
-| 22 | `receive` | `SessionReconciliation` | 无；守卫核对事实拥有者、版本与原关联 | 按 `ProducerFact` 种类写下列之一：Agent 事件派生的 SE14、SE18、SE22、SE25、SE26 与 SE16；交入回执 SE35；生产者事实 SE19、SE32；实例退出 SE17；级联、释放与启动资格失效读回 SE25。交付责任解除、级联、已分流输入、作用域释放与启动资格失效的读回解除对应任务 | Session 提交 |
+| 22 | `freeze` | `SessionManagement` | 无；守卫核对原因、证据与初始化已完成 | 归档、冻结、关系与空闲（SE37）；没有未终结 Run 时另有受理与分流（SE38） | Session 提交 |
+| 23 | `receive` | `SessionReconciliation` | 无；守卫核对事实拥有者、版本与原关联 | 按 `ProducerFact` 种类写下列之一：Agent 事件派生的 SE14、SE18、SE22、SE25、SE26 与 SE16（冻结的会话里终态另有 SE38）；交入回执 SE35；生产者事实 SE19、SE32；实例退出 SE17；级联、释放与启动资格失效读回 SE25。交付责任解除、级联、已分流输入、作用域释放与启动资格失效的读回解除对应任务 | Session 提交 |
 
 ### 共同提交与共享事务域
 
@@ -670,10 +677,11 @@ Session 命令：
 | JC-21 | `configureAutoArchive` | Session | 存储参加者；身份桥 | 租户设置资格 | SE06（策略采用） |
 | JC-22 | `recordIdle` | Session | 存储参加者；空闲输入的参加者 | 时钟、关系、子方与在途调用的覆盖 | SE31 |
 | JC-23 | `considerAutoArchive` | Session | 存储参加者；空闲输入的参加者（重新核对）；归档的参加者同 JC-16 | 覆盖的重新核对 | 到期时同 JC-16 的归档分支；否则没有条目 |
-| JC-24 | `receive` | Session | 存储参加者；证据桥 | Agent 事件、交入回执、生产者原记录、子方回执或释放读回 | 按命令表第 22 行；`release` 改为 confirmed；对应 `tasks` 项解除；`ExecutionRef.readThrough` 推进 |
+| JC-24 | `receive` | Session | 存储参加者；证据桥 | Agent 事件、交入回执、生产者原记录、子方回执或释放读回 | 按命令表第 23 行；`release` 改为 confirmed；对应 `tasks` 项解除；`ExecutionRef.readThrough` 推进 |
 | JC-25 | 无 Session 命令：Model 受理点守卫 | Model（受理点与发送点） | Session 守卫参加者，只读 | 原调用、`ConsumerRef` | 不写 Session 条目。读数为不合格时，Model 拒绝受理或记录控制（[P-4](#具名前提与明确缺项)） |
 | JC-26 | 无 Session 命令：来源核对 | 执行记录提供者（打开执行或交入输入） | Session 参加者，只读 | 来源依据 | 不写 Session 条目。核对失败按 [PA-01](#pa-01) |
 | JC-27 | 无 Session 命令：待交输入核对 | 执行记录提供者（条件终结） | Session 参加者，只读 | 终结意图 | 不写 Session 条目。有待交输入或取消已成立时按 [PA-02](#pa-02) 响应「冲突」 |
+| JC-28 | `freeze` | Session | 存储参加者；证据桥 | Tool 的冻结判定与耐久证据 | SE37；`frozen` 非空；没有未终结 Run 时，`pending` 的全部输入以 SE38 解除待处理资格 |
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
@@ -1164,8 +1172,8 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | 领域服务 | 输入 | 结局集合 | 用在哪些命令 | 由哪条守卫推出 |
 | --- | --- | --- | --- | --- |
 | `judgeAdvance` | `run` 与三种申请之一：attempt 的 `AdvanceRef` 与 `expected`；有界收束的收束依据；参加的 execution | `ok`、`stale-advance`、`changed`、`terminal`、`archived` | `claim`、`reload`、`release`、`finishRun`；参加的 `recordMessage`、`commitDerived(compaction)` | ST08、ST09、ST10、ST11、ST20 |
-| `routeInput` | `RoutedInput`、`lifecycle`、`run` | `queue`（去处为当前 Run 或下一个 Run）、`card`、`business`、`rejected`（`archived` 或 `invalid`） | `accept` | ST03、ST04、ST05 |
-| `judgeRunStart` | 快照、入口类别 | `eligible`（带首条输入）、`not-ready`、`archived`、`run-active`、`no-input`、`login-required` | `startRun`；推进触发 | ST06 |
+| `routeInput` | `RoutedInput`、`lifecycle`、`frozen`、`run` | `queue`（去处为当前 Run 或下一个 Run；冻结的会话只有当前 Run）、`card`、`business`、`rejected`（`archived`、`frozen` 或 `invalid`） | `accept` | ST03、ST04、ST05 |
+| `judgeRunStart` | 快照、入口类别 | `eligible`（带首条输入）、`not-ready`、`archived`、`frozen`、`run-active`、`no-input`、`login-required` | `startRun`；推进触发 | ST06 |
 | `openWork` | 快照 | `OpenWork`：待处理输入、已交入未承接的输入、等待中的执行、后台占位、结果未知的操作、未读的 Agent 事件 | 历史持有者的未结工作下界；`judgeCompletion`；`judgeIdle` 的本会话部分 | ST20、ST24b；message 包的 [CM-04](../../common/message/SPEC.md#模型视图) |
 | `judgeCompletion` | 快照、execution | `allowed`、`blocked`（待交输入）、`cancelled`（SE26 cancelled 已成立）、`terminal`（其他终态已成立） | 条件终结的只读参加（[PA-02](#pa-02)） | ST20 |
 | `resolveControlScope` | 快照、`Control` 或 `ControlIntent` | `scope`（待核对的生产者、撤销的资格、是否同批形成 cancelled 终态、传播责任、级联与作用域释放任务）、`terminal`、`invalid` | `control`、`interrupt`、到期的 `considerAutoArchive` | ST18a、ST18b、ST19a、ST19b、ST21 |
@@ -1224,6 +1232,10 @@ Tool 来源：
 | 迟到版本 | 合格保管者 | SE20 | `recordResult(custody)` 的参加；记录已删除时 `preserveResult` | 依据 |
 | 交付责任解除的回执 | 消费位置拥有者 | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
 | 账目 | 迟到按 P-3 | SE32 | `receive(account)` | 结算恢复所需为依据 |
+| 常驻工具的首次定义 | 采用点的候选采用材料（证据桥） | SE36 | `create`、`startRun`、`reload` | 依据 |
+| 冻结判定 | 候选采用材料，或 Tool 宿主的协调者经 `ToolResidencyActions` | SE37；没有未终结 Run 时另有 SE38 | `freeze` | 依据 |
+
+SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类准入由本成员规定：缺了它，会话就不能恢复常驻工具在会话内不变的 name 与参数形状。常驻工具当前固定的版本从 Run 的采用依据（SE08）派生，不另写条目。
 
 其他来源：
 
@@ -1261,7 +1273,7 @@ assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内�
 
 ### 守卫条款
 
-命令守卫与完整结果归[状态转移页](docs/object-model/session-state-transitions.md#命令守卫与完整结果)的 ST01 至 ST26。整号没有缺号。带字母后缀的 ST16a/b、ST17a/b/c、ST18a/b、ST19a/b/c、ST24a/b 是同一转移在不同时间分别成立的阶段，不另编整号。本节新增的分支并入现有条目，不新建 ST 编号：
+命令守卫与完整结果归[状态转移页](docs/object-model/session-state-transitions.md#命令守卫与完整结果)的 ST01 至 ST27。整号没有缺号。ST27 是会话冻结。带字母后缀的 ST16a/b、ST17a/b/c、ST18a/b、ST19a/b/c、ST24a/b 是同一转移在不同时间分别成立的阶段，不另编整号。本节新增的分支并入现有条目，不新建 ST 编号：
 
 | 新分支 | 并入 | 细化 |
 | --- | --- | --- |
@@ -1280,6 +1292,10 @@ assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内�
 | 换代同批产生的启动资格失效任务 | ST09、ST11 | `tasks.start-fence` 与旧 attempt 的 SE16 同批；失效生效时解除 |
 | `receive(scope-release)` | ST26 | 按[作用域释放的处置](#构造依赖端口与出站端口)解除或保留任务 |
 | 消费游标的推进 | ST26 | 游标随产生的条目同批保存；不产生条目的事件只推进游标 |
+| 采用点纳入常驻工具 | ST01、ST06、ST11 | 候选采用材料列出的新常驻工具写 SE36；已纳入的能力身份不再写 |
+| 冻结的会话收到普通输入 | ST03 | 有未终结 Run 时去处为当前 Run；没有时拒绝，原因 `frozen` |
+| 冻结的会话里 Run 终结 | ST20 | 仍有待处理资格的输入在终态同批以 SE38 解除 |
+| 冻结的会话撤销归档 | ST22 | 回到冻结，不回休眠 |
 
 ST09 的「旧实例已交还或失去连续性」细化为：失去连续性的判定归执行记录提供者的挂接状态与接管资格（[PM-05](#pm-05)）。Session 不从目录为空、超时或最大序号推断。
 
@@ -1307,6 +1323,32 @@ Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[
 3. 重签读取资格。
 
 保留上一份快照与补拉上界的规则归 [session-adapters](../session-adapters/SPEC.md)。
+
+### 常驻工具与会话冻结
+
+常驻工具是 Agent 不经发现即可调用的工具。一个会话的常驻工具构成它的常驻集合。会话常驻规则、同形判据与采用点的判定表归 Tool 契约（[P-8](#具名前提与明确缺项)）。本节只写会话一侧。这里的「常驻工具」与主会话的常驻标记（SE30）是两个概念，正文指工具时写「常驻工具」或「常驻集合」。
+
+采用点是会话初始化、新 Run 开始与显式 reload。Run 进行中没有采用点。
+
+- 纳入：采用点的候选采用材料列出本次新纳入的常驻工具。`create`、`startRun` 与 `reload` 在同一次提交里为每一项写 SE36，内容是能力身份、资产版本与 shape。已纳入的能力身份不再写。常驻集合只增不减（`WorkSnapshot.residents`）。
+- 固定：候选采用材料同时列出本次采用为常驻工具固定的登记键（`ResidentKey`），随 SE08 保存。会话当前固定的登记键取自最近一条 SE08，不另写条目。
+- 冻结判定：Tool 只在采用点判定冻结，给出原因 `tool-shape-lost` 与耐久证据（`FreezeVerdict`）。常驻工具暂时缺席、状态未知或被撤权时，Tool 以同形的不可用件替代它，不给出冻结判定。
+- 唯一提交点：冻结只经 `freeze` 提交。判定有两条到达路径。第一条，`startRun` 或 `reload` 的候选采用材料带回冻结判定：命令返回 `frozen`，不提交，推进协调随后以该判定调用 `freeze`。第二条，Tool 宿主的协调者经 `ToolResidencyActions` 交来判定，session-adapters 把它翻译为 `freeze`。两条路径对同一会话只成立一次冻结。
+
+| 编号 | 不变量 | 守卫 | 违反时怎样被拒 |
+| --- | --- | --- | --- |
+| <a id="i-f1"></a>I-F1 | 冻结不可逆，每个会话至多一条 SE37 | `freeze` 读到 `frozen` 非空时按状态认回；没有清除冻结的命令 | 重复的 `freeze` 返回原回执，`recovered` 为真，不写条目 |
+| <a id="i-f2"></a>I-F2 | 冻结的会话不开始新 Run，也不采用新版本 | `judgeRunStart` 与 `reload` 的守卫读 `frozen` | `startRun` 与 `reload` 返回 `frozen`。`claim` 不受影响，原 Run 沿原采用接续 |
+| <a id="i-f3"></a>I-F3 | 冻结时未终结的 Run 不被取消，按原规则收场 | `freeze` 不调用 `resolveControlScope`，不写 SE24 至 SE26 | 冻结不产生控制或终态。待处理输入照常交入这个 Run |
+| <a id="i-f4"></a>I-F4 | 冻结的会话里，每个已受理普通输入都有去处 | 普通输入只在有未终结 Run 时受理；没有可承接的 Run 时，待处理输入以 SE38 解除资格 | 没有未终结 Run 时 `accept` 返回 `frozen`。`freeze` 提交与冻结后 Run 终态的提交同批写 SE38 |
+| <a id="i-f5"></a>I-F5 | 冻结独立于归档 | `freeze` 不核对归档；`control(unarchive)` 读 `frozen` | 冻结的会话可以归档；撤销归档后 `lifecycle` 为 `frozen` 或 `active`，不为 `dormant`。已归档会话收到的冻结判定照常提交 |
+
+引用查询 `references` 回答：哪些会话还在引用一个登记键。它服务 Tool 宿主协调者的保留义务，由 session-adapters 包成 Tool 的 `ToolResidencyReader`。
+
+- 引用的定义：会话当前固定的登记键含该键，并且会话未归档。冻结而未归档的会话算引用。已归档、但仍有未终结 Run 的会话也算引用。
+- 返回会话的租户、会话身份、能力身份与该能力的 SE36 shape。不返回定义正文。
+- 这是系统作用域读取：输入是 `{ scope: 'system', key }`，不用 `Access<P>`，跨租户返回。调用方类是 `maintainer`，调用方仍须出示系统作用域的读取资格。
+- 存储提供者在提交 SE08、SE26、SE27 与 SE28 时维护「登记键到会话」的派生索引。读取不扫描会话日志。查询按游标分页，读不到时返回 `unavailable`，不返回空页冒充没有引用。
 
 ### 构造依赖端口与出站端口
 
@@ -1407,6 +1449,17 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 
 拒绝原因的来源见执行环境契约的[拒绝原因](../../execution/execution-environment-contract/SPEC.md#拒绝原因)与[恢复](../../execution/execution-environment-contract/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
 
+#### 由本组实现的 Tool 端口
+
+`ToolResidencyReader` 与 `ToolResidencyActions` 由 Tool 宿主的协调者调用，由本组实现。它们的方向与上面三个出站端口相反：Tool 声明自己需要什么，本组按 Tool 的形状提供。因此端口形状与服务键归 Tool 契约，不在本成员或 session-cordis-contract 定义。Tool 宿主不导入 Session 的契约。
+
+| Tool 端口 | 本成员的操作 | 翻译 |
+| --- | --- | --- |
+| `ToolResidencyReader.referencing({ scope: 'system', key })` | `references` | session-adapters 把 Tool 的登记键编码为 `ResidentKey`，逐页读取，返回会话身份与 shape |
+| `ToolResidencyActions.freeze({ session, cause: 'tool-shape-lost', evidence })` | `freeze` | session-adapters 从引用查询或会话目录取得租户，以 `coordinator` 调用方类提交；重复调用认回 |
+
+形状与服务键在 Tool 契约里定义之前，本组不登记这两个端口的提供者（[P-8](#具名前提与明确缺项)）。
+
 ### 具名前提与明确缺项
 
 下列前提是本节条款成立的条件。本成员不能单方兑现它们。
@@ -1420,6 +1473,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | P-5 | 有界恢复者：恢复者只在一种情形下以原事实收束失败终态：Agent 记录不可解释。「不可解释」指读执行记录或接续按策略重试到上限，仍返回原记录不可读或精确采用不可读。Agent 尚无该执行的记录不属于「不可解释」，按 [PM-14](#pm-14) 的「已授予、尚未受理」重放发起。执行已结束也不属于它，按 Agent 的结论写终态。上限是调度策略的配置字段，默认值只是初值 | Agent 的拥有者（合法恢复者「沿原记录收束」的边界） | 恢复者不收束。Run 保持 active，恢复任务保留并报告 |
 | P-6 | 交付责任解除的认回：生产者对同一原调用、同一结果版本、同一消费位置的重复确认返回原确认与当前清理状态，不按发起者区分 | 已由 Model 契约与 Tool 契约承诺，本条只引用 | 不适用 |
 | P-7 | Agent 宿主创建实例的入口：Agent 一侧定义宿主按指定采用预建空闲实例的公开入口 | Agent 的拥有者（开放问题「宿主创建实例的入口」） | 预求值与预热调度只做预求值，不调用 `AgentDrivePort.prewarm` |
+| P-8 | Tool 的会话常驻规则与两个驻留端口：Tool 契约给出常驻规则、同形判据、采用点的判定与 `FreezeVerdict` 的来源，并定义 `ToolResidencyReader` 与 `ToolResidencyActions` 的形状与服务键（[issue 618](https://github.com/nemori-ai/omne-harness-lite/issues/618)） | Tool 的拥有者 | 候选采用材料不带常驻工具与冻结判定，本成员不写 SE36、SE37；session-adapters 不登记两个端口的提供者，Tool 宿主协调者按自己的契约处理读不到引用的情形 |
 
 可选前提：Agent 若将来提供输入承接与调用登记的参加种类，Session 可以把 SE14 与 SE18 改为在 Agent 的提交里共同成立。本版不依赖它，这两类事实从事件派生。
 
@@ -1485,3 +1539,10 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | VC-O03 | 取消或归档之后，Tool 的启动资格失效未生效、已受理未生效或不可用 | 只有失效已生效才计入对账进度；之前不声称新发起已被阻止 | [ToolStartFencePort](#toolstartfenceport)、[PM-13](#pm-13) |
 | VC-O04 | 执行环境模式变化，随后发起工具调用；设置求值不可用 | 模式与会话层目标环境设置声明同批；Tool 装载时固定设置；不可用时调用不发出，不回退工具缺省 | [会话块声明与设置值的固定时点](#会话块声明与设置值的固定时点) |
 | VC-O05 | 调用方类不在操作允许的范围内 | 调用被拒绝；调用方类核对不替代资格核对 | [四个面与公开操作](#四个面与公开操作) |
+| VC-F01 | 两条路径先后交来同一会话的冻结判定，证据相同或不同 | 只有一条 SE37；第二次返回原回执，`recovered` 为真 | [I-F1](#i-f1) |
+| VC-F02 | 冻结后到达新 Run 触发、`reload` 与 `claim` | `startRun` 与 `reload` 返回 `frozen`；`claim` 照常，原 Run 接续 | [I-F2](#i-f2) |
+| VC-F03 | 冻结时有未终结 Run 与待处理输入 | Run 不被取消；待处理输入交入这个 Run；Run 终态同批以 SE38 解除余下的待处理输入 | [I-F3](#i-f3)、[I-F4](#i-f4) |
+| VC-F04 | 冻结时没有未终结 Run，有待处理输入；随后普通输入到达 | 冻结同批写 SE38；新输入以 `frozen` 拒绝 | [I-F4](#i-f4) |
+| VC-F05 | 冻结的会话归档后撤销归档；已归档会话收到冻结判定 | 撤销归档后不为 `dormant`；冻结判定照常提交 | [I-F5](#i-f5) |
+| VC-F06 | 采用点纳入常驻工具，随后同一能力身份再次出现在候选采用材料里 | 首次写 SE36；再次出现不写；`residents` 只增不减 | [常驻工具与会话冻结](#常驻工具与会话冻结) |
+| VC-F07 | 引用查询：未归档、冻结未归档、已归档有未终结 Run、已归档无 Run 四类会话；索引不可读 | 前三类返回，第四类不返回；不返回定义正文；索引不可读时返回 `unavailable` | [常驻工具与会话冻结](#常驻工具与会话冻结) |

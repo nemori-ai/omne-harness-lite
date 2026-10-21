@@ -237,7 +237,7 @@ flowchart TD
 
 ## F-SW07 归档、级联与撤销
 
-对应 [J-SW07](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw07)，采用 ST21 至 ST23。四态仍只由[原状态图](../object-model/session-state-transitions.md#四个生命周期视图)解释；下面展示跨参与者顺序。
+对应 [J-SW07](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw07)，采用 ST21 至 ST23。四态仍只由[原状态图](../object-model/session-state-transitions.md#五个生命周期视图)解释；下面展示跨参与者顺序。
 
 ```mermaid
 sequenceDiagram

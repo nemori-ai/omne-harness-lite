@@ -55,18 +55,18 @@
 
 本节是候选修订，技术接受前不扩大本页既有承诺。
 
-35 类事实按事实拥有者分为九族，每族有一个主要来源域。按族组织不新增类别，SE01 至 SE34 的编号与含义不变。本版新增 SE35（族 C，输入交入结果）。以后新增的事实在所属族的表尾取 SE36 起的新编号，并在表中写明所属族。
+38 类事实按事实拥有者分为九族，每族有一个主要来源域。SE01 至 SE34 的编号与含义不变。SE35 至 SE38 是在所属族的表尾取的新编号：SE35（族 C，输入交入结果）、SE36（族 A，常驻工具的首次定义）、SE37（族 H，会话冻结）、SE38（族 C，冻结后解除待处理资格）。以后新增的事实从 SE39 起编号，并在表中写明所属族。
 
 | 族 | SE | 主要来源域 | 主要提交命令 |
 | --- | --- | --- | --- |
-| A 会话身份与声明 | SE01 至 SE09 | 用户、装配、设置拥有者、Runtime Context | `create`、`completeInitialization`、`change`、`configureAutoArchive`、`reload` |
+| A 会话身份与声明 | SE01 至 SE09、SE36 | 用户、装配、设置拥有者、Runtime Context、Tool | `create`、`completeInitialization`、`change`、`configureAutoArchive`、`startRun`、`reload` |
 | B 历史消息 | SE10 | 用户、Agent、Request Context、作用域持有者、Tool | `accept`、`recordMessage`、`commitDerived`、`completeExternalConsumption`、`interrupt` |
-| C 受理与分流 | SE11、SE12、SE35 | 用户、HITL、业务拥有者、准入者、Agent 的消息准入 | `accept`、`receive` |
+| C 受理与分流 | SE11、SE12、SE35、SE38 | 用户、HITL、业务拥有者、准入者、Agent 的消息准入、Session 治理 | `accept`、`receive`、`freeze`、`control`、`finishRun` |
 | D Run、批次与 attempt | SE13 至 SE17 | Session 治理、Agent | `startRun`、`claim`、`reload`、`release`、`receive`、`control`、`finishRun` |
 | E 调用与结果 | SE18 至 SE21 | Agent、Model、Tool、保管者 | `receive`、`bindExternalCall`、`preserveResult`、`completeConsumption`、`completeExternalConsumption` |
 | F 扩展与 HITL | SE22、SE23 | Agent 与拓展件拥有者、HITL | `receive`、`accept` |
 | G 控制与终态 | SE24 至 SE26 | 用户、Session、Agent、Model、Tool | `control`、`interrupt`、`receive`、`finishRun` |
-| H 归档、关系与空闲 | SE27 至 SE31 | 用户、Session 治理、时钟与空闲输入 | `control`、`setRelation`、`recordIdle`、`considerAutoArchive` |
+| H 归档、冻结、关系与空闲 | SE27 至 SE31、SE37 | 用户、Session 治理、Tool 的冻结判定、时钟与空闲输入 | `control`、`setRelation`、`recordIdle`、`considerAutoArchive`、`freeze` |
 | I 账目、更正与授权 | SE32 至 SE34 | Model、Tool、语义拥有者、授权拥有者 | `receive`、`commitDerived`、`accept` |
 
 表中载荷继承共同封套，只列必要业务数据。标明「依据」的类别仍须按用途核对合法消费者。Session 保存跨域引用和本会话治理后果，不复制其他拥有者的完整状态机。
@@ -82,8 +82,9 @@
 | SE05 | `session.workspace-changed` | 工作区选择变更 | 合法选择者；附着、更换或解除的原目标、合法入口和加载依据 | 依据。更新本会话选择；失败保留原合法状态，不把指定失败改成无工作区 |
 | SE06 | `session.declaration-adopted` | 会话覆盖或继承声明采用，含自动归档策略的采用 | 设置拥有者校验后的本会话项、覆盖值或继承声明、来源和版本 | 依据。只改本会话声明，不改租户默认、共享设置或资产内容 |
 | SE07 | `session.context-registration-changed` | Context 注册集合变更 | 注册协调者；增加、改变或移除的注册、来源、配置、消费者与必需性依据 | 依据。更新注册关系；必需项不能移除，移除注册不删除共享内容 |
-| SE08 | `session.adoption` | 定义、能力与装配实际采用 | 装配协调者；固定定义标识、实际版本、清单、能力绑定、来源裁定、安全交接和原等待引用，以及这次求值的[输入快照](../../../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)：会话选择与读过的各作用域、各类来源的采用变更计数 | 依据。保存实际采用；新 Run 采用最新合法版，普通恢复保原版，合法 reload 与新 attempt 共同成立。候选校验失败不覆盖原采用 |
+| SE08 | `session.adoption` | 定义、能力与装配实际采用 | 装配协调者；固定定义标识、实际版本、清单、能力绑定、来源裁定、安全交接和原等待引用，以及这次求值的[输入快照](../../../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)：会话选择与读过的各作用域、各类来源的采用变更计数；本次为常驻工具固定的登记键 | 依据。保存实际采用；新 Run 采用最新合法版，普通恢复保原版，合法 reload 与新 attempt 共同成立。候选校验失败不覆盖原采用 |
 | SE09 | `session.recovery-input-adopted` | 会话自有恢复输入采用，含 Context 状态块的步提交 | 数据拥有者；本会话自有值或不可重算输入、内容或可恢复引用、来源位置及采用依据 | 依据。保留恢复所需输入。外部实时数据仍归原源，前值按具体数据契约可选 |
+| SE36 | `session.tool-resident-admitted` | 常驻工具首次纳入常驻集合 | 采用点的候选采用材料；能力身份、资产版本与 shape（name、参数契约、命令表），内容由 Tool 规定；与同批 SE08 关联 | 依据。常驻集合只增不减，同一能力身份只写一次。会话据此恢复常驻工具在会话内不变的 name 与参数形状。当前固定版本从 SE08 派生，不另写 |
 
 SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的步提交经 `change(context-step-commit)` 写入 SE09。作用域重建后，持有者按日志提交顺序重放 SE07，再从 SE09 归约出每个状态块最近一次步提交的全值。
 
@@ -100,6 +101,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 | SE11 | `intake.routed` | 输入受理及分流 | 受理协调者；原提交、来源、内容、原命令及合法展开，普通、卡片、控制或系统业务去处及可靠责任 | 依据。普通消息与待处理资格同批；其他类别保存原目标责任，不能混入普通队列 |
 | SE12 | `intake.rejected` | 准入拒绝留痕 | 原准入者；原请求、拒绝依据、必要干预及可反馈原因，不保存不应受理的正文 | 留痕。拒绝不取得队列资格。用途提醒确认前没有受理正文，确认后是新请求 |
 | SE35 | `intake.handed-over` | 已受理普通输入交入 Agent 执行的结果，须区别受理与拒收 | 推进协调；原输入、目标执行、出站操作身份；受理时为 Agent 的受理回执，拒收时为消息准入的拒收原因与依据 | 依据。受理：该输入不再是待交输入，待处理资格保留到 SE14。拒收：该输入失去待处理资格，用户可见原因；首条输入被拒收时与 Run 的 failed 终态同批 |
+| SE38 | `intake.released` | 冻结的会话里，已受理普通输入因没有可承接的 Run 而失去待处理资格，须区别拒收与取消 | Session 治理；原输入、冻结事实（SE37）的引用，以及同批的冻结提交或 Run 终态 | 依据。该输入失去待处理资格，用户可见原因；不重新受理，继续协作须用新的会话 |
 
 ### D Run、批次与 attempt
 
@@ -135,15 +137,16 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 | SE25 | `control.progress` | 控制处置与进度，含级联与作用域释放的回执 | 原协调者与目标拥有者；原控制、逻辑生效或拒绝、有效目标集合、确认或未知、尚待传播和核对责任 | 依据。按具体控制变更资格与等待，只解除被证明完成的责任；不伪造用户答复或实际执行终态 |
 | SE26 | `run.terminal` | Run 唯一终态。被取消由 Session 的控制写入；完成与失败从 Agent 的结束事实派生；有界收束只写失败 | 治理的唯一终态路径；原 Run、完成或失败或被取消、Agent 的结论与处置依据或取消依据、未收尾效果提示 | 依据。终态不可反转，撤新推进和发起资格；后置拓展、迟到和结算不复活该 Run |
 
-### H 归档、关系与空闲
+### H 归档、冻结、关系与空闲
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE27 | `session.archived` | 会话归档成立 | 会话治理；原归档操作、依据、取消的输入/等待/调用资格范围、对同批唯一 Run 被取消终态或已有终态的引用、子方级联、作用域释放任务及未完责任 | 依据。逻辑归档与必要取消事实同批，拒绝新任务；不等待所有物理执行结束，不删除历史 |
-| SE28 | `session.unarchived` | 撤销归档成立 | 具会话管理资格的用户；原归档、新操作、撤销时刻与新空闲起点 | 依据。回休眠，旧取消资格保持；不恢复 Run、任务、卡片、调用或子会话 |
+| SE27 | `session.archived` | 会话归档成立 | 会话治理；原归档操作、依据、取消的输入/等待/调用资格范围、对同批唯一 Run 被取消终态或已有终态的引用、子方级联、作用域释放任务及未完责任 | 依据。逻辑归档与必要取消事实同批，拒绝新任务；不等待所有物理执行结束，不删除历史。冻结的会话可以归档，冻结事实保持 |
+| SE28 | `session.unarchived` | 撤销归档成立 | 具会话管理资格的用户；原归档、新操作、撤销时刻与新空闲起点 | 依据。回休眠；冻结的会话回到冻结。旧取消资格保持；不恢复 Run、任务、卡片、调用或子会话 |
 | SE29 | `session.relation` | 会话关系采用 | 关系协调者；父子、派发、独立 handoff 或业务关联，双方身份、创建来源、有效关系和原业务依据 | 依据。保存关系及后果；独立 handoff 不成为子方，原创建来源不改。关系集合演进不自动授予重新挂父资格 |
 | SE30 | `session.resident` | 常驻标记变更 | 具管理自己会话资格的用户；主会话、标记值与原操作 | 依据。主会话豁免自动归档，与子会话互斥；解除采用已有空闲，不影响手动归档 |
 | SE31 | `session.idle-evidence` | 连续空闲依据采用 | 归档协调者；起点、中断或撤销后重置、检查范围及进度、执行拥有者依据、时间、未知区间与失效条件 | 依据。保存可确认区间及归档判据；一次无活动快照不能证明未知期间连续空闲 |
+| SE37 | `session.frozen` | 会话冻结成立，须区别归档 | Tool 在采用点给出的冻结判定：原因 `tool-shape-lost` 与耐久证据（包 digest 缺失，或装载被确定性拒绝）；原操作 | 依据。不可逆，每会话至多一条。此后不开始新 Run、不采用新版本；未终结 Run 不被取消，按原规则收场；没有未终结 Run 时同批写 SE38。不改变归档状态 |
 
 ### I 账目、更正与授权
 
@@ -198,6 +201,8 @@ Tool 给出的事实：
 | 迟到版本 | 合格保管者经 Agent 的 `recordResult`；Agent 记录已删除时直接提交 | SE20 | `preserveResult` |
 | 交付责任解除确认 | Session 的消费适配器 | SE19；`release` 派生为 `confirmed` | `receive` |
 | 账目 | 迟到时由消费适配器读取 | SE32 | `receive` |
+| 常驻工具的首次定义 | 采用点的候选采用材料 | SE36 | `create`、`startRun`、`reload` |
+| 冻结判定 | 候选采用材料，或 Tool 宿主的协调者经 session-adapters | SE37；没有未终结 Run 时另有 SE38 | `freeze` |
 
 其他来源的事实：
 
@@ -258,7 +263,7 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | 产品能力 | 事实承接 |
 | --- | --- |
 | CAP-SW01 | SE01、SE02 |
-| CAP-SW02 | SE08、SE15、SE16 |
+| CAP-SW02 | SE08、SE15、SE16、SE36、SE37 |
 | CAP-SW03 | 所有已提交条目；SE10、SE33 及主架构不可变/读取协议 |
 | CAP-SW04 | SE10、SE11、SE12 及原操作回执 |
 | CAP-SW05 | SE11、SE13、SE14、SE35 |
@@ -268,7 +273,7 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | CAP-SW09 | SE22、SE26 |
 | CAP-SW10 | SE03、SE05、SE06、SE07、SE09 |
 | CAP-SW11 | SE24、SE25、SE18、SE19、SE21 |
-| CAP-SW12 | SE25、SE26、SE27、SE28 |
+| CAP-SW12 | SE25、SE26、SE27、SE28、SE37、SE38 |
 | CAP-SW13 | SE29、SE27、SE30 |
 | CAP-SW14 | SE30、SE31、SE27 |
 | CAP-SW15 | SE18 至 SE23、SE25、SE34 及主架构原操作/恢复协议 |

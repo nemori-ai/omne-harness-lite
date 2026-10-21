@@ -31,8 +31,8 @@ export const inject = {
 | 调用方类 | 典型调用方 | 主要调用 |
 | --- | --- | --- |
 | `intake` | 受理入口的适配插件、宿主接入 | 受理、会话管理与控制操作 |
-| `coordinator` | Agent 提交参加者与事件消费插件、Model 与 Tool 的消费适配插件 | 推进、消息记录、保管与消费操作，以及按生产者事实写入的 `receive` 与业务分支的 `accept` |
-| `maintainer` | 恢复扫描、待决认回、级联推进、控制重放、空闲取证与自动归档 | 恢复用到的推进与保管操作、控制、`receive`，以及只开放给它的待对账扫描、空闲取证与自动归档裁定 |
+| `coordinator` | Agent 提交参加者与事件消费插件、Model 与 Tool 的消费适配插件 | 推进、消息记录、保管与消费操作，按生产者事实写入的 `receive`、业务分支的 `accept`，以及 Tool 冻结判定的 `freeze` |
+| `maintainer` | 恢复扫描、待决认回、级联推进、控制重放、空闲取证与自动归档 | 恢复用到的推进与保管操作、控制、`receive`，以及只开放给它的待对账扫描、系统作用域的引用查询 `references`、空闲取证与自动归档裁定 |
 | `reader` | 历史读取者、Request Context 的历史源对接插件、人读界面 | 历史读取 |
 
 调用方类按操作授权，不按面授权。每个操作允许哪些调用方类，以 [session-contract SPEC](../../session-contract/SPEC.md) 的四面操作表为准；本表只给概览。一个操作可以允许几个调用方类，例如 `receive` 允许 `coordinator` 与 `maintainer`，`queryOperation` 允许任一变更调用方类。调用方类是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。服务把配置里的调用方类与该操作允许的调用方类核对，不在其中即拒绝；这条核对是一致性检查，不计为访问控制。访问边界是每个操作的调用资格。经 `ctx.get` 现取服务的调用方没有这份配置，调用被拒绝，所以调用方必须用对象形式 `inject`。
@@ -57,6 +57,8 @@ export const inject = {
 只有事务端口进 `inject`，因为没有它任何读写都不成立；其余端口按调用用 `ctx.get` 现取，使一个端口缺席只影响需要它的操作，不让整个服务停下（[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)）。各端口缺席时的契约表现以 [session-contract SPEC](../../session-contract/SPEC.md) 的端口表为准。
 
 出站端口的接口在契约成员（本域只说自己要什么），键在本成员，实现在 session-adapters，由 session-cordis 注入。session-cordis 与 session-adapters 之间没有编译期依赖，靠这两个键在装配时接上。
+
+Tool 宿主协调者调用的 `ToolResidencyReader` 与 `ToolResidencyActions` 不在上表。它们是 Tool 声明的端口，形状与服务键归 Tool 契约，session-adapters 以本组的 `references` 与 `freeze` 实现并登记提供者（[由本组实现的 Tool 端口](../../session-contract/SPEC.md#由本组实现的-tool-端口)）。
 
 ## 事件
 
