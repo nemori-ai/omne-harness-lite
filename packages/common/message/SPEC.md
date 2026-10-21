@@ -235,7 +235,7 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 `judgeMessage` 在「消息自己的字段」一步增加下列检查。
 
 - **多余键。**输入的 `role` 自有属性严格等于字符串 `assistant` 时，合法键集另加 `replay`。其他角色的消息有自有可枚举键 `replay` 时判 `extra`。
-- **是否带 `replay`。**`replay` 不在必需键集里。`assistant` 角色的输入按 `in` 有 `replay` 时，与其他合法键一样读一次它的值（访问器至多调用一次）。读到 `undefined` 时视为不带，成功值里没有这个键；读到 `null` 时判 `null`；其他值进入下一项。
+- **是否带 `replay`。**`replay` 不在必需键集里。自有属性 `role` 严格等于 `assistant` 的输入按 `in` 有 `replay` 时（`replay` 可以是继承来的），与其他合法键一样读一次它的值（访问器至多调用一次）。读到 `undefined` 时视为不带，成功值里没有这个键；读到 `null` 时判 `null`；其他值进入下一项。
 - **回放描述的形状。**排在「空块」之后判。`replay` 不是普通对象；自有键不恰好是 `scope`、`format`、`at`；`scope` 或 `format` 不是非空字符串或超过长度上限；`at` 不是数组、自有键不只是下标和 `length`（括注与空位规则同 `pairs`）、有元素不是非负安全整数、或不严格递增：`replay`。普通对象的含义与 `covers` 相同，访问器不被调用。
 
 部件、角色规则与块身份唯一都通过之后，`judgeMessage` 再判下面两项。

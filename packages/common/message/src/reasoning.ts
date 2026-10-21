@@ -4,7 +4,7 @@ import {
   type BlockIdentityRejection,
   type Visibility,
 } from '@omne-harness/content-block'
-import { closedFields, hasDuplicates, hasOnlyDataItems, nonEmpty } from './values.ts'
+import { closedFields, hasDuplicates, nonEmpty, readDataItems } from './values.ts'
 
 /** The most UTF-16 code units that the payload of a reasoning state part may have. */
 export const REASONING_STATE_PAYLOAD_MAX_LENGTH = 1048576
@@ -63,15 +63,10 @@ function isPayload(value: unknown): value is string {
 }
 
 function readPairs(raw: unknown): readonly BlockId[] | undefined {
-  if (!Array.isArray(raw) || !hasOnlyDataItems(raw)) return undefined
-  const items: readonly unknown[] = raw
-  const ids: BlockId[] = []
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index]
-    if (typeof item !== 'string' || !isBlockRef(item)) return undefined
-    ids.push(item)
-  }
-  return hasDuplicates(ids) ? undefined : Object.freeze(ids)
+  const ids = readDataItems(raw, item =>
+    typeof item === 'string' && isBlockRef(item) ? item : undefined,
+  )
+  return ids === undefined || hasDuplicates(ids) ? undefined : Object.freeze(ids)
 }
 
 /**
@@ -99,15 +94,12 @@ function isIndex(value: unknown): value is number {
 }
 
 function readAt(raw: unknown): readonly number[] | undefined {
-  if (!Array.isArray(raw) || !hasOnlyDataItems(raw)) return undefined
-  const items: readonly unknown[] = raw
-  const at: number[] = []
+  const at = readDataItems(raw, item => (isIndex(item) ? item : undefined))
+  if (at === undefined) return undefined
   let previous = -1
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index]
-    if (!isIndex(item) || item <= previous) return undefined
-    at.push(item)
-    previous = item
+  for (const index of at) {
+    if (index <= previous) return undefined
+    previous = index
   }
   return Object.freeze(at)
 }

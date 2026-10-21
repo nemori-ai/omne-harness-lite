@@ -75,6 +75,20 @@ describe('a reasoning_state part arrives whole', () => {
     })
   })
 
+  it('reads a finish with replay undefined as a finish without replay, as judgeMessage does', () => {
+    const message = completed(run([...thinking('0'), { ...finish, replay: undefined }]))
+    expect('replay' in message).toBe(false)
+    expect(
+      rejection(
+        run([
+          openState('0'),
+          closeState('0', { ...stateBlock, pairs: [] }),
+          { ...finish, replay: undefined },
+        ]),
+      ),
+    ).toBe('block:replay')
+  })
+
   it('writes every position when states interleave with thinking and a call', () => {
     const second = { ...stateHead, id: 'rs2', payload: 'opaque-2', pairs: ['k1'] }
     const message = completed(
@@ -223,7 +237,6 @@ describe('finish and the replay of a message', () => {
   it('refuses a replay whose shape is wrong', () => {
     const bad: unknown[] = [
       null,
-      undefined,
       'provider-x',
       ['provider-x', 'v1'],
       { scope: 'provider-x' },

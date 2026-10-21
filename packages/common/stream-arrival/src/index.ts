@@ -517,8 +517,10 @@ function parseReplay(raw: unknown): ReplayRange | undefined {
   return { scope, format }
 }
 
+/** A `replay` of `undefined` is no replay, the same as `judgeMessage` reads it. */
 function parseFinish(value: Record<string, unknown>, index: string): Parsed {
-  if (!Object.hasOwn(value, 'replay')) return { step: { step: 'finish', index } }
+  if (!Object.hasOwn(value, 'replay') || value.replay === undefined)
+    return { step: { step: 'finish', index } }
   const replay = parseReplay(value.replay)
   if (replay === undefined) return refuse('replay')
   return { step: { step: 'finish', index, replay } }

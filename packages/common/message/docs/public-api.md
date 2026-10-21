@@ -307,6 +307,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `replay.presence` | 反 | `{"blocks":["text:t1","state:s1","state:s2"],"replay":"<absent>"}` | `rejected:replay@1` |
 | `replay.at` | 正 | `{"blocks":["state:s1","text:t1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[0,2]}}` | `ok` |
 | `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[5]}}` | `rejected:replay` |
+| `replay.at` | 反 | `{"blocks":["text:t1"],"replay":{"scope":"sc","format":"f1","at":[0]}}` | `rejected:replay` |
 | `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[1,5]}}` | `rejected:replay` |
 | `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[0]}}` | `rejected:replay@0` |
 | `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[0,5]}}` | `rejected:replay@0` |

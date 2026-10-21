@@ -164,6 +164,12 @@ describe('the replay key of judgeMessage', () => {
     expect(admitted(input).replay).toEqual(replay)
   })
 
+  it('counts an own replay as extra when the input only inherits role assistant', () => {
+    const input = Object.create({ role: 'assistant' }) as Record<string, unknown>
+    Object.assign(input, { id, blocks: [thinking, { ...state }], replay: { ...replay } })
+    expect(judgeMessage(input)).toEqual({ rejected: 'extra' })
+  })
+
   it('does not read replay of another role, and does not count a hidden key as extra', () => {
     const user = {
       id,

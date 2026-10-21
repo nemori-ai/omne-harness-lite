@@ -27,6 +27,26 @@ const ARRAY_INDEX = /^(0|[1-9]\d*)$/u
  * enumerable data property. An accessor, a symbol key, or any other own key makes it false.
  * A hole is not a key, so a sparse array passes and the hole reads as `undefined`.
  */
+/**
+ * Reads an array whose own keys are only data items and `length`, and maps each item; any item
+ * that maps to `undefined`, or any other array shape, is `undefined`. A hole reads as `undefined`
+ * and no accessor is called.
+ */
+export function readDataItems<T>(
+  raw: unknown,
+  item: (value: unknown) => T | undefined,
+): T[] | undefined {
+  if (!Array.isArray(raw) || !hasOnlyDataItems(raw)) return undefined
+  const items: readonly unknown[] = raw
+  const out: T[] = []
+  for (let index = 0; index < items.length; index += 1) {
+    const value = item(items[index])
+    if (value === undefined) return undefined
+    out.push(value)
+  }
+  return out
+}
+
 export function hasOnlyDataItems(items: readonly unknown[]): boolean {
   const entries = Object.entries(Object.getOwnPropertyDescriptors(items))
   if (entries.length !== Reflect.ownKeys(items).length) return false

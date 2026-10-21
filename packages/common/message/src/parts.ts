@@ -182,7 +182,7 @@ function judgeByKind(value: unknown): PartJudgment | undefined {
 }
 
 /**
- * One part. A string kind outside the nine closed names is `unknown`. A missing or non-string
+ * One part. A string kind outside the ten closed names is `unknown`. A missing or non-string
  * kind falls through to `judgeContentBlock` and is `kind`. An object with an accessor, a
  * non-enumerable key, or a prototype other than a plain one is `json`. For a tool part the
  * closed keys are checked before any field is read, and only `arguments` is walked, by
