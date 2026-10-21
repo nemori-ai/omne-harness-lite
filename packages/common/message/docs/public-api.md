@@ -46,6 +46,18 @@
 
 `MessageRejection` 含 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型是 `Message`，可以用 `role` 收窄，例如 `message.role === 'compaction'` 得到 `CompactionMessage`。消费者也可以直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为与判定顺序见 [SPEC.md](../SPEC.md)，用例见下面的[压缩用例表](#压缩用例表)。
 
+## 推理续接状态（设计，尚未实现）
+
+assistant 消息将可以带推理续接状态部件 `reasoning_state` 和可选的回放描述 `replay`。实现之前，形状、规则与判定顺序以 [SPEC.md 的推理续接状态](../SPEC.md#推理续接状态)为唯一定义，本节只列计划中的导出。实现时本节改为与上一节相同的定义索引，并补用例表。
+
+| 计划导出 | 种类 | 含义 |
+| --- | --- | --- |
+| `ReasoningStatePart` | 类型 | 推理续接状态部件，只在 `assistant` 消息里 |
+| `ReasoningReplay` | 类型 | 回放描述 `{ scope, format, at, tokens }` |
+| `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | 载荷与 `scope`、`format` 的长度上限 |
+
+`MessageRejection` 将增加 `payload`、`pairs`、`replay` 三个值；`judgePart` 只会给出前两个。
+
 ## 语义
 
 工具部件是带块身份与块标注的块，与内容块同形，每块的标注由生产者写入，各块各自成立。键是闭合的：每种部件有固定的自有键，多出任何一个键都判 `extra`，不保留其他自有键。理由是消息投影不得携带执行者、句柄或私有结果对象。

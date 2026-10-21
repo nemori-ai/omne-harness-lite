@@ -1,6 +1,6 @@
 # @omne-harness/message 行为规格
 
-本文件拥有 `@omne-harness/message` 中压缩变体在公开类型以外的必要行为。公开形状以 [src/](src) 为准，公开定义的导航在 [docs/public-api.md](docs/public-api.md)。工具部件、角色规则与块身份的行为在 [docs/public-api.md](docs/public-api.md) 的「语义」「判定顺序」两节和 [README](README.md#contracts) 的契约节，本文件不重复。
+本文件拥有 `@omne-harness/message` 中压缩变体与推理续接状态在公开类型以外的必要行为。公开形状以 [src/](src) 为准，公开定义的导航在 [docs/public-api.md](docs/public-api.md)。工具部件、角色规则与块身份的行为在 [docs/public-api.md](docs/public-api.md) 的「语义」「判定顺序」两节和 [README](README.md#contracts) 的契约节，本文件不重复。
 
 本成员没有状态、资源或异步行为，下面的义务都是纯函数的输入输出关系。
 
@@ -8,7 +8,9 @@
 
 本文件定义压缩记录 `CompactionMessage` 的形状、模型视图规则，以及两层判定：`judgeMessage` 判形状，`judgeCompaction` 判相对历史的规则。它不定义何时压缩、怎样写摘要、保留哪些消息，这些归压缩策略的拥有者。它也不定义历史怎样存放、怎样提交，这些归历史持有者。
 
-状态：已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定。公开形状以 [src/](src) 为准。
+本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
+
+状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态是设计，尚未实现，接受由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 决定；实现之前，本文件「推理续接状态」一节的形状表是它的唯一定义。
 
 依据如下。
 
@@ -160,6 +162,91 @@ flowchart LR
 
 全部通过时返回 `{ ok: M }`。函数不读取任何外部状态，相同输入返回相同结论。
 
+## 推理续接状态
+
+推理模型的供应商可能交回两种推理内容：一段可读的推理文字，比如推理摘要；一段加密或签名的推理状态。下一次请求原样带回这段状态，供应商那边的推理才能接上。这段状态只有特定的模型能消费，同一段历史又可能先后由几个模型产出。本节给这段状态一个位置，并让消费者不解析块就能知道它属于谁、在哪里。
+
+### 用语
+
+- **推理续接状态部件**：`kind` 为 `reasoning_state` 的部件，装一段供应商交回的不透明推理状态。
+- **回放描述**：assistant 消息上的 `replay` 键，说明这条消息的推理内容由谁产出、是什么格式、续接状态部件在 `blocks` 的哪些位置。
+- **回放范围**：`replay.scope`，一个不透明字符串。哪些模型能消费哪个范围，由 Model 契约的档案声明，本成员不解释。
+
+### 形状
+
+推理续接状态部件与工具部件同形：带块身份 `id` 和块标注 `visibility`，键闭合。
+
+| 键 | 含义 |
+| --- | --- |
+| `kind` | 固定为 `reasoning_state` |
+| `id` | 块身份，由 `content-block` 的 `judgeBlockIdentity` 判定 |
+| `visibility` | 块标注。`toHuman` 必须为 false；`toModel` 不限 |
+| `payload` | 不透明载荷，非空字符串，长度不超过 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576 个 UTF-16 码元）。本成员不读取其内容 |
+| `pairs` | 与它配对的块的身份，按块身份全等比较。每项是同一条消息里一个不是推理续接状态部件的块，比如它对应的 `thinking` 块，或签名挂在上面的调用部件。可以为空；不重复 |
+
+回放描述 `replay` 只能出现在 `assistant` 角色的消息上，是可选键。
+
+| 键 | 含义 |
+| --- | --- |
+| `scope` | 回放范围，非空字符串，长度不超过 `REPLAY_TAG_MAX_LENGTH`（256 个 UTF-16 码元） |
+| `format` | 这条消息推理内容的格式与版本，非空字符串，长度上限同 `scope`。由产出它的适配器给出，本成员不解释 |
+| `at` | 全部推理续接状态部件在 `blocks` 中的下标，严格递增；消息里没有这类部件时为空数组 |
+| `tokens` | 上游为这次回复报告的推理 token 数，是不带前导零的十进制整数字符串；上游没有报告时为 `null` |
+
+assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理续接状态部件。其他五种角色的 `blocks` 不能含它。
+
+### 规则
+
+<a id="rs-01"></a>
+
+**RS-01 两种推理分开存放。**`thinking` 块只装可读的推理文字，推理续接状态部件只装不透明状态。供应商的一项推理同时带两种内容时，产出方写一个 `thinking` 块和一个推理续接状态部件，后者的 `pairs` 指向前者。只有加密状态、没有可读文字时，只写推理续接状态部件，`pairs` 为空。一个状态对应几段可读文字时，`pairs` 列出全部。
+
+<a id="rs-02"></a>
+
+**RS-02 一条 assistant 消息只属于一个模型。**一条 assistant 消息来自一次已完成的发出，所以它的全部推理内容出自同一个模型，`replay` 对整条消息成立。这一点由产出消息的一方保证，本成员无法核对。
+
+<a id="rs-03"></a>
+
+**RS-03 何时带 `replay`。**消息含推理续接状态部件时必须带 `replay`。消息只含 `thinking`、不含续接状态时可以带 `replay`，`at` 为空；不带时，它的推理文字来源未知。消息既没有 `thinking` 也没有续接状态时不能带 `replay`。
+
+<a id="rs-04"></a>
+
+**RS-04 位置索引可信。**`at` 恰好列出全部推理续接状态部件的下标，由 `judgeMessage` 在受理时核对。消息写入后不变，压缩只整条保留或整条摘要，所以下标在写入后一直有效。通过 `judgeMessage` 的消息，消费者按 `at` 取部件，不需要扫描 `blocks` 查找它们。
+
+<a id="rs-05"></a>
+
+**RS-05 不对人展示，不进摘要。**推理续接状态部件的 `toHuman` 恒为 false。压缩记录的 `blocks` 不能含它（判 `misplaced-part`），所以被摘要的消息的续接状态随之退出模型视图；被保留的消息原样保留它的续接状态和 `replay`。
+
+<a id="rs-06"></a>
+
+**RS-06 本成员不解释内容。**`scope`、`format`、`payload`、`tokens` 都按原样保存和比较。哪个模型能消费哪个范围、不能消费时怎样处理、怎样把载荷写进请求体，归 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
+
+### `judgeMessage` 与 `judgePart` 的判定
+
+`judgePart` 对 `kind` 为 `reasoning_state` 的部件，按工具部件的顺序判：先查键是否闭合（多键判 `extra`，缺键报缺的字段名），再依次判 `id`、`visibility`、`payload`、`pairs`。
+
+1. **`visibility`。**先由 `judgeBlockIdentity` 判；`toHuman` 不为 false 时判 `visibility`。
+2. **`payload`。**不是字符串、是空串或超过长度上限：`payload`。
+3. **`pairs`。**不是数组；自有键不只是下标和 `length`；有元素不是非空字符串；或有两个元素相同：`pairs`。访问器不被调用。
+
+`judgeMessage` 在「消息自己的字段」一步增加下列检查。
+
+1. **多余键。**输入的 `role` 自有属性严格等于字符串 `assistant` 时，合法键集另加 `replay`。`replay` 不在必需键集里。其他角色带 `replay` 判 `extra`。
+2. **回放描述的形状。**仅在 `assistant` 角色带 `replay` 时，排在「空块」之后判。`replay` 不是普通对象；自有键不恰好是 `scope`、`format`、`at`、`tokens`；`scope` 或 `format` 不是非空字符串或超过长度上限；`at` 不是数组、自有键不只是下标和 `length`、有元素不是非负安全整数、或不严格递增；`tokens` 既不是 `null` 也不是不带前导零的十进制整数字符串：`replay`。普通对象的含义与 `covers` 相同，访问器不被调用。
+
+部件、角色规则与块身份唯一都通过之后，`judgeMessage` 再判两步。
+
+3. **配对。**按块的顺序，找第一个推理续接状态部件，其 `pairs` 有一项不是本消息里某个块的身份，或指向另一个推理续接状态部件：`pairs`，`blockIndex` 指向这个部件。
+4. **位置索引。**下列任一情形：`replay`。
+   - 消息含推理续接状态部件而不带 `replay`，`blockIndex` 指向第一个这类部件；
+   - `at` 有下标不小于块数，或该位置的块不是推理续接状态部件，`blockIndex` 指向 `at` 中第一个这样的下标，下标不小于块数时不带 `blockIndex`；
+   - 有推理续接状态部件的下标不在 `at` 里，`blockIndex` 指向第一个这样的部件；
+   - 带 `replay`，而消息既没有 `thinking` 块也没有推理续接状态部件，不带 `blockIndex`。
+
+推理续接状态部件放在非 `assistant` 角色的消息里，由角色规则判 `misplaced-part`。
+
+成功值里 `replay` 与 `replay.at` 是新的冻结副本；推理续接状态部件是新对象，其 `pairs` 是新的冻结副本。判定不读取 `payload` 的内容，只读长度。
+
 ## 所有权、失败与生命周期
 
 在前置条件成立时，判定失败是返回值，不抛异常。`context` 里的消息违反前置条件（没有通过 `judgeMessage`）时，`judgeCompaction` 的结果未定义。形状失败与历史规则失败分开报告，调用者能区分「这条消息写错了」与「它和这段历史对不上」。
@@ -170,13 +257,18 @@ flowchart LR
 
 压缩记录写入历史之后不变。之后的压缩不修改它，只能在新的覆盖范围里保留它或摘要它。
 
+推理续接状态的载荷是租户数据。本成员不加密、不截断、不记录它；它随所在消息保存和保留，隐私与保留规则跟随历史持有者。一条消息的 `replay` 与部件写入后不变，换模型不会让它改写或删除。
+
 ## 组合与验证
 
 ### 消费者
 
 - 压缩策略的拥有者按 CM-01 至 CM-05 生成压缩记录，消费规则见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#压缩与历史保留)。
 - 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交，规则见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `role` 收窄。
+- 模型的适配器产出推理续接状态部件和 `replay`，组成 assistant 消息的一方把它们写进同一条消息；Model 契约在每次发出时按 `replay.scope` 决定带不带这些部件，规则见 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
 
 ### 验证
 
 [docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、访问器、稀疏数组）和成功值不与输入共享，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。
+
+推理续接状态实现时，同样把 RS-01 至 RS-06 与上面各判定步骤的正反例写成 public-api 中的一张用例表，由 `tests/normative.spec.ts` 逐行执行；JSON 写不出的边界输入和成功值的冻结副本由单独的测试锁定。
