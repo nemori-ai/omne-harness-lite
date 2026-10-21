@@ -10,7 +10,7 @@
 
 独立调用者不经过上层工作流，也不装配 Cordis。它安装本成员与机制成员 [execution-environment](../../execution-environment/README.md)，再加一个提供者成员。它自己承担集成方的全部责任：
 
-1. 给出访问身份、作用域引用与原调用引用。
+1. 给出访问身份、作用域引用与原调用引用。作用域引用是请求方作用域，随每次落点解析与获取传入，与选中的绑定层无关：落在宿主机或租户级沙箱的获取也属于它，作用域释放与恢复也按它处理（[获取与租约](../SPEC.md#获取与租约)）。
 2. 自己翻译出允许清单，组成 `EnvironmentRequirement`。可以用 `judgeRequirement` 在边界上解码外部值。
 3. 实现资源账本、设施守卫与恢复授权三个端口。
 4. 为每次获取给出幂等键，并保存采用记录。
@@ -47,8 +47,8 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 
 1. 读工具定义里的环境声明，经 schema-provider 按 `environmentNeedAdoption` 解析 schema 并校验。
 2. 把声明的绑定层与策略允许的层取交集，排好顺序，组成环境要求。
-3. 调用 `resolvePlacement` 得到落点，在自己的账本里记下获取键与落点。
-4. 调用 `acquire`，得到租约与采用记录。随准备记录保存采用记录。
+3. 以请求方作用域与环境要求调用 `resolvePlacement` 得到落点，在自己的账本里记下获取键与落点。
+4. 以同一请求方作用域调用 `acquire`，得到租约与采用记录。随准备记录保存采用记录。
 5. 用 `lease.facility(key)` 取设施，交给工具执行者。每次设施操作带新的请求身份。
 6. 原调用结束后调用 `lease.release()`。待处置时用同一个释放操作重试。
 
@@ -58,12 +58,12 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 
 提供者作者实现 `EnvironmentProvider`，并通过 `ProviderRegistrations.registerProvider` 登记。规则如下：
 
-1. 如实声明绑定层、连续性、设施键与隔离断言。不以统一形状虚构不支持的能力（[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
+1. 如实声明绑定层、连续性、设施键与隔离断言。不以统一形状虚构不支持的能力（[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。每次登记取一个新的代，`version` 写提供者代码的版本。
 2. `acquire` 只交回临时回执：租约原件与证据。不自签采用记录（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本)）。
 3. 只提供已有声明的设施，并为声明里须授权的操作接受设施守卫。缺任一项，获取对该键返回 `unsupportedFacility`（[设施协议](../SPEC.md#设施协议)）。
-4. 可能跨进程存活的资源先在 `ProviderAcquireInput.ledger` 里计划并取得许可，再发出首个外部效果（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。
-5. 支持恢复的提供者同时实现 `listRecoveryResources` 与 `recover`。枚举失败返回不可用，不返回空列表。不支持恢复的提供者两者都不实现。
-6. `retire` 先拒新租约，再排空。清理未完时返回待处置并列出未停的资源。
+4. 可能跨进程存活的资源先在 `ProviderAcquireInput.ledger` 里计划并取得许可，再发出首个外部效果（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。经租约的设施操作由登记表的门查账本的 `closed` 信号。提供者在门之外自己发起的效果，发出前自己查这个信号。
+5. 支持恢复的提供者同时实现 `listRecoveryResources` 与 `recover`。枚举失败返回不可用，不返回空列表。不支持恢复的提供者两者都不实现。受管资源按 `ProviderAcquireInput.scope`（请求方作用域）登记，枚举时按它查找。
+6. `retire` 先拒新租约，再排空。清理未完时返回待处置并列出未停的资源。`acquire` 与 `retire` 在提供者自己配置的上界内返回：`retire` 超界答待处置，`acquire` 超界先释放已分配的部分再以 `providerUnavailable` 拒绝（[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
 7. host-local 的 Service 实现作为两条块的生产者（当前没有成员发布这两条块），发布 `execution.placement` 与 `execution.host-facts`（[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 
 `registerProvider` 返回撤除函数。撤除登记等于退役开始。宿主提供者的实际做法见 [execution-environment-host-local](../../execution-environment-host-local/README.md)。
@@ -98,7 +98,7 @@ export const browserFacility = describeFacility('example.browser', {
 
 | 端口 | 集成方要做的事 | 条款 |
 | --- | --- | --- |
-| `ResourceLedger` | 每次获取一份，耐久。先 `plan` 再 `permit`，许可确认之后提供者才发出效果。`adopt` 接续已有资源，`stopped` 记下停止结果。原调用的终局与资源许可写在同一耐久顺序里。账本关闭时触发 `closed` 信号，之后不再发新许可 | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致) |
+| `ResourceLedger` | 每次获取一份，耐久。先 `plan` 再 `permit`，许可确认之后提供者才发出效果。`adopt` 接续已有资源，`stopped` 记下停止结果。原调用的终局与资源许可写在同一耐久顺序里。账本关闭时触发 `closed` 信号，之后不再发新许可，登记表的门也不再开始新的设施操作 | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致) |
 | `FacilityGuard` | 按当前授权回答这次操作现在还允许吗。答 `authorized`、`notAuthorized` 或 `unavailable`。依据只在集成方一侧 | [获取与租约](../SPEC.md#获取与租约) |
 | `RecoveryAuthority` | 核对一个恢复授权能否停止与结算一个作用域的资源。恢复授权由集成方的维护拥有者用 `createRecoveryAccess` 签发，独立于用户访问 | [恢复](../SPEC.md#恢复) |
 

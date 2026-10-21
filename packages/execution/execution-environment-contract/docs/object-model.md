@@ -21,10 +21,10 @@
 | 对象 | 身份 | 谁给 |
 | --- | --- | --- |
 | 访问身份 `Access` | 主体加租户 | 集成方从自己的身份系统翻译 |
-| 作用域引用 `ScopeRef` | 不透明字符串，可带父引用 | 集成方；本成员不解释 |
+| 作用域引用 `ScopeRef` | 不透明字符串，可带父引用。落点解析与获取都带请求方作用域，独立于绑定层 | 集成方；本成员不解释 |
 | 原调用引用 `OriginRef` | 不透明字符串 | 集成方 |
 | 设施声明 `FacilityDescriptor` | 设施键 | 设施拥有者 |
-| 提供者 | 名称加代 `ProviderIdentity` | 提供者 |
+| 提供者 | 名称加代加版本 `ProviderIdentity`。代是一次登记化身，每次登记新取；版本是提供者代码的版本 | 提供者 |
 | 落点 `Placement` | 绑定层加提供者身份 | `resolvePlacement` 算出 |
 | 获取 | 集成方给的幂等键 `AcquisitionRef` | 集成方 |
 | 采用记录 `EnvironmentAdoption` | 所属获取加实例身份与代 | 执行环境签发 |
@@ -58,6 +58,7 @@ classDiagram
   class ProviderFacts {
     provider
     generation
+    version
     platform
     facilities
     isolation
@@ -126,6 +127,7 @@ classDiagram
 几条关系的含义：
 
 - 环境要求是输入，不是对象。它由集成方在域外翻译而成，执行环境不保存它，只在解析落点与获取时读它。
+- 获取属于请求方作用域，不属于绑定层。获取记录记下请求方作用域；描述、落点块、作用域释放与恢复都按它过滤，宿主机与租户级沙箱的获取也在内。带作用域的绑定层必须与请求方作用域相同。
 - 落点是算出来的值，不是租约。落点只说明选中了哪里；从落点到租约要经过获取。
 - 采用记录与租约同属一次获取。采用记录是耐久事实，由集成方保存；租约是进程内的使用入口，随执行环境的登记表存在。
 - 受管资源不属于租约，属于造出它的提供者；账本里的记录是它的耐久一半。租约失效不使受管资源消失。
@@ -133,7 +135,7 @@ classDiagram
 
 ### 两条块声明
 
-`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明，语义拥有者是本成员，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）。块的值是 JSON，按声明的解码函数核对。落点块按作用域给出该作用域内各原调用的当前落点；宿主事实块给出每个已登记提供者的事实。两条块都是观察，读者不能据此推定物理完成。块的注册与读取规则归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。
+`execution.placement` 与 `execution.host-facts` 是 Runtime Context 的供给块声明，语义拥有者是本成员，host-local 的 Service 实现作为生产者（当前没有成员发布这两条块）。块的值是 JSON，按声明的解码函数核对。落点块按获取记录里的请求方作用域给出该作用域内各原调用的当前落点；宿主事实块给出每个已登记提供者的事实：代、版本、平台（操作系统类型与版本）、设施键、隔离断言，以及满足、不满足、未知三态之一的前提。两条块都是观察，读者不能据此推定物理完成。块的注册与读取规则归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)。
 
 ## 生命周期
 
@@ -184,7 +186,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> requested
-  requested --> rejected : 租户不等于获取方的租户 / 绑定层不等于租约落点（invalidInput） / 租约已失效或释放已发起 / 键不在要求里
+  requested --> rejected : 租户不等于获取方的租户 / 绑定层不等于租约落点（invalidInput） / 租约已失效或释放已发起 / 本次获取的账本已关闭 / 键不在要求里
   requested --> authorized : 守卫答允许
   requested --> rejected : 守卫答不允许 / 守卫不可用（操作未发出，原因 unavailable）
   authorized --> done : 完成
@@ -201,7 +203,7 @@ stateDiagram-v2
 
 ### 提供者
 
-登记 → 在场（参与落点、获取、描述、恢复）→ 退役中（拒绝新租约，结清在途操作，清理受管资源）→ 已排空，或待处置并列出未停的受管资源。插件卸载即撤除登记，撤除等于退役开始。条款见 [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
+登记（取一个新的代）→ 在场（参与落点、获取、描述、恢复）→ 退役中（拒绝新租约，结清在途操作，清理受管资源）→ 已排空，或待处置并列出未停的受管资源。退役在提供者自己配置的上界内结束，超界即待处置。插件卸载即撤除登记，撤除等于退役开始。条款见 [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
 ### 设施声明
 

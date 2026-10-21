@@ -41,7 +41,7 @@ flowchart LR
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
 - `@omne-harness/legal-identity` 只是开发依赖，测试用它构造租户。
 
-宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`，提供者另用 `node:crypto` 生成代。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`。提供者另用 `node:crypto` 生成代，用 `node:os` 读操作系统版本，用 `node:fs` 读本包 `package.json` 的版本。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 ## 关键机制与理由
 
@@ -56,6 +56,14 @@ flowchart LR
 一个宿主文件提供者只造一个宿主文件设施，它交出的全部租约共用这个实例。理由：句柄代际表与关闭失败的描述符集合要跨请求存在，关闭请求要能找到读取时发出的代次。每个租约一个实例会让关闭找不到别的租约发出的代次。
 
 代价：句柄代际表随提供者实例存在，不随租约释放清空。
+
+### 退役等在途操作，有上界
+
+提供者给共用的设施实例包一层计数，记录已接纳、尚未结束的文件操作。`retire()` 先停止接纳新操作，再使租约失效，再等在途操作结束，最多 `drainBoundMs`。都结束报已排空；超界报待处置，受管资源为空，诊断写明仍在途的操作数。理由：契约的排空要求已接纳的操作都已结束（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）；替换写入截断文件之后、写完之前被卸载时，立即报已排空会让原请求的未知结果无人承接。上界归提供者，登记表不设计时器；上界是配置，`10000` 毫秒只是初值。代价：一个卡住的文件操作会让卸载等满上界；超界之后它仍在运行，结果仍交回原请求，退役结果只能报待处置。
+
+### 账本关闭由登记表的门核对
+
+提供者不读账本。经租约的每个文件操作在登记表的门里先核对本次获取账本的 `closed` 信号（[INV-EE15](../../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。理由：门是所有设施操作的唯一入口，核对放在门里只做一次。本提供者没有在门之外自己发起的效果，所以不另查。代价：直接调用 `createHostFilesProvider` 得到的租约原件不经过门，不查账本。
 
 ### Service 子类转发，登记落在调用方 fiber
 
@@ -122,7 +130,7 @@ flowchart LR
 | --- | --- | --- |
 | 单一职责 | 宿主文件设施只管宿主机上的对象身份与字节，提供者只管事实与租约原件，Service 子类只管转发与生命周期 | 在宿主文件设施里核对租户或问守卫，或在 Service 子类里重写匹配规则 |
 | 开闭 | `command` 与 `terminal` 的宿主提供者以新的提供者与插件加入，经同一个登记面登记。沙箱是新的 Service 实现成员，不改本成员 | 为新设施在宿主文件提供者或 Service 子类里加分支 |
-| 里氏替换 | 宿主文件提供者满足契约的 `EnvironmentProvider`：真实声明只支持宿主层、不确认隔离、没有受管资源与恢复 | 声明不支持的绑定层或隔离断言，或在退役待处置时报告已排空 |
+| 里氏替换 | 宿主文件提供者满足契约的 `EnvironmentProvider`：真实声明只支持宿主层、不确认隔离、没有受管资源与恢复；退役先停止接纳新操作，再在 `drainBoundMs` 内等在途操作结束，超界报待处置；前提未探测时报未知 | 声明不支持的绑定层或隔离断言；在途操作未结束或退役待处置时报告已排空；未探测就报前提已满足 |
 | 接口隔离 | 根入口只给宿主文件设施与提供者，`./cordis` 只给插件与 Service 子类 | 让调用方导入 `./cordis` 的子类来调用环境操作 |
 | 依赖倒置 | 本成员依赖契约、服务定义与登记表工厂。恢复授权由装配作为插件工厂参数给出，租户与授权随操作参数进入 | 从 `ctx`、isolate 标签或插件实例推断租户或恢复授权 |
 
@@ -133,6 +141,7 @@ flowchart LR
 | 宿主文件使用（已接受） | [host-file-results.spec.ts](../tests/host-file-results.spec.ts)、[host-files.spec.ts](../tests/host-files.spec.ts)，真实文件系统 | 授予根限制没有实现与测试 |
 | 八项未实现操作 | [host-files-unsupported.spec.ts](../tests/host-files-unsupported.spec.ts) | 实现时改为真实行为并复用对象绑定 |
 | Service 装载、撤除、恢复缺省 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts)，真实 Cordis | 重复装载失败、配置校验失败、调用方类核对 |
+| 退役等在途操作、超界待处置与诊断 | [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts)，用 `vi.mock` 让一次 `open` 停住，其余是真实文件系统与真实 Cordis | 无 |
 | 根入口不导入 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新增根入口模块时加入文件清单 |
 | 两条块的发布 | 没有 | 随 Runtime Context 生产者插件进入 |
 

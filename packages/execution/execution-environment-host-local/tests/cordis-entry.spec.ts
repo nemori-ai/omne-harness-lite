@@ -80,6 +80,8 @@ const filesRequirement: EnvironmentRequirement = {
   isolation: [],
 }
 
+const filesPlacement = { scope: scope('scope-1'), requirement: filesRequirement }
+
 async function namedFile(contents: string) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-env-')))
   roots.push(root)
@@ -90,11 +92,12 @@ async function namedFile(contents: string) {
 
 async function hostLease(ctx: Context, key = 'acq-1') {
   const service = serviceOf(ctx)
-  const placement = await service.resolvePlacement(access, filesRequirement)
+  const placement = await service.resolvePlacement(access, filesPlacement)
   if (placement.kind !== 'placement') throw new Error(`no placement: ${placement.reason}`)
   const acquired = await service.acquire(access, {
     acquisition: acquisitionRef(key),
     origin: originRef('call-1'),
+    scope: scope('scope-1'),
     placement,
     ledger,
     guard: allow,
@@ -120,6 +123,7 @@ function pendingProvider(retired: { count: number }): EnvironmentProvider {
   return {
     name: 'pending',
     generation: '1',
+    version: 'test-version',
     bindingKinds: ['session_sandbox'],
     continuity: { kind: 'not_guaranteed' },
     facilities: [],
@@ -128,10 +132,11 @@ function pendingProvider(retired: { count: number }): EnvironmentProvider {
       return {
         provider: 'pending',
         generation: '1',
-        platform: 'test',
+        version: 'test-version',
+        platform: { os: 'test', release: 'test' },
         facilities: [],
         isolation: [],
-        prerequisites: 'satisfied',
+        prerequisites: 'unknown',
       }
     },
     async acquire() {
@@ -168,11 +173,14 @@ it('reads through a lease once the declaration and the host provider are loaded,
   })
 
   const sandbox = await service.resolvePlacement(access, {
-    allowedBindings: [
-      { kind: 'stateless_sandbox', scope: scope('scope-1'), origin: originRef('call-1') },
-    ],
-    facilities: ['files'],
-    isolation: [],
+    scope: scope('scope-1'),
+    requirement: {
+      allowedBindings: [
+        { kind: 'stateless_sandbox', scope: scope('scope-1'), origin: originRef('call-1') },
+      ],
+      facilities: ['files'],
+      isolation: [],
+    },
   })
   expect(sandbox).toEqual({ kind: 'rejected', reason: 'noMatchingEnvironment' })
 
@@ -181,7 +189,7 @@ it('reads through a lease once the declaration and the host provider are loaded,
     source: 'registry',
     reason: 'providerRetired',
   })
-  expect(await service.resolvePlacement(access, filesRequirement)).toEqual({
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual({
     kind: 'rejected',
     reason: 'noMatchingEnvironment',
   })
@@ -193,7 +201,7 @@ it('keeps the files declaration apart from the provider: without it there is no 
   await ctx.plugin(ExecutionEnvironmentRegistry)
   await ctx.plugin(hostFilesPlugin)
   const service = serviceOf(ctx)
-  expect(await service.resolvePlacement(access, filesRequirement)).toEqual({
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual({
     kind: 'rejected',
     reason: 'missingFacility',
   })
@@ -238,6 +246,7 @@ it('refuses new acquisitions and invalidates leases once the Service unloads', a
     await service.acquire(access, {
       acquisition: acquisitionRef('acq-2'),
       origin: originRef('call-1'),
+      scope: scope('scope-1'),
       placement: acquired.adoption.placement,
       ledger,
       guard: allow,
@@ -277,6 +286,42 @@ it('reads the recovery authority service on each recovery, and answers unavailab
   await authority.dispose()
   expect(await service.recoverOwned(scope('scope-1'), recoveryAccess)).toEqual(unavailable)
   expect(asked).toHaveLength(1)
+})
+
+it('invalidates the host lease of a released scope and refuses that scope afterwards', async () => {
+  class Authority extends ExecutionRecoveryAuthorityService {
+    async authorizeRecovery(): Promise<'authorized'> {
+      return 'authorized'
+    }
+  }
+  const ctx = new Context()
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  await ctx.plugin(Authority)
+  await ctx.plugin(filesFacilityPlugin)
+  await ctx.plugin(hostFilesPlugin)
+  const service = serviceOf(ctx)
+  const { acquired } = await hostLease(ctx)
+  expect(await service.releaseScope(scope('scope-1'), createRecoveryAccess())).toMatchObject({
+    kind: 'recovered',
+  })
+  await expect(acquired.lease.invalidated).resolves.toEqual({
+    source: 'registry',
+    reason: 'scopeReleased',
+  })
+  expect(
+    await service.acquire(access, {
+      acquisition: acquisitionRef('acq-2'),
+      origin: originRef('call-1'),
+      scope: scope('scope-1'),
+      placement: acquired.adoption.placement,
+      ledger,
+      guard: allow,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'referenceExpired' })
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual({
+    kind: 'rejected',
+    reason: 'referenceExpired',
+  })
 })
 
 it('retries a pending retirement each time the returned removal is called through the Service', async () => {
@@ -324,8 +369,29 @@ it('completes the unload when a retirement or the close is pending, and logs Ret
   ])
 })
 
-it('accepts only an absent, null or empty configuration on every assembly unit', async () => {
-  for (const unit of [ExecutionEnvironmentRegistry, filesFacilityPlugin, hostFilesPlugin]) {
+it('accepts only drainBoundMs, a finite number zero or more, on the host files plugin', async () => {
+  const validate = hostFilesPlugin.Config['~standard'].validate
+  for (const accepted of [undefined, null, {}]) expect(validate(accepted)).toEqual({ value: {} })
+  expect(validate({ drainBoundMs: 0 })).toEqual({ value: { drainBoundMs: 0 } })
+  expect(validate({ drainBoundMs: 250 })).toEqual({ value: { drainBoundMs: 250 } })
+  for (const refused of [
+    [],
+    'x',
+    0,
+    { retries: 3 },
+    { drainBoundMs: -1 },
+    { drainBoundMs: Number.POSITIVE_INFINITY },
+    { drainBoundMs: '5' },
+  ])
+    expect(validate(refused)).toMatchObject({ issues: [{ message: expect.any(String) }] })
+  const ctx = new Context()
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  const loading: unknown = Reflect.apply(ctx.plugin, ctx, [hostFilesPlugin, { drainBoundMs: -1 }])
+  await expect(Promise.resolve(loading)).rejects.toBeDefined()
+})
+
+it('accepts only an absent, null or empty configuration on the Service and the declaration plugin', async () => {
+  for (const unit of [ExecutionEnvironmentRegistry, filesFacilityPlugin]) {
     const validate = unit.Config['~standard'].validate
     for (const accepted of [undefined, null, {}]) expect(validate(accepted)).toEqual({ value: {} })
     for (const refused of [{ retries: 3 }, [], 'x', 0])
@@ -338,7 +404,7 @@ it('accepts only an absent, null or empty configuration on every assembly unit',
   // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
   const loading: unknown = Reflect.apply(ctx.plugin, ctx, [filesFacilityPlugin, { extra: true }])
   await expect(Promise.resolve(loading)).rejects.toBeDefined()
-  expect(await serviceOf(ctx).resolvePlacement(access, filesRequirement)).toMatchObject({
+  expect(await serviceOf(ctx).resolvePlacement(access, filesPlacement)).toMatchObject({
     kind: 'rejected',
   })
 })
@@ -361,9 +427,12 @@ it('forwards state and description to the registry, and removes a declaration th
     kind: 'acquired',
     adoption: acquired.adoption,
   })
-  expect(await service.describe(access, scope('scope-1'))).toEqual([])
+  expect(await service.describe(access, scope('scope-1'))).toMatchObject([
+    { acquisition: 'acq-1', binding: host, provider: { name: 'host-files' }, state: 'acquired' },
+  ])
+  expect(await service.describe(access, scope('scope-2'))).toEqual([])
   await removeDeclaration()
-  expect(await service.resolvePlacement(access, filesRequirement)).toEqual({
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual({
     kind: 'rejected',
     reason: 'missingFacility',
   })

@@ -9,7 +9,8 @@
 - [host-files.spec.ts](host-files.spec.ts)：读取范围、查看、新建与预期版本
 - [host-files-unsupported.spec.ts](host-files-unsupported.spec.ts)：八项未实现操作
 - [host-file-edges.spec.ts](host-file-edges.spec.ts)：宿主文件设施的边界结果与版本一致
-- [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、账本关闭与退役通知
+- [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、经登记表门的账本关闭、退役与退役通知
+- [host-provider-drain.spec.ts](host-provider-drain.spec.ts)：退役等在途文件操作、超界待处置与诊断
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务、声明插件与宿主文件插件的装载、卸载与恢复
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合与 Cordis 边界
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空

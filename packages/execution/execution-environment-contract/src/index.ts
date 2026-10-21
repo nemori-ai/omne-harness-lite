@@ -79,6 +79,8 @@ export type {
   EnvironmentProvider,
   ExecutionEnvironment,
   OwnedRecovery,
+  PlacementInput,
+  PlatformFacts,
   ProviderAcquireInput,
   ProviderAcquisition,
   ProviderFacts,

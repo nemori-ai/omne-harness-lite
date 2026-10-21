@@ -12,7 +12,6 @@ import {
   type EnvironmentDescription,
   type EnvironmentLease,
   type EnvironmentProvider,
-  type EnvironmentRequirement,
   type ExecutionEnvironment,
   type FacilityDescriptor,
   type FacilityKey,
@@ -69,6 +68,8 @@ type ProviderEntry = {
 type AcquisitionRecord = {
   readonly acquisition: AcquisitionRef
   readonly tenant: TenantId
+  /** The requester's scope. Description, scope release and recovery filter by it, on every layer. */
+  readonly scope: ScopeRef
   readonly origin: OriginRef
   readonly placement: Placement
   readonly entry: ProviderEntry | null
@@ -112,11 +113,18 @@ function mintedTenant(tenant: TenantId): boolean {
   return tenantEquals(tenant, tenant)
 }
 
+/** A layer that names an owning scope must name the requester's scope; other layers fit any scope. */
+function fitsScope(binding: EnvironmentBinding, scope: ScopeRef): boolean {
+  const owner = bindingScope(binding)
+  return owner === undefined || sameScope(owner, scope)
+}
+
 function samePlacement(left: Placement, right: Placement): boolean {
   return (
     sameBinding(left.binding, right.binding) &&
     left.provider.name === right.provider.name &&
     left.provider.generation === right.provider.generation &&
+    left.provider.version === right.provider.version &&
     sameSet(left.requirement.facilities, right.requirement.facilities) &&
     sameSet(left.requirement.isolation, right.requirement.isolation)
   )
@@ -166,10 +174,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   const findRecord = (acquisition: AcquisitionRef, tenant: TenantId) =>
     records.get(acquisition)?.find(record => tenantEquals(record.tenant, tenant))
 
-  const scopeReleased = (binding: EnvironmentBinding) => {
-    const scope = bindingScope(binding)
-    return scope !== undefined && releasedScopes.has(scope.ref)
-  }
+  const scopeReleased = (scope: ScopeRef) => releasedScopes.has(scope.ref)
 
   const foreignTenantBinding = (binding: EnvironmentBinding, tenant: TenantId) =>
     binding.kind === 'tenant_sandbox' && !tenantEquals(binding.tenant, tenant)
@@ -205,8 +210,10 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   }
 
   /** An existing record answers with its current state, or refuses a conflicting repeat. */
-  const replay = (existing: AcquisitionRecord, placement: Placement) =>
-    samePlacement(existing.placement, placement) ? current(existing) : rejected('invalidInput')
+  const replay = (existing: AcquisitionRecord, placement: Placement, scope: ScopeRef) =>
+    sameScope(existing.scope, scope) && samePlacement(existing.placement, placement)
+      ? current(existing)
+      : rejected('invalidInput')
 
   /** Refusals that leave no record behind. */
   const preAdmit = (tenant: TenantId, placement: Placement): RejectReason | undefined => {
@@ -218,10 +225,11 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   /** Checks the placement again, since resolving and acquiring are not atomic. */
   const recheckPlacement = (
     entry: ProviderEntry | undefined,
-    placement: Placement,
+    record: AcquisitionRecord,
   ): RejectReason | ProviderEntry => {
+    const placement = record.placement
     if (entry === undefined) return 'providerUnavailable'
-    if (scopeReleased(placement.binding)) return 'referenceExpired'
+    if (scopeReleased(record.scope)) return 'referenceExpired'
     const offered = capabilities(entry)
     const listed = placement.requirement.allowedBindings.some(binding =>
       sameBinding(binding, placement.binding),
@@ -247,6 +255,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       result = await entry.provider.acquire({
         acquisition: input.acquisition,
         origin: input.origin,
+        scope: record.scope,
         placement: record.placement,
         tenant,
         ledger: input.ledger,
@@ -267,7 +276,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   ): RejectReason | undefined => {
     if (closed) return 'ownerStopped'
     if (!entry.active || !providers.includes(entry)) return 'providerUnavailable'
-    if (scopeReleased(record.placement.binding)) return 'referenceExpired'
+    if (scopeReleased(record.scope)) return 'referenceExpired'
     if (!sameBinding(record.placement.binding, receipt.lease.placement.binding))
       return 'unavailable'
     const missing = record.placement.requirement.facilities.some(
@@ -298,7 +307,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     record: AcquisitionRecord,
     entry: ProviderEntry,
     receipt: ProviderReceipt,
-    guard: AcquireInput<P>['guard'],
+    input: AcquireInput<P>,
   ): Acquired => {
     const adoption: EnvironmentAdoption = Object.freeze({
       acquisition: record.acquisition,
@@ -309,9 +318,10 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       continuity: receipt.lease.continuity,
       evidence: receipt.evidence,
     })
-    const view = createLeaseView(receipt.lease, guard, {
+    const view = createLeaseView(receipt.lease, input.guard, {
       tenant: record.tenant,
       placement: record.placement,
+      ledgerClosed: input.ledger.closed,
       descriptor: key => facilities.get(key),
       invalidated: invalidation => {
         if (record.state.kind === 'acquired')
@@ -334,16 +344,17 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   }
 
   const registry: EnvironmentRegistry<P> = {
-    async resolvePlacement(access, requirement: EnvironmentRequirement) {
+    async resolvePlacement(access, { scope, requirement }) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
       if (closed) return rejected('ownerStopped')
+      if (scopeReleased(scope)) return rejected('referenceExpired')
       const candidates = providers
         .filter(entry => entry.active)
         .map(entry => ({ entry, ...capabilities(entry) }))
       const match = matchProviders(candidates, requirement)
       if (match.kind === 'rejected') return match
       if (foreignTenantBinding(match.binding, access.tenant)) return rejected('notAuthorized')
-      if (scopeReleased(match.binding)) return rejected('referenceExpired')
+      if (!fitsScope(match.binding, scope)) return rejected('invalidInput')
       return Object.freeze({
         kind: 'placement',
         requirement,
@@ -356,20 +367,23 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     async acquire(access, input) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
       const placement = input.placement
+      if (!fitsScope(placement.binding, input.scope)) return rejected('invalidInput')
       const existing = findRecord(input.acquisition, access.tenant)
-      if (existing !== undefined) return replay(existing, placement)
+      if (existing !== undefined) return replay(existing, placement, input.scope)
       const refusal = preAdmit(access.tenant, placement)
       if (refusal !== undefined) return rejected(refusal)
       const entry = providers.find(
         candidate =>
           candidate.active &&
           candidate.identity.name === placement.provider.name &&
-          candidate.identity.generation === placement.provider.generation,
+          candidate.identity.generation === placement.provider.generation &&
+          candidate.identity.version === placement.provider.version,
       )
       // The record is written before the first await, so a concurrent repeat sees `acquiring`.
       const record: AcquisitionRecord = {
         acquisition: input.acquisition,
         tenant: access.tenant,
+        scope: input.scope,
         origin: input.origin,
         placement,
         entry: entry ?? null,
@@ -378,13 +392,13 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
         invalidate: () => undefined,
       }
       records.set(input.acquisition, [...(records.get(input.acquisition) ?? []), record])
-      const checked = recheckPlacement(entry, placement)
+      const checked = recheckPlacement(entry, record)
       if (typeof checked === 'string') return settleRejected(record, checked)
       const receipt = await callProvider(record, checked, access.tenant, input)
       if (receipt.kind === 'rejected') return receipt
       const failure = verify(record, checked, receipt)
       if (failure !== undefined) return compensate(record, receipt, failure)
-      return adopt(record, checked, receipt, input.guard)
+      return adopt(record, checked, receipt, input)
     },
 
     async inspectAcquisition(access, acquisition) {
@@ -401,7 +415,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       const descriptions: EnvironmentDescription[] = []
       for (const record of allRecords()) {
         if (!tenantEquals(record.tenant, access.tenant)) continue
-        if (!sameScope(bindingScope(record.placement.binding), scope)) continue
+        if (!sameScope(record.scope, scope)) continue
         if (record.state.kind === 'released') continue
         const adoption = adoptionOf(record.state)
         if (adoption === null) continue
@@ -432,8 +446,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       if (decision !== 'authorized') return rejected(decision)
       releasedScopes.add(scope.ref)
       for (const record of allRecords())
-        if (sameScope(bindingScope(record.placement.binding), scope))
-          record.invalidate(byRegistry('scopeReleased'))
+        if (sameScope(record.scope, scope)) record.invalidate(byRegistry('scopeReleased'))
       return driveRecovery(scope, providers)
     },
 
@@ -463,7 +476,11 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
         throw new Error(`Provider ${provider.name}@${provider.generation} is already registered`)
       const entry: ProviderEntry = {
         provider,
-        identity: Object.freeze({ name: provider.name, generation: provider.generation }),
+        identity: Object.freeze({
+          name: provider.name,
+          generation: provider.generation,
+          version: provider.version,
+        }),
         active: true,
         retiring: undefined,
       }
@@ -500,10 +517,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   ): Promise<'authorized' | 'notAuthorized' | 'unavailable'> {
     const known: ManagedResource[] = []
     for (const record of allRecords())
-      if (
-        record.state.kind === 'pendingRelease' &&
-        sameScope(bindingScope(record.placement.binding), scope)
-      )
+      if (record.state.kind === 'pendingRelease' && sameScope(record.scope, scope))
         known.push(...record.state.resources)
     try {
       return await deps.recovery.authorizeRecovery(access, scope, known)

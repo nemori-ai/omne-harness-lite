@@ -5,7 +5,11 @@ import type { AcquisitionRef, OriginRef } from './identity.ts'
 import type { ManagedResource } from './ports.ts'
 import type { EnvironmentRequirement } from './requirement.ts'
 
-export type ProviderIdentity = Readonly<{ name: string; generation: string }>
+/**
+ * `generation` names one registration incarnation: a provider takes a new one each time it is
+ * registered. `version` is the version of the provider's code, the same for every incarnation of it.
+ */
+export type ProviderIdentity = Readonly<{ name: string; generation: string; version: string }>
 
 /** A new instance with the same name never claims to be the old one. */
 export type InstanceIdentity = Readonly<{ id: string; generation: string }>

@@ -4,6 +4,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   acquisitionRef,
+  bindingScope,
   commandFacility,
   originRef,
   type Access,
@@ -22,6 +23,7 @@ import {
   type LeaseRelease,
   type ManagedResource,
   type Placement,
+  type PlacementInput,
   type ProcessHandle,
   type ProviderAcquireInput,
   type ProviderAcquisition,
@@ -62,8 +64,9 @@ export function scope(text: string): ScopeRef {
   return { ref: text }
 }
 
+export const scope1 = scope('scope-1')
 export const host: EnvironmentBinding = { kind: 'host_machine' }
-export const session: EnvironmentBinding = { kind: 'session_sandbox', scope: scope('scope-1') }
+export const session: EnvironmentBinding = { kind: 'session_sandbox', scope: scope1 }
 
 export const ledger: ResourceLedger = {
   closed: new AbortController().signal,
@@ -102,6 +105,7 @@ export function commandStub(calls: Calls): CommandFacility<unknown> {
 export type Script = {
   name?: string
   generation?: string
+  version?: string
   bindingKinds?: EnvironmentProvider['bindingKinds']
   continuity?: EnvironmentContinuity
   keys?: readonly FacilityKey[]
@@ -131,6 +135,7 @@ export function scriptedProvider(script: Script = {}): Scripted {
   const calls: Calls = { acquire: 0, release: 0, retire: 0, start: 0, list: 0, recover: 0 }
   const name = script.name ?? 'scripted'
   const generation = script.generation ?? '1'
+  const version = script.version ?? 'test-version'
   const keys = script.keys ?? ['command']
   const facilities = script.facilities ?? { command: commandStub(calls) }
   const settlers: {
@@ -142,6 +147,7 @@ export function scriptedProvider(script: Script = {}): Scripted {
     calls,
     name,
     generation,
+    version,
     bindingKinds: script.bindingKinds ?? ['host_machine'],
     continuity: script.continuity ?? { kind: 'not_guaranteed' },
     facilities: keys,
@@ -150,7 +156,8 @@ export function scriptedProvider(script: Script = {}): Scripted {
       return {
         provider: name,
         generation,
-        platform: 'test',
+        version,
+        platform: { os: 'test', release: 'test' },
         facilities: keys,
         isolation: script.isolation ?? [],
         prerequisites: 'satisfied',
@@ -224,18 +231,38 @@ export function registryWith(
   return registry
 }
 
+/** A placement input of the requester's scope, `scope-1` unless a test names another. */
+export function want(wanted: EnvironmentRequirement, requester: ScopeRef = scope1): PlacementInput {
+  return { scope: requester, requirement: wanted }
+}
+
 export async function placed(
   registry: EnvironmentRegistry<string>,
   wanted: EnvironmentRequirement,
   access: Access<string> = accessA,
+  requester: ScopeRef = scope1,
 ): Promise<Placement> {
-  const placement = await registry.resolvePlacement(access, wanted)
+  const placement = await registry.resolvePlacement(access, want(wanted, requester))
   if (placement.kind !== 'placement') throw new Error(`no placement: ${placement.reason}`)
   return placement
 }
 
-export function acquireInput(placement: Placement, key = 'acq-1', guard = allow) {
-  return { acquisition: acquisitionRef(key), origin: originRef('call-1'), placement, ledger, guard }
+/** The requester's scope defaults to the scope the placement's layer names, else `scope-1`. */
+export function acquireInput(
+  placement: Placement,
+  key = 'acq-1',
+  guard = allow,
+  requester: ScopeRef = bindingScope(placement.binding) ?? scope1,
+  acquisitionLedger: ResourceLedger = ledger,
+) {
+  return {
+    acquisition: acquisitionRef(key),
+    origin: originRef('call-1'),
+    scope: requester,
+    placement,
+    ledger: acquisitionLedger,
+    guard,
+  }
 }
 
 export async function leased(
@@ -244,8 +271,9 @@ export async function leased(
   key = 'acq-1',
   guard = allow,
   access: Access<string> = accessA,
+  requester: ScopeRef = bindingScope(placement.binding) ?? scope1,
 ) {
-  const acquired = await registry.acquire(access, acquireInput(placement, key, guard))
+  const acquired = await registry.acquire(access, acquireInput(placement, key, guard, requester))
   if (acquired.kind !== 'acquired') throw new Error(`expected a lease: ${JSON.stringify(acquired)}`)
   return acquired
 }

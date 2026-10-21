@@ -53,13 +53,13 @@ The fiber of the service plugin owns the service instance and the registry insta
 
 ## Design
 
-The root entry has two modules: the host files facility and the host files provider. `./cordis` has the Service subclass and two plugins. The outside dependencies are execution-environment-contract, execution-environment, execution-environment-cordis-contract, and `@deepseek-ai/cordis`. The host files facility checks only the object identity. The lease view of the registry checks the tenant and the guard. One provider shares one facility instance. Each acquisition gets a wrapper that refuses operations with `closed` after its ledger closes. The Service subclass only forwards calls and manages life. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives three mechanism flows. The [object model](docs/object-model.md) lists the objects.
+The root entry has two modules: the host files facility and the host files provider. `./cordis` has the Service subclass and two plugins. The outside dependencies are execution-environment-contract, execution-environment, execution-environment-cordis-contract, and `@deepseek-ai/cordis`. The host files facility checks only the object identity. The lease view of the registry checks the tenant and the guard. One provider shares one facility instance and counts the file operations in flight. The registry gate, not the provider, refuses operations with `closed` after the acquisition ledger closes. On retirement, the provider admits no new operation and waits for the operations in flight up to `drainBoundMs`. Past that bound, the retirement is pending. The Service subclass only forwards calls and manages life. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives three mechanism flows. The [object model](docs/object-model.md) lists the objects.
 
 ## Configuration and operation
 
-The three assembly units share one configuration schema. It accepts only an absent value, `null`, or an empty object. The package has no tunable parameter. The recovery authority port comes as the service `executionRecoveryAuthority`. It does not go into the plugin tree. One isolate label holds one service.
+The Service subclass and `filesFacilityPlugin` accept only an absent value, `null`, or an empty object as configuration. `hostFilesPlugin` also accepts `drainBoundMs`, a finite number of milliseconds, zero or more. It bounds how long the host provider retirement waits for file operations in flight. The initial value is 10000. A retirement past the bound writes one diagnostic error with the count in flight to `ctx.logger`. The recovery authority port comes as the service `executionRecoveryAuthority`. It does not go into the plugin tree. One isolate label holds one service.
 
-The host files facility runs on Node. It checks the object identity with `O_NOFOLLOW`, the device number, and the inode. `package.json` declares the engine `>=24`. The platform in the host facts comes from `process.platform`. The prerequisites always read as satisfied. No probe runs.
+The host files facility runs on Node. It checks the object identity with `O_NOFOLLOW`, the device number, and the inode. `package.json` declares the engine `>=24`. The platform in the host facts is `process.platform` with `os.release()`. The provider version is the `version` of this package's `package.json`. The prerequisites read as `unknown`, because no probe runs.
 
 ## Verification
 
@@ -69,7 +69,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The seven test files hold seventy-two tests. See [tests/](tests/README.md). File bytes, symbolic links, and object replacement use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. On 2026-10-21, on Node v24.18.0 and linux, all seventy-two tests passed. No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The eight test files hold seventy-nine tests. See [tests/](tests/README.md). File bytes, symbolic links, and object replacement use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. One test file holds one `open` call with a module mock to keep a file operation in flight. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. On 2026-10-21, on Node v24.18.0 and linux, all seventy-nine tests passed. No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -95,7 +95,7 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Assembly, naming, independent use, position
 └── cordis.md             Plugins, configuration, registration, removal order, IC map
 src/                      index.ts, host-files.ts, host-provider.ts, cordis.ts
-tests/                    Five test files, fixtures/ is empty now
+tests/                    Eight test files, fixtures/ is empty now
 schema/                   Empty, the configuration schema is in src/cordis.ts
 verification/             models/ and proofs/, empty now
 adr/                      Empty now

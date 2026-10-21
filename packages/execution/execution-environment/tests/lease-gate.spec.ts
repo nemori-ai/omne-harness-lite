@@ -13,17 +13,20 @@ import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 import {
   accessA,
   accessB,
+  acquireInput,
   allow,
   commandOf,
   commandStub,
   deferred,
   host,
   leased,
+  ledger,
   placed,
   recovery,
   registryWith,
   requirement,
   resource,
+  scope1,
   scriptedProvider,
   session,
   startRequest,
@@ -180,6 +183,73 @@ it('refuses as closed when the lease is invalidated while the guard is answering
   const pending = command.start(startRequest('raced'))
   await asked.promise
   await registry.close()
+  answer.resolve('authorized')
+  expect(await pending).toEqual({ kind: 'rejected', requestId: 'raced', reason: 'closed' })
+  expect(provider.calls.start).toBe(0)
+})
+
+async function leaseOnLedger(
+  registry: ReturnType<typeof registryWith>,
+  key: string,
+  closed: AbortSignal,
+  guard: FacilityGuard<string> = allow,
+) {
+  const placement = await placed(registry, requirement([host]))
+  const acquired = await registry.acquire(
+    accessA,
+    acquireInput(placement, key, guard, scope1, { ...ledger, closed }),
+  )
+  if (acquired.kind !== 'acquired') throw new Error('expected a lease')
+  return commandOf(acquired.lease)
+}
+
+it('answers closed without calling the facility once the acquisition ledger is closed', async () => {
+  const provider = scriptedProvider()
+  const registry = createEnvironmentRegistry<string>({ recovery })
+  const removeDeclaration = registry.registerFacility(commandFacility)
+  registry.registerProvider(provider)
+  let asked = 0
+  const counting: FacilityGuard<string> = {
+    async authorize() {
+      asked += 1
+      return 'authorized'
+    },
+  }
+  const closing = new AbortController()
+  const command = await leaseOnLedger(registry, 'closing', closing.signal, counting)
+  const other = await leaseOnLedger(registry, 'open', new AbortController().signal, counting)
+  closing.abort()
+  expect(await command.start(startRequest('ledger-closed'))).toEqual({
+    kind: 'rejected',
+    requestId: 'ledger-closed',
+    reason: 'closed',
+  })
+  expect(asked).toBe(0)
+  expect(provider.calls.start).toBe(0)
+  expect(await other.start(startRequest('other-ledger'))).toMatchObject({ kind: 'unknown' })
+  expect(provider.calls.start).toBe(1)
+  await removeDeclaration()
+  expect(await command.start(startRequest('closed-and-removed'))).toMatchObject({
+    reason: 'closed',
+  })
+})
+
+it('refuses as closed when the acquisition ledger closes while the guard is answering', async () => {
+  const answer = deferred<'authorized'>()
+  const asked = deferred<undefined>()
+  const slow: FacilityGuard<string> = {
+    async authorize() {
+      asked.resolve(undefined)
+      return answer.promise
+    },
+  }
+  const provider = scriptedProvider()
+  const registry = registryWith([provider])
+  const closing = new AbortController()
+  const command = await leaseOnLedger(registry, 'raced', closing.signal, slow)
+  const pending = command.start(startRequest('raced'))
+  await asked.promise
+  closing.abort()
   answer.resolve('authorized')
   expect(await pending).toEqual({ kind: 'rejected', requestId: 'raced', reason: 'closed' })
   expect(provider.calls.start).toBe(0)

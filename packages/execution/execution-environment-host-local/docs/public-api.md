@@ -19,9 +19,11 @@
 | --- | --- | --- | --- |
 | `createHostFiles` | 函数 | 无输入，输出契约的 `FileSystemFacility`。读取、查看、写入、关闭四项是真实行为，其余八项返回 `unsupported` | [SPEC 宿主文件使用](../SPEC.md#宿主文件使用)、[SPEC 其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
 | `hostObjectToken` | 异步函数 | 输入路径，输出该路径当前对象的设备号与 inode。不跟随末段符号链接。不授予访问权 | [SPEC 宿主文件使用](../SPEC.md#宿主文件使用) |
-| `createHostFilesProvider` | 函数 | 无输入，输出契约的 `EnvironmentProvider` | [SPEC 宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
+| `createHostFilesProvider` | 函数 | 输入可选的 `HostFilesProviderOptions`，输出契约的 `EnvironmentProvider`。`drainBoundMs` 不是有限的非负数时抛出 `RangeError` | [SPEC 宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
+| `HostFilesProviderOptions` | 类型 | `drainBoundMs`：退役等在途文件操作的上界（毫秒），缺省取初值；`diagnose`：退役超界时收到一条诊断 | 同上 |
+| `HostFilesDiagnostic` | 类型 | 退役超界的诊断：`kind: 'drainBoundExceeded'`、提供者名与代、仍在途的操作数、上界 | 同上 |
 
-[public-entry.spec.ts](../tests/public-entry.spec.ts) 核对根入口只导出这三个函数。`host-files.ts` 另有一个标为 `@internal` 的测试辅助函数，根入口不导出它，它不属于公开接口。
+[public-entry.spec.ts](../tests/public-entry.spec.ts) 核对根入口的运行导出只有这三个函数；两个类型只在类型层面导出。`host-files.ts` 另有一个标为 `@internal` 的测试辅助函数，根入口不导出它，它不属于公开接口。
 
 ### `./cordis`
 
@@ -29,6 +31,7 @@
 | --- | --- | --- | --- |
 | `ExecutionEnvironmentRegistry<P>` | `ExecutionEnvironmentService<P>` 的具体子类，带静态 `Config` | 直接当插件装载，提供 `executionEnvironment`；每次恢复操作现取 `executionRecoveryAuthority` 服务，取不到答不可用 | [SPEC Service 实现](../SPEC.md#service-实现)、[插件与配置](cordis.md#插件与配置) |
 | `filesFacilityPlugin` | 函数插件 | 登记 `files` 设施声明 | 同上 |
-| `hostFilesPlugin` | 函数插件 | 登记宿主文件提供者 | 同上 |
+| `hostFilesPlugin` | 函数插件 | 登记宿主文件提供者；配置 `HostFilesConfig` 可带 `drainBoundMs`；退役超界的诊断写到 `ctx.logger` | 同上 |
+| `HostFilesConfig` | 类型 | `hostFilesPlugin` 的配置：可选的 `drainBoundMs` | 同上 |
 
 `ExecutionEnvironmentRegistry` 的八个方法是抽象类的方法，签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)），见 [execution-environment-cordis-contract 的公开接口页](../../execution-environment-cordis-contract/docs/public-api.md)。

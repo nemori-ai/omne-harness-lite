@@ -53,13 +53,13 @@ await ctx.plugin(hostFilesPlugin)
 
 ## 设计
 
-根入口有宿主文件设施与宿主文件提供者两个模块，`./cordis` 有 Service 子类与两个插件。包外依赖是 execution-environment-contract、execution-environment、execution-environment-cordis-contract 与 `@deepseek-ai/cordis`。宿主文件设施只核对对象身份，租户与守卫由登记表的租约视图核对。一个提供者共用一个设施实例，每次获取另包一层，账本关闭后以 `closed` 拒绝操作。Service 子类只转发与管理生命周期。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+根入口有宿主文件设施与宿主文件提供者两个模块，`./cordis` 有 Service 子类与两个插件。包外依赖是 execution-environment-contract、execution-environment、execution-environment-cordis-contract 与 `@deepseek-ai/cordis`。宿主文件设施只核对对象身份，租户与守卫由登记表的租约视图核对。一个提供者共用一个设施实例，并记录在途的文件操作。账本关闭后由登记表的门以 `closed` 拒绝操作，提供者不查账本。退役时提供者不再接纳新操作，并等在途操作结束，最多 `drainBoundMs`，超界为待处置。Service 子类只转发与管理生命周期。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
-三个装配单元共用一份配置 Schema，只接受缺省、`null` 或空对象。本成员没有可调参数。恢复授权端口以 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
+Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。`hostFilesPlugin` 另接受 `drainBoundMs`：有限的非负毫秒数，是宿主提供者退役等在途文件操作的上界，初值 10000。退役超界时，`ctx.logger` 收到一条带在途数目的错误级诊断。恢复授权端口以 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
 
-宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform`，前提一律为已满足，没有探测。
+宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。没有探测，所以前提报 `unknown`。
 
 ## 验证
 
@@ -69,7 +69,7 @@ await ctx.plugin(hostFilesPlugin)
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。七个测试文件共七十二个测试，见 [tests/](tests/README.md)。文件字节、符号链接与对象替换用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；2026-10-21 在 Node v24.18.0、linux 上，七十二个测试全部通过。授予根限制、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。八个测试文件共七十九个测试，见 [tests/](tests/README.md)。文件字节、符号链接与对象替换用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；有一个测试文件用模块替身让一次 `open` 停住，使文件操作保持在途。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；2026-10-21 在 Node v24.18.0、linux 上，七十九个测试全部通过。授予根限制、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -95,7 +95,7 @@ docs/                     内部设计、公开使用与集成说明
 ├── context.md            装配、点名、独立使用与定位
 └── cordis.md             插件、配置、登记即效应、撤除顺序与 IC 映射
 src/                      index.ts、host-files.ts、host-provider.ts、cordis.ts
-tests/                    七个测试文件，fixtures/ 现在为空
+tests/                    八个测试文件，fixtures/ 现在为空
 schema/                   现在为空，配置 Schema 写在 src/cordis.ts
 verification/             models/ 与 proofs/，现在为空
 adr/                      现在为空

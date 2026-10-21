@@ -14,7 +14,7 @@ This package implements the registry of the execution environment. It keeps the 
 Status: mechanism member, `draft`. The adoption basis is the [topic owner table](../docs/architecture.md#主题与唯一拥有者) of the group and the [SPEC](SPEC.md).
 
 - Implemented: the factory `createEnvironmentRegistry`, the error class `RetirementPending`, and the SPEC behavior for placement, acquisition and check, lease views, release, describe, registration and retirement, recovery, and close.
-- Not implemented: the items in the SPEC [gap list](SPEC.md#明确缺项). They are ledger permission for managed facility operations, the gate check of the ledger close signal, and a retention policy for the in-process tables. The template marker of the root entry says that ledger use for managed facility operations, Runtime Context block production, and the contract verification suites are not accepted yet.
+- Not implemented: the items in the SPEC [gap list](SPEC.md#明确缺项). They are ledger permission for managed facility operations and a retention policy for the in-process tables. The template marker of the root entry says that ledger use for managed facility operations, Runtime Context block production, and the contract verification suites are not accepted yet.
 - Not verified: the package does not claim persistence, cross-process consistency, or real resource stop.
 
 execution-environment-host-local depends on this package now.
@@ -66,7 +66,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The five test files hold sixty-one tests. See [tests/](tests/README.md). On 2026-10-21, on Node v24.18.0 and linux, all sixty-one tests passed. The tests use stub providers, a stub ledger, and stub guards. Evidence for persistence, cross-process consistency, and real resource stop is not in this package. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The six test files hold seventy tests. See [tests/](tests/README.md). On 2026-10-21, on Node v24.18.0 and linux, all seventy tests passed. The tests use stub providers, a stub ledger, and stub guards. Evidence for persistence, cross-process consistency, and real resource stop is not in this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 

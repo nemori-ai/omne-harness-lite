@@ -23,7 +23,7 @@ await ctx.plugin(filesFacilityPlugin)
 await ctx.plugin(hostFilesPlugin)
 ```
 
-`MyRecoveryAuthority` 是 `ExecutionRecoveryAuthorityService` 的子类，由集成方维护拥有者实现。服务每次恢复操作现取它。不需要恢复时不装它，恢复两操作随之一律返回 `unavailable`。三个插件都不接受配置字段。
+`MyRecoveryAuthority` 是 `ExecutionRecoveryAuthorityService` 的子类，由集成方维护拥有者实现。服务每次恢复操作现取它。不需要恢复时不装它，恢复两操作随之一律返回 `unavailable`。Service 与 `filesFacilityPlugin` 不接受配置字段。`hostFilesPlugin` 只接受 `drainBoundMs`，例如 `ctx.plugin(hostFilesPlugin, { drainBoundMs: 5000 })`；它是宿主提供者退役等在途文件操作的上界，缺省为初值 10000 毫秒。
 
 装载之后，集成方、维护者、提供者与设施拥有者的插件经服务定义使用服务，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md#使用方式)。它们不导入本成员。
 
@@ -49,7 +49,7 @@ close = files.close({ requestId: 新的请求身份, access, origin, binding, pa
 
 ### 初始化与释放
 
-宿主文件设施没有初始化步骤。读取、查看与写入在返回前关闭自己打开的描述符。关闭失败的描述符留在设施实例里，下一次公开操作前重试关闭。服务卸载时关闭登记表，`hostFilesPlugin` 卸载时宿主文件提供者退役。
+宿主文件设施没有初始化步骤。读取、查看与写入在返回前关闭自己打开的描述符。关闭失败的描述符留在设施实例里，下一次公开操作前重试关闭。服务卸载时关闭登记表，`hostFilesPlugin` 卸载时宿主文件提供者退役。退役不再接纳新的文件操作，并等在途操作结束，最多 `drainBoundMs`；超界为待处置，诊断写入 `ctx.logger`。
 
 ## 消费者与定位
 

@@ -19,7 +19,7 @@ import {
   executionEnvironmentKey,
   executionRecoveryAuthorityKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
-import { createHostFilesProvider } from './host-provider.ts'
+import { createHostFilesProvider, type HostFilesProviderOptions } from './host-provider.ts'
 
 /** A Standard Schema that accepts only an absent or empty configuration. */
 type EmptyConfig = {
@@ -41,6 +41,45 @@ const emptyConfig: EmptyConfig = {
       if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)
         return { value: {} }
       return { issues: [{ message: 'configuration accepts no fields' }] }
+    },
+  },
+}
+
+/** Configuration of `hostFilesPlugin`. An absent field takes the provider's initial value. */
+export type HostFilesConfig = Readonly<{ drainBoundMs?: number }>
+
+type ConfigResult<T> =
+  | { readonly value: T }
+  | { readonly issues: readonly { readonly message: string }[] }
+
+type HostFilesConfigSchema = {
+  readonly '~standard': {
+    readonly version: 1
+    readonly vendor: string
+    validate(value: unknown): ConfigResult<HostFilesConfig>
+  }
+}
+
+function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Accepts an absent or empty configuration, or `drainBoundMs` as a finite number zero or more. */
+const hostFilesConfig: HostFilesConfigSchema = {
+  '~standard': {
+    version: 1,
+    vendor: 'omne-harness',
+    validate(value: unknown): ConfigResult<HostFilesConfig> {
+      if (value == null) return { value: {} }
+      if (!isPlainRecord(value)) return { issues: [{ message: 'configuration must be an object' }] }
+      const unknownKey = Object.keys(value).find(key => key !== 'drainBoundMs')
+      if (unknownKey !== undefined)
+        return { issues: [{ message: `configuration has no field ${unknownKey}` }] }
+      const bound = value['drainBoundMs']
+      if (bound === undefined) return { value: {} }
+      if (typeof bound !== 'number' || !Number.isFinite(bound) || bound < 0)
+        return { issues: [{ message: 'drainBoundMs must be a finite number, zero or more' }] }
+      return { value: { drainBoundMs: bound } }
     },
   },
 }
@@ -151,13 +190,20 @@ export const filesFacilityPlugin = {
 
 /**
  * Registers one host files provider on the loading fiber. The `files` declaration comes from
- * `filesFacilityPlugin`; without it, acquisitions that need `files` are refused.
+ * `filesFacilityPlugin`; without it, acquisitions that need `files` are refused. `drainBoundMs`
+ * bounds how long the provider's retirement waits for file operations in flight; a retirement past
+ * the bound is pending and writes one error with the count still in flight to `ctx.logger`.
  */
 export const hostFilesPlugin = {
   name: 'hostFiles',
-  Config: emptyConfig,
+  Config: hostFilesConfig,
   inject: [executionEnvironmentKey],
-  apply(ctx: Context) {
-    ctx.executionEnvironment.registerProvider(createHostFilesProvider())
+  apply(ctx: Context, config: HostFilesConfig = {}) {
+    const logger = ctx.logger('executionEnvironment.hostFiles')
+    const options: HostFilesProviderOptions = {
+      ...config,
+      diagnose: diagnostic => logger.error(diagnostic),
+    }
+    ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
   },
 }

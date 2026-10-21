@@ -12,7 +12,7 @@ PACKAGE_TEMPLATE_DRAFT
 状态：机制实现成员，`draft`。采用依据是组的[主题与唯一拥有者](../docs/architecture.md#主题与唯一拥有者)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
 - 已实现：工厂 `createEnvironmentRegistry`、错误类 `RetirementPending`，以及 SPEC 写的落点解析、获取与核验、租约视图、释放、描述、登记与退役、恢复与关闭。
-- 未实现：SPEC [明确缺项](SPEC.md#明确缺项)列出的各项：受管设施操作经账本许可、门不查账本的关闭信号、进程内各表的保留策略。根入口的模板标记写明：受管设施操作对账本的使用、Runtime Context 块的生产与契约验证套件还没有接受。
+- 未实现：SPEC [明确缺项](SPEC.md#明确缺项)列出的各项：受管设施操作经账本许可、进程内各表的保留策略。根入口的模板标记写明：受管设施操作对账本的使用、Runtime Context 块的生产与契约验证套件还没有接受。
 - 未验证：本成员不宣称持久化、跨进程一致性或真实资源停止。
 
 现在 execution-environment-host-local 依赖本成员。
@@ -56,7 +56,7 @@ await registry.close()
 pnpm --filter @omne-harness/execution-environment test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。五个测试文件共六十一个测试，见 [tests/](tests/README.md)。2026-10-21 在 Node v24.18.0、linux 上，六十一个测试全部通过。测试使用替身提供者、替身账本与替身守卫。持久化、跨进程一致性与真实资源停止的证据不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。六个测试文件共七十个测试，见 [tests/](tests/README.md)。2026-10-21 在 Node v24.18.0、linux 上，七十个测试全部通过。测试使用替身提供者、替身账本与替身守卫。持久化、跨进程一致性与真实资源停止的证据不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 

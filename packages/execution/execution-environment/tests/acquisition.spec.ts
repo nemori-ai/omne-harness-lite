@@ -31,6 +31,7 @@ import {
   tenantA,
   tenantB,
   tenantFrom,
+  want,
 } from './doubles.ts'
 
 it('rejects with providerUnavailable when the provider acquire throws, and repeats that answer', async () => {
@@ -67,7 +68,7 @@ it('passes a provider refusal on with its own reason', async () => {
 })
 
 it('issues the adoption record from the verified receipt', async () => {
-  const provider = scriptedProvider({ name: 'issuer', generation: '7' })
+  const provider = scriptedProvider({ name: 'issuer', generation: '7', version: '7.0.0' })
   const registry = registryWith([provider])
   const placement = await placed(registry, requirement([host]))
   const acquired = await leased(registry, placement)
@@ -75,7 +76,7 @@ it('issues the adoption record from the verified receipt', async () => {
     acquisition: 'acq-1',
     origin: 'call-1',
     placement,
-    provider: { name: 'issuer', generation: '7' },
+    provider: { name: 'issuer', generation: '7', version: '7.0.0' },
     instance: { id: 'issuer-instance', generation: '7' },
     continuity: { kind: 'not_guaranteed' },
     evidence: { kind: 'string', value: 'issuer-evidence' },
@@ -225,7 +226,7 @@ it('rejects an acquisition whose scope was released while the provider was worki
   )
   expect(result).toEqual({ kind: 'rejected', reason: 'referenceExpired' })
   expect(released).toBe(1)
-  expect(await registry.resolvePlacement(accessA, requirement([session]))).toEqual({
+  expect(await registry.resolvePlacement(accessA, want(requirement([session])))).toEqual({
     kind: 'rejected',
     reason: 'referenceExpired',
   })
@@ -258,8 +259,19 @@ it('rechecks the placement: the layer must still be listed and declared, and iso
     kind: 'rejected',
     reason: 'isolationUnconfirmed',
   })
-  const otherGeneration: Placement = { ...onHost, provider: { name: 'scripted', generation: '2' } }
+  const otherGeneration: Placement = {
+    ...onHost,
+    provider: { name: 'scripted', generation: '2', version: 'test-version' },
+  }
   expect(await registry.acquire(accessA, acquireInput(otherGeneration, 'acq-generation'))).toEqual({
+    kind: 'rejected',
+    reason: 'providerUnavailable',
+  })
+  const otherVersion: Placement = {
+    ...onHost,
+    provider: { ...onHost.provider, version: 'other-version' },
+  }
+  expect(await registry.acquire(accessA, acquireInput(otherVersion, 'acq-version'))).toEqual({
     kind: 'rejected',
     reason: 'providerUnavailable',
   })
@@ -281,10 +293,21 @@ it('compares a repeated key by binding, provider and requirement sets', async ()
     kind: 'acquired',
     lease: first.lease,
   })
-  const renamed: Placement = { ...onHost, provider: { name: 'other', generation: '1' } }
+  const renamed: Placement = {
+    ...onHost,
+    provider: { name: 'other', generation: '1', version: 'test-version' },
+  }
   expect(await registry.acquire(accessA, acquireInput(renamed))).toEqual(conflict)
-  const regenerated: Placement = { ...onHost, provider: { name: 'scripted', generation: '2' } }
+  const regenerated: Placement = {
+    ...onHost,
+    provider: { name: 'scripted', generation: '2', version: 'test-version' },
+  }
   expect(await registry.acquire(accessA, acquireInput(regenerated))).toEqual(conflict)
+  const reversioned: Placement = {
+    ...onHost,
+    provider: { ...onHost.provider, version: 'other-version' },
+  }
+  expect(await registry.acquire(accessA, acquireInput(reversioned))).toEqual(conflict)
   const widened: Placement = { ...onHost, requirement: requirement([host], ['command', 'files']) }
   expect(await registry.acquire(accessA, acquireInput(widened))).toEqual(conflict)
   const isolated: Placement = {
@@ -321,7 +344,7 @@ it('treats sandbox bindings of another scope or origin as a different placement 
   const inScope1 = await placed(registry, requirement([session]))
   await leased(registry, inScope1, 'session-key')
   const scope2: EnvironmentBinding = { kind: 'session_sandbox', scope: scope('scope-2') }
-  const inScope2 = await placed(registry, requirement([scope2]))
+  const inScope2 = await placed(registry, requirement([scope2]), accessA, scope('scope-2'))
   expect(await registry.acquire(accessA, acquireInput(inScope2, 'session-key'))).toEqual(conflict)
 
   const call1: EnvironmentBinding = {
@@ -338,7 +361,7 @@ it('treats sandbox bindings of another scope or origin as a different placement 
   const forCall2 = await placed(registry, requirement([call2]))
   expect(await registry.acquire(accessA, acquireInput(forCall2, 'stateless-key'))).toEqual(conflict)
   const elsewhere: EnvironmentBinding = { ...call1, scope: scope('scope-2') }
-  const forElsewhere = await placed(registry, requirement([elsewhere]))
+  const forElsewhere = await placed(registry, requirement([elsewhere]), accessA, scope('scope-2'))
   expect(await registry.acquire(accessA, acquireInput(forElsewhere, 'stateless-key'))).toEqual(
     conflict,
   )
@@ -365,7 +388,7 @@ it('places a tenant sandbox requirement that crossed JSON as tenant text, and re
     await registry.acquire({ ...accessA, tenant: reparsed }, acquireInput(placement)),
   ).toMatchObject({ kind: 'acquired', lease: first.lease })
 
-  expect(await registry.resolvePlacement(accessB, judged.ok)).toEqual({
+  expect(await registry.resolvePlacement(accessB, want(judged.ok))).toEqual({
     kind: 'rejected',
     reason: 'notAuthorized',
   })
@@ -395,7 +418,7 @@ it('keeps an inactive provider out of placement while its retirement is pending'
   const registry = registryWith([])
   const remove = registry.registerProvider(provider)
   await expect(remove()).rejects.toMatchObject({ name: 'RetirementPending' })
-  expect(await registry.resolvePlacement(accessA, requirement([host]))).toEqual({
+  expect(await registry.resolvePlacement(accessA, want(requirement([host])))).toEqual({
     kind: 'rejected',
     reason: 'noMatchingEnvironment',
   })
@@ -412,7 +435,7 @@ const invalidInput = { kind: 'rejected', reason: 'invalidInput' }
 
 it('refuses placement for an access tenant that legal-identity did not mint', async () => {
   const registry = registryWith([scriptedProvider()])
-  expect(await registry.resolvePlacement(unminted, requirement([host]))).toEqual(invalidInput)
+  expect(await registry.resolvePlacement(unminted, want(requirement([host])))).toEqual(invalidInput)
 })
 
 it('refuses an acquisition for an unminted access tenant, every time, without a record or a provider call', async () => {
@@ -445,5 +468,5 @@ it('refuses a description for an unminted access tenant, before and after close'
   expect(await registry.describe(unminted, scope('scope-1'))).toEqual(invalidInput)
   await registry.close()
   expect(await registry.describe(unminted, scope('scope-1'))).toEqual(invalidInput)
-  expect(await registry.resolvePlacement(unminted, requirement([host]))).toEqual(invalidInput)
+  expect(await registry.resolvePlacement(unminted, want(requirement([host])))).toEqual(invalidInput)
 })

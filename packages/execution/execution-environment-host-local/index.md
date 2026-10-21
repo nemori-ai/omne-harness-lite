@@ -14,7 +14,7 @@
 
 - [docs/](docs/index.md)：架构（含已接受的宿主文件使用）、流程、对象模型、公开接口、使用与定位、Cordis 集成
 - [src/](src/index.md)：根入口的宿主文件设施与提供者，`./cordis` 的 Service 子类与插件
-- [tests/](tests/index.md)：五个测试文件与固定输入
+- [tests/](tests/index.md)：八个测试文件与固定输入
 - [schema/](schema/index.md)：现在为空，配置 Schema 写在源码里
 - [verification/](verification/index.md)：模型与证明，现在为空
 - [adr/](adr/index.md)：实现取舍，现在为空

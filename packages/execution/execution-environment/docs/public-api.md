@@ -32,6 +32,6 @@
 
 `acquire` 返回的租约是本成员的租约视图，不是提供者的租约原件。租约视图满足契约的 `EnvironmentLease`，行为见 [SPEC 租约视图与逐操作门](../SPEC.md#租约视图与逐操作门)。
 
-拒绝原因沿契约的 `RejectReason`，各操作的取值与触发条件见[契约的拒绝原因](../../execution-environment-contract/SPEC.md#拒绝原因)。本成员在关闭后返回 `ownerStopped`。`inspectAcquisition` 只读本租户在这个键下的记录，没有时答复 `unrecorded`。同一租户同一个键换了落点或要求时，`acquire` 返回 `invalidInput`。同一层两个提供者都满足时，`resolvePlacement` 返回 `ambiguousEnvironment`。
+拒绝原因沿契约的 `RejectReason`，各操作的取值与触发条件见[契约的拒绝原因](../../execution-environment-contract/SPEC.md#拒绝原因)。本成员在关闭后返回 `ownerStopped`。`inspectAcquisition` 只读本租户在这个键下的记录，没有时答复 `unrecorded`。同一租户同一个键换了请求方作用域、落点或要求时，`acquire` 返回 `invalidInput`；带作用域的绑定层与请求方作用域不同时，`resolvePlacement` 与 `acquire` 也返回 `invalidInput`。同一层两个提供者都满足时，`resolvePlacement` 返回 `ambiguousEnvironment`。
 
 `createLeaseView`、`driveRecovery` 与 `StoredDescriptor` 是内部模块的导出，不从根入口导出，不属于公开接口。

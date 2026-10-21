@@ -20,24 +20,24 @@ const registry = createEnvironmentRegistry<MyPrincipal>({ recovery: myRecoveryAu
 const removeFiles = registry.registerFacility(filesFacility)
 const removeProvider = registry.registerProvider(myProvider)
 
-const placement = await registry.resolvePlacement(access, requirement)
+const placement = await registry.resolvePlacement(access, { scope, requirement })
 if (placement.kind === 'placement') {
   const acquired = await registry.acquire(access, {
-    acquisition, origin, placement, ledger: myLedger, guard: myGuard,
+    acquisition, origin, scope, placement, ledger: myLedger, guard: myGuard,
   })
 }
 
 await registry.close()
 ```
 
-`MyPrincipal`、`myRecoveryAuthority`、`myProvider`、`myLedger`、`myGuard`、`access`、`requirement`、`acquisition` 与 `origin` 是调用方自己的值。形状归 [execution-environment-contract](../../execution-environment-contract/docs/public-api.md)。`removeFiles` 与 `removeProvider` 是撤除函数，调用 `removeProvider()` 即开始这个提供者的退役。
+`MyPrincipal`、`myRecoveryAuthority`、`myProvider`、`myLedger`、`myGuard`、`access`、`scope`、`requirement`、`acquisition` 与 `origin` 是调用方自己的值。`scope` 是请求方作用域，落点解析与获取用同一个。形状归 [execution-environment-contract](../../execution-environment-contract/docs/public-api.md)。`removeFiles` 与 `removeProvider` 是撤除函数，调用 `removeProvider()` 即开始这个提供者的退役。
 
 ### 调用方要提供的端口
 
 | 端口 | 何时给出 | 本成员怎样用 |
 | --- | --- | --- |
 | 恢复授权 `RecoveryAuthority` | 调用工厂时 | `recoverOwned` 与 `releaseScope` 先调用一次 `authorizeRecovery` |
-| 资源账本 `ResourceLedger` | 每次 `acquire` | 原样交给提供者的 `acquire`，本成员自己不调用 |
+| 资源账本 `ResourceLedger` | 每次 `acquire` | 原样交给提供者的 `acquire`；租约视图的门读它的 `closed` 信号，已关闭时设施操作答 `closed`。本成员不调用它的方法 |
 | 设施守卫 `FacilityGuard` | 每次 `acquire` | 装进租约视图，每次须授权的操作调用一次 `authorize` |
 
 ### 初始化与释放

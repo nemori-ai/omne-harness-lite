@@ -26,6 +26,7 @@ import {
   scope,
   scriptedProvider,
   session,
+  want,
 } from './doubles.ts'
 
 it('refuses a second declaration of a key and keeps the first; a stale removal leaves the new one', async () => {
@@ -35,13 +36,13 @@ it('refuses a second declaration of a key and keeps the first; a stale removal l
   expect(() => registry.registerFacility(commandFacility)).toThrow(
     'Facility command is already registered',
   )
-  expect(await registry.resolvePlacement(accessA, requirement([host]))).toMatchObject({
+  expect(await registry.resolvePlacement(accessA, want(requirement([host])))).toMatchObject({
     kind: 'placement',
   })
   await removeFirst()
   registry.registerFacility(commandFacility)
   await removeFirst()
-  expect(await registry.resolvePlacement(accessA, requirement([host]))).toMatchObject({
+  expect(await registry.resolvePlacement(accessA, want(requirement([host])))).toMatchObject({
     kind: 'placement',
   })
 })
@@ -100,7 +101,12 @@ it('throws RetirementPending while retirement leaves resources, retries on the n
   })
   const access = createRecoveryAccess()
   expect(await registry.recoverOwned(scope('scope-1'), access)).toMatchObject({
-    unsupported: [{ kind: 'provider', provider: { name: 'scripted', generation: '1' } }],
+    unsupported: [
+      {
+        kind: 'provider',
+        provider: { name: 'scripted', generation: '1', version: 'test-version' },
+      },
+    ],
   })
 
   await expect(remove()).resolves.toBeUndefined()
@@ -158,7 +164,7 @@ it('refuses placement, description and new providers after close, but still answ
   const acquired = await leased(registry, await placed(registry, requirement([host])))
   expect(await registry.close()).toEqual({ kind: 'drained' })
   const stopped = { kind: 'rejected', reason: 'ownerStopped' }
-  expect(await registry.resolvePlacement(accessA, requirement([host]))).toEqual(stopped)
+  expect(await registry.resolvePlacement(accessA, want(requirement([host])))).toEqual(stopped)
   expect(await registry.describe(accessA, scope('scope-1'))).toEqual(stopped)
   expect(() => registry.registerProvider(scriptedProvider({ name: 'late' }))).toThrow(
     'The environment registry is closed',
@@ -181,13 +187,17 @@ it('describes only adopted, unreleased acquisitions of the caller tenant in the 
   const released = await leased(registry, inScope1, 'released')
   await released.lease.release()
   await leased(registry, inScope1, 'other-tenant', undefined, accessB)
-  await leased(registry, await placed(registry, requirement([scope2])), 'other-scope')
+  await leased(
+    registry,
+    await placed(registry, requirement([scope2]), accessA, scope('scope-2')),
+    'other-scope',
+  )
   expect(await registry.describe(accessA, scope('scope-1'))).toEqual([
     {
       acquisition: 'kept',
       origin: 'call-1',
       binding: session,
-      provider: { name: 'scripted', generation: '1' },
+      provider: { name: 'scripted', generation: '1', version: 'test-version' },
       instance: { id: 'scripted-instance', generation: '1' },
       continuity: { kind: 'not_guaranteed' },
       facilities: ['command'],
@@ -266,12 +276,15 @@ it('sorts recovered resources into stopped, pending and unsupported, and keeps t
     pending: [resource('waits', 'sorter'), resource('t1', 'throwing-stop')],
     unsupported: [
       { kind: 'resource', resource: resource('refuses', 'sorter') },
-      { kind: 'provider', provider: { name: 'list-only', generation: '1' } },
-      { kind: 'provider', provider: { name: 'plain', generation: '1' } },
+      {
+        kind: 'provider',
+        provider: { name: 'list-only', generation: '1', version: 'test-version' },
+      },
+      { kind: 'provider', provider: { name: 'plain', generation: '1', version: 'test-version' } },
     ],
     unavailable: [
-      { name: 'unlisted', generation: '1' },
-      { name: 'throwing-list', generation: '1' },
+      { name: 'unlisted', generation: '1', version: 'test-version' },
+      { name: 'throwing-list', generation: '1', version: 'test-version' },
     ],
   })
   expect(unlisted.calls.recover).toBe(0)
@@ -316,7 +329,11 @@ it('releases one scope only: leases of another scope stay valid', async () => {
   const registry = registryWith([provider])
   const scope2: EnvironmentBinding = { kind: 'session_sandbox', scope: scope('scope-2') }
   await leased(registry, await placed(registry, requirement([session])), 'in-1')
-  const other = await leased(registry, await placed(registry, requirement([scope2])), 'in-2')
+  const other = await leased(
+    registry,
+    await placed(registry, requirement([scope2]), accessA, scope('scope-2')),
+    'in-2',
+  )
   await registry.releaseScope(scope('scope-1'), createRecoveryAccess())
   expect(await registry.inspectAcquisition(accessA, acquisitionRef('in-1'))).toMatchObject({
     kind: 'invalidated',

@@ -38,7 +38,7 @@
 | `EnvironmentBinding` | 类型 | 四种绑定层：`host_machine`、`stateless_sandbox`（作用域加原调用）、`session_sandbox`（作用域）、`tenant_sandbox`（租户） | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、产品正文[绑定层说寿命，连续性说此刻](../../../../.meta_harness/design/product/execution-environments/design.md#绑定层说寿命连续性说此刻) |
 | `BindingKind` | 类型 | 绑定层的种类名 | 同上 |
 | `bindingKinds` | 值 | 冻结的四种绑定层种类名 | 同上 |
-| `bindingScope` | 函数 | 返回绑定层所属的作用域引用。宿主机与租户级沙箱返回 `undefined` | [INV-EE06](../SPEC.md#inv-ee06-逻辑工作实例资源和数据不共用寿命) |
+| `bindingScope` | 函数 | 返回绑定层所属的作用域引用。宿主机与租户级沙箱返回 `undefined`。获取的归属是请求方作用域，不是这个值；这个值不为 `undefined` 时必须等于请求方作用域 | [INV-EE06](../SPEC.md#inv-ee06-逻辑工作实例资源和数据不共用寿命)、[获取与租约](../SPEC.md#获取与租约) |
 | `EnvironmentContinuity` | 类型 | 连续性：不保证、连续（带数据身份与修订）、已丢失（带前一个实例）。它说此刻，不说寿命 | [INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确) |
 
 ### 环境要求与匹配
@@ -122,7 +122,7 @@
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
-| `ProviderIdentity` | 类型 | 提供者身份：名称加代 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
+| `ProviderIdentity` | 类型 | 提供者身份：名称、代（一次登记化身）与版本（提供者代码的版本） | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `InstanceIdentity` | 类型 | 实例身份加代。同名的新实例不冒充原实例 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
 | `Placement` | 类型 | 落点：原环境要求、选中的绑定层与提供者、连续性。它不授予设施或资源 | [获取与租约](../SPEC.md#获取与租约) |
 | `RejectReason` | 类型 | 获取与落点的拒绝原因 | 同上 |
@@ -140,16 +140,18 @@
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
-| `EnvironmentProvider` | 接口 | 提供者：名称与代、绑定层、连续性、设施键、隔离断言；描述、获取、退役，以及可选的恢复枚举与认回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
-| `ProviderFacts` | 类型 | 提供者声明的事实：名称与代、平台、设施键、隔离断言、运行前提是否满足。它是观察，不是控制 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
-| `ProviderAcquireInput` | 类型 | 执行环境交给提供者的获取输入：获取键、原调用、落点、租户与账本 | [获取与租约](../SPEC.md#获取与租约) |
+| `EnvironmentProvider` | 接口 | 提供者：名称、代与版本、绑定层、连续性、设施键、隔离断言；描述、获取、退役，以及可选的恢复枚举与认回。获取与退役在提供者自己配置的上界内返回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
+| `ProviderFacts` | 类型 | 提供者声明的事实：名称、代、版本、平台、设施键、隔离断言，以及运行前提（满足、不满足或未知）。它是观察，不是控制 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
+| `PlatformFacts` | 类型 | 平台事实：操作系统类型与版本 | 同上 |
+| `ProviderAcquireInput` | 类型 | 执行环境交给提供者的获取输入：获取键、原调用、请求方作用域、落点、租户与账本 | [获取与租约](../SPEC.md#获取与租约) |
 | `ProviderAcquisition` | 类型 | 提供者的临时回执：租约原件与证据，或拒绝 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
 | `Retirement` | 类型 | 退役的结果：已排空，或待处置并列出未停的受管资源 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `RecoveryListing` | 类型 | 恢复枚举的结果：列出的资源，或不可用。不可用不是空集 | [恢复](../SPEC.md#恢复) |
 | `ResourceRecovery` | 类型 | 一项资源的认回结果：已确认停止、待处置或不支持，带证据 | 同上 |
 | `OwnedRecovery` | 类型 | 一次恢复驱动的结果：已停、待处置、不支持与枚举不可用的提供者 | 同上 |
 | `UnsupportedRecovery` | 类型 | 不支持恢复的提供者或资源 | 同上 |
-| `AcquireInput` | 类型 | 集成方的获取输入：获取键、原调用、落点、账本与守卫 | [获取与租约](../SPEC.md#获取与租约) |
+| `PlacementInput` | 类型 | 集成方的落点解析输入：请求方作用域与环境要求 | [获取与租约](../SPEC.md#获取与租约) |
+| `AcquireInput` | 类型 | 集成方的获取输入：获取键、原调用、请求方作用域、落点、账本与守卫 | [获取与租约](../SPEC.md#获取与租约) |
 | `EnvironmentDescription` | 类型 | 一个作用域内一次获取的描述：获取键、原调用、绑定层、提供者、实例、连续性、设施键与状态 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
 | `ExecutionEnvironment` | 接口 | 集成方、独立调用者与维护者的操作面：`resolvePlacement`、`acquire`、`inspectAcquisition`、`describe`、`recoverOwned`、`releaseScope` | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
 | `ProviderRegistrations` | 接口 | 提供者与设施拥有者的登记面：`registerFacility`、`registerProvider`。每次登记返回自己的撤除函数 | [设施协议](../SPEC.md#设施协议)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |

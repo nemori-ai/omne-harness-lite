@@ -23,6 +23,8 @@ export type StoredDescriptor = Readonly<{
 export type LeaseViewHooks = Readonly<{
   tenant: TenantId
   placement: Placement
+  /** The acquisition ledger's `closed` signal. The gate is the one entry of every facility operation. */
+  ledgerClosed: AbortSignal
   /** Read on every operation, so a removed declaration refuses operations on objects already handed out. */
   descriptor: (key: FacilityKey) => StoredDescriptor | undefined
   invalidated: (invalidation: LeaseInvalidation) => void
@@ -67,7 +69,8 @@ function refused(requestId: string, reason: FacilityReason): FacilityResult<neve
 
 /**
  * Wraps a provider lease. Only keys of the requirement resolve. Every operation of the facility
- * descriptor first checks that the lease still admits operations, that the declaration is still
+ * descriptor first checks that the lease still admits operations and the acquisition ledger is
+ * still open, that the declaration is still
  * registered, that the request belongs to the acquiring tenant and names the lease's binding; a
  * guarded operation then asks the `FacilityGuard` before the provider facility runs.
  */
@@ -97,6 +100,8 @@ export function createLeaseView<P>(
   )
 
   const allowed = new Set<FacilityKey>(hooks.placement.requirement.facilities)
+  // A new operation starts only while the lease admits and the acquisition ledger is open.
+  const accepting = () => admitting && !hooks.ledgerClosed.aborted
 
   const gate = async (
     key: FacilityKey,
@@ -104,7 +109,7 @@ export function createLeaseView<P>(
     request: unknown,
   ): Promise<FacilityResult<never> | 'pass'> => {
     if (!isFacilityRequest<P>(request)) return refused(requestIdOf(request), 'invalidInput')
-    if (!admitting) return refused(request.requestId, 'closed')
+    if (!accepting()) return refused(request.requestId, 'closed')
     const descriptor = hooks.descriptor(key)
     if (descriptor === undefined || !descriptor.operations.includes(operation))
       return refused(request.requestId, 'unsupported')
@@ -120,7 +125,7 @@ export function createLeaseView<P>(
       decision = 'unavailable'
     }
     if (decision !== 'authorized') return refused(request.requestId, decision)
-    if (!admitting) return refused(request.requestId, 'closed')
+    if (!accepting()) return refused(request.requestId, 'closed')
     return 'pass'
   }
 

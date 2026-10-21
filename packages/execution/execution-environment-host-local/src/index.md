@@ -8,7 +8,7 @@
 - [index.ts](index.ts)：根入口，重导出三个函数
 - [host-files.ts](host-files.ts)：宿主文件设施与对象身份读取
 - [host-provider.ts](host-provider.ts)：宿主文件提供者
-- [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、插件与空配置 Schema
+- [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、插件与两份配置 Schema
 
 ## 阅读路径
 

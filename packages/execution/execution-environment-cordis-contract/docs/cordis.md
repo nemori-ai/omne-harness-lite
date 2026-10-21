@@ -21,7 +21,7 @@
 
 | 面 | 方法 | 调用方类 | 本成员加的 Cordis 承诺 |
 | --- | --- | --- | --- |
-| 环境面 | `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe` | `integrator` | 没有额外承诺。访问身份、要求、幂等键、账本与守卫都是参数（[契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约)） |
+| 环境面 | `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe` | `integrator` | 没有额外承诺。访问身份、请求方作用域、要求、幂等键、账本与守卫都是参数（[契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约)） |
 | 恢复面 | `recoverOwned`、`releaseScope` | `maintainer` | 调用方类声明见 [intercept 配置与调用方类](#intercept-配置与调用方类)。恢复授权是参数，由端口核对（[契约的恢复](../../execution-environment-contract/SPEC.md#恢复)） |
 | 登记面 | `registerFacility`、`registerProvider` | `provider` | 登记即效应，登记落在调用方 fiber 上。见[登记与撤除协议](#登记与撤除协议) |
 

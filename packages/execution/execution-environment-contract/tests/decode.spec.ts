@@ -41,7 +41,8 @@ const placementEntry = {
 const facts = {
   provider: 'host-files',
   generation: 'g1',
-  platform: 'linux',
+  version: '0.0.0',
+  platform: { os: 'linux', release: '5.15.0' },
   facilities: ['files'],
   isolation: ['process'],
   prerequisites: 'satisfied',
@@ -226,16 +227,26 @@ it('accepts placement entries with every continuity kind and refuses each malfor
 
 it('accepts host facts and refuses each malformed field', () => {
   const unsatisfied = { ...facts, prerequisites: 'unsatisfied' }
-  expect(hostFacts([facts, unsatisfied])).toEqual({ value: [facts, unsatisfied] })
+  const unknown = { ...facts, prerequisites: 'unknown' }
+  expect(hostFacts([facts, unsatisfied, unknown])).toEqual({ value: [facts, unsatisfied, unknown] })
   const at = (...rest: (string | number)[]) => refusedAt([0, ...rest])
   expect(hostFacts(['facts'])).toEqual(at())
   expect(hostFacts([{ ...facts, extra: true }])).toEqual(at('extra'))
   expect(hostFacts([{ ...facts, provider: 1 }])).toEqual(at('provider'))
   expect(hostFacts([{ ...facts, generation: 1 }])).toEqual(at('generation'))
+  expect(hostFacts([{ ...facts, version: 1 }])).toEqual(at('version'))
   expect(hostFacts([{ ...facts, platform: null }])).toEqual(at('platform'))
+  expect(hostFacts([{ ...facts, platform: 'linux' }])).toEqual(at('platform'))
+  expect(hostFacts([{ ...facts, platform: { os: 'linux' } }])).toEqual(at('platform', 'release'))
+  expect(hostFacts([{ ...facts, platform: { os: 1, release: '5' } }])).toEqual(at('platform', 'os'))
+  expect(hostFacts([{ ...facts, platform: { os: 'linux', release: 5 } }])).toEqual(
+    at('platform', 'release'),
+  )
   expect(hostFacts([{ ...facts, facilities: [''] }])).toEqual(at('facilities', 0))
   expect(hostFacts([{ ...facts, isolation: [''] }])).toEqual(at('isolation', 0))
-  expect(hostFacts([{ ...facts, prerequisites: 'unknown' }])).toEqual(at('prerequisites'))
+  expect(hostFacts([{ ...facts, prerequisites: 'maybe' }])).toEqual(at('prerequisites'))
+  const { version: _version, ...withoutVersion } = facts
+  expect(hostFacts([withoutVersion])).toEqual(at('version'))
 })
 
 it('describes the two blocks as required, plain, stable and recomputed, read by model, tool and extension', () => {

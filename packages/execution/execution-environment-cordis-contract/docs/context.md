@@ -6,7 +6,7 @@
 
 ### 集成方的适配器插件
 
-集成方的适配器插件 `inject` 本服务，调用环境面四个方法。访问身份、环境要求、幂等键、原调用引用、账本与守卫都作为参数传入：
+集成方的适配器插件 `inject` 本服务，调用环境面四个方法。访问身份、请求方作用域、环境要求、幂等键、原调用引用、账本与守卫都作为参数传入：
 
 ```ts
 import type {} from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -15,8 +15,8 @@ export const inject = ['executionEnvironment']
 ```
 
 ```text
-插件体：placement = ctx.executionEnvironment.resolvePlacement(访问身份, 环境要求)
-        acquired  = ctx.executionEnvironment.acquire(访问身份, { 幂等键, 原调用, 落点, 账本, 守卫 })
+插件体：placement = ctx.executionEnvironment.resolvePlacement(访问身份, { 请求方作用域, 环境要求 })
+        acquired  = ctx.executionEnvironment.acquire(访问身份, { 幂等键, 原调用, 请求方作用域, 落点, 账本, 守卫 })
         lease.facility(键) 取设施，每次操作带请求身份与访问身份
 ```
 

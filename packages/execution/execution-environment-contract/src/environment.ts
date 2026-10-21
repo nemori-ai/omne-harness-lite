@@ -17,19 +17,28 @@ import type {
 import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger } from './ports.ts'
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts'
 
-/** Facts a provider declares about where it runs. They are observations, not control. */
+/** The operating system a provider runs on: its type and its release. */
+export type PlatformFacts = Readonly<{ os: string; release: string }>
+
+/**
+ * Facts a provider declares about where it runs. They are observations, not control.
+ * `prerequisites` is `unknown` until a probe of the platform prerequisites is accepted.
+ */
 export type ProviderFacts = Readonly<{
   provider: string
   generation: string
-  platform: string
+  version: string
+  platform: PlatformFacts
   facilities: readonly FacilityKey[]
   isolation: readonly IsolationClaim[]
-  prerequisites: 'satisfied' | 'unsatisfied'
+  prerequisites: 'satisfied' | 'unsatisfied' | 'unknown'
 }>
 
+/** `scope` is the requester's scope; the provider indexes the resources of this acquisition under it. */
 export type ProviderAcquireInput = Readonly<{
   acquisition: AcquisitionRef
   origin: OriginRef
+  scope: ScopeRef
   placement: Placement
   tenant: TenantId
   ledger: ResourceLedger
@@ -55,22 +64,30 @@ export type Retirement =
 
 /**
  * A provider of one or more binding layers. Without `listRecoveryResources` and `recover` the
- * provider does not support recovery.
+ * provider does not support recovery. `acquire` and `retire` return within a bound the provider
+ * itself configures; the registry sets no timer.
  */
 export interface EnvironmentProvider {
   readonly name: string
+  /** One registration incarnation: a new value for each registration. */
   readonly generation: string
+  /** The version of the provider's code. */
+  readonly version: string
   readonly bindingKinds: readonly BindingKind[]
   readonly continuity: EnvironmentContinuity
   readonly facilities: readonly FacilityKey[]
   readonly isolation: readonly IsolationClaim[]
   describe(): Promise<ProviderFacts>
+  /** Past its own bound it releases what it allocated, then refuses with `providerUnavailable`. */
   acquire(input: ProviderAcquireInput): Promise<ProviderAcquisition>
   /** Lists resources of the scope that the provider's owner index proves. Failure is not an empty list. */
   listRecoveryResources?(scope: ScopeRef): Promise<RecoveryListing>
   /** Stops a legitimate resource. It never re-grants old permits or reruns the original effect. */
   recover?(resource: ManagedResource): Promise<ResourceRecovery>
-  /** Refuses new leases, closes facilities to new operations, waits for admitted ones. */
+  /**
+   * Refuses new leases, closes facilities to new operations, waits for admitted ones. Past its own
+   * bound it answers `pending`.
+   */
   retire(): Promise<Retirement>
 }
 
@@ -100,9 +117,19 @@ export type OwnedRecovery = Readonly<{
   unavailable: readonly ProviderIdentity[]
 }>
 
+/**
+ * The requester's scope travels with every placement and acquisition, independent of the binding
+ * layer: an acquisition on the host machine or in a tenant sandbox still belongs to this scope.
+ */
+export type PlacementInput = Readonly<{
+  scope: ScopeRef
+  requirement: EnvironmentRequirement
+}>
+
 export type AcquireInput<P> = Readonly<{
   acquisition: AcquisitionRef
   origin: OriginRef
+  scope: ScopeRef
   placement: Placement
   ledger: ResourceLedger
   guard: FacilityGuard<P>
@@ -110,10 +137,7 @@ export type AcquireInput<P> = Readonly<{
 
 /** The surface of tool hosts, independent callers and maintainers. */
 export interface ExecutionEnvironment<P> {
-  resolvePlacement(
-    access: Access<P>,
-    requirement: EnvironmentRequirement,
-  ): Promise<Placement | Rejected>
+  resolvePlacement(access: Access<P>, input: PlacementInput): Promise<Placement | Rejected>
   acquire(access: Access<P>, input: AcquireInput<P>): Promise<Acquired | Pending | Rejected>
   inspectAcquisition(access: Access<P>, acquisition: AcquisitionRef): Promise<AcquisitionState>
   describe(

@@ -16,7 +16,7 @@ import {
   standardSchema,
   type Decoder,
 } from './decode.ts'
-import type { ProviderFacts } from './environment.ts'
+import type { PlatformFacts, ProviderFacts } from './environment.ts'
 import type { FacilityKey } from './facility.ts'
 import type { OriginRef } from './identity.ts'
 import type { InstanceIdentity } from './lease.ts'
@@ -89,11 +89,36 @@ const decodePlacementEntry: Decoder<ExecutionPlacementEntry> = (value, path) => 
   )
 }
 
+const decodePlatform: Decoder<PlatformFacts> = (value, path) => {
+  if (!isRecord(value)) return refuse(path, 'expected platform facts')
+  const keys = exactKeys(value, path, ['os', 'release'])
+  if (!keys.ok) return keys
+  const os = decodeString(value['os'], [...path, 'os'])
+  if (!os.ok) return os
+  const release = decodeString(value['release'], [...path, 'release'])
+  if (!release.ok) return release
+  return accept(Object.freeze({ os: os.value, release: release.value }))
+}
+
+const prerequisiteStates: readonly ProviderFacts['prerequisites'][] = [
+  'satisfied',
+  'unsatisfied',
+  'unknown',
+]
+
+const decodePrerequisites: Decoder<ProviderFacts['prerequisites']> = (value, path) => {
+  const state = prerequisiteStates.find(candidate => candidate === value)
+  return state === undefined
+    ? refuse(path, 'expected satisfied, unsatisfied or unknown')
+    : accept(state)
+}
+
 const decodeFacts: Decoder<ProviderFacts> = (value, path) => {
   if (!isRecord(value)) return refuse(path, 'expected provider facts')
   const keys = exactKeys(value, path, [
     'provider',
     'generation',
+    'version',
     'platform',
     'facilities',
     'isolation',
@@ -104,23 +129,25 @@ const decodeFacts: Decoder<ProviderFacts> = (value, path) => {
   if (!provider.ok) return provider
   const generation = decodeString(value['generation'], [...path, 'generation'])
   if (!generation.ok) return generation
-  const platform = decodeString(value['platform'], [...path, 'platform'])
+  const version = decodeString(value['version'], [...path, 'version'])
+  if (!version.ok) return version
+  const platform = decodePlatform(value['platform'], [...path, 'platform'])
   if (!platform.ok) return platform
   const facilities = decodeArray(decodeFacilityKey)(value['facilities'], [...path, 'facilities'])
   if (!facilities.ok) return facilities
   const isolation = decodeArray(decodeIsolationClaim)(value['isolation'], [...path, 'isolation'])
   if (!isolation.ok) return isolation
-  const prerequisites = value['prerequisites']
-  if (prerequisites !== 'satisfied' && prerequisites !== 'unsatisfied')
-    return refuse([...path, 'prerequisites'], 'expected satisfied or unsatisfied')
+  const prerequisites = decodePrerequisites(value['prerequisites'], [...path, 'prerequisites'])
+  if (!prerequisites.ok) return prerequisites
   return accept(
     Object.freeze({
       provider: provider.value,
       generation: generation.value,
+      version: version.value,
       platform: platform.value,
       facilities: facilities.value,
       isolation: isolation.value,
-      prerequisites,
+      prerequisites: prerequisites.value,
     }),
   )
 }
@@ -143,7 +170,7 @@ export const executionPlacementBlock: SuppliedBlockDescriptor<
   recovery: 'recompute',
 })
 
-/** Platform, facility keys, isolation claims and prerequisites of every registered provider. */
+/** Version, platform (type and release), facility keys, isolation claims and prerequisites of every registered provider. */
 export const executionHostFactsBlock: SuppliedBlockDescriptor<
   'execution.host-facts',
   ExecutionHostFactsValue

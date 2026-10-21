@@ -87,6 +87,7 @@ function stubProvider(options: {
     calls,
     name: options.name,
     generation: '1',
+    version: 'test-version',
     bindingKinds: options.bindingKinds,
     continuity: options.continuity,
     facilities: options.keys,
@@ -95,7 +96,8 @@ function stubProvider(options: {
       return {
         provider: options.name,
         generation: '1',
-        platform: 'test',
+        version: 'test-version',
+        platform: { os: 'test', release: 'test' },
         facilities: options.keys,
         isolation: [],
         prerequisites: 'satisfied',
@@ -136,7 +138,7 @@ async function placed(
   registry: EnvironmentRegistry<string>,
   wanted: EnvironmentRequirement,
 ): Promise<Placement> {
-  const placement = await registry.resolvePlacement(accessA, wanted)
+  const placement = await registry.resolvePlacement(accessA, want(wanted))
   if (placement.kind !== 'placement') throw new Error(`no placement: ${placement.reason}`)
   return placement
 }
@@ -145,7 +147,18 @@ const host: EnvironmentBinding = { kind: 'host_machine' }
 const session: EnvironmentBinding = { kind: 'session_sandbox', scope: scope('scope-1') }
 
 function acquireInput(placement: Placement, key = 'acq-1', guard = allow) {
-  return { acquisition: acquisitionRef(key), origin: originRef('call-1'), placement, ledger, guard }
+  return {
+    acquisition: acquisitionRef(key),
+    origin: originRef('call-1'),
+    scope: scope('scope-1'),
+    placement,
+    ledger,
+    guard,
+  }
+}
+
+function want(wanted: EnvironmentRequirement) {
+  return { scope: scope('scope-1'), requirement: wanted }
 }
 
 it('refuses a facility the provider lacks and keeps the host binding for the facility it has', async () => {
@@ -162,7 +175,7 @@ it('refuses a facility the provider lacks and keeps the host binding for the fac
       keys: ['command'],
     }),
   )
-  const missing = await registry.resolvePlacement(accessA, requirement([host], ['files']))
+  const missing = await registry.resolvePlacement(accessA, want(requirement([host], ['files'])))
   expect(missing).toEqual({ kind: 'rejected', reason: 'missingFacility' })
 
   const placement = await placed(registry, requirement([host], ['command']))
@@ -189,9 +202,11 @@ it('refuses a layer with no provider, and refuses again after the provider is re
   const remove = registry.registerProvider(provider)
   const sandbox = await registry.resolvePlacement(
     accessA,
-    requirement(
-      [{ kind: 'stateless_sandbox', scope: scope('scope-1'), origin: originRef('call-1') }],
-      ['command'],
+    want(
+      requirement(
+        [{ kind: 'stateless_sandbox', scope: scope('scope-1'), origin: originRef('call-1') }],
+        ['command'],
+      ),
     ),
   )
   expect(sandbox).toEqual({ kind: 'rejected', reason: 'noMatchingEnvironment' })
@@ -206,7 +221,7 @@ it('refuses a layer with no provider, and refuses again after the provider is re
     source: 'registry',
     reason: 'providerRetired',
   })
-  const after = await registry.resolvePlacement(accessA, requirement([host], ['command']))
+  const after = await registry.resolvePlacement(accessA, want(requirement([host], ['command'])))
   expect(after).toEqual({ kind: 'rejected', reason: 'noMatchingEnvironment' })
   expect(await registry.acquire(accessA, acquireInput(placement, 'acq-2'))).toEqual({
     kind: 'rejected',
@@ -370,7 +385,7 @@ it('refuses placement as ambiguous when two providers of one layer both qualify'
         keys: ['command'],
       }),
     )
-  expect(await registry.resolvePlacement(accessA, requirement([host], ['command']))).toEqual({
+  expect(await registry.resolvePlacement(accessA, want(requirement([host], ['command'])))).toEqual({
     kind: 'rejected',
     reason: 'ambiguousEnvironment',
   })
@@ -387,7 +402,7 @@ it('refuses a facility key whose descriptor is not registered, even when the pro
     keys: ['command'],
   })
   registry.registerProvider(provider)
-  expect(await registry.resolvePlacement(accessA, requirement([host], ['command']))).toEqual({
+  expect(await registry.resolvePlacement(accessA, want(requirement([host], ['command'])))).toEqual({
     kind: 'rejected',
     reason: 'missingFacility',
   })
@@ -497,7 +512,12 @@ it('releases a scope only with recovery authorization, then refuses new acquisit
     scope: scope('scope-1'),
     stopped: [],
     pending: [],
-    unsupported: [{ kind: 'provider', provider: { name: 'session-command', generation: '1' } }],
+    unsupported: [
+      {
+        kind: 'provider',
+        provider: { name: 'session-command', generation: '1', version: 'test-version' },
+      },
+    ],
     unavailable: [],
   })
   await expect(acquired.lease.invalidated).resolves.toEqual({
