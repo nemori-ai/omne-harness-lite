@@ -252,7 +252,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 触发源 | 资产、工作区或设置拥有者发出的变化通知，携带作用域变更计数 |
-| 看什么 | 本会话当前采用依据（最近一条 SE08 的输入快照）记录的各类计数与通知的计数比对。任一计数变化：请装配协调者对本会话预求值（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。采用会变且 [P-7](../session-contract/SPEC.md#具名前提与明确缺项) 已闭合：经 `AgentDrivePort.prewarm` 请 Agent 宿主按新采用预建空闲实例 |
+| 看什么 | 本会话当前采用依据（最近一条 SE08 的输入快照）记录的各类计数与通知的计数比对。任一计数变化：对尚未提交的 `startRun` 命令调用证据桥 `prepare` 预求值，结果按计数缓存（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。采用会变且 [P-7](../session-contract/SPEC.md#具名前提与明确缺项) 已闭合：经 `AgentDrivePort.prewarm` 请 Agent 宿主按新采用预建空闲实例 |
 | 交给谁 | 装配协调者；P-7 闭合后交 Agent 宿主。入口（`startRun`、`reload`）直接采用已校验候选，本调度器不写任何条目 |
 | 幂等 | 已校验候选的缓存键是全部计数，同键幂等；计数再变即失效。缓存归装配协调者 |
 | 并发 | `preEvaluation.concurrency` 限制同时预求值的会话数。同会话新的变化通知取消在途预求值并重新开始 |

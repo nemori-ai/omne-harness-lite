@@ -120,15 +120,15 @@ Session 结果到四种参加者响应的对应：
 | Agent 事件 | 本插件提交 | 条目 |
 | --- | --- | --- |
 | `input-taken` | `receive(agent-event)` | SE14 |
-| `message`、`stream` | 不写条目，只推进游标 | 无 |
+| `message`、`stream` | 不提交，游标只在内存里越过它们 | 无 |
 | `producer` | `receive(agent-event)` | SE19，必要时 SE18 |
 | `waiting` | `receive(agent-event)` | SE18、SE22 |
 | `control` | `receive(agent-event)` | SE25 |
 | `ended` | `receive(agent-event)` | SE26、SE16 |
 
 1. 本插件按执行与序号派生 `receive` 的身份，重放时认回（[EC-02](../session-contract/SPEC.md#ec-02)）。
-2. 游标与它产生的条目在同一次提交里保存。只推进游标的事件也经同一条提交路径保存游标。
-3. 提交成功之后，本插件调用 `output.acknowledge`。`through` 是已持久的连续前缀，`receipt` 是该次提交的 `CommitReceipt.source`。确认结果未知时，本插件以同一前缀重试。
+2. 游标与它产生的条目在同一次提交里保存。不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进（[EC-02](../session-contract/SPEC.md#ec-02)）。去重与「读到之前计入未结工作」的规则在 Session 的 `receive` 路径里执行，本插件只负责读取、提交与确认。
+3. 提交成功之后，本插件调用 `output.acknowledge`。`through` 是已持久的连续前缀，不超过持久游标，`receipt` 是该次提交的 `CommitReceipt.source`。确认结果未知时，本插件以同一前缀重试。
 4. 读取返回缺口时，本插件以 `agentExecutionRecovery.load` 读完整快照，把快照的结束状态按 `ended` 处理，再从缺口之后继续。快照派生的提交 `sequence` 为 null，`source` 为快照证据。
 5. 提交返回 `commit-unknown` 时，本插件不确认，按身份查询后再继续。
 
@@ -287,6 +287,7 @@ Request Context 没有为历史源读口定义取得方式（[NP-02](#np-02)）�
 #### AD-08 受理拓展点接入
 
 - 注入：`session`，调用方类 `intake`。
+- 编排归 `session` 的受理流水线：它持有拓展点的有序清单、决定顺序与提交边界（[EX](../session/SPEC.md#ex-受理流水线的拓展点编排)）。本插件只把流水线交来的单个拓展点调用翻译为命令域或 hooks 的入口，并把结论交回。
 - 顺序：受理前一组依次是用途提醒、内容型斜杠命令展开、用户提示提交的 hook。之后是 `accept` 受理提交。受理后一组是分流与推进条件检查。顺序与提交边界见系统页的[受理流水线与业务流程拓展点](../../../docs/architecture/runtime/session-and-run.md#受理流水线与业务流程拓展点)。
 - 拦截时，本插件返回原因，不保管正文。拓展点的留痕随 `accept` 同批提交。
 - 拓展的语义归命令域与 hooks 的拥有者。它们的公开入口尚未定义（[NP-07](#np-07)）。入口定义之前，本插件不登记，受理入口直接调用 `accept`。
