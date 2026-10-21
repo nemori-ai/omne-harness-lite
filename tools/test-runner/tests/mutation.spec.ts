@@ -607,18 +607,31 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
   })
 
   it.each(['module', 'suite'] as const)(
-    '静态变异使部分文件收集失败时成员无效，原始报告保留；同 out 重跑不复用错误（%s）',
+    '静态变异使文件或深层 suite 自身出错时成员无效，原始报告保留；同 out 重跑不复用错误（%s）',
     container => {
       const { root, memberDir } = fixture()
       writeFileSync(
         join(memberDir, 'src/sign.ts'),
         "export const zero = 0\nexport function names(): string[] { return ['alpha', 'beta'] }\n",
       )
+      // describe 收集异常归模块；内层 beforeAll 才产生 suite 自身错误，顶层调用保留静态变异。
       writeFileSync(
         join(memberDir, 'tests/collection.spec.ts'),
         [
           "import { names } from '../src/sign.ts'",
-          'for (const name of names()) test(name, () => { expect(name.length).toBeGreaterThan(0) })',
+          ...(container === 'suite'
+            ? [
+                'const collectedNames = names()',
+                "describe('collection outer', () => {",
+                "describe('collection inner', () => {",
+                'beforeAll(() => { Array.from(collectedNames) })',
+                "test('registered', () => { expect(collectedNames).toBeDefined() })",
+                '})',
+                '})',
+              ]
+            : [
+                'for (const name of names()) test(name, () => { expect(name.length).toBeGreaterThan(0) })',
+              ]),
         ].join('\n'),
       )
       const out = join(root, 'out')
@@ -639,6 +652,24 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       expect(raw).toContain('RuntimeError')
       expect(raw).toContain('collection.spec.ts')
       expect(raw).toContain('文件或 suite 收集错误')
+      if (container === 'suite') {
+        const report: unknown = JSON.parse(raw)
+        expect(report).toMatchObject({
+          files: {
+            'src/sign.ts': {
+              mutants: expect.arrayContaining([
+                expect.objectContaining({
+                  status: 'RuntimeError',
+                  static: true,
+                  statusReason: expect.stringContaining(
+                    '"suite":"collection outer > collection inner"',
+                  ),
+                }),
+              ]),
+            },
+          },
+        })
+      }
       rmSync(join(memberDir, 'tests/collection.spec.ts'))
       const rerun = mutate(root, out)
       expect(rerun.ran.status, rerun.ran.stdout + rerun.ran.stderr).toBe(0)
