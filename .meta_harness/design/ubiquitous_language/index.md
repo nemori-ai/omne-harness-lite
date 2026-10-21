@@ -312,8 +312,10 @@
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 原始结果存起来、消息里换成带摘要的占位，**不是全卸载** |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 太大而被卸载存起来的那份完整工具结果，日志里只有占位 |
 | [UL-delivery-release](terms/execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release) | 交付责任解除 | Delivery Release | 生产方（一次模型调用或一次工具执行）对已收场结果所负交付责任的解除，消费方处理完成或可靠保管后成立，只有两条路径；**模型一侧叫 ACK**；**读到、展示、开始处理都不够**；**不是事件流确认** |
+| [UL-consumption-position](terms/execution-and-outcome.md#ul-consumption-position--消费位置--consumption-position) | 消费位置 | Consumption Position | 一次调用的结果要交回的那一处；发起时确定，换推进者、重建、恢复都不改；**结果不变成新输入** |
 | [UL-execution-outcome](terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) | 执行收场 | Execution Outcome | 六种，**非完成的四种里只有一种是失败** |
 | [UL-consecutive-veto-limit](terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit) | 连续否决上限 | Consecutive Veto Limit | **已弃用**：现行规则下连续拒收不设次数上限，不因此使 Run 失败；**不是试尽** |
+| [UL-open-work](terms/execution-and-outcome.md#ul-open-work--未结工作--open-work) | 未结工作 | Open Work | 会话里已发起或已受理、还没了结的工作，从日志算出；**结局未知的执行仍算未结** |
 | [UL-nominal-path](terms/execution-and-outcome.md#ul-nominal-path--主路径--nominal-path) | 主路径 | Nominal Path | 一层没出非常态时本该的样子，**推进式或稳态式** |
 | [UL-off-nominal](terms/execution-and-outcome.md#ul-off-nominal--非常态--off-nominal) | 非常态 | Off-Nominal | 某层此刻不在主路径上，**是状态不是一类事，与报错无关** |
 | [UL-escalation](terms/execution-and-outcome.md#ul-escalation--上交--escalation) | 上交 | Escalation | 了结不了就把处置权交给外面一层，**交身份与分类不交正文** |
