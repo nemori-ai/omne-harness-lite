@@ -280,22 +280,23 @@
 
 ### UL-content-block · 内容块 · Content Block
 
-> **中**：**一条消息装的是若干个块，不是一段文本。**块分几类：
-> **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果**
+> **中**：**一条消息装的是若干个块，不是一段文本。**块分八类：
+> **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果 · [推理续接状态](#ul-reasoning-state--推理续接状态--reasoning-state)**
 > （工具结果**自己又是一串块**，所以工具也能返回图）。
-> 工具调用和工具结果也是内容块的种类，不是块之外的另一层东西。
-> 代码里的类型名 `ToolCallPart` 与 `ToolResultPart` 只与这两种块对照，没有别的含义。
+> 工具调用、工具结果和推理续接状态也是内容块的种类，不是块之外的另一层东西。
+> 代码里的类型名 `ToolCallPart`、`ToolResultPart` 与 `ReasoningStatePart` 只与这三种块对照，没有别的含义。
 > 哪个包发布哪几种块，见 [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02)。
 >
 > **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
-> text, thinking, voice, image, file, tool call and tool result — **a tool result being
+> text, thinking, voice, image, file, tool call, tool result and reasoning state — **a tool result being
 > itself a series of blocks**, which is how a tool can return an image.
-> Tool call and tool result are kinds of content block, not a separate layer outside the blocks.
-> The code type names `ToolCallPart` and `ToolResultPart` only correspond to these two kinds and carry no other meaning.
+> Tool call, tool result and reasoning state are kinds of content block, not a separate layer outside the blocks.
+> The code type names `ToolCallPart`, `ToolResultPart` and `ReasoningStatePart` only correspond to these three kinds and carry no other meaning.
 > For which package publishes which kinds, see [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02).
 
 - **形态**：对象
-- **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）
+- **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -304,6 +305,53 @@
   **视频没有自己的块类型，装在文件块里**，它的[模态](#ul-modality--模态--modality)由块的媒体类型决定
 - **注意**：块上可挂两样由[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)产出的属性——
   [派生表示](#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](#ul-transcript--transcript--transcript)，都在落盘前写好、之后不变
+
+### UL-reasoning-state · 推理续接状态 · Reasoning State
+
+> **中**：**一段由供应商加密或签名、原样保存的推理状态，单独成为一个内容块，只出现在模型的回复里。**
+> 它不给人看，系统不解读它的内容；下一次请求把它原样交回能消费它的模型，这个模型的推理才接得上。
+> 同一段推理的可读文字放在思考块里，与它分开存放。
+>
+> **EN**: **A reasoning state that the supplier encrypted or signed, kept verbatim as its own content block,
+> and found only in a model's reply.** No person reads it and the system does not interpret it. A later
+> request hands it back verbatim to a model that can consume it, so that this model's reasoning continues.
+> The readable text of the same reasoning sits in a thinking block, apart from it.
+
+- **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
+- **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/message/SPEC.md#推理续接状态)
+
+### UL-reasoning-replay · 推理回放 · Reasoning Replay
+
+> **中**：**每次真实发出时，把历史回复里的推理续接状态原样交给能消费它的那一家，其余的略去并留下诊断。**
+> 判断按这一次的实际供应商做，历史本身不改；换回原模型，原模型的推理状态照常带回。
+>
+> **EN**: **On each real dispatch, handing the reasoning states in earlier replies verbatim to the supplier
+> that can consume them, and leaving out the rest with a diagnostic.** The judgment is made for the supplier
+> of that dispatch and the history is not changed; after a switch back to the original model, its reasoning
+> states are carried again.
+
+- **形态**：过程
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
+- **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 契约的推理回放](../../../../packages/model/model-contract/SPEC.md#推理回放)
+
+### UL-reasoning-replay-scope · 推理回放范围 · Reasoning Replay Scope
+
+> **中**：**一条模型回复上标明「它的推理续接状态可以交给哪些模型」的那个值。**
+> 值本身不透明，由产出这条回复的供应商决定；模型档案为每个允许供应商声明它产出哪个范围、能消费哪些范围。
+> 没有声明时，范围就是同一接收方的同一模型。
+>
+> **EN**: **The value on a model reply that says which models may receive its reasoning states.** The value
+> is opaque and set by the supplier that produced the reply. A model profile declares, for each allowed
+> supplier, the scope it produces and the scopes it can consume. Without a declaration the scope is the
+> same model at the same recipient.
+
+- **形态**：属性
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
+- **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 契约](../../../../packages/model/model-contract/SPEC.md#推理回放)
 
 ### UL-derived-rendering · 派生表示 · Derived Rendering
 
@@ -359,7 +407,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模态](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17）
-- **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
+- **⚠️ 别混**：**八类块 ≠ 四种模态**——块的类型归 [PF-009](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
 
 ### UL-media-type · 媒体类型 · Media Type
@@ -379,7 +427,7 @@
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
   [PF-013 §4 模态](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态) ·
   [§4 转换件](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17）
-- **别混**：**不是块的类型**——块的类型是载体（七类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
+- **别混**：**不是块的类型**——块的类型是载体（八类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
 - **注意**：一个文件块**同时命中「模态」键与「媒体类型」键时，媒体类型那个键上的转换件来转**——更具体的压过更一般的
 
 ### UL-modality-projection · 模态投影 · Modality Projection
