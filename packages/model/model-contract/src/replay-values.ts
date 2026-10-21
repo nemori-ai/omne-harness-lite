@@ -54,20 +54,13 @@ function shapeReason(declared: unknown): string | null {
   const produces = 'produces' in declared ? declared.produces : undefined
   if (produces !== undefined && typeof produces !== 'string') return 'produces'
   const accepts = 'accepts' in declared ? declared.accepts : undefined
-  return accepts === undefined || isDenseTextArray(accepts) ? null : 'accepts'
+  // Each item, a hole included, is checked as a tag after the declaration is expanded.
+  return accepts === undefined || Array.isArray(accepts) ? null : 'accepts'
 }
 
 function isDeclarationObject(value: unknown): value is object {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   return Object.keys(value).every(key => REPLAY_KEYS.includes(key))
-}
-
-function isDenseTextArray(value: unknown): boolean {
-  if (!Array.isArray(value)) return false
-  for (let i = 0; i < value.length; i += 1) {
-    if (!Object.hasOwn(value, i) || typeof value[i] !== 'string') return false
-  }
-  return true
 }
 
 /**

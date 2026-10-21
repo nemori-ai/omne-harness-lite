@@ -395,6 +395,14 @@ describe('judgeReplayDeclaration', () => {
     )
   })
 
+  it('accepts each of the three foreign-thinking values', () => {
+    for (const foreignThinking of ['omit', 'text', 'adapter'] as const) {
+      expect(judgeReplayDeclaration(supplier({ foreignThinking }), 2)).toMatchObject({
+        ok: { foreignThinking },
+      })
+    }
+  })
+
   it('rejects a foreign-thinking value outside the three', () => {
     const odd = { foreignThinking: 'drop' } as unknown as ProfileSupplier['replay']
     expect(judgeReplayDeclaration(supplier(odd), 2)).toEqual(invalid('foreign-thinking'))
@@ -422,6 +430,14 @@ describe('judgeReplayDeclaration', () => {
     expect(judgeReplayDeclaration(stored({ produces: null }), 2)).toEqual(invalid('produces'))
     expect(judgeReplayDeclaration(stored({ produce: 'p' }), 2)).toEqual(invalid('replay'))
     expect(judgeReplayDeclaration(stored(null), 2)).toEqual(invalid('replay'))
+    expect(judgeReplayDeclaration(stored(5), 2)).toEqual(invalid('replay'))
+    expect(judgeReplayDeclaration(stored(['p']), 2)).toEqual(invalid('replay'))
+    expect(judgeReplayDeclaration(stored({ produces: 'p', extra: 1 }), 2)).toEqual(
+      invalid('replay'),
+    )
+    expect(judgeReplayDeclaration(stored({ produces: 'p', accepts: ['p', 3] }), 2)).toEqual(
+      invalid('accepts'),
+    )
     // eslint-disable-next-line no-sparse-arrays
     expect(judgeReplayDeclaration(stored({ produces: 'p', accepts: ['p', , 'q'] }), 2)).toEqual(
       invalid('accepts'),

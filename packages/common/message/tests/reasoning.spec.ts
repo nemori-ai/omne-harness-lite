@@ -94,6 +94,11 @@ describe('judgePart on a reasoning state part', () => {
     expect(Object.isFrozen(judged.ok)).toBe(false)
   })
 
+  it('refuses pairs with an empty or a non-string item by itself, before any message check', () => {
+    expect(judgePart(stateWith(['']))).toEqual({ rejected: 'pairs' })
+    expect(judgePart(stateWith([1]))).toEqual({ rejected: 'pairs' })
+  })
+
   it('takes pairs as a frozen copy that shares nothing with the input', () => {
     const pairs = ['k1']
     const judged = judgePart(stateWith(pairs))

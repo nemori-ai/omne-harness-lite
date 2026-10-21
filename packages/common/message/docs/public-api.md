@@ -300,6 +300,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `replay.shape` | 反 | `{"replay":{"scope":"sc","format":"f1","at":["<getter>"]}}` | `rejected:replay; getter 未被调用` |
 | `replay.presence` | 正 | `{"blocks":["thinking:k1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `ok` |
 | `replay.presence` | 正 | `{"blocks":["thinking:k1"],"replay":"<absent>"}` | `ok; 成功值没有 replay 键` |
+| `replay.presence` | 正 | `{"blocks":["thinking:k1","text:t1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `ok` |
 | `replay.presence` | 正 | `{"blocks":["state:s1"],"replay":{"scope":"sc","format":"f1","at":[0]}}` | `ok` |
 | `replay.presence` | 反 | `{"blocks":["text:t1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay` |
 | `replay.presence` | 反 | `{"blocks":["call:c1"],"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay` |
@@ -315,6 +316,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `replay.at` | 反 | `{"blocks":["thinking:k1","state:s1>k1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `rejected:replay@2` |
 | `replay.at` | 反 | `{"replay":{"scope":"sc","format":"f1","at":[]}}` | `rejected:replay@1` |
 | `replay.at` | 反 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[5]}}` | `rejected:replay` |
+| `replay.at` | 反 | `{"blocks":["state:s1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `rejected:replay@0` |
 | `replay.copy` | 正 | `{"blocks":["thinking:k1","state:s1>k1","state:s2"],"replay":{"scope":"sc","format":"f1","at":[1,2]}}` | `ok; 成功值是冻结副本` |
 | `replay.projection` | 正 | `{"blocks":["text:t1","thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[2]}}` | `ok` |
 | `replay.projection` | 正 | `{"blocks":["thinking:k1","state:s1>k1"],"replay":{"scope":"sc","format":"f1","at":[1]}}` | `ok` |

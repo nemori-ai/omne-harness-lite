@@ -510,8 +510,8 @@ const REPLAY_KEYS: readonly string[] = ['scope', 'format']
  */
 function parseReplay(raw: unknown): ReplayRange | undefined {
   if (!isPlainRecord(raw) || hasUnreadableOwn(raw)) return undefined
-  const keys = Object.keys(raw)
-  if (keys.length !== REPLAY_KEYS.length || hasUnknownKey(raw, REPLAY_KEYS)) return undefined
+  // A missing key reads as a non-string below, so only unknown keys are checked here.
+  if (hasUnknownKey(raw, REPLAY_KEYS)) return undefined
   const { scope, format } = raw
   if (typeof scope !== 'string' || typeof format !== 'string') return undefined
   return { scope, format }

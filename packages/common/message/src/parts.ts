@@ -91,12 +91,9 @@ function isToolKind(kind: string): kind is ToolKind {
   return Object.hasOwn(TOOL_FIELDS, kind)
 }
 
+/** `reasoning_state` is dispatched before this check, so it is not listed here. */
 function isKnownPartKind(kind: string): boolean {
-  return (
-    CONTENT_BLOCK_KINDS.some(known => known === kind) ||
-    isToolKind(kind) ||
-    kind === REASONING_STATE_KIND
-  )
+  return CONTENT_BLOCK_KINDS.some(known => known === kind) || isToolKind(kind)
 }
 
 export function isToolPart(part: MessagePart): part is ToolPart {

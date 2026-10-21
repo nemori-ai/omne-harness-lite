@@ -201,9 +201,8 @@ function readFields(
   const keys = legalKeys(value, role)
   if (Object.keys(value).some(key => !keys.includes(key))) return { rejected: 'extra' }
   if (keys.some(key => key !== REPLAY_KEY && !(key in value))) return { rejected: 'missing' }
-  const present = keys.filter(key => key !== REPLAY_KEY || key in value)
-  const entries = present.map(key => [key, key === 'role' ? role : value[key]] as const)
-  // `replay` read as `undefined` is the same as no `replay`.
+  const entries = keys.map(key => [key, key === 'role' ? role : value[key]] as const)
+  // `replay` read as `undefined`, or not there at all, is the same as no `replay`.
   const read = Object.fromEntries(
     entries.filter(([key, item]) => key !== REPLAY_KEY || item !== undefined),
   )
