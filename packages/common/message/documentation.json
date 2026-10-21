@@ -127,6 +127,14 @@
         {
           "id": "examples",
           "anchor": "示例表"
+        },
+        {
+          "id": "compaction",
+          "anchor": "压缩变体"
+        },
+        {
+          "id": "compaction-examples",
+          "anchor": "压缩用例表"
         }
       ]
     },

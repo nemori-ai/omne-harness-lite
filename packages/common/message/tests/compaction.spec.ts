@@ -229,6 +229,50 @@ describe('the three compaction keys of judgeMessage', () => {
     expect(judgeMessage(compaction({ covers: swapped }))).toEqual({ rejected: 'covers' })
   })
 
+  it.each([
+    [
+      'an accessor item',
+      () => Object.defineProperty(['e1'], '0', { get: () => 'e1', enumerable: true }),
+    ],
+    [
+      'a non-enumerable item',
+      () => Object.defineProperty(['e1'], '0', { value: 'e1', enumerable: false }),
+    ],
+    ['a named own key', () => Object.assign(['e1'], { extra: 'x' })],
+    ['a symbol key', () => Object.assign(['e1'], { [Symbol('s')]: 1 })],
+    ['a key that is an index of no array', () => Object.assign(['e1'], { '4294967295': 'x' })],
+    ['a key with a leading zero', () => Object.assign(['e1'], { '01': 'x' })],
+    ['a negative key', () => Object.assign(['e1'], { '-1': 'x' })],
+    ['a key that starts like an index', () => Object.assign(['e1'], { '1x': 'x' })],
+  ])('refuses a retained array with %s', (_name, build) => {
+    expect(judgeMessage(compaction({ retained: build() }))).toEqual({ rejected: 'retained' })
+  })
+
+  it('takes the items of a long retained array, whatever the width of their indices', () => {
+    const refs = Array.from({ length: 120 }, (_, at) => `e${at}`)
+    const judged = judgeMessage(compaction({ retained: refs }))
+    expect(judged).toHaveProperty('ok.retained.length', 120)
+  })
+
+  it('refuses a key that reads as an index only in part, in an array long enough for it', () => {
+    const refs = Array.from({ length: 1001 }, (_, at) => `e${at}`)
+    const items = Object.assign(refs, { '1e3': 'x' })
+    expect(judgeMessage(compaction({ retained: items }))).toEqual({ rejected: 'retained' })
+  })
+
+  it('does not call the accessor of a retained item', () => {
+    let calls = 0
+    const items = Object.defineProperty(['e1'], '0', {
+      enumerable: true,
+      get: () => {
+        calls += 1
+        return 'e1'
+      },
+    })
+    expect(judgeMessage(compaction({ retained: items }))).toEqual({ rejected: 'retained' })
+    expect(calls).toBe(0)
+  })
+
   it('refuses a retained array with a hole or a non-string item', () => {
     const sparse: string[] = []
     sparse[1] = 'e2'

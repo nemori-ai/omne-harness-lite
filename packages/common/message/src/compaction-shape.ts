@@ -1,5 +1,5 @@
 import { nonEmpty } from './parts.ts'
-import { closedFields, hasDuplicates } from './values.ts'
+import { closedFields, hasDuplicates, hasOnlyDataItems } from './values.ts'
 
 declare const recordEntryRefBrand: unique symbol
 /** Opaque reference to one record entry. The history holder mints it; consumers compare it exactly. */
@@ -67,7 +67,7 @@ function readCovers(raw: unknown): CompactedRange | undefined {
 }
 
 function readRetained(raw: unknown): readonly RecordEntryRef[] | undefined {
-  if (!Array.isArray(raw)) return undefined
+  if (!Array.isArray(raw) || !hasOnlyDataItems(raw)) return undefined
   const items: readonly unknown[] = raw
   const refs: RecordEntryRef[] = []
   for (let index = 0; index < items.length; index += 1) {

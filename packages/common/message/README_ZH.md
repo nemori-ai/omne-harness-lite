@@ -41,9 +41,9 @@ import { judgeMessage } from '@omne-harness/message'
 
 `LOG_MESSAGE_ROLES` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction`。`parseMessageId` 拒绝空串、缺少 `msg_` 前缀，以及不在 `[A-Za-z0-9_-]{22,64}` 里的正文。`messageIdEquals` 是逐字相等。
 
-压缩变体：`compaction` 角色的消息另带 `covers`、`retained`、`derivation`，并由 `judgeCompaction` 判相对历史的规则。形状、规则和判定顺序在 [SPEC.md](SPEC.md)。`judgeMessage` 只对 `compaction` 角色读这三个键，其他角色带它们是 `extra`。`isCompactionMessage` 收窄已受理的消息，`parseRecordEntryRef` 生成非空的记录条目引用。
+`compaction` 角色的消息另带 `covers`、`retained`、`derivation`。只有 `role` 恰好是字符串 `compaction` 时，`judgeMessage` 才读这三个键，其他角色带它们是 `extra`。`judgeCompaction` 判相对历史的规则。`isCompactionMessage` 收窄已受理的消息，`parseRecordEntryRef` 生成非空的记录条目引用。形状、规则和判定顺序在 [SPEC.md](SPEC.md)。
 
-`judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`、`name`、`arguments`、`partial`、`raw`、`json`、`tool-blocks`、`duplicate-id`、`covers`、`retained`、`derivation`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。带访问器、非枚举自有键或非普通原型的部件是 `json`，部件自身键上的 getter 不被调用；嵌套位置（`visibility`、`arguments`）由各自的判定读取。工具部件缺字段时报该字段名。成功值只含 `id`、`role` 和 `blocks`，`compaction` 角色另含 `covers`、`retained`、`derivation`，各是冻结的副本。
+`judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`、`name`、`arguments`、`partial`、`raw`、`json`、`tool-blocks`、`duplicate-id`、`covers`、`retained`、`derivation`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。带访问器、非枚举自有键或非普通原型的部件是 `json`，部件自身键上的 getter 不被调用；嵌套位置（`visibility`、`arguments`）由各自的判定读取。消息本身的读法不同：对所有角色，`judgeMessage` 会调用顶层字段的访问器，每个字段至多一次，键集、校验和复制都用这一次读到的值。工具部件缺字段时报该字段名。成功值只含 `id`、`role` 和 `blocks`，`compaction` 角色另含 `covers`、`retained`、`derivation`，各是冻结的副本。
 
 `tool_call` 有 `kind`、`id`、`visibility`、`callId`、`name`、`arguments`。`callId` 和 `name` 非空。`arguments` 是 `@omne-harness/json-text` 的 `judgeJsonValue` 接受的值树，该判定的任一失败都是 `arguments`。保存的 `arguments` 是该判定返回的冻结副本，与调用者不共享数据。`tool_call_incomplete` 用 `partial` 文本代替 `arguments`，且 `visibility` 两位都为 false。`tool_call_unparsed` 有 `raw` 文本。两个变体的 `callId` 非空，`name` 是任意字符串，`partial` 与 `raw` 是字符串，可为空，任何字段都不是 `null`。`tool_result` 有 `kind`、`id`、`visibility`、`callId`，是关联标记：同一条消息里它后面的内容块是结果正文。
 
@@ -51,7 +51,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 ## 设计
 
-`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`Message`、`ToolMessage`、`CompactionMessage`、`judgeMessage` 和 `isCompactionMessage`。`src/compaction-shape.ts` 拥有记录条目引用、`covers`、`retained` 和 `derivation`。`src/compaction.ts` 拥有 `judgeCompaction` 及其 context。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
+`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`Message`、`ToolMessage`、`CompactionMessage`、`judgeMessage` 和 `isCompactionMessage`。`src/compaction-shape.ts` 拥有记录条目引用、`covers` 与 `derivation` 的类型，以及判三个键的 `judgeCompactionKeys`。`src/compaction.ts` 拥有 `judgeCompaction` 和类型 `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment`。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
 
 消息字段挂在会话日志里的事实记录上。`SystemMessage` 在请求组装时现算，不进入这份日志。
 

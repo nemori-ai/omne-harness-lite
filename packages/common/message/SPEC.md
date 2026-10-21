@@ -1,14 +1,14 @@
 # @omne-harness/message 行为规格
 
-本文件拥有 `@omne-harness/message` 中压缩变体在公开类型以外的必要行为。公开形状与运行时校验归 [src/](src)，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。工具部件、角色规则与块身份的行为仍在 [docs/public-api.md](docs/public-api.md) 的「语义」「判定顺序」两节和 [README](README.md#contracts) 的契约节，本文件不重复。
+本文件拥有 `@omne-harness/message` 中压缩变体在公开类型以外的必要行为。公开形状以 [src/](src) 为准，公开定义的导航在 [docs/public-api.md](docs/public-api.md)。工具部件、角色规则与块身份的行为在 [docs/public-api.md](docs/public-api.md) 的「语义」「判定顺序」两节和 [README](README.md#contracts) 的契约节，本文件不重复。
 
 本成员没有状态、资源或异步行为，下面的义务都是纯函数的输入输出关系。
 
 ## 范围与依据
 
-本文件定义压缩记录 `CompactionMessage` 的形状、模型视图规则，以及两层判定：`judgeMessage` 判形状，`judgeCompaction` 判相对历史的规则。它不定义何时压缩、怎样写摘要、保留哪些消息，也不定义历史怎样存放、怎样提交。这些归压缩策略的拥有者和历史持有者。
+本文件定义压缩记录 `CompactionMessage` 的形状、模型视图规则，以及两层判定：`judgeMessage` 判形状，`judgeCompaction` 判相对历史的规则。它不定义何时压缩、怎样写摘要、保留哪些消息，这些归压缩策略的拥有者。它也不定义历史怎样存放、怎样提交，这些归历史持有者。
 
-状态：已实现，设计待接受（接受归任务卡 #581 的 D-02）。本文件与 [docs/public-api.md](docs/public-api.md#压缩变体) 的签名是压缩变体的依据，`src/` 按它们实现。
+状态：已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定。公开形状以 [src/](src) 为准。
 
 依据如下。
 
@@ -51,7 +51,7 @@
 2. C 本身；
 3. 位置晚于 `C.covers.to`、早于 C 的模型可读消息，以及晚于 C 的模型可读消息，都按原历史顺序。
 
-下图中，覆盖范围是 e1～e6，保留名单是 e2、e5，C1 是更早的一条压缩记录，C2 是本次压缩记录，在 e8 之后追加。
+下图中，覆盖范围是 e1～e6，保留名单是 e2、e5，C1 是更早的一条压缩记录，C2 是新追加的压缩记录，写在 e8 之后。
 
 ```mermaid
 flowchart LR
@@ -68,7 +68,7 @@ flowchart LR
 
 e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之后、压缩点之前，照常出现。
 
-视图里的每条消息仍按块的 `toModel` 位过滤：`toModel` 为假的块不给模型，保留一条消息不会让它的这类块进入视图。块级过滤与其他投影规则归请求组装。
+视图里的每条消息仍按块的 `toModel` 位过滤：`toModel` 为假的块不给模型，保留一条消息不会让它的这类块进入视图。块级过滤与其他投影规则归组装视图的一方。
 
 只有最近一条压缩记录决定视图。更早的压缩记录落在新记录的覆盖范围内，按普通消息对待：被保留就作为一条消息出现，否则进入新摘要。
 
@@ -94,28 +94,44 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 ### `judgeMessage` 对压缩变体的判定
 
-`judgeMessage` 的「消息自己的字段」一步按下面的顺序检查，返回第一个失败。第 1～7 项是现行检查，压缩变体只改变第 1、2 项用到的键集，并加上第 8～10 项。
+`judgeMessage` 的「消息自己的字段」一步按下面的顺序检查，返回第一个失败。输入不是对象或是数组时，先判 `shape`。顶层不检查原型。
 
-1. **多余键。**合法键集是 `id`、`role`、`blocks`；输入的 `role` 自有属性严格等于字符串 `compaction` 时，再加 `covers`、`retained`、`derivation`。此时角色还没有校验，未知角色、非字符串角色和其他五种角色都只用前三个键。有键不在合法键集里：`extra`。
-2. **缺键。**必需键集与第 1 项的合法键集相同。缺任一个：`missing`。
+1. **多余键。**合法键集是 `id`、`role`、`blocks`；输入的 `role` 自有属性严格等于字符串 `compaction` 时，再加 `covers`、`retained`、`derivation`。此时角色还没有校验，未知角色、非字符串角色和其他五种角色都只用前三个键。有键不在合法键集里：`extra`。只看自有的可枚举字符串键，所以 symbol 键和不可枚举键不触发 `extra`。
+2. **缺键。**必需键集与第 1 项的合法键集相同。按 `in` 判定，继承来的键也算存在。缺任一个：`missing`。
 3. **null。**合法键集里任一个键的值为 `null`：`null`。
 4. **类型。**`id`、`role` 不是字符串，或 `blocks` 不是数组：`shape`。
-5. **身份。**`id` 不合法：`empty`、`prefix` 或 `body`，同现行规则。
+5. **身份。**`id` 不合法：空串是 `empty`，缺 `msg_` 前缀是 `prefix`，`msg_` 之后的正文不在 `[A-Za-z0-9_-]{22,64}` 里是 `body`。
 6. **角色。**`role` 不是六种角色之一：`unknown`。
 7. **空块。**`blocks` 为空数组：`empty`。
 8. **覆盖范围。**仅 `compaction` 角色。`covers` 不是普通对象，自有键不恰好是 `from`、`to`，或任一端不是非空字符串：`covers`。
-9. **保留名单。**仅 `compaction` 角色。`retained` 不是数组，有元素不是非空字符串，或有两个元素相同：`retained`。稀疏数组的空位按非字符串处理。
+9. **保留名单。**仅 `compaction` 角色。`retained` 不是数组；自有键不只是下标和 `length`（有访问器元素、不可枚举元素、symbol 键或其他命名键）；有元素不是非空字符串；或有两个元素相同：`retained`。稀疏数组的空位按非字符串处理。访问器不被调用。
 10. **派生证据。**仅 `compaction` 角色。`derivation` 不是普通对象，自有键不恰好是 `owner`、`record`、`revision`、`digest`，或任一项不是非空字符串：`derivation`。
 
-这里的普通对象沿用部件的规则：原型是 `Object.prototype` 或 `null`，自有键都是可枚举的字符串数据属性。带访问器、不可枚举自有键或 symbol 键时，判该键各自的拒绝值（`covers` 或 `derivation`），不调用 getter。
+`covers` 与 `derivation` 必须是普通对象：原型是 `Object.prototype` 或 `null`，自有键恰好是所列的键，且都是可枚举的字符串数据属性。带访问器、不可枚举自有键或 symbol 键时，判各自的拒绝值（`covers` 或 `derivation`），不调用 getter。这比部件的规则更严：部件只检查字符串名的自有键，不拒绝 symbol 键。
 
-字段通过后，按现行顺序判部件、角色规则和块身份。
+字段通过后，依次判每个部件、角色规则和块身份唯一，规则见 [docs/public-api.md](docs/public-api.md#判定顺序)。
 
-成功值是新对象。`covers`、`retained`、`derivation` 各复制成新的冻结对象或冻结数组，不与输入共享。消息对象本身和其他字段的复制、冻结规则与现行相同，不因压缩变体改变。
+成功值是新对象。`covers`、`retained`、`derivation` 是新的冻结副本，不与输入共享。消息对象和 `blocks` 数组不冻结，各部件是新对象也不冻结；工具调用的 `arguments` 是 `judgeJsonValue` 返回的冻结副本。
 
-`judgeMessage` 对输入消息的每个顶层字段只读一次，键集、校验和复制都用这一次读到的值，所以访问器不会让同一次判定前后不一致。它只看这一条消息，不判断引用是否落在范围内，也不判断 CM-02 至 CM-04。
+对所有角色，`judgeMessage` 读顶层字段的访问器，每个合法键至多调用一次：`role` 先读，其余键在通过「多余键」「缺键」两项后读。键集、校验和复制都用这一次读到的值，所以访问器不会让同一次判定前后不一致。这与「部件自身的键不调用 getter」不同。`judgeMessage` 只看这一条消息，不判断引用是否落在范围内，也不判断 CM-02 至 CM-04。
 
 ### `judgeCompaction`
+
+下图把历史切成三段，并标出每段对应的 `context` 字段，以及 CM-03 用来配对的集合 V。
+
+```mermaid
+flowchart LR
+  subgraph history[历史，按写入顺序]
+    direction LR
+    covered["covered<br/>历史起点到 covers.to"] --> after["after<br/>covers.to 之后，压缩点之前"] --> point["压缩点<br/>追加 C"]
+  end
+  covered -->|只取 retained 引用的消息| view["V<br/>retained 引用的消息和 after"]
+  after --> view
+  open["open<br/>未结工作条目"] -.->|可落在| covered
+  open -.->|可落在| after
+```
+
+`covered` 与 `after` 由历史持有者按顺序给出，`covered` 的首项是历史的第一条，本函数不核对这一点。`open` 里落在 `covered` 的条目必须在 `retained` 里（CM-04），落在 `after` 的条目不受影响。
 
 `judgeCompaction(message, context)` 判相对历史的规则。`context` 由历史持有者给出：
 
@@ -150,7 +166,7 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 本成员不保存历史，不提交压缩，也不铸造记录条目引用或派生证据。`covered`、`after`、`open` 的真实与完整由历史持有者负责，包括 `covered` 从历史第一条开始；把不完整的范围交给 `judgeCompaction`，得到的通过结论只对交来的输入成立。
 
-`judgeCompaction` 的代价与 `covered`、`after` 的条目数和块数之和成线性，范围总从历史起点开始，所以随历史长度增长。它在每次提交压缩记录时运行一次。压缩何时发生归请求组装，见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#模态表示与完整输入限制)。
+`judgeCompaction` 的代价与 `covered`、`after` 的条目数和块数之和成线性，范围总从历史起点开始，所以随历史长度增长。它在每次提交压缩记录时运行一次。压缩何时发生归压缩策略的拥有者，见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#模态表示与完整输入限制)。
 
 压缩记录写入历史之后不变。之后的压缩不修改它，只能在新的覆盖范围里保留它或摘要它。
 
@@ -163,4 +179,4 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 ### 验证
 
-[docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、稀疏数组）和返回值的身份，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。
+[docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、访问器、稀疏数组）和成功值不与输入共享，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。

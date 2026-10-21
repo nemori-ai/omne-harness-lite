@@ -177,9 +177,27 @@ interface Probe {
   calls: number
 }
 
+/** An array item that is `<getter>` becomes an accessor, as an object value does. */
+function resolveItems(items: readonly unknown[], probe: Probe): unknown[] {
+  const resolved: unknown[] = []
+  items.forEach((item, index) => {
+    if (item === GETTER) {
+      Object.defineProperty(resolved, index, { enumerable: true, get: () => countedAnswer(probe) })
+    } else {
+      resolved[index] = resolveMarkers(item, probe)
+    }
+  })
+  return resolved
+}
+
+function countedAnswer(probe: Probe): string {
+  probe.calls += 1
+  return 'e1'
+}
+
 /** Applies the two markers of the message cell: a key is dropped, or becomes an accessor. */
 function resolveMarkers(value: unknown, probe: Probe): unknown {
-  if (Array.isArray(value)) return value.map((item: unknown) => resolveMarkers(item, probe))
+  if (Array.isArray(value)) return resolveItems(value, probe)
   if (typeof value !== 'object' || value === null) return value
   const resolved: Record<string, unknown> = {}
   for (const [key, item] of Object.entries(value)) {
@@ -187,10 +205,7 @@ function resolveMarkers(value: unknown, probe: Probe): unknown {
     if (item === GETTER) {
       Object.defineProperty(resolved, key, {
         enumerable: true,
-        get: () => {
-          probe.calls += 1
-          return 'e1'
-        },
+        get: () => countedAnswer(probe),
       })
     } else {
       resolved[key] = resolveMarkers(item, probe)
@@ -322,7 +337,7 @@ const EXPECTED_COMPACTION_ROWS: Readonly<Record<string, number>> = {
   'compaction.keys/反': 4,
   'compaction.order/反': 2,
   'compaction.covers/反': 4,
-  'compaction.retained/反': 3,
+  'compaction.retained/反': 4,
   'compaction.derivation/反': 2,
   'compaction.copy/正': 1,
   'history.message/反': 1,
