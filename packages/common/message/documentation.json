@@ -127,6 +127,46 @@
         {
           "id": "examples",
           "anchor": "示例表"
+        },
+        {
+          "id": "compaction",
+          "anchor": "压缩变体"
+        },
+        {
+          "id": "compaction-examples",
+          "anchor": "压缩用例表"
+        }
+      ]
+    },
+    {
+      "id": "spec",
+      "path": "packages/common/message/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "范围与依据"
+        },
+        {
+          "id": "results",
+          "anchor": "结果与不变量"
+        },
+        {
+          "id": "ownership",
+          "anchor": "所有权失败与生命周期"
+        },
+        {
+          "id": "composition",
+          "anchor": "组合与验证"
         }
       ]
     }
