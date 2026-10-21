@@ -70,6 +70,48 @@ describe('closeSourceOnEarlyEnd', () => {
     expect(log).toEqual(['source'])
   })
 
+  it.each([
+    ['return()', (generator: AsyncGenerator<number, void, undefined>) => generator.return()],
+    [
+      'throw()',
+      (generator: AsyncGenerator<number, void, undefined>) =>
+        generator.throw(new Error('reader gave up')).catch(() => undefined),
+    ],
+  ])(
+    'next() while an early %s closes the source does not start the generator: it is done, and the source closes once',
+    async (_name, end) => {
+      const close = Promise.withResolvers<void>()
+      const { generator, log } = wrapped(() => close.promise)
+      const ending = end(generator)
+      const next = generator.next()
+      close.resolve()
+      expect(await next).toEqual({ done: true, value: undefined })
+      await ending
+      expect(log).toEqual(['source'])
+    },
+  )
+
+  it('next() from inside the close of an early return() does not start the generator', async () => {
+    let inner: Promise<IteratorResult<number, void>> | undefined
+    const { generator, log } = wrapped(() => {
+      inner = generator.next()
+    })
+    await generator.return()
+    expect(await inner).toEqual({ done: true, value: undefined })
+    expect(log).toEqual(['source'])
+  })
+
+  it('a second return() while an early return() closes the source waits for that close and does not close again', async () => {
+    const close = Promise.withResolvers<void>()
+    const { generator, log } = wrapped(() => close.promise)
+    const first = generator.return()
+    const second = generator.return()
+    close.resolve()
+    expect(await first).toEqual({ done: true, value: undefined })
+    expect(await second).toEqual({ done: true, value: undefined })
+    expect(log).toEqual(['source'])
+  })
+
   it('a close that fails under throw() wins over the thrown error, like a failing cleanup of a native generator', async () => {
     const closeFailure = new Error('close failed')
     const { generator } = wrapped(() => Promise.reject(closeFailure))
