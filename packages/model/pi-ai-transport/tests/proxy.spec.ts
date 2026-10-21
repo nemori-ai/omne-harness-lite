@@ -258,6 +258,40 @@ describe('a proxy that fails the connection', () => {
     })
   })
 
+  it('a tunnel whose target fails the TLS handshake gives connect-failed without a timeout', async () => {
+    // The target answers the TLS client hello with plain text and closes the connection.
+    const target = createTcpServer(socket => {
+      socket.on('error', () => {})
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+    })
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve))
+    const address = target.address()
+    if (address === null || typeof address === 'string') throw new Error('no port')
+    try {
+      await withProxy('tunnel', async proxy => {
+        const resources = proxied(proxy.url)
+        const reservation = await held(resources)
+        const exchange = started(
+          startExchange(
+            resources,
+            input(new URL(`https://127.0.0.1:${address.port}/`), reservation),
+            new AbortController().signal,
+          ),
+        )
+        expect(await within(exchange.result, PROMPT_MS)).toEqual({
+          kind: 'connect-failed',
+          timeout: false,
+        })
+        await exchange.stopped
+        expect(proxy.tunnels()).toBe(1)
+        expect(reservation.state).toBe('released')
+        return resources
+      })
+    } finally {
+      await new Promise<void>(resolve => target.close(() => resolve()))
+    }
+  })
+
   it('a tunnel whose target never completes TLS ends at the connect timeout', async () => {
     const hole = await startBlackHole()
     try {
