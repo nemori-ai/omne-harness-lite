@@ -4,6 +4,7 @@ import {
   judgeCompaction,
   judgeMessage,
   parseRecordEntryRef,
+  type AssistantMessage,
   type CompactionContext,
   type CoveredEntry,
   type Message,
@@ -11,9 +12,10 @@ import {
 } from '@omne-harness/message'
 
 /**
- * The two tables in docs/public-api.md are the rule list of the tool parts, the role rules, and
- * the compaction variant. This file runs every row, and it also fixes which rules and which
- * polarities each table has to show, so a table that lost a row or changed an outcome fails here.
+ * The three tables in docs/public-api.md are the rule list of the tool parts, the role rules, the
+ * compaction variant, and the reasoning state. This file runs every row, and it also fixes which
+ * rules and which polarities each table has to show, so a table that lost a row or changed an
+ * outcome fails here.
  */
 const ID = 'msg_abcdefghijklmnopqrstuv'
 
@@ -165,6 +167,8 @@ describe('the example table', () => {
 
 const ABSENT = '<absent>'
 const GETTER = '<getter>'
+const UNDEFINED = '<undefined>'
+const LENGTH = /^<length:(\d+)>$/u
 
 const BASE_MESSAGE = {
   id: ID,
@@ -196,14 +200,25 @@ function countedAnswer(probe: Probe): string {
   return 'e1'
 }
 
-/** Applies the two markers of the message cell: a key is dropped, or becomes an accessor. */
+/** A `<length:N>` cell is a string of that many code units. Any other value is as it is. */
+function resolveText(value: unknown): unknown {
+  const length = typeof value === 'string' ? LENGTH.exec(value)?.[1] : undefined
+  return length === undefined ? value : 'x'.repeat(Number(length))
+}
+
+/**
+ * Applies the markers of the message cell: a key is dropped, is `undefined`, or becomes an
+ * accessor, and a text of a given length stands in for a string.
+ */
 function resolveMarkers(value: unknown, probe: Probe): unknown {
   if (Array.isArray(value)) return resolveItems(value, probe)
-  if (typeof value !== 'object' || value === null) return value
+  if (typeof value !== 'object' || value === null) return resolveText(value)
   const resolved: Record<string, unknown> = {}
   for (const [key, item] of Object.entries(value)) {
     if (item === ABSENT) continue
-    if (item === GETTER) {
+    if (item === UNDEFINED) {
+      resolved[key] = undefined
+    } else if (item === GETTER) {
       Object.defineProperty(resolved, key, {
         enumerable: true,
         get: () => countedAnswer(probe),
@@ -396,4 +411,182 @@ function expectCopy(message: Record<string, unknown>): void {
   ;(message.derivation as Record<string, unknown>).digest = 'changed'
   expect({ covers, retained, derivation }).toEqual(before)
   for (const kept of [covers, retained, derivation]) expect(Object.isFrozen(kept)).toBe(true)
+}
+
+const REASONING_NOTES = ['getter 未被调用', '成功值没有 replay 键', '成功值是冻结副本']
+
+const BASE_ASSISTANT = {
+  id: ID,
+  role: 'assistant',
+  blocks: ['thinking:k1', 'state:s1>k1'],
+  replay: { scope: 'sc', format: 'f1', at: [1] },
+}
+
+interface ReasoningRow {
+  readonly line: number
+  readonly rule: string
+  readonly polarity: string
+  readonly patch: Record<string, unknown>
+  readonly verdict: string
+  readonly notes: readonly string[]
+}
+
+function reasoningRows(): readonly ReasoningRow[] {
+  return tableRows('## 推理续接状态用例表', 4).map(({ line, cells }) => {
+    const [rule, polarity, patch, outcome] = cells as [string, string, string, string]
+    const [verdict = '', ...notes] = outcome.split(';').map(part => part.trim())
+    for (const note of notes) {
+      if (!REASONING_NOTES.includes(note)) throw new Error(`line ${line}: ${note}`)
+    }
+    return {
+      line,
+      rule,
+      polarity,
+      patch: JSON.parse(patch) as Record<string, unknown>,
+      verdict,
+      notes,
+    }
+  })
+}
+
+/** The block that a shorthand of the message cell stands for, or the block object as it is. */
+function shorthandBlock(item: unknown): unknown {
+  if (typeof item !== 'string') return item
+  const [kind = '', rest = ''] = item.split(':')
+  const [id = '', pairs] = rest.split('>')
+  switch (kind) {
+    case 'text':
+      return textBlockOf(id, 'text')
+    case 'thinking':
+      return textBlockOf(id, 'thinking')
+    case 'call':
+      return {
+        kind: 'tool_call',
+        id,
+        visibility: SEEN,
+        callId: 'k',
+        name: 'echo',
+        arguments: { kind: 'null' },
+      }
+    case 'marker':
+      return { kind: 'tool_result', id, visibility: SEEN, callId: 'k' }
+    case 'state':
+      return {
+        kind: 'reasoning_state',
+        id,
+        visibility: { toHuman: false, toModel: true },
+        payload: 'p',
+        pairs: pairs === undefined ? [] : pairs.split('+'),
+      }
+    default:
+      throw new Error(`unknown block shorthand ${item}`)
+  }
+}
+
+function textBlockOf(id: string, kind: 'text' | 'thinking'): object {
+  return { kind, id, visibility: SEEN, text: 'x' }
+}
+
+/** The message of a row: the base, the patch, the block shorthands, and the `state` override. */
+function reasoningMessage(patch: Record<string, unknown>): Record<string, unknown> {
+  const { state, ...own } = patch
+  const message: Record<string, unknown> = { ...BASE_ASSISTANT, ...own }
+  const blocks = (message.blocks as unknown[]).map(shorthandBlock)
+  if (state !== undefined) blocks[1] = { ...(blocks[1] as object), ...(state as object) }
+  message.blocks = blocks
+  if (message.role === 'compaction') Object.assign(message, COMPACTION_KEYS)
+  return message
+}
+
+function reasoningVerdict(message: unknown): string {
+  const judged = judgeMessage(message)
+  if ('ok' in judged) return 'ok'
+  const index = 'blockIndex' in judged ? `@${String(judged.blockIndex)}` : ''
+  return `rejected:${judged.rejected}${index}`
+}
+
+const EXPECTED_REASONING_ROWS: Readonly<Record<string, number>> = {
+  'state.keys/正': 1,
+  'state.keys/反': 5,
+  'state.identity/正': 1,
+  'state.identity/反': 5,
+  'state.payload/正': 1,
+  'state.payload/反': 5,
+  'state.pairs/正': 1,
+  'state.pairs/反': 5,
+  'pairs.target/正': 2,
+  'pairs.target/反': 6,
+  'role.state-only-in-assistant/正': 1,
+  'role.state-only-in-assistant/反': 5,
+  'replay.keys/正': 2,
+  'replay.keys/反': 6,
+  'replay.order/反': 4,
+  'replay.shape/正': 1,
+  'replay.shape/反': 18,
+  'replay.presence/正': 4,
+  'replay.presence/反': 4,
+  'replay.at/正': 1,
+  'replay.at/反': 10,
+  'replay.copy/正': 1,
+  'replay.projection/正': 5,
+  'replay.projection/反': 3,
+}
+
+const reasoning = reasoningRows()
+
+describe('the reasoning state table', () => {
+  it('shows each rule on each side, with exactly the rows that are fixed here', () => {
+    expect(countShown(reasoning)).toEqual(EXPECTED_REASONING_ROWS)
+  })
+
+  it('has a refused row for every refusal and an ok row for every allowed example', () => {
+    for (const row of reasoning) {
+      expect(row.polarity === POSITIVE, `line ${row.line}`).toBe(row.verdict === 'ok')
+    }
+  })
+
+  it.each(reasoning.map(row => [`line ${row.line} ${row.rule}/${row.polarity}`, row] as const))(
+    'judges %s as the table says',
+    (_name, row) => {
+      const probe: Probe = { calls: 0 }
+      const message = resolveMarkers(reasoningMessage(row.patch), probe) as Record<string, unknown>
+      expect(reasoningVerdict(message)).toBe(row.verdict)
+      if (row.notes.includes('getter 未被调用')) expect(probe.calls).toBe(0)
+      if (row.notes.includes('成功值没有 replay 键')) expectNoReplay(message)
+      if (row.notes.includes('成功值是冻结副本')) expectFrozenCopy(message)
+    },
+  )
+})
+
+function admittedAssistant(message: Record<string, unknown>): AssistantMessage {
+  const judged = judgeMessage(message)
+  if (!('ok' in judged) || judged.ok.role !== 'assistant') {
+    throw new Error('expected an admitted assistant message')
+  }
+  return judged.ok
+}
+
+function expectNoReplay(message: Record<string, unknown>): void {
+  expect('replay' in admittedAssistant(message)).toBe(false)
+}
+
+/**
+ * `replay`, its `at`, and the `pairs` of each state part are frozen copies, and no later change
+ * of the input reaches them.
+ */
+function expectFrozenCopy(message: Record<string, unknown>): void {
+  const { replay, blocks } = admittedAssistant(message)
+  if (replay === undefined) throw new Error('expected replay in the success value')
+  const states = blocks.filter(block => block.kind === 'reasoning_state')
+  const before = structuredClone({ replay, states })
+  ;(message.replay as { at: number[] }).at.push(99)
+  ;(message.replay as { scope: string }).scope = 'changed'
+  for (const block of message.blocks as { kind: string; pairs: string[] }[]) {
+    if (block.kind === 'reasoning_state') block.pairs.push('zz')
+  }
+  expect({ replay, states }).toEqual(before)
+  expect(Object.isFrozen(replay)).toBe(true)
+  expect(Object.isFrozen(replay.at)).toBe(true)
+  expect(states.length).toBeGreaterThan(0)
+  for (const state of states) expect(Object.isFrozen(state.pairs)).toBe(true)
 }

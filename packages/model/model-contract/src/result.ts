@@ -1,7 +1,7 @@
 // Declarations of the public-api chapter "结果、失败和状态".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ToolCallPart } from '@omne-harness/message'
+import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message'
 import type { ModelInvocationRef } from './reference.ts'
 import type { LimitMetric } from './profile.ts'
 import type {
@@ -31,7 +31,7 @@ export type ModelFailure =
   | Readonly<{ kind: 'handoff-invalid'; reason: string }>
 export type Reply<T> = Promise<Outcome<T, ModelFailure>>
 export type ToolSuggestion = ToolCallPart
-export type ModelBlock = ContentBlock | ToolSuggestion
+export type ModelBlock = ContentBlock | ToolSuggestion | ReasoningStatePart
 export type ModelFaultCause =
   | 'profile-withdrawn'
   | 'excluded'
@@ -39,6 +39,7 @@ export type ModelFaultCause =
   | 'credential'
   | 'input-rejected'
   | 'input-over-limit'
+  | 'replay-rejected'
   | 'upstream-unavailable'
   | 'stream-lost'
   | 'runtime-lost'
@@ -47,9 +48,20 @@ export type ModelFaultCause =
   | 'upstream-protocol'
   | 'unclassified'
 export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric
-export type ModelFault = Readonly<{ diagnostic: string; upstreamStatus: string | null }> &
+/**
+ * `replayCarried` is present only when the failed send carried reasoning state, so the original
+ * consumer can try again in a new call with replay off. A `replay-rejected` send always carried it.
+ */
+export type ModelFault = Readonly<{
+  diagnostic: string
+  upstreamStatus: string | null
+}> &
   (
-    | Readonly<{ cause: Exclude<ModelFaultCause, 'input-over-limit'> }>
+    | Readonly<{
+        cause: Exclude<ModelFaultCause, 'input-over-limit' | 'replay-rejected'>
+        replayCarried?: true
+      }>
+    | Readonly<{ cause: 'replay-rejected'; replayCarried: true }>
     | Readonly<{
         cause: 'input-over-limit'
         reported: Readonly<{
@@ -57,6 +69,7 @@ export type ModelFault = Readonly<{ diagnostic: string; upstreamStatus: string |
           limit: string | null
           actual: string | null
         }>
+        replayCarried?: true
       }>
   )
 export type Termination =

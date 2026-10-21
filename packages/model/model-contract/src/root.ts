@@ -84,6 +84,8 @@ export type FixedModelRequest = Readonly<{
   messages: readonly Message[]
   tools: readonly ToolDeclaration[]
   toolChoice: 'none' | 'auto' | 'required' | Readonly<{ name: string }>
+  /** `'off'` turns replay off for every dispatch of this request. */
+  replay?: 'off'
   representation: Adoption
   parameterAdoptions: readonly ParameterAdoption[]
   source: Adoption
