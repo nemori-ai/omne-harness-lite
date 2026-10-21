@@ -75,6 +75,7 @@ import {
   invokeOperation,
   journalOperation,
   mainAction,
+  mainBatch,
   mainConsumption,
   mainInvocation,
   modelOperation,
@@ -310,7 +311,7 @@ export function recoveryRoute(
     return target(
       passage.progress.kind === 'resolved' ? 'X5' : passage.progress.kind === 'asked' ? 'X4' : 'X2',
     )
-  if (at.batch !== null) {
+  if (at.batch !== null && at.batch.actions.length > 0) {
     if (at.batch.barrier.kind === 'closed') return target('A1')
     if (at.batch.barrier.kind === 'open')
       return target(at.position.startsWith('T') ? at.position : 'A2')
@@ -331,7 +332,7 @@ export function recoveryRoute(
   // The input batch remains a consumption watermark after I3 closes the call. It does not rewind
   // a later node to request preparation. Position records that these earlier facets are consumed.
   if (['I3', 'I4', 'I8', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
-    return at.position === 'I8' ? succeed('evaluate') : target(at.position)
+    return target(at.position)
   if (at.compaction !== null)
     return target(
       at.compaction.ended === 'committed' ? 'I1' : at.compaction.ended === 'failed' ? 'F1' : 'C1',
@@ -542,6 +543,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     if (evaluated.ok.kind === 'stop')
       return fail(notYet(node, `a stop (${evaluated.ok.reason})`, '#502 1.4 and stage 5'))
     decided = evaluated.ok
+    if (evaluated.ok.kind === 'wait') waits = evaluated.ok.waiting
     return step(evaluated.ok.kind, null)
   }
 
@@ -589,6 +591,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (subject.source.kind !== 'model-reply') return step('accepted', null)
       const { step: of, action, call, result } = subject.source
       return step('accepted', {
+        events: [{ kind: 'message', message: subject.candidate, source: admission }],
         replyAdmission: {
           step: of,
           action,
@@ -883,18 +886,38 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const reply = result.reply
       if (reply.blocks.some(block => block.kind === 'tool_call'))
         return fail(notYet('I4', 'a reply with tool calls', '#502 stage 2'))
-      return step('empty')
+      return step('empty', {
+        checkpoint: {
+          batch: {
+            id: mainBatch(required(iteration, 'iteration').step),
+            source: result.produced,
+            actions: [],
+            barrier: { kind: 'closed', judging: [], asked: [] },
+            slots: [],
+            batchPass: null,
+          },
+        },
+      })
     },
     /** I8: the full facts again, and the evaluator decides between a new iteration and completion. */
     async I8() {
       const read = await load()
       if ('failure' in read) return read
+      // Input submission and result records can advance the revision while Model runs. Use the
+      // complete latest snapshot, under the same attachment, before deciding or committing I8.
+      if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+      checkpoint = read.ok.checkpoint
+      revision = read.ok.revision
+      if (read.ok.state.kind !== 'ended') state = read.ok.state
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
       const evaluated = evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
-      return step(evaluated.ok.on)
+      // W0 saves the wait while retaining I8 as the continuation. It does not claim a wakeup.
+      return evaluated.ok.on === 'wait'
+        ? step('wait', null)
+        : step(evaluated.ok.on, { checkpoint: { batch: null }, state: { kind: 'advancing' } })
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 

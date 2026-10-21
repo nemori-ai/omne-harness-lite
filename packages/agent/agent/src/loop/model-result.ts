@@ -36,7 +36,7 @@ export function consumeModelResult(
   )
     return fail({ kind: 'unsupported' })
   const terminal = value.settlement.termination
-  if (terminal.kind === 'interrupted') return fail({ kind: 'unsupported' })
+  if (terminal.kind === 'interrupted') return succeed({ ...value, kind: 'partial' })
   if (terminal.kind !== 'completed' || value.parts.some(part => part.kind === 'partial'))
     return succeed({ ...value, kind: value.parts.length === 0 ? 'no-reply' : 'partial' })
   const blocks: M.ModelBlock[] = []

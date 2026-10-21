@@ -198,6 +198,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I4', on: 'empty', to: 'I8' },
   { from: 'I8', on: 'take-inputs', to: 'I0' },
   { from: 'I8', on: 'try-finish', to: 'F1' },
+  { from: 'I8', on: 'wait', to: 'W0' },
   { from: 'F1', on: 'fixed', to: 'F2' },
   { from: 'F2', on: 'proceed', to: 'F3' },
   { from: 'F3', on: 'ended', to: 'F4' },

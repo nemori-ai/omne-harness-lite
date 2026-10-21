@@ -97,7 +97,8 @@ const sequences = async (handle: AgentExecutionHandle<Principal>) =>
 const ENDED_EVENTS = [
   ['1', 'input-taken'],
   ['2', 'producer'],
-  ['3', 'ended'],
+  ['3', 'message'],
+  ['4', 'ended'],
 ]
 const idle: AgentState = { kind: 'idle', instance: instance() }
 

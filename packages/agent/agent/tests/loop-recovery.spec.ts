@@ -81,7 +81,7 @@ describe('E4 recovery routing', () => {
     ['M5', 'M5'],
     ['I3', 'I3'],
     ['I4', 'I4'],
-    ['I8', 'evaluate'],
+    ['I8', 'I8'],
     ['F1', 'F1'],
     ['F2', 'F2'],
     ['F3', 'F3'],
@@ -124,7 +124,7 @@ describe('E4 recovery routing', () => {
     expect(at.requestPreparation?.kind).toBe('ready')
     expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('P1')
     expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1).id }))).toBe('I1')
-    expect(ok(route({ ...at, position: 'I8', calls: [] }))).toBe('evaluate')
+    expect(ok(route({ ...at, position: 'I8', calls: [] }))).toBe('I8')
   })
 
   it('NA-E4-3: a pending operation goes to R0 and a settled operation resumes the main call at M1', () => {
@@ -476,6 +476,15 @@ describe('R0 and W0 coordination', () => {
       expect(assembly.controls.handoff.accept.calls).toHaveLength(
         target === 'Q2' && outcome === 'dropped' ? 3 : 2,
       )
+      const replies = assembly.controls.handoff.accept.calls.filter(
+        call => call.source.kind === 'model-reply',
+      )
+      expect(new Set(replies.map(call => call.operation)).size).toBe(1)
+      expect(
+        replies.every(
+          call => JSON.stringify(call.candidate) === JSON.stringify(replies[0]?.candidate),
+        ),
+      ).toBe(true)
       const saved = await load(assembly)
       expect(saved.state.kind).toBe('ended')
       expect(saved.results[0]?.result.producer).toEqual({ kind: 'model', call: admittedCall })
@@ -504,6 +513,7 @@ describe('R0 and W0 coordination', () => {
       expect(page.kind === 'page' && page.events.map(event => event.body.kind)).toEqual([
         'input-taken',
         'producer',
+        'message',
         'ended',
       ])
       expect(
@@ -799,7 +809,7 @@ describe('checkpoint positions saved by the current assembly', () => {
       Q4: 'Q4',
       I3: 'I3',
       I4: 'I4',
-      I8: 'evaluate',
+      I8: 'I8',
       F1: 'F1',
       F2: 'F2',
       F3: 'F3',
