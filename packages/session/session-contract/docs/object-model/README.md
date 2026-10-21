@@ -15,12 +15,15 @@ Session 是会话治理的聚合根。Run 是聚合内的实体，记录一次�
 受理入口调用 accept，Session 在一次提交里保存消息、去处与待处理资格
 
 推进触发者发现待处理输入，调用 startRun
-    Session 提交 Run 开始、首批承接与首个 attempt
-    协调者以该 attempt 的耐久证据作为推进资格依据，调用 Agent 的 invoke
+    Session 提交 Run 开始与首个 attempt，固定首条输入，不扣除待处理资格
+    Agent 推进协调以该 attempt 的耐久证据作为推进资格依据，调用 Agent 的 invoke 交出首条输入
     Agent 打开执行时，Session 参加者只读核对该 attempt 仍然有效
+    推进协调以 receive 写交入回执，再逐条 submit 其余待处理输入
 
-Agent 推进期间的承接、调用登记、进度、派生消息、消费完成与条件终结
-    由 Agent 的 Journal 提供者提交，Session 参加者在同一事务里写会话事实
+Agent 推进期间的承接、调用登记、等待与出卡、控制阶段、执行结束
+    由事件消费适配读 Agent 事件，调用 receive 写会话事实并推进游标
+消息进历史、压缩转换、结果保管、处理完成
+    由 Agent 的执行记录提供者提交，Session 参加者在同一事务里写会话事实
 
 迟到的生产者事实、控制回执、子方与作用域释放回执
     由 Session 的消费适配器读取后调用 receive
@@ -40,11 +43,11 @@ Session 只建模会话治理所需的外域事实。外域对象以引用或耐
 
 | 分类 | Session 内的表示 | 原拥有者保留的责任 |
 | --- | --- | --- |
-| 本域对象 | Session、Run、attempt、输入、批次、调用登记与消费、等待、控制进度、恢复任务、关系、空闲依据、日志条目 | Session 拥有受理、承接、推进资格、等待位置、控制范围、终态、归档与日志 |
-| Agent 执行 | `ExecutionRef`：执行身份、最后已知修订与耐久证据；`AdvanceRef.instance` 只作追溯 | 执行检查点、Loop 下一步、执行挂接与围栏代次，见 Agent [托管协调与运行实例](../../../../agent/agent-contract/SPEC.md#托管协调与运行实例) |
-| Model 与 Tool 事实 | 原调用登记、结果版本与保管、处理、交付责任解除状态、账目关联 | 请求、执行、流片段、过程块、重试与清理 |
+| 本域对象 | Session、Run、attempt、输入、控制进度、恢复任务、关系、空闲依据、日志条目 | Session 拥有受理、待处理资格、推进资格、控制范围、Run 取消、归档与日志 |
+| Agent 执行 | `ExecutionRef`：执行身份、最后已知修订、耐久证据与已读事件序号；从 Agent 事件派生的批次、调用登记、等待、控制阶段与终态；`AdvanceRef.instance` 只作追溯 | 执行检查点、Loop 下一步、输入水位线、执行挂接与围栏代次、拓展结论的正文，见 Agent [托管协调与运行实例](../../../../agent/agent-contract/SPEC.md#托管协调与运行实例) |
+| Model 与 Tool 事实 | 结果版本与保管、处理、交付责任解除状态、账目关联 | 请求、执行、流片段、过程块、重试与清理 |
 | Context | 注册集合、状态块步提交、变化提醒消息、压缩记录 | 块声明、读取资格、请求组装、压缩规则，压缩形状见[消息成员](../../../../common/message/SPEC.md#模型视图) |
-| HITL 与授权 | 卡片决定、原授权关联与消费 | 答复资格、唯一决定、授权算法 |
+| HITL 与授权 | 卡片决定、原授权关联 | 答复资格、唯一决定、授权算法与消费 |
 | 执行环境 | 作用域释放的恢复任务与回执 | 作用域、落点与 `releaseScope` |
 | 共享值 | Message、内容块、TenantId、`DurableEvidence`、`Adoption` | 复用公共契约，不建立 Session 版本的同义类型 |
 
@@ -52,25 +55,25 @@ Session 只建模会话治理所需的外域事实。外域对象以引用或耐
 
 本节是候选修订，技术接受前不扩大本页既有承诺。
 
-一次操作在一次提交中改变聚合内若干事实。跨聚合的事实，例如另一个会话、Agent 的 Journal 或 Context 注册表，只能经参加者协议共同成立。
+一次操作在一次提交中改变聚合内若干事实。跨聚合的事实，例如另一个会话、Agent 的执行记录或 Context 注册表，只能经参加者协议共同成立，或从拥有者的事件派生。
 
 | 对象 | 类 | 身份 | 拥有者 | 生灭 | 不变量 |
 | --- | --- | --- | --- | --- | --- |
 | Session | 聚合根 | `SessionId`，租户内唯一 | Session | 创建（SE01）后长期保留；归档不删除 | 租户、定义标识与执行类型随创建固定；至多一个未终结 Run |
 | Run | 实体 | `RunId` | Session | 开始（SE13）到唯一终态（SE26） | 终态三选一，不可反转；至多一个有效推进者 |
-| attempt（`AdvanceRef`） | 值，属于 Run | `AttemptId`，严格递增 | Session | 开始（SE15）到交还、撤销或被取代（SE16） | 最大序号不是充分授权；旧 attempt 不再推进；`instance` 只作追溯 |
-| `ExecutionRef` | 值，指向 Agent 权威 | `{ execution, revision, evidence }` | Session 保存引用；记录归 Agent 的 Journal 提供者 | 随 Run 开始分配执行身份；每次共同提交更新修订 | 不含接续值、检查点或 Agent 工作状态 |
-| `RoutedInput` | 实体 | `InputId` 或原来源 | Session | 受理（SE11）；普通输入到被承接（SE13、SE14）或取消 | 一个输入至多一次有效承接；卡片决定与业务输入不进普通队列 |
-| `InputBatch` | 值 | `BatchId` 加批界 | Session | 一次承接 | 当时全部合格输入的精确集合；分块不改批界 |
-| `CallBinding` | 值 | 随 `Consumption` | Session 登记；原调用归生产者 | 登记（SE18） | 登记不表示已发出；Run 外调用的发起 attempt 为空 |
-| `Consumption` | 实体 | `ConsumptionId` | Session | 登记到交付责任解除确认 | 每个结果版本按生产者、版本和交付唯一 |
+| attempt（`AdvanceRef`） | 值，属于 Run | `AttemptId`，(Run, 序号) 的确定编码，严格递增，从日志派生 | Session | 开始（SE15）到交还、撤销或被取代（SE16） | 最大序号不是充分授权；旧 attempt 不再推进；`instance` 只作追溯 |
+| `ExecutionRef` | 值，指向 Agent 权威 | `{ execution, revision, evidence, readThrough }` | Session 保存引用；记录归 Agent 的执行记录提供者 | 随 Run 开始分配执行身份；每次参加提交或读到事件时更新 | 不含接续值、检查点或 Agent 工作状态 |
+| `RoutedInput` | 实体 | `InputId` 或原来源 | Session | 受理（SE11）；普通输入经交入（SE35）到被承接（SE14）、拒收（SE35）或取消 | 一个输入至多一次有效承接；承接只从 Agent 事件派生；卡片决定与业务输入不进普通队列 |
+| `InputBatch` | 值，派生 | `BatchId`（Agent 批次身份的编码）加水位线 | Agent 决定；Session 保存派生副本（SE14） | 一次承接 | Agent 当时已交入输入的精确集合；Session 不重选批界或顺序 |
+| `CallBinding` | 值 | 随 `Consumption` | Agent 的等待事件给出；Session 登记派生副本（SE18）；Run 外调用由 Session 登记 | 登记（SE18） | 登记不表示已发出；Run 外调用的发起 attempt 为空 |
+| `Consumption` | 实体 | `ConsumptionId`（Agent 消费身份的编码） | Session | 登记到交付责任解除确认 | 每个结果版本按生产者、版本和交付唯一 |
 | `ProducedResult`、`ResultConsumption` | 值 | 随结果版本 | 结果归生产者；保管与处理事实归 Session | 保管（SE20）、处理（SE21）、解除确认 | 保管、处理与解除分别认回；保管不表示已处理 |
-| `Waiting` | 值 | 随原位置 | Session；卡片归 HITL | 等待开始到原位置处理或控制 | 阻塞只针对原位置；没有等待结束事件 |
+| `Waiting` | 值，派生 | 随原位置 | Agent 的等待事件给出；Session 保存副本（SE18、SE22）；卡片归 HITL | 等待出现在 Agent 事件到原位置处理、控制或新的等待集合 | 阻塞只针对原位置；没有等待结束事件 |
 | `ControlProgress` | 实体 | `SessionOperationId` | Session | 受理（SE24）到传播与核对完成（SE25） | 请求不等于物理停止；Run 取消生效即唯一被取消终态 |
-| `RecoveryTask` | 值 | 随原操作 | Session | 产生到确认或拒绝 | 四类：初始化、级联、路由输入、作用域释放 |
+| `RecoveryTask` | 值 | 随原操作 | Session | 产生到确认或拒绝 | 五类：初始化、级联、路由输入、作用域释放、启动资格失效 |
 | 日志条目（`HistoryEntry`，身份 `EntryId`） | 实体，记录事件 | `EntryId` 与 `SessionRevision` | Session | 提交后不可变 | 依据与留痕分开；业务写入只经 Session 命令 |
 | `WorkSnapshot` | 投影 | 随 `revision` | Session 归约 | 可丢，可重建 | 来自同一权威提交位置；不是第二份权威 |
-| `OpenWork` | 值，派生 | 随 `revision` | Session 归约 | 随快照 | 待处理、等待、后台占位、结果未知四个子集只从快照派生 |
+| `OpenWork` | 值，派生 | 随 `revision` | Session 归约 | 随快照 | 待处理、已交入未承接、等待、后台占位、结果未知、未读 Agent 事件六个部分只从快照派生 |
 | `CommitReceipt`、`OperationResolution` | 值 | `SessionOperationId` | Session | 随操作 | 同操作同参数认回原回执；未知不换身份 |
 | 会话当前值 | 值集合 | 随 Session | Session 保存；共享源归各拥有者 | 创建初值到变更（SE03 至 SE09） | 不复制共享源；恢复不重新套用默认 |
 | `Modes` | 值 | 随 Session | Session 保存；上界归权限、执行环境、协作各拥有者 | 创建初值（SE01）到各维独立变更（SE03） | 一次只改一维；Agent 发起的变更须有 HITL 授权证据；不突破结构化禁止 |
@@ -91,6 +94,7 @@ classDiagram
   class Run {
     RunId id
     Adoption adoption
+    InputId first
     RunTerminal terminal
   }
   class AdvanceRef {
@@ -102,6 +106,7 @@ classDiagram
     execution
     revision
     evidence
+    readThrough
   }
   Session "1" *-- "0..*" Run
   Session "1" *-- "0..*" RoutedInput
@@ -109,11 +114,11 @@ classDiagram
   Session "1" *-- "0..*" RecoveryTask
   Session "1" *-- "1..*" HistoryEntry : log
   Session "1" *-- "0..1" IdleObservation
-  Run "1" *-- "1..*" InputBatch
+  Run "1" *-- "0..*" InputBatch : derived from Agent events
   Run "1" o-- "0..1" AdvanceRef : current attempt
   Run "1" --> "1" ExecutionRef : refers to Agent record
-  Run "1" *-- "0..*" CallBinding
-  Run "1" *-- "0..*" Waiting
+  Run "1" *-- "0..*" CallBinding : derived from Agent events
+  Run "1" *-- "0..*" Waiting : derived from Agent events
   CallBinding "1" --> "1" Consumption
   Consumption "1" *-- "0..*" ResultConsumption
   ResultConsumption --> ProducedResult : original version
@@ -131,7 +136,7 @@ Run 外调用的 `CallBinding` 也归 Session，发起 attempt 为空，图中�
 
 会话的权威状态只在日志里。`WorkSnapshot`、模型可见历史的物化视图、消费游标和检查点都是派生物，丢失后可以从日志重建。消费游标随它产生的条目同提交，没有条目的事件只推进游标。
 
-Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态的唯一权威物化，Session 只保存 `ExecutionRef`。恢复者需要接续数据时从 Agent 的执行恢复服务读取原记录，见架构[与 Agent 执行的对应及执行引用](../../../../../docs/architecture/runtime/session-and-run.md#与-agent-执行的对应及执行引用)。
+Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态的唯一权威物化，Session 只保存 `ExecutionRef`。承接、调用登记、等待与终态在 Session 里是 Agent 事件的派生副本，可以从 Agent 记录重建。恢复者需要接续数据时从 Agent 的执行恢复服务读取原记录，见架构[与 Agent 执行的对应及执行引用](../../../../../docs/architecture/runtime/session-and-run.md#与-agent-执行的对应及执行引用)。
 
 ## 状态与转移
 
@@ -152,12 +157,12 @@ Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态�
 
 | 分类 | 内容 | 决定时点 | 能否序列化 | 与授权的关系 |
 | --- | --- | --- | --- | --- |
-| 单次操作参数 | `Access` 的主体、租户与会话，`SessionOperationId`，推进写的 `advance` 与 `expected`，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
+| 单次操作参数 | `Access` 的主体、租户与会话，`SessionOperationId`，`advance` 与 `expected`，参加材料，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
 | 构造依赖端口 | `SessionTransactionPort`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`，可选 `SessionNotifier` | 构造注入 | 不能，是能力对象 | 身份桥提供资格材料。其他端口的使用同样受每次操作的资格约束 |
-| 出站端口 | `AgentDrivePort`、`ScopeReleasePort` | 构造注入 | 不能 | 参数只含 Session 自己的值与不透明证据。作用域释放使用装配层维护者签发的恢复授权，不使用会话用户的访问身份 |
+| 出站端口 | `AgentDrivePort`、`ToolStartFencePort`、`ScopeReleasePort` | 构造注入 | 不能 | 参数只含 Session 自己的值与不透明证据。作用域释放使用装配层维护者签发的恢复授权，不使用会话用户的访问身份 |
 | 可序列化配置 | `SchedulingPolicy` 等调度策略 | 工厂创建时校验 | 能，不含业务身份、权限或秘密 | 无。配置归 `session` 工厂，不进本成员 |
 
-请求身份、固定采用和原位置作为显式值传递。存储、当前资格判断、时钟、空闲覆盖与 Context 材料通过构造依赖取得。逐操作的必需性与缺席行为沿 [SPEC](../../SPEC.md) 核对。Cordis 只在[集成主题](../../../session-cordis-contract/docs/cordis.md)中装配这些能力。
+请求身份、固定采用和原位置作为显式值传递。存储、当前资格判断、时钟、空闲覆盖与 Context 材料通过构造依赖取得。逐操作的必需性与缺席行为沿 [SPEC](../../SPEC.md#构造依赖端口与出站端口) 核对。Cordis 只在[集成主题](../../../session-cordis-contract/docs/cordis.md)中装配这些能力。
 
 ## 领域特有的结果与提交
 
@@ -166,13 +171,13 @@ Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态�
 | 对象 | 状态 | 条件与排序的拥有者 |
 | --- | --- | --- |
 | 日志条目 | 一经提交不可变，身份是 `EntryId` 与提交修订 | [事件目录](session-log-events.md) |
-| 共同提交 | 提交方持有存储操作身份；参加者在同一事务内写自己的事实，不自己提交 | SPEC 的共同提交表 |
-| `ResultConsumption.release` | `pending`、`confirmed` | SPEC 的事件消费与交付责任解除 |
+| 共同提交 | 提交方持有存储操作身份；参加者在同一事务内写自己的事实，不自己提交 | SPEC 的[共同提交与共享事务域](../../SPEC.md#共同提交与共享事务域) |
+| `ResultConsumption.release` | `pending`、`confirmed` | SPEC 的[事件消费与交付责任解除](../../SPEC.md#事件消费与交付责任解除) |
 | `ControlProgress` | `committed`、`propagating`、`reconciled` | [命令守卫与完整结果](session-state-transitions.md#命令守卫与完整结果) |
-| `RecoveryTask` | 各类的 `pending`、`unknown`、`failed` 或 `denied` | SPEC 的控制、恢复与保管边界 |
+| `RecoveryTask` | 各类的 `pending`、`unknown`、`failed` 或 `denied` | SPEC 的[故障恢复的操作边界](../../SPEC.md#pm-14) |
 | `RunTerminal` | `completed`、`failed`、`cancelled` | [Run 与 attempt 的两层状态](session-state-transitions.md#run-与-attempt-的两层状态) |
 
-开始 Run 与 Agent 受理执行是两次提交，顺序固定。Session 先提交 Run 开始与首个 attempt，再由协调者以该 attempt 的耐久证据调用 Agent。`claim` 与 `reload` 同样先于 Agent 的接续提交。压缩记录、变化提醒与后台占位经派生提交进入日志，压缩记录的提交步骤见架构[压缩记录的提交](../../../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。
+开始 Run 与 Agent 受理执行是两次提交，顺序固定。Session 先提交 Run 开始与首个 attempt，再由协调者以该 attempt 的耐久证据调用 Agent。`claim` 与 `reload` 同样先于 Agent 的接续提交。压缩记录经 Agent 的压缩转换交接进入日志，变化提醒由 Session 自己提交，后台占位消息由 Agent 的消息交接进入日志；压缩记录的提交步骤见架构[压缩记录的提交](../../../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。
 
 ## SOLID 与扩展边界
 

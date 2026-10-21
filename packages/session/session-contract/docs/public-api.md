@@ -10,7 +10,7 @@
 
 [行为与约束](../SPEC.md#值与结果项的约束)。
 
-Session 不保存接续值。`RunState.active.execution` 是指向 Agent 权威记录的 `ExecutionRef`，推进命令不带接续参数。
+Session 不保存接续值。`RunState.active.execution` 是指向 Agent 权威记录的 `ExecutionRef`，推进命令不带接续参数。`AttemptId` 是 (Run, 序号) 的确定编码，从日志派生，不另存。`BatchId` 与 `ConsumptionId` 是 Agent 批次身份与消费身份在本成员的编码值。
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result'
@@ -22,11 +22,14 @@ declare const sessionIdentity: unique symbol
 export type SessionIdentity<K extends string> = string & { readonly [sessionIdentity]: K }
 export type SessionId = SessionIdentity<'SessionId'>
 export type RunId = SessionIdentity<'RunId'>
+/** Deterministic encoding of (run, ordinal). Derived from the log, never stored on its own. */
 export type AttemptId = SessionIdentity<'AttemptId'>
 export type InputId = SessionIdentity<'SessionInputId'>
+/** Encoded Agent input-batch identity. */
 export type BatchId = SessionIdentity<'SessionBatchId'>
 export type SessionOperationId = SessionIdentity<'SessionOperationId'>
 export type SessionRevision = SessionIdentity<'SessionRevision'>
+/** Encoded Agent consumption identity. */
 export type ConsumptionId = SessionIdentity<'SessionConsumptionId'>
 /** Crosses the boundary encoded as the message package's RecordEntryRef. */
 export type EntryId = SessionIdentity<'SessionEntryId'>
@@ -38,17 +41,19 @@ export type SessionCallerClass = 'intake' | 'coordinator' | 'maintainer' | 'read
 export type Access<P> = Readonly<{ principal: P; tenant: TenantId; session: SessionId }>
 export type Mutation<P> = Access<P> & Readonly<{ operation: SessionOperationId }>
 export type AdvanceRef = Readonly<{ run: RunId; attempt: AttemptId; instance: AgentInstanceRef }>
-/** Points at the Agent's authoritative record. revision and evidence are null before the first participated Agent commit. */
+/**
+ * Points at the Agent's authoritative record. revision and evidence come from the latest Agent event
+ * read or the latest participated commit; both are null before the first one. readThrough is the
+ * last Agent event sequence read and saved; "0" before the first event.
+ */
 export type ExecutionRef = Readonly<{
-  execution: string; revision: string | null; evidence: DurableEvidence | null
+  execution: string; revision: string | null; evidence: DurableEvidence | null; readThrough: string
 }>
 /** P-2 material handed over by the execution record provider when Session acts as a commit participant. */
-export type ExecutionParticipation = Readonly<{
-  execution: string; operation: string; joint: string
-  expected: string | null; written: string; handover: DurableEvidence
-}>
-export type AdvanceWrite<P> = Mutation<P> & Readonly<{
-  advance: AdvanceRef; expected: SessionRevision; participation: ExecutionParticipation | null
+export type Participation = Readonly<{
+  execution: string; operation: string
+  joint: 'message' | 'context-transition' | 'custody' | 'processed'
+  written: string; handover: DurableEvidence
 }>
 export type ProducerRef =
   | Readonly<{ kind: 'model'; call: string }>
@@ -68,8 +73,9 @@ export type ResultConsumption = Readonly<{
 export type Consumption = Readonly<{
   id: ConsumptionId; binding: CallBinding; results: readonly ResultConsumption[]
 }>
+/** One Agent input batch as the Agent's input-taken event reported it. Session never reselects it. */
 export type InputBatch = Readonly<{
-  id: BatchId; boundary: SessionRevision; ordered: readonly InputId[]
+  id: BatchId; watermark: DurableEvidence; ordered: readonly InputId[]
 }>
 export type RunTerminal = Readonly<{
   run: RunId; outcome: 'completed' | 'failed' | 'cancelled'; evidence: DurableEvidence
@@ -77,7 +83,7 @@ export type RunTerminal = Readonly<{
 export type RunState =
   | Readonly<{ kind: 'none' }>
   | Readonly<{
-      kind: 'active'; run: RunId; adoption: Adoption; batch: InputBatch
+      kind: 'active'; run: RunId; adoption: Adoption; first: InputId
       advance: AdvanceRef | null; ordinal: string; execution: ExecutionRef
     }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
@@ -87,10 +93,12 @@ export type Waiting =
       kind: 'extension-batch'; passage: string; position: string
       members: readonly Readonly<{ action: string; card: DurableEvidence; decision: DurableEvidence | null }>[]
     }>
+  | Readonly<{ kind: 'dependency'; owner: string; position: string }>
 export type ControlTarget =
   | Readonly<{ kind: 'run'; run: RunId }>
   | Readonly<{ kind: 'producer'; producer: ProducerRef }>
   | Readonly<{ kind: 'session' }>
+/** state: committed = intent saved; propagating = some producer or start fence still unconfirmed; reconciled = all confirmed. */
 export type ControlProgress = Readonly<{
   operation: SessionOperationId; target: ControlTarget; intent: ControlIntent
   state: 'committed' | 'propagating' | 'reconciled'; pending: readonly ProducerRef[]
@@ -120,12 +128,17 @@ export type RecoveryTask =
       kind: 'scope-release'; archive: SessionOperationId; scope: string
       state: 'pending' | 'unknown'; last: readonly ScopeReleaseDisposition[]
     }>
+  | Readonly<{
+      kind: 'start-fence'; operation: SessionOperationId; advance: AdvanceRef
+      state: 'pending' | 'unknown'
+    }>
 export type WorkSnapshot = Readonly<{
   session: SessionId; tenant: TenantId; revision: SessionRevision; interpreter: Adoption; source: DurableEvidence
   lifecycle: 'initializing' | 'dormant' | 'active' | 'archived'
   definition: Readonly<{ name: string; adopted: Adoption }>
   execution: Adoption; declarations: DurableEvidence
-  run: RunState; pending: readonly InputId[]
+  revisions: Readonly<{ workspace: string; declarations: string }>
+  run: RunState; pending: readonly InputId[]; handed: readonly InputId[]
   waiting: readonly Waiting[]; consumptions: readonly Consumption[]
   controls: readonly ControlProgress[]; unresolved: readonly SessionOperationId[]
   creation: SessionCreation; tasks: readonly RecoveryTask[]
@@ -133,11 +146,40 @@ export type WorkSnapshot = Readonly<{
 }>
 ```
 
+## 操作身份的派生
+
+[OP-00](../SPEC.md#op-00)。两个纯函数从稳定要素派生身份，输入不含时间、随机数或连接。
+
+```ts
+export type SessionOperationElements =
+  | Readonly<{ kind: 'startRun'; session: SessionId; first: InputId }>
+  | Readonly<{ kind: 'participation'; execution: string; operation: string; joint: Participation['joint'] }>
+  | Readonly<{ kind: 'claim'; run: RunId; instance: AgentInstanceRef; continuity: DurableEvidence }>
+  | Readonly<{ kind: 'reload'; run: RunId; candidate: Adoption; handover: DurableEvidence }>
+  | Readonly<{ kind: 'release'; advance: AdvanceRef; handover: DurableEvidence }>
+  | Readonly<{ kind: 'bounded-close'; run: RunId; basis: BoundedClose }>
+  | Readonly<{ kind: 'result'; consumption: ConsumptionId; version: string }>
+  | Readonly<{ kind: 'external-call'; binding: CallBinding }>
+  | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
+  | Readonly<{ kind: 'idle'; session: SessionId; observation: DurableEvidence }>
+  | Readonly<{ kind: 'auto-archive'; session: SessionId; idleEvidence: DurableEvidence }>
+  | Readonly<{ kind: 'fact'; fact: ProducerFact }>
+export type DriveOperationElements =
+  | Readonly<{ kind: 'invoke'; execution: string; first: InputId; started: DurableEvidence }>
+  | Readonly<{ kind: 'submit'; execution: string; input: InputId }>
+  | Readonly<{ kind: 'resume'; execution: string; grant: DurableEvidence }>
+  | Readonly<{ kind: 'detach'; execution: string; advance: AdvanceRef }>
+  | Readonly<{ kind: 'control'; execution: string; control: SessionOperationId }>
+  | Readonly<{ kind: 'recordResult'; execution: string; consumption: ConsumptionId; version: string; transfer: 'custody' | 'processed' | 'none' }>
+export declare function deriveSessionOperation(elements: SessionOperationElements): SessionOperationId
+export declare function deriveDriveOperation(elements: DriveOperationElements): string
+```
+
 ## 输入、推进、结果及终态操作
 
 [行为与约束](../SPEC.md#sessionwork)。命令与事件见[命令表](../SPEC.md#命令表)。
 
-`claim.continuity` 是指向 Agent 原记录的耐久证据，绑定读得的修订与来源，不是接续值。`reload` 只收交接证明 `handover`。
+`accept` 的受理标识就是 `Mutation.operation`；普通输入的 `InputId` 是受理入口在首次发送前分配的输入身份，重试保持同值。`claim.continuity` 是指向 Agent 原记录的耐久证据，绑定读得的修订与来源，不是接续值。`reload` 只收交接证明 `handover`。`startRun` 不带批次：它只固定首条输入，其余待处理输入经出站端口逐条交入。
 
 ```ts
 export type RoutedInput =
@@ -154,11 +196,7 @@ export type SessionFailure =
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
-  | Readonly<{ kind: 'blocked'; reasons: readonly BlockReason[] }>
-  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' }>
-export type BlockReason =
-  | 'pending-inputs' | 'waiting' | 'open-consumption' | 'mode-check'
-  | 'before-terminal-missing' | 'pending-call' | 'card-batch'
+  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
   operation: SessionOperationId; revision: SessionRevision
@@ -169,25 +207,21 @@ export type OperationResolution =
   | Readonly<{ kind: 'attempt-rejected'; original: 'unknown'; reason: string }>
   | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'unknown' }>
+export type EntryClass = 'interactive' | 'dispatch'
 export type StartedRun = Readonly<{
-  receipt: CommitReceipt; advance: AdvanceRef; adopted: Adoption; inputs: InputBatch; execution: string
+  receipt: CommitReceipt; advance: AdvanceRef; adopted: Adoption; first: InputId; execution: string
 }>
+/** The processed hand-over of one result version. The message, if any, arrives by the message hand-over. */
 export type Completion = Readonly<{
-  consumption: ConsumptionId; result: ProducedResult; position: string
-  processing: DurableEvidence; message: Message | null
-  extensionConclusions: readonly DurableEvidence[]
+  consumption: ConsumptionId; result: ProducedResult; completion: DurableEvidence
 }>
 export type ExternalCompletion = Readonly<{
   consumption: ConsumptionId; result: ProducedResult; position: string
   processing: DurableEvidence; message: Message | null
 }>
-export type BatchPage = Readonly<{
-  batch: InputBatch; inputs: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
-  next: string | null; exhausted: boolean
-}>
-export type FixedRequestMaterial = Readonly<{
-  consumption: ConsumptionId; producer: ProducerRef; source: DurableEvidence
-  schema: Adoption; value: JsonValue
+export type AdmittedMessage = Readonly<{
+  message: Message; source: DurableEvidence; admission: DurableEvidence
+  consumption: ConsumptionId | null
 }>
 export type Control =
   | Readonly<{ kind: 'cancel-run'; run: RunId; urgency: 'graceful' | 'force' }>
@@ -195,28 +229,20 @@ export type Control =
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
   | Readonly<{ kind: 'archive' }>
   | Readonly<{ kind: 'unarchive' }>
-export type RunConclusion =
-  | Readonly<{ kind: 'complete'; beforeTerminal: DurableEvidence }>
-  | Readonly<{ kind: 'fail'; cause: DurableEvidence }>
-  | Readonly<{ kind: 'cancelled'; control: SessionOperationId }>
-/** Bounded close by Session. Always ends as failed. "No record yet" is not uninterpretable. */
+/** Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds. */
 export type BoundedClose =
   | Readonly<{ kind: 'uninterpretable'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'execution-ended'; conclusion: DurableEvidence }>
-  | Readonly<{ kind: 'admission-rejected'; rejection: DurableEvidence }>
+  | Readonly<{ kind: 'admission-rejected'; input: InputId; rejection: DurableEvidence }>
 export type DerivedMessage =
   | Readonly<{ kind: 'compaction'; message: CompactionMessage }>
   | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
-  | Readonly<{ kind: 'background-placeholder'; message: Message; producer: Extract<ProducerRef, { kind: 'tool' }>; source: DurableEvidence }>
 export interface SessionWork<P> {
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: Access<P>): Reply<WorkSnapshot>
-  readBatch(input: Access<P> & Readonly<{ batch: BatchId; cursor: string | null }>): Reply<BatchPage>
-  readRequest(input: Access<P> & Readonly<{ consumption: ConsumptionId }>): Reply<FixedRequestMaterial>
+  readInput(input: Access<P> & Readonly<{ input: InputId }>): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>
   startRun(input: Mutation<P> & Readonly<{
-    candidate: Adoption; instance: AgentInstanceRef
+    entry: EntryClass; candidate: Adoption; instance: AgentInstanceRef
   }>): Reply<StartedRun>
-  takeInputs(input: AdvanceWrite<P> & Readonly<{ position: string }>): Reply<Readonly<{ receipt: CommitReceipt; batch: InputBatch }>>
   claim(input: Mutation<P> & Readonly<{
     run: RunId; instance: AgentInstanceRef; continuity: DurableEvidence
   }>): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
@@ -224,45 +250,51 @@ export interface SessionWork<P> {
     run: RunId; candidate: Adoption; instance: AgentInstanceRef
     expected: SessionRevision; handover: DurableEvidence
   }>): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
-  bindCall(input: AdvanceWrite<P> & Readonly<{ binding: CallBinding }>): Reply<Readonly<{ receipt: CommitReceipt; consumption: ConsumptionId }>>
+  recordMessage(input: Mutation<P> & Readonly<{
+    participation: Participation; value: AdmittedMessage
+  }>): Reply<CommitReceipt>
+  preserveResult(input: Mutation<P> & Readonly<{
+    participation: Participation | null
+    consumption: ConsumptionId; result: ProducedResult; custody: DurableEvidence
+  }>): Reply<DurableEvidence>
+  completeConsumption(input: Mutation<P> & Readonly<{
+    participation: Participation; completion: Completion
+  }>): Reply<DurableEvidence>
+  completeExternalConsumption(input: Mutation<P> & Readonly<{
+    expected: SessionRevision; qualification: DurableEvidence; completion: ExternalCompletion
+  }>): Reply<DurableEvidence>
   bindExternalCall(input: Mutation<P> & Readonly<{
     expected: SessionRevision; qualification: DurableEvidence
     binding: CallBinding & Readonly<{ initiatingAttempt: null }>
   }>): Reply<Readonly<{ receipt: CommitReceipt; consumption: ConsumptionId }>>
-  preserveResult(input: Mutation<P> & Readonly<{
-    consumption: ConsumptionId; result: ProducedResult; custody: DurableEvidence
-  }>): Reply<DurableEvidence>
-  completeConsumption(input: AdvanceWrite<P> & Readonly<{ completion: Completion }>): Reply<DurableEvidence>
-  completeExternalConsumption(input: Mutation<P> & Readonly<{
-    expected: SessionRevision; qualification: DurableEvidence; completion: ExternalCompletion
-  }>): Reply<DurableEvidence>
-  recordProgress(input: AdvanceWrite<P> & Readonly<{
-    passage: DurableEvidence; waiting: readonly Waiting[]
-  }>): Reply<CommitReceipt>
   commitDerived(input:
-    | (AdvanceWrite<P> & Readonly<{
-        value: Exclude<DerivedMessage, { kind: 'context-reminder' }>; judgment: DurableEvidence
+    | (Mutation<P> & Readonly<{
+        participation: Participation
+        value: Extract<DerivedMessage, { kind: 'compaction' }>; judgment: DurableEvidence
       }>)
     | (Mutation<P> & Readonly<{
         expected: SessionRevision; value: Extract<DerivedMessage, { kind: 'context-reminder' }>
       }>)
   ): Reply<CommitReceipt>
-  release(input: AdvanceWrite<P> & Readonly<{ handover: DurableEvidence }>): Reply<CommitReceipt>
+  release(input: Mutation<P> & Readonly<{
+    advance: AdvanceRef; expected: SessionRevision; handover: DurableEvidence
+  }>): Reply<CommitReceipt>
   control(input: Mutation<P> & Readonly<{ intent: Control }>): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
-  finishRun(input:
-    | (AdvanceWrite<P> & Readonly<{ conclusion: RunConclusion }>)
-    | (Mutation<P> & Readonly<{ run: RunId; expected: SessionRevision; bounded: BoundedClose }>)
-  ): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
+  finishRun(input: Mutation<P> & Readonly<{
+    run: RunId; expected: SessionRevision; bounded: BoundedClose
+  }>): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
   queryOperation(input: Access<P> & Readonly<{ operation: SessionOperationId }>): Reply<OperationResolution>
   loadRecovery(input: Access<P>): Reply<WorkSnapshot>
 }
 ```
 
-`DerivedMessage.compaction` 只带 message 包的压缩消息。消息自身的 `covers`、`retained` 与 `derivation` 是唯一的一份证据，形状与规则归 [message 包](../../../common/message/SPEC.md#形状)。`context-reminder.source` 指 Runtime Context 变化材料的证据。
+`DerivedMessage.compaction` 只带 message 包的压缩消息。消息自身的 `covers`、`retained` 与 `derivation` 是唯一的一份证据，形状与规则归 [message 包](../../../common/message/SPEC.md#形状)。`context-reminder.source` 指 Runtime Context 变化材料的证据。`AdmittedMessage.consumption` 在工具消息与后台占位消息上指向原消费位置，其他消息为 null。
 
 ## 同提交守卫与跨成员使用
 
-[共同提交与共享事务域](../SPEC.md#共同提交与共享事务域)、[Agent 提交参加者](../SPEC.md#agent-提交参加者)。
+[共同提交与共享事务域](../SPEC.md#共同提交与共享事务域)、[与 Agent 的参加与核对](../SPEC.md#与-agent-的参加与核对)。
+
+条件终结的只读参加没有公开命令：Session 参加者在 Agent 的终结提交里运行 `judgeCompletion`，以参加、冲突或失败响应。
 
 ## 控制、恢复与保管边界
 
@@ -273,6 +305,8 @@ export interface SessionWork<P> {
 [行为与约束](../SPEC.md#sessionmanagement)、[SessionReconciliation](../SPEC.md#sessionreconciliation)、[SessionHistory](../SPEC.md#sessionhistory)。
 
 `change` 的维度名为 `permission-mode`、`collaboration-mode`、`environment-mode`、`model`、`workspace`、`declaration`、`context-registration`、`context-step-commit`、`recovery-input`。Runtime Context 的需要、绑定与参数值以带 schema 的 JSON 进入本契约，翻译在 session-adapters。
+
+`ProducerFact` 的 `agent-event` 变体是 Agent 事件流派生的事实，身份为执行与序号；缺口后从快照读到的结束状态以 `sequence` 为 null、`source` 为快照证据提交。`input-handover` 是出站 `invoke` 或 `submit` 的受理或拒收回执。
 
 ```ts
 export type Modes = Readonly<{
@@ -346,17 +380,37 @@ export interface SessionManagement<P> {
     run: RunId; urgent: Extract<RoutedInput, { kind: 'ordinary' }>; decision: DurableEvidence
   }>): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
 }
+export type AgentEventFact =
+  | Readonly<{ kind: 'input-taken'; batch: InputBatch }>
+  | Readonly<{ kind: 'waiting'; waits: readonly Waiting[] }>
+  | Readonly<{ kind: 'producer'; result: ProducedResult; consumption: ConsumptionId }>
+  | Readonly<{
+      kind: 'control'; control: SessionOperationId
+      stage: 'intent-established' | 'qualification-revoked' | 'producer-confirmed' | 'physically-stopped' | 'duty-released'
+      state: 'reached' | 'unresolved'
+    }>
+  | Readonly<{ kind: 'ended'; conclusion: 'complete' | 'fail' | 'cancelled'; cause: DurableEvidence | null; disposition: DurableEvidence }>
 export type ProducerFact =
+  | Readonly<{
+      kind: 'agent-event'; execution: string; sequence: string | null
+      attachment: string; source: DurableEvidence; body: AgentEventFact
+    }>
+  | Readonly<{
+      kind: 'input-handover'; execution: string; input: InputId
+      result: Readonly<{ kind: 'accepted'; receipt: DurableEvidence }> | Readonly<{ kind: 'rejected'; reason: string; rejection: DurableEvidence }>
+    }>
+  | Readonly<{ kind: 'agent-exit'; advance: AdvanceRef; source: DurableEvidence }>
   | Readonly<{ kind: 'execution'; producer: ProducerRef; source: DurableEvidence }>
   | Readonly<{ kind: 'account'; producer: ProducerRef; source: DurableEvidence }>
   | Readonly<{ kind: 'release'; consumption: ConsumptionId; result: ProducedResult; source: DurableEvidence }>
-  | Readonly<{ kind: 'control'; control: SessionOperationId; source: DurableEvidence }>
   | Readonly<{ kind: 'cascade'; child: SessionId; childOperation: SessionOperationId; source: DurableEvidence }>
   | Readonly<{ kind: 'routed-input'; originalOperation: SessionOperationId; source: DurableEvidence }>
   | Readonly<{
       kind: 'scope-release'; archive: SessionOperationId; scope: string
       dispositions: readonly ScopeReleaseDisposition[]; source: DurableEvidence
     }>
+  | Readonly<{ kind: 'start-fence'; operation: SessionOperationId; advance: AdvanceRef; source: DurableEvidence }>
+/** unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; idle-due: confirmed idle evidence is due under the current policy. */
 export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'idle-due'
 export interface SessionReconciliation<P> {
   receive(input: Mutation<P> & Readonly<{ fact: ProducerFact }>): Reply<CommitReceipt>
@@ -382,19 +436,20 @@ export interface SessionHistory<P> {
     after: EntryId; kinds: readonly string[]; pageBytes: number
   }>): Reply<HistoryPage>
 }
-export interface SessionService<P> {
-  readonly work: SessionWork<P>
-  readonly management: SessionManagement<P>
-  readonly reconciliation: SessionReconciliation<P>
-  readonly history: SessionHistory<P>
-}
+/** The four faces as one value. The Cordis abstract class SessionService in session-cordis-contract exposes them under the key `session`. */
+export type SessionFaces<P> = Readonly<{
+  work: SessionWork<P>
+  management: SessionManagement<P>
+  reconciliation: SessionReconciliation<P>
+  history: SessionHistory<P>
+}>
 ```
 
 `HistoryEntry.origin.via` 只供人与诊断使用，不参与治理。
 
 ## 领域服务与归约
 
-[行为与约束](../SPEC.md#领域服务与归约)。十个领域服务与 `reduce` 都是纯函数。`openWork` 只有一个实现。
+[行为与约束](../SPEC.md#领域服务与归约)。九个领域服务与 `reduce` 都是纯函数。`openWork` 只有一个实现。
 
 ```ts
 export type AdvanceJudgment =
@@ -406,24 +461,26 @@ export type AdvanceJudgment =
 export type AdvanceClaim =
   | Readonly<{ kind: 'attempt'; advance: AdvanceRef; expected: SessionRevision }>
   | Readonly<{ kind: 'bounded'; run: RunId; expected: SessionRevision; basis: BoundedClose }>
+  | Readonly<{ kind: 'participation'; execution: string; joint: Participation['joint'] }>
 export type RouteJudgment =
   | Readonly<{ kind: 'queue'; destination: 'current-run' | 'next-run' }>
   | Readonly<{ kind: 'card'; destination: DurableEvidence }>
   | Readonly<{ kind: 'business'; owner: string }>
   | Readonly<{ kind: 'rejected'; reason: 'archived' | 'invalid' }>
-export type BatchJudgment = Readonly<{ kind: 'batch'; batch: InputBatch }> | Readonly<{ kind: 'empty' }>
-export type EntryClass = 'interactive' | 'dispatch'
 export type RunStartJudgment =
-  | Readonly<{ kind: 'eligible'; batch: InputBatch }>
+  | Readonly<{ kind: 'eligible'; first: InputId }>
   | Readonly<{ kind: 'not-ready' | 'archived' | 'run-active' | 'no-input' | 'login-required' }>
+/** Six parts, all derived from the snapshot. unreadEvents: Agent events after readThrough count as open work. */
 export type OpenWork = Readonly<{
-  unreadInputs: readonly InputId[]; pending: readonly InputId[]
+  pending: readonly InputId[]; handed: readonly InputId[]
   waiting: readonly Waiting[]; backgroundPlaceholders: readonly ConsumptionId[]
   unresolved: readonly SessionOperationId[]
+  unreadEvents: readonly Readonly<{ execution: string; after: string }>[]
 }>
 export type CompletionJudgment =
   | Readonly<{ kind: 'allowed' }>
-  | Readonly<{ kind: 'blocked'; reasons: readonly BlockReason[] }>
+  | Readonly<{ kind: 'blocked'; pendingInputs: readonly InputId[] }>
+  | Readonly<{ kind: 'cancelled'; terminal: RunTerminal }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
 export type ControlScope =
   | Readonly<{
@@ -447,10 +504,9 @@ export type ReduceResult =
 
 export declare function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment
 export declare function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJudgment
-export declare function formBatch(snapshot: WorkSnapshot): BatchJudgment
 export declare function judgeRunStart(snapshot: WorkSnapshot, entry: EntryClass): RunStartJudgment
 export declare function openWork(snapshot: WorkSnapshot): OpenWork
-export declare function judgeCompletion(snapshot: WorkSnapshot, conclusion: RunConclusion): CompletionJudgment
+export declare function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment
 export declare function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope
 export declare function resolveCascade(snapshot: WorkSnapshot, children: readonly SessionId[]): readonly RecoveryTask[]
 export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
@@ -462,29 +518,36 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 
 ## 出站端口与块声明
 
-[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)、[会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点)。出站端口的参数只含本成员的值与不透明证据。服务键归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)。
+[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)、[会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点)。出站端口的参数只含本成员的值与不透明证据，输入只带身份，内容由适配器经 `readInput` 取得。服务键归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)。
 
 ```ts
 export type DriveFailure =
-  | Readonly<{ kind: 'denied' | 'busy' | 'terminal' | 'changed' | 'stale-advance' | 'unsupported' }>
+  | Readonly<{ kind: 'denied' | 'busy' | 'terminal' | 'changed' | 'stale-advance' | 'unsupported' | 'conflict' }>
   | Readonly<{ kind: 'invalid'; reason: string; rejection: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'commit-unknown'; operation: string }>
 export type DriveReply<T> = Promise<Outcome<T, DriveFailure>>
 export type DriveTarget = Readonly<{ tenant: TenantId; session: SessionId; execution: string; operation: string }>
+export type DriveReceipt = Readonly<{ revision: string; evidence: DurableEvidence }>
 export type ExecutionStatus = Readonly<{
   revision: string | null
   state: 'missing' | 'open' | 'suspended' | 'ended'
   attachment: 'active' | 'detached' | 'superseded' | null
-  conclusion: DurableEvidence | null; evidence: DurableEvidence
+  conclusion: Readonly<{ outcome: 'complete' | 'fail' | 'cancelled'; cause: DurableEvidence | null; disposition: DurableEvidence }> | null
+  evidence: DurableEvidence
 }>
 export interface AgentDrivePort {
-  invoke(input: DriveTarget & Readonly<{ inputs: InputBatch; source: DurableEvidence; grant: DurableEvidence }>): DriveReply<DurableEvidence>
-  submit(input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>): DriveReply<DurableEvidence>
-  resume(input: DriveTarget & Readonly<{ recovery: DurableEvidence; grant: DurableEvidence }>): DriveReply<DurableEvidence>
-  control(input: DriveTarget & Readonly<{ control: SessionOperationId; intent: Control }>): DriveReply<DurableEvidence>
-  detach(input: DriveTarget & Readonly<{ attempt: AdvanceRef }>): DriveReply<DurableEvidence>
-  query(input: DriveTarget): DriveReply<'committed' | 'not-committed' | 'excluded' | 'unknown'>
+  invoke(input: DriveTarget & Readonly<{ first: InputId; source: DurableEvidence; grant: DurableEvidence }>): DriveReply<DriveReceipt>
+  submit(input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>): DriveReply<DriveReceipt>
+  resume(input: DriveTarget & Readonly<{ recovery: DurableEvidence; grant: DurableEvidence }>): DriveReply<DriveReceipt>
+  control(input: DriveTarget & Readonly<{ control: SessionOperationId; intent: Control }>): DriveReply<DriveReceipt>
+  detach(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
+  recordResult(input: DriveTarget & Readonly<{
+    consumption: ConsumptionId; result: ProducedResult
+    transfer: Readonly<{ kind: 'custody'; retained: DurableEvidence }> | Readonly<{ kind: 'processed'; completion: DurableEvidence }> | Readonly<{ kind: 'none' }>
+    release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: DurableEvidence }>
+  }>): DriveReply<DriveReceipt>
+  query(input: DriveTarget): DriveReply<'committed' | 'excluded' | 'unknown'>
   inspect(input: Omit<DriveTarget, 'operation'>): DriveReply<ExecutionStatus>
   /** Not called until the Agent host instance-creation entry exists (SPEC P-7). */
   prewarm(input: Readonly<{ tenant: TenantId; session: SessionId; adoption: Adoption; counters: DurableEvidence }>): DriveReply<'requested'>
@@ -511,7 +574,7 @@ export type SessionBlockDeclaration = Readonly<{
 export declare const sessionModesBlock: SessionBlockDeclaration
 ```
 
-`ScopeReleasePort` 的参数不含恢复授权。恢复授权由应用装配层的维护拥有者签发，经装配注入端口实现。
+`ScopeReleasePort` 的参数不含恢复授权。恢复授权由应用装配层的维护拥有者签发，经装配注入端口实现。`query` 的 `excluded` 是 Agent 的排除证明，等于本成员 `OperationResolution` 的 `not-committed`。`invalidate` 返回 `unavailable` 或 `commit-unknown` 时，`ControlProgress.startFence` 与 `tasks.start-fence` 保持 `pending`。`release` 结果未知或抛出时任务状态为 `unknown`，以同一操作身份重试。
 
 ## 当前增量与后续接口
 
@@ -519,10 +582,9 @@ export declare const sessionModesBlock: SessionBlockDeclaration
 
 ```ts
 export type MutationName =
-  | 'accept' | 'startRun' | 'takeInputs' | 'claim' | 'reload' | 'bindCall'
-  | 'bindExternalCall' | 'completeExternalConsumption'
-  | 'preserveResult' | 'completeConsumption' | 'recordProgress' | 'release'
-  | 'commitDerived'
+  | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage'
+  | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption'
+  | 'bindExternalCall' | 'commitDerived' | 'release'
   | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change'
   | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'receive'
 type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>
@@ -560,8 +622,7 @@ export interface SessionTransactionPort<P> {
     command: Extract<SessionCommand, { kind: K }>; guards: readonly GuardCommand[]
   }>): ReturnType<Mutations[K]>
   readWork(input: Access<P>): Reply<WorkSnapshot>
-  readBatch(input: Access<P> & Readonly<{ batch: BatchId; cursor: string | null }>): Reply<BatchPage>
-  readRequest(input: Access<P> & Readonly<{ consumption: ConsumptionId }>): Reply<FixedRequestMaterial>
+  readInput(input: Access<P> & Readonly<{ input: InputId }>): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>
   queryOperation(input: Access<P> & Readonly<{ operation: SessionOperationId }>): Reply<OperationResolution>
   readonly history: SessionHistory<P>
   pending(input: Readonly<{

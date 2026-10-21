@@ -1,6 +1,6 @@
 # Session log 的原生业务事件目录
 
-状态为候选，待用户确认。本文定义当前采用能力必须保存的事实语义、来源、经由、提交路径、效力与治理后果。[主架构](../../../session/docs/architecture/mechanisms.md#session-log-的事件模型)拥有共同提交、查询和恢复算法，[状态与转移](session-state-transitions.md)拥有守卫与整批归约，[Session SPEC](../../SPEC.md)拥有长期行为义务。
+状态为候选，尚未技术接受。本文定义当前采用能力必须保存的事实语义、来源、经由、提交路径、效力与治理后果。[主架构](../../../session/docs/architecture/mechanisms.md#session-log-的事件模型)拥有共同提交、查询和恢复算法，[状态与转移](session-state-transitions.md)拥有守卫与整批归约，[Session SPEC](../../SPEC.md)拥有长期行为义务。
 
 一条事实保存为一个日志条目。读形状是 `HistoryEntry`，身份是 `EntryId`。术语效力归[当前统一语言](../../../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md)。SE 编号是本文的定位标识，不是已经发布的种类、公开 Schema 或统一语言新词。目录覆盖当前采用的原生业务。插件以后新增事实仍需相应拥有者定义、评审和准入，本文不宣称未来种类已经枚举完。
 
@@ -8,7 +8,7 @@
 
 入口提交业务意图及原操作身份。Session 根据当前资格和状态决定结果，调用者不能任填条目、效力或治理变化。普通输入受理、Run 开始、reload、插队和归档各有必要事实组合，沿[完整结果](session-state-transitions.md#命令守卫与完整结果)共同提交。第一批可同时包含创建、已完成初始化和初始消息，仍须能从未创建状态解释整批。
 
-一种事实可以内嵌在更大的条目中。例如 Run 开始可以同时表达首批输入承接，相同承接不再另记一份有效决定。合并编码须完整保留本文要求的数据与因果，分开编码须在同一完整批次成立。精确编码由实际成员拥有。
+一种事实可以内嵌在更大的条目中。例如归档可以同时表达同批 Run 的被取消终态，相同终态不再另记一份有效决定。合并编码须完整保留本文要求的数据与因果，分开编码须在同一完整批次成立。精确编码由实际成员拥有。
 
 业务写入只经 Session 的命令。任何来源域的事实都经一个变更命令进入日志，邻域不拼写 SE 编号或种类名。
 
@@ -55,19 +55,19 @@
 
 本节是候选修订，技术接受前不扩大本页既有承诺。
 
-34 类事实按事实拥有者分为九族，每族有一个主要来源域。按族组织不新增类别，SE01 至 SE34 的编号与含义不变。本版没有新增事件。以后新增的事实在所属族的表尾取 SE35 起的新编号，并在表中写明所属族。
+35 类事实按事实拥有者分为九族，每族有一个主要来源域。按族组织不新增类别，SE01 至 SE34 的编号与含义不变。本版新增 SE35（族 C，输入交入结果）。以后新增的事实在所属族的表尾取 SE36 起的新编号，并在表中写明所属族。
 
 | 族 | SE | 主要来源域 | 主要提交命令 |
 | --- | --- | --- | --- |
 | A 会话身份与声明 | SE01 至 SE09 | 用户、装配、设置拥有者、Runtime Context | `create`、`completeInitialization`、`change`、`configureAutoArchive`、`reload` |
-| B 历史消息 | SE10 | 用户、Agent、Request Context、作用域持有者、Tool | `accept`、`completeConsumption`、`commitDerived`、`interrupt` |
-| C 受理与分流 | SE11、SE12 | 用户、HITL、业务拥有者、准入者 | `accept` |
-| D Run、批次与 attempt | SE13 至 SE17 | Session 治理、Agent | `startRun`、`takeInputs`、`claim`、`reload`、`release`、`receive` |
-| E 调用与结果 | SE18 至 SE21 | Agent、Model、Tool、保管者 | `bindCall`、`bindExternalCall`、`receive`、`preserveResult`、`completeConsumption`、`completeExternalConsumption` |
-| F 扩展与 HITL | SE22、SE23 | Agent 与扩展拥有者、HITL | `recordProgress`、`accept` |
+| B 历史消息 | SE10 | 用户、Agent、Request Context、作用域持有者、Tool | `accept`、`recordMessage`、`commitDerived`、`completeExternalConsumption`、`interrupt` |
+| C 受理与分流 | SE11、SE12、SE35 | 用户、HITL、业务拥有者、准入者、Agent 的消息准入 | `accept`、`receive` |
+| D Run、批次与 attempt | SE13 至 SE17 | Session 治理、Agent | `startRun`、`claim`、`reload`、`release`、`receive`、`control`、`finishRun` |
+| E 调用与结果 | SE18 至 SE21 | Agent、Model、Tool、保管者 | `receive`、`bindExternalCall`、`preserveResult`、`completeConsumption`、`completeExternalConsumption` |
+| F 扩展与 HITL | SE22、SE23 | Agent 与拓展件拥有者、HITL | `receive`、`accept` |
 | G 控制与终态 | SE24 至 SE26 | 用户、Session、Agent、Model、Tool | `control`、`interrupt`、`receive`、`finishRun` |
 | H 归档、关系与空闲 | SE27 至 SE31 | 用户、Session 治理、时钟与空闲输入 | `control`、`setRelation`、`recordIdle`、`considerAutoArchive` |
-| I 账目、更正与授权 | SE32 至 SE34 | Model、Tool、语义拥有者、授权拥有者 | `receive`、`commitDerived`、`completeConsumption` |
+| I 账目、更正与授权 | SE32 至 SE34 | Model、Tool、语义拥有者、授权拥有者 | `receive`、`commitDerived`、`accept` |
 
 表中载荷继承共同封套，只列必要业务数据。标明「依据」的类别仍须按用途核对合法消费者。Session 保存跨域引用和本会话治理后果，不复制其他拥有者的完整状态机。
 
@@ -99,13 +99,14 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 | --- | --- | --- | --- | --- |
 | SE11 | `intake.routed` | 输入受理及分流 | 受理协调者；原提交、来源、内容、原命令及合法展开，普通、卡片、控制或系统业务去处及可靠责任 | 依据。普通消息与待处理资格同批；其他类别保存原目标责任，不能混入普通队列 |
 | SE12 | `intake.rejected` | 准入拒绝留痕 | 原准入者；原请求、拒绝依据、必要干预及可反馈原因，不保存不应受理的正文 | 留痕。拒绝不取得队列资格。用途提醒确认前没有受理正文，确认后是新请求 |
+| SE35 | `intake.handed-over` | 已受理普通输入交入 Agent 执行的结果，须区别受理与拒收 | 推进协调；原输入、目标执行、出站操作身份；受理时为 Agent 的受理回执，拒收时为消息准入的拒收原因与依据 | 依据。受理：该输入不再是待交输入，待处理资格保留到 SE14。拒收：该输入失去待处理资格，用户可见原因；首条输入被拒收时与 Run 的 failed 终态同批 |
 
 ### D Run、批次与 attempt
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE13 | `run.started` | Run 开始及初始承接 | 工作治理；新 Run、Agent 执行身份、触发原因、非空完整初始输入集合、顺序、批界与接续位置，可选前继 Run 和采用依据 | 依据。建立唯一未终结 Run，共同解除首批待处理资格；不另写重复首批承接决定 |
-| SE14 | `run.batch-taken` | 后续完整批次承接 | 有效推进者；原 Run、一致位置、精确合格成员、顺序、批界及原接续位置 | 依据。一次解除对应待处理资格，原消息仍保留；分块不重新挑选批次 |
+| SE13 | `run.started` | Run 开始 | 工作治理；新 Run、Agent 执行身份、触发原因、入口类别、首条输入，可选前继 Run 和采用依据 | 依据。建立唯一未终结 Run 并固定首条输入；不解除任何待处理资格，承接由 SE14 表达 |
+| SE14 | `run.batch-taken` | 完整批次承接，从 Agent 的承接事件派生 | Agent 执行记录提供者；原 Run、执行、事件序号、Agent 批次身份、输入水位线、精确有序成员 | 依据。一次解除对应待处理资格，原消息仍保留；Session 不重选批界或顺序 |
 | SE15 | `run.attempt-started` | attempt 开始 | 治理认领者；原 Run、严格递增序号、重建原因、原进度和等待、采用依据 | 依据。建立新推进资格，旧 attempt 永远不再推进；普通通知、挂起恢复和模型内部重试不新增 attempt |
 | SE16 | `run.attempt-released` | 推进资格交还或撤销 | 治理或合法原执行者；原 attempt、原因、原等待和进度、交还或撤资格的依据 | 依据。不能继续使用原推进资格；不推导 Run 终态或物理全停。由换代、取消或终态已经表达的撤资格不另造第二决定 |
 | SE17 | `run.attempt-exited` | attempt 退出报告 | 可信原实例或资源拥有者；原 attempt、时间、退出原因及可核实归因 | 可选留痕。允许开始后没有退出报告；报告本身不撤资格、不证明独立调用停止 |
@@ -114,7 +115,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE18 | `call.bound` | 原调用登记与等待依据 | 合法发起者；稳定调用、用途、固定输入或参数引用、实际采用、原动作、原消费位置、所需结果、阻塞范围及交付责任 | 依据。建立可恢复发起和等待责任，登记不冒称物理已发出；Run 外不补造 Run |
+| SE18 | `call.bound` | 原调用登记与等待依据，Run 内从 Agent 的等待事件派生，Run 外由消费者拥有者登记 | Agent 执行记录提供者或消费者拥有者；稳定调用、用途、固定请求的耐久证据、原动作、原消费位置、发起 attempt 及阻塞范围 | 依据。建立可恢复的消费位置与等待责任，登记不冒称物理已发出；Run 外不补造 Run |
 | SE19 | `call.execution-fact` | 原执行事实承接 | Model 或 Tool 拥有者；原调用的实际发出、真实收场、转换确认、交付责任解除确认或不可确定状态、原事实版本、结果及原因 | 影响对账或等待的部分为依据，纯解释为留痕。保持真实物理事实，不把停止请求当已停止，不把旧状态覆盖新终局 |
 | SE20 | `call.result-preserved` | 结果可靠保管 | 合法消费者；原结果身份、内容或可恢复引用、保管确认、原位置和后续责任 | 依据。确认结果在消费侧可恢复，不表示已处理完；不能只保存临时句柄就解除生产责任 |
 | SE21 | `call.result-processed` | 原位置处理与逻辑结果采用 | 原消费者；原保管、消息、占位或答复，接续 attempt、处理结论、完成进度、判断依据及后续责任 | 依据。按原位置推进处理或拒收，实际处理可终结相关业务等待。后台占位、卸载、不许执行、不可用 dummy 与真实执行结果分别表达 |
@@ -123,7 +124,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE22 | `extension.passage` | 扩展结论与卡片关联采用 | Agent 或扩展拥有者；位置、经过与输入身份、动作或整批范围、原参数和生效参数、结论、原因、原卡片批次及交回责任 | 改变后续判断为依据，纯观测为留痕。可为继续、否决、等待或按契约处理错误；不赋予扩展任意改 Run 状态的权力 |
+| SE22 | `extension.passage` | 拓展等待与卡片关联，从 Agent 的等待事件派生 | Agent 执行记录提供者；执行、事件序号、经过身份、原位置、整批卡片的身份及交回责任；依赖等待的拥有者与位置 | 依据。建立人工等待与依赖等待的原位置；拓展结论的正文归 Agent 的经过记录，Session 不复制，也不赋予拓展件任意改 Run 状态的权力 |
 | SE23 | `hitl.decision` | HITL 原决定交回 | HITL 拥有者及原接收方；原卡片、唯一决定、批次、答复或明确不回答、参数绑定和原接续位置 | 依据。逐卡处理，整批卡片均处理后才可继续原扩展；不回答无批准含义，时间或实例退出不制造答案 |
 
 ### G 控制与终态
@@ -132,7 +133,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 | --- | --- | --- | --- | --- |
 | SE24 | `control.requested` | 控制请求成立 | 具目标控制资格者；稳定控制身份、原目标与范围、主体、原因、优雅或强制级别、处置及传播责任 | 依据。区分单调用、Run、实例交接、插队和归档控制；请求不等于已转换或物理已停止 |
 | SE25 | `control.progress` | 控制处置与进度，含级联与作用域释放的回执 | 原协调者与目标拥有者；原控制、逻辑生效或拒绝、有效目标集合、确认或未知、尚待传播和核对责任 | 依据。按具体控制变更资格与等待，只解除被证明完成的责任；不伪造用户答复或实际执行终态 |
-| SE26 | `run.terminal` | Run 唯一终态 | 治理的唯一终态路径；原 Run、完成或失败或被取消、原因、结果引用、适用检查或取消依据及未收尾效果提示 | 依据。终态不可反转，撤新推进和发起资格；后置扩展、迟到和结算不复活该 Run |
+| SE26 | `run.terminal` | Run 唯一终态。被取消由 Session 的控制写入；完成与失败从 Agent 的结束事实派生；有界收束只写失败 | 治理的唯一终态路径；原 Run、完成或失败或被取消、Agent 的结论与处置依据或取消依据、未收尾效果提示 | 依据。终态不可反转，撤新推进和发起资格；后置拓展、迟到和结算不复活该 Run |
 
 ### H 归档、关系与空闲
 
@@ -150,7 +151,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 | --- | --- | --- | --- | --- |
 | SE32 | `account.linked` | 效果与账目关联 | 原执行或账目拥有者；原调用和实际 Run/发起 attempt、稳定事实或账项、数量单位、时间、结果、确定性及未结责任 | 防重做、对账或结算恢复所需为依据，纯解释为留痕。效果明确发生、未发生或不可确定；费用待结不当零，接续和观察不重复收费 |
 | SE33 | `history.annotated` | 历史解释更正与标注 | 对应语义拥有者；被补充事实、理由、新解释或新增表示、原身份与合法变更依据 | 影响合法后继解释为依据，纯说明为留痕。追加保留原事实；不能反转 Run 终态、恢复取消资格或改写真实外部成功 |
-| SE34 | `authorization.linked` | 原授权关联与消费事实承接 | 授权拥有者及合法消费者；原批准/拒绝/撤销/消费依据、明确范围、参数绑定、原工作与位置 | 恢复所需为依据。只承接原授权，单次按原动作或明确批次使用；消费或所属 Run 终态后不能复用。会话授权流水按原范围保留 |
+| SE34 | `authorization.linked` | 原授权关联承接，只随授权类卡片答复写入 | 授权拥有者；原批准、拒绝或撤销依据、明确范围、参数绑定、原工作与位置 | 恢复所需为依据。只承接原授权，不产生第二份批准；单次使用与消费由授权拥有者在动作准入处核对，所属 Run 终态后不能复用。会话授权流水按原范围保留 |
 
 表中的登记、结论、处理和控制均关联原位置，不要求另外建立独立「等待对象」。没有 `wait-ended` 原生类别。结果或答复到达并被原位置可靠处理，或有效业务控制取消原等待，已经是其结束依据。没有单独的「变活跃」「变休眠」事件，它们由 Run 开始和终态派生。
 
@@ -158,58 +159,59 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 
 本节是候选修订，技术接受前不扩大本页既有承诺。
 
-「来源」是事实的拥有者，「经由」是把事实带到 Session 门口的一方。需要与 Agent 事实共同成立的，由 Session 参加者在 Agent 的同一事务内提交。Agent 的事件流只用于投影游标、对账与唤醒，读到事件不是业务接受。
+「来源」是事实的拥有者，「经由」是把事实带到 Session 门口的一方。Session 只在 Agent 的四种调用方交接上作为参加者：消息进历史、压缩转换、结果保管、处理完成。承接、调用登记、等待、控制阶段与执行结束由 Agent 拥有，Session 从 Agent 的事件流读到后以 `receive` 写入，按事件身份认回。消息事件与流事件不写条目，只推进游标。分工的条款见 [Session 与 Agent 的两条通道](../../SPEC.md#session-与-agent-的两条通道)。
 
 Agent 给出的事实：
 
 | 事实 | 经由 | 条目 | 提交命令 |
 | --- | --- | --- | --- |
-| 承接一批输入 | 参加者 | SE14 | `takeInputs` |
-| 助手消息、工具消息，已经消息准入 | 参加者 | SE10 | `completeConsumption` |
+| 交入受理或拒收 | 出站回执 | SE35 | `receive` |
+| 承接一批输入 | 事件流 | SE14 | `receive` |
+| 助手消息、工具消息、系统提醒、后台占位消息，已经消息准入 | 参加者 | SE10 | `recordMessage` |
 | 结果保管、处理完成 | 参加者 | SE20、SE21 | `preserveResult`、`completeConsumption` |
-| 调用登记 | 参加者 | SE18 | `bindCall` |
-| 等待集合、扩展经过与结论、出卡 | 参加者 | SE18 阻塞范围、SE22 | `recordProgress` |
+| 调用登记 | 事件流 | SE18 | `receive` |
+| 等待集合、出卡 | 事件流 | SE22 | `receive` |
 | 压缩转换 | 参加者 | SE10 压缩记录、SE33 标注 | `commitDerived` |
 | 控制阶段到达 | 事件流 | SE25 | `receive` |
-| 条件终结 | 参加者 | SE26、SE16 | `finishRun` |
-| 挂接交还或被取代 | 参加者或恢复路径 | SE16 | `release`、`claim` |
+| 执行结束 | 事件流，或缺口后快照的结束状态 | SE26（按结论为完成、失败或被取消）、SE16 | `receive` |
+| 挂接交还或被取代 | `detach` 回执或执行记录 | SE16 | `release`、`claim` |
 | 实例退出 | 可信实例适配 | SE17，可选留痕 | `receive` |
-| 结束事件 | 事件流 | 不新增条目，只核对 SE26 已提交 | 对账 |
 
 Model 给出的事实：
 
 | 事实 | 经由 | 条目 | 提交命令 |
 | --- | --- | --- | --- |
-| 真实收场 | Agent；迟到时由 Session 的消费适配器按原调用读取 | SE19 | `receive` 或随 `completeConsumption` 的处理依据 |
-| 完整回复、中断回复 | Agent 形成消息 | SE10 | `completeConsumption` |
-| 账目 | Agent；迟到时由消费适配器读取 | SE32 | `receive` |
-| 交付责任解除确认 | Session 的消费适配器 | SE19，并把 `release` 改为 `confirmed` | `receive` |
+| 真实收场 | Agent 的生产者事件；迟到时由 Session 的消费适配器按原调用读取 | SE19 | `receive` |
+| 完整回复、中断回复 | Agent 形成消息 | SE10 | `recordMessage` |
+| 账目 | 迟到时由消费适配器读取 | SE32 | `receive` |
+| 交付责任解除确认 | Session 的消费适配器 | SE19；`release` 派生为 `confirmed` | `receive` |
 
 Tool 给出的事实：
 
 | 事实 | 经由 | 条目 | 提交命令 |
 | --- | --- | --- | --- |
-| 受理回执 | Agent | SE18 的请求证据 | `bindCall` |
-| 真实收场、效果确定性 | Agent；迟到时由消费适配器读取 | SE19 | `receive` |
-| Run 仍未终结时的最终结果 | Agent | SE19、SE20 或 SE21、SE10 | `receive`、`preserveResult`、`completeConsumption` |
-| 转后台确认 | Session 的消费适配器 | SE19、SE21 占位、SE10 占位消息 | `receive`、`commitDerived` |
+| 受理回执与固定请求 | Agent 的等待事件 | SE18 | `receive` |
+| 真实收场、效果确定性 | Agent 的生产者事件；迟到时由消费适配器读取 | SE19 | `receive` |
+| Run 仍未终结时的最终结果 | Agent | SE19、SE20 或 SE21、SE10 | `receive`、`preserveResult`、`completeConsumption`、`recordMessage` |
+| 转后台确认与占位 | Tool 的转换确认经消费适配器；占位消息由 Agent 提交 | SE19、SE21 占位、SE10 占位消息 | `receive`、`completeConsumption`、`recordMessage` |
 | Run 已终结、会话未归档时的后台最终结果 | Session 的消费适配器 | 先 SE19、SE20 登记结果，再 SE11 业务输入 | `receive`、`preserveResult`，再 `accept` |
-| 迟到版本 | 合格保管者 | SE20 | `preserveResult` |
-| 交付责任解除确认 | Session 的消费适配器 | SE19，并把 `release` 改为 `confirmed` | `receive` |
-| 账目 | Agent；迟到时由消费适配器读取 | SE32 | `receive` |
+| 迟到版本 | 合格保管者经 Agent 的 `recordResult`；Agent 记录已删除时直接提交 | SE20 | `preserveResult` |
+| 交付责任解除确认 | Session 的消费适配器 | SE19；`release` 派生为 `confirmed` | `receive` |
+| 账目 | 迟到时由消费适配器读取 | SE32 | `receive` |
 
 其他来源的事实：
 
 | 来源 | 事实 | 条目 | 提交命令 |
 | --- | --- | --- | --- |
 | 用户与交付面 | 普通输入、插队、控制、归档、模式与模型选择、关系、常驻、自动归档配置 | SE10 与 SE11、SE24、SE27、SE28、SE03、SE04、SE05、SE29、SE30、SE06 | `accept`、`interrupt`、`control`、`change`、`setRelation`、`configureAutoArchive` |
-| HITL | 卡片决定，含明确不回答 | SE11 与 SE23 | `accept` |
+| HITL | 卡片决定，含明确不回答；授权类答复的原授权关联 | SE11 与 SE23；SE34 | `accept` |
 | 命令域、hooks、用途提醒 | 展开、拦截、拒绝 | SE11 的展开与原命令；SE12 留痕 | `accept` |
 | 作用域持有者 | 注册决定、步提交、变化提醒 | SE07、SE09、SE10 系统提醒 | `change`、`commitDerived` |
-| 执行环境 | 作用域释放回执 | SE25，解除作用域释放恢复任务 | `receive` |
+| 执行环境 | 作用域释放回执 | SE25，解除或保留作用域释放恢复任务 | `receive` |
 | 子会话 | 级联回执 | SE25，解除级联恢复任务 | `receive` |
+| Tool 启动围栏 | 启动资格失效已生效 | SE25，解除启动资格失效任务 | `receive` |
 | 时钟与空闲输入 | 空闲观察 | SE31 | `recordIdle` |
-| 授权拥有者 | 原授权关联与消费 | SE34 | `receive`，或随 SE21 |
+| 初始化项的负责方 | 初始化结果 | SE02 | `completeInitialization` |
 
 迟到的账目与收场由 Session 的消费适配器按原调用身份读取生产者事实后提交，不等 Agent 在场。这需要 Model 与 Tool 给出读取资格，是与这两方的具名前提。前提不成立时，迟到事实只能经 Agent 事件到达，Agent 不在时保持未知，不以查不到当未发生。
 
@@ -227,7 +229,7 @@ assistant 消息中的推理续接状态随所在 SE10 消息的内容块进入�
 
 Model 与 Tool 的 open、fill、close、trim、account、finish 是其流协议，不能直接映射为 Session 受理、Run 终态或消费完成。已确认历史消息不可变，在途块的局部对账和已展示内容的保留由主架构与流式拥有者继续细化。
 
-Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前步骤等待，仍是原执行。后台占位不覆写，后来的真实结果按原消息规则追加提醒。Run 已终结时，结果先登记为结果事实，再经 SE11 的独立投递准入成为后继工作的业务输入，不能只靠执行已收场就自动取得队列资格，也不让原 Run 复活。dummy execution 保存逻辑不可用结果和处理状态，不产生原工具的物理启动、效果或虚构用量。扩展或压缩的内部模型结果回原位置，不写成主流程 AssistantMessage。
+Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前步骤等待，仍是原执行。占位消息由 Agent 提交，Session 以消息参加写 SE10。后台占位不覆写，后来的真实结果按原消息规则追加提醒。Run 已终结时，结果先登记为结果事实，再经 SE11 的独立投递准入成为后继工作的业务输入，不能只靠执行已收场就自动取得队列资格，也不让原 Run 复活。dummy execution 保存逻辑不可用结果和处理状态，不产生原工具的物理启动、效果或虚构用量。扩展或压缩的内部模型结果回原位置，不写成主流程 AssistantMessage。
 
 归档在同一批中产生作用域释放的恢复任务。对人时间线只记「已发起释放」与读回结果，释放不重复发起新获取。
 
@@ -244,8 +246,8 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | Tool 的过程块 | Tool 的过程保管，按版本读取 |
 | Tool 的内部调度、继续与计时段 | Tool 自己的账本 |
 | Tool 内部等待的答复 | 回到工具自身的等待 |
-| Agent 的流事件、生产者事件与结束事件 | Agent 的事件序列。Session 只保存消费游标 |
-| Agent 内部执行状态 | Agent 检查点 |
+| Agent 的流事件与消息事件 | Agent 的事件序列。消息已在参加时成立；Session 只保存消费游标 |
+| Agent 内部执行状态与拓展结论的正文 | Agent 检查点与经过记录 |
 | Agent 的接续值 | Agent 检查点。Session 不保存接续值，只保存 `ExecutionRef` |
 | 调度器唤醒、提交通知与心跳 | 不保存 |
 
@@ -259,7 +261,7 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | CAP-SW02 | SE08、SE15、SE16 |
 | CAP-SW03 | 所有已提交条目；SE10、SE33 及主架构不可变/读取协议 |
 | CAP-SW04 | SE10、SE11、SE12 及原操作回执 |
-| CAP-SW05 | SE11、SE13、SE14 |
+| CAP-SW05 | SE11、SE13、SE14、SE35 |
 | CAP-SW06 | SE11、SE12、SE24、SE25 |
 | CAP-SW07 | SE13、SE15、SE16、SE26 |
 | CAP-SW08 | SE18、SE20、SE21、SE22、SE23、SE34 |
@@ -273,11 +275,11 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | CAP-SW16 | SE17、SE19、SE20、SE21、SE25、SE32 |
 | CAP-SW17 | SE04、SE18 |
 
-PF-012 §6.16 的九类 Run 事实在这里分别由 SE13、SE14、SE18/SE22、SE15、SE32、SE32、SE24、SE26、SE17 承接。最后一项仍为可选；首批承接已在 SE13 内，不要求再产生 SE14。
+PF-012 §6.16 的九类 Run 事实在这里分别由 SE13、SE14、SE18/SE22、SE15、SE32、SE32、SE24、SE26、SE17 承接。最后一项仍为可选；首批承接与后续承接都由 SE14 从 Agent 的承接事件派生。
 
 ## 扩展、格式演进与未覆盖
 
-每个可解释种类须由明确拥有者定义封套匹配、用途变体、准入、因果、效力、归约及版本兼容。Agent 扩展结论虽可携带专属内容，仍须通过已采用的原位置契约，不成为任意 Session 治理写入口。自定义内容不能通过自报留痕而绕过未知语义处理。
+每个可解释种类须由明确拥有者定义封套匹配、用途变体、准入、因果、效力、归约及版本兼容。Agent 拓展结论虽可携带专属内容，它归 Agent 的经过记录，不成为任意 Session 治理写入口。自定义内容不能通过自报留痕而绕过未知语义处理。
 
 Session 治理归约器支持其必需原生语义与已经准入的外域依据。未知相关种类或版本时停止受影响投影，不能将未解释事实当作无等待或无工作。确能证明不影响该投影的已知解释型类别可只保留历史；同一依据也可能只影响其他合法消费者，不强制每个投影计算所有领域。
 
