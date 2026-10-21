@@ -23,7 +23,7 @@ export function adoption(name: string): Adoption {
 }
 
 export function evidence(record: string, value: unknown, owner = 'tool-tutorial'): DurableEvidence {
-  // These records live only in this process. The owner retains their actual contents.
+  // This helper creates a reference, not storage. The caller owns record retention.
   return {
     owner,
     record,
