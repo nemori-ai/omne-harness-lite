@@ -1,20 +1,73 @@
+# @omne-harness/execution-environment
+
 PACKAGE_TEMPLATE_DRAFT
+[中文](README_ZH.md)
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。宿主文件设施和 `executionEnvironment` 服务已从公开入口导出。`command`、三种沙箱和 SPEC 其余行为仍未实现。导出条件 `source` 指向本包源码。发布时去掉它。
+Draft module package.
+## Responsibility and status
 
-# 执行环境成员目标
+<!-- documentation:placeholder -->
 
-状态：宿主文件使用和 `executionEnvironment` 服务有公开入口与包测试。整份 SPEC 仍是行为候选。不能把这一刀当成应用已经装上该插件，也不能从此目录启动应用。
+Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
 
-## 职责与阅读
+## Usage
 
-本目标承接领域中归属于执行环境能力的完整必要行为。根入口导出环境类型和宿主文件操作。`./cordis` 导出服务键、登记表和宿主文件插件。行为由[完整 SPEC](SPEC.md)维护。设计分成 [架构](docs/architecture.md)、[关键流程](docs/key-flow.md)、[模型](docs/model.md) 和 [Cordis 集成](docs/cordis.md)。PanQiWei 已接受其中的宿主文件使用、环境抽象和 Cordis 服务，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。架构和关键流程的其余节仍是草案。与外部能力协作从[组入口](../README.md)展开。
+<!-- documentation:placeholder -->
 
-## 独立与 Cordis 消费
+Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
 
-独立消费者须提供可核验主体、原工作与实际依赖，沿 SPEC 的采用前提消费。宿主文件这一刀可以从包名和 `./cordis` 调用。这不构成整份 SPEC 的运行支持声明。宿主文件设施的调用方负责在使用前按当前授权点名对象并提供 `named`；本设施只核对打开到的对象与 `named` 一致，`hostObjectToken` 只识别对象、不授予访问权。Cordis 集成沿[统一 IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配、依赖与撤除；内核不提供领域授权、耐久、安全隔离或外部效果回滚。
+## Contracts
 
-## 配置、验证与维护
+<!-- documentation:placeholder -->
 
-具体提供者里，宿主 `files` 和 `executionEnvironment` 已从公开入口导出。`command`、三种沙箱、配置协议和部署仍待后续技术采用。宿主文件这一刀的包测试在 `tests/`。PanQiWei 接受当前验证只在 Node v26.0.0、darwin 上跑过。包声明的引擎仍是 `>=24.18.0 <25`，该范围内的运行还没有执行。SPEC 其余持续验证义务还没有运行证据。真实消费者、故障与并发范围须由实现及组合拥有者核验。修改行为时同步内部设计、组导航、真实消费者与持续验证资源，不能以图或文档存在授予采用。
-默认测试责任是单元和契约。`tests/` 从包名核对宿主文件结果和 `./cordis` 登记。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+
+## Design
+
+<!-- documentation:placeholder -->
+
+Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+
+## Configuration and operation
+
+<!-- documentation:placeholder -->
+
+Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+
+## Verification
+
+<!-- documentation:placeholder -->
+
+List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+
+## Maintenance
+
+<!-- documentation:placeholder -->
+
+Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+
+## Directory structure and documentation roles
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Behavior beyond the public types
+documentation.json        Documentation registration
+docs/                     Internal design, public use, and integration
+├── architecture.md       Modules, state and resource ownership, mechanisms
+├── flows.md              Key business flows and data flows
+├── object-model.md       Internal object model
+├── public-api.md         Public boundary and definition index
+├── context.md            Consumer use and position in the system
+└── cordis.md             Cordis applicability and integration
+src/                      Public definitions, validation, and implementation
+tests/                    Continuous tests; fixtures/ holds test inputs
+schema/                   External schemas
+verification/             models/ and proofs/
+adr/                      Implementation decisions with continuing consumers
+examples/                 Examples against the public entry
+resources/                Non-source runtime resources
+acceptance/               Independent acceptance; fixtures/ holds its inputs
+```
+
+Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.

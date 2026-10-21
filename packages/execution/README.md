@@ -1,30 +1,33 @@
 # 执行环境能力组
 
-状态：工程设计草案。宿主文件设施已有包测试。`command`、三种沙箱和整组组合仍没有运行支持。正式维护位置不授予技术采用。
-
 ## 责任与范围
 
-本组承接执行环境能力的工程分解，业务边界沿[已接受领域责任](../../docs/domains/execution-environments/README.md)。工程依赖不接管相邻主体、资产、原调用或逻辑工作事实。产品阶段与政策沿[产品第四章](../../.meta_harness/design/product/execution-environments/design.md#未决问题与待定事项)，未定部分保持缺项。
+本组承载两块能力。Execution Environment 是执行落点与设施的资源域：回答动作实际落在哪里、那里能用什么、留下的东西能活多久与现在是否还在。它不回答允不允许做这个动作、该落哪一层、工具做了什么。它只认通用角色（主体加租户的访问身份、不透明作用域引用、不透明原调用身份、请求身份、集成方、提供者、维护者），不导入任何会话、工具或授权类型。图像成员只接收完整图像字节和调用方传入的预算，不选择落点，不提供隔离。
+
+系统责任归[系统页 Execution Environment](../../docs/architecture/runtime/execution-environment.md)，领域责任与事实拥有者归[领域页](../../docs/domains/execution-environments/README.md)，产品规则归[产品正文](../../.meta_harness/design/product/execution-environments/design.md)。本组拥有成员分解、公开依赖方向、组内协作导航与组合验证责任。
 
 ## 成员与依赖
 
-| 具名目标 | 文档及状态 | 允许协作 |
-| --- | --- | --- |
-| `execution/execution-environment` | [阅读入口](execution-environment/README.md)、[完整行为](execution-environment/SPEC.md)、[架构](execution-environment/docs/architecture.md)、[模型](execution-environment/docs/model.md)；宿主文件设施已有包测试，应用尚未装上插件 | 消费可信身份、领域明确来源及本次合法条件；通过公开边界与资源、资产、工具、装配及 Context 协作，不持有邻域事实 |
-| `execution/image` | [阅读入口](image/README.md)、[行为](image/SPEC.md)、[架构](image/docs/architecture.md)、[关键流程](image/docs/key-flow.md)、[模型](image/docs/model.md)、[Cordis 集成](image/docs/cordis.md)、[推荐配置](image/docs/budget-profile.md)；技术设计已接受，已是 workspace 成员。公开入口是 `imageBudget`、`open`，以及打开句柄上的 encode 和 close | 只接收完整图像字节和调用方传入的预算。不选择执行落点，不提供隔离，不持有工具效果或会话身份 |
+Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 agent、model、tool、context 组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。宿主文件设施的实现与测试从旧单包迁入 `-host-local`，其余成员当前是骨架。
 
-成员目标是已有包组织的名字，不能从文档目录推定服务键、进程或数据表。实际成员成立前须有技术接受、构建计划及真实公开入口。`execution/image` 已获技术接受并成为 workspace 成员，六个生产上限由调用方传入。
+| 成员 | 变体 | 责任 |
+| --- | --- | --- |
+| [execution-environment-contract](execution-environment-contract/README.md) | module | 访问身份、绑定层、连续性、环境要求、落点、获取、采用记录、租约、受管资源；三个需要端口（资源账本、设施守卫、恢复授权）；设施协议与 `files`、`command`、`terminal` 三个设施的形状；工具环境声明的 schema 与采用身份；两条块声明 |
+| [execution-environment-cordis-contract](execution-environment-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `executionEnvironment`、intercept 配置类型；恢复两操作在同一服务上 |
+| [execution-environment](execution-environment/README.md) | module | 不含 Cordis 的登记表机制：提供者与设施表、按允许绑定顺序匹配、获取状态与幂等键、租约视图与逐操作门、恢复编排 |
+| [execution-environment-host-local](execution-environment-host-local/README.md) | service-provider | Service 实现与撤除保留；宿主 `files` 提供者（已迁入四项操作）；`command`、`terminal` 提供者待实现 |
+| [image](image/README.md) | module | 图像预算、打开、编码与关闭；公开入口是 `imageBudget`、`open` 与句柄上的 encode 和 close |
+
+依赖方向：`execution-environment-contract` ← `execution-environment-cordis-contract` ← `execution-environment` ← `execution-environment-host-local`。契约成员依赖 `runtime-context-contract`（作用域引用与块声明类型）、`legal-identity`、`operation-result`、`json-text`、`schema-provider`；不依赖 Tool、Session、授权的契约，它们依赖本组。图像成员与 Execution Environment 没有交接。精确依赖图见[组架构](docs/architecture.md)。
 
 ## 关键协作
 
-[工程设计](docs/architecture.md)维护组合验证分工；[领域交接](../../docs/domains/execution-environments/architecture.md)及[跨领域流程](../../docs/domains/execution-environments/key-flows.md)说明邻接关系。成员精确机制见[架构](execution-environment/docs/architecture.md)、[关键流程](execution-environment/docs/key-flow.md)、[模型](execution-environment/docs/model.md) 与 [Cordis 集成](execution-environment/docs/cordis.md)，组不重复算法或状态机。
-
-图像成员与执行环境没有交接。调用方把完整图像字节和预算对象交给图像成员。图像成员不读取环境选择结果，也不把解码成功写成设施就绪或隔离已成立。宿主上的文件使用对象核对归 `execution-environment`。图像成员不描述 `Files()` 或 `Shell()` 的落点。图像成员自己的 Cordis 服务定义不写入执行环境。
+集成方（工具宿主、独立调用者）经契约的 `ExecutionEnvironment` 操作取落点、租约与设施；提供者经 `ProviderRegistrations` 登记并撤除；维护者经同一服务的恢复两操作结算作用域资源；观察者经 Runtime Context 读 `execution.placement` 与 `execution.host-facts`。跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。许可、终局与采用记录的耐久提交由集成方的账本兑现，本组成员只给材料。
 
 ## 组合验证
 
-本组技术拥有者协调真实成员与相邻消费者，按完整 SPEC 的持续验证义务核对身份、授权、并发、未知、取消与原效果责任。验证须绑定具体提供者、版本、环境及故障前提。宿主文件这一刀有包测试。组内组合、沙箱和命令设施仍没有运行验证证据。mock、图及结构通过不证明真实组合保证。图像成员的预算、拒绝、编码和关闭由该成员自己的 SPEC 验证，命令是 `pnpm --filter @omne-harness/image test`。执行环境的隔离证据不能当作图像解码已经隔离。
+契约成员的验证覆盖纯函数、导出面与 schema。宿主 `files` 四项操作的授权核对、关闭失败处置、结果四态与登记匹配在 `-host-local` 与 `execution-environment` 的包测试里有回归，运行记录见各成员 `SPEC.md`。跨成员性质（许可先于首个外部效果、释放 `pending` 的认回、作用域释放后的恢复）由集成方与本组成员联合验证，当前没有真实集成方，没有运行证据。图像成员的预算、拒绝、编码和关闭由该成员自己的 SPEC 验证，命令是 `pnpm --filter @omne-harness/image test`。mock、图与结构通过不证明真实组合保证。
 
 ## 维护
 
-组维护者同步本入口、登记、成员选择及真实消费者；具名负责人尚待指定。新建实现先核对[成员文档规范](../../docs/member-documentation.md)和[包创建入口](../../docs/development.md#创建和整改产品包)。职责、协议或采用范围变化由其唯一拥有者修订，不复制组根统一 SPEC，也不借目录自动扩大支持。
+公开承诺改契约成员的 `SPEC.md` 与 `docs/`，机制改 `execution-environment`，装配与宿主机制改 `-host-local`；新增提供者（沙箱）是新的 `service-provider` 成员，不改契约。新增成员或改依赖方向同步[包组织](../../docs/package-organization.md)、本页与 `documentation.json`。新建实现先核对[成员文档规范](../../docs/member-documentation.md)和[包创建入口](../../docs/development.md#创建和整改产品包)。具名维护者由负责人指定。
