@@ -229,6 +229,78 @@ function fixture(
 }
 
 describe('original final settlement in one shared driver', () => {
+  it('settles a saved final with current minted access and releases its queue and delivery', async () => {
+    const seen = deferred<FactBatch<Block>>()
+    const resumed = deferred<void>()
+    const f = fixture({
+      minted: new Set([tenantA]),
+      pendingFinal: { seen, resume: resumed.promise },
+    })
+    try {
+      const first = await f.invoke('first')
+      const second = await f.invoke('second')
+      const start = await f.start(first.call)
+      const final = await f.final(first.call)
+      await f.h.binding.controls.finish(start, final)
+      const batch = await seen.promise
+      ok(await f.h.commands.receiveFacts({ ...first.access, start, batch }))
+      const pending = await f.load(first.call)
+      expect(pending.execution?.tenant).toEqual(tenantA)
+      expect(pending.execution?.tenant).not.toBe(tenantA)
+      expect(
+        await f.h.commands.loadRecovery({ ...first.access, tenant: structuredClone(tenantA) }),
+      ).toMatchObject({ failure: { kind: 'denied' } })
+      const settle = pending.tasks.find(task => task.kind === 'settle')
+      if (settle?.kind !== 'settle') throw new Error('saved final has no settlement task')
+      expect(
+        ok(await f.h.ledger.facts.read({ ...first.access, basis: settle.basis })).fact,
+      ).toEqual(final)
+
+      resumed.resolve()
+      await flush()
+      await f.h.runOnce(first.call, first.controller.signal)
+      await f.pump()
+      const saved = await f.load(first.call)
+      expect(saved.state).toMatchObject({
+        phase: 'settled',
+        terminal: final.terminal,
+        execution: { kind: 'ended' },
+        queue: { kind: 'released' },
+        delivery: { kind: 'pending', consumer: first.payload.consumer },
+      })
+      expect(saved.result).toEqual(final.result)
+      expect(saved.tasks.some(task => task.kind === 'settle' || task.kind === 'queue')).toBe(false)
+      expect(saved.tasks.some(task => task.kind === 'deliver')).toBe(true)
+      expect(await f.h.released()).toContain(first.call)
+      expect(f.h.binding.executions).toEqual([first.call, second.call])
+      expect(
+        ok(await f.h.ledger.reads.operation({ ...first.access, operation: settle.operation })),
+      ).toMatchObject({ kind: 'committed' })
+      if (saved.state.phase !== 'settled' || saved.state.delivery?.kind !== 'pending')
+        throw new Error('original result has no pending delivery')
+      const read = { ...first.access, reference: first.reference, result: saved.state.result }
+      const original = ok(await f.h.runtime.queries.readResult({ ...read, after: null }))
+      expect(original.value).toEqual(final.result)
+      expect(
+        await f.h.runtime.commands.releaseDelivery({
+          ...read,
+          delivery: saved.state.delivery.delivery,
+          consumer: first.payload.consumer,
+          evidence: {
+            kind: 'processed',
+            completion: evidence('consumer-processed', first.payload.consumer.owner),
+          },
+        }),
+      ).toMatchObject({ kind: 'released' })
+      expect((await f.load(first.call)).tasks.some(task => task.kind === 'deliver')).toBe(false)
+      expect(ok(await f.h.runtime.queries.readResult({ ...read, after: null }))).toEqual(original)
+      expect(f.h.binding.executions.filter(call => call === first.call)).toHaveLength(1)
+    } finally {
+      resumed.resolve()
+      await f.close()
+    }
+  })
+
   it('F06 stops a queue repair with a recalled success but no original physical-end proof', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     let offline = true
