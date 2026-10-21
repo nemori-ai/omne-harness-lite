@@ -370,6 +370,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // Journal query remains the authority over whether that operation actually committed.
   let pendingCommit: Readonly<{ operation: AgentOperationId; node: LoopNode }> | null = null
   let excludedNode: LoopNode | null = null
+  let finishRefused = false
   let waits: readonly Waiting[] = []
   const acknowledged: Acknowledged[] = []
   const unknownReleases = new Set<AgentOperationId>()
@@ -426,6 +427,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (ran.ok.commit !== null && to !== null) {
           const committed = await commit(at, to, ran.ok.commit)
           if ('failure' in committed) {
+            if (committed.failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
+              finishRefused = true
+              node = 'R0'
+              continue
+            }
             if (committed.failure.kind === 'changed' && ['M0', 'M3'].includes(at)) {
               const refreshed = await currentAttachment()
               if ('failure' in refreshed) return fail({ node: at, failure: refreshed.failure })
@@ -692,7 +698,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const to = route.ok
       if (to === 'evaluate')
         return evaluate('E4', { ...required(facts, 'facts'), checkpoint: current })
-      if (state.kind === 'settling') intent = state.intent
+      if (state.kind === 'settling' && to !== 'I8' && to !== 'F1') intent = state.intent
       return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
     /** E3: no extension is adopted (invoke refuses one), so the passage ends with a commit alone. */
@@ -701,6 +707,54 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
     /** O0: the release of each acknowledged result is recorded. */
     async O0() {
+      const read = await load()
+      if ('failure' in read) return read
+      // Journal custody survives this coordinator. Restore only our own processed main results,
+      // and only from a producer's real ACK confirmation, without business advancement or ACK.
+      for (const item of read.ok.results) {
+        if (
+          item.release.kind === 'confirmed' ||
+          item.completion === null ||
+          item.result.producer.kind !== 'model' ||
+          acknowledged.some(known => known.consumption === item.consumption)
+        )
+          continue
+        const match = /^step-(0|[1-9][0-9]*)\/main\/reply$/u.exec(item.consumption)
+        if (match?.[1] === undefined || !Number.isSafeInteger(Number(match[1]))) continue
+        const of = stepOf(Number(match[1]))
+        const reference = mainInvocation(access.tenant, execution, of)
+        if (invocationParts(reference, access.tenant).call !== item.result.producer.call) continue
+        const material = await ports.materials.read({ ...access, source: item.completion })
+        if ('failure' in material) return material
+        const result = readProcessedModelMaterial(material.ok, {
+          tenant: access.tenant,
+          execution,
+          step: of,
+          consumption: item.consumption,
+          consumer: mainPosition(of),
+          produced: item.result,
+        })
+        if ('failure' in result) return result
+        const restored = await confirmAcknowledgement(
+          {
+            step: of,
+            consumption: item.consumption,
+            reference,
+            position: mainPosition(of),
+          },
+          result.ok,
+          item.completion,
+          'O0',
+        )
+        if ('failure' in restored) return restored
+      }
+      for (const operation of read.ok.unresolved)
+        if (
+          acknowledged.some(
+            item => operation === journalOperation('O0', `release/${item.consumption}`, null),
+          )
+        )
+          unknownReleases.add(operation)
       for (const item of acknowledged) {
         const operation = journalOperation('O0', `release/${item.consumption}`, null)
         if (unknownReleases.has(operation)) {
@@ -746,16 +800,30 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
     /** R0: committed follows the saved successor; excluded re-evaluates the original local node. */
     async R0() {
-      const before = required(snapshot, 'snapshot')
+      const terminalQuery = pendingCommit?.node === 'F3'
+      const terminalExpected = revision
+      let before = required(snapshot, 'snapshot')
+      if (finishRefused) {
+        const latest = await load()
+        if ('failure' in latest) return latest
+        before = latest.ok
+      }
+      const original = terminalQuery ? pendingCommit?.operation : undefined
+      if (original !== undefined && !before.unresolved.includes(original))
+        before = { ...before, unresolved: [original, ...before.unresolved] }
       for (const operation of before.unresolved) {
         const queried = await ports.journal.query({ ...access, execution, operation })
         if ('failure' in queried)
-          return queried.failure.kind === 'unavailable' ? waitFor('R0', queried.failure) : queried
+          return !terminalQuery && queried.failure.kind === 'unavailable'
+            ? waitFor('R0', queried.failure)
+            : queried
         if (queried.ok.kind !== 'unknown' && pendingCommit?.operation === operation) {
           excludedNode = queried.ok.kind === 'excluded' ? pendingCommit.node : null
           pendingCommit = null
         }
         if (queried.ok.kind === 'unknown') {
+          // An uncertain terminal operation must not be invalidated by a waiting commit.
+          if (terminalQuery) return fail({ kind: 'commit-unknown', operation })
           waits = [
             { kind: 'dependency', owner: 'agentJournal', position: before.checkpoint.position },
           ]
@@ -764,12 +832,18 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       const loaded = await load()
       if ('failure' in loaded)
-        return loaded.failure.kind === 'unavailable' ? waitFor('R0', loaded.failure) : loaded
+        return !terminalQuery && loaded.failure.kind === 'unavailable'
+          ? waitFor('R0', loaded.failure)
+          : loaded
       snapshot = {
         ...loaded.ok,
         unresolved: loaded.ok.unresolved.filter(
           operation => !before.unresolved.includes(operation),
         ),
+      }
+      if (terminalQuery && excludedNode === 'F3' && snapshot.revision !== terminalExpected) {
+        excludedNode = null
+        finishRefused = true
       }
       checkpoint = snapshot.checkpoint
       revision = snapshot.revision
@@ -779,6 +853,28 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if ('failure' in read)
         return read.failure.kind === 'unavailable' ? waitFor('R0', read.failure) : read
       facts = read.ok
+      if (finishRefused) {
+        finishRefused = false
+        intent = null
+        // Controls and extensions are still owned by their later cards. Never retry an unchanged
+        // refusal in a loop, or mistake an unimplemented responsibility for an empty queue.
+        if (snapshot.controls.length > 0)
+          return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
+        if (snapshot.checkpoint.passages.some(passage => passage.progress.kind !== 'applied'))
+          return fail(notYet('R0', 'a pending passage', '#502 stage 3'))
+        if (
+          read.ok.batch.ordered.length === 0 &&
+          decided?.kind === 'try-finish' &&
+          decided.failure !== null &&
+          !read.ok.consumption.some(item => item.custody === null && item.completion === null)
+        )
+          excludedNode = 'F1'
+        else {
+          decided = null
+          excludedNode = 'I8'
+        }
+        return step('reconciled', null)
+      }
       return step('reconciled', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
@@ -906,7 +1002,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       // Input submission and result records can advance the revision while Model runs. Use the
       // complete latest snapshot, under the same attachment, before deciding or committing I8.
       if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
-      checkpoint = read.ok.checkpoint
+      // R0 can reconsider a refused terminal while F3 is still the saved continuation.
+      // Evaluate at I8 now; only this decision's commit (or W0) saves the new position.
+      checkpoint = {
+        ...read.ok.checkpoint,
+        calls: callsAfterConsumedNoReply(read.ok),
+        position: 'I8',
+      }
       revision = read.ok.revision
       if (read.ok.state.kind !== 'ended') state = read.ok.state
       const current = await readFacts(read.ok)
@@ -1308,6 +1410,33 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed({ result: result.ok, completion: item.completion })
   }
 
+  /** I3 has consumed this no-reply result. A refused F1 must not turn its retained call
+   * continuation back into production. The Journal completion and real ACK remain O0's duty. */
+  function callsAfterConsumedNoReply(read: ExecutionSnapshot): readonly PendingCall[] {
+    const current = iteration
+    if (current?.result?.kind !== 'no-reply' || current.pending === null)
+      return read.checkpoint.calls
+    const pending = current.pending
+    const result = current.result
+    const completed = read.results.find(item => item.consumption === pending.consumption)
+    if (completed?.completion == null) return read.checkpoint.calls
+    const completion = completed.completion
+    if (
+      completed.result.version !== result.produced.version ||
+      !sameEvidence(completed.result.source, result.produced.source) ||
+      !acknowledged.some(
+        item => item.consumption === pending.consumption && sameEvidence(item.receipt, completion),
+      )
+    )
+      return read.checkpoint.calls
+    return read.checkpoint.calls.filter(
+      call =>
+        call.kind !== 'model' ||
+        call.consumption !== pending.consumption ||
+        call.reference !== pending.reference,
+    )
+  }
+
   /** M4/M5/I3 continuation can bypass M3 after producer committed. Recover the real original ACK
    * confirmation for this main consumption, so existing O0 can close its Journal responsibility. */
   async function recallAcknowledgement(
@@ -1320,9 +1449,19 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const eligible = await currentAttachment()
     if ('failure' in eligible) return eligible
     const pending = required(current.pending, 'pending call')
+    return confirmAcknowledgement({ ...pending, step: current.step }, result, completion, 'I3')
+  }
+
+  async function confirmAcknowledgement(
+    pending: Pick<ModelPendingCall, 'consumption' | 'reference' | 'position'> &
+      Readonly<{ step: StepId }>,
+    result: ModelOutcome,
+    completion: Evidence,
+    node: 'I3' | 'O0',
+  ): Promise<Outcome<void, Failure>> {
     const call = invocationParts(pending.reference, access.tenant).call
     const inspected = await ports.models.calls.inspect({ ...access, reference: pending.reference })
-    if ('failure' in inspected) return fail(modelFailure('I3', inspected.failure))
+    if ('failure' in inspected) return fail(modelFailure(node, inspected.failure))
     if (
       inspected.ok.kind !== 'found' ||
       inspected.ok.state.phase !== 'settled' ||
@@ -1331,7 +1470,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return fail({
         kind: 'unavailable',
         owner: 'modelRuntime',
-        diagnostic: 'I3: original acknowledgement is not confirmed',
+        diagnostic: `${node}: original acknowledgement is not confirmed`,
       })
     const state = inspected.ok.state
     const consumer = state.consumer
@@ -1344,7 +1483,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       consumer.work !== pending.position.work ||
       consumer.position !== pending.position.position ||
       consumer.purpose !== pending.position.purpose ||
-      custody.operation !== modelOperation(execution, current.step, 'ack') ||
+      custody.operation !== modelOperation(execution, pending.step, 'ack') ||
       !sameEvidence(custody.receipt, completion)
     )
       return fail({
@@ -1354,7 +1493,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       })
     acknowledged.push({
       produced: result.produced,
-      consumption: current.consumption,
+      consumption: pending.consumption,
       receipt: custody.receipt,
     })
     return succeed(undefined)
@@ -1503,7 +1642,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   // ------------------------------------------------------------------------------------------
-  // settle: F1, F2, F3, F4 (F0 and the refusals of F3 are #502 1.8 and stage 5)
+  // settle: F1, F2, F3, F4 (F0 is stage 5; extension evaluation is stage 3)
 
   const settle = {
     /** F1: the candidate of the evaluator is fixed with the current input boundary. */
@@ -1525,7 +1664,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (next.kind !== 'try-finish') throw new Error(`coordinator defect: F1 after ${next.kind}`)
       const read = await load()
       if ('failure' in read) return read
-      intent = {
+      // A newer input cannot be folded into a candidate made before it was accepted.
+      if (read.ok.revision !== revision) {
+        finishRefused = true
+        return step('reconcile', null)
+      }
+      intent ??= {
         conclusion: next.conclusion,
         inputWatermark: read.ok.inputWatermark,
         obligations: agentEvidence(`${execution}/obligations`, read.ok.revision),
@@ -1540,8 +1684,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     /** F2: no extension is adopted at before_terminal; the passage proceeds and binds the candidate. */
     async F2() {
       const fixed = required(intent, 'finish intent')
-      intent = { ...fixed, beforeTerminal: agentEvidence(`${execution}/before-terminal`, fixed) }
-      return step('proceed', { state: { kind: 'settling', intent } })
+      const passed =
+        fixed.beforeTerminal === null
+          ? { ...fixed, beforeTerminal: agentEvidence(`${execution}/before-terminal`, fixed) }
+          : fixed
+      intent = passed
+      return step('proceed', { state: { kind: 'settling', intent: passed } })
     },
     /** F3: tryFinish, the one terminal commit. */
     async F3() {
@@ -1553,18 +1701,24 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         expected: required(revision, 'revision'),
         intent: required(intent, 'finish intent'),
       })
-      if ('failure' in finished) return finished
-      if (finished.ok.kind !== 'ended')
-        return fail(notYet('F3', `a tryFinish that answered ${finished.ok.kind}`, '#502 1.8'))
+      if ('failure' in finished) {
+        if (finished.failure.kind !== 'commit-unknown') return finished
+        pendingCommit = { operation: finished.failure.operation, node: 'F3' }
+        return step('reconcile', null)
+      }
+      if (finished.ok.kind !== 'ended') {
+        finishRefused = true
+        return step('reconcile', null)
+      }
       revision = finished.ok.receipt.revision
       return step('ended', null)
     },
-    /** F4: the post-terminal observations. None is pending without extensions. */
+    /** F4: recognize the fixed terminal ledger. Pending observations stay with the long-lived
+     * Journal; extension evaluation is stage 3 and no completion is invented here. */
     async F4() {
       const read = await load()
       if ('failure' in read) return read
-      if (read.ok.terminalObservations.length > 0)
-        return fail(notYet('F4', 'a post-terminal observation', '#502 1.8 and stage 3'))
+      if (read.ok.state.kind !== 'ended') return fail(defect('F4 without a committed terminal'))
       return step('observed', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
@@ -1652,7 +1806,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return 'failure' in ran ? ran : succeed(undefined)
     },
     async runExecution() {
-      const ran = await drive('E1', null)
+      const ran = await drive(pendingCommit?.node === 'F3' ? 'R0' : 'E1', null)
       if ('failure' in ran) return ran
       return succeed(undefined)
     },

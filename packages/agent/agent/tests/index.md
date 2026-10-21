@@ -12,6 +12,7 @@
 - [loop-transitions.spec.ts](loop-transitions.spec.ts)：转移表逐行对节点表（C1）
 - [loop-evaluator.spec.ts](loop-evaluator.spec.ts)：评估器的决定、种子属性测试与导入图纯性（C1）
 - [loop-invoke.spec.ts](loop-invoke.spec.ts)：一条输入到 ended 的正常路径与骨架的临时简化（C2）
+- [loop-terminal.spec.ts](loop-terminal.spec.ts)：完成竞争、原终结查询、非空观察台账、O0 原责任认回与 idle 复用
 - [loop-reply-close.spec.ts](loop-reply-close.spec.ts)：I3 同 revision 准入、I4 空批、I8 三种去向与 ordinary limit/partial 边界
 - [loop-main-call.spec.ts](loop-main-call.spec.ts)：主调用的一次提交、原身份认回、结果责任、最终失败、部分结果、窄接续与推理回放限制
 - [loop-intake-prepare.spec.ts](loop-intake-prepare.spec.ts)：I0 完整输入批、新 step 与 I1 顺序准备、W0、真实不能装下和阶段压缩限制

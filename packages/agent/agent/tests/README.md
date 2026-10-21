@@ -35,7 +35,7 @@
 - `loop-main-call.spec.ts` 的用例核对 I2/M0 的一次意图提交、提交前后丢弃协调者的原身份接续、原 reference 与 admission 认回、受理回执丢失、受理前真实撤销挂接、retry-decision 与无活体路由的等待、最终失败、部分工具参数、在途输入及 no-reply 时刻。processed 实际材料先保存，再由 Journal 绑定完成依据，最后 ACK。丢失 ACK 回执时读取与处理只有一次，原 call/version/consumption 和实际费用记录保持关联。recordResult 回执未知的 applied/dropped 分支都先认回原操作。无扩展的 M4/M5 直接返回 I3，不产生 M2 重试。
 - `materials-support.ts` 在原租户与主体下实际保存并读取不可变材料，同 identity 同输入认回原回执、异值 conflict。严格 Model 证据适配器从根入口导入 readProcessedModelMaterial，读取真实材料、原 Model consumer/settlement、已成立 Journal 绑定与当前原 Authority/资格；它不使用 expectEvidence 代替保存。错误 tenant/version/consumer、假引用、无绑定、只有 raw、错误主体或撤权都拒 ACK。材料 owner 不符时原回执不改写，具名失败。
 - `loop-main-call.spec.ts` 的 L3-B1/B2 反例核对部分内容在 Model ACK 后仍可读取，材料 preserve 前后失败/未知与 Journal 绑定失败/未知均零 ACK，孤立材料保留；材料未知 schema 或损坏不得变为空回复。完整读取跨 dispatches 不可用保留；readNext 失败/抛错、不完整读取与 closeRead 叠加失败、完整关闭失败与关闭回执丢失后均可重入，原 call/version/consumption 不变，Read 不泄漏，不新受理调用。严格适配与材料仍为非耐久测试实现，不代表真实 Model 提供者端到端。
-- 同文件 R1 的 14 个用例专门截在 M3 producer 已成功提交到 M4、随后 I3 Materials.read 一次 unavailable 的位置，区别此前截在 M3 提交前、checkpoint 仍为 M6 的三个用例。新协调者不带 ACK 数组，reply/partial/no-reply 最终 release 均 confirmed，真实原 receipt 相同，ACK/read/admit 各一次、producer 唯一。确认读取不可用、未知、尚未确认或版本/consumer/receipt/operation 不符时不得成功。release unavailable 与 applied/dropped/pending 未知均沿同一原操作重试或 query；query 不可用和 unknown 保持失败，原责任保留。这不验证 #516 的 O0 整体交清。
+- 同文件 R1 的 14 个用例专门截在 M3 producer 已成功提交到 M4、随后 I3 Materials.read 一次 unavailable 的位置，区别此前截在 M3 提交前、checkpoint 仍为 M6 的三个用例。新协调者不带 ACK 数组，reply/partial/no-reply 最终 release 均 confirmed，真实原 receipt 相同，ACK/read/admit 各一次、producer 唯一。确认读取不可用、未知、尚未确认或版本/consumer/receipt/operation 不符时不得成功。release unavailable 与 applied/dropped/pending 未知均沿同一原操作重试或 query；query 不可用和 unknown 保持失败，原责任保留。该组只验证主调用 M4 切点。#516 的终态 O0 接续由 `loop-terminal.spec.ts` 覆盖。
 - 同文件核对 reasoning_state、完整 thinking 和未封 thinking 缺原产出 scope/format 时返回 unsupported：零 processed、零 ACK、零消息接纳，Read 已关闭，PendingCall 与 Model 生产责任保留。Model 脚本提供者的旧 sealed 校验尚不覆盖 reasoning_state，故该合法新类型从普通结果读取面注入。此测试只证明 Agent 消费边界，不证明真实 Model 提供者端到端。readNext 抛错仍关闭原 Read；closeRead 失败保持显式失败，不释放生产责任。用例没有 Agent stream 事件，透传仍未交付。
 - `loop-intake-prepare.spec.ts` 核对 NA-I0-1/2 与 NA-I1-1/2/3：完整输入批、batch/step/event 同次提交、下一 step 清旧准备、两次 invoke 无重叠、条件与选择及上下文和准备的顺序、首次 assembled 与 P1 ready、条件来源、初次 adopted 为空与 M0 采用 coverage、四端口不可用各保存一次 W0。另核对非法首次 ready 不调用 Model、真实 cannot-fit 保留原因并经 F1 保存完整候选、I1/F1 未知提交的 committed/excluded 接续、F1 候选与时刻不因重试变化。候选时刻来自注入的 AgentClock.now，同一候选只取一次；取时 unavailable 时零 F1 写入，准备与续点保留，后续取时成功才形成候选。revision 2 的 needs-compaction 保存原准备并答 unsupported，不进入 F1 或压缩调用。输入测试直接调用内存 Journal.submit，不证明公开 submit。真实在途输入保持已固定请求，M3 在 changed 后重读当前挂接并完成原回复准入，用例在 I8 停止。完整 SC-AG-157 的迭代与终结交错仍归后续卡。另一用例在回复保管前受理新输入，单独核对下一 step 只承接新增输入。
 - `loop-admission.spec.ts` 的用例名以节点验收表行号开头。U0 交出的内容经 `Journal.inputs` 读回。Q1 不提交，直接转 Q2。Q2 的模型回复回执随 checkpoint 提交，外部输入回执不另存（#558 S-13）。Q4 按来源返回 U0 或 I3。E0 在预约槽后保存输入与初始 checkpoint。
@@ -73,6 +73,18 @@
 
 `provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke` 与 `observe` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
 
+### 终态出口（#516）
+
+`loop-terminal.spec.ts` 核对 F1 完整候选与 F2 证据的固定、F3 的唯一终态共同提交，以及先受理输入使旧候选失效。
+三类丢失回执分别核对原操作的 committed、excluded 与 unknown。查询或读取不可用时不写会改变原终结条件的等待提交。
+真实 custody blocked 保留未交清责任。真实 transfer 后才重提完成。
+B1 用例在 no-reply 取时与 F1 提交两个切点先受理新输入，核对同次驱动进入 step-2、零虚假 producer 等待，以及原 Model 身份、读取和 ACK 次数。已收场业务续点的关闭不解除 O0 release 责任。
+
+非空台账用例固定两项 after_terminal 采用：原登记回执丢失后查回，同一内存 Journal 上的新协调者从 ended 认回已登记与未登记项。
+未登记项保留给长期 Journal，宿主之后经公开记录端口完成登记。此用例不执行阶段 3 扩展，也不证明真实杀进程或跨进程恢复。
+O0 内存丢失用例从 completion 材料与生产者 inspect 认回真实原 ACK，不重读 Model 正文、不重复 ACK。
+未确认输出在 idle 后仍能从原句柄读取。登记不撤除，原 execution 不重开，新 execution 可复用 runtime。
+
 ### Loop 骨架（#502 1.2）的临时做法与后续各卡
 
 骨架的临时做法在源码注释、下列测试名与[成员 README](../README_ZH.md#支持范围)中写明：
@@ -90,7 +102,7 @@ E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（a
 | ---------------------- | ------------------------------------- | -------------------------- |
 | P0、P1                 | 转移表的 P 行；不含扩展与一致性重试   | 后续请求接缝实现           |
 | M1 的 stream           | 观察到真实收场，但不发布 Agent stream | 后续生产者元数据与透传接缝 |
-| F1、F2、F3、F4、O0、E9 | ended 与回 idle 的用例                | 1.8                        |
+| F2、F4 的扩展求值       | 本阶段只固定依据并保留观察台账        | 阶段 3                     |
 | W0、R0                 | 无                                    | 1.9                        |
 
 下列创建校验没有用例，因为工厂收到的输入判定不了它们，见[成员 README](../README_ZH.md#支持范围)：
