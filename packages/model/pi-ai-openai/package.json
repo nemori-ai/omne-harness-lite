@@ -24,7 +24,8 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
     "fingerprints": "node --experimental-strip-types tests/support/append-fingerprints.ts",
-    "fixtures": "node --experimental-strip-types tests/support/write-fixtures.ts"
+    "fixtures": "node --experimental-strip-types tests/support/write-fixtures.ts",
+    "examples": "node --experimental-strip-types examples/openai-request.ts"
   },
   "dependencies": {
     "@omne-harness/json-text": "workspace:*",

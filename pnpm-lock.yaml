@@ -984,6 +984,9 @@ importers:
         specifier: workspace:*
         version: link:../tokenizer-tiktoken
     devDependencies:
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@omne-harness/model':
         specifier: workspace:*
         version: link:../model
