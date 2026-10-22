@@ -3,7 +3,7 @@
 import type { ModelFault, TransportFact, TransportTermination } from '@omne-harness/model-contract'
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
-import { readProtocolFrames, type ProtocolFrames } from './frames.ts'
+import { readProtocolFrames } from './frames.ts'
 import { ResponseBodyReadError, ResponseBodyStoppedError, type HttpExchange } from './http.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
@@ -94,8 +94,10 @@ async function* decodeSend(
       if (fault !== null) return { kind: 'decoder-fault', fault }
       if (frame.ok.kind === 'end-marker') {
         // The protocol ended: nothing after the marker is decoded and the body end is not awaited.
-        // A body that Node already holds whole is read to its end, so the connection stays pooled.
-        bodyComplete = result.body.received() && (await endsAfterMarker(frames))
+        // `received()` alone decides: `Readable.read()` hands over the whole buffered body in one
+        // chunk, so a body that Node holds whole was consumed with the marker's frame and the
+        // connection stays pooled. A body still open is stopped.
+        bodyComplete = result.body.received()
         break
       }
     }
@@ -111,27 +113,6 @@ async function* decodeSend(
   const fault = yield* passFacts(ending.ok, held)
   if (fault !== null) return { kind: 'decoder-fault', fault }
   return { kind: 'decoded', termination: held.termination }
-}
-
-/**
- * Reads the rest of a body that Node has received whole, without decoding it. `true`: the body
- * ended right after the marker. `false`: an event or a failure followed; the frames are closed.
- */
-async function endsAfterMarker(frames: ProtocolFrames): Promise<boolean> {
-  try {
-    const step = await frames.next()
-    if (step.done === true) return true
-    await frames.return(undefined)
-    return false
-  } catch (error) {
-    if (
-      error instanceof ResponseBodyStoppedError ||
-      error instanceof ResponseBodyReadError ||
-      error instanceof SseProtocolError
-    )
-      return false
-    throw error
-  }
 }
 
 /** The decoder's termination, kept until the body has ended so that it is the last fact. */
