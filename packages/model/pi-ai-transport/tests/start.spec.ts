@@ -95,6 +95,21 @@ describe('a start that sends nothing', () => {
     expect(sends()).toBe(0)
   })
 
+  it('after the network resources closed ends interrupted even without a credential, and reads none', async () => {
+    let reads = 0
+    const { materialize, sends, network } = setup(() => {
+      reads += 1
+      return undefined
+    })
+    const materialized = await materialize()
+    await network.close()
+    expect(await collect(materialized.start(new AbortController().signal))).toEqual([
+      { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
+    ])
+    expect(reads).toBe(0)
+    expect(sends()).toBe(0)
+  })
+
   it('a second start gives an empty stream and reads nothing', async () => {
     let reads = 0
     const { materialize, sends } = setup(() => {

@@ -100,7 +100,8 @@ function createMaterialized(
     signal: AbortSignal,
   ): AsyncIterable<TransportFact> {
     const { config, route } = input
-    if (signal.aborted) return refusedBeforeSend(held, { kind: 'stopped' })
+    // A cancel or a closed network wins over a missing credential: nothing could be sent.
+    if (signal.aborted || config.network.closed) return refusedBeforeSend(held, { kind: 'stopped' })
     const secret = config.credential.read()
     if (secret === undefined) return refusedBeforeSend(held, { kind: 'credential-missing' })
     const decoder = input.binding.createDecoder()
