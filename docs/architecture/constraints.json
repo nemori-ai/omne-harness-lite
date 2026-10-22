@@ -94,14 +94,6 @@
       "source": "docs/domains/boundaries.md#责任地图"
     },
     {
-      "id": "packages/session/session-tenancy-table",
-      "paths": ["packages/session/session-tenancy-table/src/**"],
-      "layer": "unknown",
-      "domains": ["session"],
-      "status": "candidate",
-      "source": "docs/domains/boundaries.md#责任地图"
-    },
-    {
       "id": "packages/core/arrival-events",
       "paths": ["packages/core/arrival-events/src/**"],
       "layer": "unknown",

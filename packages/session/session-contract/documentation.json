@@ -202,7 +202,7 @@
         },
         {
           "id": "section-21",
-          "anchor": "342-主干运行契约候选"
+          "anchor": "运行契约候选"
         }
       ]
     },
@@ -476,11 +476,15 @@
       "requiredSections": [
         {
           "id": "section-1",
-          "anchor": "关键流程与失败分支"
+          "anchor": "阅读顺序"
         },
         {
           "id": "section-2",
-          "anchor": "生命周期与验证入口"
+          "anchor": "流程适用范围"
+        },
+        {
+          "id": "section-3",
+          "anchor": "缺项与持续验证入口"
         }
       ]
     },
@@ -515,47 +519,71 @@
       "requiredSections": [
         {
           "id": "section-1",
-          "anchor": "流程适用范围"
+          "anchor": "编号表"
         },
         {
           "id": "section-2",
-          "anchor": "f-sw01-创建版本采用与-reload"
+          "anchor": "f-sc01-打开执行与交入输入"
         },
         {
           "id": "section-3",
-          "anchor": "f-sw02-可靠受理分流与完整批次"
+          "anchor": "f-sc02-消息进历史的共同提交"
         },
         {
           "id": "section-4",
-          "anchor": "f-sw03-工作推进结果交接与恢复"
+          "anchor": "f-sc03-压缩转换的共同提交与-epoch-新代"
         },
         {
           "id": "section-5",
-          "anchor": "f-sw04-出卡答复与原扩展位置接续"
+          "anchor": "f-sc04-结果保管的共同提交"
         },
         {
           "id": "section-6",
-          "anchor": "f-sw05-模式变化与模型选择"
+          "anchor": "f-sc05-处理完成的共同提交"
         },
         {
           "id": "section-7",
-          "anchor": "f-sw06-插队单调用控制与-run-取消"
+          "anchor": "f-sc06-交付责任解除与重发"
         },
         {
           "id": "section-8",
-          "anchor": "f-sw07-归档级联与撤销"
+          "anchor": "f-sc07-从-agent-事件派生事实"
         },
         {
           "id": "section-9",
-          "anchor": "f-sw08-连续空闲取证与自动归档"
+          "anchor": "f-sc08-条件终结与-run-终态"
         },
         {
           "id": "section-10",
-          "anchor": "f-sw09-历史读取结果定位与账目核对"
+          "anchor": "f-sc09-推进映射与换代"
         },
         {
           "id": "section-11",
-          "anchor": "缺项与持续验证入口"
+          "anchor": "f-sc10-迟到结果与终态后的后台结果"
+        },
+        {
+          "id": "section-12",
+          "anchor": "f-sc11-时间线投影与在途收敛"
+        },
+        {
+          "id": "section-13",
+          "anchor": "f-sc12-流到日志"
+        },
+        {
+          "id": "section-14",
+          "anchor": "f-sc13-epoch-视图读取"
+        },
+        {
+          "id": "section-15",
+          "anchor": "f-sc14-会话冻结"
+        },
+        {
+          "id": "section-16",
+          "anchor": "f-sc15-引用查询"
+        },
+        {
+          "id": "section-17",
+          "anchor": "f-sc16-作用域释放与换代后重新释放"
         }
       ]
     },
@@ -729,7 +757,7 @@
         },
         {
           "id": "section-6",
-          "anchor": "当前增量与后续接口"
+          "anchor": "构造依赖端口出站端口与纯函数"
         },
         {
           "id": "section-7",

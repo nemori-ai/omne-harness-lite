@@ -108,7 +108,9 @@ packages/
 │   ├── session-contract/       Session、Run 与逻辑治理纯契约
 │   ├── session-cordis-contract/  唯一 Cordis 服务定义
 │   ├── session/                无 Cordis 的治理实现
-│   └── session-cordis/         长期服务的 Cordis 装配，不含存储后端
+│   ├── session-cordis/         长期服务的 Cordis 装配，不含存储后端
+│   ├── session-adapters/       与邻域契约的适配插件
+│   └── session-storage-sql/    会话日志与治理状态的 SQL 存储
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
@@ -334,4 +336,4 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 
 ## Session 的安装边界
 
-Session 按纯契约、Cordis 定义、通用实现和具体装配分为四个 workspace 成员。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。详细成员关系见 [Session 组](../packages/session/README.md)。
+Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适配和存储介质分为六个 workspace 成员。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口、出站端口接口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。session-adapters 承接与六个邻域相接的全部适配插件，是组内唯一导入邻域契约的成员，依赖纯契约、Cordis 定义与邻域契约。session-storage-sql 提供事务端口的 SQL 实现，依赖纯契约与存储契约，不承担治理判断。详细成员关系见 [Session 组](../packages/session/README.md)。

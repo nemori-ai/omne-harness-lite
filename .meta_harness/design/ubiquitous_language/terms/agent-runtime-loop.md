@@ -155,25 +155,24 @@
 > **中**：**把一段协作收起来的那个动作，以及它之后所处的那个状态。**
 > 它是**唯一一个「这段协作到此为止」的锚点**——
 > [没有删除会话这回事，所以也没有「会话结束」这回事](#ul-session--会话--session)。
-> **它有两条来路**：**租户手动归**，或**系统按一个出厂配置的时限自动归**。
+> **它有两条来路**：**手动归**，或**租户启用自动归档后，系统按租户配置的空闲时限自动归**。
 > **归档本身可以撤销**，撤销后会话回到休眠、历史一条不少；
 > **但它连带做的三件事不可逆**：子会话级联被归档、未完成的工具执行被中断、模型响应被中断。
 >
 > **EN**: **The act of putting a stretch of collaboration away, and the state it then sits
 > in.** It is **the one anchor for "this collaboration is over"** — there is no deleting a
-> session, hence no "session end". It arrives **two ways**: **the tenant archives it**, or
-> **the system does so once a factory-configured time limit is reached**. **Archival itself is
+> session, hence no "session end". It arrives **two ways**: **someone archives it by hand**, or,
+> **once the tenant turns auto-archival on, the system does so when the tenant's configured
+> idle limit is reached**. **Archival itself is
 > reversible**: undoing it returns the session to dormant with its history intact. **The
 > three things it does on the way in are not**: child sessions are archived transitively,
 > unfinished tool executions are interrupted, and the model response in flight is
 > interrupted.
 
-- **自动触发**：自身及归档会级联影响的子会话均无未结束 Run、活跃模型／工具执行及待处理任务，连续空闲达到出厂时限（默认 30 天）；开展新工作终止旧计时，撤销归档后重新计时，进程重启不重置。
+- **自动触发**：默认关闭，租户显式开启；自身及归档会级联影响的子会话均无未结束 Run、活跃模型／工具执行及待处理任务，连续空闲达到租户配置的时限（产品不规定固定天数）；标记常驻的主会话豁免；开展新工作终止旧计时，撤销归档后重新计时，进程重启不重置。
 - **输入处置**：归档取消待处理任务并保留历史；归档期间拒绝新任务，迟到执行事实只留痕、不入队，撤销归档不自动恢复已取消任务。
 - **形态**：过程
-- **出处**：[PF-015 §4 会话归档](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话归档) ·
-  [§6.2](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动) ·
-  [§6.3](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 21）
+- **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 6）
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——

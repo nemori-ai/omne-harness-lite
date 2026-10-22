@@ -519,6 +519,25 @@
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
 
+### UL-consumption-position · 消费位置 · Consumption Position
+
+> **中**：一次模型调用或一次工具执行的结果要交回的那个位置：哪个消费者、为了什么用途、在哪一处等它。
+> 在会话里，它是原运行中发起这次调用的那一处，例如一次等待、一个扩展判断位置或一次压缩判断；
+> 程序独立调用时，它是该调用方自己的接收处。结果、失败、迟到的账目与不可用的逻辑结果都回到它，不变成一条新输入。
+> 它在调用发起时确定，换推进者、重建实例或恢复都不改变它。
+>
+> **EN**: The place where the result of one model call or one tool execution must return: which consumer,
+> for what use, and where it waits. In a session it is the place in the original run that issued the call,
+> such as a wait, an extension decision point or a compaction decision. When a program calls on its own,
+> it is that caller's own receiver. Results, failures, late accounts and unavailable logical results all
+> return to it, and none of them becomes a new input. It is fixed when the call is issued. A new advancing
+> attempt, a rebuilt instance or a recovery does not change it.
+
+- **形态**：属性
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 6）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 4）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
+- **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
+- **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
+
 ## 怎么了结
 
 ### UL-execution-outcome · 执行收场 · Execution Outcome
@@ -572,6 +591,24 @@
   原定义见封存 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被拒收的回复不是故障，不交给重试挂件，也不算试过一家
 - **弃用**：~~连续否决上限~~ ~~Consecutive Veto Limit~~——现行规则没有这项上限，不另起替代词；已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#回复准入与动作处理) 写法相同
+
+### UL-open-work · 未结工作 · Open Work
+
+> **中**：一个会话里已经发起或已经受理、还没有了结的工作：未终结的运行，还在等人答复的卡片，
+> 尚未收场的模型调用与前台、后台工具执行（包括运行之外的调用），以及已受理但还没处理完的输入与任务
+> （包括已被运行承接、还没进过一次模型请求的输入）。它从会话日志算出，不另存一份。查询失败、结局未知的执行仍算未结。
+>
+> **EN**: Work in one session that has been issued or accepted but has not yet come to an end: an
+> unterminated run, a card still waiting for a human answer, a model call or a foreground or background
+> tool execution that has not settled (including calls outside any run), and accepted inputs and tasks not
+> yet fully handled (including inputs a run has claimed but no model request has carried yet). It is
+> computed from the session log and not stored separately. An execution whose query failed and whose
+> outcome is unknown still counts as open.
+
+- **形态**：视图
+- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 6）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 4）
+- **别混**：不是[运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)。运行等待态说一次运行此刻停在哪里；未结工作说整个会话还欠着什么，运行终结后仍在执行的后台工具也算
+- **注意**：同一份未结工作供三处判断：运行能否完成、会话是否连续空闲、压缩时哪些历史条目必须留在[保留名单](record-and-context.md#ul-retained-set--保留名单--retained-set)里或覆盖范围之后
 
 ## 跑偏了谁接手
 

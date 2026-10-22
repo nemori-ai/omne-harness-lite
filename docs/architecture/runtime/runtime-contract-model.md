@@ -21,17 +21,18 @@
 | --- | --- | --- | --- |
 | 主体与租户 | identity / authorization | 复用 legal-identity；可信主体依据另核 | 裸 ID 不提供资格，Context 不是租户来源 |
 | Session | Session | SessionId | 逻辑身份及历史持久；不是 Cordis 根或 isolate |
-| Run | Session | RunId，所属 SessionId | 一个 Session 至多一个未终结 Run；终态不可逆 |
-| AdvancementAttempt | Session | AttemptId、推进代次及原 Run | 一个 Run 至多一个有效推进者；实例重启不自行取得资格 |
+| Run | Session | RunId，所属 SessionId | 一个 Session 至多一个未终结 Run；终态不可逆。Run 与 Agent execution 一一对应，Session 只引用 execution 的身份与修订，不保存 Agent 的接续值 |
+| AdvancementAttempt | Session | AttemptId，作为 Run 的值属性 AdvanceRef 保存 | 一个 Run 至多一个有效推进者；推进尝试与执行挂接一一对应；实例重启不自行取得资格 |
 | ConsumptionPosition | Session 或独立消费者 | Owner + 原工作 + 位置身份 | 区分主回复、压缩、扩展经过、Tool 结果；换推进者不改原位置 |
 | ModelCall | Model | ModelCallId、固定请求 | 一个逻辑调用，可能多次政策允许的 Dispatch；终局不反转 |
 | Dispatch | Model | DispatchId、原 ModelCallId | 每次实际发出单独保留事实和费用；首内容后不重发 |
-| ToolExecution | Tool | ToolExecutionId、固定执行者/参数/环境 | 后台化、观察者变化不创建新执行；未知效果不自动重放 |
-| Agent runtime instance | Agent | AgentInstanceId | 可复用的独立协程，固定租户与安全范围；同时至多一个有效挂载 |
+| ToolExecution | Tool | ToolCallId、固定执行者/参数/环境 | 后台化、观察者变化不创建新执行；未知效果不自动重放 |
+| Agent runtime instance | Agent | AgentInstanceId | 可复用的独立协程，固定租户、安全作用域与定义采用；同一时刻至多一个有效执行挂接。一次 Agent 执行结束后回到空闲并保持登记，可以承接下一次 Agent 执行；执行之间不沿用主体、授权、取消状态、输入队列与结果游标 |
 | Agent execution | Agent | AgentExecutionId | 可恢复推进记录，跨实例保持调用和原位置；完成后不复活 |
-| Agent attachment | Agent | AttachmentId、当前围栏 | 执行的一次物理承接；Session 外部映射 attempt，失权不发新业务 |
+| 执行挂接 · ExecutionAttachment | Agent | ExecutionAttachmentId，加当前围栏 | execution 的一次物理承接，状态 active、superseded、detached。Journal 提供者在 open 或 attach 时授予，授予依据是调用方的推进资格依据，独立调用时该依据为空。外部协调者在自己一侧映射它的推进尝试。失权的挂接不发新业务 |
+| Agent 登记 · AgentRegistration | Agent 宿主 | AgentRegistrationId | 宿主对一个 runtime 实例的发布记录，状态 published、withdrawing、withdrawn。重新发布同一个存活实例产生后继登记，并取代旧登记。登记不授予推进资格 |
 | Model runtime instance | Model | ModelInstanceId、原 ModelCallId | 独立执行协程；原 Agent 退出不取消它 |
-| Tool runtime instance | Tool | ToolInstanceId、原 ToolExecutionId | 独立执行协程；按自身控制与实际收场退出 |
+| Tool runtime instance | Tool | ToolInstanceId、原 ToolCallId | 独立执行协程；按自身控制与实际收场退出 |
 | Live handle | 各 runtime 领域 | 绑定实例 ID 与受限操作 | 临时可失效；释放观察不释放原执行责任 |
 | Result custody | 原执行与实际消费者 | 原调用/结果版本、交接操作及证据 | 业务完成、结果交接、资源清理分别记录 |
 
@@ -44,6 +45,8 @@ classDiagram
   class AdvancementAttempt
   class ConsumptionPosition
   class AgentInstance
+  class ExecutionAttachment
+  class AgentExecution
   class ModelCall
   class Dispatch
   class ModelInstance
@@ -54,9 +57,9 @@ classDiagram
   Session "1" *-- "0..*" Run
   Run "1" *-- "0..*" AdvancementAttempt
   Run "1" *-- "0..*" ConsumptionPosition
-  AgentInstance --> AgentAttachment : hosts current
-  AgentAttachment --> AgentExecution : advances
-  AdvancementAttempt --> AgentAttachment : mapped by Session adapter
+  AgentInstance --> ExecutionAttachment : hosts current
+  ExecutionAttachment --> AgentExecution : advances
+  AdvancementAttempt --> ExecutionAttachment : mapped by Session adapter
   ConsumptionPosition --> ModelCall : original association
   ConsumptionPosition --> ToolExecution : original association
   ModelCall "1" *-- "0..*" Dispatch
@@ -78,7 +81,7 @@ classDiagram
 | Model 托管调用 | 受理容量、真实 dispatch、独立重试、流与结果保管、ACK 和费用 | 外部只理解原调用与所需控制，不自行驱动 transport 重试和清理 |
 | Tool 托管执行 | 固定执行者和环境、前后台等待、内部 Ask、实际效果和全文保留 | 执行者可替换，业务效果仍归所调用业务；不暴露任意重跑按钮 |
 | Agent 推进 | 当前前提、纯 Loop 决策、扩展链及整批屏障、原调用消费和接续 | 纯决策和有副作用的协调分开；消费者不手动模拟整轮状态机 |
-| 各自活体目录 | 按稳定工作身份定位、实例失效与代次匹配、受限观察 | 内部发布权只交各域实例宿主；没有跨域任意 unregister 的公共管理员 |
+| 各自活体目录 | 按目录键定位（Model/Tool 为稳定工作身份，Agent 为租户加实例身份）、实例失效与代次匹配、受限观察 | 内部发布权只交各域实例宿主；没有跨域任意 unregister 的公共管理员 |
 
 内部角色不自动变成公开类或 Cordis 服务。为了测试可替换的内部实现可以保留内部 seam；只有真实消费者所需、或领域提供者必须兑现的能力进入公开契约。每个新增抽象都要回答删除后哪项复杂度会泄露给调用者。
 
@@ -119,7 +122,7 @@ classDiagram
 
 本候选选择每域窄目录加独立事实/控制/消费操作。另一个可行形状是按原身份返回逻辑代理句柄；它能隐藏路由，但仍必须区分无活体、未知、拒绝和已释放。本轮先显式保留这几个状态，使恢复责任容易审查。
 
-一个实例对应一个可独立调度的协程。Agent 实例可在 execution 结束后回 idle，继续登记并顺序承接新执行。原 execution 的恢复沿新 attachment 接续，身份与 runtime 分开。Model dispatch 属于原调用实例的内部执行进展，不为每次供应商重试重建 Run/attempt。实例退出后事实与结果责任仍归原领域；需要接续时原拥有者先核对资格和执行连续性，再决定是否创建后继实例。
+一个实例对应一个可独立调度的协程。一次 Agent 执行结束后，Agent runtime 回到空闲并保持登记，可以承接下一次 Agent 执行。执行之间不沿用主体、授权、取消状态、输入队列与结果游标。原 execution 的恢复沿新的执行挂接接续，execution 身份与 runtime 分开。Model dispatch 属于原调用实例的内部执行进展，不为每次供应商重试重建 Run/attempt。实例退出后事实与结果责任仍归原领域；需要接续时原拥有者先核对资格和执行连续性，再决定是否创建后继实例。
 
 目录发布由各自实例宿主拥有的贡献发起。Agent 观察 Model/Tool 不持有其注册贡献。Cordis 自动撤除只撤注册效应，不能等同业务收场或结果清理。根 Context 登记例外不扩大到普通消费者。各域的操作记录和未完责任不依赖目录条目存活。
 

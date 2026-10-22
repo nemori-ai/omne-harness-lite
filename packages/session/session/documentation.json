@@ -918,6 +918,30 @@
       ]
     },
     {
+      "id": "verification-fault-scenarios",
+      "path": "packages/session/session/docs/fault-scenarios.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "编号规则"
+        },
+        {
+          "id": "section-2",
+          "anchor": "未覆盖"
+        }
+      ]
+    },
+    {
       "id": "verification-models-readme",
       "path": "packages/session/session/verification/models/README.md",
       "kind": "guide",
