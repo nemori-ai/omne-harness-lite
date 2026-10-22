@@ -9,3 +9,5 @@
 - [environment-conformance.ts](environment-conformance.ts)：执行环境套件。
 
 每条用例新建主体并清理。缺少必要控制钩子时报不适用，不计为通过。
+
+套件函数只组装具名 `ConformanceCase` 清单。各 `check…` 函数拥有一项行为义务。夹具构造与逐项清理独立于行为断言。提供者套件由本包的 `provider-conformance.spec.ts` 直接执行十项义务，并逐项否定坏提供者。执行环境套件由登记表成员与 host-local 消费，真实宿主设施保证仍归 host-local。

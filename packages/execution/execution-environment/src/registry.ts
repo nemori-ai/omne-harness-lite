@@ -91,23 +91,8 @@ function byRegistry(reason: Extract<LeaseInvalidation, { source: 'registry' }>['
 function adoptionOf(
   state: Exclude<AcquisitionState, { readonly kind: 'invalidInput' }>,
 ): EnvironmentAdoption | null {
-  switch (state.kind) {
-    case 'acquired':
-    case 'invalidated':
-    case 'releasing':
-    case 'released':
-    case 'pendingRelease':
-      return state.adoption
-    case 'unrecorded':
-    case 'acquiring':
-    case 'provisional':
-    case 'rejected':
-      return null
-    default: {
-      const exhaustive: never = state
-      return exhaustive
-    }
-  }
+  // The closed union carries adoption only after verification. A pending compensation carries null.
+  return 'adoption' in state ? state.adoption : null
 }
 
 /** legal-identity's equality is false for any value it did not mint, so it doubles as the mint check. */

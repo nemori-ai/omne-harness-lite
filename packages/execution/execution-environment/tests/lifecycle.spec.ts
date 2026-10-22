@@ -344,3 +344,38 @@ it('releases one scope only: leases of another scope stay valid', async () => {
     adoption: other.adoption,
   })
 })
+
+it('keeps adopted descriptions through invalidation and pending release, then removes settled acquisitions', async () => {
+  const firstRelease =
+    deferred<import('@omne-harness/execution-environment-contract').LeaseRelease>()
+  let releases = 0
+  const provider = scriptedProvider({
+    release: async () => (++releases === 1 ? firstRelease.promise : { kind: 'released' }),
+  })
+  const registry = registryWith([provider])
+  const acquired = await leased(
+    registry,
+    await placed(registry, requirement([host])),
+    'description-states',
+  )
+  const describe = () => registry.describe(accessA, scope('scope-1'))
+  expect(await describe()).toMatchObject([
+    { state: 'acquired', instance: acquired.adoption.instance },
+  ])
+  provider.invalidateLeases({ source: 'provider', reason: 'lost' })
+  await acquired.lease.invalidated
+  expect(await describe()).toMatchObject([
+    { state: 'invalidated', instance: acquired.adoption.instance },
+  ])
+  const release = acquired.lease.release()
+  expect(await describe()).toMatchObject([
+    { state: 'releasing', instance: acquired.adoption.instance },
+  ])
+  firstRelease.resolve({ kind: 'pending', resources: [] })
+  await release
+  expect(await describe()).toMatchObject([
+    { state: 'pendingRelease', instance: acquired.adoption.instance },
+  ])
+  await acquired.lease.release()
+  expect(await describe()).toEqual([])
+})

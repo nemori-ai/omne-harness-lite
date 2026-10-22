@@ -15,3 +15,5 @@
 
 - [operation-schemas.spec.ts](operation-schemas.spec.ts)：三面八操作与拒绝原因。
 - [exports-inventory.spec.ts](exports-inventory.spec.ts)：共享库存工具核对。
+
+- [provider-conformance.spec.ts](provider-conformance.spec.ts)：公开提供者套件十项义务的直接消费、逐项坏提供者否定与惰性组装。
