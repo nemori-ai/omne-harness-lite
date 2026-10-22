@@ -453,7 +453,13 @@ export function createMemoryRuntimeContext<P = unknown>(
       if (closed || ended) return { kind: 'refused', reason: 'closed' }
       const e = currentEligibility(id),
         s = state(boundScope)
-      if (!e || !s || e.consumer !== boundConsumer || !tenantEquals(s.tenant, e.tenant))
+      if (
+        !e ||
+        !s ||
+        e.consumer !== boundConsumer ||
+        e.scope.ref !== boundScope.ref ||
+        !tenantEquals(s.tenant, e.tenant)
+      )
         return { kind: 'refused', reason: 'unauthorized' }
       return {
         kind: 'success',

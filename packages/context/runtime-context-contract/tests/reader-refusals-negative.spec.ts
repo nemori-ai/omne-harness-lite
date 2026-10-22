@@ -35,39 +35,45 @@ function obligation(name: string) {
   if (!found) throw new Error('Missing public obligation')
   return found
 }
-it('the public consumer-fixed obligation rejects a subject that forwards the old reader to a different consumer', async () => {
-  const memory = createMemoryRuntimeContext<string>()
-  let successor: Eligibility<string> | undefined
-  const bad: RuntimeContextOperations<string> = {
-    ...memory,
-    async issueEligibility(material) {
-      const result = await memory.issueEligibility(material)
-      if (result.kind === 'issued' && material.supersedes) successor = result.eligibility
-      return result
-    },
-    async bind(id) {
-      const result = await memory.bind(id)
-      if (result.kind !== 'bound') return result
-      const reader = result.reader
-      return {
-        kind: 'bound',
-        reader: {
-          ...reader,
-          async snapshot() {
-            if (successor && successor.consumer !== reader.consumer) {
-              const rebound = await memory.bind(successor.id)
-              if (rebound.kind === 'bound') return rebound.reader.snapshot()
-            }
-            return reader.snapshot()
+for (const dimension of ['consumer', 'scope'] as const)
+  it(`the public ${dimension}-fixed obligation rejects a forwarded reader`, async () => {
+    const memory = createMemoryRuntimeContext<string>()
+    let successor: Eligibility<string> | undefined
+    const bad: RuntimeContextOperations<string> = {
+      ...memory,
+      async issueEligibility(material) {
+        const result = await memory.issueEligibility(material)
+        if (result.kind === 'issued' && material.supersedes) successor = result.eligibility
+        return result
+      },
+      async bind(id) {
+        const result = await memory.bind(id)
+        if (result.kind !== 'bound') return result
+        const reader = result.reader
+        return {
+          kind: 'bound',
+          reader: {
+            ...reader,
+            async snapshot() {
+              if (
+                successor &&
+                (dimension === 'consumer'
+                  ? successor.consumer !== reader.consumer
+                  : successor.scope.ref !== reader.scope.ref)
+              ) {
+                const rebound = await memory.bind(successor.id)
+                if (rebound.kind === 'bound') return rebound.reader.snapshot()
+              }
+              return reader.snapshot()
+            },
           },
-        },
-      }
-    },
-  }
-  await expect(
-    obligation('reissue-cannot-change-reader-consumer').run(fixture(async () => bad)),
-  ).rejects.toThrow()
-})
+        }
+      },
+    }
+    await expect(
+      obligation(`reissue-cannot-change-reader-${dimension}`).run(fixture(async () => bad)),
+    ).rejects.toThrow()
+  })
 for (const name of [
   'removed-plain-registration-refused',
   'removed-eligibility-checked-registration-concealed',
