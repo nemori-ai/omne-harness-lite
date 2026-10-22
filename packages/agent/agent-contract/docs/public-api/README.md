@@ -153,6 +153,7 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 - `AgentRuntimeControl` 是停用实例的控制面，由 runtime 的提供者交给宿主，不交给执行的调用方。
 - `AgentAccessCheck` 是 Agent 核验主体当前资格的注入端口，由授权领域的适配器实现。`operation` 是被核验的公开操作，`target` 是该操作作用的范围、实例或 execution。`unavailable` 不放行，其 `diagnostic` 受与 Failure 诊断相同的内容限制。`takeover` 是接管仍在推进的 execution 所需的独立资格，不包含在 `resume` 之内。它与动作准入是两个端口：动作准入判断某个 Model 或 Tool 动作能否发起，本端口判断主体能否调用 Agent 的某个公开操作。
 - `AgentInstant` 是 RFC 3339 的 UTC 时刻，例如 `2026-10-17T08:00:00Z`。
+- `AgentClock` 的 `now` 返回当前 UTC 时刻的 `Reply<AgentInstant>`，`waitUntil` 等待给定时刻或中止。读取失败、候选时刻与重试规则归 [时钟读取与等待](../../SPEC.md#时钟读取与等待)。
 - `ExecutionMutation.operation` 由稳定要素确定派生，不是随机值，崩溃前后对同一帧与同一转移派生同一身份。派生规则与未知结果的查询见[机制页](../../../agent/docs/architecture/mechanisms.md#操作身份的确定派生)。
 - `FinishIntent.beforeTerminal` 是落终态之前位置依据的唯一字段，`AgentConclusion` 不另带这项依据。它在候选固定时为 null，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
 - `AgentExecutionRecovery` 是无活体 runtime 时按 execution 对账的入口，`reconcile` 的 `remaining` 是交付责任尚未解除的 consumption 列表。行为见 SPEC 的“[提交与保管](../../SPEC.md#提交与保管)”与“[交接与停用](../../SPEC.md#交接与停用)”，切点见[机制页](../../../agent/docs/architecture/mechanisms.md#恢复切点表)。

@@ -15,6 +15,7 @@ import {
   type MessageContentBlock,
   type MessageId,
   type MessageRoleMap,
+  type ReasoningStatePart,
   type SystemReminderMessage,
   type ToolCallPart,
   type ToolInternalMessage,
@@ -71,7 +72,10 @@ it('each role type has the blocks that its role allows, and at least one', () =>
     readonly [MessageContentBlock, ...MessageContentBlock[]]
   >()
   expectTypeOf<AssistantMessage['blocks']>().toEqualTypeOf<
-    readonly [ContentBlock | CallPart, ...(ContentBlock | CallPart)[]]
+    readonly [
+      ContentBlock | CallPart | ReasoningStatePart,
+      ...(ContentBlock | CallPart | ReasoningStatePart)[],
+    ]
   >()
   expectTypeOf<CallPart>().toEqualTypeOf<
     ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart

@@ -19,6 +19,7 @@
 | [conversion.ts](conversion.ts) | 消息转换 |
 | [tokenizer.ts](tokenizer.ts) | 文本分词与完整计量依据 |
 | [driver.ts](driver.ts) | 受信宿主驱动 |
+| [replay-values.ts](replay-values.ts) | 推理回放的声明与投影 |
 | [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 |
 | [diagnostics.ts](diagnostics.ts) | 供应商尝试诊断 |
 

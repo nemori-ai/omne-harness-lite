@@ -77,7 +77,7 @@
 - **别混 ②**：**它是聚合，不是容器**——会话**不包含**消息与运行，而是**指向**它们。
   记录是独立的 append-only 日志，运行有自己的身份。**会话拥有的是边界，不是内容物**
 - **注意 ①**：它就是[四个作用域层](scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)里那个**「本次协作」**——
-  会话级的设置、权限、[会话授权上下文](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#会话授权上下文)、
+  会话级的设置、权限、[会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)、
   [会话级沙箱](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)都挂在它上面，**且一律不外溢**
 - **注意 ②**：**它比 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 长寿**——
   协程可被取消、可重新起，没了之后**会话还在、历史还在、认定的定义还在**。
@@ -156,26 +156,25 @@
 > **中**：**把一段协作收起来的那个动作，以及它之后所处的那个状态。**
 > 它是**唯一一个「这段协作到此为止」的锚点**——
 > [没有删除会话这回事，所以也没有「会话结束」这回事](#ul-session--会话--session)。
-> **它有两条来路**：**租户手动归**，或**系统按一个出厂配置的时限自动归**。
+> **它有两条来路**：**手动归**，或**租户启用自动归档后，系统按租户配置的空闲时限自动归**。
 > **归档本身可以撤销**，撤销后会话回到休眠、历史一条不少；归档前已经[冻结](#ul-session-freeze--会话冻结--session-freeze)的会话，撤销后回到冻结；
 > **但它连带做的三件事不可逆**：子会话级联被归档、未完成的工具执行被中断、模型响应被中断。
 >
 > **EN**: **The act of putting a stretch of collaboration away, and the state it then sits
 > in.** It is **the one anchor for "this collaboration is over"** — there is no deleting a
-> session, hence no "session end". It arrives **two ways**: **the tenant archives it**, or
-> **the system does so once a factory-configured time limit is reached**. **Archival itself is
+> session, hence no "session end". It arrives **two ways**: **someone archives it by hand**, or,
+> **once the tenant turns auto-archival on, the system does so when the tenant's configured
+> idle limit is reached**. **Archival itself is
 > reversible**: undoing it returns the session to dormant with its history intact, or to frozen
 > if the session was frozen before archival. **The
 > three things it does on the way in are not**: child sessions are archived transitively,
 > unfinished tool executions are interrupted, and the model response in flight is
 > interrupted.
 
-- **自动触发**：自身及归档会级联影响的子会话均无未结束 Run、活跃模型／工具执行及待处理任务，连续空闲达到出厂时限（默认 30 天）；开展新工作终止旧计时，撤销归档后重新计时，进程重启不重置。
+- **自动触发**：默认关闭，租户显式开启；自身及归档会级联影响的子会话均无未结束 Run、活跃模型／工具执行及待处理任务，连续空闲达到租户配置的时限（产品不规定固定天数）；标记常驻的主会话豁免；开展新工作终止旧计时，撤销归档后重新计时，进程重启不重置。
 - **输入处置**：归档取消待处理任务并保留历史；归档期间拒绝新任务，迟到执行事实只留痕、不入队，撤销归档不自动恢复已取消任务。
 - **形态**：过程
-- **出处**：[PF-015 §4 会话归档](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话归档) ·
-  [§6.2](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动) ·
-  [§6.3](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 21）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
+- **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 7）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
@@ -208,7 +207,7 @@
 > undoing that archival returns it to frozen, not to dormant.
 
 - **形态**：状态
-- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 2）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
+- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 7）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
 - **别混 ①**：不是[会话归档](#ul-session-archival--会话归档--session-archival)。冻结不中断在途的运行；归档会中断未完成的工具执行与模型响应
 - **别混 ②**：不是休眠。休眠的会话可以开始新的运行，冻结的会话不能
 - **注意 ①**：只在采用点判定。「耐久地不可装载」要有耐久证据：实现包的摘要缺失，或装载被确定性拒绝。实现暂时缺席、状态未知或被撤权时，会话用[替换件](reach-and-availability.md#ul-stand-in--替换件--stand-in)，不冻结
@@ -228,7 +227,7 @@
 - **形态**：属性
 - **出处**：[PF-015 §4 会话类型](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 21）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
-  [放行三元组](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#611-ask通向人)，
+  [放行三元组](../../product/meta-capabilities/design.md#meta-ask)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
   **一个 `coding` 会话不会因为类型就做不了别的事**
 - **注意 ①**：**是算出来的，不是绑上去的。**它与来源之间是一条**映射**，
@@ -240,35 +239,37 @@
 
 ### UL-session-run-mode · 会话运行模式 · Session Run Mode
 
-> **中**：**这个[会话](#ul-session--会话--session)里，「本该问人」的那一刻改怎么办。****恰好三档**：
-> **`never`**——一律当作被拒，**不问任何人**；
-> **`auto_permission`**——**拿已经形成的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)算**，算不出来**就问人**；
-> **`bypass-permissions`**——**直接放行**。
+> **中**：**这个[会话](#ul-session--会话--session)里，「本该问人」的那一刻改怎么办。**
+> 权限结果为「问一下」、而已有的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)也没有让这次动作获准时，才轮到它。**恰好三档**：
+> **`never`**——当作被拒，**不问任何人**；
+> **`auto_permission`**——**请求人工判断**；
+> **`bypass-permissions`**——**跳过这次询问**。
 > **它不决定哪些动作要问人**，只决定**问不成的那一刻**怎么处置。
 >
 > **EN**: **What this session does at the moment something would otherwise be put to a
-> person.** Exactly three: **`never`** — treat every such moment as a refusal, asking no
-> one; **`auto_permission`** — **compute from the authorization expressions already on hand**, and
-> **ask a person when they do not settle it**; **`bypass-permissions`** — let it through. **It
-> does not decide which actions need asking**, only what happens at that moment.
+> person.** It applies only when the permission result is "ask" and the authorization
+> expressions already on hand do not permit the action. Exactly three: **`never`** — treat it
+> as a refusal, asking no one; **`auto_permission`** — **ask a person to decide**;
+> **`bypass-permissions`** — skip this ask. **It does not decide which actions need asking**,
+> only what happens at that moment.
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 25）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 4）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
   另外**上游有一个叫 `auto` 的档，语义是「不问人、改问模型」**，
   **我们这一档从不替人作判断**；`never` 与 `bypass-permissions` 两档则与上游同义
 - **注意 ①**：**`auto_permission` 是有闭环的那一档**——问人的答案**落成新的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)**，
-  下一次同样的事就算得出来了。**「同一件事不必问第二遍」就是这个闭环**
+  同一动作仍在有效授权范围内、许可未撤回或消费、重要依据未实质改变时，不重复请示；单次许可已经消费或依据变化时重新判断
 - **注意 ②**：**`bypass-permissions` 跳过的是「问」，不是「禁」**——
   **任何层的明确禁止，它一样翻不了案**
 - **注意 ③**：**`never` 连带一个后果**——
-  [`Ask().request_approval` 在这个会话里不可用](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)，
+  [`Ask().request_approval` 在这个会话里不可用](../../product/meta-capabilities/design.md#协作模式与命令限制)，
   **而 `Ask()` 这扇门还在**，`never` 本身不禁 `ask`，其交互可用性另受会话协作模式约束
 - **维度**：本词专指权限维度，运行时可变；不包括独立的[会话协作模式](#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode)。
-- **注意 ④**：**它往子会话传**——[父是 `never`，子的 `request_approval` 一并不可用](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#58-子不得宽于父)
+- **注意 ④**：**它的限制往子会话传**——[父处于 `never` 时，子不能借自己的 `request_approval` 取得更宽权限](../../product/meta-capabilities/design.md#动作放行与环境准入)；[父的权限与模式限制不能由子会话绕过](../../product/meta-capabilities/design.md#协作模式与命令限制)
 
 ### UL-session-collaboration-mode · 会话协作模式 · Session Collaboration Mode
 
@@ -828,6 +829,7 @@
 - **形态**：过程
 - **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25）
 - **别混**：**不是「重跑挂件」**——「新尝试里不重跑挂件」精确地说是：有最终结论的不重跑，挂起中的回放到挂起点
+- **别混 ②**：**不是[推理回放](record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)**——那是每次发出时决定带上哪些推理续接状态；两者都可能简称「回放」，跨 topic 时写全名
 - **注意 ①**：回放时走到的地方与上次不同，**停住并可见**——那说明拓展件没守住上面那一条
 - **注意 ②**：**回放只针对挂起中的拓展件，不涉及工具执行**——工具执行不因回收而停，接着等就是
 
@@ -895,7 +897,7 @@
 > the middle of a Run changes only current availability.
 
 - **形态**：位置
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 2）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
 - **别混**：不是当下可用性的核对时点。可用性每次尝试开始时核对，Run 中途也可以变
 - **注意**：会话初始化不判冻结，也不谈前进；它只确定集合与每一项的首次定义
 

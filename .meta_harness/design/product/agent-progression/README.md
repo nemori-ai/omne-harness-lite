@@ -16,6 +16,7 @@ relations:
 ## 阅读入口
 
 - [产品正文](design.md)包含需求、能力状态、阶段承诺及未决事项。
+- [验收场景](acceptance.md)登记既有旅程的阶段 1 切片与终态台账认回范围。
 - [领域责任](../../../../docs/domains/agent-progression/README.md)解释已接受分工与采用范围。
 - [能力组](../../../../packages/agent/README.md)导航工程关系及成员契约。
 

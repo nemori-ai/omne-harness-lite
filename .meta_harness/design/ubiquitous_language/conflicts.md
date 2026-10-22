@@ -294,7 +294,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-54：工具调用与工具结果部件由谁发布
 
 - **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
-- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session/docs/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session-contract/docs/object-model/session-log-events.md) 写 ToolMessage 形状归消息契约。
 - **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
 - **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
 - **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
@@ -375,7 +375,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **来源**：[Runtime Context 产品页](../product/runtime-context/design.md#5-当前值与变化感知)与已接受[系统页](../../../docs/architecture/runtime/runtime-context.md)以 attempt 为拉取时点。用户决定 Agent 不要求、不解释 attempt。
 - **处理**：[UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 不再另定时点，改指 Context 与 Agent 的现行正文。
 - **负责与闭合条件**：Context 拥有者改写拉取时点的说法。
-- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 [RC-04](../../../packages/context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)（标题改为「读取时点、变化与提醒」，旧锚点由兼容锚点保留）、该成员的关键流程 [RC-F01](../../../packages/context/runtime-context/docs/key-flows.md#rc-f01)、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
+- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 RC-04（该规格现归 [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md)，条款标题现为[「读取时点、观察与变化材料」](../../../packages/context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）、该成员的关键流程 RC-F01（现为 runtime-context-contract 的 [F-RC03](../../../packages/context/runtime-context-contract/docs/flows.md#f-rc03-执行开始或挂接建立时的完整快照)）、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
 
 ### C-64：执行挂接的候选类型名
 
@@ -386,17 +386,62 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：Agent 契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。
 - **状态**：部分闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。词条已定名，Agent 契约已改用全称类型名与字段名。已接受页（系统页 Agent runtime 的节名「实例、执行与执行挂接」与正文、领域页）已回改，英文裸写的 attachment 也已改为 execution attachment。仍缺：共同系统页 `runtime-contract-model.md` 的旧写法，该页尚未进入集成轨道，随该页进入集成轨道时回改，之后闭合。
 
-### C-65：常驻工具的形状与能力数据的动态采用
+### C-65：压缩用排除名单还是保留名单
+
+- **类型**：定义打架。2026-10-20 承接产品负责人的压缩语义时发现。
+- **来源**：[压缩记录](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)与[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)当时按封存的 PF-009、PF-010 写成以块为单位的排除名单：压缩记录点名一批块，从此不再模型可读。PanQiWei 2026-10-20 定下的语义相反：压缩后模型只看到压缩记录指定保留的消息、压缩记录本身和它之后的消息。
+- **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
+- **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
+- **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页、产品页模型调用与 Session 契约 SPEC 都已改为保留名单：压缩消息带压缩覆盖范围与保留名单，形状归 message 包。
+- **状态**：已闭合（2026-10-21）。Request Context 一侧由 [request-context-contract 的 RQ-06](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)按保留名单写定。上列来源与差别保留发现时的写法，现行含义以词条为准。
+
+### C-66：内容块的种类是否含推理续接状态
+
+- **类型**：定义打架。2026-10-21 承接加密推理回放的设计时发现。
+- **来源**：[内容块](terms/record-and-context.md#ul-content-block--内容块--content-block)把块的种类列为七类封闭清单：文本、思考、语音、图、文件、工具调用、工具结果。PanQiWei 2026-10-21 定下可见推理与加密推理分成两种块；[message 成员的推理续接状态](../../../packages/common/message/SPEC.md#推理续接状态)据此设计了只在 assistant 消息里出现的推理续接状态部件，装供应商交回的不透明推理状态。
+- **差别**：按词表的七类读，加密推理没有位置，只能塞进「思考」，与产品负责人的分块裁定相反；按设计读，块多出第八类，词表的封闭清单不再成立。推理续接状态、回放范围、回放声明和外来可见推理四个说法目前只在成员规格里定义，没有产品正文出处。
+- **处置**：PanQiWei 2026-10-21 接受任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计，并要求在本卡内消解本项。[模型调用：推理状态的续接](../product/model-invocation/design.md#推理状态的续接)（rev 3）成为产品出处。内容块改为八类，新立[推理续接状态](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state)（内容块的变体）、[推理回放](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)与[推理回放范围](terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；首 token、模态、媒体类型三条随之改。英文 `Replay` 已是 Agent 接续时的[回放](terms/agent-runtime-loop.md#ul-replay--回放--replay)，所以新词都带「推理」限定，两条词条互相写明别混。回放声明与外来可见推理只在 Model 一个领域使用，不立词条，定义留在 [Model 契约的推理回放](../../../packages/model/model-contract/SPEC.md#推理回放)。
+- **负责与闭合条件**：负责人 PanQiWei。产品出处、词条与内容块清单已一致。
+- **状态**：已闭合（2026-10-21）。上列来源与差别保留发现时的写法，现行含义以词条为准。
+
+### C-67：运行时 context 注册是属性还是对象
+
+- **类型**：定义打架。2026-10-20 承接 Runtime Context 产品页 rev 4 时发现。
+- **来源**：[运行时 context 注册](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)原按封存 [PF-015 §6.18](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）写成会话上的一项属性：会话纳入一块的来源、配置与消费者声明。[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）把它写成作用域持有者为一个作用域固定的清单，身份是作用域加块键，必需项在作用域创建时固定、可选项可增删，并带需要绑定与参数。
+- **差别**：属性读法下它没有自己的身份，随会话整体存在；对象读法下每个作用域加块键一条，可以被单独引用、增删与恢复。下游按属性建，就没有「移除一项只停本作用域后续使用」这件事可做；按对象建，才有逐项的注册修订可供读取资格引用。
+- **处置**：词条形态改为对象，定义按 rev 4 改写，封存出处保留为旧说法；[objects.md](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) 立条目。「会话」改为「作用域持有者」，本版持有者是会话。
+- **负责与闭合条件**：负责人 PanQiWei。Context 成员契约按对象读法写登记条款；封存 PF-015 不回改。契约落地后闭合。
+- **状态**：已裁定（随产品页 rev 4）。成员契约已按对象读法写定登记条款（[RC-02](../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）；随契约接受闭合。
+
+### C-68：目标环境的求值结果是不是这次执行的要求
+
+- **类型**：定义打架。2026-10-21 核对环境要求与执行环境权限的说法时发现。
+- **来源**：[目标环境](terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)按封存的 [PF-006 §6.8](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求)（rev 24）与 [PF-002 §4 Tool](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）写成：目标环境是一项被求值的设置，「求值出来的那一份就是这次执行的要求」。[执行环境产品正文的环境要求与落点](../product/execution-environments/design.md#环境要求与落点)（rev 2）写成：被求值的是[执行环境权限](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)，工具宿主把它的有效值与目标环境翻译成允许清单，交给执行环境的是[环境要求](terms/grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement)。
+- **差别**：第一种读法里，目标环境本身经求值成为这次执行的要求；第二种读法里，目标环境只是翻译的一项输入，要求是权限有效值与目标环境翻译之后的结果。下游照第一种建，会把工具声明当成执行环境的输入；照第二种建，执行环境只收允许清单。
+- **处置**：目标环境词条的出处不是执行环境产品正文，它的定义不随执行环境产品正文改写。环境要求词条按执行环境产品正文写，并在「别混」指到这里。
+- **负责与闭合条件**：负责人 PanQiWei。工具与设置的产品正文拥有者核对目标环境的定义，与执行环境产品正文对齐后改写目标环境词条，之后闭合。
+- **状态**：待裁。
+
+### C-69：在途状态由谁持有、失去连续性后是否还在
+
+- **类型**：定义打架。2026-10-21 评审会话与工作产品页时发现。
+- **来源**：[在途状态](terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)按封存的 [PF-009 §9.2](../product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）写成：在途内容由运行时持有，运行时失去连续性它就没了。[会话与工作：在协作历史中看清发生过什么](../product/sessions-and-work/design.md#在协作历史中看清发生过什么)（rev 7）与系统页[用户可见内容的两处来源](../../../docs/architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)写成：用户可见的在途增量只来自生产方已经可靠保管的批次，故障后只可能缺从未展示过的片段。
+- **差别**：第一种读法里，已展示的在途内容会随运行时一起丢失；第二种读法里，已展示的部分由生产方保管，故障后仍可取回。下游照第一种建，不会为在途增量做保管；照第二种建，生产方必须先保管再发布。
+- **处置**：词条暂不改。在途状态的定义归模型调用与工具执行的产品正文，会话与工作只写用户可见的来源。
+- **负责与闭合条件**：负责人 PanQiWei。模型调用与工具执行的产品正文拥有者核对在途状态的持有方与丢失条件，改写词条出处到现行产品正文后闭合。
+- **状态**：待裁。
+
+### C-70：常驻工具的形状与能力数据的动态采用
 
 - **类型**：定义打架。2026-10-21 写回 RFC-0012 时登记。
 - **两处输入**：[C-47](#c-47能力数据与实现变化被误当成-loop-生命周期变化) 的处置写「会话保留已知能力，当前数据、实现与可用性动态采用」，[项目要求 SYS-COMPOSITION](../../../docs/requirements.md#定义装配与活体sys-composition) 写「尚未发出的 Tool 或 MCP 调用，仍可按合法刷新看到新的定义和可用性」。已采用的 [RFC-0012 会话常驻集合的规则](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5) 写「每一项的 name 与参数形状在会话内不变」（R1），并规定新定义不同形时会话留在旧实现（R5a），旧实现耐久地不可装载时会话冻结（R5b）。R5b 原文写「进入不可逆的 archive」，而 [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) 写「归档本身可以撤销」。
 - **差别**：按 C-47 的读法，工具换代可以在会话中途改变常驻工具的名字与参数形状。部分模型厂商校验请求中的工具名称与参数形状是否与历史调用一致，这样的换代会使会话无法继续。R5b 的原文又与归档可撤销相矛盾。
-- **裁决依据**：PanQiWei 于 2026-10-21 采用 RFC-0012 revision 1（[采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)），并于同日裁定冻结是独立的会话状态，不是归档（[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)）。
-- **处置**：C-47 的动态采用对非常驻工具、技能与 MCP 保持不变。对常驻工具，动态采用收窄为：只在[采用点](terms/agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)前进，只向[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)的新定义前进。[会话冻结](terms/agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)是独立的生命周期状态：不再开始新的运行，在途运行照常收场，不可逆；冻结后仍可归档，撤销归档回到冻结。归档的两条来路与可撤销性不变。词表新增常驻工具集合、同形、采用点、会话冻结、采用依据与来源层，并改写工具、工具定义、资产版本、版本选用、常驻、替换件、会话资产注册表、作用域层、会话、会话归档、运行与 meta 能力。
+- **裁决依据**：PanQiWei 于 2026-10-21 采用 RFC-0012 revision 1；2026-10-22 又裁定会话不钉版本、按形状核对同形可用实现（随 [#580 接受](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6333519829)）（[采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)），并于同日裁定冻结是独立的会话状态，不是归档（[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)）。
+- **处置**：C-47 的动态采用对非常驻工具、技能与 MCP 保持不变。对常驻工具，动态采用收窄为：形状在会话内不变，负责选取实现的一方只选[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)可用的实现；常驻工具的加入只在[采用点](terms/agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)。[会话冻结](terms/agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)是独立的生命周期状态：不再开始新的运行，在途运行照常收场，不可逆；冻结后仍可归档，撤销归档回到冻结。归档的两条来路与可撤销性不变。词表新增常驻工具集合、同形、采用点、会话冻结、采用依据与来源层，并改写工具、工具定义、资产版本、版本选用、常驻、替换件、会话资产注册表、作用域层、会话、会话归档、运行与 meta 能力。
 - **负责与闭合条件**：产品正文（tool-execution、sessions-and-work、assets-and-rules）、项目要求与已接受架构页的写回由 #618 承接；冻结状态的正式名称、转换与会话事实由 Session 域在 [#580](https://github.com/nemori-ai/omne-harness-lite/issues/580) 定义。这些写回完成并经各自拥有者接受后闭合。
 - **状态**：词表已对齐，其余写回未完成。
 
-### C-66：工具定义由长期数据改为装载时派生
+### C-71：工具定义由长期数据改为装载时派生
 
 - **类型**：形态变更。2026-10-21 写回 RFC-0012 时登记。
 - **两处输入**：[UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) 依据封存 [PF-006 §5.3](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 24）写「它可以自带实现」「它是数据，长期存在，谁持有它就归谁」，形态为属性。已采用的 [RFC-0012 对象链](../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链) 写「`ToolDefinition` 装载时由 `deriveDefinition(governance, implementation)` 派生」，资产 body 只带身份、治理声明与实现引用。

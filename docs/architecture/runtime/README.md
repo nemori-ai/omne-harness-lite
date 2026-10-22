@@ -35,7 +35,7 @@ flowchart TD
 1. [会话创建、身份与作用域确定](session-and-run.md#会话创建与身份)。
 2. [组织、租户、工作区的资产、设置与权限求值](assembly-and-change.md#多层来源求值)。
 3. [AgentDefinition 解析、能力选入与装配](assembly-and-change.md#能力选入与实现解析)。
-4. [会话模式初始化与 Runtime Context 建立](runtime-context.md#模式与-context-初始化)。
+4. [会话模式初始化](session-and-run.md#会话模式)与 [Runtime Context 建立](runtime-context.md#模式与-context-初始化)。
 5. [运行条件检查与 Agent runtime 启动](agent-runtime.md#启动与运行条件)。
 
 ### 输入进入与工作承接
@@ -74,11 +74,11 @@ flowchart TD
 28. [资产、模型、工具及 MCP 可用性变化的处理](assembly-and-change.md#工作区与能力变化)。
 29. [显式 reload、重新装配与推进权交接](assembly-and-change.md#reload-与推进权交接)。
 30. [用户插队、模型中断与单个工具中断](control-and-recovery.md#插队与单次中断)。
-31. [Run 取消、会话归档与相关执行收束](control-and-recovery.md#取消与归档)。
+31. [Run 取消、会话归档与相关执行收束](control-and-recovery.md#取消与归档)，以及归档后的[作用域释放](control-and-recovery.md#作用域释放)。
 
 ### 故障恢复与其他调用路径
 
-32. [Agent runtime 退出后的原调用接续](control-and-recovery.md#agent-runtime-退出后的接续)。
+32. [Agent runtime 退出后的原调用接续](control-and-recovery.md#agent-runtime-退出后的接续)，以及[恢复的发现与收束](control-and-recovery.md#恢复的发现与收束)。
 33. [Model runtime 失联后的判定与恢复](model-runtime.md#重试与失联边界)。
 34. [Tool runtime 或执行环境失联后的处置](tool-runtime.md#中断与失联)。
 35. [存储及关键服务暂时不可用时的降级与恢复](control-and-recovery.md#存储与关键服务降级)。
@@ -115,8 +115,17 @@ flowchart TD
 
 ## 局部细化与维护
 
-本轮未把线程模型、持久化事务、精确接口、缓存算法和数值阈值当作已接受实现方案。它们由相应接口拥有者按本专题的行为边界细化并验证。
+线程模型、持久化事务、精确接口、缓存算法和数值阈值由相应接口拥有者维护采用范围。Model 非 pi-ai 细化设计已接受；其他成员及共同方案按原接受状态推进，实际实现与运行验证分别判断。
 
 [流中在途内容的故障保留](streaming-and-consumption.md#在途内容的局部对账)与[不可用工具应答分类](tool-runtime.md#不可用应答的分类边界)保留为局部对账。跨会话派发仍需补齐授权和可靠投递契约。持续利益对齐仍是长期承诺，本阶段不在运行专题展开专项设计。
 
 系统架构负责人确认目标语义及采用范围。各专题维护者更新规则时同步相关图、流程入口和登记；实现符合性另行报告，不能靠改写目标正文消除偏离。
+
+## #342 主干契约候选
+
+Tool 和 Model 的架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受；Model 的 pi-ai 相关细化、Session、Agent 及共同细化仍为候选。设计接受不表示生产实现已完成。
+
+- [对象与责任模型](runtime-contract-model.md)区分原工作、原调用、执行实例、句柄与保管责任。
+- [Model操作](../../../packages/model/model-contract/docs/public-api.md)、[Tool操作](../../../packages/tool/tool-contract/docs/public-api.md)、[Session操作](../../../packages/session/session-contract/docs/public-api.md)、[Agent操作](../../../packages/agent/agent-contract/docs/public-api/README.md)各自拥有精确定义，接受状态以上述说明为准。行为、必要协议及参数与依赖分类分别归 [Model SPEC](../../../packages/model/model-contract/SPEC.md#342-主干运行契约候选)、[Tool SPEC](../../../packages/tool/tool-contract/SPEC.md#342-主干运行契约候选)、[Session SPEC](../../../packages/session/session-contract/SPEC.md#运行契约候选)和 [Agent SPEC](../../../packages/agent/agent-contract/SPEC.md#主干运行契约)。
+- [Cordis集成](runtime-contract-integration.md)拥有共同宿主、事件、配置和IC对账，各成员集成专题拥有独有接缝。
+- [后继实现与验证](runtime-contract-handoff.md)说明四条实现线及相邻能力如何消费各成员设计，哪些生产与组合证据仍须补齐。

@@ -70,7 +70,7 @@
 > separately.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 2）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
 - **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作不在这些规则的范围内
 - **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆
@@ -128,7 +128,7 @@
 > in the comparison.
 
 - **形态**：规则
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 2）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 - **别混**：不是「同一个能力身份」。同一个能力身份下，不同层的资产可以派生出不同形的定义
 - **注意**：比较按文本规范化进行。语义等价但文本不同的两份 schema 判为不同形，这时会话留在原版本，不会因此误判冻结
 

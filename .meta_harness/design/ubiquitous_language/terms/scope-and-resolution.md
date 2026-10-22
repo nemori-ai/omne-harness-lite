@@ -300,6 +300,41 @@ specific.
   被前两步滤掉的持有在替换次序上视为不存在，标识退回下一层
 - **注意 ②**：**唯一会改组合的那项设置——[Plugin](capabilities-and-composition.md#ul-plugin--插件--plugin) 的「启用哪些成员」——在组装展开到它时就地求值**，其余属性项照常在第二轮
 
+### UL-adoption-change-counter · 采用变更计数 · Adoption Change Counter
+
+> **中**：参与装配求值的一类来源在一个作用域上的单调递增计数，由该来源的拥有者维护。
+> 这个作用域的合法候选、生效选择、设置值或来源材料每变一次，计数加一，拥有者随之通知使用方。
+> 一次采用记下当时各来源的计数；之后计数全部相同，就说明这次求值的输入没有变。
+>
+> **EN**: A monotonically increasing count that the owner of one kind of assembly source
+> keeps for one scope. Each change to the lawful candidates, the effective selection, setting values, or source
+> material in that scope increments it, and the owner notifies consumers. An adoption records
+> the counts of every source at that time. If all counts are still equal later, the inputs of
+> that evaluation have not changed.
+
+- **形态**：属性
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 7） ·
+  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 4） ·
+  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 4）
+- **别混**：不是全局版本号。每类来源、每个作用域各有自己的计数，彼此不比较大小
+- **注意**：计数变化只说明来源变了，不构成采用。采用仍只在新 Run 开始或显式 reload 时发生
+
+### UL-validated-assembly-candidate · 已校验装配候选 · Validated Assembly Candidate
+
+> **中**：采用变更计数变化后，在下一个采用入口之前预先求值并通过校验的一份装配结果，以求值时的输入快照（会话选择与各来源的计数）为键缓存。
+> 只有入口当时的快照与这个键全等，它才在入口处成为采用依据；任一项再变，它就失效。
+>
+> **EN**: An assembly result that is evaluated and validated ahead of the next adoption entry
+> after an adoption change counter moves. It is cached under the input snapshot it was
+> evaluated from: the session's own selections and the source counts. It becomes the adoption
+> basis at the entry only if the snapshot at the entry equals that key. Any further change
+> invalidates it.
+
+- **形态**：视图
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 7）
+- **别混**：与「保存的选择」不是一回事。保存的选择是用户的意图；已校验装配候选是系统按当时来源算好的结果。两者都不是采用依据
+- **注意**：丢了可以按同样的计数重新求值，所以它不是一份另存的事实
+
 ### UL-immutable-marker · 不可覆盖标记 · Immutable Marker
 
 > **中**：一层给出某个值时可以附加的标记，表示这个值**不可再被上层覆盖**。
@@ -468,7 +503,7 @@ specific.
 - **出处**：[PF-015 §4 runtime context](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 21）；块的两类来源沿用 [PF-001 §4 Context](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 26）
 - **弃用说法**：~~会话上下文感知域~~——**同一个概念**，正文统一写 runtime context
 - **别混 ①**：**不是 Cordis 的 `Context`**——那是依赖注入与生命周期的容器，属技术设计。指它时**必须写全 `Cordis Context`**
-- **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
+- **别混 ②**：**不是[给模型看的上下文](../index.md#记录与上下文)**，也**不是 [Request Context](record-and-context.md#ul-request-context--请求-context--request-context)**——那是一次模型请求输入的派生计算，它读本词条的块，不拥有任何一块。**裸写「上下文 / context」在跨 topic 的文字里一律不作数**，[已记为冲突](../conflicts.md#现有冲突)
 - **⚠️ 别混 ③**：**不是[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)。**
   日志**只追加**、历史全都在、自己会说话；它**就地更新**、只回答「现在是什么」、
   **变了要专门通知**。**一个答「发生过什么」，一个答「现在是什么」**
@@ -506,8 +541,8 @@ specific.
 - **出处**：[PF-015 §4 meta runtime context](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#meta-runtime-context) · [§5.6 十四项](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **注意 ①**：**与 [meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)同构**——
   那边是每个 agent 必不可少的**能力**，这边是每个会话必不可少的**感知**。**两边都不可禁用、不可替换**
-- **注意 ②**：**当前恰有十四项**，[逐项的生产者、消费者与至少提供什么见正文](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)
-- **注意 ③**：**模型看见其中一块只有两种形态**——**完整的那一份**（会话刚开始、**上下文压缩之后**）
+- **注意 ②**：现行必需感知为十五项（含当前落点），[逐项的键、类与语义拥有者见正文](../../product/runtime-context/design.md#3-必需感知按内容及消费者供给)（rev 4）；封存的 [PF-015 §5.6](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context) 列十四项
+- **注意 ③**：**模型看见其中一块只有两种形态**——**完整的那一份**（会话刚开始、**上下文压缩之后**，即[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)）
   与**一条变更通知**。**第二种依赖第一种**：只发通知不发全量，模型迟早拼出一份与真的对不上的状态
 
 ### UL-collaboration-scope-context · 协作范围 context · Collaboration-Scope Context
@@ -553,10 +588,174 @@ specific.
 
 ### UL-runtime-context-registration · 运行时 context 注册 · Runtime Context Registration
 
-> **中**：一块 runtime context 在某会话中被纳入消费的声明，说明其来源、配置和消费者；会话可以增删允许动态注册的块，注册声明不同于该块当前的数据值。
+> **中**：作用域持有者为一个作用域固定下来的那份清单：这个作用域里有哪些 [runtime context 块](#ul-context-block--runtime-context-块--context-block)、每块对到哪些[需要](#ul-context-need--上下文需要--context-need)、带什么参数。必需项在作用域创建时固定，可选项可以增删。它的身份是作用域加块键。注册说的是「这里有这一块」，不是这一块当前的值。
 >
-> **EN**: A session's declaration that a runtime context block participates in consumption, specifying its source, configuration and consumers. Eligible blocks can be registered or removed dynamically; registration is distinct from the block's current value.
+> **EN**: The list a scope holder fixes for one scope: which context blocks the scope has, which needs each block is bound to, and with what parameters. Required items are fixed when the scope is created. Optional items can be added or removed. Its identity is the scope plus the block key. A registration says that the block is present here. It does not hold the block's current value.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）；旧说法见 [PF-015 §6.18](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）
+- **别混**：不是共享数据源的创建或删除；也不是[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)——声明说「这种块长什么样、谁拥有」，注册说「这个作用域用了它」
+- **注意**：形态由属性改为对象的依据与影响见 [C-67](../conflicts.md#c-67运行时-context-注册是属性还是对象)。本版的作用域持有者是会话
+
+### UL-context-block · runtime context 块 · Context Block
+
+> **中**：[runtime context](#ul-runtime-context--运行时-context--runtime-context) 里可以单独指认的那个单位：一个作用域里按块键识别的一份**当前值**。它有一份[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)、至少一个供值或写值的参与者、若干类按资格读它的消费者。它随[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)进入作用域，随注册移除或作用域结束而退出；值就地更新，不是事实流。它的身份是[作用域引用](#ul-scope-ref--作用域引用--scope-reference)加块键。
+>
+> **EN**: The unit of runtime context that can be named on its own: one **current value** in one scope, identified by a block key. It has one block descriptor, at least one participant that supplies or writes its value, and consumer classes that read it under eligibility. It enters a scope with a registration and leaves when the registration is removed or the scope ends. Its value is updated in place. It is not a stream of facts. Its identity is the scope reference plus the block key.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 4）
+- **别混**：不是[内容块](record-and-context.md#ul-content-block--内容块--content-block)——内容块是一条消息里装的东西，落日志；它是消息之外的当前值，不落日志
+- **注意**：两类见[供给块](#ul-supplied-block--供给块--supplied-block)与[状态块](#ul-stateful-block--状态块--stateful-block)。中文正文里在无歧义处可简称「块」；跨 topic、写规格时用全名
+
+### UL-supplied-block · 供给块 · Supplied Block
+
+> **中**：由**一个**生产者供当前值、读者只读的 [runtime context 块](#ul-context-block--runtime-context-块--context-block)。它的值来自生产者的最近一次发布；它能恢复的方式是持久保存、重读来源或重算三者之一，由块声明说明。
+>
+> **EN**: A context block whose current value is supplied by **one** producer and only read by consumers. Its value is the producer's latest publication. It recovers by one of three ways stated in its descriptor: persisted, reread from its source, or recomputed.
+
+- **形态**：变体（父：[runtime context 块](#ul-context-block--runtime-context-块--context-block)）
+- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 4）
+- **别混**：与[状态块](#ul-stateful-block--状态块--stateful-block)的差别只有一条：谁能改它的值。供给块只有生产者能改
+
+### UL-stateful-block · 状态块 · Stateful Block
+
+> **中**：由多个参与者提出[上下文更新](#ul-context-update--上下文更新--context-update)、按块声明里的合并规则合并、由作用域持有者在步边界以[步提交](#ul-step-commit--步提交--step-commit)写成事实的 [runtime context 块](#ul-context-block--runtime-context-块--context-block)。它可以声明每步只许一个写者，也可以声明只在一次执行内有效、不持久。
+>
+> **EN**: A context block whose value is changed by context updates from several participants, merged by the reduce rule in its descriptor, and made fact by the scope holder's step commit at a step boundary. It may declare one writer per step. It may declare that it lives only within one execution and is not persisted.
+
+- **形态**：变体（父：[runtime context 块](#ul-context-block--runtime-context-块--context-block)）
+- **出处**：[运行感知与一次模型请求 §2.1](../../product/runtime-context/design.md#21-两类块供给块与状态块) · [§2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 4）
+- **注意**：更新是提案，提交之前不是这一块的值
+
+### UL-context-block-descriptor · 块声明 · Context Block Descriptor
+
+> **中**：一种 [runtime context 块](#ul-context-block--runtime-context-块--context-block)的静态说明，由这个值的**语义拥有者**发布：块键、值的形状、允许的消费者类、是否必需、披露方式、能否带前值、变化的频率（稳定或逐请求）、恢复方式；状态块另有写者类、合并规则与持久方式。全系统一个块键只有一份声明。它的身份是块键，随发布它的包存在。
+>
+> **EN**: The static statement of one kind of context block, published by the value's **semantic owner**: the block key, the value shape, the allowed consumer classes, whether it is required, how it is disclosed, whether it may carry a previous value, how often it changes (stable or per request), and how it recovers. A stateful block also states its writer classes, reduce rule and persistence. One block key has exactly one descriptor in the whole system. Its identity is the block key. It lives with the package that publishes it.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 4）
+- **别混**：不是[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)。声明没有作用域，注册有
+- **注意**：声明不安装块，也不授权读它。谁供值、谁能读，分别由[生产者句柄](#ul-producer-handle--生产者句柄--producer-handle)与[读取资格](#ul-read-eligibility--读取资格--read-eligibility)决定
+
+### UL-context-need · 上下文需要 · Context Need
+
+> **中**：一个消费者在自己的定义里写下的一条「我要一个这样形状的值」：形状、消费者类、用途、必需或可选。它不点名任何块键。必需的需要缺项时，依赖它的动作不可用。
+>
+> **EN**: One line a consumer writes in its own definition: "I need a value of this shape", with the shape, the consumer class, the purpose, and whether it is required or optional. It names no block key. When a required need is missing, the action that depends on it is unavailable.
 
 - **形态**：属性
-- **出处**：[PF-015 §6.18](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）
-- **别混**：不是共享数据源的创建或删除；不引入独立于会话的对象身份。
+- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 4）
+- **别混**：不是[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)。声明说「我供这个」，需要说「我要这个」，两边都不点名对方
+
+### UL-need-binding · 需要绑定 · Need Binding
+
+> **中**：集成方在[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)时写下的一条对应：这条[上下文需要](#ul-context-need--上下文需要--context-need)由哪一块满足，形状不同时附带怎样翻译。翻译是纯函数，结果带块的来源证据。消费者读到的是它自己声明的形状。
+>
+> **EN**: One mapping the integrator writes at registration time: which block satisfies this context need, and, when the shapes differ, how to translate. The translation is a pure function and its result carries the block's provenance. The consumer reads the shape it declared.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 4）
+- **注意**：翻译归集成方，不归生产者的契约，也不归消费者的契约
+
+### UL-producer-handle · 生产者句柄 · Producer Handle
+
+> **中**：一个生产者登记供给某一块之后拿到的那个代表：它有一个**代际**，用来发布新值、使当前值失效、撤销登记。登记随生产者所在插件的寿命存在。旧代际晚到的发布不被采用。
+>
+> **EN**: What a producer holds after it registers to supply one block: it has a **generation** and is used to publish a new value, to invalidate the current value, and to withdraw the registration. The registration lives as long as the producer's plugin. A late publication from an old generation is not adopted.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 4）
+- **注意**：使当前值失效只是唤醒读者；读者读到什么以读时为准
+
+### UL-read-eligibility · 读取资格 · Read Eligibility
+
+> **中**：作用域持有者签发给一次绑定的那份材料：作用域、消费者类、主体与租户、允许读的块键集合、允许的需要绑定集合、签发时的注册修订。读取时逐次核对它。持有者可以撤销它，撤销后按它读取被拒绝；持有者也可以签发一份新资格取代它（重签），重签后它失效，按它建立的读者沿新资格继续读取。它不是从运行环境推断出来的。
+>
+> **EN**: The material a scope holder issues for one binding: the scope, the consumer class, the principal and tenant, the set of block keys that may be read, the set of need bindings that may be read, and the registration revision at issue time. It is checked on every read. The holder can revoke it, and reads under it are then refused. The holder can also issue a new eligibility that replaces it (reissue). After a reissue it is no longer valid, and readers bound under it continue under the new one. It is never inferred from the runtime environment.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）
+- **别混**：不是动作授权。它只决定能读哪些块，不决定能做什么
+
+### UL-bound-reader · 绑定读者 · Bound Reader
+
+> **中**：按一份[读取资格](#ul-read-eligibility--读取资格--read-eligibility)建立的读取入口：消费者类固定，按[需要绑定](#ul-need-binding--需要绑定--need-binding)把块翻译成消费者的形状，给出当前快照与自上次游标以来的变化。每次读重核资格；资格被撤销或失效时它结束。
+>
+> **EN**: A reading entry established from one read eligibility: its consumer class is fixed, it translates blocks into the consumer's shapes through the need bindings, and it returns the current snapshot and the changes since a cursor. Eligibility is rechecked on every read. The reader ends when its eligibility is revoked or expires.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）
+- **注意**：游标属于一个绑定读者。授权范围变化、生产者换代、进程重建之后游标失效，读者要重新取完整快照
+
+### UL-context-update · 上下文更新 · Context Update
+
+> **中**：一个参与者对某个[状态块](#ul-stateful-block--状态块--stateful-block)提出的一条局部更新。它带着提出它的原动作身份，是**提案不是事实**；只有被作用域持有者的[步提交](#ul-step-commit--步提交--step-commit)合并之后才成为那一块的值。
+>
+> **EN**: One partial update a participant proposes for a stateful block. It carries the identity of the action that proposed it. It is a **proposal, not a fact**: it becomes part of the block's value only after the scope holder's step commit merges it.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 4）
+- **注意**：失败的步里成功动作提出的更新保留为待处理，由持有者处置，不进这一步的提交
+
+### UL-step-commit · 步提交 · Step Commit
+
+> **中**：作用域持有者在一个步边界把该步收到的全部[上下文更新](#ul-context-update--上下文更新--context-update)按各块的合并规则合成的一份结果，并把它写成作用域事实。一步一份；它的身份是作用域加步引用。合并是纯函数。
+>
+> **EN**: The result a scope holder produces at one step boundary by merging every context update received in that step with each block's reduce rule, and then records as scope fact. One per step. Its identity is the scope plus the step reference. The merge is a pure function.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §2.5](../../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 4）
+- **别混**：不是[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)的变更。注册变的是「有哪些块」，步提交变的是「状态块的值」
+
+### UL-change-material · 变化材料 · Change Material
+
+> **中**：一块值变化之后算出来、交给作用域持有者的变化消费路径的那份东西：块键、前后修订、按读者资格过滤过的前值。它是生成提醒的输入，**不是提醒消息本身**；交付即完。
+>
+> **EN**: What is computed after a block's value changes and handed to the scope holder's change-consumption path: the block key, the revisions before and after, and the previous value filtered by reader eligibility. It is the input for a reminder. It is **not the reminder message**. It is complete once delivered.
+
+- **形态**：视图
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 4）
+- **别混**：不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)。快照是完整当前值，只进请求；变化材料变成的提醒追加进历史
+
+### UL-scope-ref · 作用域引用 · Scope Reference
+
+> **中**：指向一个作用域的不透明引用，可以带一个父引用。拿着它的人不解释它指的是租户、会话还是运行；子作用域读一个块键时先查自己再查父级，同键遮蔽。它是[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)、[读取资格](#ul-read-eligibility--读取资格--read-eligibility)与执行环境归属共用的键。
+>
+> **EN**: An opaque reference to one scope, optionally with a parent reference. Whoever holds it does not interpret whether it points at a tenant, a session or a run. A child scope reading a block key looks in itself first and then in its parent, and the same key shadows upward. It is the key shared by registrations, read eligibility and execution-environment ownership.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）
+- **别混**：不是[作用域层](#ul-scope-layer--作用域层--scope-layer)。作用域层是求值合成里的一级；作用域引用是一个具体作用域的名字
+- **注意**：本版只有会话一个作用域持有者，父引用保留给将来的租户级与运行级持有者
+
+### UL-scope-holder · 作用域持有者 · Scope Holder
+
+> **中**：为一个作用域维护[注册](#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)、签发[读取资格](#ul-read-eligibility--读取资格--read-eligibility)、在步边界写出[步提交](#ul-step-commit--步提交--step-commit)的那一方。一个作用域只有一个持有者。`0.0.0 -> 0.1.0` 阶段只有一种持有者，就是会话。
+>
+> **EN**: The party that maintains the registration of one scope, issues its read eligibility, and writes its step commits at step boundaries. One scope has exactly one holder. In `0.0.0 -> 0.1.0` the session is the only kind of holder.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2](../../product/runtime-context/design.md#2-来源会话选择和历史分别生效)（rev 4）
+- **别混**：不是[集成方](#ul-integrator--集成方--integrator)。持有者在注册时也是集成方，但集成方还包括装配时接线的一方与为一次调用求设置的协调者
+
+### UL-integrator · 集成方 · Integrator
+
+> **中**：知道各参与者、负责把它们接在一起的那一方。它为每条[上下文需要](#ul-context-need--上下文需要--context-need)写下[需要绑定](#ul-need-binding--需要绑定--need-binding)并拥有翻译；被集成的各方只对外声明自己供什么、要什么，不知道被谁集成。作用域持有者在注册时、装配时负责接线的一方、为一次工具调用求设置的协调者，都是集成方。
+>
+> **EN**: The party that knows the participants and connects them. It writes a need binding for every context need and owns the translation. The integrated parties only declare what they supply and what they need, and do not know who integrates them. The scope holder at registration time, the party that wires at assembly time, and the coordinator that evaluates the settings for one tool call are all integrators.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2.3](../../product/runtime-context/design.md#23-需要绑定与集成原则)（rev 4）
+- **注意**：执行环境那边为一次获取翻译[环境要求](grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement)的也是集成方，同一个词、同一个含义
+
+### UL-semantic-owner · 语义拥有者 · Semantic Owner
+
+> **中**：决定一份值是什么意思的那一方。[块声明](#ul-context-block-descriptor--块声明--context-block-descriptor)归它，不归存放这份值的一方，也不一定归供值的生产者。
+>
+> **EN**: The party that decides what a value means. The block descriptor belongs to it, not to the party that stores the value, and not necessarily to the producer that supplies it.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §2.2](../../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 4）
+- **别混**：不是生产者。生产者供值，语义拥有者定义值的含义；两者可以是同一方，也可以不是

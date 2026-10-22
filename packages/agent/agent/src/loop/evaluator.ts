@@ -6,9 +6,10 @@
 // The evaluator decides at the two decision segments of the node table, E4 and I8 (column 并发与次序:
 // 单一决策段). Every other node goes on by the outcome of its own effect, through the transition table
 // in nodes.ts. #502 1.2 covers the decisions of the normal path only: E4 after the execution-start
-// passage opens the first iteration, and I8 opens the next one or proposes completion. Facts that
-// only a later card handles (controls, an advancement that is stopping, producers still owed, a
-// position that is a continuation point) answer `unsupported`: a named failure, never a guessed step.
+// passage opens the first iteration, and I8 opens the next one, saves a wait or proposes completion. Facts that
+// only a later card handles (controls, an advancement that is stopping, a
+// position that is a continuation point) answer `unsupported`. J5 routes those positions in the
+// coordinator without extending LoopFacts or Next.
 import {
   decodeStepId,
   judgeAdoption,
@@ -20,6 +21,7 @@ import {
   type LoopFacts,
   type Next,
   type StepId,
+  type Waiting,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { LoopNode } from './nodes.ts'
@@ -87,14 +89,22 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
   if (facts.controls.length > 0) return unsupported
   switch (facts.checkpoint.position) {
     case 'E4':
-      // The 1.2 stand-in for E4's "新 iter 或原输入边界转 I0": position E4 means that the
-      // execution-start passage has just ended, so this is the first iteration. #502 1.4 replaces
-      // the position check with the batch and progression basis of a new iteration.
+    case 'I0':
+      // J5: only an empty input boundary is delegated here. The coordinator routes recovery.
+      if (
+        facts.checkpoint.calls.length > 0 ||
+        facts.checkpoint.passages.length > 0 ||
+        facts.checkpoint.batch !== null ||
+        facts.checkpoint.compaction !== null ||
+        facts.checkpoint.requestPreparation !== null ||
+        facts.checkpoint.inputBatch !== null
+      )
+        return unsupported
       return succeed({ kind: 'take-inputs', position: 'I0' })
     case 'I8':
       return afterIteration(facts)
     default:
-      // A continuation point of another node is E4's mapping to R0 (#502 1.4).
+      // The coordinator routes stored continuation points (J5).
       return unsupported
   }
 }
@@ -102,16 +112,29 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
 /** Node table I8: a lawful basis to go on opens a new iteration; otherwise completion is proposed. */
 function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   const { checkpoint } = facts
-  const owed = facts.consumption.some(item => item.custody === null && item.completion === null)
-  // An open call, an action batch, a producer or a result that is still owed is waited on or
-  // consumed first; those nodes are not in this card.
-  if (
-    checkpoint.calls.length > 0 ||
-    checkpoint.batch !== null ||
-    facts.producers.length > 0 ||
-    owed
-  )
-    return unsupported
+  // Non-empty action batches and extension passages still belong to their own nodes.
+  if (checkpoint.batch !== null && checkpoint.batch.actions.length > 0) return unsupported
+  if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
+  const waiting: Waiting[] = checkpoint.calls.map(pending => ({ kind: 'producer', pending }))
+  for (const producer of facts.producers) {
+    // Ready results need their later consumption nodes, never an idle producer wait.
+    if (
+      producer.kind === 'model-settled' ||
+      producer.kind === 'tool-result' ||
+      producer.kind === 'tool-background'
+    )
+      return unsupported
+    if (
+      !waiting.some(
+        item =>
+          item.kind === 'producer' && item.pending.consumption === producer.pending.consumption,
+      )
+    )
+      waiting.push({ kind: 'producer', pending: producer.pending })
+  }
+  if (facts.consumption.some(item => item.custody === null && item.completion === null))
+    waiting.push({ kind: 'dependency', owner: 'agentJournal', position: 'I8' })
+  if (waiting.length > 0) return succeed({ kind: 'wait', waiting })
   if (facts.batch.ordered.length > 0 || facts.conditions.progression.kind === 'continue')
     return succeed({ kind: 'take-inputs', position: 'I0' })
   // Neither an action nor an empty queue ends the execution by itself: this is only a candidate,

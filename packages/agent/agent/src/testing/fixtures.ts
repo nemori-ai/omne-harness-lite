@@ -115,7 +115,7 @@ export function createScriptedMessageHandoff<P>(): ScriptedMessageHandoff<P> {
 
 export type ScriptedRequestPreparation<P> = Readonly<{
   port: RequestPreparation<P>
-  /** Default: a `ready` preparation built from the input; see `readyPreparation`. */
+  /** Default: assembled on the first prepare, ready when previous is present (#558 S-11). */
   prepare: ScriptOf<RequestPreparation<P>['prepare']>
   /** Default: `unsupported`. */
   derive: ScriptOf<RequestPreparation<P>['derive']>
@@ -124,7 +124,10 @@ export type ScriptedRequestPreparation<P> = Readonly<{
 }>
 
 type PrepareInput<P> = In<RequestPreparation<P>['prepare']>
-type ReadyPreparation = Extract<Out<RequestPreparation<unknown>['prepare']>, { ok: unknown }>['ok']
+type ReadyPreparation = Extract<
+  Extract<Out<RequestPreparation<unknown>['prepare']>, { ok: unknown }>['ok'],
+  { kind: 'ready' }
+>
 
 /**
  * The `ready` preparation of the default `prepare`: one test supplier for the selected profile, the
@@ -171,9 +174,16 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
 }
 
 export function createScriptedRequestPreparation<P>(): ScriptedRequestPreparation<P> {
-  const prepare = scriptedMethod<PrepareInput<P>, Out<RequestPreparation<P>['prepare']>>(input =>
-    succeed(readyPreparation(input)),
-  )
+  const prepare = scriptedMethod<PrepareInput<P>, Out<RequestPreparation<P>['prepare']>>(input => {
+    const { request, capacity, ...common } = readyPreparation(input)
+    if (input.previous !== null) return succeed({ ...common, kind: 'ready', request, capacity })
+    const { system, messages, tools, toolChoice, parameters, representation, source } = request
+    return succeed({
+      ...common,
+      kind: 'assembled',
+      input: { system, messages, tools, toolChoice, parameters, representation, source },
+    })
+  })
   const derive = scriptedMethod<
     In<RequestPreparation<P>['derive']>,
     Out<RequestPreparation<P>['derive']>

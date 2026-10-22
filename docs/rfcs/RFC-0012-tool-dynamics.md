@@ -93,6 +93,8 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 持有的"跟随当前版本"对已有会话是有条件的：同形才跟。这是 assets 版本选用规则的一条例外。
 
+冲突标注（2026-10-22）：PanQiWei 于 2026-10-22 裁定「会话不钉死能力的某个版本；会话记下已采用能力的形状，负责解析与选取实现的一方在插件根上同一能力身份的实现中找同形可用者，找到就用，没有就按该能力拥有者的不兼容后果处理」（随 [#580 的接受](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6333519829) 生效，正文见[项目要求](../requirements.md#定义装配与活体sys-composition)与[按形状核对，不钉版本](../architecture/runtime/assembly-and-change.md#按形状核对不钉版本)）。本提案的固定采用（`definition.adoption` 全等于资产版本并按键 `resolve`）、R5a 的「留在旧实现」以及验收判据 5、6 的「按键」措辞与该裁定的关系尚未裁定；写回的项目要求与架构正文已采用裁定的说法，Tool 契约与本提案的更正待 PanQiWei 裁定后以更正标注落位。R1 至 R4、冻结（R5b）、登记键的三个分量、协调者与保留义务不受该裁定影响。
+
 ### 绑定登记表（G7）
 
 一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。下文的"作者插件 fiber"都指它。它不 provide 服务键。它的 `inject` 是实现包里的静态字面量，含 `toolBindings` 与实现需要的服务。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，`ToolLoader.load`，`toolBindings.register`。登记以 `ctx.effect` 配对在该 fiber 上。

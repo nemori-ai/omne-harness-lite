@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omne-harness:execution-environment:environment-need:1",
+  "title": "EnvironmentNeedDeclaration",
+  "description": "What a tool can work with: facility keys, isolation claims and the binding layers it can run in. Facility keys and isolation claims are open vocabularies; layers are a capability, not a policy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["facilities", "isolation", "layers"],
+  "properties": {
+    "facilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "isolation": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "enum": ["host_machine", "stateless_sandbox", "session_sandbox", "tenant_sandbox"]
+      }
+    }
+  }
+}
