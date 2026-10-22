@@ -1,10 +1,24 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import type { ClientRequest } from 'node:http'
+import type { RequestOptions } from 'node:https'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ConnectionReservation } from '../src/capacity.ts'
 import { startExchange, type ExchangeInput, type ExchangeRefusal } from '../src/http.ts'
 import { createNetworkResources, type NetworkResources } from '../src/network.ts'
 
 // Nothing listens here: a refusal that still sent would surface as a connect failure.
 const UNREACHABLE = new URL('https://127.0.0.1:9/v1/responses')
+
+/** Every request Node built for this file, recorded by a delegate of the real `https.request`. */
+const built = vi.hoisted((): { readonly requests: ClientRequest[] } => ({ requests: [] }))
+vi.mock('node:https', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:https')>()
+  const request = (url: URL, options: RequestOptions): ClientRequest => {
+    const req = actual.request(url, options)
+    built.requests.push(req)
+    return req
+  }
+  return { ...actual, request }
+})
 
 const resources: NetworkResources[] = []
 
@@ -39,10 +53,10 @@ function input(
   }
 }
 
-/** No socket was opened and nothing waits for one, through the documented `agent` properties. */
+/** Node built no request and the pool opened no socket. */
 function expectNoNetworkUse(network: NetworkResources): void {
+  expect(built.requests).toEqual([])
   expect(network.agent.sockets).toEqual({})
-  expect(network.agent.requests).toEqual({})
 }
 
 /** Starts with a held reservation and expects a refusal that returns it without any network use. */
@@ -264,6 +278,12 @@ describe('configuring the network resources', () => {
     })
     resources.push(network)
     expect(network.closed).toBe(false)
+  })
+
+  it('builds a pool without a socket limit, so only the capacity bounds the exchanges in flight', () => {
+    const network = fresh(3)
+    expect(network.agent.maxSockets).toBe(Number.POSITIVE_INFINITY)
+    expect(network.agent.maxTotalSockets).toBe(Number.POSITIVE_INFINITY)
   })
 
   it('rejects a diagnostics maxPending below one synchronously with a RangeError', () => {

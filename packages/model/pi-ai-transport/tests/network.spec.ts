@@ -1,35 +1,20 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits
 // for real idle timeouts and physical socket closure.
-import type { ClientRequest, ServerResponse } from 'node:http'
-import type { RequestOptions } from 'node:https'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { ExchangeQueuedError, startExchange } from '../src/http.ts'
+import type { ServerResponse } from 'node:http'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { startExchange } from '../src/http.ts'
 import {
   claimed,
   held,
   input,
   network,
-  queuedRequests,
   readToEnd,
   REQUEST_PATH,
   settle,
-  sleep,
   started,
   watch,
 } from './support/exchange.ts'
 import { createCertificate, startHttpsServer, type Certificate } from './support/https-server.ts'
-
-/** Every request Node built for this file, recorded by a delegate of the real `https.request`. */
-const built = vi.hoisted((): { readonly requests: ClientRequest[] } => ({ requests: [] }))
-vi.mock('node:https', async importOriginal => {
-  const actual = await importOriginal<typeof import('node:https')>()
-  const request = (url: URL, options: RequestOptions): ClientRequest => {
-    const req = actual.request(url, options)
-    built.requests.push(req)
-    return req
-  }
-  return { ...actual, request }
-})
 
 let certificate: Certificate
 beforeAll(() => {
@@ -204,7 +189,6 @@ describe('the socket pool', () => {
           new AbortController().signal,
         ),
       )
-      expect(queuedRequests(resources)).toBe(0)
       // The second recipient reports the request before the caller touches the exchange.
       expect((await arrival).path).toBe(REQUEST_PATH)
       expect(await readToEnd(claimed(await toSecond.result))).toBe('second')
@@ -215,47 +199,6 @@ describe('the socket pool', () => {
       await resources.close()
       await first.close()
       await second.close()
-    }
-  })
-
-  it('a pool that queues a request although a slot is held is a defect: the request leaves the queue and is destroyed, nothing is sent for it, not even after close()', async () => {
-    const server = await startHttpsServer(certificate, () => {}) // Keeps the first request pending.
-    const resources = network(server.ca, { maxConnections: 2 })
-    // A deliberate bypass of the configuration, which the network resources never build: the pool
-    // now has one socket for the recipient and queues the second request although a slot is held.
-    resources.agent.maxSockets = 1
-    try {
-      started(
-        startExchange(
-          resources,
-          input(server.url, await held(resources)),
-          new AbortController().signal,
-        ),
-      )
-      const second = await held(resources)
-      const before = built.requests.length
-      expect(() =>
-        startExchange(resources, input(server.url, second), new AbortController().signal),
-      ).toThrow(ExchangeQueuedError)
-      // In the same tick: the slot is back, the request is out of the queue and destroyed,
-      // nothing waits.
-      expect(built.requests).toHaveLength(before + 1)
-      expect(built.requests.at(-1)?.destroyed).toBe(true)
-      expect(second.state).toBe('released')
-      expect(resources.agent.requests).toEqual({})
-      expect(resources.inFlight.size).toBe(1)
-      await server.nextRequest()
-      expect(server.openedSockets()).toBe(1)
-
-      // The close of the first socket would hand a connection to a request still in the queue.
-      await resources.close()
-      await expect.poll(() => server.closedSockets()).toBe(1)
-      await sleep(100)
-      expect(server.openedSockets()).toBe(1)
-      expect(server.requests).toHaveLength(1)
-    } finally {
-      await resources.close()
-      await server.close()
     }
   })
 })

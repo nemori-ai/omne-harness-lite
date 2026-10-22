@@ -15,7 +15,7 @@
 - [proxy-config.spec.ts](proxy-config.spec.ts)：代理配置的校验、构造时任何消息都不含 URL，与 Node 版本守卫（快层）
 - [proxy.spec.ts](proxy.spec.ts)：经本地 CONNECT 代理的交换：隧道成功、直连项、URL 规范化、连接超时的结束时刻、代理拒绝后重置、不可达、未回复即关闭、不回复、隧道内 TLS 失败与停滞、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断（慢层）
 - [live/openrouter.spec.ts](live/openrouter.spec.ts)：经真实代理向 OpenRouter 发一次流式请求，只在 `OMNE_LIVE_TESTS=1` 时运行（慢层，`test:live`）
-- [network.spec.ts](network.spec.ts)：网络资源的关闭排空、连接池、同一接收方连续发起、容量是唯一的并发上限、多接收方不排队与排队即缺陷（含排队的请求已销毁）（慢层）
+- [network.spec.ts](network.spec.ts)：网络资源的关闭排空、连接池、同一接收方连续发起、容量是唯一的并发上限、多接收方不排队（慢层）
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行时导出，类型形状与组架构一致
 - [public-entry.spec-d.ts](public-entry.spec-d.ts)：五个公开类型的编译期用例
 - [dependencies.spec.ts](dependencies.spec.ts)：运行依赖与导入方向

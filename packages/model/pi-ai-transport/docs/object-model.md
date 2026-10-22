@@ -1,6 +1,6 @@
 # 对象模型
 
-本包的对象都是工厂函数返回的闭包对象。class 只用于错误：`SseProtocolError`、`ResponseBodyStoppedError`、`ResponseBodyReadError` 与 `ExchangeQueuedError` 继承 `Error`，http.ts 另有一个不出模块的内部错误类。SSE 分帧与协议帧是异步生成器，不持有跨调用的身份。对象的行为条款以 [SPEC.md](../SPEC.md) 为准。
+本包的对象都是工厂函数返回的闭包对象。class 只用于错误：`SseProtocolError`、`ResponseBodyStoppedError` 与 `ResponseBodyReadError` 继承 `Error`，http.ts 另有一个不出模块的内部错误类。SSE 分帧与协议帧是异步生成器，不持有跨调用的身份。对象的行为条款以 [SPEC.md](../SPEC.md) 为准。
 
 ## 对象与关系
 

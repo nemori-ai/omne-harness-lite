@@ -47,7 +47,6 @@
 `startExchange(resources, input, signal)` 同步返回 `started` 或 `refused`。
 
 - 返回 `started` 时，本包已把请求交给 Node 的 `https.request`，并已调用 `end(body)`。函数不返回惰性对象，不在内部等待容量或其他 Promise。
-- 返回 `started` 之前，本包同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。网络资源创建的连接池没有套接字上限，不让请求排队。请求进入等待队列只在配置被绕过等缺陷下出现。此时本包销毁该请求，把它移出等待队列（队列空时删除该键），归还名额，然后抛出 `ExchangeQueuedError`。该请求不写出任何字节。连接池之后也不为它建立连接，网络资源 `close()` 之后同样不建立。
 - 结果、停止与响应体都经返回的交换句柄取得：结果与物理关闭用 Promise，响应体用异步迭代。
 - 一次交换只对应一次物理发出。本包不重试，不跟随重定向。3xx 响应是 HTTP 错误。
 - 请求方法是 POST。本包按调用方给出的值发送请求头，只另加 `content-length`，其值是 `body` 的字节数。
@@ -113,7 +112,7 @@
 - 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。
 - 同时进行的交换数只由容量限制。连接池不设套接字上限：没有每个接收方的上限（`maxSockets`），也没有总上限（`maxTotalSockets`）。连接池只负责复用连接与关闭空闲连接。
 - 本包不用 `maxSockets` 对齐容量，原因是两者的计数时刻不同。本包在请求与响应关闭时归还名额，等待者随即发起。Node 对不保留的套接字（例如服务端声明 `Keep-Alive: timeout=1`，或套接字已不可写）在请求关闭时销毁它，但要到该套接字自己的 `close` 事件到达时才把它移出连接池的计数，这是事件循环的下一轮。套接字上限等于容量时，这一轮之内发起的请求会进入等待队列，尽管它持有名额。
-- 持有名额的请求因此不进入连接池的等待队列。进入等待队列是缺陷，见“发起交换”。
+- 连接池没有套接字上限，所以持有名额的请求不在连接池中排队。
 - 连接池关闭空闲时间超过 `idleConnectionTimeoutMs` 的连接。
 - `maxConnections` 限制同时进行的交换数，不限制物理连接数。下列连接不占名额，连接数因此可以超过 `maxConnections`：
   - 空闲连接。
@@ -262,7 +261,6 @@
 
 - 四种结果、七种拒绝原因、三种错误体状态、两种响应体读取错误与 SSE、帧的失败原因覆盖 Node 契约内的全部情况。
 - 本包只在 Node 契约以外的情况下拒绝 `result` 或抛出异常：
-  - 请求进入连接池的等待队列：`startExchange` 抛出 `ExchangeQueuedError`。抛出之前，请求已销毁并移出队列，名额已归还。
   - `signal` 不是 `AbortSignal`：`startExchange` 抛出 `TypeError`，名额已归还。
   - 响应没有状态码，或错误体的块不是字节：`result` 拒绝。
   - 响应体的块不是字节：读者的迭代以普通的 `Error` 结束。
@@ -288,11 +286,11 @@
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
 | 协议帧 | [frames.spec.ts](tests/frames.spec.ts) | 快 |
-| 拒绝发起与配置校验，含预约归属、计时上限、拒绝时不触网，以及同步异常时原异常不被归还掩盖 | [http-refusals.spec.ts](tests/http-refusals.spec.ts) | 快 |
+| 拒绝发起与配置校验，含预约归属、计时上限、拒绝时不触网、连接池没有套接字上限，以及同步异常时原异常不被归还掩盖 | [http-refusals.spec.ts](tests/http-refusals.spec.ts) | 快 |
 | 读者提前结束时关闭来源，含第一个事件或第一帧之前 | [sse.spec.ts](tests/sse.spec.ts)、[frames.spec.ts](tests/frames.spec.ts)；对真实响应见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | 提前结束的包装本身：`return()`、`throw()` 与 `asyncDispose` 关闭来源，启动后不重复关闭，来源关闭失败时生成器仍完成 | [iteration.spec.ts](tests/iteration.spec.ts) | 快 |
 | 同步发起、停止、2xx、响应体读取错误的类型、非 2xx、错误体、连接超时与计时器清除、关闭后的清理 | [http.spec.ts](tests/http.spec.ts) | 慢 |
-| 网络资源关闭与连接池，含同一接收方连续发起不受连接池影响、容量是唯一的并发上限、多接收方不排队与排队即缺陷 | [network.spec.ts](tests/network.spec.ts) | 慢 |
+| 网络资源关闭与连接池，含同一接收方连续发起不受连接池影响、容量是唯一的并发上限、多接收方不排队 | [network.spec.ts](tests/network.spec.ts) | 慢 |
 | 代理配置校验与 Node 版本守卫，含构造时任何消息都不含 URL（URL 含换行、回车或制表符时也不报错） | [proxy-config.spec.ts](tests/proxy-config.spec.ts) | 快 |
 | 经代理的交换：隧道成功、直连项、大写协议与前导空白的 URL 仍经代理、拒绝后重置不崩溃、代理不可达、代理未回复即关闭、CONNECT 与隧道内 TLS 的连接超时、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断 | [proxy.spec.ts](tests/proxy.spec.ts) | 慢 |
 | 经真实代理到 OpenRouter 的一次流式请求读到 end-marker。只在 `OMNE_LIVE_TESTS=1` 时运行 | [live/openrouter.spec.ts](tests/live/openrouter.spec.ts) | 慢；未设开关时跳过 |

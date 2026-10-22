@@ -115,11 +115,6 @@ export function clientSockets(resources: NetworkResources): readonly Socket[] {
   return Object.values(resources.agent.sockets).flatMap(sockets => sockets ?? [])
 }
 
-/** The requests the pool has not given a socket yet, through the documented `agent.requests`. */
-export function queuedRequests(resources: Pick<NetworkResources, 'agent'>): number {
-  return Object.values(resources.agent.requests).flatMap(queue => queue ?? []).length
-}
-
 /** The timers that keep the process alive right now, through `process.getActiveResourcesInfo()`. */
 export function activeTimers(): number {
   return process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length

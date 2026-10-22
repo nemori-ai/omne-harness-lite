@@ -33,7 +33,7 @@
 | 机制 | 源码 | 行为条款 |
 | --- | --- | --- |
 | 连接容量 | [capacity.ts](../src/capacity.ts) | [SPEC“连接容量”](../SPEC.md#连接容量) |
-| HTTP 交换 | [http.ts](../src/http.ts)，含错误类 `ResponseBodyStoppedError`、`ResponseBodyReadError` 与 `ExchangeQueuedError` | [SPEC“发起交换”](../SPEC.md#发起交换)至[“连接超时与连接池”](../SPEC.md#连接超时与连接池)，以及[“秘密与对外事实”](../SPEC.md#秘密与对外事实) |
+| HTTP 交换 | [http.ts](../src/http.ts)，含错误类 `ResponseBodyStoppedError` 与 `ResponseBodyReadError` | [SPEC“发起交换”](../SPEC.md#发起交换)至[“连接超时与连接池”](../SPEC.md#连接超时与连接池)，以及[“秘密与对外事实”](../SPEC.md#秘密与对外事实) |
 | SSE 分帧 | [sse.ts](../src/sse.ts) | [SPEC“SSE 分帧”](../SPEC.md#sse-分帧) |
 | 协议帧 | [frames.ts](../src/frames.ts) | [SPEC“协议帧”](../SPEC.md#协议帧) |
 | 网络资源，含代理配置 `ProxyConfig` | [network.ts](../src/network.ts)；连接池 [pool-agent.ts](../src/pool-agent.ts) | [SPEC“网络资源”](../SPEC.md#网络资源)、[“代理”](../SPEC.md#代理) |

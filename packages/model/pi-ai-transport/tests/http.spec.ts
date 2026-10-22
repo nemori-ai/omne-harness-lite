@@ -26,7 +26,6 @@ import {
   held,
   input,
   network,
-  queuedRequests,
   readToEnd,
   REQUEST_BODY,
   REQUEST_HEADERS,
@@ -118,10 +117,9 @@ describe('starting an exchange', () => {
         const start = startExchange(resources, input(server.url, reservation), signal)
         expect(start.kind).toBe('started')
         expect(Object.getPrototypeOf(startExchange)).toBe(Function.prototype)
-        // In the same tick: Node holds one new request, its end() was called, nothing is queued.
+        // In the same tick: Node holds one new request and its end() was called.
         expect(built.requests).toHaveLength(before + 1)
         expect(built.requests.at(-1)?.writableEnded).toBe(true)
-        expect(queuedRequests(resources)).toBe(0)
         // Nothing of the exchange is touched before the server reports the request.
         const request = await arrival
         expect(request).toMatchObject({ method: 'POST', path: REQUEST_PATH })

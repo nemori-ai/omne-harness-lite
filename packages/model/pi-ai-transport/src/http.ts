@@ -115,20 +115,6 @@ export class ResponseBodyReadError extends Error {
 }
 
 /**
- * A defect: the pool queued the request although the caller held a slot, so it was not on its
- * way when `startExchange` would have returned. The pool built by the network resources has no
- * socket limit and never queues; only a pool bypassed by other configuration does. The request
- * is destroyed, taken out of the pool's queue and the slot is back in the capacity before this
- * is thrown. Nothing was sent, and no connection is built for the request later.
- */
-export class ExchangeQueuedError extends Error {
-  constructor() {
-    super('the socket pool queued the request although a connection slot was held')
-    this.name = 'ExchangeQueuedError'
-  }
-}
-
-/**
  * Sends one POST at once: after the return the request is on its way, with no await and no
  * queue in between. The caller must hold a reservation of the resources' capacity; a refusal
  * returns it. One call is one physical send: nothing is retried and no redirect is followed.
@@ -278,10 +264,6 @@ function runExchange(
     req = request(input.url, options)
     req.on('error', noop) // Every error ends in 'close', which decides the outcome.
     req.end(input.body)
-    if (dequeue(resources.agent, req)) {
-      req.destroy()
-      throw new ExchangeQueuedError()
-    }
   } catch (error) {
     seat.release()
     throw error
@@ -461,24 +443,6 @@ function runExchange(
     diagnostics.emit({ kind: 'exchange-stopped', level: 'info' })
     stopped.resolve()
   }
-}
-
-/**
- * `agent.requests`, Node's documented queue of the requests the pool has not given a socket yet.
- * A request found there is taken out, and an emptied queue leaves the object as Node leaves it,
- * so the pool never builds a connection for the request later: `destroy()` on the request does
- * not remove it, and a socket that closes, even after `agent.destroy()`, serves the queue.
- */
-function dequeue(agent: Agent, req: ClientRequest): boolean {
-  for (const [name, queue] of Object.entries(agent.requests)) {
-    if (queue === undefined) continue
-    const index = queue.indexOf(req)
-    if (index === -1) continue
-    queue.splice(index, 1)
-    if (queue.length === 0) Reflect.deleteProperty(agent.requests, name)
-    return true
-  }
-  return false
 }
 
 function createBody(res: IncomingMessage, stoppedLocally: () => boolean): ResponseBody {
