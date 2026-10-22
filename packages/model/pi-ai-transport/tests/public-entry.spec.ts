@@ -19,9 +19,39 @@ function acceptedCodeBlock(markdown: string): string {
   return block
 }
 
-it('the root entry exports the network resources factory and the transport factory as its only runtime values', async () => {
+it('the root entry exports the family table, the network resources factory and the transport factory as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
-  expect(Object.keys(root).toSorted()).toEqual(['createNetworkResources', 'createPiTransport'])
+  expect(Object.keys(root).toSorted()).toEqual([
+    'composeFamilies',
+    'createNetworkResources',
+    'createPiTransport',
+    'defineFamily',
+    'recordAdoption',
+    'replayFormatsOf',
+  ])
+})
+
+it('the subpath entry chat-completions exports bindChatCompletions as its only runtime value', async () => {
+  const engine: object = await import('@omne-harness/pi-ai-transport/chat-completions')
+  expect(Object.keys(engine)).toEqual(['bindChatCompletions'])
+})
+
+it('the subpath entry testing exports the fixture check and the adoption fingerprint helpers', async () => {
+  const testing: object = await import('@omne-harness/pi-ai-transport/testing')
+  expect(Object.keys(testing).toSorted()).toEqual([
+    'FIXTURE_FILES',
+    'GATEWAY_END_MARKER',
+    'appendAdoptionFingerprints',
+    'checkAdoptionFingerprints',
+    'checkChatCompletionsFixtures',
+    'fixtureDirectory',
+    'renderFingerprints',
+  ])
+})
+
+it('the engine internals are not reachable through the package exports', async () => {
+  const internal = '@omne-harness/pi-ai-transport/chat-completions/request'
+  await expect(import(internal)).rejects.toThrow()
 })
 
 it('the network resources handle shows only its close at run time', async () => {

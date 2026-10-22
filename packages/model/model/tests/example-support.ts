@@ -64,6 +64,13 @@ export function createExampleAssembly(script: {
     messages: [],
     tools: [],
     toolChoice: 'none',
+    declarations: [
+      {
+        produces: 'example.invalid/script',
+        accepts: ['example.invalid/script'],
+        foreignThinking: 'omit',
+      },
+    ],
   }
   const evidence = (record: string) => ({
     owner: 'example-host',
@@ -198,8 +205,8 @@ export function createExampleAssembly(script: {
       return {
         ok: {
           transport: {
-            async prepare(request, supplier) {
-              const prepared = await transport.transport.prepare(request, supplier)
+            async prepare(request, supplier, dispatch) {
+              const prepared = await transport.transport.prepare(request, supplier, dispatch)
               if ('failure' in prepared) return prepared
               return {
                 ok: {

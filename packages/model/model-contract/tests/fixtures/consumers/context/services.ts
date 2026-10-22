@@ -1,9 +1,11 @@
 // The services that the context consumes, as this fixture stands them in: a profile service that
 // offers one profile, a meter that counts characters as tokens, a preparation that fixes a request
-// from an assembled input and prepares a transport (and measures and reads nothing), a sender that
+// from an assembled input with the expanded replay declaration of each supplier and prepares a
+// transport (and measures and reads nothing), a sender that
 // answers each call with a scripted ending, and a conversion that decides by the kind of block.
 // They exercise the contract shapes; they are not the Model.
 import { succeed } from '@omne-harness/operation-result'
+import { judgeReplayDeclaration } from '@omne-harness/model-contract'
 import type {
   ConversionResult,
   FixedModelRequest,
@@ -15,6 +17,7 @@ import type {
   ModelCallId,
   ModelTransport,
   ProfileResolution,
+  ReplayDeclaration,
   RequestBudget,
   Supplier,
   Termination,
@@ -129,10 +132,18 @@ export function createPreparation(transport: ModelTransport): CountingPreparatio
     async prepare({ profile: chosen, assembled }) {
       asked += 1
       const [first, ...rest] = chosen.definition.suppliers
-      const supplierOf = (item: typeof first): Supplier => ({
+      const supplierOf = ({ replay: _replay, ...item }: typeof first): Supplier => ({
         ...item,
         credential: { kind: 'factory' },
       })
+      const declarations: ReplayDeclaration[] = []
+      for (const [index, item] of chosen.definition.suppliers.entries()) {
+        const declaration = judgeReplayDeclaration(item, index)
+        if (!('ok' in declaration)) return declaration
+        declarations.push(declaration.ok)
+      }
+      const [declared, ...more] = declarations
+      if (declared === undefined) throw new Error('a profile has at least one supplier')
       const request: FixedModelRequest = {
         profile: chosen.adoption,
         suppliers: [supplierOf(first), ...rest.map(supplierOf)],
@@ -143,11 +154,13 @@ export function createPreparation(transport: ModelTransport): CountingPreparatio
         messages: assembled.messages,
         tools: assembled.tools,
         toolChoice: assembled.toolChoice,
+        ...(assembled.replay === 'off' && { replay: 'off' }),
+        declarations: [declared, ...more],
         representation: assembled.representation,
         parameterAdoptions: [],
         source: assembled.source,
       }
-      const prepared = await transport.prepare(request, request.suppliers[0])
+      const prepared = await transport.prepare(request, request.suppliers[0], { resent: [] })
       if (!('ok' in prepared)) return prepared
       await prepared.ok.close()
       return succeed(request)

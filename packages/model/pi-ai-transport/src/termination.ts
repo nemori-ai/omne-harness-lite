@@ -59,10 +59,14 @@ export function terminationOf(end: SendEnd): TransportTermination {
   }
 }
 
-type StatusCause = 'credential' | 'upstream-unavailable' | 'input-rejected' | 'upstream-protocol'
+export type StatusCause =
+  | 'credential'
+  | 'upstream-unavailable'
+  | 'input-rejected'
+  | 'upstream-protocol'
 
 /** 401 and 403: credential. 429 and 5xx: unavailable. Other 4xx: rejected input. 3xx and the rest: protocol. */
-function causeOfStatus(status: number): StatusCause {
+export function causeOfStatus(status: number): StatusCause {
   if (status === 401 || status === 403) return 'credential'
   if (status === 429 || (status >= 500 && status <= 599)) return 'upstream-unavailable'
   if (status >= 400 && status <= 499) return 'input-rejected'

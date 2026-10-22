@@ -1,7 +1,7 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits for
 // real connect timeouts and physical socket closure.
 import type { ServerResponse } from 'node:http'
-import type { TransportFact } from '@omne-harness/model-contract'
+import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { NetworkInternals } from '../src/network.ts'
 import { network, settle, watch } from './support/exchange.ts'
@@ -13,6 +13,7 @@ import {
   type HttpsFixture,
   type RequestHandler,
 } from './support/https-server.ts'
+import { fixedRequest, testRecord } from './support/chat-record.ts'
 import { LIMITS, sseBody } from './support/test-family.ts'
 import { collect, slotFree, transportOver, type TransportUnderTest } from './support/transport.ts'
 
@@ -97,6 +98,40 @@ describe('a start that sends', () => {
         expect(server.requests).toHaveLength(1)
       },
     )
+  })
+
+  it('gives the diagnostics of the encoding after the send, before the facts of the response', async () => {
+    const [first] = fixedRequest(testRecord()).messages
+    if (first === undefined) throw new Error('the test request has a message')
+    const diagnostics: readonly ProviderDiagnostic[] = [
+      {
+        kind: 'replay-omitted',
+        message: first.id,
+        scope: 'test-recipient/other-model',
+        format: 'test-v1',
+        omittedParts: 2,
+      },
+      { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
+    ]
+    const answers: readonly (readonly [RequestHandler, unknown])[] = [
+      [res => answerSse(res, sseBody(TEXT('hi'), STOP)), COMPLETED],
+      [
+        res => {
+          res.writeHead(500)
+          res.end()
+        },
+        failedWith('upstream-unavailable', 'http-500', '500'),
+      ],
+    ]
+    for (const [answer, last] of answers)
+      await withTransport(answer, async ({ transport }) => {
+        transport.probe.encodeDiagnostics = diagnostics
+        const facts = await collect(
+          (await transport.materialize()).start(new AbortController().signal),
+        )
+        expect(facts.slice(0, 2)).toEqual(diagnostics.map(value => ({ kind: 'diagnostic', value })))
+        expect(facts.at(-1)).toEqual(last)
+      })
   })
 
   it('keeps the decoder termination last when the decoder gives facts after it', async () => {

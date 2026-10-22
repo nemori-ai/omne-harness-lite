@@ -102,6 +102,7 @@ export function applyFact(table: FillTable, fact: TransportFact): boolean {
       return true
     }
     case 'account':
+    case 'diagnostic':
     case 'ended':
       return true
   }

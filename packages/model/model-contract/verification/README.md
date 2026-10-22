@@ -34,14 +34,14 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 
 [judge-request.spec.ts](../tests/judge-request.spec.ts) 从公开入口核对封闭字段、领域值、七项解析预算与安全副本。[admit-boundary.spec.ts](../../model/tests/admit-boundary.spec.ts) 驱动真实 runtime 与直接 Memory Commands。它们不证明生产后端或厂商保证。
 
-清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 201 项：170 个类型和 31 个值；`./testing` 入口 27 项：21 个类型、5 个值和 1 个类。每章数量如下。
+清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 204 项：173 个类型和 31 个值；`./testing` 入口 27 项：21 个类型、5 个值和 1 个类。每章数量如下。
 
 | 章节                    | 项数 | 类型 | 值  |
 | ----------------------- | ---- | ---- | --- |
 | 根入口的值与请求        | 54   | 32   | 22  |
 | 结果、失败和状态        | 18   | 18   | 0   |
 | 普通调用面与实例观察    | 16   | 16   | 0   |
-| 独立执行与提供者操作    | 30   | 30   | 0   |
+| 独立执行与提供者操作    | 33   | 33   | 0   |
 | 消费者 owner 的装配声明 | 2    | 1    | 1   |
 | 档案与请求准备          | 33   | 33   | 0   |
 | 消息转换                | 9    | 9    | 0   |
@@ -61,7 +61,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 1. `pending: false` 的名字必须在产物里出现，种类相符。
 2. `pending: true` 的名字必须不在产物里。已经出现就失败，提醒改标记。
 3. 产物里清单没有的导出算多导出。
-4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 0：已落地 170 个类型和 31 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
+4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 0：已落地 173 个类型和 31 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
 
 `./testing` 入口已在清单里，章节名是「受控替代提供者」与「符合性断言」。再增加入口时，同时在清单里加这个入口，否则"清单覆盖全部 `exports` 子路径"的测试失败。
 
@@ -215,7 +215,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 
 ### 未覆盖
 
-- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 170 个已落地的类型名，不覆盖 `./testing` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；31 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts`、`tests/replay.spec.ts` 等运行测试。
+- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 173 个已落地的类型名，不覆盖 `./testing` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；31 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts`、`tests/replay.spec.ts` 等运行测试。
 - 清单比对不检查声明的形状。形状只由类型探针负责。页面不再保存第二份声明，所以没有页面与源码的形状比较。
 - 类型探针以赋值为主：探针不拦多出的可选成员、变宽的联合和丢失的 `readonly`，这些现在没有机器检查。覆盖下限只要求每个已落地类型在某个探针里被使用，不要求使用得充分。
 - 类型断言检查只扫描 `src/` 与 `tests/fixtures/`，探针 `tests/*.spec-d.ts` 不在其中，探针靠 `tests/values.ts` 只声明不构造品牌值。
@@ -358,7 +358,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 
 | 场景 | 必须观察 |
 | --- | --- |
-| 历史中的回答先后来自模型 A、B、A，本次发给 A | 带上 A 产生的推理状态，略去 B 产生的，诊断列出被略去的消息、`scope` 与 `format`；组装输入与历史不变 |
+| 历史中的回答先后来自模型 A、B、A，本次发给 A | 带上 A 产生的推理状态，略去 B 产生的，`replay-omitted` 诊断事实列出被略去的消息、`scope`、`format` 与部件个数；组装输入与历史不变 |
 | 范围在 `accepts` 里，适配器不认识 `format` | 不可续接，按第 2、3 项处理，不报错 |
 | 回放声明的 `accepts` 不含 `produces`、有重复项，或某项为空或超长 | 档案变更返回 `invalid`，`field` 指向该供应商的回放声明，档案不变 |
 | 组装输入关闭回放 | 全部消息对全部供应商不可续接 |
@@ -366,7 +366,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 | 再发次数配置为零 | 不再发，按首内容前失败处理；不允许回退时调用以 failed 交回，成因为 `replay-rejected`，`replayCarried` 为 true |
 | 再发的持久决定已记录，提供者重启后恢复 | 按记录重新编码，不带回已略去的状态 |
 | 首内容之后出现拒绝信号 | 按首内容后故障处理，不再发 |
-| 供应商交回的载荷超过长度上限 | 不产出该部件，记一条诊断 |
+| 供应商交回的载荷超过长度上限 | 不产出该部件，交出一条 `reasoning-state-dropped` 诊断事实，只带载荷长度 |
 | 错误、诊断、遥测和普通展示 | 不含载荷 |
 | 计量采用没有该供应商的不透明回放估算方法 | 计量返回具名不可用，不按零计，不按密文长度分词 |
 
@@ -454,9 +454,9 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 | CAP-MD08 流式与原结局 | 输出交付；持久事实；[流程](../../model/docs/flows.md#flow-md03) | VisibleBlock、Snapshot、TransportFact、Settlement | [流式规则](../SPEC.md#流式和首内容)、[展示顺序](../SPEC.md#展示诊断与实施证据) | 块模式途中变化、未封口工具参数、保存前展示、崩溃后重发；append/replace 混用与用量尾帧；分段存储与供应商协议需验证 |
 | CAP-MD09 控制与恢复 | 调用推进；恢复宿主；[流程](../../model/docs/flows.md#flow-md08) | ControlState、ExecutionRef、ModelInstanceHost、ModelDriver、ModelHostAuthority、RecoveryRecord | [取消与恢复](../docs/context.md#竞争与恢复场景) | 观察者退出、查询失败冒充失联、旧执行者未排除、原工作资格失效后迟到（守卫路径以资格参加者协议闭合为前提）；宿主排除和实际控制待验证 |
 | CAP-MD10 消费与清理 | 结果消费与回收；[流程](../../model/docs/flows.md#flow-md05) | ModelConsumption、Handoff、ReadId、CustodyState | [ACK](../SPEC.md#ack-的前提与效果)、[清理](../SPEC.md#清理范围与读写保护) | 提前 ACK、保管引用失效、未知写、新读竞争、清理失败恢复；真实耐久和共享内容释放待验证 |
-| CAP-MD11 真实费用 | 原 dispatch 事实；账目投影；[流程](../../model/docs/flows.md#flow-md06) | DispatchRecord、LateDispatchFact、共享 CallAccount | [费用事实](../SPEC.md#真实费用和账目边界) | 多 observer 重复入账、两次真实费被合并、未知填零、迟到复活原工作；校准统计口径不明不得借用；账目查询由其拥有者实现 |
+| CAP-MD11 真实费用 | 原 dispatch 事实；账目投影；[流程](../../model/docs/flows.md#flow-md06) | DispatchRecord、LateDispatchFact、CallAccountReport、共享 CallAccount | [费用事实](../SPEC.md#真实费用和账目边界) | 多 observer 重复入账、两次真实费被合并、未知填零、迟到复活原工作；报告自带 subject 或 receipt、同一事件经流内与迟到补录重复入账；校准统计口径不明不得借用；账目查询由其拥有者实现 |
 | CAP-MD12 数据保护 | 各操作守卫；发送与披露；[流程](../../model/docs/flows.md#flow-md06) | Access、来源证据、发送围栏、ModelMediaReader | [保护](../SPEC.md#数据保护与异常)、[准备协议](../SPEC.md#档案与请求准备协议) | 跨租户、接收方改变、伪 source、撤权后发出、秘密入错误；ModelDiagnostics 最小字段与保留机制已接受，权限/具体数值仍待采用 |
-| CAP-MD13 性能与观测 | 接收的模态投影；阶段观测；[流程](../../model/docs/flows.md#flow-md09) | 模态覆盖依据、ModelDiagnostics、阶段观测、游标与有限缓冲 | [投影](../SPEC.md#转换与历史投影协议)、[观测](../SPEC.md#展示诊断与实施证据) | 投影缺失当空历史、混同 TTFT、缓冲无界；固定资源在途排空、缓存不能绕权；真实性能量测和诊断入口待实现 |
+| CAP-MD13 性能与观测 | 接收的模态投影；阶段观测；[流程](../../model/docs/flows.md#flow-md09) | 模态覆盖依据、ModelDiagnostics、ProviderDiagnostic 诊断事实、阶段观测、游标与有限缓冲 | [投影](../SPEC.md#转换与历史投影协议)、[观测](../SPEC.md#展示诊断与实施证据) | 投影缺失当空历史、混同 TTFT、缓冲无界；固定资源在途排空、缓存不能绕权；真实性能量测和诊断入口待实现 |
 | 消费者工作守卫与 owner 声明（跨 CAP-MD09、CAP-MD12） | 调用推进；发送；持久事实；[流程](../../model/docs/flows.md#flow-md04)、[策略点](../../model/docs/flows.md#flow-md03) | ConsumerRef、CallState.control、ModelConsumerOwnerDeclaration（[装配声明](../docs/public-api.md#消费者-owner-的装配声明)）；守卫问答事实的形状待资格参加者协议 | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | 重试决定中的调用原工作资格失效，资格随后恢复，策略决定重试：守卫仍答不合格，S 不发出；未声明守卫或免守卫的 owner 受理被拒绝，返回 invalid(field='consumer.owner')。见[持续验证义务](#持续验证义务)。另须验证：同 owner 重复声明、装配变更后的在途调用读冻结声明、保留 operation 前缀被拒收、守卫与证据适配器不可用，以及受守卫 owner 在资格参加者协议未就绪时构造失败（见 [SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)）。守卫问答事实的形状待资格参加者协议闭合，闭合前只受理免守卫 owner，需要单调失格的组合不能上线该路径。守卫不可逆须经组合验证 |
 
 内部 module 的 interface、状态及依赖分类见[架构](../../model/docs/architecture.md#内部-module-与-interface)。上表覆盖全部 13 项产品能力，另有一行跨能力的消费者工作守卫与 owner 声明；主路径以外，[两种独立调用](../../model/docs/flows.md#flow-md07)适用于 CAP-MD06..12，[宿主恢复](../../model/docs/flows.md#flow-md08)串联执行、保管及账目。一个能力在表中有位置不代表行为测试已通过。

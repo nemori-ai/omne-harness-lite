@@ -163,7 +163,10 @@ export function createAttemptRunner<P>(
     const acquired = await resources.acquire(input)
     if ('failure' in acquired) return acquired
     attempt.lifetime.resource = acquired.ok
-    const prepared = await acquired.ok.transport.prepare(input.request, input.supplier)
+    // A send is a first dispatch until a re-dispatch after `replay-rejected` names its messages.
+    const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, {
+      resent: [],
+    })
     if ('failure' in prepared) return prepared
     attempt.lifetime.prepared = prepared.ok
     const materialized = await prepared.ok.materialize(attempt.signal)

@@ -96,7 +96,7 @@ describe('the install closure holds only contract and common members', () => {
   it('imports, in values or types, only Node built-ins, declared dependencies or own files', () => {
     const declared = new Set(Object.keys(field(manifest, 'dependencies')))
     for (const specifier of sourceSpecifiers()) {
-      if (specifier.startsWith('node:') || specifier.startsWith('./')) continue
+      if (specifier.startsWith('node:') || specifier.startsWith('.')) continue
       expect(declared.has(packageName(specifier)), specifier).toBe(true)
     }
   })

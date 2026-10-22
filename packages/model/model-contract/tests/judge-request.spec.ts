@@ -70,7 +70,9 @@ it('retains typed access, copies DAG occurrences and freezes only owned output',
       ...admission('shared-boundary'),
       request: { ...request, parameters: [{ kind: 'temperature', value: 2.1 }] },
     }),
-  ).toEqual({ failure: { kind: 'invalid', field: '/request/parameters/0/value', reason: 'range' } })
+  ).toEqual({
+    failure: { kind: 'invalid', field: '/request/parameters/0/value', reason: 'range' },
+  })
 })
 
 it('accepts every Model union branch and delegates lossless domain values', () => {
@@ -113,6 +115,10 @@ it('accepts every Model union branch and delegates lossless domain values', () =
           },
         ],
         fallback: true,
+        declarations: [
+          request.declarations[0],
+          { produces: 'backup', accepts: ['backup', 'other/scope'], foreignThinking: 'text' },
+        ],
         tools: [
           { name: 'lookup', description: '', argumentsSchema: json },
           { name: 'summarize', description: 'summary', argumentsSchema: { kind: 'null' } },
@@ -1025,7 +1031,9 @@ it('copies null prototypes and refuses a data __proto__ key without changing out
   const input = Object.assign(Object.create(null), request)
   expect(judgeFixedModelRequest(input)).toHaveProperty('ok')
   Object.defineProperty(input, '__proto__', { value: { polluted: true }, enumerable: true })
-  expect(judgeFixedModelRequest(input)).toEqual({ failure: { field: '', reason: 'unknown-field' } })
+  expect(judgeFixedModelRequest(input)).toEqual({
+    failure: { field: '', reason: 'unknown-field' },
+  })
   expect(Object.hasOwn(Object.prototype, 'polluted')).toBe(false)
 })
 
@@ -1056,11 +1064,94 @@ it('keeps first rejection across request groups and payload capture', () => {
     },
   ]
   for (const { patch, field, reason } of failures)
-    expect(judgeFixedModelRequest({ ...request, ...patch })).toEqual({ failure: { field, reason } })
+    expect(judgeFixedModelRequest({ ...request, ...patch })).toEqual({
+      failure: { field, reason },
+    })
   const input = admission('priority')
   expect(
     judgeAdmit({ ...input, call: 'invalid', request: { ...request, secret: () => true } }),
   ).toEqual({
     failure: { field: '/request', reason: 'type' },
+  })
+})
+
+describe('the replay switch and the replay declarations of a fixed request', () => {
+  const declared = request.declarations[0]
+  const backup = { ...request.suppliers[0], recipient: 'backup', model: 'm' }
+
+  it('keeps replay off when the request turns it off, and adds no switch when it does not', () => {
+    expect(must(judgeFixedModelRequest({ ...request, replay: 'off' })).replay).toBe('off')
+    expect(Object.hasOwn(must(judgeFixedModelRequest(request)), 'replay')).toBe(false)
+  })
+
+  it.each(['on', true, null, ''])('rejects the replay switch %j', replay => {
+    expect(judgeFixedModelRequest({ ...request, replay })).toEqual({
+      failure: { field: '/replay', reason: 'value' },
+    })
+  })
+
+  it('keeps one declaration for each supplier in the order of the suppliers', () => {
+    const second = { produces: 'b', accepts: ['b', declared.produces], foreignThinking: 'adapter' }
+    const fixed = must(
+      judgeFixedModelRequest({
+        ...request,
+        suppliers: [request.suppliers[0], backup],
+        declarations: [declared, second],
+      }),
+    )
+    expect(fixed.declarations).toEqual([declared, second])
+    expect(Object.isFrozen(fixed.declarations[1]?.accepts)).toBe(true)
+  })
+
+  it.each([
+    { declarations: undefined, field: '/declarations', reason: 'missing' },
+    { declarations: declared, field: '/declarations', reason: 'type' },
+    { declarations: [], field: '/declarations', reason: 'value' },
+    { declarations: [declared, declared], field: '/declarations', reason: 'value' },
+  ])('rejects $field as $reason when the declarations do not match the suppliers', input => {
+    const { declarations, ...rest } = request
+    const value =
+      input.declarations === undefined ? rest : { ...rest, declarations: input.declarations }
+    void declarations
+    expect(judgeFixedModelRequest(value)).toEqual({
+      failure: { field: input.field, reason: input.reason },
+    })
+  })
+
+  it.each([
+    {
+      item: { produces: 'a', accepts: ['a'] },
+      field: '/declarations/0/foreignThinking',
+      reason: 'missing',
+    },
+    { item: { ...declared, extra: 1 }, field: '/declarations/0', reason: 'unknown-field' },
+    { item: { ...declared, produces: '' }, field: '/declarations/0/produces', reason: 'value' },
+    { item: { ...declared, accepts: [''] }, field: '/declarations/0/accepts', reason: 'value' },
+    { item: { ...declared, accepts: ['x'] }, field: '/declarations/0/accepts', reason: 'value' },
+    {
+      item: { ...declared, accepts: [declared.produces, declared.produces] },
+      field: '/declarations/0/accepts',
+      reason: 'duplicate',
+    },
+    {
+      item: { ...declared, foreignThinking: 'keep' },
+      field: '/declarations/0/foreignThinking',
+      reason: 'value',
+    },
+  ])('rejects a declaration that is not complete and valid at $field as $reason', input => {
+    expect(judgeFixedModelRequest({ ...request, declarations: [input.item] })).toEqual({
+      failure: { field: input.field, reason: input.reason },
+    })
+  })
+
+  it('names the position of the first declaration that fails', () => {
+    const value = {
+      ...request,
+      suppliers: [request.suppliers[0], backup],
+      declarations: [declared, { ...declared, foreignThinking: null }],
+    }
+    expect(judgeFixedModelRequest(value)).toEqual({
+      failure: { field: '/declarations/1/foreignThinking', reason: 'value' },
+    })
   })
 })

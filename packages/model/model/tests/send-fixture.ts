@@ -136,8 +136,8 @@ export async function sendFixture(
       return {
         ok: {
           transport: {
-            async prepare(input, supplier) {
-              const prepared = await transport.transport.prepare(input, supplier)
+            async prepare(input, supplier, dispatch) {
+              const prepared = await transport.transport.prepare(input, supplier, dispatch)
               if ('failure' in prepared) return prepared
               return {
                 ok: {

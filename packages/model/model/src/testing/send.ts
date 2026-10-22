@@ -65,8 +65,8 @@ export function scriptedSendResources<P, Script>(
       return {
         ok: {
           transport: {
-            async prepare(request, supplier) {
-              const result = await source.transport.prepare(request, supplier)
+            async prepare(request, supplier, dispatch) {
+              const result = await source.transport.prepare(request, supplier, dispatch)
               if ('failure' in result) return result
               return {
                 ok: {

@@ -1,0 +1,266 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5.5",
+          "revision": "1",
+          "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
+        },
+        "recipient": "openrouter",
+        "model": "anthropic/claude-opus-5.5",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "512"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Answer briefly. Stable certification prefix."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Turn 1."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "lookup__exact",
+        "description": "Look up an exact value",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "query",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "query"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "additionalProperties",
+              "value": {
+                "kind": "boolean",
+                "value": false
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/anthropic/claude-opus-5.5",
+        "accepts": [
+          "openrouter/anthropic/claude-opus-5.5"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-opus-5.5#representation",
+      "revision": "1",
+      "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5.5",
+          "revision": "1",
+          "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "512"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "512"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5.5",
+          "revision": "1",
+          "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Answer briefly. Stable certification prefix."
+          }
+        ],
+        "role": "system"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Turn 1.",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "model": "anthropic/claude-opus-5.5",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "anthropic"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high"
+    },
+    "store": false,
+    "stream": true,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "lookup__exact",
+          "description": "Look up an exact value",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ]
+  }
+}

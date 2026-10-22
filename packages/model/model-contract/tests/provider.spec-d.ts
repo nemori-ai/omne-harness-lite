@@ -1,6 +1,7 @@
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { expectTypeOf, it } from 'vitest'
 import type {
+  CallAccountReport,
   Access,
   CallAccess,
   CallState,
@@ -38,13 +39,16 @@ import type {
   Settlement,
   Snapshot,
   Termination,
+  ProviderDiagnostic,
+  TransportDispatch,
   TransportFact,
   TransportFailure,
   TransportTermination,
   WriteContext,
 } from '@omne-harness/model-contract'
 import {
-  account,
+  message,
+  report,
   adoption,
   block,
   budget,
@@ -205,7 +209,7 @@ it('RecoveryRecord holds the original request, the actor and the open work', () 
 
 it('late facts are either an account or an actual termination of a known dispatch', () => {
   const facts: LateDispatchFact[] = [
-    { kind: 'account', event: 'e', value: account },
+    { kind: 'account', event: 'e', value: report },
     { kind: 'terminal', event: 'e', actual: { kind: 'completed', reason: 'stop' } },
   ]
   // @ts-expect-error a late fact is not a settlement
@@ -245,7 +249,49 @@ it('Publication and ModelClock name the registration and the instant as plain fa
   void [publication, clock, bad]
 })
 
-it('TransportFact is the closed set of seven facts that a transport hands over', () => {
+it('a provider reports an account without the call and without the receipt', () => {
+  const report: CallAccountReport = {
+    usage: [],
+    cost: [],
+    trimmed: { state: 'unknown', unit: 'token' },
+    place: 'p',
+    duration: { state: 'unknown' },
+    revision: '1',
+  }
+  const withSubject: CallAccountReport = {
+    ...report,
+    // @ts-expect-error the runtime adds the subject when it keeps the account
+    subject: { kind: 'model_call', id: 'c' },
+  }
+  // @ts-expect-error the runtime decides whether the account is late
+  const withReceipt: CallAccountReport = { ...report, receipt: 'late' }
+  expectTypeOf<keyof CallAccountReport>().toEqualTypeOf<
+    'usage' | 'cost' | 'trimmed' | 'place' | 'duration' | 'revision'
+  >()
+  void [withSubject, withReceipt]
+})
+
+it('ProviderDiagnostic is the closed set of four diagnostics without a payload', () => {
+  const diagnostics: ProviderDiagnostic[] = [
+    { kind: 'replay-omitted', message: message.id, scope: 's', format: 'f', omittedParts: 1 },
+    { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
+    { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 9 },
+    { kind: 'usage-inconsistent', field: 'completion_tokens' },
+  ]
+  expectTypeOf<ProviderDiagnostic['kind']>().toEqualTypeOf<
+    'replay-omitted' | 'reasoning-disabled' | 'reasoning-state-dropped' | 'usage-inconsistent'
+  >()
+  const payload: ProviderDiagnostic = {
+    kind: 'reasoning-state-dropped',
+    reason: 'payload-too-long',
+    length: 1,
+    // @ts-expect-error a dropped state carries its length, never its payload
+    payload: 'x',
+  }
+  void [diagnostics, payload]
+})
+
+it('TransportFact is the closed set of eight facts that a transport hands over', () => {
   const facts: TransportFact[] = [
     { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
     { kind: 'block-delta', index: '0', delta: 'x' },
@@ -253,7 +299,8 @@ it('TransportFact is the closed set of seven facts that a transport hands over',
     { kind: 'block-seal', index: '1', block: toolCall },
     { kind: 'block-seal', index: '2', block },
     { kind: 'trim', index: '0', removed: 'tail', reason: 'limit' },
-    { kind: 'account', event: 'e', value: account },
+    { kind: 'account', event: 'e', value: report },
+    { kind: 'diagnostic', value: { kind: 'reasoning-disabled', reason: 'foreign-prefix' } },
     { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
   ]
   // @ts-expect-error a seal never carries a call whose arguments did not all arrive
@@ -281,7 +328,10 @@ it('SendResult separates a started stream, a refused send and an unknown send', 
     window: 'receive-window',
     facts: (async function* (): AsyncGenerator<TransportFact> {})(),
   }
-  const refused: SendResult = { kind: 'not-started', failure: { kind: 'stale-instance', instance } }
+  const refused: SendResult = {
+    kind: 'not-started',
+    failure: { kind: 'stale-instance', instance },
+  }
   const unknown: SendResult = { kind: 'unknown', dispatch, diagnostic: 'd' }
   // @ts-expect-error a started send carries its facts
   const noFacts: SendResult = { kind: 'started', window: 'receive-window' }
@@ -355,7 +405,7 @@ it('an adapter can implement the transport chain from prepare to the fact stream
   void transport
   expectTypeOf<MaterializedTransport['receipt']>().toEqualTypeOf<MaterializationReceipt>()
   expectTypeOf<ModelTransport['prepare']>().parameters.toEqualTypeOf<
-    [request: typeof request, supplier: typeof supplier]
+    [request: typeof request, supplier: typeof supplier, dispatch: TransportDispatch]
   >()
   const refused: PreparedTransport = {
     // @ts-expect-error materializing a refused send names a transport failure, not a provider fact

@@ -4,7 +4,10 @@ import type {
   FixedModelRequest,
   MaterializationReceipt,
   MaterializedTransport,
+  ProviderDiagnostic,
+  ReplayDeclaration,
   Supplier,
+  TransportDispatch,
   TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
@@ -24,6 +27,10 @@ export type MaterializeInput = Readonly<{
   route: CheckedRoute
   request: FixedModelRequest
   supplier: Supplier
+  /** The replay declaration that the request fixes for the supplier. */
+  declaration: ReplayDeclaration
+  /** The messages that this dispatch must treat as unable to continue. */
+  resent: TransportDispatch['resent']
   binding: PiFamilyBinding
   /** The caller's signal, joined with the close of the prepared transport. */
   signal: AbortSignal
@@ -41,13 +48,14 @@ type MaterializedPhase =
 
 /**
  * Reserves a connection slot, refuses a request with a content reference, encodes the request
- * through the family, and fixes the bytes and their digest in the receipt. Every failure, a
- * thrown one included, returns the reservation. Nothing is sent.
+ * through the family, and fixes the bytes and their digest in the receipt, and the diagnostics of
+ * the encoding for the facts of the send. Every failure, a thrown one included, returns the
+ * reservation. Nothing is sent.
  */
 export async function materialize(
   input: MaterializeInput,
 ): Promise<Outcome<MaterializedHandle, TransportFailure>> {
-  const { config, request, supplier, binding, signal } = input
+  const { config, request, supplier, declaration, resent, binding, signal } = input
   const reservation = await config.network.capacity.reserve(signal)
   if (reservation === undefined)
     return { failure: capacityUnavailable(signal.aborted ? 'cancelled' : 'network-closed') }
@@ -57,15 +65,22 @@ export async function materialize(
     const reference = firstModelVisibleReference(request)
     if (reference !== null)
       return { failure: { kind: 'unsupported', field: reference, adapter: binding.adoption } }
-    const encoded = binding.encode({ request, media: [] })
+    const encoded = binding.encode({ request, media: [], declaration, resent })
     if (!('ok' in encoded)) return encoded
     const body = serializeBody(encoded.ok.body)
+    const diagnostics = Object.freeze([...encoded.ok.diagnostics])
     const receipt: MaterializationReceipt = Object.freeze({
       supplier: supplier.adoption,
       representation: request.representation,
       payloadDigest: digestOf(body),
     })
-    const materialized = createMaterialized({ ...input, reservation, body, receipt })
+    const materialized = createMaterialized({
+      ...input,
+      reservation,
+      body,
+      receipt,
+      diagnostics,
+    })
     handedOver = true
     return { ok: materialized }
   } finally {
@@ -83,6 +98,7 @@ function createMaterialized(
       reservation: ConnectionReservation
       body: Uint8Array
       receipt: MaterializationReceipt
+      diagnostics: readonly ProviderDiagnostic[]
     }>,
 ): MaterializedHandle {
   let phase: MaterializedPhase = {
@@ -124,7 +140,13 @@ function createMaterialized(
     // startExchange returned the reservation for a refusal.
     if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
     phase = { kind: 'started', exchange: started.exchange }
-    return factsOfSend({ exchange: started.exchange, decoder, route, limits: config.limits })
+    return factsOfSend({
+      exchange: started.exchange,
+      decoder,
+      route,
+      limits: config.limits,
+      diagnostics: input.diagnostics,
+    })
   }
 
   function refusedBeforeSend(

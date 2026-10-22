@@ -1,0 +1,221 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-openai-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra",
+          "revision": "1",
+          "digest": "d759ddec3f9eeef365f59442a3e7b449be4ca647faaac74e0398cc55c1ba2348"
+        },
+        "recipient": "openrouter",
+        "model": "openai/gpt-5.6-terra",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-openai-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "1024"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "low"
+      }
+    ],
+    "system": [],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "STABLE_PREFIX_MARKER"
+          }
+        ]
+      },
+      {
+        "id": "msg_a100000000000000000000",
+        "role": "assistant",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b0",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "visible answer"
+          },
+          {
+            "kind": "reasoning_state",
+            "id": "b1",
+            "visibility": {
+              "toHuman": false,
+              "toModel": true
+            },
+            "payload": "{\"data\":\"ENCRYPTED_NEVER_TOKENIZE\",\"format\":\"openai-responses-v1\",\"id\":\"rs-local\",\"index\":0,\"type\":\"reasoning.encrypted\"}",
+            "pairs": []
+          }
+        ],
+        "replay": {
+          "scope": "openrouter/openai/gpt-5.6-terra",
+          "format": "openai-responses-v1",
+          "at": [
+            1
+          ]
+        }
+      },
+      {
+        "id": "msg_u200000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b2",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "next 1"
+          }
+        ]
+      }
+    ],
+    "tools": [],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/openai/gpt-5.6-terra",
+        "accepts": [
+          "openrouter/openai/gpt-5.6-terra"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-terra#representation",
+      "revision": "1",
+      "digest": "d759ddec3f9eeef365f59442a3e7b449be4ca647faaac74e0398cc55c1ba2348"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra",
+          "revision": "1",
+          "digest": "d759ddec3f9eeef365f59442a3e7b449be4ca647faaac74e0398cc55c1ba2348"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "1024"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "1024"
+          },
+          "source": {
+            "owner": "pi-ai-openai-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra",
+          "revision": "1",
+          "digest": "d759ddec3f9eeef365f59442a3e7b449be4ca647faaac74e0398cc55c1ba2348"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "low"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "low"
+          },
+          "source": {
+            "owner": "pi-ai-openai-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-openai-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": "STABLE_PREFIX_MARKER",
+        "role": "user"
+      },
+      {
+        "content": "visible answer",
+        "reasoning_details": [
+          {
+            "type": "reasoning.encrypted",
+            "data": "ENCRYPTED_NEVER_TOKENIZE",
+            "format": "openai-responses-v1",
+            "id": "rs-local",
+            "index": 0
+          }
+        ],
+        "role": "assistant"
+      },
+      {
+        "content": "next 1",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-5.6-terra",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "openai"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "low"
+    },
+    "store": false,
+    "stream": true
+  }
+}

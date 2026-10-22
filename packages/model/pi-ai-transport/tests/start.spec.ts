@@ -47,6 +47,13 @@ describe('a start that sends nothing', () => {
     expect(await slotFree(network)).toBe(true)
   })
 
+  it('gives no diagnostic of the encoding when nothing is sent', async () => {
+    const { materialize, probe } = setup(() => undefined)
+    probe.encodeDiagnostics = [{ kind: 'reasoning-disabled', reason: 'foreign-prefix' }]
+    const facts = await collect((await materialize()).start(new AbortController().signal))
+    expect(facts.map(fact => fact.kind)).toEqual(['ended'])
+  })
+
   it('with a credential that is not a header value ends failed with credential and never shows it', async () => {
     const { materialize, sends, network } = setup(() => 'secret\nwith a line break')
     const facts = await collect((await materialize()).start(new AbortController().signal))

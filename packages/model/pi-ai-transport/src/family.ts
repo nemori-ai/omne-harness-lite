@@ -16,6 +16,9 @@ import type {
   ModelFault,
   MeterRepresentation,
   MediaMeasurementFact,
+  ReplayDeclaration,
+  TransportDispatch,
+  ProviderDiagnostic,
 } from '@omne-harness/model-contract'
 
 export type PiProtocolFrame =
@@ -42,11 +45,14 @@ export type PiFamilyBinding = Readonly<{
     input: Readonly<{
       request: FixedModelRequest
       media: readonly PiMaterializedMedia[]
+      declaration: ReplayDeclaration
+      resent: TransportDispatch['resent']
     }>,
   ): Outcome<
     Readonly<{
       body: JsonValue
       representation: Extract<MeterRepresentation, { kind: 'materialized' }>
+      diagnostics: readonly ProviderDiagnostic[]
     }>,
     TransportFailure
   >

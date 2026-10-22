@@ -1,0 +1,8 @@
+data: {"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"delta":{"content":"ok"}}]}
+
+data: {"usage":{"prompt_tokens":9007199254740993,"prompt_tokens_details":{"cached_tokens":9007199254740994,"cache_write_tokens":0},"completion_tokens":1,"cost":0.00000000000000000012345}}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

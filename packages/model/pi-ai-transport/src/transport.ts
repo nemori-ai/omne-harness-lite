@@ -5,7 +5,9 @@ import type {
   FixedModelRequest,
   ModelTransport,
   PreparedTransport,
+  ReplayDeclaration,
   Supplier,
+  TransportDispatch,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -57,12 +59,15 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
   async function prepare(
     request: FixedModelRequest,
     supplier: Supplier,
+    dispatch: TransportDispatch,
   ): Promise<Outcome<PreparedTransport, TransportFailure>> {
     if (phase.kind !== 'open') return { failure: TRANSPORT_CLOSED }
     if (!checked.routes.has(supplier.recipient))
       return {
         failure: { kind: 'unsupported', field: 'supplier.recipient', adapter: supplier.adoption },
       }
+    const declaration = declarationOf(request, supplier)
+    if (declaration === null) return { failure: NOT_IN_REQUEST }
     const acquired = await checked.families.acquire(supplier, closing.signal)
     if (!('ok' in acquired)) return acquired
     if (phase.kind !== 'open') {
@@ -73,6 +78,8 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
       config: checked,
       request,
       supplier,
+      declaration,
+      resent: Object.freeze([...dispatch.resent]),
       binding: acquired.ok,
       onClosed: () => open.delete(prepared),
     })
@@ -103,6 +110,37 @@ const TRANSPORT_CLOSED: TransportFailure = Object.freeze({
   diagnostic: 'transport-closed',
 })
 
+const NOT_IN_REQUEST: TransportFailure = Object.freeze({
+  kind: 'invalid',
+  field: 'supplier',
+  reason: 'not-in-request',
+})
+
+function sameSupplier(left: Supplier, right: Supplier): boolean {
+  const credential =
+    left.credential.kind === 'factory'
+      ? right.credential.kind === 'factory'
+      : right.credential.kind === 'tenant' && left.credential.id === right.credential.id
+  return (
+    credential &&
+    left.recipient === right.recipient &&
+    left.model === right.model &&
+    left.adoption.owner === right.adoption.owner &&
+    left.adoption.name === right.adoption.name &&
+    left.adoption.revision === right.adoption.revision &&
+    left.adoption.digest === right.adoption.digest
+  )
+}
+
+/**
+ * The replay declaration that the request fixes for the supplier: the item of `declarations` at
+ * the position of the supplier in `suppliers`. `null` when the request does not name the supplier.
+ */
+function declarationOf(request: FixedModelRequest, supplier: Supplier): ReplayDeclaration | null {
+  const index = request.suppliers.findIndex(item => sameSupplier(item, supplier))
+  return index < 0 ? null : (request.declarations[index] ?? null)
+}
+
 const PREPARED_CLOSED: TransportFailure = Object.freeze({
   kind: 'unavailable',
   dependency: 'pi-transport',
@@ -120,11 +158,13 @@ function createPrepared(
     config: CheckedConfig
     request: FixedModelRequest
     supplier: Supplier
+    declaration: ReplayDeclaration
+    resent: TransportDispatch['resent']
     binding: PiFamilyBinding
     onClosed: () => void
   }>,
 ): PreparedTransport {
-  const { config, request, supplier, onClosed } = input
+  const { config, request, supplier, declaration, resent, onClosed } = input
   /** Ends a materialize that still waits for capacity when this prepared transport closes. */
   const closing = new AbortController()
   let phase: PreparedPhase = { kind: 'open', binding: input.binding }
@@ -140,6 +180,8 @@ function createPrepared(
       route,
       request,
       supplier,
+      declaration,
+      resent,
       binding,
       signal: AbortSignal.any([signal, closing.signal]),
     })

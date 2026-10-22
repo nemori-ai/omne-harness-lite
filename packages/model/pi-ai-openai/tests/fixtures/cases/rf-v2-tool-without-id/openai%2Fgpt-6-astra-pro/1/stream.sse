@@ -1,0 +1,10 @@
+data: {"model":"openai/gpt-6-astra-pro","provider":"OpenAI","choices":[{"delta":{"reasoning":"think"}}]}
+
+data: {"choices":[{"delta":{"refusal":"refuse","tool_calls":[{"index":0,"type":"function","function":{"name":"lookup","arguments":"{\"x\":1}"}}]}}]}
+
+data: {"choices":[{"delta":{"content":"after"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}
+
+data: [DONE]
+

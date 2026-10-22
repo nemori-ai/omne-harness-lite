@@ -7,7 +7,7 @@
 This package owns public domain values, operation interfaces, replaceable provider ports, and shared protocols. The design is accepted as recorded in [SPEC](SPEC.md). The status has four parts. Each part describes only its own scope.
 
 1. Existing: the pure credential contract. It has the reference, the query, the presence and resolution results, `CredentialPort`, `decodeCredentialId`, and `sameCredentialHolder`. The declarations are in [`src/credential.ts`](src/credential.ts) and [`src/credential-values.ts`](src/credential-values.ts). Custody and the judgment are not in this package. [model-host-local](../model-host-local/README.md) owns local custody. [model](../model/README.md) owns the judgment. [model-cordis-contract](../model-cordis-contract/README.md) owns the Cordis service definition.
-2. Implemented in this package: the root entry exports 170 types and 31 runtime values. The `./testing` entry exports a scripted provider, a scripted transport, and the conformance suite `checkModelProviderConformance`, 27 names in all. The test script gives the results of the scripted provider and transport, so they prove nothing about a real provider. The conformance suite checks a provider against the contract obligations that the public face shows. Limit: these checks show the contract face and do not show any runtime implementation.
+2. Implemented in this package: the root entry exports 173 types and 31 runtime values. The `./testing` entry exports a scripted provider, a scripted transport, and the conformance suite `checkModelProviderConformance`, 27 names in all. The test script gives the results of the scripted provider and transport, so they prove nothing about a real provider. The conformance suite checks a provider against the contract obligations that the public face shows. Limit: these checks show the contract face and do not show any runtime implementation.
 3. Not implemented or verified: this package has no execution implementation. `executeModel`, `createModelRuntime`, a complete host, and other providers are not in this package.
 4. Technical design: the non-pi-ai technical design is accepted. The [group architecture](../docs/architecture.md#成员与新增条件) defines which pi-ai designs are accepted and which remain candidates. Implementing the contract does not mean that CAP-MD01 to CAP-MD13 are delivered. The reasoning replay design in [SPEC](SPEC.md#推理回放) is accepted. Item 2 counts its three functions; the adapter mapping, the re-dispatch and the metering method belong to the Model runtime and are not implemented.
 
@@ -19,7 +19,18 @@ Final pages contain ordered sealed or partial parts and actual trim notices. Han
 
 Persist `ModelInvocationRef` before admission. Use it with current Access for inspect, connect and beginRead. Admission returns the same reference alongside call, revision and recovered. `ModelOperationRef` packages ACK identity while the consumer retains the original result and evidence. See the [reference contract](SPEC.md#可保存调用引用).
 
-Use `judgeFixedModelRequest` for an untrusted fixed request and `judgeAdmit` for typed access plus untrusted payload. Both return `{ ok }` or `{ failure: { field, reason } }`. Successful payload is copied and frozen. Admission preserves the current principal and minted tenant by identity. The [closed input contract](SPEC.md#封闭输入判断) defines parser budgets and Proxy limits. Structural success grants no qualification or capacity.
+Use `judgeFixedModelRequest` for an untrusted fixed request and `judgeAdmit` for typed access plus untrusted payload. Both return `{ ok }` or `{ failure: { field, reason } }`. Successful payload is copied and frozen. Admission preserves the current principal and minted tenant by identity. The [closed input contract](SPEC.md#封闭输入判断) defines parser budgets and Proxy limits. Structural success grants no qualification or capacity. A fixed request carries `declarations`: one expanded replay declaration for each supplier, in supplier order. Its optional `replay` field accepts only `'off'`.
+
+A provider reports an account as a `CallAccountReport` without `subject` and `receipt`. The Model runtime adds these two fields when it keeps the account.
+
+A provider reports a `diagnostic` fact for four events:
+
+- It omits reasoning state from a replayed message.
+- It turns reasoning off for one request.
+- It drops a reasoning state that is too long.
+- It finds that the upstream usage contradicts itself.
+
+The third argument of `prepare` on `ModelTransport` lists the messages that a re-dispatch sends again. See the [provider operations](SPEC.md#342-独立执行与提供者操作).
 
 ## Contracts
 
@@ -47,7 +58,7 @@ pnpm run check:docs
 
 The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model-contract test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
 
-Current tests cover the 170 type declarations and the 31 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`, and the replay functions `judgeReplayDeclaration`, `projectReplay`, `continuedMessages`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
+Current tests cover the 173 type declarations and the 31 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`, and the replay functions `judgeReplayDeclaration`, `projectReplay`, `continuedMessages`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 

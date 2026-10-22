@@ -7,65 +7,150 @@
 | 模块 | 回答的问题与持有的东西 | 依赖 |
 | --- | --- | --- |
 | [family.ts](../src/family.ts) | 五个已接受的家族贡献接口类型，形状照抄组架构 | model-contract、json-text、content-block、operation-result，只有类型 |
-| [index.ts](../src/index.ts) | 根入口，转出 family.ts 的类型、config.ts 的配置类型、transport.ts 的工厂、network.ts 的工厂与配置类型，以及 diagnostics.ts 的观察者类型 | family.ts、config.ts、transport.ts、network.ts、diagnostics.ts |
-| [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts，json-text、family.ts 与 network.ts（类型） |
-| [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，model-contract 与 operation-result（类型） |
-| [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts 与 termination.ts（类型） |
-| [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts |
+| [index.ts](../src/index.ts) | 根入口，转出 family.ts 的类型、family-table.ts 的家族表、config.ts 的配置类型、transport.ts 的工厂、network.ts 的工厂与配置类型，以及 diagnostics.ts 的观察者类型 | family-table.ts、transport.ts、network.ts，family.ts、config.ts 与 diagnostics.ts（只转出类型） |
+| [family-table.ts](../src/family-table.ts) | 精确采用怎样解析到家族与记录：每个家族的记录冻结副本与采用，组合后的采用表，取得时的失败映射 | canonical-json.ts，family.ts、model-contract 与 operation-result（类型） |
+| [canonical-json.ts](../src/canonical-json.ts) | 纯数据的规范 JSON 与它的 SHA-256 | Node `crypto` |
+| [chat-completions/index.ts](../src/chat-completions/index.ts) | 子入口，转出 `bindChatCompletions` 与 vocabulary.ts 的类型 | bind.ts，vocabulary.ts（类型） |
+| [chat-completions/bind.ts](../src/chat-completions/bind.ts) | 一条记录怎样成为完整绑定：绑定时的记录检查、请求上下文、只包一层的释放 | family-table.ts、limits.ts、request.ts、projection.ts、parameters.ts、gateway.ts、decoder.ts，family.ts、vocabulary.ts 与 model-contract（类型） |
+| [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明的展开、请求体、表示与编码诊断 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`，family.ts、vocabulary.ts、json-text 与 operation-result（类型）；改编自 pi |
+| [chat-completions/projection.ts](../src/chat-completions/projection.ts) | 请求怎样投影为网关消息：角色、内容、工具调用与结果、回放、缓存位置、工具 | json.ts、json-text、model-contract 的 `projectReplay` 与 `judgeReplayDeclaration`、Node `crypto`，vocabulary.ts、content-block 与 operation-result（类型）；改编自 pi |
+| [chat-completions/parameters.ts](../src/chat-completions/parameters.ts) | 参数怎样按记录表规划与写出 | gateway.ts，vocabulary.ts、model-contract 与 operation-result（类型） |
+| [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts，vocabulary.ts 与 json-text（类型） |
+| [chat-completions/json.ts](../src/chat-completions/json.ts) | 排序键的 json-text 值树构造 | json-text（类型） |
+| [chat-completions/vocabulary.ts](../src/chat-completions/vocabulary.ts) | 记录词表、四个 hook 与计量接缝的类型 | family-table.ts、model-contract、json-text、content-block、operation-result（类型） |
+| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`faulted`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、decimal.ts、termination.ts、content-block 的 `judgeBlockIdentity`、json-text，family.ts、vocabulary.ts、model-contract 与 operation-result（类型）；改编自 pi |
+| [chat-completions/chunk.ts](../src/chat-completions/chunk.ts) | 一个数据帧是不是网关 chunk：边界上读成具名的 chunk，或给出形状失败 | vocabulary.ts 与 json-text（类型）；改编自 pi |
+| [chat-completions/details.ts](../src/chat-completions/details.ts) | 推理片段怎样拼接成项，以及一个片段的可见文本 | json.ts、json-text，chunk.ts 与 vocabulary.ts（类型） |
+| [chat-completions/decimal.ts](../src/chat-completions/decimal.ts) | 网关费用的 JSON 数怎样成为精确的普通十进制词法：只做字符串运算，不经浮点数 | 无 |
+| [testing/index.ts](../src/testing/index.ts) | 子入口 `./testing`，转出夹具检查与采用指纹 | fixtures.ts、adoptions.ts |
+| [testing/fixtures.ts](../src/testing/fixtures.ts) | 一个家族的夹具是否与引擎一致：按记录读三个文件、编码比较、经 `decodeBody` 回放比较、多余目录 | family-table.ts、fact-stream.ts、termination.ts、chat-completions/json.ts、model-contract 的 `judgeFixedModelRequest`、json-text、Node `fs/promises`、`path`、`util`，family.ts（类型） |
+| [testing/adoptions.ts](../src/testing/adoptions.ts) | 采用指纹文件是否与记录一致，以及只追加的生成 | family-table.ts、Node `fs/promises` |
+| [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts、network.ts，json-text 与 family.ts（类型） |
+| [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、请求中的供应商与它的回放声明、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，family.ts、model-contract 与 operation-result（类型） |
+| [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts、config.ts、family.ts、termination.ts、model-contract 与 operation-result（类型） |
+| [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后。2xx 响应体的解码是单独的 `decodeBody`，测试入口用它回放夹具 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts，config.ts、family.ts 与 model-contract（类型） |
 | [termination.ts](../src/termination.ts) | 一次发送怎样结束：发送结束到流终止的纯函数 | model-contract（类型），frames.ts 与 sse.ts（类型） |
-| [payload.ts](../src/payload.ts) | 固定的 payload：内容引用扫描、JSON 序列化、SHA-256 | json-text、Node `crypto` |
+| [payload.ts](../src/payload.ts) | 固定的 payload：内容引用扫描、JSON 序列化、SHA-256 | json-text、Node `crypto`，model-contract（类型） |
 | [capacity.ts](../src/capacity.ts) | 谁可以发：FIFO 等待队列、已授予计数、关闭标志、每个预约的状态 | operation-result（类型） |
 | [diagnostics.ts](../src/diagnostics.ts) | 观察怎样隔离：失败、在途与丢弃计数 | 无 |
 | [iteration.ts](../src/iteration.ts) | 读者提前结束时怎样关闭来源：未启动的生成器不运行 `finally`，由它补上 | 无 |
 | [limits.ts](../src/limits.ts) | 哪些数是合法限额：正的安全整数，以及 Node 定时器的最大延迟 | 无 |
 | [sse.ts](../src/sse.ts) | 字节怎样成为事件：UTF-8 解码器状态、当前行、当前事件的 data 行与字节计数 | iteration.ts；改编自 pi |
-| [frames.ts](../src/frames.ts) | 事件怎样成为协议帧：是否已过 end-marker | family.ts、iteration.ts、json-text、operation-result |
+| [frames.ts](../src/frames.ts) | 事件怎样成为协议帧：是否已过 end-marker | iteration.ts、json-text，family.ts 与 operation-result（类型） |
 | [http.ts](../src/http.ts) | 怎样发一次并收场：一次交换的相位、未关闭的物理句柄、座位、结果、连接超时与建连取消信号，以及读者看到的错误类型 | Node `https`、`http`、`net`，iteration.ts、limits.ts、pool-agent.ts，capacity.ts 与 diagnostics.ts（类型） |
 | [pool-agent.ts](../src/pool-agent.ts) | 连接池怎样建立连接：Node 缺陷的规避、把交换的停止接到正在建立的连接，以及 Node 版本是否支持 `proxyEnv` | Node `https`，Node `stream`（类型） |
 | [network.ts](../src/network.ts) | 怎样组合与排空：代理配置的校验、容量、连接池、在途登记、诊断隔离与关闭状态 | capacity.ts、diagnostics.ts、limits.ts、pool-agent.ts，http.ts（类型） |
 
-下图画出表中的全部依赖，虚线是只有类型的依赖：
+下面三幅图合起来画出表中包内模块之间的全部依赖，虚线是只有类型的依赖。包外依赖（工作区包与 Node 内置模块）只列在表中。同一个文件名在几幅图中出现时，它是同一个模块。
+
+三段传输与网络资源：
 
 ```mermaid
 flowchart LR
-  index[index.ts] --> family[family.ts]
-  index --> transport[transport.ts]
-  transport --> config[config.ts]
+  index[index.ts] --> transport[transport.ts]
+  index --> network[network.ts]
+  index --> table[family-table.ts]
+  index -.-> family[family.ts]
+  index -.-> config[config.ts]
+  index -.-> diagnostics[diagnostics.ts]
+  transport --> config
   transport --> materialized[materialized.ts]
+  transport -.-> family
+  config --> http[http.ts]
+  config --> limits[limits.ts]
+  config --> network
+  config -.-> family
   materialized --> payload[payload.ts]
   materialized --> facts[fact-stream.ts]
   materialized --> http
-  facts --> termination[termination.ts]
-  facts --> sse
-  facts --> frames
+  materialized -.-> capacity[capacity.ts]
+  materialized -.-> config
+  materialized -.-> family
+  materialized -.-> termination[termination.ts]
+  facts --> sse[sse.ts]
+  facts --> frames[frames.ts]
   facts --> http
-  config --> http
-  family -. 类型 .-> contract["model-contract、content-block"]
-  family -. 类型 .-> jsonText["@omne-harness/json-text"]
-  family -. 类型 .-> result["@omne-harness/operation-result"]
-  capacity[capacity.ts] -. 类型 .-> result
-  frames[frames.ts] --> family
-  frames --> iteration[iteration.ts]
-  frames --> jsonText
-  frames -. 类型 .-> result
-  sse[sse.ts] --> iteration
-  http[http.ts] --> iteration
-  http --> limits[limits.ts]
-  http -. 类型 .-> capacity
-  http -. 类型 .-> diagnostics[diagnostics.ts]
-  http --> node["Node https"]
+  facts --> iteration[iteration.ts]
+  facts --> termination
+  facts -.-> config
+  facts -.-> family
+  termination -.-> frames
+  termination -.-> sse
+  frames --> iteration
+  frames -.-> family
+  sse --> iteration
+  http --> iteration
+  http --> limits
   http --> pool[pool-agent.ts]
-  pool --> node
-  network[network.ts] --> capacity
+  http -.-> capacity
+  http -.-> diagnostics
+  network --> capacity
   network --> diagnostics
   network --> limits
   network --> pool
-  network -. 类型 .-> http
+  network -.-> http
+```
+
+家族表与测试入口 `./testing`：
+
+```mermaid
+flowchart LR
+  table[family-table.ts] --> canonical[canonical-json.ts]
+  table -.-> family[family.ts]
+  tindex["testing/index.ts"] --> fixtures["testing/fixtures.ts"]
+  tindex --> adoptions["testing/adoptions.ts"]
+  adoptions --> table
+  fixtures --> table
+  fixtures --> facts[fact-stream.ts]
+  fixtures --> termination[termination.ts]
+  fixtures --> json["chat-completions/json.ts"]
+  fixtures -.-> family
+```
+
+网关引擎 `./chat-completions`（图中省略目录前缀 `chat-completions/`）：
+
+```mermaid
+flowchart LR
+  cindex[index.ts] --> bind[bind.ts]
+  cindex -.-> vocab[vocabulary.ts]
+  bind --> table["family-table.ts（包根）"]
+  bind --> limits["limits.ts（包根）"]
+  bind --> request[request.ts]
+  bind --> projection[projection.ts]
+  bind --> parameters[parameters.ts]
+  bind --> gateway[gateway.ts]
+  bind --> decoder[decoder.ts]
+  bind -.-> family["family.ts（包根）"]
+  bind -.-> vocab
+  request --> projection
+  request --> parameters
+  request --> gateway
+  request --> json[json.ts]
+  request --> payload["payload.ts（包根）"]
+  request -.-> family
+  request -.-> vocab
+  projection --> json
+  projection -.-> vocab
+  parameters --> gateway
+  parameters -.-> vocab
+  gateway --> json
+  gateway -.-> vocab
+  vocab -.-> table
+  decoder --> chunk[chunk.ts]
+  decoder --> details[details.ts]
+  decoder --> decimal[decimal.ts]
+  decoder --> termination["termination.ts（包根）"]
+  decoder -.-> family
+  decoder -.-> vocab
+  chunk -.-> vocab
+  details --> json
+  details -.-> chunk
+  details -.-> vocab
 ```
 
 依赖方向只从组合者指向机制。三段传输是最上层的组合者，它不创建网络资源、家族绑定或凭据，它们由构造参数注入。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只从 pool-agent.ts 取得建连取消信号的选项键。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。根入口的 `NetworkResources` 是不透明句柄，只有 `close()`。network.ts 用模块级 `WeakMap` 从句柄找到包内资源，`createPiTransport` 经它取回资源。所以包外代码不能取得连接池、在途登记或容量，也不能用结构相同的对象冒充网络资源。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
 
-运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
+运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。网关引擎需要的消息与用量项类型经 model-contract 的类型取得，不另依赖 message 或 call-account。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
 
 ## 关键机制与理由
 
@@ -203,6 +288,49 @@ Node 不再把信号传到 `createConnection` 时，这些用例以“未在时�
 
 JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)，由 `@omne-harness/json-text` 无损解析。
 
+### 家族表：精确采用到记录
+
+家族表回答“档案里的采用值由哪个家族包的哪条记录兑现”。采用由记录算出：摘要是整条记录规范 JSON 的 SHA-256，所以记录中的线数据与规则名都在摘要内。记录是唯一的清单，档案、采用与夹具都从它派生。
+
+- `PiFamily` 是只有 `defineFamily` 能产生的类实例。类的私有字段使类型名义化，包外不能读取记录，也不能用结构相同的对象冒充。`composeFamilies` 经类的静态方法取回记录，其他值抛出 `RangeError`。
+- `defineFamily` 保存记录的冻结副本，并把副本交给家族的 `acquire`。调用方之后改动自己的对象，不改变已算出的采用，也不改变家族收到的记录。
+- 查表的键是采用的四项。键中含 owner，所以两个 owner 不可能声明同一采用。组合时仍核对重复采用，同一家族出现两次也由此发现。
+- 取得时，家族表在调用家族前后各核对一次取消。家族返回绑定时信号已中止，家族表释放绑定再返回 `cancelled`。所以取消的取得不会留下未释放的绑定。
+
+### 网关引擎：一份协议实现
+
+所有请求都经 OpenRouter chat completions，所以协议实现只有一份，放在子入口 `./chat-completions`。家族包只给记录数据与四个 hook：`reasoning`（封存与回放推理状态）、`usage`（用量算术）、`toolSchema`（schema 子集）与 `check`（跨字段校验）。分界规则是：差异只是在网关已定义的几种写法里选一种时，它是记录数据；需要家族自己的算术、分组或格式时，它是 hook。
+
+下图是一个家族的组成部分怎样到达传输。家族的 `acquire` 在每次取得时调用 `bindChatCompletions`，所以每次取得形成一个新绑定。
+
+```mermaid
+flowchart LR
+  Record["记录的线数据（纯 JSON）"] --> Bind[bindChatCompletions]
+  Hooks["四个 hook：reasoning、usage、toolSchema、check"] --> Bind
+  Inputs["supplier、计量器、limits、release"] --> Bind
+  Bind --> Binding["PiFamilyBinding：rules.plan、encode、createDecoder"]
+  Binding -->|家族的 acquire 返回它| Family["PiFamily（defineFamily）"]
+  Other[其他家族] --> Compose[composeFamilies]
+  Family --> Compose
+  Compose -->|"families（PiFamilyContributions）"| Transport[createPiTransport]
+```
+
+- 唯一入口 `bindChatCompletions` 在绑定时核对记录：采用与供应商一致、默认值在记录自己的范围内、每个网关字段只有一个写入方。这些是家族包的缺陷，所以抛出 `RangeError`，不在请求时变成失败。
+- plan 与 encode 调用同一个 `project` 与同一个请求体写法。plan 写出请求体只为得到 `requestBytes` 与计量视图，所以计量看到的就是 encode 发出的形状。
+- 回放声明来自请求，不来自记录。plan 用档案的声明投影，encode 用请求为本供应商固定的声明与这次发出的再发略去集合投影。受理固定了声明，所以恢复与再发按同一声明编码；记录的官方声明只供官方档案。
+- 引擎不关闭推理，这是项目约定（见[模型组架构](../../docs/architecture.md#厂商适配的内聚范围)）。所以引擎没有前缀降级：最后一条用过工具的 assistant 消息不可续接时，plan 不改参数采用，encode 不写 `reasoning.enabled`。网关词表没有关闭推理的字段与值。
+- encode 的诊断（回放略去）随返回值交给传输。传输在请求发出之后、响应的事实之前把它们作为 `diagnostic` 事实给出；请求没有发出时不给出，因为诊断描述的是发出的请求。
+- 请求体用 json-text 值树构造，每个对象的键在构造时排序。hook 返回的值在进入请求体前排序。工具调用的参数是值树的 JSON 文本，保持原键序。
+- 引擎源码不出现厂商名，一项测试扫描 `src/chat-completions/`。引擎来源头因此不写上游文件名，文件名登记在 provenance.json。
+- 解码器的状态是一个阶段值。归约步从阶段与 chunk 得到新阶段与事实，不改动旧阶段，所以每条规则只看它需要的字段，失败时直接返回 fault。解码器对象只持有当前阶段。`faulted` 与 `ended` 阶段拒绝之后的帧，与组架构“已 ended 的 decoder 拒绝后续内容”一致。
+- 解码器从 `end()` 给出唯一的终止。结束标记本身不给事实，所以响应体结束与结束标记走同一条路径：`finished` 阶段给出终止，`streaming` 阶段以 `stream-lost` 失败。唯一 `ended` 的守护仍在 fact-stream.ts，解码器不另建检查。
+- 缓冲限额来自绑定输入 `limits`，不在记录里：限额约束内存，不是线协议的差异，不应进入采用摘要。
+- 推理续接状态部件由家族的 `reasoning.seal` 在 finish 时一次给出，引擎只负责序号、可见性、配对与长度上限。部件长度上限照抄 message 成员的 `REASONING_STATE_PAYLOAD_MAX_LENGTH`，因为本包不依赖 message。
+- 解码器在 `finished` 阶段的 `end()` 给出账目报告：usage 在阶段中保留到结束，因为尾帧可能带来最后一份 usage。报告不含调用身份，保存方补上。`accept` 的失败只返回 fault，没有带事实的失败形状。所以收场之后被拒的帧把阶段留在 `faulted`，它保留 usage，之后的 `end()` 给出账目与该 fault。事实流在每种读取失败之后都调用一次 `end()`，取账目而不取它的 `ended`。这样契约“保留已经取得的用量”不需要改变已接受的 `PiResponseDecoder` 接口。
+- 网关的 `cost` 以额度计。call-account 的 `USD` 最多两位小数，网关的费用常有更多位，所以单位写成 `openrouter-credit`，保留精确的十进制值：普通词法照原样，指数形式只移动小数点，不经浮点数。
+
+投影、请求参数、chunk 循环与停止映射改编自 pi 1.0.0 的 chat completions 模块，只取纯计算。HTTP、SDK、重试、环境凭据与按 URL 猜兼容性都不取。改编内容见 [UPSTREAM.md](../UPSTREAM.md)。
+
 ### 三段传输的相位与所有权
 
 三段传输的每个对象用一个显式的相位字段表示生命周期，不用多个布尔值：
@@ -239,7 +367,28 @@ start 是同步函数。凭据槽在 start 的同步调用中读取一次：Mode
 
 fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族解码器的输出归约为 termination.ts 的 `SendEnd`，再由纯函数 `terminationOf` 映射为终止。映射与读取分开，所以映射表可以逐行做快层测试。
 
-家族解码器可能先给出 `ended`，再给出用量等尾部事实（组架构“finish 后的 usage 尾帧”）。事实流保留解码器的 `ended`，在协议结束、解码器 `end()` 成功之后才给出，所以它总是最后一个事实。协议在响应体结束之前失败时，终止取那次失败，不取已保留的 `ended`。
+家族解码器可能先给出 `ended`，再给出用量等尾部事实（组架构“finish 后的 usage 尾帧”）。事实流保留解码器的 `ended`，在协议结束、解码器 `end()` 成功之后才给出，所以它总是最后一个事实。协议在响应体结束之前失败时，终止取那次失败，不取已保留的 `ended`。事实流仍调用一次解码器的 `end()`，给出它在 `ended` 以外的事实，所以已收场的响应保留它的账目。
+
+下图是解码器的阶段，画的是 [decoder.ts](../src/chat-completions/decoder.ts) 的行为。规则见 [SPEC“失败与阶段”](../SPEC.md#失败与阶段)。
+
+```mermaid
+stateDiagram-v2
+  [*] --> streaming: createDecoder()
+  streaming --> streaming: chunk 给出块事实，结束标记不给事实
+  streaming --> finished: finish chunk，终止定为 completed 或 failed
+  streaming --> ended: 帧被拒，返回该 fault，没有账目
+  streaming --> ended: end() 以 stream-lost 失败（ended-without-finish）
+  finished --> finished: 尾帧，保留最后一份 usage
+  finished --> faulted: 收场后的帧被拒，保留服务方与 usage
+  finished --> ended: end() 给出 account、用量诊断与 ended
+  faulted --> faulted: accept 以 frame-after-end 失败
+  faulted --> ended: end() 给出 account、用量诊断与以该 fault 失败的 ended
+  ended --> ended: accept 以 frame-after-end 失败，end() 以 decoder-already-ended 失败
+```
+
+`finished` 与 `faulted` 阶段的 `end()` 先调用 `usage` hook。hook 失败时，`end()` 只返回该 fault，没有账目，阶段进入 `ended`。
+
+事实流在每种读取失败之后调用一次 `end()`。`streaming` 阶段的帧被拒之后，解码器已在 `ended`，`end()` 失败，事实流不给出事实。其他读取失败发生在 `streaming` 阶段时，`end()` 以 `stream-lost` 失败，事实流同样不给出事实。在 `finished` 或 `faulted` 阶段，事实流给出账目与用量诊断，丢弃解码器的 `ended`，终止取那次读取失败。
 
 路由的 `endMarker` 不是 `null` 时，end-marker 帧就是协议的结束。供应商可能在 end-marker 之后不结束响应，所以事实流不等待响应体结束。读到 end-marker 帧时，事实流只看 Node 是否已收到完整响应体（`IncomingMessage.complete`）：已收到时，连接回到连接池；其他情况下，事实流停止交换。只看这一项就足够，因为 `Readable.read()` 一次交出全部已缓冲的响应体，完整响应体在 end-marker 帧读出时已被读完。
 
@@ -299,6 +448,8 @@ fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族�
 - 改变家族贡献接口：先改[组架构](../../docs/architecture.md#pi-家族贡献的取得协议)的已接受代码块，再同步 family.ts、[public-entry.spec-d.ts](../tests/public-entry.spec-d.ts) 与[公开接口](public-api.md)。
 - 改变交换相位、拒绝原因或结果：同步 SPEC、[关键流程](flows.md)、http.ts 的测试，以及 materialized.ts 与 fact-stream.ts 中的调用代码。
 - 改变失败映射：同步 termination.ts、SPEC“事实流”的表与 termination.spec.ts。
-- 改变 sse.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
+- 改变 sse.ts，或 chat-completions/ 下的 projection.ts、request.ts、chunk.ts、decoder.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
+- 改变解码器的映射：同步 SPEC“网关引擎：流解释”、tests/chat-completions-decode.spec.ts，以及各家族包的 facts.json 夹具。
+- 增加网关字段或引擎的变化点：改 vocabulary.ts 与 gateway.ts，并同步 SPEC“网关引擎：请求”。新的变化点是 `wire` 的必填字段，不是引擎里的厂商分支。
 - 增加运行依赖：先核对组架构的依赖方向，再更新 dependencies.spec.ts 的允许集合。
 - 套件的 transport 组（[conformance.spec.ts](../tests/conformance.spec.ts)）是比本包网络接缝用例更高的测试接缝。本包的网络接缝用例可以随之收敛。

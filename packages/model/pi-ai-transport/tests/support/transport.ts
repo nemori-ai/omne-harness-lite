@@ -61,7 +61,7 @@ export function transportOver(
     limits: options.limits ?? LIMITS,
   })
   async function prepare(): Promise<PreparedTransport> {
-    const prepared = await built.transport.prepare(REQUEST, SUPPLIER)
+    const prepared = await built.transport.prepare(REQUEST, SUPPLIER, { resent: [] })
     if (!('ok' in prepared)) throw new Error(`prepare failed: ${JSON.stringify(prepared)}`)
     return prepared.ok
   }

@@ -311,6 +311,7 @@ export function dispatchCommands<P>(
             nextSeq: new Map(),
             trims: new Map(),
             hadContent: new Set(),
+            diagnostics: [],
           })
           call.retry = null
           call.retryPosition = null
@@ -506,7 +507,11 @@ export function dispatchCommands<P>(
               }
             }
             if (input.fact.kind === 'account') {
-              const failure = accountFact(call, dispatch, input.fact.event, input.fact.value)
+              const failure = accountFact(call, dispatch, {
+                event: input.fact.event,
+                report: input.fact.value,
+                receipt: 'late',
+              })
               if (failure) return { failure }
             } else {
               dispatch.record = { ...dispatch.record, terminal: structuredClone(input.fact.actual) }

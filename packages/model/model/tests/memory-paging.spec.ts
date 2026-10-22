@@ -9,10 +9,10 @@ it('reserves the maximum paging representation in the smallest accepted call bud
     const input = { ...f.admit, capacity: { ...f.admit.capacity, bytes: String(bytes) } }
     return { f, memory, input, reply: await memory.commands.admit(input) }
   }
-  // This fixture uses 1961 material bytes, 5 capacity digits and 22579 reserved bytes.
-  const accepted = await attempt(24545)
+  // This fixture uses 2068 material bytes, 5 capacity digits and 22579 reserved bytes.
+  const accepted = await attempt(24652)
   unbox(accepted.reply)
-  const refused = await attempt(24544)
+  const refused = await attempt(24651)
   expect(refused.reply).toMatchObject({ failure: { kind: 'capacity' } })
   expect(unbox(await refused.memory.commands.query(refused.input))).toEqual({
     kind: 'not-committed',
