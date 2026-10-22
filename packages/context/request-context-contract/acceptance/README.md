@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员没有运行实现，独立验收要等纯操作进入根入口后才有对象。验收依据是 SPEC 的[持续验证义务](../SPEC.md#rq-11-持续验证与未覆盖)。
+现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员提供纯操作，不提供生产运行时，独立接受仍需外部评审；纯操作的行为证据在 tests/。验收依据是 SPEC 的[持续验证义务](../SPEC.md#rq-11-持续验证与未覆盖)。
