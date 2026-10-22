@@ -92,6 +92,7 @@ classDiagram
     singleWriterPerStep
   }
   class ContextNeed {
+    name
     shape
     consumer
     purpose
