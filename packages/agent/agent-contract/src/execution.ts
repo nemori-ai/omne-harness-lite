@@ -364,7 +364,9 @@ export interface AgentAccessCheck<P> {
     }>,
   ): Promise<AgentAccessDecision>
 }
-/** The port that waits until an RFC 3339 UTC instant or until the signal aborts; see SPEC "托管协调与运行实例". */
+/** The injected UTC reading and wait port; see SPEC "托管协调与运行实例". */
 export interface AgentClock {
+  /** Reads the provider's current UTC instant; unavailable time is not a fabricated reading. */
+  now(): Reply<AgentInstant>
   waitUntil(instant: AgentInstant, signal: AbortSignal): Reply<'elapsed' | 'cancelled'>
 }

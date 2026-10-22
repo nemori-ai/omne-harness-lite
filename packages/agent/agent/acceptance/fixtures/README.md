@@ -1,29 +1,21 @@
 # acceptance/fixtures
 
-<!-- documentation:placeholder -->
-
-本目录承载验收场景使用的固定输入。
+本目录提供阶段 1 验收的执行子进程与 IPC 驱动。场景及其断言在[上层目录](../README.md)。
 
 ## 允许的内容
 
-<!-- documentation:placeholder -->
-
-验收数据文件与说明。
+[executor.mjs](executor.mjs)运行真实内部协调者，只转发现有异步端口。[process.ts](process.ts)启动进程、处理端口请求并等待死亡回执。
 
 ## 边界
 
-<!-- documentation:placeholder -->
+这些文件只用于验收，不导出产品能力。IPC 不实现 Journal、Model 或材料行为。传输通过现有 tenantCodec 编码并重新解析合法租户，不能把序列化后的普通对象当作已铸造身份。父进程拒绝与原 Access 不同的租户文本。
 
-固定输入归验收的拥有者维护，实施角色不修改。
+before gate 返回后，传输检查子进程是否仍连接且存活。已死亡或断连的子进程不能再触发尚未执行的端口请求，取消项进入机器记录。joinCalls 等待已收到请求全部收尾。after gate 之前已经调用的端口不因进程死亡而回滚。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-场景变化时，同步对应输入。
+验收拥有者维护传输与场景。增加端口转发时保留原参数与结果，不能在传输层补业务语义。执行子进程退出后，父进程中的依赖状态继续存在。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+当前转发只支持本次窄接续使用的请求与回执。它不提供事件订阅、等待调度、生产部署或宿主死亡耐久。所有存活依赖和进程清理责任由上层场景明确管理。

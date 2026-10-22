@@ -16,6 +16,8 @@
 - [registration.spec.ts](registration.spec.ts)：真实 Cordis 上的登记规则：认回与冲突（数据成员次序不同仍认回，范围、主体、状态任一不同即冲突）、发布权威先于写入、后继取代与代次、旧身份不删后继、fiber 卸载、撤除、监听失败不改变结果、`resolve` 与 `connect` 的核验次序、跨租户、宿主缺席与路由缺失。末尾几组用字面名字的测试检查：登记请求某一部分不合法时具名的 `invalid`、权威答复无已知形状、访问核验与宿主的几种不可答各有自己的文本、脱离服务调用 `register` 与 `withdraw`、被拒绝与被认回的请求不在调用方 fiber 上留下 effect、日志记录的名字。另有几组检查：四个操作在边界用解码函数与 `judgeEvidence` 验证成员，失败的 `field` 是成员名，发布权威与资格核验都没有被问；别的租户的实例在资格核验放行、拒绝、不可用或抛出时都得到 denied；登记在资格核验答复期间结束时得到 denied；调用方的 effect 抛出 Cordis 之外的异常时，诊断带原因；发布权威、资格核验与宿主抛出的原因写入记录。
 - [module-graph.ts](module-graph.ts)：沿构建产物的导入图遍历，读文本，不用编译器接口。
 
+`cordis-entry.spec.ts` 的 `FixedClock` 是真实 Cordis 上的测试提供者。经 `agentClockKey` 读取的 now 保留成功时刻或 unavailable，卸载后服务消失。类型用例核对 `ctx.agentClock.now` 与 `AgentClock.now` 同形。这不证明实际时钟提供者的物理准确性。
+
 ## 维护
 
 公开行为或 [Cordis 页](../docs/cordis.md)的条款变化时，同步对应测试与本目录的 [index.md](index.md)。新测试写明它会在什么缺陷下变红。

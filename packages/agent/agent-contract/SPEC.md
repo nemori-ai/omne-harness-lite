@@ -627,6 +627,18 @@ Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/do
 
 类型形状见[公开接口页](docs/public-api/README.md#托管协调与运行实例)。本节是输入受理、恢复与接管、Journal 提交、可靠输出、条件终结、共同提交、settling、detach、quiesce 与 handover 的唯一行为源，公开接口页只给类型形状。事件序号、游标与确认的行为在“事件流与读取”。
 
+#### 时钟读取与等待
+
+`AgentClock.now` 读取注入提供者的当前 UTC 时刻，成功返回 `AgentInstant`。
+提供者无法取得有效时刻时返回 `unavailable`，`owner` 为 `agentClock`，不得返回伪造时刻。
+这个读取不承诺单调性、物理时钟可信度或全局排序。
+`waitUntil` 仍只等待给定时刻或信号中止。时钟不决定逻辑终态。
+
+协调者新建带时刻的失败候选时，从 `now` 取得时刻，再纯构造 `FailureCandidate`。
+取时失败时保留原准备与接续，不写失败候选，也不以系统墙钟或固定默认值替代。
+已经形成的同一候选在提交重试时复用原时刻，不再次取时。
+纯评估器不读取时钟。
+
 #### 创建、登记与复用
 
 装配者用已验证的 tenant、scope 和精确采用创建 idle runtime，并经宿主发布。reserve 和发布都不创建 execution，也不授予推进资格。调用方通过 invoke 交出首个输入的完整内容，由 Journal 提供者可靠受理新的 execution。execution 身份由调用方在受理前分配并保存，同一身份只能对应一个操作。invoke 只等待可靠受理，返回原 execution 的句柄，不等待 Loop 结束。命令的 accepted 表示已可靠保存，实际的 applied 或 unresolved 由事件或原操作查询给出。
@@ -831,7 +843,7 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 | extensions、cards、admission、handoff、reads、materials | 原扩展调用、采用、卡片、准入、来源、内容与消费位置 | 已成立效果不重做，绑定未知不清理，不用最新替原版本 |
 | models、tools | 注入领域公开能力 | 发出点核当前资格；换 DI 对象不代业务接管 |
 | adoptions | 逐操作的要素见[定义专题](docs/public-api/definition.md#采用解析与交接) | 只解析精确采用，不取最新版本 |
-| clock | 等待能力 | 时钟不决定终态 |
+| clock | 当前 UTC 时刻读取与等待能力 | 时钟不决定终态；取时失败为 unavailable，owner 为 agentClock |
 
 输入按四类分责：构造身份绑定、可序列化配置、单次操作参数、注入依赖。分类与逐项规则见[对象模型](docs/object-model.md#值参数与依赖)和[通用工厂](../agent/docs/public-api.md)。接口、状态与完整 OOP 映射见[对象模型](docs/object-model.md)。工厂依赖不入日志。运行对象、锁和队列不成为跨域数据契约。可选遥测不成为业务成功前提。
 

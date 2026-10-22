@@ -224,6 +224,7 @@ export abstract class AgentClockService extends Service implements AgentClock {
   constructor(ctx: Context) {
     super(ctx, AgentClockService.provide)
   }
+  abstract readonly now: AgentClock['now']
   abstract readonly waitUntil: AgentClock['waitUntil']
 }
 export const agentClockKey = AgentClockService.provide

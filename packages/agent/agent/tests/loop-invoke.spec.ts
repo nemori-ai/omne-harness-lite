@@ -8,7 +8,6 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
-  AgentEvent,
   AgentExecutionHandle,
   AgentObservation,
   AgentState,
@@ -24,38 +23,16 @@ import {
   otherTenant,
   type Principal,
 } from './journal-support.ts'
-import { REPLY_TEXT, alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
+import {
+  REPLY_TEXT,
+  alice,
+  eventsOf,
+  invoke,
+  loopAssembly,
+  type LoopAssembly,
+} from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
-
-function invoke(assembly: LoopAssembly, id = 'exec-1') {
-  return assembly.provider.runtime.invoke({
-    ...alice,
-    execution: execution(id),
-    operation: operation(`invoke-${id}`),
-    initial: acceptedInput(`input-${id}`, `hello ${id}`),
-    grant: null,
-  })
-}
-
-/** Every event of the execution through the handle, until the ended event. */
-async function eventsOf(handle: AgentExecutionHandle<Principal>): Promise<AgentEvent[]> {
-  const events: AgentEvent[] = []
-  const controller = new AbortController()
-  for await (const page of handle.output.events({
-    ...alice,
-    execution: handle.execution,
-    after: null,
-    signal: controller.signal,
-  })) {
-    const read = ok(page)
-    if (read.kind !== 'page') throw new Error('a gap in a new execution')
-    events.push(...read.events)
-    if (read.events.some(event => event.body.kind === 'ended')) break
-  }
-  controller.abort()
-  return events
-}
 
 /** The states the instance shows, until `until` holds for one of them. */
 async function statesUntil(
@@ -104,7 +81,7 @@ describe('C2 one input, one reply, ended', () => {
     await eventsOf(handle)
   })
 
-  it('the caller reads input-taken, producer and ended, numbered 1, 2, 3', async () => {
+  it('the caller reads input-taken, producer, message and ended, numbered 1 through 4', async () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     assembly.release.open()
@@ -112,11 +89,13 @@ describe('C2 one input, one reply, ended', () => {
     expect(events.map(event => [event.sequence, event.body.kind])).toEqual([
       ['1', 'input-taken'],
       ['2', 'producer'],
-      ['3', 'ended'],
+      ['3', 'message'],
+      ['4', 'ended'],
     ])
-    const [taken, producer, ended] = events.map(event => event.body)
+    const [taken, producer, message, ended] = events.map(event => event.body)
     expect(taken).toMatchObject({ kind: 'input-taken', batch: { ordered: ['input-exec-1'] } })
     expect(producer).toMatchObject({ kind: 'producer', result: { version: 'mrver_1' } })
+    expect(message).toMatchObject({ kind: 'message', message: { role: 'assistant' } })
     expect(ended).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
   })
 
@@ -159,7 +138,12 @@ describe('C2 one input, one reply, ended', () => {
     await eventsOf(ok(await invoke(assembly)))
     await statesUntil(assembly, state => state.kind === 'idle')
     const second = await eventsOf(ok(await invoke(assembly, 'exec-2')))
-    expect(second.map(event => event.body.kind)).toEqual(['input-taken', 'producer', 'ended'])
+    expect(second.map(event => event.body.kind)).toEqual([
+      'input-taken',
+      'producer',
+      'message',
+      'ended',
+    ])
   })
 })
 
@@ -170,22 +154,16 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    // U0 to Q4 run before the execution exists, E1, E2 and E4 only read, F3 is tryFinish, and F4,
-    // O0 and E9 come after ended: none of them writes a commit.
+    // U0 to Q4 run before the execution exists, E1, E2 and E4 only read, Q1 never commits
+    // (NA-Q1-1), F3 is tryFinish, and F4, O0 and E9 come after ended: none of them writes a commit.
     expect(log).toEqual([
       ['E3', 'E4'],
       ['I0', 'I1'],
       ['I1', 'P0'],
       ['P0', 'P1'],
       ['P1', 'I2'],
-      ['I2', 'M0'],
       ['M0', 'M6'],
-      ['M6', 'M1'],
-      ['M1', 'M3'],
       ['M3', 'M4'],
-      ['M4', 'M5'],
-      ['M5', 'I3'],
-      ['Q1', 'Q2'],
       ['Q2', 'Q4'],
       ['Q4', 'I3'],
       ['I3', 'I4'],
@@ -217,6 +195,7 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     expect(withEvents).toEqual([
       ['I0', ['input-taken']],
       ['M3', ['producer']],
+      ['Q2', ['message']],
     ])
   })
 })
@@ -436,6 +415,6 @@ describe('the ModelInvocationRef of the main call (model-contract SPEC 可保存
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    expect(log).toEqual(['commit I2', 'admit'])
+    expect(log).toEqual(['commit M0', 'admit'])
   })
 })

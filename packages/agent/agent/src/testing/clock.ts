@@ -45,6 +45,9 @@ export function createManualAgentClock(
   const open = new Set<OpenWait>()
 
   const port: AgentClock = {
+    async now() {
+      return succeed(current)
+    },
     waitUntil(instant, signal) {
       const at = millisecondsOf(instant)
       if (at === undefined) {
