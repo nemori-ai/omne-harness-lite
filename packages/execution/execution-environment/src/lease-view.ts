@@ -10,6 +10,7 @@ import type {
   LeaseInvalidation,
   LeaseRelease,
   Placement,
+  OriginRef,
 } from '@omne-harness/execution-environment-contract'
 import { sameBinding } from './compare.ts'
 
@@ -22,6 +23,7 @@ export type StoredDescriptor = Readonly<{
 
 export type LeaseViewHooks = Readonly<{
   tenant: TenantId
+  origin: OriginRef
   placement: Placement
   /** The acquisition ledger's `closed` signal. The gate is the one entry of every facility operation. */
   ledgerClosed: AbortSignal
@@ -115,6 +117,7 @@ export function createLeaseView<P>(
       return refused(request.requestId, 'unsupported')
     if (!tenantEquals(request.access.tenant, hooks.tenant))
       return refused(request.requestId, 'notAuthorized')
+    if (request.origin !== hooks.origin) return refused(request.requestId, 'invalidInput')
     if (!sameBinding(hooks.placement.binding, request.binding))
       return refused(request.requestId, 'invalidInput')
     if (!descriptor.guarded.includes(operation)) return 'pass'

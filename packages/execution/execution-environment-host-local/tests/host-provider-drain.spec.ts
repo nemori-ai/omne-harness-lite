@@ -241,3 +241,39 @@ it('logs the diagnostic and RetirementPending when the host files plugin unloads
   hold.release()
   expect(await inFlight).toMatchObject({ kind: 'done' })
 })
+
+it('passes the public provider in-flight drain case with a controlled real file operation', async () => {
+  const { environmentProviderConformance, runConformanceCase } =
+    await import('@omne-harness/execution-environment-contract/testing')
+  const cases = environmentProviderConformance({
+    waitMs: 5000,
+    async subject() {
+      const provider = createHostFilesProvider({ drainBoundMs: 5000 })
+      return {
+        provider,
+        binding: host,
+        scope: scope1,
+        tenant,
+        facility: 'files',
+        hooks: {
+          async holdNextOperation() {
+            const files = await providerFiles(provider)
+            const { path, named } = await heldFile()
+            return {
+              entered: hold.gate.entered,
+              release: () => hold.release(),
+              operation: () => write(files, path, named, 'public-suite-write'),
+            }
+          },
+        },
+        dispose: async () => {
+          hold.release()
+          await provider.retire()
+        },
+      }
+    },
+  })
+  const test = cases.find(c => c.name === 'V-EE18.retire-waits-for-in-flight')
+  if (!test) throw new Error('missing drain case')
+  expect(await runConformanceCase(test)).toMatchObject({ status: 'pass' })
+})

@@ -73,7 +73,7 @@ type AcquisitionRecord = {
   readonly origin: OriginRef
   readonly placement: Placement
   readonly entry: ProviderEntry | null
-  state: AcquisitionState
+  state: Exclude<AcquisitionState, { readonly kind: 'invalidInput' }>
   lease: EnvironmentLease | null
   invalidate: (invalidation: LeaseInvalidation) => void
 }
@@ -88,7 +88,9 @@ function byRegistry(reason: Extract<LeaseInvalidation, { source: 'registry' }>['
   return Object.freeze({ source: 'registry', reason } satisfies LeaseInvalidation)
 }
 
-function adoptionOf(state: AcquisitionState): EnvironmentAdoption | null {
+function adoptionOf(
+  state: Exclude<AcquisitionState, { readonly kind: 'invalidInput' }>,
+): EnvironmentAdoption | null {
   switch (state.kind) {
     case 'acquired':
     case 'invalidated':
@@ -320,6 +322,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     })
     const view = createLeaseView(receipt.lease, input.guard, {
       tenant: record.tenant,
+      origin: record.origin,
       placement: record.placement,
       ledgerClosed: input.ledger.closed,
       descriptor: key => facilities.get(key),
@@ -402,8 +405,7 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     },
 
     async inspectAcquisition(access, acquisition) {
-      // AcquisitionState has no invalid-input answer; an unminted tenant owns no record.
-      if (!mintedTenant(access.tenant)) return { kind: 'unrecorded' }
+      if (!mintedTenant(access.tenant)) return { kind: 'invalidInput' }
       const record = findRecord(acquisition, access.tenant)
       if (record === undefined) return { kind: 'unrecorded' }
       return record.state

@@ -10,9 +10,9 @@
 | --- | --- | --- | --- |
 | `@omne-harness/execution-environment-contract` | [src/index.ts](../src/index.ts) | `dist/index.js`、`dist/index.d.ts` | 任何包。集成方用它翻译环境要求、实现三个端口；提供者用它实现 `EnvironmentProvider`；设施拥有者用它发布设施声明；工具包用它写环境声明；观察者用它读块值的类型 |
 
-本成员只有根入口，没有 `./cordis` 入口。根入口不导入 Cordis，见 [Cordis 说明](cordis.md)。服务键 `executionEnvironment` 与抽象 Service 归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/README.md)。
+本成员有根入口与 `./testing`，没有 `./cordis` 入口。根入口不导入 Cordis，见 [Cordis 说明](cordis.md)。服务键 `executionEnvironment` 与抽象 Service 归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/README.md)。
 
-根入口导出 15 个运行值：
+基础运行值包括：
 
 - 2 个引用构造函数。
 - 绑定层清单与 `bindingScope`。
@@ -27,6 +27,8 @@
 ## 定义索引
 
 ### 身份与绑定层
+
+定义：[identity.ts](../src/identity.ts)、[binding.ts](../src/binding.ts)。
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
@@ -43,6 +45,10 @@
 
 ### 环境要求与匹配
 
+定义：[requirement.ts](../src/requirement.ts)、[judge.ts](../src/judge.ts)。
+
+别名导出见 [index.ts](../src/index.ts)。
+
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
 | `EnvironmentRequirement` | 类型 | 集成方为一次获取给的输入：有序的允许绑定层清单、设施键、隔离断言 | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) |
@@ -57,6 +63,8 @@
 
 ### 设施
 
+定义：[facility.ts](../src/facility.ts)、[lease.ts](../src/lease.ts)。
+
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
 | `EnvironmentFacilities` | 接口 | 设施键到设施接口的表。设施拥有者用 `declare module` 增补。增补只加词汇，不安装也不授权 | [设施协议](../SPEC.md#设施协议) |
@@ -70,6 +78,8 @@
 | `FacilitySet` | 类型 | 规范实例类型：按设施键取 `EnvironmentFacilities` 的子集，工具执行者只得到声明点名的设施 | [工具环境声明](../SPEC.md#工具环境声明) |
 
 ### 文件设施
+
+定义：[facilities/files.ts](../src/facilities/files.ts)。
 
 协议规则见[内部架构的 `files`](architecture.md#files文件)。
 
@@ -90,6 +100,8 @@
 
 ### 命令与终端设施
 
+定义：[facilities/command.ts](../src/facilities/command.ts)、[facilities/terminal.ts](../src/facilities/terminal.ts)。
+
 协议规则见内部架构的 [`command`](architecture.md#command命令) 与 [`terminal`](architecture.md#terminal终端)。
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
@@ -109,6 +121,8 @@
 
 ### 端口与恢复授权
 
+定义：[ports.ts](../src/ports.ts)。
+
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
 | `ManagedResource` | 类型 | 受管资源：键、所属提供者与 JSON 恢复引用。不是活句柄或裸进程号 | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)、[对象模型 受管资源](object-model.md#受管资源) |
@@ -119,6 +133,8 @@
 | `createRecoveryAccess` | 函数 | 创建一个新的恢复授权对象。持有它不授予任何权利，直到 `RecoveryAuthority` 接受 | [恢复](../SPEC.md#恢复) |
 
 ### 落点、获取与租约
+
+定义：[lease.ts](../src/lease.ts)。
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
@@ -132,11 +148,13 @@
 | `LeaseInvalidation` | 类型 | 失效原因，按来源区分：`source: 'registry'` 带登记表的封闭原因集合，`source: 'provider'` 带提供者自报的原因文本 | 同上 |
 | `RegistryInvalidationReason` | 类型 | 登记表给出的失效原因：`providerRetired`、`scopeReleased`、`registryClosed`、`released`、`providerInvalidated` | 同上 |
 | `LeaseRelease` | 类型 | 释放的结果：已释放，或待处置并列出未停的受管资源 | 同上 |
-| `AcquisitionState` | 类型 | 一次获取的状态，按获取键查询。`unrecorded` 表示没有调用方能看到的记录。`invalidated` 状态带 `invalidation`（`LeaseInvalidation`） | 同上 |
+| `AcquisitionState` | 类型 | 一次获取的状态，按获取键查询。`unrecorded` 表示没有调用方能看到的记录；`invalidInput` 是无效查询答复，不是记录状态。`invalidated` 状态带 `invalidation`（`LeaseInvalidation`） | 同上 |
 | `Acquired` | 类型 | 已获取：租约与采用记录 | 同上 |
 | `Pending` | 类型 | 获取存在但现在没有可用租约；没有新分配 | 同上 |
 
 ### 提供者与操作面
+
+定义：[environment.ts](../src/environment.ts)。
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
@@ -157,6 +175,8 @@
 | `ProviderRegistrations` | 接口 | 提供者与设施拥有者的登记面：`registerFacility`、`registerProvider`。每次登记返回自己的撤除函数 | [设施协议](../SPEC.md#设施协议)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 
 ### 工具环境声明
+
+定义：[need-declaration.ts](../src/need-declaration.ts)。
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
@@ -188,13 +208,15 @@ schema 的规则：
 
 ### 两条块声明
 
+定义：[blocks.ts](../src/blocks.ts)。
+
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
 | `executionPlacementBlock` | 值 | 块 `execution.placement` 的供给块声明 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、[对象模型 两条块声明](object-model.md#两条块声明) |
 | `ExecutionPlacementValue` | 类型 | 落点块的值：`ExecutionPlacementEntry` 的数组 | 同上 |
 | `ExecutionPlacementEntry` | 类型 | 一个原调用的当前落点：原调用、绑定层、实例身份与代、连续性、设施键与观察时间 | 同上 |
 | `executionHostFactsBlock` | 值 | 块 `execution.host-facts` 的供给块声明 | 同上 |
-| `ExecutionHostFactsValue` | 类型 | 宿主事实块的值：每个已登记提供者一项 `ProviderFacts` | 同上 |
+| `ExecutionHostFactsValue` | 类型 | 宿主事实块的值：块级日期 `date` 与提供者事实列表 `providers` | 同上 |
 
 两条块声明的字段相同，块的读取规则归 Runtime Context 的 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)：
 
@@ -209,3 +231,19 @@ schema 的规则：
 | `recovery` | `recompute` | 恢复时从当前事实重算，不持久保存 |
 
 `blocks.ts` 用 `declare module` 把两个块键增补进 Runtime Context 的 `ContextBlocks`。块值按本成员的解码函数核对，未知字段与形状错误被拒绝。本成员是语义拥有者。生产者是 host-local 的 Service 实现。当前还没有发布。
+
+### 操作 schema
+
+精确定义在 [operation-schemas.ts](../src/operation-schemas.ts)。参数是按位置解码的元组，逐项拒绝路径从参数下标开始。登记面的返回值是函数，没有结果 schema。设施自身逐操作 schema 留 Q-EE05。
+
+`operationSchemas` 按八个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema` 与 `managedResourceSchema`。八个参数 schema 与六个结果 schema 见同一源码。
+
+### 日期类型
+
+[blocks.ts](../src/blocks.ts) 导出 `HostDate`。它是宿主本地日历日 `YYYY-MM-DD`，经宿主事实块 schema 验证真实日期后取得，不由提供者重复供值。
+
+### 测试入口
+
+`@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts) 与 [doubles.ts](../src/testing/doubles.ts)。
+
+`environmentProviderConformance` 与 `executionEnvironmentConformance` 返回独立用例列表，每条用例新建主体并在结束时清理。`runConformanceCase` 只把 `NotApplicable` 转成不适用，其余断言和清理失败照常抛出。未提供在途操作控制钩子时，对应排空用例记为不适用，不能算通过。替身 `durability` 为 `none`，只用于进程内验证。套件不证明耐久账本、真实隔离或设施外部效果。

@@ -6,7 +6,7 @@
 
 ## 模块与依赖
 
-根入口 `src/index.ts` 是唯一公开入口，只做再导出。每个模块一个源文件。
+根入口 `src/index.ts` 与 `./testing` 入口只做再导出。生产入口不导入测试套件。每个模块一个源文件。
 
 | 源文件 | 承载 | 条款 |
 | --- | --- | --- |
@@ -21,6 +21,8 @@
 | `need-declaration.ts` | 工具环境声明 `EnvironmentNeedDeclaration`、它的 Standard Schema 与采用身份 | [工具环境声明](../SPEC.md#工具环境声明) |
 | `blocks.ts` | 两条块声明及其值类型，增补 Runtime Context 的 `ContextBlocks` | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
 | `judge.ts` | 纯函数 `judgeRequirement` 与 `matchProviders` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[获取与租约](../SPEC.md#获取与租约) |
+| `operation-schemas.ts` | 三面八操作的参数、六个数据结果 schema 与索引 | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
+| `testing/` | 非耐久替身、提供者与环境的契约用例列表 | [持续验证义务](../SPEC.md#持续验证义务) |
 | `decode.ts` | 内部解码器与 `standardSchema` 包装。根入口只再导出它的 `Issue` 类型，名为 `DecodeIssue` | [工具环境声明](../SPEC.md#工具环境声明) |
 
 模块之间只有单向依赖。方向沿对象模型的[关系](object-model.md#关系)：身份与绑定层在最底层，设施与要求引用它们，租约与提供者引用设施和端口，解码、块声明与纯函数在最上层。
@@ -46,7 +48,7 @@ flowchart BT
 
 箭头从被依赖的模块指向依赖它的模块。`facilities/terminal.ts` 另外依赖 `facilities/command.ts` 的 `ProcessHandle`，因为终端的一段执行与一次命令交出同一种进程句柄。
 
-包外依赖如下。只有 `operation-result` 是运行值依赖，其余都只做类型导入。
+包外依赖如下。`operation-result`、`json-text` 与 `legal-identity` 是运行值依赖；其余包只做类型导入。
 
 | 依赖 | 用于什么 |
 | --- | --- |
@@ -58,6 +60,8 @@ flowchart BT
 | `@standard-schema/spec` | `StandardSchemaV1` 作工具环境声明与两条块的 schema 形状 |
 
 本成员不导入 `@deepseek-ai/cordis`。根入口按 [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 与 Cordis 无关，测试逐个源文件核对这一点，见 [Cordis 说明](cordis.md)。本成员也不导入 Tool、授权或任何上层工作流的契约。它们依赖本成员，反方向不成立。
+
+`operation-schemas.ts` 通过同一解码器形制提供三面八操作的参数与六个数据结果 schema。`testing/` 独立暴露非耐久替身与契约用例；测试框架由消费者选择，断言使用 `node:assert`。
 
 ## 关键机制与理由
 
@@ -95,7 +99,7 @@ flowchart BT
 
 ### 幂等获取
 
-获取以集成方给的 `AcquisitionRef` 识别。同键重复请求返回同一状态，不重新分配。`AcquisitionState` 列出获取的全部状态，其中 `unrecorded` 表示本成员的实现没有调用方能看到的记录。`Pending` 只用于获取存在但现在没有可用租约的状态。
+获取以集成方给的 `AcquisitionRef` 识别。同键重复请求返回同一状态，不重新分配。`AcquisitionState` 列出获取的全部状态，其中 `unrecorded` 表示本成员的实现没有调用方能看到的记录。`invalidInput` 是非法查询答复，不是获取记录。`Pending` 只用于获取存在但现在没有可用租约的状态。
 
 理由：答复可能丢失。集成方用同一个键再问，得到原来那次获取的状态，资源不会分配两次。获取的耐久状态归集成方的账本，实现里的登记表只有进程内副本。重启之后，执行环境的实现对同一个键的 `inspectAcquisition` 答复 `unrecorded`；对同一个键再调用 `acquire` 会被当作新获取。所以集成方先查自己的账本，对账本里已有记录的键走恢复，不再调用 `acquire`（[获取与租约](../SPEC.md#获取与租约)）。跨租户查询同一个键也按无记录处理，不泄露另一租户是否有这个键。
 

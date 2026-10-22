@@ -233,7 +233,7 @@ stateDiagram-v2
 
 失效原因是 `LeaseInvalidation`：来源 `registry` 的原因取自封闭集合（`providerRetired`、`scopeReleased`、`registryClosed`、`released`、`providerInvalidated`），来源 `provider` 的原因是提供者自报的文本。`invalidated` 状态带这个原因。
 
-同一幂等键的重复请求返回当前状态，不改变状态。`unrecorded` 是执行环境对不认识的键的答复：从未见过，或执行环境的实现重启之后。集成方据自己的账本判断是哪一种。状态名与 `AcquisitionState` 一致。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
+同一幂等键的重复请求返回当前状态，不改变状态。`unrecorded` 是执行环境对不认识的键的答复：从未见过，或执行环境的实现重启之后。集成方据自己的账本判断是哪一种。状态名与 `AcquisitionState` 一致。`invalidInput` 是未铸造租户的查询答复，不是获取记录的状态，不进入状态图。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
 
 ### 受管资源
 
@@ -257,7 +257,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> requested
-  requested --> rejected : 租户不等于获取方的租户 / 绑定层不等于租约落点（invalidInput） / 租约已失效或释放已发起 / 这次获取的账本已关闭 / 键不在要求里
+  requested --> rejected : 租户不等于获取方的租户 / 原调用不等于获取时的原调用或绑定层不等于租约落点（invalidInput） / 租约已失效或释放已发起 / 这次获取的账本已关闭 / 键不在要求里
   requested --> authorized : 守卫答允许
   requested --> rejected : 守卫答不允许 / 守卫不可用（操作未发出，原因 unavailable）
   authorized --> done : 完成
@@ -281,7 +281,7 @@ stateDiagram-v2
   present --> retiring : 调用撤除函数（退役开始）
   retiring --> drained : 已接纳的操作都已结束，受管资源都已停
   retiring --> pendingDisposal : 清理未完，或超过提供者自己的上界
-  pendingDisposal --> [*] : 撤除函数抛出 RetirementPending
+  pendingDisposal --> [*] : 撤除函数以拒绝结束
   drained --> [*]
 ```
 
@@ -289,7 +289,7 @@ stateDiagram-v2
 - 撤除登记即退役开始。插件卸载时撤除登记，所以卸载也是退役开始。
 - 退役中先拒新租约，再排空：使未释放的租约失效，结清在途操作，清理受管资源。
 - 退役在提供者自己配置的上界内结束。超过上界，或清理未完，结果是待处置，并列出未停的受管资源。
-- 待处置时，撤除函数抛出 `RetirementPending`，未停的受管资源仍由原提供者处置。
+- 待处置时，撤除函数以拒绝结束（错误类型归实现成员），未停的受管资源仍由原提供者处置。
 
 条款见 [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 

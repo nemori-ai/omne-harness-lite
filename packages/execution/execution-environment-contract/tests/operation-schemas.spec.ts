@@ -1,0 +1,396 @@
+import { expect, it } from 'vitest'
+import { tenantCodec } from '@omne-harness/legal-identity'
+import * as contract from '@omne-harness/execution-environment-contract'
+import {
+  createScriptedEnvironmentProvider,
+  createMemoryResourceLedger,
+  createScriptedFacilityGuard,
+} from '@omne-harness/execution-environment-contract/testing'
+const tenant = (() => {
+  const t = tenantCodec.parse(
+    JSON.stringify({
+      organization: 'org_0123456789abcdefghjkmnpqrs',
+      account: 'acc_0123456789abcdefghjkmnpqrs',
+    }),
+  )
+  if (!t.ok) throw new Error('tenant fixture')
+  return t.value
+})()
+const access = { principal: 'test', tenant }
+const scope = { ref: 'scope' }
+const requirement = {
+  allowedBindings: [{ kind: 'host_machine' }],
+  facilities: ['command'],
+  isolation: [],
+}
+const placement = {
+  kind: 'placement',
+  requirement,
+  binding: { kind: 'host_machine' },
+  provider: { name: 'p', generation: 'g', version: 'v' },
+  continuity: { kind: 'not_guaranteed' },
+}
+const adoption = {
+  acquisition: 'acq',
+  origin: 'origin',
+  placement,
+  provider: placement.provider,
+  instance: { id: 'i', generation: 'g' },
+  continuity: placement.continuity,
+  evidence: { kind: 'boolean', value: true },
+}
+const ledger = createMemoryResourceLedger().ledger,
+  guard = createScriptedFacilityGuard()
+const input = { acquisition: 'acq', origin: 'origin', scope, placement, ledger, guard }
+const recovery = contract.createRecoveryAccess()
+const rejection = { kind: 'rejected', reason: 'callerMismatch' }
+const cases = [
+  ['resolvePlacement', [access, { scope, requirement }], placement],
+  [
+    'acquire',
+    [access, input],
+    {
+      kind: 'acquired',
+      lease: {
+        placement,
+        instance: adoption.instance,
+        continuity: placement.continuity,
+        facility() {},
+        release() {},
+        invalidated: Promise.resolve({ source: 'registry', reason: 'released' }),
+      },
+      adoption,
+    },
+  ],
+  ['inspectAcquisition', [access, 'acq'], { kind: 'invalidInput' }],
+  [
+    'describe',
+    [access, scope],
+    [
+      {
+        acquisition: 'acq',
+        origin: 'origin',
+        binding: placement.binding,
+        provider: placement.provider,
+        instance: adoption.instance,
+        continuity: placement.continuity,
+        facilities: ['command'],
+        state: 'acquired',
+      },
+    ],
+  ],
+  [
+    'recoverOwned',
+    [scope, recovery],
+    { kind: 'recovered', scope, stopped: [], pending: [], unsupported: [], unavailable: [] },
+  ],
+  ['releaseScope', [scope, recovery], rejection],
+  ['registerFacility', [contract.commandFacility]],
+  ['registerProvider', [createScriptedEnvironmentProvider()]],
+] as const
+for (const [name, params, result] of cases)
+  it(name + ' accepts valid params, rejects arity and malformed elements', async () => {
+    const schemas = contract.operationSchemas[name]
+    expect(await schemas.params['~standard'].validate(params)).toHaveProperty('value')
+    expect(await schemas.params['~standard'].validate([...params, 0])).toHaveProperty('issues')
+    const bad = await schemas.params['~standard'].validate([null, ...params.slice(1)])
+    expect(bad).toMatchObject({ issues: [{ path: [0], message: expect.any(String) }] })
+    if ('result' in schemas) {
+      expect(await schemas.result['~standard'].validate(result)).toHaveProperty('value')
+      expect(await schemas.result['~standard'].validate({ kind: 'invented' })).toHaveProperty(
+        'issues',
+      )
+    }
+  })
+it('has only eight parameter and six result schemas; no invented request envelope', () => {
+  expect(Object.keys(contract.operationSchemas)).toHaveLength(8)
+  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(6)
+  expect('facilityRequestSchema' in contract).toBe(false)
+})
+it('gives nested item reasons and does not coerce runtime ports or recovery access', async () => {
+  const check = async (
+    schema: typeof contract.acquireParamsSchema,
+    value: unknown,
+    path: readonly (string | number)[],
+  ) =>
+    expect(await schema['~standard'].validate(value)).toMatchObject({
+      issues: [{ path, message: expect.any(String) }],
+    })
+  await check(
+    contract.acquireParamsSchema,
+    [access, { ...input, ledger: { ...ledger, closed: {} } }],
+    [1, 'ledger', 'closed'],
+  )
+  await check(
+    contract.acquireParamsSchema,
+    [access, { ...input, guard: {} }],
+    [1, 'guard', 'authorize'],
+  )
+  await check(
+    contract.acquireParamsSchema,
+    [
+      access,
+      { ...input, placement: { ...placement, provider: { ...placement.provider, version: 1 } } },
+    ],
+    [1, 'placement', 'provider', 'version'],
+  )
+  expect(await contract.recoverOwnedParamsSchema['~standard'].validate([scope, {}])).toMatchObject({
+    issues: [{ path: [1] }],
+  })
+  expect(
+    await contract.registerFacilityParamsSchema['~standard'].validate([
+      { key: 'command', operations: ['start'], guarded: ['other'] },
+    ]),
+  ).toMatchObject({ issues: [{ path: [0, 'guarded', 0] }] })
+  expect(
+    await contract.registerFacilityParamsSchema['~standard'].validate([
+      { key: 'command', operations: ['start', 'start'], guarded: [] },
+    ]),
+  ).toMatchObject({ issues: [{ path: [0, 'operations', 1] }] })
+  const result = await contract.acquireParamsSchema['~standard'].validate([access, input])
+  if (result.issues) throw new Error('expected decode')
+  expect(result.value[1].ledger).toBe(ledger)
+  expect(result.value[1].guard).toBe(guard)
+})
+it('decodes every acquisition state and refuses malformed adoption/resource/invalidations', async () => {
+  const state = contract.inspectAcquisitionResultSchema['~standard']
+  for (const value of [
+    { kind: 'unrecorded' },
+    { kind: 'invalidInput' },
+    { kind: 'acquiring' },
+    { kind: 'provisional' },
+    { kind: 'acquired', adoption },
+    { kind: 'rejected', reason: 'invalidInput' },
+    { kind: 'invalidated', adoption, invalidation: { source: 'registry', reason: 'released' } },
+    { kind: 'releasing', adoption },
+    { kind: 'pendingRelease', adoption: null, resources: [] },
+    { kind: 'released', adoption },
+  ])
+    expect(await state.validate(value)).toHaveProperty('value')
+  expect(
+    await state.validate({
+      kind: 'invalidated',
+      adoption,
+      invalidation: { source: 'registry', reason: 'invented' },
+    }),
+  ).toMatchObject({ issues: [{ path: ['invalidation', 'reason'] }] })
+  expect(
+    await state.validate({
+      kind: 'pendingRelease',
+      adoption: null,
+      resources: [{ key: 'r', provider: 'p', reference: undefined }],
+    }),
+  ).toMatchObject({ issues: [{ path: ['resources', 0, 'reference'] }] })
+  expect(
+    await contract.acquireResultSchema['~standard'].validate({
+      kind: 'pending',
+      state: { kind: 'invalidInput' },
+    }),
+  ).toHaveProperty('issues')
+})
+
+it('provider suite rejects facts that lie about capabilities', async () => {
+  const { environmentProviderConformance, runConformanceCase } =
+    await import('@omne-harness/execution-environment-contract/testing')
+  const cases = environmentProviderConformance({
+    subject() {
+      const provider = createScriptedEnvironmentProvider()
+      const describe = provider.describe.bind(provider)
+      provider.describe = async () => ({ ...(await describe()), facilities: [] })
+      return {
+        provider,
+        binding: { kind: 'host_machine' },
+        scope: { ref: scopeRef('s') },
+        tenant,
+        facility: 'command',
+      }
+    },
+  })
+  const test = cases.find(c => c.name === 'V-EE18.facts-match-declaration')
+  if (!test) throw new Error('missing case')
+  await expect(runConformanceCase(test)).rejects.toThrow()
+})
+function scopeRef(text: string): contract.AcquireInput<unknown>['scope']['ref'] {
+  function valid(value: string): value is contract.AcquireInput<unknown>['scope']['ref'] {
+    return value.length > 0
+  }
+  if (!valid(text)) throw new TypeError('scope')
+  return text
+}
+
+it('refuses malformed nested input and result fields at the boundary', async () => {
+  const badParams: [
+    keyof typeof contract.operationSchemas,
+    unknown,
+    readonly (string | number)[],
+  ][] = [
+    ['resolvePlacement', [access, { scope: { ref: '' }, requirement }], [1, 'scope', 'ref']],
+    [
+      'resolvePlacement',
+      [access, { scope, requirement: { ...requirement, facilities: [''] } }],
+      [1, 'requirement', 'facilities', 0],
+    ],
+    ['acquire', [access, { ...input, acquisition: '' }], [1, 'acquisition']],
+    ['acquire', [access, { ...input, origin: '' }], [1, 'origin']],
+    ['acquire', [access, { ...input, ledger: { ...ledger, plan: 0 } }], [1, 'ledger', 'plan']],
+    ['inspectAcquisition', [{ principal: 'p', tenant: { ...tenant } }, 'acq'], [0, 'tenant']],
+    ['describe', [access, { ref: 's', extra: 1 }], [1, 'extra']],
+    ['releaseScope', [scope, JSON.parse(JSON.stringify(recovery))], [1]],
+    [
+      'registerFacility',
+      [{ key: 'command', operations: ['start'], guarded: ['start', 'start'] }],
+      [0, 'guarded', 1],
+    ],
+    ['registerProvider', [{ ...createScriptedEnvironmentProvider(), retire: 0 }], [0, 'retire']],
+    [
+      'registerProvider',
+      [{ ...createScriptedEnvironmentProvider(), bindingKinds: ['cloud'] }],
+      [0, 'bindingKinds', 0],
+    ],
+    [
+      'registerProvider',
+      [
+        {
+          ...createScriptedEnvironmentProvider(),
+          listRecoveryResources: async () => ({ kind: 'unavailable' }),
+        },
+      ],
+      [0, 'recover'],
+    ],
+  ]
+  for (const [name, value, path] of badParams)
+    expect(
+      await contract.operationSchemas[name].params['~standard'].validate(value),
+      name,
+    ).toMatchObject({ issues: [{ path, message: expect.any(String) }] })
+  const badResults: [
+    keyof contract.ExecutionEnvironment<unknown>,
+    unknown,
+    readonly (string | number)[],
+  ][] = [
+    [
+      'resolvePlacement',
+      { ...placement, provider: { ...placement.provider, generation: 1 } },
+      ['provider', 'generation'],
+    ],
+    ['resolvePlacement', { kind: 'rejected', reason: 'other' }, ['reason']],
+    ['acquire', { kind: 'pending', state: { kind: 'unrecorded' } }, ['state', 'kind']],
+    [
+      'acquire',
+      {
+        kind: 'acquired',
+        lease: {
+          placement,
+          instance: adoption.instance,
+          continuity: placement.continuity,
+          facility() {},
+          release() {},
+          invalidated: {},
+        },
+        adoption,
+      },
+      ['lease', 'invalidated'],
+    ],
+    [
+      'acquire',
+      {
+        kind: 'acquired',
+        lease: {
+          placement,
+          instance: adoption.instance,
+          continuity: placement.continuity,
+          facility: 0,
+          release() {},
+          invalidated: Promise.resolve(),
+        },
+        adoption,
+      },
+      ['lease', 'facility'],
+    ],
+    [
+      'inspectAcquisition',
+      { kind: 'released', adoption: { ...adoption, evidence: { raw: 'object' } } },
+      ['adoption', 'evidence', 'kind'],
+    ],
+    [
+      'describe',
+      [
+        {
+          acquisition: 'acq',
+          origin: 'o',
+          binding: placement.binding,
+          provider: placement.provider,
+          instance: adoption.instance,
+          continuity: placement.continuity,
+          facilities: ['command'],
+          state: 'invalidInput',
+        },
+      ],
+      [0, 'state'],
+    ],
+    [
+      'recoverOwned',
+      {
+        kind: 'recovered',
+        scope,
+        stopped: [],
+        pending: [],
+        unsupported: [{ kind: 'provider', provider: { name: 'p', generation: 'g' } }],
+        unavailable: [],
+      },
+      ['unsupported', 0, 'provider', 'version'],
+    ],
+    [
+      'releaseScope',
+      {
+        kind: 'recovered',
+        scope,
+        stopped: [],
+        pending: [],
+        unsupported: [],
+        unavailable: [{ name: 1, generation: 'g', version: 'v' }],
+      },
+      ['unavailable', 0, 'name'],
+    ],
+  ]
+  for (const [name, value, path] of badResults)
+    expect(
+      await contract.operationSchemas[name].result['~standard'].validate(value),
+      name,
+    ).toMatchObject({ issues: [{ path, message: expect.any(String) }] })
+})
+
+it('keeps registered provider objects and recovery authority objects unchanged', async () => {
+  const provider = createScriptedEnvironmentProvider()
+  const parsed = await contract.registerProviderParamsSchema['~standard'].validate([provider])
+  if (parsed.issues) throw new Error('valid provider refused')
+  expect(parsed.value[0]).toBe(provider)
+  const read = await contract.recoverOwnedParamsSchema['~standard'].validate([scope, recovery])
+  if (read.issues) throw new Error('valid recovery refused')
+  expect(read.value[1]).toBe(recovery)
+})
+
+it('provider facts compare facilities as sets rather than declaration order', async () => {
+  const { environmentProviderConformance, runConformanceCase } =
+    await import('@omne-harness/execution-environment-contract/testing')
+  const cases = environmentProviderConformance({
+    subject() {
+      const provider = createScriptedEnvironmentProvider()
+      const describe = provider.describe.bind(provider)
+      provider.describe = async () => ({
+        ...(await describe()),
+        facilities: [...provider.facilities].reverse(),
+      })
+      return {
+        provider,
+        binding: { kind: 'host_machine' },
+        scope: { ref: scopeRef('s') },
+        tenant,
+        facility: 'command',
+      }
+    },
+  })
+  const test = cases.find(c => c.name === 'V-EE18.facts-match-declaration')
+  if (!test) throw new Error('missing case')
+  expect(await runConformanceCase(test)).toMatchObject({ status: 'pass' })
+})
