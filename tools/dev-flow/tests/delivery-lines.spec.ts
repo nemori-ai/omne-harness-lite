@@ -13,18 +13,9 @@ import {
   type DeliveryLines,
 } from '../src/delivery/lines.ts'
 import { parsePolicy } from '../src/integration/policy.ts'
-import { policyDocument, trackEntry } from './fixtures/integration.ts'
+import { registry, table } from './fixtures/lines.ts'
 
 const repository = new URL('../../../', import.meta.url).pathname
-const base = 'a'.repeat(40)
-const registry = parsePolicy(
-  policyDocument(base, 'origin', [
-    trackEntry('legacy-refactor', base),
-    trackEntry('model', base, 'legacy-refactor'),
-    trackEntry('old', base, 'legacy-refactor', 'retired'),
-    trackEntry('side', base),
-  ]),
-)
 const members = [
   { path: 'apps/cli' },
   { path: 'packages/model/model' },
@@ -32,41 +23,6 @@ const members = [
   { path: 'packages/session/session' },
   { path: 'tools/dev-flow' },
 ]
-export function table(patch: (lines: DeliveryLines) => void = () => {}): DeliveryLines {
-  const lines: DeliveryLines = {
-    schemaVersion: 1,
-    integration: { track: 'legacy-refactor', paths: ['apps', 'docs/architecture'] },
-    shared: ['pnpm-lock.yaml'],
-    lines: [
-      {
-        id: 'model',
-        title: '模型调用',
-        owner: 'model-owner',
-        track: 'model',
-        paths: ['packages/model'],
-        contracts: ['packages/model/model-contract'],
-      },
-      {
-        id: 'session-agent',
-        title: '会话推进',
-        owner: 'session-owner',
-        track: null,
-        paths: ['packages/session'],
-        contracts: [],
-      },
-      {
-        id: 'engineering-toolchain',
-        title: '工程工具链',
-        owner: 'tool-owner',
-        track: null,
-        paths: ['tools', 'pnpm-lock.yaml'],
-        contracts: [],
-      },
-    ],
-  }
-  patch(lines)
-  return lines
-}
 function errors(patch: (lines: DeliveryLines) => void, list = members) {
   return validateDeliveryLines(table(patch), list, registry)
 }
