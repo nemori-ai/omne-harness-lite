@@ -21,8 +21,9 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { parseDiff } from '@omne-harness/repo-toolchain/core/git'
 import {
   memberLines,
-  notRunError,
-  staticTimeoutError,
+  exactEntry,
+  memberErrors,
+  recheckTargets,
   summarizeMember,
   type MutationReport,
 } from '../src/mutation/report.ts'
@@ -198,6 +199,8 @@ describe('报告汇总', () => {
             mutatorName: 'StringLiteral',
             replacement: '""',
             status: 'Timeout',
+            // 命中次数超限的超时不用复核，照旧算测出。
+            statusReason: 'Hit limit reached (501/500)',
             location: at(3, 12, 3, 18),
           },
           // 不在改动行上：不计数，只记一个「范围外」。
@@ -242,7 +245,7 @@ describe('报告汇总', () => {
     ])
   })
 
-  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入各状态与分数（#405）', () => {
+  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入各状态，成员测量无效、不给分数（#405）', () => {
     const mutant = (
       id: string,
       status: 'Survived' | 'Killed',
@@ -275,66 +278,159 @@ describe('报告汇总', () => {
       },
     })
     expect(result.counts).toMatchObject({ Survived: 4, Killed: 1 })
-    expect(result.score).toBe(20)
+    expect(result).toMatchObject({ valid: false, score: null })
     expect(result.survived).toHaveLength(4)
-    expect(result.notRun).toEqual([expect.objectContaining({ line: 3, original: 'n > 0' })])
+    expect(result.invalid).toEqual([
+      expect.objectContaining({ line: 3, original: 'n > 0', reason: 'notRun' }),
+    ])
     expect(memberLines(result, true)).toEqual([
-      'packages/core/alpha：变异体 6 个——被杀 1、超时 0、存活 4、无覆盖 0、编译错误 0、运行错误 0、没跑测试 1；分数 20%',
+      'packages/core/alpha：变异体 6 个——被杀 1、超时 0、存活 4、无覆盖 0、编译错误 0、运行错误 0、没跑测试 1；分数 —（测量无效）',
       ...Array.from(
         { length: 4 },
         () => '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
       ),
       '  没跑测试 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
     ])
-    expect(notRunError(result, 'run/alpha.log')).toBe(
+    const paths = { logPath: 'run/alpha.log', reports: ['run/alpha.json'] }
+    expect(memberErrors(result, paths)).toEqual([
       'packages/core/alpha：1 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 run/alpha.log',
-    )
-    expect(notRunError(summarizeMember(TARGET, report), 'run/alpha.log')).toBeUndefined()
+    ])
+    expect(memberErrors(summarizeMember(TARGET, report), paths)).toEqual([])
   })
-  it('static 变异体只因时限到了而超时的另列为 static 超时，不计入各状态与分数；命中次数超限的与非 static 的照旧算测出（#649）', () => {
-    const timeout = (id: string, isStatic: boolean, statusReason?: string) => ({
+  // #649：只因时限到了而超时（没有原因）的，第一遍分不出是负载还是真的挂起，以单独复核的判定为准。
+  describe('超时的复核', () => {
+    const mutant = (
+      id: string,
+      status: 'Timeout' | 'Survived' | 'Killed',
+      replacement: string,
+      extra: { static?: boolean; statusReason?: string } = {},
+    ) => ({
       id,
       mutatorName: 'EqualityOperator',
-      replacement: 'n >= 0',
-      status: 'Timeout' as const,
-      static: isStatic,
+      replacement,
+      status,
       location: at(3, 3, 3, 8),
-      ...(statusReason === undefined ? {} : { statusReason }),
+      ...extra,
     })
-    const result = summarizeMember(TARGET, {
+    const first: MutationReport = {
       files: {
         'src/a.ts': {
           source,
           mutants: [
-            timeout('1', true),
-            timeout('2', true, 'Hit limit reached (501/500)'),
-            timeout('3', false),
+            mutant('1', 'Timeout', 'a', { static: true }),
+            mutant('2', 'Timeout', 'b'),
+            mutant('3', 'Timeout', 'c', { statusReason: 'Hit limit reached (501/500)' }),
+            mutant('4', 'Killed', 'd'),
+          ],
+        },
+        // 不在要变异的行上：不复核。
+        'src/b.ts': {
+          source: '',
+          mutants: [{ ...mutant('5', 'Timeout', 'e'), location: at(9, 1, 9, 2) }],
+        },
+      },
+    }
+    // 复核重新编号，按位置、算子与替换对回；嵌套进来的别的变异体对不上，不计。
+    const recheck: MutationReport = {
+      files: {
+        'src/a.ts': {
+          source,
+          mutants: [
+            mutant('0', 'Survived', 'a', { static: true }),
+            mutant('1', 'Timeout', 'b'),
+            mutant('2', 'Killed', 'nested'),
+          ],
+        },
+      },
+    }
+
+    it('只复核要变异的行上没有原因的超时，mutate 条目精确到列（报告列从 1 起，条目从 0 起）', () => {
+      expect(
+        recheckTargets(TARGET, first).map(({ file, mutant: m }) => exactEntry(file, m)),
+      ).toEqual(['src/a.ts:3:2-3:7', 'src/a.ts:3:2-3:7'])
+      expect(recheckTargets(TARGET, first).map(({ mutant: m }) => m.id)).toEqual(['1', '2'])
+    })
+
+    it('复核的判定取代第一遍的超时：存活照样记存活，复核又超时算测出；命中次数超限的不用复核', () => {
+      const result = summarizeMember(TARGET, first, { recheck })
+      expect(result).toMatchObject({ valid: true, invalid: [], score: 75 })
+      expect(result.counts).toMatchObject({ Killed: 1, Timeout: 2, Survived: 1 })
+      expect(result.rechecked.map(finding => [finding.static, finding.verdict])).toEqual([
+        [true, 'Survived'],
+        [false, 'Timeout'],
+      ])
+      expect(memberLines(result, true)).toEqual([
+        'packages/core/alpha：变异体 4 个——被杀 1、超时 2、存活 1、无覆盖 0、编译错误 0、运行错误 0，其中复核 2；分数 75%',
+        '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator（static） `n > 0` → `a`',
+        '  复核 packages/core/alpha/src/a.ts:3 EqualityOperator（static） `n > 0` → `a`：第一遍超时，单独复核判为存活',
+        '  复核 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `b`：第一遍超时，单独复核判为超时',
+      ])
+    })
+
+    it('没有复核的判定时不计分，成员测量无效、不给分数；第一遍的超时不再算测出', () => {
+      const missing: MutationReport = {
+        files: {
+          'src/a.ts': { source, mutants: [mutant('0', 'Survived', 'a', { static: true })] },
+        },
+      }
+      for (const inputs of [{}, { recheck: missing }]) {
+        const result = summarizeMember(TARGET, first, inputs)
+        expect(result).toMatchObject({ valid: false, score: null })
+        expect(result.counts.Timeout).toBe(1)
+        expect(result.invalid.every(finding => finding.reason === 'timeoutUnchecked')).toBe(true)
+        expect(memberErrors(result, { logPath: 'run/alpha.log', reports: [] })).toEqual([
+          expect.stringMatching(
+            /^packages\/core\/alpha：\d 个变异体只因时限到了而超时，没有得到单独复核的判定，没有计分；判为测量无效/u,
+          ),
+        ])
+      }
+      expect(summarizeMember(TARGET, first).invalid).toHaveLength(2)
+      expect(summarizeMember(TARGET, first, { recheck: missing }).invalid).toHaveLength(1)
+    })
+  })
+
+  it('类型测试：初跑跑了、static 变异体的运行没跑的次数单列，不影响判定（#649）', () => {
+    const staticReport: MutationReport = {
+      files: {
+        'src/a.ts': {
+          source,
+          mutants: [
             {
-              id: '4',
-              mutatorName: 'EqualityOperator',
-              replacement: 'n >= 0',
+              id: '1',
+              mutatorName: 'M',
               status: 'Survived',
               static: true,
               location: at(3, 3, 3, 8),
             },
+            {
+              id: '2',
+              mutatorName: 'M',
+              status: 'Survived',
+              static: true,
+              location: at(3, 3, 3, 8),
+            },
+            { id: '3', mutatorName: 'M', status: 'Killed', location: at(3, 3, 3, 8) },
           ],
         },
       },
-    })
-    expect(result.counts).toMatchObject({ Timeout: 2, Survived: 1 })
-    expect(result.score).toBe(66.7)
-    expect(result.staticTimeout).toEqual([
-      expect.objectContaining({ line: 3, original: 'n > 0', static: true }),
-    ])
-    expect(memberLines(result, true)).toEqual([
-      'packages/core/alpha：变异体 4 个——被杀 0、超时 2、存活 1、无覆盖 0、编译错误 0、运行错误 0、static 超时 1；分数 66.7%',
-      '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator（static） `n > 0` → `n >= 0`',
-      '  static 超时 packages/core/alpha/src/a.ts:3 EqualityOperator（static） `n > 0` → `n >= 0`',
-    ])
-    expect(staticTimeoutError(result, 'run/alpha.log')).toMatch(
-      /^packages\/core\/alpha：1 个 static 变异体.*超过了 Stryker 按初跑估出的时限.*没有计分；判为测量无效.*日志 run\/alpha\.log$/u,
+    }
+    const runs = [
+      { mode: 'dry-run', typeTests: 2 },
+      { mode: 'mutant', activeMutant: '1', typeTests: 0 },
+      { mode: 'mutant', activeMutant: '2', typeTests: 2 },
+      { mode: 'mutant', activeMutant: '3', typeTests: 0 },
+    ]
+    const result = summarizeMember(TARGET, staticReport, { runs })
+    expect(result.typeTests).toEqual({ dryRun: 2, staticRuns: 2, withoutTypeTests: 1 })
+    expect(result.valid).toBe(true)
+    expect(memberLines(result, false)[1]).toBe(
+      '  类型测试：初跑 2 项；static 变异体的运行 2 次，其中 1 次没有跑类型测试（上游复用 Vitest 实例，类型测试不随变异体改变结果）',
     )
-    expect(staticTimeoutError(summarizeMember(TARGET, report), 'run/alpha.log')).toBeUndefined()
+    expect(
+      summarizeMember(TARGET, staticReport, { runs: [{ mode: 'dry-run', typeTests: 0 }] })
+        .typeTests,
+    ).toBeNull()
+    expect(summarizeMember(TARGET, staticReport).typeTests).toBeNull()
   })
 })
 
@@ -366,6 +462,27 @@ describe('sandbox 与配置', () => {
       concurrency: 3,
       jsonReporter: { fileName: '/out/packages__core__alpha.mutation.json' },
       thresholds: { break: null },
+    })
+  })
+
+  it('复核（#649）：只变异给定位置，一个工作进程，时限加 timeoutMS，报告与 sandbox 与第一遍分开', () => {
+    const run = {
+      root: '/repo',
+      runDir: '/out',
+      concurrency: 3,
+      testTimeoutSeconds: 60,
+      nonce: '7',
+    }
+    const first = strykerConfig(TARGET, run)
+    expect(first).not.toHaveProperty('timeoutMS')
+    expect(
+      strykerConfig(TARGET, run, { mutate: ['src/a.ts:3:2-3:7'], timeoutMS: 60_000 }),
+    ).toMatchObject({
+      mutate: ['src/a.ts:3:2-3:7'],
+      concurrency: 1,
+      timeoutMS: 60_000,
+      tempDirName: '/repo/packages/.stryker-tmp-packages__core__alpha-7-recheck',
+      jsonReporter: { fileName: '/out/packages__core__alpha.recheck.mutation.json' },
     })
   })
 })
@@ -557,8 +674,12 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       ? (JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8')) as {
           members: {
             counts: Record<string, number>
+            valid: boolean
+            score: number | null
             survived: { line: number }[]
-            staticTimeout: { line: number }[]
+            invalid: { line: number; reason: string }[]
+            rechecked: { line: number; static: boolean; verdict: string }[]
+            typeTests: { dryRun: number; staticRuns: number; withoutTypeTests: number } | null
             outside: number
           }[]
           errors: string[]
@@ -653,8 +774,9 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     return made
   }
 
-  // Vitest 只在一个实例第一次运行时报告类型测试；上游 runner 在同一工作进程里复用实例，初跑之后的 static 运行就静默少了它们。
-  it('static 变异体的运行与初跑跑同样的测试，类型测试不缺席；没有断言守着的照样记为存活（#649）', () => {
+  // Vitest 只在一个实例第一次运行时报告类型测试；上游 runner 在同一工作进程里复用实例，初跑之后的 static 运行就少了它们。
+  // 类型测试不随变异体改变结果，读数单列缺席的次数，不改判定（#649）。
+  it('static 变异体的运行没跑类型测试时读数写明缺席；没有断言守着的照样记为存活（#649）', () => {
     const { root, memberDir } = staticFixture()
     writeFileSync(
       join(memberDir, 'vitest.config.ts'),
@@ -686,60 +808,44 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       join(memberDir, 'tests/sign.spec-d.ts'),
       "import { expectTypeOf, test } from 'vitest'\nimport { isPositive } from '../src/sign.ts'\ntest('returns boolean', () => { expectTypeOf(isPositive).returns.toEqualTypeOf<boolean>() })\n",
     )
-    // 一个工作进程：static 变异体落在跑过初跑的那个进程里，旧行为下必然少掉类型测试。
+    // 一个工作进程：static 变异体落在跑过初跑的那个进程里，类型测试必然缺席。
     const ran = mutate(root, join(root, 'out'), '1')
     expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(0)
     expect(ran.summary?.errors).toEqual([])
     const [member] = ran.summary?.members ?? []
     expect(member?.survived.map(finding => finding.line)).toEqual([2])
-    const report = JSON.parse(
-      readFileSync(join(root, 'out/packages__core__sign.mutation.json'), 'utf8'),
-    ) as {
-      files: Record<
-        string,
-        { mutants: { static?: boolean; status: string; testsCompleted?: number }[] }
-      >
-      testFiles: Record<string, { tests: unknown[] }>
-    }
-    const dryRunTests = Object.values(report.testFiles).reduce(
-      (sum, file) => sum + file.tests.length,
-      0,
-    )
-    expect(report.testFiles['tests/sign.spec-d.ts']?.tests).toHaveLength(1)
-    const staticMutants = Object.values(report.files).flatMap(file =>
-      file.mutants.filter(mutant => mutant.static === true),
-    )
-    expect(staticMutants).toEqual([
-      expect.objectContaining({ status: 'Survived', testsCompleted: dryRunTests }),
-    ])
+    expect(member?.typeTests).toEqual({ dryRun: 1, staticRuns: 1, withoutTypeTests: 1 })
+    expect(ran.ran.stdout).toContain('其中 1 次没有跑类型测试')
   })
 
-  it('static 运行超过 Stryker 按初跑估出的时限时不算测出：另列为 static 超时，成员测量无效，退出 1（#649）', () => {
+  it('static 运行只因负载超过时限时，单独复核后按真实判定计分：存活不被记成测出（#649）', () => {
     const { root, memberDir } = staticFixture()
     // 可控的耗时注入：不导入源码，只有跑全部测试的 static 运行会跑它；只在有变异体激活时等待，初跑不受影响，
-    // 时限就按快的初跑估出，static 运行必然超过。不依赖机器负载。
+    // 时限就按快的初跑估出，第一遍必然超过。复核的时限另加 mutation.testTimeoutSeconds，20 秒跑得完。
     writeFileSync(
       join(memberDir, 'tests/delay.spec.ts'),
       [
         "test('slow only under an active mutant', async () => {",
         '  if ((globalThis as { __stryker__?: { activeMutant?: string } }).__stryker__?.activeMutant !== undefined)',
-        '    await new Promise(resolve => setTimeout(resolve, 60_000))',
+        '    await new Promise(resolve => setTimeout(resolve, 20_000))',
         '}, 120_000)',
       ].join('\n'),
     )
     const out = join(root, 'out')
     const ran = mutate(root, out)
-    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(0)
+    expect(ran.summary?.errors).toEqual([])
     const [member] = ran.summary?.members ?? []
-    expect(member?.staticTimeout.map(finding => finding.line)).toEqual([2])
+    expect(member).toMatchObject({ valid: true, invalid: [] })
+    expect(member?.rechecked).toEqual([
+      expect.objectContaining({ line: 2, static: true, verdict: 'Survived' }),
+    ])
     expect(member?.counts['Timeout']).toBe(0)
-    expect(member?.counts['Survived']).toBe(0)
+    expect(member?.survived.map(finding => finding.line)).toEqual([2])
     // 非 static 的变异体照常计分。
     expect(member?.counts['Killed']).toBeGreaterThan(0)
-    expect(ran.summary?.errors).toEqual([expect.stringContaining('1 个 static 变异体')])
-    expect(ran.ran.stdout).toContain('static 超时 1')
-    const raw = readFileSync(join(out, 'packages__core__sign.mutation.json'), 'utf8')
-    expect(JSON.parse(raw)).toMatchObject({
+    const first = JSON.parse(readFileSync(join(out, 'packages__core__sign.mutation.json'), 'utf8'))
+    expect(first).toMatchObject({
       files: {
         'src/sign.ts': {
           mutants: expect.arrayContaining([
@@ -749,6 +855,34 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       },
     })
   })
+
+  // 变异体在模块加载时把步长算成 0，测试里的循环停不下来；循环本身不经过变异体，命中次数超限判不出，只能时限到了。
+  it(
+    '真的挂起的 static 变异体复核仍超时，算测出来，不判测量无效（#649）',
+    { timeout: 300_000 },
+    () => {
+      const { root, memberDir } = fixture()
+      const body = (step: string) =>
+        `export const zero = 0\nexport const STEP = ${step}\nexport function count(n: number): number {\n  let c = 0\n  for (let i = 0; i < n; i += STEP) c += 1\n  return c\n}\n`
+      writeFileSync(join(memberDir, 'src/sign.ts'), body('1'))
+      writeFileSync(
+        join(memberDir, 'tests/sign.spec.ts'),
+        "import { count } from '../src/sign.ts'\ntest('count', () => { expect(count(3)).toBe(3) })\n",
+      )
+      git(root, 'add', '.')
+      git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'count')
+      writeFileSync(join(memberDir, 'src/sign.ts'), body('Math.max(1, zero)'))
+      const ran = mutate(root, join(root, 'out'), '1')
+      expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(0)
+      expect(ran.summary?.errors).toEqual([])
+      const [member] = ran.summary?.members ?? []
+      expect(member).toMatchObject({ valid: true, invalid: [] })
+      expect(member?.rechecked).toEqual([
+        expect.objectContaining({ line: 2, static: true, verdict: 'Timeout' }),
+      ])
+      expect(member?.counts['Timeout']).toBe(1)
+    },
+  )
 
   it('只由参数化用例守着的改动行照样被杀：按用例名过滤时不因快层的 preParse 整份滤掉（#405）', () => {
     const { root, memberDir } = fixture()
@@ -813,7 +947,10 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
         )
       }
       expect(invalid.ran.status, invalid.ran.stdout + invalid.ran.stderr).toBe(1)
-      expect(invalid.summary?.members).toEqual([])
+      // 测量无效的成员照样留在读数里，不给分数（#649）。
+      expect(invalid.summary?.members).toEqual([
+        expect.objectContaining({ valid: false, score: null }),
+      ])
       expect(invalid.summary?.errors).toEqual([expect.stringContaining('RuntimeError')])
       const raw = readFileSync(join(out, 'packages__core__sign.mutation.json'), 'utf8')
       expect(raw).toContain('RuntimeError')

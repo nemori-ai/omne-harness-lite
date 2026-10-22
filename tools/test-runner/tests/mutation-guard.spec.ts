@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  determineHitLimitReached,
   DryRunStatus,
   MutantRunStatus,
   type DryRunOptions,
@@ -9,7 +10,16 @@ import {
   type TestRunner,
 } from '@stryker-mutator/api/test-runner'
 import { guardMutantRun } from '../src/mutation/guarded-vitest.ts'
-import { isMutationReport, runtimeError, type MutationReport } from '../src/mutation/report.ts'
+import {
+  HIT_LIMIT_REASON,
+  isMutationReport,
+  memberErrors,
+  memberLines,
+  summarizeMember,
+  wallClockTimeout,
+  type MutationReport,
+} from '../src/mutation/report.ts'
+import type { MutationTarget } from '../src/mutation/scope.ts'
 
 const dryOptions: DryRunOptions = { timeout: 1000, disableBail: false, coverageAnalysis: 'perTest' }
 const options: MutantRunOptions = {
@@ -30,7 +40,7 @@ const options: MutantRunOptions = {
 function runner() {
   const result = { status: MutantRunStatus.Survived, nrOfTests: 1 } satisfies MutantRunResult
   const dryResult = { status: DryRunStatus.Complete, tests: [] } satisfies DryRunResult
-  const capabilities = { reloadEnvironment: true }
+  const capabilities = { reloadEnvironment: false }
   const calls: string[] = []
   const original: TestRunner = {
     capabilities() {
@@ -63,37 +73,15 @@ function runner() {
 }
 
 describe('public TestRunner delegation', () => {
-  it('preserves this, options, lifecycle and normal result identity', async () => {
+  it('preserves this, options, capabilities, lifecycle and normal result identity', async () => {
     const fixture = runner()
     const wrapped = guardMutantRun(fixture.original)
-    await wrapped.capabilities()
+    expect(wrapped.capabilities()).toBe(fixture.capabilities)
     await wrapped.init?.()
     expect(await wrapped.dryRun(dryOptions)).toBe(fixture.dryResult)
     expect(await wrapped.mutantRun(options)).toBe(fixture.result)
     await wrapped.dispose?.()
     expect(fixture.calls).toEqual(['capabilities', 'init', 'dryRun', 'mutantRun', 'dispose'])
-  })
-
-  // Vitest reports type tests only on the first start of an instance; the upstream runner reuses its instance
-  // although it claims to reload. Without a real reload, static runs after the dry run silently lose type tests.
-  it('declares no in-process reload, so Stryker restarts the worker before each static mutant (#649)', async () => {
-    const { original } = runner()
-    await expect(guardMutantRun(original).capabilities()).resolves.toEqual({
-      reloadEnvironment: false,
-    })
-    original.capabilities = async () => ({ reloadEnvironment: true })
-    await expect(guardMutantRun(original).capabilities()).resolves.toEqual({
-      reloadEnvironment: false,
-    })
-  })
-
-  it('does not hide capabilities failure', async () => {
-    const { original } = runner()
-    const failure = new Error('capabilities')
-    original.capabilities = () => {
-      throw failure
-    }
-    await expect(guardMutantRun(original).capabilities()).rejects.toBe(failure)
   })
 
   it('turns the first rejection into Error without retrying a runner that would recover', async () => {
@@ -162,39 +150,55 @@ describe('public TestRunner delegation', () => {
   })
 })
 
-it('invalidates RuntimeError anywhere in the raw report, but does not expand to CompileError', () => {
-  const report: MutationReport = {
+const target: MutationTarget = {
+  member: { path: 'member', name: '@x/member', script: 'vitest run', dependencies: [] },
+  lines: new Map([['member/inside.ts', [[1, 1]] as const]]),
+}
+const at = (line: number) => ({ start: { line, column: 1 }, end: { line, column: 2 } })
+function reportWith(outsideStatus: 'RuntimeError' | 'CompileError'): MutationReport {
+  return {
     files: {
+      'inside.ts': {
+        source: 'x',
+        mutants: [{ id: '0', mutatorName: 'BlockStatement', status: 'Killed', location: at(1) }],
+      },
       'outside.ts': {
         source: '',
         mutants: [
-          {
-            id: '0',
-            mutatorName: 'BlockStatement',
-            status: 'RuntimeError',
-            location: { start: { line: 900, column: 1 }, end: { line: 900, column: 2 } },
-          },
+          { id: '1', mutatorName: 'BlockStatement', status: outsideStatus, location: at(900) },
         ],
       },
     },
   }
-  expect(runtimeError(report, 'member', 'raw.json')).toContain('1 个 RuntimeError')
-  const compileOnly: MutationReport = {
-    files: {
-      'outside.ts': {
-        source: '',
-        mutants: [
-          {
-            id: '0',
-            mutatorName: 'BlockStatement',
-            status: 'CompileError',
-            location: { start: { line: 900, column: 1 }, end: { line: 900, column: 2 } },
-          },
-        ],
-      },
-    },
-  }
-  expect(runtimeError(compileOnly, 'member', 'raw.json')).toBeUndefined()
+}
+
+it('invalidates RuntimeError anywhere in the raw report, keeps the member without a score, but does not expand to CompileError', () => {
+  const invalid = summarizeMember(target, reportWith('RuntimeError'))
+  expect(invalid).toMatchObject({ valid: false, score: null, runtimeErrors: 1, outside: 1 })
+  expect(invalid.counts.Killed).toBe(1)
+  expect(memberErrors(invalid, { logPath: 'log', reports: ['raw.json'] })).toEqual([
+    'member：1 个 RuntimeError，成员测量无效，原始报告 raw.json',
+  ])
+  expect(memberLines(invalid, false)[0]).toContain('分数 —（测量无效）')
+  const compileOnly = summarizeMember(target, reportWith('CompileError'))
+  expect(compileOnly).toMatchObject({ valid: true, score: 100, runtimeErrors: 0 })
+  expect(memberErrors(compileOnly, { logPath: 'log', reports: ['raw.json'] })).toEqual([])
+})
+
+// The scoring rule trusts this prefix to tell a hit-limit timeout from a wall-clock one (#649).
+it('matches the hit-limit reason that the pinned Stryker API produces', () => {
+  const reason = determineHitLimitReached(101, 100)?.reason
+  expect(reason?.startsWith(HIT_LIMIT_REASON)).toBe(true)
+  const mutant = { id: '0', mutatorName: 'BlockStatement', location: at(1) }
+  expect(
+    wallClockTimeout({
+      ...mutant,
+      status: 'Timeout',
+      ...(reason === undefined ? {} : { statusReason: reason }),
+    }),
+  ).toBe(false)
+  expect(wallClockTimeout({ ...mutant, status: 'Timeout' })).toBe(true)
+  expect(wallClockTimeout({ ...mutant, status: 'Killed' })).toBe(false)
 })
 
 it('rejects malformed report statuses and locations before member scoring', () => {
