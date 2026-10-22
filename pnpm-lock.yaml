@@ -1336,6 +1336,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      '@typescript/typescript6':
+        specifier: 'catalog:'
+        version: 6.0.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
