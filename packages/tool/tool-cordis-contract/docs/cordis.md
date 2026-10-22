@@ -89,7 +89,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 - `ensureLoaded({ authority })`：读资产的实现引用，核包 digest，动态 import 实现包，再用 `ctx.plugin` 装载作者插件。同键已装且 digest 相同时认回。
 - `unload({ key })`：先读会话引用。有未归档会话引用、且没有同形的 serving 替代时，返回 `retained`，不做任何改变。否则按下列顺序做五步。
-  1. 把登记表条目标记为 draining。新 Run 不再选它，固定采用继续 resolve。
+  1. 把登记表条目标记为 draining。新 Run 不再选它，记下该键的请求仍可解析到它。
   2. 等在途调用收场。
   3. 按 [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出) 交接。
   4. release 贡献。
