@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "integration": {
+    "track": "legacy-refactor",
+    "paths": [
+      "apps",
+      "docs/requirements.md",
+      "docs/architecture",
+      "docs/domains/README.md",
+      "docs/domains/boundaries.md",
+      "docs/domains/extending-the-system.md",
+      "docs/domains/verification.md"
+    ]
+  },
+  "shared": [
+    "pnpm-lock.yaml",
+    "docs/documentation.json",
+    ".meta_harness/design/views"
+  ],
+  "lines": [
+    {
+      "id": "session-agent",
+      "title": "会话推进",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "packages/session",
+        "packages/agent",
+        "packages/context",
+        "packages/human-intervention",
+        "packages/slash-command",
+        "docs/domains/sessions-and-work",
+        "docs/domains/agent-progression",
+        "docs/domains/runtime-context",
+        "docs/domains/human-intervention",
+        "docs/domains/slash-commands",
+        ".meta_harness/design/product/sessions-and-work",
+        ".meta_harness/design/product/agent-progression",
+        ".meta_harness/design/product/runtime-context",
+        ".meta_harness/design/product/human-intervention",
+        ".meta_harness/design/product/slash-commands"
+      ],
+      "contracts": [
+        "packages/session/session-contract",
+        "packages/session/session-cordis-contract",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/context/runtime-context-contract",
+        "packages/context/runtime-context-cordis-contract",
+        "packages/context/request-context-contract",
+        "packages/context/request-context-cordis-contract"
+      ]
+    },
+    {
+      "id": "model",
+      "title": "模型调用",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "packages/model",
+        "packages/common/message",
+        "packages/common/content-block",
+        "packages/common/modality",
+        "packages/common/stream-arrival",
+        "docs/domains/model-invocation",
+        ".meta_harness/design/product/model-invocation"
+      ],
+      "contracts": [
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/common/message",
+        "packages/common/content-block",
+        "packages/common/modality",
+        "packages/common/stream-arrival"
+      ]
+    },
+    {
+      "id": "tool-exec",
+      "title": "工具与执行",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "packages/tool",
+        "packages/skills",
+        "packages/mcp",
+        "packages/execution",
+        "docs/domains/tool-execution",
+        "docs/domains/skills",
+        "docs/domains/mcp",
+        "docs/domains/execution-environments",
+        ".meta_harness/design/product/tool-execution",
+        ".meta_harness/design/product/skills",
+        ".meta_harness/design/product/mcp",
+        ".meta_harness/design/product/execution-environments"
+      ],
+      "contracts": [
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/execution/execution-environment-contract",
+        "packages/execution/execution-environment-cordis-contract"
+      ]
+    },
+    {
+      "id": "governance",
+      "title": "治理",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "packages/identity",
+        "packages/assets",
+        "packages/workspace",
+        "packages/assembly/assembly",
+        "packages/assembly/README.md",
+        "packages/assembly/documentation.json",
+        "packages/common/legal-identity",
+        "docs/domains/identity-and-authorization",
+        "docs/domains/assets-and-rules",
+        "docs/domains/workspaces",
+        "docs/domains/assembly-and-handoff",
+        ".meta_harness/design/product/identity-and-authorization",
+        ".meta_harness/design/product/assets-and-rules",
+        ".meta_harness/design/product/workspaces"
+      ],
+      "contracts": [
+        "packages/common/legal-identity"
+      ]
+    },
+    {
+      "id": "time-reach",
+      "title": "时间与触达",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "packages/time",
+        "packages/calendar",
+        "packages/schedule",
+        "packages/notification",
+        "packages/common/utc-instant",
+        "docs/domains/calendars",
+        "docs/domains/schedules-and-jobs",
+        "docs/domains/notifications",
+        ".meta_harness/design/product/calendars",
+        ".meta_harness/design/product/schedules-and-jobs",
+        ".meta_harness/design/product/notifications"
+      ],
+      "contracts": [
+        "packages/common/utc-instant"
+      ]
+    },
+    {
+      "id": "platform",
+      "title": "平台与接入",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "packages/access",
+        "packages/assembly/kernel-basis",
+        "packages/storage",
+        "packages/telemetry",
+        "packages/schema",
+        "packages/util",
+        "packages/common/json-text",
+        "packages/common/operation-result",
+        "packages/common/call-account",
+        "packages/common/README.md",
+        "packages/common/documentation.json",
+        "packages/README.md"
+      ],
+      "contracts": [
+        "packages/access/public-contract",
+        "packages/assembly/kernel-basis",
+        "packages/common/json-text",
+        "packages/common/operation-result",
+        "packages/common/call-account"
+      ]
+    },
+    {
+      "id": "engineering-toolchain",
+      "title": "工程工具链",
+      "owner": "PanQiWei",
+      "track": null,
+      "paths": [
+        "tools",
+        "scripts",
+        "docs/engineering",
+        ".github",
+        "package.json",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml",
+        "turbo.json",
+        "tsconfig.base.json",
+        "vitest.tiers.mts",
+        "repo-toolchain.config.json",
+        ".oxlintrc.json",
+        ".oxfmtrc.json",
+        ".dependency-cruiser.cjs",
+        "knip.json",
+        "pyproject.toml",
+        "uv.lock"
+      ],
+      "contracts": []
+    }
+  ]
+}
