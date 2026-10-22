@@ -6,7 +6,7 @@
 
 This member is the Anthropic family of the pi transport. It gives the Anthropic model records, the rules of the four engine hooks, the input meter, the `claude.json` vocabulary resource and the official profiles. The shared transport gets the family through `composeFamilies`. All models go through OpenRouter. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [the pi family contribution protocol](../docs/architecture.md#pi-家族贡献的取得协议).
 
-The planned consumers are the release assembly (official profiles and `composeFamilies`) and the request and cross-family examples of this package. No assembly consumes this package yet.
+The two examples and the integration test of this package consume it. The planned consumer is the release assembly (official profiles and `composeFamilies`). No assembly consumes this package yet.
 
 ### Support levels
 
@@ -24,7 +24,9 @@ Each level states only checked facts. A commit that changes the support level up
 | Official profiles | One profile per current record. Each profile supplier acquires a binding and plans a request | `officialAnthropicProfiles` | `profiles.spec.ts` |
 | Replay fixtures | The inline SSE cases of the sealed tests, as contract facts with the account of each finished response, with intended differences listed | `tests/fixtures` | `fixtures.spec.ts` |
 | Cross-family replay, Anthropic side | A foreign assistant message loses its state and thinking and is named in a `replay-omitted` diagnostic of encode. An Anthropic message keeps its signed group. `claude-opus-5.5` and `claude-fable-5.1` turn reasoning off when the last tool turn is foreign, with a `reasoning-disabled` diagnostic | `binding.rules.plan`, `binding.encode` | `cross-family-replay.spec.ts` |
-| Not delivered | The account of a stream that fails before its end. Real transport with a local HTTPS server, the conformance suite, examples and real routes | None | No evidence for these paths |
+| Integration of two families through the shared transport | This family and the OpenAI family go through one `composeFamilies` into `createPiTransport`. A local HTTPS server replays the fixture of each record of both families by the model in the request body. The sent body equals the fixture body, and the facts equal the fixture facts. The conformance suite runs its transport group for one record of each family, and the six obligations pass | `composeFamilies`, `createPiTransport` | `two-families.spec.ts` (slow tier) |
+| Examples | [examples/anthropic-request.ts](examples/anthropic-request.ts) sends one request to `anthropic/claude-opus-5.5` through the proxy. A foreign tool turn in the history turns reasoning off. [examples/cross-family-history.ts](examples/cross-family-history.ts) alternates OpenAI and Anthropic models for four rounds of one history and prints the replay projection of each round | Root entry | Type check. `examples.spec.ts` (slow tier) runs the examples only when `OMNE_LIVE_TESTS=1` and skips otherwise. Live evidence comes only from manual runs |
+| Not delivered | The account of a stream that fails before its end. Credential resolution and continuous verification of real routes (#466) | None | No continuous evidence for these paths |
 
 ## Usage
 
@@ -79,7 +81,7 @@ pnpm run lint:deps
 pnpm run check:docs
 ```
 
-Turbo builds this package and its dependencies before the tests. After a change of the fixture table, build the package, then run `pnpm --filter @omne-harness/pi-ai-anthropic run fixtures`. After a new record, build the package, then run `pnpm --filter @omne-harness/pi-ai-anthropic run fingerprints`. Both scripts load the package from `dist`. [Tests](tests/README.md) describes the tiers and the sealed tests that are not ported. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
+Turbo builds this package and its dependencies before the tests. After a change of the fixture table, build the package, then run `pnpm --filter @omne-harness/pi-ai-anthropic run fixtures`. After a new record, build the package, then run `pnpm --filter @omne-harness/pi-ai-anthropic run fingerprints`. Both scripts load the package from `dist`. The examples send real requests through a proxy and are not part of `test`. After a build, run `pnpm run examples` in the package directory. [examples/README.md](examples/README.md) gives the prerequisites and the expected output. [Tests](tests/README.md) describes the tiers and the sealed tests that are not ported. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
 
 ## Maintenance
 

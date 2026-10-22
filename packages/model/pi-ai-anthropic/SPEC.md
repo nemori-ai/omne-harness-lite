@@ -129,7 +129,7 @@
 
 ## 组合与验证
 
-本包消费 model-contract、pi-ai-transport 的根入口与 `./chat-completions`、tokenizer-tiktoken、json-text 与 operation-result。它不导入其他家族包。js-tiktoken 只是测试依赖。
+本包消费 model-contract、pi-ai-transport 的根入口与 `./chat-completions`、tokenizer-tiktoken、json-text 与 operation-result。它不导入其他家族包。js-tiktoken、`@omne-harness/pi-ai-openai`、`@omne-harness/model`、`@omne-harness/stream-arrival` 与 `@omne-harness/message` 只是开发依赖，供测试与示例使用。
 
 每项义务的持续验证见 [tests/README.md](tests/README.md)：
 
@@ -143,9 +143,11 @@
 | [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
 | 回放夹具与封存件逐条一致 | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md) | 有意不同逐条列在夹具 README |
 | 跨家族回放（Anthropic 一侧）与前缀降级 | `cross-family-replay.spec.ts` | 历史用纯数据构造，不导入 OpenAI 家族 |
+| 两个家族经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `two-families.spec.ts`（慢层） | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关 |
+| 示例经代理请求一个型号，以及跨家族的四轮历史 | `examples.spec.ts`（慢层）运行 [examples/](examples/README.md) 中的两个示例 | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过 |
 
 未覆盖：
 
-- 经真实传输与本地 HTTPS 服务的回放、符合性套件、示例与真实路由，归后续联调与 #466。
-- 网关对 `max` 的接受与对 `reasoning.enabled: false` 的处理只有经代理的手工确认，不在持续验证中。图片部件的 `detail` 成员与空 assistant 内容 `[]` 尚无网关接受的实测证据。
+- 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
+- 网关对 `max` 的接受与对 `reasoning.enabled: false` 的处理只有经代理的手工确认，不在持续验证中。图片部件的 `detail` 成员与空 assistant 内容 `[]` 只由示例在手动运行时发出，不在持续验证中。
 - 网关在有 id 的片段上分开签名的情况没有实测样本。引擎按封存件的规则拼接同 id 的片段，夹具只用手写的合成片段检查这个情况。

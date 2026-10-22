@@ -6,7 +6,7 @@
 
 This member is the OpenAI family of the pi transport. It gives the OpenAI model records, the rules of the four engine hooks, the input meter and the official profiles. The shared transport gets the family through `composeFamilies`. All models go through OpenRouter. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [the pi family contribution protocol](../docs/architecture.md#pi-家族贡献的取得协议).
 
-The planned consumers are the release assembly (official profiles and `composeFamilies`) and the cross-family example of `pi-ai-anthropic`. No assembly consumes this package yet.
+The integration test and the cross-family example of `pi-ai-anthropic` use this package as a dev dependency. The planned consumer is the release assembly (official profiles and `composeFamilies`). No assembly consumes this package yet.
 
 ### Support levels
 
@@ -23,7 +23,9 @@ Each level states only checked facts. A commit that changes the support level up
 | Official profiles | One profile per current record. Each profile supplier acquires a binding and plans a request | `officialOpenAiProfiles` | `profiles.spec.ts` |
 | Replay fixtures | The inline SSE cases of the sealed tests, as contract facts with the account of each finished response, with intended differences listed | `tests/fixtures` | `fixtures.spec.ts` |
 | Cross-family replay, OpenAI side | A foreign assistant message loses its state and thinking and is named in a `replay-omitted` diagnostic of encode. An OpenAI message keeps its state | `binding.encode` | `cross-family-replay.spec.ts` |
-| Not delivered | The account of a stream that fails before its end. Real transport with a local HTTPS server, the conformance suite, examples and real routes | None | No evidence for these paths |
+| Integration through the shared transport | This family and the Anthropic family go through one `composeFamilies` into `createPiTransport`. A local HTTPS server replays the fixture of each record by the model in the request body. The sent body equals the fixture body, and the facts equal the fixture facts. The conformance suite runs its transport group for one record of each family, and the six obligations pass | `composeFamilies`, `createPiTransport` | `two-families.spec.ts` of `pi-ai-anthropic` (slow tier) |
+| Example | [examples/openai-request.ts](examples/openai-request.ts) sends one request to `openai/gpt-5.6-luna` through the proxy. The history has an assistant message with only a tool call, a tool result without content, and an image | Root entry | Type check. `examples.spec.ts` (slow tier) runs the example only when `OMNE_LIVE_TESTS=1` and skips otherwise. Live evidence comes only from manual runs |
+| Not delivered | The account of a stream that fails before its end. Credential resolution and continuous verification of real routes (#466) | None | No continuous evidence for these paths |
 
 ## Usage
 
@@ -78,7 +80,7 @@ pnpm run lint:deps
 pnpm run check:docs
 ```
 
-Turbo builds this package and its dependencies before the tests. After a change of the fixture table, run `pnpm --filter @omne-harness/pi-ai-openai run fixtures`. After a new record, run `pnpm --filter @omne-harness/pi-ai-openai run fingerprints`. [Tests](tests/README.md) describes the tiers and the sealed tests that are not ported. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
+Turbo builds this package and its dependencies before the tests. The example sends a real request through a proxy and is not part of `test`. After a build, run `pnpm run examples` in the package directory. [examples/README.md](examples/README.md) gives the prerequisites and the expected output. After a change of the fixture table, run `pnpm --filter @omne-harness/pi-ai-openai run fixtures`. After a new record, run `pnpm --filter @omne-harness/pi-ai-openai run fingerprints`. [Tests](tests/README.md) describes the tiers and the sealed tests that are not ported. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
 
 ## Maintenance
 

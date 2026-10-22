@@ -36,6 +36,6 @@
 
 未覆盖：
 
-- Anthropic 的 `claude.json` 不在本包测试。它随 `pi-ai-anthropic` 迁入，并在该成员中验证。
+- Anthropic 的 `claude.json` 不在本包测试。它随 `pi-ai-anthropic` 迁入。该成员的 `meter.spec.ts` 核对文件的 SHA-256，并核对经本包的计数等于参考值 150。
 - 本包不测试家族成员给出的具体采用值是否与厂商的实际 tokenizer 一致。这项责任归家族成员。
 - `count` 不读文件、不访问网络，这一点由源码结构保证，没有专门的运行时探测。

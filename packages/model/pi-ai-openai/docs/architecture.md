@@ -20,6 +20,8 @@
 
 依赖方向：`family.ts` 依赖 `records.ts`、`rules.ts`、`meter.ts`；`meter.ts` 依赖 `images.ts` 与 `adoptions.ts`；`records.ts` 只依赖类型。外部依赖：model-contract（只用类型与校验函数）、pi-ai-transport 的根入口（`defineFamily`、`recordAdoption`）与 `./chat-completions`（`bindChatCompletions` 与类型）、tokenizer-tiktoken、json-text、operation-result，以及 js-tiktoken 的 `ranks/o200k_base`。本包不导入其他家族包。
 
+`adoptions.ts`、`profiles.ts`、`family.ts`、`meter.ts` 中的测量部分，以及 `rules.ts` 中的用量算术，与 `pi-ai-anthropic` 的同名模块几乎相同。两个家族包互不导入，所以各持一份。这些模块是 #468 的清理候选。本文件不承诺合并的方式。
+
 ## 关键机制与理由
 
 **记录是唯一清单。** 档案、采用、指纹与夹具都从 `OPENAI_RECORDS` 派生。全包不写型号计数。加一个型号只加一条记录、一行指纹与一组夹具。

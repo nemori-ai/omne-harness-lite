@@ -23,4 +23,4 @@ flowchart LR
   Anthropic -. 类型 .-> Contract[model-contract]
 ```
 
-计划中的消费者是发行装配与本包的示例，都还没有消费本包。本包在模型组中的位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)。
+本包的两个示例与联调用例消费本包，见 [examples/README.md](../examples/README.md)。计划中的消费者是发行装配，它还没有消费本包。本包在模型组中的位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)。

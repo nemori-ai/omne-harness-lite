@@ -6,7 +6,7 @@
 
 This member is the tiktoken engine adapter for `ModelTextTokenizer`. A family meter passes its own vocabulary and special-token table to it and gets a tokenizer. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [tokenizer resources and metering](../docs/architecture.md#tokenizer-的资源与计量分工).
 
-This package only wraps the engine. It checks the resources at initialization. `count` is a pure computation. This package holds no vendor vocabulary. `pi-ai-openai` consumes this package with the o200k vocabulary. The planned second consumer is `pi-ai-anthropic` (`claude.json`); it does not consume this package yet.
+This package only wraps the engine. It checks the resources at initialization. `count` is a pure computation. This package holds no vendor vocabulary. `pi-ai-openai` consumes this package with the o200k vocabulary. `pi-ai-anthropic` consumes it with the `claude.json` vocabulary that it publishes.
 
 ### Support levels
 
@@ -18,7 +18,7 @@ The table has five levels. Each level states only checked facts. A commit that c
 | Initialization checks implemented | The implementation revision equals the installed js-tiktoken. The vocabulary digest and the configuration digest equal the SHA-256 of the canonical JSON. Any mismatch returns `unavailable` | Root entry; `src/tokenizer.ts`, `src/digest.ts`, `src/engine-version.ts` | Fast tier with the real js-tiktoken 1.0.21, o200k and a synthetic vocabulary. The digest constants come from outside this package |
 | Count implemented | Special-token spellings in text count as ordinary text. Adjacent text segments join before encoding. A special-token segment uses only the fixed table, else `unsupported-token`. An empty sequence counts `"0"`. Text that is not well-formed Unicode returns `invalid` | `ModelTextTokenizer.count` | Fast tier. o200k counts match the full js-tiktoken encoder. Synthetic counts match hand-computed values |
 | Build output verified | The build output initializes and counts in another process and another directory, with the same results as the source. A version mismatch also returns `unavailable` | `dist/index.js` | Slow tier, child process. No consumer installs the package outside the workspace |
-| Not delivered | The consumer `pi-ai-anthropic`, which passes `claude.json` and verifies its counts. `pi-ai-openai` already passes o200k and checks its counts in its own meter tests | None | No evidence for these paths |
+| Family consumers verified | `pi-ai-openai` passes the o200k ranks. `pi-ai-anthropic` passes `claude.json`: it checks the SHA-256 of the file when it reads it, and the count through this package equals the @anthropic-ai/tokenizer 0.0.4 reference of 150 | The tokenizer resource functions of the two family packages | The fast meter tests of the two family packages. These checks are in the family packages, not in this package. No consumer installs the package outside the workspace |
 
 ## Usage
 

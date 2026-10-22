@@ -15,7 +15,8 @@
 - [src/](src/index.md)：源码
 - [tests/](tests/index.md)：持续测试与夹具
 - [resources/](resources/index.md)：`claude.json` 词表、许可证与来源记录
-- [schema/](schema/index.md)、[verification/](verification/index.md)、[adr/](adr/index.md)、[examples/](examples/index.md)、[acceptance/](acceptance/index.md)：本包当前不适用的目录
+- [examples/](examples/index.md)：经代理请求的单次示例与跨家族示例
+- [schema/](schema/index.md)、[verification/](verification/index.md)、[adr/](adr/index.md)、[acceptance/](acceptance/index.md)：本包当前不适用的目录
 
 ## 阅读路径
 

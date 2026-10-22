@@ -16,7 +16,9 @@
 
 ## 本包事实
 
-全部测试在快层。它们不起子进程、不开端口、不访问网络，也不等待真实时间。
+除 `examples.spec.ts` 外，全部测试在快层。它们不起子进程、不开端口、不访问网络，也不等待真实时间。
+
+`examples.spec.ts` 在慢层。设置 `OMNE_LIVE_TESTS=1` 时，它在子进程中运行 [examples/openai-request.ts](../examples/openai-request.ts)，示例经 `HTTPS_PROXY` 向 OpenRouter 发出一次真实请求。没有设置时，它在运行时跳过。本家族经共享传输与本地 HTTPS 服务的联调在 `pi-ai-anthropic` 的 `two-families.spec.ts` 中，不在本包。
 
 - 真实依赖：pi-ai-transport 的家族表、网关引擎与 `./testing` 的夹具检查；tokenizer-tiktoken 与 js-tiktoken 的 o200k 秩数据；model-contract 的请求校验与回放投影。没有替身。
 - 测试配置在 [support/openai.ts](support/openai.ts)：解码器限额与 10% 余量是测试参数，不是包的默认值。整个测试进程共用一个家族，所以 tokenizer 只初始化一次。
@@ -49,6 +51,6 @@
 
 ### 未覆盖
 
-- 经真实传输与本地 HTTPS 服务的回放、符合性套件 transport 组与真实路由，归后续联调与 #466。
+- 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
 - 回放夹具核对引擎给出的账目事实；夹具中没有余量为负的 usage，`usage-inconsistent` 诊断只经 `rules.spec.ts` 直接调用验证。
 - 带图片事实的表示由测试构造。引擎目前给出的表示没有媒体事实。

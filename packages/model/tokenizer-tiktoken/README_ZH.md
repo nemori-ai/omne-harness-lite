@@ -6,7 +6,7 @@
 
 本成员是 `ModelTextTokenizer` 的 tiktoken 引擎 adapter。家族成员的计量器把本家的词表与特殊 token 表交给它，得到一个 tokenizer。职责与建包条件见[组架构“成员与新增条件”](../docs/architecture.md#成员与新增条件)与[“Tokenizer 的资源与计量分工”](../docs/architecture.md#tokenizer-的资源与计量分工)。
 
-本包只封装引擎：初始化时核对资源，`count` 只做纯计算。本包不收录任何厂商词表。`pi-ai-openai` 以 o200k 词表消费本包。计划中的第二个消费者是 `pi-ai-anthropic`（`claude.json`），它还没有消费本包。
+本包只封装引擎：初始化时核对资源，`count` 只做纯计算。本包不收录任何厂商词表。`pi-ai-openai` 以 o200k 词表消费本包，`pi-ai-anthropic` 以它随包发布的 `claude.json` 消费本包。
 
 ### 支持范围
 
@@ -18,7 +18,7 @@
 | 初始化核对已实现 | 实现版本等于实际安装的 js-tiktoken；词表摘要与配置摘要等于规范 JSON 的 SHA-256；任一不符返回 `unavailable` | 根入口；包内 `src/tokenizer.ts`、`src/digest.ts`、`src/engine-version.ts` | 快层，真实 js-tiktoken 1.0.21，o200k 与合成词表。摘要常量在本包以外独立算出 |
 | 计数已实现 | 文本中的特殊 token 字样按普通文本计；相邻文本段合并后编码；显式特殊 token 段只查固定表，查不到返回 `unsupported-token`；空序列计 `"0"`；非良构 Unicode 返回 `invalid` | `ModelTextTokenizer.count` | 快层，o200k 的计数与完整 js-tiktoken 编码器比较；合成词表的计数按手算核对 |
 | 构建产物已验证 | 构建产物在另一进程与临时目录中初始化并计数，结果与源码相同；版本失配同样返回 `unavailable` | `dist/index.js` | 慢层，子进程。没有安装到包外的消费者 |
-| 尚未交付 | 消费者 `pi-ai-anthropic`：传入 `claude.json` 并验证其计数。`pi-ai-openai` 已传入 o200k，并在自己的计量测试中核对计数 | 无 | 这些路径没有证据 |
+| 家族消费已验证 | `pi-ai-openai` 传入 o200k 秩数据。`pi-ai-anthropic` 传入 `claude.json`：读取时核对文件的 SHA-256，经本包的计数与 @anthropic-ai/tokenizer 0.0.4 的参考值 150 相等 | 两个家族包的 tokenizer 资源函数 | 两个家族包的快层计量测试。这些检查在家族包中，不在本包。没有安装到包外的消费者 |
 
 ## 使用
 

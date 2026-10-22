@@ -20,4 +20,4 @@ flowchart LR
   Tik -. 类型 .-> Contract[model-contract]
 ```
 
-计划中的消费者是 `pi-ai-openai` 与 `pi-ai-anthropic`，两者都还没有消费本包。组架构中 Moonshot 家族也是候选消费者。请求组装方经 Model 的计量能力间接使用 tokenizer，不直接依赖本包。本包在模型组中的位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)。
+`pi-ai-openai` 与 `pi-ai-anthropic` 的计量器消费本包。组架构中 Moonshot 家族也是候选消费者。请求组装方经 Model 的计量能力间接使用 tokenizer，不直接依赖本包。本包在模型组中的位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)。

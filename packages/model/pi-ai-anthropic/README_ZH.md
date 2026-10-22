@@ -6,7 +6,7 @@
 
 本成员是 pi 传输的 Anthropic 家族。它给出 Anthropic 型号的记录、引擎四个 hook 的规则、输入计量器、`claude.json` 词表资源与官方档案。共享传输经 `composeFamilies` 取得本家族。所有型号都经 OpenRouter 请求。组架构在[成员与新增条件](../docs/architecture.md#成员与新增条件)与 [pi 家族贡献的取得协议](../docs/architecture.md#pi-家族贡献的取得协议)中规定本成员的职责。
 
-计划中的消费者是发行装配（官方档案与 `composeFamilies`）以及本包的请求示例与跨家族示例。目前还没有装配消费本包。
+本包的两个示例与联调用例消费本包。计划中的消费者是发行装配（官方档案与 `composeFamilies`）。目前还没有装配消费本包。
 
 ### 支持范围
 
@@ -24,7 +24,9 @@
 | 官方档案 | 每条 `current` 记录一份档案。每份档案的供应商都能取得绑定并规划请求 | `officialAnthropicProfiles` | `profiles.spec.ts` |
 | 回放夹具 | 封存测试的内联 SSE 用例，转换为契约事实，含每个已收场响应的账目，有意不同逐条列出 | `tests/fixtures` | `fixtures.spec.ts` |
 | 跨家族回放（Anthropic 一侧） | 另一家的 assistant 消息不带状态与思考，并出现在 encode 的 `replay-omitted` 诊断中；本家族的签名组带回；`claude-opus-5.5` 与 `claude-fable-5.1` 在最后一个工具轮次来自另一家时关闭推理并给出 `reasoning-disabled` 诊断 | `binding.rules.plan`、`binding.encode` | `cross-family-replay.spec.ts` |
-| 未交付 | 在结束之前失败的流的账目；经本地 HTTPS 服务的真实传输、符合性套件、示例与真实路由 | 无 | 这些路径没有证据 |
+| 两个家族经共享传输的联调 | 本家族与 OpenAI 家族经同一 `composeFamilies` 交给 `createPiTransport`。本地 HTTPS 服务按请求体的型号回放两家每条记录的夹具：发出的请求体与夹具相同，事实序列与夹具相同。两家各取一条记录运行符合性套件 transport 组，六条义务通过 | `composeFamilies`、`createPiTransport` | `two-families.spec.ts`（慢层） |
+| 示例 | [examples/anthropic-request.ts](examples/anthropic-request.ts) 经代理请求 `anthropic/claude-opus-5.5` 一次，历史中的外来工具轮次使推理关闭。[examples/cross-family-history.ts](examples/cross-family-history.ts) 在同一段历史中交替请求 OpenAI 与 Anthropic 型号四轮，打印每轮的回放投影 | 根入口 | 类型检查。`examples.spec.ts`（慢层）只在 `OMNE_LIVE_TESTS=1` 时运行示例，否则跳过。实跑的证据只来自手动运行 |
+| 未交付 | 在结束之前失败的流的账目。凭据解析与真实路由的持续验证（#466） | 无 | 这些路径没有持续验证的证据 |
 
 ## 使用
 
@@ -79,7 +81,7 @@ pnpm run lint:deps
 pnpm run check:docs
 ```
 
-turbo 在测试前构建本包及其依赖。改动夹具用例表后，先构建本包，再运行 `pnpm --filter @omne-harness/pi-ai-anthropic run fixtures`。新增记录后，先构建本包，再运行 `pnpm --filter @omne-harness/pi-ai-anthropic run fingerprints`。两个脚本从 `dist` 载入本包。[测试说明](tests/README.md)写明测试分层与未迁入的封存测试。覆盖与缺口见 [SPEC“组合与验证”](SPEC.md#组合与验证)。
+turbo 在测试前构建本包及其依赖。改动夹具用例表后，先构建本包，再运行 `pnpm --filter @omne-harness/pi-ai-anthropic run fixtures`。新增记录后，先构建本包，再运行 `pnpm --filter @omne-harness/pi-ai-anthropic run fingerprints`。两个脚本从 `dist` 载入本包。示例经代理发出真实请求，不属于 `test`。构建后在本包目录运行 `pnpm run examples`，前提与预期输出见 [examples/README.md](examples/README.md)。[测试说明](tests/README.md)写明测试分层与未迁入的封存测试。覆盖与缺口见 [SPEC“组合与验证”](SPEC.md#组合与验证)。
 
 ## 维护
 

@@ -16,14 +16,19 @@
 
 ## 本包事实
 
-全部测试在快层。它们不起子进程、不开端口、不访问网络，也不等待真实时间。它们读取本包的 `claude.json`。
+除下面两个慢层文件外，全部测试在快层。快层测试不起子进程、不开端口、不访问网络，也不等待真实时间。它们读取本包的 `claude.json`。
+
+慢层有两个文件：
+
+- `two-families.spec.ts`：用 openssl 子进程生成自签证书，启动本地 HTTPS 服务。本家族与 OpenAI 家族经同一 `composeFamilies` 交给真实的 `createPiTransport`。服务按请求体的型号回放两家每条记录的 `stream.sse`。用例核对发出的请求体等于 `request.json` 的 `body`，事实序列等于 `facts.json`，并对两家各一条记录运行符合性套件 transport 组。OpenAI 的夹具经开发依赖 `@omne-harness/pi-ai-openai` 的链接目录读取。计数发出次数用凭据槽的读取次数：传输只在 `start` 的同步调用中读取凭据一次。证书与服务的辅助代码在 [support/https-server.ts](support/https-server.ts)。
+- `examples.spec.ts`：设置 `OMNE_LIVE_TESTS=1` 时，在子进程中运行两个示例，示例经 `HTTPS_PROXY` 向 OpenRouter 发出真实请求。没有设置时，它在运行时跳过。
 
 - 真实依赖：pi-ai-transport 的家族表、网关引擎与 `./testing` 的夹具检查；tokenizer-tiktoken 与 `claude.json`；model-contract 的请求校验与回放投影。没有替身。
 - 独立对照：`meter.spec.ts` 用 js-tiktoken/lite 直接载入 `claude.json`，核对特殊 token 字样的计数；用封存件记录的 @anthropic-ai/tokenizer 0.0.4 参考值 150 核对经 tokenizer-tiktoken 的计数。js-tiktoken 只是测试依赖。
 - 测试配置在 [support/anthropic.ts](support/anthropic.ts)：解码器限额与 10% 余量是测试参数，不是包的默认值。整个测试进程共用一个家族，所以 tokenizer 只初始化一次。
 - 请求经 `judgeFixedModelRequest` 构造，所以消息与采用的身份是真实的品牌值。
 - 回放夹具的用例表在 [support/legacy-cases.ts](support/legacy-cases.ts)，对照表与有意不同见 [fixtures/README.md](fixtures/README.md)。
-- 跨家族历史用纯数据构造：OpenAI 的消息只是带 OpenAI 回放范围与格式的 assistant 消息，测试不导入 OpenAI 家族。
+- 跨家族历史用纯数据构造：OpenAI 的消息只是带 OpenAI 回放范围与格式的 assistant 消息，`cross-family-replay.spec.ts` 不导入 OpenAI 家族。只有 `two-families.spec.ts` 导入 OpenAI 家族。
 
 两个脚本都从 `dist` 载入本包，运行前先构建（`pnpm turbo run build --filter=@omne-harness/pi-ai-anthropic`）：
 

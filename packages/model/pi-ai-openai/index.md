@@ -14,7 +14,8 @@
 - [docs/](docs/index.md)：内部设计、公开接口与使用
 - [src/](src/index.md)：源码
 - [tests/](tests/index.md)：持续测试与夹具
-- [schema/](schema/index.md)、[verification/](verification/index.md)、[adr/](adr/index.md)、[examples/](examples/index.md)、[resources/](resources/index.md)、[acceptance/](acceptance/index.md)：本包当前不适用的目录
+- [examples/](examples/index.md)：经代理请求一个 OpenAI 型号的示例
+- [schema/](schema/index.md)、[verification/](verification/index.md)、[adr/](adr/index.md)、[resources/](resources/index.md)、[acceptance/](acceptance/index.md)：本包当前不适用的目录
 
 ## 阅读路径
 

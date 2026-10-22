@@ -93,6 +93,6 @@ js-tiktoken 的版本在每个进程中读取一次，在第一次初始化时�
 
 未覆盖：
 
-- Anthropic 的 `claude.json` 由 `pi-ai-anthropic` 迁入并验证，不在本包测试。
+- Anthropic 的 `claude.json` 由 `pi-ai-anthropic` 迁入并验证（文件的 SHA-256，以及参考计数 150），不在本包测试。
 - 家族成员给出的采用值是否与厂商实际的 tokenizer 一致，由家族成员验证。本地精确分词不证明上游计量精确。
 - `count` 不读文件、不访问网络，由源码结构保证，没有运行时探测。

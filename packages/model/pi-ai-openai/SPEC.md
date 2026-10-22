@@ -128,9 +128,11 @@
 | [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
 | 回放夹具与封存件逐条一致 | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md) | 有意不同逐条列在夹具 README |
 | 跨家族回放（OpenAI 一侧） | `cross-family-replay.spec.ts` | 历史用纯数据构造，不导入 Anthropic 家族 |
+| 经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `pi-ai-anthropic` 的 `two-families.spec.ts`（慢层） | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关 |
+| 示例经代理请求一个型号 | `examples.spec.ts`（慢层）运行 [examples/openai-request.ts](examples/openai-request.ts) | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过 |
 
 未覆盖：
 
-- 经真实传输与本地 HTTPS 服务的回放、符合性套件与真实路由，归后续联调与 #466。
+- 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
 - 夹具中没有余量为负的 usage，所以 `usage-inconsistent` 诊断只经直接调用验证。
 - 网关对 `none` 与 `max` 的接受只有一次经代理的手工确认，不在持续验证中。

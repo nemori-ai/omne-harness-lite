@@ -22,4 +22,4 @@ flowchart LR
   OpenAI -. 类型 .-> Contract[model-contract]
 ```
 
-计划中的消费者是发行装配与 `pi-ai-anthropic` 的跨家族示例，都还没有消费本包。本包在模型组中的位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)。
+`pi-ai-anthropic` 的联调用例与跨家族示例以开发依赖消费本包。计划中的消费者是发行装配，它还没有消费本包。本包的示例见 [examples/README.md](../examples/README.md)。本包在模型组中的位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)。

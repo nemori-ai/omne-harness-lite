@@ -46,7 +46,7 @@ proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超�
 
 [support/exchange.ts](support/exchange.ts) 提供交换的输入、预约与观察工具，含清理断言。其中的限额只是本套测试的初值，不是本包的默认值。[support/sources.ts](support/sources.ts) 提供记录读者行为的字节源，供分帧层的提前结束用例使用。
 
-持续运行的测试只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为，不证明真实供应商、真实家族、真实代理、`https:` 协议的代理、公网 TLS，或 Model 发送路径与本传输的组合。`test:live` 的证据只来自手动运行。完整的覆盖与未覆盖见 [SPEC“组合与验证”](../SPEC.md#组合与验证)。
+持续运行的测试只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为，不证明真实供应商、真实代理、`https:` 协议的代理、公网 TLS，或 Model 发送路径与本传输的组合。本包的测试不用真实家族。两个真实家族经本传输与本地 HTTPS 服务的联调在 `pi-ai-anthropic` 的 `two-families.spec.ts` 中。`test:live` 的证据只来自手动运行。完整的覆盖与未覆盖见 [SPEC“组合与验证”](../SPEC.md#组合与验证)。
 
 ## 维护
 

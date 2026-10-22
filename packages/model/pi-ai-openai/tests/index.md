@@ -15,5 +15,6 @@
 - [profiles.spec.ts](profiles.spec.ts)：官方档案与往返
 - [fixtures.spec.ts](fixtures.spec.ts)：回放夹具
 - [cross-family-replay.spec.ts](cross-family-replay.spec.ts)：跨家族回放的 OpenAI 一侧
+- [examples.spec.ts](examples.spec.ts)：慢层，`OMNE_LIVE_TESTS=1` 时运行示例
 - `support/`：测试配置、构造函数、夹具用例表与两个脚本
 - [fixtures/](fixtures/README.md)：指纹与回放夹具
