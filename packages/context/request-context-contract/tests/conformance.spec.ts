@@ -135,3 +135,57 @@ it('policy suites pass scripted doubles and reject individual policy defects', a
     await expect(runConformanceCase(item, { policy: bad, fixture: data })).rejects.toThrow()
   }
 })
+it('public suite rejects an implementation that measures only open work inside chosen coverage', async () => {
+  const item = requestContextConformance<string>().find(
+    value => value.name === 'floor-after-cover-cannot-evade-budget',
+  )
+  if (item === undefined) throw new Error('Missing lower-bound regression')
+  const f = fixture()
+  const bad = {
+    ...operations,
+    planCompaction: (
+      input: Parameters<typeof operations.planCompaction<string>>[0],
+      ports: typeof f.ports,
+      policies: typeof f.policies,
+    ) =>
+      operations.planCompaction(
+        input,
+        {
+          ...ports,
+          history: {
+            ...ports.history,
+            async compactionContext(...args: Parameters<typeof ports.history.compactionContext>) {
+              const result = await ports.history.compactionContext(...args)
+              if (result.kind !== 'context') return result
+              const draft = policies.compaction.plan({
+                view: operations.project([], input.history.epoch),
+                context: result.value,
+                measure: () => '0',
+                windowTokens: input.selection.profile.definition.context.window.provided,
+              })
+              if (draft.kind !== 'draft') return result
+              const end = result.value.covered.findIndex(entry => entry.ref === draft.coverTo)
+              return {
+                ...result,
+                value: {
+                  ...result.value,
+                  open: result.value.open.filter(ref =>
+                    result.value.covered.slice(0, end + 1).some(entry => entry.ref === ref),
+                  ),
+                },
+              }
+            },
+          },
+        },
+        policies,
+      ),
+  }
+  await expect(
+    runConformanceCase(item, {
+      operations: bad,
+      input: f.input,
+      ports: f.ports,
+      policies: f.policies,
+    }),
+  ).rejects.toThrow()
+})

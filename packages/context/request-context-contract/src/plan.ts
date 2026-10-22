@@ -113,6 +113,23 @@ export async function planCompaction<P>(
   }
   const measureEntries = (entries: readonly import('@omne-harness/message').RecordEntryRef[]) =>
     entries.reduce((sum, ref) => sum + (measured.get(ref) ?? 0n), 0n).toString()
+  // The holder's complete open-work floor applies before policy coverage is shortened.
+  if (context.value.open.some(ref => !measured.has(ref))) return invalid('unsupported-format')
+  const retain = policies.compaction.config.retainBudget
+  const limit =
+    retain.kind === 'tokens'
+      ? BigInt(retain.retainTokens)
+      : (BigInt(input.selection.profile.definition.context.window.provided) *
+          decimalParts(retain.retainRatio).n) /
+        decimalParts(retain.retainRatio).scale
+  if (BigInt(measureEntries(context.value.open)) > limit)
+    return {
+      kind: 'cannot-fit',
+      reason: 'floor-exceeds-budget',
+      floor: context.value.open,
+      budget: limit.toString(),
+      diagnostic: 'Open-work floor exceeds retention budget',
+    }
   const draft = policies.compaction.plan({
     view: project(read.rows, read.evidence.epoch),
     context: context.value,
@@ -132,21 +149,6 @@ export async function planCompaction<P>(
   const first = covered[0]
   if (end < 0 || first === undefined) return invalid('unsupported-format')
   const floor = context.value.open.filter(ref => covered.some(e => e.ref === ref))
-  const retain = policies.compaction.config.retainBudget
-  const limit =
-    retain.kind === 'tokens'
-      ? BigInt(retain.retainTokens)
-      : (BigInt(input.selection.profile.definition.context.window.provided) *
-          decimalParts(retain.retainRatio).n) /
-        decimalParts(retain.retainRatio).scale
-  if (BigInt(measureEntries(floor)) > limit)
-    return {
-      kind: 'cannot-fit',
-      reason: 'floor-exceeds-budget',
-      floor,
-      budget: limit.toString(),
-      diagnostic: 'Open-work floor exceeds retention budget',
-    }
   const selected = new Set([...draft.retained, ...floor])
   const retained = covered.filter(e => selected.has(e.ref)).map(e => e.ref)
   if (BigInt(measureEntries(retained)) > limit) return invalid('unsupported-format')
