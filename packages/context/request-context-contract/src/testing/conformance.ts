@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { type TenantId } from '@omne-harness/legal-identity'
 import type { HistorySource, CompactionPolicyPort, RepresentationPolicyPort } from '../ports.js'
-import type { Access, EpochId } from '../refs.js'
+import type { Access } from '../refs.js'
 import { decodePlanId } from '../refs.js'
 import type { AssemblyPorts, AssemblyPolicies } from '../ports.js'
 import type {
@@ -395,7 +395,8 @@ function historySourceCases<P>(
     fixture: HistoryFixture
     access: Access<P>
     otherTenant: TenantId
-    commit: () => Promise<EpochId>
+    /** Builds this same source implementation against an independent fixture. */
+    createSource: (fixture: HistoryFixture) => HistorySource<P>
   }>,
 ): readonly BoundCase[] {
   const first = subject.fixture.epochs[0]
@@ -427,6 +428,110 @@ function historySourceCases<P>(
       assert.equal(r.kind, 'page')
       if (r.kind === 'page')
         assert.ok(r.page.rows.every((r, i, a) => i === 0 || r.seq > (a[i - 1]?.seq ?? -1)))
+    }),
+    caseOf('missing-scope-is-invalid', 'RQ11-29', async () => {
+      const { scope: _scope, ...missing } = evidence
+      const result = await subject.source.read(
+        missing as typeof evidence,
+        subject.access,
+        null,
+        65536,
+      )
+      assert.equal(result.kind, 'invalid')
+      if (result.kind === 'invalid') assert.equal(result.reason, 'missing-scope')
+    }),
+    caseOf('page-respects-byte-budget', 'RQ11-28/H5', async () => {
+      const [head, next] = first.rows
+      assert.ok(head && next, 'History conformance needs at least two rows')
+      const bytes = Number(head.bytes)
+      assert.ok(Number.isSafeInteger(bytes) && bytes > 0 && BigInt(next.bytes) > 0n)
+      const page = await subject.source.read(evidence, subject.access, null, bytes)
+      assert.equal(page.kind, 'page')
+      if (page.kind !== 'page') return
+      assert.deepEqual(
+        page.page.rows.map(row => row.seq),
+        [head.seq],
+      )
+      assert.ok(page.page.rows.reduce((sum, row) => sum + BigInt(row.bytes), 0n) <= BigInt(bytes))
+      assert.equal(page.page.next, head.seq)
+      const following = await subject.source.read(
+        evidence,
+        subject.access,
+        page.page.next,
+        Number(next.bytes),
+      )
+      assert.equal(following.kind, 'page')
+      if (following.kind === 'page') {
+        assert.equal(following.page.rows[0]?.seq, next.seq)
+        assert.ok(
+          following.page.rows.reduce((sum, row) => sum + BigInt(row.bytes), 0n) <=
+            BigInt(next.bytes),
+        )
+      }
+    }),
+    caseOf('prefix-digest-is-chained', 'RQ11-C3/H3', async () => {
+      const [head, next] = first.rows
+      assert.ok(head && next, 'History conformance needs at least two rows')
+      const bytes = first.rows.reduce((sum, row) => sum + BigInt(row.bytes), 0n)
+      assert.ok(bytes > 0n && bytes <= BigInt(Number.MAX_SAFE_INTEGER))
+      const readDigests = async (source: HistorySource<P>) => {
+        const rows: import('../values.js').HistoryRow[] = []
+        let after: number | null = null
+        const cursors = new Set<number>()
+        while (true) {
+          const result = await source.read(evidence, subject.access, after, Number(bytes))
+          assert.equal(result.kind, 'page')
+          if (result.kind !== 'page') throw new Error('Expected fixture history page')
+          rows.push(...result.page.rows)
+          if (result.page.next === null) break
+          assert.ok(!cursors.has(result.page.next), 'History pages must advance')
+          cursors.add(result.page.next)
+          after = result.page.next
+        }
+        assert.deepEqual(
+          rows.map(row => row.seq),
+          first.rows.map(row => row.seq),
+        )
+        assert.ok(
+          rows.every(row => typeof row.prefixDigest === 'string' && row.prefixDigest.length > 0),
+        )
+        return rows.map(row => row.prefixDigest)
+      }
+      const original = await readDigests(subject.source)
+      // The factory must exercise the same implementation, not a reference provider.
+      assert.deepEqual(await readDigests(subject.createSource(subject.fixture)), original)
+      const changedMessage = {
+        role: 'user' as const,
+        id: head.message.id,
+        blocks: [text('prefix-chain-change:' + JSON.stringify(head.message))] as const,
+      }
+      const changed: HistoryFixture = {
+        ...subject.fixture,
+        epochs: [
+          {
+            ...first,
+            rows: first.rows.map((value, index) =>
+              index === 0 ? { ...value, message: changedMessage } : value,
+            ),
+            entries: first.entries.map(value =>
+              value.ref === head.entry ? { ...value, message: changedMessage } : value,
+            ),
+          },
+          ...subject.fixture.epochs.slice(1),
+        ],
+      }
+      const suffix = await readDigests(subject.createSource(changed))
+      original.forEach((digest, index) =>
+        assert.notEqual(
+          suffix[index],
+          digest,
+          'Earlier row changes must propagate through every suffix digest',
+        ),
+      )
+      // Page boundaries cannot restart the chain.
+      const page = await subject.source.read(evidence, subject.access, head.seq, Number(next.bytes))
+      assert.equal(page.kind, 'page')
+      if (page.kind === 'page') assert.equal(page.page.rows[0]?.prefixDigest, original[1])
     }),
   ]
 }
@@ -504,6 +609,9 @@ export const HISTORY_SOURCE_OBLIGATIONS = [
   'read-requires-access',
   'tenant-isolation',
   'page-size-retains-order',
+  'missing-scope-is-invalid',
+  'page-respects-byte-budget',
+  'prefix-digest-is-chained',
 ] as const
 export type HistorySourceObligation = (typeof HISTORY_SOURCE_OBLIGATIONS)[number]
 export const COMPACTION_POLICY_OBLIGATIONS = [
