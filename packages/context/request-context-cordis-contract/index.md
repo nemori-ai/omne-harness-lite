@@ -24,11 +24,11 @@
 
 ## 阅读路径
 
-| 读者 | 起点 | 接着读 |
-| --- | --- | --- |
-| 贡献者插件作者 | [docs/context.md](docs/context.md#贡献者插件) | [docs/cordis.md](docs/cordis.md#登记与撤除协议)、契约的 [RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入) |
-| 组装请求的调用方，例如协调者一侧的适配器作者 | [docs/context.md](docs/context.md#读取贡献集合的调用方) | [docs/cordis.md](docs/cordis.md#服务定义)、契约的[使用与定位](../request-context-contract/docs/context.md) |
-| 监听贡献变化的一方 | [docs/cordis.md](docs/cordis.md#事件) | [docs/flows.md](docs/flows.md) |
-| 提供者实现者 | [SPEC.md](SPEC.md) | [docs/cordis.md](docs/cordis.md)、[request-context-cordis](../request-context-cordis/docs/cordis.md) |
-| 装配者 | [docs/cordis.md](docs/cordis.md#依赖分类) | [docs/cordis.md](docs/cordis.md#策略选择)、[IC 约定](../../../docs/architecture/cordis-integration-conventions.md) |
-| 本成员的维护者 | [docs/architecture.md](docs/architecture.md) | [docs/public-api.md](docs/public-api.md)、[tests/](tests/README.md) |
+| 读者                                         | 起点                                                    | 接着读                                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 贡献者插件作者                               | [docs/context.md](docs/context.md#贡献者插件)           | [docs/cordis.md](docs/cordis.md#登记与撤除协议)、契约的 [RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入) |
+| 组装请求的调用方，例如协调者一侧的适配器作者 | [docs/context.md](docs/context.md#读取贡献集合的调用方) | [docs/cordis.md](docs/cordis.md#服务定义)、契约的[使用与定位](../request-context-contract/docs/context.md)                |
+| 监听贡献变化的一方                           | [docs/cordis.md](docs/cordis.md#事件)                   | [docs/flows.md](docs/flows.md)                                                                                            |
+| 提供者实现者                                 | [SPEC.md](SPEC.md)                                      | [docs/cordis.md](docs/cordis.md)、[request-context-cordis](../request-context-cordis/docs/cordis.md)                      |
+| 装配者                                       | [docs/cordis.md](docs/cordis.md#依赖分类)               | [docs/cordis.md](docs/cordis.md#策略选择)、[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)        |
+| 本成员的维护者                               | [docs/architecture.md](docs/architecture.md)            | [docs/public-api.md](docs/public-api.md)、[tests/](tests/README.md)                                                       |

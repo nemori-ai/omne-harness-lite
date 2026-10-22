@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft request-context-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Request Context Cordis service definition and typed assembly boundary",
   "engines": {
     "node": ">=24"
   },
@@ -30,7 +30,8 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/request-context-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
