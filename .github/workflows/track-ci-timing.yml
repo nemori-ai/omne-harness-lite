@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - sample: completed-414-sync
-            head: 6dd1fefa1dcb6646d4221d01767220e2bfc04b05
-            base: 9b161b8ad1d27d8ab1146e20c06e5d2b4445e64c
+          - sample: post-414-tool-runtime
+            head: 7df08ab4c55762ab9ff1e10205a52422303a2420
+            base: 93b6235ef319938235648724ef959ff53884d2eb
           - sample: latest-track-to-main
             head: c00643a46c4b2b63b4be50d37689ff4974132eeb
             base: 93b6235ef319938235648724ef959ff53884d2eb
@@ -62,21 +62,31 @@ jobs:
         continue-on-error: true
         run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step build --plan tmp/ci-timing/plan.json
       - name: Typecheck selected members
+        id: typecheck
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step typecheck --plan tmp/ci-timing/plan.json
       - name: Test selected members fast and slow
+        id: test
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test --plan tmp/ci-timing/plan.json
       - name: Acceptance selected members
+        id: acceptance
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step acceptance --plan tmp/ci-timing/plan.json
       - name: Python tests when affected
+        id: python
         if: ${{ !cancelled() }}
         continue-on-error: true
         run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step python --plan tmp/ci-timing/plan.json
+      - name: Report measured failures
+        if: ${{ !cancelled() }}
+        run: |
+          node -e 'const steps=JSON.parse(process.env.STEPS); const bad=Object.entries(steps).filter(([,v])=>v.outcome==="failure"); if(bad.length){console.error(bad);process.exit(1)}'
+        env:
+          STEPS: ${{ toJSON(steps) }}
       - name: Save evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
