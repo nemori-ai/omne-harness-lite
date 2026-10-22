@@ -1,0 +1,88 @@
+name: Temporary track CI timing
+on:
+  push:
+    branches: [brian/tmp-track-ci-timing-20261022]
+permissions:
+  contents: read
+jobs:
+  timing:
+    name: ${{ matrix.sample }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sample: main-sync
+            head: ef215b6ef3a2421ff11d14ac6235c9bd71210b23
+          - sample: sync-combination
+            head: 188a75946cc275719c4b644c24fcbc59df688e6b
+          - sample: sync-followup
+            head: 6dd1fefa1dcb6646d4221d01767220e2bfc04b05
+    env:
+      OMNE_ADMISSION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      TURBO_NO_UPDATE_NOTIFIER: '1'
+      OMNE_TEST_LEDGER_HOME: ${{ runner.temp }}/timing-ledger
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.head }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - name: Record coordinates and host
+        run: |
+          echo "BASELINE=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          git show -s --format=fuller HEAD
+          node --version
+          pnpm --version
+          lscpu
+          free -h
+      - name: Install locked dependencies
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm -r rebuild node-pty
+          uv sync --locked
+      - name: Generate local agent projections
+        run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
+      - name: Compute existing incremental plan
+        run: |
+          mkdir -p tmp/ci-timing
+          git status --porcelain > tmp/ci-timing/dirty-before-plan.txt
+          node --experimental-strip-types tools/test-runner/src/testing/cli.ts plan --json tmp/ci-timing/plan.json | tee tmp/ci-timing/plan.txt
+      - name: Build selected members
+        id: build
+        continue-on-error: true
+        run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step build --plan tmp/ci-timing/plan.json
+      - name: Typecheck selected members
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step typecheck --plan tmp/ci-timing/plan.json
+      - name: Test selected members fast and slow
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test --plan tmp/ci-timing/plan.json
+      - name: Acceptance selected members
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step acceptance --plan tmp/ci-timing/plan.json
+      - name: Python tests when affected
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: node --experimental-strip-types tools/test-runner/src/testing/cli.ts step python --plan tmp/ci-timing/plan.json
+      - name: Save evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: timing-${{ matrix.sample }}
+          path: |
+            tmp/ci-timing
+            ${{ runner.temp }}/timing-ledger
+          retention-days: 7
