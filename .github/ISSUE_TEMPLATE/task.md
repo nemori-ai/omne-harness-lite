@@ -22,6 +22,9 @@ about: 从父交付卡拆出的一次可独立接受结果
 
 - 交付层级：subtask
 - 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation}}
+- 交付线：{{docs/engineering/delivery-lines.json 中的线ID，或integration；里程碑在Issue的milestone字段设置}}
+- 性质：{{design／contract／impl／integration／baseline}}
+- 契约变更：{{none／additive／breaking}}
 - 交付修订：1
 - 创建操作标识：{{创建前登记并读回的稳定标识，后续修订保持}}
 - 父交付卡：{{真实父Issue URL，并核对平台父关系}}
@@ -92,7 +95,7 @@ about: 从父交付卡拆出的一次可独立接受结果
 
 {{未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。}}
 
-{{已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v1区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。}}
+{{已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v2区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。}}
 
 | 开工读回项 | 实际值/回执 |
 | --- | --- |

@@ -71,9 +71,11 @@ export type Condition = {
   evidence: string
   scope?: string
 }
+export const findingCategories = ['deviation', 'unknown', 'uncovered', 'attribute'] as const
 export type Finding = {
   id: string
-  category: 'deviation' | 'unknown' | 'uncovered'
+  /** `attribute` holds report-only card attribute findings; they never block delivery. */
+  category: (typeof findingCategories)[number]
   code: string
   object: string
   clause: string
@@ -104,7 +106,7 @@ export type CardObservation = {
   execution: 'requires-review'
 }
 export type DeliveryReport = {
-  schemaVersion: 4
+  schemaVersion: 5
   kind: 'github-delivery-report'
   protocolVersion: 2
   repository: string
@@ -120,7 +122,7 @@ export type DeliveryReport = {
     completeness: 'known-subgraph-only'
     cycles: { phases: string[]; conditions: string[] }[]
   }
-  stock: { deviation: number; unknown: number; uncovered: number }
+  stock: { deviation: number; unknown: number; uncovered: number; attribute: number }
   delta: { introduced: string[]; resolved: string[]; remaining: string[]; notComparable: string[] }
 }
 export class InputError extends Error {
@@ -326,7 +328,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     s = record(v.stock, 'baseline.stock'),
     d = record(v.delta, 'baseline.delta'),
     g = record(v.graph, 'baseline.graph')
-  if (v.schemaVersion !== 4) throw new InputError('unsupported baseline schemaVersion')
+  if (v.schemaVersion !== 5) throw new InputError('unsupported baseline schemaVersion')
   const version = v.schemaVersion
   const capture = parseCapture({
     ...v,
@@ -394,7 +396,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     const f = record(item, `baseline.findings[${index}]`)
     return {
       id: nonempty(f.id, 'finding.id'),
-      category: oneOf(f.category, ['deviation', 'unknown', 'uncovered'], 'finding.category'),
+      category: oneOf(f.category, findingCategories, 'finding.category'),
       code: nonempty(f.code, 'finding.code'),
       object: text(f.object, 'finding.object'),
       clause: text(f.clause, 'finding.clause'),
@@ -407,7 +409,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     throw new InputError('baseline finding identity is invalid')
   if (new Set(findings.map(f => f.id)).size !== findings.length)
     throw new InputError('baseline has duplicate finding ids')
-  for (const category of ['deviation', 'unknown', 'uncovered'])
+  for (const category of findingCategories)
     if (s[category] !== findings.filter(f => f.category === category).length)
       throw new InputError('baseline stock does not match findings')
   for (const key of ['introduced', 'resolved', 'remaining', 'notComparable'])
@@ -438,6 +440,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
       deviation: findings.filter(f => f.category === 'deviation').length,
       unknown: findings.filter(f => f.category === 'unknown').length,
       uncovered: findings.filter(f => f.category === 'uncovered').length,
+      attribute: findings.filter(f => f.category === 'attribute').length,
     },
     delta: {
       introduced: strings(d.introduced, 'delta.introduced'),

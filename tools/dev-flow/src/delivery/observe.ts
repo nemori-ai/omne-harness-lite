@@ -2,7 +2,9 @@ import { bindCapture, conditionKinds, phases, workKinds } from './protocol.ts'
 import { parseConditionScope, readTaskBinding } from './binding.ts'
 import { bodyFields as fields, bodySections as sections } from './body.ts'
 import { IntegrationError } from '../integration/parse.ts'
-import { readCardAttributes, type ConditionCard } from './attributes.ts'
+import { attributeFindings, readCardAttributes, type ConditionCard } from './attributes.ts'
+import type { DeliveryLines } from './lines.ts'
+import type { Policy } from '../integration/policy.ts'
 import type {
   CapturedIssue,
   CardObservation,
@@ -93,10 +95,13 @@ function cyclesOf(edges: Edge[]): DeliveryReport['graph']['cycles'] {
   for (const node of outgoing.keys()) visit(node)
   return cycles
 }
+/** The rules attribute findings need. Without them the report has no attribute findings. */
+export type AttributeRules = { lines: DeliveryLines; registry: Pick<Policy, 'tracks'> }
 export function observeDelivery(
   config: DeliveryConfig,
   capture: DeliveryCapture,
   baseline?: DeliveryReport,
+  rules?: AttributeRules,
 ): DeliveryReport {
   bindCapture(config, capture)
   const findings = new Map<string, Finding>(),
@@ -461,6 +466,15 @@ export function observeDelivery(
       if (!(error instanceof IntegrationError)) throw error
       add('deviation', 'integration-binding-invalid', issue.url, 'binding', error.message, revision)
     }
+    if (rules !== undefined && issue.state === 'open')
+      for (const finding of attributeFindings({
+        binding: integrationBinding ?? undefined,
+        card: readCardAttributes(issue.body, issue),
+        conditionCards: conditionCardsOf(conditions, issues),
+        lines: rules.lines,
+        registry: rules.registry,
+      }))
+        add('attribute', finding.code, issue.url, finding.clause, finding.message, revision)
     if (conditions.some(condition => condition.scope !== undefined && condition.scope !== 'all'))
       add(
         'uncovered',
@@ -633,7 +647,7 @@ export function observeDelivery(
     baseline.projectId === config.project.id &&
     baseline.protocolVersion === config.protocolVersion &&
     baseline.scope === 'all-repository-issues' &&
-    baseline.schemaVersion === 4
+    baseline.schemaVersion === 5
   const missingOld = [...oldIds].filter(id => !currentIds.has(id))
   const complete =
     capture.collection.errors.length === 0 &&
@@ -641,7 +655,7 @@ export function observeDelivery(
     capture.collection.project === 'complete' &&
     capture.issues.every(i => i.commentsComplete && i.relationsComplete)
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     kind: 'github-delivery-report',
     protocolVersion: 2,
     repository: config.repository,
@@ -658,6 +672,7 @@ export function observeDelivery(
       deviation: result.filter(f => f.category === 'deviation').length,
       unknown: result.filter(f => f.category === 'unknown').length,
       uncovered: result.filter(f => f.category === 'uncovered').length,
+      attribute: result.filter(f => f.category === 'attribute').length,
     },
     delta: {
       introduced:

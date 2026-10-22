@@ -17,7 +17,7 @@ import { join, resolve } from 'node:path'
 import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
 import { observeDelivery } from '../src/delivery/observe.ts'
-import type { TaskBinding } from '../src/delivery/binding.ts'
+import type { TaskBinding, TaskBindingV2 } from '../src/delivery/binding.ts'
 import {
   bindCapture,
   parseBaseline,
@@ -25,6 +25,7 @@ import {
   parseConfig,
   workKinds,
 } from '../src/delivery/protocol.ts'
+import { registry, table } from './fixtures/lines.ts'
 import type {
   CapturedIssue,
   Condition,
@@ -150,6 +151,10 @@ const templateValues: Record<string, string> = {
   一次可独立接受的结果: '统一交付卡的输入与执行信息',
   父交付卡中的一次可验证结果: '统一子任务的输入与执行信息',
   'feature／bug／refactor／performance／maintenance／investigation': 'maintenance',
+  'docs/engineering/delivery-lines.json 中的线ID，或integration；里程碑在Issue的milestone字段设置':
+    'engineering-toolchain',
+  'design／contract／impl／integration／baseline': 'impl',
+  'none／additive／breaking': 'none',
   '创建前登记并读回的稳定标识，后续修订保持': 'template-maintenance-2',
   '真实父Issue URL，并核对平台父关系': 'https://github.com/owner/repo/issues/1',
   '领域、实际成员或工程机制': '交付卡模板及只读观察工具',
@@ -198,7 +203,7 @@ const templateValues: Record<string, string> = {
   '实际路径；未创建明说': '未创建',
   '未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。':
     '未登记binding。计划 global 路线，最终进入 main，执行实例待派发。',
-  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v1区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
+  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v2区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
     '',
   '从binding.route及已采用轨道登记解析的只读摘要': '未派发，尚未解析',
   'start回执taskSource；与binding.taskBase分别保留': '未开工',
@@ -266,6 +271,7 @@ describe('delivery card layouts', () => {
       expect([...source.matchAll(/^## (.+)$/gm)].map(match => match[1])).toEqual(headings)
       expect(source.replace(/<!--[^]*?-->/g, '')).toContain('在本Issue评论声明认卡')
       expect(source).not.toContain('```json omne-integration-binding:v1')
+      expect(source).not.toContain('```json omne-integration-binding:v2')
     }
     const notice = (source: string) =>
       source.slice(source.indexOf('**接手本卡**'), source.indexOf('## 身份与责任'))
@@ -1100,7 +1106,7 @@ describe('actual offline CLI', () => {
 })
 
 describe('retired delivery structures', () => {
-  it.each([1, 2, 3])('rejects report schema %s', schemaVersion => {
+  it.each([1, 2, 3, 4])('rejects report schema %s', schemaVersion => {
     const report = observeDelivery(config(), capture([issue(1)]))
     expect(() => parseBaseline({ ...report, schemaVersion })).toThrow('schemaVersion')
   })
@@ -1124,7 +1130,7 @@ describe('retired delivery structures', () => {
       { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },
       { config: { ...config(), sourceCutovers: 'old' }, capture: capture(), report },
       { config: config(), capture: { ...capture(), protocolVersion: 1 }, report },
-      ...[1, 2, 3].map(schemaVersion => ({
+      ...[1, 2, 3, 4].map(schemaVersion => ({
         config: config(),
         capture: capture(),
         report: { ...report, schemaVersion },
@@ -1244,4 +1250,207 @@ it.each([
     body: body(1, 'maintenance', [dependency('D1', 2)]) + '\n' + explanation,
   })
   expect(codes([card, issue(2)])).not.toContain('conditions-table-invalid')
+})
+
+describe('attribute category', () => {
+  const rules = { lines: table(), registry }
+  const lines = { line: '- 交付线：', nature: '- 性质：', contract: '- 契约变更：' }
+  const v2Binding = (writeScope: string[]): TaskBindingV2 => ({
+    schemaVersion: 2,
+    issue: { repository: 'owner/repo', id: 'issue-2', number: 2, url: issue(2).url },
+    revision: 1,
+    attempt: 'attribute-2',
+    responsible: 'human',
+    branch: 'human/attribute-2',
+    route: { kind: 'track', track: 'legacy-refactor' },
+    completionTarget: 'track',
+    taskBase: 'a'.repeat(40),
+    writeScope,
+    dispatch: `${issue(2).url}#issuecomment-2`,
+    conditions: [],
+    authorization: [],
+    line: 'engineering-toolchain',
+    nature: 'impl',
+    contractChange: 'none',
+    milestone: 'M1',
+  })
+  function card(source: string, patch: Partial<CapturedIssue> = {}): CapturedIssue {
+    return issue(2, {
+      body: source,
+      labels: ['line:engineering-toolchain', 'nature:impl'],
+      milestone: 'M1',
+      ...patch,
+    })
+  }
+  function withBinding(source: string, binding: TaskBinding): string {
+    return replaceSection(
+      source,
+      '当前执行与交接',
+      `## 当前执行与交接\n\n\`\`\`json omne-integration-binding:v2\n${JSON.stringify(binding)}\n\`\`\`\n\n`,
+    )
+  }
+  const attributes = (report: ReturnType<typeof observeDelivery>) =>
+    report.findings.filter(f => f.category === 'attribute').map(f => [f.code, f.clause])
+  const deviations = (report: ReturnType<typeof observeDelivery>) =>
+    report.findings.filter(f => f.category === 'deviation').map(f => f.id)
+
+  it('reports nothing for a filled template that agrees with its v2 binding', () => {
+    const report = observeDelivery(
+      config(),
+      capture([card(withBinding(filledTemplate('delivery'), v2Binding(['tools/dev-flow'])))]),
+      undefined,
+      rules,
+    )
+    expect(attributes(report)).toEqual([])
+    expect(deviations(report)).toEqual([])
+    expect(report.stock.attribute).toBe(0)
+  })
+
+  it('records each attribute finding in its own non-blocking category', () => {
+    const source = withBinding(filledTemplate('delivery').replace(`${lines.contract}none`, ''), {
+      ...v2Binding(['packages/model/model', 'apps/cli']),
+      milestone: 'M0',
+    })
+    const plain = observeDelivery(config(), capture([card(source, { labels: [] })]))
+    const report = observeDelivery(
+      config(),
+      capture([card(source, { labels: [] })]),
+      undefined,
+      rules,
+    )
+    expect(attributes(report)).toEqual([
+      ['attribute-binding-drift', 'binding.milestone'],
+      ['attribute-missing', '契约变更'],
+      ['label-drift', 'line:'],
+      ['label-drift', 'nature:'],
+      ['scope-integration-path', 'apps/cli'],
+      ['scope-outside-line', 'packages/model/model'],
+    ])
+    expect(report.stock.attribute).toBe(attributes(report).length)
+    expect(
+      report.findings.filter(f => f.category === 'attribute').every(f => f.revision === 1),
+    ).toBe(true)
+    expect(deviations(report)).toEqual(deviations(plain))
+    expect(report.stock.deviation).toBe(plain.stock.deviation)
+    expect(report.stock.unknown).toBe(plain.stock.unknown)
+  })
+
+  it('reports cross-line conditions on read cards', () => {
+    const target = issue(3, {
+      body: filledTemplate('delivery').replace(
+        `${lines.line}engineering-toolchain`,
+        `${lines.line}model`,
+      ),
+    })
+    const source = filledTemplate('delivery', true).replace(
+      `${issue(2).url}#issuecomment-3`,
+      target.url,
+    )
+    const report = observeDelivery(config(), capture([card(source), target]), undefined, rules)
+    expect(attributes(report)).toContainEqual(['condition-cross-line', 'D-01'])
+  })
+
+  it('skips closed cards and reports v1 bindings', () => {
+    const {
+      line: _l,
+      nature: _n,
+      contractChange: _c,
+      milestone: _m,
+      ...rest
+    } = v2Binding(['tools'])
+    const v1: TaskBinding = { ...rest, schemaVersion: 1 }
+    const source = replaceSection(
+      filledTemplate('delivery'),
+      '当前执行与交接',
+      `## 当前执行与交接\n\n\`\`\`json omne-integration-binding:v1\n${JSON.stringify(v1)}\n\`\`\`\n\n`,
+    )
+    expect(
+      attributes(observeDelivery(config(), capture([card(source)]), undefined, rules)),
+    ).toEqual([['binding-v1', 'binding']])
+    expect(
+      attributes(
+        observeDelivery(config(), capture([card(source, { state: 'closed' })]), undefined, rules),
+      ),
+    ).toEqual([])
+  })
+
+  it('keeps admission free of attribute findings', () => {
+    const source = filledTemplate('delivery').replace(`${lines.nature}impl`, `${lines.nature}x`)
+    const admission: AdmissionCapture = {
+      schemaVersion: 1,
+      kind: 'github-admission-capture',
+      protocolVersion: 2,
+      repository: 'owner/repo',
+      projectId: 'project-4',
+      scope: { task: issue(2).url, authority: `${issue(2).url}#issuecomment-1` },
+      closure: [issue(2).url],
+      issues: [card(source)],
+      startedAt: at,
+      finishedAt: at,
+    }
+    expect(
+      observeAdmission(config(), admission).findings.filter(f => f.category === 'attribute'),
+    ).toEqual([])
+  })
+
+  it('round-trips report version 5 with the attribute stock and refuses a wrong count', () => {
+    const report = observeDelivery(
+      config(),
+      capture([card(filledTemplate('delivery'), { labels: [] })]),
+      undefined,
+      rules,
+    )
+    expect(report.schemaVersion).toBe(5)
+    expect(report.stock.attribute).toBeGreaterThan(0)
+    const parsed = parseBaseline(JSON.parse(JSON.stringify(report)))
+    expect(parsed.findings).toEqual(report.findings)
+    expect(() => parseBaseline({ ...report, stock: { ...report.stock, attribute: 0 } })).toThrow(
+      /stock/,
+    )
+    const next = observeDelivery(
+      config(),
+      capture([card(filledTemplate('delivery'))]),
+      parsed,
+      rules,
+    )
+    expect(next.delta.resolved.some(id => id.includes('label-drift'))).toBe(true)
+  })
+
+  it('applies the repository rules by default and refuses unreadable rule files in the CLI', () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-attribute-cli-')))
+    try {
+      const cfg = join(dir, 'config.json'),
+        cap = join(dir, 'capture.json'),
+        bad = join(dir, 'lines.json'),
+        cli = resolve('src/delivery/cli.ts')
+      writeFileSync(cfg, JSON.stringify(config()))
+      writeFileSync(
+        cap,
+        JSON.stringify(capture([card(filledTemplate('delivery'), { labels: [] })])),
+      )
+      writeFileSync(bad, JSON.stringify({ schemaVersion: 2 }))
+      const report = parseBaseline(
+        JSON.parse(
+          execFileSync(
+            process.execPath,
+            ['--experimental-strip-types', cli, '--config', cfg, '--capture', cap],
+            { encoding: 'utf8' },
+          ),
+        ),
+      )
+      expect(report.findings.filter(f => f.category === 'attribute').map(f => f.code)).toContain(
+        'label-drift',
+      )
+      const refused = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', cli, '--config', cfg, '--capture', cap, '--lines', bad],
+        { encoding: 'utf8' },
+      )
+      expect(refused.status).toBe(2)
+      expect(refused.stdout).toBe('')
+      expect(refused.stderr).toContain('delivery-input-error')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
