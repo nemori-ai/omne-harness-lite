@@ -1,3 +1,4 @@
+import { types } from 'node:util'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
 export function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -16,8 +17,8 @@ export function validate(
   value: unknown,
 ): readonly StandardSchemaV1.Issue[] {
   const result = schema['~standard'].validate(value)
-  if (result instanceof Promise) {
-    void result.catch(() => {})
+  if (types.isPromise(result)) {
+    void Promise.resolve(result).catch(() => {})
     throw new SynchronousSchemaRequired()
   }
   return result.issues ?? []
