@@ -2,7 +2,7 @@
 
 状态：契约成员，`draft`。[局部技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6187949335)覆盖文件使用对象授权、进程退出观察和活动句柄所指对象及其代际的语义；「最小调用事实」由[补交技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6190967601)接受，不包括具体字段、编码或存储；[阶段选择](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6189563335)把 J-EE01 至 J-EE08、CAP-EE01 至 CAP-EE12 纳入单机第一版承诺。本页保留 #268 接受的三句（INV-EE01 活动句柄、INV-EE09 对象授权、INV-EE13 退出观察）与「最小调用事实」的原文义；其余 INV 按新领域边界写成，各条注明依据，未经技术接受。拒绝原因、设施协议、获取与租约、恢复四节未经技术接受。这些条款与小节的依据是产品正文 [执行环境](../../../.meta_harness/design/product/execution-environments/design.md) 第 2 版「环境、落点与资源的概念」。本页只拥有公开类型以外的必要行为。公开形状归 `src/`，导出导航归 [docs/public-api.md](docs/public-api.md)，对象的身份与生灭归 [docs/object-model.md](docs/object-model.md)。
 
-本成员有公开类型、三个核心设施的协议、需要声明的 schema 与两条块声明，没有提供者。逐操作参数与结果的 schema、设施与提供者的契约验证套件尚未进入。宿主文件使用的实现与运行记录归 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)。
+本成员有公开类型、三个核心设施的协议、需要声明的 schema 与两条块声明，没有提供者。环境面、恢复面和登记面的参数 schema、前两面的结果 schema，以及提供者和执行环境的契约验证套件已进入。设施自身逐操作 schema 留后续 Q-EE05。宿主文件使用的实现与运行记录归 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)。
 
 ## 范围与依据
 
@@ -108,7 +108,7 @@
 
 落点解析、获取、排队、资源压力、到期、控制、关闭、数据恢复及其拒绝、失败、未知，均关联访问身份、作用域、原调用、适用环境、资源及实际代码与提供者版本。本成员导出两条块声明 `execution.placement`（按作用域给原调用的当前落点列表）与 `execution.host-facts`（每个已登记提供者的代、版本、平台、设施键、隔离断言与前提），供模型类读者感知各工具真实落点和上次状态保留情况。这两条块在 Runtime Context 中的生产者是 host-local 的 Service 实现。当前还没有发布。块生产者的读取面没有定义，见[明确缺项](#明确缺项)。无法确认时明确未知，不能从通知成功推定物理完成。Runtime Context 按自己的供给协议消费变化，不由环境自动重做原工作。
 
-落点块的作用域是获取记录里的请求方作用域（[获取与租约](#获取与租约)），不是绑定层的归属；所以宿主机与租户级沙箱上的落点也列在获取它的作用域下。宿主事实块的每一项带提供者的代（一次登记化身）与版本（提供者代码的版本，[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。平台是操作系统类型加版本。前提取满足、不满足、未知三态之一；提供者的前提探测被接受之前报未知，不报满足。当前日期不在块值里，见[明确缺项](#明确缺项)。
+落点块的作用域是获取记录里的请求方作用域（[获取与租约](#获取与租约)），不是绑定层的归属；所以宿主机与租户级沙箱上的落点也列在获取它的作用域下。宿主事实块的每一项带提供者的代（一次登记化身）与版本（提供者代码的版本，[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。平台是操作系统类型加版本。前提取满足、不满足、未知三态之一；提供者的前提探测被接受之前报未知，不报满足。宿主事实块值为 `{ date, providers }`：`date` 是块发布时宿主本地日历日，格式为真实存在的 `YYYY-MM-DD`；日期由块生产者供值，提供者事实不重复携带日期。
 
 查询和观测读取相应权威事实并说明新鲜度，不重做业务操作。必要记录失败及观察过期可见，不能静默转为成功或空集合；内容和敏感位置按访问目的裁剪，凭据不进入普通输出。代码自报不能替代宿主记录的授予、调用和终止事实。验证义务 V-EE17。依据：产品第 2 版「落点与宿主事实可被感知」。
 
@@ -122,9 +122,9 @@
 
 设施是按名登记的开放协议。每种设施有一份设施声明，由这种设施的拥有者发布：键、操作名单、其中哪些操作须逐操作授权。全系统一个键只有一份声明；同一个键的第二份声明被拒绝登记，原声明不变。撤除声明后新的获取取不到这个键，已有租约上对这个键的后续操作以 `unsupported` 拒绝。拥有者用 `declare module` 增补 `EnvironmentFacilities` 给出类型，`describeFacility` 要求操作名单完整。声明只提供词汇，不安装设施，也不授权操作。依据：产品第 2 版「设施的声明、请求与守卫」。
 
-设施键进入获取路径要同时满足：声明已登记；提供者声明该键；提供者为须授权的操作接受设施守卫。缺任一项，`acquire` 对该键返回 `unsupportedFacility`，不交原始对象。逐操作参数与结果的 schema 和契约验证套件尚未进入本成员；进入之前，提供者是否通过契约验证只能由提供者自己的测试证明。
+设施键进入获取路径要同时满足：声明已登记；提供者声明该键；提供者为须授权的操作接受设施守卫。缺任一项，`acquire` 对该键返回 `unsupportedFacility`，不交原始对象。环境面、恢复面与登记面的 schema 由 `operationSchemas` 索引；登记面的返回值是撤除函数，不另设结果 schema。设施自身逐操作 schema 留 Q-EE05。`./testing` 提供独立用例列表，缺少控制钩子时明确记为不适用，不算通过。登记面没有拒绝通道：同键第二份设施声明被拒绝、提供者撤除待处置等情况以抛出报告；错误类型归实现成员。
 
-每次设施操作带设施请求：请求身份、访问身份、原调用、绑定层，加该操作自己的参数。同一请求身份只有一种确认：完成、未找到对象、拒绝（带原因）、未知。完成只表示这次请求确认的那一项成功：读取完成不表示写入完成；启动被接纳不表示进程已启动或已退出。后一次操作即使参数相同也是另一个请求。`requestId` 是关联标识，不是幂等键：执行环境不按它去重，同一 `requestId` 再次发出也是一次新操作，所以调用方不得重用它。请求里的原调用与这次获取的原调用是否一致，现在不核对，见[明确缺项](#明确缺项)。拒绝原因只取 `invalidInput`、`notAuthorized`、`notFound`、`conflict`、`busy`、`capacity`、`unsupported`、`closed`、`unavailable`、`effectUnknown`。这一段承接已接受的「最小调用事实」；拒绝原因的枚举不在 #268 的接受范围内。
+每次设施操作带设施请求：请求身份、访问身份、原调用、绑定层，加该操作自己的参数。同一请求身份只有一种确认：完成、未找到对象、拒绝（带原因）、未知。完成只表示这次请求确认的那一项成功：读取完成不表示写入完成；启动被接纳不表示进程已启动或已退出。后一次操作即使参数相同也是另一个请求。`requestId` 是关联标识，不是幂等键：执行环境不按它去重，同一 `requestId` 再次发出也是一次新操作，所以调用方不得重用它。门核对请求里的原调用与这次获取的原调用；不一致时返回 `invalidInput`，不调用守卫与设施。拒绝原因只取 `invalidInput`、`notAuthorized`、`notFound`、`conflict`、`busy`、`capacity`、`unsupported`、`closed`、`unavailable`、`effectUnknown`。这一段承接已接受的「最小调用事实」；拒绝原因的枚举不在 #268 的接受范围内。
 
 三个核心设施的键与协议归本成员：`files`（文件：读取、查看、写入、关闭四项，加列表、搜索、建目录、删除、移动、复制与批次八项）、`command`（命令：启动一个进程，增量流式输出，有界缓冲，停止两态）、`terminal`（终端：持久 shell 的创建、分段执行、关闭、列表）。全部操作的结果是设施结果四态。
 
@@ -156,15 +156,15 @@
 
 `describe(访问身份, 作用域)` 只列出调用方租户的获取，并按作用域过滤：请求方作用域是该作用域、已签发采用记录且尚未释放的获取，不论绑定层是哪一种。每项带获取键、原调用、绑定层、提供者身份、实例身份与代、连续性、设施键与当前状态。执行环境关闭后，`describe` 以 `ownerStopped` 拒绝。
 
-租约只暴露环境要求里的设施键；每次须授权的操作先过设施守卫，答案是允许、不允许或不可用，执行环境不知道依据。每次设施操作按下列顺序核对，第一项不成立即拒绝：请求形状（`invalidInput`）；租约仍接纳新操作，即没有失效、也没有发起释放（`closed`）；这次获取的账本没有关闭（`closed`，[INV-EE15](#inv-ee15-准备持有回收与确认保持一致)）；这个键的设施声明仍在并列出这个操作（`unsupported`）；租户（`notAuthorized`）；绑定层（`invalidInput`）；须授权的操作问设施守卫；守卫答允许后再核一次租约与账本（`closed`）。所以租约或账本已关闭时，即使声明也已撤除，答复仍是 `closed`。租约只绑定租户：请求里的租户必须等于获取方的租户，否则 `notAuthorized`。租户核对之后，请求里的绑定层必须等于租约落点的绑定层，否则 `invalidInput`，这个请求不交给设施守卫。请求里的原调用现在不核对。主体由设施守卫判断，执行环境不比较主体。租约带实例身份与代、连续性；失效可观察，失效后或释放发起后的新操作返回 `closed`。释放发起后，不论结果是已释放、待处置还是仍在进行，租约都不再接纳新操作；待处置后仍可重试释放。租约失效后，在途的输出、终局和停止仍由原提供者处理。提供者退役时先拒新租约，再排空：已接纳的操作结束，受管资源已停或已列为待处置（[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。释放只作用于这一次获取，结果是已释放，或待处置并列出未停的受管资源；同一释放可重试；共享环境不因一次释放而销毁；丢掉引用不是释放。
+租约只暴露环境要求里的设施键；每次须授权的操作先过设施守卫，答案是允许、不允许或不可用，执行环境不知道依据。每次设施操作按下列顺序核对，第一项不成立即拒绝：请求形状（`invalidInput`）；租约仍接纳新操作，即没有失效、也没有发起释放（`closed`）；这次获取的账本没有关闭（`closed`，[INV-EE15](#inv-ee15-准备持有回收与确认保持一致)）；这个键的设施声明仍在并列出这个操作（`unsupported`）；租户（`notAuthorized`）；原调用（`invalidInput`）；绑定层（`invalidInput`）；须授权的操作问设施守卫；守卫答允许后再核一次租约与账本（`closed`）。所以租约或账本已关闭时，即使声明也已撤除，答复仍是 `closed`。租约只绑定租户：请求里的租户必须等于获取方的租户，否则 `notAuthorized`。租户核对之后，请求里的绑定层必须等于租约落点的绑定层，否则 `invalidInput`，这个请求不交给设施守卫。请求里的原调用必须等于获取时固定的原调用，否则 `invalidInput`，不交给设施守卫。主体由设施守卫判断，执行环境不比较主体。租约带实例身份与代、连续性；失效可观察，失效后或释放发起后的新操作返回 `closed`。释放发起后，不论结果是已释放、待处置还是仍在进行，租约都不再接纳新操作；待处置后仍可重试释放。租约失效后，在途的输出、终局和停止仍由原提供者处理。提供者退役时先拒新租约，再排空：已接纳的操作结束，受管资源已停或已列为待处置（[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。释放只作用于这一次获取，结果是已释放，或待处置并列出未停的受管资源；同一释放可重试；共享环境不因一次释放而销毁；丢掉引用不是释放。
 
 租户的线上形式归 legal-identity：跨序列化边界的租户写成它的租户文本，由 `tenantCodec` 解码并铸造。本成员的解码器（`judgeRequirement` 与两条块声明的 schema）接受租户文本，也原样保留本进程内已铸造的 `TenantId`。其他形状一律拒绝，包括形状与 `TenantId` 相同的手造对象。比较租户只用 legal-identity 的 `tenantEquals`。
 
-访问身份里的租户也必须是 legal-identity 铸造的值；执行环境用 `tenantEquals(租户, 租户)` 核对，未铸造的值不等于任何租户。执行环境在 `resolvePlacement`、`acquire`、`inspectAcquisition` 与 `describe` 的最前面做这项核对。未铸造时，`resolvePlacement`、`acquire` 与 `describe` 以 `invalidInput` 拒绝，不写记录，也不调用提供者。`AcquisitionState` 没有表示无效输入的答复，所以 `inspectAcquisition` 答复 `unrecorded`。`recoverOwned` 与 `releaseScope` 不带访问身份，不做这项核对。
+访问身份里的租户也必须是 legal-identity 铸造的值；执行环境用 `tenantEquals(租户, 租户)` 核对，未铸造的值不等于任何租户。执行环境在 `resolvePlacement`、`acquire`、`inspectAcquisition` 与 `describe` 的最前面做这项核对。未铸造时，`resolvePlacement`、`acquire` 与 `describe` 以 `invalidInput` 拒绝，不写记录，也不调用提供者。`inspectAcquisition` 答复 `{ kind: 'invalidInput' }`；它不表示记录状态，也不泄露某键是否存在。`recoverOwned` 与 `releaseScope` 不带访问身份，不做这项核对。
 
 ### 拒绝原因
 
-执行环境的操作以 `Rejected` 拒绝时，原因取 `RejectReason` 的十一个值。设施操作的拒绝原因是另一个集合 `FacilityReason`，见[设施协议](#设施协议)。各操作的取值与触发条件如下。
+执行环境的操作以 `Rejected` 拒绝时，原因取 `RejectReason` 的十二个值。设施操作的拒绝原因是另一个集合 `FacilityReason`，见[设施协议](#设施协议)。各操作的取值与触发条件如下。
 
 | 操作 | 原因 | 触发条件 |
 | --- | --- | --- |
@@ -187,7 +187,8 @@
 | `acquire` | `unsupportedFacility` | 所需设施键有一项没有登记声明、不由该提供者提供，或回执的租约取不到它 |
 | `acquire` | `unavailable` | 回执里的绑定层与落点不一致 |
 | `acquire` | 提供者给出的原因 | 提供者拒绝时，原因原样交给集成方，取值仍在本集合内。例如接续时账本答 `unavailable`，提供者以 `unavailable` 拒绝（[INV-EE15](#inv-ee15-准备持有回收与确认保持一致)） |
-| `inspectAcquisition` | 不拒绝 | 没有调用方租户在这个键下的记录时答复 `unrecorded`；访问身份里的租户未铸造时也答复 `unrecorded` |
+| `inspectAcquisition` | 不拒绝 | 没有调用方租户在这个键下的记录时答复 `unrecorded`；访问身份里的租户未铸造时答复 `{ kind: 'invalidInput' }`，这不是已记录状态 |
+| 有拒绝通道的操作 | `callerMismatch` | Cordis 装配声明的调用者类别与操作面不符；登记面抛出，错误类型归集成契约 |
 | `describe` | `ownerStopped` | 执行环境已关闭 |
 | `recoverOwned`、`releaseScope` | `notAuthorized`、`unavailable` | 恢复授权端口答不允许或不可用；端口抛出按 `unavailable` 处理 |
 
@@ -199,7 +200,7 @@
 
 作用域释放由维护者凭恢复授权发起。维护者在本版由应用装配层的协调者担任（[对象模型 角色](docs/object-model.md#调用方怎样使用)）。
 
-作用域引用由作用域持有者铸造，持有者保证它跨租户唯一。执行环境按作用域引用释放与恢复，不核对作用域的租户归属；`RecoveryAccess` 不带租户。这与 Runtime Context 一致：作用域所属租户由作用域持有者给出，Runtime Context 在一个作用域第一次注册时记下它（[RC-02](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）。两个契约对作用域与租户绑定的统一说法见[明确缺项](#明确缺项)。
+作用域引用由作用域持有者铸造，持有者保证它跨租户唯一。执行环境按作用域引用释放与恢复，不核对作用域的租户归属；`RecoveryAccess` 不带租户。这与 Runtime Context 一致：作用域所属租户由作用域持有者给出，Runtime Context 在一个作用域第一次注册时记下它（[RC-02](../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）。Runtime Context 使用这个租户判断后续读取资格；执行环境仍只按不透明作用域引用释放与恢复。
 
 已释放的作用域由集成方的账本耐久保存。登记表只在进程内记住已释放的作用域，执行环境重启后不再记得。所以重启后，集成方在该作用域的第一次获取之前重新调用 `releaseScope`，或者自己拒绝该作用域的新获取（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)）。
 
@@ -266,16 +267,12 @@
 
 ### 明确缺项
 
-- 逐操作参数与结果的 schema、设施与提供者的契约验证套件，随后续实现进入；进入前「提供者通过契约验证」只由提供者自己的测试证明。
+提供者抛出仍映射到闭合失败或待处置结果。资源责任不得丢失，原错误须进入诊断，采用 [DP-01 资源边界例外](../../../docs/defensive-patterns.md#dp-01-独立事实分别报告)。当前登记表尚不保留原异常；实现限制与后续责任归 [execution-environment](../execution-environment/SPEC.md#明确缺项)。
+
 - 同一幂等键配不同落点的重复获取按参数冲突拒绝，是本页的定义；登记表机制按此实现。
 - 技术后续设计与来源缺项 Q-EE02 至 Q-EE06 归 [docs/architecture.md](docs/architecture.md)。
 - 沙箱提供者与受限执行域不在本成员；隔离断言集合为它们留位。
-- `execution.host-facts` 的值没有承载产品第 2 版「落点与宿主事实可被感知」要求的当前日期字段，随提供者实现补进块值。
 - 当前没有成员发布这两条块。host-local 的 Service 实现现在不登记 Runtime Context 的生产者。
 - 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出。
-- 请求里的原调用与获取的原调用是否一致，现在没有核对点。由设施守卫还是门核对，待本契约的拥有者裁定。
-- 作用域与租户绑定的统一说法（本契约不核对作用域的租户归属，Runtime Context 在首次注册时记下作用域所属租户）待本契约与 Runtime Context 契约的拥有者裁定。
-- 提供者抛出的错误一律映射成闭合失败（例如 `acquire` 的 `providerUnavailable`，释放的待处置结果），包括执行环境不认识的错误。这与[防御指导 DP-01](../../../docs/defensive-patterns.md#dp-01-独立事实分别报告)「边界只捕获能识别的已知错误，未知错误原样向上抛」不一致。保留映射并在 DP-01 登记例外，还是只映射可识别的错误，待本契约拥有者裁定。
-- 未铸造租户查询 `inspectAcquisition` 答复 `unrecorded`，因为 `AcquisitionState` 没有表示无效输入的答复（见[拒绝原因](#拒绝原因)前一段）。是否给 `AcquisitionState` 增加无效输入答复，待本契约拥有者裁定。
 
 本规格没有生产实现的运行验证。当前只有宿主文件使用在 [execution-environment-host-local](../execution-environment-host-local/SPEC.md) 有运行记录。候选、自检、独立审阅和实施接受分别判断。

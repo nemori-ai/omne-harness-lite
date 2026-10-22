@@ -33,8 +33,20 @@ export type ExecutionPlacementEntry = Readonly<{
 
 export type ExecutionPlacementValue = readonly ExecutionPlacementEntry[]
 
-/** One fact entry per registered provider on this host. */
-export type ExecutionHostFactsValue = readonly ProviderFacts[]
+/**
+ * A calendar date `YYYY-MM-DD` (RFC 3339 full-date) in the host's local time zone. A value of this
+ * type comes only from the schema of `execution.host-facts`, which checks that the date exists.
+ */
+export type HostDate = string & { readonly __hostDate: unique symbol }
+
+/**
+ * Host facts: the host's current date when the block producer published the value, and one fact
+ * entry per registered provider on this host.
+ */
+export type ExecutionHostFactsValue = Readonly<{
+  date: HostDate
+  providers: readonly ProviderFacts[]
+}>
 
 declare module '@omne-harness/runtime-context-contract' {
   interface ContextBlocks {
@@ -43,7 +55,7 @@ declare module '@omne-harness/runtime-context-contract' {
   }
 }
 
-const decodeInstance: Decoder<InstanceIdentity> = (value, path) => {
+export const decodeInstance: Decoder<InstanceIdentity> = (value, path) => {
   if (!isRecord(value)) return refuse(path, 'expected an instance identity')
   const keys = exactKeys(value, path, ['id', 'generation'])
   if (!keys.ok) return keys
@@ -113,7 +125,7 @@ const decodePrerequisites: Decoder<ProviderFacts['prerequisites']> = (value, pat
     : accept(state)
 }
 
-const decodeFacts: Decoder<ProviderFacts> = (value, path) => {
+export const decodeFacts: Decoder<ProviderFacts> = (value, path) => {
   if (!isRecord(value)) return refuse(path, 'expected provider facts')
   const keys = exactKeys(value, path, [
     'provider',
@@ -152,6 +164,37 @@ const decodeFacts: Decoder<ProviderFacts> = (value, path) => {
   )
 }
 
+const fullDate = /^(\d{4})-(\d{2})-(\d{2})$/
+
+// The calendar check: the three numbers name a day that exists, so 2026-02-30 is refused.
+function isHostDateText(text: string): text is HostDate {
+  const parts = fullDate.exec(text)
+  if (parts === null) return false
+  const [year, month, day] = [Number(parts[1]), Number(parts[2]), Number(parts[3])]
+  // `setUTCFullYear` takes years below 100 as they are; `Date.UTC` would add 1900.
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  )
+}
+
+const decodeHostDate: Decoder<HostDate> = (value, path) =>
+  typeof value === 'string' && isHostDateText(value)
+    ? accept(value)
+    : refuse(path, 'expected a calendar date YYYY-MM-DD')
+
+const decodeHostFacts: Decoder<ExecutionHostFactsValue> = (value, path) => {
+  if (!isRecord(value)) return refuse(path, 'expected host facts')
+  const keys = exactKeys(value, path, ['date', 'providers'])
+  if (!keys.ok) return keys
+  const date = decodeHostDate(value['date'], [...path, 'date'])
+  if (!date.ok) return date
+  const providers = decodeArray(decodeFacts)(value['providers'], [...path, 'providers'])
+  if (!providers.ok) return providers
+  return accept(Object.freeze({ date: date.value, providers: providers.value }))
+}
+
 const observers: readonly ConsumerClass[] = Object.freeze(['model', 'tool', 'extension'])
 
 /** Current placements of one scope, as a list of original calls. */
@@ -170,14 +213,17 @@ export const executionPlacementBlock: SuppliedBlockDescriptor<
   recovery: 'recompute',
 })
 
-/** Name, generation, version, platform (type and release), facility keys, isolation claims and prerequisites of every registered provider. */
+/**
+ * The host's current date, and the name, generation, version, platform (type and release), facility
+ * keys, isolation claims and prerequisites of every registered provider.
+ */
 export const executionHostFactsBlock: SuppliedBlockDescriptor<
   'execution.host-facts',
   ExecutionHostFactsValue
 > = Object.freeze({
   kind: 'supplied',
   key: 'execution.host-facts',
-  schema: standardSchema(decodeArray(decodeFacts)),
+  schema: standardSchema(decodeHostFacts),
   consumers: observers,
   required: true,
   disclosure: 'plain',

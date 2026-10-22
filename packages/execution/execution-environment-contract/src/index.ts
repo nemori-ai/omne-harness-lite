@@ -1,4 +1,4 @@
-// PACKAGE_TEMPLATE_DRAFT: Contract types, descriptors, schema and pure functions are in place; per-operation facility schemas and the facility and provider contract verification suites are not yet accepted.
+// PACKAGE_TEMPLATE_DRAFT: Contract types, descriptors, schema and pure functions are in place; facility operation schemas remain follow-up work; environment/recovery/registration schemas and conformance suites are implemented, pending delivery acceptance.
 export { acquisitionRef, originRef } from './identity.ts'
 export type { Access, AcquisitionRef, OriginRef } from './identity.ts'
 
@@ -104,3 +104,25 @@ export type {
 export { judgeRequirement, matchProviders } from './judge.ts'
 export type { ProviderCapabilities, ProviderMatch, RequirementRefusal } from './judge.ts'
 export type { Issue as DecodeIssue } from './decode.ts'
+
+export {
+  resolvePlacementParamsSchema,
+  acquireParamsSchema,
+  inspectAcquisitionParamsSchema,
+  describeParamsSchema,
+  recoverOwnedParamsSchema,
+  releaseScopeParamsSchema,
+  registerFacilityParamsSchema,
+  registerProviderParamsSchema,
+  resolvePlacementResultSchema,
+  acquireResultSchema,
+  inspectAcquisitionResultSchema,
+  describeResultSchema,
+  recoverOwnedResultSchema,
+  releaseScopeResultSchema,
+  operationSchemas,
+  providerFactsSchema,
+  managedResourceSchema,
+} from './operation-schemas.ts'
+export type { OperationSchema, OperationName } from './operation-schemas.ts'
+export type { HostDate } from './blocks.ts'

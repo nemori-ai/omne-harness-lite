@@ -53,7 +53,10 @@ function placements(value: unknown) {
 }
 
 function hostFacts(value: unknown) {
-  return executionHostFactsBlock.schema['~standard'].validate(value)
+  return executionHostFactsBlock.schema['~standard'].validate({
+    date: '2026-10-22',
+    providers: value,
+  })
 }
 
 function need(value: unknown) {
@@ -228,8 +231,10 @@ it('accepts placement entries with every continuity kind and refuses each malfor
 it('accepts host facts and refuses each malformed field', () => {
   const unsatisfied = { ...facts, prerequisites: 'unsatisfied' }
   const unknown = { ...facts, prerequisites: 'unknown' }
-  expect(hostFacts([facts, unsatisfied, unknown])).toEqual({ value: [facts, unsatisfied, unknown] })
-  const at = (...rest: (string | number)[]) => refusedAt([0, ...rest])
+  expect(hostFacts([facts, unsatisfied, unknown])).toEqual({
+    value: { date: '2026-10-22', providers: [facts, unsatisfied, unknown] },
+  })
+  const at = (...rest: (string | number)[]) => refusedAt(['providers', 0, ...rest])
   expect(hostFacts(['facts'])).toEqual(at())
   expect(hostFacts([{ ...facts, extra: true }])).toEqual(at('extra'))
   expect(hostFacts([{ ...facts, provider: 1 }])).toEqual(at('provider'))
@@ -331,3 +336,11 @@ function scopeText(text: string) {
   if (binding?.kind !== 'session_sandbox') throw new Error('expected a session sandbox')
   return binding.scope.ref
 }
+
+it('validates a real host calendar date and requires a block envelope', async () => {
+  const validate = executionHostFactsBlock.schema['~standard'].validate
+  expect(await validate({ date: '2024-02-29', providers: [] })).toHaveProperty('value')
+  for (const date of ['2026-02-29', '2026-02-30', '2026-13-01', 'today', 42])
+    expect(await validate({ date, providers: [] })).toMatchObject({ issues: [{ path: ['date'] }] })
+  expect(await validate([])).toHaveProperty('issues')
+})
