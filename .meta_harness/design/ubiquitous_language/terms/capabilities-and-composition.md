@@ -149,20 +149,25 @@
 
 ### UL-tool · 工具 · Tool
 
-> **中**：**一个可被调用的动作。**它的身份是**这一类里的那个 name**；参数形状、说明、返回形状属于定义数据，与执行实现分别演化，**所以同一个 name 下可以有平台、组织、租户各自的一份，彼此替代**。
+> **中**：**一个可被调用的动作。**它的身份是**这一类里的那个 name**。工具资产只带身份、治理声明与实现引用。参数形状、说明、返回形状由资产引用的实现提供。系统装载实现时，把资产与实现合成[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)。
+> 同一个 name 下，官方、组织、租户、工作区各层可以各持有一份资产，按[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)的层序彼此替代。各份资产可以引用不同的实现，参数形状也可以不同。
 > 一个 tool 可以是**多命令**的，而**整套命令在组装时只占一个[槽位](#ul-prompt-slot--提示词槽位--prompt-slot)**。
 >
-> **EN**: **One invocable action.** Its identity is **its name within this kind**; the argument shape, description and result shape are definition data that can evolve separately from execution implementation, so
-> **one name may have a platform, an organization and a tenant version, each standing in for
-> the others**. A tool may be **multi-command**, and **the whole command set occupies a single
-> slot** at assembly time.
+> **EN**: **One invocable action.** Its identity is **its name within this kind**. A tool asset carries
+> only the identity, the governance declarations and a reference to an implementation. The
+> referenced implementation supplies the argument shape, the description and the result shape.
+> When the system loads the implementation, it derives the tool definition from the asset and
+> the implementation. Under one name, the official, organization, tenant and workspace layers
+> may each hold an asset, and these stand in for one another by source-layer order. Each asset
+> may reference a different implementation, with a different argument shape. A tool may be
+> **multi-command**, and **the whole command set occupies a single slot** at assembly time.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
+- **出处**：[PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；资产、实现与定义的分工见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)
 - **别混**：**子命令是 tool 的内部结构，不是独立资产**——随这个 tool 一起被持有、配置与授权
 - **⚠️ 别混**：**「工具」这个词指三样东西，寿命各不相同**——
-  [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（数据，长期）、
-  动作空间里的那个条目（会话已知能力，供各次 agent runtime 使用）、
+  [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（装载时派生）、
+  动作空间里的那个条目（会话已知能力，供各次 agent runtime 使用；条目是常驻工具时，它的名字与参数形状在会话内不变，见[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)）、
   [工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)（计算资源，**绑会话**）。
   **本条说的是它作为一类资产**
 - **注意**：本系统把 Tool 定为**顶层资产**，与前身 `omne-next` 把它归为「组件」**有意相反**
@@ -528,6 +533,7 @@
   那说的是**某个范围当前选了哪一个**，是一条关系；这一条说的是**被选的那个东西**
 - **别混 ②**：**草稿不是版本**——它还在变，**复制与分享都只认已发布的**
 - **注意**：**发现有新版本不静默替换已选用的那个**——选哪一版是消费方的决定；持有选了「追随当前版」的，新版一发布就用上，那是持有上写明的选择，不算静默替换
+- **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，会话留在原来固定的版本；原版本耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
 ## 构成关系
 
@@ -625,6 +631,8 @@
 - **别混**：**具体是哪几扇门（`Tools()` `Shell()` …）是它的实例，不是概念**——
   词表定义 meta 能力，**不为每一扇门各立一条**
 
+- **注意 ⑥**：`Tools()` 这扇门也按[工具](#ul-tool--工具--tool)的对象链实现：官方资产引用一个实现包，实现包导出作者插件，系统装载时派生它的工具定义。它仍是官方的，仍不可替换。它与 example 同一波迁移，依据见 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。卸载与会话冻结的规则对 meta 能力豁免：它不参与卸载与冻结判定，经它发现和使用非常驻工具只是对它的一次调用，依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)。
+- **注意 ⑦**：Run 中途新装载的工具不进[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)，agent 经 `Tools()` 够到它们
 - **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
 - **采用范围**：必需绑定及常驻约束作用于已采用并提供的入口。未实现定义、候选及纯占位不因此进入模型工具清单；多命令约定不替未定义占位发明命令。
 

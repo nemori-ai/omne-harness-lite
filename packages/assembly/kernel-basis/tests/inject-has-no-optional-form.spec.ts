@@ -2,8 +2,8 @@
 // 可选依赖的路径是 `ctx.get(name)`：不要求 inject，提供者不在或未 ACTIVE 时返回 undefined，且提供者换代不重跑调用方。
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
-import { FIBER_STATE, resolveOptional } from '../../src/cordis.ts'
+import { FIBER_STATE, plugin } from './basis-support.ts'
+import { resolveOptional } from '@omne-harness/kernel-basis/cordis'
 
 describe('inject-has-no-optional-form', () => {
   it('可选读取过滤 PENDING、LOADING 与 UNLOADING，只在提供者 ACTIVE 时返回服务', async () => {

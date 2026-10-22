@@ -14,7 +14,7 @@ lines:
   - "utils.ts:117-124"
   - "utils.ts:165-176"
   - "fiber.ts:415-418"
-probe: packages/core/kernel-basis/tests/basis/service-method-ctx-is-caller.test.ts
+probe: packages/assembly/kernel-basis/tests/service-method-ctx-is-caller.spec.ts
 checked: 2026-10-02
 ---
 
@@ -49,7 +49,7 @@ checked: 2026-10-02
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis`，对 4.0.4 通过（2026-10-02）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-10-02）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 注册表 `Service` 的 `register(entry)` 写成 `this.ctx.effect(() => { 加入; return 移除 })`；
    一个 inject 了它的贡献者插件登记一条，撤除贡献者后这条不在了，注册表的 fiber 仍是 `ACTIVE`。

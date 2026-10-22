@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The Cordis service definitions of Tool. The `./cordis` entry exports 17 abstract Service classes and the concrete instance directory `ToolInstancesService`, 18 Service classes in all. It also exports the 18 service keys, the `Context` augmentation and the `tool-cordis-contract/call-changed` event augmentation. The `./testing` entry exports the registration-semantics suite of `ToolInstancesService.register` and a non-durable register service that conforms to it. The root entry exports no values.
+The Cordis service definitions of Tool. The `./cordis` entry exports 17 abstract Service classes and the concrete instance directory `ToolInstancesService`, 18 Service classes in all. It also exports the 18 service keys, the `Context` augmentation and the `tool-cordis-contract/call-changed` event augmentation. The `./testing` entry exports the registration-semantics suite of `ToolInstancesService.register` and a non-durable register service that conforms to it. The root entry exports no values. [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) adds two keys, `toolContributionAuthority` and `toolGenerations`, and the event `binding-changed`. After the migration, `./cordis` exports 19 abstract Service classes and `ToolInstancesService`, 20 in all, and 20 service keys. The migration is not yet delivered.
 
 ## Responsibility and status
 
@@ -18,7 +18,7 @@ The checkout scope and the cross-package table are in [the group support range](
 | Pure contract functions implemented | None. The package has no contract function | None | None |
 | Independent execution implemented | None | None | None |
 | Runtime paths implemented | None. The package has no runtime. The one concrete service, `ToolInstancesService`, answers the named failures above | None | Tests cover only the named failures of `ToolInstancesService` |
-| Hosts and providers not yet delivered | The instance directory behind `ToolInstancesService`. The provider plugins of Tool itself, which live in `./cordis` of `tool-host-local`. Providers of other domains belong to their owners. The registration semantics under real Cordis | None | None |
+| Hosts and providers not yet delivered | The keys `toolContributionAuthority` and `toolGenerations`, the event `binding-changed`, the G7 suite of the binding registry and the dynamics suite `runToolDynamicsSuite` ([RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md)). The instance directory behind `ToolInstancesService`. The provider plugins of Tool itself, which live in `./cordis` of `tool-host-local`. Providers of other domains belong to their owners. The registration semantics under real Cordis | None | None |
 
 The `./testing` entry delivers the registration-semantics suite and a non-durable register service. Both run only against each other and against violating variants. The real-implementation cross-check is pending: it needs the implementation of the instance directory and a real Cordis assembly.
 

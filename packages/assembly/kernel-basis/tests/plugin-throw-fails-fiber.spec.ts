@@ -2,9 +2,21 @@
 // config 不过 Standard Schema 校验 ⇒ 同样 FAILED 且插件体根本不跑（配置错误一律启动失败）。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
-import { z } from 'zod'
-import { FIBER_STATE, definePlugin } from '../../src/cordis.ts'
+import { FIBER_STATE, plugin } from './basis-support.ts'
+import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
+
+/** `{ ttl: 正整数 }` 的最小 Standard Schema。本成员不依赖 zod；规则同旧 probe 的 `z.object({ ttl: z.number().int().positive() })`。 */
+const positiveTtl: StandardSchema<{ ttl: number }> = {
+  '~standard': {
+    version: 1,
+    vendor: 'basis-probe',
+    validate(value) {
+      const ttl = (value as { ttl?: unknown } | null)?.ttl
+      if (typeof ttl === 'number' && Number.isInteger(ttl) && ttl > 0) return { value: { ttl } }
+      return { issues: [{ message: 'ttl must be a positive integer' }] }
+    },
+  },
+}
 
 describe('plugin-throw-fails-fiber', () => {
   it('插件体抛出 ⇒ FAILED', async () => {
@@ -23,7 +35,7 @@ describe('plugin-throw-fails-fiber', () => {
     let ran = false
     const defined = definePlugin({
       name: 'needs-positive-ttl',
-      Config: z.object({ ttl: z.number().int().positive() }),
+      Config: positiveTtl,
       apply(inner) {
         ran = true
         inner.provide('offers', {})
@@ -41,7 +53,7 @@ describe('plugin-throw-fails-fiber', () => {
     let received: unknown
     const defined = definePlugin({
       name: 'ok-config',
-      Config: z.object({ ttl: z.number().int().positive() }),
+      Config: positiveTtl,
       apply(_inner, config) {
         received = config
       },

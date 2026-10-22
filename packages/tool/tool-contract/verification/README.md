@@ -14,8 +14,8 @@
 
 | 能力 | 公开契约与对象 | 必要协议 | 最低接受反例 |
 | --- | --- | --- | --- |
-| CAP-TL01 定义呈现取用 | ToolDefinition、ToolCatalog、ParameterCodec、ToolPresentation | [P02](../SPEC.md#p02-定义准入与队列) | 参数缺说明、重复命令、help与采用不同、未声明programmable、包装来源不可洗白 |
-| CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability | P02 | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动 |
+| CAP-TL01 定义呈现取用 | ToolDefinition、ToolGovernance、ToolImplementationFacts、ToolCatalog、ParameterCodec、ToolPresentation | [P02](../SPEC.md#p02-定义准入与队列) | 参数缺说明、重复命令、help与采用不同、未声明programmable、包装来源不可洗白、资产 name 与定义 name 不一致须拒绝装载 |
+| CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability、ToolBindingRegistry、换代协调者 | P02、[会话常驻规则](../SPEC.md#会话常驻规则r1r5) | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动；Run 中途加入或前进、不同形候选替换常驻项、暂时缺席判冻结，见[动态性的验证义务](#动态性的验证义务) |
 | CAP-TL03 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit | [P01](../SPEC.md#p01-操作事实与资格)、[P04](../SPEC.md#p04-实际发起围栏) | 同身份异输入、排队撤权、批决定不齐、失效与consume两种先后、延迟旧请求不能再发 |
 | CAP-TL04 设置限额队列 | QueueReservation、QueuePosition、ResourceScope | P02、[P03](../SPEC.md#p03-环境准备和释放) | 两调用争同名额、同工具换实现、scope的grant缺失或属于他方、不同租户同owner同key不共队列、较早准备未完、取消队首、后台/等待不放名额 |
 | CAP-TL05 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | [P07](../SPEC.md#p07-计时控制与检查点) | 未许可、Ask和resource转换拒绝、完成与后台化竞争、重复只一个占位、不回前台 |
@@ -37,13 +37,39 @@ P14 至 P16 补齐内容 ref/附件地址分流、工具定义的完整投影、
 
 自定义等待由 ToolWaitContract、ToolWaitSchemaSnapshot 与 ToolWaitResponseValidator 承接 CAP-TL06，见 [P12](../SPEC.md#p12-等待-schema-与响应提交)。普通/结构化返回、ToolReturnDeclaration、ToolReturnValidator 与 ToolResult.data 承接 CAP-TL07 及程序执行方的程序数据边界，见 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。[等待与返回反例](#等待-schema-与双返回的验证)覆盖非法提交不结束等待、schema 换代、输出违约、真实效果保留和两种消费者。只有覆盖这些协议的模型或提供者证据才能支持相应验证声明。
 
-ToolOperation 与 ToolAuthorRegistration 将各命令的作者和返回契约封闭配对，承接定义形态及 CAP-TL07。见 [多命令独立返回场景](#多命令独立返回)。编译证明限于已写正负例的局部类型关系；精确命令分派、schema 加载和恢复采用仍需提供者行为验证。
+ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭配对，承接定义形态及 CAP-TL07。见 [多命令独立返回场景](#多命令独立返回)。编译证明限于已写正负例的局部类型关系；精确命令分派、schema 加载和恢复采用仍需提供者行为验证。
 
 1. 表达验证。提取唯一公开声明并使用实际基础包类型编译；非法等待/关系和错误身份类型必须被拒绝；Cordis定义继承覆盖全部门面方法；本地链接、文档登记和Mermaid解析通过。
 2. 协议验证。模型至少包含两个调用、同队列名额、两代协调者、撤权/启动、取消/答复、迟到结果和消费者交接。每个外域操作注入发送前、效果后回包前、本域确认前及恢复查询不可用四个断点。错误变体须命中对应不变量。
 3. 提供者验证。真实环境分配、原执行查询和控制、检查点排除、事实源ACK、内容与附件保管、计时连续性、权限变更和跨域启动围栏。内存fake不能代这些证明。
 4. 部署验证。声明部署条件下的进程崩溃、OS崩溃、断电和重启；跨进程/异构只有实际采用且证据覆盖时才能声明。介质物理损毁后的新恢复资格不在现行已定政策内。
 5. 独立评审与接受。choice评审责任和机制，expression评审精确表达；两者无阻断仍不授予负责人技术接受，测试通过也不授予发布支持。
+
+### 动态性的验证义务
+
+[完全动态目标](../../../../docs/requirements.md#完全动态目标sys-dynamic)列出 Tool 的十条验收判据，判据正文归该页。本节规定承载这些判据的验证资源。规则正文归 SPEC 的 [G7](../SPEC.md#342-契约缺口决定) 与[会话常驻规则](../SPEC.md#会话常驻规则r1r5)。
+
+- 会话常驻规则 R1–R5 与采用点判定表由纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 承载，用表驱动测试逐行验证。`refreshAvailability` 的返回类型不含加入、前进与冻结。
+- 绑定登记表增加 G7 套件，写法同现有登记语义套件。
+- 换代协调者与作者插件在真实 Cordis 4.0.4 `Context` 上用动态性套件 `runToolDynamicsSuite` 验证。fixture 记录稳定提供者的 fiber uid。
+- 根已 ACTIVE 后动态装载并撤除带登记的作者插件，需要 Cordis basis 条目与探针证明。
+
+| 判据 | 主题 | 承载 |
+| --- | --- | --- |
+| 1 | 稳定提供者的 fiber uid 不变 | 动态性套件 |
+| 2 | 同键认回与 conflict，release 与后继 | G7 套件 |
+| 3 | 有引用时 `retained` | 动态性套件 |
+| 4 | 无引用且无在途调用时 `released` | 动态性套件 |
+| 5 | 新旧版本并存 | 动态性套件 |
+| 6 | 同形新版只在采用点前进 | 纯函数表驱动测试与动态性套件 |
+| 7 | 不同形新版留旧 | 纯函数表驱动测试与动态性套件 |
+| 8 | 突然撤除 fiber | 动态性套件 |
+| 9 | 冻结判定 | 纯函数表驱动测试与动态性套件 |
+| 10 | 无关能力零失败，[P16](../SPEC.md#p16-目录与发现的故障隔离)不变 | 动态性套件 |
+
+有在途调用的排空依赖 [P09](../SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })`，在 [#421](https://github.com/nemori-ai/omne-harness-lite/issues/421) 的 6.8 验收。
+
+成立前提是单机、单进程与非耐久登记表。跨进程、远端目录与耐久存储不在覆盖之内。`shapeOf` 用文本规范化比较 schema，语义等价但文本不同的 schema 判为不同形。这偏向留旧版，不会误冻结。
 
 ### 端口一致性套件
 

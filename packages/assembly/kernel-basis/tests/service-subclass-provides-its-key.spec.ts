@@ -2,7 +2,7 @@
 // 消费者按键取到的是那个子类的实例（因而也是抽象定义的实例）；所属 fiber 撤除 ⇒ 键上没有服务。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
+import { plugin } from './basis-support.ts'
 
 abstract class GreeterDefinition extends Service {
   constructor(ctx: Context) {

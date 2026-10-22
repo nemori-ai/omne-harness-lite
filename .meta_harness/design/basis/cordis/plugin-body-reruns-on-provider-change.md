@@ -12,7 +12,7 @@ lines:
   - "fiber.ts:597-646"
   - "reflect.ts:241"
   - "reflect.ts:274-277"
-probe: packages/core/kernel-basis/tests/basis/plugin-body-reruns-on-provider-change.test.ts
+probe: packages/assembly/kernel-basis/tests/plugin-body-reruns-on-provider-change.spec.ts
 checked: 2026-09-22
 ---
 
@@ -43,7 +43,7 @@ checked: 2026-09-22
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis` 里，对 4.0.4 通过（2026-09-22）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 消费者插件体内递增一个外部计数器。提供者缺席时计数为 0（PENDING，插件体未跑）；
 提供者 A 就位后计数为 1；改变 A 实例内部状态并让出事件循环后仍为 1（同实例状态变化不触发）；

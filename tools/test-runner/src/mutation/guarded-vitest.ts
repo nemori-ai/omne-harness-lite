@@ -1,0 +1,58 @@
+// A rejected mutant run must remain visible instead of disappearing after a recovery retry.
+import {
+  commonTokens,
+  declareFactoryPlugin,
+  PluginKind,
+  tokens,
+  type Injector,
+  type PluginContext,
+} from '@stryker-mutator/api/plugin'
+import { MutantRunStatus, type TestRunner } from '@stryker-mutator/api/test-runner'
+import { strykerPlugins as vitestPlugins } from '@stryker-mutator/vitest-runner'
+export { strykerValidationSchema } from '@stryker-mutator/vitest-runner'
+
+function rejectionMessage(error: unknown): string {
+  const fallback = 'TestRunner mutantRun rejected. Original diagnostic could not be formatted'
+  try {
+    const message = error instanceof Error ? error.stack || error.message : String(error)
+    return typeof message === 'string' && message.length > 0 ? message : fallback
+  } catch {
+    // Formatting must not turn this Error result back into a rejected promise.
+    return fallback
+  }
+}
+
+export function guardMutantRun(original: TestRunner): TestRunner {
+  return {
+    capabilities: () => original.capabilities(),
+    init: async () => {
+      await original.init?.()
+    },
+    dryRun: options => original.dryRun(options),
+    async mutantRun(options) {
+      try {
+        return await original.mutantRun(options)
+      } catch (error) {
+        return {
+          status: MutantRunStatus.Error,
+          errorMessage: rejectionMessage(error),
+        }
+      }
+    },
+    dispose: async () => {
+      await original.dispose?.()
+    },
+  }
+}
+
+function factory(injector: Injector<PluginContext>): TestRunner {
+  const candidates = vitestPlugins.filter(
+    plugin => plugin.kind === PluginKind.TestRunner && plugin.name === 'vitest',
+  )
+  const original = candidates[0]
+  if (candidates.length !== 1 || original === undefined)
+    throw new Error('Expected exactly one public vitest TestRunner factory')
+  return guardMutantRun(injector.injectFunction(original.factory))
+}
+factory.inject = tokens(commonTokens.injector)
+export const strykerPlugins = [declareFactoryPlugin(PluginKind.TestRunner, 'omne-vitest', factory)]

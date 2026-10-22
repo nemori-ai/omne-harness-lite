@@ -177,7 +177,25 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
 
 **只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `pnpm run check`；Stryker 起不来、sandbox 预检没通过、
-初跑失败、没写出报告，或有「没跑测试」的变异体，才退出 1；参数错退出 2。读数的边界：
+初跑失败、没写出报告、有 RuntimeError 或「没跑测试」的变异体时退出 1；参数错退出 2。
+
+变异期间的 reporter 检查文件收集错误与深层 suite 自身错误，不读取普通断言错误。发现错误时抛出包含原文件、suite 与错误栈的诊断。
+`omne-vitest` 委托公开的 Vitest runner factory，保留 capabilities、init、dryRun 与 dispose。底层 mutantRun 拒绝时，包装器直接返回 Error，避免恢复重试掩盖这次失败。
+原始 JSON 中任何 RuntimeError 都使整个成员测量无效，包括目标行外的错误；该成员不进入 `summary.members`。这是保守政策，RuntimeError 不必然表示设施缺陷，也不能改算成 Killed。
+诊断保留在原始 JSON 的 statusReason 与成员日志中。上游没生成报告时如实失败。正常 Killed、Survived 与 Timeout 的算法不变，CompileError 单独存在不触发此政策。
+复用 `--out` 时，旧原始报告移入独占的 `<成员>.history-*` 目录。本轮必须生成新报告。报告留存失败，或 `summary.json`、`summary.md` 写入失败时，CLI 必须非零退出。旧分数不重算，使用原命令与基线复跑取得新读数。
+
+本内部 CLI 按五档说明本次行为的支持范围：
+
+| 档 | 本工具的状态与验证入口 |
+| --- | --- |
+| 公开类型已导出 | 不适用。本次行为由内部 CLI 提供，不发布产品包类型。 |
+| 纯契约函数已实现 | 不适用。本次没有新增产品契约函数。 |
+| 独立执行已实现 | mutation CLI 对容器自身错误与原始 RuntimeError 使整成员无效并非零退出；报告留存或 summary 写入失败同样非零。复跑入口及验证范围见[测试说明](tests/README.md)。 |
+| runtime 已实现的路径 | 不适用。本工具是研发 CLI，没有 Tool runtime 路径。 |
+| 尚未交付的宿主与提供者 | 没有新增产品宿主或提供者。包装器外的 child crash、OOM 与代理断连不在本次拒绝转换保证内。 |
+
+读数的边界：
 
 - 存活少不等于测试好：只量了改动行，没改的代码不在内；变异算子之外的错误写法量不到。
 - 判定会抖（Stryker 的 perTest 判定已知会抖，上游 #6073）：一个存活要复跑确认，再决定补不补测试。
@@ -185,10 +203,12 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 - 慢层的测试不参与：只被慢层测试守着的代码会显示为无覆盖或存活。
 - 只跑本成员自己的测试：靠别的成员的测试守着的代码（比如一个契约只由它的提供者的
   一致性套件守着）会显示为无覆盖，那是变异的盲区，不是这份代码没人测。
-- 预检读的已经是插过桩的源码和由它构建的 `dist`，但不带 Stryker 给 vitest 加的 setup 文件。只因这个 setup 文件或逐个变异体
-  的运行才出现的加载失败，预检看不到；这时漏报仍会让存活偏多。
+- 包装器只捕获 child 内底层 mutantRun 的拒绝。包装器外的 child crash、OOM、代理断连仍可能被 Stryker 重试，不在本次保证内。
+- 预检读的是插过桩的源码与构建后的 dist。逐个变异体才触发的文件收集错误或 suite 自身错误由 reporter 检查，普通断言失败仍按 Killed 处理。
 
 自测：`tests/mutation.spec.ts`，其中一条在夹具项目上真起 Stryker（归慢层）：没断言的测试留下存活变异体，
 在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox；有测试文件只在 sandbox 里加载失败时，
 预检报错、不出读数，类型断言照常通过也一样；只在 `threads` 池里加载失败的文件同样被拦下；
 `--out` 目录里留着上一次的预检标记时，这一次照常出读数；快层没有用例时预检通过、由 Stryker 报错。
+
+公开委托、第一次拒绝与生命周期失败的快层验证见 `tests/mutation-guard.spec.ts`。静态部分收集错误、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation.spec.ts`。

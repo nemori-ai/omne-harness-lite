@@ -425,8 +425,27 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-69：在途状态由谁持有、失去连续性后是否还在
 
 - **类型**：定义打架。2026-10-21 评审会话与工作产品页时发现。
-- **来源**：[在途状态](terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)按封存的 [PF-009 §9.2](../product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）写成：在途内容由运行时持有，运行时失去连续性它就没了。[会话与工作：在协作历史中看清发生过什么](../product/sessions-and-work/design.md#在协作历史中看清发生过什么)（rev 3）与系统页[用户可见内容的两处来源](../../../docs/architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)写成：用户可见的在途增量只来自生产方已经可靠保管的批次，故障后只可能缺从未展示过的片段。
+- **来源**：[在途状态](terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)按封存的 [PF-009 §9.2](../product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）写成：在途内容由运行时持有，运行时失去连续性它就没了。[会话与工作：在协作历史中看清发生过什么](../product/sessions-and-work/design.md#在协作历史中看清发生过什么)（rev 7）与系统页[用户可见内容的两处来源](../../../docs/architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)写成：用户可见的在途增量只来自生产方已经可靠保管的批次，故障后只可能缺从未展示过的片段。
 - **差别**：第一种读法里，已展示的在途内容会随运行时一起丢失；第二种读法里，已展示的部分由生产方保管，故障后仍可取回。下游照第一种建，不会为在途增量做保管；照第二种建，生产方必须先保管再发布。
 - **处置**：词条暂不改。在途状态的定义归模型调用与工具执行的产品正文，会话与工作只写用户可见的来源。
 - **负责与闭合条件**：负责人 PanQiWei。模型调用与工具执行的产品正文拥有者核对在途状态的持有方与丢失条件，改写词条出处到现行产品正文后闭合。
 - **状态**：待裁。
+
+### C-70：常驻工具的形状与能力数据的动态采用
+
+- **类型**：定义打架。2026-10-21 写回 RFC-0012 时登记。
+- **两处输入**：[C-47](#c-47能力数据与实现变化被误当成-loop-生命周期变化) 的处置写「会话保留已知能力，当前数据、实现与可用性动态采用」，[项目要求 SYS-COMPOSITION](../../../docs/requirements.md#定义装配与活体sys-composition) 写「尚未发出的 Tool 或 MCP 调用，仍可按合法刷新看到新的定义和可用性」。已采用的 [RFC-0012 会话常驻集合的规则](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5) 写「每一项的 name 与参数形状在会话内不变」（R1），并规定新定义不同形时会话留在旧实现（R5a），旧实现耐久地不可装载时会话冻结（R5b）。R5b 原文写「进入不可逆的 archive」，而 [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) 写「归档本身可以撤销」。
+- **差别**：按 C-47 的读法，工具换代可以在会话中途改变常驻工具的名字与参数形状。部分模型厂商校验请求中的工具名称与参数形状是否与历史调用一致，这样的换代会使会话无法继续。R5b 的原文又与归档可撤销相矛盾。
+- **裁决依据**：PanQiWei 于 2026-10-21 采用 RFC-0012 revision 1；2026-10-22 又裁定会话不钉版本、按形状核对同形可用实现（随 [#580 接受](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6333519829)）（[采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)），并于同日裁定冻结是独立的会话状态，不是归档（[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)）。
+- **处置**：C-47 的动态采用对非常驻工具、技能与 MCP 保持不变。对常驻工具，动态采用收窄为：形状在会话内不变，负责选取实现的一方只选[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)可用的实现；常驻工具的加入只在[采用点](terms/agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)。[会话冻结](terms/agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)是独立的生命周期状态：不再开始新的运行，在途运行照常收场，不可逆；冻结后仍可归档，撤销归档回到冻结。归档的两条来路与可撤销性不变。词表新增常驻工具集合、同形、采用点、会话冻结、采用依据与来源层，并改写工具、工具定义、资产版本、版本选用、常驻、替换件、会话资产注册表、作用域层、会话、会话归档、运行与 meta 能力。
+- **负责与闭合条件**：产品正文（tool-execution、sessions-and-work、assets-and-rules）、项目要求与已接受架构页的写回由 #618 承接；冻结状态的正式名称、转换与会话事实由 Session 域在 [#580](https://github.com/nemori-ai/omne-harness-lite/issues/580) 定义。这些写回完成并经各自拥有者接受后闭合。
+- **状态**：词表已对齐，其余写回未完成。
+
+### C-71：工具定义由长期数据改为装载时派生
+
+- **类型**：形态变更。2026-10-21 写回 RFC-0012 时登记。
+- **两处输入**：[UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) 依据封存 [PF-006 §5.3](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 24）写「它可以自带实现」「它是数据，长期存在，谁持有它就归谁」，形态为属性。已采用的 [RFC-0012 对象链](../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链) 写「`ToolDefinition` 装载时由 `deriveDefinition(governance, implementation)` 派生」，资产 body 只带身份、治理声明与实现引用。
+- **差别**：旧读法让作者直接写下并持有定义数据。新读法中，定义从一个已发布的资产版本与它引用的实现算出，丢了可以原样重算。会话为常驻工具保存首次定义，只为判断同形与恢复，不使它成为另一份事实权威。
+- **处置**：形态由属性改为视图，因此不立对象条目。同一能力身份下各层的定义可以不同形。按旧形态把工具定义当作作者长期持有的数据来设计的下游正文，需要复核。
+- **负责与闭合条件**：tool-execution 产品正文与 Tool 契约写明定义由资产与实现派生后闭合；写回由 #618 承接。
+- **状态**：词表已改，产品正文与 Tool 契约的写回未完成。

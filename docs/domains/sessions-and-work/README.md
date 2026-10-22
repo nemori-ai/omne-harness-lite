@@ -18,7 +18,7 @@ Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request
 | --- | --- |
 | 输入受理 | 到达、实际内容、去处与可靠承接依据；受理前后的业务流程拓展点按固定顺序执行 |
 | 队列与工作承接 | 待处理输入、采用关系和对应逻辑工作 |
-| Session治理 | 会话身份与归属、模式与设置声明、会话关系、归档、作用域释放任务及恢复业务 |
+| Session治理 | 会话身份与归属、模式与设置声明、会话关系、冻结、归档、作用域释放任务及恢复业务 |
 | Run/推进治理 | 本次工作、执行尝试、唯一有效推进资格、指向 Agent 执行的执行引用和逻辑收束 |
 | 消费与历史承接 | 原调用关联、消费位置、可靠取得内容、未结工作的判断依据及会话历史的持有 |
 
@@ -34,6 +34,10 @@ Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request
 | [session-storage-sql](../../../packages/session/session-storage-sql/README.md) | 会话事务端口的 SQL 实现：权威表、派生索引与读路径 |
 
 日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
+
+会话常驻工具每一项的首次定义是会话必须记住的事实，种类是 `tool-resident-admitted`。当前记下的登记键从 Run 依据派生，不另写会话事实。常驻规则归[工具规格](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
+
+冻结是 Session 拥有的独立会话生命周期状态，不是归档。Tool 在采用点给出冻结判定与原因 `tool-shape-lost`，Session 执行状态转换。会话冻结后不再派发新 Run，在途 Run 自然收场。冻结不可逆。冻结的会话仍可按会话规则归档，撤销归档后回到冻结。
 
 会话在受理进日志时铸造消息身份，格式是 `msg_` 加 16 字节不可猜文本。同一次受理返回已有身份。用户输入用那次提交身份。模型回复用模型调用和 dispatch。工具消息用工具调用身份。提醒用来源引用。压缩用那次操作的提交身份。键和身份一次写入。解析与相等在 `packages/common/message`。
 

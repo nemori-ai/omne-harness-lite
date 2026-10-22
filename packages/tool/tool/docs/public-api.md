@@ -34,7 +34,7 @@
 
 `ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
 
-- [tools.ts](../src/tools.ts) 从根入口导出 createTools、Tools、ToolsAccess、ToolsOptions 和窄读依赖 ToolsReadRuntime。author 是真实 ToolAuthorRegistration，present 交首屏模型结果，readReply 是收齐新元调用回应的受信方法。签名由源码拥有，完整行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
+- [tools.ts](../src/tools.ts) 从根入口导出 createTools、Tools、ToolsAccess、ToolsOptions 和窄读依赖 ToolsReadRuntime。author 是 Tools 元工具的真实作者注册。契约把它的类型定为 `ToolImplementation`（[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)），源码迁移之前仍是 `ToolAuthorRegistration`。present 交首屏模型结果，readReply 是收齐新元调用回应的受信方法。签名由源码拥有，完整行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
 
 
 Tools 的基本调用顺序和 JSON 参数示例见 [README](../README.md#model-result-retrieval)。宿主须对齐 runtime 入站参数限制与 ToolsOptions.arguments，固定当前身份和每次新调用的消费位置，再于 readReply 完整成功后调用 P14。结果身份为调用引用与结果版本的组合。模型无需获得这些宿主能力，投影与实际 help 足以完成接续。

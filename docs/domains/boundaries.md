@@ -18,10 +18,10 @@
 | [资产与规则](assets-and-rules/README.md)，共同治理 | 定义、持有、来源及替换，设置/权限各自求值 | 类别拥有专有业务，装配消费合法候选，可用不等于获准 |
 | [工作区](workspaces/README.md)，资源能力 | 参与、实例、地址及关联 | 私有权利不因参与共享，环境负责供给和寿命 |
 | [会话与工作](sessions-and-work/README.md)，逻辑治理 | 输入承接、Session/Run、推进权和消费位置 | Agent推进，模型/工具拥有原执行，其他Job由业务治理 |
-| [装配交接](assembly-and-handoff/README.md)，集成责任 | 求值、采用、结构绑定和换代 | 来源归治理，推进权归工作，runtime保留实际执行 |
+| [装配交接](assembly-and-handoff/README.md)，集成责任 | 求值、采用、结构绑定和换代 | 来源归治理，推进权归工作，runtime保留实际执行；工具实现的换代归工具执行 |
 | [Agent推进](agent-progression/README.md)，执行能力 | Loop求值、动作、扩展位置及推进 | 消费模型/工具结果，不拥有被等待执行的寿命 |
 | [模型调用](model-invocation/README.md)，执行能力 | 固定输入、原输出、收场和费用 | 保管与消费分别承接，不执行响应内工具建议 |
-| [工具执行](tool-execution/README.md)，执行能力 | 固定调用、等待、结果与实际效果 | 准入、环境和被调用业务各有权威 |
+| [工具执行](tool-execution/README.md)，执行能力 | 固定调用、等待、结果与实际效果；实现的绑定登记与换代 | 准入、环境和被调用业务各有权威；冻结判定交会话执行 |
 | [Context](runtime-context/README.md)，数据/派生能力 | 注册/读取与一次请求计算，内部分责 | 原数据归生产者，实际发出归模型，历史不提供授权 |
 | [HITL](human-intervention/README.md)，交接能力 | 请求、呈现、答复及关联 | 原拥有者解释并决定继续，答复不扩大权限 |
 | [执行环境](execution-environments/README.md)，资源能力 | 落点、设施及供给/释放 | 逻辑工作区、准入及工具效果分别拥有 |
