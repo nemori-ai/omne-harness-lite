@@ -66,6 +66,11 @@ export interface ResponseBody {
    * the iteration early, even before its first `next()`, destroys the response.
    */
   claim(): AsyncIterable<Uint8Array> | undefined
+  /**
+   * `true` once Node has received the whole body: the rest of it is buffered, so the reader gets
+   * to its end without a wait for the other side.
+   */
+  received(): boolean
 }
 
 export type ErrorBody =
@@ -454,6 +459,7 @@ function createBody(res: IncomingMessage, stoppedLocally: () => boolean): Respon
       unclaimed = undefined
       return closeSourceOnEarlyEnd(readBytes(stream, stoppedLocally), () => stream.destroy())
     },
+    received: () => res.complete,
   }
 }
 

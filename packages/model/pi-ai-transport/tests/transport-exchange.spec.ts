@@ -137,6 +137,96 @@ describe('a start that sends', () => {
   })
 })
 
+describe('the end marker', () => {
+  /**
+   * Resolves `timeout` when the stream gives no step within `ms`, so a stream that waits fails
+   * here. The close of the transport at the end of the scene ends a stream left waiting.
+   */
+  async function nextWithin(
+    iterator: AsyncIterator<TransportFact>,
+    ms: number,
+  ): Promise<IteratorResult<TransportFact> | 'timeout'> {
+    let timer: NodeJS.Timeout | undefined
+    const late = new Promise<'timeout'>(resolve => {
+      timer = setTimeout(() => resolve('timeout'), ms)
+    })
+    try {
+      return await Promise.race([iterator.next(), late])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  async function readAll(
+    stream: AsyncIterable<TransportFact>,
+  ): Promise<(TransportFact | 'timeout')[]> {
+    const iterator = stream[Symbol.asyncIterator]()
+    const seen: (TransportFact | 'timeout')[] = []
+    for (;;) {
+      const step = await nextWithin(iterator, 1_000)
+      if (step === 'timeout') {
+        seen.push(step)
+        return seen
+      }
+      if (step.done === true) return seen
+      seen.push(step.value)
+    }
+  }
+
+  it('ends the stream at the marker with the decoder termination when the response stays open', async () => {
+    await withTransport(
+      res => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.write(sseBody(TEXT('hi'), STOP))
+      },
+      async ({ server, resources, transport }) => {
+        const facts = await readAll(
+          (await transport.materialize()).start(new AbortController().signal),
+        )
+        expect(facts).toEqual([
+          { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
+          { kind: 'block-delta', index: '0', delta: 'hi' },
+          COMPLETED,
+        ])
+        expect(resources.inFlight.size).toBe(0)
+        expect(await slotFree(resources)).toBe(true)
+        expect(server.requests).toHaveLength(1)
+      },
+    )
+  })
+
+  it('does not decode events after the marker', async () => {
+    await withTransport(
+      res => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.write(sseBody(STOP))
+        res.write(`data: ${TEXT('late')}\n\n`)
+      },
+      async ({ resources, transport }) => {
+        const facts = await readAll(
+          (await transport.materialize()).start(new AbortController().signal),
+        )
+        expect(facts).toEqual([COMPLETED])
+        expect(await slotFree(resources)).toBe(true)
+      },
+    )
+  })
+
+  it('keeps the connection for the next send when the response ends with the marker', async () => {
+    await withTransport(
+      res => answerSse(res, sseBody(STOP)),
+      async ({ server, transport }) => {
+        for (let send = 0; send < 2; send += 1)
+          expect(
+            await collect((await transport.materialize()).start(new AbortController().signal)),
+          ).toEqual([COMPLETED])
+        expect(server.requests).toHaveLength(2)
+        expect(server.openedSockets()).toBe(1)
+      },
+    )
+  })
+})
+
 describe('the failures after the send', () => {
   it.each([
     [401, 'credential'],

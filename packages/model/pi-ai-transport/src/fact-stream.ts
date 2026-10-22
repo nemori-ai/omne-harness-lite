@@ -3,7 +3,7 @@
 import type { ModelFault, TransportFact, TransportTermination } from '@omne-harness/model-contract'
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
-import { readProtocolFrames } from './frames.ts'
+import { readProtocolFrames, type ProtocolFrames } from './frames.ts'
 import { ResponseBodyReadError, ResponseBodyStoppedError, type HttpExchange } from './http.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
@@ -83,6 +83,8 @@ async function* decodeSend(
     json: limits.json,
   })
   const held: Held = { termination: null }
+  // The frames end at the end of the body, unless the end marker stops the reading first.
+  let bodyComplete = true
   try {
     for await (const frame of frames) {
       if (!('ok' in frame)) return { kind: 'frame-failed', reason: frame.failure }
@@ -90,6 +92,12 @@ async function* decodeSend(
       if (!('ok' in accepted)) return { kind: 'decoder-fault', fault: accepted.failure }
       const fault = yield* passFacts(accepted.ok, held)
       if (fault !== null) return { kind: 'decoder-fault', fault }
+      if (frame.ok.kind === 'end-marker') {
+        // The protocol ended: nothing after the marker is decoded and the body end is not awaited.
+        // A body that Node already holds whole is read to its end, so the connection stays pooled.
+        bodyComplete = result.body.received() && (await endsAfterMarker(frames))
+        break
+      }
     }
   } catch (error) {
     if (error instanceof ResponseBodyStoppedError) return { kind: 'stopped' }
@@ -97,12 +105,33 @@ async function* decodeSend(
     if (error instanceof SseProtocolError) return { kind: 'sse-failed', reason: error.reason }
     throw error
   }
-  progress.bodyComplete = true
+  progress.bodyComplete = bodyComplete
   const ending = decoder.end()
   if (!('ok' in ending)) return { kind: 'decoder-fault', fault: ending.failure }
   const fault = yield* passFacts(ending.ok, held)
   if (fault !== null) return { kind: 'decoder-fault', fault }
   return { kind: 'decoded', termination: held.termination }
+}
+
+/**
+ * Reads the rest of a body that Node has received whole, without decoding it. `true`: the body
+ * ended right after the marker. `false`: an event or a failure followed; the frames are closed.
+ */
+async function endsAfterMarker(frames: ProtocolFrames): Promise<boolean> {
+  try {
+    const step = await frames.next()
+    if (step.done === true) return true
+    await frames.return(undefined)
+    return false
+  } catch (error) {
+    if (
+      error instanceof ResponseBodyStoppedError ||
+      error instanceof ResponseBodyReadError ||
+      error instanceof SseProtocolError
+    )
+      return false
+    throw error
+  }
 }
 
 /** The decoder's termination, kept until the body has ended so that it is the last fact. */
