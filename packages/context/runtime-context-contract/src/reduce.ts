@@ -44,18 +44,11 @@ export function reduceStep(input: ReduceStepInput): ReduceStepResult {
       continue
     }
     if (descriptor.updateSchema) {
-      let issues: readonly StandardSchemaV1.Issue[]
-      try {
-        issues = validate(descriptor.updateSchema, update.update)
-      } catch (error) {
-        if (error instanceof SynchronousSchemaRequired) {
-          reject({ kind: 'definition', reason: 'schema-not-synchronous', path: ['updateSchema'] })
-          continue
-        }
-        throw error
-      }
-      if (issues.length) {
-        reject({ kind: 'shape', issues })
+      const rejection = validateUpdateValue(descriptor.updateSchema, update.update, [
+        'updateSchema',
+      ])
+      if (rejection) {
+        reject(rejection)
         continue
       }
     }
@@ -63,18 +56,9 @@ export function reduceStep(input: ReduceStepInput): ReduceStepResult {
       previous ? previous.value : input.current(update.key),
       update.update,
     )
-    let issues: readonly StandardSchemaV1.Issue[]
-    try {
-      issues = validate(descriptor.schema, value)
-    } catch (error) {
-      if (error instanceof SynchronousSchemaRequired) {
-        reject({ kind: 'definition', reason: 'schema-not-synchronous', path: ['schema'] })
-        continue
-      }
-      throw error
-    }
-    if (issues.length) {
-      reject({ kind: 'shape', issues })
+    const rejection = validateUpdateValue(descriptor.schema, value, ['schema'])
+    if (rejection) {
+      reject(rejection)
       continue
     }
     committed.set(update.key, {
@@ -84,4 +68,19 @@ export function reduceStep(input: ReduceStepInput): ReduceStepResult {
     })
   }
   return { committed: [...committed.values()], rejected }
+}
+
+function validateUpdateValue(
+  schema: StandardSchemaV1,
+  value: unknown,
+  path: readonly string[],
+): UpdateRejection | undefined {
+  try {
+    const issues = validate(schema, value)
+    return issues.length ? { kind: 'shape', issues } : undefined
+  } catch (error) {
+    if (error instanceof SynchronousSchemaRequired)
+      return { kind: 'definition', reason: 'schema-not-synchronous', path }
+    throw error
+  }
 }

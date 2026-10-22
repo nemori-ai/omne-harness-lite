@@ -21,7 +21,7 @@ export type NeedRejection = Readonly<{
     | 'necessity'
     | 'schema-not-synchronous'
 }>
-const classes = ['model', 'tool', 'extension', 'coordinator']
+const classes = ['model', 'tool', 'extension', 'coordinator'] as const
 export function judgeNeed(value: unknown): Outcome<ContextNeed, NeedRejection> {
   if (!record(value)) return fail({ path: [], reason: 'type' })
   const unknown = Object.keys(value).find(
@@ -30,32 +30,32 @@ export function judgeNeed(value: unknown): Outcome<ContextNeed, NeedRejection> {
   if (unknown !== undefined) return fail({ path: [unknown], reason: 'unknown-key' })
   if (typeof value.name !== 'string' || !value.name.trim())
     return fail({ path: ['name'], reason: 'name' })
-  if (!schema(value.shape)) return fail({ path: ['shape'], reason: 'shape' })
-  try {
-    validate(value.shape, undefined)
-  } catch (error) {
-    if (error instanceof SynchronousSchemaRequired)
-      return fail({ path: ['shape'], reason: 'schema-not-synchronous' })
-    throw error
-  }
-  if (
-    value.consumer !== 'model' &&
-    value.consumer !== 'tool' &&
-    value.consumer !== 'extension' &&
-    value.consumer !== 'coordinator'
-  )
-    return fail({ path: ['consumer'], reason: 'consumer' })
+  const shape = judgeNeedShape(value.shape)
+  if ('failure' in shape) return shape
+  const consumer = classes.find(consumer => consumer === value.consumer)
+  if (consumer === undefined) return fail({ path: ['consumer'], reason: 'consumer' })
   if (typeof value.purpose !== 'string' || !value.purpose.trim())
     return fail({ path: ['purpose'], reason: 'purpose' })
   if (value.necessity !== 'required' && value.necessity !== 'optional')
     return fail({ path: ['necessity'], reason: 'necessity' })
   return succeed({
     name: value.name,
-    shape: value.shape,
-    consumer: value.consumer,
+    shape: shape.ok,
+    consumer,
     purpose: value.purpose,
     necessity: value.necessity,
   })
+}
+function judgeNeedShape(value: unknown): Outcome<StandardSchemaV1, NeedRejection> {
+  if (!schema(value)) return fail({ path: ['shape'], reason: 'shape' })
+  try {
+    validate(value, undefined)
+  } catch (error) {
+    if (error instanceof SynchronousSchemaRequired)
+      return fail({ path: ['shape'], reason: 'schema-not-synchronous' })
+    throw error
+  }
+  return succeed(value)
 }
 export type BindingRejection = Readonly<{
   need: string

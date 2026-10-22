@@ -12,3 +12,5 @@
 - [reader-refusals-negative.spec.ts](reader-refusals-negative.spec.ts)：公共套件否定固定消费者越界与无注册冒充缺项
 
 - [coverage-risk.spec.ts](coverage-risk.spec.ts)：无声明绑定拒绝、祖先取值边界与撤销后的变化读取
+
+- [source-lifecycle.spec.ts](source-lifecycle.spec.ts)：来源失败恢复、生产者换代的晚到结果与逐请求结果边界

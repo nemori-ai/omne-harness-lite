@@ -168,8 +168,11 @@ export function createMemoryRuntimeContext<P = unknown>(
     const d = descriptors.get(key)
     return e.keys.includes(key) && !!d?.consumers.includes(e.consumer)
   }
-  async function registerProducer<K extends ContextBlockKey>(input: ProducerRegistration<K>) {
-    if (closed) return { kind: 'rejected', reason: 'closed' } as const
+  function producerAdmission<K extends ContextBlockKey>(
+    input: ProducerRegistration<K>,
+  ):
+    | Extract<import('../operations.js').RegisterProducerResult<K>, { kind: 'rejected' }>
+    | undefined {
     if (!input.declaration) return { kind: 'rejected', reason: 'declaration-missing' } as const
     const old = producers.get(input.key),
       descriptor = descriptors.get(input.key)
@@ -179,19 +182,12 @@ export function createMemoryRuntimeContext<P = unknown>(
       return { kind: 'rejected', reason: 'other-producer' } as const
     if ((!input.scoped || input.declaration.volatility === 'per-request') && !input.supply)
       return { kind: 'rejected', reason: 'declaration-missing' } as const
-    if (old) old.active = false
-    const generation = (generations.get(input.key) ?? 0) + 1
-    generations.set(input.key, generation)
-    const producer: Producer = {
-      key: input.key,
-      producer: input.producer.producer,
-      generation,
-      active: true,
-      scoped: input.scoped,
-      supply: input.supply,
-    }
-    producers.set(input.key, producer)
-    descriptors.set(input.key, input.declaration)
+    return undefined
+  }
+  async function revalidateProducerScopes<K extends ContextBlockKey>(
+    input: ProducerRegistration<K>,
+    producer: Producer,
+  ) {
     for (const s of scopes.values()) {
       const r = s.registrations.get(input.key)
       if (!r) continue
@@ -214,6 +210,26 @@ export function createMemoryRuntimeContext<P = unknown>(
       else if (!input.scoped && input.declaration.volatility !== 'per-request')
         await supply(producer, s)
     }
+  }
+  async function registerProducer<K extends ContextBlockKey>(input: ProducerRegistration<K>) {
+    if (closed) return { kind: 'rejected', reason: 'closed' } as const
+    const rejected = producerAdmission(input)
+    if (rejected) return rejected
+    const old = producers.get(input.key)
+    if (old) old.active = false
+    const generation = (generations.get(input.key) ?? 0) + 1
+    generations.set(input.key, generation)
+    const producer: Producer = {
+      key: input.key,
+      producer: input.producer.producer,
+      generation,
+      active: true,
+      scoped: input.scoped,
+      supply: input.supply,
+    }
+    producers.set(input.key, producer)
+    descriptors.set(input.key, input.declaration)
+    await revalidateProducerScopes(input, producer)
     function refusal(): 'closed' | 'withdrawn' | 'stale-generation' | undefined {
       return closed
         ? 'closed'
