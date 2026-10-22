@@ -116,7 +116,11 @@ export function admissionDigest(capture: AdmissionCapture): string {
       projectId: capture.projectId,
       scope: capture.scope,
       closure: capture.closure,
-      issues: capture.issues.map(({ milestone: _, ...issue }) => issue),
+      issues: capture.issues.map(issue => {
+        const compared = { ...issue }
+        delete compared.milestone
+        return compared
+      }),
     }),
   )
 }
