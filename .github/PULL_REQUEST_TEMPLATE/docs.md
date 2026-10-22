@@ -16,10 +16,10 @@
 
 ## 所含的卡
 
-<!-- 进入轨道的 PR 每行一张卡：- #<Issue 编号> revision <交付修订> attempt `<attempt>`：<这张卡在上一层或 main 上要满足的条件，没有写“无”>。提升 PR 汇总自上一次提升以来进入来源轨道的全部卡。不进入轨道的 PR 删去本节。 -->
+<!-- 个人分支进轨道的 PR 与提升 PR 每行一张卡：- #<Issue 编号> revision <交付修订> attempt `<attempt>`：<这张卡在上一层或 main 上要满足的条件，没有写“无”>。提升 PR 汇总自上一次提升以来进入来源轨道的全部卡。同步 PR 与进入 stable 的 PR 删去本节。 -->
 
 ## 契约变化
 
-<!-- 每个改动过的契约成员一行：- <包名>：none、additive 或 breaking。additive 写新增的导出或字段，breaking 写承接它的卡。没有改动契约成员时写“无”。契约成员见 docs/engineering/delivery-lines.json。不进入轨道的 PR 删去本节。 -->
+<!-- 每个改动过的契约成员一行：- <契约成员在线归属表中的路径>：none、additive 或 breaking。additive 写新增的导出或字段，breaking 写承接它的卡。没有改动契约成员时写“无”。契约成员见 docs/engineering/delivery-lines.json。同步 PR 与进入 stable 的 PR 删去本节。 -->
 
-<!-- 本地运行的检查及结果写在验证一节。发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”与“进轨道 PR 的说明”。 -->
+<!-- 本地运行的检查及结果写在验证或核对一节。发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”与“进轨道 PR 的说明”。 -->

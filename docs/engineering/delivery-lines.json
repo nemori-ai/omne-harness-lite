@@ -12,6 +12,11 @@
       "docs/domains/verification.md"
     ]
   },
+  "shared": [
+    "pnpm-lock.yaml",
+    "docs/documentation.json",
+    ".meta_harness/design/views"
+  ],
   "lines": [
     {
       "id": "session-agent",
@@ -27,7 +32,12 @@
         "docs/domains/agent-progression",
         "docs/domains/runtime-context",
         "docs/domains/human-intervention",
-        "docs/domains/slash-commands"
+        "docs/domains/slash-commands",
+        ".meta_harness/design/product/sessions-and-work",
+        ".meta_harness/design/product/agent-progression",
+        ".meta_harness/design/product/runtime-context",
+        ".meta_harness/design/product/human-intervention",
+        ".meta_harness/design/product/slash-commands"
       ],
       "contracts": [
         "packages/session/session-contract",
@@ -50,7 +60,8 @@
         "packages/common/content-block",
         "packages/common/modality",
         "packages/common/stream-arrival",
-        "docs/domains/model-invocation"
+        "docs/domains/model-invocation",
+        ".meta_harness/design/product/model-invocation"
       ],
       "contracts": [
         "packages/model/model-contract",
@@ -73,7 +84,11 @@
         "docs/domains/tool-execution",
         "docs/domains/skills",
         "docs/domains/mcp",
-        "docs/domains/execution-environments"
+        "docs/domains/execution-environments",
+        ".meta_harness/design/product/tool-execution",
+        ".meta_harness/design/product/skills",
+        ".meta_harness/design/product/mcp",
+        ".meta_harness/design/product/execution-environments"
       ],
       "contracts": [
         "packages/tool/tool-contract",
@@ -97,9 +112,14 @@
         "docs/domains/identity-and-authorization",
         "docs/domains/assets-and-rules",
         "docs/domains/workspaces",
-        "docs/domains/assembly-and-handoff"
+        "docs/domains/assembly-and-handoff",
+        ".meta_harness/design/product/identity-and-authorization",
+        ".meta_harness/design/product/assets-and-rules",
+        ".meta_harness/design/product/workspaces"
       ],
-      "contracts": ["packages/common/legal-identity"]
+      "contracts": [
+        "packages/common/legal-identity"
+      ]
     },
     {
       "id": "time-reach",
@@ -113,9 +133,14 @@
         "packages/common/utc-instant",
         "docs/domains/calendars",
         "docs/domains/schedules-and-jobs",
-        "docs/domains/notifications"
+        "docs/domains/notifications",
+        ".meta_harness/design/product/calendars",
+        ".meta_harness/design/product/schedules-and-jobs",
+        ".meta_harness/design/product/notifications"
       ],
-      "contracts": ["packages/common/utc-instant"]
+      "contracts": [
+        "packages/common/utc-instant"
+      ]
     },
     {
       "id": "platform",
@@ -147,7 +172,25 @@
       "id": "engineering-toolchain",
       "title": "工程工具链",
       "track": null,
-      "paths": ["tools", "scripts", "docs/engineering"],
+      "paths": [
+        "tools",
+        "scripts",
+        "docs/engineering",
+        ".github",
+        "package.json",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml",
+        "turbo.json",
+        "tsconfig.base.json",
+        "vitest.tiers.mts",
+        "repo-toolchain.config.json",
+        ".oxlintrc.json",
+        ".oxfmtrc.json",
+        ".dependency-cruiser.cjs",
+        "knip.json",
+        "pyproject.toml",
+        "uv.lock"
+      ],
       "contracts": []
     }
   ]
