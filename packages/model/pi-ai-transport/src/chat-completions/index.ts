@@ -25,6 +25,7 @@ export type {
   ReasoningCodec,
   ReasoningDetail,
   ReplayPart,
+  ReplaySource,
   ReplayWire,
   ServingPin,
   UsageDiagnostic,

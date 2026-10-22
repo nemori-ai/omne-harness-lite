@@ -75,6 +75,6 @@
    - 已收场但没有 usage 的响应也有账目，各项为未知。
    - 费用的单位是 `openrouter-credit`，词法照原样。
 4. **请求体的写法。** 现行记录用 `parts`：系统指令、提醒、user、assistant 与工具结果的内容都写成部件数组。提醒的角色是 `user`。图片写记录的 `detail: "auto"`，封存件只写 `url`。缓存标记 `{ "type": "ephemeral", "ttl": "1h" }` 在最后一条消息的最后一个非空文本部件上。封存测试只断言了请求体的部分成员，本目录的期望请求体按现行规格写出。
-5. **拒绝的时机与位置。** 封存件在下一次请求的计划阶段拒绝未签名的组、`[REDACTED]` 加密项与别的路由的组，不发出请求。现行解码器对这样的组不产生部件。下一次请求中，本家族消息的思考没有部件可带时，编解码器返回 `unsupported`（`field` 为 `thinking`），不发出请求。别的路由的组按回放声明略去，并给出 `replay-omitted` 诊断。这两种请求见 [cross-family-replay.spec.ts](../cross-family-replay.spec.ts)。
+5. **拒绝的时机与位置。** 封存件在下一次请求的计划阶段拒绝未签名的组、`[REDACTED]` 加密项与别的路由的组，不发出请求。现行解码器对这样的组不产生部件。下一次请求中，本家族消息的思考没有部件可带时，编解码器不写出这个思考，请求照常发出，见 [pi-ai-anthropic SPEC“规则”](../../SPEC.md#规则)。别的路由的组按回放声明略去，并给出 `replay-omitted` 诊断。这两种请求见 [cross-family-replay.spec.ts](../cross-family-replay.spec.ts)。
 6. **重复的收场帧。** 封存件的流只有一个收场帧，usage 在它之前的一帧。`records/anthropic%2Fclaude-sonnet-5/1` 按经代理观察到的网关形状写出流：收场帧先到一次，再带 usage 重复一次。值是合成值，观察样本不进仓库。
 7. **没有内容的收场。** 封存件把只有加密推理的 `stop` 当作完成，并封存推理组。推理续接状态部件不是内容，契约只在至少一个有效块合法封口后映射 finish，见 [pi-ai-transport SPEC“映射”](../../../pi-ai-transport/SPEC.md#映射)。所以 `cases/ls-encrypted-discrete` 以 `upstream-protocol`（`finish-without-content`）失败，不封推理组，在 `ended` 之前给出账目。同 id 的加密项保持分开，这一点由 pi-ai-transport 的解码测试（“reasoning detail identity”）核对。

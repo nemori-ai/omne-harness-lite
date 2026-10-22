@@ -17,6 +17,7 @@ import type {
   ReasoningCodec,
   ReasoningDetail,
   ReplayPart,
+  ReplaySource,
   ReplayWire,
   VendorHooks,
 } from '@omne-harness/pi-ai-transport/chat-completions'
@@ -136,10 +137,14 @@ function seal(
 
 /**
  * The carried groups go back as `reasoning_details`, in part order; native thinking then stays
- * out, because the signed items carry it. Thinking without a carried group has no signed form:
- * Anthropic refuses unsigned thinking, so the codec returns `unsupported` instead of dropping it.
- * This covers native thinking of a continuable message whose group was not sealed and the
- * foreign-thinking rule `adapter`. Empty thinking texts write nothing.
+ * out, because the signed items carry it. Thinking without a carried group has no signed form,
+ * and Anthropic refuses unsigned thinking:
+ *
+ * - own thinking of a continuable message whose group was not sealed (an unsigned stream, or a
+ *   group dropped as too long) is not written, so the conversation can go on;
+ * - foreign thinking under the rule `adapter` asks for a form that does not exist: `unsupported`.
+ *
+ * Empty thinking texts write nothing.
  */
 function signedGroup(adapter: Adoption): ReasoningCodec {
   return Object.freeze({
@@ -147,9 +152,10 @@ function signedGroup(adapter: Adoption): ReasoningCodec {
     replay(
       parts: readonly ReplayPart[],
       thinking: readonly string[],
+      source: ReplaySource,
     ): Outcome<ReplayWire, TransportFailure> {
       if (parts.length === 0)
-        return thinking.every(text => text.length === 0)
+        return source === 'continuable' || thinking.every(text => text.length === 0)
           ? { ok: { kind: 'none' } }
           : { failure: { kind: 'unsupported', field: 'thinking', adapter } }
       const details: Item[] = []

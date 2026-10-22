@@ -92,6 +92,7 @@ describe('anthropic-signed-group/1', () => {
           { payload: second.payload, format: FORMAT },
         ],
         ['think'],
+        'continuable',
       ),
     ).toEqual({
       ok: {
@@ -111,20 +112,28 @@ describe('anthropic-signed-group/1', () => {
       JSON.stringify([{ ...SIGNED, signature: '' }]),
       JSON.stringify([SIGNED, { ...ENCRYPTED, data: '[REDACTED]' }]),
     ])
-      expect(codec.replay([{ payload, format: FORMAT }], [])).toEqual({
+      expect(codec.replay([{ payload, format: FORMAT }], [], 'continuable')).toEqual({
         failure: { kind: 'invalid', field: 'reasoning_state', reason: 'payload-not-replayable' },
       })
   })
 
-  it('refuses thinking without a carried group, never sends it unsigned or drops it', () => {
-    expect(codec.replay([], ['unsigned thinking'])).toEqual({
+  it('refuses foreign thinking under the rule adapter: it has no signed form', () => {
+    expect(codec.replay([], ['foreign thinking'], 'foreign')).toEqual({
       failure: { kind: 'unsupported', field: 'thinking', adapter },
     })
   })
 
+  it('does not write own thinking without a carried group, so the request goes on', () => {
+    expect(codec.replay([], ['unsigned thinking'], 'continuable')).toEqual({
+      ok: { kind: 'none' },
+    })
+  })
+
   it('writes nothing for no parts and no or empty thinking', () => {
-    expect(codec.replay([], [])).toEqual({ ok: { kind: 'none' } })
-    expect(codec.replay([], [''])).toEqual({ ok: { kind: 'none' } })
+    for (const source of ['continuable', 'foreign'] as const) {
+      expect(codec.replay([], [], source)).toEqual({ ok: { kind: 'none' } })
+      expect(codec.replay([], [''], source)).toEqual({ ok: { kind: 'none' } })
+    }
   })
 })
 

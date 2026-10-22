@@ -213,8 +213,9 @@ describe('an OpenAI message in an Anthropic request', () => {
 })
 
 describe('own history', () => {
-  // Sealed anthropic-family-current.spec.ts:746-753: an unsigned group is refused before sending.
-  it('own thinking without a sealed group is refused, never sent unsigned', async () => {
+  // Sealed anthropic-family-current.spec.ts:746-753 refused an unsigned group before sending. The
+  // current rule does not write own thinking that has no signed form, so the conversation goes on.
+  it('own thinking without a sealed group is not written, never sent unsigned, and the request goes on', async () => {
     const { result } = await encoded(SONNET, {
       messages: [
         message('u1', 'user', [textBlock('b1', 'Turn 1.')]),
@@ -227,13 +228,13 @@ describe('own history', () => {
         message('u2', 'user', [textBlock('b2', 'Turn 2.')]),
       ],
     })
-    expect(result).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'thinking',
-        adapter: recordAdoption(ANTHROPIC_OWNER, SONNET),
-      },
+    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
+    expect(messagesOf(result.ok.body)[1]).toEqual({
+      role: 'assistant',
+      content: [{ type: 'text', text: 'Answer 1.' }],
     })
+    expect(writeJsonText(result.ok.body)).not.toContain('unsigned')
+    expect(result.ok.diagnostics).toEqual([])
   })
 })
 

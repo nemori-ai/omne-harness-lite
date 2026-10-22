@@ -48,7 +48,7 @@
 
 | hook | 规则 | 行为 |
 | --- | --- | --- |
-| `reasoning` | `openai-encrypted/1` | 封存：`reasoning.encrypted` 项、格式为 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]` 时，每项一个载荷；载荷是该项的排序键 JSON。其他项不成为状态。回放：可续接消息的部件按部件顺序写回 `reasoning_details`；载荷不是这样的一项时返回 `invalid`（`field` 为 `reasoning_state`）。有部件时原生思考不写出。没有部件时，原生思考连接后写成 `reasoning` |
+| `reasoning` | `openai-encrypted/1` | 封存：`reasoning.encrypted` 项、格式为 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]` 时，每项一个载荷；载荷是该项的排序键 JSON。其他项不成为状态。回放：可续接消息的部件按部件顺序写回 `reasoning_details`；载荷不是这样的一项时返回 `invalid`（`field` 为 `reasoning_state`）。有部件时原生思考不写出。没有部件时，思考连接后写成 `reasoning`，可续接消息的原生思考与 `adapter` 规则下的外来思考都如此（`source` 不影响结果） |
 | `reasoning` | `none/1` | 没有编解码器。当前没有记录使用 |
 | `usage` | `openai-usage/1` | `input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output`、`cache-read`、`cache-write`、`reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串 |
 | `usage` | `unknown-scope/1` | 同上，但 `input` 恒为 `unknown`：6 个 Pro 型号的 prompt 统计范围未知。余量为负时仍返回同一条诊断 |

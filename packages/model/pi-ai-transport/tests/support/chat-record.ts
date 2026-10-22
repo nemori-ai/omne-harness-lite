@@ -24,6 +24,7 @@ import type {
   FamilyMeter,
   ProjectedRequest,
   ReplayPart,
+  ReplaySource,
   VendorHooks,
 } from '../../src/chat-completions/index.ts'
 import { recordAdoption } from '../../src/index.ts'
@@ -128,7 +129,11 @@ export function supplierOf(record: ChatCompletionsRecord): Supplier {
 export type EngineProbe = {
   checks: { applied: readonly Parameter[]; treatments: readonly ReplayTreatment[] }[]
   checkFailure: TransportFailure | undefined
-  replays: { parts: readonly ReplayPart[]; thinking: readonly string[] }[]
+  replays: {
+    parts: readonly ReplayPart[]
+    thinking: readonly string[]
+    source: ReplaySource
+  }[]
   views: ProjectedRequest[]
   representation: Adoption
   released: number
@@ -158,8 +163,8 @@ export function testHooks(probe: EngineProbe, reasoning = true): VendorHooks {
     reasoning: reasoning
       ? {
           seal: () => ({ ok: [] }),
-          replay(parts, thinking) {
-            probe.replays.push({ parts, thinking })
+          replay(parts, thinking, source) {
+            probe.replays.push({ parts, thinking, source })
             if (parts.length === 0) return { ok: { kind: 'plain', text: thinking.join('') } }
             return {
               ok: {

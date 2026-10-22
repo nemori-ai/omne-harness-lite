@@ -447,7 +447,11 @@ describe('encode: replay', () => {
       encode(testRecord(), { messages: [assistant(SCOPE), follow] }, probe),
     )
     expect(probe.replays).toEqual([
-      { parts: [{ payload: 'sealed-1', format: FORMAT }], thinking: ['pondering'] },
+      {
+        parts: [{ payload: 'sealed-1', format: FORMAT }],
+        thinking: ['pondering'],
+        source: 'continuable',
+      },
     ])
     expect(messages).toEqual([
       {
@@ -568,7 +572,7 @@ describe('encode: replay', () => {
       { role: 'assistant', content: 'answer', reasoning: 'pondering' },
       { role: 'user', content: 'next' },
     ])
-    expect(probe.replays).toEqual([{ parts: [], thinking: ['pondering'] }])
+    expect(probe.replays).toEqual([{ parts: [], thinking: ['pondering'], source: 'foreign' }])
   })
 
   it('refuses foreign thinking for adapter as unsupported when the family has no reasoning codec', () => {

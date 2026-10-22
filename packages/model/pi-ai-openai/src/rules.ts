@@ -101,8 +101,9 @@ function seal(
 
 /**
  * The items of the carried parts go back as `reasoning_details`, in part order; native thinking
- * then stays out, because the encrypted items carry the reasoning. A continuable message without
- * parts writes its native thinking as plain `reasoning`.
+ * then stays out, because the encrypted items carry the reasoning. Thinking without parts, of a
+ * continuable message or a foreign message under the rule `adapter`, goes out as plain
+ * `reasoning`, so the source does not change the result.
  */
 function replay(
   parts: readonly ReplayPart[],

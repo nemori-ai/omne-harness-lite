@@ -456,8 +456,8 @@ plan 不返回诊断。
 
 回放按 model-contract 的 `projectReplay` 投影。`declaration` 在 plan 中是档案声明展开后的值，在 encode 中是 encode 的输入。`formats` 取记录的 `replay.formats.accepts`。请求关闭回放时 `off` 为真。`resent` 在 plan 中为空，在 encode 中是 encode 的输入：
 
-- 可续接的消息：`replay.at` 指出的模型可见部件与原生 `thinking` 交给 `hooks.reasoning.replay`。它返回 `details` 时写 `reasoning_details`，返回 `plain` 时写 `reasoning`。
-- 不可续接的消息：不写推理续接状态部件。`thinking` 按 `foreignThinking` 处理：`omit` 不写，`text` 作为文本部件写入，`adapter` 交给 `hooks.reasoning.replay`。`text` 写入的思考在交给计量器的投影中也是文本块，不是思考块，所以计量器计入它（model-contract“推理回放”的计量：计量器与编码器对同一供应商使用同一投影）。
+- 可续接的消息：`replay.at` 指出的模型可见部件与原生 `thinking` 交给 `hooks.reasoning.replay`，`source` 为 `continuable`。它返回 `details` 时写 `reasoning_details`，返回 `plain` 时写 `reasoning`，返回 `none` 时不写回放成员。
+- 不可续接的消息：不写推理续接状态部件。`thinking` 按 `foreignThinking` 处理：`omit` 不写，`text` 作为文本部件写入，`adapter` 交给 `hooks.reasoning.replay`，部件为空，`source` 为 `foreign`。`text` 写入的思考在交给计量器的投影中也是文本块，不是思考块，所以计量器计入它（model-contract“推理回放”的计量：计量器与编码器对同一供应商使用同一投影）。
 - 需要写回放而 `hooks.reasoning` 为 `null` 时，返回 `unsupported`，`field` 为该消息的路径。所以 `foreignThinking` 为 `adapter`、外来消息有 `thinking`、而家族没有推理编解码器时，结果是 `unsupported`。家族的编解码器也可以对它没有写法的输入返回 `unsupported`。
 - encode 把 `projectReplay` 返回的 `diagnostics` 写成 `replay-omitted` 诊断。
 

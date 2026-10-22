@@ -28,6 +28,7 @@ import type {
   ProjectedPart,
   ProjectedTurn,
   ReplayPart,
+  ReplaySource,
   ReplayWire,
   VendorHooks,
   WireProfile,
@@ -381,7 +382,13 @@ function assistantMessage(
       }
     }
   }
-  const replay = replayWire({ carried, thinking, path, input })
+  const replay = replayWire({
+    carried,
+    thinking,
+    source: treatment.continuable ? 'continuable' : 'foreign',
+    path,
+    input,
+  })
   if (!('ok' in replay)) return replay
   if (parts.length === 0 && toolCalls.length === 0 && replay.ok.kind === 'none') return { ok: null }
   return {
@@ -401,6 +408,7 @@ function replayWire(
   input: Readonly<{
     carried: readonly ReplayPart[]
     thinking: readonly string[]
+    source: ReplaySource
     path: string
     input: ProjectionInput
   }>,
@@ -408,7 +416,7 @@ function replayWire(
   if (input.carried.length === 0 && input.thinking.length === 0) return { ok: { kind: 'none' } }
   const codec = input.input.hooks.reasoning
   if (codec === null) return unsupported(input.path, input.input.adapter)
-  return codec.replay(input.carried, input.thinking)
+  return codec.replay(input.carried, input.thinking, input.source)
 }
 
 function toolMessage(

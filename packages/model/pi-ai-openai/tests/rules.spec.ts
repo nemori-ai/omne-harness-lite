@@ -74,6 +74,7 @@ describe('openai-encrypted/1', () => {
     const replayed = codec.replay(
       [{ payload: part.payload, format: 'openai-responses-v1' }],
       ['ignored'],
+      'continuable',
     )
     expect(replayed).toEqual({
       ok: {
@@ -93,14 +94,18 @@ describe('openai-encrypted/1', () => {
       '{"type":"reasoning.summary","summary":"x"}',
       JSON.stringify({ ...ENCRYPTED, data: '[REDACTED]' }),
     ])
-      expect(codec.replay([{ payload, format: 'openai-responses-v1' }], [])).toEqual({
-        failure: { kind: 'invalid', field: 'reasoning_state', reason: 'payload-not-replayable' },
-      })
+      expect(codec.replay([{ payload, format: 'openai-responses-v1' }], [], 'continuable')).toEqual(
+        {
+          failure: { kind: 'invalid', field: 'reasoning_state', reason: 'payload-not-replayable' },
+        },
+      )
   })
 
-  it('writes native thinking of a message without parts as plain reasoning, else nothing', () => {
-    expect(codec.replay([], ['a', 'b'])).toEqual({ ok: { kind: 'plain', text: 'ab' } })
-    expect(codec.replay([], [])).toEqual({ ok: { kind: 'none' } })
+  it('writes thinking of a message without parts as plain reasoning, else nothing, whatever its source', () => {
+    for (const source of ['continuable', 'foreign'] as const) {
+      expect(codec.replay([], ['a', 'b'], source)).toEqual({ ok: { kind: 'plain', text: 'ab' } })
+      expect(codec.replay([], [], source)).toEqual({ ok: { kind: 'none' } })
+    }
   })
 
   it('none/1 gives no codec', () => {

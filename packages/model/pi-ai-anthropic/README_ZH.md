@@ -18,7 +18,7 @@
 | 记录 | 4 条 `current` 记录，修订为 `1`，从封存的官方定义迁入。纯数据，提交指纹 | `ANTHROPIC_RECORDS` | `records.spec.ts`、`adoptions.spec.ts` |
 | 取得与绑定 | 一次取得给出精确供应商的一个绑定。未知采用、路由不符、tokenizer 不符与取消都整体失败 | `createAnthropicFamily` 与 `composeFamilies` | `family.spec.ts` |
 | 参数与请求体 | 输出上限、停止序列与推理强度 `low`、`medium`、`high`、`max`，原样写出。`none` 与其他参数在发送前返回 `unsupported`。1h 缓存标记在最后一条消息上，没有位置时返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
-| 规则 | 整组签名推理的封存与回放、没有签名组的思考返回 `unsupported`、缓存读写的用量算术与 `usage-inconsistent` 诊断、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |
+| 规则 | 整组签名推理的封存与回放；本家族消息没有签名组的思考不写出，`adapter` 规则下的外来思考返回 `unsupported`；缓存读写的用量算术与 `usage-inconsistent` 诊断、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |
 | 计量 | 可见投影的 NFKC JSON 经 `claude.json` 估算并加配置余量；按像素事实计算的 28 像素块图片规则；带签名组的请求没有估算 | `binding.meter` | `meter.spec.ts` |
 | 词表资源 | 读取发布的 `claude.json` 并核对 SHA-256；经 tokenizer-tiktoken 计数与独立参考值相等；特殊 token 字样按普通文本计 | `anthropicTokenizerResources` | `meter.spec.ts` |
 | 官方档案 | 每条 `current` 记录一份档案。每份档案的供应商都能取得绑定并规划请求 | `officialAnthropicProfiles` | `profiles.spec.ts` |

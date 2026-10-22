@@ -193,6 +193,13 @@ export type ReplayWire =
 export type ReplayPart = Readonly<{ payload: string; format: string }>
 
 /**
+ * Where the thinking texts of a replay come from. `continuable`: a message of this replay scope
+ * that may continue; its thinking is native. `foreign`: a message that cannot continue, under the
+ * foreign-thinking rule `adapter`; it never carries parts.
+ */
+export type ReplaySource = 'continuable' | 'foreign'
+
+/**
  * The reasoning codec of a family. The formats it produces and accepts are record data
  * (`record.replay.formats`), so they are inside the adoption digest.
  */
@@ -204,11 +211,13 @@ export type ReasoningCodec = Readonly<{
   /**
    * The wire members of one assistant message. `parts` are the carried state parts of a
    * continuable message (empty otherwise); `thinking` holds the thinking texts that go native,
-   * or as unsigned reasoning for the foreign-thinking rule `adapter`.
+   * or as unsigned reasoning for the foreign-thinking rule `adapter`. `source` tells the two
+   * apart, so a codec can treat own thinking without parts differently from foreign thinking.
    */
   replay(
     parts: readonly ReplayPart[],
     thinking: readonly string[],
+    source: ReplaySource,
   ): Outcome<ReplayWire, TransportFailure>
 }>
 

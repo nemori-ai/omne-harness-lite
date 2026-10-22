@@ -58,11 +58,12 @@
 | `toolSchema` | `object-root/1` | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema` |
 | `check` | `none/1` | 没有跨字段规则，参数表与回放数据已写明全部规则 |
 
-`anthropic-signed-group/1` 的回放 `replay(parts, thinking)`：
+`anthropic-signed-group/1` 的回放 `replay(parts, thinking, source)`。`source` 由引擎给出：`continuable` 是本回放范围中可续接的消息，`foreign` 是 `foreignThinking` 为 `adapter` 的外来消息。
 
 1. `parts` 非空：按部件顺序读出每个载荷的项，写回 `reasoning_details`。载荷不是一组可以回放的项时，返回 `invalid`，`field` 为 `reasoning_state`。原生思考不另写出，签名组已带有它。
-2. `parts` 为空，`thinking` 中有非空文本：返回 `unsupported`，`field` 为 `thinking`，`adapter` 为记录采用。Anthropic 不接受未签名的思考，所以编解码器不把它写成文本，也不丢弃它。两种输入会到达这里：本家族的可续接消息有思考但没有部件（例如流中的组不可以回放），以及 `foreignThinking` 为 `adapter` 的外来消息。编解码器分不清这两种输入。
-3. `parts` 为空，`thinking` 为空或只有空文本：不写回放成员。
+2. `parts` 为空，`source` 为 `foreign`，`thinking` 中有非空文本：返回 `unsupported`，`field` 为 `thinking`，`adapter` 为记录采用。Anthropic 不接受未签名的思考，`adapter` 要求的写法不存在。
+3. `parts` 为空，`source` 为 `continuable`：不写回放成员，思考不写出，请求照常发出。这种消息有思考但没有部件，例如流中的组不可以回放，或载荷过长而没有产生部件。Anthropic 没有未签名思考的原生写法。把思考写成文本会改变消息的含义；返回失败会使之后每次对同一型号的请求都失败。
+4. `parts` 为空，`thinking` 为空或只有空文本：不写回放成员。
 
 引擎的解码器在收场后调用 `usage` hook 一次，用它的结果形成账目报告与诊断事实，见 [pi-ai-transport SPEC“账目”](../pi-ai-transport/SPEC.md#账目)。
 
