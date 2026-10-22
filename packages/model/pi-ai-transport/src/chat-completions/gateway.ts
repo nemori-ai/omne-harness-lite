@@ -6,7 +6,6 @@ import type { GatewayField, GatewayParam } from './vocabulary.ts'
 
 const DECIMAL = /^(0|[1-9][0-9]*)$/
 const EFFORTS = [
-  'none',
   'minimal',
   'low',
   'medium',
@@ -25,7 +24,6 @@ export const GATEWAY_FIELDS = [
   'seed',
   'stop',
   'reasoning.effort',
-  'reasoning.enabled',
   'store',
 ] as const satisfies readonly GatewayField[]
 
@@ -45,7 +43,6 @@ function valueOf(param: GatewayParam): JsonValue {
       return list(param.value.map(text))
     case 'reasoning.effort':
       return text(param.value)
-    case 'reasoning.enabled':
     case 'store':
       return bool(param.value)
     default: {
@@ -118,7 +115,6 @@ export function readGatewayParam(field: GatewayField, value: JsonValue): Gateway
       const effort = EFFORTS.find(item => item === value.value)
       return effort === undefined ? null : { field, value: effort }
     }
-    case 'reasoning.enabled':
     case 'store':
       return value.kind === 'boolean' && !value.value ? { field, value: false } : null
     default: {

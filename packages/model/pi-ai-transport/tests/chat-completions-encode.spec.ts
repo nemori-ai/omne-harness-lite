@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,
   type ChatCompletionsRecord,
+  type GatewayParam,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
 import { composeFamilies, defineFamily, type PiFamilyBinding } from '../src/index.ts'
@@ -104,7 +105,7 @@ describe('encode: the body', () => {
     )
   })
 
-  it('writes the gateway efforts none and max where the record maps them', () => {
+  it('writes the gateway effort max where the record maps it', () => {
     const base = testRecord()
     const rule = base.parameters['reasoning-effort']
     if (rule.support !== 'supported') throw new Error('the test record supports reasoning effort')
@@ -115,22 +116,19 @@ describe('encode: the body', () => {
           ...rule,
           wire: {
             ...rule.wire,
-            none: { field: 'reasoning.effort', value: 'none' },
             max: { field: 'reasoning.effort', value: 'max' },
           },
         },
       },
     })
-    for (const value of ['none', 'max']) {
-      const effort = {
-        supplier: adapterOf(record),
-        applied: { kind: 'reasoning-effort', value },
-        origin: { kind: 'default', source: adapterOf(record) },
-      }
-      expect(body(encode(record, { parameterAdoptions: [effort] })).reasoning).toEqual({
-        effort: value,
-      })
+    const effort = {
+      supplier: adapterOf(record),
+      applied: { kind: 'reasoning-effort', value: 'max' },
+      origin: { kind: 'default', source: adapterOf(record) },
     }
+    expect(body(encode(record, { parameterAdoptions: [effort] })).reasoning).toEqual({
+      effort: 'max',
+    })
   })
 
   it('writes no usage switch and no member outside the gateway vocabulary', () => {
@@ -585,33 +583,6 @@ describe('encode: replay', () => {
       failure: { kind: 'unsupported', field: '/messages/0', adapter: adapterOf(record) },
     })
   })
-
-  it('writes reasoning off instead of the effort for a degraded request', () => {
-    const record = testRecord({
-      replay: {
-        ...testRecord().replay,
-        prefix: { kind: 'last-tool-turn', degrade: 'disable-reasoning' },
-      },
-    })
-    const off = {
-      supplier: adapterOf(record),
-      applied: { kind: 'reasoning-effort', value: 'none' },
-      origin: { kind: 'default', source: adapterOf(record) },
-    }
-    const messages = [
-      message('a1', 'assistant', [callBlock('c1', 'call_a')]),
-      message('t1', 'tool', [resultBlock('r1', 'call_a'), textBlock('b1', 'done')]),
-    ]
-    const degraded = encode(record, { messages, parameterAdoptions: [off] })
-    expect(body(degraded).reasoning).toEqual({ enabled: false })
-    expect('ok' in degraded && degraded.ok.diagnostics).toEqual([
-      { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
-    ])
-    const medium = { ...off, applied: { kind: 'reasoning-effort', value: 'medium' } }
-    expect(encode(record, { messages, parameterAdoptions: [medium] })).toEqual({
-      failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'prefix-degrade-mismatch' },
-    })
-  })
 })
 
 describe('bindChatCompletions', () => {
@@ -687,6 +658,14 @@ describe('bindChatCompletions', () => {
             ],
           },
         }),
+    ],
+    [
+      'a fixed value that turns reasoning off',
+      () => {
+        const base = testRecord()
+        const off = { field: 'reasoning.enabled', value: false } as unknown as GatewayParam
+        return testRecord({ wire: { ...base.wire, fixed: [off] } })
+      },
     ],
     [
       'an extension on a parameter field',

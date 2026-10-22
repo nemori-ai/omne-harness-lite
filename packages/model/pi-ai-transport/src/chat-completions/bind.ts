@@ -105,7 +105,7 @@ function checkLimits(limits: ChatCompletionsLimits): void {
       throw new RangeError(`limits.toolArguments.${name} must be a positive integer`)
 }
 
-/** Each gateway field has one writer: a parameter, an extension, a fixed value or the degrade. */
+/** Each gateway field has one writer: a parameter, an extension or a fixed value. */
 function checkFields(record: ChatCompletionsRecord): void {
   const known = new Set<string>(GATEWAY_FIELDS)
   const owned = new Set(parameterFields(record.parameters))
@@ -118,8 +118,6 @@ function checkFields(record: ChatCompletionsRecord): void {
   }
   for (const rule of record.extensions) claim(rule.field, 'an extension')
   for (const param of record.wire.fixed) claim(param.field, 'a fixed value')
-  if (record.replay.prefix.kind === 'last-tool-turn')
-    claim('reasoning.enabled', 'the prefix degrade')
 }
 
 /**

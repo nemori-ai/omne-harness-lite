@@ -229,19 +229,18 @@ export function planParameters(
   return { ok: adoptions }
 }
 
-export function explicitAdoption(
+function explicitAdoption(
   input: Readonly<{ supplier: Adoption; source: Adoption }>,
   param: Parameter,
-  applied: Parameter = param,
 ): ParameterAdoption {
   return {
     supplier: input.supplier,
-    applied,
+    applied: param,
     origin: { kind: 'explicit', requested: param, source: input.source },
   }
 }
 
-export function defaultAdoption(
+function defaultAdoption(
   input: Readonly<{ supplier: Adoption; adapter: Adoption }>,
   applied: Parameter,
 ): ParameterAdoption {

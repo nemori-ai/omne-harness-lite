@@ -16,12 +16,10 @@ import {
   SOURCE,
   adoption,
   assembledOf,
-  callBlock,
   engineProbe,
   fixedRequest,
   message,
   profileOf,
-  resultBlock,
   stateBlock,
   supplierOf,
   testHooks,
@@ -200,76 +198,6 @@ describe('rules.plan: parameters', () => {
     }
     expect(plan(bind(record), record, { parameters: [wrong] })).toEqual({
       failure: { kind: 'invalid', field: 'extension', reason: 'value' },
-    })
-  })
-})
-
-describe('rules.plan: the prefix degrade', () => {
-  const record = testRecord({
-    replay: {
-      declaration: {},
-      formats: { produces: FORMAT, accepts: [FORMAT] },
-      prefix: { kind: 'last-tool-turn', degrade: 'disable-reasoning' },
-    },
-  })
-  const adapter = supplierOf(record).adoption
-
-  function history(scope: string): readonly unknown[] {
-    return [
-      message('u1', 'user', [textBlock('b1', 'question')]),
-      message('a1', 'assistant', [stateBlock('s1', 'sealed'), callBlock('c1', 'call_1')], {
-        replay: { scope, format: FORMAT, at: [0] },
-      }),
-      message('t1', 'tool', [resultBlock('r1', 'call_1'), textBlock('b2', 'answer')]),
-    ]
-  }
-
-  it('turns reasoning off and records it when the last tool turn came from another scope', () => {
-    const adoptions = adoptionsOf(
-      plan(bind(record), record, { messages: history('gateway/other') }),
-    )
-    expect(adoptions).toContainEqual({
-      supplier: adapter,
-      applied: { kind: 'reasoning-effort', value: 'none' },
-      origin: { kind: 'default', source: adapter },
-    })
-  })
-
-  it('keeps the explicit request in the adoption of a degraded request', () => {
-    const high = { kind: 'reasoning-effort', value: 'high' }
-    const adoptions = adoptionsOf(
-      plan(bind(record), record, { messages: history('gateway/other'), parameters: [high] }),
-    )
-    expect(adoptions).toContainEqual({
-      supplier: adapter,
-      applied: { kind: 'reasoning-effort', value: 'none' },
-      origin: { kind: 'explicit', requested: high, source: SOURCE },
-    })
-  })
-
-  it('keeps reasoning when the last tool turn can continue', () => {
-    expect(applied(plan(bind(record), record, { messages: history(SCOPE) }))).toContainEqual({
-      kind: 'reasoning-effort',
-      value: 'medium',
-    })
-  })
-
-  it('degrades when the request turns replay off', () => {
-    expect(
-      applied(plan(bind(record), record, { messages: history(SCOPE), replay: 'off' })),
-    ).toContainEqual({
-      kind: 'reasoning-effort',
-      value: 'none',
-    })
-  })
-
-  it('does not degrade a record without the prefix rule', () => {
-    const plain = testRecord()
-    expect(
-      applied(plan(bind(plain), plain, { messages: history('gateway/other') })),
-    ).toContainEqual({
-      kind: 'reasoning-effort',
-      value: 'medium',
     })
   })
 })

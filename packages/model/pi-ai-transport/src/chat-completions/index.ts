@@ -19,7 +19,6 @@ export type {
   ParameterTable,
   ParameterValue,
   ParameterWire,
-  PrefixRule,
   ProjectedPart,
   ProjectedRequest,
   ProjectedTurn,

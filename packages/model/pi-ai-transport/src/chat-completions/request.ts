@@ -25,7 +25,7 @@ import type { PiMaterializedMedia } from '../family.ts'
 import { serializeBody } from '../payload.ts'
 import { gatewayMembers } from './gateway.ts'
 import { bool, list, object, text } from './json.ts'
-import { defaultAdoption, explicitAdoption, planParameters, wireParameter } from './parameters.ts'
+import { planParameters, wireParameter } from './parameters.ts'
 import { cacheTarget, messagesJson, project, type Projection } from './projection.ts'
 import type {
   ChatCompletionsRecord,
@@ -46,10 +46,6 @@ export type RequestContext = Readonly<{
 }>
 
 type Materialized = Extract<MeterRepresentation, { kind: 'materialized' }>
-
-/** The applied value of a degraded request: reasoning off. */
-const REASONING_OFF: Parameter = { kind: 'reasoning-effort', value: 'none' }
-const REASONING_DISABLED: GatewayParam = { field: 'reasoning.enabled', value: false }
 
 function sameAdoption(left: Adoption, right: Adoption): boolean {
   return (
@@ -85,63 +81,24 @@ function profileDeclaration(
   return 'ok' in declared ? declared : { failure: declared.failure }
 }
 
-/**
- * The diagnostics of one encoding: a `replay-omitted` for each message whose reasoning state
- * parts stay out, then a `reasoning-disabled` when the prefix rule turned reasoning off.
- */
+/** The diagnostics of one encoding: a `replay-omitted` for each message whose reasoning state parts stay out. */
 function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
-  const diagnostics: ProviderDiagnostic[] = projection.diagnostics.map(item => ({
+  return projection.diagnostics.map(item => ({
     kind: 'replay-omitted',
     message: item.message,
     scope: item.scope,
     format: item.format,
     omittedParts: item.omittedParts,
   }))
-  if (projection.degrade) diagnostics.push({ kind: 'reasoning-disabled', reason: 'foreign-prefix' })
-  return diagnostics
 }
 
-/**
- * Turns reasoning off in the adoptions of a degraded request: the reasoning adoption, explicit or
- * default, is recorded with the applied value `none`. Without a reasoning adoption one is added
- * with origin `default`.
- */
-function degradeAdoptions(
-  context: RequestContext,
-  adoptions: readonly ParameterAdoption[],
-  source: Adoption,
-): readonly ParameterAdoption[] {
-  const ids = { supplier: context.adapter, adapter: context.adapter, source }
-  let found = false
-  const degraded = adoptions.map(adoption => {
-    if (adoption.applied.kind !== 'reasoning-effort') return adoption
-    found = true
-    return adoption.origin.kind === 'explicit'
-      ? explicitAdoption(ids, adoption.origin.requested, REASONING_OFF)
-      : defaultAdoption(ids, REASONING_OFF)
-  })
-  return found ? degraded : [...degraded, defaultAdoption(ids, REASONING_OFF)]
-}
-
-/** The gateway parameters of the applied values; a degraded request writes reasoning off instead. */
+/** The gateway parameters of the applied values, then the fixed values of the record. */
 function gatewayParams(
   context: RequestContext,
   applied: readonly Parameter[],
-  degrade: boolean,
 ): Outcome<readonly GatewayParam[], TransportFailure> {
   const params: GatewayParam[] = []
   for (const param of applied) {
-    if (degrade && param.kind === 'reasoning-effort') {
-      if (param.value !== 'none')
-        return {
-          failure: {
-            kind: 'invalid',
-            field: 'parameterAdoptions',
-            reason: 'prefix-degrade-mismatch',
-          },
-        }
-      continue
-    }
     const wired = wireParameter(param, {
       record: context.record,
       adapter: context.adapter,
@@ -149,17 +106,6 @@ function gatewayParams(
     })
     if (!('ok' in wired)) return wired
     params.push(wired.ok)
-  }
-  if (degrade) {
-    if (!applied.some(param => param.kind === 'reasoning-effort'))
-      return {
-        failure: {
-          kind: 'invalid',
-          field: 'parameterAdoptions',
-          reason: 'prefix-degrade-mismatch',
-        },
-      }
-    params.push(REASONING_DISABLED)
   }
   params.push(...context.record.wire.fixed)
   return { ok: params }
@@ -237,7 +183,7 @@ function represent(
     representation: Adoption
   }>,
 ): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
-  const params = gatewayParams(context, input.applied, input.projection.degrade)
+  const params = gatewayParams(context, input.applied)
   if (!('ok' in params)) return params
   const body = bodyOf(context, input.projection, params.ok)
   if (!('ok' in body)) return body
@@ -259,7 +205,7 @@ function represent(
 }
 
 /**
- * `rules.plan`: the supplier and its replay declaration, parameter planning, the prefix degrade,
+ * `rules.plan`: the supplier and its replay declaration, parameter planning, the projection,
  * the family check and the representation, in this order. The projection uses the declaration of
  * the profile, which the request of this profile fixes, and no re-dispatch.
  */
@@ -293,9 +239,7 @@ export function planRequest(
     resent: new Set(),
   })
   if (!('ok' in projection)) return projection
-  const parameters = projection.ok.degrade
-    ? degradeAdoptions(context, planned.ok, assembled.source)
-    : planned.ok
+  const parameters = planned.ok
   const applied = parameters.map(adoption => adoption.applied)
   const checked = context.hooks.check({
     applied,

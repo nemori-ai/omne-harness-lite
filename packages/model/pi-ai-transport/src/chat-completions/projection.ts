@@ -62,8 +62,6 @@ export type Projection = Readonly<{
   toolChoice: JsonValue | undefined
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
-  /** True when the prefix rule of the record turns reasoning off for this request. */
-  degrade: boolean
 }>
 
 export type ProjectionInput = Readonly<{
@@ -152,14 +150,6 @@ function contentPart(
 
 /** The tool call id each pending call answers to, with the path of the call. */
 type PendingCalls = Map<string, string>
-
-function isCall(part: ChatMessage['blocks'][number]): boolean {
-  return (
-    part.kind === 'tool_call' ||
-    part.kind === 'tool_call_unparsed' ||
-    part.kind === 'tool_call_incomplete'
-  )
-}
 
 /**
  * Projects the request for one supplier. Failures name a safe path: `/system/<i>`,
@@ -255,34 +245,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
       toolChoice: toolChoice.ok,
       treatments: replay.treatments,
       diagnostics: replay.diagnostics,
-      degrade: prefixDegrades(record, input.messages, treatments),
     },
-  }
-}
-
-/**
- * True when the record requires the last assistant message that used a tool to be continuable for
- * this supplier, and it is not.
- */
-function prefixDegrades(
-  record: ChatCompletionsRecord,
-  messages: readonly ChatMessage[],
-  treatments: ReadonlyMap<number, ReplayTreatment>,
-): boolean {
-  const prefix = record.replay.prefix
-  switch (prefix.kind) {
-    case 'none':
-      return false
-    case 'last-tool-turn': {
-      const last = messages.findLastIndex(
-        message => message.role === 'assistant' && message.blocks.some(isCall),
-      )
-      return last >= 0 && treatments.get(last)?.continuable !== true
-    }
-    default: {
-      const _exhaustive: never = prefix
-      return _exhaustive
-    }
   }
 }
 

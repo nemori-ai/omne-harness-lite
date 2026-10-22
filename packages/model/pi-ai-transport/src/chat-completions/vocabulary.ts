@@ -50,10 +50,8 @@ export type GatewayParam =
   | Readonly<{ field: 'stop'; value: readonly string[] }>
   | Readonly<{
       field: 'reasoning.effort'
-      value: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+      value: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     }>
-  /** The engine writes it for the prefix degrade `disable-reasoning`. */
-  | Readonly<{ field: 'reasoning.enabled'; value: false }>
   | Readonly<{ field: 'store'; value: false }>
 
 export type GatewayField = GatewayParam['field']
@@ -144,12 +142,6 @@ export type ParameterTable = Readonly<{ [K in ParameterKind]: ParameterRule<K> }
 /** An extension parameter matches by its whole definition adoption. */
 export type ExtensionRule = Readonly<{ definition: Adoption; field: GatewayField }>
 
-/** The prefix rule of a record: what the engine does when the history cannot satisfy it. */
-export type PrefixRule =
-  | Readonly<{ kind: 'none' }>
-  /** The last assistant message that used a tool must be continuable, else reasoning is off. */
-  | Readonly<{ kind: 'last-tool-turn'; degrade: 'disable-reasoning' }>
-
 /** A record of the gateway engine. Pure JSON data. */
 export type ChatCompletionsRecord = PiModelRecordHead &
   Readonly<{
@@ -158,14 +150,13 @@ export type ChatCompletionsRecord = PiModelRecordHead &
     parameters: ParameterTable
     extensions: readonly ExtensionRule[]
     /**
-     * The official replay declaration, the replay formats and the prefix rule. `declaration` is
+     * The official replay declaration and the replay formats. `declaration` is
      * only for the official profiles: plan projects with the declaration of the profile, and
      * encode with the declaration of the request.
      */
     replay: Readonly<{
       declaration: ProfileReplay
       formats: Readonly<{ produces: string; accepts: readonly string[] }>
-      prefix: PrefixRule
     }>
   }>
 

@@ -110,7 +110,6 @@ export function testRecord(overrides: Partial<ChatCompletionsRecord> = {}): Chat
     replay: {
       declaration: {},
       formats: { produces: FORMAT, accepts: [FORMAT] },
-      prefix: { kind: 'none' },
     },
     ...overrides,
   }
