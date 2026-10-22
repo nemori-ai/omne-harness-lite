@@ -20,7 +20,6 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import type {
   FamilyMeter,
-  ProjectedPart,
   ProjectedRequest,
   ProjectedTurn,
 } from '@omne-harness/pi-ai-transport/chat-completions'
