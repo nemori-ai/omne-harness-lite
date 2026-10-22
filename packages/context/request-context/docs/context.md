@@ -8,7 +8,7 @@
 
 ### 经 Cordis 使用
 
-装配 Cordis 的系统不直接导入本成员。[request-context-cordis](../../request-context-cordis/docs/cordis.md) 在插件加载时按配置选定两个策略实现，再调用工厂，交入登记面读口，不交三项端口。贡献者经服务定义 [request-context-cordis-contract](../../request-context-cordis-contract/docs/context.md) 登记提示词贡献。组装请求的调用方经服务的 `assembly(scope, ports)` 用到这个实例：每次调用交入历史源读口、计量端口与转换件结果端口，提供者经实例的按调用交入端口的入口转交（[Cordis 说明的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。
+装配 Cordis 的系统不直接导入本成员。[request-context-cordis](../../request-context-cordis/docs/cordis.md) 在插件加载时按配置选定两个策略实现，再调用工厂，交入登记面读口，不交四项端口。贡献者经服务定义 [request-context-cordis-contract](../../request-context-cordis-contract/docs/context.md) 登记提示词贡献。组装请求的调用方经服务的 `assembly(scope, ports)` 用到这个实例：每次调用交入历史源读口、计量端口、转换件结果端口与请求序列化端口，提供者经实例的按调用交入端口的入口转交（[Cordis 说明的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。
 
 ### 独立使用
 
@@ -35,7 +35,7 @@
 
 独立调用方要自己承担下列事项：
 
-1. 在构造时给出三项端口与两个策略。任一依赖缺席时，相关操作返回不可用。
+1. 在构造时给出四项端口与两个策略。任一依赖缺席时，相关操作返回不可用。
 2. 选定两个策略实现。默认实现的数值只是配置初值，可以按自己的模型窗口与计量口径调整。
 3. 自己收集提示词贡献，作为第四组输入传入。经 Cordis 时由登记面提供。
 4. 保存计划进度、覆盖证据与压缩转换。本成员不持有耐久状态。

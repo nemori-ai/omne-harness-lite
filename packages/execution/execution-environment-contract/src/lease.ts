@@ -26,6 +26,8 @@ export type RejectReason =
   | 'invalidInput'
   | 'unavailable'
   | 'ambiguousEnvironment'
+  /** The caller class an assembly declared does not match the surface of the operation. */
+  | 'callerMismatch'
 
 export type Rejected = Readonly<{ kind: 'rejected'; reason: RejectReason }>
 
@@ -89,10 +91,12 @@ export type EnvironmentAdoption = Readonly<{
 
 /**
  * State of one acquisition, by `AcquisitionRef`. `unrecorded` means this registry holds no record
- * visible to the caller; the durable record lives in the caller's ledger.
+ * visible to the caller; the durable record lives in the caller's ledger. `invalidInput` is an
+ * answer, not a state: the query itself was invalid, so it says nothing about the key.
  */
 export type AcquisitionState =
   | { readonly kind: 'unrecorded' }
+  | { readonly kind: 'invalidInput' }
   | { readonly kind: 'acquiring' }
   | { readonly kind: 'provisional' }
   | { readonly kind: 'acquired'; readonly adoption: EnvironmentAdoption }
@@ -119,5 +123,8 @@ export type Acquired = Readonly<{
 /** The acquisition exists but holds no usable lease right now; nothing new was allocated. */
 export type Pending = Readonly<{
   kind: 'pending'
-  state: Exclude<AcquisitionState, { readonly kind: 'unrecorded' | 'acquired' | 'rejected' }>
+  state: Exclude<
+    AcquisitionState,
+    { readonly kind: 'unrecorded' | 'invalidInput' | 'acquired' | 'rejected' }
+  >
 }>

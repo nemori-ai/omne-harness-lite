@@ -29,7 +29,7 @@
 
 各拒绝原因的含义与触发条件归[契约的拒绝原因](../execution-environment-contract/SPEC.md#拒绝原因)。本节与下一节只写本成员的核对顺序。
 
-- 访问身份里的租户不是 legal-identity 铸造的值时（`tenantEquals(租户, 租户)` 为假），`resolvePlacement` 先于其他核对返回 `invalidInput`。`acquire` 与 `describe` 同样如此，`inspectAcquisition` 答复 `unrecorded`（`AcquisitionState` 没有无效输入的答复）。这项核对不写获取表，也不调用提供者。
+- 访问身份里的租户不是 legal-identity 铸造的值时（`tenantEquals(租户, 租户)` 为假），`resolvePlacement` 先于其他核对返回 `invalidInput`。`acquire` 与 `describe` 同样如此，`inspectAcquisition` 答复 `invalidInput`（它是无效查询答复，不是记录状态）。这项核对不写获取表，也不调用提供者。
 - `resolvePlacement` 在本成员关闭后返回 `ownerStopped`。
 - 未关闭时，输入里的请求方作用域已由 `releaseScope` 释放，返回 `referenceExpired`，不做匹配。
 - 否则本成员把在场的提供者交给契约的 `matchProviders`。交给它的每个提供者的设施键先与设施声明表取交集：提供者声明了、但声明表里没有的键，不算它提供的键。`matchProviders` 按允许清单的顺序逐层查找。在一层里，声明了该层、提供全部设施键、能确认全部隔离断言的提供者恰好一个时，选中它。同一层里这样的提供者有两个或更多时，以 `ambiguousEnvironment` 拒绝，不按登记顺序取先登记者，也不再看清单里后面的层。没有匹配时返回最接近的原因：`missingFacility`、`isolationUnconfirmed` 或 `noMatchingEnvironment`。
@@ -55,7 +55,7 @@
 
 同一个键的并发请求不会两次调用提供者。第二个请求在第一个请求结束前到达时，得到待定，状态为获取中。
 
-`inspectAcquisition` 只读本租户在这个键下的记录。没有本租户的记录时答复 `unrecorded`，不论另一租户有没有用过这个键。两个租户用同一个键时，各自是一次独立的获取，互相看不见，也互不改变状态。所以按键查询与按键获取都不泄露另一租户是否有这个键。访问身份里的租户未铸造时，`inspectAcquisition` 答复 `unrecorded`。
+`inspectAcquisition` 只读本租户在这个键下的记录。没有本租户的记录时答复 `unrecorded`，不论另一租户有没有用过这个键。两个租户用同一个键时，各自是一次独立的获取，互相看不见，也互不改变状态。所以按键查询与按键获取都不泄露另一租户是否有这个键。访问身份里的租户未铸造时，`inspectAcquisition` 答复 `invalidInput`。
 
 进程重启后表为空。`inspectAcquisition` 对旧键答复 `unrecorded`；对旧键再调用 `acquire` 会作为新获取调用提供者。这与契约一致：契约要求集成方先查自己的账本，不对账本里已有的键再次调用 `acquire`（[契约的获取与租约](../execution-environment-contract/SPEC.md#获取与租约)）。
 
@@ -70,7 +70,7 @@
 - 账本没有关闭：账本取自这次获取的 `AcquireInput`，核对它的 `ledger.closed` 没有触发。
 - 设施声明：门每次调用都按键从声明表重新取声明，所以撤除声明之前已经取到的设施对象也在这一项被拒绝。
 - 租户：用 `tenantEquals` 比较请求里的租户与获取方的租户。
-- 绑定层：请求里的绑定层与租约落点的绑定层比较；请求里的原调用不核对。
+- 绑定层：请求里的绑定层与租约落点的绑定层比较；请求里的原调用必须等于获取时固定的原调用，否则在守卫之前返回 `invalidInput`。
 - 设施守卫：守卫答不允许时返回 `notAuthorized`，答不可用或抛出时返回 `unavailable`。守卫答允许之后再核一次租约与账本。
 
 门不解释主体。主体原样交给守卫。设施声明里没有列出的成员不经过门，所以设施拥有者的声明必须列全操作（[契约的设施协议](../execution-environment-contract/SPEC.md#设施协议)）。
@@ -174,7 +174,7 @@
 | 同键重复的比较 | 设施键与隔离断言按集合比较；提供者名、代、版本、设施集合、隔离集合、作用域、原调用不同都按参数冲突拒绝 |
 | 租户级沙箱 | 经 JSON 以租户文本往返的要求能落点与获取；重新解析的同一租户重放得到同一租约；另一租户的落点解析与获取为 `notAuthorized` 且不写记录 |
 | 退役待处置的提供者 | 不再参与落点解析 |
-| 访问身份里的租户未铸造 | 落点解析、获取与描述返回 `invalidInput`（描述在关闭后也是），获取不写记录、不调用提供者；按键查询答复 `unrecorded`，即使这个键有铸造租户的记录 |
+| 访问身份里的租户未铸造 | 落点解析、获取与描述返回 `invalidInput`（描述在关闭后也是），获取不写记录、不调用提供者；按键查询答复 `invalidInput`，即使这个键有铸造租户的记录 |
 
 [tests/lease-gate.spec.ts](tests/lease-gate.spec.ts) 覆盖租约视图：只暴露要求里的键；各种不合形的请求为 `invalidInput`；绑定层不等为 `invalidInput` 且不问守卫；重新解析的同一租户通过、另一租户 `notAuthorized`；开放操作不问守卫；守卫抛出为 `unavailable`；守卫作答期间租约失效为 `closed`；这次获取的账本关闭后为 `closed`，不问守卫、不调设施，另一份获取的账本不受影响，声明也撤除时仍为 `closed`；守卫作答期间账本关闭为 `closed`；撤除声明后已取到的设施对象为 `unsupported`，租约已释放时即使声明已撤除也为 `closed`；原件自报失效记为来源 `provider`，只记一次；原件失效通知以拒绝结束为 `providerInvalidated`；释放一发起就拒新操作，待处置后仍拒；待处置后重试、并发共用一次调用、已释放后不再调用原件；释放抛出为待处置且资源为空。
 
@@ -189,6 +189,8 @@
 本成员不覆盖：持久化、跨进程一致性、真实提供者的资源停止，以及账本的许可先于效果。这些归 Service 实现、提供者与集成方的真实组合验证。
 
 ### 明确缺项
+
+资源操作的异常目前会映射到闭合失败，但原异常没有进入诊断：`registry.ts` 的提供者获取、退役、临时回执补偿释放、恢复授权，`lease-view.ts` 的守卫、释放及失效通知拒绝，以及 `recovery.ts` 的枚举和恢复捕获点均没有诊断出口。原资源的待处置责任按现有状态保留，但还不满足 [DP-01 资源边界例外](../../../docs/defensive-patterns.md#dp-01-独立事实分别报告)的全部条件。诊断端口设计与接线是本成员的剩余责任。
 
 下列契约条款，本成员的源码现在没有兑现。依赖它们的集成方不能假定本成员已经承担：
 

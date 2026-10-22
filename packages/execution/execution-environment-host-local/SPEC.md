@@ -37,7 +37,7 @@
 - `retire()` 先把提供者标为已退役并停止接纳新的文件操作：之后到达的文件操作返回 `rejected`，原因 `closed`，不触碰文件系统。然后它使交出的、尚未释放的租约原件以来源 `provider`、原因 `providerRetired` 失效。最后它等待已接纳、尚未结束的文件操作，最多等 `drainBoundMs` 毫秒。都结束时返回已排空。超过上界时返回待处置，受管资源为空，并给 `diagnose` 一条诊断 `{ kind: 'drainBoundExceeded', provider, generation, inFlight, boundMs }`，`inFlight` 是那时仍未结束的文件操作数。待处置之后再调用 `retire()` 会再等一次。
 - `drainBoundMs` 的初值是 10000。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
 
-前提报 `unknown`，因为平台前提的探测还没有接受。当前日期不在宿主事实里（契约的[明确缺项](../execution-environment-contract/SPEC.md#明确缺项)）。
+前提报 `unknown`，因为平台前提的探测还没有接受。提供者事实不携带日期（日期由后续宿主事实块生产者在块级提供，见[契约 INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 
 ### 宿主文件使用
 

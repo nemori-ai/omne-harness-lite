@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，`models/` 与 `proofs/` 都没有资源。本成员的性质 7 依赖一条还没有进入 basis 的 Cordis 机制读数。这条读数由 basis probe 核验，不放在本目录，见 [Cordis 说明](../docs/cordis.md#机制读数与假设)。提供者行为的验证归 [request-context-cordis](../../request-context-cordis/verification/README.md)。某条性质只靠 probe 与测试无法覆盖时，才在这里加入模型或证明。
+现在为空，`models/` 与 `proofs/` 都没有资源。本成员的性质 7 依赖一条还没有进入 basis 的 Cordis 机制读数。本成员 tests 的真实 Cordis 探针已核验此读数，但没有提升共享 basis 状态，见 [Cordis 说明](../docs/cordis.md#机制读数与假设)。提供者行为的验证归 [request-context-cordis](../../request-context-cordis/verification/README.md)。某条性质只靠 probe 与测试无法覆盖时，才在这里加入模型或证明。

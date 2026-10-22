@@ -548,6 +548,37 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/context/request-context-contract:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/modality':
+        specifier: workspace:*
+        version: link:../../common/modality
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../runtime-context-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      '@standard-schema/spec':
+        specifier: 'catalog:'
+        version: 1.1.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -580,6 +611,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../request-context-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -605,6 +639,12 @@ importers:
 
   packages/context/runtime-context-contract:
     dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@standard-schema/spec':
         specifier: 'catalog:'
         version: 1.1.0
@@ -640,7 +680,13 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../runtime-context-contract
     devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1336,6 +1382,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      '@typescript/typescript6':
+        specifier: 'catalog:'
+        version: 6.0.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

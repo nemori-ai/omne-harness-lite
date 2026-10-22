@@ -1,6 +1,6 @@
 # @omne-harness/execution-environment-cordis-contract 行为规格
 
-状态：Cordis 定义成员，`draft`。本成员只拥有执行环境的 Cordis 定义：服务键 `executionEnvironment`、抽象类 `ExecutionEnvironmentService<P>`、intercept 配置类型 `ExecutionEnvironmentIntercept`，以及恢复授权端口的服务键 `executionRecoveryAuthority` 与抽象类 `ExecutionRecoveryAuthorityService`。领域行为归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已导出这些定义与 `Context` 增补。`src/cordis.ts` 的模板标记说明调用方类的核对还没有接受，见性质 4。
+状态：Cordis 定义成员，`draft`。本成员只拥有执行环境的 Cordis 定义：服务键 `executionEnvironment`、抽象类 `ExecutionEnvironmentService<P>`、intercept 配置类型 `ExecutionEnvironmentIntercept`，以及恢复授权端口的服务键 `executionRecoveryAuthority` 与抽象类 `ExecutionRecoveryAuthorityService`。领域行为归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已导出这些定义与 `Context` 增补。八个公开模板方法先核对调用方类，再委托受保护钩子；交付接受与机制事实分别判断。
 
 ## 范围与依据
 
@@ -17,9 +17,9 @@
 本成员必须保持下列性质。
 
 1. 服务键 `executionEnvironment` 只由抽象类 `ExecutionEnvironmentService` 的 `static readonly provide` 给出。导出的键常量 `executionEnvironmentKey` 取自它。Service 实现 `extends` 这个抽象类，不另写键，也不自己 `ctx.provide` 这个键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。
-2. `ExecutionEnvironmentService<P>` `implements` 契约根入口的 `ExecutionEnvironment<P>` 与 `ProviderRegistrations`。八个抽象方法的参数与结果从这两个契约类型推出，同一组签名不写两份（[IC-3](../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。八个成员都是方法，不是字段。类上的 JSDoc 写 `@owner packages/execution/execution-environment-cordis-contract`。
+2. `ExecutionEnvironmentService<P>` `implements` 契约根入口的 `ExecutionEnvironment<P>` 与 `ProviderRegistrations`。八个公开模板方法及受保护抽象钩子的参数与结果从这两个契约类型推出，同一组签名不写两份（[IC-3](../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。八个成员都是方法，不是字段。类上的 JSDoc 写 `@owner packages/execution/execution-environment-cordis-contract`。
 3. 类型参数 `P` 是主体的类型。`./cordis` 增补 `Context`，把 `executionEnvironment` 属性的类型写成 `ExecutionEnvironmentService<unknown>`。装配的可信身份适配器可以收窄主体类型。Service 实现仍在运行时核对每个输入，不因类型收窄而跳过核对。
-4. intercept 配置类型是 `{ caller: 'integrator' | 'maintainer' | 'provider' }`。调用方插件以对象形式 `inject: { executionEnvironment: { caller: '…' } }` 声明自己的调用方类。`integrator` 对应环境面四个方法，`maintainer` 对应恢复面两个方法，`provider` 对应登记面两个方法。只有 `maintainer` 用于 `recoverOwned` 与 `releaseScope`。调用方类是装配声明的一致性检查，不是访问控制（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。恢复两操作每次仍由恢复授权端口核对（[契约的恢复](../execution-environment-contract/SPEC.md#恢复)）。登记环境提供者与设施声明的权限归装配：只有插件树里列出的插件可以登记；运行中按作用域装上、不进插件树的插件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）不得登记。现状：没有 Service 实现读取这份配置。在 Service 实现补上这项核对之前，调用方类只是声明，不拒绝任何调用。登记权限的强制执行点见[明确缺项](#明确缺项)。
+4. intercept 配置类型是 `{ caller: 'integrator' | 'maintainer' | 'provider' }`。调用方插件以对象形式 `inject: { executionEnvironment: { caller: '…' } }` 声明自己的调用方类。`integrator` 对应环境面四个方法，`maintainer` 对应恢复面两个方法，`provider` 对应登记面两个方法。只有 `maintainer` 用于 `recoverOwned` 与 `releaseScope`。调用方类是装配声明的一致性检查，不是访问控制（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。恢复两操作每次仍由恢复授权端口核对（[契约的恢复](../execution-environment-contract/SPEC.md#恢复)）。登记环境提供者与设施声明的权限归装配：只有插件树里列出的插件可以登记；运行中按作用域装上、不进插件树的插件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）不得登记。每个公开方法以 `this[Service.resolveConfig]()` 读取当前调用方配置。环境面与恢复面在没有 `caller` 声明时放行；登记面必须声明 `provider`。存在但不合三值的声明一律拒绝。声明可从祖先上下文继承，近处声明覆盖远处声明；完全未声明时读取结果为 `{}`。不匹配时，有拒绝通道的六个方法返回 `{ kind: 'rejected', reason: 'callerMismatch' }`，不调用实现钩子；其中 `inspectAcquisition` 的拒绝是查询答复，不是获取记录状态。登记面没有拒绝返回通道，抛出 `CallerClassMismatch`，带操作、期望类与实际声明。登记权限的强制执行点见[明确缺项](#明确缺项)。
 5. `registerFacility` 与 `registerProvider` 登记即效应（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。Service 实现在方法里用 `this.ctx.effect` 登记。`this.ctx` 是调用方的上下文，所以登记落在调用方插件的 fiber 上，调用方卸载即撤除。两个方法都返回撤除函数，显式撤除与 fiber 卸载调用登记表的同一个撤除。撤除一个环境提供者的登记等于这个环境提供者开始退役：先拒新租约，再排空（[INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。退役结果是待处置时，调用方直接调用的撤除函数不以正常返回报告完成，再调用会再次退役。fiber 卸载在退役待处置时也会完成，不以失败报告；待处置经 `ctx.logger` 的错误可见（Cordis 4.0.4 的读数见 [docs/cordis.md](docs/cordis.md#机制读数与假设)）。撤除一份设施声明之后，新的获取取不到这个键（[契约的设施协议](../execution-environment-contract/SPEC.md#设施协议)）。本成员不采用 IC-13 的目录写法。
 6. 本成员不声明事件，不增补 `Events`。落点与宿主事实的变化经 Runtime Context 的两条块声明到达观察者（[INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 7. 一个 isolate 标签下只有一个 Service 实现在场（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。作用域是操作参数 `ScopeRef`，不是 Cordis Context，也不是 isolate（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。租户随访问身份作为参数进入，恢复授权也作为参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
@@ -52,16 +52,16 @@
 | 性质 | 测试 | 覆盖 |
 | --- | --- | --- |
 | 性质 1 | [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 键常量等于 `executionEnvironment`，也等于 `ExecutionEnvironmentService.provide` |
-| 性质 1、8、9 | [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | `./cordis` 只导出两个抽象类与两个键常量 |
+| 性质 1、8、9 | [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | `./cordis` 导出服务定义、分面映射与登记面错误 |
 | 性质 1 | [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 子类作为插件装载时在这个键上提供服务，插件卸载后键上没有服务 |
 | 性质 9 | [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 恢复授权键常量等于 `ExecutionRecoveryAuthorityService.provide`；子类装载后在这个键上答复，卸载后键上没有服务 |
 | 性质 8 | [public-entry.spec.ts](tests/public-entry.spec.ts) | 根入口没有运行导出 |
 
-下列义务由继承本定义的 Service 实现承担，测试归 [execution-environment-host-local](../execution-environment-host-local/SPEC.md#组合与验证)：登记落在调用方 fiber 上并随它撤除，撤除提供者即开始退役，直接调用的撤除函数在退役待处置时可重试，恢复授权每次现取。性质 4 的调用方类核对没有实现，也没有测试。性质 8 的导入边界只由导出测试间接覆盖，没有逐文件的导入检查。
+下列义务由继承本定义的 Service 实现承担，测试归 [execution-environment-host-local](../execution-environment-host-local/SPEC.md#组合与验证)：登记落在调用方 fiber 上并随它撤除，撤除提供者即开始退役，直接调用的撤除函数在退役待处置时可重试，恢复授权每次现取。性质 4 在 `cordis-entry.spec.ts` 覆盖三类、未声明、非法及祖先声明，并核对八个方法。性质 8 的导入边界只由导出测试间接覆盖，没有逐文件的导入检查。
 
 ### 明确缺项
 
-- 登记环境提供者与设施声明的权限现在没有强制执行点：任何 `inject` 了本服务的插件都能调用登记面。拥有者是本成员（服务定义）与应用装配。
-- 性质 4 的调用方类核对没有实现（见上文）。
+- 登记环境提供者与设施声明的权限现在没有强制执行点：声明为 `provider` 的插件可调用登记面，但该声明本身不能证明插件来自获准插件树。拥有者是本成员（服务定义）与应用装配。
+- 新机制读数已由本成员测试固定；候选 basis 条目登记仍归 basis 拥有者，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 文档导航见 [index](index.md)。

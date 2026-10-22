@@ -1,6 +1,37 @@
 import { expect, it } from 'vitest'
-
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/request-context-contract')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('publishes exactly the inventoried runtime values', async () => {
+  const root = await import('@omne-harness/request-context-contract')
+  expect(Object.keys(root).sort()).toEqual([
+    'LAYER_ORDER',
+    'PREFIX_BREAK_REASONS',
+    'REQUEST_CONTEXT_REF_MAX_LENGTH',
+    'SNAPSHOT_ANCHOR_RULE',
+    'assemble',
+    'assembleSystemPrompt',
+    'chooseRepresentations',
+    'compactionPlanSchema',
+    'compactionPolicySchema',
+    'compactionSettingsBlock',
+    'compactionSettingsSchema',
+    'coverageSchema',
+    'declareTools',
+    'decodeBatchRef',
+    'decodeCandidateRef',
+    'decodeEpochId',
+    'decodePassageRef',
+    'decodePlanId',
+    'decodePositionRef',
+    'deriveStep',
+    'judgeBudget',
+    'placeContext',
+    'planCompaction',
+    'planProgressSchema',
+    'project',
+    'projectForHuman',
+    'representationPolicyConfigSchema',
+    'resume',
+    'standardSchema',
+    'windowUsageBlock',
+    'windowUsageSchema',
+  ])
 })

@@ -2,16 +2,16 @@
 
 本页说明本成员怎样组织两个入口与依赖，来兑现 [SPEC](../SPEC.md)。服务键、抽象类、intercept 配置、事件与登记协议的正文归 [Cordis 说明](cordis.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员没有运行实现，不持有状态，也不持有资源。值、修订、游标与资格核对归 [runtime-context](../../runtime-context/docs/architecture.md)。Service 实现与撤除归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md)。
+本成员提供抽象 Service 定义，不持有领域状态或资源。值、修订、游标与资格核对归 [runtime-context](../../runtime-context/docs/architecture.md)。Service 实现与撤除归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md)。
 
 ## 模块与依赖
 
-本成员有两个入口，各一个源文件。现在两个文件都只有模板标记，没有导出。
+本成员有两个入口，各一个源文件。根入口只有类型重导出；Cordis 入口提供抽象类、键及增补。
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/runtime-context-cordis-contract` | `src/index.ts` | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 模板标记 |
-| `@omne-harness/runtime-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RuntimeContextService`、键常量、intercept 配置类型、`Context` 与 `Events` 增补 | 模板标记 |
+| `@omne-harness/runtime-context-cordis-contract` | `src/index.ts` | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现 |
+| `@omne-harness/runtime-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RuntimeContextService`、键常量、intercept 配置类型、`Context` 与 `Events` 增补 | 已实现 |
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ flowchart LR
 
 包外依赖只有两项：
 
-- `@omne-harness/runtime-context-contract`：三面操作类型、`ConsumerClass`、`ScopeRef` 与块键类型。只做类型导入。它现在还不在 `package.json` 里，随 `./cordis` 的实现进入。
+- `@omne-harness/runtime-context-contract`：三面操作类型、`ConsumerClass`、`ScopeRef` 与块键类型。只做类型导入。它已在 `package.json` 登记。
 - `@deepseek-ai/cordis`：`Service`、`Context` 与事件增补。它已在 `package.json` 里，只由 `./cordis` 使用。
 
 本成员不导入 `@omne-harness/runtime-context` 或 `@omne-harness/runtime-context-cordis`（[性质 8](../SPEC.md#结果与不变量)）。依赖方向是提供者依赖本成员，反方向不成立。本成员也不导入任何上层领域的契约。
@@ -52,7 +52,7 @@ flowchart LR
 
 这条核对是一致性检查，不计为访问控制。访问边界是读取资格：资格由持有者签发，由机制的资格表保管，每次读取按资格的状态、租户与集合核对（[RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)）。intercept 配置与资格不一致，说明装配与签发对不上，所以拒绝；一致也不授予任何超出资格的读取。
 
-代价：这条机制现在只有源码读数，见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
+代价：这条机制已有本成员的真实 Cordis 测试，但共同 basis 登记仍缺，见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
 
 ### 事件只做唤醒
 
@@ -77,10 +77,10 @@ flowchart LR
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口没有运行值 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 类型重导出进入后，仍断言运行导出为空 |
-| `./cordis` 只有定义 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，改为核对导出集合与键常量 |
+| 根入口没有运行值 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有运行值 | 持续核对重导出符号身份与运行入口为空 |
+| `./cordis` 只有定义 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对服务类、键与模块增补的实际导出 | 持续核对导出集合与键常量 |
 | 不导入实现成员（性质 8） | 没有 | 核对源码、生成声明与产物的导入 |
-| 三条机制性质 | 没有 | 三个 basis probe 与提供者的测试，见 [Cordis 说明](cordis.md#机制读数与假设) |
+| 三条机制读数 | 真实 Cordis 4.0.4 测试通过 | 三个 basis probe 与提供者的测试，见 [Cordis 说明](cordis.md#机制读数与假设) |
 
 维护规则：
 

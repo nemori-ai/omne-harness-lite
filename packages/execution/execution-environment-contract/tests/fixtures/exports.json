@@ -1,0 +1,766 @@
+{
+  "package": "@omne-harness/execution-environment-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "身份与绑定层",
+          "names": [
+            {
+              "name": "acquisitionRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "originRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "Access",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AcquisitionRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OriginRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "bindingKinds",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "bindingScope",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "BindingKind",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentContinuity",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "环境要求与匹配",
+          "names": [
+            {
+              "name": "EnvironmentRequirement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "IsolationClaim",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "IsolationClaims",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "judgeRequirement",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "matchProviders",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProviderCapabilities",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderMatch",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequirementRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecodeIssue",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "设施",
+          "names": [
+            {
+              "name": "describeFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentFacilities",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilityDescriptor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilityKey",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilityOperation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilityReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilityRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilityResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FacilitySet",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "文件设施",
+          "names": [
+            {
+              "name": "filesFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "FileBatchOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileBatchRecognition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileBatchRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileIdentity",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileInformation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileSystemFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileTarget",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileVersion",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HandleGeneration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ObjectToken",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "命令与终端设施",
+          "names": [
+            {
+              "name": "commandFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CommandFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommandOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OutputChunk",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OutputCount",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OutputPolicy",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OutputSummary",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProcessHandle",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "terminalFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "TerminalFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TerminalInformation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TerminalRef",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "端口与恢复授权",
+          "names": [
+            {
+              "name": "createRecoveryAccess",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "FacilityGuard",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ManagedResource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryAccess",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ResourceLedger",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "落点、获取与租约",
+          "names": [
+            {
+              "name": "AcquisitionState",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Acquired",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentAdoption",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentLease",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InstanceIdentity",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LeaseInvalidation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LeaseRelease",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Pending",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Placement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderIdentity",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RegistryInvalidationReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RejectReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Rejected",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "提供者与操作面",
+          "names": [
+            {
+              "name": "AcquireInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentDescription",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentProvider",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ExecutionEnvironment",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OwnedRecovery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PlacementInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PlatformFacts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderAcquireInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderAcquisition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderFacts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderRegistrations",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryListing",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ResourceRecovery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Retirement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "UnsupportedRecovery",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "工具环境声明",
+          "names": [
+            {
+              "name": "environmentNeedAdoption",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "environmentNeedSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentNeedDeclaration",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "两条块声明",
+          "names": [
+            {
+              "name": "executionHostFactsBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "executionPlacementBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ExecutionHostFactsValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ExecutionPlacementEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ExecutionPlacementValue",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "操作 schema",
+          "names": [
+            {
+              "name": "resolvePlacementParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "acquireParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "inspectAcquisitionParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "describeParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "recoverOwnedParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "releaseScopeParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "registerFacilityParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "registerProviderParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "resolvePlacementResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "acquireResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "inspectAcquisitionResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "describeResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "recoverOwnedResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "releaseScopeResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "operationSchemas",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "providerFactsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "managedResourceSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "OperationSchema",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OperationName",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "日期类型",
+          "names": [
+            {
+              "name": "HostDate",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "测试入口",
+          "names": [
+            {
+              "name": "NotApplicable",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "runConformanceCase",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ConformanceCase",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CaseVerdict",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "environmentProviderConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProviderConformanceOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "executionEnvironmentConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentConformanceOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedEnvironmentProvider",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createMemoryResourceLedger",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedFacilityGuard",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedRecoveryAuthority",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProviderScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedEnvironmentProvider",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryResourceLedger",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedFacilityGuard",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedRecoveryAuthority",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": [
+    {
+      "module": "@omne-harness/runtime-context-contract",
+      "interface": "ContextBlocks",
+      "members": [
+        "execution.placement",
+        "execution.host-facts"
+      ],
+      "pending": false
+    },
+    {
+      "module": "../facility.ts",
+      "interface": "EnvironmentFacilities",
+      "members": [
+        "files",
+        "command",
+        "terminal"
+      ],
+      "pending": false
+    }
+  ]
+}
