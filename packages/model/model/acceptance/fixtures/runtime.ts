@@ -66,6 +66,13 @@ export function createAcceptanceAssembly(script: {
           : { kind: 'factory' },
       },
     ],
+    declarations: [
+      {
+        produces: 'acceptance.invalid/script',
+        accepts: ['acceptance.invalid/script'],
+        foreignThinking: 'omit',
+      },
+    ],
     retryPolicy: adoption,
     representation: adoption,
     source: adoption,
@@ -232,8 +239,8 @@ export function createAcceptanceAssembly(script: {
       return {
         ok: {
           transport: {
-            async prepare(request, supplier) {
-              const prepared = await transport.transport.prepare(request, supplier)
+            async prepare(request, supplier, dispatch) {
+              const prepared = await transport.transport.prepare(request, supplier, dispatch)
               if ('failure' in prepared) return prepared
               return {
                 ok: {
