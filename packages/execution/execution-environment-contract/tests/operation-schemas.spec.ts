@@ -497,3 +497,23 @@ it('marks the held-facility retirement case not applicable without the necessary
   if (!test) throw new Error('missing retirement case')
   expect(await runConformanceCase(test)).toMatchObject({ status: 'not-applicable' })
 })
+
+it('rejects cyclic scope parents as issues and accepts a finite parent chain', async () => {
+  type ScopeInput = { ref: string; parent?: ScopeInput }
+  const self: ScopeInput = { ref: 'self' }
+  self.parent = self
+  const first: ScopeInput = { ref: 'first' }
+  const second: ScopeInput = { ref: 'second', parent: first }
+  first.parent = second
+  for (const schema of [contract.recoverOwnedParamsSchema, contract.releaseScopeParamsSchema]) {
+    expect(await schema['~standard'].validate([self, recovery])).toMatchObject({
+      issues: [{ path: [0, 'parent'] }],
+    })
+    expect(await schema['~standard'].validate([first, recovery])).toMatchObject({
+      issues: [{ path: [0, 'parent', 'parent'] }],
+    })
+    let finite: ScopeInput = { ref: 'root' }
+    for (let index = 0; index < 32; index++) finite = { ref: String(index), parent: finite }
+    expect(await schema['~standard'].validate([finite, recovery])).toHaveProperty('value')
+  }
+})
