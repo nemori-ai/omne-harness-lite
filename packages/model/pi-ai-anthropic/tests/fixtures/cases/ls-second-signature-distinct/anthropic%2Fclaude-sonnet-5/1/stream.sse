@@ -1,0 +1,10 @@
+data: {"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"Thinking about CEDAR. ","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","signature":"SIGNATURE_OBSERVED","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","signature":"SIGNATURE_OTHER","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

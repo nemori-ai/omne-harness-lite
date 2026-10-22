@@ -1,0 +1,287 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5",
+          "revision": "1",
+          "digest": "8cffb31f8b395d76a3355a0b742c2d8c78e13d31f118efbaf8fba39b13d0c209"
+        },
+        "recipient": "openrouter",
+        "model": "anthropic/claude-opus-5",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "512"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Answer briefly. Stable certification prefix."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Turn 1."
+          },
+          {
+            "kind": "image",
+            "id": "i1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "mediaType": "image/png",
+            "inline": "iVBORw0KGgo="
+          }
+        ]
+      },
+      {
+        "id": "msg_a100000000000000000000",
+        "role": "assistant",
+        "blocks": [
+          {
+            "kind": "thinking",
+            "id": "k1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Plan the lookup. Check CEDAR."
+          },
+          {
+            "kind": "text",
+            "id": "t1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Answer 1."
+          },
+          {
+            "kind": "reasoning_state",
+            "id": "s1",
+            "visibility": {
+              "toHuman": false,
+              "toModel": true
+            },
+            "payload": "[{\"format\":\"anthropic-claude-v1\",\"index\":0,\"signature\":\"SIG-R1-claude-opus-5\",\"text\":\"Plan the lookup. Check CEDAR.\",\"type\":\"reasoning.text\"}]",
+            "pairs": [
+              "k1"
+            ]
+          }
+        ],
+        "replay": {
+          "scope": "openrouter/anthropic/claude-opus-5",
+          "format": "anthropic-claude-v1",
+          "at": [
+            2
+          ]
+        }
+      },
+      {
+        "id": "msg_u200000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b2",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Turn 2."
+          }
+        ]
+      }
+    ],
+    "tools": [],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/anthropic/claude-opus-5",
+        "accepts": [
+          "openrouter/anthropic/claude-opus-5"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-opus-5#representation",
+      "revision": "1",
+      "digest": "8cffb31f8b395d76a3355a0b742c2d8c78e13d31f118efbaf8fba39b13d0c209"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5",
+          "revision": "1",
+          "digest": "8cffb31f8b395d76a3355a0b742c2d8c78e13d31f118efbaf8fba39b13d0c209"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "512"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "512"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5",
+          "revision": "1",
+          "digest": "8cffb31f8b395d76a3355a0b742c2d8c78e13d31f118efbaf8fba39b13d0c209"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Answer briefly. Stable certification prefix."
+          }
+        ],
+        "role": "system"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Turn 1."
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgo=",
+              "detail": "auto"
+            }
+          }
+        ],
+        "role": "user"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Answer 1."
+          }
+        ],
+        "reasoning_details": [
+          {
+            "type": "reasoning.text",
+            "text": "Plan the lookup. Check CEDAR.",
+            "format": "anthropic-claude-v1",
+            "index": 0,
+            "signature": "SIG-R1-claude-opus-5"
+          }
+        ],
+        "role": "assistant"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Turn 2.",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "model": "anthropic/claude-opus-5",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "anthropic"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high"
+    },
+    "store": false,
+    "stream": true
+  }
+}
