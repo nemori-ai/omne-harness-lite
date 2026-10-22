@@ -49,7 +49,7 @@
 | `official-anthropic-routes.spec.ts` | 固定服务方、`user` 提醒与参数子集迁入 `records.spec.ts`、`plan.spec.ts` 与回放夹具的请求体。不迁入：旧档案的离线合成与经 HTTPS 的发送，经真实传输的联调归后续 |
 | `anthropic-replay-policy.spec.ts` | 可以回放的项与反例迁入 `rules.spec.ts`。不迁入：签名前缀的型号（按项目约定，记录不关闭推理。2026-10-22 实测：网关在推理开启时接受外来工具轮次，`claude-opus-5.5` 与 `claude-fable-5.1` 拒绝关闭推理。`cross-family-replay.spec.ts` 核对外来工具轮次之后保持请求的推理强度）、旧工厂依据与输出组贡献 |
 | `anthropic-input-meter.spec.ts` | 独立参考值、特殊 token 文本、图片金值与签名组没有估算迁入 `meter.spec.ts`。不迁入：旧绑定检查、请求控制成员的过滤、data URL 与 MIME 核验（媒体读取归 4.4）、准入余量（完整请求计量归 4.3） |
-| `anthropic-cache-target.spec.ts` | 文本与图片混合时标记在文本上，迁入 `plan.spec.ts`。不迁入：空文本的用例（`:91-95`）。引擎不写空文本，也不写没有部件的 user 消息，所以最后一条可写消息决定位置；这是引擎的行为，本包不另加规则 |
+| `anthropic-cache-target.spec.ts` | 文本与图片混合时标记在文本上，迁入 `plan.spec.ts`。空文本的用例（`:91-95`）也迁入 `plan.spec.ts`：引擎照原样写出空文本，所以图片加空文本的末条 user 消息不是只有图片的消息，没有标记位置。封存件不加标记，引擎返回 `unsupported`（`no-cache-target`）。这是引擎的行为，本包不另加规则 |
 | `shared-family-cache-projection.spec.ts` | 不迁入。缓存标记由引擎按记录放置，本包不移除或改写标记 |
 | `anthropic-output-history.spec.ts`、`shared-family-output-history.spec.ts`、`anthropic-family-public.spec.ts` | 不迁入。它们依赖调用方携带的原响应与完整输出组，迁移清单把这些机制标为弃 |
 

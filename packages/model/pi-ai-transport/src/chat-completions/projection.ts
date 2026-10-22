@@ -116,7 +116,7 @@ function invalid(field: string, reason: string): Outcome<never, TransportFailure
   return { failure: { kind: 'invalid', field, reason } }
 }
 
-/** The wire part of one content block, `null` for a block the model does not see or an empty text. */
+/** The wire part of one content block, `null` for a block the model does not see. An empty text is a part. */
 function contentPart(
   block: ContentBlock,
   path: string,
@@ -127,7 +127,7 @@ function contentPart(
   if ('ref' in block) return unsupported(path, adapter)
   switch (block.kind) {
     case 'text':
-      return { ok: block.text.length === 0 ? null : { type: 'text', text: block.text } }
+      return { ok: { type: 'text', text: block.text } }
     case 'image':
       if (image === null || !image.mediaTypes.includes(block.mediaType))
         return unsupported(path, adapter)
@@ -328,15 +328,13 @@ function assistantMessage(
             continue
           case 'text':
             // Written as a text part, so the meter sees a text part: what goes out is metered.
-            if (block.text.length > 0) {
-              parts.push({ type: 'text', text: block.text })
-              blocks.push({
-                kind: 'text',
-                id: block.id,
-                visibility: block.visibility,
-                text: block.text,
-              })
-            }
+            parts.push({ type: 'text', text: block.text })
+            blocks.push({
+              kind: 'text',
+              id: block.id,
+              visibility: block.visibility,
+              text: block.text,
+            })
             continue
           case 'native':
           case 'adapter':

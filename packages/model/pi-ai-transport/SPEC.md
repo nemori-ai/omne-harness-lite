@@ -444,10 +444,10 @@ plan 不返回诊断。
 
 投影把系统指令、消息与工具声明映射为网关消息。失败的 `field` 是安全路径：`/system/<i>`、`/messages/<i>/blocks/<j>`、`/messages/<i>`、`/tools/<k>/<hook 的字段>` 或 `toolChoice`。
 
-- `visibility.toModel` 为假的块不写出。空文本块不写出。`tool_internal` 消息不写出。没有可写部件的 user、reminder 与压缩消息不写出。
+- `visibility.toModel` 为假的块不写出。空文本块照原样写成文本部件：引擎不删除它，也不改写历史（组架构“不得悄悄删工具、改历史”）。`tool_internal` 消息不写出。所有块都对模型不可见的 user、reminder 与压缩消息不写出。
 - 系统指令只含文本。模型可见的非文本块返回 `unsupported`。
 - 图片：`wire.image` 为 `null`，或媒体类型不在 `wire.image.mediaTypes` 中时，返回 `unsupported`。图片写成 `image_url` 部件，`url` 为 data URL，`detail` 取记录值。内容引用、语音与文件返回 `unsupported`。
-- assistant 消息：文本写成部件；完整调用写成函数调用，参数是值树的 JSON 文本；未解析的调用写原文；未完成的调用返回 `invalid`（`reason` 为 `incomplete-tool-call`）。没有文本时，`compact` 写空字符串，`parts` 写空数组。没有文本、调用与回放成员的 assistant 消息不写出。
+- assistant 消息：文本写成部件；完整调用写成函数调用，参数是值树的 JSON 文本；未解析的调用写原文；未完成的调用返回 `invalid`（`reason` 为 `incomplete-tool-call`）。没有文本部件时，`compact` 写空字符串，`parts` 写空数组。没有文本部件、调用与回放成员的 assistant 消息不写出。
 - 工具消息：角色为 `tool`，`tool_call_id` 为规范化的调用 id，内容是结果中的文本。结果中的图片不写进工具消息。连续的一串工具消息的全部图片在这串之后写成一条 user 消息。引擎不写占位文本，不插入桥接的 assistant 消息。
 - 工具调用 id：符合 `^[A-Za-z0-9_-]{1,64}$` 时保留，否则为 `call_` 加该 id 的 SHA-256 base64url 的前 32 个字符。
 - 孤立的调用（之后没有对应结果）返回 `invalid`，`reason` 为 `orphan-tool-call`。没有对应调用的结果返回 `invalid`，`reason` 为 `orphan-tool-result`。
@@ -470,7 +470,7 @@ plan 不返回诊断。
 - `stream` 为 `true`。引擎不写用量开关（`stream_options` 或 `usage`）；
 - `messages`、`tools`（有工具时）与 `tool_choice`（见上文）；
 - 已规划参数按记录映射写入，再加 `wire.fixed`。带点的字段嵌套一层，例如 `reasoning.effort` 写成 `{"reasoning":{"effort":…}}`；
-- `wire.cache` 为 `last-message` 时，最后一条消息的最后一个非空文本部件加 `cache_control: { type: 'ephemeral', ttl }`。字符串内容先改写成一个文本部件。最后一条是只有图片的 user 消息时，标记加在它的最后一张图片上。没有可放位置时返回 `unsupported`，`field` 为 `no-cache-target`。
+- `wire.cache` 为 `last-message` 时，最后一条消息的最后一个非空文本部件加 `cache_control: { type: 'ephemeral', ttl }`。字符串内容先改写成一个文本部件。空文本部件不是位置。最后一条是只有图片的 user 消息时，标记加在它的最后一张图片上。图片与空文本混排的消息不是只有图片的消息。没有可放位置时返回 `unsupported`，`field` 为 `no-cache-target`，例如最后一条 user 消息是空文本加图片，或图片加空文本。
 
 `requestBytes` 是传输序列化请求体（`writeJsonText` 的 UTF-8 字节）的字节数。
 
@@ -683,7 +683,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 公开消费例与反例：只经根入口对本地 HTTPS 服务发送一次，内容引用得到 `unsupported` | [examples.spec.ts](tests/examples.spec.ts) 运行 [examples/local-send.ts](examples/local-send.ts) | 慢 |
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
 | 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
-| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，同一字段的两项参数为 `invalid`，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理（`text` 交给计量器的是文本块）、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
+| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，同一字段的两项参数为 `invalid`，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置的各种情况（含图片与空文本混排的拒绝），空文本照原样写出，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理（`text` 交给计量器的是文本块）、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
 | 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、没有内容或没有工具调用的收场、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况与指数形式、没有 usage、被拒收场、用量诊断的次序、hook 失败、收场之前失败的流没有账目）；收场之后失败的账目（响应体断开、取消、坏帧、尾帧被拒，保留的用量与未知用量，`faulted` 阶段的 `end()`）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
 | 费用的普通十进制词法：普通词法照原样，指数形式的改写，负数、非 JSON 数与超长结果 | [chat-completions-decimal.spec.ts](tests/chat-completions-decimal.spec.ts) | 快 |
 | 测试入口：夹具全部相符，名字中的 `/`，缺目录与缺文件，多余目录，请求体与事实不等，`request.json` 不合格；指纹的生成、检查、只追加、原地改动记录的检查失败与生成拒绝、不对应记录的行、非给定形式的文件 | [testing-helpers.spec.ts](tests/testing-helpers.spec.ts) | 快 |

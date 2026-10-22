@@ -161,13 +161,34 @@ describe('the 1h cache marker', () => {
           role: 'user',
           content: [
             { type: 'image_url' },
-            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,iVBORw0KGgo=' }, cache_control: CACHE },
+            {
+              type: 'image_url',
+              image_url: { url: 'data:image/jpeg;base64,iVBORw0KGgo=' },
+              cache_control: CACHE,
+            },
           ],
         },
       ],
     })
     const text = JSON.stringify(body)
     expect(text.split('cache_control')).toHaveLength(2)
+  })
+
+  // Migration L02 and sealed anthropic-cache-target.spec.ts:91-95: empty text is written as it is,
+  // so a last user message of images and only empty text is not a message of images only, and has
+  // no place for the marker. The sealed selector gave no marker; the engine refuses.
+  it('refuses a last user message of images and only empty text, in either order', async () => {
+    for (const blocks of [
+      [textBlock('b1', ''), imageBlock('i1')],
+      [imageBlock('i1'), textBlock('b1', '')],
+    ])
+      expect(await encode(SONNET, { messages: [message('u1', 'user', blocks)] })).toEqual({
+        failure: {
+          kind: 'unsupported',
+          field: 'no-cache-target',
+          adapter: recordAdoption(ANTHROPIC_OWNER, SONNET),
+        },
+      })
   })
 
   // Migration L02: a last message without a place for the marker is a refusal.
@@ -197,7 +218,11 @@ describe('request body', () => {
       messages: [
         message('u1', 'user', [textBlock('b1', 'look up x')]),
         message('a1', 'assistant', [callBlock('c1', 'call 1')]),
-        message('t1', 'tool', [resultBlock('r1', 'call 1'), textBlock('b2', 'found'), imageBlock('i1')]),
+        message('t1', 'tool', [
+          resultBlock('r1', 'call 1'),
+          textBlock('b2', 'found'),
+          imageBlock('i1'),
+        ]),
       ],
       tools: [tool('lookup')],
     })

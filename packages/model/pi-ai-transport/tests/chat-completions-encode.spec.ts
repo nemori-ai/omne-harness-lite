@@ -250,6 +250,32 @@ describe('encode: roles and content', () => {
     ])
   })
 
+  it('writes empty text parts as they are, and leaves out a message whose every block is hidden', () => {
+    const messages = messagesOf(
+      encode(testRecord(), {
+        system: [textBlock('s1', '')],
+        messages: [
+          message('u1', 'user', [textBlock('b1', '')]),
+          message('a1', 'assistant', [textBlock('b2', ''), textBlock('b3', 'x')]),
+          message('u2', 'user', [textBlock('b4', 'hidden', false)]),
+          message('u3', 'user', [textBlock('b5', 'next')]),
+        ],
+      }),
+    )
+    expect(messages).toEqual([
+      { role: 'developer', content: '' },
+      { role: 'user', content: '' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: '' },
+          { type: 'text', text: 'x' },
+        ],
+      },
+      { role: 'user', content: 'next' },
+    ])
+  })
+
   it('refuses an image when the record takes none or not its media type', () => {
     const record = testRecord()
     const path = '/messages/0/blocks/0'
@@ -397,6 +423,7 @@ describe('encode: cache placement', () => {
             type: 'image_url',
             image_url: { url: 'data:image/png;base64,iVBORw0KGgo=', detail: 'auto' },
           },
+          { type: 'text', text: '' },
         ],
       },
     ])
@@ -421,6 +448,17 @@ describe('encode: cache placement', () => {
         ],
       },
     ])
+  })
+
+  it('refuses as unsupported no-cache-target when images and only empty text end the request', () => {
+    const record = cached('1h')
+    for (const blocks of [
+      [textBlock('b1', ''), imageBlock('b2')],
+      [imageBlock('b1'), textBlock('b2', '')],
+    ])
+      expect(encode(record, { messages: [message('u1', 'user', blocks)] })).toEqual({
+        failure: { kind: 'unsupported', field: 'no-cache-target', adapter: adapterOf(record) },
+      })
   })
 
   it('refuses as unsupported no-cache-target when the last message has no place', () => {

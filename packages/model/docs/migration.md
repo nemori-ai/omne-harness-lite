@@ -253,7 +253,7 @@ M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但�
 
 两种混排在旧 selector 中都没有 cacheTarget/marker，纯图对照可获顶层标记。报告的内部 helper 实跑只证明选靶，没有 HTTP，也没有认证完整 public plan 或真实缓存。后续在当前合法块范围内确认选靶、失败表达、固定请求字节及计量一致性，再由实际适配器兑现。不把上游接受原始请求当成本地规划已修复，也不扩成所有 route 统一过滤空文本。
 
-本线的网关引擎在放置缓存标记之前，先去掉空文本块，以及没有可写部件的 user、提醒与压缩消息（[pi-ai-transport SPEC“投影”](../pi-ai-transport/SPEC.md#投影)）。因此三种输入的末条消息都只剩图片，标记加在最后一张图片上。封存件对前两种混排给出的“无标记”结果因此改变。末条消息去掉后没有任何可放位置时，引擎仍返回 `unsupported`，`field` 为 `no-cache-target`（pi-ai-anthropic 的 `tests/plan.spec.ts`）。这一变化来自引擎对空文本的通用规则，不是本线对 L02 的裁决。
+本线的网关引擎照原样写出空文本部件，不删除它们（[pi-ai-transport SPEC“投影”](../pi-ai-transport/SPEC.md#投影)）。引擎只去掉对模型不可见的块，以及所有块都对模型不可见的 user、提醒与压缩消息。缓存标记放在末条消息的最后一个非空文本部件上，空文本部件不是位置。只有图片的末条 user 消息，标记放在最后一张图片上。所以纯图对照有标记。两种混排的末条消息都有空文本部件，不是只有图片的消息，又没有非空文本，所以没有位置，引擎返回 `unsupported`，`field` 为 `no-cache-target`（pi-ai-anthropic 的 `tests/plan.spec.ts`）。封存件对两种混排不加标记，引擎改为明确失败，不发出请求，也不删除空文本来取得位置。这是引擎对缓存位置的通用规则，不是本线对 L02 的裁决。
 
 [line]: https://github.com/nemori-ai/omne-harness-lite/issues/446
 [baseline]: https://github.com/nemori-ai/omne-harness-lite/issues/199#issuecomment-6127022557
