@@ -126,14 +126,15 @@ const network = createNetworkResources({
 
 ```mermaid
 flowchart LR
-  Model["model（Model 运行时）"] -->|ModelTransport 端口| Transport["pi-ai-transport：三段传输（已实现）"]
+  Model["model（Model 运行时）"] -->|"ModelTransport 端口：示例经 executeModel 使用"| Transport["pi-ai-transport：三段传输（已实现）"]
+  Send["Model 发送边界：SendResource 经本地凭据（父卡 2.6，#466，未接入）"] -.-> Transport
   Transport --> Mech["pi-ai-transport：包内传输机制（已实现）"]
   Transport -->|PiFamilyContributions| Families["composeFamilies 组合的家族"]
   OpenAI["pi-ai-openai（已实现）"] --> Families
   Anthropic["pi-ai-anthropic（已实现）"] --> Families
   OpenAI -. 家族表、bindChatCompletions .-> Engine["pi-ai-transport：家族表与网关引擎（已实现）"]
   Anthropic -. 家族表、bindChatCompletions .-> Engine
-  Mech --> Route["经 OpenRouter 固定路由的真实请求（2.6，未接入）"]
+  Mech --> Route["经 OpenRouter 固定路由的真实请求（家族包示例发出，只在手动运行时有证据）"]
 ```
 
 具名消费者：
@@ -142,4 +143,4 @@ flowchart LR
 - 请求规划与流事件映射：子入口 `./chat-completions` 的网关引擎。已实现。
 - 家族包 `pi-ai-openai` 与 `pi-ai-anthropic`：用根入口的家族表定义家族，用 `./chat-completions` 的 `bindChatCompletions` 形成绑定，在测试中用 `./testing` 核对夹具。已实现。真实请求经 OpenRouter 固定路由发出，本包不直连任何厂商，也不内置任何接收方地址。
 
-两个家族包在源码中消费本包。当前没有应用在源码中消费本包。Model 的发送资源经 `ModelTransport` 端口使用本传输，由 2.6 接入。组内位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)：pi-ai-transport 集中维护 pi fork 与公共 HTTP/SSE、取消和连接资源，家族不复制这些机制，本包也不导入家族。
+两个家族包在源码中消费本包。当前没有应用在源码中消费本包。家族包的示例经 `executeModel` 与本传输发出真实请求。Model 的发送资源（`SendResource`）经本地凭据与本传输的组合尚未接入，归父卡 2.6（#466）。组内位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)：pi-ai-transport 集中维护 pi fork 与公共 HTTP/SSE、取消和连接资源，家族不复制这些机制，本包也不导入家族。

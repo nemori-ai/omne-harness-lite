@@ -64,7 +64,7 @@
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 需要签名前缀的型号（`claude-opus-5.5`、`claude-fable-5.1`）的降级不迁：按[不关闭推理的项目约定](architecture.md#厂商适配的内聚范围)，记录不关闭推理。2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理。整组规则成为推理规则 `anthropic-signed-group/1`：格式 `anthropic-claude-v1`，带签名的 `reasoning.text`，数据非空且不是 `[REDACTED]` 的 `reasoning.encrypted`。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
+| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 整组规则成为推理规则 `anthropic-signed-group/1`，判据见 [pi-ai-anthropic SPEC“规则”](../pi-ai-anthropic/SPEC.md#规则)。签名前缀型号的降级不迁，见表后说明。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
 | `anthropic.ts` | pi-ai-anthropic；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25] | `claude.json` 估算（消息与工具的 NFKC JSON，图片以 `[image]` 占位）、28 像素块图片公式与四种图片媒体类型迁入 pi-ai-anthropic 的 `meter.ts` 与 `images.ts`，精度保持估算。文件读取与 SHA-256 核对在 `tokenizer.ts`，计数经 tokenizer-tiktoken。普通文本不激活特殊 token，不迁 encode(..., 'all')、data URL 解码、image-size 与 MIME 检查。带签名组的请求计量见“本线的请求计量”。 |
 | `deepseek-boundary.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留参考 prompt 终止帧、边界补偿及补充字段事实；新 meter 使用固定依据，不迁旧 replay 输入协议。 |
 | `deepseek-prompt.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留 message tool_calls 与工具 Schema 的 DeepSeek 参考模板提取规则；用现行声明及无损 JSON 表示重建。 |
@@ -92,6 +92,8 @@
 | `zai-glm52.ts` | pi-ai-zai；tokenizer-huggingface 引擎 | 迁 | [后续 Z.AI 家族线][line] | 保留 GLM-5.2 固定模板、工具 JSON、tokenizer/config 摘要；加载与缓存归引擎，实际 route 与参考模板等价性另证。 |
 | `zai-glm53.ts` | pi-ai-zai | 迁 | [后续 Z.AI 家族线][line] | 保留 GLM-5.3/Flash 多工具分组、effort 和模板差异；各型号证据分开，旧完整历史组入口不迁。 |
 | `zai-release.ts` | pi-ai-zai | 迁 | [后续 Z.AI 家族线][line] | 保留精确 release 匹配及 visible/refuse 历史处理的证据范围；不把未知 release 猜成最新，未验证的私有历史清除政策不迁成默认。 |
+
+`anthropic-replay.ts` 的签名前缀降级：封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。按[不关闭推理的项目约定](architecture.md#厂商适配的内聚范围)，记录不关闭推理，所以这项降级不迁。依据：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理，记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)。
 
 ### pi-ai-transport/src/official-models
 

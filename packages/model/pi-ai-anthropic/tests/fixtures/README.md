@@ -67,7 +67,7 @@
 
 ### 有意不同
 
-1. **服务方成员。** 引擎要求第一帧有 `model` 与 `provider`（D4）。封存件的推理帧与内容帧没有这两个成员，夹具在第一帧加上 `model`（记录的路由名）与 `provider: "Anthropic"`。封存件的 usage 帧已有这两个成员，夹具保留它们。
+1. **服务方成员。** 引擎要求第一帧有 `model` 与 `provider`，见 [pi-ai-transport SPEC“映射”](../../../pi-ai-transport/SPEC.md#映射)。封存件的推理帧与内容帧没有这两个成员，夹具在第一帧加上 `model`（记录的路由名）与 `provider: "Anthropic"`。封存件的 usage 帧已有这两个成员，夹具保留它们。
 2. **推理状态的形状。** 封存件把推理项放在思考块的 `opaque` 中，并带路由名。现行形状是推理续接状态部件：一次响应的整组推理是一个部件，载荷是各项排序键 JSON 组成的数组，部件与思考块配对。组中有任何一项不能回放时，不产生部件（规则 `anthropic-signed-group/1`）。没有可见推理时不开思考块。
 3. **账目。** 已收场的响应在 `ended` 之前有一个 `account` 事实，值是账目报告，格式归 [pi-ai-transport SPEC“账目”](../../../pi-ai-transport/SPEC.md#账目)。与封存件的不同如下：
    - `input` 是 prompt 减去缓存读与缓存写。余量为负时 `input` 为未知，并在 `account` 之后给出一个 `usage-inconsistent` 诊断事实。封存件把它记为 `model_transport.usage_inconsistent` 诊断事件。

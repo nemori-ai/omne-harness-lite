@@ -67,9 +67,9 @@
 
 ### 有意不同
 
-1. **服务方成员。** 引擎要求第一帧有 `model` 与 `provider`（D4）。封存帧没有这两个成员，夹具在第一帧加上 `model`（记录的路由名）与 `provider: "OpenAI"`。
+1. **服务方成员。** 引擎要求第一帧有 `model` 与 `provider`，见 [pi-ai-transport SPEC“映射”](../../../pi-ai-transport/SPEC.md#映射)。封存帧没有这两个成员，夹具在第一帧加上 `model`（记录的路由名）与 `provider: "OpenAI"`。
 2. **调用 id。** 契约的调用部件需要 `callId`。封存 RF-V2 的工具帧没有 `id`，封存件仍然完成。记录夹具给该调用加 `id: "call_lookup"`，结果与封存件相同；`cases/rf-v2-tool-without-id` 保留封存输入，结果是 `upstream-protocol`（`tool-call-without-id`）。
-3. **`length` 封块。** 封存件在 `length` 收场时不关闭任何块。引擎封文本、思考与推理，只让工具参数块保持开着（D4“修正”）。
+3. **`length` 封块。** 封存件在 `length` 收场时不关闭任何块。引擎封文本、思考与推理，只让工具参数块保持开着，因为参数可能被截断，见 [pi-ai-transport SPEC“映射”](../../../pi-ai-transport/SPEC.md#映射)。
 4. **账目。** 已收场的响应在 `ended` 之前有一个 `account` 事实，值是账目报告，格式归 [pi-ai-transport SPEC“账目”](../../../pi-ai-transport/SPEC.md#账目)。与封存件的不同如下：
    - 解码器在收场之前失败时（带内错误、协议错误）没有账目，因为还没有可以保留的用量。封存件在这些用例中仍给出一个 account 事件。
    - 收场之后失败的流（`finish_reason` 改变、收场后的拒绝）在失败的 `ended` 之前有账目，用量取失败之前收到的，这两个用例中各项为未知。

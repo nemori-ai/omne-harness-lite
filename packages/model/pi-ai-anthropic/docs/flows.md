@@ -36,13 +36,13 @@ sequenceDiagram
 
 **响应**：引擎的解码器逐帧归约。头部（`index`、`format` 等成员）与身份（`id`）都相同的 `reasoning.text` 片段拼成一项。签名可以单独在最后一个片段到达。完整规则见 [pi-ai-transport SPEC 的映射表](../../pi-ai-transport/SPEC.md)。收场时把全部推理项交给 `anthropic-signed-group/1` 的 `seal`，整组可以回放时成为一个推理续接状态部件。收场之后解码器调用 `usage` 规则，给出账目报告与可能的 `usage-inconsistent` 诊断。
 
-**回放**：下一次请求中，可续接的 assistant 消息的部件交给 `replay`，写回 `reasoning_details`。
+**回放**：下一次请求中，可续接的 assistant 消息的部件交给 `replay`，写回 `reasoning_details`。可续接性按回放范围与格式判断，规则见 [SPEC“规则”](../SPEC.md#规则)。跨家族的四轮示例与它的时序图见[示例说明](../examples/README.md#cross-family-historyts)。
 
 ```mermaid
 flowchart TD
   M[assistant 消息] --> Q{对本供应商可续接？}
   Q -- 是，有部件 --> D[写回 reasoning_details]
-  Q -- 是，没有部件但有思考 --> U[unsupported：thinking]
+  Q -- 是，没有部件 --> W[不写回放成员，思考不写出，请求照常发出]
   Q -- 否 --> O[略去部件，replay-omitted 诊断]
   O --> FT{foreignThinking}
   FT -- omit --> N[不写思考]

@@ -34,7 +34,7 @@
 - 请求体写 `reasoning.effort: "low"`；
 - 事实中没有 `reasoning-disabled` 诊断。
 
-2026-10-22 经代理实测：网关接受这样的请求。`claude-opus-5.5` 拒绝 `reasoning.enabled: false`。
+依据：2026-10-22 经代理实测，网关接受这样的请求，`claude-opus-5.5` 拒绝 `reasoning.enabled: false`。实测记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)，规则见 [SPEC“记录”](../SPEC.md#记录)。
 
 本包记录用 parts 形式写内容，所以只有工具调用的 assistant 消息与没有内容的工具结果都写成空列表。请求还带一张 16×16 的 PNG 图片（`detail: 'auto'`）与停止序列。思考块数与推理状态由上游决定，下面的值只是示例。
 
@@ -55,7 +55,7 @@ termination: completed stop
 
 ### cross-family-history.ts
 
-[cross-family-history.ts](cross-family-history.ts) 在同一段历史中交替请求 `openai/gpt-5.6-luna` 与 `anthropic/claude-opus-5.5`，共四轮：OpenAI、Anthropic、OpenAI、Anthropic。OpenAI 的推理参数为 `high`，Anthropic 的推理参数为 `low`，每轮最多输出 2048 个词元。每轮的问题需要少量推理。2026-10-22 的实测中，这两个型号在这两个推理参数下多数时候返回推理状态，但是否返回由上游决定。示例在上述步骤之外再做三件事：
+[cross-family-history.ts](cross-family-history.ts) 在同一段历史中交替请求 `openai/gpt-5.6-luna` 与 `anthropic/claude-opus-5.5`，共四轮：OpenAI、Anthropic、OpenAI、Anthropic。OpenAI 的推理参数为 `high`，Anthropic 的推理参数为 `low`，每轮最多输出 2048 个词元。每轮的问题需要少量推理。回复是否带有推理状态由上游决定。示例在上述步骤之外再做三件事：
 
 1. 每轮发出前，脚本用 `projectReplay` 打印每条 assistant 消息的处理：带上哪些推理状态部件，略去哪些部件，以及诊断。`replay summary:` 行列出带上与略去状态的轮次。
 2. 每轮完成后，脚本打印 `reply state: round <轮次> yes` 或 `reply state: round <轮次> no`，说明这一轮的回复是否带有推理状态。
@@ -75,6 +75,51 @@ replay summary: carried [] omitted [1]
 replay summary: carried [1] omitted [2]
 replay summary: carried [2] omitted [1, 3]
 ```
+
+可续接性按回放范围（`scope`）与格式判断，不按家族判断。档案声明的 `accepts` 只含本型号的范围 `openrouter/<路由名>`，记录只接受本家族的格式。所以同一家族的另一个型号的推理状态也会被略去。本示例每个家族只用一个型号，所以结果与按家族划分相同。
+
+下图是每轮回复都带有推理状态时的四轮。`projectReplay` 的结果只是脚本在发出前打印的预览。`replay-omitted` 诊断事实由传输给出：请求发出之后、响应的事实之前，每条略去状态的消息一条。
+
+```mermaid
+sequenceDiagram
+  participant S as 示例脚本
+  participant P as projectReplay（预览）
+  participant T as pi-ai-transport
+  participant R as OpenRouter
+  Note over S,R: 第 1 轮，openai/gpt-5.6-luna
+  S->>T: 历史中没有 assistant 消息
+  T->>R: 请求
+  R-->>T: 回复 1
+  T-->>S: 回复 1 的事实，scope 为 openrouter/openai/gpt-5.6-luna
+  Note over S,R: 第 2 轮，anthropic/claude-opus-5.5
+  S->>P: 本轮的声明与格式
+  P-->>S: 略去回复 1
+  S->>T: 发出第 2 轮
+  T->>R: 请求，不带回复 1 的状态
+  T-->>S: diagnostic replay-omitted（回复 1）
+  R-->>T: 回复 2
+  T-->>S: 回复 2 的事实
+  Note over S,R: 第 3 轮，openai/gpt-5.6-luna
+  S->>P: 本轮的声明与格式
+  P-->>S: 带上回复 1，略去回复 2
+  S->>T: 发出第 3 轮
+  T->>R: 请求，带回复 1 的状态
+  T-->>S: diagnostic replay-omitted（回复 2）
+  R-->>T: 回复 3
+  T-->>S: 回复 3 的事实
+  Note over S,R: 第 4 轮，anthropic/claude-opus-5.5
+  S->>P: 本轮的声明与格式
+  P-->>S: 带上回复 2，略去回复 1 与回复 3
+  S->>T: 发出第 4 轮
+  T->>R: 请求，带回复 2 的状态
+  T-->>S: diagnostic replay-omitted（回复 1、回复 3）
+  R-->>T: 回复 4
+  T-->>S: 回复 4 的事实
+```
+
+某一轮的回复没有推理状态时，该轮次在之后各轮既不被带上，也不被略去，也没有诊断。
+
+依据：2026-10-22 的实测中，这两个型号在上述推理参数下多数时候返回推理状态，记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)。这项观察不是保证。
 
 每轮最后一行是 `termination:`。某一轮没有以 `completed` 结束时，脚本停止后续各轮，退出码为 1。
 

@@ -11,9 +11,19 @@
 3. model 已实现 `executeModel`、受理、原流保存、最小实例观察与[有限的原终局收场](model/SPEC.md#已实现的调用收场)，提供[逐步教学示例](model/examples/README.md)。验证使用真实产品 driver/sender 和内存 Commands、脚本传输，不证明真实厂商或生产耐久。结果读取及 processed ACK 已实现；retained ACK、自动清理、重试循环、恢复与独立能力构造尚未实现。尚未实现的还有 model-host-local 的时钟、实例调度、目录装载与托管运行插件，以及其余六个 pi 厂商家族、tokenizer-huggingface 引擎等其他提供者。
 4. pi-ai-transport 的根入口已导出三段传输的工厂 `createPiTransport`（一个 `ModelTransport`）、网络资源的工厂 `createNetworkResources`（含可选的 HTTPS 代理）与五个家族贡献接口类型。装配创建并拥有网络资源，再把它交给 `createPiTransport`。包内已实现连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。根入口还导出家族表（`defineFamily`、`composeFamilies`、`recordAdoption`、`replayFormatsOf`），它把精确采用解析到家族包的记录。子入口 `./chat-completions` 导出网关引擎 `bindChatCompletions`，请求规划、编码与流解码已实现；子入口 `./testing` 导出家族包测试用的夹具检查与采用指纹。持续验证只用本地 HTTPS 服务、本地 CONNECT 代理、测试家族与测试记录；符合性套件 transport 组的六条义务对真实传输通过。经真实代理到 OpenRouter 的请求只有手动运行的 `test:live` 证据。两个真实家族 pi-ai-openai 与 pi-ai-anthropic（第 6、7 项）经同一 `composeFamilies` 交给本传输，对本地 HTTPS 服务发送两家每条记录的夹具，请求体与事实序列都与夹具相同，并对两家各一条记录运行同一 transport 组；这是 pi-ai-anthropic 的慢层用例。两个家族包的示例经 `executeModel` 与本传输向 OpenRouter 发出请求，只在手动运行时有证据。Model 发送路径（`SendResource`）与本传输的组合尚未实现。
 5. tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与资源类型 `TiktokenRanks`、`TiktokenResources`。初始化核对实现版本、词表摘要与配置摘要，任一不符返回 `unavailable`；`count` 是纯计算。验证使用 o200k 与一份合成词表，构建产物在子进程中的计数与源码一致。`claude.json` 在 pi-ai-anthropic 中验证：读取时核对文件的 SHA-256，经本引擎的计数与参考值 150 相等。
-6. pi-ai-openai 的根入口已导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条 OpenAI 记录。家族经 `composeFamilies` 交给 pi-ai-transport，绑定经网关引擎形成；计量用 o200k 代理估算与三条图片补丁规则。验证只在快层：记录、指纹、取得、规则、计量、官方档案、封存 SSE 用例的回放夹具与跨家族回放的 OpenAI 一侧。推理强度按各型号公布的集合原样写出，含 `max`。按不关闭推理的[项目约定](docs/architecture.md#厂商适配的内聚范围)，`none` 不受支持。解码器在已收场的响应结束时给出账目报告与诊断事实。经共享传输的联调见第 4 项。[示例](pi-ai-openai/examples/README.md)经代理请求一个型号一次，只在手动运行时有证据。局限：在结束之前失败的流没有账目；真实路由不在持续验证中。
-7. pi-ai-anthropic 的根入口已导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条 Anthropic 记录。家族经 `composeFamilies` 交给 pi-ai-transport，绑定经网关引擎形成；计量用 `claude.json` 估算与 28 像素块图片规则，`claude.json` 随包发布并在读取时核对 SHA-256。快层验证记录、指纹、取得、规则、计量、词表资源、官方档案、封存 SSE 用例的回放夹具，以及跨家族回放的 Anthropic 一侧：外来工具轮次之后，每条记录都保持请求的推理强度。慢层验证两个家族经共享传输的联调，见第 4 项。[示例](pi-ai-anthropic/examples/README.md)经代理请求一个型号一次，并在同一段历史中交替请求两家四轮，只在手动运行时有证据。按项目约定，推理强度 `none` 不受支持。局限：真实路由不在持续验证中。
-8. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。本实现线交付 pi-ai-transport、pi-ai-openai、pi-ai-anthropic 与 tokenizer-tiktoken 四个新成员。条件 2（第二个差异显著家族验证共享传输接口）由 Anthropic 兑现，接受 #463 与 #465 时一并确认；条件 1、3、4 的延期见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
+6. pi-ai-openai 的根入口已导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条 OpenAI 记录。家族经 `composeFamilies` 交给 pi-ai-transport，绑定经网关引擎形成。
+   - 计量：o200k 代理估算与三条图片补丁规则。
+   - 推理：推理强度按各型号公布的集合原样写出，含 `max`。按不关闭推理的[项目约定](docs/architecture.md#厂商适配的内聚范围)，`none` 不受支持。解码器在已收场的响应结束时给出账目报告与诊断事实。
+   - 验证：只在快层，覆盖记录、指纹、取得、规则、计量、官方档案、封存 SSE 用例的回放夹具与跨家族回放的 OpenAI 一侧。经共享传输的联调见第 4 项。[示例](pi-ai-openai/examples/README.md)经代理请求一个型号一次，只在手动运行时有证据。
+   - 局限：在结束之前失败的流没有账目。真实路由不在持续验证中。
+7. pi-ai-anthropic 的根入口已导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条 Anthropic 记录。家族经 `composeFamilies` 交给 pi-ai-transport，绑定经网关引擎形成。
+   - 计量：`claude.json` 估算与 28 像素块图片规则。`claude.json` 随包发布，读取时核对 SHA-256。
+   - 推理：按项目约定，推理强度 `none` 不受支持。
+   - 快层验证：记录、指纹、取得、规则、计量、词表资源、官方档案、封存 SSE 用例的回放夹具，以及跨家族回放的 Anthropic 一侧。外来工具轮次之后，每条记录都保持请求的推理强度。
+   - 慢层验证：两个家族经共享传输的联调，见第 4 项。
+   - 示例：[示例](pi-ai-anthropic/examples/README.md)经代理请求一个型号一次，并在同一段历史中交替请求两家四轮，只在手动运行时有证据。
+   - 局限：真实路由不在持续验证中。
+8. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。本实现线交付 pi-ai-transport、pi-ai-openai、pi-ai-anthropic 与 tokenizer-tiktoken 四个新成员。本线为条件 2（第二个差异显著家族验证共享传输接口）交付 Anthropic 家族及两家的联调验证，接受结论记录在 #463 与 #465 的交付卡上。条件 1、3、4 的延期见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
 
 ## 成员与依赖
 
