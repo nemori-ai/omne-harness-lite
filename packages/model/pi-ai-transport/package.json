@@ -23,7 +23,8 @@
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
-    "test:live": "vitest run --mode slow --typecheck.enabled=false tests/live"
+    "test:live": "vitest run --mode slow --typecheck.enabled=false tests/live",
+    "examples": "node --experimental-strip-types examples/local-send.ts"
   },
   "dependencies": {
     "@omne-harness/content-block": "workspace:*",

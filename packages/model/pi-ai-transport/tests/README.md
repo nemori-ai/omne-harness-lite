@@ -11,7 +11,7 @@
 测试名描述被测对象的可观察行为。`describe` 块对应 [SPEC.md](../SPEC.md) 的小节，SPEC“组合与验证”的表把每项义务对应到测试文件。测试分两层：
 
 - 快层：容量、诊断隔离、SSE 分帧、协议帧、提前结束的包装、发起前的拒绝、配置校验（含代理配置与 Node 版本守卫）、三段传输中不发送的部分（构造、prepare、materialize、不发送的 start 与失败映射表）、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。拒绝用例同步核对 Node 没有建立请求，连接池也没有套接字。网络资源的配置用例核对连接池没有套接字上限。
-- 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts)、[network.spec.ts](network.spec.ts)、[proxy.spec.ts](proxy.spec.ts)、[transport-exchange.spec.ts](transport-exchange.spec.ts)、[conformance.spec.ts](conformance.spec.ts) 与 [live/openrouter.spec.ts](live/openrouter.spec.ts)。前五个对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。连接池的用例让服务端声明 `Keep-Alive: timeout=1`，使 Node 不保留套接字，以此核对同一接收方的下一次发起不受连接池影响，以及容量是唯一的并发上限。连接计时器的清除经 `process.getActiveResourcesInfo()` 的计时器数核对。
+- 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts)、[network.spec.ts](network.spec.ts)、[proxy.spec.ts](proxy.spec.ts)、[transport-exchange.spec.ts](transport-exchange.spec.ts)、[conformance.spec.ts](conformance.spec.ts)、[examples.spec.ts](examples.spec.ts) 与 [live/openrouter.spec.ts](live/openrouter.spec.ts)。前五个对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。examples.spec.ts 在 Node 子进程中运行[公开示例](../examples/README.md)。示例自己启动本地 HTTPS 服务。子进程收到的环境变量去掉了继承的 `BASELINE`。连接池的用例让服务端声明 `Keep-Alive: timeout=1`，使 Node 不保留套接字，以此核对同一接收方的下一次发起不受连接池影响，以及容量是唯一的并发上限。连接计时器的清除经 `process.getActiveResourcesInfo()` 的计时器数核对。
 
 http.spec.ts 与 http-refusals.spec.ts 用 vitest 的模块替身把 `node:https` 的 `request` 换成一个委托真实函数并记录每个请求的包装。http.spec.ts 用它在 `startExchange` 返回后同步核对请求已经写出。http-refusals.spec.ts 用它核对拒绝时 Node 没有建立请求。其他行为都经真实的 Node `https`。
 
@@ -34,7 +34,7 @@ proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超�
 
 [live/openrouter.spec.ts](live/openrouter.spec.ts) 是真实网络用例，由 `pnpm --filter @omne-harness/pi-ai-transport run test:live` 运行。它只在 `OMNE_LIVE_TESTS=1` 时运行，否则在用例体内用 `ctx.skip()` 跳过。它不用 `skipIf`：慢层的预解析会丢弃整个文件，即使设了开关。用例在测试边界把 `HTTPS_PROXY` 与 `NO_PROXY` 映射为代理配置，凭据头只写占位值 `Bearer placeholder`，由代理替换为真实凭据。设了开关而没有 `HTTPS_PROXY` 时，用例失败。用例不读取也不输出任何密钥。
 
-三段传输的用例只替身本地无法运行的部分：家族。[support/test-family.ts](support/test-family.ts) 是测试家族，编码与解码都是纯函数，协议写在文件头。它记录 acquire、release 与 encode 的输入，并可以让 acquire 或 encode 失败。[support/transport.ts](support/transport.ts) 在给定的网络资源上构造传输，并计数发送：它包装网络资源在途登记的 `add`。每个交换在把请求交给 Node 的同一个同步调用中登记，所以 `start` 返回时计数已经准确，不依赖服务端的异步计数。慢层的用例同时核对包内计数与服务端收到的请求数一致。
+三段传输的用例只替身本地无法运行的部分：家族。[support/test-family.ts](support/test-family.ts) 是测试家族，编码与解码都是纯函数，协议写在文件头。它记录 acquire、release 与 encode 的输入，并可以让 acquire 或 encode 失败。包内用例用内部工厂 `openNetwork` 建立网络资源。它返回包内资源，其中的 `handle` 是根入口 `createNetworkResources` 返回的同一种不透明句柄。[support/transport.ts](support/transport.ts) 在给定的网络资源上构造传输，并计数发送：它包装网络资源在途登记的 `add`。每个交换在把请求交给 Node 的同一个同步调用中登记，所以 `start` 返回时计数已经准确，不依赖服务端的异步计数。慢层的用例同时核对包内计数与服务端收到的请求数一致。
 
 [conformance.spec.ts](conformance.spec.ts) 用 model-contract 的 `createScriptedConformanceSubject` 提供提供者，把真实传输挂在 `transport` 上，对本地 HTTPS 服务运行 `checkModelProviderConformance`，断言 transport 组的六条义务都是 `pass`。其他义务属于脚本化的提供者，本包不对它们断言。
 
