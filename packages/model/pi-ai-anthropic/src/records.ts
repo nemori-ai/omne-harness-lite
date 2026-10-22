@@ -1,8 +1,9 @@
 // The Anthropic records: one `current` record per exact OpenRouter model, revision `1`. Pure data:
 // a record changes only by a new revision, and the adoption digest covers every member. The
-// models, the parameter subset, the cache rule, the limits and the signed-prefix models come from
-// the sealed `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see
-// provenance.json).
+// models, the parameter subset, the cache rule, the limits and the group rule come from the sealed
+// `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see provenance.json). No
+// record has a prefix rule: the sealed signed-prefix models are not migrated, because the gateway
+// takes a foreign tool turn with reasoning on and two of those models refuse reasoning off.
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
 import { IMAGE_MEDIA_TYPES } from './images.ts'
 import type { AnthropicRecord } from './record.ts'
@@ -88,14 +89,15 @@ const PARAMETERS = {
   'presence-penalty': { support: 'unsupported' },
 } as const satisfies ParameterTable
 
-/** The replay part without the prefix rule: Anthropic signed or encrypted groups only. */
+/** The replay part: Anthropic signed or encrypted groups only, and no prefix rule. */
 const REPLAY = {
   // Defaults: produces `openrouter/<route.model>`, accepts only itself, foreign thinking `omit`.
   declaration: {},
   formats: { produces: 'anthropic-claude-v1', accepts: ['anthropic-claude-v1'] },
+  prefix: { kind: 'none' },
 } as const
 
-/** Everything the records share besides the head and the prefix rule. */
+/** Everything the records share besides the head. */
 const COMMON = {
   serving: { order: ['anthropic'], reports: ['Anthropic', 'anthropic'] },
   wire: {
@@ -120,6 +122,7 @@ const COMMON = {
     evidence:
       'The sealed Anthropic definitions cite an OpenRouter route report of 2026-09-28: a shared 1000000-token window and a 128000-token output ceiling for the selected Anthropic endpoints. The report is not in the repository, so no upstream value is established. The 872000-token input limit reserves the whole output ceiling. The 4194304-byte image limit and the stop sequence limits are the offering of this project.',
   },
+  replay: REPLAY,
   rules: {
     reasoning: 'anthropic-signed-group/1',
     usage: 'anthropic-usage/1',
@@ -134,10 +137,6 @@ const COMMON = {
   },
 } as const
 
-/** The signed-prefix models turn reasoning off when the last tool turn cannot continue. */
-const SIGNED_PREFIX = { kind: 'last-tool-turn', degrade: 'disable-reasoning' } as const
-const NO_PREFIX = { kind: 'none' } as const
-
 /** The Anthropic records. The record list is the only list of models in this package. */
 export const ANTHROPIC_RECORDS = [
   {
@@ -146,7 +145,6 @@ export const ANTHROPIC_RECORDS = [
     route: { recipient: OPENROUTER, model: 'anthropic/claude-opus-5.5' },
     status: 'current',
     ...COMMON,
-    replay: { ...REPLAY, prefix: SIGNED_PREFIX },
   },
   {
     name: 'anthropic/claude-opus-5',
@@ -154,7 +152,6 @@ export const ANTHROPIC_RECORDS = [
     route: { recipient: OPENROUTER, model: 'anthropic/claude-opus-5' },
     status: 'current',
     ...COMMON,
-    replay: { ...REPLAY, prefix: NO_PREFIX },
   },
   {
     name: 'anthropic/claude-sonnet-5',
@@ -162,7 +159,6 @@ export const ANTHROPIC_RECORDS = [
     route: { recipient: OPENROUTER, model: 'anthropic/claude-sonnet-5' },
     status: 'current',
     ...COMMON,
-    replay: { ...REPLAY, prefix: NO_PREFIX },
   },
   {
     name: 'anthropic/claude-fable-5.1',
@@ -170,6 +166,5 @@ export const ANTHROPIC_RECORDS = [
     route: { recipient: OPENROUTER, model: 'anthropic/claude-fable-5.1' },
     status: 'current',
     ...COMMON,
-    replay: { ...REPLAY, prefix: SIGNED_PREFIX },
   },
 ] as const satisfies readonly AnthropicRecord[]

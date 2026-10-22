@@ -1,9 +1,9 @@
 // Cross-family replay, Anthropic side (spec D7, #465 C4): histories built as pure data hold
 // assistant messages that an OpenAI model produced. Encoding for an Anthropic record leaves their
 // reasoning out and omits their thinking, encode reports each as a `replay-omitted` diagnostic,
-// and the Anthropic group of the same history goes back. On the signed-prefix models a foreign
-// last tool turn turns reasoning off, recorded in the parameter adoption and as a
-// `reasoning-disabled` diagnostic. The OpenAI family is not imported.
+// and the Anthropic group of the same history goes back. After a foreign tool turn every Anthropic
+// record keeps the requested effort: no record has a prefix rule. The OpenAI family is not
+// imported.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { judgeReplayDeclaration, projectReplay, type Parameter } from '@omne-harness/model-contract'
@@ -235,11 +235,16 @@ describe('own history', () => {
   })
 })
 
-// --- the signed prefix -------------------------------------------------------------------------
+// --- a foreign tool turn ----------------------------------------------------------------------
 
-/** The last tool turn comes from the given scope; then the tool result and a new question. */
-function toolTurn(scope: string, format: string, payload: string): readonly unknown[] {
-  return [
+/** The last tool turn comes from the given scope; then the tool result and, unless open, a question. */
+function toolTurn(
+  scope: string,
+  format: string,
+  payload: string,
+  open = false,
+): readonly unknown[] {
+  const turn = [
     message('u1', 'user', [textBlock('b1', 'look up x')]),
     message(
       'a1',
@@ -248,8 +253,8 @@ function toolTurn(scope: string, format: string, payload: string): readonly unkn
       { replay: { scope, format, at: [2] } },
     ),
     message('t1', 'tool', [resultBlock('r1', 'call_1'), textBlock('b2', 'found')]),
-    message('u2', 'user', [textBlock('b3', 'and then?')]),
   ]
+  return open ? turn : [...turn, message('u2', 'user', [textBlock('b3', 'and then?')])]
 }
 
 const HIGH: Parameter = { kind: 'reasoning-effort', value: 'high' }
@@ -267,17 +272,28 @@ async function planned(record: AnthropicRecord, messages: readonly unknown[]) {
   return outcome.ok
 }
 
-describe('a foreign last tool turn', () => {
-  const foreign = toolTurn(OPENAI_SCOPE, OPENAI_FORMAT, OPENAI_PAYLOAD)
+const RECORDS = [OPUS_55, recordNamed('anthropic/claude-opus-5'), SONNET, FABLE].map(
+  record => [record.name, record] as const,
+)
 
-  it.each([OPUS_55, FABLE].map(record => [record.name, record] as const))(
-    '%s turns reasoning off, records none for the requested effort and says why',
-    async (_name, record) => {
+describe('a foreign tool turn', () => {
+  // Live on 2026-10-22 the gateway took an unsigned foreign tool turn with reasoning on for all
+  // four models, as the last turn and before a later question. A degrade to reasoning off would
+  // fail: claude-opus-5.5 and claude-fable-5.1 refuse it.
+  it.each(
+    RECORDS.flatMap(([name, record]) => [
+      [name, 'a later question', record, false] as const,
+      [name, 'an open tool loop', record, true] as const,
+    ]),
+  )(
+    '%s keeps the requested effort after %s and only leaves the foreign state out',
+    async (_name, _end, record, open) => {
+      const foreign = toolTurn(OPENAI_SCOPE, OPENAI_FORMAT, OPENAI_PAYLOAD, open)
       const plan = await planned(record, foreign)
       expect(plan.parameters).toEqual([
         {
           supplier: recordAdoption(ANTHROPIC_OWNER, record),
-          applied: { kind: 'reasoning-effort', value: 'none' },
+          applied: HIGH,
           origin: { kind: 'explicit', requested: HIGH, source: SOURCE },
         },
       ])
@@ -289,8 +305,9 @@ describe('a foreign last tool turn', () => {
       })
       if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
       const body: unknown = JSON.parse(writeJsonText(result.ok.body))
-      expect(body).toMatchObject({ reasoning: { enabled: false } })
-      expect(writeJsonText(result.ok.body)).not.toContain('"effort"')
+      expect(body).toMatchObject({ reasoning: { effort: 'high' } })
+      expect(writeJsonText(result.ok.body)).not.toContain('"enabled"')
+      expect(writeJsonText(result.ok.body)).not.toContain('openai-cipher')
       const [openai] = request.messages.filter(item => item.role === 'assistant')
       expect(result.ok.diagnostics).toEqual([
         {
@@ -300,38 +317,11 @@ describe('a foreign last tool turn', () => {
           format: OPENAI_FORMAT,
           omittedParts: 1,
         },
-        { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
       ])
     },
   )
 
-  it('a request that keeps the effort after a foreign tool turn is refused at encode', async () => {
-    const { result } = await encoded(OPUS_55, {
-      messages: foreign,
-      tools: [tool('lookup')],
-      parameters: [HIGH],
-    })
-    expect(result).toEqual({
-      failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'prefix-degrade-mismatch' },
-    })
-  })
-
-  it('claude-sonnet-5 has no prefix rule: the effort stays and only the state is left out', async () => {
-    const plan = await planned(SONNET, foreign)
-    expect(plan.parameters.map(item => item.applied)).toEqual([HIGH])
-    const { result } = await encoded(SONNET, {
-      messages: foreign,
-      tools: [tool('lookup')],
-      parameters: [HIGH],
-    })
-    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
-    expect(JSON.parse(writeJsonText(result.ok.body))).toMatchObject({
-      reasoning: { effort: 'high' },
-    })
-    expect(result.ok.diagnostics.map(item => item.kind)).toEqual(['replay-omitted'])
-  })
-
-  it('an own continuable last tool turn keeps reasoning on claude-opus-5.5', async () => {
+  it('an own continuable last tool turn carries its group on claude-opus-5.5', async () => {
     const own = toolTurn(`openrouter/${OPUS_55.name}`, FORMAT, CLAUDE_PAYLOAD)
     const plan = await planned(OPUS_55, own)
     expect(plan.parameters.map(item => item.applied)).toEqual([HIGH])

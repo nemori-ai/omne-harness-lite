@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-fable-5.1",
           "revision": "1",
-          "digest": "233502fdc774e13657be9c3fac96b06bb585c16c6a99782372c356962cb19f38"
+          "digest": "00a5d271c11eada81d123dddd61d4f34925984a5860db2e3fd2d7ea44b5843cd"
         },
         "recipient": "openrouter",
         "model": "anthropic/claude-fable-5.1",
@@ -267,7 +267,7 @@
       "owner": "@omne-harness/pi-ai-anthropic",
       "name": "anthropic/claude-fable-5.1#representation",
       "revision": "1",
-      "digest": "233502fdc774e13657be9c3fac96b06bb585c16c6a99782372c356962cb19f38"
+      "digest": "00a5d271c11eada81d123dddd61d4f34925984a5860db2e3fd2d7ea44b5843cd"
     },
     "parameterAdoptions": [
       {
@@ -275,7 +275,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-fable-5.1",
           "revision": "1",
-          "digest": "233502fdc774e13657be9c3fac96b06bb585c16c6a99782372c356962cb19f38"
+          "digest": "00a5d271c11eada81d123dddd61d4f34925984a5860db2e3fd2d7ea44b5843cd"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -300,7 +300,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-fable-5.1",
           "revision": "1",
-          "digest": "233502fdc774e13657be9c3fac96b06bb585c16c6a99782372c356962cb19f38"
+          "digest": "00a5d271c11eada81d123dddd61d4f34925984a5860db2e3fd2d7ea44b5843cd"
         },
         "applied": {
           "kind": "reasoning-effort",

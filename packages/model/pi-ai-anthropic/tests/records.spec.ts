@@ -10,25 +10,17 @@ import {
 
 const RECORDS: readonly AnthropicRecord[] = ANTHROPIC_RECORDS
 
-/** The sealed `anthropicReplayModels` (anthropic-replay.ts:28-33): the signed-prefix models. */
-const SEALED_PREFIX = {
-  'anthropic/claude-opus-5.5': true,
-  'anthropic/claude-opus-5': false,
-  'anthropic/claude-sonnet-5': false,
-  'anthropic/claude-fable-5.1': true,
-} as const
-
-function sealedPrefix(record: AnthropicRecord): boolean {
-  const sealed = Object.entries(SEALED_PREFIX).find(([name]) => name === record.name)?.[1]
-  if (sealed === undefined) throw new Error(`no sealed row for ${record.name}`)
-  return sealed
-}
+/** The models of the sealed `anthropicReplayModels` (anthropic-replay.ts:28-33). */
+const SEALED_MODELS = [
+  'anthropic/claude-opus-5.5',
+  'anthropic/claude-opus-5',
+  'anthropic/claude-sonnet-5',
+  'anthropic/claude-fable-5.1',
+] as const
 
 describe('the migrated models', () => {
   it('has one current record at revision 1 per sealed model, and nothing else', () => {
-    expect(RECORDS.map(record => record.name).toSorted()).toEqual(
-      Object.keys(SEALED_PREFIX).toSorted(),
-    )
+    expect(RECORDS.map(record => record.name).toSorted()).toEqual([...SEALED_MODELS].toSorted())
     for (const record of RECORDS) {
       expect(record.revision).toBe('1')
       expect(record.status).toBe('current')
@@ -36,14 +28,13 @@ describe('the migrated models', () => {
     }
   })
 
+  // The sealed signed-prefix rule of claude-opus-5.5 and claude-fable-5.1 is not migrated: live on
+  // 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused
+  // reasoning off. A degrade here would make every such request fail.
   it.each(RECORDS.map(record => [record.name, record] as const))(
-    '%s degrades to reasoning off exactly when the sealed policy requires a signed prefix',
+    '%s has no prefix rule',
     (_name, record) => {
-      expect(record.replay.prefix).toEqual(
-        sealedPrefix(record)
-          ? { kind: 'last-tool-turn', degrade: 'disable-reasoning' }
-          : { kind: 'none' },
-      )
+      expect(record.replay.prefix).toEqual({ kind: 'none' })
     },
   )
 
@@ -146,9 +137,7 @@ describe('purity and adoption', () => {
   it('the records are plain data that defineFamily accepts, with one digest each', () => {
     const acquire = async () =>
       ({ failure: { kind: 'unavailable', dependency: 'none', diagnostic: 'test' } }) as const
-    expect(() =>
-      defineFamily({ owner: ANTHROPIC_OWNER, records: RECORDS, acquire }),
-    ).not.toThrow()
+    expect(() => defineFamily({ owner: ANTHROPIC_OWNER, records: RECORDS, acquire })).not.toThrow()
     const digests = RECORDS.map(record => recordAdoption(ANTHROPIC_OWNER, record).digest)
     expect(new Set(digests).size).toBe(RECORDS.length)
   })
@@ -159,7 +148,10 @@ describe('purity and adoption', () => {
     const before = recordAdoption(ANTHROPIC_OWNER, record).digest
     const prefix: AnthropicRecord = {
       ...record,
-      replay: { ...record.replay, prefix: { kind: 'none' } },
+      replay: {
+        ...record.replay,
+        prefix: { kind: 'last-tool-turn', degrade: 'disable-reasoning' },
+      },
     }
     const evidence: AnthropicRecord = {
       ...record,
