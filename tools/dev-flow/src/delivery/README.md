@@ -57,7 +57,7 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 | `nature-route-mismatch` | route 的轨道不是本卡应进入的轨道，或 `integration` 卡的 route 不符合跨线写入的规则 |
 | `scope-outside-line` | 线内的卡写其他线的路径，`contract` 卡写契约成员以外的路径，或 `baseline` 卡有仓库写范围 |
 | `scope-integration-path` | 线内的卡写联调轨道拥有的路径，包括表中没有列出的路径 |
-| `condition-cross-line` | 线内的卡的交付条件引用其他线的卡，或 `baseline` 卡的交付条件引用卡 |
+| `condition-cross-line` | 线内的卡的交付条件引用其他线的卡，或 `baseline` 卡的「交付条件」不是「无」 |
 | `label-drift` | `line:`、`nature:` 或 `contract:` 标签与正文属性不同 |
 | `binding-v1` | binding 为版本1，不含属性 |
 

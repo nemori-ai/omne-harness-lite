@@ -10,7 +10,7 @@ import type { TaskBindingV1, TaskBindingV2 } from '../src/delivery/binding.ts'
 import { registry, table } from './fixtures/lines.ts'
 
 const url = 'https://github.com/owner/repo/issues/7'
-function identity(lines: string[]): string {
+function identity(lines: string[], conditions = '无'): string {
   return [
     '## 身份与责任',
     '',
@@ -20,6 +20,10 @@ function identity(lines: string[]): string {
     '## 目标与范围',
     '',
     '正文。',
+    '',
+    '## 交付条件',
+    '',
+    conditions,
   ].join('\n')
 }
 
@@ -34,6 +38,7 @@ describe('reading card attributes', () => {
       fields: { line: ['model'], nature: ['impl'], contractChange: ['additive'] },
       milestone: 'M1',
       labels: ['line:model', 'kind:feature'],
+      conditions: '无',
     })
   })
 
@@ -325,13 +330,23 @@ describe('attribute findings', () => {
         conditionCards: [target(model)],
       }),
     ).toEqual([])
+  })
+
+  it('requires a baseline card to have no conditions at all', () => {
+    const baseline = { line: 'integration', nature: 'baseline', contractChange: 'none' }
+    const withConditions = (conditions: string) => ({
+      ...card(baseline),
+      conditions: readCardAttributes(identity([], conditions), { url, labels: [] }).conditions,
+    })
+    const decision =
+      '| 条件ID | 类型 | 目标 | 阶段 | 所需结果与判据 | 确认责任及证据入口 |\n| --- | --- | --- | --- | --- | --- |\n| D-01 | decision | https://github.com/owner/repo/issues/2#issuecomment-3 | start | 负责人已决定 | 负责人 |'
+    expect(codes({ binding: undefined, card: card(baseline) })).toEqual([])
+    expect(codes({ binding: undefined, card: withConditions(decision) })).toEqual([
+      ['condition-cross-line', '交付条件'],
+    ])
     expect(
-      codes({
-        binding: undefined,
-        card: card({ line: 'integration', nature: 'baseline', contractChange: 'none' }),
-        conditionCards: [target(undefined)],
-      }),
-    ).toEqual([['condition-cross-line', 'D-01']])
+      codes({ binding: undefined, card: { ...card(baseline), conditions: undefined } }),
+    ).toEqual([['condition-cross-line', '交付条件']])
   })
 
   it('reports labels that differ from the body in the three families only', () => {

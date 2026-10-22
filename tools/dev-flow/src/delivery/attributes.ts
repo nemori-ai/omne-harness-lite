@@ -40,12 +40,16 @@ export type CardAttributes = {
   fields: Record<AttributeName, string[]>
   milestone: string | null | undefined
   labels: string[]
+  /** The trimmed text of「交付条件」, or undefined without that section. */
+  conditions: string | undefined
 }
 export function readCardAttributes(
   body: string,
   issue: Pick<CapturedIssue, 'url' | 'labels' | 'milestone'>,
 ): CardAttributes {
-  const identity = bodyFields((bodySections(body).get('身份与责任') ?? []).join('\n'))
+  const sections = bodySections(body),
+    identity = bodyFields((sections.get('身份与责任') ?? []).join('\n')),
+    conditions = sections.get('交付条件')
   const values = (name: AttributeName) => identity.get(ATTRIBUTE_FIELDS[name]) ?? []
   return {
     issue: issue.url,
@@ -56,6 +60,7 @@ export function readCardAttributes(
     },
     milestone: issue.milestone,
     labels: [...issue.labels],
+    conditions: conditions === undefined ? undefined : conditions.join('\n').trim(),
   }
 }
 
@@ -321,17 +326,22 @@ function scopeFindings(
   return findings
 }
 function conditionFindings(
+  card: CardAttributes,
   conditionCards: readonly ConditionCard[],
   { line, nature }: Attributes,
   lines: DeliveryLines,
 ): AttributeFinding[] {
-  if (line === undefined || nature === undefined) return []
   if (nature === 'baseline')
-    return conditionCards.map(({ condition, target }) => ({
-      code: 'condition-cross-line',
-      clause: condition,
-      message: `baseline 卡的交付条件不引用卡，条件 ${condition} 引用 ${target}。`,
-    }))
+    return card.conditions === '无'
+      ? []
+      : [
+          {
+            code: 'condition-cross-line',
+            clause: '交付条件',
+            message: 'baseline 卡没有交付条件，「交付条件」须为「无」。',
+          },
+        ]
+  if (line === undefined || nature === undefined) return []
   if (line === INTEGRATION_LINE) return []
   return conditionCards.flatMap(({ condition, target, card }) => {
     const other = card === undefined ? undefined : judgeAttributes(card, lines).attributes.line
@@ -387,6 +397,9 @@ export function attributeFindings(input: AttributeInput): AttributeFinding[] {
       ...routeFindings(binding, body, lines, registry),
       ...scopeFindings(binding, body, lines),
     )
-  findings.push(...conditionFindings(conditionCards, body, lines), ...labelFindings(card, body))
+  findings.push(
+    ...conditionFindings(card, conditionCards, body, lines),
+    ...labelFindings(card, body),
+  )
   return findings
 }
