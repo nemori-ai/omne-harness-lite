@@ -1,6 +1,11 @@
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
-import type { CompactionMessage, CoveredEntry, RecordEntryRef } from '@omne-harness/message'
+import {
+  parseRecordEntryRef,
+  type CompactionMessage,
+  type CoveredEntry,
+  type RecordEntryRef,
+} from '@omne-harness/message'
 import type { Access, EpochId } from '../refs.js'
 import type {
   HistorySource,
@@ -83,8 +88,19 @@ export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHis
       const id = decodeEpochId(`epoch_${digest(record)}`)
       if ('failure' in id) throw new Error('Invalid derived epoch')
       const retained = current.rows.filter(r => record.retained.includes(r.entry))
-      const end = current.rows.findIndex(r => r.entry === record.covers.to)
-      const newEntry = record.covers.to
+      const end = current.entries.findIndex(entry => entry.ref === record.covers.to)
+      const after = current.entries.slice(end + 1)
+      const afterRefs = new Set(after.map(entry => entry.ref))
+      const occupied = new Set<string>([
+        ...current.rows.map(row => row.entry),
+        ...current.entries.map(entry => entry.ref),
+      ])
+      const base = `compaction:${record.id}`
+      let raw = base
+      let suffix = 0
+      while (occupied.has(raw)) raw = `${base}:${++suffix}`
+      const newEntry = parseRecordEntryRef(raw)
+      if (newEntry === null) throw new Error('Invalid derived compaction entry')
       epochs.push({
         epoch: id.ok,
         rows: [
@@ -95,9 +111,13 @@ export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHis
             message: record,
             bytes: String(Buffer.byteLength(JSON.stringify(record))),
           },
-          ...current.rows.slice(end + 1),
+          ...current.rows.filter(row => afterRefs.has(row.entry)),
         ].map((r, seq) => ({ ...r, seq })),
-        entries: current.entries,
+        entries: [
+          ...current.entries.filter(entry => record.retained.includes(entry.ref)),
+          { ref: newEntry, message: record },
+          ...after,
+        ],
         open: current.open,
       })
       active++
