@@ -22,7 +22,7 @@ No package depends on this package now.
 
 ## Usage
 
-The package has one entry: `@omne-harness/request-context`. A system that assembles Cordis does not import it directly. request-context-cordis selects the strategies by configuration and calls the factory. The caller that assembles a request gives the three ports on each `assembly(scope, ports)` call. A caller without Cordis calls the factory of this package directly. That caller gives the three ports and the two strategies at construction, collects prompt contributions, and stores plan progress and the block material of the most recent full read itself. See the [usage page](docs/context.md#独立使用).
+The package has one entry: `@omne-harness/request-context`. A system that assembles Cordis does not import it directly. request-context-cordis selects the strategies by configuration and calls the factory. The caller that assembles a request gives the four ports on each `assembly(scope, ports)` call. A caller without Cordis calls the factory of this package directly. That caller gives the four ports and the two strategies at construction, collects prompt contributions, and stores plan progress and the block material of the most recent full read itself. See the [usage page](docs/context.md#独立使用).
 
 A caller that needs only the pure operations without a cache uses request-context-contract and does not need this package.
 

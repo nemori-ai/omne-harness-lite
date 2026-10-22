@@ -11,11 +11,13 @@
 | 输入 | 内容 | 谁给 |
 | --- | --- | --- |
 | 两个策略实现 | 压缩策略、表示策略 | 独立调用方；经 Cordis 时由 request-context-cordis 按配置选定 |
-| 三项端口 | 历史源读口、计量端口、转换件结果端口 | 独立路径在构造时给出。经 Cordis 时不在构造时给出，由调用方在每次 `assembly(scope, ports)` 时交入 |
+| 四项端口 | 历史源读口、计量端口、转换件结果端口与请求序列化端口 | 独立路径在构造时给出。经 Cordis 时不在构造时给出，由调用方在每次 `assembly(scope, ports)` 时交入 |
 | 贡献登记面的读口 | 按作用域读出适用的提示词段 | 经 Cordis 时由 request-context-cordis 给出。独立路径没有登记面，贡献集合随第四组输入交入 |
 | 配置 | 修剪阈值、缓存容量 | 调用方，默认值只是初值 |
 
-实例另有一个按调用交入三项端口的入口。request-context-cordis 用它实现 `assembly(scope, ports)`：每次调用交入的端口只用于这次调用发起的操作。入口的形状随实现确定。
+转换件结果读口由 Request Context 契约拥有，结果值复用 Model 的 `ConversionResult`。请求序列化端口按实际组装值提供字节计数，不用规范化输入 JSON 的长度代替请求字节数。
+
+实例另有一个按调用交入四项端口的入口。request-context-cordis 用它实现 `assembly(scope, ports)`：每次调用交入的端口只用于这次调用发起的操作。入口的形状随实现确定。
 
 原则：请求到了不算，算在请求之前。能在输入变化时维护的派生物不在组装时重算；组装时只做比对与拼装。输入快照的定义消费[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)。
 

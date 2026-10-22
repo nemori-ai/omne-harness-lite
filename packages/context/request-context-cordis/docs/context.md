@@ -22,7 +22,7 @@
 
 ### 独立使用
 
-本成员的根入口不导出任何东西。不装配 Cordis 的调用方直接从 request-context 取机制工厂，自己选定策略、在构造时给出三项端口并收集提示词贡献，做法见 [request-context 的独立使用](../../request-context/docs/context.md#独立使用)。
+本成员的根入口不导出任何东西。不装配 Cordis 的调用方直接从 request-context 取机制工厂，自己选定策略、在构造时给出四项端口并收集提示词贡献，做法见 [request-context 的独立使用](../../request-context/docs/context.md#独立使用)。
 
 ### 初始化与释放
 

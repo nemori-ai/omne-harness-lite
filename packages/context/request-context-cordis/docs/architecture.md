@@ -42,7 +42,7 @@ flowchart LR
 - `@omne-harness/runtime-context-cordis-contract`：可选依赖，只用于在子 fiber 里登记两块的生产者。Runtime Context 不在场时本插件照常可用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
 
-现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余四项随实现进入。本插件不 `inject` 作用域持有者或模型侧的服务，三项端口由调用方逐次交入。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余四项随实现进入。本插件不 `inject` 作用域持有者或模型侧的服务，四项端口由调用方逐次交入。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 根入口不导出任何东西。同一份机制工厂只有一个公开名字，就是 request-context 的根入口。
 
@@ -72,7 +72,7 @@ flowchart LR
 
 ### 端口逐次交入，Runtime Context 是可选依赖
 
-历史源读口、计量端口与转换件结果端口由调用方在每次 `assembly(scope, ports)` 时交入（性质 6）。本插件不 `inject` 持有者或模型侧的服务，所以它的寿命不随它们换代。两块的生产者登记放在 `ctx.inject(['runtimeContext'], …)` 的子 fiber 里（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)、性质 10）：Runtime Context 不在场时本插件照常提供组装，两块读到缺项；Runtime Context 到场或换代时只有子 fiber 运行或重跑。
+历史源读口、计量端口、转换件结果端口与请求序列化端口由调用方在每次 `assembly(scope, ports)` 时交入（性质 6）。本插件不 `inject` 持有者或模型侧的服务，所以它的寿命不随它们换代。两块的生产者登记放在 `ctx.inject(['runtimeContext'], …)` 的子 fiber 里（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)、性质 10）：Runtime Context 不在场时本插件照常提供组装，两块读到缺项；Runtime Context 到场或换代时只有子 fiber 运行或重跑。
 
 ### 不为每次请求开运行对象
 
