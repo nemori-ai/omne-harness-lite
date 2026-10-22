@@ -401,6 +401,7 @@ export function createMemoryRuntimeContext<P = unknown>(
     const initial = currentEligibility(id)
     if (!initial) return { kind: 'refused', reason: 'unauthorized' } as const
     const boundScope = initial.scope
+    const boundConsumer = initial.consumer
     let ended = false
     const cursors = new Map<
       string,
@@ -410,7 +411,7 @@ export function createMemoryRuntimeContext<P = unknown>(
       if (closed || ended) return { kind: 'refused', reason: 'closed' }
       const e = currentEligibility(id),
         s = state(boundScope)
-      if (!e || !s || !tenantEquals(s.tenant, e.tenant))
+      if (!e || !s || e.consumer !== boundConsumer || !tenantEquals(s.tenant, e.tenant))
         return { kind: 'refused', reason: 'unauthorized' }
       return {
         kind: 'success',
@@ -494,6 +495,12 @@ export function createMemoryRuntimeContext<P = unknown>(
         perRequest: PerRequestEntry[] = []
       for (const key of e.keys) {
         if (!allowed(e, key)) return { kind: 'refused', reason: 'unauthorized' }
+        if (!registration(e.scope, key))
+          return {
+            kind: 'refused',
+            reason:
+              descriptors.get(key)?.disclosure === 'plain' ? 'no-registration' : 'unauthorized',
+          }
         const item = await readBlock(e, key),
           d = descriptors.get(key)
         if (d?.volatility === 'per-request') {
@@ -584,8 +591,21 @@ export function createMemoryRuntimeContext<P = unknown>(
           values: import('../reader.js').NeedValue[] = [],
           missing: MissingItem[] = []
         for (const ref of needs) {
-          const found = registration(e.scope, ref.key),
-            binding = found?.r.bindings.find(b => b.need.name === ref.need)
+          if (
+            !e.keys.includes(ref.key) &&
+            !e.bindings.some(binding => binding.key === ref.key && binding.need === ref.need)
+          )
+            return { kind: 'refused', reason: 'unauthorized' }
+          const found = registration(e.scope, ref.key)
+          if (!found)
+            return {
+              kind: 'refused',
+              reason:
+                descriptors.get(ref.key)?.disclosure === 'plain'
+                  ? 'no-registration'
+                  : 'unauthorized',
+            }
+          const binding = found?.r.bindings.find(b => b.need.name === ref.need)
           if (!binding || binding.need.consumer !== e.consumer)
             return { kind: 'refused', reason: 'unauthorized' }
           if (binding.translate) {

@@ -46,7 +46,13 @@ function corruptReply(value: unknown): unknown {
         },
       }
     case 'refused':
-      return { kind: 'refused', reason: 'no-registration' }
+      return {
+        kind: 'refused',
+        reason:
+          'reason' in value && value.reason === 'no-registration'
+            ? 'unauthorized'
+            : 'no-registration',
+      }
     case 'cursor-invalidated':
       return { kind: 'unknown', cause: 'source-unknown' }
     case 'success': {

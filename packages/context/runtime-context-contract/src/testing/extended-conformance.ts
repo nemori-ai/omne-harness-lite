@@ -5,6 +5,9 @@ import { declaration, numberSchema, scope, setup } from './fixtures.js'
 import { reduceStep } from '../index.js'
 import type { StatefulBlockDescriptor, ContextUpdate } from '../index.js'
 export const EXTENDED_OBLIGATIONS = [
+  'reissue-cannot-change-reader-consumer',
+  'removed-plain-registration-refused',
+  'removed-eligibility-checked-registration-concealed',
   'cursor-invalidated-below-retention',
   'scope-independent-callback-at-three-points',
   'invalidate-reads-missing-and-advances',
@@ -29,6 +32,140 @@ export function extendedConformance<P>(): readonly ConformanceCase<RuntimeContex
     clause: 'RC-02/RC-03/RC-04/RC-05/RC-07',
     async run(fixture) {
       const subject = await fixture.subject()
+      if (name === 'reissue-cannot-change-reader-consumer') {
+        const s = await setup(subject, fixture.tenant, fixture.principal)
+        const before = await s.reader.snapshot()
+        assert.ok(before.kind === 'success')
+        const producer = await subject.registerProducer({
+          key: 'suite.tool',
+          producer: { producer: 'tool-only' },
+          declaration: { ...declaration(), key: 'suite.tool', consumers: ['tool'] },
+          scoped: true,
+        })
+        assert.ok(producer.kind === 'registered')
+        const added = await subject.applyCommit({
+          kind: 'registration',
+          commit: { commit: 'tool-register' },
+          change: {
+            kind: 'add',
+            scope: s.scope,
+            tenant: fixture.tenant,
+            key: 'suite.tool',
+            basedOn: 1,
+            creating: false,
+            bindings: [],
+            parameters: undefined,
+            required: false,
+          },
+        })
+        assert.equal(added.kind, 'applied')
+        await producer.handle.publish(s.scope, 99)
+        const issued = await subject.issueEligibility({
+          ...s.material,
+          consumer: 'tool',
+          keys: ['suite.tool'],
+          registrationRevision: 2,
+          supersedes: s.eligibility.id,
+        })
+        assert.ok(issued.kind === 'issued')
+        const current = await subject.bind(issued.eligibility.id)
+        assert.ok(current.kind === 'bound')
+        assert.equal(current.reader.consumer, 'tool')
+        const currentRead = await current.reader.snapshot()
+        assert.ok(currentRead.kind === 'success')
+        assert.equal(
+          currentRead.value.blocks[0]?.state.kind === 'value'
+            ? currentRead.value.blocks[0].state.value
+            : undefined,
+          99,
+        )
+        assert.equal(s.reader.consumer, 'model')
+        assert.deepEqual(await s.reader.read([]), { kind: 'refused', reason: 'unauthorized' })
+        assert.deepEqual(await s.reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
+        assert.deepEqual(await s.reader.changes(before.value.cursor), {
+          kind: 'refused',
+          reason: 'unauthorized',
+        })
+        return
+      }
+      if (
+        name === 'removed-plain-registration-refused' ||
+        name === 'removed-eligibility-checked-registration-concealed'
+      ) {
+        const target = scope('removal'),
+          disclosure =
+            name === 'removed-plain-registration-refused' ? 'plain' : 'eligibility-checked'
+        const producer = await subject.registerProducer({
+          key: 'suite.value',
+          producer: { producer: 'removable' },
+          declaration: declaration({ required: false, disclosure }),
+          scoped: true,
+        })
+        assert.ok(producer.kind === 'registered')
+        const added = await subject.applyCommit({
+          kind: 'registration',
+          commit: { commit: 'add' },
+          change: {
+            kind: 'add',
+            scope: target,
+            tenant: fixture.tenant,
+            key: 'suite.value',
+            basedOn: 0,
+            creating: true,
+            required: false,
+            parameters: undefined,
+            bindings: [
+              {
+                key: 'suite.value',
+                need: {
+                  name: 'value',
+                  shape: numberSchema,
+                  consumer: 'model',
+                  purpose: 'removal',
+                  necessity: 'optional',
+                },
+              },
+            ],
+          },
+        })
+        assert.equal(added.kind, 'applied')
+        await producer.handle.publish(target, 7)
+        const issued = await subject.issueEligibility({
+          scope: target,
+          tenant: fixture.tenant,
+          principal: fixture.principal,
+          consumer: 'model',
+          keys: ['suite.value'],
+          bindings: [],
+          registrationRevision: 1,
+          supersedes: null,
+        })
+        assert.ok(issued.kind === 'issued')
+        const bound = await subject.bind(issued.eligibility.id)
+        assert.ok(bound.kind === 'bound')
+        const before = await bound.reader.snapshot()
+        assert.ok(before.kind === 'success')
+        const removed = await subject.applyCommit({
+          kind: 'registration',
+          commit: { commit: 'remove' },
+          change: {
+            kind: 'remove',
+            scope: target,
+            tenant: fixture.tenant,
+            key: 'suite.value',
+            basedOn: 1,
+            creating: false,
+          },
+        })
+        assert.equal(removed.kind, 'applied')
+        const expected = {
+          kind: 'refused',
+          reason: disclosure === 'plain' ? 'no-registration' : 'unauthorized',
+        }
+        assert.deepEqual(await bound.reader.read([{ key: 'suite.value', need: 'value' }]), expected)
+        assert.deepEqual(await bound.reader.snapshot(), expected)
+        return
+      }
       if (name === 'register-before-producer-then-incompatible-reads-missing') {
         const target = scope('early')
         const applied = await subject.applyCommit({
