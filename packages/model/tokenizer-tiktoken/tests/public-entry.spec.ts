@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/tokenizer-tiktoken')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('the root entry exports createTiktokenTokenizer as its only run-time value', async () => {
+  const root: object = await import('@omne-harness/tokenizer-tiktoken')
+  expect(Object.keys(root)).toEqual(['createTiktokenTokenizer'])
 })
