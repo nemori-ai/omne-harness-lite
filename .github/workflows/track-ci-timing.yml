@@ -40,6 +40,8 @@ jobs:
       - name: Record coordinates and host
         run: |
           echo "BASELINE=${{ matrix.base }}" >> "$GITHUB_ENV"
+          git config user.name "Brian Lee"
+          git config user.email "aiephoenixbl@gmail.com"
           git show -s --format=fuller HEAD
           node --version
           pnpm --version
@@ -50,6 +52,11 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm -r rebuild node-pty
           uv sync --locked
+      - name: Prepare metadata required by offline consumer tests
+        run: |
+          mkdir -p "$RUNNER_TEMP/offline-seed"
+          printf '%s\n' '{"private":true,"dependencies":{"jsonc-parser":"3.3.1","@deepseek-ai/cordis":"4.0.4"}}' > "$RUNNER_TEMP/offline-seed/package.json"
+          pnpm --dir "$RUNNER_TEMP/offline-seed" install --ignore-scripts --no-frozen-lockfile
       - name: Generate local agent projections
         run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
       - name: Compute existing incremental plan
