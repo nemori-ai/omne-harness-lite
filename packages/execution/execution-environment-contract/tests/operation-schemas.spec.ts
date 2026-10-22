@@ -4,7 +4,6 @@ import * as contract from '@omne-harness/execution-environment-contract'
 import {
   createScriptedEnvironmentProvider,
   createMemoryResourceLedger,
-  createScriptedFacilityGuard,
 } from '@omne-harness/execution-environment-contract/testing'
 const tenant = (() => {
   const t = tenantCodec.parse(
@@ -39,62 +38,93 @@ const adoption = {
   continuity: placement.continuity,
   evidence: { kind: 'boolean', value: true },
 }
-const ledger = createMemoryResourceLedger().ledger,
-  guard = createScriptedFacilityGuard()
+const ledger = {
+  closed: new AbortController().signal,
+  async plan() {
+    return 'recorded' as const
+  },
+  async permit() {
+    return 'confirmed' as const
+  },
+  async adopt() {
+    return 'confirmed' as const
+  },
+  async stopped() {
+    return 'recorded' as const
+  },
+}
+const guard = {
+  async authorize() {
+    return 'authorized' as const
+  },
+}
 const input = { acquisition: 'acq', origin: 'origin', scope, placement, ledger, guard }
 const recovery = contract.createRecoveryAccess()
 const rejection = { kind: 'rejected', reason: 'callerMismatch' }
-const cases = [
-  ['resolvePlacement', [access, { scope, requirement }], placement],
+const cases = () =>
   [
-    'acquire',
-    [access, input],
-    {
-      kind: 'acquired',
-      lease: {
-        placement,
-        instance: adoption.instance,
-        continuity: placement.continuity,
-        facility() {},
-        release() {},
-        invalidated: Promise.resolve({ source: 'registry', reason: 'released' }),
-      },
-      adoption,
-    },
-  ],
-  ['inspectAcquisition', [access, 'acq'], { kind: 'invalidInput' }],
-  [
-    'describe',
-    [access, scope],
+    ['resolvePlacement', [access, { scope, requirement }], placement],
     [
+      'acquire',
+      [access, input],
       {
-        acquisition: 'acq',
-        origin: 'origin',
-        binding: placement.binding,
-        provider: placement.provider,
-        instance: adoption.instance,
-        continuity: placement.continuity,
-        facilities: ['command'],
-        state: 'acquired',
+        kind: 'acquired',
+        lease: {
+          placement,
+          instance: adoption.instance,
+          continuity: placement.continuity,
+          facility() {},
+          release() {},
+          invalidated: Promise.resolve({ source: 'registry', reason: 'released' }),
+        },
+        adoption,
       },
     ],
-  ],
-  [
-    'recoverOwned',
-    [scope, recovery],
-    { kind: 'recovered', scope, stopped: [], pending: [], unsupported: [], unavailable: [] },
-  ],
-  ['releaseScope', [scope, recovery], rejection],
-  ['registerFacility', [contract.commandFacility]],
-  ['registerProvider', [createScriptedEnvironmentProvider()]],
-] as const
-for (const [name, params, result] of cases)
+    ['inspectAcquisition', [access, 'acq'], { kind: 'invalidInput' }],
+    [
+      'describe',
+      [access, scope],
+      [
+        {
+          acquisition: 'acq',
+          origin: 'origin',
+          binding: placement.binding,
+          provider: placement.provider,
+          instance: adoption.instance,
+          continuity: placement.continuity,
+          facilities: ['command'],
+          state: 'acquired',
+        },
+      ],
+    ],
+    [
+      'recoverOwned',
+      [scope, recovery],
+      { kind: 'recovered', scope, stopped: [], pending: [], unsupported: [], unavailable: [] },
+    ],
+    ['releaseScope', [scope, recovery], rejection],
+    ['registerFacility', [contract.commandFacility]],
+    ['registerProvider', [createScriptedEnvironmentProvider()]],
+  ] as const
+for (const name of [
+  'resolvePlacement',
+  'acquire',
+  'inspectAcquisition',
+  'describe',
+  'recoverOwned',
+  'releaseScope',
+  'registerFacility',
+  'registerProvider',
+] as const)
   it(name + ' accepts valid params, rejects arity and malformed elements', async () => {
+    const test = cases().find(test => test[0] === name)
+    if (!test) throw new Error('missing operation fixture')
+    const [, params, result] = test
     const schemas = contract.operationSchemas[name]
     expect(await schemas.params['~standard'].validate(params)).toHaveProperty('value')
     expect(await schemas.params['~standard'].validate([...params, 0])).toHaveProperty('issues')
     const bad = await schemas.params['~standard'].validate([null, ...params.slice(1)])
-    expect(bad).toMatchObject({ issues: [{ path: [0], message: expect.any(String) }] })
+    expect(bad).toMatchObject({ issues: [{ path: [0], message: expect.stringMatching(/\S/) }] })
     if ('result' in schemas) {
       expect(await schemas.result['~standard'].validate(result)).toHaveProperty('value')
       expect(await schemas.result['~standard'].validate({ kind: 'invented' })).toHaveProperty(
@@ -114,7 +144,7 @@ it('gives nested item reasons and does not coerce runtime ports or recovery acce
     path: readonly (string | number)[],
   ) =>
     expect(await schema['~standard'].validate(value)).toMatchObject({
-      issues: [{ path, message: expect.any(String) }],
+      issues: [{ path, message: expect.stringMatching(/\S/) }],
     })
   await check(
     contract.acquireParamsSchema,
@@ -262,7 +292,7 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     expect(
       await contract.operationSchemas[name].params['~standard'].validate(value),
       name,
-    ).toMatchObject({ issues: [{ path, message: expect.any(String) }] })
+    ).toMatchObject({ issues: [{ path, message: expect.stringMatching(/\S/) }] })
   const badResults: [
     keyof contract.ExecutionEnvironment<unknown>,
     unknown,
@@ -357,7 +387,7 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     expect(
       await contract.operationSchemas[name].result['~standard'].validate(value),
       name,
-    ).toMatchObject({ issues: [{ path, message: expect.any(String) }] })
+    ).toMatchObject({ issues: [{ path, message: expect.stringMatching(/\S/) }] })
 })
 
 it('keeps registered provider objects and recovery authority objects unchanged', async () => {
@@ -516,4 +546,222 @@ it('rejects cyclic scope parents as issues and accepts a finite parent chain', a
     for (let index = 0; index < 32; index++) finite = { ref: String(index), parent: finite }
     expect(await schema['~standard'].validate([finite, recovery])).toHaveProperty('value')
   }
+})
+
+it('keeps data records closed across all operation families while retaining runtime ports', async () => {
+  const recovered = {
+    kind: 'recovered',
+    scope,
+    stopped: [],
+    pending: [],
+    unsupported: [],
+    unavailable: [],
+  }
+  const closed: [
+    (
+      | typeof contract.resolvePlacementResultSchema
+      | typeof contract.acquireParamsSchema
+      | typeof contract.recoverOwnedResultSchema
+      | typeof contract.registerFacilityParamsSchema
+    ),
+    unknown,
+  ][] = [
+    [contract.resolvePlacementResultSchema, { ...placement, unexpected: true }],
+    [
+      contract.resolvePlacementResultSchema,
+      { ...placement, provider: { ...placement.provider, unexpected: true } },
+    ],
+    [
+      contract.resolvePlacementResultSchema,
+      { ...placement, requirement: { ...requirement, unexpected: true } },
+    ],
+    [contract.acquireParamsSchema, [access, { ...input, unexpected: true }]],
+    [contract.acquireParamsSchema, [{ ...access, unexpected: true }, input]],
+    [
+      contract.registerFacilityParamsSchema,
+      [{ key: 'command', operations: ['start'], guarded: [], unexpected: true }],
+    ],
+    [contract.recoverOwnedResultSchema, { ...recovered, unexpected: true }],
+    [
+      contract.recoverOwnedResultSchema,
+      {
+        ...recovered,
+        stopped: [
+          {
+            key: 'r',
+            provider: 'p',
+            reference: { kind: 'boolean', value: true },
+            unexpected: true,
+          },
+        ],
+      },
+    ],
+    [
+      contract.recoverOwnedResultSchema,
+      {
+        ...recovered,
+        unsupported: [{ kind: 'provider', provider: placement.provider, unexpected: true }],
+      },
+    ],
+  ]
+  for (const [schema, value] of closed)
+    expect(await schema['~standard'].validate(value)).toMatchObject({
+      issues: [{ path: expect.arrayContaining(['unexpected']) }],
+    })
+  for (const name of ['inspectAcquisition', 'describe', 'recoverOwned', 'releaseScope'] as const)
+    expect(
+      await contract.operationSchemas[name].result['~standard'].validate({
+        kind: 'rejected',
+        reason: 'invalidInput',
+        unexpected: true,
+      }),
+    ).toHaveProperty('issues')
+  for (const [name, params] of cases()) {
+    for (const malformed of [null, {}, [], params.slice(0, -1)])
+      expect(
+        await contract.operationSchemas[name].params['~standard'].validate(malformed),
+        name,
+      ).toHaveProperty('issues')
+  }
+})
+
+it('requires authentic recovery authority and complete paired provider recovery capabilities', async () => {
+  for (const schema of [contract.recoverOwnedParamsSchema, contract.releaseScopeParamsSchema]) {
+    for (const forged of [null, {}, JSON.parse(JSON.stringify(recovery)), JSON.stringify(recovery)])
+      expect(await schema['~standard'].validate([scope, forged])).toMatchObject({
+        issues: [{ path: [1] }],
+      })
+    expect(
+      await schema['~standard'].validate([scope, contract.createRecoveryAccess()]),
+    ).toHaveProperty('value')
+  }
+  const provider = createScriptedEnvironmentProvider()
+  for (const method of ['describe', 'acquire', 'retire', 'listRecoveryResources', 'recover']) {
+    const value = { ...provider, [method]: null }
+    expect(
+      await contract.registerProviderParamsSchema['~standard'].validate([value]),
+      method,
+    ).toHaveProperty('issues')
+  }
+  for (const pair of [
+    { listRecoveryResources: async () => ({ kind: 'unavailable' }) },
+    { recover: async () => ({ kind: 'unavailable' }) },
+  ])
+    expect(
+      await contract.registerProviderParamsSchema['~standard'].validate([{ ...provider, ...pair }]),
+    ).toHaveProperty('issues')
+  expect(
+    await contract.registerProviderParamsSchema['~standard'].validate([
+      {
+        ...provider,
+        listRecoveryResources: async () => ({ kind: 'unavailable' }),
+        recover: async () => ({ kind: 'unavailable' }),
+      },
+    ]),
+  ).toHaveProperty('value')
+  for (const field of [
+    'name',
+    'generation',
+    'version',
+    'bindingKinds',
+    'facilities',
+    'isolation',
+    'continuity',
+  ])
+    expect(
+      await contract.registerProviderParamsSchema['~standard'].validate([
+        { ...provider, [field]: null },
+      ]),
+      field,
+    ).toHaveProperty('issues')
+})
+
+it('preserves access identity and refuses forged tenants before invoking any runtime port', async () => {
+  const parsed = await contract.describeParamsSchema['~standard'].validate([access, scope])
+  expect(parsed).toEqual({ value: [access, scope] })
+  if (parsed.issues) throw new Error('valid access refused')
+  expect(parsed.value[0].tenant).toBe(tenant)
+  for (const forged of [null, {}, { ...tenant }, JSON.parse(JSON.stringify(tenant)), 'not-json'])
+    expect(
+      await contract.describeParamsSchema['~standard'].validate([
+        { ...access, tenant: forged },
+        scope,
+      ]),
+    ).toHaveProperty('issues')
+  for (const operations of [[''], [7], 'start'])
+    expect(
+      await contract.registerFacilityParamsSchema['~standard'].validate([
+        { key: 'command', operations, guarded: [] },
+      ]),
+    ).toHaveProperty('issues')
+  for (const schema of [contract.recoverOwnedResultSchema, contract.releaseScopeResultSchema]) {
+    const report = {
+      kind: 'recovered',
+      scope,
+      stopped: [{ key: 'r', provider: 'p', reference: { kind: 'boolean', value: true } }],
+      pending: [],
+      unsupported: [],
+      unavailable: [],
+    }
+    expect(await schema['~standard'].validate(report)).toHaveProperty('value')
+    expect(
+      await schema['~standard'].validate({
+        ...report,
+        stopped: [{ ...report.stopped[0], reference: undefined }],
+      }),
+    ).toHaveProperty('issues')
+  }
+})
+
+it('exercises scripted provider lifecycle and the memory ledger close boundary', async () => {
+  const decoded = await contract.acquireParamsSchema['~standard'].validate([access, input])
+  if (decoded.issues) throw new Error('valid acquisition refused')
+  const providerInput = { ...decoded.value[1], tenant }
+  const provider = createScriptedEnvironmentProvider()
+  const acquired = await provider.acquire(providerInput)
+  if (acquired.kind !== 'acquired') throw new Error('scripted acquisition refused')
+  expect(provider.calls.acquire).toBe(1)
+  expect(acquired.lease.placement).toEqual(placement)
+  expect(await acquired.lease.release()).toEqual({ kind: 'released' })
+  expect(provider.calls.release).toBe(1)
+  expect(await provider.retire()).toEqual({ kind: 'drained' })
+  expect(await provider.acquire(providerInput)).toEqual({
+    kind: 'rejected',
+    reason: 'providerUnavailable',
+  })
+  const unsupported = createScriptedEnvironmentProvider({ bindingKinds: [] })
+  expect(await unsupported.acquire(providerInput)).toEqual({
+    kind: 'rejected',
+    reason: 'noMatchingEnvironment',
+  })
+  const scripted = createScriptedEnvironmentProvider({
+    acquire: async () => ({ kind: 'rejected', reason: 'unavailable' }),
+  })
+  expect(await scripted.acquire(providerInput)).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  const memory = createMemoryResourceLedger()
+  const decodedResource = await contract.managedResourceSchema['~standard'].validate({
+    key: 'r',
+    provider: 'p',
+    reference: { kind: 'boolean', value: true },
+  })
+  if (decodedResource.issues) throw new Error('valid resource refused')
+  const resource = decodedResource.value
+  expect(await memory.ledger.plan(resource)).toBe('recorded')
+  expect(await memory.ledger.permit('r')).toBe('confirmed')
+  expect(await memory.ledger.adopt('r')).toBe('confirmed')
+  memory.close()
+  expect(memory.ledger.closed.aborted).toBe(true)
+  expect(await memory.ledger.plan(resource)).toBe('closed')
+  expect(await memory.ledger.permit('r')).toBe('closed')
+  expect(await memory.ledger.adopt('r')).toBe('closed')
+  expect(await memory.ledger.stopped('r', 'confirmed')).toBe('recorded')
+  expect(memory.calls.map(call => call.method)).toEqual([
+    'plan',
+    'permit',
+    'adopt',
+    'plan',
+    'permit',
+    'adopt',
+    'stopped',
+  ])
 })

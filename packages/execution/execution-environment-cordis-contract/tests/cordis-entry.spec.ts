@@ -437,6 +437,8 @@ it('keeps error details and refuses an explicit undefined caller rather than tre
   } catch (error) {
     expect(error).toBeInstanceOf(CallerClassMismatch)
     expect(error).toMatchObject({
+      name: 'CallerClassMismatch',
+      message: 'Caller declaration does not match registerProvider; expected provider',
       operation: 'registerProvider',
       expected: 'provider',
       declared: undefined,

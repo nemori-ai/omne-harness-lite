@@ -64,7 +64,7 @@ function need(value: unknown) {
 }
 
 function refusedAt(path: readonly (string | number)[]) {
-  return { issues: [{ path, message: expect.any(String) }] }
+  return { issues: [{ path, message: expect.stringMatching(/\S/) }] }
 }
 
 function requirementWith(binding: unknown) {
@@ -72,7 +72,9 @@ function requirementWith(binding: unknown) {
 }
 
 function failedAt(path: readonly (string | number)[]) {
-  return { failure: { reason: 'invalidInput', issues: [{ path, message: expect.any(String) }] } }
+  return {
+    failure: { reason: 'invalidInput', issues: [{ path, message: expect.stringMatching(/\S/) }] },
+  }
 }
 
 it('decodes tenant text with the legal-identity codec into a tenant equal to the original', () => {
@@ -343,4 +345,42 @@ it('validates a real host calendar date and requires a block envelope', async ()
   for (const date of ['2026-02-29', '2026-02-30', '2026-13-01', 'today', 42])
     expect(await validate({ date, providers: [] })).toMatchObject({ issues: [{ path: ['date'] }] })
   expect(await validate([])).toHaveProperty('issues')
+})
+
+it('uses real calendar dates including leap centuries and years below one hundred', async () => {
+  const schema = executionHostFactsBlock.schema['~standard']
+  for (const date of [
+    '0000-02-29',
+    '0099-01-01',
+    '2000-02-29',
+    '2024-02-29',
+    '2026-04-30',
+    '9999-12-31',
+  ])
+    expect(await schema.validate({ date, providers: [] })).toEqual({
+      value: { date, providers: [] },
+    })
+  for (const date of [
+    '1900-02-29',
+    '2100-02-29',
+    '2026-02-29',
+    '2026-04-31',
+    '2026-00-01',
+    '2026-13-01',
+    '2026-01-00',
+    '2026-01-32',
+    '2026-1-01',
+    'x2026-01-01',
+    '2026-01-01T00:00:00Z',
+    20260101,
+    null,
+  ])
+    expect(await schema.validate({ date, providers: [] })).toEqual(refusedAt(['date']))
+  for (const value of [
+    null,
+    [],
+    { date: '2026-01-01' },
+    { date: '2026-01-01', providers: [], extra: true },
+  ])
+    expect(await schema.validate(value)).toHaveProperty('issues')
 })
