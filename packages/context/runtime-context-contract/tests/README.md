@@ -1,23 +1,21 @@
-# tests
+# Runtime Context 测试
 
-本目录承载本包适用的持续测试。测试种类的责任与边界见仓库[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)。
+本目录验证根入口、纯函数、导出清单，以及 `./testing` 契约套件。
 
-## 允许的内容
+## 运行
 
-`*.spec.ts` 运行测试、`*.spec-d.ts` 类型测试、测试辅助代码，以及 `fixtures/` 下的固定输入。
+在仓库根通过测试名额运行：
 
-## 边界
+```sh
+./scripts/with-test-slot.sh pnpm turbo run build typecheck test --filter=@omne-harness/runtime-context-contract
+```
 
-本成员没有运行实现，测试不需要真实存储、服务或 Cordis，也不需要替身。测试通过不代替规格或验收。
+先构建，再核对 `tests/fixtures/exports.json` 与公开接口页。导出核对调用共享的 `tools/dev-flow` CLI，产品源码不依赖工具成员。
 
-## 维护
+## 覆盖与限制
 
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。纯函数进入根入口时，同一次修改要更新导出测试。
+套件返回用例列表，不绑定 Vitest。调用方提供新鲜实例、两个合法租户和主体。关闭控制和观察链保留数可选，对应场景缺少控制时报告 NotApplicable。非耐久替身明确 `durability: 'none'`。
 
-## 本包事实
+覆盖作用域、租户、资格撤销和重签、注册提交身份与顺序、生产者代际、发布形状、缺项、变化游标、逐请求块、翻译与状态块提交。纯函数测试另核对解码、绑定形状、更新授权与合并、异步 schema 拒绝和前值披露。
 
-现在只有 [public-entry.spec.ts](public-entry.spec.ts)。它断言根入口没有运行导出，因为现有导出都是类型。没有 `*.spec-d.ts` 类型测试。`vitest.config.ts` 已经为类型测试打开了 typecheck。
-
-运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/runtime-context-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
-
-当前缺口：SPEC 的[持续验证义务](../SPEC.md#持续验证义务)都还没有测试。五个纯函数进入后，先补它们的定义层拒绝与合并结果，再由机制成员与真实组合补读取、并发与恢复。具名维护者由负责人指定。
+替身不证明真实来源、持久保存、断电恢复、来源超时、取消竞争或在途读取结算。真实实现及组合仍须兑现 SPEC 的相应义务。

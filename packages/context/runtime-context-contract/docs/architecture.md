@@ -2,21 +2,23 @@
 
 本页说明本成员怎样组织根入口与依赖，来兑现 [SPEC](../SPEC.md)。对象的身份、状态与生灭归[对象模型](object-model.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员没有运行实现，不持有状态，也不持有资源。登记表、生产者表、资格表、观察链与游标的机制归 [runtime-context](../../runtime-context/README.md)。注册、步提交与提醒的提交归作用域持有者。
+根入口只含类型和纯函数，不持有状态或资源。`./testing` 的非耐久替身单独持有测试状态。登记表、生产者表、资格表、观察链与游标的机制归 [runtime-context](../../runtime-context/README.md)。注册、步提交与提醒的提交归作用域持有者。
 
 ## 模块与依赖
 
-根入口 `src/index.ts` 是唯一公开入口。它按下表分成七个模块，每个模块一个源文件，`index.ts` 只做再导出。文件名由实现确定。现在只有前两个模块的类型在 `src/index.ts` 里，其余随实现进入，形状以 SPEC 和对象模型为准。
+根入口 `src/index.ts` 按下表组织，只做再导出。测试辅助经 `src/testing/index.ts` 独立公开。
 
 | 模块 | 承载 | 条款 | 现状 |
 | --- | --- | --- | --- |
-| 共享类型 | `ScopeRef`、`ContextBlockKey`、`ConsumerClass`、空块表 `ContextBlocks` | [RC-01](../SPEC.md#rc-01-消费者身份与范围)、[RC-02](../SPEC.md#rc-02-块声明注册与参数) | 已在 `src/index.ts` |
-| 块声明 | `BlockDescriptorBase`、`SuppliedBlockDescriptor`、`StatefulBlockDescriptor`、`ContextBlockDescriptor` | [RC-02](../SPEC.md#rc-02-块声明注册与参数) | 已在 `src/index.ts` |
-| 需要与绑定 | `ContextNeed`、`NeedBinding` | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) | 未进入 |
-| 注册与资格 | `Registration`、`Eligibility` | [RC-02](../SPEC.md#rc-02-块声明注册与参数)、[RC-03](../SPEC.md#rc-03-当前读取资格与缺项) | 未进入 |
-| 读者与观察 | `ContextReader`、`Snapshot`、`Changes`、读取的四种结果与游标作废、`ChangeMaterial` | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项)、[RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) | 未进入 |
-| 更新与提交 | 供给块一侧的 `ProducerHandle`，状态块一侧的 `ContextUpdate` 与 `StepCommit` | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交)、[RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) | 未进入 |
-| 纯函数 | `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder` | RC-02、RC-04、RC-05、RC-06 | 未进入 |
+| 共享类型 | `ScopeRef`、`ContextBlockKey`、`ConsumerClass`、空块表 `ContextBlocks` | [RC-01](../SPEC.md#rc-01-消费者身份与范围)、[RC-02](../SPEC.md#rc-02-块声明注册与参数) | 已实现 |
+| 块声明 | `BlockDescriptorBase`、`SuppliedBlockDescriptor`、`StatefulBlockDescriptor`、`ContextBlockDescriptor` | [RC-02](../SPEC.md#rc-02-块声明注册与参数) | 已实现 |
+| 需要与绑定 | `ContextNeed`、`NeedBinding` | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) | 已实现 |
+| 注册与资格 | `Registration`、`Eligibility` | [RC-02](../SPEC.md#rc-02-块声明注册与参数)、[RC-03](../SPEC.md#rc-03-当前读取资格与缺项) | 已实现 |
+| 读者与观察 | `ContextReader`、`Snapshot`、`Changes`、读取的四种结果与游标作废、`ChangeMaterial` | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项)、[RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) | 已实现 |
+| 更新与提交 | 供给块一侧的 `ProducerHandle`，状态块一侧的 `ContextUpdate` 与 `StepCommit` | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交)、[RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) | 已实现 |
+| 纯函数 | `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder` | RC-02、RC-04、RC-05、RC-06 | 已实现 |
+
+| 操作面 | 三面六操作及其输入结果，见 [operations.ts](../src/operations.ts) | RC-02、RC-03、RC-07 | 已实现 |
 
 模块之间只有单向依赖。方向沿对象模型的[对象与关系](object-model.md#对象与关系)：绑定引用需要与块声明，注册聚合绑定，资格引用注册修订，读者按资格建立。纯函数模块读取类型模块，类型模块不导入纯函数模块。
 
@@ -33,10 +35,12 @@ flowchart LR
   Fn --> Write
 ```
 
-包外依赖只有两项：
+包外依赖有三项：
 
 - `@standard-schema/spec`：用 `StandardSchemaV1` 表达块的值、参数与需要的形状。现在已在 `package.json` 里，源码只做类型导入。
-- `@omne-harness/legal-identity`：用 `TenantId` 表达读取资格里的租户。它随 `Eligibility` 进入，现在还不在 `package.json` 里。
+- `@omne-harness/legal-identity`：用 `TenantId` 表达读取资格里的租户。已在 `package.json` 登记。
+
+- `@omne-harness/operation-result`：解码与定义核对返回 `Outcome`。
 
 本成员不导入 `@deepseek-ai/cordis`，见 [Cordis 说明](cordis.md)。本成员也不导入任何上层领域的契约。上层领域依赖本成员，反方向不成立。现在已经依赖本成员的包是 execution-environment-contract 与 execution-environment。组架构列出的其他依赖方见[安装与源码依赖](../../docs/architecture.md#安装与源码依赖)。
 
@@ -101,7 +105,7 @@ flowchart LR
 | 开闭 | 新块只在语义拥有者的包里增补 `ContextBlocks`。新导出只加到对应模块，再由 `index.ts` 再导出 | 本成员出现具体块键，或为某个上层领域加特例分支 |
 | 里氏替换 | 供给块与状态块以 `kind` 区分，接收 `ContextBlockDescriptor` 的函数按 `kind` 穷举两种 | 用 `writers` 字段是否存在来判断类别。对状态块套用供给块的恢复方式 |
 | 接口隔离 | 生产者用的类型、持有者用的类型、读者用的类型分在不同模块，消费方只导入自己那一面 | 一个聚合类型同时暴露注册写入与读取 |
-| 依赖倒置 | 本成员只依赖 `@standard-schema/spec` 与 legal-identity。翻译函数与 `reduce` 由集成方和声明者作为值传入 | 导入 Cordis 或上层领域契约。纯函数调用存储端口或服务 |
+| 依赖倒置 | 本成员只依赖 `@standard-schema/spec`、legal-identity 与 operation-result。翻译函数与 `reduce` 由集成方和声明者作为值传入 | 导入 Cordis 或上层领域契约。纯函数调用存储端口或服务 |
 
 ## 验证与维护
 
@@ -109,9 +113,9 @@ flowchart LR
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口没有运行值，只导出类型 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口的运行导出为空 | 五个纯函数进入后，改为核对导出集合 |
+| 根入口运行值仅为八个纯操作 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 核对八个纯操作的运行导出 | 持续核对导出清单 |
 | 公开类型可以被语义拥有者增补和使用 | 依赖方 execution-environment-contract 的类型检查 | 无 |
-| SPEC 的行为条款 | 没有 | SPEC 的[持续验证义务](../SPEC.md#持续验证义务)，随纯函数和机制成员的实现进入 |
+| SPEC 的进程内行为条款 | `tests/` 的纯函数与套件自测 | SPEC 的[持续验证义务](../SPEC.md#持续验证义务)，随纯函数和机制成员的实现进入 |
 
 维护规则：
 

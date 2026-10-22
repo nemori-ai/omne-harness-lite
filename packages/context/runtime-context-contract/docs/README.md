@@ -27,4 +27,4 @@
 | [context.md](context.md) | 独立消费路径、邻域交接与上层页面指针 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-当前缺口：SPEC 点名的大部分类型与五个纯函数还不在 `src/` 里，见[公开接口页](public-api.md#随实现进入的导出)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：SPEC 点名的大部分类型与五个纯函数还不在 `src/` 里，见[公开接口页](public-api.md#定义索引)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
