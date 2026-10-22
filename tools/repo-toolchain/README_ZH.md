@@ -581,6 +581,7 @@ pnpm run loop:health # --out 可改产物目录
 
 成员用 TypeScript 7 构建；`pnpm run check:declarations` 用 TypeScript 6 读它们产出的声明。
 它把全部有 `build` 脚本的成员 `dist/` 下的 `.d.ts` 作为根文件交给 `@typescript/typescript6` 建一个程序，选项取仓库根 `tsconfig.base.json` 并打开库检查。
+解析成员之间的导入时，选项去掉 `customConditions`，按消费者视角只读对方的 `dist` 声明，不把 `src` 带进程序。
 成员声明里有诊断即退出 1；第三方声明里的诊断只计数；没有 `dist/` 的成员列出来，只报告、不判失败。`pnpm run check` 在构建一步之后常驻跑它。
 
 本工具调用 `createProgram`、`createSourceFile` 等旧编程接口的模块都从 `@typescript/typescript6` 导入，行为与 TypeScript 6 相同。

@@ -1,4 +1,12 @@
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,6 +66,62 @@ it('reports member declarations that TypeScript 6 cannot read, with file and lin
     expect.objectContaining({ file: 'packages/core/b/dist/index.d.ts', line: 1, code: 2307 }),
   ])
   expect(renderDeclarationReport(report)[0]).toContain('2 处不兼容')
+})
+
+/**
+ * Workspace members that import each other by package name. Each member exports `source` before
+ * `types`, as the repository's members do, and `node_modules/<name>` links to the member.
+ */
+function workspace(members: Record<string, { name: string; src: string; dist: string }>): string {
+  const root = checkout(
+    Object.fromEntries(
+      Object.entries(members).map(([path, m]) => [path, { 'index.d.ts': m.dist }]),
+    ),
+  )
+  for (const [path, member] of Object.entries(members)) {
+    writeFileSync(
+      join(root, path, 'package.json'),
+      JSON.stringify({
+        name: member.name,
+        type: 'module',
+        exports: { '.': { source: './src/index.ts', types: './dist/index.d.ts' } },
+      }),
+    )
+    mkdirSync(join(root, path, 'src'))
+    writeFileSync(join(root, path, 'src', 'index.ts'), member.src)
+    mkdirSync(join(root, 'node_modules', member.name, '..'), { recursive: true })
+    symlinkSync(join(root, path), join(root, 'node_modules', member.name), 'dir')
+  }
+  return root
+}
+
+it('resolves imports between members to their dist, so a module augmentation is declared once', () => {
+  // b augments c's interface; a's declarations import b. With the `source` condition, a's import
+  // lands on b/src, and b/src and b/dist both declare the same property (TS2717).
+  const augmentation = (body: string) =>
+    'export interface Placement {\n    readonly where: string;\n}\n' +
+    "declare module '@fixture/c' {\n    interface Blocks {\n        'b.placement': Placement;\n    }\n}\n" +
+    body
+  const root = workspace({
+    'packages/core/a': {
+      name: '@fixture/a',
+      src: "export type { Placement } from '@fixture/b';\n",
+      dist: "export type { Placement } from '@fixture/b';\n",
+    },
+    'packages/core/b': {
+      name: '@fixture/b',
+      // Only src has the error: a diagnostic from it would mean src is in the program.
+      src: augmentation("export const unread: number = 'src is not read';\n"),
+      dist: augmentation(''),
+    },
+    'packages/core/c': {
+      name: '@fixture/c',
+      src: 'export interface Blocks {\n}\n',
+      dist: 'export interface Blocks {\n}\n',
+    },
+  })
+  const report = checkDeclarations(root, ['packages/core/a', 'packages/core/b', 'packages/core/c'])
+  expect(report).toMatchObject({ members: 3, files: 3, diagnostics: [], external: 0 })
 })
 
 it('lists members without dist and leaves them out of the diagnostics', () => {
