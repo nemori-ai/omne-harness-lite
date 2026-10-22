@@ -16,7 +16,7 @@ Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come fr
 - Verification: public-entry inventory, pure behavior tests, and good/bad conformance cases.
 - Production integration, durable storage, real model compatibility, and performance remain outside this contract member.
 
-No package depends on this package now. The adapter on the coordinator side does not exist yet. See the [usage page](docs/context.md#现在的真实消费者).
+The implemented `request-context-cordis-contract` depends on this package. The adapter on the coordinator side does not exist yet. See the [usage page](docs/context.md#现在的真实消费者).
 
 ## Usage
 
@@ -42,7 +42,7 @@ One assembly has exactly four outcomes: candidate that still passes the extensio
 
 ## Design
 
-The root entry contains ten modules. The first five are input and candidate values, projection, prompt assembly, declaration projection, and placement. The other five are representation choice, budget verdict, assembly and coverage, plan and steps, and history source and policy ports. Dependencies between them go one way. The outside dependencies are the public values of model-contract, tool-contract, content-block, message, and runtime-context-contract. They are declared in `package.json`. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the six protocol flows. The [object model](docs/object-model.md) describes the objects.
+The source separates value types, input validation, projection, prompt assembly, tool declarations, placement, representation, budgets, assembly phases, compaction planning and steps, and dependency ports. Dependencies between them go one way. The outside dependencies are the public values of model-contract, tool-contract, content-block, message, and runtime-context-contract. They are declared in `package.json`. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the six protocol flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 

@@ -16,6 +16,6 @@ Schema 变化时，同步消费者、示例与验证资源。
 
 ## 本包事实
 
-现在为空，本成员不发布 Schema。公开形状由 `src/` 的 TypeScript 类型表达，现在还没有进入。
+本目录为空，不发布独立 Schema 文件。公开形状已由 `src/` 的 TypeScript 类型和 Standard Schema 值表达，导出见[公开接口页](../docs/public-api.md)。
 
 独立入口的字节编码现在未定（[RQ-01](../SPEC.md#rq-01-调用方与计算边界)）。编码确定并决定对外发布 Schema 时，本目录才会有内容。

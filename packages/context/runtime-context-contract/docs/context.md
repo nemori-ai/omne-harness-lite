@@ -87,7 +87,7 @@ flowchart LR
 
 ### 现在的真实消费者
 
-execution-environment-contract 是现在唯一用本成员声明块的语义拥有者。它导入 `ScopeRef`、`ConsumerClass` 与 `SuppliedBlockDescriptor`，并增补 `ContextBlocks`。execution-environment 导入 `ScopeRef`。组内其他成员的依赖随它们的实现进入。
+execution-environment-contract 与 request-context-contract 都用本成员的公开类型声明自己拥有的块，并增补 `ContextBlocks`。前者声明执行安置与宿主事实，后者声明压缩设置与窗口占用。runtime-context-cordis-contract 已依赖本成员的操作类型；execution-environment 也导入 `ScopeRef`。四个 Context 机制与 Cordis 提供者的生产实现仍待完成。
 
 ### 上层页面
 
