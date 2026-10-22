@@ -3,7 +3,7 @@ import { type TenantId } from '@omne-harness/legal-identity'
 import type { HistorySource, CompactionPolicyPort, RepresentationPolicyPort } from '../ports.js'
 import type { Access, EpochId } from '../refs.js'
 import { decodePlanId } from '../refs.js'
-import type { AssemblyPorts, AssemblyPolicies } from '../assembly.js'
+import type { AssemblyPorts, AssemblyPolicies } from '../ports.js'
 import type {
   AssemblyInput,
   AssemblyResult,
@@ -11,7 +11,7 @@ import type {
   StepResult,
   TransitionEvidence,
 } from '../values.js'
-import type { DeriveInput } from '../plan.js'
+import type { DeriveInput } from '../values.js'
 import type { ConformanceCase } from './case.js'
 import type { HistoryFixture } from './history-source.js'
 import { text, row, entry, evidence } from './fixtures.js'

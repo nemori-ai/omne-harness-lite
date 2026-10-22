@@ -7,18 +7,8 @@ import {
 import type { BlockId } from '@omne-harness/content-block'
 import type { EpochId } from './refs.js'
 import type { HistoryRow } from './ports.js'
-export type ProjectedMessage = Readonly<{
-  seq: number
-  entry: RecordEntryRef
-  prefixDigest: string
-  message: Message
-  dropped: readonly BlockId[]
-}>
-export type ProjectedHistory = Readonly<{
-  epoch: EpochId
-  messages: readonly ProjectedMessage[]
-  compaction: Readonly<{ seq: number; entry: RecordEntryRef }> | null
-}>
+export type { ProjectedMessage, ProjectedHistory } from './values.js'
+import type { ProjectedMessage, ProjectedHistory } from './values.js'
 export type HumanProjection = Readonly<{
   entries: readonly Readonly<{
     seq: number

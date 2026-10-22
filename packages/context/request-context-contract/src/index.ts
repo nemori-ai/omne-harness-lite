@@ -48,12 +48,8 @@ export {
   decodeBatchRef,
   decodePassageRef,
 } from './refs.js'
-export type {
-  AssemblyPorts,
-  AssemblyPolicies,
-  AssemblyOperations,
-  PreparedInputKey,
-} from './assembly.js'
+export type { AssemblyPorts, AssemblyPolicies, AssemblyOperations } from './ports.js'
+export type { PreparedInputKey } from './values.js'
 export { assemble } from './assembly.js'
 export type {
   HistoryRow,
@@ -127,5 +123,7 @@ export type {
   StepResult,
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js'
-export type { DeriveInput } from './plan.js'
-export { planCompaction, deriveStep, resume } from './plan.js'
+export type { DeriveInput } from './values.js'
+export { planCompaction } from './plan.js'
+export { deriveStep } from './compaction-step.js'
+export { resume } from './resume.js'

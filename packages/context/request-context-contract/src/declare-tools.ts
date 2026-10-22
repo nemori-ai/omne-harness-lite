@@ -1,19 +1,8 @@
 import type { ToolDeclaration } from '@omne-harness/model-contract'
-import type { Adoption } from './refs.js'
 import type { ToolAdoption } from './values.js'
 import { digest } from './internal.js'
-export type ToolRoute = Readonly<{
-  declared: string
-  tool: Adoption
-  binding: Adoption
-  command: string | null
-}>
-export type ToolDeclarationSet = Readonly<{
-  direct: readonly ToolDeclaration[]
-  programmatic: readonly ToolDeclaration[]
-  routes: readonly ToolRoute[]
-  digest: string
-}>
+export type { ToolRoute, ToolDeclarationSet } from './values.js'
+import type { ToolRoute, ToolDeclarationSet } from './values.js'
 /** Only resident tools are declarations; availability never changes their original definition. */
 export function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet {
   const direct: ToolDeclaration[] = []
