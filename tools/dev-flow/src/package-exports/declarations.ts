@@ -123,7 +123,9 @@ function openProgram(
     for (const statement of file.statements) {
       if (!ts.isExportDeclaration(statement)) continue
       if (statement.isTypeOnly && statement.exportClause === undefined)
-        throw new Error(`${file.fileName}: type-only star exports are not supported; use named type exports`)
+        throw new Error(
+          `${file.fileName}: type-only star exports are not supported; use named type exports`,
+        )
       // Imported types may refer to a dependency with a different export style. Only
       // forwarding its exports changes this entry's public names.
       if (statement.moduleSpecifier === undefined) continue

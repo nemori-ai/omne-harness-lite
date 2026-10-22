@@ -43,7 +43,7 @@ export interface HistorySource<P> {
     after: number | null,
     budgetBytes: number,
   ): Promise<HistoryReadResult>
-  /** 【待决 RQ-Q11】覆盖范围内全部条目（含不带消息的条目）、范围之后的消息与未结工作集合。 */
+  /** 覆盖范围内全部条目（含不带消息的条目）、范围之后的消息与未结工作集合。 */
   compactionContext(
     evidence: HistoryEvidence,
     access: Access<P> | null,
