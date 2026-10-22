@@ -24,6 +24,49 @@
     }
   },
   {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "unknown",
+          "unit": "token"
+        }
+      ],
+      "cost": [],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
     "kind": "ended",
     "termination": {
       "kind": "completed",

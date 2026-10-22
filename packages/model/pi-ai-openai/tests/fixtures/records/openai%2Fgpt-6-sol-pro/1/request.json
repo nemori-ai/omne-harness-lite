@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-sol-pro",
           "revision": "1",
-          "digest": "d0510a327be88d590dfc6970d8a287b0d85274175e4a50185251bdbbed3ccbc0"
+          "digest": "e9d9c9be9824770354ffcc64d77211fa94b9ce405c24a12d7c1043a151ef00c5"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6-sol-pro",
@@ -79,11 +79,20 @@
     ],
     "tools": [],
     "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/openai/gpt-6-sol-pro",
+        "accepts": [
+          "openrouter/openai/gpt-6-sol-pro"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
     "representation": {
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6-sol-pro#representation",
       "revision": "1",
-      "digest": "d0510a327be88d590dfc6970d8a287b0d85274175e4a50185251bdbbed3ccbc0"
+      "digest": "e9d9c9be9824770354ffcc64d77211fa94b9ce405c24a12d7c1043a151ef00c5"
     },
     "parameterAdoptions": [
       {
@@ -91,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-sol-pro",
           "revision": "1",
-          "digest": "d0510a327be88d590dfc6970d8a287b0d85274175e4a50185251bdbbed3ccbc0"
+          "digest": "e9d9c9be9824770354ffcc64d77211fa94b9ce405c24a12d7c1043a151ef00c5"
         },
         "applied": {
           "kind": "max-output-tokens",

@@ -1,5 +1,5 @@
-// Parameter planning on the OpenAI records through the binding: the supported subset passes, the
-// sealed parameter drops fail before sending, and the efforts the engine cannot write fail too.
+// Parameter planning on the OpenAI records through the binding: the supported subset passes, and
+// the sealed parameter drops and the efforts a record does not publish fail before sending.
 import { describe, expect, it } from 'vitest'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import { writeJsonText } from '@omne-harness/json-text'
@@ -16,6 +16,7 @@ import {
   textBlock,
   message,
   tool,
+  encodeInput,
 } from './support/openai.ts'
 
 const SOL = recordNamed('openai/gpt-5.6-sol')
@@ -59,8 +60,6 @@ describe('parameters', () => {
     { kind: 'seed', value: '7' },
     { kind: 'frequency-penalty', value: 0 },
     { kind: 'presence-penalty', value: 0 },
-    { kind: 'reasoning-effort', value: 'none' },
-    { kind: 'reasoning-effort', value: 'max' },
   ] satisfies readonly Parameter[])(
     'refuses $kind $value before sending, never drops it',
     async parameter => {
@@ -73,6 +72,37 @@ describe('parameters', () => {
       })
     },
   )
+
+  it('passes the efforts none and max where the record publishes them, and writes each as itself', async () => {
+    for (const [record, value] of [
+      [SOL, 'none'],
+      [SOL, 'max'],
+      [ASTRA, 'max'],
+    ] satisfies readonly (readonly [OpenAiRecord, 'none' | 'max'])[]) {
+      const effort: Parameter = { kind: 'reasoning-effort', value }
+      const outcome = await plan(record, [effort])
+      if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+      expect(outcome.ok.parameters.map(item => item.applied)).toEqual([effort])
+      const binding = await bindingOf(record)
+      const request = fixedRequest(record, { parameters: [effort] })
+      const encoded = binding.encode(encodeInput(request))
+      await binding.release()
+      if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
+      expect(JSON.parse(writeJsonText(encoded.ok.body))).toMatchObject({
+        reasoning: { effort: value },
+      })
+    }
+  })
+
+  it('refuses the effort none on Astra, which does not publish it', async () => {
+    expect(await plan(ASTRA, [{ kind: 'reasoning-effort', value: 'none' }])).toEqual({
+      failure: {
+        kind: 'unsupported',
+        field: 'reasoning-effort',
+        adapter: recordAdoption(OPENAI_OWNER, ASTRA),
+      },
+    })
+  })
 
   it('refuses an output limit above the record range', async () => {
     expect(await plan(ASTRA, [{ kind: 'max-output-tokens', value: '128001' }])).toEqual({
@@ -110,7 +140,7 @@ describe('request body', () => {
       ],
       tools: [tool('lookup')],
     })
-    const encoded = binding.encode({ request, media: [] })
+    const encoded = binding.encode(encodeInput(request))
     if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
     const body: unknown = JSON.parse(writeJsonText(encoded.ok.body))
     expect(body).toMatchObject({
@@ -164,7 +194,7 @@ describe('request body', () => {
       ],
       tools: [tool('lookup')],
     })
-    expect(binding.encode({ request, media: [] })).toEqual({
+    expect(binding.encode(encodeInput(request))).toEqual({
       failure: { kind: 'invalid', field: '/messages/1/blocks/0', reason: 'orphan-tool-call' },
     })
     await binding.release()
@@ -175,7 +205,7 @@ describe('request body', () => {
     const request = fixedRequest(ASTRA, {
       tools: [tool('lookup', { kind: 'string', value: 'object' })],
     })
-    expect(binding.encode({ request, media: [] })).toEqual({
+    expect(binding.encode(encodeInput(request))).toEqual({
       failure: {
         kind: 'unsupported',
         field: '/tools/0/argumentsSchema',

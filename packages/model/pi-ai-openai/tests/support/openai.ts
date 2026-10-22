@@ -5,11 +5,14 @@ import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
   judgeFixedModelRequest,
+  judgeReplayDeclaration,
   type Adoption,
   type AssembledModelInput,
   type FixedModelRequest,
   type ModelProfile,
+  type ReplayDeclaration,
   type Supplier,
+  type TransportDispatch,
 } from '@omne-harness/model-contract'
 import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
@@ -146,7 +149,23 @@ export type RequestParts = Readonly<{
   toolChoice?: unknown
   /** Explicit parameters; each becomes an explicit adoption of the record supplier. */
   parameters?: readonly unknown[]
+  /** The declaration that the request fixes; the official declaration expanded by default. */
+  declaration?: ReplayDeclaration
 }>
+
+/** The official replay declaration of a record with every default applied. */
+export function declarationOf(record: OpenAiRecord): ReplayDeclaration {
+  const judged = judgeReplayDeclaration(
+    {
+      recipient: record.route.recipient,
+      model: record.route.model,
+      replay: record.replay.declaration,
+    },
+    0,
+  )
+  if (!('ok' in judged)) throw new Error(`declaration of ${record.name}: ${judged.failure.reason}`)
+  return judged.ok
+}
 
 /** The fixed request as plain JSON: what `request.json` holds. */
 export function requestJson(record: OpenAiRecord, parts: RequestParts = {}): unknown {
@@ -162,6 +181,7 @@ export function requestJson(record: OpenAiRecord, parts: RequestParts = {}): unk
     messages: parts.messages ?? [message('u1', 'user', [textBlock('b1', 'hello')])],
     tools: parts.tools ?? [],
     toolChoice: parts.toolChoice ?? 'auto',
+    declarations: [parts.declaration ?? declarationOf(record)],
     representation: componentAdoption(record, 'representation'),
     parameterAdoptions: parameters.map(requested => ({
       supplier: supplier.adoption,
@@ -177,6 +197,14 @@ export function fixedRequest(record: OpenAiRecord, parts: RequestParts = {}): Fi
   const judged = judgeFixedModelRequest(requestJson(record, parts))
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
   return judged.ok
+}
+
+/** The encode input of a request of one supplier: its declaration, no media, the resent messages. */
+export function encodeInput(
+  request: FixedModelRequest,
+  resent: TransportDispatch['resent'] = [],
+): Parameters<PiFamilyBinding['encode']>[0] {
+  return { request, media: [], declaration: request.declarations[0], resent }
 }
 
 /** The assembled input of a fixed request: what a plan receives. */

@@ -47,20 +47,19 @@ export const OPENAI_TOKENIZER = {
 } as const
 
 /**
- * Reasoning effort through OpenRouter `reasoning.effort`. `none` and `max` are unsupported: the
- * gateway vocabulary of the engine has no `none` and no `max` effort, and this family does not
- * write another value in their place.
+ * Reasoning effort through OpenRouter `reasoning.effort`, each value written as itself, as the
+ * sealed code wrote it. The gateway turns reasoning off for `none` and accepts `max`.
  */
 const STANDARD_EFFORT = {
   support: 'supported',
   default: { kind: 'absent' },
   accept: {},
   wire: {
-    none: 'unsupported',
+    none: { field: 'reasoning.effort', value: 'none' },
     low: { field: 'reasoning.effort', value: 'low' },
     medium: { field: 'reasoning.effort', value: 'medium' },
     high: { field: 'reasoning.effort', value: 'high' },
-    max: 'unsupported',
+    max: { field: 'reasoning.effort', value: 'max' },
   },
 } as const
 

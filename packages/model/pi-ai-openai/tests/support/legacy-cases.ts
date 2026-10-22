@@ -92,6 +92,68 @@ function sealState(index: number, payload: string, pairs: readonly string[] = []
   }
 }
 
+/** The token counts of an account in the order of the usage rule; `null` is unknown. */
+type Counts = Readonly<{
+  input: string | null
+  output: string | null
+  cacheRead: string | null
+  cacheWrite: string | null
+  reasoning: string | null
+}>
+
+const NO_COUNTS: Counts = {
+  input: null,
+  output: null,
+  cacheRead: null,
+  cacheWrite: null,
+  reasoning: null,
+}
+
+/** The counts of `USAGE_TEXT`: 123 prompt less 20 read and 3 written leave 100 uncached. */
+const USAGE_COUNTS: Counts = {
+  input: '100',
+  output: '7',
+  cacheRead: '20',
+  cacheWrite: '3',
+  reasoning: null,
+}
+const USAGE_COST = '0.000123456789123456789'
+
+function counted(name: string, lexeme: string | null): object {
+  return lexeme === null
+    ? { name, state: 'unknown', unit: 'token' }
+    : { name, state: 'known', lexeme, unit: 'token' }
+}
+
+/**
+ * The account that the decoder gives before the termination of a finished response. A Pro record
+ * has the unknown input scope, so its input is unknown whatever the counts.
+ */
+function account(record: string, counts: Counts, cost: string | null = null): object {
+  const input = record.endsWith('-pro') ? null : counts.input
+  return {
+    kind: 'account',
+    event: 'usage',
+    value: {
+      usage: [
+        counted('input', input),
+        counted('output', counts.output),
+        counted('cache-read', counts.cacheRead),
+        counted('cache-write', counts.cacheWrite),
+        counted('reasoning', counts.reasoning),
+      ],
+      cost:
+        cost === null
+          ? []
+          : [{ state: 'known', lexeme: cost, unit: 'openrouter-credit', source: 'supplier' }],
+      trimmed: { state: 'unknown', unit: 'token' },
+      place: 'openrouter/OpenAI',
+      duration: { state: 'unknown' },
+      revision: '1',
+    },
+  }
+}
+
 function completed(reason: 'stop' | 'tool-suggestions' | 'limit'): object {
   return { kind: 'ended', termination: { kind: 'completed', reason } }
 }
@@ -205,6 +267,11 @@ function encryptedReplay(record: string): FixtureCase {
       delta(0, 'visible answer'),
       seal(0, 'text', 'visible answer'),
       sealState(1, ENCRYPTED_PAYLOAD),
+      account(
+        record,
+        { input: '400', output: '18', cacheRead: '0', cacheWrite: '0', reasoning: '11' },
+        '0.000123',
+      ),
       completed('stop'),
     ],
   }
@@ -259,7 +326,13 @@ function trailingUsage(record: string, reason: string, ending: object, id: strin
         `{"choices":[{"delta":{"refusal":""},"finish_reason":"${reason}"}],"usage":${USAGE_TEXT}}`,
       ) +
       DONE,
-    facts: [open(0, 'text'), delta(0, 'actual refusal'), seal(0, 'text', 'actual refusal'), ending],
+    facts: [
+      open(0, 'text'),
+      delta(0, 'actual refusal'),
+      seal(0, 'text', 'actual refusal'),
+      account(record, USAGE_COUNTS, USAGE_COST),
+      ending,
+    ],
   })
 }
 
@@ -313,6 +386,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
       delta(1, 'thinking'),
       seal(0, 'text', '拒答🙂C R later\n'),
       seal(1, 'thinking', 'thinking'),
+      account(ASTRA, NO_COUNTS),
       completed('stop'),
     ],
   }),
@@ -330,6 +404,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
         kind: 'object',
         entries: [{ key: 'x', value: { kind: 'number', lexeme: '1' } }],
       }),
+      account('openai/gpt-6-astra-pro', NO_COUNTS),
       completed('tool-suggestions'),
     ],
   }),
@@ -358,6 +433,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     facts: [
       open(0, 'text'),
       delta(0, 'delivered refusal'),
+      account('openai/gpt-6-luna-pro', NO_COUNTS),
       failed('input-rejected', 'finish-reason-content_filter'),
     ],
   }),
@@ -367,7 +443,13 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     record: 'openai/gpt-5.6-sol-pro',
     source: `${REFUSAL}:62-67 "RF-V1 pure whitespace is actual content"`,
     stream: refusal('openai/gpt-5.6-sol-pro', ' \t\n') + finish(),
-    facts: [open(0, 'text'), delta(0, ' \t\n'), seal(0, 'text', ' \t\n'), completed('stop')],
+    facts: [
+      open(0, 'text'),
+      delta(0, ' \t\n'),
+      seal(0, 'text', ' \t\n'),
+      account('openai/gpt-5.6-sol-pro', NO_COUNTS),
+      completed('stop'),
+    ],
   }),
   basicCase({
     id: 'rf-v5-late-in-band-error',
@@ -401,7 +483,14 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
         `{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":${USAGE_TEXT.replace('"prompt_tokens":123', '"prompt_tokens":124')}}`,
       ) +
       DONE,
-    facts: [open(0, 'text'), delta(0, 'text'), seal(0, 'text', 'text'), completed('stop')],
+    // The decoder keeps the last usage; the Pro scope leaves the input unknown either way.
+    facts: [
+      open(0, 'text'),
+      delta(0, 'text'),
+      seal(0, 'text', 'text'),
+      account('openai/gpt-5.6-luna-pro', USAGE_COUNTS, USAGE_COST),
+      completed('stop'),
+    ],
   }),
   ...(
     [
@@ -414,7 +503,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
       id: `rf-v1-${label}-refusal`,
       source: `${REFUSAL}:124-135 "RF-V1 ${label} neither opens a block nor passes the first-content gate"`,
       stream: sse({ ...serving(ASTRA), ...choice(value) }) + finish(),
-      facts: [completed('stop')],
+      facts: [account(ASTRA, NO_COUNTS), completed('stop')],
     }),
   ),
   ...INVALID_REFUSALS.map(({ id, value }) =>
@@ -434,7 +523,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     id: 'rf-v5-error-finish',
     label: 'error finish',
     tail: sse(choice({}, 'error')),
-    facts: [failed('input-rejected', 'finish-reason-error')],
+    facts: [account(ASTRA, NO_COUNTS), failed('input-rejected', 'finish-reason-error')],
   }),
   brokenTail({
     id: 'rf-v5-eof',
@@ -488,6 +577,12 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     id: 'rf-v8-reply-text-503',
     source: `${REFUSAL}:321-325 "RF-V8 legal reply text is unchanged by credential policy and diagnostics do not copy it"`,
     stream: refusal(ASTRA, '503') + finish(),
-    facts: [open(0, 'text'), delta(0, '503'), seal(0, 'text', '503'), completed('stop')],
+    facts: [
+      open(0, 'text'),
+      delta(0, '503'),
+      seal(0, 'text', '503'),
+      account(ASTRA, NO_COUNTS),
+      completed('stop'),
+    ],
   }),
 ]

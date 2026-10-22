@@ -30,9 +30,6 @@ const EFFORTS = {
   astra: ['low', 'medium', 'high', 'max'],
 } as const
 
-/** The effort values that the gateway vocabulary of the engine can write. */
-const WRITABLE = new Set(['low', 'medium', 'high'])
-
 function sealedOf(record: OpenAiRecord) {
   const sealed = Object.entries(SEALED).find(([name]) => name === record.name)?.[1]
   if (sealed === undefined) throw new Error(`no sealed row for ${record.name}`)
@@ -59,7 +56,7 @@ describe('the migrated models', () => {
   )
 
   it.each(RECORDS.map(record => [record.name, record] as const))(
-    '%s supports the sealed efforts that the engine can write, and refuses the others',
+    '%s supports exactly the sealed efforts, each written as itself',
     (_name, record) => {
       const rule = record.parameters['reasoning-effort']
       if (rule.support !== 'supported') throw new Error('reasoning effort must be supported')
@@ -67,7 +64,7 @@ describe('the migrated models', () => {
         .filter(([, wire]) => wire !== 'unsupported')
         .map(([value]) => value)
       const sealed: readonly string[] = EFFORTS[sealedOf(record)[0]]
-      expect(supported.toSorted()).toEqual(sealed.filter(value => WRITABLE.has(value)).toSorted())
+      expect(supported.toSorted()).toEqual(sealed.toSorted())
       for (const [value, wire] of Object.entries(rule.wire))
         if (wire !== 'unsupported') expect(wire).toEqual({ field: 'reasoning.effort', value })
     },

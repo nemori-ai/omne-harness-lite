@@ -27,13 +27,13 @@ sequenceDiagram
 
 **规划、编码与计量**：
 
-1. `rules.plan` 由引擎执行：比对回放声明、按记录的参数表规划、投影、调用 `check`、调用 `represent` 得到表示。
+1. `rules.plan` 由引擎执行：展开档案的回放声明、按记录的参数表规划、投影、调用 `check`、调用 `represent` 得到表示。
 2. 请求组装方在发送前用 `meter.measure` 计量这份表示。
-3. `encode` 用同一投影写出请求体。
+3. `encode` 用同一投影写出请求体，回放用请求为该供应商固定的声明与再发略去集合，并返回回放略去的诊断。
 
-**响应**：引擎的解码器逐帧归约。收场时把全部推理项交给 `openai-encrypted/1` 的 `seal`，每个加密项成为一个推理续接状态部件。
+**响应**：引擎的解码器逐帧归约。收场时把全部推理项交给 `openai-encrypted/1` 的 `seal`，每个加密项成为一个推理续接状态部件。收场之后解码器调用 `usage` 规则，给出账目报告与可能的 `usage-inconsistent` 诊断。
 
-**回放**：下一次请求中，可续接的 assistant 消息的部件交给 `replay`，写回 `reasoning_details`。其他家族产出的消息不可续接，部件与思考都不写出，`projectReplay` 的诊断指名该消息。
+**回放**：下一次请求中，可续接的 assistant 消息的部件交给 `replay`，写回 `reasoning_details`。其他家族产出的消息不可续接，部件与思考都不写出，encode 的 `replay-omitted` 诊断指名该消息。
 
 ## 失败与生命周期
 

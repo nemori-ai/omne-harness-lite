@@ -144,48 +144,67 @@ describe('usage', () => {
     reasoningTokens: '5',
   })
 
+  const inconsistentInput = { kind: 'usage-inconsistent', field: 'input' }
+
   it('openai-usage/1 subtracts cache reads and writes from the prompt', () => {
     expect(openAi(sealed)).toEqual({
-      ok: [
-        item('input', '100'),
-        item('output', '7'),
-        item('cache-read', '20'),
-        item('cache-write', '3'),
-        item('reasoning', '5'),
-      ],
+      ok: {
+        items: [
+          item('input', '100'),
+          item('output', '7'),
+          item('cache-read', '20'),
+          item('cache-write', '3'),
+          item('reasoning', '5'),
+        ],
+        diagnostics: [],
+      },
     })
   })
 
-  it('a negative input remainder is unknown, never zero; missing counts stay unknown', () => {
-    expect(
-      okOf(openAi(usage({ promptTokens: '1', cachedTokens: '2', cacheWrite: '0' })))[0],
-    ).toEqual(item('input', null))
+  it('a negative input remainder is unknown, never zero, with a diagnostic', () => {
+    const negative = okOf(openAi(usage({ promptTokens: '1', cachedTokens: '2', cacheWrite: '0' })))
+    expect(negative.items[0]).toEqual(item('input', null))
+    expect(negative.diagnostics).toEqual([inconsistentInput])
+  })
+
+  it('missing counts stay unknown without a diagnostic', () => {
     expect(openAi(usage({ promptTokens: '10', completionTokens: '3' }))).toEqual({
-      ok: [
-        item('input', null),
-        item('output', '3'),
-        item('cache-read', null),
-        item('cache-write', null),
-        item('reasoning', null),
-      ],
+      ok: {
+        items: [
+          item('input', null),
+          item('output', '3'),
+          item('cache-read', null),
+          item('cache-write', null),
+          item('reasoning', null),
+        ],
+        diagnostics: [],
+      },
     })
   })
 
   it('keeps counts beyond the safe integers exact', () => {
     const big = usage({ promptTokens: '9007199254740993', cachedTokens: '0', cacheWrite: '0' })
-    expect(okOf(openAi(big))[0]).toEqual(item('input', '9007199254740993'))
+    expect(okOf(openAi(big)).items[0]).toEqual(item('input', '9007199254740993'))
   })
 
   it('unknown-scope/1 keeps every count but the input, whose scope is unknown', () => {
     expect(unknownScope(sealed)).toEqual({
-      ok: [
-        item('input', null),
-        item('output', '7'),
-        item('cache-read', '20'),
-        item('cache-write', '3'),
-        item('reasoning', '5'),
-      ],
+      ok: {
+        items: [
+          item('input', null),
+          item('output', '7'),
+          item('cache-read', '20'),
+          item('cache-write', '3'),
+          item('reasoning', '5'),
+        ],
+        diagnostics: [],
+      },
     })
+  })
+
+  it('unknown-scope/1 keeps the diagnostic of counts that contradict each other', () => {
+    const negative = usage({ promptTokens: '1', cachedTokens: '2', cacheWrite: '0' })
+    expect(okOf(unknownScope(negative)).diagnostics).toEqual([inconsistentInput])
   })
 })
 
@@ -216,8 +235,8 @@ describe('check and hooksOf', () => {
     const pro = hooksOf(recordNamed('openai/gpt-5.6-sol-pro'))
     const plain = hooksOf(SOL)
     const sealed = usage({ promptTokens: '5', cachedTokens: '0', cacheWrite: '0' })
-    expect(okOf(pro.usage(sealed))[0]).toEqual(item('input', null))
-    expect(okOf(plain.usage(sealed))[0]).toEqual(item('input', '5'))
+    expect(okOf(pro.usage(sealed)).items[0]).toEqual(item('input', null))
+    expect(okOf(plain.usage(sealed)).items[0]).toEqual(item('input', '5'))
     expect(plain.reasoning).not.toBeNull()
   })
 })

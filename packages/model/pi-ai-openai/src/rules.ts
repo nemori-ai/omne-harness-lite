@@ -1,11 +1,17 @@
 // The revisioned rule tables of the OpenAI family: the code behind the four hooks of the gateway
 // engine. A record names one rule per hook. A rule never changes its behaviour in place: a changed
 // rule is a new name, and the records that use it get a new revision.
-import { readJsonText, writeJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
+import {
+  readJsonText,
+  writeJsonText,
+  type JsonLimits,
+  type JsonValue,
+} from '@omne-harness/json-text'
 import type { ModelFault, TransportFailure } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import type {
+  ChatUsage,
   ChatUsageItem,
   GatewayUsage,
   ReasoningCodec,
@@ -153,37 +159,59 @@ function cacheWriteOf(usage: GatewayUsage): string | null {
   return value?.kind === 'number' && DECIMAL.test(value.lexeme) ? value.lexeme : null
 }
 
-/** The uncached input: prompt less cache reads and writes. Negative or partial is unknown. */
-function uncachedInput(usage: GatewayUsage, write: string | null): string | null {
+/**
+ * The uncached input: prompt less cache reads and writes. `partial`: a count is missing.
+ * `negative`: the cache parts exceed the prompt, so the counts contradict each other.
+ */
+type Remainder =
+  | Readonly<{ kind: 'known'; lexeme: string }>
+  | Readonly<{ kind: 'partial' }>
+  | Readonly<{ kind: 'negative' }>
+
+function uncachedInput(usage: GatewayUsage, write: string | null): Remainder {
   const { promptTokens, cachedTokens } = usage
-  if (promptTokens === null || cachedTokens === null || write === null) return null
+  if (promptTokens === null || cachedTokens === null || write === null) return { kind: 'partial' }
   const remainder = BigInt(promptTokens) - BigInt(cachedTokens) - BigInt(write)
-  return remainder < 0n ? null : String(remainder)
+  return remainder < 0n ? { kind: 'negative' } : { kind: 'known', lexeme: String(remainder) }
 }
 
 /**
  * The OpenRouter usage of an OpenAI route: `input` is the uncached input, `cache-read` and
  * `cache-write` the cache parts, `output` the completion and `reasoning` its reasoning part.
- * Unknown counts stay unknown; a negative input remainder is unknown, never zero.
+ * Unknown counts stay unknown. A negative input remainder is unknown, never zero, and gives a
+ * `usage-inconsistent` diagnostic for `input`.
  */
-function openAiUsage(usage: GatewayUsage): Outcome<readonly ChatUsageItem[], ModelFault> {
+function openAiUsage(usage: GatewayUsage): Outcome<ChatUsage, ModelFault> {
   const write = cacheWriteOf(usage)
+  const input = uncachedInput(usage, write)
   return {
-    ok: [
-      counted('input', uncachedInput(usage, write)),
-      counted('output', usage.completionTokens),
-      counted('cache-read', usage.cachedTokens),
-      counted('cache-write', write),
-      counted('reasoning', usage.reasoningTokens),
-    ],
+    ok: {
+      items: [
+        counted('input', input.kind === 'known' ? input.lexeme : null),
+        counted('output', usage.completionTokens),
+        counted('cache-read', usage.cachedTokens),
+        counted('cache-write', write),
+        counted('reasoning', usage.reasoningTokens),
+      ],
+      diagnostics:
+        input.kind === 'negative' ? [{ kind: 'usage-inconsistent', field: 'input' }] : [],
+    },
   }
 }
 
-/** As `openai-usage/1`, but the scope of the prompt count is unknown, so `input` is unknown. */
-function unknownScopeUsage(usage: GatewayUsage): Outcome<readonly ChatUsageItem[], ModelFault> {
-  const items = openAiUsage(usage)
-  if (!('ok' in items)) return items
-  return { ok: items.ok.map(item => (item.name === 'input' ? unknown('input') : item)) }
+/**
+ * As `openai-usage/1`, but the scope of the prompt count is unknown, so `input` is unknown. The
+ * counts can still contradict each other, so the diagnostic stays.
+ */
+function unknownScopeUsage(usage: GatewayUsage): Outcome<ChatUsage, ModelFault> {
+  const read = openAiUsage(usage)
+  if (!('ok' in read)) return read
+  return {
+    ok: {
+      items: read.ok.items.map(item => (item.name === 'input' ? unknown('input') : item)),
+      diagnostics: read.ok.diagnostics,
+    },
+  }
 }
 
 export const USAGE_RULES = {

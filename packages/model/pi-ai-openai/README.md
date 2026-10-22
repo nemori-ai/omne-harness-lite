@@ -17,13 +17,13 @@ Each level states only checked facts. A commit that changes the support level up
 | Public entry exported | `createOpenAiFamily`, `officialOpenAiProfiles`, `openAiTokenizerResources`, `OPENAI_RECORDS`, `OPENAI_OWNER` and their types | Root entry | `public-entry.spec.ts` |
 | Records | 12 current records at revision 1, migrated from the sealed family policy. Pure data with committed fingerprints | `OPENAI_RECORDS` | `records.spec.ts`, `adoptions.spec.ts` |
 | Acquire and binding | One acquire gives one binding for the exact supplier. An unknown adoption, a wrong route, a mismatched tokenizer and a cancelled acquire fail as a whole | `createOpenAiFamily` with `composeFamilies` | `family.spec.ts` |
-| Parameters and request body | Output limit and the efforts `low`, `medium`, `high`. Every other parameter is `unsupported` before sending | `binding.rules.plan`, `binding.encode` | `plan.spec.ts` |
-| Rules | Encrypted reasoning seal and replay, usage arithmetic with unknown Pro scope, object-root tool schema | `src/rules.ts` | `rules.spec.ts` |
+| Parameters and request body | Output limit and the reasoning efforts that each model publishes, written as themselves: `none`, `low`, `medium`, `high` and `max`, without `none` on Astra. Every other parameter is `unsupported` before sending | `binding.rules.plan`, `binding.encode` | `plan.spec.ts` |
+| Rules | Encrypted reasoning seal and replay, usage arithmetic with unknown Pro scope and a `usage-inconsistent` diagnostic for a negative input remainder, object-root tool schema | `src/rules.ts` | `rules.spec.ts` |
 | Meter | o200k proxy estimate of the visible projection with the configured margin. Three image patch rules from pixel facts. No estimate for encrypted reasoning | `binding.meter` | `meter.spec.ts` |
 | Official profiles | One profile per current record. Each profile supplier acquires a binding and plans a request | `officialOpenAiProfiles` | `profiles.spec.ts` |
-| Replay fixtures | The inline SSE cases of the sealed tests, as contract facts, with intended differences listed | `tests/fixtures` | `fixtures.spec.ts` |
-| Cross-family replay, OpenAI side | A foreign assistant message loses its state and thinking and is named in the replay diagnostics. An OpenAI message keeps its state | `binding.encode` | `cross-family-replay.spec.ts` |
-| Not delivered | The efforts `none` and `max`. The `account` fact. Real transport with a local HTTPS server, the conformance suite, examples and real routes | None | No evidence for these paths |
+| Replay fixtures | The inline SSE cases of the sealed tests, as contract facts with the account of each finished response, with intended differences listed | `tests/fixtures` | `fixtures.spec.ts` |
+| Cross-family replay, OpenAI side | A foreign assistant message loses its state and thinking and is named in a `replay-omitted` diagnostic of encode. An OpenAI message keeps its state | `binding.encode` | `cross-family-replay.spec.ts` |
+| Not delivered | The account of a stream that fails before its end. Real transport with a local HTTPS server, the conformance suite, examples and real routes | None | No evidence for these paths |
 
 ## Usage
 
@@ -84,7 +84,6 @@ Turbo builds this package and its dependencies before the tests. After a change 
 
 - A new model is a new record, a fingerprint line and a fixture. A changed model is a new revision. Never change a record in place.
 - A changed rule is a new rule name. The records that use it get a new revision.
-- When the gateway vocabulary gets the efforts `none` and `max`, add a record revision that maps them.
 - An upgrade of js-tiktoken changes the tokenizer definition of every record. Add new revisions.
 - A change to the support level updates this table, the Chinese README, the [group page](../README.md) and [package organization](../../../docs/package-organization.md).
 

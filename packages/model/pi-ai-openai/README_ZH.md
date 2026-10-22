@@ -17,13 +17,13 @@
 | 公开入口 | `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources`、`OPENAI_RECORDS`、`OPENAI_OWNER` 与相应类型 | 根入口 | `public-entry.spec.ts` |
 | 记录 | 12 条 `current` 记录，修订为 `1`，从封存的家族政策迁入。纯数据，提交指纹 | `OPENAI_RECORDS` | `records.spec.ts`、`adoptions.spec.ts` |
 | 取得与绑定 | 一次取得给出精确供应商的一个绑定。未知采用、路由不符、tokenizer 不符与取消都整体失败 | `createOpenAiFamily` 与 `composeFamilies` | `family.spec.ts` |
-| 参数与请求体 | 输出上限与 `low`、`medium`、`high` 三个推理强度。其他参数在发送前返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
-| 规则 | 加密推理的封存与回放、用量算术与 Pro 的未知范围、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |
+| 参数与请求体 | 输出上限与各型号公布的推理强度，原样写出：`none`、`low`、`medium`、`high` 与 `max`，Astra 没有 `none`。其他参数在发送前返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
+| 规则 | 加密推理的封存与回放、用量算术与 Pro 的未知范围、输入余量为负时的 `usage-inconsistent` 诊断、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |
 | 计量 | 可见投影的 o200k 代理估算与配置余量；按像素事实计算的三条图片补丁规则；加密推理没有估算 | `binding.meter` | `meter.spec.ts` |
 | 官方档案 | 每条 `current` 记录一份档案。每份档案的供应商都能取得绑定并规划请求 | `officialOpenAiProfiles` | `profiles.spec.ts` |
-| 回放夹具 | 封存测试的内联 SSE 用例，转换为契约事实，有意不同逐条列出 | `tests/fixtures` | `fixtures.spec.ts` |
-| 跨家族回放（OpenAI 一侧） | 另一家的 assistant 消息不带状态与思考，并出现在回放诊断中；OpenAI 自己的消息带回状态 | `binding.encode` | `cross-family-replay.spec.ts` |
-| 未交付 | `none` 与 `max` 推理强度；`account` 事实；经本地 HTTPS 服务的真实传输、符合性套件、示例与真实路由 | 无 | 这些路径没有证据 |
+| 回放夹具 | 封存测试的内联 SSE 用例，转换为契约事实，含每个已收场响应的账目，有意不同逐条列出 | `tests/fixtures` | `fixtures.spec.ts` |
+| 跨家族回放（OpenAI 一侧） | 另一家的 assistant 消息不带状态与思考，并出现在 encode 的 `replay-omitted` 诊断中；OpenAI 自己的消息带回状态 | `binding.encode` | `cross-family-replay.spec.ts` |
+| 未交付 | 在结束之前失败的流的账目；经本地 HTTPS 服务的真实传输、符合性套件、示例与真实路由 | 无 | 这些路径没有证据 |
 
 ## 使用
 
@@ -84,7 +84,6 @@ turbo 在测试前构建本包及其依赖。改动夹具用例表后，运行 `
 
 - 新型号是一条新记录、一行指纹与一组夹具。型号变化是一个新修订。不得原地修改记录。
 - 规则行为变化时新增规则名，引用它的记录新增修订。
-- 网关词表加入 `none` 与 `max` 推理强度后，新增映射它们的记录修订。
 - 升级 js-tiktoken 会改变每条记录的 tokenizer 定义，须新增修订。
 - 改变支持范围时，同步本表、英文 README、[组页](../README.md)与[包组织](../../../docs/package-organization.md)。
 

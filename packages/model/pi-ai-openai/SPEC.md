@@ -36,8 +36,7 @@
    - 每次请求写 `store: false`；收场之后最多接受 2 帧尾帧。
 5. 参数：
    - `max-output-tokens` 受支持，上限 128000，写入 `max_tokens`，没有默认值；
-   - `reasoning-effort` 的 `low`、`medium`、`high` 受支持，写入 `reasoning.effort`，没有默认值；
-   - `reasoning-effort` 的 `none` 与 `max` 为 `unsupported`。引擎的网关词表没有这两个强度值，本包不写其他值代替；
+   - `reasoning-effort` 受支持，没有默认值。每个受支持的值原样写入 `reasoning.effort`，与封存件相同。标准型号支持 `none`、`low`、`medium`、`high` 与 `max`；Astra 的两个型号支持 `low`、`medium`、`high` 与 `max`，`none` 为 `unsupported`。网关把 `none` 理解为关闭推理，对强制推理的型号返回 400；
    - `temperature`、`top-p`、`stop`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
 6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `openai-responses-v1`。没有前缀要求。
 7. 档案数据：输入为文本与图片，输出为文本。窗口 1050000，输入 922000，输出 128000，三项的上游值为有限值，证据是记录中的 `profile.evidence`。单图 4194304 字节，上游值未知。
@@ -51,12 +50,12 @@
 | --- | --- | --- |
 | `reasoning` | `openai-encrypted/1` | 封存：`reasoning.encrypted` 项、格式为 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]` 时，每项一个载荷；载荷是该项的排序键 JSON。其他项不成为状态。回放：可续接消息的部件按部件顺序写回 `reasoning_details`；载荷不是这样的一项时返回 `invalid`（`field` 为 `reasoning_state`）。有部件时原生思考不写出。没有部件时，原生思考连接后写成 `reasoning` |
 | `reasoning` | `none/1` | 没有编解码器。当前没有记录使用 |
-| `usage` | `openai-usage/1` | `input` 为 prompt 减去缓存读与缓存写；余量为负或某项缺失时为 `unknown`，不写零。`output`、`cache-read`、`cache-write`、`reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串 |
-| `usage` | `unknown-scope/1` | 同上，但 `input` 恒为 `unknown`：6 个 Pro 型号的 prompt 统计范围未知 |
+| `usage` | `openai-usage/1` | `input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output`、`cache-read`、`cache-write`、`reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串 |
+| `usage` | `unknown-scope/1` | 同上，但 `input` 恒为 `unknown`：6 个 Pro 型号的 prompt 统计范围未知。余量为负时仍返回同一条诊断 |
 | `toolSchema` | `object-root/1` | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema` |
 | `check` | `none/1` | 没有跨字段规则，参数表已写明全部规则 |
 
-`usage` hook 当前不被引擎调用，见 [pi-ai-transport SPEC“账目”](../pi-ai-transport/SPEC.md#账目)。
+引擎的解码器在收场后调用 `usage` hook 一次，用它的结果形成账目报告与诊断事实，见 [pi-ai-transport SPEC“账目”](../pi-ai-transport/SPEC.md#账目)。
 
 <a id="计量"></a>
 ### 计量
@@ -123,7 +122,7 @@
 | 义务 | 验证 | 前提与未覆盖 |
 | --- | --- | --- |
 | [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 与封存件的表逐项比较 |
-| [规则](#规则) | `rules.spec.ts` | `usage` 直接调用，引擎不调用它 |
+| [规则](#规则) | `rules.spec.ts` | `usage` 直接调用；经引擎形成的账目事实由回放夹具核对 |
 | [计量](#计量) | `meter.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造 |
 | [官方档案](#官方档案) | `profiles.spec.ts` | 每份档案的供应商都能取得绑定并规划请求 |
 | [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
@@ -133,5 +132,5 @@
 未覆盖：
 
 - 经真实传输与本地 HTTPS 服务的回放、符合性套件与真实路由，归后续联调与 #466。
-- 解码器不产生 `account` 事实，用量规则只经直接调用验证。
-- `none` 与 `max` 推理强度不受支持，直到网关词表能写出它们。
+- 夹具中没有余量为负的 usage，所以 `usage-inconsistent` 诊断只经直接调用验证。
+- 网关对 `none` 与 `max` 的接受只有一次经代理的手工确认，不在持续验证中。

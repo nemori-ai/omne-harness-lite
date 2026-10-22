@@ -28,7 +28,9 @@
 
 **规则按表选取。** 规则表用 `satisfies Record<string, …>` 检查，规则名的类型是表的 `keyof typeof`。记录写错规则名时编译失败。`hooksOf` 把表项赋给带记录参数的函数类型，所以不需要记录的规则也可以写成无参函数。
 
-**`none` 与 `max` 推理强度不受支持。** OpenRouter 接受这两个值，封存件原样发送它们。引擎的网关词表 `reasoning.effort` 只有 `minimal`、`low`、`medium`、`high`、`xhigh`。把 `max` 写成 `xhigh` 或把 `none` 写成 `reasoning.enabled: false` 会改变线上的值，所以本包让它们在发送前失败。网关词表增加这两个值后，新增记录修订映射它们。
+**推理强度原样写出。** 封存件把请求的强度原样写入 `reasoning.effort`。网关词表含 `none` 与 `max`，所以每条记录把它公布的每个强度映射为同名的网关值，不写近似值。Astra 不公布 `none`，它的记录把 `none` 映射为 `unsupported`。记录尚未发布，所以这次映射直接写在修订 1 中。
+
+**用量诊断由规则给出。** 只有家族知道用量项之间的算术，所以 `usage` 规则同时返回用量项与 `usage-inconsistent` 诊断。引擎只把诊断转成事实，不解释用量。
 
 **计量看见的就是发出的形状。** `represent` 只读引擎交给它的投影，与 `encode` 使用同一投影。token 输入不含图片数据与密文：图片留占位，加密项只留数量。`measure` 对整份 token 输入的 JSON 计数一次，不分段相加。
 
