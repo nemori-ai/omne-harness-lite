@@ -1,6 +1,5 @@
 # @omne-harness/execution-environment-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Execution Environment 的纯契约成员，`module` 变体。

@@ -1,4 +1,3 @@
-// PACKAGE_TEMPLATE_DRAFT: Contract types, descriptors, schema and pure functions are in place; facility operation schemas remain follow-up work; environment/recovery/registration schemas and conformance suites are implemented, pending delivery acceptance.
 export { acquisitionRef, originRef } from './identity.ts'
 export type { Access, AcquisitionRef, OriginRef } from './identity.ts'
 
