@@ -187,7 +187,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 本节维护运行接口的行为。声明只在 `src/`，[public-api](docs/public-api.md) 是它的导航，消费及失败场景归 [context](docs/context.md)。本节设计已接受，尚不表示生产支持。
 
-本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，不能从本包导入。model 已实现 executeModel 及受理、原流保存、实例观察和有限的原终局收场，具体支持边界归[实现规格](../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现；retained ACK、自动清理与生产托管宿主尚未实现。
+本节将既有行为落实到操作、参数和提供者责任。共同对象关系见[运行对象模型](../../../docs/architecture/runtime/runtime-contract-model.md)。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，不能从本包导入。model 已实现 executeModel 及受理、原流保存、实例观察和有限的原终局收场，具体支持边界归[实现规格](../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现；retained ACK、自动清理与生产托管宿主尚未实现。
 
 <a id="342-能力边界"></a>
 
