@@ -65,8 +65,9 @@ export async function materialize(
       representation: request.representation,
       payloadDigest: digestOf(body),
     })
+    const materialized = createMaterialized({ ...input, reservation, body, receipt })
     handedOver = true
-    return { ok: createMaterialized({ ...input, reservation, body, receipt }) }
+    return { ok: materialized }
   } finally {
     if (!handedOver) reservation.release()
   }
