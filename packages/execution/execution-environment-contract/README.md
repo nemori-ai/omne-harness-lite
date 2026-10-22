@@ -1,6 +1,5 @@
 # @omne-harness/execution-environment-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The pure contract member of Execution Environment. Variant: `module`.
