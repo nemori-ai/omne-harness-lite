@@ -35,6 +35,9 @@
     "@omne-harness/tokenizer-tiktoken": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/model": "workspace:*",
+    "@omne-harness/pi-ai-openai": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*",
     "@types/node": "catalog:",
     "js-tiktoken": "catalog:",
     "typescript": "catalog:",

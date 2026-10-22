@@ -984,6 +984,15 @@ importers:
         specifier: workspace:*
         version: link:../tokenizer-tiktoken
     devDependencies:
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../model
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1018,6 +1027,9 @@ importers:
         specifier: 'catalog:'
         version: 1.0.21
     devDependencies:
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../model
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

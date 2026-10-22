@@ -35,6 +35,7 @@
     "js-tiktoken": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/model": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
