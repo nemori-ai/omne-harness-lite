@@ -24,7 +24,7 @@
 | [architecture.md](architecture.md) | 两个入口、包外依赖、四条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-RCD01 生产者登记与撤除、F-RCD02 唤醒按作用域过滤 |
 | [object-model.md](object-model.md) | 三个技术对象。领域对象指向契约的对象模型 |
-| [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
+| [public-api.md](public-api.md) | 两个入口的实际导出，链接源码与机读清单 |
 | [context.md](context.md) | 各类依赖方的用法与定位 |
 
-当前缺口：两个入口都没有源码。监听者标记作用域所用的属性键已定为 `scope`，见 [Cordis 说明的事件](cordis.md#事件)。三条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+两个入口已实现。监听者标记作用域所用的属性键已定为 `scope`，见 [Cordis 说明的事件](cordis.md#事件)。三条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

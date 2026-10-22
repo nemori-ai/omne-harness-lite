@@ -1,6 +1,5 @@
 # @omne-harness/runtime-context-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Runtime Context 的 Cordis 定义成员，`service-contract` 变体。
@@ -11,9 +10,9 @@ Runtime Context 的 Cordis 定义成员，`service-contract` 变体。
 
 状态：Cordis 定义成员，`draft`。采用依据是[系统页的成员与 Cordis 落位](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位)与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
-- 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
-- 未实现：抽象类、键常量、intercept 配置类型、`Context` 与 `Events` 增补，以及根入口的类型重导出。
-- 未验证：三条 Cordis 机制读数还没有进入 basis，所以 SPEC 的性质 3、4、5 是假设，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
+- 已实现：抽象 Service、唯一键、intercept 类型、Context/Events 增补，以及根入口的显式类型重导出。
+- 领域机制和具体提供者归各自实现成员。
+- 三条机制读数已有本成员的真实 Cordis 4.0.4 测试；共同 basis 登记仍缺，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 现在没有包依赖本成员。
 
@@ -24,7 +23,7 @@ Runtime Context 的 Cordis 定义成员，`service-contract` 变体。
 - 根入口 `@omne-harness/runtime-context-cordis-contract`：只重导出契约类型，不导入 Cordis。
 - `@omne-harness/runtime-context-cordis-contract/cordis`：服务定义。
 
-实现进入后，消费者一侧的适配器插件这样声明自己的消费者类：
+消费者一侧的适配器插件这样声明自己的消费者类：
 
 ```ts
 import type {} from '@omne-harness/runtime-context-cordis-contract/cordis'
@@ -64,7 +63,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/runtime-context-cordis-contract
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口没有导出，见 [tests/](tests/README.md)。三条机制性质的验证要先补 basis probe，再由提供者的测试承担。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试核对入口、导出清单、类型泛型与真实 Cordis 调用方生命周期，见 [tests/](tests/README.md)。三条机制读数已在本成员测试中固定；共同 basis 登记与生产提供者的完整义务仍分别维护。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -87,7 +86,7 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         导出入口与定义索引
 ├── context.md            依赖方的用法与定位
 └── cordis.md             服务定义、事件、登记协议与 IC 映射
-src/                      index.ts 与 cordis.ts，现在只有模板标记
+src/                      index.ts 类型重导出与 cordis.ts 服务定义
 tests/                    两个入口测试，fixtures/ 现在为空
 schema/                   现在为空，本成员不发布 Schema
 verification/             models/ 与 proofs/，现在为空

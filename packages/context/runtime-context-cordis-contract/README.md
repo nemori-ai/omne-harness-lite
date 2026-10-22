@@ -1,6 +1,5 @@
 # @omne-harness/runtime-context-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The Cordis definition member of Runtime Context. Variant: `service-contract`.
@@ -13,9 +12,9 @@ The package does not own domain behavior. [runtime-context-contract](../runtime-
 
 Status: Cordis definition member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位) of the system page and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
-- Not implemented: the abstract class, the key constant, the intercept configuration type, the `Context` and `Events` augmentations, and the type re-exports of the root entry.
-- Not verified: three Cordis mechanism readings are not in the basis yet. Thus properties 3, 4, and 5 of the SPEC are assumptions. See the [Cordis page](docs/cordis.md#机制读数与假设).
+- Implemented: the abstract Service, unique key, intercept type, Context/Events augmentations and explicit contract type re-exports.
+- The concrete provider and domain mechanism belong to their implementation members.
+- Three mechanism readings pass real Cordis 4.0.4 tests here. Their common basis registration remains open. See the [Cordis page](docs/cordis.md#机制读数与假设).
 
 No package depends on this package now.
 
@@ -26,7 +25,7 @@ The package has two entries:
 - The root entry `@omne-harness/runtime-context-cordis-contract` re-exports only contract types. It does not import Cordis.
 - `@omne-harness/runtime-context-cordis-contract/cordis` holds the service definition.
 
-After the implementation arrives, a consumer-side adapter plugin declares its consumer class like this:
+A consumer-side adapter plugin declares its consumer class like this:
 
 ```ts
 import type {} from '@omne-harness/runtime-context-cordis-contract/cordis'
@@ -66,7 +65,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/runtime-context-cordis-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The three mechanism properties need basis probes first. Then the provider tests check them. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. Tests check entries, exported declarations, real Cordis loading, caller lifecycle and the three mechanism readings. See [tests/](tests/README.md). The basis owner still maintains common registration. Concrete providers must verify their own resource and in-flight behavior. A passing structure check does not prove behavior.
 
 ## Maintenance
 
