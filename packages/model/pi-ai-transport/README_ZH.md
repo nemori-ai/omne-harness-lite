@@ -6,13 +6,14 @@
 
 本成员是 Model 组的共享 pi 传输。它集中维护 pi fork 以及公共的 HTTP/SSE、取消与连接资源，家族不复制这些机制。职责与建包条件见[组架构“成员与新增条件”](../docs/architecture.md#成员与新增条件)。
 
-当前交付三部分：
+当前交付四部分：
 
 - 根入口导出三段传输的工厂 `createPiTransport` 与它的配置类型。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
+- 根入口导出网络资源的工厂 `createNetworkResources` 与它的配置类型。装配创建并拥有网络资源，再把它交给 `createPiTransport`。网络资源可以使用 HTTPS 代理。
 - 根入口导出五个已接受的家族贡献接口类型。
-- 包内传输机制：连接容量、同步发起的 HTTPS 交换、SSE 分帧、协议帧、网络资源（含可选的 HTTPS 代理）与诊断隔离。它们不经入口导出，由三段传输组合。
+- 包内传输机制：连接容量、同步发起的 HTTPS 交换、SSE 分帧、协议帧与诊断隔离。它们不经入口导出，由网络资源与三段传输组合。
 
-本包还没有真实家族：持续验证只用测试家族。网络资源的工厂不经入口导出，所以包外的装配目前不能构造 `PiTransportConfig.network`。设计、实现与运行验证分别判断。
+本包还没有真实家族：持续验证只用测试家族。设计、实现与运行验证分别判断。
 
 ### 支持范围
 
@@ -22,16 +23,16 @@
 | --- | --- | --- | --- |
 | 公开类型已导出 | `PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding`、`PiFamilyContributions`，形状照抄组架构的已接受代码块 | 根入口，只有类型 | `public-entry.spec.ts` 核对家族类型照抄组架构，`public-entry.spec-d.ts` 以编译期用例核对类型。只有测试家族消费这些类型 |
 | 三段传输已实现 | `createPiTransport`：配置校验，按接收方查路由，经家族贡献取得绑定。materialize 按 FIFO 预约名额、拒绝模型可见的内容引用、经家族编码、固定字节与 SHA-256 回执，失败时归还名额。start 在同步调用中读取凭据并发出一次请求，没有凭据时不发送并以 `credential` 失败结束。事实流经 SSE、协议帧与家族解码器，以恰好一个 `ended` 结束，失败按 SPEC 的映射表区分。取消与关闭在物理停止之后以 `interrupted` 结束。重复 materialize 返回 `invalid`，重复 start 返回空流 | 根入口的 `createPiTransport`；包内 `src/transport.ts`、`src/materialized.ts`、`src/fact-stream.ts`、`src/termination.ts`、`src/payload.ts`、`src/config.ts` | 快层用例与内存中的测试家族。慢层对真实本地 HTTPS 服务覆盖映射表各行、容量等待与取消、关闭，并运行 model-contract 符合性套件 transport 组的六条义务（脚本化的提供者）。没有真实家族、真实凭据或 Model 发送路径的组合 |
-| 容量与诊断隔离已实现 | 连接容量：FIFO 授予，可取消，可关闭，预约不过期，只消费一次，消费之后只经座位归还名额。诊断隔离：事件只含种类与级别，观察者的故障只改变计数 | 包内 `src/capacity.ts`、`src/diagnostics.ts`，不经入口导出 | 快层单元测试，使用真实的 `AbortController`。没有包外消费者 |
+| 容量与诊断隔离已实现 | 连接容量：FIFO 授予，可取消，可关闭，预约不过期，只消费一次，消费之后只经座位归还名额。诊断隔离：事件只含种类与级别，观察者的故障只改变计数 | 包内 `src/capacity.ts`、`src/diagnostics.ts`，除观察者类型 `DiagnosticObserver` 外不经入口导出 | 快层单元测试，使用真实的 `AbortController`。没有包外消费者 |
 | SSE 分帧与协议帧已实现 | 字节流到 SSE 事件 data 文本：任意切点下的 UTF-8 与换行，单事件字节上限，四种失败原因。data 文本到协议帧：end-marker 单独成帧，无损 JSON，EOF 不判定终局 | 包内 `src/sse.ts`（改编自 pi）、`src/frames.ts` | 快层单元测试，使用真实字节流与 Node 可读流。没有真实供应商的流 |
-| HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。只有同一资源的容量授予的预约能发起交换。停止在物理关闭前胜出，名额在物理关闭之后归还。读者提前结束响应体（含第一次读取之前）时响应关闭。读者按类型区分本地停止（`ResponseBodyStoppedError`）与连接中断（`ResponseBodyReadError`）。从发起到取得已连接套接字的连接超时。网络资源的关闭排空。可选的 HTTPS 代理：配置校验与 Node 版本守卫，经 CONNECT 隧道的交换，直连项，代理拒绝、不可达与不回复时的 `connect-failed`，停止与关闭结束建立中的代理连接，代理拒绝后重置不使进程崩溃 | 包内 `src/http.ts`、`src/network.ts`、`src/pool-agent.ts` | 慢层测试，对真实本地 HTTPS 服务、自签证书与本地 `http:` CONNECT 代理。`test:live` 在设置 `OMNE_LIVE_TESTS=1` 时经云端会话的代理向 OpenRouter 发一次流式请求，只在手动运行时有证据。不证明 `https:` 协议的代理、包外消费者或持续的公网 TLS |
-| 尚未交付 | 请求规划与流事件映射（[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.3）。OpenAI 家族（2.5），真实请求经 OpenRouter 固定路由。凭据解析与经 `ModelTransport` 的真实供应商请求（2.6）。媒体读取（阶段四 4.4）：materialize 目前拒绝模型可见的内容引用。网络资源工厂的公开入口。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
+| HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。只有同一资源的容量授予的预约能发起交换。停止在物理关闭前胜出，名额在物理关闭之后归还。读者提前结束响应体（含第一次读取之前）时响应关闭。读者按类型区分本地停止（`ResponseBodyStoppedError`）与连接中断（`ResponseBodyReadError`）。从发起到取得已连接套接字的连接超时。网络资源的关闭排空。可选的 HTTPS 代理：配置校验与 Node 版本守卫，经 CONNECT 隧道的交换，直连项，代理拒绝、不可达与不回复时的 `connect-failed`，停止与关闭结束建立中的代理连接，代理拒绝后重置不使进程崩溃 | 根入口的 `createNetworkResources`；包内 `src/http.ts`、`src/network.ts`、`src/pool-agent.ts` | 慢层测试，对真实本地 HTTPS 服务、自签证书与本地 `http:` CONNECT 代理。`test:live` 在设置 `OMNE_LIVE_TESTS=1` 时经云端会话的代理向 OpenRouter 发一次流式请求，只在手动运行时有证据。不证明 `https:` 协议的代理、包外消费者或持续的公网 TLS |
+| 尚未交付 | 请求规划与流事件映射（[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.3）。OpenAI 家族（2.5），真实请求经 OpenRouter 固定路由。凭据解析与经 `ModelTransport` 的真实供应商请求（2.6）。媒体读取（阶段四 4.4）：materialize 目前拒绝模型可见的内容引用。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
 
 ## 使用
 
 家族作者从根入口取得类型：`import type { PiFamilyContributions } from '@omne-harness/pi-ai-transport'`。依赖本包会安装 model-contract、operation-result、json-text 与 content-block，不安装 Cordis、`@omne-harness/model` 或任何家族。本包没有 Cordis 入口，理由见 [Cordis 集成](docs/cordis.md)。
 
-装配调用 `createPiTransport({ network, families, routes, credential, limits })`，得到 `{ transport, close }`。`transport` 交给 Model 的发送资源。凭据槽在 `start` 的同步调用中读取一次：调用方在调用 `start` 前把秘密放进槽，`start` 返回后清空。装配先关闭所有传输，再关闭网络资源。传输机制只能由同包代码使用。配置示例、初始化与释放责任见[使用与定位](docs/context.md)。
+装配用 `createNetworkResources(config)` 创建网络资源。装配拥有网络资源，可以把它交给多个传输。装配再调用 `createPiTransport({ network, families, routes, credential, limits })`，得到 `{ transport, close }`。`transport` 交给 Model 的发送资源。凭据槽在 `start` 的同步调用中读取一次：调用方在调用 `start` 前把秘密放进槽，`start` 返回后清空。装配先关闭所有传输，再关闭网络资源。传输不关闭网络资源。其余传输机制只能由同包代码使用。配置示例、初始化与释放责任见[使用与定位](docs/context.md)。
 
 ## 契约
 

@@ -11,10 +11,15 @@ import type {
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
+  createNetworkResources,
   createPiTransport,
+  type DiagnosticObserver,
+  type NetworkConfig,
+  type NetworkResources,
   type PiCredentialSlot,
   type PiRoute,
   type PiTransportConfig,
+  type ProxyConfig,
 } from '@omne-harness/pi-ai-transport'
 import type {
   PiFamilyBinding,
@@ -79,4 +84,19 @@ it('a route names its endpoint and end marker, and the credential slot reads a s
   expectTypeOf<PiRoute>().toEqualTypeOf<Readonly<{ url: string; endMarker: string | null }>>()
   expectTypeOf<PiCredentialSlot['read']>().returns.toEqualTypeOf<string | undefined>()
   expectTypeOf<PiTransportConfig['routes']>().toEqualTypeOf<Readonly<Record<string, PiRoute>>>()
+})
+
+it('the network resources factory gives the resources that the transport configuration takes', () => {
+  expectTypeOf(createNetworkResources).parameters.toEqualTypeOf<[NetworkConfig]>()
+  expectTypeOf(createNetworkResources).returns.toEqualTypeOf<NetworkResources>()
+  expectTypeOf<PiTransportConfig['network']>().toEqualTypeOf<NetworkResources>()
+  expectTypeOf<NetworkResources['close']>().returns.toEqualTypeOf<Promise<void>>()
+})
+
+it('the network configuration names its proxy and its diagnostics observer with exported types', () => {
+  expectTypeOf<NetworkConfig['proxy']>().toEqualTypeOf<ProxyConfig | undefined>()
+  expectTypeOf<ProxyConfig>().toEqualTypeOf<Readonly<{ url: string; bypass: readonly string[] }>>()
+  expectTypeOf<NonNullable<NetworkConfig['diagnostics']>>().toEqualTypeOf<
+    Readonly<{ observer: DiagnosticObserver; maxPending: number }>
+  >()
 })

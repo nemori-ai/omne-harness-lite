@@ -7,7 +7,7 @@
 | 模块 | 回答的问题与持有的东西 | 依赖 |
 | --- | --- | --- |
 | [family.ts](../src/family.ts) | 五个已接受的家族贡献接口类型，形状照抄组架构 | model-contract、json-text、content-block、operation-result，只有类型 |
-| [index.ts](../src/index.ts) | 根入口，转出 family.ts 的类型、config.ts 的配置类型与 transport.ts 的工厂 | family.ts、config.ts、transport.ts |
+| [index.ts](../src/index.ts) | 根入口，转出 family.ts 的类型、config.ts 的配置类型、transport.ts 的工厂、network.ts 的工厂与配置类型，以及 diagnostics.ts 的观察者类型 | family.ts、config.ts、transport.ts、network.ts、diagnostics.ts |
 | [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts，json-text、family.ts 与 network.ts（类型） |
 | [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，model-contract 与 operation-result（类型） |
 | [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts 与 termination.ts（类型） |

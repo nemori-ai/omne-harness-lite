@@ -6,7 +6,7 @@
 
 ### 独立消费：只取类型
 
-根入口只导出类型。家族作者用它们实现贡献，不取得任何运行时值：
+家族作者只从根入口取得类型，用它们实现贡献，不取得任何运行时值：
 
 ```ts
 import type {
@@ -31,11 +31,12 @@ if ('ok' in acquired) {
 
 ### 装配：三段传输
 
-装配用 `createPiTransport` 构造传输，把 `transport` 交给 Model 的发送资源。例中的数值是示意的初值，本包不设默认值。`network` 是装配持有的网络资源，`families` 是家族贡献，`slot` 是 Model 发送资源在 start 期间填写的私有槽：
+装配用 `createNetworkResources` 创建网络资源，再用 `createPiTransport` 构造传输，把 `transport` 交给 Model 的发送资源。装配拥有网络资源，可以把它交给多个传输。例中的数值是示意的初值，本包不设默认值。`families` 是家族贡献，`slot` 是 Model 发送资源在 start 期间填写的私有槽：
 
 ```ts
-import { createPiTransport } from '@omne-harness/pi-ai-transport'
+import { createNetworkResources, createPiTransport } from '@omne-harness/pi-ai-transport'
 
+const network = createNetworkResources({ maxConnections: 4, idleConnectionTimeoutMs: 30_000 })
 const { transport, close } = createPiTransport({
   network,
   families,
@@ -63,11 +64,9 @@ await close()
 await network.close()
 ```
 
-网络资源的工厂 `createNetworkResources` 不经入口导出。所以包外的装配目前不能构造 `network`，上例只适用于同包代码。这个缺口由本包的拥有者裁决。
-
 ### 包内消费：传输机制
 
-传输机制不经入口导出，只能由同包代码使用。下例说明三段传输怎样组合它们，完整实现在 [materialized.ts](../src/materialized.ts) 与 [fact-stream.ts](../src/fact-stream.ts)。例中的数值是示意的初值，本包不设默认值：
+网络资源以外的传输机制不经入口导出，只能由同包代码使用。下例说明三段传输怎样组合它们，完整实现在 [materialized.ts](../src/materialized.ts) 与 [fact-stream.ts](../src/fact-stream.ts)。例中的数值是示意的初值，本包不设默认值：
 
 ```ts
 import { createNetworkResources } from './network.ts'

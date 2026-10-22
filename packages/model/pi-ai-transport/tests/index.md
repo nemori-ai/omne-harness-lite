@@ -22,8 +22,8 @@
 - [termination.spec.ts](termination.spec.ts)：失败映射表的每一行（快层）
 - [transport-exchange.spec.ts](transport-exchange.spec.ts)：发送的 start：同步发出、失败映射表各行对真实响应、流中取消与关闭、读者提前结束、真实发送下的容量等待与归还（慢层）
 - [conformance.spec.ts](conformance.spec.ts)：model-contract 符合性套件 transport 组的六条义务（慢层）
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口只有 `createPiTransport` 一个运行时导出，家族类型形状与组架构一致
-- [public-entry.spec-d.ts](public-entry.spec-d.ts)：五个家族类型与三段传输工厂、配置类型的编译期用例
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口只有 `createNetworkResources` 与 `createPiTransport` 两个运行时导出，家族类型形状与组架构一致
+- [public-entry.spec-d.ts](public-entry.spec-d.ts)：五个家族类型、三段传输工厂、网络资源工厂与它们的配置类型的编译期用例
 - [dependencies.spec.ts](dependencies.spec.ts)：运行依赖与导入方向
 - [support/https-server.ts](support/https-server.ts)：自签证书、本地 HTTPS 服务与黑洞监听
 - [support/connect-proxy.ts](support/connect-proxy.ts)：本地 CONNECT 代理：隧道、403 后重置、不回复与未回复即关闭四种模式，记录 CONNECT 目标

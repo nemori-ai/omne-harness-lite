@@ -19,9 +19,9 @@ function acceptedCodeBlock(markdown: string): string {
   return block
 }
 
-it('the root entry exports the transport factory as its only runtime value', async () => {
+it('the root entry exports the network resources factory and the transport factory as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
-  expect(Object.keys(root)).toEqual(['createPiTransport'])
+  expect(Object.keys(root).toSorted()).toEqual(['createNetworkResources', 'createPiTransport'])
 })
 
 it('the family types keep the shape of the accepted group architecture code block', () => {

@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-不适用。根入口导出 `createPiTransport`，但它的配置需要网络资源，而网络资源的工厂不经入口导出。所以没有只用公开入口就能运行的示例。装配与包内组合的示意写在 [docs/context.md](../docs/context.md)。
+不适用。根入口导出 `createNetworkResources` 与 `createPiTransport`，但传输的配置还需要家族贡献，而本包目前没有真实家族。所以没有只用公开入口就能运行的示例。装配与包内组合的示意写在 [docs/context.md](../docs/context.md)。
