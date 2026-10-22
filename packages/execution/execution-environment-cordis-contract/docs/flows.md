@@ -39,7 +39,7 @@ sequenceDiagram
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
 | 登记 | 登记的寿命等于提供者插件 fiber 的寿命 | 同名同代的提供者重复登记被拒绝。拒绝发生在插件体里时，插件的 fiber 进入 `FAILED`（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)） |
-| 在根 Context 上登记 | 效应属于根 fiber，不随任何提供者撤除 | 只允许测试或装配入口这样用 |
+| 在根 Context 上登记 | 没有 provider 声明时被拒绝；明确声明后效应属于根 fiber | 只有测试或装配入口能承担该寿命，声明本身不授资格 |
 | 撤除开始 | 提供者不再参与新的落点与获取 | 退役先拒新租约再排空，次序写在同一个撤除函数里（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)） |
 | 已交租约 | 失效可见，失效后的设施操作返回 `closed` | 规则归[契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约) |
 | 退役待处置 | 调用方直接调用的撤除函数不以正常返回报告完成，再调用会再次退役。fiber 卸载照常完成，待处置只经 `ctx.logger` 的错误可见。提供者留在提供者表里，不参与匹配 | 确认不了停止的受管资源留在集成方账本里，由维护者的恢复操作处置（[INV-EE15](../../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)） |
@@ -51,7 +51,7 @@ sequenceDiagram
 
 前提：维护者插件以对象形式 `inject` 声明 `caller: 'maintainer'`，并持有集成方签发的恢复授权。
 
-现状：服务实现还没有读取调用方类。下图中标为「目标」的两步没有实现。现在恢复两操作只经过恢复授权端口。
+抽象类的公开模板方法先读取并核对调用方类，合法时再进入实现钩子；恢复授权仍在实现中逐次核对。
 
 ```mermaid
 sequenceDiagram
@@ -59,8 +59,8 @@ sequenceDiagram
   participant S as 服务实现（executionEnvironment）
   participant R as 恢复授权端口
   MF->>S: releaseScope(作用域, 恢复授权)
-  S->>S: 目标：this[Service.resolveConfig]() 取调用方类
-  S->>S: 目标：调用方类不是 maintainer 即拒绝
+  S->>S: this[Service.resolveConfig]() 取调用方类
+  S->>S: 已声明调用方类不是 maintainer 即 callerMismatch
   S->>R: 核对恢复授权
   R-->>S: 允许、不允许或不可用
   S-->>MF: 恢复结算或拒绝
@@ -69,7 +69,7 @@ sequenceDiagram
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
 | 声明调用方类 | 调用方类随调用方 fiber 存在，运行时不能改 | 对象形式仍是必需依赖，服务不在场时插件停在 `PENDING` |
-| 读取调用方类 | 目标：每次调用从调用方 fiber 读取 | 没有实现。只有源码读数，见 [Cordis 说明](cordis.md#机制读数与假设) |
+| 读取调用方类 | 每次调用从调用方 fiber 及祖先 intercept 读取 | 未声明时环境与恢复面放行；登记面必须明确为 provider。读数及边界见 [Cordis 说明](cordis.md#机制读数与假设) |
 | 核对恢复授权 | 每次恢复调用都核对 | 调用方类不代替恢复授权。端口失败按不可用拒绝 |
 
 ## 失败与生命周期
