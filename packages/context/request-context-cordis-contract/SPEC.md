@@ -6,7 +6,7 @@
 
 本成员承接 [IC-1](../../../docs/architecture/cordis-integration-conventions.md#ic-1) 至 [IC-3](../../../docs/architecture/cordis-integration-conventions.md#ic-3)、[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)、[IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11)、[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)、[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)、[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17) 对 Request Context 这一个接缝的要求。服务定义、依赖分类、登记与撤除协议、事件归 [docs/cordis.md](docs/cordis.md)。
 
-提示词贡献只有两类：有序段与变量。贡献者是定义、工作区指导、技能与元能力用法的拥有者。它们是多个插件，各有自己的寿命，所以登记面放在 Cordis 上。纯操作仍由契约根入口定义。组装入口有两条：托管路径上，调用方用服务的 `assembly(scope, ports)` 取得已配置的操作组；独立路径上，调用方从 [request-context](../request-context/SPEC.md) 的机制工厂取得同一组操作。两条路径交出的操作签名相同，差别在两处：贡献集合在 Cordis 路径由操作组现取，在独立路径由调用方传入；历史源读口、计量端口与转换件结果端口在 Cordis 路径由调用方逐次交入，在独立路径由工厂在构造时取得。依据：产品 [§6.1](../../../.meta_harness/design/product/runtime-context/design.md#61-request-context-的派生计算)。
+提示词贡献只有两类：有序段与变量。贡献者是定义、工作区指导、技能与元能力用法的拥有者。它们是多个插件，各有自己的寿命，所以登记面放在 Cordis 上。纯操作仍由契约根入口定义。组装入口有两条：托管路径上，调用方用服务的 `assembly(scope, ports)` 取得已配置的操作组；独立路径上，调用方从 [request-context](../request-context/SPEC.md) 的机制工厂取得同一组操作。两条路径交出的操作签名相同，差别在两处：贡献集合在 Cordis 路径由操作组现取，在独立路径由调用方传入；历史源读口、计量端口、转换件结果端口与请求序列化端口在 Cordis 路径由调用方逐次交入，在独立路径由工厂在构造时取得。依据：产品 [§6.1](../../../.meta_harness/design/product/runtime-context/design.md#61-request-context-的派生计算)。
 
 根入口与 Cordis 无关，只重新导出契约词汇所需的类型（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。Cordis 定义从 `./cordis` 导出。
 
@@ -15,7 +15,7 @@
 本成员必须保持下列性质。
 
 1. 服务键 `requestContext` 只由抽象类 `RequestContextService` 的 `static readonly provide` 给出。导出的键常量取自它。提供者不另写键。
-2. `RequestContextService` 实现契约根入口的登记面操作类型：`contributeSection`、`contributeVariable`、`contributions(scope)`。它另有组装入口 `assembly(scope, ports)`：`ports` 含历史源读口、计量端口与转换件结果端口，由调用方逐次交入。它返回一组纯操作，这组操作已按该 isolate 的配置绑定了选定的策略，并只用这次交入的端口。提供者不 `inject` 作用域持有者或模型侧的服务，三项端口缺席时相关操作返回不可用。操作组在每次调用时从登记面现取该作用域适用的贡献集合，不收调用方传入的贡献；覆盖证据记现取时本作用域适用的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。组装本身仍是纯函数：现取的贡献集合、段列表摘要与实例代次是这次调用的输入。服务只交出已配置的操作组。服务不把 `assemble`、`planCompaction` 这类纯操作直接写成自己的方法。类上的 JSDoc 写 `@owner packages/context/request-context-contract`。
+2. `RequestContextService` 实现契约根入口的登记面操作类型：`contributeSection`、`contributeVariable`、`contributions(scope)`。它另有组装入口 `assembly(scope, ports)`：`ports` 含历史源读口、计量端口、转换件结果端口与请求序列化端口，由调用方逐次交入。它返回一组纯操作，这组操作已按该 isolate 的配置绑定了选定的策略，并只用这次交入的端口。提供者不 `inject` 作用域持有者或模型侧的服务，四项端口缺席时相关操作返回不可用。操作组在每次调用时从登记面现取该作用域适用的贡献集合，不收调用方传入的贡献；覆盖证据记现取时本作用域适用的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。组装本身仍是纯函数：现取的贡献集合、段列表摘要与实例代次是这次调用的输入。服务只交出已配置的操作组。服务不把 `assemble`、`planCompaction` 这类纯操作直接写成自己的方法。类上的 JSDoc 写 `@owner packages/context/request-context-contract`。
 3. `contributeSection` 与 `contributeVariable` 登记即效应（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）：在方法里用 `this.ctx.effect` 登记，登记落在贡献者的 fiber 上，贡献者卸载即撤。提供者须验证贡献者卸载后登记已撤除。
 4. 贡献带作用域引用 `ScopeRef`。全局层的贡献以 `scope: null` 登记。同一层同名拒绝，不覆盖。解析时作用域层遮蔽全局层。
 5. 带逐请求变化变量的段在登记时拒绝（[RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入)）。登记时怎样识别逐请求变化的变量还没有定，列在 request-context-contract 的[明确缺项](../request-context-contract/SPEC.md#rq-11-持续验证与未覆盖)。登记不渲染文本。

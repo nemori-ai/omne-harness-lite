@@ -22,7 +22,7 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 ### 读取贡献集合的调用方
 
-协调者一侧的适配器要组装一次请求。它用数组形式 `inject`，按作用域取操作组，并逐次交入历史源读口、计量端口与转换件结果端口。操作组每次调用时从登记面现取该作用域的贡献集合，适配器只给组装上下文，不传入贡献。这是托管路径的组装入口；不装配 Cordis 的调用方用 [request-context](../../request-context/docs/context.md) 的机制工厂：
+协调者一侧的适配器要组装一次请求。它用数组形式 `inject`，按作用域取操作组，并逐次交入历史源读口、计量端口、转换件结果端口与请求序列化端口。操作组每次调用时从登记面现取该作用域的贡献集合，适配器只给组装上下文，不传入贡献。这是托管路径的组装入口；不装配 Cordis 的调用方用 [request-context](../../request-context/docs/context.md) 的机制工厂：
 
 ```text
 inject: ['requestContext']
