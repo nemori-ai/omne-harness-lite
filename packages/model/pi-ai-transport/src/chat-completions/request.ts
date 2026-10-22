@@ -1,0 +1,346 @@
+// Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (buildParams; the source
+// file is named in provenance.json). Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi.
+// See provenance.json.
+//
+// Request planning and encoding of the gateway engine. Plan and encode share one projection and
+// one body writer, so the representation of the plan is the one that encode produces.
+import type { JsonValue } from '@omne-harness/json-text'
+import {
+  judgeReplayDeclaration,
+  type Adoption,
+  type AssembledModelInput,
+  type FixedModelRequest,
+  type MeterRepresentation,
+  type ModelProfile,
+  type Parameter,
+  type ParameterAdoption,
+  type ReplayDeclaration,
+  type Supplier,
+  type TransportFailure,
+} from '@omne-harness/model-contract'
+import type { Outcome } from '@omne-harness/operation-result'
+import type { PiMaterializedMedia } from '../family.ts'
+import { serializeBody } from '../payload.ts'
+import { gatewayMembers } from './gateway.ts'
+import { bool, list, object, text } from './json.ts'
+import { defaultAdoption, explicitAdoption, planParameters, wireParameter } from './parameters.ts'
+import { cacheTarget, messagesJson, project, type Projection } from './projection.ts'
+import type {
+  ChatCompletionsRecord,
+  FamilyMeter,
+  GatewayParam,
+  ProjectedRequest,
+  VendorHooks,
+} from './vocabulary.ts'
+
+/** What plan and encode of one binding share. */
+export type RequestContext = Readonly<{
+  record: ChatCompletionsRecord
+  hooks: VendorHooks
+  meter: FamilyMeter
+  supplier: Supplier
+  /** The adoption of the record, equal to `supplier.adoption`. */
+  adapter: Adoption
+  /** The replay declaration of the record with every default applied. */
+  declaration: ReplayDeclaration
+}>
+
+type Materialized = Extract<MeterRepresentation, { kind: 'materialized' }>
+
+/** The applied value of a degraded request: reasoning off. */
+const REASONING_OFF: Parameter = { kind: 'reasoning-effort', value: 'none' }
+const REASONING_DISABLED: GatewayParam = { field: 'reasoning.enabled', value: false }
+
+function sameAdoption(left: Adoption, right: Adoption): boolean {
+  return (
+    left.owner === right.owner &&
+    left.name === right.name &&
+    left.revision === right.revision &&
+    left.digest === right.digest
+  )
+}
+
+function sameDeclaration(left: ReplayDeclaration, right: ReplayDeclaration): boolean {
+  const accepts = new Set(left.accepts)
+  return (
+    left.produces === right.produces &&
+    left.foreignThinking === right.foreignThinking &&
+    left.accepts.length === right.accepts.length &&
+    right.accepts.every(scope => accepts.has(scope))
+  )
+}
+
+/**
+ * Checks that the profile names this supplier and that its replay declaration, with every
+ * default applied, equals the declaration of the record.
+ */
+function checkProfileSupplier(
+  context: RequestContext,
+  profile: ModelProfile,
+  supplier: Supplier,
+): TransportFailure | null {
+  if (
+    !sameAdoption(supplier.adoption, context.adapter) ||
+    supplier.recipient !== context.supplier.recipient ||
+    supplier.model !== context.supplier.model
+  )
+    return { kind: 'invalid', field: 'supplier', reason: 'not-this-binding' }
+  const index = profile.definition.suppliers.findIndex(item =>
+    sameAdoption(item.adoption, supplier.adoption),
+  )
+  const entry = profile.definition.suppliers[index]
+  if (entry === undefined) return { kind: 'invalid', field: 'supplier', reason: 'not-in-profile' }
+  const declared = judgeReplayDeclaration(entry, index)
+  if (!('ok' in declared)) return declared.failure
+  return sameDeclaration(declared.ok, context.declaration)
+    ? null
+    : { kind: 'unsupported', field: `suppliers[${index}].replay`, adapter: context.adapter }
+}
+
+/**
+ * Turns reasoning off in the adoptions of a degraded request: the reasoning adoption, explicit or
+ * default, is recorded with the applied value `none`. Without a reasoning adoption one is added
+ * with origin `default`.
+ */
+function degradeAdoptions(
+  context: RequestContext,
+  adoptions: readonly ParameterAdoption[],
+  source: Adoption,
+): readonly ParameterAdoption[] {
+  const ids = { supplier: context.adapter, adapter: context.adapter, source }
+  let found = false
+  const degraded = adoptions.map(adoption => {
+    if (adoption.applied.kind !== 'reasoning-effort') return adoption
+    found = true
+    return adoption.origin.kind === 'explicit'
+      ? explicitAdoption(ids, adoption.origin.requested, REASONING_OFF)
+      : defaultAdoption(ids, REASONING_OFF)
+  })
+  return found ? degraded : [...degraded, defaultAdoption(ids, REASONING_OFF)]
+}
+
+/** The gateway parameters of the applied values; a degraded request writes reasoning off instead. */
+function gatewayParams(
+  context: RequestContext,
+  applied: readonly Parameter[],
+  degrade: boolean,
+): Outcome<readonly GatewayParam[], TransportFailure> {
+  const params: GatewayParam[] = []
+  for (const param of applied) {
+    if (degrade && param.kind === 'reasoning-effort') {
+      if (param.value !== 'none')
+        return {
+          failure: {
+            kind: 'invalid',
+            field: 'parameterAdoptions',
+            reason: 'prefix-degrade-mismatch',
+          },
+        }
+      continue
+    }
+    const wired = wireParameter(param, {
+      record: context.record,
+      adapter: context.adapter,
+      outputLimit: null,
+    })
+    if (!('ok' in wired)) return wired
+    params.push(wired.ok)
+  }
+  if (degrade) {
+    if (!applied.some(param => param.kind === 'reasoning-effort'))
+      return {
+        failure: {
+          kind: 'invalid',
+          field: 'parameterAdoptions',
+          reason: 'prefix-degrade-mismatch',
+        },
+      }
+    params.push(REASONING_DISABLED)
+  }
+  params.push(...context.record.wire.fixed)
+  return { ok: params }
+}
+
+/** The request body. Sorted keys; never a URL, a header or a credential. */
+function bodyOf(
+  context: RequestContext,
+  projection: Projection,
+  params: readonly GatewayParam[],
+): Outcome<JsonValue, TransportFailure> {
+  const { record } = context
+  let target = null
+  if (record.wire.cache.kind === 'last-message') {
+    target = cacheTarget(projection.messages)
+    if (target === null)
+      return {
+        failure: { kind: 'unsupported', field: 'no-cache-target', adapter: context.adapter },
+      }
+  }
+  return {
+    ok: object({
+      ...gatewayMembers(params),
+      model: text(record.route.model),
+      provider: object({
+        order: list(record.serving.order.map(text)),
+        allow_fallbacks: bool(false),
+        require_parameters: bool(true),
+      }),
+      stream: bool(true),
+      messages: messagesJson(projection.messages, record.wire, target),
+      tools: projection.tools.length > 0 ? list(projection.tools) : undefined,
+      tool_choice: projection.toolChoice,
+    }),
+  }
+}
+
+/** The projection as the meter reads it. */
+function viewOf(
+  projection: Projection,
+  request: Readonly<{
+    tools: ProjectedRequest['tools']
+    toolChoice: ProjectedRequest['toolChoice']
+  }>,
+  applied: readonly Parameter[],
+): ProjectedRequest {
+  return {
+    instruction: projection.instruction,
+    turns: projection.messages.flatMap(message =>
+      message.message === null
+        ? []
+        : [
+            {
+              message: message.message,
+              role: message.role,
+              blocks: message.blocks,
+              replay: message.replay,
+            },
+          ],
+    ),
+    tools: request.tools,
+    toolChoice: request.toolChoice,
+    applied,
+  }
+}
+
+/** Builds the body and its representation, and checks the representation adoption. */
+function represent(
+  context: RequestContext,
+  input: Readonly<{
+    projection: Projection
+    applied: readonly Parameter[]
+    tools: ProjectedRequest['tools']
+    toolChoice: ProjectedRequest['toolChoice']
+    representation: Adoption
+  }>,
+): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+  const params = gatewayParams(context, input.applied, input.projection.degrade)
+  if (!('ok' in params)) return params
+  const body = bodyOf(context, input.projection, params.ok)
+  if (!('ok' in body)) return body
+  const shown = context.meter.represent(viewOf(input.projection, input, input.applied))
+  if (!sameAdoption(shown.adoption, input.representation))
+    return { failure: { kind: 'unsupported', field: 'representation', adapter: context.adapter } }
+  return {
+    ok: {
+      body: body.ok,
+      representation: {
+        kind: 'materialized',
+        adoption: shown.adoption,
+        tokenInput: shown.tokenInput,
+        media: [],
+        requestBytes: String(serializeBody(body.ok).byteLength),
+      },
+    },
+  }
+}
+
+/**
+ * `rules.plan`: the replay declaration check, parameter planning, the prefix degrade, the family
+ * check and the representation, in this order.
+ */
+export function planRequest(
+  context: RequestContext,
+  input: Readonly<{ profile: ModelProfile; supplier: Supplier; assembled: AssembledModelInput }>,
+): Outcome<
+  Readonly<{ parameters: readonly ParameterAdoption[]; representation: MeterRepresentation }>,
+  TransportFailure
+> {
+  const { profile, supplier, assembled } = input
+  const refused = checkProfileSupplier(context, profile, supplier)
+  if (refused !== null) return { failure: refused }
+  const planned = planParameters({
+    record: context.record,
+    adapter: context.adapter,
+    outputLimit: profile.definition.context.output.provided,
+    requested: assembled.parameters,
+    supplier: context.adapter,
+    source: assembled.source,
+  })
+  if (!('ok' in planned)) return planned
+  const projection = project({
+    ...context,
+    system: assembled.system,
+    messages: assembled.messages,
+    tools: assembled.tools,
+    toolChoice: assembled.toolChoice,
+    replayOff: assembled.replay === 'off',
+  })
+  if (!('ok' in projection)) return projection
+  const parameters = projection.ok.degrade
+    ? degradeAdoptions(context, planned.ok, assembled.source)
+    : planned.ok
+  const applied = parameters.map(adoption => adoption.applied)
+  const checked = context.hooks.check({
+    applied,
+    messages: assembled.messages,
+    treatments: projection.ok.treatments,
+  })
+  if (!('ok' in checked)) return checked
+  const encoded = represent(context, {
+    projection: projection.ok,
+    applied,
+    tools: assembled.tools,
+    toolChoice: assembled.toolChoice,
+    representation: assembled.representation,
+  })
+  if (!('ok' in encoded)) return encoded
+  return { ok: { parameters, representation: encoded.ok.representation } }
+}
+
+/**
+ * `encode`: the same projection over the fixed request, the planned parameters of this supplier,
+ * then the body and its representation. Media references are refused: inline media only.
+ */
+export function encodeRequest(
+  context: RequestContext,
+  input: Readonly<{ request: FixedModelRequest; media: readonly PiMaterializedMedia[] }>,
+): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+  const { request } = input
+  if (input.media.length > 0)
+    return { failure: { kind: 'unsupported', field: 'media', adapter: context.adapter } }
+  const projection = project({
+    ...context,
+    system: request.system,
+    messages: request.messages,
+    tools: request.tools,
+    toolChoice: request.toolChoice,
+    replayOff: request.replay === 'off',
+  })
+  if (!('ok' in projection)) return projection
+  const applied = request.parameterAdoptions
+    .filter(adoption => sameAdoption(adoption.supplier, context.adapter))
+    .map(adoption => adoption.applied)
+  const checked = context.hooks.check({
+    applied,
+    messages: request.messages,
+    treatments: projection.ok.treatments,
+  })
+  if (!('ok' in checked)) return checked
+  return represent(context, {
+    projection: projection.ok,
+    applied,
+    tools: request.tools,
+    toolChoice: request.toolChoice,
+    representation: request.representation,
+  })
+}

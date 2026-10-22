@@ -9,6 +9,10 @@
     {
       "path": "packages/ai/src/api/openai-codex-responses.ts",
       "sha256": "1f7a4f169d826a30189e3905475ca9f4c7edc518812013ae4b9f86b367942a05"
+    },
+    {
+      "path": "packages/ai/src/api/openai-completions.ts",
+      "sha256": "7c1bc51ddf740ce69b371e1ae391fcdcecde26852428451e7b17eeabdcfb4eb4"
     }
   ],
   "rebase": {
@@ -38,6 +42,20 @@
       "symbol": "parseSSE",
       "changes": "Async iterable of Uint8Array input instead of a Node response; strict UTF-8 decoding that survives arbitrary byte cuts; a per-event byte limit that counts line breaks; all SSE newline forms including a CRLF split across chunks; rejection of an unterminated tail; SseProtocolError with the closed reasons non-byte, invalid-utf8, event-too-large and unterminated. Changes against the archived fork: only an error of the TextDecoder maps to invalid-utf8 and other errors pass through; a data line without a colon has an empty value (WHATWG); JSON reading and the end-marker moved to the project-owned src/frames.ts; a reader that ends the events before the first one closes the byte source, through the project-owned src/iteration.ts.",
       "basis": "nemori-ai/omne-harness-lite#461 implementation spec (SSE framing); packages/model/docs/migration.md pi-ai-transport/src sse.ts row"
+    },
+    {
+      "file": "src/chat-completions/projection.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "convertMessages, convertTools, addCacheControlToTextContent",
+      "changes": "Pure projection of the contract request (system blocks, shared log messages, tool declarations) onto gateway chat-completions messages instead of pi transcript messages; no compat detection, provider branch, SDK or environment read. Kept from upstream: tool results as `tool` messages, the images of a run of tool results moved into one following user message, tool calls as function calls with JSON text arguments, tools wrapped as `{type:'function', function:{name, description, parameters}}`, the cache marker on the last text part of a message. Changed: roles, content form, image form, cache placement and replay come from the record and four family hooks; reasoning replay follows the contract projectReplay; tool-call ids keep `^[A-Za-z0-9_-]{1,64}$` and otherwise become `call_` and 32 base64url characters of the SHA-256 (archived assistant-projection.ts); an orphan tool call or tool result is invalid; no placeholder text and no bridging assistant message; the last message of images only takes the cache marker on its last image; all objects have sorted keys.",
+      "basis": "nemori-ai/omne-harness-lite#463 implementation spec D3"
+    },
+    {
+      "file": "src/chat-completions/request.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "buildParams",
+      "changes": "Request body of the gateway: model from the record route, `provider` from the record serving pin with `allow_fallbacks: false` and `require_parameters: true`, `stream: true`, planned parameters through the record table and the closed gateway field vocabulary, fixed record fields. Not taken: the usage switch (`stream_options`), prompt cache keys, `max_completion_tokens`, every thinking format branch, sampling overrides, SDK types and environment reads. Added: parameter planning with explicit, default, unsupported and invalid results, the replay declaration check, the prefix degrade and the meter representation with the request bytes.",
+      "basis": "nemori-ai/omne-harness-lite#463 implementation spec D3"
     }
   ]
 }

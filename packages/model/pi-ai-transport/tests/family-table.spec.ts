@@ -110,6 +110,13 @@ function family(records: readonly TestRecord[], seen: Probe, owner = OWNER) {
   })
 }
 
+/** An array whose first item is a hole. */
+function holed(): number[] {
+  const items: number[] = []
+  items[1] = 1
+  return items
+}
+
 function canonicalSha(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
 }
@@ -153,7 +160,7 @@ describe('recordAdoption', () => {
     ['an infinite number', { value: Number.POSITIVE_INFINITY }],
     ['a bigint', { value: 1n }],
     ['a class instance', { value: new Date(0) }],
-    ['an array hole', { value: [1, , 3] }],
+    ['an array hole', { value: holed() }],
   ])('refuses a record that holds %s with RangeError', (_name, extra) => {
     expect(() => recordAdoption(OWNER, { ...record(), ...extra })).toThrow(RangeError)
   })

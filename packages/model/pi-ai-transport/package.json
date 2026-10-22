@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./chat-completions": {
+      "source": "./src/chat-completions/index.ts",
+      "types": "./dist/chat-completions/index.d.ts",
+      "import": "./dist/chat-completions/index.js"
     }
   },
   "files": [

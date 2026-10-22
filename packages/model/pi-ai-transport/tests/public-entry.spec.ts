@@ -31,6 +31,16 @@ it('the root entry exports the family table, the network resources factory and t
   ])
 })
 
+it('the subpath entry chat-completions exports bindChatCompletions as its only runtime value', async () => {
+  const engine: object = await import('@omne-harness/pi-ai-transport/chat-completions')
+  expect(Object.keys(engine)).toEqual(['bindChatCompletions'])
+})
+
+it('the engine internals are not reachable through the package exports', async () => {
+  const internal = '@omne-harness/pi-ai-transport/chat-completions/request'
+  await expect(import(internal)).rejects.toThrow()
+})
+
 it('the network resources handle shows only its close at run time', async () => {
   const { createNetworkResources } = await import('@omne-harness/pi-ai-transport')
   const network = createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
