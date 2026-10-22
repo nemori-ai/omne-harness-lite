@@ -1,6 +1,6 @@
 # 对象模型
 
-本包的对象都是工厂函数返回的闭包对象。class 只用于错误：`SseProtocolError`、`ResponseBodyStoppedError` 与 `ResponseBodyReadError` 继承 `Error`，http.ts 另有一个不出模块的内部错误类。SSE 分帧与协议帧是异步生成器，不持有跨调用的身份。对象的行为条款以 [SPEC.md](../SPEC.md) 为准。
+本包的对象都是工厂函数返回的闭包对象。三段传输的外层、prepared 与 materialized 的相位与资源见[内部架构“三段传输的相位与所有权”](architecture.md#三段传输的相位与所有权)。class 只用于错误：`SseProtocolError`、`ResponseBodyStoppedError` 与 `ResponseBodyReadError` 继承 `Error`，http.ts 另有一个不出模块的内部错误类。SSE 分帧与协议帧是异步生成器，不持有跨调用的身份。对象的行为条款以 [SPEC.md](../SPEC.md) 为准。
 
 ## 对象与关系
 
@@ -66,6 +66,13 @@ classDiagram
 | 连接池 | Node 的 `https.Agent`，keepAlive，不设套接字上限，只负责复用与空闲超时 | 由网络资源创建并销毁 |
 
 ## 生命周期
+
+三段传输的对象：
+
+- 外层：`createPiTransport` 创建，外层 `close()` 结束。它关闭仍打开的 prepared，不关闭网络资源。
+- prepared：一次成功的 prepare 创建，持有一个家族绑定，`close()` 释放绑定。
+- materialized：一次成功的 materialize 创建，持有一个名额，start 把名额交给交换，`close()` 在未 start 时归还名额，在已 start 时停止交换。
+
 
 ```mermaid
 stateDiagram-v2

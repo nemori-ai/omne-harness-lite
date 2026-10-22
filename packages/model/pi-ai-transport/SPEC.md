@@ -4,26 +4,120 @@
 
 ## 范围与依据
 
-本包当前交付两部分：
+本包当前交付三部分：
 
-1. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
-2. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧、网络资源（含可选的 HTTPS 代理）与诊断隔离。这些机制不经根入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码。首个调用方是[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446)子任务 2.2 的 `ModelTransport` 实现。
+1. 根入口导出的三段传输：工厂 `createPiTransport` 与配置类型 `PiTransportConfig`、`PiRoute`、`PiCredentialSlot`、`PiTransportLimits`。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
+2. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
+3. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧、网络资源（含可选的 HTTPS 代理）与诊断隔离。这些机制不经根入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即三段传输。
 
 本文件兑现以下已接受的上层条款：
 
 - [组架构“迁移与接受条件”](../docs/architecture.md#迁移与接受条件)：容量在 materialize 阶段预约，预约不自行过期，start 同步发起实际请求，不在内部等待队列。
 - [组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)：公共传输禁用隐式 HTTP 重试与自动重定向，一次 start 对应一次物理发出。HTTP/SSE 分帧由公共传输处理。协议 end-marker 与传输 EOF 分开。
+- [model-contract“独立执行与提供者操作”](../model-contract/SPEC.md#独立执行与提供者操作)：`prepare` 不发送；`materialize` 固定 payload，不发送；`start` 在调用时立即发送；重复 materialize 或 start 不再发送；close 幂等。
 - [model-contract“资格、共同提交与实际发送”](../model-contract/SPEC.md#资格共同提交与实际发送)：发送点 S 之后请求不可撤回。秘密只在本次发送资源内存在。
 - [迁移清单](../docs/migration.md#pi-ai-transportsrc)中标为 2.1 的行：封存件各文件的去向。
 
 本包当前不提供以下能力。本文件对它们不作承诺：
 
-- `ModelTransport`、`PreparedTransport` 与 `MaterializedTransport` 的实现，即 `prepare → materialize → start` 三段语义。归阶段二 2.2。
-- 请求规划、固定绑定，以及帧到 `TransportFact` 与 `TransportTermination` 的映射。归 2.3。
+- 请求规划与流事件映射。归[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.3。
 - 任何家族实现、凭据解析与真实供应商请求。归 2.5 与 2.6。
+- 媒体读取。materialize 遇到模型可见的内容引用时拒绝，见“三段传输”。媒体读取器的注入与读取归阶段四 4.4。
+- 家族对错误体的解释，例如输入超限。家族接口没有这个钩子，归 2.5。
 - 按优先级与等待方式分配名额。这是未实现的方向，记录在[内部架构](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位)。
 
 ## 结果与不变量
+
+### 三段传输
+
+#### 构造
+
+`createPiTransport(config)` 返回 `{ transport, close }`。`transport` 是 `ModelTransport`。
+
+- `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
+- `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
+- `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）与协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）。
+- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额。本包不设默认值。
+
+下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：
+
+- 路由的 `url` 不能解析，或不是 `https:`，或含用户名、密码、查询串或片段；
+- 路由的 `endMarker` 既不是字符串也不是 `null`；
+- `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
+- `maxErrorBodyBytes`、`maxEventBytes` 或 `json` 的任一限额不是正的安全整数；
+- `network`、`families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数。
+
+#### prepare
+
+`prepare(request, supplier)` 不发送，不读取媒体，不预约容量。
+
+- `supplier.recipient` 没有路由时，返回 `unsupported`，`field` 为 `supplier.recipient`。本包不调用家族贡献。
+- 本包调用 `families.acquire(supplier, signal)` 取得家族绑定。家族返回的失败原样返回。`signal` 在外层 `close()` 时中止。
+- 外层 `close()` 开始之后，`prepare` 返回 `unavailable`（`dependency` 为 `pi-transport`）。`close()` 开始时仍在进行的 acquire 之后取得的绑定，本包立即释放。
+- 每个成功的 prepare 拥有一个家族绑定，直到它关闭。
+
+#### materialize
+
+`materialize(signal)` 按下列顺序执行，不发送：
+
+1. 按 FIFO 预约一个容量名额。等待没有时限，只在下列情况下结束：`signal` 取消、prepared 关闭、网络资源关闭。等待结束时返回 `unavailable`，`dependency` 为 `connection-capacity`，`diagnostic` 为 `cancelled` 或 `network-closed`。
+2. 扫描固定请求中模型可见（`visibility.toModel`）且带 `ref` 的内容块，顺序是 `system`，然后 `messages`。发现一个时返回 `unsupported`，`field` 是该块的路径（例如 `/system/0` 或 `/messages/1/blocks/0`），`adapter` 是家族绑定的采用。本包不丢弃这个引用。
+3. 调用家族的 `encode({ request, media: [] })`。家族返回的失败原样返回。
+4. 把 `body` 序列化为不含空白的 JSON 文本，再编码为 UTF-8 字节。
+5. 计算这些字节的 SHA-256，用 64 个小写十六进制数字表示。
+6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。回执冻结，重复读取得到同一个对象。
+
+- 第 1 步之后的任何失败，含抛出的异常，都先归还名额，再返回或抛出。
+- 同一 prepared 只能 materialize 一次。第二次调用返回 `invalid`（`field` 为 `materialize`，`reason` 为 `repeated`），不预约容量。prepared 关闭之后调用，返回 `unavailable`。
+- 成功时，materialized 持有名额与编码后的字节，直到 start 消费名额或 close 归还名额。
+
+#### start
+
+`start(signal)` 是同步函数。它返回事实流之前，已经决定是否发送：
+
+1. `signal` 已中止时，本包不发送，归还名额。流只给出 `interrupted`（`stop: 'confirmed'`）。
+2. 本包调用 `credential.read()` 一次。返回 `undefined` 时，本包不发送，归还名额。流只给出 `failed`，`cause` 为 `credential`，`upstreamStatus` 为 `null`，`diagnostic` 为 `credential-not-provided`。`start` 不抛出。
+3. 本包组装请求头：`authorization: Bearer <凭据>`、`content-type: application/json`、`accept: text/event-stream`，然后调用 `startExchange`。`start` 返回时，请求已经交给 Node 并已调用 `end(body)`。
+4. `startExchange` 拒绝时，名额已归还，本包不发送。`cancelled` 与 `resources-closed` 给出 `interrupted`（`stop: 'confirmed'`）。`invalid-header` 只能来自凭据，给出 `failed`，`cause` 为 `credential`，`diagnostic` 为 `credential-not-a-header-value`。其他拒绝原因是本包的缺陷，`start` 抛出 `Error`。
+
+- 同一 materialized 只能 start 一次。第二次调用返回立即结束的空流，不读凭据，不发送。close 之后调用 start 也返回空流。
+- 秘密只在 `start` 的同步调用中经过本包。本包不保存它，不把它写入事实、诊断或异常消息。凭据槽中的秘密与 `supplier.credential` 的对应关系由调用方保证。
+
+#### 事实流
+
+发送之后，事实流按下列顺序处理响应：SSE 分帧，协议帧（end-marker 取路由的 `endMarker`，JSON 限额取 `limits.json`），家族解码器。流以恰好一个 `ended` 结束，`ended` 之后没有事实。
+
+- 解码器给出的 `ended` 由本包保留，到响应体结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
+- 解码器给出第二个 `ended` 时，流以 `failed` 结束，`cause` 为 `upstream-protocol`，`diagnostic` 为 `decoder-ended-twice`。
+- 流给出 `ended` 之前，交换已物理停止，名额已归还。
+
+终止按下表确定。`upstreamStatus` 只含状态码。响应头与错误体不进入 fault：
+
+| 交换的结果 | 终止 | `diagnostic` |
+| --- | --- | --- |
+| 2xx，响应体正常结束，解码器 `end()` 成功并给出过 `ended` | 解码器的 `ended` | 解码器给出 |
+| 同上，但解码器没有给出 `ended` | `failed`，`upstream-protocol` | `no-termination` |
+| HTTP 401、403 | `failed`，`credential`，带状态码 | `http-<状态码>` |
+| HTTP 429、5xx | `failed`，`upstream-unavailable`，带状态码 | `http-<状态码>` |
+| 其他 4xx | `failed`，`input-rejected`，带状态码 | `http-<状态码>` |
+| 3xx 与其他状态 | `failed`，`upstream-protocol`，带状态码。本包不跟随重定向 | `http-<状态码>` |
+| 连接失败，含代理拒绝 | `failed`，`upstream-unavailable`，状态码为 `null` | `connect-failed` |
+| 连接超时 | `failed`，`upstream-unavailable`，状态码为 `null` | `connect-timeout` |
+| 响应体在末尾之前被对方断开 | `failed`，`stream-lost` | `response-body-lost` |
+| SSE 分帧失败 | `failed`，`upstream-protocol` | `sse-<原因>` |
+| 协议帧失败 | `failed`，`upstream-protocol` | `frame-<原因>` |
+| 解码器对某帧或 `end()` 返回 `ModelFault` | `failed`，该 fault | 解码器给出 |
+| `signal` 中止、materialized 或 prepared 的 `close()`、外层 `close()`、网络资源关闭 | `interrupted`，`stop: 'confirmed'`，在物理停止之后 | 无 |
+
+- 读者提前结束事实流时，本包停止交换并等待物理停止。读者在第一次 `next()` 之前结束时也是如此。
+- 停止只停止本地工作。已发出的请求不能撤回，`interrupted` 不表示供应商没有收到请求。
+
+#### 关闭
+
+- `materialized.close()`：未 start 时归还名额。已 start 时停止交换，并在交换物理停止之后完成。幂等，重复调用返回同一个 Promise。
+- `prepared.close()`：先结束仍在等待容量的 materialize（它返回 `unavailable`），再关闭由它派生的 materialized，然后释放家族绑定。幂等。
+- 外层 `close()`：先拒绝新的 prepare，中止在途的 acquire，再关闭本传输派生且仍打开的每个 prepared，等待它们的交换物理停止、家族绑定释放。它不关闭网络资源。幂等，重复调用返回同一个 Promise。
+- 装配在所有传输关闭之后关闭网络资源。网络资源先关闭时，等待中的 materialize 返回 `unavailable`（`network-closed`），之后的 start 给出 `interrupted`，在途交换以 `interrupted` 结束。
 
 ### 连接容量
 
@@ -271,9 +365,10 @@
 本包消费以下承诺：
 
 - `@omne-harness/operation-result` 的 `Outcome`。
-- `@omne-harness/json-text` 的 `readJsonText`、`JsonLimits` 与 `JsonValue`。
-- `@omne-harness/model-contract` 与 `@omne-harness/content-block` 的类型，只供五个接口类型引用。
-- Node 内置的 `https`、`http`、`net` 与 `stream`（只用类型）。
+- `@omne-harness/json-text` 的 `readJsonText`、`writeJsonText`、`JsonLimits` 与 `JsonValue`。
+- `@omne-harness/model-contract` 的类型：五个接口类型引用的类型，以及三段传输实现的 `ModelTransport`、`PreparedTransport`、`MaterializedTransport` 与它们的结果类型。
+- `@omne-harness/content-block` 的类型，只供五个接口类型引用。
+- Node 内置的 `https`、`http`、`net`、`crypto` 与 `stream`（只用类型）。
 - Node 24.5.0 起 `https.Agent` 的 `proxyEnv` 选项与内置的 CONNECT 隧道。
 
 运行依赖只允许上述四个 workspace 成员与 Node 内置模块。本包不依赖 `@omne-harness/model`、Session、旧消息包或封存目录。
@@ -282,6 +377,12 @@
 
 | 义务 | 测试 | 层 |
 | --- | --- | --- |
+| 构造的配置校验、prepare 的路由查找与家族绑定、prepared 与外层的关闭 | [transport.spec.ts](tests/transport.spec.ts) | 快 |
+| materialize：回执、交给家族的输入、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
+| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭、重复 start、close 之后的 start、凭据只在同步调用中读取一次 | [start.spec.ts](tests/start.spec.ts) | 快 |
+| 失败映射表的每一行 | [termination.spec.ts](tests/termination.spec.ts) | 快 |
+| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、解码器的终止排在最后、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
+| model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
@@ -301,6 +402,8 @@
 
 - 真实供应商、真实代理与公网 TLS 不在持续验证中。慢层只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为。`test:live` 只在手动设置开关时运行，turbo 运行它时总是跳过。
 - `https:` 协议的代理。本包只校验它的配置，没有运行验证。
-- 发送围栏内的调用与 `ModelTransport` 的组合。本包没有实现 `ModelTransport`。
+- Model 发送路径（`SendResource`）与本传输的组合。慢层只用脚本化的提供者与本包的测试家族运行符合性套件。
+- 真实家族（OpenAI，2.5）与真实凭据（2.6）下的三段传输。
+- 消息中模型可见的内容引用。快层只用 `system` 中的引用核对 materialize 的拒绝；构造消息需要本包不依赖的 `@omne-harness/message`。
 - 在途响应长时间没有数据时，连接池空闲超时的效果。
 - 多个进程或多个网络资源共享名额。容量是单个进程内的对象。

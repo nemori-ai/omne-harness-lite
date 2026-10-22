@@ -1,14 +1,54 @@
 # 关键流程
 
-本文件描述本包的三条流程：一次交换、2xx 响应体的读取，以及网络资源的关闭。前提：调用方是同包的代码，首个调用方是[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 `ModelTransport`。它在 materialize 时预约名额，在 start 时发起交换。本包还没有 `ModelTransport`，图中的 materialize 与 start 只标出调用位置。行为条款以 [SPEC.md](../SPEC.md) 为准。
+本文件描述本包的四条流程：三段传输的一次发送、一次交换、2xx 响应体的读取，以及网络资源的关闭。交换的调用方是同包的三段传输：它在 materialize 时预约名额，在 start 时发起交换。行为条款以 [SPEC.md](../SPEC.md) 为准。
 
 ## 流程
+
+### 三段传输的一次发送
+
+```mermaid
+sequenceDiagram
+  participant Model as 调用方（Model 发送资源）
+  participant T as 三段传输
+  participant F as 家族贡献
+  participant Cap as 容量
+  participant Ex as 交换
+  Model->>T: prepare(request, supplier)
+  alt 没有该接收方的路由
+    T-->>Model: unsupported
+  else
+    T->>F: acquire(supplier, signal)
+    F-->>T: 家族绑定
+    T-->>Model: prepared
+  end
+  Model->>T: prepared.materialize(signal)
+  T->>Cap: reserve(signal)，FIFO 等待
+  alt 取消、prepared 关闭或网络资源关闭
+    T-->>Model: unavailable
+  else 授予
+    T->>T: 扫描内容引用、encode、序列化、SHA-256
+    T-->>Model: materialized，回执固定
+  end
+  Model->>T: materialized.start(signal)（同步）
+  T->>T: 读取凭据槽一次
+  alt 已中止或没有凭据
+    T->>Cap: 归还名额
+    T-->>Model: 只含终止的流
+  else
+    T->>Ex: startExchange（同步发出）
+    T-->>Model: 事实流
+    Ex-->>T: 结果与响应体
+    T-->>Model: 解码器的事实，交换物理停止后给出唯一的 ended
+  end
+  Model->>T: materialized.close()，再 prepared.close()
+  T->>F: binding.release()
+```
 
 ### 一次交换
 
 ```mermaid
 sequenceDiagram
-  participant Caller as 调用方（2.2）
+  participant Caller as 调用方（三段传输）
   participant Cap as 容量
   participant Ex as 交换
   participant Pool as Node https 与连接池

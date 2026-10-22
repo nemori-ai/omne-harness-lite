@@ -29,9 +29,45 @@ if ('ok' in acquired) {
 
 依赖 `@omne-harness/pi-ai-transport` 会安装 model-contract、operation-result、json-text 与 content-block，不安装 Cordis、`@omne-harness/model` 或任何家族。这些类型的行为条款归[组架构“pi 家族贡献的取得协议”](../../docs/architecture.md#pi-家族贡献的取得协议)。
 
+### 装配：三段传输
+
+装配用 `createPiTransport` 构造传输，把 `transport` 交给 Model 的发送资源。例中的数值是示意的初值，本包不设默认值。`network` 是装配持有的网络资源，`families` 是家族贡献，`slot` 是 Model 发送资源在 start 期间填写的私有槽：
+
+```ts
+import { createPiTransport } from '@omne-harness/pi-ai-transport'
+
+const { transport, close } = createPiTransport({
+  network,
+  families,
+  routes: {
+    openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
+  },
+  credential: { read: () => slot.value },
+  limits: {
+    connectTimeoutMs: 10_000,
+    maxErrorBodyBytes: 65_536,
+    maxEventBytes: 1_048_576,
+    json: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 100_000,
+      maxMembers: 1_000,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+  },
+})
+
+// 关闭：先关闭所有传输，再关闭网络资源。
+await close()
+await network.close()
+```
+
+网络资源的工厂 `createNetworkResources` 不经入口导出。所以包外的装配目前不能构造 `network`，上例只适用于同包代码。这个缺口由本包的拥有者裁决。
+
 ### 包内消费：传输机制
 
-传输机制不经入口导出，只能由同包代码使用。下例说明[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 `ModelTransport` 预计怎样组合它们。例中的数值是示意的初值，本包不设默认值：
+传输机制不经入口导出，只能由同包代码使用。下例说明三段传输怎样组合它们，完整实现在 [materialized.ts](../src/materialized.ts) 与 [fact-stream.ts](../src/fact-stream.ts)。例中的数值是示意的初值，本包不设默认值：
 
 ```ts
 import { createNetworkResources } from './network.ts'
@@ -90,7 +126,7 @@ const network = createNetworkResources({
 
 ```mermaid
 flowchart LR
-  Model["model（Model 运行时）"] -->|ModelTransport 端口| Transport["pi-ai-transport：ModelTransport（2.2，未实现）"]
+  Model["model（Model 运行时）"] -->|ModelTransport 端口| Transport["pi-ai-transport：三段传输（已实现）"]
   Transport --> Mech["pi-ai-transport：包内传输机制（已实现）"]
   Transport -->|PiFamilyContributions| OpenAI["pi-ai-openai（2.5，未建立）"]
   OpenAI -. 实现类型 .-> Types["pi-ai-transport：根入口类型（已导出）"]
@@ -99,8 +135,8 @@ flowchart LR
 
 具名消费者：
 
-- 同包 2.2 的 `ModelTransport` 实现：组合包内机制，兑现 `prepare → materialize → start`。尚未实现。
-- 2.3：请求规划与帧到 `TransportFact` 的映射，消费协议帧。尚未实现。
+- 同包的三段传输：组合包内机制，兑现 `prepare → materialize → start`。已实现，只经测试家族验证。
+- 2.3：请求规划与流事件映射。尚未实现。
 - 2.5 的 OpenAI 家族 `pi-ai-openai`：实现根入口导出的家族贡献类型。真实请求经 OpenRouter 固定路由发出，本包不直连 OpenAI，也不内置任何接收方地址。尚未建立。
 
-当前没有应用或其他包在源码中消费本包。组内位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)：pi-ai-transport 集中维护 pi fork 与公共 HTTP/SSE、取消和连接资源，家族不复制这些机制，本包也不导入家族。
+当前没有应用或其他包在源码中消费本包。Model 的发送资源经 `ModelTransport` 端口使用本传输，由 2.6 接入。组内位置见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)：pi-ai-transport 集中维护 pi fork 与公共 HTTP/SSE、取消和连接资源，家族不复制这些机制，本包也不导入家族。

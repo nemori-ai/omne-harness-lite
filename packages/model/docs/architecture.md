@@ -202,7 +202,7 @@ module 分解与依赖分类见[成员架构](../model/docs/architecture.md#内�
 
 本节设计已接受。所引用的通用 Model 契约按其已接受范围执行。
 
-下列是 pi-ai-transport 拥有的已接受接口，已从该成员根入口以类型导出；该成员尚无 ModelTransport 实现。它只约束选择该实现的家族作者，不扩充领域契约或强制其他 ModelTransport 使用 pi。构造配置固定路由协议、限额和资源目录；依赖注入提供内容读取、连接容量及凭据适配；每次 acquire 的参数只选择原供应商和采用。
+下列是 pi-ai-transport 拥有的已接受接口，已从该成员根入口以类型导出；该成员的 ModelTransport 实现是根入口的 `createPiTransport`，行为见[成员 SPEC“三段传输”](../pi-ai-transport/SPEC.md#三段传输)。它只约束选择该实现的家族作者，不扩充领域契约或强制其他 ModelTransport 使用 pi。构造配置固定路由协议、限额和资源目录；依赖注入提供内容读取、连接容量及凭据适配；每次 acquire 的参数只选择原供应商和采用。
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result'
