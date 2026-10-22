@@ -161,15 +161,20 @@ export const decodeJsonValue: Decoder<JsonValue> = (value, path) => {
     : refuse([...path, ...judged.path], `expected a JSON value (${judged.rejected})`)
 }
 
-export const decodeScope: Decoder<ScopeRef> = (value, path) => {
+export const decodeScope: Decoder<ScopeRef> = (value, path) =>
+  decodeScopeTree(value, path, new Set())
+
+function decodeScopeTree(value: unknown, path: Path, seen: Set<object>): Decoded<ScopeRef> {
   if (!isRecord(value)) return refuse(path, 'expected a scope reference')
+  if (seen.has(value)) return refuse(path, 'cyclic scope parent')
+  seen.add(value)
   const keys = exactKeys(value, path, ['ref'], ['parent'])
   if (!keys.ok) return keys
   const ref = value['ref']
   if (typeof ref !== 'string' || !isScopeText(ref))
     return refuse([...path, 'ref'], 'expected a non-empty scope reference')
   if (value['parent'] === undefined) return accept(Object.freeze({ ref }))
-  const parent = decodeScope(value['parent'], [...path, 'parent'])
+  const parent = decodeScopeTree(value['parent'], [...path, 'parent'], seen)
   if (!parent.ok) return parent
   return accept(Object.freeze({ ref, parent: parent.value }))
 }
