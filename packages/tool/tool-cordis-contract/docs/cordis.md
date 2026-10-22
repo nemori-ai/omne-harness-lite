@@ -79,7 +79,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 ### 绑定登记表的登记输入
 
-`ToolBindingsService.register` 实现 `ToolBindingRegistry.register`。它接收 `ToolLoadedRegistration` 与 `ToolAuthority { layer, asset, holding, publication }`，返回 `Outcome<ToolContribution, ToolContributionFailure>`。登记键是（来源层，能力身份，资产版本）。`toolContributionAuthority` 核验 `ToolAuthority` 的来源，来源层只取自核验结果。登记者的 `Access.tenant` 只用来核它在该层的登记资格。同键的认回、conflict、后继、晚到 release 与并发首次登记沿契约的 [G7](../../tool-contract/SPEC.md#342-契约缺口决定)。`resolve` 按固定采用查键，不做层序选择。
+`ToolBindingsService.register` 实现 `ToolBindingRegistry.register`。它接收 `ToolLoadedRegistration` 与 `ToolAuthority { layer, asset, holding, publication }`，返回 `Outcome<ToolContribution, ToolContributionFailure>`。登记键是（来源层，能力身份，资产版本）。`toolContributionAuthority` 核验 `ToolAuthority` 的来源，来源层只取自核验结果。登记者的 `Access.tenant` 只用来核它在该层的登记资格。同键的认回、conflict、后继、晚到 release 与并发首次登记沿契约的 [G7](../../tool-contract/SPEC.md#342-契约缺口决定)。`resolve` 的选取规则、失败集合、draining 与回退顺序归契约的 [G7](../../tool-contract/SPEC.md#342-契约缺口决定) 与 [ToolBindingRegistry 段](../../tool-contract/SPEC.md#p15-配置声明与合法装载)，本页不重述。
 
 作者插件 fiber 在插件体内登记，登记以该 fiber 的 `ctx.effect` 配对。fiber 撤除时，effect 撤除登记。G7 套件的输入是 `ToolAuthority`。实例目录的输入 `ToolRegistrationInput` 与登记语义套件不变。
 
@@ -87,22 +87,31 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 `toolGenerations` 是 Tool 宿主的 Service，也是 `ctx.plugin` 句柄的唯一持有者。它有三个动词。每个动词都向目标态收敛，可以重复调用。
 
-- `ensureLoaded({ authority })`：读资产的实现引用，核包 digest，动态 import 实现包，再用 `ctx.plugin` 装载作者插件。同键已装且 digest 相同时认回。
-- `unload({ key })`：先读会话引用。有未归档会话引用、且没有同形的 serving 替代时，返回 `retained`，不做任何改变。否则按下列顺序做五步。
-  1. 把登记表条目标记为 draining。新 Run 不再选它，记下该键的请求仍可解析到它。
+- `ensureLoaded({ authority, access })`：返回 `Outcome<{ key, state: 'loaded' | 'recognized' }, ToolLoadFailure>`。调用方有两个：装配协调者在采用点带本租户的 `Access` 调用，这时 `toolContributionAuthority.admits` 核登记资格；`sweep` 以 `{ scope: 'system' }` 调用，这时 `verify` 仍核来源，`admits` 按 IC-18 的系统作用域例外不核。步骤按顺序：`toolContributionAuthority.verify(authority)`（失败为 `denied` 或 `invalid`）；读资产的实现引用与包 digest（缺失为 `missing`）；核 digest（不符为 `rejected`）；动态 import 实现包（抛错或导出不合 `ToolImplementationModule` 为 `rejected`）；在长期宿主插件的 ctx 下 `ctx.plugin` 作者插件，config 为 `{ authority, construction, settings }`；插件体 `contributeTool` 经 `toolGenerations.loaderFor(authority)` 取得受信 `ToolLoader`，调用 `load` 与 `toolBindings.register`。同键已装、digest 相同且非 draining 时认回，state 为 `recognized`；同键 draining 时返回 `draining`。`load` 或 `register` 失败时协调者 dispose 该 fiber，不保留没有贡献的 ACTIVE fiber。失败映射：`ToolLoader.load` 的确定性拒绝（资产 name 与定义 name 不一致、注册投影与契约不符、配置值不合法）为 `rejected`，它的设置读取不可用或必需服务缺席为 `unavailable`；`register` 的 `invalid` 为 `rejected`，`conflict`、`denied`、`unavailable` 原样返回。`missing` 与 `rejected` 是耐久失败，协调者把它们铸造为 Tool 的 `DurableEvidence` 交采用点判定；`unavailable` 是暂时失败，不构成证据；`denied`、`conflict`、`draining` 不是失败证据，采用点按契约[采用点判定](../../tool-contract/SPEC.md#采用点判定)的说明处理。import 之前先核来源：授权前不运行不可信模块的初始化。
+- `unload({ key })`：在登记表的本地排序域里先 `close(key)`，再经 `ToolResidencyReader.referencing({ scope: 'system', key })` 读会话引用。引用不可读（`unavailable`）时 `reopen(key)` 并返回 `retained`，不能证明无引用就不撤除。有未归档会话引用、且没有同形 serving 替代时，`reopen(key)` 并返回 `retained`。否则按下列顺序做五步。
+  1. 保持 draining。新 Run 与回退路由不再选它，记下该键的请求仍可解析到它。
   2. 等在途调用收场。
   3. 按 [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出) 交接。
   4. release 贡献。
   5. dispose 作者插件 fiber。
-- `sweep()`：恢复后重装未归档会话固定的键。对无引用、且不再是任何胜者的贡献调用 `unload`。
+- `sweep()`：系统作用域操作。恢复后按保留义务重装未归档会话记下的键：authority 取自该会话采用依据记下的 `ToolAuthority`，以 `{ scope: 'system' }` 调用 `ensureLoaded`，`toolContributionAuthority.verify` 仍核来源，`admits` 对系统作用域按 IC-18 例外不核登记资格；重装失败按 `ensureLoaded` 的失败集合记录，等采用点判定，不在 sweep 里判冻结。对无引用、且不再是任何胜出者的贡献调用 `unload`。
 
 `unload` 做完五步返回 `released`。任一步未完成时返回 `draining`。再调用一次时，它从未完成的那一步继续。按键排空与交接依赖 P09 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时协调者停在 `draining`。
 
-保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生，协调者不建账。读取引用的端口是 `ToolResidencyReader.referencing`。已归档但在途 Run 未收场的会话也算引用。包字节保留，同一 digest 可以重新 import。
+保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生，协调者不建账。已归档但在途 Run 未收场的会话也算引用。包字节保留，同一 digest 可以重新 import。同形 serving 替代的定义归契约的 [ToolBindingRegistry 段](../../tool-contract/SPEC.md#p15-配置声明与合法装载)。
 
-`unload` 与 `sweep` 是系统作用域操作。`ToolResidencyReader` 不用 `Access<P>`，输入是 `{ scope: 'system', key }`。它只返回会话身份与 shape，不传正文。
+驻留端口由本包定义服务键，Session 提供实现：
 
-替换是对新版本调用 `ensureLoaded`。旧版本在引用归零后由 `unload` 或 `sweep` 收走。不存在原地替换。突然失依赖不经协调者：Cordis 撤除 fiber 时，effect 撤除登记，会话看到同形不可用件，在途调用保持 unknown。规则依据见 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)。
+| 服务键 | 形状 | 缺席时 |
+| --- | --- | --- |
+| toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, shape }>, unavailable>`，分页，不返回正文，与 Session 契约的 `references` 形状一致；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
+| toolResidencyActions | `freeze({ session, cause: 'tool-shape-lost', evidence })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`，与 Session 契约的 `freeze` 同形：`session` 是会话引用，租户由 Session 按会话目录取得；幂等，会话已冻结时返回原回执。它代表该会话的租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
+
+协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，从登记表 `snapshot()` 重建句柄表。
+
+`unload` 与 `sweep` 是系统作用域操作。冻结判定只在采用点由 `planAdoption` 产出，交付路径见契约的[采用点判定](../../tool-contract/SPEC.md#采用点判定)。
+
+替换是对新版本调用 `ensureLoaded`。旧版本在引用归零后由 `unload` 或 `sweep` 收走。不存在原地替换。突然失依赖不经协调者：Cordis 撤除 fiber 时，effect 撤除登记，会话按 R3 或回退路由处理，在途调用保持 unknown。规则依据见 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)。
 
 ## 依赖与定义拥有者
 
@@ -116,7 +125,9 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolDecisions | ToolDecisionBridge | Tool | 原等待答复阶段局部必需；缺失保持等待，不造默认答案 |
 | toolInstances | ToolInstancesService | Tool | 具体目录Service；本Tool实例贡献fiber拥有登记 |
 | toolPublicationAuthority | ToolPublicationAuthority | `tool-cordis-contract/cordis` | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
-| toolContributionAuthority | 绑定登记的来源核验 | `tool-cordis-contract/cordis` | 绑定登记表必需；核 ToolAuthority 的来源并给出来源层，核登记者在该层的登记资格，不以 Access.tenant 定来源层 |
+| toolContributionAuthority | 绑定登记的来源核验（verify、admits，同步） | `tool-cordis-contract/cordis` | 绑定登记表必需；核 ToolAuthority 的来源并给出来源层，核登记者在该层的登记资格，不以 Access.tenant 定来源层；缺席时 register 返回 unavailable |
+| toolResidencyReader | 会话引用读取（referencing） | `tool-cordis-contract/cordis`，Session 提供 | 协调者必需；系统作用域，缺席时 unload 与 sweep 返回 retained |
+| toolResidencyActions | 冻结判定交付（freeze） | `tool-cordis-contract/cordis`，Session 提供 | 显式 reload 采用点必需；缺席时该采用点不派发 Run |
 | toolInstanceHost | ToolInstanceHost | Tool | 独立宿主必需；原事实/控制可经门面处理，无活体仍可查 |
 | toolClock | ToolClock | Tool | 计时执行段必需；恢复沿具名持续时间来源，不能重新计满 |
 | toolResultPolicy | ResultPolicy | Tool | 结果处理必需；固定B及版本，缺失保留原输出与明确失败，不重做效果 |
@@ -152,7 +163,7 @@ Cordis 撤除的是登记、监听和具名可释放资源。`startRejection`、
 
 authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHistoryItems、processBatchBytes、observerBufferBytes、resultPageBytes 为正安全整数；processBatchDelayMs、reconciliationDelayMs 为非负安全整数。作者输出容量覆盖 P11 的在途内容、累计状态及记录数量，不能只限制观察者缓冲。并发、前台时限、转后台偏好来自每次固定请求及治理设置，不从插件树中的租户推导，不在此私配一套覆盖值。
 
-本包 `./cordis` 唯一声明 `tool-cordis-contract/call-changed`，载荷为tenant、ToolCallId、ToolRevision。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。事件先按显式身份过滤，数据动作再核权。RFC-0012 另增事件 `binding-changed`，通知绑定登记表的贡献变化；精确事件名与载荷随源码迁移确定。
+本包 `./cordis` 唯一声明 `tool-cordis-contract/call-changed`，载荷为tenant、ToolCallId、ToolRevision。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。事件先按显式身份过滤，数据动作再核权。RFC-0012 另增通知事件 `tool-cordis-contract/binding-changed`，载荷为登记键（来源层含组织或租户标识、能力身份、资产版本）与 `change: registered | draining | released`，`@mode parallel`；不带正文、凭据或模块路径。发送者捕获监听失败并保留登记结果；遗漏由采用点读取 `snapshot()` 补齐。事件先按显式身份过滤，跨租户只可见官方层与本组织层的键。
 
 等待、前后台、名额及全文保留均属Tool业务事实，不以Fiber状态判断。register撤除不会释放并发名额、给Ask填答案或删除delivery。迟到全文沿recordLateResult产生独立结果版本。
 

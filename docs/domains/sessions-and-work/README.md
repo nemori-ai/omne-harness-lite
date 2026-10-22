@@ -35,7 +35,7 @@ Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request
 
 日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
 
-会话常驻工具每一项的首次定义是会话必须记住的事实，种类是 `tool-resident-admitted`。当前固定版本从 Run 依据派生，不另写会话事实。常驻规则归[工具规格](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
+会话常驻工具每一项的首次定义是会话必须记住的事实，种类是 `tool-resident-admitted`。当前记下的登记键从 Run 依据派生，不另写会话事实。常驻规则归[工具规格](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
 
 冻结是 Session 拥有的独立会话生命周期状态，不是归档。Tool 在采用点给出冻结判定与原因 `tool-shape-lost`，Session 执行状态转换。会话冻结后不再派发新 Run，在途 Run 自然收场。冻结不可逆。冻结的会话仍可按会话规则归档，撤销归档后回到冻结。
 

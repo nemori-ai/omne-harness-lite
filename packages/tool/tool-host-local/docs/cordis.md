@@ -26,7 +26,7 @@ ToolResult 的 data 与 content 同属原结果保管，退出时一起交接。
 
 ## 作者装载与贡献登记
 
-工具作者的声明配置 C 与一次调用 A、环境能力 E 分开。一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。它不 provide 服务键。它的 inject 是实现包里的静态字面量，含 toolBindings 与实现需要的服务。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，调用 `ToolLoader.load`，再调用 `toolBindings.register`。ToolLoader 先由实现模块取得实现形状，再派生定义，校验允许配值路径、合法来源及逐命令契约。配置声明沿 [P15](../../tool-contract/SPEC.md#p15-配置声明与合法装载)，不把治理 settings 写成进程插件树的租户覆盖表。序列化插件配置仍按 IC-14 校验；实际服务、加载器和秘密解析能力通过构造或阶段 DI 注入。
+工具作者的声明配置 C 与一次调用 A、环境能力 E 分开。一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。它不 provide 服务键。它的 inject 是实现包里的静态字面量，含 toolBindings、toolGenerations 与实现需要的服务。它由换代协调者在长期宿主插件的 ctx 下装载，config 为 `{ authority, construction, settings }`。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，经 `toolGenerations.loaderFor(config.authority)` 取得受信 `ToolLoader` 并调用 `load`，再调用 `toolBindings.register`；任一步失败就抛出，fiber 进入 FAILED，由协调者 dispose。ToolLoader 先由实现模块取得实现形状，再派生定义，校验允许配值路径、合法来源及逐命令契约。配置声明沿 [P15](../../tool-contract/SPEC.md#p15-配置声明与合法装载)，不把治理 settings 写成进程插件树的租户覆盖表。序列化插件配置仍按 IC-14 校验；实际服务、加载器和秘密解析能力通过构造或阶段 DI 注入。
 
 ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration 与 ToolAuthority，输入见[绑定登记表的登记输入](../../tool-cordis-contract/docs/cordis.md#绑定登记表的登记输入)。`tool-cordis-contract/cordis` 拥有登记语义；具体实现保存调用方 ctx，验证当前加载及贡献资格后，用该 ctx.effect 配对登记和条件撤除。异步核验结束时再次检查调用方生命周期，不能在已撤除 fiber 下遗留贡献。每项回执只撤自己的 token，旧 release 不删除新贡献。根 Context 登记只限测试或装配入口，不能冒充插件贡献的自动归属。
 
@@ -47,8 +47,8 @@ ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration 与
 | 等待适配 | toolDecisions 或 toolResourceResponses | 分别由 Ask/资源阶段插件静态声明；不能伪造可选 inject 数组 |
 | 输出适配 | toolOutputCustody、toolResultPolicy | 原输出先保存，策略缺席不删除原件 |
 | 程序执行方组合适配 | toolChildren、toolRuntime | 程序能力由独立环境提供者注入；仅暴露限权代理 |
-| 作者插件 fiber | toolBindings 与实现需要的服务，写在实现包的静态字面量里 | 不 provide 服务键；插件体只调用 contributeTool，登记以本 fiber 的 ctx.effect 配对；fiber 撤除时登记随 effect 撤除 |
-| 换代协调者 | toolBindings | 提供 toolGenerations；唯一持有 ctx.plugin 句柄；经 ToolResidencyReader 读会话引用，按保留义务决定是否 dispose |
+| 作者插件 fiber | toolBindings、toolGenerations 与实现需要的服务，写在实现包的静态字面量里 | 不 provide 服务键；插件体只调用 contributeTool，登记以本 fiber 的 ctx.effect 配对；fiber 撤除时登记随 effect 撤除 |
+| 换代协调者 | toolBindings、toolContributionAuthority、toolResidencyReader、toolResidencyActions | 提供 toolGenerations；唯一持有 ctx.plugin 句柄，作者插件挂在长期宿主 ctx 下，协调者重跑从 snapshot 重建句柄表；经 ToolResidencyReader 读会话引用，按保留义务决定是否 dispose |
 
 Commands 提供者整体不能把 Catalog 设为静态必需依赖。新准入的定义核验在局部阶段完成；原操作认回、控制及持久事实提交不依赖最新发现。长期 ToolInstanceHost 也不静态依赖目录，实例发布在其独立子 fiber 中 inject 目录和发布资格。Catalog、Directory 与持久 Commands/Reads、长期宿主不得共用一个会连带卸载的提供者 fiber。目录换代只重建发布，不重启业务执行。
 

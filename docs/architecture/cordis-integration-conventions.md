@@ -119,7 +119,7 @@ flowchart TB
 
 跨边界操作显式携带租户身份。租户身份是操作的参数（或参数里的身份值），不从 `ctx`、isolate 标签、插件实例或「谁装了这个插件」推断；不把「不 inject 就够不着」当访问控制。
 
-系统作用域操作是一个例外。工具换代协调者的 `unload` 与 `sweep` 不代表某个租户。它们经 `ToolResidencyReader` 读取会话引用时，输入显式写为 `{ scope: 'system', key }`，不带租户。端口只返回会话身份与 shape，不返回正文。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)。协调者系统主体的授予写法仍待 IC 评审。
+系统作用域操作是一个例外。工具换代协调者的 `unload` 与 `sweep` 不代表某个租户。它们经 `ToolResidencyReader` 读取会话引用时，输入显式写为 `{ scope: 'system', key }`，不带租户。端口只返回会话身份（含租户）与 shape，不返回正文。`sweep` 按保留义务重装时以 `{ scope: 'system' }` 调用 `ensureLoaded`：来源核验照常，登记资格核验不做。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)。协调者系统主体的授予写法仍待 IC 评审。
 
 ## IC-19
 
