@@ -1,0 +1,37 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "delivered refusal"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "text",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "delivered refusal"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "failed",
+      "fault": {
+        "cause": "upstream-protocol",
+        "diagnostic": "content-after-finish",
+        "upstreamStatus": null
+      }
+    }
+  }
+]

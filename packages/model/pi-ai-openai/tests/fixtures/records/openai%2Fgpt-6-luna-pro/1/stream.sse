@@ -1,0 +1,4 @@
+data: {"model":"openai/gpt-6-luna-pro","provider":"OpenAI","choices":[{"delta":{"refusal":"delivered refusal"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"content_filter"}]}
+

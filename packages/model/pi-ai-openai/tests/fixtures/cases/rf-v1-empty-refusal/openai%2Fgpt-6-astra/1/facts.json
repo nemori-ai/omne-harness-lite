@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "stop"
+    }
+  }
+]

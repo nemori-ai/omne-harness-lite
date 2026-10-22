@@ -1,0 +1,47 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "visible answer"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "text",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "visible answer"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b1",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"data\":\"ENCRYPTED_NEVER_TOKENIZE\",\"format\":\"openai-responses-v1\",\"id\":\"rs-local\",\"index\":0,\"type\":\"reasoning.encrypted\"}",
+      "pairs": []
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "stop"
+    }
+  }
+]

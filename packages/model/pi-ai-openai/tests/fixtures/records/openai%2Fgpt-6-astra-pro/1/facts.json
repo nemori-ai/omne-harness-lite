@@ -1,0 +1,99 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "think"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "refuse"
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\"x\":1}"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "after"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "think"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "refuseafter"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "tool_call",
+      "id": "b2",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_lookup",
+      "name": "lookup",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "x",
+            "value": {
+              "kind": "number",
+              "lexeme": "1"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

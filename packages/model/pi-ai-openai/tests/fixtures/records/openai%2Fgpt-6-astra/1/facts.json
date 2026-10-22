@@ -1,0 +1,77 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "拒答🙂"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "C"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " R "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "later"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "thinking"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "text",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "拒答🙂C R later\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "thinking",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "thinking"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "stop"
+    }
+  }
+]

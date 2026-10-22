@@ -1,0 +1,149 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-openai-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra-pro",
+          "revision": "1",
+          "digest": "7c7563428fe1b0379d528592b6725fb880a75ac78c319a6820035193b65ce317"
+        },
+        "recipient": "openrouter",
+        "model": "openai/gpt-5.6-terra-pro",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-openai-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "128"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "instruction"
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_r100000000000000000000",
+        "role": "system_reminder",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "keep going"
+          }
+        ]
+      },
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b2",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "hello"
+          }
+        ]
+      }
+    ],
+    "tools": [],
+    "toolChoice": "auto",
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-terra-pro#representation",
+      "revision": "1",
+      "digest": "7c7563428fe1b0379d528592b6725fb880a75ac78c319a6820035193b65ce317"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra-pro",
+          "revision": "1",
+          "digest": "7c7563428fe1b0379d528592b6725fb880a75ac78c319a6820035193b65ce317"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "128"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "128"
+          },
+          "source": {
+            "owner": "pi-ai-openai-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-openai-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 128,
+    "messages": [
+      {
+        "content": "instruction",
+        "role": "developer"
+      },
+      {
+        "content": "keep going",
+        "role": "developer"
+      },
+      {
+        "content": "hello",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-5.6-terra-pro",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "openai"
+      ],
+      "require_parameters": true
+    },
+    "store": false,
+    "stream": true
+  }
+}

@@ -1,0 +1,4 @@
+data: {"error":{"code":503,"message":"503"},"usage":{"prompt_tokens":123,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":20,"cache_write_tokens":3},"cost":0.000123456789123456789},"choices":[{"delta":{"content":"must-not-leak","refusal":"must-not-leak"}}]}
+
+data: {"choices":[],"usage":{"prompt_tokens":999}}
+
