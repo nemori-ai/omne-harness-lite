@@ -49,7 +49,7 @@ export abstract class RuntimeContextService<P = unknown>
   abstract bind(...args: Operation<P, 'bind'>['args']): Operation<P, 'bind'>['result']
 }
 export const runtimeContextKey = RuntimeContextService.provide
-export const runtimeContextScopeKey = 'scope'
+export const runtimeContextScopeKey: 'scope' = 'scope'
 /** An explanatory payload shape. The event transmits its fields as two positional arguments. */
 export type RuntimeContextChangedPayload = Readonly<{ scope: ScopeRef; revision: ViewRevision }>
 

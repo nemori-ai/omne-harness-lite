@@ -10,3 +10,5 @@
 
 - [cross-realm-schema.spec.ts](cross-realm-schema.spec.ts)：真实跨 realm Promise 的同步定义拒绝与原异常传播
 - [reader-refusals-negative.spec.ts](reader-refusals-negative.spec.ts)：公共套件否定固定消费者越界与无注册冒充缺项
+
+- [coverage-risk.spec.ts](coverage-risk.spec.ts)：无声明绑定拒绝、祖先取值边界与撤销后的变化读取
