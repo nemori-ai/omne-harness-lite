@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { git } from '../core/git.ts'
 import { baselines } from '../core/task-context.ts'
+import { ownerOf } from '../core/workspace.ts'
 
 export interface MetricsPlan {
   readonly head: string
@@ -66,23 +67,24 @@ export function coverageTargets(
 }
 
 /**
- * 有改动、是真实工作区成员、在配置根目录下、却不在计划里的成员。计划只核提交；算完计划后工作树又改了别的成员，
+ * 有改动、在配置根目录下、却不在计划里的成员。计划只核提交；算完计划后工作树又改了别的成员，
  * 按计划采覆盖会静默漏掉它们，所以调用方见到非空就报错。
- * `members` 是工作区成员目录的全集：路径规则会把组根文档（`packages/<组>/docs/…`）映射成同形的目录，
- * 组根不是成员（见 `docs/package-organization.md`），不在 `members` 里的目录不算改过的成员。
+ * 改动文件按 `ownerOf` 归到工作区成员（最长的成员目录前缀）。组根文件（`packages/<组>/docs/**` 等）
+ * 没有成员前缀，归不到任何成员，不算（组根不是成员，见 `docs/package-organization.md`）。
  */
 export function unplannedMembers(
-  changedMembers: Iterable<string | undefined>,
+  changedFiles: Iterable<string>,
   plan: MetricsPlan,
   roots: readonly string[],
-  members: ReadonlySet<string>,
+  members: readonly { readonly path: string }[],
 ): string[] {
   const planned = new Set(plan.test)
-  return [...new Set(changedMembers)].filter(
-    (path): path is string =>
-      path !== undefined &&
-      members.has(path) &&
-      !planned.has(path) &&
-      roots.some(root => path.startsWith(`${root}/`)),
+  const owners = new Set<string>()
+  for (const file of changedFiles) {
+    const owner = ownerOf(file, members)?.path
+    if (owner !== undefined) owners.add(owner)
+  }
+  return [...owners].filter(
+    path => !planned.has(path) && roots.some(root => path.startsWith(`${root}/`)),
   )
 }

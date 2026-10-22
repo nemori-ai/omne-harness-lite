@@ -101,10 +101,10 @@ function main(): void {
   let coverageSeconds: ReadonlyMap<string, number> | undefined
   if (planned?.coverage === true) {
     const unplanned = unplannedMembers(
-      [...(changed?.keys() ?? [])].map(path => memberOf(path)?.path),
+      changed?.keys() ?? [],
       planned.plan,
       config.coverage.roots,
-      new Set(listWorkspaceMembers(fileTree(root), []).map(member => member.path)),
+      listWorkspaceMembers(fileTree(root), []),
     )
     if (unplanned.length > 0)
       throw new Error(`计划之后工作树改了计划外的成员：${unplanned.join('、')}：重新算计划`)
