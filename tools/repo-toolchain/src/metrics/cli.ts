@@ -17,6 +17,7 @@ import { readActualArchitecture } from '../arch/actual.ts'
 import { buildArchitectureView } from '../arch/view.ts'
 import { readConformance } from '../arch/conformance.ts'
 import { subjectRoot } from '../core/subject.ts'
+import { fileTree, listWorkspaceMembers } from '../core/workspace.ts'
 
 /** 基线从哪来：不给、给基线引用，或读计划文件。覆盖采集只在读计划时可选。 */
 type Scope =
@@ -103,6 +104,7 @@ function main(): void {
       [...(changed?.keys() ?? [])].map(path => memberOf(path)?.path),
       planned.plan,
       config.coverage.roots,
+      new Set(listWorkspaceMembers(fileTree(root), []).map(member => member.path)),
     )
     if (unplanned.length > 0)
       throw new Error(`计划之后工作树改了计划外的成员：${unplanned.join('、')}：重新算计划`)

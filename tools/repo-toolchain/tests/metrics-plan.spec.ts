@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { memberOf } from '../src/deps/graph.ts'
 import {
   coverageTargets,
   parseMetricsPlan,
@@ -68,14 +69,33 @@ describe('覆盖成员', () => {
     ).toEqual(['apps/b', 'packages/a'])
   })
 
-  it('有改动、在配置根目录下却不在计划里的成员被点出来', () => {
+  it('有改动、在配置根目录下却不在计划里的真实成员被点出来', () => {
     const plan = { head: 'a', base: { ref: 'r', mergeBase: 'm' }, test: ['packages/a'] }
+    const members = new Set(['packages/a', 'packages/y', 'tools/t'])
     expect(
-      unplannedMembers(['packages/a', 'packages/y', undefined, 'tools/t', 'packages/y'], plan, [
-        'packages',
-        'apps',
-      ]),
+      unplannedMembers(
+        ['packages/a', 'packages/y', undefined, 'tools/t', 'packages/y'],
+        plan,
+        ['packages', 'apps'],
+        members,
+      ),
     ).toEqual(['packages/y'])
+  })
+
+  it('组根文档的路径映射出的目录不是工作区成员，不报', () => {
+    const plan = { head: 'a', base: { ref: 'r', mergeBase: 'm' }, test: ['packages/a/x'] }
+    const members = new Set(['packages/a/x', 'packages/a/y'])
+    expect(
+      unplannedMembers(
+        ['packages/a/x', memberOf('packages/a/docs/architecture.md')?.path],
+        plan,
+        ['packages'],
+        members,
+      ),
+    ).toEqual([])
+    expect(
+      unplannedMembers(['packages/a/y', 'packages/a/docs'], plan, ['packages'], members),
+    ).toEqual(['packages/a/y'])
   })
 })
 
