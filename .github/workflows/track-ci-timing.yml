@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - sample: latest-incremental
-            head: c00643a46c4b2b63b4be50d37689ff4974132eeb
-            base: 0add8d200508dab82be702342a888c9d406e3f6f
+          - sample: message-port-incremental
+            head: 913665968849cd019297481d23343521ab6f0ab2
+            base: 7df08ab4c55762ab9ff1e10205a52422303a2420
     env:
       OMNE_ADMISSION: '1'
       TURBO_TELEMETRY_DISABLED: '1'
@@ -61,6 +61,8 @@ jobs:
           mkdir -p tmp/ci-timing
           git status --porcelain > tmp/ci-timing/dirty-before-plan.txt
           node --experimental-strip-types tools/test-runner/src/testing/cli.ts plan --json tmp/ci-timing/plan.json | tee tmp/ci-timing/plan.txt
+      - name: Require a scoped sample
+        run: node -e 'const p=JSON.parse(require("fs").readFileSync("tmp/ci-timing/plan.json"));if(p.plan.mode!=="scoped")throw Error(p.plan.reason);console.log(p.plan.reason)'
       - name: Build selected members
         id: build
         continue-on-error: true
