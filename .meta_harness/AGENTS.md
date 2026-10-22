@@ -54,6 +54,7 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 | [research/](research/README.md) | 当前仅保留 TypeSafe Jev；目录职责与结构待负责人另行定义 |
 | [agents/](agents/README.md) | skills 与 roles 的 canonical 源、宿主适配与评估证据 |
 | [tooling/](tooling/README.md) | 确定性的生成、检查与项目链接 |
+| [human/](human/README.md) | 写给人类协作者的学习指南。它不是规则，agent 不以它为任务依据 |
 
 **一个 topic 是信息包**：入口给范围、状态与阅读地图，正文给判断或契约，证据给真实观察。
 先读该区入口；新主题从它的 `.templates/` 起步并按问题裁剪，**不能裁掉准入所需信息**。
