@@ -2,11 +2,11 @@
 
 本页说明本成员怎样组织根入口与依赖，来兑现 [SPEC](../SPEC.md)。对象的身份、状态与生灭归[对象模型](object-model.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员没有运行实现，不持有状态，也不持有资源。候选缓存、历史索引、默认压缩策略、默认表示策略与修剪器归 [request-context](../../request-context/README.md)。提示词贡献的登记面归 [request-context-cordis-contract](../../request-context-cordis-contract/README.md)。最终请求的固定与记录归协调者，历史与压缩记录的保存归历史持有者。
+本成员提供纯操作，不提供生产运行时，不持有状态，也不持有资源。候选缓存、历史索引、默认压缩策略、默认表示策略与修剪器归 [request-context](../../request-context/README.md)。提示词贡献的登记面归 [request-context-cordis-contract](../../request-context-cordis-contract/README.md)。最终请求的固定与记录归协调者，历史与压缩记录的保存归历史持有者。
 
 ## 模块与依赖
 
-根入口 `src/index.ts` 是唯一公开入口。它按下表分成十个模块，每个模块一个源文件，`index.ts` 只做再导出。文件名由实现确定。`src/index.ts` 现在是空导出，下表的全部内容随实现进入，形状以 SPEC 和对象模型为准。
+根入口 `src/index.ts` 显式重导出公开定义，`./testing` 入口承载验证资源。值类型集中在 `values.ts`，各纯操作依赖值类型，避免反向运行依赖。文件名与导出落点见公开接口索引。
 
 | 模块 | 承载 | 条款 |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ flowchart LR
 
 ### 包外依赖
 
-本成员依赖下列包的公开值与类型。它们都随实现进入 `package.json`，现在 `package.json` 没有运行依赖。
+本成员依赖下列包的公开值与类型。依赖已在 `package.json` 声明。
 
 | 包 | 用来表达什么 |
 | --- | --- |
@@ -123,7 +123,7 @@ flowchart LR
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口没有运行导出 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口的运行导出为空 | 第一个操作进入后，改为核对导出集合 |
+| 根入口的运行导出与清单一致 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 比较构建导出与导出清单 | 与公开接口导航同步维护 |
 | SPEC 的行为条款 | 没有 | SPEC 的[持续验证义务](../SPEC.md#rq-11-持续验证与未覆盖)，随纯操作与实现成员进入 |
 | 有缓存与无缓存同输入同结果 | 没有 | 由 [request-context](../../request-context/README.md) 的实现与测试承担 |
 
@@ -132,3 +132,9 @@ flowchart LR
 1. 新增或改名导出时，同步[公开接口页](public-api.md)、[src 索引](../src/index.md)与导出测试。
 2. 改变七组输入、四种结果、三类失败、六层顺序或前缀变化原因的取值时，同步依赖方：request-context-cordis-contract、request-context、request-context-cordis，以及协调者一侧的适配器，见[字段对应](context.md#字段对应)。
 3. 以下情形出现时，重新判断本页的模块切分：步出现第三种类型，出现第二种历史源读口，或独立入口的字节编码确定。
+
+## 实际模块接缝
+
+值类型集中在 `src/values.ts`，品牌引用与解码在 `src/refs.ts`。`src/schema.ts` 解码持久回流值与策略配置。纯操作依赖这些值，根入口只显式重导出。`src/testing/` 只拥有测试替身和用例列表，不拥有生产实现。
+
+计量的实际字节数来自适配器 `RequestSerializer`。转换结果读口归本成员，结果类型归 Model。`deriveStep` 的选定模型由调用者交入，以复核摘要及保留内容的预算。计划保留范围后消息，用于核对覆盖边界的调用与结果配对。

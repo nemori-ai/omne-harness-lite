@@ -5,7 +5,7 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责与现状
-- [index.ts](index.ts)：根入口，现在是空导出
+- [index.ts](index.ts)：根入口，显式导出类型与纯操作
 
 ## 阅读路径
 
