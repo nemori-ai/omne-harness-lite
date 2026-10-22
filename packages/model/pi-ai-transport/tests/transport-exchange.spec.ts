@@ -395,6 +395,30 @@ describe('stopping a started send', () => {
     })
   })
 
+  it('a cancel after the bytes of the end marker were read keeps the decoder termination', async () => {
+    // One write carries the text, the stop and the marker; the response stays open.
+    await withTransport(
+      res => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.write(sseBody(TEXT('hi'), STOP))
+      },
+      async ({ resources, transport }) => {
+        const controller = new AbortController()
+        const iterator = (await transport.materialize())
+          .start(controller.signal)
+          [Symbol.asyncIterator]()
+        expect((await iterator.next()).value).toMatchObject({ kind: 'block-open' })
+        controller.abort()
+        const rest: TransportFact[] = []
+        for (let step = await iterator.next(); step.done !== true; step = await iterator.next())
+          rest.push(step.value)
+        expect(rest).toEqual([{ kind: 'block-delta', index: '0', delta: 'hi' }, COMPLETED])
+        expect(resources.inFlight.size).toBe(0)
+        expect(await slotFree(resources)).toBe(true)
+      },
+    )
+  })
+
   it('a cancel before the response ends the stream interrupted and confirmed', async () => {
     await withTransport(
       () => {}, // Never answers.

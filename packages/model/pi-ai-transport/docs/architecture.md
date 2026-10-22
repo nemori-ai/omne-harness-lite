@@ -225,7 +225,7 @@ materialize 只有一个 await：预约名额。预约之后的扫描、编码�
 
 prepared 的 close 在 `materializing` 相位开始时，materialize 得到的 materialized 归 close 所有。materialize 恢复时看到相位已不是 `materializing`，就返回 `prepared-closed`，不把 materialized 交给调用方。所以调用方拿到的 materialized 都在 close 开始之前交出。
 
-关闭之后的 start 不发送，流只给出 `interrupted`。materialized 的 close、prepared 的 close 与外层 close 都经 materialized 的 `closed` 相位到达 start，结果与网络资源关闭之后的 start 相同。Model 的发送方把没有 `ended` 的空流记为传输丢失，所以只有同一 materialized 的第二次 start 返回空流：那是用法错误，第一次 start 已给出唯一的 `ended`。
+关闭之后的 start 不发送，流只给出 `interrupted`。materialized 的 close、prepared 的 close 与外层 close 都经 materialized 的 `closed` 相位到达 start，结果与网络资源关闭之后的 start 相同。Model 的发送方把没有 `ended` 的空流记为传输丢失，所以只有同一 materialized 在 start 之后、关闭之前的再次 start 返回空流：那是用法错误，第一次 start 已给出唯一的 `ended`。关闭之后的 start，含 start、关闭、再 start 的顺序，都给出 `interrupted`。
 
 ### start 的同步围栏
 
@@ -241,7 +241,9 @@ fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族�
 
 家族解码器可能先给出 `ended`，再给出用量等尾部事实（组架构“finish 后的 usage 尾帧”）。事实流保留解码器的 `ended`，在协议结束、解码器 `end()` 成功之后才给出，所以它总是最后一个事实。协议在响应体结束之前失败时，终止取那次失败，不取已保留的 `ended`。
 
-路由的 `endMarker` 不是 `null` 时，end-marker 帧就是协议的结束。供应商可能在 end-marker 之后不结束响应，所以事实流不等待响应体结束。Node 已收到完整响应体时（`IncomingMessage.complete`），事实流读完剩余字节而不解码，连接回到连接池。其他情况下，事实流停止交换。`endMarker` 为 `null` 时，响应体结束才是协议的结束。
+路由的 `endMarker` 不是 `null` 时，end-marker 帧就是协议的结束。供应商可能在 end-marker 之后不结束响应，所以事实流不等待响应体结束。读到 end-marker 帧时，事实流只看 Node 是否已收到完整响应体（`IncomingMessage.complete`）：已收到时，连接回到连接池；其他情况下，事实流停止交换。只看这一项就足够，因为 `Readable.read()` 一次交出全部已缓冲的响应体，完整响应体在 end-marker 帧读出时已被读完。
+
+读入 end-marker 所在的响应字节之后，协议结束优先于取消与关闭。取消与关闭只停止交换，已读入的字节仍按顺序解码，所以读入的字节含 end-marker 时，终止取解码器的 `ended`，不取 `interrupted`。`endMarker` 为 `null` 时，响应体结束才是协议的结束。
 
 事实流在给出 `ended` 之前等待交换物理停止。响应体读到末尾时，交换自行关闭，连接可以回到连接池复用。只有响应体没有读完时，事实流才调用 `stop()`。
 

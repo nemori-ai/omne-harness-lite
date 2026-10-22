@@ -123,6 +123,22 @@ describe('a start that sends nothing', () => {
     expect(sends()).toBe(0)
   })
 
+  it('a start after start and close ends interrupted, not with an empty stream', async () => {
+    let reads = 0
+    const { materialize, sends } = setup(() => {
+      reads += 1
+      return undefined
+    })
+    const materialized = await materialize()
+    await collect(materialized.start(new AbortController().signal))
+    await materialized.close()
+    expect(await collect(materialized.start(new AbortController().signal))).toEqual([
+      { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
+    ])
+    expect(reads).toBe(1)
+    expect(sends()).toBe(0)
+  })
+
   it.each([
     ['the close of the materialization', 'materialized'],
     ['the close of its prepared transport', 'prepared'],

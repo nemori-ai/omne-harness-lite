@@ -83,8 +83,8 @@
 3. 本包组装请求头：`authorization: Bearer <凭据>`、`content-type: application/json`、`accept: text/event-stream`，然后调用 `startExchange`。`start` 返回时，请求已经交给 Node 并已调用 `end(body)`。
 4. `startExchange` 拒绝时，名额已归还，本包不发送。`cancelled` 与 `resources-closed` 给出 `interrupted`（`stop: 'confirmed'`）。`invalid-header` 只能来自凭据，给出 `failed`，`cause` 为 `credential`，`diagnostic` 为 `credential-not-a-header-value`。其他拒绝原因是本包的缺陷，`start` 抛出 `Error`。
 
-- 同一 materialized 只能 start 一次。第二次调用返回立即结束的空流，不读凭据，不发送。
-- materialized 的 `close()`、派生它的 prepared 的 `close()` 或外层 `close()` 之后调用 start，本包不读凭据，不发送。流只给出 `interrupted`（`stop: 'confirmed'`），与网络资源关闭之后的 start 相同。
+- 同一 materialized 只能 start 一次。start 之后、任何关闭之前再次调用 start，本包返回立即结束的空流，不读凭据，不发送。
+- materialized 的 `close()`、派生它的 prepared 的 `close()` 或外层 `close()` 之后调用 start，本包不读凭据，不发送。流只给出 `interrupted`（`stop: 'confirmed'`），与网络资源关闭之后的 start 相同。此规则也适用于 start、关闭、再 start 的顺序：关闭之后的任何 start 都给出 `interrupted`，不给出空流。
 - 秘密只在 `start` 的同步调用中经过本包。本包不保存它，不把它写入事实、诊断或异常消息。凭据槽中的秘密与 `supplier.credential` 的对应关系由调用方保证。
 
 #### 事实流
@@ -93,7 +93,7 @@
 
 读取在协议结束时停止。协议结束的时刻按路由的 `endMarker` 确定：
 
-- `endMarker` 不是 `null`：end-marker 帧交给解码器之后，协议结束。本包不等待响应体结束，不解码 end-marker 之后的字节或事件。Node 已收到完整响应体，且 end-marker 之后没有事件时，本包读完剩余字节而不解码，连接留在连接池中。其他情况下，本包停止交换。
+- `endMarker` 不是 `null`：end-marker 帧交给解码器之后，协议结束。本包不等待响应体结束，不解码 end-marker 之后的字节或事件。读到 end-marker 帧时 Node 已收到完整响应体，连接留在连接池中。其他情况下，本包停止交换。
 - `endMarker` 是 `null`，或响应体在 end-marker 之前结束：响应体结束时，协议结束。
 
 协议结束之后，本包调用解码器的 `end()`，给出它的事实，再给出 `ended`。
@@ -101,6 +101,8 @@
 - 解码器给出的 `ended` 由本包保留，到协议结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
 - 解码器给出第二个 `ended` 时，流以 `failed` 结束，`cause` 为 `upstream-protocol`，`diagnostic` 为 `decoder-ended-twice`。
 - 流给出 `ended` 之前，交换已物理停止，名额已归还。
+- 本包读入 end-marker 所在的响应字节之后，协议结束优先。之后到达的取消或关闭不改变终止：流以解码器的终止结束（例如 `completed`），不以 `interrupted` 结束。end-marker 与之前的事件在同一次读入中到达、读者在给出第一个事实之后才取消时，也是如此。
+- 本包读入 end-marker 所在的响应字节之前，取消或关闭给出 `interrupted`（`stop: 'confirmed'`）。
 
 终止按下表确定。`upstreamStatus` 只含状态码。响应头与错误体不进入 fault：
 
@@ -118,7 +120,7 @@
 | SSE 分帧失败 | `failed`，`upstream-protocol` | `sse-<原因>` |
 | 协议帧失败 | `failed`，`upstream-protocol` | `frame-<原因>` |
 | 解码器对某帧或 `end()` 返回 `ModelFault` | `failed`，该 fault | 解码器给出 |
-| `signal` 中止、materialized 或 prepared 的 `close()`、外层 `close()`、网络资源关闭 | `interrupted`，`stop: 'confirmed'`，在物理停止之后 | 无 |
+| 本包读入 end-marker 所在的响应字节之前，`signal` 中止、materialized 或 prepared 的 `close()`、外层 `close()`、网络资源关闭 | `interrupted`，`stop: 'confirmed'`，在物理停止之后。读入之后到达的取消或关闭不改变终止，终止取解码器的 `ended` | 无 |
 
 - 读者提前结束事实流时，本包停止交换并等待物理停止。读者在第一次 `next()` 之前结束时也是如此。
 - 停止只停止本地工作。已发出的请求不能撤回，`interrupted` 不表示供应商没有收到请求。
@@ -396,9 +398,9 @@
 | --- | --- | --- |
 | 构造的配置校验（含不是句柄的 `network`）、prepare 的路由查找与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时等待全部关闭） | [transport.spec.ts](tests/transport.spec.ts) | 快 |
 | materialize：回执、交给家族的输入、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
-| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、重复 start、三种关闭之后的 start、凭据只在同步调用中读取一次 | [start.spec.ts](tests/start.spec.ts) | 快 |
+| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start、凭据只在同步调用中读取一次 | [start.spec.ts](tests/start.spec.ts) | 快 |
 | 失败映射表的每一行 | [termination.spec.ts](tests/termination.spec.ts) | 快 |
-| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
+| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
 | model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
