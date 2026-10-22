@@ -149,6 +149,8 @@
 
 最终结果的文本、内容 ref 与附件地址分流归 [P14](#p14-附件引用与消费方交付)。共享值迁移和提供者验证由共享内容块拥有者继续跟踪，不再把这两种路径记为产品来源缺证。任意嵌套容器未获准。过程在途内容的故障保留仍需技术兑现。
 
+[RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的对象链、会话常驻规则、G7 与换代协调者已写入本页。源码的类型迁移与纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 尚未交付。迁移之前，源码仍是旧形状，例如 `ToolAuthorRegistration` 与不带 `layer` 的可用结果。按键排空与交接依赖 [P09](#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，协调者在有在途调用时停在 `draining`。
+
 修改定义、调用匹配、结果保管或控制协议时同步所有消费方、环境、决策方、程序消费方、动作桥接方、Context 和相应验证。提供者补自己真实承担的机制与限制，不另写一份更弱的公共保证。独立执行与 runtime 的部分路径已在 `@omne-harness/tool` 实现，范围见[组的支持范围](../README.md#支持范围)。耐久存储与故障测试尚无。本规格不授予实施或符合性接受。
 
 <a id="342-主干运行契约候选"></a>
@@ -376,7 +378,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
 | G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local` 根入口 |
 | G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool` 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖 | `tool-contract` 与 `tool` 的 `./testing` |
-| G7 | `ToolBindingRegistry` 由单机宿主实现。`ToolLoader` 的设置读取与作者工厂仍是构造依赖 | `tool-host-local` 根入口 |
+| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。`wsId` 的拥有者定义之前，Tool 在边界用不透明品牌文本。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
 | G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool` 根入口 |
 | G9 | 单机宿主命名为 `packages/tool/tool-host-local` | `tool-host-local` |
 
@@ -386,13 +388,13 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 ### 定义完整性与呈现
 
-Tool Definition 和 Tool Execution 分别存在。定义可附带实现，但数据版本、实现身份和实际运行资源分别可辨。定义采用单函数或多命令形态，能力身份沿现行资产规则，不在本稿补名称字符集或长度。
+Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小：身份、治理声明（`requiredCapabilities`、`programmable`、`composes.skills`）与实现引用 `implementation { executor, module, construction }`。实现包只提供形状与操作。装载时 `deriveDefinition(governance, implementation)` 派生 ToolDefinition：参数契约、返回声明、命令表、description、`backgroundAllowed` 与 declarations 来自实现，`adoption`、name、`requiredCapabilities` 与 `programmable` 来自资产。`definition.adoption` 全等于资产版本。资产 name、能力名与定义 name 必须相同，装载时核对，不同则拒绝装载。同一能力身份下，各层的资产可以引用不同实现，派生不同形状的定义，不要求共享参数形状。数据版本、实现身份和实际运行资源分别可辨。定义采用单函数或多命令形态，能力身份沿现行资产规则，不在本稿补名称字符集或长度。
 
 单函数定义具有工具说明、参数约定及每个参数的说明。多命令定义具有工具说明、合法命令清单及每命令一行说明。作者可以仅提供清单，也可以提供全部命令的完整参数；提供的参数每项须带说明。不完整说明不能冒充完整合法定义。
 
 多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
 
-呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
+呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。会话内常驻集合的规则见[会话常驻规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
 ### 声明与设置
 
@@ -418,13 +420,64 @@ Tool Definition 和 Tool Execution 分别存在。定义可附带实现，但数
 
 ### 已知与可用的动态关系
 
-装配、每次接续执行开始和必需提供者变化时，重算合法选择、治理及依赖。提供者恢复不独自恢复工具可用性，当前定义、持有和治理仍须成立。
+采用点是会话初始化、新 Run 开始和显式 reload。采用点与必需提供者变化时，重算合法选择、治理及依赖。各刷新点允许的变化不同，见[刷新点允许的变化](#刷新点允许的变化)。提供者恢复不独自恢复工具可用性，当前定义、持有和治理仍须成立。
 
-从未合法取得的定义被过滤时，不新增可见身份，不能凭名称编 schema。已知但卸载、撤权、被禁用或依赖失效时，保留最近合法身份和形状，用不可用说明替换。授权撤销后不得为维持同形读取新的未授权内容。合法新定义可以改变后续采用形状，同形不是永久冻结 schema。
+从未合法取得的定义被过滤时，不新增可见身份，不能凭名称编 schema。已知但卸载、撤权、被禁用或依赖失效时，保留最近合法身份和形状，用不可用说明替换。授权撤销后不得为维持同形读取新的未授权内容。合法新定义可以改变非常驻工具的后续采用形状。会话常驻项的 name 与参数形状在会话内不变（R1），实现只在采用点同形前进。
 
-同标识还有合法候选时先按共同选择规则更新实现，不跳过候选直接认定不可用。必需绑定不等于服务永远在线；从未取得必需合法定义或 runtime 自身必要依赖不能建立时，按装配失败处理，不能用 dummy 补齐未知定义。
+同标识还有合法候选时先按共同选择规则更新实现，不跳过候选直接认定不可用。例外：与会话常驻项首次定义不同形的候选不替换该项，按 R5 处理。必需绑定不等于服务永远在线；从未取得必需合法定义或 runtime 自身必要依赖不能建立时，按装配失败处理，不能用 dummy 补齐未知定义。
 
 动作桥接方的每个发现动作是工具条目，动作身份和许可沿合法端点，不成为另一个资产持有对象。每次接续执行开始及显式合法刷新可更新后续清单。失联保留最近合法取得的清单并给原因，未发现过的动作不编造，对端删除的已知动作仍能解释不可用。程序消费方的资源读取和脚本执行分别准入，方法读取不授权任意路径脚本或 Shell。
+
+### 会话常驻规则（R1–R5）
+
+本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。
+
+常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
+
+- R1：会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
+- R2：会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入。Run 中途的新工具经 Tools 元工具（非常驻）可达。
+- R3：已装载的常驻工具被卸载或暂时不可用，且登记表里没有本会话可访问的同形可用贡献时，会话以同形替换件替代它：`ToolAvailability` 的 `known-unavailable` 带原 definition。调用它得到不可用应答。有同形可用贡献时不走 R3，`resolve` 按 G7 的回退顺序路由到它。
+- R4：会话持久保存每个常驻工具首次装载的 definition，会话事实种类是 `tool-resident-admitted`。当前记下的登记键从 Run 依据派生，不另写会话事实。
+- R5：常驻工具的实现变更，且新定义与首次定义不同形时，按下列规则处理。
+  - R5a：原实现仍装载且可用时，会话继续使用它（同形）。版本不钉死：负责选取实现的一方按记下的形状选同形可用实现，见[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)。
+  - R5b：没有同形可用实现、原实现不可装载，且存在不同形的合法胜出者时，会话冻结。「不可装载」要耐久证据：换代协调者 `ensureLoaded` 返回 `missing`（包或 digest 缺失）或 `rejected`（装载被确定性拒绝）时铸造的 Tool `DurableEvidence`；`unavailable` 是暂时失败，不构成证据。冻结只在采用点判定。Tool 只给判定与原因 `tool-shape-lost`。冻结是 Session 拥有的独立会话生命周期状态，不是归档，见[会话与工作](../../../docs/domains/sessions-and-work/README.md)。冻结后在途 Run 自然收场，会话不再派发新 Run。
+  - 暂时缺席、未知与撤权一律按 R3 处理，不冻结。
+
+非常驻工具不受 R1–R5 约束。meta 能力入口（Tools 元工具）必定常驻且不可替换，不参与卸载与冻结判定；经它发现和使用非常驻工具只是对它的一次调用。动作桥接方（MCP）的动作不在本节范围。
+
+装配对每个选入的能力身份回答两个问题：
+
+1. 资产：这个租户的作用域里有没有合法持有的资产。必需能力从未取得合法定义时，装配失败。
+2. 绑定登记表：登记键有没有贡献，实现的必需依赖是否在场。没有贡献时，换代协调者按需装载。装载失败时，保留已知定义并标 `known-unavailable`，装配不失败。
+
+版本由持有决定：持有固定某版，或跟随当前版。AgentDefinition 的声明只引用能力身份。跟随当前版对已有会话有条件：同形才跟。这是 [assets 版本选用规则](../../assets/assets/SPEC.md#definition-and-version)的例外。
+
+#### 采用点判定
+
+采用点对每个常驻项按下表判定。「记下的键可用」指采用依据里记下的登记键在登记表中 live、非 draining、且本会话按 G7 可访问。「同形可用贡献」指登记表里任一来源层、本会话可访问、非 draining、与首次定义同形的贡献，不要求它是合法胜出者。协调者按保留义务重装记下的键，这不是为选版回头寻找旧版本（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）。重装的失败按换代协调者的失败集合归类：`missing` 与 `rejected` 是耐久失败；`unavailable` 是暂时失败；`denied` 与来源核验的 `invalid` 按撤权处理，给同形替换件（R3）；`conflict` 表示同键已有贡献，按该贡献是否可用走第一或第二行；`draining` 按 draining 处理，视为不可用。
+
+| 记下的键可用 | 同形可用贡献 | 合法胜出者 | 结论 |
+| --- | --- | --- | --- |
+| 是 | 任意 | 同形 | 前进到胜出者 |
+| 是 | 任意 | 无，或不同形 | 保持记下的键（R5a） |
+| 否 | 有 | 同形 | 前进到胜出者 |
+| 否 | 有 | 无，或不同形 | 记下的键改为按 G7 回退顺序选出的同形贡献 |
+| 否 | 无 | 同形 | 前进到胜出者；协调者按需装载 |
+| 否 | 无 | 无 | 协调者重装记下的键：成功则保持；`missing`、`rejected` 或暂时失败都给同形替换件（R3） |
+| 否 | 无 | 不同形 | 协调者重装记下的键：成功则保持（R5a）；`missing` 或 `rejected` 则冻结（R5b）；暂时失败则同形替换件（R3） |
+
+判定由纯函数 `planAdoption` 给出，输出是前进、保持、替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。冻结判定的交付路径：新 Run 的判定随采用材料经 `startRun` 交会话；显式 reload 的判定由 Tool 宿主经 `ToolResidencyActions.freeze({ session, cause, evidence })` 交会话，输入形状与 [session-contract 的 `freeze`](../../session/session-contract/SPEC.md#常驻工具与会话冻结) 相同：`session` 是会话引用，租户由 Session 按会话目录取得。两条路径都是采用点，会话只执行一次状态转换。
+
+#### 刷新点允许的变化
+
+| 刷新点 | 加入新能力身份 | 记下的键前进 | 判冻结 | 恒允许 |
+| --- | --- | --- | --- | --- |
+| 会话初始化 | 是 | 不适用 | 否 | 可用性 |
+| 新 Run 开始 | 是 | 是 | 是 | 可用性、实现、路由 |
+| 显式 reload | 是 | 是 | 是 | 可用性、实现、路由 |
+| Run 中的提供者变化 | 否 | 否 | 否 | 可用性、路由 |
+
+「记下的键前进」指采用依据里的登记键改变，只在采用点发生。「路由」指 `resolve` 在记下的键不可用时按 G7 回退顺序把后续调用路由到同形贡献，它在任何刷新点都允许，不改写记下的键，也不改变常驻形状。已经发出的调用保留原实现。
 
 ### dummy 的调用语义
 
@@ -640,7 +693,7 @@ Tool 报告实际收场，不以调用方存活为前提。控制方的业务事
 
 judgeToolDefinition 对未知输入执行封闭字段与类型检查。名称采用资产的非空、区分大小写精确身份，不暗中改名或正规化；多命令名非空且本工具内唯一。说明不能是空白。参数 Schema 按其 vocabulary 精确采用检查，每个声明参数都有说明，defaults 必须满足设置 Schema。原作者未声明的 programmable 保留缺省，判定只认 true。两项模态声明按 [modality 成员的判定](../../common/modality/SPEC.md#判定模态)检查：不是列表或元素不是文本为 `type`，不在四种模态之内为 `modality`，重复为 `duplicate`，`field` 指向出错的元素；其他写法（例如 `audio`、`Image`）被拒绝，不映射。模态省略时在投影中展开为文本；原采用保留省略事实。完整定义的解析适配负责将资产正文转成 ToolDefinition，不将现有 toolBodyContract 的最低校验宣称为全部定义校验。
 
-ToolCatalog 根据当前合法候选与实际消费方能力求值。消费方档案 `{ capabilities, conversion, attachmentAccess }` 的能力、合法转换（没有时为 null）及附件资格来自其拥有者；调用者不能自报支持全部模态。消费方的输出能力对应工具输入，输入能力或合法转换对应工具的直接内容输出。outputModalities 声明消费方要直接感知的 content 模态；只放在 attachments 的媒体不因其 MIME 类型提高该要求，地址按文本处理。附件存储及消费者合法取回能力仍按独立声明检查，能看地址不等于有权读字节。每个消费方提供自己的能力依据。evaluateToolAvailability 是纯判定函数，不自做授权；传入事实必须已经被受信调用方核实。search 的 programmatic 视图只列显式许可且当前可用项；普通视图保留合法已知不可用项。usage 固定定义采用，返回命令详细 Schema 或执行者拥有的真实用法，help 复用同一来源；不能为显示最新用法跨越撤权。
+ToolCatalog 根据当前合法候选与实际消费方能力求值。可用结果 `ToolAvailability.available` 带来源层 `layer`，固定请求因此自带登记键的全部分量。消费方档案 `{ capabilities, conversion, attachmentAccess }` 的能力、合法转换（没有时为 null）及附件资格来自其拥有者；调用者不能自报支持全部模态。消费方的输出能力对应工具输入，输入能力或合法转换对应工具的直接内容输出。outputModalities 声明消费方要直接感知的 content 模态；只放在 attachments 的媒体不因其 MIME 类型提高该要求，地址按文本处理。附件存储及消费者合法取回能力仍按独立声明检查，能看地址不等于有权读字节。每个消费方提供自己的能力依据。evaluateToolAvailability 是纯判定函数，不自做授权；传入事实必须已经被受信调用方核实。search 的 programmatic 视图只列显式许可且当前可用项；普通视图保留合法已知不可用项。usage 固定定义采用，返回命令详细 Schema 或执行者拥有的真实用法，help 复用同一来源；不能为显示最新用法跨越撤权。
 
 admit 核 scope 的 grant、consumer、真实来源、固定设置与限额、定义/实现匹配、参数完整性和批判断。容量不足可以在受理前拒绝。`complete=false` 返回 invalid 且不受理。完整参数解析失败形成原调用的 arguments 失败结果；已知不可用则不解析参数，形成 unavailable 结果。两者同提交原结果、原位置、delivery 和实际替换处理账目，不创建环境或真实执行。无法保管该结果时不报告受理完成。未知目标不能构造 dummy。
 
@@ -842,13 +895,13 @@ simple tool 与 multiple-command tool 复用 ToolReturnDeclaration。单函数�
 
 作者先用 defineToolOperation 将一个 ToolAuthor 的参数说明、返回声明和执行能力封装成 ToolOperation。构造时检查 A、R 与该作者的解析器、执行器、返回验证器、编码器和渲染器的类型关系。封装后对登记层隐藏 A/R 和 executor，内部保留这组对应关系及完整 P13 管线。不能用 ToolAuthor<unknown, unknown, …> 或强制断言拼成异构命令表。类型只能检查可表达的关系，schema 身份、正文及 codec 的语义一致仍需绑定验证。
 
-defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolAuthorRegistration.definition，分别投影函数参数/returns 或各命令的参数/returns。Catalog 与 ToolUsage 读取这个投影，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
+defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
 
 这些构造器不执行工具，也不访问外部服务。它们检查可同步判断的形状、名称及模式一致性，保存声明快照和原能力绑定。构造器拒绝空命令表和非法名称，只采用记录的自身键，不查原型链。上游从条目序列生成命令表时，须在覆盖发生前拒绝重名；构造器无法恢复已被调用者覆盖的同名项。它们的成功不是 available 或使用授权。绑定提供者在开放可用性前，异步核对各操作的 schema 来源、精确修订、正文和上限，以及实际作者绑定。声明与绑定不一致时，对应操作不可用，不能改用其他命令或扩大 schema 让它通过。
 
-ToolBindings 提供者通过构造依赖接收 ToolAuthorRegistration。resolve 按 FixedToolRequest 的原工具 adoption 和 command 选择一次操作，固定其参数解析、executor、返回检查、renderer、程序编码及 schema。单函数只接受 command=null，多命令要求具名且存在的 command，不存在时拒绝，不能默认第一个或任意分派。执行、settle 与恢复都沿原选择。仅满足另一个 command 的 schema 不能成功，不能把所有命令的输出合成联合再验证。已完成结果的归属沿 call 的固定请求和 resultVersion 查回；即使两个命令采用相同 schema，也不能交换调用归属。
+ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按登记键持有。resolve 按 FixedToolRequest 的能力身份、记下的形状和 command 在同形贡献中选择一次操作（记下的登记键仍 live 时优先它），固定其参数解析、executor、返回检查、renderer、程序编码及 schema。单函数只接受 command=null，多命令要求具名且存在的 command，不存在时拒绝，不能默认第一个或任意分派。执行、settle 与恢复都沿原选择。仅满足另一个 command 的 schema 不能成功，不能把所有命令的输出合成联合再验证。已完成结果的归属沿 call 的固定请求和 resultVersion 查回；即使两个命令采用相同 schema，也不能交换调用归属。
 
-登记会封闭不同 A/R，但不隐藏环境 E 或内容块 B 的兼容性。一个注册中的操作使用同一显式 E/B 契约。某个函数只需部分依赖时，由作者提供窄适配；独立服务可按操作注入，不自动并集全部权限。ToolOperation 与 ToolAuthorRegistration 是当前执行域的能力，不是 settings 或数据记录，不能交给程序执行方。恢复保存原采用及可恢复来源，不序列化这些闭包。
+登记会封闭不同 A/R，但不隐藏环境 E 或内容块 B 的兼容性。一个注册中的操作使用同一显式 E/B 契约。某个函数只需部分依赖时，由作者提供窄适配；独立服务可按操作注入，不自动并集全部权限。ToolOperation 与 ToolImplementation 是当前执行域的能力，不是 settings 或数据记录，不能交给程序执行方。恢复保存原采用及可恢复来源，不序列化这些闭包。
 
 程序执行方的静态 SDK 从具体 command 的公开程序 schema 生成或绑定类型，不能从已经封闭的 A/R 或任意 call<T> 推断业务类型。普通 R 与编码后的 data 可以不同。动态字符串选命令时，返回仍是具名统一封装，消费者须按实际命令及采用核对。工具级 programmable、身份、准入、FIFO、并发和控制规则保持，不因为命令是独立函数而把它变成独立工具或绕过托管调用。
 
@@ -872,15 +925,25 @@ ToolDefinition.declarations.settings 明确装载/装配时允许从配置赋值
 
 items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。
 
-作者构造配置 C、本次调用参数 A、服务与环境依赖 E 分开。受信装载器校验配置后把 C 交实际工具工厂，工厂产生 ToolAuthorRegistration；C 不合并进 arguments.original/effective，不接受调用方或程序执行方经调用参数改写。服务、SchemaRef、函数、signal 与秘密解析器不作为 JSON 配置。无需给每个 ToolExecutor 再加一个配置参数，作者闭包固定本次合法装配值。
+作者构造配置 C、本次调用参数 A、服务与环境依赖 E 分开。受信装载器校验配置后把 C 交实现模块的 `createAuthor(construction)`，它产生 ToolImplementation；C 不合并进 arguments.original/effective，不接受调用方或程序执行方经调用参数改写。服务、SchemaRef、函数、signal 与秘密解析器不作为 JSON 配置。无需给每个 ToolExecutor 再加一个配置参数，作者闭包固定本次合法装配值。
 
-ToolLoader 的构造依赖是合法定义/设置读取适配器、schema 检查、实际作者工厂和资格守卫。load 请求只给精确 definition、executor、settings 及来源证据，证据本身不自授权。加载器按这些采用读取、校验并构造，核注册投影与原定义及逐命令参数/返回契约一致，才给出 ToolLoadedRegistration。此句柄不可由普通调用者自造，也不可持久序列化。上游公开 API 尚未实现时，由适配器兑现这个窄消费边界，不假称已有 Settings SDK。授权前不运行不可信模块初始化，允许的初始化仍受执行环境约束。
+ToolLoader 的构造依赖是合法设置读取适配器、schema 检查和资格守卫。load 输入是 `{ asset, settings, module, services }`：资产版本及其治理声明、设置快照、实现模块 `ToolImplementationModule { executor, createAuthor }` 与实现需要的服务。来源证据本身不自授权。加载器先由实现模块取得实现形状，再用 `deriveDefinition` 派生定义。它核资产 name 与定义 name 一致，核注册投影与逐命令参数/返回契约一致，才给出 ToolLoadedRegistration。ToolLoadedRegistration 带登记键、派生 definition 与 shape。此句柄不可由普通调用者自造，也不可持久序列化。上游公开 API 尚未实现时，由适配器兑现这个窄消费边界，不假称已有 Settings SDK。授权前不运行不可信模块初始化，允许的初始化仍受执行环境约束。
 
-ToolBindingRegistry 在当前 tenant、来源及登记资格下接受受信装载结果，按原合法候选选择发布贡献，不以 Map 覆盖猜冲突政策。构造成功、装载成功、登记成功、当前可用、调用受理及真实启动分别判断。加载和登记不执行工具业务动作。load 可重建同一采用的本地句柄，不是一次 ToolCall，也不创建执行账；装载器自身资源及重复登记的贡献身份必须可清理。登记回执不等于持久业务提交回执。
+ToolBindingRegistry 接受受信装载结果与 `ToolAuthority { layer, asset, holding, publication }`，按登记键登记贡献，返回 `Outcome<ToolContribution, ToolContributionFailure>`。它按能力身份与形状查同形贡献，不做层序或候选选择。同键规则见 [G7](#342-契约缺口决定)，不以 Map 覆盖猜冲突政策。构造成功、装载成功、登记成功、当前可用、调用受理及真实启动分别判断。加载和登记不执行工具业务动作。load 可重建同一采用的本地句柄，不是一次 ToolCall，也不创建执行账；装载器自身资源及重复登记的贡献身份必须可清理。登记回执不等于持久业务提交回执。
+
+`register` 的失败集合：`conflict`（同键已有其他 live 或 draining 贡献）；`denied`（`toolContributionAuthority` 拒绝来源，或登记者没有该层的登记资格）；`invalid`（`ToolLoadedRegistration` 的登记键与核验后的来源层或资产不一致，或 shape 与 definition 不符）；`unavailable`（来源核验器或登记表存储不可读）。失败不留部分登记。`toolContributionAuthority` 是同步端口：`verify(authority)` 返回 `Outcome<VerifiedAuthority { layer, asset, holding, publication }, denied | invalid | unavailable>`，`admits(access, layer)` 核登记资格；它缺席时 `register` 返回 `unavailable`。
+
+登记表的其他方法：`snapshot()` 只读返回全部条目，每条带登记键、登记序号、装载 digest、shape、状态（`live` 或 `draining`）与作者插件 fiber uid；`pins(key)` 返回当前解析到该键、尚未收场的固定请求计数，`resolve` 时登记、收场时解除，是进程内的计数，不是持久账；`close(key)` 把条目标为 draining，`reopen(key)` 撤回该标记，两者都不改贡献；`drain(key)` 返回该键的 `pins` 计数与在途调用清单，P09 的 `inspectDrain({ executor })` 交付之前只报告，不等待。
+
+draining 的地位：记下该键的请求仍可经 `resolve` 的首选分支解析到它；回退分支与采用点选择都排除它；换代协调者 `ensureLoaded` 遇到 draining 的同键返回 `draining`，不认回。
+
+回退顺序（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：在本会话按 G7 可访问（含工作区层的当前获授）、live 且非 draining 的同形贡献中，取登记序号最小的一份。登记序号是登记表本地排序域给每次成功登记分配的单调序号，`snapshot()` 返回它。回退不比较资产版本，不读合法胜出者，不做层序选择；向胜出者前进只在采用点由 `planAdoption` 完成。
+
+同形 serving 替代：对一份有会话引用的贡献，存在另一份 live、非 draining、与引用会话记下的形状同形、且按 G7 对每个引用会话的租户都可访问（官方层对任何合法租户，组织层核同组织，租户层核 `tenantEquals`）的贡献。工作区层的贡献不作为 serving 替代：它只服务当前获授该工作区的会话，协调者不读会话的工作区。它不必是合法胜出者。`ToolResidencyReader.referencing` 因此返回每个引用会话的身份（含租户）与 shape，与 Session 契约的引用形状一致。
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 
-从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归装配（`tool-host-local/docs/cordis.md#作者装载与贡献登记`）。
+从 Tool 治理视角，资产提供身份与治理声明，作者提供实现及操作，Tool 提供类别校验、定义派生、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。作者插件 fiber 的贡献 effect 与旧 token 条件撤除归 Tool 宿主。工具实现的计划卸载、排空与交接由换代协调者 `toolGenerations` 执行（`tool-host-local/docs/cordis.md#作者装载与贡献登记`）。
 
 ### P16 目录与发现的故障隔离
 

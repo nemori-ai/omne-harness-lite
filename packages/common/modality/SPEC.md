@@ -10,7 +10,7 @@
 
 - 统一语言 [UL-modality](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-modality--模态--modality)：模态恰有四种，块上的模态由它的媒体类型决定。含义没有改变。
 - 统一语言 [UL-media-type](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-media-type--媒体类型--media-type)：媒体类型落在四种模态之一，块就是那一种。落在四种之外，块不属于任何模态。含义没有改变。
-- 请求上下文 [RQ-04](../../context/request-context/SPEC.md#rq-04-模态与可追溯表示)：实际媒体类型决定内容模态。
+- 请求上下文 [RQ-04](../../context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示)：实际媒体类型决定内容模态。
 - Model 契约的「模态投影与实际表示」一节写明模态由内容媒体类型识别。Model 契约不在本轨道上，这里只用文字提及，不写链接。
 - 原语义拥有者确认：Model 主干会话于 2026-10-19 确认含义一致，没有冲突条款。
 - 本文件的对照表是 [#397](https://github.com/nemori-ai/omne-harness-lite/issues/397) 新写明的规则。已接受正文只给了原则，没有给对照。对照表由 PanQiWei 随 #397 接受。其中「全部 `audio/*` 都是 `voice`」是 PanQiWei 于 2026-10-19 的裁定。统一语言以后另做一处小改动指向本表。

@@ -1,8 +1,8 @@
 ---
 id: PD-tool-execution
 title: 工具执行
-status: draft
-revision: 1
+status: accepted
+revision: 5
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 工具执行
 
-本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品采用仍待确认，正式维护位置不表示技术接受或实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
+本 topic 维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。本页定义的全部能力 CAP-TL01 至 CAP-TL12 纳入 `0.0.0 → 0.1.0` 交付。产品与 Tool 技术设计已接受，实际实现、提供者采用和运行验证仍须完成。 会话常驻工具的集合与形状规则、同形接替及会话冻结判定依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 与 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717) 写回，构成 revision 5；该写回待产品负责人接受。
 
 ## 阅读入口
 

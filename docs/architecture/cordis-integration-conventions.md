@@ -38,6 +38,8 @@
 
 非装配成员的跨成员依赖按[承载项目的系统分层及包组织角色入口](../package-organization.md)判断，core/util目录名不构成许可。业务不得反向依赖客户端、协议运输或应用，不通过私有入口读写其他能力事实。
 
+工具换代协调者 `toolGenerations` 是一个例外。它按工具资产的实现引用动态 import 实现包，取得实现模块与作者插件，再装载该作者插件。这是装载动作，协调者不是该实现的操作消费者，不调用实现的操作。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，规则见 [tool-host-local 的 Cordis 集成](../../packages/tool/tool-host-local/docs/cordis.md#作者装载与贡献登记)。
+
 同提交事务读函数例外保持原精确范围，须在实际拥有者的行为规格中声明，并写明两个写入者共同触碰的存储对象。目录变化不扩大例外符号、提供者互引或装配豁免，实际同提交和资源责任仍需验证。
 
 ## IC-6
@@ -76,13 +78,15 @@
 
 登记是业务事实、需要显式撤回或接替的目录，可以采用下面的写法，并在其 Cordis 集成页的符合性映射中声明采用。目录的 `register` 可以返回登记回执，不返回撤除函数。撤除函数由目录持有，显式撤回与调用方 fiber 卸载共用同一个幂等删除。同一实例的后继登记可以在同一个本地动作内原子取代旧登记。贡献者 fiber 卸载后其登记仍须撤除，提供者仍须验证。其他使用者仍按上文执行。
 
+Tool 的绑定登记表采用目录写法，但不使用后继登记的原子取代。同一 fiber 以同一装载 digest 再登记同一登记键时，登记表认回同一贡献。同一登记键的其他第二次登记一律返回 conflict，原贡献不动。release 只撤除自己的 token。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，采用声明归 [Tool 的 Cordis 集成](../../packages/tool/tool-cordis-contract/docs/cordis.md#登记输入与撤除协议)。
+
 ## IC-14
 
 插件配置用 Standard Schema 校验（函数插件经 kernel-basis 的 `definePlugin`，`Service` 子类写静态 `Config`；校验与失败行为的机制事实见 basis 条目 [plugin-throw-fails-fiber](../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)，该条目按函数插件核验，`Service` 子类静态 `Config` 的路径没有单独核验）。重试、退避、超时、限流和阈值等可调参数写成配置字段，默认值只是初值。配置错误时，插件加载失败，fiber 进入 `FAILED`。不能静默跳过缺失的引用。
 
 ## IC-15
 
-一个进程挂哪些 Cordis 插件、各带什么配置，写成数据：[Cordis 插件树](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree)由两格[插件树层](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer)叠出。发行层在前，运维者层在后。组织、租户和会话不构成插件树层。
+一个进程挂哪些 Cordis 插件、各带什么配置，写成数据：[Cordis 插件树](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree)由两格[插件树层](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer)叠出。发行层在前，运维者层在后。组织、租户和会话不构成插件树层。运行期按会话或按资产动态装载的插件不写进插件树，见 [IC-17](#ic-17)。
 
 ## IC-16
 
@@ -90,7 +94,7 @@
 
 ## IC-17
 
-运行中按会话为 agent 装上的 Cordis 插件**不进**插件树。进程保留少量长期 Cordis 根，服务受理、控制和短推进。一个会话不是一根 Context，也不是一个 isolate。会话作用域是会话身份，加上挂在调用方 fiber 上的登记。事件按这个身份过滤。撤除只撤这些登记。故障和登记不漏到别的会话。
+运行中按会话为 agent 装上的 Cordis 插件**不进**插件树。按工具资产动态装载的作者插件 fiber 也不进插件树。工具换代协调者 `toolGenerations` 持有它的句柄并负责撤除，见 [tool-host-local 的 Cordis 集成](../../packages/tool/tool-host-local/docs/cordis.md#作者装载与贡献登记)。进程保留少量长期 Cordis 根，服务受理、控制和短推进。一个会话不是一根 Context，也不是一个 isolate。会话作用域是会话身份，加上挂在调用方 fiber 上的登记。事件按这个身份过滤。撤除只撤这些登记。故障和登记不漏到别的会话。
 
 模型和工具不挂成 Agent 的子 Fiber。它们在各自的执行器上运行。执行器只有自己需要 Cordis 时才另建根。跨线程只传业务身份和任务，不传 Context、Fiber 或闭包。租户是操作参数，不从 Context 推断。
 
@@ -115,6 +119,8 @@ flowchart TB
 
 跨边界操作显式携带租户身份。租户身份是操作的参数（或参数里的身份值），不从 `ctx`、isolate 标签、插件实例或「谁装了这个插件」推断；不把「不 inject 就够不着」当访问控制。
 
+系统作用域操作是一个例外。工具换代协调者的 `unload` 与 `sweep` 不代表某个租户。它们经 `ToolResidencyReader` 读取会话引用时，输入显式写为 `{ scope: 'system', key }`，不带租户。端口只返回会话身份（含租户）与 shape，不返回正文。`sweep` 按保留义务重装时以 `{ scope: 'system' }` 调用 `ensureLoaded`：来源核验照常，登记资格核验不做。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)。协调者系统主体的授予写法仍待 IC 评审。
+
 ## IC-19
 
 契约里靠同一进程、同一 Context 才成立的保证，实际拥有者在行为规格中写明此刻靠什么兑现；拆成多进程时，它们要由协议重新兑现。
@@ -129,6 +135,7 @@ flowchart TB
 | 贡献登记、撤除和在途责任 | IC-13、IC-19；调用方 fiber 撤除、实际停止与责任释放证据 |
 | 配置和两层插件树 | IC-14～IC-16；非法配置／悬空修改拒绝、来源打印和装配顺序 |
 | Session 作用域及租户授权 | IC-17～IC-19；明确区分作用域可见性与数据授权，未采用机制不得声称符合 |
+| 工具的动态装载、并存与撤除 | IC-5、IC-13、IC-17、IC-18；`runToolDynamicsSuite` 在真实 Cordis `Context` 上验证[项目要求列出的 Tool 验收判据](../requirements.md#完全动态目标sys-dynamic) |
 
 每个提供者自行说明装载、停止准入、取消、实际完成及撤除的配对责任；内核未提供的进展、事务和跨进程保证由实际协议拥有者兑现。公开类型同形不证明 LSP 或生命周期正确。
 

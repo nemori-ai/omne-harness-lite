@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-Tool 的 Cordis 服务定义包。`./cordis` 导出 17 个抽象 Service 类和具体实例目录 `ToolInstancesService`，共 18 个 Service 类，另导出 18 个服务键、`Context` 增补与 `tool-cordis-contract/call-changed` 事件增补。`./testing` 导出 `ToolInstancesService.register` 的登记语义套件和守约的非耐久登记服务替身。根入口不导出值。
+Tool 的 Cordis 服务定义包。`./cordis` 导出 17 个抽象 Service 类和具体实例目录 `ToolInstancesService`，共 18 个 Service 类，另导出 18 个服务键、`Context` 增补与 `tool-cordis-contract/call-changed` 事件增补。`./testing` 导出 `ToolInstancesService.register` 的登记语义套件和守约的非耐久登记服务替身。根入口不导出值。 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 新增 `toolContributionAuthority` 与 `toolGenerations` 两个键和事件 `binding-changed`；迁移后 `./cordis` 导出 19 个抽象 Service 类与 `ToolInstancesService`，共 20 个，服务键 20 个。迁移尚未交付。
 
 ## 职责与状态
 

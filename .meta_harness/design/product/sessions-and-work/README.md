@@ -2,7 +2,7 @@
 id: PD-sessions-and-work
 title: 会话与工作
 status: draft
-revision: 1
+revision: 7
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 会话与工作
 
-本 topic 维护产品需求、能力定义、状态记录、版本承诺与有效未决。负责人已定的能力及阶段决定保持；整体正文默认待审。领域责任正文已接受，详细分解已评审的范围与正式维护位置分别判断，迁移不表示技术或交付接受。
+本 topic 维护产品需求、能力定义、状态记录、版本承诺与有效未决。负责人已定的能力及阶段决定保持；会话冻结状态及切换模型不改常驻工具形状依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)、[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)及其[更正决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)写回；CAP-SW18 会话冻结按 PanQiWei 2026-10-22 的决定纳入 0.0.0 -> 0.1.0 承诺，仍须会话拥有者接受；整体正文默认待审。领域责任正文已接受，详细分解已评审的范围与正式维护位置分别判断，迁移不表示技术或交付接受。
 
 ## 阅读入口
 

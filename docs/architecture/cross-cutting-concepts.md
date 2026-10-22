@@ -338,7 +338,13 @@ flowchart TD
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块、四种工具部件之一，或推理续接状态部件。工具部件与内容块同形，带块身份 `id` 和块标注 `visibility`，键闭合，不保留其他自有键；块身份与标注的判定来自 `content-block` 的 `judgeBlockIdentity`。`tool_call` 是参数收齐并解码的调用，`arguments` 是值树，由 `json-text` 的 `judgeJsonValue` 判定并保存冻结副本。`tool_call_incomplete` 是参数没收齐的调用，`partial` 是原样累计文本，`visibility` 两位都为 false，留在日志里备查，不参与配对。`tool_call_unparsed` 是参数收齐但不能解码的调用，`raw` 是原样累计文本，登记调用身份，不执行。两个变体的 `callId` 非空，`name` 是任意字符串，任何字段不用 `null`。`tool_result` 是不嵌套内容的关联标记，不带结果状态，正文是同一消息里紧随其后的已封闭内容块。`tool` 角色的消息第一块是标记，其余块是内容块，恰有一个标记。标记只出现在 `tool` 角色的消息里，三种调用部件只出现在 `assistant` 角色的消息里。推理续接状态部件 `reasoning_state` 装供应商交回的不透明推理状态，不给人看，只出现在 `assistant` 角色的消息里；含这类部件的消息必须带回放描述 `replay`，写明推理回放范围、格式与这些部件的位置，其他角色不带 `replay`。该成员不解释推理回放范围与载荷，哪个模型能消费哪个范围归 Model 契约。块身份在整条消息内唯一。调用与结果的配对完整性、半截调用出现的条件不在该成员判定。工具部件在流上的开块头与封口规则归 `stream-arrival` 成员说明，承接见 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
+本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块、四种工具部件之一，或推理续接状态部件。工具部件与内容块同形，带块身份 `id` 和块标注 `visibility`，键闭合，不保留其他自有键；块身份与标注的判定来自 `content-block` 的 `judgeBlockIdentity`。`tool_call` 是参数收齐并解码的调用，`arguments` 是值树，由 `json-text` 的 `judgeJsonValue` 判定并保存冻结副本。`tool_call_incomplete` 是参数没收齐的调用，`partial` 是原样累计文本，`visibility` 两位都为 false，留在日志里备查，不参与配对。`tool_call_unparsed` 是参数收齐但不能解码的调用，`raw` 是原样累计文本，登记调用身份，不执行。两个变体的 `callId` 非空，`name` 是任意字符串，任何字段不用 `null`。`tool_result` 是不嵌套内容的关联标记，不带结果状态，正文是同一消息里紧随其后的已封闭内容块。`tool` 角色的消息第一块是标记，其余块是内容块，恰有一个标记。标记只出现在 `tool` 角色的消息里，三种调用部件只出现在 `assistant` 角色的消息里。推理续接状态部件 `reasoning_state` 装供应商交回的不透明推理状态，不给人看，只出现在 `assistant` 角色的消息里；含这类部件的消息必须带回放描述 `replay`，写明推理回放范围、格式与这些部件的位置，其他角色不带 `replay`。该成员不解释推理回放范围与载荷，哪个模型能消费哪个范围归 Model 契约。块身份在整条消息内唯一。调用与结果的配对完整性、半截调用出现的条件不在该成员的消息判定里判定。工具部件在流上的开块头与封口规则归 `stream-arrival` 成员说明，承接见 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
+
+以下两项是候选修订，技术接受前不扩大本项既有承诺。
+
+- 思考块只出现在 `assistant` 角色的消息里。`tool` 角色消息的正文，以及 `user`、`tool_internal`、`system_reminder`、`compaction` 角色的消息，只含思考以外的内容块。部件不在该角色允许的集合里时，判定给出 `misplaced-part`。
+- `compaction` 角色的消息除 `id`、`role`、`blocks` 外，另带压缩覆盖范围 `covers`、保留名单 `retained` 和派生证据 `derivation`；其他角色不带这三个键。该成员另提供压缩记录的相对历史判定：历史持有者给出覆盖范围内的条目、范围之后的消息和未结工作，判定核对覆盖范围、保留名单、调用与结果在模型视图里同进同出，以及未结工作不被摘要。配对完整性只在这一判定里核对。
+形状与规则见[消息成员](../../packages/common/message/SPEC.md)。
 
 ```mermaid
 flowchart TD

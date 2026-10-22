@@ -1,7 +1,7 @@
 // 差分变异入口：只变异基线以来改动碰到的产品源码行（或点名成员的全部产品源码），逐成员跑 Stryker 的快层，
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
 // 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、sandbox 预检没通过（#481）、初跑失败、
-// 没写出报告，或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
+// 没写出报告、原始报告有 RuntimeError，或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -13,7 +13,9 @@ import { buildTargets, parseFlags, timestamp, type Flags } from '../testing/supp
 import { computePlan, readPlanFile, writePlanFile, type PlanFile } from '../testing/steps.ts'
 import {
   memberLines,
+  isMutationReport,
   notRunError,
+  runtimeError,
   summarizeMember,
   type MemberMutation,
   type MutationReport,
@@ -134,7 +136,8 @@ function ledgerDir(request: MutationRequest, at: Coordinates): string {
 
 function readMutationReport(path: string): MutationReport | undefined {
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as MutationReport
+    const report: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    return isMutationReport(report) ? report : undefined
   } catch {
     return undefined
   }
@@ -201,6 +204,12 @@ async function run(request: MutationRequest): Promise<number> {
       errors.push(
         `${target.member.path}：Stryker 退出码 ${ran.exitCode}${report === undefined ? '，没有写出报告' : ''}，日志 ${ran.logPath}`,
       )
+      console.log(`${label}，出错`)
+      continue
+    }
+    const invalid = runtimeError(report, target.member.path, ran.reportPath)
+    if (invalid !== undefined) {
+      errors.push(invalid)
       console.log(`${label}，出错`)
       continue
     }

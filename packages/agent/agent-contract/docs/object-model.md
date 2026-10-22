@@ -36,7 +36,7 @@ Agent 建模自己承担的推进和协作责任。只有决定下一步、恢�
 | 本域对象 | Execution、ExecutionAttachment、Checkpoint、Step、Action 与 Batch、Passage、自己的等待与控制 | Agent 解释规则、顺序和接续，不替调用方治理逻辑工作 |
 | Model 消费事实 | 实际收件模型、首次 admit 前保存的 ModelInvocationRef、固定请求、model-active 与 model-settled、结果与消费责任 | 供应商请求、tokenizer、Dispatch 重试和模型资源生命周期 |
 | Tool 消费事实 | 原动作及调用、工具运行、等待与结果、可用控制、确认的后台占位 | Tool executor、内部 wait schema、响应校验、执行与结果保留状态机 |
-| Context 消费事实 | 请求准备阶段、容量结果、压缩计划的进度、模型可读上下文的读取与已采用覆盖、实际派生消息及提交承诺引用 | 选择与排除规则、压缩算法、token 计算及上下文内部结构 |
+| Context 消费事实 | 请求准备阶段、容量结果、压缩计划的进度、模型可读上下文的读取与已采用覆盖、实际派生消息及提交承诺引用 | 覆盖范围与保留名单的选择规则、压缩算法、token 计算及上下文内部结构 |
 | HITL 消费事实 | Agent 自己的 Passage、原卡、答复与处理进度 | 答复资格、唯一决定、展示和通知。Tool 内部等待仍归 Tool |
 | 身份与授权 | 显式 tenant、主体依据、AgentAccessCheck 每次返回的结论、拒绝与可核验证据 | 组织与角色关系、权限模式解释、授权算法 |
 | 资产与装配 | 本域 Definition 语义、实际采用、所需能力及兼容接续依据 | 来源选优、资产版本发布、装配求值和插件加载图 |

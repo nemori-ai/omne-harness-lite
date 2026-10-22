@@ -59,6 +59,7 @@
 - **出处**：[PF-001 §4 拥有、获权、选用](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 26）
 - **别混**：**裸写「选用 / selection」不作数**——它专指**选哪个版本**
 - **注意**：它记在[持有](#ul-asset-holding--资产持有--asset-holding)上，**有两种：钉在某一版，或追随当前版**；不另说时追随当前版，而那是持有上写明、看得见的选择——新版一发布就用上，不算静默替换（[PF-002 flows §3.3](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)）
+- **例外**：对已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)，「追随当前版」有条件：会话只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时会话不跟。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
 ### UL-revocation-is-not-stop · 撤销不等于强制停止 · Revocation Is Not a Stop
 
@@ -129,7 +130,7 @@
 - **出处**：[PF-002 §5.2「谁可以使用它」是各类资产共用的一项权限](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限) ·
   [§4 Slash Command](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command) ·
   [§5.6 第 1 步](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32） ·
-  [PF-007 §6.2](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#62-skills通向任意技能)（rev 25）
+  [资产与规则：配置资产的行为，同时守住权限上界](../../product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)（rev 4）
 - **别混**：**不是[使用权](#ul-usage-right--使用权--usage-right)**——使用权说的是**一个范围**对一份资产有没有使用的权利（定义者直接有、被分享方确认后有）；
   这一项是那份持有上配的「**这个范围里哪些人**能用」
 - **注意 ①**：**「自己」在组织、租户持有的资产上指作者本人**；在工作区自带的资产上，指挂上那份工作区的租户本人
@@ -153,7 +154,7 @@
 
 - **形态**：属性
 - **出处**：[PF-001 §4 来源](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
-- **别混**：**裸写「来源」不作数**——它专指 official / customized 这个二分
+- **别混**：**裸写「来源」不作数**——它专指 official / customized 这个二分。[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)是另一个词，指资产归属层序上的一格
 - **注意**：来源**不能靠任意请求自报来冒充**
 
 ### UL-official-asset · 官方件 · Official Asset

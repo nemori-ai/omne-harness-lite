@@ -104,7 +104,13 @@ packages/
 │   ├── settings/               设置配值与求值
 │   └── permissions/            权限配值与求值
 ├── workspace/workspace/        工作区身份与资源关联
-├── session/session/            Session、Run与逻辑治理
+├── session/
+│   ├── session-contract/       Session、Run 与逻辑治理纯契约
+│   ├── session-cordis-contract/  唯一 Cordis 服务定义
+│   ├── session/                无 Cordis 的治理实现
+│   ├── session-cordis/         长期服务的 Cordis 装配，不含存储后端
+│   ├── session-adapters/       与邻域契约的适配插件
+│   └── session-storage-sql/    会话日志与治理状态的 SQL 存储
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
@@ -124,11 +130,20 @@ packages/
 │   ├── tool/                   不含 Cordis 的工具执行实现
 │   └── tool-host-local/        单机宿主与 Cordis 插件
 ├── context/
-│   ├── runtime-context/        数据注册、供给与读取
-│   └── request-context/        请求投影与上下文组装
+│   ├── runtime-context-contract/         Runtime Context 纯契约：作用域、块声明、需要与绑定、登记、资格、读者、更新与步提交
+│   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义
+│   ├── runtime-context/                  不含 Cordis 的供给机制：登记表、生产者表、绑定解析、当前投影、观察链
+│   ├── runtime-context-cordis/           Service 实现：一个 isolate 一个服务，作用域为参数
+│   ├── request-context-contract/         Request Context 纯契约：组装输入、十一个纯操作（八个单项操作加三个压缩计划操作）、装载布局、历史源与策略端口
+│   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：提示词贡献登记与策略选择
+│   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
+│   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
 ├── human-intervention/human-intervention/
 ├── execution/
-│   ├── execution-environment/  执行设施、落点与资源条件
+│   ├── execution-environment-contract/         Execution Environment 纯契约：身份、绑定层、要求、落点、租约、需要端口、设施协议与块声明
+│   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义
+│   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
+│   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施的读取、查看、写入与关闭；command 与 terminal 提供者未实现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
 ├── calendar/calendar/          日历版本依据与日期计算
 ├── schedule/schedule/          日程、Job与整体结果
@@ -200,9 +215,9 @@ scripts/                       仓库自动化
 | [Agent推进](domains/agent-progression/README.md) | agent | Loop与扩展推进 |
 | [模型调用](domains/model-invocation/README.md) | model | 请求、原执行、结果与费用 |
 | [工具执行](domains/tool-execution/README.md) | tool | 调用、执行与外部效果 |
-| [Runtime Context](domains/runtime-context/README.md) | context | 数据供给、注册与请求投影 |
+| [Runtime Context](domains/runtime-context/README.md) | context | 数据供给、注册、请求投影与组装 |
 | [人工介入](domains/human-intervention/README.md) | human-intervention | 决策请求及有效答复 |
-| [执行环境](domains/execution-environments/README.md) | execution | 环境、设施与资源 |
+| [执行环境](domains/execution-environments/README.md) | execution | 落点、设施、租约与资源恢复 |
 | [日历](domains/calendars/README.md) | calendar | 版本、日期依据及计算 |
 | [日程与Job](domains/schedules-and-jobs/README.md) | schedule | 接受、执行协调及整体完成 |
 | [通知](domains/notifications/README.md) | notification | 发送、尝试与送达 |
@@ -318,3 +333,7 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。框架定义从 agent-cordis-contract 的 `./cordis` 提供，定义包不依赖通用实现或具体提供者。agent-host-local 负责 Agent 实例宿主。
 
 详细成员关系见 [Agent 组](../packages/agent/README.md)。
+
+## Session 的安装边界
+
+Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适配和存储介质分为六个 workspace 成员。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口、出站端口接口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。session-adapters 承接与六个邻域相接的全部适配插件，是组内唯一导入邻域契约的成员，依赖纯契约、Cordis 定义与邻域契约。session-storage-sql 提供事务端口的 SQL 实现，依赖纯契约与存储契约，不承担治理判断。详细成员关系见 [Session 组](../packages/session/README.md)。

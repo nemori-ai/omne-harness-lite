@@ -25,38 +25,31 @@
 
 ### 跨会话的那个对象
 
-- **现象**：PF-007 说待办「活在一次会话里，不跨会话继承。跨会话的东西不装在这扇门后面」，并在边界一节登记为「尚无归属」。它曾被叫作「目标」，但设计链里没有它的定义
-- **牵涉**：[PF-007 §6.9](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 25）；[PF-007 §八](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#八边界与依赖)（rev 25）
-- **谁来裁**：产品负责人——它要不要做、归哪个 topic，都还没有人说过；已记入 PF-007 decisions「已知的来源问题」
+- **现象**：元能力产品说待办「归当前 Session，不跨会话继承」，「跨会话工作对象不由此入口补造」。它的边界一节写「跨会话待办对象仍待原产品与领域对象拥有者处理」，未决一节把它列为由领域对象待裁维护的缺项。它曾被叫作「目标」，但设计链里没有它的定义
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#协作拥有者与非目标)；[元能力：由其他拥有者维护的缺项](../product/meta-capabilities/design.md#由其他拥有者维护的缺项)（rev 4）
+- **谁来裁**：产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者
 - **闭合条件**：有 topic 认领它，或明确本版不做
-
-### runtime context 的一块
-
-- **现象**：PF-015 说 runtime context「是一块一块的，不是一个大袋子，每一块是一份数据」，每块有生产者与消费者、就地更新、要能恢复。词条 UL-runtime-context 指的是整批（形态为总称），真正可指认的单位「块」没有词条；而十四项里有的是实时算的、没有持久状态。PF-015 §6.18 已定义会话内注册声明为属性，支持增删与恢复；这不替各类块的数据本身裁定独立对象身份
-- **牵涉**：[PF-015 §4 runtime context](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 21）；[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
-- **谁来裁**：PF-015 的 owner
-- **闭合条件**：正文写明「块」是不是一个要被标识的单位；是的话给它名字并立词条
 
 ### 一次派发
 
-- **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。PF-007 已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
-- **牵涉**：[PF-007 §6.8](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#68-agents通向别的-agent)（rev 25）；[PF-007 §9.2](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)（rev 25）
+- **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。元能力产品已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-agents)（rev 4）；[元能力：产品规则](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 4）
 - **挂着谁**：[派发报告](objects.md#ul-dispatch-report--派发报告)的宿主
-- **谁来裁**：系统架构设计；PF-007 提供派发工作、一次报告和显式撤回的产品语义
+- **谁来裁**：系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义
 - **闭合条件**：明确一次派发与承载工具执行的身份关系，不把它等同子会话或某一个 Run
 
 ### agent 之间的消息
 
-- **现象**：PF-007 只定了「谁能给谁发」的两条规则；一条这样的消息靠什么标识、落在谁的会话里、留不留存，全未述。它是不是统一语言里那种「消息」的某一类，也没说
-- **牵涉**：[PF-007 §6.8 先说谁能给谁发消息](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 25）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
-- **谁来裁**：PF-007 与 PF-014 的 owner
-- **闭合条件**：正文写明它进收件方会话时走不走入站受理、落成哪一种消息
+- **现象**：元能力产品定义了「谁能给谁发」的两条规则；普通消息已沿接收会话的输入与 Run 规则处理，但无派发关系主会话通信的精确身份、重试、不存在目标以及持久交接协议仍未闭合，不由入口命令名补造
+- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 4）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
+- **谁来裁**：元能力、Session 与入站拥有者
+- **闭合条件**：实际入站与消息拥有者明确普通通信的身份、持久交接、重试和目标不存在协议，并对应到消息类别
 
 ### 外部 harness 的 agent
 
 - **现象**：能被派发指向、「能不能派给它」本身是一项要被授予的权限；但它在本系统里有没有一条登记记录，完全未述
-- **牵涉**：[PF-007 §6.8 派给外部 harness 的 agent](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#派给外部-harness-的-agent)（rev 25）
-- **谁来裁**：PF-007 的 owner
+- **牵涉**：[元能力：派给外部 harness 的 agent](../product/meta-capabilities/design.md#外部-harness-派发)（rev 4）
+- **谁来裁**：元能力产品拥有者
 - **闭合条件**：正文写明它靠什么被指到、由谁登记与撤销
 
 ### 使用成本明细
@@ -66,16 +59,32 @@
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
 
-### 压缩策略
-
-- **现象**：PF-015 把「当前使用的 ContextCompactionSettings」列为一项 meta runtime context，没有指明它定义在哪；它是一份独立的设置对象，还是某个对象上的一项值，无从判断
-- **牵涉**：[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
-- **谁来裁**：PF-010 与 PF-015 的 owner
-- **闭合条件**：PF-010 认领它并说明它挂在哪
-
 ### 通知发送与投递结果
 
 - **现象**：PF-021 已确定一次发送请求及其结果是用户可查询的单位，技术重试不成为多份独立用户通知，业务历史保留；通知、发送尝试与投递子记录如何分解及标识尚未定义
 - **牵涉**：[PF-021 §6.5 通知发送与租户送达](../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#65-通知发送与租户送达)（rev 8）；[技术设计交接](../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#十技术设计交接事项)（rev 8）
 - **谁来裁**：系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围
 - **闭合条件**：明确记录关系、身份和生命周期，按所判形态补统一语言与对象条目，或说明投影到哪个既有对象；技术问题不再等待一项产品记录建模政策
+
+### 工具贡献与登记键
+
+- **现象**：已采用的 RFC-0012 让一个工具实现在绑定登记表里登记为一份贡献。贡献由登记键区分：来源层、能力身份与资产版本。同一个键的第二次登记有认回、冲突与后继三种处置，release 只撤自己的 token。它有身份、有生灭，却没有词条；产品正文只说实现被装载与卸载，没有把贡献当作产品概念使用。本项判为技术对象：登记键是贡献的身份，不另立对象
+- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 5）
+- **挂着谁**：[会话](objects.md#ul-session--会话)的常驻工具解析到哪一份贡献，取决于贡献的身份与生灭
+- **谁来裁**：系统架构设计，即 Tool 契约的拥有者（PanQiWei）。不是产品问题
+- **闭合条件**：Tool 契约写回 G7，定义贡献的身份、登记与撤除；或某个产品 topic 需要用它，并立了词条
+
+### 换代协调者
+
+- **现象**：已采用的 RFC-0012 定义 Tool 宿主的一个服务 `toolGenerations`，它持有动态装载的插件句柄，按会话引用保留或卸载贡献，有装载、卸载与恢复后清扫三个动作。它是单例服务，有运行时实例，没有产品层面的身份。本项判为技术对象，不入统一语言
+- **牵涉**：[RFC-0012 加载、卸载、替换与换代协调者](../../../docs/rfcs/RFC-0012-tool-dynamics.md#加载卸载替换与换代协调者)；[工具执行产品页 TL-J01](../product/tool-execution/design.md#tl-j01)（rev 5）
+- **谁来裁**：系统架构设计，即 Tool 契约与 Tool 宿主的拥有者（PanQiWei）。不是产品问题
+- **闭合条件**：Tool 宿主的 Cordis 正文与 LIFECYCLE-M02 写回协调者的归属与保留义务
+
+### 作者插件 fiber
+
+- **现象**：已采用的 RFC-0012 把一个工具实现在 Cordis 里的形态定为实现包导出的作者插件在 Cordis 中的 fiber。它有自己的生灭：协调者装载它，撤除它时贡献随之撤登记。它是 Cordis 的运行时实例，不是产品概念。本项判为技术对象，不入统一语言
+- **牵涉**：[RFC-0012 绑定登记表](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)
+- **挂着谁**：工具贡献的寿命跟着它
+- **谁来裁**：系统架构设计，即 Tool 契约与 Cordis 集成约定的拥有者（PanQiWei）
+- **闭合条件**：Tool 的 Cordis 正文写回作者插件的形态与生灭

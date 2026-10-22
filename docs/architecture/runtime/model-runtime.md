@@ -2,7 +2,7 @@
 
 Model runtime 接受完整请求，管理真实发出、内容交付和实际收场。它不推进 Agent Loop，也不执行模型提出的工具动作。主流程、压缩、扩展判断及独立程序都可以成为它的消费者。
 
-Model 对 Tool 没有直接依赖。工具调用响应与 ToolMessage 使用 common/message 的消息值，内容使用 common/content-block。请求中的可用动作声明属于 Model 请求契约，由上层请求组装者从工具定义投影并保管原工具及命令路由；Model adapter 只负责供应商格式，不读取 Tool 定义、结果对象、注册表或执行句柄。
+Model 对 Tool 没有直接依赖。工具调用响应与 ToolMessage 使用 common/message 的消息值，内容使用 common/content-block。请求中的可用动作声明属于 Model 请求契约，由上层请求组装者从工具定义投影并保管原工具及命令路由。会话路径上，可见工具声明来自会话常驻工具集合，工具的名称与参数形状在同一会话的各次请求中保持一致，规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)；Model adapter 只负责供应商格式，不读取 Tool 定义、结果对象、注册表或执行句柄。
 
 状态：已接受的目标架构。请求输入由[请求上下文](request-context.md)组织；流式协议和消费责任由[流式与消费](streaming-and-consumption.md)说明。
 

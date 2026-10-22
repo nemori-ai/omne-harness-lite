@@ -2,7 +2,7 @@
 id: PD-runtime-context
 title: 运行感知与一次模型请求
 status: draft
-revision: 3
+revision: 4
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 运行感知与一次模型请求
 
-本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品采用仍待确认，正式维护位置不表示技术接受或实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
+本topic维护 Runtime Context 与 Request Context 两部分的产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。负责人已确定 `0.0.0 -> 0.1.0` 的能力范围：CAP-RC01 至 CAP-RC04、CAP-RC06 至 CAP-RC09 完整支持，CAP-RC05 与 CAP-RC10 有限支持，两项限定的边界待确认。领域分解已评审。整体产品采用仍待确认，正式维护位置与阶段承诺都不表示技术接受、实现支持或验证通过。
 
 ## 阅读入口
 

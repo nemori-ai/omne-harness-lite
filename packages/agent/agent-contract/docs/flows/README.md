@@ -27,4 +27,4 @@ flowchart TD
 
 ## 生命周期与验证入口
 
-逻辑工作、执行实例和结果保管分别定位到[对象模型](../object-model.md)。插件撤除及依赖换代见 [Cordis](../../../agent-cordis-contract/docs/cordis.md)。后继实现的验证范围见[共同交接](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-handoff.md)，当前未覆盖项记录在原场景及规格中。
+逻辑工作、执行实例和结果保管分别定位到[对象模型](../object-model.md)。插件撤除及依赖换代见 [Cordis](../../../agent-cordis-contract/docs/cordis.md)。后继实现的验证范围见[共同交接](../../../../../docs/architecture/runtime/runtime-contract-handoff.md)，当前未覆盖项记录在原场景及规格中。

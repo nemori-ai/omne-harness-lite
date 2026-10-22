@@ -8,7 +8,7 @@ symbols:
   - "events.ts: 监听者抛出即中断本轮派发，异常同步传给 emit 的调用方；后面的监听者不再被调用"
 lines:
   - "events.ts:194-196"
-probe: packages/core/kernel-basis/tests/basis/emit-listener-throw-propagates.test.ts
+probe: packages/assembly/kernel-basis/tests/emit-listener-throw-propagates.spec.ts
 checked: 2026-09-23
 ---
 
