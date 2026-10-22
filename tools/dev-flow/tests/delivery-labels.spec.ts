@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { syncLabels } from '../src/delivery/labels.ts'
-import type { GhRead } from '../src/delivery/github-read.ts'
+import type { GhCommand } from '../src/delivery/github-read.ts'
 import { table } from './fixtures/lines.ts'
 
 const url = 'https://github.com/owner/repo/issues/7'
@@ -10,7 +10,7 @@ const body = (contract = 'additive') =>
 function github(labels: string[], text = body()) {
   const state = { labels: [...labels] },
     calls: string[][] = []
-  const call: GhRead = argv => {
+  const call: GhCommand = argv => {
     calls.push([...argv])
     const method = argv[2],
       path = argv.find(arg => arg.startsWith('repos/')) ?? ''
@@ -85,7 +85,7 @@ describe('attribute label sync', () => {
 
   it('reports a readback that differs from the target', () => {
     const gh = github([])
-    const call: GhRead = (argv, timeout) => (argv[2] === 'POST' ? [] : gh.call(argv, timeout))
+    const call: GhCommand = (argv, timeout) => (argv[2] === 'POST' ? [] : gh.call(argv, timeout))
     expect(
       syncLabels({ repository: 'owner/repo', number: 7, apply: true, lines: table(), call }),
     ).toMatchObject({ verified: false, readback: [] })
@@ -99,7 +99,7 @@ describe('attribute label sync', () => {
 
   it('names a failed write and keeps API output out of the message', () => {
     const gh = github(['line:platform'])
-    const call: GhRead = (argv, timeout) => {
+    const call: GhCommand = (argv, timeout) => {
       if (argv[2] === 'DELETE') throw new Error('secret API body')
       return gh.call(argv, timeout)
     }
@@ -110,7 +110,7 @@ describe('attribute label sync', () => {
 
   it('refuses a pull request or another Issue', () => {
     const gh = github([])
-    const call: GhRead = (argv, timeout) =>
+    const call: GhCommand = (argv, timeout) =>
       Object.assign({}, gh.call(argv, timeout), { pull_request: {} })
     expect(() =>
       syncLabels({ repository: 'owner/repo', number: 7, apply: false, lines: table(), call }),

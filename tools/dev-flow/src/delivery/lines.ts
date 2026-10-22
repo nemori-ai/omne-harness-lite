@@ -94,17 +94,9 @@ function entries(table: DeliveryLines): Entry[] {
   ]
 }
 
-/**
- * Checks the table against the workspace members and the policy registry.
- * Each defect yields one error at the entry that causes it.
- */
-export function validateDeliveryLines(
-  table: DeliveryLines,
-  members: readonly { readonly path: string }[],
-  registry: Pick<Policy, 'tracks'>,
-): LinesError[] {
-  const errors: LinesError[] = []
-  const seen = new Map<string, number>()
+function idErrors(table: DeliveryLines): LinesError[] {
+  const errors: LinesError[] = [],
+    seen = new Map<string, number>()
   table.lines.forEach((line, index) => {
     const at = `lines[${index}].id`
     if (line.id === INTEGRATION_LINE)
@@ -122,50 +114,65 @@ export function validateDeliveryLines(
       })
     else seen.set(line.id, index)
   })
-
-  const all = entries(table)
-  all.forEach((entry, index) => {
-    for (const other of all.slice(0, index))
-      if (
-        other.owner !== entry.owner &&
-        (under(entry.path, other.path) || under(other.path, entry.path))
+  return errors
+}
+/** Entries of different owners where one path contains the other; reported at the later entry. */
+function overlapErrors(all: readonly Entry[]): LinesError[] {
+  return all.flatMap((entry, index) =>
+    all
+      .slice(0, index)
+      .filter(
+        other =>
+          other.owner !== entry.owner &&
+          (under(entry.path, other.path) || under(other.path, entry.path)),
       )
-        errors.push({
-          code: 'ownership-overlap',
-          at: entry.at,
-          message: `${entry.path}（${entry.owner}）与 ${other.at} 的 ${other.path}（${other.owner}）归属重叠。`,
-        })
-  })
-
-  for (const member of members)
-    if (!all.some(entry => under(member.path, entry.path)))
-      errors.push({
-        code: 'member-uncovered',
-        at: 'lines',
-        message: `工作区成员 ${member.path} 不属于任何一条线，也不在 integration.paths 中。`,
-      })
-
+      .map(other => ({
+        code: 'ownership-overlap' as const,
+        at: entry.at,
+        message: `${entry.path}（${entry.owner}）与 ${other.at} 的 ${other.path}（${other.owner}）归属重叠。`,
+      })),
+  )
+}
+/** Members that no entry covers. A member covered twice is already an overlap. */
+function memberErrors(
+  all: readonly Entry[],
+  members: readonly { readonly path: string }[],
+): LinesError[] {
+  return members
+    .filter(member => !all.some(entry => under(member.path, entry.path)))
+    .map(member => ({
+      code: 'member-uncovered' as const,
+      at: 'lines',
+      message: `工作区成员 ${member.path} 不属于任何一条线，也不在 integration.paths 中。`,
+    }))
+}
+function contractErrors(
+  table: DeliveryLines,
+  members: readonly { readonly path: string }[],
+): LinesError[] {
   const memberPaths = new Set(members.map(member => member.path))
-  table.lines.forEach((line, lineIndex) =>
-    line.contracts.forEach((contract, index) => {
+  return table.lines.flatMap((line, lineIndex) =>
+    line.contracts.flatMap((contract, index): LinesError[] => {
       const at = `lines[${lineIndex}].contracts[${index}]`
       if (!memberPaths.has(contract))
-        errors.push({
-          code: 'contract-not-member',
-          at,
-          message: `契约成员 ${contract} 不是工作区成员。`,
-        })
-      else if (!line.paths.some(path => under(contract, path)))
-        errors.push({
-          code: 'contract-outside-line',
-          at,
-          message: `契约成员 ${contract} 不在线 ${line.id} 拥有的路径下。`,
-        })
+        return [
+          { code: 'contract-not-member', at, message: `契约成员 ${contract} 不是工作区成员。` },
+        ]
+      if (!line.paths.some(path => under(contract, path)))
+        return [
+          {
+            code: 'contract-outside-line',
+            at,
+            message: `契约成员 ${contract} 不在线 ${line.id} 拥有的路径下。`,
+          },
+        ]
+      return []
     }),
   )
-
-  const integration = registry.tracks.find(track => track.id === table.integration.track)
-  if (integration === undefined)
+}
+function trackErrors(table: DeliveryLines, registry: Pick<Policy, 'tracks'>): LinesError[] {
+  const errors: LinesError[] = []
+  if (!registry.tracks.some(track => track.id === table.integration.track))
     errors.push({
       code: 'track-unregistered',
       at: 'integration.track',
@@ -195,6 +202,24 @@ export function validateDeliveryLines(
       })
   })
   return errors
+}
+/**
+ * Checks the table against the workspace members and the policy registry.
+ * Each defect yields one error at the entry that causes it.
+ */
+export function validateDeliveryLines(
+  table: DeliveryLines,
+  members: readonly { readonly path: string }[],
+  registry: Pick<Policy, 'tracks'>,
+): LinesError[] {
+  const all = entries(table)
+  return [
+    ...idErrors(table),
+    ...overlapErrors(all),
+    ...memberErrors(all, members),
+    ...contractErrors(table, members),
+    ...trackErrors(table, registry),
+  ]
 }
 
 /** The owner of a path: the line or integration entry above it; unlisted paths belong to integration. */

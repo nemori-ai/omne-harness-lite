@@ -255,30 +255,36 @@ function routeFindings(
   const touched = [
     ...new Set(ownedScope(binding, lines).flatMap(path => [...scopeOwners(lines, path)])),
   ].filter(owner => owner !== INTEGRATION_LINE)
+  const route = binding.route
   if (touched.length === 0) {
-    if (binding.route.kind !== 'track')
+    if (route.kind !== 'track')
       findings.push({
         code: 'nature-route-mismatch',
         clause: 'route.kind',
-        message: `只写联调轨道路径的卡 route 用 track，实为 ${binding.route.kind}。`,
+        message: `只写联调轨道路径的卡 route 用 track，实为 ${route.kind}。`,
       })
     return findings
   }
-  if (binding.route.kind !== 'cross-track')
+  if (route.kind !== 'cross-track') {
     findings.push({
       code: 'nature-route-mismatch',
       clause: 'route.kind',
-      message: `写入线 ${touched.join('、')} 路径的 integration 卡 route 用 cross-track，实为 ${binding.route.kind}。`,
+      message: `写入线 ${touched.join('、')} 路径的 integration 卡 route 用 cross-track，实为 ${route.kind}。`,
     })
-  const owners = binding.route.kind === 'track' ? [] : binding.route.owners
-  const missing = touched
-    .map(id => findLine(lines, id)?.owner)
-    .filter((owner): owner is string => owner !== undefined && !owners.includes(owner))
-  if (binding.route.kind === 'cross-track' && missing.length > 0)
+    return findings
+  }
+  const missing = [
+    ...new Set(
+      touched
+        .map(id => findLine(lines, id)?.owner)
+        .filter((owner): owner is string => owner !== undefined && !route.owners.includes(owner)),
+    ),
+  ]
+  if (missing.length > 0)
     findings.push({
       code: 'nature-route-mismatch',
       clause: 'route.owners',
-      message: `route.owners 缺少受影响线的 owner ${[...new Set(missing)].join('、')}。`,
+      message: `route.owners 缺少受影响线的 owner ${missing.join('、')}。`,
     })
   return findings
 }

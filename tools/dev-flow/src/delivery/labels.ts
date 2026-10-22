@@ -6,7 +6,7 @@ import {
   readCardAttributes,
   type CardAttributes,
 } from './attributes.ts'
-import type { GhRead } from './github-read.ts'
+import type { GhCommand } from './github-read.ts'
 import type { DeliveryLines } from './lines.ts'
 import { array, InputError, milestoneOf, record, text } from './protocol.ts'
 
@@ -75,7 +75,7 @@ export function syncLabels({
   number: number
   apply: boolean
   lines: DeliveryLines
-  call: GhRead
+  call: GhCommand
 }): LabelSync {
   const path = `repos/${repository}/issues/${number}`,
     url = `https://github.com/${repository}/issues/${number}`

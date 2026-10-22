@@ -15,8 +15,11 @@ export class GhReadError extends Error {
     this.body = body
   }
 }
-export type GhRead = (argv: readonly string[], timeoutMs: number) => unknown
-export const runGhRead: GhRead = (argv, timeoutMs) => {
+/** Runs one `gh` command and returns its parsed JSON stdout. */
+export type GhCommand = (argv: readonly string[], timeoutMs: number) => unknown
+/** A `GhCommand` that its callers use only for GET requests. */
+export type GhRead = GhCommand
+export const runGhCommand: GhCommand = (argv, timeoutMs) => {
   let stdout: string
   try {
     stdout = execFileSync('gh', [...argv], {
@@ -31,6 +34,7 @@ export const runGhRead: GhRead = (argv, timeoutMs) => {
   }
   return JSON.parse(stdout)
 }
+export const runGhRead: GhRead = runGhCommand
 /** Only an ordinary non-zero exit with JSON on stdout carries a response body. */
 function responseError(error: unknown): GhReadError | undefined {
   if (!(error instanceof Error)) return undefined

@@ -1,26 +1,16 @@
 #!/usr/bin/env node
-import {
-  lstatSync,
-  readFileSync,
-  readlinkSync,
-  realpathSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { lstatSync, readlinkSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { IntegrationError } from '../integration/parse.ts'
 import { POLICY_PATH, parsePolicy } from '../integration/policy.ts'
 import { collectDelivery } from './github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from './lines.ts'
+import { readJson, repositoryFile } from './repository-files.ts'
 import { observeDelivery } from './observe.ts'
 import { InputError, parseBaseline, parseCapture, parseConfig } from './protocol.ts'
 
 const usage =
   'Usage: omne-delivery --config <file> (--capture <file> | --live [--save-capture <file>]) [--baseline <report>] [--report <file>] [--lines <file>] [--registry <file>]'
-/** The attribute rules of this checkout; `--lines` and `--registry` replace them. */
-const repositoryFile = (path: string) =>
-  fileURLToPath(new URL(`../../../../${path}`, import.meta.url))
 function argumentsOf(args: string[]): {
   config: string
   source: { kind: 'capture'; path: string } | { kind: 'live'; save: string | null }
@@ -111,18 +101,15 @@ function fileIdentity(path: string, links = 0): string {
   }
   return join(parent, basename(path))
 }
-function json(path: string): unknown {
-  return JSON.parse(readFileSync(path, 'utf8'))
-}
 try {
   const args = argumentsOf(process.argv.slice(2)),
-    config = parseConfig(json(args.config))
+    config = parseConfig(readJson(args.config))
   const capture =
-    args.source.kind === 'live' ? collectDelivery(config) : parseCapture(json(args.source.path))
-  const baseline = args.baseline === null ? undefined : parseBaseline(json(args.baseline))
+    args.source.kind === 'live' ? collectDelivery(config) : parseCapture(readJson(args.source.path))
+  const baseline = args.baseline === null ? undefined : parseBaseline(readJson(args.baseline))
   const report = observeDelivery(config, capture, baseline, {
-    lines: parseDeliveryLines(json(args.lines)),
-    registry: parsePolicy(json(args.registry)),
+    lines: parseDeliveryLines(readJson(args.lines)),
+    registry: parsePolicy(readJson(args.registry)),
   })
   if (args.source.kind === 'live' && args.source.save !== null)
     writeFileSync(args.source.save, `${JSON.stringify(capture, null, 2)}\n`)
