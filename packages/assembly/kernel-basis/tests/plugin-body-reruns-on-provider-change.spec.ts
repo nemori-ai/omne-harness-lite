@@ -2,7 +2,7 @@
 // 断言：必需服务换提供者 ⇒ 消费者插件体重跑；同一提供者实例内部状态变化 ⇒ 不重跑。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
+import { plugin } from './basis-support.ts'
 
 describe('plugin-body-reruns-on-provider-change', () => {
   it('换提供者重跑，同实例状态变化不重跑', async () => {

@@ -13,7 +13,7 @@ lines:
   - "events.ts:217-222"
   - "events.ts:194-196"
   - "events.ts:204-209"
-probe: packages/core/kernel-basis/tests/basis/async-control-not-bail.test.ts
+probe: packages/assembly/kernel-basis/tests/async-control-not-bail.spec.ts
 checked: 2026-09-22
 ---
 
@@ -49,7 +49,7 @@ checked: 2026-09-22
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis` 里，针对采用的 Cordis 4.0.4 核对：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。针对采用的 Cordis 4.0.4 核对；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 一个 `async` 监听者返回 `undefined`（无异议），后面接一个同步返回 `false` 的否决者；
    `ctx.bail` 的返回值是 `Promise` 实例、只有第一个监听者跑过、该 Promise 解析为 `undefined`。

@@ -6,7 +6,7 @@
 
 - G4：宿主时钟适配器，同进程单调时钟加进程 epoch，跨进程比较返回 unknown。尚未实现。
 - G5：第一版采用同机的启动协调器和耐久受理台账，实现 [P04](../tool-contract/SPEC.md#p04-实际发起围栏) 要求的启动排序域。本地启动协调器已实现，见下文；现有测试使用非耐久记录仓。耐久记录仓提供者尚未交付，耐久受理台账仍依赖该提供者。
-- G7：`ToolBindingRegistry` 由本包实现。尚未实现。
+- G7：`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由本包实现。尚未实现，见[绑定登记表与换代协调者](#绑定登记表与换代协调者g7)。
 - G9：本包命名为 `packages/tool/tool-host-local`。
 
 ## 本地启动协调器（G5）
@@ -53,6 +53,16 @@
 台账不可读回复 `unavailable`（`dependency` 为 `start-ledger`），不回复受理或拒绝，也不读缓存（P04：准入资料不可读时拒绝新的 consume）。台账里出现本协调器没有写过的记录时同样回复 `unavailable`。
 
 文档导航见 [index](index.md)。
+
+## 绑定登记表与换代协调者（G7）
+
+本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用，两者都尚未实现。公共的登记键、同键规则与保留义务归契约的 [G7](../tool-contract/SPEC.md#342-契约缺口决定)，协调者的动词与返回归 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。本节只写本包承担的部分。
+
+- 本包的绑定登记表在单机、单进程内成立，登记不耐久。跨进程、远端目录与耐久存储不在本包覆盖之内。
+- 两个 fiber 同时首次登记同一个键时，本地排序域决定哪一方成功，另一方得到 `conflict`。
+- 换代协调者 `toolGenerations` 是本包 `./cordis` 的 Service。它是 `ctx.plugin` 句柄的唯一持有者，由 `ensureLoaded` 动态 import 实现包。
+- 进程恢复后，`sweep` 重装未归档会话固定的键。包字节保留，同一 digest 可以重新 import。
+- 按键排空与交接依赖契约 [P09](../tool-contract/SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时 `unload` 停在 `draining`。
 
 ## 实例宿主与普通调用的边界
 

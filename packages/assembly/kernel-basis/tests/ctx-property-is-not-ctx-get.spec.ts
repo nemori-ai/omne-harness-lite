@@ -2,7 +2,7 @@
 // 没声明就抛错；`ctx.get(键)` 不看声明、直接读服务表。两种读法不是同一件事的两种写法。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
+import { plugin } from './basis-support.ts'
 
 describe('ctx-property-is-not-ctx-get', () => {
   it('没 inject ⇒ ctx.<键> 抛错，ctx.get 照样取到', async () => {

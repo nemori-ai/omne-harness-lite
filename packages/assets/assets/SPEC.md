@@ -26,7 +26,7 @@ assets拥有共同状态与变更结果，类别拥有专有声明与内容校�
 
 同层可有多个同标识资产记录，但一个能力标识至多持有一份。资产记录的存在与本层持有分别可查询；新副本不能通过同名自动占用已有持有。成员角色或资格变化不改租户身份、历史作者及既有资产归属。
 
-资产定义数据、执行实现与承载服务分别标明采用依据。它们不要求一一对应或同时换代；报告可执行前，类别与实际采用者保证数据和实现匹配。不能用“只换实现”绕过替换锁或使用资格。
+资产定义数据、执行实现与承载服务分别标明采用依据。它们不要求一一对应或同时换代；报告可执行前，类别与实际采用者保证数据和实现匹配。不能用“只换实现”绕过替换锁或使用资格。Tool 类别例外：工具资产的 body 带实现引用 `implementation { executor, module, construction }`，定义数据与实现仍分别标识，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。
 
 ## 定义、草稿与发布
 
@@ -38,7 +38,7 @@ assets拥有共同状态与变更结果，类别拥有专有声明与内容校�
 
 发布前通过适用共同校验和类别校验。发布成功形成不可变版本；后续修订新草稿和新版本，不覆盖已发布字节。过期草稿编辑不能静默覆盖他人已确认修改，应报告冲突和可核实的当前结果。
 
-版本选用与发布分开。持有明确固定版本或跟随当前版，不另指定时跟随当前版，该选择对管理者可见。固定版本不因发现新版暗换，跟随者在后续求值采用当前发布版；分享只能跟随，主动确认的重复复制按其规则更新。新的选择只作用于规定后续采用点，不能改变已捕获的调用内容。
+版本选用与发布分开。持有明确固定版本或跟随当前版，不另指定时跟随当前版，该选择对管理者可见。固定版本不因发现新版暗换，跟随者在后续求值采用当前发布版。例外：对已有会话的工具常驻项，跟随持有只在新定义与会话首次装载的定义同形时才跟，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5) 与 Tool 契约的[会话常驻规则](../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。分享只能跟随，主动确认的重复复制按其规则更新。新的选择只作用于规定后续采用点，不能改变已捕获的调用内容。
 
 定义可携带 immutable 不可替换声明，随本次合法采用的发布版本或工作区定义解释；未采用的草稿不能暗改运行消费者的约束。声明的替换效果归[候选求值](#candidate-resolution)，不表示该资产不能修订草稿、发布新版本、禁用或移除，也不自动锁定设置、权限或引用能力。
 
@@ -215,6 +215,6 @@ PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https:/
 
 本次不调用 `@omne-harness/schema-provider`。`schema` 是类别拥有者随端口给出的说明文档，由同一次文本读取得到。正文是否合法由 `judge` 决定。公开入口是 `readBodyText` 和 `judge`。验证命令是 `pnpm --filter @omne-harness/assets test`。
 
-能力身份是类别加 name。本卡不重新定义 `AccountId`、`OrganizationId`、`TenantId`、`LoginStateId` 或 `ScopeLayerIdentity`。这些值不是本卡的输入，所以本成员不依赖 `@omne-harness/legal-identity`。本成员不依赖装配、Tool 或 Skill 的实现包。
+能力身份是类别加 name。本卡不重新定义 `AccountId`、`OrganizationId`、`TenantId`、`LoginStateId` 或 `ScopeLayerIdentity`。这些值不是本卡的输入，所以本成员不依赖 `@omne-harness/legal-identity`。本成员不依赖装配、Tool 或 Skill 的实现包。Tool 绑定登记表的来源层（`official`、`organization`、`tenant`、`workspace`）与 `ScopeLayerIdentity` 的关系，待识别拥有者后协调，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)。
 
 `@omne-harness/tool-contract` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。

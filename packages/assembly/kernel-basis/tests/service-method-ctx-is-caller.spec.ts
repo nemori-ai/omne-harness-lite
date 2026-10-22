@@ -3,8 +3,7 @@
 // 调用方撤除即撤掉那条登记，注册表本身照旧活着。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { FIBER_STATE } from '../../src/cordis.ts'
-import { plugin } from './support.ts'
+import { FIBER_STATE, plugin } from './basis-support.ts'
 
 class ProbeRegistry extends Service {
   readonly entries = new Set<string>()

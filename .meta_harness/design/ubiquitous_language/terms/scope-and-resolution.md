@@ -42,7 +42,7 @@
 - **别混 ①**：**账号不在这四层里**——它的[求值是恒等的](#ul-scope-evaluation--作用域求值--scope-evaluation)，不占一格
 - **别混 ②**：[上级组织](subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization)**不进这四层**——否则层数会随隶属链变化，且把「隶属」悄悄变成「被管辖」
 - **别混 ③**：**裸写「层」不作数。**系统里到处是层
-- **别混 ④**：**不是[资产归属](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)那条层序**——那条答「这份资产是谁的、谁替换得了谁」，是 official < 组织 < 租户 < 工作区
+- **别混 ④**：**不是[资产归属](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)那条层序**——那条答「这份资产是谁的、谁替换得了谁」，是 official < 组织 < 租户 < 工作区。那条层序上的一格叫[来源层](#ul-source-layer--来源层--source-layer)
 - **注意**：**每一格由哪重身份充当**，归[作用域层身份](#ul-scope-layer-identity--作用域层身份--scope-layer-identity)
 - **弃用**：~~「账号层」~~
 
@@ -70,6 +70,25 @@
 - **别混 ②**：**[工作区](#ul-workspace--工作区--workspace)不在其列。**它[不是一重身份](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#它不因此多一重身份)，只在**设置**与**资产归属**两条层序上各占一格；它**挂在租户下**
 - **别混 ③**：**[账号](subjects-and-ownership.md#ul-account--账号--account)不充当任何一格**——它的[求值是恒等的](#ul-scope-evaluation--作用域求值--scope-evaluation)，早已完成，也不接受任何配置
 - **⚠️ 注意**：**出厂默认那一格没有身份对象。**读成「每一层都有一个身份主体」，就会给系统那一格**编一个出来**；它的内容是 official 资产与它们声明的默认值，[任何层不得清空](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)
+
+### UL-source-layer · 来源层 · Source Layer
+
+> **中**：资产归属层序上的一格：官方、组织、租户或工作区，四选一。
+> 这条层序回答「这份资产由哪一层持有、谁替换得了谁」，由低到高是官方、组织、租户、工作区。
+> 一份工具贡献的来源层取自核验过的授权依据，不取自登记者自报的租户；登记者的租户只用来核验它有没有资格在这一层登记。
+>
+> **EN**: One position on the asset-ownership order: official, organization, tenant or
+> workspace. This order answers "which layer holds this asset, and who can stand in for whom",
+> from lowest to highest: official, organization, tenant, workspace. The source layer of a tool
+> contribution comes from its verified authority, not from the tenant that the registrant
+> states. The registrant's tenant only shows whether it may register at that layer.
+
+- **形态**：属性
+- **出处**：[PF-002 §5.8 三条层序](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)（rev 32）；层名与登记键见已采用的 [RFC-0012 绑定登记表](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)
+- **别混 ①**：不是[作用域层](#ul-scope-layer--作用域层--scope-layer)。作用域层是身份带来的层级（出厂默认、组织、租户、会话），权限按它合成。来源层没有会话一格，多了工作区一格；官方一格装的是出厂内容，但它不是一重身份
+- **别混 ②**：不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)。资产来源只分 official 与 customized；来源层把 customized 再分成组织、租户与工作区三格
+- **注意 ①**：Tool 的登记键由来源层、能力身份与资产版本组成。按固定采用解析一份贡献时，系统只核访问，不做层序选择：官方层对任何合法租户开放，组织层要求同一组织，租户层要求同一租户，工作区层要求当前获授该工作区
+- **注意 ②**：层序求值本身归资产与装配，不归 Tool
 
 ### UL-workspace · 工作区 · Workspace
 
@@ -294,9 +313,9 @@ specific.
 > that evaluation have not changed.
 
 - **形态**：属性
-- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 6） ·
-  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 3） ·
-  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 3）
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 7） ·
+  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 4） ·
+  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 4）
 - **别混**：不是全局版本号。每类来源、每个作用域各有自己的计数，彼此不比较大小
 - **注意**：计数变化只说明来源变了，不构成采用。采用仍只在新 Run 开始或显式 reload 时发生
 
@@ -312,7 +331,7 @@ specific.
 > invalidates it.
 
 - **形态**：视图
-- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 6）
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 7）
 - **别混**：与「保存的选择」不是一回事。保存的选择是用户的意图；已校验装配候选是系统按当时来源算好的结果。两者都不是采用依据
 - **注意**：丢了可以按同样的计数重新求值，所以它不是一份另存的事实
 
