@@ -48,6 +48,8 @@ export type CapturedIssue = {
   blockedBy: string[]
   parentIssue: string | null
   stage: string | null
+  /** The milestone title, null without one; absent in captures that did not read it. */
+  milestone?: string | null
 }
 export type DeliveryCapture = {
   schemaVersion: 1
@@ -131,6 +133,19 @@ export function record(value: unknown, path: string): Record<string, unknown> {
   if (!isRecord(value)) throw new InputError(`${path} must be an object`)
   return value
 }
+/**
+ * The `milestone` entry of a captured Issue from a raw GitHub Issue: the title, null when the
+ * Issue has none, and no entry when the response does not carry the field.
+ */
+export function milestoneOf(raw: Record<string, unknown>): Pick<CapturedIssue, 'milestone'> {
+  if (!('milestone' in raw)) return {}
+  return {
+    milestone:
+      raw.milestone === null
+        ? null
+        : nullable(record(raw.milestone, 'Issue.milestone').title, 'milestone.title'),
+  }
+}
 export function text(value: unknown, path: string): string {
   if (typeof value !== 'string') throw new InputError(`${path} must be a string`)
   return value
@@ -144,7 +159,7 @@ export function array(value: unknown, path: string): unknown[] {
   if (!Array.isArray(value)) throw new InputError(`${path} must be an array`)
   return value
 }
-function nullable(value: unknown, path: string): string | null {
+export function nullable(value: unknown, path: string): string | null {
   return value === null ? null : nonempty(value, path)
 }
 function boolean(value: unknown, path: string): boolean {
@@ -268,6 +283,7 @@ export function parseCapture(value: unknown): DeliveryCapture {
       blockedBy: strings(i.blockedBy, `${p}.blockedBy`),
       parentIssue: nullable(i.parentIssue, `${p}.parentIssue`),
       stage: nullable(i.stage, `${p}.stage`),
+      ...('milestone' in i ? { milestone: nullable(i.milestone, `${p}.milestone`) } : {}),
     }
   })
   if (

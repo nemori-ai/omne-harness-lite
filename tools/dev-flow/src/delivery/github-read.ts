@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { array, InputError, parseCapture, record, text } from './protocol.ts'
+import { array, InputError, milestoneOf, parseCapture, record, text } from './protocol.ts'
 import type { CapturedIssue, DeliveryCapture, DeliveryConfig } from './protocol.ts'
 
 /**
@@ -189,6 +189,7 @@ export function collectDelivery(config: DeliveryConfig, read: GhRead = runGhRead
         blockedBy,
         parentIssue,
         stage: null,
+        ...milestoneOf(i),
       })
     } catch {
       issueComplete = false

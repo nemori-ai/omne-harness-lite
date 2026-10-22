@@ -1,5 +1,6 @@
 import { bindCapture, conditionKinds, phases, workKinds } from './protocol.ts'
 import { parseConditionScope, readTaskBinding } from './binding.ts'
+import { bodyFields as fields, bodySections as sections } from './body.ts'
 import { IntegrationError } from '../integration/parse.ts'
 import type {
   CardObservation,
@@ -10,15 +11,6 @@ import type {
   Finding,
 } from './protocol.ts'
 
-function fields(body: string): Map<string, string[]> {
-  const result = new Map<string, string[]>()
-  for (const line of body.split(/\r?\n/)) {
-    const match = /^\s*-\s+([^：:]+)[：:]\s*(.*?)\s*$/.exec(line)
-    if (match?.[1] !== undefined && match[2] !== undefined)
-      result.set(match[1], [...(result.get(match[1]) ?? []), match[2]])
-  }
-  return result
-}
 const unifiedSections = [
   '身份与责任',
   '目标与范围',
@@ -39,17 +31,6 @@ const legacySections = {
     '交付条件',
   ],
   subtask: ['交付结果与范围', '持续成果与交接', '当前执行与交接', '决定', '交付条件'],
-}
-function sections(body: string): Map<string, string[]> {
-  const result = new Map<string, string[]>()
-  const parts = body.split(/^\s*## ([^\r\n]+)\s*$/m)
-  for (let index = 1; index < parts.length; index += 2) {
-    const name = parts[index]?.trim(),
-      content = parts[index + 1]?.trim()
-    if (name !== undefined && content !== undefined)
-      result.set(name, [...(result.get(name) ?? []), content])
-  }
-  return result
 }
 function cells(line: string): string[] {
   return line

@@ -105,6 +105,10 @@ export function currentAdmission(
     )
   }
 }
+/**
+ * The admission inputs compared on readback. The milestone only feeds attribute reports, so a
+ * milestone change does not refuse admission.
+ */
 export function admissionDigest(capture: AdmissionCapture): string {
   return digest(
     canonical({
@@ -112,7 +116,7 @@ export function admissionDigest(capture: AdmissionCapture): string {
       projectId: capture.projectId,
       scope: capture.scope,
       closure: capture.closure,
-      issues: capture.issues,
+      issues: capture.issues.map(({ milestone: _, ...issue }) => issue),
     }),
   )
 }
