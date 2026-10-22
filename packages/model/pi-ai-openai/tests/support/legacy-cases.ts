@@ -547,7 +547,12 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     id: 'rf-v5-changed-finish',
     label: 'changed finish',
     tail: sse(choice({}, 'stop')) + sse(choice({}, 'length')),
-    facts: [seal(0, 'text', 'delivered refusal'), failed('upstream-protocol', 'finish-changed')],
+    // The response reached its finish, so the fault after it keeps the account of the usage so far.
+    facts: [
+      seal(0, 'text', 'delivered refusal'),
+      account(ASTRA, NO_COUNTS),
+      failed('upstream-protocol', 'finish-changed'),
+    ],
   }),
   brokenTail({
     id: 'rf-v5-late-refusal',
@@ -555,6 +560,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     tail: sse(choice({}, 'stop')) + sse(choice({ refusal: 'late' })),
     facts: [
       seal(0, 'text', 'delivered refusal'),
+      account(ASTRA, NO_COUNTS),
       failed('upstream-protocol', 'content-after-finish'),
     ],
   }),

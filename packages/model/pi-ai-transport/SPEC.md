@@ -107,6 +107,7 @@
 
 - 解码器给出的 `ended` 由本包保留，到协议结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
 - 解码器给出第二个 `ended` 时，流以 `failed` 结束，`cause` 为 `upstream-protocol`，`diagnostic` 为 `decoder-ended-twice`。
+- 读取 2xx 响应体时失败（响应体断开、SSE 分帧失败、协议帧失败、解码器拒绝某帧、取消或关闭），本包仍调用解码器的 `end()` 一次。`end()` 成功时，本包给出它的事实，但不给出它的 `ended`，再给出失败的 `ended`。终止仍按下表取那次失败。所以已收场的响应在失败之前收到的用量仍进入账目（见“网关引擎：流解释”的“账目”）。`end()` 失败时，本包不给出它的事实，终止不变。
 - 流给出 `ended` 之前，交换已物理停止，名额已归还。
 - 本包读入 end-marker 所在的响应字节之后，协议结束优先。之后到达的取消或关闭不改变终止：流以解码器的终止结束（例如 `completed`），不以 `interrupted` 结束。end-marker 与之前的事件在同一次读入中到达、读者在给出第一个事实之后才取消时，也是如此。
 - 本包读入 end-marker 所在的响应字节之前，取消或关闭给出 `interrupted`（`stop: 'confirmed'`）。
@@ -475,7 +476,7 @@ plan 不返回诊断。
 
 ### 网关引擎：流解释
 
-解码器是一个阶段联合（`streaming`、`finished`、`ended`）加一个纯归约步：每个数据帧先在边界读成具名的 chunk，再由归约步从当前阶段与 chunk 得到下一阶段与事实。归约步不导出。每次 dispatch 一个解码器，解码器之间不共享状态。映射遵循 [model-contract“供应商解释与流状态归约”](../model-contract/SPEC.md#供应商解释与流状态归约)。
+解码器是一个阶段联合（`streaming`、`finished`、`faulted`、`ended`）加一个纯归约步：每个数据帧先在边界读成具名的 chunk，再由归约步从当前阶段与 chunk 得到下一阶段与事实。归约步不导出。每次 dispatch 一个解码器，解码器之间不共享状态。映射遵循 [model-contract“供应商解释与流状态归约”](../model-contract/SPEC.md#供应商解释与流状态归约)。
 
 #### 限额
 
@@ -521,14 +522,15 @@ plan 不返回诊断。
 
 #### 失败与阶段
 
-- 归约步的失败让 `accept` 返回该 `ModelFault`，阶段进入 `ended`。传输随即停止读取，以该 fault 结束事实流。
-- `finished` 阶段的 `end()` 给出唯一的 `ended`，阶段进入 `ended`。
+- 归约步的失败让 `accept` 返回该 `ModelFault`。阶段为 `streaming` 时，阶段进入 `ended`。阶段为 `finished` 时，阶段进入 `faulted`，`faulted` 保留收场时的服务方与已收的 usage。传输随即停止读取，以该 fault 结束事实流。
+- `finished` 阶段的 `end()` 给出账目与唯一的 `ended`，阶段进入 `ended`。
+- `faulted` 阶段的 `accept` 以 `upstream-protocol`（`frame-after-end`）失败，阶段不变。`end()` 给出账目，再给出以该 fault 失败的 `ended`，阶段进入 `ended`。
 - `ended` 阶段的 `accept` 以 `upstream-protocol`（`frame-after-end`）失败，`end()` 以 `decoder-already-ended` 失败。
 - 事实流的唯一 `ended` 仍由传输守护（见“事实流”）。解码器不另做检查。
 
 #### 账目
 
-`finished` 阶段的 `end()` 先调用 `hooks.usage` 一次，再给出事实。收场值是什么都如此，含被拒的收场（例如 `content_filter`）。参数是保留的最后一份 usage；响应没有报告 usage 时，参数的四个计数都是 `null`，`raw` 为空。hook 失败时，解码器以该 fault 失败，不给出账目。
+`finished` 与 `faulted` 阶段的 `end()` 先调用 `hooks.usage` 一次，再给出事实。收场值是什么都如此，含被拒的收场（例如 `content_filter`）。参数是保留的最后一份 usage；响应没有报告 usage 时，参数的四个计数都是 `null`，`raw` 为空。hook 失败时，解码器以该 fault 失败，不给出账目。
 
 hook 成功时，`end()` 按下列次序给出事实：
 
@@ -540,9 +542,13 @@ hook 成功时，`end()` 按下列次序给出事实：
    - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
    - `revision` 为 `'1'`。
 2. hook 返回的每条 `usage-inconsistent` 诊断，各一个 `diagnostic` 事实。
-3. `ended`。
+3. `ended`。`faulted` 阶段的 `ended` 以该阶段保留的 fault 失败。
 
-报告不含调用身份与迟到标记，保存方补上它们。解码器在 `end()` 之前失败时（带内错误、协议错误、断流），不给出账目：失败的结果不带事实。
+报告不含调用身份与迟到标记，保存方补上它们。
+
+已收场的响应在之后失败时，账目照样给出。用量取失败之前保留的最后一份，缺失值为未知（model-contract“[供应商解释与流状态归约](../model-contract/SPEC.md#供应商解释与流状态归约)”：坏帧、取消或传输异常时，保留已经取得的用量）。这些失败是：收场之后解码器拒绝的帧（例如 `usage-tail-too-long`、`content-after-finish`、`finish-changed`、带内错误与 chunk 形状错误），以及事实流中的响应体断开、SSE 分帧失败、协议帧失败、取消与关闭。
+
+在收场之前失败的流（带内错误、协议错误、断流）没有账目。
 
 ### 家族测试助手
 
@@ -677,7 +683,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
 | 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
 | 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
-| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况、没有 usage、被拒收场、用量诊断的次序、hook 失败、失败的流没有账目）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
+| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况、没有 usage、被拒收场、用量诊断的次序、hook 失败、收场之前失败的流没有账目）；收场之后失败的账目（响应体断开、取消、坏帧、尾帧被拒，保留的用量与未知用量，`faulted` 阶段的 `end()`）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
 | 测试入口：夹具全部相符，名字中的 `/`，缺目录与缺文件，多余目录，请求体与事实不等，`request.json` 不合格；指纹的生成、检查、只追加、原地改动记录的检查失败与生成拒绝、不对应记录的行、非给定形式的文件 | [testing-helpers.spec.ts](tests/testing-helpers.spec.ts) | 快 |
 | 引擎源码不含厂商名或型号家族名 | [chat-completions-vendor-words.spec.ts](tests/chat-completions-vendor-words.spec.ts) | 快 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |

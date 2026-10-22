@@ -4,7 +4,8 @@
 //
 // The stream decoder of the gateway engine: a phase union and one pure reduce step per frame.
 // The decoder object only holds the phase. The single `ended` of the fact stream stays guarded by
-// the fact stream; the decoder gives its termination once, from `end()`.
+// the fact stream; the decoder gives its termination once, from `end()`. A response that failed
+// after its finish still gives the account of the usage it received, from `end()`.
 import { judgeBlockIdentity, type BlockId } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
@@ -119,9 +120,15 @@ type Finished = Readonly<{
   usage: GatewayUsage | null
 }>
 
+/**
+ * A finished response whose later frame the decoder refused. `end()` still gives the account of
+ * the usage received before the fault, then the fault as the termination.
+ */
+type Faulted = Readonly<{ kind: 'faulted'; finished: Finished; fault: ModelFault }>
+
 type Ended = Readonly<{ kind: 'ended' }>
 
-type Phase = Streaming | Finished | Ended
+type Phase = Streaming | Finished | Faulted | Ended
 
 type Step = Readonly<{ phase: Phase; facts: readonly TransportFact[] }>
 
@@ -148,22 +155,45 @@ const ENDED: Ended = Object.freeze({ kind: 'ended' })
 /** Creates the decoder of one dispatch. Each call has its own phase; nothing is shared. */
 export function createChatCompletionsDecoder(input: DecoderInput): PiResponseDecoder {
   let phase: Phase = START
-  const settle = (result: StepResult): Outcome<readonly TransportFact[], ModelFault> => {
+  const settle = (
+    result: StepResult,
+    faulted: (fault: ModelFault) => Phase,
+  ): Outcome<readonly TransportFact[], ModelFault> => {
     if ('fault' in result) {
-      phase = ENDED
+      phase = faulted(result.fault)
       return { failure: result.fault }
     }
     phase = result.phase
     return { ok: result.facts }
   }
   return Object.freeze({
-    accept: (frame: PiProtocolFrame) => settle(accept(input, phase, frame)),
-    end: () => settle(end(input, phase)),
+    accept: (frame: PiProtocolFrame) => {
+      const current = phase
+      return settle(accept(input, current, frame), fault => afterFault(current, fault))
+    },
+    end: () => settle(end(input, phase), () => ENDED),
   })
 }
 
+/** A refused frame ends the decoding; a finished response keeps its usage for the account. */
+function afterFault(phase: Phase, fault: ModelFault): Phase {
+  switch (phase.kind) {
+    case 'finished':
+      return { kind: 'faulted', finished: phase, fault }
+    case 'faulted':
+      return phase
+    case 'streaming':
+    case 'ended':
+      return ENDED
+    default: {
+      const _exhaustive: never = phase
+      return _exhaustive
+    }
+  }
+}
+
 function accept(input: DecoderInput, phase: Phase, frame: PiProtocolFrame): StepResult {
-  if (phase.kind === 'ended') return protocol('frame-after-end')
+  if (phase.kind === 'ended' || phase.kind === 'faulted') return protocol('frame-after-end')
   // The end marker only ends the protocol; `end()` gives the termination.
   if (frame.kind === 'end-marker') return { phase, facts: [] }
   const chunk = readChunk(frame.value)
@@ -172,8 +202,9 @@ function accept(input: DecoderInput, phase: Phase, frame: PiProtocolFrame): Step
 }
 
 /**
- * EOF or the end marker: the account of a finished response, its usage diagnostics and its
- * termination, or a lost stream.
+ * EOF, the end marker, or the end of a failed read: the account of a finished response, its usage
+ * diagnostics and its termination, or a lost stream. A response faulted after its finish ends
+ * with the account and that fault.
  */
 function end(input: DecoderInput, phase: Phase): StepResult {
   switch (phase.kind) {
@@ -181,32 +212,42 @@ function end(input: DecoderInput, phase: Phase): StepResult {
       return {
         fault: { cause: 'stream-lost', diagnostic: 'ended-without-finish', upstreamStatus: null },
       }
-    case 'finished': {
-      const usage = input.hooks.usage(phase.usage ?? NO_USAGE)
-      if (!('ok' in usage)) return { fault: usage.failure }
-      const report: CallAccountReport = {
-        usage: usage.ok.items,
-        cost: costOf(phase.usage),
-        trimmed: { state: 'unknown', unit: 'token' },
-        place: `${GATEWAY_PLACE}/${phase.serving.provider}`,
-        duration: { state: 'unknown' },
-        revision: '1',
-      }
-      return {
-        phase: ENDED,
-        facts: [
-          { kind: 'account', event: ACCOUNT_EVENT, value: report },
-          ...usage.ok.diagnostics.map(diagnosticFact),
-          { kind: 'ended', termination: phase.termination },
-        ],
-      }
-    }
+    case 'finished':
+      return accounted(input, phase, phase.termination)
+    case 'faulted':
+      return accounted(input, phase.finished, { kind: 'failed', fault: phase.fault })
     case 'ended':
       return protocol('decoder-already-ended')
     default: {
       const _exhaustive: never = phase
       return _exhaustive
     }
+  }
+}
+
+/** The account of the usage kept so far, its usage diagnostics, then the termination. */
+function accounted(
+  input: DecoderInput,
+  finished: Finished,
+  termination: TransportTermination,
+): StepResult {
+  const usage = input.hooks.usage(finished.usage ?? NO_USAGE)
+  if (!('ok' in usage)) return { fault: usage.failure }
+  const report: CallAccountReport = {
+    usage: usage.ok.items,
+    cost: costOf(finished.usage),
+    trimmed: { state: 'unknown', unit: 'token' },
+    place: `${GATEWAY_PLACE}/${finished.serving.provider}`,
+    duration: { state: 'unknown' },
+    revision: '1',
+  }
+  return {
+    phase: ENDED,
+    facts: [
+      { kind: 'account', event: ACCOUNT_EVENT, value: report },
+      ...usage.ok.diagnostics.map(diagnosticFact),
+      { kind: 'ended', termination },
+    ],
   }
 }
 

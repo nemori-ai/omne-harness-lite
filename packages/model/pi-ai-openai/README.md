@@ -25,7 +25,7 @@ Each level states only checked facts. A commit that changes the support level up
 | Cross-family replay, OpenAI side | A foreign assistant message loses its state and thinking and is named in a `replay-omitted` diagnostic of encode. An OpenAI message keeps its state | `binding.encode` | `cross-family-replay.spec.ts` |
 | Integration through the shared transport | This family and the Anthropic family go through one `composeFamilies` into `createPiTransport`. A local HTTPS server replays the fixture of each record by the model in the request body. The sent body equals the fixture body, and the facts equal the fixture facts. The conformance suite runs its transport group for one record of each family, and the six obligations pass | `composeFamilies`, `createPiTransport` | `two-families.spec.ts` of `pi-ai-anthropic` (slow tier) |
 | Example | [examples/openai-request.ts](examples/openai-request.ts) sends one request to `openai/gpt-5.6-luna` through the proxy. The history has an assistant message with only a tool call, a tool result without content, and an image | Root entry | Type check. `examples.spec.ts` (slow tier) runs the example only when `OMNE_LIVE_TESTS=1` and skips otherwise. Live evidence comes only from manual runs |
-| Not delivered | The account of a stream that fails before its end. Credential resolution and continuous verification of real routes (#466) | None | No continuous evidence for these paths |
+| Not delivered | Credential resolution and continuous verification of real routes (#466) | None | No continuous evidence for these paths |
 
 ## Usage
 

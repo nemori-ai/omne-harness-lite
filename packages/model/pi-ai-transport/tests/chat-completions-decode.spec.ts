@@ -1,6 +1,6 @@
 // The stream decoder of the gateway engine, one block per row of the stream interpretation table,
 // through a binding and the same body decoding that a send uses.
-import type { JsonValue } from '@omne-harness/json-text'
+import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ModelBlock, ModelFault, TransportFact } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import {
@@ -13,8 +13,11 @@ import {
   type UsageDiagnostic,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
+import { decodeBody } from '../src/fact-stream.ts'
+import { ResponseBodyReadError, ResponseBodyStoppedError } from '../src/http.ts'
 import type { PiFamilyBinding } from '../src/index.ts'
-import { replayStream } from '../src/testing/fixtures.ts'
+import { terminationOf } from '../src/termination.ts'
+import { GATEWAY_END_MARKER, replayStream } from '../src/testing/fixtures.ts'
 import {
   LIMITS,
   engineProbe,
@@ -942,6 +945,152 @@ describe('account', () => {
   it('gives no account for a stream that fails before its end', async () => {
     const facts = await replay(bind(), chunk({ delta: { content: 'x' } }, { usage }), DONE)
     expect(facts.some(fact => fact.kind === 'account')).toBe(false)
+  })
+})
+
+describe('account of a response that fails after its finish', () => {
+  const usage = { prompt_tokens: 9, completion_tokens: 3 }
+  const finished = [chunk({ delta: { content: 'x' } }), chunk({ finish: 'stop' }, { usage })]
+  const inconsistent: UsageDiagnostic = { kind: 'usage-inconsistent', field: 'input' }
+  /** Writes the prompt count it received as an item, so the account shows the usage it kept. */
+  const keeping: VendorHooks['usage'] = read => ({
+    ok: {
+      items:
+        read.promptTokens === null
+          ? []
+          : [{ name: 'input', state: 'known', lexeme: read.promptTokens, unit: 'token' }],
+      diagnostics: [inconsistent],
+    },
+  })
+  const account = (items: ChatUsage['items']): TransportFact => ({
+    kind: 'account',
+    event: 'usage',
+    value: {
+      usage: items,
+      cost: [],
+      trimmed: { state: 'unknown', unit: 'token' },
+      place: 'openrouter/Lab',
+      duration: { state: 'unknown' },
+      revision: '1',
+    },
+  })
+  const kept = account([{ name: 'input', state: 'known', lexeme: '9', unit: 'token' }])
+
+  /** The facts of a body that gives `events` and then throws `error`, as a send reads it. */
+  async function failing(
+    events: readonly (Record<string, unknown> | string)[],
+    error: Error,
+  ): Promise<readonly TransportFact[]> {
+    const bytes = sse(...events)
+    const decoding = decodeBody({
+      body: (async function* () {
+        yield bytes
+        throw error
+      })(),
+      decoder: bind({ usage: keeping }).createDecoder(),
+      endMarker: GATEWAY_END_MARKER,
+      limits: { maxEventBytes: 65_536, json: LIMITS.toolArguments },
+      received: () => false,
+      progress: { bodyComplete: false },
+    })
+    const facts: TransportFact[] = []
+    let step = await decoding.next()
+    while (step.done !== true) {
+      facts.push(step.value)
+      step = await decoding.next()
+    }
+    return [...facts, { kind: 'ended', termination: terminationOf(step.value) }]
+  }
+
+  it('keeps the usage received when the body is lost after the finish', async () => {
+    const facts = await failing(finished, new ResponseBodyReadError(new Error('reset')))
+    expect(facts.slice(-3)).toEqual([
+      kept,
+      { kind: 'diagnostic', value: inconsistent },
+      {
+        kind: 'ended',
+        termination: {
+          kind: 'failed',
+          fault: { cause: 'stream-lost', diagnostic: 'response-body-lost', upstreamStatus: null },
+        },
+      },
+    ])
+  })
+
+  it('keeps the usage received when the send is stopped after the finish', async () => {
+    const facts = await failing(finished, new ResponseBodyStoppedError())
+    expect(facts.slice(-3)).toEqual([
+      kept,
+      { kind: 'diagnostic', value: inconsistent },
+      { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
+    ])
+  })
+
+  it('keeps the usage received when a later frame is malformed or refused', async () => {
+    const record = testRecord()
+    const strict = testRecord({ wire: { ...record.wire, usageTail: { maxFrames: 1 } } })
+    const cases = [
+      { record, events: [...finished, '{not json'], fault: protocolFault('frame-invalid-json') },
+      {
+        record: strict,
+        events: [...finished, chunk(undefined, { usage }), chunk(undefined, { usage })],
+        fault: protocolFault('usage-tail-too-long'),
+      },
+      {
+        record,
+        events: [...finished, chunk({ delta: { content: 'late' } })],
+        fault: protocolFault('content-after-finish'),
+      },
+    ]
+    for (const item of cases) {
+      const facts = await replay(bind({ record: item.record, usage: keeping }), ...item.events)
+      expect(facts.slice(-3)).toEqual([
+        kept,
+        { kind: 'diagnostic', value: inconsistent },
+        item.fault,
+      ])
+    }
+  })
+
+  it('keeps the unknown usage of a finish without usage, and gives none before the finish', async () => {
+    const without = await failing(
+      [chunk({ delta: { content: 'x' } }), chunk({ finish: 'stop' })],
+      new ResponseBodyReadError(new Error('reset')),
+    )
+    expect(without.filter(fact => fact.kind === 'account')).toEqual([account([])])
+    const before = await failing(
+      [chunk({ delta: { content: 'x' } }, { usage })],
+      new ResponseBodyReadError(new Error('reset')),
+    )
+    expect(before.some(fact => fact.kind === 'account' || fact.kind === 'diagnostic')).toBe(false)
+  })
+
+  it('the decoder gives the account and the fault from end() after it refused a frame', () => {
+    const decoder = bind({ usage: keeping }).createDecoder()
+    const frame = (value: Record<string, unknown>) => {
+      const read = readJsonText(JSON.stringify(value), LIMITS.toolArguments)
+      if (read.kind !== 'ok') throw new Error('not JSON')
+      return decoder.accept({ kind: 'data', value: read.value })
+    }
+    frame(chunk({ delta: { content: 'x' } }))
+    frame(chunk({ finish: 'stop' }, { usage }))
+    const fault = {
+      cause: 'upstream-protocol',
+      diagnostic: 'content-after-finish',
+      upstreamStatus: null,
+    }
+    expect(frame(chunk({ delta: { content: 'late' } }))).toEqual({ failure: fault })
+    expect(frame(chunk(undefined, { usage }))).toMatchObject({
+      failure: { diagnostic: 'frame-after-end' },
+    })
+    expect(decoder.end()).toEqual({
+      ok: [
+        kept,
+        { kind: 'diagnostic', value: inconsistent },
+        { kind: 'ended', termination: { kind: 'failed', fault } },
+      ],
+    })
+    expect(decoder.end()).toMatchObject({ failure: { diagnostic: 'decoder-already-ended' } })
   })
 })
 

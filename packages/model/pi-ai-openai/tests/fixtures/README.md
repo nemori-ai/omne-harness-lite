@@ -57,8 +57,8 @@
 | 断流（EOF） | `cases/rf-v5-eof` | 同上 | 1、5 |
 | 坏 JSON | `cases/rf-v5-bad-json` | 同上 | 1、5 |
 | 重复键 | `cases/rf-v5-duplicate-key` | 同上 | 1、5 |
-| `finish_reason` 改变 | `cases/rf-v5-changed-finish` | 同上 | 1、5、6 |
-| 收场后的拒绝 | `cases/rf-v5-late-refusal` | 同上 | 1、5、6 |
+| `finish_reason` 改变 | `cases/rf-v5-changed-finish` | 同上 | 1、4、5、6 |
+| 收场后的拒绝 | `cases/rf-v5-late-refusal` | 同上 | 1、4、5、6 |
 | 没有收场的结束标记 | `cases/rf-v5-done-without-finish` | 同上 | 1、5 |
 | 同帧错误优先 | `cases/rf-v5-v8-same-frame-error` | `refusal-stream.spec.ts:287-302` RF-V5/V8 | 4、5 |
 | 回复文本 `503` | `cases/rf-v8-reply-text-503` | `refusal-stream.spec.ts:321-325` RF-V8 | 1、4 |
@@ -71,7 +71,8 @@
 2. **调用 id。** 契约的调用部件需要 `callId`。封存 RF-V2 的工具帧没有 `id`，封存件仍然完成。记录夹具给该调用加 `id: "call_lookup"`，结果与封存件相同；`cases/rf-v2-tool-without-id` 保留封存输入，结果是 `upstream-protocol`（`tool-call-without-id`）。
 3. **`length` 封块。** 封存件在 `length` 收场时不关闭任何块。引擎封文本、思考与推理，只让工具参数块保持开着（D4“修正”）。
 4. **账目。** 已收场的响应在 `ended` 之前有一个 `account` 事实，值是账目报告，格式归 [pi-ai-transport SPEC“账目”](../../../pi-ai-transport/SPEC.md#账目)。与封存件的不同如下：
-   - 解码器在结束之前失败时（带内错误、协议错误）没有账目。失败的结果不带事实。封存件在这些用例中仍给出一个 account 事件。
+   - 解码器在收场之前失败时（带内错误、协议错误）没有账目，因为还没有可以保留的用量。封存件在这些用例中仍给出一个 account 事件。
+   - 收场之后失败的流（`finish_reason` 改变、收场后的拒绝）在失败的 `ended` 之前有账目，用量取失败之前收到的，这两个用例中各项为未知。
    - Pro 型号的 `input` 为未知（规则 `unknown-scope/1`）。封存件给出 100。
    - 多帧带 usage 时，账目取最后一份。封存件把不一致的 usage 记为校准不可用。
    - 已收场但没有 usage 的响应也有账目，各项为未知。

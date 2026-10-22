@@ -110,16 +110,36 @@ export type BodyInput = Readonly<{
 /**
  * Gives every fact of a 2xx body but the termination, and returns how the send ended. The frames
  * of the body go through the decoder; the decoder's `ended` is kept and checked to be the only one.
+ * When the body, a frame or the decoder fails, the decoder still ends once, so that a response that
+ * reached its finish gives the account of the usage it received before the failed `ended`.
  */
 export async function* decodeBody(
   input: BodyInput,
 ): AsyncGenerator<TransportFact, SendEnd, undefined> {
+  const { decoder } = input
+  const held: Held = { termination: null }
+  const failed = yield* readBody(input, held)
+  if (failed !== null) {
+    yield* settleAfterFailure(decoder)
+    return failed
+  }
+  const ending = decoder.end()
+  if (!('ok' in ending)) return { kind: 'decoder-fault', fault: ending.failure }
+  const fault = yield* passFacts(ending.ok, held)
+  if (fault !== null) return { kind: 'decoder-fault', fault }
+  return { kind: 'decoded', termination: held.termination }
+}
+
+/** Reads the body until the protocol ends. Returns how it failed, or `null` when it ended. */
+async function* readBody(
+  input: BodyInput,
+  held: Held,
+): AsyncGenerator<TransportFact, SendEnd | null, undefined> {
   const { body, decoder, endMarker, limits, progress } = input
   const frames = readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
     endMarker,
     json: limits.json,
   })
-  const held: Held = { termination: null }
   // The frames end at the end of the body, unless the end marker stops the reading first.
   let bodyComplete = true
   try {
@@ -145,11 +165,19 @@ export async function* decodeBody(
     throw error
   }
   progress.bodyComplete = bodyComplete
-  const ending = decoder.end()
-  if (!('ok' in ending)) return { kind: 'decoder-fault', fault: ending.failure }
-  const fault = yield* passFacts(ending.ok, held)
-  if (fault !== null) return { kind: 'decoder-fault', fault }
-  return { kind: 'decoded', termination: held.termination }
+  return null
+}
+
+/**
+ * Ends the decoder after a failed read and gives its facts but its `ended`: the failure decides
+ * the termination. A decoder that had not finished, or whose end fails, gives nothing.
+ */
+async function* settleAfterFailure(
+  decoder: PiResponseDecoder,
+): AsyncGenerator<TransportFact, void, undefined> {
+  const settled = decoder.end()
+  if (!('ok' in settled)) return
+  for (const fact of settled.ok) if (fact.kind !== 'ended') yield fact
 }
 
 /** The decoder's termination, kept until the body has ended so that it is the last fact. */

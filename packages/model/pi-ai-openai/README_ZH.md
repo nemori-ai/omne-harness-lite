@@ -25,7 +25,7 @@
 | 跨家族回放（OpenAI 一侧） | 另一家的 assistant 消息不带状态与思考，并出现在 encode 的 `replay-omitted` 诊断中；OpenAI 自己的消息带回状态 | `binding.encode` | `cross-family-replay.spec.ts` |
 | 经共享传输的联调 | 本家族与 Anthropic 家族经同一 `composeFamilies` 交给 `createPiTransport`。本地 HTTPS 服务按请求体的型号回放每条记录的夹具：发出的请求体与夹具相同，事实序列与夹具相同。两家各取一条记录运行符合性套件 transport 组，六条义务通过 | `composeFamilies`、`createPiTransport` | `pi-ai-anthropic` 的 `two-families.spec.ts`（慢层） |
 | 示例 | [examples/openai-request.ts](examples/openai-request.ts) 经代理请求 `openai/gpt-5.6-luna` 一次。历史中有只带工具调用的 assistant 消息、没有内容的工具结果与一张图片 | 根入口 | 类型检查。`examples.spec.ts`（慢层）只在 `OMNE_LIVE_TESTS=1` 时运行示例，否则跳过。实跑的证据只来自手动运行 |
-| 未交付 | 在结束之前失败的流的账目。凭据解析与真实路由的持续验证（#466） | 无 | 这些路径没有持续验证的证据 |
+| 未交付 | 凭据解析与真实路由的持续验证（#466） | 无 | 这些路径没有持续验证的证据 |
 
 ## 使用
 
