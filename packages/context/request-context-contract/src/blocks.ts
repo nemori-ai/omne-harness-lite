@@ -2,7 +2,8 @@ import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-cont
 import type { Adoption, CandidateRef } from './refs.js'
 import { decodeCandidateRef } from './refs.js'
 import type { RetainBudget, CompactionPolicy } from './ports.js'
-import { standardSchema, record, decimal, compactionPolicySchema } from './schema.js'
+import { compactionPolicySchema } from './schema.js'
+import { standardSchema, record, decimal, adoption, type Decoder } from './schema-primitives.js'
 export type CompactionSettingsValue = Readonly<{
   policy: Adoption
   retainBudget: RetainBudget
@@ -24,18 +25,9 @@ declare module '@omne-harness/runtime-context-contract' {
     'context.window-usage': WindowUsageValue
   }
 }
-export const compactionSettingsSchema = standardSchema<CompactionSettingsValue>((v, path) => {
+const decodeCompactionSettings: Decoder<CompactionSettingsValue> = (v, path) => {
   const policy = compactionPolicySchema['~standard'].validate(v)
-  if (
-    policy instanceof Promise ||
-    'issues' in policy ||
-    !record(v) ||
-    !record(v.policy) ||
-    typeof v.policy.owner !== 'string' ||
-    typeof v.policy.name !== 'string' ||
-    typeof v.policy.revision !== 'string' ||
-    typeof v.policy.digest !== 'string'
-  )
+  if (policy instanceof Promise || 'issues' in policy || !record(v) || !adoption(v.policy))
     return { ok: false, issues: [{ path, message: 'Invalid compaction settings' }] }
   return {
     ok: true,
@@ -49,8 +41,9 @@ export const compactionSettingsSchema = standardSchema<CompactionSettingsValue>(
       },
     },
   }
-})
-export const windowUsageSchema = standardSchema<WindowUsageValue>((v, path) => {
+}
+export const compactionSettingsSchema = standardSchema(decodeCompactionSettings)
+const decodeWindowUsage: Decoder<WindowUsageValue> = (v, path) => {
   const candidate = decodeCandidateRef(record(v) ? v.candidate : null)
   if (
     !record(v) ||
@@ -70,7 +63,8 @@ export const windowUsageSchema = standardSchema<WindowUsageValue>((v, path) => {
       ratio: v.ratio,
     },
   }
-})
+}
+export const windowUsageSchema = standardSchema(decodeWindowUsage)
 export const compactionSettingsBlock: SuppliedBlockDescriptor<
   'context.compaction-settings',
   CompactionSettingsValue

@@ -32,5 +32,5 @@
 - [resume.ts](resume.ts)：恢复前提与组装接续。
 - [schema-primitives.ts](schema-primitives.ts)：Schema 适配与边界基本谓词。
 - [coverage-validation.ts](coverage-validation.ts)：按来源字段组核对覆盖证据。
-- [schema.ts](schema.ts)：公开 Schema 组合。
+- [schema.ts](schema.ts)：公开 Schema 组合，具名校验分别拥有预算、策略控制、计划身份、保留范围和摘要消息。
 - [representation.ts](representation.ts)：块表示、模态与转换来源。
