@@ -42,14 +42,15 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
   const calls = { acquire: 0, release: 0, retire: 0, start: 0, list: 0, recover: 0 }
   let retired = false
   const notices: ((value: LeaseInvalidation) => void)[] = []
-  const unknown = async (request: { readonly requestId: string }) => ({
-    kind: 'unknown' as const,
-    requestId: request.requestId,
-  })
+  const unknown = async (request: { readonly requestId: string }) =>
+    retired
+      ? { kind: 'rejected' as const, requestId: request.requestId, reason: 'closed' as const }
+      : { kind: 'unknown' as const, requestId: request.requestId }
   const facilities: Partial<EnvironmentFacilities> = script.lease ?? {
     terminal: { create: unknown, execute: unknown, close: unknown, list: unknown },
     command: {
       async start(request) {
+        if (retired) return { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
         calls.start++
         return { kind: 'unknown', requestId: request.requestId }
       },
