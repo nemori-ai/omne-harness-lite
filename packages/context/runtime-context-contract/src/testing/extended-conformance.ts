@@ -6,6 +6,7 @@ import { reduceStep } from '../index.js'
 import type { StatefulBlockDescriptor, ContextUpdate } from '../index.js'
 export const EXTENDED_OBLIGATIONS = [
   'reissue-cannot-change-reader-consumer',
+  'reissue-cannot-change-reader-scope',
   'removed-plain-registration-refused',
   'removed-eligibility-checked-registration-concealed',
   'cursor-invalidated-below-retention',
@@ -32,6 +33,53 @@ export function extendedConformance<P>(): readonly ConformanceCase<RuntimeContex
     clause: 'RC-02/RC-03/RC-04/RC-05/RC-07',
     async run(fixture) {
       const subject = await fixture.subject()
+      if (name === 'reissue-cannot-change-reader-scope') {
+        const s = await setup(subject, fixture.tenant, fixture.principal)
+        const before = await s.reader.snapshot()
+        assert.ok(before.kind === 'success')
+        const other = scope('other-scope')
+        const added = await subject.applyCommit({
+          kind: 'registration',
+          commit: { commit: 'other-register' },
+          change: {
+            kind: 'add',
+            scope: other,
+            tenant: fixture.tenant,
+            key: 'suite.value',
+            basedOn: 0,
+            creating: true,
+            bindings: [],
+            parameters: undefined,
+            required: true,
+          },
+        })
+        assert.equal(added.kind, 'applied')
+        await s.handle.publish(other, 987)
+        const issued = await subject.issueEligibility({
+          ...s.material,
+          scope: other,
+          supersedes: s.eligibility.id,
+        })
+        assert.ok(issued.kind === 'issued')
+        const current = await subject.bind(issued.eligibility.id)
+        assert.ok(current.kind === 'bound')
+        const currentRead = await current.reader.snapshot()
+        assert.ok(currentRead.kind === 'success')
+        assert.equal(
+          currentRead.value.blocks[0]?.state.kind === 'value'
+            ? currentRead.value.blocks[0].state.value
+            : undefined,
+          987,
+        )
+        assert.equal(s.reader.scope.ref, s.scope.ref)
+        assert.deepEqual(await s.reader.read([]), { kind: 'refused', reason: 'unauthorized' })
+        assert.deepEqual(await s.reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
+        assert.deepEqual(await s.reader.changes(before.value.cursor), {
+          kind: 'refused',
+          reason: 'unauthorized',
+        })
+        return
+      }
       if (name === 'reissue-cannot-change-reader-consumer') {
         const s = await setup(subject, fixture.tenant, fixture.principal)
         const before = await s.reader.snapshot()
