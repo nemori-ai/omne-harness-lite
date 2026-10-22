@@ -1,6 +1,11 @@
 // The fact stream of one started send: SSE events, then protocol frames, then the family decoder,
 // and exactly one `ended` at the end, after the exchange has physically stopped.
-import type { ModelFault, TransportFact, TransportTermination } from '@omne-harness/model-contract'
+import type {
+  ModelFault,
+  ProviderDiagnostic,
+  TransportFact,
+  TransportTermination,
+} from '@omne-harness/model-contract'
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
 import { readProtocolFrames } from './frames.ts'
@@ -14,11 +19,14 @@ export type SendInput = Readonly<{
   decoder: PiResponseDecoder
   route: CheckedRoute
   limits: PiTransportLimits
+  /** The diagnostics of the encoding of the request that this exchange sent. */
+  diagnostics: readonly ProviderDiagnostic[]
 }>
 
 /**
- * The facts of a started exchange. A reader that ends the stream early, even before its first
- * `next()`, stops the exchange and waits for its physical stop.
+ * The facts of a started exchange: the diagnostics of the encoding first, then the facts of the
+ * response. A reader that ends the stream early, even before its first `next()`, stops the
+ * exchange and waits for its physical stop.
  */
 export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
   const { exchange } = input
@@ -46,6 +54,7 @@ async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, 
   const progress: Progress = { bodyComplete: false }
   let end: SendEnd
   try {
+    for (const value of input.diagnostics) yield { kind: 'diagnostic', value }
     end = yield* decodeSend(input, progress)
   } finally {
     // A body left unread keeps the connection and the slot; only a complete one closes by itself.

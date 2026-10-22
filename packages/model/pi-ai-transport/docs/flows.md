@@ -13,9 +13,11 @@ sequenceDiagram
   participant F as 家族贡献
   participant Cap as 容量
   participant Ex as 交换
-  Model->>T: prepare(request, supplier)
+  Model->>T: prepare(request, supplier, dispatch)
   alt 没有该接收方的路由
     T-->>Model: unsupported
+  else 请求不含该供应商
+    T-->>Model: invalid
   else
     T->>F: acquire(supplier, signal)
     F-->>T: 家族绑定
@@ -26,7 +28,7 @@ sequenceDiagram
   alt 取消、prepared 关闭或网络资源关闭
     T-->>Model: unavailable
   else 授予
-    T->>T: 扫描内容引用、encode、序列化、SHA-256
+    T->>T: 扫描内容引用、encode（同序的声明与 resent）、序列化、SHA-256
     T-->>Model: materialized，回执固定
   end
   Model->>T: materialized.start(signal)（同步）
@@ -43,6 +45,7 @@ sequenceDiagram
     else
       T->>Ex: startExchange（同步发出）
       T-->>Model: 事实流
+      T-->>Model: encode 的诊断事实
       Ex-->>T: 结果与响应体
       T-->>Model: 解码器的事实，到 end-marker 或响应体结束为止
       T-->>Model: 交换物理停止后给出唯一的 ended

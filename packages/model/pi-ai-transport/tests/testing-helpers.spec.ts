@@ -82,7 +82,12 @@ async function writeFixture(record: ChatCompletionsRecord): Promise<string> {
     limits: LIMITS,
     release: async () => undefined,
   })
-  const encoded = binding.encode({ request, media: [] })
+  const encoded = binding.encode({
+    request,
+    media: [],
+    declaration: request.declarations[0],
+    resent: [],
+  })
   if (!('ok' in encoded)) throw new Error('encode')
   const body: unknown = JSON.parse(writeJsonText(encoded.ok.body))
   writeFileSync(join(directory, 'request.json'), JSON.stringify({ request, body }, null, 2))

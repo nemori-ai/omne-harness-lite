@@ -14,8 +14,10 @@ import {
   type ModelProfile,
   type Parameter,
   type ParameterAdoption,
+  type ProviderDiagnostic,
   type ReplayDeclaration,
   type Supplier,
+  type TransportDispatch,
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -41,8 +43,6 @@ export type RequestContext = Readonly<{
   supplier: Supplier
   /** The adoption of the record, equal to `supplier.adoption`. */
   adapter: Adoption
-  /** The replay declaration of the record with every default applied. */
-  declaration: ReplayDeclaration
 }>
 
 type Materialized = Extract<MeterRepresentation, { kind: 'materialized' }>
@@ -60,41 +60,45 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
   )
 }
 
-function sameDeclaration(left: ReplayDeclaration, right: ReplayDeclaration): boolean {
-  const accepts = new Set(left.accepts)
-  return (
-    left.produces === right.produces &&
-    left.foreignThinking === right.foreignThinking &&
-    left.accepts.length === right.accepts.length &&
-    right.accepts.every(scope => accepts.has(scope))
-  )
-}
-
 /**
- * Checks that the profile names this supplier and that its replay declaration, with every
- * default applied, equals the declaration of the record.
+ * Checks that the profile names this supplier, and gives its replay declaration with every
+ * default applied: the declaration that the request of this profile fixes for the supplier.
  */
-function checkProfileSupplier(
+function profileDeclaration(
   context: RequestContext,
   profile: ModelProfile,
   supplier: Supplier,
-): TransportFailure | null {
+): Outcome<ReplayDeclaration, TransportFailure> {
   if (
     !sameAdoption(supplier.adoption, context.adapter) ||
     supplier.recipient !== context.supplier.recipient ||
     supplier.model !== context.supplier.model
   )
-    return { kind: 'invalid', field: 'supplier', reason: 'not-this-binding' }
+    return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-binding' } }
   const index = profile.definition.suppliers.findIndex(item =>
     sameAdoption(item.adoption, supplier.adoption),
   )
   const entry = profile.definition.suppliers[index]
-  if (entry === undefined) return { kind: 'invalid', field: 'supplier', reason: 'not-in-profile' }
+  if (entry === undefined)
+    return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-in-profile' } }
   const declared = judgeReplayDeclaration(entry, index)
-  if (!('ok' in declared)) return declared.failure
-  return sameDeclaration(declared.ok, context.declaration)
-    ? null
-    : { kind: 'unsupported', field: `suppliers[${index}].replay`, adapter: context.adapter }
+  return 'ok' in declared ? declared : { failure: declared.failure }
+}
+
+/**
+ * The diagnostics of one encoding: a `replay-omitted` for each message whose reasoning state
+ * parts stay out, then a `reasoning-disabled` when the prefix rule turned reasoning off.
+ */
+function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
+  const diagnostics: ProviderDiagnostic[] = projection.diagnostics.map(item => ({
+    kind: 'replay-omitted',
+    message: item.message,
+    scope: item.scope,
+    format: item.format,
+    omittedParts: item.omittedParts,
+  }))
+  if (projection.degrade) diagnostics.push({ kind: 'reasoning-disabled', reason: 'foreign-prefix' })
+  return diagnostics
 }
 
 /**
@@ -255,8 +259,9 @@ function represent(
 }
 
 /**
- * `rules.plan`: the replay declaration check, parameter planning, the prefix degrade, the family
- * check and the representation, in this order.
+ * `rules.plan`: the supplier and its replay declaration, parameter planning, the prefix degrade,
+ * the family check and the representation, in this order. The projection uses the declaration of
+ * the profile, which the request of this profile fixes, and no re-dispatch.
  */
 export function planRequest(
   context: RequestContext,
@@ -266,8 +271,8 @@ export function planRequest(
   TransportFailure
 > {
   const { profile, supplier, assembled } = input
-  const refused = checkProfileSupplier(context, profile, supplier)
-  if (refused !== null) return { failure: refused }
+  const declaration = profileDeclaration(context, profile, supplier)
+  if (!('ok' in declaration)) return declaration
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
@@ -283,7 +288,9 @@ export function planRequest(
     messages: assembled.messages,
     tools: assembled.tools,
     toolChoice: assembled.toolChoice,
+    declaration: declaration.ok,
     replayOff: assembled.replay === 'off',
+    resent: new Set(),
   })
   if (!('ok' in projection)) return projection
   const parameters = projection.ok.degrade
@@ -308,13 +315,27 @@ export function planRequest(
 }
 
 /**
- * `encode`: the same projection over the fixed request, the planned parameters of this supplier,
- * then the body and its representation. Media references are refused: inline media only.
+ * `encode`: the same projection over the fixed request, with the declaration that the request
+ * fixes for this supplier and the messages that this dispatch leaves out, the planned parameters
+ * of this supplier, then the body, its representation and the diagnostics of the encoding. Media
+ * references are refused: inline media only.
  */
 export function encodeRequest(
   context: RequestContext,
-  input: Readonly<{ request: FixedModelRequest; media: readonly PiMaterializedMedia[] }>,
-): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+  input: Readonly<{
+    request: FixedModelRequest
+    media: readonly PiMaterializedMedia[]
+    declaration: ReplayDeclaration
+    resent: TransportDispatch['resent']
+  }>,
+): Outcome<
+  Readonly<{
+    body: JsonValue
+    representation: Materialized
+    diagnostics: readonly ProviderDiagnostic[]
+  }>,
+  TransportFailure
+> {
   const { request } = input
   if (input.media.length > 0)
     return { failure: { kind: 'unsupported', field: 'media', adapter: context.adapter } }
@@ -324,7 +345,9 @@ export function encodeRequest(
     messages: request.messages,
     tools: request.tools,
     toolChoice: request.toolChoice,
+    declaration: input.declaration,
     replayOff: request.replay === 'off',
+    resent: new Set(input.resent),
   })
   if (!('ok' in projection)) return projection
   const applied = request.parameterAdoptions
@@ -336,11 +359,13 @@ export function encodeRequest(
     treatments: projection.ok.treatments,
   })
   if (!('ok' in checked)) return checked
-  return represent(context, {
+  const encoded = represent(context, {
     projection: projection.ok,
     applied,
     tools: request.tools,
     toolChoice: request.toolChoice,
     representation: request.representation,
   })
+  if (!('ok' in encoded)) return encoded
+  return { ok: { ...encoded.ok, diagnostics: diagnosticsOf(projection.ok) } }
 }

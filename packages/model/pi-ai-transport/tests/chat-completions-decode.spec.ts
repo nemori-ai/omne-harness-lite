@@ -7,7 +7,10 @@ import {
   bindChatCompletions,
   type ChatCompletionsLimits,
   type ChatCompletionsRecord,
+  type ChatUsage,
+  type GatewayUsage,
   type ReasoningDetail,
+  type UsageDiagnostic,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
 import type { PiFamilyBinding } from '../src/index.ts'
@@ -30,12 +33,14 @@ type Options = Readonly<{
   seal?: Seal
   reasoning?: boolean
   limits?: ChatCompletionsLimits
+  usage?: VendorHooks['usage']
 }>
 
 function bind(options: Options = {}): PiFamilyBinding {
   const record = options.record ?? testRecord()
   const probe = engineProbe()
-  const hooks = testHooks(probe, options.reasoning ?? true)
+  const tested = testHooks(probe, options.reasoning ?? true)
+  const hooks = options.usage === undefined ? tested : { ...tested, usage: options.usage }
   const seal = options.seal
   return bindChatCompletions({
     record,
@@ -112,6 +117,19 @@ function protocolFault(diagnostic: string): TransportFact {
 
 const SHOWN = { toHuman: true, toModel: true }
 const STOP: TransportFact = { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } }
+/** The account of a finished response of the test record, with the empty items of the test hook. */
+const ACCOUNT: TransportFact = {
+  kind: 'account',
+  event: 'usage',
+  value: {
+    usage: [],
+    cost: [],
+    trimmed: { state: 'unknown', unit: 'token' },
+    place: 'openrouter/Lab',
+    duration: { state: 'unknown' },
+    revision: '1',
+  },
+}
 
 function sealedOf(facts: readonly TransportFact[]): readonly ModelBlock[] {
   return facts.flatMap(fact => (fact.kind === 'block-seal' ? [fact.block] : []))
@@ -136,6 +154,7 @@ describe('text channel', () => {
         index: '0',
         block: { kind: 'text', id: 'b0', visibility: SHOWN, text: 'I cannot help' },
       },
+      ACCOUNT,
       STOP,
     ])
   })
@@ -308,20 +327,27 @@ describe('reasoning details and sealing', () => {
         pairs: ['b0'],
       },
     })
-    expect(facts.slice(-3)).toEqual([state('2', 'p1'), state('3', 'p2'), STOP])
+    expect(facts.slice(-4)).toEqual([state('2', 'p1'), state('3', 'p2'), ACCOUNT, STOP])
   })
 
-  it('gives no part for an empty payload or one beyond the message limit', async () => {
-    const { seal } = capture(['', 'x'.repeat(1048577), 'kept'])
+  it('gives no part for an empty payload; one beyond the message limit gives a diagnostic instead', async () => {
+    const { seal } = capture(['', 'x'.repeat(1048576), 'x'.repeat(1048577), 'kept'])
     const facts = await replay(
       bind({ seal }),
       chunk({ delta: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'e' }] } }),
       chunk({ finish: 'stop' }),
     )
-    expect(sealedOf(facts)).toEqual([
+    expect(facts.filter(fact => fact.kind === 'diagnostic')).toEqual([
+      {
+        kind: 'diagnostic',
+        value: { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 1048577 },
+      },
+    ])
+    expect(sealedOf(facts).map(block => block.id)).toEqual(['b0', 'b1'])
+    expect(sealedOf(facts).slice(1)).toEqual([
       {
         kind: 'reasoning_state',
-        id: 'b0',
+        id: 'b1',
         visibility: { toHuman: false, toModel: true },
         payload: 'kept',
         pairs: [],
@@ -387,6 +413,7 @@ describe('tool calls', () => {
           },
         },
       },
+      ACCOUNT,
       { kind: 'ended', termination: { kind: 'completed', reason: 'tool-suggestions' } },
     ])
   })
@@ -530,6 +557,121 @@ describe('tail after finish', () => {
     expect(endedOf(content)).toEqual(protocolFault('content-after-finish'))
     const changed = await replay(bind(), chunk({ finish: 'stop' }), chunk({ finish: 'length' }))
     expect(endedOf(changed)).toEqual(protocolFault('finish-changed'))
+  })
+})
+
+describe('account', () => {
+  const usage = {
+    prompt_tokens: 9,
+    completion_tokens: 3,
+    prompt_tokens_details: { cached_tokens: 2 },
+    completion_tokens_details: { reasoning_tokens: 1 },
+    cost: 0.00012345,
+  }
+  const items: ChatUsage['items'] = [{ name: 'output', state: 'known', lexeme: '3', unit: 'token' }]
+  const inconsistent: UsageDiagnostic = { kind: 'usage-inconsistent', field: 'input' }
+
+  it('gives the account of the last usage, then the usage diagnostics, before the termination', async () => {
+    const seen: GatewayUsage[] = []
+    const facts = await replay(
+      bind({
+        usage: read => {
+          seen.push(read)
+          return { ok: { items, diagnostics: [inconsistent] } }
+        },
+      }),
+      chunk({ delta: { content: 'x' } }, { usage: { prompt_tokens: 1 } }),
+      chunk({ finish: 'length' }),
+      { ...chunk(), choices: [], usage },
+      DONE,
+    )
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toMatchObject({
+      promptTokens: '9',
+      completionTokens: '3',
+      cachedTokens: '2',
+      reasoningTokens: '1',
+    })
+    expect(facts.slice(-3)).toEqual([
+      {
+        kind: 'account',
+        event: 'usage',
+        value: {
+          usage: items,
+          cost: [
+            {
+              state: 'known',
+              lexeme: '0.00012345',
+              unit: 'openrouter-credit',
+              source: 'supplier',
+            },
+          ],
+          trimmed: { state: 'unknown', unit: 'token' },
+          place: 'openrouter/Lab',
+          duration: { state: 'unknown' },
+          revision: '1',
+        },
+      },
+      { kind: 'diagnostic', value: inconsistent },
+      { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } },
+    ])
+  })
+
+  it('gives the usage hook unknown counts when the response reported no usage, and no cost', async () => {
+    const seen: GatewayUsage[] = []
+    const facts = await replay(
+      bind({
+        usage: read => {
+          seen.push(read)
+          return { ok: { items: [], diagnostics: [] } }
+        },
+      }),
+      chunk({ finish: 'stop' }),
+    )
+    expect(seen).toEqual([
+      {
+        promptTokens: null,
+        completionTokens: null,
+        cachedTokens: null,
+        reasoningTokens: null,
+        raw: {},
+      },
+    ])
+    expect(facts).toEqual([ACCOUNT, STOP])
+  })
+
+  it('keeps a cost that is not a plain decimal as unknown', async () => {
+    for (const cost of [-1, 1e-7, 'free'])
+      expect(
+        (await replay(bind(), chunk({ finish: 'stop' }, { usage: { cost } }))).find(
+          fact => fact.kind === 'account',
+        ),
+      ).toMatchObject({
+        value: { cost: [{ state: 'unknown', unit: 'openrouter-credit', source: 'supplier' }] },
+      })
+  })
+
+  it('also accounts for a response that a finish rejects', async () => {
+    const facts = await replay(bind(), chunk({ finish: 'content_filter' }, { usage }))
+    expect(facts.map(fact => fact.kind)).toEqual(['account', 'ended'])
+  })
+
+  it('ends with the fault of the usage hook, without an account', async () => {
+    const fault: ModelFault = {
+      cause: 'upstream-protocol',
+      diagnostic: 'usage-test',
+      upstreamStatus: null,
+    }
+    const facts = await replay(
+      bind({ usage: () => ({ failure: fault }) }),
+      chunk({ finish: 'stop' }),
+    )
+    expect(facts).toEqual([{ kind: 'ended', termination: { kind: 'failed', fault } }])
+  })
+
+  it('gives no account for a stream that fails before its end', async () => {
+    const facts = await replay(bind(), chunk({ delta: { content: 'x' } }, { usage }), DONE)
+    expect(facts.some(fact => fact.kind === 'account')).toBe(false)
   })
 })
 

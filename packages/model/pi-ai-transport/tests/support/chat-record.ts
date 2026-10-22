@@ -4,6 +4,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
   judgeFixedModelRequest,
+  judgeReplayDeclaration,
   type Adoption,
   type AssembledModelInput,
   type FixedModelRequest,
@@ -11,6 +12,7 @@ import {
   type ModelProfile,
   type Parameter,
   type ProfileReplay,
+  type ReplayDeclaration,
   type ReplayTreatment,
   type Supplier,
   type TransportFailure,
@@ -173,7 +175,7 @@ export function testHooks(probe: EngineProbe, reasoning = true): VendorHooks {
           },
         }
       : null,
-    usage: () => ({ ok: [] }),
+    usage: () => ({ ok: { items: [], diagnostics: [] } }),
     toolSchema(schema): Outcome<JsonValue, TransportFailure> {
       if (schema.kind === 'object' && schema.entries.some(entry => entry.key === 'refuse'))
         return {
@@ -277,7 +279,23 @@ export type RequestParts = Readonly<{
   parameters?: readonly unknown[]
   parameterAdoptions?: readonly unknown[]
   replay?: 'off'
+  /** The declaration that the request fixes; the record declaration expanded by default. */
+  declaration?: ReplayDeclaration
 }>
+
+/** The declaration of the record with every default applied, as a request of its profile fixes it. */
+export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration {
+  const judged = judgeReplayDeclaration(
+    {
+      recipient: record.route.recipient,
+      model: record.route.model,
+      replay: record.replay.declaration,
+    },
+    0,
+  )
+  if (!('ok' in judged)) throw new Error(`test record declaration: ${judged.failure.reason}`)
+  return judged.ok
+}
 
 /** A fixed request through the contract judge; throws when the judge refuses it. */
 export function fixedRequest(
@@ -294,13 +312,14 @@ export function fixedRequest(
     messages: parts.messages ?? [message('u1', 'user', [textBlock('b1', 'hello')])],
     tools: parts.tools ?? [],
     toolChoice: parts.toolChoice ?? 'auto',
+    ...(parts.replay === undefined ? {} : { replay: parts.replay }),
+    declarations: [parts.declaration ?? declarationOf(record)],
     representation: REPRESENTATION,
     parameterAdoptions: parts.parameterAdoptions ?? [],
     source: SOURCE,
   })
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
-  // The contract judge does not read `replay` yet, so a request with replay off is made here.
-  return parts.replay === undefined ? judged.ok : { ...judged.ok, replay: parts.replay }
+  return judged.ok
 }
 
 export function assembledOf(request: FixedModelRequest): AssembledModelInput {

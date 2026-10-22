@@ -114,6 +114,20 @@ describe('prepare', () => {
     expect(probe.acquired).toBe(0)
   })
 
+  it('answers invalid for a supplier that the request does not name, without acquiring a binding', async () => {
+    const { transport, probe } = build()
+    for (const supplier of [
+      { ...SUPPLIER, model: 'other-model' },
+      { ...SUPPLIER, adoption: { ...SUPPLIER.adoption, revision: '2' } },
+    ]) {
+      const outcome = await transport.prepare(REQUEST, supplier, { resent: [] })
+      expect(outcome).toEqual({
+        failure: { kind: 'invalid', field: 'supplier', reason: 'not-in-request' },
+      })
+    }
+    expect(probe.acquired).toBe(0)
+  })
+
   it('does not take a route from the prototype of the routes object', async () => {
     const { transport } = build()
     const outcome = await transport.prepare(

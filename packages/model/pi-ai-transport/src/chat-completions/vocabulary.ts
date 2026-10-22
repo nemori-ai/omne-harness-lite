@@ -10,6 +10,7 @@ import type {
   ModelInputMeter,
   Parameter,
   ProfileReplay,
+  ProviderDiagnostic,
   ReplayTreatment,
   ToolDeclaration,
   TransportFact,
@@ -24,6 +25,14 @@ export type ChatMessage = FixedModelRequest['messages'][number]
 export type ChatMessageId = ChatMessage['id']
 /** One usage item of a call account. */
 export type ChatUsageItem = Extract<TransportFact, { kind: 'account' }>['value']['usage'][number]
+/** The diagnostic of a usage that contradicts itself. */
+export type UsageDiagnostic = Extract<ProviderDiagnostic, { kind: 'usage-inconsistent' }>
+/** What the usage hook makes of one gateway usage. */
+export type ChatUsage = Readonly<{
+  items: readonly ChatUsageItem[]
+  /** One for each item that is unknown because the upstream counts contradict each other. */
+  diagnostics: readonly UsageDiagnostic[]
+}>
 /** A part of a message other than a reasoning state part. */
 export type ProjectedPart = Exclude<ChatMessage['blocks'][number], { kind: 'reasoning_state' }>
 
@@ -41,7 +50,7 @@ export type GatewayParam =
   | Readonly<{ field: 'stop'; value: readonly string[] }>
   | Readonly<{
       field: 'reasoning.effort'
-      value: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+      value: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     }>
   /** The engine writes it for the prefix degrade `disable-reasoning`. */
   | Readonly<{ field: 'reasoning.enabled'; value: false }>
@@ -149,8 +158,9 @@ export type ChatCompletionsRecord = PiModelRecordHead &
     parameters: ParameterTable
     extensions: readonly ExtensionRule[]
     /**
-     * The official replay declaration, the replay formats and the prefix rule. Plan refuses a
-     * profile whose declaration for this supplier differs from `declaration`.
+     * The official replay declaration, the replay formats and the prefix rule. `declaration` is
+     * only for the official profiles: plan projects with the declaration of the profile, and
+     * encode with the declaration of the request.
      */
     replay: Readonly<{
       declaration: ProfileReplay
@@ -223,8 +233,11 @@ export type GatewayUsage = Readonly<{
 export type VendorHooks = Readonly<{
   /** `null`: the record has no reasoning to seal or replay. */
   reasoning: ReasoningCodec | null
-  /** Family arithmetic and scope. An unknown scope gives items with state `unknown`, never a default. */
-  usage(usage: GatewayUsage): Outcome<readonly ChatUsageItem[], ModelFault>
+  /**
+   * Family arithmetic and scope. An unknown scope gives items with state `unknown`, never a
+   * default. Counts that contradict each other give an unknown item and a diagnostic.
+   */
+  usage(usage: GatewayUsage): Outcome<ChatUsage, ModelFault>
   /** The family JSON Schema subset. The `{type:'function', function:{…}}` wrapper is the engine's. */
   toolSchema(schema: JsonValue): Outcome<JsonValue, TransportFailure>
   /** Cross-field rules a table cannot state. Validates only, never rewrites. */

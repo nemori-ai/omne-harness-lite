@@ -38,8 +38,10 @@ export function fixtureDirectory(record: Readonly<{ name: string; revision: stri
  * the family is the only list. Reports, one line each:
  *
  * - a record without its directory or without one of its three files;
- * - a `request.json` that is not `{ "request": <FixedModelRequest>, "body": <JSON> }`;
- * - an encode that fails or whose body differs from `body`;
+ * - a `request.json` that is not `{ "request": <FixedModelRequest>, "body": <JSON> }`, or whose
+ *   request does not name the record as a supplier;
+ * - an encode that fails or whose body differs from `body`. The encode takes the declaration that
+ *   the request fixes for the record and no re-dispatch;
  * - a `stream.sse` whose facts, `ended` included, differ from `facts.json`;
  * - a directory below the root, or below a name directory, that names no record.
  *
@@ -144,7 +146,12 @@ function checkEncode(label: string, binding: PiFamilyBinding, text: string): rea
   )
   if (!('ok' in request) || expected === undefined)
     return [`${where}: the contract refuses the request: ${JSON.stringify(failureOf(request))}`]
-  const encoded = binding.encode({ request: request.ok, media: [] })
+  const index = request.ok.suppliers.findIndex(supplier =>
+    sameAdoption(supplier.adoption, binding.adoption),
+  )
+  const declaration = request.ok.declarations[index]
+  if (declaration === undefined) return [`${where}: no supplier of the request is this record`]
+  const encoded = binding.encode({ request: request.ok, media: [], declaration, resent: [] })
   if (!('ok' in encoded)) return [`${label}: encode failed: ${JSON.stringify(encoded.failure)}`]
   const actualText = writeJsonText(encoded.ok.body)
   const expectedText = writeJsonText(sorted(expected))
@@ -152,6 +159,15 @@ function checkEncode(label: string, binding: PiFamilyBinding, text: string): rea
   return [
     `${label}: the encoded body differs from request.json body\n  expected ${expectedText}\n  actual   ${actualText}`,
   ]
+}
+
+function sameAdoption(left: Adoption, right: Adoption): boolean {
+  return (
+    left.owner === right.owner &&
+    left.name === right.name &&
+    left.revision === right.revision &&
+    left.digest === right.digest
+  )
 }
 
 function failureOf(outcome: object): unknown {

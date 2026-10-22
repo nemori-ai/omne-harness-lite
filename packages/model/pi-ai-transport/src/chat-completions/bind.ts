@@ -64,6 +64,8 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
     throw new RangeError(`record ${record.name} does not have the route of the supplier`)
   if (!sameAdoption(meter.instance.basis.supplier.adoption, adoption))
     throw new RangeError(`the meter of record ${record.name} counts for another supplier`)
+  // Throws for an official declaration that is not valid; plan and encode do not use it.
+  recordDeclaration(record)
   const { produces, accepts } = record.replay.formats
   if (!accepts.includes(produces))
     throw new RangeError(`record ${record.name}: replay formats must accept what they produce`)
@@ -140,7 +142,6 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     meter,
     supplier,
     adapter: adoption,
-    declaration: recordDeclaration(record),
   }
   let released: Promise<void> | undefined
   return Object.freeze({

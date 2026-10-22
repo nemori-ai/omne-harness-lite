@@ -8,8 +8,10 @@
 import { judgeBlockIdentity, type BlockId } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
+  CallAccountReport,
   ModelBlock,
   ModelFault,
+  ProviderDiagnostic,
   TransportFact,
   TransportTermination,
 } from '@omne-harness/model-contract'
@@ -50,6 +52,22 @@ export type DecoderInput = Readonly<{
  * depend on. A sealed payload beyond it gives no part.
  */
 const REASONING_STATE_PAYLOAD_MAX_LENGTH = 1048576
+
+/** The gateway that every record of this engine is served through: the prefix of `place`. */
+const GATEWAY_PLACE = 'openrouter'
+/** The event of the one account of a dispatch. */
+const ACCOUNT_EVENT = 'usage'
+/** The unit of the gateway `usage.cost`: gateway credits, not a currency. */
+const COST_UNIT = 'openrouter-credit'
+const COST_LEXEME = /^(0|[1-9][0-9]*)(\.[0-9]+)?$/
+/** The usage of a response that reported none: every count unknown. */
+const NO_USAGE: GatewayUsage = Object.freeze({
+  promptTokens: null,
+  completionTokens: null,
+  cachedTokens: null,
+  reasoningTokens: null,
+  raw: Object.freeze({}),
+})
 
 const SHOWN = Object.freeze({ toHuman: true, toModel: true })
 const HIDDEN = Object.freeze({ toHuman: false, toModel: true })
@@ -140,7 +158,7 @@ export function createChatCompletionsDecoder(input: DecoderInput): PiResponseDec
   }
   return Object.freeze({
     accept: (frame: PiProtocolFrame) => settle(accept(input, phase, frame)),
-    end: () => settle(end(phase)),
+    end: () => settle(end(input, phase)),
   })
 }
 
@@ -153,15 +171,36 @@ function accept(input: DecoderInput, phase: Phase, frame: PiProtocolFrame): Step
   return reduce(input, phase, chunk.ok)
 }
 
-/** EOF or the end marker: the termination of a finished response, or a lost stream. */
-function end(phase: Phase): StepResult {
+/**
+ * EOF or the end marker: the account of a finished response, its usage diagnostics and its
+ * termination, or a lost stream.
+ */
+function end(input: DecoderInput, phase: Phase): StepResult {
   switch (phase.kind) {
     case 'streaming':
       return {
         fault: { cause: 'stream-lost', diagnostic: 'ended-without-finish', upstreamStatus: null },
       }
-    case 'finished':
-      return { phase: ENDED, facts: [{ kind: 'ended', termination: phase.termination }] }
+    case 'finished': {
+      const usage = input.hooks.usage(phase.usage ?? NO_USAGE)
+      if (!('ok' in usage)) return { fault: usage.failure }
+      const report: CallAccountReport = {
+        usage: usage.ok.items,
+        cost: costOf(phase.usage),
+        trimmed: { state: 'unknown', unit: 'token' },
+        place: `${GATEWAY_PLACE}/${phase.serving.provider}`,
+        duration: { state: 'unknown' },
+        revision: '1',
+      }
+      return {
+        phase: ENDED,
+        facts: [
+          { kind: 'account', event: ACCOUNT_EVENT, value: report },
+          ...usage.ok.diagnostics.map(diagnosticFact),
+          { kind: 'ended', termination: phase.termination },
+        ],
+      }
+    }
     case 'ended':
       return protocol('decoder-already-ended')
     default: {
@@ -457,8 +496,9 @@ function decodeArguments(limits: ChatCompletionsLimits, text: string): JsonValue
 
 /**
  * All joined details go to the reasoning hook once. Each payload it gives becomes one reasoning
- * state part, sealed whole at a new index and paired with the thinking block. A payload that is
- * empty or longer than the message limit gives no part.
+ * state part, sealed whole at a new index and paired with the thinking block. An empty payload
+ * gives no part; a payload longer than the message limit gives a `reasoning-state-dropped`
+ * diagnostic with its length instead.
  */
 function sealReasoning(
   input: DecoderInput,
@@ -471,7 +511,17 @@ function sealReasoning(
   const sealed = codec.seal(hookDetails(details))
   if (!('ok' in sealed)) return { fault: sealed.failure }
   for (const { payload } of sealed.ok) {
-    if (payload.length === 0 || payload.length > REASONING_STATE_PAYLOAD_MAX_LENGTH) continue
+    if (payload.length === 0) continue
+    if (payload.length > REASONING_STATE_PAYLOAD_MAX_LENGTH) {
+      work.facts.push(
+        diagnosticFact({
+          kind: 'reasoning-state-dropped',
+          reason: 'payload-too-long',
+          length: payload.length,
+        }),
+      )
+      continue
+    }
     const index = String(work.phase.next)
     work.phase = { ...work.phase, next: work.phase.next + 1 }
     work.facts.push({
@@ -526,6 +576,22 @@ function blockId(index: string): BlockId {
   const judged = judgeBlockIdentity({ id: `b${index}`, visibility: SHOWN })
   if ('rejected' in judged) throw new Error(`block identity b${index} was refused`)
   return judged.ok.id
+}
+
+function diagnosticFact(value: ProviderDiagnostic): TransportFact {
+  return { kind: 'diagnostic', value }
+}
+
+/**
+ * The cost of the account: the gateway `usage.cost` as supplier cost when it is a plain decimal,
+ * unknown when it is reported in another form, and no item when the usage has no cost.
+ */
+function costOf(usage: GatewayUsage | null): CallAccountReport['cost'] {
+  const cost = usage?.raw['cost']
+  if (cost === undefined || cost.kind === 'null') return []
+  if (cost.kind === 'number' && COST_LEXEME.test(cost.lexeme))
+    return [{ state: 'known', lexeme: cost.lexeme, unit: COST_UNIT, source: 'supplier' }]
+  return [{ state: 'unknown', unit: COST_UNIT, source: 'supplier' }]
 }
 
 function protocol(diagnostic: string): Refusal {

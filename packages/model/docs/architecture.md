@@ -53,7 +53,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；还没有家族包使用它们。tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与两个资源类型；它在初始化时核对家族传入的词表与配置，不收录厂商词表，还没有家族消费它。其余 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 使用它们。tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与两个资源类型；它在初始化时核对家族传入的词表与配置，不收录厂商词表，pi-ai-openai 以 o200k 词表消费它。其余 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -211,7 +211,8 @@ import type { ContentReference } from '@omne-harness/content-block'
 import type {
   Adoption, Supplier, FixedModelRequest, ModelRequestRules, ModelInputMeter,
   ModelCountingBasis, ModelToolPayloadAdapter, TransportFact, TransportFailure, ModelFault,
-  MeterRepresentation, MediaMeasurementFact,
+  MeterRepresentation, MediaMeasurementFact, ReplayDeclaration, TransportDispatch,
+  ProviderDiagnostic,
 } from '@omne-harness/model-contract'
 
 export type PiProtocolFrame = Readonly<{ kind: 'data'; value: JsonValue }>
@@ -229,8 +230,10 @@ export type PiFamilyBinding = Readonly<{
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(input: Readonly<{
     request: FixedModelRequest; media: readonly PiMaterializedMedia[]
+    declaration: ReplayDeclaration; resent: TransportDispatch['resent']
   }>): Outcome<Readonly<{
     body: JsonValue; representation: Extract<MeterRepresentation, { kind: 'materialized' }>
+    diagnostics: readonly ProviderDiagnostic[]
   }>, TransportFailure>
   createDecoder(): PiResponseDecoder
   release(): Promise<void>
@@ -246,9 +249,9 @@ acquire 核型号、接收方、route 和所有采用相容后，一次交付完
 
 `PiFamilyBinding.release` 只有在本次资源确已释放后才成功返回。资源清理失败时拒绝该 Promise，不吞掉失败或标记释放完成；持有绑定的装配拥有者继续负责未完成的清理。向 `ModelPreparationResources` 提供租约时，该拥有者捕获预期的清理失败，转换为既定的 `unavailable` 结果，`dependency` 指明资源提供者，诊断不含私有内容。租约重复释放返回同一结果，后续清理仍由提供者负责，遵守[准备资源的释放协议](../model-contract/SPEC.md#档案和准备提供者的组合协议)。这不改变领域契约的失败形状。
 
-rules、tools 和 encode 是纯计算，不读环境、秘密、网络或文件。encode 使用已固定的表示及合法物化媒体，只返回请求 body 的 JsonValue 和相应物化计量表示，不返回 URL、headers 或重定向命令。传输侧提供已核验的媒体计量事实；family 形成其固定 schema 的 tokenInput，公共传输以实际序列化字节核 representation.requestBytes。传输与发送路径都不计量预算；预算由请求组装方在请求前计量，最终是否超限以上游响应为准。bytes 由传输暂借，家族不能保留或修改；后续原生库需要复制时，该副本归本次编码操作并受同一配额及清理约束。公共传输核返回体与已固定参数、工具声明和表示相容，完成序列化及摘要后密封发送对象。不得悄悄删工具、改历史或重新压图。
+rules、tools 和 encode 是纯计算，不读环境、秘密、网络或文件。encode 使用已固定的表示、合法物化媒体、请求中该供应商的回放声明（`declaration`，取 `request.declarations` 中与该供应商同序的一项）和本次发出的再发略去集合（`resent`，取 `prepare` 的第三个参数），只返回请求 body 的 JsonValue、相应物化计量表示和本次编码的诊断（`diagnostics`：回放略去与前缀降级），不返回 URL、headers 或重定向命令。公共传输在发出之后、解码器的事实之前，把这些诊断逐条作为 `diagnostic` 事实交出。传输侧提供已核验的媒体计量事实；family 形成其固定 schema 的 tokenInput，公共传输以实际序列化字节核 representation.requestBytes。传输与发送路径都不计量预算；预算由请求组装方在请求前计量，最终是否超限以上游响应为准。bytes 由传输暂借，家族不能保留或修改；后续原生库需要复制时，该副本归本次编码操作并受同一配额及清理约束。公共传输核返回体与已固定参数、工具声明和表示相容，完成序列化及摘要后密封发送对象。不得悄悄删工具、改历史或重新压图。
 
-每个物理 dispatch 创建一个 decoder，不共享流状态。HTTP/SSE framing 由公共传输处理，家族解释合法帧中的内容、终止和 usage；decode 不自行重试、读取网络或查其他调用。协议 end-marker 与传输 EOF 分开；end 只结束当前解析，不把缺少合法终局的 EOF 改成成功。finish 后的 usage 尾帧沿固定有界协议收取；已 ended 的 decoder 拒绝后续内容。unknown usage scope 保持未知，不能因家族或型号匹配失败就套用默认口径。
+每个物理 dispatch 创建一个 decoder，不共享流状态。HTTP/SSE framing 由公共传输处理，家族解释合法帧中的内容、终止和 usage；decode 不自行重试、读取网络或查其他调用。协议 end-marker 与传输 EOF 分开；end 只结束当前解析，不把缺少合法终局的 EOF 改成成功。finish 后的 usage 尾帧沿固定有界协议收取；已 ended 的 decoder 拒绝后续内容。unknown usage scope 保持未知，不能因家族或型号匹配失败就套用默认口径。decoder 交出的账目是不含调用身份的账目报告（`CallAccountReport`），在 `ended` 之前给出；用量自相矛盾、推理状态载荷超长等情况以 `diagnostic` 事实交出。
 
 | 失败位置 | 对外结果及拥有者 |
 | --- | --- |

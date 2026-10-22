@@ -35,7 +35,7 @@
 | `bindChatCompletions` 与 `./chat-completions` 的类型 | [bind.ts](../src/chat-completions/bind.ts)、[vocabulary.ts](../src/chat-completions/vocabulary.ts) | [SPEC“网关引擎：请求”](../SPEC.md#网关引擎请求)、[“网关引擎：流解释”](../SPEC.md#网关引擎流解释) |
 | `./testing` 的值与类型 | [fixtures.ts](../src/testing/fixtures.ts)、[adoptions.ts](../src/testing/adoptions.ts) | [SPEC“家族测试助手”](../SPEC.md#家族测试助手) |
 
-五个类型的形状照抄组架构的已接受代码块。改变形状须先改组架构。类型引用的 `Adoption`、`Supplier`、`TransportFact`、`ModelFault` 等定义见 [model-contract 公开接口](../../model-contract/docs/public-api.md)。
+五个类型的形状照抄组架构的已接受代码块。改变形状须先改组架构。`PiFamilyBinding.encode` 的输入含该供应商的回放声明（`declaration`）与再发略去集合（`resent`），结果含编码诊断（`diagnostics`）。网关引擎的 `VendorHooks.usage` 返回 `ChatUsage`（`items` 与 `usage-inconsistent` 诊断），类型 `ChatUsage` 与 `UsageDiagnostic` 从 `./chat-completions` 导出。类型引用的 `Adoption`、`Supplier`、`TransportFact`、`ModelFault` 等定义见 [model-contract 公开接口](../../model-contract/docs/public-api.md)。
 
 包内机制（不导出）：
 

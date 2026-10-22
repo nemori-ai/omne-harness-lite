@@ -4,6 +4,9 @@ import type {
   FixedModelRequest,
   MaterializedTransport,
   PreparedTransport,
+  ReplayDeclaration,
+  Supplier,
+  TransportDispatch,
 } from '@omne-harness/model-contract'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
@@ -17,6 +20,7 @@ import {
   type FamilyProbe,
 } from './support/test-family.ts'
 import { slotFree } from './support/transport.ts'
+import { fixedRequest, testRecord } from './support/chat-record.ts'
 
 // Nothing listens here; materialize never sends.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
@@ -34,7 +38,7 @@ afterEach(async () => {
 function setup(maxConnections = 1): {
   network: NetworkInternals
   probe: FamilyProbe
-  prepare(request?: FixedModelRequest): Promise<PreparedTransport>
+  prepare(request?: FixedModelRequest, dispatch?: TransportDispatch): Promise<PreparedTransport>
 } {
   const network = openNetwork({ maxConnections, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
@@ -50,8 +54,8 @@ function setup(maxConnections = 1): {
   return {
     network,
     probe: family.probe,
-    async prepare(request = REQUEST) {
-      const prepared = await built.transport.prepare(request, SUPPLIER, { resent: [] })
+    async prepare(request = REQUEST, dispatch = { resent: [] }) {
+      const prepared = await built.transport.prepare(request, SUPPLIER, dispatch)
       if (!('ok' in prepared)) throw new Error('expected a prepared transport')
       return prepared.ok
     },
@@ -95,10 +99,35 @@ describe('materialize', () => {
     expect(second.receipt).toEqual(first.receipt)
   })
 
-  it('gives the family the request and no media', async () => {
+  it('gives the family the request, no media, the declaration of the supplier and no resent message', async () => {
     const { prepare, probe } = setup()
     await materialized(await prepare())
-    expect(probe.encoded).toEqual({ request: REQUEST, media: [] })
+    expect(probe.encoded).toEqual({
+      request: REQUEST,
+      media: [],
+      declaration: REQUEST.declarations[0],
+      resent: [],
+    })
+  })
+
+  it('takes the declaration at the position of the supplier, and the resent messages of the dispatch', async () => {
+    const { prepare, probe } = setup()
+    const other: Supplier = { ...SUPPLIER, model: 'other-model' }
+    const otherDeclaration: ReplayDeclaration = {
+      produces: 'test-recipient/other-model',
+      accepts: ['test-recipient/other-model'],
+      foreignThinking: 'text',
+    }
+    const [own] = REQUEST.declarations
+    const request: FixedModelRequest = {
+      ...REQUEST,
+      suppliers: [other, SUPPLIER],
+      declarations: [otherDeclaration, own],
+    }
+    const resent = fixedRequest(testRecord()).messages.map(message => message.id)
+    await materialized(await prepare(request, { resent }))
+    expect(probe.encoded?.declaration).toBe(own)
+    expect(probe.encoded?.resent).toEqual(resent)
   })
 
   it('holds the slot until close returns it', async () => {

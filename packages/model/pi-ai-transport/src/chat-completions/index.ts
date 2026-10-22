@@ -5,6 +5,7 @@ export { bindChatCompletions, type ChatCompletionsBindingInput } from './bind.ts
 export type {
   ChatCompletionsLimits,
   ChatCompletionsRecord,
+  ChatUsage,
   ChatUsageItem,
   ExtensionRule,
   FamilyMeter,
@@ -27,6 +28,7 @@ export type {
   ReplayPart,
   ReplayWire,
   ServingPin,
+  UsageDiagnostic,
   VendorHooks,
   WireProfile,
 } from './vocabulary.ts'

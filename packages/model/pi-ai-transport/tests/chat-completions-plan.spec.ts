@@ -1,4 +1,4 @@
-import type { Parameter, ParameterAdoption } from '@omne-harness/model-contract'
+import type { ModelProfile, Parameter, ParameterAdoption } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,
@@ -73,23 +73,31 @@ function applied(outcome: ReturnType<typeof plan>): readonly Parameter[] {
 }
 
 describe('rules.plan: the replay declaration', () => {
-  it('accepts a profile whose declaration equals the record declaration once defaults apply', () => {
-    const record = testRecord()
-    const spelled = profileOf(record, {
-      replay: { produces: SCOPE, accepts: [SCOPE], foreignThinking: 'omit' },
-    })
-    expect('ok' in plan(bind(record), record, {}, spelled)).toBe(true)
+  const other = message('a1', 'assistant', [stateBlock('s1', 'sealed'), textBlock('b1', 'hi')], {
+    replay: { scope: 'gateway/other', format: FORMAT, at: [0] },
   })
 
-  it('refuses a profile whose declaration for this supplier differs', () => {
+  it('projects with the declaration of the profile, which may differ from the record declaration', () => {
     const record = testRecord()
-    const differing = profileOf(record, { replay: { foreignThinking: 'text' } })
-    expect(plan(bind(record), record, {}, differing)).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'suppliers[0].replay',
-        adapter: supplierOf(record).adoption,
-      },
+    const wider = profileOf(record, {
+      replay: { accepts: [SCOPE, 'gateway/other'], foreignThinking: 'text' },
+    })
+    const cases: readonly (readonly [ModelProfile, boolean])[] = [
+      [profileOf(record), false],
+      [wider, true],
+    ]
+    for (const [profile, continuable] of cases) {
+      const probe = engineProbe()
+      expect('ok' in plan(bind(record, probe), record, { messages: [other] }, profile)).toBe(true)
+      expect(probe.checks[0]?.treatments[0]).toMatchObject({ continuable })
+    }
+  })
+
+  it('returns the invalid of the contract judge for a profile declaration that is not valid', () => {
+    const record = testRecord()
+    const broken = profileOf(record, { replay: { produces: 'gateway/other', accepts: [SCOPE] } })
+    expect(plan(bind(record), record, {}, broken)).toEqual({
+      failure: { kind: 'invalid', field: 'suppliers[0].replay', reason: 'accepts-lacks-produces' },
     })
   })
 })
@@ -285,7 +293,12 @@ describe('rules.plan: the family check and the representation', () => {
     const outcome = plan(binding, record)
     if (!('ok' in outcome)) throw new Error('plan failed')
     const request = fixedRequest(record, { parameterAdoptions: outcome.ok.parameters })
-    const encoded = binding.encode({ request, media: [] })
+    const encoded = binding.encode({
+      request,
+      media: [],
+      declaration: request.declarations[0],
+      resent: [],
+    })
     if (!('ok' in encoded)) throw new Error('encode failed')
     expect(outcome.ok.representation).toEqual(encoded.ok.representation)
     expect(encoded.ok.representation).toEqual({

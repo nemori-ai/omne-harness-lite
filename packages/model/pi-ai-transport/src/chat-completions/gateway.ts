@@ -5,7 +5,15 @@ import { bool, finite, lexeme, list, object, text } from './json.ts'
 import type { GatewayField, GatewayParam } from './vocabulary.ts'
 
 const DECIMAL = /^(0|[1-9][0-9]*)$/
-const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
+const EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const satisfies readonly Extract<GatewayParam, { field: 'reasoning.effort' }>['value'][]
 
 /** Every field of the vocabulary, for the checks of a record. */
 export const GATEWAY_FIELDS = [

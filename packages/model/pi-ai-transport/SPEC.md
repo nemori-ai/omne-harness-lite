@@ -24,10 +24,8 @@
 
 本包当前不提供以下能力。本文件对它们不作承诺：
 
-- 解码器的账目事实。`account` 的 `CallAccount` 要求原调用的身份，`createDecoder()` 与 `ModelTransport` 都不给出它。解码器读取并保留 usage，但不给出 `account`，见[“网关引擎：流解释”](#网关引擎流解释)。
-- 解码器的诊断。推理续接状态部件的载荷超过上限时，解码器不产生部件，但没有通道记录这条诊断。
-- “回放被拒后再发”要略去的消息集合。Model 的再发尚未实现。实现再发时，`encode` 需要新增这一输入，届时修改接口。
-- 任何家族包、凭据解析与真实供应商请求。归 #465 与 2.6。
+- 家族本身。家族由独立的家族包提供，例如 `@omne-harness/pi-ai-openai`。本包只提供家族表、网关引擎与测试助手。
+- 凭据解析与真实供应商请求。归 2.6。
 - 媒体读取。materialize 遇到模型可见的内容引用时拒绝，见“三段传输”。媒体读取器的注入与读取归阶段四 4.4。引擎只编码内联图片。
 - 家族对错误体的解释，例如输入超限。所有请求都经 OpenRouter，错误体格式属于网关，本包保持“交换结果”中的映射。
 - 按优先级与等待方式分配名额。这是未实现的方向，记录在[内部架构](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位)。
@@ -56,9 +54,11 @@
 
 #### prepare
 
-`prepare(request, supplier)` 不发送，不读取媒体，不预约容量。
+`prepare(request, supplier, dispatch)` 不发送，不读取媒体，不预约容量。
 
 - `supplier.recipient` 没有路由时，返回 `unsupported`，`field` 为 `supplier.recipient`。本包不调用家族贡献。
+- `request.suppliers` 中没有与 `supplier` 完全相等的一项（采用的四项、接收方、型号与凭据都相等）时，返回 `invalid`，`field` 为 `supplier`，`reason` 为 `not-in-request`。本包不调用家族贡献。
+- 本包取 `request.declarations` 中与该供应商同序的一项作为这次发出的回放声明，并保存 `dispatch.resent` 的副本。两者在 materialize 时交给 `encode`。
 - 本包调用 `families.acquire(supplier, signal)` 取得家族绑定。家族返回的失败原样返回。`signal` 在外层 `close()` 时中止。
 - 外层 `close()` 开始之后，`prepare` 返回 `unavailable`（`dependency` 为 `pi-transport`）。`close()` 开始时仍在进行的 acquire 之后取得的绑定，本包立即释放。
 - 每个成功的 prepare 拥有一个家族绑定，直到它关闭。
@@ -69,7 +69,7 @@
 
 1. 按 FIFO 预约一个容量名额。等待没有时限，只在下列情况下结束：`signal` 取消、prepared 关闭、网络资源关闭。等待结束时返回 `unavailable`，`dependency` 为 `connection-capacity`，`diagnostic` 为 `cancelled` 或 `network-closed`。
 2. 扫描固定请求中模型可见（`visibility.toModel`）且带 `ref` 的内容块，顺序是 `system`，然后 `messages`。发现一个时返回 `unsupported`，`field` 是该块的路径（例如 `/system/0` 或 `/messages/1/blocks/0`），`adapter` 是家族绑定的采用。本包不丢弃这个引用。
-3. 调用家族的 `encode({ request, media: [] })`。家族返回的失败原样返回。
+3. 调用家族的 `encode({ request, media: [], declaration, resent })`。`declaration` 与 `resent` 是 prepare 保存的值。家族返回的失败原样返回。本包保存家族返回的 `diagnostics`，交给事实流。
 4. 把 `body` 序列化为不含空白的 JSON 文本，再编码为 UTF-8 字节。
 5. 计算这些字节的 SHA-256，用 64 个小写十六进制数字表示。
 6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。回执冻结，重复读取得到同一个对象。
@@ -102,6 +102,8 @@
 - `endMarker` 是 `null`，或响应体在 end-marker 之前结束：响应体结束时，协议结束。
 
 协议结束之后，本包调用解码器的 `end()`，给出它的事实，再给出 `ended`。
+
+请求发出之后，本包先把 `encode` 返回的每条诊断按次序作为 `diagnostic` 事实给出，再处理响应。交换以 HTTP 错误或连接失败结束时也是如此，因为请求已经交给 Node。请求没有发出时（见“start”第 1、2、4 步与关闭之后的 start），流不含这些诊断。
 
 - 解码器给出的 `ended` 由本包保留，到协议结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
 - 解码器给出第二个 `ended` 时，流以 `failed` 结束，`cause` 为 `upstream-protocol`，`diagnostic` 为 `decoder-ended-twice`。
@@ -397,7 +399,7 @@
 - `wire.cache`、`wire.image`、`wire.fixed` 见下文“请求体”。`wire.usageTail` 归解码器。
 - `parameters` 按契约 `Parameter` 的全部 kind（`extension` 除外）给出规则：`unsupported`，或 `supported` 加取值范围（`accept`）、默认值（`default`）与网关字段（`wire`）。`reasoning-effort` 按值映射，可以映射为 `unsupported`。
 - `extensions` 按 `definition` 采用的全部四项匹配扩展参数，匹配到时写入规则的网关字段。
-- `replay.declaration` 是本记录的官方回放声明，`replay.formats` 是回放格式，`replay.prefix` 是前缀要求。
+- `replay.declaration` 是本记录的官方回放声明，只供官方档案使用。plan 与 encode 不读它。`replay.formats` 是回放格式，`replay.prefix` 是前缀要求。
 
 网关字段是闭合词表 `GatewayParam`。新增字段要修改引擎。
 
@@ -406,7 +408,7 @@
 `rules.plan({ profile, supplier, assembled })` 按下列顺序进行，第一个失败即返回：
 
 1. 核对供应商。`supplier` 不是本绑定的供应商时，返回 `invalid`（`field` 为 `supplier`，`reason` 为 `not-this-binding`）。`profile.definition.suppliers` 中没有采用相等的一项时，返回 `invalid`（`reason` 为 `not-in-profile`）。
-2. 比对回放声明。该供应商的声明展开默认值后，`produces`、`foreignThinking` 与 `accepts` 的集合都必须等于记录声明展开后的值。不等时返回 `unsupported`，`field` 为 `suppliers[<序号>].replay`，`adapter` 为记录采用。档案中的声明不合格时，返回 `judgeReplayDeclaration` 的 `invalid`。
+2. 展开回放声明。引擎用 `judgeReplayDeclaration` 展开档案中该供应商的声明，投影使用展开后的值。这就是该档案的请求为这个供应商固定的声明。档案中的声明不合格时，返回 `judgeReplayDeclaration` 的 `invalid`。档案的声明可以与记录的官方声明不同。
 3. 规划参数，按请求中的顺序：
    - 同一 kind 或同一扩展出现两次：`invalid`，`reason` 为 `repeated`；
    - 显式参数的 kind 不受支持，或 `reasoning-effort` 的值映射为 `unsupported`：`unsupported`，`field` 为 kind，`adapter` 为记录采用；
@@ -420,11 +422,11 @@
 5. 调用 `hooks.check({ applied, messages, treatments })`。它只校验，不改写。它的失败原样返回。
 6. 形成表示。引擎用第 4 步的投影与参数写出请求体，再调用 `meter.represent(view)`。写出请求体的失败（见下文“请求体”）在这一步返回。返回的采用必须等于 `assembled.representation`，不等时返回 `unsupported`（`field` 为 `representation`）。表示为 `materialized`，`media` 为空，`requestBytes` 是请求体的字节数。
 
-前缀降级没有单独的诊断通道。降级如实记录在参数采用中：`applied` 为 `none`，显式请求保留原值。运行时按同一输入重算即得同一结论。诊断查询归父卡 6.4。
+降级如实记录在参数采用中：`applied` 为 `none`，显式请求保留原值。plan 不返回诊断；encode 为降级的请求返回一条 `reasoning-disabled` 诊断，见“encode”。
 
 #### encode
 
-`encode({ request, media })` 与 plan 使用同一投影与同一请求体写法，所以计量看到的就是发出的形状。
+`encode({ request, media, declaration, resent })` 与 plan 使用同一投影与同一请求体写法，所以计量看到的就是发出的形状。`declaration` 是请求为本供应商固定的回放声明，`resent` 是这次发出须视为不可续接的消息。引擎不再使用记录的官方声明。
 
 按下列顺序进行，第一个失败即返回：
 
@@ -433,6 +435,7 @@
 3. 调用 `hooks.check`。参数取 `request.parameterAdoptions` 中 `supplier` 等于本绑定采用的各项的 `applied`。
 4. 写出参数。某项不能按记录写出时，返回 plan 会返回的同一失败。前缀降级按同一规则重算。降级时推理采用必须是 `none`，否则返回 `invalid`（`field` 为 `parameterAdoptions`，`reason` 为 `prefix-degrade-mismatch`）。
 5. 写出请求体，调用 `meter.represent`。表示采用必须等于 `request.representation`。
+6. 返回请求体、表示与诊断。诊断按次序是：投影中每条略去推理续接状态部件的消息一条 `replay-omitted`（消息身份、`scope`、`format` 与部件个数），然后在前缀降级时一条 `reasoning-disabled`（`reason` 为 `foreign-prefix`）。诊断不含载荷或正文。
 
 #### 投影
 
@@ -448,12 +451,12 @@
 - 工具：`{ type: 'function', function: { name, description, parameters } }`，`parameters` 经 `hooks.toolSchema`。`binding.tools.convertToModelPayload` 给出同一形式。
 - `tool_choice`：没有工具时，`none` 与 `auto` 不写出，`required` 或指名返回 `invalid`（`reason` 为 `no-tools`）。指名的工具不在工具中时返回 `invalid`（`reason` 为 `unknown-tool`）。
 
-回放按 model-contract 的 `projectReplay` 投影。`declaration` 是记录声明展开后的值，`formats` 取记录的 `replay.formats.accepts`，请求关闭回放时 `off` 为真，`resent` 为空：
+回放按 model-contract 的 `projectReplay` 投影。`declaration` 在 plan 中是档案声明展开后的值，在 encode 中是 encode 的输入。`formats` 取记录的 `replay.formats.accepts`。请求关闭回放时 `off` 为真。`resent` 在 plan 中为空，在 encode 中是 encode 的输入：
 
 - 可续接的消息：`replay.at` 指出的模型可见部件与原生 `thinking` 交给 `hooks.reasoning.replay`。它返回 `details` 时写 `reasoning_details`，返回 `plain` 时写 `reasoning`。
 - 不可续接的消息：不写推理续接状态部件。`thinking` 按 `foreignThinking` 处理：`omit` 不写，`text` 作为文本部件写入，`adapter` 交给 `hooks.reasoning.replay`。
-- 需要写回放而 `hooks.reasoning` 为 `null` 时，返回 `unsupported`，`field` 为该消息的路径。
-- 略去的诊断就是 `projectReplay` 返回的 `diagnostics`。它是纯函数，运行时按同一输入重算即得。本包不另开诊断通道。
+- 需要写回放而 `hooks.reasoning` 为 `null` 时，返回 `unsupported`，`field` 为该消息的路径。所以 `foreignThinking` 为 `adapter`、外来消息有 `thinking`、而家族没有推理编解码器时，结果是 `unsupported`。家族的编解码器也可以对它没有写法的输入返回 `unsupported`。
+- encode 把 `projectReplay` 返回的 `diagnostics` 写成 `replay-omitted` 诊断。
 
 #### 请求体
 
@@ -512,7 +515,7 @@
 
 - 文本块与思考块封为 `text` 与 `thinking`，内容是累计值。块的身份是 `b<序号>`，可见性对人与模型都可见。
 - 工具参数块封为 `tool_call`：`callId` 是上游的调用 `id`，`name` 是上游的名字，`arguments` 是参数文本按 `limits.toolArguments` 解码的值。空参数文本是空对象。没有 `id` 为 `tool-call-without-id`，不能解码为 `tool-arguments-invalid`。
-- 记录有推理编解码器且缓存了推理项时，解码器把全部拼接后的项交给 `hooks.reasoning.seal` 一次。hook 失败时，解码器以该 fault 失败。hook 给出的每个载荷在新的序号上整块封为推理续接状态部件，不先开块：可见性对人不可见、对模型可见，`pairs` 指向思考块（没有思考块时为空）。空载荷或长度超过 message 成员 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576）的载荷不产生部件。
+- 记录有推理编解码器且缓存了推理项时，解码器把全部拼接后的项交给 `hooks.reasoning.seal` 一次。hook 失败时，解码器以该 fault 失败。hook 给出的每个载荷在新的序号上整块封为推理续接状态部件，不先开块：可见性对人不可见、对模型可见，`pairs` 指向思考块（没有思考块时为空）。空载荷不产生部件。长度超过 message 成员 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576）的载荷不产生部件，解码器在原位置给出一条 `diagnostic` 事实：`reasoning-state-dropped`，`reason` 为 `payload-too-long`，`length` 为载荷长度。
 
 #### 失败与阶段
 
@@ -523,7 +526,21 @@
 
 #### 账目
 
-解码器不给出 `account` 事实。`CallAccount` 的 `subject` 必须是原调用，`ModelTransport` 与 `createDecoder()` 都不给出原调用的身份。解码器保留最后一份 usage，供这项接口补齐后交给 `hooks.usage`。
+`finished` 阶段的 `end()` 先调用 `hooks.usage` 一次，再给出事实。收场值是什么都如此，含被拒的收场（例如 `content_filter`）。参数是保留的最后一份 usage；响应没有报告 usage 时，参数的四个计数都是 `null`，`raw` 为空。hook 失败时，解码器以该 fault 失败，不给出账目。
+
+hook 成功时，`end()` 按下列次序给出事实：
+
+1. 一个 `account` 事实，`event` 为 `usage`，值是账目报告 `CallAccountReport`：
+   - `usage` 是 hook 返回的 `items`；
+   - `cost`：usage 的 `cost` 成员是非负十进制数（没有指数）时，为一项 `known`，`lexeme` 照原样，`unit` 为 `openrouter-credit`，`source` 为 `supplier`。该成员以其他形式出现时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`；
+   - `trimmed` 为 `{ state: 'unknown', unit: 'token' }`；
+   - `place` 为 `openrouter/<第一帧报告的 provider>`；
+   - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
+   - `revision` 为 `'1'`。
+2. hook 返回的每条 `usage-inconsistent` 诊断，各一个 `diagnostic` 事实。
+3. `ended`。
+
+报告不含调用身份与迟到标记，保存方补上它们。解码器在 `end()` 之前失败时（带内错误、协议错误、断流），不给出账目：失败的结果不带事实。
 
 ### 家族测试助手
 
@@ -635,11 +652,11 @@
 
 | 义务 | 测试 | 层 |
 | --- | --- | --- |
-| 构造的配置校验（含不是句柄的 `network`）、prepare 的路由查找与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时等待全部关闭） | [transport.spec.ts](tests/transport.spec.ts) | 快 |
-| materialize：回执、交给家族的输入、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
-| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start、凭据只在同步调用中读取一次 | [start.spec.ts](tests/start.spec.ts) | 快 |
+| 构造的配置校验（含不是句柄的 `network`）、prepare 的路由查找、请求不含该供应商时的拒绝与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时等待全部关闭） | [transport.spec.ts](tests/transport.spec.ts) | 快 |
+| materialize：回执、交给家族的输入（含同序的声明与再发略去集合）、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
+| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start、凭据只在同步调用中读取一次、不发送时没有编码诊断 | [start.spec.ts](tests/start.spec.ts) | 快 |
 | 失败映射表的每一行 | [termination.spec.ts](tests/termination.spec.ts) | 快 |
-| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
+| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、编码诊断在发出之后先于响应事实（含 HTTP 失败）、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
 | model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
@@ -656,9 +673,9 @@
 | 根入口与子入口的运行时值，引擎内部不可经包导出访问，类型形状，含网络资源是不透明句柄 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
 | 公开消费例与反例：只经根入口对本地 HTTPS 服务发送一次，内容引用得到 `unsupported` | [examples.spec.ts](tests/examples.spec.ts) 运行 [examples/local-send.ts](examples/local-send.ts) | 慢 |
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
-| 网关引擎 plan：回放声明相等与不等，默认、显式、不支持、越界、输出上限与扩展参数的各分支，前缀降级的四种情况，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
-| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，回放的续接、略去、`text` 处理、关闭回放与缺少编解码器，降级的写法与不符；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝，以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
-| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷与超长载荷、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
+| 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，前缀降级的四种情况，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
+| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `none` 与 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理、经判定的关闭回放与缺少编解码器，`replay-omitted` 与 `reasoning-disabled` 诊断，降级的写法与不符；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝，以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
+| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况、没有 usage、被拒收场、用量诊断的次序、hook 失败、失败的流没有账目）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
 | 测试入口：夹具全部相符，名字中的 `/`，缺目录与缺文件，多余目录，请求体与事实不等，`request.json` 不合格；指纹的生成、检查、只追加、原地改动记录的检查失败与生成拒绝、不对应记录的行、非给定形式的文件 | [testing-helpers.spec.ts](tests/testing-helpers.spec.ts) | 快 |
 | 引擎源码不含厂商名或型号家族名 | [chat-completions-vendor-words.spec.ts](tests/chat-completions-vendor-words.spec.ts) | 快 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |
@@ -668,7 +685,7 @@
 - 真实供应商、真实代理与公网 TLS 不在持续验证中。慢层只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为。`test:live` 只在手动设置开关时运行，turbo 运行它时总是跳过。
 - `https:` 协议的代理。本包只校验它的配置，没有运行验证。
 - Model 发送路径（`SendResource`）与本传输的组合。慢层只用脚本化的提供者与本包的测试家族运行符合性套件。
-- 真实家族（#465）与真实凭据（2.6）下的三段传输。网关引擎只由测试记录与 hook 替身驱动，没有经真实传输与本地 HTTPS 服务发送。解码器的输入是手写的合成流，形状仿照真实网关流，不是真实样本。
+- 真实家族与真实凭据（2.6）下的三段传输。本包的测试只用测试记录与 hook 替身驱动网关引擎。`pi-ai-openai` 在自己的测试中经家族表与夹具检查驱动引擎，但没有经三段传输与本地 HTTPS 服务发送。解码器在本包的输入是手写的合成流，形状仿照真实网关流，不是真实样本。
 - 网关引擎请求体被真实网关接受。空的工具结果写空内容、没有文本的 assistant 消息写空内容，这两种写法没有真实供应商的证据。
 - 消息中模型可见的内容引用。快层只用 `system` 中的引用核对 materialize 的拒绝；构造消息需要本包不依赖的 `@omne-harness/message`。
 - 在途响应长时间没有数据时，连接池空闲超时的效果。

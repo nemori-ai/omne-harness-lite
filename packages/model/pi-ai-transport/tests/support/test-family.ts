@@ -8,12 +8,14 @@
 //   - `{"kind":"fault"}` makes the decoder answer an `input-rejected` fault.
 //   - any other value makes the decoder answer an `upstream-protocol` fault.
 // - The end marker is `[DONE]` and gives no fact.
+// - Encode gives the diagnostics that the probe holds, none by default.
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   FixedModelRequest,
   ModelCountingBasis,
   ModelFault,
+  ProviderDiagnostic,
   Supplier,
   TransportFact,
   TransportFailure,
@@ -84,7 +86,9 @@ export type FamilyProbe = {
   /** The signal of the latest acquire. */
   lastSignal: AbortSignal | undefined
   /** The input of the latest encode. */
-  encoded: { request: FixedModelRequest; media: readonly unknown[] } | undefined
+  encoded: Parameters<PiFamilyBinding['encode']>[0] | undefined
+  /** The diagnostics that every encode gives. */
+  encodeDiagnostics: readonly ProviderDiagnostic[]
   /** Set: the next acquire answers this failure. */
   acquireFailure: TransportFailure | undefined
   /** Set: acquire waits for this promise before it answers. */
@@ -102,6 +106,7 @@ export function createTestFamily(): Readonly<{
     released: 0,
     lastSignal: undefined,
     encoded: undefined,
+    encodeDiagnostics: [],
     acquireFailure: undefined,
     acquireGate: undefined,
     encodeFailure: undefined,
@@ -143,8 +148,9 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
     rules: { plan: () => ({ failure: refused }) },
     meter: { basis: counting, measure: () => ({ failure: refused }) },
     tools: { convertToModelPayload: () => ({ failure: refused }) },
-    encode({ request, media }) {
-      probe.encoded = { request, media }
+    encode(input) {
+      const { request } = input
+      probe.encoded = input
       if (probe.encodeFailure !== undefined) return { failure: probe.encodeFailure }
       const body: JsonValue = {
         kind: 'object',
@@ -163,6 +169,7 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
             media: [],
             requestBytes: '0',
           },
+          diagnostics: probe.encodeDiagnostics,
         },
       }
     },

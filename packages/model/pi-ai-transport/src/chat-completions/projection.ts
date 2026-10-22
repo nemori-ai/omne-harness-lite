@@ -76,6 +76,8 @@ export type ProjectionInput = Readonly<{
   tools: readonly ToolDeclaration[]
   toolChoice: FixedModelRequest['toolChoice']
   replayOff: boolean
+  /** The messages that this dispatch must treat as unable to continue. */
+  resent: ReadonlySet<ChatMessageId>
 }>
 
 const TOOL_CALL_ID = /^[A-Za-z0-9_-]{1,64}$/
@@ -170,7 +172,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
     declaration: input.declaration,
     formats: new Set(record.replay.formats.accepts),
     off: input.replayOff,
-    resent: new Set(),
+    resent: input.resent,
   })
   const treatments = new Map(replay.treatments.map(treatment => [treatment.index, treatment]))
   const messages: WireMessage[] = []

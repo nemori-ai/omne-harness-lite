@@ -116,6 +116,7 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
           media: [],
           requestBytes: '0',
         },
+        diagnostics: [],
       },
     }),
     createDecoder,

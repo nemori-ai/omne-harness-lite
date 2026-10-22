@@ -12,7 +12,7 @@
 | [canonical-json.ts](../src/canonical-json.ts) | 纯数据的规范 JSON 与它的 SHA-256 | Node `crypto` |
 | [chat-completions/index.ts](../src/chat-completions/index.ts) | 子入口，转出 `bindChatCompletions` 与 vocabulary.ts 的类型 | bind.ts、vocabulary.ts |
 | [chat-completions/bind.ts](../src/chat-completions/bind.ts) | 一条记录怎样成为完整绑定：绑定时的记录检查、请求上下文、只包一层的释放 | family-table.ts、request.ts、projection.ts、parameters.ts、gateway.ts、decoder.ts |
-| [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明比对、前缀降级、请求体、表示 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`；改编自 pi |
+| [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明的展开、前缀降级、请求体、表示与编码诊断 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`；改编自 pi |
 | [chat-completions/projection.ts](../src/chat-completions/projection.ts) | 请求怎样投影为网关消息：角色、内容、工具调用与结果、回放、缓存位置、工具 | json.ts、json-text、model-contract 的 `projectReplay`、Node `crypto`；改编自 pi |
 | [chat-completions/parameters.ts](../src/chat-completions/parameters.ts) | 参数怎样按记录表规划与写出 | gateway.ts |
 | [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts |
@@ -25,7 +25,7 @@
 | [testing/fixtures.ts](../src/testing/fixtures.ts) | 一个家族的夹具是否与引擎一致：按记录读三个文件、编码比较、经 `decodeBody` 回放比较、多余目录 | family-table.ts、fact-stream.ts、termination.ts、chat-completions/json.ts、model-contract 的 `judgeFixedModelRequest`、json-text、Node `fs/promises`、`path`、`util` |
 | [testing/adoptions.ts](../src/testing/adoptions.ts) | 采用指纹文件是否与记录一致，以及只追加的生成 | family-table.ts、Node `fs/promises` |
 | [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts，json-text、family.ts 与 network.ts（类型） |
-| [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，model-contract 与 operation-result（类型） |
+| [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、请求中的供应商与它的回放声明、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，model-contract 与 operation-result（类型） |
 | [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts 与 termination.ts（类型） |
 | [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后。2xx 响应体的解码是单独的 `decodeBody`，测试入口用它回放夹具 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts |
 | [termination.ts](../src/termination.ts) | 一次发送怎样结束：发送结束到流终止的纯函数 | model-contract（类型），frames.ts 与 sse.ts（类型） |
@@ -234,14 +234,17 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 
 - 唯一入口 `bindChatCompletions` 在绑定时核对记录：采用与供应商一致、默认值在记录自己的范围内、每个网关字段只有一个写入方。这些是家族包的缺陷，所以抛出 `RangeError`，不在请求时变成失败。
 - plan 与 encode 调用同一个 `project` 与同一个请求体写法。plan 写出请求体只为得到 `requestBytes` 与计量视图，所以计量看到的就是 encode 发出的形状。
-- 前缀降级由投影的回放处理结果判断：最后一条用过工具的 assistant 消息不可续接时降级。plan 把降级记入参数采用，encode 按同一输入重算并核对采用一致。没有单独的诊断通道，参数采用就是记录。
+- 回放声明来自请求，不来自记录。plan 用档案的声明投影，encode 用请求为本供应商固定的声明与这次发出的再发略去集合投影。受理固定了声明，所以恢复与再发按同一声明编码；记录的官方声明只供官方档案。
+- 前缀降级由投影的回放处理结果判断：最后一条用过工具的 assistant 消息不可续接时降级。plan 把降级记入参数采用，encode 按同一输入重算并核对采用一致。
+- encode 的诊断（回放略去与前缀降级）随返回值交给传输。传输在请求发出之后、响应的事实之前把它们作为 `diagnostic` 事实给出；请求没有发出时不给出，因为诊断描述的是发出的请求。
 - 请求体用 json-text 值树构造，每个对象的键在构造时排序。hook 返回的值在进入请求体前排序。工具调用的参数是值树的 JSON 文本，保持原键序。
 - 引擎源码不出现厂商名，一项测试扫描 `src/chat-completions/`。引擎来源头因此不写上游文件名，文件名登记在 provenance.json。
 - 解码器的状态是一个阶段值。归约步从阶段与 chunk 得到新阶段与事实，不改动旧阶段，所以每条规则只看它需要的字段，失败时直接返回 fault。解码器对象只持有当前阶段。`ended` 阶段拒绝之后的帧，与组架构“已 ended 的 decoder 拒绝后续内容”一致。
 - 解码器从 `end()` 给出唯一的终止。结束标记本身不给事实，所以响应体结束与结束标记走同一条路径：`finished` 阶段给出终止，`streaming` 阶段以 `stream-lost` 失败。唯一 `ended` 的守护仍在 fact-stream.ts，解码器不另建检查。
 - 缓冲限额来自绑定输入 `limits`，不在记录里：限额约束内存，不是线协议的差异，不应进入采用摘要。
 - 推理续接状态部件由家族的 `reasoning.seal` 在 finish 时一次给出，引擎只负责序号、可见性、配对与长度上限。部件长度上限照抄 message 成员的 `REASONING_STATE_PAYLOAD_MAX_LENGTH`，因为本包不依赖 message。
-- 解码器不给出 `account`：`CallAccount` 需要原调用的身份，而 `createDecoder()` 与 `ModelTransport` 不给出它。usage 在阶段中保留，补齐接口之后再交给 `hooks.usage`。
+- 解码器在 `finished` 阶段的 `end()` 给出账目报告：usage 在阶段中保留到结束，因为尾帧可能带来最后一份 usage。报告不含调用身份，保存方补上。归约步失败时 `accept` 只返回 fault，没有带事实的失败形状，所以失败的流没有账目。
+- 网关的 `cost` 以额度计。call-account 的 `USD` 最多两位小数，网关的费用常有更多位，所以单位写成 `openrouter-credit`，原样保留词法。
 
 投影、请求参数、chunk 循环与停止映射改编自 pi 1.0.0 的 chat completions 模块，只取纯计算。HTTP、SDK、重试、环境凭据与按 URL 猜兼容性都不取。改编内容见 [UPSTREAM.md](../UPSTREAM.md)。
 

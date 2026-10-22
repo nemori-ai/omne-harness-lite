@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import type {
+  FixedModelRequest,
+  ReplayDeclaration,
+  TransportDispatch,
+} from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,
@@ -27,6 +32,7 @@ import {
   textBlock,
   thinkingBlock,
   tool,
+  declarationOf,
   type EngineProbe,
   type RequestParts,
 } from './support/chat-record.ts'
@@ -48,8 +54,13 @@ function bind(
   })
 }
 
+/** The encode input of a request: its one declaration, no media and the resent messages. */
+function inputOf(request: FixedModelRequest, resent: TransportDispatch['resent'] = []) {
+  return { request, media: [], declaration: request.declarations[0], resent }
+}
+
 function encode(record: ChatCompletionsRecord, parts: RequestParts = {}, probe = engineProbe()) {
-  return bind(record, probe).encode({ request: fixedRequest(record, parts), media: [] })
+  return bind(record, probe).encode(inputOf(fixedRequest(record, parts)))
 }
 
 /** The body of a successful encode as plain JSON, for structural comparison. */
@@ -91,6 +102,35 @@ describe('encode: the body', () => {
         '"provider":{"allow_fallbacks":false,"order":["Lab"],"require_parameters":true},' +
         '"reasoning":{"effort":"xhigh"},"store":false,"stream":true}',
     )
+  })
+
+  it('writes the gateway efforts none and max where the record maps them', () => {
+    const base = testRecord()
+    const rule = base.parameters['reasoning-effort']
+    if (rule.support !== 'supported') throw new Error('the test record supports reasoning effort')
+    const record = testRecord({
+      parameters: {
+        ...base.parameters,
+        'reasoning-effort': {
+          ...rule,
+          wire: {
+            ...rule.wire,
+            none: { field: 'reasoning.effort', value: 'none' },
+            max: { field: 'reasoning.effort', value: 'max' },
+          },
+        },
+      },
+    })
+    for (const value of ['none', 'max']) {
+      const effort = {
+        supplier: adapterOf(record),
+        applied: { kind: 'reasoning-effort', value },
+        origin: { kind: 'default', source: adapterOf(record) },
+      }
+      expect(body(encode(record, { parameterAdoptions: [effort] })).reasoning).toEqual({
+        effort: value,
+      })
+    }
   })
 
   it('writes no usage switch and no member outside the gateway vocabulary', () => {
@@ -399,6 +439,9 @@ describe('encode: replay', () => {
     )
   }
   const follow = message('u2', 'user', [textBlock('b2', 'next')])
+  function omission(id: unknown, scope: string): unknown {
+    return { kind: 'replay-omitted', message: id, scope, format: FORMAT, omittedParts: 1 }
+  }
 
   it('writes the carried parts of a continuable message through the reasoning hook', () => {
     const probe = engineProbe()
@@ -430,11 +473,12 @@ describe('encode: replay', () => {
     ])
   })
 
-  it('writes foreign thinking as text when the declaration says text', () => {
-    const record = testRecord({
-      replay: { ...testRecord().replay, declaration: { foreignThinking: 'text' } },
-    })
-    const messages = messagesOf(encode(record, { messages: [assistant('gateway/other'), follow] }))
+  it('writes foreign thinking as text when the declaration of the request says text', () => {
+    const record = testRecord()
+    const declaration: ReplayDeclaration = { ...declarationOf(record), foreignThinking: 'text' }
+    const messages = messagesOf(
+      encode(record, { messages: [assistant('gateway/other'), follow], declaration }),
+    )
     expect(messages).toEqual([
       {
         role: 'assistant',
@@ -447,23 +491,96 @@ describe('encode: replay', () => {
     ])
   })
 
-  it('leaves out every part when replay is off', () => {
-    const messages = messagesOf(
-      encode(testRecord(), { messages: [assistant(SCOPE), follow], replay: 'off' }),
-    )
-    expect(messages).toEqual([
+  it('leaves out every part when the judged request turns replay off, and reports the omission', () => {
+    const request = fixedRequest(testRecord(), {
+      messages: [assistant(SCOPE), follow],
+      replay: 'off',
+    })
+    const outcome = bind(testRecord()).encode(inputOf(request))
+    expect(messagesOf(outcome)).toEqual([
       { role: 'assistant', content: 'answer' },
       { role: 'user', content: 'next' },
     ])
+    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([
+      omission(request.messages[0]?.id, SCOPE),
+    ])
+  })
+
+  it('projects with the declaration of the request, not the official declaration of the record', () => {
+    const record = testRecord()
+    const declaration: ReplayDeclaration = {
+      ...declarationOf(record),
+      accepts: [SCOPE, 'gateway/other'],
+    }
+    const outcome = encode(record, { messages: [assistant('gateway/other'), follow], declaration })
+    expect(messagesOf(outcome)).toEqual([
+      {
+        role: 'assistant',
+        content: 'answer',
+        reasoning_details: [{ type: 'reasoning.encrypted', data: 'sealed-1', format: FORMAT }],
+      },
+      { role: 'user', content: 'next' },
+    ])
+    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([])
+  })
+
+  it('reports each message whose parts stay out for another scope, and nothing for a continuable one', () => {
+    const request = fixedRequest(testRecord(), {
+      messages: [assistant('gateway/other'), follow],
+    })
+    const outcome = bind(testRecord()).encode(inputOf(request))
+    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([
+      omission(request.messages[0]?.id, 'gateway/other'),
+    ])
+  })
+
+  it('leaves out the parts of a resent message and reports the omission', () => {
+    const probe = engineProbe()
+    const request = fixedRequest(testRecord(), { messages: [assistant(SCOPE), follow] })
+    const resent = request.messages.slice(0, 1).map(item => item.id)
+    const outcome = bind(testRecord(), probe).encode(inputOf(request, resent))
+    expect(probe.replays).toEqual([])
+    expect(messagesOf(outcome)).toEqual([
+      { role: 'assistant', content: 'answer' },
+      { role: 'user', content: 'next' },
+    ])
+    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([omission(resent[0], SCOPE)])
+  })
+
+  it('gives foreign thinking to the reasoning hook when the declaration says adapter', () => {
+    const record = testRecord()
+    const probe = engineProbe()
+    const declaration: ReplayDeclaration = { ...declarationOf(record), foreignThinking: 'adapter' }
+    const request = fixedRequest(record, {
+      messages: [assistant('gateway/other'), follow],
+      declaration,
+    })
+    expect(messagesOf(bind(record, probe).encode(inputOf(request)))).toEqual([
+      { role: 'assistant', content: 'answer', reasoning: 'pondering' },
+      { role: 'user', content: 'next' },
+    ])
+    expect(probe.replays).toEqual([{ parts: [], thinking: ['pondering'] }])
+  })
+
+  it('refuses foreign thinking for adapter as unsupported when the family has no reasoning codec', () => {
+    const record = testRecord()
+    const probe = engineProbe()
+    const declaration: ReplayDeclaration = { ...declarationOf(record), foreignThinking: 'adapter' }
+    const request = fixedRequest(record, {
+      messages: [assistant('gateway/other'), follow],
+      declaration,
+    })
+    expect(bind(record, probe, testHooks(probe, false)).encode(inputOf(request))).toEqual({
+      failure: { kind: 'unsupported', field: '/messages/0', adapter: adapterOf(record) },
+    })
   })
 
   it('refuses a continuable message with reasoning when the family has no reasoning codec', () => {
     const record = testRecord()
     const probe = engineProbe()
-    const outcome = bind(record, probe, testHooks(probe, false)).encode({
-      request: fixedRequest(record, { messages: [assistant(SCOPE), follow] }),
-      media: [],
-    })
+    const outcome = bind(record, probe, testHooks(probe, false)).encode(
+      inputOf(fixedRequest(record, { messages: [assistant(SCOPE), follow] })),
+    )
     expect(outcome).toEqual({
       failure: { kind: 'unsupported', field: '/messages/0', adapter: adapterOf(record) },
     })
@@ -485,8 +602,11 @@ describe('encode: replay', () => {
       message('a1', 'assistant', [callBlock('c1', 'call_a')]),
       message('t1', 'tool', [resultBlock('r1', 'call_a'), textBlock('b1', 'done')]),
     ]
-    const parsed = body(encode(record, { messages, parameterAdoptions: [off] }))
-    expect(parsed.reasoning).toEqual({ enabled: false })
+    const degraded = encode(record, { messages, parameterAdoptions: [off] })
+    expect(body(degraded).reasoning).toEqual({ enabled: false })
+    expect('ok' in degraded && degraded.ok.diagnostics).toEqual([
+      { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
+    ])
     const medium = { ...off, applied: { kind: 'reasoning-effort', value: 'medium' } }
     expect(encode(record, { messages, parameterAdoptions: [medium] })).toEqual({
       failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'prefix-degrade-mismatch' },
