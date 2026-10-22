@@ -13,7 +13,7 @@
 ## 目录
 
 - [docs/](docs/index.md)：Cordis 定义、架构、流程、对象模型、公开接口、使用与定位
-- [src/](src/index.md)：根入口与 `./cordis`，现在只有模板标记
+- [src/](src/index.md)：根入口与 `./cordis`，类型重导出与服务定义均已实现
 - [tests/](tests/index.md)：两个入口测试与固定输入
 - [schema/](schema/index.md)：现在为空，本成员不发布 Schema
 - [verification/](verification/index.md)：模型与证明，现在为空

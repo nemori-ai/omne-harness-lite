@@ -53,7 +53,10 @@ function placements(value: unknown) {
 }
 
 function hostFacts(value: unknown) {
-  return executionHostFactsBlock.schema['~standard'].validate(value)
+  return executionHostFactsBlock.schema['~standard'].validate({
+    date: '2026-10-22',
+    providers: value,
+  })
 }
 
 function need(value: unknown) {
@@ -61,7 +64,7 @@ function need(value: unknown) {
 }
 
 function refusedAt(path: readonly (string | number)[]) {
-  return { issues: [{ path, message: expect.any(String) }] }
+  return { issues: [{ path, message: expect.stringMatching(/\S/) }] }
 }
 
 function requirementWith(binding: unknown) {
@@ -69,7 +72,9 @@ function requirementWith(binding: unknown) {
 }
 
 function failedAt(path: readonly (string | number)[]) {
-  return { failure: { reason: 'invalidInput', issues: [{ path, message: expect.any(String) }] } }
+  return {
+    failure: { reason: 'invalidInput', issues: [{ path, message: expect.stringMatching(/\S/) }] },
+  }
 }
 
 it('decodes tenant text with the legal-identity codec into a tenant equal to the original', () => {
@@ -228,8 +233,10 @@ it('accepts placement entries with every continuity kind and refuses each malfor
 it('accepts host facts and refuses each malformed field', () => {
   const unsatisfied = { ...facts, prerequisites: 'unsatisfied' }
   const unknown = { ...facts, prerequisites: 'unknown' }
-  expect(hostFacts([facts, unsatisfied, unknown])).toEqual({ value: [facts, unsatisfied, unknown] })
-  const at = (...rest: (string | number)[]) => refusedAt([0, ...rest])
+  expect(hostFacts([facts, unsatisfied, unknown])).toEqual({
+    value: { date: '2026-10-22', providers: [facts, unsatisfied, unknown] },
+  })
+  const at = (...rest: (string | number)[]) => refusedAt(['providers', 0, ...rest])
   expect(hostFacts(['facts'])).toEqual(at())
   expect(hostFacts([{ ...facts, extra: true }])).toEqual(at('extra'))
   expect(hostFacts([{ ...facts, provider: 1 }])).toEqual(at('provider'))
@@ -331,3 +338,49 @@ function scopeText(text: string) {
   if (binding?.kind !== 'session_sandbox') throw new Error('expected a session sandbox')
   return binding.scope.ref
 }
+
+it('validates a real host calendar date and requires a block envelope', async () => {
+  const validate = executionHostFactsBlock.schema['~standard'].validate
+  expect(await validate({ date: '2024-02-29', providers: [] })).toHaveProperty('value')
+  for (const date of ['2026-02-29', '2026-02-30', '2026-13-01', 'today', 42])
+    expect(await validate({ date, providers: [] })).toMatchObject({ issues: [{ path: ['date'] }] })
+  expect(await validate([])).toHaveProperty('issues')
+})
+
+it('uses real calendar dates including leap centuries and years below one hundred', async () => {
+  const schema = executionHostFactsBlock.schema['~standard']
+  for (const date of [
+    '0000-02-29',
+    '0099-01-01',
+    '2000-02-29',
+    '2024-02-29',
+    '2026-04-30',
+    '9999-12-31',
+  ])
+    expect(await schema.validate({ date, providers: [] })).toEqual({
+      value: { date, providers: [] },
+    })
+  for (const date of [
+    '1900-02-29',
+    '2100-02-29',
+    '2026-02-29',
+    '2026-04-31',
+    '2026-00-01',
+    '2026-13-01',
+    '2026-01-00',
+    '2026-01-32',
+    '2026-1-01',
+    'x2026-01-01',
+    '2026-01-01T00:00:00Z',
+    20260101,
+    null,
+  ])
+    expect(await schema.validate({ date, providers: [] })).toEqual(refusedAt(['date']))
+  for (const value of [
+    null,
+    [],
+    { date: '2026-01-01' },
+    { date: '2026-01-01', providers: [], extra: true },
+  ])
+    expect(await schema.validate(value)).toHaveProperty('issues')
+})

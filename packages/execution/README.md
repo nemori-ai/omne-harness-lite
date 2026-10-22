@@ -8,7 +8,7 @@
 
 ## 成员与依赖
 
-Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 `packages/` 下其他按这四段切分的组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。四个成员都有源码与包测试：契约成员有类型、设施声明、schema 与纯函数；Cordis 定义成员有抽象 Service 与键；机制成员有登记表；Service 实现成员有 Service、插件与宿主 `files` 提供者。
+Execution Environment 按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 `packages/` 下其他按这四段切分的组同构。四个成员由模板生成，公开承诺归各自 `SPEC.md`。四个成员都有源码与包测试：契约成员有类型、设施声明、八个操作参数 schema、六个结果 schema、纯函数与可复用契约套件；Cordis 定义成员有模板方法与受保护钩子、服务键及真实 Cordis 机制读数测试；机制成员有登记表；Service 实现成员有 Service、插件与宿主 `files` 提供者。
 
 | 成员 | 变体 | 责任 |
 | --- | --- | --- |

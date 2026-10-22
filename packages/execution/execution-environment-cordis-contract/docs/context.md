@@ -44,7 +44,7 @@ export const inject = {
 提供者插件与设施拥有者插件 `inject` 本服务，在插件体里经 `ctx.executionEnvironment` 登记。登记随插件的 fiber 撤除，不需要手动注销：
 
 ```text
-inject: ['executionEnvironment']
+inject: { executionEnvironment: { caller: 'provider' } }
 插件体：ctx.executionEnvironment.registerFacility(设施声明)
         ctx.executionEnvironment.registerProvider(提供者)
         插件卸载时两项登记自动撤除，提供者开始退役
@@ -79,7 +79,7 @@ flowchart LR
 | [execution-environment-host-local](../../execution-environment-host-local/README.md) | `extends ExecutionEnvironmentService`；`filesFacilityPlugin` 与 `hostFilesPlugin` 的 `inject` 用 `executionEnvironmentKey`；恢复授权每次用 `executionRecoveryAuthorityKey` 现取 | 抽象类、键常量 |
 | 集成方的适配器插件 | 数组形式 `inject`，或对象形式带 `caller: 'integrator'` | 环境面四个方法 |
 | 维护者插件 | 对象形式 `inject` 带 `caller: 'maintainer'` | 恢复面两个方法 |
-| 提供者与设施拥有者插件 | 数组形式 `inject` | 登记面两个方法 |
+| 提供者与设施拥有者插件 | 对象形式 `inject` 带 `caller: provider` | 登记面两个方法 |
 
 依赖方不导入 Service 实现的入口（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 

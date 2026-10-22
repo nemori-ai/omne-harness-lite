@@ -1,6 +1,5 @@
 # @omne-harness/execution-environment-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The pure contract member of Execution Environment. Variant: `module`.
@@ -19,14 +18,15 @@ Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come fr
 - Tested: the export surface, the facility descriptors, the block declarations, and the absence of Cordis imports.
 - Tested: requirement decoding, provider matching, the need schema and its digest. Type tests cover `FacilitySet` and the example.
 - No provider: the package implements no facility and no environment. The host provider is in [execution-environment-host-local](../execution-environment-host-local/README.md).
-- Not present: per-operation parameter and result schemas, and the contract verification suites for facilities and providers.
+- Implemented: parameter schemas for eight environment, recovery, and registration operations, six data result schemas, and `operationSchemas`. Registration results are removal functions. Facility operation schemas remain follow-up work.
+- Implemented: `./testing` conformance cases and non-durable doubles. Provider and environment cases are exercised by host-local tests.
 - Not verified: most behavior clauses in the SPEC need the mechanism member, providers, and a real integrator together. The package makes no claim about tenant isolation, resource close, durability, or recovery.
 
 The current consumers are the group members execution-environment-cordis-contract, execution-environment, and execution-environment-host-local.
 
 ## Usage
 
-The package has one entry: `@omne-harness/execution-environment-contract`. A tool package uses it to write its environment declaration and to derive the facilities that its executor receives:
+The root entry is: `@omne-harness/execution-environment-contract`. A tool package uses it to write its environment declaration and to derive the facilities that its executor receives:
 
 ```ts
 import {
@@ -61,7 +61,7 @@ A facility operation has four results: done, unresolved, rejected, and unknown. 
 
 ## Design
 
-The root entry has one source module for each concern. The [architecture page](docs/architecture.md#模块与依赖) lists them. Dependencies between modules go one way. Outside dependencies are runtime-context-contract, legal-identity, operation-result, json-text, schema-provider, and `@standard-schema/spec`. Only operation-result is a runtime value dependency. The [architecture page](docs/architecture.md) explains the modules, the reasons for the key mechanisms, and the facility protocol. The [flows page](docs/flows.md) gives the six protocol flows. The [object model](docs/object-model.md) describes the objects.
+The root entry has one source module for each concern. The [architecture page](docs/architecture.md#模块与依赖) lists them. Dependencies between modules go one way. Outside dependencies are runtime-context-contract, legal-identity, operation-result, json-text, schema-provider, and `@standard-schema/spec`. The runtime value dependencies are operation-result, json-text, and legal-identity. The [architecture page](docs/architecture.md) explains the modules, the reasons for the key mechanisms, and the facility protocol. The [flows page](docs/flows.md) gives the nine protocol flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
@@ -95,7 +95,7 @@ SPEC.md                   Behavior beyond the public types, INV-EE01 to INV-EE18
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, mechanisms, facility protocol, Q-EE02 to Q-EE06
-├── flows.md              Protocol flows F-EEC01 to F-EEC06
+├── flows.md              Protocol flows F-EEC01 to F-EEC09
 ├── object-model.md       Roles, objects, relations, and lifecycle
 ├── public-api.md         Export entry, definition index, schema, and blocks
 ├── context.md            Independent use, integrators, neighbor handoff, position

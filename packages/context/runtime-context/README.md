@@ -19,6 +19,8 @@ Status: mechanism member, `draft`. The adoption basis is the [member decompositi
 
 No package depends on this package now.
 
+The two Runtime Context contract members publish their types, checks, and Cordis service definition. Their package tests do not implement this member or prove production behavior.
+
 ## Usage
 
 The package has one entry: `@omne-harness/runtime-context`. A system that assembles Cordis does not import it directly. runtime-context-cordis calls the factory. A caller without Cordis calls the factory of this package directly. That caller wires disposal and wake-up itself. See the [usage page](docs/context.md#独立使用).

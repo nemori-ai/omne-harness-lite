@@ -694,6 +694,21 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
+    },
+    {
+      "id": "rq11-matrix",
+      "path": "packages/context/request-context-contract/verification/rq11.md",
+      "kind": "verification",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/verification.md",
+        "anchor": "包级测试责任与边界"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
     }
   ]
 }

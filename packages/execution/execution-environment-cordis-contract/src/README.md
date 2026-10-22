@@ -16,6 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 是空导出。`cordis.ts` 导出 `ExecutionEnvironmentService`、`executionEnvironmentKey`、`ExecutionRecoveryAuthorityService` 与 `executionRecoveryAuthorityKey`，声明 `ExecutionEnvironmentIntercept` 与 `Context` 增补。两个文件都带 `PACKAGE_TEMPLATE_DRAFT` 注释。`cordis.ts` 的标记写明恢复两操作的调用方类核对还没有接受。
+`index.ts` 是空导出。`cordis.ts` 导出 `ExecutionEnvironmentService`、`executionEnvironmentKey`、`ExecutionRecoveryAuthorityService` 与 `executionRecoveryAuthorityKey`，声明 `ExecutionEnvironmentIntercept` 与 `Context` 增补。`cordis.ts` 另导出分面类型与映射，以及登记面错误 `CallerClassMismatch`；八个模板方法核对后委托受保护钩子。
 
-当前缺口：调用方类的核对，见 [Cordis 说明](../docs/cordis.md#intercept-配置与调用方类)。具名维护者由负责人指定。
+当前剩余责任：候选机制读数的 basis 登记与完整资源组合接受，见 [Cordis 说明](../docs/cordis.md#intercept-配置与调用方类)。具名维护者由负责人指定。

@@ -9,7 +9,8 @@
   },
   "bin": {
     "omne-delivery": "./dist/delivery/cli.js",
-    "omne-package-template": "./dist/package-template/cli.js"
+    "omne-package-template": "./dist/package-template/cli.js",
+    "omne-package-exports": "./dist/package-exports/cli.js"
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -18,11 +19,13 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
     "package:template": "node --experimental-strip-types src/package-template/cli.ts",
-    "delivery": "node --experimental-strip-types src/delivery/cli.ts"
+    "delivery": "node --experimental-strip-types src/delivery/cli.ts",
+    "package:exports": "node --experimental-strip-types src/package-exports/cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-toolchain": "catalog:",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

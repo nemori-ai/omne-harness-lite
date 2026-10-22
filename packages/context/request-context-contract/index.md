@@ -13,7 +13,7 @@
 ## 目录
 
 - [docs/](docs/index.md)：架构、流程、对象模型、公开接口、使用与定位、Cordis 适用性
-- [src/](src/index.md)：公开定义，现在只有空导出的 `index.ts`
+- [src/](src/index.md)：公开定义，包含公开纯操作与类型
 - [tests/](tests/index.md)：持续测试与固定输入
 - [schema/](schema/index.md)：现在为空，本成员不发布 Schema
 - [verification/](verification/index.md)：模型与证明，现在为空

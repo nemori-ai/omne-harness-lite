@@ -37,7 +37,7 @@
 | --- | --- |
 | 服务键、抽象类、intercept 配置、事件 | [runtime-context-cordis-contract](../runtime-context-cordis-contract/docs/cordis.md) |
 | 机制行为 | [runtime-context SPEC](../runtime-context/SPEC.md) |
-| 三条机制读数 | [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md)；补齐前性质 2、4 是假设。性质 3 的代际不依赖 fiber `uid`，新旧两代的交错由本成员的测试覆盖 |
+| 三条机制读数 | [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md)；定义成员已用真实 Cordis 4.0.4 测试固定，尚未登记为共同 basis 保证。性质 3 的代际不依赖 fiber `uid`，新旧两代的交错由本成员的测试覆盖 |
 
 持续验证义务，随实现进入 `tests/`：生产者插件卸载后登记已撤除且依赖该块的读取读到缺项；生产者插件体重跑时新一代先登记、旧一代后撤除，新一代的登记仍在；两个消费者插件各自取到自己的 intercept 配置；作用域 A 的唤醒不到达作用域 B 的监听者，载荷不带块键；插件卸载时在途调用被取消、在途读取在超时内结算、关闭后读取拒绝；来源调用或回调超时按未知结算；重复装载失败；配置错误时 fiber `FAILED`。
 

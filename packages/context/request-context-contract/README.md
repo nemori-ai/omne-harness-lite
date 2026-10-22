@@ -1,6 +1,5 @@
 # @omne-harness/request-context-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The pure contract member of Request Context. Variant: `module`.
@@ -13,15 +12,15 @@ Every fact that the package reads belongs to another owner. The package owns no 
 
 Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come from technical acceptance and which parts come from the product text, revision 4.
 
-- Implemented: nothing. `src/index.ts` is an empty export. The root entry has no types and no runtime values.
-- Not implemented: all value types, all pure operations, the port types, and the contract constants. The [API page](docs/public-api.md#随实现进入的导出) lists them.
-- Not verified: every behavior clause in the SPEC. The package has no runtime implementation. It makes no claim about tenant isolation, durability after power loss, model compatibility, or performance.
+- Implemented: the public types, eleven pure operations, closed results, schemas, ports, constants, and two required context blocks.
+- Verification: public-entry inventory, pure behavior tests, and good/bad conformance cases.
+- Production integration, durable storage, real model compatibility, and performance remain outside this contract member.
 
-No package depends on this package now. The adapter on the coordinator side does not exist yet. See the [usage page](docs/context.md#现在的真实消费者).
+The implemented `request-context-cordis-contract` depends on this package. The adapter on the coordinator side does not exist yet. See the [usage page](docs/context.md#现在的真实消费者).
 
 ## Usage
 
-The package has one entry: `@omne-harness/request-context-contract`. The entry exports no names now. After the operations arrive, a caller uses them in this order:
+The root entry is: `@omne-harness/request-context-contract`. The root exports pure operations. The `./testing` entry exports non-durable doubles and conformance cases. A caller uses the operations in this order:
 
 1. Prepare the seven input groups and the construction dependencies. Call `assemble`.
 2. If the result is a candidate, give it to Model for preparation and fix it. Pass the coverage evidence back as "adopted" in the next assembly.
@@ -34,7 +33,7 @@ Independent use needs only this package. It needs no coordinator, no history hol
 
 ## Contracts
 
-- `src/index.ts` owns the public shapes. It is empty now.
+- `src/index.ts` owns the public shapes. It exports the public types and pure operations.
 - The [SPEC](SPEC.md) owns behavior beyond the types: clauses RQ-01 to RQ-11, layout rules R1 to R9, and history source rules H1 to H5.
 - The [API page](docs/public-api.md) indexes the exports.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
@@ -43,13 +42,13 @@ One assembly has exactly four outcomes: candidate that still passes the extensio
 
 ## Design
 
-The root entry contains ten modules. The first five are input and candidate values, projection, prompt assembly, declaration projection, and placement. The other five are representation choice, budget verdict, assembly and coverage, plan and steps, and history source and policy ports. Dependencies between them go one way. The outside dependencies are the public values of model-contract, tool-contract, content-block, message, and runtime-context-contract. They join `package.json` with the implementation. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the six protocol flows. The [object model](docs/object-model.md) describes the objects.
+The source separates value types, input validation, projection, prompt assembly, tool declarations, placement, representation, budgets, assembly phases, compaction planning and steps, and dependency ports. Dependencies between them go one way. The outside dependencies are the public values of model-contract, tool-contract, content-block, message, and runtime-context-contract. They are declared in `package.json`. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the six protocol flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
 The package has no configuration, needs no environment, and reads no resources at run time. The compaction policy and the representation policy have configuration items, listed in [RQ-06](SPEC.md#rq-06-压缩共同结果与保护边界). Their defaults are only initial values. [request-context](../request-context/README.md) owns the numbers.
 
-The caller supplies the seven input groups and the construction dependencies. The dependencies are a `HistorySource` implementation, the Model metering port, the Model converter result port, and the two policy implementations. The caller also fixes the final request, runs the compaction steps, keeps the plan progress, and commits the compaction transition together with the history holder. Access to data that the system hosts still follows the original source contract.
+The caller supplies the seven input groups and the construction dependencies. The dependencies are a `HistorySource` implementation, the Model metering port, the RQ converter result port and the adapter serializer, and the two policy implementations. The caller also fixes the final request, runs the compaction steps, keeps the plan progress, and commits the compaction transition together with the history holder. Access to data that the system hosts still follows the original source contract.
 
 ## Verification
 
@@ -59,7 +58,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/request-context-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The current test checks only that the root entry has no runtime exports. See [tests/](tests/README.md). No test covers the [verification obligations](SPEC.md#rq-11-持续验证与未覆盖) in the SPEC yet. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. Tests cover the public inventory and pure operations. See [tests/](tests/README.md). The [obligation matrix](verification/rq11.md) distinguishes process checks from integration obligations. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -82,8 +81,8 @@ docs/                     Internal design, public use, and integration
 ├── public-api.md         Export entry and definition index
 ├── context.md            Independent use, neighbor handoff, field mapping, position
 └── cordis.md             Why Cordis integration does not apply
-src/                      Public definitions, only an empty index.ts now
-tests/                    Continuous tests, fixtures/ is empty now
+src/                      Public definitions, Public types and pure operations
+tests/                    Continuous tests, fixtures and negative conformance cases
 schema/                   Empty, the package publishes no schema
 verification/             models/ and proofs/, empty now
 adr/                      Empty now
