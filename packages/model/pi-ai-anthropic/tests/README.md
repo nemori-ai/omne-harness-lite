@@ -53,7 +53,7 @@
 | `shared-family-cache-projection.spec.ts` | 不迁入。缓存标记由引擎按记录放置，本包不移除或改写标记 |
 | `anthropic-output-history.spec.ts`、`shared-family-output-history.spec.ts`、`anthropic-family-public.spec.ts` | 不迁入。它们依赖调用方携带的原响应与完整输出组，迁移清单把这些机制标为弃 |
 
-签名前缀的型号：封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。按项目约定，记录不关闭推理，所以这项检查不迁入。`cross-family-replay.spec.ts` 改为核对外来工具轮次之后保持请求的推理强度。依据：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，这两个型号拒绝关闭推理，记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)。
+签名前缀的型号：封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。按项目约定，记录不关闭推理，所以这项检查不迁入。`cross-family-replay.spec.ts` 改为核对外来工具轮次之后保持请求的推理强度。依据：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，这两个型号拒绝关闭推理，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。
 
 ### 未覆盖
 

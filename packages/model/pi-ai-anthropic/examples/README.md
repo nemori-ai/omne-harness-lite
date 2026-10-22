@@ -34,7 +34,7 @@
 - 请求体写 `reasoning.effort: "low"`；
 - 事实中没有 `reasoning-disabled` 诊断。
 
-依据：2026-10-22 经代理实测，网关接受这样的请求，`claude-opus-5.5` 拒绝 `reasoning.enabled: false`。实测记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)，规则见 [SPEC“记录”](../SPEC.md#记录)。
+依据：2026-10-22 经代理实测，网关接受这样的请求，`claude-opus-5.5` 拒绝 `reasoning.enabled: false`。实测记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)，规则见 [SPEC“记录”](../SPEC.md#记录)。
 
 本包记录用 parts 形式写内容，所以只有工具调用的 assistant 消息与没有内容的工具结果都写成空列表。请求还带一张 16×16 的 PNG 图片（`detail: 'auto'`）与停止序列。思考块数与推理状态由上游决定，下面的值只是示例。
 
@@ -119,7 +119,7 @@ sequenceDiagram
 
 某一轮的回复没有推理状态时，该轮次在之后各轮既不被带上，也不被略去，也没有诊断。
 
-依据：2026-10-22 的实测中，这两个型号在上述推理参数下多数时候返回推理状态，记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)。这项观察不是保证。
+依据：2026-10-22 的实测中，这两个型号在上述推理参数下多数时候返回推理状态，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。这项观察不是保证。
 
 每轮最后一行是 `termination:`。某一轮没有以 `completed` 结束时，脚本停止后续各轮，退出码为 1。
 

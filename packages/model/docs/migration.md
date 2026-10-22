@@ -93,7 +93,7 @@
 | `zai-glm53.ts` | pi-ai-zai | 迁 | [后续 Z.AI 家族线][line] | 保留 GLM-5.3/Flash 多工具分组、effort 和模板差异；各型号证据分开，旧完整历史组入口不迁。 |
 | `zai-release.ts` | pi-ai-zai | 迁 | [后续 Z.AI 家族线][line] | 保留精确 release 匹配及 visible/refuse 历史处理的证据范围；不把未知 release 猜成最新，未验证的私有历史清除政策不迁成默认。 |
 
-`anthropic-replay.ts` 的签名前缀降级：封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。按[不关闭推理的项目约定](architecture.md#厂商适配的内聚范围)，记录不关闭推理，所以这项降级不迁。依据：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理，记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)。
+`anthropic-replay.ts` 的签名前缀降级：封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。按[不关闭推理的项目约定](architecture.md#厂商适配的内聚范围)，记录不关闭推理，所以这项降级不迁。依据：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。
 
 ### pi-ai-transport/src/official-models
 

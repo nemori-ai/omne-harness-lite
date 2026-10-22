@@ -44,7 +44,7 @@
 7. 外来工具轮次：最后一个用过工具的 assistant 消息来自另一来源时，请求保持请求的推理强度，请求体写 `reasoning.effort`，encode 只对略去的外来状态给出 `replay-omitted` 诊断。封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。本包不迁入这项要求，因为按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。实测依据见本节末的“依据”。
 8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。四项的上游值都是未知：封存件引用的路由报告不在仓库中。
 
-依据：第 5 条的 `none` 与第 7 条的外来工具轮次来自 2026-10-22 经代理对 OpenRouter 的实测，记录在 [#446 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/446#issuecomment-6340315419)。实测结果如下：
+依据：第 5 条的 `none` 与第 7 条的外来工具轮次来自 2026-10-22 经代理对 OpenRouter 的实测，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。实测结果如下：
 
 - `claude-opus-5` 与 `claude-sonnet-5` 接受 `reasoning.enabled: false`（HTTP 200）。`claude-opus-5.5` 与 `claude-fable-5.1` 以 HTTP 400 拒绝它（“Reasoning is mandatory for this endpoint and cannot be disabled.”）。
 - 历史中有未签名的外来工具轮次时，四个型号都在推理开启时接受请求。历史以工具结果结束或以之后的 user 消息结束，结果相同。
