@@ -15,7 +15,7 @@
 3. 同层同名登记拒绝。带逐请求变化变量的段拒绝。登记成功先调用机制实例的 `notify('contributions', …)`，再发 `request-context-cordis-contract/changed`，载荷带作用域引用、该层的新修订与登记面实例的代次；派发放在 `try` 中，监听者失败只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
 4. 策略实现在插件加载时按配置选择。配置里指向不存在的策略、或策略参数不合 schema，插件加载失败，不静默回退到默认策略。假设：此时 fiber 进入 `FAILED`，Service 子类的这条路径未经 basis 核验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
 5. 撤除顺序：插件卸载时先拒绝新的登记，新的组装返回不可用（服务已卸载），再取消在途组装（[RQ-09](../request-context-contract/SPEC.md#rq-09-取消恢复与迟到) 允许取消组装），然后丢弃登记表并关闭机制实例。被取消的组装返回不可用（服务已卸载）。撤除不等待被取消的组装里尚未返回的端口调用，不无限等待。撤除不撤回已交出的候选、计划或转换。本页的「组装」与「在途组装」都指经服务的 `assembly(scope, ports)` 交出的操作组发起的组装（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
-6. 本成员不为每次请求开 fiber，不用 `inject` 表达输入，不发第二种事件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。历史源读口、计量端口与转换件结果端口由调用方在每次 `assembly(scope, ports)` 时交入，本插件经机制实例的按调用交入端口的入口转交；本插件不 `inject` 作用域持有者或模型侧的服务，只按配置选两个策略。租户、作用域与资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
+6. 本成员不为每次请求开 fiber，不用 `inject` 表达输入，不发第二种事件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。历史源读口、计量端口、转换件结果端口与请求序列化端口由调用方在每次 `assembly(scope, ports)` 时交入，本插件经机制实例的按调用交入端口的入口转交；本插件不 `inject` 作用域持有者或模型侧的服务，只按配置选两个策略。租户、作用域与资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 7. 本成员不导入任何协调者或持有者的契约。
 8. 本插件只把贡献登记面的变化经 `notify('contributions', …)` 交给机制实例，带作用域引用与该层的修订。本插件不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更：这些变化随输入携带的修订进入组装，由机制每次比较（[request-context 候选缓存](../request-context/SPEC.md#候选缓存)）。机制实例在构造时从本插件取得登记面的读口。
 9. `assembly(scope, ports)` 交出的操作组在每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
@@ -40,7 +40,7 @@
 | --- | --- |
 | 服务键、抽象类、intercept 配置、事件 | [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md) |
 | 机制、缓存、默认策略数值 | [request-context SPEC](../request-context/SPEC.md) |
-| 机制读数 | [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md) 列的 `inject-object-config-reaches-service-resolve-config`；补齐前性质 2 的 intercept 部分是假设。事件由监听者按载荷过滤，不依赖派发方过滤的读数 |
+| 机制读数 | [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md) 列的 `inject-object-config-reaches-service-resolve-config`；定义成员已用真实 Cordis 4.0.4 测试固定，尚未登记为共同 basis 保证。事件由监听者按载荷过滤，不依赖派发方过滤的读数 |
 
 持续验证义务，随实现进入 `tests/`：贡献者卸载后登记已撤除，机制实例收到通知后不再有它的渲染结果；同层重名拒绝；逐请求变量的段拒绝；变化事件带该层修订与实例代次；配置指向不存在的策略时 fiber `FAILED`；插件卸载时在途组装被取消并返回不可用、不无限等待，关闭后组装返回不可用；登记与撤除都经 `notify('contributions', …)` 到达机制实例；`assembly(scope, ports)` 只用这次交入的端口；Runtime Context 不在场时本插件照常可用、两块读到缺项，Runtime Context 到场后两块有值；重复装载失败。
 

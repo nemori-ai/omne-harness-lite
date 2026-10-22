@@ -2,6 +2,7 @@
 import { expect, it } from 'vitest'
 import {
   acquisitionRef,
+  originRef,
   commandFacility,
   describeFacility,
   terminalFacility,
@@ -383,4 +384,35 @@ it('treats a throwing release as pending with no known resources', async () => {
     adoption: acquired.adoption,
     resources: [],
   })
+})
+
+it('refuses another original call before guard or facility', async () => {
+  let asked = 0
+  const guard: FacilityGuard<string> = {
+    async authorize() {
+      asked++
+      return 'authorized'
+    },
+  }
+  const { provider, command } = await hostLease({}, guard)
+  expect(
+    await command.start({ ...startRequest('wrong-origin'), origin: originRef('another-call') }),
+  ).toEqual({ kind: 'rejected', requestId: 'wrong-origin', reason: 'invalidInput' })
+  expect(asked).toBe(0)
+  expect(provider.calls.start).toBe(0)
+})
+
+it('checks original call on an open operation too', async () => {
+  const provider = scriptedProvider()
+  const registry = createEnvironmentRegistry<string>({ recovery })
+  registry.registerFacility(describeFacility('command', { start: 'open' }))
+  registry.registerProvider(provider)
+  const acquired = await leased(registry, await placed(registry, requirement([host])))
+  expect(
+    await commandOf(acquired.lease).start({
+      ...startRequest('wrong-open-origin'),
+      origin: originRef('another-call'),
+    }),
+  ).toEqual({ kind: 'rejected', requestId: 'wrong-open-origin', reason: 'invalidInput' })
+  expect(provider.calls.start).toBe(0)
 })

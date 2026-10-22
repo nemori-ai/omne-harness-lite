@@ -1,6 +1,5 @@
 # @omne-harness/request-context-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Request Context 的纯契约成员，`module` 变体。
@@ -11,11 +10,11 @@ Request Context 的纯契约成员，`module` 变体。
 
 状态：契约成员，`draft`。[SPEC](SPEC.md) 写明了哪些部分由技术接受采用，哪些部分依据产品正文第 4 版写入。现在的实现情况如下：
 
-- 已实现：没有。`src/index.ts` 是空导出，根入口没有类型，也没有运行值。
-- 未实现：全部值类型、全部纯操作、端口类型与契约常量，清单见[公开接口页](docs/public-api.md#随实现进入的导出)。
-- 未验证：SPEC 的全部行为条款。本成员没有运行实现，不宣称租户隔离、断电耐久、模型兼容或性能通过。
+- 已实现：公开类型、十一个纯操作、封闭结果、schema、端口、常量与两条必需块声明。
+- 验证：导出清单、纯行为与好坏实现契约用例。
+- 生产集成、真实持久化、模型兼容和性能不由本契约成员证明。
 
-现在没有包依赖本成员。协调者一侧的适配器还没有建立，见[使用与定位](docs/context.md#现在的真实消费者)。
+已实现的 `request-context-cordis-contract` 依赖本成员。协调者一侧的适配器还没有建立，见[使用与定位](docs/context.md#现在的真实消费者)。
 
 ## 使用
 
@@ -32,7 +31,7 @@ Request Context 的纯契约成员，`module` 变体。
 
 ## 契约
 
-- 公开形状归 [src/index.ts](src/index.ts)，现在为空。
+- 公开形状归 [src/index.ts](src/index.ts)。
 - 类型以外的行为归 [SPEC](SPEC.md)，条款 RQ-01 至 RQ-11、布局规则 R1 至 R9、历史源规则 H1 至 H5。
 - 导出索引归[公开接口页](docs/public-api.md)。
 - 对象的身份、拥有者与生灭归[对象模型](docs/object-model.md)。
@@ -41,13 +40,13 @@ Request Context 的纯契约成员，`module` 变体。
 
 ## 设计
 
-根入口按十个模块组织：输入与候选的值类型、投影、提示词组装、声明投影、放置、表示选择、预算裁定、组装与覆盖证据、计划与步、历史源与策略端口。依赖单向。包外依赖是 model-contract、tool-contract、content-block、message 与 runtime-context-contract 的公开值，它们随实现进入 `package.json`。模块切分与设计理由见[内部架构](docs/architecture.md)，六条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+源码按值类型、输入校验、投影、提示词组装、工具声明、放置、表示选择、预算、组装阶段、压缩计划与步、依赖端口分别组织。依赖单向。包外依赖是 model-contract、tool-contract、content-block、message 与 runtime-context-contract 的公开值，依赖已在 `package.json` 声明。模块切分与设计理由见[内部架构](docs/architecture.md)，六条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
 本成员没有配置，没有环境前提，运行时不读取资源。压缩策略与表示策略的配置项见 [SPEC 的 RQ-06](SPEC.md#rq-06-压缩共同结果与保护边界)，默认值只是初值，数值归 [request-context](../request-context/README.md)。
 
-调用方负责提供七组输入与构造依赖：`HistorySource` 实现、Model 的计量端口与转换件结果端口、两个策略实现。调用方还负责固定最终请求、执行压缩步、保存计划进度，以及与历史持有者共同提交压缩转换。读取系统托管的数据时，仍适用原来源契约。
+调用方负责提供七组输入与构造依赖：`HistorySource` 实现、Model 的计量端口、本成员的 `ConversionResultSource` 读口（结果类型使用 Model 的 `ConversionResult`）及适配器序列化端口、两个策略实现。调用方还负责固定最终请求、执行压缩步、保存计划进度，以及与历史持有者共同提交压缩转换。读取系统托管的数据时，仍适用原来源契约。
 
 ## 验证
 
@@ -57,7 +56,7 @@ Request Context 的纯契约成员，`module` 变体。
 pnpm turbo run test --filter=@omne-harness/request-context-contract
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有运行导出，见 [tests/](tests/README.md)。SPEC 的[持续验证义务](SPEC.md#rq-11-持续验证与未覆盖)都还没有测试覆盖。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试覆盖导出清单、纯操作与契约套件，见 [tests/](tests/README.md)。SPEC 的[持续验证义务](SPEC.md#rq-11-持续验证与未覆盖)的覆盖边界见 [RQ-11 对照表](verification/rq11.md)。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -80,7 +79,7 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         导出入口与定义索引
 ├── context.md            独立消费、邻域交接、字段对应与系统定位
 └── cordis.md             不适用 Cordis 集成的理由
-src/                      公开定义，现在只有空导出的 index.ts
+src/                      公开定义，公开类型与纯操作
 tests/                    持续测试，fixtures/ 现在为空
 schema/                   现在为空，本成员不发布 Schema
 verification/             models/ 与 proofs/，现在为空

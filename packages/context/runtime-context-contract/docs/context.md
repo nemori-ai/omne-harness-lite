@@ -8,7 +8,7 @@
 
 独立调用方不建作用域持有者，也不装配 Cordis。它只安装本成员，自己给出 `ScopeRef`、块声明、生产者与资格材料。只处理调用方自己给出的数据时，缺上层对象不算拒绝。访问系统托管的数据时，仍适用原访问契约（[RC-01](../SPEC.md#rc-01-消费者身份与范围)）。
 
-现在能用的只有类型。下例在语义拥有者的包里声明一个供给块，它只用现有导出：
+根入口同时提供类型和纯函数。下例在语义拥有者的包里声明一个供给块，它只用现有导出：
 
 ```ts
 import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
@@ -46,7 +46,7 @@ export const localeBlock: SuppliedBlockDescriptor<'example.locale', Locale> = {
 3. 用 `reduceStep` 对一步的每条更新判接受或拒绝，把接受的合并成步提交材料。被拒的更新按逐项原因退回提出者。
 4. 用 `diffForReminder` 从两份快照算出变化材料。
 
-这些函数现在还没有导出，见[公开接口页](public-api.md#随实现进入的导出)。提交与存储仍归调用方自己。
+这些函数已导出，见[公开接口页](public-api.md)。提交与存储仍归调用方自己。
 
 `ScopeRef.ref` 是品牌字符串。本成员现在不导出它的构造或解码函数。
 
@@ -87,7 +87,7 @@ flowchart LR
 
 ### 现在的真实消费者
 
-execution-environment-contract 是现在唯一用本成员声明块的语义拥有者。它导入 `ScopeRef`、`ConsumerClass` 与 `SuppliedBlockDescriptor`，并增补 `ContextBlocks`。execution-environment 导入 `ScopeRef`。组内其他成员的依赖随它们的实现进入。
+execution-environment-contract 与 request-context-contract 都用本成员的公开类型声明自己拥有的块，并增补 `ContextBlocks`。前者声明执行安置与宿主事实，后者声明压缩设置与窗口占用。runtime-context-cordis-contract 已依赖本成员的操作类型；execution-environment 也导入 `ScopeRef`。四个 Context 机制与 Cordis 提供者的生产实现仍待完成。
 
 ### 上层页面
 

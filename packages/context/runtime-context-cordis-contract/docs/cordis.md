@@ -2,7 +2,7 @@
 
 本页是 Runtime Context 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、事件、依赖分类、登记与撤除协议，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 8。三面操作的领域行为归 [runtime-context-contract SPEC](../../runtime-context-contract/SPEC.md)，机制归 [runtime-context](../../runtime-context/docs/architecture.md)，Service 实现、isolate 绑定、撤除与资源清理归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，本页不复制。
 
-现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，两个入口都没有导出。下文是 SPEC 固定的目标形状，不是源码事实。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 已提供服务定义，根入口显式重导出契约类型。下文形状已进入源码，具体提供者的业务状态与资源结算另有拥有者。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 服务定义
 
@@ -36,9 +36,9 @@ export const inject = {
 
 对象形式仍然是必需依赖。对象里的值只是给这项服务的 intercept 配置，不是「可选」标记（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)）。所以 `runtimeContext` 不在场时，消费者插件停在 `PENDING`。这与块缺席无关：块缺席仍然只是读取结果里的缺项。
 
-服务方法用 `this[Service.resolveConfig]()` 取得配置。服务方法里的 `this.ctx` 是调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)），所以取到的是调用方 fiber 声明的配置。不同消费者插件各自取到自己的配置。这一点现在是源码读数，见[机制读数与假设](#机制读数与假设)。
+服务方法用 `this[Service.resolveConfig]()` 取得配置。服务方法里的 `this.ctx` 是调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)），所以取到的是调用方 fiber 声明的配置。不同消费者插件各自取到自己的配置。这一点已在本成员真实 Cordis 4.0.4 测试中核对，见[机制读数与假设](#机制读数与假设)。
 
-消费者类是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。`bind` 把配置里的消费者类与读取资格里的消费者类核对，不一致即拒绝。这条核对是一致性检查，不计为访问控制。访问边界是读取资格：资格只来自作用域持有者签发，由机制的资格表保管，每次读取按资格核对（[RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)）。资格身份由持有者交给建立读者的一方，读者按资格身份 `bind`。经 `ctx.get` 现取服务的调用方没有这份配置。按 [runtime-context-cordis 的性质 2](../../runtime-context-cordis/SPEC.md#结果与不变量)，取不到配置的 `bind` 被拒绝。所以读者面的调用方必须用对象形式 `inject`。
+消费者类是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。`bind` 把配置里的消费者类与读取资格里的消费者类核对，不一致即拒绝。这条核对是一致性检查，不计为访问控制。访问边界是读取资格：资格只来自作用域持有者签发，由机制的资格表保管，每次读取按资格核对（[RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)）。资格身份由持有者交给建立读者的一方，读者按资格身份 `bind`。在祖先也没有配置时，经 `ctx.get` 现取服务的调用方读到空配置。祖先 intercept 可以继承，较近的对象形式 inject 会覆盖祖先配置；本成员测试固定了这两项读数。按 [runtime-context-cordis 的性质 2](../../runtime-context-cordis/SPEC.md#结果与不变量)，取不到配置的 `bind` 被拒绝。所以读者面的调用方必须用对象形式 `inject`。
 
 ## 事件
 
@@ -94,15 +94,15 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 
 | 规则 | 本成员怎样符合 | 现在的证据 |
 | --- | --- | --- |
-| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 键只在 `RuntimeContextService.provide`，键常量取自它，提供者 `extends` 不写键 | 没有源码。实现后由导出测试核对键常量等于 `provide` |
-| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner` | 抽象类 `implements` 三面操作类型，JSDoc 写 `@owner packages/context/runtime-context-contract` | 没有源码 |
+| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 键只在 `RuntimeContextService.provide`，键常量取自它，提供者 `extends` 不写键 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对键、装载与卸载 |
+| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner` | 抽象类 `implements` 三面操作类型，JSDoc 写 `@owner packages/context/runtime-context-contract` | [cordis.ts](../src/cordis.ts) 与入口测试 |
 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口只重导出契约类型，Cordis 定义只在 `./cordis` | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有运行导出 |
 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 本成员只定义一个键。重复装载的处置归提供者 | 归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md#ic-符合性映射) |
-| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10) 事件命名 | `runtime-context-cordis-contract/changed`：范围是本包名，过去分词表示通知 | 没有源码 |
-| [IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件增补位置 | 在 `./cordis` 增补 `Events`，JSDoc 写 `@mode emit` 与 `@param` | 没有源码 |
+| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10) 事件命名 | `runtime-context-cordis-contract/changed`：范围是本包名，过去分词表示通知 | [cordis.ts](../src/cordis.ts) 与入口测试 |
+| [IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件增补位置 | 在 `./cordis` 增补 `Events`，JSDoc 写 `@mode emit` 与 `@param` | [cordis.ts](../src/cordis.ts) 与入口测试 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | `registerProducer` 在方法里 `this.ctx.effect` 登记，不采用目录写法 | 机制有 basis。撤除验证归提供者 |
-| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是操作参数 `ScopeRef`。事件按作用域引用过滤。每次读取不建 fiber，不建 isolate | 按作用域过滤是假设，见下一节 |
-| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随读取资格作为参数进入。intercept 配置只声明消费者类，不授予资格；`bind` 的消费者类核对是一致性检查 | 没有源码 |
+| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是操作参数 `ScopeRef`。事件按作用域引用过滤。每次读取不建 fiber，不建 isolate | 按作用域过滤有本成员测试，basis 登记仍缺，见下一节 |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随读取资格作为参数进入。intercept 配置只声明消费者类，不授予资格；`bind` 的消费者类核对是一致性检查 | [cordis.ts](../src/cordis.ts) 与入口测试 |
 
 ## 机制读数与假设
 
@@ -117,7 +117,7 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 | isolate 只隔离实例可见性 | [isolate-hides-instances-not-data](../../../../.meta_harness/design/basis/cordis/isolate-hides-instances-not-data.md) | 性质 6 |
 | `ctx.<键>` 与 `ctx.get` 的分工 | [ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md) | 依赖分类 |
 
-下列三条只有源码读数，还没有进入 basis。每条要补一个 probe，按 basis 的规矩登记。
+下列三条已经在 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 用真实 Cordis 4.0.4 固定。basis 的 probe 现有位置是 `packages/assembly/kernel-basis/tests/`；三条读数的共同登记仍由该拥有者完成，本成员不越界登记。
 
 | 候选条目 | probe 要证明什么 | 支撑的性质 |
 | --- | --- | --- |
@@ -127,7 +127,7 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 
 性质 4 的代际由机制新取，不依赖 fiber `uid`，所以 fiber `uid` 不再是必需的 probe。插件体重跑时新旧两代的登记与撤除交错，由提供者的测试覆盖。
 
-这些读数补齐之前，SPEC 的性质 3、5 与性质 4 的交错部分是假设，不是已核验的保证。依赖它们的提供者性质同样是假设，见 [runtime-context-cordis SPEC](../../runtime-context-cordis/SPEC.md#组合与验证)。Cordis 升版时，先按 IC 约定重跑相关 probe。
+本成员测试确认这三条读数与现行性质一致。补齐 basis 登记前，它们仍不是已经登记的共同机制保证。测试使用替身提供者，不证明真实提供者的在途结算、并发或持久恢复。Cordis 升版时，先按 IC 约定重跑相关 probe。
 
 ## 验证义务
 
@@ -138,3 +138,15 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 - 导出的键常量等于 `RuntimeContextService.provide`。
 
 继承这些定义的提供者验证四条机制性质：生产者卸载后登记已撤除，插件体重跑时旧一代的撤除不删掉新一代的登记，两个消费者类的插件各取到自己的配置，按作用域过滤的唤醒只到达该作用域的监听者。这些义务归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md#验证义务)。
+
+## 已固定的读数与证据边界
+
+采用版本为项目依赖的 Cordis 4.0.4。以下源码位置来自该版本的本地发布包，不从运行实现倒推公开承诺。
+
+| 测试名 | 实际结论 | 源码位置 |
+| --- | --- | --- |
+| inject-object-config-reaches-service-resolve-config | 两个调用方分别取得 model 与 tool 配置；祖先配置可继承，近处声明覆盖祖先 | fiber.ts:238–245、service.ts:86–104 |
+| emit-filter-selects-listeners-by-extended-ctx | 同一 fiber 的两个扩展 ctx 由作用域 filter 分开；fiber 卸载后两条监听均撤除 | context.ts:99–107、events.ts:165–174、254–259 |
+| ctx-set-does-not-notify | set 改变读回的服务值，不发送 internal/service，不重跑消费者 | reflect.ts:254–266；通知路径另见 provide/notify |
+
+入口测试另验证调用方 effect、显式 dispose 幂等、旧代晚撤除不动新代，以及消费者配置与实际已签发资格的一致性。测试提供者只存在于本包 tests，不从产品源码加载纯机制或 Service 实现成员。

@@ -44,7 +44,7 @@
 | 恢复面 | `recoverOwned`、`releaseScope` | `maintainer` | 调用方类声明见 [intercept 配置与调用方类](#intercept-配置与调用方类)。恢复授权是参数，由端口核对（[契约的恢复](../../execution-environment-contract/SPEC.md#恢复)） |
 | 登记面 | `registerFacility`、`registerProvider` | `provider` | 登记即效应，登记落在调用方 fiber 上。见[登记与撤除协议](#登记与撤除协议) |
 
-八个成员都写成抽象方法，不写成函数字段。理由：经调用方取到的服务是一层代理，方法里读 `this.ctx` 得到调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。登记面要靠这一点把效应落在调用方 fiber 上。
+八个公开成员都写成模板方法，不写成函数字段；它们先核对，再调用对应的 `protected abstract on…` 钩子。理由：经调用方取到的服务是一层代理，方法里读 `this.ctx` 得到调用方的上下文（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。登记面要靠这一点把效应落在调用方 fiber 上。
 
 设施不是服务，提供者也不是服务。设施拥有者与提供者都经 `executionEnvironment` 的登记面登记。
 
@@ -74,7 +74,7 @@ export const inject = {
 
 明确缺项：这条登记权限现在没有强制执行点，任何 `inject` 了本服务的插件都能调用登记面。强制执行点由服务定义的拥有者（本成员）与应用装配的拥有者一起定义。
 
-明确缺项：现在没有提供者读取这份配置。`src/cordis.ts` 的模板标记写明，恢复两操作的调用方类核对还没有接受。核对实现之前，任何调用方都可以调用八个方法，提供者不按调用方类拒绝。实现时，提供者在服务方法里用 `this[Service.resolveConfig]()` 取调用方 fiber 的配置。这条机制只有源码读数，候选 probe 见[机制读数与假设](#机制读数与假设)。
+八个模板方法在入口通过 `this[Service.resolveConfig]()` 读取调用方声明。环境与恢复面未声明放行；登记面必须明确声明 `provider`。非法声明或错面调用被拒绝：六个有拒绝通道的方法返回 `callerMismatch`，登记面抛出 `CallerClassMismatch`。祖先声明可继承，近者覆盖远者；完全未声明读取到 `{}`。这项核对不授予访问资格。真实装载读数及其边界见[机制读数与假设](#机制读数与假设)。
 
 ## 登记与撤除协议
 
@@ -108,7 +108,7 @@ export const inject = {
 | --- | --- | --- |
 | 集成方的适配器插件 | 只把需要环境的那段工作放进依赖 `executionEnvironment` 的子 fiber：`ctx.inject(['executionEnvironment'], cb)`（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)）。键用定义包导出的键常量或字符串字面量。不把整个工具宿主挂在这项依赖上 | 服务换代，只有子 fiber 重跑；不需要环境的工具调用不因此停在 `PENDING`。已交的租约随旧服务关闭而失效，获取状态以集成方账本为准 |
 | 维护者插件 | 对象形式 `inject: { executionEnvironment: { caller: 'maintainer' } }` | 服务换代，插件体重跑。恢复授权由集成方重新给出 |
-| 提供者插件与设施拥有者插件 | 数组形式 `inject`，在插件体里调用登记面 | 服务换代，旧登记随旧 fiber 撤除，重跑后重新登记 |
+| 提供者插件与设施拥有者插件 | 对象形式 `inject: { executionEnvironment: { caller: 'provider' } }`，在插件体里调用登记面 | 服务换代，旧登记随旧 fiber 撤除，重跑后重新登记 |
 | 只需要类型增补的一方 | 不 `inject`。用 `import type {} from '@omne-harness/execution-environment-cordis-contract/cordis'`（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)） | 不适用 |
 | Service 实现 [execution-environment-host-local](../../execution-environment-host-local/docs/cordis.md) | `extends ExecutionEnvironmentService`，不另写键，不自己 `ctx.provide` 这个键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)） | 不适用 |
 | 只需要契约类型的包 | 从 [execution-environment-contract](../../execution-environment-contract/README.md) 根入口导入。不需要本成员 | 不适用 |
@@ -130,7 +130,7 @@ export const inject = {
 | [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | 不适用。本成员不声明事件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对导出集合 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 登记面在方法里 `this.ctx.effect` 登记，不采用目录写法 | 机制有 basis。撤除验证归 Service 实现 |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是操作参数 `ScopeRef` | 契约类型 |
-| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随访问身份进入。intercept 配置只声明调用方类，不授予资格 | 契约类型；调用方类核对没有实现 |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随访问身份进入。intercept 配置只声明调用方类，不授予资格 | 契约类型；八个模板方法与真实装载测试 |
 | [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 同进程保证 | 本成员不持有状态。登记表的进程内副本归 [execution-environment](../../execution-environment/SPEC.md#范围与依据) | 不适用 |
 
 ## 机制读数与假设
@@ -146,7 +146,7 @@ export const inject = {
 | `inject` 没有可选形式 | [inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md) | 性质 4 |
 | `ctx.<键>` 与 `ctx.get` 的分工 | [ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md) | 依赖分类 |
 
-下列一条只有源码读数，还没有进入 basis：
+以下候选读数由本成员真实 Cordis 4.0.4 测试固定，还没有进入 basis：
 
 | 候选条目 | probe 要证明什么 | 支撑的性质 |
 | --- | --- | --- |
@@ -154,14 +154,24 @@ export const inject = {
 
 撤除函数抛出时 Cordis 怎样处置，已有读数：Cordis 4.0.4 的 `fiber.ts` `_unload` 对每个撤除函数捕获抛出，只写入 `ctx.logger.error`，卸载照常完成，`fiber.dispose()` 正常返回。所以性质 5 的「不以正常返回报告完成」只对调用方直接调用的撤除函数成立。这条读数由 [execution-environment-host-local 的 cordis-entry.spec.ts](../../execution-environment-host-local/tests/cordis-entry.spec.ts) 在真实 Cordis 卸载上固定。
 
-性质 4 的核对在读数补齐之前只是目标形状。Cordis 升版时，先按 IC 约定重跑相关 probe。
+本成员测试已固定这些读数；候选读数补入 basis 前，其跨版本适用仍是待核验假设，测试通过不代替 basis 准入。Cordis 升版时重跑本成员读数与已有 basis probe。
+
+核验位置（采用发布包 `@deepseek-ai/cordis@4.0.4`）：
+
+| 本地测试名（`tests/cordis-entry.spec.ts`） | 源码核对 | 实际断言与边界 |
+| --- | --- | --- |
+| `inject-object-config-reaches-service-resolve-config` | `service.ts:86-102`、`fiber.ts:238-245`、`context.ts:141-145`、`utils.ts:165-215` | 两个插件各读自己的声明；根读取 `{}`；另有祖先继承及八方法错面拒绝测试 |
+| `emit-filter-selects-listeners-by-extended-ctx` | `events.ts:165-174`、`context.ts:99-107` | 扩展上下文按元数据过滤，global监听绕过；调用方撤除后不再触发。只是内核事实，不给EE新增事件 |
+| `ctx-set-does-not-notify` | `reflect.ts:254-266` | `set` 更新读值，但不发 `internal/service`，不重跑依赖者；`provide` 的通知作为正对照 |
+
+已有机制 probe 现在位于 [kernel-basis/tests/service-method-ctx-is-caller.spec.ts](../../../assembly/kernel-basis/tests/service-method-ctx-is-caller.spec.ts)，其中 `service-method-ctx-is-caller.spec.ts`、`inject-has-no-optional-form.spec.ts` 与 `effect-disposal-concurrent-not-ordered.spec.ts` 提供调用方效应、必需注入和撤除事实。本成员另外用模板钩子真实装载验证登记随调用方撤除，服务仍在场。旧封存路径不作为本次运行证据。
 
 ## 验证义务
 
 本成员自己验证：
 
 - 根入口没有运行导出。
-- `./cordis` 只导出两个抽象类与两个键常量。
+- `./cordis` 的服务、分面类型与映射、错误类符合导出清单。
 - 两个键常量分别等于各自抽象类的 `provide`。
 - 子类作为插件装载时在各自的键上提供服务，插件卸载后键上没有服务。
 

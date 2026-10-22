@@ -130,18 +130,18 @@ packages/
 │   ├── tool/                   不含 Cordis 的工具执行实现
 │   └── tool-host-local/        单机宿主与 Cordis 插件
 ├── context/
-│   ├── runtime-context-contract/         Runtime Context 纯契约：作用域、块声明、需要与绑定、登记、资格、读者、更新与步提交
-│   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义
+│   ├── runtime-context-contract/         Runtime Context 纯契约：已有类型、校验、解码与契约套件
+│   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义：已有 Service、键、增补与机制测试
 │   ├── runtime-context/                  不含 Cordis 的供给机制：登记表、生产者表、绑定解析、当前投影、观察链
 │   ├── runtime-context-cordis/           Service 实现：一个 isolate 一个服务，作用域为参数
-│   ├── request-context-contract/         Request Context 纯契约：组装输入、十一个纯操作（八个单项操作加三个压缩计划操作）、装载布局、历史源与策略端口
-│   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：提示词贡献登记与策略选择
+│   ├── request-context-contract/         Request Context 纯契约：已有组装、压缩计划纯操作、历史源与策略套件
+│   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：已有贡献登记、策略选择与机制测试
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
 │   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
 ├── human-intervention/human-intervention/
 ├── execution/
-│   ├── execution-environment-contract/         Execution Environment 纯契约：身份、绑定层、要求、落点、租约、需要端口、设施协议与块声明
-│   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义
+│   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
+│   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义：已有模板方法、钩子与机制测试
 │   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
 │   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施的读取、查看、写入与关闭；command 与 terminal 提供者未实现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员

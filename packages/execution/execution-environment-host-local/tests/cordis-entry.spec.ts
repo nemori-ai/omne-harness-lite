@@ -331,7 +331,7 @@ it('retries a pending retirement each time the returned removal is called throug
   let remove: () => Promise<void> = async () => undefined
   await ctx.plugin({
     name: 'pendingProvider',
-    inject: [executionEnvironmentKey],
+    inject: { [executionEnvironmentKey]: { caller: 'provider' } },
     apply(caller: Context) {
       remove = caller.executionEnvironment.registerProvider(pendingProvider(retired))
     },
@@ -351,7 +351,7 @@ it('completes the unload when a retirement or the close is pending, and logs Ret
   const registry = await ctx.plugin(ExecutionEnvironmentRegistry)
   const provider = await ctx.plugin({
     name: 'pendingProvider',
-    inject: [executionEnvironmentKey],
+    inject: { [executionEnvironmentKey]: { caller: 'provider' } },
     apply(caller: Context) {
       caller.executionEnvironment.registerProvider(pendingProvider(retired))
     },
@@ -416,7 +416,7 @@ it('forwards state and description to the registry, and removes a declaration th
   let removeDeclaration: () => Promise<void> = async () => undefined
   await ctx.plugin({
     name: 'declaration',
-    inject: [executionEnvironmentKey],
+    inject: { [executionEnvironmentKey]: { caller: 'provider' } },
     apply(caller: Context) {
       removeDeclaration = caller.executionEnvironment.registerFacility(filesFacility)
     },

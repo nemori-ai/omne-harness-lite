@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft request-context-contract package; complete the accepted public contract before delivery",
+  "description": "Pure request assembly, projection, budget and compaction contract",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -24,7 +29,18 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/modality": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@standard-schema/spec": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

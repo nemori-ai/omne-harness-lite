@@ -4,13 +4,13 @@
 
 ## 使用方式
 
-本成员的根入口现在是空导出。下面写的操作都随实现进入，见[公开接口页](public-api.md#随实现进入的导出)。现在没有可以运行的示例，调用顺序的职责伪代码见对象模型的[调用方怎样使用](object-model.md#调用方怎样使用)。
+本成员的根入口已实现下面的纯操作，见[公开接口页](public-api.md#现有根导出)。运行场景见 tests，示例目录没有独立应用，调用顺序的职责伪代码见对象模型的[调用方怎样使用](object-model.md#调用方怎样使用)。
 
 ### 独立消费
 
 独立调用方不建协调者或历史持有者，也不装配 Cordis。它只安装本成员，自己给出七组输入与构造依赖（[RQ-01](../SPEC.md#rq-01-调用方与计算边界)）。步骤如下：
 
-1. 准备构造依赖：一个 `HistorySource` 实现、Model 的计量端口与转换件结果端口、压缩策略与表示策略的实现。
+1. 准备构造依赖：一个 `HistorySource` 实现、Model 的计量端口、本成员的 `ConversionResultSource` 读口（结果类型使用 Model 的 `ConversionResult`）及适配器序列化端口、压缩策略与表示策略的实现。
 2. 准备七组输入，见 [RQ-02](../SPEC.md#rq-02-组装的前置输入) 的表。只处理自己给出的数据时，可以没有访问身份。
 3. 调用 `assemble`，按四种结局处置：
    - 候选成立：自己交 Model 准备并固定。覆盖证据由自己保存，下一次组装作为「已采用」传回。
@@ -29,8 +29,8 @@
 
 | 入口 | 适用场景 | 端口与策略怎样到达 |
 | --- | --- | --- |
-| 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` | 装配了 Cordis 的系统，协调者一侧的适配器组装请求。贡献从登记面现取，策略按提供者的配置选定，缓存在提供者的机制实例里 | 历史源读口、计量端口与转换件结果端口由适配器在每次 `assembly(scope, ports)` 时交入。提供者不 `inject` 持有者或模型侧的服务 |
-| 独立入口：[request-context](../../request-context/SPEC.md) 的机制工厂 | 不装配 Cordis、又要缓存与默认策略的调用方 | 三项端口与两个策略在工厂构造时给出，贡献集合由调用方随第四组传入 |
+| 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` | 装配了 Cordis 的系统，协调者一侧的适配器组装请求。贡献从登记面现取，策略按提供者的配置选定，缓存在提供者的机制实例里 | 历史源读口、计量端口、转换件结果端口与请求序列化端口由适配器在每次 `assembly(scope, ports)` 时交入。提供者不 `inject` 持有者或模型侧的服务 |
+| 独立入口：[request-context](../../request-context/SPEC.md) 的机制工厂 | 不装配 Cordis、又要缓存与默认策略的调用方 | 四项端口与两个策略在工厂构造时给出，贡献集合由调用方随第四组传入 |
 
 只要纯操作、不要缓存的独立调用方，按上一节直接用本成员的根入口。托管路径不把「适配器直接调用纯操作」当作组装入口。
 
@@ -215,7 +215,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 ### 现在的真实消费者
 
-现在没有包依赖本成员，也没有包导入它的根入口。协调者一侧已有契约定义了需要本成员行为的端口，见[字段对应](#字段对应)，但适配器包还没有建立，见上一节。组内的 request-context-cordis-contract、request-context 与 request-context-cordis 依赖本成员，它们的依赖随各自的实现进入。
+已实现的 request-context-cordis-contract 依赖本成员的公开类型。协调者一侧已有契约定义了需要本成员行为的端口，见[字段对应](#字段对应)，但适配器包还没有建立，见上一节。request-context 与 request-context-cordis 的生产实现仍待完成，不能据契约依赖声称托管路径已运行。
 
 ### 上层页面
 

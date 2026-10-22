@@ -1,6 +1,5 @@
 # @omne-harness/runtime-context-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The pure contract member of Runtime Context. Variant: `module`.
@@ -13,16 +12,15 @@ The package does not own the content of any block. It does not decide whether an
 
 Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come from technical acceptance and which parts come from the product text, revision 4.
 
-- Implemented: `src/` holds only the shared types and the two block declaration kinds. All of them are types. The root entry exports no runtime value.
-- Not implemented: the types for needs, bindings, registrations, eligibility, readers, updates, step commits, and change material.
-- Not implemented: the functions `judgeNeed`, `judgeBinding`, `judgeRegistration`, `reduceStep`, and `diffForReminder`.
-- Not verified: every behavior clause in the SPEC. The package has no runtime implementation. It makes no claim about tenant isolation, concurrency, recovery, or performance.
+- Implemented: value types, two decoders and five pure operations through the root entry.
+- Implemented: a framework-independent conformance case list and a non-durable memory stand-in through `./testing`.
+- Verification: tests cover pure operations and in-process contract obligations. They do not prove durability, concurrent production behavior or performance.
 
 The current consumers are execution-environment-contract and execution-environment. They use the scope reference and the block declaration types.
 
 ## Usage
 
-The package has one entry: `@omne-harness/runtime-context-contract`. A semantic owner exports a block declaration from its own package and adds its key to the block map:
+The pure public entry is: `@omne-harness/runtime-context-contract`. A semantic owner exports a block declaration from its own package and adds its key to the block map:
 
 ```ts
 import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
@@ -54,14 +52,14 @@ Independent use needs only this package. It needs no scope holder and no Cordis.
 
 - `src/index.ts` owns the public shapes.
 - The [SPEC](SPEC.md) owns behavior beyond the types, in clauses RC-01 to RC-08.
-- The [API page](docs/public-api.md) indexes the exports. It lists current exports and planned exports in two separate tables.
+- The [API page](docs/public-api.md) indexes the exports. It indexes the actual exports by module.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
 
 A read has four results: success, refusal, missing, and unknown. `changes` can also return cursor invalidated. Registration, block content, and step commit are three separate commits. None of them happens inside this package. The package gives only check results and merge material. It holds no resources and has nothing to dispose.
 
 ## Design
 
-The root entry has seven modules: shared types, block declarations, needs and bindings, registration and eligibility, readers and observation, updates and commits, and pure functions. Dependencies between them go one way. The only outside dependency is `@standard-schema/spec`. legal-identity joins when the eligibility type arrives. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the eight protocol flows. The [object model](docs/object-model.md) describes the objects.
+The root entry separates operation surfaces from the other modules: shared types, block declarations, needs and bindings, registration and eligibility, readers and observation, updates and commits, and pure functions. Dependencies between them go one way. The outside dependencies are `@standard-schema/spec`, legal-identity and operation-result. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the eight protocol flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
@@ -75,7 +73,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/runtime-context-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The current test checks only that the root entry has no runtime exports. See [tests/](tests/README.md). No test covers the [verification obligations](SPEC.md#持续验证义务) in the SPEC yet. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. Tests check pure operations, public entries, export inventory and the framework-independent conformance suite. See [tests/](tests/README.md). Real implementations still own the concurrency and durability [verification obligations](SPEC.md#持续验证义务). A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -98,7 +96,7 @@ docs/                     Internal design, public use, and integration
 ├── public-api.md         Export entry and definition index
 ├── context.md            Independent use, neighbor handoff, position
 └── cordis.md             Why Cordis integration does not apply
-src/                      Public types, only index.ts now
+src/                      Public types, pure operations and testing helpers
 tests/                    Continuous tests, fixtures/ is empty now
 schema/                   Empty, the package publishes no schema
 verification/             models/ and proofs/, empty now

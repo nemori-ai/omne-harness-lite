@@ -44,6 +44,13 @@ export function createRecoveryAccess(): RecoveryAccess {
   return Object.freeze(access)
 }
 
+/** True for an object made by `createRecoveryAccess` in this process; a serialized copy has no mark. */
+export function isRecoveryAccess(value: unknown): value is RecoveryAccess {
+  return (
+    typeof value === 'object' && value !== null && Reflect.get(value, recoveryAccessMark) === true
+  )
+}
+
 /** Needed port: decides whether a recovery access may stop and settle resources of a scope. */
 export interface RecoveryAuthority {
   authorizeRecovery(

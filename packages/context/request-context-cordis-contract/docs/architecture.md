@@ -6,12 +6,12 @@
 
 ## 模块与依赖
 
-本成员有两个入口，各一个源文件。现在两个文件都只有模板标记，没有导出。
+本成员有两个入口，各一个源文件。根入口只导出类型，Cordis 入口提供抽象定义。
 
-| 入口 | 源文件 | 承载 | 现状 |
-| --- | --- | --- | --- |
-| `@omne-harness/request-context-cordis-contract` | `src/index.ts` | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 模板标记 |
-| `@omne-harness/request-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RequestContextService`、键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补 | 模板标记 |
+| 入口                                                   | 源文件          | 承载                                                                                                                                  | 现状   |
+| ------------------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `@omne-harness/request-context-cordis-contract`        | `src/index.ts`  | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现 |
+| `@omne-harness/request-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RequestContextService`、键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补                            | 已实现 |
 
 ```mermaid
 flowchart LR
@@ -27,7 +27,7 @@ flowchart LR
 
 本成员不导入 `@omne-harness/request-context` 或 `@omne-harness/request-context-cordis`（[性质 10](../SPEC.md#结果与不变量)）。依赖方向是提供者依赖本成员，反方向不成立。本成员也不导入任何协调者、历史持有者或贡献者的契约。
 
-明确缺项：request-context-contract 的[公开接口页](../../request-context-contract/docs/public-api.md)现在没有列出性质 2 所说的登记面操作类型，也没有列出 intercept 配置用到的 `ScopeRef`。抽象类要 `implements` 的类型名随契约的实现确定。
+登记操作参数与结果复用 request-context-contract 的公开类型；`ScopeRef` 沿原契约复用 Runtime Context 类型。实际名称见[公开接口页](public-api.md#定义索引)，本成员不另建身份或登记协议。
 
 ## 关键机制与理由
 
@@ -45,13 +45,13 @@ flowchart LR
 2. 提示词贡献来自多个插件，每个插件有自己的寿命。登记面是 Request Context 唯一带寿命的部分，所以只有它需要 Cordis 的效应来跟随贡献者撤除（[系统页的提示词贡献登记面](../../../../docs/architecture/runtime/request-context.md#提示词贡献登记面)）。
 3. 独立调用方不装配 Cordis 也能用全部纯操作。
 
-代价：经 Cordis 使用缓存与选定策略要多一个入口 `assembly(scope, ports)`，它只交出已配置的操作组，见 [Cordis 说明的服务定义](cordis.md#服务定义)。历史源读口、计量端口与转换件结果端口由调用方逐次交入，不由提供者 `inject`。理由：这三项归作用域持有者与模型侧，提供者若 `inject` 它们，就要导入对方的服务定义，Request Context 的寿命也会跟它们的换代耦合；调用方本来就持有这三项，每次交入即可。
+代价：经 Cordis 使用缓存与选定策略要多一个入口 `assembly(scope, ports)`，它只交出已配置的操作组，见 [Cordis 说明的服务定义](cordis.md#服务定义)。历史源读口、计量端口、转换件结果端口与请求序列化端口由调用方逐次交入，不由提供者 `inject`。历史源由作用域持有者提供，计量由模型侧提供，转换结果读口由本契约定义，请求序列化由适配器提供。调用方逐次传入四项端口，使 Request Context 提供者不必导入对方的服务定义，也不随对方服务换代重跑。
 
 ### 作用域由装配声明
 
 作用域引用写在贡献者插件的 intercept 配置里，由装配决定，贡献者在运行时不能改（性质 7）。服务方法沿调用方 fiber 读出它。如果作用域是登记方法的普通参数，一个贡献者可以把同一份内容登记到任意作用域，同层重名与遮蔽的规则就失去依据。作用域只决定登记在哪一层，不授予资格（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
-代价：这条机制现在只有源码读数，见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
+这条机制已有固定 Cordis 4.0.4 的本地探针，尚未登记共同 basis，见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
 
 ### 事件只做失效提示
 
@@ -74,23 +74,23 @@ flowchart LR
 
 ## SOLID 与扩展边界
 
-| 原则 | 本成员的具体选择 | 必须防止的反例 |
-| --- | --- | --- |
-| 单一职责 | 根入口只因契约类型改而改，`./cordis` 只因装配约定改而改 | 在本成员里写渲染、缓存、重名核对或遮蔽解析的逻辑 |
-| 开闭 | 新贡献者只在登记面登记，本成员不改。新策略实现只加到提供者的可选项与 request-context，本成员不改。新提供者 `extends` 抽象类 | 为某类贡献者或某个策略加一个服务键或特例方法 |
-| 里氏替换 | 任何提供者都 `extends` 同一个抽象类，实现同一组登记面操作，遵守同一个登记协议 | 某个提供者用 `ctx.provide` 另写键，或把登记放在服务自己的 fiber 上 |
-| 接口隔离 | 贡献者只调用两个登记方法，组装方只调用 `assembly(scope, ports)`（要查看贡献时再调用 `contributions(scope)`），监听者只订阅事件。纯操作的类型在契约根入口，服务只交出已配置的操作组 | 把 `assemble` 等纯操作直接写成服务方法，让贡献者也拿到组装能力 |
-| 依赖倒置 | 本成员只依赖契约类型与 Cordis。提供者与依赖方都依赖本成员，二者互不依赖 | `./cordis` 导入机制实现或提供者实现 |
+| 原则     | 本成员的具体选择                                                                                                                                                                   | 必须防止的反例                                                     |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 单一职责 | 根入口只因契约类型改而改，`./cordis` 只因装配约定改而改                                                                                                                            | 在本成员里写渲染、缓存、重名核对或遮蔽解析的逻辑                   |
+| 开闭     | 新贡献者只在登记面登记，本成员不改。新策略实现只加到提供者的可选项与 request-context，本成员不改。新提供者 `extends` 抽象类                                                        | 为某类贡献者或某个策略加一个服务键或特例方法                       |
+| 里氏替换 | 任何提供者都 `extends` 同一个抽象类，实现同一组登记面操作，遵守同一个登记协议                                                                                                      | 某个提供者用 `ctx.provide` 另写键，或把登记放在服务自己的 fiber 上 |
+| 接口隔离 | 贡献者只调用两个登记方法，组装方只调用 `assembly(scope, ports)`（要查看贡献时再调用 `contributions(scope)`），监听者只订阅事件。纯操作的类型在契约根入口，服务只交出已配置的操作组 | 把 `assemble` 等纯操作直接写成服务方法，让贡献者也拿到组装能力     |
+| 依赖倒置 | 本成员只依赖契约类型与 Cordis。提供者与依赖方都依赖本成员，二者互不依赖                                                                                                            | `./cordis` 导入机制实现或提供者实现                                |
 
 ## 验证与维护
 
-| 保证 | 现在的验证 | 后续义务 |
-| --- | --- | --- |
-| 根入口没有运行值 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 类型重导出进入后，仍断言运行导出为空 |
-| `./cordis` 只有定义 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，改为核对导出集合与键常量 |
-| 不导入实现成员（性质 10） | 没有 | 核对源码、生成声明与产物的导入 |
-| 登记、重名、遮蔽、逐请求变量与事件 | 没有 | 提供者的测试，见 [Cordis 说明的验证义务](cordis.md#验证义务) |
-| intercept 配置到达服务方法（性质 7） | 没有 | basis probe，见 [Cordis 说明](cordis.md#机制读数与假设) |
+| 保证                                 | 现在的验证                                                                 | 后续义务                                                     |
+| ------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 根入口没有运行值                     | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出   | 类型重导出进入后，仍断言运行导出为空                         |
+| `./cordis` 只有定义                  | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对运行导出与服务键 | 共享清单核对类型、运行值和模块增补                           |
+| 不导入实现成员（性质 10） | [boundary.spec.ts](../tests/boundary.spec.ts) 核对源码、生成声明与产物 | 持续核对公开入口 |
+| 登记、重名、遮蔽、逐请求变量与事件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 的本地非持久探针 | 生产提供者继续承担 [验证义务](cordis.md#验证义务) |
+| intercept 配置到达服务方法（性质 7） | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 在 Cordis 4.0.4 上验证 | 登记共同 basis；升版重跑，见 [Cordis 说明](cordis.md#机制读数与假设) |
 
 维护规则：
 
