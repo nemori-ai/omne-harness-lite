@@ -247,3 +247,5 @@ schema 的规则：
 `@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts) 与 [doubles.ts](../src/testing/doubles.ts)。
 
 `environmentProviderConformance` 与 `executionEnvironmentConformance` 返回独立用例列表，每条用例新建主体并在结束时清理。`runConformanceCase` 只把 `NotApplicable` 转成不适用，其余断言和清理失败照常抛出。未提供在途操作控制钩子时，对应排空用例记为不适用，不能算通过。替身 `durability` 为 `none`，只用于进程内验证。套件不证明耐久账本、真实隔离或设施外部效果。
+
+提供者套件的 `prepareHeldOperation` 钩子在退役前取得已持设施上的合法操作与效果观察；退役后必须返回 `rejected/closed`，且观察结果不变。缺钩子时该用例明确不适用，不算通过。这项义务不读取或要求提供者自行触发租约 `invalidated`。脚本替身的默认设施遵守这项关闭规则，自定义脚本可用于构造反例。

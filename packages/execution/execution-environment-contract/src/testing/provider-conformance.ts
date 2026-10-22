@@ -5,6 +5,8 @@ import {
   providerFactsSchema,
   managedResourceSchema,
   type EnvironmentProvider,
+  type EnvironmentLease,
+  type FacilityResult,
   type EnvironmentBinding,
   type ProviderAcquireInput,
   type FacilityKey,
@@ -18,6 +20,14 @@ export type ProviderConformanceSubject = Readonly<{
   tenant: ProviderAcquireInput['tenant']
   facility: FacilityKey
   hooks?: {
+    /** Prepares a legal operation on an already-held facility and observes its external effects. */
+    prepareHeldOperation?(
+      context: Readonly<{ lease: EnvironmentLease; input: ProviderAcquireInput }>,
+    ): Promise<{
+      run(): Promise<FacilityResult<unknown>>
+      effectSnapshot(): Promise<unknown>
+    }>
+
     holdNextOperation?(): Promise<{
       entered: Promise<void>
       release(): void
@@ -92,6 +102,26 @@ export function environmentProviderConformance(
         kind: 'rejected',
         reason: 'providerUnavailable',
       })
+    }),
+    make('V-EE18.held-facility-refuses-new-operations-after-retire', async (s, input) => {
+      if (!s.hooks?.prepareHeldOperation)
+        throw new NotApplicable(
+          'requires a legal held-facility operation and effect observation hook',
+        )
+      const receipt = await s.provider.acquire(input)
+      assert.equal(receipt.kind, 'acquired')
+      if (receipt.kind !== 'acquired') return
+      try {
+        const operation = await s.hooks.prepareHeldOperation({ lease: receipt.lease, input })
+        const before = await operation.effectSnapshot()
+        await s.provider.retire()
+        const result = await operation.run()
+        assert.equal(result.kind, 'rejected')
+        if (result.kind === 'rejected') assert.equal(result.reason, 'closed')
+        assert.deepEqual(await operation.effectSnapshot(), before)
+      } finally {
+        await receipt.lease.release()
+      }
     }),
     make('V-EE18.retire-reports-drained-or-pending', async ({ provider }) => {
       const answer = await provider.retire()

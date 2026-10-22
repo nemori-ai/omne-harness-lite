@@ -394,3 +394,106 @@ it('provider facts compare facilities as sets rather than declaration order', as
   if (!test) throw new Error('missing case')
   expect(await runConformanceCase(test)).toMatchObject({ status: 'pass' })
 })
+
+it('retirement suite denies late admission and effects hidden behind a closed answer', async () => {
+  const { environmentProviderConformance, runConformanceCase } =
+    await import('@omne-harness/execution-environment-contract/testing')
+  for (const fault of ['none', 'open', 'hidden-effect'] as const) {
+    const broken = fault !== 'none'
+    let effects = 0
+    let retired = false
+    let usedInput: contract.ProviderAcquireInput | undefined
+    const provider = createScriptedEnvironmentProvider(
+      broken
+        ? {
+            facilities: ['command'],
+            async retire() {
+              retired = true
+              return { kind: 'drained' }
+            },
+            lease: {
+              command: {
+                async start(request) {
+                  effects++
+                  return retired && fault === 'hidden-effect'
+                    ? { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
+                    : { kind: 'unknown', requestId: request.requestId }
+                },
+              },
+            },
+          }
+        : {},
+    )
+    const cases = environmentProviderConformance({
+      subject() {
+        return {
+          provider,
+          binding: { kind: 'host_machine' },
+          scope: { ref: scopeRef('retirement-scope') },
+          tenant,
+          facility: 'command',
+          hooks: {
+            async prepareHeldOperation({ lease, input }) {
+              usedInput = input
+              const command = lease.facility('command')
+              if (!command) throw new Error('no command')
+              return {
+                run: () =>
+                  command.start({
+                    requestId: 'late',
+                    origin: input.origin,
+                    access,
+                    binding: input.placement.binding,
+                    executable: 'true',
+                    args: [],
+                    cwd: '.',
+                    env: {},
+                    outputMode: 'separate',
+                  }),
+                async effectSnapshot() {
+                  return broken ? effects : provider.calls.start
+                },
+              }
+            },
+          },
+        }
+      },
+    })
+    const test = cases.find(
+      c => c.name === 'V-EE18.held-facility-refuses-new-operations-after-retire',
+    )
+    if (!test) throw new Error('missing retirement case')
+    if (broken) {
+      await expect(runConformanceCase(test)).rejects.toThrow()
+      expect(effects).toBe(1)
+      if (!usedInput) throw new Error('no captured provider input')
+      expect(await provider.acquire(usedInput)).toEqual({
+        kind: 'rejected',
+        reason: 'providerUnavailable',
+      })
+    } else {
+      expect(await runConformanceCase(test)).toMatchObject({ status: 'pass' })
+      expect(provider.calls.start).toBe(0)
+    }
+  }
+})
+it('marks the held-facility retirement case not applicable without the necessary hook', async () => {
+  const { environmentProviderConformance, runConformanceCase } =
+    await import('@omne-harness/execution-environment-contract/testing')
+  const cases = environmentProviderConformance({
+    subject() {
+      return {
+        provider: createScriptedEnvironmentProvider(),
+        binding: { kind: 'host_machine' },
+        scope: { ref: scopeRef('scope') },
+        tenant,
+        facility: 'command',
+      }
+    },
+  })
+  const test = cases.find(
+    c => c.name === 'V-EE18.held-facility-refuses-new-operations-after-retire',
+  )
+  if (!test) throw new Error('missing retirement case')
+  expect(await runConformanceCase(test)).toMatchObject({ status: 'not-applicable' })
+})

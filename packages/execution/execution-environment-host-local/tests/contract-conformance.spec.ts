@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { type ProviderAcquireInput } from '@omne-harness/execution-environment-contract'
@@ -8,7 +11,10 @@ import {
   runConformanceCase,
 } from '@omne-harness/execution-environment-contract/testing'
 import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
-import { createHostFilesProvider } from '@omne-harness/execution-environment-host-local'
+import {
+  hostObjectToken,
+  createHostFilesProvider,
+} from '@omne-harness/execution-environment-host-local'
 function tenant(account: string) {
   const parsed = tenantCodec.parse(
     JSON.stringify({ organization: 'org_0123456789abcdefghjkmnpqrs', account }),
@@ -53,14 +59,43 @@ for (const test of executionEnvironmentConformance({
 for (const test of environmentProviderConformance({
   subject() {
     const provider = createHostFilesProvider()
+    let root: string | undefined
     return {
       provider,
       binding: { kind: 'host_machine' },
       facility: 'files',
       scope: scope(),
       tenant: access.tenant,
+      hooks: {
+        async prepareHeldOperation({ lease, input }) {
+          const files = lease.facility('files')
+          if (!files) throw new Error('no files facility')
+          root = await realpath(await mkdtemp(join(tmpdir(), 'omne-ee-retirement-suite-')))
+          const path = join(root, 'held-file.txt')
+          await writeFile(path, 'before-retirement')
+          const named = await hostObjectToken(path)
+          return {
+            run: () =>
+              files.write({
+                requestId: 'late-public-suite',
+                origin: input.origin,
+                access: { principal: 'suite', tenant: input.tenant },
+                binding: input.placement.binding,
+                path,
+                named,
+                mode: 'replace',
+                bytes: new TextEncoder().encode('should-not-be-written'),
+              }),
+            effectSnapshot: () => readFile(path, 'utf8'),
+          }
+        },
+      },
       dispose: async () => {
-        await provider.retire()
+        try {
+          await provider.retire()
+        } finally {
+          if (root) await rm(root, { recursive: true, force: true })
+        }
       },
     }
   },
