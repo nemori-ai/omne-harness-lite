@@ -137,11 +137,22 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 | 配置在插件体之前按 Standard Schema 校验 | 探针结果 | 非法配置时 `apply` 不运行，失败稳定后的 fiber 状态是 `FAILED`。`validate` 返回 Promise 时抛出 `TypeError`，消息是 `Async config validation is not supported`。合法配置把 schema 的 `value` 交给 `apply`。类型里的 Promise 分支保留。 |
 | effect 释放次序 | 探针结果 | 同一条 fiber 上，后登记的 effect 可以在先登记的 effect 仍在释放时结束。同一个 effect 内部，disposer 按登记逆序运行，并等待前一个 Promise。该完成顺序不是产品关闭顺序。 |
 | 根已 `ACTIVE` 后装载并撤除一个带登记的插件 | 探针结果 | 插件不提供服务键，在插件体里用 `ctx.effect` 向注册表 `Service` 的 Map 写入一条登记。装载后 Map 有这条登记，`dispose` 后没有，fiber `state` 是 4（`DISPOSED`）。注册表提供者与已有消费者的插件体都只运行一次，fiber uid 不变，根仍是 2。探针是 `tests/late-plugin-load-unload-does-not-rerun-others.spec.ts`，对应 basis 条目 `late-plugin-load-unload-does-not-rerun-others`，2026-10-21 在 Node.js v26.12.0 上通过 |
+| 异步监听者的返回值与 `bail` | 探针结果 | `ctx.bail` 同步派发，异步监听者返回的 Promise 本身被当作 bail 值，派发停在那里。`ctx.serial` 逐个 await 后按解析值判定。`ctx.emit` 丢弃返回值。探针是 `tests/async-control-not-bail.spec.ts`，对应 basis 条目 `async-control-not-bail`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| `ctx.<键>` 与 `ctx.get` | 探针结果 | 插件里读未声明的 `ctx.<键>` 抛错。`ctx.get(键)` 不看声明，直接读服务表。探针是 `tests/ctx-property-is-not-ctx-get.spec.ts`，对应 basis 条目 `ctx-property-is-not-ctx-get`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| effect 并发释放 | 探针结果 | 卸载 fiber 时各 effect 的 disposer 重叠运行。disposer 抛错只进 `ctx.logger.error`，卸载照常完成。同一 effect 内逆序释放。`UNLOADING` 后再建 effect 抛 `INACTIVE_EFFECT`。探针是 `tests/effect-disposal-concurrent-not-ordered.spec.ts`，对应 basis 条目 `effect-disposal-concurrent-not-ordered`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| `emit` 监听者抛错 | 探针结果 | `ctx.emit` 同步逐个调用监听者。监听者抛出的异常同步传回发事件的一方，后面的监听者不再运行。探针是 `tests/emit-listener-throw-propagates.spec.ts`，对应 basis 条目 `emit-listener-throw-propagates`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| `inject` 没有可选形式 | 探针结果 | 写进 `inject` 的服务缺席时 fiber `state` 为 0。`ctx.get` 不要求 inject，提供者不在或未 `ACTIVE` 时返回 `undefined`，提供者换代不重跑调用方。探针是 `tests/inject-has-no-optional-form.spec.ts`，对应 basis 条目 `inject-has-no-optional-form`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| `isolate` 隐藏实例不隔离数据 | 探针结果 | 两个标签下的服务实例共享同一数据句柄时，从标签 A 读得到属于 B 的数据。同标签重复 `provide` 抛错。同 label 两次 isolate 合流。探针是 `tests/isolate-hides-instances-not-data.spec.ts`，对应 basis 条目 `isolate-hides-instances-not-data`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| logger 级别序 | 探针结果 | 级别数值是 ERROR 0、INFO 1、WARN 2、DEBUG 3。exporter 不给阈值时只导出到 INFO。探针是 `tests/logger-level-order-error-lowest.spec.ts`，对应 basis 条目 `logger-level-order-error-lowest`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| 提供者换代重跑插件体 | 探针结果 | 必需服务换提供者时消费者插件体重跑。同一提供者实例内部状态变化不重跑。探针是 `tests/plugin-body-reruns-on-provider-change.spec.ts`，对应 basis 条目 `plugin-body-reruns-on-provider-change`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| 插件体抛错或 config 不过校验 | 探针结果 | 插件体抛错时 `await` 拒绝，fiber `state` 是 3。config 不过 Standard Schema 时错误含 `invalid config`，插件体不运行，服务不出现。合法 config 把校验后的值交给插件体。探针是 `tests/plugin-throw-fails-fiber.spec.ts`，对应 basis 条目 `plugin-throw-fails-fiber`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| 服务方法里的 `this.ctx` 是调用方 | 探针结果 | 方法里 `this.ctx.effect` 登记的东西归调用方 fiber。调用方撤除时登记被撤掉，注册表 fiber 的 `state` 仍是 2。探针是 `tests/service-method-ctx-is-caller.spec.ts`，对应 basis 条目 `service-method-ctx-is-caller`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
+| `Service` 子类在自己的键上提供 | 探针结果 | 抽象 `Service` 子类作为插件装载后，在 `super(ctx, key)` 给的键上提供服务。消费者按键取到子类实例。所属 fiber 撤除后键上没有服务。探针是 `tests/service-subclass-provides-its-key.spec.ts`，对应 basis 条目 `service-subclass-provides-its-key`，2026-10-22 迁入本包后在 Node.js v26.12.0 上通过 |
 | `ACTIVE` 不是业务就绪 | 项目陈述 | 生命周期页 |
 
 已发布源码里 `_getState` 在 fiber 仍有 uid、没有 `_error`、epoch 不是 inactive 时返回 2。上表的 2 是这个返回值。
 
-配置校验和 effect 释放的新观察在本包测试里。旧探针文件仍在 `packages.0.0.1.legacy/core/kernel-basis`。本规格不把旧包当成新的辅助层，也不从旧路径导入。
+配置校验和 effect 释放的新观察在本包测试里。basis 条目的探针也在本包 `tests/` 里，随本包测试运行。归档目录 `packages.0.0.1.legacy/core/kernel-basis` 只留两条不对应 basis 条目的旧探针。本规格不把旧包当成新的辅助层，也不从旧路径导入。
 
 ## 验收对照
 

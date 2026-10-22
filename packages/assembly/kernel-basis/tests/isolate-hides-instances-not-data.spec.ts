@@ -4,7 +4,7 @@
 // 子标签的属性解析不回退父标签的已注入实例（ctx.get 则返回 undefined）。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
+import { plugin } from './basis-support.ts'
 
 describe('isolate-hides-instances-not-data', () => {
   it('子 isolate 属性解析抛错，不回退父标签已注入的服务', async () => {

@@ -13,7 +13,7 @@ lines:
   - "fiber.ts:225-241"
   - "fiber.ts:576-578"
   - "reflect.ts:233-241"
-probe: packages.0.0.1.legacy/core/kernel-basis/tests/basis/inject-has-no-optional-form.test.ts
+probe: packages/assembly/kernel-basis/tests/inject-has-no-optional-form.spec.ts
 checked: 2026-09-23
 ---
 
@@ -49,7 +49,7 @@ fiber 停在 `PENDING`，插件体不跑。**`inject` 的数组形式与对象�
 
 ## probe 断言什么
 
-probe 在 `packages.0.0.1.legacy/core/kernel-basis`，对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. `inject: { missing: undefined }` 的插件：插件体没跑，`fiber.state` 为 `PENDING`。
 2. 不 inject 的消费者：装载时 `resolveOptional(ctx, 'credentials')` 为 `undefined`；随后装一个兄弟插件 provide `credentials`（gen A），

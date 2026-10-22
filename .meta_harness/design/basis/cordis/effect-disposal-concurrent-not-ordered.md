@@ -13,7 +13,7 @@ lines:
   - "utils.ts:27-31"
   - "fiber.ts:675-686"
   - "fiber.ts:349-353"
-probe: packages.0.0.1.legacy/core/kernel-basis/tests/basis/effect-disposal-concurrent-not-ordered.test.ts
+probe: packages/assembly/kernel-basis/tests/effect-disposal-concurrent-not-ordered.spec.ts
 checked: 2026-09-22
 ---
 
@@ -45,7 +45,7 @@ checked: 2026-09-22
 
 ## probe 断言什么
 
-probe 在 `packages.0.0.1.legacy/core/kernel-basis` 里，对 4.0.4 通过（2026-09-22）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 先注册的 effect 其 disposer 延时 50ms，后注册的延时 0ms；卸载后完成顺序是「快的先」——
    逆注册序只约束取出，完成顺序由耗时决定，即并发。若上游改为顺序 await，此断言失败，本条目失效。

@@ -10,7 +10,7 @@ symbols:
 lines:
   - "reflect.ts:136-168"
   - "reflect.ts:233-243"
-probe: packages.0.0.1.legacy/core/kernel-basis/tests/basis/ctx-property-is-not-ctx-get.test.ts
+probe: packages/assembly/kernel-basis/tests/ctx-property-is-not-ctx-get.spec.ts
 checked: 2026-10-02
 ---
 
@@ -43,7 +43,7 @@ checked: 2026-10-02
 
 ## probe 断言什么
 
-probe 在 `packages.0.0.1.legacy/core/kernel-basis`，对 4.0.4 通过（2026-10-02）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-10-02）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 一个插件提供 `probeKv`；另一个**没 inject** 的插件体里，`ctx.get('probeKv')` 取到实现，读 `ctx.probeKv` 抛错且消息含键名。
 2. `inject: ['probeKv']` 的插件体里，`ctx.probeKv` 取到同一个实现。

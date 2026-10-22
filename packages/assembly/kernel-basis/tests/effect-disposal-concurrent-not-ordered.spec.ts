@@ -3,7 +3,7 @@
 // 同一 effect 内多个 disposer 逆序释放；UNLOADING 后再建 effect 抛 INACTIVE_EFFECT。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { plugin } from './support.ts'
+import { plugin } from './basis-support.ts'
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 

@@ -29,7 +29,7 @@ symbols:
   - "Context.prototype.bail"
 lines:
   - "events.ts:165-175"
-probe: packages.0.0.1.legacy/core/kernel-basis/tests/basis/async-control-not-bail.test.ts
+probe: packages/assembly/kernel-basis/tests/async-control-not-bail.spec.ts
 checked: 2026-09-16
 ---
 ```
@@ -81,12 +81,14 @@ probe 断言什么。
 
 ## 当前状态
 
+2026-10-22 把 11 条条目的 probe 从归档目录 `packages.0.0.1.legacy/core/kernel-basis/tests/basis/` 迁入工作区成员 `packages/assembly/kernel-basis/tests/`，文件名是 `<条目 id>.spec.ts`。现在 12 条条目的 probe 都在该成员里，随它的测试运行，对 4.0.4 通过。升级上游时运行该成员的测试即可得到全部 probe 的结果。迁移没有改断言。`plugin-throw-fails-fiber` 的 probe 原来用 zod 写 config schema，该成员不依赖 zod，现在用一个规则相同的最小 Standard Schema。
+
 2026-10-21 加一条（RFC-0012 缺口 6）：`late-plugin-load-unload-does-not-rerun-others`。根已 ACTIVE 后装载一个带登记的插件，再撤除它。登记随插件的 fiber 出现和消失，其他插件体不重跑。它的 probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，对 4.0.4 通过。
 
 2026-10-02 加三条，都是实现映射区的 Cordis 集成约定依赖的内核行为：`service-subclass-provides-its-key`（抽象 `Service` 子类在抽象类给的键上提供服务）、
-`service-method-ctx-is-caller`（经调用方取到的服务，方法里的 `this.ctx` 是调用方，登记归调用方 fiber）、`ctx-property-is-not-ctx-get`（插件里 `ctx.<键>` 要先声明，`ctx.get` 直接读服务表）；probe 在 `packages.0.0.1.legacy/core/kernel-basis/tests/basis/`，对 4.0.4 通过。
+`service-method-ctx-is-caller`（经调用方取到的服务，方法里的 `this.ctx` 是调用方，登记归调用方 fiber）、`ctx-property-is-not-ctx-get`（插件里 `ctx.<键>` 要先声明，`ctx.get` 直接读服务表）；probe 现在在 `packages/assembly/kernel-basis/tests/`。
 
-2026-09-23 阶段 2 加两条（W1-B 实现 account-identity 时核实）：`emit-listener-throw-propagates`（否定事实：`emit` 不隔离监听者）、`logger-level-order-error-lowest`（级别序与缺省阈值）；probe 在 `packages.0.0.1.legacy/core/kernel-basis/tests/basis/`，对 4.0.4 通过。
+2026-09-23 阶段 2 加两条（W1-B 实现 account-identity 时核实）：`emit-listener-throw-propagates`（否定事实：`emit` 不隔离监听者）、`logger-level-order-error-lowest`（级别序与缺省阈值）；probe 现在在 `packages/assembly/kernel-basis/tests/`。
 
 已有 6 条条目，均来自账号与租户设计实际依赖的机制语义：
 `isolate-hides-instances-not-data`、`async-control-not-bail`、
@@ -94,11 +96,10 @@ probe 断言什么。
 以及 `inject-has-no-optional-form`（含「`ctx.get` 看得见整棵树」）、`plugin-throw-fails-fiber`（2026-09-23 升格，
 治理中心入口层的机制读数依赖它们：门只在必需服务全部 `ACTIVE` 时才开、配置错误即启动失败、「没有门」不能靠内核）。
 
-六条的 `probe` 均已落在 `packages.0.0.1.legacy/core/kernel-basis/tests/basis/`，对采用版本 4.0.4 通过
-（采用版本见 D-025）；
-这个目录是归档目录，不是工作区成员。`vitest.tiers.mts` 的归档排除规则使成员测试不运行它，升级上游时要单独运行这些 probe；
+六条的 `probe` 现在在 `packages/assembly/kernel-basis/tests/`，对采用版本 4.0.4 通过（采用版本见 D-025）；
 `async-control-not-bail` 的读数在取证时按 4.0.4 源码改正过（Promise 被当作 bail 值，而非被忽略）。
-同目录下另有两条**不对应 basis 条目**的 probe（`provide-is-effect-managed`、`fiber-state-readable`），
-核对的是 realization 节点依赖的共用主张；要不要升格为条目，按本页准入另议。手册正文与历次走查中的其余机制主张尚未迁入。
+`packages.0.0.1.legacy/core/kernel-basis/tests/basis/` 是归档目录，不是工作区成员，`vitest.tiers.mts` 的归档排除规则使任何成员测试都不运行它。
+那里留着两条**不对应 basis 条目**的 probe（`provide-is-effect-managed`、`fiber-state-readable`），
+核对的是 realization 节点依赖的共用主张；它们不随成员运行，原来导入的 `support.ts` 已随迁移移走，升格时一并迁入成员并改导入。要不要升格为条目，按本页准入另议。手册正文与历次走查中的其余机制主张尚未迁入。
 
 返回[设计链入口](../README.md)。
