@@ -5,5 +5,4 @@
 ## 内容
 
 - [README.md](README.md)：示例的运行前提
-
-本目录目前没有其他文件，原因见 [README.md](README.md)。
+- [local-send.ts](local-send.ts)：经根入口对本地 HTTPS 服务发送一次，以及内容引用被拒绝的反例

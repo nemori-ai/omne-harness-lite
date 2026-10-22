@@ -15,12 +15,21 @@
 - [proxy-config.spec.ts](proxy-config.spec.ts)：代理配置的校验、构造时任何消息都不含 URL，与 Node 版本守卫（快层）
 - [proxy.spec.ts](proxy.spec.ts)：经本地 CONNECT 代理的交换：隧道成功、直连项、URL 规范化、连接超时的结束时刻、代理拒绝后重置、不可达、未回复即关闭、不回复、隧道内 TLS 失败与停滞、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断（慢层）
 - [live/openrouter.spec.ts](live/openrouter.spec.ts)：经真实代理向 OpenRouter 发一次流式请求，只在 `OMNE_LIVE_TESTS=1` 时运行（慢层，`test:live`）
-- [network.spec.ts](network.spec.ts)：网络资源的关闭排空、连接池、同一接收方连续发起、容量是唯一的并发上限、多接收方不排队与排队即缺陷（含排队的请求已销毁）（慢层）
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行时导出，类型形状与组架构一致
-- [public-entry.spec-d.ts](public-entry.spec-d.ts)：五个公开类型的编译期用例
+- [network.spec.ts](network.spec.ts)：网络资源的关闭排空、连接池、同一接收方连续发起、容量是唯一的并发上限、多接收方不排队（慢层）
+- [transport.spec.ts](transport.spec.ts)：三段传输的配置校验（含不是由网络资源工厂建立的 `network`）、prepare 的路由查找与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时外层关闭等待全部关闭结束）（快层）
+- [materialize.spec.ts](materialize.spec.ts)：materialize 的回执、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额（快层）
+- [start.spec.ts](start.spec.ts)：不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start（快层）
+- [termination.spec.ts](termination.spec.ts)：失败映射表的每一行（快层）
+- [transport-exchange.spec.ts](transport-exchange.spec.ts)：发送的 start：同步发出、在结束标记处结束读取、失败映射表各行对真实响应、流中取消与关闭、读入结束标记之后的取消保留解码器的终止、读者提前结束、真实发送下的容量等待与归还（慢层）
+- [conformance.spec.ts](conformance.spec.ts)：model-contract 符合性套件 transport 组的六条义务（慢层）
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口只有 `createNetworkResources` 与 `createPiTransport` 两个运行时导出，网络资源句柄在运行时只显示 `close`，家族类型形状与组架构一致
+- [public-entry.spec-d.ts](public-entry.spec-d.ts)：五个家族类型、三段传输工厂、网络资源工厂与它们的配置类型的编译期用例，以及网络资源是不透明句柄
 - [dependencies.spec.ts](dependencies.spec.ts)：运行依赖与导入方向
+- [examples.spec.ts](examples.spec.ts)：在子进程中运行公开示例并核对输出（慢层）
 - [support/https-server.ts](support/https-server.ts)：自签证书、本地 HTTPS 服务与黑洞监听
 - [support/connect-proxy.ts](support/connect-proxy.ts)：本地 CONNECT 代理：隧道、403 后重置、不回复与未回复即关闭四种模式，记录 CONNECT 目标
 - [support/exchange.ts](support/exchange.ts)：交换的输入、预约、观察工具与清理断言
+- [support/test-family.ts](support/test-family.ts)：测试家族、测试协议与测试用的请求、供应商和限额
+- [support/transport.ts](support/transport.ts)：在给定网络资源上构造传输、发送计数、事实流收集与名额探测
 - [support/sources.ts](support/sources.ts)：记录读者行为的字节源
 - [fixtures/](fixtures/index.md)：测试固定输入（不适用）

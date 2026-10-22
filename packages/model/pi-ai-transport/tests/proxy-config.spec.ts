@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createNetworkResources, type NetworkConfig, type ProxyConfig } from '../src/network.ts'
+import { openNetwork, type NetworkConfig, type ProxyConfig } from '../src/network.ts'
 import { supportsProxyEnv } from '../src/pool-agent.ts'
 
 const SECRET = 'proxy-password-value'
@@ -38,7 +38,7 @@ describe('network resources: proxy configuration', () => {
       { url: `http://user:${SECRET}@127.0.0.1:3128`, bypass: ['a.example b.example'] },
     ],
   ])('%s is a RangeError whose message holds no part of the URL', (_case, proxy) => {
-    const error = thrownBy(() => createNetworkResources(withProxy(proxy)))
+    const error = thrownBy(() => openNetwork(withProxy(proxy)))
     expect(error).toBeInstanceOf(RangeError)
     const { message } = error instanceof Error ? error : new Error('not an error')
     expect(message).not.toContain(SECRET)
@@ -56,7 +56,7 @@ describe('network resources: proxy configuration', () => {
   ])(
     'an %s proxy with valid bypass entries builds the resources',
     async (_protocol, url, bypass) => {
-      const resources = createNetworkResources(withProxy({ url, bypass }))
+      const resources = openNetwork(withProxy({ url, bypass }))
       expect(resources.closed).toBe(false)
       await resources.close()
     },
@@ -69,7 +69,7 @@ describe('network resources: proxy configuration', () => {
     ['an embedded carriage return', `http://user:${SECRET}@proxy.exa\rmple:8080`],
     ['an embedded tab', `http://user:${SECRET}@proxy.example:80\t80`],
   ])('a URL with %s builds the resources without any error', async (_case, url) => {
-    const resources = createNetworkResources(withProxy({ url, bypass: [] }))
+    const resources = openNetwork(withProxy({ url, bypass: [] }))
     expect(resources.closed).toBe(false)
     await resources.close()
   })

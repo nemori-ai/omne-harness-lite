@@ -5,8 +5,14 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责
-- [index.ts](index.ts)：根入口，只转出五个公开类型
+- [index.ts](index.ts)：根入口，转出五个家族类型、三段传输的工厂与配置类型、网络资源的工厂与配置类型
 - [family.ts](family.ts)：已接受的家族贡献接口类型
+- [config.ts](config.ts)：三段传输的配置类型与校验
+- [transport.ts](transport.ts)：`createPiTransport`：外层与 prepared 的生命周期、路由查找与家族绑定
+- [materialized.ts](materialized.ts)：materialize 与一次发送：名额、payload、回执、start 与关闭
+- [fact-stream.ts](fact-stream.ts)：一次发送的事实流：SSE、协议帧、家族解码器与唯一的 `ended`
+- [termination.ts](termination.ts)：发送结束到流终止的纯函数映射
+- [payload.ts](payload.ts)：内容引用扫描、请求体序列化与 SHA-256 摘要
 - [capacity.ts](capacity.ts)：连接容量、预约与座位
 - [diagnostics.ts](diagnostics.ts)：诊断事件与观察者隔离
 - [sse.ts](sse.ts)：字节流到 SSE 事件 data 文本，改编自 pi

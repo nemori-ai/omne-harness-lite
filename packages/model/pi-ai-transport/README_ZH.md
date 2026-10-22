@@ -6,38 +6,41 @@
 
 本成员是 Model 组的共享 pi 传输。它集中维护 pi fork 以及公共的 HTTP/SSE、取消与连接资源，家族不复制这些机制。职责与建包条件见[组架构“成员与新增条件”](../docs/architecture.md#成员与新增条件)。
 
-当前交付两部分：
+本包交付四部分：
 
-- 根入口导出五个已接受的家族贡献接口类型，只有类型，没有运行时值。
-- 包内传输机制：连接容量、同步发起的 HTTPS 交换、SSE 分帧、协议帧、网络资源（含可选的 HTTPS 代理）与诊断隔离。它们不经入口导出，供同包的 `ModelTransport` 实现使用。
+- 根入口导出三段传输的工厂 `createPiTransport` 与它的配置类型。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
+- 根入口导出网络资源的工厂 `createNetworkResources` 与它的配置类型。装配创建并拥有网络资源，再把它交给 `createPiTransport`。网络资源是不透明句柄，包外只能调用它的 `close()`。网络资源可以使用 HTTPS 代理。
+- 根入口导出五个已接受的家族贡献接口类型。
+- 包内传输机制：连接容量、同步发起的 HTTPS 交换、SSE 分帧、协议帧与诊断隔离。它们不经入口导出，由网络资源与三段传输组合。
 
-`ModelTransport` 尚未实现，因此本包还不能独立完成一次模型请求。设计、实现与运行验证分别判断。
+本包还没有真实家族：持续验证只用测试家族。设计、实现与运行验证分别判断。
 
 ### 支持范围
 
-支持范围分五档。每档只写已核对的事实：测试核对了什么，没有核对什么。改变支持范围的提交同步本表、[SPEC](SPEC.md) 与组页的状态。持续验证的证据都来自单个进程、本地 HTTPS 服务与本地 CONNECT 代理。真实代理与真实供应商只有手动运行的 `test:live` 证据，没有包外消费者的验证。
+支持范围分六档。每档只写已核对的事实：测试核对了什么，没有核对什么。改变支持范围的提交同步本表、[SPEC](SPEC.md) 与组页的状态。持续验证的证据都来自单个进程、本地 HTTPS 服务、本地 CONNECT 代理与测试家族。真实代理与真实供应商只有手动运行的 `test:live` 证据，没有包外消费者的验证。
 
 | 档 | 已交付的内容 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
-| 公开类型已导出 | `PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding`、`PiFamilyContributions`，形状照抄组架构的已接受代码块 | 根入口，只有类型 | `public-entry.spec.ts` 核对根入口没有运行时导出，`public-entry.spec-d.ts` 以编译期用例核对类型。没有家族实现消费这些类型 |
-| 容量与诊断隔离已实现 | 连接容量：FIFO 授予，可取消，可关闭，预约不过期，只消费一次，消费之后只经座位归还名额。诊断隔离：事件只含种类与级别，观察者的故障只改变计数 | 包内 `src/capacity.ts`、`src/diagnostics.ts`，不经入口导出 | 快层单元测试，使用真实的 `AbortController`。没有包外消费者 |
+| 公开类型已导出 | `PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding`、`PiFamilyContributions`，形状照抄组架构的已接受代码块 | 根入口，只有类型 | `public-entry.spec.ts` 核对家族类型照抄组架构，`public-entry.spec-d.ts` 以编译期用例核对类型。只有测试家族消费这些类型 |
+| 三段传输已实现 | `createPiTransport`：配置校验，按接收方查路由，经家族贡献取得绑定。materialize 按 FIFO 预约名额、拒绝模型可见的内容引用、经家族编码、固定字节与 SHA-256 回执，失败时归还名额。start 在同步调用中读取凭据并发出一次请求，没有凭据时不发送并以 `credential` 失败结束。事实流经 SSE、协议帧与家族解码器，以恰好一个 `ended` 结束，失败按 SPEC 的映射表区分。路由有 end-marker 时，事实流在 end-marker 处结束，不等待响应体结束。本包读入 end-marker 所在的响应字节之前，取消与关闭在物理停止之后以 `interrupted` 结束。读入之后，协议结束优先，流以解码器的终止结束。关闭之后或网络资源关闭之后的任何 start 不发送，以 `interrupted` 结束，含 start、关闭、再 start 的顺序。重复 materialize 返回 `invalid`。两次 start 之间没有关闭时，第二次 start 返回空流 | 根入口的 `createPiTransport`；包内 `src/transport.ts`、`src/materialized.ts`、`src/fact-stream.ts`、`src/termination.ts`、`src/payload.ts`、`src/config.ts` | 快层用例与内存中的测试家族。慢层对真实本地 HTTPS 服务覆盖映射表各行、容量等待与取消、关闭，并运行 model-contract 符合性套件 transport 组的六条义务（脚本化的提供者）。没有真实家族、真实凭据或 Model 发送路径的组合 |
+| 容量与诊断隔离已实现 | 连接容量：FIFO 授予，可取消，可关闭，预约不过期，只消费一次，消费之后只经座位归还名额。诊断隔离：事件只含种类与级别，观察者的故障只改变计数 | 包内 `src/capacity.ts`、`src/diagnostics.ts`，除观察者类型 `DiagnosticObserver` 外不经入口导出 | 快层单元测试，使用真实的 `AbortController`。没有包外消费者 |
 | SSE 分帧与协议帧已实现 | 字节流到 SSE 事件 data 文本：任意切点下的 UTF-8 与换行，单事件字节上限，四种失败原因。data 文本到协议帧：end-marker 单独成帧，无损 JSON，EOF 不判定终局 | 包内 `src/sse.ts`（改编自 pi）、`src/frames.ts` | 快层单元测试，使用真实字节流与 Node 可读流。没有真实供应商的流 |
-| HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。只有同一资源的容量授予的预约能发起交换。停止在物理关闭前胜出，名额在物理关闭之后归还。读者提前结束响应体（含第一次读取之前）时响应关闭。读者按类型区分本地停止（`ResponseBodyStoppedError`）与连接中断（`ResponseBodyReadError`）。请求进入连接池等待队列是缺陷（`ExchangeQueuedError`），不是已发起的交换。从发起到取得已连接套接字的连接超时。网络资源的关闭排空。可选的 HTTPS 代理：配置校验与 Node 版本守卫，经 CONNECT 隧道的交换，直连项，代理拒绝、不可达与不回复时的 `connect-failed`，停止与关闭结束建立中的代理连接，代理拒绝后重置不使进程崩溃 | 包内 `src/http.ts`、`src/network.ts`、`src/pool-agent.ts` | 慢层测试，对真实本地 HTTPS 服务、自签证书与本地 `http:` CONNECT 代理。`test:live` 在设置 `OMNE_LIVE_TESTS=1` 时经云端会话的代理向 OpenRouter 发一次流式请求，只在手动运行时有证据。不证明 `https:` 协议的代理、包外消费者或持续的公网 TLS |
-| 尚未交付 | `ModelTransport` 的 `prepare → materialize → start`（[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2）。请求规划、固定绑定与帧到 `TransportFact` 的映射（2.3）。OpenAI 家族（2.5），真实请求经 OpenRouter 固定路由。凭据解析与经 `ModelTransport` 的真实供应商请求（2.6）。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
+| HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。只有同一资源的容量授予的预约能发起交换。停止在物理关闭前胜出，名额在物理关闭之后归还。读者提前结束响应体（含第一次读取之前）时响应关闭。读者按类型区分本地停止（`ResponseBodyStoppedError`）与连接中断（`ResponseBodyReadError`）。从发起到取得已连接套接字的连接超时。网络资源的关闭排空。可选的 HTTPS 代理：配置校验与 Node 版本守卫，经 CONNECT 隧道的交换，直连项，代理拒绝、不可达与不回复时的 `connect-failed`，停止与关闭结束建立中的代理连接，代理拒绝后重置不使进程崩溃 | 根入口的 `createNetworkResources`；包内 `src/http.ts`、`src/network.ts`、`src/pool-agent.ts` | 慢层测试，对真实本地 HTTPS 服务、自签证书与本地 `http:` CONNECT 代理。`test:live` 在设置 `OMNE_LIVE_TESTS=1` 时经云端会话的代理向 OpenRouter 发一次流式请求，只在手动运行时有证据。不证明 `https:` 协议的代理、包外消费者或持续的公网 TLS |
+| 尚未交付 | 请求规划与流事件映射（[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.3）。OpenAI 家族（2.5），真实请求经 OpenRouter 固定路由。凭据解析与经 `ModelTransport` 的真实供应商请求（2.6）。媒体读取（阶段四 4.4）：materialize 目前拒绝模型可见的内容引用。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
 
 ## 使用
 
 家族作者从根入口取得类型：`import type { PiFamilyContributions } from '@omne-harness/pi-ai-transport'`。依赖本包会安装 model-contract、operation-result、json-text 与 content-block，不安装 Cordis、`@omne-harness/model` 或任何家族。本包没有 Cordis 入口，理由见 [Cordis 集成](docs/cordis.md)。
 
-传输机制只能由同包代码使用。类型的用法、包内组合的示意，以及初始化与释放责任见[使用与定位](docs/context.md)。
+装配用 `createNetworkResources(config)` 创建网络资源。装配拥有网络资源，可以把它交给多个传输。装配再调用 `createPiTransport({ network, families, routes, credential, limits })`，得到 `{ transport, close }`。`transport` 交给 Model 的发送资源。凭据槽在 `start` 的同步调用中读取一次：调用方在调用 `start` 前把秘密放进槽，`start` 返回后清空。装配先关闭所有传输，再关闭网络资源。传输不关闭网络资源。其余传输机制只能由同包代码使用。配置示例、初始化与释放责任见[使用与定位](docs/context.md)。只从根入口导入本包的可运行示例见 [examples](examples/README.md)。
 
 ## 契约
 
-[行为规格](SPEC.md)拥有容量、交换、SSE、帧、网络资源与诊断的结果、所有权、失败、取消与生命周期，也拥有秘密只在包内的约束。五个类型的形状与家族作者的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)。公开入口的导航见[公开接口](docs/public-api.md)。
+[行为规格](SPEC.md)拥有三段传输、容量、交换、SSE、帧、网络资源与诊断的结果、所有权、失败、取消与生命周期，也拥有秘密只在包内的约束。五个类型的形状与家族作者的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)。公开入口的导航见[公开接口](docs/public-api.md)。
 
 ## 设计
 
-六个机制模块各回答一个问题：谁可以发、怎样发一次并收场、字节怎样成为事件、事件怎样成为帧、怎样组合与排空、观察怎样隔离。连接池 `PoolAgent` 在 `src/pool-agent.ts`，负责经代理建立连接时的两项控制，理由见[内部架构“经代理建立连接”](docs/architecture.md#经代理建立连接)。网络资源组合并注入容量、连接池与诊断隔离，交换不自行创建它们。模块、交换的相位、资源所有权与设计理由见[内部架构](docs/architecture.md)，时序见[关键流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。SSE 分帧改编自 pi，来源见 [UPSTREAM.md](UPSTREAM.md)。
+三段传输组合包内机制：transport.ts 拥有外层与 prepared 的生命周期，materialized.ts 拥有一次发送的名额与发起，fact-stream.ts 把响应读成事实，termination.ts 是失败映射的纯函数。六个机制模块各回答一个问题：谁可以发、怎样发一次并收场、字节怎样成为事件、事件怎样成为帧、怎样组合与排空、观察怎样隔离。连接池 `PoolAgent` 在 `src/pool-agent.ts`，负责经代理建立连接时的两项控制，理由见[内部架构“经代理建立连接”](docs/architecture.md#经代理建立连接)。网络资源组合并注入容量、连接池与诊断隔离，交换不自行创建它们。模块、交换的相位、资源所有权与设计理由见[内部架构](docs/architecture.md)，时序见[关键流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。SSE 分帧改编自 pi，来源见 [UPSTREAM.md](UPSTREAM.md)。
 
 ## 配置与运行
 
@@ -46,6 +49,7 @@
 - 网络资源：`maxConnections`（容量，即同时在途的交换数；连接池本身不设套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`、可选的 `proxy`（`url` 与 `bypass`），以及可选的诊断观察者与 `maxPending`。本包不读取 `HTTPS_PROXY` 或 `NO_PROXY`，由调用方在边界把环境映射为 `proxy`。
 - 每次交换：`connectTimeoutMs`（从发起到取得已连接的套接字，复用的连接在下一个 tick 结束，`null` 表示不设）与 `maxErrorBodyBytes`。
 - SSE 分帧：`maxEventBytes`。协议帧：`endMarker` 与 JSON 限额。
+- 三段传输：`network`（装配创建并关闭的网络资源）、`families`、`routes`（每个接收方的 `url` 与 `endMarker`）、`credential`（凭据槽），以及 `limits`（`connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与 `json`）。配置不合规时 `createPiTransport` 同步抛出 `RangeError`。
 - 每个计时值最多 2147483647 毫秒，即 Node 定时器接受的最大延迟。
 
 调用方的责任见 [SPEC“调用方责任”](SPEC.md#调用方责任)。
@@ -83,7 +87,8 @@ Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再
 ## 维护
 
 - 改变家族贡献类型：先改组架构的已接受代码块，再同步 `src/family.ts`、类型测试与[公开接口](docs/public-api.md)。
-- 改变机制行为：同步 SPEC、对应测试与[关键流程](docs/flows.md)。2.2 实现之后，还要同步 `ModelTransport` 的调用代码。
+- 改变机制行为：同步 SPEC、对应测试与[关键流程](docs/flows.md)，并同步三段传输中调用该机制的代码。
+- 改变失败映射：同步 `src/termination.ts`、SPEC“事实流”的表与 `tests/termination.spec.ts`。
 - 改变 `src/sse.ts`：同步 `provenance.json` 与 `UPSTREAM.md`。
 - 增加运行依赖：先核对组架构的依赖方向，再更新 `tests/dependencies.spec.ts`。
 - 改变支持范围：同步本表、英文 README、[组页](../README.md)、[组架构](../docs/architecture.md)与[包组织](../../../docs/package-organization.md)中的状态。

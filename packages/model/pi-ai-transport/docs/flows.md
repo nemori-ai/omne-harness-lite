@@ -1,14 +1,62 @@
 # 关键流程
 
-本文件描述本包的三条流程：一次交换、2xx 响应体的读取，以及网络资源的关闭。前提：调用方是同包的代码，首个调用方是[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 `ModelTransport`。它在 materialize 时预约名额，在 start 时发起交换。本包还没有 `ModelTransport`，图中的 materialize 与 start 只标出调用位置。行为条款以 [SPEC.md](../SPEC.md) 为准。
+本文件描述本包的四条流程：三段传输的一次发送、一次交换、2xx 响应体的读取，以及网络资源的关闭。交换的调用方是同包的三段传输：它在 materialize 时预约名额，在 start 时发起交换。行为条款以 [SPEC.md](../SPEC.md) 为准。
 
 ## 流程
+
+### 三段传输的一次发送
+
+```mermaid
+sequenceDiagram
+  participant Model as 调用方（Model 发送资源）
+  participant T as 三段传输
+  participant F as 家族贡献
+  participant Cap as 容量
+  participant Ex as 交换
+  Model->>T: prepare(request, supplier)
+  alt 没有该接收方的路由
+    T-->>Model: unsupported
+  else
+    T->>F: acquire(supplier, signal)
+    F-->>T: 家族绑定
+    T-->>Model: prepared
+  end
+  Model->>T: prepared.materialize(signal)
+  T->>Cap: reserve(signal)，FIFO 等待
+  alt 取消、prepared 关闭或网络资源关闭
+    T-->>Model: unavailable
+  else 授予
+    T->>T: 扫描内容引用、encode、序列化、SHA-256
+    T-->>Model: materialized，回执固定
+  end
+  Model->>T: materialized.start(signal)（同步）
+  alt 已关闭（materialized、prepared 或外层）
+    T-->>Model: 只含 interrupted 的流，不读凭据
+  else 信号已中止或网络资源已关闭
+    T->>Cap: 归还名额
+    T-->>Model: 只含 interrupted 的流，不读凭据
+  else
+    T->>T: 读取凭据槽一次
+    alt 没有凭据
+      T->>Cap: 归还名额
+      T-->>Model: 只含 credential 失败的流
+    else
+      T->>Ex: startExchange（同步发出）
+      T-->>Model: 事实流
+      Ex-->>T: 结果与响应体
+      T-->>Model: 解码器的事实，到 end-marker 或响应体结束为止
+      T-->>Model: 交换物理停止后给出唯一的 ended
+    end
+  end
+  Model->>T: materialized.close()，再 prepared.close()
+  T->>F: binding.release()
+```
 
 ### 一次交换
 
 ```mermaid
 sequenceDiagram
-  participant Caller as 调用方（2.2）
+  participant Caller as 调用方（三段传输）
   participant Cap as 容量
   participant Ex as 交换
   participant Pool as Node https 与连接池
@@ -91,7 +139,6 @@ sequenceDiagram
 ## 失败与生命周期
 
 - 发起前已取消：`startExchange` 返回 `refused('cancelled')`，不建立连接，归还预约。
-- 请求进入连接池的等待队列：缺陷，只在配置被绕过时出现。`startExchange` 销毁请求、把它移出队列、归还名额并抛出 `ExchangeQueuedError`，没有交换句柄，之后也不为它建立连接。
 - 收到响应之前取消或调用 `stop()`：本包销毁请求。物理关闭之后，结果是 `stopped`，`responded` 为 `false`，然后名额归还。
 - 读取错误体时取消：结果是 `stopped`，`responded` 为 `true`。错误体被丢弃。
 - 2xx 响应体读取中取消、调用 `stop()` 或关闭网络资源：结果仍是 `ok`，读者的迭代以 `ResponseBodyStoppedError` 结束，响应关闭之后名额归还。

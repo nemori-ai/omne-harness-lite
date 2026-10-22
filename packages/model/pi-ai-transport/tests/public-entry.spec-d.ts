@@ -4,11 +4,23 @@ import type {
   Adoption,
   MediaMeasurementFact,
   ModelFault,
+  ModelTransport,
   Supplier,
   TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
+import {
+  createNetworkResources,
+  createPiTransport,
+  type DiagnosticObserver,
+  type NetworkConfig,
+  type NetworkResources,
+  type PiCredentialSlot,
+  type PiRoute,
+  type PiTransportConfig,
+  type ProxyConfig,
+} from '@omne-harness/pi-ai-transport'
 import type {
   PiFamilyBinding,
   PiFamilyContributions,
@@ -58,5 +70,45 @@ it('acquire selects one supplier under a cancel signal', () => {
   >()
   expectTypeOf<PiFamilyContributions['acquire']>().returns.toEqualTypeOf<
     Promise<Outcome<PiFamilyBinding, TransportFailure>>
+  >()
+})
+
+it('the factory takes the configuration and gives a model transport with its own close', () => {
+  expectTypeOf(createPiTransport).parameters.toEqualTypeOf<[PiTransportConfig]>()
+  expectTypeOf(createPiTransport).returns.toEqualTypeOf<
+    Readonly<{ transport: ModelTransport; close(): Promise<void> }>
+  >()
+})
+
+it('a route names its endpoint and end marker, and the credential slot reads a secret or nothing', () => {
+  expectTypeOf<PiRoute>().toEqualTypeOf<Readonly<{ url: string; endMarker: string | null }>>()
+  expectTypeOf<PiCredentialSlot['read']>().returns.toEqualTypeOf<string | undefined>()
+  expectTypeOf<PiTransportConfig['routes']>().toEqualTypeOf<Readonly<Record<string, PiRoute>>>()
+})
+
+it('the network resources factory gives the resources that the transport configuration takes', () => {
+  expectTypeOf(createNetworkResources).parameters.toEqualTypeOf<[NetworkConfig]>()
+  expectTypeOf(createNetworkResources).returns.toEqualTypeOf<NetworkResources>()
+  expectTypeOf<PiTransportConfig['network']>().toEqualTypeOf<NetworkResources>()
+  expectTypeOf<NetworkResources['close']>().returns.toEqualTypeOf<Promise<void>>()
+})
+
+it('the network resources are an opaque handle: only close is reachable from the root types', () => {
+  expectTypeOf<NetworkResources>().not.toHaveProperty('agent')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('inFlight')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('capacity')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('diagnostics')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('tls')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('closed')
+  expectTypeOf<Extract<keyof NetworkResources, string>>().toEqualTypeOf<'close'>()
+  // A structurally similar object is not a handle: only the factory makes one.
+  expectTypeOf<{ close(): Promise<void> }>().not.toExtend<NetworkResources>()
+})
+
+it('the network configuration names its proxy and its diagnostics observer with exported types', () => {
+  expectTypeOf<NetworkConfig['proxy']>().toEqualTypeOf<ProxyConfig | undefined>()
+  expectTypeOf<ProxyConfig>().toEqualTypeOf<Readonly<{ url: string; bypass: readonly string[] }>>()
+  expectTypeOf<NonNullable<NetworkConfig['diagnostics']>>().toEqualTypeOf<
+    Readonly<{ observer: DiagnosticObserver; maxPending: number }>
   >()
 })

@@ -7,7 +7,13 @@
 | 模块 | 回答的问题与持有的东西 | 依赖 |
 | --- | --- | --- |
 | [family.ts](../src/family.ts) | 五个已接受的家族贡献接口类型，形状照抄组架构 | model-contract、json-text、content-block、operation-result，只有类型 |
-| [index.ts](../src/index.ts) | 根入口，只转出 family.ts 的类型 | family.ts |
+| [index.ts](../src/index.ts) | 根入口，转出 family.ts 的类型、config.ts 的配置类型、transport.ts 的工厂、network.ts 的工厂与配置类型，以及 diagnostics.ts 的观察者类型 | family.ts、config.ts、transport.ts、network.ts、diagnostics.ts |
+| [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts，json-text、family.ts 与 network.ts（类型） |
+| [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，model-contract 与 operation-result（类型） |
+| [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts 与 termination.ts（类型） |
+| [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts |
+| [termination.ts](../src/termination.ts) | 一次发送怎样结束：发送结束到流终止的纯函数 | model-contract（类型），frames.ts 与 sse.ts（类型） |
+| [payload.ts](../src/payload.ts) | 固定的 payload：内容引用扫描、JSON 序列化、SHA-256 | json-text、Node `crypto` |
 | [capacity.ts](../src/capacity.ts) | 谁可以发：FIFO 等待队列、已授予计数、关闭标志、每个预约的状态 | operation-result（类型） |
 | [diagnostics.ts](../src/diagnostics.ts) | 观察怎样隔离：失败、在途与丢弃计数 | 无 |
 | [iteration.ts](../src/iteration.ts) | 读者提前结束时怎样关闭来源：未启动的生成器不运行 `finally`，由它补上 | 无 |
@@ -23,6 +29,17 @@
 ```mermaid
 flowchart LR
   index[index.ts] --> family[family.ts]
+  index --> transport[transport.ts]
+  transport --> config[config.ts]
+  transport --> materialized[materialized.ts]
+  materialized --> payload[payload.ts]
+  materialized --> facts[fact-stream.ts]
+  materialized --> http
+  facts --> termination[termination.ts]
+  facts --> sse
+  facts --> frames
+  facts --> http
+  config --> http
   family -. 类型 .-> contract["model-contract、content-block"]
   family -. 类型 .-> jsonText["@omne-harness/json-text"]
   family -. 类型 .-> result["@omne-harness/operation-result"]
@@ -46,7 +63,7 @@ flowchart LR
   network -. 类型 .-> http
 ```
 
-依赖方向只从组合者指向机制。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只从 pool-agent.ts 取得建连取消信号的选项键。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
+依赖方向只从组合者指向机制。三段传输是最上层的组合者，它不创建网络资源、家族绑定或凭据，它们由构造参数注入。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只从 pool-agent.ts 取得建连取消信号的选项键。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。根入口的 `NetworkResources` 是不透明句柄，只有 `close()`。network.ts 用模块级 `WeakMap` 从句柄找到包内资源，`createPiTransport` 经它取回资源。所以包外代码不能取得连接池、在途登记或容量，也不能用结构相同的对象冒充网络资源。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
 
 运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
 
@@ -122,7 +139,7 @@ stateDiagram-v2
 
 ### 同步发起与发送围栏
 
-model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不得 await 或排队。因此 `startExchange` 是同步函数：校验输入、消费预约、调用 `https.request` 与 `end(body)`，然后返回句柄。容量的等待放在发起之前，由 `reserve` 完成，后续由[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 materialize 调用。
+model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不得 await 或排队。因此 `startExchange` 是同步函数：校验输入、消费预约、调用 `https.request` 与 `end(body)`，然后返回句柄。容量的等待放在发起之前，由 materialize 调用 `reserve` 完成。
 
 同时进行的交换数只由容量限制。连接池不设套接字上限：`maxSockets` 是 `Infinity`，也不设 `maxTotalSockets`。连接池只负责 keep-alive 复用与空闲超时。
 
@@ -132,9 +149,9 @@ model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不�
 - 交换已停止、但直连仍在握手的连接。交换在连接池交出套接字之前停止时（例如在发起的同一 tick 内），Node 已经为请求新建了套接字。Node 在 `onSocketNT` 中发现请求已销毁，对套接字发出 `free`。连接池于是把这个套接字收为空闲套接字，即使 TLS 握手尚未完成。本包的连接超时已随交换结束而清除，所以这个连接按 `idleConnectionTimeoutMs` 结束，不按 `connectTimeoutMs` 结束。这一行为按 Node 26.12.0 的 `lib/_http_client.js` 核对。
 - 正在关闭、尚未移出连接池的套接字。下一段说明，套接字到它自己的 `close` 事件才移出计数。在这之前，等待者可能已经新建连接，物理连接数短暂超过容量。
 
-本包不用 `maxSockets` 对齐容量，原因是 Node 与本包的计数时刻不同。本包在请求与响应的 `close` 事件时归还名额，等待者在下一个 microtask 发起。Node 的连接池对不保留的套接字在请求的 `close` 同一个 tick 销毁它，但只在该套接字自己的 `close` 事件到达时才把它移出 `agent.sockets` 的计数，这是事件循环的下一轮。不保留的情况有：服务端声明 `Keep-Alive: timeout=1`，低于 Node 的复用余量；套接字已不可写。于是在 `maxSockets` 等于容量时，前一个交换 `stopped` 之后立即发起的请求会看到计数仍然占满，进入 `agent.requests`，尽管它持有名额。总上限 `maxTotalSockets` 还会把其他接收方的空闲连接计入总量，同样让持有名额的请求排队。这一顺序按 Node 26.12.0 的 `lib/_http_client.js` 与 `lib/_http_agent.js` 核对：`responseKeepAlive` 在 nextTick 里先投递请求的 `close`，再投递套接字的 `free`；`free` 的处理里不保留的套接字被 `destroy()`；`removeSocket` 只在套接字 `close` 时调用。
+本包不用 `maxSockets` 对齐容量，原因是 Node 与本包的计数时刻不同。本包在请求与响应的 `close` 事件时归还名额，等待者在下一个 microtask 发起。Node 的连接池对不保留的套接字在请求的 `close` 同一个 tick 销毁它，但只在该套接字自己的 `close` 事件到达时才把它移出 `agent.sockets` 的计数，这是事件循环的下一轮。不保留的情况有：服务端声明 `Keep-Alive: timeout=1`，低于 Node 的复用余量；套接字已不可写。于是在 `maxSockets` 等于容量时，前一个交换 `stopped` 之后立即发起的请求会看到计数仍然占满，进入连接池的等待队列，尽管它持有名额。总上限 `maxTotalSockets` 还会把其他接收方的空闲连接计入总量，同样让持有名额的请求排队。这一顺序按 Node 26.12.0 的 `lib/_http_client.js` 与 `lib/_http_agent.js` 核对：`responseKeepAlive` 在 nextTick 里先投递请求的 `close`，再投递套接字的 `free`；`free` 的处理里不保留的套接字被 `destroy()`；`removeSocket` 只在套接字 `close` 时调用。
 
-发起后，本包仍同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。网络资源创建的连接池不让请求排队。排队只在配置被绕过等缺陷下出现，例如有人改小了 `agent.maxSockets`。进入等待队列违反“返回前已发出”，本包按缺陷处理：销毁请求、把它移出 `agent.requests`（队列空时删除该键）、归还名额、抛出 `ExchangeQueuedError`，不把它当成已发起的交换。移出队列是必要的：`req.destroy()` 不把请求移出 `agent.requests`，而连接池在任何套接字关闭时（`removeSocket`）都会为队列中的请求新建连接，`agent.destroy()` 之后也是如此。本包只读写 `requests` 这一已文档化属性。名额在请求与响应物理关闭之后才归还。
+连接池没有套接字上限，所以持有名额的请求不会在连接池中排队，`startExchange` 返回时请求已经发出。本包不读取也不修改连接池的等待队列。快层用例核对网络资源创建的连接池 `maxSockets` 与 `maxTotalSockets` 都是 `Infinity`。名额在请求与响应物理关闭之后才归还。
 
 ### 经代理建立连接
 
@@ -172,6 +189,8 @@ Node 不再把信号传到 `createConnection` 时，这些用例以“未在时�
 - 地址：封存件固定 OpenRouter 路径。本包只接收调用方给出的完整 https 地址。
 - 诊断上限：封存件复用连接数作为诊断在途上限。本包的 `maxPending` 独立配置。
 - 读者看到的错误：封存件把 Node 的流错误原样交给读者。本包把本地停止与对方中断分为 `ResponseBodyStoppedError` 与 `ResponseBodyReadError` 两种类型。
+- 非 2xx 的报告：封存件把所有非 2xx 归为一类。三段传输按状态码区分 `credential`、`upstream-unavailable`、`input-rejected` 与 `upstream-protocol`，见 SPEC“事实流”。
+- 凭据：封存件经旧的凭据通道取得凭据。三段传输只在 start 的同步调用中读取注入的凭据槽。
 
 ### 从 pi 改编的 SSE 分帧
 
@@ -183,6 +202,54 @@ Node 不再把信号传到 `createConnection` 时，这些用例以“未在时�
 - 没有冒号的 `data` 行按 WHATWG 规则取空值。
 
 JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)，由 `@omne-harness/json-text` 无损解析。
+
+### 三段传输的相位与所有权
+
+三段传输的每个对象用一个显式的相位字段表示生命周期，不用多个布尔值：
+
+| 对象 | 相位 | 持有的资源 |
+| --- | --- | --- |
+| 外层 | `open` → `closing` | 在途 acquire 的中止信号、仍打开的 prepared 集合 |
+| prepared | `open` → `materializing` → `materialized` → `closing` → `closed` | 家族绑定；`materializing` 时持有正在进行的 materialize，`materialized` 时持有它交出的 materialized |
+| materialized | `held` → `started` → `closed` | `held` 持有名额与编码后的字节；`started` 持有交换（没有发送时为空） |
+
+资源的创建者与释放者：
+
+- 家族绑定：prepare 经 `acquire` 取得，prepared 的 close 释放。外层 close 开始之后到达的绑定，prepare 立即释放。
+- 名额：materialize 预约。start 把它交给交换，交换在物理关闭之后经座位归还。start 不发送时，materialized 立即归还。未 start 时由 materialized 的 close 归还。materialize 中途失败时，materialize 归还。
+- 交换：start 创建。事实流在物理停止之后才给出 `ended`。materialized 的 close、读者提前结束与取消信号都停止它。
+- 中止信号：外层持有一个，中止在途的 acquire。每个 prepared 持有一个，与调用方的信号经 `AbortSignal.any` 合并后交给 `reserve`，所以 prepared 关闭时等待中的 materialize 结束。
+- 网络资源：装配拥有。传输只使用它，不关闭它。多个传输可以共享同一容量。
+
+materialize 只有一个 await：预约名额。预约之后的扫描、编码、序列化与摘要都是同步的。所以 prepared 的 close 只需要等待这一次 materialize 结束，再关闭它交出的 materialized。
+
+prepared 的 close 在 `materializing` 相位开始时，materialize 得到的 materialized 归 close 所有。materialize 恢复时看到相位已不是 `materializing`，就返回 `prepared-closed`，不把 materialized 交给调用方。所以调用方拿到的 materialized 都在 close 开始之前交出。
+
+关闭之后的 start 不发送，流只给出 `interrupted`。materialized 的 close、prepared 的 close 与外层 close 都经 materialized 的 `closed` 相位到达 start，结果与网络资源关闭之后的 start 相同。Model 的发送方把没有 `ended` 的空流记为传输丢失，所以只有同一 materialized 在 start 之后、关闭之前的再次 start 返回空流：那是用法错误，第一次 start 已给出唯一的 `ended`。关闭之后的 start，含 start、关闭、再 start 的顺序，都给出 `interrupted`。
+
+### start 的同步围栏
+
+start 是同步函数。凭据槽在 start 的同步调用中读取一次：Model 的发送资源只在同步调用 start 期间把秘密放进私有槽，返回前清空。秘密只写入交给 `startExchange` 的请求头对象，不保存在传输的任何字段中。
+
+没有凭据时，start 不发送，返回一个以 `credential` 失败结束的流，不抛出。Model 的发送方把 start 抛出记为发送不确定，而这时没有请求发出。返回失败的流让这种情况与其他失败走同一路径。
+
+`startExchange` 的拒绝原因中，`invalid-header` 只能来自凭据，因为其他请求头是固定值。路由、限额、请求体与预约都在之前核对过，它们的拒绝是本包的缺陷，start 抛出。
+
+### 事实流与唯一的终止
+
+fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族解码器的输出归约为 termination.ts 的 `SendEnd`，再由纯函数 `terminationOf` 映射为终止。映射与读取分开，所以映射表可以逐行做快层测试。
+
+家族解码器可能先给出 `ended`，再给出用量等尾部事实（组架构“finish 后的 usage 尾帧”）。事实流保留解码器的 `ended`，在协议结束、解码器 `end()` 成功之后才给出，所以它总是最后一个事实。协议在响应体结束之前失败时，终止取那次失败，不取已保留的 `ended`。
+
+路由的 `endMarker` 不是 `null` 时，end-marker 帧就是协议的结束。供应商可能在 end-marker 之后不结束响应，所以事实流不等待响应体结束。读到 end-marker 帧时，事实流只看 Node 是否已收到完整响应体（`IncomingMessage.complete`）：已收到时，连接回到连接池；其他情况下，事实流停止交换。只看这一项就足够，因为 `Readable.read()` 一次交出全部已缓冲的响应体，完整响应体在 end-marker 帧读出时已被读完。
+
+读入 end-marker 所在的响应字节之后，协议结束优先于取消与关闭。取消与关闭只停止交换，已读入的字节仍按顺序解码，所以读入的字节含 end-marker 时，终止取解码器的 `ended`，不取 `interrupted`。`endMarker` 为 `null` 时，响应体结束才是协议的结束。
+
+事实流在给出 `ended` 之前等待交换物理停止。响应体读到末尾时，交换自行关闭，连接可以回到连接池复用。只有响应体没有读完时，事实流才调用 `stop()`。
+
+### 路由的 end-marker 与 JSON 限额
+
+协议帧需要 end-marker 文本与 JSON 限额。已接受的家族接口不提供它们。组架构写明构造配置固定路由协议与限额，所以路由配置给出 `endMarker`，限额配置给出 `json`。
 
 ## 未实现的优化方向：按优先级与等待方式分配连接席位
 
@@ -221,7 +288,7 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 ### 实施时的责任与入口
 
 - 席位分配机制：本包（容量模块与网络资源配置）。
-- `materialize` 等待策略的取舍（立即失败、限时、等待到取消）：传输三段语义的拥有者（阶段二 2.2 的实现及其后续）。
+- `materialize` 等待策略的取舍（立即失败、限时、等待到取消）：传输三段语义的拥有者（本包的 materialized.ts）。
 - 请求声明方式：Model 契约拥有者，按契约变更协议另立任务，并同步 Agent 线。
 - 产品取值（预留比例、默认等待时限）：产品负责人。
 
@@ -230,7 +297,8 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 保证与测试的对应见 [SPEC“组合与验证”](../SPEC.md#组合与验证)，测试的分层与替身见 [tests/README.md](../tests/README.md)。
 
 - 改变家族贡献接口：先改[组架构](../../docs/architecture.md#pi-家族贡献的取得协议)的已接受代码块，再同步 family.ts、[public-entry.spec-d.ts](../tests/public-entry.spec-d.ts) 与[公开接口](public-api.md)。
-- 改变交换相位、拒绝原因或结果：同步 SPEC、[关键流程](flows.md)、http.ts 的测试，以及 2.2 的调用代码。
+- 改变交换相位、拒绝原因或结果：同步 SPEC、[关键流程](flows.md)、http.ts 的测试，以及 materialized.ts 与 fact-stream.ts 中的调用代码。
+- 改变失败映射：同步 termination.ts、SPEC“事实流”的表与 termination.spec.ts。
 - 改变 sse.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
 - 增加运行依赖：先核对组架构的依赖方向，再更新 dependencies.spec.ts 的允许集合。
-- 2.2 实现 `ModelTransport` 之后，套件的 transport 组成为更高的测试接缝，本包的网络接缝用例可以随之收敛。
+- 套件的 transport 组（[conformance.spec.ts](../tests/conformance.spec.ts)）是比本包网络接缝用例更高的测试接缝。本包的网络接缝用例可以随之收敛。

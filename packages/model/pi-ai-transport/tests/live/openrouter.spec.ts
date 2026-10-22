@@ -5,7 +5,7 @@ import type { JsonLimits } from '@omne-harness/json-text'
 import { expect, it } from 'vitest'
 import { readProtocolFrames } from '../../src/frames.ts'
 import { startExchange } from '../../src/http.ts'
-import { createNetworkResources, type ProxyConfig } from '../../src/network.ts'
+import { openNetwork, type ProxyConfig } from '../../src/network.ts'
 import { readSseEvents } from '../../src/sse.ts'
 import { claimed, held, started } from '../support/exchange.ts'
 
@@ -39,7 +39,7 @@ function proxyFromEnvironment(): ProxyConfig {
 
 it('one streamed chat completion through the proxy is a 200 whose SSE frames reach the end-marker', async ctx => {
   if (process.env.OMNE_LIVE_TESTS !== '1') ctx.skip()
-  const resources = createNetworkResources({
+  const resources = openNetwork({
     maxConnections: 1,
     idleConnectionTimeoutMs: 60_000,
     proxy: proxyFromEnvironment(),

@@ -19,9 +19,20 @@ function acceptedCodeBlock(markdown: string): string {
   return block
 }
 
-it('the root entry has no runtime export; it carries the accepted types only', async () => {
+it('the root entry exports the network resources factory and the transport factory as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).toSorted()).toEqual(['createNetworkResources', 'createPiTransport'])
+})
+
+it('the network resources handle shows only its close at run time', async () => {
+  const { createNetworkResources } = await import('@omne-harness/pi-ai-transport')
+  const network = createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
+  try {
+    expect(Object.keys(network)).toEqual(['close'])
+    expect(Object.isFrozen(network)).toBe(true)
+  } finally {
+    await network.close()
+  }
 })
 
 it('the family types keep the shape of the accepted group architecture code block', () => {

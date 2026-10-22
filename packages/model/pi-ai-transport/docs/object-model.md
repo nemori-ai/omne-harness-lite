@@ -1,12 +1,15 @@
 # 对象模型
 
-本包的对象都是工厂函数返回的闭包对象。class 只用于错误：`SseProtocolError`、`ResponseBodyStoppedError`、`ResponseBodyReadError` 与 `ExchangeQueuedError` 继承 `Error`，http.ts 另有一个不出模块的内部错误类。SSE 分帧与协议帧是异步生成器，不持有跨调用的身份。对象的行为条款以 [SPEC.md](../SPEC.md) 为准。
+本包的对象都是工厂函数返回的闭包对象。三段传输的外层、prepared 与 materialized 的相位与资源见[内部架构“三段传输的相位与所有权”](architecture.md#三段传输的相位与所有权)。class 只用于错误：`SseProtocolError`、`ResponseBodyStoppedError` 与 `ResponseBodyReadError` 继承 `Error`，http.ts 另有一个不出模块的内部错误类。SSE 分帧与协议帧是异步生成器，不持有跨调用的身份。对象的行为条款以 [SPEC.md](../SPEC.md) 为准。
 
 ## 对象与关系
 
 ```mermaid
 classDiagram
   class NetworkResources {
+    close()
+  }
+  class NetworkInternals {
     capacity
     agent
     tls
@@ -42,10 +45,11 @@ classDiagram
   class Agent {
     <<Node>>
   }
-  NetworkResources *-- ConnectionCapacity
-  NetworkResources *-- Agent
-  NetworkResources *-- IsolatedDiagnostics
-  NetworkResources o-- HttpExchange : 在途登记
+  NetworkResources ..> NetworkInternals : WeakMap
+  NetworkInternals *-- ConnectionCapacity
+  NetworkInternals *-- Agent
+  NetworkInternals *-- IsolatedDiagnostics
+  NetworkInternals o-- HttpExchange : 在途登记
   ConnectionCapacity ..> ConnectionReservation : 授予
   ConnectionReservation ..> ConsumedSeat : consume() 返回
   HttpExchange --> ConsumedSeat : 持有至物理关闭
@@ -67,6 +71,13 @@ classDiagram
 
 ## 生命周期
 
+三段传输的对象：
+
+- 外层：`createPiTransport` 创建，外层 `close()` 结束。它关闭仍打开的 prepared，不关闭网络资源。
+- prepared：一次成功的 prepare 创建，持有一个家族绑定，`close()` 释放绑定。
+- materialized：一次成功的 materialize 创建，持有一个名额，start 把名额交给交换，`close()` 在未 start 时归还名额，在已 start 时停止交换。
+
+
 ```mermaid
 stateDiagram-v2
   [*] --> held: reserve 授予
@@ -76,7 +87,7 @@ stateDiagram-v2
   released --> [*]
 ```
 
-- 网络资源：调用方用 `createNetworkResources` 创建，用 `close()` 结束。`close()` 结束容量、在途交换与连接池。连接池是 `PoolAgent`。配置了代理时，它经代理建立连接，并在交换停止时结束为该交换建立中的连接。
+- 网络资源：调用方用 `createNetworkResources` 创建，用 `close()` 结束。调用方得到的 `NetworkResources` 是只有 `close()` 的不透明句柄。包内资源 `NetworkInternals` 由 network.ts 的 `openNetwork` 创建，句柄经模块级 `WeakMap` 指向它。`close()` 结束容量、在途交换与连接池。连接池是 `PoolAgent`。配置了代理时，它经代理建立连接，并在交换停止时结束为该交换建立中的连接。
 - 容量：随网络资源创建，随网络资源关闭。关闭之后不再授予预约，已授予的预约仍可消费和归还。
 - 预约：容量授予时创建。持有者负责归还它，或把它交给一次交换。预约不过期。
 - 座位：`consume()` 时创建，归消费它的交换所有。交换物理关闭时归还名额。

@@ -30,16 +30,53 @@ export type NetworkConfig = Readonly<{
 }>
 
 /**
- * The capacity, the socket pool and the in-flight registry that exchanges share. `close()` is
- * idempotent and remembered: it closes the capacity, stops every in-flight exchange, destroys
- * the pool, then waits until every in-flight exchange has physically stopped.
+ * The capacity, the socket pool and the in-flight registry that exchanges share. Package-internal:
+ * the root entry gives only the opaque `NetworkResources` handle. `close()` is idempotent and
+ * remembered: it closes the capacity, stops every in-flight exchange, destroys the pool, then
+ * waits until every in-flight exchange has physically stopped.
  */
-export interface NetworkResources extends ExchangeResources {
+export interface NetworkInternals extends ExchangeResources {
   readonly capacity: ConnectionCapacity
   close(): Promise<void>
+  /** The opaque handle of these resources, as `createNetworkResources` gives it. */
+  readonly handle: NetworkResources
 }
 
+/** Only this module can name the brand key, so only `createNetworkResources` makes a handle. */
+const NETWORK_RESOURCES: unique symbol = Symbol('pi-ai-transport.network-resources')
+
+/**
+ * The network resources that the assembly creates, gives to one or more transports and closes
+ * after them. Opaque: the capacity, the pool and the in-flight exchanges stay inside the package.
+ * `close()` is idempotent: it stops every in-flight exchange and resolves after their physical
+ * stop.
+ */
+export type NetworkResources = Readonly<{
+  close(): Promise<void>
+  readonly [NETWORK_RESOURCES]: true
+}>
+
+/** Maps each handle to its resources. Filled only by `openNetwork`. */
+const internalsOfHandle = new WeakMap<object, NetworkInternals>()
+
 export function createNetworkResources(config: NetworkConfig): NetworkResources {
+  return openNetwork(config).handle
+}
+
+/**
+ * The resources behind a handle that `createNetworkResources` made. Throws `RangeError` for any
+ * other value.
+ */
+export function networkInternalsOf(network: unknown): NetworkInternals {
+  const internals =
+    typeof network === 'object' && network !== null ? internalsOfHandle.get(network) : undefined
+  if (internals === undefined)
+    throw new RangeError('network must be network resources from createNetworkResources')
+  return internals
+}
+
+/** Creates the resources and their handle. Package-internal; the tests use it to observe them. */
+export function openNetwork(config: NetworkConfig): NetworkInternals {
   requirePositiveInteger(config.maxConnections, 'maxConnections')
   requireTimerDuration(config.idleConnectionTimeoutMs, 'idleConnectionTimeoutMs')
   const proxyEnv =
@@ -72,7 +109,13 @@ export function createNetworkResources(config: NetworkConfig): NetworkResources 
     await Promise.all(stopping.map(exchange => exchange.stopped))
   }
 
-  return {
+  function close(): Promise<void> {
+    draining ??= drain()
+    return draining
+  }
+
+  const handle: NetworkResources = Object.freeze({ close, [NETWORK_RESOURCES]: true })
+  const internals: NetworkInternals = {
     agent,
     tls: config.tls,
     diagnostics,
@@ -81,11 +124,11 @@ export function createNetworkResources(config: NetworkConfig): NetworkResources 
     get closed() {
       return draining !== undefined
     },
-    close() {
-      draining ??= drain()
-      return draining
-    },
+    close,
+    handle,
   }
+  internalsOfHandle.set(handle, internals)
+  return internals
 }
 
 const NO_COUNTERS = Object.freeze({ failed: 0, pending: 0, dropped: 0 })
