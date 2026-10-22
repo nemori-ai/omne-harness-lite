@@ -38,10 +38,12 @@
 5. 参数：
    - `max-output-tokens` 受支持，上限 128000，写入 `max_tokens`，没有默认值；
    - `stop` 受支持，至多 16 项，每项至多 1024 个字符，写入 `stop`，没有默认值；
-   - `reasoning-effort` 受支持，没有默认值。`low`、`medium`、`high` 与 `max` 原样写入 `reasoning.effort`。`none` 为 `unsupported`；
+   - `reasoning-effort` 受支持，没有默认值。`low`、`medium`、`high` 与 `max` 原样写入 `reasoning.effort`。`none` 为 `unsupported`。观察：2026-10-22 经代理实测，`claude-opus-5` 与 `claude-sonnet-5` 接受 `reasoning.enabled: false`（HTTP 200），`claude-opus-5.5` 与 `claude-fable-5.1` 以 HTTP 400 拒绝它（“Reasoning is mandatory for this endpoint and cannot be disabled.”）。这项观察不改变支持：四个型号的 `none` 都是 `unsupported`；
    - `temperature`、`top-p`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
 6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `anthropic-claude-v1`。
-7. 前缀要求：`claude-opus-5.5` 与 `claude-fable-5.1` 为 `last-tool-turn`，降级方式为 `disable-reasoning`。最后一个用过工具的 assistant 消息对本供应商不可续接时，引擎关闭本次请求的推理，参数采用记为 `none`，请求体写 `reasoning.enabled: false`，encode 给出 `reasoning-disabled` 诊断。另两个型号没有前缀要求。
+7. 前缀要求：四条记录都是 `{ kind: 'none' }`。最后一个用过工具的 assistant 消息来自另一来源时，请求保持请求的推理强度，请求体写 `reasoning.effort`，encode 只对略去的外来状态给出 `replay-omitted` 诊断。封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，本包不迁入这项要求。2026-10-22 经代理实测：
+   - 历史中有未签名的外来工具轮次时，四个型号都在推理开启时接受请求，无论历史以工具结果结束还是以之后的 user 消息结束；
+   - `claude-opus-5.5` 与 `claude-fable-5.1` 拒绝关闭推理，所以降级 `disable-reasoning` 会使这些请求失败。
 8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。四项的上游值都是未知：封存件引用的路由报告不在仓库中。
 
 <a id="规则"></a>
@@ -54,7 +56,7 @@
 | `reasoning` | `anthropic-signed-group/1` | 封存：一次响应的全部推理项是一组。每一项都可以回放时，整组是一个载荷：各项排序键 JSON 组成的数组，按到达顺序。可以回放的项是格式为 `anthropic-claude-v1`、`id` 缺失或为字符串或 `null`、`index` 缺失或为非负整数，并且满足下列之一的项：`reasoning.text` 有字符串 `text` 与非空 `signature`；`reasoning.encrypted` 的 `data` 非空且不是 `[REDACTED]`。组中有任何一项不可以回放，或组为空时，不产生载荷。回放见下文 |
 | `usage` | `anthropic-usage/1` | `cache-read` 为 `prompt_tokens_details.cached_tokens`，`cache-write` 为 `prompt_tokens_details.cache_write_tokens`。`input` 为 prompt 减去缓存读与缓存写；某项缺失时为 `unknown`，不写零。余量为负时 `input` 为 `unknown`，并返回一条 `usage-inconsistent` 诊断，`field` 为 `input`。`output` 与 `reasoning` 取对应计数，缺失为 `unknown`。单位为 `token`，计数是十进制整数串 |
 | `toolSchema` | `object-root/1` | 参数 schema 的根是对象时原样通过；其他时返回 `unsupported`，`field` 为 `argumentsSchema` |
-| `check` | `none/1` | 没有跨字段规则，参数表与前缀要求已写明全部规则 |
+| `check` | `none/1` | 没有跨字段规则，参数表与回放数据已写明全部规则 |
 
 `anthropic-signed-group/1` 的回放 `replay(parts, thinking)`：
 
@@ -135,19 +137,19 @@
 
 | 义务 | 验证 | 前提与未覆盖 |
 | --- | --- | --- |
-| [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 与封存件的前缀表逐项比较 |
+| [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 型号清单与封存件逐项比较；每条记录都没有前缀要求 |
 | [规则](#规则) | `rules.spec.ts`、`cross-family-replay.spec.ts` | `usage` 直接调用；经引擎形成的账目与诊断事实由回放夹具核对 |
 | [计量](#计量) | `meter.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造 |
 | [词表资源](#词表资源) | `meter.spec.ts` | 经 tokenizer-tiktoken 的计数与 @anthropic-ai/tokenizer 0.0.4 的参考值 150 相等 |
 | [官方档案](#官方档案) | `profiles.spec.ts` | 每份档案的供应商都能取得绑定并规划请求 |
 | [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
 | 回放夹具与封存件逐条一致 | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md) | 有意不同逐条列在夹具 README |
-| 跨家族回放（Anthropic 一侧）与前缀降级 | `cross-family-replay.spec.ts` | 历史用纯数据构造，不导入 OpenAI 家族 |
+| 跨家族回放（Anthropic 一侧），外来工具轮次之后保持推理强度 | `cross-family-replay.spec.ts` | 历史用纯数据构造，不导入 OpenAI 家族 |
 | 两个家族经共享传输与本地 HTTPS 服务发送每条记录的夹具；符合性套件 transport 组 | `two-families.spec.ts`（慢层） | 两家经同一 `composeFamilies` 与 `createPiTransport`；本地服务回放夹具，不是真实网关 |
 | 示例经代理请求一个型号，以及跨家族的四轮历史 | `examples.spec.ts`（慢层）运行 [examples/](examples/README.md) 中的两个示例 | 只在 `OMNE_LIVE_TESTS=1` 时运行，否则跳过 |
 
 未覆盖：
 
 - 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
-- 网关对 `max` 的接受与对 `reasoning.enabled: false` 的处理只有经代理的手工确认，不在持续验证中。图片部件的 `detail` 成员与空 assistant 内容 `[]` 只由示例在手动运行时发出，不在持续验证中。
+- 网关对 `max` 的接受、对 `reasoning.enabled: false` 的处理，以及在推理开启时对外来工具轮次的接受，只有经代理的手工确认，不在持续验证中。图片部件的 `detail` 成员与空 assistant 内容 `[]` 只由示例在手动运行时发出，不在持续验证中。
 - 网关在有 id 的片段上分开签名的情况没有实测样本。引擎按封存件的规则拼接同 id 的片段，夹具只用手写的合成片段检查这个情况。

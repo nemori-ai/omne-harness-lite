@@ -21,7 +21,7 @@
 慢层有两个文件：
 
 - `two-families.spec.ts`：用 openssl 子进程生成自签证书，启动本地 HTTPS 服务。本家族与 OpenAI 家族经同一 `composeFamilies` 交给真实的 `createPiTransport`。服务按请求体的型号回放两家每条记录的 `stream.sse`。用例核对发出的请求体等于 `request.json` 的 `body`，事实序列等于 `facts.json`，并对两家各一条记录运行符合性套件 transport 组。OpenAI 的夹具经开发依赖 `@omne-harness/pi-ai-openai` 的链接目录读取。计数发出次数用凭据槽的读取次数：传输只在 `start` 的同步调用中读取凭据一次。证书与服务的辅助代码在 [support/https-server.ts](support/https-server.ts)。
-- `examples.spec.ts`：设置 `OMNE_LIVE_TESTS=1` 时，在子进程中运行两个示例，示例经 `HTTPS_PROXY` 向 OpenRouter 发出真实请求。没有设置时，它在运行时跳过。
+- `examples.spec.ts`：设置 `OMNE_LIVE_TESTS=1` 时，在子进程中运行两个示例，示例经 `HTTPS_PROXY` 向 OpenRouter 发出真实请求。没有设置时，它在运行时跳过。跨家族示例的期望 `replay summary:` 行不写死：用例按示例打印的 `reply state:` 行推出它们，所以上游是否返回推理状态不决定机制检查的结果。第 1 至 3 轮中某个家族没有一次回复带有推理状态时，用例失败，并说明这个家族的略去与带回路径没有得到检验。
 
 - 真实依赖：pi-ai-transport 的家族表、网关引擎与 `./testing` 的夹具检查；tokenizer-tiktoken 与 `claude.json`；model-contract 的请求校验与回放投影。没有替身。
 - 独立对照：`meter.spec.ts` 用 js-tiktoken/lite 直接载入 `claude.json`，核对特殊 token 字样的计数；用封存件记录的 @anthropic-ai/tokenizer 0.0.4 参考值 150 核对经 tokenizer-tiktoken 的计数。js-tiktoken 只是测试依赖。
@@ -47,7 +47,7 @@
 | `https.spec.ts` 中的余量为负 | 迁入用例夹具 `usage-negative-remainder` 与 `rules.spec.ts` |
 | `official-anthropic-definitions.spec.ts` | 4 个型号、能力与限额迁入 `records.spec.ts` 与 `profiles.spec.ts`。不迁入：缓存配置的旧校验 |
 | `official-anthropic-routes.spec.ts` | 固定服务方、`user` 提醒与参数子集迁入 `records.spec.ts`、`plan.spec.ts` 与回放夹具的请求体。不迁入：旧档案的离线合成与经 HTTPS 的发送，经真实传输的联调归后续 |
-| `anthropic-replay-policy.spec.ts` | 签名前缀的型号迁入 `records.spec.ts`；可以回放的项与反例迁入 `rules.spec.ts`。不迁入：旧工厂依据与输出组贡献 |
+| `anthropic-replay-policy.spec.ts` | 可以回放的项与反例迁入 `rules.spec.ts`。不迁入：签名前缀的型号（2026-10-22 实测：网关在推理开启时接受外来工具轮次，`claude-opus-5.5` 与 `claude-fable-5.1` 拒绝关闭推理；`records.spec.ts` 核对每条记录都没有前缀要求）、旧工厂依据与输出组贡献 |
 | `anthropic-input-meter.spec.ts` | 独立参考值、特殊 token 文本、图片金值与签名组没有估算迁入 `meter.spec.ts`。不迁入：旧绑定检查、请求控制成员的过滤、data URL 与 MIME 核验（媒体读取归 4.4）、准入余量（完整请求计量归 4.3） |
 | `anthropic-cache-target.spec.ts` | 文本与图片混合时标记在文本上，迁入 `plan.spec.ts`。不迁入：空文本的用例（`:91-95`）。引擎不写空文本，也不写没有部件的 user 消息，所以最后一条可写消息决定位置；这是引擎的行为，本包不另加规则 |
 | `shared-family-cache-projection.spec.ts` | 不迁入。缓存标记由引擎按记录放置，本包不移除或改写标记 |
@@ -57,4 +57,4 @@
 
 - 经真实传输与本地 HTTPS 服务的回放、符合性套件 transport 组与真实路由，归后续联调与 #466。
 - 带图片事实的表示由测试构造。引擎目前给出的表示没有媒体事实。
-- 网关对 `reasoning.enabled: false`、图片 `detail` 与空 assistant 内容的接受没有持续验证。
+- 网关对 `reasoning.enabled: false`、推理开启时的外来工具轮次、图片 `detail` 与空 assistant 内容的接受没有持续验证。

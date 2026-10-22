@@ -154,7 +154,7 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 | 响应 | 家族语义、终止/拒绝/用量口径及可支持的历史回放解释 | 公共 HTTP/SSE framing、真实取消及资源释放；Model 共享到达映射、首内容与保管 |
 | 认证与验证 | 精确 leaf/route 的固定样本、计量资源摘要、符合性记录 | 共同协议验证、安装闭包及组合行为；清单中存在不等于远端认证 |
 
-OpenAI 与 Anthropic 两个家族按本表落地。家族包给出记录（纯数据）、带修订名的四个 hook 规则、计量器与官方档案。请求规划、编码与流解释只有 pi-ai-transport 网关引擎一份，引擎源码不含厂商名。两家的差异只出现在记录的线数据与 hook 中：角色与内容形式、缓存放置、参数子集、推理格式与整组回放、签名前缀的降级、用量算术与计量规则。
+OpenAI 与 Anthropic 两个家族按本表落地。家族包给出记录（纯数据）、带修订名的四个 hook 规则、计量器与官方档案。请求规划、编码与流解释只有 pi-ai-transport 网关引擎一份，引擎源码不含厂商名。两家的差异只出现在记录的线数据与 hook 中：角色与内容形式、缓存放置、参数子集、推理格式与整组回放、用量算术与计量规则。引擎的前缀降级是通用机制，两家的记录都没有前缀要求。
 
 供应商相同的规则复用普通函数，有实质差异才在既有 seam 提供不同 adapter。公共传输不允许家族以 hook 隐藏重试、重定向、凭据读取或额外网络发送；一次真实发出只对应一个固定接收方。Model 的有限重试和当前资格围栏继续拥有这些决定。
 
@@ -186,7 +186,7 @@ Tokenizer 分三层：引擎执行、具体编码定义、完整请求计量。�
 | 条件 | 本线承担 | 留后续线补齐 |
 | --- | --- | --- |
 | 1 | tiktoken 使用 OpenAI 固定编码（o200k）验证；pi-ai-anthropic 的 `claude.json` 经同一引擎计数，核对文件摘要与参考计数 | Hugging Face 引擎及具名家族资源验证 |
-| 2 | 共享传输与 OpenAI 走通三段协议及其反例。Anthropic 作为第二个差异显著家族验证共享传输接口：parts 内容、1h 末消息缓存、整组签名回放，以及签名前缀的降级（关闭推理并给出 `reasoning-disabled` 诊断，见 pi-ai-anthropic 的 `tests/cross-family-replay.spec.ts`）。两家经同一 `composeFamilies` 与 `createPiTransport` 对本地 HTTPS 服务发送各自的记录夹具，符合性套件 transport 组通过（pi-ai-anthropic 的 `tests/two-families.spec.ts`） | — |
+| 2 | 共享传输与 OpenAI 走通三段协议及其反例。Anthropic 作为第二个差异显著家族验证共享传输接口：parts 内容、1h 末消息缓存、整组签名回放。两家经同一 `composeFamilies` 与 `createPiTransport` 对本地 HTTPS 服务发送各自的记录夹具，符合性套件 transport 组通过（pi-ai-anthropic 的 `tests/two-families.spec.ts`） | — |
 | 3 | OpenAI 与 Anthropic 的精确型号沿本线验证 | 其余六家逐型号迁移与验证 |
 | 4 | OpenAI 单家装配、官方档案与消费者及安装闭包验证 | 后续家族加入时验证其实际组合 |
 

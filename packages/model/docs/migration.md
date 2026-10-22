@@ -64,7 +64,7 @@
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 需要签名前缀的型号（`claude-opus-5.5`、`claude-fable-5.1`）成为记录的 `replay.prefix`（`last-tool-turn`，降级为关闭推理）。整组规则成为推理规则 `anthropic-signed-group/1`：格式 `anthropic-claude-v1`，带签名的 `reasoning.text`，数据非空且不是 `[REDACTED]` 的 `reasoning.encrypted`。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
+| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 需要签名前缀的型号（`claude-opus-5.5`、`claude-fable-5.1`）不迁：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理，所以四条记录的 `replay.prefix` 都是 `none`。整组规则成为推理规则 `anthropic-signed-group/1`：格式 `anthropic-claude-v1`，带签名的 `reasoning.text`，数据非空且不是 `[REDACTED]` 的 `reasoning.encrypted`。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
 | `anthropic.ts` | pi-ai-anthropic；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25] | `claude.json` 估算（消息与工具的 NFKC JSON，图片以 `[image]` 占位）、28 像素块图片公式与四种图片媒体类型迁入 pi-ai-anthropic 的 `meter.ts` 与 `images.ts`，精度保持估算。文件读取与 SHA-256 核对在 `tokenizer.ts`，计数经 tokenizer-tiktoken。普通文本不激活特殊 token，不迁 encode(..., 'all')、data URL 解码、image-size 与 MIME 检查。带签名组的请求计量见“本线的请求计量”。 |
 | `deepseek-boundary.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留参考 prompt 终止帧、边界补偿及补充字段事实；新 meter 使用固定依据，不迁旧 replay 输入协议。 |
 | `deepseek-prompt.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留 message tool_calls 与工具 Schema 的 DeepSeek 参考模板提取规则；用现行声明及无损 JSON 表示重建。 |
@@ -239,7 +239,7 @@ M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但�
 
 ### L01 跨模型历史状态兼容
 
-原项为 [#193 L01](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-model-history)，来源 [#18](https://github.com/nemori-ai/omne-harness-lite/issues/18)。责任交 Model、消息、Request Context 与历史消费拥有者，定位 `packages/model/`、`packages/context/` 及后续实际成员。本线明确不覆盖普遍跨模型转换；OpenAI 与 Anthropic 的同模型续接证据不能回答其他模型的 opaque、签名、可读推理或工具关联如何转换。本线的两个家族按现行回放声明略去另一模型的推理状态，并给出 `replay-omitted` 诊断；需要签名前缀的 Anthropic 型号在最后一个工具轮次不能接续时关闭推理，并给出 `reasoning-disabled` 诊断。这是现行契约规定的略去，不是转换，不回答 L01。
+原项为 [#193 L01](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-model-history)，来源 [#18](https://github.com/nemori-ai/omne-harness-lite/issues/18)。责任交 Model、消息、Request Context 与历史消费拥有者，定位 `packages/model/`、`packages/context/` 及后续实际成员。本线明确不覆盖普遍跨模型转换；OpenAI 与 Anthropic 的同模型续接证据不能回答其他模型的 opaque、签名、可读推理或工具关联如何转换。本线的两个家族按现行回放声明略去另一模型的推理状态，并给出 `replay-omitted` 诊断。最后一个工具轮次不能接续时，两家都保持请求的推理强度。这是现行契约规定的略去，不是转换，不回答 L01。
 
 后续具名范围须分别核对同模型续接与跨模型转换，保留原历史及信息损失的可见性，并验证请求、计量和恢复。旧数据已经清理，旧源码和研究不是现行完整复现。现行 Model/共享消息契约不允许任意 opaque 回放或调用方私有历史旁路。本清单不选择过滤、降级、删除或转换策略，也不把旧同路由规则升级为通用兼容政策。
 

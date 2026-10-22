@@ -30,9 +30,9 @@ sequenceDiagram
 
 **规划、编码与计量**：
 
-1. `rules.plan` 由引擎执行：展开档案的回放声明、按记录的参数表规划、投影、按记录的前缀要求决定是否关闭推理、调用 `check`、调用 `represent` 得到表示。
+1. `rules.plan` 由引擎执行：展开档案的回放声明、按记录的参数表规划、投影、调用 `check`、调用 `represent` 得到表示。
 2. 请求组装方在发送前用 `meter.measure` 计量这份表示。
-3. `encode` 用同一投影写出请求体，1h 缓存标记在最后一条消息上。回放用请求为该供应商固定的声明与再发略去集合，并返回回放略去与前缀降级的诊断。
+3. `encode` 用同一投影写出请求体，1h 缓存标记在最后一条消息上。回放用请求为该供应商固定的声明与再发略去集合，并返回回放略去的诊断。
 
 **响应**：引擎的解码器逐帧归约。头部（`index`、`format` 等成员）与身份（`id`）都相同的 `reasoning.text` 片段拼成一项。签名可以单独在最后一个片段到达。完整规则见 [pi-ai-transport SPEC 的映射表](../../pi-ai-transport/SPEC.md)。收场时把全部推理项交给 `anthropic-signed-group/1` 的 `seal`，整组可以回放时成为一个推理续接状态部件。收场之后解码器调用 `usage` 规则，给出账目报告与可能的 `usage-inconsistent` 诊断。
 
@@ -50,7 +50,7 @@ flowchart TD
   FT -- adapter --> U
 ```
 
-**前缀降级**：`claude-opus-5.5` 与 `claude-fable-5.1` 的请求中，最后一个用过工具的 assistant 消息不可续接时，引擎关闭推理。参数采用记为 `none`，请求体写 `reasoning.enabled: false`，encode 给出 `reasoning-disabled` 诊断。
+**外来工具轮次**：四条记录都没有前缀要求。最后一个用过工具的 assistant 消息不可续接时，请求仍保持请求的推理强度，请求体写 `reasoning.effort`。encode 只对略去的外来状态给出 `replay-omitted` 诊断。
 
 ## 失败与生命周期
 
