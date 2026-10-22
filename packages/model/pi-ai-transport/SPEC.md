@@ -4,14 +4,15 @@
 
 ## 范围与依据
 
-本包交付六部分：
+本包交付七部分：
 
 1. 根入口导出的三段传输：工厂 `createPiTransport` 与配置类型 `PiTransportConfig`、`PiRoute`、`PiCredentialSlot`、`PiTransportLimits`。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
 2. 根入口导出的网络资源：工厂 `createNetworkResources` 与类型 `NetworkConfig`、`NetworkResources`、`ProxyConfig`、`DiagnosticObserver`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。`NetworkResources` 是不透明句柄，包外只能调用它的 `close()`。行为见[“网络资源”](#网络资源)与[“代理”](#代理)。
 3. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
 4. 根入口导出的家族表：`defineFamily`、`composeFamilies`、`recordAdoption`、`replayFormatsOf` 与类型 `PiModelRecordHead`、`PiFamilySpec`、`PiFamily`、`PiReplayFormats`。行为见[“家族表”](#家族表)。
-5. 子入口 `./chat-completions` 导出的网关引擎：唯一的运行时值 `bindChatCompletions`，以及记录词表、四个家族 hook 与计量接缝的类型。本次交付请求一侧，行为见[“网关引擎：请求”](#网关引擎请求)。流解释（解码器）尚未交付。
-6. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。这些机制不经入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即网络资源与三段传输。
+5. 子入口 `./chat-completions` 导出的网关引擎：唯一的运行时值 `bindChatCompletions`，以及记录词表、四个家族 hook、计量接缝与解码器限额的类型。行为见[“网关引擎：请求”](#网关引擎请求)与[“网关引擎：流解释”](#网关引擎流解释)。
+6. 子入口 `./testing` 导出的家族测试助手：`checkChatCompletionsFixtures`、`checkAdoptionFingerprints`、`appendAdoptionFingerprints` 与夹具格式的常量和类型。它读写文件，只供家族包的测试与脚本使用。行为见[“家族测试助手”](#家族测试助手)。
+7. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。这些机制不经入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即网络资源与三段传输。
 
 本文件兑现以下已接受的上层条款：
 
@@ -23,8 +24,8 @@
 
 本包当前不提供以下能力。本文件对它们不作承诺：
 
-- 网关引擎的流解释：解码器把 chunk 映射为传输事实。归 [#463](https://github.com/nemori-ai/omne-harness-lite/issues/463) 的下一片。在它交付之前，引擎绑定的 `createDecoder()` 抛出 `DecoderNotImplementedError`，所以经引擎的发送在 start 时抛出，见[“缺陷与异常”](#缺陷与异常)。
-- 按记录检查夹具的 `./testing` 子入口。归 #463 的下一片。
+- 解码器的账目事实。`account` 的 `CallAccount` 要求原调用的身份，`createDecoder()` 与 `ModelTransport` 都不给出它。解码器读取并保留 usage，但不给出 `account`，见[“网关引擎：流解释”](#网关引擎流解释)。
+- 解码器的诊断。推理续接状态部件的载荷超过上限时，解码器不产生部件，但没有通道记录这条诊断。
 - “回放被拒后再发”要略去的消息集合。Model 的再发尚未实现。实现再发时，`encode` 需要新增这一输入，届时修改接口。
 - 任何家族包、凭据解析与真实供应商请求。归 #465 与 2.6。
 - 媒体读取。materialize 遇到模型可见的内容引用时拒绝，见“三段传输”。媒体读取器的注入与读取归阶段四 4.4。引擎只编码内联图片。
@@ -368,11 +369,12 @@
 
 #### 绑定
 
-`bindChatCompletions({ record, supplier, hooks, meter, release })` 返回完整的 `PiFamilyBinding`：
+`bindChatCompletions({ record, supplier, hooks, meter, limits, release })` 返回完整的 `PiFamilyBinding`：
 
 - `adoption` 是 `recordAdoption(supplier.adoption.owner, record)`。它必须等于 `supplier.adoption`。
 - `counting` 是 `meter.instance.basis`，`meter` 是 `meter.instance`。
 - `rules.plan`、`tools`、`encode` 都是纯计算，不读环境、秘密、网络或文件。
+- `createDecoder()` 每次返回一个新的解码器，按 `limits` 限制缓冲，见“网关引擎：流解释”。
 - `release` 包一层家族的 `release`：第一次调用调用它，之后每次调用返回第一次的 Promise。
 
 下列情况下，`bindChatCompletions` 同步抛出 `RangeError`。这些是家族包的缺陷：
@@ -382,7 +384,8 @@
 - 记录的回放声明不合格，或 `replay.formats.accepts` 不含 `produces`；
 - `wire.usageTail.maxFrames` 不是非负整数；
 - 某个受支持参数的默认值超出记录自己的范围或映射；
-- 某个网关字段有两个写入方。写入方是参数表、扩展表、`wire.fixed` 与前缀降级（`reasoning.enabled`）。
+- 某个网关字段有两个写入方。写入方是参数表、扩展表、`wire.fixed` 与前缀降级（`reasoning.enabled`）；
+- `limits.maxReasoningText` 或 `limits.toolArguments` 的某项不是正整数。
 
 #### 记录的线数据
 
@@ -465,6 +468,86 @@
 
 `requestBytes` 是传输序列化请求体（`writeJsonText` 的 UTF-8 字节）的字节数。
 
+### 网关引擎：流解释
+
+解码器是一个阶段联合（`streaming`、`finished`、`ended`）加一个纯归约步：每个数据帧先在边界读成具名的 chunk，再由归约步从当前阶段与 chunk 得到下一阶段与事实。归约步不导出。每次 dispatch 一个解码器，解码器之间不共享状态。映射遵循 [model-contract“供应商解释与流状态归约”](../model-contract/SPEC.md#供应商解释与流状态归约)。
+
+#### 限额
+
+绑定输入 `limits` 来自家族配置，不属于记录，所以不进入采用摘要。
+
+- `toolArguments`：一次工具调用的参数文本，包括名字到达之前缓存的部分，UTF-8 字节数不得超过 `maxBytes`。封口时按全部预算解码。
+- `maxReasoningText`：已缓存的全部 `reasoning_details` 片段中字符串成员的 UTF-16 长度之和的上限。
+
+超过限额时，解码器以 `upstream-protocol` 失败，诊断为 `tool-arguments-over-limit` 或 `reasoning-over-buffer-limit`。
+
+#### chunk 的形状
+
+- chunk 必须是对象，否则为 `chunk-not-object`。
+- `choices` 至多一项。两项及以上为 `multiple-choices`。
+- delta 的 `images` 或 `audio` 有内容时为 `unsupported-delta-member`。本引擎不解码这些输出。
+- 其他成员的类型不符时，诊断写明成员组，例如 `delta-shape`、`tool-call-shape`、`reasoning-detail-shape`、`finish-shape`、`serving-shape`、`usage-shape`。
+- 本引擎忽略未知成员，例如 `id`、`created`、`service_tier` 与 `native_finish_reason`。
+- 空字符串与 `null` 等同于没有该成员。
+
+#### 映射
+
+| 上游 | 事实 |
+| --- | --- |
+| `delta.content`、`delta.refusal` | 同一个文本块：第一次给 `block-open`（`text`，`append`），之后给 `block-delta`。拒绝不决定终止 |
+| 可见推理 | 一个思考块，开块与填充同上。每个响应只用第一个非空来源：`delta.reasoning`，其次 `reasoning_details` 中 `reasoning.text` 项的 `text`，再次 `reasoning.summary` 项的 `summary`。等于 `[REDACTED]` 的文本不是可见文本，也不决定来源 |
+| `reasoning_details` 片段 | 缓存。片段与上一项拼接的条件：两者类型相同且是 `reasoning.text` 或 `reasoning.summary`，两者都没有 `id`，`index` 相同，`format` 相同。`reasoning.text` 的签名可以单独在最后一个片段到达；未签名的项采用第一个签名；之后只有签名相同的片段可以拼接，其他片段开始新项；空签名或非字符串签名不拼接。其他片段（含 `reasoning.encrypted`）各成一项 |
+| `delta.tool_calls` 片段 | 按 `index` 区分调用。名字到达之前缓存参数文本；名字到达时给 `block-open`（`tool-arguments`）与缓存文本的一个 `block-delta`，之后每段参数文本一个 `block-delta`。同一调用的 `id` 或名字改变为 `tool-call-id-changed` 或 `tool-name-changed` |
+| `finish_reason` 为 `stop`、`tool_calls`、`length` | 按块序号封全部开着的块，再封推理续接状态部件。终止为 `completed`，`reason` 分别为 `stop`、`tool-suggestions`、`limit`。`length` 也封文本、思考与推理，但工具参数块保持开着：参数可能被截断，不能成为可执行的调用 |
+| 其他 `finish_reason`（例如 `content_filter`） | 不封块。终止为 `failed`，`cause` 为 `input-rejected`，诊断为 `finish-reason-<值>`。值不是 64 个字符以内的小写字母与下划线时，诊断为 `finish-reason-other` |
+| finish 时仍有没有名字的调用 | `upstream-protocol`，`tool-call-without-name` |
+| finish 之后的尾帧 | 至多 `wire.usageTail.maxFrames` 帧。尾帧可以只含 usage，也可以重复同一个 `finish_reason` 且 delta 为空。超出帧数为 `usage-tail-too-long`，含内容为 `content-after-finish`，`finish_reason` 不同为 `finish-changed` |
+| `usage` | 在任一帧到达时读成 `GatewayUsage` 并保留最后一份。不是十进制整数的计数为 `null`。见下文“账目” |
+| 第一帧的 `model` 与 `provider` | 固定服务方。缺任一项为 `serving-not-reported`。`provider` 不在 `serving.reports` 中为 `provider-not-pinned`。之后的帧报告不同的值为 `provider-changed` 或 `model-changed` |
+| 带内 `error` | 失败。`code` 是整数时，`cause` 按 HTTP 状态映射（与“交换结果”相同），`upstreamStatus` 为该整数；否则 `cause` 为 `unclassified`。诊断为 `in-band-error`。错误正文不进入事实或诊断 |
+| 结束标记 | 不给事实。`end()` 给出终止 |
+| 没有 finish 就结束（响应体结束或结束标记） | `end()` 以 `stream-lost` 失败，诊断为 `ended-without-finish` |
+
+#### 封口
+
+- 文本块与思考块封为 `text` 与 `thinking`，内容是累计值。块的身份是 `b<序号>`，可见性对人与模型都可见。
+- 工具参数块封为 `tool_call`：`callId` 是上游的调用 `id`，`name` 是上游的名字，`arguments` 是参数文本按 `limits.toolArguments` 解码的值。空参数文本是空对象。没有 `id` 为 `tool-call-without-id`，不能解码为 `tool-arguments-invalid`。
+- 记录有推理编解码器且缓存了推理项时，解码器把全部拼接后的项交给 `hooks.reasoning.seal` 一次。hook 失败时，解码器以该 fault 失败。hook 给出的每个载荷在新的序号上整块封为推理续接状态部件，不先开块：可见性对人不可见、对模型可见，`pairs` 指向思考块（没有思考块时为空）。空载荷或长度超过 message 成员 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576）的载荷不产生部件。
+
+#### 失败与阶段
+
+- 归约步的失败让 `accept` 返回该 `ModelFault`，阶段进入 `ended`。传输随即停止读取，以该 fault 结束事实流。
+- `finished` 阶段的 `end()` 给出唯一的 `ended`，阶段进入 `ended`。
+- `ended` 阶段的 `accept` 以 `upstream-protocol`（`frame-after-end`）失败，`end()` 以 `decoder-already-ended` 失败。
+- 事实流的唯一 `ended` 仍由传输守护（见“事实流”）。解码器不另做检查。
+
+#### 账目
+
+解码器不给出 `account` 事实。`CallAccount` 的 `subject` 必须是原调用，`ModelTransport` 与 `createDecoder()` 都不给出原调用的身份。解码器保留最后一份 usage，供这项接口补齐后交给 `hooks.usage`。
+
+### 家族测试助手
+
+子入口 `./testing` 读写文件，只供家族包的测试与脚本使用。
+
+#### 夹具检查
+
+`checkChatCompletionsFixtures(family, root)` 以家族的记录表为唯一清单，`current` 与 `frozen` 记录都检查。每条记录的夹具目录是 `<root>/<name>/<revision>/`，两段各自经 `encodeURIComponent` 编码，所以名字中的 `/` 写成 `%2F`。目录中有三个文件：
+
+- `request.json`：恰好两个成员的对象。`request` 是一个 `FixedModelRequest` 的普通 JSON，经契约的 `judgeFixedModelRequest` 读入。它的供应商采用必须是该记录的采用，参数采用只取这个供应商的项。`body` 是期望的请求体。检查把 `request` 交给 `encode`（媒体为空），把结果与 `body` 按排序键无损 JSON 比较。
+- `stream.sse`：一个响应体的 SSE 字节，以 `data: [DONE]` 结束。
+- `facts.json`：期望的事实数组，最后一项是 `ended`。事实按 `JSON.stringify` 写出：块与工具参数中的 JSON 值是 `json-text` 值树。检查让绑定的新解码器经与发送相同的主体解码（含唯一 `ended` 的守护与终止映射）回放 `stream.sse`，再按值比较。
+
+绑定由 `composeFamilies([family])` 以工厂凭据的供应商取得，检查之后释放。回放的 SSE 与 JSON 预算取文件大小，所以限额不会截断夹具。
+
+结果 `problems` 每项一行，报告：缺目录或缺文件；`request.json` 不合格或契约拒绝其请求；取得或编码失败；请求体不等；事实不等；根下或名字目录下不对应任何记录的目录。
+
+#### 采用指纹
+
+`tests/fixtures/adoptions.json` 由家族包提交。文件是 JSON 数组，每行一项 `{"name", "revision", "digest"}`，形式由 `renderFingerprints` 给出。
+
+- `checkAdoptionFingerprints(family, file)` 双向核对：缺文件、文件不是给定形式、重复行、记录没有行、行的摘要与记录不同、行不对应任何记录，各报一项。
+- `appendAdoptionFingerprints(family, file)` 为没有行的记录在已有行之后追加新行，返回新行。文件不存在时新建。文件不是给定形式，或某条记录已有摘要不同的行时，抛出 `RangeError`，不写文件：记录改动必须加新修订，不改已有行。不对应记录的行保留，由检查报告。
+
 ## 所有权、失败与生命周期
 
 ### 名额与交换
@@ -492,6 +575,7 @@
 - 响应头与错误体只在包内交给家族解释。本包不把它们写入任何对外事实或诊断。
 - 对外失败的 `diagnostic` 是安全的短文本，不含秘密、URL、响应头或错误体。下列两方形成它：
   - 本包形成交换、协议与凭据槽的诊断：`http-<状态码>`、`connect-failed`、`connect-timeout`、`response-body-lost`、`sse-<原因>`、`frame-<原因>`、`no-termination`、`decoder-ended-twice`、`credential-not-provided` 与 `credential-not-a-header-value`。materialize 与 prepare 的失败另用 `cancelled`、`network-closed`、`transport-closed` 与 `prepared-closed`。
+  - 网关引擎的解码器形成“网关引擎：流解释”中列出的诊断。它们只含固定的词与上游的整数错误码，不含上游正文。
   - 家族形成解码器 fault 与家族返回的失败中的诊断。本包原样给出它们。
 - 家族实现者与同包调用代码必须遵守同一约束：原样的请求头、响应头与错误体不得写入对外事实或诊断。
 - 代理 URL 可能含凭据。本包按秘密对待它：抛出的消息、结果与诊断都不含它。Node 的隧道错误消息含代理地址，本包不传出这些消息，连接失败只表达为 `connect-failed`。
@@ -531,7 +615,6 @@
   - 响应体的块不是字节：读者的迭代以普通的 `Error` 结束。
 - 家族表与网关引擎的装配缺陷同步抛出 `RangeError`：`recordAdoption`、`defineFamily` 与 `composeFamilies` 的条件见“家族表”，`bindChatCompletions` 的条件见“网关引擎：请求”。
 - 网关字段在一次请求中被写入两次时，引擎抛出 `Error`。绑定时的字段检查使这只能来自本包的缺陷。
-- 引擎绑定的 `createDecoder()` 在解码器交付之前抛出 `DecoderNotImplementedError`。按上一条，`start` 先归还名额，再原样抛出。
 - 本包不把未知异常转为普通失败，未知异常原样传出。
 
 ## 组合与验证
@@ -542,8 +625,8 @@
 - `@omne-harness/json-text` 的 `readJsonText`、`writeJsonText`、`JsonLimits` 与 `JsonValue`。
 - `@omne-harness/model-contract` 的类型：五个接口类型引用的类型，三段传输实现的 `ModelTransport`、`PreparedTransport`、`MaterializedTransport` 与它们的结果类型，以及网关引擎读写的请求、档案、参数、计量与回放类型。消息、用量项等共享类型经这些类型取得，本包不另行依赖 message 或 call-account。
 - `@omne-harness/model-contract` 的运行时值 `projectReplay` 与 `judgeReplayDeclaration`，供网关引擎投影回放与展开回放声明。
-- `@omne-harness/content-block` 的类型，只供五个接口类型引用。
-- Node 内置的 `https`、`http`、`net`、`crypto` 与 `stream`（只用类型）。
+- `@omne-harness/content-block` 的类型，供五个接口类型引用，以及运行时值 `judgeBlockIdentity`，供解码器形成块的身份。
+- Node 内置的 `https`、`http`、`net`、`crypto` 与 `stream`（只用类型）。测试入口另用 `fs/promises`、`path` 与 `util`。
 - Node 24.5.0 起 `https.Agent` 的 `proxyEnv` 选项与内置的 CONNECT 隧道。
 
 运行依赖只允许上述四个 workspace 成员与 Node 内置模块。本包不依赖 `@omne-harness/model`、Session、旧消息包或封存目录。
@@ -575,6 +658,8 @@
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
 | 网关引擎 plan：回放声明相等与不等，默认、显式、不支持、越界、输出上限与扩展参数的各分支，前缀降级的四种情况，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
 | 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，回放的续接、略去、`text` 处理、关闭回放与缺少编解码器，降级的写法与不符；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝，以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
+| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷与超长载荷、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
+| 测试入口：夹具全部相符，名字中的 `/`，缺目录与缺文件，多余目录，请求体与事实不等，`request.json` 不合格；指纹的生成、检查、只追加、原地改动记录的检查失败与生成拒绝、不对应记录的行、非给定形式的文件 | [testing-helpers.spec.ts](tests/testing-helpers.spec.ts) | 快 |
 | 引擎源码不含厂商名或型号家族名 | [chat-completions-vendor-words.spec.ts](tests/chat-completions-vendor-words.spec.ts) | 快 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |
 
@@ -583,7 +668,7 @@
 - 真实供应商、真实代理与公网 TLS 不在持续验证中。慢层只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为。`test:live` 只在手动设置开关时运行，turbo 运行它时总是跳过。
 - `https:` 协议的代理。本包只校验它的配置，没有运行验证。
 - Model 发送路径（`SendResource`）与本传输的组合。慢层只用脚本化的提供者与本包的测试家族运行符合性套件。
-- 真实家族（#465）与真实凭据（2.6）下的三段传输。网关引擎只由测试记录与 hook 替身驱动，没有经真实传输发送：解码器尚未交付。
+- 真实家族（#465）与真实凭据（2.6）下的三段传输。网关引擎只由测试记录与 hook 替身驱动，没有经真实传输与本地 HTTPS 服务发送。解码器的输入是手写的合成流，形状仿照真实网关流，不是真实样本。
 - 网关引擎请求体被真实网关接受。空的工具结果写空内容、没有文本的 assistant 消息写空内容，这两种写法没有真实供应商的证据。
 - 消息中模型可见的内容引用。快层只用 `system` 中的引用核对 materialize 的拒绝；构造消息需要本包不依赖的 `@omne-harness/message`。
 - 在途响应长时间没有数据时，连接池空闲超时的效果。

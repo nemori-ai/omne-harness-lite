@@ -18,11 +18,16 @@
 | [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts |
 | [chat-completions/json.ts](../src/chat-completions/json.ts) | 排序键的 json-text 值树构造 | json-text（类型） |
 | [chat-completions/vocabulary.ts](../src/chat-completions/vocabulary.ts) | 记录词表、四个 hook 与计量接缝的类型 | family-table.ts、model-contract、json-text、content-block、operation-result（类型） |
-| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 解码器的位置。解码器交付之前它只抛出 `DecoderNotImplementedError` | family.ts（类型） |
+| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、termination.ts、content-block 的 `judgeBlockIdentity`、json-text，family.ts（类型）；改编自 pi |
+| [chat-completions/chunk.ts](../src/chat-completions/chunk.ts) | 一个数据帧是不是网关 chunk：边界上读成具名的 chunk，或给出形状失败 | json-text（类型）；改编自 pi |
+| [chat-completions/details.ts](../src/chat-completions/details.ts) | 推理片段怎样拼接成项，以及一个片段的可见文本 | json-text（类型） |
+| [testing/index.ts](../src/testing/index.ts) | 子入口 `./testing`，转出夹具检查与采用指纹 | fixtures.ts、adoptions.ts |
+| [testing/fixtures.ts](../src/testing/fixtures.ts) | 一个家族的夹具是否与引擎一致：按记录读三个文件、编码比较、经 `decodeBody` 回放比较、多余目录 | family-table.ts、fact-stream.ts、termination.ts、chat-completions/json.ts、model-contract 的 `judgeFixedModelRequest`、json-text、Node `fs/promises`、`path`、`util` |
+| [testing/adoptions.ts](../src/testing/adoptions.ts) | 采用指纹文件是否与记录一致，以及只追加的生成 | family-table.ts、Node `fs/promises` |
 | [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts，json-text、family.ts 与 network.ts（类型） |
 | [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，model-contract 与 operation-result（类型） |
 | [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts 与 termination.ts（类型） |
-| [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts |
+| [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后。2xx 响应体的解码是单独的 `decodeBody`，测试入口用它回放夹具 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts |
 | [termination.ts](../src/termination.ts) | 一次发送怎样结束：发送结束到流终止的纯函数 | model-contract（类型），frames.ts 与 sse.ts（类型） |
 | [payload.ts](../src/payload.ts) | 固定的 payload：内容引用扫描、JSON 序列化、SHA-256 | json-text、Node `crypto` |
 | [capacity.ts](../src/capacity.ts) | 谁可以发：FIFO 等待队列、已授予计数、关闭标志、每个预约的状态 | operation-result（类型） |
@@ -232,9 +237,13 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 - 前缀降级由投影的回放处理结果判断：最后一条用过工具的 assistant 消息不可续接时降级。plan 把降级记入参数采用，encode 按同一输入重算并核对采用一致。没有单独的诊断通道，参数采用就是记录。
 - 请求体用 json-text 值树构造，每个对象的键在构造时排序。hook 返回的值在进入请求体前排序。工具调用的参数是值树的 JSON 文本，保持原键序。
 - 引擎源码不出现厂商名，一项测试扫描 `src/chat-completions/`。引擎来源头因此不写上游文件名，文件名登记在 provenance.json。
-- 解码器的位置在 decoder.ts。它交付之前，绑定的 `createDecoder()` 抛出 `DecoderNotImplementedError`，所以经引擎的发送在 start 时以异常结束，不会被当成成功。
+- 解码器的状态是一个阶段值。归约步从阶段与 chunk 得到新阶段与事实，不改动旧阶段，所以每条规则只看它需要的字段，失败时直接返回 fault。解码器对象只持有当前阶段。`ended` 阶段拒绝之后的帧，与组架构“已 ended 的 decoder 拒绝后续内容”一致。
+- 解码器从 `end()` 给出唯一的终止。结束标记本身不给事实，所以响应体结束与结束标记走同一条路径：`finished` 阶段给出终止，`streaming` 阶段以 `stream-lost` 失败。唯一 `ended` 的守护仍在 fact-stream.ts，解码器不另建检查。
+- 缓冲限额来自绑定输入 `limits`，不在记录里：限额约束内存，不是线协议的差异，不应进入采用摘要。
+- 推理续接状态部件由家族的 `reasoning.seal` 在 finish 时一次给出，引擎只负责序号、可见性、配对与长度上限。部件长度上限照抄 message 成员的 `REASONING_STATE_PAYLOAD_MAX_LENGTH`，因为本包不依赖 message。
+- 解码器不给出 `account`：`CallAccount` 需要原调用的身份，而 `createDecoder()` 与 `ModelTransport` 不给出它。usage 在阶段中保留，补齐接口之后再交给 `hooks.usage`。
 
-投影与请求参数改编自 pi 1.0.0 的 chat completions 模块，只取纯计算。HTTP、SDK、重试、环境凭据与按 URL 猜兼容性都不取。改编内容见 [UPSTREAM.md](../UPSTREAM.md)。
+投影、请求参数、chunk 循环与停止映射改编自 pi 1.0.0 的 chat completions 模块，只取纯计算。HTTP、SDK、重试、环境凭据与按 URL 猜兼容性都不取。改编内容见 [UPSTREAM.md](../UPSTREAM.md)。
 
 ### 三段传输的相位与所有权
 
@@ -332,7 +341,8 @@ fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族�
 - 改变家族贡献接口：先改[组架构](../../docs/architecture.md#pi-家族贡献的取得协议)的已接受代码块，再同步 family.ts、[public-entry.spec-d.ts](../tests/public-entry.spec-d.ts) 与[公开接口](public-api.md)。
 - 改变交换相位、拒绝原因或结果：同步 SPEC、[关键流程](flows.md)、http.ts 的测试，以及 materialized.ts 与 fact-stream.ts 中的调用代码。
 - 改变失败映射：同步 termination.ts、SPEC“事实流”的表与 termination.spec.ts。
-- 改变 sse.ts、chat-completions/projection.ts 或 chat-completions/request.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
+- 改变 sse.ts，或 chat-completions/ 下的 projection.ts、request.ts、chunk.ts、decoder.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
+- 改变解码器的映射：同步 SPEC“网关引擎：流解释”、tests/chat-completions-decode.spec.ts，以及各家族包的 facts.json 夹具。
 - 增加网关字段或引擎的变化点：改 vocabulary.ts 与 gateway.ts，并同步 SPEC“网关引擎：请求”。新的变化点是 `wire` 的必填字段，不是引擎里的厂商分支。
 - 增加运行依赖：先核对组架构的依赖方向，再更新 dependencies.spec.ts 的允许集合。
 - 套件的 transport 组（[conformance.spec.ts](../tests/conformance.spec.ts)）是比本包网络接缝用例更高的测试接缝。本包的网络接缝用例可以随之收敛。

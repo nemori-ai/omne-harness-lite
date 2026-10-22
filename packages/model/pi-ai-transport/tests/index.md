@@ -25,8 +25,10 @@
 - [family-table.spec.ts](family-table.spec.ts)：家族表：规范 JSON 摘要、记录纯度、重复与路由冲突、冻结副本、取得的失败映射、绑定不符与取消时的释放、回放格式查询（快层）
 - [chat-completions-plan.spec.ts](chat-completions-plan.spec.ts)：网关引擎的 `rules.plan`：回放声明比对、参数规划各分支、前缀降级、`check` 与表示（快层）
 - [chat-completions-encode.spec.ts](chat-completions-encode.spec.ts)：网关引擎的 `encode` 与绑定：请求体、角色与内容、工具调用与结果、缓存放置、回放、降级写法、释放与记录缺陷（快层）
+- [chat-completions-decode.spec.ts](chat-completions-decode.spec.ts)：网关引擎的流解释：流解释表逐行、限额、chunk 形状与两段仿照真实网关流的合成流，每次回放恰好一个 `ended`（快层）
+- [testing-helpers.spec.ts](testing-helpers.spec.ts)：测试入口：夹具检查的各项报告与采用指纹的生成和检查（快层）
 - [chat-completions-vendor-words.spec.ts](chat-completions-vendor-words.spec.ts)：引擎源码不含厂商名或型号家族名（快层）
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口的运行时导出（两个工厂与家族表的四个函数），子入口 `./chat-completions` 只导出 `bindChatCompletions`，引擎内部不可经包导出访问，网络资源句柄在运行时只显示 `close`，家族类型形状与组架构一致
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口的运行时导出（两个工厂与家族表的四个函数），子入口 `./chat-completions` 只导出 `bindChatCompletions`，子入口 `./testing` 的七个运行时值，引擎内部不可经包导出访问，网络资源句柄在运行时只显示 `close`，家族类型形状与组架构一致
 - [public-entry.spec-d.ts](public-entry.spec-d.ts)：五个家族类型、三段传输工厂、网络资源工厂与它们的配置类型的编译期用例，以及网络资源是不透明句柄
 - [dependencies.spec.ts](dependencies.spec.ts)：运行依赖与导入方向
 - [examples.spec.ts](examples.spec.ts)：在子进程中运行公开示例并核对输出（慢层）
@@ -36,5 +38,5 @@
 - [support/test-family.ts](support/test-family.ts)：测试家族、测试协议与测试用的请求、供应商和限额
 - [support/transport.ts](support/transport.ts)：在给定网络资源上构造传输、发送计数、事实流收集与名额探测
 - [support/sources.ts](support/sources.ts)：记录读者行为的字节源
-- [support/chat-record.ts](support/chat-record.ts)：网关引擎的测试记录、hook 与计量器替身，以及经契约判定构造请求、档案与组装输入的工具
+- [support/chat-record.ts](support/chat-record.ts)：网关引擎的测试记录、解码器限额、hook 与计量器替身，以及经契约判定构造请求、档案与组装输入的工具
 - [fixtures/](fixtures/index.md)：测试固定输入（不适用）

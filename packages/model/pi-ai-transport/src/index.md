@@ -16,12 +16,17 @@
 - [chat-completions/parameters.ts](chat-completions/parameters.ts)：按记录表规划与写出参数
 - [chat-completions/gateway.ts](chat-completions/gateway.ts)：网关字段的闭合词表
 - [chat-completions/json.ts](chat-completions/json.ts)：排序键的 json-text 值树构造
-- [chat-completions/decoder.ts](chat-completions/decoder.ts)：解码器的位置，尚未交付
+- [chat-completions/decoder.ts](chat-completions/decoder.ts)：流解码器：阶段联合与纯归约步，改编自 pi
+- [chat-completions/chunk.ts](chat-completions/chunk.ts)：数据帧到具名 chunk 的边界读取，改编自 pi
+- [chat-completions/details.ts](chat-completions/details.ts)：推理片段的拼接与可见文本
+- [testing/index.ts](testing/index.ts)：子入口 `./testing`，转出夹具检查与采用指纹
+- [testing/fixtures.ts](testing/fixtures.ts)：`checkChatCompletionsFixtures` 与夹具的回放
+- [testing/adoptions.ts](testing/adoptions.ts)：采用指纹的检查与只追加的生成
 - [family.ts](family.ts)：已接受的家族贡献接口类型
 - [config.ts](config.ts)：三段传输的配置类型与校验
 - [transport.ts](transport.ts)：`createPiTransport`：外层与 prepared 的生命周期、路由查找与家族绑定
 - [materialized.ts](materialized.ts)：materialize 与一次发送：名额、payload、回执、start 与关闭
-- [fact-stream.ts](fact-stream.ts)：一次发送的事实流：SSE、协议帧、家族解码器与唯一的 `ended`
+- [fact-stream.ts](fact-stream.ts)：一次发送的事实流：SSE、协议帧、家族解码器与唯一的 `ended`；响应体解码 `decodeBody`
 - [termination.ts](termination.ts)：发送结束到流终止的纯函数映射
 - [payload.ts](payload.ts)：内容引用扫描、请求体序列化与 SHA-256 摘要
 - [capacity.ts](capacity.ts)：连接容量、预约与座位

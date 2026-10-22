@@ -12,14 +12,15 @@
 - 根入口导出网络资源的工厂 `createNetworkResources` 与它的配置类型。装配创建并拥有网络资源，再把它交给 `createPiTransport`。网络资源是不透明句柄，包外只能调用它的 `close()`。网络资源可以使用 HTTPS 代理。
 - 根入口导出五个已接受的家族贡献接口类型。
 - 根入口导出家族表：`defineFamily`、`composeFamilies`、`recordAdoption` 与 `replayFormatsOf`。家族表把供应商的精确采用解析到一个家族包的一条记录。
-- 子入口 `./chat-completions` 导出供家族包使用的网关引擎，唯一的运行时值是 `bindChatCompletions`。请求一侧已交付，流解码器尚未交付。
+- 子入口 `./chat-completions` 导出供家族包使用的网关引擎，唯一的运行时值是 `bindChatCompletions`。引擎规划并编码请求，并解释响应流。
+- 子入口 `./testing` 导出家族包测试用的检查：按记录检查夹具，以及采用指纹。它读写文件。
 - 包内传输机制：连接容量、同步发起的 HTTPS 交换、SSE 分帧、协议帧与诊断隔离。它们不经入口导出，由网络资源与三段传输组合。
 
 本包还没有真实家族：持续验证只用测试家族与测试用的小记录。设计、实现与运行验证分别判断。
 
 ### 支持范围
 
-支持范围分八档。每档只写已核对的事实：测试核对了什么，没有核对什么。改变支持范围的提交同步本表、[SPEC](SPEC.md) 与组页的状态。持续验证的证据都来自单个进程、本地 HTTPS 服务、本地 CONNECT 代理与测试家族。真实代理与真实供应商只有手动运行的 `test:live` 证据，没有包外消费者的验证。
+支持范围分九档。每档只写已核对的事实：测试核对了什么，没有核对什么。改变支持范围的提交同步本表、[SPEC](SPEC.md) 与组页的状态。持续验证的证据都来自单个进程、本地 HTTPS 服务、本地 CONNECT 代理与测试家族。真实代理与真实供应商只有手动运行的 `test:live` 证据，没有包外消费者的验证。
 
 | 档 | 已交付的内容 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
@@ -29,8 +30,9 @@
 | SSE 分帧与协议帧已实现 | 字节流到 SSE 事件 data 文本：任意切点下的 UTF-8 与换行，单事件字节上限，四种失败原因。data 文本到协议帧：end-marker 单独成帧，无损 JSON，EOF 不判定终局 | 包内 `src/sse.ts`（改编自 pi）、`src/frames.ts` | 快层单元测试，使用真实字节流与 Node 可读流。没有真实供应商的流 |
 | HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。只有同一资源的容量授予的预约能发起交换。停止在物理关闭前胜出，名额在物理关闭之后归还。读者提前结束响应体（含第一次读取之前）时响应关闭。读者按类型区分本地停止（`ResponseBodyStoppedError`）与连接中断（`ResponseBodyReadError`）。从发起到取得已连接套接字的连接超时。网络资源的关闭排空。可选的 HTTPS 代理：配置校验与 Node 版本守卫，经 CONNECT 隧道的交换，直连项，代理拒绝、不可达与不回复时的 `connect-failed`，停止与关闭结束建立中的代理连接，代理拒绝后重置不使进程崩溃 | 根入口的 `createNetworkResources`；包内 `src/http.ts`、`src/network.ts`、`src/pool-agent.ts` | 慢层测试，对真实本地 HTTPS 服务、自签证书与本地 `http:` CONNECT 代理。`test:live` 在设置 `OMNE_LIVE_TESTS=1` 时经云端会话的代理向 OpenRouter 发一次流式请求，只在手动运行时有证据。不证明 `https:` 协议的代理、包外消费者或持续的公网 TLS |
 | 家族表已实现 | `recordAdoption`：摘要是整条记录排序键规范 JSON 的 SHA-256。`defineFamily` 拒绝不是纯 JSON 数据的记录、重复的 `(name, revision)` 与同一路由的两条 `current`，并保存冻结副本。`composeFamilies` 拒绝重复的 owner、重复的采用与不是 `defineFamily` 返回的值。`acquire` 按采用四项精确查表：查不到为 `unavailable` `adoption-not-installed`，路由不符为 `invalid`，绑定的供应商或采用不符时释放并返回 `unavailable` `binding-mismatch`，取消后到达的绑定被释放。`replayFormatsOf` 读取记录的回放格式 | 根入口；包内 `src/family-table.ts`、`src/canonical-json.ts` | 快层用例，使用内存中的测试家族。还没有家族包使用家族表 |
-| 网关引擎请求一侧已实现 | `bindChatCompletions` 为一条记录给出完整绑定。`rules.plan` 比对档案与记录的回放声明，规划参数（显式、默认、不支持、越界、输出上限与扩展），按记录的前缀要求关闭推理，调用家族的 check，并经家族计量器形成表示。`encode` 使用同一投影：角色、compact 或 parts 内容、内联图片、规范化 id 的工具调用、工具结果与其中的图片、孤立调用与结果的拒绝、经 schema hook 的工具、经契约 `projectReplay` 与推理 hook 的回放、缓存标记、钉住的 `provider`、`stream: true`、不发用量开关、排序键 JSON 与 `requestBytes`。`release` 只包一层。引擎源码不含厂商名 | 子入口 `./chat-completions`；包内 `src/chat-completions/`（投影与请求改编自 pi） | 快层用例，使用测试记录与 hook 替身。没有真实家族、真实网关或发送：解码器交付之前 `createDecoder()` 抛出 `DecoderNotImplementedError` |
-| 尚未交付 | 网关引擎的流解码器与带夹具检查的 `./testing` 子入口（[#463](https://github.com/nemori-ai/omne-harness-lite/issues/463) 下一片）。`replay-rejected` 之后再发要略去的集合：Model 尚未实现再发。OpenAI 与 Anthropic 家族包（#465），真实请求经 OpenRouter 固定路由。凭据解析与经 `ModelTransport` 的真实供应商请求（2.6）。媒体读取（阶段四 4.4）：materialize 目前拒绝模型可见的内容引用。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
+| 网关引擎请求一侧已实现 | `bindChatCompletions` 为一条记录给出完整绑定。`rules.plan` 比对档案与记录的回放声明，规划参数（显式、默认、不支持、越界、输出上限与扩展），按记录的前缀要求关闭推理，调用家族的 check，并经家族计量器形成表示。`encode` 使用同一投影：角色、compact 或 parts 内容、内联图片、规范化 id 的工具调用、工具结果与其中的图片、孤立调用与结果的拒绝、经 schema hook 的工具、经契约 `projectReplay` 与推理 hook 的回放、缓存标记、钉住的 `provider`、`stream: true`、不发用量开关、排序键 JSON 与 `requestBytes`。`release` 只包一层。引擎源码不含厂商名 | 子入口 `./chat-completions`；包内 `src/chat-completions/`（投影与请求改编自 pi） | 快层用例，使用测试记录与 hook 替身。没有真实家族或真实网关 |
+| 网关引擎流解码器与测试入口已实现 | `createDecoder()` 给出一个解码器：阶段联合加每帧一个纯归约步。content 与 refusal 共用一个文本块。可见推理取本响应第一个非空来源，不显示 `[REDACTED]`。推理片段按无 id 同 index 拼接，签名只采用一次。finish 时家族的推理 hook 封存全部拼接后的项，每个结果成为一个推理续接状态部件。工具参数文本在名字到达之前缓存，受配置的限额约束。`stop`、`tool_calls`、`length` 为完成，`length` 时工具参数块保持开着。其他 finish 以输入被拒失败。finish 之后的有界尾帧接受 usage 与重复的 finish。首帧固定服务方，由记录钉住。带内错误按整数错误码映射，不回显正文。没有 finish 的流为断流。解码器不给出 `account`：传输不知道调用的身份。`./testing`：`checkChatCompletionsFixtures` 核对每条记录的 `request.json`、`stream.sse` 与 `facts.json`，`checkAdoptionFingerprints` 与 `appendAdoptionFingerprints` 维护 `adoptions.json` | 子入口 `./chat-completions` 与 `./testing`；包内 `src/chat-completions/chunk.ts`、`details.ts`、`decoder.ts`（chunk 循环与停止映射改编自 pi）与 `src/testing/` | 快层用例，使用测试记录、hook 替身与仿照真实网关流形状手写的流。每次回放经发送的主体解码，以恰好一个 `ended` 结束。没有真实家族夹具、真实流样本，也没有经本地 HTTPS 服务的发送 |
+| 尚未交付 | 解码器的 `account` 事实：`CallAccount` 需要调用的身份，`ModelTransport` 与 `createDecoder()` 都不给出。推理续接状态载荷超过上限时的诊断：解码器没有诊断通道。`replay-rejected` 之后再发要略去的集合：Model 尚未实现再发。OpenAI 与 Anthropic 家族包（#465），真实请求经 OpenRouter 固定路由。凭据解析与经 `ModelTransport` 的真实供应商请求（2.6）。媒体读取（阶段四 4.4）：materialize 目前拒绝模型可见的内容引用。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
 
 ## 使用
 
@@ -40,11 +42,11 @@
 
 ## 契约
 
-[行为规格](SPEC.md)拥有三段传输、容量、交换、SSE、帧、网络资源与诊断的结果、所有权、失败、取消与生命周期，也拥有秘密只在包内的约束、家族表的解析与失败映射，以及网关引擎请求一侧的规划与编码。五个类型的形状与家族作者的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)。公开入口的导航见[公开接口](docs/public-api.md)。
+[行为规格](SPEC.md)拥有三段传输、容量、交换、SSE、帧、网络资源与诊断的结果、所有权、失败、取消与生命周期，也拥有秘密只在包内的约束、家族表的解析与失败映射，网关引擎的规划、编码与流解释，以及测试入口的夹具与指纹格式。五个类型的形状与家族作者的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)。公开入口的导航见[公开接口](docs/public-api.md)。
 
 ## 设计
 
-三段传输组合包内机制：transport.ts 拥有外层与 prepared 的生命周期，materialized.ts 拥有一次发送的名额与发起，fact-stream.ts 把响应读成事实，termination.ts 是失败映射的纯函数。六个机制模块各回答一个问题：谁可以发、怎样发一次并收场、字节怎样成为事件、事件怎样成为帧、怎样组合与排空、观察怎样隔离。连接池 `PoolAgent` 在 `src/pool-agent.ts`，负责经代理建立连接时的两项控制，理由见[内部架构“经代理建立连接”](docs/architecture.md#经代理建立连接)。网络资源组合并注入容量、连接池与诊断隔离，交换不自行创建它们。模块、交换的相位、资源所有权与设计理由见[内部架构](docs/architecture.md)，时序见[关键流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。家族表与网关引擎见[内部架构](docs/architecture.md)。SSE 分帧与引擎的投影和请求参数改编自 pi，来源见 [UPSTREAM.md](UPSTREAM.md)。
+三段传输组合包内机制：transport.ts 拥有外层与 prepared 的生命周期，materialized.ts 拥有一次发送的名额与发起，fact-stream.ts 把响应读成事实，termination.ts 是失败映射的纯函数。六个机制模块各回答一个问题：谁可以发、怎样发一次并收场、字节怎样成为事件、事件怎样成为帧、怎样组合与排空、观察怎样隔离。连接池 `PoolAgent` 在 `src/pool-agent.ts`，负责经代理建立连接时的两项控制，理由见[内部架构“经代理建立连接”](docs/architecture.md#经代理建立连接)。网络资源组合并注入容量、连接池与诊断隔离，交换不自行创建它们。模块、交换的相位、资源所有权与设计理由见[内部架构](docs/architecture.md)，时序见[关键流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。家族表与网关引擎见[内部架构](docs/architecture.md)。SSE 分帧与引擎的投影、请求参数、chunk 循环和停止映射改编自 pi，来源见 [UPSTREAM.md](UPSTREAM.md)。
 
 ## 配置与运行
 
@@ -93,7 +95,7 @@ Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再
 - 改变家族贡献类型：先改组架构的已接受代码块，再同步 `src/family.ts`、类型测试与[公开接口](docs/public-api.md)。
 - 改变机制行为：同步 SPEC、对应测试与[关键流程](docs/flows.md)，并同步三段传输中调用该机制的代码。
 - 改变失败映射：同步 `src/termination.ts`、SPEC“事实流”的表与 `tests/termination.spec.ts`。
-- 改变改编自 pi 的文件（`src/sse.ts`、`src/chat-completions/projection.ts` 或 `src/chat-completions/request.ts`）：同步 `provenance.json` 与 `UPSTREAM.md`。
+- 改变改编自 pi 的文件（`src/sse.ts`，或 `src/chat-completions/` 下的 `projection.ts`、`request.ts`、`chunk.ts`、`decoder.ts`）：同步 `provenance.json` 与 `UPSTREAM.md`。
 - 增加网关字段或引擎的变化点：修改 `src/chat-completions/vocabulary.ts` 的词表，并增加必填字段。之后每个家族的记录都编译失败，直到写明取值。`src/chat-completions/` 中不得出现厂商名。
 - 增加运行依赖：先核对组架构的依赖方向，再更新 `tests/dependencies.spec.ts`。
 - 改变支持范围：同步本表、英文 README、[组页](../README.md)、[组架构](../docs/architecture.md)与[包组织](../../../docs/package-organization.md)中的状态。
