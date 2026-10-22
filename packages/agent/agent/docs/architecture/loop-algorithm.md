@@ -178,7 +178,7 @@ flowchart TB
     C4 -. 调用 .-> X0
     P0 -. 调用 .-> X0
     R0["R0 原操作查询或原帧恢复：不重做原效果"] -. 回原节点 .-> E4
-    W0["W0 保存等待与检查时刻，登记监听后重读"] --> E1
+    W0["W0 保存等待，进程内计时，启动监听后重读"] --> E1
 ```
 
 ## 节点表
@@ -198,7 +198,7 @@ flowchart TB
 | P0 | assembled 的请求 | 该位置的 Passage 与改写依据 | 随 X 协议提交 | X4 等待 | proceed 转 P1。veto 转 I8 | 已完成的经过复用，不重跑 | 同一次经过不自触发，由 `completedPassages` 保证 |
 | P1 | 改写依据、`select` 的再选择结果、必要时的再读取、`prepare` 带 previous 与经过 | checkpoint 的 `requestPreparation` 替换为 ready；第二入口的 needs-compaction 也写入 `requestPreparation` | 每次复核结果取得后提交 | 不等待 | ready 且再选择一致转 I2。再选择不一致重新读取并重新准备，留在 P1。needs-compaction 且本 step 尚无计划转 C0。cannot-fit，或本 step 已有计划后再次 needs-compaction，转 F1。`prepare` 返回 invalid（field 为 request）转 F1，失败候选为 request-rejected 并附 Model 的原结果 | 串行 | 复核规则见[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求) |
 | I2 | ready 准备 | `calls` 中用途为 main 的 PendingCall，返回去处 I3 | 调用 M0 前随 M0 的最终请求记录提交 | 不等待 | 调用 M。M5 返回后转 I3 | 一次只有一个主调用在途 | 观察流不授权执行工具。新输入不改写已记录的请求 |
-| I3 | M5 带回的真实收场、原调用的 resultVersion | Q2 提交 ModelReplyAdmission 与接续。拒收时另写退避时刻 | 准入结论与接续在同一次提交 | 退避期间转 I8 后由 W0 等待 | 准入成功转 I4。拒收转 I8。中断或部分结果且无新动作转 I8。最终失败且无有效回复转 F1 | 串行 | 原调用照常收场。拒收不交给重试，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入) |
+| I3 | M5 带回的真实收场、原调用的 resultVersion | Q2 提交 ModelReplyAdmission 与接续。拒收后在进程内计退避，恢复后重新计足 | 准入结论与接续在同一次提交 | 退避期间转 I8 后由 W0 等待 | 准入成功转 I4。拒收转 I8。中断或部分结果且无新动作转 I8。最终失败且无有效回复转 F1 | 串行 | 原调用照常收场。拒收不交给重试，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入) |
 | I4 | 已准入回复中的工具调用部件 | checkpoint 的 `batch`：ActionBatch 与每个 Action 的原参数与身份 | 固定完整动作批后提交 | 不等待 | 空转 I8。有动作转 A0 | 串行 | 参数块未完整到达不解析 |
 | I8 | 完整事实、模式、checkpoint 的守卫事实 `guard`、未完责任、迟到结果 | checkpoint 的 `position`。新 step 开始时 `compaction` 清空 | 决定去向后提交 | 需等待转 W0 | 有合法继续依据转 I0。P0 或 F2 否决之后，只有否决之后出现的新依据（新输入、条件变化、控制或迟到结果）才算继续依据；没有时转 W0，不重新提出被否决的请求或完成候选。完成候选或失败候选转 F1。后台迟到结果转 T1 | 单一决策段 | 无动作、空队列、流 EOF 都不直接终结。I8 只读最新守卫事实，不追加消息：`level` 为 3 时形成失败候选（guard，`basis` 取守卫事实的 `basis`）转 F1，L4 不记为守卫事实：它的人工等待在 M4 的扩展调用之内经 X4 完成，I8 不另开等待；卡片呈现确定失败时守卫事实保持上一次的值。其他级别或 null 不改变去向。L1、L2 的干预消息已在 M4 经 X5 进入历史。连续拒收不设次数上限 |
 | C0 | needs-compaction 的准备与计划进度 | 该位置的 Passage | 随 X 协议提交 | X4 等待 | proceed 转 C1。veto 关闭本准备的压缩准入并转 I1 | 一次准备只经过一次 | 否决后果见[无法装下](../../../agent-contract/SPEC.md#无法装下)第 3 条 |
@@ -413,7 +413,7 @@ I1、P0、P1、C0 至 C4、M0 的次序按 SPEC 的[请求准备与压缩](../..
 U0、Q1、Q2、Q4、Q5 只做非扩展的消息准入。行为归 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)，端口形状归公开接口页的 `MessageHandoff`。I3、C3、A3、T5 经 Q 的调用不经过任何扩展位置。
 
 - 外部输入在 U0 进入，在 invoke 或 submit 的受理之内完成。拒收回受理方，不进入可承接输入。
-- 模型完整回复在 I3 进入。拒收形成 rejected 的 ModelReplyAdmission，原调用照常收场。I3 保存退避时刻后转 I8，I8 以新 step 转 I0。
+- 模型完整回复在 I3 进入。拒收形成 rejected 的 ModelReplyAdmission，原调用照常收场。I3 建立进程内退避后转 I8，恢复后重新计足，I8 以新 step 转 I0。
 - 压缩转换消息在 C3 进入，以 context-transition 共同提交。
 - 工具结果消息与被拒绝动作的拒绝消息在 T5 进入，按原动作顺序。拒收转 H0。
 - 系统提醒由 X5 在采纳 inject 时进入一次。拒收不改变该扩展的 Conclusion。
@@ -535,7 +535,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 | 入口 | 入口条件 | 回归节点 |
 | --- | --- | --- |
 | R0 | 任一提交回执未知，E4 读到已有续点，F3 返回 changed、blocked 或 commit-unknown，Q2 返回 commit-unknown | 查原操作槽：已提交则采用原结果并回原节点的后继，未定则等待，可靠排除才重新求值。经 E4 回原节点 |
-| W0 | E1 资格未知，I8 需等待，A1 未齐，T0 在途，T3 未齐，X3 认回不可用，X4 等答复，F2 等人或依赖 | 保存等待依据与检查时刻，登记监听后重读，进度未变才休眠。唤醒后转 E1，经 E2、E4 回原节点 |
+| W0 | E1 资格未知，I8 需等待，A1 未齐，T0 在途，T3 未齐，X3 认回不可用，X4 等答复，F2 等人或依赖 | 保存等待依据，在进程内计算检查时刻，启动监听后重读，进度未变才休眠。唤醒后转 E1，经 E2、E4 回原节点 |
 | E4 | E2 对账完成 | 按 checkpoint 选择原节点，映射见下表 |
 
 checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `AgentCheckpoint`。最后一行的执行状态来自执行快照，不是 checkpoint 字段。
