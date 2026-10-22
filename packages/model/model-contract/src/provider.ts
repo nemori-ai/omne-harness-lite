@@ -2,6 +2,7 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentReference } from '@omne-harness/content-block'
+import type { MessageId } from '@omne-harness/message'
 import type {
   Access,
   Adoption,
@@ -76,6 +77,28 @@ export interface ModelMediaReader<P> {
     signal: AbortSignal,
   ): Promise<Outcome<ModelMediaLease, TransportFailure>>
 }
+/**
+ * The account of one dispatch as a provider reports it. The provider does not know the call, and it
+ * does not decide whether the account is late. The runtime adds `subject` and `receipt` when it
+ * keeps the account.
+ */
+export type CallAccountReport = Omit<CallAccount, 'subject' | 'receipt'>
+/**
+ * A diagnostic of one dispatch that a provider reports. It holds only identities, scopes, formats,
+ * counts, lengths and field names, never a payload or a text.
+ */
+export type ProviderDiagnostic =
+  | Readonly<{
+      kind: 'replay-omitted'
+      message: MessageId
+      scope: string
+      format: string
+      omittedParts: number
+    }>
+  | Readonly<{ kind: 'reasoning-disabled'; reason: 'foreign-prefix' }>
+  | Readonly<{ kind: 'reasoning-state-dropped'; reason: 'payload-too-long'; length: number }>
+  /** The upstream usage contradicts itself, and the account keeps the item as unknown. */
+  | Readonly<{ kind: 'usage-inconsistent'; field: string }>
 export type TransportTermination =
   | Exclude<Termination, { kind: 'interrupted' }>
   | Readonly<{ kind: 'interrupted'; stop: 'confirmed' }>
@@ -90,7 +113,8 @@ export type TransportFact =
   | Readonly<{ kind: 'block-replace'; index: string; value: string }>
   | Readonly<{ kind: 'block-seal'; index: string; block: ModelBlock }>
   | Readonly<{ kind: 'trim'; index: string; removed: string; reason: string }>
-  | Readonly<{ kind: 'account'; event: string; value: CallAccount }>
+  | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
+  | Readonly<{ kind: 'diagnostic'; value: ProviderDiagnostic }>
   | Readonly<{ kind: 'ended'; termination: TransportTermination }>
 export type IndependentModelFact =
   | TransportFact
@@ -110,10 +134,16 @@ export interface PreparedTransport {
   materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, TransportFailure>>
   close(): Promise<void>
 }
+/** The input of one dispatch that the request does not fix. */
+export type TransportDispatch = Readonly<{
+  /** The messages that this re-dispatch must treat as unable to continue. A first send has none. */
+  resent: readonly MessageId[]
+}>
 export interface ModelTransport {
   prepare(
     request: FixedModelRequest,
     supplier: Supplier,
+    dispatch: TransportDispatch,
   ): Promise<Outcome<PreparedTransport, TransportFailure>>
 }
 export type ExecutionRef = Readonly<{
@@ -167,7 +197,7 @@ export type RecoveryRecord = Readonly<{
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
 export type LateDispatchFact =
-  | Readonly<{ kind: 'account'; event: string; value: CallAccount }>
+  | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'terminal'; event: string; actual: Termination }>
 export interface ModelCommands<P> {
   admit(input: Admit<P>): Reply<Admission>

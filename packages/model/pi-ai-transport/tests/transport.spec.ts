@@ -103,7 +103,11 @@ describe('constructing the transport', () => {
 describe('prepare', () => {
   it('answers unsupported for a recipient without a route, without acquiring a binding', async () => {
     const { transport, probe } = build()
-    const outcome = await transport.prepare(REQUEST, { ...SUPPLIER, recipient: 'elsewhere' })
+    const outcome = await transport.prepare(
+      REQUEST,
+      { ...SUPPLIER, recipient: 'elsewhere' },
+      { resent: [] },
+    )
     expect(outcome).toEqual({
       failure: { kind: 'unsupported', field: 'supplier.recipient', adapter: SUPPLIER.adoption },
     })
@@ -112,7 +116,11 @@ describe('prepare', () => {
 
   it('does not take a route from the prototype of the routes object', async () => {
     const { transport } = build()
-    const outcome = await transport.prepare(REQUEST, { ...SUPPLIER, recipient: 'toString' })
+    const outcome = await transport.prepare(
+      REQUEST,
+      { ...SUPPLIER, recipient: 'toString' },
+      { resent: [] },
+    )
     expect(outcome).toMatchObject({ failure: { kind: 'unsupported' } })
   })
 
@@ -120,12 +128,12 @@ describe('prepare', () => {
     const { transport, probe } = build()
     const failure = { kind: 'denied', action: 'family' } as const
     probe.acquireFailure = failure
-    expect(await transport.prepare(REQUEST, SUPPLIER)).toEqual({ failure })
+    expect(await transport.prepare(REQUEST, SUPPLIER, { resent: [] })).toEqual({ failure })
   })
 
   it('acquires one binding for the supplier, and the close of the prepared transport releases it once', async () => {
     const { transport, probe } = build()
-    const prepared = await transport.prepare(REQUEST, SUPPLIER)
+    const prepared = await transport.prepare(REQUEST, SUPPLIER, { resent: [] })
     if (!('ok' in prepared)) throw new Error('expected a prepared transport')
     expect(probe.acquired).toBe(1)
     expect(probe.released).toBe(0)
@@ -138,7 +146,7 @@ describe('prepare', () => {
 
   it('a closed prepared transport answers unavailable to materialize', async () => {
     const { transport } = build()
-    const prepared = await transport.prepare(REQUEST, SUPPLIER)
+    const prepared = await transport.prepare(REQUEST, SUPPLIER, { resent: [] })
     if (!('ok' in prepared)) throw new Error('expected a prepared transport')
     await prepared.ok.close()
     expect(await prepared.ok.materialize(new AbortController().signal)).toMatchObject({
@@ -157,7 +165,7 @@ describe('closing a prepared transport while it materializes', () => {
       const network = freshNetwork()
       const sends = countSends(network)
       const { transport, probe } = build({ network: network.handle })
-      const prepared = await transport.prepare(REQUEST, SUPPLIER)
+      const prepared = await transport.prepare(REQUEST, SUPPLIER, { resent: [] })
       if (!('ok' in prepared)) throw new Error('expected a prepared transport')
       const pending = prepared.ok.materialize(new AbortController().signal)
       for (let turn = 0; turn < gap; turn += 1) await Promise.resolve()
@@ -183,13 +191,13 @@ describe('closing the transport', () => {
   it('releases the binding of every open prepared transport and refuses new prepares', async () => {
     const { transport, close, probe } = build()
     const prepared = [
-      await transport.prepare(REQUEST, SUPPLIER),
-      await transport.prepare(REQUEST, SUPPLIER),
+      await transport.prepare(REQUEST, SUPPLIER, { resent: [] }),
+      await transport.prepare(REQUEST, SUPPLIER, { resent: [] }),
     ]
     expect(prepared.every(outcome => 'ok' in outcome)).toBe(true)
     await close()
     expect(probe.released).toBe(2)
-    expect(await transport.prepare(REQUEST, SUPPLIER)).toEqual({
+    expect(await transport.prepare(REQUEST, SUPPLIER, { resent: [] })).toEqual({
       failure: { kind: 'unavailable', dependency: 'pi-transport', diagnostic: 'transport-closed' },
     })
   })
@@ -198,7 +206,7 @@ describe('closing the transport', () => {
     const { transport, close, probe } = build()
     const gate = Promise.withResolvers<void>()
     probe.acquireGate = gate.promise
-    const pending = transport.prepare(REQUEST, SUPPLIER)
+    const pending = transport.prepare(REQUEST, SUPPLIER, { resent: [] })
     await Promise.resolve()
     const closed = close()
     expect(probe.lastSignal?.aborted).toBe(true)
@@ -225,8 +233,8 @@ describe('closing the transport', () => {
     }
     // Not kept for afterEach: this close rejects by design.
     const { transport, close } = createPiTransport(configWith({ families }))
-    expect(await transport.prepare(REQUEST, SUPPLIER)).toHaveProperty('ok')
-    expect(await transport.prepare(REQUEST, SUPPLIER)).toHaveProperty('ok')
+    expect(await transport.prepare(REQUEST, SUPPLIER, { resent: [] })).toHaveProperty('ok')
+    expect(await transport.prepare(REQUEST, SUPPLIER, { resent: [] })).toHaveProperty('ok')
     let settled = false
     const closed = close().finally(() => {
       settled = true

@@ -12,22 +12,28 @@ import type {
   Supplier,
   ToolDeclaration,
 } from './root.ts'
-import type { ParameterAdoption } from './profile.ts'
+import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { rejected } from './input-tree.ts'
+import { judgeReplayDeclaration } from './replay-values.ts'
 
 type Checked<T> = Outcome<T, ModelInputRejection>
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
-/** This module only receives the descriptor snapshot, never the caller's objects. */
+/**
+ * This module only receives the descriptor snapshot, never the caller's objects. Every key in
+ * `keys` must be present; a key in `optional` may be absent.
+ */
 export function closed(
   value: unknown,
   keys: readonly string[],
   field: string,
+  optional: readonly string[] = [],
 ): Checked<Record<string, unknown>> {
   if (!isRecord(value)) return rejected(field, 'type')
-  if (Object.keys(value).some(key => !keys.includes(key))) return rejected(field, 'unknown-field')
+  if (Object.keys(value).some(key => !keys.includes(key) && !optional.includes(key)))
+    return rejected(field, 'unknown-field')
   for (const key of keys)
     if (!Object.hasOwn(value, key)) return rejected(`${field}/${key}`, 'missing')
   return succeed(value)
@@ -330,6 +336,53 @@ function requestProvenance(
     source: source.ok,
   })
 }
+type RequestReplay = Pick<FixedModelRequest, 'replay' | 'declarations'>
+/** Where a reason of `judgeReplayDeclaration` points inside one declaration, and what it is. */
+const DECLARATION_REJECTIONS: Readonly<
+  Record<string, Readonly<{ key: string; reason: ModelInputRejection['reason'] }>>
+> = {
+  produces: { key: 'produces', reason: 'value' },
+  accepts: { key: 'accepts', reason: 'value' },
+  'accepts-duplicate': { key: 'accepts', reason: 'duplicate' },
+  'accepts-lacks-produces': { key: 'accepts', reason: 'value' },
+  'foreign-thinking': { key: 'foreignThinking', reason: 'value' },
+}
+/** One expanded declaration: all three keys must be present, so no default applies. */
+function expandedDeclaration(
+  value: unknown,
+  supplier: Supplier,
+  index: number,
+  field: string,
+): Checked<ReplayDeclaration> {
+  const record = closed(value, ['produces', 'accepts', 'foreignThinking'], field)
+  if ('failure' in record) return record
+  const judged = judgeReplayDeclaration({ ...supplier, replay: record.ok }, index)
+  if ('ok' in judged) return judged
+  const at = DECLARATION_REJECTIONS[judged.failure.reason] ?? { key: '', reason: 'value' }
+  return rejected(at.key === '' ? field : `${field}/${at.key}`, at.reason)
+}
+function requestReplay(
+  input: Record<string, unknown>,
+  field: string,
+  suppliers: FixedModelRequest['suppliers'],
+): Checked<RequestReplay> {
+  if (Object.hasOwn(input, 'replay') && input.replay !== 'off')
+    return rejected(`${field}/replay`, 'value')
+  if (!Array.isArray(input.declarations)) return rejected(`${field}/declarations`, 'type')
+  if (input.declarations.length !== suppliers.length)
+    return rejected(`${field}/declarations`, 'value')
+  const declarations: ReplayDeclaration[] = []
+  for (const [index, supplier] of suppliers.entries()) {
+    const at = `${field}/declarations/${index}`
+    const judged = expandedDeclaration(input.declarations[index], supplier, index, at)
+    if ('failure' in judged) return judged
+    declarations.push(judged.ok)
+  }
+  const [first, ...rest] = declarations
+  if (first === undefined) return rejected(`${field}/declarations`, 'value')
+  const fixed = { declarations: [first, ...rest] } satisfies RequestReplay
+  return succeed(input.replay === 'off' ? { replay: 'off', ...fixed } : fixed)
+}
 
 export function requestShape(value: unknown, field: string): Checked<FixedModelRequest> {
   const record = closed(
@@ -344,11 +397,13 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
       'messages',
       'tools',
       'toolChoice',
+      'declarations',
       'representation',
       'parameterAdoptions',
       'source',
     ],
     field,
+    ['replay'],
   )
   if ('failure' in record) return record
   const routing = requestRouting(record.ok, field)
@@ -357,7 +412,9 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   if ('failure' in content) return content
   const provenance = requestProvenance(record.ok, field)
   if ('failure' in provenance) return provenance
-  return succeed({ ...routing.ok, ...content.ok, ...provenance.ok })
+  const replay = requestReplay(record.ok, field, routing.ok.suppliers)
+  if ('failure' in replay) return replay
+  return succeed({ ...routing.ok, ...content.ok, ...replay.ok, ...provenance.ok })
 }
 export function consumerShape(value: unknown): Checked<ConsumerRef> {
   const record = closed(value, ['owner', 'work', 'position', 'purpose'], '/consumer')

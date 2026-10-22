@@ -57,6 +57,9 @@ export const request: FixedModelRequest = {
   messages: [],
   tools: [],
   toolChoice: 'none',
+  declarations: [
+    { produces: 'test.invalid/test', accepts: ['test.invalid/test'], foreignThinking: 'omit' },
+  ],
   representation: adoption,
   parameterAdoptions: [],
   source: adoption,

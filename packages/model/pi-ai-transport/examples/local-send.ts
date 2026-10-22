@@ -47,6 +47,9 @@ const request: FixedModelRequest = {
   messages: [],
   tools: [],
   toolChoice: 'none',
+  declarations: [
+    { produces: 'local/example-model', accepts: ['local/example-model'], foreignThinking: 'omit' },
+  ],
   representation: adoption('representation'),
   parameterAdoptions: [],
   source: adoption('source'),
@@ -204,7 +207,7 @@ const pi = createPiTransport({
 
 try {
   // Example: prepare, materialize, then start one send.
-  const prepared = await pi.transport.prepare(request, supplier)
+  const prepared = await pi.transport.prepare(request, supplier, { resent: [] })
   if (!('ok' in prepared)) throw new Error(`prepare failed: ${prepared.failure.kind}`)
   const materialized = await prepared.ok.materialize(new AbortController().signal)
   if (!('ok' in materialized)) throw new Error(`materialize failed: ${materialized.failure.kind}`)
@@ -228,7 +231,9 @@ try {
     transcript: null,
   })
   if (!('ok' in block)) throw new Error(`the example built a refused block: ${block.rejected}`)
-  const withMedia = await pi.transport.prepare({ ...request, system: [block.ok] }, supplier)
+  const withMedia = await pi.transport.prepare({ ...request, system: [block.ok] }, supplier, {
+    resent: [],
+  })
   if (!('ok' in withMedia)) throw new Error(`prepare failed: ${withMedia.failure.kind}`)
   const refusedMedia = await withMedia.ok.materialize(new AbortController().signal)
   if ('ok' in refusedMedia) throw new Error('a content reference was materialized')

@@ -50,6 +50,13 @@ export const REQUEST: FixedModelRequest = {
   messages: [],
   tools: [],
   toolChoice: 'none',
+  declarations: [
+    {
+      produces: 'test-recipient/test-model',
+      accepts: ['test-recipient/test-model'],
+      foreignThinking: 'omit',
+    },
+  ],
   representation: adoption('representation'),
   parameterAdoptions: [],
   source: adoption('source'),

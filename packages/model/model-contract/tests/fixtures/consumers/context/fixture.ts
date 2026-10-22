@@ -113,6 +113,7 @@ async function toolsStayNeutralDeclarations(): Promise<void> {
 }
 
 const SENT_FIELDS = [
+  'declarations',
   'fallback',
   'messages',
   'parameterAdoptions',
@@ -134,6 +135,12 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
   expect(request.suppliers[0].model === 'model', 'the request names another model')
   expect(request.suppliers[0].credential.kind === 'factory', 'the credential was invented')
   expect(Object.keys(request).sort().join() === SENT_FIELDS.join(), 'the request fields differ')
+  const identity = `${request.suppliers[0].recipient}/${request.suppliers[0].model}`
+  expect(
+    JSON.stringify(request.declarations) ===
+      JSON.stringify([{ produces: identity, accepts: [identity], foreignThinking: 'omit' }]),
+    'the request does not fix the expanded replay declaration of its supplier',
+  )
   expect(request.toolChoice === 'none', 'a request without tools allows tools')
   expect(result.dropped === 0, `the context dropped ${result.dropped} messages of a short input`)
   // The context measured once, before the preparation. A preparation that measured again would

@@ -21,8 +21,8 @@ describe('independent execution through the public entry', () => {
     const given = scripted()
     const stages: number[] = []
     const transport: ModelTransport = {
-      async prepare(fixed, supplier) {
-        const prepared = await given.transport.prepare(fixed, supplier)
+      async prepare(fixed, supplier, dispatch) {
+        const prepared = await given.transport.prepare(fixed, supplier, dispatch)
         if ('failure' in prepared) return prepared
         stages.push(given.counts().start)
         return succeed({

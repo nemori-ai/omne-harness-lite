@@ -51,7 +51,7 @@ function setup(maxConnections = 1): {
     network,
     probe: family.probe,
     async prepare(request = REQUEST) {
-      const prepared = await built.transport.prepare(request, SUPPLIER)
+      const prepared = await built.transport.prepare(request, SUPPLIER, { resent: [] })
       if (!('ok' in prepared)) throw new Error('expected a prepared transport')
       return prepared.ok
     },

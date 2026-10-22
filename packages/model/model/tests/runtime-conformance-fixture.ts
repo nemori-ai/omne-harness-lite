@@ -89,8 +89,8 @@ export function runtimeConformanceSubject(
   })
   let sends = 0
   const countedTransport: import('@omne-harness/model-contract').ModelTransport = {
-    async prepare(request, supplier) {
-      const prepared = await transport.transport.prepare(request, supplier)
+    async prepare(request, supplier, dispatch) {
+      const prepared = await transport.transport.prepare(request, supplier, dispatch)
       if ('failure' in prepared) return prepared
       return {
         ok: {
