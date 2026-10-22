@@ -95,7 +95,7 @@ about: 从父交付卡拆出的一次可独立接受结果
 
 {{未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。}}
 
-{{已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v2区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。}}
+{{已派发Git任务时：由正文单写者在此插入唯一、完整、真实的binding区块，并替换上述计划文字。taskBase中的dev-flow能读版本2时用json omne-integration-binding:v2，否则用json omne-integration-binding:v1，核对命令见集成工具指南。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。}}
 
 | 开工读回项 | 实际值/回执 |
 | --- | --- |

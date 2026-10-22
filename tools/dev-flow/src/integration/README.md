@@ -49,7 +49,18 @@ Issue 正文的 `当前执行与交接` 中放唯一一个 binding 围栏区块�
 | `contractChange` | `none`、`additive` 或 `breaking` |
 | `milestone` | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null` |
 
-缺字段、取值不合格或有其他字段时拒绝。`line` 是否登记在线归属表中不由解析判断，由属性发现报告。属性的规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)。已派发的 attempt 在交付前不改 binding 版本。新 attempt 用版本 2。
+缺字段、取值不合格或有其他字段时拒绝。`line` 是否登记在线归属表中不由解析判断，由属性发现报告。属性的规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)。已派发的 attempt 在交付前不改 binding 版本。
+
+`start` 用工作树中的 dev-flow 读 binding，工作树从 taskBase 开工。所以 binding 的版本由 taskBase 中的 dev-flow 决定：
+
+- taskBase 中的 dev-flow 能读版本 2 时，新 attempt 用版本 2。
+- 否则用版本 1。较早的 dev-flow 只读 `omne-integration-binding:v1` 区块，对版本 2 的卡报告 `Task binding is missing`，拒绝开工。
+
+调度者派发前在仓库中运行下面的命令。退出 0 表示 taskBase 能读版本 2，退出 1 表示只能用版本 1：
+
+```sh
+git grep -q 'omne-integration-binding:v2' <taskBase> -- tools/dev-flow/src/delivery/binding.ts
+```
 
 授权评论中的 `task`、context 中的 binding 与 Issue 正文用同一个解析。context 的 `schemaVersion` 仍为 1。
 

@@ -203,7 +203,7 @@ const templateValues: Record<string, string> = {
   '实际路径；未创建明说': '未创建',
   '未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。':
     '未登记binding。计划 global 路线，最终进入 main，执行实例待派发。',
-  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v2区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
+  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的binding区块，并替换上述计划文字。taskBase中的dev-flow能读版本2时用json omne-integration-binding:v2，否则用json omne-integration-binding:v1，核对命令见集成工具指南。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
     '',
   '从binding.route及已采用轨道登记解析的只读摘要': '未派发，尚未解析',
   'start回执taskSource；与binding.taskBase分别保留': '未开工',
