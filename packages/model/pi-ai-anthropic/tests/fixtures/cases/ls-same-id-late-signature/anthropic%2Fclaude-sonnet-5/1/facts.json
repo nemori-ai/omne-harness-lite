@@ -29,6 +29,22 @@
     }
   },
   {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b1",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"extension\":{\"source\":\"controlled\"},\"format\":\"anthropic-claude-v1\",\"id\":\"one-thinking-block\",\"index\":0,\"signature\":\"signed-one\",\"text\":\"first second\",\"type\":\"reasoning.text\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
     "kind": "account",
     "event": "usage",
     "value": {

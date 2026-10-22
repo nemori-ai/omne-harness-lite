@@ -34,7 +34,7 @@ sequenceDiagram
 2. 请求组装方在发送前用 `meter.measure` 计量这份表示。
 3. `encode` 用同一投影写出请求体，1h 缓存标记在最后一条消息上。回放用请求为该供应商固定的声明与再发略去集合，并返回回放略去与前缀降级的诊断。
 
-**响应**：引擎的解码器逐帧归约。没有 id 且 index 相同的 `reasoning.text` 片段拼成一项，签名可以单独在最后一个片段到达。收场时把全部推理项交给 `anthropic-signed-group/1` 的 `seal`，整组可以回放时成为一个推理续接状态部件。收场之后解码器调用 `usage` 规则，给出账目报告与可能的 `usage-inconsistent` 诊断。
+**响应**：引擎的解码器逐帧归约。头部（`index`、`format` 等成员）与身份（`id`）都相同的 `reasoning.text` 片段拼成一项。签名可以单独在最后一个片段到达。完整规则见 [pi-ai-transport SPEC 的映射表](../../pi-ai-transport/SPEC.md)。收场时把全部推理项交给 `anthropic-signed-group/1` 的 `seal`，整组可以回放时成为一个推理续接状态部件。收场之后解码器调用 `usage` 规则，给出账目报告与可能的 `usage-inconsistent` 诊断。
 
 **回放**：下一次请求中，可续接的 assistant 消息的部件交给 `replay`，写回 `reasoning_details`。
 

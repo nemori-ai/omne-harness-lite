@@ -641,6 +641,14 @@ const BASE = {
   extension: { source: 'controlled' },
 }
 const { id: _id, ...UNIDENTIFIED } = BASE
+/** The head of the first group of the sealed two-turn replay cases. */
+const THINKING_A = {
+  type: 'reasoning.text',
+  id: 'thinking-a',
+  index: 0,
+  format: FORMAT,
+  extension: { source: 'controlled' },
+}
 const OBSERVED_TEXT = {
   type: 'reasoning.text',
   text: 'Thinking about CEDAR. ',
@@ -694,7 +702,29 @@ const JOIN_CASES: readonly FixtureCase[] = [
       { ...BASE, text: 'second', signature: 'signed-one' },
     ],
     visible: ['first ', 'second'],
-    group: null,
+    group: [{ ...BASE, text: 'first second', signature: 'signed-one' }],
+  }),
+  detailsCase({
+    id: 'ls-same-id-repeat-signature',
+    source: '78-84 "joins same-id text fragments that carry the same nonempty signature"',
+    details: [
+      { ...BASE, text: 'first ', signature: 'signed-one' },
+      { ...BASE, text: 'second', signature: 'signed-one' },
+    ],
+    visible: ['first ', 'second'],
+    group: [{ ...BASE, text: 'first second', signature: 'signed-one' }],
+  }),
+  detailsCase({
+    id: 'ls-reconstructed-late-signed-group',
+    source:
+      '272-390 "%s two-turn actual local TLS replay of streamed reasoning details" case "one reconstructed late-signed group" (:292-323)',
+    details: [
+      { ...THINKING_A, text: 'first ' },
+      { ...THINKING_A, text: 'middle ', signature: null },
+      { ...THINKING_A, text: 'last', signature: 'SIGNATURE_A' },
+    ],
+    visible: ['first ', 'middle ', 'last'],
+    group: [{ ...THINKING_A, text: 'first middle last', signature: 'SIGNATURE_A' }],
   }),
   detailsCase({
     id: 'ls-idless-repeat-signature',
