@@ -19,4 +19,12 @@
 
 <!-- 必要 demo/命令、版本与操作→预期；具体路径/条款和重点追问：职责/成本是否转移，公共入口/生命周期是否保持，未关闭项有什么影响。 -->
 
-<!-- 进入轨道、main 或 stable 的 PR 写明关联的卡、本地运行的检查及结果；发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”。 -->
+## 所含的卡
+
+<!-- 进入轨道的 PR 每行一张卡：- #<Issue 编号> revision <交付修订> attempt `<attempt>`：<这张卡在上一层或 main 上要满足的条件，没有写“无”>。提升 PR 汇总自上一次提升以来进入来源轨道的全部卡。不进入轨道的 PR 删去本节。 -->
+
+## 契约变化
+
+<!-- 每个改动过的契约成员一行：- <包名>：none、additive 或 breaking。additive 写新增的导出或字段，breaking 写承接它的卡。没有改动契约成员时写“无”。契约成员见 docs/engineering/delivery-lines.json。不进入轨道的 PR 删去本节。 -->
+
+<!-- 本地运行的检查及结果写在验证一节。发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”与“进轨道 PR 的说明”。 -->

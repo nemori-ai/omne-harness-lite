@@ -70,6 +70,40 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 
 启用该协议的主Project须禁用Issue／PR关闭→Done、PR合并→Done和Stage→自动关闭；仓库禁用关联PR合并自动关闭，PR正文用普通引用。官方说明默认自动化：[Project工作流](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations)、[仓库自动关闭](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-auto-closing-issues)。技术接受可以根据合并后的真实证据作出，但平台事件不代替决定。
 
+### 卡属性与合法组合
+
+交付卡在「身份与责任」中登记三个属性，并以 Issue 的 milestone 字段表示所属里程碑。属性与主工作类型、交付层级相互独立。交付线的划分与路线规则归[多层分支集成](integration.md#交付线)，里程碑与契约基线归[同页](integration.md#里程碑与契约基线)。
+
+- 交付线：[线归属表](delivery-lines.json)中的线 ID，或 `integration`。`integration` 表示系统级或跨线的工作，卡进入联调轨道。
+- 性质，取下列之一：
+  - `design`：只改设计与规格正文。
+  - `contract`：改契约成员的公开面、一致性套件或替身。
+  - `impl`：在既有契约下实现。
+  - `integration`：跨线的真实装配、集成点、联合验收或破坏性契约改动。
+  - `baseline`：登记里程碑的契约基线。
+- 契约变更，取下列之一：
+  - `none`：不改契约成员的公开面。
+  - `additive`：只做可加改动。
+  - `breaking`：做破坏性改动。
+- 里程碑：Issue 的 milestone，不写进正文。
+
+属性组合须同时满足下列规则：
+
+1. 只有交付线为 `integration` 的卡可以写入其他线拥有的路径，也只有它可以在交付条件中引用其他线的卡。其他卡的写范围不越出本线拥有的路径。
+2. 性质 `contract` 与 `impl` 只用于交付线不是 `integration` 的卡。性质 `integration` 与 `baseline` 只用于交付线为 `integration` 的卡。
+3. 契约变更为 `breaking` 时，性质必须是 `integration`。性质为 `design` 或 `baseline` 时，契约变更为 `none`。
+4. 性质为 `impl` 的卡只对本线的契约成员做可加改动。
+
+| 性质 | 交付线 | 写范围 | 交付条件可引用 | 契约变更 |
+| --- | --- | --- | --- | --- |
+| `design` | 任意 | 所属线拥有的正文；交付线为 `integration` 时不限线 | 同一交付线的卡；交付线为 `integration` 时不限线 | `none` |
+| `contract` | 非 `integration` | 本线的契约成员及其正文 | 本线的卡 | `none`、`additive` |
+| `impl` | 非 `integration` | 本线拥有的路径 | 本线的卡 | `none`、`additive` |
+| `integration` | `integration` | 写范围内的任意路径 | 任意线的卡 | 任意 |
+| `baseline` | `integration` | 基线记录 | 本里程碑的卡 | `none` |
+
+属性属于交付范围。改变任一属性时升交付修订。属性派生的标签与 Project 字段只作投影，规则见[建卡或修订卡](agent-delivery.md#2-建卡或修订卡)。
+
 ## 3. 条件、关系与解锁
 
 Issue条件表是依赖语义唯一源，每项有稳定条件ID、类型、目标、阻塞阶段、所需结果／满足判据、确认责任与证据入口。排序是Priority或建议，不是硬依赖；父子仅分解。阻塞阶段为start、integration、acceptance。各阶段启动前读取自己的条件；进行中的卡可被integration阻塞而继续不依赖它的部分。
@@ -145,7 +179,7 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。派发时，正文单写者把交付线、性质、契约变更与里程碑写进 binding，作为本次 attempt 的冻结值。binding 还没有这些字段时，属性只登记在正文与 milestone 中。在途卡的 binding 保持原格式直到交付。任务同步不能改变原 taskBase 或虚构新 attempt。
 
 原交付条件表可增加“适用目标”列；未声明为 all。integration 条件按本次实际 track/main/stable 或登记完整 ref 核对，start/acceptance 保持 all。最终包含结果的条件放 acceptance。现有阶段环观察未完整覆盖目标层细化，未知不得说成全图无环。
 
