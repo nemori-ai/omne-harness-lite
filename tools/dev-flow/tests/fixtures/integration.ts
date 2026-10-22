@@ -208,7 +208,7 @@ const issue = {
   node_id: 'I_1',
   html_url: 'https://github.com/owner/repo/issues/1',
   state: p.state,
-  updated_at: '2026-10-11T00:00:00Z',
+  updated_at: p.updatedAt || '2026-10-11T00:00:00Z',
   body: p.body,
   labels: (p.labels || []).map(name => ({ name })),
   ...(p.milestone === undefined ? {} : { milestone: p.milestone }),

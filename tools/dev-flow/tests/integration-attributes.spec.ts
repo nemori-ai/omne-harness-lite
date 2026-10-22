@@ -1,6 +1,6 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -35,7 +35,11 @@ const attributes: CardAttributeFields = {
   nature: 'impl',
   contractChange: 'none',
 }
-type Platform = { labels?: string[]; milestone?: { title: string } | null; readbackChange?: object }
+type Platform = {
+  labels?: string[]
+  milestone?: { title: string } | null
+  readbackChange?: object
+}
 function fixture({
   withLines = true,
   version,
@@ -145,17 +149,18 @@ describe('start attribute reports', () => {
     ])
   })
 
-  it('does not refuse when only the milestone changes between the two admission reads', async () => {
+  it('refuses like any Issue edit when the milestone changes between the two admission reads', async () => {
+    // GitHub bumps updated_at with a milestone edit; the readback digest holds both.
     const f = fixture({
       version: 2,
       platform: {
         labels: ['line:tools-line', 'nature:impl'],
         milestone: { title: 'M1' },
-        readbackChange: { milestone: { title: 'M2' } },
+        readbackChange: { milestone: { title: 'M2' }, updatedAt: '2026-10-12T00:00:00Z' },
       },
     })
-    const { context } = await start(f)
-    expect(context).toMatchObject(expectedContext(f))
+    await expect(start(f)).rejects.toThrow('Task inputs changed during dispatch readback')
+    expect(existsSync(contextPath(f.root))).toBe(false)
   })
 
   it('keeps a failing report sink from changing the result', async () => {
