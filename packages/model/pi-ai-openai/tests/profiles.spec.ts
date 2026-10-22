@@ -9,10 +9,24 @@ import {
   type OpenAiRecord,
 } from '@omne-harness/pi-ai-openai'
 import { componentAdoption } from '../src/adoptions.ts'
-import { assembledOf, FAMILY, fixedRequest, officialProfile, RETRY } from './support/openai.ts'
+import {
+  assembledOf,
+  bindingOf,
+  FAMILY,
+  fixedRequest,
+  officialProfile,
+  RETRY,
+} from './support/openai.ts'
 
 const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS
 const PROFILES = officialOpenAiProfiles({ retryPolicy: RETRY, compactionTriggerPercent: '80' })
+
+// The shared family builds its tokenizer on the first acquire, which can take seconds under
+// parallel load. One acquire while the file loads, outside every test timeout, builds it once;
+// each round trip below reuses it.
+const [FIRST] = RECORDS
+if (FIRST === undefined) throw new Error('no OpenAI record')
+await (await bindingOf(FIRST)).release()
 
 describe('officialOpenAiProfiles', () => {
   it('gives one profile per current record, in record order', () => {
