@@ -1,5 +1,6 @@
+import type { AssemblyInput, AssemblyResult } from './values.js'
 import type * as M from '@omne-harness/model-contract'
-import type { Message, RecordEntryRef } from '@omne-harness/message'
+import type { RecordEntryRef } from '@omne-harness/message'
 import type { ContentBlock, BlockId } from '@omne-harness/content-block'
 import type { Access, Adoption, EpochId } from './refs.js'
 import type {
@@ -8,16 +9,9 @@ import type {
   SummaryMaterial,
   RepresentationChoice,
 } from './values.js'
-import type { ProjectedHistory } from './projection.js'
-import type { ConversionIndex } from './representation.js'
-export type HistoryRow = Readonly<{
-  seq: number
-  entry: RecordEntryRef
-  message: Message
-  bytes: string
-  /** 前缀摘要：上一行摘要与本行摘要的链式散列（H3）。 */
-  prefixDigest: string
-}>
+import type { ProjectedHistory, ConversionIndex } from './values.js'
+export type { HistoryRow } from './values.js'
+import type { HistoryRow } from './values.js'
 export type HistoryPage = Readonly<{ rows: readonly HistoryRow[]; next: number | null }>
 export type HistoryReadResult =
   | Readonly<{ kind: 'page'; page: HistoryPage }>
@@ -124,3 +118,22 @@ export interface RepresentationPolicyPort {
 export interface RequestSerializer {
   bytesOf(assembled: M.AssembledModelInput): string
 }
+
+export type AssemblyPorts<P> = Readonly<{
+  history: HistorySource<P>
+  meter: M.ModelInputMeter
+  conversions: ConversionResultSource<P>
+  serializer: RequestSerializer
+}>
+export type AssemblyPolicies = Readonly<{
+  compaction: CompactionPolicyPort
+  representation: RepresentationPolicyPort
+}>
+export type AssemblyOperations<P> = Readonly<{
+  assemble(input: AssemblyInput<P>): Promise<AssemblyResult>
+  planCompaction(input: AssemblyInput<P>): Promise<import('./values.js').PlanResult>
+  deriveStep(input: import('./values.js').DeriveInput): Promise<import('./values.js').StepResult>
+  resume(
+    input: AssemblyInput<P> & Readonly<{ transition: import('./values.js').TransitionEvidence }>,
+  ): Promise<AssemblyResult>
+}>

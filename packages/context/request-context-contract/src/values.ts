@@ -9,7 +9,6 @@ import type {
   PassageRef,
   PlanId,
 } from './refs.js'
-import type { ToolDeclarationSet } from './declare-tools.js'
 import type {
   ScopeRef,
   ContextBlockKey,
@@ -294,9 +293,9 @@ export type RequestLayers = Readonly<{
 export type RequestCandidate = Readonly<{
   preparation: Readonly<{
     access: Access<unknown>
-    key: import('./assembly.js').PreparedInputKey
-    rows: readonly import('./ports.js').HistoryRow[]
-    view: import('./projection.js').ProjectedHistory
+    key: PreparedInputKey
+    rows: readonly HistoryRow[]
+    view: ProjectedHistory
   }>
   candidate: CandidateRef
   layers: RequestLayers
@@ -452,3 +451,78 @@ export type StepResult =
     }>
   | AssemblyFailure
   | AssemblyUnknown
+
+/** Revision comparison uses source-owned evidence and counters, never content hashes. */
+export type PreparedInputKey = Readonly<{
+  identity: Omit<AssemblyInput<unknown>['identity'], 'access'>
+  history: HistoryEvidence
+  inputs: AssemblyInput<unknown>['inputs']
+  context: Readonly<{
+    source: DurableEvidence
+    coverage: DurableEvidence
+    snapshot: Pick<SnapshotMaterial, 'scope' | 'eligibility' | 'revision'> | null
+  }>
+  prompt: Readonly<{ digest: string; generation: string | null }>
+  assembly: AssemblyContext
+  model: Readonly<{
+    evidence: DurableEvidence
+    toolsEvidence: DurableEvidence
+    adoption: Adoption
+    revision: M.Revision
+    recipient: SelectedModel['recipient']
+    parameters: readonly M.ParameterAdoption[]
+    replay: 'on' | 'off'
+  }>
+  tools: readonly Readonly<{
+    resident: boolean
+    definition: Adoption
+    binding: Adoption
+  }>[]
+  conditions: ConditionsEvidence
+  alterations: readonly AlterationEvidence[]
+  beforeModelCall: readonly PassageRef[] | null
+}>
+export type DeriveInput = Readonly<{
+  plan: CompactionPlan
+  progress: PlanProgress
+  step: StepInput
+  material: SummaryMaterial | null
+  selection: SelectedModel
+}>
+
+export type ToolRoute = Readonly<{
+  declared: string
+  tool: Adoption
+  binding: Adoption
+  command: string | null
+}>
+export type ToolDeclarationSet = Readonly<{
+  direct: readonly M.ToolDeclaration[]
+  programmatic: readonly M.ToolDeclaration[]
+  routes: readonly ToolRoute[]
+  digest: string
+}>
+
+export type HistoryRow = Readonly<{
+  seq: number
+  entry: RecordEntryRef
+  message: Message
+  bytes: string
+  /** 前缀摘要：上一行摘要与本行摘要的链式散列（H3）。 */
+  prefixDigest: string
+}>
+
+export type ProjectedMessage = Readonly<{
+  seq: number
+  entry: RecordEntryRef
+  prefixDigest: string
+  message: Message
+  dropped: readonly BlockId[]
+}>
+export type ProjectedHistory = Readonly<{
+  epoch: EpochId
+  messages: readonly ProjectedMessage[]
+  compaction: Readonly<{ seq: number; entry: RecordEntryRef }> | null
+}>
+
+export type ConversionIndex = ReadonlyMap<BlockId, M.ConversionResult>
