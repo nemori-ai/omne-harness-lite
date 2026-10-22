@@ -12,7 +12,8 @@
 4. pi-ai-transport 的根入口已导出三段传输的工厂 `createPiTransport`（一个 `ModelTransport`）、网络资源的工厂 `createNetworkResources`（含可选的 HTTPS 代理）与五个家族贡献接口类型。装配创建并拥有网络资源，再把它交给 `createPiTransport`。包内已实现连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。根入口还导出家族表（`defineFamily`、`composeFamilies`、`recordAdoption`、`replayFormatsOf`），它把精确采用解析到家族包的记录。子入口 `./chat-completions` 导出网关引擎 `bindChatCompletions`，请求规划、编码与流解码已实现；子入口 `./testing` 导出家族包测试用的夹具检查与采用指纹。持续验证只用本地 HTTPS 服务、本地 CONNECT 代理、测试家族与测试记录；符合性套件 transport 组的六条义务对真实传输通过。经真实代理到 OpenRouter 的请求只有手动运行的 `test:live` 证据。真实家族 pi-ai-openai 见第 6 项，它与本传输经真实交换的联调尚未进行；Model 发送路径与本传输的组合尚未实现。
 5. tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与资源类型 `TiktokenRanks`、`TiktokenResources`。初始化核对实现版本、词表摘要与配置摘要，任一不符返回 `unavailable`；`count` 是纯计算。验证使用 o200k 与一份合成词表，构建产物在子进程中的计数与源码一致。局限：`claude.json` 的验证随 pi-ai-anthropic 进行。
 6. pi-ai-openai 的根入口已导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条 OpenAI 记录。家族经 `composeFamilies` 交给 pi-ai-transport，绑定经网关引擎形成；计量用 o200k 代理估算与三条图片补丁规则。验证只在快层：记录、指纹、取得、规则、计量、官方档案、封存 SSE 用例的回放夹具与跨家族回放的 OpenAI 一侧。推理强度按各型号公布的集合原样写出，含 `none` 与 `max`。解码器在已收场的响应结束时给出账目报告与诊断事实。局限：在结束之前失败的流没有账目；经真实传输的联调、示例与真实路由尚未进行。
-7. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。OpenAI 实现线只交付三个新成员，延期条件见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
+7. pi-ai-anthropic 的根入口已导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条 Anthropic 记录。家族经 `composeFamilies` 交给 pi-ai-transport，绑定经网关引擎形成；计量用 `claude.json` 估算与 28 像素块图片规则，`claude.json` 随包发布并在读取时核对 SHA-256。验证只在快层：记录、指纹、取得、规则、计量、词表资源、官方档案、封存 SSE 用例的回放夹具，以及跨家族回放的 Anthropic 一侧与签名前缀的降级。局限：推理强度 `none` 不受支持；经真实传输的联调、示例与真实路由尚未进行。
+8. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。OpenAI 实现线只交付三个新成员，延期条件见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
 
 ## 成员与依赖
 
@@ -24,6 +25,7 @@
 | model-host-local | 目前只实现本地凭据保管（文件保管库与 `LocalCredentialPlugin`）；时钟、实例调度、目录装载的设计已接受，尚未实现 | [成员入口](model-host-local/README_ZH.md)、[行为规格](model-host-local/SPEC.md) |
 | pi-ai-transport | 根入口导出三段传输的工厂 `createPiTransport`、网络资源的工厂 `createNetworkResources`（含可选的 HTTPS 代理）与五个家族贡献接口类型；连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现，不经入口导出；根入口导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；传输本身只经测试家族与测试记录验证；pi-ai-openai 经家族表与网关引擎形成绑定，尚未经真实交换联调 | [成员入口](pi-ai-transport/README_ZH.md)、[行为规格](pi-ai-transport/SPEC.md) |
 | pi-ai-openai | 根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；规则、计量与回放夹具只经快层验证，尚无装配消费与真实传输联调 | [成员入口](pi-ai-openai/README_ZH.md)、[行为规格](pi-ai-openai/SPEC.md) |
+| pi-ai-anthropic | 根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；规则、计量与回放夹具只经快层验证，尚无装配消费与真实传输联调 | [成员入口](pi-ai-anthropic/README_ZH.md)、[行为规格](pi-ai-anthropic/SPEC.md) |
 | tokenizer-tiktoken | 根入口导出 `createTiktokenTokenizer` 与两个资源类型；初始化时核对家族传入的词表与配置，`count` 是纯计算；不收录厂商词表；pi-ai-openai 传入 o200k 秩数据 | [成员入口](tokenizer-tiktoken/README_ZH.md)、[行为规格](tokenizer-tiktoken/SPEC.md) |
 
 目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员已有源码与测试，文档已落位；model 保留可复用实现设计并暂存宿主装配设计；model-host-local 已承接本地凭据保管，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。

@@ -1,13 +1,19 @@
 # tests 索引
 
-<!-- documentation:placeholder -->
-
 本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
-
-- [README.md](README.md)：测试范围、真实依赖与替身
-- [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试
-- [fixtures/](fixtures/index.md)：测试固定输入
+- [README.md](README.md)：测试分层、替身与未迁入的封存测试
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口的运行时导出
+- [records.spec.ts](records.spec.ts)：记录的迁入事实、线数据与纯度
+- [adoptions.spec.ts](adoptions.spec.ts)：采用指纹
+- [family.spec.ts](family.spec.ts)：家族配置与取得
+- [plan.spec.ts](plan.spec.ts)：参数规划与请求体
+- [rules.spec.ts](rules.spec.ts)：四个 hook 的规则
+- [meter.spec.ts](meter.spec.ts)：图片规则、词表资源与计量
+- [profiles.spec.ts](profiles.spec.ts)：官方档案与往返
+- [fixtures.spec.ts](fixtures.spec.ts)：回放夹具
+- [cross-family-replay.spec.ts](cross-family-replay.spec.ts)：跨家族回放的 Anthropic 一侧与前缀降级
+- `support/`：测试配置、构造函数、夹具用例表与两个脚本
+- [fixtures/](fixtures/README.md)：指纹与回放夹具

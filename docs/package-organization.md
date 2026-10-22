@@ -187,7 +187,7 @@ scripts/                       仓库自动化
 <a id="模型组的成员与采用范围"></a>
 ### 模型组的成员与采用范围
 
-`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local、pi-ai-transport、pi-ai-openai 与 tokenizer-tiktoken 已是 workspace 成员，并按下表职责拥有文档。其中 model-contract、model-cordis-contract、model 与 model-host-local 的设计已接受。pi-ai-transport 与 tokenizer-tiktoken 的设计状态见下表「设计状态」。各成员的源码状态见下表「初始化状态」。pi-ai-openai 以外的厂商家族成员及 tokenizer-huggingface 尚未初始化。不保留聚合全部实现的安装门面。
+`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local、pi-ai-transport、pi-ai-openai、pi-ai-anthropic 与 tokenizer-tiktoken 已是 workspace 成员，并按下表职责拥有文档。其中 model-contract、model-cordis-contract、model 与 model-host-local 的设计已接受。pi-ai-transport 与 tokenizer-tiktoken 的设计状态见下表「设计状态」。各成员的源码状态见下表「初始化状态」。pi-ai-openai 与 pi-ai-anthropic 以外的厂商家族成员及 tokenizer-huggingface 尚未初始化。不保留聚合全部实现的安装门面。
 
 | 成员，位于 packages/model 下 | 包边界 | 设计状态 | 初始化状态 |
 | --- | --- | --- | --- |
@@ -197,7 +197,8 @@ scripts/                       仓库自动化
 | model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
 | pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；根入口导出家族贡献接口类型、`createPiTransport` 与 `createNetworkResources`；ModelTransport 三段语义已实现，媒体读取与家族实现未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md) |
 | pi-ai-openai | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录，只经快层验证，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md) |
-| pi-ai-anthropic、pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
+| pi-ai-anthropic | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录，只经快层验证，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
+| pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
 | tokenizer-tiktoken | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md) |
 | tokenizer-huggingface | 封装 Hugging Face 分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | 未初始化 |
 

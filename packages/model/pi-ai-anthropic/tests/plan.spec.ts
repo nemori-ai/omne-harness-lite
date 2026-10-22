@@ -126,7 +126,7 @@ describe('parameters', () => {
 })
 
 describe('the 1h cache marker', () => {
-  // Sealed anthropic-cache-target.spec.ts:83-90: text mixed with images keeps the text target.
+  // Sealed anthropic-cache-target.spec.ts:83-89: text mixed with images keeps the text target.
   it('marks the last text part of the last message, with text mixed with images', async () => {
     const body = await bodyOf(SONNET, {
       messages: [message('u1', 'user', [textBlock('b1', 'question'), imageBlock('i1')])],
@@ -170,7 +170,7 @@ describe('the 1h cache marker', () => {
     expect(text.split('cache_control')).toHaveLength(2)
   })
 
-  // Sealed anthropic-cache-target.spec.ts:97-102 and migration L02: no place is a refusal.
+  // Migration L02: a last message without a place for the marker is a refusal.
   it('refuses a request whose last message has no text and is not a user image message', async () => {
     expect(
       await encode(SONNET, {

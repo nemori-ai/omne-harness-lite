@@ -1,50 +1,92 @@
 # @omne-harness/pi-ai-anthropic
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-Draft module package.
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+This member is the Anthropic family of the pi transport. It gives the Anthropic model records, the rules of the four engine hooks, the input meter, the `claude.json` vocabulary resource and the official profiles. The shared transport gets the family through `composeFamilies`. All models go through OpenRouter. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [the pi family contribution protocol](../docs/architecture.md#pi-家族贡献的取得协议).
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+The planned consumers are the release assembly (official profiles and `composeFamilies`) and the request and cross-family examples of this package. No assembly consumes this package yet.
+
+### Support levels
+
+Each level states only checked facts. A commit that changes the support level updates this table, the Chinese README, [SPEC](SPEC.md) and the group page.
+
+| Level | Delivered | Entry | Verification |
+| --- | --- | --- | --- |
+| Public entry exported | `createAnthropicFamily`, `officialAnthropicProfiles`, `anthropicTokenizerResources`, `TokenizerResourceError`, `ANTHROPIC_RECORDS`, `ANTHROPIC_OWNER` and their types | Root entry | `public-entry.spec.ts` |
+| Records | 4 current records at revision 1, migrated from the sealed official definitions. Pure data with committed fingerprints | `ANTHROPIC_RECORDS` | `records.spec.ts`, `adoptions.spec.ts` |
+| Acquire and binding | One acquire gives one binding for the exact supplier. An unknown adoption, a wrong route, a mismatched tokenizer and a cancelled acquire fail as a whole | `createAnthropicFamily` with `composeFamilies` | `family.spec.ts` |
+| Parameters and request body | Output limit, stop sequences and the reasoning efforts `low`, `medium`, `high` and `max`, written as themselves. `none` and every other parameter are `unsupported` before sending. The 1h cache marker goes on the last message. Without a place for it, the result is `unsupported` | `binding.rules.plan`, `binding.encode` | `plan.spec.ts` |
+| Rules | Seal and replay of the whole signed reasoning group. Thinking without a signed group is `unsupported`. Usage arithmetic with cache reads and writes and a `usage-inconsistent` diagnostic. Object-root tool schema | `src/rules.ts` | `rules.spec.ts` |
+| Meter | Estimate of the NFKC JSON of the visible projection with `claude.json` and the configured margin. The 28-pixel patch rule from pixel facts. No estimate for a request that carries a signed group | `binding.meter` | `meter.spec.ts` |
+| Vocabulary resource | Reads the published `claude.json` and checks its SHA-256. Counts through tokenizer-tiktoken equal the independent reference. Special-token text counts as ordinary text | `anthropicTokenizerResources` | `meter.spec.ts` |
+| Official profiles | One profile per current record. Each profile supplier acquires a binding and plans a request | `officialAnthropicProfiles` | `profiles.spec.ts` |
+| Replay fixtures | The inline SSE cases of the sealed tests, as contract facts with the account of each finished response, with intended differences listed | `tests/fixtures` | `fixtures.spec.ts` |
+| Cross-family replay, Anthropic side | A foreign assistant message loses its state and thinking and is named in a `replay-omitted` diagnostic of encode. An Anthropic message keeps its signed group. `claude-opus-5.5` and `claude-fable-5.1` turn reasoning off when the last tool turn is foreign, with a `reasoning-disabled` diagnostic | `binding.rules.plan`, `binding.encode` | `cross-family-replay.spec.ts` |
+| Not delivered | The account of a stream that fails before its end. Real transport with a local HTTPS server, the conformance suite, examples and real routes | None | No evidence for these paths |
 
 ## Usage
 
-<!-- documentation:placeholder -->
+The assembly reads the vocabulary resource once, creates the family once and gives it to the transport:
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+```ts
+import { composeFamilies, createPiTransport } from '@omne-harness/pi-ai-transport'
+import {
+  anthropicTokenizerResources,
+  createAnthropicFamily,
+  officialAnthropicProfiles,
+} from '@omne-harness/pi-ai-anthropic'
+
+const anthropic = createAnthropicFamily({
+  tokenizer: anthropicTokenizerResources(), // reads and checks claude.json
+  limits, // ChatCompletionsLimits: decoder buffer limits
+  margin: { percent: '20', source: marginPolicy }, // the margin of every estimate
+})
+const families = composeFamilies([anthropic])
+const profiles = officialAnthropicProfiles({ retryPolicy, compactionTriggerPercent: '80' })
+```
+
+`createAnthropicFamily` only computes. The first `acquire` initializes the tokenizer. The family shares the tokenizer between its bindings. The tokenizer holds nothing to release. This package has no Cordis entry. [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
 
 ## Contracts
 
-<!-- documentation:placeholder -->
-
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The [behavior specification](SPEC.md) owns the records, the rules, the meter, the vocabulary resource, the official profiles and the acquire. [pi-ai-transport](../pi-ai-transport/SPEC.md) owns the family table, the gateway engine and the fixture check. [model-contract](../model-contract/SPEC.md) owns the profile, replay and meter types and rules. [Public API](docs/public-api.md) indexes the public entry.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+`records.ts` holds the data. `rules.ts` and `images.ts` hold the revisioned rule tables. `meter.ts` writes the token input and measures. `tokenizer.ts` reads and checks the vocabulary file. `family.ts` binds through the engine. `profiles.ts` derives the official profiles. [Internal architecture](docs/architecture.md) explains modules, mechanisms and reasons. [Key flows](docs/flows.md) and [object model](docs/object-model.md) give the rest.
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
+The package has no defaults. All input is the argument of `createAnthropicFamily` and `officialAnthropicProfiles`:
 
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+- `tokenizer`: the tokenizer resources. Use `anthropicTokenizerResources()`. Their definition must equal the definition that the records name.
+- `limits`: the decoder buffer limits of every binding.
+- `margin`: the margin percent of every estimate and the adoption of that margin policy.
+- `retryPolicy` and `compactionTriggerPercent`: the Model retry policy and the profile compaction trigger.
+
+`anthropicTokenizerResources` reads the published `resources/tokenizers/anthropic-legacy/claude.json`, about 680 KiB. The rest of the package reads no environment, file or network. Node.js 24 or later is necessary.
 
 ## Verification
 
-<!-- documentation:placeholder -->
+Run these commands at the repository root. The package engines require Node.js >=24. The pnpm version is 10.28.1.
 
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+```sh
+pnpm turbo run typecheck test:fast --filter=@omne-harness/pi-ai-anthropic
+pnpm turbo run test --filter=@omne-harness/pi-ai-anthropic
+pnpm run lint:deps
+pnpm run check:docs
+```
+
+Turbo builds this package and its dependencies before the tests. After a change of the fixture table, build the package, then run `pnpm --filter @omne-harness/pi-ai-anthropic run fixtures`. After a new record, build the package, then run `pnpm --filter @omne-harness/pi-ai-anthropic run fingerprints`. Both scripts load the package from `dist`. [Tests](tests/README.md) describes the tiers and the sealed tests that are not ported. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+- A new model is a new record, a fingerprint line and a fixture. A changed model is a new revision. Never change a record in place.
+- A changed rule is a new rule name. The records that use it get a new revision.
+- An upgrade of js-tiktoken or a new `claude.json` changes the tokenizer definition of every record. Add new revisions. Update the digest in `src/tokenizer.ts` and the source record of the resource directory.
+- A change to the support level updates this table, the Chinese README, the [group page](../README.md) and [package organization](../../../docs/package-organization.md).
 
 ## Directory structure and documentation roles
 
@@ -52,6 +94,7 @@ Identify consumers and checks that must change with public contracts, resources,
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
 SPEC.md                   Behavior beyond the public types
+provenance.json           Sources of the migrated data
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, state and resource ownership, mechanisms
@@ -66,7 +109,7 @@ schema/                   External schemas
 verification/             models/ and proofs/
 adr/                      Implementation decisions with continuing consumers
 examples/                 Examples against the public entry
-resources/                Non-source runtime resources
+resources/                Non-source runtime resources: claude.json, its license and source
 acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
