@@ -191,13 +191,14 @@ function createPrepared(
       )
       phase = { kind: 'materializing', binding: current.binding, settled }
       const outcome = await running
-      // A close that started meanwhile waits for `settled` and closes the child itself.
-      if (phase.kind === 'materializing')
-        phase = {
-          kind: 'materialized',
-          binding: current.binding,
-          child: 'ok' in outcome ? outcome.ok : null,
-        }
+      // A close that started meanwhile owns the child: it waits for `settled` and closes the
+      // child itself. The caller never gets a materialization that the close owns.
+      if (phase.kind !== 'materializing') return { failure: PREPARED_CLOSED }
+      phase = {
+        kind: 'materialized',
+        binding: current.binding,
+        child: 'ok' in outcome ? outcome.ok : null,
+      }
       return outcome
     },
     close,

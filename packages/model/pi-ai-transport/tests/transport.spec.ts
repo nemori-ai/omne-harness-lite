@@ -3,6 +3,13 @@ import type { PiTransportConfig } from '../src/index.ts'
 import { createNetworkResources, type NetworkResources } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
 import { createTestFamily, END_MARKER, LIMITS, REQUEST, SUPPLIER } from './support/test-family.ts'
+import { collect, countSends, slotFree } from './support/transport.ts'
+
+const PREPARED_CLOSED_FAILURE = {
+  kind: 'unavailable',
+  dependency: 'pi-transport',
+  diagnostic: 'prepared-closed',
+} as const
 
 // Nothing listens here; the fast tests never start an exchange.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
@@ -130,6 +137,38 @@ describe('prepare', () => {
       failure: { kind: 'unavailable', dependency: 'pi-transport' },
     })
   })
+})
+
+describe('closing a prepared transport while it materializes', () => {
+  // With the test family, materialize returns after three microtasks. A close in that window
+  // must win: the caller gets unavailable. A later close finds a materialization that was
+  // already handed out and closes it: its start sends nothing and ends interrupted.
+  it.each([0, 1, 2, 3, 4])(
+    'a close that starts %i microtasks after materialize never lets a send out',
+    async gap => {
+      const network = freshNetwork()
+      const sends = countSends(network)
+      const { transport, probe } = build({ network })
+      const prepared = await transport.prepare(REQUEST, SUPPLIER)
+      if (!('ok' in prepared)) throw new Error('expected a prepared transport')
+      const pending = prepared.ok.materialize(new AbortController().signal)
+      for (let turn = 0; turn < gap; turn += 1) await null
+      const closed = prepared.ok.close()
+      const outcome = await pending
+      const facts =
+        'ok' in outcome ? await collect(outcome.ok.start(new AbortController().signal)) : []
+      await closed
+      if (gap <= 2) expect(outcome).toEqual({ failure: PREPARED_CLOSED_FAILURE })
+      if ('ok' in outcome)
+        expect(facts).toEqual([
+          { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
+        ])
+      else expect(outcome).toEqual({ failure: PREPARED_CLOSED_FAILURE })
+      expect(sends()).toBe(0)
+      expect(await slotFree(network)).toBe(true)
+      expect(probe.released).toBe(1)
+    },
+  )
 })
 
 describe('closing the transport', () => {
