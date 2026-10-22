@@ -7,6 +7,9 @@
 ```mermaid
 classDiagram
   class NetworkResources {
+    close()
+  }
+  class NetworkInternals {
     capacity
     agent
     tls
@@ -42,10 +45,11 @@ classDiagram
   class Agent {
     <<Node>>
   }
-  NetworkResources *-- ConnectionCapacity
-  NetworkResources *-- Agent
-  NetworkResources *-- IsolatedDiagnostics
-  NetworkResources o-- HttpExchange : 在途登记
+  NetworkResources ..> NetworkInternals : WeakMap
+  NetworkInternals *-- ConnectionCapacity
+  NetworkInternals *-- Agent
+  NetworkInternals *-- IsolatedDiagnostics
+  NetworkInternals o-- HttpExchange : 在途登记
   ConnectionCapacity ..> ConnectionReservation : 授予
   ConnectionReservation ..> ConsumedSeat : consume() 返回
   HttpExchange --> ConsumedSeat : 持有至物理关闭
@@ -83,7 +87,7 @@ stateDiagram-v2
   released --> [*]
 ```
 
-- 网络资源：调用方用 `createNetworkResources` 创建，用 `close()` 结束。`close()` 结束容量、在途交换与连接池。连接池是 `PoolAgent`。配置了代理时，它经代理建立连接，并在交换停止时结束为该交换建立中的连接。
+- 网络资源：调用方用 `createNetworkResources` 创建，用 `close()` 结束。调用方得到的 `NetworkResources` 是只有 `close()` 的不透明句柄。包内资源 `NetworkInternals` 由 network.ts 的 `openNetwork` 创建，句柄经模块级 `WeakMap` 指向它。`close()` 结束容量、在途交换与连接池。连接池是 `PoolAgent`。配置了代理时，它经代理建立连接，并在交换停止时结束为该交换建立中的连接。
 - 容量：随网络资源创建，随网络资源关闭。关闭之后不再授予预约，已授予的预约仍可消费和归还。
 - 预约：容量授予时创建。持有者负责归还它，或把它交给一次交换。预约不过期。
 - 座位：`consume()` 时创建，归消费它的交换所有。交换物理关闭时归还名额。

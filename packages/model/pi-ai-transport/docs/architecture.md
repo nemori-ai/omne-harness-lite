@@ -63,7 +63,7 @@ flowchart LR
   network -. 类型 .-> http
 ```
 
-依赖方向只从组合者指向机制。三段传输是最上层的组合者，它不创建网络资源、家族绑定或凭据，它们由构造参数注入。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只从 pool-agent.ts 取得建连取消信号的选项键。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
+依赖方向只从组合者指向机制。三段传输是最上层的组合者，它不创建网络资源、家族绑定或凭据，它们由构造参数注入。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只从 pool-agent.ts 取得建连取消信号的选项键。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。根入口的 `NetworkResources` 是不透明句柄，只有 `close()`。network.ts 用模块级 `WeakMap` 从句柄找到包内资源，`createPiTransport` 经它取回资源。所以包外代码不能取得连接池、在途登记或容量，也不能用结构相同的对象冒充网络资源。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
 
 运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
 
@@ -223,6 +223,10 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 
 materialize 只有一个 await：预约名额。预约之后的扫描、编码、序列化与摘要都是同步的。所以 prepared 的 close 只需要等待这一次 materialize 结束，再关闭它交出的 materialized。
 
+prepared 的 close 在 `materializing` 相位开始时，materialize 得到的 materialized 归 close 所有。materialize 恢复时看到相位已不是 `materializing`，就返回 `prepared-closed`，不把 materialized 交给调用方。所以调用方拿到的 materialized 都在 close 开始之前交出。
+
+关闭之后的 start 不发送，流只给出 `interrupted`。materialized 的 close、prepared 的 close 与外层 close 都经 materialized 的 `closed` 相位到达 start，结果与网络资源关闭之后的 start 相同。Model 的发送方把没有 `ended` 的空流记为传输丢失，所以只有同一 materialized 的第二次 start 返回空流：那是用法错误，第一次 start 已给出唯一的 `ended`。
+
 ### start 的同步围栏
 
 start 是同步函数。凭据槽在 start 的同步调用中读取一次：Model 的发送资源只在同步调用 start 期间把秘密放进私有槽，返回前清空。秘密只写入交给 `startExchange` 的请求头对象，不保存在传输的任何字段中。
@@ -235,7 +239,9 @@ start 是同步函数。凭据槽在 start 的同步调用中读取一次：Mode
 
 fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族解码器的输出归约为 termination.ts 的 `SendEnd`，再由纯函数 `terminationOf` 映射为终止。映射与读取分开，所以映射表可以逐行做快层测试。
 
-家族解码器可能先给出 `ended`，再给出用量等尾部事实（组架构“finish 后的 usage 尾帧”）。事实流保留解码器的 `ended`，在响应体结束、解码器 `end()` 成功之后才给出，所以它总是最后一个事实。响应体没有正常结束时，终止取那次失败，不取已保留的 `ended`。
+家族解码器可能先给出 `ended`，再给出用量等尾部事实（组架构“finish 后的 usage 尾帧”）。事实流保留解码器的 `ended`，在协议结束、解码器 `end()` 成功之后才给出，所以它总是最后一个事实。协议在响应体结束之前失败时，终止取那次失败，不取已保留的 `ended`。
+
+路由的 `endMarker` 不是 `null` 时，end-marker 帧就是协议的结束。供应商可能在 end-marker 之后不结束响应，所以事实流不等待响应体结束。Node 已收到完整响应体时（`IncomingMessage.complete`），事实流读完剩余字节而不解码，连接回到连接池。其他情况下，事实流停止交换。`endMarker` 为 `null` 时，响应体结束才是协议的结束。
 
 事实流在给出 `ended` 之前等待交换物理停止。响应体读到末尾时，交换自行关闭，连接可以回到连接池复用。只有响应体没有读完时，事实流才调用 `stop()`。
 
@@ -293,4 +299,4 @@ fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族�
 - 改变失败映射：同步 termination.ts、SPEC“事实流”的表与 termination.spec.ts。
 - 改变 sse.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
 - 增加运行依赖：先核对组架构的依赖方向，再更新 dependencies.spec.ts 的允许集合。
-- 套件的 transport 组现在是更高的测试接缝（[conformance.spec.ts](../tests/conformance.spec.ts)）。本包的网络接缝用例可以随之收敛。
+- 套件的 transport 组（[conformance.spec.ts](../tests/conformance.spec.ts)）是比本包网络接缝用例更高的测试接缝。本包的网络接缝用例可以随之收敛。

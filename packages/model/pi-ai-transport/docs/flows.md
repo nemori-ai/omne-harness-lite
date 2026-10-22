@@ -30,15 +30,23 @@ sequenceDiagram
     T-->>Model: materialized，回执固定
   end
   Model->>T: materialized.start(signal)（同步）
-  T->>T: 读取凭据槽一次
-  alt 已中止或没有凭据
+  alt 已关闭（materialized、prepared 或外层）
+    T-->>Model: 只含 interrupted 的流，不读凭据
+  else 信号已中止或网络资源已关闭
     T->>Cap: 归还名额
-    T-->>Model: 只含终止的流
+    T-->>Model: 只含 interrupted 的流，不读凭据
   else
-    T->>Ex: startExchange（同步发出）
-    T-->>Model: 事实流
-    Ex-->>T: 结果与响应体
-    T-->>Model: 解码器的事实，交换物理停止后给出唯一的 ended
+    T->>T: 读取凭据槽一次
+    alt 没有凭据
+      T->>Cap: 归还名额
+      T-->>Model: 只含 credential 失败的流
+    else
+      T->>Ex: startExchange（同步发出）
+      T-->>Model: 事实流
+      Ex-->>T: 结果与响应体
+      T-->>Model: 解码器的事实，到 end-marker 或响应体结束为止
+      T-->>Model: 交换物理停止后给出唯一的 ended
+    end
   end
   Model->>T: materialized.close()，再 prepared.close()
   T->>F: binding.release()

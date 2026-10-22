@@ -4,10 +4,10 @@
 
 ## 范围与依据
 
-本包当前交付四部分：
+本包交付四部分：
 
 1. 根入口导出的三段传输：工厂 `createPiTransport` 与配置类型 `PiTransportConfig`、`PiRoute`、`PiCredentialSlot`、`PiTransportLimits`。工厂返回的 `ModelTransport` 兑现 `prepare → materialize → start`。
-2. 根入口导出的网络资源：工厂 `createNetworkResources` 与类型 `NetworkConfig`、`NetworkResources`、`ProxyConfig`、`DiagnosticObserver`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。行为见[“网络资源”](#网络资源)与[“代理”](#代理)。
+2. 根入口导出的网络资源：工厂 `createNetworkResources` 与类型 `NetworkConfig`、`NetworkResources`、`ProxyConfig`、`DiagnosticObserver`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。`NetworkResources` 是不透明句柄，包外只能调用它的 `close()`。行为见[“网络资源”](#网络资源)与[“代理”](#代理)。
 3. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
 4. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。这些机制不经根入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即网络资源与三段传输。
 
@@ -46,7 +46,8 @@
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
 - `maxErrorBodyBytes`、`maxEventBytes` 或 `json` 的任一限额不是正的安全整数；
-- `network`、`families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数。
+- `families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数；
+- `network` 不是 `createNetworkResources` 返回的句柄，含结构相同的其他对象。
 
 #### prepare
 
@@ -69,26 +70,35 @@
 6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。回执冻结，重复读取得到同一个对象。
 
 - 第 1 步之后的任何失败，含抛出的异常，都先归还名额，再返回或抛出。
-- 同一 prepared 只能 materialize 一次。第二次调用返回 `invalid`（`field` 为 `materialize`，`reason` 为 `repeated`），不预约容量。prepared 关闭之后调用，返回 `unavailable`。
+- 同一 prepared 只能 materialize 一次。第二次调用返回 `invalid`（`field` 为 `materialize`，`reason` 为 `repeated`），不预约容量。prepared 关闭之后调用，返回 `unavailable`（`dependency` 为 `pi-transport`，`diagnostic` 为 `prepared-closed`）。
+- materialize 进行中 prepared 开始关闭时，materialize 返回同一个 `unavailable`，不交出 materialized。物化成功时，该 materialized 归关闭所有，由关闭归还名额。
 - 成功时，materialized 持有名额与编码后的字节，直到 start 消费名额或 close 归还名额。
 
 #### start
 
 `start(signal)` 是同步函数。它返回事实流之前，已经决定是否发送：
 
-1. `signal` 已中止时，本包不发送，归还名额。流只给出 `interrupted`（`stop: 'confirmed'`）。
+1. `signal` 已中止，或网络资源已开始关闭时，本包不读凭据，不发送，归还名额。流只给出 `interrupted`（`stop: 'confirmed'`）。所以网络资源关闭先于缺少凭据：两者同时成立时，流给出 `interrupted`。
 2. 本包调用 `credential.read()` 一次。返回 `undefined` 时，本包不发送，归还名额。流只给出 `failed`，`cause` 为 `credential`，`upstreamStatus` 为 `null`，`diagnostic` 为 `credential-not-provided`。`start` 不抛出。
 3. 本包组装请求头：`authorization: Bearer <凭据>`、`content-type: application/json`、`accept: text/event-stream`，然后调用 `startExchange`。`start` 返回时，请求已经交给 Node 并已调用 `end(body)`。
 4. `startExchange` 拒绝时，名额已归还，本包不发送。`cancelled` 与 `resources-closed` 给出 `interrupted`（`stop: 'confirmed'`）。`invalid-header` 只能来自凭据，给出 `failed`，`cause` 为 `credential`，`diagnostic` 为 `credential-not-a-header-value`。其他拒绝原因是本包的缺陷，`start` 抛出 `Error`。
 
-- 同一 materialized 只能 start 一次。第二次调用返回立即结束的空流，不读凭据，不发送。close 之后调用 start 也返回空流。
+- 同一 materialized 只能 start 一次。第二次调用返回立即结束的空流，不读凭据，不发送。
+- materialized 的 `close()`、派生它的 prepared 的 `close()` 或外层 `close()` 之后调用 start，本包不读凭据，不发送。流只给出 `interrupted`（`stop: 'confirmed'`），与网络资源关闭之后的 start 相同。
 - 秘密只在 `start` 的同步调用中经过本包。本包不保存它，不把它写入事实、诊断或异常消息。凭据槽中的秘密与 `supplier.credential` 的对应关系由调用方保证。
 
 #### 事实流
 
 发送之后，事实流按下列顺序处理响应：SSE 分帧，协议帧（end-marker 取路由的 `endMarker`，JSON 限额取 `limits.json`），家族解码器。流以恰好一个 `ended` 结束，`ended` 之后没有事实。
 
-- 解码器给出的 `ended` 由本包保留，到响应体结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
+读取在协议结束时停止。协议结束的时刻按路由的 `endMarker` 确定：
+
+- `endMarker` 不是 `null`：end-marker 帧交给解码器之后，协议结束。本包不等待响应体结束，不解码 end-marker 之后的字节或事件。Node 已收到完整响应体，且 end-marker 之后没有事件时，本包读完剩余字节而不解码，连接留在连接池中。其他情况下，本包停止交换。
+- `endMarker` 是 `null`，或响应体在 end-marker 之前结束：响应体结束时，协议结束。
+
+协议结束之后，本包调用解码器的 `end()`，给出它的事实，再给出 `ended`。
+
+- 解码器给出的 `ended` 由本包保留，到协议结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
 - 解码器给出第二个 `ended` 时，流以 `failed` 结束，`cause` 为 `upstream-protocol`，`diagnostic` 为 `decoder-ended-twice`。
 - 流给出 `ended` 之前，交换已物理停止，名额已归还。
 
@@ -96,7 +106,7 @@
 
 | 交换的结果 | 终止 | `diagnostic` |
 | --- | --- | --- |
-| 2xx，响应体正常结束，解码器 `end()` 成功并给出过 `ended` | 解码器的 `ended` | 解码器给出 |
+| 2xx，协议结束（end-marker 到达，或没有 end-marker 时响应体正常结束），解码器 `end()` 成功并给出过 `ended` | 解码器的 `ended` | 解码器给出 |
 | 同上，但解码器没有给出 `ended` | `failed`，`upstream-protocol` | `no-termination` |
 | HTTP 401、403 | `failed`，`credential`，带状态码 | `http-<状态码>` |
 | HTTP 429、5xx | `failed`，`upstream-unavailable`，带状态码 | `http-<状态码>` |
@@ -116,8 +126,8 @@
 #### 关闭
 
 - `materialized.close()`：未 start 时归还名额。已 start 时停止交换，并在交换物理停止之后完成。幂等，重复调用返回同一个 Promise。
-- `prepared.close()`：先结束仍在等待容量的 materialize（它返回 `unavailable`），再关闭由它派生的 materialized，然后释放家族绑定。幂等。
-- 外层 `close()`：先拒绝新的 prepare，中止在途的 acquire，再关闭本传输派生且仍打开的每个 prepared，等待它们的交换物理停止、家族绑定释放。它不关闭网络资源。幂等，重复调用返回同一个 Promise。
+- `prepared.close()`：先结束仍在进行的 materialize（它返回 `unavailable`），再关闭由它派生的 materialized，然后释放家族绑定。幂等。
+- 外层 `close()`：先拒绝新的 prepare，中止在途的 acquire，再关闭本传输派生且仍打开的每个 prepared，等待它们的交换物理停止、家族绑定释放。某个 prepared 的关闭失败时（例如家族的 `release()` 拒绝），外层 `close()` 仍等待其他 prepared 的关闭结束，再以第一个失败拒绝。它不关闭网络资源。幂等，重复调用返回同一个 Promise。
 - 装配在所有传输关闭之后关闭网络资源。网络资源先关闭时，等待中的 materialize 返回 `unavailable`（`network-closed`），之后的 start 给出 `interrupted`，在途交换以 `interrupted` 结束。
 
 ### 连接容量
@@ -320,12 +330,15 @@
 - 持有预约的调用方负责归还预约，或把它交给一次交换。
 - 认领 2xx 响应体的读者负责读完它，或停止交换。
 - 调用方在发起时把凭据放进请求头。本包不解析、保存或记录凭据。
+- 三段传输的调用方在调用 `start` 之前把本次发送的秘密写入凭据槽，在 `start` 返回之后立即清空凭据槽。凭据槽由所有发送共用，本包只在 `start` 的同步调用中读取它。秘密与 `supplier.credential` 的对应关系由调用方保证。
 
 ### 秘密与对外事实
 
 - 凭据由调用方在发起时放进请求头。本包只校验头部字符集，不解析、保存或记录凭据。
 - 响应头与错误体只在包内交给家族解释。本包不把它们写入任何对外事实或诊断。
-- 对外失败只由家族形成的安全诊断表达。
+- 对外失败的 `diagnostic` 是安全的短文本，不含秘密、URL、响应头或错误体。下列两方形成它：
+  - 本包形成交换、协议与凭据槽的诊断：`http-<状态码>`、`connect-failed`、`connect-timeout`、`response-body-lost`、`sse-<原因>`、`frame-<原因>`、`no-termination`、`decoder-ended-twice`、`credential-not-provided` 与 `credential-not-a-header-value`。materialize 与 prepare 的失败另用 `cancelled`、`network-closed`、`transport-closed` 与 `prepared-closed`。
+  - 家族形成解码器 fault 与家族返回的失败中的诊断。本包原样给出它们。
 - 家族实现者与同包调用代码必须遵守同一约束：原样的请求头、响应头与错误体不得写入对外事实或诊断。
 - 代理 URL 可能含凭据。本包按秘密对待它：抛出的消息、结果与诊断都不含它。Node 的隧道错误消息含代理地址，本包不传出这些消息，连接失败只表达为 `connect-failed`。
 
@@ -355,7 +368,10 @@
 ### 缺陷与异常
 
 - 四种结果、七种拒绝原因、三种错误体状态、两种响应体读取错误与 SSE、帧的失败原因覆盖 Node 契约内的全部情况。
-- 本包只在 Node 契约以外的情况下拒绝 `result` 或抛出异常：
+- 本包只在调用方违反配置规则，或在 Node 契约以外的情况下拒绝 `result` 或抛出异常：
+  - 配置不符合规则：`createPiTransport` 同步抛出 `RangeError`（规则见“构造”），`createNetworkResources` 同步抛出 `RangeError`（规则见“网络资源”）。
+  - `startExchange` 以 `invalid-url`、`invalid-body`、`invalid-limit` 或 `reservation-unusable` 拒绝一次已校验的发送：`start` 抛出 `Error`，名额已归还。这是本包的缺陷。
+  - 家族的 `createDecoder()` 或凭据槽的 `read()` 抛出：`start` 先归还名额，再原样抛出该异常。
   - `signal` 不是 `AbortSignal`：`startExchange` 抛出 `TypeError`，名额已归还。
   - 响应没有状态码，或错误体的块不是字节：`result` 拒绝。
   - 响应体的块不是字节：读者的迭代以普通的 `Error` 结束。
@@ -378,11 +394,11 @@
 
 | 义务 | 测试 | 层 |
 | --- | --- | --- |
-| 构造的配置校验、prepare 的路由查找与家族绑定、prepared 与外层的关闭 | [transport.spec.ts](tests/transport.spec.ts) | 快 |
+| 构造的配置校验（含不是句柄的 `network`）、prepare 的路由查找与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时等待全部关闭） | [transport.spec.ts](tests/transport.spec.ts) | 快 |
 | materialize：回执、交给家族的输入、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
-| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭、重复 start、close 之后的 start、凭据只在同步调用中读取一次 | [start.spec.ts](tests/start.spec.ts) | 快 |
+| 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、重复 start、三种关闭之后的 start、凭据只在同步调用中读取一次 | [start.spec.ts](tests/start.spec.ts) | 快 |
 | 失败映射表的每一行 | [termination.spec.ts](tests/termination.spec.ts) | 快 |
-| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、解码器的终止排在最后、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
+| 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
 | model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
@@ -396,7 +412,8 @@
 | 代理配置校验与 Node 版本守卫，含构造时任何消息都不含 URL（URL 含换行、回车或制表符时也不报错） | [proxy-config.spec.ts](tests/proxy-config.spec.ts) | 快 |
 | 经代理的交换：隧道成功、直连项、大写协议与前导空白的 URL 仍经代理、拒绝后重置不崩溃、代理不可达、代理未回复即关闭、CONNECT 与隧道内 TLS 的连接超时、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断 | [proxy.spec.ts](tests/proxy.spec.ts) | 慢 |
 | 经真实代理到 OpenRouter 的一次流式请求读到 end-marker。只在 `OMNE_LIVE_TESTS=1` 时运行 | [live/openrouter.spec.ts](tests/live/openrouter.spec.ts) | 慢；未设开关时跳过 |
-| 根入口与类型形状 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
+| 根入口与类型形状，含网络资源是不透明句柄 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
+| 公开消费例与反例：只经根入口对本地 HTTPS 服务发送一次，内容引用得到 `unsupported` | [examples.spec.ts](tests/examples.spec.ts) 运行 [examples/local-send.ts](examples/local-send.ts) | 慢 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |
 
 未覆盖：

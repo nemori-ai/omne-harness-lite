@@ -69,12 +69,13 @@ await network.close()
 网络资源以外的传输机制不经入口导出，只能由同包代码使用。下例说明三段传输怎样组合它们，完整实现在 [materialized.ts](../src/materialized.ts) 与 [fact-stream.ts](../src/fact-stream.ts)。例中的数值是示意的初值，本包不设默认值：
 
 ```ts
-import { createNetworkResources } from './network.ts'
+import { openNetwork } from './network.ts'
 import { startExchange } from './http.ts'
 import { readSseEvents } from './sse.ts'
 import { readProtocolFrames } from './frames.ts'
 
-const network = createNetworkResources({ maxConnections: 4, idleConnectionTimeoutMs: 30_000 })
+// 包内工厂返回包内资源。根入口的 createNetworkResources 只返回它的句柄 network.handle。
+const network = openNetwork({ maxConnections: 4, idleConnectionTimeoutMs: 30_000 })
 
 // materialize：预约名额。undefined 表示已取消或资源已关闭。
 const reservation = await network.capacity.reserve(signal)

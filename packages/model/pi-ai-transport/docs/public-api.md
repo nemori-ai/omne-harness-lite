@@ -12,7 +12,7 @@
 - `package.json` 只声明 `.` 一个导出入口，没有 `./cordis` 或 `./testing`。
 - 本包不转导 model-contract、json-text、content-block 或 operation-result 的任何名字。
 
-连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离是包内机制，不经任何入口导出。它们由同包的网络资源与三段传输组合。装配用根入口的 `createNetworkResources` 创建网络资源，再把它作为 `PiTransportConfig.network` 交给 `createPiTransport`。装配拥有网络资源并负责关闭它。`NetworkResources` 的字段引用包内类型。装配只把网络资源交给传输并调用 `close()`，不需要导入这些包内类型。
+连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离是包内机制，不经任何入口导出。它们由同包的网络资源与三段传输组合。装配用根入口的 `createNetworkResources` 创建网络资源，再把它作为 `PiTransportConfig.network` 交给 `createPiTransport`。装配拥有网络资源并负责关闭它。`NetworkResources` 是不透明句柄：包外只能调用它的 `close()`，连接池、在途登记与容量都不可达。只有 `createNetworkResources` 能建立句柄。`createPiTransport` 收到其他对象时同步抛出 `RangeError`。
 
 ## 定义索引
 

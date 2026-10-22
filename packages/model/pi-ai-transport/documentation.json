@@ -582,7 +582,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
@@ -597,7 +597,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
