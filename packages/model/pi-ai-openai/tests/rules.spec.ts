@@ -5,12 +5,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { GatewayUsage, ReasoningDetail } from '@omne-harness/pi-ai-transport/chat-completions'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import { OPENAI_OWNER } from '@omne-harness/pi-ai-openai'
-import {
-  hooksOf,
-  REASONING_RULES,
-  TOOL_SCHEMA_RULES,
-  USAGE_RULES,
-} from '../src/rules.ts'
+import { hooksOf, REASONING_RULES, TOOL_SCHEMA_RULES, USAGE_RULES } from '../src/rules.ts'
 import { recordNamed } from './support/openai.ts'
 
 const SOL = recordNamed('openai/gpt-5.6-sol')
@@ -50,8 +45,13 @@ describe('openai-encrypted/1', () => {
     ])
     expect(sealed).toEqual({
       ok: [
-        { payload: '{"data":"first","format":"openai-responses-v1","id":"rs_1","type":"reasoning.encrypted"}' },
-        { payload: '{"data":"second","format":"openai-responses-v1","type":"reasoning.encrypted"}' },
+        {
+          payload:
+            '{"data":"first","format":"openai-responses-v1","id":"rs_1","type":"reasoning.encrypted"}',
+        },
+        {
+          payload: '{"data":"second","format":"openai-responses-v1","type":"reasoning.encrypted"}',
+        },
       ],
     })
   })
@@ -71,14 +71,28 @@ describe('openai-encrypted/1', () => {
   it('replays carried parts as the sealed items, and refuses a payload that is not one', () => {
     const [part] = okOf(codec.seal([detail(ENCRYPTED)]))
     if (part === undefined) throw new Error('sealed nothing')
-    const replayed = codec.replay([{ payload: part.payload, format: 'openai-responses-v1' }], ['ignored'])
+    const replayed = codec.replay(
+      [{ payload: part.payload, format: 'openai-responses-v1' }],
+      ['ignored'],
+    )
     expect(replayed).toEqual({
       ok: {
         kind: 'details',
-        details: [{ type: str('reasoning.encrypted'), format: str('openai-responses-v1'), data: str('cipher') }],
+        details: [
+          {
+            type: str('reasoning.encrypted'),
+            format: str('openai-responses-v1'),
+            data: str('cipher'),
+          },
+        ],
       },
     })
-    for (const payload of ['not json', '[]', '{"type":"reasoning.summary","summary":"x"}', JSON.stringify({ ...ENCRYPTED, data: '[REDACTED]' })])
+    for (const payload of [
+      'not json',
+      '[]',
+      '{"type":"reasoning.summary","summary":"x"}',
+      JSON.stringify({ ...ENCRYPTED, data: '[REDACTED]' }),
+    ])
       expect(codec.replay([{ payload, format: 'openai-responses-v1' }], [])).toEqual({
         failure: { kind: 'invalid', field: 'reasoning_state', reason: 'payload-not-replayable' },
       })
@@ -98,7 +112,12 @@ function usage(input: Partial<GatewayUsage> & Readonly<{ cacheWrite?: string }>)
   const details: JsonValue =
     input.cacheWrite === undefined
       ? { kind: 'object', entries: [] }
-      : { kind: 'object', entries: [{ key: 'cache_write_tokens', value: { kind: 'number', lexeme: input.cacheWrite } }] }
+      : {
+          kind: 'object',
+          entries: [
+            { key: 'cache_write_tokens', value: { kind: 'number', lexeme: input.cacheWrite } },
+          ],
+        }
   return {
     promptTokens: input.promptTokens ?? null,
     completionTokens: input.completionTokens ?? null,
@@ -109,24 +128,46 @@ function usage(input: Partial<GatewayUsage> & Readonly<{ cacheWrite?: string }>)
 }
 
 const item = (name: string, lexeme: string | null) =>
-  lexeme === null ? { name, state: 'unknown', unit: 'token' } : { name, state: 'known', lexeme, unit: 'token' }
+  lexeme === null
+    ? { name, state: 'unknown', unit: 'token' }
+    : { name, state: 'known', lexeme, unit: 'token' }
 
 describe('usage', () => {
   const openAi = USAGE_RULES['openai-usage/1']()
   const unknownScope = USAGE_RULES['unknown-scope/1']()
   // The sealed refusal tests: 123 prompt, 20 read, 3 written leave 100 uncached.
-  const sealed = usage({ promptTokens: '123', completionTokens: '7', cachedTokens: '20', cacheWrite: '3', reasoningTokens: '5' })
+  const sealed = usage({
+    promptTokens: '123',
+    completionTokens: '7',
+    cachedTokens: '20',
+    cacheWrite: '3',
+    reasoningTokens: '5',
+  })
 
   it('openai-usage/1 subtracts cache reads and writes from the prompt', () => {
     expect(openAi(sealed)).toEqual({
-      ok: [item('input', '100'), item('output', '7'), item('cache-read', '20'), item('cache-write', '3'), item('reasoning', '5')],
+      ok: [
+        item('input', '100'),
+        item('output', '7'),
+        item('cache-read', '20'),
+        item('cache-write', '3'),
+        item('reasoning', '5'),
+      ],
     })
   })
 
   it('a negative input remainder is unknown, never zero; missing counts stay unknown', () => {
-    expect(okOf(openAi(usage({ promptTokens: '1', cachedTokens: '2', cacheWrite: '0' })))[0]).toEqual(item('input', null))
+    expect(
+      okOf(openAi(usage({ promptTokens: '1', cachedTokens: '2', cacheWrite: '0' })))[0],
+    ).toEqual(item('input', null))
     expect(openAi(usage({ promptTokens: '10', completionTokens: '3' }))).toEqual({
-      ok: [item('input', null), item('output', '3'), item('cache-read', null), item('cache-write', null), item('reasoning', null)],
+      ok: [
+        item('input', null),
+        item('output', '3'),
+        item('cache-read', null),
+        item('cache-write', null),
+        item('reasoning', null),
+      ],
     })
   })
 
@@ -137,7 +178,13 @@ describe('usage', () => {
 
   it('unknown-scope/1 keeps every count but the input, whose scope is unknown', () => {
     expect(unknownScope(sealed)).toEqual({
-      ok: [item('input', null), item('output', '7'), item('cache-read', '20'), item('cache-write', '3'), item('reasoning', '5')],
+      ok: [
+        item('input', null),
+        item('output', '7'),
+        item('cache-read', '20'),
+        item('cache-write', '3'),
+        item('reasoning', '5'),
+      ],
     })
   })
 })
@@ -149,14 +196,20 @@ describe('object-root/1', () => {
     const schema: JsonValue = { kind: 'object', entries: [{ key: 'type', value: str('object') }] }
     expect(toolSchema(schema)).toEqual({ ok: schema })
     expect(toolSchema(str('object'))).toEqual({
-      failure: { kind: 'unsupported', field: 'argumentsSchema', adapter: recordAdoption(OPENAI_OWNER, SOL) },
+      failure: {
+        kind: 'unsupported',
+        field: 'argumentsSchema',
+        adapter: recordAdoption(OPENAI_OWNER, SOL),
+      },
     })
   })
 })
 
 describe('check and hooksOf', () => {
   it('none/1 accepts every request', () => {
-    expect(hooksOf(SOL).check({ applied: [], messages: [], treatments: [] })).toEqual({ ok: undefined })
+    expect(hooksOf(SOL).check({ applied: [], messages: [], treatments: [] })).toEqual({
+      ok: undefined,
+    })
   })
 
   it('a Pro record gets the unknown scope, the others the OpenAI usage', () => {

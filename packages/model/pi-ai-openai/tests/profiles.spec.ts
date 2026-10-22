@@ -9,13 +9,7 @@ import {
   type OpenAiRecord,
 } from '@omne-harness/pi-ai-openai'
 import { componentAdoption } from '../src/adoptions.ts'
-import {
-  assembledOf,
-  FAMILY,
-  fixedRequest,
-  officialProfile,
-  RETRY,
-} from './support/openai.ts'
+import { assembledOf, FAMILY, fixedRequest, officialProfile, RETRY } from './support/openai.ts'
 
 const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS
 const PROFILES = officialOpenAiProfiles({ retryPolicy: RETRY, compactionTriggerPercent: '80' })
@@ -32,9 +26,13 @@ describe('officialOpenAiProfiles', () => {
     (_name, record, index) => {
       const supplier = recordAdoption(OPENAI_OWNER, record)
       const evidence = componentAdoption(record, 'evidence')
-      const finite = (amount: string) => [{ supplier, limit: { kind: 'finite', amount, source: evidence } }]
+      const finite = (amount: string) => [
+        { supplier, limit: { kind: 'finite', amount, source: evidence } },
+      ]
       expect(PROFILES[index]).toEqual({
-        suppliers: [{ adoption: supplier, recipient: 'openrouter', model: record.name, replay: {} }],
+        suppliers: [
+          { adoption: supplier, recipient: 'openrouter', model: record.name, replay: {} },
+        ],
         fallback: false,
         input: ['text', 'image'],
         output: ['text'],
@@ -44,7 +42,13 @@ describe('officialOpenAiProfiles', () => {
           output: { provided: '128000', upstream: finite('128000') },
           compactionTriggerPercent: '80',
         },
-        limits: [{ metric: 'image-bytes', provided: '4194304', upstream: [{ supplier, limit: { kind: 'unknown' } }] }],
+        limits: [
+          {
+            metric: 'image-bytes',
+            provided: '4194304',
+            upstream: [{ supplier, limit: { kind: 'unknown' } }],
+          },
+        ],
         parameters: [],
         representation: componentAdoption(record, 'representation'),
         meter: componentAdoption(record, 'meter'),
@@ -55,7 +59,9 @@ describe('officialOpenAiProfiles', () => {
 
   it('refuses a compaction trigger outside 1 to 100', () => {
     for (const compactionTriggerPercent of ['0', '101', '80.5', '080'])
-      expect(() => officialOpenAiProfiles({ retryPolicy: RETRY, compactionTriggerPercent })).toThrow(RangeError)
+      expect(() =>
+        officialOpenAiProfiles({ retryPolicy: RETRY, compactionTriggerPercent }),
+      ).toThrow(RangeError)
   })
 
   it.each(RECORDS.map(record => [record.name, record] as const))(
@@ -63,10 +69,22 @@ describe('officialOpenAiProfiles', () => {
     async (_name, record) => {
       const profile = officialProfile(record)
       const [entry] = profile.definition.suppliers
-      const supplier = { adoption: entry.adoption, recipient: entry.recipient, model: entry.model, credential: { kind: 'factory' } } as const
-      const acquired = await composeFamilies([FAMILY]).acquire(supplier, new AbortController().signal)
+      const supplier = {
+        adoption: entry.adoption,
+        recipient: entry.recipient,
+        model: entry.model,
+        credential: { kind: 'factory' },
+      } as const
+      const acquired = await composeFamilies([FAMILY]).acquire(
+        supplier,
+        new AbortController().signal,
+      )
       if (!('ok' in acquired)) throw new Error(JSON.stringify(acquired.failure))
-      const planned = acquired.ok.rules.plan({ profile, supplier, assembled: assembledOf(fixedRequest(record)) })
+      const planned = acquired.ok.rules.plan({
+        profile,
+        supplier,
+        assembled: assembledOf(fixedRequest(record)),
+      })
       expect('ok' in planned).toBe(true)
       expect(acquired.ok.counting.meter).toEqual(profile.definition.meter)
       await acquired.ok.release()

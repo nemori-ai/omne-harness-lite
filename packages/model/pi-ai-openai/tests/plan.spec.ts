@@ -61,11 +61,18 @@ describe('parameters', () => {
     { kind: 'presence-penalty', value: 0 },
     { kind: 'reasoning-effort', value: 'none' },
     { kind: 'reasoning-effort', value: 'max' },
-  ] satisfies readonly Parameter[])('refuses $kind $value before sending, never drops it', async parameter => {
-    expect(await plan(SOL, [parameter])).toEqual({
-      failure: { kind: 'unsupported', field: parameter.kind, adapter: recordAdoption(OPENAI_OWNER, SOL) },
-    })
-  })
+  ] satisfies readonly Parameter[])(
+    'refuses $kind $value before sending, never drops it',
+    async parameter => {
+      expect(await plan(SOL, [parameter])).toEqual({
+        failure: {
+          kind: 'unsupported',
+          field: parameter.kind,
+          adapter: recordAdoption(OPENAI_OWNER, SOL),
+        },
+      })
+    },
+  )
 
   it('refuses an output limit above the record range', async () => {
     expect(await plan(ASTRA, [{ kind: 'max-output-tokens', value: '128001' }])).toEqual({
@@ -80,8 +87,26 @@ describe('request body', () => {
     const request = fixedRequest(ASTRA, {
       messages: [
         message('u1', 'user', [textBlock('b1', 'look up x')]),
-        message('a1', 'assistant', [{ kind: 'tool_call', id: 'c1', visibility: { toHuman: true, toModel: true }, callId: 'call 1', name: 'lookup', arguments: { kind: 'object', entries: [] } }]),
-        message('t1', 'tool', [{ kind: 'tool_result', id: 'r1', visibility: { toHuman: true, toModel: true }, callId: 'call 1' }, textBlock('b2', 'found'), imageBlock('i1')]),
+        message('a1', 'assistant', [
+          {
+            kind: 'tool_call',
+            id: 'c1',
+            visibility: { toHuman: true, toModel: true },
+            callId: 'call 1',
+            name: 'lookup',
+            arguments: { kind: 'object', entries: [] },
+          },
+        ]),
+        message('t1', 'tool', [
+          {
+            kind: 'tool_result',
+            id: 'r1',
+            visibility: { toHuman: true, toModel: true },
+            callId: 'call 1',
+          },
+          textBlock('b2', 'found'),
+          imageBlock('i1'),
+        ]),
       ],
       tools: [tool('lookup')],
     })
@@ -91,22 +116,71 @@ describe('request body', () => {
     expect(body).toMatchObject({
       messages: [
         { role: 'user', content: 'look up x' },
-        { role: 'assistant', content: '', tool_calls: [{ type: 'function', function: { name: 'lookup', arguments: '{}' } }] },
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{ type: 'function', function: { name: 'lookup', arguments: '{}' } }],
+        },
         { role: 'tool', content: 'found' },
-        { role: 'user', content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,iVBORw0KGgo=', detail: 'auto' } }] },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: 'data:image/png;base64,iVBORw0KGgo=', detail: 'auto' },
+            },
+          ],
+        },
       ],
-      tools: [{ type: 'function', function: { name: 'lookup', description: 'lookup tool', parameters: { type: 'object' } } }],
+      tools: [
+        {
+          type: 'function',
+          function: { name: 'lookup', description: 'lookup tool', parameters: { type: 'object' } },
+        },
+      ],
       tool_choice: 'auto',
       store: false,
     })
     await binding.release()
   })
 
+  // Sealed official-openai-routes.spec.ts:181-234: a tool call without its result is refused.
+  it('refuses an orphaned tool call instead of sending it', async () => {
+    const binding = await bindingOf(ASTRA)
+    const request = fixedRequest(ASTRA, {
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'look up x')]),
+        message('a1', 'assistant', [
+          {
+            kind: 'tool_call',
+            id: 'c1',
+            visibility: { toHuman: true, toModel: true },
+            callId: 'call_1',
+            name: 'lookup',
+            arguments: { kind: 'object', entries: [] },
+          },
+        ]),
+        message('u2', 'user', [textBlock('b2', 'never mind')]),
+      ],
+      tools: [tool('lookup')],
+    })
+    expect(binding.encode({ request, media: [] })).toEqual({
+      failure: { kind: 'invalid', field: '/messages/1/blocks/0', reason: 'orphan-tool-call' },
+    })
+    await binding.release()
+  })
+
   it('refuses a tool whose schema root is not an object', async () => {
     const binding = await bindingOf(ASTRA)
-    const request = fixedRequest(ASTRA, { tools: [tool('lookup', { kind: 'string', value: 'object' })] })
+    const request = fixedRequest(ASTRA, {
+      tools: [tool('lookup', { kind: 'string', value: 'object' })],
+    })
     expect(binding.encode({ request, media: [] })).toEqual({
-      failure: { kind: 'unsupported', field: '/tools/0/argumentsSchema', adapter: recordAdoption(OPENAI_OWNER, ASTRA) },
+      failure: {
+        kind: 'unsupported',
+        field: '/tools/0/argumentsSchema',
+        adapter: recordAdoption(OPENAI_OWNER, ASTRA),
+      },
     })
     await binding.release()
   })

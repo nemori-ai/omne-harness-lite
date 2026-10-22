@@ -21,7 +21,8 @@ import {
   thinkingBlock,
   type RequestParts,
 } from './support/openai.ts'
-import type { OpenAiRecord } from '@omne-harness/pi-ai-openai'
+import { openAiTokenizerResources, type OpenAiRecord } from '@omne-harness/pi-ai-openai'
+import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
 
 const tokens = (
   rule: keyof typeof IMAGE_RULES,
@@ -50,7 +51,13 @@ describe('image rules (sealed openai-images.ts goldens)', () => {
     expect(tokens('astra-patch/1', 9601, 3200, 'original')).toBeNull()
     expect(tokens('astra-patch/1', 9601, 3200, 'auto')).toBeNull()
     expect(tokens('astra-patch/1', 9601, 3200, 'high')).toBeLessThanOrEqual(3000)
-    for (const [width, height] of [[0, 1], [-1, 1], [1.5, 1], [Number.NaN, 1], [Infinity, 1]] as const)
+    for (const [width, height] of [
+      [0, 1],
+      [-1, 1],
+      [1.5, 1],
+      [Number.NaN, 1],
+      [Infinity, 1],
+    ] as const)
       expect(tokens('astra-patch/1', width, height, 'high')).toBeNull()
   })
 
@@ -72,14 +79,31 @@ describe('image rules (sealed openai-images.ts goldens)', () => {
     [2049, 2903, 7098],
     [9601, 3200, 36120],
     [131070, 64, 9831],
-  ] as const)('sol-luna-auto-proxy/1: %s × %s → %s, without borrowing Astra caps', (width, height, expected) => {
-    expect(tokens('sol-luna-auto-proxy/1', width, height, 'auto')).toBe(expected)
-  })
+  ] as const)(
+    'sol-luna-auto-proxy/1: %s × %s → %s, without borrowing Astra caps',
+    (width, height, expected) => {
+      expect(tokens('sol-luna-auto-proxy/1', width, height, 'auto')).toBe(expected)
+    },
+  )
 
   it('sol-luna-auto-proxy/1 accepts only auto and refuses unsafe arithmetic', () => {
     for (const detail of ['low', 'high', 'original'] as const)
       expect(tokens('sol-luna-auto-proxy/1', 1024, 1024, detail)).toBeNull()
     expect(tokens('sol-luna-auto-proxy/1', 4294967295, 4294967295, 'auto')).toBeNull()
+  })
+})
+
+// Sealed openai-input-meter.spec.ts:83-93: vectors of the OpenAI tiktoken 0.12.0 o200k_base.
+it('the family tokenizer resources count the independent o200k_base vectors', () => {
+  const created = createTiktokenTokenizer(openAiTokenizerResources())
+  if (!('ok' in created)) throw new Error(JSON.stringify(created.failure))
+  const count = (text: string) => created.ok.count([{ kind: 'text', text }])
+  expect(count('Hello, 世界!')).toEqual({ ok: { tokens: '4' } })
+  expect(count('{"role":"developer","content":"Remember the policy."}')).toEqual({
+    ok: { tokens: '12' },
+  })
+  expect(count('{"role":"tool","tool_call_id":"call_1","content":"sunny"}')).toEqual({
+    ok: { tokens: '18' },
   })
 })
 
@@ -94,7 +118,11 @@ async function planAndMeasure(
   const binding = await bindingOf(record)
   const profile = officialProfile(record)
   const request = fixedRequest(record, parts)
-  const planned = binding.rules.plan({ profile, supplier: supplierOf(record), assembled: assembledOf(request) })
+  const planned = binding.rules.plan({
+    profile,
+    supplier: supplierOf(record),
+    assembled: assembledOf(request),
+  })
   if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned.failure)}`)
   const representation = change(planned.ok.representation)
   const measured = binding.meter.measure({
@@ -140,7 +168,11 @@ describe('measure', () => {
         limit: '922000',
         constraint: {
           profile: officialProfile(SOL).adoption,
-          upstream: { kind: 'finite', amount: '922000', source: componentAdoption(SOL, 'evidence') },
+          upstream: {
+            kind: 'finite',
+            amount: '922000',
+            source: componentAdoption(SOL, 'evidence'),
+          },
         },
       },
     ])
@@ -157,20 +189,34 @@ describe('measure', () => {
     'openai/gpt-5.6-luna-pro',
   ])('%s has no estimate for carried encrypted reasoning and never tokenizes it', async name => {
     const record = recordNamed(name)
-    const payload = JSON.stringify({ type: 'reasoning.encrypted', format: 'openai-responses-v1', data: 'fixture-only-ciphertext' })
+    const payload = JSON.stringify({
+      type: 'reasoning.encrypted',
+      format: 'openai-responses-v1',
+      data: 'fixture-only-ciphertext',
+    })
     for (const mixed of [false, true]) {
-      const blocks = mixed ? [textBlock('t1', 'Visible answer.'), stateBlock('s1', payload)] : [stateBlock('s1', payload)]
+      const blocks = mixed
+        ? [textBlock('t1', 'Visible answer.'), stateBlock('s1', payload)]
+        : [stateBlock('s1', payload)]
       const { measured, tokenInput } = await planAndMeasure(record, {
         messages: [
           message('u1', 'user', [textBlock('b1', 'hello')]),
           message('a1', 'assistant', blocks, {
-            replay: { scope: `openrouter/${name}`, format: 'openai-responses-v1', at: [mixed ? 1 : 0] },
+            replay: {
+              scope: `openrouter/${name}`,
+              format: 'openai-responses-v1',
+              at: [mixed ? 1 : 0],
+            },
           }),
           message('u2', 'user', [textBlock('b2', 'next')]),
         ],
       })
       expect(measured).toEqual({
-        failure: { kind: 'unavailable', dependency: '@omne-harness/pi-ai-openai', diagnostic: 'encrypted-reasoning-not-countable' },
+        failure: {
+          kind: 'unavailable',
+          dependency: '@omne-harness/pi-ai-openai',
+          diagnostic: 'encrypted-reasoning-not-countable',
+        },
       })
       expect(writeJsonText(tokenInput)).not.toContain('fixture-only-ciphertext')
     }
@@ -181,9 +227,18 @@ describe('measure', () => {
     const { measured, tokenInput } = await planAndMeasure(SOL, {
       messages: [
         message('u1', 'user', [textBlock('b1', 'hello')]),
-        message('a1', 'assistant', [thinkingBlock('k1', 'Consider the visible facts.'), textBlock('t1', 'Answer.')], {
-          replay: { scope: 'openrouter/openai/gpt-5.6-sol', format: 'openai-responses-v1', at: [] },
-        }),
+        message(
+          'a1',
+          'assistant',
+          [thinkingBlock('k1', 'Consider the visible facts.'), textBlock('t1', 'Answer.')],
+          {
+            replay: {
+              scope: 'openrouter/openai/gpt-5.6-sol',
+              format: 'openai-responses-v1',
+              at: [],
+            },
+          },
+        ),
         message('u2', 'user', [textBlock('b2', 'next')]),
       ],
     })
@@ -196,16 +251,36 @@ describe('measure', () => {
       messages: [message('u1', 'user', [textBlock('b1', 'look'), imageBlock('i1')])],
     })
     expect(measured).toEqual({
-      failure: { kind: 'unavailable', dependency: '@omne-harness/pi-ai-openai', diagnostic: 'image-measurement-missing' },
+      failure: {
+        kind: 'unavailable',
+        dependency: '@omne-harness/pi-ai-openai',
+        diagnostic: 'image-measurement-missing',
+      },
     })
   })
 
-  const reference = { storage: 'test', key: 'image-1', mediaType: 'image/png', bytes: '1000', digest: 'd' }
-  const fact = { reference, bytes: '1000', mediaType: 'image/png', kind: 'image', widthPixels: '1024', heightPixels: '1024' } as const
+  const reference = {
+    storage: 'test',
+    key: 'image-1',
+    mediaType: 'image/png',
+    bytes: '1000',
+    digest: 'd',
+  }
+  const fact = {
+    reference,
+    bytes: '1000',
+    mediaType: 'image/png',
+    kind: 'image',
+    widthPixels: '1024',
+    heightPixels: '1024',
+  } as const
 
   it('adds the record image rule per measured image and checks each image size exactly', async () => {
     const parts = { messages: [message('u1', 'user', [textBlock('b1', 'look'), imageBlock('i1')])] }
-    const { measured, tokenInput } = await planAndMeasure(ASTRA, parts, value => ({ ...value, media: [fact] }))
+    const { measured, tokenInput } = await planAndMeasure(ASTRA, parts, value => ({
+      ...value,
+      media: [fact],
+    }))
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
     const [input, image] = measured.ok.checks
     const text = o200k.encode(writeJsonText(tokenInput), [], []).length
@@ -233,9 +308,16 @@ describe('measure', () => {
 
   it('refuses a representation of another adoption or with media still pending', async () => {
     const parts = { messages: [message('u1', 'user', [textBlock('b1', 'hi')])] }
-    const other = await planAndMeasure(SOL, parts, value => ({ ...value, adoption: componentAdoption(ASTRA, 'representation') }))
+    const other = await planAndMeasure(SOL, parts, value => ({
+      ...value,
+      adoption: componentAdoption(ASTRA, 'representation'),
+    }))
     expect(other.measured).toEqual({
-      failure: { kind: 'unsupported', field: 'representation', adapter: componentAdoption(SOL, 'meter') },
+      failure: {
+        kind: 'unsupported',
+        field: 'representation',
+        adapter: componentAdoption(SOL, 'meter'),
+      },
     })
     const pending = await planAndMeasure(SOL, parts, value => ({
       adoption: value.adoption,
@@ -245,7 +327,11 @@ describe('measure', () => {
       references: [reference],
     }))
     expect(pending.measured).toEqual({
-      failure: { kind: 'unsupported', field: 'representation.kind', adapter: componentAdoption(SOL, 'meter') },
+      failure: {
+        kind: 'unsupported',
+        field: 'representation.kind',
+        adapter: componentAdoption(SOL, 'meter'),
+      },
     })
   })
 })

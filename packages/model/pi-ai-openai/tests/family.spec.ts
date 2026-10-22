@@ -18,8 +18,12 @@ const live = () => new AbortController().signal
 
 describe('createOpenAiFamily', () => {
   it('refuses a configuration that no binding could use', () => {
-    expect(() => createOpenAiFamily({ ...CONFIG, margin: { ...CONFIG.margin, percent: '-1' } })).toThrow(RangeError)
-    expect(() => createOpenAiFamily({ ...CONFIG, margin: { ...CONFIG.margin, percent: '1.5' } })).toThrow(RangeError)
+    expect(() =>
+      createOpenAiFamily({ ...CONFIG, margin: { ...CONFIG.margin, percent: '-1' } }),
+    ).toThrow(RangeError)
+    expect(() =>
+      createOpenAiFamily({ ...CONFIG, margin: { ...CONFIG.margin, percent: '1.5' } }),
+    ).toThrow(RangeError)
   })
 
   it('cannot be composed with a second family of the same owner', () => {
@@ -57,7 +61,11 @@ describe('acquire', () => {
       { ...supplier.adoption, digest: '0'.repeat(64) },
     ])
       expect(await contributions.acquire({ ...supplier, adoption }, live())).toEqual({
-        failure: { kind: 'unavailable', dependency: OPENAI_OWNER, diagnostic: 'adoption-not-installed' },
+        failure: {
+          kind: 'unavailable',
+          dependency: OPENAI_OWNER,
+          diagnostic: 'adoption-not-installed',
+        },
       })
   })
 
@@ -74,11 +82,18 @@ describe('acquire', () => {
       ...CONFIG,
       tokenizer: {
         ...resources,
-        definition: { ...resources.definition, configuration: { ...resources.definition.configuration, revision: '2' } },
+        definition: {
+          ...resources.definition,
+          configuration: { ...resources.definition.configuration, revision: '2' },
+        },
       },
     })
     expect(await composeFamilies([family]).acquire(supplierOf(SOL), live())).toEqual({
-      failure: { kind: 'unavailable', dependency: OPENAI_OWNER, diagnostic: 'tokenizer-definition-mismatch' },
+      failure: {
+        kind: 'unavailable',
+        dependency: OPENAI_OWNER,
+        diagnostic: 'tokenizer-definition-mismatch',
+      },
     })
   })
 
@@ -88,7 +103,11 @@ describe('acquire', () => {
       tokenizer: { ...openAiTokenizerResources(), specialTokens: { '<|endoftext|>': 199999 } },
     })
     expect(await composeFamilies([family]).acquire(supplierOf(SOL), live())).toEqual({
-      failure: { kind: 'unavailable', dependency: OPENAI_OWNER, diagnostic: 'tokenizer-unavailable' },
+      failure: {
+        kind: 'unavailable',
+        dependency: OPENAI_OWNER,
+        diagnostic: 'tokenizer-unavailable',
+      },
     })
   })
 

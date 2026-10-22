@@ -49,7 +49,11 @@ describe('an Anthropic message in an OpenAI request', () => {
     expect(body).toMatchObject({
       messages: [
         { role: 'user', content: 'first question' },
-        { role: 'assistant', content: 'openai answer', reasoning_details: [JSON.parse(OPENAI_PAYLOAD)] },
+        {
+          role: 'assistant',
+          content: 'openai answer',
+          reasoning_details: [JSON.parse(OPENAI_PAYLOAD)],
+        },
         { role: 'user', content: 'second question' },
         { role: 'assistant', content: 'claude answer' },
         { role: 'user', content: 'third question' },
@@ -77,7 +81,12 @@ describe('an Anthropic message in an OpenAI request', () => {
     })
     const [openai, anthropic] = request.messages.filter(item => item.role === 'assistant')
     expect(projection.diagnostics).toEqual([
-      { message: anthropic?.id, scope: ANTHROPIC_SCOPE, format: 'anthropic-claude-v1', omittedParts: 1 },
+      {
+        message: anthropic?.id,
+        scope: ANTHROPIC_SCOPE,
+        format: 'anthropic-claude-v1',
+        omittedParts: 1,
+      },
     ])
     expect(projection.treatments).toEqual([
       { index: 1, message: openai?.id, continuable: true, carry: [1], thinking: 'native' },
