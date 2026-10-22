@@ -114,6 +114,32 @@ export function judgeRegistration(
   context: JudgeRegistrationContext,
 ): Outcome<JudgedRegistration, readonly RegistrationRejection[]> {
   const errors: RegistrationRejection[] = []
+  checkRegistrationIdentity(change, context, errors)
+  const descriptor =
+    context.descriptors.get(change.key) ?? (change.kind === 'add' ? change.declaration : undefined)
+  if (change.kind === 'add' && change.declaration) {
+    const current = context.descriptors.get(change.key)
+    if (current && !sameDeclaration(current, change.declaration))
+      errors.push({ path: [], reason: 'declaration-mismatch' })
+  }
+  if (change.kind !== 'remove') {
+    if (descriptor) {
+      checkParameters(change.parameters, descriptor, errors)
+      checkDeclaredBindings(change, context, descriptor, errors)
+    } else {
+      checkIndependentBindings(change, errors)
+    }
+  }
+  return errors.length
+    ? fail(errors)
+    : succeed({ change, coverage: descriptor ? 'full' : 'declaration-independent' })
+}
+
+function checkRegistrationIdentity(
+  change: RegistrationChange,
+  context: JudgeRegistrationContext,
+  errors: RegistrationRejection[],
+) {
   const add = (
     reason:
       | 'key'
@@ -136,75 +162,85 @@ export function judgeRegistration(
   )
     add('identity-changed')
   if (change.kind === 'add' && context.existing) add('identity-changed')
-  if (change.kind === 'remove' && context.existing?.required) add('required-removed')
+  checkRegistrationNecessity(change, context, errors)
+}
+function checkRegistrationNecessity(
+  change: RegistrationChange,
+  context: JudgeRegistrationContext,
+  errors: RegistrationRejection[],
+) {
+  if (change.kind === 'remove' && context.existing?.required)
+    errors.push({ path: [], reason: 'required-removed' })
   if (change.kind === 'add' && change.required && (!context.creating || !change.creating))
-    add('required-after-creation')
+    errors.push({ path: [], reason: 'required-after-creation' })
   if (
     change.kind === 'update' &&
     'required' in change &&
     change.required !== context.existing?.required
   )
-    add('required-downgraded')
-  const descriptor =
-    context.descriptors.get(change.key) ?? (change.kind === 'add' ? change.declaration : undefined)
-  if (change.kind === 'add' && change.declaration) {
-    const current = context.descriptors.get(change.key)
-    if (current && !sameDeclaration(current, change.declaration)) add('declaration-mismatch')
-  }
-  if (change.kind !== 'remove') {
-    if (descriptor) {
-      if (change.parameters !== undefined && !descriptor.parameterSchema)
-        add('parameters-not-declared')
-      if (descriptor.parameterSchema) {
-        try {
-          const issues = validate(descriptor.parameterSchema, change.parameters)
-          if (issues.length)
-            errors.push({ path: ['parameters'], reason: 'parameters-shape', issues })
-        } catch (error) {
-          if (error instanceof SynchronousSchemaRequired)
-            errors.push({ path: ['parameters'], reason: 'schema-not-synchronous' })
-          else throw error
-        }
-      }
-      const bindingContext = {
-        descriptors: {
-          get: (key: ContextBlockKey) =>
-            key === change.key ? descriptor : context.descriptors.get(key),
-        },
-      }
-      for (const [index, binding] of change.bindings.entries()) {
-        const judgedNeed = judgeNeed(binding.need)
-        if ('failure' in judgedNeed && judgedNeed.failure.reason === 'schema-not-synchronous')
-          errors.push({
-            path: ['bindings', index, 'need', ...judgedNeed.failure.path],
-            reason: 'schema-not-synchronous',
-          })
-        else if (binding.key !== change.key || 'failure' in judgedNeed)
-          errors.push({ path: ['bindings', index], reason: 'key' })
-      }
-      const bindings = change.bindings.flatMap(binding => {
-        const r = judgeBinding(binding, {
-          descriptors: bindingContext.descriptors,
-          registrationRequired:
-            change.kind === 'add' ? change.required : (context.existing?.required ?? false),
-        })
-        return 'failure' in r ? [r.failure] : []
-      })
-      if (bindings.length)
-        errors.push({ path: ['bindings'], reason: 'binding', rejections: bindings })
-    } else {
-      for (const [index, binding] of change.bindings.entries())
-        if (
-          'failure' in judgeNeed(binding.need) ||
-          binding.key !== change.key ||
-          (binding.translate && !classes.includes(binding.integrator))
-        )
-          errors.push({ path: ['bindings', index], reason: 'key' })
+    errors.push({ path: [], reason: 'required-downgraded' })
+}
+function checkParameters(
+  parameters: unknown,
+  descriptor: NonNullable<ReturnType<DescriptorCatalog['get']>>,
+  errors: RegistrationRejection[],
+) {
+  if (parameters !== undefined && !descriptor.parameterSchema)
+    errors.push({ path: [], reason: 'parameters-not-declared' })
+  if (descriptor.parameterSchema) {
+    try {
+      const issues = validate(descriptor.parameterSchema, parameters)
+      if (issues.length) errors.push({ path: ['parameters'], reason: 'parameters-shape', issues })
+    } catch (error) {
+      if (error instanceof SynchronousSchemaRequired)
+        errors.push({ path: ['parameters'], reason: 'schema-not-synchronous' })
+      else throw error
     }
   }
-  return errors.length
-    ? fail(errors)
-    : succeed({ change, coverage: descriptor ? 'full' : 'declaration-independent' })
+}
+function checkDeclaredBindings(
+  change: Exclude<RegistrationChange, { kind: 'remove' }>,
+  context: JudgeRegistrationContext,
+  descriptor: NonNullable<ReturnType<DescriptorCatalog['get']>>,
+  errors: RegistrationRejection[],
+) {
+  const bindingContext = {
+    descriptors: {
+      get: (key: ContextBlockKey) =>
+        key === change.key ? descriptor : context.descriptors.get(key),
+    },
+  }
+  for (const [index, binding] of change.bindings.entries()) {
+    const judgedNeed = judgeNeed(binding.need)
+    if ('failure' in judgedNeed && judgedNeed.failure.reason === 'schema-not-synchronous')
+      errors.push({
+        path: ['bindings', index, 'need', ...judgedNeed.failure.path],
+        reason: 'schema-not-synchronous',
+      })
+    else if (binding.key !== change.key || 'failure' in judgedNeed)
+      errors.push({ path: ['bindings', index], reason: 'key' })
+  }
+  const bindings = change.bindings.flatMap(binding => {
+    const r = judgeBinding(binding, {
+      descriptors: bindingContext.descriptors,
+      registrationRequired:
+        change.kind === 'add' ? change.required : (context.existing?.required ?? false),
+    })
+    return 'failure' in r ? [r.failure] : []
+  })
+  if (bindings.length) errors.push({ path: ['bindings'], reason: 'binding', rejections: bindings })
+}
+function checkIndependentBindings(
+  change: Exclude<RegistrationChange, { kind: 'remove' }>,
+  errors: RegistrationRejection[],
+) {
+  for (const [index, binding] of change.bindings.entries())
+    if (
+      'failure' in judgeNeed(binding.need) ||
+      binding.key !== change.key ||
+      (binding.translate && !classes.includes(binding.integrator))
+    )
+      errors.push({ path: ['bindings', index], reason: 'key' })
 }
 export function sameDeclaration(
   a: import('./descriptor.js').ContextBlockDescriptor<ContextBlockKey, unknown, unknown>,

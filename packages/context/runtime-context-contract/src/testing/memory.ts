@@ -269,99 +269,13 @@ export function createMemoryRuntimeContext<P = unknown>(
         : { kind: 'invalid', reason: 'commit-conflict', current: state(scope)?.revision ?? 0 }
     let s = state(scope)
     if (input.kind === 'registration') {
-      const change = input.change
-      if (change.basedOn !== (s?.revision ?? 0))
-        return { kind: 'invalid', reason: 'out-of-order', current: s?.revision ?? 0 }
-      const judged = judgeRegistration(change, {
-        descriptors: catalog,
-        scopeTenant: s?.tenant ?? null,
-        existing: s?.registrations.get(change.key) ?? null,
-        creating: change.creating,
-      })
-      if ('failure' in judged)
-        return {
-          kind: 'invalid',
-          reason: judged.failure.some(r => r.reason === 'tenant-mismatch')
-            ? 'tenant-mismatch'
-            : 'registration',
-          current: s?.revision ?? 0,
-          rejections: judged.failure,
-        }
-      if (!s) {
-        s = {
-          scope,
-          tenant: change.tenant,
-          revision: 0,
-          view: 0,
-          epoch: 0,
-          registrations: new Map(),
-          values: new Map(),
-        }
-        scopes.set(scope.ref, s)
-      }
-      if (change.kind === 'add' && change.declaration)
-        descriptors.set(change.key, change.declaration)
-      s.revision++
-      s.epoch++
-      incompatible.delete(s.scope.ref + '\0' + change.key)
-      if (change.kind === 'remove') {
-        s.registrations.delete(change.key)
-        s.values.delete(change.key)
-      } else {
-        s.registrations.set(change.key, {
-          scope,
-          tenant: change.tenant,
-          key: change.key,
-          bindings: change.bindings,
-          parameters: change.parameters,
-          required:
-            change.kind === 'add'
-              ? change.required
-              : (s.registrations.get(change.key)?.required ?? false),
-          revision: s.revision,
-        })
-      }
-      changed(s, change.key)
-      const producer = producers.get(change.key)
-      if (
-        change.kind !== 'remove' &&
-        producer &&
-        !producer.scoped &&
-        descriptors.get(change.key)?.volatility !== 'per-request'
-      )
-        await supply(producer, s)
+      const applied = await applyRegistration(input.change, s)
+      if ('kind' in applied) return applied
+      s = applied
     } else {
       if (!s) return { kind: 'invalid', reason: 'registration', current: 0 }
-      const reduced = reduceStep({
-        scope,
-        step: input.stepCommit.step,
-        updates: input.stepCommit.committed.flatMap(item => item.updates),
-        descriptors: catalog,
-        current: key => s?.values.get(key)?.value,
-      })
-      if (reduced.rejected.length)
-        return {
-          kind: 'invalid',
-          reason: 'rejected-update',
-          current: s.revision,
-          rejected: reduced.rejected,
-        }
-      for (const block of input.stepCommit.committed) {
-        const material = reduced.committed.find(item => item.key === block.key)
-        if (
-          block.updates.length > 0 &&
-          (!material || !isDeepStrictEqual(material.value, block.value))
-        )
-          return { kind: 'invalid', reason: 'rejected-update', current: s.revision }
-        const d = descriptors.get(block.key)
-        if (d?.kind !== 'stateful' || validate(d.schema, block.value).length)
-          return { kind: 'invalid', reason: 'rejected-update', current: s.revision }
-      }
-      for (const block of input.stepCommit.committed) put(s, block.key, block.value, null, true)
-      if (input.executionEnded)
-        for (const [key, d] of descriptors)
-          if (d.kind === 'stateful' && d.persistence === 'untracked' && s.registrations.has(key))
-            put(s, key, undefined, null, false)
+      const rejected = applyStep(input, s)
+      if (rejected) return rejected
     }
     const result: ApplyCommitResult = {
       kind: 'applied',
@@ -370,6 +284,110 @@ export function createMemoryRuntimeContext<P = unknown>(
     }
     commits.set(scope.ref + '\0' + input.commit.commit, { input, result })
     return result
+  }
+  async function applyRegistration(
+    change: RegistrationChange,
+    s: ScopeState | undefined,
+  ): Promise<ScopeState | ApplyCommitResult> {
+    if (change.basedOn !== (s?.revision ?? 0))
+      return { kind: 'invalid', reason: 'out-of-order', current: s?.revision ?? 0 }
+    const judged = judgeRegistration(change, {
+      descriptors: catalog,
+      scopeTenant: s?.tenant ?? null,
+      existing: s?.registrations.get(change.key) ?? null,
+      creating: change.creating,
+    })
+    if ('failure' in judged)
+      return {
+        kind: 'invalid',
+        reason: judged.failure.some(r => r.reason === 'tenant-mismatch')
+          ? 'tenant-mismatch'
+          : 'registration',
+        current: s?.revision ?? 0,
+        rejections: judged.failure,
+      }
+    if (!s) {
+      s = {
+        scope: change.scope,
+        tenant: change.tenant,
+        revision: 0,
+        view: 0,
+        epoch: 0,
+        registrations: new Map(),
+        values: new Map(),
+      }
+      scopes.set(change.scope.ref, s)
+    }
+    storeRegistration(change, s)
+    changed(s, change.key)
+    const producer = producers.get(change.key)
+    if (
+      change.kind !== 'remove' &&
+      producer &&
+      !producer.scoped &&
+      descriptors.get(change.key)?.volatility !== 'per-request'
+    )
+      await supply(producer, s)
+    return s
+  }
+  function storeRegistration(change: RegistrationChange, s: ScopeState) {
+    if (change.kind === 'add' && change.declaration) descriptors.set(change.key, change.declaration)
+    s.revision++
+    s.epoch++
+    incompatible.delete(s.scope.ref + '\0' + change.key)
+    if (change.kind === 'remove') {
+      s.registrations.delete(change.key)
+      s.values.delete(change.key)
+    } else {
+      s.registrations.set(change.key, {
+        scope: change.scope,
+        tenant: change.tenant,
+        key: change.key,
+        bindings: change.bindings,
+        parameters: change.parameters,
+        required:
+          change.kind === 'add'
+            ? change.required
+            : (s.registrations.get(change.key)?.required ?? false),
+        revision: s.revision,
+      })
+    }
+  }
+  function applyStep(
+    input: Extract<CommitInput, { kind: 'step' }>,
+    s: ScopeState,
+  ): ApplyCommitResult | undefined {
+    const reduced = reduceStep({
+      scope: s.scope,
+      step: input.stepCommit.step,
+      updates: input.stepCommit.committed.flatMap(item => item.updates),
+      descriptors: catalog,
+      current: key => s?.values.get(key)?.value,
+    })
+    if (reduced.rejected.length)
+      return {
+        kind: 'invalid',
+        reason: 'rejected-update',
+        current: s.revision,
+        rejected: reduced.rejected,
+      }
+    for (const block of input.stepCommit.committed) {
+      const material = reduced.committed.find(item => item.key === block.key)
+      if (
+        block.updates.length > 0 &&
+        (!material || !isDeepStrictEqual(material.value, block.value))
+      )
+        return { kind: 'invalid', reason: 'rejected-update', current: s.revision }
+      const d = descriptors.get(block.key)
+      if (d?.kind !== 'stateful' || validate(d.schema, block.value).length)
+        return { kind: 'invalid', reason: 'rejected-update', current: s.revision }
+    }
+    for (const block of input.stepCommit.committed) put(s, block.key, block.value, null, true)
+    if (input.executionEnded)
+      for (const [key, d] of descriptors)
+        if (d.kind === 'stateful' && d.persistence === 'untracked' && s.registrations.has(key))
+          put(s, key, undefined, null, false)
+    return undefined
   }
   async function issueEligibility(material: EligibilityMaterial<P>) {
     if (closed) return { kind: 'refused', reason: 'closed' } as const
@@ -396,6 +414,30 @@ export function createMemoryRuntimeContext<P = unknown>(
     }
     return { kind: 'issued', eligibility } as const
   }
+  function inheritedValue(
+    found: { s: ScopeState; r: Registration },
+    key: ContextBlockKey,
+    d: Descriptor,
+    tenant: TenantId,
+  ) {
+    let stored = found.s.values.get(key)
+    if (d.volatility !== 'per-request') {
+      let parent = found.s.scope.parent
+      while (!stored?.present && parent) {
+        const candidate = registration(parent, key)
+        if (!candidate) break
+        if (!tenantEquals(candidate.s.tenant, tenant)) break
+        const value = candidate.s.values.get(key)
+        if (value?.present) {
+          found = candidate
+          stored = value
+          break
+        }
+        parent = candidate.s.scope.parent
+      }
+    }
+    return { found, stored }
+  }
   async function bind(id: EligibilityId) {
     if (closed) return { kind: 'refused', reason: 'closed' } as const
     const initial = currentEligibility(id)
@@ -419,6 +461,40 @@ export function createMemoryRuntimeContext<P = unknown>(
         registration: { issued: e.registrationRevision, current: s.revision },
       }
     }
+    async function readPerRequest(
+      e: Eligibility<P>,
+      key: ContextBlockKey,
+      d: Descriptor,
+      source: ScopeState,
+    ): Promise<Stored | PerRequestEntry> {
+      const producer = producers.get(key)
+      if (!producer?.active || !producer.supply)
+        return d.required
+          ? { key, kind: 'missing', cause: 'producer-withdrawn' }
+          : { key, kind: 'none' }
+      try {
+        const result = await producer.supply(e.scope)
+        if (!producer.active || producers.get(key) !== producer)
+          return { key, kind: 'missing', cause: 'producer-withdrawn' }
+        if (result.kind === 'value') {
+          if (validate(d.schema, result.value).length)
+            return { key, kind: 'missing', cause: 'uninterpretable' }
+          return {
+            value: result.value,
+            revision: source.values.get(key)?.revision ?? 0,
+            generation: producer.generation,
+            present: true,
+          }
+        } else
+          return result.kind === 'unavailable'
+            ? { key, kind: 'missing', cause: 'source-unavailable' }
+            : d.required
+              ? { key, kind: 'missing', cause: 'no-value' }
+              : { key, kind: 'none' }
+      } catch {
+        return { key, kind: 'unknown', cause: 'source-unknown' }
+      }
+    }
     async function readBlock(e: Eligibility<P>, key: ContextBlockKey): Promise<PerRequestEntry> {
       let found = registration(e.scope, key)
       const d = descriptors.get(key)
@@ -426,51 +502,14 @@ export function createMemoryRuntimeContext<P = unknown>(
         return { key, kind: 'missing', cause: 'no-value' }
       if (!tenantEquals(found.s.tenant, e.tenant))
         return { key, kind: 'missing', cause: 'no-value' }
-      let stored = found.s.values.get(key)
-      if (d.volatility !== 'per-request') {
-        let parent = found.s.scope.parent
-        while (!stored?.present && parent) {
-          const candidate = registration(parent, key)
-          if (!candidate) break
-          if (!tenantEquals(candidate.s.tenant, e.tenant)) break
-          const value = candidate.s.values.get(key)
-          if (value?.present) {
-            found = candidate
-            stored = value
-            break
-          }
-          parent = candidate.s.scope.parent
-        }
-      }
+      const inherited = inheritedValue(found, key, d, e.tenant)
+      found = inherited.found
+      let stored = inherited.stored
       if (stored?.unknown) return { key, kind: 'unknown', cause: 'source-unknown' }
-      const producer = producers.get(key)
       if (d.volatility === 'per-request') {
-        if (!producer?.active || !producer.supply)
-          return d.required
-            ? { key, kind: 'missing', cause: 'producer-withdrawn' }
-            : { key, kind: 'none' }
-        try {
-          const result = await producer.supply(e.scope)
-          if (!producer.active || producers.get(key) !== producer)
-            return { key, kind: 'missing', cause: 'producer-withdrawn' }
-          if (result.kind === 'value') {
-            if (validate(d.schema, result.value).length)
-              return { key, kind: 'missing', cause: 'uninterpretable' }
-            stored = {
-              value: result.value,
-              revision: found.s.values.get(key)?.revision ?? 0,
-              generation: producer.generation,
-              present: true,
-            }
-          } else
-            return result.kind === 'unavailable'
-              ? { key, kind: 'missing', cause: 'source-unavailable' }
-              : d.required
-                ? { key, kind: 'missing', cause: 'no-value' }
-                : { key, kind: 'none' }
-        } catch {
-          return { key, kind: 'unknown', cause: 'source-unknown' }
-        }
+        const supplied = await readPerRequest(e, key, d, found.s)
+        if ('kind' in supplied) return supplied
+        stored = supplied
       }
       if (!stored?.present)
         return d.required
@@ -550,6 +589,36 @@ export function createMemoryRuntimeContext<P = unknown>(
       })
       return { kind: 'success', value, registration: checked.registration }
     }
+    function authorizeNeed(
+      e: Eligibility<P>,
+      ref: NeedRequest,
+    ):
+      | { found: { s: ScopeState; r: Registration }; binding: import('../need.js').NeedBinding }
+      | Extract<ReadResult, { kind: 'refused' }> {
+      if (
+        !e.keys.includes(ref.key) &&
+        !e.bindings.some(binding => binding.key === ref.key && binding.need === ref.need)
+      )
+        return { kind: 'refused', reason: 'unauthorized' }
+      const found = registration(e.scope, ref.key)
+      if (!found)
+        return {
+          kind: 'refused',
+          reason:
+            descriptors.get(ref.key)?.disclosure === 'plain' ? 'no-registration' : 'unauthorized',
+        }
+      const binding = found?.r.bindings.find(b => b.need.name === ref.need)
+      if (!binding || binding.need.consumer !== e.consumer)
+        return { kind: 'refused', reason: 'unauthorized' }
+      if (binding.translate) {
+        if (
+          !e.bindings.some(b => b.key === ref.key && b.need === ref.need) ||
+          !descriptors.get(ref.key)?.consumers.includes(binding.integrator)
+        )
+          return { kind: 'refused', reason: 'unauthorized' }
+      } else if (!allowed(e, ref.key)) return { kind: 'refused', reason: 'unauthorized' }
+      return { found, binding }
+    }
     const reader: ContextReader = {
       consumer: initial.consumer,
       scope: initial.scope,
@@ -591,30 +660,9 @@ export function createMemoryRuntimeContext<P = unknown>(
           values: import('../reader.js').NeedValue[] = [],
           missing: MissingItem[] = []
         for (const ref of needs) {
-          if (
-            !e.keys.includes(ref.key) &&
-            !e.bindings.some(binding => binding.key === ref.key && binding.need === ref.need)
-          )
-            return { kind: 'refused', reason: 'unauthorized' }
-          const found = registration(e.scope, ref.key)
-          if (!found)
-            return {
-              kind: 'refused',
-              reason:
-                descriptors.get(ref.key)?.disclosure === 'plain'
-                  ? 'no-registration'
-                  : 'unauthorized',
-            }
-          const binding = found?.r.bindings.find(b => b.need.name === ref.need)
-          if (!binding || binding.need.consumer !== e.consumer)
-            return { kind: 'refused', reason: 'unauthorized' }
-          if (binding.translate) {
-            if (
-              !e.bindings.some(b => b.key === ref.key && b.need === ref.need) ||
-              !descriptors.get(ref.key)?.consumers.includes(binding.integrator)
-            )
-              return { kind: 'refused', reason: 'unauthorized' }
-          } else if (!allowed(e, ref.key)) return { kind: 'refused', reason: 'unauthorized' }
+          const authorized = authorizeNeed(e, ref)
+          if ('kind' in authorized) return authorized
+          const { found, binding } = authorized
           const item = await readBlock(e, ref.key)
           if (item.kind === 'unknown') return { kind: 'unknown', cause: item.cause }
           if (item.kind !== 'value') {
