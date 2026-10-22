@@ -27,7 +27,7 @@ flowchart LR
 
 本成员不导入 `@omne-harness/request-context` 或 `@omne-harness/request-context-cordis`（[性质 10](../SPEC.md#结果与不变量)）。依赖方向是提供者依赖本成员，反方向不成立。本成员也不导入任何协调者、历史持有者或贡献者的契约。
 
-明确缺项：request-context-contract 的[公开接口页](../../request-context-contract/docs/public-api.md)现在没有列出性质 2 所说的登记面操作类型，也没有列出 intercept 配置用到的 `ScopeRef`。抽象类要 `implements` 的类型名随契约的实现确定。
+登记操作参数与结果复用 request-context-contract 的公开类型；`ScopeRef` 沿原契约复用 Runtime Context 类型。实际名称见[公开接口页](public-api.md#定义索引)，本成员不另建身份或登记协议。
 
 ## 关键机制与理由
 
@@ -45,7 +45,7 @@ flowchart LR
 2. 提示词贡献来自多个插件，每个插件有自己的寿命。登记面是 Request Context 唯一带寿命的部分，所以只有它需要 Cordis 的效应来跟随贡献者撤除（[系统页的提示词贡献登记面](../../../../docs/architecture/runtime/request-context.md#提示词贡献登记面)）。
 3. 独立调用方不装配 Cordis 也能用全部纯操作。
 
-代价：经 Cordis 使用缓存与选定策略要多一个入口 `assembly(scope, ports)`，它只交出已配置的操作组，见 [Cordis 说明的服务定义](cordis.md#服务定义)。历史源读口、计量端口与转换件结果端口由调用方逐次交入，不由提供者 `inject`。理由：这三项归作用域持有者与模型侧，提供者若 `inject` 它们，就要导入对方的服务定义，Request Context 的寿命也会跟它们的换代耦合；调用方本来就持有这三项，每次交入即可。
+代价：经 Cordis 使用缓存与选定策略要多一个入口 `assembly(scope, ports)`，它只交出已配置的操作组，见 [Cordis 说明的服务定义](cordis.md#服务定义)。历史源读口、计量端口、转换件结果端口与请求序列化端口由调用方逐次交入，不由提供者 `inject`。理由：这三项归作用域持有者与模型侧，提供者若 `inject` 它们，就要导入对方的服务定义，Request Context 的寿命也会跟它们的换代耦合；调用方本来就持有这三项，每次交入即可。
 
 ### 作用域由装配声明
 

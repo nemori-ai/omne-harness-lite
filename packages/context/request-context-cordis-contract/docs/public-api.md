@@ -2,11 +2,19 @@
 
 精确签名归源码，行为归 [SPEC](../SPEC.md)，机制归 [Cordis 说明](cordis.md)。
 
-## 根类型导出
+## 导出入口
+
+根入口只发布类型；`./cordis` 发布 Cordis 服务定义。两者的定义索引如下。
+
+## 定义索引
+
+下列两节分别索引根入口与 Cordis 入口的公开定义。实际导出名字由源码及测试清单核对。
+
+### 根类型导出
 
 根入口 [src/index.ts](../src/index.ts) 显式重导出 request-context-contract 的全部类型名字。没有运行值，也不导入 Cordis。纯操作、Schema 和测试工厂仍从原契约入口导入。
 
-## Cordis 定义
+### Cordis 定义
 
 [src/cordis.ts](../src/cordis.ts) 导出抽象类 RequestContextService、派生键 requestContextKey、RequestContextIntercept、AssemblyAccess、RequestContextPolicySelection 和 RequestContextChangedPayload。它增补 Cordis Context 的 requestContext 属性及 Events 的 request-context-cordis-contract/changed 位置参数事件。
 
