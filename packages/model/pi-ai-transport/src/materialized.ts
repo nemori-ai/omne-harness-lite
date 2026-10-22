@@ -12,8 +12,10 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { ConnectionReservation } from './capacity.ts'
 import type { CheckedConfig, CheckedRoute } from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
-import type { HttpExchange } from './http.ts'
+import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
+import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
 import { digestOf, firstModelVisibleReference, serializeBody } from './payload.ts'
+import type { SendEnd } from './termination.ts'
 
 export type MaterializedHandle = MaterializedTransport
 
@@ -88,6 +90,49 @@ function createMaterialized(
     body: input.body,
   }
 
+  /**
+   * Reads the credential and sends at once, inside this synchronous call. A send that does not
+   * leave the transport returns the reservation and gives a stream with only its termination.
+   */
+  function send(
+    held: Extract<MaterializedPhase, Readonly<{ kind: 'held' }>>,
+    signal: AbortSignal,
+  ): AsyncIterable<TransportFact> {
+    const { config, route } = input
+    if (signal.aborted) return refusedBeforeSend(held, { kind: 'stopped' })
+    const secret = config.credential.read()
+    if (secret === undefined) return refusedBeforeSend(held, { kind: 'credential-missing' })
+    const decoder = input.binding.createDecoder()
+    const started = startExchange(
+      config.network,
+      {
+        url: route.url,
+        headers: {
+          authorization: `Bearer ${secret}`,
+          'content-type': 'application/json',
+          accept: 'text/event-stream',
+        },
+        body: held.body,
+        reservation: held.reservation,
+        connectTimeoutMs: config.limits.connectTimeoutMs,
+        maxErrorBodyBytes: config.limits.maxErrorBodyBytes,
+      },
+      signal,
+    )
+    // startExchange returned the reservation for a refusal.
+    if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
+    phase = { kind: 'started', exchange: started.exchange }
+    return factsOfSend({ exchange: started.exchange, decoder, route, limits: config.limits })
+  }
+
+  function refusedBeforeSend(
+    held: Extract<MaterializedPhase, Readonly<{ kind: 'held' }>>,
+    end: SendEnd,
+  ): AsyncIterable<TransportFact> {
+    held.reservation.release()
+    return endedBeforeSend(end)
+  }
+
   async function stopExchange(exchange: HttpExchange | null): Promise<void> {
     if (exchange === null) return
     exchange.stop()
@@ -96,8 +141,17 @@ function createMaterialized(
 
   return {
     receipt: input.receipt,
-    start(_signal: AbortSignal): AsyncIterable<TransportFact> {
-      throw new Error('start is not implemented yet')
+    start(signal: AbortSignal): AsyncIterable<TransportFact> {
+      const current = phase
+      // A repeated start, or a start after close, is a usage error: nothing is sent.
+      if (current.kind !== 'held') return noFacts()
+      phase = { kind: 'started', exchange: null }
+      try {
+        return send(current, signal)
+      } catch (error) {
+        current.reservation.release()
+        throw error
+      }
     },
     close() {
       const current = phase
@@ -119,5 +173,29 @@ function createMaterialized(
         }
       }
     },
+  }
+}
+
+/**
+ * The end of a send that `startExchange` refused. The headers other than the credential are
+ * fixed, so an invalid header is the credential. The route, the body, the limits and the
+ * reservation were checked before: their refusal is a defect of this package.
+ */
+function endOfRefusal(reason: ExchangeRefusal): SendEnd {
+  switch (reason) {
+    case 'cancelled':
+    case 'resources-closed':
+      return { kind: 'stopped' }
+    case 'invalid-header':
+      return { kind: 'credential-unusable' }
+    case 'invalid-url':
+    case 'invalid-body':
+    case 'invalid-limit':
+    case 'reservation-unusable':
+      throw new Error(`the exchange of a checked send was refused as ${reason}`)
+    default: {
+      const _exhaustive: never = reason
+      return _exhaustive
+    }
   }
 }

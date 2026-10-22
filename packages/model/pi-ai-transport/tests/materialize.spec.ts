@@ -16,6 +16,7 @@ import {
   SUPPLIER,
   type FamilyProbe,
 } from './support/test-family.ts'
+import { slotFree } from './support/transport.ts'
 
 // Nothing listens here; materialize never sends.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
@@ -64,16 +65,6 @@ async function materialized(
   const outcome = await prepared.materialize(signal)
   if (!('ok' in outcome)) throw new Error(`expected a materialization: ${JSON.stringify(outcome)}`)
   return outcome.ok
-}
-
-/** True when the capacity grants a reservation at once; the reservation goes back right away. */
-async function slotFree(network: NetworkResources): Promise<boolean> {
-  const controller = new AbortController()
-  const pending = network.capacity.reserve(controller.signal)
-  controller.abort()
-  const reservation = await pending
-  reservation?.release()
-  return reservation !== undefined
 }
 
 function referenceBlock(toModel: boolean): ContentBlock {
