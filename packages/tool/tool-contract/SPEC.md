@@ -378,7 +378,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
 | G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local` 根入口 |
 | G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool` 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖 | `tool-contract` 与 `tool` 的 `./testing` |
-| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。`wsId` 的拥有者定义之前，Tool 在边界用不透明品牌文本。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则取合法胜出者序中最先的同形贡献；没有同形者返回 unavailable。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
+| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。`wsId` 的拥有者定义之前，Tool 在边界用不透明品牌文本。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
 | G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool` 根入口 |
 | G9 | 单机宿主命名为 `packages/tool/tool-host-local` | `tool-host-local` |
 
@@ -436,11 +436,11 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 - R1：会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
 - R2：会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入。Run 中途的新工具经 Tools 元工具（非常驻）可达。
-- R3：已装载的常驻工具被卸载或暂时不可用时，会话以同形不可用件替代它：`ToolAvailability` 的 `known-unavailable` 带原 definition。调用它得到不可用应答。
-- R4：会话持久保存每个常驻工具首次装载的 definition，会话事实种类是 `tool-resident-admitted`。当前固定版本从 Run 依据派生，不另写会话事实。
+- R3：已装载的常驻工具被卸载或暂时不可用，且登记表里没有本会话可访问的同形可用贡献时，会话以同形替换件替代它：`ToolAvailability` 的 `known-unavailable` 带原 definition。调用它得到不可用应答。有同形可用贡献时不走 R3，`resolve` 按 G7 的回退顺序路由到它。
+- R4：会话持久保存每个常驻工具首次装载的 definition，会话事实种类是 `tool-resident-admitted`。当前记下的登记键从 Run 依据派生，不另写会话事实。
 - R5：常驻工具的实现变更，且新定义与首次定义不同形时，按下列规则处理。
   - R5a：原实现仍装载且可用时，会话继续使用它（同形）。版本不钉死：负责选取实现的一方按记下的形状选同形可用实现，见[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)。
-  - R5b：没有同形可用实现、原实现不可装载，且存在不同形的合法胜者时，会话冻结。「不可装载」要耐久证据：包 digest 缺失，或装载被确定性拒绝。冻结只在采用点判定。Tool 只给判定与原因 `tool-shape-lost`。冻结是 Session 拥有的独立会话生命周期状态，不是归档，见[会话与工作](../../../docs/domains/sessions-and-work/README.md)。冻结后在途 Run 自然收场，会话不再派发新 Run。
+  - R5b：没有同形可用实现、原实现不可装载，且存在不同形的合法胜出者时，会话冻结。「不可装载」要耐久证据：换代协调者 `ensureLoaded` 返回 `missing`（包或 digest 缺失）或 `rejected`（装载被确定性拒绝）时铸造的 Tool `DurableEvidence`；`unavailable` 是暂时失败，不构成证据。冻结只在采用点判定。Tool 只给判定与原因 `tool-shape-lost`。冻结是 Session 拥有的独立会话生命周期状态，不是归档，见[会话与工作](../../../docs/domains/sessions-and-work/README.md)。冻结后在途 Run 自然收场，会话不再派发新 Run。
   - 暂时缺席、未知与撤权一律按 R3 处理，不冻结。
 
 非常驻工具不受 R1–R5 约束。meta 能力入口（Tools 元工具）必定常驻且不可替换，不参与卸载与冻结判定；经它发现和使用非常驻工具只是对它的一次调用。动作桥接方（MCP）的动作不在本节范围。
@@ -454,25 +454,30 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 #### 采用点判定
 
-采用点对每个常驻项按下表判定。
+采用点对每个常驻项按下表判定。「记下的键可用」指采用依据里记下的登记键在登记表中 live、非 draining、且本会话按 G7 可访问。「同形可用贡献」指登记表里任一来源层、本会话可访问、非 draining、与首次定义同形的贡献，不要求它是合法胜出者。协调者按保留义务重装记下的键，这不是为选版回头寻找旧版本。
 
-| 固定实现可装载 | 合法胜者 | 结论 |
-| --- | --- | --- |
-| 是 | 无，或不同形 | 保持原固定（R5a） |
-| 是 | 同形 | 前进到胜者 |
-| 否（耐久） | 无 | 同形不可用件（R3） |
-| 否（耐久） | 同形 | 前进到胜者 |
-| 否（耐久） | 不同形 | 冻结（R5b） |
-| 否（暂时） | 任意 | 同形不可用件（R3） |
+| 记下的键可用 | 同形可用贡献 | 合法胜出者 | 结论 |
+| --- | --- | --- | --- |
+| 是 | 任意 | 同形 | 前进到胜出者 |
+| 是 | 任意 | 无，或不同形 | 保持记下的键（R5a） |
+| 否 | 有 | 同形 | 前进到胜出者 |
+| 否 | 有 | 无，或不同形 | 记下的键改为按 G7 回退顺序选出的同形贡献 |
+| 否 | 无 | 同形 | 前进到胜出者；协调者按需装载 |
+| 否 | 无 | 无 | 协调者重装记下的键：成功则保持；`missing`、`rejected` 或暂时失败都给同形替换件（R3） |
+| 否 | 无 | 不同形 | 协调者重装记下的键：成功则保持（R5a）；`missing` 或 `rejected` 则冻结（R5b）；暂时失败则同形替换件（R3） |
+
+判定由纯函数 `planAdoption` 给出，输出是前进、保持、替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。冻结判定的交付路径：新 Run 的判定随采用材料经 `startRun` 交会话；显式 reload 的判定由 Tool 宿主经 `ToolResidencyActions.freeze` 交会话。两条路径都是采用点，会话只执行一次状态转换。
 
 #### 刷新点允许的变化
 
-| 刷新点 | 加入新能力身份 | 同形前进 | 判冻结 | 恒允许 |
+| 刷新点 | 加入新能力身份 | 记下的键前进 | 判冻结 | 恒允许 |
 | --- | --- | --- | --- | --- |
 | 会话初始化 | 是 | 不适用 | 否 | 可用性 |
-| 新 Run 开始 | 是 | 是 | 是 | 可用性、实现 |
-| 显式 reload | 是 | 是 | 是 | 可用性、实现 |
-| Run 中的提供者变化 | 否 | 否 | 否 | 可用性 |
+| 新 Run 开始 | 是 | 是 | 是 | 可用性、实现、路由 |
+| 显式 reload | 是 | 是 | 是 | 可用性、实现、路由 |
+| Run 中的提供者变化 | 否 | 否 | 否 | 可用性、路由 |
+
+「记下的键前进」指采用依据里的登记键改变，只在采用点发生。「路由」指 `resolve` 在记下的键不可用时按 G7 回退顺序把后续调用路由到同形贡献，它在任何刷新点都允许，不改写记下的键，也不改变常驻形状。已经发出的调用保留原实现。
 
 ### dummy 的调用语义
 
@@ -924,7 +929,17 @@ items.category 对接设置拥有者已有的偏好、绑定、落点/身份和�
 
 ToolLoader 的构造依赖是合法设置读取适配器、schema 检查和资格守卫。load 输入是 `{ asset, settings, module, services }`：资产版本及其治理声明、设置快照、实现模块 `ToolImplementationModule { executor, createAuthor }` 与实现需要的服务。来源证据本身不自授权。加载器先由实现模块取得实现形状，再用 `deriveDefinition` 派生定义。它核资产 name 与定义 name 一致，核注册投影与逐命令参数/返回契约一致，才给出 ToolLoadedRegistration。ToolLoadedRegistration 带登记键、派生 definition 与 shape。此句柄不可由普通调用者自造，也不可持久序列化。上游公开 API 尚未实现时，由适配器兑现这个窄消费边界，不假称已有 Settings SDK。授权前不运行不可信模块初始化，允许的初始化仍受执行环境约束。
 
-ToolBindingRegistry 接受受信装载结果与 `ToolAuthority { layer, asset, holding, publication }`，按登记键登记贡献，返回 `Outcome<ToolContribution, ToolContributionFailure>`。登记表另提供 `snapshot`、`pins`、`close` 与 `drain`。它按能力身份与形状查同形贡献，不做层序或候选选择。同键规则见 [G7](#342-契约缺口决定)，不以 Map 覆盖猜冲突政策。构造成功、装载成功、登记成功、当前可用、调用受理及真实启动分别判断。加载和登记不执行工具业务动作。load 可重建同一采用的本地句柄，不是一次 ToolCall，也不创建执行账；装载器自身资源及重复登记的贡献身份必须可清理。登记回执不等于持久业务提交回执。
+ToolBindingRegistry 接受受信装载结果与 `ToolAuthority { layer, asset, holding, publication }`，按登记键登记贡献，返回 `Outcome<ToolContribution, ToolContributionFailure>`。它按能力身份与形状查同形贡献，不做层序或候选选择。同键规则见 [G7](#342-契约缺口决定)，不以 Map 覆盖猜冲突政策。构造成功、装载成功、登记成功、当前可用、调用受理及真实启动分别判断。加载和登记不执行工具业务动作。load 可重建同一采用的本地句柄，不是一次 ToolCall，也不创建执行账；装载器自身资源及重复登记的贡献身份必须可清理。登记回执不等于持久业务提交回执。
+
+`register` 的失败集合：`conflict`（同键已有其他 live 或 draining 贡献）；`denied`（`toolContributionAuthority` 拒绝来源，或登记者没有该层的登记资格）；`invalid`（`ToolLoadedRegistration` 的登记键与核验后的来源层或资产不一致，或 shape 与 definition 不符）；`unavailable`（来源核验器或登记表存储不可读）。失败不留部分登记。`toolContributionAuthority` 是同步端口：`verify(authority)` 返回 `Outcome<VerifiedAuthority { layer, asset, holding, publication }, denied | invalid | unavailable>`，`admits(access, layer)` 核登记资格；它缺席时 `register` 返回 `unavailable`。
+
+登记表的其他方法：`snapshot()` 只读返回全部条目，每条带登记键、装载 digest、shape、状态（`live` 或 `draining`）与作者插件 fiber uid；`pins(key)` 返回当前解析到该键、尚未收场的固定请求计数，`resolve` 时登记、收场时解除，是进程内的计数，不是持久账；`close(key)` 把条目标为 draining，`reopen(key)` 撤回该标记，两者都不改贡献；`drain(key)` 返回该键的 `pins` 计数与在途调用清单，P09 的 `inspectDrain({ executor })` 交付之前只报告，不等待。
+
+draining 的地位：记下该键的请求仍可经 `resolve` 的首选分支解析到它；回退分支与采用点选择都排除它；换代协调者 `ensureLoaded` 遇到 draining 的同键返回 `draining`，不认回。
+
+回退顺序：在本租户可访问、live 且非 draining 的同形贡献中，先取当前合法胜出者（同形时），再取与记下的键同来源层、同资产的更高版本，最后按来源层由近到远（工作区、租户、组织、官方）取其余同形贡献，同层按资产版本降序。这是登记表内的确定性次序，不是层序求值。
+
+同形 serving 替代：对一份有会话引用的贡献，存在另一份 live、非 draining、与引用会话记下的形状同形、且按 G7 对每个引用会话的租户都可访问的贡献。它不必是合法胜出者。`ToolResidencyReader.referencing` 因此返回每个引用会话的身份、租户与 shape。
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 

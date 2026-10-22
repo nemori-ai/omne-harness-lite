@@ -60,8 +60,8 @@ owner: PanQiWei
 
 R1. 会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
 R2. 会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入；Run 中途的新工具经 Tools 元工具（非常驻）可达。
-R3. 已装载的常驻工具被卸载或暂时不可用时，会话以同形的不可用件替代它：`ToolAvailability.known-unavailable` 带原 definition。调用它得到不可用应答。
-R4. 会话持久保存每个常驻工具首次装载的 definition（会话事实 `tool-resident-admitted`）。当前固定版本从 Run 依据派生，不另写会话事实。
+R3. 已装载的常驻工具被卸载或暂时不可用、且没有同形可用贡献时，会话以同形的不可用件（统一语言的「替换件」）替代它：`ToolAvailability.known-unavailable` 带原 definition。调用它得到不可用应答。
+R4. 会话持久保存每个常驻工具首次装载的 definition（会话事实 `tool-resident-admitted`）。当前记下的登记键从 Run 依据派生，不另写会话事实。
 R5. 常驻工具的实现变更且新定义与首次定义不同形时：
    - R5a 原实现仍装载且可用时，会话继续使用它（同形）。更正标注（2026-10-22，同上决定）：原文「固定的旧实现仍可装载时留在旧实现」。
    - R5b 没有同形可用实现、原实现不可装载，且存在不同形的合法胜者时，会话冻结。"不可装载"要耐久证据：包 digest 缺失，或装载被确定性拒绝。冻结只在采用点判定。冻结后在途 Run 自然收场，会话不再派发新 Run。更正标注（2026-10-21，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596）：冻结是 Session 域拥有的独立生命周期状态，不是 archive；冻结不可逆，冻结后的会话仍可按会话自己的规则归档。原文"进入不可逆的 archive"按此理解。
@@ -93,6 +93,8 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 持有的"跟随当前版本"对已有会话是有条件的：同形才跟。这是 assets 版本选用规则的一条例外。
 
+更正标注（2026-10-22，expression 判读处置，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：采用点判定表、刷新点表、R3 的前提、登记表的方法与失败集合、协调者的返回与失败集合、驻留端口的形状与服务键、`binding-changed` 的载荷，以 [Tool 契约 SPEC](../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5) 与 [tool-cordis-contract](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约) 的现行正文为准；本页上面两张表保留提案时的写法。
+
 更正标注（2026-10-22，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：PanQiWei 采纳「会话与三个 runtime 不钉版本，按形状核对同形可用实现」。本提案据此更正：固定采用改为记形状、按形状选取，`definition.adoption` 仍等于装载时的资产版本，只用于追溯与并存；`resolve`、R5a、R5b 与判据 4、5、6 按下文更正后的措辞执行。R1 至 R4、冻结、登记键三分量、协调者与保留义务不变。
 
 ### 绑定登记表（G7）
@@ -111,7 +113,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 - `ensureLoaded({ authority })`：读资产实现引用，核包 digest，动态 import 实现包，`ctx.plugin` 作者插件。同键已装且同 digest 认回。
 - `unload({ key })`：先读会话引用。有未归档会话引用、且没有同形的 serving 替代时，返回 `retained`，什么都不动。否则按顺序做五步：把登记表条目标记为 draining，新 Run 不再选它，固定采用继续 resolve；等在途调用收场；按 P09 交接；release 贡献；dispose 作者插件 fiber。五步做完返回 `released`。任一步未完成返回 `draining`，再调用一次从未完成的那一步继续。更正标注（2026-10-21，同上决定）：按键排空与交接依赖 P09 的 `inspectDrain({ executor })` 范围，归 #421 的 6.8；在那之前协调者在有在途调用时停在 `draining`。
-- `sweep()`：恢复后重装未归档会话固定的键。对无引用、且不再是任何胜者的贡献调用 `unload`。
+- `sweep()`：恢复后按保留义务重装未归档会话记下的键。对无引用、且不再是任何胜者的贡献调用 `unload`。
 
 保留义务：有未归档会话引用且无同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生（端口 `ToolResidencyReader.referencing`），协调者不建账。已归档但在途 Run 未收场的会话也算引用。包字节保留，同 digest 可重新 import。
 
@@ -131,7 +133,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 6. Run 中的刷新可把后续调用路由到同形的新实现；常驻形状与记下的采用依据不变。
 7. 不同形新版：留旧，会话可用。
 8. 突然撤除 fiber：同定义 known-unavailable；在途调用 recover 为 unknown；重新装载后下一采用点为 continues。
-9. 旧包缺失且不同形胜者存在：下一采用点判冻结；会话进入冻结状态一次，重复为 no-op；不再派发新 Run；在途 Run 收场。
+9. 无同形可用贡献、旧包缺失且不同形胜者存在：下一采用点判冻结；会话进入冻结状态一次，重复为 no-op；不再派发新 Run；在途 Run 收场。
 10. 全过程中无关能力的调用零失败；P16 的目录与 Catalog 缺席语义不变。
 
 | 受影响拥有者 | 现行保证或机制 | 拟改变内容 | 必须保持的条件与例外 |
