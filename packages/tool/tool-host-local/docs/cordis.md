@@ -18,7 +18,7 @@ ToolAuthor.waits、返回模式、程序输出协议和验证器随 toolBindings
 
 实现包先构造逐操作 ToolOperation，再由 `createAuthor(construction)` 生成 ToolImplementation。作者插件 fiber 装载并登记它，它不是 toolBindings 提供者的构造依赖。注册与 schema 加载适配在作者插件 fiber 内管理，不为每个 command 新增全局 Cordis 服务键。Catalog 使用装载时派生的 definition；usage 按同一 command 取参数及返回声明。静态元数据和命令说明可序列化，作者函数、SchemaRef 和操作句柄不可序列化。注册构造成功后仍需异步核 schema 一致性，未完成时不公布对应操作可用。
 
-resolve 固定原采用及 command 的操作，不能在 settle 时通过最新服务引用重新选 schema。reload 只影响后续合法采用；会话常驻项只在同形时前进，见[会话常驻规则](../../tool-contract/SPEC.md#会话常驻规则r1r5)。旧执行及恢复继续使用原绑定或报告不可恢复的缺席。命令所需的额外服务按操作局部注入，不给所有命令并集权限，不向程序执行方暴露 ToolImplementation 或 executor。
+resolve 固定原采用及 command 的操作，不能在 settle 时通过最新服务引用重新选 schema。reload 只影响后续合法采用；会话常驻项只路由到同形实现，见[会话常驻规则](../../tool-contract/SPEC.md#会话常驻规则r1r5)。旧执行及恢复继续使用原绑定或报告不可恢复的缺席。命令所需的额外服务按操作局部注入，不给所有命令并集权限，不向程序执行方暴露 ToolImplementation 或 executor。
 
 SchemaProvider 归执行域已有提供者，具体等待/输出阶段适配器注入它并消费根接口。只有需要检查时取得短期 lease，释放 lease 不关闭业务等待；长等待保留原 schema 的可恢复采用。这里不在 Tool 新造 schema 编译缓存或全局服务键，也不将 schema 提供者提升成 Tool 门面的永久必需依赖。准入缺匹配协议时不可用；执行后失去校验能力则保管原返回与 settle 任务。
 

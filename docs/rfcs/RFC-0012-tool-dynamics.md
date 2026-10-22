@@ -63,8 +63,8 @@ R2. 会话可以在采用点加入此前未装载的常驻工具。Run 中途不
 R3. 已装载的常驻工具被卸载或暂时不可用时，会话以同形的不可用件替代它：`ToolAvailability.known-unavailable` 带原 definition。调用它得到不可用应答。
 R4. 会话持久保存每个常驻工具首次装载的 definition（会话事实 `tool-resident-admitted`）。当前固定版本从 Run 依据派生，不另写会话事实。
 R5. 常驻工具的实现变更且新定义与首次定义不同形时：
-   - R5a 固定的旧实现仍可装载时，会话留在旧实现，继续可用。
-   - R5b 固定的旧实现不可装载，且存在不同形的合法胜者时，会话冻结。"不可装载"要耐久证据：包 digest 缺失，或装载被确定性拒绝。冻结只在采用点判定。冻结后在途 Run 自然收场，会话不再派发新 Run。更正标注（2026-10-21，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596）：冻结是 Session 域拥有的独立生命周期状态，不是 archive；冻结不可逆，冻结后的会话仍可按会话自己的规则归档。原文"进入不可逆的 archive"按此理解。
+   - R5a 原实现仍装载且可用时，会话继续使用它（同形）。更正标注（2026-10-22，同上决定）：原文「固定的旧实现仍可装载时留在旧实现」。
+   - R5b 没有同形可用实现、原实现不可装载，且存在不同形的合法胜者时，会话冻结。"不可装载"要耐久证据：包 digest 缺失，或装载被确定性拒绝。冻结只在采用点判定。冻结后在途 Run 自然收场，会话不再派发新 Run。更正标注（2026-10-21，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596）：冻结是 Session 域拥有的独立生命周期状态，不是 archive；冻结不可逆，冻结后的会话仍可按会话自己的规则归档。原文"进入不可逆的 archive"按此理解。
    - 暂时缺席、未知、撤权一律按 R3 处理，不冻结。
 
 非常驻工具不受 R1–R5 约束。MCP 不在本提案范围。补充标注（2026-10-22，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)）：meta 能力入口（Tools 元工具）必定常驻且不可替换，不参与卸载与冻结判定；经它发现和使用非常驻工具只是对它的一次调用。
@@ -93,13 +93,13 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 持有的"跟随当前版本"对已有会话是有条件的：同形才跟。这是 assets 版本选用规则的一条例外。
 
-冲突标注（2026-10-22）：PanQiWei 于 2026-10-22 裁定「会话不钉死能力的某个版本；会话记下已采用能力的形状，负责解析与选取实现的一方在插件根上同一能力身份的实现中找同形可用者，找到就用，没有就按该能力拥有者的不兼容后果处理」（随 [#580 的接受](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6333519829) 生效，正文见[项目要求](../requirements.md#定义装配与活体sys-composition)与[按形状核对，不钉版本](../architecture/runtime/assembly-and-change.md#按形状核对不钉版本)）。本提案的固定采用（`definition.adoption` 全等于资产版本并按键 `resolve`）、R5a 的「留在旧实现」以及验收判据 5、6 的「按键」措辞与该裁定的关系尚未裁定；写回的项目要求与架构正文已采用裁定的说法，Tool 契约与本提案的更正待 PanQiWei 裁定后以更正标注落位。R1 至 R4、冻结（R5b）、登记键的三个分量、协调者与保留义务不受该裁定影响。
+更正标注（2026-10-22，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：PanQiWei 采纳「会话与三个 runtime 不钉版本，按形状核对同形可用实现」。本提案据此更正：固定采用改为记形状、按形状选取，`definition.adoption` 仍等于装载时的资产版本，只用于追溯与并存；`resolve`、R5a、R5b 与判据 4、5、6 按下文更正后的措辞执行。R1 至 R4、冻结、登记键三分量、协调者与保留义务不变。
 
 ### 绑定登记表（G7）
 
 一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。下文的"作者插件 fiber"都指它。它不 provide 服务键。它的 `inject` 是实现包里的静态字面量，含 `toolBindings` 与实现需要的服务。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，`ToolLoader.load`，`toolBindings.register`。登记以 `ctx.effect` 配对在该 fiber 上。
 
-登记键 = (来源层, 能力身份, 资产版本)。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`；`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按固定采用查键，只做访问核验，不做层序选择：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。
+登记键 = (来源层, 能力身份, 资产版本)。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`；`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则取合法胜出者序中最先的同形贡献；没有同形者返回 unavailable。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。更正标注（2026-10-22，同上决定）：原文为「`resolve` 按固定采用查键」。
 
 同一个键的第二次登记按三种情形处理。同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 conflict，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 conflict，由本地排序域决定。
 
@@ -126,9 +126,9 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 1. 装载前后，`toolRuntime`、`toolCommands`、`toolReads`、`toolInstances` 提供者的 fiber uid 不变。
 2. 同键认回与 conflict；release 只撤自己；晚到旧 release 不删后继。
 3. 有引用且无同形替代时，`unload` 返回 `retained`，贡献仍 live。
-4. 无引用且无在途调用时，`unload` 经 draining 到 released。此后旧固定请求的 `resolve` 返回 unavailable，fiber 为 DISPOSED。有在途调用的排空在 6.8 验收。
-5. 新旧版本并存；旧会话解析到旧键，新会话到新键。
-6. 同形新版只在采用点前进；Run 中的刷新不改键。
+4. 无引用且无在途调用时，`unload` 经 draining 到 released。此后记下该键、且没有其他同形贡献的请求 `resolve` 返回 unavailable，fiber 为 DISPOSED。有在途调用的排空在 6.8 验收。
+5. 新旧版本并存，各自可被同形请求选中；不同形时旧会话只解析到同形的旧贡献，新会话解析到新贡献。
+6. Run 中的刷新可把后续调用路由到同形的新实现；常驻形状与记下的采用依据不变。
 7. 不同形新版：留旧，会话可用。
 8. 突然撤除 fiber：同定义 known-unavailable；在途调用 recover 为 unknown；重新装载后下一采用点为 continues。
 9. 旧包缺失且不同形胜者存在：下一采用点判冻结；会话进入冻结状态一次，重复为 no-op；不再派发新 Run；在途 Run 收场。
