@@ -56,7 +56,7 @@ it('operation suite accepts real operations and rejects each targeted broken imp
     ).rejects.toThrow()
   }
 })
-it('history double passes all identity/order cases; each targeted bad source fails', async () => {
+it('history double passes every public obligation and each isolated bad source fails its own case', async () => {
   for (const item of historySourceConformance<string>()) {
     const f = fixture()
     const other = tenantCodec.parse(
@@ -78,30 +78,145 @@ it('history double passes all identity/order cases; each targeted bad source fai
         },
       ],
     }
-    const source = createMemoryHistorySource<string>(data)
+    const createSource = (
+      data: import('@omne-harness/request-context-contract/testing').HistoryFixture,
+    ) => createMemoryHistorySource<string>(data)
     const subject = {
-      source,
+      source: createSource(data),
       fixture: data,
       access: f.input.identity.access,
       otherTenant: other.value,
-      commit: async () => epoch,
+      createSource,
     }
-    await expect(runConformanceCase(item, subject)).resolves.toEqual({ kind: 'passed' })
-    const bad = {
-      ...source,
-      read: async () => ({
-        kind: 'page' as const,
-        page: {
-          rows: [
-            { ...row(1), prefixDigest: '1' },
-            { ...row(0), prefixDigest: '0' },
-          ],
-          next: null,
+    await expect(runConformanceCase(item, subject), item.name).resolves.toEqual({ kind: 'passed' })
+    const createBad: typeof createSource = data => {
+      const source = createSource(data)
+      return {
+        ...source,
+        async read(e, access, after, budget) {
+          if (item.name === 'read-requires-access')
+            return source.read(e, access ?? subject.access, after, budget)
+          if (item.name === 'tenant-isolation') return source.read(e, subject.access, after, budget)
+          if (item.name === 'missing-scope-is-invalid')
+            return source.read({ ...e, scope: e.scope ?? data.scope }, access, after, budget)
+          const result = await source.read(
+            e,
+            access,
+            after,
+            item.name === 'page-respects-byte-budget' ? 65536 : budget,
+          )
+          if (result.kind !== 'page') return result
+          if (item.name === 'page-size-retains-order')
+            return { ...result, page: { ...result.page, rows: [...result.page.rows].reverse() } }
+          if (item.name === 'prefix-digest-is-chained')
+            return {
+              ...result,
+              page: {
+                ...result.page,
+                rows: result.page.rows.map(row => ({ ...row, prefixDigest: 'constant-non-chain' })),
+              },
+            }
+          return result
         },
-      }),
+      }
     }
-    await expect(runConformanceCase(item, { ...subject, source: bad })).rejects.toThrow()
+    await expect(
+      runConformanceCase(item, { ...subject, source: createBad(data), createSource: createBad }),
+      item.name,
+    ).rejects.toThrow()
   }
+})
+it('the public prefix case also rejects per-row digests that do not depend on the preceding row', async () => {
+  const f = fixture(),
+    item = historySourceConformance<string>().find(item => item.name === 'prefix-digest-is-chained')
+  if (item === undefined) throw new Error('Missing chain obligation')
+  const other = tenantCodec.parse(
+    '{"organization":"org_11111111111111111111111111","account":"acc_11111111111111111111111111"}',
+  )
+  if (!other.ok) throw new Error('Tenant fixture')
+  const data = {
+    scope,
+    tenant: f.input.identity.access.tenant,
+    epochs: [{ epoch, rows: [row(0), row(1)], entries: [], open: [] }],
+  }
+  const createSource = (
+    fixture: import('@omne-harness/request-context-contract/testing').HistoryFixture,
+  ) => {
+    const source = createMemoryHistorySource<string>(fixture)
+    return {
+      ...source,
+      async read(...args: Parameters<typeof source.read>) {
+        const result = await source.read(...args)
+        return result.kind === 'page'
+          ? {
+              ...result,
+              page: {
+                ...result.page,
+                rows: result.page.rows.map(row => ({
+                  ...row,
+                  prefixDigest: JSON.stringify(row.message),
+                })),
+              },
+            }
+          : result
+      },
+    }
+  }
+  await expect(
+    runConformanceCase(item, {
+      source: createSource(data),
+      fixture: data,
+      access: f.input.identity.access,
+      otherTenant: other.value,
+      createSource,
+    }),
+  ).rejects.toThrow()
+})
+it('prefix conformance accepts provider-specific digests and a source that chooses smaller pages', async () => {
+  const f = fixture(),
+    item = historySourceConformance<string>().find(item => item.name === 'prefix-digest-is-chained')
+  if (item === undefined) throw new Error('Missing chain obligation')
+  const other = tenantCodec.parse(
+    '{"organization":"org_11111111111111111111111111","account":"acc_11111111111111111111111111"}',
+  )
+  if (!other.ok) throw new Error('Tenant fixture')
+  const data = {
+    scope,
+    tenant: f.input.identity.access.tenant,
+    epochs: [{ epoch, rows: [row(0), row(1)], entries: [], open: [] }],
+  }
+  const createSource = (
+    fixture: import('@omne-harness/request-context-contract/testing').HistoryFixture,
+  ) => {
+    const source = createMemoryHistorySource<string>(fixture)
+    return {
+      ...source,
+      async read(...args: Parameters<typeof source.read>) {
+        const result = await source.read(...args)
+        if (result.kind !== 'page') return result
+        const first = result.page.rows[0]
+        return {
+          ...result,
+          page: {
+            rows:
+              first === undefined
+                ? []
+                : [{ ...first, prefixDigest: 'provider-owned:' + first.prefixDigest }],
+            next: result.page.rows.length > 1 ? (first?.seq ?? null) : result.page.next,
+          },
+        }
+      },
+    }
+  }
+  await expect(
+    runConformanceCase(item, {
+      source: createSource(data),
+      fixture: data,
+      access: f.input.identity.access,
+      otherTenant: other.value,
+      createSource,
+    }),
+  ).resolves.toEqual({ kind: 'passed' })
 })
 it('policy suites pass scripted doubles and reject individual policy defects', async () => {
   for (const item of representationPolicyConformance()) {

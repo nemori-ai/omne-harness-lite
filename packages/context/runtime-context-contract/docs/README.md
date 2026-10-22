@@ -27,4 +27,4 @@
 | [context.md](context.md) | 独立消费路径、邻域交接与上层页面指针 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-公开类型、纯操作、Schema 与测试支持已进入 `src/`，见[公开接口页](public-api.md#定义索引)。生产存储、持久恢复及具体提供者的义务仍归实现成员。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+公开类型、纯操作与测试支持已进入 `src/`，见[公开接口页](public-api.md#定义索引)。生产存储、持久恢复及具体提供者的义务仍归实现成员。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

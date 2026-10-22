@@ -84,3 +84,11 @@
 ## 验证
 
 [导出清单](../tests/fixtures/exports.json) 与共享清单工具比较构建产物。行为证据见 [验证说明](../verification/README.md)。
+
+## 历史来源公开套件的夹具
+
+historySourceConformance() 返回六项义务：read-requires-access、tenant-isolation、page-size-retains-order、missing-scope-is-invalid、page-respects-byte-budget、prefix-digest-is-chained。每个 case 通过 run(fixture) 调用；缺失 scope 的 case 故意构造不合形状的边界输入。
+
+HistorySourceFixture 的 createSource(fixture) 必须构造与 source 相同实现、相同配置的独立来源，供摘要链关系验证；它替代未使用的 commit 接缝，不是生产历史写口。夹具首个 epoch 至少有两个正字节行，各行与总字节数可由安全整数预算读取；entries 与 rows 应对应同一消息。套件会读取完整分页，再构造前行消息不同、后续行不变的独立夹具，要求全部后缀摘要随之前进，并核对分页边界的摘要一致。它不规定摘要算法、盐或编码，也不编辑活跃 epoch，不用 memory 的 SHA 算法作判定器。
+
+[conformance.spec.ts](../tests/conformance.spec.ts) 对六项义务分别注入只破坏对应行为的来源；摘要另有仅逐行计算、没有前缀依赖的反例。公开名字和入口不变，机读库存无需添加导出。
