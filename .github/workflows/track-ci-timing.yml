@@ -23,7 +23,7 @@ jobs:
       OMNE_ADMISSION: '1'
       TURBO_TELEMETRY_DISABLED: '1'
       TURBO_NO_UPDATE_NOTIFIER: '1'
-      OMNE_TEST_LEDGER_HOME: ${{ runner.temp }}/timing-ledger
+      OMNE_TEST_LEDGER_HOME: /tmp/omne-timing-ledger
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,5 +84,5 @@ jobs:
           name: timing-${{ matrix.sample }}
           path: |
             tmp/ci-timing
-            ${{ runner.temp }}/timing-ledger
+            /tmp/omne-timing-ledger
           retention-days: 7
