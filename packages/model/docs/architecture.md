@@ -53,7 +53,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 使用它们。tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与两个资源类型；它在初始化时核对家族传入的词表与配置，不收录厂商词表，pi-ai-openai 以 o200k 词表消费它。其余 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 与 pi-ai-anthropic 使用它们。两个家族经同一 `composeFamilies` 与 `createPiTransport` 的联调是 pi-ai-anthropic 的慢层用例。tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与两个资源类型；它在初始化时核对家族传入的词表与配置，不收录厂商词表。pi-ai-openai 以 o200k 词表消费它，pi-ai-anthropic 以随包发布的 `claude.json` 消费它。其余六个 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -154,6 +154,8 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 | 响应 | 家族语义、终止/拒绝/用量口径及可支持的历史回放解释 | 公共 HTTP/SSE framing、真实取消及资源释放；Model 共享到达映射、首内容与保管 |
 | 认证与验证 | 精确 leaf/route 的固定样本、计量资源摘要、符合性记录 | 共同协议验证、安装闭包及组合行为；清单中存在不等于远端认证 |
 
+OpenAI 与 Anthropic 两个家族按本表落地。家族包给出记录（纯数据）、带修订名的四个 hook 规则、计量器与官方档案。请求规划、编码与流解释只有 pi-ai-transport 网关引擎一份，引擎源码不含厂商名。两家的差异只出现在记录的线数据与 hook 中：角色与内容形式、缓存放置、参数子集、推理格式与整组回放、签名前缀的降级、用量算术与计量规则。
+
 供应商相同的规则复用普通函数，有实质差异才在既有 seam 提供不同 adapter。公共传输不允许家族以 hook 隐藏重试、重定向、凭据读取或额外网络发送；一次真实发出只对应一个固定接收方。Model 的有限重试和当前资格围栏继续拥有这些决定。
 
 ## Tokenizer 的资源与计量分工
@@ -179,16 +181,16 @@ Tokenizer 分三层：引擎执行、具体编码定义、完整请求计量。�
 3. 其余家族逐精确型号迁移定义、实际接收方、参数/schema、计量、响应和资源。沿叶级证据决定支持范围，不用“同厂商”“OpenAI-compatible”或目录存在代替符合性。
 4. 发行装配组合家族及各厂商包发布的官方档案，并验证完整消费者。子入口、声明、独立运行及安装闭包分别检查，根 Model 不引入全部供应商或引擎依赖。
 
-当前 OpenAI 实现线只建立 `pi-ai-transport`、`pi-ai-openai` 与 `tokenizer-tiktoken`。四条条件保留，按已接受范围分次兑现：
+当前实现线建立 `pi-ai-transport`、`pi-ai-openai`、`pi-ai-anthropic` 与 `tokenizer-tiktoken`。四条条件保留，按已接受范围分次兑现：
 
 | 条件 | 本线承担 | 留后续线补齐 |
 | --- | --- | --- |
-| 1 | tiktoken 使用 OpenAI 固定编码验证 | Hugging Face 引擎及具名家族资源验证 |
-| 2 | 共享传输与 OpenAI 走通三段协议及其反例 | 第二个差异显著家族验证共享传输接口 |
-| 3 | OpenAI 的精确型号沿本线验证 | 其余七家逐型号迁移与验证 |
+| 1 | tiktoken 使用 OpenAI 固定编码（o200k）验证；pi-ai-anthropic 的 `claude.json` 经同一引擎计数，核对文件摘要与参考计数 | Hugging Face 引擎及具名家族资源验证 |
+| 2 | 共享传输与 OpenAI 走通三段协议及其反例。Anthropic 作为第二个差异显著家族验证共享传输接口：parts 内容、1h 末消息缓存、整组签名回放，以及签名前缀的降级（关闭推理并给出 `reasoning-disabled` 诊断，见 pi-ai-anthropic 的 `tests/cross-family-replay.spec.ts`）。两家经同一 `composeFamilies` 与 `createPiTransport` 对本地 HTTPS 服务发送各自的记录夹具，符合性套件 transport 组通过（pi-ai-anthropic 的 `tests/two-families.spec.ts`） | — |
+| 3 | OpenAI 与 Anthropic 的精确型号沿本线验证 | 其余六家逐型号迁移与验证 |
 | 4 | OpenAI 单家装配、官方档案与消费者及安装闭包验证 | 后续家族加入时验证其实际组合 |
 
-前三行的延期已获上述技术决定允许。后续线仍须满足对应条件；本线的单家证据不证明共享传输已通过多家族验证。向产品拥有者交付能力事实时须保留这三项未覆盖范围。
+第 1、3 行的延期已获上述技术决定允许。后续线仍须满足对应条件。条件 2 由本线的 Anthropic 家族兑现，接受 #463 与 #465 时一并确认。第 4 行只覆盖 OpenAI 单家装配；Anthropic 的发行装配与安装闭包没有在本线验证。向产品拥有者交付能力事实时须保留第 1、3、4 行的未覆盖范围。
 
 旧式工具依赖、依赖调用方私有历史的响应大对象、静默丢参数、未知 usage 默认口径、普通文本自动激活特殊 token 和任意 opaque 回放不随技术栈迁入。未支持的共享表示先由原拥有者细化，不能借 JsonValue 或厂商私有字段绕过消息契约。实际秘密绑定继续消费既定外部凭据契约，不复制旧凭据通道假设。
 

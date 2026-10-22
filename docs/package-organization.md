@@ -195,14 +195,14 @@ scripts/                       仓库自动化
 | model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 | workspace 成员；已发布全部声明并有测试 |
 | model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md) |
 | model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
-| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；根入口导出家族贡献接口类型、`createPiTransport` 与 `createNetworkResources`；ModelTransport 三段语义已实现，媒体读取与家族实现未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md) |
-| pi-ai-openai | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录，只经快层验证，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md) |
-| pi-ai-anthropic | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录，只经快层验证，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
+| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md) |
+| pi-ai-openai | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md) |
+| pi-ai-anthropic | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
 | pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
-| tokenizer-tiktoken | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md) |
+| tokenizer-tiktoken | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json`，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md) |
 | tokenizer-huggingface | 封装 Hugging Face 分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | 未初始化 |
 
-具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及 OpenAI 实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
+具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及本实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
 
 ## 责任与能力组
 
