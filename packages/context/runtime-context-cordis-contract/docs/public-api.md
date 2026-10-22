@@ -30,4 +30,4 @@
 | `Context` 增补 | `./cordis` | `runtimeContext` 属性的类型为 `RuntimeContextService` | 性质 1 |
 | 契约词汇类型的重导出 | 根入口 | 只有类型。具体清单随实现确定，以契约的[公开接口页](../../runtime-context-contract/docs/public-api.md)为准 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) |
 
-`RuntimeContextService` 的方法是契约三面操作类型的方法：`registerProducer`、`prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`bind`。它们的签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。契约现在还没有导出这些操作类型，见契约的[随实现进入的导出](../../runtime-context-contract/docs/public-api.md#随实现进入的导出)。
+`RuntimeContextService` 的方法是契约三面操作类型的方法：`registerProducer`、`prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`bind`。它们的签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。契约现在还没有导出这些操作类型，见契约的[随实现进入的导出](../../runtime-context-contract/docs/public-api.md#定义索引)。

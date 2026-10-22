@@ -605,6 +605,12 @@ importers:
 
   packages/context/runtime-context-contract:
     dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@standard-schema/spec':
         specifier: 'catalog:'
         version: 1.1.0
