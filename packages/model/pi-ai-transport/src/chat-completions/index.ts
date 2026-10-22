@@ -7,6 +7,7 @@ export type {
   ChatUsageItem,
   ExtensionRule,
   FamilyMeter,
+  FieldsOfValue,
   GatewayField,
   GatewayParam,
   GatewayUsage,
