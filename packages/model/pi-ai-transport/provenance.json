@@ -56,6 +56,20 @@
       "symbol": "buildParams",
       "changes": "Request body of the gateway: model from the record route, `provider` from the record serving pin with `allow_fallbacks: false` and `require_parameters: true`, `stream: true`, planned parameters through the record table and the closed gateway field vocabulary, fixed record fields. Not taken: the usage switch (`stream_options`), prompt cache keys, `max_completion_tokens`, every thinking format branch, sampling overrides, SDK types and environment reads. Added: parameter planning with explicit, default, unsupported and invalid results, the replay declaration check, the prefix degrade and the meter representation with the request bytes.",
       "basis": "nemori-ai/omne-harness-lite#463 implementation spec D3"
+    },
+    {
+      "file": "src/chat-completions/chunk.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "stream (chunk loop), parseChunkUsage",
+      "changes": "Boundary parse of one json-text data frame into a typed chunk instead of reading SDK chunk objects: served model and provider, an in-band error with its numeric code only, at most one choice, the delta members content, refusal, reasoning, reasoning_details and tool_calls, the finish value and the usage object. Kept from upstream: the usage fields prompt_tokens, completion_tokens, prompt_tokens_details.cached_tokens and completion_tokens_details.reasoning_tokens. Changed: a count that is not a decimal integer stays unknown instead of 0, no arithmetic and no cost calculation (family usage hook), no choice.usage fallback, a reasoning_details item of an unknown type is kept as `other`, a signature-only reasoning.text item is kept, two choices or non-empty images or audio members are protocol failures, the other reasoning field names are not read.",
+      "basis": "nemori-ai/omne-harness-lite#463 implementation spec D4"
+    },
+    {
+      "file": "src/chat-completions/decoder.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "stream (chunk loop), finishBlock, mapStopReason",
+      "changes": "A phase union (streaming, finished, ended) and one pure reduce step per frame that gives contract TransportFacts instead of pi message events. Kept from upstream: one text block and one thinking block, the first non-empty reasoning source, tool-call blocks keyed by stream index, the finish mapping stop, tool_calls and length, other finish values as failures, an error when the stream ends without a finish. Changed: content and refusal share the text channel; the reasoning source is chosen once per response among delta.reasoning, reasoning.text and reasoning.summary and never shows [REDACTED]; reasoning_details fragments join by index without id and adopt one signature (archived stream.ts rule); all joined details go to the family reasoning hook at finish and each result is sealed whole as a reasoning state part; tool argument text is buffered until the name within a configured limit and decoded at the seal; a length finish seals text, thinking and reasoning and keeps tool arguments unsealed; a bounded tail after finish accepts usage and the repeated finish; the first chunk fixes the served provider, which the record pins; an in-band error maps its numeric code like an HTTP status and never copies its text.",
+      "basis": "nemori-ai/omne-harness-lite#463 implementation spec D4"
     }
   ]
 }

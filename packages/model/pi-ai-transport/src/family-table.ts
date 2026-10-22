@@ -228,6 +228,19 @@ function isTextArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
 }
 
+/**
+ * The adoption and the frozen record of each record of a family, in record order. For the
+ * package's own testing entry; the root entry does not export it. Throws `RangeError` for a
+ * value that `defineFamily` did not make.
+ */
+export function familyRecords(
+  family: PiFamily,
+): readonly Readonly<{ adoption: Adoption; record: PiModelRecordHead }>[] {
+  return familyEntries(family).map(entry =>
+    Object.freeze({ adoption: entry.adoption, record: entry.record }),
+  )
+}
+
 function familyEntries(family: PiFamily): readonly FamilyEntry[] {
   const entries = PiFamilyHandle.entriesOf(family)
   if (entries === undefined) throw new RangeError('each family must come from defineFamily')

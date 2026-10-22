@@ -36,6 +36,19 @@ it('the subpath entry chat-completions exports bindChatCompletions as its only r
   expect(Object.keys(engine)).toEqual(['bindChatCompletions'])
 })
 
+it('the subpath entry testing exports the fixture check and the adoption fingerprint helpers', async () => {
+  const testing: object = await import('@omne-harness/pi-ai-transport/testing')
+  expect(Object.keys(testing).toSorted()).toEqual([
+    'FIXTURE_FILES',
+    'GATEWAY_END_MARKER',
+    'appendAdoptionFingerprints',
+    'checkAdoptionFingerprints',
+    'checkChatCompletionsFixtures',
+    'fixtureDirectory',
+    'renderFingerprints',
+  ])
+})
+
 it('the engine internals are not reachable through the package exports', async () => {
   const internal = '@omne-harness/pi-ai-transport/chat-completions/request'
   await expect(import(internal)).rejects.toThrow()

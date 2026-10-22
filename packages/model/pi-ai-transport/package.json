@@ -17,6 +17,11 @@
       "source": "./src/chat-completions/index.ts",
       "types": "./dist/chat-completions/index.d.ts",
       "import": "./dist/chat-completions/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [

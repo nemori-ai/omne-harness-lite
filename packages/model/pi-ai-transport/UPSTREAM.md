@@ -1,6 +1,6 @@
 # Upstream provenance
 
-Three files of this package are adapted from `earendil-works/pi` **1.0.0**, release commit
+Five files of this package are adapted from `earendil-works/pi` **1.0.0**, release commit
 `a13d35a742c6ef8462812a28fbe1d8c8b7431c32`. The exact source, archive and license hashes and the
 file-to-source mapping are kept in [provenance.json](provenance.json).
 
@@ -9,6 +9,8 @@ file-to-source mapping are kept in [provenance.json](provenance.json).
 | [src/sse.ts](src/sse.ts) | `packages/ai/src/api/openai-codex-responses.ts` | `parseSSE` |
 | [src/chat-completions/projection.ts](src/chat-completions/projection.ts) | `packages/ai/src/api/openai-completions.ts` | `convertMessages`, `convertTools`, `addCacheControlToTextContent` |
 | [src/chat-completions/request.ts](src/chat-completions/request.ts) | `packages/ai/src/api/openai-completions.ts` | `buildParams` |
+| [src/chat-completions/chunk.ts](src/chat-completions/chunk.ts) | `packages/ai/src/api/openai-completions.ts` | chunk loop of `stream`, `parseChunkUsage` |
+| [src/chat-completions/decoder.ts](src/chat-completions/decoder.ts) | `packages/ai/src/api/openai-completions.ts` | chunk loop of `stream`, `finishBlock`, `mapStopReason` |
 
 The original MIT notice is kept verbatim in [LICENSE.pi](LICENSE.pi). Each adapted file carries
 a source and copyright header. The headers of the engine files name the commit and the symbols
@@ -35,7 +37,8 @@ project-owned [src/iteration.ts](src/iteration.ts).
 ## Gateway engine
 
 The engine takes only pure computation from the chat-completions module of pi: the message
-conversion, the tool wrapper, the cache marker and the request parameters. It does not take the
+conversion, the tool wrapper, the cache marker, the request parameters, the chunk loop, the usage
+fields and the stop mapping. It does not take the
 HTTP client, the SDK, the retry wrapper, the environment lookup of credentials or the detection
 of provider compatibility from a URL or a provider id. Every vendor difference is record data or
 one of four family hooks.
@@ -50,7 +53,18 @@ one of four family hooks.
   `provider` routing object and the fixed fields. It adds parameter planning, the replay
   declaration check, the prefix degrade and the meter representation. It does not send a usage
   switch.
+- `src/chat-completions/chunk.ts` reads one data frame into a typed chunk. It keeps the upstream
+  usage fields, but a count that is not a decimal integer stays unknown and no cost is computed.
+  It keeps a signature-only reasoning item, refuses a second choice and unsupported output
+  members, and reads only the `reasoning` field name.
+- `src/chat-completions/decoder.ts` replaces the event loop with a phase union and one pure reduce
+  step per frame that gives contract facts. It keeps one text and one thinking block, tool-call
+  blocks by stream index and the stop mapping. It adds the reasoning detail joining of the
+  archived fork, the reasoning hook at finish, bounded buffers, the bounded usage tail, the
+  served-provider check, a seal at a `length` finish and in-band error mapping without the
+  upstream text.
 
-The other engine files (`bind.ts`, `parameters.ts`, `gateway.ts`, `json.ts`, `vocabulary.ts`,
-`decoder.ts` and `index.ts`) are project-owned. Other files of this package are project-owned
+The other engine files (`bind.ts`, `details.ts`, `parameters.ts`, `gateway.ts`, `json.ts`,
+`vocabulary.ts` and `index.ts`) are project-owned. `details.ts` holds the joining rule of the
+archived fork, which is project-owned code. Other files of this package are project-owned
 and carry no upstream header. The adaptation does not inherit any upstream model certification.

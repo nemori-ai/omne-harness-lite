@@ -39,7 +39,7 @@ export async function* endedBeforeSend(
 export async function* noFacts(): AsyncGenerator<TransportFact, void, undefined> {}
 
 /** `true` once the 2xx body was read to its end, so the exchange closes by itself. */
-type Progress = { bodyComplete: boolean }
+export type Progress = { bodyComplete: boolean }
 
 async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
   const { exchange } = input
@@ -78,8 +78,36 @@ async function* decodeSend(
   }
   const body = result.body.claim()
   if (body === undefined) throw new Error('the response body of a new exchange was claimed')
-  const frames = readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
+  return yield* decodeBody({
+    body,
+    decoder,
     endMarker: route.endMarker,
+    limits,
+    received: () => result.body.received(),
+    progress,
+  })
+}
+
+export type BodyInput = Readonly<{
+  body: AsyncIterable<Uint8Array>
+  decoder: PiResponseDecoder
+  endMarker: string | null
+  limits: Pick<PiTransportLimits, 'maxEventBytes' | 'json'>
+  /** `true` when the whole body was already read when the end marker arrived. */
+  received(): boolean
+  progress: Progress
+}>
+
+/**
+ * Gives every fact of a 2xx body but the termination, and returns how the send ended. The frames
+ * of the body go through the decoder; the decoder's `ended` is kept and checked to be the only one.
+ */
+export async function* decodeBody(
+  input: BodyInput,
+): AsyncGenerator<TransportFact, SendEnd, undefined> {
+  const { body, decoder, endMarker, limits, progress } = input
+  const frames = readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
+    endMarker,
     json: limits.json,
   })
   const held: Held = { termination: null }
@@ -97,7 +125,7 @@ async function* decodeSend(
         // `received()` alone decides: `Readable.read()` hands over the whole buffered body in one
         // chunk, so a body that Node holds whole was consumed with the marker's frame and the
         // connection stays pooled. A body still open is stopped.
-        bodyComplete = result.body.received()
+        bodyComplete = input.received()
         break
       }
     }

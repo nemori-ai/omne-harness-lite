@@ -9,6 +9,7 @@ import {
 import { composeFamilies, defineFamily, type PiFamilyBinding } from '../src/index.ts'
 import {
   EXTENSION,
+  LIMITS,
   FORMAT,
   OWNER,
   SCOPE,
@@ -40,6 +41,7 @@ function bind(
     supplier: supplierOf(record),
     hooks,
     meter: testMeter(record, probe),
+    limits: LIMITS,
     release: async () => {
       probe.released += 1
     },
@@ -502,6 +504,7 @@ describe('bindChatCompletions', () => {
       supplier: supplierOf(record),
       hooks: testHooks(probe),
       meter,
+      limits: LIMITS,
       release: async () => undefined,
     })
     expect(binding.adoption).toEqual(supplierOf(record).adoption)
@@ -528,6 +531,7 @@ describe('bindChatCompletions', () => {
         supplier: supplierOf(drifted),
         hooks: testHooks(probe),
         meter: testMeter(record, probe),
+        limits: LIMITS,
         release: async () => undefined,
       }),
     ).toThrow(RangeError)
@@ -586,6 +590,7 @@ describe('bindChatCompletions', () => {
             supplier,
             hooks: testHooks(probe),
             meter: testMeter(found, probe),
+            limits: LIMITS,
             release: async () => undefined,
           }),
         }),

@@ -2,6 +2,7 @@
 // accepted family binding.
 import type { Adoption, Supplier } from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
+import { isPositiveInteger } from '../limits.ts'
 import type { PiFamilyBinding } from '../family.ts'
 import { createChatCompletionsDecoder } from './decoder.ts'
 import { GATEWAY_FIELDS } from './gateway.ts'
@@ -9,6 +10,7 @@ import { defaultParameter, judgeParameter, PARAMETER_KINDS } from './parameters.
 import { recordDeclaration, toolPayload } from './projection.ts'
 import { encodeRequest, planRequest, type RequestContext } from './request.ts'
 import type {
+  ChatCompletionsLimits,
   ChatCompletionsRecord,
   FamilyMeter,
   GatewayField,
@@ -21,6 +23,8 @@ export type ChatCompletionsBindingInput = Readonly<{
   supplier: Supplier
   hooks: VendorHooks
   meter: FamilyMeter
+  /** The buffer limits of each decoder of the binding. From the family configuration. */
+  limits: ChatCompletionsLimits
   /** Releases what the family acquired for this binding. Called at most once. */
   release(): Promise<void>
 }>
@@ -75,6 +79,28 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
       throw new RangeError(`record ${record.name}: the default of ${kind} is ${failure.kind}`)
   }
   checkFields(record)
+  checkLimits(input.limits)
+}
+
+const JSON_LIMIT_NAMES = [
+  'maxBytes',
+  'maxDepth',
+  'maxItems',
+  'maxMembers',
+  'maxStringLength',
+  'maxNumberLength',
+] as const satisfies readonly (keyof ChatCompletionsLimits['toolArguments'])[]
+
+function checkLimits(limits: ChatCompletionsLimits): void {
+  if (typeof limits !== 'object' || limits === null)
+    throw new RangeError('limits must be an object')
+  if (!isPositiveInteger(limits.maxReasoningText))
+    throw new RangeError('limits.maxReasoningText must be a positive integer')
+  if (typeof limits.toolArguments !== 'object' || limits.toolArguments === null)
+    throw new RangeError('limits.toolArguments must be an object')
+  for (const name of JSON_LIMIT_NAMES)
+    if (!isPositiveInteger(limits.toolArguments[name]))
+      throw new RangeError(`limits.toolArguments.${name} must be a positive integer`)
 }
 
 /** Each gateway field has one writer: a parameter, an extension, a fixed value or the degrade. */
@@ -104,6 +130,10 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
   const { record, supplier, hooks, meter } = input
   const adoption = recordAdoption(supplier.adoption.owner, record)
   checkInput(input, adoption)
+  const limits = Object.freeze({
+    toolArguments: Object.freeze({ ...input.limits.toolArguments }),
+    maxReasoningText: input.limits.maxReasoningText,
+  })
   const context: RequestContext = {
     record,
     hooks,
@@ -127,7 +157,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     }),
     encode: (encodeInput: Parameters<typeof encodeRequest>[1]) =>
       encodeRequest(context, encodeInput),
-    createDecoder: () => createChatCompletionsDecoder({ record, hooks }),
+    createDecoder: () => createChatCompletionsDecoder({ record, hooks, limits }),
     release(): Promise<void> {
       released ??= input.release()
       return released

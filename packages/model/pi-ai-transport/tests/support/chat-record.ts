@@ -17,6 +17,7 @@ import {
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
+  ChatCompletionsLimits,
   ChatCompletionsRecord,
   FamilyMeter,
   ProjectedRequest,
@@ -32,6 +33,19 @@ export const FORMAT = 'lab-v1'
 
 export function adoption(name: string): Adoption {
   return { owner: 'engine-test', name, revision: '1', digest: 'a'.repeat(64) }
+}
+
+/** The decoder buffer limits of the engine tests: test parameters, not package defaults. */
+export const LIMITS: ChatCompletionsLimits = {
+  toolArguments: {
+    maxBytes: 4_096,
+    maxDepth: 16,
+    maxItems: 256,
+    maxMembers: 64,
+    maxStringLength: 4_096,
+    maxNumberLength: 32,
+  },
+  maxReasoningText: 4_096,
 }
 
 export const REPRESENTATION = adoption('representation')

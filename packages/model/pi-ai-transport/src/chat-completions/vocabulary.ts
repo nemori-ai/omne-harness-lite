@@ -2,7 +2,7 @@
 // gives, and the projection that encode and the meter share. The engine knows no vendor: every
 // vendor difference is a value of a record or one of the four hooks.
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { JsonValue } from '@omne-harness/json-text'
+import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   FixedModelRequest,
@@ -158,6 +158,20 @@ export type ChatCompletionsRecord = PiModelRecordHead &
       prefix: PrefixRule
     }>
   }>
+
+/**
+ * The buffer limits of the stream decoder. They come from the family configuration, not from the
+ * record: they bound memory, they are not a wire difference, and they stay out of the adoption.
+ */
+export type ChatCompletionsLimits = Readonly<{
+  /**
+   * The argument text of one tool call, buffered before its name or streamed after it: at most
+   * `maxBytes` UTF-8 bytes, and the decode at finish keeps within every budget.
+   */
+  toolArguments: JsonLimits
+  /** The UTF-16 length of the string members of all buffered reasoning detail fragments. */
+  maxReasoningText: number
+}>
 
 // --- The four hooks: the only family code the engine calls ---------------------------------
 

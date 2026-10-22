@@ -9,6 +9,7 @@ import type { PiFamilyBinding } from '../src/index.ts'
 import { serializeBody } from '../src/payload.ts'
 import {
   EXTENSION,
+  LIMITS,
   FORMAT,
   REPRESENTATION,
   SCOPE,
@@ -41,6 +42,7 @@ function bind(
     supplier: supplierOf(record),
     hooks,
     meter: testMeter(record, probe),
+    limits: LIMITS,
     release: async () => {
       probe.released += 1
     },
