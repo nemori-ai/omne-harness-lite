@@ -13,12 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - sample: post-414-tool-runtime
-            head: 7df08ab4c55762ab9ff1e10205a52422303a2420
-            base: 93b6235ef319938235648724ef959ff53884d2eb
-          - sample: latest-track-to-main
+          - sample: latest-incremental
             head: c00643a46c4b2b63b4be50d37689ff4974132eeb
-            base: 93b6235ef319938235648724ef959ff53884d2eb
+            base: 0add8d200508dab82be702342a888c9d406e3f6f
     env:
       OMNE_ADMISSION: '1'
       TURBO_TELEMETRY_DISABLED: '1'
