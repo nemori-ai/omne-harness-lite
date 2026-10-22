@@ -19,9 +19,16 @@ function acceptedCodeBlock(markdown: string): string {
   return block
 }
 
-it('the root entry exports the network resources factory and the transport factory as its only runtime values', async () => {
+it('the root entry exports the family table, the network resources factory and the transport factory as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
-  expect(Object.keys(root).toSorted()).toEqual(['createNetworkResources', 'createPiTransport'])
+  expect(Object.keys(root).toSorted()).toEqual([
+    'composeFamilies',
+    'createNetworkResources',
+    'createPiTransport',
+    'defineFamily',
+    'recordAdoption',
+    'replayFormatsOf',
+  ])
 })
 
 it('the network resources handle shows only its close at run time', async () => {
