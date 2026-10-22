@@ -138,7 +138,7 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发�
 | `emit` 不捕获监听者异常                | [emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)                 | 性质 6                               |
 | isolate 只隔离实例可见性               | [isolate-hides-instances-not-data](../../../../.meta_harness/design/basis/cordis/isolate-hides-instances-not-data.md)             | 性质 9                               |
 
-下列机制只有源码读数，还没有进入 basis。它与 Runtime Context 服务定义列出的候选条目 `inject-object-config-reaches-service-resolve-config` 是同一条，probe 要证明的内容见 [runtime-context-cordis-contract 的机制读数与假设](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。
+下列机制已有固定 Cordis 4.0.4 的本地探针，还没有进入共同 basis。它与 Runtime Context 服务定义列出的候选条目 `inject-object-config-reaches-service-resolve-config` 是同一条，probe 要证明的内容见 [runtime-context-cordis-contract 的机制读数与假设](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。
 
 | 机制                                                                                           | 支撑的性质                                                                                                |
 | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |

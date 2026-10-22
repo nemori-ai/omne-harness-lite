@@ -45,13 +45,13 @@ flowchart LR
 2. 提示词贡献来自多个插件，每个插件有自己的寿命。登记面是 Request Context 唯一带寿命的部分，所以只有它需要 Cordis 的效应来跟随贡献者撤除（[系统页的提示词贡献登记面](../../../../docs/architecture/runtime/request-context.md#提示词贡献登记面)）。
 3. 独立调用方不装配 Cordis 也能用全部纯操作。
 
-代价：经 Cordis 使用缓存与选定策略要多一个入口 `assembly(scope, ports)`，它只交出已配置的操作组，见 [Cordis 说明的服务定义](cordis.md#服务定义)。历史源读口、计量端口、转换件结果端口与请求序列化端口由调用方逐次交入，不由提供者 `inject`。理由：这三项归作用域持有者与模型侧，提供者若 `inject` 它们，就要导入对方的服务定义，Request Context 的寿命也会跟它们的换代耦合；调用方本来就持有这三项，每次交入即可。
+代价：经 Cordis 使用缓存与选定策略要多一个入口 `assembly(scope, ports)`，它只交出已配置的操作组，见 [Cordis 说明的服务定义](cordis.md#服务定义)。历史源读口、计量端口、转换件结果端口与请求序列化端口由调用方逐次交入，不由提供者 `inject`。历史源由作用域持有者提供，计量由模型侧提供，转换结果读口由本契约定义，请求序列化由适配器提供。调用方逐次传入四项端口，使 Request Context 提供者不必导入对方的服务定义，也不随对方服务换代重跑。
 
 ### 作用域由装配声明
 
 作用域引用写在贡献者插件的 intercept 配置里，由装配决定，贡献者在运行时不能改（性质 7）。服务方法沿调用方 fiber 读出它。如果作用域是登记方法的普通参数，一个贡献者可以把同一份内容登记到任意作用域，同层重名与遮蔽的规则就失去依据。作用域只决定登记在哪一层，不授予资格（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
-代价：这条机制现在只有源码读数，见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
+这条机制已有固定 Cordis 4.0.4 的本地探针，尚未登记共同 basis，见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
 
 ### 事件只做失效提示
 
@@ -88,9 +88,9 @@ flowchart LR
 | ------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | 根入口没有运行值                     | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出   | 类型重导出进入后，仍断言运行导出为空                         |
 | `./cordis` 只有定义                  | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对运行导出与服务键 | 共享清单核对类型、运行值和模块增补                           |
-| 不导入实现成员（性质 10）            | 没有                                                                       | 核对源码、生成声明与产物的导入                               |
-| 登记、重名、遮蔽、逐请求变量与事件   | 没有                                                                       | 提供者的测试，见 [Cordis 说明的验证义务](cordis.md#验证义务) |
-| intercept 配置到达服务方法（性质 7） | 没有                                                                       | basis probe，见 [Cordis 说明](cordis.md#机制读数与假设)      |
+| 不导入实现成员（性质 10） | [boundary.spec.ts](../tests/boundary.spec.ts) 核对源码、生成声明与产物 | 持续核对公开入口 |
+| 登记、重名、遮蔽、逐请求变量与事件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 的本地非持久探针 | 生产提供者继续承担 [验证义务](cordis.md#验证义务) |
+| intercept 配置到达服务方法（性质 7） | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 在 Cordis 4.0.4 上验证 | 登记共同 basis；升版重跑，见 [Cordis 说明](cordis.md#机制读数与假设) |
 
 维护规则：
 

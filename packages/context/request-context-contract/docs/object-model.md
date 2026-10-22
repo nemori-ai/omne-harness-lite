@@ -196,7 +196,7 @@ stateDiagram-v2
 | 配置（默认值只是初值） | 压缩策略：触发界线、保留预算（比例或 token 数）、保留偏好、修剪优先、步数上界；表示策略：各模态的偏好顺序 | 可替换实现；数值归 [request-context](../../request-context/SPEC.md) |
 | 契约常量 | 六层顺序、快照锚点规则、前缀变化原因的取值 | 改它是契约变更 |
 | 块声明 | `context.compaction-settings`（供给块，`model`，`stable`，`reread`；当前压缩策略的保留预算与保留偏好）、`context.window-usage`（供给块，`model`，`per-request`，`recompute`；该作用域最近一次固定请求的占用与窗口上限的比例，进程重启后到下一次固定请求之前读到缺项） | 本成员是语义拥有者，用 `declare module` 增补 `ContextBlocks`；生产者是本成员的装配提供者，见 [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
-| 依赖端口 | `HistorySource` 读口、Model 的计量端口、本成员的 `ConversionResultSource` 读口（结果类型使用 Model 的 `ConversionResult`）及适配器序列化端口、两个策略实现 | 独立路径在机制工厂构造时给出三项端口；Cordis 路径由调用方经 `assembly(scope, ports)` 逐次交入三项端口。任一缺席使相关操作返回不可用，不伪装成功 |
+| 依赖端口 | `HistorySource` 读口、Model 的计量端口、本成员的 `ConversionResultSource` 读口（结果类型使用 Model 的 `ConversionResult`）及适配器序列化端口、两个策略实现 | 独立路径在机制工厂构造时给出四项端口；Cordis 路径由调用方经 `assembly(scope, ports)` 逐次交入四项端口。任一缺席使相关操作返回不可用，不伪装成功 |
 
 本成员依赖 model-contract、tool-contract、content-block、message、runtime-context-contract 的公开值与类型，不依赖任何协调者或持有者的契约，也不依赖 Cordis。
 
@@ -213,9 +213,9 @@ stateDiagram-v2
 
 ## 集成方关联与独立消费
 
-托管路径上，协调者的请求准备端口由适配器翻译到本成员的操作。适配器经 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` 取得已配置的操作组，逐次交入三项端口：准备对应 `assemble`，再经 Model 准备得固定请求；推导对应首次 `planCompaction`、之后 `deriveStep`，摘要步请求经 Model 准备成固定步请求，适配器保存进度并核计划身份、上界不变、已完成恰加一；接续对应带转换依据的 `resume`，适配器核提交来源与原准备一致。字段级对应见 [context.md](context.md)。
+托管路径上，协调者的请求准备端口由适配器翻译到本成员的操作。适配器经 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` 取得已配置的操作组，逐次交入四项端口：准备对应 `assemble`，再经 Model 准备得固定请求；推导对应首次 `planCompaction`、之后 `deriveStep`，摘要步请求经 Model 准备成固定步请求，适配器保存进度并核计划身份、上界不变、已完成恰加一；接续对应带转换依据的 `resume`，适配器核提交来源与原准备一致。字段级对应见 [context.md](context.md)。
 
-独立调用者从 [request-context](../../request-context/SPEC.md) 的机制工厂取得操作，在构造时给出三项端口与两个策略，自己提供七组输入；只要纯操作、不要缓存时直接用本成员的根入口。没有协调者就没有共同提交，转换由其合法历史拥有者保存。两条路共用同一套结果与失败。
+独立调用者从 [request-context](../../request-context/SPEC.md) 的机制工厂取得操作，在构造时给出四项端口与两个策略，自己提供七组输入；只要纯操作、不要缓存时直接用本成员的根入口。没有协调者就没有共同提交，转换由其合法历史拥有者保存。两条路共用同一套结果与失败。
 
 ## SOLID 与扩展边界
 

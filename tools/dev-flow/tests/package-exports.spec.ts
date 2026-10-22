@@ -119,15 +119,19 @@ describe('compareEntries', () => {
     const inventory: Inventory = {
       ...inventoryOf([]),
       entries: {
-        '.': { chapters: [{ title: 'Root', names: [{ name: 'Box', kind: 'class', pending: false }] }] },
+        '.': {
+          chapters: [{ title: 'Root', names: [{ name: 'Box', kind: 'class', pending: false }] }],
+        },
         './sub': { chapters: [{ title: 'Sub', names: [{ ...type('Box'), sameAs: '.' }] }] },
       },
     }
     expect(inventoryProblems(inventory, ['.', './sub'])).toEqual([])
-    expect(compareEntries(inventory, {
-      '.': join(directory, 'owner.d.ts'),
-      './sub': join(directory, 'projection.d.ts'),
-    }).every(isClean)).toBe(true)
+    expect(
+      compareEntries(inventory, {
+        '.': join(directory, 'owner.d.ts'),
+        './sub': join(directory, 'projection.d.ts'),
+      }).every(isClean),
+    ).toBe(true)
   })
 
   it('refuses type-only star exports instead of claiming runtime exports', () => {
@@ -135,20 +139,25 @@ describe('compareEntries', () => {
       'owner.d.ts': 'export declare class Box {}\n',
       'projection.d.ts': "export type * from './owner.js'\n",
     })
-    expect(() => compareEntries(inventoryOf([type('Box')]), {
-      '.': join(directory, 'projection.d.ts'),
-    })).toThrow('type-only star exports are not supported')
+    expect(() =>
+      compareEntries(inventoryOf([type('Box')]), {
+        '.': join(directory, 'projection.d.ts'),
+      }),
+    ).toThrow('type-only star exports are not supported')
   })
 
   it('permits imported dependency types without inspecting unrelated dependency exports', () => {
     build(directory, {
       'owner.d.ts': 'export declare class Box {}\n',
       'dependency.d.ts': "export type * from './owner.js'\n",
-      'consumer.d.ts': "import type { Box } from './dependency.js'\nexport interface Consumer { box: Box }\n",
+      'consumer.d.ts':
+        "import type { Box } from './dependency.js'\nexport interface Consumer { box: Box }\n",
     })
-    expect(compareEntries(inventoryOf([type('Consumer')]), {
-      '.': join(directory, 'consumer.d.ts'),
-    }).every(isClean)).toBe(true)
+    expect(
+      compareEntries(inventoryOf([type('Consumer')]), {
+        '.': join(directory, 'consumer.d.ts'),
+      }).every(isClean),
+    ).toBe(true)
   })
 
   it('still refuses type-only stars forwarded through a re-export chain', () => {
@@ -157,9 +166,11 @@ describe('compareEntries', () => {
       'dependency.d.ts': "export type * from './owner.js'\n",
       'consumer.d.ts': "export * from './dependency.js'\n",
     })
-    expect(() => compareEntries(inventoryOf([type('Box')]), {
-      '.': join(directory, 'consumer.d.ts'),
-    })).toThrow('type-only star exports are not supported')
+    expect(() =>
+      compareEntries(inventoryOf([type('Box')]), {
+        '.': join(directory, 'consumer.d.ts'),
+      }),
+    ).toThrow('type-only star exports are not supported')
   })
 
   it('reports a re-export that is another declaration than the owning entry', () => {

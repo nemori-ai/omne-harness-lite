@@ -29,8 +29,8 @@
 
 | 入口 | 适用场景 | 端口与策略怎样到达 |
 | --- | --- | --- |
-| 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` | 装配了 Cordis 的系统，协调者一侧的适配器组装请求。贡献从登记面现取，策略按提供者的配置选定，缓存在提供者的机制实例里 | 历史源读口、计量端口与转换件结果端口由适配器在每次 `assembly(scope, ports)` 时交入。提供者不 `inject` 持有者或模型侧的服务 |
-| 独立入口：[request-context](../../request-context/SPEC.md) 的机制工厂 | 不装配 Cordis、又要缓存与默认策略的调用方 | 三项端口与两个策略在工厂构造时给出，贡献集合由调用方随第四组传入 |
+| 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` | 装配了 Cordis 的系统，协调者一侧的适配器组装请求。贡献从登记面现取，策略按提供者的配置选定，缓存在提供者的机制实例里 | 历史源读口、计量端口、转换件结果端口与请求序列化端口由适配器在每次 `assembly(scope, ports)` 时交入。提供者不 `inject` 持有者或模型侧的服务 |
+| 独立入口：[request-context](../../request-context/SPEC.md) 的机制工厂 | 不装配 Cordis、又要缓存与默认策略的调用方 | 四项端口与两个策略在工厂构造时给出，贡献集合由调用方随第四组传入 |
 
 只要纯操作、不要缓存的独立调用方，按上一节直接用本成员的根入口。托管路径不把「适配器直接调用纯操作」当作组装入口。
 
