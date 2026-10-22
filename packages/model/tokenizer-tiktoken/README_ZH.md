@@ -71,10 +71,11 @@ pnpm run check:docs
 
 Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。慢层需要构建产物。测试分层与固定输入见[测试说明](tests/README.md)，覆盖与未覆盖见 [SPEC“组合与验证”](SPEC.md#组合与验证)。
 
-`pnpm run package:template scan --member packages/model/tokenizer-tiktoken` 的已知限制：
+`pnpm run package:template scan --member packages/model/tokenizer-tiktoken` 的读数：
 
 - `integration` 为 `unknown`。原因是 `docs/architecture/constraints.json` 中没有本成员的登记。这项登记归架构拥有者，结构检查不受影响。
-- 加 `--check` 时退出码为 1。原因是 `adoption` 为 `unmarked`：`package.json` 没有包模板标记。`structure` 仍为 `pass`。
+- `adoption` 为 `current`：`package.json` 带有 `typescript-package@3.0.0` 的采用标识，变体为 `module`。`structure` 为 `pass`。
+- 加 `--check` 时退出码为 0。这个结果不表示集成核对或业务验收已完成。
 
 ## 维护
 

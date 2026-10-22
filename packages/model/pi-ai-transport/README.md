@@ -94,10 +94,11 @@ OMNE_LIVE_TESTS=1 pnpm --filter @omne-harness/pi-ai-transport run test:live
 
 The Turbo tasks `test`, `test:fast` and `test:slow` first build this package and its dependencies, then run the selected tests. The slow tier needs `openssl` on PATH to make a self-signed certificate. The test tiers, fixtures and test doubles are in the [test notes](tests/README.md). Coverage and gaps are in [SPEC, "组合与验证"](SPEC.md#组合与验证).
 
-Known limits of `pnpm run package:template scan --member packages/model/pi-ai-transport`:
+Results of `pnpm run package:template scan --member packages/model/pi-ai-transport`:
 
 - It reports `integration` as `unknown`. The reason is that `docs/architecture/constraints.json` still lists this member as a candidate with no layer. The architecture owner owns that entry. The structure check is not affected.
-- With `--check` it exits 1, because `adoption` is `unmarked`: `package.json` has no package-template marker. Every member of the repository is in the same state. The `structure` result stays `pass`.
+- `adoption` is `current`: `package.json` has the `typescript-package@3.0.0` adoption marker with the variant `module`. `structure` is `pass`.
+- With `--check` it exits 0. This result does not show that the integration check or the business acceptance is complete.
 
 ## Maintenance
 

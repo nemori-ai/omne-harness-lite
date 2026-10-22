@@ -71,10 +71,11 @@ pnpm run check:docs
 
 Turbo builds this package and its dependencies before `test`, `test:fast` and `test:slow`. The slow tier needs the build output. [Tests](tests/README.md) describes the tiers and the fixture. [SPEC "composition and verification"](SPEC.md#组合与验证) lists coverage and gaps.
 
-Known limits of `pnpm run package:template scan --member packages/model/tokenizer-tiktoken`:
+Results of `pnpm run package:template scan --member packages/model/tokenizer-tiktoken`:
 
 - `integration` is `unknown`, because `docs/architecture/constraints.json` has no entry for this member. The architecture owner keeps that entry. The structure check does not depend on it.
-- With `--check`, the exit code is 1, because `adoption` is `unmarked`: `package.json` has no template marker. `structure` is still `pass`.
+- `adoption` is `current`: `package.json` has the `typescript-package@3.0.0` adoption marker with the variant `module`. `structure` is `pass`.
+- With `--check`, the exit code is 0. This result does not show that the integration check or the business acceptance is complete.
 
 ## Maintenance
 
