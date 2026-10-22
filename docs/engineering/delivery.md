@@ -96,13 +96,13 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 | `contract` | 线内 | 本线的契约成员 | 本线与交付线为 `integration` 的卡 | `none`、`additive` |
 | `impl` | 线内 | 本线拥有的路径 | 本线与交付线为 `integration` 的卡 | `none`、`additive` |
 | `integration` | `integration` | 任意路径 | 任意卡 | 任意 |
-| `baseline` | `integration` | 不写仓库，在卡上登记基线 | 本里程碑性质为 `contract` 的卡 | `none` |
+| `baseline` | `integration` | 不写仓库，在卡上登记基线 | 无 | `none` |
 
 表外另有三条规则：
 
 1. 任何卡都可以写线归属表 `shared` 列出的共享路径，只写由本卡其他改动生成或登记的变化，例如锁文件与文档登记。
-2. 线内的卡依赖其他线的契约时，不引用其他线的卡，而写一条 `capability` 条件，目标是本线轨道上可读到的那个契约形状。
-3. 交付线为 `integration` 的卡写入线内的路径时，route 用 `cross-track`，具名联调轨道与受影响线的 owner；只写联调轨道拥有的路径时，route 用 `track`。
+2. 线内的卡依赖其他线的契约时，不引用其他线的卡，而写一条 `capability` 条件，目标是本线的目标轨道上可读到的那个契约形状。
+3. 交付线为 `integration` 的卡写入线内的路径时，route 用 `cross-track`，具名联调轨道与线归属表登记的受影响线的 owner；只写联调轨道拥有的路径时，route 用 `track`。
 
 属性属于交付范围。卡首次登记属性时不升交付修订；登记后改变交付线、性质或契约变更时升交付修订。调度者改里程碑时不升交付修订。属性派生的标签与 Project 字段只作投影，规则见[建卡或修订卡](agent-delivery.md#2-建卡或修订卡)。
 
