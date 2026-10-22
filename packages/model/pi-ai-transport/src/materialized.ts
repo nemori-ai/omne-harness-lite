@@ -143,8 +143,20 @@ function createMaterialized(
     receipt: input.receipt,
     start(signal: AbortSignal): AsyncIterable<TransportFact> {
       const current = phase
-      // A repeated start, or a start after close, is a usage error: nothing is sent.
-      if (current.kind !== 'held') return noFacts()
+      switch (current.kind) {
+        case 'held':
+          break
+        // A repeated start is a usage error: nothing is sent and nothing ends.
+        case 'started':
+          return noFacts()
+        // Every close stops the send before it leaves, as the close of the network does.
+        case 'closed':
+          return endedBeforeSend({ kind: 'stopped' })
+        default: {
+          const _exhaustive: never = current
+          return _exhaustive
+        }
+      }
       phase = { kind: 'started', exchange: null }
       try {
         return send(current, signal)

@@ -108,13 +108,45 @@ describe('a start that sends nothing', () => {
     expect(sends()).toBe(0)
   })
 
-  it('a start after close gives an empty stream', async () => {
-    const { materialize, sends } = setup()
-    const materialized = await materialize()
-    await materialized.close()
-    expect(await collect(materialized.start(new AbortController().signal))).toEqual([])
-    expect(sends()).toBe(0)
-  })
+  it.each([
+    ['the close of the materialization', 'materialized'],
+    ['the close of its prepared transport', 'prepared'],
+    ['the close of the transport', 'transport'],
+  ] as const)(
+    'a start after %s sends nothing and ends interrupted and confirmed',
+    async (_name, closer) => {
+      let reads = 0
+      const { prepare, close, sends, network } = setup(() => {
+        reads += 1
+        return 'test-secret'
+      })
+      const prepared = await prepare()
+      const outcome = await prepared.materialize(new AbortController().signal)
+      if (!('ok' in outcome)) throw new Error('expected a materialization')
+      const materialized = outcome.ok
+      switch (closer) {
+        case 'materialized':
+          await materialized.close()
+          break
+        case 'prepared':
+          await prepared.close()
+          break
+        case 'transport':
+          await close()
+          break
+        default: {
+          const _exhaustive: never = closer
+          return _exhaustive
+        }
+      }
+      expect(await collect(materialized.start(new AbortController().signal))).toEqual([
+        { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
+      ])
+      expect(reads).toBe(0)
+      expect(sends()).toBe(0)
+      expect(await slotFree(network)).toBe(true)
+    },
+  )
 
   it('reads the credential slot once, inside the synchronous start call', async () => {
     let inside = false
