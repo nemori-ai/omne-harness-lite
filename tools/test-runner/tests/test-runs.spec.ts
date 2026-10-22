@@ -23,6 +23,7 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import {
   effectiveParallelism,
+  effectiveRecheckMax,
   ledgerHome,
   parseTestRunsConfig,
   readTestRunsConfig,
@@ -174,7 +175,7 @@ describe('并行度', () => {
     affected: AFFECTED_EMPTY,
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
-    mutation: { testTimeoutSeconds: 60 },
+    mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
   })
 
   it('配置给初值，环境变量覆盖', () => {
@@ -201,9 +202,27 @@ describe('并行度', () => {
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
-        mutation: { testTimeoutSeconds: 60 },
+        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
       }),
     ).toThrow('parallel.memberConcurrency')
+  })
+
+  it('复核上限（#649）：配置给初值，环境变量覆盖，0 表示不复核；不是非负整数就报错', () => {
+    expect(effectiveRecheckMax(config, {})).toBe(8)
+    expect(effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '0' })).toBe(0)
+    expect(effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '20' })).toBe(20)
+    expect(() => effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '-1' })).toThrow(
+      'OMNE_MUTATION_RECHECK_MAX',
+    )
+    expect(() =>
+      parseTestRunsConfig({
+        parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60 },
+      }),
+    ).toThrow('mutation.recheckMaxMutants')
   })
 
   it('仓库里的配置：两者之积不超过 8 核', () => {

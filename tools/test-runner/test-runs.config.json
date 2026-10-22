@@ -161,6 +161,7 @@
     "repeats": 3
   },
   "mutation": {
-    "testTimeoutSeconds": 60
+    "testTimeoutSeconds": 60,
+    "recheckMaxMutants": 8
   }
 }

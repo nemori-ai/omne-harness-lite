@@ -123,14 +123,34 @@ export interface RecheckedFinding extends Finding {
   readonly verdict: MutantStatus
 }
 
-/** 类型测试在 static 变异体的运行中是否缺席（#649）。 */
-export interface TypeTestReading {
-  /** 初跑跑的类型测试数。 */
-  readonly dryRun: number
-  /** 有运行记录的 static 变异体（在要变异的行上）。 */
-  readonly staticRuns: number
-  /** 其中类型测试比初跑少的。 */
-  readonly withoutTypeTests: number
+/**
+ * 类型测试在 static 变异体的运行中是否缺席（#649）。`notMeasured`：没测到，有没有缺席不明；
+ * 与测到了、没有缺席（`withoutTypeTests` 为 0）分开。
+ */
+export type TypeTestReading =
+  | {
+      readonly status: 'measured'
+      /** 初跑跑的类型测试数。 */
+      readonly dryRun: number
+      /** 有运行记录的 static 变异体（在要变异的行上）。 */
+      readonly staticRuns: number
+      /** 其中类型测试比初跑少的。 */
+      readonly withoutTypeTests: number
+    }
+  | { readonly status: 'notMeasured'; readonly reason: string }
+
+/** 复核的范围与上限（#649）。 */
+export interface RecheckReading {
+  /** 每个成员复核时最多复跑的变异体数。 */
+  readonly limit: number
+  /** 只因时限到了而超时、要复核的变异体。 */
+  readonly targets: number
+  /** 超出上限、没有复核的。 */
+  readonly skipped: number
+  /** 复核实际复跑的变异体数，含复核范围里嵌套的。 */
+  readonly mutants: number
+  /** 全部复核要复跑的变异体数，含嵌套的。 */
+  readonly allMutants: number
 }
 
 export interface MemberMutation {
@@ -148,8 +168,10 @@ export interface MemberMutation {
   readonly rechecked: readonly RecheckedFinding[]
   /** 原始报告（第一遍与复核）里的 RuntimeError，含不在要变异的行上的；有就使测量无效。 */
   readonly runtimeErrors: number
-  /** 没有运行记录，或初跑没有类型测试时为 null。 */
+  /** 类型检查没开，或没给运行记录时为 null。 */
   readonly typeTests: TypeTestReading | null
+  /** 第一遍没有要复核的超时，或第一遍已无效而不复核时为 null。 */
+  readonly recheck: RecheckReading | null
   /** 报告里有、却不在要变异的行上的变异体（跨行的表达式等）；不计入上面各项。 */
   readonly outside: number
 }
@@ -226,8 +248,9 @@ export function recheckTargets(
 }
 
 /**
- * 只变异这一个位置的 Stryker mutate 条目。报告的列从 1 起，mutate 条目的列与 babel 一样从 0 起；
- * 范围内嵌套的变异体也会被变异，复核按位置、算子与替换对回原来的那个。
+ * 只变异这一个位置的 Stryker mutate 条目。报告的列从 1 起，mutate 条目的列与 babel 一样从 0 起。
+ * Stryker 变异位置落在范围内的全部变异体：外层的（数组、对象字面量、语句块等）会带上嵌套在里面的，一起复跑。
+ * 复核按位置、算子与替换对回原来的那个。
  */
 export function exactEntry(file: string, mutant: ReportMutant): string {
   const { start, end } = mutant.location
@@ -236,6 +259,56 @@ export function exactEntry(file: string, mutant: ReportMutant): string {
 
 const identity = (file: string, mutant: ReportMutant) =>
   JSON.stringify([file, mutant.location, mutant.mutatorName, mutant.replacement ?? null])
+
+type Location = ReportMutant['location']
+const before = (a: Position, b: Position) =>
+  a.line < b.line || (a.line === b.line && a.column <= b.column)
+/** 与 Stryker instrumenter 的 `locationIncluded` 相同：`inner` 整个落在 `outer` 里。 */
+const included = (outer: Location, inner: Location) =>
+  before(outer.start, inner.start) && before(inner.end, outer.end)
+
+export type RecheckTarget = ReturnType<typeof recheckTargets>[number]
+
+export interface RecheckPlan {
+  /** 复核的目标；mutate 条目由 `exactEntry` 生成。 */
+  readonly chosen: readonly RecheckTarget[]
+  readonly reading: RecheckReading
+}
+
+/**
+ * 在上限内挑复核的目标（#649）。一个目标要复跑的是第一遍报告里位置落在它范围内的全部变异体（含嵌套的）。
+ * 按报告顺序挑：加上它后复跑总数不超过上限就复核，超过就跳过。已被前面目标的范围盖住的不另计。
+ */
+export function planRecheck(
+  report: MutationReport,
+  targets: readonly RecheckTarget[],
+  limit: number,
+): RecheckPlan {
+  const rerun = (target: RecheckTarget) =>
+    (report.files[target.file]?.mutants ?? [])
+      .filter(mutant => included(target.mutant.location, mutant.location))
+      .map(mutant => identity(target.file, mutant))
+  const all = new Set(targets.flatMap(rerun))
+  const chosenKeys = new Set<string>()
+  const chosen: RecheckTarget[] = []
+  for (const target of targets) {
+    const keys = rerun(target)
+    const added = keys.filter(key => !chosenKeys.has(key))
+    if (chosenKeys.size + added.length > limit) continue
+    for (const key of added) chosenKeys.add(key)
+    chosen.push(target)
+  }
+  return {
+    chosen,
+    reading: {
+      limit,
+      targets: targets.length,
+      skipped: targets.length - chosen.length,
+      mutants: chosenKeys.size,
+      allMutants: all.size,
+    },
+  }
+}
 
 /** 一个变异体计不计分：计分时给出计入的状态，不计分时给出原因。 */
 type Verdict =
@@ -263,13 +336,20 @@ const runtimeErrorCount = (report: MutationReport | undefined) =>
 function typeTestReading(
   target: MutationTarget,
   report: MutationReport,
-  runs: readonly RunRecord[],
+  runs: readonly RunRecord[] | 'unreadable',
 ): TypeTestReading | null {
-  const dryRun = Math.max(
-    0,
-    ...runs.filter(run => run.mode === 'dry-run').map(run => run.typeTests),
-  )
-  if (dryRun === 0) return null
+  const notMeasured = (reason: string): TypeTestReading => ({ status: 'notMeasured', reason })
+  if (runs === 'unreadable') return notMeasured('运行记录读不出')
+  const failed = runs.find(run => run.error !== undefined)
+  if (failed !== undefined) return notMeasured(`记录类型测试时出错：${failed.error}`)
+  const dryRuns = runs.filter(run => run.mode === 'dry-run')
+  if (dryRuns.length === 0) return notMeasured('没有初跑的记录')
+  if (!dryRuns.some(run => run.typecheck === true)) return null
+  const dryRun = Math.max(0, ...dryRuns.map(run => run.typeTests ?? 0))
+  if (dryRun === 0)
+    return notMeasured(
+      '类型检查开着，初跑却没数到类型测试：成员可能没有类型测试文件，也可能 Vitest 改了类型测试池的名字',
+    )
   const staticIds = new Set(
     Object.entries(report.files).flatMap(([file, entry]) =>
       entry.mutants
@@ -291,17 +371,20 @@ function typeTestReading(
       run.mode === 'mutant' && run.activeMutant !== undefined && staticIds.has(run.activeMutant),
   )
   return {
+    status: 'measured',
     dryRun,
     staticRuns: staticRuns.length,
-    withoutTypeTests: staticRuns.filter(run => run.typeTests < dryRun).length,
+    withoutTypeTests: staticRuns.filter(run => (run.typeTests ?? 0) < dryRun).length,
   }
 }
 
 export interface SummaryInputs {
   /** 复核的原始报告；没有复核时不给。 */
   readonly recheck?: MutationReport
-  /** 第一遍每次 vitest 运行的记录。 */
-  readonly runs?: readonly RunRecord[]
+  /** 第一遍每次 vitest 运行的记录；记录文件读不出时为 `unreadable`。 */
+  readonly runs?: readonly RunRecord[] | 'unreadable'
+  /** 复核的范围与上限；没有复核计划时不给。 */
+  readonly recheckReading?: RecheckReading
 }
 
 export function summarizeMember(
@@ -365,6 +448,7 @@ export function summarizeMember(
     rechecked: rechecked.sort(byPlace),
     runtimeErrors,
     typeTests: inputs.runs === undefined ? null : typeTestReading(target, report, inputs.runs),
+    recheck: inputs.recheckReading ?? null,
     outside,
   }
 }
@@ -407,10 +491,15 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
       (result.rechecked.length > 0 ? `，其中复核 ${result.rechecked.length}` : '') +
       `；分数 ${result.valid ? (result.score === null ? '—' : `${result.score}%`) : '—（测量无效）'}`,
   ]
-  if (result.typeTests !== null && result.typeTests.withoutTypeTests > 0)
+  const { typeTests } = result
+  if (typeTests?.status === 'notMeasured')
+    lines.push(`  类型测试：没测到，static 运行中有没有缺席不明（${typeTests.reason}）`)
+  else if (typeTests?.status === 'measured' && typeTests.staticRuns > 0)
     lines.push(
-      `  类型测试：初跑 ${result.typeTests.dryRun} 项；static 变异体的运行 ${result.typeTests.staticRuns} 次，` +
-        `其中 ${result.typeTests.withoutTypeTests} 次没有跑类型测试（上游复用 Vitest 实例，类型测试不随变异体改变结果）`,
+      `  类型测试：初跑 ${typeTests.dryRun} 项；static 变异体的运行 ${typeTests.staticRuns} 次，` +
+        (typeTests.withoutTypeTests === 0
+          ? '都跑了类型测试'
+          : `其中 ${typeTests.withoutTypeTests} 次没有跑类型测试（上游复用 Vitest 实例，类型测试不随变异体改变结果）`),
     )
   if (!detail) return lines
   for (const finding of result.survived) lines.push(`  存活 ${describeFinding(finding)}`)
@@ -424,10 +513,14 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
   return lines
 }
 
-/** 测量无效的原因，一条一句；有效时为空。`reports` 是读过的原始报告路径。 */
+/** 测量无效的原因，一条一句；有效时为空。`reports` 是读过的原始报告路径；`recheck` 是复核跑过时的日志与报告。 */
 export function memberErrors(
   result: MemberMutation,
-  paths: { readonly logPath: string; readonly reports: readonly string[] },
+  paths: {
+    readonly logPath: string
+    readonly reports: readonly string[]
+    readonly recheck?: { readonly logPath: string; readonly reportPath: string }
+  },
 ): string[] {
   const errors: string[] = []
   if (result.runtimeErrors > 0)
@@ -440,10 +533,20 @@ export function memberErrors(
     errors.push(
       `${result.member}：${count('notRun')} 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 ${paths.logPath}`,
     )
-  if (count('timeoutUnchecked') > 0)
+  const skipped = result.recheck?.skipped ?? 0
+  if (result.recheck !== null && skipped > 0)
     errors.push(
-      `${result.member}：${count('timeoutUnchecked')} 个变异体只因时限到了而超时，没有得到单独复核的判定，没有计分；` +
-        `判为测量无效，原因见上一条或日志 ${paths.logPath}`,
+      `${result.member}：${skipped} 个只因时限到了而超时的变异体超出复核上限，没有复核，没有计分：` +
+        `上限是每个成员复跑 ${result.recheck.limit} 个变异体（含复核范围里嵌套的），全部复核要复跑 ${result.recheck.allMutants} 个；` +
+        `判为测量无效。调大 test-runs.config.json 的 mutation.recheckMaxMutants 或设环境变量 OMNE_MUTATION_RECHECK_MAX 后复跑，或缩小变异范围`,
+    )
+  const unanswered = count('timeoutUnchecked') - skipped
+  if (unanswered > 0)
+    errors.push(
+      `${result.member}：${unanswered} 个变异体只因时限到了而超时，没有得到单独复核的判定，没有计分；判为测量无效，` +
+        (paths.recheck === undefined
+          ? `没有复核：第一遍已无效，或复核的 Stryker 出错（见上一条），日志 ${paths.logPath}`
+          : `复核报告里没有它们的判定，复核日志 ${paths.recheck.logPath}，复核报告 ${paths.recheck.reportPath}`),
     )
   return errors
 }

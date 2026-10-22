@@ -4,8 +4,8 @@
 
 | 资源 | 层与范围 |
 | --- | --- |
-| `mutation-guard.spec.ts` | 快层。公开 TestRunner 的 this、参数、结果与生命周期透传；第一次拒绝直接报告 Error；全原始报告的 RuntimeError 使成员无效、不给分数；命中次数超限的原因前缀与 `@stryker-mutator/api` 10.0.0 一致；形状校验。 |
-| `mutation.spec.ts` | 快层检查范围、配置与报告，含超时复核的分类、复核的 Stryker 配置与类型测试读数。慢层启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，覆盖普通存活、Killed、文件收集错误与深层 suite 自身错误、预检、static 运行缺席类型测试的读数、可控耗时注入下的复核、真的挂起的 static 变异体、多 worker、同 out 重跑及旧报告留存。 |
+| `mutation-guard.spec.ts` | 快层。公开 TestRunner 的 this、参数、结果与生命周期透传；第一次拒绝直接报告 Error；全原始报告的 RuntimeError 使成员无效、不给分数；命中次数超限的原因前缀与 `@stryker-mutator/api` 10.0.0 一致；`RunReporter` 出错或写不出记录时不让运行失败；形状校验。 |
+| `mutation.spec.ts` | 快层检查范围、配置与报告，含超时复核的分类、复核上限（嵌套变异体计入复跑数）、复核的 Stryker 配置与类型测试读数（测到、没测到、不适用）。慢层启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，覆盖普通存活、Killed、文件收集错误与深层 suite 自身错误、预检、static 运行缺席类型测试的读数、可控耗时注入下的复核、复核上限为 0、真的挂起的 static 变异体、多 worker、同 out 重跑及旧报告留存。 |
 
 在仓库根运行，重验证须通过共享槽：
 

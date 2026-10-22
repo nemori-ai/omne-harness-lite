@@ -23,9 +23,11 @@ import {
   memberLines,
   exactEntry,
   memberErrors,
+  planRecheck,
   recheckTargets,
   summarizeMember,
   type MutationReport,
+  type SummaryInputs,
 } from '../src/mutation/report.ts'
 import {
   changedTargets,
@@ -386,6 +388,90 @@ describe('报告汇总', () => {
       }
       expect(summarizeMember(TARGET, first).invalid).toHaveLength(2)
       expect(summarizeMember(TARGET, first, { recheck: missing }).invalid).toHaveLength(1)
+      // 复核跑过、却对不上的，指向复核的日志与报告，不指向第一遍的日志。
+      const unmatched = memberErrors(summarizeMember(TARGET, first, { recheck: missing }), {
+        logPath: 'run/alpha.log',
+        reports: ['run/alpha.json', 'run/alpha.recheck.json'],
+        recheck: { logPath: 'run/alpha.recheck.log', reportPath: 'run/alpha.recheck.json' },
+      })
+      expect(unmatched).toEqual([
+        expect.stringMatching(
+          /复核日志 run\/alpha\.recheck\.log，复核报告 run\/alpha\.recheck\.json$/u,
+        ),
+      ])
+      expect(unmatched[0]).not.toContain('run/alpha.log')
+    })
+
+    // 外层变异体（数组、对象字面量、语句块）的精确范围会带上嵌套在里面的变异体一起复跑。
+    describe('复核上限', () => {
+      const span = (
+        id: string,
+        mutator: string,
+        loc: ReturnType<typeof at>,
+        replacement: string,
+      ) => ({
+        id,
+        mutatorName: mutator,
+        replacement,
+        status: 'Timeout' as const,
+        static: true,
+        location: loc,
+      })
+      // 第 3 行：数组 [3:3-3:18] 里嵌套两个字符串 [3:4-3:8]、[3:10-3:14]；三个都超时。另一处 [3:20-3:24] 也超时。
+      const nested: MutationReport = {
+        files: {
+          'src/a.ts': {
+            source,
+            mutants: [
+              span('1', 'ArrayDeclaration', at(3, 3, 3, 18), '[]'),
+              span('2', 'StringLiteral', at(3, 4, 3, 8), '""'),
+              span('3', 'StringLiteral', at(3, 10, 3, 14), '""'),
+              span('4', 'StringLiteral', at(3, 20, 3, 24), '""'),
+              // 不超时、却嵌套在数组里的，也会被复跑。
+              { ...span('5', 'StringLiteral', at(3, 5, 3, 7), '"x"'), status: 'Survived' as const },
+            ],
+          },
+        },
+      }
+      const ids = (plan: ReturnType<typeof planRecheck>) => plan.chosen.map(({ mutant: m }) => m.id)
+
+      it('按报告顺序在上限内挑目标；范围里嵌套的变异体计入复跑数，已被盖住的目标不另计', () => {
+        const targets = recheckTargets(TARGET, nested)
+        expect(targets.map(({ mutant: m }) => m.id)).toEqual(['1', '2', '3', '4'])
+        const all = planRecheck(nested, targets, 8)
+        expect(ids(all)).toEqual(['1', '2', '3', '4'])
+        expect(all.reading).toEqual({ limit: 8, targets: 4, skipped: 0, mutants: 5, allMutants: 5 })
+        // 数组带上 4 个，再加最后那处超过 4：跳过它。
+        const four = planRecheck(nested, targets, 4)
+        expect(ids(four)).toEqual(['1', '2', '3'])
+        expect(four.reading).toEqual({
+          limit: 4,
+          targets: 4,
+          skipped: 1,
+          mutants: 4,
+          allMutants: 5,
+        })
+        // 数组放不下时，挑得下的小目标照样复核；第一个字符串里还嵌套着 5 号，占 2 个。
+        const three = planRecheck(nested, targets, 3)
+        expect(ids(three)).toEqual(['2', '3'])
+        expect(three.reading).toMatchObject({ skipped: 2, mutants: 3 })
+        expect(planRecheck(nested, targets, 0).reading).toMatchObject({ skipped: 4, mutants: 0 })
+      })
+
+      it('超出上限的目标记超时未复核，成员测量无效；出错信息写明上限、全部复核的数目与怎么调', () => {
+        const targets = recheckTargets(TARGET, nested)
+        const plan = planRecheck(nested, targets, 0)
+        const result = summarizeMember(TARGET, nested, { recheckReading: plan.reading })
+        expect(result).toMatchObject({ valid: false, score: null, recheck: plan.reading })
+        expect(
+          result.invalid.filter(finding => finding.reason === 'timeoutUnchecked'),
+        ).toHaveLength(4)
+        expect(memberErrors(result, { logPath: 'run/alpha.log', reports: [] })).toEqual([
+          'packages/core/alpha：4 个只因时限到了而超时的变异体超出复核上限，没有复核，没有计分：' +
+            '上限是每个成员复跑 0 个变异体（含复核范围里嵌套的），全部复核要复跑 5 个；判为测量无效。' +
+            '调大 test-runs.config.json 的 mutation.recheckMaxMutants 或设环境变量 OMNE_MUTATION_RECHECK_MAX 后复跑，或缩小变异范围',
+        ])
+      })
     })
   })
 
@@ -414,22 +500,57 @@ describe('报告汇总', () => {
         },
       },
     }
+    const run = (mode: string, typeTests: number, activeMutant?: string) => ({
+      mode,
+      typeTests,
+      typecheck: true,
+      ...(activeMutant === undefined ? {} : { activeMutant }),
+    })
     const runs = [
-      { mode: 'dry-run', typeTests: 2 },
-      { mode: 'mutant', activeMutant: '1', typeTests: 0 },
-      { mode: 'mutant', activeMutant: '2', typeTests: 2 },
-      { mode: 'mutant', activeMutant: '3', typeTests: 0 },
+      run('dry-run', 2),
+      run('mutant', 0, '1'),
+      run('mutant', 2, '2'),
+      run('mutant', 0, '3'),
     ]
     const result = summarizeMember(TARGET, staticReport, { runs })
-    expect(result.typeTests).toEqual({ dryRun: 2, staticRuns: 2, withoutTypeTests: 1 })
+    expect(result.typeTests).toEqual({
+      status: 'measured',
+      dryRun: 2,
+      staticRuns: 2,
+      withoutTypeTests: 1,
+    })
     expect(result.valid).toBe(true)
     expect(memberLines(result, false)[1]).toBe(
       '  类型测试：初跑 2 项；static 变异体的运行 2 次，其中 1 次没有跑类型测试（上游复用 Vitest 实例，类型测试不随变异体改变结果）',
     )
-    expect(
-      summarizeMember(TARGET, staticReport, { runs: [{ mode: 'dry-run', typeTests: 0 }] })
-        .typeTests,
-    ).toBeNull()
+    // 测到了、没有缺席：照样写一行，与没测到分开。
+    const allRan = summarizeMember(TARGET, staticReport, {
+      runs: [run('dry-run', 2), run('mutant', 2, '1')],
+    })
+    expect(allRan.typeTests).toMatchObject({ status: 'measured', withoutTypeTests: 0 })
+    expect(memberLines(allRan, false)[1]).toBe(
+      '  类型测试：初跑 2 项；static 变异体的运行 1 次，都跑了类型测试',
+    )
+    // 没测到：记录读不出、记录类型测试时出错、没有初跑的记录、类型检查开着却没数到。
+    const notMeasured = (runs: SummaryInputs['runs']) =>
+      summarizeMember(TARGET, staticReport, runs === undefined ? {} : { runs }).typeTests
+    expect(notMeasured('unreadable')).toEqual({ status: 'notMeasured', reason: '运行记录读不出' })
+    expect(notMeasured([{ mode: 'dry-run', error: 'state is gone' }])).toEqual({
+      status: 'notMeasured',
+      reason: '记录类型测试时出错：state is gone',
+    })
+    expect(notMeasured([run('mutant', 0, '1')])).toMatchObject({ status: 'notMeasured' })
+    expect(notMeasured([run('dry-run', 0)])).toMatchObject({
+      status: 'notMeasured',
+      reason: expect.stringContaining('初跑却没数到类型测试'),
+    })
+    const unread = summarizeMember(TARGET, staticReport, { runs: 'unreadable' })
+    expect(unread.valid).toBe(true)
+    expect(memberLines(unread, false)[1]).toBe(
+      '  类型测试：没测到，static 运行中有没有缺席不明（运行记录读不出）',
+    )
+    // 类型检查没开：不适用。
+    expect(notMeasured([{ mode: 'dry-run', typeTests: 0, typecheck: false }])).toBeNull()
     expect(summarizeMember(TARGET, staticReport).typeTests).toBeNull()
   })
 })
@@ -659,7 +780,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
   }
 
   /** 夹具没有本仓库的影响面规则，现算不出计划：手写一份只选这个成员的计划，走准入检查读计划的路径。 */
-  function mutate(root: string, out: string, workers = '2') {
+  function mutate(root: string, out: string, workers = '2', env: Record<string, string> = {}) {
     const head = git(root, 'rev-parse', 'HEAD').trim()
     const planPath = writePlan(head, head, ['packages/core/sign'])
     const ran = spawnSync(
@@ -667,7 +788,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       ['--experimental-strip-types', CLI, 'run', '--root', root, '--plan', planPath, '--out', out],
       {
         encoding: 'utf8',
-        env: { ...process.env, BASELINE: undefined, VITEST_MAX_WORKERS: workers },
+        env: {
+          ...process.env,
+          BASELINE: undefined,
+          VITEST_MAX_WORKERS: workers,
+          OMNE_MUTATION_RECHECK_MAX: undefined,
+          ...env,
+        },
       },
     )
     const summary = existsSync(join(out, 'summary.json'))
@@ -679,7 +806,8 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
             survived: { line: number }[]
             invalid: { line: number; reason: string }[]
             rechecked: { line: number; static: boolean; verdict: string }[]
-            typeTests: { dryRun: number; staticRuns: number; withoutTypeTests: number } | null
+            typeTests: Record<string, unknown> | null
+            recheck: Record<string, unknown> | null
             outside: number
           }[]
           errors: string[]
@@ -814,7 +942,12 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     expect(ran.summary?.errors).toEqual([])
     const [member] = ran.summary?.members ?? []
     expect(member?.survived.map(finding => finding.line)).toEqual([2])
-    expect(member?.typeTests).toEqual({ dryRun: 1, staticRuns: 1, withoutTypeTests: 1 })
+    expect(member?.typeTests).toEqual({
+      status: 'measured',
+      dryRun: 1,
+      staticRuns: 1,
+      withoutTypeTests: 1,
+    })
     expect(ran.ran.stdout).toContain('其中 1 次没有跑类型测试')
   })
 
@@ -854,6 +987,33 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
         },
       },
     })
+  })
+
+  it('复核上限为 0 时不复核：超时记超时未复核，成员测量无效，退出 1，信息写明怎么调（#649）', () => {
+    const { root, memberDir } = staticFixture()
+    writeFileSync(
+      join(memberDir, 'tests/delay.spec.ts'),
+      [
+        "test('slow only under an active mutant', async () => {",
+        '  if ((globalThis as { __stryker__?: { activeMutant?: string } }).__stryker__?.activeMutant !== undefined)',
+        '    await new Promise(resolve => setTimeout(resolve, 20_000))',
+        '}, 120_000)',
+      ].join('\n'),
+    )
+    const out = join(root, 'out')
+    const ran = mutate(root, out, '2', { OMNE_MUTATION_RECHECK_MAX: '0' })
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
+    const [member] = ran.summary?.members ?? []
+    expect(member).toMatchObject({
+      valid: false,
+      score: null,
+      recheck: { limit: 0, targets: 1, skipped: 1, mutants: 0, allMutants: 1 },
+    })
+    expect(member?.invalid).toEqual([
+      expect.objectContaining({ line: 2, reason: 'timeoutUnchecked' }),
+    ])
+    expect(ran.summary?.errors).toEqual([expect.stringContaining('OMNE_MUTATION_RECHECK_MAX')])
+    expect(existsSync(join(out, 'packages__core__sign.recheck.mutation.json'))).toBe(false)
   })
 
   // 变异体在模块加载时把步长算成 0，测试里的循环停不下来；循环本身不经过变异体，命中次数超限判不出，只能时限到了。
