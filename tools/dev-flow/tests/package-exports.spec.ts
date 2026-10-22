@@ -140,6 +140,28 @@ describe('compareEntries', () => {
     })).toThrow('type-only star exports are not supported')
   })
 
+  it('permits imported dependency types without inspecting unrelated dependency exports', () => {
+    build(directory, {
+      'owner.d.ts': 'export declare class Box {}\n',
+      'dependency.d.ts': "export type * from './owner.js'\n",
+      'consumer.d.ts': "import type { Box } from './dependency.js'\nexport interface Consumer { box: Box }\n",
+    })
+    expect(compareEntries(inventoryOf([type('Consumer')]), {
+      '.': join(directory, 'consumer.d.ts'),
+    }).every(isClean)).toBe(true)
+  })
+
+  it('still refuses type-only stars forwarded through a re-export chain', () => {
+    build(directory, {
+      'owner.d.ts': 'export declare class Box {}\n',
+      'dependency.d.ts': "export type * from './owner.js'\n",
+      'consumer.d.ts': "export * from './dependency.js'\n",
+    })
+    expect(() => compareEntries(inventoryOf([type('Box')]), {
+      '.': join(directory, 'consumer.d.ts'),
+    })).toThrow('type-only star exports are not supported')
+  })
+
   it('reports a re-export that is another declaration than the owning entry', () => {
     build(directory, {
       'sub.d.ts': 'export type Own = string\n',
