@@ -187,7 +187,7 @@ function refusalOf(
 }
 
 /** `https:` with nothing but origin and path: no credentials, no query, no fragment. */
-function isPlainHttpsUrl(url: unknown): url is URL {
+export function isPlainHttpsUrl(url: unknown): url is URL {
   return (
     url instanceof URL &&
     url.protocol === 'https:' &&

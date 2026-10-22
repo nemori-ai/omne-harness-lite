@@ -4,11 +4,18 @@ import type {
   Adoption,
   MediaMeasurementFact,
   ModelFault,
+  ModelTransport,
   Supplier,
   TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
+import {
+  createPiTransport,
+  type PiCredentialSlot,
+  type PiRoute,
+  type PiTransportConfig,
+} from '@omne-harness/pi-ai-transport'
 import type {
   PiFamilyBinding,
   PiFamilyContributions,
@@ -59,4 +66,17 @@ it('acquire selects one supplier under a cancel signal', () => {
   expectTypeOf<PiFamilyContributions['acquire']>().returns.toEqualTypeOf<
     Promise<Outcome<PiFamilyBinding, TransportFailure>>
   >()
+})
+
+it('the factory takes the configuration and gives a model transport with its own close', () => {
+  expectTypeOf(createPiTransport).parameters.toEqualTypeOf<[PiTransportConfig]>()
+  expectTypeOf(createPiTransport).returns.toEqualTypeOf<
+    Readonly<{ transport: ModelTransport; close(): Promise<void> }>
+  >()
+})
+
+it('a route names its endpoint and end marker, and the credential slot reads a secret or nothing', () => {
+  expectTypeOf<PiRoute>().toEqualTypeOf<Readonly<{ url: string; endMarker: string | null }>>()
+  expectTypeOf<PiCredentialSlot['read']>().returns.toEqualTypeOf<string | undefined>()
+  expectTypeOf<PiTransportConfig['routes']>().toEqualTypeOf<Readonly<Record<string, PiRoute>>>()
 })
