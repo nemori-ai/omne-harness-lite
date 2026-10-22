@@ -92,12 +92,18 @@ function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
   }))
 }
 
-/** The gateway parameters of the applied values, then the fixed values of the record. */
+/**
+ * The gateway parameters of the applied values, then the fixed values of the record. Two applied
+ * values for one gateway field are `invalid` (`parameterAdoptions`, `repeated`): a request whose
+ * suppliers share one adoption, for example a factory and a tenant credential, gives this binding
+ * the planned parameters of each, and the body can hold only one.
+ */
 function gatewayParams(
   context: RequestContext,
   applied: readonly Parameter[],
 ): Outcome<readonly GatewayParam[], TransportFailure> {
   const params: GatewayParam[] = []
+  const fields = new Set<GatewayParam['field']>()
   for (const param of applied) {
     const wired = wireParameter(param, {
       record: context.record,
@@ -105,6 +111,9 @@ function gatewayParams(
       outputLimit: null,
     })
     if (!('ok' in wired)) return wired
+    if (fields.has(wired.ok.field))
+      return { failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'repeated' } }
+    fields.add(wired.ok.field)
     params.push(wired.ok)
   }
   params.push(...context.record.wire.fixed)

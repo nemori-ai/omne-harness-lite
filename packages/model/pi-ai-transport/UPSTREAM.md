@@ -64,7 +64,7 @@ one of four family hooks.
   served-provider check, a seal at a `length` finish and in-band error mapping without the
   upstream text.
 
-The other engine files (`bind.ts`, `details.ts`, `parameters.ts`, `gateway.ts`, `json.ts`,
-`vocabulary.ts` and `index.ts`) are project-owned. `details.ts` holds the joining rule of the
+The other engine files (`bind.ts`, `details.ts`, `decimal.ts`, `parameters.ts`, `gateway.ts`,
+`json.ts`, `vocabulary.ts` and `index.ts`) are project-owned. `details.ts` holds the joining rule of the
 archived fork, which is project-owned code. Other files of this package are project-owned
 and carry no upstream header. The adaptation does not inherit any upstream model certification.

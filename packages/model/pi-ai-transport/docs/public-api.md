@@ -50,4 +50,4 @@
 | 诊断隔离的事件与计数 | [diagnostics.ts](../src/diagnostics.ts) | [SPEC“诊断隔离”](../SPEC.md#诊断隔离) |
 | 规范 JSON 与摘要 | [canonical-json.ts](../src/canonical-json.ts) | [SPEC“记录与采用”](../SPEC.md#记录与采用) |
 | 网关引擎的规划、投影与请求体 | [request.ts](../src/chat-completions/request.ts)、[projection.ts](../src/chat-completions/projection.ts)、[parameters.ts](../src/chat-completions/parameters.ts)、[gateway.ts](../src/chat-completions/gateway.ts)、[json.ts](../src/chat-completions/json.ts) | [SPEC“网关引擎：请求”](../SPEC.md#网关引擎请求) |
-| 网关引擎的流解码器 | [decoder.ts](../src/chat-completions/decoder.ts)、[chunk.ts](../src/chat-completions/chunk.ts)、[details.ts](../src/chat-completions/details.ts) | [SPEC“网关引擎：流解释”](../SPEC.md#网关引擎流解释) |
+| 网关引擎的流解码器 | [decoder.ts](../src/chat-completions/decoder.ts)、[chunk.ts](../src/chat-completions/chunk.ts)、[details.ts](../src/chat-completions/details.ts)、[decimal.ts](../src/chat-completions/decimal.ts) | [SPEC“网关引擎：流解释”](../SPEC.md#网关引擎流解释) |

@@ -26,6 +26,7 @@ import {
   type DetailFragment,
   type ToolFragment,
 } from './chunk.ts'
+import { plainDecimal } from './decimal.ts'
 import {
   bufferedLength,
   hookDetails,
@@ -60,7 +61,6 @@ const GATEWAY_PLACE = 'openrouter'
 const ACCOUNT_EVENT = 'usage'
 /** The unit of the gateway `usage.cost`: gateway credits, not a currency. */
 const COST_UNIT = 'openrouter-credit'
-const COST_LEXEME = /^(0|[1-9][0-9]*)(\.[0-9]+)?$/
 /** The usage of a response that reported none: every count unknown. */
 const NO_USAGE: GatewayUsage = Object.freeze({
   promptTokens: null,
@@ -641,14 +641,15 @@ function diagnosticFact(value: ProviderDiagnostic): TransportFact {
 }
 
 /**
- * The cost of the account: the gateway `usage.cost` as supplier cost when it is a plain decimal,
- * unknown when it is reported in another form, and no item when the usage has no cost.
+ * The cost of the account: the gateway `usage.cost` as supplier cost when it is a non-negative
+ * number, as its exact plain decimal lexeme (an exponent form is written out); unknown when it is
+ * reported in another form; and no item when the usage has no cost.
  */
 function costOf(usage: GatewayUsage | null): CallAccountReport['cost'] {
   const cost = usage?.raw['cost']
   if (cost === undefined || cost.kind === 'null') return []
-  if (cost.kind === 'number' && COST_LEXEME.test(cost.lexeme))
-    return [{ state: 'known', lexeme: cost.lexeme, unit: COST_UNIT, source: 'supplier' }]
+  const lexeme = cost.kind === 'number' ? plainDecimal(cost.lexeme) : null
+  if (lexeme !== null) return [{ state: 'known', lexeme, unit: COST_UNIT, source: 'supplier' }]
   return [{ state: 'unknown', unit: COST_UNIT, source: 'supplier' }]
 }
 

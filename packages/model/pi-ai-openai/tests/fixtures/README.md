@@ -76,7 +76,7 @@
    - Pro 型号的 `input` 为未知（规则 `unknown-scope/1`）。封存件给出 100。
    - 多帧带 usage 时，账目取最后一份。封存件把不一致的 usage 记为校准不可用。
    - 已收场但没有 usage 的响应也有账目，各项为未知。
-   - 费用的单位是 `openrouter-credit`，词法照原样。
+   - 费用的单位是 `openrouter-credit`。普通十进制词法照原样，指数形式改写为精确的普通十进制词法。
 5. **失败的形状。** 封存件的失败是 `interrupted_mid_reply` 加本地错误文字。契约事实是带 `cause` 与诊断的 `ended`：带内错误按状态码映射（503 为 `upstream-unavailable`）；`content_filter` 与 `error` 收场为 `input-rejected`，诊断为 `finish-reason-<值>`；断流与没有收场的结束标记为 `stream-lost`；坏帧、重复键、非法拒绝值、改变的收场与收场后的内容为 `upstream-protocol`。
 6. **收场时封块。** 封存件只在流结束时关闭块，所以在收场后才出错的流里没有关闭事件。引擎在收场帧封块，之后的协议错误不撤回已封的块。
 7. **加密推理的形状。** 封存件把推理项放在一个空文本的思考块的 `opaque` 中，并带路由名。现行形状是推理续接状态部件：每个 `openai-responses-v1` 格式的加密项一个部件，载荷是该项的排序键 JSON；没有可见推理时不开思考块。

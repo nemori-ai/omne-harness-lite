@@ -436,7 +436,7 @@ plan 不返回诊断。
 1. `media` 非空时返回 `unsupported`（`field` 为 `media`）。
 2. 投影。
 3. 调用 `hooks.check`。参数取 `request.parameterAdoptions` 中 `supplier` 等于本绑定采用的各项的 `applied`。
-4. 写出参数。某项不能按记录写出时，返回 plan 会返回的同一失败。
+4. 写出参数。某项不能按记录写出时，返回 plan 会返回的同一失败。两项写入同一个网关字段时，返回 `invalid`，`field` 为 `parameterAdoptions`，`reason` 为 `repeated`。例如两个供应商只有凭据不同，所以采用相同，请求中两者的参数采用都交给这个绑定。encode 对经判定的请求不抛出异常。
 5. 写出请求体，调用 `meter.represent`。表示采用必须等于 `request.representation`。
 6. 返回请求体、表示与诊断。诊断是投影中每条略去推理续接状态部件的消息一条 `replay-omitted`（消息身份、`scope`、`format` 与部件个数），按消息次序。诊断不含载荷或正文。
 
@@ -537,7 +537,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 1. 一个 `account` 事实，`event` 为 `usage`，值是账目报告 `CallAccountReport`：
    - `usage` 是 hook 返回的 `items`；
-   - `cost`：usage 的 `cost` 成员是非负十进制数（没有指数）时，为一项 `known`，`lexeme` 照原样，`unit` 为 `openrouter-credit`，`source` 为 `supplier`。该成员以其他形式出现时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`；
+   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `supplier`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`；
    - `trimmed` 为 `{ state: 'unknown', unit: 'token' }`；
    - `place` 为 `openrouter/<第一帧报告的 provider>`；
    - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
@@ -683,8 +683,9 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 公开消费例与反例：只经根入口对本地 HTTPS 服务发送一次，内容引用得到 `unsupported` | [examples.spec.ts](tests/examples.spec.ts) 运行 [examples/local-send.ts](examples/local-send.ts) | 慢 |
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
 | 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
-| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理（`text` 交给计量器的是文本块）、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
-| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、没有内容或没有工具调用的收场、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况、没有 usage、被拒收场、用量诊断的次序、hook 失败、收场之前失败的流没有账目）；收场之后失败的账目（响应体断开、取消、坏帧、尾帧被拒，保留的用量与未知用量，`faulted` 阶段的 `end()`）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
+| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，同一字段的两项参数为 `invalid`，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理（`text` 交给计量器的是文本块）、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
+| 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、没有内容或没有工具调用的收场、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况与指数形式、没有 usage、被拒收场、用量诊断的次序、hook 失败、收场之前失败的流没有账目）；收场之后失败的账目（响应体断开、取消、坏帧、尾帧被拒，保留的用量与未知用量，`faulted` 阶段的 `end()`）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
+| 费用的普通十进制词法：普通词法照原样，指数形式的改写，负数、非 JSON 数与超长结果 | [chat-completions-decimal.spec.ts](tests/chat-completions-decimal.spec.ts) | 快 |
 | 测试入口：夹具全部相符，名字中的 `/`，缺目录与缺文件，多余目录，请求体与事实不等，`request.json` 不合格；指纹的生成、检查、只追加、原地改动记录的检查失败与生成拒绝、不对应记录的行、非给定形式的文件 | [testing-helpers.spec.ts](tests/testing-helpers.spec.ts) | 快 |
 | 引擎源码不含厂商名或型号家族名 | [chat-completions-vendor-words.spec.ts](tests/chat-completions-vendor-words.spec.ts) | 快 |
 | 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |

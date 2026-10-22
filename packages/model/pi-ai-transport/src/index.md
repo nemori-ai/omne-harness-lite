@@ -19,6 +19,7 @@
 - [chat-completions/decoder.ts](chat-completions/decoder.ts)：流解码器：阶段联合与纯归约步，改编自 pi
 - [chat-completions/chunk.ts](chat-completions/chunk.ts)：数据帧到具名 chunk 的边界读取，改编自 pi
 - [chat-completions/details.ts](chat-completions/details.ts)：推理片段的拼接与可见文本
+- [chat-completions/decimal.ts](chat-completions/decimal.ts)：JSON 数的精确普通十进制词法，供账目的费用使用
 - [testing/index.ts](testing/index.ts)：子入口 `./testing`，转出夹具检查与采用指纹
 - [testing/fixtures.ts](testing/fixtures.ts)：`checkChatCompletionsFixtures` 与夹具的回放
 - [testing/adoptions.ts](testing/adoptions.ts)：采用指纹的检查与只追加的生成

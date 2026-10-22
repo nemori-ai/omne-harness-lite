@@ -18,9 +18,10 @@
 | [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts |
 | [chat-completions/json.ts](../src/chat-completions/json.ts) | 排序键的 json-text 值树构造 | json-text（类型） |
 | [chat-completions/vocabulary.ts](../src/chat-completions/vocabulary.ts) | 记录词表、四个 hook 与计量接缝的类型 | family-table.ts、model-contract、json-text、content-block、operation-result（类型） |
-| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`faulted`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、termination.ts、content-block 的 `judgeBlockIdentity`、json-text，family.ts（类型）；改编自 pi |
+| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`faulted`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、decimal.ts、termination.ts、content-block 的 `judgeBlockIdentity`、json-text，family.ts（类型）；改编自 pi |
 | [chat-completions/chunk.ts](../src/chat-completions/chunk.ts) | 一个数据帧是不是网关 chunk：边界上读成具名的 chunk，或给出形状失败 | json-text（类型）；改编自 pi |
 | [chat-completions/details.ts](../src/chat-completions/details.ts) | 推理片段怎样拼接成项，以及一个片段的可见文本 | json-text（类型） |
+| [chat-completions/decimal.ts](../src/chat-completions/decimal.ts) | 网关费用的 JSON 数怎样成为精确的普通十进制词法：只做字符串运算，不经浮点数 | 无 |
 | [testing/index.ts](../src/testing/index.ts) | 子入口 `./testing`，转出夹具检查与采用指纹 | fixtures.ts、adoptions.ts |
 | [testing/fixtures.ts](../src/testing/fixtures.ts) | 一个家族的夹具是否与引擎一致：按记录读三个文件、编码比较、经 `decodeBody` 回放比较、多余目录 | family-table.ts、fact-stream.ts、termination.ts、chat-completions/json.ts、model-contract 的 `judgeFixedModelRequest`、json-text、Node `fs/promises`、`path`、`util` |
 | [testing/adoptions.ts](../src/testing/adoptions.ts) | 采用指纹文件是否与记录一致，以及只追加的生成 | family-table.ts、Node `fs/promises` |
@@ -244,7 +245,7 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 - 缓冲限额来自绑定输入 `limits`，不在记录里：限额约束内存，不是线协议的差异，不应进入采用摘要。
 - 推理续接状态部件由家族的 `reasoning.seal` 在 finish 时一次给出，引擎只负责序号、可见性、配对与长度上限。部件长度上限照抄 message 成员的 `REASONING_STATE_PAYLOAD_MAX_LENGTH`，因为本包不依赖 message。
 - 解码器在 `finished` 阶段的 `end()` 给出账目报告：usage 在阶段中保留到结束，因为尾帧可能带来最后一份 usage。报告不含调用身份，保存方补上。`accept` 的失败只返回 fault，没有带事实的失败形状。所以收场之后被拒的帧把阶段留在 `faulted`，它保留 usage，之后的 `end()` 给出账目与该 fault。事实流在每种读取失败之后都调用一次 `end()`，取账目而不取它的 `ended`。这样契约“保留已经取得的用量”不需要改变已接受的 `PiResponseDecoder` 接口。
-- 网关的 `cost` 以额度计。call-account 的 `USD` 最多两位小数，网关的费用常有更多位，所以单位写成 `openrouter-credit`，原样保留词法。
+- 网关的 `cost` 以额度计。call-account 的 `USD` 最多两位小数，网关的费用常有更多位，所以单位写成 `openrouter-credit`，保留精确的十进制值：普通词法照原样，指数形式只移动小数点，不经浮点数。
 
 投影、请求参数、chunk 循环与停止映射改编自 pi 1.0.0 的 chat completions 模块，只取纯计算。HTTP、SDK、重试、环境凭据与按 URL 猜兼容性都不取。改编内容见 [UPSTREAM.md](../UPSTREAM.md)。
 

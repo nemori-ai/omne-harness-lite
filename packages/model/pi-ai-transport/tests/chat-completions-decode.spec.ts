@@ -970,12 +970,38 @@ describe('account', () => {
     expect(facts.slice(-2)).toEqual([ACCOUNT, STOP])
   })
 
-  it('keeps a cost that is not a plain decimal as unknown', async () => {
-    for (const cost of [-1, 1e-7, 'free'])
+  it('writes a cost in exponent form as its exact plain decimal lexeme', async () => {
+    const cases = [
+      ['2.25e-7', '0.000000225'],
+      ['1e-7', '0.0000001'],
+      ['1.50E+2', '150'],
+      ['0.000858', '0.000858'],
+      ['0e0', '0'],
+    ] as const
+    for (const [lexeme, plain] of cases) {
+      const frame = JSON.stringify(chunk({ finish: 'stop' }, { usage: { cost: 0 } })).replace(
+        '"cost":0',
+        `"cost":${lexeme}`,
+      )
+      const facts = await replay(bind(), chunk({ delta: { content: 'x' } }), frame)
+      expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
+        value: {
+          cost: [{ state: 'known', lexeme: plain, unit: 'openrouter-credit', source: 'supplier' }],
+        },
+      })
+    }
+  })
+
+  it('keeps a negative cost or a cost that is not a number as unknown', async () => {
+    for (const cost of [-1, -2.5e-7, 'free'])
       expect(
-        (await replay(bind(), chunk({ finish: 'stop' }, { usage: { cost } }))).find(
-          fact => fact.kind === 'account',
-        ),
+        (
+          await replay(
+            bind(),
+            chunk({ delta: { content: 'x' } }),
+            chunk({ finish: 'stop' }, { usage: { cost } }),
+          )
+        ).find(fact => fact.kind === 'account'),
       ).toMatchObject({
         value: { cost: [{ state: 'unknown', unit: 'openrouter-credit', source: 'supplier' }] },
       })

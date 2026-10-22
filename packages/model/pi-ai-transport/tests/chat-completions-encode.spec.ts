@@ -154,6 +154,20 @@ describe('encode: the body', () => {
     expect(parsed).not.toHaveProperty('temperature')
   })
 
+  it('refuses two applied values for one field as invalid, never throws', () => {
+    // Two suppliers that differ only in their credential share one adoption, so the request holds
+    // the planned values of both for this binding.
+    const record = testRecord()
+    const planned = {
+      supplier: adapterOf(record),
+      applied: { kind: 'max-output-tokens', value: '1000' },
+      origin: { kind: 'default', source: adapterOf(record) },
+    }
+    expect(encode(record, { parameterAdoptions: [planned, planned] })).toEqual({
+      failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'repeated' },
+    })
+  })
+
   it('refuses an applied value that the record cannot write', () => {
     const record = testRecord()
     const outcome = encode(record, {

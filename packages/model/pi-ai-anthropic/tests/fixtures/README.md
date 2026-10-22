@@ -73,7 +73,7 @@
    - `input` 是 prompt 减去缓存读与缓存写。余量为负时 `input` 为未知，并在 `account` 之后给出一个 `usage-inconsistent` 诊断事实。封存件把它记为 `model_transport.usage_inconsistent` 诊断事件。
    - 账目带 `reasoning` 项。没有 `reasoning_tokens` 时它为未知。
    - 已收场但没有 usage 的响应也有账目，各项为未知。
-   - 费用的单位是 `openrouter-credit`，词法照原样。
+   - 费用的单位是 `openrouter-credit`。普通十进制词法照原样，指数形式改写为精确的普通十进制词法。
 4. **请求体的写法。** 现行记录用 `parts`：系统指令、提醒、user、assistant 与工具结果的内容都写成部件数组。提醒的角色是 `user`。图片写记录的 `detail: "auto"`，封存件只写 `url`。缓存标记 `{ "type": "ephemeral", "ttl": "1h" }` 在最后一条消息的最后一个非空文本部件上。封存测试只断言了请求体的部分成员，本目录的期望请求体按现行规格写出。
 5. **拒绝的时机与位置。** 封存件在下一次请求的计划阶段拒绝未签名的组、`[REDACTED]` 加密项与别的路由的组，不发出请求。现行解码器对这样的组不产生部件。下一次请求中，本家族消息的思考没有部件可带时，编解码器不写出这个思考，请求照常发出，见 [pi-ai-anthropic SPEC“规则”](../../SPEC.md#规则)。别的路由的组按回放声明略去，并给出 `replay-omitted` 诊断。这两种请求见 [cross-family-replay.spec.ts](../cross-family-replay.spec.ts)。
 6. **重复的收场帧。** 封存件的流只有一个收场帧，usage 在它之前的一帧。`records/anthropic%2Fclaude-sonnet-5/1` 按经代理观察到的网关形状写出流：收场帧先到一次，再带 usage 重复一次。值是合成值，观察样本不进仓库。
