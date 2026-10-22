@@ -33,6 +33,7 @@
 ├── research/                 当前仅保留 TypeSafe Jev；职责与结构待负责人另行定义
 ├── agents/                   skills 与 roles 的唯一编译源、宿主适配与评估
 ├── tooling/                  确定性生成、设计检查与项目根链接
+├── human/                    人类协作者的学习指南：怎样思考设计问题、指导和评审 agent，不是规则
 └── .claude/ .agents/ .codex/ 编译产物，不手改
 ```
 
@@ -55,6 +56,7 @@
 | 新建长期设计材料 | 先过 [准入与停止条件](design/README.md#准入与停止条件)，再用目标目录的本地 `.templates/` |
 | 维护 skills 或 roles | 从 [agents/](agents/README.md) 改 canonical 源，**不手改生成产物** |
 | 生成、检查或接入宿主入口 | [tooling/](tooling/README.md)。编译、项目根链接、发布是三个动作 |
+| 学习怎样给 agent 布置或评审一类设计 | [human/](human/README.md)。这是写给人的学习材料，规则以它引用的拥有者为准 |
 | 判断公开承诺及其采用范围 | [系统架构入口](../docs/architecture/README.md)定位实际成员；[原架构入口](design/architecture/README.md)定位未迁精确源。目录或绿测不表示接受 |
 
 ## 自包含与发布边界

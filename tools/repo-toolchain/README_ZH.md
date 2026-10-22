@@ -223,7 +223,7 @@ pnpm run metrics --base <基线提交或分支>    # 另标出基线以来变更
 omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
 ```
 
-计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。
+计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。改过的文件按最长的成员目录前缀归到成员；成员是 `pnpm-workspace.yaml` 的成员模式匹配到、且 `package.json` 有字符串 `name` 的目录。组根文件（`packages/<组>/README.md`、`packages/<组>/docs/**`）没有成员前缀，不算成员，改它们不触发这项检查。
 
 本工具只读计划文件的四栏：`head`、`base.ref`、`base.mergeBase` 与 `plan.test`（成员目录的数组）。这四栏是本包的输入约定，现在由 test-runner 的 `plan --json` 写出。
 
@@ -581,6 +581,10 @@ pnpm run loop:health # --out 可改产物目录
 
 成员用 TypeScript 7 构建；`pnpm run check:declarations` 用 TypeScript 6 读它们产出的声明。
 它把全部有 `build` 脚本的成员 `dist/` 下的 `.d.ts` 作为根文件交给 `@typescript/typescript6` 建一个程序，选项取仓库根 `tsconfig.base.json` 并打开库检查。
-成员声明里有诊断即退出 1；第三方声明里的诊断只计数；没有 `dist/` 的成员列出来，只报告、不判失败。`pnpm run check` 在构建一步之后常驻跑它。
+检查器在全部解析里去掉仓库的 `customConditions`（现在只有 `source`），按消费者视角读每个包；成员之间的导入解析到对方的 `dist` 声明，`src` 不进程序。
+成员声明里有诊断即退出 1；第三方声明里的诊断只计数。
+没有 `dist/` 的成员仍列为未构建，它自己不判失败。
+已构建的成员若导入未构建的成员，导入方的声明会报 TS2307 并判失败；带 `source` 条件时，这个导入落到未构建成员的 `src`，诊断被掩盖。
+`pnpm run check` 在构建一步之后常驻跑它。
 
 本工具调用 `createProgram`、`createSourceFile` 等旧编程接口的模块都从 `@typescript/typescript6` 导入，行为与 TypeScript 6 相同。
