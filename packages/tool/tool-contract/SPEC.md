@@ -454,7 +454,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 #### 采用点判定
 
-采用点对每个常驻项按下表判定。「记下的键可用」指采用依据里记下的登记键在登记表中 live、非 draining、且本会话按 G7 可访问。「同形可用贡献」指登记表里任一来源层、本会话可访问、非 draining、与首次定义同形的贡献，不要求它是合法胜出者。协调者按保留义务重装记下的键，这不是为选版回头寻找旧版本（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）。重装的失败按换代协调者的失败集合归类：`missing` 与 `rejected` 是耐久失败；`unavailable` 是暂时失败；`denied` 按撤权处理，给同形替换件（R3）；`conflict` 表示同键已有贡献，按该贡献是否可用走第一或第二行；`draining` 按 draining 处理，视为不可用。
+采用点对每个常驻项按下表判定。「记下的键可用」指采用依据里记下的登记键在登记表中 live、非 draining、且本会话按 G7 可访问。「同形可用贡献」指登记表里任一来源层、本会话可访问、非 draining、与首次定义同形的贡献，不要求它是合法胜出者。协调者按保留义务重装记下的键，这不是为选版回头寻找旧版本（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）。重装的失败按换代协调者的失败集合归类：`missing` 与 `rejected` 是耐久失败；`unavailable` 是暂时失败；`denied` 与来源核验的 `invalid` 按撤权处理，给同形替换件（R3）；`conflict` 表示同键已有贡献，按该贡献是否可用走第一或第二行；`draining` 按 draining 处理，视为不可用。
 
 | 记下的键可用 | 同形可用贡献 | 合法胜出者 | 结论 |
 | --- | --- | --- | --- |
@@ -466,7 +466,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 | 否 | 无 | 无 | 协调者重装记下的键：成功则保持；`missing`、`rejected` 或暂时失败都给同形替换件（R3） |
 | 否 | 无 | 不同形 | 协调者重装记下的键：成功则保持（R5a）；`missing` 或 `rejected` 则冻结（R5b）；暂时失败则同形替换件（R3） |
 
-判定由纯函数 `planAdoption` 给出，输出是前进、保持、替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。冻结判定的交付路径：新 Run 的判定随采用材料经 `startRun` 交会话；显式 reload 的判定由 Tool 宿主经 `ToolResidencyActions.freeze({ session, cause, evidence })` 交会话，`session` 是带租户的会话引用，形状与 [session-contract](../../session/session-contract/SPEC.md#常驻工具与会话冻结) 一致。两条路径都是采用点，会话只执行一次状态转换。
+判定由纯函数 `planAdoption` 给出，输出是前进、保持、替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。冻结判定的交付路径：新 Run 的判定随采用材料经 `startRun` 交会话；显式 reload 的判定由 Tool 宿主经 `ToolResidencyActions.freeze({ session, cause, evidence })` 交会话，输入形状与 [session-contract 的 `freeze`](../../session/session-contract/SPEC.md#常驻工具与会话冻结) 相同：`session` 是会话引用，租户由 Session 按会话目录取得。两条路径都是采用点，会话只执行一次状态转换。
 
 #### 刷新点允许的变化
 
@@ -939,7 +939,7 @@ draining 的地位：记下该键的请求仍可经 `resolve` 的首选分支解
 
 回退顺序（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：在本会话按 G7 可访问（含工作区层的当前获授）、live 且非 draining 的同形贡献中，取登记序号最小的一份。登记序号是登记表本地排序域给每次成功登记分配的单调序号，`snapshot()` 返回它。回退不比较资产版本，不读合法胜出者，不做层序选择；向胜出者前进只在采用点由 `planAdoption` 完成。
 
-同形 serving 替代：对一份有会话引用的贡献，存在另一份 live、非 draining、与引用会话记下的形状同形、且按 G7 对每个引用会话都可访问（租户层核 `tenantEquals`，组织层核同组织，工作区层核该会话当前获授该工作区）的贡献。它不必是合法胜出者。`ToolResidencyReader.referencing` 因此返回每个引用会话的身份、租户、当前工作区与 shape。
+同形 serving 替代：对一份有会话引用的贡献，存在另一份 live、非 draining、与引用会话记下的形状同形、且按 G7 对每个引用会话的租户都可访问（官方层对任何合法租户，组织层核同组织，租户层核 `tenantEquals`）的贡献。工作区层的贡献不作为 serving 替代：它只服务当前获授该工作区的会话，协调者不读会话的工作区。它不必是合法胜出者。`ToolResidencyReader.referencing` 因此返回每个引用会话的身份（含租户）与 shape，与 Session 契约的引用形状一致。
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 
