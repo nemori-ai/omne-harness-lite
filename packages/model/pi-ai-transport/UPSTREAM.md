@@ -51,7 +51,7 @@ one of four family hooks.
   no placeholder text and no bridging assistant message.
 - `src/chat-completions/request.ts` keeps the gateway body frame: `model`, `stream: true`, the
   `provider` routing object and the fixed fields. It adds parameter planning, the replay
-  declaration check, the prefix degrade and the meter representation. It does not send a usage
+  declaration check and the meter representation. It does not send a usage
   switch.
 - `src/chat-completions/chunk.ts` reads one data frame into a typed chunk. It keeps the upstream
   usage fields, but a count that is not a decimal integer stays unknown and no cost is computed.

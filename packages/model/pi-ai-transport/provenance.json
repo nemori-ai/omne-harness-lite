@@ -54,7 +54,7 @@
       "file": "src/chat-completions/request.ts",
       "source": "packages/ai/src/api/openai-completions.ts",
       "symbol": "buildParams",
-      "changes": "Request body of the gateway: model from the record route, `provider` from the record serving pin with `allow_fallbacks: false` and `require_parameters: true`, `stream: true`, planned parameters through the record table and the closed gateway field vocabulary, fixed record fields. Not taken: the usage switch (`stream_options`), prompt cache keys, `max_completion_tokens`, every thinking format branch, sampling overrides, SDK types and environment reads. Added: parameter planning with explicit, default, unsupported and invalid results, the replay declaration check, the prefix degrade and the meter representation with the request bytes.",
+      "changes": "Request body of the gateway: model from the record route, `provider` from the record serving pin with `allow_fallbacks: false` and `require_parameters: true`, `stream: true`, planned parameters through the record table and the closed gateway field vocabulary, fixed record fields. Not taken: the usage switch (`stream_options`), prompt cache keys, `max_completion_tokens`, every thinking format branch, sampling overrides, SDK types and environment reads. Added: parameter planning with explicit, default, unsupported and invalid results, the replay declaration check and the meter representation with the request bytes.",
       "basis": "nemori-ai/omne-harness-lite#463 implementation spec D3"
     },
     {

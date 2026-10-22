@@ -38,12 +38,12 @@
 5. 参数：
    - `max-output-tokens` 受支持，上限 128000，写入 `max_tokens`，没有默认值；
    - `stop` 受支持，至多 16 项，每项至多 1024 个字符，写入 `stop`，没有默认值；
-   - `reasoning-effort` 受支持，没有默认值。`low`、`medium`、`high` 与 `max` 原样写入 `reasoning.effort`。`none` 为 `unsupported`。观察：2026-10-22 经代理实测，`claude-opus-5` 与 `claude-sonnet-5` 接受 `reasoning.enabled: false`（HTTP 200），`claude-opus-5.5` 与 `claude-fable-5.1` 以 HTTP 400 拒绝它（“Reasoning is mandatory for this endpoint and cannot be disabled.”）。这项观察不改变支持：四个型号的 `none` 都是 `unsupported`；
+   - `reasoning-effort` 受支持，没有默认值。`low`、`medium`、`high` 与 `max` 原样写入 `reasoning.effort`。`none` 为 `unsupported`：按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。观察：2026-10-22 经代理实测，`claude-opus-5` 与 `claude-sonnet-5` 接受 `reasoning.enabled: false`（HTTP 200），`claude-opus-5.5` 与 `claude-fable-5.1` 以 HTTP 400 拒绝它（“Reasoning is mandatory for this endpoint and cannot be disabled.”）。这项观察不改变支持：四个型号的 `none` 都是 `unsupported`；
    - `temperature`、`top-p`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
 6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `anthropic-claude-v1`。
-7. 前缀要求：四条记录都是 `{ kind: 'none' }`。最后一个用过工具的 assistant 消息来自另一来源时，请求保持请求的推理强度，请求体写 `reasoning.effort`，encode 只对略去的外来状态给出 `replay-omitted` 诊断。封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，本包不迁入这项要求。2026-10-22 经代理实测：
+7. 外来工具轮次：最后一个用过工具的 assistant 消息来自另一来源时，请求保持请求的推理强度，请求体写 `reasoning.effort`，encode 只对略去的外来状态给出 `replay-omitted` 诊断。封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。本包不迁入这项要求，因为按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。2026-10-22 经代理实测：
    - 历史中有未签名的外来工具轮次时，四个型号都在推理开启时接受请求，无论历史以工具结果结束还是以之后的 user 消息结束；
-   - `claude-opus-5.5` 与 `claude-fable-5.1` 拒绝关闭推理，所以降级 `disable-reasoning` 会使这些请求失败。
+   - `claude-opus-5.5` 与 `claude-fable-5.1` 以 HTTP 400 拒绝关闭推理。
 8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。四项的上游值都是未知：封存件引用的路由报告不在仓库中。
 
 <a id="规则"></a>
@@ -137,7 +137,7 @@
 
 | 义务 | 验证 | 前提与未覆盖 |
 | --- | --- | --- |
-| [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 型号清单与封存件逐项比较；每条记录都没有前缀要求 |
+| [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 型号清单与封存件逐项比较；每条记录的推理强度 `none` 都是 `unsupported` |
 | [规则](#规则) | `rules.spec.ts`、`cross-family-replay.spec.ts` | `usage` 直接调用；经引擎形成的账目与诊断事实由回放夹具核对 |
 | [计量](#计量) | `meter.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造 |
 | [词表资源](#词表资源) | `meter.spec.ts` | 经 tokenizer-tiktoken 的计数与 @anthropic-ai/tokenizer 0.0.4 的参考值 150 相等 |

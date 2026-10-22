@@ -17,7 +17,7 @@
 | 公开入口 | `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources`、`OPENAI_RECORDS`、`OPENAI_OWNER` 与相应类型 | 根入口 | `public-entry.spec.ts` |
 | 记录 | 12 条 `current` 记录，修订为 `1`，从封存的家族政策迁入。纯数据，提交指纹 | `OPENAI_RECORDS` | `records.spec.ts`、`adoptions.spec.ts` |
 | 取得与绑定 | 一次取得给出精确供应商的一个绑定。未知采用、路由不符、tokenizer 不符与取消都整体失败 | `createOpenAiFamily` 与 `composeFamilies` | `family.spec.ts` |
-| 参数与请求体 | 输出上限与各型号公布的推理强度，原样写出：`none`、`low`、`medium`、`high` 与 `max`，Astra 没有 `none`。其他参数在发送前返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
+| 参数与请求体 | 输出上限与各型号公布的推理强度，原样写出：`low`、`medium`、`high` 与 `max`。按项目约定，记录不关闭推理，所以 `none` 与其他参数在发送前返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
 | 规则 | 加密推理的封存与回放、用量算术与 Pro 的未知范围、输入余量为负时的 `usage-inconsistent` 诊断、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |
 | 计量 | 可见投影的 o200k 代理估算与配置余量；按像素事实计算的三条图片补丁规则；加密推理没有估算 | `binding.meter` | `meter.spec.ts` |
 | 官方档案 | 每条 `current` 记录一份档案。每份档案的供应商都能取得绑定并规划请求 | `officialOpenAiProfiles` | `profiles.spec.ts` |

@@ -50,7 +50,7 @@ flowchart TD
   FT -- adapter --> U
 ```
 
-**外来工具轮次**：四条记录都没有前缀要求。最后一个用过工具的 assistant 消息不可续接时，请求仍保持请求的推理强度，请求体写 `reasoning.effort`。encode 只对略去的外来状态给出 `replay-omitted` 诊断。
+**外来工具轮次**：按项目约定，记录不关闭推理。最后一个用过工具的 assistant 消息不可续接时，请求仍保持请求的推理强度，请求体写 `reasoning.effort`。encode 只对略去的外来状态给出 `replay-omitted` 诊断。
 
 ## 失败与生命周期
 

@@ -64,7 +64,7 @@
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 需要签名前缀的型号（`claude-opus-5.5`、`claude-fable-5.1`）不迁：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理，所以四条记录的 `replay.prefix` 都是 `none`。整组规则成为推理规则 `anthropic-signed-group/1`：格式 `anthropic-claude-v1`，带签名的 `reasoning.text`，数据非空且不是 `[REDACTED]` 的 `reasoning.encrypted`。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
+| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 需要签名前缀的型号（`claude-opus-5.5`、`claude-fable-5.1`）的降级不迁：按[不关闭推理的项目约定](architecture.md#厂商适配的内聚范围)，记录不关闭推理。2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理。整组规则成为推理规则 `anthropic-signed-group/1`：格式 `anthropic-claude-v1`，带签名的 `reasoning.text`，数据非空且不是 `[REDACTED]` 的 `reasoning.encrypted`。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
 | `anthropic.ts` | pi-ai-anthropic；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25] | `claude.json` 估算（消息与工具的 NFKC JSON，图片以 `[image]` 占位）、28 像素块图片公式与四种图片媒体类型迁入 pi-ai-anthropic 的 `meter.ts` 与 `images.ts`，精度保持估算。文件读取与 SHA-256 核对在 `tokenizer.ts`，计数经 tokenizer-tiktoken。普通文本不激活特殊 token，不迁 encode(..., 'all')、data URL 解码、image-size 与 MIME 检查。带签名组的请求计量见“本线的请求计量”。 |
 | `deepseek-boundary.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留参考 prompt 终止帧、边界补偿及补充字段事实；新 meter 使用固定依据，不迁旧 replay 输入协议。 |
 | `deepseek-prompt.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留 message tool_calls 与工具 Schema 的 DeepSeek 参考模板提取规则；用现行声明及无损 JSON 表示重建。 |
@@ -76,7 +76,7 @@
 | `marginal.ts` | Model 可选校准与家族计量拥有者 | 弃 | [后续可选校准线][line] | 弃旧 JSON full/new/replay 边际包装和以原 I 扣 framing 的协议；仅保留估算不能升 exact、工具/包裹不重复计数的调查前提。 |
 | `moonshot-tokenizer.ts` | pi-ai-moonshot 资源；tokenizer-tiktoken 引擎 | 迁 | [后续 Moonshot 家族线][line] | 保留共享词表、K3/K2.7 各自配置、预切分正则及显式控制段事实；文件加载、Tiktoken 构造和缓存归引擎，不能只按同词表合并采用。 |
 | `moonshot.ts` | pi-ai-moonshot | 迁 | [后续 Moonshot 家族线][line] | 保留 K3 XTML、K2.7 Jinja 工具/多轮模板、图片缩放公式及估算范围；移除旧 inline 图像读取和 InputMeter 外形。 |
-| `openai-family-policy.ts` | pi-ai-openai | 迁 | [2.5 #465][s25] | 保留精确型号、effort、图像规则与 Pro scope_unknown 事实；旧 revision/replay 回放表只作研究，GPT6 o200k 代理不升级为 tokenizer identity。 |
+| `openai-family-policy.ts` | pi-ai-openai | 迁 | [2.5 #465][s25] | 保留精确型号、effort、图像规则与 Pro scope_unknown 事实；按不关闭推理的项目约定，推理强度 `none` 为 `unsupported`；旧 revision/replay 回放表只作研究，GPT6 o200k 代理不升级为 tokenizer identity。 |
 | `openai-images.ts` | pi-ai-openai；execution/image 读头 | 迁 | [2.5 #465][s25]；[4.3][line]；[4.4][line] | 保留三类补丁规则、detail/尺寸拟合及单帧 GIF 限制；弃旧 data URL 解码和 image-size 依赖，尺寸来自合法元数据或 execution/image 有界读头。 |
 | `openai.ts` | pi-ai-openai；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25]；[4.3][line] | 保留固定编码、可见 JSON/媒体估算和支持域；编码器初始化归独立引擎，完整输出组/原响应边际回放不迁，完整计量不能因本地分词精确升 exact。 |
 | `output-history.ts` | 共享消息与 Model 历史计量拥有者 | 弃 | [后续历史计量线][line] | 弃完整原响应组、上游 O 和私有 observation 驱动的 full/new/replay；可提取完整组一致性与密文不可当普通文本的反例，受 L01 交接约束。 |
@@ -239,7 +239,7 @@ M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但�
 
 ### L01 跨模型历史状态兼容
 
-原项为 [#193 L01](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-model-history)，来源 [#18](https://github.com/nemori-ai/omne-harness-lite/issues/18)。责任交 Model、消息、Request Context 与历史消费拥有者，定位 `packages/model/`、`packages/context/` 及后续实际成员。本线明确不覆盖普遍跨模型转换；OpenAI 与 Anthropic 的同模型续接证据不能回答其他模型的 opaque、签名、可读推理或工具关联如何转换。本线的两个家族按现行回放声明略去另一模型的推理状态，并给出 `replay-omitted` 诊断。最后一个工具轮次不能接续时，两家都保持请求的推理强度。这是现行契约规定的略去，不是转换，不回答 L01。
+原项为 [#193 L01](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-model-history)，来源 [#18](https://github.com/nemori-ai/omne-harness-lite/issues/18)。责任交 Model、消息、Request Context 与历史消费拥有者，定位 `packages/model/`、`packages/context/` 及后续实际成员。本线明确不覆盖普遍跨模型转换；OpenAI 与 Anthropic 的同模型续接证据不能回答其他模型的 opaque、签名、可读推理或工具关联如何转换。本线的两个家族按现行回放声明略去另一模型的推理状态，并给出 `replay-omitted` 诊断。最后一个工具轮次不能接续时，两家都保持请求的推理强度，因为按[项目约定](architecture.md#厂商适配的内聚范围)，本项目的实现与档案不关闭推理。这是现行契约规定的略去，不是转换，不回答 L01。
 
 后续具名范围须分别核对同模型续接与跨模型转换，保留原历史及信息损失的可见性，并验证请求、计量和恢复。旧数据已经清理，旧源码和研究不是现行完整复现。现行 Model/共享消息契约不允许任意 opaque 回放或调用方私有历史旁路。本清单不选择过滤、降级、删除或转换策略，也不把旧同路由规则升级为通用兼容政策。
 

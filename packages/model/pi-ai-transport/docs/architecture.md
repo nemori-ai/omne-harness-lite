@@ -12,7 +12,7 @@
 | [canonical-json.ts](../src/canonical-json.ts) | 纯数据的规范 JSON 与它的 SHA-256 | Node `crypto` |
 | [chat-completions/index.ts](../src/chat-completions/index.ts) | 子入口，转出 `bindChatCompletions` 与 vocabulary.ts 的类型 | bind.ts、vocabulary.ts |
 | [chat-completions/bind.ts](../src/chat-completions/bind.ts) | 一条记录怎样成为完整绑定：绑定时的记录检查、请求上下文、只包一层的释放 | family-table.ts、request.ts、projection.ts、parameters.ts、gateway.ts、decoder.ts |
-| [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明的展开、前缀降级、请求体、表示与编码诊断 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`；改编自 pi |
+| [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明的展开、请求体、表示与编码诊断 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`；改编自 pi |
 | [chat-completions/projection.ts](../src/chat-completions/projection.ts) | 请求怎样投影为网关消息：角色、内容、工具调用与结果、回放、缓存位置、工具 | json.ts、json-text、model-contract 的 `projectReplay`、Node `crypto`；改编自 pi |
 | [chat-completions/parameters.ts](../src/chat-completions/parameters.ts) | 参数怎样按记录表规划与写出 | gateway.ts |
 | [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts |
@@ -235,8 +235,8 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 - 唯一入口 `bindChatCompletions` 在绑定时核对记录：采用与供应商一致、默认值在记录自己的范围内、每个网关字段只有一个写入方。这些是家族包的缺陷，所以抛出 `RangeError`，不在请求时变成失败。
 - plan 与 encode 调用同一个 `project` 与同一个请求体写法。plan 写出请求体只为得到 `requestBytes` 与计量视图，所以计量看到的就是 encode 发出的形状。
 - 回放声明来自请求，不来自记录。plan 用档案的声明投影，encode 用请求为本供应商固定的声明与这次发出的再发略去集合投影。受理固定了声明，所以恢复与再发按同一声明编码；记录的官方声明只供官方档案。
-- 前缀降级由投影的回放处理结果判断：最后一条用过工具的 assistant 消息不可续接时降级。plan 把降级记入参数采用，encode 按同一输入重算并核对采用一致。
-- encode 的诊断（回放略去与前缀降级）随返回值交给传输。传输在请求发出之后、响应的事实之前把它们作为 `diagnostic` 事实给出；请求没有发出时不给出，因为诊断描述的是发出的请求。
+- 引擎不关闭推理，这是项目约定（见[模型组架构](../../docs/architecture.md#厂商适配的内聚范围)）。所以引擎没有前缀降级：最后一条用过工具的 assistant 消息不可续接时，plan 不改参数采用，encode 不写 `reasoning.enabled`。网关词表没有关闭推理的字段与值。
+- encode 的诊断（回放略去）随返回值交给传输。传输在请求发出之后、响应的事实之前把它们作为 `diagnostic` 事实给出；请求没有发出时不给出，因为诊断描述的是发出的请求。
 - 请求体用 json-text 值树构造，每个对象的键在构造时排序。hook 返回的值在进入请求体前排序。工具调用的参数是值树的 JSON 文本，保持原键序。
 - 引擎源码不出现厂商名，一项测试扫描 `src/chat-completions/`。引擎来源头因此不写上游文件名，文件名登记在 provenance.json。
 - 解码器的状态是一个阶段值。归约步从阶段与 chunk 得到新阶段与事实，不改动旧阶段，所以每条规则只看它需要的字段，失败时直接返回 fault。解码器对象只持有当前阶段。`ended` 阶段拒绝之后的帧，与组架构“已 ended 的 decoder 拒绝后续内容”一致。

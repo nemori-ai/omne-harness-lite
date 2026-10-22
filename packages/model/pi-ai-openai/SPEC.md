@@ -36,9 +36,9 @@
    - 每次请求写 `store: false`；收场之后最多接受 2 帧尾帧。
 5. 参数：
    - `max-output-tokens` 受支持，上限 128000，写入 `max_tokens`，没有默认值；
-   - `reasoning-effort` 受支持，没有默认值。每个受支持的值原样写入 `reasoning.effort`，与封存件相同。标准型号支持 `none`、`low`、`medium`、`high` 与 `max`；Astra 的两个型号支持 `low`、`medium`、`high` 与 `max`，`none` 为 `unsupported`。网关把 `none` 理解为关闭推理，对强制推理的型号返回 400；
+   - `reasoning-effort` 受支持，没有默认值。每个受支持的值原样写入 `reasoning.effort`，与封存件相同。每条记录支持 `low`、`medium`、`high` 与 `max`。`none` 在每条记录中为 `unsupported`：网关把 `none` 理解为关闭推理，而按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。封存件中标准型号公布 `none`，Astra 的两个型号不公布 `none`；
    - `temperature`、`top-p`、`stop`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
-6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `openai-responses-v1`。没有前缀要求。
+6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `openai-responses-v1`。外来工具轮次不能接续时，请求保持请求的推理强度。
 7. 档案数据：输入为文本与图片，输出为文本。窗口 1050000，输入 922000，输出 128000，三项的上游值为有限值，证据是记录中的 `profile.evidence`。单图 4194304 字节，上游值未知。
 
 <a id="规则"></a>
@@ -135,4 +135,4 @@
 
 - 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
 - 夹具中没有余量为负的 usage，所以 `usage-inconsistent` 诊断只经直接调用验证。
-- 网关对 `none` 与 `max` 的接受只有一次经代理的手工确认，不在持续验证中。
+- 网关对 `max` 的接受只有一次经代理的手工确认，不在持续验证中。

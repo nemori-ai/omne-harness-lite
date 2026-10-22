@@ -13,7 +13,7 @@
     {
       "path": "src/input-meters/anthropic-replay.ts",
       "sha256": "a68c83cf70aa24aaeefaf43dd16c2927f3f0850e6dcc19b10319b2d91b4593a9",
-      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated",
+      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: by the project convention no record turns reasoning off, and live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated",
       "target": "src/records.ts, src/rules.ts"
     },
     {

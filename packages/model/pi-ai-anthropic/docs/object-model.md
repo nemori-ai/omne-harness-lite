@@ -11,7 +11,7 @@ classDiagram
   class AnthropicRecord {
     name, revision, route, status
     serving, wire, parameters, extensions
-    replay: declaration, formats, prefix
+    replay: declaration, formats
     profile: ProfileData
     rules: RuleNames
     meter: MeterData

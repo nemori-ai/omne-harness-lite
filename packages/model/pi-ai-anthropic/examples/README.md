@@ -28,13 +28,13 @@
 
 ### anthropic-request.ts
 
-[anthropic-request.ts](anthropic-request.ts) 请求 `anthropic/claude-opus-5.5` 一次，推理参数为 `low`。该记录没有前缀规则。请求的历史中有一轮用数据写出的工具调用：assistant 消息只有工具调用，没有推理状态，工具结果没有内容。这一轮不能接续，推理仍然开启：
+[anthropic-request.ts](anthropic-request.ts) 请求 `anthropic/claude-opus-5.5` 一次，推理参数为 `low`。按项目约定，记录不关闭推理。请求的历史中有一轮用数据写出的工具调用：assistant 消息只有工具调用，没有推理状态，工具结果没有内容。这一轮不能接续，推理仍然开启：
 
 - `rules.plan` 按请求记下推理参数 `low`，打印 `parameter: reasoning-effort "low"`，行尾没有 `(requested ...)`；
 - 请求体写 `reasoning.effort: "low"`；
 - 事实中没有 `reasoning-disabled` 诊断。
 
-2026-10-22 经代理实测：网关接受这样的请求。`claude-opus-5.5` 拒绝 `reasoning.enabled: false`，所以本例不再演示降级。
+2026-10-22 经代理实测：网关接受这样的请求。`claude-opus-5.5` 拒绝 `reasoning.enabled: false`。
 
 本包记录用 parts 形式写内容，所以只有工具调用的 assistant 消息与没有内容的工具结果都写成空列表。请求还带一张 16×16 的 PNG 图片（`detail: 'auto'`）与停止序列。思考块数与推理状态由上游决定，下面的值只是示例。
 

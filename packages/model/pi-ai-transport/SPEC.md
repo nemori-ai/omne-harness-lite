@@ -386,7 +386,7 @@
 - 记录的回放声明不合格，或 `replay.formats.accepts` 不含 `produces`；
 - `wire.usageTail.maxFrames` 不是非负整数；
 - 某个受支持参数的默认值超出记录自己的范围或映射；
-- 某个网关字段有两个写入方。写入方是参数表、扩展表、`wire.fixed` 与前缀降级（`reasoning.enabled`）；
+- 某个网关字段有两个写入方，或扩展与 `wire.fixed` 写入词表以外的字段。写入方是参数表、扩展表与 `wire.fixed`；
 - `limits.maxReasoningText` 或 `limits.toolArguments` 的某项不是正整数。
 
 #### 记录的线数据
@@ -399,9 +399,11 @@
 - `wire.cache`、`wire.image`、`wire.fixed` 见下文“请求体”。`wire.usageTail` 归解码器。
 - `parameters` 按契约 `Parameter` 的全部 kind（`extension` 除外）给出规则：`unsupported`，或 `supported` 加取值范围（`accept`）、默认值（`default`）与网关字段（`wire`）。`reasoning-effort` 按值映射，可以映射为 `unsupported`。
 - `extensions` 按 `definition` 采用的全部四项匹配扩展参数，匹配到时写入规则的网关字段。
-- `replay.declaration` 是本记录的官方回放声明，只供官方档案使用。plan 与 encode 不读它。`replay.formats` 是回放格式，`replay.prefix` 是前缀要求。
+- `replay.declaration` 是本记录的官方回放声明，只供官方档案使用。plan 与 encode 不读它。`replay.formats` 是回放格式。
 
-网关字段是闭合词表 `GatewayParam`。新增字段要修改引擎。
+网关字段是闭合词表 `GatewayParam`：`temperature`、`top_p`、`frequency_penalty`、`presence_penalty`、`max_tokens`、`seed`、`stop`、`reasoning.effort` 与 `store`。新增字段要修改引擎。`reasoning.effort` 的值是 `minimal`、`low`、`medium`、`high`、`xhigh` 与 `max`。
+
+按项目约定，引擎不关闭推理（见[模型组架构](../docs/architecture.md#厂商适配的内聚范围)）。词表没有 `reasoning.enabled`，推理强度没有 `none`。记录把 `reasoning-effort` 的 `none` 映射为 `unsupported`。引擎不给出 `reasoning-disabled` 诊断。
 
 #### plan
 
@@ -418,11 +420,11 @@
    - 省略的受支持 kind 有 `send` 默认值时，记为 `origin: 'default'`，来源为记录采用。默认值为 `absent` 时不记录也不写出。
    - 显式参数记为 `origin: 'explicit'`，`requested` 为请求值，来源为 `assembled.source`。
    参数采用先按 `temperature`、`top-p`、`max-output-tokens`、`stop`、`reasoning-effort`、`seed`、`frequency-penalty`、`presence-penalty` 的顺序列出，再按请求顺序列出扩展参数。
-4. 投影与前缀降级。引擎做一次投影，投影的失败（见下文“投影”）在这一步返回。记录的 `replay.prefix` 为 `last-tool-turn` 时，引擎找最后一条含调用部件的 assistant 消息。这条消息对本供应商不可续接时，本次请求关闭推理：`reasoning-effort` 的采用记为 `none`。原采用为显式时保留 `requested` 与来源。没有推理采用时，增加一项 `origin: 'default'` 的采用。请求体写 `reasoning.enabled: false`，不写推理强度。
+4. 投影。引擎做一次投影，投影的失败（见下文“投影”）在这一步返回。最后一个用过工具的 assistant 消息不可续接时，参数采用不变：请求保持请求的推理强度。
 5. 调用 `hooks.check({ applied, messages, treatments })`。它只校验，不改写。它的失败原样返回。
 6. 形成表示。引擎用第 4 步的投影与参数写出请求体，再调用 `meter.represent(view)`。写出请求体的失败（见下文“请求体”）在这一步返回。返回的采用必须等于 `assembled.representation`，不等时返回 `unsupported`（`field` 为 `representation`）。表示为 `materialized`，`media` 为空，`requestBytes` 是请求体的字节数。
 
-降级如实记录在参数采用中：`applied` 为 `none`，显式请求保留原值。plan 不返回诊断；encode 为降级的请求返回一条 `reasoning-disabled` 诊断，见“encode”。
+plan 不返回诊断。
 
 #### encode
 
@@ -433,9 +435,9 @@
 1. `media` 非空时返回 `unsupported`（`field` 为 `media`）。
 2. 投影。
 3. 调用 `hooks.check`。参数取 `request.parameterAdoptions` 中 `supplier` 等于本绑定采用的各项的 `applied`。
-4. 写出参数。某项不能按记录写出时，返回 plan 会返回的同一失败。前缀降级按同一规则重算。降级时推理采用必须是 `none`，否则返回 `invalid`（`field` 为 `parameterAdoptions`，`reason` 为 `prefix-degrade-mismatch`）。
+4. 写出参数。某项不能按记录写出时，返回 plan 会返回的同一失败。
 5. 写出请求体，调用 `meter.represent`。表示采用必须等于 `request.representation`。
-6. 返回请求体、表示与诊断。诊断按次序是：投影中每条略去推理续接状态部件的消息一条 `replay-omitted`（消息身份、`scope`、`format` 与部件个数），然后在前缀降级时一条 `reasoning-disabled`（`reason` 为 `foreign-prefix`）。诊断不含载荷或正文。
+6. 返回请求体、表示与诊断。诊断是投影中每条略去推理续接状态部件的消息一条 `replay-omitted`（消息身份、`scope`、`format` 与部件个数），按消息次序。诊断不含载荷或正文。
 
 #### 投影
 
@@ -673,8 +675,8 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 根入口与子入口的运行时值，引擎内部不可经包导出访问，类型形状，含网络资源是不透明句柄 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
 | 公开消费例与反例：只经根入口对本地 HTTPS 服务发送一次，内容引用得到 `unsupported` | [examples.spec.ts](tests/examples.spec.ts) 运行 [examples/local-send.ts](examples/local-send.ts) | 慢 |
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
-| 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，前缀降级的四种情况，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
-| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `none` 与 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理、经判定的关闭回放与缺少编解码器，`replay-omitted` 与 `reasoning-disabled` 诊断，降级的写法与不符；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝，以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
+| 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
+| 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置三种情况，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
 | 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况、没有 usage、被拒收场、用量诊断的次序、hook 失败、失败的流没有账目）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
 | 测试入口：夹具全部相符，名字中的 `/`，缺目录与缺文件，多余目录，请求体与事实不等，`request.json` 不合格；指纹的生成、检查、只追加、原地改动记录的检查失败与生成拒绝、不对应记录的行、非给定形式的文件 | [testing-helpers.spec.ts](tests/testing-helpers.spec.ts) | 快 |
 | 引擎源码不含厂商名或型号家族名 | [chat-completions-vendor-words.spec.ts](tests/chat-completions-vendor-words.spec.ts) | 快 |

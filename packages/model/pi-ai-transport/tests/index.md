@@ -23,8 +23,8 @@
 - [transport-exchange.spec.ts](transport-exchange.spec.ts)：发送的 start：同步发出、在结束标记处结束读取、失败映射表各行对真实响应、流中取消与关闭、读入结束标记之后的取消保留解码器的终止、读者提前结束、真实发送下的容量等待与归还（慢层）
 - [conformance.spec.ts](conformance.spec.ts)：model-contract 符合性套件 transport 组的六条义务（慢层）
 - [family-table.spec.ts](family-table.spec.ts)：家族表：规范 JSON 摘要、记录纯度、重复与路由冲突、冻结副本、取得的失败映射、绑定不符与取消时的释放、回放格式查询（快层）
-- [chat-completions-plan.spec.ts](chat-completions-plan.spec.ts)：网关引擎的 `rules.plan`：回放声明比对、参数规划各分支、前缀降级、`check` 与表示（快层）
-- [chat-completions-encode.spec.ts](chat-completions-encode.spec.ts)：网关引擎的 `encode` 与绑定：请求体、角色与内容、工具调用与结果、缓存放置、回放、降级写法、释放与记录缺陷（快层）
+- [chat-completions-plan.spec.ts](chat-completions-plan.spec.ts)：网关引擎的 `rules.plan`：回放声明比对、参数规划各分支、`check` 与表示（快层）
+- [chat-completions-encode.spec.ts](chat-completions-encode.spec.ts)：网关引擎的 `encode` 与绑定：请求体、角色与内容、工具调用与结果、缓存放置、回放、释放与记录缺陷（快层）
 - [chat-completions-decode.spec.ts](chat-completions-decode.spec.ts)：网关引擎的流解释：流解释表逐行、限额、chunk 形状与两段仿照真实网关流的合成流，每次回放恰好一个 `ended`（快层）
 - [testing-helpers.spec.ts](testing-helpers.spec.ts)：测试入口：夹具检查的各项报告与采用指纹的生成和检查（快层）
 - [chat-completions-vendor-words.spec.ts](chat-completions-vendor-words.spec.ts)：引擎源码不含厂商名或型号家族名（快层）
