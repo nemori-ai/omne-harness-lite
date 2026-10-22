@@ -1,6 +1,5 @@
 # @omne-harness/request-context-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The Cordis definition member of Request Context. Variant: `service-contract`.
@@ -21,10 +20,10 @@ The package does not own domain behavior. [request-context-contract](../request-
 
 Status: Cordis definition member, `draft`. The adoption basis is the [prompt contribution registration section](../../../docs/architecture/runtime/request-context.md#提示词贡献登记面) and the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page, and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
-- Not implemented: the abstract class, the key constant, the intercept configuration type, the strategy selection shape, the `Context` and `Events` augmentations, and the type re-exports of the root entry.
-- Not verified: one Cordis mechanism reading is not in the basis yet. Thus property 7 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
-- A Cordis caller uses `assembly(scope, ports)` to reach the cached implementation with the selected strategies. The caller gives the three ports on each call. A contributor declares the global layer with `scope: null`. Listeners filter the event by its payload. Open item: the SPEC does not name the source of `ScopeRef`. See the [Cordis page](docs/cordis.md).
+- Implemented: the abstract Service, derived service key, intercept and policy selection types, Context/Events augmentations, and root type re-exports.
+- Verified locally: Cordis 4.0.4 object injection, ancestor scope, caller fiber effects, event filtering, and ctx.set behavior, plus hosted operation boundaries. See [tests](tests/README.md).
+- Production registry, caching, cancellation and strategy implementations remain the provider's responsibility. Local probe providers are test fixtures.
+- ScopeRef is reused from Runtime Context. Intercept scope declares placement and grants no access.
 
 No package depends on this package now.
 
@@ -49,7 +48,7 @@ Independent use does not need this package. A caller without Cordis collects pro
 
 ## Contracts
 
-- `src/` owns the public shapes. It is empty now.
+- `src/` owns the public shapes. The public definitions are implemented.
 - The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 10.
 - The [Cordis page](docs/cordis.md) owns the service definition, the intercept configuration, the event, the dependency classes, the registration and removal protocol, the strategy selection, and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
@@ -73,7 +72,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/request-context-cordis-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The mechanism property needs a basis probe first. Then the provider tests check the registration behavior. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. Tests cover exports, real Cordis mechanisms, lifecycle, and hosted operation boundaries. See [tests/](tests/README.md). Local probe evidence does not replace production provider validation or promote shared basis state. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -96,8 +95,8 @@ docs/                     Internal design, public use, and integration
 ├── public-api.md         Export entries and definition index
 ├── context.md            Use by each dependent, position
 └── cordis.md             Service definition, event, registration, strategies, IC map
-src/                      index.ts and cordis.ts, template markers only now
-tests/                    Two entry tests, fixtures/ is empty now
+src/                      index.ts and cordis.ts, abstract definition and type re-exports
+tests/                    Entry, mechanism and boundary tests; export inventory
 schema/                   Empty, the package publishes no schema
 verification/             models/ and proofs/, empty now
 adr/                      Empty now

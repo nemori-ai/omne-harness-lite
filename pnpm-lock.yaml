@@ -611,6 +611,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../request-context-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

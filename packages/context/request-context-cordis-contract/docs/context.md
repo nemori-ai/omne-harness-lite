@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-本成员现在没有导出。下面的写法是 SPEC 与 [Cordis 说明](cordis.md)固定的目标用法，随 `./cordis` 的实现生效。
+本成员已提供抽象定义。下面的写法说明贡献者怎样消费，生产提供者另由装配安装。
 
 ### 贡献者插件
 
@@ -60,12 +60,12 @@ flowchart LR
   Listeners[监听变化事件的一方] -->|import type 增补| RQD
 ```
 
-| 依赖方 | 怎样依赖 | 用什么 |
-| --- | --- | --- |
-| [request-context-cordis](../../request-context-cordis/README.md) | `extends RequestContextService` | 抽象类、键、事件增补、策略选择的配置形状 |
-| 贡献者插件 | 对象形式 `inject`，按 [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 取类型 | `contributeSection`、`contributeVariable` |
-| 读取贡献集合的调用方 | 数组形式 `inject` | `contributions(scope)` |
-| 监听变化事件的一方 | `import type {}` 与 `ctx.on` | 事件 |
+| 依赖方                                                           | 怎样依赖                                                                                                  | 用什么                                    |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [request-context-cordis](../../request-context-cordis/README.md) | `extends RequestContextService`                                                                           | 抽象类、键、事件增补、策略选择的配置形状  |
+| 贡献者插件                                                       | 对象形式 `inject`，按 [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 取类型 | `contributeSection`、`contributeVariable` |
+| 读取贡献集合的调用方                                             | 数组形式 `inject`                                                                                         | `contributions(scope)`                    |
+| 监听变化事件的一方                                               | `import type {}` 与 `ctx.on`                                                                              | 事件                                      |
 
 依赖方不导入提供者的实现入口（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 

@@ -1,6 +1,6 @@
 # @omne-harness/request-context-cordis-contract 行为规格
 
-状态：Cordis 定义成员，`draft`。本成员只拥有 Request Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。它承载两件事：提示词贡献的登记面，以及压缩策略与表示策略的提供者选择。领域行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 的源码现在只有模板标记，没有运行实现。
+状态：Cordis 定义成员，`draft`。本成员只拥有 Request Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。它承载两件事：提示词贡献的登记面，以及压缩策略与表示策略的提供者选择。领域行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；生产提供者实现不在本成员。
 
 ## 范围与依据
 
@@ -27,24 +27,24 @@
 
 ## 所有权、失败与生命周期
 
-| 事物 | 拥有者 | 结束 |
-| --- | --- | --- |
-| 服务键与抽象类 | 本成员 | 随包 |
-| 一条贡献的登记 | 贡献者插件的 fiber | 插件卸载、撤除函数，或服务撤除 |
-| 作用域引用声明 | 贡献者插件的 intercept 配置 | 随贡献者 fiber |
-| 事件监听 | 监听者的 fiber | 随监听者 fiber |
-| 渲染结果、缓存、候选 | 不在本成员。归 [request-context](../request-context/SPEC.md) | — |
+| 事物                 | 拥有者                                                       | 结束                           |
+| -------------------- | ------------------------------------------------------------ | ------------------------------ |
+| 服务键与抽象类       | 本成员                                                       | 随包                           |
+| 一条贡献的登记       | 贡献者插件的 fiber                                           | 插件卸载、撤除函数，或服务撤除 |
+| 作用域引用声明       | 贡献者插件的 intercept 配置                                  | 随贡献者 fiber                 |
+| 事件监听             | 监听者的 fiber                                               | 随监听者 fiber                 |
+| 渲染结果、缓存、候选 | 不在本成员。归 [request-context](../request-context/SPEC.md) | —                              |
 
 服务撤除、在途组装的结算是提供者的责任，归 [request-context-cordis SPEC](../request-context-cordis/SPEC.md)。
 
 ## 组合与验证
 
-| 承诺 | 位置 | 本成员怎样消费 |
-| --- | --- | --- |
-| 提示词贡献两类、拒绝逐请求变量 | [RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入) | 性质 2、5 |
-| 贡献变化是缓存失效来源 | [request-context SPEC](../request-context/SPEC.md) | 性质 6 |
-| 策略可替换、默认值只是初值 | [RQ-04](../request-context-contract/SPEC.md#rq-04-模态与可追溯表示)、[RQ-06](../request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) | 性质 8 |
-| 事件命名与增补位置 | [IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11) | 性质 6 |
+| 承诺                           | 位置                                                                                                                                                     | 本成员怎样消费 |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 提示词贡献两类、拒绝逐请求变量 | [RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入)                                                                                        | 性质 2、5      |
+| 贡献变化是缓存失效来源         | [request-context SPEC](../request-context/SPEC.md)                                                                                                       | 性质 6         |
+| 策略可替换、默认值只是初值     | [RQ-04](../request-context-contract/SPEC.md#rq-04-模态与可追溯表示)、[RQ-06](../request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)           | 性质 8         |
+| 事件命名与增补位置             | [IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11) | 性质 6         |
 
 持续验证义务由提供者承担：贡献者卸载后登记撤除；同层重名拒绝；作用域层遮蔽全局；带逐请求变量的段被拒绝；变化事件带该层修订与实例代次，按载荷的作用域过滤；别的作用域的贡献变化不使本作用域的提示词键变化；`assembly(scope, ports)` 只用这次交入的端口，端口缺席时返回不可用。消费者类与作用域经 intercept 配置到达服务方法这一条机制读数尚未进入 basis，与 [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md) 列的同一条；补齐前性质 7 是假设。
 
