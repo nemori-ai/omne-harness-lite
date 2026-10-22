@@ -1,15 +1,20 @@
 // One history across two families: OpenAI, Anthropic, OpenAI, Anthropic, four rounds through
-// OpenRouter with the real shared transport.
+// OpenRouter with the real shared transport. OpenAI runs at effort `high` and Anthropic at effort
+// `low`; at these efforts both models usually return a reasoning state for a question that needs a
+// little reasoning, but the upstream decides.
 //
 // Before each round the example prints the replay projection of the request: which assistant
 // messages carry their reasoning state and which leave it out, with the diagnostics. A state that
 // another family produced cannot continue and is left out; a state of this model goes back. After
-// each round the example folds the facts into the assistant message with `assembleStream`, with
-// the replay scope of the profile (`produces`) and the replay format of the record, and appends it
-// to the history. An independent execution leaves this to its caller.
+// each round the example prints whether the reply carried a reasoning state, folds the facts into
+// the assistant message with `assembleStream`, with the replay scope of the profile (`produces`)
+// and the replay format of the record, and appends it to the history. An independent execution
+// leaves this to its caller.
 //
-// Expected: round 2 leaves out the state of round 1; round 3 carries round 1 and leaves out round 2;
-// round 4 carries round 2 and leaves out rounds 1 and 3.
+// Expected: a later round carries each earlier reply of its own family that has a state, and leaves
+// out each earlier reply of the other family that has a state. When every reply has a state, round
+// 2 leaves out round 1; round 3 carries round 1 and leaves out round 2; round 4 carries round 2 and
+// leaves out rounds 1 and 3.
 //
 // Run from the package directory after building:
 // node --experimental-strip-types examples/cross-family-history.ts
@@ -40,7 +45,7 @@ import {
 
 /** Two reasoning models, one of each family. */
 const OPENAI_MODEL = 'openai/gpt-5.6-luna'
-const ANTHROPIC_MODEL = 'anthropic/claude-sonnet-5'
+const ANTHROPIC_MODEL = 'anthropic/claude-opus-5.5'
 
 const SHOWN = { toHuman: true, toModel: true }
 const LIMITS = {
@@ -69,19 +74,45 @@ const profiles = {
   anthropic: profileOf(officialAnthropicProfiles(official), ANTHROPIC_MODEL),
 }
 
-const PARAMETERS: readonly Parameter[] = [
-  { kind: 'reasoning-effort', value: 'low' },
-  { kind: 'max-output-tokens', value: '2048' },
-]
+/** The parameters of a round: a family effort and a bounded output. */
+function parametersAt(effort: 'low' | 'high'): readonly Parameter[] {
+  return [
+    { kind: 'reasoning-effort', value: effort },
+    { kind: 'max-output-tokens', value: '2048' },
+  ]
+}
+const OPENAI_PARAMETERS = parametersAt('high')
+const ANTHROPIC_PARAMETERS = parametersAt('low')
 
-const ROUNDS: readonly Readonly<{ profile: ModelProfile; question: string }>[] = [
+/** Each question needs a little reasoning, so that the reply is likely to carry a state. */
+const ROUNDS: readonly Readonly<{
+  profile: ModelProfile
+  parameters: readonly Parameter[]
+  question: string
+}>[] = [
   {
     profile: profiles.openai,
-    question: 'Pick a whole number from 1 to 9. Reply with the number only.',
+    parameters: OPENAI_PARAMETERS,
+    question:
+      'A shop sells 3 pens for 2 dollars. How many pens can you buy with 14 dollars? Reply with the number only.',
   },
-  { profile: profiles.anthropic, question: 'Add 3 to your number. Reply with the result only.' },
-  { profile: profiles.openai, question: 'Double that result. Reply with the result only.' },
-  { profile: profiles.anthropic, question: 'Subtract 1 from that. Reply with the result only.' },
+  {
+    profile: profiles.anthropic,
+    parameters: ANTHROPIC_PARAMETERS,
+    question:
+      'Multiply your number by 4 and subtract 17. Is the result a prime number? Reply with the result, then yes or no.',
+  },
+  {
+    profile: profiles.openai,
+    parameters: OPENAI_PARAMETERS,
+    question: 'Write that result in base 5. Reply with the digits only.',
+  },
+  {
+    profile: profiles.anthropic,
+    parameters: ANTHROPIC_PARAMETERS,
+    question:
+      'Read those digits as a base 10 number. What is the sum of its distinct prime factors? Reply with the sum only.',
+  },
 ]
 
 /** The history as plain JSON values; the contract judges it again in every round. */
@@ -105,7 +136,7 @@ try {
       messages: history,
       tools: [],
       toolChoice: 'auto',
-      parameters: PARAMETERS,
+      parameters: round.parameters,
     })
 
     const formats = replayFormatsOf(families, request.suppliers[0].adoption)
@@ -139,6 +170,8 @@ try {
 
     const result = await executeOnce(open, request)
     if (!result.completed) break
+    // The live test derives the expected replay summaries of the later rounds from these lines.
+    console.log(`reply state: round ${number} ${result.states > 0 ? 'yes' : 'no'}`)
     const id = `msg_example-assistant-round-${number}`
     const reply = assembleReply(id, result.facts, {
       scope: declarationOf(round.profile).produces,

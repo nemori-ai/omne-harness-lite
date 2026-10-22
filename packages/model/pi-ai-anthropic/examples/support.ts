@@ -176,8 +176,8 @@ export async function fixRequest(
     })
     if (!('ok' in plan)) throw new Error(`plan: ${JSON.stringify(plan.failure)}`)
     for (const adoption of plan.ok.parameters) {
-      // The applied value differs from the requested one when the plan changed it, e.g. the
-      // prefix degrade turns the reasoning effort to `none`.
+      // The applied value differs from the requested one only when the plan changed it, as a
+      // prefix degrade of the engine would do. No record of this package has one.
       const applied = show(adoption.applied)
       const requested =
         adoption.origin.kind === 'explicit' ? show(adoption.origin.requested) : 'a default'
@@ -242,6 +242,8 @@ export async function closeTransport(open: OpenTransport): Promise<void> {
 export type RoundResult = Readonly<{
   facts: readonly TransportFact[]
   completed: boolean
+  /** The number of reasoning state parts in the reply. */
+  states: number
 }>
 
 /** One independent execution: it prints the text, the reasoning state, the account and the end. */
@@ -286,7 +288,7 @@ export async function executeOnce(
   console.log(`termination: ${terminationOf(ending)}`)
   const completed = ending.kind === 'ended' && ending.termination.kind === 'completed'
   if (!completed) process.exitCode = 1
-  return { facts, completed }
+  return { facts, completed, states }
 }
 
 function terminationOf(fact: IndependentModelFact): string {

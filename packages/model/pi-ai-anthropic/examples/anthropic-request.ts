@@ -1,10 +1,9 @@
 // One request to an Anthropic model through OpenRouter, with the real shared transport.
 //
 // The history holds an earlier tool turn written as data: an assistant message that has only a tool
-// call and no reasoning state, then a tool result without content. MODEL keeps its signed reasoning
-// only when the last assistant message that used a tool can continue, so this request turns
-// reasoning off: the plan records the effort `none` for the requested `low`, the body has
-// `reasoning.enabled: false`, and a `reasoning-disabled` diagnostic comes back. The request also
+// call and no reasoning state, then a tool result without content. That turn cannot continue, and
+// reasoning stays on: the plan records the requested effort `low` as it is, the body has
+// `reasoning.effort: "low"`, and no `reasoning-disabled` diagnostic comes back. The request also
 // carries a small image and stop sequences.
 //
 // Run from the package directory after building: node --experimental-strip-types examples/anthropic-request.ts
@@ -24,7 +23,7 @@ import {
   RETRY_POLICY,
 } from './support.ts'
 
-/** A reasoning model whose record has the signed-prefix rule `last-tool-turn`. */
+/** A reasoning model that refuses reasoning off; its record has no prefix rule. */
 const MODEL = 'anthropic/claude-opus-5.5'
 
 const SHOWN = { toHuman: true, toModel: true }
