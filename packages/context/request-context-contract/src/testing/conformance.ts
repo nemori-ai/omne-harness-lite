@@ -196,6 +196,88 @@ function requestContextCases<P>(subject: ConformanceSubject<P>): readonly BoundC
       )
       assert.equal(result.kind, 'cannot-fit')
     }),
+    caseOf('floor-after-cover-cannot-evade-budget', 'RQ06/RQ11-11', async () => {
+      const first = row(0),
+        last = row(1)
+      const history: HistorySource<P> = {
+        async read() {
+          return { kind: 'page', page: { rows: [first, last], next: null } }
+        },
+        async compactionContext() {
+          return {
+            kind: 'context',
+            epoch: input.history.epoch,
+            value: {
+              covered: [
+                { ref: first.entry, message: first.message },
+                { ref: last.entry, message: last.message },
+              ],
+              after: [],
+              open: [last.entry],
+            },
+          }
+        },
+      }
+      const policy: CompactionPolicyPort = {
+        ...policies.compaction,
+        config: {
+          ...policies.compaction.config,
+          retainBudget: { kind: 'tokens', retainTokens: '100' },
+        },
+        plan: () => ({
+          kind: 'draft',
+          coverTo: first.entry,
+          retained: [],
+          bound: policies.compaction.config.stepBound,
+          shape: 'summarize',
+        }),
+      }
+      const measured = (amount: string): typeof ports.meter => ({
+        ...ports.meter,
+        measure(value) {
+          const result = ports.meter.measure(value)
+          if ('failure' in result) return result
+          return {
+            ok: {
+              ...result.ok,
+              checks: result.ok.checks.map(check =>
+                check.metric === 'input-tokens'
+                  ? {
+                      ...check,
+                      measurement: {
+                        kind: 'exact' as const,
+                        amount,
+                        method: check.measurement.method,
+                      },
+                    }
+                  : check,
+              ),
+            },
+          }
+        },
+      })
+      const current = { ...input, history: { ...input.history, upper: 1 } }
+      const failed = await o.planCompaction(
+        current,
+        { ...ports, history, meter: measured('150') },
+        { ...policies, compaction: policy },
+      )
+      assert.equal(failed.kind, 'cannot-fit')
+      if (failed.kind === 'cannot-fit') {
+        assert.equal(failed.reason, 'floor-exceeds-budget')
+        assert.deepEqual(failed.floor, [last.entry])
+      }
+      const legal = await o.planCompaction(
+        current,
+        { ...ports, history, meter: measured('50') },
+        { ...policies, compaction: policy },
+      )
+      assert.equal(legal.kind, 'planned')
+      if (legal.kind === 'planned') {
+        assert.deepEqual(legal.plan.floor, [])
+        assert.deepEqual(legal.plan.after, [last.message])
+      }
+    }),
     caseOf('plan-progress-and-policy-checked', 'RQ11-17', async () => {
       const planned = await o.planCompaction(input, ports, policies)
       assert.equal(planned.kind, 'planned')
@@ -410,6 +492,7 @@ export const REQUEST_CONTEXT_OBLIGATIONS = [
   'incremental-material-required',
   'carried-content-reuses-history',
   'floor-cannot-be-dropped',
+  'floor-after-cover-cannot-evade-budget',
   'plan-progress-and-policy-checked',
   'entered-plan-changes-outcome',
   'tail-facts-never-enter-snapshot',
