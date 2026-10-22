@@ -608,9 +608,9 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[PF-007 §4 meta](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#meta)（rev 25） · [meta 与常驻的关系](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 25）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 4） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
-  [权限照常作用在命令这一级](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)——
+  [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
   典型：会话运行模式是 [`never`](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) 时，
   `Ask().request_approval` 不可用，**而 `Ask()` 还在**
@@ -620,18 +620,19 @@
 - **注意 ③**：**常驻不一定是 meta**——一个普通工具标了常驻，它只是占了个位置
 - **注意 ④**：**关掉一扇门等于门后一整类能力凭空消失**，而 agent 会「不知道某件事存在」——
   那种失明无法解释也无法申诉。**收紧安全只能靠执行环境、权限与装配清单**
-- **注意 ⑤**：**全部采用多命令范式**，因此[整套只占一个槽位](#ul-prompt-slot--提示词槽位--prompt-slot)；
+- **注意 ⑤**：**全部采用多命令范式**，因此[每个多命令入口只占一个槽位](#ul-prompt-slot--提示词槽位--prompt-slot)，入口后的命令增多不增加槽位；
   **没有这一条，meta 这件事在预算上就不成立**
 - **别混**：**具体是哪几扇门（`Tools()` `Shell()` …）是它的实例，不是概念**——
   词表定义 meta 能力，**不为每一扇门各立一条**
 
 - **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
+- **采用范围**：必需绑定及常驻约束作用于已采用并提供的入口。未实现定义、候选及纯占位不因此进入模型工具清单；多命令约定不替未定义占位发明命令。
 
 ### UL-prompt-slot · 提示词槽位 · Prompt Slot
 
 > **中**：**agent 始终直接看见的一个条目**——正文说「在系统提示词里」指的就是这种始终可见的呈现，不限定它落在一次模型请求的哪个位置。
 > 标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的占一个，没标的不占；
-> 此外有**一批恒定占槽位、且关不掉**的条目（PF-007 定义的 meta）。
+> 此外有**一批恒定占槽位、且关不掉**的条目（元能力产品定义并已采用提供的 meta 入口）。
 > **多命令工具整套只占一个**，因此常驻预算的正确用法是
 > **把钱花在入口上，不是花在具体动作上**。
 >
@@ -642,7 +643,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [PF-007 §5.4](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 25）
+- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 

@@ -48,7 +48,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 正文 | 必要内容范围 |
 |---|---|
 | [总览](runtime/README.md) | 代表性主流程、生命周期、并发取消、失败恢复和阅读地图。 |
-| [Session 与 Run](runtime/session-and-run.md) | 身份、输入受理、推进权、attempt、终态与多会话边界。 |
+| [Session 与 Run](runtime/session-and-run.md) | 身份、会话模式、与六个邻域的角色、输入受理、推进权、attempt、终态与多会话边界。 |
 | [Agent runtime](runtime/agent-runtime.md) | Loop 主线、回复准入、动作处理、完成与接续。 |
 | [Loop extensions](runtime/loop-extensions.md) | 九个位置、干预力、有序组合、HITL、失效与系统扩展。 |
 | [Model runtime](runtime/model-runtime.md) | 输入、真实发出、首内容、重试、失联、结果和独立调用。 |
@@ -58,7 +58,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | [请求上下文](runtime/request-context.md) | 来源、模态、限额、压缩、输入固定与长期性能。 |
 | [执行环境](runtime/execution-environment.md) | 环境选择、资源、隔离、数据责任和故障域。 |
 | [流式与消费](runtime/streaming-and-consumption.md) | 到达、观察、收场、持久承接、模型 ACK 与清理。 |
-| [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档、原调用接续及关键服务降级。 |
+| [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档与作用域释放、原调用接续、恢复的发现与收束及关键服务降级。 |
 
 后续状态机与接口须遵循已接受的独立生命周期、可靠交接、权限和真实性要求。各页明确保留的局部对账项继续有效，不因正文接受而自动解决。正文接受不表示实现或验证完成。
 
@@ -117,7 +117,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 工作区指导加载 | 首次访问的判据、指导文件规范版本和合并协议。 | 工作区指导加载与 Runtime Context 拥有者；[更新、通知与读取](runtime/runtime-context.md#更新通知与读取)。 |
 | 模型适配与失联判定 | 状态码映射、退避参数、请求快照格式及失联判据。 | Model runtime 与模型适配器拥有者；[验证责任与细化范围](runtime/model-runtime.md#验证责任与细化范围)。 |
 | 策略参数与故障兜底 | 循环守卫、预算、时限、轮数、重试、退避和超时的具体规则及参数。 | 各策略与能力拥有者；[循环守卫与终态扩展](runtime/loop-extensions.md#循环守卫与终态扩展)、[长期运行与验证义务](runtime/agent-runtime.md#长期运行与验证义务)、[存储与关键服务降级](runtime/control-and-recovery.md#存储与关键服务降级)。 |
-| 长期会话的算法与性能指标 | 上下文组装、压缩和缓存算法，代表规模、查询与恢复成本、TTFT 场景及目标数值。 | 上下文、数据与性能验证拥有者；[长期会话的性能与验证](runtime/request-context.md#长期会话的性能与验证)、[长期读取与派生状态](data-and-state.md#长期读取与派生状态)、[长期会话与并行工作](drivers-and-constraints.md#长期会话与并行工作)。 |
+| 长期会话的算法与性能指标 | 上下文组装、压缩和缓存算法，代表规模、查询与恢复成本、TTFT 场景及目标数值。 | 上下文、数据与性能验证拥有者；[长期运行作用域的性能与验证](runtime/request-context.md#长期运行作用域的性能与验证)、[长期读取与派生状态](data-and-state.md#长期读取与派生状态)、[长期会话与并行工作](drivers-and-constraints.md#长期会话与并行工作)。 |
 | 执行环境提供者 | 候选排序、池化、探测、节点选择、设施命名、限额、保留期及异构恢复协议。 | 执行环境提供者与部署设计；[环境选择与资源准备](runtime/execution-environment.md#环境选择与资源准备)、[失效重建与数据责任](runtime/execution-environment.md#失效重建与数据责任)、[观测与验证责任](runtime/execution-environment.md#观测与验证责任)。 |
 | 持久化与提交协议 | 必需状态和 Schema、持久确认条件、跨拥有者事务、未知提交的查询与对账。 | 数据拥有者、存储提供者与协调方；[状态分类与持久边界](data-and-state.md#状态分类与持久边界)、[事务与一致性](data-and-state.md#事务与一致性)。 |
 | 数据保留、备份和迁移 | 各类内容的保留与删除范围、备份覆盖与灾备目标、迁移的中断及恢复协议。 | 对应产品政策、数据拥有者和存储提供者；[数据生命周期与演进](data-and-state.md#数据生命周期与演进)。 |

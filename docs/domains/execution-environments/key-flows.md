@@ -1,6 +1,6 @@
 # 执行环境跨领域关键流程
 
-状态：技术协作草案。图表达责任，不表示进程或寿命共属。产品旅程见[产品正文](../../../.meta_harness/design/product/execution-environments/design.md)，所有 INV 与验证义务归[完整 SPEC](../../../packages/execution/execution-environment/SPEC.md)。
+状态：技术协作草案。图表达责任，不表示进程或寿命共属。产品旅程见[产品正文](../../../.meta_harness/design/product/execution-environments/design.md)，所有 INV 与验证义务归[契约成员 SPEC](../../../packages/execution/execution-environment-contract/SPEC.md)。本页只放跨领域流程；成员内部的协议级与机制级流程归[能力组协作入口](../../../packages/execution/docs/key-flows.md)与各成员 `docs/flows.md`。
 
 ## F-EE01 合法选择、准备与原调用发起
 
@@ -67,7 +67,7 @@ sequenceDiagram
 
 对应 J-EE04；INV-EE02、INV-EE04、INV-EE05、INV-EE15、INV-EE17、INV-EE18。
 
-Session/策略拥有者保存新选择，工作区返回合法关联，装配按自身条件采用；环境按实际调用取得设施。新的选择、来源校验及采用都不能改写已发调用的环境或原痕迹。较早准备结果迟到时，核验它所关联的原工作、选择和资源代际，不能覆盖新选择；未被采用但确已分配的资源由原准备拥有者查询并处置。
+作用域持有者与策略拥有者保存新选择，工作区返回合法关联，装配按自身条件采用；环境按实际调用取得设施。新的选择、来源校验及采用都不能改写已发调用的环境或原痕迹。较早准备结果迟到时，核验它所关联的原工作、选择和资源代际，不能覆盖新选择；未被采用但确已分配的资源由原准备拥有者查询并处置。
 
 失败时保留原采用记录和资源事实，后续访问仍按当前权利判断。替换提供者后先接续原查询和结果责任；Context 消费真实变化，不用通知成功代替物理完成。
 

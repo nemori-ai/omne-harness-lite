@@ -256,7 +256,7 @@ Model 查询在途含内部重试，真实整调用收场才产生 model-settled
 
 CurrentConditions 将合法协作设置投影为 evaluate-completion 或 continue，附可追溯依据。它不将权限模式交 Evaluator 解释。请求/工具固定输入保留环境采用，环境选择规则由原提供者拥有。若相关依据缺失，返回明确不可用，不猜测默认允许。
 
-Context 的 derive 返回实际候选消息和具名 commitment（C2）。压缩候选不可改写：没有任何扩展位置能改写它，转换消息经消息准入后与 Context 转换共同提交（C3），压缩之后位置（C4）只面对已提交的事实。规则见 SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7、8 条。实际范围和排除名单由 Context 参加者核验并共同提交，Agent 不解析 commitment 内部结构。
+Context 的 derive 返回实际候选消息和具名 commitment（C2）。压缩候选不可改写：没有任何扩展位置能改写它，转换消息经消息准入后与 Context 转换共同提交（C3），压缩之后位置（C4）只面对已提交的事实。规则见 SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7、8 条。压缩记录由 Context 参加者共同提交，提交前历史持有者按消息成员的 `judgeCompaction` 核对它与历史对得上。Agent 不解析 commitment 内部结构。
 
 ## 故障分层
 
@@ -443,7 +443,7 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 卡片答复与处理 | 人已答复、尚未 processed | 卡片端口按原 round 读到唯一有效答复。该轮为 answered | 以 `replay` 携带全部轮次的答复调用原精确采用。整批屏障保持 | 把 answered 当作全部处理完成。发出已获准的动作 | X4 转 X2 | SC-AG-177，另见 SC-AG-101 |
 | 卡片答复与处理 | 卡片已呈现、回执丢失 | present 的幂等身份是 passage 加 round 加完整请求身份集合 | lookup 认回原呈现。unknown 时不重出卡 | 再次 present | X4 | SC-AG-45 |
 | 压缩中断 | 压缩步骤之间崩溃，或步骤结果已保管而进度未提交 | checkpoint 的 `compaction`：进度、`stepRequest` 与自持的已发起步数。步骤的 PendingCall | C1 以已保存的进度与最后一步的保管结果再次调用 `derive`。认回同一步不重复计数 | 重新花费模型调用生成另一份摘要。从零开始 | E4 回 C1，或经 M1 回 C1 | SC-AG-178，另见 SC-AG-74 |
-| 压缩中断 | 转换已派生、共同提交回执丢失 | context-transition 的操作身份。Context 参加者的事实 | R0 查原操作。committed 则 C4 经过后 I1 调用 `resume`。unknown 等待 | 仅凭摘要存在判断排除与接续成立。用未提交的派生冒充已压缩。用另一条消息配原 commitment | C3 转 R0，再 C4 | SC-AG-179，另见 SC-AG-46 |
+| 压缩中断 | 转换已派生、共同提交回执丢失 | context-transition 的操作身份。Context 参加者的事实 | R0 查原操作。committed 则 C4 经过后 I1 调用 `resume`。unknown 等待 | 仅凭摘要存在判断压缩记录与接续已提交。用未提交的派生冒充已压缩。用另一条消息配原 commitment | C3 转 R0，再 C4 | SC-AG-179，另见 SC-AG-46 |
 | 终态与接管 | tryFinish 已成、回执丢失 | 原终结的操作身份。ended 与末事件共同提交 | query 原终结。load 读终态。F4、O0 继续 | 重开执行。重复终态。重跑终态前的效果 | F3 转 R0，再 F4 | SC-AG-180 |
 | 终态与接管 | 旧实例被取代后迟到 | stale-advance。superseded 的挂接 | 旧挂接拒绝业务写与发出。合格保管者仍可以记录真实结果与费用 | 因旧资格无效丢弃真实结果 | E1 转 E9。O0 保管 | SC-AG-181、SC-AG-189 |
 | 依赖与生产者状态 | Model 或 Tool 的查询暂不可用。拥有者 Model 与 Tool，见[换代、恢复和耐久](../../../../model/model-contract/SPEC.md#换代恢复和耐久)与[中断与失联](../../../../../docs/architecture/runtime/tool-runtime.md#中断与失联) | 原状态未定 | 保留技术待办，按 reconciliationDelayMs 重查 | 自动报告生产者失联。重发 | W0 回 E1，再回原节点 | SC-AG-182 |
