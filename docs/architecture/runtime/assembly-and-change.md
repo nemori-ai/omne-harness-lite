@@ -45,7 +45,7 @@ AgentDefinition 保存声明，装配清单保存本次求值及采用依据，A
 负责解析能力、选取或路由实现的一方，在选取时按记下的形状核对：当前装载在 Cordis 插件根上、同一能力身份的实现中，是否有与之同形且可用的实现。
 
 - 有：选用这个实现。它的版本可以与记下的版本不同。
-- 没有：按该能力拥有者规定的不兼容后果处理。不暗换成形状不同的实现，也不回头寻找旧版本。Tool 的换代协调者按保留义务重装会话记下的登记键，属于保留已采用的实现，不是为选版寻找旧版本，见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#采用点判定)。
+- 没有：按该能力拥有者规定的不兼容后果处理。不暗换成形状不同的实现，也不回头寻找旧版本。Tool 的换代协调者按保留义务重装会话记下的登记键，属于保留已采用的实现，不是为选版寻找旧版本（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)），见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#采用点判定)。
 
 需要这种核对的位置不止一处。Session 在采用点核对会话已纳入的常驻工具；Tool 判定同形，失形时给出冻结判定；常驻工具的加入与冻结判定只在采用点，规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)（[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)）。Agent runtime 在恢复与接续时，按原采用的形状选取能解释原检查点的实现。Tool runtime 在路由调用时，按调用方交来的工具形状选取同形实现，不需要知道调用方是谁。同形判据归各能力类别的拥有者：ToolDefinition 归 Tool 契约，AgentDefinition 与 Loop 的检查点归 Agent 契约。已经发出的调用保留原实现，这是执行事实，不是选版。
 

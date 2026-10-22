@@ -87,14 +87,14 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 `toolGenerations` 是 Tool 宿主的 Service，也是 `ctx.plugin` 句柄的唯一持有者。它有三个动词。每个动词都向目标态收敛，可以重复调用。
 
-- `ensureLoaded({ authority, access })`：返回 `Outcome<{ key, state: 'loaded' | 'recognized' }, ToolLoadFailure>`。调用方是装配协调者，在采用点带本租户的 `Access` 调用；它不是系统作用域操作。步骤按顺序：`toolContributionAuthority.verify(authority)`（失败为 `denied` 或 `invalid`）；读资产的实现引用与包 digest（缺失为 `missing`）；核 digest（不符为 `rejected`）；动态 import 实现包（抛错或导出不合 `ToolImplementationModule` 为 `rejected`）；在长期宿主插件的 ctx 下 `ctx.plugin` 作者插件，config 为 `{ authority, construction, settings }`；插件体 `contributeTool` 经 `toolGenerations.loaderFor(authority)` 取得受信 `ToolLoader`，调用 `load` 与 `toolBindings.register`。同键已装、digest 相同且非 draining 时认回，state 为 `recognized`；同键 draining 时返回 `draining`。`load` 或 `register` 失败时协调者 dispose 该 fiber，不保留没有贡献的 ACTIVE fiber，失败按 `register` 的失败集合原样返回。`missing` 与 `rejected` 是耐久失败，协调者把它们铸造为 Tool 的 `DurableEvidence` 交采用点判定；`unavailable`（读取失败、必需依赖缺席）是暂时失败，不构成证据。import 之前先核来源：授权前不运行不可信模块的初始化。
+- `ensureLoaded({ authority, access })`：返回 `Outcome<{ key, state: 'loaded' | 'recognized' }, ToolLoadFailure>`。调用方是装配协调者，在采用点带本租户的 `Access` 调用；它不是系统作用域操作。步骤按顺序：`toolContributionAuthority.verify(authority)`（失败为 `denied` 或 `invalid`）；读资产的实现引用与包 digest（缺失为 `missing`）；核 digest（不符为 `rejected`）；动态 import 实现包（抛错或导出不合 `ToolImplementationModule` 为 `rejected`）；在长期宿主插件的 ctx 下 `ctx.plugin` 作者插件，config 为 `{ authority, construction, settings }`；插件体 `contributeTool` 经 `toolGenerations.loaderFor(authority)` 取得受信 `ToolLoader`，调用 `load` 与 `toolBindings.register`。同键已装、digest 相同且非 draining 时认回，state 为 `recognized`；同键 draining 时返回 `draining`。`load` 或 `register` 失败时协调者 dispose 该 fiber，不保留没有贡献的 ACTIVE fiber。失败映射：`ToolLoader.load` 的确定性拒绝（资产 name 与定义 name 不一致、注册投影与契约不符、配置值不合法）为 `rejected`，它的设置读取不可用或必需服务缺席为 `unavailable`；`register` 的 `invalid` 为 `rejected`，`conflict`、`denied`、`unavailable` 原样返回。`missing` 与 `rejected` 是耐久失败，协调者把它们铸造为 Tool 的 `DurableEvidence` 交采用点判定；`unavailable` 是暂时失败，不构成证据；`denied`、`conflict`、`draining` 不是失败证据，采用点按契约[采用点判定](../../tool-contract/SPEC.md#采用点判定)的说明处理。import 之前先核来源：授权前不运行不可信模块的初始化。
 - `unload({ key })`：在登记表的本地排序域里先 `close(key)`，再经 `ToolResidencyReader.referencing({ scope: 'system', key })` 读会话引用。引用不可读（`unavailable`）时 `reopen(key)` 并返回 `retained`，不能证明无引用就不撤除。有未归档会话引用、且没有同形 serving 替代时，`reopen(key)` 并返回 `retained`。否则按下列顺序做五步。
   1. 保持 draining。新 Run 与回退路由不再选它，记下该键的请求仍可解析到它。
   2. 等在途调用收场。
   3. 按 [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出) 交接。
   4. release 贡献。
   5. dispose 作者插件 fiber。
-- `sweep()`：恢复后按保留义务重装未归档会话记下的键；重装失败按 `ensureLoaded` 的失败集合记录，等采用点判定，不在 sweep 里判冻结。对无引用、且不再是任何胜出者的贡献调用 `unload`。
+- `sweep()`：系统作用域操作。恢复后按保留义务重装未归档会话记下的键：authority 取自该会话采用依据记下的 `ToolAuthority`，以 `{ scope: 'system' }` 调用 `ensureLoaded`，`toolContributionAuthority.verify` 仍核来源，`admits` 对系统作用域按 IC-18 例外不核登记资格；重装失败按 `ensureLoaded` 的失败集合记录，等采用点判定，不在 sweep 里判冻结。对无引用、且不再是任何胜出者的贡献调用 `unload`。
 
 `unload` 做完五步返回 `released`。任一步未完成时返回 `draining`。再调用一次时，它从未完成的那一步继续。按键排空与交接依赖 P09 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时协调者停在 `draining`。
 
@@ -104,8 +104,8 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 | 服务键 | 形状 | 缺席时 |
 | --- | --- | --- |
-| toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, shape }>, unavailable>`，分页，不返回正文；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
-| toolResidencyActions | `freeze({ session, verdict: FreezeVerdict })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`；幂等，会话已冻结时返回原回执。输入带会话身份与租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
+| toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, workspace, shape }>, unavailable>`，分页，不返回正文；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
+| toolResidencyActions | `freeze({ session, cause: 'tool-shape-lost', evidence })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`；`session` 是带租户的会话引用 `{ tenant, id }`，形状与 Session 契约一致；幂等，会话已冻结时返回原回执。输入带租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
 
 协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，从登记表 `snapshot()` 重建句柄表。
 

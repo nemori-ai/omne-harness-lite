@@ -93,7 +93,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 持有的"跟随当前版本"对已有会话是有条件的：同形才跟。这是 assets 版本选用规则的一条例外。
 
-更正标注（2026-10-22，expression 判读处置，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：采用点判定表、刷新点表、R3 的前提、登记表的方法与失败集合、协调者的返回与失败集合、驻留端口的形状与服务键、`binding-changed` 的载荷，以 [Tool 契约 SPEC](../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5) 与 [tool-cordis-contract](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约) 的现行正文为准；本页上面两张表保留提案时的写法。
+更正标注（2026-10-22，expression 判读处置，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：采用点判定表、刷新点表、R3 的前提、登记表的方法与失败集合、协调者的返回与失败集合、驻留端口的形状与服务键、`binding-changed` 的载荷，以 [Tool 契约 SPEC](../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5) 与 [tool-cordis-contract](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约) 的现行正文为准；本页上面两张表保留提案时的写法。其中回退顺序（按登记序号）与「协调者按保留义务重装记下的键不算回头找旧版本」两条是主代理的设计，待 PanQiWei 复核，正文已标注。
 
 更正标注（2026-10-22，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：PanQiWei 采纳「会话与三个 runtime 不钉版本，按形状核对同形可用实现」。本提案据此更正：固定采用改为记形状、按形状选取，`definition.adoption` 仍等于装载时的资产版本，只用于追溯与并存；`resolve`、R5a、R5b 与判据 4、5、6 按下文更正后的措辞执行。R1 至 R4、冻结、登记键三分量、协调者与保留义务不变。
 
