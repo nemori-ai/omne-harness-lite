@@ -187,7 +187,7 @@
 | `acquire` | `unsupportedFacility` | 所需设施键有一项没有登记声明、不由该提供者提供，或回执的租约取不到它 |
 | `acquire` | `unavailable` | 回执里的绑定层与落点不一致 |
 | `acquire` | 提供者给出的原因 | 提供者拒绝时，原因原样交给集成方，取值仍在本集合内。例如接续时账本答 `unavailable`，提供者以 `unavailable` 拒绝（[INV-EE15](#inv-ee15-准备持有回收与确认保持一致)） |
-| `inspectAcquisition` | 不拒绝 | 没有调用方租户在这个键下的记录时答复 `unrecorded`；访问身份里的租户未铸造时答复 `{ kind: 'invalidInput' }`，这不是已记录状态 |
+| `inspectAcquisition` | 领域查询结果；Cordis 错面答 `callerMismatch` | 没有调用方租户在这个键下的记录时答复 `unrecorded`；访问身份里的租户未铸造时答复 `{ kind: 'invalidInput' }`，这不是已记录状态 |
 | 有拒绝通道的操作 | `callerMismatch` | Cordis 装配声明的调用者类别与操作面不符；登记面抛出，错误类型归集成契约 |
 | `describe` | `ownerStopped` | 执行环境已关闭 |
 | `recoverOwned`、`releaseScope` | `notAuthorized`、`unavailable` | 恢复授权端口答不允许或不可用；端口抛出按 `unavailable` 处理 |

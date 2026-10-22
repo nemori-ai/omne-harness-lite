@@ -128,3 +128,5 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts) 在真实 Cordis 上覆盖：以 `{ drainBoundMs: 20 }` 装载 `hostFilesPlugin`，有一个在途写入时卸载它，`ctx.logger` 先收到退役超界的诊断，再收到 `RetirementPending`，卸载完成。
 
 调用方类核对归定义成员测试；本成员两个提供者插件以对象形式声明 provider，并在真实装载与卸载测试中消费这些模板方法。定义入口自身的验证义务归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/docs/cordis.md#验证义务)。
+
+尚未覆盖：同一 isolate 标签下重复装载失败，以及配置校验失败时 fiber 进入 `FAILED`。
