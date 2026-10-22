@@ -4,7 +4,7 @@ import type { ServerResponse } from 'node:http'
 import type { TransportFact } from '@omne-harness/model-contract'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { NetworkResources } from '../src/network.ts'
-import { network } from './support/exchange.ts'
+import { network, settle, watch } from './support/exchange.ts'
 import {
   createCertificate,
   startBlackHole,
@@ -370,5 +370,78 @@ describe('stopping a started send', () => {
       expect(resources.closed).toBe(false)
       expect((await iterator.next()).value).toEqual(INTERRUPTED)
     })
+  })
+})
+
+describe('capacity across real sends', () => {
+  /** Answers the first request only when `release` is called; every later one at once. */
+  function heldFirstAnswer(): { handler: RequestHandler; release: () => void } {
+    const first = Promise.withResolvers<void>()
+    let seen = 0
+    return {
+      handler: async res => {
+        seen += 1
+        if (seen === 1) await first.promise
+        answerSse(res, sseBody(STOP))
+      },
+      release: () => first.resolve(),
+    }
+  }
+
+  it('a materialize waits while a send holds the only slot, and its start sends at once when it gets the slot', async () => {
+    const answer = heldFirstAnswer()
+    await withTransport(answer.handler, async ({ server, transport }) => {
+      const first = (await transport.materialize()).start(new AbortController().signal)
+      expect(transport.sends()).toBe(1)
+      const waiting = watch((await transport.prepare()).materialize(new AbortController().signal))
+      await settle()
+      expect(waiting.done).toBe(false)
+      answer.release()
+      expect(await collect(first)).toEqual([COMPLETED])
+      await expect.poll(() => waiting.done).toBe(true)
+      const second = waiting.value
+      if (second === undefined || !('ok' in second)) throw new Error('expected a materialization')
+      const stream = second.ok.start(new AbortController().signal)
+      expect(transport.sends()).toBe(2)
+      expect(await collect(stream)).toEqual([COMPLETED])
+      expect(server.requests).toHaveLength(transport.sends())
+    })
+  })
+
+  it('a cancel ends a materialize that waits behind a send, and leaves no reservation behind', async () => {
+    const answer = heldFirstAnswer()
+    await withTransport(answer.handler, async ({ resources, transport }) => {
+      const first = (await transport.materialize()).start(new AbortController().signal)
+      const controller = new AbortController()
+      const waiting = (await transport.prepare()).materialize(controller.signal)
+      controller.abort()
+      expect(await waiting).toEqual({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'connection-capacity',
+          diagnostic: 'cancelled',
+        },
+      })
+      answer.release()
+      await collect(first)
+      expect(await slotFree(resources)).toBe(true)
+      expect(transport.sends()).toBe(1)
+    })
+  })
+
+  it('the close of a materialization before start returns its slot and sends nothing', async () => {
+    await withTransport(
+      res => answerSse(res, sseBody(STOP)),
+      async ({ server, transport }) => {
+        const held = await transport.materialize()
+        const waiting = (await transport.prepare()).materialize(new AbortController().signal)
+        await held.close()
+        const next = await waiting
+        if (!('ok' in next)) throw new Error('expected a materialization')
+        expect(await collect(next.ok.start(new AbortController().signal))).toEqual([COMPLETED])
+        expect(transport.sends()).toBe(1)
+        expect(server.requests).toHaveLength(1)
+      },
+    )
   })
 })
