@@ -1,4 +1,3 @@
-// PACKAGE_TEMPLATE_DRAFT: The service keys, the abstract Services and the intercept configuration type are in place; enforcement of the caller class for the two recovery operations is not yet accepted.
 // The Cordis service definitions of the execution environment: the environment Service and the
 // recovery authority Service, their keys and the intercept configuration type. It has no events;
 // placement changes reach readers as Runtime Context blocks.
@@ -17,8 +16,39 @@ type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
   result: ReturnType<ExecutionEnvironment<P>[O]>
 }
 
-/** Caller class read through intercept configuration. Only `maintainer` is meant for the recovery operations. */
+/** Caller classes are assembly declarations, never an authorization credential. */
 export type ExecutionEnvironmentIntercept = { caller: 'integrator' | 'maintainer' | 'provider' }
+export type CallerClass = ExecutionEnvironmentIntercept['caller']
+export type ServiceFace = 'environment' | 'recovery' | 'registration'
+export type ServiceOperation = keyof ExecutionEnvironment<unknown> | keyof ProviderRegistrations
+export const operationFaces: Readonly<Record<ServiceOperation, ServiceFace>> = Object.freeze({
+  resolvePlacement: 'environment',
+  acquire: 'environment',
+  inspectAcquisition: 'environment',
+  describe: 'environment',
+  recoverOwned: 'recovery',
+  releaseScope: 'recovery',
+  registerFacility: 'registration',
+  registerProvider: 'registration',
+})
+export const faceCallers: Readonly<Record<ServiceFace, CallerClass>> = Object.freeze({
+  environment: 'integrator',
+  recovery: 'maintainer',
+  registration: 'provider',
+})
+/** Registration has no rejection result channel; a mismatched declaration throws this error. */
+export class CallerClassMismatch extends Error {
+  readonly operation: ServiceOperation
+  readonly expected: CallerClass
+  readonly declared: unknown
+  constructor(operation: ServiceOperation, expected: CallerClass, declared: unknown) {
+    super(`Caller declaration does not match ${operation}; expected ${expected}`)
+    this.name = 'CallerClassMismatch'
+    this.operation = operation
+    this.expected = expected
+    this.declared = declared
+  }
+}
 
 /** @owner packages/execution/execution-environment-cordis-contract */
 export abstract class ExecutionEnvironmentService<P>
@@ -29,26 +59,91 @@ export abstract class ExecutionEnvironmentService<P>
   constructor(ctx: Context) {
     super(ctx, ExecutionEnvironmentService.provide)
   }
-  // Members are methods, not fields: a method reads `this.ctx` as the caller's context, so a
-  // registration made through `ctx.executionEnvironment` lands on the caller's fiber (IC-13).
-  abstract resolvePlacement(
+  private callerRefusal(operation: ServiceOperation): CallerClassMismatch | undefined {
+    const config: unknown = this[Service.resolveConfig]()
+    const present = typeof config === 'object' && config !== null && 'caller' in config
+    const declared = present ? Reflect.get(config, 'caller') : undefined
+    const face = operationFaces[operation]
+    if (!present && face !== 'registration') return undefined
+    const expected = faceCallers[face]
+    return declared === expected
+      ? undefined
+      : new CallerClassMismatch(operation, expected, declared)
+  }
+  resolvePlacement(
+    ...args: Operation<P, 'resolvePlacement'>['args']
+  ): Operation<P, 'resolvePlacement'>['result'] {
+    if (this.callerRefusal('resolvePlacement'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onResolvePlacement(...args)
+  }
+  protected abstract onResolvePlacement(
     ...args: Operation<P, 'resolvePlacement'>['args']
   ): Operation<P, 'resolvePlacement'>['result']
-  abstract acquire(...args: Operation<P, 'acquire'>['args']): Operation<P, 'acquire'>['result']
-  abstract inspectAcquisition(
+  acquire(...args: Operation<P, 'acquire'>['args']): Operation<P, 'acquire'>['result'] {
+    if (this.callerRefusal('acquire'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onAcquire(...args)
+  }
+  protected abstract onAcquire(
+    ...args: Operation<P, 'acquire'>['args']
+  ): Operation<P, 'acquire'>['result']
+  inspectAcquisition(
+    ...args: Operation<P, 'inspectAcquisition'>['args']
+  ): Operation<P, 'inspectAcquisition'>['result'] {
+    if (this.callerRefusal('inspectAcquisition'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onInspectAcquisition(...args)
+  }
+  protected abstract onInspectAcquisition(
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result']
-  abstract describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result']
-  abstract recoverOwned(
+  describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'] {
+    if (this.callerRefusal('describe'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onDescribe(...args)
+  }
+  protected abstract onDescribe(
+    ...args: Operation<P, 'describe'>['args']
+  ): Operation<P, 'describe'>['result']
+  recoverOwned(
+    ...args: Operation<P, 'recoverOwned'>['args']
+  ): Operation<P, 'recoverOwned'>['result'] {
+    if (this.callerRefusal('recoverOwned'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onRecoverOwned(...args)
+  }
+  protected abstract onRecoverOwned(
     ...args: Operation<P, 'recoverOwned'>['args']
   ): Operation<P, 'recoverOwned'>['result']
-  abstract releaseScope(
+  releaseScope(
+    ...args: Operation<P, 'releaseScope'>['args']
+  ): Operation<P, 'releaseScope'>['result'] {
+    if (this.callerRefusal('releaseScope'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onReleaseScope(...args)
+  }
+  protected abstract onReleaseScope(
     ...args: Operation<P, 'releaseScope'>['args']
   ): Operation<P, 'releaseScope'>['result']
-  abstract registerFacility<K extends FacilityKey>(
+  registerFacility<K extends FacilityKey>(
+    descriptor: FacilityDescriptor<K>,
+  ): ReturnType<ProviderRegistrations['registerFacility']> {
+    const refusal = this.callerRefusal('registerFacility')
+    if (refusal) throw refusal
+    return this.onRegisterFacility(descriptor)
+  }
+  protected abstract onRegisterFacility<K extends FacilityKey>(
     descriptor: FacilityDescriptor<K>,
   ): ReturnType<ProviderRegistrations['registerFacility']>
-  abstract registerProvider(
+  registerProvider(
+    ...args: Parameters<ProviderRegistrations['registerProvider']>
+  ): ReturnType<ProviderRegistrations['registerProvider']> {
+    const refusal = this.callerRefusal('registerProvider')
+    if (refusal) throw refusal
+    return this.onRegisterProvider(...args)
+  }
+  protected abstract onRegisterProvider(
     ...args: Parameters<ProviderRegistrations['registerProvider']>
   ): ReturnType<ProviderRegistrations['registerProvider']>
 }

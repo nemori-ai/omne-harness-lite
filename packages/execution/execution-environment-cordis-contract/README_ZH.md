@@ -1,6 +1,5 @@
 # @omne-harness/execution-environment-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 执行环境的 Cordis 定义成员，`service-contract` 变体。
@@ -12,8 +11,8 @@ PACKAGE_TEMPLATE_DRAFT
 状态：Cordis 定义成员，`draft`。采用依据是[系统页执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
 - 已实现：`./cordis` 导出抽象类与键常量，并声明 intercept 配置类型与 `Context` 增补。根入口是空导出。
-- 未实现：调用方类的核对。没有 Service 实现读取 intercept 配置，见 [Cordis 说明](docs/cordis.md#intercept-配置与调用方类)。
-- 未验证：读取 intercept 配置的机制只有源码读数，还没有进入 basis。根入口与 `./cordis` 的导入边界没有逐文件检查。
+- 已实现：八个模板方法先核对调用方类，再委托受保护钩子；登记面必须声明 provider，环境与恢复面未声明放行。见 [Cordis 说明](docs/cordis.md#intercept-配置与调用方类)。
+- 已有测试：三类调用方、未声明/非法/祖先声明、三条机制读数、调用方效应、导出清单与入口导入边界。候选读数的 basis 登记与交付接受仍独立判断。
 
 现在 execution-environment-host-local 依赖本成员。
 
@@ -30,7 +29,7 @@ PACKAGE_TEMPLATE_DRAFT
 import type { Context } from '@deepseek-ai/cordis'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 
-export const inject = [executionEnvironmentKey]
+export const inject = { [executionEnvironmentKey]: { caller: 'provider' } }
 export function apply(ctx: Context) {
   ctx.executionEnvironment.registerFacility(myFacilityDescriptor)
   ctx.executionEnvironment.registerProvider(myProvider)
@@ -67,7 +66,7 @@ export function apply(ctx: Context) {
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试文件共五个测试：根入口没有运行导出，`./cordis` 的导出集合与键常量，子类在键上提供服务并随插件卸载撤除。见 [tests/](tests/README.md)。2026-10-21 在 Node v24.18.0、linux 上，这两个文件的五个测试全部通过。调用方类核对与导入边界没有测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。入口测试在真实 Cordis 4.0.4 中核对八方法、装载卸载、分面拒绝、调用方效应与三条机制读数，库存测试对照构建产物。覆盖和限制见 [tests/](tests/README.md)。结构检查通过不表示全部环境行为已验证。
 
 ## 维护
 
@@ -91,7 +90,7 @@ docs/                     内部设计、公开使用与集成说明
 ├── context.md            依赖方的用法与定位
 └── cordis.md             服务定义、调用方类、登记协议与 IC 映射
 src/                      index.ts 空导出，cordis.ts 服务定义
-tests/                    两个入口测试，fixtures/ 现在为空
+tests/                    入口与库存测试，fixtures/ 含导出清单
 schema/                   现在为空，本成员不发布 Schema
 verification/             models/ 与 proofs/，现在为空
 adr/                      现在为空

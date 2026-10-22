@@ -1,4 +1,4 @@
-// PACKAGE_TEMPLATE_DRAFT: The registry Service, the files declaration plugin and the host files plugin are in place; the Runtime Context producer plugin, the command and terminal providers and caller-class enforcement are not yet accepted.
+// PACKAGE_TEMPLATE_DRAFT: The registry Service, the files declaration plugin and the host files plugin are in place; the Runtime Context producer plugin, the command and terminal providers are not yet accepted.
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createEnvironmentRegistry,
@@ -123,35 +123,37 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
     )
   }
 
-  resolvePlacement(
+  protected onResolvePlacement(
     ...args: Operation<P, 'resolvePlacement'>['args']
   ): Operation<P, 'resolvePlacement'>['result'] {
     return this.registry.resolvePlacement(...args)
   }
-  acquire(...args: Operation<P, 'acquire'>['args']): Operation<P, 'acquire'>['result'] {
+  protected onAcquire(...args: Operation<P, 'acquire'>['args']): Operation<P, 'acquire'>['result'] {
     return this.registry.acquire(...args)
   }
-  inspectAcquisition(
+  protected onInspectAcquisition(
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result'] {
     return this.registry.inspectAcquisition(...args)
   }
-  describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'] {
+  protected onDescribe(
+    ...args: Operation<P, 'describe'>['args']
+  ): Operation<P, 'describe'>['result'] {
     return this.registry.describe(...args)
   }
-  recoverOwned(
+  protected onRecoverOwned(
     ...args: Operation<P, 'recoverOwned'>['args']
   ): Operation<P, 'recoverOwned'>['result'] {
     return this.registry.recoverOwned(...args)
   }
-  releaseScope(
+  protected onReleaseScope(
     ...args: Operation<P, 'releaseScope'>['args']
   ): Operation<P, 'releaseScope'>['result'] {
     return this.registry.releaseScope(...args)
   }
 
   /** Registers on the caller's fiber: the descriptor goes away when the caller unloads. */
-  registerFacility<K extends FacilityKey>(
+  protected onRegisterFacility<K extends FacilityKey>(
     descriptor: FacilityDescriptor<K>,
   ): ReturnType<ProviderRegistrations['registerFacility']> {
     const dispose = this.ctx.effect(
@@ -166,7 +168,7 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
    * removal calls the registry's removal itself, so it can be retried after `RetirementPending`;
    * the Cordis effect only calls that removal once, when the caller's fiber unloads.
    */
-  registerProvider(
+  protected onRegisterProvider(
     provider: EnvironmentProvider,
   ): ReturnType<ProviderRegistrations['registerProvider']> {
     let remove: () => Promise<void> = async () => undefined
@@ -182,7 +184,7 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
 export const filesFacilityPlugin = {
   name: 'filesFacility',
   Config: emptyConfig,
-  inject: [executionEnvironmentKey],
+  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
   apply(ctx: Context) {
     ctx.executionEnvironment.registerFacility(filesFacility)
   },
@@ -197,7 +199,7 @@ export const filesFacilityPlugin = {
 export const hostFilesPlugin = {
   name: 'hostFiles',
   Config: hostFilesConfig,
-  inject: [executionEnvironmentKey],
+  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
   apply(ctx: Context, config: HostFilesConfig = {}) {
     const logger = ctx.logger('executionEnvironment.hostFiles')
     const options: HostFilesProviderOptions = {

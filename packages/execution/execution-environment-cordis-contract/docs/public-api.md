@@ -19,16 +19,18 @@
 
 ### `./cordis`
 
+精确定义见 [cordis.ts](../src/cordis.ts)。
+
 | 名称 | 种类 | 依据 |
 | --- | --- | --- |
-| `ExecutionEnvironmentService<P>` | 抽象类，`static readonly provide = 'executionEnvironment'`，八个抽象方法 | [性质 1、2](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
+| `ExecutionEnvironmentService<P>` | 抽象类，`static readonly provide = 'executionEnvironment'`，八个公开模板方法和受保护抽象钩子 | [性质 1、2](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
 | `executionEnvironmentKey` | 常量，取自 `ExecutionEnvironmentService.provide` | 性质 1 |
 | `ExecutionEnvironmentIntercept` | 类型 `{ caller: 'integrator' \| 'maintainer' \| 'provider' }` | 性质 4、[intercept 配置与调用方类](cordis.md#intercept-配置与调用方类) |
 | `ExecutionRecoveryAuthorityService` | 抽象类，`static readonly provide = 'executionRecoveryAuthority'`，抽象方法 `authorizeRecovery`，`implements` 契约的 `RecoveryAuthority` | [性质 9](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
 | `executionRecoveryAuthorityKey` | 常量，取自 `ExecutionRecoveryAuthorityService.provide` | 性质 9 |
 | `Context` 增补 | `executionEnvironment` 属性的类型为 `ExecutionEnvironmentService<unknown>`；`executionRecoveryAuthority` 属性的类型为 `ExecutionRecoveryAuthorityService` | 性质 3、9 |
 
-运行时导出只有两个抽象类与两个键常量。[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对这个集合。`ExecutionEnvironmentIntercept` 与 `Context` 增补只是类型。
+运行时导出包括两个抽象类、两个键常量、`operationFaces`、`faceCallers` 与 `CallerClassMismatch`。[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对这个集合。`ExecutionEnvironmentIntercept` 与 `Context` 增补只是类型。
 
 `ExecutionEnvironmentService` 的八个方法是契约两个操作类型的方法：
 
@@ -39,3 +41,5 @@
 | `registerFacility`、`registerProvider` | `ProviderRegistrations` | [契约的设施协议](../../execution-environment-contract/SPEC.md#设施协议)、[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 
 这些签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。契约的导出索引见[契约的公开接口页](../../execution-environment-contract/docs/public-api.md)。
+
+`CallerClass`、`ServiceFace` 与 `ServiceOperation` 是分面类型；`operationFaces` 将八个方法映射到三面，`faceCallers` 给出每面要求的调用方类。`CallerClassMismatch` 只用于没有拒绝返回通道的登记面；它保留 `operation`、`expected` 与 `declared`。精确定义以同节链接的源码为准。

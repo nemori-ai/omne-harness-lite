@@ -2,7 +2,7 @@
 
 本成员没有自己的领域对象。访问身份、环境要求、落点、获取、采用记录、租约、受管资源、设施声明与恢复授权都归 [execution-environment-contract 的对象模型](../../execution-environment-contract/docs/object-model.md)，本成员只在服务方法的签名里引用它们。理由是本成员只拥有一个装配接缝：它规定这些对象经哪个服务键、以哪种 Cordis 方式交换，不规定对象本身。
 
-本成员定义两个技术对象，另有一项类型增补。它们不自动成为产品领域对象。精确形状归 `src/cordis.ts`，导出索引归[公开接口页](public-api.md)。
+本成员定义服务、调用方声明与登记面错误等技术对象，另有类型增补。它们不自动成为产品领域对象。精确形状归 `src/cordis.ts`，导出索引归[公开接口页](public-api.md)。
 
 ## 对象与关系
 
@@ -10,6 +10,7 @@
 | --- | --- | --- | --- | --- |
 | `ExecutionEnvironmentService<P>` 抽象类 | 服务键 `executionEnvironment` | 本成员 | 静态，随包发布 | `extends` Cordis 的 `Service<ExecutionEnvironmentIntercept>`，`implements` 契约的 `ExecutionEnvironment<P>` 与 `ProviderRegistrations`。Service 实现 `extends` 它 |
 | intercept 配置 `ExecutionEnvironmentIntercept` | 调用方插件 fiber 上的一份配置 | 声明它的调用方插件 | 随该插件的 `inject` 声明，运行时不改 | `caller` 取 `integrator`、`maintainer` 或 `provider` |
+| `CallerClassMismatch` | 一次登记拒绝 | 本成员 | 创建后保留操作、期望类和实际声明 | 不是资源或获取记录 |
 | `Context` 增补 | `executionEnvironment` 属性 | 本成员 | 静态 | 属性类型是 `ExecutionEnvironmentService<unknown>` |
 
 ```mermaid
@@ -41,7 +42,7 @@ classDiagram
   ExecutionEnvironment <|.. ExecutionEnvironmentService
   ProviderRegistrations <|.. ExecutionEnvironmentService
   ExecutionEnvironmentService <|-- ServiceImplementation
-  ExecutionEnvironmentService ..> ExecutionEnvironmentIntercept : 目标：恢复面读取
+  ExecutionEnvironmentService ..> ExecutionEnvironmentIntercept : 八方法读取与核对
 ```
 
 图中 `ServiceImplementation` 是说明用的名字，代表 [execution-environment-host-local](../../execution-environment-host-local/docs/object-model.md) 的具体子类 `ExecutionEnvironmentRegistry`。`ExecutionEnvironment` 与 `ProviderRegistrations` 是契约根入口的操作类型。
