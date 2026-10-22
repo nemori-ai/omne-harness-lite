@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-terra-pro",
           "revision": "1",
-          "digest": "9ad43027f9e81d758d0cebf7a88717f47ec4e63b18993f21918bca4a35fd9ced"
+          "digest": "73113e0576d1d48ade30e9b72834a958ffe88042f80d327f5aa71f1f1d492033"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-5.6-terra-pro",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-5.6-terra-pro#representation",
       "revision": "1",
-      "digest": "9ad43027f9e81d758d0cebf7a88717f47ec4e63b18993f21918bca4a35fd9ced"
+      "digest": "73113e0576d1d48ade30e9b72834a958ffe88042f80d327f5aa71f1f1d492033"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-terra-pro",
           "revision": "1",
-          "digest": "9ad43027f9e81d758d0cebf7a88717f47ec4e63b18993f21918bca4a35fd9ced"
+          "digest": "73113e0576d1d48ade30e9b72834a958ffe88042f80d327f5aa71f1f1d492033"
         },
         "applied": {
           "kind": "max-output-tokens",

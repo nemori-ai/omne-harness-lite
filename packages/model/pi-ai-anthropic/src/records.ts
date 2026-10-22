@@ -1,9 +1,9 @@
 // The Anthropic records: one `current` record per exact OpenRouter model, revision `1`. Pure data:
 // a record changes only by a new revision, and the adoption digest covers every member. The
 // models, the parameter subset, the cache rule, the limits and the group rule come from the sealed
-// `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see provenance.json). No
-// record has a prefix rule: the sealed signed-prefix models are not migrated, because the gateway
-// takes a foreign tool turn with reasoning on and two of those models refuse reasoning off.
+// `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see provenance.json). The
+// sealed signed-prefix degrade is not migrated: by the project convention a record never turns
+// reasoning off, and the gateway takes a foreign tool turn with reasoning on.
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
 import { IMAGE_MEDIA_TYPES } from './images.ts'
 import type { AnthropicRecord } from './record.ts'
@@ -89,12 +89,11 @@ const PARAMETERS = {
   'presence-penalty': { support: 'unsupported' },
 } as const satisfies ParameterTable
 
-/** The replay part: Anthropic signed or encrypted groups only, and no prefix rule. */
+/** The replay part: Anthropic signed or encrypted groups only. */
 const REPLAY = {
   // Defaults: produces `openrouter/<route.model>`, accepts only itself, foreign thinking `omit`.
   declaration: {},
   formats: { produces: 'anthropic-claude-v1', accepts: ['anthropic-claude-v1'] },
-  prefix: { kind: 'none' },
 } as const
 
 /** Everything the records share besides the head. */

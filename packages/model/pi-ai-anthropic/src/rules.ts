@@ -45,7 +45,8 @@ function hasValidIdentity(item: Item): boolean {
   const id = item['id']
   const index = item['index']
   const idValid = id === undefined || id.kind === 'null' || id.kind === 'string'
-  const indexValid = index === undefined || (index.kind === 'number' && /^(0|[1-9][0-9]*)$/.test(index.lexeme))
+  const indexValid =
+    index === undefined || (index.kind === 'number' && /^(0|[1-9][0-9]*)$/.test(index.lexeme))
   return idValid && indexValid
 }
 
@@ -125,9 +126,11 @@ function itemsOf(part: ReplayPart): readonly Item[] | null {
 function seal(
   details: readonly ReasoningDetail[],
 ): Outcome<readonly Readonly<{ payload: string }>[], ModelFault> {
-  if (details.length === 0 || !details.every(detail => isReplayable(detail.raw)))
-    return { ok: [] }
-  const payload = writeJsonText({ kind: 'array', items: details.map(detail => sortedItem(detail.raw)) })
+  if (details.length === 0 || !details.every(detail => isReplayable(detail.raw))) return { ok: [] }
+  const payload = writeJsonText({
+    kind: 'array',
+    items: details.map(detail => sortedItem(detail.raw)),
+  })
   return { ok: [Object.freeze({ payload })] }
 }
 
@@ -154,7 +157,11 @@ function signedGroup(adapter: Adoption): ReasoningCodec {
         const items = itemsOf(part)
         if (items === null)
           return {
-            failure: { kind: 'invalid', field: 'reasoning_state', reason: 'payload-not-replayable' },
+            failure: {
+              kind: 'invalid',
+              field: 'reasoning_state',
+              reason: 'payload-not-replayable',
+            },
           }
         details.push(...items)
       }
@@ -258,7 +265,7 @@ export type ToolSchemaRuleName = keyof typeof TOOL_SCHEMA_RULES
 // --- check -----------------------------------------------------------------------------------
 
 export const CHECK_RULES = {
-  /** No cross-field rule: the parameter table and the prefix rule state every Anthropic rule. */
+  /** No cross-field rule: the parameter table states every Anthropic rule. */
   'none/1': () => () => ({ ok: undefined }),
 } as const satisfies Readonly<Record<string, RuleOf<VendorHooks['check']>>>
 

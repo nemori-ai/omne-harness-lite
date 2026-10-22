@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-opus-5.5",
           "revision": "1",
-          "digest": "cd839c26b5f470dc0c4dbeafaebb19c06d751f3c221da315a0c8b1ca9d491ca5"
+          "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
         },
         "recipient": "openrouter",
         "model": "anthropic/claude-opus-5.5",
@@ -140,7 +140,7 @@
       "owner": "@omne-harness/pi-ai-anthropic",
       "name": "anthropic/claude-opus-5.5#representation",
       "revision": "1",
-      "digest": "cd839c26b5f470dc0c4dbeafaebb19c06d751f3c221da315a0c8b1ca9d491ca5"
+      "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
     },
     "parameterAdoptions": [
       {
@@ -148,7 +148,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-opus-5.5",
           "revision": "1",
-          "digest": "cd839c26b5f470dc0c4dbeafaebb19c06d751f3c221da315a0c8b1ca9d491ca5"
+          "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -173,7 +173,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-opus-5.5",
           "revision": "1",
-          "digest": "cd839c26b5f470dc0c4dbeafaebb19c06d751f3c221da315a0c8b1ca9d491ca5"
+          "digest": "d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"
         },
         "applied": {
           "kind": "reasoning-effort",

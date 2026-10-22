@@ -48,14 +48,15 @@ export const OPENAI_TOKENIZER = {
 
 /**
  * Reasoning effort through OpenRouter `reasoning.effort`, each value written as itself, as the
- * sealed code wrote it. The gateway turns reasoning off for `none` and accepts `max`.
+ * sealed code wrote it. `none` is `unsupported`: by the project convention a record never turns
+ * reasoning off. The gateway accepts `max`.
  */
-const STANDARD_EFFORT = {
+const EFFORT = {
   support: 'supported',
   default: { kind: 'absent' },
   accept: {},
   wire: {
-    none: { field: 'reasoning.effort', value: 'none' },
+    none: 'unsupported',
     low: { field: 'reasoning.effort', value: 'low' },
     medium: { field: 'reasoning.effort', value: 'medium' },
     high: { field: 'reasoning.effort', value: 'high' },
@@ -63,8 +64,11 @@ const STANDARD_EFFORT = {
   },
 } as const
 
-/** The common parameter table: only the output limit and the reasoning effort pass. */
-const COMMON_PARAMETERS = {
+/**
+ * The parameter table of every record: only the output limit and the reasoning effort pass. Each
+ * model publishes `low`, `medium`, `high` and `max`; the standard models also publish `none`.
+ */
+const PARAMETERS = {
   temperature: { support: 'unsupported' },
   'top-p': { support: 'unsupported' },
   'max-output-tokens': {
@@ -74,22 +78,10 @@ const COMMON_PARAMETERS = {
     wire: { field: 'max_tokens' },
   },
   stop: { support: 'unsupported' },
-  'reasoning-effort': STANDARD_EFFORT,
+  'reasoning-effort': EFFORT,
   seed: { support: 'unsupported' },
   'frequency-penalty': { support: 'unsupported' },
   'presence-penalty': { support: 'unsupported' },
-} as const satisfies ParameterTable
-
-/** The published effort set `none`, `low`, `medium`, `high`, `max`. */
-const STANDARD_PARAMETERS = COMMON_PARAMETERS
-
-/** Astra publishes `low`, `medium`, `high` and `max`, without `none`. */
-const ASTRA_PARAMETERS = {
-  ...COMMON_PARAMETERS,
-  'reasoning-effort': {
-    ...STANDARD_EFFORT,
-    wire: { ...STANDARD_EFFORT.wire, none: 'unsupported' },
-  },
 } as const satisfies ParameterTable
 
 /** Everything the records share besides the head, the parameters, the usage rule and the image rule. */
@@ -108,7 +100,6 @@ const COMMON = {
     // Defaults: produces `openrouter/<route.model>`, accepts only itself, foreign thinking `omit`.
     declaration: {},
     formats: { produces: 'openai-responses-v1', accepts: ['openai-responses-v1'] },
-    prefix: { kind: 'none' },
   },
   profile: {
     input: ['text', 'image'],
@@ -146,7 +137,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6-astra' },
     status: 'current',
     ...COMMON,
-    parameters: ASTRA_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'astra-patch/1' },
   },
@@ -156,7 +147,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6-astra-pro' },
     status: 'current',
     ...COMMON,
-    parameters: ASTRA_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'astra-patch/1' },
   },
@@ -166,7 +157,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6-sol' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
@@ -176,7 +167,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6-sol-pro' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
@@ -186,7 +177,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6-luna' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
@@ -196,7 +187,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6-luna-pro' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
@@ -206,7 +197,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-sol' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
@@ -216,7 +207,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-sol-pro' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
@@ -226,7 +217,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-terra' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
@@ -236,7 +227,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-terra-pro' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
@@ -246,7 +237,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-luna' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
@@ -256,7 +247,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-luna-pro' },
     status: 'current',
     ...COMMON,
-    parameters: STANDARD_PARAMETERS,
+    parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },

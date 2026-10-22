@@ -176,8 +176,8 @@ export async function fixRequest(
     })
     if (!('ok' in plan)) throw new Error(`plan: ${JSON.stringify(plan.failure)}`)
     for (const adoption of plan.ok.parameters) {
-      // The applied value differs from the requested one only when the plan changed it, as a
-      // prefix degrade of the engine would do. No record of this package has one.
+      // The plan applies an explicit value as it was requested; the line still shows both, so
+      // that a changed value is visible.
       const applied = show(adoption.applied)
       const requested =
         adoption.origin.kind === 'explicit' ? show(adoption.origin.requested) : 'a default'

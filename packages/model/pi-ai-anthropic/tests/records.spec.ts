@@ -28,16 +28,6 @@ describe('the migrated models', () => {
     }
   })
 
-  // The sealed signed-prefix rule of claude-opus-5.5 and claude-fable-5.1 is not migrated: live on
-  // 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused
-  // reasoning off. A degrade here would make every such request fail.
-  it.each(RECORDS.map(record => [record.name, record] as const))(
-    '%s has no prefix rule',
-    (_name, record) => {
-      expect(record.replay.prefix).toEqual({ kind: 'none' })
-    },
-  )
-
   it('offers the sealed efforts low to max as themselves, and not none', () => {
     for (const record of RECORDS) {
       const rule = record.parameters['reasoning-effort']
@@ -142,22 +132,22 @@ describe('purity and adoption', () => {
     expect(new Set(digests).size).toBe(RECORDS.length)
   })
 
-  it('a change of the prefix rule or of the evidence changes the adoption', () => {
+  it('a change of the replay formats or of the evidence changes the adoption', () => {
     const [record] = RECORDS
     if (record === undefined) throw new Error('no record')
     const before = recordAdoption(ANTHROPIC_OWNER, record).digest
-    const prefix: AnthropicRecord = {
+    const formats: AnthropicRecord = {
       ...record,
       replay: {
         ...record.replay,
-        prefix: { kind: 'last-tool-turn', degrade: 'disable-reasoning' },
+        formats: { produces: 'anthropic-claude-v1', accepts: ['anthropic-claude-v1', 'other'] },
       },
     }
     const evidence: AnthropicRecord = {
       ...record,
       profile: { ...record.profile, evidence: 'other' },
     }
-    expect(recordAdoption(ANTHROPIC_OWNER, prefix).digest).not.toBe(before)
+    expect(recordAdoption(ANTHROPIC_OWNER, formats).digest).not.toBe(before)
     expect(recordAdoption(ANTHROPIC_OWNER, evidence).digest).not.toBe(before)
   })
 })

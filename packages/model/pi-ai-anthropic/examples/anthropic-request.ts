@@ -23,7 +23,7 @@ import {
   RETRY_POLICY,
 } from './support.ts'
 
-/** A reasoning model that refuses reasoning off; its record has no prefix rule. */
+/** A reasoning model that refuses reasoning off. No record turns reasoning off. */
 const MODEL = 'anthropic/claude-opus-5.5'
 
 const SHOWN = { toHuman: true, toModel: true }

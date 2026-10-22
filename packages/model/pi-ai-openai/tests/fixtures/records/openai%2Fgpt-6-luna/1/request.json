@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-luna",
           "revision": "1",
-          "digest": "b33be9527d6fda7b139e583ec4415f93c18770ce3f3014e18ab3aa55ff4345ad"
+          "digest": "ff72cd9b94b820ba81f70fdaf04338b661308ef74669f8a08e57ca942c918f10"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6-luna",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6-luna#representation",
       "revision": "1",
-      "digest": "b33be9527d6fda7b139e583ec4415f93c18770ce3f3014e18ab3aa55ff4345ad"
+      "digest": "ff72cd9b94b820ba81f70fdaf04338b661308ef74669f8a08e57ca942c918f10"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-luna",
           "revision": "1",
-          "digest": "b33be9527d6fda7b139e583ec4415f93c18770ce3f3014e18ab3aa55ff4345ad"
+          "digest": "ff72cd9b94b820ba81f70fdaf04338b661308ef74669f8a08e57ca942c918f10"
         },
         "applied": {
           "kind": "max-output-tokens",

@@ -56,14 +56,16 @@ describe('the migrated models', () => {
   )
 
   it.each(RECORDS.map(record => [record.name, record] as const))(
-    '%s supports exactly the sealed efforts, each written as itself',
+    '%s supports the sealed efforts except none, each written as itself',
     (_name, record) => {
       const rule = record.parameters['reasoning-effort']
       if (rule.support !== 'supported') throw new Error('reasoning effort must be supported')
       const supported = Object.entries(rule.wire)
         .filter(([, wire]) => wire !== 'unsupported')
         .map(([value]) => value)
-      const sealed: readonly string[] = EFFORTS[sealedOf(record)[0]]
+      // The project convention: a record never turns reasoning off, so `none` is never offered.
+      const sealed = EFFORTS[sealedOf(record)[0]].filter(value => value !== 'none')
+      expect(rule.wire.none).toBe('unsupported')
       expect(supported.toSorted()).toEqual(sealed.toSorted())
       for (const [value, wire] of Object.entries(rule.wire))
         if (wire !== 'unsupported') expect(wire).toEqual({ field: 'reasoning.effort', value })
@@ -125,7 +127,6 @@ describe('the wire data', () => {
       expect(record.replay).toEqual({
         declaration: {},
         formats: { produces: 'openai-responses-v1', accepts: ['openai-responses-v1'] },
-        prefix: { kind: 'none' },
       })
       expect(record.rules.reasoning).toBe('openai-encrypted/1')
     }

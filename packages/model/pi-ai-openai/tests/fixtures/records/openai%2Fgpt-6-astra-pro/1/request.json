@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-astra-pro",
           "revision": "1",
-          "digest": "253a0d7b81df738057aceb990e1009fa3df0031b7a852380b02deb65cbf9cad9"
+          "digest": "d59b47ea56a3af506f41ae3d3c7850fc81046b8ccf84ff2ed49a5cbf0f29a122"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6-astra-pro",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6-astra-pro#representation",
       "revision": "1",
-      "digest": "253a0d7b81df738057aceb990e1009fa3df0031b7a852380b02deb65cbf9cad9"
+      "digest": "d59b47ea56a3af506f41ae3d3c7850fc81046b8ccf84ff2ed49a5cbf0f29a122"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-astra-pro",
           "revision": "1",
-          "digest": "253a0d7b81df738057aceb990e1009fa3df0031b7a852380b02deb65cbf9cad9"
+          "digest": "d59b47ea56a3af506f41ae3d3c7850fc81046b8ccf84ff2ed49a5cbf0f29a122"
         },
         "applied": {
           "kind": "max-output-tokens",

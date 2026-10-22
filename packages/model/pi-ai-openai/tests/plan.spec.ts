@@ -73,13 +73,9 @@ describe('parameters', () => {
     },
   )
 
-  it('passes the efforts none and max where the record publishes them, and writes each as itself', async () => {
-    for (const [record, value] of [
-      [SOL, 'none'],
-      [SOL, 'max'],
-      [ASTRA, 'max'],
-    ] satisfies readonly (readonly [OpenAiRecord, 'none' | 'max'])[]) {
-      const effort: Parameter = { kind: 'reasoning-effort', value }
+  it('passes the effort max and writes it as itself', async () => {
+    for (const record of [SOL, ASTRA]) {
+      const effort: Parameter = { kind: 'reasoning-effort', value: 'max' }
       const outcome = await plan(record, [effort])
       if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
       expect(outcome.ok.parameters.map(item => item.applied)).toEqual([effort])
@@ -89,20 +85,26 @@ describe('parameters', () => {
       await binding.release()
       if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
       expect(JSON.parse(writeJsonText(encoded.ok.body))).toMatchObject({
-        reasoning: { effort: value },
+        reasoning: { effort: 'max' },
       })
     }
   })
 
-  it('refuses the effort none on Astra, which does not publish it', async () => {
-    expect(await plan(ASTRA, [{ kind: 'reasoning-effort', value: 'none' }])).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'reasoning-effort',
-        adapter: recordAdoption(OPENAI_OWNER, ASTRA),
-      },
-    })
-  })
+  it.each([
+    ['Sol', SOL],
+    ['Astra', ASTRA],
+  ] as const)(
+    'refuses the effort none on %s: no record turns reasoning off',
+    async (_name, record) => {
+      expect(await plan(record, [{ kind: 'reasoning-effort', value: 'none' }])).toEqual({
+        failure: {
+          kind: 'unsupported',
+          field: 'reasoning-effort',
+          adapter: recordAdoption(OPENAI_OWNER, record),
+        },
+      })
+    },
+  )
 
   it('refuses an output limit above the record range', async () => {
     expect(await plan(ASTRA, [{ kind: 'max-output-tokens', value: '128001' }])).toEqual({

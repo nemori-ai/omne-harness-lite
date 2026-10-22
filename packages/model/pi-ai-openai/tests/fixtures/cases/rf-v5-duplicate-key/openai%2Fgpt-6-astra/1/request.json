@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-astra",
           "revision": "1",
-          "digest": "4e9c36b851231e9cdcfbb68d26bda7727168cb36d8728a1809c62ebc8c4ed662"
+          "digest": "0f93b688bec3465e87e345472afd56f47cecd621a992542ea22b0e9e1bd1b5d8"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6-astra",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6-astra#representation",
       "revision": "1",
-      "digest": "4e9c36b851231e9cdcfbb68d26bda7727168cb36d8728a1809c62ebc8c4ed662"
+      "digest": "0f93b688bec3465e87e345472afd56f47cecd621a992542ea22b0e9e1bd1b5d8"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-astra",
           "revision": "1",
-          "digest": "4e9c36b851231e9cdcfbb68d26bda7727168cb36d8728a1809c62ebc8c4ed662"
+          "digest": "0f93b688bec3465e87e345472afd56f47cecd621a992542ea22b0e9e1bd1b5d8"
         },
         "applied": {
           "kind": "max-output-tokens",

@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-luna",
           "revision": "1",
-          "digest": "26c7bdeb4a31a1a7d5b3698c6c1e7980f78d9b539605ddfb01a3f053cbf3b8e7"
+          "digest": "88d047b3e7cfa7043bf413e0a8e2b15ff31739c5064897e25cd378f968f4579b"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-5.6-luna",
@@ -118,7 +118,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-5.6-luna#representation",
       "revision": "1",
-      "digest": "26c7bdeb4a31a1a7d5b3698c6c1e7980f78d9b539605ddfb01a3f053cbf3b8e7"
+      "digest": "88d047b3e7cfa7043bf413e0a8e2b15ff31739c5064897e25cd378f968f4579b"
     },
     "parameterAdoptions": [
       {
@@ -126,7 +126,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-luna",
           "revision": "1",
-          "digest": "26c7bdeb4a31a1a7d5b3698c6c1e7980f78d9b539605ddfb01a3f053cbf3b8e7"
+          "digest": "88d047b3e7cfa7043bf413e0a8e2b15ff31739c5064897e25cd378f968f4579b"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -151,7 +151,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-5.6-luna",
           "revision": "1",
-          "digest": "26c7bdeb4a31a1a7d5b3698c6c1e7980f78d9b539605ddfb01a3f053cbf3b8e7"
+          "digest": "88d047b3e7cfa7043bf413e0a8e2b15ff31739c5064897e25cd378f968f4579b"
         },
         "applied": {
           "kind": "reasoning-effort",

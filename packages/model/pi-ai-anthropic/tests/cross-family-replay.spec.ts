@@ -2,8 +2,8 @@
 // assistant messages that an OpenAI model produced. Encoding for an Anthropic record leaves their
 // reasoning out and omits their thinking, encode reports each as a `replay-omitted` diagnostic,
 // and the Anthropic group of the same history goes back. After a foreign tool turn every Anthropic
-// record keeps the requested effort: no record has a prefix rule. The OpenAI family is not
-// imported.
+// record keeps the requested effort: by the project convention no record turns reasoning off. The
+// OpenAI family is not imported.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { judgeReplayDeclaration, projectReplay, type Parameter } from '@omne-harness/model-contract'
@@ -278,8 +278,8 @@ const RECORDS = [OPUS_55, recordNamed('anthropic/claude-opus-5'), SONNET, FABLE]
 
 describe('a foreign tool turn', () => {
   // Live on 2026-10-22 the gateway took an unsigned foreign tool turn with reasoning on for all
-  // four models, as the last turn and before a later question. A degrade to reasoning off would
-  // fail: claude-opus-5.5 and claude-fable-5.1 refuse it.
+  // four models, as the last turn and before a later question. By the project convention the
+  // engine never turns reasoning off; claude-opus-5.5 and claude-fable-5.1 also refuse it live.
   it.each(
     RECORDS.flatMap(([name, record]) => [
       [name, 'a later question', record, false] as const,
