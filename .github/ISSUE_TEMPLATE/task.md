@@ -22,9 +22,6 @@ about: 从父交付卡拆出的一次可独立接受结果
 
 - 交付层级：subtask
 - 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation}}
-- 交付线：{{docs/engineering/delivery-lines.json 中的线ID，或integration；里程碑在Issue的milestone字段设置}}
-- 性质：{{design／contract／impl／integration／baseline}}
-- 契约变更：{{none／additive／breaking}}
 - 交付修订：1
 - 创建操作标识：{{创建前登记并读回的稳定标识，后续修订保持}}
 - 父交付卡：{{真实父Issue URL，并核对平台父关系}}

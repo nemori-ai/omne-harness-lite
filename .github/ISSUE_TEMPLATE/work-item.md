@@ -22,9 +22,6 @@ about: 一次可以独立接受的结果
 
 - 交付层级：delivery
 - 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation}}
-- 交付线：{{docs/engineering/delivery-lines.json 中的线ID，或integration；里程碑在Issue的milestone字段设置}}
-- 性质：{{design／contract／impl／integration／baseline}}
-- 契约变更：{{none／additive／breaking}}
 - 交付修订：1
 - 创建操作标识：{{创建前登记并读回的稳定标识，后续修订保持}}
 - 责任范围：{{领域、实际成员或工程机制}}
