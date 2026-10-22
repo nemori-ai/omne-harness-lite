@@ -499,7 +499,7 @@
 | --- | --- |
 | `delta.content`、`delta.refusal` | 同一个文本块：第一次给 `block-open`（`text`，`append`），之后给 `block-delta`。拒绝不决定终止 |
 | 可见推理 | 一个思考块，开块与填充同上。每个响应只用第一个非空来源：`delta.reasoning`，其次 `reasoning_details` 中 `reasoning.text` 项的 `text`，再次 `reasoning.summary` 项的 `summary`。等于 `[REDACTED]` 的文本不是可见文本，也不决定来源 |
-| `reasoning_details` 片段 | 缓存。片段与上一项拼接的条件：两者类型相同且是 `reasoning.text` 或 `reasoning.summary`，两者都没有 `id`，`index` 相同，`format` 相同。`reasoning.text` 的签名可以单独在最后一个片段到达；未签名的项采用第一个签名；之后只有签名相同的片段可以拼接，其他片段开始新项；空签名或非字符串签名不拼接。其他片段（含 `reasoning.encrypted`）各成一项 |
+| `reasoning_details` 片段 | 缓存。片段与上一项拼接要同时满足三个条件：两者类型相同且是 `reasoning.text` 或 `reasoning.summary`；两者的头部相同；两者的身份相同。头部是除可见文本成员（`text` 或 `summary`）以外的全部成员，`reasoning.text` 另外除去 `signature`。头部按排序键的无损 JSON 文本比较，所以 `id`、`index`、`format` 与未知成员都必须相同。身份相同是指两者都没有 `id`（缺失或 `null`），或两者的 `id` 是同一个非空字符串。`id` 为空串的片段不拼接。`reasoning.text` 另有签名规则：任一侧有签名时，没有 `id` 的两项还必须都有 `index`；签名可以单独在最后一个片段到达，这个片段没有 `text`；未签名的项采用第一个签名；之后只有签名相同的片段可以拼接，其他片段（含未签名的片段）开始新项；空签名或非字符串签名不拼接。上一项没有 `signature` 成员而片段的 `signature` 是 `null` 时，拼接后的项带 `signature: null`。其他片段（含 `reasoning.encrypted`）各成一项 |
 | `delta.tool_calls` 片段 | 按 `index` 区分调用。名字到达之前缓存参数文本；名字到达时给 `block-open`（`tool-arguments`）与缓存文本的一个 `block-delta`，之后每段参数文本一个 `block-delta`。同一调用的 `id` 或名字改变为 `tool-call-id-changed` 或 `tool-name-changed` |
 | `finish_reason` 为 `stop`、`tool_calls`、`length` | 按块序号封全部开着的块，再封推理续接状态部件。终止为 `completed`，`reason` 分别为 `stop`、`tool-suggestions`、`limit`。`length` 也封文本、思考与推理，但工具参数块保持开着：参数可能被截断，不能成为可执行的调用 |
 | 其他 `finish_reason`（例如 `content_filter`） | 不封块。终止为 `failed`，`cause` 为 `input-rejected`，诊断为 `finish-reason-<值>`。值不是 64 个字符以内的小写字母与下划线时，诊断为 `finish-reason-other` |

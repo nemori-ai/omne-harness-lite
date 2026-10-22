@@ -1,7 +1,8 @@
 // The reasoning details of one response: streamed fragments join into whole items, and the
 // visible reasoning text of a fragment. The joined items go to the reasoning hook at finish.
-import type { JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { DetailFragment } from './chunk.ts'
+import { object, sorted, text } from './json.ts'
 import type { ReasoningDetail } from './vocabulary.ts'
 
 /** The text that a gateway writes in place of reasoning it withholds. It is never visible text. */
@@ -53,13 +54,22 @@ export function bufferedLength(fragment: DetailFragment): number {
 }
 
 /**
- * Adds one fragment to the joined items. A fragment joins the last item when both are
- * `reasoning.text` or both `reasoning.summary`, neither has an `id`, both have the same `index` and
- * the same `format`. For `reasoning.text`:
+ * Adds one fragment to the joined items. A fragment joins the last item only when both are
+ * `reasoning.text` or both `reasoning.summary`, and:
  *
+ * - the heads are equal: every member except the visible text member (and, for `reasoning.text`,
+ *   `signature`) has the same sorted-key lossless JSON text, so `id`, `index`, `format` and unknown
+ *   members must match;
+ * - the identity is the same: neither has an `id` (absent or `null`), or both have the same
+ *   non-empty string `id`. An empty or non-string `id` never joins.
+ *
+ * For `reasoning.text` also:
+ *
+ * - when a signature is present on either side, two items without an `id` join only when both
+ *   have an `index`;
  * - the signature may arrive alone in the last fragment, without `text`;
- * - an unsigned item adopts the first signature;
- * - after that, only a fragment with the same signature joins; any other starts a new item;
+ * - an unsigned item adopts the first signature; after that, only a fragment with the same
+ *   signature joins, and any other fragment, an unsigned one included, starts a new item;
  * - an empty or non-string signature never joins.
  *
  * Any other fragment, `reasoning.encrypted` included, is a new item.
@@ -73,25 +83,46 @@ export function joinDetail(
   return joined === undefined ? [...items, fragment] : [...items.slice(0, -1), joined]
 }
 
-function sameHead(last: DetailFragment, fragment: DetailFragment): boolean {
-  return (
-    last.type === fragment.type &&
-    last.id === null &&
-    fragment.id === null &&
-    last.index !== null &&
-    last.index === fragment.index &&
-    last.format === fragment.format
-  )
+/** The sorted-key lossless JSON text of the members of a fragment, less the excluded ones. */
+function headText(detail: DetailFragment, excluded: readonly string[]): string {
+  const members = Object.entries(detail.raw).filter(([key]) => !excluded.includes(key))
+  return writeJsonText(sorted(object(Object.fromEntries(members))))
+}
+
+function sameHead(last: DetailFragment, fragment: DetailFragment, ...excluded: string[]): boolean {
+  return last.type === fragment.type && headText(last, excluded) === headText(fragment, excluded)
+}
+
+type Identity =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'id'; value: string }>
+  | Readonly<{ kind: 'invalid' }>
+
+/** The `id` member as it arrived: an empty string is not the same as no `id`. */
+function identityOf(detail: DetailFragment): Identity {
+  const value = detail.raw['id']
+  if (value === undefined || value.kind === 'null') return { kind: 'none' }
+  if (value.kind === 'string' && value.value.length > 0) return { kind: 'id', value: value.value }
+  return { kind: 'invalid' }
+}
+
+/** True when both are one item. Without an `id`, a signed pair needs an `index` on both. */
+function sameIdentity(last: DetailFragment, fragment: DetailFragment, signed: boolean): boolean {
+  const before = identityOf(last)
+  const after = identityOf(fragment)
+  if (before.kind === 'none' && after.kind === 'none')
+    return !signed || (last.index !== null && fragment.index !== null)
+  return before.kind === 'id' && after.kind === 'id' && before.value === after.value
 }
 
 function joinedWith(last: JoinedDetail, fragment: DetailFragment): JoinedDetail | undefined {
-  if (!sameHead(last, fragment)) return undefined
   if (fragment.type === 'reasoning.summary') return withSummary(last, fragment)
   if (fragment.type === 'reasoning.text') return withText(last, fragment)
   return undefined
 }
 
 function withSummary(last: JoinedDetail, fragment: DetailFragment): JoinedDetail | undefined {
+  if (!sameHead(last, fragment, 'summary') || !sameIdentity(last, fragment, false)) return undefined
   const before = stringMember(last, 'summary')
   const after = stringMember(fragment, 'summary')
   if (before === undefined || after === undefined) return undefined
@@ -99,16 +130,28 @@ function withSummary(last: JoinedDetail, fragment: DetailFragment): JoinedDetail
 }
 
 function withText(last: JoinedDetail, fragment: DetailFragment): JoinedDetail | undefined {
+  if (!sameHead(last, fragment, 'text', 'signature')) return undefined
   const earlier = signatureOf(last)
   const later = signatureOf(fragment)
   if (earlier.kind === 'invalid' || later.kind === 'invalid') return undefined
+  const signed = earlier.kind === 'signed' || later.kind === 'signed'
+  if (!sameIdentity(last, fragment, signed)) return undefined
   if (earlier.kind === 'signed' && (later.kind !== 'signed' || later.value !== earlier.value))
     return undefined
   const before = stringMember(last, 'text')
-  const after = stringMember(fragment, 'text') ?? (later.kind === 'signed' ? '' : undefined)
+  // Only a fragment without a `text` member may bring a signature alone.
+  const after =
+    fragment.raw['text'] === undefined
+      ? later.kind === 'signed'
+        ? ''
+        : undefined
+      : stringMember(fragment, 'text')
   if (before === undefined || after === undefined) return undefined
   const members: Record<string, JsonValue> = { text: text(before + after) }
   if (earlier.kind === 'none' && later.kind === 'signed') members['signature'] = text(later.value)
+  // An item without a `signature` member takes the explicit `null` of a later fragment.
+  else if (last.raw['signature'] === undefined && fragment.raw['signature']?.kind === 'null')
+    members['signature'] = { kind: 'null' }
   return replaced(last, members)
 }
 
@@ -117,10 +160,6 @@ function replaced(
   members: Readonly<Record<string, JsonValue>>,
 ): JoinedDetail {
   return { ...detail, raw: Object.freeze({ ...detail.raw, ...members }) }
-}
-
-function text(value: string): JsonValue {
-  return { kind: 'string', value }
 }
 
 /** The joined items as the reasoning hook reads them. */

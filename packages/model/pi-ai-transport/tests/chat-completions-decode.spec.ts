@@ -380,6 +380,276 @@ describe('reasoning details and sealing', () => {
   })
 })
 
+// The identity of streamed reasoning detail items. The cases follow the sealed late-signature
+// tests (packages.0.0.1.legacy, anthropic-stream-late-signature.spec.ts) with neutral names.
+describe('reasoning detail identity', () => {
+  /** A json-text tree as plain data; a number becomes a JavaScript number. */
+  function data(value: JsonValue): unknown {
+    switch (value.kind) {
+      case 'null':
+        return null
+      case 'boolean':
+      case 'string':
+        return value.value
+      case 'number':
+        return Number(value.lexeme)
+      case 'array':
+        return value.items.map(data)
+      case 'object':
+        return Object.fromEntries(value.entries.map(entry => [entry.key, data(entry.value)]))
+    }
+  }
+
+  /** The items that the seal hook gets when each fragment arrives in its own chunk. */
+  async function joined(fragments: readonly Record<string, unknown>[]): Promise<unknown[]> {
+    const seen: ReasoningDetail[][] = []
+    await replay(
+      bind({ seal: details => (seen.push([...details]), { ok: [] }) }),
+      ...fragments.map(detail => chunk({ delta: { reasoning_details: [detail] } })),
+      chunk({ finish: 'stop' }),
+    )
+    expect(seen).toHaveLength(1)
+    return (seen[0] ?? []).map(detail =>
+      Object.fromEntries(Object.entries(detail.raw).map(([key, value]) => [key, data(value)])),
+    )
+  }
+
+  const base = {
+    type: 'reasoning.text',
+    id: 'block-1',
+    index: 0,
+    format: 'fmt-a',
+    extension: { source: 'controlled' },
+  }
+  const { id: _id, ...idless } = base
+  const observedText = { type: 'reasoning.text', text: 'Thinking. ', format: 'fmt-a', index: 0 }
+  const observedSignature = { type: 'reasoning.text', signature: 'SIG', format: 'fmt-a', index: 0 }
+
+  it('joins same-id text and its late signature and keeps unknown members', async () => {
+    expect(
+      await joined([
+        { ...base, text: 'first ', signature: null },
+        { ...base, text: 'second', signature: 'signed-one' },
+      ]),
+    ).toEqual([{ ...base, text: 'first second', signature: 'signed-one' }])
+  })
+
+  it('joins same-id fragments that carry the same signature', async () => {
+    expect(
+      await joined([
+        { ...base, text: 'first ', signature: 'signed-one' },
+        { ...base, text: 'second', signature: 'signed-one' },
+      ]),
+    ).toEqual([{ ...base, text: 'first second', signature: 'signed-one' }])
+  })
+
+  it.each([
+    ['a different id', { id: 'block-2' }],
+    ['a different index', { index: 1 }],
+    ['a different format', { format: 'fmt-b' }],
+    ['a different unknown member', { extension: { source: 'other' } }],
+    ['a conflicting signature', { signature: 'signed-two' }],
+    ['a different type', { type: 'reasoning.encrypted', data: 'cipher' }],
+  ])('keeps a fragment with %s as its own item', async (_case, change) => {
+    const first = { ...base, text: 'first', signature: 'signed-one' }
+    const next = { ...base, text: 'second', signature: 'signed-one', ...change }
+    expect(await joined([first, next])).toEqual([first, next])
+  })
+
+  it('compares unknown members losslessly: key order is free, number lexemes are not', async () => {
+    const first = { ...idless, extension: { a: 1, b: 2 }, text: 'x' }
+    expect(await joined([first, { ...idless, extension: { b: 2, a: 1 }, text: 'y' }])).toEqual([
+      { ...first, text: 'xy' },
+    ])
+    const seen: ReasoningDetail[][] = []
+    await replayStream(
+      bind({ seal: details => (seen.push([...details]), { ok: [] }) }),
+      new TextEncoder().encode(
+        [
+          '{"model":"lab/model-a","provider":"Lab","choices":[{"index":0,"delta":{"reasoning_details":[{"type":"reasoning.text","text":"x","index":0,"weight":1}]}}]}',
+          '{"model":"lab/model-a","provider":"Lab","choices":[{"index":0,"delta":{"reasoning_details":[{"type":"reasoning.text","text":"y","index":0,"weight":1.0}]}}]}',
+          '{"model":"lab/model-a","provider":"Lab","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}',
+        ]
+          .map(frame => `data: ${frame}\n\n`)
+          .join(''),
+      ),
+    )
+    expect(seen[0]).toHaveLength(2)
+  })
+
+  it('joins id-less same-index fragments that repeat one signature', async () => {
+    expect(
+      await joined([
+        { ...idless, text: 'first ', signature: 'signed-one' },
+        { ...idless, text: 'second', signature: 'signed-one' },
+      ]),
+    ).toEqual([{ ...idless, text: 'first second', signature: 'signed-one' }])
+  })
+
+  it('joins an id-less pair without an index only while both are unsigned', async () => {
+    const { index: _index, ...unindexed } = idless
+    const first = { ...unindexed, text: 'first', signature: null }
+    const next = { ...unindexed, text: 'second', signature: 'signed-one' }
+    expect(await joined([first, next])).toEqual([first, next])
+    const unsigned = { ...unindexed, text: 'second', signature: null }
+    expect(await joined([first, unsigned])).toEqual([
+      { ...unindexed, text: 'firstsecond', signature: null },
+    ])
+  })
+
+  it('rebuilds id-less text and then a signature-only fragment into one signed item', async () => {
+    expect(await joined([observedText, observedSignature])).toEqual([
+      { ...observedText, signature: 'SIG' },
+    ])
+    expect(
+      await joined([observedText, { ...observedText, text: 'Second.' }, observedSignature]),
+    ).toEqual([{ ...observedText, text: 'Thinking. Second.', signature: 'SIG' }])
+  })
+
+  it('starts a new item for an unsigned fragment after the late signature', async () => {
+    const after = { ...observedText, text: 'next block' }
+    expect(await joined([observedText, observedSignature, after])).toEqual([
+      { ...observedText, signature: 'SIG' },
+      after,
+    ])
+  })
+
+  it('keeps a late signature on a different index apart', async () => {
+    const elsewhere = { ...observedSignature, index: 1 }
+    expect(await joined([observedText, elsewhere])).toEqual([observedText, elsewhere])
+  })
+
+  it('keeps a text-less fragment without a non-empty signature apart', async () => {
+    const { signature: _none, ...textless } = observedSignature
+    expect(await joined([observedText, textless])).toEqual([observedText, textless])
+    const empty = { ...observedSignature, signature: '' }
+    expect(await joined([observedText, empty])).toEqual([observedText, empty])
+    const numeric = { ...observedSignature, text: 1 }
+    expect(await joined([observedText, numeric])).toEqual([observedText, numeric])
+  })
+
+  it('keeps a different second signature apart after the first one arrived', async () => {
+    const other = { ...observedSignature, signature: 'SIG-OTHER' }
+    expect(await joined([observedText, observedSignature, other])).toEqual([
+      { ...observedText, signature: 'SIG' },
+      other,
+    ])
+  })
+
+  it('joins adjacent id-less unsigned fragments whose heads are equal', async () => {
+    const { signature: _none, ...absent } = { ...idless, text: 'b ', signature: null }
+    expect(
+      await joined([
+        { ...idless, text: 'a ', signature: null },
+        absent,
+        { ...idless, text: 'c', signature: null },
+      ]),
+    ).toEqual([{ ...idless, text: 'a b c', signature: null }])
+    const first = { ...idless, text: 'a', signature: null }
+    const other = { ...idless, text: 'b', signature: null, index: 1 }
+    expect(await joined([first, other])).toEqual([first, other])
+  })
+
+  it('fills a null id-less signature from a later same-index signature', async () => {
+    expect(
+      await joined([
+        { ...idless, text: 'first ', signature: null },
+        { ...idless, text: 'second', signature: 'signed-one' },
+      ]),
+    ).toEqual([{ ...idless, text: 'first second', signature: 'signed-one' }])
+  })
+
+  it.each([
+    ['a signature and then none', 'signed-one', null],
+    ['an invalid signature type', null, 7],
+    ['an empty signature', null, ''],
+  ])('keeps id-less fragments apart when they carry %s', async (_case, early, late) => {
+    const first = { ...idless, text: 'first', signature: early }
+    const next = { ...idless, text: 'second', signature: late }
+    expect(await joined([first, next])).toEqual([first, next])
+  })
+
+  it('continues absent and null signatures of one id until the signature arrives', async () => {
+    const { signature: _none, ...absent } = { ...base, text: 'b ', signature: null }
+    expect(
+      await joined([
+        { ...base, text: 'a ', signature: null },
+        absent,
+        { ...base, text: 'c', signature: null },
+        { ...base, text: '', signature: 'signed-one' },
+      ]),
+    ).toEqual([{ ...base, text: 'a b c', signature: 'signed-one' }])
+    const { signature: _absent, ...unsigned } = { ...base, text: 'x', signature: null }
+    expect(await joined([unsigned, { ...base, text: 'y', signature: null }])).toEqual([
+      { ...base, text: 'xy', signature: null },
+    ])
+  })
+
+  it('keeps an unsigned fragment after a signed fragment of the same id apart', async () => {
+    const signed = { ...base, text: 'first', signature: 'signed-one' }
+    const unsigned = { ...base, text: 'second', signature: null }
+    expect(await joined([signed, unsigned])).toEqual([signed, unsigned])
+  })
+
+  it.each([
+    ['numeric', 7],
+    ['empty string', ''],
+    ['object', { value: 'signed-one' }],
+  ])('does not let a %s signature join fragments', async (_case, signature) => {
+    const unsigned = { ...base, text: 'first', signature: null }
+    const invalid = { ...base, text: 'first', signature }
+    const next = { ...base, text: 'second', signature }
+    expect(await joined([unsigned, next])).toEqual([unsigned, next])
+    expect(await joined([invalid, next])).toEqual([invalid, next])
+  })
+
+  it.each([
+    ['an empty id', { id: '' }],
+    ['a non-string text', { text: 1 }],
+  ])('keeps fragments with %s apart', async (_case, change) => {
+    const first = { ...base, text: 'first', signature: null, ...change }
+    const next = { ...base, text: 'second', signature: 'signed-one', ...change }
+    expect(await joined([first, next])).toEqual([first, next])
+  })
+
+  it('refuses the chunk of a fragment with a non-string id', async () => {
+    const facts = await replay(
+      bind(),
+      chunk({ delta: { reasoning_details: [{ ...base, id: 1, text: 'first' }] } }),
+    )
+    expect(endedOf(facts)).toEqual(protocolFault('reasoning-detail-shape'))
+  })
+
+  it('keeps same-id encrypted items apart and joins summaries by the same identity', async () => {
+    const encrypted = { ...base, type: 'reasoning.encrypted', data: 'cipher' }
+    expect(await joined([encrypted, encrypted])).toEqual([encrypted, encrypted])
+    const summary = { type: 'reasoning.summary', format: 'fmt-b', index: 0 }
+    expect(
+      await joined([
+        { ...summary, summary: 'first ' },
+        { ...summary, summary: 'second' },
+      ]),
+    ).toEqual([{ ...summary, summary: 'first second' }])
+    const named = { ...summary, id: 'sum-1' }
+    expect(
+      await joined([
+        { ...named, summary: 'a' },
+        { ...named, summary: 'b' },
+      ]),
+    ).toEqual([{ ...named, summary: 'ab' }])
+    const apart = [
+      { ...named, summary: 'a' },
+      { ...named, id: 'sum-2', summary: 'b' },
+    ]
+    expect(await joined(apart)).toEqual(apart)
+    const empty = [
+      { ...summary, id: '', summary: 'a' },
+      { ...summary, id: '', summary: 'b' },
+    ]
+    expect(await joined(empty)).toEqual(empty)
+  })
+})
+
 describe('tool calls', () => {
   const call = (fields: Record<string, unknown>) => ({
     delta: { tool_calls: [{ index: 0, ...fields }] },
