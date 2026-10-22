@@ -67,12 +67,29 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 
 `pnpm run check:lines` 校验 `docs/engineering/delivery-lines.json`：线 ID 唯一且不为 `integration`，路径归属不重叠，每个工作区成员恰好属于一条线或 `integration.paths`，契约成员是本线路径下的工作区成员，线轨道已在 registry 登记、状态为 active 或 paused、上游是联调轨道。每处错误输出一行，带表中的 JSON 路径。有错误时退出1，输入读不到时退出2。`scripts/check.sh` 每次运行它。
 
+## 标签同步
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/labels-cli.ts --issue <N> [--apply]
+```
+
+命令经 `gh api` 读一张卡，按正文属性算出 `line:`、`nature:`、`contract:` 三族标签的目标集合，向标准输出写增删差异。契约变更为 `none` 时目标中没有 `contract:` 标签。不读 Project。
+
+加 `--apply` 时只增删这三族标签，其他标签不变。然后命令再读一次卡，核对三族标签等于目标集合，结果写在 `readback` 与 `verified` 中。
+
+- 正文属性缺失或不合格时退出2，不改标签。
+- 某次写入失败时退出2，消息给出失败的是第几次写入。之前的写入已生效，重试前先再读一次卡。
+- 读回与目标不同时退出1。
+
+`--config` 与 `--lines` 指定交付配置与线归属表，缺省为本检出中的文件。
+
 ## 运行模块检查
 
 ```sh
 pnpm --filter @omne-harness/dev-flow exec vitest run \
   tests/delivery-observe.spec.ts tests/delivery-github-read.spec.ts \
-  tests/delivery-attributes.spec.ts tests/delivery-binding.spec.ts tests/delivery-lines.spec.ts
+  tests/delivery-attributes.spec.ts tests/delivery-binding.spec.ts tests/delivery-lines.spec.ts \
+  tests/delivery-labels.spec.ts
 pnpm --filter @omne-harness/dev-flow typecheck
 ```
 
