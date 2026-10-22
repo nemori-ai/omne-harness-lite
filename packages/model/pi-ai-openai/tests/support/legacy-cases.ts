@@ -313,7 +313,16 @@ const TOOL_ORDER_FACTS = [
 ]
 
 /** RF-V4: the actual finish, a repeated finish with usage, then the end marker. */
-function trailingUsage(record: string, reason: string, ending: object, id: string): FixtureCase {
+/**
+ * RF-V4: a refusal text, the finish, and the usage in a repeated finish frame. A failed ending
+ * seals nothing: a `tool_calls` finish without a tool call fails.
+ */
+function trailingUsage(
+  record: string,
+  reason: string,
+  ending: Readonly<{ kind: 'completed' | 'failed'; fact: object }>,
+  id: string,
+): FixtureCase {
   return basicCase({
     id,
     slot: 'record',
@@ -329,9 +338,9 @@ function trailingUsage(record: string, reason: string, ending: object, id: strin
     facts: [
       open(0, 'text'),
       delta(0, 'actual refusal'),
-      seal(0, 'text', 'actual refusal'),
+      ...(ending.kind === 'completed' ? [seal(0, 'text', 'actual refusal')] : []),
       account(record, USAGE_COUNTS, USAGE_COST),
-      ending,
+      ending.fact,
     ],
   })
 }
@@ -415,14 +424,25 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     stream: toolOrderStream('openai/gpt-6-astra-pro', false),
     facts: [...TOOL_ORDER_FACTS, failed('upstream-protocol', 'tool-call-without-id')],
   }),
-  trailingUsage('openai/gpt-6-sol', 'stop', completed('stop'), 'rf-v4-stop'),
+  trailingUsage(
+    'openai/gpt-6-sol',
+    'stop',
+    { kind: 'completed', fact: completed('stop') },
+    'rf-v4-stop',
+  ),
+  // The sealed stream has no tool call, so the `tool_calls` finish fails.
   trailingUsage(
     'openai/gpt-6-sol-pro',
     'tool_calls',
-    completed('tool-suggestions'),
+    { kind: 'failed', fact: failed('upstream-protocol', 'finish-without-tool-call') },
     'rf-v4-tool-calls',
   ),
-  trailingUsage('openai/gpt-6-luna', 'length', completed('limit'), 'rf-v4-length'),
+  trailingUsage(
+    'openai/gpt-6-luna',
+    'length',
+    { kind: 'completed', fact: completed('limit') },
+    'rf-v4-length',
+  ),
   basicCase({
     id: 'rf-v5-content-filter',
     slot: 'record',
@@ -503,7 +523,8 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
       id: `rf-v1-${label}-refusal`,
       source: `${REFUSAL}:124-135 "RF-V1 ${label} neither opens a block nor passes the first-content gate"`,
       stream: sse({ ...serving(ASTRA), ...choice(value) }) + finish(),
-      facts: [account(ASTRA, NO_COUNTS), completed('stop')],
+      // No block opens, so the `stop` finish fails.
+      facts: [account(ASTRA, NO_COUNTS), failed('upstream-protocol', 'finish-without-content')],
     }),
   ),
   ...INVALID_REFUSALS.map(({ id, value }) =>

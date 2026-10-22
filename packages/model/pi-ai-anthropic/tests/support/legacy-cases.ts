@@ -225,6 +225,13 @@ function completed(reason: 'stop' | 'tool-suggestions' | 'limit'): object {
   return { kind: 'ended', termination: { kind: 'completed', reason } }
 }
 
+function failed(cause: string, diagnostic: string): object {
+  return {
+    kind: 'ended',
+    termination: { kind: 'failed', fault: { cause, diagnostic, upstreamStatus: null } },
+  }
+}
+
 // --- requests --------------------------------------------------------------------------------
 
 const PROVIDER = { allow_fallbacks: false, order: ['anthropic'], require_parameters: true }
@@ -670,25 +677,30 @@ function detailsCase(
     details: readonly object[]
     /** The visible thinking pieces, in order; empty for none. */
     visible: readonly string[]
-    /** The sealed group, or `null` when the group is not replayable. */
+    /**
+     * The sealed group, or `null` when the group is not replayable. Without visible thinking the
+     * finish fails, so no group is sealed.
+     */
     group: readonly Readonly<Record<string, unknown>>[] | null
   }>,
 ): FixtureCase {
   const thinking = input.visible.length > 0
-  const stateIndex = thinking ? 1 : 0
+  // Without visible thinking the reply has no block, so the `stop` finish fails and seals nothing.
+  const facts = thinking
+    ? [
+        open(0, 'thinking'),
+        ...input.visible.map(piece => delta(0, piece)),
+        seal(0, 'thinking', input.visible.join('')),
+        ...(input.group === null ? [] : [sealState(1, groupPayload(input.group), ['b0'])]),
+        account(NO_COUNTS),
+        completed('stop'),
+      ]
+    : [account(NO_COUNTS), failed('upstream-protocol', 'finish-without-content')]
   return basicCase({
     id: input.id,
     source: `${LATE}:${input.source}`,
     stream: reasoningFrames(SONNET, input.details) + finish(),
-    facts: [
-      ...(thinking ? [open(0, 'thinking'), ...input.visible.map(piece => delta(0, piece))] : []),
-      ...(thinking ? [seal(0, 'thinking', input.visible.join(''))] : []),
-      ...(input.group === null
-        ? []
-        : [sealState(stateIndex, groupPayload(input.group), thinking ? ['b0'] : [])]),
-      account(NO_COUNTS),
-      completed('stop'),
-    ],
+    facts,
   })
 }
 

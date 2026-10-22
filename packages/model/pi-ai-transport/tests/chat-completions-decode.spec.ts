@@ -338,6 +338,7 @@ describe('reasoning details and sealing', () => {
     const facts = await replay(
       bind({ seal }),
       chunk({ delta: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'e' }] } }),
+      chunk({ delta: { content: 'answer' } }),
       chunk({ finish: 'stop' }),
     )
     expect(facts.filter(fact => fact.kind === 'diagnostic')).toEqual([
@@ -346,11 +347,11 @@ describe('reasoning details and sealing', () => {
         value: { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 1048577 },
       },
     ])
-    expect(sealedOf(facts).map(block => block.id)).toEqual(['b0', 'b1'])
-    expect(sealedOf(facts).slice(1)).toEqual([
+    expect(sealedOf(facts).map(block => block.id)).toEqual(['b0', 'b1', 'b2'])
+    expect(sealedOf(facts).slice(2)).toEqual([
       {
         kind: 'reasoning_state',
-        id: 'b1',
+        id: 'b2',
         visibility: { toHuman: false, toModel: true },
         payload: 'kept',
         pairs: [],
@@ -367,6 +368,7 @@ describe('reasoning details and sealing', () => {
     const facts = await replay(
       bind({ seal: () => ({ failure: fault }) }),
       chunk({ delta: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'e' }] } }),
+      chunk({ delta: { content: 'answer' } }),
       chunk({ finish: 'stop' }),
     )
     expect(faultOf(facts)).toEqual(fault)
@@ -409,6 +411,7 @@ describe('reasoning detail identity', () => {
     await replay(
       bind({ seal: details => (seen.push([...details]), { ok: [] }) }),
       ...fragments.map(detail => chunk({ delta: { reasoning_details: [detail] } })),
+      chunk({ delta: { content: 'answer' } }),
       chunk({ finish: 'stop' }),
     )
     expect(seen).toHaveLength(1)
@@ -744,15 +747,68 @@ describe('tool calls', () => {
 })
 
 describe('finish', () => {
+  const toolCall = chunk({
+    delta: { tool_calls: [{ index: 0, id: 'call_1', function: { name: 'f', arguments: '{}' } }] },
+  })
+
   it('maps stop, tool_calls and length to completed', async () => {
-    for (const [finish, reason] of [
-      ['stop', 'stop'],
-      ['tool_calls', 'tool-suggestions'],
-      ['length', 'limit'],
+    for (const [finish, reason, content] of [
+      ['stop', 'stop', chunk({ delta: { content: 'x' } })],
+      ['tool_calls', 'tool-suggestions', toolCall],
+      ['length', 'limit', chunk({ delta: { content: 'x' } })],
     ] as const) {
-      const facts = await replay(bind(), chunk({ delta: { content: 'x' } }), chunk({ finish }))
+      const facts = await replay(bind(), content, chunk({ finish }))
       expect(endedOf(facts)).toEqual({ kind: 'ended', termination: { kind: 'completed', reason } })
     }
+  })
+
+  it('completes a stop with thinking only, or with a tool call only', async () => {
+    const thinking = await replay(
+      bind(),
+      chunk({ delta: { reasoning: 'hm' } }),
+      chunk({ finish: 'stop' }),
+    )
+    expect(endedOf(thinking)).toEqual(STOP)
+    expect(endedOf(await replay(bind(), toolCall, chunk({ finish: 'stop' })))).toEqual(STOP)
+  })
+
+  it('fails a stop or tool_calls finish without content, seals nothing and still reads the usage tail', async () => {
+    const usage = { prompt_tokens: 9 }
+    const seen: GatewayUsage[] = []
+    const usageHook: VendorHooks['usage'] = read => {
+      seen.push(read)
+      return { ok: { items: [], diagnostics: [] } }
+    }
+    for (const finish of ['stop', 'tool_calls']) {
+      const facts = await replay(
+        bind({ usage: usageHook, seal: () => ({ ok: [{ payload: 'p' }] }) }),
+        // Encrypted reasoning alone is no content: a reply of a reasoning state part only is not valid.
+        chunk({ delta: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'e' }] } }),
+        chunk({ delta: { content: '' }, finish }),
+        { ...chunk(), choices: [], usage },
+        DONE,
+      )
+      expect(facts).toEqual([ACCOUNT, protocolFault('finish-without-content')])
+    }
+    expect(seen.map(read => read.promptTokens)).toEqual(['9', '9'])
+  })
+
+  it('fails a tool_calls finish without a tool call', async () => {
+    const facts = await replay(
+      bind(),
+      chunk({ delta: { content: 'x' } }),
+      chunk({ finish: 'tool_calls' }),
+    )
+    expect(sealedOf(facts)).toEqual([])
+    expect(endedOf(facts)).toEqual(protocolFault('finish-without-tool-call'))
+  })
+
+  it('a length finish without content still ends as a limit', async () => {
+    const facts = await replay(bind(), chunk({ finish: 'length' }))
+    expect(endedOf(facts)).toEqual({
+      kind: 'ended',
+      termination: { kind: 'completed', reason: 'limit' },
+    })
   })
 
   it('after length seals text, thinking and reasoning, and keeps a tool-arguments block open', async () => {
@@ -899,6 +955,7 @@ describe('account', () => {
           return { ok: { items: [], diagnostics: [] } }
         },
       }),
+      chunk({ delta: { content: 'x' } }),
       chunk({ finish: 'stop' }),
     )
     expect(seen).toEqual([
@@ -910,7 +967,7 @@ describe('account', () => {
         raw: {},
       },
     ])
-    expect(facts).toEqual([ACCOUNT, STOP])
+    expect(facts.slice(-2)).toEqual([ACCOUNT, STOP])
   })
 
   it('keeps a cost that is not a plain decimal as unknown', async () => {

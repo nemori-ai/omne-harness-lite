@@ -460,20 +460,9 @@ const FINISH_WORD = /^[a-z][a-z_]{0,63}$/
 
 function finish(input: DecoderInput, work: Work, value: string): StepResult {
   if (work.phase.tools.some(call => call.block === null)) return protocol('tool-call-without-name')
-  const ending = endingOf(value)
-  const termination: TransportTermination =
-    ending.kind === 'completed'
-      ? { kind: 'completed', reason: ending.reason }
-      : {
-          kind: 'failed',
-          fault: {
-            cause: 'input-rejected',
-            diagnostic: `finish-reason-${FINISH_WORD.test(value) ? value : 'other'}`,
-            upstreamStatus: null,
-          },
-        }
-  if (ending.kind === 'completed') {
-    const sealed = sealAll(input, work, ending.reason === 'limit')
+  const termination = finishTermination(work.phase, endingOf(value), value)
+  if (termination.kind === 'completed') {
+    const sealed = sealAll(input, work, termination.reason === 'limit')
     if (sealed !== null) return sealed
   }
   const { serving, usage } = work.phase
@@ -481,6 +470,34 @@ function finish(input: DecoderInput, work: Work, value: string): StepResult {
     phase: { kind: 'finished', serving, finish: value, termination, tail: 0, usage },
     facts: work.facts,
   }
+}
+
+/**
+ * The termination of a finish. A `stop` or `tool_calls` finish completes only with content: at
+ * least one block, and for `tool_calls` at least one tool call. Without it the finish fails as
+ * `upstream-protocol`, because a completed reply must hold a valid block. A failed finish seals
+ * nothing; the tail frames and the account still follow.
+ */
+function finishTermination(phase: Serves, ending: Ending, value: string): TransportTermination {
+  if (ending.kind === 'failed')
+    return failedFinish(
+      'input-rejected',
+      `finish-reason-${FINISH_WORD.test(value) ? value : 'other'}`,
+    )
+  const calls = phase.tools.some(call => call.block !== null)
+  const content = calls || phase.text !== null || phase.thinking !== null
+  if (ending.reason !== 'limit' && !content)
+    return failedFinish('upstream-protocol', 'finish-without-content')
+  if (ending.reason === 'tool-suggestions' && !calls)
+    return failedFinish('upstream-protocol', 'finish-without-tool-call')
+  return { kind: 'completed', reason: ending.reason }
+}
+
+function failedFinish(
+  cause: 'input-rejected' | 'upstream-protocol',
+  diagnostic: string,
+): TransportTermination {
+  return { kind: 'failed', fault: { cause, diagnostic, upstreamStatus: null } }
 }
 
 /**

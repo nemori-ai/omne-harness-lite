@@ -45,8 +45,12 @@
   {
     "kind": "ended",
     "termination": {
-      "kind": "completed",
-      "reason": "stop"
+      "kind": "failed",
+      "fault": {
+        "cause": "upstream-protocol",
+        "diagnostic": "finish-without-content",
+        "upstreamStatus": null
+      }
     }
   }
 ]

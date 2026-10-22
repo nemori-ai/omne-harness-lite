@@ -11,19 +11,6 @@
     "delta": "actual refusal"
   },
   {
-    "kind": "block-seal",
-    "index": "0",
-    "block": {
-      "kind": "text",
-      "id": "b0",
-      "visibility": {
-        "toHuman": true,
-        "toModel": true
-      },
-      "text": "actual refusal"
-    }
-  },
-  {
     "kind": "account",
     "event": "usage",
     "value": {
@@ -79,8 +66,12 @@
   {
     "kind": "ended",
     "termination": {
-      "kind": "completed",
-      "reason": "tool-suggestions"
+      "kind": "failed",
+      "fault": {
+        "cause": "upstream-protocol",
+        "diagnostic": "finish-without-tool-call",
+        "upstreamStatus": null
+      }
     }
   }
 ]

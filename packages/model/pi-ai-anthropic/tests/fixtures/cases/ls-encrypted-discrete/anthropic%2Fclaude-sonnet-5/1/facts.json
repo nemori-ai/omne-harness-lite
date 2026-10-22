@@ -1,19 +1,5 @@
 [
   {
-    "kind": "block-seal",
-    "index": "0",
-    "block": {
-      "kind": "reasoning_state",
-      "id": "b0",
-      "visibility": {
-        "toHuman": false,
-        "toModel": true
-      },
-      "payload": "[{\"data\":\"cipher\",\"extension\":{\"source\":\"controlled\"},\"format\":\"anthropic-claude-v1\",\"id\":\"one-thinking-block\",\"index\":0,\"type\":\"reasoning.encrypted\"},{\"data\":\"cipher\",\"extension\":{\"source\":\"controlled\"},\"format\":\"anthropic-claude-v1\",\"id\":\"one-thinking-block\",\"index\":0,\"type\":\"reasoning.encrypted\"}]",
-      "pairs": []
-    }
-  },
-  {
     "kind": "account",
     "event": "usage",
     "value": {
@@ -59,8 +45,12 @@
   {
     "kind": "ended",
     "termination": {
-      "kind": "completed",
-      "reason": "stop"
+      "kind": "failed",
+      "fault": {
+        "cause": "upstream-protocol",
+        "diagnostic": "finish-without-content",
+        "upstreamStatus": null
+      }
     }
   }
 ]
