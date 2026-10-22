@@ -7,10 +7,12 @@
 import { createHash } from 'node:crypto'
 import {
   decodeActionId,
+  decodeActionBatchId,
   decodeAgentOperationId,
   decodeConsumptionId,
   decodeStepId,
   type ActionId,
+  type ActionBatchId,
   type AgentExecutionId,
   type AgentOperationId,
   type ConsumptionId,
@@ -82,6 +84,12 @@ export function mainAction(step: StepId): ActionId {
   return minted(decodeActionId(text), text)
 }
 
+/** The complete action batch formed from the admitted main reply of one step. */
+export function mainBatch(step: StepId): ActionBatchId {
+  const text = `${step}/actions`
+  return minted(decodeActionBatchId(text), text)
+}
+
 export function mainConsumption(step: StepId): ConsumptionId {
   const text = `${step}/main/reply`
   return minted(decodeConsumptionId(text), text)
@@ -100,7 +108,7 @@ export function mainCall(execution: AgentExecutionId, step: StepId): ModelCallId
 export function modelOperation(
   execution: AgentExecutionId,
   step: StepId,
-  what: 'admit' | 'read' | 'ack',
+  what: 'admit' | 'read' | 'ack' | `read_${number}`,
 ): ModelOperationId {
   const text = `mop_${modelBody(execution, step)}_${what}`
   return minted(decodeModelOperationId(text), text)

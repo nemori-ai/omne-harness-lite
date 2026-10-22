@@ -280,22 +280,23 @@
 
 ### UL-content-block · 内容块 · Content Block
 
-> **中**：**一条消息装的是若干个块，不是一段文本。**块分几类：
-> **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果**
+> **中**：**一条消息装的是若干个块，不是一段文本。**块分八类：
+> **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果 · [推理续接状态](#ul-reasoning-state--推理续接状态--reasoning-state)**
 > （工具结果**自己又是一串块**，所以工具也能返回图）。
-> 工具调用和工具结果也是内容块的种类，不是块之外的另一层东西。
-> 代码里的类型名 `ToolCallPart` 与 `ToolResultPart` 只与这两种块对照，没有别的含义。
+> 工具调用、工具结果和推理续接状态也是内容块的种类，不是块之外的另一层东西。
+> 代码里的类型名 `ToolCallPart`、`ToolResultPart` 与 `ReasoningStatePart` 只与这三种块对照，没有别的含义。
 > 哪个包发布哪几种块，见 [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02)。
 >
 > **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
-> text, thinking, voice, image, file, tool call and tool result — **a tool result being
+> text, thinking, voice, image, file, tool call, tool result and reasoning state — **a tool result being
 > itself a series of blocks**, which is how a tool can return an image.
-> Tool call and tool result are kinds of content block, not a separate layer outside the blocks.
-> The code type names `ToolCallPart` and `ToolResultPart` only correspond to these two kinds and carry no other meaning.
+> Tool call, tool result and reasoning state are kinds of content block, not a separate layer outside the blocks.
+> The code type names `ToolCallPart`, `ToolResultPart` and `ReasoningStatePart` only correspond to these three kinds and carry no other meaning.
 > For which package publishes which kinds, see [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02).
 
 - **形态**：对象
-- **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）
+- **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -304,6 +305,53 @@
   **视频没有自己的块类型，装在文件块里**，它的[模态](#ul-modality--模态--modality)由块的媒体类型决定
 - **注意**：块上可挂两样由[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)产出的属性——
   [派生表示](#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](#ul-transcript--transcript--transcript)，都在落盘前写好、之后不变
+
+### UL-reasoning-state · 推理续接状态 · Reasoning State
+
+> **中**：**一段由供应商加密或签名、原样保存的推理状态，单独成为一个内容块，只出现在模型的回复里。**
+> 它不给人看，系统不解读它的内容；下一次请求把它原样交回能消费它的模型，这个模型的推理才接得上。
+> 同一段推理的可读文字放在思考块里，与它分开存放。
+>
+> **EN**: **A reasoning state that the supplier encrypted or signed, kept verbatim as its own content block,
+> and found only in a model's reply.** No person reads it and the system does not interpret it. A later
+> request hands it back verbatim to a model that can consume it, so that this model's reasoning continues.
+> The readable text of the same reasoning sits in a thinking block, apart from it.
+
+- **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
+- **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/message/SPEC.md#推理续接状态)
+
+### UL-reasoning-replay · 推理回放 · Reasoning Replay
+
+> **中**：**每次真实发出时，把历史回复里的推理续接状态原样交给能消费它的那一家，其余的略去并留下诊断。**
+> 判断按这一次的实际供应商做，历史本身不改；换回原模型，原模型的推理状态照常带回。
+>
+> **EN**: **On each real dispatch, handing the reasoning states in earlier replies verbatim to the supplier
+> that can consume them, and leaving out the rest with a diagnostic.** The judgment is made for the supplier
+> of that dispatch and the history is not changed; after a switch back to the original model, its reasoning
+> states are carried again.
+
+- **形态**：过程
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
+- **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 契约的推理回放](../../../../packages/model/model-contract/SPEC.md#推理回放)
+
+### UL-reasoning-replay-scope · 推理回放范围 · Reasoning Replay Scope
+
+> **中**：**一条模型回复上标明「它的推理续接状态可以交给哪些模型」的那个值。**
+> 值本身不透明，由产出这条回复的供应商决定；模型档案为每个允许供应商声明它产出哪个范围、能消费哪些范围。
+> 没有声明时，范围就是同一接收方的同一模型。
+>
+> **EN**: **The value on a model reply that says which models may receive its reasoning states.** The value
+> is opaque and set by the supplier that produced the reply. A model profile declares, for each allowed
+> supplier, the scope it produces and the scopes it can consume. Without a declaration the scope is the
+> same model at the same recipient.
+
+- **形态**：属性
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 3）
+- **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
+- **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 契约](../../../../packages/model/model-contract/SPEC.md#推理回放)
 
 ### UL-derived-rendering · 派生表示 · Derived Rendering
 
@@ -359,7 +407,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模态](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17）
-- **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
+- **⚠️ 别混**：**八类块 ≠ 四种模态**——块的类型归 [PF-009](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
 
 ### UL-media-type · 媒体类型 · Media Type
@@ -379,7 +427,7 @@
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
   [PF-013 §4 模态](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态) ·
   [§4 转换件](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17）
-- **别混**：**不是块的类型**——块的类型是载体（七类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
+- **别混**：**不是块的类型**——块的类型是载体（八类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
 - **注意**：一个文件块**同时命中「模态」键与「媒体类型」键时，媒体类型那个键上的转换件来转**——更具体的压过更一般的
 
 ### UL-modality-projection · 模态投影 · Modality Projection
@@ -550,14 +598,14 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[PF-007 §6.9 `TodoItems()`](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 25）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 4）·
   [PF-015 §5.6 第 13 项](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
-  [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
+  [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
   **一份条目清单，不是一份计划文档**
 - **注意 ②**：**未完成的那些是一项
-  [meta runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)**（第 14 项）
+  [meta runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)**（第 13 项）
 - **注意 ③**：**写是逐条的，不是整份覆盖**——失手的代价不同：
   错一条只错一条，**整份覆盖会连带改写或丢掉其余几条，而且不容易发现**
 
@@ -665,6 +713,100 @@
 - **出处**：[PF-010 §5.4 要求一](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#要求一尽可能最大化前缀一致) · [§6.3](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#63-前缀尽量与上一次逐字相同)（rev 8）
 - **注意**：**它与「保信息」「降长度」两两相冲**，见[压缩的三个联合目标](#ul-context-compaction--上下文压缩--context-compaction)
 
+### UL-request-context · 请求 context · Request Context
+
+> **中**：一次模型请求输入的**派生计算与装入保证**。输入全是别人拥有的事实：历史读取依据、[runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 的读取结果、工具定义与绑定、模型档案与限制、[提示词贡献](#ul-prompt-contribution--提示词贡献--prompt-contribution)、当前条件。输出是一份[请求候选](#ul-request-candidate--请求候选--request-candidate)、一个[装入裁定](#ul-fit-verdict--装入裁定--fit-verdict)，必要时一个[压缩计划](#ul-compaction-plan--压缩计划--compaction-plan)。它不拥有事实，不发请求，不固定采用，不写历史。
+>
+> **EN**: The **derived computation and fit guarantee** for the input of one model request. Every input is a fact someone else owns: the evidence for reading history, the read result of runtime context, tool definitions and bindings, the model profile and its limits, prompt contributions, and current conditions. The output is one request candidate, one fit verdict and, when needed, one compaction plan. It owns no fact, sends no request, fixes no adoption and writes no history.
+
+- **形态**：总称
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **别混 ①**：不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)——那是被读的块，这是读了之后算出请求的那一步。两者同在一个产品 topic，**正文里不再用「Context」泛指两者**
+- **别混 ②**：不是[上下文组装](#ul-context-assembly--上下文组装--context-assembly)这个过程本身——组装是它做的事之一；它还裁装不装得下、出压缩计划、给覆盖证据
+- **注意**：中文名沿「运行时 context」的写法，`context` 不译
+
+### UL-request-candidate · 请求候选 · Request Candidate
+
+> **中**：Request Context 对一组组装输入算出的那份可以交给模型的输入：系统提示词、工具声明、历史投影、提醒与表示决定都已就位，并带着[覆盖证据](#ul-coverage-evidence--覆盖证据--coverage-evidence)。它的身份是候选编号加输入摘要；同一组输入再算一次给的是同一份候选。它活到被协调者固定成请求、被新候选取代或被丢弃。
+>
+> **EN**: The model input Request Context computes from one set of assembly inputs: system prompt, tool declarations, history projection, reminders and representation choices are in place, and coverage evidence travels with it. Its identity is the candidate id plus the input digest. Computing the same inputs again yields the same candidate. It lives until the coordinator fixes it as a request, a new candidate replaces it, or it is discarded.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **别混**：不是固定下来的最终请求。固定与记录归协调者；候选装得下才成立，装不下的不是候选
+
+### UL-coverage-evidence · 覆盖证据 · Coverage Evidence
+
+> **中**：随[请求候选](#ul-request-candidate--请求候选--request-candidate)一起给出、逐项记录这次用了哪些输入及其修订的那份清单：历史范围与锚点、有效压缩记录、runtime context 快照修订与[快照锚点](#ul-snapshot-anchor--快照锚点--snapshot-anchor)、提示词各段来源、档案与参数、工具声明摘要、表示决定摘要、预算报告摘要、前缀为什么变化。它让「历史投影」与「模型实际看到的」可以对账。
+>
+> **EN**: The list given with a request candidate that records, item by item, which inputs and revisions this assembly used: the history range and anchors, the effective compaction records, the runtime context snapshot revision and snapshot anchor, the source of each prompt section, the profile and parameters, a digest of tool declarations, a digest of representation choices, a digest of the budget report, and why the prefix changed. It makes the history projection and what the model actually saw reconcilable.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **别混**：不是[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)。覆盖范围记一次压缩摘要了哪段历史；覆盖证据记一次组装读了哪些输入
+
+### UL-fit-verdict · 装入裁定 · Fit Verdict
+
+> **中**：Request Context 对一份候选输入与模型限制比较后的结论，四选一：装得下、固定部分超限、需要压缩、限额未知。限额未知**不是失败**，候选照常成立，由发送方按真实能力再判。
+>
+> **EN**: The conclusion Request Context reaches after comparing a candidate input with the model's limits, one of four: fits, fixed part over the limit, needs compaction, or limit unknown. Limit unknown is **not a failure**. The candidate stands and the sender judges against real capability.
+
+- **形态**：状态
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **注意**：阈值比较与取整在这里做；计量数字由模型侧报告
+
+### UL-representation-choice · 表示决定 · Representation Choice
+
+> **中**：对候选里每个内容块，按实际收件模型的输入模态与转换结果做出的选择：用原件、用[派生表示](#ul-derived-rendering--派生表示--derived-rendering)、用 [transcript](#ul-transcript--transcript--transcript)，或标为延迟到发送期再加载。它带证据，随候选存在，不读字节。
+>
+> **EN**: The choice made for each content block in a candidate, from the receiving model's input modalities and the conversion results: use the original, use the derived rendering, use the transcript, or mark it deferred until send time. It carries evidence, lives with the candidate, and reads no bytes.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **别混**：不是[块标注](#ul-block-annotation--块标注--block-annotation)。标注说能不能给模型看；表示决定说给模型看哪一种表示
+
+### UL-prompt-contribution · 提示词贡献 · Prompt Contribution
+
+> **中**：一个贡献者登记进[系统提示词](#ul-system-prompt--系统提示词--system-prompt)组装的一条材料，只有两类：**有序段**（一段文本与它的顺序）或**变量**（模板里一个名字的值）。它的身份是名字加作用域；同层重名拒绝，作用域里的遮蔽全局的；它随贡献者的寿命存在。会随请求变化的事实不走它，走 runtime context 块。
+>
+> **EN**: One item a contributor registers into system-prompt assembly, of exactly two kinds: an **ordered section** (a text and its order) or a **variable** (the value of one template name). Its identity is the name plus the scope. A duplicate name at the same level is rejected, and a scoped contribution shadows a global one. It lives as long as its contributor. Facts that change per request do not go through it. They go through runtime context blocks.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **别混**：不是[提示词槽位](capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)。槽位是提示词里一个恒定的位置；贡献是填进去的一条材料
+- **弃用**：~~「动态事实段」~~——那一类不存在，动态事实走块
+
+### UL-context-snapshot-reminder · 上下文快照提醒 · Context Snapshot Reminder
+
+> **中**：一次完整读取 runtime context 之后，Request Context 放进请求的那条提醒：当前允许模型读的全部**稳定**块的完整值。它只进请求，不进会话日志；在同一次完整读取的代内，每次请求都放在同一个[快照锚点](#ul-snapshot-anchor--快照锚点--snapshot-anchor)。新的执行开始、压缩之后、游标重置都会换新一份。
+>
+> **EN**: The reminder Request Context places in a request after one full read of runtime context: the complete values of every **stable** block the model may read. It goes into the request only, never into the session log. Within the generation of one full read, every request places it at the same snapshot anchor. A new execution, a compaction, or a cursor reset produces a new one.
+
+- **形态**：视图
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 4）
+- **别混**：不是变化提醒。变化提醒由[变化材料](scope-and-resolution.md#ul-change-material--变化材料--change-material)生成、追加进历史；快照不追加、不落日志
+- **注意**：逐请求易变的块不在这里，在[尾部易变提醒](#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder)
+
+### UL-snapshot-anchor · 快照锚点 · Snapshot Anchor
+
+> **中**：[上下文快照提醒](#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)在模型可见历史里的固定位置：本次完整读取发生时模型可见历史的尾部。压缩之后重给的快照同样锚在当时的历史尾部；[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)一直延伸到压缩点时，这个位置就在压缩记录之后。它记在[覆盖证据](#ul-coverage-evidence--覆盖证据--coverage-evidence)里，随采用回传，下一次组装沿用。
+>
+> **EN**: The fixed position of the context snapshot reminder in the model-visible history: the tail of the model-visible history at the moment the full read happened. A snapshot given again after a compaction is anchored at the history tail of that moment too. When the compacted range extends to the compaction point, that position is right after the compaction record. It is recorded in coverage evidence, returned with adoption, and reused by the next assembly.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 4）
+- **注意**：锚点稳定，前缀才稳定；锚点换新是前缀变化的原因之一
+
+### UL-tail-facts-reminder · 尾部易变提醒 · Tail Facts Reminder
+
+> **中**：Request Context 放在请求**最末**的那条提醒：只含声明为逐请求变化的块（例如窗口占用比例），每次请求重算。它不进历史，不进快照，也不产生变化提醒。
+>
+> **EN**: The reminder Request Context places at the **very end** of a request: only blocks declared as changing per request (for example the window usage ratio), recomputed on every request. It never enters history or the snapshot, and it never produces a change reminder.
+
+- **形态**：视图
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 4）
+- **别混**：不是[上下文快照提醒](#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)。快照放稳定块、位置锚定；它放易变块、永远在最末
+
 ## 压缩
 
 ### UL-context-compaction · 上下文压缩 · Context Compaction
@@ -690,7 +832,7 @@
 - **形态**：过程
 - **出处**：[PF-010 §5.6](../../product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标)（rev 8） ·
   [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
-  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 3）
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 4）
 - **⚠️ 注意 ①**：**它不回头去翻[块上那一位](#ul-block-annotation--块标注--block-annotation)。**
   那一位由产生这个块的人在落盘那一刻写下，**之后不再变**。
   压缩之后模型看到什么，由块标注和最近一条压缩记录共同算出，见[压缩记录](#ul-compaction-record--压缩记录--compaction-record)
@@ -721,7 +863,7 @@
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-009 §4 CompactionMessage](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#compactionmessage)（rev 9） ·
-  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 3）
+  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 4）
 - **⚠️ 注意**：**边界不是一条截断线。**覆盖范围之前仍要原样给模型看的消息，靠保留名单留下，
   所以模型看到的旧消息可能落在压缩记录之前。保留名单以**消息**为单位，在压缩时固定，之后不变
 - **弃用**：~~「排除名单」~~（现在用[保留名单](#ul-retained-set--保留名单--retained-set)表达同一次压缩的结果）
@@ -741,7 +883,7 @@
 > retained messages fall inside the new range.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 3）
+- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 4）
 - **别混**：与 Request Context 覆盖证据里的 `coverage` 不是一回事。`coverage` 记一次组装读了哪些输入，覆盖范围记一次压缩摘要了哪段历史
 
 ### UL-retained-set · 保留名单 · Retained Set
@@ -758,11 +900,58 @@
 
 - **形态**：属性
 - **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
-  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 3）
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 4）
 - **别混**：与[块标注](#ul-block-annotation--块标注--block-annotation)的「给模型看吗」不是一回事。块标注在块落盘时写下，之后不变；保留名单是压缩记录的属性，不改任何块的标注
 - **注意**：未结工作的消息（上一次模型请求之后新来的输入、悬着的东西的占位）是名单的下界：它们在覆盖范围内时必须进名单
 - **弃用**：~~「排除名单」~~
 
+### UL-compaction-plan · 压缩计划 · Compaction Plan
+
+> **中**：[装入裁定](#ul-fit-verdict--装入裁定--fit-verdict)为「需要压缩」时，Request Context 对一份候选给出的那份计划：计划编号、步数上界、逐步给出的[压缩步请求](#ul-compaction-step-request--压缩步请求--compaction-step-request)。一个候选身份至多一个计划；上界一旦定下不变。它从给出起活到压缩转换提交，或活到宣告装不下。计划归 Request Context，步里的模型调用归协调者发起。
+>
+> **EN**: The plan Request Context gives for one candidate when the fit verdict is "needs compaction": a plan id, an upper bound on the number of steps, and compaction step requests issued one at a time. One candidate identity has at most one plan. The bound does not change once set. It lives from issue until the compaction transition is committed, or until it is declared unable to fit. The plan belongs to Request Context. The model calls inside its steps are started by the coordinator.
+
+- **形态**：对象
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 4）
+- **别混**：不是[上下文压缩](#ul-context-compaction--上下文压缩--context-compaction)这个过程。压缩是做的事；计划是做之前定下的步数、顺序与每步请求
+
+### UL-compaction-plan-progress · 压缩计划进度 · Compaction Plan Progress
+
+> **中**：一份[压缩计划](#ul-compaction-plan--压缩计划--compaction-plan)走到哪一步的记录：计划编号加已完成步数。每步恰加一；已完成步数小于上界时才能继续。它由调用方持久保存，Request Context 每步返回新值。
+>
+> **EN**: Where one compaction plan stands: the plan id plus the number of completed steps. Each step adds exactly one. The plan may continue only while the completed count is below the bound. The caller persists it. Request Context returns a new value after each step.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 4）
+
+### UL-compaction-step-request · 压缩步请求 · Compaction Step Request
+
+> **中**：[压缩计划](#ul-compaction-plan--压缩计划--compaction-plan)里一步要做的事，由计划编号加序号识别。它是[修剪步](#ul-pruning-step--修剪步--pruning-step)或[摘要步](#ul-summary-step--摘要步--summary-step)之一。摘要步的请求含完整的候选输入，不经过组装，也不递归。
+>
+> **EN**: What one step of a compaction plan must do, identified by the plan id plus a sequence number. It is either a pruning step or a summary step. A summary step's request contains the complete candidate input. It does not go through assembly and it does not recurse.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 4）
+
+### UL-pruning-step · 修剪步 · Pruning Step
+
+> **中**：[压缩步请求](#ul-compaction-step-request--压缩步请求--compaction-step-request)的一种：**不调用模型**，只缩短大的工具结果或媒体占位。计划里修剪步先于摘要步。
+>
+> **EN**: One kind of compaction step request: it **calls no model** and only shortens large tool results or media placeholders. In a plan, pruning steps come before summary steps.
+
+- **形态**：状态
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 4）
+- **别混**：不是[增量节流](#ul-increment-throttling--增量节流--increment-throttling)。节流发生在到达时；修剪发生在压缩时，且不改原记录
+
+### UL-summary-step · 摘要步 · Summary Step
+
+> **中**：[压缩步请求](#ul-compaction-step-request--压缩步请求--compaction-step-request)的另一种：一次内部模型调用，为[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)生成摘要。调用由协调者发起，结果交回 Request Context 推导下一步或压缩转换。
+>
+> **EN**: The other kind of compaction step request: one internal model call that produces the summary for the compacted range. The coordinator starts the call. The result goes back to Request Context, which derives the next step or the compaction transition.
+
+- **形态**：状态
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 4）
+- **注意**：摘要调用有自己的调用身份、费用与消费位置，不当作主流程回复。这个身份由发起它的协调者分配并记录，不由 Request Context 分配
 
 ### UL-business-calendar · 业务日历 · Business Calendar
 

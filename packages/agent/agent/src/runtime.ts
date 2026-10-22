@@ -104,6 +104,7 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
   return succeed(
     createProvider({
       binding,
+      configuration: options.configuration,
       guard: accessGuard(binding.tenant, dependencies.access),
       dependencies,
     }),

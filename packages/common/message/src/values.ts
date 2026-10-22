@@ -1,4 +1,24 @@
-import { hasUnreadableOwn, isPlainRecord } from './parts.ts'
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+/** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
+export function hasUnreadableOwn(value: object): boolean {
+  return Object.getOwnPropertyNames(value).some(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)
+  })
+}
+
+export function nonEmpty(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
 
 const ARRAY_INDEX = /^(0|[1-9]\d*)$/u
 
@@ -7,6 +27,26 @@ const ARRAY_INDEX = /^(0|[1-9]\d*)$/u
  * enumerable data property. An accessor, a symbol key, or any other own key makes it false.
  * A hole is not a key, so a sparse array passes and the hole reads as `undefined`.
  */
+/**
+ * Reads an array whose own keys are only data items and `length`, and maps each item; any item
+ * that maps to `undefined`, or any other array shape, is `undefined`. A hole reads as `undefined`
+ * and no accessor is called.
+ */
+export function readDataItems<T>(
+  raw: unknown,
+  item: (value: unknown) => T | undefined,
+): T[] | undefined {
+  if (!Array.isArray(raw) || !hasOnlyDataItems(raw)) return undefined
+  const items: readonly unknown[] = raw
+  const out: T[] = []
+  for (let index = 0; index < items.length; index += 1) {
+    const value = item(items[index])
+    if (value === undefined) return undefined
+    out.push(value)
+  }
+  return out
+}
+
 export function hasOnlyDataItems(items: readonly unknown[]): boolean {
   const entries = Object.entries(Object.getOwnPropertyDescriptors(items))
   if (entries.length !== Reflect.ownKeys(items).length) return false

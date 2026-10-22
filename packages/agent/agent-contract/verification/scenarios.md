@@ -91,7 +91,7 @@
 | SC-AG-43 | 三个动作中有一个在等人 | 整批不启动，答复到达后还需原规则处理 | 屏障成立前 Tool 实际启动数为零 |
 | SC-AG-44 | 后继扩展再次出卡 | 原动作批继续等待，旧问题不重问 | 卡片原身份、经过及轮次 |
 | SC-AG-45 | 人工决定呈现成功但回执丢失 | lookup 按原轮次和完整请求集合认回卡片，未知时不再出卡 | 原需求和创建排除证明 |
-| SC-AG-46 | 压缩共同提交的回执丢失 | 按原操作查询认回原来源后 resume，不重发压缩模型。以另一条消息配原 commitment 提交被拒绝 | 同一摘要与排除批，原准备记录；commitment 与消息的绑定被核对 |
+| SC-AG-46 | 压缩共同提交的回执丢失 | 按原操作查询认回原来源后 resume，不重发压缩模型。以另一条消息配原 commitment 提交被拒绝 | 同一摘要、覆盖范围与保留名单，原准备记录；commitment 与消息的绑定被核对 |
 | SC-AG-47 | 已退役：压缩后扩展把摘要 A 改成 B | 场景不再成立。压缩之后位置只面对已提交的事实，没有扩展位置能改写压缩候选。编号不复用 | 无 |
 | SC-AG-48 | 只变无关配置，或当前授权收窄 | 前者不重问，后者使旧允许不能启动 | 执行点的当前守卫及参数采用 |
 | SC-AG-49 | Tool 内部 Ask 的答复 | 交 Tool 的原等待与原决定，不是扩展卡片 | 同一执行与等待不重跑 |
@@ -138,7 +138,7 @@
 | SC-AG-78 | 新的 execution、普通恢复和显式 reload 读取同标识的不同版本 | 新的 execution 采用当时的合法胜出者，写明版本时固定为该版本。普通恢复不升级。合法 reload 经 handover 与 attach 采用，标识不变，执行类型和必需身份不变。revision 在 handover 与 attach 之间变化时，attach 返回 changed，调用方重读快照后重新 handover。定义身份或租户身份变更被拒绝为非法 reload | 三条路径各自的采用摘要；恢复前后的 Adoption 相同；handover 的证明绑定 revision；旧证明没有被重试；非法 reload 的拒绝结果 |
 | SC-AG-79 | 已知能力被撤权后恢复 execution，之后又再度合法可用 | 已知身份持续可解释，撤权期间没有对新正文的读取。再度可用时重新核当前选择与依赖。身份记忆不冻结正文、schema 或实现 | 调用方的已知能力记录不变；撤权期间没有内容读取；重新可用后重新解析了当前实现 |
 
-SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置、实际收件模型和历史依据；只有最后一种带压缩转换依据。期望返回由 Context 按 [Runtime Context 的 RC-04](../../../context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒) 决定，下表写这条规则在各情形下的结果。
+SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置、实际收件模型和历史依据；只有最后一种带压缩转换依据。期望返回由 Context 按 [Runtime Context 的 RC-04](../../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) 决定，下表写这条规则在各情形下的结果。
 
 | 情形 | Agent 传入的 adopted | 期望 Context 返回 | 观察点 |
 | --- | --- | --- | --- |
@@ -242,7 +242,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-141 | 本批全部动作在判断阶段被拒绝，之后同一执行继续推进 | A1 记为 all-denied 转 A3。A3 为每个动作建立 denied 槽位，每个槽位在 T2 经过单结果范围，T3 直接转 T5，T5 以 action-denied 来源按原顺序交消息准入，再转 I8。I8 以新 step 转 I0 | 节点序列为 A1、A3、T2、T3、T5、I8、I0，没有 T4 的 Passage，也没有 A2 与 T0；slots 全部为 denied；下一个 step 的 I1 读到的历史含每个拒绝消息 |
 | SC-AG-142 | 请求装不下，压缩之前位置的扩展否决 | C0 的 veto 关闭本准备的压缩准入并转 I1。I1 不再调用 prepare，沿同一 needs-compaction 结果转 F1，原因 after-compaction，并附否决依据 | C0 之后没有 C1 的步骤调用；prepare 的调用次数不增加；失败候选的 kind 为 cannot-fit，reason 为 after-compaction，context 是否决前的 needs-compaction 结果，veto 存在，plan 不存在；checkpoint 的 compaction 为空，因为计划只在 C1 首次进入时写入 |
 | SC-AG-143 | 调模型之前位置改写请求后，重新准备返回 needs-compaction。一次本 step 尚无计划，一次本 step 已有计划 | 第一次 P1 转 C0，经 C1 至 C4 后回 I1，resume 因 original 的调模型之前位置经过非空而返回 ready，再回 P1 复核。第二次 P1 转 F1，原因 after-compaction，并附 Context 原结果与计划身份，不进入第二个计划 | 第一次的节点序列含 P0、P1、C0、C1、C3、C4、I1、P1、I2，P0 只经过一次，resume 返回 ready 而不是 assembled；第二次没有 C0，checkpoint 中只有一个压缩状态，失败候选的 plan 中的计划身份等于已有计划身份 |
-| SC-AG-144 | 模型完整回复被消息准入拒收 | I3 形成 rejected 的 ModelReplyAdmission 并保存退避时刻，转 I8。I8 转 W0 等待退避，唤醒后经 E1、E2、E4、R0 回 I8，再以新 step 转 I0。新 step 有新的 action 与 call。原调用照常收场并确认 | 节点序列含 I3、I8、W0、E1、E2、E4、R0、I8、I0、I1，没有 M2；两个 step 的 call 不同；退避不短于 denialBackoffMs；原调用的确认在真实收场之后 |
+| SC-AG-144 | 模型完整回复被消息准入拒收 | I3 形成 rejected 的 ModelReplyAdmission 并建立进程内退避计时，转 I8。恢复时立即重读，拒收退避重新计足。I8 转 W0 等待退避，唤醒后经 E1、E2、E4、R0 回 I8，再以新 step 转 I0。新 step 有新的 action 与 call。原调用照常收场并确认 | 节点序列含 I3、I8、W0、E1、E2、E4、R0、I8、I0、I1，没有 M2；两个 step 的 call 不同；退避不短于 denialBackoffMs；原调用的确认在真实收场之后 |
 | SC-AG-145 | 两个动作。动作一的作者扩展返回 ask，动作二直接允许。人在若干时间后答复 | A0 的两条链并行。动作一的链在 X3 转 X4，呈现后转 W0；A1 保持 closed，A2 不发起动作二。答复到达后，唤醒经 E1、E2、E4、R0 回 X4，X4 以 replay 转 X2，得到最终 Conclusion 后 X5 回 A0，A1 打开后转 A2 | A1 open 之前 Tool 的发起数为零；唤醒路径不经过 E3；X4 到 X2 的 replay 带全部轮次的答复；A2 按原顺序发起两个动作 |
 | SC-AG-146 | 两个获准动作。一个转后台并确认占位，若干步之后交出最终结果 | T0 得到后台占位转 T1，T1 转 T3 而不经 T2。T3 齐备后转 T4、T5、I8。后台最终结果到达时，I8 转 T1 保管，T1 不改原槽位、不重开批次，回 I8 以 consume 消费 | 后台槽位的 each 为 null，kind 保持 background；原批没有第二次 T3 或 T4；迟到结果的节点序列为 I8、T1、I8；consume 的 consumption 等于发起时的 consumption |
 | SC-AG-147 | 完成候选在落终态之前位置被否决 | F1 固定完成候选，F2 的扩展返回 veto，F2 转 I8。I8 按新事实继续，不调用 tryFinish | 节点序列含 I8、F1、F2、I8，没有 F3；F2 的 Passage 输出为 veto；执行状态回到 advancing |
@@ -307,7 +307,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
 | SC-AG-178 | 压缩策略需要两次模型调用。一次在第一步与第二步之间崩溃，一次在步骤结果已保管而进度未提交时崩溃 | 沿已保存的进度与自持的已发起步数继续，认回同一步不重复计数。第二次以保管结果再次调用 derive 得到同一返回。预算不重置。不重新花费模型调用生成另一份摘要 | 步骤调用数等于 2；initiated 崩溃前后相同；每消费一步 completed 恰好加一；计划身份与 bound 不变 |
-| SC-AG-179 | 转换消息已准入、context-transition 共同提交回执丢失。另一次提交已成功、重新准备前崩溃 | 第一次 R0 查原操作：committed 后 C4 经过，I1 调用 resume，unknown 时等待。不用未提交的派生冒充已压缩，不以另一条消息配原 commitment。第二次 compaction 的 ended 为 committed，回 C4 之后的 I1 | context-transition 的操作身份相同；摘要与排除批同一；没有重发压缩模型调用；resume 的提交依据等于原提交 |
+| SC-AG-179 | 转换消息已准入、context-transition 共同提交回执丢失。另一次提交已成功、重新准备前崩溃 | 第一次 R0 查原操作：committed 后 C4 经过，I1 调用 resume，unknown 时等待。不用未提交的派生冒充已压缩，不以另一条消息配原 commitment。第二次 compaction 的 ended 为 committed，回 C4 之后的 I1 | context-transition 的操作身份相同；摘要、覆盖范围与保留名单同一；没有重发压缩模型调用；resume 的提交依据等于原提交 |
 
 ### 终态与接管
 
@@ -345,7 +345,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
-| SC-AG-193 | 大量待办、持续未知的原项、同时到达的控制与结果 | 每段只处理 `reconciliationBatchLimit` 个未决项后让出。持续未知的原项按 reconciliationDelayMs 保存下一检查时刻，不忙循环。控制与结果保管不被长等待饿死。没有默认无限队列 | 每段处理数不超过 `reconciliationBatchLimit`；检查时刻之间没有空转；控制受理时延不随待办数增长；两个配置名都登记在[工厂配置](../../agent/docs/public-api.md#工厂配置)节 |
+| SC-AG-193 | 大量待办、持续未知的原项、同时到达的控制与结果 | 每段只处理 `reconciliationBatchLimit` 个未决项后让出。持续未知的原项按 reconciliationDelayMs 在进程内计算下一检查时刻，恢复时立即重读，不忙循环。控制与结果保管不被长等待饿死。没有默认无限队列 | 每段处理数不超过 `reconciliationBatchLimit`；检查时刻之间没有空转；控制受理时延不随待办数增长；两个配置名都登记在[工厂配置](../../agent/docs/public-api.md#工厂配置)节 |
 | SC-AG-194 | 反例：实现在模型半流失败后静默重发同一回复，或在 Tool emit 后失败时自动重跑，或抹掉原部分输出与费用 | 必须不发生。原输出、费用与未知效果保留。任何再请求须有新身份、新业务意图与当前准入，并关联原失败 | 同一回复只有一个主调用；新请求的 action 与 call 不同且关联原失败；费用记录不被删除 |
 | SC-AG-195 | 反例：把 unknown 写成 committed、excluded、failed 或 finished，把查无记录当作 excluded，用新随机身份重试 | 必须不发生。unknown 保持未知并等待。excluded 带排除原写入与迟到提交的依据。同一帧同一转移派生同一身份 | 没有由 unknown 直接推出的状态变化；excluded 的依据；操作身份派生可重现 |
 | SC-AG-196 | 反例：取消一个 execution 时停止了后台工具或同 runtime 的其他执行。旧写者在被取代后提交成功。ended 后借迟到结果恢复推进 | 必须不发生。取消范围只含本执行的前台调用。旧挂接的提交返回 stale-advance。ended 后只保管与对账 | 受影响调用的集合；stale-advance；ended 之后没有 Next |

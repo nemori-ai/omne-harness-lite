@@ -40,6 +40,6 @@ flowchart LR
 箭头表达输入与结果协作，不规定源码互引或共同寿命。消费者通过公开契约及显式依赖使用能力。Cordis 接入遵循共同 IC，不能用 scope、fiber 或 disposer 代替租户隔离、业务提交或执行取消。
 
 
-Agent 内部按纯求值、效果协调和宿主集成分责。纯求值只读有类型的决策事实；协调者消费 Model/Tool 原调用和交付协议；集成者负责外部工作映射与持久参加者。权限策略、Context 选择与排除、Tool 内部等待和模型内部重试各有原拥有者。完整分类归[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
+Agent 内部按纯求值、效果协调和宿主集成分责。纯求值只读有类型的决策事实；协调者消费 Model/Tool 原调用和交付协议；集成者负责外部工作映射与持久参加者。权限策略、Context 的压缩计划、Tool 内部等待和模型内部重试各有原拥有者。完整分类归[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
 
 完整行为读[能力组](../../../packages/agent/README.md)，精确机制与流程随成员维护。

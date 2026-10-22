@@ -1,21 +1,100 @@
+# @omne-harness/request-context
+
 PACKAGE_TEMPLATE_DRAFT
+[中文](README_ZH.md)
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+The mechanism member of Request Context. Variant: `module`.
 
-# request-context 文档目标
+## Responsibility and status
 
-本成员的协作契约已技术接受，精确范围见 [SPEC](SPEC.md)。其余候选、生产实现及运行验证的状态分别保留。
+This package implements the pure operations of Request Context with a cache, precomputed derivations, and default strategies. The package exports one factory that does not depend on Cordis. The factory returns an instance that implements the pure operations of the contract. The package also implements the default compaction strategy, the default representation strategy, and the trimmer.
 
-## 责任与使用
+[request-context-contract](../request-context-contract/README.md) owns the public behavior. [request-context-cordis-contract](../request-context-cordis-contract/README.md) owns the registration face for prompt contributions. [request-context-cordis](../request-context-cordis/README.md) owns the Cordis binding and the strategy selection by configuration. This package holds no durable state. The cache and the derivations are in-process copies. A rebuild from the inputs does not change any result.
 
-本成员沿[SPEC](SPEC.md)承担完整行为。独立消费通过未来公开入口及显式依赖，不要求启动Cordis；系统集成通过同包Cordis适配满足共同IC、合法身份及业务交接。公开形状、导出、安装闭包、配置、资源限额和提供者尚待设计，不虚构命令。
+Status: mechanism member, `draft`. The adoption basis is the [member decomposition](../docs/architecture.md#成员分解) of the group and the [SPEC](SPEC.md).
 
-## 契约与设计
+- Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
+- Not implemented: the factory, the candidate cache, the derivations, the default strategies, the trimmer, and close.
+- Not verified: none of the ten verification scenarios in the SPEC has a test. The default strategy values come from evidence about similar systems. They take effect as initial values only after a recheck against the metering of this project.
+- The instance receives only contribution-registry changes through `notify(change)`. The other groups are compared by the revisions that the input carries. The cache does not store outcomes. A trimming step is always followed by a summary step. The instance learns that a candidate is fixed only from the input "adopted". See the [architecture page](docs/architecture.md) and the [API page](docs/public-api.md).
 
-- [行为入口](SPEC.md)与原专题共同保持完整承诺。
-- [内部设计](docs/internals.md)解释机制、依赖与未决。
+No package depends on this package now.
 
-## 验证与维护
+## Usage
 
-SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/runtime-context/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+The package has one entry: `@omne-harness/request-context`. A system that assembles Cordis does not import it directly. request-context-cordis selects the strategies by configuration and calls the factory. The caller that assembles a request gives the three ports on each `assembly(scope, ports)` call. A caller without Cordis calls the factory of this package directly. That caller gives the three ports and the two strategies at construction, collects prompt contributions, and stores plan progress and the block material of the most recent full read itself. See the [usage page](docs/context.md#独立使用).
+
+A caller that needs only the pure operations without a cache uses request-context-contract and does not need this package.
+
+The implementation will fix the name and signature of the factory. No runnable example exists now.
+
+## Contracts
+
+- `src/` owns the public shapes. It is empty now. The [API page](docs/public-api.md) indexes the exports.
+- The [SPEC](SPEC.md) owns the local behavior: candidate cache, precomputed derivations, default strategies and trimmer, local rules, and close.
+- The [request-context-contract SPEC](../request-context-contract/SPEC.md) owns the inputs, results, and failures of the pure operations, in clauses RQ-01 to RQ-11.
+- The [object model](docs/object-model.md) owns identity and lifecycle of the internal objects.
+
+The party that calls the factory owns the instance and closes it. After close, a new assembly returns unavailable. Close cancels in-flight assemblies. Then it releases the cache. Close does not take back candidates, plans, or transitions that it gave out. If a dependency port is absent or unavailable, the related operation returns unavailable with a diagnostic.
+
+## Design
+
+The factory has eight modules: candidate cache, derivations, assembly, plan and steps, default compaction strategy, default representation strategy, trimmer, and lifecycle. The only outside dependency is request-context-contract. The key mechanisms are:
+
+- the revision digests of the seven input groups as the cache key
+- invalidation by group, so that only the affected layers are computed again
+- invalidation by change notifications, not by time or content hashes
+- derivations computed when their inputs change, not when a request arrives
+- prefix comparison only at the layer anchors
+- default strategy values as initial configuration values only
+- a trimmer that does not change the original records or the model view
+- no plan progress kept in this package
+
+The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the internal objects.
+
+## Configuration and operation
+
+The factory accepts the trim threshold and the cache capacity. The default compaction strategy has the trigger line, the retention budget, the retention preference, trim-first, and the step bound. The default representation strategy has the preference order by modality. All default values are only initial configuration values. With Cordis, the plugin configuration of request-context-cordis supplies and checks these values. The package needs no environment, reads no resources at run time, and does not access storage. The coordinator stores plan progress, and the history holder stores history and compaction records.
+
+## Verification
+
+From the repository root, run:
+
+```sh
+pnpm turbo run test --filter=@omne-harness/request-context
+```
+
+In this directory, run `pnpm typecheck` for the type check. The current test checks only that the root entry exports nothing. See [tests/](tests/README.md). The [verification scenarios](SPEC.md#组合与验证) of the SPEC arrive with the implementation. The complexity scenario needs measurement, not only assertions. Persistence, joint commits, model sending, and end-to-end composition with a real coordinator and holder are outside this package. A passing structure check does not prove behavior.
+
+## Maintenance
+
+- When the input groups, the six-layer layout, or the prefix change reasons change in the contract, update the [architecture page](docs/architecture.md), the [flows page](docs/flows.md), and the tests.
+- When you add a configuration item or change a default value, update the SPEC, the [API page](docs/public-api.md), and the configuration schema of request-context-cordis.
+- When the factory signature changes, update request-context-cordis, the only user in the group.
+- The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
+
+## Directory structure and documentation roles
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Cache, derivations, default strategies, local rules, close
+documentation.json        Documentation registration
+docs/                     Internal design, public use, and integration
+├── architecture.md       Modules, dependencies, mechanisms and reasons
+├── flows.md              Mechanism flows F-RQI01 to F-RQI03
+├── object-model.md       Cache entries, derivations, strategy instances, lifecycle
+├── public-api.md         Export entry and definition index
+├── context.md            Use with Cordis, independent use, position
+└── cordis.md             Why Cordis integration does not apply
+src/                      Only index.ts, template marker only now
+tests/                    Entry test, fixtures/ is empty now
+schema/                   Empty, the package publishes no schema
+verification/             models/ and proofs/, empty now
+adr/                      Empty now
+examples/                 Empty now
+resources/                Empty now
+acceptance/               Empty now, fixtures/ is also empty
+```
+
+Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.

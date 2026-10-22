@@ -5022,6 +5022,62 @@
           "anchor": "后继关系与维护"
         }
       ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#meta-capabilities#README",
+      "path": ".meta_harness/design/product/meta-capabilities/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#meta-capabilities#design",
+      "path": ".meta_harness/design/product/meta-capabilities/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
     }
   ]
 }

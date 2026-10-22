@@ -72,6 +72,8 @@
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |
 | [UL-scope-composition-semantics](terms/scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics) | 作用域合成语义 | Scope Composition Semantics | 覆盖 / 收窄 / 组合三种 |
 | [UL-two-pass-resolution](terms/scope-and-resolution.md#ul-two-pass-resolution--两轮求值--two-pass-resolution) | 两轮求值 | Two-Pass Resolution | 先算哪个资产，再算它的属性项 |
+| [UL-adoption-change-counter](terms/scope-and-resolution.md#ul-adoption-change-counter--采用变更计数--adoption-change-counter) | 采用变更计数 | Adoption Change Counter | 来源拥有者按作用域维护的单调计数；**全部相同就不必重新求值** |
+| [UL-validated-assembly-candidate](terms/scope-and-resolution.md#ul-validated-assembly-candidate--已校验装配候选--validated-assembly-candidate) | 已校验装配候选 | Validated Assembly Candidate | 入口之前预先算好并校验的装配结果；**只在入口成为采用依据** |
 | [UL-immutable-marker](terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker) | 不可覆盖标记 | Immutable Marker | 把「默认这样」变成「必须这样」的那个标记 |
 | [UL-attribute-assignment](terms/scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment) | 属性配值 | Attribute Assignment | 一份资产持有上、一个属性项的一个值，**设置与权限真正被读写的最小单位** |
 | [UL-attribute-projection](terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection) | 属性投影 | Attribute Projection | 「组织的设置」是视图不是对象 |
@@ -80,7 +82,23 @@
 | [UL-legal-target-set](terms/scope-and-resolution.md#ul-legal-target-set--合法目标集合--legal-target-set) | 合法目标集合 | Legal Target Set | 能切到的路由名：每个名字取范围链上胜出的那一条，胜出行在册 ∩ 范围允许 ∩ 兼容模态投影，**每次现算、只收不放**；切到它里面的不得拒绝 |
 | [UL-model-display-list](terms/scope-and-resolution.md#ul-model-display-list--模型展示列表--model-display-list) | 模型展示列表 | Model Display List | **合法目标 ∪ 当前选中**，外加被盖住的同名条目（只作标注、选不了）；一个路由名能选的只有胜出的那一行；选中那条用不上也留着并标明原因 |
 | [UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) | 运行时 context | Runtime Context | **一块块就地更新的数据**，在 agent loop 内被**模型/工具/拓展点**消费；旧说法 ~~会话上下文感知域~~ |
-| [UL-runtime-context-registration](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration) | 运行时 context 注册 | Runtime Context Registration | 会话纳入一块 context 的来源、配置与消费者声明 |
+| [UL-runtime-context-registration](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration) | 运行时 context 注册 | Runtime Context Registration | 作用域持有者为一个作用域固定的块与绑定清单，**身份是作用域加块键**；说「这里有这一块」，不是它的值 |
+| [UL-context-block](terms/scope-and-resolution.md#ul-context-block--runtime-context-块--context-block) | runtime context 块 | Context Block | runtime context 里可单独指认的单位：一个作用域里按块键识别的一份**当前值**；不是内容块 |
+| [UL-supplied-block](terms/scope-and-resolution.md#ul-supplied-block--供给块--supplied-block) | 供给块 | Supplied Block | **一个**生产者供值、读者只读的块（父：runtime context 块） |
+| [UL-stateful-block](terms/scope-and-resolution.md#ul-stateful-block--状态块--stateful-block) | 状态块 | Stateful Block | 多参与者提更新、按合并规则合并、持有者步提交写成事实的块（父：runtime context 块） |
+| [UL-context-block-descriptor](terms/scope-and-resolution.md#ul-context-block-descriptor--块声明--context-block-descriptor) | 块声明 | Context Block Descriptor | 语义拥有者发布的一种块的静态说明，**一个块键只有一份**；不安装块也不授权读 |
+| [UL-context-need](terms/scope-and-resolution.md#ul-context-need--上下文需要--context-need) | 上下文需要 | Context Need | 消费者在自己定义里写的「我要一个这样形状的值」，**不点名块键** |
+| [UL-need-binding](terms/scope-and-resolution.md#ul-need-binding--需要绑定--need-binding) | 需要绑定 | Need Binding | 集成方在注册时写的「这条需要由哪一块满足，怎样翻译」 |
+| [UL-producer-handle](terms/scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle) | 生产者句柄 | Producer Handle | 生产者登记后拿到的带**代际**的代表：发布、失效、撤销；旧代晚到不采用 |
+| [UL-read-eligibility](terms/scope-and-resolution.md#ul-read-eligibility--读取资格--read-eligibility) | 读取资格 | Read Eligibility | 持有者签发给一次绑定的材料：作用域、消费者类、主体与租户、允许的键与需要绑定；可撤销，可重签取代；**不从运行环境推断** |
+| [UL-bound-reader](terms/scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader) | 绑定读者 | Bound Reader | 按一份资格建立的读取入口，消费者类固定，读到自己声明的形状，每次读重核资格 |
+| [UL-context-update](terms/scope-and-resolution.md#ul-context-update--上下文更新--context-update) | 上下文更新 | Context Update | 对状态块提出的一条局部更新，**是提案不是事实** |
+| [UL-step-commit](terms/scope-and-resolution.md#ul-step-commit--步提交--step-commit) | 步提交 | Step Commit | 持有者在步边界把该步全部更新合并成的一份结果并写成事实，**一步一份** |
+| [UL-change-material](terms/scope-and-resolution.md#ul-change-material--变化材料--change-material) | 变化材料 | Change Material | 块变化后交给持有者变化消费路径的输入：键、前后修订、按资格过滤的前值；**不是提醒本身** |
+| [UL-scope-ref](terms/scope-and-resolution.md#ul-scope-ref--作用域引用--scope-reference) | 作用域引用 | Scope Reference | 指向一个作用域的不透明引用，可带父引用；持有者不解释它是租户、会话还是运行 |
+| [UL-scope-holder](terms/scope-and-resolution.md#ul-scope-holder--作用域持有者--scope-holder) | 作用域持有者 | Scope Holder | 为一个作用域维护注册、签发读取资格、写步提交的那一方；一作用域一持有者；本版只有会话 |
+| [UL-integrator](terms/scope-and-resolution.md#ul-integrator--集成方--integrator) | 集成方 | Integrator | 知道各参与者、负责接线并拥有翻译的一方；被集成方不知道它 |
+| [UL-semantic-owner](terms/scope-and-resolution.md#ul-semantic-owner--语义拥有者--semantic-owner) | 语义拥有者 | Semantic Owner | 决定一份值是什么意思的一方；块声明归它，不归存放方，也不一定归生产者 |
 | [UL-session-settings](terms/scope-and-resolution.md#ul-session-settings--会话级设置--session-settings) | 会话级设置 | Session Settings | 会话自有取值与继承声明，持久化不扩大作用域 |
 | [UL-meta-runtime-context](terms/scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context) | 元 runtime context | Meta Runtime Context | **每个会话必需携带并持续更新的那些**，当前**十四项**；与 meta 能力同构 |
 | [UL-collaboration-scope-context](terms/scope-and-resolution.md#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context) | 协作范围 context | Collaboration-Scope Context | 我在哪个组织、什么租户身份、什么角色 |
@@ -117,7 +135,7 @@
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
 | [UL-session-slash-command-set](terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) | 会话斜杠命令集 | Session Slash-Command Set | 一个会话此刻认得的斜杠命令：装配时取此人有权用的，**不在里面的就是不存在**；资产增删禁用不让它自己变，**人发对应的 reload 才重填那一张注册表**，权限收回即时去掉 |
-| [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口，**必定常驻、不可禁用** |
+| [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口；已采用提供的入口**必定常驻、不可禁用**，候选与占位不表示已提供 |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产；身份是（范围, 路由名），同名的几条按层覆盖 |
 | [UL-official-model-profile](terms/capabilities-and-composition.md#ul-official-model-profile--官方档案--official-model-profile) | 官方档案 | Official Model Profile | 随系统发布、在出厂默认层的档案；同名的自建档案按层盖过它；**不是官方件** |
@@ -231,6 +249,22 @@
 | [UL-terminal-session](terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | 终端会话 | Terminal Session | `Shell()` 开的那条命令行，**与[会话](terms/agent-runtime-loop.md#ul-session--会话--session)毫无关系** |
 | [UL-execution-environment-permission](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission) | 执行环境权限 | Execution Environment Permission | per-tool 三态，管**作用落在哪**不管**动作准不准**；`auto_place` 别混 `auto_permission` |
 | [UL-target-environment](terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment) | 目标环境 | Target Environment | 工具要什么样的执行环境（哪一层 × 哪几种设施），**落点与身份类**；满足不了就不可用，不降级 |
+| [UL-environment-binding](terms/grounding-and-isolation.md#ul-environment-binding--绑定层--environment-binding) | 绑定层 | Environment Binding | 环境效用跟着谁活，**四种**：宿主机 · 无状态沙箱 · 会话级沙箱 · 租户级沙箱；归属是不透明作用域引用 |
+| [UL-environment-continuity](terms/grounding-and-isolation.md#ul-environment-continuity--连续性--environment-continuity) | 连续性 | Environment Continuity | 这一刻还能不能接着用：不保证 · 连续 · 已丢失；**不是寿命** |
+| [UL-environment-requirement](terms/grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement) | 环境要求 | Environment Requirement | 集成方翻译出的有序允许绑定层、设施键、隔离断言；**执行环境不选清单外的层** |
+| [UL-facility-descriptor](terms/grounding-and-isolation.md#ul-facility-descriptor--设施声明--facility-descriptor) | 设施声明 | Facility Descriptor | 一种设施的协议：键、操作、须逐操作授权的操作；**一键一份**；不安装也不授权 |
+| [UL-facility-request](terms/grounding-and-isolation.md#ul-facility-request--设施请求--facility-request) | 设施请求 | Facility Request | 一次设施操作所带的身份：请求、访问、原调用、绑定；**一请求一确认**，结果四态 |
+| [UL-placement](terms/grounding-and-isolation.md#ul-placement--落点--placement) | 落点 | Placement | 允许清单内选中的层与提供者；不授设施不授资源 |
+| [UL-environment-acquisition](terms/grounding-and-isolation.md#ul-environment-acquisition--获取--environment-acquisition) | 获取 | Environment Acquisition | 按落点要一份租约的那次事务，**幂等键为身份**；临时回执经核验才交付 |
+| [UL-environment-adoption](terms/grounding-and-isolation.md#ul-environment-adoption--采用记录--environment-adoption) | 采用记录 | Environment Adoption | 核验通过后执行环境签发的记录：落点、提供者与代、实例与代、连续性；**不是提供者自签** |
+| [UL-environment-lease](terms/grounding-and-isolation.md#ul-environment-lease--租约--environment-lease) | 租约 | Environment Lease | 只暴露要求里的设施、每操作过守卫的使用入口；释放两态；丢引用不是释放 |
+| [UL-managed-resource](terms/grounding-and-isolation.md#ul-managed-resource--受管资源--managed-resource) | 受管资源 | Managed Resource | 可能跨进程存活、要进耐久账本的东西：进程 · 终端 · 文件批次；**未确认不写成已停** |
+| [UL-resource-ledger](terms/grounding-and-isolation.md#ul-resource-ledger--资源账本--resource-ledger) | 资源账本 | Resource Ledger | 集成方实现的耐久承诺：**许可先于首个外部效果**，终局与许可同一耐久顺序 |
+| [UL-facility-guard](terms/grounding-and-isolation.md#ul-facility-guard--设施守卫--facility-guard) | 设施守卫 | Facility Guard | 集成方实现的逐操作授权：「这次操作现在还允许吗」 |
+| [UL-recovery-authority](terms/grounding-and-isolation.md#ul-recovery-authority--恢复授权--recovery-authority) | 恢复授权 | Recovery Authority | 维护拥有者签发、独立于用户访问的授权，只能停止、认回、结算 |
+| [UL-isolation-claim](terms/grounding-and-isolation.md#ul-isolation-claim--隔离断言--isolation-claim) | 隔离断言 | Isolation Claim | 提供者能确认的隔离种类，集合开放；确认不了就拒绝，不写成已隔离 |
+| [UL-environment-provider](terms/grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider) | 环境提供者 | Environment Provider | 向登记表登记、实际造出并掌管环境实例的一方；名加代；退役先拒新租约再排空 |
+| [UL-file-batch](terms/grounding-and-isolation.md#ul-file-batch--文件批次--file-batch) | 文件批次 | File Batch | 全批预检、暂存后逐路径发布的一次多路径写入；是受管资源；恢复只识别五态 |
 | [UL-session-base](terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 会话据点 | Session Base | 一个账号的会话、日志、卡片与 runtime 实际所在的那一处，身份是（一处 · 中心 · 账号）；**不是进程**，没人开着屏时照常发生事 |
 | [UL-governance-center](terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | 治理中心 | Governance Center | 治理事实与组织／租户层范围化对象所在的那一处，**一次部署一个、身份不是它的地址**；**它不知道任何会话** |
 | [UL-deployment-key](terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key) | 部署密钥 | Deployment Key | 这一次部署独有的一套秘密，让「只有中心自己能说的话」不可伪造；**不加密任何东西，换了什么都不丢** |
@@ -260,6 +294,7 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) | 工具定义 | Tool Definition | 一个工具在数据与治理层面的身份与表示，**可自带实现** |
+| [UL-tool-programmability](terms/execution-and-outcome.md#ul-tool-programmability--工具可编程调用许可--tool-programmability) | 工具可编程调用许可 | Tool Programmability | 工具定义的 `programmable` 属性，只有显式 true 允许 Agent 脚本组合或编排调用 |
 | [UL-tool-execution](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 工具执行 | Tool Execution | 一次执行，**计算资源，绑会话不绑实例** |
 | [UL-background-execution](terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution) | 后台执行 | Background Execution | 不占当前这一轮地跑，**不声明就是不能** |
 | [UL-foreground-time-limit](terms/execution-and-outcome.md#ul-foreground-time-limit--前台上限--foreground-time-limit) | 前台上限 | Foreground Time Limit | 一次执行在前台最多跑多久，**等待态不算**；到点允许后台的转后台、不许的被中断，**不是失败** |
@@ -277,8 +312,10 @@
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 原始结果存起来、消息里换成带摘要的占位，**不是全卸载** |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 太大而被卸载存起来的那份完整工具结果，日志里只有占位 |
 | [UL-delivery-release](terms/execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release) | 交付责任解除 | Delivery Release | 生产方（一次模型调用或一次工具执行）对已收场结果所负交付责任的解除，消费方处理完成或可靠保管后成立，只有两条路径；**模型一侧叫 ACK**；**读到、展示、开始处理都不够**；**不是事件流确认** |
+| [UL-consumption-position](terms/execution-and-outcome.md#ul-consumption-position--消费位置--consumption-position) | 消费位置 | Consumption Position | 一次调用的结果要交回的那一处；发起时确定，换推进者、重建、恢复都不改；**结果不变成新输入** |
 | [UL-execution-outcome](terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) | 执行收场 | Execution Outcome | 六种，**非完成的四种里只有一种是失败** |
 | [UL-consecutive-veto-limit](terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit) | 连续否决上限 | Consecutive Veto Limit | **已弃用**：现行规则下连续拒收不设次数上限，不因此使 Run 失败；**不是试尽** |
+| [UL-open-work](terms/execution-and-outcome.md#ul-open-work--未结工作--open-work) | 未结工作 | Open Work | 会话里已发起或已受理、还没了结的工作，从日志算出；**结局未知的执行仍算未结** |
 | [UL-nominal-path](terms/execution-and-outcome.md#ul-nominal-path--主路径--nominal-path) | 主路径 | Nominal Path | 一层没出非常态时本该的样子，**推进式或稳态式** |
 | [UL-off-nominal](terms/execution-and-outcome.md#ul-off-nominal--非常态--off-nominal) | 非常态 | Off-Nominal | 某层此刻不在主路径上，**是状态不是一类事，与报错无关** |
 | [UL-escalation](terms/execution-and-outcome.md#ul-escalation--上交--escalation) | 上交 | Escalation | 了结不了就把处置权交给外面一层，**交身份与分类不交正文** |
@@ -314,8 +351,8 @@
 | [UL-admission-decision](terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) | 放行判断 | Admission Decision | 一个函数，**既是判官也是撰稿人**；三样输入合起来 |
 | [UL-inquiry](terms/interaction-and-dispatch.md#ul-inquiry--问询--inquiry) | 问询 | Inquiry | agent 主动问人，**一次问全** |
 | [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | 动手之前请人准不准，**固定两个选项** |
-| [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 用户关于授权说过的话，**按序排着的流水**；**是数据不是结论**，归档不丢 |
-| [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 流水里的**一笔**：来源 × 方向 × 作用域；**「决策记录」是它的弃用说法** |
+| [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 会话承载的一次或本会话授权表达，**按序保存**；**是数据不是结论**，归档不丢 |
+| [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 可指认的授权表达：来源 × 方向 × 作用域；一次/本会话追加流水，全局按资格写设置；「决策记录」是弃用说法 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
 | [UL-inbound-target](terms/interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target) | 投递目标 | Inbound Target | 连接件两种投递方式里 ①「已有会话开口接收」那一路的配置：进哪个会话，**本版只指一个已有的会话**；落点与身份类，**不是交付面** |
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
@@ -342,7 +379,10 @@
 | [UL-placeholder-reason](terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason) | 占位原因 | Placeholder Reason | 占位上写的「为什么此刻没有结果」；**是原因不是收场** |
 | [UL-source-tag](terms/record-and-context.md#ul-source-tag--来源标记--source-tag) | 来源标记 | Source Tag | 入站到达与提醒上的「谁捎来的」，**是属性不是另一类**；**不是资产来源、不是来路标记** |
 | [UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) | 来路标记 | Origin Tag | 一块文本上「这段字从哪条路来」：斜杠命令的留痕、展开物或附带的参数；**是块上的属性，不是来源标记** |
-| [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本** |
+| [UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) | 内容块 | Content Block | 一条消息装的是若干个块，**不是一段文本**；分八类 |
+| [UL-reasoning-state](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state) | 推理续接状态 | Reasoning State | 供应商加密或签名的推理状态，单独成块、原样保存，只在模型回复里；**不是思考块**，不给人看 |
+| [UL-reasoning-replay](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay) | 推理回放 | Reasoning Replay | 每次发出只把能消费的推理续接状态交给这一家，其余略去并留诊断；历史不改；**不是 Agent 接续时的回放** |
+| [UL-reasoning-replay-scope](terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope) | 推理回放范围 | Reasoning Replay Scope | 回复上标明其推理续接状态能交给哪些模型的不透明值；默认是同一接收方的同一模型 |
 | [UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering) | 派生表示 | Derived Rendering | 转换件产出、挂在原块上的一组别的模态的块；原块不动，落盘前写好不变 |
 | [UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) | transcript | Transcript | 转换件为一个块产出的纯文本兜底；有它的块不再把模型挡在合法目标外 |
 | [UL-modality](terms/record-and-context.md#ul-modality--模态--modality) | 模态 | Modality | 一类内容的形态，**恰四种**：文本 · 图 · 语音 · 视频；档案上与块上两处必须对得上；**块的模态看媒体类型**，视频装在文件块里 |
@@ -364,6 +404,20 @@
 | [UL-compaction-record](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record) | 压缩记录 | Compaction Record | `CompactionMessage`；模型看到保留名单 ‖ 它 ‖ 范围之后 |
 | [UL-compacted-range](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range) | 压缩覆盖范围 | Compacted Range | 一条压缩记录摘要的那段历史，从日志起点到压缩点之前 |
 | [UL-retained-set](terms/record-and-context.md#ul-retained-set--保留名单--retained-set) | 保留名单 | Retained Set | 覆盖范围内仍原样给模型的消息引用；弃用 ~~排除名单~~ |
+| [UL-request-context](terms/record-and-context.md#ul-request-context--请求-context--request-context) | 请求 context | Request Context | 一次模型请求输入的**派生计算与装入保证**；不拥有事实、不发请求、不写历史；不是 runtime context |
+| [UL-request-candidate](terms/record-and-context.md#ul-request-candidate--请求候选--request-candidate) | 请求候选 | Request Candidate | 对一组组装输入算出的可交给模型的输入，带覆盖证据；**装得下才成候选** |
+| [UL-coverage-evidence](terms/record-and-context.md#ul-coverage-evidence--覆盖证据--coverage-evidence) | 覆盖证据 | Coverage Evidence | 随候选逐项记录这次用了哪些输入与修订、锚点、前缀为何变；不是压缩覆盖范围 |
+| [UL-fit-verdict](terms/record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict) | 装入裁定 | Fit Verdict | 装得下 · 固定部分超限 · 需要压缩 · 限额未知，四选一；**限额未知不是失败** |
+| [UL-representation-choice](terms/record-and-context.md#ul-representation-choice--表示决定--representation-choice) | 表示决定 | Representation Choice | 每个内容块用原件、派生表示、transcript 还是延迟加载的选择；不读字节 |
+| [UL-prompt-contribution](terms/record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution) | 提示词贡献 | Prompt Contribution | 登记进系统提示词组装的一条材料，**只有有序段与变量两类**；弃用 ~~动态事实段~~ |
+| [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 完整读取后放进请求的全部稳定块完整值，**只进请求不进日志**，锚定位置 |
+| [UL-snapshot-anchor](terms/record-and-context.md#ul-snapshot-anchor--快照锚点--snapshot-anchor) | 快照锚点 | Snapshot Anchor | 快照提醒在模型可见历史里的固定位置：完整读取时的历史尾部，压缩后在压缩记录之后 |
+| [UL-tail-facts-reminder](terms/record-and-context.md#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder) | 尾部易变提醒 | Tail Facts Reminder | 请求**最末**那条只含逐请求变化块的提醒，每次重算，不进历史与快照 |
+| [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 需要压缩时给出的计划：编号、步数上界、逐步请求；**一个候选至多一个** |
+| [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 计划编号加已完成步数，每步恰加一 |
+| [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 计划里一步要做的事，修剪步或摘要步之一 |
+| [UL-pruning-step](terms/record-and-context.md#ul-pruning-step--修剪步--pruning-step) | 修剪步 | Pruning Step | **不调模型**，只缩短大工具结果或媒体占位；先于摘要步 |
+| [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 一次内部模型调用生成覆盖范围的摘要，由协调者发起 |
 | [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
 | [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
 

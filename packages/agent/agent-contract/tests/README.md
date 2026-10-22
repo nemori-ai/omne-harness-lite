@@ -14,6 +14,8 @@
 
 [public-api-names.spec-d.ts](public-api-names.spec-d.ts) 是类型测试：设计页五章的每个名字都能从包入口导入，并对 `Next`、`Failure`、`Subject`、`ExecutionState`、`FinishResult`、`ExecutionControl`、`AgentEventBody`、`CallerCommit`、`AgentAccessDecision` 等判别字面量逐项断言，对 `AgentJournal` 逐一断言它可赋给五组端口接口，并断言各组端口的成员集合。它还按[扩展作者协议](../docs/public-api/extensions.md#位置与作者可见的-subject)的 subject 表逐行写出十二种形状，断言每一行恰好等于 `Subject` 联合的一个变体，十二行合起来等于整个联合。
 
+同文件核对 `AgentClock.now` 不接收参数，返回 `Reply<AgentInstant>`。它只证明形状，不证明具体时钟可用或准确。
+
 [export-set.spec.ts](export-set.spec.ts) 把包入口的运行时导出排序后与写死的清单比较，并断言包内共享的辅助函数不在入口。[dependency-direction.spec.ts](dependency-direction.spec.ts) 沿构建后 `dist/index.js` 与 `dist/index.d.ts` 的导入图断言不含 Cordis、`agent`、`agent-host-local`、`agent-cordis-contract`，并断言 `package.json` 不声明它们；导入图的遍历在 [module-graph.ts](module-graph.ts)，它读文本而不用编译器接口。
 
 [body-contract.spec.ts](body-contract.spec.ts) 检查 `agentBodyContract` 经注册表登记与取回，以及同一组夹具在 `judge` 与 `judgeAgentDefinition` 上接受与拒绝一致、引用与声明项的提取顺序，缺 category、缺 name 或不是对象的 capability。读树逐层冻结，手造的相似节点放不进真实读树，所以正文里更深一层的 `members === undefined` 守卫只有“元素不是对象”这一种可达输入。

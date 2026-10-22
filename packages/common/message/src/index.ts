@@ -25,6 +25,12 @@ export type {
   CoveredEntry,
 } from './compaction.ts'
 export { judgePart } from './parts.ts'
+export {
+  REASONING_STATE_PAYLOAD_MAX_LENGTH,
+  REPLAY_TAG_MAX_LENGTH,
+  isReplayTag,
+} from './reasoning.ts'
+export type { ReasoningReplay, ReasoningStatePart } from './reasoning.ts'
 export type {
   CallPart,
   IncompleteToolCallPart,

@@ -1242,6 +1242,16 @@ export function createMemoryAgentJournal<P>(
           }
         }
         if (input.expected !== revisionOf(execution.revision)) return changed
+        if (input.intent.beforeTerminal === null)
+          return answer(
+            fail(invalid('intent.beforeTerminal', 'the terminal passage has not completed')),
+          )
+        if (
+          execution.state.kind === 'settling' &&
+          semanticKey('finish-intent', execution.state.intent) !==
+            semanticKey('finish-intent', input.intent)
+        )
+          return changed
         const boundary = execution.watermarks.get(input.intent.inputWatermark.record)
         if (boundary === undefined || boundary.to < execution.inputs.length) return changed
         const blocked = blockedReason(execution, input.operation, authorization.kind)

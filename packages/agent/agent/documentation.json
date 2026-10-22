@@ -55,6 +55,10 @@
         {
           "id": "section-8",
           "anchor": "directory-structure-and-documentation-roles"
+        },
+        {
+          "id": "reply-close",
+          "anchor": "reply-admission-and-iteration-close"
         }
       ]
     },
@@ -103,6 +107,10 @@
         {
           "id": "section-8",
           "anchor": "目录结构与文档职责"
+        },
+        {
+          "id": "reply-close",
+          "anchor": "回复准入与-iter-收口"
         }
       ]
     },

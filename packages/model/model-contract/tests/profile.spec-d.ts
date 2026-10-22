@@ -4,6 +4,7 @@ import type {
   AssembledModelInput,
   BudgetCheck,
   ContextLimits,
+  ForeignThinking,
   LimitMetric,
   MediaMeasurementFact,
   Measurement,
@@ -21,9 +22,15 @@ import type {
   ParameterAdoption,
   ProfileChange,
   ProfileIdentity,
+  ProfileReplay,
   ProfileResolution,
   ProfileScope,
   ProfileSupplier,
+  ReplayDeclaration,
+  ReplayDiagnostic,
+  ReplayProjection,
+  ReplayProjectionInput,
+  ReplayTreatment,
   RequestBudget,
   TokenLimit,
   UpstreamLimit,
@@ -299,6 +306,87 @@ it('an assembler and a preparer can be implemented from the contract alone', () 
   // @ts-expect-error the assembled input needs its source adoption
   const noSource: AssembledModelInput = { ...assembled, source: undefined }
   void noSource
+})
+
+it('a profile supplier may declare replay with every item optional', () => {
+  const bare: ProfileSupplier = profileSupplier
+  const empty: ProfileSupplier = { ...profileSupplier, replay: {} }
+  const full: ProfileSupplier = {
+    ...profileSupplier,
+    replay: { produces: 'scope', accepts: ['scope', 'other'], foreignThinking: 'text' },
+  }
+  // @ts-expect-error foreign thinking is one of omit, text and adapter
+  const unknown: ProfileReplay = { foreignThinking: 'drop' }
+  expectTypeOf<ForeignThinking>().toEqualTypeOf<'omit' | 'text' | 'adapter'>()
+  expectTypeOf<ProfileReplay>().toExtend<Readonly<{ produces?: string }>>()
+  void [bare, empty, full, unknown]
+})
+
+it('an expanded replay declaration has every item', () => {
+  const declaration: ReplayDeclaration = { produces: 'a', accepts: ['a'], foreignThinking: 'omit' }
+  // @ts-expect-error an expanded declaration is complete
+  const partial: ReplayDeclaration = { produces: 'a' }
+  void [declaration, partial]
+})
+
+it('replay off is a request-wide choice of the assembled input and the fixed request', () => {
+  const off: AssembledModelInput = { ...assembled, replay: 'off' }
+  const kept: AssembledModelInput = assembled
+  // @ts-expect-error the only choice is off: replay is on when the field is absent
+  const on: AssembledModelInput = { ...assembled, replay: 'on' }
+  const fixed: typeof request = { ...request, replay: 'off' }
+  expectTypeOf<AssembledModelInput['replay']>().toEqualTypeOf<'off' | undefined>()
+  expectTypeOf<(typeof request)['replay']>().toEqualTypeOf<'off' | undefined>()
+  void [off, kept, on, fixed]
+})
+
+it('a replay projection is made of treatments and diagnostics that carry no payload', () => {
+  expectTypeOf<ReplayProjection['treatments']>().toEqualTypeOf<readonly ReplayTreatment[]>()
+  expectTypeOf<ReplayProjection['diagnostics']>().toEqualTypeOf<readonly ReplayDiagnostic[]>()
+  expectTypeOf<keyof ReplayDiagnostic>().toEqualTypeOf<
+    'message' | 'scope' | 'format' | 'omittedParts'
+  >()
+  expectTypeOf<ReplayTreatment['thinking']>().toEqualTypeOf<'native' | ForeignThinking>()
+  expectTypeOf<ReplayProjectionInput['resent']>().toEqualTypeOf<
+    ReadonlySet<ReplayTreatment['message']>
+  >()
+})
+
+it('a replay treatment has the list that fits its side and the thinking that fits it', () => {
+  const message = 'msg_aaaaaaaaaaaaaaaaaaaaaa' as ReplayTreatment['message']
+  const continues: ReplayTreatment = {
+    index: 0,
+    message,
+    continuable: true,
+    carry: [1],
+    thinking: 'native',
+  }
+  const leaves: ReplayTreatment = {
+    index: 0,
+    message,
+    continuable: false,
+    omit: [1],
+    thinking: 'text',
+  }
+  const impossible: ReplayTreatment[] = [
+    // @ts-expect-error a message that continues has no omit list
+    { index: 0, message, continuable: true, carry: [1], omit: [], thinking: 'native' },
+    // @ts-expect-error a message that does not continue has no carry list
+    { index: 0, message, continuable: false, omit: [1], carry: [], thinking: 'omit' },
+    // @ts-expect-error a message that continues writes thinking natively
+    { index: 0, message, continuable: true, carry: [1], thinking: 'text' },
+    // @ts-expect-error a message that does not continue never writes thinking natively
+    { index: 0, message, continuable: false, omit: [1], thinking: 'native' },
+    // @ts-expect-error a message that continues needs its carry list
+    { index: 0, message, continuable: true, thinking: 'native' },
+  ]
+  void [continues, leaves, impossible]
+  expectTypeOf<
+    Extract<ReplayTreatment, { continuable: true }>['thinking']
+  >().toEqualTypeOf<'native'>()
+  expectTypeOf<
+    Extract<ReplayTreatment, { continuable: false }>['thinking']
+  >().toEqualTypeOf<ForeignThinking>()
 })
 
 it('media measurements and meter representations are closed by kind', () => {
