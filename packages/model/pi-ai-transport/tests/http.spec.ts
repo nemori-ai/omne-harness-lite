@@ -14,7 +14,7 @@ import {
   type ExchangeResult,
   type HttpExchange,
 } from '../src/http.ts'
-import type { NetworkResources } from '../src/network.ts'
+import type { NetworkInternals } from '../src/network.ts'
 import { readSseEvents } from '../src/sse.ts'
 import {
   activeTimers,
@@ -74,7 +74,7 @@ afterAll(() => certificate.dispose())
 /** A server and a network bound to it; both are closed after `run`. */
 async function withServer(
   handler: RequestHandler,
-  run: (server: HttpsFixture, resources: NetworkResources) => Promise<void>,
+  run: (server: HttpsFixture, resources: NetworkInternals) => Promise<void>,
   observed?: TransportDiagnostic[],
 ): Promise<void> {
   const server = await startHttpsServer(certificate, handler)
@@ -98,7 +98,7 @@ function httpErrorOf(result: ExchangeResult) {
 }
 
 /** Waits until the exchange's client socket has read at least one byte of the response. */
-async function responseArrived(resources: NetworkResources): Promise<void> {
+async function responseArrived(resources: NetworkInternals): Promise<void> {
   await expect
     .poll(() => clientSockets(resources).some(socket => socket.bytesRead > 0), { timeout: 5_000 })
     .toBe(true)
@@ -289,7 +289,7 @@ describe('stopping an exchange', () => {
 describe('a 2xx body that ends before its end', () => {
   type Ending = Readonly<{
     name: string
-    end: (exchange: HttpExchange, resources: NetworkResources, server: HttpsFixture) => void
+    end: (exchange: HttpExchange, resources: NetworkInternals, server: HttpsFixture) => void
     error: typeof ResponseBodyStoppedError | typeof ResponseBodyReadError
   }>
   const endings: readonly Ending[] = [

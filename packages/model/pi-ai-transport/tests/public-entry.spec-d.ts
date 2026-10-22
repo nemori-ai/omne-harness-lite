@@ -93,6 +93,18 @@ it('the network resources factory gives the resources that the transport configu
   expectTypeOf<NetworkResources['close']>().returns.toEqualTypeOf<Promise<void>>()
 })
 
+it('the network resources are an opaque handle: only close is reachable from the root types', () => {
+  expectTypeOf<NetworkResources>().not.toHaveProperty('agent')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('inFlight')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('capacity')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('diagnostics')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('tls')
+  expectTypeOf<NetworkResources>().not.toHaveProperty('closed')
+  expectTypeOf<Extract<keyof NetworkResources, string>>().toEqualTypeOf<'close'>()
+  // A structurally similar object is not a handle: only the factory makes one.
+  expectTypeOf<{ close(): Promise<void> }>().not.toExtend<NetworkResources>()
+})
+
 it('the network configuration names its proxy and its diagnostics observer with exported types', () => {
   expectTypeOf<NetworkConfig['proxy']>().toEqualTypeOf<ProxyConfig | undefined>()
   expectTypeOf<ProxyConfig>().toEqualTypeOf<Readonly<{ url: string; bypass: readonly string[] }>>()

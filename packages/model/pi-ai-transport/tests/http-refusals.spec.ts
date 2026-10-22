@@ -3,7 +3,7 @@ import type { RequestOptions } from 'node:https'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ConnectionReservation } from '../src/capacity.ts'
 import { startExchange, type ExchangeInput, type ExchangeRefusal } from '../src/http.ts'
-import { createNetworkResources, type NetworkResources } from '../src/network.ts'
+import { openNetwork, type NetworkInternals } from '../src/network.ts'
 
 // Nothing listens here: a refusal that still sent would surface as a connect failure.
 const UNREACHABLE = new URL('https://127.0.0.1:9/v1/responses')
@@ -20,10 +20,10 @@ vi.mock('node:https', async importOriginal => {
   return { ...actual, request }
 })
 
-const resources: NetworkResources[] = []
+const resources: NetworkInternals[] = []
 
-function fresh(maxConnections = 1): NetworkResources {
-  const created = createNetworkResources({ maxConnections, idleConnectionTimeoutMs: 1_000 })
+function fresh(maxConnections = 1): NetworkInternals {
+  const created = openNetwork({ maxConnections, idleConnectionTimeoutMs: 1_000 })
   resources.push(created)
   return created
 }
@@ -32,7 +32,7 @@ afterEach(async () => {
   await Promise.all(resources.splice(0).map(created => created.close()))
 })
 
-async function held(network: NetworkResources): Promise<ConnectionReservation> {
+async function held(network: NetworkInternals): Promise<ConnectionReservation> {
   const reservation = await network.capacity.reserve(new AbortController().signal)
   if (reservation === undefined) throw new Error('expected a held reservation')
   return reservation
@@ -54,7 +54,7 @@ function input(
 }
 
 /** Node built no request and the pool opened no socket. */
-function expectNoNetworkUse(network: NetworkResources): void {
+function expectNoNetworkUse(network: NetworkInternals): void {
   expect(built.requests).toEqual([])
   expect(network.agent.sockets).toEqual({})
 }
@@ -256,23 +256,21 @@ describe('configuring the network resources', () => {
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
     'rejects maxConnections %s synchronously with a RangeError',
     maxConnections => {
-      expect(() =>
-        createNetworkResources({ maxConnections, idleConnectionTimeoutMs: 1_000 }),
-      ).toThrow(RangeError)
+      expect(() => openNetwork({ maxConnections, idleConnectionTimeoutMs: 1_000 })).toThrow(
+        RangeError,
+      )
     },
   )
 
   it.each([0, -1, 1.5, Number.NaN, 2_147_483_648])(
     'rejects idleConnectionTimeoutMs %s synchronously with a RangeError',
     idleConnectionTimeoutMs => {
-      expect(() => createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs })).toThrow(
-        RangeError,
-      )
+      expect(() => openNetwork({ maxConnections: 1, idleConnectionTimeoutMs })).toThrow(RangeError)
     },
   )
 
   it('accepts the largest delay a Node timer takes as idleConnectionTimeoutMs', async () => {
-    const network = createNetworkResources({
+    const network = openNetwork({
       maxConnections: 1,
       idleConnectionTimeoutMs: 2_147_483_647,
     })
@@ -288,7 +286,7 @@ describe('configuring the network resources', () => {
 
   it('rejects a diagnostics maxPending below one synchronously with a RangeError', () => {
     expect(() =>
-      createNetworkResources({
+      openNetwork({
         maxConnections: 1,
         idleConnectionTimeoutMs: 1_000,
         diagnostics: { observer: () => undefined, maxPending: 0 },

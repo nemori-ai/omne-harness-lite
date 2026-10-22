@@ -1,13 +1,13 @@
 // The starts that send nothing. The starts that send are in transport-exchange.spec.ts.
 import { afterEach, describe, expect, it } from 'vitest'
-import { createNetworkResources, type NetworkResources } from '../src/network.ts'
+import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import type { PiTransport } from '../src/transport.ts'
 import { collect, slotFree, transportOver, type TransportUnderTest } from './support/transport.ts'
 
 // Nothing listens here: these starts never reach the network.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
 
-const networks: NetworkResources[] = []
+const networks: NetworkInternals[] = []
 const transports: PiTransport[] = []
 
 afterEach(async () => {
@@ -17,8 +17,8 @@ afterEach(async () => {
 
 function setup(
   credential: () => string | undefined = () => 'test-secret',
-): TransportUnderTest & { network: NetworkResources } {
-  const network = createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
+): TransportUnderTest & { network: NetworkInternals } {
+  const network = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
   const transport = transportOver(network, { url: ROUTE_URL, credential: { read: credential } })
   transports.push(transport)

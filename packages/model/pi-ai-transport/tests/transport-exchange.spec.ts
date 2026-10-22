@@ -3,7 +3,7 @@
 import type { ServerResponse } from 'node:http'
 import type { TransportFact } from '@omne-harness/model-contract'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { NetworkResources } from '../src/network.ts'
+import type { NetworkInternals } from '../src/network.ts'
 import { network, settle, watch } from './support/exchange.ts'
 import {
   createCertificate,
@@ -36,7 +36,7 @@ afterAll(() => certificate.dispose())
 
 type Scene = Readonly<{
   server: HttpsFixture
-  resources: NetworkResources
+  resources: NetworkInternals
   transport: TransportUnderTest
 }>
 

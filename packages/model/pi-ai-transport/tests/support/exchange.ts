@@ -5,11 +5,7 @@ import { expect } from 'vitest'
 import type { ConnectionCapacity, ConnectionReservation } from '../../src/capacity.ts'
 import type { TransportDiagnostic } from '../../src/diagnostics.ts'
 import type { ExchangeInput, ExchangeResult, ExchangeStart, HttpExchange } from '../../src/http.ts'
-import {
-  createNetworkResources,
-  type NetworkConfig,
-  type NetworkResources,
-} from '../../src/network.ts'
+import { openNetwork, type NetworkConfig, type NetworkInternals } from '../../src/network.ts'
 
 export const encoder = new TextEncoder()
 export const decoder = new TextDecoder()
@@ -27,8 +23,8 @@ export function network(
   ca: Buffer,
   overrides: Partial<NetworkConfig> = {},
   observed?: TransportDiagnostic[],
-): NetworkResources {
-  return createNetworkResources({
+): NetworkInternals {
+  return openNetwork({
     maxConnections: 1,
     idleConnectionTimeoutMs: 60_000,
     tls: { ca },
@@ -111,7 +107,7 @@ export function watch<T>(promise: Promise<T>): {
 }
 
 /** The client sockets the pool currently has in use, through the documented `agent.sockets`. */
-export function clientSockets(resources: NetworkResources): readonly Socket[] {
+export function clientSockets(resources: NetworkInternals): readonly Socket[] {
   return Object.values(resources.agent.sockets).flatMap(sockets => sockets ?? [])
 }
 
@@ -121,7 +117,7 @@ export function activeTimers(): number {
 }
 
 /** After `stopped`: the abort listener left the signal and the exchange left the registry. */
-export function expectCleanedUp(resources: NetworkResources, signal: AbortSignal): void {
+export function expectCleanedUp(resources: NetworkInternals, signal: AbortSignal): void {
   expect(getEventListeners(signal, 'abort')).toHaveLength(0)
   expect(resources.inFlight.size).toBe(0)
 }

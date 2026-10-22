@@ -24,6 +24,17 @@ it('the root entry exports the network resources factory and the transport facto
   expect(Object.keys(root).toSorted()).toEqual(['createNetworkResources', 'createPiTransport'])
 })
 
+it('the network resources handle shows only its close at run time', async () => {
+  const { createNetworkResources } = await import('@omne-harness/pi-ai-transport')
+  const network = createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
+  try {
+    expect(Object.keys(network)).toEqual(['close'])
+    expect(Object.isFrozen(network)).toBe(true)
+  } finally {
+    await network.close()
+  }
+})
+
 it('the family types keep the shape of the accepted group architecture code block', () => {
   const accepted = acceptedCodeBlock(readFileSync(groupArchitecture, 'utf8'))
   expect(shapeTokens(readFileSync(familySource, 'utf8'))).toBe(shapeTokens(accepted))

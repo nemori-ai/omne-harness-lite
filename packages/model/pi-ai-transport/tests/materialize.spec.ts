@@ -6,7 +6,7 @@ import type {
   PreparedTransport,
 } from '@omne-harness/model-contract'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createNetworkResources, type NetworkResources } from '../src/network.ts'
+import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
 import {
   createTestFamily,
@@ -23,7 +23,7 @@ const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
 /** The body the test family encodes for REQUEST. */
 const EXPECTED_BODY = '{"model":"test-model","messages":0}'
 
-const networks: NetworkResources[] = []
+const networks: NetworkInternals[] = []
 const transports: PiTransport[] = []
 
 afterEach(async () => {
@@ -32,15 +32,15 @@ afterEach(async () => {
 })
 
 function setup(maxConnections = 1): {
-  network: NetworkResources
+  network: NetworkInternals
   probe: FamilyProbe
   prepare(request?: FixedModelRequest): Promise<PreparedTransport>
 } {
-  const network = createNetworkResources({ maxConnections, idleConnectionTimeoutMs: 1_000 })
+  const network = openNetwork({ maxConnections, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
   const family = createTestFamily()
   const built = createPiTransport({
-    network,
+    network: network.handle,
     families: family.families,
     routes: { [SUPPLIER.recipient]: { url: ROUTE_URL, endMarker: END_MARKER } },
     credential: { read: () => 'test-secret' },

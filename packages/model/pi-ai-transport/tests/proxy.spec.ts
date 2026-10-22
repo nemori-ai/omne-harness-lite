@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { TransportDiagnostic } from '../src/diagnostics.ts'
 import { readProtocolFrames } from '../src/frames.ts'
 import { startExchange, type ExchangeResult, type HttpExchange } from '../src/http.ts'
-import type { NetworkConfig, NetworkResources } from '../src/network.ts'
+import type { NetworkConfig, NetworkInternals } from '../src/network.ts'
 import { readSseEvents } from '../src/sse.ts'
 import { startConnectProxy, type ConnectProxy, type ProxyMode } from './support/connect-proxy.ts'
 import {
@@ -52,7 +52,7 @@ function proxied(
   proxyUrl: URL | string,
   overrides: Partial<NetworkConfig> = {},
   observed?: TransportDiagnostic[],
-): NetworkResources {
+): NetworkInternals {
   return network(
     certificate.cert,
     {
@@ -80,10 +80,10 @@ async function within<T>(promise: Promise<T>, ms: number): Promise<T> {
 /** A proxy and its resources; the proxy closes first, so a hung tunnel cannot hold `close()`. */
 async function withProxy(
   mode: ProxyMode,
-  run: (proxy: ConnectProxy) => Promise<NetworkResources | undefined>,
+  run: (proxy: ConnectProxy) => Promise<NetworkInternals | undefined>,
 ): Promise<void> {
   const proxy = await startConnectProxy(mode)
-  let resources: NetworkResources | undefined
+  let resources: NetworkInternals | undefined
   try {
     resources = await run(proxy)
   } finally {

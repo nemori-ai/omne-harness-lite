@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { PiTransportConfig } from '../src/index.ts'
-import { createNetworkResources, type NetworkResources } from '../src/network.ts'
+import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
 import { createTestFamily, END_MARKER, LIMITS, REQUEST, SUPPLIER } from './support/test-family.ts'
 import { collect, countSends, slotFree } from './support/transport.ts'
@@ -14,7 +14,7 @@ const PREPARED_CLOSED_FAILURE = {
 // Nothing listens here; the fast tests never start an exchange.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
 
-const networks: NetworkResources[] = []
+const networks: NetworkInternals[] = []
 const transports: PiTransport[] = []
 
 afterEach(async () => {
@@ -22,15 +22,15 @@ afterEach(async () => {
   await Promise.all(networks.splice(0).map(network => network.close()))
 })
 
-function freshNetwork(): NetworkResources {
-  const network = createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
+function freshNetwork(): NetworkInternals {
+  const network = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
   return network
 }
 
 function configWith(overrides: Partial<PiTransportConfig> = {}): PiTransportConfig {
   return {
-    network: freshNetwork(),
+    network: freshNetwork().handle,
     families: createTestFamily().families,
     routes: { [SUPPLIER.recipient]: { url: ROUTE_URL, endMarker: END_MARKER } },
     credential: { read: () => 'test-secret' },
@@ -72,6 +72,14 @@ describe('constructing the transport', () => {
       expect(() => createPiTransport(configWith(overrides))).toThrow(RangeError)
     },
   )
+
+  it('refuses network resources that the network resources factory did not make', () => {
+    const foreign = { close: () => Promise.resolve() }
+    expect(() =>
+      // @ts-expect-error a structural look-alike is not a network resources handle
+      createPiTransport(configWith({ network: foreign })),
+    ).toThrow(RangeError)
+  })
 
   it('names the field but never the URL in the message', () => {
     const secretUrl = 'https://user:hunter2@127.0.0.1/v1'
@@ -148,11 +156,11 @@ describe('closing a prepared transport while it materializes', () => {
     async gap => {
       const network = freshNetwork()
       const sends = countSends(network)
-      const { transport, probe } = build({ network })
+      const { transport, probe } = build({ network: network.handle })
       const prepared = await transport.prepare(REQUEST, SUPPLIER)
       if (!('ok' in prepared)) throw new Error('expected a prepared transport')
       const pending = prepared.ok.materialize(new AbortController().signal)
-      for (let turn = 0; turn < gap; turn += 1) await null
+      for (let turn = 0; turn < gap; turn += 1) await Promise.resolve()
       const closed = prepared.ok.close()
       const outcome = await pending
       const facts =
@@ -203,7 +211,7 @@ describe('closing the transport', () => {
 
   it('is idempotent and does not close the injected network resources', async () => {
     const network = freshNetwork()
-    const { close } = build({ network })
+    const { close } = build({ network: network.handle })
     const first = close()
     expect(close()).toBe(first)
     await first

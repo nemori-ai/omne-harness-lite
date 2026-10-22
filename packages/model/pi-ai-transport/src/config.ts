@@ -4,7 +4,7 @@ import type { JsonLimits } from '@omne-harness/json-text'
 import type { PiFamilyContributions } from './family.ts'
 import { isPlainHttpsUrl } from './http.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
-import type { NetworkResources } from './network.ts'
+import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
 
 /** One recipient: its complete endpoint and the SSE protocol it answers with. */
 export type PiRoute = Readonly<{
@@ -46,7 +46,7 @@ export type CheckedRoute = Readonly<{ url: URL; endMarker: string | null }>
 
 /** The configuration after its checks. */
 export type CheckedConfig = Readonly<{
-  network: NetworkResources
+  network: NetworkInternals
   families: PiFamilyContributions
   routes: ReadonlyMap<string, CheckedRoute>
   credential: PiCredentialSlot
@@ -67,13 +67,13 @@ const JSON_LIMIT_NAMES = [
  * messages name the field and the rule only, never a URL.
  */
 export function checkConfig(config: PiTransportConfig): CheckedConfig {
-  if (!isObject(config.network)) throw new RangeError('network must be the network resources')
   if (!isObject(config.families) || typeof config.families.acquire !== 'function')
     throw new RangeError('families must have an acquire function')
   if (!isObject(config.credential) || typeof config.credential.read !== 'function')
     throw new RangeError('credential must have a read function')
+  const network = networkInternalsOf(config.network)
   return {
-    network: config.network,
+    network,
     families: config.families,
     routes: checkRoutes(config.routes),
     credential: config.credential,

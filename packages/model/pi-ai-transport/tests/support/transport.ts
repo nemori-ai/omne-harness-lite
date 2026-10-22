@@ -6,7 +6,7 @@ import type {
   TransportFact,
 } from '@omne-harness/model-contract'
 import type { PiCredentialSlot, PiTransportLimits } from '../../src/index.ts'
-import type { NetworkResources } from '../../src/network.ts'
+import type { NetworkInternals } from '../../src/network.ts'
 import { createPiTransport, type PiTransport } from '../../src/transport.ts'
 import {
   createTestFamily,
@@ -22,7 +22,7 @@ import {
  * the in-flight registry in the same synchronous call that hands the request to Node, so the
  * count is exact right after `start` returns.
  */
-export function countSends(network: NetworkResources): () => number {
+export function countSends(network: NetworkInternals): () => number {
   const registry = network.inFlight
   const add = registry.add.bind(registry)
   let sends = 0
@@ -44,7 +44,7 @@ export type TransportUnderTest = PiTransport &
   }>
 
 export function transportOver(
-  network: NetworkResources,
+  network: NetworkInternals,
   options: Readonly<{
     url: string
     credential?: PiCredentialSlot
@@ -54,7 +54,7 @@ export function transportOver(
   const family = createTestFamily()
   const sends = countSends(network)
   const built = createPiTransport({
-    network,
+    network: network.handle,
     families: family.families,
     routes: { [SUPPLIER.recipient]: { url: options.url, endMarker: END_MARKER } },
     credential: options.credential ?? { read: () => 'test-secret' },
@@ -86,7 +86,7 @@ export async function collect(stream: AsyncIterable<TransportFact>): Promise<Tra
 }
 
 /** True when the capacity grants a reservation at once; the reservation goes back right away. */
-export async function slotFree(network: NetworkResources): Promise<boolean> {
+export async function slotFree(network: NetworkInternals): Promise<boolean> {
   const controller = new AbortController()
   const pending = network.capacity.reserve(controller.signal)
   controller.abort()
