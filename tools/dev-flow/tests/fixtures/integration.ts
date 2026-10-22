@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { git } from '../../src/integration/git.ts'
 import { parsePolicy } from '../../src/integration/policy.ts'
-import type { TaskBinding } from '../../src/delivery/binding.ts'
+import { BINDING_MARKERS, type TaskBinding } from '../../src/delivery/binding.ts'
 import type { Decision } from '../../src/integration/authority.ts'
 import type { Condition } from '../../src/delivery/protocol.ts'
 
@@ -105,7 +105,13 @@ export function setStartTag(remote: string, id: string, start: string, message?:
  * A task worktree on `human/task` with a local bare remote that has `main` and the track
  * `integration/runtime`. No adoption descriptor, anchor or tag exists.
  */
-export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
+export function integrationFixture(
+  options: {
+    admissionOnly?: boolean
+    /** Commits this value as docs/engineering/delivery-lines.json with the fixture policy. */
+    lines?: unknown
+  } = {},
+) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-integration-engine-'))),
     root = join(home, 'work'),
     remote = join(home, 'remote.git'),
@@ -137,6 +143,8 @@ export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
       writers: { stage: 'human', body: 'human' },
     }),
   )
+  if (options.lines !== undefined)
+    writeFileSync(join(root, 'docs/engineering/delivery-lines.json'), JSON.stringify(options.lines))
   git(root, ['add', '.'])
   git(root, ['commit', '-m', 'Committed fixture policy'])
   const main = git(root, ['rev-parse', 'HEAD'])
@@ -202,7 +210,8 @@ const issue = {
   state: p.state,
   updated_at: '2026-10-11T00:00:00Z',
   body: p.body,
-  labels: [],
+  labels: (p.labels || []).map(name => ({ name })),
+  ...(p.milestone === undefined ? {} : { milestone: p.milestone }),
 }
 const endpoint = args.at(-1)
 const page = Number(new URLSearchParams(endpoint.split('?')[1]).get('page') || 1)
@@ -376,9 +385,14 @@ process.stdout.write(JSON.stringify(result))
 `,
   )
   chmodSync(join(bin, 'gh'), 0o755)
-  function update(task: TaskBinding, conditions: Condition[] = [], state = 'open') {
+  function update(
+    task: TaskBinding,
+    conditions: Condition[] = [],
+    state = 'open',
+    attributes?: CardAttributeFields,
+  ) {
     const p = JSON.parse(readFileSync(platform, 'utf8'))
-    p.body = body(task, conditions)
+    p.body = body(task, conditions, attributes)
     p.state = state
     writeFileSync(platform, JSON.stringify(p))
   }
@@ -412,8 +426,22 @@ process.stdout.write(JSON.stringify(result))
     authority,
   }
 }
-export function body(binding: TaskBinding, conditions: Condition[] = []): string {
+/** The「身份与责任」attribute lines of a fixture card; the section is omitted without them. */
+export type CardAttributeFields = { line: string; nature: string; contractChange: string }
+export function body(
+  binding: TaskBinding,
+  conditions: Condition[] = [],
+  attributes?: CardAttributeFields,
+): string {
   return [
+    ...(attributes === undefined
+      ? []
+      : [
+          '## 身份与责任',
+          `- 交付线：${attributes.line}`,
+          `- 性质：${attributes.nature}`,
+          `- 契约变更：${attributes.contractChange}`,
+        ]),
     `- 交付层级：delivery`,
     '- 主工作类型：maintenance',
     `- 交付修订：${binding.revision}`,
@@ -437,6 +465,6 @@ export function body(binding: TaskBinding, conditions: Condition[] = []): string
           )
           .join('\n'),
     '## 当前执行与交接',
-    `\`\`\`json omne-integration-binding:v1\n${JSON.stringify(binding)}\n\`\`\``,
+    `\`\`\`json ${BINDING_MARKERS[binding.schemaVersion]}\n${JSON.stringify(binding)}\n\`\`\``,
   ].join('\n')
 }

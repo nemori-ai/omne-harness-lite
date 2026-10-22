@@ -2,7 +2,9 @@ import { bindCapture, conditionKinds, phases, workKinds } from './protocol.ts'
 import { parseConditionScope, readTaskBinding } from './binding.ts'
 import { bodyFields as fields, bodySections as sections } from './body.ts'
 import { IntegrationError } from '../integration/parse.ts'
+import { readCardAttributes, type ConditionCard } from './attributes.ts'
 import type {
+  CapturedIssue,
   CardObservation,
   Condition,
   DeliveryCapture,
@@ -678,4 +680,26 @@ export function isDeliveryCardBody(body: string): boolean {
 
 export function declaredIssueParents(body: string): string[] {
   return fields(body).get('父交付卡') ?? []
+}
+
+/** The card's conditions that target an Issue, with that Issue's attributes when it is a read card. */
+export function conditionCardsOf(
+  conditions: readonly Condition[],
+  issues: ReadonlyMap<string, CapturedIssue>,
+): ConditionCard[] {
+  return conditions.flatMap(condition => {
+    const target = issueUrl(condition.target)
+    if (target === null) return []
+    const issue = issues.get(target)
+    return [
+      {
+        condition: condition.id,
+        target,
+        card:
+          issue === undefined || !isDeliveryCardBody(issue.body)
+            ? undefined
+            : readCardAttributes(issue.body, issue),
+      },
+    ]
+  })
 }
