@@ -37,4 +37,6 @@ node --experimental-strip-types tools/dev-flow/src/package-exports/cli.ts packag
 
 本工具只核对导出与导航。行为、契约语义和文档正文的接受不由它判断。
 
-仅重导出类型时，使用显式名字（`export type { Name }`）。公共编译器 API 不保留星号重导出的类型专用来源。可达声明使用 `export type *` 时，CLI 返回 `cannot-check` 并退出 2，不把这些名字误报为运行值。
+仅重导出类型时，使用显式名字（`export type { Name }`）。公共编译器 API 不保留星号重导出的类型专用来源。公开入口的重导出链使用 `export type *` 时，CLI 返回 `cannot-check` 并退出 2，不把这些名字误报为运行值。
+
+仅通过 import 使用依赖类型，不会转发依赖的公开名字；工具不因该依赖内部的类型星号重导出而拒绝核对本包。

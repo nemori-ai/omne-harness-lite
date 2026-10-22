@@ -116,14 +116,26 @@ function openProgram(
   // The public compiler API loses type-only provenance for star exports. Refuse that
   // syntax instead of reporting a type-only export as a runtime value. Named type exports
   // retain their alias declarations and are checked below.
-  for (const file of program.getSourceFiles())
-    for (const statement of file.statements)
-      if (
-        ts.isExportDeclaration(statement) &&
-        statement.isTypeOnly &&
-        statement.exportClause === undefined
-      )
+  const visited = new Set<ts.SourceFile>()
+  function checkReExports(file: ts.SourceFile): void {
+    if (visited.has(file)) return
+    visited.add(file)
+    for (const statement of file.statements) {
+      if (!ts.isExportDeclaration(statement)) continue
+      if (statement.isTypeOnly && statement.exportClause === undefined)
         throw new Error(`${file.fileName}: type-only star exports are not supported; use named type exports`)
+      // Imported types may refer to a dependency with a different export style. Only
+      // forwarding its exports changes this entry's public names.
+      if (statement.moduleSpecifier === undefined) continue
+      const dependency = checker.getSymbolAtLocation(statement.moduleSpecifier)
+      for (const declaration of dependency?.declarations ?? [])
+        if (ts.isSourceFile(declaration)) checkReExports(declaration)
+    }
+  }
+  for (const path of Object.values(declarations)) {
+    const file = program.getSourceFile(path)
+    if (file !== undefined) checkReExports(file)
+  }
   const modules = new Map<string, ReadonlyMap<string, ts.Symbol>>()
   for (const [entry, path] of Object.entries(declarations))
     modules.set(entry, moduleExports(program, checker, path))
