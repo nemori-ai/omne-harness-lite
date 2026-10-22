@@ -192,7 +192,7 @@ describe('an OpenAI message in an Anthropic request', () => {
     })
   })
 
-  it('foreign thinking under the rule text goes out as plain text, without its state', async () => {
+  it('foreign thinking under the rule text goes out as plain text and is metered, without its state', async () => {
     const { result } = await encoded(SONNET, {
       messages: history(SONNET),
       declaration: { ...declarationOf(SONNET), foreignThinking: 'text' },
@@ -207,6 +207,8 @@ describe('an OpenAI message in an Anthropic request', () => {
       ],
     })
     expect(writeJsonText(result.ok.body)).not.toContain('openai-cipher')
+    // The meter counts what goes out: the thinking text is in the token input.
+    expect(writeJsonText(result.ok.representation.tokenInput)).toContain('openai private summary')
   })
 })
 

@@ -7,6 +7,7 @@ import { writeJsonText } from '@omne-harness/json-text'
 import { projectReplay, judgeReplayDeclaration } from '@omne-harness/model-contract'
 import {
   bindingOf,
+  declarationOf,
   fixedRequest,
   message,
   recordNamed,
@@ -73,6 +74,35 @@ describe('an Anthropic message in an OpenAI request', () => {
     const text = writeJsonText(encoded.ok.body)
     expect(text).not.toContain('claude-signed-group')
     expect(text).not.toContain('claude private thinking')
+    await binding.release()
+  })
+
+  it('foreign thinking under the rule text goes out as text and the token input counts it', async () => {
+    const binding = await bindingOf(SOL)
+    const request = fixedRequest(SOL, {
+      messages: HISTORY,
+      declaration: { ...declarationOf(SOL), foreignThinking: 'text' },
+    })
+    const encoded = binding.encode(encodeInput(request))
+    if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
+    const body: unknown = JSON.parse(writeJsonText(encoded.ok.body))
+    expect(body).toMatchObject({
+      messages: [
+        {},
+        {},
+        {},
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'claude private thinking' },
+            { type: 'text', text: 'claude answer' },
+          ],
+        },
+        {},
+      ],
+    })
+    // The meter counts what goes out: the thinking text is in the token input.
+    expect(writeJsonText(encoded.ok.representation.tokenInput)).toContain('claude private thinking')
     await binding.release()
   })
 

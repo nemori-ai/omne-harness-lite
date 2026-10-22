@@ -326,19 +326,27 @@ function assistantMessage(
           case 'omit':
             continue
           case 'text':
-            if (block.text.length > 0) parts.push({ type: 'text', text: block.text })
-            break
+            // Written as a text part, so the meter sees a text part: what goes out is metered.
+            if (block.text.length > 0) {
+              parts.push({ type: 'text', text: block.text })
+              blocks.push({
+                kind: 'text',
+                id: block.id,
+                visibility: block.visibility,
+                text: block.text,
+              })
+            }
+            continue
           case 'native':
           case 'adapter':
             thinking.push(block.text)
-            break
+            blocks.push(block)
+            continue
           default: {
             const _exhaustive: never = thinkingRule
             return _exhaustive
           }
         }
-        blocks.push(block)
-        continue
       case 'tool_call':
       case 'tool_call_unparsed': {
         const args = block.kind === 'tool_call' ? writeJsonText(block.arguments) : block.raw

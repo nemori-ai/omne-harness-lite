@@ -248,7 +248,10 @@ export type ProjectedTurn = Readonly<{
   /** The log message this wire message comes from. Tool-result images keep their tool message. */
   message: ChatMessageId
   role: 'system' | 'developer' | 'user' | 'assistant' | 'tool'
-  /** The parts that the wire message carries, without reasoning state parts. */
+  /**
+   * The parts that the wire message carries, without reasoning state parts. A thinking block that
+   * the foreign-thinking rule `text` writes as text is here as a text block.
+   */
   blocks: readonly ProjectedPart[]
   replay: ReplayWire
 }>

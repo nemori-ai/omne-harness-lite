@@ -77,7 +77,9 @@ function partsJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue | und
         content.push(obj({ type: str('text'), text: str(part.text) }))
         break
       case 'image':
-        content.push(obj({ type: str('image_url'), image_url: obj({ url: str(IMAGE_PLACEHOLDER) }) }))
+        content.push(
+          obj({ type: str('image_url'), image_url: obj({ url: str(IMAGE_PLACEHOLDER) }) }),
+        )
         break
       case 'tool_call':
         calls.push(call(part.callId, part.name, writeJsonText(part.arguments)))
@@ -88,7 +90,8 @@ function partsJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue | und
       case 'tool_result':
         toolCallId = str(part.callId)
         break
-      // Thinking goes out through the replay member only; the record omits foreign thinking.
+      // A thinking part goes out through the replay member only. Foreign thinking that the
+      // projection writes as text reaches the meter as a text part.
       case 'thinking':
       case 'tool_call_incomplete':
       case 'voice':
@@ -344,7 +347,8 @@ function measure(
   if (representation.kind === 'pending-media')
     return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
   const content = contentOf(representation.tokenInput)
-  if (content === null) return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
+  if (content === null)
+    return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
   if (content.opaque) return unavailable('signed-reasoning-not-countable')
   const images = imageTokens(record, content.images, representation.media)
   if (!('ok' in images)) return images

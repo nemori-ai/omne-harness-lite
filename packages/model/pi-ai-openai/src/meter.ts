@@ -81,7 +81,8 @@ function partJson(part: ProjectedPart, detail: string): JsonValue | null {
       })
     case 'tool_result':
       return obj({ type: str('tool_result'), id: str(part.callId) })
-    // Thinking goes out through the replay member only; the record omits foreign thinking.
+    // A thinking part goes out through the replay member only. Foreign thinking that the
+    // projection writes as text reaches the meter as a text part.
     case 'thinking':
     case 'tool_call_incomplete':
     case 'voice':
@@ -102,7 +103,11 @@ function replayJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue>> {
       return { reasoning: str(turn.replay.text) }
     case 'details':
       // Only the count: ciphertext has no text to count.
-      return { reasoning_details: obj({ opaque: { kind: 'number', lexeme: String(turn.replay.details.length) } }) }
+      return {
+        reasoning_details: obj({
+          opaque: { kind: 'number', lexeme: String(turn.replay.details.length) },
+        }),
+      }
     default: {
       const _exhaustive: never = turn.replay
       return _exhaustive
@@ -215,7 +220,8 @@ function imageTokens(
   let total = 0n
   for (const [index, fact] of facts.entries()) {
     const image = images[index]
-    if (fact.kind !== 'image' || image === undefined) return unavailable('image-measurement-missing')
+    if (fact.kind !== 'image' || image === undefined)
+      return unavailable('image-measurement-missing')
     const tokens = rule({
       width: Number(fact.widthPixels),
       height: Number(fact.heightPixels),
@@ -341,11 +347,14 @@ function measure(
   if (representation.kind === 'pending-media')
     return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
   const content = contentOf(representation.tokenInput)
-  if (content === null) return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
+  if (content === null)
+    return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
   if (content.opaque) return unavailable('encrypted-reasoning-not-countable')
   const images = imageTokens(record, content.images, representation.media)
   if (!('ok' in images)) return images
-  const counted = tokenizer.count([{ kind: 'text', text: writeJsonText(representation.tokenInput) }])
+  const counted = tokenizer.count([
+    { kind: 'text', text: writeJsonText(representation.tokenInput) },
+  ])
   if (!('ok' in counted))
     return {
       failure: { kind: 'unavailable', dependency: 'tokenizer', diagnostic: counted.failure.kind },

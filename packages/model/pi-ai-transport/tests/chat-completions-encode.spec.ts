@@ -471,12 +471,23 @@ describe('encode: replay', () => {
     ])
   })
 
-  it('writes foreign thinking as text when the declaration of the request says text', () => {
+  it('writes foreign thinking as text when the declaration of the request says text, and meters it as text', () => {
     const record = testRecord()
+    const probe = engineProbe()
     const declaration: ReplayDeclaration = { ...declarationOf(record), foreignThinking: 'text' }
     const messages = messagesOf(
-      encode(record, { messages: [assistant('gateway/other'), follow], declaration }),
+      encode(record, { messages: [assistant('gateway/other'), follow], declaration }, probe),
     )
+    // The meter gets what goes out: the thinking block as a text block, no thinking block.
+    expect(
+      probe.views[0]?.turns[0]?.blocks.map(block => [
+        block.kind,
+        'text' in block ? block.text : null,
+      ]),
+    ).toEqual([
+      ['text', 'pondering'],
+      ['text', 'answer'],
+    ])
     expect(messages).toEqual([
       {
         role: 'assistant',
