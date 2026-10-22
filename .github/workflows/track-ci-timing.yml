@@ -13,12 +13,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - sample: main-sync
-            head: ef215b6ef3a2421ff11d14ac6235c9bd71210b23
-          - sample: sync-combination
-            head: 188a75946cc275719c4b644c24fcbc59df688e6b
-          - sample: sync-followup
+          - sample: completed-414-sync
             head: 6dd1fefa1dcb6646d4221d01767220e2bfc04b05
+            base: 9b161b8ad1d27d8ab1146e20c06e5d2b4445e64c
+          - sample: latest-track-to-main
+            head: c00643a46c4b2b63b4be50d37689ff4974132eeb
+            base: 93b6235ef319938235648724ef959ff53884d2eb
     env:
       OMNE_ADMISSION: '1'
       TURBO_TELEMETRY_DISABLED: '1'
@@ -39,7 +39,7 @@ jobs:
           enable-cache: false
       - name: Record coordinates and host
         run: |
-          echo "BASELINE=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          echo "BASELINE=${{ matrix.base }}" >> "$GITHUB_ENV"
           git show -s --format=fuller HEAD
           node --version
           pnpm --version
