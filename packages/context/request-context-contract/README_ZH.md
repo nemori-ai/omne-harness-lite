@@ -14,7 +14,7 @@ Request Context 的纯契约成员，`module` 变体。
 - 验证：导出清单、纯行为与好坏实现契约用例。
 - 生产集成、真实持久化、模型兼容和性能不由本契约成员证明。
 
-现在没有包依赖本成员。协调者一侧的适配器还没有建立，见[使用与定位](docs/context.md#现在的真实消费者)。
+已实现的 `request-context-cordis-contract` 依赖本成员。协调者一侧的适配器还没有建立，见[使用与定位](docs/context.md#现在的真实消费者)。
 
 ## 使用
 
@@ -40,7 +40,7 @@ Request Context 的纯契约成员，`module` 变体。
 
 ## 设计
 
-根入口按十个模块组织：输入与候选的值类型、投影、提示词组装、声明投影、放置、表示选择、预算裁定、组装与覆盖证据、计划与步、历史源与策略端口。依赖单向。包外依赖是 model-contract、tool-contract、content-block、message 与 runtime-context-contract 的公开值，依赖已在 `package.json` 声明。模块切分与设计理由见[内部架构](docs/architecture.md)，六条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+源码按值类型、输入校验、投影、提示词组装、工具声明、放置、表示选择、预算、组装阶段、压缩计划与步、依赖端口分别组织。依赖单向。包外依赖是 model-contract、tool-contract、content-block、message 与 runtime-context-contract 的公开值，依赖已在 `package.json` 声明。模块切分与设计理由见[内部架构](docs/architecture.md)，六条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

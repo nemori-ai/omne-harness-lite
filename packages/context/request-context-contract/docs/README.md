@@ -20,7 +20,7 @@
 
 | 专题 | 本成员里承载什么 |
 | --- | --- |
-| [architecture.md](architecture.md) | 根入口的十个模块、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
+| [architecture.md](architecture.md) | 源码模块与组装阶段、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-RQ01 至 F-RQ06 六条协议级流程，以及共用的失败与生命周期规则 |
 | [object-model.md](object-model.md) | 对象的身份、拥有者、生命周期、状态与对象层的 SOLID 选择 |
 | [public-api.md](public-api.md) | 导出入口，以及已实现的值类型、纯操作、端口与常量索引 |

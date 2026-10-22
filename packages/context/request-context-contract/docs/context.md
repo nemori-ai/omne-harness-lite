@@ -215,7 +215,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 ### 现在的真实消费者
 
-现在没有包依赖本成员，也没有包导入它的根入口。协调者一侧已有契约定义了需要本成员行为的端口，见[字段对应](#字段对应)，但适配器包还没有建立，见上一节。组内的 request-context-cordis-contract、request-context 与 request-context-cordis 依赖本成员，它们的依赖随各自的实现进入。
+已实现的 request-context-cordis-contract 依赖本成员的公开类型。协调者一侧已有契约定义了需要本成员行为的端口，见[字段对应](#字段对应)，但适配器包还没有建立，见上一节。request-context 与 request-context-cordis 的生产实现仍待完成，不能据契约依赖声称托管路径已运行。
 
 ### 上层页面
 

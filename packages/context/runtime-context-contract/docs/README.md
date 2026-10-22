@@ -23,8 +23,8 @@
 | [architecture.md](architecture.md) | 根入口的七个模块、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-RC01 至 F-RC08 八条协议级流程，以及共用的失败与生命周期规则 |
 | [object-model.md](object-model.md) | 对象的身份、拥有者、生命周期、状态与对象层的 SOLID 选择 |
-| [public-api.md](public-api.md) | 现有导出与随实现进入的导出两张索引 |
+| [public-api.md](public-api.md) | 按模块组织的公开定义索引 |
 | [context.md](context.md) | 独立消费路径、邻域交接与上层页面指针 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-当前缺口：SPEC 点名的大部分类型与五个纯函数还不在 `src/` 里，见[公开接口页](public-api.md#定义索引)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+公开类型、纯操作、Schema 与测试支持已进入 `src/`，见[公开接口页](public-api.md#定义索引)。生产存储、持久恢复及具体提供者的义务仍归实现成员。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

@@ -75,7 +75,7 @@ coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型
 | [message](../../../common/message/README.md)                         | 消息、提醒角色、`ToolInternalMessage`、压缩记录 `CompactionMessage` 与模型视图规则 |
 | [runtime-context-contract](../../runtime-context-contract/README.md) | 模型侧读取结果的类型与块声明的 `volatility`                                        |
 
-本成员不导入 `@deepseek-ai/cordis`，见 [Cordis 说明](cordis.md)。本成员不导入任何协调者或历史持有者的契约。它们依赖本成员，反方向不成立。现在没有包依赖本成员，见[使用与定位](context.md#现在的真实消费者)。
+本成员不导入 `@deepseek-ai/cordis`，见 [Cordis 说明](cordis.md)。本成员不导入任何协调者或历史持有者的契约。它们依赖本成员，反方向不成立。已实现的 request-context-cordis-contract 依赖本成员的公开类型，见[使用与定位](context.md#现在的真实消费者)。
 
 ## 关键机制与理由
 
@@ -143,7 +143,7 @@ coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型
 | 保证                       | 现在的验证                                                                   | 后续义务                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | 根入口的运行导出与清单一致 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 比较构建导出与导出清单 | 与公开接口导航同步维护                                                           |
-| SPEC 的行为条款            | 没有                                                                         | SPEC 的[持续验证义务](../SPEC.md#rq-11-持续验证与未覆盖)，随纯操作与实现成员进入 |
+| SPEC 的行为条款 | 纯操作测试与公开符合性套件，逐行见 [RQ-11 对照](../verification/rq11.md) | 生产集成、持久状态与真实依赖的剩余义务见 [持续验证](../SPEC.md#rq-11-持续验证与未覆盖) |
 | 有缓存与无缓存同输入同结果 | 没有                                                                         | 由 [request-context](../../request-context/README.md) 的实现与测试承担           |
 
 维护规则：
