@@ -4,8 +4,8 @@
 
 | 资源 | 层与范围 |
 | --- | --- |
-| `mutation-guard.spec.ts` | 快层。公开 TestRunner 的 this、参数、结果与生命周期透传；第一次拒绝直接报告 Error；全原始报告的 RuntimeError 门槛与形状校验。 |
-| `mutation.spec.ts` | 快层检查范围、配置与报告。慢层启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，覆盖普通存活、Killed、文件收集错误与深层 suite 自身错误、预检、多 worker、同 out 重跑及旧报告留存。 |
+| `mutation-guard.spec.ts` | 快层。公开 TestRunner 的 this、参数、结果与生命周期透传；声明不能在进程内重载；第一次拒绝直接报告 Error；全原始报告的 RuntimeError 门槛与形状校验。 |
+| `mutation.spec.ts` | 快层检查范围、配置与报告，含 static 超时的分类。慢层启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，覆盖普通存活、Killed、文件收集错误与深层 suite 自身错误、预检、static 运行的类型测试、可控耗时注入下的 static 超时、多 worker、同 out 重跑及旧报告留存。 |
 
 在仓库根运行，重验证须通过共享槽：
 

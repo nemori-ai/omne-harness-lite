@@ -30,7 +30,7 @@ const options: MutantRunOptions = {
 function runner() {
   const result = { status: MutantRunStatus.Survived, nrOfTests: 1 } satisfies MutantRunResult
   const dryResult = { status: DryRunStatus.Complete, tests: [] } satisfies DryRunResult
-  const capabilities = { reloadEnvironment: false }
+  const capabilities = { reloadEnvironment: true }
   const calls: string[] = []
   const original: TestRunner = {
     capabilities() {
@@ -63,15 +63,37 @@ function runner() {
 }
 
 describe('public TestRunner delegation', () => {
-  it('preserves this, options, capabilities, lifecycle and normal result identity', async () => {
+  it('preserves this, options, lifecycle and normal result identity', async () => {
     const fixture = runner()
     const wrapped = guardMutantRun(fixture.original)
-    expect(wrapped.capabilities()).toBe(fixture.capabilities)
+    await wrapped.capabilities()
     await wrapped.init?.()
     expect(await wrapped.dryRun(dryOptions)).toBe(fixture.dryResult)
     expect(await wrapped.mutantRun(options)).toBe(fixture.result)
     await wrapped.dispose?.()
     expect(fixture.calls).toEqual(['capabilities', 'init', 'dryRun', 'mutantRun', 'dispose'])
+  })
+
+  // Vitest reports type tests only on the first start of an instance; the upstream runner reuses its instance
+  // although it claims to reload. Without a real reload, static runs after the dry run silently lose type tests.
+  it('declares no in-process reload, so Stryker restarts the worker before each static mutant (#649)', async () => {
+    const { original } = runner()
+    await expect(guardMutantRun(original).capabilities()).resolves.toEqual({
+      reloadEnvironment: false,
+    })
+    original.capabilities = async () => ({ reloadEnvironment: true })
+    await expect(guardMutantRun(original).capabilities()).resolves.toEqual({
+      reloadEnvironment: false,
+    })
+  })
+
+  it('does not hide capabilities failure', async () => {
+    const { original } = runner()
+    const failure = new Error('capabilities')
+    original.capabilities = () => {
+      throw failure
+    }
+    await expect(guardMutantRun(original).capabilities()).rejects.toBe(failure)
   })
 
   it('turns the first rejection into Error without retrying a runner that would recover', async () => {

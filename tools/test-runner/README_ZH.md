@@ -173,14 +173,41 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 - **读数**：读每个成员的 `mutation.json`，只计落在要变异的行上的变异体（跨到范围外的另记一个数），
   汇总被杀、超时、存活、无覆盖、编译错误、运行错误与分数（测出来的占测出来与没测出来之和），
   逐条列出存活与无覆盖的「文件:行 算子 原文 → 替换」。报成存活、有用例覆盖、却一条用例都没跑完的变异体另列为
-  「没跑测试」，不计入各状态与分数：这是运行器没跑测试，不是测试没测出来。原件、`summary.md`、`summary.json`、各成员日志与预检没通过的成员的 `<成员>.preflight-failed` 标记写进
+  「没跑测试」，不计入各状态与分数：这是运行器没跑测试，不是测试没测出来。
+  只因时限到了而超时的 static 变异体另列为「static 超时」，同样不计入各状态与分数，规则见下文「超时的计分」。原件、`summary.md`、`summary.json`、各成员日志与预检没通过的成员的 `<成员>.preflight-failed` 标记写进
   主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
 
 **只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `pnpm run check`；Stryker 起不来、sandbox 预检没通过、
-初跑失败、没写出报告、有 RuntimeError 或「没跑测试」的变异体时退出 1；参数错退出 2。
+初跑失败、没写出报告、有 RuntimeError、「没跑测试」或「static 超时」的变异体时退出 1；参数错退出 2。
 
 变异期间的 reporter 检查文件收集错误与深层 suite 自身错误，不读取普通断言错误。发现错误时抛出包含原文件、suite 与错误栈的诊断。
-`omne-vitest` 委托公开的 Vitest runner factory，保留 capabilities、init、dryRun 与 dispose。底层 mutantRun 拒绝时，包装器直接返回 Error，避免恢复重试掩盖这次失败。
+`omne-vitest` 委托公开的 Vitest runner factory，保留 init、dryRun 与 dispose。底层 mutantRun 拒绝时，包装器直接返回 Error，避免恢复重试掩盖这次失败。
+
+**超时的计分**（#649，负责人 2026-10-22 授权改变计分规则）。Stryker 给每个变异体的运行一个时限：
+`timeoutFactor × 净耗时 + timeoutMS + 初跑的额外开销`，缺省 `timeoutFactor` 为 1.5、`timeoutMS` 为 5000 毫秒。
+static 变异体要跑全部测试，净耗时取初跑全部用例的耗时。初跑只有一个工作进程，变异时几个工作进程同时冷启动，
+机器负载高时 static 运行就会超过这个时限。超时的变异体没有测试结论，真实存活也会被记成超时。
+
+| 情形 | 旧规则 | 新规则 |
+| --- | --- | --- |
+| 非 static 变异体超时 | 算测出来，计入分数 | 不变 |
+| static 变异体超时，原因是命中次数超限 | 算测出来，计入分数 | 不变：变异让被变异的代码比初跑多执行上百倍，是变异造成的 |
+| static 变异体超时，原因是时限到了 | 算测出来，计入分数，退出 0 | 另列为「static 超时」，不计入各状态与分数；入口判为测量无效，退出 1 |
+
+区分两种超时依据原始报告的 `static` 与 `statusReason`。命中次数超限时，`@stryker-mutator/api` 10.0.0 的
+`determineHitLimitReached` 给出以 `Hit limit reached` 开头的原因。时限到了时，`@stryker-mutator/core` 10.0.0 的
+`TimeoutDecorator` 只报 Timeout，没有原因。出现「static 超时」时，降低并发（`VITEST_MAX_WORKERS`）或在机器空闲时复跑。
+模块加载时就死循环的 static 变异体同样是时限到了而超时，也记作「static 超时」。这一类少见，按测量无效处理。
+非 static 变异体的时限只按碰到它的用例算净耗时，另加初跑的全部额外开销，余量大，所以超时仍算测出来。
+
+**类型测试不缺席**（#649）。上游 vitest runner 10.0.0 声明能在进程内重载环境，实际在同一个工作进程里复用一个 Vitest 实例。
+Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型测试，之后的运行直接返回第一次的结果，不报告类型测试。
+所以初跑之后同一进程里的 static 运行静默少了全部类型测试，原生 runner 也一样。model-contract 上的表现是 testsCompleted 为 1009，初跑为 1128，少了 119 项。
+`omne-vitest` 因此声明不能在进程内重载（`TestRunnerCapabilities.reloadEnvironment` 为 false）。
+Stryker 的 `ReloadEnvironmentDecorator` 就在每个 static 变异体之前、以及 static 之后的第一个非 static 变异体之前重启工作进程。
+每次 static 运行都与初跑一样从新的 Vitest 实例开始，跑同样的测试，含类型测试。
+代价是每个 static 变异体多一次工作进程启动与冷启动：model-contract 上两个 static 变异体、一个工作进程时，总耗时从 109 秒变为 117 秒。
+类型测试不随变异体改变结果：tsc 读的是含全部变异体的同一份插桩源码，变异体只在运行时激活。补回它们是为了让运行与初跑一致，不改变判定。
 原始 JSON 中任何 RuntimeError 都使整个成员测量无效，包括目标行外的错误；该成员不进入 `summary.members`。这是保守政策，RuntimeError 不必然表示设施缺陷，也不能改算成 Killed。
 诊断保留在原始 JSON 的 statusReason 与成员日志中。上游没生成报告时如实失败。正常 Killed、Survived 与 Timeout 的算法不变，CompileError 单独存在不触发此政策。
 复用 `--out` 时，旧原始报告移入独占的 `<成员>.history-*` 目录。本轮必须生成新报告。报告留存失败，或 `summary.json`、`summary.md` 写入失败时，CLI 必须非零退出。旧分数不重算，使用原命令与基线复跑取得新读数。
@@ -191,7 +218,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 | --- | --- |
 | 公开类型已导出 | 不适用。本次行为由内部 CLI 提供，不发布产品包类型。 |
 | 纯契约函数已实现 | 不适用。本次没有新增产品契约函数。 |
-| 独立执行已实现 | mutation CLI 对容器自身错误与原始 RuntimeError 使整成员无效并非零退出；报告留存或 summary 写入失败同样非零。复跑入口及验证范围见[测试说明](tests/README.md)。 |
+| 独立执行已实现 | mutation CLI 对容器自身错误与原始 RuntimeError 使整成员无效并非零退出；「static 超时」不计分并非零退出；报告留存或 summary 写入失败同样非零。复跑入口及验证范围见[测试说明](tests/README.md)。 |
 | runtime 已实现的路径 | 不适用。本工具是研发 CLI，没有 Tool runtime 路径。 |
 | 尚未交付的宿主与提供者 | 没有新增产品宿主或提供者。包装器外的 child crash、OOM 与代理断连不在本次拒绝转换保证内。 |
 
@@ -205,10 +232,16 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   一致性套件守着）会显示为无覆盖，那是变异的盲区，不是这份代码没人测。
 - 包装器只捕获 child 内底层 mutantRun 的拒绝。包装器外的 child crash、OOM、代理断连仍可能被 Stryker 重试，不在本次保证内。
 - 预检读的是插过桩的源码与构建后的 dist。逐个变异体才触发的文件收集错误或 suite 自身错误由 reporter 检查，普通断言失败仍按 Killed 处理。
+- 变异让某个测试文件注册 0 项用例、而这份文件本身没有出错时（比如 `for (const name of names())` 中的 `names()` 返回空数组），
+  这份文件通过，变异体记为存活。Vitest 自己对这次运行的结论也是通过，这不是收集错误，是测试没守住这处代码。
+  `CollectionReporter` 只把文件或 suite 自身的错误判为测量无效，不改判这种情形。
+- 非 static 变异体只因时限到了而超时时，仍算测出来（见上文「超时的计分」）。机器负载极高时，这类超时也可能不是变异造成的。
 
 自测：`tests/mutation.spec.ts`，其中一条在夹具项目上真起 Stryker（归慢层）：没断言的测试留下存活变异体，
 在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox；有测试文件只在 sandbox 里加载失败时，
 预检报错、不出读数，类型断言照常通过也一样；只在 `threads` 池里加载失败的文件同样被拦下；
-`--out` 目录里留着上一次的预检标记时，这一次照常出读数；快层没有用例时预检通过、由 Stryker 报错。
+`--out` 目录里留着上一次的预检标记时，这一次照常出读数；快层没有用例时预检通过、由 Stryker 报错；
+一个工作进程时 static 变异体的运行与初跑跑同样数目的测试，含类型测试；可控的耗时注入使 static 运行超过时限时，
+这个变异体记为「static 超时」、不计分，入口退出 1，非 static 变异体照常计分。
 
-公开委托、第一次拒绝与生命周期失败的快层验证见 `tests/mutation-guard.spec.ts`。静态部分收集错误、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation.spec.ts`。
+公开委托、不能在进程内重载的声明、第一次拒绝与生命周期失败的快层验证见 `tests/mutation-guard.spec.ts`。静态部分收集错误、static 超时、static 运行的类型测试、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation.spec.ts`。

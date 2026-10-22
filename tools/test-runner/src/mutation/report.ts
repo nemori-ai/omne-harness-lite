@@ -1,7 +1,10 @@
 // 读 Stryker 的 JSON 报告（mutation-testing-report-schema 1.x），只留落在要变异的行上的变异体，按成员汇总。
 import { withinTarget, type MutationTarget } from './scope.ts'
 
-/** 报告里的变异体状态；被杀与超时算测出来了，存活与无覆盖算没测出来，其余不计分。 */
+/**
+ * 报告里的变异体状态；被杀与超时算测出来了，存活与无覆盖算没测出来，其余不计分。
+ * 例外：static 变异体只因时限到了而超时的，不计分，另列为「static 超时」（#649，见 `staticWallClockTimeout`）。
+ */
 export const MUTANT_STATUSES = [
   'Killed',
   'Timeout',
@@ -30,6 +33,8 @@ export interface ReportMutant {
   readonly testsCompleted?: number
   /** 初跑时覆盖到它的用例。 */
   readonly coveredBy?: readonly string[]
+  /** Stryker 给的原因；超时的变异体只有命中次数超限时才有。 */
+  readonly statusReason?: string
 }
 
 export interface MutationReport {
@@ -69,6 +74,7 @@ function isReportMutant(value: unknown): value is ReportMutant {
       (typeof value['testsCompleted'] === 'number' &&
         Number.isInteger(value['testsCompleted']) &&
         value['testsCompleted'] >= 0)) &&
+    (value['statusReason'] === undefined || typeof value['statusReason'] === 'string') &&
     (value['coveredBy'] === undefined ||
       (Array.isArray(value['coveredBy']) && value['coveredBy'].every(id => typeof id === 'string')))
   )
@@ -111,6 +117,11 @@ export interface MemberMutation {
    * 不计入各状态与分数，入口把它判为运行出错。
    */
   readonly notRun: readonly Finding[]
+  /**
+   * 跑全部测试时超过了 Stryker 时限的 static 变异体：时限按初跑估出，跑得慢说明不了测试测出了它（#649）。
+   * 不计入各状态与分数，入口把它判为测量无效。
+   */
+  readonly staticTimeout: readonly Finding[]
   /** 报告里有、却不在要变异的行上的变异体（跨行的表达式等）；不计入上面各项。 */
   readonly outside: number
 }
@@ -149,11 +160,30 @@ function ranNoTests(mutant: ReportMutant): boolean {
   )
 }
 
+/**
+ * Stryker 命中次数超限判出的超时带这个原因（@stryker-mutator/api 10.0.0 的 `determineHitLimitReached`）：
+ * 变异让被变异的代码比初跑多执行了上百倍，是变异造成的，照旧算测出来。时限到了的超时没有原因。
+ */
+const HIT_LIMIT_REASON = 'Hit limit reached'
+
+/**
+ * static 变异体只因时限到了而超时（#649）。它要跑全部测试，时限是初跑的总耗时加余量，
+ * 并发的工作进程同时冷启动、或机器负载高时就会超过；真实存活也会被记成超时，所以不能算测出来。
+ */
+function staticWallClockTimeout(mutant: ReportMutant): boolean {
+  return (
+    mutant.status === 'Timeout' &&
+    mutant.static === true &&
+    !(mutant.statusReason?.startsWith(HIT_LIMIT_REASON) ?? false)
+  )
+}
+
 export function summarizeMember(target: MutationTarget, report: MutationReport): MemberMutation {
   const counts = zeroCounts()
   const survived: Finding[] = []
   const noCoverage: Finding[] = []
   const notRun: Finding[] = []
+  const staticTimeout: Finding[] = []
   let outside = 0
   for (const [local, file] of Object.entries(report.files)) {
     const path = `${target.member.path}/${local}`
@@ -174,6 +204,10 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
         notRun.push(finding())
         continue
       }
+      if (staticWallClockTimeout(mutant)) {
+        staticTimeout.push(finding())
+        continue
+      }
       counts[mutant.status] += 1
       if (mutant.status === 'Survived') survived.push(finding())
       else if (mutant.status === 'NoCoverage') noCoverage.push(finding())
@@ -189,6 +223,7 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
     survived: survived.sort(byPlace),
     noCoverage: noCoverage.sort(byPlace),
     notRun: notRun.sort(byPlace),
+    staticTimeout: staticTimeout.sort(byPlace),
     outside,
   }
 }
@@ -201,18 +236,23 @@ const describeFinding = (finding: Finding) =>
 export function memberLines(result: MemberMutation, detail: boolean): string[] {
   const { counts } = result
   const notRun = result.notRun.length
-  const total = MUTANT_STATUSES.reduce((sum, status) => sum + counts[status], 0) + notRun
+  const staticTimeout = result.staticTimeout.length
+  const total =
+    MUTANT_STATUSES.reduce((sum, status) => sum + counts[status], 0) + notRun + staticTimeout
   const lines = [
     `${result.member}：变异体 ${total} 个——` +
       `被杀 ${counts.Killed}、超时 ${counts.Timeout}、存活 ${counts.Survived}、无覆盖 ${counts.NoCoverage}、` +
       `编译错误 ${counts.CompileError}、运行错误 ${counts.RuntimeError}` +
       (notRun > 0 ? `、没跑测试 ${notRun}` : '') +
+      (staticTimeout > 0 ? `、static 超时 ${staticTimeout}` : '') +
       `；分数 ${result.score === null ? '—' : `${result.score}%`}`,
   ]
   if (!detail) return lines
   for (const finding of result.survived) lines.push(`  存活 ${describeFinding(finding)}`)
   for (const finding of result.noCoverage) lines.push(`  无覆盖 ${describeFinding(finding)}`)
   for (const finding of result.notRun) lines.push(`  没跑测试 ${describeFinding(finding)}`)
+  for (const finding of result.staticTimeout)
+    lines.push(`  static 超时 ${describeFinding(finding)}`)
   return lines
 }
 
@@ -220,6 +260,15 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
 export function notRunError(result: MemberMutation, logPath: string): string | undefined {
   if (result.notRun.length === 0) return undefined
   return `${result.member}：${result.notRun.length} 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 ${logPath}`
+}
+
+/** 有「static 超时」的变异体时，入口记作测量无效的那一句；没有时为 undefined。 */
+export function staticTimeoutError(result: MemberMutation, logPath: string): string | undefined {
+  if (result.staticTimeout.length === 0) return undefined
+  return (
+    `${result.member}：${result.staticTimeout.length} 个 static 变异体跑全部测试时超过了 Stryker 按初跑估出的时限，` +
+    `超时说明不了测试测出了它，没有计分；判为测量无效，降低并发（VITEST_MAX_WORKERS）或在空闲时复跑，日志 ${logPath}`
+  )
 }
 
 /** Runtime errors invalidate the whole measurement, including mutants outside the target lines. */

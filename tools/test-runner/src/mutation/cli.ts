@@ -1,7 +1,8 @@
 // 差分变异入口：只变异基线以来改动碰到的产品源码行（或点名成员的全部产品源码），逐成员跑 Stryker 的快层，
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
 // 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、sandbox 预检没通过（#481）、初跑失败、
-// 没写出报告、原始报告有 RuntimeError，或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
+// 没写出报告、原始报告有 RuntimeError、有变异体有用例覆盖却一条用例都没跑完（#405），
+// 或有 static 变异体只因时限到了而超时（#649），才退出非零。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -16,6 +17,7 @@ import {
   isMutationReport,
   notRunError,
   runtimeError,
+  staticTimeoutError,
   summarizeMember,
   type MemberMutation,
   type MutationReport,
@@ -217,9 +219,12 @@ async function run(request: MutationRequest): Promise<number> {
     results.push(result)
     const notRun = notRunError(result, ran.logPath)
     if (notRun !== undefined) errors.push(notRun)
+    const staticTimeout = staticTimeoutError(result, ran.logPath)
+    if (staticTimeout !== undefined) errors.push(staticTimeout)
     console.log(
       `${label}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
-        (result.notRun.length > 0 ? `、没跑测试 ${result.notRun.length}` : ''),
+        (result.notRun.length > 0 ? `、没跑测试 ${result.notRun.length}` : '') +
+        (result.staticTimeout.length > 0 ? `、static 超时 ${result.staticTimeout.length}` : ''),
     )
   }
 

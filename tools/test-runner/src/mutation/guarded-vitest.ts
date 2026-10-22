@@ -1,4 +1,5 @@
-// A rejected mutant run must remain visible instead of disappearing after a recovery retry.
+// A rejected mutant run must remain visible instead of disappearing after a recovery retry,
+// and a static mutant run must not silently drop the type tests that the dry run executed.
 import {
   commonTokens,
   declareFactoryPlugin,
@@ -7,7 +8,11 @@ import {
   type Injector,
   type PluginContext,
 } from '@stryker-mutator/api/plugin'
-import { MutantRunStatus, type TestRunner } from '@stryker-mutator/api/test-runner'
+import {
+  MutantRunStatus,
+  type TestRunner,
+  type TestRunnerCapabilities,
+} from '@stryker-mutator/api/test-runner'
 import { strykerPlugins as vitestPlugins } from '@stryker-mutator/vitest-runner'
 export { strykerValidationSchema } from '@stryker-mutator/vitest-runner'
 
@@ -22,9 +27,18 @@ function rejectionMessage(error: unknown): string {
   }
 }
 
+/**
+ * The upstream runner claims it can reload the environment, but it reuses one Vitest instance, and Vitest
+ * reports type tests only on the first start of an instance (#649). Declaring no reload makes Stryker start
+ * a fresh worker process before each static mutant, so every static run executes the same tests as the dry run.
+ */
+async function withoutInProcessReload(original: TestRunner): Promise<TestRunnerCapabilities> {
+  return { ...(await original.capabilities()), reloadEnvironment: false }
+}
+
 export function guardMutantRun(original: TestRunner): TestRunner {
   return {
-    capabilities: () => original.capabilities(),
+    capabilities: () => withoutInProcessReload(original),
     init: async () => {
       await original.init?.()
     },
