@@ -183,7 +183,7 @@ function basicBody(record: string): unknown {
   return {
     max_tokens: 128,
     messages: [
-      { content: 'instruction', role: 'developer' },
+      { content: 'instruction', role: 'system' },
       { content: 'keep going', role: 'developer' },
       { content: 'hello', role: 'user' },
     ],

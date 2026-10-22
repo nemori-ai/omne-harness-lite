@@ -176,7 +176,7 @@ describe('measure', () => {
         },
       },
     ])
-    expect(writeJsonText(tokenInput)).toContain('"role":"developer"')
+    expect(writeJsonText(tokenInput)).toContain('"role":"system"')
   })
 
   // Sealed openai-encrypted-input.spec.ts:127-197: complete and mixed encrypted history.

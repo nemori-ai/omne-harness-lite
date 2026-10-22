@@ -107,10 +107,10 @@ describe('the migrated models', () => {
 })
 
 describe('the wire data', () => {
-  it('pins OpenAI behind OpenRouter, writes developer roles, compact content and store false', () => {
+  it('pins OpenAI behind OpenRouter, writes the instruction as system and reminders as developer, compact content and store false', () => {
     for (const record of RECORDS) {
       expect(record.serving).toEqual({ order: ['openai'], reports: ['OpenAI', 'openai'] })
-      expect(record.wire.roles).toEqual({ instruction: 'developer', reminder: 'developer' })
+      expect(record.wire.roles).toEqual({ instruction: 'system', reminder: 'developer' })
       expect(record.wire.content).toBe('compact')
       expect(record.wire.cache).toEqual({ kind: 'none' })
       expect(record.wire.fixed).toEqual([{ field: 'store', value: false }])

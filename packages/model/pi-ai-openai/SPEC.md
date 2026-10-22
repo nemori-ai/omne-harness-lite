@@ -31,7 +31,7 @@
 3. 记录不得原地修改。行为或数据变化时，新增一个修订并把旧记录标为 `frozen`。`tests/fixtures/adoptions.json` 记录每条记录的摘要，原地修改使指纹测试失败。
 4. 线数据：
    - `serving.order` 为 `['openai']`，`serving.reports` 为 `['OpenAI', 'openai']`；
-   - 系统指令与提醒的角色都是 `developer`；内容为 `compact`；不加缓存标记；
+   - 系统指令（`SystemMessage`）的角色是 `system`，提醒（`SystemReminderMessage`）的角色是 `developer`；内容为 `compact`；不加缓存标记；
    - 图片类型为 png、jpeg、webp 与 gif，`detail` 为 `auto`；
    - 每次请求写 `store: false`；收场之后最多接受 2 帧尾帧。
 5. 参数：

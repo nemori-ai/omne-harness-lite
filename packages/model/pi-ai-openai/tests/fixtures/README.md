@@ -80,5 +80,5 @@
 5. **失败的形状。** 封存件的失败是 `interrupted_mid_reply` 加本地错误文字。契约事实是带 `cause` 与诊断的 `ended`：带内错误按状态码映射（503 为 `upstream-unavailable`）；`content_filter` 与 `error` 收场为 `input-rejected`，诊断为 `finish-reason-<值>`；断流与没有收场的结束标记为 `stream-lost`；坏帧、重复键、非法拒绝值、改变的收场与收场后的内容为 `upstream-protocol`。
 6. **收场时封块。** 封存件只在流结束时关闭块，所以在收场后才出错的流里没有关闭事件。引擎在收场帧封块，之后的协议错误不撤回已封的块。
 7. **加密推理的形状。** 封存件把推理项放在一个空文本的思考块的 `opaque` 中，并带路由名。现行形状是推理续接状态部件：每个 `openai-responses-v1` 格式的加密项一个部件，载荷是该项的排序键 JSON；没有可见推理时不开思考块。
-8. **请求体的写法。** 封存件把 system 与 developer 内容写成文本部件数组，图片不写 `detail`。现行记录用 `compact`：只有一个文本部件时写字符串；系统指令与提醒的角色都是 `developer`；图片写记录的 `detail: "auto"`。封存测试只断言了请求体中带有密文（第二轮），本目录的期望请求体按现行规格写出。
+8. **请求体的写法。** 封存件把 system 与 developer 内容写成文本部件数组，图片不写 `detail`。现行记录用 `compact`：只有一个文本部件时写字符串；系统指令的角色是 `system`，提醒的角色是 `developer`；图片写记录的 `detail: "auto"`。封存测试只断言了请求体中带有密文（第二轮），本目录的期望请求体按现行规格写出。
 9. **没有内容的收场。** 封存件把没有块的 `stop` 与没有工具调用的 `tool_calls` 当作完成。契约只在至少一个有效块合法封口后映射 finish，见 [pi-ai-transport SPEC“映射”](../../../pi-ai-transport/SPEC.md#映射)。所以拒绝缺失、`null` 与空串的三个用例以 `upstream-protocol`（`finish-without-content`）失败。`records/openai%2Fgpt-6-sol-pro/1` 的流只有拒绝文本，以 `upstream-protocol`（`finish-without-tool-call`）失败，不封文本块。两种失败都在 `ended` 之前给出账目。

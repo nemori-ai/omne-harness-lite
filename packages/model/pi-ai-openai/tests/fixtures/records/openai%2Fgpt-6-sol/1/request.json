@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-sol",
           "revision": "1",
-          "digest": "0c5a2d020622b78873448a9191a0ba12d3214c99eaa720cc360a8f34c08236ba"
+          "digest": "c6bf33a1c659d4df959d71de354056354d36a751616af9fb1137b11edf213fdc"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6-sol",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6-sol#representation",
       "revision": "1",
-      "digest": "0c5a2d020622b78873448a9191a0ba12d3214c99eaa720cc360a8f34c08236ba"
+      "digest": "c6bf33a1c659d4df959d71de354056354d36a751616af9fb1137b11edf213fdc"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-sol",
           "revision": "1",
-          "digest": "0c5a2d020622b78873448a9191a0ba12d3214c99eaa720cc360a8f34c08236ba"
+          "digest": "c6bf33a1c659d4df959d71de354056354d36a751616af9fb1137b11edf213fdc"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -133,7 +133,7 @@
     "messages": [
       {
         "content": "instruction",
-        "role": "developer"
+        "role": "system"
       },
       {
         "content": "keep going",

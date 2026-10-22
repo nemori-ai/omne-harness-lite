@@ -88,7 +88,7 @@ const PARAMETERS = {
 const COMMON = {
   serving: { order: ['openai'], reports: ['OpenAI', 'openai'] },
   wire: {
-    roles: { instruction: 'developer', reminder: 'developer' },
+    roles: { instruction: 'system', reminder: 'developer' },
     content: 'compact',
     cache: { kind: 'none' },
     image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], detail: 'auto' },
