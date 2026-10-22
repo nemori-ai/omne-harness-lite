@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { PiTransportConfig } from '../src/index.ts'
+import type { PiFamilyContributions, PiTransportConfig } from '../src/index.ts'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
 import { createTestFamily, END_MARKER, LIMITS, REQUEST, SUPPLIER } from './support/test-family.ts'
@@ -207,6 +207,35 @@ describe('closing the transport', () => {
     await closed
     expect(probe.acquired).toBe(1)
     expect(probe.released).toBe(1)
+  })
+
+  it('waits for every prepared transport to close before it reports the first failed release', async () => {
+    const family = createTestFamily()
+    const defect = new Error('release defect')
+    const slowRelease = Promise.withResolvers<void>()
+    let acquires = 0
+    const families: PiFamilyContributions = {
+      async acquire(supplier, signal) {
+        const acquired = await family.families.acquire(supplier, signal)
+        if (!('ok' in acquired)) return acquired
+        acquires += 1
+        const release = acquires === 1 ? () => Promise.reject(defect) : () => slowRelease.promise
+        return { ok: { ...acquired.ok, release } }
+      },
+    }
+    // Not kept for afterEach: this close rejects by design.
+    const { transport, close } = createPiTransport(configWith({ families }))
+    expect(await transport.prepare(REQUEST, SUPPLIER)).toHaveProperty('ok')
+    expect(await transport.prepare(REQUEST, SUPPLIER)).toHaveProperty('ok')
+    let settled = false
+    const closed = close().finally(() => {
+      settled = true
+    })
+    closed.catch(() => {})
+    await new Promise(resolve => setImmediate(resolve))
+    expect(settled).toBe(false)
+    slowRelease.resolve()
+    await expect(closed).rejects.toBe(defect)
   })
 
   it('is idempotent and does not close the injected network resources', async () => {

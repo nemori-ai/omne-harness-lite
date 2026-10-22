@@ -80,9 +80,12 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     return { ok: prepared }
   }
 
+  /** Waits for every prepared close to settle, then reports the first failure. */
   async function drain(): Promise<void> {
     closing.abort()
-    await Promise.all([...open].map(prepared => prepared.close()))
+    const closes = await Promise.allSettled([...open].map(prepared => prepared.close()))
+    const failed = closes.find(close => close.status === 'rejected')
+    if (failed !== undefined) throw failed.reason
   }
 
   return {
