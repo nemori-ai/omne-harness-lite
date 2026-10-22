@@ -36,7 +36,22 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts execute \
 
 ## 任务与执行权
 
-Issue 正文的 `当前执行与交接` 中放唯一 `json omne-integration-binding:v1` 围栏区块。形状归 [TaskBinding](../delivery/binding.ts)：schemaVersion=1；issue 包含 repository/id/number/url；revision 等于正文交付修订；attempt、responsible、branch、route、completionTarget、taskBase、writeScope、dispatch、conditions、authorization 都必填。route 为 `{kind:"track",track:ID}`、`{kind:"global",track:ID,owners:[受影响拥有者]}` 或 `{kind:"cross-track",track:ID,owners:[受影响拥有者]}`。global 与 cross-track 必须具名一条顶层轨道，即 registry 中 `parent` 为 `main` 的轨道。completionTarget 为 track/main/stable。三种 route 的 completionTarget 都可以取 `track`，这时它指 route 中具名的那条轨道。conditions 只引用同卡条件 ID。
+Issue 正文的 `当前执行与交接` 中放唯一一个 binding 围栏区块：版本 1 为 `json omne-integration-binding:v1`，版本 2 为 `json omne-integration-binding:v2`。区块标记的版本必须等于区块内的 `schemaVersion`。正文同时有两种区块时拒绝。形状归 [TaskBinding](../delivery/binding.ts)。
+
+版本 1：schemaVersion=1；issue 包含 repository/id/number/url；revision 等于正文交付修订；attempt、responsible、branch、route、completionTarget、taskBase、writeScope、dispatch、conditions、authorization 都必填，其他字段拒绝。route 为 `{kind:"track",track:ID}`、`{kind:"global",track:ID,owners:[受影响拥有者]}` 或 `{kind:"cross-track",track:ID,owners:[受影响拥有者]}`。global 与 cross-track 必须具名一条顶层轨道，即 registry 中 `parent` 为 `main` 的轨道。completionTarget 为 track/main/stable。三种 route 的 completionTarget 都可以取 `track`，这时它指 route 中具名的那条轨道。conditions 只引用同卡条件 ID。
+
+版本 2：schemaVersion=2，含版本 1 的全部字段，另加四个必填字段，记录派发时的卡属性：
+
+| 字段 | 取值 |
+| --- | --- |
+| `line` | 交付线 ID：小写字母开头，只含小写字母、数字与 `-`。线归属表中的线 ID 或 `integration` |
+| `nature` | `design`、`contract`、`impl`、`integration` 或 `baseline` |
+| `contractChange` | `none`、`additive` 或 `breaking` |
+| `milestone` | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null` |
+
+缺字段、取值不合格或有其他字段时拒绝。`line` 是否登记在线归属表中不由解析判断，由属性发现报告。属性的规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)。已派发的 attempt 在交付前不改 binding 版本。新 attempt 用版本 2。
+
+授权评论中的 `task`、context 中的 binding 与 Issue 正文用同一个解析。context 的 `schemaVersion` 仍为 1。
 
 taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必须以 responsible 加 `/` 开头。dispatch 是下述 dispatch 决定的真实评论 URL。用现有单调度者发放权限、原正文单写者维护绑定；worker 不争写摘要。
 
