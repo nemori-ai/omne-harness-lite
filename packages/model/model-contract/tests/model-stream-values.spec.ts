@@ -834,6 +834,70 @@ describe('value isolation', () => {
     expect(before).toEqual(savedBefore)
   })
 
+  it('preserves nested arrays, ordered entries and member order in independent copies', () => {
+    const items: JsonValue[] = [
+      { kind: 'null' },
+      { kind: 'boolean', value: false },
+      { kind: 'number', lexeme: '9007199254740993' },
+      { kind: 'array', items: [] },
+    ]
+    const shared = { items, kind: 'array' } satisfies JsonValue
+    const args = {
+      entries: [
+        { value: shared, key: 'second' },
+        { value: shared, key: 'first' },
+      ],
+      kind: 'object',
+    } satisfies JsonValue
+    const tool: ModelBlock = {
+      arguments: args,
+      kind: 'tool_call',
+      name: 'tool',
+      callId: 'tc',
+      id: text().id,
+      visibility: { ...visibility },
+    }
+    const before = snapshot([])
+    const after = advance(before, [sealed(tool)])
+    const change = must(diff(before, after))
+    const result = must(apply(before, change))
+    for (const copy of [change.blocks[0], result.value.blocks[0]]) {
+      if (copy?.kind !== 'sealed' || copy.block.kind !== 'tool_call')
+        throw new Error('tool fixture')
+      const copiedArgs = copy.block.arguments
+      if (copiedArgs.kind !== 'object') throw new Error('object fixture')
+      expect(copiedArgs).toStrictEqual(args)
+      expect(Object.keys(copy.block)).toEqual(Object.keys(tool))
+      expect(Object.keys(copiedArgs)).toEqual(Object.keys(args))
+      expect(copiedArgs.entries.map(entry => entry.key)).toEqual(['second', 'first'])
+      const [first, second] = copiedArgs.entries
+      if (first?.value.kind !== 'array' || second?.value.kind !== 'array')
+        throw new Error('array fixture')
+      expect(Array.isArray(first.value.items)).toBe(true)
+      expect(first.value.items).not.toBe(items)
+      expect(first.value.items).not.toBe(second.value.items)
+      expectFrozen(copy)
+    }
+    items.push({ kind: 'string', value: 'later' })
+    expect(Object.isFrozen(items)).toBe(false)
+    expect(change.blocks).toStrictEqual(result.value.blocks)
+  })
+
+  it('retains an explicit undefined member when copying a successful value', () => {
+    const extended = { ...text(), extra: undefined }
+    const before = snapshot([])
+    const after = advance(before, [sealed(extended)])
+    const change = must(diff(before, after))
+    const result = must(apply(before, change))
+    for (const copy of [change.blocks[0], result.value.blocks[0]]) {
+      if (copy?.kind !== 'sealed') throw new Error('sealed fixture')
+      expect(copy.block).toStrictEqual(extended)
+      expect(Object.hasOwn(copy.block, 'extra')).toBe(true)
+      expectFrozen(copy)
+    }
+    expect(Object.isFrozen(extended)).toBe(false)
+  })
+
   it('copies retained blocks from before when the delta changes only state', () => {
     const mutable = {
       kind: 'growing',

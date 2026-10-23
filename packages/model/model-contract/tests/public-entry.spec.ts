@@ -20,6 +20,8 @@ it('the root entry exports exactly the landed runtime values', async () => {
       'compareOutputCursors',
       'compareRevisions',
       'continuedMessages',
+      'diffModelStream',
+      'applyModelStreamDelta',
       'decodeCredentialId',
       'decodeDispatchId',
       'decodeModelCallId',

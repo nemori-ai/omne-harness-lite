@@ -17,8 +17,12 @@ export function equalStreamValues(left: unknown, right: unknown): boolean {
 /** Copy each occurrence, including repeated DAG nodes, before freezing it. */
 export function copyStreamValue<T>(value: T): T {
   if (typeof value !== 'object' || value === null) return value
+  const fields = { ...value }
   const copy = Array.isArray(value)
-    ? value.map(child => copyStreamValue(child))
-    : Object.fromEntries(Object.entries(value).map(([key, child]) => [key, copyStreamValue(child)]))
-  return Object.freeze(copy) as T
+    ? Object.assign(Array.of<unknown>(), fields, { length: value.length })
+    : fields
+  for (const key in value) {
+    if (Object.hasOwn(value, key)) copy[key] = copyStreamValue(value[key])
+  }
+  return Object.freeze(copy)
 }

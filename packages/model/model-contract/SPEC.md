@@ -591,7 +591,7 @@ push、重投、证据核验、handoff 与 dispatches 分别核当前资格，�
 
 每条内容流绑定原 invocation、dispatch、发布代次和固定投影版本。新 dispatch 或新发布代次使用新 `StreamId`。旧引用保持原身份，不能接到后继。dispatch 前没有这条内容流，调用等待状态从原调用读面取得。
 
-`ModelStreamSnapshot` 和 `ModelStreamDelta` 都携带完整 `StreamRef` 与外层 `DispatchId`。delta 另带原 `OutputCursor` 与 `Revision` 基线。沿用现有 `Snapshot`、`VisibleBlock` 和 `CallState`，不另立业务状态枚举。这些投影类型及纯函数尚未进入[公开导出清单](docs/public-api.md#已采用但尚未声明的增量)。
+`ModelStreamSnapshot` 和 `ModelStreamDelta` 都携带完整 `StreamRef` 与外层 `DispatchId`。delta 另带原 `OutputCursor` 与 `Revision` 基线。沿用现有 `Snapshot`、`VisibleBlock` 和 `CallState`，不另立业务状态枚举。这些投影类型及纯函数已进入[公开入口](docs/public-api.md#model-显示投影纯值)；它们不提供发布、观察或持久保存能力。
 
 #### 输入、输出与来源边界
 
