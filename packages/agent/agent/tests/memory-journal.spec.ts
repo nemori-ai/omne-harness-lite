@@ -2,7 +2,7 @@
 // "两种实现必须同形的事实". Each `describe` names one fact by its number, so the suite can move to a
 // durable provider unchanged. Tests read only what the port returns. The three choices that wait
 // for #558 have their own `describe` at the end, named 「临时做法，待 #558 裁定」.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import { decodeActionId, type AgentEvent, type EventPage } from '@omne-harness/agent-contract'
 import * as toolReferences from '@omne-harness/tool-contract'
@@ -2163,6 +2163,101 @@ describe('retained invocation fault controls', () => {
     })
     expect(await observeAll(store)).toEqual(s0)
   })
+
+  it.each(['request', 'fault'] as const)(
+    'accepts ordinary and null prototypes but rejects a custom %s prototype with the same data',
+    async level => {
+      const store = await fixture()
+      const s0 = await observeAll(store)
+      const foreign = ok(
+        toolReferences.encodeToolInvocationRef({
+          ...store.first.first.parts,
+          tenant: otherTenant.tenant,
+        }),
+      )
+      const input = {
+        ...store.first.selector,
+        fault: { kind: 'foreign-tenant', reference: foreign },
+      }
+      function withPrototype(prototype: object | null) {
+        const request = { ...input, fault: { ...input.fault } }
+        Object.setPrototypeOf(level === 'request' ? request : request.fault, prototype)
+        return request
+      }
+      for (const prototype of [Object.prototype, null]) {
+        expect(
+          Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [
+            withPrototype(prototype),
+          ]),
+        ).toEqual({ kind: 'applied' })
+        const changed = await observeAll(store)
+        expect(changed[0]?.snapshot.controls[0]).toMatchObject({ toolInvocation: foreign })
+        expect(store.control.setRetainedToolInvocationFault({ ...input, fault: null })).toEqual({
+          kind: 'cleared',
+        })
+        expect(await observeAll(store)).toEqual(s0)
+      }
+      expect(
+        store.control.setRetainedToolInvocationFault({
+          ...store.first.selector,
+          fault: { kind: 'malformed' },
+        }),
+      ).toEqual({ kind: 'applied' })
+      const s1 = await observeAll(store)
+      expect(
+        Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [
+          withPrototype({ custom: true }),
+        ]),
+      ).toEqual({ kind: 'rejected', reason: 'invalid-input' })
+      expect(await observeAll(store)).toEqual(s1)
+      expect(store.control.setRetainedToolInvocationFault({ ...input, fault: null })).toEqual({
+        kind: 'cleared',
+      })
+      expect(await observeAll(store)).toEqual(s0)
+    },
+  )
+
+  it.each(['request', 'fault'] as const)(
+    'rejects an equal-key-count %s with a substituted required field before resolution',
+    async level => {
+      const store = await fixture()
+      const s0 = await observeAll(store)
+      const input = { ...store.first.selector, fault: { kind: 'malformed' } } as const
+      expect(store.control.setRetainedToolInvocationFault(input)).toEqual({ kind: 'applied' })
+      const s1 = await observeAll(store)
+      const foreign = ok(
+        toolReferences.encodeToolInvocationRef({
+          ...store.first.first.parts,
+          tenant: otherTenant.tenant,
+        }),
+      )
+      const substituted =
+        level === 'request'
+          ? {
+              execution: input.execution,
+              control: input.control,
+              fault: { kind: 'foreign-tenant', reference: foreign },
+              unrelated: input.tenant,
+            }
+          : { ...input, fault: { kind: 'foreign-tenant', unrelated: foreign } }
+      expect(Reflect.ownKeys(substituted)).toHaveLength(Reflect.ownKeys(input).length)
+      if (level === 'fault') expect(Reflect.ownKeys(substituted.fault)).toHaveLength(2)
+      const resolve = vi.spyOn(toolReferences, 'resolveToolInvocationRef')
+      try {
+        expect(
+          Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [substituted]),
+        ).toEqual({ kind: 'rejected', reason: 'invalid-input' })
+        expect(resolve).not.toHaveBeenCalled()
+      } finally {
+        resolve.mockRestore()
+      }
+      expect(await observeAll(store)).toEqual(s1)
+      expect(store.control.setRetainedToolInvocationFault({ ...input, fault: null })).toEqual({
+        kind: 'cleared',
+      })
+      expect(await observeAll(store)).toEqual(s0)
+    },
+  )
 
   it('selects the accepted C in exactly one owned execution and hides unavailable targets', async () => {
     const store = await fixture()

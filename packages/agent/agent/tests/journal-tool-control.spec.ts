@@ -491,9 +491,26 @@ describe('shared pending recognition prerequisites', () => {
 
   it('rechecks custody before pending and committed recognition and settlement', async () => {
     let allowed = true
-    const memory = createMemoryAgentJournal<string>({ custodian: () => allowed })
+    let qualifyingExecution: Recording['execution'] | undefined
+    const memory = createMemoryAgentJournal<string>({
+      custodian: input => {
+        expect(input).toEqual({
+          principal: access.principal,
+          tenant: access.tenant,
+          execution: qualifyingExecution,
+        })
+        expect(input.tenant).toBe(access.tenant)
+        return (
+          allowed &&
+          input.principal === access.principal &&
+          input.tenant === access.tenant &&
+          input.execution === qualifyingExecution
+        )
+      },
+    })
     const journal = memory.port
     const opened = await open(journal)
+    qualifyingExecution = opened.execution
     const original = {
       ...access,
       execution: opened.execution,
@@ -507,6 +524,11 @@ describe('shared pending recognition prerequisites', () => {
     memory.failNext('recordResult', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await journal.recordResult(original)).kind).toBe('commit-unknown')
     const held = await observe(journal, opened.execution)
+    expect(failure(await journal.recordResult(original))).toEqual({
+      kind: 'commit-unknown',
+      operation: original.operation,
+    })
+    expect(await observe(journal, opened.execution)).toEqual(held)
     allowed = false
     for (const request of [original, { ...original, consumption: consumption('other') }]) {
       expect(failure(await journal.recordResult(request))).toEqual({
@@ -523,6 +545,8 @@ describe('shared pending recognition prerequisites', () => {
     const separate = { ...original, operation: operation('committed-result') }
     const receipt = ok(await journal.recordResult(separate))
     const committed = await observe(journal, opened.execution)
+    expect(ok(await journal.recordResult(separate))).toEqual(receipt)
+    expect(await observe(journal, opened.execution)).toEqual(committed)
     allowed = false
     expect(failure(await journal.recordResult(separate))).toEqual({
       kind: 'denied',
@@ -531,17 +555,57 @@ describe('shared pending recognition prerequisites', () => {
     expect(ok(await journal.query(separate))).toEqual({ kind: 'committed', receipt })
     expect(ok(await journal.query(original)).kind).toBe('excluded')
     expect(await observe(journal, opened.execution)).toEqual(committed)
+    allowed = true
+    const resumed = { ...original, operation: operation('qualified-settlement') }
+    memory.failNext('recordResult', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.recordResult(resumed)).kind).toBe('commit-unknown')
+    const pending = await observe(journal, opened.execution)
+    expect(failure(await journal.recordResult(resumed))).toEqual({
+      kind: 'commit-unknown',
+      operation: resumed.operation,
+    })
+    expect(memory.settle(opened.execution, resumed.operation, 'applied')).toBe(true)
+    const resumedReceipt = ok(await journal.recordResult(resumed))
+    expect(ok(await journal.query(resumed))).toEqual({
+      kind: 'committed',
+      receipt: resumedReceipt,
+    })
+    const settled = await observe(journal, opened.execution)
+    expect(settled.snapshot.unresolved).not.toContain(resumed.operation)
+    expect(Number(settled.snapshot.revision)).toBe(Number(pending.snapshot.revision) + 1)
+    expect(memory.settle(opened.execution, resumed.operation, 'applied')).toBe(false)
+    expect(await observe(journal, opened.execution)).toEqual(settled)
   })
 
   it('rechecks observation qualification before pending and committed recognition and settlement', async () => {
     let allowed = true
-    const memory = createMemoryAgentJournal<string>({ observer: () => allowed })
+    let qualifyingExecution: Recording['execution'] | undefined
+    const memory = createMemoryAgentJournal<string>({
+      observer: input => {
+        expect(input).toEqual({
+          principal: access.principal,
+          tenant: access.tenant,
+          execution: qualifyingExecution,
+        })
+        expect(input.tenant).toBe(access.tenant)
+        return (
+          allowed &&
+          input.principal === access.principal &&
+          input.tenant === access.tenant &&
+          input.execution === qualifyingExecution
+        )
+      },
+    })
     const journal = memory.port
     const opened = await open(journal)
+    qualifyingExecution = opened.execution
     ok(
       await journal.commit(
         commitAt(await load(journal, opened.execution), opened.authority, 'with-passage', {
-          checkpoint: checkpoint('F2', [afterTerminalPassage('observer')]),
+          checkpoint: checkpoint('F2', [
+            afterTerminalPassage('observer'),
+            afterTerminalPassage('settlement-observer'),
+          ]),
         }),
       ),
     )
@@ -562,6 +626,11 @@ describe('shared pending recognition prerequisites', () => {
     memory.failNext('recordTerminalObservation', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await journal.recordTerminalObservation(original)).kind).toBe('commit-unknown')
     const held = await observe(journal, opened.execution)
+    expect(failure(await journal.recordTerminalObservation(original))).toEqual({
+      kind: 'commit-unknown',
+      operation: original.operation,
+    })
+    expect(await observe(journal, opened.execution)).toEqual(held)
     allowed = false
     for (const request of [original, { ...original, observed: evidence('other') }]) {
       expect(failure(await journal.recordTerminalObservation(request))).toEqual({
@@ -578,6 +647,8 @@ describe('shared pending recognition prerequisites', () => {
     const separate = { ...original, operation: operation('committed-observation') }
     const receipt = ok(await journal.recordTerminalObservation(separate))
     const committed = await observe(journal, opened.execution)
+    expect(ok(await journal.recordTerminalObservation(separate))).toEqual(receipt)
+    expect(await observe(journal, opened.execution)).toEqual(committed)
     allowed = false
     expect(failure(await journal.recordTerminalObservation(separate))).toEqual({
       kind: 'denied',
@@ -586,6 +657,34 @@ describe('shared pending recognition prerequisites', () => {
     expect(ok(await journal.query(separate))).toEqual({ kind: 'committed', receipt })
     expect(ok(await journal.query(original)).kind).toBe('excluded')
     expect(await observe(journal, opened.execution)).toEqual(committed)
+    allowed = true
+    const remaining = (await load(journal, opened.execution)).terminalObservations[1]
+    if (remaining === undefined) throw new Error('expected a second terminal observation')
+    const resumed = {
+      ...original,
+      operation: operation('qualified-settlement'),
+      terminal: remaining.terminal,
+      passage: remaining.passage,
+      implementation: remaining.implementation,
+    }
+    memory.failNext('recordTerminalObservation', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.recordTerminalObservation(resumed)).kind).toBe('commit-unknown')
+    const pending = await observe(journal, opened.execution)
+    expect(failure(await journal.recordTerminalObservation(resumed))).toEqual({
+      kind: 'commit-unknown',
+      operation: resumed.operation,
+    })
+    expect(memory.settle(opened.execution, resumed.operation, 'applied')).toBe(true)
+    const resumedReceipt = ok(await journal.recordTerminalObservation(resumed))
+    expect(ok(await journal.query(resumed))).toEqual({
+      kind: 'committed',
+      receipt: resumedReceipt,
+    })
+    const settled = await observe(journal, opened.execution)
+    expect(settled.snapshot.unresolved).not.toContain(resumed.operation)
+    expect(Number(settled.snapshot.revision)).toBe(Number(pending.snapshot.revision) + 1)
+    expect(memory.settle(opened.execution, resumed.operation, 'applied')).toBe(false)
+    expect(await observe(journal, opened.execution)).toEqual(settled)
   })
 })
 
