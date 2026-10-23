@@ -118,7 +118,9 @@ Not covered: `readLeapSecondData` does not check the `#h` hash of a caller-suppl
 
 ## Maintenance
 
-Named consumers are `packages/identity/identity` and `packages/tool/tool`. Both are still empty drafts. Business deadlines, lease recovery, and the clock ports stay with their owners. A change to `compareInstants` or to a failure name changes #244 and those consumers together.
+Design relationships with Identity and Tool are separate from actual direct imports. [call-account](../call-account/src/index.ts) uses `parseDuration` to check account durations. Model uses `parseInstant`, `compareInstants`, and the `Instant` type in its [testing clock](../../model/model/src/testing/clock.ts), and `parseInstant` in its [testing dispatch support](../../model/model/src/testing/dispatch.ts). Those Model imports support testing, not a production clock. The corresponding dependency declarations are in [call-account](../call-account/package.json) and [Model](../../model/model/package.json).
+
+Business deadlines, lease recovery, and clock ports stay with their owners. Changes to `compareInstants` or failure names require review of #244, actual imports, and affected design consumers.
 
 To update the leap-second table:
 

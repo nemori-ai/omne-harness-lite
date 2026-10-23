@@ -8,11 +8,11 @@ Module package for operation results. It gives capability contracts one shape fo
 
 This member owns `Outcome`, `Ack`, `succeed`, `ack`, `fail`, and `isSuccess`. It has no runtime dependency and does not import Cordis. The failure vocabulary `F` belongs to the caller. This package does not define a shared failure vocabulary, and it is not a unified envelope for every capability.
 
-The location `packages/common/operation-result` follows the #371 technical adoption decision. The named consumers are `tool-contract`, `tool`, `tool-cordis-contract`, and `model-contract`. The current track has no production call site. When these members land on this track, they import this member through its public entry and do not copy the result types. The shapes and functions moved from `@omne-harness/kernel-basis` without change.
+The location `packages/common/operation-result` follows the #371 technical adoption decision. [SPEC.md](SPEC.md#消费者) owns the current consumer list. It separates type imports, runtime value imports, and testing support. Static imports do not prove runtime execution. The shapes and functions moved from `@omne-harness/kernel-basis` without change.
 
 ## Usage
 
-Import the public entry by package name. Dependencies are empty. The package has no Cordis entry. [docs/context.md](docs/context.md) lists the consumers and the install closure.
+Import the public entry by package name. Dependencies are empty. The package has no Cordis entry. [docs/context.md](docs/context.md) explains consumption and the install closure.
 
 ```ts
 import { ack, fail, isSuccess, succeed } from '@omne-harness/operation-result'
