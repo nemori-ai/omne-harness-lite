@@ -60,7 +60,7 @@
 <a id="计量"></a>
 ### 计量
 
-每条记录的计量器由 `createOpenAiMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用，本包只给出哪个单元带推理状态、怎样计数、图片规则与方法名。
+每条记录的计量器由 `createOpenAiMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用。方法名的拼接、输入摘要、单元追加 token 的求和与空校准由 pi-ai-transport 的[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)给出。本包只给出哪个单元带推理状态、怎样计数、图片规则与输出组方法名。
 
 1. 表示采用：`<记录名>#representation`。`represent` 从引擎的投影写出 `openai-visible-json/1` 的 token 输入：消息按线顺序；文本、工具调用与工具结果保留；图片只留类型与 `detail`；推理写 `reasoning` 文本，加密项只写数量；工具与参数采用一并写入。它同时写出 `units` 侧表：`messages` 的每个单元来自哪条消息，前置指令为 `null`，由同一列表构造，所以两者对齐。
 2. `measureCalibrated` 按下列顺序，第一个失败即返回：
@@ -74,9 +74,9 @@
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。
    侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
 3. 成功时，`input-tokens` 检查为 `estimate`，`marginSource` 为配置给出的采用，上限是 `context.input`，没有时为窗口减输出：
-   - 没有锚点：数额是 token 输入（带推理状态的单元去掉）的排序键 JSON 经 o200k 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；有单元被 O 替换时为 `<记录名>#meter+openai-complete-output-group-workload-estimated/1`，沿用封存件的方法名。
-   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分是新增非推理单元按完整包络差的 o200k 计数（包络去掉工具与前置指令）加它们的图片规则数加新增推理单元的 O；余量只按新增部分算。`method` 加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
-   - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 纳入锚点与各 O：换锚点就是换输入；空校准的摘要与没有校准时相同。
+   - 没有锚点：数额是 token 输入（带推理状态的单元去掉）的排序键 JSON 经 o200k 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；本包的输出组方法名是 `openai-complete-output-group-workload-estimated/1`，沿用封存件的方法名。后缀按[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)拼接：有单元被 O 替换时为 `<记录名>#meter+openai-complete-output-group-workload-estimated/1`。
+   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分是新增非推理单元按完整包络差的 o200k 计数（包络去掉工具与前置指令）加它们的图片规则数加新增推理单元的 O；余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
+   - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 按共用计量规则计算：它纳入锚点与各 O，换锚点就是换输入；空校准的摘要与没有校准时相同。
    档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界；首份实测差值归 #466 的 C9。
 4. o200k 是代理编码：OpenAI 的 tiktoken 表只把 gpt-5* 映射到 o200k_base，没有 GPT-6。所以结果始终是估算，不声称 tokenizer 身份。
 5. 三条图片规则：
