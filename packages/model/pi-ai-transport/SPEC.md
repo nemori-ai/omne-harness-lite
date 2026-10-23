@@ -10,7 +10,7 @@
 2. 根入口导出的网络资源：工厂 `createNetworkResources` 与类型 `NetworkConfig`、`NetworkResources`、`ProxyConfig`、`DiagnosticObserver`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。`NetworkResources` 是不透明句柄，包外只能调用它的 `close()`。行为见[“网络资源”](#网络资源)与[“代理”](#代理)。
 3. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
 4. 根入口导出的家族表：`defineFamily`、`composeFamilies`、`recordAdoption`、`replayFormatsOf` 与类型 `PiModelRecordHead`、`PiFamilySpec`、`PiFamily`、`PiReplayFormats`。行为见[“家族表”](#家族表)。
-5. 子入口 `./chat-completions` 导出的网关引擎：运行时值 `bindChatCompletions`、校准算术 `calibratedAmount` 与两家共用的计量规则，以及记录词表、四个家族 hook、计量接缝与解码器限额的类型。行为见[“网关引擎：请求”](#网关引擎请求)、[“校准算术”](#校准算术)、[“共用计量规则”](#共用计量规则)与[“网关引擎：流解释”](#网关引擎流解释)。
+5. 子入口 `./chat-completions` 导出的网关引擎：运行时值 `bindChatCompletions`、校准算术 `calibratedAmount`、两家共用的计量器外壳 `createCalibratedMeter` 与计量规则，以及记录词表、四个家族 hook、计量接缝与解码器限额的类型。行为见[“网关引擎：请求”](#网关引擎请求)、[“校准算术”](#校准算术)、[“共用计量规则”](#共用计量规则)与[“网关引擎：流解释”](#网关引擎流解释)。
 6. 子入口 `./testing` 导出的家族测试助手：`checkChatCompletionsFixtures`、`checkAdoptionFingerprints`、`appendAdoptionFingerprints` 与夹具格式的常量和类型。它读写文件，只供家族包的测试与脚本使用。行为见[“家族测试助手”](#家族测试助手)。
 7. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。这些机制不经入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即网络资源与三段传输。
 
@@ -519,6 +519,7 @@ flowchart LR
 
 两个家族计量器在校准算术之外共用一个计量器外壳与以下纯规则，都在 [chat-completions/measurement.ts](src/chat-completions/measurement.ts)。家族只给出自己的部分：内容提取（哪个单元带推理状态、怎样计数）、图片规则、owner、输出组方法名，以及不可计数时的诊断名。
 
+- **外壳的构造。**`createCalibratedMeter(rules)` 返回冻结的 `CalibratedInputMeter`。`rules` 的类型是 `CalibratedMeterRules<U>`，`U` 扩展 `MeteredUnit`：每个单元至少说明它是否带推理状态（`reasoning`）。`rules` 给出家族 owner、记录的供应商采用、计量器、表示与媒体三个组件采用、计数依据、余量、输出组方法名、不可计数时的诊断名、tokenizer 与计数形式（原样或 NFKC）、内容提取，以及图片规则。余量的类型是 `MeterMargin`：`percent` 是非负十进制整数，`source` 是装配配置的余量策略采用。两个家族包从各自入口转导 `MeterMargin`，定义在本包。
 - **计量器外壳。**外壳先核对供应商与表示采用，再拒绝待定媒体，结果与字段见 [pi-ai-openai](../pi-ai-openai/SPEC.md#计量) 与 [pi-ai-anthropic](../pi-ai-anthropic/SPEC.md#计量) 计量步骤 2 的第 1～3 项。之后它用家族给出的部分调用校准算术，并组装预算：检查、方法名、输入摘要与 `calibration`。
 - **空校准。**空校准是冻结的值，没有锚点，也没有 O。家族的 `measure(input)` 等于以空校准调用 `measureCalibrated`。
 - **方法名。**方法名从计量器采用开始。有单元被 O 替换时，名字加 `+<输出组方法名>`。锚点命中时，名字再加 `+continuation-anchored/1`。两者都有时，输出组方法在前。`continuation-shrank` 的不命中不加后缀。`owner`、`revision` 与 `digest` 不变。没有后缀时返回计量器采用本身。

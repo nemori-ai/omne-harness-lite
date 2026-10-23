@@ -6,7 +6,7 @@
 
 本成员是 pi 传输的 OpenAI 家族。它给出 OpenAI 型号的记录、引擎四个 hook 的规则、输入计量器与官方档案。共享传输经 `composeFamilies` 取得本家族。所有型号都经 OpenRouter 请求。组架构在[成员与新增条件](../docs/architecture.md#成员与新增条件)与 [pi 家族贡献的取得协议](../docs/architecture.md#pi-家族贡献的取得协议)中规定本成员的职责。
 
-`pi-ai-anthropic` 的联调用例与跨家族示例以开发依赖消费本包。计划中的消费者是发行装配（官方档案与 `composeFamilies`）。目前还没有装配消费本包。
+`pi-ai-anthropic` 的联调用例与跨家族示例以开发依赖消费本包。计划中的消费者是发行装配（官方档案与 `composeFamilies`）。`model-host-local` 的装配从调用方接收组合好的家族。`model-host-local` 的测试把本包与 `pi-ai-anthropic` 组合在一起。
 
 ### 支持范围
 

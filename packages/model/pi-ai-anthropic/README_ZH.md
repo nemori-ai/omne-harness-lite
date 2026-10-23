@@ -6,7 +6,7 @@
 
 本成员是 pi 传输的 Anthropic 家族。它给出 Anthropic 型号的记录、引擎四个 hook 的规则、输入计量器、`claude.json` 词表资源与官方档案。共享传输经 `composeFamilies` 取得本家族。所有型号都经 OpenRouter 请求。组架构在[成员与新增条件](../docs/architecture.md#成员与新增条件)与 [pi 家族贡献的取得协议](../docs/architecture.md#pi-家族贡献的取得协议)中规定本成员的职责。
 
-本包的两个示例与联调用例消费本包。计划中的消费者是发行装配（官方档案与 `composeFamilies`）。目前还没有装配消费本包。
+本包的两个示例与联调用例消费本包。计划中的消费者是发行装配（官方档案与 `composeFamilies`）。`model-host-local` 的装配从调用方接收组合好的家族。`model-host-local` 的测试把本包与 `pi-ai-openai` 组合在一起。
 
 ### 支持范围
 

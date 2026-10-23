@@ -20,7 +20,7 @@
 | `officialAnthropicProfiles`、`OfficialProfilesInput` | [profiles.ts](../src/profiles.ts) | [SPEC“官方档案”](../SPEC.md#官方档案) |
 | `anthropicTokenizerResources`、`TokenizerResourceError` | [tokenizer.ts](../src/tokenizer.ts) | [SPEC“词表资源”](../SPEC.md#词表资源) |
 | `ANTHROPIC_RECORDS`、`AnthropicRecord` | [records.ts](../src/records.ts)、[record.ts](../src/record.ts) | [SPEC“记录”](../SPEC.md#记录) |
-| `MeterMargin` | [meter.ts](../src/meter.ts) | [SPEC“计量”](../SPEC.md#计量) |
+| `MeterMargin` | 定义在 pi-ai-transport 的 [measurement.ts](../../pi-ai-transport/src/chat-completions/measurement.ts)，本包经 [meter.ts](../src/meter.ts) 转导 | [pi-ai-transport SPEC“共用计量规则”](../../pi-ai-transport/SPEC.md#共用计量规则)；本包的余量用法见 [SPEC“计量”](../SPEC.md#计量) |
 | `ANTHROPIC_OWNER` | [owner.ts](../src/owner.ts) | [SPEC“记录”](../SPEC.md#记录) |
 
 `PiFamily` 与引擎类型见 [pi-ai-transport 公开接口](../../pi-ai-transport/docs/public-api.md)。档案、计量与 tokenizer 类型见 [model-contract 公开接口](../../model-contract/docs/public-api.md)。`TiktokenResources` 见 [tokenizer-tiktoken](../../tokenizer-tiktoken/SPEC.md)。

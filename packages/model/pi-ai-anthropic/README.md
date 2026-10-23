@@ -6,7 +6,7 @@
 
 This member is the Anthropic family of the pi transport. It gives the Anthropic model records, the rules of the four engine hooks, the input meter, the `claude.json` vocabulary resource and the official profiles. The shared transport gets the family through `composeFamilies`. All models go through OpenRouter. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [the pi family contribution protocol](../docs/architecture.md#pi-家族贡献的取得协议).
 
-The two examples and the integration test of this package consume it. The planned consumer is the release assembly (official profiles and `composeFamilies`). No assembly consumes this package yet.
+The two examples and the integration test of this package consume it. The planned consumer is the release assembly (official profiles and `composeFamilies`). The assembly of `model-host-local` gets the composed families from its caller. The tests of `model-host-local` compose this package with `pi-ai-openai`.
 
 ### Support levels
 
