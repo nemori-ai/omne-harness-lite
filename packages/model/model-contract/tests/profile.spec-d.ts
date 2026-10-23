@@ -511,7 +511,6 @@ it('a calibration carries numbers and reasons only, and each miss and withholdin
     | 'representation-changed'
     | 'not-a-prefix'
     | 'usage-unknown'
-    | 'usage-inconsistent'
     | 'units-missing'
     | 'continuation-shrank'
   >()

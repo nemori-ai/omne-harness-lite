@@ -125,9 +125,7 @@ function inputTotalOf(account: CallAccount): string | null {
 
 /**
  * The four conditions of the design, each with its own reason; the first failing check wins.
- * `usage-inconsistent` is part of the vocabulary but this judge cannot give it: the
- * `usage-inconsistent` diagnostic stays on the dispatch and `DispatchRecord` does not carry it,
- * while the account it describes already has an unknown `input`, which is `usage-unknown` here.
+ * Usage that contradicts itself already reads as an unknown `input`, so it is `usage-unknown`.
  */
 export function judgeAnchor(
   input: Readonly<{

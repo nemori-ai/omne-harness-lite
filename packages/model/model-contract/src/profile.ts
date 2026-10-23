@@ -184,7 +184,6 @@ export type AnchorMiss =
   | 'representation-changed'
   | 'not-a-prefix'
   | 'usage-unknown'
-  | 'usage-inconsistent'
   | 'units-missing'
   | 'continuation-shrank'
 /** Why the output count of a source call cannot stand in for a unit that carries reasoning state. */

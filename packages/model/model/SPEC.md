@@ -211,7 +211,7 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 
 租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 就是绑定的家族计量器本身。有 lineage 时，`meter.measure` 同步判决并委托家族的 `measureCalibrated`：
 
-- 锚点按 [model-contract“可选校准”](../model-contract/SPEC.md#可选校准及不可解释的历史) 的条件判决，第一个不满足的条件决定原因：`not-declared`、`call-unreadable`（无此事实）、`facts-unavailable`、`ambiguous-dispatch`（X 有不止一次带账目的发出）、`usage-unknown`（X 没有带账目的发出）、`messages-unrecorded`、`supplier-changed`（回执缺失或供应商采用不同）、`representation-changed`、`not-a-prefix`、`usage-unknown`（`input`、`cache-read`、`cache-write` 有未知项）、`units-missing`。全部满足时锚点为 X 的三项之和与它的消息序列。相等的序列是前缀。`usage-inconsistent` 属于契约词表，本实现不给出它：该诊断保存在 dispatch 上而 `DispatchRecord` 不携带它，账目里的 `input` 已为未知，所以报告为 `usage-unknown`。`continuation-shrank` 由家族计量器给出。
+- 锚点按 [model-contract“可选校准”](../model-contract/SPEC.md#可选校准及不可解释的历史) 的条件判决，第一个不满足的条件决定原因：`not-declared`、`call-unreadable`（无此事实）、`facts-unavailable`、`ambiguous-dispatch`（X 有不止一次带账目的发出）、`usage-unknown`（X 没有带账目的发出）、`messages-unrecorded`、`supplier-changed`（回执缺失或供应商采用不同）、`representation-changed`、`not-a-prefix`、`usage-unknown`（`input`、`cache-read`、`cache-write` 有未知项）、`units-missing`。全部满足时锚点为 X 的三项之和与它的消息序列。相等的序列是前缀。上游用量自相矛盾时，账目里的 `input` 已为未知，所以报告为 `usage-unknown`。`continuation-shrank` 由家族计量器给出。
 - 来源按消息判决：有声明来源的消息得到 O（`output` 已知且 `reasoning` 不大于它）或具名扣留原因（`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`）；带推理续接状态部件（`replay.at` 非空）而没有声明来源的 assistant 消息得到 `source-missing`；为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
 - 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
 
