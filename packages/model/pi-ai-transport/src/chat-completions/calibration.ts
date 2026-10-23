@@ -226,6 +226,31 @@ function fullAmount(
 }
 
 /**
+ * The context of one measurement, or the failure of its input: a token input that is not an
+ * object with a `messages` array, or a units side table of another length. Throws for a defect of
+ * the family: reasoning flags that do not align with the units, or a margin that is not a decimal.
+ */
+function contextOf(input: CalibrationArithmeticInput): Outcome<Context, TransportFailure> {
+  const entries = entriesOf(input.tokenInput)
+  const items = entries === null ? null : unitsOf(entries)
+  if (entries === null || items === null) return invalid('tokenInput', 'schema')
+  if (input.reasoning.length !== items.length)
+    throw new TypeError('the reasoning flags must align with the message units')
+  if (!DECIMAL.test(input.marginPercent))
+    throw new RangeError('marginPercent must be a non-negative decimal integer')
+  if (input.units !== undefined && input.units.length !== items.length)
+    return invalid('representation.units', 'length')
+  return {
+    ok: {
+      input,
+      entries,
+      items,
+      outputs: new Map(input.calibration.outputs.map(entry => [entry.message, entry])),
+    },
+  }
+}
+
+/**
  * Full metering: every unit counts, except that a unit with reasoning state is replaced by the
  * output count of its source (the complete-output-group method of sealed output-history.ts; each
  * family keeps the name of its own method). With an anchor: only the units after the covered
@@ -237,25 +262,13 @@ function fullAmount(
 export function calibratedAmount(
   input: CalibrationArithmeticInput,
 ): Outcome<CalibratedAmount, TransportFailure> {
-  const entries = entriesOf(input.tokenInput)
-  const items = entries === null ? null : unitsOf(entries)
-  if (entries === null || items === null) return invalid('tokenInput', 'schema')
-  if (input.reasoning.length !== items.length)
-    throw new TypeError('the reasoning flags must align with the message units')
-  if (!DECIMAL.test(input.marginPercent))
-    throw new RangeError('marginPercent must be a non-negative decimal integer')
-  const { units } = input
-  if (units !== undefined && units.length !== items.length)
-    return invalid('representation.units', 'length')
+  const checked = contextOf(input)
+  if (!('ok' in checked)) return checked
+  const context = checked.ok
   const percent = BigInt(input.marginPercent)
-  const context: Context = {
-    input,
-    entries,
-    items,
-    outputs: new Map(input.calibration.outputs.map(entry => [entry.message, entry])),
-  }
   const { anchor } = input.calibration
   if (anchor === null) return fullAmount({ context, percent, shrank: false })
+  const { units } = input
   if (units === undefined) return invalid('representation.units', 'missing')
   const anchored = anchoredAmount({ context, anchor, units, percent })
   if (!('ok' in anchored)) return anchored
