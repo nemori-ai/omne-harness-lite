@@ -1,8 +1,20 @@
 // The local Model assembly: credential custody, the Model send boundary, the pi transport with the
-// given families, and the injected ModelCommands. It only composes; every limit, route and proxy
-// comes from the configuration.
-import { createModelSendBoundary, type SendCoordinator } from '@omne-harness/model'
-import type { CredentialPort, ModelCommands, ModelSendBoundary } from '@omne-harness/model-contract'
+// given families, the injected ModelCommands, and the preparation resources over the same families
+// and Commands. It only composes; every limit, route, proxy and margin comes from the configuration.
+// Its `close` is the one end of both parts: after it starts, neither gives out a new resource.
+import {
+  createModelPreparationResources,
+  createModelSendBoundary,
+  type SendCoordinator,
+  type SupplierPort,
+} from '@omne-harness/model'
+import type {
+  CredentialPort,
+  ModelCommands,
+  ModelFailure,
+  ModelPreparationResources,
+  ModelSendBoundary,
+} from '@omne-harness/model-contract'
 import {
   createNetworkResources,
   type NetworkConfig,
@@ -11,6 +23,16 @@ import {
   type PiTransportLimits,
 } from '@omne-harness/pi-ai-transport'
 import { createPiSendResources, type PiSendResources } from './send-resources.ts'
+
+/**
+ * The refusal of a preparation lease after the assembly's `close` starts. It names the assembly,
+ * not the send resources: the send resources can close on their own and keep their own name.
+ */
+const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
+  kind: 'unavailable',
+  dependency: 'model-host-local',
+  diagnostic: 'assembly-closed',
+})
 
 export type LocalModelConfig<P> = Readonly<{
   /** The credential custody, e.g. a local custodian. The send boundary resolves through it. */
@@ -26,25 +48,45 @@ export type LocalModelConfig<P> = Readonly<{
   routes: Readonly<Record<string, PiRoute>>
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
+  /**
+   * The preparation resources: the leases read call facts from `commands` and take bindings from
+   * `families`. The margin is the family's own configuration; this package adds no default.
+   */
+  preparation: Readonly<{
+    /** The most distinct calls one lineage may name. */
+    maxCitedCalls: number
+    /** Completes a profile supplier with its credential reference, as request preparation does. */
+    supplierOf: SupplierPort<P>
+  }>
 }>
 
 export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
   /**
-   * Refuses new send resources, releases the open ones, then closes the network resources and
-   * waits for every exchange to stop. It does not close `commands` or `credentials`. Idempotent.
+   * The production `ModelPreparationResources` over `families` and `commands`. The caller releases
+   * every lease it acquires. After `close` starts, `acquire` returns `unavailable` with the
+   * dependency `model-host-local` and the diagnostic `assembly-closed`. A lease acquired before
+   * keeps its bindings until its own `release`.
+   */
+  preparation: ModelPreparationResources<P>
+  /**
+   * Refuses new send resources and new preparation leases, releases the open send resources, then
+   * closes the network resources and waits for every exchange to stop. It does not close
+   * `commands` or `credentials`, and it does not release a lease. Idempotent.
    */
   close(): Promise<void>
 }>
 
 /**
- * Composes the local Model send path. Throws `RangeError` synchronously for a configuration that
- * the network, the transport or the send boundary refuses.
+ * Composes the local Model send path and the preparation resources. Throws `RangeError`
+ * synchronously for a configuration that the network, the transport, the send boundary or the
+ * preparation resources refuse.
  */
 export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P> {
   const network = createNetworkResources(config.network)
   let resources: PiSendResources<P>
   let send: ModelSendBoundary<P>
+  let leases: ModelPreparationResources<P>
   try {
     resources = createPiSendResources<P>({
       network,
@@ -59,6 +101,15 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
       resources,
       maxRetainedAttempts: config.maxRetainedAttempts,
     })
+    const options = config.preparation
+    if (typeof options !== 'object' || options === null)
+      throw new RangeError('preparation must be an object')
+    leases = createModelPreparationResources<P>({
+      commands: config.commands,
+      bindings: config.families,
+      supplierOf: options.supplierOf,
+      maxCitedCalls: options.maxCitedCalls,
+    })
   } catch (error) {
     // No exchange ever ran on this network: its close releases the pool and the capacity before
     // it returns, and the promise only waits for an empty set of exchanges.
@@ -66,6 +117,12 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
     throw error
   }
   let closing: Promise<void> | undefined
+  const preparation: ModelPreparationResources<P> = {
+    async acquire(input) {
+      if (closing !== undefined) return { failure: ASSEMBLY_CLOSED }
+      return leases.acquire(input)
+    },
+  }
   async function closeAll(): Promise<void> {
     const released = await Promise.allSettled([resources.close()])
     await network.close()
@@ -74,6 +131,7 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
   }
   return {
     send,
+    preparation,
     close() {
       closing ??= closeAll()
       return closing

@@ -32,13 +32,13 @@
 | model-contract | 已实现：根入口 163 个类型与 28 个运行值，`./testing` 入口 27 个名字；拥有共同协议、公开值与端口及共享封闭输入 judge。运行实现与真实提供者不在本包 | [成员入口](model-contract/README_ZH.md)、[行为规格](model-contract/SPEC.md) |
 | model-cordis-contract | 已实现：根入口 8 个登记类型，`./cordis` 入口 42 个名字（含凭据服务定义）；拥有 Cordis 定义和登记协议 | [成员入口](model-cordis-contract/README_ZH.md)、[行为规格](model-cordis-contract/SPEC.md) |
 | model | 已有独立执行、凭据判定、`deliver`、受理、原流保存、实例观察与有限的原终局收场；结果读取及 processed ACK 已实现，retained ACK 和生产宿主尚未实现 | [成员入口](model/README_ZH.md)、[实现规格](model/SPEC.md) |
-| model-host-local | 目前只实现本地凭据保管（文件保管库与 `LocalCredentialPlugin`）；时钟、实例调度、目录装载的设计已接受，尚未实现 | [成员入口](model-host-local/README_ZH.md)、[行为规格](model-host-local/SPEC.md) |
+| model-host-local | 已实现本地凭据保管（文件保管库与 `LocalCredentialPlugin`）、生产发送资源、本地 Model 装配入口 `assembleLocalModel` 及其计量准备资源接入；时钟、实例调度、目录装载的设计已接受，尚未实现 | [成员入口](model-host-local/README_ZH.md)、[行为规格](model-host-local/SPEC.md) |
 | pi-ai-transport | 根入口导出三段传输的工厂 `createPiTransport`、网络资源的工厂 `createNetworkResources`（含可选的 HTTPS 代理）与五个家族贡献接口类型；连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现，不经入口导出；根入口导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；本包的测试只用测试家族与测试记录；pi-ai-openai 与 pi-ai-anthropic 经家族表与网关引擎形成绑定，两家经本传输与本地 HTTPS 服务的联调在 pi-ai-anthropic 的慢层 | [成员入口](pi-ai-transport/README_ZH.md)、[行为规格](pi-ai-transport/SPEC.md) |
 | pi-ai-openai | 根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；规则、计量与回放夹具经快层验证，经共享传输的联调在 pi-ai-anthropic 的慢层；有经代理的示例；尚无装配消费 | [成员入口](pi-ai-openai/README_ZH.md)、[行为规格](pi-ai-openai/SPEC.md) |
 | pi-ai-anthropic | 根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；规则、计量与回放夹具经快层验证，慢层验证两家经共享传输的联调；有经代理的单次示例与跨家族示例；尚无装配消费 | [成员入口](pi-ai-anthropic/README_ZH.md)、[行为规格](pi-ai-anthropic/SPEC.md) |
 | tokenizer-tiktoken | 根入口导出 `createTiktokenTokenizer` 与两个资源类型；初始化时核对家族传入的词表与配置，`count` 是纯计算；不收录厂商词表；pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json` | [成员入口](tokenizer-tiktoken/README_ZH.md)、[行为规格](tokenizer-tiktoken/SPEC.md) |
 
-目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员已有源码与测试，文档已落位；model 保留可复用实现设计并暂存宿主装配设计；model-host-local 已承接本地凭据保管，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。
+目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员已有源码与测试，文档已落位；model 保留可复用实现设计并暂存宿主装配设计；model-host-local 已承接本地凭据保管、发送资源、本地装配入口与准备租约接入，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。
 
 ## 责任与范围
 

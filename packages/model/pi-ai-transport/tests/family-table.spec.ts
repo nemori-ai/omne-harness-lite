@@ -87,6 +87,7 @@ function bindingFor(supplier: Supplier, adoption: Adoption, seen: Probe): PiFami
       measure: () => ({ failure: refused }),
       measureCalibrated: () => ({ failure: refused }),
     },
+    replayFormat: null,
     tools: { convertToModelPayload: () => ({ failure: refused }) },
     encode: () => ({ failure: refused }),
     createDecoder: createTestDecoder,

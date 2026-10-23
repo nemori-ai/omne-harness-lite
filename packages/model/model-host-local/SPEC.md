@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包承载两项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件），以及本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`）。时钟、实例调度、目录装载、托管运行插件与计量准备资源不在本包当前范围，没有实现也不由本文件承诺。
+本包承载两项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件），以及本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`）。装配同时接入 model 的计量准备资源。时钟、实例调度、目录装载与托管运行插件不在本包当前范围，没有实现也不由本文件承诺。
 
 发送资源满足 model 的 `SendResources` 端口，端口形状与发送边界的行为归 [model 的 SPEC](../model/SPEC.md)。传输、家族贡献、网络资源与路由的形状和行为归 [pi-ai-transport](../pi-ai-transport/SPEC.md)。秘密不进入请求、发出记录、失败、扩展或遥测的要求归 [model-contract](../model-contract/SPEC.md)。
 
@@ -65,12 +65,13 @@
 
 ### 本地 Model 装配
 
-`assembleLocalModel(config)` 组合本地发送路径，返回 `{ send, close }`。
+`assembleLocalModel(config)` 组合本地发送路径与计量准备资源，返回 `{ send, preparation, close }`。
 
-- 配置项是 `credentials`（`CredentialPort`，如本地保管库）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits` 与 `maxRetainedAttempts`。
-- 本包不写任何路由地址、代理或限额的默认值。OpenRouter 的地址必须由配置的 `routes` 给出。
+- 配置项是 `credentials`（`CredentialPort`，如本地保管库）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits`、`maxRetainedAttempts` 与 `preparation`。`preparation` 有两项：`maxCitedCalls`（一个 lineage 最多引用的不同调用数）与 `supplierOf`（model 的 `SupplierPort`，为档案供应商补上凭据引用）。
+- 本包不写任何路由地址、代理、限额或余量的默认值。OpenRouter 的地址必须由配置的 `routes` 给出。计量余量是家族配置的一部分，由调用方组合家族时给出。
 - 装配从 `network` 创建网络资源，用它们与 `families`、`routes`、`transportLimits` 建发送资源，再用 `commands`、`coordinator`、`credentials`、发送资源与 `maxRetainedAttempts` 建 model 的发送边界 `send`。
-- 网络、传输或发送边界拒绝配置时，装配抛出 `RangeError`，并关闭它已创建的网络资源。
+- 装配用 model 的 `createModelPreparationResources` 建 `preparation`：绑定来源是 `families`，调用事实经同一个 `commands` 的 `dispatches` 读取，`supplierOf` 与 `maxCitedCalls` 取自 `preparation` 配置。租约的取得、读取、判决与释放归 [model 的 SPEC](../model/SPEC.md)。
+- 网络、传输、发送边界或准备资源拒绝配置时（`preparation` 不是对象也算），装配抛出 `RangeError`，并关闭它已创建的网络资源。
 - 发送边界在发送围栏内同步解析凭据，经 `startWithCredential` 交给本次发送的私有槽。传输交出的事实原样经发送边界交给调用方；账目事实经 model 运行时的接收路径到达 `commands.preserve`，由 `commands` 补全、去重与替换修订。
 - 生产代码不导入任何 `testing` 模块。`commands` 与 `coordinator` 由调用方注入；内存版 `ModelCommands` 只用于装配测试，不是生产保管。
 
@@ -101,7 +102,9 @@
 
 - 发送资源拥有它为每次 `acquire` 建的 pi 传输，在 `release` 或 `close` 中关闭它们。发送边界拥有每次尝试的资源，在尝试结束时调用 `release`。
 - 装配拥有它创建的网络资源。`close()` 先关闭发送资源，再关闭网络资源，并等待在途交换实际停止。网络关闭也让仍在途的交换停止。
-- 装配不拥有 `commands`、`coordinator` 与 `credentials`。`close()` 不关闭它们，调用方负责它们的寿命。
+- 装配不拥有 `commands`、`coordinator`、`credentials` 与 `families`。`close()` 不关闭它们，调用方负责它们的寿命。
+- `close()` 开始后，`preparation.acquire` 返回 `{ kind: 'unavailable', dependency: 'model-host-local', diagnostic: 'assembly-closed' }`。这个名字指向装配，不复用发送资源的名字：发送资源也能单独关闭，`pi-send-resources` 只指它。拒绝时不调用 `supplierOf`，不取得绑定。
+- `close()` 不释放租约。关闭前取得的租约持有自己的绑定，关闭后仍可计量，直到取得它的调用方调用 `release`。家族计量器是纯函数，不持有网络资源。
 - 装配的 `close()` 重复调用返回同一结果。发送资源关闭失败时，网络资源仍然关闭，之后抛出该失败。
 - 关闭只改变本进程内的状态。已经发出的请求与上游已经产生的费用不可撤回。
 
@@ -113,6 +116,6 @@
 
 保管库状态的形状来自 model 的判定函数：本包构造 `CustodianState`，model 不依赖本包。判定对未铸造租户值的处理属于 model，本包不补。
 
-持续验证在 [tests](tests/index.md)：[credential.spec.ts](tests/credential.spec.ts) 覆盖五种结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新、文件锁、保存确认未知与发布路径关闭文件描述符；[custodian-options.spec.ts](tests/custodian-options.spec.ts) 覆盖建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝；[credential-service.spec.ts](tests/credential-service.spec.ts) 在真实 Cordis 4.0.4 下核对服务实例只暴露 `present` 与 `resolve`；[cordis-entry.spec.ts](tests/cordis-entry.spec.ts) 核对插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验与损坏文件上的不可用服务；[deliver-injected.spec.ts](tests/deliver-injected.spec.ts) 在真实 Cordis 4.0.4 下核对注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。[send-resources.spec.ts](tests/send-resources.spec.ts) 用观察凭据槽的传输工厂核对：槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等；它还用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。[assembly.spec.ts](tests/assembly.spec.ts) 核对装配对路由、网络与尝试容量配置的拒绝，以及 `close` 幂等。[local-model.spec.ts](tests/local-model.spec.ts) 属于慢层：它用本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时驱动调用，核对请求带保管库解析出的 `Bearer` 占位值、事实以唯一的 `ended` 结束、账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands` 并经 `dispatches` 读回、`payableAmount` 得到已知的 `openrouter-credit` 金额，以及占位值不出现在事实与发出记录中。
+持续验证在 [tests](tests/index.md)：[credential.spec.ts](tests/credential.spec.ts) 覆盖五种结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新、文件锁、保存确认未知与发布路径关闭文件描述符；[custodian-options.spec.ts](tests/custodian-options.spec.ts) 覆盖建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝；[credential-service.spec.ts](tests/credential-service.spec.ts) 在真实 Cordis 4.0.4 下核对服务实例只暴露 `present` 与 `resolve`；[cordis-entry.spec.ts](tests/cordis-entry.spec.ts) 核对插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验与损坏文件上的不可用服务；[deliver-injected.spec.ts](tests/deliver-injected.spec.ts) 在真实 Cordis 4.0.4 下核对注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。[send-resources.spec.ts](tests/send-resources.spec.ts) 用观察凭据槽的传输工厂核对：槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等；它还用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。[assembly.spec.ts](tests/assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，`preparation` 的租约经配置的家族取得绑定并调用配置的 `supplierOf`，`close` 开始后的取得返回具名为 `model-host-local`、`assembly-closed` 的不可用且不调用 `supplierOf`，关闭前取得的租约在关闭后计量结果不变并能释放，以及 `close` 幂等。[local-model.spec.ts](tests/local-model.spec.ts) 属于慢层：它用本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文（两家各有一条回复含推理续接状态部件），经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时驱动调用，核对请求带保管库解析出的 `Bearer` 占位值、事实以唯一的 `ended` 结束、调用收场且发出记录的终局与之相同、物化回执带该家族记录产出的 `replayFormat`、账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands` 并经 `dispatches` 读回、`payableAmount` 得到已知的 `openrouter-credit` 金额，以及占位值不出现在事实与发出记录中。[continuation.spec.ts](tests/continuation.spec.ts) 也属于慢层：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。它核对锚点命中，金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算，余量只按估算部分计算，方法名以 `+continuation-anchored/1` 结尾，带 X 回复的请求比不带时恰好多 X 的输出 token 数；另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。
 
-未覆盖：网络文件系统与跨机器的锁语义，崩溃后残留锁的自动恢复，以及本包以外的宿主能力。发送路径没有经真实厂商或代理验证。输出含推理状态的调用，其收场不在本包验证：内存 `ModelCommands` 在 finish 时尚未组成带推理状态消息的回放，这类调用的终止被拒绝；本包只核对它的发送与账目到达。耐久的 `ModelCommands` 与计量准备资源不在本包。
+未覆盖：网络文件系统与跨机器的锁语义，崩溃后残留锁的自动恢复，以及本包以外的宿主能力。发送路径没有经真实厂商或代理验证。耐久的 `ModelCommands` 不在本包。

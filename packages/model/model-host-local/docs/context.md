@@ -38,7 +38,7 @@ Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path,
 
 ### 本地发送路径
 
-`assembleLocalModel` 把保管库接到 model 的发送边界与 pi 传输。调用方组合家族，给出 `ModelCommands` 与 `SendCoordinator`，并给出全部路由与限额。
+`assembleLocalModel` 把保管库接到 model 的发送边界与 pi 传输，并在同一组家族与 `ModelCommands` 上给出计量准备资源。调用方组合家族（含计量余量），给出 `ModelCommands` 与 `SendCoordinator`，并给出全部路由、限额与准备选项。
 
 ```ts
 import { assembleLocalModel, openLocalCustodian } from '@omne-harness/model-host-local'
@@ -55,12 +55,15 @@ const local = assembleLocalModel({
   routes: { openrouter: { url: openRouterUrl, endMarker: '[DONE]' } },
   transportLimits,
   maxRetainedAttempts: 8,
+  preparation: { maxCitedCalls: 64, supplierOf }, // supplierOf：为档案供应商补上凭据引用
 })
 // local.send 交给 createModelRuntime 的 dependencies.send
+const lease = await local.preparation.acquire({ ...access, profile, lineage }) // lineage 可省略
+// 用 lease.bindings 的 rules.plan 与 meter.measure 计量，结束后 await lease.release()
 await local.close()
 ```
 
-示例里的数值只说明形状，不是默认值。`local.close()` 不关闭 `commands`、`coordinator` 与保管库。
+示例里的数值只说明形状，不是默认值。`local.close()` 不关闭 `commands`、`coordinator`、家族与保管库。`close()` 开始后，`local.preparation.acquire` 返回 `unavailable`（`model-host-local`，`assembly-closed`）。关闭前取得的租约仍可计量，调用方照常调用 `release`。
 
 选择本包会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile。只消费 model 或契约包的程序不需要它。
 

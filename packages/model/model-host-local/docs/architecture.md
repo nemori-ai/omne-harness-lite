@@ -12,7 +12,7 @@
 | [cordis.ts](../src/cordis.ts) | Cordis 绑定入口：`LocalCredentialPlugin`、配置校验，并转出 `deliverInjected` | model-cordis-contract、Cordis、store、deliver-injected |
 | [deliver-injected.ts](../src/deliver-injected.ts) | `deliverInjected`：经静态注入取得 `modelCredential` 并调用 model 的 `deliver` | model（`deliver`）、model-contract、model-cordis-contract、Cordis |
 | [send-resources.ts](../src/send-resources.ts) | 生产发送资源：每次 `acquire` 一个 pi 传输及其私有凭据槽、物化传输归属、配置探针、`SendResourceDefect` | model（`SendResources` 类型）、model-contract、pi-ai-transport |
-| [assembly.ts](../src/assembly.ts) | 本地 Model 装配：创建并关闭网络资源，组合发送资源与 model 的发送边界 | model（`createModelSendBoundary`）、model-contract、pi-ai-transport、send-resources |
+| [assembly.ts](../src/assembly.ts) | 本地 Model 装配：创建并关闭网络资源，组合发送资源与 model 的发送边界，在同一组家族与 `ModelCommands` 上建计量准备资源；`close` 开始后两者都拒绝新的资源 | model（`createModelSendBoundary`、`createModelPreparationResources`）、model-contract、pi-ai-transport、send-resources |
 
 依赖方向是 cordis.ts 到 store.ts 到 records.ts，反向没有。deliver-injected.ts 不导入 store.ts 与 records.ts：注入发送只经服务取得凭据，不打开保管库。根入口不导入 Cordis 或 cordis.ts。assembly.ts 到 send-resources.ts，两者都不导入 store.ts、records.ts 或任何 `testing` 模块：装配只经 `CredentialPort` 消费保管库。本包依赖 model 取得判定函数、状态类型与发送边界；model 不依赖本包。本包依赖 pi-ai-transport 取得传输与网络资源；家族包只是测试依赖，由调用方组合后注入。
 
@@ -34,7 +34,9 @@
 
 **装配期的配置探针。** 发送资源在构造时用空槽建一个传输检查配置，配置错误在装配时抛出，而不是在第一次发送时变成一个不可用结果。探针不发送，在 `close` 中关闭。
 
-**装配只组合。** 装配不持有业务状态，不另造协调语义。账目经 model 运行时的接收路径到达注入的 `ModelCommands`；补全、去重与修订替换归 `ModelCommands`。路由、代理与限额都来自配置。
+**装配只组合。** 装配不持有业务状态，不另造协调语义。账目经 model 运行时的接收路径到达注入的 `ModelCommands`；补全、去重与修订替换归 `ModelCommands`。准备资源的绑定来源就是发送用的 `families`（`PiFamilyContributions` 在结构上满足 model 的 `PreparationBindingSource`），调用事实经同一个 `commands` 读取，所以计量与发送看到同一组家族记录和同一份调用事实。路由、代理、限额与 `maxCitedCalls` 都来自配置，余量来自家族配置。
+
+**一个关闭结束两部分。**装配的 `close` 是发送资源与准备资源共同的终点。`close` 开始后，两者都拒绝新的资源。发送资源返回自己的 `unavailable`（`pi-send-resources`，`send-resources-closed`）；准备资源返回指向装配的 `unavailable`（`model-host-local`，`assembly-closed`）。准备资源没有在途交换要等待，所以关闭只拒绝新的租约。关闭前取得的租约持有自己的绑定，由取得它的调用方释放。家族计量器是纯函数，关闭后仍可计量。
 
 ## 验证与维护
 

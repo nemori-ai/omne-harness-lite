@@ -132,23 +132,73 @@ function completionBlockSteps(
   steps.push({ step: 'close', index, block })
   return steps
 }
-export function completionFailure(
+/**
+ * Whether the blocks of a completed dispatch form one assistant message. `formed`: they do, or the
+ * termination does not complete. `refused`: the content does not form a message, so the logical
+ * terminal stays open. `replay-unknown`: the content holds reasoning state parts, but the replay
+ * `scope` or `format` of this dispatch is unknown, so the message cannot be written.
+ */
+export type Completion =
+  | Readonly<{ kind: 'formed' }>
+  | Readonly<{ kind: 'refused' | 'replay-unknown'; failure: ModelFailure }>
+type FinishReplay =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'range'; scope: string; format: string }>
+  | Readonly<{ kind: 'unknown'; failure: ModelFailure }>
+/**
+ * The replay of the finish. `scope` is the `produces` of the request declaration of the dispatch
+ * supplier; `format` is the `replayFormat` of the dispatch receipt. Content without reasoning
+ * leaves the finish without replay. Thinking alone without a known range does too (RS-03: the
+ * origin of the reasoning text is unknown). Reasoning state parts need both, or fail named.
+ */
+function finishReplay(
+  call: MemoryCall,
+  dispatch: MemoryDispatch,
+  blocks: readonly ModelBlock[],
+): FinishReplay {
+  const state = blocks.some(block => block.kind === 'reasoning_state')
+  if (!state && !blocks.some(block => block.kind === 'thinking')) return { kind: 'none' }
+  const format = dispatch.record.materialization?.receipt.replayFormat
+  if (format === undefined)
+    return state
+      ? { kind: 'unknown', failure: invalid('termination', 'replay-format-unknown') }
+      : { kind: 'none' }
+  const supplier = digest(dispatch.record.supplier)
+  const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
+  const scope = call.request?.declarations[index]?.produces
+  if (scope === undefined)
+    return state
+      ? { kind: 'unknown', failure: invalid('termination', 'replay-scope-unknown') }
+      : { kind: 'none' }
+  return { kind: 'range', scope, format }
+}
+export function completionOf(
+  call: MemoryCall,
   dispatch: MemoryDispatch,
   termination: Termination | Extract<TransportFact, { kind: 'ended' }>['termination'],
-): ModelFailure | null {
-  if (termination.kind === 'completed' && termination.reason !== 'limit') {
-    if (dispatch.blocks.length === 0 || dispatch.blocks.some(b => b.kind !== 'sealed'))
-      return invalid('termination', 'unsealed-or-empty')
-    const steps: unknown[] = []
-    for (const [i, visible] of dispatch.blocks.entries()) {
-      if (visible.kind !== 'sealed') continue
-      steps.push(...completionBlockSteps(dispatch, visible, String(i)))
-    }
-    steps.push({ step: 'finish', index: String(dispatch.blocks.length) })
-    if ('rejected' in assembleStream({ target: target(), steps }))
-      return invalid('termination', 'invalid-completion')
-  }
-  return null
+): Completion {
+  if (termination.kind !== 'completed' || termination.reason === 'limit') return { kind: 'formed' }
+  const sealed = dispatch.blocks.flatMap(b => (b.kind === 'sealed' ? [b] : []))
+  if (sealed.length === 0 || sealed.length !== dispatch.blocks.length)
+    return { kind: 'refused', failure: invalid('termination', 'unsealed-or-empty') }
+  const replay = finishReplay(
+    call,
+    dispatch,
+    sealed.map(visible => visible.block),
+  )
+  if (replay.kind === 'unknown') return { kind: 'replay-unknown', failure: replay.failure }
+  const steps: unknown[] = []
+  for (const [i, visible] of sealed.entries())
+    steps.push(...completionBlockSteps(dispatch, visible, String(i)))
+  const index = String(dispatch.blocks.length)
+  steps.push(
+    replay.kind === 'none'
+      ? { step: 'finish', index }
+      : { step: 'finish', index, replay: { scope: replay.scope, format: replay.format } },
+  )
+  if ('rejected' in assembleStream({ target: target(), steps }))
+    return { kind: 'refused', failure: invalid('termination', 'invalid-completion') }
+  return { kind: 'formed' }
 }
 function endDispatch(
   call: MemoryCall,
@@ -157,8 +207,8 @@ function endDispatch(
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  const completion = completionFailure(dispatch, termination)
-  if (completion) return completion
+  const completion = completionOf(call, dispatch, termination)
+  if (completion.kind !== 'formed') return completion.failure
   const actual =
     termination.kind === 'interrupted'
       ? call.state.control.kind === 'requested'

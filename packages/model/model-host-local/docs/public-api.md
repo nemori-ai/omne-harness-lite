@@ -21,4 +21,4 @@
 - 引用、结果与端口的形状：[model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)。
 - 判定函数与状态形状：[model](../../model/docs/public-api.md#已实现的凭据入口)。
 
-本包没有实现 executeModel 或 createModelRuntime。`assembleLocalModel` 只组合发送路径；调用的受理、驱动与收场由调用方经 model 的 `createModelRuntime` 完成，本包不证明完整托管调用已交付。
+本包没有实现 executeModel、createModelRuntime 或 createModelPreparationResources。`assembleLocalModel` 只组合发送路径与准备资源；租约的行为归 [model](../../model/SPEC.md)；调用的受理、驱动与收场由调用方经 model 的 `createModelRuntime` 完成，本包不证明完整托管调用已交付。
