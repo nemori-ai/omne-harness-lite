@@ -171,7 +171,7 @@ SDK 首批覆盖的其余能力、操作及订阅范围仍待明确。那些项�
 
 <!-- documentation:placeholder -->
 
-待明确本地与远程接入方式、认证交互、协议版本及 SDK 发布关系。当前不选择 HTTP、WebSocket、stdio 或其他传输，也不从 DSH 的实现直接继承协议与限制。
+传输路线沿[技术基础的共同技术选择](technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证、端点与订阅语义由 public-contract 拥有，不从 DSH 的实现直接继承协议与限制。本地与远程接入方式、认证交互、协议版本及 SDK 发布关系仍待明确。
 
 ### 客户端状态与资源管理
 

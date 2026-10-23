@@ -10,7 +10,7 @@
 
 接入只处理已经完成传输保护的字节。它按公开契约的次序给出终端结果。它不改写 identity 返回的 `denied` 和 `basis-unavailable`。设计签名和接入样例在行为规格。那些类型现在不导出。
 
-本页不把 HTTP、WebSocket 或 stdio 定成传输。具体保护协议不在本页选定。远程字节流必须具备保密和完整。
+传输路线沿[技术基础的共同技术选择](../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证、端点与订阅语义由公开契约拥有。具体保护协议不在本页选定。远程字节流必须具备保密和完整。
 
 ## 验证
 
@@ -18,4 +18,4 @@
 
 ## English promise
 
-This member owns the entry duties for the governance protocol. Outcome meanings stay in the public contract. The entry stops at the first terminal result and does not rewrite an identity result. Remote byte streams must stay confidential and intact. This page does not choose HTTP, WebSocket, stdio, or a named protection protocol. The design signatures in the behavior spec are not installed exports.
+This member owns the entry duties for the governance protocol. Outcome meanings stay in the public contract. The entry stops at the first terminal result and does not rewrite an identity result. Remote byte streams must stay confidential and intact. The transport follows the [shared technical choices](../../../docs/architecture/technical-foundations.md#共同技术选择): HTTP JSON for control and queries, and fetch SSE for one-way observation. Public operations, authentication, endpoints, and subscription semantics belong to the public contract. This page does not choose a protection protocol. The design signatures in the behavior spec are not installed exports.
