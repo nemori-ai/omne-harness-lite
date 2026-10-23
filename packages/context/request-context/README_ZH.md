@@ -20,7 +20,7 @@ Request Context 的机制实现成员，`module` 变体。
 
 ## 使用
 
-本成员只有根入口 `@omne-harness/request-context`。装配 Cordis 的系统不直接导入它，由 request-context-cordis 按配置选定策略并调用工厂，三项端口由组装请求的调用方经 `assembly(scope, ports)` 逐次交入。不装配 Cordis 的调用方直接调用本成员的工厂，在构造时给出三项端口与两个策略，自己收集提示词贡献、保存计划进度与最近一次完整读取的块材料，见[使用与定位](docs/context.md#独立使用)。
+本成员只有根入口 `@omne-harness/request-context`。装配 Cordis 的系统不直接导入它，由 request-context-cordis 按配置选定策略并调用工厂，四项端口由组装请求的调用方经 `assembly(scope, ports)` 逐次交入。不装配 Cordis 的调用方直接调用本成员的工厂，在构造时给出四项端口与两个策略，自己收集提示词贡献、保存计划进度与最近一次完整读取的块材料，见[使用与定位](docs/context.md#独立使用)。
 
 只需要纯操作、不需要缓存的调用方使用 request-context-contract，不需要本成员。
 

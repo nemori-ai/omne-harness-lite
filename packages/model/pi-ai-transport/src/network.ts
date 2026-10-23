@@ -1,0 +1,185 @@
+import { createConnectionCapacity, type ConnectionCapacity } from './capacity.ts'
+import {
+  createDiagnosticSink,
+  type DiagnosticObserver,
+  type IsolatedDiagnostics,
+} from './diagnostics.ts'
+import type { ExchangeResources, InFlightExchange, TlsOptions } from './http.ts'
+import { isTimerDuration, MAX_TIMER_MS } from './limits.ts'
+import { PoolAgent, supportsProxyEnv } from './pool-agent.ts'
+
+/** An HTTPS proxy for every exchange whose host the bypass list does not match. */
+export type ProxyConfig = Readonly<{
+  /** An `http:` or `https:` proxy URL. It may carry credentials: it never enters a message, result or diagnostic. */
+  url: string
+  /** Hosts reached directly, in Node's `NO_PROXY` forms: host, `.suffix`, `*.suffix`, IP, IP range, `host:port`. May be empty. */
+  bypass: readonly string[]
+}>
+
+/** Every limit comes from the caller; the package holds no default policy. */
+export type NetworkConfig = Readonly<{
+  /** The connection capacity: how many exchanges may be in flight at once. The pool has no socket limit. */
+  maxConnections: number
+  /** A pooled idle socket is closed after this long without traffic. At most `MAX_TIMER_MS`. */
+  idleConnectionTimeoutMs: number
+  tls?: TlsOptions
+  /** Absent: every exchange connects directly. Requires Node 24.5.0 or later. */
+  proxy?: ProxyConfig
+  /** Absent: nothing is observed and the counters stay at zero. */
+  diagnostics?: Readonly<{ observer: DiagnosticObserver; maxPending: number }>
+}>
+
+/**
+ * The capacity, the socket pool and the in-flight registry that exchanges share. Package-internal:
+ * the root entry gives only the opaque `NetworkResources` handle. `close()` is idempotent and
+ * remembered: it closes the capacity, stops every in-flight exchange, destroys the pool, then
+ * waits until every in-flight exchange has physically stopped.
+ */
+export interface NetworkInternals extends ExchangeResources {
+  readonly capacity: ConnectionCapacity
+  close(): Promise<void>
+  /** The opaque handle of these resources, as `createNetworkResources` gives it. */
+  readonly handle: NetworkResources
+}
+
+/** Only this module can name the brand key, so only `createNetworkResources` makes a handle. */
+const NETWORK_RESOURCES: unique symbol = Symbol('pi-ai-transport.network-resources')
+
+/**
+ * The network resources that the assembly creates, gives to one or more transports and closes
+ * after them. Opaque: the capacity, the pool and the in-flight exchanges stay inside the package.
+ * `close()` is idempotent: it stops every in-flight exchange and resolves after their physical
+ * stop.
+ */
+export type NetworkResources = Readonly<{
+  close(): Promise<void>
+  readonly [NETWORK_RESOURCES]: true
+}>
+
+/** Maps each handle to its resources. Filled only by `openNetwork`. */
+const internalsOfHandle = new WeakMap<object, NetworkInternals>()
+
+export function createNetworkResources(config: NetworkConfig): NetworkResources {
+  return openNetwork(config).handle
+}
+
+/**
+ * The resources behind a handle that `createNetworkResources` made. Throws `RangeError` for any
+ * other value.
+ */
+export function networkInternalsOf(network: unknown): NetworkInternals {
+  const internals =
+    typeof network === 'object' && network !== null ? internalsOfHandle.get(network) : undefined
+  if (internals === undefined)
+    throw new RangeError('network must be network resources from createNetworkResources')
+  return internals
+}
+
+/** Creates the resources and their handle. Package-internal; the tests use it to observe them. */
+export function openNetwork(config: NetworkConfig): NetworkInternals {
+  requirePositiveInteger(config.maxConnections, 'maxConnections')
+  requireTimerDuration(config.idleConnectionTimeoutMs, 'idleConnectionTimeoutMs')
+  const proxyEnv =
+    config.proxy === undefined ? undefined : proxyEnvOf(config.proxy, process.versions.node)
+  const diagnostics =
+    config.diagnostics === undefined
+      ? SILENT
+      : createDiagnosticSink(config.diagnostics.observer, {
+          maxPending: config.diagnostics.maxPending,
+        })
+  const capacity = createConnectionCapacity(config.maxConnections)
+  // The capacity alone bounds the exchanges in flight; the pool only reuses sockets and closes
+  // idle ones. A socket limit equal to the capacity would queue a request that holds a slot: Node
+  // takes a socket it does not keep out of the pool's count only when the socket's close arrives,
+  // a turn of the loop after the request's close, where the slot returns and the next waiter starts.
+  const agent = new PoolAgent({
+    keepAlive: true,
+    maxSockets: Number.POSITIVE_INFINITY,
+    timeout: config.idleConnectionTimeoutMs,
+    ...(proxyEnv === undefined ? {} : { proxyEnv }),
+  })
+  const inFlight = new Set<InFlightExchange>()
+  let draining: Promise<void> | undefined
+
+  async function drain(): Promise<void> {
+    capacity.close()
+    const stopping = [...inFlight]
+    for (const exchange of stopping) exchange.stop()
+    agent.destroy()
+    await Promise.all(stopping.map(exchange => exchange.stopped))
+  }
+
+  function close(): Promise<void> {
+    draining ??= drain()
+    return draining
+  }
+
+  const handle: NetworkResources = Object.freeze({ close, [NETWORK_RESOURCES]: true })
+  const internals: NetworkInternals = {
+    agent,
+    tls: config.tls,
+    diagnostics,
+    inFlight,
+    capacity,
+    get closed() {
+      return draining !== undefined
+    },
+    close,
+    handle,
+  }
+  internalsOfHandle.set(handle, internals)
+  return internals
+}
+
+const NO_COUNTERS = Object.freeze({ failed: 0, pending: 0, dropped: 0 })
+
+/** The sink used when no observer is configured. */
+const SILENT: IsolatedDiagnostics = {
+  emit() {},
+  counters: () => NO_COUNTERS,
+}
+
+function requirePositiveInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 1)
+    throw new RangeError(`${name} must be a positive integer`)
+}
+
+function requireTimerDuration(value: number, name: string): void {
+  if (!isTimerDuration(value))
+    throw new RangeError(`${name} must be a positive integer of at most ${MAX_TIMER_MS}`)
+}
+
+const PROXY_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:'])
+const BYPASS_SEPARATOR = /[\s,]/
+
+/**
+ * The `proxyEnv` that Node's pool takes, from a checked configuration. The messages name the field
+ * and the rule only: the URL may carry credentials.
+ *
+ * Node gets the URL as `URL` serializes it, never as given. `URL.canParse` accepts what Node's own
+ * reading of `HTTPS_PROXY` refuses or ignores: Node throws on a CR or LF, with the whole URL in the
+ * message, and connects directly, without an error, when the text does not start with a lower-case
+ * `http://` or `https://` (an upper-case scheme or leading whitespace). The serialized form has
+ * neither. Only the upper-case keys are set: Node prefers a lower-case key when both are present.
+ */
+function proxyEnvOf(
+  proxy: ProxyConfig,
+  nodeVersion: string,
+): Readonly<{ HTTPS_PROXY: string; NO_PROXY: string }> {
+  const { url, bypass } = proxy
+  if (typeof url !== 'string' || !URL.canParse(url))
+    throw new RangeError('proxy.url must be a valid URL')
+  const parsed = new URL(url)
+  if (!PROXY_PROTOCOLS.has(parsed.protocol))
+    throw new RangeError('proxy.url must use the http: or https: protocol')
+  if (!Array.isArray(bypass) || !bypass.every(isBypassEntry))
+    throw new RangeError(
+      'proxy.bypass entries must be non-empty strings without commas or whitespace',
+    )
+  if (!supportsProxyEnv(nodeVersion)) throw new RangeError('proxy requires Node 24.5.0 or later')
+  return { HTTPS_PROXY: parsed.href, NO_PROXY: bypass.join(',') }
+}
+
+function isBypassEntry(entry: unknown): boolean {
+  return typeof entry === 'string' && entry !== '' && !BYPASS_SEPARATOR.test(entry)
+}

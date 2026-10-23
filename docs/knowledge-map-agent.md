@@ -36,6 +36,7 @@
 | 有身份对象的宿主、身份、生灭、依据与对象性未决 | [.meta_harness/design/domain_objects/](../.meta_harness/design/domain_objects/README.md) | 条目依统一语言与有效产品依据维护；不是完整领域架构或成员数据模型 |
 | 上游机制在固定版本下提供与不提供什么 | [.meta_harness/design/basis/](../.meta_harness/design/basis/README.md)及有效来源/probe | 读数受上游版本和实际验证范围约束，不能自动把上游保证授予本系统 |
 | 持续研究与条件性知识 | [.meta_harness/research/](../.meta_harness/research/README.md)及[agent研究入口](../.meta_harness/agents/research/README.md) | 根research职责/结构仍待负责人定义；读实际入口，不恢复旧模板或从目录推定结论采用 |
+| 怎样给 agent 布置与评审一类设计（写给人的学习材料） | [.meta_harness/human/](../.meta_harness/human/README.md) | 不是规则，规则以其引用的拥有者为准；agent 不以它为任务依据 |
 | 项目独有skills/roles、适配及持续评估资源 | [.meta_harness/agents/](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md) | canonical是源；.meta_harness下宿主目录是生成物，根.agents/.claude/.codex暴露入口，不手改产物 |
 | 派生视图、结构库存、来源/符合性观察 | [设计views](../.meta_harness/design/views/README.md)、[spec-tools](../tools/spec-tools/README.md)、[repo-toolchain](../tools/repo-toolchain/README_ZH.md)、[verification](verification.md) | 视图用于定位源，报告用于定位偏离/未知。由真实输入重新生成，不手填结果或把观察变成权威 |
 | 保留技术源、封存PF与旧实现 | [旧技术入口](../.meta_harness/design/architecture/README.md)、产品及包/应用入口中的legacy导航 | 只作核对出处或尚未承接的材料；旧接受、当前消费者或绿测不能批准冲突设计继续采用 |

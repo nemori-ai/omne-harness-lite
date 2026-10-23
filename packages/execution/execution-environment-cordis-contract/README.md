@@ -1,6 +1,5 @@
 # @omne-harness/execution-environment-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The Cordis definition member of the execution environment. Variant: `service-contract`.
@@ -14,8 +13,8 @@ The package does not own domain behavior. [execution-environment-contract](../ex
 Status: Cordis definition member, `draft`. The adoption basis is the member split on the [system page](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备) and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
 - Implemented: `./cordis` exports the abstract class and the key constant. It also declares the intercept configuration type and the `Context` augmentation. The root entry exports nothing.
-- Not implemented: the check of the caller class. No Service implementation reads the intercept configuration. See the [Cordis page](docs/cordis.md#intercept-配置与调用方类).
-- Not verified: the mechanism that reads the intercept configuration has only a source reading. It is not in the basis yet. No test checks the import boundary file by file.
+- Implemented: eight template methods check the caller declaration before protected hooks. Registration requires `provider`; environment and recovery calls allow an absent declaration. See the [Cordis page](docs/cordis.md#intercept-配置与调用方类).
+- Tested: caller classes, ancestor declarations, registration effects, three Cordis mechanism readings, export inventory, and entry import boundaries. Candidate readings still need basis registration.
 
 execution-environment-host-local depends on this package now.
 
@@ -32,7 +31,7 @@ A provider plugin registers like this. Cordis removes the registrations when the
 import type { Context } from '@deepseek-ai/cordis'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 
-export const inject = [executionEnvironmentKey]
+export const inject = { [executionEnvironmentKey]: { caller: 'provider' } }
 export function apply(ctx: Context) {
   ctx.executionEnvironment.registerFacility(myFacilityDescriptor)
   ctx.executionEnvironment.registerProvider(myProvider)
@@ -69,7 +68,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two test files hold five tests. They check that the root entry has no runtime export, the export set and the key constant of `./cordis`, and that a subclass provides the service on the key and goes away when its plugin unloads. See [tests/](tests/README.md). On 2026-10-21, on Node v24.18.0 and linux, all five tests passed. No test covers the caller-class check or the import boundary. A passing structure check does not prove behavior.
+Run `pnpm typecheck` here for type checking. Entry tests run on real Cordis 4.0.4 and cover eight method templates, caller declarations, loading, unloading, caller effects, and three mechanism readings. The inventory test compares built declarations with the public API page. See [tests/](tests/README.md) for scope and limits. Passing structure checks do not prove all environment behavior.
 
 ## Maintenance
 
@@ -93,7 +92,7 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Use by each dependent, position
 └── cordis.md             Service definition, caller class, registration, IC map
 src/                      index.ts empty export, cordis.ts service definition
-tests/                    Two entry tests, fixtures/ is empty now
+tests/                    Entry and export inventory tests; fixtures/ has the export list
 schema/                   Empty, the package publishes no schema
 verification/             models/ and proofs/, empty now
 adr/                      Empty now

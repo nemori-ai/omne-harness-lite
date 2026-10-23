@@ -38,6 +38,8 @@ step() {
 pnpm --silent run check:agents
 pnpm --silent run check:docs
 pnpm --silent run check:design
+# 常驻：线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置），失败即失败。
+pnpm --silent run check:lines
 # 按计划：Python 工具测试。
 step python
 pnpm run format:check

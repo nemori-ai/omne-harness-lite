@@ -155,7 +155,7 @@ describe('a scripted call that is fed upstream facts', () => {
     ).toEqual([growing('0', 'text', 'kept')])
   })
 
-  it('goes on with the facts after a trim, and after an account fact', async () => {
+  it('goes on with the facts after a trim, an account fact and a diagnostic fact', async () => {
     expect(
       await shown([
         open('0', 'tool-arguments'),
@@ -172,16 +172,15 @@ describe('a scripted call that is fed upstream facts', () => {
           kind: 'account',
           event: 'e',
           value: {
-            subject: { kind: 'model_call', id: 'c' },
             usage: [],
             cost: [],
             trimmed: { state: 'unknown', unit: 'USD' },
             place: 'p',
             duration: { state: 'unknown' },
-            receipt: 'received',
             revision: '1',
           },
         },
+        { kind: 'diagnostic', value: { kind: 'reasoning-disabled', reason: 'foreign-prefix' } },
         delta('0', 'b'),
       ]),
     ).toEqual([growing('0', 'text', 'b')])

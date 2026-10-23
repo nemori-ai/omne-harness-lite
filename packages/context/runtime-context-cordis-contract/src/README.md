@@ -16,6 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 与 `cordis.ts` 现在都只有 `PACKAGE_TEMPLATE_DRAFT` 标记与空导出。这个标记表示公开定义还没有进入源码。
-
-当前缺口：抽象类 `RuntimeContextService`、键常量、intercept 配置类型、`Context` 与 `Events` 增补，以及根入口的类型重导出，都还没有进入。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+`index.ts` 显式重导出纯契约类型。`cordis.ts` 定义 RuntimeContextService、两个键常量、intercept 与载荷类型，以及 Context/Events 增补。定义不保存领域状态，方法签名从根操作类型取得。具名维护者由负责人指定。

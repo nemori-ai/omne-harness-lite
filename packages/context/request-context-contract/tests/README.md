@@ -8,7 +8,7 @@
 
 ## 边界
 
-本成员没有运行实现。纯操作的测试不需要真实存储、服务或 Cordis。`HistorySource`、计量端口与策略端口用测试内的确定实现代替。测试通过不代替规格或验收。
+本成员提供纯操作，不提供生产运行时。纯操作的测试不需要真实存储、服务或 Cordis。`HistorySource`、计量端口与策略端口用测试内的确定实现代替。测试通过不代替规格或验收。
 
 ## 维护
 
@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-现在只有 [public-entry.spec.ts](public-entry.spec.ts)。它断言根入口没有运行导出，因为 `src/index.ts` 是空导出。没有 `*.spec-d.ts` 类型测试。
+[public-entry.spec.ts](public-entry.spec.ts) 核对运行导出。[contract.spec.ts](contract.spec.ts)、[advanced.spec.ts](advanced.spec.ts) 验证纯行为，[conformance.spec.ts](conformance.spec.ts) 验证好实现通过、针对性坏实现失败。[exports.spec.ts](exports.spec.ts) 核对构建导出清单。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/request-context-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 

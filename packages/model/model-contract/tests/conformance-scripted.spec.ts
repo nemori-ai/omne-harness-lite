@@ -152,7 +152,11 @@ describe('the hooks of the scripted conformance subject', () => {
     })
     const done = await stateOf(scene, call)
     if (done.phase !== 'settled') throw new Error('the call ended')
-    const { page } = await readOf(scene, { ...call, version: done.settlement.version, state: done })
+    const { page } = await readOf(scene, {
+      ...call,
+      version: done.settlement.version,
+      state: done,
+    })
     expect(page.parts.flatMap(part => (part.kind === 'sealed' ? [part.block.id] : []))).toEqual([
       'p1',
     ])
@@ -167,7 +171,7 @@ describe('the transport of the scripted conformance subject', () => {
     const request = scene.request
     const supplier = request.suppliers[0]
     if (supplier === undefined) throw new Error('a supplier')
-    const prepared = await transport.transport.prepare(request, supplier)
+    const prepared = await transport.transport.prepare(request, supplier, { resent: [] })
     if (!('ok' in prepared)) throw new Error('prepare')
     const materialized = await prepared.ok.materialize(new AbortController().signal)
     if (!('ok' in materialized)) throw new Error('materialize')
@@ -197,7 +201,7 @@ describe('the transport of the scripted conformance subject', () => {
     const scene = sceneOf()
     const supplier = scene.request.suppliers[0]
     if (supplier === undefined) throw new Error('a supplier')
-    const prepared = await transport.transport.prepare(scene.request, supplier)
+    const prepared = await transport.transport.prepare(scene.request, supplier, { resent: [] })
     if (!('ok' in prepared)) throw new Error('prepare')
     const materialized = await prepared.ok.materialize(new AbortController().signal)
     if (!('ok' in materialized)) throw new Error('materialize')

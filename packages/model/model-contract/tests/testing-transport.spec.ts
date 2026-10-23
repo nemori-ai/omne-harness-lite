@@ -41,7 +41,7 @@ const script = (over: Partial<ScriptedTransportScript> = {}): ScriptedTransportS
 const supplier = request.suppliers[0]
 
 async function materialize(scripted: ReturnType<typeof createScriptedTransport>) {
-  const prepared = must(await scripted.transport.prepare(request, supplier))
+  const prepared = must(await scripted.transport.prepare(request, supplier, { resent: [] }))
   const materialized = must(await prepared.materialize(new AbortController().signal))
   return { prepared, materialized }
 }
@@ -147,13 +147,15 @@ describe('the protocol of a scripted transport', () => {
 
   it('answers the scripted failure at prepare and goes no further', async () => {
     const scripted = createScriptedTransport(script({ rejection: { at: 'prepare', failure } }))
-    expect(failureOf(await scripted.transport.prepare(request, supplier))).toEqual(failure)
+    expect(failureOf(await scripted.transport.prepare(request, supplier, { resent: [] }))).toEqual(
+      failure,
+    )
     expect(scripted.counts()).toMatchObject({ prepare: 1, materialize: 0, start: 0 })
   })
 
   it('answers the scripted failure at materialize and goes no further', async () => {
     const scripted = createScriptedTransport(script({ rejection: { at: 'materialize', failure } }))
-    const prepared = must(await scripted.transport.prepare(request, supplier))
+    const prepared = must(await scripted.transport.prepare(request, supplier, { resent: [] }))
     const step = await prepared.materialize(new AbortController().signal)
     expect(failureOf(step)).toEqual(failure)
     expect(scripted.counts()).toMatchObject({ prepare: 1, materialize: 1, start: 0 })
@@ -161,8 +163,8 @@ describe('the protocol of a scripted transport', () => {
 
   it('counts every prepare, also of requests that are never materialized', async () => {
     const scripted = createScriptedTransport(script())
-    await scripted.transport.prepare(request, supplier)
-    await scripted.transport.prepare(request, supplier)
+    await scripted.transport.prepare(request, supplier, { resent: [] })
+    await scripted.transport.prepare(request, supplier, { resent: [] })
     expect(scripted.counts()).toEqual({
       prepare: 2,
       materialize: 0,
@@ -175,7 +177,7 @@ describe('the protocol of a scripted transport', () => {
   it('hands out counts that later steps do not change', async () => {
     const scripted = createScriptedTransport(script())
     const before = scripted.counts()
-    await scripted.transport.prepare(request, supplier)
+    await scripted.transport.prepare(request, supplier, { resent: [] })
     expect(before.prepare).toBe(0)
   })
 

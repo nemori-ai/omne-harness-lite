@@ -1,3 +1,4 @@
+import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { StandardTyped } from '@omne-harness/schema-provider'
@@ -9,8 +10,8 @@ import {
   type EnvironmentContinuity,
 } from './binding.ts'
 import type { FacilityKey } from './facility.ts'
-import type { OriginRef } from './identity.ts'
-import type { IsolationClaim } from './requirement.ts'
+import type { Access, AcquisitionRef, OriginRef } from './identity.ts'
+import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts'
 
 export type Path = readonly (string | number)[]
 export type Issue = Readonly<{ message: string; path: Path }>
@@ -83,6 +84,10 @@ function isOriginText(text: string): text is OriginRef {
   return text.length > 0
 }
 
+function isAcquisitionText(text: string): text is AcquisitionRef {
+  return text.length > 0
+}
+
 function isScopeText(text: string): text is ScopeRef['ref'] {
   return text.length > 0
 }
@@ -111,15 +116,65 @@ export const decodeOrigin: Decoder<OriginRef> = (value, path) =>
     ? accept(value)
     : refuse(path, 'expected a non-empty origin reference')
 
-export const decodeScope: Decoder<ScopeRef> = (value, path) => {
+export const decodeAcquisition: Decoder<AcquisitionRef> = (value, path) =>
+  typeof value === 'string' && isAcquisitionText(value)
+    ? accept(value)
+    : refuse(path, 'expected a non-empty acquisition reference')
+
+export function decodeNonEmpty(value: unknown, path: Path): Decoded<string> {
+  return typeof value === 'string' && value.length > 0
+    ? accept(value)
+    : refuse(path, 'expected a non-empty string')
+}
+
+/** Accepts exactly one of `literals`; the message names them all. */
+export function decodeLiteral<const L extends string>(literals: readonly L[]): Decoder<L> {
+  return (value, path) => {
+    const found = literals.find(literal => literal === value)
+    return found === undefined ? refuse(path, `expected ${literals.join(', ')}`) : accept(found)
+  }
+}
+
+/**
+ * Checks that a runtime member is a function and returns the record unchanged. Runtime objects
+ * (providers, leases, ports) are checked by structure only: the caller must get back the very
+ * object it handed in, not a copy.
+ */
+export function hasFunctions(
+  record: Readonly<Record<string, unknown>>,
+  path: Path,
+  names: readonly string[],
+): Decoded<true> {
+  for (const name of names)
+    if (typeof record[name] !== 'function') return refuse([...path, name], 'expected a function')
+  return accept(true)
+}
+
+/**
+ * A JSON value is the closed tree of json-text, judged by `judgeJsonValue`. Its refusal becomes one
+ * issue whose path continues into the tree.
+ */
+export const decodeJsonValue: Decoder<JsonValue> = (value, path) => {
+  const judged = judgeJsonValue(value)
+  return 'ok' in judged
+    ? accept(judged.ok)
+    : refuse([...path, ...judged.path], `expected a JSON value (${judged.rejected})`)
+}
+
+export const decodeScope: Decoder<ScopeRef> = (value, path) =>
+  decodeScopeTree(value, path, new Set())
+
+function decodeScopeTree(value: unknown, path: Path, seen: Set<object>): Decoded<ScopeRef> {
   if (!isRecord(value)) return refuse(path, 'expected a scope reference')
+  if (seen.has(value)) return refuse(path, 'cyclic scope parent')
+  seen.add(value)
   const keys = exactKeys(value, path, ['ref'], ['parent'])
   if (!keys.ok) return keys
   const ref = value['ref']
   if (typeof ref !== 'string' || !isScopeText(ref))
     return refuse([...path, 'ref'], 'expected a non-empty scope reference')
   if (value['parent'] === undefined) return accept(Object.freeze({ ref }))
-  const parent = decodeScope(value['parent'], [...path, 'parent'])
+  const parent = decodeScopeTree(value['parent'], [...path, 'parent'], seen)
   if (!parent.ok) return parent
   return accept(Object.freeze({ ref, parent: parent.value }))
 }
@@ -160,6 +215,19 @@ export const decodeTenant: Decoder<TenantId> = (value, path) => {
   }
   if (hasTenantShape(value) && tenantCodec.encode(value).ok) return accept(value)
   return refuse(path, 'expected tenant text or a minted tenant identity')
+}
+
+/**
+ * An access identity. The principal is opaque to the environment: its key must be present, its
+ * value is passed on as it is. The tenant follows `decodeTenant`.
+ */
+export const decodeAccess: Decoder<Access<unknown>> = (value, path) => {
+  if (!isRecord(value)) return refuse(path, 'expected an access identity')
+  const keys = exactKeys(value, path, ['principal', 'tenant'])
+  if (!keys.ok) return keys
+  const tenant = decodeTenant(value['tenant'], [...path, 'tenant'])
+  if (!tenant.ok) return tenant
+  return accept(Object.freeze({ principal: value['principal'], tenant: tenant.value }))
 }
 
 export const decodeBinding: Decoder<EnvironmentBinding> = (value, path) => {
@@ -229,6 +297,28 @@ export const decodeContinuity: Decoder<EnvironmentContinuity> = (value, path) =>
     default:
       return refuse([...path, 'kind'], 'expected a continuity kind')
   }
+}
+
+export const decodeRequirement: Decoder<EnvironmentRequirement> = (value, path) => {
+  if (!isRecord(value)) return refuse(path, 'expected an environment requirement')
+  const keys = exactKeys(value, path, ['allowedBindings', 'facilities', 'isolation'])
+  if (!keys.ok) return keys
+  const allowedBindings = decodeArray(decodeBinding)(value['allowedBindings'], [
+    ...path,
+    'allowedBindings',
+  ])
+  if (!allowedBindings.ok) return allowedBindings
+  const facilities = decodeArray(decodeFacilityKey)(value['facilities'], [...path, 'facilities'])
+  if (!facilities.ok) return facilities
+  const isolation = decodeArray(decodeIsolationClaim)(value['isolation'], [...path, 'isolation'])
+  if (!isolation.ok) return isolation
+  return accept(
+    Object.freeze({
+      allowedBindings: allowedBindings.value,
+      facilities: facilities.value,
+      isolation: isolation.value,
+    }),
+  )
 }
 
 /** Wraps a decoder as a synchronous Standard Schema that schema-provider also accepts. */

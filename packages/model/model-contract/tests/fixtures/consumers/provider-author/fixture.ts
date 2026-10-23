@@ -211,7 +211,7 @@ function refusalOf(
 async function runToEnd(refusal: SupplierRefusal) {
   const author = createAuthorTransport({}, refusal)
   const signal = new AbortController().signal
-  const prepared = await author.transport.prepare(request, supplier)
+  const prepared = await author.transport.prepare(request, supplier, { resent: [] })
   expect('ok' in prepared, 'prepare failed')
   const materialized = await prepared.ok.materialize(signal)
   expect('ok' in materialized, 'materialize failed')

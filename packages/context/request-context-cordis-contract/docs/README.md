@@ -18,13 +18,13 @@
 
 六个固定专题都有正文，没有按需专题。本成员是 `service-contract` 变体，`cordis.md` 是核心页，也是组内「服务键、intercept 配置与事件」主题在 Request Context 一侧的唯一拥有者（[组架构](../../docs/architecture.md#主题与唯一拥有者)）。
 
-| 专题 | 本成员里承载什么 |
-| --- | --- |
-| [cordis.md](cordis.md) | 服务定义、intercept 配置与作用域、事件、依赖分类、登记与撤除协议、策略选择、IC 符合性映射、机制读数与假设 |
-| [architecture.md](architecture.md) | 两个入口、包外依赖、五条关键机制的理由、模块层的 SOLID 选择 |
-| [flows.md](flows.md) | F-RQD01 贡献登记与撤除、F-RQD02 变化事件按作用域到达 |
-| [object-model.md](object-model.md) | 三个技术对象。领域对象指向契约的对象模型 |
-| [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
-| [context.md](context.md) | 各类依赖方的用法与定位 |
+| 专题                               | 本成员里承载什么                                                                                          |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [cordis.md](cordis.md)             | 服务定义、intercept 配置与作用域、事件、依赖分类、登记与撤除协议、策略选择、IC 符合性映射、机制读数与假设 |
+| [architecture.md](architecture.md) | 两个入口、包外依赖、五条关键机制的理由、模块层的 SOLID 选择                                               |
+| [flows.md](flows.md)               | F-RQD01 贡献登记与撤除、F-RQD02 变化事件按作用域到达                                                      |
+| [object-model.md](object-model.md) | 三个技术对象。领域对象指向契约的对象模型                                                                  |
+| [public-api.md](public-api.md)     | 两个入口。根类型重导出、Cordis 定义与导出库存                                                              |
+| [context.md](context.md)           | 各类依赖方的用法与定位                                                                                    |
 
-当前缺口：两个入口都没有源码。经 Cordis 的组装入口 `assembly(scope, ports)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 的来源还没有定义。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+两个入口的公开定义已进入[源码](../src/cordis.ts)。经 Cordis 的组装入口 `assembly(scope, ports)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 从 Runtime Context 契约原样复用。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

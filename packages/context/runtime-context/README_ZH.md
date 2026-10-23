@@ -17,6 +17,8 @@ Runtime Context 的机制实现成员，`module` 变体。
 
 现在没有包依赖本成员。
 
+Runtime Context 的两个契约成员已有类型、纯校验与 Cordis 服务定义。契约包测试不表示本实现成员已运行，也不证明生产行为。
+
 ## 使用
 
 本成员只有根入口 `@omne-harness/runtime-context`。装配 Cordis 的系统不直接导入它，由 runtime-context-cordis 调用工厂。不装配 Cordis 的调用方直接从本成员调用工厂，并自己承担撤除与唤醒的接线，见[使用与定位](docs/context.md#独立使用)。

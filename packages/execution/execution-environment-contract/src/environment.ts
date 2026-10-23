@@ -99,7 +99,7 @@ export type EnvironmentDescription = Readonly<{
   instance: InstanceIdentity
   continuity: EnvironmentContinuity
   facilities: readonly FacilityKey[]
-  state: AcquisitionState['kind']
+  state: Exclude<AcquisitionState['kind'], 'invalidInput'>
 }>
 
 export type UnsupportedRecovery =

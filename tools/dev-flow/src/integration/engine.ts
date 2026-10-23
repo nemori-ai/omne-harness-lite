@@ -9,8 +9,15 @@ import {
   admissionDigest,
 } from './authority.ts'
 import { factsSource, fetchDeliveryFacts } from './delivery-facts.ts'
-import { repository, requireAncestor } from './git.ts'
-import { same, IntegrationError } from './parse.ts'
+import { maybeBlob, repository, requireAncestor } from './git.ts'
+import { json, same, IntegrationError } from './parse.ts'
+import type { Policy } from './policy.ts'
+import { observeAdmission, type AdmissionCapture } from '../delivery/admission.ts'
+import { attributeFindings, readCardAttributes } from '../delivery/attributes.ts'
+import type { TaskBinding } from '../delivery/binding.ts'
+import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
+import { conditionCardsOf } from '../delivery/observe.ts'
+import type { CapturedIssue, DeliveryConfig } from '../delivery/protocol.ts'
 import { taskStatus, taskSync } from './sync.ts'
 import { checkUpstream } from './upstream.ts'
 
@@ -31,7 +38,18 @@ export type IntegrationEngine = {
   execute(command: Command): Promise<unknown>
 }
 
-export async function openIntegration({ root }: { root: string }): Promise<IntegrationEngine> {
+/** Receives one report line; reports never change a command result. */
+export type ReportSink = (line: string) => void
+const stderrSink: ReportSink = line => {
+  process.stderr.write(`${line}\n`)
+}
+export async function openIntegration({
+  root,
+  report = stderrSink,
+}: {
+  root: string
+  report?: ReportSink
+}): Promise<IntegrationEngine> {
   const actual = repository(root).root
   return {
     async inspect(query) {
@@ -46,7 +64,7 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
       switch (command.kind) {
         case 'register':
         case 'start':
-          return start(actual, command)
+          return start(actual, command, report)
         case 'task-sync':
           return taskSync(actual, command.target)
       }
@@ -56,6 +74,7 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
 async function start(
   root: string,
   command: Extract<Command, { kind: 'register' | 'start' }>,
+  report: ReportSink,
 ): Promise<Context> {
   const source = factsSource(process.env),
     state = taskWorkspace(root),
@@ -86,29 +105,105 @@ async function start(
   requireAncestor(root, task.binding.taskBase, info.head)
   const { ref: target, head: targetBase } = checkUpstream(root, state.policy, task.binding.route)
   confirmConditions(config, capture, task.binding, target, decision.confirmations, state.policy)
-  if (state.context !== null) {
+  const context = bind(root, state.context, task.binding, info, targetBase, () =>
     same(
-      state.context.ownerTask,
-      task.binding,
+      admissionDigest(currentAdmission(config, scope, facts?.project)),
+      admissionDigest(capture),
+      'Task inputs changed during dispatch readback',
+    ),
+  )
+  reportAttributes({
+    root,
+    commit: state.source.commit,
+    policy: state.policy,
+    config,
+    capture,
+    task,
+    report,
+  })
+  return context
+}
+/** The context of an admitted task: the existing one for the same task, or a new one. */
+function bind(
+  root: string,
+  existing: Context | null,
+  binding: TaskBinding,
+  info: ReturnType<typeof repository>,
+  targetBase: string,
+  readback: () => void,
+): Context {
+  if (existing !== null) {
+    same(
+      existing.ownerTask,
+      binding,
       'Worktree is already bound to another task; explicit new tree required',
     )
-    return state.context
+    return existing
   }
-  same(
-    admissionDigest(currentAdmission(config, scope, facts?.project)),
-    admissionDigest(capture),
-    'Task inputs changed during dispatch readback',
-  )
+  readback()
   const context: Context = {
     schemaVersion: 1,
     root: info.root,
     gitDir: info.gitDir,
     branch: info.branch,
     targetBase,
-    tasks: [{ binding: task.binding, taskSource: info.head }],
-    ownerTask: task.binding,
+    tasks: [{ binding, taskSource: info.head }],
+    ownerTask: binding,
     operation: null,
   }
   writeContext(root, context)
   return context
+}
+/**
+ * Writes the attribute findings of an admitted task, one JSON line each with severity
+ * `report`. The line table comes from the same commit as the policy. Any failure becomes one
+ * `attribute-rules-unavailable` line: reports never refuse a start or change its result.
+ */
+function reportAttributes({
+  root,
+  commit,
+  policy,
+  config,
+  capture,
+  task,
+  report,
+}: {
+  root: string
+  commit: string
+  policy: Policy
+  config: DeliveryConfig
+  capture: AdmissionCapture
+  task: { binding: TaskBinding; issue: CapturedIssue }
+  report: ReportSink
+}): void {
+  const line = (finding: { code: string; clause?: string; message: string }) => {
+    try {
+      report(JSON.stringify({ severity: 'report', issue: task.issue.url, ...finding }))
+    } catch {
+      // A failing report sink loses the report; it must not change the start result.
+    }
+  }
+  try {
+    const file = maybeBlob(root, commit, LINES_PATH)
+    if (file === null) {
+      line({ code: 'attribute-rules-unavailable', message: `Committed ${LINES_PATH} is missing` })
+      return
+    }
+    const lines = parseDeliveryLines(json(file.text, LINES_PATH)),
+      conditions = observeAdmission(config, capture, task.issue.url).cards[0]?.conditions ?? [],
+      issues = new Map(capture.issues.map(issue => [issue.url, issue]))
+    for (const finding of attributeFindings({
+      binding: task.binding,
+      card: readCardAttributes(task.issue.body, task.issue),
+      conditionCards: conditionCardsOf(conditions, issues),
+      lines,
+      registry: policy,
+    }))
+      line(finding)
+  } catch (error) {
+    line({
+      code: 'attribute-rules-unavailable',
+      message: error instanceof Error ? error.message : 'Attribute findings failed',
+    })
+  }
 }

@@ -231,7 +231,7 @@ judgeFixedModelRequest 接收 unknown；judgeAdmit 接收 typed Access 加 call�
 
 全图共用 MODEL_INPUT_LIMITS。上限分别为 100000 值节点、64 容器深度、8388608 单字符串 UTF-16 码元、16777216 字段名与值字符串累计码元、16384 单数组项、64 单记录字段、128 单字段名码元。等于上限可进入后续形状判断，超一单位分别为 budget-nodes/depth/string/strings/array/members/key。根容器深度为1，叶值计节点，数组 length 不计节点或字段。共享 DAG 按每次出现复制、计数，祖先重入为 cycle。admit 根计一个容器；P、tenant 及其两字段名不计 payload 预算，其余五个字段名参与累计。深度和累计预算在分配子结构前检查。它们是解析资源政策，不是供应商 token/context 限额，也不提供实测内存或时延保证。
 
-安全副本和预算先于封闭业务判断。请求恰好十二字段；Adoption、Supplier、credential、Parameter、ParameterAdoption/origin、ToolDeclaration/toolChoice、ConsumerRef、ResultCapacity 均按分支封闭且字段必需。不静默删除未知字段。Adoption 的 owner/name/revision 非空、digest 为64位小写hex；供应商完整值不得重复；工具名非空且唯一，具名选择必须已声明。ConsumerRef 四字段非空，容量使用规范十进制且 bytes/blocks 为正。ContentBlock、Message/Part、lossless JsonValue 复用各自领域 judge，不读取引用内容或凭据秘密。
+安全副本和预算先于封闭业务判断。请求有十三个必需字段和一个可选字段 `replay`。`replay` 出现时只能是 `'off'`，其他值返回 `/replay`+value。Adoption、Supplier、credential、Parameter、ParameterAdoption/origin、ToolDeclaration/toolChoice、ConsumerRef、ResultCapacity 均按分支封闭且字段必需。`declarations` 的项数与次序必须与 `suppliers` 相同，否则返回 `/declarations`+value。每项是展开后的完整[回放声明](#推理回放)：三个字段必需，按回放声明的规则核验，失败定位到该项的字段。不静默删除未知字段。Adoption 的 owner/name/revision 非空、digest 为64位小写hex；供应商完整值不得重复；工具名非空且唯一，具名选择必须已声明。ConsumerRef 四字段非空，容量使用规范十进制且 bytes/blocks 为正。ContentBlock、Message/Part、lossless JsonValue 复用各自领域 judge，不读取引用内容或凭据秘密。
 
 纯失败只带 field/reason。field 为只含已知字段与索引的 JSON Pointer，根为空字符串；未知键、symbol、超长键定位父对象，不回显键、值或 trap 异常。通用副本可定位最近已知拥有者入口。温度2.1固定返回 `/parameters/0/value`+range；admit 加 `/request` 前缀。未铸造 tenant 为 `/tenant`+identity；runtime、直接 Memory Commands 与 contract testing 将其映射 denied/tenant，其余映射 invalid 并保留 field/reason。
 
@@ -327,7 +327,11 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 
 TransportTermination 不携带托管控制身份。托管协调者消费真实 interrupted 时，必须关联已持久的原 ControlState.operation 后才能形成 Termination.interrupted；没有有效控制关联的自发断流形成 failed。not-started/rejected 的 denied、invalid、unsupported、unavailable 分别映射为本次 dispatch 的 excluded、input-rejected、modality、upstream-unavailable 故障并保留原诊断；只允许原重试政策决定后续。托管取消在 start 前成立时不产生 dispatch 发送事实，按原控制收场。独立函数不自行生成 ModelOperationId。
 
-实际传输返回 TransportFact 操作，执行路径归约为每个 index 的最新 VisibleBlock。增长片段按固定 mode 归并，block-seal 形成 sealed 快照；合法终止只出现一次。未终止就耗尽或抛错视为传输失联，由执行函数产出有诊断的 failed，不能报 completed。账目事件按供应商采用、dispatch 与 event 身份去重，同 event 不同值拒绝并记录矛盾。修正账目必须有新 revision 和原事件关系。纯函数本身没有足够身份时，只交事实给调用者，不自建账本。
+实际传输返回 TransportFact 操作，执行路径归约为每个 index 的最新 VisibleBlock。增长片段按固定 mode 归并，block-seal 形成 sealed 快照；合法终止只出现一次。未终止就耗尽或抛错视为传输失联，由执行函数产出有诊断的 failed，不能报 completed。
+
+传输交出的账目是账目报告 `CallAccountReport`：它不含 `subject` 与 `receipt`，因为提供者不知道调用身份，也不判断迟到。保存方补上 `subject`（`model_call` 与本次调用）和 `receipt`（流内到达为 `received`，经 recordLateFact 补录为 `late`），然后核验。报告自带 `subject` 或 `receipt` 时拒绝。账目事件按供应商采用、dispatch 与 event 身份去重。同 event 同报告认回，不论经哪条路径到达。同 event 不同报告拒绝并记录矛盾。修正账目必须有新 revision 和原事件关系。纯函数本身没有足够身份时，只交事实给调用者，不自建账本。独立执行的调用方得到的也是账目报告；需要完整账目时，由它自己补上身份。
+
+传输交出的诊断事实是 `ProviderDiagnostic` 的闭合集合：`replay-omitted`、`reasoning-disabled`、`reasoning-state-dropped` 与 `usage-inconsistent`。每种只带该种列出的字段，不带载荷或正文。保存方把诊断事实随发出保存在原 dispatch 上。诊断事实不改变块、首内容与终局。字段不合其种类的诊断事实使整批拒绝。
 
 `ModelCommands` 是深提供者接缝。它隐藏提交参加者、资格核验、流中持久、实际读写与清理步骤，普通消费者不会拿到它。它没有任意 `transaction(callback)`、任意 load/save 或外部传入的 allowed 布尔。`ExecutionRef` 是目标和代次；提供者还必须核验调用通道的受信实例身份，单凭序列化值不能写事实。
 
@@ -473,7 +477,7 @@ preserve 保存该窗口全部已接收事实并关闭窗口。包含任何实�
 
 首内容后或首内容无法排除时失联以 runtime-lost 收场，不重新生成同一逻辑回复。仅当接收窗口已被可靠闭合且首内容为 none-proven 时，才可以按原政策恢复新的真实发出，仍保留旧发送未知和可能费用，不宣称只有一次上游请求。若不能排除旧执行者，保持未知及责任，不恢复发送。
 
-迟到供应商账目或实际停止/完成事实通过 recordLateFact 补录。调用者可以是当前合格恢复者或供应商回执适配器，无须持有旧 ExecutionRef。该端口核验 source 指向的可信回执与租户、call、dispatch、供应商绑定；只允许账目修订和实际终结事实。相同事件同值认回，异值拒绝，新账目 revision 记录原事件关系。它不改变逻辑调用终局、结果版本、ACK 或 cleanup，也不接受输出块、新 request、策略或控制。ACK 后继续补原账，不重新申请全文。
+迟到供应商账目或实际停止/完成事实通过 recordLateFact 补录。调用者可以是当前合格恢复者或供应商回执适配器，无须持有旧 ExecutionRef。该端口核验 source 指向的可信回执与租户、call、dispatch、供应商绑定；只允许账目修订和实际终结事实。账目以账目报告交来，端口补上本次调用的 `subject` 与 `receipt` 为 `late`。相同事件同值认回，异值拒绝，新账目 revision 记录原事件关系。它不改变逻辑调用终局、结果版本、ACK 或 cleanup，也不接受输出块、新 request、策略或控制。ACK 后继续补原账，不重新申请全文。
 
 控制之后而实际收场之前到达的输出，仍由原独立执行者或依法接手的当前实例通过 preserve 保存。它不能因发起者离开而被丢弃。运行时失联且原发送者已排除后，若另有完整内容到达的异步供应商模式，该 adapter 必须在原受理中明确其回执与内容保管协议；recordLateFact 不承载这种额外内容协议，也不能将未知支持默认为允许重新输出。实际采用 adapter 未提供所需协议时在发送前拒绝 unsupported，不缩小已受理调用的保管责任。
 
@@ -648,9 +652,9 @@ ACK 前已经开始的真实读取不能被截成半份。读取完成或按既�
 
 ## 真实费用和账目边界
 
-各次真实发出的实际用量、费用或未知值关联原调用、实际凭据绑定与原 `ConsumerRef`。秘密值不能当追踪键。单次流重复事件或多个观察者不重复登记同一实际费用；合法重试和恢复重发可能产生多笔真正费用，不能按"一调用一费"去掉它们。
+各次真实发出的实际用量、费用或未知值关联原调用、实际凭据绑定与原 `ConsumerRef`。秘密值不能当追踪键。单次流重复事件、多个观察者或同一账目事件经流内与迟到补录两条路径到达，都不重复登记同一实际费用；合法重试和恢复重发可能产生多笔真正费用，不能按"一调用一费"去掉它们。
 
-未知实际费用保持未知，不写零，不以估算或采样替代。迟到回执可在原工作已终结或调用受到控制后补齐，仍归原工作。账目查询不重新执行模型，也不使原工作复活。
+未知实际费用保持未知，不写零，不以估算或采样替代。上游用量自相矛盾时，提供者把相应项记为未知，并交出一条 `usage-inconsistent` 诊断事实，只带用量字段名。迟到回执可在原工作已终结或调用受到控制后补齐，仍归原工作。账目查询不重新执行模型，也不使原工作复活。
 
 确认及清理不得改变完成、失败、中断、已发出或未发出事实。费用尚未知时保留正确结算必需的信息；可以独立延续费用责任后，清理无关完整输入和输出。若特定内容仍为准确结算必需，保留相应部分并说明，不能声称已全释放。
 
@@ -730,9 +734,9 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 供应商保证几个模型能互相消费推理状态时，把它们声明为同一个范围，或把对方的范围列进 `accepts`。声明随档案修订，须有可核依据，与上游限制的依据要求相同；没有依据时采用默认。默认值最保守：模型名一变，旧状态就不再带回。
 
-声明在档案变更时校验：`produces` 与 `accepts` 的每项都必须满足 message 成员对 `replay.scope` 的要求（非空，不超过 `REPLAY_TAG_MAX_LENGTH`），`accepts` 不重复且含 `produces`；默认展开的 `produces` 超长时同样不合格。不满足时档案变更返回 `invalid`，`field` 指向该供应商的回放声明。受理时把展开后的声明固定在受理采用中，恢复时不随档案新修订改变。适配器认识哪些 `format` 写在适配器采用中，回放投影按它判断可续接；不在其中的 `format` 一律不可续接，不另报错。
+声明在档案变更时校验：`produces` 与 `accepts` 的每项都必须满足 message 成员对 `replay.scope` 的要求（非空，不超过 `REPLAY_TAG_MAX_LENGTH`），`accepts` 不重复且含 `produces`；默认展开的 `produces` 超长时同样不合格。不满足时档案变更返回 `invalid`，`field` 指向该供应商的回放声明。准备请求时，准备方把每个供应商展开后的声明按 `suppliers` 的次序写进 `FixedModelRequest.declarations`。受理固定这份请求，所以声明固定在受理采用中，恢复时不随档案新修订改变。编码与计量使用请求中的声明。适配器认识哪些 `format` 写在适配器采用中，回放投影按它判断可续接；不在其中的 `format` 一律不可续接，不另报错。
 
-**产出。**一次发出正常收场（含输出限额完成）时，适配器把供应商交回的每段加密或签名推理写成一个推理续接状态部件，可读推理写成 `thinking` 块，按 message 成员的 RS-01 配对；这次发出的 `scope`（该供应商的 `produces`）与 `format` 随共享到达交出，见下文[到达与组成](#回放的到达与组成)。组成 assistant 消息的一方按 message 成员的 [RS-03](../../common/message/SPEC.md#rs-03) 写 `replay`：有推理续接状态部件时必须写，只有 `thinking` 时也写（`at` 为空），两者都没有时不写；`at` 按部件位置写。首内容前失败和未封值不产生推理续接状态部件。首内容后断流或被控制中断时，已封口的部件与其他已封部件一样保留在结果里；结算方要把这次回复组成消息时，按同样规则写 `replay`。载荷超过 message 成员的长度上限时不产生该部件，并记一条诊断。一条 assistant 消息的内容只来自一次发出，因为回退不跨首内容边界，所以 [RS-02](../../common/message/SPEC.md#rs-02) 成立。
+**产出。**一次发出正常收场（含输出限额完成）时，适配器把供应商交回的每段加密或签名推理写成一个推理续接状态部件，可读推理写成 `thinking` 块，按 message 成员的 RS-01 配对；这次发出的 `scope`（该供应商的 `produces`）与 `format` 随共享到达交出，见下文[到达与组成](#回放的到达与组成)。组成 assistant 消息的一方按 message 成员的 [RS-03](../../common/message/SPEC.md#rs-03) 写 `replay`：有推理续接状态部件时必须写，只有 `thinking` 时也写（`at` 为空），两者都没有时不写；`at` 按部件位置写。首内容前失败和未封值不产生推理续接状态部件。首内容后断流或被控制中断时，已封口的部件与其他已封部件一样保留在结果里；结算方要把这次回复组成消息时，按同样规则写 `replay`。载荷超过 message 成员的长度上限时不产生该部件，并交出一条 `reasoning-state-dropped` 诊断事实，只带载荷长度。一条 assistant 消息的内容只来自一次发出，因为回退不跨首内容边界，所以 [RS-02](../../common/message/SPEC.md#rs-02) 成立。
 
 推理续接状态部件或 `thinking` 内容的到达都算首内容，之后按首内容后的规则处理。部件以整块到达，没有追加形式；在途观察与持久发布只表明部件存在，不交出载荷。
 
@@ -747,7 +751,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 先定义这条消息对 S 是否**可续接**：带 `replay`，`replay.scope` 在 S 的 `accepts` 里，适配器认识 `replay.format`，并且这次发出不是下文「上游拒绝续接状态」中略去该消息状态的再发。
 
 1. 可续接：带上 `replay.at` 指出的全部推理续接状态部件，`thinking` 块按适配器对 `replay.format` 的原生映射写入，有配对的与配对部件一起写。`at` 为空的消息只有 `thinking`，同样按原生映射写入。
-2. 不可续接且消息含推理续接状态部件：不带这些部件，并为这次发出记一条诊断，列出被略去的消息、`scope` 和 `format`。这不是失败，请求照常发出。这种略去是本节规定、留有诊断的投影，不是[重试与策略](#重试与策略)「适用表示不满足」一行禁止的私删内容。
+2. 不可续接且消息含推理续接状态部件：不带这些部件，并为这次发出交出一条 `replay-omitted` 诊断事实，列出被略去的消息、`scope`、`format` 和部件个数。这不是失败，请求照常发出。这种略去是本节规定、留有诊断的投影，不是[重试与策略](#重试与策略)「适用表示不满足」一行禁止的私删内容。
 3. 不可续接的消息，不论是否带 `replay`，其 `thinking` 块都是外来可见推理，按 S 的 `foreignThinking` 处理：`omit` 不带；`text` 作为普通文本带上；`adapter` 作为不带签名的推理交给适配器按供应商原生方式处理。
 
 这三项对每条 assistant 消息给出唯一的处理：可续接的消息只走第 1 项，不可续接的消息走第 2 项（若有部件）和第 3 项（若有 `thinking`）。交给 Model 的消息已经按块的 `toModel` 位投影，`at` 按 message 成员的 [RS-04](../../common/message/SPEC.md#rs-04) 指向剩余部件。
@@ -756,19 +760,19 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 判断代价是每条带 `replay` 的 assistant 消息一次集合查找，部件按 `at` 直接取得，不扫描块，也不读取载荷；载荷只在写入请求体时读取一次。投影与编码在同一遍完成，不需要另建索引。
 
-供应商要求本轮必须带它自己的推理状态、而历史中没有可用状态时（例如上一条 assistant 消息来自另一个模型），由适配器按其采用中写明的降级方式处理，比如本次请求关闭推理，并记一条诊断。请求组装不处理这种情况。
+供应商要求本轮必须带它自己的推理状态、而历史中没有可用状态时（例如上一条 assistant 消息来自另一个模型），由适配器按其采用中写明的降级方式处理，比如本次请求关闭推理，并交出一条 `reasoning-disabled` 诊断事实。请求组装不处理这种情况。
 
 **上游拒绝续接状态。**传输提供者识别出供应商因上下文变化等原因拒绝了带回的推理状态时，以 `replay-rejected` 收场这次发出。这种拒绝只在首内容之前成立；首内容之后出现的拒绝信号按首内容后故障处理，不再发。有效策略可以对同一供应商再发一次：被拒发出中可续接的消息在这次再发中视为不可续接，按回放投影第 2、3 项处理，其余输入不变。再发是输入不同的新一次发出，单独留事实，不算回退，也不突破禁止同输入重试的边界，不占用「不允许回退时原供应商退避后至多再试一次」的名额。
 
 再发次数按一次调用计，由策略配置，默认至多一次，配置为零即不再发。不再发时，这次发出以 `replay-rejected` 失败，策略照其他首内容前失败处理：允许回退时可以按声明次序换下一家（新供应商按自己的声明重新投影），否则调用以 failed 交回原消费者，成因为 `replay-rejected`。再发仍失败时按失败成因照常处理。
 
-再发略去哪些状态，属于这次再发的持久重试决定和该 dispatch 的表示采用；恢复时按它重新编码，不带回已略去的状态。策略替换不得让再发带回被拒发出中的推理状态，也不得超过配置的次数。上游通常不指明哪个范围被拒，所以再发略去被拒发出中带上的全部推理状态，代价是可能连同仍然有效的状态一起略去一次。
+再发略去哪些状态，属于这次再发的持久重试决定和该 dispatch 的表示采用；恢复时按它重新编码，不带回已略去的状态。执行方经 `ModelTransport.prepare` 的第三个参数 `TransportDispatch.resent` 把这次再发须视为不可续接的消息交给传输。首次发出的 `resent` 为空。策略替换不得让再发带回被拒发出中的推理状态，也不得超过配置的次数。上游通常不指明哪个范围被拒，所以再发略去被拒发出中带上的全部推理状态，代价是可能连同仍然有效的状态一起略去一次。
 
 **持续拒绝与关闭回放。**同一段历史可能对同一供应商反复被拒，例如凭据换到另一个账户后，旧状态不能再被解密。默认策略下，这样的每次调用多一次被拒发出，直到压缩把这些消息整条摘要；这是默认路径的代价。Model 不记住某段历史被拒过，也不改历史。为保证会话在持续拒绝下仍能前进，组装输入可以声明本次请求关闭回放：全部消息对全部供应商都不可续接，按回放投影第 2、3 项处理。失败交接用 `ModelFault.replayCarried` 写明这次发出带有推理状态。以 `replay-rejected` 失败时，它恒为 true。以上游不接受内容等其他原因失败、而这次发出带有推理状态时，它也为 true。未带推理状态时没有这个键。原消费者按自己的规则决定是否以新调用关闭回放再试。
 
 **计量。**ModelInputMeter 对每个供应商使用同一投影。被略去的部件不计入。带上的部件不按密文长度做文本分词，使用计量采用为该供应商写明的不透明回放估算方法，估算带余量；没有这种方法时返回具名不可用，不按零计。估算方法若要用到产出该状态那次调用的上游用量，须满足[可选校准及不可解释的历史](#可选校准及不可解释的历史)对历史观测的条件，并从原调用的账目取得，消息里不保存用量。为了满足上限而去掉某个已被接受的推理状态是不允许的；要缩短输入，由压缩整条摘要消息。回放声明或 `foreignThinking` 变化时，依据旧声明的计量结论失效，`ModelCountingBasis.replay` 固定所用的声明。
 
-**数据保护。**载荷是租户数据，不进入错误、诊断、遥测或普通展示。诊断只带消息身份、`scope`、`format` 与部件个数。
+**数据保护。**载荷是租户数据，不进入错误、诊断、遥测或普通展示。诊断事实只带 `ProviderDiagnostic` 列出的字段：消息身份、`scope`、`format`、部件个数、载荷长度或用量字段名。
 
 ## 展示、诊断与实施证据
 
@@ -844,7 +848,8 @@ TransportFact 是供应商传输与 Model 执行路径之间的事实，不替�
 | trim | 同 index 的 trim，保留实际 removed 和 reason；工具参数的不可执行标记由 Model 持有 |
 | completed/stop 或 completed/tool-suggestions | 至少一个有效块且均合法封口后映射 finish；费用尾帧在传输终止前收取，不成为内容步骤。有推理内容时 finish 带这次发出的回放 `scope` 与 `format`（见[推理回放](#回放的到达与组成)） |
 | completed/limit、failed 或 interrupted | 分别以共享 end 的 stopped、failed、cancelled 收场；不伪造 finish 或完整消息 |
-| account | 走原 dispatch 账目协议，不分配共享内容步骤 |
+| account | 走原 dispatch 账目协议：保存方补上 `subject` 与 `receipt`，不分配共享内容步骤 |
+| diagnostic | 随发出保存在原 dispatch 上，不分配共享内容步骤，不改变块、首内容与终局 |
 
 index 是共享契约规定的非负十进制安全整数，新开块递增；每块首个 fill.seq 为 0，后续递增。runtime 在保存批次中固定映射后的目标和序号，按原提交/游标认回，重放不得重新编号。不同 seq 的相同文本是不同片段；同目标、同步骤身份及同内容的重复按共享契约认回，冲突拒绝。共享 judge/assembler 不负责分配序号，也不替代 Model 的首内容、截断参数和持久顺序检查。
 
@@ -890,7 +895,7 @@ ModelContentAuthority 先验证来源、块及当前访问资格，再决定 hum
 
 ModelDiagnostics.list 每次核当前主体、租户、原调用及诊断读取资格。普通调用读取资格、成本账目资格或组织管理员身份不自动授予该资格。没有调用级诊断权限时整次拒绝，不先返回存在性、条目数量或部分字段。允许读取的主体只得到 public-api 白名单；另有更敏感的调查面须由其拥有者另立契约，不能加一个任意全文字段绕过本限制。
 
-诊断行来自原 dispatch 已确认事实和安全归一化结果，与对应业务提交一致，不能先写原始 HTTP payload 再靠读取时过滤。一次调用最终成功也保留之前失败尝试的合法摘要。send 的 unknown、首内容 uncertain 和未知持续时间原样投影；本地意图不证明 sent，网络断开不证明 stopped。错误原因与上游状态码分别保存，状态码只允许有效 HTTP 整数；原始错误字符串只在边界解析，不能写进普通诊断。已知持续时间是非负十进制毫秒，同一单调计时源测量；跨进程重启或证据不足返回 unknown。
+诊断行来自原 dispatch 已确认事实和安全归一化结果，包括提供者交出并随发出保存的诊断事实，与对应业务提交一致，不能先写原始 HTTP payload 再靠读取时过滤。一次调用最终成功也保留之前失败尝试的合法摘要。send 的 unknown、首内容 uncertain 和未知持续时间原样投影；本地意图不证明 sent，网络断开不证明 stopped。错误原因与上游状态码分别保存，状态码只允许有效 HTTP 整数；原始错误字符串只在边界解析，不能写进普通诊断。已知持续时间是非负十进制毫秒，同一单调计时源测量；跨进程重启或证据不足返回 unknown。
 
 limit 是有服务端有限上限的正安全整数。首屏取得耐久快照，后续游标固定租户、调用、快照修订、顺序和保留采用；游标不可猜测且须验证，不能携带或替代权限。每页重新授权，按 dispatch 的原分配顺序读取快照内最新版本，不遗漏或重复行。后续新事实留给新的首屏。权限失去返回 denied，游标无效或快照已淘汰返回 invalid，不静默换成新快照。空页不证明从未发出；coverage 明确区分完整到快照与已清理前缀。
 

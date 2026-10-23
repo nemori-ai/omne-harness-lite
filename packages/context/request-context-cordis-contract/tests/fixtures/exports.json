@@ -1,0 +1,657 @@
+{
+  "package": "@omne-harness/request-context-cordis-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "根类型导出",
+          "names": [
+            {
+              "name": "ScopeRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextBlockKey",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Path",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Decoded",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Decoder",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ToolRoute",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ToolDeclarationSet",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ConversionIndex",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RepresentationResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ProjectedMessage",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ProjectedHistory",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "HumanProjection",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CompactionSettingsValue",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "WindowUsageValue",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SystemPromptResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Placement",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PlacementInput",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Access",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Adoption",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "DurableEvidence",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RequestContextRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CandidateRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PositionRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PlanId",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "EpochId",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "BatchRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PassageRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RefKind",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RefRejection",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyPorts",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyPolicies",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyOperations",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PreparedInputKey",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "HistoryRow",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "HistoryPage",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "HistoryReadResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CompactionContextResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "HistorySource",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ConversionIndexResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ConversionResultSource",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RetainBudget",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CompactionPolicy",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CompactionPlanDraft",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CompactionPolicyPort",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RepresentationPolicyConfig",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RepresentationPolicyPort",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RequestSerializer",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "BudgetInput",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContributionRejection",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContributionResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContributionsResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PromptContributionRegistry",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RequestPurpose",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "HistoryEvidence",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "NewInputBatch",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "BlockMaterial",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SnapshotMaterial",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextReadGroup",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyContext",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PromptContributionBase",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PromptSection",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PromptVariable",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PromptContribution",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PromptContributionSet",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SelectedModel",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ToolAdoption",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ConditionsEvidence",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AlterationEvidence",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PreviousPreparation",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyInput",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "TransitionEvidence",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Layer",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PrefixBreakReason",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "LayerAnchor",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SnapshotAnchor",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "Coverage",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "BudgetBreach",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "FitVerdict",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RepresentationChoice",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SnapshotReminder",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "TailFacts",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RequestLayers",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RequestCandidate",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "CompactionPlan",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PlanProgress",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SummaryMaterial",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "StepRequest",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "StepInput",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextTransition",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyFailure",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "InvalidReason",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "UnavailableOwner",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyUnknown",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyOutcome",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AssemblyResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PlanResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "StepResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "DeriveInput",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./cordis": {
+      "chapters": [
+        {
+          "title": "Cordis 定义",
+          "names": [
+            {
+              "name": "RequestContextService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "requestContextKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RequestContextIntercept",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyAccess",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestContextPolicySelection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestContextChangedPayload",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": [
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Context",
+      "members": ["requestContext"],
+      "pending": false
+    },
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Events",
+      "members": ["request-context-cordis-contract/changed"],
+      "pending": false
+    }
+  ]
+}

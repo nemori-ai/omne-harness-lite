@@ -130,18 +130,18 @@ packages/
 │   ├── tool/                   不含 Cordis 的工具执行实现
 │   └── tool-host-local/        单机宿主与 Cordis 插件
 ├── context/
-│   ├── runtime-context-contract/         Runtime Context 纯契约：作用域、块声明、需要与绑定、登记、资格、读者、更新与步提交
-│   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义
+│   ├── runtime-context-contract/         Runtime Context 纯契约：已有类型、校验、解码与契约套件
+│   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义：已有 Service、键、增补与机制测试
 │   ├── runtime-context/                  不含 Cordis 的供给机制：登记表、生产者表、绑定解析、当前投影、观察链
 │   ├── runtime-context-cordis/           Service 实现：一个 isolate 一个服务，作用域为参数
-│   ├── request-context-contract/         Request Context 纯契约：组装输入、十一个纯操作（八个单项操作加三个压缩计划操作）、装载布局、历史源与策略端口
-│   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：提示词贡献登记与策略选择
+│   ├── request-context-contract/         Request Context 纯契约：已有组装、压缩计划纯操作、历史源与策略套件
+│   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：已有贡献登记、策略选择与机制测试
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
 │   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
 ├── human-intervention/human-intervention/
 ├── execution/
-│   ├── execution-environment-contract/         Execution Environment 纯契约：身份、绑定层、要求、落点、租约、需要端口、设施协议与块声明
-│   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义
+│   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
+│   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义：已有模板方法、钩子与机制测试
 │   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
 │   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施的读取、查看、写入与关闭；command 与 terminal 提供者未实现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
@@ -187,7 +187,7 @@ scripts/                       仓库自动化
 <a id="模型组的成员与采用范围"></a>
 ### 模型组的成员与采用范围
 
-`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员，非 pi-ai 设计已接受，并按下表职责拥有文档。各成员的源码状态见下表「初始化状态」。`pi-ai-*` 传输与厂商家族成员及 tokenizer 成员尚未初始化。不保留聚合全部实现的安装门面。
+`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local、pi-ai-transport、pi-ai-openai、pi-ai-anthropic 与 tokenizer-tiktoken 已是 workspace 成员，并按下表职责拥有文档。其中 model-contract、model-cordis-contract、model 与 model-host-local 的设计已接受。pi-ai-transport 与 tokenizer-tiktoken 的设计状态见下表「设计状态」。各成员的源码状态见下表「初始化状态」。pi-ai-openai 与 pi-ai-anthropic 以外的厂商家族成员及 tokenizer-huggingface 尚未初始化。不保留聚合全部实现的安装门面。
 
 | 成员，位于 packages/model 下 | 包边界 | 设计状态 | 初始化状态 |
 | --- | --- | --- | --- |
@@ -195,11 +195,14 @@ scripts/                       仓库自动化
 | model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 | workspace 成员；已发布全部声明并有测试 |
 | model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md) |
 | model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
-| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | 未初始化 |
-| pi-ai-openai、pi-ai-anthropic、pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
-| tokenizer-tiktoken、tokenizer-huggingface | 封装分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | 未初始化 |
+| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md) |
+| pi-ai-openai | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md) |
+| pi-ai-anthropic | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
+| pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
+| tokenizer-tiktoken | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json`，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md) |
+| tokenizer-huggingface | 封装 Hugging Face 分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | 未初始化 |
 
-具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及 OpenAI 实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
+具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及本实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
 
 ## 责任与能力组
 

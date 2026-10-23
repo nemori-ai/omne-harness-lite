@@ -2,7 +2,7 @@
 
 本成员没有自己的领域对象。块声明、注册、读取资格、生产者句柄、绑定读者与变化材料都归 [runtime-context-contract 的对象模型](../../runtime-context-contract/docs/object-model.md)，本成员只在服务方法的签名里引用它们。理由是本成员只拥有一个装配接缝：它规定这些对象经哪个服务键、以哪种 Cordis 方式交换，不规定对象本身。
 
-本成员定义三个技术对象。它们不自动成为产品领域对象。精确形状随 `./cordis` 的实现进入，现在源码里没有，见[公开接口页](public-api.md)。
+本成员定义三个技术对象。它们不自动成为产品领域对象。精确形状已在 `./cordis` 源码实现，见[公开接口页](public-api.md)。
 
 ## 对象与关系
 
@@ -39,7 +39,7 @@ classDiagram
   ProviderService ..> ChangedPayload : emit
 ```
 
-图中 `RuntimeContextIntercept`、`ChangedPayload` 与 `ProviderService` 是说明用的名字。`ProviderService` 代表 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md) 的具体子类。导出的类型名随实现确定。
+图中 `RuntimeContextIntercept`、`ChangedPayload` 与 `ProviderService` 是说明用的名字。`ProviderService` 代表 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md) 的具体子类。公开类型名为 `RuntimeContextIntercept` 与 `RuntimeContextChangedPayload`；事件以作用域、修订两个位置参数传递。
 
 ## 生命周期
 

@@ -13,8 +13,8 @@ Status: Service implementation member, `draft`. The adoption basis is the [membe
 
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the concrete subclass, the plugin, the configuration schema, and the contribution registry. The root entry stays empty.
-- Not verified: the intercept part of property 2 is an assumption now. It depends on a mechanism reading that is not in the basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
-- A Cordis caller reaches the configured operations through `assembly(scope, ports)` and gives the three ports on each call. The operations read the contributions of that scope at each call. The plugin gives only contribution-registry changes to the mechanism instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
+- Not verified: the definition member tests the intercept mechanism on Cordis 4.0.4. The reading is not registered in the shared basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- A Cordis caller reaches the configured operations through `assembly(scope, ports)` and gives the four ports on each call. The operations read the contributions of that scope at each call. The plugin gives only contribution-registry changes to the mechanism instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
 
 No application loads this plugin now, and no package depends on this package.
 

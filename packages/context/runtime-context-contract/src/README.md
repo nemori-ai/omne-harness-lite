@@ -1,21 +1,7 @@
-# src
+# Runtime Context 源码
 
-本目录承载本包的公开定义、运行时校验与内部实现。`index.ts` 是代码入口，本文件与 `index.md` 只是文档导航。
+根入口 [index.ts](index.ts) 重导出值类型与八个纯操作。模块和阅读路径见 [index.md](index.md)。
 
-## 允许的内容
+`testing/` 提供框架无关的用例列表与非耐久替身。只有测试辅助持有状态。根入口不导入 Cordis、存储或生产机制。
 
-TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
-
-## 边界
-
-源码只用可擦除的 TypeScript 语法。本成员是 `module` 变体，没有 `cordis.ts`，根入口不导入 `@deepseek-ai/cordis`。非类型行为写在包根 [SPEC.md](../SPEC.md)，不写在源码注释里代替规格。
-
-## 维护
-
-新增或改名公开导出时，同步 `package.json` 的 `exports`、[公开接口页](../docs/public-api.md)、本目录 `index.md` 与导出测试。按[内部架构](../docs/architecture.md#模块与依赖)的模块切分新增源文件，`index.ts` 只做再导出。
-
-## 本包事实
-
-现在只有 `index.ts` 一个源文件。它只导出类型：共享类型 `ScopeRef`、`ContextBlockKey`、`ConsumerClass`、`ContextBlocks`，以及两类块声明。根入口没有运行值。文件头带 `PACKAGE_TEMPLATE_DRAFT` 标记，它表示公开契约还没有完整进入源码。
-
-当前缺口：需要、绑定、注册、资格、读者、更新、步提交、变化材料的类型与五个纯函数还没有进入，清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+精确公开签名归源码，行为归 [SPEC](../SPEC.md)。修改导出时同步公开接口页和导出清单。

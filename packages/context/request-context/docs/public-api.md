@@ -22,13 +22,13 @@
 
 | 定义 | 种类 | 输入与输出 | 依据 |
 | --- | --- | --- | --- |
-| 工厂 | 函数，名称随实现确定 | 输入两个策略、可选的三项端口、可选的登记面读口与配置，输出一个实例 | [SPEC 范围与依据](../SPEC.md#范围与依据) |
-| 实例 | 工厂的返回值 | 实现契约的纯操作，带缓存与预计算派生物。另有按调用交入三项端口的入口、`notify`、实例关闭 | [SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期) |
+| 工厂 | 函数，名称随实现确定 | 输入两个策略、可选的四项端口、可选的登记面读口与配置，输出一个实例 | [SPEC 范围与依据](../SPEC.md#范围与依据) |
+| 实例 | 工厂的返回值 | 实现契约的纯操作，带缓存与预计算派生物。另有按调用交入四项端口的入口、`notify`、实例关闭 | [SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期) |
 | 默认压缩策略 | 契约压缩策略端口的实现 | 触发界线、保留预算、保留偏好、修剪优先与步数上界，数值是配置初值 | [默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
 | 默认表示策略 | 契约表示策略端口的实现 | 按模态的偏好顺序，原件优先于派生表示，派生表示优先于 transcript | 同上 |
 | 配置 | 工厂的参数 | 修剪阈值与缓存容量。默认值只是初值 | [候选缓存](../SPEC.md#候选缓存)、[默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
 
-工厂的依赖是：历史源读口 `HistorySource`、Model 的计量端口、Model 的转换件结果端口、压缩策略实现、表示策略实现，以及贡献登记面的读口。前三项端口独立路径在构造时给出；经 Cordis 时由调用方在每次 `assembly(scope, ports)` 时交入，request-context-cordis 经实例的按调用交入端口的入口转交。登记面读口只在 Cordis 路径给出。前三项的类型归契约或 Model，两个策略端口的类型归契约，登记面读口的类型归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/public-api.md)。本成员不另写签名。
+工厂的依赖是：历史源读口 `HistorySource`、Model 的计量端口、Request Context 的转换件结果端口 `ConversionResultSource<P>`、请求序列化端口 `RequestSerializer<P>`、压缩策略实现、表示策略实现，以及贡献登记面的读口。前四项端口独立路径在构造时给出；经 Cordis 时由调用方在每次 `assembly(scope, ports)` 时交入，request-context-cordis 经实例的按调用交入端口的入口转交。登记面读口只在 Cordis 路径给出。四项端口的类型归 Request Context 契约或 Model。转换结果值继续复用 Model 的 `ConversionResult`。两个策略端口的类型归契约，登记面读口的类型归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/public-api.md)。本成员不另写签名。
 
 两个默认策略要能被 request-context-cordis 按配置选中，所以要从根入口可达。它们是单独导出，还是由工厂按配置构造，SPEC 没有写明，随实现确定。
 

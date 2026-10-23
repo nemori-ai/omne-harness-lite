@@ -7,7 +7,7 @@
 本成员拥有公共领域值、操作接口、可替换提供者端口及共同协议。设计已按 [SPEC](SPEC.md) 接受。状态分四类，各类只说明自己的范围。
 
 1. 已有：凭据的纯契约，即引用、查询、存在性与解析结果、`CredentialPort`、`decodeCredentialId` 与 `sameCredentialHolder`。声明在 [`src/credential.ts`](src/credential.ts) 与 [`src/credential-values.ts`](src/credential-values.ts)。保管与判定不在本包：本地保管归 [model-host-local](../model-host-local/README_ZH.md)，判定归 [model](../model/README_ZH.md)，Cordis 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。
-2. 本包已实现：根入口导出 170 个类型和 31 个运行时值。`./testing` 入口导出受控替代提供者、替代传输和提供者符合性断言 `checkModelProviderConformance`，共 27 个名字。替代提供者与替代传输的结果由测试脚本给出，不证明真实提供者的行为。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
+2. 本包已实现：根入口导出 173 个类型和 31 个运行时值。`./testing` 入口导出受控替代提供者、替代传输和提供者符合性断言 `checkModelProviderConformance`，共 27 个名字。替代提供者与替代传输的结果由测试脚本给出，不证明真实提供者的行为。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
 3. 尚未实现或验证：本包不含执行实现。`executeModel`、`createModelRuntime`、完整宿主与其他提供者不在本包。
 4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。SPEC 的[推理回放](SPEC.md#推理回放)设计已接受。第 2 类计入它的三个函数；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。
 
@@ -19,7 +19,9 @@
 
 在首次受理前保存 `ModelInvocationRef`。inspect、connect 和 beginRead 使用该引用及当前 Access。Admission 保留 call、revision、recovered 并返回同一 reference。`ModelOperationRef` 封装 ACK 身份，消费者仍保存原 result 与 evidence。见[引用契约](SPEC.md#可保存调用引用)。
 
-未知固定请求使用 judgeFixedModelRequest；typed Access 加未知 payload 使用 judgeAdmit。两者返回 `{ok}` 或 `{failure:{field,reason}}`。成功 payload 独立复制并冻结，principal 与已铸造 tenant 保持同一对象。[封闭输入契约](SPEC.md#封闭输入判断)规定解析预算与 Proxy 限制。结构成功不授予资格或容量。
+未知固定请求使用 judgeFixedModelRequest；typed Access 加未知 payload 使用 judgeAdmit。两者返回 `{ok}` 或 `{failure:{field,reason}}`。成功 payload 独立复制并冻结，principal 与已铸造 tenant 保持同一对象。[封闭输入契约](SPEC.md#封闭输入判断)规定解析预算与 Proxy 限制。结构成功不授予资格或容量。固定请求带 `declarations`：每个供应商一份展开后的回放声明，次序同供应商。可选字段 `replay` 只接受 `'off'`。
+
+提供者以 `CallAccountReport` 交账目，不带 `subject` 与 `receipt`；Model 运行时保存账目时补上这两项。提供者以 `diagnostic` 事实交出回放略去、推理关闭、推理状态丢弃或用量自相矛盾。`ModelTransport.prepare` 的第三个参数列出再发须视为不可续接的消息。见[提供者操作](SPEC.md#342-独立执行与提供者操作)。
 
 ## 契约
 
@@ -47,7 +49,7 @@ pnpm run check:docs
 
 Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model-contract test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
 
-当前测试覆盖根入口的 170 个类型声明与 31 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`，以及回放函数 `judgeReplayDeclaration`、`projectReplay`、`continuedMessages`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
+当前测试覆盖根入口的 173 个类型声明与 31 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`，以及回放函数 `judgeReplayDeclaration`、`projectReplay`、`continuedMessages`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

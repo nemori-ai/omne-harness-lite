@@ -36,7 +36,7 @@ function through(
       sends: () => (sends === undefined ? given.sends() : sends(given.sends())),
       transport: {
         async prepare(request, supplier) {
-          const outcome = await given.transport.prepare(request, supplier)
+          const outcome = await given.transport.prepare(request, supplier, { resent: [] })
           return 'ok' in outcome ? succeed(change(outcome.ok)) : outcome
         },
       },
@@ -60,7 +60,7 @@ function preparing(
       transport: {
         prepare(request, supplier) {
           before()
-          return given.transport.prepare(request, supplier)
+          return given.transport.prepare(request, supplier, { resent: [] })
         },
       },
     },

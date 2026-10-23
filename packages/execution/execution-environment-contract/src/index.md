@@ -21,6 +21,9 @@
 - [judge.ts](judge.ts)：`judgeRequirement` 与 `matchProviders`
 - [decode.ts](decode.ts)：内部解码器与 Standard Schema 包装
 
+- [operation-schemas.ts](operation-schemas.ts)：三面八操作 schema 与索引
+- [testing/index.ts](testing/index.ts)：非耐久替身与契约验证用例
+
 ## 阅读路径
 
 先读[公开接口页](../docs/public-api.md)找到名称与条款，再读对应源文件的精确类型。模块怎样切分见[内部架构](../docs/architecture.md#模块与依赖)。

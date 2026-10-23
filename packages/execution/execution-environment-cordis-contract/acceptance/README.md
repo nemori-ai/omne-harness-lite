@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员只有服务定义，单独验收它没有可观察的行为。执行环境的 Cordis 集成要在 Service 实现 [execution-environment-host-local](../../execution-environment-host-local/acceptance/README.md) 装载后验收，依据是两个成员 SPEC 的[组合与验证](../SPEC.md#组合与验证)。
+现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员的调用方声明核对可由入口测试观察；完整资源生命周期仍需 Service 实现参与。执行环境的 Cordis 集成要在 Service 实现 [execution-environment-host-local](../../execution-environment-host-local/acceptance/README.md) 装载后验收，依据是两个成员 SPEC 的[组合与验证](../SPEC.md#组合与验证)。

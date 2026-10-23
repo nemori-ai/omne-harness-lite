@@ -5,7 +5,7 @@ import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CredentialId } from './credential.ts'
 import type { ModelInvocationRef } from './reference.ts'
-import type { ParameterAdoption } from './profile.ts'
+import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
 
 declare const identity: unique symbol
 export type Identity<K extends string> = string & { readonly [identity]: K }
@@ -86,6 +86,8 @@ export type FixedModelRequest = Readonly<{
   toolChoice: 'none' | 'auto' | 'required' | Readonly<{ name: string }>
   /** `'off'` turns replay off for every dispatch of this request. */
   replay?: 'off'
+  /** The expanded replay declaration of each supplier, in the order of `suppliers`. */
+  declarations: readonly [ReplayDeclaration, ...ReplayDeclaration[]]
   representation: Adoption
   parameterAdoptions: readonly ParameterAdoption[]
   source: Adoption

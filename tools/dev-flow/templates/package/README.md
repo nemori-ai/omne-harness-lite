@@ -132,8 +132,8 @@ Fixed required nodes, optional resource roles and repeated source slots are all 
 Undeclared files, wrong locations, empty directories, symlinks and other node kinds fail the comparison.
 It does not use Git ignore rules to hide source resources.
 
-Only real root directories named node_modules, dist, generated, coverage or tmp are excluded.
-These dependency/build/evidence outputs are not source authority. The scanner reports each excluded directory.
+Only real root directories named node_modules, dist, generated, coverage, tmp or .turbo are excluded.
+These dependency/build/evidence outputs and task logs are not source authority. The scanner reports each excluded directory.
 A file or symlink with an excluded name is not silently skipped. Nested directories receive no such exemption.
 This is a complete structure check, not a sample of selected entry files.
 It also checks ESM, export sources/conditions, emission, publishing, scripts and draft placeholders.

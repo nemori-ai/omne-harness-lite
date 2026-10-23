@@ -13,8 +13,8 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：具体子类、插件、配置 Schema、贡献登记表。根入口保持为空。
-- 未验证：性质 2 的 intercept 部分依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
-- 经 Cordis 的调用方用 `assembly(scope, ports)` 取得已配置的操作组，并逐次交入三项端口；操作组每次调用时现取该作用域的贡献。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给机制实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
+- 未验证：定义成员已有 Cordis 4.0.4 的 intercept 机制测试，读数尚未登记到共同 basis。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
+- 经 Cordis 的调用方用 `assembly(scope, ports)` 取得已配置的操作组，并逐次交入四项端口；操作组每次调用时现取该作用域的贡献。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给机制实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
 现在没有应用装配本插件，也没有包依赖本成员。
 

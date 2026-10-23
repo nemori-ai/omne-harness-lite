@@ -1,26 +1,17 @@
-# tests
+# Runtime Context Cordis 定义测试
 
-本目录承载本包适用的持续测试。测试种类的责任与边界见仓库[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)。
+## 运行
 
-## 允许的内容
+先构建契约，再通过全局测试名额执行：
 
-`*.spec.ts` 运行测试、`*.spec-d.ts` 类型测试、测试辅助代码，以及 `fixtures/` 下的固定输入。
+```sh
+./scripts/with-test-slot.sh pnpm turbo run build typecheck test --filter=@omne-harness/runtime-context-cordis-contract
+```
 
-## 边界
+## 覆盖与限制
 
-本成员只有服务定义，没有提供者实现。本目录的测试只核对入口的导出与导入边界，不装载提供者，也不需要替身。三条机制性质要在真实 Cordis 上验证：basis probe 归 basis 的承载位置，提供者行为的测试归 [runtime-context-cordis](../../runtime-context-cordis/tests/README.md)。测试通过不代替规格或验收。
+真实 Cordis 4.0.4 测试验证服务装载与撤除、调用方 effect 归属、显式清理、旧代晚撤除、intercept 配置与祖先继承、按扩展 ctx 过滤事件、监听随 fiber 撤除，以及 set 不通知服务消费者。资格一致性测试使用已经签发的资格。
 
-## 维护
+`support.ts` 是测试提供者，委托纯契约的非耐久替身，不是产品 Service 实现。测试不证明真实提供者的持久恢复、来源取消或在途读取结算。basis 的共同登记是另一项责任。
 
-公开导出或 SPEC 性质变化时，同步对应测试与本目录 `index.md`。抽象类进入 `./cordis` 时，同一次修改要更新入口测试，并核对键常量等于 `RuntimeContextService.provide`。
-
-## 本包事实
-
-现在有两个测试：
-
-- [public-entry.spec.ts](public-entry.spec.ts)：断言根入口没有导出。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口没有导出。
-
-没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/runtime-context-cordis-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
-
-当前缺口：没有核对 [SPEC 性质 8](../SPEC.md#结果与不变量) 的导入边界测试，也没有核对键常量的测试。它们随 `./cordis` 的实现进入。具名维护者由负责人指定。
+清单测试复用共享 CLI，检查根入口类型重导出的符号身份、cordis 导出、Context/Events 增补和公开页导航。根入口运行导出必须为空；源码、构建声明和实际产物均不导入实现成员。

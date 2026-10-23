@@ -4,7 +4,7 @@
 
 服务键、抽象类、intercept 配置与登记协议归 [execution-environment-cordis-contract 的 Cordis 说明](../../execution-environment-cordis-contract/docs/cordis.md)，本成员继承这些定义，不重复提供键。登记表机制归 [execution-environment](../../execution-environment/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 已实现 Service 子类、两个插件、空配置 Schema 与 `hostFilesPlugin` 的配置 Schema。模板标记写明 Runtime Context 生产者插件、`command` 与 `terminal` 提供者、调用方类核对还没有接受。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 已实现 Service 子类、两个插件、空配置 Schema 与 `hostFilesPlugin` 的配置 Schema。模板标记写明 Runtime Context 生产者插件、`command` 与 `terminal` 提供者还没有接受；调用方类由定义成员的八个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与配置
 
@@ -13,8 +13,8 @@
 | 导出 | 种类 | 做什么 |
 | --- | --- | --- |
 | `ExecutionEnvironmentRegistry` | `ExecutionEnvironmentService` 的具体子类，可以直接当插件装载 | 持有一个登记表实例，提供 `executionEnvironment`。每次恢复操作现取 `executionRecoveryAuthority` 服务 |
-| `filesFacilityPlugin` | 函数插件，名称 `filesFacility` | `inject` 服务键常量，装载时登记 `files` 设施声明，不登记提供者 |
-| `hostFilesPlugin` | 函数插件，名称 `hostFiles` | `inject` 服务键常量，装载时按配置的 `drainBoundMs` 登记一个宿主文件提供者，不登记声明；退役超界的诊断写到 `ctx.logger('executionEnvironment.hostFiles')` |
+| `filesFacilityPlugin` | 函数插件，名称 `filesFacility` | 对象形式 `inject` 服务键常量并声明 `caller: provider`，装载时登记 `files` 设施声明，不登记提供者 |
+| `hostFilesPlugin` | 函数插件，名称 `hostFiles` | 对象形式 `inject` 服务键常量并声明 `caller: provider`，装载时按配置的 `drainBoundMs` 登记一个宿主文件提供者，不登记声明；退役超界的诊断写到 `ctx.logger('executionEnvironment.hostFiles')` |
 
 抽象类的构造函数以 `executionEnvironment` 登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
@@ -26,7 +26,7 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 下面两段沿用已接受的 Cordis 集成设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。包名、导出名与键常量按现在的成员改写。
 
-宿主文件提供者不是第二个服务键。它是一个插件，导出名字是 `hostFilesPlugin`。`inject` 里写 `executionEnvironmentKey`，装上时调用 `registerProvider`，声明自己只覆盖 `host_machine` 和 `files`。插件树用包名 `@omne-harness/execution-environment-host-local` 和 `./cordis` 的 `hostFilesPlugin` 来标识它。配置只放可序列化的字段。回调和打开文件的函数不进插件树。
+宿主文件提供者不是第二个服务键。它是一个插件，导出名字是 `hostFilesPlugin`。`inject` 用对象形式 `{ [executionEnvironmentKey]: { caller: 'provider' } }`，装上时调用 `registerProvider`，声明自己只覆盖 `host_machine` 和 `files`。插件树用包名 `@omne-harness/execution-environment-host-local` 和 `./cordis` 的 `hostFilesPlugin` 来标识它。配置只放可序列化的字段。回调和打开文件的函数不进插件树。
 
 沙箱提供者以后用同一个键登记，声明自己的绑定层和连续性。它不写进宿主插件的 `inject`。登记表按绑定层和所要设施匹配同一个提供者。落点和租约都用这个提供者的连续性。没有匹配的提供者，结果是 `noMatchingEnvironment` 或 `missingFacility`，不改用 `host_machine`。
 
@@ -46,7 +46,7 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 `registerFacility` 与 `registerProvider` 按 [execution-environment-cordis-contract 的登记协议](../../execution-environment-cordis-contract/docs/cordis.md#登记与撤除协议)实现（[IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13)）：
 
-1. 在方法里用 `this.ctx.effect` 包住登记表的同名方法。`this.ctx` 是调用方的上下文，效应落在调用方插件的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。
+1. 在 `onRegisterFacility` 与 `onRegisterProvider` 钩子里用 `this.ctx.effect` 包住登记表的同名方法。`this.ctx` 是调用方的上下文，效应落在调用方插件的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。
 2. 设施声明：登记表返回的撤除函数就是效应的撤除函数。调用方卸载时 Cordis 调用它，调用方也可以经返回值提前调用。
 3. 提供者：效应只在调用方 fiber 卸载时调用一次登记表的撤除函数。返回给调用方的撤除函数直接调用登记表的撤除函数。理由：Cordis 的效应撤除只运行一次，第二次调用直接返回，经效应重试会把待处置的退役当成已完成；登记表的撤除函数本身可以重试，并发调用共用一次退役。
 4. 登记表拒绝重复登记时抛出。抛出发生在插件体里时，调用方的 fiber 进入 `FAILED`（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)）。
@@ -79,7 +79,7 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 ## 调用方类
 
-本成员不读取调用方插件的 intercept 配置，不按调用方类拒绝调用。恢复两操作只经过恢复授权端口。这一项的目标形状与候选 probe 归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/docs/cordis.md#intercept-配置与调用方类)。
+本成员继承的公开模板方法读取并核对调用方声明，然后进入本成员的受保护钩子；恢复两操作仍由原恢复授权端口逐次核对。调用方类规则与读数归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/docs/cordis.md#intercept-配置与调用方类)。
 
 ## 块的发布
 
@@ -127,4 +127,6 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts) 在真实 Cordis 上覆盖：以 `{ drainBoundMs: 20 }` 装载 `hostFilesPlugin`，有一个在途写入时卸载它，`ctx.logger` 先收到退役超界的诊断，再收到 `RetirementPending`，卸载完成。
 
-没有覆盖：同一 isolate 标签下重复装载失败，配置校验失败时 fiber `FAILED`，调用方类核对。定义入口自身的验证义务归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/docs/cordis.md#验证义务)。
+调用方类核对归定义成员测试；本成员两个提供者插件以对象形式声明 provider，并在真实装载与卸载测试中消费这些模板方法。定义入口自身的验证义务归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/docs/cordis.md#验证义务)。
+
+尚未覆盖：同一 isolate 标签下重复装载失败，以及配置校验失败时 fiber 进入 `FAILED`。

@@ -454,11 +454,11 @@ it('refuses an acquisition for an unminted access tenant, every time, without a 
   })
 })
 
-it('answers unrecorded to an unminted access tenant even for a key with a record', async () => {
+it('answers invalidInput to an unminted access tenant even for a key with a record', async () => {
   const registry = registryWith([scriptedProvider()])
   await leased(registry, await placed(registry, requirement([host])))
   expect(await registry.inspectAcquisition(unminted, acquisitionRef('acq-1'))).toEqual({
-    kind: 'unrecorded',
+    kind: 'invalidInput',
   })
 })
 
