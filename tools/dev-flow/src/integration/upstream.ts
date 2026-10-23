@@ -5,7 +5,7 @@ import { fetchObject, remoteFile, remoteRefs, tagMessage } from './transport.ts'
 
 export const GATE_BRANCH = 'refs/heads/github-gate'
 const CUTOVER_PATH = 'gate/cutover.json'
-export const RECORD_SCHEMA = 'omne-gate-record:v1'
+const RECORD_SCHEMA = 'omne-gate-record:v1'
 
 export function startTag(id: string): string {
   return `refs/tags/omne/gate/track/${id}`

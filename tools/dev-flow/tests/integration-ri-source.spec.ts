@@ -1,6 +1,6 @@
 // @module-tag slow
 // ri-notes against a real task worktree and a local bare remote with unit record tags; the CLI
-// case starts a Node process with a `gh` stand-in that serves fixed REST responses.
+// cases start a Node process with a `gh` stand-in that serves fixed REST responses.
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,7 +8,13 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { git } from '../src/integration/git.ts'
 import { trackFacts } from '../src/integration/ri-source.ts'
-import { commit, integrationFixture, setGate } from './fixtures/integration.ts'
+import {
+  commit,
+  gateRecord,
+  integrationFixture,
+  setGate,
+  setStartTag,
+} from './fixtures/integration.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -29,10 +35,10 @@ const lines = {
     },
   ],
 }
-function unitRecord(result: string, pr: number): string {
+function unitRecord(result: string, pr: number, target = 'refs/heads/integration/runtime'): string {
   return JSON.stringify({
     schema: 'omne-gate-record:v1',
-    target: 'refs/heads/integration/runtime',
+    target,
     base: 'b'.repeat(40),
     head: 'c'.repeat(40),
     result,
@@ -43,6 +49,29 @@ function unitRecord(result: string, pr: number): string {
     gate: 'a'.repeat(40),
   })
 }
+type Fixture = ReturnType<typeof integrationFixture>
+/** Merges `branch` into the checked-out branch as the gate would, and writes its unit tag. */
+function gateMerge(f: Fixture, branch: string, pr: number, target?: string): string {
+  git(f.root, ['merge', '-q', '--no-ff', branch, '-m', `Merge pull request #${pr} from ${branch}`])
+  const merge = git(f.root, ['rev-parse', 'HEAD'])
+  git(f.root, ['push', '-q', 'origin', `${merge}:refs/tags/omne/gate/unit/${merge}`])
+  // The pushed tag is replaced by an annotated one on the remote, like the gate's record.
+  git(f.remote, [
+    'tag',
+    '-f',
+    '-a',
+    `omne/gate/unit/${merge}`,
+    '-m',
+    unitRecord(merge, pr, target),
+    merge,
+  ])
+  return merge
+}
+function feature(f: Fixture, branch: string, file: string): void {
+  git(f.root, ['checkout', '-q', '-b', branch])
+  commit(f.root, file, `${file}\n`)
+  git(f.root, ['checkout', '-q', 'track'])
+}
 /**
  * The track `integration/runtime` gets three first-parent commits beyond main: a direct commit
  * at the cutover, a gate merge of PR #10 with its unit tag, and a later direct push without one.
@@ -52,21 +81,10 @@ function trackFixture({ cutover = true }: { cutover?: boolean } = {}) {
   homes.push(f.home)
   git(f.root, ['checkout', '-q', '-b', 'track', f.initial])
   const before = commit(f.root, 'a.txt', 'a\n')
-  git(f.root, ['checkout', '-q', '-b', 'human/issue-5-x'])
-  commit(f.root, 'feature.txt', 'f\n')
-  git(f.root, ['checkout', '-q', 'track'])
-  git(f.root, [
-    'merge',
-    '-q',
-    '--no-ff',
-    'human/issue-5-x',
-    '-m',
-    'Merge pull request #10 from human/issue-5-x',
-  ])
-  const merge = git(f.root, ['rev-parse', 'HEAD'])
+  feature(f, 'human/issue-5-x', 'feature.txt')
+  const merge = gateMerge(f, 'human/issue-5-x', 10)
   const direct = commit(f.root, 'c.txt', 'c\n')
   git(f.root, ['push', '-q', 'origin', 'track:refs/heads/integration/runtime'])
-  git(f.remote, ['tag', '-a', `omne/gate/unit/${merge}`, '-m', unitRecord(merge, 10), merge])
   setGate(
     f.remote,
     JSON.stringify({ main: f.main, ...(cutover ? { 'integration/runtime': before } : {}) }),
@@ -74,13 +92,40 @@ function trackFixture({ cutover = true }: { cutover?: boolean } = {}) {
   git(f.root, ['checkout', '-q', 'human/task'])
   return { f, before, merge, direct }
 }
+/**
+ * A track that was already promoted into main once, then received an FI sync merge of main
+ * (PR #30), a gate merge of PR #40 and a direct push. Only these three are beyond main.
+ */
+function promotedFixture() {
+  const f = integrationFixture({ lines })
+  homes.push(f.home)
+  git(f.root, ['checkout', '-q', '-b', 'track', f.initial])
+  const before = commit(f.root, 'a.txt', 'a\n')
+  feature(f, 'human/issue-5-x', 'feature.txt')
+  const promoted = gateMerge(f, 'human/issue-5-x', 10)
+  git(f.root, ['checkout', '-q', '-B', 'main-copy', f.main])
+  const promotion = gateMerge(f, 'track', 20, 'refs/heads/main')
+  git(f.root, ['push', '-q', 'origin', 'main-copy:refs/heads/main'])
+  git(f.root, ['checkout', '-q', 'track'])
+  git(f.root, ['branch', '-q', '-f', 'main', 'main-copy'])
+  const sync = gateMerge(f, 'main', 30)
+  feature(f, 'human/issue-6-y', 'y.txt')
+  const work = gateMerge(f, 'human/issue-6-y', 40)
+  const direct = commit(f.root, 'd.txt', 'd\n')
+  git(f.root, ['push', '-q', 'origin', 'track:refs/heads/integration/runtime'])
+  setGate(f.remote, JSON.stringify({ main: f.main, 'integration/runtime': before }))
+  git(f.root, ['checkout', '-q', 'human/task'])
+  return { f, promoted, promotion, sync, work, direct }
+}
 
 describe('ri-notes track facts', () => {
   it('lists the first-parent commits beyond the parent with their unit records, oldest first', () => {
     const { f, before, merge, direct } = trackFixture()
     const facts = trackFacts(f.root, f.policy, 'runtime')
-    expect(facts.lowerBound).toEqual({ commit: before, source: 'cutover' })
+    expect(facts.lowerBound).toEqual({ commit: before, source: 'cutover', ancestor: true })
     expect(facts.parent).toEqual({ name: 'main', branch: 'main', head: f.main })
+    expect(facts.registryParent).toBe('main')
+    expect(facts.mergeBase).toBe(f.initial)
     expect(facts.head).toBe(direct)
     expect(facts.commits).toEqual([
       {
@@ -101,86 +146,154 @@ describe('ri-notes track facts', () => {
       { commit: direct, subject: 'Fixture c.txt', coverage: 'checked', unit: { kind: 'missing' } },
     ])
   })
-  it('checks every commit when the track has neither a cutover entry nor a start tag', () => {
-    const { f } = trackFixture({ cutover: false })
+  it('starts after the last promotion and keeps an FI sync merge in the range', () => {
+    const { f, promotion, sync, work, direct } = promotedFixture()
     const facts = trackFacts(f.root, f.policy, 'runtime')
-    expect(facts.lowerBound).toBeNull()
+    expect(facts.parent.head).toBe(promotion)
+    expect(facts.commits.map(item => [item.commit, item.coverage, item.unit.kind])).toEqual([
+      [sync, 'checked', 'found'],
+      [work, 'checked', 'found'],
+      [direct, 'checked', 'missing'],
+    ])
+  })
+  it('refuses a track with neither a cutover entry nor a start tag', () => {
+    const { f } = trackFixture({ cutover: false })
+    expect(() => trackFacts(f.root, f.policy, 'runtime')).toThrow(
+      'Track runtime has neither a start tag nor a cutover entry',
+    )
+  })
+  it('takes the upstream and lower bound from the start tag when the cutover has no entry', () => {
+    const { f, before } = trackFixture({ cutover: false })
+    setStartTag(f.remote, 'runtime', before, gateRecord('runtime', before, 'main'))
+    const facts = trackFacts(f.root, f.policy, 'runtime')
+    expect(facts.parent.name).toBe('main')
+    expect(facts.lowerBound).toEqual({ commit: before, source: 'start-tag', ancestor: true })
+    expect(facts.commits.map(item => item.coverage)).toEqual([
+      'before-lower-bound',
+      'checked',
+      'checked',
+    ])
+  })
+  it('checks every commit when the lower bound is not on the track history', () => {
+    const { f } = trackFixture()
+    setGate(f.remote, JSON.stringify({ main: f.main, 'integration/runtime': f.main }))
+    const facts = trackFacts(f.root, f.policy, 'runtime')
+    expect(facts.lowerBound).toEqual({ commit: f.main, source: 'cutover', ancestor: false })
     expect(facts.commits.map(item => item.coverage)).toEqual(['checked', 'checked', 'checked'])
   })
 })
 
 describe('ri-notes CLI', () => {
-  it('prints JSON and Markdown and exits 0 although it reports findings', () => {
-    const { f, direct } = trackFixture()
-    const responses = join(f.home, 'responses'),
+  const cli = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.url))
+  function server(f: Fixture, responses: Record<string, unknown>) {
+    const dir = join(f.home, 'responses'),
       bin = join(f.home, 'ri-bin')
-    mkdirSync(responses)
+    mkdirSync(dir)
     mkdirSync(bin)
-    const respond = (endpoint: string, value: unknown) =>
-      writeFileSync(join(responses, `${endpoint.replaceAll('/', '_')}.json`), JSON.stringify(value))
-    respond('repos/owner/repo/pulls/10', {
-      number: 10,
-      html_url: 'https://github.com/owner/repo/pull/10',
-      head: { ref: 'human/issue-5-x' },
-      base: { ref: 'integration/runtime' },
-      body: '## 所含的卡\n\n- #5 revision 1 attempt `5-a1`：无\n\n## 契约变化\n\n无\n\n---\n_Generated by host_',
-    })
-    respond('repos/owner/repo/issues/5', {
-      number: 5,
-      node_id: 'I_5',
-      html_url: 'https://github.com/owner/repo/issues/5',
-      body: '## 身份与责任\n\n- 交付线：tools-line\n- 性质：impl\n- 契约变更：none\n',
-      labels: [],
-      milestone: { title: 'M1' },
-    })
+    for (const [endpoint, value] of Object.entries(responses))
+      writeFileSync(join(dir, `${endpoint.replaceAll('/', '_')}.json`), JSON.stringify(value))
     writeFileSync(
       join(bin, 'gh'),
       `#!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs'
-const file = ${JSON.stringify(responses)} + '/' + process.argv.at(-1).replaceAll('/', '_') + '.json'
+const file = ${JSON.stringify(dir)} + '/' + process.argv.at(-1).replaceAll('/', '_') + '.json'
 if (!existsSync(file)) { process.stdout.write('{"message":"Not Found","status":"404"}'); process.exit(1) }
 process.stdout.write(readFileSync(file, 'utf8'))
 `,
     )
     chmodSync(join(bin, 'gh'), 0o755)
-    const cli = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.url))
-    const run = (format: string) =>
-      spawnSync(
-        process.execPath,
-        [
-          '--experimental-strip-types',
-          cli,
-          'ri-notes',
-          '--track',
-          'runtime',
-          '--root',
-          f.root,
-          '--format',
-          format,
-        ],
-        { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } },
-      )
-    const json = run('json')
+    return (...args: string[]) =>
+      spawnSync(process.execPath, ['--experimental-strip-types', cli, 'ri-notes', ...args], {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      })
+  }
+  const pull = (number: number, head: string, body: string) => ({
+    number,
+    html_url: `https://github.com/owner/repo/pull/${number}`,
+    head: { ref: head },
+    base: { ref: 'integration/runtime' },
+    body,
+  })
+  const card = (number: number) => ({
+    number,
+    node_id: `I_${number}`,
+    html_url: `https://github.com/owner/repo/issues/${number}`,
+    body: '## 身份与责任\n\n- 交付线：tools-line\n- 性质：impl\n- 契约变更：none\n',
+    labels: [],
+    milestone: { title: 'M1' },
+  })
+  it('prints JSON, prints Markdown with the findings on standard error, and exits 0', () => {
+    const { f, direct } = trackFixture()
+    const run = server(f, {
+      'repos/owner/repo/pulls/10': pull(
+        10,
+        'human/issue-5-x',
+        '## 所含的卡\n\n- #5 revision 1 attempt `5-a1`：无\n\n## 契约变化\n\n无\n\n---\n_Generated by host_',
+      ),
+      'repos/owner/repo/issues/5': card(5),
+    })
+    const args = ['--track', 'runtime', '--root', f.root]
+    const json = run(...args)
     expect(json.status, json.stderr).toBe(0)
+    expect(json.stderr).toBe('')
     const notes = JSON.parse(json.stdout)
     expect(notes.cards).toEqual([
-      expect.objectContaining({
-        issue: 5,
-        revision: 1,
-        attempt: '5-a1',
-        line: 'tools-line',
-        inferred: false,
-      }),
+      expect.objectContaining({ issue: 5, revision: 1, attempt: '5-a1', line: 'tools-line' }),
     ])
-    expect(notes.findings).toEqual([
-      expect.objectContaining({ code: 'unit-missing', at: { commit: direct } }),
+    expect(notes.findings.map((item: { code: string }) => item.code)).toEqual([
+      'unit-missing',
+      'contracts-unknown',
     ])
-    expect(notes.contractCheck.status).toBe('unavailable')
-    const markdown = run('markdown')
+    expect(notes.contractCheck.kind).toBe('unavailable')
+    const markdown = run(...args, '--format', 'markdown')
     expect(markdown.status, markdown.stderr).toBe(0)
     expect(markdown.stdout).toBe(
-      '## 所含的卡\n\n- #5 revision 1 attempt `5-a1`：无\n\n## 契约变化\n\n无\n',
+      `## 所含的卡\n\n- #5 revision 1 attempt \`5-a1\`：无\n\n## 契约变化\n\n待确认：提交 ${notes.contractGaps[0].commit.slice(0, 9)}、提交 ${direct.slice(0, 9)} 的契约变化未知，逐个核对后改写本节。\n`,
     )
-    expect(run('yaml').status).toBe(2)
+    const reports = markdown.stderr
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line))
+    expect(reports.slice(0, -1)).toEqual(notes.findings)
+    expect(reports.at(-1)).toEqual({
+      severity: 'report',
+      summary: {
+        findings: 2,
+        codes: { 'unit-missing': 1, 'contracts-unknown': 1 },
+        contractCheck: notes.contractCheck,
+      },
+    })
+    expect(run(...args, '--format', 'yaml').status).toBe(2)
+  })
+  it('skips the sections of a sync PR after a promotion', () => {
+    const { f } = promotedFixture()
+    const run = server(f, {
+      'repos/owner/repo/pulls/30': pull(30, 'main', '同步，不写两节'),
+      'repos/owner/repo/pulls/40': pull(
+        40,
+        'human/issue-6-y',
+        '## 所含的卡\n\n- #6 revision 2 attempt `6-a2`：无\n\n## 契约变化\n\n无\n',
+      ),
+      'repos/owner/repo/issues/6': card(6),
+    })
+    const result = run('--track', 'runtime', '--root', f.root)
+    expect(result.status, result.stderr).toBe(0)
+    const notes = JSON.parse(result.stdout)
+    expect(
+      notes.commits.map((item: { pr: { kind: string } | null }) => item.pr?.kind ?? null),
+    ).toEqual(['sync', 'work', null])
+    expect(notes.cards.map((item: { issue: number }) => item.issue)).toEqual([6])
+  })
+  it('prints its usage with --help and exits 0', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', cli, 'ri-notes', '--help'],
+      {
+        encoding: 'utf8',
+      },
+    )
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('integration ri-notes --track ID')
   })
 })

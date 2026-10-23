@@ -2,133 +2,56 @@ import {
   judgeAttributes,
   type CardAttributes,
   type ContractChange,
+  type Nature,
 } from '../delivery/attributes.ts'
-import { bodySections } from '../delivery/body.ts'
 import { INTEGRATION_LINE, targetTrack, type DeliveryLines } from '../delivery/lines.ts'
 import type { Policy, Track } from './policy.ts'
+import {
+  CARDS_SECTION,
+  CONTRACTS_SECTION,
+  formatCardLine,
+  parsePullSections,
+  type CardDeclaration,
+  type ContractEntry,
+  type PullSections,
+} from './pr-sections.ts'
 
-/**
- * The promotion PR sections of docs/engineering/integration.md「进轨道 PR 的说明」. The card line
- * format is copied from `gate/README.md`「提升 PR 的说明」 on `github-gate`, which owns it.
- */
-export const CARDS_SECTION = '所含的卡'
-export const CONTRACTS_SECTION = '契约变化'
-const CARD_LINE = /^- #([1-9]\d*) revision ([1-9]\d*) attempt `([^`\s]+)`：(\S.*)$/
-/** A card line with the right facts and a wrong separator; it is reported and still counted. */
-const LOOSE_CARD_LINE =
-  /^[-*]\s+#([1-9]\d*)\s+revision\s+([1-9]\d*)\s*[/，,]?\s*attempt\s+`([^`\s]+)`\s*[：:，,。；;]?\s*(.*)$/
-/** A member path may be written as Markdown code. */
-const CONTRACT_LINE = /^- (`?)([^\s：`]+)\1：(none|additive|breaking)(?:[。；，,;\s]\s*(.*))?$/
-const ISSUE_BRANCH = /(?:^|\/)issue-([1-9]\d*)(?:-|$)/
-const levels = ['none', 'additive', 'breaking'] as const satisfies readonly ContractChange[]
-type Level = ContractChange
-function rank(level: Level): number {
-  return levels.indexOf(level)
-}
+const RANK = { none: 0, additive: 1, breaking: 2 } as const satisfies Record<ContractChange, number>
 
-/** One card line of「所含的卡」. */
-export type CardDeclaration = {
-  issue: number
-  revision: number
-  attempt: string
-  condition: string
-}
-/** One member line of「契约变化」. */
-export type ContractEntry = { path: string; level: Level; note: string }
-/** A list line that does not match the format; `counted` when its facts were still read. */
-export type InvalidLine = { line: string; counted: boolean }
-/**
- * A section as declared: absent, without any list line, or its list lines. Prose lines are
- * commentary and do not count.
- */
-type Declared<T> =
-  | { kind: 'absent' }
-  | { kind: 'empty' }
-  | { kind: 'present'; entries: T[]; invalid: InvalidLine[] }
-export type PullSections = {
-  cards: Declared<CardDeclaration>
-  /** `none` is the literal「无」: the PR changes no contract member. */
-  contracts: Declared<ContractEntry> | { kind: 'none' }
-}
-
-function sectionLines(body: string, name: string): string[] | undefined {
-  const found = bodySections(body).get(name)
-  if (found === undefined) return undefined
-  const lines = found
-    .join('\n')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .split(/\r?\n/)
-    .map(line => line.trim())
-  // A thematic break ends the section, such as the footer a host appends to the last one.
-  const end = lines.findIndex(line => /^(?:-{3,}|\*{3,}|_{3,})$/.test(line))
-  return (end === -1 ? lines : lines.slice(0, end)).filter(line => line !== '')
-}
-/** A parsed list line: exact, read despite a format defect, or unreadable. */
-type Parsed<T> = { kind: 'exact'; entry: T } | { kind: 'loose'; entry: T } | { kind: 'invalid' }
-function declared<T>(lines: string[] | undefined, parse: (line: string) => Parsed<T>) {
-  if (lines === undefined) return { kind: 'absent' } as const
-  const items = lines.filter(line => /^[-*]\s/.test(line))
-  if (items.length === 0) return { kind: 'empty' } as const
-  const entries: T[] = [],
-    invalid: InvalidLine[] = []
-  for (const line of items) {
-    const parsed = parse(line)
-    if (parsed.kind !== 'invalid') entries.push(parsed.entry)
-    if (parsed.kind !== 'exact') invalid.push({ line, counted: parsed.kind === 'loose' })
-  }
-  return { kind: 'present', entries, invalid } as const
-}
-function cardOf(match: RegExpExecArray | null): CardDeclaration | undefined {
-  const [, issue, revision, attempt, condition] = match ?? []
-  if (issue === undefined || revision === undefined || attempt === undefined) return undefined
-  return {
-    issue: Number(issue),
-    revision: Number(revision),
-    attempt,
-    condition: (condition ?? '').trim(),
-  }
-}
-/** Reads one card line; the condition of a loose line may be empty. */
-export function parseCardLine(line: string): Parsed<CardDeclaration> {
-  const exact = cardOf(CARD_LINE.exec(line))
-  if (exact !== undefined) return { kind: 'exact', entry: exact }
-  const loose = cardOf(LOOSE_CARD_LINE.exec(line))
-  return loose === undefined ? { kind: 'invalid' } : { kind: 'loose', entry: loose }
-}
-function parseContractLine(line: string): Parsed<ContractEntry> {
-  const match = CONTRACT_LINE.exec(line)
-  const level = levels.find(item => item === match?.[3])
-  if (match?.[2] === undefined || level === undefined) return { kind: 'invalid' }
-  return { kind: 'exact', entry: { path: match[2], level, note: (match[4] ?? '').trim() } }
-}
-/** Reads the two sections of a PR body. HTML comments, such as template hints, do not count. */
-export function parsePullSections(body: string): PullSections {
-  const contracts = sectionLines(body, CONTRACTS_SECTION)
-  return {
-    cards: declared(sectionLines(body, CARDS_SECTION), parseCardLine),
-    contracts:
-      contracts?.length === 1 && contracts[0] === '无'
-        ? { kind: 'none' }
-        : declared(contracts, parseContractLine),
-  }
-}
-/** One card line in the exact gate README format. */
-export function formatCardLine(card: CardDeclaration): string {
-  return `- #${card.issue} revision ${card.revision} attempt \`${card.attempt}\`：${card.condition}`
-}
-
-/** A `omne-gate-record:v1` unit record, reduced to the fields this report reads. */
+/** An `omne-gate-record:v1` unit record, reduced to the fields this report reads. */
 export type UnitRecord = { target: string; result: string; pr: number | null }
-/** A first-parent commit of the source track that the parent does not contain. */
+export type CommitUnit =
+  | { kind: 'found'; record: UnitRecord }
+  | { kind: 'missing' }
+  | { kind: 'invalid'; reason: string }
+/** A first-parent commit of the source track that its upstream does not contain. */
 export type TrackCommit = {
   commit: string
   subject: string
   /** `before-lower-bound` commits precede the gate's coverage check and need no unit. */
   coverage: 'checked' | 'before-lower-bound'
-  unit:
-    | { kind: 'found'; record: UnitRecord }
-    | { kind: 'missing' }
-    | { kind: 'invalid'; reason: string }
+  unit: CommitUnit
+}
+export type TrackParent = { name: string; branch: string; head: string }
+export type LowerBound = {
+  commit: string
+  source: 'cutover' | 'start-tag'
+  /** False when the lower bound is not an ancestor of the track head; the gate refuses then. */
+  ancestor: boolean
+}
+/** The Git facts of one track; `ri-source.ts` reads them. */
+export type TrackFacts = {
+  track: Track
+  head: string
+  /** The trusted upstream, in the gate's order. */
+  parent: TrackParent
+  /** The registry `parent` of the track, a projection of the trusted upstream. */
+  registryParent: string
+  /** The merge base of the track head and the upstream head. */
+  mergeBase: string
+  lowerBound: LowerBound | null
+  /** Oldest first. */
+  commits: TrackCommit[]
 }
 export type PullFact = {
   number: number
@@ -138,28 +61,30 @@ export type PullFact = {
   body: string
 }
 export type PullRead = { kind: 'read'; pull: PullFact } | { kind: 'unreadable'; reason: string }
-export type CardFact = {
-  url: string
-  attributes: CardAttributes
-  /** Revision and attempt of the body's binding, or undefined without a readable binding. */
-  binding: { revision: number; attempt: string } | undefined
-}
+export type CardBinding =
+  | { kind: 'found'; revision: number; attempt: string }
+  | { kind: 'absent' }
+  | { kind: 'invalid'; reason: string }
+export type CardFact = { url: string; attributes: CardAttributes; binding: CardBinding }
 export type CardRead = { kind: 'read'; card: CardFact } | { kind: 'unreadable'; reason: string }
-/**
- * The P1-2 contract snapshot difference between two commits, by contract member path. P1-2
- * classifies each member as none, additive or review. `unavailable` until P1-2 is wired.
- */
+/** How a contract API snapshot changed for one member: no change, additions only, or other. */
+export type SnapshotChange = 'none' | 'additive' | 'review'
+/** The declared level each snapshot change matches. `review` does not decide direction. */
+const SNAPSHOT_MATCH = {
+  none: 'none',
+  additive: 'additive',
+  review: 'breaking',
+} as const satisfies Record<SnapshotChange, ContractChange>
+/** The snapshot difference between two commits, by contract member path, or why there is none. */
 export type ContractDiff =
   | { kind: 'unavailable'; reason: string }
-  | {
-      kind: 'available'
-      base: string
-      head: string
-      members: { path: string; level: 'none' | 'additive' | 'review' }[]
-    }
+  | { kind: 'available'; base: string; head: string; members: ReadonlyMap<string, SnapshotChange> }
+export type DiffContracts = (range: { base: string; head: string }) => ContractDiff
 
 export type FindingCode =
+  | 'parent-registry-drift'
   | 'lower-bound-unknown'
+  | 'lower-bound-not-ancestor'
   | 'unit-missing'
   | 'unit-invalid'
   | 'unit-target-mismatch'
@@ -172,13 +97,15 @@ export type FindingCode =
   | 'contract-path-unknown'
   | 'contract-level-exceeds-card'
   | 'contract-breaking-off-integration'
+  | 'contracts-unknown'
+  | 'contract-diff-stale'
   | 'contract-diff-mismatch'
   | 'card-inferred'
   | 'card-unresolved'
   | 'card-unreadable'
   | 'card-line-unknown'
   | 'card-other-line'
-/** A report-only finding. `at` locates it: a commit, a PR, a card or a contract member. */
+/** A report-only finding. `at` locates it: a commit, a PR, a card, a section or a member. */
 export type RiFinding = {
   severity: 'report'
   code: FindingCode
@@ -186,12 +113,17 @@ export type RiFinding = {
   message: string
 }
 export type PullKind = 'work' | 'sync' | 'promote'
+/** Where a commit's PR number came from: its unit record or a merge commit subject. */
+export type PullSource = 'unit' | 'subject'
+export type CommitPull =
+  | { kind: 'unreadable'; number: number; source: PullSource; reason: string }
+  | { kind: PullKind; number: number; source: PullSource; url: string }
 export type RiCommit = {
   commit: string
   subject: string
   coverage: TrackCommit['coverage']
-  unit: TrackCommit['unit']['kind']
-  pr: { number: number; url?: string; kind?: PullKind; source: 'unit' | 'subject' } | null
+  unit: CommitUnit['kind']
+  pr: CommitPull | null
 }
 export type RiCard = CardDeclaration & {
   url: string
@@ -200,49 +132,387 @@ export type RiCard = CardDeclaration & {
   /** PR numbers that declared or implied this card, oldest first. */
   pulls: number[]
   line: string | null
-  nature: string | null
-  contractChange: string | null
+  nature: Nature | null
+  contractChange: ContractChange | null
 }
-export type RiContract = { path: string; level: Level; notes: { pr: number; note: string }[] }
+export type RiContract = {
+  path: string
+  level: ContractChange
+  notes: { pr: number; note: string }[]
+}
+/** A commit whose contract changes are unknown, with the reason. */
+export type ContractGap = { commit: string; pr: number | null; reason: string }
+export type ContractCheck =
+  | { kind: 'unavailable'; reason: string }
+  | { kind: 'checked'; base: string; head: string }
 export type RiNotes = {
   track: { id: string; branch: string; head: string }
-  parent: { name: string; branch: string; head: string }
-  lowerBound: { commit: string; source: 'cutover' | 'start-tag' } | null
+  parent: TrackParent
+  lowerBound: LowerBound | null
   commits: RiCommit[]
   cards: RiCard[]
   contracts: RiContract[]
-  contractCheck:
-    | { status: 'unavailable'; reason: string }
-    | { status: 'checked'; base: string; head: string }
+  /** Empty only when every commit's contract changes are known. */
+  contractGaps: ContractGap[]
+  contractCheck: ContractCheck
   findings: RiFinding[]
   markdown: string
 }
-export type RiInput = {
+export type RiInput = TrackFacts & {
   repository: string
-  track: Track
-  parent: { name: string; branch: string; head: string }
-  head: string
-  lowerBound: RiNotes['lowerBound']
-  /** Oldest first. */
-  commits: readonly TrackCommit[]
   lines: DeliveryLines
   registry: Pick<Policy, 'tracks'>
   readPull: (number: number) => PullRead
   readCard: (number: number) => CardRead
-  contractDiff: ContractDiff
+  diffContracts: DiffContracts
 }
 
-function pullOf(commit: TrackCommit): RiCommit['pr'] {
-  if (commit.unit.kind === 'found')
-    return commit.unit.record.pr === null ? null : { number: commit.unit.record.pr, source: 'unit' }
+function finding(code: FindingCode, at: RiFinding['at'], message: string): RiFinding {
+  return { severity: 'report', code, at, message }
+}
+function pullUrl(input: RiInput, n: number): string {
+  return `https://github.com/${input.repository}/pull/${n}`
+}
+function issueUrl(input: RiInput, n: number): string {
+  return `https://github.com/${input.repository}/issues/${n}`
+}
+
+/** Findings about the range itself: its upstream and its lower bound. */
+function rangeFindings(input: RiInput): RiFinding[] {
+  const findings: RiFinding[] = []
+  if (input.registryParent !== input.parent.name)
+    findings.push(
+      finding(
+        'parent-registry-drift',
+        {},
+        `registry 登记 ${input.track.id} 的上游为 ${input.registryParent}，起点标签或切换点给出 ${input.parent.name}，范围按后者计算。`,
+      ),
+    )
+  if (input.lowerBound === null)
+    findings.push(
+      finding(
+        'lower-bound-unknown',
+        {},
+        `${input.track.branch} 在 gate/cutover.json 中没有切换点，也没有起点标签。全部提交都按有 unit 核对。`,
+      ),
+    )
+  else if (!input.lowerBound.ancestor)
+    findings.push(
+      finding(
+        'lower-bound-not-ancestor',
+        { commit: input.lowerBound.commit },
+        `核对下限 ${input.lowerBound.commit} 不是 ${input.track.branch} 头的祖先，gate 会拒绝这次提升。全部提交都按有 unit 核对。`,
+      ),
+    )
+  return findings
+}
+
+/** Findings about one commit's unit record. */
+function unitFindings(input: RiInput, commit: TrackCommit): RiFinding[] {
+  const at = { commit: commit.commit },
+    { unit } = commit
+  if (unit.kind === 'missing')
+    return commit.coverage === 'checked'
+      ? [
+          finding(
+            'unit-missing',
+            at,
+            `first-parent 提交 ${commit.commit}（${commit.subject}）没有 unit 记录。`,
+          ),
+        ]
+      : []
+  if (unit.kind === 'invalid')
+    return [finding('unit-invalid', at, `提交 ${commit.commit} 的 unit 记录不合格：${unit.reason}`)]
+  const { record } = unit,
+    findings: RiFinding[] = []
+  if (record.target !== `refs/heads/${input.track.branch}` || record.result !== commit.commit)
+    findings.push(
+      finding(
+        'unit-target-mismatch',
+        at,
+        `unit 记录的目标为 ${record.target}、结果为 ${record.result}，应为 refs/heads/${input.track.branch} 与 ${commit.commit}。`,
+      ),
+    )
+  if (record.pr === null)
+    findings.push(finding('unit-invalid', at, `提交 ${commit.commit} 的 unit 记录没有 pr。`))
+  return findings
+}
+
+/** A read non-sync PR and the commit that brought it. */
+type CarriedPull = { commit: string; pull: PullFact }
+/** One commit's PR: read, classified and checked against the source track. */
+type CommitPullRead = {
+  pr: CommitPull | null
+  carried: CarriedPull | undefined
+  gap: ContractGap | undefined
+  findings: RiFinding[]
+}
+function readCommitPull(input: RiInput, commit: TrackCommit): CommitPullRead {
+  const number = pullNumber(commit)
+  if (number === null)
+    return {
+      pr: null,
+      carried: undefined,
+      gap: { commit: commit.commit, pr: null, reason: '提交没有对应的 PR' },
+      findings: [],
+    }
+  const source: PullSource = commit.unit.kind === 'found' ? 'unit' : 'subject',
+    read = input.readPull(number)
+  if (read.kind === 'unreadable')
+    return {
+      pr: { kind: 'unreadable', number, source, reason: read.reason },
+      carried: undefined,
+      gap: { commit: commit.commit, pr: number, reason: 'PR 读不到' },
+      findings: [
+        finding(
+          'pr-unreadable',
+          { commit: commit.commit, pr: pullUrl(input, number) },
+          `读不到 PR #${number}：${read.reason}`,
+        ),
+      ],
+    }
+  const { pull } = read,
+    kind = pullKind(pull.headRef, input)
+  return {
+    pr: { kind, number, source, url: pull.url },
+    carried: kind === 'sync' ? undefined : { commit: commit.commit, pull },
+    gap: undefined,
+    findings:
+      pull.baseRef === input.track.branch
+        ? []
+        : [
+            finding(
+              'pr-base-mismatch',
+              { commit: commit.commit, pr: pull.url },
+              `PR #${pull.number} 的 base 为 ${pull.baseRef}，不是 ${input.track.branch}。`,
+            ),
+          ],
+  }
+}
+/** Lists every commit with its unit and PR, and reads the PRs. */
+function listCommits(input: RiInput): {
+  commits: RiCommit[]
+  pulls: CarriedPull[]
+  gaps: ContractGap[]
+  findings: RiFinding[]
+} {
+  const commits: RiCommit[] = [],
+    pulls: CarriedPull[] = [],
+    gaps: ContractGap[] = [],
+    findings: RiFinding[] = []
+  for (const commit of input.commits) {
+    const read = readCommitPull(input, commit)
+    findings.push(...unitFindings(input, commit), ...read.findings)
+    if (read.carried !== undefined) pulls.push(read.carried)
+    if (read.gap !== undefined) gaps.push(read.gap)
+    commits.push({
+      commit: commit.commit,
+      subject: commit.subject,
+      coverage: commit.coverage,
+      unit: commit.unit.kind,
+      pr: read.pr,
+    })
+  }
+  return { commits, pulls, gaps, findings }
+}
+function pullNumber(commit: TrackCommit): number | null {
+  if (commit.unit.kind === 'found') return commit.unit.record.pr
   const match = /^Merge pull request #([1-9]\d*) from /.exec(commit.subject)
-  return match?.[1] === undefined ? null : { number: Number(match[1]), source: 'subject' }
+  return match?.[1] === undefined ? null : Number(match[1])
 }
 function pullKind(head: string, input: RiInput): PullKind {
   if (head === input.parent.branch) return 'sync'
   const child = input.registry.tracks.find(track => track.branch === head)
   return child !== undefined && child.parent === input.track.id ? 'promote' : 'work'
 }
+
+type Pending = { declaration: CardDeclaration; inferred: boolean; pulls: number[] }
+/** The cards of the range by Issue number. A declaration replaces an inference. */
+class CardBook {
+  readonly #cards = new Map<number, Pending>()
+  /** A later PR at the same or a newer revision carries the latest attempt. */
+  declare(declaration: CardDeclaration, pr: number): void {
+    const current = this.#cards.get(declaration.issue)
+    if (
+      current !== undefined &&
+      !current.inferred &&
+      declaration.revision < current.declaration.revision
+    ) {
+      current.pulls.push(pr)
+      return
+    }
+    this.#cards.set(declaration.issue, {
+      declaration,
+      inferred: false,
+      pulls: [...(current?.pulls ?? []), pr],
+    })
+  }
+  /** True when a PR declared the card; the PR is then recorded on it. */
+  joinDeclared(issue: number, pr: number): boolean {
+    const current = this.#cards.get(issue)
+    if (current === undefined || current.inferred) return false
+    current.pulls.push(pr)
+    return true
+  }
+  infer(declaration: CardDeclaration, pr: number): void {
+    const current = this.#cards.get(declaration.issue)
+    this.#cards.set(declaration.issue, {
+      declaration,
+      inferred: true,
+      pulls: [...(current?.pulls ?? []), pr],
+    })
+  }
+  list(): Pending[] {
+    return [...this.#cards.values()]
+  }
+}
+
+function sectionMissing(pull: PullFact, at: RiFinding['at'], section: string, empty: boolean) {
+  return finding(
+    'pr-section-missing',
+    { ...at, section },
+    empty
+      ? `PR #${pull.number} 的「${section}」没有列表行。`
+      : `PR #${pull.number} 没有声明「${section}」。`,
+  )
+}
+/** The card lines of one PR, and whether its card must be inferred from the branch. */
+function cardLines(
+  pull: PullFact,
+  section: PullSections['cards'],
+  at: RiFinding['at'],
+): { entries: CardDeclaration[]; infer: boolean; findings: RiFinding[] } {
+  if (section.kind !== 'listed')
+    return {
+      entries: [],
+      infer: true,
+      findings: [sectionMissing(pull, at, CARDS_SECTION, section.kind === 'empty')],
+    }
+  const entries = section.entries.map(entry =>
+    entry.condition === ''
+      ? { ...entry, condition: `待确认（PR #${pull.number} 的行没有写条件）` }
+      : entry,
+  )
+  return {
+    entries,
+    // No line could be read: the card is unknown, as if the section were missing.
+    infer: entries.length === 0,
+    findings: section.invalid.map(({ line, counted }) =>
+      finding(
+        'cards-line-invalid',
+        { ...at, section: CARDS_SECTION },
+        `PR #${pull.number}「${CARDS_SECTION}」的行不符合 gate README 的格式，${counted ? '已按其中的编号、修订与 attempt 计入' : '未计入'}：${line}`,
+      ),
+    ),
+  }
+}
+/** The contract lines of one PR, and the gap when its contract changes are unknown. */
+function contractLines(
+  pull: PullFact,
+  section: PullSections['contracts'],
+  carried: CarriedPull,
+  at: RiFinding['at'],
+): { entries: ContractEntry[]; gap: ContractGap | undefined; findings: RiFinding[] } {
+  const gap = (reason: string) => ({ commit: carried.commit, pr: pull.number, reason })
+  if (section.kind === 'none') return { entries: [], gap: undefined, findings: [] }
+  if (section.kind !== 'listed')
+    return {
+      entries: [],
+      gap: gap(`PR 没有声明「${CONTRACTS_SECTION}」`),
+      findings: [sectionMissing(pull, at, CONTRACTS_SECTION, section.kind === 'empty')],
+    }
+  return {
+    entries: section.entries,
+    gap: section.invalid.some(item => !item.counted)
+      ? gap(`「${CONTRACTS_SECTION}」有未计入的行`)
+      : undefined,
+    findings: section.invalid.map(({ line, counted }) =>
+      finding(
+        'contract-line-invalid',
+        { ...at, section: CONTRACTS_SECTION },
+        `PR #${pull.number}「${CONTRACTS_SECTION}」的行不符合「- <路径>：<none、additive 或 breaking>」，${counted ? '已按其中的路径与级别计入' : '未计入'}：${line}`,
+      ),
+    ),
+  }
+}
+/** Infers the card of a PR from its branch `issue-<N>` and the card's current binding. */
+function inferCard(
+  input: RiInput,
+  pull: PullFact,
+  at: RiFinding['at'],
+  book: CardBook,
+  readCard: (n: number) => CardRead,
+): RiFinding[] {
+  const number = Number(/(?:^|\/)issue-([1-9]\d*)(?:-|$)/.exec(pull.headRef)?.[1] ?? Number.NaN)
+  if (!Number.isSafeInteger(number))
+    return [
+      finding(
+        'card-unresolved',
+        at,
+        `PR #${pull.number} 的分支 ${pull.headRef} 不含 issue-<N>，推测不出卡。`,
+      ),
+    ]
+  if (book.joinDeclared(number, pull.number)) return []
+  const read = readCard(number)
+  const binding: CardBinding =
+    read.kind === 'read' ? read.card.binding : { kind: 'invalid', reason: read.reason }
+  if (binding.kind !== 'found') {
+    const why =
+      binding.kind === 'absent' ? '该卡正文没有 binding' : `读不到该卡的 binding：${binding.reason}`
+    return [
+      finding(
+        'card-unresolved',
+        { ...at, issue: issueUrl(input, number) },
+        `PR #${pull.number} 按分支 ${pull.headRef} 推测为 #${number}，但${why}，须手工补行。`,
+      ),
+    ]
+  }
+  book.infer(
+    {
+      issue: number,
+      revision: binding.revision,
+      attempt: binding.attempt,
+      condition: `待确认（PR #${pull.number} 未声明，按分支推测）`,
+    },
+    pull.number,
+  )
+  return []
+}
+/** Reads the two sections of every carried PR and collects the declared or inferred cards. */
+function readDeclarations(
+  input: RiInput,
+  pulls: readonly CarriedPull[],
+  readCard: (n: number) => CardRead,
+): {
+  cards: Pending[]
+  declaredBy: Map<number, CardDeclaration[]>
+  contractsBy: { pr: number; entries: ContractEntry[] }[]
+  gaps: ContractGap[]
+  findings: RiFinding[]
+} {
+  const book = new CardBook(),
+    declaredBy = new Map<number, CardDeclaration[]>(),
+    contractsBy: { pr: number; entries: ContractEntry[] }[] = [],
+    gaps: ContractGap[] = [],
+    findings: RiFinding[] = []
+  for (const carried of pulls) {
+    const { pull } = carried,
+      at = { commit: carried.commit, pr: pull.url },
+      sections = parsePullSections(pull.body)
+    const cards = cardLines(pull, sections.cards, at)
+    findings.push(...cards.findings)
+    declaredBy.set(pull.number, cards.entries)
+    for (const entry of cards.entries) book.declare(entry, pull.number)
+    if (cards.infer) findings.push(...inferCard(input, pull, at, book, readCard))
+    const contracts = contractLines(pull, sections.contracts, carried, at)
+    findings.push(...contracts.findings)
+    if (contracts.gap !== undefined) gaps.push(contracts.gap)
+    if (sections.contracts.kind === 'listed')
+      contractsBy.push({ pr: pull.number, entries: contracts.entries })
+  }
+  return { cards: book.list(), declaredBy, contractsBy, gaps, findings }
+}
+
 /** The source track and every registered track below it. */
 function subtree(input: RiInput): Set<string> {
   const ids = new Set([input.track.id])
@@ -256,197 +526,56 @@ function subtree(input: RiInput): Set<string> {
   }
   return ids
 }
-
-type Pending = { declaration: CardDeclaration; inferred: boolean; pulls: number[] }
-
-/**
- * Builds the promotion PR sections for one track from its first-parent commits, their unit
- * records and the PRs they name. It only reports: every defect becomes a finding.
- */
-export function riNotes(input: RiInput): RiNotes {
-  const findings: RiFinding[] = [],
-    report = (code: FindingCode, at: RiFinding['at'], message: string) =>
-      findings.push({ severity: 'report', code, at, message })
-  const pullUrl = (n: number) => `https://github.com/${input.repository}/pull/${n}`,
-    issueUrl = (n: number) => `https://github.com/${input.repository}/issues/${n}`
-  if (input.lowerBound === null)
-    report(
-      'lower-bound-unknown',
-      {},
-      `轨道 ${input.track.branch} 在 gate/cutover.json 中没有切换点，也没有起点标签；按全部提交核对 unit。`,
-    )
-  const cards = new Map<number, Pending>(),
-    cardReads = new Map<number, CardRead>(),
-    readCard = (n: number) => {
-      let read = cardReads.get(n)
-      if (read === undefined) {
-        read = input.readCard(n)
-        cardReads.set(n, read)
-      }
-      return read
-    }
-  const declaredBy = new Map<number, CardDeclaration[]>(),
-    contractsBy: { pr: number; entries: ContractEntry[] }[] = []
-  const commits = input.commits.map((commit): RiCommit => {
-    const at = { commit: commit.commit }
-    if (commit.coverage === 'checked') {
-      if (commit.unit.kind === 'missing')
-        report(
-          'unit-missing',
-          at,
-          `first-parent 提交 ${commit.commit}（${commit.subject}）没有 unit 记录。`,
-        )
-      else if (commit.unit.kind === 'invalid')
-        report(
-          'unit-invalid',
-          at,
-          `提交 ${commit.commit} 的 unit 记录不可读：${commit.unit.reason}`,
-        )
-    }
-    if (commit.unit.kind === 'found') {
-      const { record } = commit.unit
-      if (record.target !== `refs/heads/${input.track.branch}` || record.result !== commit.commit)
-        report(
-          'unit-target-mismatch',
-          at,
-          `unit 记录的目标为 ${record.target}、结果为 ${record.result}，应为 refs/heads/${input.track.branch} 与 ${commit.commit}。`,
-        )
-      if (record.pr === null)
-        report('unit-invalid', at, `提交 ${commit.commit} 的 unit 记录没有 pr。`)
-    }
-    const listed = {
-      commit: commit.commit,
-      subject: commit.subject,
-      coverage: commit.coverage,
-      unit: commit.unit.kind,
-    }
-    const pr = pullOf(commit)
-    if (pr === null) return { ...listed, pr }
-    const read = input.readPull(pr.number),
-      prAt = { commit: commit.commit, pr: pullUrl(pr.number) }
-    if (read.kind === 'unreadable') {
-      report('pr-unreadable', prAt, `读不到 PR #${pr.number}：${read.reason}`)
-      return { ...listed, pr }
-    }
-    const pull = read.pull,
-      kind = pullKind(pull.headRef, input)
-    if (pull.baseRef !== input.track.branch)
-      report(
-        'pr-base-mismatch',
-        prAt,
-        `PR #${pull.number} 的 base 为 ${pull.baseRef}，不是 ${input.track.branch}。`,
-      )
-    if (kind !== 'sync') collectPull(pull, prAt)
-    return { ...listed, pr: { ...pr, url: pull.url, kind } }
-  })
-
-  function collectPull(pull: PullFact, at: RiFinding['at']): void {
-    const sections = parsePullSections(pull.body)
-    const missing = (section: string, empty: boolean) =>
-      report(
-        'pr-section-missing',
-        { ...at, section },
-        empty
-          ? `PR #${pull.number} 的「${section}」没有列表行。`
-          : `PR #${pull.number} 没有声明「${section}」。`,
-      )
-    if (sections.cards.kind === 'present') {
-      for (const { line, counted } of sections.cards.invalid)
-        report(
-          'cards-line-invalid',
-          { ...at, section: CARDS_SECTION },
-          `PR #${pull.number}「${CARDS_SECTION}」的行不符合 gate README 的格式${counted ? '，已按其中的编号、修订与 attempt 计入' : '，未计入'}：${line}`,
-        )
-      const entries = sections.cards.entries.map(entry =>
-        entry.condition === ''
-          ? { ...entry, condition: `待确认（PR #${pull.number} 的行没有写条件）` }
-          : entry,
-      )
-      declaredBy.set(pull.number, entries)
-      for (const declaration of entries) {
-        const current = cards.get(declaration.issue)
-        // A later PR at the same or a newer revision carries the latest attempt.
-        if (
-          current === undefined ||
-          current.inferred ||
-          declaration.revision >= current.declaration.revision
-        )
-          cards.set(declaration.issue, {
-            declaration,
-            inferred: false,
-            pulls: [...(current?.pulls ?? []), pull.number],
-          })
-        else current.pulls.push(pull.number)
-      }
-      // No line could be read: the card is unknown, as if the section were missing.
-      if (entries.length === 0) inferCard(pull, at)
-    } else {
-      missing(CARDS_SECTION, sections.cards.kind === 'empty')
-      inferCard(pull, at)
-    }
-    if (sections.contracts.kind === 'absent' || sections.contracts.kind === 'empty')
-      missing(CONTRACTS_SECTION, sections.contracts.kind === 'empty')
-    else if (sections.contracts.kind === 'present') {
-      for (const { line } of sections.contracts.invalid)
-        report(
-          'contract-line-invalid',
-          { ...at, section: CONTRACTS_SECTION },
-          `PR #${pull.number}「${CONTRACTS_SECTION}」的行不符合「- <路径>：none、additive 或 breaking」：${line}`,
-        )
-      contractsBy.push({ pr: pull.number, entries: sections.contracts.entries })
-    }
-  }
-  function inferCard(pull: PullFact, at: RiFinding['at']): void {
-    const number = Number(ISSUE_BRANCH.exec(pull.headRef)?.[1] ?? Number.NaN)
-    if (!Number.isSafeInteger(number)) {
-      report(
-        'card-unresolved',
+/** The line finding of one card whose attributes were read. */
+function lineFinding(
+  input: RiInput,
+  area: ReadonlySet<string>,
+  issue: number,
+  line: string | undefined,
+): RiFinding[] {
+  const at = { issue: issueUrl(input, issue) }
+  if (line === undefined)
+    return [
+      finding(
+        'card-line-unknown',
         at,
-        `PR #${pull.number} 的分支 ${pull.headRef} 不含 issue-<N>，推测不出卡。`,
-      )
-      return
-    }
-    if (cards.get(number)?.inferred === false) {
-      cards.get(number)?.pulls.push(pull.number)
-      return
-    }
-    const read = readCard(number),
-      binding = read.kind === 'read' ? read.card.binding : undefined
-    if (binding === undefined) {
-      report(
-        'card-unresolved',
-        { ...at, issue: issueUrl(number) },
-        `PR #${pull.number} 按分支 ${pull.headRef} 推测为 #${number}，但读不到该卡 binding 的修订与 attempt，须手工补行。`,
-      )
-      return
-    }
-    const previous = cards.get(number)
-    cards.set(number, {
-      declaration: {
-        issue: number,
-        revision: binding.revision,
-        attempt: binding.attempt,
-        condition: `待确认（PR #${pull.number} 未声明，按分支推测）`,
-      },
-      inferred: true,
-      pulls: [...(previous?.pulls ?? []), pull.number],
-    })
-  }
-
-  const area = subtree(input)
-  const riCards = [...cards.values()]
+        `#${issue} 的「身份与责任」没有合法的交付线，不能核对归属。`,
+      ),
+    ]
+  if (line === INTEGRATION_LINE) return []
+  const target = targetTrack(input.lines, line)
+  return area.has(target)
+    ? []
+    : [
+        finding(
+          'card-other-line',
+          at,
+          `#${issue} 属于线 ${line}，应进入轨道 ${target}，不在 ${input.track.branch} 或其子轨道中。`,
+        ),
+      ]
+}
+/** Reads each card's attributes and checks that its line belongs to the source track. */
+function judgeCards(
+  input: RiInput,
+  pending: readonly Pending[],
+  readCard: (n: number) => CardRead,
+): { cards: RiCard[]; findings: RiFinding[] } {
+  const area = subtree(input),
+    findings: RiFinding[] = []
+  const cards = [...pending]
     .sort((a, b) => a.declaration.issue - b.declaration.issue)
     .map(({ declaration, inferred, pulls }): RiCard => {
-      const url = issueUrl(declaration.issue),
+      const url = issueUrl(input, declaration.issue),
         at = { issue: url }
       if (inferred)
-        report(
-          'card-inferred',
-          at,
-          `#${declaration.issue} 由 PR ${pulls.map(n => `#${n}`).join('、')} 的分支名推测，修订与 attempt 取自卡的当前 binding，条件待确认。`,
+        findings.push(
+          finding(
+            'card-inferred',
+            at,
+            `#${declaration.issue} 由 PR ${pulls.map(n => `#${n}`).join('、')} 的分支名推测，修订与 attempt 取自卡的当前 binding，条件待确认。`,
+          ),
         )
-      const read = readCard(declaration.issue)
-      const base = {
+      const card = {
         ...declaration,
         url,
         inferred,
@@ -455,124 +584,149 @@ export function riNotes(input: RiInput): RiNotes {
         nature: null,
         contractChange: null,
       }
+      const read = readCard(declaration.issue)
       if (read.kind === 'unreadable') {
-        report('card-unreadable', at, `读不到 #${declaration.issue}：${read.reason}`)
-        return base
+        findings.push(
+          finding('card-unreadable', at, `读不到 #${declaration.issue}：${read.reason}`),
+        )
+        return card
       }
       const { attributes } = judgeAttributes(read.card.attributes, input.lines)
-      const card = {
-        ...base,
+      findings.push(...lineFinding(input, area, declaration.issue, attributes.line))
+      return {
+        ...card,
         line: attributes.line ?? null,
         nature: attributes.nature ?? null,
         contractChange: attributes.contractChange ?? null,
       }
-      if (attributes.line === undefined)
-        report(
-          'card-line-unknown',
-          at,
-          `#${declaration.issue} 的「身份与责任」没有合法的交付线，不能核对归属。`,
-        )
-      else if (attributes.line !== INTEGRATION_LINE) {
-        const target = targetTrack(input.lines, attributes.line)
-        if (!area.has(target))
-          report(
-            'card-other-line',
-            at,
-            `#${declaration.issue} 属于线 ${attributes.line}，应进入轨道 ${target}，不在 ${input.track.branch} 或其子轨道中。`,
-          )
-      }
-      return card
     })
+  return { cards, findings }
+}
 
-  const contractPaths = new Set(input.lines.lines.flatMap(line => line.contracts)),
-    cardChange = new Map(riCards.map(card => [card.issue, card.contractChange]))
-  const merged = new Map<string, RiContract>()
+/** The highest contract change of a PR's cards; undefined unless every card's change is known. */
+function ceilingOf(changes: readonly (ContractChange | null)[]): number | undefined {
+  const known = changes.filter((item): item is ContractChange => item !== null)
+  if (known.length === 0 || known.length !== changes.length) return undefined
+  return Math.max(...known.map(item => RANK[item]))
+}
+/** Findings about one contract entry of a PR. */
+function entryFindings(
+  input: RiInput,
+  pr: number,
+  entry: ContractEntry,
+  ceiling: number | undefined,
+): RiFinding[] {
+  const at = { pr: pullUrl(input, pr), section: CONTRACTS_SECTION, path: entry.path },
+    findings: RiFinding[] = []
+  if (!input.lines.lines.some(line => line.contracts.includes(entry.path)))
+    findings.push(
+      finding(
+        'contract-path-unknown',
+        at,
+        `PR #${pr} 列出的 ${entry.path} 不是线归属表 contracts 中的契约成员。`,
+      ),
+    )
+  if (ceiling !== undefined && RANK[entry.level] > ceiling)
+    findings.push(
+      finding(
+        'contract-level-exceeds-card',
+        at,
+        `PR #${pr} 对 ${entry.path} 声明 ${entry.level}，高于所含卡的最高契约变更。`,
+      ),
+    )
+  if (entry.level === 'breaking' && input.track.id !== input.lines.integration.track)
+    findings.push(
+      finding(
+        'contract-breaking-off-integration',
+        at,
+        `breaking 只出现在进入联调轨道或 main 的 PR 中，PR #${pr} 进入 ${input.track.branch}。`,
+      ),
+    )
+  return findings
+}
+/** Merges the declared contract changes per member to the highest level, keeping each note. */
+function mergeContracts(
+  input: RiInput,
+  contractsBy: readonly { pr: number; entries: ContractEntry[] }[],
+  declaredBy: ReadonlyMap<number, CardDeclaration[]>,
+  cards: readonly RiCard[],
+): { contracts: RiContract[]; findings: RiFinding[] } {
+  const change = new Map(cards.map(card => [card.issue, card.contractChange])),
+    merged = new Map<string, RiContract>(),
+    findings: RiFinding[] = []
   for (const { pr, entries } of contractsBy) {
-    const at = { pr: pullUrl(pr), section: CONTRACTS_SECTION }
-    const changes = (declaredBy.get(pr) ?? []).map(card => cardChange.get(card.issue) ?? null)
-    const ceiling = changes.every(change => levels.some(level => level === change))
-      ? Math.max(-1, ...changes.map(change => levels.findIndex(level => level === change)))
-      : undefined
+    const ceiling = ceilingOf(
+      (declaredBy.get(pr) ?? []).map(card => change.get(card.issue) ?? null),
+    )
     for (const entry of entries) {
-      const entryAt = { ...at, path: entry.path }
-      if (!contractPaths.has(entry.path))
-        report(
-          'contract-path-unknown',
-          entryAt,
-          `PR #${pr} 列出的 ${entry.path} 不是线归属表 contracts 中的契约成员。`,
-        )
-      if (ceiling !== undefined && ceiling >= 0 && rank(entry.level) > ceiling)
-        report(
-          'contract-level-exceeds-card',
-          entryAt,
-          `PR #${pr} 对 ${entry.path} 声明 ${entry.level}，高于所含卡的契约变更 ${levels[ceiling]}。`,
-        )
-      if (entry.level === 'breaking' && input.track.id !== input.lines.integration.track)
-        report(
-          'contract-breaking-off-integration',
-          entryAt,
-          `breaking 只出现在进入联调轨道或 main 的 PR 中，PR #${pr} 进入 ${input.track.branch}。`,
-        )
+      findings.push(...entryFindings(input, pr, entry, ceiling))
       const current = merged.get(entry.path) ?? { path: entry.path, level: 'none', notes: [] }
-      if (rank(entry.level) > rank(current.level)) current.level = entry.level
+      if (RANK[entry.level] > RANK[current.level]) current.level = entry.level
       if (entry.note !== '') current.notes.push({ pr, note: entry.note })
       merged.set(entry.path, current)
     }
   }
-  const contracts = [...merged.values()].sort((a, b) => a.path.localeCompare(b.path))
-  const contractCheck = checkContracts(input.contractDiff, contracts, report)
-  if (riCards.length === 0)
-    report(
-      'cards-empty',
-      { section: CARDS_SECTION },
-      `自上次提升以来进入 ${input.track.branch} 的 PR 没有可列出的卡。`,
-    )
-  return {
-    track: { id: input.track.id, branch: input.track.branch, head: input.head },
-    parent: input.parent,
-    lowerBound: input.lowerBound,
-    commits,
-    cards: riCards,
-    contracts,
-    contractCheck,
-    findings,
-    markdown: renderMarkdown(riCards, contracts),
-  }
+  return { contracts: [...merged.values()].sort((a, b) => a.path.localeCompare(b.path)), findings }
 }
 
 /**
- * C4 seam: compares the aggregated declarations with the P1-2 snapshot difference. P1-2 does not
- * decide direction, so `review` matches a declared `breaking` and nothing lower.
+ * Compares the merged declarations with a snapshot difference over the promoted range. The
+ * difference must cover exactly the range from the merge base to the track head.
  */
 function checkContracts(
-  diff: ContractDiff,
-  declared: readonly RiContract[],
-  report: (code: FindingCode, at: RiFinding['at'], message: string) => void,
-): RiNotes['contractCheck'] {
-  if (diff.kind === 'unavailable') return { status: 'unavailable', reason: diff.reason }
-  const expected = { none: 'none', additive: 'additive', review: 'breaking' } as const
-  const paths = new Set([
-    ...declared.map(item => item.path),
-    ...diff.members.map(item => item.path),
-  ])
-  for (const path of [...paths].sort()) {
-    const observed = diff.members.find(item => item.path === path)?.level ?? 'none',
-      written = declared.find(item => item.path === path)?.level ?? 'none'
-    if (expected[observed] !== written)
-      report(
-        'contract-diff-mismatch',
-        { section: CONTRACTS_SECTION, path },
-        `快照差异把 ${path} 分为 ${observed}，PR 声明汇总为 ${written}。`,
+  input: RiInput,
+  contracts: readonly RiContract[],
+): { contractCheck: ContractCheck; findings: RiFinding[] } {
+  const range = { base: input.mergeBase, head: input.head },
+    diff = input.diffContracts(range)
+  if (diff.kind === 'unavailable')
+    return { contractCheck: { kind: 'unavailable', reason: diff.reason }, findings: [] }
+  if (diff.base !== range.base || diff.head !== range.head) {
+    const reason = `快照差异覆盖 ${diff.base}..${diff.head}，不是本次范围 ${range.base}..${range.head}。`
+    return {
+      contractCheck: { kind: 'unavailable', reason },
+      findings: [finding('contract-diff-stale', { section: CONTRACTS_SECTION }, reason)],
+    }
+  }
+  const declared = new Map(contracts.map(item => [item.path, item.level])),
+    findings: RiFinding[] = []
+  for (const path of [...new Set([...declared.keys(), ...diff.members.keys()])].sort()) {
+    const observed = diff.members.get(path) ?? 'none',
+      written = declared.get(path) ?? 'none'
+    if (SNAPSHOT_MATCH[observed] !== written)
+      findings.push(
+        finding(
+          'contract-diff-mismatch',
+          { section: CONTRACTS_SECTION, path },
+          `快照差异把 ${path} 分为 ${observed}，PR 声明汇总为 ${written}。`,
+        ),
       )
   }
-  return { status: 'checked', base: diff.base, head: diff.head }
+  return { contractCheck: { kind: 'checked', ...range }, findings }
 }
 
-function renderMarkdown(cards: readonly RiCard[], contracts: readonly RiContract[]): string {
-  const contractLines = contracts.map(item => {
+function renderMarkdown(
+  cards: readonly RiCard[],
+  contracts: readonly RiContract[],
+  gaps: readonly ContractGap[],
+): string {
+  const members = contracts.map(item => {
     const notes = item.notes.map(({ pr, note }) => `#${pr}：${note}`).join('；')
     return `- ${item.path}：${item.level}${notes === '' ? '' : `。${notes}`}`
   })
+  const unknown = gaps.map(gap =>
+    gap.pr === null ? `提交 ${gap.commit.slice(0, 9)}` : `PR #${gap.pr}`,
+  )
+  const contractLines =
+    gaps.length > 0
+      ? [
+          ...members,
+          ...(members.length > 0 ? [''] : []),
+          `待确认：${[...new Set(unknown)].join('、')} 的契约变化未知，逐个核对后改写本节。`,
+        ]
+      : members.length > 0
+        ? members
+        : ['无']
   return [
     `## ${CARDS_SECTION}`,
     '',
@@ -580,7 +734,69 @@ function renderMarkdown(cards: readonly RiCard[], contracts: readonly RiContract
     '',
     `## ${CONTRACTS_SECTION}`,
     '',
-    ...(contractLines.length === 0 ? ['无'] : contractLines),
+    ...contractLines,
     '',
   ].join('\n')
+}
+
+/** Reads each card at most once. */
+function cachedCards(read: (n: number) => CardRead): (n: number) => CardRead {
+  const cache = new Map<number, CardRead>()
+  return n => {
+    const hit = cache.get(n)
+    if (hit !== undefined) return hit
+    const result = read(n)
+    cache.set(n, result)
+    return result
+  }
+}
+
+/**
+ * Builds the promotion PR sections for one track from its first-parent commits, their unit
+ * records and the PRs they name. It only reports: every defect becomes a finding.
+ */
+export function riNotes(input: RiInput): RiNotes {
+  const readCard = cachedCards(input.readCard)
+  const listedCommits = listCommits(input),
+    declarations = readDeclarations(input, listedCommits.pulls, readCard),
+    judged = judgeCards(input, declarations.cards, readCard),
+    merged = mergeContracts(input, declarations.contractsBy, declarations.declaredBy, judged.cards),
+    checked = checkContracts(input, merged.contracts)
+  const contractGaps = [...listedCommits.gaps, ...declarations.gaps]
+  const findings = [
+    ...rangeFindings(input),
+    ...listedCommits.findings,
+    ...declarations.findings,
+    ...judged.findings,
+    ...merged.findings,
+    ...checked.findings,
+  ]
+  if (judged.cards.length === 0)
+    findings.push(
+      finding(
+        'cards-empty',
+        { section: CARDS_SECTION },
+        `自上次提升以来进入 ${input.track.branch} 的 PR 没有可列出的卡。`,
+      ),
+    )
+  if (contractGaps.length > 0)
+    findings.push(
+      finding(
+        'contracts-unknown',
+        { section: CONTRACTS_SECTION },
+        `${contractGaps.length} 个提交的契约变化未知，「${CONTRACTS_SECTION}」输出「待确认」。`,
+      ),
+    )
+  return {
+    track: { id: input.track.id, branch: input.track.branch, head: input.head },
+    parent: input.parent,
+    lowerBound: input.lowerBound,
+    commits: listedCommits.commits,
+    cards: judged.cards,
+    contracts: merged.contracts,
+    contractGaps,
+    contractCheck: checked.contractCheck,
+    findings,
+    markdown: renderMarkdown(judged.cards, merged.contracts, contractGaps),
+  }
 }

@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { runGhCommand } from '../delivery/github-read.ts'
 import { openIntegration, type Command } from './engine.ts'
 import { fields, integer, json, sha, string, IntegrationError } from './parse.ts'
-import { riNotes } from './ri-notes.ts'
+import { riNotes, type RiNotes } from './ri-notes.ts'
 import { riInput } from './ri-source.ts'
 import { TaskContextError } from '@omne-harness/repo-toolchain/core/task-context'
 
@@ -31,16 +30,10 @@ export function parseCommand(value: unknown): Command {
       throw new IntegrationError('input-error', 'Unsupported integration command')
   }
 }
-async function main(argv: string[]): Promise<void> {
-  const [kind, ...args] = argv
-  if (kind === '--help' || kind === undefined) {
-    process.stdout.write(
-      'integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\nintegration ri-notes --track ID [--root PATH] [--format json|markdown]\nexecute reads a strict command union; see integration/README.md\n',
-    )
-    return
-  }
-  const allowed =
-    kind === 'ri-notes' ? ['--root', '--track', '--format'] : ['--root', '--base', '--input']
+const RI_NOTES_USAGE =
+  'integration ri-notes --track ID [--root PATH] [--format json|markdown]\n  Builds the「所含的卡」and「契约变化」sections of a promotion PR; read-only, report-only.\n'
+/** Options as `--key value` pairs; an unknown, repeated or valueless option is an input error. */
+function parseOptions(args: readonly string[], allowed: readonly string[]): Map<string, string> {
   const options = new Map<string, string>()
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i],
@@ -49,38 +42,75 @@ async function main(argv: string[]): Promise<void> {
       throw new IntegrationError('input-error', 'Invalid or repeated option')
     options.set(key, value)
   }
-  if (kind === 'ri-notes') {
-    const track = options.get('--track'),
-      format = options.get('--format') ?? 'json'
-    if (track === undefined || (format !== 'json' && format !== 'markdown'))
-      throw new IntegrationError(
-        'input-error',
-        'ri-notes requires --track ID and --format json|markdown',
-      )
-    // Findings are report-only: they never change the exit code.
-    const notes = riNotes(
-      riInput({ root: resolve(options.get('--root') ?? process.cwd()), track, call: runGhCommand }),
+  return options
+}
+/**
+ * Markdown carries only the two sections on standard output. The findings go to standard error,
+ * one JSON line each, then one summary line.
+ */
+function writeMarkdown(notes: RiNotes): void {
+  process.stdout.write(notes.markdown)
+  const codes: Record<string, number> = {}
+  for (const finding of notes.findings) {
+    codes[finding.code] = (codes[finding.code] ?? 0) + 1
+    process.stderr.write(`${JSON.stringify(finding)}\n`)
+  }
+  const summary = { findings: notes.findings.length, codes, contractCheck: notes.contractCheck }
+  process.stderr.write(`${JSON.stringify({ severity: 'report', summary })}\n`)
+}
+/** `ri-notes`: findings are report-only and never change the exit code. */
+function runRiNotes(args: readonly string[]): void {
+  if (args.length === 1 && args[0] === '--help') {
+    process.stdout.write(RI_NOTES_USAGE)
+    return
+  }
+  const options = parseOptions(args, ['--root', '--track', '--format']),
+    track = options.get('--track'),
+    format = options.get('--format') ?? 'json'
+  if (track === undefined || (format !== 'json' && format !== 'markdown'))
+    throw new IntegrationError(
+      'input-error',
+      'ri-notes requires --track ID and --format json|markdown',
     )
+  const notes = riNotes(riInput({ root: resolve(options.get('--root') ?? process.cwd()), track }))
+  if (format === 'markdown') writeMarkdown(notes)
+  else process.stdout.write(`${JSON.stringify(notes, null, 2)}\n`)
+}
+async function runEngine(kind: string, options: ReadonlyMap<string, string>): Promise<unknown> {
+  const engine = await openIntegration({ root: resolve(options.get('--root') ?? process.cwd()) })
+  switch (kind) {
+    case 'status':
+      return engine.inspect({ kind: 'status' })
+    case 'baselines': {
+      const base = options.get('--base')
+      return engine.inspect({
+        kind: 'baselines',
+        purpose: 'task-check',
+        ...(base === undefined ? {} : { explicitBase: base }),
+      })
+    }
+    case 'execute': {
+      const path = options.get('--input')
+      if (path === undefined) throw new IntegrationError('input-error', 'execute requires --input')
+      return engine.execute(parseCommand(json(readFileSync(path, 'utf8'), path)))
+    }
+    default:
+      throw new IntegrationError('input-error', 'Unknown command')
+  }
+}
+async function main(argv: string[]): Promise<void> {
+  const [kind, ...args] = argv
+  if (kind === '--help' || kind === undefined) {
     process.stdout.write(
-      format === 'markdown' ? notes.markdown : `${JSON.stringify(notes, null, 2)}\n`,
+      `integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\n${RI_NOTES_USAGE}execute reads a strict command union; see integration/README.md\n`,
     )
     return
   }
-  const engine = await openIntegration({ root: resolve(options.get('--root') ?? process.cwd()) })
-  let result: unknown
-  if (kind === 'status') result = await engine.inspect({ kind: 'status' })
-  else if (kind === 'baselines') {
-    const base = options.get('--base')
-    result = await engine.inspect({
-      kind: 'baselines',
-      purpose: 'task-check',
-      ...(base === undefined ? {} : { explicitBase: base }),
-    })
-  } else if (kind === 'execute') {
-    const path = options.get('--input')
-    if (path === undefined) throw new IntegrationError('input-error', 'execute requires --input')
-    result = await engine.execute(parseCommand(json(readFileSync(path, 'utf8'), path)))
-  } else throw new IntegrationError('input-error', 'Unknown command')
+  if (kind === 'ri-notes') {
+    runRiNotes(args)
+    return
+  }
+  const result = await runEngine(kind, parseOptions(args, ['--root', '--base', '--input']))
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
 }
 if (
