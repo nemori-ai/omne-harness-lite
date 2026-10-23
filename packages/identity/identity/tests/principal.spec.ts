@@ -127,6 +127,19 @@ describe('issuing with a malformed input', () => {
 })
 
 describe('verifying', () => {
+  it('hands back the very object it verified, not a copy', async () => {
+    const { authority, actor } = issuedSystem()
+    const tenant = parsedTenant(ORGANIZATION_TEXT, ADMIN_ACCOUNT_TEXT)
+    const acting = authority.issuer.issueActingForTenant({ actor, tenant, work: WORK })
+    if ('failure' in acting) throw new Error('did not issue')
+    for (const principal of [actor, acting.ok]) {
+      const result = await authority.verifier.verify(principal)
+      expect(result.kind).toBe('verified')
+      if (result.kind !== 'verified') return
+      expect(result.principal).toBe(principal)
+    }
+  })
+
   it('rejects a hand-built copy, a principal of another authority, and non-objects', async () => {
     const { authority, actor } = issuedSystem()
     const tenant = parsedTenant(ORGANIZATION_TEXT, ADMIN_ACCOUNT_TEXT)

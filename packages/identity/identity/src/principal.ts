@@ -1,6 +1,6 @@
 // The two system-side principals (SPEC ID-16): a system principal that acts for no tenant, and a
 // principal that acts for one tenant on behalf of the tenant's own account. Identity issues them;
-// the application assembly only installs the issuer. A consumer re-checks an acting principal by
+// the application assembly only installs the issuer and the verifier. A consumer re-checks an acting principal by
 // the current standing of `tenant.account` in `tenant.organization`, so a revoked membership makes
 // the next check deny.
 import {
@@ -38,7 +38,12 @@ export type IssueFailure = Readonly<{
   reason: 'type' | 'empty' | 'unissued' | 'unminted'
 }>
 
-/** Issues principals. Only identity provides it; the assembly installs it where principals are made. */
+/**
+ * Issues principals. Issuing belongs to identity: only principals from its issuer pass
+ * verification. The assembly installs the issuer with the named holders it declares (identity's
+ * own login and session-establishment flows, and the system components that act with a system
+ * principal) and installs the verifier with the consumers.
+ */
 export interface PrincipalIssuer {
   issueSystem(input: Readonly<{ component: string }>): Outcome<SystemPrincipal, IssueFailure>
   issueActingForTenant(
@@ -52,8 +57,9 @@ export type PrincipalVerification =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
- * Verifies that a value is a principal this authority issued. A hand-built copy of the same shape
- * is `rejected`. A verifier that cannot answer says `unavailable`, never `verified`.
+ * Verifies that a value is a principal this authority issued. Verification judges the given value
+ * and hands that same object back as `principal`; it does not decode. A hand-built copy of the
+ * same shape is `rejected`. A verifier that cannot answer says `unavailable`, never `verified`.
  */
 export interface PrincipalVerifier {
   verify(value: unknown): Promise<PrincipalVerification>

@@ -27,7 +27,7 @@ const acting = authority.issuer.issueActingForTenant({
 // authority.verifier.verify(acting.ok) → { kind: 'verified', principal }
 ```
 
-应用装配创建一个权威，把 `verifier` 交给授权与其他消费方。`issuer` 留在 identity 自己的登录与会话建立流程里，不交给 identity 以外的成员；协调者需要代租户行事的主体时，经这些流程取得已签发的主体，并把它放进 `Access<Principal>` 的 `principal`。`inProcessPrincipalAuthority` 同时返回两者，这是骨架参考件的便利，不证明持有约束。
+应用装配创建一个权威，把 `verifier` 交给授权与其他消费方；把 `issuer` 只交给需要主体的具名持有者：identity 自己的登录与会话建立流程，以及装配声明的系统部件（扫描、卸载、目录枚举、中继、协调者读取用系统主体）。持有者由装配声明。持有者把签发的主体放进 `Access<Principal>` 的 `principal`。协调者代原工作行事的签发怎样核对工作归属，是 [SPEC ID-16](SPEC.md) 的具名缺口。`inProcessPrincipalAuthority` 同时返回两者，这是骨架参考件的便利，不证明持有约束。
 
 | 导出 | 用途 |
 | --- | --- |
@@ -44,7 +44,7 @@ const acting = authority.issuer.issueActingForTenant({
 
 公开类型在 `src/`。[SPEC](SPEC.md) 的 ID-16 拥有类型表达不了的条款：签发条件、核验的三种答复、资格的含义、读口答当下事实、治理入口的租户冲突、报告不带时间。其余条款沿 ID-01 至 ID-15。合法身份的纯值归 [legal-identity](../../common/legal-identity/README_ZH.md)。
 
-签发与核验都不抛出：签发失败返回 `IssueFailure`，核验失败返回 `rejected` 或 `unavailable`。`scopeOf` 对手写的代租户行事主体抛出 `TypeError`，因为它的租户没有铸造。
+签发与核验都不抛出：签发失败返回 `IssueFailure`，核验失败返回 `rejected` 或 `unavailable`。`verify` 是判定，不是解码：`verified` 带回的 `principal` 就是传入的那个对象。`scopeOf` 对手写的代租户行事主体抛出 `TypeError`，因为它的租户没有铸造。
 
 ## 设计
 

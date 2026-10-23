@@ -280,9 +280,9 @@
 
 ### 签发与核验
 
-`PrincipalIssuer` 签发主体。只有 identity 提供签发者。签发者是 identity 自己的登录与会话建立流程持有的能力；应用装配只把核验器交给消费方，不把签发者交给 identity 以外的成员。签发系统主体要求非空 `component`。签发代租户行事主体要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一条件不满足，返回 `IssueFailure`，不签发。输入不是对象，或 `work` 不是对象，同样返回 `IssueFailure`，不抛出。签发时核对工作归属与登录的形状尚未定义，归登录流程；这是具名缺口。
+`PrincipalIssuer` 签发主体。签发归 identity：只有 identity 的签发者产生的主体能通过核验。应用装配安装签发者与核验器：核验器交给消费方；签发者只交给需要主体的具名持有者，即 identity 自己的登录与会话建立流程，以及装配声明的系统部件（扫描、卸载、目录枚举、中继、协调者读取用系统主体）。持有者由装配声明。签发系统主体要求非空 `component`。签发代租户行事主体要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一条件不满足，返回 `IssueFailure`，不签发。输入不是对象，或 `work` 不是对象，同样返回 `IssueFailure`，不抛出。登录之外的代租户行事签发（例如协调者代原工作行事时，签发时核对工作归属）的形状尚未定义；这是具名缺口。
 
-`PrincipalVerifier.verify(value)` 答 `verified`、`rejected` 或 `unavailable`。与已签发主体形状相同的手写副本答 `rejected`。核验器不能回答时答 `unavailable`，不答 `verified`。核验只证明来源；它不证明当前成员资格，也不证明动作获准。
+`PrincipalVerifier.verify(value)` 答 `verified`、`rejected` 或 `unavailable`。核验是判定，不是解码：`verified` 返回的 `principal` 就是传入的那个值，同一个对象。跨进程场景在边界先把收到的数据解码成主体，再用它构造 `Access`；核验仍对那个值判定。与已签发主体形状相同的手写副本答 `rejected`。核验器不能回答时答 `unavailable`，不答 `verified`。核验只证明来源；它不证明当前成员资格，也不证明动作获准。
 
 `inProcessPrincipalAuthority()` 是进程内权威，是骨架参考件。它登记自己签发的对象，核验是登记成员资格。它同时返回签发者与核验器，这不证明上面的持有约束；持有约束由装配兑现。这只在同一进程、同一份已加载模块内成立。主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。跨进程的来源验证归后续提供者，不由本节承诺。
 
