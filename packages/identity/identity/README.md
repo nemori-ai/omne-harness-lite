@@ -27,7 +27,7 @@ const acting = authority.issuer.issueActingForTenant({
 // authority.verifier.verify(acting.ok) → { kind: 'verified', principal }
 ```
 
-应用装配创建一个权威，把 `verifier` 交给授权与其他消费方；把 `issuer` 只交给需要主体的具名持有者：identity 自己的登录与会话建立流程，以及装配声明的系统部件（扫描、卸载、目录枚举、中继、协调者读取用系统主体）。持有者由装配声明。持有者把签发的主体放进 `Access<Principal>` 的 `principal`。协调者代原工作行事的签发怎样核对工作归属，是 [SPEC ID-16](SPEC.md) 的具名缺口。`inProcessPrincipalAuthority` 同时返回两者，这是骨架参考件的便利，不证明持有约束。
+应用装配创建一个权威，把 `verifier` 交给授权与其他消费方，把 `issuer` 只交给装配声明的受信具名持有者。持有者在签发前须向原工作拥有者核对原主体、目标租户与原工作的关系。核对失败、依据不可得或能力未安装时不得签发。签发的主体放进 `Access<Principal>` 的 `principal`。消费方在实际操作点还须核当前成员关系及原工作资格，缺少必要守卫时不得推进业务。责任与有限采用依据见 [SPEC ID-16](SPEC.md)。`inProcessPrincipalAuthority` 只提供进程内来源核验，不实现上述真实提供者能力。
 
 | 导出 | 用途 |
 | --- | --- |

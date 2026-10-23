@@ -42,7 +42,10 @@ export type IssueFailure = Readonly<{
  * Issues principals. Issuing belongs to identity: only principals from its issuer pass
  * verification. The assembly installs the issuer with the named holders it declares (identity's
  * own login and session-establishment flows, and the system components that act with a system
- * principal) and installs the verifier with the consumers.
+ * principal) and installs the verifier with the consumers. Before issuing for a tenant, the
+ * trusted holder must ask the work owner to verify the subject, tenant and work relationship.
+ * Failed, unavailable or absent verification prevents issuance. The reference authority does
+ * not provide that verification; see SPEC ID-16.
  */
 export interface PrincipalIssuer {
   issueSystem(input: Readonly<{ component: string }>): Outcome<SystemPrincipal, IssueFailure>

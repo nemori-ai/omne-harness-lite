@@ -159,6 +159,8 @@
 
 本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。表达解释、人工决定、结构化约束与持久台账不在本节。
 
+消费适配的有限范围按 [#659 的有限采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/659#issuecomment-6370208573)采用。它不表示四个消费端口已全部实现。
+
 ### 裁定输入
 
 `AdmissionInput` 是 `{ access, operation, target, arguments, requires, permit }`。`access` 是 `Access<Principal>`：identity 签发的主体与显式租户。`operation` 是 `{ owner, name }`，`target` 是 `{ owner, kind, key }`。两者对本成员不透明：资源拥有者命名它们并拥有含义，本成员只记录它们并与许可比较。
@@ -182,6 +184,8 @@
 5. 许可。只在出示了许可时判断。许可引用的租户与访问的租户不相等，拒绝，原因 `permit-mismatch`。台账答 `unknown`，拒绝，原因 `permit-unknown`。许可的文本、操作（`owner` 与 `name`）、目标（`owner`、`kind` 与 `key`）或参数摘要与输入不符，拒绝，原因 `permit-mismatch`。参数改写后出示同一许可，得到的就是这个结果。许可已消费，拒绝，原因 `permit-consumed`。台账不能读，结论 `unavailable`。
 
 未授予的跨租户访问在第 2 步或第 3 步拒绝。另一个组织的租户从未是成员，答 `not-member`，与本组织的非成员同表现。
+
+这些步骤不核对原工作的当前推进资格。消费者在实际操作点还须向原工作拥有者核对该资格。成员仍有效不表示工作仍有效。缺少必要工作资格守卫的适配器不得推进业务，不能用本裁定的 `allowed` 补足缺失能力。
 
 ### 依据与证据
 
@@ -213,7 +217,11 @@
 
 ### 消费端口的适配
 
-四个消费端口由授权一侧的适配器实现，适配器把端口的输入映射为 `AdmissionInput`，把结论映射回端口的结论：Agent 的 `AgentAccessCheck` 与 `ActionAdmission`，Tool 的 `access.qualify`，Session 的 `SessionAccessCheck`。`allowed` 映射为端口的允许并带证据；`denied` 映射为端口的拒绝；`unavailable` 映射为端口的不可用。适配器不产生端口有而本节没有的结论，例如 `need-decision`。适配器归应用装配或消费方的适配器成员，不在本成员。
+消费端口由授权一侧的适配器接入。适配器把端口的输入映射为 `AdmissionInput`，把结论映射回端口的结论：Agent 的 `AgentAccessCheck` 与 `ActionAdmission`、Tool 的 `access.qualify`。`allowed` 映射为端口的允许并带证据，`denied` 映射为端口的拒绝，`unavailable` 映射为端口的不可用。适配器不产生端口有而本节没有的结论，例如 `need-decision`。实际适配器归应用装配或消费方的适配器成员，不在本成员。
+
+首批 `ActionAdmission` 示例仅在 `permissions` 与 `decision` 都为 null 时使用上述映射。非 null 而必要解释端口未安装时返回 `unavailable`，不得忽略输入后允许。该示例不实现结构化权限、人工答复解释或完整 `invalid` 分类。正式适配器须接续 Agent 契约要求的错动作、错卡片答复校验，并满足实际工作资格守卫等消费前提。
+
+测试内的 `SessionAccessCheck` 仅为本卡首批适配模型，不是 Session 已落地的正式接口。真实 Session 公共接口的兼容重验尚未完成，由 B1/S-2 后续协同补齐。这个未完成子范围不能据本地模型测试声明通过。
 
 ### 首批不覆盖的部分
 
@@ -225,7 +233,7 @@
 
 ### 验证
 
-`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/port-adapters.spec.ts` 用进程内适配器实现四个消费端口。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
+`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
 
 ## 披露与后续治理操作
 

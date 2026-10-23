@@ -1,8 +1,8 @@
-// In-process adapters that implement the four consumer ports on top of the admission check:
+// In-process examples of limited consumer mappings on top of the admission check:
 // Agent's AgentAccessCheck and ActionAdmission, Tool's access.qualify (ToolAccessGuard of
 // @omne-harness/tool and StartCoordinatorAccess of tool-host-local), and Session's
-// SessionAccessCheck. The Session port does not exist yet; it is declared here in the decided
-// shape. StartCoordinatorAccess is declared here with the shape of tool-host-local, which is not
+// SessionAccessCheck. The local Session model does not prove compatibility with a public Session
+// interface. StartCoordinatorAccess is declared here with the shape of tool-host-local, which is not
 // a devDependency.
 import { describe, expect, it } from 'vitest'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
@@ -113,8 +113,13 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
 
 function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
   return {
-    admit: async input =>
-      succeed(
+    admit: async input => {
+      if (input.permissions !== null || input.decision !== null)
+        return succeed({
+          kind: 'unavailable',
+          diagnostic: 'permission and decision interpreters are not installed',
+        })
+      return succeed(
         toAgentAdmissionDecision(
           await check.check({
             access: { principal: input.principal, tenant: input.tenant },
@@ -130,7 +135,8 @@ function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
             permit: null,
           }),
         ),
-      ),
+      )
+    },
   }
 }
 
@@ -192,7 +198,7 @@ function startCoordinatorAccess(check: AdmissionCheck): StartCoordinatorAccess<P
   }
 }
 
-/** The decided shape of Session's access check: access, operation, target; allowed, denied, unavailable. */
+/** This task's local Session adapter model. Public Session interface compatibility is still unverified. */
 type SessionAccessOperation = 'read-history' | 'append' | 'change' | 'begin' | 'next'
 type SessionAccessTarget = Readonly<{ kind: 'session'; session: string }>
 type SessionAccessDecision =
@@ -374,6 +380,59 @@ describe('AgentAccessCheck through the admission check', () => {
 })
 
 describe('ActionAdmission through the admission check', () => {
+  it.each([
+    {
+      name: 'permissions without an interpreter',
+      patch: {
+        permissions: {
+          schema: { owner: 'assets', name: 'permissions', revision: '1', digest: 'd' },
+          value: { kind: 'object', entries: [] },
+          source: EVIDENCE,
+        },
+      },
+    },
+    {
+      name: 'an answer belonging to another action',
+      patch: {
+        decision: {
+          card: { ...EVIDENCE, record: 'card-for-act_other' },
+          answer: {
+            kind: 'chosen',
+            option: 'approve',
+            value: null,
+            evidence: { ...EVIDENCE, record: 'answer-for-act_other' },
+          },
+        },
+      },
+    },
+    {
+      name: 'an answer belonging to another card',
+      patch: {
+        decision: {
+          card: { ...EVIDENCE, record: 'card_1' },
+          answer: {
+            kind: 'chosen',
+            option: 'approve',
+            value: null,
+            evidence: { ...EVIDENCE, record: 'answer-for-card_2' },
+          },
+        },
+      },
+    },
+  ] satisfies readonly {
+    name: string
+    patch: Partial<Parameters<ActionAdmission<Principal>['admit']>[0]>
+  }[])('does not allow $name', async ({ patch }) => {
+    const { principals, actions } = installed()
+    const input = admitInput(principals.actingForAdmin, adminTenant())
+    await expect(actions.admit({ ...input, ...patch })).resolves.toEqual({
+      ok: {
+        kind: 'unavailable',
+        diagnostic: 'permission and decision interpreters are not installed',
+      },
+    })
+  })
+
   it('allows, denies with a reason, and is unavailable, each with the agent decision shape', async () => {
     const { principals, table, actions } = installed()
     const input = admitInput(principals.actingForAdmin, adminTenant())
@@ -462,7 +521,7 @@ describe("Tool's access.qualify through the admission check", () => {
   })
 })
 
-describe('SessionAccessCheck (decided shape) through the admission check', () => {
+describe('SessionAccessCheck (local adapter model) through the admission check', () => {
   it('allows the read and write paths, denies after revocation, and is unavailable on an outage', async () => {
     const { principals, table, session } = installed()
     const access = { principal: principals.actingForAdmin, tenant: adminTenant() }
