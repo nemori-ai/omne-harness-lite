@@ -1,3 +1,5 @@
+export type { StreamFrame, StreamObserver } from './stream-observation.ts'
+
 export {
   STREAM_ID_MAX_LENGTH,
   STREAM_POSITION_MAX_LENGTH,

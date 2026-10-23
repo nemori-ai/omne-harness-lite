@@ -10,7 +10,7 @@
 
 本包不分配序号，不保存日志，也不携带用量和费用的正文。`judgeStreamArrival` 只核对一个步骤名和一个序号是否在场。它不给步骤排序。`assembleStream` 把一个目标的步骤折成进行中的装配，或折成已经收场的终态。序号、重复和续接的规则在下面的契约里。它不重排。
 
-本包已采用[公共观察契约](README.md#public-observation-contract)扩展，采用范围见 [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518)。纯引用与游标操作已从根入口导出；帧和观察端口尚未实现或导出。现有到达与装配契约继续有效。中文投影见[公共观察契约](#公共观察契约)。
+本包已采用[公共观察契约](README.md#public-observation-contract)扩展，采用范围见 [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518)。纯引用与游标操作已从根入口导出；帧与观察端口声明已从根入口导出，精确形状见[stream-observation.ts](src/stream-observation.ts)。有状态符合性替身只在测试内部使用，这些导出不提供生产观察器。现有到达与装配契约继续有效。中文投影见[公共观察契约](#公共观察契约)。
 
 ## 使用
 

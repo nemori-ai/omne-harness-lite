@@ -10,7 +10,7 @@ A step belongs to one streaming delivery. It is not an inbound intake and it is 
 
 The package does not assign indexes, store a log, or carry usage and cost bodies. `judgeStreamArrival` checks that one step name and one index are present. It does not order steps. `assembleStream` folds one target's steps into a live assembly or an ended terminal. Index, repeat, and continuation rules are in Contracts. It does not reorder.
 
-The [public observation contract](#public-observation-contract) is an adopted extension under [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518). Its pure reference and cursor operations are exported from the root entry. Frames and observation ports are not implemented or exported yet. The existing arrival and assembly contracts remain in force.
+The [public observation contract](#public-observation-contract) is an adopted extension under [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518). Its pure reference and cursor operations are exported from the root entry. The root entry also exports the StreamFrame and StreamObserver declarations from [stream-observation.ts](src/stream-observation.ts). Stateful conformance fixtures remain private to tests; these exports do not supply a production observer. The existing arrival and assembly contracts remain in force.
 
 ## Usage
 
