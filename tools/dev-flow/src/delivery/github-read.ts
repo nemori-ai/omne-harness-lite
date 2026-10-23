@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { readCardAttributes, type CardAttributes } from './attributes.ts'
 import { array, InputError, milestoneOf, parseCapture, record, text } from './protocol.ts'
 import type { CapturedIssue, DeliveryCapture, DeliveryConfig } from './protocol.ts'
 
@@ -13,6 +14,40 @@ export class GhReadError extends Error {
     super('gh read exited with an API error response. API output omitted.')
     this.name = 'GhReadError'
     this.body = body
+  }
+}
+/** The request headers of a REST call: the JSON media type and the adopted API version. */
+export const REST_HEADERS = [
+  '-H',
+  'Accept: application/vnd.github+json',
+  '-H',
+  'X-GitHub-Api-Version: 2026-03-10',
+] as const
+/**
+ * One REST Issue response read as a card: the response object, its body and its attributes.
+ * Refuses a pull request or an Issue other than `repository#number`.
+ */
+export function readIssueCard(
+  value: unknown,
+  repository: string,
+  number: number,
+): { issue: Record<string, unknown>; url: string; body: string; attributes: CardAttributes } {
+  const issue = record(value, 'Issue'),
+    url = `https://github.com/${repository}/issues/${number}`
+  if ('pull_request' in issue || issue.number !== number || issue.html_url !== url)
+    throw new InputError('Issue identity mismatch or pull request')
+  const body = issue.body === null ? '' : text(issue.body, 'Issue.body')
+  return {
+    issue,
+    url,
+    body,
+    attributes: readCardAttributes(body, {
+      url,
+      labels: array(issue.labels, 'Issue.labels').map(item =>
+        text(record(item, 'label').name, 'label.name'),
+      ),
+      ...milestoneOf(issue),
+    }),
   }
 }
 /** Runs one `gh` command and returns its parsed JSON stdout. */
