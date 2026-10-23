@@ -107,7 +107,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, shape }>, unavailable>`，分页，不返回正文，与 Session 契约的 `references` 形状一致；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
 | toolResidencyActions | `freeze({ session, cause: 'tool-shape-lost', evidence })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`，与 Session 契约的 `freeze` 同形：`session` 是会话引用，租户由 Session 按会话目录取得；幂等，会话已冻结时返回原回执。它代表该会话的租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
 
-协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，从登记表 `snapshot()` 重建句柄表。
+协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。
 
 `unload` 与 `sweep` 是系统作用域操作。冻结判定只在采用点由 `planAdoption` 产出，交付路径见契约的[采用点判定](../../tool-contract/SPEC.md#采用点判定)。
 
@@ -163,7 +163,7 @@ Cordis 撤除的是登记、监听和具名可释放资源。`startRejection`、
 
 authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHistoryItems、processBatchBytes、observerBufferBytes、resultPageBytes 为正安全整数；processBatchDelayMs、reconciliationDelayMs 为非负安全整数。作者输出容量覆盖 P11 的在途内容、累计状态及记录数量，不能只限制观察者缓冲。并发、前台时限、转后台偏好来自每次固定请求及治理设置，不从插件树中的租户推导，不在此私配一套覆盖值。
 
-本包 `./cordis` 唯一声明 `tool-cordis-contract/call-changed`，载荷为tenant、ToolCallId、ToolRevision。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。事件先按显式身份过滤，数据动作再核权。RFC-0012 另增通知事件 `tool-cordis-contract/binding-changed`，载荷为登记键（来源层含组织或租户标识、能力身份、资产版本）与 `change: registered | draining | released`，`@mode parallel`；不带正文、凭据或模块路径。发送者捕获监听失败并保留登记结果；遗漏由采用点读取 `snapshot()` 补齐。事件先按显式身份过滤，跨租户只可见官方层与本组织层的键。
+本包 `./cordis` 唯一声明 `tool-cordis-contract/call-changed`，载荷为tenant、ToolCallId、ToolRevision。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。事件先按显式身份过滤，数据动作再核权。RFC-0012 另增通知事件 `tool-cordis-contract/binding-changed`，载荷为登记键（来源层含组织或租户标识、能力身份、资产版本）与 `change: registered | draining | released`，`@mode parallel`；不带正文、凭据或模块路径。发送者捕获监听失败并保留登记结果；遗漏由采用点以本租户的访问依据读取 `snapshot(scope)` 补齐。事件先按显式身份过滤，跨租户只可见官方层与本组织层的键。
 
 等待、前后台、名额及全文保留均属Tool业务事实，不以Fiber状态判断。register撤除不会释放并发名额、给Ask填答案或删除delivery。迟到全文沿recordLateResult产生独立结果版本。
 

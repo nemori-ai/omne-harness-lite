@@ -35,13 +35,13 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影 | [历史源读口与 epoch 视图](../../../packages/context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[压缩共同结果](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) |
 | 执行环境 | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
 
-Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
+Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有两种关系：资格的参加（Tool 启动围栏的资格版本拥有者），以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成，Session 只读日志里的结果与账目。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
 
 ```mermaid
 flowchart LR
     Gov[Session 治理与会话日志] --- Adapters[Session 适配成员]
     Adapters -->|外部协调者 · 提交参加者 · 事件消费者| Agent[Agent]
-    Adapters -->|ACK 与账目| Model[Model]
+    Adapters -->|对账读取| Model[Model]
     Adapters -->|资格版本与 invalidate · 对账读取| Tool[Tool]
     Adapters -->|作用域持有者 · 块生产者| RC[Runtime Context]
     Adapters -->|历史持有者| RQ[Request Context]

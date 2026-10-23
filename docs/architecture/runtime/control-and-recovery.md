@@ -37,13 +37,15 @@ sequenceDiagram
     participant A as Agent runtime
     participant M as Model runtime
     participant T as 前台 Tool runtime
+    participant R as Agent 宿主的结果接收方
     G->>S: 同批保存取消意图、撤销推进资格、记录被取消终态
     G->>A: 经控制入口请求取消
     A->>M: 请求停止关联调用
     A->>T: 请求停止关联执行
     Note over G,S: 传播未完成时保留意图、目标调用、无结果的停止和原消费位置
-    M-->>S: 随后报告真实收场、结果与费用
-    T-->>S: 随后报告真实收场及已知效果
+    M-->>R: 随后交出真实收场、结果与费用
+    T-->>R: 随后交出真实收场及已知效果
+    R->>S: 经 Journal 写入收场、结果与费用
     Note over G,T: 后台执行、子会话及无关调用不因 Run 取消自动停止
 ```
 

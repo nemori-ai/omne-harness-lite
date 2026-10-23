@@ -122,7 +122,7 @@
 
 `node --experimental-strip-types --test verification/close-protocol.test.ts verification/process-kill.test.ts`
 
-包清单在 `dependencies` 里声明 `@omne-harness/agent-contract`。当前只有 `tests/definition-entry.spec.ts` 导入它：测试用 `judgeAgentDefinition` 与 `judgeLoopExtensions` 核对 Agent 定义从资产到消费者的判断。`src/` 不导入它。
+包清单在 `dependencies` 里声明 `@omne-harness/agent-contract`。只有 `tests/definition-entry.spec.ts` 导入它：测试用 `judgeAgentDefinition` 与 `judgeLoopExtensions` 核对 Agent 定义从资产到消费者的判断。`src/` 不导入它。
 
 2026-10-14 在 Node v26.0.0 上跑过这两条命令。包测试 28 项通过。目录里的 node 测试 21 项通过。进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。本交付接受 Node v26.0.0 作为验证环境。仓库 engines 仍是 `>=24.18.0 <25`。本次接受不修改 engines。
 

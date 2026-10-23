@@ -116,7 +116,7 @@ classDiagram
     class ToolCall {
       <<aggregate>>
       decide()
-      snapshot()
+      snapshot(scope)
     }
     class OperationRecord
     class WaitRecord
