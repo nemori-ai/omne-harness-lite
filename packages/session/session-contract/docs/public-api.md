@@ -161,13 +161,13 @@ export type WorkSnapshot = Readonly<{
 
 ```ts
 export type SessionOperationElements =
-  | Readonly<{ kind: 'startRun'; session: SessionId; first: InputId }>
+  | Readonly<{ kind: 'startRun'; session: SessionId; first: InputId; predecessor: RunId | null }>
   | Readonly<{ kind: 'participation'; execution: string; operation: string; joint: Participation['joint'] }>
   | Readonly<{ kind: 'claim'; run: RunId; instance: AgentInstanceRef; continuity: DurableEvidence }>
   | Readonly<{ kind: 'reload'; run: RunId; candidate: Adoption; handover: DurableEvidence }>
   | Readonly<{ kind: 'release'; advance: AdvanceRef; handover: DurableEvidence }>
   | Readonly<{ kind: 'bounded-close'; run: RunId; basis: BoundedClose }>
-  | Readonly<{ kind: 'result'; consumption: ConsumptionId; version: string }>
+  | Readonly<{ kind: 'result'; command: 'preserveResult' | 'completeExternalConsumption'; consumption: ConsumptionId; version: string }>
   | Readonly<{ kind: 'external-call'; binding: CallBinding }>
   | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
   | Readonly<{ kind: 'idle'; session: SessionId; observation: DurableEvidence }>

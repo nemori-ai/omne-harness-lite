@@ -16,7 +16,7 @@
 
 F4 场景先由真实协调者形成 FinishIntent。合法宿主沿原 Access 与 Authority 固定两个 after-terminal passage，再通过真实 Journal.tryFinish 建立非空台账。宿主保存一项真实观察登记并查询丢失的回执。进程死亡后，原登记被认回，另一项保持 pending，最后由同一长期宿主登记。场景不执行扩展求值，也不虚构 observed。
 
-这些场景只证明执行进程退出后的受控接续。Journal 宿主存活是前提。生产耐久、公开 resume、attach、detach、control、quiesce、submit、工具、扩展、真实 Context、HITL、授权与 Session 适配均未验证。Agent stream 也未交付。非终端面，终端验收不适用。
+这些场景只证明执行进程退出后的受控接续。Journal 宿主存活是前提。生产耐久、公开 resume、attach、detach、control、quiesce、submit、工具、扩展、真实 Context、HITL、授权与外部协调者适配均未验证。Agent stream 也未交付。非终端面，终端验收不适用。
 
 ## 维护
 

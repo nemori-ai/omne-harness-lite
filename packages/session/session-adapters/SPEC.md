@@ -49,11 +49,11 @@
 | [AD-02](#ad-02) | Agent 事件消费 | 入站 | 无 | `coordinator` | `output.events`、`output.read`、`output.acknowledge`、`agentExecutionRecovery.load` | 无活体时的读取待 [NP-03](#np-03) |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史源与未结工作下界 | 入站 | 无 | `reader`；下界读取为 `coordinator` | `HistorySource.read`；压缩计划的下界输入 | 取得方式待 [NP-02](#np-02) |
-| [AD-05](#ad-05) | Model 消费适配 | 入站 | 无 | `coordinator` | `calls.inspect`、`calls.dispatches`、`consumption.beginRead`、`readNext`、`closeRead`；消费者工作守卫；ACK 的翻译依据 | 守卫参加待 [P-4](../session-contract/SPEC.md#具名前提与明确缺项) |
+| [AD-05](#ad-05) | Model 消费适配 | 入站 | 无 | `coordinator` | `calls.inspect`、`calls.dispatches`、`consumption.beginRead`、`readNext`、`closeRead`；ACK 的翻译依据 | 可登记 |
 | [AD-06](#ad-06) | Tool 消费适配 | 入站 | 无 | `coordinator` | `queries.lookup`、`queries.readResult`、`queries.account`、`content.read`；交付释放的翻译依据 | 可登记 |
 | [AD-07](#ad-07) | 模型选择端口提供者 | 入站 | `agentModelSelection` | `coordinator` | `ModelSelection.select`；`modelProfiles.resolve` | 可登记 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
-| [AD-09](#ad-09) | 身份桥 | 构造依赖 | `sessionIdentity` | 不调用 | 身份来源与授权域的公开读取 | 可登记 |
+| [AD-09](#ad-09) | 身份桥 | 构造依赖 | `sessionIdentity` | 不调用 | 身份来源与授权域的公开读取 | 待 [ID-11](../../identity/identity/SPEC.md#id-11-公开形状与机制细化) 与 [AU-09](../../identity/authorization/SPEC.md#au-09-阶段范围公开形状与维护)：身份来源与授权域的公开读取由这两节定义 |
 | [AD-10](#ad-10) | 证据桥 | 构造依赖 | `sessionEvidence` | 不调用 | 装配采用、生产来源、保管与 Tool 的采用点材料 | 常驻工具部分待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项) |
 | [AD-11](#ad-11) | 空闲输入 | 构造依赖 | `sessionIdleInput` | `maintainer` | 子会话读取；`calls.inspect`、`queries.lookup` | 可登记 |
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
@@ -211,11 +211,11 @@ Request Context 没有为历史源读口定义取得方式（[NP-02](#np-02)）�
 
 #### AD-05 Model 消费适配
 
-本插件是 Session 作为 Model 消费者拥有者的一侧。Model 的调用、重试与中断由 Agent 发起。本插件做三件事：守卫参加、账目与收场读取、单方保管时的内容读取。它还给出 ACK 的翻译依据。ACK 由 [AD-17](#ad-17) 发出，本插件不发出。
+本插件是 Session 作为 Model 消费者拥有者的一侧。Model 的调用、重试与中断由 Agent 发起。本插件做两件事：账目与收场读取、单方保管时的内容读取。它还给出 ACK 的翻译依据。ACK 由 [AD-17](#ad-17) 发出，本插件不发出。
 
 - 注入：`modelRuntime`，`session` 调用方类 `coordinator`。
 - 受信证据适配器：本插件为会话的消费者 owner 提供受信证据适配器。ACK 的 `DurableEvidence.owner` 填调用的 `ConsumerRef.owner`，证据其余部分取自 SE20 或 SE21 的 `CommitReceipt.source`。owner 的装配声明由承载受理提交的 `ModelCommands` 实现持有，由应用装配给出。
-- 受理点守卫参加：守卫参加以资格参加者协议闭合为前提（[P-4](../session-contract/SPEC.md#具名前提与明确缺项)）。协议闭合之前，会话的消费者 owner 不能声明为受守卫的 owner，只能声明为免守卫。免守卫不提供单调失格。控制传播对 Model 只有路径 1 与路径 2（[EC-12](../session-contract/SPEC.md#ec-12)）。
+- 不参加受理点守卫：Session 不参加 Model 的受理点守卫。会话的消费者 owner 声明为免守卫，免守卫不提供单调失格。控制传播对 Model 只有 [PM-13](../session-contract/SPEC.md#pm-13) 的路径 1 与路径 2。
 - ACK 的翻译依据：`DeliveryReleasePort.release` 的结果来自 Model（`ProducedResult.producer.kind` 为 `model`）时，AD-17 按下表调用 `consumption.acknowledge`（[ACK 的前提与效果](../../model/model-contract/SPEC.md#ack-的前提与效果)）。
 
 | `release` 的输入 | `consumption.acknowledge` 的输入 |
@@ -313,7 +313,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 | 命令 | 材料 |
 | --- | --- |
-| `startRun`、`reload`、`create` | 当前定义采用、候选采用与登录确认。候选采用材料另带 Tool 在采用点给出的三项：新纳入的常驻工具（写 SE36）、为常驻工具固定的登记键（随 SE08）、冻结判定（`FreezeVerdict`） |
+| `startRun`、`reload`、`create` | 当前定义采用、候选采用与登录确认。候选采用材料另带 Tool 在采用点给出的三项：新纳入的常驻工具（写 SE36）、为常驻工具记下的登记键（随 SE08）、冻结判定（`FreezeVerdict`） |
 | `preserveResult` | 生产来源与耐久保管 |
 | `completeConsumption`、`completeExternalConsumption` | 原消费位置与投递资格 |
 | `receive` | 原生产记录或 Agent 事件的来源 |
@@ -491,15 +491,15 @@ Session 是结果的消费位置拥有者。保管或处理提交之后，Sessio
 
 | 轴 | 会话值 | 消费者与它的需要 | 翻译后的值 |
 | --- | --- | --- | --- |
-| 权限处理 | `never` | 授权域 `DecisionMode.onAsk` | `deny` |
-| 权限处理 | `auto_permission` | 授权域 `DecisionMode.onAsk` | `ask-human` |
-| 权限处理 | `bypass-permissions` | 授权域 `DecisionMode.onAsk` | `skip-ask` |
+| 权限处理 | `never` | 授权域的询问处理需要（暂名 `DecisionMode.onAsk`） | `deny` |
+| 权限处理 | `auto_permission` | 授权域的询问处理需要（暂名 `DecisionMode.onAsk`） | `ask-human` |
+| 权限处理 | `bypass-permissions` | 授权域的询问处理需要（暂名 `DecisionMode.onAsk`） | `skip-ask` |
 | 协作 | `co-work` | 元能力宿主：人机交互可用；可请求批准 | `true`；`true` |
 | 协作 | `auto-drive` | 元能力宿主：人机交互可用；可请求批准 | `false`；`false` |
 
 - 翻译结果带来源证据：SE03 的回执与翻译函数的版本。
 - `skip-ask` 只跳过询问，不越过结构化权限限制。结构化权限在动作准入处拒绝，本成员不替它判断。
-- `co-work` 下的提问仍受权限限制。这一限制由授权域的 `DecisionMode` 表达，元能力宿主的两个布尔值不重复表达它。
+- `co-work` 下的提问仍受权限限制。这一限制由授权域的询问处理需要表达，元能力宿主的两个布尔值不重复表达它。`DecisionMode` 是本成员给这项需要的暂名，不是授权域发布的类型，形状归授权域 [AU-09](../../identity/authorization/SPEC.md#au-09-阶段范围公开形状与维护) 的公开形状。
 
 执行环境模式不经 Runtime Context 块：
 

@@ -394,7 +394,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
 
-呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。会话内常驻集合的规则见[会话常驻规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
+呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。会话内常驻集合的规则见[会话常驻规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
 ### 声明与设置
 
@@ -432,7 +432,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。
 
-常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
+常驻工具是调用方不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
 
 - R1：会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
 - R2：会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入。Run 中途的新工具经 Tools 元工具（非常驻）可达。
@@ -450,7 +450,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 1. 资产：这个租户的作用域里有没有合法持有的资产。必需能力从未取得合法定义时，装配失败。
 2. 绑定登记表：登记键有没有贡献，实现的必需依赖是否在场。没有贡献时，换代协调者按需装载。装载失败时，保留已知定义并标 `known-unavailable`，装配不失败。
 
-版本由持有决定：持有固定某版，或跟随当前版。AgentDefinition 的声明只引用能力身份。跟随当前版对已有会话有条件：同形才跟。这是 [assets 版本选用规则](../../assets/assets/SPEC.md#definition-and-version)的例外。
+版本由持有决定：持有固定某版，或跟随当前版。引用工具的定义只引用能力身份。跟随当前版对已有会话有条件：同形才跟。这是 [assets 版本选用规则](../../assets/assets/SPEC.md#definition-and-version)的例外。
 
 #### 采用点判定
 
@@ -551,7 +551,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 收场、消费、费用结算分别可查。费用未知保留待核实责任，不能填零，撤回、归档和消费者失权不删除费用。迟到账目归原调用及原工作；不当普通消息触发新工作。每个调用使用真实归属，不造工作对象来记账。
 
-每个租户可查自己的成本明细；组织管理员可查本组织所有租户账目明细。组织边界不能扩成该账号其他组织。账目资格不授予正文、原文、附件、凭据或秘密权限。遥测估算和采样不冒充完整财务事实，字段复用 CallAccount，来源修订和范围读取见 [P09](#p09-账目恢复与退出)，具体费率由真实计量提供者固定，不增加额度、预算或超限拦截。
+每个租户可查自己的成本明细；持有具名资格「组织成本账目读取」的主体可查本组织所有租户账目明细，该资格由身份领域发布。组织边界不能扩成该账号其他组织。账目资格不授予正文、原文、附件、凭据或秘密权限。遥测估算和采样不冒充完整财务事实，字段复用 CallAccount，来源修订和范围读取见 [P09](#p09-账目恢复与退出)，具体费率由真实计量提供者固定，不增加额度、预算或超限拦截。
 
 <a id="先可靠承接再处理结果"></a>
 
@@ -923,7 +923,7 @@ projectToolResult 是不读字节的纯投影，检查完整结果的块形状�
 
 ToolDefinition.declarations.settings 明确装载/装配时允许从配置赋值的项。items 是封闭路径清单，schema 是对应值约束，defaults 也必须满足同一规则。路径采用属性段数组，不接受任意表达式；空路径、重复、祖先与后代重叠、schema 外字段及未声明项拒绝。可选且无默认项可以缺省，缺必填项拒绝，不猜值。null 是普通值，不自动表示清除。
 
-items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。
+items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。本租户的绑定缺失时，调用按缺凭据失败，不静默退回缺省凭据或其他租户的凭据。
 
 作者构造配置 C、本次调用参数 A、服务与环境依赖 E 分开。受信装载器校验配置后把 C 交实现模块的 `createAuthor(construction)`，它产生 ToolImplementation；C 不合并进 arguments.original/effective，不接受调用方或程序执行方经调用参数改写。服务、SchemaRef、函数、signal 与秘密解析器不作为 JSON 配置。无需给每个 ToolExecutor 再加一个配置参数，作者闭包固定本次合法装配值。
 
@@ -933,11 +933,11 @@ ToolBindingRegistry 接受受信装载结果与 `ToolAuthority { layer, asset, h
 
 `register` 的失败集合：`conflict`（同键已有其他 live 或 draining 贡献）；`denied`（`toolContributionAuthority` 拒绝来源，或登记者没有该层的登记资格）；`invalid`（`ToolLoadedRegistration` 的登记键与核验后的来源层或资产不一致，或 shape 与 definition 不符）；`unavailable`（来源核验器或登记表存储不可读）。失败不留部分登记。`toolContributionAuthority` 是同步端口：`verify(authority)` 返回 `Outcome<VerifiedAuthority { layer, asset, holding, publication }, denied | invalid | unavailable>`，`admits(access, layer)` 核登记资格；它缺席时 `register` 返回 `unavailable`。
 
-登记表的其他方法：`snapshot()` 只读返回全部条目，每条带登记键、登记序号、装载 digest、shape、状态（`live` 或 `draining`）与作者插件 fiber uid；`pins(key)` 返回当前解析到该键、尚未收场的固定请求计数，`resolve` 时登记、收场时解除，是进程内的计数，不是持久账；`close(key)` 把条目标为 draining，`reopen(key)` 撤回该标记，两者都不改贡献；`drain(key)` 返回该键的 `pins` 计数与在途调用清单，P09 的 `inspectDrain({ executor })` 交付之前只报告，不等待。
+登记表的其他方法：`snapshot(scope)` 只读返回 `scope` 可见的条目。`scope` 是调用方的访问依据时，只返回按 G7 对该租户可访问的条目，别的租户的租户层与工作区层条目不出现；换代协调者等内部调用方以系统作用域调用，得到全部条目。每条带登记键、登记序号、装载 digest、shape、状态（`live` 或 `draining`）与作者插件 fiber uid；`pins(key)` 返回当前解析到该键、尚未收场的固定请求计数，`resolve` 时登记、收场时解除，是进程内的计数，不是持久账；`close(key)` 把条目标为 draining，`reopen(key)` 撤回该标记，两者都不改贡献；`drain(key)` 返回该键的 `pins` 计数与在途调用清单，P09 的 `inspectDrain({ executor })` 交付之前只报告，不等待。
 
 draining 的地位：记下该键的请求仍可经 `resolve` 的首选分支解析到它；回退分支与采用点选择都排除它；换代协调者 `ensureLoaded` 遇到 draining 的同键返回 `draining`，不认回。
 
-回退顺序（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：在本会话按 G7 可访问（含工作区层的当前获授）、live 且非 draining 的同形贡献中，取登记序号最小的一份。登记序号是登记表本地排序域给每次成功登记分配的单调序号，`snapshot()` 返回它。回退不比较资产版本，不读合法胜出者，不做层序选择；向胜出者前进只在采用点由 `planAdoption` 完成。
+回退顺序（主代理设计，待 PanQiWei 复核，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：在本会话按 G7 可访问（含工作区层的当前获授）、live 且非 draining 的同形贡献中，取登记序号最小的一份。登记序号是登记表本地排序域给每次成功登记分配的单调序号，`snapshot(scope)` 返回它。回退不比较资产版本，不读合法胜出者，不做层序选择；向胜出者前进只在采用点由 `planAdoption` 完成。
 
 同形 serving 替代：对一份有会话引用的贡献，存在另一份 live、非 draining、与引用会话记下的形状同形、且按 G7 对每个引用会话的租户都可访问（官方层对任何合法租户，组织层核同组织，租户层核 `tenantEquals`）的贡献。工作区层的贡献不作为 serving 替代：它只服务当前获授该工作区的会话，协调者不读会话的工作区。它不必是合法胜出者。`ToolResidencyReader.referencing` 因此返回每个引用会话的身份（含租户）与 shape，与 Session 契约的引用形状一致。
 

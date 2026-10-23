@@ -6,11 +6,11 @@
 
 ## 职责与状态
 
-消息是会话日志里一条事实记录的字段，不是日志条目本身。`SystemMessage` 是请求视图，不在六种日志角色里。
+消息是历史持有者日志里一条事实记录的字段，不是日志条目本身。`SystemMessage` 是请求视图，不在六种日志角色里。
 
 本包发布消息值、`judgeMessage` 和 `judgeCompaction`。一条消息是 `{ id, role, blocks }`，`compaction` 角色的消息另带 `covers`、`retained`、`derivation`。`id` 是 `parseMessageId` 接受的字符串。`role` 是六种日志角色之一。`blocks` 是按到达顺序排列的非空部件数组。部件是一条已封闭内容块、四种工具部件之一（`tool_call`、`tool_call_incomplete`、`tool_call_unparsed`、`tool_result`），或推理续接状态部件 `reasoning_state`。工具部件与内容块一样带块身份 `id` 和块标注 `visibility`，键是闭合的，多出任何自有键都是 `extra`。本包不发明工具结果码，部件也不能携带执行者、句柄或私有结果对象。每种部件的含义和示例表在 `docs/public-api.md`。
 
-会话在把消息受理进日志时铸造 `msg_` 加 16 字节不可猜文本。本包不导出铸造函数。`SystemMessage` 仍是请求视图。
+历史持有者在把消息受理进日志时铸造 `msg_` 加 16 字节不可猜文本。本包不导出铸造函数。`SystemMessage` 仍是请求视图。
 
 ## 使用
 
@@ -55,11 +55,11 @@ import { judgeMessage } from '@omne-harness/message'
 
 `src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`MessageRoleMap`、六个角色的消息类型、`Message`（六个类型的联合，按 `role` 判别）和 `judgeMessage`。每个角色类型的 `blocks` 只含该角色允许的部件，也至少有一块：`user`、`tool_internal`、`system_reminder` 和 `compaction` 的摘要是不含 `thinking` 的内容块（`MessageContentBlock`），`assistant` 是全部内容块、三种调用部件（`CallPart`）和推理续接状态部件（`ReasoningStatePart`），另可带 `replay`，`tool` 先是一个 `tool_result` 标记，其后是 `MessageContentBlock`。`src/compaction-shape.ts` 拥有记录条目引用、`covers` 与 `derivation` 的类型，以及判三个键的 `judgeCompactionKeys`。`src/compaction.ts` 拥有 `judgeCompaction` 和类型 `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment`。`src/parts.ts` 拥有工具部件类型、`CallPart`、`MessageContentBlock` 和 `judgePart`。`src/reasoning.ts` 拥有 `ReasoningStatePart`、`ReasoningReplay`、两个长度上限，以及判推理续接状态部件和 `replay` 的函数。`src/values.ts` 放各判定共用的读取：按键名读取闭合的普通对象、只含数据项的数组、检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
 
-消息字段挂在会话日志里的事实记录上。`SystemMessage` 在请求组装时现算，不进入这份日志。
+消息字段挂在历史持有者日志里的事实记录上。`SystemMessage` 在请求组装时现算，不进入这份日志。
 
 ```mermaid
 flowchart TD
-  fact["会话日志中的事实记录"] --> field["消息字段"]
+  fact["历史持有者日志中的事实记录"] --> field["消息字段"]
   field --> user["user"]
   field --> assistant["assistant"]
   field --> tool["tool"]
@@ -71,7 +71,7 @@ flowchart TD
 
 ## 配置与运行
 
-包不读环境。会话拥有随机源和受理键。
+包不读环境。历史持有者拥有随机源和受理键。
 
 ## 验证
 
@@ -79,4 +79,4 @@ flowchart TD
 
 ## 维护
 
-铸造留在会话。
+铸造留在历史持有者。

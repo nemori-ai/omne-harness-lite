@@ -20,10 +20,10 @@ missingModalities(['text', 'video'], ['text']) // ['video']
 
 ## 消费者与定位
 
-具名消费者是 Model 与 Tool。当前轨道没有业务成员的生产调用点，公开入口目前只由本成员的测试消费。依据与各消费者的采用方式见 [SPEC.md](../SPEC.md#消费者)。
+具名消费者是 Model 与 Tool。生产调用点在 model-contract、model-cordis-contract 与 tool-contract。依据与各消费者的采用方式见 [SPEC.md](../SPEC.md#消费者)。
 
 ```text
-model-contract    tool-contract    (以后：内容块、会话、代理、基础设施)
+model-contract    tool-contract    (以后：内容块与其他成员)
         \               |               /
          +--------------+--------------+
                         |  import

@@ -6,7 +6,7 @@
 
 本组按六个成员划分：纯契约、唯一服务定义、通用机制、Cordis 服务实现、邻域适配和存储介质。分法依据是变化原因，不是对象。治理规则变了，改契约与通用机制；邻域契约变了，只改适配插件；换存储介质，只换存储成员。受理、日志、Run、执行尝试、控制和消费是设计责任，不自动拆成包、数据表、服务或进程。
 
-Session 在六个邻域中扮演邻域契约里的通用角色：对 Agent 是外部协调者、提交参加者、事件消费者和恢复发现者；对 Model 是消费位置拥有者，以资格参加者协议闭合为前提参加它的受理点守卫；对 Tool 是启动围栏 ToolStartAuthority 的资格版本拥有者，撤销资格后调用 `invalidate`；对 Runtime Context 是作用域持有者与 `session.*` 块生产者；对 Request Context 是历史持有者；对执行环境只经两条间接线相接。完整角色表见[会话与工作](../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。
+Session 在六个邻域中扮演邻域契约里的通用角色：对 Agent 是外部协调者、提交参加者、事件消费者和恢复发现者；对 Model 是消费位置拥有者，不参加它的受理点守卫；对 Tool 是启动围栏 ToolStartAuthority 的资格版本拥有者，撤销资格后调用 `invalidate`；对 Runtime Context 是作用域持有者与 `session.*` 块生产者；对 Request Context 是历史持有者；对执行环境只经两条间接线相接。完整角色表见[会话与工作](../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。
 
 ## 安装与源码依赖
 

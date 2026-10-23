@@ -42,7 +42,7 @@ The fiber of this plugin owns the service instance and its `SessionInstance`. Wh
 
 ## Configuration and operation
 
-A Standard Schema checks the plugin configuration. The fields are `policy`, which overrides fields of the scheduling policy one by one, and `disposeWaitMs`, the time limit for removal. A policy field that the configuration omits takes the initial value from session. Default values are only initial values. If the configuration is not valid, the plugin does not load and the fiber goes to `FAILED`. If the transaction port is absent, the fiber stays `PENDING`.
+A Standard Schema checks the plugin configuration. The fields are `policy`, which overrides fields of the scheduling policy one by one, `disposeWaitMs`, the time limit for removal, and `admission`, the declaration for admission slots. `admission` is either omitted or `'none'`. A policy field that the configuration omits takes the initial value from session. Default values are only initial values. If the configuration is not valid, the plugin does not load and the fiber goes to `FAILED`. If the transaction port is absent, the fiber stays `PENDING`.
 
 Each tenant has one recovery scanner at a time. In the first version, a single instance in the assembly keeps this guarantee. Load one copy of this plugin across all processes. Do not load one copy under each of two isolate labels. Tenants, principals, and callbacks are not configuration. The package reads no resources and reaches storage only through the transaction port.
 

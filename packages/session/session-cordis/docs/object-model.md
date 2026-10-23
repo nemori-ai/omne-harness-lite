@@ -9,7 +9,7 @@
 | 对象 | 身份 | 拥有者 | 可变性 | 关联 |
 | --- | --- | --- | --- | --- |
 | 服务实例 | 一个 isolate 标签下的服务键 `session` | 本插件的 fiber | 实例状态：开放、撤除中 | `extends` 定义成员的 `SessionService`。拥有一个 `SessionInstance`、一份端口接线、一个组合通知者与一张租户维护表 |
-| 插件配置 | 一次装载 | 装配者给出，静态 `Config` 校验 | 装载后不变。改配置即重新装载 | `policy` 合成后传给工厂；`disposeWaitMs` 留在服务实例，用于撤除 |
+| 插件配置 | 一次装载 | 装配者给出，静态 `Config` 校验 | 装载后不变。改配置即重新装载 | `policy` 合成后传给工厂；`disposeWaitMs` 留在服务实例，用于撤除；`admission` 决定受理槽缺席时 `admission.current()` 的结果 |
 | 端口接线 | 随服务实例 | 服务实例 | 不变。它不持有端口，只持有本插件 Context | 为按命令必需的端口提供代理，为按调用现取的端口提供 `Current`，交给工厂 |
 | 组合通知者 | 随服务实例 | 服务实例 | 不变 | 作为工厂的 `notifier`。派发 `committed`，转发 `sessionNotifier`，并把租户交给租户维护表 |
 | 租户维护表 | 随服务实例 | 服务实例 | 首次见到租户时增加一项；撤除时清空 | 每项是租户到 `maintain` 返回的维护句柄。是可丢的派生物 |
@@ -33,6 +33,7 @@ classDiagram
   class PluginConfig {
     policy
     disposeWaitMs
+    admission
   }
   class PortWiring {
     pluginContext

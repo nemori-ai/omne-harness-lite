@@ -217,4 +217,4 @@ PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https:/
 
 能力身份是类别加 name。本卡不重新定义 `AccountId`、`OrganizationId`、`TenantId`、`LoginStateId` 或 `ScopeLayerIdentity`。这些值不是本卡的输入，所以本成员不依赖 `@omne-harness/legal-identity`。本成员不依赖装配、Tool 或 Skill 的实现包。Tool 绑定登记表的来源层（`official`、`organization`、`tenant`、`workspace`）与 `ScopeLayerIdentity` 的关系，待识别拥有者后协调，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)。
 
-`@omne-harness/tool-contract` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。
+`@omne-harness/tool-contract` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。`@omne-harness/agent-contract` 的 `agentBodyContract` 登记 `AgentDefinition`，正文规则见 Agent 契约的[资产正文契约](../../agent/agent-contract/SPEC.md#资产正文契约)。

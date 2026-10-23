@@ -6,6 +6,8 @@
 
 Agent runtime按Agent Loop模型推进工作。Loop求值下一步，动作执行调用真实能力，Loop extensions在规定位置参与。它不接管模型/工具的执行寿命或Run业务终态。
 
+Agent 执行的事实归租户。租户随每次操作的访问依据显式传入，不从连接、进程、装配或实例推断。执行记录经 Journal 写入它的写入者，写入者在自己的边界默认拒绝跨租户读取。
+
 Agent 可等待、回收或被替换，后继依据原执行与消费位置接续。执行完成后 runtime 可以保持空闲并复用；Session 在外部保存 Run/attempt 与 execution/execution attachment 的关联。线程、协程或 Cordis 实例不决定逻辑工作边界。
 
 ## 模块角色与事实归属

@@ -232,7 +232,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 各阶段的原操作查询与责任接管 | [PM-07](../../../session-contract/SPEC.md#pm-07) |
 | 取消优先 | [PM-08](../../../session-contract/SPEC.md#pm-08) |
 | 候选失败、撤旧后授新回执丢失、旧实例晚到、重复重装请求、无活体取消 | 契约 [VC-B01 至 VC-B15](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[C5](../../SPEC.md#c5)、[CR-10 至 CR-13](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-B-01 至 FS-B-09](../fault-scenarios.md#组-b推进映射与重装配交接) |
-| 实际发出的围栏 | Tool 经[ToolStartFencePort](../../../session-contract/SPEC.md#toolstartfenceport)；Model 以 [P-4](../../../session-contract/SPEC.md#具名前提与明确缺项) 为前提 |
+| 实际发出的围栏 | Tool 经[ToolStartFencePort](../../../session-contract/SPEC.md#toolstartfenceport)；Session 不参加 Model 的受理点守卫 |
 | 何时重装 | 系统页[何时重装](../../../../../docs/architecture/runtime/assembly-and-change.md#何时重装) |
 
 ### SW-M01-C 日志、消费责任与恢复投影的集成
@@ -253,6 +253,6 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 规模：超长会话的恢复快照读取、事件消费吞吐与分页读取的实际尺度 | 存储提供者与本成员的验证计划 | 不发布统一 SLO。读取量按条目与字节受控的规则已写定，数值待实测后写进存储提供者的声明边界 |
 | 断电耐久：已确认提交在操作系统崩溃与断电下的耐久 | 存储提供者，按声明的部署与介质条件 | 沿[已确认保存的耐久边界](../../../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)。未实测的介质不声称耐久 |
 | 并发：两个进程对同一会话的协调器并发、每租户多扫描者 | 存储拥有者与 Session 的装配，先定义租约协议 | 第一版靠应用装配单实例兑现（[IC-19](../../../../../docs/architecture/cordis-integration-conventions.md#ic-19)）。跨进程的第二道保护是操作幂等与条件提交围栏 |
-| Model 受理点守卫参加者协议（P-4）、Agent 宿主创建实例的入口（P-7） | Model 与存储拥有者；Agent 拥有者 | 按契约的[具名前提与明确缺项](../../../session-contract/SPEC.md#具名前提与明确缺项) |
+| Agent 宿主创建实例的入口（P-7） | Agent 拥有者 | 按契约的[具名前提与明确缺项](../../../session-contract/SPEC.md#具名前提与明确缺项) |
 
 技术缺项不缩减产品的完整阶段目标。确需改变可见行为时，只就具体影响由产品负责人裁定。

@@ -533,7 +533,7 @@
   那说的是**某个范围当前选了哪一个**，是一条关系；这一条说的是**被选的那个东西**
 - **别混 ②**：**草稿不是版本**——它还在变，**复制与分享都只认已发布的**
 - **注意**：**发现有新版本不静默替换已选用的那个**——选哪一版是消费方的决定；持有选了「追随当前版」的，新版一发布就用上，那是持有上写明的选择，不算静默替换
-- **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，会话留在原来固定的版本；原版本耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，原实现仍装载且可用就留在原实现；没有同形可用实现、原实现耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
 ## 构成关系
 
