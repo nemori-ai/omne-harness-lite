@@ -7,11 +7,16 @@ import { createTestModelDependencies } from '@omne-harness/model/testing'
 import type { ModelPreparationLease, ModelProfile } from '@omne-harness/model-contract'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
-import { assembleLocalModel, type LocalModelConfig } from '@omne-harness/model-host-local'
+import {
+  assembleLocalModel,
+  type LocalModelConfig,
+  type PiSendResources,
+} from '@omne-harness/model-host-local'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { decoded, FAMILIES } from './support/local-host.ts'
 import { factorySupplier, officialProfile } from './support/profiles.ts'
 import { readRecordFixture } from './support/records.ts'
+import { assembleOver, type AssemblyFactories } from '../src/assembly.ts'
 
 type Principal = Readonly<{ subject: string }>
 
@@ -207,5 +212,100 @@ describe('assembleLocalModel', () => {
     const first = local.close()
     expect(local.close()).toBe(first)
     await expect(first).resolves.toBeUndefined()
+  })
+})
+
+/** A network and send resources that only record their closes, and fail them on request. */
+function observedFactories(
+  failures: Readonly<{ network?: Error; resources?: Error; build?: Error }> = {},
+) {
+  const events: string[] = []
+  type Network = Readonly<{ close(): Promise<void> }>
+  const factories: AssemblyFactories<Principal, Network> = {
+    createNetwork() {
+      events.push('network')
+      return {
+        async close() {
+          events.push('network-close')
+          if (failures.network !== undefined) throw failures.network
+        },
+      }
+    },
+    createSendResources(): PiSendResources<Principal> {
+      events.push('resources')
+      if (failures.build !== undefined) throw failures.build
+      return {
+        acquire: async () => ({
+          failure: { kind: 'unavailable', dependency: 'tests', diagnostic: 'not-used' },
+        }),
+        async close() {
+          events.push('resources-close')
+          if (failures.resources !== undefined) throw failures.resources
+        },
+      }
+    },
+  }
+  return { events, factories }
+}
+
+/** The unhandled rejections while `body` runs and a few turns of the loop after it. */
+async function unhandledDuring(body: () => void): Promise<readonly unknown[]> {
+  const seen: unknown[] = []
+  const listener = (reason: unknown) => seen.push(reason)
+  process.on('unhandledRejection', listener)
+  try {
+    body()
+    for (let turn = 0; turn < 5; turn += 1) await new Promise(resolve => setImmediate(resolve))
+  } finally {
+    process.off('unhandledRejection', listener)
+  }
+  return seen
+}
+
+describe('the resources of the assembly', () => {
+  it('creates no network when the preparation configuration is refused', () => {
+    const { events, factories } = observedFactories()
+    expect(() =>
+      assembleOver({
+        config: config({ preparation: { maxCitedCalls: 0, supplierOf: factorySupplier() } }),
+        factories,
+      }),
+    ).toThrow(RangeError)
+    expect(events).toEqual([])
+  })
+
+  it('closes the network of a refused assembly and keeps a failed close out of the unhandled rejections', async () => {
+    const refused = new RangeError('route refused')
+    const { events, factories } = observedFactories({
+      build: refused,
+      network: new Error('network close failed'),
+    })
+    const unhandled = await unhandledDuring(() => {
+      expect(() => assembleOver({ config: config(), factories })).toThrow(refused)
+    })
+    expect(events).toEqual(['network', 'resources', 'network-close'])
+    expect(unhandled).toEqual([])
+  })
+
+  it('runs both closes to the end and throws both failures as one AggregateError', async () => {
+    const released = new Error('send resources close failed')
+    const stopped = new Error('network close failed')
+    const { events, factories } = observedFactories({ resources: released, network: stopped })
+    const local = assembleOver({ config: config(), factories })
+    const closing = local.close()
+    await expect(closing).rejects.toBeInstanceOf(AggregateError)
+    await closing.catch((error: unknown) => {
+      expect(error).toBeInstanceOf(AggregateError)
+      expect(Reflect.get(Object(error), 'errors')).toEqual([released, stopped])
+    })
+    expect(events).toEqual(['network', 'resources', 'resources-close', 'network-close'])
+  })
+
+  it('closes the network after a failed release of the send resources and rejects with that failure', async () => {
+    const released = new Error('send resources close failed')
+    const { events, factories } = observedFactories({ resources: released })
+    const local = assembleOver({ config: config(), factories })
+    await expect(local.close()).rejects.toBe(released)
+    expect(events).toEqual(['network', 'resources', 'resources-close', 'network-close'])
   })
 })
