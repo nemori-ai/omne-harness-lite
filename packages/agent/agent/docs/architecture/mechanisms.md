@@ -16,7 +16,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 
 每个 runtime 以状态联合保存 idle、occupied、draining 或 disposed。invoke 先预约单执行槽，再由 Journal.open 幂等受理；未知保持预约并查询原操作。open 明确未提交才释放预约。重复受理先认回原记录，不能只查看内存当前槽。resume 认回原记录并经 Journal.attach 排除旧挂接，不重新初始化 checkpoint。这两条路径是 [Loop 完整算法](loop-algorithm.md)的 E0 节点，回执未知转 R0。
 
-一次决策段读取有版本的执行快照和当前条件（E1、E2），由协调层投影具名生产者状态、控制及消费事实后交纯 next 求值（E4），然后用原 operation、expected revision 与当前 authority 提交。并发输入或控制造成 changed 时重读。外部效果先写稳定 intent，再按原 admission 查询或受理（A2、M6）。对账不是一次失败后立即换 ID 重试，提交回执未知先走 R0。
+一次决策段读取有版本的执行快照和当前条件（E1、E2），由协调层投影具名生产者状态、控制及消费事实后交纯 next 求值（E4），然后用原 operation、expected revision 与当前 authority 提交。并发输入或控制造成 changed 时重读。外部效果先写稳定 intent。M6 按 Model 原 reference 查询或受理，A2 按完整 Tool 原请求与 consumer invoke，已取得引用后保存 associated 并 lookup。对账不是一次失败后立即换 ID 重试，提交回执未知先走 R0。
 
 控制和结果回执分别保留原 execution/attachment。事件循环在外部等待期间继续处理控制，不持有覆盖网络等待的全局锁。状态修改串行只能保护本进程内存；围栏、耐久及撤权顺序继续由实际边界提供者保护。
 
@@ -33,7 +33,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 - custody 路径：消费者先经 `AgentMaterials.preserve` 把内容或有效可恢复引用保存到材料拥有者，再经 Journal 的 custody 交接绑定原版本、位置与责任。
 - processed 路径：生产者在处理期间继续保管原结果。消费者完成必要处理后，经 Journal 的 processed 交接保存足以恢复已完成结果及责任的完成依据。
 
-保管者按生产者、材料拥有者或消费侧完成依据的次序更替。任一时刻恰有一个耐久保管者，双方不能同时放弃，也不能重复逻辑承接。解除回执丢失时以原 release 操作对账，需要时重认幂等确认。Model 与 Tool 各自的解除条款见 Model 的 [ACK 的前提与效果](../../../../model/model-contract/SPEC.md#ack-的前提与效果)与 Tool 的[卸载与全文读取](../../../../tool/tool-contract/SPEC.md#卸载与全文读取)。
+保管者按生产者、材料拥有者或消费侧完成依据的次序更替。任一时刻恰有一个耐久保管者，双方不能同时放弃，也不能重复逻辑承接。Model 解除回执丢失沿原 ACK 操作认回。Tool 只在原 ToolOperationRef 可取得时查询，可靠否定后才可明确重入 releaseDelivery；引用丢失且 lookup.delivery 未证明释放时保留未知。Model 与 Tool 各自的解除条款见 Model 的 [ACK 的前提与效果](../../../../model/model-contract/SPEC.md#ack-的前提与效果)与 Tool 的[卸载与全文读取](../../../../tool/tool-contract/SPEC.md#卸载与全文读取)。
 
 后台占位是一个独立的结果版本，与最终结果共享同一个 consumption，各有自己的结果项与释放记录。占位保管后只解除占位这一版本的前台交付，原 consumption 的 ResultResponsibility 保持待释放，`reconcile` 返回的 `remaining` 仍含该 consumption。最终结果以同一 consumption 到达时，按两条路径之一保管并解除，该消费关系在最终结果的责任已释放时闭合。所以没有“已释放又回转”的状态。Tool 的失联结果与晚到原全文是同一 consumption 下的两个版本，同理处理。节点是 T1、M3 与 O0，行为见 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)与[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 2、8 条。
 
@@ -71,7 +71,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 | 条件终结 | `tryFinish` | 带授权、expected revision 与 FinishIntent。唯一能写 ended 的方法 | SPEC 的[条件终结](../../../agent-contract/SPEC.md#条件终结) |
 | 只读 | `load`、`inputs`、`readReplyAdmissions`、`query`、`output.read`、`output.events`，以及属性 `capabilities` | 不写。读取失败保持未知 | SPEC 的[并发与提交](../../../agent-contract/SPEC.md#并发与提交) |
 
-revision 在保留期内单调递增，不复用。`submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 是否推进 revision，现在没有拥有者写明，登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
+revision 在保留期内单调递增，不复用。`submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 的一般 revision 推进规则现在没有拥有者写明，登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
 
 四种返回的含义各有唯一来源。
 
@@ -105,9 +105,9 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | A0 | 每条链的 `passages`，`batch.actions` 中的 ActionJudgment | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `batch.barrier`。open 时固定请求的 `batchDecision` | `commit` | 条件提交 | 无 | 同上第 8 条 |
 | A3 | `batch.slots`（按原顺序建立 denied 槽位） | `commit` | 条件提交 | 无 | 节点表 A3 |
-| A2 | `calls`（用途 action 的 PendingCall），`effects`（EffectIntent）。在向 Tool 受理之前 | `commit` | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
-| A2 | `batch.slots`：Tool 受理后为 dispatched，受理时拒绝为 denied | `commit` | 条件提交 | 无 | 节点表 A2 |
-| T0 | 中断类控制的阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
+| A2 | 完整原 ToolInvokeRequest facts 材料，`calls` 的 Tool intent、fixed、position 及 `effects`。引用已证明后改为 associated | 材料 preserve，再 commit 原意图；关联保存另沿 commit | 条件提交，未知先查原 Journal operation | 无 | [两态登记与完整原请求](../../../agent-contract/SPEC.md#两态登记与完整原请求)，节点仍待实现 |
+| A2 | `batch.slots`：accepted 保存 associated 后为 dispatched，rejected 且无历史受理或未决才为 denied，否则保留原 pending、完整请求、consumer、effect intent 与 open 屏障；两类未知先保留原责任并对账 | `commit` | 条件提交 | 无 | 节点表 A2 |
+| T0 | 中断类控制的阶段与可选 toolOperation，原 toolInvocation 已在接受时保存 | recordControl | 相同完整输入按原操作认回，新引用由新 R2 实际写入 | 无 | [Recording operation 与阶段事实](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)，不重复阶段事件 |
 | T0 | 事件 stream：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号) |
 | T1 | 第一步：`results`（ResultResponsibility 的保管或完成依据） | `recordResult`，transfer 为 custody 或 processed，用自己派生的操作身份 | 按原操作幂等的记录 | 见[提交参加者](#提交参加者)的 custody 与 processed 行 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)、[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
 | T1 | 第二步：`batch.slots` 的 result 或 background 分支。result 分支的 `custody` 取第一步的依据 | `commit`，用另一个派生的操作身份。`recordResult` 不能修改 checkpoint。第一步已成而绑定未知时经 R0 查原操作，见[恢复切点表](#恢复切点表)“材料已保存、责任绑定未知”行 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
@@ -423,8 +423,11 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 发起前后 | 输入已受理、尚未唤醒 | 权威输入水位线与受理时保存的内容（Journal.inputs）。有提交参加者时还有参加者的共同绑定 | 外部协调者或宿主发现后 resume。E2 读水位线，E4 回 I0 承接 | 因内存队列空提前完成。用调用方另存的副本代替受理内容 | E4 回 I0 | SC-AG-160、SC-AG-161 |
 | 发起前后 | 等待已保存，通知丢失或先于监听到达 | Waiting 列表随执行状态 waiting 提交。检查时刻在进程内计算，恢复立即重读，见 #558 M04-6 | 唤醒后重读来源。进度已变即重新调度。到检查时刻按 reconciliationDelayMs 重读 | 把没有通知当作没有进展。把唤醒写成新挂接 | W0 回 E1、E2、E4 | SC-AG-161、SC-AG-185 |
 | 发起前后 | 纯求值后、意图未提交 | 没有合法外部效果。checkpoint 停在上一个 revision | 重读并重算。相同输入得到相同下一步 | 认为内存计算已完成业务 | E4 按 `position` 回原节点 | SC-AG-160、SC-AG-164 |
-| 发起前后 | 意图已存、尚未向生产者受理 | `effects` 中的 EffectIntent 与 PendingCall。Model 的 reference 已在首次 admit 前编码并保存；Tool 保持其原关联 | Model 凭 reference 和当前资格 inspect，已受理则等待，未知保持原意图；可信 not-accepted 且当前仍合法时沿原身份受理一次。Tool 按其原协议查询及恢复 | 分配第二个逻辑调用。用新的随机身份重试 | R0 回 A2 或 M6 | SC-AG-160、SC-AG-162 |
-| 发起前后 | 生产者已受理、回执丢失 | Model 原 reference 与固定输入已保存；Tool 保持其原 call/admission 关系 | Model 凭原 reference 对账，不依赖成功回包；Tool 按其协议认回。仍在途时在 M1 或 T0 等待 | 把超时等同没有发出 | M6 转 M1，A2 转 T0 | SC-AG-162 |
+| Model 发起前后 | 意图已存、尚未 admit | 原 Model reference、固定输入与 effect intent | inspect 原引用。可信 not-accepted 且当前合法才沿原身份受理 | 分配第二调用身份 | R0 回 M6 | SC-AG-160、SC-AG-162 |
+| Tool 发起前后 | 完整材料与 intent 已存、尚未 invoke | fixed 指向完整 ToolInvokeRequest facts，原 consumer 与 effect intent | 当前资格下重入原 invoke，consumer 四字段不变 | 预造 call/admission，按最新 catalog 重建 | R0 回 A2 | SC-AG-160、SC-AG-216 |
+| Model 发起前后 | 受理回执丢失 | 受理前原 reference 与固定输入 | inspect 原引用，原调用在 M1 等待 | 超时推断未发出 | M6 转 M1 | SC-AG-162 |
+| Tool 发起前后 | accepted 或 commit-unknown 带引用 | 保存 associated、原引用及已知原回执 | lookup 当前状态。not-accepted 不排除来源续做，沿原 invoke 接续 | 用查询覆盖原回执，换 consumer 发新调用 | R0 回 A2 或 T0 | SC-AG-162、SC-AG-216 |
+| Tool 发起前后 | association-unknown 无引用 | intent 与完整请求、consumer 保留 | 当前资格下重入原 invoke | 猜 ID，进入 associated-only 视图 | R0 回 A2 | SC-AG-217 |
 | 提交回执丢失 | Journal 提交回执丢失 | 原操作身份、持久索引与接管围栏 | query 原操作。committed 取原结果回后继。unknown 等待。excluded 才重新求值 | 用新的随机身份重试。把查无记录当作 excluded | R0 回 E4 | SC-AG-163 |
 | 提交回执丢失 | 消息准入的提交回执未知（Q2） | accept 以操作身份加来源身份幂等 | 以同一操作身份与同一候选重新调用 accept 即是查询。接纳回执随 checkpoint 提交 | 换候选或换身份重新 accept。把拒收当作未调用 | Q2 转 R0，再 Q4 | SC-AG-163 |
 | 输出后 | Model 已接收首片、保存窗口未确认。拥有者 Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) | 接收窗口把首内容状态置为 uncertain。preserve 关闭窗口 | Model 按其协议收场：无法证明没有内容时保持 uncertain，以 runtime-lost 收场。Agent 在 M1 等待该收场 | 以未保存首片或用户没有看到为由重新请求。Agent 产生新的调用 | M1 转 M3 | SC-AG-165 |
@@ -486,3 +489,13 @@ Journal.load 的 snapshot 固定一个 execution revision，包含当前 checkpo
 ## 后续设计入口
 
 自有设计结论、剩余验证及外部前提见[技术闭合与验证责任](open-questions.md)，产品影响及阶段选择见[产品第四块](../../../../../.meta_harness/design/product/agent-progression/design.md#未决问题与待定事项)。
+
+## Tool 引用保存与阶段事件
+
+A2 材料成功、Journal 未知时保留材料并查原 Journal operation。checkpoint 更换不丢完整原请求。schema 是精确 Adoption，恢复经 judgeToolInvokeRequest 校验，具体 schema 与生产材料后端仍由后继 A2 方案提供。
+
+Tool control 接受先核当前资格，再认回原 C 或因异输入 conflict；只有新 C 在当前租户下先按 kind 再按 call 匹配 associated pending，保存 toolInvocation 与初始 null 的 toolOperation。recordControl 的迟到引用以原记录校验 tenant、call、admission，不重新定位当前 checkpoint。recordControl 先核当前资格与附件租户，以规范身份认回原 R 或判异输入 conflict，之后才核新 target、原引用与 stage。外租户先 denied；原 R 新增畸形或非 Tool 附件先 conflict。新 R 的畸形与非 Tool 附件分别映射 invalid(toolOperation)，保留引用损坏映射 unavailable 或 denied，精确 reason、owner、diagnostic 与次序见 SPEC。非 Tool 控制不能附引用。规则由 [SPEC](../../../agent-contract/SPEC.md#控制接受与迟到引用)拥有。
+
+相同 recording operation R 的输入增加引用冲突。新 R2 可以在阶段相同的情况下附引用，并原子推进 revision、保存 R2 回执。不重发阶段事件，不替换原阶段回执。引用冲突先于阶段认回。本例的 revision 要求不裁定其他写操作的全部机制，Q11/Q13 更广问题仍待后续处理。
+
+Tool releaseDelivery 未知只有原 ToolOperationRef 可取得时查询。可靠否定后可以明确重入，lookup.delivery 可证明当前已释放。丢引用且未证明释放时保持未知，pending 不能可靠否定旧操作。本页不增加跨重启 release 引用保管协议。

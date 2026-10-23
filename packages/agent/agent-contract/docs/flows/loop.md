@@ -8,7 +8,7 @@ Loop 使用原工作事实、已采用规则和当前运行条件求出下一步
 
 纯派生求值可以重算。实际模型或工具调用不能因重算再次发出。会改变后续推进的非确定判断、采用数据、等待及外部效果都可恢复，不只存在旧实例的内存中。
 
-Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定输入。提交未知或回包丢失时按该引用对账，可信 not-accepted 才沿原身份再受理。当前资格与原 ACK result/evidence 保持。Tool 关联由 Tool 契约与后续组合任务拥有。见 [Model 引用契约](../../../../model/model-contract/SPEC.md#可保存调用引用)。
+Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定输入。提交未知或回包丢失时按该引用对账，可信 not-accepted 才沿原身份再受理。当前资格与原 ACK result/evidence 保持。Tool 在 invoke 前保存无 reference、call 或 admission 的 intent 与完整原请求材料。accepted 或 commit-unknown 带引用时保存 associated；association-unknown 保留 intent，沿完整原请求和 consumer 重入；rejected 仅在无历史受理或未决尝试时建 denied，否则保留原 pending、完整请求、consumer、effect intent 与未决责任。Tool 关联与控制引用的行为归 [Agent SPEC](../../SPEC.md#tool-调用关联与控制引用)。见 [Model 引用契约](../../../../model/model-contract/SPEC.md#可保存调用引用)。
 
 ## 外部可观察的保证
 
@@ -22,7 +22,7 @@ Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定
 | 回复先准入后解析 | 模型完整回复先经消息准入，准入成功才解析动作。拒收保留原结果与费用，退避后以新 step 发新调用。连续拒收不设次数上限，否决历史跨恢复保留 | I3、Q1、Q2、Q4、Q5、I8 |
 | 动作屏障 | 同批每条链到达最终结论或合法等待后才呈现本轮卡片。全部必要结论与卡片处理完成前，任何获准动作都不发起。后继出卡仍属原批 | A0、A1、X4、A2 |
 | 发起前再核 | 屏障打开后，Tool 按原准入证据与当前权限再核。撤权在实际发起处生效，不以旧允许发出 | A2 |
-| 全拒不伪造完成 | 本批全部动作被拒绝时，Agent 不等待从未发起的工具，为每个动作保存拒绝原因与拒绝消息，沿已有事实重新求值 | A3、T2、T3、T5、I8 |
+| 全拒不伪造完成 | 每个动作均确定拒绝且无历史受理或未决尝试时，Agent 不等待从未发起的工具，为每个动作保存拒绝原因与拒绝消息，沿已有事实重新求值 | A3、T2、T3、T5、I8 |
 | 结果逐槽保管 | 每个工具结果按原动作身份保管后才解除生产责任。后台占位保持同一次 Tool 执行，只释放占位这一版本的前台交付。迟到结果不改原槽位，不重开批次 | T0、T1、I8 |
 | 没有动作不等于完成 | 无动作、空队列、流结束都不直接终结。Agent 仍核未完等待、协作模式、守卫阶梯与落终态之前位置 | I4、I8、F2 |
 | 终态唯一出口 | 完成、失败与取消都经同一出口，由 `tryFinish` 与输入、控制、挂接共同排序后成立。先受理的输入使旧完成候选不成立。终态后只观察、保管与对账，不复活业务 | F1、F2、F3、F4、O0 |
@@ -65,3 +65,9 @@ Context 拥有可发送投影、预算与压缩。本成员提交本步用途与
 本页承接 [J-AG02](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag02)、[J-AG04](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag04)、[J-AG05](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag05)、[J-AG06](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag06)、[J-AG08](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag08)，及 CAP-AG03、CAP-AG04、CAP-AG07、CAP-AG08、CAP-AG09、CAP-AG10。消费顺序见 [F-AG02](scenarios.md#f-ag02)、[F-AG04](scenarios.md#f-ag04)、[F-AG05](scenarios.md#f-ag05)、[F-AG06](scenarios.md#f-ag06)、[F-AG08](scenarios.md#f-ag08)。
 
 能力与旅程到节点的追踪归[产品能力与设计覆盖](../../verification/coverage.md)。本页保证的验收场景归[持续验证场景](../../verification/scenarios.md)：输入与推进是 SC-AG-01 至 SC-AG-06，控制范围是 SC-AG-20 至 SC-AG-27，交错与失败是 SC-AG-40 至 SC-AG-59，请求准备是 SC-AG-72 至 SC-AG-75，扩展与整批动作是 SC-AG-100 至 SC-AG-133，Loop 节点与控制入口是 SC-AG-140 至 SC-AG-155。本页不复制场景表。这些场景是持续验证义务，不是已运行的证据。
+
+## Tool 发起与迟到控制
+
+A2 先 preserve 完整 ToolInvokeRequest facts 材料，再 commit intent、fixed、原位置和 effect intent。invoke 的 accepted、commit-unknown、association-unknown、rejected 分别沿 [SPEC 的登记表](../../SPEC.md#两态登记与完整原请求)接续。T0 只观察已关联调用，当前 lookup 不改原受理回执。历史未知后再 rejected 不改原 open 屏障，不建竞争 denied；缺槽位阻止 T3 齐备和 T5 完成。合法认回原受理后沿原槽位处理与解除，资格不可得时保留未知与交接责任。
+
+Tool control 受理时 Journal 保存原 toolInvocation，返回的操作引用之后经 recordControl 附加。迟到记录不依赖当前 checkpoint。control 先核当前资格并认回原 C，再扫描新 C 的 pending。recordControl 先核当前资格、附件租户与规范身份，再认回原 R 或因异输入 conflict，之后才核 target、保留引用与阶段，精确失败归 SPEC。原 recording operation 不可改变输入，新 R2 附引用不重复阶段事件。交付解除未知只有仍持原操作引用才查询，引用丢失且 lookup 未证明释放时继续保留未知。A2、T0 与生产材料提供者仍待实现。

@@ -395,8 +395,8 @@ describe('the discriminants of the evaluation chapter', () => {
     // @ts-expect-error Admission operation is encoded in the locator.
     void model.admission
     expectTypeOf(model.purpose).toEqualTypeOf<ModelPurpose>()
-    expectTypeOf(tool.call).toEqualTypeOf<T.ToolCallId>()
-    expectTypeOf(tool.admission).toEqualTypeOf<T.ToolOperationId>()
+    expectTypeOf(tool.call).toEqualTypeOf<undefined>()
+    expectTypeOf(tool.admission).toEqualTypeOf<undefined>()
     expectTypeOf(tool.purpose).toEqualTypeOf<'action'>()
     expectTypeOf<ModelPurpose>().toEqualTypeOf<'main' | 'compaction' | 'extension'>()
     expectTypeOf<PendingCall['position']>().toEqualTypeOf<ConsumerRef>()
@@ -889,5 +889,81 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<
       Parameters<AgentJournalRecording<string>['recordControl']>[0]['stage']
     >().toEqualTypeOf<Exclude<ControlStage, 'accepted'>>()
+  })
+})
+
+describe('Tool association and control references', () => {
+  type Common = Pick<PendingCall, 'action' | 'consumption' | 'position' | 'fixed'>
+  type Intent = Common & Readonly<{ kind: 'tool'; purpose: 'action'; association: 'intent' }>
+  type Associated = Common &
+    Readonly<{
+      kind: 'tool'
+      purpose: 'action'
+      association: 'associated'
+      reference: T.ToolInvocationRef
+    }>
+
+  it('allows intent before identity and requires the Tool reference after association', () => {
+    expectTypeOf<Intent>().toExtend<PendingCall>()
+    expectTypeOf<Associated>().toExtend<PendingCall>()
+    expectTypeOf<Omit<Associated, 'reference'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Intent & { call: T.ToolCallId }>().not.toExtend<PendingCall>()
+    expectTypeOf<Intent & { admission: T.ToolOperationId }>().not.toExtend<PendingCall>()
+    expectTypeOf<Intent & { reference: T.ToolInvocationRef }>().not.toExtend<PendingCall>()
+    expectTypeOf<Associated & { call: T.ToolCallId }>().not.toExtend<PendingCall>()
+    expectTypeOf<Associated & { admission: T.ToolOperationId }>().not.toExtend<PendingCall>()
+    expectTypeOf<
+      Omit<Associated, 'reference'> & { reference: M.ModelInvocationRef }
+    >().not.toExtend<PendingCall>()
+    expectTypeOf<
+      Omit<Associated, 'reference'> & { reference: T.ToolOperationRef }
+    >().not.toExtend<PendingCall>()
+  })
+
+  it('admits only associated Tool calls into active, result and background views', () => {
+    type Known = Extract<
+      ProducerDecisionView,
+      { kind: 'tool-active' | 'tool-result' | 'tool-background' }
+    >
+    expectTypeOf<Intent>().not.toExtend<Known['pending']>()
+    expectTypeOf<Associated>().toExtend<Known['pending']>()
+    expectTypeOf<Intent>().toExtend<
+      Extract<ProducerDecisionView, { kind: 'unresolved' }>['pending']
+    >()
+    expectTypeOf<
+      Extract<ActionJudgment, { kind: 'allowed' }>['request']
+    >().toEqualTypeOf<T.ToolInvokeRequest>()
+    expectTypeOf<{
+      kind: 'allowed'
+      evidence: Evidence
+      request: T.ToolInvokeRequest
+    }>().toExtend<ActionJudgment>()
+  })
+
+  it('requires invocation and nullable operation only for Tool controls', () => {
+    type Base = Pick<ControlRecord, 'operation' | 'stages'>
+    type Tool = Base & {
+      command: Extract<ExecutionControl, { kind: 'interrupt-tool' | 'background-tool' }>
+      toolInvocation: T.ToolInvocationRef
+      toolOperation: T.ToolOperationRef | null
+    }
+    type Other = Base & {
+      command: Extract<ExecutionControl, { kind: 'cancel' | 'suspend' | 'interrupt-model' }>
+    }
+    expectTypeOf<Tool>().toExtend<ControlRecord>()
+    expectTypeOf<Omit<Tool, 'toolInvocation'>>().not.toExtend<ControlRecord>()
+    expectTypeOf<Omit<Tool, 'toolOperation'>>().not.toExtend<ControlRecord>()
+    expectTypeOf<Other>().toExtend<ControlRecord>()
+    expectTypeOf<Other & { toolInvocation: T.ToolInvocationRef }>().not.toExtend<ControlRecord>()
+    expectTypeOf<Other & { toolOperation: null }>().not.toExtend<ControlRecord>()
+    expectTypeOf<
+      Omit<Tool, 'toolInvocation'> & { toolInvocation: M.ModelInvocationRef }
+    >().not.toExtend<ControlRecord>()
+    expectTypeOf<
+      Omit<Tool, 'toolOperation'> & { toolOperation: T.ToolInvocationRef }
+    >().not.toExtend<ControlRecord>()
+    expectTypeOf<
+      Parameters<AgentJournalRecording<string>['recordControl']>[0]['toolOperation']
+    >().toEqualTypeOf<T.ToolOperationRef | undefined>()
   })
 })

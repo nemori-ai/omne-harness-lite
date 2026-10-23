@@ -133,7 +133,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | modelContext | agentModelContext    | 必需。端口是契约包的 ModelContextReader，装配时绑定到模型这个消费者                                                                                 | 创建返回 unavailable                                                                                                  | 换实现后下一次读取生效。未采用的读取丢弃，已采用的覆盖保留在 checkpoint                                                                        |
 | handoff      | agentMessageHandoff  | 必需。端口是契约包的 MessageHandoff，由外部协调者或独立调用方的提供者实现                                                                           | 创建返回 unavailable，没有消息准入就不能受理输入                                                                      | 换实现只影响尚未准入的候选。已接纳的消息沿原准入依据，不重新准入                                                                               |
 | models       | modelRuntime         | 必需                                                                                                                                                | 创建返回 unavailable                                                                                                  | 换 Model 提供者不代业务接管，在途调用沿原身份查询，后继 runtime 认回                                                                           |
-| tools        | toolRuntime          | 局部必需：采用的定义带有工具动作时                                                                                                                  | 采用的定义声明必需的工具能力时，创建返回 unavailable。其他情况在动作发起处返回 unavailable，不放行，也不伪造结果      | 按上文局部必需依赖的换代规则。换 Tool 提供者不代业务接管，在途调用沿原身份查询                                                                 |
+| tools        | toolRuntime          | 局部必需：采用的定义带有工具动作时                                                                                                                  | 采用的定义声明必需的工具能力时，创建返回 unavailable。其他情况在动作发起处返回 unavailable，不放行，也不伪造结果      | 按上文局部必需依赖的换代规则。换 Tool 提供者不代业务接管，在途调用使用已保存引用查询；未关联 intent 在当前合法资格下沿完整原请求与 consumer 重入 invoke；后来 rejected 不排除历史未知，保留原责任，不建竞争 denied |
 | admission    | agentActionAdmission | 局部必需：采用的定义带有工具动作时。端口是契约包的 ActionAdmission，由授权领域的适配器实现                                                          | 采用的定义带有工具动作时，创建返回 unavailable。运行中该端口返回 unavailable 时，该批动作全部被拒绝，不放行，也不出卡 | 换实现后下一次准入生效。已经 allow 的准入证据由 Tool 在发起前按当前权限再核，参数或依据变化时旧批准失效                                        |
 | extensions   | agentExtensions      | 局部必需：采用的定义声明了扩展位置时。端口是契约包的 ExtensionImplementations，形状归[扩展规格](../../agent-contract/docs/public-api/extensions.md) | 已声明的必需扩展无法解析时，创建返回 unavailable。可选扩展按其声明的不可用处置跳过                                    | 已开始的经过保留精确采用，不因换代重问、重判或重放效果                                                                                         |
 | cards        | agentDecisionCards   | 局部必需：存在可能出卡的扩展或动作准入时。端口是契约包的 DecisionCards，由人在回路领域的适配器实现                                                  | 需要出卡的路径返回 unavailable，按各自声明的不可用处置                                                                | 已呈现的卡片按原身份认回，不重新出卡                                                                                                           |
@@ -181,3 +181,25 @@ M3 将已解释的 reply、partial 或 no-reply 与原 tenant、execution、step
 I3 与当前内部窄接续读取 Journal 完成依据，不依赖旧协调者的结果缓存。该接缝只覆盖原 runtime/Access/Authority、旧驱动已停的必要串行切点；它不提供新的公开恢复端口、custody 或阶段 5 通用水合。
 
 M3 已提交 producer/M4 后，新协调者通过 I3 查询原 reference 的真实 acknowledged 状态，核原 call/version/consumer、ACK operation 与 completion receipt，认回已丢失的原确认依据，不重新 ACK。随后既有 O0 以原 consumption 的稳定操作记录 release.confirmed；Journal 写入未知用原操作 query，unknown 与 unavailable 保持失败及责任。此处只支持本卡主调用接续，O0 的整体责任交清仍由后续阶段接受。
+
+## 测试 Journal 的保留引用故障
+
+`@omne-harness/agent/testing` 的 `createMemoryAgentJournal` 提供单进程、非耐久的测试 Journal。`MemoryAgentJournalOptions.retainedToolInvocationFaults` 仅在构造时严格为 `true` 才开启故障控制，默认关闭。以后修改 options 不改变开关。`createTestAgentDependencies({ journal: options })` 将同一选项传入，控制句柄为 `controls.journal`。
+
+开启后，控制句柄的同步方法 `setRetainedToolInvocationFault({ tenant, execution, control, fault })` 只更改一个已保存 Tool control 的 `toolInvocation`。`control` 指接受控制 C 的 operation，不是 recording R。公开类型由已有 `MemoryAgentJournal` 导出；调用者可用 `Parameters` 和 `ReturnType` 取得方法类型。此方法不在 `AgentJournal` port 上。
+
+| fault | 对目标字段的操作 |
+| --- | --- |
+| `{ kind: 'malformed' }` | 写入固定文本 `memory-journal:malformed-retained-tool-invocation`。这是显式存储损坏 fixture，不是合法引用的品牌铸造 |
+| `{ kind: 'foreign-tenant', reference }` | 保存经真实 Tool resolver 确认为外租户的引用原字节。调用方用公开 `encodeToolInvocationRef` 为第二租户构造引用；它不证明存在实际 Tool 调用 |
+| `null` | 恢复本设施首次保存的原字段字节，并删除该目标的恢复基线。没有基线也返回 `cleared` |
+
+设置成功返回 `applied`，清除成功返回 `cleared`。开关关闭首先返回 `rejected(disabled)`，不读取输入。开启时按普通对象的精确字段和现有 tenant/Agent ID codec 校验；额外字段、未知 fault、缺少或伪造的 foreign 引用均返回 `rejected(invalid-input)`。foreign payload 的校验先于目标查询。execution 不存在、owner tenant 不同或 control 不存在均返回 `rejected(target-unavailable)`。只有自有非 Tool control 返回 `rejected(not-tool-control)`。所有拒绝保持原状态与恢复基线，结果不携目标详情。
+
+每个实例按 canonical tenant、execution、control 组合保存首次原字段。重复设置或切换 fault 保留首次基线，清除恢复精确原字节，包括合法空白。故障持续到显式清除或实例丢弃。清除只恢复引用，不撤销阶段事实、toolOperation、回执、revision、事件或其他记录。该控制不进入正常写入，不消费排队故障，不改变 pending 原请求、查询记录或参加者响应。
+
+验证先用正常公开操作保存 Tool control，并保存完整正常状态 S0。注入后用 `load` 取得 S1，检查仅目标字段改变，再以真实 `resolveToolInvocationRef` 判定损坏。故障 fixture 的 `load` 静态品牌不证明引用合法，resolver 接受 `unknown`；不要用要求合法品牌的 `readToolInvocationRef` 代替检查。旧 load 快照保持不变。
+
+随后调用真实 `port.recordControl` 的新 R，按 [控制接受与迟到引用](../../agent-contract/SPEC.md#控制接受与迟到引用) 观察精确失败，并核对 S2 等于 S1、原 C/R 回执与完整事件不变、新 R 仍 query unknown。原 R 的同输入认回、异输入冲突及外租户附件次序仍按原业务规则。清除后还须验证真实合法写入。设施自身的 `rejected` 不是业务防御证据。
+
+行为资源为 [保留引用公开观察](../tests/journal-tool-control.spec.ts) 和 [控制隔离与恢复](../tests/memory-journal.spec.ts)。它们覆盖内存存储故障，不证明生产存储损坏、耐久恢复、跨进程隔离或独立 QA 已接受。

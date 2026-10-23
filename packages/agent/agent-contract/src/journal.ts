@@ -2,6 +2,7 @@
 // union, the effect intent, the five role groups of the durable port and its joint-commit
 // capabilities. Types only; no function runs here. The execution types that the groups use live in
 // execution.ts.
+import type { ToolOperationRef } from '@omne-harness/tool-contract'
 import type { Message } from '@omne-harness/message'
 import type {
   AgentCheckpoint,
@@ -122,6 +123,7 @@ export interface AgentJournalRecording<P> {
     input: ExecutionMutation<P> &
       Readonly<{
         target: AgentOperationId
+        toolOperation?: ToolOperationRef
         stage: Exclude<ControlStage, 'accepted'>
         state: 'reached' | 'unresolved'
         source: Evidence
