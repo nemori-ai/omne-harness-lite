@@ -3,11 +3,11 @@ import { branch, object, sha, IntegrationError } from './parse.ts'
 import { activeTrack, parentName, registeredTrack, type Policy, type Track } from './policy.ts'
 import { fetchObject, remoteFile, remoteRefs, tagMessage } from './transport.ts'
 
-const GATE_BRANCH = 'refs/heads/github-gate'
+export const GATE_BRANCH = 'refs/heads/github-gate'
 const CUTOVER_PATH = 'gate/cutover.json'
 const RECORD_SCHEMA = 'omne-gate-record:v1'
 
-function startTag(id: string): string {
+export function startTag(id: string): string {
   return `refs/tags/omne/gate/track/${id}`
 }
 
@@ -46,17 +46,26 @@ function chainOf(policy: Policy, route: Route): Track[] {
   return chain
 }
 
-/** The upstream a start tag records; an old tag without `parent` records `main`. */
-function tagParent(root: string, policy: Policy, id: string, oid: string): string {
-  const text = tagMessage(root, policy.transport.location, oid, policy.timeouts.networkMs)
+/**
+ * The JSON object of an `omne-gate-record:v1` tag message, as the gate writes for start and unit
+ * tags. `label` names the tag in errors. Both defects are unknown.
+ */
+export function gateRecord(text: string, label: string): Record<string, unknown> {
   let record: Record<string, unknown>
   try {
     record = object(JSON.parse(text), 'record')
   } catch {
-    throw new IntegrationError('unknown', `Start tag of ${id} does not hold a JSON object`)
+    throw new IntegrationError('unknown', `${label} does not hold a JSON object`)
   }
   if (record.schema !== RECORD_SCHEMA)
-    throw new IntegrationError('unknown', `Start tag of ${id} is not an ${RECORD_SCHEMA} record`)
+    throw new IntegrationError('unknown', `${label} is not an ${RECORD_SCHEMA} record`)
+  return record
+}
+
+/** The upstream a start tag records; an old tag without `parent` records `main`. */
+function tagParent(root: string, policy: Policy, id: string, oid: string): string {
+  const text = tagMessage(root, policy.transport.location, oid, policy.timeouts.networkMs)
+  const record = gateRecord(text, `Start tag of ${id}`)
   // Same reading as the gate's jq `.parent // "main"`: a missing or null parent is main.
   if (record.parent === undefined || record.parent === null) return 'main'
   try {
@@ -66,9 +75,44 @@ function tagParent(root: string, policy: Policy, id: string, oid: string): strin
   }
 }
 
-/** Branch names registered in `gate/cutover.json`; empty when the gate branch or file is absent. */
-function cutoverBranches(root: string, policy: Policy, gate: string | undefined): Set<string> {
-  if (gate === undefined) return new Set()
+/**
+ * The trusted upstream of a track, in the gate's order: the `parent` of its start tag (`main`
+ * when the tag has none), else `main` for a branch in `gate/cutover.json`. A track with neither
+ * is refused. `cutover` is read only when the track has no start tag.
+ */
+export function trustedParent({
+  root,
+  policy,
+  track,
+  tag,
+  cutover,
+}: {
+  root: string
+  policy: Policy
+  track: Track
+  /** The object ID of the remote start tag, or undefined without one. */
+  tag: string | undefined
+  cutover: () => ReadonlyMap<string, string>
+}): string {
+  if (tag !== undefined) return tagParent(root, policy, track.id, tag)
+  if (!cutover().has(track.branch))
+    throw new IntegrationError(
+      'refused',
+      `Track ${track.id} has neither a start tag nor a cutover entry`,
+    )
+  return 'main'
+}
+
+/**
+ * The entries of `gate/cutover.json`, from branch name to cutover commit; empty when the gate
+ * branch or file is absent.
+ */
+export function cutoverEntries(
+  root: string,
+  policy: Policy,
+  gate: string | undefined,
+): Map<string, string> {
+  if (gate === undefined) return new Map()
   const text = remoteFile(
     root,
     policy.transport.location,
@@ -76,14 +120,12 @@ function cutoverBranches(root: string, policy: Policy, gate: string | undefined)
     CUTOVER_PATH,
     policy.timeouts.networkMs,
   )
-  if (text === null) return new Set()
+  if (text === null) return new Map()
   try {
     const entries = Object.entries(object(JSON.parse(text), CUTOVER_PATH))
-    for (const [name, commit] of entries) {
-      branch(name, CUTOVER_PATH)
-      sha(commit, CUTOVER_PATH)
-    }
-    return new Set(entries.map(([name]) => name))
+    return new Map(
+      entries.map(([name, commit]) => [branch(name, CUTOVER_PATH), sha(commit, CUTOVER_PATH)]),
+    )
   } catch {
     throw new IntegrationError(
       'unknown',
@@ -91,7 +133,6 @@ function cutoverBranches(root: string, policy: Policy, gate: string | undefined)
     )
   }
 }
-
 /**
  * I14: checks the route's track and its upstream chain before a start, and returns the target
  * branch and its current remote commit, fetched locally. The trusted upstream is the start tag's
@@ -112,20 +153,15 @@ export function checkUpstream(
   for (const track of chain)
     if (!refs.has(`refs/heads/${track.branch}`))
       throw new IntegrationError('refused', `Remote branch ${track.branch} does not exist`)
-  let cutover: Set<string> | undefined
+  let cutover: ReadonlyMap<string, string> | undefined
   for (const track of chain) {
-    const tag = refs.get(startTag(track.id))
-    let trusted: string
-    if (tag !== undefined) trusted = tagParent(root, policy, track.id, tag)
-    else {
-      cutover ??= cutoverBranches(root, policy, refs.get(GATE_BRANCH))
-      if (!cutover.has(track.branch))
-        throw new IntegrationError(
-          'refused',
-          `Track ${track.id} has neither a start tag nor a cutover entry`,
-        )
-      trusted = 'main'
-    }
+    const trusted = trustedParent({
+      root,
+      policy,
+      track,
+      tag: refs.get(startTag(track.id)),
+      cutover: () => (cutover ??= cutoverEntries(root, policy, refs.get(GATE_BRANCH))),
+    })
     if (trusted !== track.parent)
       throw new IntegrationError(
         'refused',

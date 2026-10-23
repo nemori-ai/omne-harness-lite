@@ -4,7 +4,7 @@
 
 开发流程工具，不发布：
 
-- [integration](src/integration/README.md)：开工 `start`、task context、`status`、基线，以及合并目标分支后让目标基线前进的 `task-sync`。task context 的读取格式由 repo-toolchain 的 `core/task-context` 定义；本成员负责写入与完整校验。
+- [integration](src/integration/README.md)：开工 `start`、task context、`status`、基线，以及合并目标分支后让目标基线前进的 `task-sync`。task context 的读取格式由 repo-toolchain 的 `core/task-context` 定义；本成员负责写入与完整校验。`ri-notes` 从一条轨道的 unit 记录与 PR 正文生成提升 PR 的两节，只读、只报告。
 - [delivery](src/delivery/README.md)：读取 Issue 与看板，报告交付卡的形状、阶段等待、依赖投影与卡属性发现。另有线归属表校验 `check:lines` 与单卡属性标签同步命令。
 - 包模板：见下文。
 - [package-exports](src/package-exports/README.md)：比较成员的构建导出、机读清单和公开接口页。成员测试通过子进程调用 CLI，产品源码不依赖它。

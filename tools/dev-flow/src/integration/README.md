@@ -1,6 +1,6 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow，此外不写平台。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow，此外不写平台。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -161,6 +161,33 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 - Stage 只取一次快照，云端无法检测两次采集之间的 Stage 变化。
 - workflow 读取之前对派发评论的编辑不检查，与本地相同。workflow 读取之后的编辑会让开工以 `unknown` 失败。
 
+## 提升 PR 的说明
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes --track <轨道 ID> [--root PATH] [--format json|markdown]
+pnpm run ri-notes --track <轨道 ID>
+```
+
+命令读源轨道上游不包含的 first-parent 提交、它们的 unit 记录与 PR 正文，汇总各 PR 声明的「所含的卡」与「契约变化」。上游按起点标签与切换点确定，与 gate 相同。
+
+- 缺省把 JSON 写到标准输出，含逐提交的 unit 与 PR、汇总的卡、契约变化、发现与 Markdown。
+- `--format markdown` 只把两节写到标准输出，供贴进提升 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总。
+- `ri-notes --help` 输出用法。
+
+命令只读，只报告。发现不改变退出码，也不进入 `pnpm run check`。远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
+
+贴进 PR 之前，先处理发现：
+
+- `pr-section-missing`、`card-inferred`、`card-unresolved`：PR 没有声明卡。推测的卡的条件写「待确认」，按卡的实际条件改写。推测不出的卡手工补行。
+- `unit-missing`：核对下限之后的提交没有 unit。gate 会拦住这次提升，按[现行准入](../../../../docs/engineering/integration.md#现行准入)闭合缺口。
+- `unit-invalid`、`unit-target-mismatch`：unit 记录不合格或不属于这条轨道。下限之前的提交也报告。
+- `lower-bound-unknown`、`lower-bound-not-ancestor`、`parent-registry-drift`：轨道的核对下限或上游登记有问题。
+- `card-other-line`、`card-line-unknown`：卡的交付线不属于这条轨道，或卡没有登记交付线。
+- `contracts-unknown`：有提交的契约变化未知，「契约变化」有一行 `- 待确认：…`。JSON 的 `contractGaps` 列出这些提交与原因。逐个核对后改写本节。原样贴进 PR 时，上一层的 `ri-notes` 仍把这个 PR 计为未知。
+- 其他 `contract-*` 与 `cards-*`：两节的行格式、路径或级别有问题。
+
+命令行不核对契约 API 快照，JSON 的 `contractCheck.kind` 为 `unavailable`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
+
 ## 持续验证
 
 在 `tools/dev-flow` 下运行：
@@ -170,6 +197,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-sync`、`integration-transport` 与 `integration-upstream` 九个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport` 与 `integration-upstream` 十一个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。
