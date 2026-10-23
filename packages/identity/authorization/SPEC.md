@@ -197,7 +197,7 @@
 
 `decideAdmission` 是纯函数：同一输入与同一事实给出同一结论；事实变了，结论随之变。`referenceAdmissionCheck` 不保存任何结论，每次调用重新读主体核验、成员事实与许可状态。消费方在实际执行处每次调用裁定，不把一次 `allowed` 沿用到下一次动作。
 
-`referenceAdmissionCheck` 在首次调用依赖前复制并冻结本次输入的值字段，只保留主体和已铸造租户的原对象。后续读取与裁定只使用这份快照。核验回答与成员事实在读取完成时复制，后续等待不回读原对象。调用方对象不被冻结。这些快照绑定本次输入与已读事实，不提供跨数据源的同一时刻快照或操作点一致性。
+`referenceAdmissionCheck` 在首次调用依赖前复制并冻结本次输入的值字段，只保留主体和已铸造租户的原对象。后续读取与裁定只使用这份快照。核验回答、成员事实与完整许可答复在读取完成时复制并冻结自有值包装，返回下一异步段前完成快照。许可快照包含授予绑定、授予证据、消费状态与消费事实；已铸造租户保留原对象。后续裁定不回读原答复，调用方及提供者的原对象不被冻结。这些快照绑定本次输入与已读事实，不提供跨数据源的同一时刻快照或操作点一致性。
 
 撤权后再核拒绝：成员关系撤销后，identity 读口答 `not-member`，下一次裁定答 `denied`。原主体对象不变也如此。
 
@@ -235,7 +235,7 @@
 
 ### 验证
 
-`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
+`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
 
 ## 披露与后续治理操作
 

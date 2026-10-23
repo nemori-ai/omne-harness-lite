@@ -68,6 +68,60 @@ async function readStanding(
   }
 }
 
+function permitSnapshot(lookup: PermitLookup): PermitLookup {
+  switch (lookup.kind) {
+    case 'unknown':
+      return Object.freeze({ kind: 'unknown' })
+    case 'unavailable':
+      return Object.freeze({ kind: 'unavailable', diagnostic: lookup.diagnostic })
+    case 'found': {
+      const { grant, state } = lookup
+      return Object.freeze({
+        kind: 'found',
+        grant: Object.freeze({
+          ref: Object.freeze({ tenant: grant.ref.tenant, permit: grant.ref.permit }),
+          operation: Object.freeze({ owner: grant.operation.owner, name: grant.operation.name }),
+          target: Object.freeze({
+            owner: grant.target.owner,
+            kind: grant.target.kind,
+            key: grant.target.key,
+          }),
+          arguments: Object.freeze({ digest: grant.arguments.digest }),
+          granted: Object.freeze({
+            owner: grant.granted.owner,
+            record: grant.granted.record,
+            revision: grant.granted.revision,
+            digest: grant.granted.digest,
+          }),
+        }),
+        state:
+          state.kind === 'open'
+            ? Object.freeze({ kind: 'open' })
+            : Object.freeze({
+                kind: 'consumed',
+                fact: Object.freeze({
+                  permit: Object.freeze({
+                    tenant: state.fact.permit.tenant,
+                    permit: state.fact.permit.permit,
+                  }),
+                  consumer: Object.freeze({
+                    owner: state.fact.consumer.owner,
+                    work: state.fact.consumer.work,
+                    position: state.fact.consumer.position,
+                  }),
+                  evidence: Object.freeze({
+                    owner: state.fact.evidence.owner,
+                    record: state.fact.evidence.record,
+                    revision: state.fact.evidence.revision,
+                    digest: state.fact.evidence.digest,
+                  }),
+                }),
+              }),
+      })
+    }
+  }
+}
+
 async function lookupPermit(
   deps: ReferenceAdmissionDependencies,
   permit: PermitRef,
@@ -75,7 +129,7 @@ async function lookupPermit(
   if (deps.permits === null)
     return { kind: 'unavailable', diagnostic: 'no permit ledger is installed' }
   try {
-    return await deps.permits.lookup({ permit })
+    return permitSnapshot(await deps.permits.lookup({ permit }))
   } catch {
     return { kind: 'unavailable', diagnostic: `the permit ledger ${THREW}` }
   }
