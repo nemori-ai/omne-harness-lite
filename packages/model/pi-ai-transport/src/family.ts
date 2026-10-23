@@ -40,6 +40,7 @@ export type PiFamilyBinding = Readonly<{
   counting: ModelCountingBasis
   rules: ModelRequestRules
   meter: CalibratedInputMeter
+  replayFormat: string | null
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(
     input: Readonly<{

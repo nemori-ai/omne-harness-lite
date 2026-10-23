@@ -233,6 +233,7 @@ export type PiMaterializedMedia = Readonly<{
 export type PiFamilyBinding = Readonly<{
   supplier: Supplier; adoption: Adoption; counting: ModelCountingBasis
   rules: ModelRequestRules; meter: CalibratedInputMeter
+  replayFormat: string | null
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(input: Readonly<{
     request: FixedModelRequest; media: readonly PiMaterializedMedia[]

@@ -106,6 +106,7 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
       measure: () => ({ failure: refused }),
       measureCalibrated: () => ({ failure: refused }),
     },
+    replayFormat: null,
     tools: { convertToModelPayload: () => ({ failure: refused }) },
     encode: () => ({
       ok: {

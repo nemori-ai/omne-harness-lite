@@ -653,7 +653,7 @@ describe('encode: replay', () => {
 })
 
 describe('bindChatCompletions', () => {
-  it('derives the adoption from the record and the counting basis from the meter', () => {
+  it('derives the adoption and the replay format from the record and the counting basis from the meter', () => {
     const record = testRecord()
     const probe = engineProbe()
     const meter = testMeter(record, probe)
@@ -668,6 +668,7 @@ describe('bindChatCompletions', () => {
     expect(binding.adoption).toEqual(supplierOf(record).adoption)
     expect(binding.counting).toBe(meter.instance.basis)
     expect(binding.meter).toBe(meter.instance)
+    expect(binding.replayFormat).toBe(FORMAT)
   })
 
   it('wraps the family release once: every call returns the first promise', async () => {

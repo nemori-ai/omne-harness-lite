@@ -165,41 +165,9 @@ export function composeFamilies(families: readonly PiFamily[]): PiFamilyContribu
       table.set(key, entry)
     }
   }
-  return new ComposedFamilies(table)
-}
-
-/**
- * The contributions that `composeFamilies` returns. Its only own property is `acquire`; the
- * private table lets `producedReplayFormat` read the record of an adoption.
- */
-class ComposedFamilies implements PiFamilyContributions {
-  readonly acquire: PiFamilyContributions['acquire']
-  readonly #table: ReadonlyMap<string, FamilyEntry>
-
-  constructor(table: ReadonlyMap<string, FamilyEntry>) {
-    this.#table = table
-    this.acquire = (supplier, signal) => acquireFrom(table, supplier, signal)
-    Object.freeze(this)
-  }
-
-  /** The `replay.formats.produces` of the record of `adoption`, or `null`. */
-  static producedFormat(value: unknown, adoption: Adoption): string | null {
-    if (typeof value !== 'object' || value === null || !(#table in value)) return null
-    const entry = value.#table.get(adoptionKey(adoption))
-    return entry === undefined ? null : (formatsOf(entry.record)?.produces ?? null)
-  }
-}
-
-/**
- * The replay format that a send of `adoption` produces: `replay.formats.produces` of its record.
- * `null` when `families` did not come from `composeFamilies`, no family declares the adoption, or
- * the record has no `replay.formats`. For the receipt of a materialization; not a root export.
- */
-export function producedReplayFormat(
-  families: PiFamilyContributions,
-  adoption: Adoption,
-): string | null {
-  return ComposedFamilies.producedFormat(families, adoption)
+  return Object.freeze({
+    acquire: (supplier: Supplier, signal: AbortSignal) => acquireFrom(table, supplier, signal),
+  })
 }
 
 async function acquireFrom(
