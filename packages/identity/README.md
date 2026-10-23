@@ -1,8 +1,8 @@
 # 身份与授权能力组
 
-本组维护身份与授权的工程分解。`scrypt` 是已创建的 workspace 成员，提供有界口令派生与校验。identity 与 authorization 仍以各自规格为主。本组操作规格的正式落位不表示那些规格已经技术接受。
+本组维护身份与授权的工程分解。`scrypt` 是已创建的 workspace 成员，提供有界口令派生与校验。identity 与 authorization 已有首批公开形状：两种主体的签发与核验、具名资格、准入裁定、许可引用与消费事实；登录、账号、成员关系与持久台账的提供者仍待设计。本组操作规格的正式落位不表示那些规格已经技术接受。
 
-合法身份与时间点的已采用纯值归[共同纯表示](../common/README.md)。identity 消费这些纯值，并拥有存在、成员关系和登录事实。authorization 拥有授权决定。纯值目标成员尚非 workspace 成员。
+合法身份与时间点的已采用纯值归[共同纯表示](../common/README.md)。identity 消费这些纯值，并拥有存在、成员关系和登录事实。authorization 拥有授权决定。`legal-identity` 另发布行事作用域 `ActingScope` 与契约成员共用的 `Access<P>`。
 
 ## 责任与范围
 
@@ -12,11 +12,11 @@
 
 | 目标成员 | 责任与入口 |
 | --- | --- |
-| identity | [入口](identity/README.md)；主体、治理、认证、登录及当前租户的 [SPEC](identity/SPEC.md) |
-| authorization | [入口](authorization/README.md)；表达、范围、准入、撤回与消费的 [SPEC](authorization/SPEC.md) |
+| identity | [入口](identity/README.md)；主体、治理、认证、登录及当前租户的 [SPEC](identity/SPEC.md)。首批公开形状见 ID-16 |
+| authorization | [入口](authorization/README.md)；表达、范围、准入、撤回与消费的 [SPEC](authorization/SPEC.md)。首批公开形状见 AU-11 |
 | scrypt | [入口](scrypt/README_ZH.md)；有界派生、校验与关闭的 [SPEC](scrypt/SPEC.md) |
 
-identity 不依赖 Session、HITL、工具或模型业务生命周期。authorization 消费 identity、合法权限及原操作公开事实，不访问其私有实现。共享定义只由实际公开契约维护。
+identity 依赖 `legal-identity` 与 `operation-result`，不依赖 Session、HITL、工具或模型业务生命周期。authorization 依赖 identity，消费合法权限及原操作公开事实，不访问其私有实现。共享定义只由实际公开契约维护。
 
 ## 关键协作
 
@@ -24,7 +24,7 @@ identity 不依赖 Session、HITL、工具或模型业务生命周期。authoriz
 
 ## 组合验证
 
-identity 与 authorization 维护各自 SPEC 的验证义务，实际原操作承担消费与资源提交一致性，接入承担来源核验。共同身份创建、关系竞争、当前资格及恢复由组维护者联同成员验证。可运行资源、精确接口及性能尺度尚缺，T01 至 T06 见[后续义务](docs/architecture.md#后续技术义务)，图和候选通过不表示真实组合通过。
+identity 与 authorization 维护各自 SPEC 的验证义务，实际原操作承担消费与资源提交一致性，接入承担来源核验。两成员的契约测试用进程内权威、内存成员表与内存台账覆盖撤权后再核拒绝、不可用不放行、许可消费后不再放行，以及 Agent、Tool 的有限适配。Session 只验证本卡适配模型，真实接口兼容仍未完成。签发前的原工作关系核对、操作点的当前工作资格守卫和 Model 最终发送围栏仍需真实提供者兑现。共同身份创建、关系竞争及恢复由组维护者联同成员验证。持久存储、登录流程与性能尺度尚缺，T01 至 T06 见[后续义务](docs/architecture.md#后续技术义务)，图和候选通过不表示真实组合通过。
 
 ## 维护
 
