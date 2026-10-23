@@ -164,7 +164,7 @@ describe('assembleLocalModel', () => {
     await local.close()
   })
 
-  it('refuses a preparation lease after close starts, with the failure of the send resources', async () => {
+  it('refuses a preparation lease after close starts, with the name of the assembly', async () => {
     const asked: string[] = []
     const local = assembleLocalModel(
       config({
@@ -180,8 +180,8 @@ describe('assembleLocalModel', () => {
     expect(refused).toEqual({
       failure: {
         kind: 'unavailable',
-        dependency: 'pi-send-resources',
-        diagnostic: 'send-resources-closed',
+        dependency: 'model-host-local',
+        diagnostic: 'assembly-closed',
       },
     })
     expect(asked).toEqual([])

@@ -36,7 +36,7 @@
 
 **装配只组合。** 装配不持有业务状态，不另造协调语义。账目经 model 运行时的接收路径到达注入的 `ModelCommands`；补全、去重与修订替换归 `ModelCommands`。准备资源的绑定来源就是发送用的 `families`（`PiFamilyContributions` 在结构上满足 model 的 `PreparationBindingSource`），调用事实经同一个 `commands` 读取，所以计量与发送看到同一组家族记录和同一份调用事实。路由、代理、限额与 `maxCitedCalls` 都来自配置，余量来自家族配置。
 
-**一个关闭结束两部分。**装配的 `close` 是发送资源与准备资源共同的终点。`close` 开始后，两者都拒绝新的资源，并返回同一个 `unavailable`（`pi-send-resources`，`send-resources-closed`）。准备资源没有在途交换要等待，所以关闭只拒绝新的租约。关闭前取得的租约持有自己的绑定，由取得它的调用方释放。家族计量器是纯函数，关闭后仍可计量。
+**一个关闭结束两部分。**装配的 `close` 是发送资源与准备资源共同的终点。`close` 开始后，两者都拒绝新的资源。发送资源返回自己的 `unavailable`（`pi-send-resources`，`send-resources-closed`）；准备资源返回指向装配的 `unavailable`（`model-host-local`，`assembly-closed`）。准备资源没有在途交换要等待，所以关闭只拒绝新的租约。关闭前取得的租约持有自己的绑定，由取得它的调用方释放。家族计量器是纯函数，关闭后仍可计量。
 
 ## 验证与维护
 

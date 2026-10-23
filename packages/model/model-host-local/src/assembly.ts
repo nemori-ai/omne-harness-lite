@@ -11,6 +11,7 @@ import {
 import type {
   CredentialPort,
   ModelCommands,
+  ModelFailure,
   ModelPreparationResources,
   ModelSendBoundary,
 } from '@omne-harness/model-contract'
@@ -21,11 +22,17 @@ import {
   type PiRoute,
   type PiTransportLimits,
 } from '@omne-harness/pi-ai-transport'
-import {
-  createPiSendResources,
-  SEND_RESOURCES_CLOSED,
-  type PiSendResources,
-} from './send-resources.ts'
+import { createPiSendResources, type PiSendResources } from './send-resources.ts'
+
+/**
+ * The refusal of a preparation lease after the assembly's `close` starts. It names the assembly,
+ * not the send resources: the send resources can close on their own and keep their own name.
+ */
+const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
+  kind: 'unavailable',
+  dependency: 'model-host-local',
+  diagnostic: 'assembly-closed',
+})
 
 export type LocalModelConfig<P> = Readonly<{
   /** The credential custody, e.g. a local custodian. The send boundary resolves through it. */
@@ -57,8 +64,9 @@ export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
   /**
    * The production `ModelPreparationResources` over `families` and `commands`. The caller releases
-   * every lease it acquires. After `close` starts, `acquire` returns the same `unavailable` failure
-   * as the send resources. A lease acquired before keeps its bindings until its own `release`.
+   * every lease it acquires. After `close` starts, `acquire` returns `unavailable` with the
+   * dependency `model-host-local` and the diagnostic `assembly-closed`. A lease acquired before
+   * keeps its bindings until its own `release`.
    */
   preparation: ModelPreparationResources<P>
   /**
@@ -111,7 +119,7 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
   let closing: Promise<void> | undefined
   const preparation: ModelPreparationResources<P> = {
     async acquire(input) {
-      if (closing !== undefined) return { failure: SEND_RESOURCES_CLOSED }
+      if (closing !== undefined) return { failure: ASSEMBLY_CLOSED }
       return leases.acquire(input)
     },
   }
