@@ -2,6 +2,7 @@ import {
   readGovernanceRequest,
   encodeGovernanceRequest,
   type GovernanceProvidedOperation,
+  type GovernanceRequest,
 } from '@omne-harness/public-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { expect, it } from 'vitest'
@@ -229,4 +230,69 @@ it('rejects credential and identity confusion without creating business refusals
       limits,
     }).kind,
   ).toBe('protocol-rejected')
+})
+
+it('rejects an invalid acting tenant independently of a valid leave body', () => {
+  const invalidTenant = { ...wire('leave-organization', {}), actingTenant: 'bad' }
+  expect(readGovernanceRequest({ bytes: encode(invalidTenant), limits })).toEqual({
+    kind: 'protocol-rejected',
+    response: { protocolVersion: version, messageId: 'm', outcome: 'protocol-rejected', body: {} },
+    diagnostic: { code: 'field' },
+  })
+  expect(
+    encodeGovernanceRequest({
+      request: {
+        protocolVersion: version,
+        messageId: 'm',
+        operation: 'leave-organization',
+        body: {},
+        actingTenant: 'bad',
+        proof: { kind: 'missing' },
+      } as unknown as GovernanceRequest,
+      limits,
+    }),
+  ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+})
+
+it('rejects hidden parameter discriminants and accepts shared noncyclic leaves', () => {
+  const parsed = readGovernanceRequest({
+    bytes: encode(wire('judge-admission', bodies['judge-admission'])),
+    limits,
+  })
+  expect(parsed.kind).toBe('request')
+  if (parsed.kind !== 'request' || parsed.request.operation !== 'judge-admission')
+    throw new Error('Expected valid admission request')
+  const request = parsed.request
+  const hidden = Object.defineProperty({ kind: 'object' as const, entries: [] }, 'kind', {
+    value: 'object',
+    enumerable: false,
+  })
+  expect(
+    encodeGovernanceRequest({
+      request: { ...request, body: { ...request.body, parameters: hidden } },
+      limits,
+    }),
+  ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+  const leaf = { kind: 'string', value: 'v' } as const
+  const result = encodeGovernanceRequest({
+    request: {
+      ...request,
+      body: {
+        ...request.body,
+        parameters: {
+          kind: 'object',
+          entries: [
+            { key: 'a', value: leaf },
+            { key: 'b', value: leaf },
+          ],
+        },
+      },
+    },
+    limits,
+  })
+  expect(result.kind).toBe('encoded')
+  if (result.kind !== 'encoded') throw new Error('Expected valid shared parameter leaves')
+  expect(JSON.parse(new TextDecoder().decode(result.bytes))).toEqual(
+    wire('judge-admission', { ...bodies['judge-admission'], parameters: { a: 'v', b: 'v' } }),
+  )
 })

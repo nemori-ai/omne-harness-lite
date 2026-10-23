@@ -480,7 +480,7 @@ const encoded = encodeGovernanceRequest({
 
 ## 公开编解码入口与实现细化
 
-本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的 [消息定义](src/messages.ts) 拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)，整卡接受由任务拥有者另行确认。
+本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的 [消息定义](src/messages.ts) 拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
 
 ### 操作集合与函数
 
@@ -515,13 +515,13 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 下面每行另外允许公共 `protocol-rejected`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
 
-| operation | 线上业务 outcome | 依据与本次细化 |
+| operation | 线上业务 outcome | 依据与协议细化 |
 | --- | --- | --- |
 | public-health | succeeded | body结果表；健康没有登录或目标 |
 | register-and-activate | succeeded, not-loginable | 操作注册节，其他条件不足含依据不可得统一not-loginable；丢回执仅调用者本地未知 |
 | issue-login | succeeded, uniform-auth-failure, basis-unavailable | 签发节，丢回执仅调用者本地未知 |
 | revoke-login | succeeded, no-change, denied, not-visible, basis-unavailable | 撤销节，回执丢失仅调用者本地未知 |
-| replace-credential | succeeded, denied, basis-unavailable | 更换节、共同登录步骤及本次细化；当前凭据错误统一denied，崩溃仅调用者本地未知 |
+| replace-credential | succeeded, denied, basis-unavailable | 更换节、共同登录步骤及协议细化；当前凭据错误统一denied，崩溃仅调用者本地未知 |
 | create-organization | succeeded, denied, basis-unavailable, conflict, unknown | 创建节含无法排序unknown及保存拒绝回执 |
 | query-create-organization | succeeded, denied, basis-unavailable, conflict, unknown | 原回执查询节明确 |
 | issue-member-invitation | succeeded, denied, not-visible, basis-unavailable | 邀请节+共同登录步骤 |
@@ -544,13 +544,13 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 | accept-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 隶属请求节+共同步骤 |
 | reject-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
 | withdraw-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
-| release-affiliation | succeeded, no-change, denied, not-visible, basis-unavailable, conflict | 解除节及本次细化；succeeded空body |
+| release-affiliation | succeeded, no-change, denied, not-visible, basis-unavailable, conflict | 解除节及协议细化；succeeded空body |
 | query-received-affiliation-requests | succeeded, denied, basis-unavailable | 组织名单+完整性与登录步骤 |
 | query-issued-affiliation-requests | succeeded, denied, basis-unavailable | 组织名单+完整性与登录步骤 |
 | query-affiliation-request | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
 | judge-admission | succeeded, denied, not-visible, basis-unavailable, need-decision | 准入节四结果及隐藏对象优先 |
 | submit-authorization-expression | succeeded, no-change, denied, basis-unavailable, unknown | 表达节+共同登录步骤 |
-| withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及本次细化；succeeded空body |
+| withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及协议细化；succeeded空body |
 | disable-subject | stage-not-provided | 有效版本后跳过其余字段，非法版本为protocol-rejected |
 | restore-subject | stage-not-provided | 同上 |
 | end-subject | stage-not-provided | 同上 |
@@ -566,4 +566,4 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 ### 持续验证与替身
 
-所有测试从包主exports消费。纯codec、持续公开向量及客户端/服务端fixture承担协议层替身责任。本卡不提供业务provider替身，不新增 `./testing` 导出。SDK/server、真实持久化及CS完整旅程另由各自拥有者验证。
+所有测试从包主exports消费。纯codec、持续公开向量及客户端/服务端fixture承担协议层替身责任。本成员不提供业务provider替身，不新增 `./testing` 导出。SDK/server、真实持久化及CS完整旅程另由各自拥有者验证。

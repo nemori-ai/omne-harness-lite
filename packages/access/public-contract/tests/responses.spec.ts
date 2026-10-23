@@ -285,3 +285,56 @@ it('closes the remaining no-change/need-decision shapes and nonempty login list'
       .result.kind,
   ).toBe('unreadable')
 })
+
+it('requires a message ID for success while preserving uncorrelated common responses', () => {
+  const success = {
+    protocolVersion: 'governance-public/1',
+    outcome: 'succeeded',
+    body: successes['public-health'],
+  }
+  expect(
+    readGovernanceResponse({
+      bytes: bytes(success),
+      operation: 'public-health',
+      expectedMessageId: 'm',
+      limits,
+    }),
+  ).toEqual({ kind: 'unreadable', diagnostic: { code: 'field' } })
+  expect(
+    encodeGovernanceResponse({
+      operation: 'public-health',
+      response: success,
+      limits,
+    } as GovernanceResponseEncodeInput),
+  ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+  for (const outcome of ['protocol-rejected', 'stage-not-provided'] as const) {
+    const common = { protocolVersion: 'governance-public/1', outcome, body: {} } as const
+    const encoded = encodeGovernanceResponse({ response: common, limits })
+    expect(encoded.kind).toBe('encoded')
+    if (encoded.kind !== 'encoded') throw new Error('Expected valid common response')
+    expect(
+      readGovernanceResponse({
+        bytes: encoded.bytes,
+        operation: outcome === 'protocol-rejected' ? 'public-health' : 'disable-subject',
+        expectedMessageId: 'm',
+        limits,
+      }),
+    ).toEqual({ kind: 'unmatched' })
+  }
+})
+
+it('accepts a query organization success without an optional superior', () => {
+  const body = { organizationId, name: 'n', kind: 'team' }
+  const { wire, result } = response('query-organization', 'succeeded', body)
+  expect(result.kind).toBe('response')
+  if (result.kind !== 'response')
+    throw new Error('Expected organization response without a superior')
+  const encoded = encodeGovernanceResponse({
+    operation: 'query-organization',
+    response: result.response,
+    limits,
+  } as GovernanceResponseEncodeInput)
+  expect(encoded.kind).toBe('encoded')
+  if (encoded.kind !== 'encoded') throw new Error('Expected encoded organization response')
+  expect(JSON.parse(new TextDecoder().decode(encoded.bytes))).toEqual(wire)
+})

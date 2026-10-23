@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Packing, a fresh install, TypeScript and Node each run in a child process.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {

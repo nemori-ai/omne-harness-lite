@@ -8,7 +8,7 @@ Pure codecs for the `governance-public/1` protocol. Clients and server adapters 
 
 This package implements 34 governance request operations and recognizes four operations that this stage does not provide. [SPEC.md](SPEC.md) owns their behavior. [The public exports](src/index.ts) expose four functions and their input and result types. [Messages](src/messages.ts) associate each operation with its permitted outcomes and bodies.
 
-The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport. Identity and authorization retain those responsibilities. SDK and server-entry remain separate consumers with their own delivery obligations.
+The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport. Identity and authorization retain responsibility for authentication, authorization, and business operations. SDK and server-entry remain separate consumers with their own delivery obligations.
 
 ## Usage
 

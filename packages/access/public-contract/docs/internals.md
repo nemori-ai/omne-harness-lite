@@ -14,7 +14,7 @@
 | src/codec.ts | 四函数实现、公开参数防护、模型与wire转换、响应验证后匹配 |
 | src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |
 
-直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。锁文件只更新本成员importer及必要闭包，由同一实施者在根协调下串行维护。
+直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
 
 ## 关联读取
 

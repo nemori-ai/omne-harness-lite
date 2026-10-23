@@ -361,7 +361,6 @@ function convert(
   limits: JsonLimits,
 ): Converted | undefined {
   if (rule.kind === 'parameters') return parameters(input, direction, limits)
-  // Decode inputs are solely nodes produced by the strict reader, never caller-supplied trees.
   const node = direction === 'decode' ? (input as JsonValue | undefined) : undefined
   if (rule.kind === 'object')
     return convertObject(
@@ -466,7 +465,6 @@ function requestFromWire(
     ...(rule.proof ? { proof } : {}),
     ...(rule.tenant ? { actingTenant: tenant?.local } : {}),
   }
-  // The operation-indexed rule validated every field, including the provider-minted values.
   return { kind: 'request', request: request as GovernanceRequest }
 }
 

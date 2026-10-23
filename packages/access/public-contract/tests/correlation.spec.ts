@@ -103,3 +103,41 @@ it('rejects invalid UTF-8 and BOM without partial correlation', () => {
   })
   expect(id('\uFEFF{"messageId":"m","x":0,"x":1}')).toBeUndefined()
 })
+
+it.each([
+  '{"x":0,"x":0,"messageId":"m","nested":{"messageId":"nested"}}',
+  '{"nested":{"messageId":"nested"},"x":0,"x":0,"messageId":"m"}',
+  '{"x":0,"x":1e1,"messageId":"m"}',
+  '{ "x":0,"x":0,"messageId":"m"}',
+  '{\n"x":0,"x":0,"messageId":"m"}',
+])('preserves only the root ID through nested strings, numbers and whitespace: %s', text => {
+  expect(read(text)).toEqual({
+    kind: 'protocol-rejected',
+    response: {
+      protocolVersion: 'governance-public/1',
+      messageId: 'm',
+      outcome: 'protocol-rejected',
+      body: {},
+    },
+    diagnostic: { code: 'json' },
+  })
+})
+
+it('counts duplicate members before trusting a later root ID', () => {
+  const text = '{"x":0,"x":0,"messageId":"m"}'
+  expect(read(text, { ...limits, maxMembers: 3 })).toEqual({
+    kind: 'protocol-rejected',
+    response: {
+      protocolVersion: 'governance-public/1',
+      messageId: 'm',
+      outcome: 'protocol-rejected',
+      body: {},
+    },
+    diagnostic: { code: 'json' },
+  })
+  expect(read(text, { ...limits, maxMembers: 2 })).toEqual({
+    kind: 'protocol-rejected',
+    response: { protocolVersion: 'governance-public/1', outcome: 'protocol-rejected', body: {} },
+    diagnostic: { code: 'json' },
+  })
+})

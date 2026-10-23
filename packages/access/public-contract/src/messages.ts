@@ -389,7 +389,6 @@ export type GovernanceStageNotProvided = {
   readonly body: EmptyBody
 }
 export type GovernanceProtocolResult = GovernanceProtocolRejected | GovernanceStageNotProvided
-// Body is selected by both operation and outcome.
 export type BusinessBody<
   O extends GovernanceProvidedOperation,
   K extends BusinessOutcomes[O],
@@ -431,7 +430,6 @@ export type GovernanceEncodeResult =
   | { readonly kind: 'encoded'; readonly bytes: Uint8Array }
   | { readonly kind: 'invalid'; readonly diagnostic: GovernanceDiagnostic }
 
-// A distributive mapped union keeps the local operation and response correlated.
 export type GovernanceResponseEncodeInput<O extends GovernanceOperation = GovernanceOperation> = {
   readonly [K in O]: {
     readonly operation: K

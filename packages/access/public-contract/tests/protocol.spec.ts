@@ -315,3 +315,147 @@ it('demonstrates independent client and server consumption without business prov
   mkdirSync(evidence, { recursive: true })
   writeFileSync(evidence + '/demo.json', JSON.stringify({ accepted, refused, unmatched }, null, 2))
 })
+
+it.each(['{', '{"messageId":"m","x":0,"x":1}', '{"messageId":"m"} trailing'])(
+  'keeps malformed response JSON unreadable before correlation: %s',
+  text => {
+    for (const expectedMessageId of ['m', 'other'])
+      expect(
+        readGovernanceResponse({
+          bytes: new TextEncoder().encode(text),
+          operation: 'public-health',
+          expectedMessageId,
+          limits,
+        }),
+      ).toEqual({ kind: 'unreadable', diagnostic: { code: 'json' } })
+  },
+)
+
+it('checks response byte and structure budgets before matching the ID', () => {
+  const response = {
+    protocolVersion: version,
+    messageId: 'm',
+    outcome: 'succeeded',
+    body: { protocolVersion: version },
+  } as const
+  const encoded = bytes(response)
+  const exact = { ...limits, maxBytes: encoded.length, maxDepth: 2 }
+  for (const expectedMessageId of ['m', 'other']) {
+    expect(
+      readGovernanceResponse({
+        bytes: encoded,
+        operation: 'public-health',
+        expectedMessageId,
+        limits: exact,
+      }),
+    ).toEqual(expectedMessageId === 'm' ? { kind: 'response', response } : { kind: 'unmatched' })
+    for (const budget of [
+      { ...exact, maxBytes: encoded.length - 1 },
+      { ...exact, maxDepth: 1 },
+    ])
+      expect(
+        readGovernanceResponse({
+          bytes: encoded,
+          operation: 'public-health',
+          expectedMessageId,
+          limits: budget,
+        }),
+      ).toEqual({ kind: 'unreadable', diagnostic: { code: 'budget' } })
+  }
+})
+
+it.each([
+  [
+    'zero budget',
+    () => readGovernanceRequest({ bytes: bytes(health), limits: { ...limits, maxItems: 0 } }),
+  ],
+  [
+    'Uint16Array bytes',
+    () =>
+      readGovernanceRequest({
+        bytes: new Uint16Array(bytes(health)) as unknown as Uint8Array,
+        limits,
+      }),
+  ],
+  [
+    'proxied Uint8Array',
+    () => readGovernanceRequest({ bytes: new Proxy(new Uint8Array(), {}), limits }),
+  ],
+  [
+    'invalid operation',
+    () =>
+      readGovernanceResponse({
+        bytes: bytes({
+          protocolVersion: version,
+          messageId: 'm',
+          outcome: 'succeeded',
+          body: { protocolVersion: version },
+        }),
+        operation: 'not-an-operation' as 'public-health',
+        expectedMessageId: 'm',
+        limits,
+      }),
+  ],
+  [
+    'nonstring expected ID',
+    () =>
+      readGovernanceResponse({
+        bytes: bytes({
+          protocolVersion: version,
+          messageId: 'm',
+          outcome: 'succeeded',
+          body: { protocolVersion: version },
+        }),
+        operation: 'public-health',
+        expectedMessageId: 1 as unknown as string,
+        limits,
+      }),
+  ],
+] as const)('uses the fixed programming error for %s', (_name, call) => {
+  expect(call).toThrowError(
+    expect.objectContaining({ name: 'TypeError', message: 'Invalid governance codec arguments' }),
+  )
+})
+
+it.each([
+  ['nonplain model with own valid fields', () => Object.assign(Object.create({}), health)],
+  [
+    'hidden required message ID',
+    () => Object.defineProperty({ ...health }, 'messageId', { value: 'm', enumerable: false }),
+  ],
+])('rejects %s with a finite field diagnostic', (_name, model) => {
+  expect(encode(model())).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+})
+
+it('accepts a null-prototype model with its own valid fields', () => {
+  const result = encode(Object.assign(Object.create(null), health))
+  expect(result.kind).toBe('encoded')
+  if (result.kind !== 'encoded') throw new Error('Expected valid null-prototype model')
+  expect(readGovernanceRequest({ bytes: result.bytes, limits })).toEqual({
+    kind: 'request',
+    request: health,
+  })
+})
+
+it('rejects a forged Instant without leaking its provider exception', () => {
+  const response = {
+    protocolVersion: version,
+    messageId: 'm',
+    outcome: 'succeeded',
+    body: { invitationId: 'i', state: 'open', expiresAt: {} },
+  }
+  expect(
+    encodeGovernanceResponse({
+      operation: 'issue-member-invitation',
+      response,
+      limits,
+    } as Parameters<typeof encodeGovernanceResponse>[0]),
+  ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+})
+
+it('rejects a local request with the wrong protocol version', () => {
+  expect(encode({ ...health, protocolVersion: 'other' })).toEqual({
+    kind: 'invalid',
+    diagnostic: { code: 'field' },
+  })
+})
