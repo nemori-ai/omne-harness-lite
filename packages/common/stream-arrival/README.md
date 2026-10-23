@@ -10,6 +10,8 @@ A step belongs to one streaming delivery. It is not an inbound intake and it is 
 
 The package does not assign indexes, store a log, or carry usage and cost bodies. `judgeStreamArrival` checks that one step name and one index are present. It does not order steps. `assembleStream` folds one target's steps into a live assembly or an ended terminal. Index, repeat, and continuation rules are in Contracts. It does not reorder.
 
+The [public observation contract](#public-observation-contract) is an adopted extension under [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518). Its references, cursors, frames, and observation ports are not implemented or exported yet. The existing arrival and assembly contracts remain in force.
+
 ## Usage
 
 ```ts
@@ -63,6 +65,57 @@ The terminal of a `stopped`, `cancelled`, or `failed` end holds the closed parts
 [STREAM-T01](../../../docs/architecture/runtime/streaming-and-consumption.md#stream-t01) covers the `reasoning_state` part and `finish.replay`. A `reasoning_state` part has no append form either, and it only arrives whole: an open in replace mode, then a close that carries the whole part. An open in append mode is `mode`, and a fill between the open and the close is `mode`, the same as for `tool_result`. A close without `block` is `block` with `detail` `payload`, because the head has no payload. `judgePart` of message judges the part, so a part that has `toHuman` true, an empty payload, or bad `pairs` is `block` with the rejection of `judgePart` as `detail`. The sealed part must equal the head in `id` and `visibility`, and a part of another kind is `conflict`. The head holds no other key.
 
 `finish` may carry `replay: { scope, format }`, and no other key. A `replay` whose value is `undefined` counts as no `replay`, as in `judgeMessage`. `replay` must be a plain object whose own keys are exactly `scope` and `format`, with no accessor, and both values are text. Any other shape is `step` with `detail` `replay`, and the previous assembly stays. Whether the text is empty or too long is a rule of message, so it is judged when the message is made. When `finish` is accepted, the assembly writes `at` itself: the positions of the `reasoning_state` parts among the sealed parts, in order. It passes `{ id, role, blocks, replay: { scope, format, at } }` to `judgeMessage`. Without `replay` on the `finish` it passes `{ id, role, blocks }` only, and a message that has a state part is then `block` with `detail` `replay`. A message that has `thinking` and no state part may carry `replay`, and its `at` is empty. `judgeMessage` refuses a message that has neither as `block` with `detail` `replay`. It refuses a `replay` on a target that is not an assistant message as `block` with `detail` `extra`. A `stopped`, `cancelled`, or `failed` terminal keeps only the sealed parts, so the settling side writes `replay` itself when it makes the message. Usage and cost are not in `replay` or in any step.
+
+## Public observation contract
+
+This extension carries producer-confirmed projections. It does not replace arrival steps or interpret Model and Tool state machines. The common package imports neither domain. Each producer owns its snapshot, delta, and producer-specific observation end value. Model owns its [projection and current target](../../model/model-contract/SPEC.md#公共内容观察与当前目标).
+
+### References and cursors
+
+StreamProducer distinguishes model and tool. StreamId, StreamRef, and StreamCursor are opaque text identities. A reference binds the producer, the original producer call's canonical reference text, and one published stream identity. Its canonical encoding is versioned. A new dispatch or publication generation uses a new stream identity. An old reference never redirects to a successor.
+
+The envelope parser only selects a route. Reference validation checks the producer before delegating the call text to that producer's original codec. The codec validates the explicit tenant and returns canonical call text. The common layer does not redefine tenant, call, or admission. Validation distinguishes an invalid envelope, wrong producer, malformed call reference, and foreign tenant. Successful parsing proves neither existence nor current permission.
+
+A cursor binds the complete reference and a monotonic position within that stream. Cursor validation distinguishes invalid text from a cursor for another stream. Positions from different streams have no shared order. The producer advances the cursor for every confirmed projection change, including state changes without new content.
+
+### Frames and identity
+
+All frames use the `kind` discriminant. The adopted frame vocabulary has these branches:
+
+| Frame | Meaning |
+| --- | --- |
+| snapshot | A confirmed projection value and its cursor |
+| delta | A change value, its starting cursor `from`, and its ending cursor `cursor` |
+| gap | Lost continuity, with the last cursor `after` or null, and reason buffer or source-history |
+| ended | This observation ended, with a standard reason or a producer-specific end value |
+
+A snapshot's identity is its reference and cursor. A delta's identity is its reference, from, and cursor. Identical identities require identical content. Deltas C10 to C12 and C11 to C12 may have different values. Producers may combine confirmed changes, but each delta starts at the last cursor delivered to that observer.
+
+The standard ended reasons are source-closed, observer-closed, stale-stream, denied, unavailable, and capacity. Source-closed means that the source stream will not change again. It does not establish business completion. Producer-specific termination uses reason producer-ended and a typed value owned by that producer. StreamFrame and StreamObserver carry that value through the additional generic parameter E, defaulting to never. This branch carries a public producer end value, never a raw exception, Error object, or arbitrary log text. Common consumers end the observation without inferring stronger business facts from that value.
+
+The common layer does not enumerate Tool reasons or reinterpret its closed reason as a permanently unchanging source. A producer adapter preserves the meaning of its own public reasons. Producer-specific values obey the same byte limits and disclosure checks as other frames. Model may use E=never when standard reasons suffice. Tool's concrete end alias and adapter remain owned by Tool.
+
+### Snapshot and subscription boundary
+
+An observer first receives a confirmed snapshot, or an explicit end if the observation cannot start. The producer obtains snapshot C and registers the subscription for changes after C within one critical section. Reading a snapshot before an ordinary subscribe is insufficient because it can miss a confirmed change between them. Model publishes only after its save is confirmed.
+
+The observation request does not provide an after cursor for replay. After a gap or disconnection, the consumer requests a new current snapshot. The protocol promises neither durable delta replay nor every upstream chunk. A gap or ended frame is final. EOF without either frame is a connection failure, not a successful observation end.
+
+### Disclosure, capacity, and close
+
+Before each actual frame output, the source checks current permission, tenant, stream binding, and publication generation. If data preparation waits, the source checks again after preparation. The final integration output boundary checks its own disclosure permission too. Queued content and an earlier permission check do not authorize later output. Revocation removes the subscription, clears queued data, and ends with denied. Already disclosed content cannot be recalled.
+
+Providers declare finite limits for snapshot bytes, delta bytes, each observer's queued frames and bytes, observers per tenant, total memory, and queue residence time. Normative bytes use UTF-8 JSON with recursively sorted object keys, ordered arrays, and JSON string escaping. These limits do not measure actual heap overhead, which the provider bounds separately.
+
+When a queue limit is reached, the producer first removes the subscription and discards pending data, then emits one terminal gap. It cannot drop intermediate data and continue. An oversized snapshot ends with capacity. Limits also cover producer-specific end values.
+
+Abort and iterator return remove only this observation. They do not cancel producer work, acknowledge a result, or authorize result release. A business terminal and an observation end are separate facts.
+
+### Delivery and verification boundary
+
+The public observation ports must import Access from the public identity owner's sole entry. Candidate identity declarations must not be copied here. Those ports require an adopted, available identity contract and a verified consumer declaration closure. The pure reference and cursor work does not establish an available observation service.
+
+Conformance scenarios cover a commit between snapshot and registration, a state-only update, wrong producer or tenant, a foreign-stream cursor, and revocation after queuing. They also cover different from cursors with one ending cursor, a slow reader, an oversized snapshot, and EOF without a terminal frame. Pure codec tests and controlled observers cannot prove a real producer's atomic subscription boundary or actual disclosure checks. Runtime publication, identity integration, consumer refresh, and real adapters require their owners' integration evidence.
 
 ## Design
 

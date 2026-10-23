@@ -17,6 +17,12 @@
 
 行为及调用资格归 [SPEC](../SPEC.md)，消费路径归 [context](context.md)，对象关系归 [object-model](object-model.md)。
 
+### 已采用但尚未声明的增量
+
+[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。这些新增名字尚未进入本页的导出清单，不是现有可导入 API，不改变上文统计或旧实现的必需成员。
+
+receiver、observe 与 current 的完整公开声明及实际导入依赖公共身份唯一源，启用条件归[交付边界](../SPEC.md#推送与公共观察的交付边界)。本页不复制候选 Access 或用拟议签名替代实际源码。真实 Evidence adapter、Agent 内部保存映射和 Tool 适配不由本包声明页补造。
+
 ## 能力边界
 
 [行为与约束](../SPEC.md#342-能力边界)。

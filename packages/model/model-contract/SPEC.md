@@ -4,6 +4,8 @@
 
 本页拥有 Model 领域共同的非类型行为。领域契约的已接受范围以上文为准，pi-ai 提供者细化沿组架构的采用范围执行；源码导出和运行验证分别交付。具体执行函数归 [model 实现规格](../model/SPEC.md)，Cordis 定义及登记协议归 [框架契约规格](../model-cordis-contract/SPEC.md)。
 
+[结果推送与保存](#结果推送与保存)、[公共内容观察与当前目标](#公共内容观察与当前目标)及其[交付边界](#推送与公共观察的交付边界)采用 [#682 r2 的本域决定](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518)。这些是已采用的新增协议要求，尚不表示已有接收、观察或当前目标查询实现。现有公开声明仍以 [public-api](docs/public-api.md)所链接源码为准。
+
 ## 能力与契约拥有者
 
 本成员提供模型档案和模态能力依据、完整请求执行、原结果查询与保管、控制、ACK、清理和实际费用事实。共同契约供全部模型提供者及消费者使用。独立消费以显式依赖满足存储、秘密取得及授权前提，无须启动 Cordis 或任何调用方的推进循环。
@@ -88,7 +90,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 可增长的文字、思考、工具参数及语音，以首片实际内容作为首 token。图片和文件等整交块以完整交付作为首 token。响应头、心跳、空开块及单纯状态通知都不算。不能只识别文本，从而重发已交语音或工具参数的回复。无权取得或上游未提供的思考内容不补造。
 
-新观察者先取当前在途快照，再取后续增量。快照不是完整增量史，不表示已收场或已消费。未收齐工具参数不得作为执行指令。模型完成后，工具建议仍须经过实际动作准入及工具契约。
+新观察者先取当前在途快照，再取后续已确认更新。现有 Observation.changed 交完整快照，新增公共内容观察才交其独立 delta。快照不是完整增量史，不表示已收场或已消费。未收齐工具参数不得作为执行指令。模型完成后，工具建议仍须经过实际动作准入及工具契约。
 
 输出限额正常截断按真实完成和相应提醒处理。上游故障、中断或自身失联按真实原因收场。已交部分按其有效保留规则处理，不能伪造完整消息；工具执行及用户消息格式归原拥有者。
 
@@ -277,7 +279,7 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 
 [本节设计定义](docs/public-api.md#普通调用面与实例观察)。
 
-`Snapshot` 是到 cursor 为止的完整在途快照。第一项一定是 snapshot 或 ended；后续 changed 给出更新快照，不宣称重放每个上游分片。游标单调，重连通过原 call 取得新快照，不能把旧实例流嫁接到后继。替换模式仅改变该 index，封块后不接受填充。Model 将传输事实映射为 common/stream-arrival 的 open/fill/close/trim/finish；共享序号、重复与续接规则继续有效，公开快照不另造业务终态。
+现有 `ModelHandle.observe` 的 `Snapshot` 是到 cursor 为止的完整在途快照。第一项一定是 snapshot 或 ended；后续 changed 给出更新快照，不宣称重放每个上游分片。游标单调，重连通过原 call 取得新快照，不能把旧实例流嫁接到后继。替换模式仅改变该 index，封块后不接受填充。Model 将传输事实映射为 common/stream-arrival 的 open/fill/close/trim/finish；共享序号、重复与续接规则继续有效，公开快照不另造业务终态。新增公共内容观察的 delta 另按[公共内容观察与当前目标](#公共内容观察与当前目标)，不改变这里 changed 的完整快照含义。
 
 增长中的工具参数不能变成 `ToolSuggestion`。只有完整封块、JSON 验证通过且实际模型收场允许使用时，消费者才得到可交 Tool 准入的建议。图片/文件只在完整且可恢复时作为 sealed 出现。语音片段的 value 是固定 representation 所声明编码，不能由观察者猜文本。首内容判定在原始已接受内容上完成，不能因快照合并而漏掉曾经实际到达的内容。
 
@@ -433,6 +435,8 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 本节是凭据纯契约的行为条款：引用、查询、存在性、五种解析结果、持有者语义和端口。保管格式、轮换协议与磁盘布局不在本包，归保管实现。凭据秘密不进入请求、调用记录、诊断、日志、错误消息和遥测，这些只携带引用。
 
+本节保留现有 CredentialPort 与 SendFace 消费形状。强制 access、真实秘密绑定及最终发送围栏的[迁移义务](#推送与公共观察的交付边界)另行适用；现有类型不证明调用方已受可靠核验，[Cordis 凭据服务](../model-cordis-contract/SPEC.md#凭据服务)所述自报资格缺口尚未解决。
+
 `CredentialId` 是由人命名的不透明身份，在凭据保管的配置路径上命名，Model 不铸造它。它无前缀，误混由类型阻止。`decodeCredentialId` 返回 `Outcome`，不抛异常，按 `type`、`empty`、`length`（超过 `MODEL_IDENTITY_MAX_LENGTH`，即 256 个 UTF-16 码元）、`character`（含任一 Unicode 空白、控制字符、格式字符或孤立代理码元）的顺序返回第一个失败，不裁剪、不折叠大小写。成功只证明格式，不证明存在或归属。
 
 引用由 `CredentialId`、租户 `TenantId` 和用途组成。用途只有 `MODEL_SEND`。持有引用不授予读取或发送资格。`CredentialQuery` 的用途是普通字符串，用途不符的查询，`present` 与 `resolve` 都返回 `denied`。
@@ -506,6 +510,122 @@ stateDiagram-v2
 
 类型消费和序列证据见[消费与反例](docs/context.md)。ConsumerRef、工具声明及共同提交边界须由域外的工作与编排的具体消费验证。Cordis 实例宿主、调用者 fiber 登记与换代须有真实机制证据。当前公开形状、协议和类型通过都不证明生产持久性、授权提供者或网络围栏已经实现。
 
+
+## 结果推送与保存
+
+本协议由 Model 生产者向受理时冻结的 consumer owner 推送完整、有界的结果。接收方保存后返回 saved，Model 再沿原 retained、handoff 和 operation query 协议取得有效 ACK。saved 是原 consumer owner 的保管事实回执，不在 Model 建立第二份保管账本。接收地址不替代 `ConsumerRef`，重投和恢复不重新选择 owner。
+
+### 交付身份与冻结载荷
+
+交付键、载荷和回执分别表达结果与账目，不使用随机 deliveryId，也不另复制租户或调用身份。
+
+| 交付 | 稳定键 | 冻结载荷 |
+| --- | --- | --- |
+| result | 规范 `ModelInvocationRef` 与 `Settlement.version`，以 result 分支区分 | 完整 `ConsumerRef`、真实 `Settlement`、全部有序 `ResultPart` 及冻结时全部 dispatch 的账目快照 |
+| account | 原 `ModelInvocationRef`、`DispatchId` 与 `CallAccount.revision`，以 account 分支区分 | 完整原 `ConsumerRef` 与该 dispatch 的 `CallAccount` |
+
+结果冻结时，每个 dispatch 都有账目快照项。尚无报告明确为 null，不能填零。后到更新不修改原 result envelope，而是独立 account 交付。每个调用先确认 result saved，再交付其后的 account。生产者直到有效交接 ACK 成立都保留原键及完整冻结载荷，使接收提交或回包未知时能够按原输入重投；saved 本身不授权先删除这些输入。
+
+接收边界核原调用、引用租户与本次访问租户相等、完整冻结 consumer，以及 key 与正文版本一致。所有引用、结果项、账目和证据复用各自唯一公开定义，不导入 Agent 内部类型。一次 push 只交付一个 envelope，本协议不增加 chunk、manifest 或分页 push。
+
+账目 subject 仍为 `model_call` 加原 call。上游可信事件的去重仍按原 supplier adoption、dispatch 和 event；输出 account 的 dispatch/revision 键不替代上游事件身份。同一 dispatch 的相同 revision 异内容是冲突，接收方核一致后才采用修订。更新替换该 dispatch 的旧修订，不能累计修订金额；不同 dispatch 分别保留真实费用。更正沿账目拥有者协议使用新事件和更大 revision，不在这里另定更正关系。
+
+### saved 的合取事实与证据
+
+接收方只有同时证实下列事实才可以返回 saved：
+
+1. 完整冻结载荷已经独立、可靠保存，或具有不依赖 Model 待清理唯一副本的可恢复引用。
+2. 原消费关联及消费责任已经成立，指向原位置、用途和合法承接者。
+3. 原 key、完整 consumer 与载荷内容一致，去重事实已经成立。
+4. 必要保留条件、待交付责任及删除保护继续有效。
+
+saved 回执绑定输入 key，并携带一个 `DurableEvidence`。证据 owner 必须是冻结的 `consumer.owner`，定位上述合取事实。可信证据适配器核原租户、调用、结果版本或账目键、完整 consumer 和位置、载荷一致性、期限、当前责任及真实耐久状态。单独材料回执、普通提交成功、临时 URL 或旧读取句柄都不能通过改名或强制转换成为该证据。证据摘要算法继续由原 owner 的 evidence 采用规定；本协议不另规定 payload commitment 编码。
+
+Agent 接收路径复用其材料与原消费责任，其他消费者拥有自己的事实。跨存储时先保管材料，再在责任拥有者的共同提交边界建立原关联与责任，不声称跨 owner 一次原子提交。稳定材料身份、原 operation 及其映射由接收 owner 维护，不能仅留在易失 runtime 或可替换 checkpoint 中。
+
+### 未知保存的认回
+
+| 可证实状态 | 接收方与生产者的后续责任 |
+| --- | --- |
+| 材料已保存，责任确定未提交 | 保留材料，合法保管者沿原 key 和 operation 补齐责任，尚不能返回 saved |
+| 材料保存回包未知，或材料已保存而责任提交未知 | 保留原完整输入，沿原材料身份和 operation 认回；不能另造接管或第二份责任 |
+| 责任成功回包未知 | 查原 operation，并重读材料与原责任关联；committed revision 不代替完整 receipt |
+| 同 key 同内容重投 | 每次核当前资格后认回原事实，不重复责任、计费或逻辑额度 |
+| 同 key 异内容 | 返回 conflict，原保存事实与责任保持 |
+
+只有权威排除旧写与延迟提交，才可沿原输入重试确定未提交部分。一次新的 denied、unavailable 或取消不能消除早先提交 unknown，也不能证明对方从未保存。旧 execution 已 ended、detached 或 superseded 时，由当前合法保管后继接续原位置和责任，不要求旧推进资格，不重开业务。
+
+### saved 到 ACK 及清理
+
+Model 核 result saved 的 key 与原冻结结果相同后，固定专用 Model ACK operation，以原 evidence 进入 retained handoff，不复用接收方的 operation。account saved 只确认该账目修订，不能成为 result retained 的证据或授权结果清理。已有 inspect 用于确认 Model 交接，不新增 saved 查询账本。
+
+ACK 未知时保留原 operation、引用、result、evidence 和完整参数，沿原 query 认回。committed revision 不是 `AckReceipt`；须重读权威业务状态或以原方法和参数认回原回执。未知期间不清理，只有明确未提交才按原输入重试。有效 ACK 已成立而清理失败时，维持 acknowledged 与 pending 或 blocked，Model 继续原清理，不重建结果、不撤回确认。
+
+接收方不能在返回 saved 后立即删除材料。原业务、保管及待交付责任继续生效；ACK 未知、查询失权或等待超时都不是删除许可。原协议的已准入读取、真实在途写及未知写保护继续有效。
+
+### 失败、取消与资格
+
+新增接收协议区分 denied、invalid、conflict、backpressured、unavailable、cancelled-before-accept 和 outcome-unknown。invalid 指明字段与原因。backpressured 指明 records、bytes、attachments 或 in-flight，unavailable 指明依赖。后两者只表示确定未接管；可能提交时必须保留 outcome-unknown，不能以普通失败盖过未知。
+
+signal 只停止本次等待。仅在确定接管前未提交时返回 cancelled-before-accept；已经发生保存则返回可证实的 saved 或 unknown。取消 Model 调用不删除已产生结果、真实费用或晚到账目。
+
+push、重投、证据核验、handoff 与 dispatches 分别核当前资格，不泄漏另一租户的存在性。推进资格撤销不自动撤销合法保管后继的恢复资格；后继资格由身份与责任拥有者明确，不能用系统身份推导无限权限。
+
+### 晚到账目与有界保管
+
+无活体 runtime、业务 execution 终态或正文释放都不解除原保管与账目责任。晚到账目保存和交付待办必须共同成立，每个已接纳修订保留原事实及送达状态，不静默合并未交修订。正文释放后仍扫描和恢复账目待办。dispatches 只恢复最新账目，不替代全部中间事件及待交付事实。
+
+结果沿 `ResultCapacity` 的 bytes、blocks 与 attachmentBytes 受限。规范字节计量递归排序对象键、保留数组顺序，按 JSON 字符串转义编码为 UTF-8；必要附件按实际内容计。最终 envelope 元数据与账目条数同样必须有可计算的有限上限。规范字节量不代表真实堆或磁盘开销，提供者另限其实际资源。
+
+生产者限制每租户及全局的未确认结果数、账目修订数与字节、同时 push 数。受理前预留结果额度，接纳晚账前预留账目额度。重试等待即使不占连接，仍占待办。接收方在接管前一起预留材料、责任和去重额度；同 key 认回不重复占逻辑额度。租户隔离需要份额预留，不能只靠可能被单租户耗尽的共享桶。
+
+期限只能触发报告、调整或停止新增，不能删除未交接唯一副本。来源仍可能重投且责任未关闭时，不回收去重依据。容量满时拒绝新接管，不删除旧责任腾位。晚报告在接管前因容量拒绝时，提交者继续保管可信来源；无法背压或保留被拒报告的上游不满足无丢失组合前提。有限空间不承诺无限接纳。
+
+双方的诊断分别记录能证实的主体、原工作、key、attempt、冻结 consumer 及 ACK 关联。attempt 不是业务 key。不记录秘密、正文或 bearer，不从无响应推断未保存。记录失败显式报告诊断缺口，不回滚已经成立的业务事实。
+
+## 公共内容观察与当前目标
+
+公共引用、游标、帧及观察生命周期由 [stream-arrival 的公共观察契约](../../common/stream-arrival/README.md#public-observation-contract)拥有。Model 只定义自己的投影和目标选择，不在公共层复制调用引用、状态机或业务终局。这里的目标观察独立于现有 `ModelHandle.observe`。
+
+### Model 投影及差分
+
+每条内容流绑定原 invocation、dispatch、发布代次和固定投影版本。新 dispatch 或新发布代次使用新 StreamId。旧引用保持原身份，不能接到后继。dispatch 前没有这条内容流，调用等待状态从原调用读面取得。
+
+Model 快照包含 dispatch 及现有 `Snapshot`。Model delta 包含 outputCursor、`CallState` 和发生变化或新增 index 的累计 `VisibleBlock`。没有出现在 delta 的块保持原值，已有顺序不变，新 index 按原顺序追加。sealed 内容不可改，growing 的 mode 与 content 不可改；跨 dispatch 的 diff 或 apply 必须拒绝。对合法同流投影，向 S0 应用 diff(S0, S1) 必须得到 S1。
+
+公共 cursor 覆盖全部已确认投影变化。state-only 更新即使不改变 `OutputCursor`，也推进公共 cursor，不能直接拿 OutputCursor 充当公共 cursor。流 ended 只终止这次观察，调用结局仍从权威 CallState 或结果读取。
+
+Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C 之后订阅在同一临界区完成，不能先读再普通 subscribe。可以合并已确认变化；每个 delta.from 必须是该观察者最后交出的 cursor。公共帧核权、队列限额与终止规则同样适用，不承诺逐上游分片或持久 replay。
+
+### current 的权威含义
+
+当前目标查询是独立可加能力，查询结果同时给出原调用权威 `CallState` 与当前观察目标，来自同一确认边界。current 为 null 只说明该边界没有可公布的内容观察目标。不区分从未发布与退役无后继；两者都显示 CallState，不尝试观察不存在的 ref，并按有界刷新策略再查。
+
+null 不表示调用不存在、未执行、终局或永久没有目标。定位和读取失败保留原失败分支，不折成成功 null。已终局调用仍可有可观察保存投影，不能只因终局而清空目标。历史结果、晚账和保管责任不由 current 决定。
+
+只有新投影已确认、快照与订阅入口就绪后才公布 ref。旧发布退役后立即不再作为当前目标返回，新发布就绪前允许 null 窗口。查询结果不是可达性租约；随后观察失效时消费者重新查询，目标变化时取得新 ref 的快照，不能沿用旧 cursor。
+
+消费者串行查询，或只应用最新已发请求的响应，避免旧响应晚到覆盖新目标。本协议不增加 target revision，也不保证每次短暂切换都被观察。旧 ref 失效后明确结束，绝不转向后继。实际发布及接入有界刷新由迁移实现承担，不能据当前声明声称已经具备。
+
+## 推送与公共观察的交付边界
+
+结果键与载荷、公共 ref/cursor、Model diff/apply 是可独立增加的纯值内容。接收、observe 及 current 的完整公开声明必须从公共身份唯一入口消费已采用且可用的声明；不得复制候选 Access。公开声明须核对实际身份版本、采用范围和依赖闭包。来源撤销或形状改变时，暂停依赖声明及入口并重新核对租户和 codec 消费。
+
+M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
+
+M-5 负责真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord、宿主和 Agent 消费闭包迁移。正文清理不再使晚账退出恢复扫描。Agent 材料、Journal、Session 的稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
+
+公共观察的真实发布、目录/current 查询与显示刷新、Tool 适配及其投影一致性由相应提供者和接入拥有者实现验证。Model 不定义 Tool 的完整 reducer、foreground 规范化或其终止别名。
+
+凭据继续演化同一个 CredentialPort。M-5 同步强制 access、删除旧 SendFace、迁移 Supplier/失败联合和全部真实消费者，并兑现当前资格与实际秘密绑定。真实 provider/assembly 将资格变化、原工作失效、换代与发送 S 共同排序，在围栏内最后重核、解析相符秘密并同步 start，中间不插入 await。异步预核或纯事实裁定不能替代最后围栏。Settings 承担其实际秘密及绑定事实，Model 核本次发送匹配。组织来源新政策未在本协议采用，不新增组织共用秘密权利。
+
+### 持续验证义务
+
+结果协议须覆盖保存后丢回包、材料与责任提交之间崩溃、同 key 重投及异内容、account/result 回执分离、取消与撤权、ACK 未知、清理失败、正文释放后晚账、容量及租户份额。状态探索至少区分源仍保管、材料已存、原责任与去重成立、saved 已观察、ACK 未知或成立、清理及 late-account pending。检查唯一副本不先释放、saved 合取不缺项、同 key 不增加第二责任、正文清理不消晚账待办。模型须说明有限范围、不可达与公平前提，并以故意破坏上述规则的反例核验检测能力。
+
+观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 和 Agent wait 的消费闭包。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
+
+纯值、类型探针、离线替身与有限模型只能证明各自范围。真实合取保存、原操作认回、持久晚账恢复、生产者临界区、每帧披露及真实发送围栏仍需对应提供者及完整组合验证。当前 testing evidence 不成为生产 Evidence adapter，内存替身不证明磁盘耐久、跨进程互斥或无界最终完成。
 
 ## 档案、模态与转换行为
 
