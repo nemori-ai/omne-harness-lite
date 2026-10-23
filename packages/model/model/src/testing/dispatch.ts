@@ -5,6 +5,9 @@ import { decodeDispatchId } from '@omne-harness/model-contract'
 import type {
   ModelCommands,
   FixedModelRequest,
+  MaterializationReceipt,
+  Supplier,
+  Termination,
   RetryDecision,
   ModelFailure,
   Revision,
@@ -25,6 +28,36 @@ import {
 } from './state.ts'
 import { cursor, digest, invalid, operation } from './value.ts'
 
+/** The receipt names the dispatch supplier and the request representation, in valid shapes. */
+function receiptBinds(
+  receipt: MaterializationReceipt,
+  supplier: Supplier,
+  request: FixedModelRequest,
+): boolean {
+  return (
+    digest(receipt.supplier) === digest(supplier.adoption) &&
+    digest(receipt.representation) === digest(request.representation) &&
+    /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
+    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat))
+  )
+}
+/**
+ * Records an actual terminal that arrived late. Content that does not form a message leaves the
+ * logical terminal open; reasoning state without a known replay range refuses the whole fact, as
+ * at the finish.
+ */
+function lateTerminal(
+  call: MemoryCall,
+  dispatch: MemoryDispatch,
+  actual: Termination,
+): ModelFailure | null {
+  dispatch.record = { ...dispatch.record, terminal: structuredClone(actual) }
+  if (dispatch.logicalTerminal !== null) return null
+  const completion = completionOf(call, dispatch, actual)
+  if (completion.kind === 'replay-unknown') return completion.failure
+  if (completion.kind === 'formed') dispatch.logicalTerminal = structuredClone(actual)
+  return null
+}
 function dispatchOf(call: MemoryCall, id: string): MemoryDispatch | ModelFailure {
   return call.dispatches.find(d => d.record.dispatch === id) ?? invalid('dispatch', 'not-found')
 }
@@ -131,12 +164,7 @@ export function dispatchCommands<P>(
       !call.request
     )
       return { failure: invalid('dispatch', 'already-materialized-or-sent') }
-    if (
-      digest(input.receipt.supplier) !== digest(dispatch.record.supplier.adoption) ||
-      digest(input.receipt.representation) !== digest(call.request.representation) ||
-      !/^[0-9a-f]{64}$/u.test(input.receipt.payloadDigest) ||
-      (input.receipt.replayFormat !== undefined && !isReplayTag(input.receipt.replayFormat))
-    )
+    if (!receiptBinds(input.receipt, dispatch.record.supplier, call.request))
       return { failure: invalid('receipt', 'binding') }
     const adapter = store.adapter(call)
     if ('kind' in adapter) return { failure: adapter }
@@ -519,15 +547,8 @@ export function dispatchCommands<P>(
               })
               if (failure) return { failure }
             } else {
-              dispatch.record = { ...dispatch.record, terminal: structuredClone(input.fact.actual) }
-              if (dispatch.logicalTerminal === null) {
-                // Content that does not form a message leaves the logical terminal open. Reasoning
-                // state without a known replay range refuses the whole fact, as at the finish.
-                const completion = completionOf(call, dispatch, input.fact.actual)
-                if (completion.kind === 'replay-unknown') return { failure: completion.failure }
-                if (completion.kind === 'formed')
-                  dispatch.logicalTerminal = structuredClone(input.fact.actual)
-              }
+              const failure = lateTerminal(call, dispatch, input.fact.actual)
+              if (failure) return { failure }
             }
             dispatch.events.set(event, fingerprint)
             const revision = bump(call)
