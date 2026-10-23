@@ -537,7 +537,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 1. 一个 `account` 事实，`event` 为 `usage`，值是账目报告 `CallAccountReport`：
    - `usage` 是 hook 返回的 `items`；
-   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `supplier`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`；
+   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `billable`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`。网关按该成员扣除额度，所以来源是 `billable`，不是 `supplier`；
    - `trimmed` 为 `{ state: 'unknown', unit: 'token' }`；
    - `place` 为 `openrouter/<第一帧报告的 provider>`；
    - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
