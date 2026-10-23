@@ -4,12 +4,14 @@ it('publishes the first authorization shapes: the decision, the evidence, the pe
   const root = (await import('@omne-harness/authorization')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual(
     [
+      'noArguments',
       'PERMIT_ID_MAX_LENGTH',
       'canonicalText',
       'decideAdmission',
       'decisionEvidence',
       'decodePermitId',
       'digestOf',
+      'effectiveArgumentsOf',
       'inMemoryPermitLedger',
       'operationEquals',
       'referenceAdmissionCheck',

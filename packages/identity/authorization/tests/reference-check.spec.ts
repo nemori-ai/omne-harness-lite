@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import {
   inMemoryPermitLedger,
+  noArguments,
   referenceAdmissionCheck,
   type AdmissionCheck,
+  type PermitLedger,
   type PermitRef,
 } from '@omne-harness/authorization'
 import {
@@ -83,12 +85,34 @@ describe('the reference admission check', () => {
       standing: throwingStanding,
       permits: null,
     })
-    for (const check of [verifierDown, standingDown]) {
-      const decision = await check.check(input)
-      expect(decision.kind).toBe('unavailable')
-      if (decision.kind !== 'unavailable') return
-      expect(decision.diagnostic).not.toContain('secret detail')
+    const expected = [
+      [verifierDown, 'the principal verifier threw an exception; its message is not reported'],
+      [standingDown, 'the tenant standing source threw an exception; its message is not reported'],
+    ] as const
+    for (const [check, diagnostic] of expected) {
+      await expect(check.check(input)).resolves.toEqual({ kind: 'unavailable', diagnostic })
     }
+  })
+
+  it('answers unavailable when the permit ledger throws on a presented permit', async () => {
+    const { principals, table } = installed()
+    table.join(adminTenant(), DEFAULT_ROLES.superAdmin)
+    const throwingLedger: PermitLedger = {
+      lookup: () => Promise.reject(new Error('secret detail')),
+      consume: () => Promise.reject(new Error('secret detail')),
+    }
+    const check = referenceAdmissionCheck({
+      verifier: principals.authority.verifier,
+      standing: table.source,
+      permits: throwingLedger,
+    })
+    const permit: PermitRef = { tenant: adminTenant(), permit: 'pmt_1' as never }
+    await expect(
+      check.check(readHistoryInput(principals.actingForAdmin, adminTenant(), { permit })),
+    ).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the permit ledger threw an exception; its message is not reported',
+    })
   })
 
   it('denies a hand-built principal of the right shape', async () => {
@@ -113,6 +137,7 @@ describe('the reference admission check', () => {
       tenant: adminTenant(),
       operation: READ_HISTORY,
       target: SESSION_TARGET,
+      arguments: noArguments(),
       granted: { owner: 'hitl', record: 'card_1', revision: '1', digest: 'd' },
     })
     if (grant.kind !== 'granted') throw new Error('fixture')
@@ -124,7 +149,7 @@ describe('the reference admission check', () => {
     const decision = await check.check(
       readHistoryInput(principals.actingForAdmin, adminTenant(), { permit: grant.grant.ref }),
     )
-    expect(decision.kind).toBe('unavailable')
+    expect(decision).toEqual({ kind: 'unavailable', diagnostic: 'no permit ledger is installed' })
   })
 })
 
@@ -134,6 +159,7 @@ describe('a permit through the reference check', () => {
       tenant: adminTenant(),
       operation: READ_HISTORY,
       target: SESSION_TARGET,
+      arguments: noArguments(),
       granted: { owner: 'hitl', record: 'card_1', revision: '1', digest: 'd' },
     })
     if (grant.kind !== 'granted') throw new Error('fixture permit was not granted')
@@ -160,18 +186,36 @@ describe('a permit through the reference check', () => {
     expect(withoutPermit.kind).toBe('allowed')
   })
 
-  it('denies a permit of another tenant without looking it up under that tenant', async () => {
-    const { principals, table, permits, check } = installed()
+  it('denies a permit of another tenant without consulting the ledger', async () => {
+    const { principals, table, permits } = installed()
     table.join(adminTenant(), DEFAULT_ROLES.superAdmin)
     const permit = await grantedRef(permits)
-    const foreign = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+    let lookups = 0
+    const counting: PermitLedger = {
+      lookup: input => {
+        lookups += 1
+        return permits.ledger.lookup(input)
+      },
+      consume: input => permits.ledger.consume(input),
+    }
+    const check = referenceAdmissionCheck({
+      verifier: principals.authority.verifier,
+      standing: table.source,
+      permits: counting,
+    })
+    const sameTenant = readHistoryInput(principals.actingForAdmin, adminTenant(), {
       permit: { tenant: principals.actingFor(adminTenant()).tenant, permit: permit.permit },
     })
-    expect((await check.check(foreign)).kind).toBe('allowed')
+    expect((await check.check(sameTenant)).kind).toBe('allowed')
+    expect(lookups).toBe(1)
     const otherTenant = { ...permit, tenant: memberTenant() }
     const decision = await check.check(
       readHistoryInput(principals.actingForAdmin, adminTenant(), { permit: otherTenant }),
     )
     expect(decision).toMatchObject({ kind: 'denied', reason: 'permit-mismatch' })
+    expect(lookups).toBe(1)
+    const noPermit = await check.check(readHistoryInput(principals.actingForAdmin, adminTenant()))
+    expect(noPermit.kind).toBe('allowed')
+    expect(lookups).toBe(1)
   })
 })

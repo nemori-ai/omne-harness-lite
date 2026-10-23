@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { TenantStandingReading } from '@omne-harness/identity'
 import {
+  noArguments,
   decideAdmission,
   digestOf,
+  effectiveArgumentsOf,
   type AdmissionDecision,
   type AdmissionFacts,
   type PermitLookup,
@@ -47,6 +49,7 @@ function permitLookupFor(
     ref: input.permit,
     operation: input.operation,
     target: input.target,
+    arguments: input.arguments,
     granted: { owner: 'hitl', record: 'card_1', revision: '1', digest: 'd' },
   }
   if (state === 'open') return { kind: 'found', grant, state: { kind: 'open' } }
@@ -74,6 +77,7 @@ describe('decideAdmission: allowed', () => {
     expect(decision.basis.standing?.kind).toBe('member')
     expect(decision.basis.operation).toEqual(READ_HISTORY)
     expect(decision.basis.target).toEqual(SESSION_TARGET)
+    expect(decision.basis.arguments).toEqual(noArguments())
     expect(decision.evidence.owner).toBe('authorization')
     expect(decision.evidence.record).toBe('admission/session/read-history')
     expect(decision.evidence.revision).toBe(decision.basis.standing?.evidence.revision)
@@ -110,6 +114,27 @@ describe('decideAdmission: allowed', () => {
   })
 })
 
+describe('decideAdmission: the arguments', () => {
+  it('keeps the arguments digest in the basis, and the evidence digest changes with it', async () => {
+    const facts = await allowedFacts()
+    const withA = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+      arguments: effectiveArgumentsOf({ command: 'ls' }),
+    })
+    const withB = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+      arguments: effectiveArgumentsOf({ command: 'rm -rf /' }),
+    })
+    const a = decideAdmission(withA, facts)
+    const b = decideAdmission(withB, facts)
+    expect(a.kind).toBe('allowed')
+    expect(b.kind).toBe('allowed')
+    if (a.kind !== 'allowed' || b.kind !== 'allowed') return
+    expect(a.basis.arguments).toEqual(withA.arguments)
+    expect(b.basis.arguments).toEqual(withB.arguments)
+    expect(a.basis.arguments.digest).not.toBe(b.basis.arguments.digest)
+    expect(a.evidence.digest).not.toBe(b.evidence.digest)
+  })
+})
+
 describe('decideAdmission: the principal', () => {
   it('denies a principal the verifier rejected, before any standing is read', async () => {
     const input = readHistoryInput(principals.actingForAdmin, adminTenant())
@@ -125,6 +150,19 @@ describe('decideAdmission: the principal', () => {
     expect(decision.evidence.digest).toBe(
       digestOf({ kind: 'denied', reason: 'untrusted-principal', basis: decision.basis }),
     )
+  })
+
+  it('denies when the verifier verified another principal than the one in the access', async () => {
+    const input = readHistoryInput(principals.actingForAdmin, adminTenant())
+    const other = principals.actingFor(adminTenant())
+    expect(other).not.toBe(principals.actingForAdmin)
+    const decision = decideAdmission(input, {
+      ...(await allowedFacts()),
+      principal: { kind: 'verified', principal: other },
+    })
+    expect(decision).toMatchObject({ kind: 'denied', reason: 'untrusted-principal' })
+    if (decision.kind !== 'denied') return
+    expect(decision.basis.principal).toBeNull()
   })
 
   it('is unavailable when the verifier is unavailable, never allowed', async () => {
@@ -178,12 +216,16 @@ describe('decideAdmission: the standing', () => {
   })
 
   it.each([
-    ['not read', null],
-    ['unavailable', { kind: 'unavailable', diagnostic: 'directory down' } as const],
-  ])('is unavailable when the standing is %s', async (_case, standing) => {
+    ['not read', null, 'the standing of the tenant was not read'],
+    [
+      'unavailable',
+      { kind: 'unavailable', diagnostic: 'directory down' } as const,
+      'directory down',
+    ],
+  ])('is unavailable when the standing is %s', async (_case, standing, diagnostic) => {
     const input = readHistoryInput(principals.actingForAdmin, adminTenant())
     const decision = decideAdmission(input, { ...(await allowedFacts()), standing })
-    expect(decision.kind).toBe('unavailable')
+    expect(decision).toEqual({ kind: 'unavailable', diagnostic })
   })
 
   it('denies a tenant of another organization that was never a member, with the same reason', async () => {
@@ -236,19 +278,48 @@ describe('decideAdmission: the permit', () => {
     expect(decision).toMatchObject({ kind: 'denied', reason: 'permit-unknown' })
   })
 
-  it('denies a permit granted for another operation or target', async () => {
+  // The rows are thunks: product code must not run while the suite is collected.
+  it.each([
+    ['another operation name', () => ({ operation: { owner: 'session', name: 'append' } })],
+    ['another operation owner', () => ({ operation: { owner: 'agent', name: 'read-history' } })],
+    ['another target key', () => ({ target: { owner: 'session', kind: 'session', key: 'ses_2' } })],
+    ['another target kind', () => ({ target: { owner: 'session', kind: 'run', key: 'ses_1' } })],
+    ['another target owner', () => ({ target: { owner: 'agent', kind: 'session', key: 'ses_1' } })],
+    ['rewritten arguments', () => ({ arguments: effectiveArgumentsOf({ command: 'rm -rf /' }) })],
+  ])('denies a permit granted for %s with permit-mismatch', async (_case, granted) => {
     const input = readHistoryInput(principals.actingForAdmin, adminTenant(), {
       permit: permitRef(),
+      arguments: effectiveArgumentsOf({ command: 'ls' }),
     })
     const other = readHistoryInput(principals.actingForAdmin, adminTenant(), {
       permit: permitRef(),
-      operation: { owner: 'session', name: 'append' },
+      arguments: effectiveArgumentsOf({ command: 'ls' }),
+      ...granted(),
     })
     const decision = decideAdmission(input, {
       ...(await allowedFacts()),
       permit: permitLookupFor(other, 'open'),
     })
     expect(decision).toMatchObject({ kind: 'denied', reason: 'permit-mismatch' })
+  })
+
+  it('allows the permit only with the arguments it was granted for', async () => {
+    const granted = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+      permit: permitRef(),
+      arguments: effectiveArgumentsOf({ command: 'ls' }),
+    })
+    const same = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+      permit: permitRef(),
+      arguments: effectiveArgumentsOf({ command: 'ls' }),
+    })
+    const decision = decideAdmission(same, {
+      ...(await allowedFacts()),
+      permit: permitLookupFor(granted, 'open'),
+    })
+    expect(decision.kind).toBe('allowed')
+    if (decision.kind !== 'allowed') return
+    expect(decision.basis.permit).toEqual(same.permit)
+    expect(decision.basis.arguments).toEqual(same.arguments)
   })
 
   it('denies a permit reference of another tenant without reading the ledger', async () => {
@@ -260,14 +331,28 @@ describe('decideAdmission: the permit', () => {
   })
 
   it.each([
-    ['not looked up', null],
-    ['unavailable', { kind: 'unavailable', diagnostic: 'ledger down' } as const],
-  ])('is unavailable when a presented permit is %s', async (_case, permit) => {
+    ['not looked up', null, 'the permit was not looked up'],
+    ['unavailable', { kind: 'unavailable', diagnostic: 'ledger down' } as const, 'ledger down'],
+  ])('is unavailable when a presented permit is %s', async (_case, permit, diagnostic) => {
     const input = readHistoryInput(principals.actingForAdmin, adminTenant(), {
       permit: permitRef(),
     })
     const decision = decideAdmission(input, { ...(await allowedFacts()), permit })
-    expect(decision.kind).toBe('unavailable')
+    expect(decision).toEqual({ kind: 'unavailable', diagnostic })
+  })
+
+  it('denies a permit whose text differs from the one the ledger found', async () => {
+    const input = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+      permit: permitRef(),
+    })
+    const other = readHistoryInput(principals.actingForAdmin, adminTenant(), {
+      permit: { tenant: adminTenant(), permit: 'pmt_2' as never },
+    })
+    const decision = decideAdmission(input, {
+      ...(await allowedFacts()),
+      permit: permitLookupFor(other, 'open'),
+    })
+    expect(decision).toMatchObject({ kind: 'denied', reason: 'permit-mismatch' })
   })
 })
 

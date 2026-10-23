@@ -8,7 +8,7 @@ import type {
   Qualification,
   TenantStandingReading,
 } from '@omne-harness/identity'
-import { decisionEvidence, type DecisionEvidence } from './evidence.ts'
+import { decisionEvidence, type DecisionEvidence, type EffectiveArguments } from './evidence.ts'
 import {
   operationEquals,
   targetEquals,
@@ -21,9 +21,11 @@ export type AdmissionInput = Readonly<{
   access: Access<Principal>
   operation: AdmissionOperation
   target: AdmissionTarget
+  /** The digest of the effective arguments the action will run with; `noArguments()` for an operation without any. */
+  arguments: EffectiveArguments
   /** The named qualifications the resource owner requires for this operation; empty when membership is enough. */
   requires: readonly Qualification[]
-  /** The permit the caller presents, or null for an operation that needs no permit. */
+  /** The permit the caller presents, or null when the resource owner needs none for this operation. */
   permit: PermitRef | null
 }>
 
@@ -41,6 +43,7 @@ export type AdmissionBasis = Readonly<{
   operation: AdmissionOperation
   target: AdmissionTarget
   tenant: TenantId
+  arguments: EffectiveArguments
   principal: Principal | null
   standing: StandingBasis | null
   required: readonly Qualification[]
@@ -102,6 +105,7 @@ function initialBasis(input: AdmissionInput): AdmissionBasis {
     operation: input.operation,
     target: input.target,
     tenant: input.access.tenant,
+    arguments: input.arguments,
     principal: null,
     standing: null,
     required: input.requires,
@@ -119,24 +123,23 @@ function hasAll(held: readonly Qualification[], required: readonly Qualification
   return required.every(qualification => held.includes(qualification))
 }
 
-type PermitVerdict =
-  | Readonly<{ kind: 'ok' }>
+/** Null when the permit step passes; otherwise the denial or the unavailable fact. */
+type PermitFailure =
   | Readonly<{ kind: 'denied'; reason: DenialReason }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-const PERMIT_OK: PermitVerdict = Object.freeze({ kind: 'ok' })
 
 function permitMatches(input: AdmissionInput, lookup: PermitLookup & { kind: 'found' }): boolean {
   return (
     input.permit !== null &&
     lookup.grant.ref.permit === input.permit.permit &&
     operationEquals(lookup.grant.operation, input.operation) &&
-    targetEquals(lookup.grant.target, input.target)
+    targetEquals(lookup.grant.target, input.target) &&
+    lookup.grant.arguments.digest === input.arguments.digest
   )
 }
 
-function permitVerdict(input: AdmissionInput, lookup: PermitLookup | null): PermitVerdict {
-  if (input.permit === null) return PERMIT_OK
+function permitFailure(input: AdmissionInput, lookup: PermitLookup | null): PermitFailure | null {
+  if (input.permit === null) return null
   if (!tenantEquals(input.permit.tenant, input.access.tenant))
     return { kind: 'denied', reason: 'permit-mismatch' }
   if (lookup === null) return { kind: 'unavailable', diagnostic: 'the permit was not looked up' }
@@ -144,33 +147,67 @@ function permitVerdict(input: AdmissionInput, lookup: PermitLookup | null): Perm
   if (lookup.kind === 'unknown') return { kind: 'denied', reason: 'permit-unknown' }
   if (!permitMatches(input, lookup)) return { kind: 'denied', reason: 'permit-mismatch' }
   if (lookup.state.kind === 'consumed') return { kind: 'denied', reason: 'permit-consumed' }
-  return PERMIT_OK
+  return null
+}
+
+/** The outcome of one step: the basis to continue with, or the decision that ends the judgment. */
+type Step = Readonly<{ kind: 'continue'; basis: AdmissionBasis }> | AdmissionDecision
+
+function next(basis: AdmissionBasis): Step {
+  return { kind: 'continue', basis }
+}
+
+/** Steps 1 and 2: the verifier verified the very principal of the access, and it acts in the tenant of the access. */
+function principalStep(input: AdmissionInput, facts: AdmissionFacts, basis: AdmissionBasis): Step {
+  const verified = facts.principal
+  if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
+  if (verified.kind === 'rejected' || verified.principal !== input.access.principal)
+    return denied('untrusted-principal', basis)
+  const known = Object.freeze({ ...basis, principal: verified.principal })
+  const scope = scopeDenial(verified.principal, input.access.tenant)
+  return scope === null ? next(known) : denied(scope, known)
+}
+
+/** Steps 3 and 4: the tenant's account is a member now and holds every required qualification. */
+function membershipStep(input: AdmissionInput, facts: AdmissionFacts, basis: AdmissionBasis): Step {
+  const standing = facts.standing
+  if (standing === null) return unavailable('the standing of the tenant was not read')
+  if (standing.kind === 'unavailable') return unavailable(standing.diagnostic)
+  const known = Object.freeze({ ...basis, standing })
+  if (standing.kind === 'not-member') return denied('not-member', known)
+  if (!hasAll(standing.qualifications, input.requires))
+    return denied('qualification-missing', known)
+  return next(known)
+}
+
+/** Step 5: a presented permit is known, bound to the same operation, target and arguments, and open. */
+function permitStep(
+  input: AdmissionInput,
+  facts: AdmissionFacts,
+  basis: AdmissionBasis,
+): AdmissionDecision {
+  const permit = permitFailure(input, facts.permit)
+  if (permit === null) return allowed(basis)
+  switch (permit.kind) {
+    case 'denied':
+      return denied(permit.reason, basis)
+    case 'unavailable':
+      return unavailable(permit.diagnostic)
+  }
 }
 
 /**
  * Decides one admission from the input and the facts read for it. The order is fixed: the
- * principal must be verified, it must act in the tenant of the access, the tenant's account must
- * be a member now, it must hold every required qualification, and a presented permit must be
- * known, matching and still open. The first failed step gives the denial; a fact that could not
- * be read gives `unavailable` at its step.
+ * principal of the access must be the one the verifier verified, it must act in the tenant of
+ * the access, the tenant's account must be a member now, it must hold every required
+ * qualification, and a presented permit must be known, bound to the same operation, target and
+ * arguments, and still open. The first failed step gives the denial; a fact that could not be
+ * read gives `unavailable` at its step.
  */
 export function decideAdmission(input: AdmissionInput, facts: AdmissionFacts): AdmissionDecision {
-  let basis = initialBasis(input)
-  const verified = facts.principal
-  if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
-  if (verified.kind === 'rejected') return denied('untrusted-principal', basis)
-  basis = Object.freeze({ ...basis, principal: verified.principal })
-  const scope = scopeDenial(verified.principal, input.access.tenant)
-  if (scope !== null) return denied(scope, basis)
-  const standing = facts.standing
-  if (standing === null) return unavailable('the standing of the tenant was not read')
-  if (standing.kind === 'unavailable') return unavailable(standing.diagnostic)
-  basis = Object.freeze({ ...basis, standing })
-  if (standing.kind === 'not-member') return denied('not-member', basis)
-  if (!hasAll(standing.qualifications, input.requires))
-    return denied('qualification-missing', basis)
-  const permit = permitVerdict(input, facts.permit)
-  if (permit.kind === 'denied') return denied(permit.reason, basis)
-  if (permit.kind === 'unavailable') return unavailable(permit.diagnostic)
-  return allowed(basis)
+  const principal = principalStep(input, facts, initialBasis(input))
+  if (principal.kind !== 'continue') return principal
+  const membership = membershipStep(input, facts, principal.basis)
+  if (membership.kind !== 'continue') return membership
+  return permitStep(input, facts, membership.basis)
 }

@@ -22,13 +22,12 @@ function byCodeUnit(left: string, right: string): number {
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue)
   if (typeof value !== 'object' || value === null) return value
-  const members = Object.entries(value)
-    .filter(([, member]) => member !== undefined)
-    .sort(([left], [right]) => byCodeUnit(left, right))
+  // JSON.stringify drops a member whose value is undefined, so no filter is needed here.
+  const members = Object.entries(value).sort(([left], [right]) => byCodeUnit(left, right))
   return Object.fromEntries(members.map(([name, member]) => [name, canonicalValue(member)]))
 }
 
-/** The canonical JSON text of plain data: member names in code-unit order, arrays in order, undefined members dropped. */
+/** The canonical JSON text of plain data: member names in code-unit order, arrays in order; a member whose value is undefined is absent, as in JSON. */
 export function canonicalText(value: unknown): string {
   return JSON.stringify(canonicalValue(value))
 }
@@ -36,6 +35,23 @@ export function canonicalText(value: unknown): string {
 /** The SHA-256 hex digest of the canonical text of plain data. */
 export function digestOf(value: unknown): string {
   return createHash('sha256').update(canonicalText(value)).digest('hex')
+}
+
+/**
+ * The effective arguments of one action, as a digest. The arguments themselves are opaque to
+ * authorization: the resource owner or its adapter computes the digest from the fixed
+ * representation it executes, and a permit is bound to that digest.
+ */
+export type EffectiveArguments = Readonly<{ digest: string }>
+
+/** The digest of the arguments' plain data. Give the same representation at grant and at check. */
+export function effectiveArgumentsOf(value: unknown): EffectiveArguments {
+  return Object.freeze({ digest: digestOf(value) })
+}
+
+/** The arguments of an operation that has none: the digest of `null`. */
+export function noArguments(): EffectiveArguments {
+  return effectiveArgumentsOf(null)
 }
 
 export function decisionEvidence(

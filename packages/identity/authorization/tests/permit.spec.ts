@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
+  noArguments,
   PERMIT_ID_MAX_LENGTH,
   decodePermitId,
+  digestOf,
   inMemoryPermitLedger,
   type PermitGrant,
   type PermitRef,
 } from '@omne-harness/authorization'
-import { READ_HISTORY, SESSION_TARGET, adminTenant, memberTenant } from './support.ts'
+import { READ_HISTORY, SESSION_TARGET, adminTenant, memberTenant, tenantKey } from './support.ts'
 
 const GRANTED = { owner: 'hitl', record: 'card_1', revision: '1', digest: 'abc' } as const
 const CONSUMER = { owner: 'tool', work: 'call_1', position: 'start' } as const
@@ -17,6 +19,7 @@ async function granted(ledger = inMemoryPermitLedger(), tenant: TenantId = admin
     tenant,
     operation: READ_HISTORY,
     target: SESSION_TARGET,
+    arguments: noArguments(),
     granted: GRANTED,
   })
   if (outcome.kind !== 'granted') throw new Error('fixture permit was not granted')
@@ -46,8 +49,10 @@ describe('the in-memory permit ledger', () => {
   it('grants an open permit under the tenant and finds it by reference', async () => {
     const { ledger, grant } = await granted()
     expect(tenantEquals(grant.ref.tenant, adminTenant())).toBe(true)
+    expect(grant.ref.permit).toBe('pmt_1')
     expect(grant.operation).toEqual(READ_HISTORY)
     expect(grant.target).toEqual(SESSION_TARGET)
+    expect(grant.arguments).toEqual(noArguments())
     expect(grant.granted).toEqual(GRANTED)
     await expect(ledger.ledger.lookup({ permit: grant.ref })).resolves.toEqual({
       kind: 'found',
@@ -84,9 +89,13 @@ describe('the in-memory permit ledger', () => {
       tenant: forged,
       operation: READ_HISTORY,
       target: SESSION_TARGET,
+      arguments: noArguments(),
       granted: GRANTED,
     })
-    expect(outcome.kind).toBe('unavailable')
+    expect(outcome).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tenant is not a minted TenantId',
+    })
   })
 
   it('consumes once; a repeat answers with the original fact and makes no second consumption', async () => {
@@ -96,7 +105,12 @@ describe('the in-memory permit ledger', () => {
     if (first.kind !== 'consumed') return
     expect(first.fact.permit).toEqual(grant.ref)
     expect(first.fact.consumer).toEqual(CONSUMER)
+    const key = `${tenantKey(grant.ref.tenant)}#${grant.ref.permit}`
     expect(first.fact.evidence.owner).toBe('authorization')
+    expect(first.fact.evidence.record).toBe(`consumption/${key}`)
+    // The ledger's sequence: 1 for the grant, 2 for this consumption.
+    expect(first.fact.evidence.revision).toBe('2')
+    expect(first.fact.evidence.digest).toBe(digestOf({ permit: key, consumer: CONSUMER }))
     expect(Object.isFrozen(first.fact)).toBe(true)
     const again = await ledger.ledger.consume({ permit: grant.ref, consumer: CONSUMER })
     expect(again).toEqual({ kind: 'already-consumed', fact: first.fact })

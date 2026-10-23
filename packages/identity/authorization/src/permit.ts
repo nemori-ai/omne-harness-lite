@@ -3,7 +3,12 @@
 // consumed: a later check denies, and a later consume answers with the original fact.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { decisionEvidence, type DecisionEvidence, type EvidenceRef } from './evidence.ts'
+import {
+  decisionEvidence,
+  type DecisionEvidence,
+  type EffectiveArguments,
+  type EvidenceRef,
+} from './evidence.ts'
 import type { AdmissionOperation, AdmissionTarget } from './operation.ts'
 
 declare const permitBrand: unique symbol
@@ -36,11 +41,12 @@ export type PermitRef = Readonly<{ tenant: TenantId; permit: PermitId }>
 /** Where a permit was consumed: the consumer's own stable position. */
 export type ConsumerPosition = Readonly<{ owner: string; work: string; position: string }>
 
-/** What a permit allows, and the evidence of the expression or decision that granted it. */
+/** What a permit allows: one operation on one target with one digest of arguments, and the evidence of the expression or decision that granted it. */
 export type PermitGrant = Readonly<{
   ref: PermitRef
   operation: AdmissionOperation
   target: AdmissionTarget
+  arguments: EffectiveArguments
   granted: EvidenceRef
 }>
 
@@ -86,6 +92,7 @@ export interface PermitGrantor {
       tenant: TenantId
       operation: AdmissionOperation
       target: AdmissionTarget
+      arguments: EffectiveArguments
       granted: EvidenceRef
     }>,
   ): Promise<GrantOutcome>
@@ -132,6 +139,7 @@ export function inMemoryPermitLedger(): Readonly<{ grantor: PermitGrantor; ledge
       ref,
       operation: input.operation,
       target: input.target,
+      arguments: input.arguments,
       granted: input.granted,
     })
     entries.set(`${tenant}#${permit}`, { grant: issued, state: Object.freeze({ kind: 'open' }) })

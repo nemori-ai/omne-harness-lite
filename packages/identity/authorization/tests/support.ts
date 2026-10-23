@@ -21,10 +21,11 @@ import {
   type TenantStandingReading,
   type TenantStandingSource,
 } from '@omne-harness/identity'
-import type {
-  AdmissionInput,
-  AdmissionOperation,
-  AdmissionTarget,
+import {
+  noArguments,
+  type AdmissionInput,
+  type AdmissionOperation,
+  type AdmissionTarget,
 } from '@omne-harness/authorization'
 
 export const ORGANIZATION_TEXT = 'org_abcdefghjkmnpqrstvwxyz2345'
@@ -135,6 +136,7 @@ export function readHistoryInput(
     access: { principal, tenant: value },
     operation: READ_HISTORY,
     target: SESSION_TARGET,
+    arguments: noArguments(),
     requires: [],
     permit: null,
     ...overrides,

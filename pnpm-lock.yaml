@@ -849,9 +849,15 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../../model/model-contract
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../../context/request-context-contract
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../../tool/tool

@@ -31,7 +31,9 @@
   },
   "devDependencies": {
     "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/execution-environment-contract": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/request-context-contract": "workspace:*",
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@types/node": "catalog:",

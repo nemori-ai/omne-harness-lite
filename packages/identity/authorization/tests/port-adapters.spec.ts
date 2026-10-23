@@ -26,6 +26,8 @@ import {
 import type { AccessVerdict, ToolAccessGuard } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
 import {
+  noArguments,
+  effectiveArgumentsOf,
   referenceAdmissionCheck,
   type AdmissionCheck,
   type AdmissionDecision,
@@ -89,6 +91,7 @@ function agentAccessCheck(check: AdmissionCheck): AgentAccessCheck<Principal> {
           access,
           operation: { owner: 'agent', name: operation },
           target: agentTarget(target),
+          arguments: noArguments(),
           requires: [],
           permit: null,
         }),
@@ -121,6 +124,8 @@ function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
               kind: 'action',
               key: `${input.execution}/${input.passage}/${input.action}`,
             },
+            // The fixed text the action will run with; a permit is bound to its digest.
+            arguments: effectiveArgumentsOf(input.effectiveArguments),
             requires: [],
             permit: null,
           }),
@@ -148,6 +153,7 @@ function toolAccessGuard(check: AdmissionCheck): ToolAccessGuard<Principal> {
           access: { principal, tenant },
           operation: { owner: 'tool', name: action },
           target: { owner: 'tool', kind: 'call', key: call },
+          arguments: noArguments(),
           requires: [],
           permit: null,
         }),
@@ -178,6 +184,7 @@ function startCoordinatorAccess(check: AdmissionCheck): StartCoordinatorAccess<P
             call === null
               ? { owner: 'tool', kind: 'start-guards', key: 'tenant' }
               : { owner: 'tool', kind: 'call', key: call },
+          arguments: noArguments(),
           requires: [],
           permit: null,
         }),
@@ -221,6 +228,7 @@ function sessionAccessCheck(check: AdmissionCheck): SessionAccessCheck<Principal
           access,
           operation: { owner: 'session', name: operation },
           target: { owner: 'session', kind: target.kind, key: target.session },
+          arguments: noArguments(),
           requires: [],
           permit: null,
         }),
@@ -257,7 +265,7 @@ function authority(): Authority {
   }
 }
 
-function admitInput(principal: Principal, tenant: TenantId) {
+function admitInput(principal: Principal, tenant: TenantId, effectiveArguments = '{}') {
   const original: Original = {
     kind: 'tool_call',
     id: blockId('blk_1'),
@@ -274,7 +282,7 @@ function admitInput(principal: Principal, tenant: TenantId) {
     passage: decoded(decodePassageId('pas_1'), 'passage'),
     action: decoded(decodeActionId('act_1'), 'action'),
     original,
-    effectiveArguments: '{}',
+    effectiveArguments,
     definition: { owner: 'assets', name: 'bash', revision: '1', digest: 'd' },
     permissions: null,
     decision: null,
@@ -379,6 +387,20 @@ describe('ActionAdmission through the admission check', () => {
     table.fail('directory down')
     const unavailable = await actions.admit(input)
     expect(unavailable).toMatchObject({ ok: { kind: 'unavailable', diagnostic: 'directory down' } })
+  })
+
+  it('maps the effective arguments: a rewrite changes the evidence of the allowed decision', async () => {
+    const { principals, actions } = installed()
+    const first = await actions.admit(
+      admitInput(principals.actingForAdmin, adminTenant(), '{"a":1}'),
+    )
+    const rewritten = await actions.admit(
+      admitInput(principals.actingForAdmin, adminTenant(), '{"a":2}'),
+    )
+    if ('failure' in first || 'failure' in rewritten) throw new Error('fixture')
+    if (first.ok.kind !== 'allow' || rewritten.ok.kind !== 'allow') throw new Error('fixture')
+    expect(first.ok.evidence.digest).not.toBe(rewritten.ok.evidence.digest)
+    expect(first.ok.evidence.record).toBe(rewritten.ok.evidence.record)
   })
 
   it('denies an acting principal used in another tenant', async () => {

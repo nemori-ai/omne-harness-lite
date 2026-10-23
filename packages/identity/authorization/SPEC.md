@@ -161,7 +161,11 @@
 
 ### 裁定输入
 
-`AdmissionInput` 是 `{ access, operation, target, requires, permit }`。`access` 是 `Access<Principal>`：identity 签发的主体与显式租户。`operation` 是 `{ owner, name }`，`target` 是 `{ owner, kind, key }`。两者对本成员不透明：资源拥有者命名它们并拥有含义，本成员只记录它们并与许可比较。`requires` 是资源拥有者为这次操作要求的具名资格；为空表示成员资格足够。`permit` 是调用方出示的许可引用，没有则为 null。
+`AdmissionInput` 是 `{ access, operation, target, arguments, requires, permit }`。`access` 是 `Access<Principal>`：identity 签发的主体与显式租户。`operation` 是 `{ owner, name }`，`target` 是 `{ owner, kind, key }`。两者对本成员不透明：资源拥有者命名它们并拥有含义，本成员只记录它们并与许可比较。
+
+`arguments` 是生效参数的摘要 `{ digest }`。参数本身对本成员不透明：资源拥有者或它的适配器用 `effectiveArgumentsOf` 对实际执行所采用的固定表示算摘要，签发许可与裁定时用同一表示。没有参数的操作出示 `noArguments()`。
+
+`requires` 是资源拥有者为这次操作要求的具名资格；为空表示成员资格足够。`permit` 是调用方出示的许可引用。一个操作是否需要许可，由资源拥有者决定并在输入里出示，与 `requires` 同一责任；本成员不维护「哪些操作需要许可」的登记。未出示许可时 `permit` 为 null。
 
 ### 裁定结论
 
@@ -171,17 +175,17 @@
 
 `decideAdmission(input, facts)` 按固定顺序判断。第一个不满足的步骤决定结果。
 
-1. 主体核验。核验器答 `rejected`，拒绝，原因 `untrusted-principal`。答 `unavailable`，结论 `unavailable`。
+1. 主体核验。核验器答 `rejected`，拒绝，原因 `untrusted-principal`。核验器答 `verified` 但核验得到的主体不是输入 `access.principal` 的同一个对象，同样拒绝，原因 `untrusted-principal`：事实必须是对这次输入里那个主体的核验。答 `unavailable`，结论 `unavailable`。
 2. 作用域。系统主体出现在带租户的访问里，拒绝，原因 `scope-mismatch`：系统主体没有租户资格，代租户行事必须签发代租户行事主体。代租户行事主体的租户与访问的租户不相等，拒绝，原因 `tenant-mismatch`。手写的租户同样得到 `tenant-mismatch`。
 3. 当前成员事实。identity 读口答 `not-member`，拒绝，原因 `not-member`。答 `unavailable` 或没有读到，结论 `unavailable`。
 4. 资格。`requires` 中任一资格不在读到的资格里，拒绝，原因 `qualification-missing`。
-5. 许可。只在出示了许可时判断。许可引用的租户与访问的租户不相等，拒绝，原因 `permit-mismatch`。台账答 `unknown`，拒绝，原因 `permit-unknown`。许可的操作、目标或文本与输入不符，拒绝，原因 `permit-mismatch`。许可已消费，拒绝，原因 `permit-consumed`。台账不能读，结论 `unavailable`。
+5. 许可。只在出示了许可时判断。许可引用的租户与访问的租户不相等，拒绝，原因 `permit-mismatch`。台账答 `unknown`，拒绝，原因 `permit-unknown`。许可的文本、操作（`owner` 与 `name`）、目标（`owner`、`kind` 与 `key`）或参数摘要与输入不符，拒绝，原因 `permit-mismatch`。参数改写后出示同一许可，得到的就是这个结果。许可已消费，拒绝，原因 `permit-consumed`。台账不能读，结论 `unavailable`。
 
 未授予的跨租户访问在第 2 步或第 3 步拒绝。另一个组织的租户从未是成员，答 `not-member`，与本组织的非成员同表现。
 
 ### 依据与证据
 
-`basis` 记录裁定所依：操作、目标、租户、已核验的主体、读到的成员事实、要求的资格、出示的许可。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。消费方把四个成员逐项映射到自己的证据类型。
+`basis` 记录裁定所依：操作、目标、租户、参数摘要、已核验的主体、读到的成员事实、要求的资格、出示的许可。未出示许可时 `basis.permit` 为 null，读者据此知道这次允许不依赖任何许可。参数摘要进入 `basis`，所以证据摘要随参数变化。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。消费方把四个成员逐项映射到自己的证据类型。
 
 ### 不缓存允许
 
@@ -191,13 +195,15 @@
 
 ### 许可引用与消费事实
 
-`PermitRef` 是 `{ tenant, permit }`。台账按（租户，许可文本）保存许可，另一个租户的同名许可答 `unknown`，与从未授予的许可同表现。手写的租户同样答 `unknown`。
+`PermitRef` 是 `{ tenant, permit }`。一个许可绑定一个操作、一个目标与一个参数摘要，三者在授予时记录。台账按（租户，许可文本）保存许可，另一个租户的同名许可答 `unknown`，与从未授予的许可同表现。手写的租户同样答 `unknown`。
+
+带许可的 `allowed` 本身不足以执行。消费方以 `consume` 答 `consumed` 为执行依据：同一开放许可上两次裁定都可能答 `allowed`，只有一次 `consume` 成功。
 
 `PermitLedger.consume({ permit, consumer })` 把开放的许可变为已消费，返回 `ConsumptionFact`：许可、消费位置与证据。同一许可再次消费答 `already-consumed` 并带原事实，不产生第二份消费，无论消费位置是否相同；消费方比较事实里的消费位置来认回自己的消费。消费后的裁定答 `permit-consumed`。已消费的许可不复活。
 
 消费点在消费方的线性化点：Tool 在 P04 的 consume 处消费许可，受理记录带 `PermitRef`。本成员不定义消费与实际发起的同提交；一致性归消费方的原操作契约。
 
-`PermitGrantor.grant` 由产生许可的表达或决定的拥有者调用，`granted` 是那份表达或决定的证据。本节不定义表达的解释、撤回操作和人工决定的绑定；它们沿 AU-03、AU-05 另行形成形状。
+`PermitGrantor.grant` 由产生许可的表达或决定的拥有者调用，`granted` 是那份表达或决定的证据，`arguments` 是人看到并批准的那份参数的摘要。本节不定义表达的解释、撤回操作和人工决定的绑定；它们沿 AU-03、AU-05 另行形成形状。
 
 ### 消费端口的适配
 
@@ -213,7 +219,7 @@
 
 ### 验证
 
-`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用与证据的重算。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/port-adapters.spec.ts` 用进程内适配器实现四个消费端口。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与各契约成员副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
+`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/port-adapters.spec.ts` 用进程内适配器实现四个消费端口。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
 
 ## 披露与后续治理操作
 

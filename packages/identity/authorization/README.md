@@ -12,7 +12,7 @@
 
 ```ts
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
-import { inMemoryPermitLedger, referenceAdmissionCheck } from '@omne-harness/authorization'
+import { inMemoryPermitLedger, noArguments, referenceAdmissionCheck } from '@omne-harness/authorization'
 
 const authority = inProcessPrincipalAuthority()
 const permits = inMemoryPermitLedger()
@@ -26,6 +26,7 @@ const decision = await check.check({
   access: { principal, tenant },
   operation: { owner: 'session', name: 'read-history' },
   target: { owner: 'session', kind: 'session', key: 'ses_1' },
+  arguments: noArguments(), // 或 effectiveArgumentsOf(<实际执行采用的固定参数>)
   requires: [],
   permit: null,
 })
@@ -41,6 +42,7 @@ const decision = await check.check({
 | `AdmissionFacts`、`decideAdmission(input, facts)` | 对已读事实的纯裁定 |
 | `AdmissionCheck` | 裁定端口 |
 | `EvidenceRef`、`DecisionEvidence`、`decisionEvidence`、`digestOf`、`canonicalText` | 可核对证据与摘要 |
+| `EffectiveArguments`、`effectiveArgumentsOf`、`noArguments()` | 生效参数的摘要；许可绑定它 |
 | `PermitId`、`decodePermitId`、`PERMIT_ID_MAX_LENGTH`、`PermitRef` | 许可引用 |
 | `PermitGrant`、`PermitState`、`ConsumptionFact`、`ConsumerPosition` | 许可与消费事实 |
 | `PermitLedger`、`PermitGrantor`、`PermitLookup`、`ConsumeOutcome`、`GrantOutcome` | 台账端口 |
@@ -49,7 +51,7 @@ const decision = await check.check({
 
 ## 契约
 
-公开类型在 `src/`。[SPEC](SPEC.md) 的 AU-11 拥有类型表达不了的条款：裁定步骤与顺序、每个拒绝原因的条件、不可用不放行、不缓存允许、撤权后再核拒绝、许可消费一次、证据的重算。其余条款沿 AU-01 至 AU-10。
+公开类型在 `src/`。[SPEC](SPEC.md) 的 AU-11 拥有类型表达不了的条款：裁定步骤与顺序、每个拒绝原因的条件、许可绑定操作、目标与参数摘要、不可用不放行、不缓存允许、撤权后再核拒绝、许可消费一次且 `consumed` 才是执行依据、证据的重算。其余条款沿 AU-01 至 AU-10。
 
 `decideAdmission` 与参考件都不抛出。参考件的依赖抛出时，结论是 `unavailable`，诊断不带异常文本。
 
@@ -67,14 +69,15 @@ const decision = await check.check({
 
 | 文件 | 覆盖 |
 | --- | --- |
-| `tests/decide.spec.ts` | 每个步骤与拒绝原因、两种不可用、证据重算、纯函数 |
+| `tests/decide.spec.ts` | 每个步骤与拒绝原因、两种不可用、证据重算、参数摘要、许可逐项比较、核验得到另一主体时拒绝、纯函数 |
+| `tests/evidence.spec.ts` | 规范 JSON 的成员顺序、undefined 成员、数组保序；摘要与证据 |
 | `tests/reference-check.spec.ts` | 撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行 |
 | `tests/permit.spec.ts` | 许可文本、授予、查找、跨租户、手写租户、重复消费 |
 | `tests/port-adapters.spec.ts` | 进程内适配器实现 `AgentAccessCheck`、`ActionAdmission`、Tool `access.qualify`、`SessionAccessCheck` |
-| `tests/access-equivalence.spec-d.ts` | `Access<P>` 与 agent、tool、model 契约的副本是同一类型 |
+| `tests/access-equivalence.spec-d.ts` | `Access<P>` 与 agent、tool、model、执行环境、request-context 契约的副本是同一类型 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
-端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract`、`@omne-harness/model-contract` 作为 devDependencies 取端口类型。`SessionAccessCheck` 尚不存在，测试按已定形状本地声明。在仓库根运行 `pnpm turbo run test --filter=@omne-harness/authorization`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
+端口适配器与类型等价测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract`、`@omne-harness/model-contract`、`@omne-harness/execution-environment-contract`、`@omne-harness/request-context-contract` 作为 devDependencies 取端口与副本类型。`SessionAccessCheck` 尚不存在，测试按已定形状本地声明。在仓库根运行 `pnpm turbo run test --filter=@omne-harness/authorization`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 
 ## 维护
 

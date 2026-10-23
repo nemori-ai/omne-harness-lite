@@ -11,8 +11,14 @@ export type {
   DenialReason,
   StandingBasis,
 } from './admission.ts'
-export { canonicalText, decisionEvidence, digestOf } from './evidence.ts'
-export type { DecisionEvidence, EvidenceRef } from './evidence.ts'
+export {
+  canonicalText,
+  decisionEvidence,
+  digestOf,
+  effectiveArgumentsOf,
+  noArguments,
+} from './evidence.ts'
+export type { DecisionEvidence, EffectiveArguments, EvidenceRef } from './evidence.ts'
 export { operationEquals, targetEquals } from './operation.ts'
 export type { AdmissionOperation, AdmissionTarget } from './operation.ts'
 export { PERMIT_ID_MAX_LENGTH, decodePermitId, inMemoryPermitLedger } from './permit.ts'
