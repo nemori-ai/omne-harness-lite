@@ -1089,3 +1089,195 @@ it('R18 a fully confirmed receipt remains saved when abort interrupts only its o
   expect(await waiting).toEqual({ ok: receipt })
   expect(store.resources(tenant).inFlight).toBe(0)
 })
+
+describe('R18 reply loss and waiter lifetime regressions', () => {
+  it('keeps consumed reply loss unknown when abort precedes outer settlement', async () => {
+    const store = fixture()
+    const delivery = resultDelivery()
+    const controller = new AbortController()
+    store.dropReplyOnce(delivery.key)
+    store.pauseAt(delivery.key, 'reply')
+    let settled = false
+    const response = push(store, delivery, controller.signal).then(value => {
+      settled = true
+      return value
+    })
+    await store.reached(delivery.key, 'reply')
+    store.resume(delivery.key, 'reply')
+    await Promise.resolve()
+    const lostBeforeAbort = store.events().some(event => event.action === 'reply.lost')
+    const settledBeforeAbort = settled
+    controller.abort()
+    const actual = await response
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve()
+
+    expect(lostBeforeAbort).toBe(true)
+    expect(settledBeforeAbort).toBe(false)
+    expect(actual).toEqual({ failure: { kind: 'outcome-unknown' } })
+    expect(store.readRecord(delivery.key)).toMatchObject({
+      receiptObserved: false,
+      material: committed,
+      responsibility: committed,
+      protected: true,
+      dedup: true,
+    })
+    expect(store.events().filter(event => event.action === 'reply.saved')).toHaveLength(0)
+    expect(store.events().some(event => /ack|cleanup/.test(event.action))).toBe(false)
+    expect(store.resources(tenant).inFlight).toBe(0)
+  })
+
+  it.each([
+    { preabort: false, drop: false },
+    { preabort: true, drop: false },
+    { preabort: false, drop: true },
+    { preabort: true, drop: true },
+  ])('stops a qualified saved retry before reply release: %j', async ({ preabort, drop }) => {
+    const store = fixture({ ...limits, inFlight: 1 })
+    const delivery = resultDelivery()
+    const receipt = must(await push(store, delivery))
+    const resources = store.resources(tenant)
+    const attempts = store.readRecord(delivery.key)?.attempts
+    const controller = new AbortController()
+    if (preabort) controller.abort()
+    if (drop) store.dropReplyOnce(delivery.key)
+    store.pauseAt(delivery.key, 'reply')
+    let settled = false
+    const response = push(store, delivery, controller.signal).then(value => {
+      settled = true
+      return value
+    })
+    await store.reached(delivery.key, 'reply')
+    controller.abort()
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve()
+    const settledOnAbort = settled
+    const resourcesOnAbort = store.resources(tenant)
+    const observationsOnAbort = store.events().filter(event => event.action === 'reply.saved')
+    store.resume(delivery.key, 'reply')
+    const actual = await response
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve()
+
+    expect(settledOnAbort).toBe(true)
+    expect(resourcesOnAbort).toEqual(resources)
+    expect(actual).toEqual({ ok: receipt })
+    expect(observationsOnAbort).toHaveLength(2)
+    expect(store.events().filter(event => event.action === 'reply.saved')).toEqual(
+      observationsOnAbort,
+    )
+    expect(store.readRecord(delivery.key)).toMatchObject({ receiptObserved: true, attempts })
+    expect(store.resources(tenant)).toEqual(resources)
+    expect(commits(store, 'material')).toBe(1)
+    expect(commits(store, 'responsibility')).toBe(1)
+  })
+
+  it('shares a post-barrier drop with active joiners while retaining the execution slot', async () => {
+    const store = fixture({ ...limits, inFlight: 3 })
+    const delivery = resultDelivery()
+    const controller = new AbortController()
+    store.pauseAt(delivery.key, 'reply')
+    const original = push(store, delivery)
+    await store.reached(delivery.key, 'reply')
+    const resources = store.resources(tenant)
+    const cancelled = push(store, delivery, controller.signal)
+    const waiting = push(store, delivery)
+    const blocked = await push(store, delivery)
+    store.dropReplyOnce(delivery.key)
+    controller.abort()
+    const cancelledReply = await cancelled
+    const resourcesOnAbort = store.resources(tenant)
+    store.resume(delivery.key, 'reply')
+    const [originalReply, waitingReply] = await Promise.all([original, waiting])
+    const beforeRecovery = store.readRecord(delivery.key)
+    const observationsBeforeRecovery = store
+      .events()
+      .filter(event => event.action === 'reply.saved')
+    const recovered = await push(store, delivery, aborted())
+
+    expect(cancelledReply).toEqual({ failure: { kind: 'outcome-unknown' } })
+    expect(resourcesOnAbort).toEqual({ ...resources, inFlight: 2 })
+    expect(blocked).toEqual({ failure: { kind: 'backpressured', resource: 'in-flight' } })
+    expect(originalReply).toEqual({ failure: { kind: 'outcome-unknown' } })
+    expect(waitingReply).toEqual(originalReply)
+    expect(beforeRecovery).toMatchObject({ receiptObserved: false, attempts: 1 })
+    expect(observationsBeforeRecovery).toHaveLength(0)
+    expect(recovered).toEqual({ ok: { key: delivery.key, evidence: beforeRecovery?.evidence } })
+    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.events().filter(event => event.action === 'reply.lost')).toHaveLength(1)
+    expect(commits(store, 'material')).toBe(1)
+    expect(commits(store, 'responsibility')).toBe(1)
+  })
+
+  it('does not observe a normal late reply twice after the original waiter returns saved on abort', async () => {
+    const store = fixture({ ...limits, inFlight: 1 })
+    const delivery = resultDelivery()
+    const controller = new AbortController()
+    store.pauseAt(delivery.key, 'reply')
+    const response = push(store, delivery, controller.signal)
+    await store.reached(delivery.key, 'reply')
+    controller.abort()
+    const actual = await response
+    const observationsOnAbort = store.events().filter(event => event.action === 'reply.saved')
+    const flightOnAbort = store.resources(tenant).inFlight
+    const blocked = await push(store, delivery)
+    store.resume(delivery.key, 'reply')
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve()
+
+    expect(actual).toEqual({
+      ok: { key: delivery.key, evidence: store.readRecord(delivery.key)?.evidence },
+    })
+    expect(observationsOnAbort).toHaveLength(1)
+    expect(store.events().filter(event => event.action === 'reply.saved')).toEqual(
+      observationsOnAbort,
+    )
+    expect(flightOnAbort).toBe(1)
+    expect(blocked).toEqual({ failure: { kind: 'backpressured', resource: 'in-flight' } })
+    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.events().some(event => /ack|cleanup/.test(event.action))).toBe(false)
+  })
+
+  it('allows only the live waiter to observe saved after a joiner cancels during responsibility', async () => {
+    const store = fixture({ ...limits, inFlight: 2 })
+    const delivery = resultDelivery()
+    const controller = new AbortController()
+    store.pauseAt(delivery.key, 'responsibility')
+    const original = push(store, delivery)
+    await store.reached(delivery.key, 'responsibility')
+    const joined = push(store, delivery, controller.signal)
+    controller.abort()
+    const cancelledReply = await joined
+    const resourcesOnAbort = store.resources(tenant)
+    const recordOnAbort = store.readRecord(delivery.key)
+    store.resume(delivery.key, 'responsibility', committed)
+    const actual = await original
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve()
+
+    expect(cancelledReply).toEqual({ failure: { kind: 'outcome-unknown' } })
+    expect(resourcesOnAbort).toMatchObject({ records: 1, inFlight: 1 })
+    expect(recordOnAbort?.receiptObserved).toBe(false)
+    expect(actual).toEqual({
+      ok: { key: delivery.key, evidence: store.readRecord(delivery.key)?.evidence },
+    })
+    expect(store.events().filter(event => event.action === 'reply.saved')).toHaveLength(1)
+    expect(store.resources(tenant)).toEqual({ ...resourcesOnAbort, inFlight: 0 })
+    expect(commits(store, 'material')).toBe(1)
+    expect(commits(store, 'responsibility')).toBe(1)
+  })
+
+  it('preserves a previous successful observation when a later completed attempt drops its reply', async () => {
+    const store = fixture()
+    const delivery = resultDelivery()
+    const receipt = must(await push(store, delivery))
+    const resources = store.resources(tenant)
+    store.dropReplyOnce(delivery.key)
+    const lost = await push(store, delivery)
+    const observedAfterLoss = store.readRecord(delivery.key)?.receiptObserved
+    const recovered = await push(store, delivery)
+
+    expect(lost).toEqual({ failure: { kind: 'outcome-unknown' } })
+    expect(observedAfterLoss).toBe(true)
+    expect(recovered).toEqual({ ok: receipt })
+    expect(store.events().filter(event => event.action === 'reply.lost')).toHaveLength(1)
+    expect(store.resources(tenant)).toEqual(resources)
+    expect(commits(store, 'material')).toBe(1)
+    expect(commits(store, 'responsibility')).toBe(1)
+  })
+})
