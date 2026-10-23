@@ -1,25 +1,29 @@
 // 差分变异入口：只变异基线以来改动碰到的产品源码行（或点名成员的全部产品源码），逐成员跑 Stryker 的快层，
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
 // 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、sandbox 预检没通过（#481）、初跑失败、
-// 没写出报告、原始报告有 RuntimeError，或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
+// 没写出报告、原始报告有 RuntimeError、有变异体有用例覆盖却一条用例都没跑完（#405），
+// 或只因时限到了而超时的变异体没能单独复核（#649），才退出非零。测量无效的成员照样写进读数，不给分数。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { changedLines, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { listTestMembers } from '@omne-harness/repo-toolchain/core/workspace'
-import { effectiveParallelism, readTestRunsConfig } from '../testing/config.ts'
+import { effectiveParallelism, effectiveRecheckMax, readTestRunsConfig } from '../testing/config.ts'
 import { buildTargets, parseFlags, timestamp, type Flags } from '../testing/support.ts'
 import { computePlan, readPlanFile, writePlanFile, type PlanFile } from '../testing/steps.ts'
 import {
-  memberLines,
+  exactEntry,
   isMutationReport,
-  notRunError,
-  runtimeError,
+  planRecheck,
+  memberErrors,
+  memberLines,
+  recheckTargets,
   summarizeMember,
   type MemberMutation,
   type MutationReport,
 } from './report.ts'
+import { isRunRecord, type RunRecord } from './run-reporter.ts'
 import {
   changedTargets,
   memberTargets,
@@ -143,6 +147,19 @@ function readMutationReport(path: string): MutationReport | undefined {
   }
 }
 
+/** 运行记录读不出时为 `unreadable`：读数里的类型测试记作没测到，不影响判定。 */
+function readRunRecords(path: string): RunRecord[] | 'unreadable' {
+  try {
+    const records: unknown[] = readFileSync(path, 'utf8')
+      .split('\n')
+      .filter(line => line !== '')
+      .map(line => JSON.parse(line) as unknown)
+    return records.every(isRunRecord) ? records : 'unreadable'
+  } catch {
+    return 'unreadable'
+  }
+}
+
 async function run(request: MutationRequest): Promise<number> {
   const selection = select(request)
   const { targets } = selection
@@ -180,6 +197,7 @@ async function run(request: MutationRequest): Promise<number> {
   )
     return 1
   const config = readTestRunsConfig()
+  const recheckMax = effectiveRecheckMax(config, process.env)
   const strykerRun = {
     root: request.root,
     runDir,
@@ -188,6 +206,8 @@ async function run(request: MutationRequest): Promise<number> {
     nonce: `${process.pid}`,
   }
   const results: MemberMutation[] = []
+  const isUnchecked = (finding: MemberMutation['invalid'][number]) =>
+    finding.reason === 'timeoutUnchecked'
   const errors: string[] = []
   for (const [index, target] of targets.entries()) {
     const ran = await runStryker(target, strykerRun)
@@ -207,19 +227,53 @@ async function run(request: MutationRequest): Promise<number> {
       console.log(`${label}，出错`)
       continue
     }
-    const invalid = runtimeError(report, target.member.path, ran.reportPath)
-    if (invalid !== undefined) {
-      errors.push(invalid)
-      console.log(`${label}，出错`)
-      continue
+    const runs = readRunRecords(ran.runLogPath)
+    const first = summarizeMember(target, report, { runs })
+    const reports = [ran.reportPath]
+    let result = first
+    let recheckPaths: { logPath: string; reportPath: string } | undefined
+    let seconds = ran.wallSeconds
+    // 只因时限到了而超时的，在上限内单独复核一遍；第一遍已无效（RuntimeError、没跑测试）时不再花这份时间。
+    const pending = recheckTargets(target, report)
+    if (pending.length > 0 && first.runtimeErrors === 0 && first.invalid.every(isUnchecked)) {
+      const plan = planRecheck(report, pending, recheckMax)
+      result = summarizeMember(target, report, { runs, recheckReading: plan.reading })
+      if (plan.chosen.length > 0) {
+        const again = await runStryker(target, strykerRun, {
+          mutate: plan.chosen.map(({ file, mutant }) => exactEntry(file, mutant)),
+          timeoutMS: config.mutation.testTimeoutSeconds * 1000,
+        })
+        seconds += again.wallSeconds
+        const recheck = readMutationReport(again.reportPath)
+        if (again.preflightFailed || again.exitCode !== 0 || recheck === undefined)
+          errors.push(
+            `${target.member.path}：复核的 Stryker ${again.preflightFailed ? 'sandbox 预检没通过' : `退出码 ${again.exitCode}`}` +
+              `${recheck === undefined ? '，没有写出报告' : ''}，日志 ${again.logPath}`,
+          )
+        else {
+          reports.push(again.reportPath)
+          recheckPaths = { logPath: again.logPath, reportPath: again.reportPath }
+          result = summarizeMember(target, report, {
+            recheck,
+            runs,
+            recheckReading: plan.reading,
+          })
+        }
+      }
     }
-    const result = summarizeMember(target, report)
     results.push(result)
-    const notRun = notRunError(result, ran.logPath)
-    if (notRun !== undefined) errors.push(notRun)
+    errors.push(
+      ...memberErrors(result, {
+        logPath: ran.logPath,
+        reports,
+        ...(recheckPaths === undefined ? {} : { recheck: recheckPaths }),
+      }),
+    )
     console.log(
-      `${label}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
-        (result.notRun.length > 0 ? `、没跑测试 ${result.notRun.length}` : ''),
+      `[${index + 1}/${targets.length}] ${target.member.path} ${Math.round(seconds)} 秒` +
+        `${result.valid ? '' : '，测量无效'}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
+        (result.invalid.length > 0 ? `、不计分 ${result.invalid.length}` : '') +
+        (result.rechecked.length > 0 ? `、复核 ${result.rechecked.length}` : ''),
     )
   }
 
