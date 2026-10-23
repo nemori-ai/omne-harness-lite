@@ -1,6 +1,6 @@
 // @module-tag slow — starts an openssl child process and talks to a real local HTTPS server,
 // with real waiting for connect timeouts and physical socket closure.
-import type { ClientRequest } from 'node:http'
+import type { ClientRequest, IncomingMessage } from 'node:http'
 import type { RequestOptions } from 'node:https'
 import { createServer as createTcpServer } from 'node:net'
 import type { JsonLimits } from '@omne-harness/json-text'
@@ -95,6 +95,12 @@ function okOf(result: ExchangeResult) {
 function httpErrorOf(result: ExchangeResult) {
   if (result.kind !== 'http-error') throw new Error(`expected an HTTP error, got ${result.kind}`)
   return result
+}
+
+function clientResponse(): Promise<IncomingMessage> {
+  const request = built.requests.at(-1)
+  if (request === undefined) throw new Error('expected a client request')
+  return new Promise(resolve => request.once('response', resolve))
 }
 
 /** Waits until the exchange's client socket has read at least one byte of the response. */
@@ -366,6 +372,92 @@ describe('a 2xx response', () => {
         await exchange.stopped
         expect(reservation.state).toBe('released')
         expect(server.closedSockets()).toBe(0)
+      },
+    )
+  })
+
+  it('an early return drains a complete buffered response and keeps its socket healthy', async () => {
+    await withServer(
+      res => res.end('first and remaining bytes'),
+      async (server, resources) => {
+        const reservation = await held(resources)
+        const signal = new AbortController().signal
+        const exchange = started(startExchange(resources, input(server.url, reservation), signal))
+        const response = await clientResponse()
+        const socket = response.socket
+        if (socket === null) throw new Error('expected an attached client socket')
+        const originalRead = response.read
+        const readSpy = vi
+          .spyOn(response, 'read')
+          .mockImplementation((size?: number) => originalRead.call(response, size === 0 ? 0 : 1))
+        try {
+          const reader = claimed(await exchange.result)[Symbol.asyncIterator]()
+          expect(decoder.decode((await reader.next()).value)).toBe('f')
+          expect(response.complete).toBe(true)
+          expect(response.readableEnded).toBe(false)
+          expect(response.readableLength).toBeGreaterThan(0)
+          readSpy.mockRestore()
+          const stopped = watch(exchange.stopped)
+          await reader.return?.()
+          await expect.poll(() => stopped.done, { timeout: 1_000 }).toBe(true)
+          await exchange.stopped
+          expect(response.readableEnded).toBe(true)
+          expect(reservation.state).toBe('released')
+          expectCleanedUp(resources, signal)
+          expect(socket.destroyed).toBe(false)
+          expect(socket.writable).toBe(true)
+          expect(server.closedSockets()).toBe(0)
+          const nextReservation = await held(resources)
+          nextReservation.release()
+        } finally {
+          readSpy.mockRestore()
+          exchange.stop()
+          await exchange.stopped
+        }
+      },
+    )
+  })
+
+  it('a native iterator return rejection reaches the reader and still releases the exchange', async () => {
+    await withServer(
+      res => res.end('complete response'),
+      async (server, resources) => {
+        const reservation = await held(resources)
+        const signal = new AbortController().signal
+        const exchange = started(startExchange(resources, input(server.url, reservation), signal))
+        const response = await clientResponse()
+        const failure = new Error('injected native return rejection')
+        const originalIterator = response.iterator
+        const restoreReturns: (() => void)[] = []
+        let returnCalls = 0
+        const iteratorSpy = vi.spyOn(response, 'iterator').mockImplementation(options => {
+          const source = originalIterator.call(response, options)
+          const originalReturn = source.return
+          if (originalReturn === undefined) throw new Error('expected a native iterator return')
+          const returnSpy = vi.spyOn(source, 'return').mockImplementation(async value => {
+            await originalReturn.call(source, value)
+            returnCalls += 1
+            throw failure
+          })
+          restoreReturns.push(() => returnSpy.mockRestore())
+          return source
+        })
+        try {
+          const reader = claimed(await exchange.result)[Symbol.asyncIterator]()
+          expect(decoder.decode((await reader.next()).value)).toBe('complete response')
+          expect(response.complete).toBe(true)
+          expect(iteratorSpy).toHaveBeenCalledTimes(1)
+          await expect(reader.return?.()).rejects.toBe(failure)
+          expect(returnCalls).toBe(1)
+          await exchange.stopped
+          expect(reservation.state).toBe('released')
+          expectCleanedUp(resources, signal)
+          expect(response.destroyed).toBe(true)
+          await expect.poll(() => server.closedSockets()).toBe(1)
+        } finally {
+          for (const restore of restoreReturns) restore()
+          iteratorSpy.mockRestore()
+        }
       },
     )
   })

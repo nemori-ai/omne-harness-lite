@@ -61,10 +61,6 @@ export type ExchangeStart =
 export type ResponseHeaders = Readonly<Record<string, string | readonly string[]>>
 
 export interface ResponseBody {
-  /**
-   * Hands the body to its single reader. A second claim gets `undefined`. The reader ending
-   * the iteration early, even before its first `next()`, destroys the response.
-   */
   claim(): AsyncIterable<Uint8Array> | undefined
   /**
    * `true` once Node has received the whole body: the rest of it is buffered, so the reader gets
@@ -463,12 +459,11 @@ function createBody(res: IncomingMessage, stoppedLocally: () => boolean): Respon
   }
 }
 
-/** Ending the iteration early destroys the response, so the exchange still closes. */
 async function* readBytes(
   stream: IncomingMessage,
   stoppedLocally: () => boolean,
 ): AsyncGenerator<Uint8Array, void, undefined> {
-  const source: AsyncIterator<unknown> = stream[Symbol.asyncIterator]()
+  const source: AsyncIterator<unknown> = stream.iterator({ destroyOnReturn: false })
   try {
     for (;;) {
       const step = await nextChunk(source, stoppedLocally)
@@ -477,7 +472,14 @@ async function* readBytes(
       yield step.value
     }
   } finally {
-    await source.return?.()
+    await source.return?.().catch((error: unknown) => {
+      stream.destroy()
+      throw error
+    })
+    if (!stream.destroyed && !stream.readableEnded) {
+      if (stream.complete && !stoppedLocally()) stream.resume()
+      else stream.destroy()
+    }
   }
 }
 
