@@ -1438,20 +1438,21 @@ describe('lineage boundaries', () => {
       supplierOf,
       maxCitedCalls: 2,
     })
-    const lease = unbox(
-      await resources.acquire({
-        ...f.admit,
-        profile,
-        lineage: {
-          continues: X,
-          sources: [
-            { message: m1, call: Y },
-            { message: m2, call: X },
-          ],
-        },
-      }),
-    )
-    await lease.release()
+    const acquired = await resources.acquire({
+      ...f.admit,
+      profile,
+      lineage: {
+        continues: X,
+        sources: [
+          { message: m1, call: Y },
+          { message: m2, call: X },
+        ],
+      },
+    })
+    expect('ok' in acquired).toBe(true)
+    const lease = unbox(acquired)
+    expect(lease.bindings).toHaveLength(profile.definition.suppliers.length)
+    expect(await lease.release()).toEqual({})
   })
 
   it('refuses a message identity that is a string but no message identity', async () => {
