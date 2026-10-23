@@ -45,6 +45,7 @@ import {
   evidence,
   incompleteCall,
   instance,
+  message,
   operation,
   read,
   request,
@@ -73,12 +74,15 @@ it('DispatchRecord keeps the send state and the cost apart', () => {
     materialization: null,
   }
   const prepared: DispatchRecord = { ...sent, send: 'prepared', account: null, terminal: null }
+  const recorded: DispatchRecord = { ...sent, messages: [message.id] }
+  // @ts-expect-error the message sequence holds identities, never content
+  const copied: DispatchRecord = { ...sent, messages: [message] }
   // @ts-expect-error an unlisted send state
   const guessed: DispatchRecord = { ...sent, send: 'sent' }
   const { account: _omitted, ...withoutAccount } = sent
   // @ts-expect-error a missing cost is null, not absent
   const noAccount: DispatchRecord = withoutAccount
-  void [prepared, guessed, noAccount]
+  void [prepared, recorded, copied, guessed, noAccount]
 })
 
 it('an adapter can implement ModelCalls from the contract alone', () => {

@@ -36,6 +36,10 @@ proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超�
 
 网关引擎的用例经 `bindChatCompletions` 驱动引擎，替身只有家族的部分。[support/chat-record.ts](support/chat-record.ts) 给出一条测试记录、四个 hook 的替身与计量器替身。替身记录 `check` 与回放 hook 的输入，并可以让 `check` 失败或让计量器给出另一个表示采用。请求、消息与档案经 model-contract 的 `judgeFixedModelRequest` 与 `decodeRevision` 构造，所以消息身份与块身份是真实的品牌值。契约判定目前不接受请求的 `replay` 键，关闭回放的请求由测试在判定之后加上这个键。[family-table.spec.ts](family-table.spec.ts) 的测试家族在内存中返回绑定，并记录 `acquire` 的输入与 `release` 的次数。
 
+[chat-completions-calibration.spec.ts](chat-completions-calibration.spec.ts) 直接调用 `calibratedAmount`。计数函数是确定性的替身（文本长度，或在 `continuation-shrank` 用例里一个真实文本不会给出的非单调计数），消息身份经 `judgeFixedModelRequest` 取得。每个期望数字都在用例里按同一替身算出，所以用例检查的是算术把什么交给计数、把什么换成 O，不是 tokenizer。
+
+[chat-completions-measurement.spec.ts](chat-completions-measurement.spec.ts) 直接调用共用的计量规则。计量输入由 [support/chat-record.ts](support/chat-record.ts) 的测试记录、档案与经判定的请求构造。摘要用例把空校准的摘要与不带校准成员的同一组字段的 SHA-256 比较，所以空校准改变摘要时用例失败。共用计量器 `createCalibratedMeter` 的用例用按 UTF-16 码元计数的替身 tokenizer，核对四种拒绝、按家族要求计数原文或其 NFKC 形式、只在校准带锚点时报告锚点判决、输入上限的两种来源与本供应商的上游限额、每种档案限额的精确检查，以及 tokenizer 失败与推理单元标记的交接。两家的真实 tokenizer 与图片规则由家族包覆盖。
+
 [chat-completions-decode.spec.ts](chat-completions-decode.spec.ts) 把手写的 SSE 文本交给 `src/testing/fixtures.ts` 的 `replayStream`。它与发送使用同一个主体解码 `decodeBody`，所以每个用例都经唯一 `ended` 的守护与终止映射，并核对恰好一个 `ended` 且在最后。推理 hook 的 `seal` 替身记录收到的推理项，并给出用例指定的载荷或失败。两个用例按真实网关流的形状手写：带 `reasoning.summary` 与 `reasoning.encrypted` 的流，以及签名单独到达的 `reasoning.text` 流，两者都先发一帧不带 usage 的 finish，再发一帧带 usage 的同一 finish。这些流不是真实样本的副本。解码器的限额 `LIMITS` 在 [support/chat-record.ts](support/chat-record.ts)，只是本套测试的初值。
 
 [testing-helpers.spec.ts](testing-helpers.spec.ts) 用两条测试记录组成一个小家族，在临时目录中写出与引擎一致的夹具，再逐项破坏它们，核对 `checkChatCompletionsFixtures` 的报告与指纹的生成和检查。

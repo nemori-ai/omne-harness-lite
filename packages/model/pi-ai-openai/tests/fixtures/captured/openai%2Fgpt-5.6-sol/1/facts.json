@@ -1,0 +1,583 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating divisibility**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " find"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " a"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " number"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " under"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 200"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’s"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " either"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " not"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " To"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " compute"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " see"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 66"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " it's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 28"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " union"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 85"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " But"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " since"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " exclude"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " those"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 9"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " end"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " up"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 76"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Alternatively"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " could"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " also"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " arrive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " at"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " using"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " a"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " different"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " method"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " confirming"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 76"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " indeed"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " correct"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " answer"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "76"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating divisibility**\n\nI need to find a number under 200 that’s positive and divisible by either 3 or 7, but not 21. To compute this, I see that multiples of 3 are 66, and for 7, it's 28. The union gives me 85. But since I need to exclude those divisible by 21, which is 9, I end up with 76. Alternatively, I could also arrive at this using a different method, confirming that 76 is indeed the correct answer."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "76"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"data\":\"gAAAAABq2xc357gAE-FN8s2ov7x_3DsTQu2mqVQqSshjMiatFXHQ6IGfdgNf-dIbHoHcmp_MV48ZFvW0r_7pKvhwkobgvsefpEskX3PdHgB7xAHgu50uXL0hyw1lkxJ_XGiPVdwRCS4v7Xjqnsbxbl5ahuFMfC1jRfPjOhmtK-HrViF5TfvK4LCOdVXMT4T6erCaFJJD5BJ6Te7No3cdDSyaBgHvsDwGc6sjlw_0_Egb678NUeeGZIY6Z27y2KfoDs3WgzNQklZwJ9l5sD1DwY9rsuoslOzE6EDzu62m1PCgkO9FyNcsmRfqSvoc5fww1TpO2-1YgSEvJoTuuJGL3u4xmV2U6Cguz5Pqv6lcUut4R5TEkJFdM0uYsI9dPaNqZCaQ7L1R5YdM3T0aed9YeR8EqNziLCA18jxT29qFm-MOZ6XInrW1gLIfexXZWQQnTYiMmO1DdaFxptXf2vyJlra3iHsfaLUL__PiqYjJQTQ7bgXUEYnCzZXS1bWyj6XSzndNk4bhicpwwtxgGDqKOi7iq6vr5MLtV-E6OAR2Z-mwe7aMWQGNQZ2B1WaOrWcPldQyAI3LaOCTaPwU8DwsA1n-pH3HEhVZJtmrmb5MEM3ZqOnFgGJU5-D2aD36G3GUjP6eUlEIlXLdVpanS5gUEV1QJk3RyEbxhYudLpj89GDSHvtMm_Uv4tN4JWyZUZlWEVIPLHQoufwHFAq85B5MP_7hICa2Fwb-AULXq4LJyJZlVG8zGZ1nQ9KeVNchqkQ1E3F3fhze7Qt9AphL8Pnq-ud6mpx51L0tzSgpBzY-C2wYac5TKyd5cRHB2WCRV6UHCQz_2OJcmPhH2VMlAn2aiCVpFy7md0HoGlTWRLvNugqflHSVHyfTc710AODYgQlM6TFlarJxozVj0yt4Dlbixy3nEC8KWbL66gmxYWXO6sKE-vx4IDB5vDICrmrcrs1JVm1XknmUkgE4VObialiVuz7MpbToyWi4oAAdUwlLY8voeCWytHuUCUu03iXtelsnRpVgmrcY2y-_QlJfvjsWitfqVpSIsMAWf77QBB7N4-daD8P2Kt2VaGKf00eta6HE2hs6HOXHPkMPXL7uI2Sih9Zn0OqT1nEH4-yIzm6ckVntaqqjxBQEImwFo0k4H-vIHQMoVtBw8nAb2Sv6OTfCfz8yDqp-tiWxWSA97hdIJJM_q2x4Ad8PMDw9oErZzeRDL_HfhqJZ5xpMBG4-UUIcL3xAVNKLx-PXVaW6edL72Dd5jqQpLE1gQZqpNffXqj2qG8oi183YhbLGlKc5xxjMok22_21Zi1Jas6ojnL8qyubSzWevbAfNX2mI3Q_8H305_YlIPJEopSei9VWIsabMuyYO6y--hPyVJ7pjkVUrXz1BMSaNi3uQYFblavQCmdMA5xQcietH9ExHWMbg4CPLz9orWxHLssDQGTuhhcQ1Gea5kX0SndRoamtj9-9SfXtiKTImyuQ3NkRMebs39sFeeyQH5CVwcvjvDARuBsEpOd9TYH6oxHvhH3PhRkcQEoX8byJ3--kjVu8jtzdswbiVc-5-SCw-yF_Jlzv-wZqy47kK9LawxV9Qcb6qMdCLfpfO82n70sjave3l04wV9BADm94UOM1dzQBVQqDJ-mbMfmn1B9Czx2mrfzoSuPoSp5Qu3QLon2UrWG1d_XLbn0sTaBRlGebj7GVch6ZtPIIp-QNri803Zkaq1ctWN2zqgv4nB9jvrdcscl9XBhe4a_CeGGFDH93U-eTYeemowUVD09iLitfN8r5vO067VlCkvKvKHMEKOtAedXxqH4DGhFTfqTAw6xQOKG9VL0HfFbkKcPMsnWMqeNxSLDSVfXXQfotJ1OtR2uLQIwRi4RdeMMdKnsBFidJW_CIxOBOdQMcAR0RzDWpNhLZDopuS8NxLiPv_gBeRfqEdPxLLo5rjVvqNFU1SVbyk0c_cxG1ED5GSrYKN8rcNwtzOyGdcV3Z3F7ydxaxG1Oe5OnpNju-9kzaH4oTcnvCnEmxcV1sH4X6vAexyE01H6MT-JtrYPZbpIlKvKI0MslEKU6ISrAwlE8Oen6XDq2JueZStlYwO8AEzfzzSrQCAFPIlgkJK6wyl52dTpUnjcqxZCtpG9sHIi1kwklHOG60SarswUQzS2B2u6B3lA2j_qw-KZDH7JtQWq6jLTVZ7dnsoXT99h4qYFJPZ9ClS7Koeu-gs9pdSatO7QlwdBOr3YTv2x7r_MFpw2prXbfW572f8IGEvLr-2j4E61Agz8xmrWlwRJVqg-S1XOwhH_0XtIU-IUj0PIlOg6dwZ0Caxtq4SHYhM4M-IiXDffbuSvdDzVmbqL0auR18GqH5JAGx6O2RRp49HAgkhiY474zC08AfNzD8_TV7GeHICOx-q3nfOR6Ttea_F3yV8ttDRFkdHP5IkX6GuOEhH5QkNDFPCQcdcRjFlyYxRDQaAkgSLfea_Umuf-vw7kpGBhivbwFYihC4Ow7w=.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC01LjYtc29sLTIwMjYwNzA5fG9wZW5haSJ9\",\"format\":\"openai-responses-v1\",\"id\":\"rs_0d68cbc2f79b1f96016adb17346bd887d196f9c22bc3fc528a\",\"index\":1,\"type\":\"reasoning.encrypted\"}",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "33",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "98",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "91",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.002092",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "stop"
+    }
+  }
+]

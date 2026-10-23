@@ -12,8 +12,9 @@
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
 | `createModelRuntime` | 受理、查询、取消意图、原流保存、实例观察与下述支持范围内的调用收场；结果读取与 processed ACK 已实现，retained ACK 仍 unavailable |
 | `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
-| `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
-| 耐久 Commands 及生产托管执行 | 未实现 |
+| `createModelPreparationResources` | 生产准备租约：每个档案供应商一个家族绑定，按调用方访问依据读一次 lineage 引用的调用事实，判决锚点与来源，并在每份预算报告校准判决。没有 lineage 时，每个计量器给出与家族计量器相同的结果。释放后租约的每个计量器都不可用。Request Context 尚未填写 `lineage`（[#638](https://github.com/nemori-ai/omne-harness-lite/issues/638)）。在它填写之前，经 Request Context 的真实计量只给出完整计量或具名不可用 |
+| `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口；发出记录在清理后保留固定请求的消息身份序列 |
+| 耐久 Commands 及生产托管执行 | 未实现。内存 Commands 的已知限制：每次确认的快照计入调用容量，长回复即使分批保存，占用也持续增长。耐久 Commands 须规定自己的快照与容量策略（[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2） |
 | Cordis 运行宿主及厂商执行 | 本成员未实现 |
 
 ## 使用
@@ -27,6 +28,8 @@
 内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页，整个页受原受理容量约束。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
 
 调用方在受理前编码并保存调用引用。inspect、connect 和 beginRead 接收该引用与当前 Access。第五课保存操作引用及原 ACK result/evidence，恢复后重入原操作。见[共同引用契约](../model-contract/SPEC.md#可保存调用引用)。
+
+请求组装方经准备租约计量。它用 Commands、家族绑定来源、供应商端口与 `maxCitedCalls` 构造 `createModelPreparationResources`，再以自己的访问依据、档案和可选的 `lineage` 取得租约。租约以该访问依据读一次 lineage 引用的调用的发出记录，在每次家族计量前判决锚点与来源，预算在 `calibration` 报告判决。规则见 [SPEC“准备资源与校准租约”](SPEC.md#准备资源与校准租约)。
 
 ## 运行教学示例
 
@@ -106,7 +109,7 @@ Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再
 
 完整 `test` 先运行 Vitest，成功后执行五个教学脚本。快慢层都不自动执行 examples。已构建时可单独运行 `pnpm --filter @omne-harness/model examples`。acceptance 保持独立，由[测试运行器](../../../tools/test-runner/README_ZH.md#测试运行)调度，仓库根入口是 `pnpm run acceptance`。
 
-独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。准备资源测试驱动真实内存 Commands 与记录所收校准值的家族计量器替身，覆盖锚点命中、请求材料释放后仍命中、另一租户与不存在同结果、每种不命中与扣留原因、按调用方访问依据读取、全有全无取得与幂等释放。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

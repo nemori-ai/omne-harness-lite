@@ -30,6 +30,7 @@ import type {
 import type { MaterializationReceipt } from './provider.ts'
 import type { DurableEvidence } from './result.ts'
 import type { CallAccount } from '@omne-harness/call-account'
+import type { MessageId } from '@omne-harness/message'
 
 export type GrowingContentKind = 'text' | 'thinking' | 'tool-arguments' | 'voice'
 export type VisibleBlock =
@@ -90,6 +91,13 @@ export type DispatchRecord = Readonly<{
   terminal: Termination | null
   account: CallAccount | null
   materialization: Readonly<{ receipt: MaterializationReceipt; source: DurableEvidence }> | null
+  /**
+   * The message identities of the fixed request this dispatch sent, in request order. The
+   * provider copies them when it prepares the dispatch and keeps them as long as the account and
+   * the receipt, also after it releases the request material. Absent on a record written before
+   * this field existed.
+   */
+  messages?: readonly MessageId[]
 }>
 export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>

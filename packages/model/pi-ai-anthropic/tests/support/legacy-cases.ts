@@ -212,7 +212,7 @@ function account(counts: Counts, cost: string | null = null): object {
       cost:
         cost === null
           ? []
-          : [{ state: 'known', lexeme: cost, unit: 'openrouter-credit', source: 'supplier' }],
+          : [{ state: 'known', lexeme: cost, unit: 'openrouter-credit', source: 'billable' }],
       trimmed: { state: 'unknown', unit: 'token' },
       place: 'openrouter/Anthropic',
       duration: { state: 'unknown' },

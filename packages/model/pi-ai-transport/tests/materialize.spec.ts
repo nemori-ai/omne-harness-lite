@@ -99,6 +99,27 @@ describe('materialize', () => {
     expect(second.receipt).toEqual(first.receipt)
   })
 
+  it('names the replay format that the binding of the supplier produces in the receipt', async () => {
+    const { prepare, probe } = setup()
+    probe.replayFormat = 'test-format-v1'
+    const sent = await materialized(await prepare())
+    expect(sent.receipt).toEqual({
+      supplier: SUPPLIER.adoption,
+      representation: REQUEST.representation,
+      payloadDigest: createHash('sha256').update(EXPECTED_BODY).digest('hex'),
+      replayFormat: 'test-format-v1',
+    })
+    await sent.close()
+  })
+
+  it('leaves the replay format out of the receipt when the binding produces none', async () => {
+    const { prepare, probe } = setup()
+    probe.replayFormat = null
+    const sent = await materialized(await prepare())
+    expect(Object.hasOwn(sent.receipt, 'replayFormat')).toBe(false)
+    await sent.close()
+  })
+
   it('gives the family the request, no media, the declaration of the supplier and no resent message', async () => {
     const { prepare, probe } = setup()
     await materialized(await prepare())

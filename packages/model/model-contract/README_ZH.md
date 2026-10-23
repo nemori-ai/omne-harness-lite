@@ -7,7 +7,7 @@
 本成员拥有公共领域值、操作接口、可替换提供者端口及共同协议。设计已按 [SPEC](SPEC.md) 接受。状态分四类，各类只说明自己的范围。
 
 1. 已有：凭据的纯契约，即引用、查询、存在性与解析结果、`CredentialPort`、`decodeCredentialId` 与 `sameCredentialHolder`。声明在 [`src/credential.ts`](src/credential.ts) 与 [`src/credential-values.ts`](src/credential-values.ts)。保管与判定不在本包：本地保管归 [model-host-local](../model-host-local/README_ZH.md)，判定归 [model](../model/README_ZH.md)，Cordis 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。
-2. 本包已实现：根入口导出 173 个类型和 31 个运行时值。`./testing` 入口导出受控替代提供者、替代传输和提供者符合性断言 `checkModelProviderConformance`，共 27 个名字。替代提供者与替代传输的结果由测试脚本给出，不证明真实提供者的行为。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
+2. 本包已实现：根入口导出 179 个类型和 31 个运行时值。`./testing` 入口导出受控替代提供者、替代传输和提供者符合性断言 `checkModelProviderConformance`，共 27 个名字。替代提供者与替代传输的结果由测试脚本给出，不证明真实提供者的行为。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
 3. 尚未实现或验证：本包不含执行实现。`executeModel`、`createModelRuntime`、完整宿主与其他提供者不在本包。
 4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。SPEC 的[推理回放](SPEC.md#推理回放)设计已接受。第 2 类计入它的三个函数；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。
 
@@ -49,7 +49,7 @@ pnpm run check:docs
 
 Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model-contract test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
 
-当前测试覆盖根入口的 173 个类型声明与 31 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`，以及回放函数 `judgeReplayDeclaration`、`projectReplay`、`continuedMessages`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
+当前测试覆盖根入口的 179 个类型声明与 31 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`，以及回放函数 `judgeReplayDeclaration`、`projectReplay`、`continuedMessages`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

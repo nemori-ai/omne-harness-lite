@@ -5,6 +5,9 @@ import { decodeDispatchId } from '@omne-harness/model-contract'
 import type {
   ModelCommands,
   FixedModelRequest,
+  MaterializationReceipt,
+  Supplier,
+  Termination,
   RetryDecision,
   ModelFailure,
   Revision,
@@ -12,7 +15,8 @@ import type {
   WriteContext,
 } from '@omne-harness/model-contract'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { accountFact, completionFailure, reduceFacts } from './arrival.ts'
+import { isReplayTag } from '@omne-harness/message'
+import { accountFact, completionOf, reduceFacts } from './arrival.ts'
 import {
   MemoryState,
   bump,
@@ -24,6 +28,36 @@ import {
 } from './state.ts'
 import { cursor, digest, invalid, operation } from './value.ts'
 
+/** The receipt names the dispatch supplier and the request representation, in valid shapes. */
+function receiptBinds(
+  receipt: MaterializationReceipt,
+  supplier: Supplier,
+  request: FixedModelRequest,
+): boolean {
+  return (
+    digest(receipt.supplier) === digest(supplier.adoption) &&
+    digest(receipt.representation) === digest(request.representation) &&
+    /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
+    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat))
+  )
+}
+/**
+ * Records an actual terminal that arrived late. Content that does not form a message leaves the
+ * logical terminal open; reasoning state without a known replay range refuses the whole fact, as
+ * at the finish.
+ */
+function lateTerminal(
+  call: MemoryCall,
+  dispatch: MemoryDispatch,
+  actual: Termination,
+): ModelFailure | null {
+  dispatch.record = { ...dispatch.record, terminal: structuredClone(actual) }
+  if (dispatch.logicalTerminal !== null) return null
+  const completion = completionOf(call, dispatch, actual)
+  if (completion.kind === 'replay-unknown') return completion.failure
+  if (completion.kind === 'formed') dispatch.logicalTerminal = structuredClone(actual)
+  return null
+}
 function dispatchOf(call: MemoryCall, id: string): MemoryDispatch | ModelFailure {
   return call.dispatches.find(d => d.record.dispatch === id) ?? invalid('dispatch', 'not-found')
 }
@@ -92,16 +126,14 @@ export function dispatchCommands<P>(
   }
   function prepareSupplierFailure(
     call: MemoryCall,
+    request: FixedModelRequest,
     input: Parameters<ModelCommands<P>['prepareDispatch']>[0],
   ): ModelFailure | null {
-    if (!call.request || !call.request.suppliers.some(s => digest(s) === digest(input.supplier)))
+    if (!request.suppliers.some(s => digest(s) === digest(input.supplier)))
       return invalid('supplier', 'outside-request')
     const prior = call.dispatches.at(-1)
     if (prior) return retrySupplierFailure(call, prior, input)
-    if (
-      digest(input.supplier) !== digest(call.request.suppliers[0]) ||
-      input.policyDecision !== null
-    )
+    if (digest(input.supplier) !== digest(request.suppliers[0]) || input.policyDecision !== null)
       return invalid('supplier', 'first-supplier')
     return null
   }
@@ -132,11 +164,7 @@ export function dispatchCommands<P>(
       !call.request
     )
       return { failure: invalid('dispatch', 'already-materialized-or-sent') }
-    if (
-      digest(input.receipt.supplier) !== digest(dispatch.record.supplier.adoption) ||
-      digest(input.receipt.representation) !== digest(call.request.representation) ||
-      !/^[0-9a-f]{64}$/u.test(input.receipt.payloadDigest)
-    )
+    if (!receiptBinds(input.receipt, dispatch.record.supplier, call.request))
       return { failure: invalid('receipt', 'binding') }
     const adapter = store.adapter(call)
     if ('kind' in adapter) return { failure: adapter }
@@ -290,7 +318,10 @@ export function dispatchCommands<P>(
             call.dispatches.some(d => d.record.dispatch === input.dispatch)
           )
             return invalid('dispatch', 'duplicate-or-identity')
-          const supplier = prepareSupplierFailure(call, input)
+          // A released request has no supplier to prepare against: the same refusal as a
+          // supplier outside the request.
+          if (call.request === null) return invalid('supplier', 'outside-request')
+          const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
           call.dispatches.push({
             record: {
@@ -302,6 +333,8 @@ export function dispatchCommands<P>(
               terminal: null,
               account: null,
               materialization: null,
+              // Identities only. They outlive the request material, which cleanup releases.
+              messages: call.request.messages.map(message => message.id),
             },
             logicalTerminal: null,
             windows: new Map(),
@@ -514,12 +547,8 @@ export function dispatchCommands<P>(
               })
               if (failure) return { failure }
             } else {
-              dispatch.record = { ...dispatch.record, terminal: structuredClone(input.fact.actual) }
-              if (
-                dispatch.logicalTerminal === null &&
-                !completionFailure(dispatch, input.fact.actual)
-              )
-                dispatch.logicalTerminal = structuredClone(input.fact.actual)
+              const failure = lateTerminal(call, dispatch, input.fact.actual)
+              if (failure) return { failure }
             }
             dispatch.events.set(event, fingerprint)
             const revision = bump(call)

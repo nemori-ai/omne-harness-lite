@@ -233,6 +233,7 @@ describe('rules.plan: the family check and the representation', () => {
       kind: 'materialized',
       adoption: REPRESENTATION,
       tokenInput: { kind: 'string', value: 'turns:1' },
+      units: request.messages.map(item => item.id),
       media: [],
       requestBytes: String(serializeBody(encoded.ok.body).byteLength),
     })

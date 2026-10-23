@@ -143,9 +143,22 @@ it('a materialization receipt names the supplier, the representation and the pay
     budget,
   }
   expectTypeOf<keyof MaterializationReceipt>().toEqualTypeOf<
-    'supplier' | 'representation' | 'payloadDigest'
+    'supplier' | 'representation' | 'payloadDigest' | 'replayFormat'
   >()
   void [noDigest, withBudget]
+})
+
+it('a materialization receipt may name the replay format that its dispatch produces', () => {
+  const formatted: MaterializationReceipt = {
+    supplier: adoption,
+    representation: adoption,
+    payloadDigest: 'd',
+    replayFormat: 'vendor-format-v1',
+  }
+  // @ts-expect-error the replay format is a text, not a structured value
+  const structured: MaterializationReceipt = { ...formatted, replayFormat: { format: 'x' } }
+  expectTypeOf<MaterializationReceipt['replayFormat']>().toEqualTypeOf<string | undefined>()
+  void structured
 })
 
 it('execution and write context fix the target, the generation and the expected revision', () => {

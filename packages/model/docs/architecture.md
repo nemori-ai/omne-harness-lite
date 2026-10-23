@@ -1,6 +1,6 @@
 # 模型调用组的工程关系
 
-产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 资源与计量分工及迁移接受条件已接受；厂商适配的内聚细化、官方支持证据矩阵及物化资源控制仍按各节标注保持候选。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
+产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 资源与计量分工及迁移接受条件已接受；厂商适配的内聚细化、官方支持证据矩阵及物化资源控制仍按各节标注保持候选。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管、生产发送资源、本地 Model 装配入口 `assembleLocalModel`，以及装配对计量准备资源的接入。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
 
 ## 依赖方向
 
@@ -55,7 +55,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 与 pi-ai-anthropic 使用它们。两个家族经同一 `composeFamilies` 与 `createPiTransport` 的联调是 pi-ai-anthropic 的慢层用例。tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与两个资源类型；它在初始化时核对家族传入的词表与配置，不收录厂商词表。pi-ai-openai 以 o200k 词表消费它，pi-ai-anthropic 以随包发布的 `claude.json` 消费它。其余六个 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前承载本地凭据保管、生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`。装配把凭据保管、发送边界、pi 传输与调用方注入的 `ModelCommands` 连成一条请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源；时钟、实例调度、目录装载与托管运行插件尚未实现。pi-ai-transport 的根入口已导出五个家族贡献接口类型、三段传输的工厂 `createPiTransport` 与网络资源的工厂 `createNetworkResources`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离在包内实现。pi-ai-transport 的根入口还导出家族表，子入口 `./chat-completions` 导出网关引擎（请求与流解码），子入口 `./testing` 导出家族测试助手；家族包 pi-ai-openai 与 pi-ai-anthropic 使用它们。两个家族经同一 `composeFamilies` 与 `createPiTransport` 的联调是 pi-ai-anthropic 的慢层用例。tokenizer-tiktoken 的根入口已导出 `createTiktokenTokenizer` 与两个资源类型；它在初始化时核对家族传入的词表与配置，不收录厂商词表。pi-ai-openai 以 o200k 词表消费它，pi-ai-anthropic 以随包发布的 `claude.json` 消费它。其余六个 `pi-ai-*` 成员及 tokenizer-huggingface 尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -128,7 +128,7 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管、生产发送资源、本地 Model 装配入口 `assembleLocalModel`，以及装配对计量准备资源的接入。结果读取及 processed ACK 已实现；retained ACK、自动清理、策略循环、生产宿主和跨进程恢复尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
@@ -215,7 +215,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
 import type {
-  Adoption, Supplier, FixedModelRequest, ModelRequestRules, ModelInputMeter,
+  Adoption, Supplier, FixedModelRequest, ModelRequestRules, CalibratedInputMeter,
   ModelCountingBasis, ModelToolPayloadAdapter, TransportFact, TransportFailure, ModelFault,
   MeterRepresentation, MediaMeasurementFact, ReplayDeclaration, TransportDispatch,
   ProviderDiagnostic,
@@ -232,7 +232,8 @@ export type PiMaterializedMedia = Readonly<{
 }>
 export type PiFamilyBinding = Readonly<{
   supplier: Supplier; adoption: Adoption; counting: ModelCountingBasis
-  rules: ModelRequestRules; meter: ModelInputMeter
+  rules: ModelRequestRules; meter: CalibratedInputMeter
+  replayFormat: string | null
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(input: Readonly<{
     request: FixedModelRequest; media: readonly PiMaterializedMedia[]
@@ -252,6 +253,8 @@ export interface PiFamilyContributions {
 acquire 核型号、接收方、route 和所有采用相容后，一次交付完整绑定。绑定内 supplier 与所请求供应商一致，counting 与 meter 的依据一致；不能混搭同名不同版本。取消或任何初始化失败释放已取得资源。只读官方目录不调用 acquire。退休后停止新取得，既有租约保持固定版本直到 release；release 幂等且只释放本次持有。
 
 `acquire` 是提供者内部的绑定取得，不增加传输阶段。`ModelTransport` 继续按领域契约执行 `prepare → materialize → start`。
+
+绑定的 `replayFormat` 是本次发出产出的回放格式。物化回执原样带上它，供 Commands 收场时组成消息。家族记录没有回放格式时，`replayFormat` 为 `null`，回执不带该项。
 
 `PiFamilyBinding.release` 只有在本次资源确已释放后才成功返回。资源清理失败时拒绝该 Promise，不吞掉失败或标记释放完成；持有绑定的装配拥有者继续负责未完成的清理。向 `ModelPreparationResources` 提供租约时，该拥有者捕获预期的清理失败，转换为既定的 `unavailable` 结果，`dependency` 指明资源提供者，诊断不含私有内容。租约重复释放返回同一结果，后续清理仍由提供者负责，遵守[准备资源的释放协议](../model-contract/SPEC.md#档案和准备提供者的组合协议)。这不改变领域契约的失败形状。
 

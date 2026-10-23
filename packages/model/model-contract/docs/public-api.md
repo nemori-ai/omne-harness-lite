@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 173 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 179 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -64,6 +64,8 @@
 - 声明：[`src/call-surface.ts`](../src/call-surface.ts)。
 - 类型探针：[`tests/call-surface.spec-d.ts`](../tests/call-surface.spec-d.ts)。
 
+`DispatchRecord.messages` 是这次发出所用固定请求的消息身份序列。提供者在准备发出时抄写它，与账目和回执同寿命，清理请求材料时不删除；准备租约用它核对延续前缀，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。旧记录没有这一项。
+
 ### 最终结果项与页预算
 
 ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)。ResultPage.parts 按页序交付 sealed 或 partial；二者都带真实 trims。消费者先按 kind 分支，sealed 进入完整块处理，partial 进入未封值保管。partial 的工具参数即使可解析也不是 ToolCallPart。未封 voice 不带推测的媒体类型，thinking 的保管不授予展示权。
@@ -92,6 +94,8 @@ ModelMediaReader 只在实际发送阶段读取模型可见的内容 ref；附�
 TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射为共享到达步骤，序号、整交块及终止的精确规则见 [共享到达映射](../SPEC.md#供应商解释与流状态归约)。它不替代 common/stream-arrival，也不直接传给 assembleStream。
 
 `TransportFact`、`IndependentModelFact` 与 `LateDispatchFact` 的 `account` 变体带 `CallAccountReport`：它是 `CallAccount` 去掉 `subject` 与 `receipt`。提供者不知道调用身份，也不判断迟到。Model runtime 保存账目时补上这两项，规则见 [SPEC](../SPEC.md#342-独立执行与提供者操作)。`diagnostic` 变体带一条 `ProviderDiagnostic`。它是闭合联合，有四种：`replay-omitted`（消息身份、`scope`、`format`、略去的部件个数）、`reasoning-disabled`（原因 `foreign-prefix`）、`reasoning-state-dropped`（原因 `payload-too-long` 与载荷长度）和 `usage-inconsistent`（自相矛盾的用量字段名）。诊断不带载荷或正文，不改变块。
+
+`MaterializationReceipt.replayFormat` 是这次发出产出的推理续接状态部件的回放 `format`，由适配器按其采用给出。适配器不产出推理续接状态时没有这一项，旧记录也没有。Model runtime 收场时用它作 finish 的 `format`，见 [到达与组成](../SPEC.md#回放的到达与组成)。
 
 `ModelTransport.prepare(request, supplier, dispatch)` 的第三个参数是 `TransportDispatch`，带这次发出不由请求固定的输入。`resent` 列出这次再发须视为不可续接的消息，首次发出为空。传输把它交给回放投影，见 [SPEC](../SPEC.md#回放投影)。
 
@@ -145,6 +149,8 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 全部模态是四种：文字、图片、语音和视频，词表归 [`@omne-harness/modality`](../../../common/modality/docs/public-api.md)。本包不转出它，消费者直接从该成员导入 `Modality`。`ModelModality` 是 Model 本阶段支持的三种，由 `Modality` 派生。`ModelProfileDefinition` 的输入输出用 `ModelModality`，`ModalityRequirement` 用 `Modality`。
 
 `ProfileSupplier` 没有凭据字段。求值的 credential 只说明当前可用性，不返回秘密或授予发送资格。ModelProfileMaintenance 的身份参数不是跨层维护许可。精确键和摘要规则由实际提供者采用并验证，不把任意字符串当可信证明。
+
+`MeterRepresentation.units` 是与 `tokenInput` 消息单元逐项对齐的侧表，由家族适配器的 `rules.plan` 写出，手写的表示没有它。`CalibratedInputMeter` 是家族计量器给准备租约的校准入口：`measureCalibrated` 接收普通计量输入和 `MeterCalibration`（锚点的真实输入合计与覆盖的消息，各来源的输出 token 数或 `OutputWithheld` 原因）。普通消费者只调用 `measure`。`RequestBudget.calibration` 是 `CalibrationReport`：有 lineage 的租约计量时出现，只含锚点命中或 `AnchorMiss` 原因。每个原因的条件见 SPEC 的[锚点不命中的原因](../SPEC.md#锚点不命中的原因)与[来源扣留的原因](../SPEC.md#来源扣留的原因)。行为见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。
 
 `ProfileSupplier.replay` 是该供应商的[回放声明](../SPEC.md#推理回放)，三项都可省略，省略的项取默认值；`ReplayDeclaration` 是展开后的完整声明。`AssembledModelInput.replay` 与 `FixedModelRequest.replay` 只有一个取值 `'off'`：本次请求关闭回放，对每次发出都有效。`judgeFixedModelRequest` 接受这个取值，拒绝其他值。`FixedModelRequest.declarations` 是每个供应商展开后的 `ReplayDeclaration`，项数与次序同 `suppliers`。准备方用 `judgeReplayDeclaration` 展开档案供应商的声明并写入这一项。编码与计量使用请求中的声明。`ReplayProjectionInput`、`ReplayProjection`、`ReplayTreatment` 与 `ReplayDiagnostic` 是回放投影的输入与输出，函数见[推理回放的声明与投影](#推理回放的声明与投影)。
 
@@ -207,7 +213,7 @@ ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime�
 
 普通消费者继续使用 ModelProfiles、ModelRequestPreparation 和 ModelMessageConversion。写入档案的权威提供者直接实现 ModelProfileMaintenance，不增加只转发 change 的工厂层。
 
-来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
+来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。`acquire` 的输入可以带 `PreparationLineage`：`continues` 是被延续的调用，`sources` 以消息为键给出来源调用。请求组装方为 `continues` 作保的前置条件、超限拒绝与空 lineage 见 [lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果。有 lineage 时，租约按访问依据读取被引用调用的发出记录，`measure` 保持同步并在 `RequestBudget.calibration` 报告判决，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。租约释放后，它交出的每个计量器都返回 `unavailable`（`preparation-lease-released`）。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
 
 ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒体字节，不联网。ModelContentAuthority 同时核原来源、实际块和当前权限，origin 字段本身不授予转换或绕过资格。
 
@@ -330,7 +336,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 | `quiesce-reports-pending-and-running` | `quiesce` 报告的待处理与运行中数量是十进制数，且不少于套件已知未收场的调用数 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | `startRun`（只检查运行中数量时） |
 | `transport-sends-only-at-start` | `prepare` 与 `materialize` 不发送，`start` 一返回就已发送，不等第一次迭代 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
 | `repeated-transport-step-sends-nothing` | 同一 prepared 再 `materialize`、同一 materialized 再 `start`，不给出能产出事实的流，也不再发送 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
-| `materialization-receipt-matches-request` | 回执有非空的 payload 摘要，供应商与表示采用同请求一致，两次读取相同 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
+| `materialization-receipt-matches-request` | 回执有非空的 payload 摘要，供应商与表示采用同请求一致，两次读取相同；回执带 `replayFormat` 时，它是合法的回放标签，两次读取相同 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
 | `fact-stream-ends-once` | 事实流恰有一个 `ended`，它是最后一个事实 | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约) | 传输 |
 | `interruption-is-confirmed` | 信号中止后的事实流里，每个 `interrupted` 终止都带 `stop: 'confirmed'` | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
 | `transport-close-is-idempotent` | `close` 重复调用不抛错，关闭不发送 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |

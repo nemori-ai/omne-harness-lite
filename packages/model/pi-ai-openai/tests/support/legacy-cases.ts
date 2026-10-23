@@ -145,7 +145,7 @@ function account(record: string, counts: Counts, cost: string | null = null): ob
       cost:
         cost === null
           ? []
-          : [{ state: 'known', lexeme: cost, unit: 'openrouter-credit', source: 'supplier' }],
+          : [{ state: 'known', lexeme: cost, unit: 'openrouter-credit', source: 'billable' }],
       trimmed: { state: 'unknown', unit: 'token' },
       place: 'openrouter/OpenAI',
       duration: { state: 'unknown' },

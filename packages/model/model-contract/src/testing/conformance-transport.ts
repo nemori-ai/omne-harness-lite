@@ -1,5 +1,6 @@
 // The checks of a transport: nothing leaves it before `start`, a step runs once, the receipt
 // grants nothing, the fact stream ends once, and closing is safe to repeat.
+import { isReplayTag } from '@omne-harness/message'
 import type {
   MaterializedTransport,
   PreparedTransport,
@@ -178,6 +179,17 @@ export function transportChecks<P>(): readonly Check<P>[] {
               `the receipt names the representation ${show(receipt.representation)}`,
             )
             expect(same(receipt, materialized.receipt), 'the receipt changes between two reads')
+            // Absent: the adapter produces no reasoning state. Present: the replay tag that the
+            // settlement writes into the message, so every read gives the same legal tag.
+            const format = receipt.replayFormat
+            expect(
+              format === undefined || isReplayTag(format),
+              `the receipt names the replay format ${show(format)}, which is not a replay tag`,
+            )
+            expect(
+              materialized.receipt.replayFormat === format,
+              `the replay format changes between two reads: ${show(format)}, then ${show(materialized.receipt.replayFormat)}`,
+            )
           })
         })
       },

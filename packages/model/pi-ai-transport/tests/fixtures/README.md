@@ -16,4 +16,15 @@
 
 ## 本包事实
 
-不适用。测试在运行时生成自签证书与请求数据，并在私有临时目录中清理，不依赖固定输入文件，所以本目录没有数据。
+本包的测试在运行时生成自签证书与请求数据，并在私有临时目录中清理，不依赖固定输入文件。
+
+`recordings/<用例>/` 是真实请求的回放件。每个用例一个目录，含两个文件：
+
+- `stream.sse`：网关回答的 SSE 正文，按收到的字节原样保存，不含任何响应头；
+- `recording.json`：旁注，只有 `model`（供应商型号）、`payloadDigest`（请求体的 SHA-256，等于物化回执的 `payloadDigest`）与 `recordedAt`（收到回答的 UTC 时间）。
+
+回放件只由 model-host-local 的录制器写出，不手工编辑。录制器经本地装配路径向网关发出一次请求，写入之前检查正文与旁注中的密钥模式，命中时不写文件。录制器不保存请求体。回放时，录制用例重新构造请求，并用 `payloadDigest` 核对请求体相同。用例、规则与运行命令见 [model-host-local 的测试说明](../../../model-host-local/tests/README.md)。
+
+现有四份回放件，2026-10-23 经代理录自 OpenRouter：`openai-reasoning`、`openai-reasoning-continued`（`openai/gpt-5.6-sol`，reasoning effort medium）与 `anthropic-reasoning`、`anthropic-reasoning-continued`（`anthropic/claude-sonnet-5`，reasoning effort low）。每份的回复都带推理状态并以 `completed/stop` 结束；延续轮的请求带第一轮回复的推理状态，网关接受。
+
+门禁回放测试（`recording-replay.spec.ts`）与计量对照测试（`recording-c9.spec.ts`）读取这四份回放件，经本地 HTTPS 服务回放，不发出任何网络请求。回放件的字节只在重新录制时变化，两个测试都不改写它们。

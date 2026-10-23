@@ -10,17 +10,9 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { sameAdoption } from './adoption.ts'
 
 type Terminal = Extract<IndependentModelFact, { kind: 'ended' | 'not-started' }>
-
-function sameAdoption(left: Adoption, right: Adoption): boolean {
-  return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
 
 function copyAdoption(adoption: Adoption): Adoption {
   return {
@@ -32,10 +24,12 @@ function copyAdoption(adoption: Adoption): Adoption {
 }
 
 function copyReceipt(receipt: MaterializationReceipt): MaterializationReceipt {
+  const { replayFormat } = receipt
   return {
     supplier: copyAdoption(receipt.supplier),
     representation: copyAdoption(receipt.representation),
     payloadDigest: receipt.payloadDigest,
+    ...(replayFormat === undefined ? {} : { replayFormat }),
   }
 }
 
@@ -48,6 +42,7 @@ function receiptMatches(
   return (
     first.payloadDigest.length > 0 &&
     first.payloadDigest === second.payloadDigest &&
+    first.replayFormat === second.replayFormat &&
     sameAdoption(first.supplier, expected.supplier) &&
     sameAdoption(first.representation, expected.representation) &&
     sameAdoption(first.supplier, second.supplier) &&

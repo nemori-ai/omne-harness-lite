@@ -1,7 +1,24 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
-const groupArchitecture = new URL('../../docs/architecture.md', import.meta.url)
+/**
+ * The workspace root above `from`. The group page is found from it, not from the package
+ * directory, so the check also runs in a copy of the package at another place in the tree
+ * (the mutation sandbox).
+ */
+function workspaceRoot(from: string): string {
+  for (let directory = from; ; directory = dirname(directory)) {
+    if (existsSync(join(directory, 'pnpm-workspace.yaml'))) return directory
+    if (dirname(directory) === directory) throw new Error(`no pnpm-workspace.yaml above ${from}`)
+  }
+}
+
+const groupArchitecture = join(
+  workspaceRoot(fileURLToPath(new URL('.', import.meta.url))),
+  'packages/model/docs/architecture.md',
+)
 const familySource = new URL('../src/family.ts', import.meta.url)
 
 /** Drops comments and every layout difference that the formatter may introduce. */
@@ -31,9 +48,18 @@ it('the root entry exports the family table, the network resources factory and t
   ])
 })
 
-it('the subpath entry chat-completions exports bindChatCompletions as its only runtime value', async () => {
+it('the subpath entry chat-completions exports the binding entry, the shared calibrated arithmetic, the shared meter and the shared measurement rules as its runtime values', async () => {
   const engine: object = await import('@omne-harness/pi-ai-transport/chat-completions')
-  expect(Object.keys(engine)).toEqual(['bindChatCompletions'])
+  expect(Object.keys(engine).toSorted()).toEqual([
+    'ANCHORED_METHOD',
+    'NO_CALIBRATION',
+    'bindChatCompletions',
+    'calibratedAmount',
+    'calibratedDigest',
+    'calibratedMethod',
+    'createCalibratedMeter',
+    'unitExtras',
+  ])
 })
 
 it('the subpath entry testing exports the fixture check and the adoption fingerprint helpers', async () => {

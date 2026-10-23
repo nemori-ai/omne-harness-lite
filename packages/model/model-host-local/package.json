@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local credential custody for the Model capability: file-backed custodian and its Cordis provider plugin",
+  "description": "Single-machine host provider of Model: file-backed credential custody with its Cordis plugin, and the local send path over the pi transport",
   "engines": {
     "node": ">=24"
   },
@@ -27,7 +27,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "record:live": "vitest run --mode slow --typecheck.enabled=false --reporter=verbose tests/live/record.spec.ts"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
@@ -35,12 +36,23 @@
     "@omne-harness/model": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",
+    "@omne-harness/pi-ai-transport": "workspace:*",
     "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/pi-ai-anthropic": "workspace:*",
+    "@omne-harness/pi-ai-openai": "workspace:*",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "service-provider"
+    }
   }
 }

@@ -95,6 +95,8 @@ export type FamilyProbe = {
   acquireGate: Promise<void> | undefined
   /** Set: every encode answers this failure. */
   encodeFailure: TransportFailure | undefined
+  /** The replay format that the bindings of the next acquires name. */
+  replayFormat: string | null
 }
 
 export function createTestFamily(): Readonly<{
@@ -110,6 +112,7 @@ export function createTestFamily(): Readonly<{
     acquireFailure: undefined,
     acquireGate: undefined,
     encodeFailure: undefined,
+    replayFormat: null,
   }
   const families: PiFamilyContributions = {
     async acquire(supplier, signal) {
@@ -146,7 +149,12 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
     adoption: adoption('family'),
     counting,
     rules: { plan: () => ({ failure: refused }) },
-    meter: { basis: counting, measure: () => ({ failure: refused }) },
+    meter: {
+      basis: counting,
+      measure: () => ({ failure: refused }),
+      measureCalibrated: () => ({ failure: refused }),
+    },
+    replayFormat: probe.replayFormat,
     tools: { convertToModelPayload: () => ({ failure: refused }) },
     encode(input) {
       const { request } = input
