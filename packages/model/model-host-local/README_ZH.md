@@ -18,7 +18,7 @@
 
 ## 使用
 
-独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
+独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。`close` 开始后，`preparation` 拒绝新的租约；调用方在关闭前取得的租约仍可使用，直到调用方释放它。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
 
 ## 契约
 
@@ -46,7 +46,7 @@ pnpm run check:docs
 
 Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model-host-local test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
 
-测试覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新与保存确认未知，并用真实 Cordis 4.0.4 核对插件发布与撤除。快层测试核对发送资源的凭据槽、物化传输归属、释放与关闭。慢层测试用本地 HTTPS 服务回放两个家族录制的 SSE，经装配的发送路径与 model 运行时驱动调用，核对 `Bearer` 凭据、唯一终止、账目到达与应付金额。它们不证明其他宿主能力，不证明经真实厂商或代理的请求，也不证明跨机器或网络文件系统上的锁语义。
+测试覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新与保存确认未知，并用真实 Cordis 4.0.4 核对插件发布与撤除。快层测试核对发送资源的凭据槽、物化传输归属、释放与关闭，并核对装配关闭开始后拒绝新的准备租约、关闭前取得的租约仍能计量并释放。慢层测试用本地 HTTPS 服务回放两个家族录制的 SSE，经装配的发送路径与 model 运行时驱动调用，核对 `Bearer` 凭据、唯一终止、账目到达与应付金额。它们不证明其他宿主能力，不证明经真实厂商或代理的请求，也不证明跨机器或网络文件系统上的锁语义。
 
 ## 维护
 

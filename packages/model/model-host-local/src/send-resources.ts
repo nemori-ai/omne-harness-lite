@@ -57,7 +57,11 @@ export class SendResourceDefect extends Error {
 
 type AcquireResult = Awaited<ReturnType<SendResources<unknown>['acquire']>>
 
-const CLOSED: ModelFailure = Object.freeze({
+/**
+ * The refusal after `close`. The assembly gives the same failure for a preparation lease that is
+ * asked for after its own `close`.
+ */
+export const SEND_RESOURCES_CLOSED: ModelFailure = Object.freeze({
   kind: 'unavailable',
   dependency: 'pi-send-resources',
   diagnostic: 'send-resources-closed',
@@ -143,7 +147,7 @@ export function sendResourcesOver<P>(
 
   return {
     async acquire(): Promise<AcquireResult> {
-      if (closing !== undefined) return { failure: CLOSED }
+      if (closing !== undefined) return { failure: SEND_RESOURCES_CLOSED }
       return { ok: acquireOne() }
     },
     close() {

@@ -63,7 +63,7 @@ const lease = await local.preparation.acquire({ ...access, profile, lineage }) /
 await local.close()
 ```
 
-示例里的数值只说明形状，不是默认值。`local.close()` 不关闭 `commands`、`coordinator`、家族与保管库，也不改变 `local.preparation`。
+示例里的数值只说明形状，不是默认值。`local.close()` 不关闭 `commands`、`coordinator`、家族与保管库。`close()` 开始后，`local.preparation.acquire` 返回与发送资源相同的 `unavailable`。关闭前取得的租约仍可计量，调用方照常调用 `release`。
 
 选择本包会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile。只消费 model 或契约包的程序不需要它。
 

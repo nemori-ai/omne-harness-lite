@@ -1,6 +1,7 @@
 // The local Model assembly: credential custody, the Model send boundary, the pi transport with the
 // given families, the injected ModelCommands, and the preparation resources over the same families
 // and Commands. It only composes; every limit, route, proxy and margin comes from the configuration.
+// Its `close` is the one end of both parts: after it starts, neither gives out a new resource.
 import {
   createModelPreparationResources,
   createModelSendBoundary,
@@ -20,7 +21,11 @@ import {
   type PiRoute,
   type PiTransportLimits,
 } from '@omne-harness/pi-ai-transport'
-import { createPiSendResources, type PiSendResources } from './send-resources.ts'
+import {
+  createPiSendResources,
+  SEND_RESOURCES_CLOSED,
+  type PiSendResources,
+} from './send-resources.ts'
 
 export type LocalModelConfig<P> = Readonly<{
   /** The credential custody, e.g. a local custodian. The send boundary resolves through it. */
@@ -52,12 +57,14 @@ export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
   /**
    * The production `ModelPreparationResources` over `families` and `commands`. The caller releases
-   * every lease it acquires. `close` does not touch it: it holds no network resource.
+   * every lease it acquires. After `close` starts, `acquire` returns the same `unavailable` failure
+   * as the send resources. A lease acquired before keeps its bindings until its own `release`.
    */
   preparation: ModelPreparationResources<P>
   /**
-   * Refuses new send resources, releases the open ones, then closes the network resources and
-   * waits for every exchange to stop. It does not close `commands` or `credentials`. Idempotent.
+   * Refuses new send resources and new preparation leases, releases the open send resources, then
+   * closes the network resources and waits for every exchange to stop. It does not close
+   * `commands` or `credentials`, and it does not release a lease. Idempotent.
    */
   close(): Promise<void>
 }>
@@ -71,7 +78,7 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
   const network = createNetworkResources(config.network)
   let resources: PiSendResources<P>
   let send: ModelSendBoundary<P>
-  let preparation: ModelPreparationResources<P>
+  let leases: ModelPreparationResources<P>
   try {
     resources = createPiSendResources<P>({
       network,
@@ -89,7 +96,7 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
     const options = config.preparation
     if (typeof options !== 'object' || options === null)
       throw new RangeError('preparation must be an object')
-    preparation = createModelPreparationResources<P>({
+    leases = createModelPreparationResources<P>({
       commands: config.commands,
       bindings: config.families,
       supplierOf: options.supplierOf,
@@ -102,6 +109,12 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
     throw error
   }
   let closing: Promise<void> | undefined
+  const preparation: ModelPreparationResources<P> = {
+    async acquire(input) {
+      if (closing !== undefined) return { failure: SEND_RESOURCES_CLOSED }
+      return leases.acquire(input)
+    },
+  }
   async function closeAll(): Promise<void> {
     const released = await Promise.allSettled([resources.close()])
     await network.close()

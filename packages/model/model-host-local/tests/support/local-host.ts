@@ -50,7 +50,8 @@ const FAMILY_LIMITS = {
 /** The margin of both families: 10 percent of the estimated part. A test parameter. */
 export const MARGIN_PERCENT = 10n
 const MARGIN = { percent: String(MARGIN_PERCENT), source: TEST_ADOPTION }
-const FAMILIES = composeFamilies([
+/** The two real families with their tokenizers, the test limits and the test margin. */
+export const FAMILIES = composeFamilies([
   createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
     limits: FAMILY_LIMITS,
