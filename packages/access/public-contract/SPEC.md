@@ -66,7 +66,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
 6. 上表要求行事租户时，核对该值等于该登录的当前选择。不等则 `denied`，响应不包含实际选择。行事租户所属组织与目标组织不同，本身不是冲突。
 7. 按该操作的当前资格做业务判断。判断使用提交时的事实。对象按公开契约要求隐藏时，先返回 `not-visible`。这包括该对象同时没有跨租户授予的情况。对象可见且没有跨租户授予时，结果是 `denied`。
-8. 通过后提交业务效果。服务端已经返回的终端 `outcome` 不是 `unknown`。响应没有到达调用者时，调用者保持 `unknown`。
+8. 通过后提交业务效果。已经确定的终端结果不是 `unknown`。创建组织无法判定提交排序、原创建回执无法认回，以及授权表达或撤回的提交结果未知时，可按相应操作返回线上 `unknown` 和空 `body`。其他响应没有到达调用者时，只有调用者本地保持未知，不构造服务器已关联的 `unknown` 响应。
 
 注册和签发登录禁止登录证明。它们不使用第 4 步。凭据结果见各操作。
 
@@ -448,17 +448,18 @@ sdk does not import server-entry
 调用形状如下。`messageId` 由调用者生成，下面的值只是占位。
 
 ```ts
-import { governanceOperation } from "@omne-harness/public-contract";
+import { encodeGovernanceRequest } from '@omne-harness/public-contract'
 
-export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
-  return governanceOperation({
-    protocolVersion: "governance-public/1",
-    messageId: "caller-generated",
-    operation: "revoke-login",
-    loginProof: proof,
+const encoded = encodeGovernanceRequest({
+  request: {
+    protocolVersion: 'governance-public/1',
+    messageId: 'caller-generated',
+    operation: 'revoke-login',
+    proof: { kind: 'present', value: proof },
     body: { targetLoginId },
-  });
-}
+  },
+  limits,
+})
 ```
 
 `revoke-login` 禁止行事租户。服务端接入先做严格 JSON 读取，再进入判断次序。两端对同一个 `outcome` 使用本页的同一解释。
@@ -476,3 +477,93 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 - Session 的公开接入。它归公开接入的拥有者，见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
 - 传输协议、登录证明的密码学形式、存储和页大小。
 - 资产确认时刻。它归资产读面，不是这些治理消息。
+
+## 公开编解码入口与实现细化
+
+本节为B3本域细化的文档草稿，待独立表达评审，不声明实现或整卡接受。类型定义由实施后的 `src/index.ts` 及其导出拥有，本节只规定行为，不重复完整 TypeScript 定义。
+
+### 操作集合与函数
+
+正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body，正常行没有 `stage-not-provided`，阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
+
+主入口仅导出四个纯函数及其公开输入结果类型。
+
+| 函数 | 输入与可见结果 |
+| --- | --- |
+| `readGovernanceRequest` | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。 |
+| `readGovernanceResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。 |
+| `encodeGovernanceRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节，模型字段或值不符得到 `invalid` 和结构诊断。只编码正常操作。 |
+| `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
+
+`GovernanceCodecLimits` 直接别名引用 json-text 的 `JsonLimits`，不添加字段或默认数值。六项预算必须是1至最大安全整数的整数。无效参数容器、非 `Uint8Array` 字节、无效预算、非法本地操作上下文，以及非字符串的 `expectedMessageId` 属于编程错误，抛出固定 `TypeError`，错误不含输入值。参数中的请求或响应模型无效属于 `invalid`，不抛模型内容。messageId只要求字符串，不要求UUID或非空；operation仍必须属于封闭集合。
+
+### 本地值与线上表示
+
+wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将其表示为 `ProofInput` 的 `missing`、`empty` 或 `present`。`missing` 编码时省略该键，`empty` 编码为空字符串，`present` 必须包含非空字符串。这个协议读取状态不是业务 `denied`，仍由 identity 核验。禁止证明的操作不能出现本地 proof 或线上 loginProof。证明是非字符串时仍按字段类型拒绝。
+
+原子账号、组织、登录状态标识使用 legal-identity 对应 codec。本地为它们的公开纯值类型。其他标识、角色、名称、表达和部署时长沿原字段表，不强加新的品牌、前缀或单位。时间使用 utc-instant 的 `Instant`，编码不经 `Date`，数值文本和精度不改写。
+
+`actingTenant` 及所有 `tenantId` 的 wire 都是非空字符串，内容是 tenantCodec 的 JSON 文本。本地为完整 `TenantId`，保留 organization/account。内层文本先用 json-text 严格读取，必须恰好为 organization/account 两个字符串字段，再交 tenantCodec.parse。内层重复键、未知键、错型和非法UTF-8对应的外层坏文本均不能成为合法租户。内层没有任意递归JSON字符串展开。
+
+外层六预算按外层JSON计算。租户文本内层只允许深度1、3个值、2个成员，内层整体字节和每个字符串继续受同次调用的 maxBytes/maxStringLength 限制。内层不引入额外默认部署预算，不以每字段重置外层总预算。parameters 在本地使用 json-text 的 object 变体，数字保留原 lexeme，不经 JS Number 缩精度。合法 `__proto__`、`constructor` 等键是 parameters 数据，不改变对象原型。
+
+编码器核验 plain 数据对象的自有、可枚举、数据属性。参数容器和预算也在不执行访问器的前提下核验；这些编程参数的反射失败抛固定TypeError，不携原异常或输入。进入request或response模型后，非法数据属性、访问器和模型代理反射失败返回invalid，诊断code为field。只在局部输入反射边界捕获用户trap错误；意外内部编程故障不能被catch-all改写成预期拒绝。信封、body及本地判别对象都按封闭形状核验。它不调用输入 getter 或 toJSON，不将代理异常、凭据或证明抛给调用者。公开诊断只包含有限 code `json`、`version`、`operation`、`field`、`budget`，没有任意字段名、路径、键、值、原输入或原bytes。
+
+### 结果闭合与关联
+
+所有响应都必须显式有合法body，包括空对象body。成功响应缺body不是成功。protocol-rejected 与 stage-not-provided 的 messageId 可省略；其余响应必须有字符串 messageId。合法版本与阶段操作即使缺messageId，也先返回stage-not-provided和空body。它不能为补齐响应类型而提前字段拒绝。两种无关联响应在本地响应读取时都为unmatched。
+
+下面每行另外允许公共 `protocol-rejected`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
+
+| operation | 线上业务 outcome | 依据与本次细化 |
+| --- | --- | --- |
+| public-health | succeeded | body结果表；健康没有登录或目标 |
+| register-and-activate | succeeded, not-loginable | 操作注册节，其他条件不足含依据不可得统一not-loginable；丢回执仅调用者本地未知 |
+| issue-login | succeeded, uniform-auth-failure, basis-unavailable | 签发节，丢回执仅调用者本地未知 |
+| revoke-login | succeeded, no-change, denied, not-visible, basis-unavailable | 撤销节，回执丢失仅调用者本地未知 |
+| replace-credential | succeeded, denied, basis-unavailable | 更换节、共同登录步骤及本次细化；当前凭据错误统一denied，崩溃仅调用者本地未知 |
+| create-organization | succeeded, denied, basis-unavailable, conflict, unknown | 创建节含无法排序unknown及保存拒绝回执 |
+| query-create-organization | succeeded, denied, basis-unavailable, conflict, unknown | 原回执查询节明确 |
+| issue-member-invitation | succeeded, denied, not-visible, basis-unavailable | 邀请节+共同登录步骤 |
+| accept-member-invitation | succeeded, no-change, denied, not-visible, basis-unavailable | 邀请处置顺序1–5 |
+| reject-member-invitation | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
+| withdraw-member-invitation | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
+| query-invitation | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
+| query-received-invitations | succeeded, denied, basis-unavailable | 本人名单+完整性与登录步骤 |
+| query-issued-invitations | succeeded, denied, basis-unavailable | 发出组织名单+完整性与登录步骤 |
+| query-own-valid-logins | succeeded, denied, basis-unavailable | 有效登录节，succeeded logins必须非空 |
+| query-current-tenant | succeeded, denied, basis-unavailable | 切换节及当前读面 |
+| query-own-memberships | succeeded, denied, basis-unavailable | 当前读面、名单完整性 |
+| leave-organization | succeeded, denied, basis-unavailable | 退出节及共同登录步骤，不提供no-change |
+| remove-member | succeeded, denied, not-visible, basis-unavailable, conflict | 移除节+共同登录步骤 |
+| change-member-role | succeeded, denied, not-visible, basis-unavailable, conflict | 调整角色节+共同登录步骤 |
+| switch-current-tenant | succeeded, no-change, denied, basis-unavailable | 切换节 |
+| query-organization | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
+| query-organization-members | succeeded, denied, not-visible, basis-unavailable | 当前读面，includeRemoved权限拒绝不改筛选 |
+| open-affiliation-request | succeeded, denied, not-visible, basis-unavailable | 隶属请求节及入口披露；目标不存在或不可见统一not-visible |
+| accept-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 隶属请求节+共同步骤 |
+| reject-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
+| withdraw-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
+| release-affiliation | succeeded, no-change, denied, not-visible, basis-unavailable, conflict | 解除节及本次细化；succeeded空body |
+| query-received-affiliation-requests | succeeded, denied, basis-unavailable | 组织名单+完整性与登录步骤 |
+| query-issued-affiliation-requests | succeeded, denied, basis-unavailable | 组织名单+完整性与登录步骤 |
+| query-affiliation-request | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
+| judge-admission | succeeded, denied, not-visible, basis-unavailable, need-decision | 准入节四结果及隐藏对象优先 |
+| submit-authorization-expression | succeeded, no-change, denied, basis-unavailable, unknown | 表达节+共同登录步骤 |
+| withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及本次细化；succeeded空body |
+| disable-subject | stage-not-provided | 有效版本后跳过其余字段，非法版本为protocol-rejected |
+| restore-subject | stage-not-provided | 同上 |
+| end-subject | stage-not-provided | 同上 |
+| reopen-after-media-loss | stage-not-provided | 同上 |
+
+`release-affiliation/succeeded`、`withdraw-authorization-expression/succeeded`、`revoke-login/no-change`、`switch-current-tenant/no-change` 的 body 都为空对象。所有 `unknown`、`not-loginable` 和 `uniform-auth-failure` 的 body 也为空对象。更换凭据时，有效登录但当前凭据错误统一 `denied`，不披露凭据细节。
+
+邀请处置的 succeeded 按 accept/reject/withdraw 分别只允许 accepted/rejected/withdrawn。no-change 只携带 accepted/rejected/withdrawn/expired 的既有终结，不允许open。有效成员重复接受且检查通过时形成accepted终结，不改角色或租户。隶属接受的 succeeded 仅 affiliationId/effective；拒绝和撤回分别 requestId/rejected 或 requestId/withdrawn；no-change 仅 requestId 加 accepted/rejected/withdrawn/invalid/expired，不允许pending。解除的no-change仅affiliationId/released。
+
+开放隶属请求的目标不存在或按该入口不可见时使用not-visible。授权表达和撤回不会仅因请求中存在object或expressionId而新增not-visible。切换无资格仍denied，他人创建回执仍unknown。披露沿 [authorization 的披露条款](../../identity/authorization/SPEC.md#披露与后续治理操作)，终结沿 [identity ID-07](../../identity/identity/SPEC.md#id-07-组织隶属与邀约终结)，未知与诊断沿 [identity ID-09](../../identity/identity/SPEC.md#id-09-并发持久事实与恢复)。本成员不实现那些业务资格判断。
+
+严格读取只有 duplicate-key 失败时才补扫关联。补扫完整输入的严格JSON语法，保留重复名称并按出现次数计成员，执行相同六预算。只有完整EOF、根为对象、解码后的根messageId恰好出现一次且值为字符串时才回写，空字符串也可可信。转义同名键计重复，嵌套同名键不计根。其他语法、编码或预算失败没有可信关联。补扫不能恢复版本、操作或业务树，原严格失败保持主结果。响应读取不补扫。具体承载归[内部关联读取](docs/internals.md#关联读取)。
+
+### 持续验证与替身
+
+所有测试从包主exports消费。纯codec、持续公开向量及客户端/服务端fixture承担协议层替身责任。本卡不提供业务provider替身，不新增 `./testing` 导出。SDK/server、真实持久化及CS完整旅程另由各自拥有者验证。
