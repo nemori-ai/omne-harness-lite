@@ -105,6 +105,194 @@ function operationRef(overrides: Partial<tools.ToolOperationParts>) {
 
 afterEach(() => vi.restoreAllMocks())
 
+describe('pending control operation custody', () => {
+  const retries = [undefined, 'applied', 'dropped', 'pending'] as const
+
+  it.each(retries)(
+    'rejects a replacement call under pending C with retry fault %s',
+    async retry => {
+      const secondCall = ok(tools.decodeToolCallId('second-call'))
+      const secondReference = ok(tools.encodeToolInvocationRef({ ...parts, call: secondCall }))
+      const { memory, journal, opened, control } = await setup([
+        associated,
+        { ...associated, reference: secondReference },
+      ])
+      memory.failNext('control', { kind: 'commit-unknown', outcome: 'pending' })
+      expect(failure(await journal.control(control))).toEqual({
+        kind: 'commit-unknown',
+        operation: control.operation,
+      })
+      const held = await observe(journal, opened.execution)
+      expect(held.snapshot.unresolved).toContain(control.operation)
+      if (retry !== undefined)
+        memory.failNext('control', { kind: 'commit-unknown', outcome: retry })
+      expect(
+        failure(
+          await journal.control({ ...control, command: { ...control.command, call: secondCall } }),
+        ),
+      ).toEqual({ kind: 'conflict', operation: control.operation })
+      expect(await observe(journal, opened.execution)).toEqual(held)
+      expect(ok(await journal.query(control))).toEqual({ kind: 'unknown' })
+      expect(memory.settle(opened.execution, control.operation, 'applied')).toBe(true)
+      const settled = await observe(journal, opened.execution)
+      expect(settled.snapshot.controls).toHaveLength(1)
+      expect(settled.snapshot.controls[0]).toMatchObject({
+        operation: control.operation,
+        command: control.command,
+        toolInvocation: invocation,
+        toolOperation: null,
+      })
+      expect(settled.snapshot.unresolved).not.toContain(control.operation)
+      expect(Number(settled.snapshot.revision)).toBe(Number(held.snapshot.revision) + 1)
+      expect(Number(settled.snapshot.output.emittedThrough)).toBe(
+        Number(held.snapshot.output.emittedThrough) + 1,
+      )
+      const receipt = ok(await journal.control(control))
+      expect(ok(await journal.query(control))).toEqual({ kind: 'committed', receipt })
+      expect(memory.settle(opened.execution, control.operation, 'applied')).toBe(false)
+      expect(await observe(journal, opened.execution)).toEqual(settled)
+    },
+  )
+
+  it.each(retries)(
+    'rejects a replacement attachment under pending R with retry fault %s',
+    async retry => {
+      const { memory, journal, opened, control, recording } = await setup()
+      ok(await journal.control(control))
+      const original = { ...recording, toolOperation }
+      memory.failNext('recordControl', { kind: 'commit-unknown', outcome: 'pending' })
+      expect(failure(await journal.recordControl(original))).toEqual({
+        kind: 'commit-unknown',
+        operation: original.operation,
+      })
+      const held = await observe(journal, opened.execution)
+      expect(held.snapshot.unresolved).toContain(original.operation)
+      if (retry !== undefined)
+        memory.failNext('recordControl', { kind: 'commit-unknown', outcome: retry })
+      expect(
+        failure(
+          await journal.recordControl({
+            ...original,
+            toolOperation: operationRef({
+              operation: ok(tools.decodeToolOperationId('replacement')),
+            }),
+          }),
+        ),
+      ).toEqual({ kind: 'conflict', operation: original.operation })
+      expect(await observe(journal, opened.execution)).toEqual(held)
+      expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
+      expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(true)
+      const settled = await observe(journal, opened.execution)
+      expect(settled.snapshot.controls[0]).toMatchObject({
+        toolInvocation: invocation,
+        toolOperation,
+      })
+      expect(settled.snapshot.unresolved).not.toContain(original.operation)
+      expect(Number(settled.snapshot.revision)).toBe(Number(held.snapshot.revision) + 1)
+      expect(Number(settled.snapshot.output.emittedThrough)).toBe(
+        Number(held.snapshot.output.emittedThrough) + 1,
+      )
+      const receipt = ok(await journal.recordControl(original))
+      expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+      expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(false)
+      expect(await observe(journal, opened.execution)).toEqual(settled)
+    },
+  )
+
+  it('keeps the original pending C until settlement when its input is resubmitted', async () => {
+    const { memory, journal, opened, control } = await setup()
+    memory.failNext('control', { kind: 'commit-unknown', outcome: 'pending' })
+    const unknown = await journal.control(control)
+    expect(failure(unknown)).toEqual({ kind: 'commit-unknown', operation: control.operation })
+    const held = await observe(journal, opened.execution)
+    expect(await journal.control({ ...control, command: { ...control.command } })).toEqual(unknown)
+    expect(await observe(journal, opened.execution)).toEqual(held)
+    expect(ok(await journal.query(control))).toEqual({ kind: 'unknown' })
+    expect(memory.settle(opened.execution, control.operation, 'applied')).toBe(true)
+    const settled = await observe(journal, opened.execution)
+    const receipt = ok(await journal.control(control))
+    expect(ok(await journal.query(control))).toEqual({ kind: 'committed', receipt })
+    expect(await observe(journal, opened.execution)).toEqual(settled)
+  })
+
+  it('keeps pending R for a canonical equivalent reference and prioritizes tenant rejection', async () => {
+    const { memory, journal, opened, control, recording } = await setup()
+    ok(await journal.control(control))
+    const original = { ...recording, toolOperation }
+    memory.failNext('recordControl', { kind: 'commit-unknown', outcome: 'pending' })
+    const unknown = await journal.recordControl(original)
+    expect(failure(unknown)).toEqual({ kind: 'commit-unknown', operation: original.operation })
+    const held = await observe(journal, opened.execution)
+    const equivalent = ` ${toolOperation} ` as tools.ToolOperationRef
+    expect(tools.resolveToolOperationRef(equivalent, access.tenant)).toEqual({
+      ok: tools.readToolOperationRef(toolOperation),
+    })
+    expect(await journal.recordControl({ ...original, toolOperation: equivalent })).toEqual(unknown)
+    expect(failure(await journal.recordControl({ ...original, ...otherTenant }))).toEqual({
+      kind: 'denied',
+      action: 'recordControl',
+    })
+    expect(
+      failure(
+        await journal.recordControl({
+          ...original,
+          toolOperation: operationRef({ tenant: otherTenant.tenant }),
+        }),
+      ),
+    ).toEqual({ kind: 'denied', action: 'recordControl' })
+    expect(
+      failure(await journal.recordControl({ ...original, target: operation('absent') })),
+    ).toEqual({
+      kind: 'conflict',
+      operation: original.operation,
+    })
+    expect(await observe(journal, opened.execution)).toEqual(held)
+    expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
+    expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(true)
+    const settled = await observe(journal, opened.execution)
+    const receipt = ok(await journal.recordControl({ ...original, toolOperation: equivalent }))
+    expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+    expect(settled.snapshot.controls[0]?.toolOperation).toBe(toolOperation)
+    expect(await observe(journal, opened.execution)).toEqual(settled)
+  })
+
+  it.each(['command', 'identity'] as const)(
+    'retains pending C when its caller mutates %s',
+    async part => {
+      const { memory, journal, opened, control } = await setup()
+      const input = {
+        ...control,
+        command: { ...control.command, reason: { ...control.command.reason } },
+      }
+      memory.failNext('control', { kind: 'commit-unknown', outcome: 'pending' })
+      expect(failure(await journal.control(input))).toEqual({
+        kind: 'commit-unknown',
+        operation: control.operation,
+      })
+      const held = await observe(journal, opened.execution)
+      if (part === 'command') {
+        input.command.call = ok(tools.decodeToolCallId('absent'))
+        input.command.reason.record = 'changed-reason'
+      } else {
+        input.operation = operation('changed-operation')
+        input.tenant = otherTenant.tenant
+      }
+      expect(memory.settle(opened.execution, control.operation, 'applied')).toBe(true)
+      const settled = await observe(journal, opened.execution)
+      expect(settled.snapshot.controls[0]).toMatchObject({
+        operation: control.operation,
+        command: control.command,
+        toolInvocation: invocation,
+      })
+      expect(settled.snapshot.unresolved).not.toContain(control.operation)
+      expect(Number(settled.snapshot.revision)).toBe(Number(held.snapshot.revision) + 1)
+      const receipt = ok(await journal.control(control))
+      expect(ok(await journal.query(control))).toEqual({ kind: 'committed', receipt })
+      expect(await observe(journal, opened.execution)).toEqual(settled)
+    },
+  )
+})
+
 describe('Tool control association', () => {
   it.each([
     ['absent', []],
