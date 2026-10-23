@@ -1,6 +1,6 @@
 # identity：长期行为规格
 
-状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 ID-01 至 ID-09、ID-12 至 ID-14 及本阶段范围的业务规则。ID-10、ID-15 是后续验证义务。ID-11 继续登记公开形状与机制的承接责任。目标拥有者为 `packages/identity/identity`，此目录维护目标成员文档，没有创建实际实现包。公开类型和提供者机制尚需设计，本文不作为实现或验证完成的证明。
+状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 ID-01 至 ID-09、ID-12 至 ID-14 及本阶段范围的业务规则。ID-10、ID-15 是后续验证义务。ID-11 继续登记公开形状与机制的承接责任。ID-16 定义首批公开形状，类型在本成员 `src/index.ts`。账号、组织、登录和成员关系的提供者机制尚需设计，本文不作为那些部分已实现或已验证的证明。
 
 产品规则归[身份与授权产品](../../../.meta_harness/design/product/identity-and-authorization/design.md)，协作与依赖归[领域架构](../../../docs/domains/identity-and-authorization/architecture.md)。本文拥有主体、组织关系、成员、认证、登录及可信资格事实。资源权限配值、人工交互和实际业务执行由其他拥有者负责。
 
@@ -265,6 +265,58 @@
 解除成员或撤销登录后，后续可信查询识别变化。通知丢失仍能回查权威事实，读取不可用不能伪造变更或无效。获准审计读者可定位主体、范围、规则及原操作结果，管理员身份不开放全部私有记录。普通崩溃或断电后已确认变更保持，回执丢失保留未知直至原结果可核实。只恢复旧备份中的管理员角色不能打开访问。0.0.0 到 0.1.0 不提供介质或整机损毁后的重新打开。实际停止及结果保管按原业务契约验证，identity 不报告零副作用。
 
 这些场景的精确输入、接口、故障点和尺度分别依赖 T01 至 T06，不能以文件中出现断电或并发字样代替真实证据。
+
+## ID-16 首批公开形状：主体、资格事实与访问报告
+
+本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。登录、账号、成员关系的存储与流程不在本节；本节的读口和报告口由后续提供者实现。
+
+### 两种主体
+
+系统主体 `SystemPrincipal` 是 `{ kind: 'system', component }`。它不带租户，用于不代表任何租户的内部调用：扫描、卸载、目录枚举、中继、协调者读取。它的行事作用域是 `systemScope()`。`component` 是装配给该系统部件起的非空名字。
+
+代租户行事主体 `ActingForTenantPrincipal` 是 `{ kind: 'acting-for-tenant', actor, tenant, work }`。`actor` 是已签发的系统主体。`tenant` 是显式租户。`work` 是原工作关联，由工作拥有者给出不透明的 `owner` 与 `work` 文本。原主体是 `tenant.account`。消费方再核这个主体时，读该账号在 `tenant.organization` 的当前成员事实，不读 `actor` 的事实。类型没有不带租户的形式。
+
+主体不随撤权失效。撤权改变成员事实，下一次准入按新事实判断。消费方在实际执行处每次读当前事实，不把一次 verified 或一次 allowed 当作后续许可。
+
+### 签发与核验
+
+`PrincipalIssuer` 签发主体。只有 identity 提供签发者；应用装配安装它，不自己签发。签发系统主体要求非空 `component`。签发代租户行事主体要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一条件不满足，返回 `IssueFailure`，不签发。
+
+`PrincipalVerifier.verify(value)` 答 `verified`、`rejected` 或 `unavailable`。与已签发主体形状相同的手写副本答 `rejected`。核验器不能回答时答 `unavailable`，不答 `verified`。核验只证明来源；它不证明当前成员资格，也不证明动作获准。
+
+`inProcessPrincipalAuthority()` 是进程内权威。它登记自己签发的对象，核验是登记成员资格。这只在同一进程、同一份已加载模块内成立。主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。跨进程的来源验证归后续提供者，不由本节承诺。
+
+### 具名资格与角色映射
+
+`QUALIFICATIONS` 列出具名资格。首批一项：`organization-cost-ledger-read`，即组织成本账目读取。消费方只按资格名消费裁定，不按角色名判断。
+
+持有组织成本账目读取资格的主体，可读本组织全部租户的成本账目，含已退出成员的租户，不含下级组织。账目写入者先取准入裁定，再按组织过滤。这项资格不开放私有请求正文、回复或秘密。
+
+`RoleMapping` 把一个治理模型的角色映射到资格。角色名只在它的模型内有意义。`qualificationsOf(mapping, role)` 对另一个模型的同名角色答 `model-mismatch`，对映射没有列出的角色答 `unknown-role`，不猜测。
+
+`DEFAULT_TEAM_ROLE_MAPPING` 是默认团队方案（ID-05）的映射：`super-admin` 持有组织成本账目读取，`member` 不持有。个人组织只有本人一个租户，本人读自己的账目不需要这项资格。
+
+### 当前资格读口
+
+`TenantStandingSource.read({ tenant })` 答 `member`、`not-member` 或 `unavailable`。`member` 带角色、经映射解析的资格，以及证据 `{ record, revision }`。读口不区分未知租户与非成员：两者都答 `not-member`。
+
+每次读取回答当下的事实。一次读数不是许可，不能缓存为允许。读口不能读时答 `unavailable`，不答 `member`。
+
+### 登录入口的租户冲突
+
+经登录状态进入治理服务时，请求的显式行事租户必须与该登录的当前选择一致。冲突时治理入口拒绝，不按任一候选租户继续。这条规则只管治理入口。其他入口按各自的访问契约核对显式租户：`Access` 的租户由调用方显式传入，入口不从登录的当前选择推断它。会话的租户由会话固定。
+
+### 成功业务访问报告
+
+`BusinessAccessReport` 是 `{ login, operation }`。调用方在一次业务操作成功后，经 `LoginActivityReporter.report` 报告它。只有这份报告刷新该登录的空闲计时。失败的请求、健康检查、仅完成认证的请求不报告。
+
+报告不带时间。identity 在收到报告时读自己的可信时钟。调用方给的时间不能延长登录的有效性。
+
+结果是 `refreshed`、`login-invalid` 或 `unavailable`。`login-invalid` 不区分过期、已撤销和未知的登录。接收报告的登录提供者尚未实现；本节只固定形状。
+
+### 验证
+
+`tests/principal.spec.ts` 覆盖签发、核验、手写副本与 JSON 往返。`tests/principal.spec-d.ts` 核对不带租户的代租户行事主体是类型错误。`tests/qualification.spec.ts` 覆盖具名资格与默认团队映射。`tests/standing.spec.ts` 用内存替身核对读口答当下事实。`tests/login-activity.spec-d.ts` 核对报告不带时间。这些测试不覆盖持久存储、登录流程和跨进程来源。
 
 ## 本阶段范围
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft identity package; complete the accepted public contract before delivery",
+  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings, the tenant standing read port and the business access report shape",
   "engines": {
     "node": ">=24"
   },
@@ -24,7 +24,10 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
