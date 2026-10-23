@@ -92,7 +92,7 @@
    - 没有锚点：数额是 token 输入（带签名组的单元去掉）的排序键 JSON 经 NFKC 规范化后用 `claude.json` 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；本包的输出组方法名是 `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`，沿用封存件的方法名。后缀按[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)拼接：有单元被 O 替换时为 `<记录名>#meter+anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`。
    - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分按共用[校准算术](../pi-ai-transport/SPEC.md#校准算术)的两个计数项计算，计数同样经 NFKC，加新增的可见单元的图片规则数，加新增签名单元的 O。余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
    - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 按共用计量规则计算：它纳入锚点与各 O，换锚点就是换输入；空校准的摘要与没有校准时相同。
-   档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界；首份实测差值归 #466 的 C9。
+   档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界。实测一次延续请求（`anthropic/claude-sonnet-5`，锚点命中）：发送前计量 194，真实输入合计 185，差（真实输入合计减计量）为 −9，计量偏大。OpenAI 家族的实测同样偏大，见 [pi-ai-openai SPEC“计量”](../pi-ai-openai/SPEC.md#计量)。这两个值由 model-host-local 的 [recording-c9.spec.ts](../model-host-local/tests/recording-c9.spec.ts) 用[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)复算，差值只记录，不是门槛。
 4. `claude.json` 是 Anthropic 发布的旧 Claude BPE。Anthropic 称它对 Claude 3 以后的型号只是很粗的近似，它不是这些型号的 tokenizer。所以结果始终是估算，不声称 tokenizer 身份。
 5. 图片规则 `claude-patch-28/1`：两边都不超过 2576 像素且 `ceil(w/28) × ceil(h/28)` 不超过 4784 时，数额就是这个积。否则保持宽高比，二分查找满足两项限制的最大长边，短边取四舍五入且至少为 1，数额为缩放后尺寸的块数。尺寸不是正的安全整数时规则不适用。
 
@@ -161,6 +161,6 @@
 
 未覆盖：
 
-- 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
+- 真实路由的发送只经 model-host-local 的手动录制器验证。持续验证只回放录下的[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)，不发出真实请求。示例的实跑只在手动设置开关时有证据。
 - 网关对 `max` 的接受、对 `reasoning.enabled: false` 的处理，以及在推理开启时对外来工具轮次的接受，只有经代理的手工确认，不在持续验证中。图片部件的 `detail` 成员与空 assistant 内容 `[]` 只由示例在手动运行时发出，不在持续验证中。
 - 网关在有 id 的片段上分开签名的情况没有实测样本。引擎按封存件的规则拼接同 id 的片段，夹具只用手写的合成片段检查这个情况。

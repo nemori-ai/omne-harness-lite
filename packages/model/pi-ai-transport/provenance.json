@@ -71,5 +71,25 @@
       "changes": "A phase union (streaming, finished, faulted, ended) and one pure reduce step per frame that gives contract TransportFacts instead of pi message events. Kept from upstream: one text block and one thinking block, the first non-empty reasoning source, tool-call blocks keyed by stream index, the finish mapping stop, tool_calls and length, other finish values as failures, an error when the stream ends without a finish. Changed: content and refusal share the text channel; the reasoning source is chosen once per response among delta.reasoning, reasoning.text and reasoning.summary and never shows [REDACTED]; reasoning_details fragments join by index without id and adopt one signature (archived stream.ts rule); all joined details go to the family reasoning hook at finish and each result is sealed whole as a reasoning state part; tool argument text is buffered until the name within a configured limit and decoded at the seal; a length finish seals text, thinking and reasoning and keeps tool arguments unsealed; a bounded tail after finish accepts usage and the repeated finish; a frame refused after the finish moves the phase to faulted, which keeps the usage for the account; the first chunk fixes the served provider, which the record pins; an in-band error maps its numeric code like an HTTP status and never copies its text.",
       "basis": "packages/model/pi-ai-transport/SPEC.md, section 网关引擎：流解释 (#网关引擎流解释): 映射, 封口, 失败与阶段 and 账目"
     }
-  ]
+  ],
+  "sealed_sources": {
+    "description": "Methods that the calibration arithmetic adopted from the sealed Model packages. The sources are read-only; nothing imports them.",
+    "repository": "https://github.com/nemori-ai/omne-harness-lite",
+    "commit": "901d7ff56cf0a3c8a9e84df140f3ebd57ba5607c",
+    "root": "packages.0.0.1.legacy/model/pi-ai-transport",
+    "sources": [
+      {
+        "path": "src/input-meters/output-history.ts",
+        "sha256": "649c07751f83da806eaf2ff062016d62d30a2d041b1353d97b2eb091ca3fd73a",
+        "migrated": "the complete-output-group method: a whole unit that carries reasoning state is counted once as the upstream output tokens O of the call that produced it, O already including reasoning; the refusals when O is unknown, when reasoning exceeds output, or when the source dispatch has no materialization receipt or another supplier adoption. The lease judges these refusals and hands calibratedAmount a withheld reason. The private observation protocol, replaySelection and the caller-carried responses are not migrated: the numbers come from the dispatch records of the model runtime through the preparation lease",
+        "target": "src/chat-completions/calibration.ts (calibratedAmount)"
+      },
+      {
+        "path": "src/input-meters/marginal.ts",
+        "sha256": "4f15b094fb386ed08639e31ad4eebd64a9e323ff4698aaba3dccc967f5e00d58",
+        "migrated": "the complete envelope difference: the new units are counted as count(envelope + new units) - count(envelope + []) with the tools left out of the envelope, and added to the real input total of the continued call as an estimate",
+        "target": "src/chat-completions/calibration.ts (calibratedAmount)"
+      }
+    ]
+  }
 }

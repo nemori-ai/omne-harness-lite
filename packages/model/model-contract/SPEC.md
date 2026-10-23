@@ -875,7 +875,9 @@ Model 不检测这些前置条件是否被违反。条件被违反时计量结�
 
 任一条件成立即不命中，计量退回完整计量，原因写进 `RequestBudget.calibration`。几个条件同时成立时，由实现规定哪一个决定原因。
 
-**侧表与校准入口。**家族表示带与 `tokenInput` 消息单元逐项对齐的 `units` 侧表，记录每个单元来自哪条消息；`null` 是不属于任何消息的单元。侧表不改变计数字节。租约把读出的数字以 `MeterCalibration` 交给实现 `CalibratedInputMeter` 的家族计量器：`anchor` 是 X 的真实输入合计（`input`、`cache-read`、`cache-write` 之和）与它覆盖的消息，`outputs` 是各来源的 O 或具名的扣留原因。校准值不含访问依据、租户或调用身份，家族计量器保持纯函数。普通消费者拿到的仍是 `ModelInputMeter`。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果，行为与没有本节时相同。释放后的回答见[组合协议](#档案和准备提供者的组合协议)。
+上文“适用的计量组合”在锚点上按 X 那次发出的物化回执推出，只看两项采用：回执的供应商采用与本次相同（否则 `supplier-changed`），回执的表示采用与本次相同（否则 `representation-changed`）。租约不另比较完整的 ModelCountingBasis。
+
+**侧表与校准入口。**家族表示带与 `tokenInput` 消息单元逐项对齐的 `units` 侧表，记录每个单元来自哪条消息；`null` 是不属于任何消息的单元。侧表不改变计数字节。租约把读出的数字以 `MeterCalibration` 交给实现 `CalibratedInputMeter` 的家族计量器：`anchor` 是 X 的真实输入合计（`input`、`cache-read`、`cache-write` 之和）与它覆盖的消息，`outputs` 是各来源的 O 或具名的扣留原因。校准值不含访问依据、租户或调用身份，家族计量器保持纯函数。收到锚点的 `CalibratedInputMeter` 必须在结果的 `calibration` 里报告锚点判决：`hit` 或 `continuation-shrank`。没有报告时，结果违反本契约。普通消费者拿到的仍是 `ModelInputMeter`。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果，行为与没有校准时相同。释放后的回答见[组合协议](#档案和准备提供者的组合协议)。
 
 **命中时的结果。**结果 = X 的真实输入合计（锚点，不加余量）＋ 新增部分的估算（余量只按它计算）。新增部分只含 X 之后的消息单元。带推理状态的单元记其来源的 O，其余单元按完整包络差计数。前置指令与工具已在锚点里，不进入新增部分。两个计数项各含哪些单元由计量采用规定，pi 家族的规定见 [pi-ai-transport“校准算术”](../pi-ai-transport/SPEC.md#校准算术)。系统提示词、工具或参数变化时，请求组装方不声明延续，所以得到完整估算。`RequestBudget.calibration` 只在有 lineage 的租约计量时出现，只含命中或不命中的原因，不含其他调用的数字。
 

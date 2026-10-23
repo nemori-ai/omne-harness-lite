@@ -52,6 +52,6 @@
 
 ### 未覆盖
 
-- 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
+- 真实路由的发送只经 model-host-local 的手动录制器验证。持续验证只回放录下的[pi-ai-transport 的回放件](../../pi-ai-transport/tests/fixtures/README.md)，不发出真实请求。示例的实跑只在手动设置开关时有证据。
 - 回放夹具核对引擎给出的账目事实；夹具中没有余量为负的 usage，`usage-inconsistent` 诊断只经 `rules.spec.ts` 直接调用验证。
 - 带图片事实的表示由测试构造。引擎目前给出的表示没有媒体事实。

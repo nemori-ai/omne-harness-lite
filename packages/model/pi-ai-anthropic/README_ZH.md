@@ -26,7 +26,7 @@
 | 跨家族回放（Anthropic 一侧） | 另一家的 assistant 消息不带状态与思考，并出现在 encode 的 `replay-omitted` 诊断中；本家族的签名组带回；外来工具轮次之后，每条记录都保持请求的推理强度。按项目约定，记录不关闭推理 | `binding.rules.plan`、`binding.encode` | `cross-family-replay.spec.ts` |
 | 两个家族经共享传输的联调 | 本家族与 OpenAI 家族经同一 `composeFamilies` 交给 `createPiTransport`。本地 HTTPS 服务按请求体的型号回放两家每条记录的夹具：发出的请求体与夹具相同，事实序列与夹具相同。两家各取一条记录运行符合性套件 transport 组，六条义务通过 | `composeFamilies`、`createPiTransport` | `two-families.spec.ts`（慢层） |
 | 示例 | [examples/anthropic-request.ts](examples/anthropic-request.ts) 经代理请求 `anthropic/claude-opus-5.5` 一次，历史中有外来工具轮次，推理在强度 `low` 下保持开启。[examples/cross-family-history.ts](examples/cross-family-history.ts) 在同一段历史中交替请求 OpenAI 与 Anthropic 型号四轮，打印每轮的回放投影，以及每轮回复是否带有推理状态 | 根入口 | 类型检查。`examples.spec.ts`（慢层）只在 `OMNE_LIVE_TESTS=1` 时运行示例，否则跳过。实跑的证据只来自手动运行 |
-| 未交付 | 凭据解析与真实路由的持续验证（#466） | 无 | 这些路径没有持续验证的证据 |
+| 经凭据的真实路由 | 凭据解析与发送路径在 [model-host-local](../model-host-local/README_ZH.md)。只有它的手动录制器发出过真实请求 | model-host-local 的 `assembleLocalModel` | model-host-local 的慢层门禁回放 pi-ai-transport 的四份回放件。持续运行的测试不发出真实请求 |
 
 ## 使用
 

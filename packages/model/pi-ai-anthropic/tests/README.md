@@ -58,6 +58,6 @@
 
 ### 未覆盖
 
-- 真实路由没有持续验证，示例只在手动运行时有证据。Model 的发送边界经本地凭据与本传输的组合尚未实现，归父卡 2.6（#466）。经本地 HTTPS 服务的回放与符合性套件 transport 组见 `two-families.spec.ts`。
+- 真实路由的发送只经 model-host-local 的手动录制器验证。持续验证只回放录下的[pi-ai-transport 的回放件](../../pi-ai-transport/tests/fixtures/README.md)，不发出真实请求。示例只在手动运行时有证据。经本地 HTTPS 服务的回放与符合性套件 transport 组见 `two-families.spec.ts`。
 - 带图片事实的表示由测试构造。引擎目前给出的表示没有媒体事实。
 - 网关对 `reasoning.enabled: false`、推理开启时的外来工具轮次、图片 `detail` 与空 assistant 内容的接受没有持续验证。
