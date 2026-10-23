@@ -151,6 +151,9 @@ flowchart LR
   Context[Request Context] --> Profiles
   Context --> Preparation[ModelRequestPreparation]
   Preparation --> Meter[ModelInputMeter]
+  Context -->|"acquire：访问依据、档案、lineage"| Lease["ModelPreparationResources：带 lineage 的租约"]
+  Lease -->|"dispatches，以调用方的访问依据读取"| Commands[ModelCommands]
+  Lease -->|"MeterCalibration：只有数字"| FamilyMeter["家族计量器（CalibratedInputMeter）"]
   Preparation --> Fixed[FixedModelRequest]
   Fixed --> Calls[ModelCalls]
   Calls --> Send[ModelSendBoundary]
@@ -160,6 +163,8 @@ flowchart LR
   Admission[消息准入者] --> Conversion[ModelMessageConversion]
   Conversion --> Catalog[系统转换目录]
 ```
+
+请求组装方经 ModelPreparationResources 取得租约，用租约的计量器计量输入。租约以调用方的访问依据经 `dispatches` 读取 lineage 引用的调用，租户边界止于租约。家族计量器只收到数字，不收到访问依据、租户或调用身份。规则归[实现规格](../SPEC.md#准备资源与校准租约)。
 
 每个公开入口对应实际不同消费者。内部档案排序、参数合并和限制比较仍是普通实现函数，不各加抽象Service。准备和发送共享确定的校验规则，但依赖和输入事实不同。准备只能验证已经取得的内容，发送阶段才能确认实际媒体和供应商编码。
 

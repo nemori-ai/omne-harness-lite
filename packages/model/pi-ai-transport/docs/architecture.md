@@ -114,7 +114,11 @@ flowchart LR
 ```mermaid
 flowchart LR
   cindex[index.ts] --> bind[bind.ts]
+  cindex --> calibration[calibration.ts]
+  cindex --> measurement[measurement.ts]
   cindex -.-> vocab[vocabulary.ts]
+  meter["家族包的计量器（包外）"] --> measurement
+  measurement --> calibration
   bind --> table["family-table.ts（包根）"]
   bind --> limits["limits.ts（包根）"]
   bind --> request[request.ts]

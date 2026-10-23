@@ -495,6 +495,24 @@ plan 不返回诊断。
 
   推理标志与单元数不对齐、余量百分比不是非负十进制整数是家族缺陷，同步抛出。
 
+下图是锚点命中时各类单元的去向：
+
+```mermaid
+flowchart LR
+  Units["units 侧表中的消息单元"] --> Prefix["前缀单元：消息在 anchor.covered 中"]
+  Units --> Null["null 单元：前置指令"]
+  Units --> FreshVisible["新增的可见单元"]
+  Units --> FreshReasoning["新增的推理单元"]
+  Prefix --> Anchor["锚点 anchor.inputTotal：不加余量"]
+  Null --> Anchor
+  FreshVisible --> Envelope["包络差：第一项 − 第二项，加图片规则的追加 token"]
+  FreshReasoning --> Output["来源调用的 O"]
+  Envelope --> Estimate["估算部分：余量只按它计算"]
+  Output --> Estimate
+  Anchor --> Amount["amount = 锚点 ＋ 估算部分"]
+  Estimate --> Amount
+```
+
 返回 `amount`（锚点加估算部分）、`margin`（只按估算部分）、`anchor`（`hit`、`continuation-shrank` 的 `miss`，或没有锚点时的 `null`）与 `substituted`（是否有单元被 O 替换）。方法名按[共用计量规则](#共用计量规则)由这两项得出。
 
 #### 共用计量规则

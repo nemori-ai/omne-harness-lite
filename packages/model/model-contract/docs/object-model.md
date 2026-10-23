@@ -193,6 +193,17 @@ ToolDeclaration 的说明由组装方形成。ModelToolPayloadAdapter 只把它�
 
 ```mermaid
 classDiagram
+  class DispatchRecord {
+    messages 清理后保留
+    receipt.replayFormat 清理后保留
+    account 清理后保留
+  }
+  class ModelCall {
+    blocks 清理时释放
+  }
+  class FixedModelRequest {
+    清理时与 blocks 一起释放
+  }
   ModelCall "1" *-- "0..*" DispatchRecord
   ModelCall --> FixedModelRequest
   ModelCall --> RetryPosition

@@ -39,6 +39,51 @@ classDiagram
   LocalCredentialPlugin ..> LocalCustodian : 闭包持有
 ```
 
+发送侧的对象与它们指向的发送边界、准备资源和网络资源：
+
+```mermaid
+classDiagram
+  class LocalModel {
+    send
+    preparation
+    close()
+  }
+  class PiSendResources {
+    acquire()
+    close()
+  }
+  class SendResource {
+    私有凭据槽
+    物化集合
+    transport
+    startWithCredential()
+    release()
+  }
+  class ModelSendBoundary {
+    <<model>>
+  }
+  class ModelPreparationResources {
+    <<model>>
+    acquire()
+  }
+  class NetworkResources {
+    <<pi-ai-transport>>
+    close()
+  }
+  class PiTransport {
+    <<pi-ai-transport>>
+  }
+  LocalModel *-- NetworkResources : 创建，close 时关闭
+  LocalModel *-- PiSendResources : 创建，close 时关闭
+  LocalModel *-- ModelSendBoundary : send
+  LocalModel *-- ModelPreparationResources : preparation
+  ModelSendBoundary --> PiSendResources : acquire 与 release
+  PiSendResources *-- SendResource : 每次 acquire 一个
+  PiSendResources --> NetworkResources : 共享
+  SendResource *-- PiTransport : 每个资源一个
+  PiTransport --> NetworkResources : 使用
+```
+
 - 保管库句柄：同步操作的对象，身份是 `path`。它持有最近一次刷新的快照和一份诊断列表。
 - 保管状态快照：model 公开的形状。本包只构造它，不扩展它的字段。
 - 磁盘记录：JSON 文本，租户以组织与账户文本存放。解码拒绝格式不符、未知寿命、非 `model-send` 用途或同一持有者重复的行，整份文件按不可用处理。编码总是写 `closed: false`，进程内的关闭不落盘。
