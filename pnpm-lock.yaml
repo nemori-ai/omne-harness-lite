@@ -149,6 +149,34 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  apps/m2-contract-skeleton:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../packages/common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../packages/common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../packages/model/model-contract
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../packages/access/public-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../packages/common/utc-instant
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/access/public-contract:
     dependencies:
       '@omne-harness/json-text':
