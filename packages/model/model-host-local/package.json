@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local credential custody for the Model capability: file-backed custodian and its Cordis provider plugin",
+  "description": "Single-machine host provider of Model: file-backed credential custody with its Cordis plugin, and the local send path over the pi transport",
   "engines": {
     "node": ">=24"
   },
