@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { assembleLocalModel, type LocalModelConfig } from '@omne-harness/model-host-local'
+import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { factorySupplier, officialProfile } from './support/profiles.ts'
 
 type Principal = Readonly<{ subject: string }>
 
@@ -53,6 +55,7 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
       },
     },
     maxRetainedAttempts: 1,
+    preparation: { maxCitedCalls: 4, supplierOf: factorySupplier() },
     ...overrides,
   }
 }
@@ -76,6 +79,53 @@ describe('assembleLocalModel', () => {
         config({ network: { maxConnections: 0, idleConnectionTimeoutMs: 1_000 } }),
       ),
     ).toThrow(RangeError)
+  })
+
+  it('refuses a preparation limit that the preparation resources refuse when it is built', () => {
+    expect(() =>
+      assembleLocalModel(
+        config({ preparation: { maxCitedCalls: 0, supplierOf: factorySupplier() } }),
+      ),
+    ).toThrow(RangeError)
+    expect(() =>
+      assembleLocalModel(config({ preparation: Reflect.get({}, 'preparation') })),
+    ).toThrow(RangeError)
+  })
+
+  it('takes the bindings of a preparation lease from the configured families, also after close', async () => {
+    const asked: string[] = []
+    const local = assembleLocalModel(
+      config({
+        preparation: {
+          maxCitedCalls: 4,
+          supplierOf: input => (asked.push(input.supplier.model), factorySupplier()(input)),
+        },
+      }),
+    )
+    await local.close()
+    const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
+    const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
+    if (!account.ok || !organization.ok) throw new Error('fixture tenant')
+    const profile = officialProfile({
+      family: 'pi-ai-openai',
+      model: 'openai/gpt-6-sol',
+      retryPolicy: { owner: 'tests', name: 'retry', revision: '1', digest: '0'.repeat(64) },
+    })
+    // The configured families hold no family, so the family table answers for the adoption.
+    expect(
+      await local.preparation.acquire({
+        principal: { subject: 'tests' },
+        tenant: tenant(organization.value, account.value),
+        profile,
+      }),
+    ).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: profile.definition.suppliers[0].adoption.owner,
+        diagnostic: 'adoption-not-installed',
+      },
+    })
+    expect(asked).toEqual(['openai/gpt-6-sol'])
   })
 
   it('closes once, however often close is called', async () => {

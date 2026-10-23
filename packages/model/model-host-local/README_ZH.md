@@ -4,7 +4,7 @@
 
 ## 职责与状态
 
-本成员是 Model 的单机宿主提供者，承载本地凭据保管与本地发送路径。本地凭据保管是文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。本地发送路径是生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`：它把凭据保管、model 的发送边界、pi 传输与两个家族、调用方注入的 `ModelCommands` 连成一条真实请求路径。其余宿主能力（时钟、实例调度、目录装载、托管运行插件）的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)，尚未实现。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定和发送边界归 [model](../model/README_ZH.md)，传输与家族归 [pi-ai-transport](../pi-ai-transport/README.md)。设计、实现与运行验证分别判断。
+本成员是 Model 的单机宿主提供者，承载本地凭据保管与本地发送路径。本地凭据保管是文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。本地发送路径是生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`：它把凭据保管、model 的发送边界、pi 传输与两个家族、调用方注入的 `ModelCommands` 连成一条真实请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源。其余宿主能力（时钟、实例调度、目录装载、托管运行插件）的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)，尚未实现。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定和发送边界归 [model](../model/README_ZH.md)，传输与家族归 [pi-ai-transport](../pi-ai-transport/README.md)。设计、实现与运行验证分别判断。
 
 | 能力 | 状态 | 证据范围 |
 | --- | --- | --- |
@@ -12,12 +12,13 @@
 | 生产发送资源 `createPiSendResources` | 已实现 | 观察凭据槽的传输工厂与真实 pi 传输（不发送） |
 | 本地 Model 装配 `assembleLocalModel` | 已实现 | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场 |
 | 经真实厂商或代理的请求 | 未在本包验证 | 无 |
-| 计量准备资源、耐久 `ModelCommands` | 不在本包 | 无 |
+| 经 `assembleLocalModel` 的计量准备资源 | 已实现 | model 的真实租约，经家族与内存 `ModelCommands` |
+| 耐久 `ModelCommands` | 不在本包 | 无 |
 | 时钟、实例调度、目录装载、托管运行插件 | 未实现 | 无 |
 
 ## 使用
 
-独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由与限额，得到 model 的发送边界 `send` 与 `close`。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
+独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
 
 ## 契约
 

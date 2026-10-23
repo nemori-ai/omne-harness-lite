@@ -1,8 +1,18 @@
 // The local Model assembly: credential custody, the Model send boundary, the pi transport with the
-// given families, and the injected ModelCommands. It only composes; every limit, route and proxy
-// comes from the configuration.
-import { createModelSendBoundary, type SendCoordinator } from '@omne-harness/model'
-import type { CredentialPort, ModelCommands, ModelSendBoundary } from '@omne-harness/model-contract'
+// given families, the injected ModelCommands, and the preparation resources over the same families
+// and Commands. It only composes; every limit, route, proxy and margin comes from the configuration.
+import {
+  createModelPreparationResources,
+  createModelSendBoundary,
+  type SendCoordinator,
+  type SupplierPort,
+} from '@omne-harness/model'
+import type {
+  CredentialPort,
+  ModelCommands,
+  ModelPreparationResources,
+  ModelSendBoundary,
+} from '@omne-harness/model-contract'
 import {
   createNetworkResources,
   type NetworkConfig,
@@ -26,10 +36,25 @@ export type LocalModelConfig<P> = Readonly<{
   routes: Readonly<Record<string, PiRoute>>
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
+  /**
+   * The preparation resources: the leases read call facts from `commands` and take bindings from
+   * `families`. The margin is the family's own configuration; this package adds no default.
+   */
+  preparation: Readonly<{
+    /** The most distinct calls one lineage may name. */
+    maxCitedCalls: number
+    /** Completes a profile supplier with its credential reference, as request preparation does. */
+    supplierOf: SupplierPort<P>
+  }>
 }>
 
 export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
+  /**
+   * The production `ModelPreparationResources` over `families` and `commands`. The caller releases
+   * every lease it acquires. `close` does not touch it: it holds no network resource.
+   */
+  preparation: ModelPreparationResources<P>
   /**
    * Refuses new send resources, releases the open ones, then closes the network resources and
    * waits for every exchange to stop. It does not close `commands` or `credentials`. Idempotent.
@@ -38,13 +63,15 @@ export type LocalModel<P> = Readonly<{
 }>
 
 /**
- * Composes the local Model send path. Throws `RangeError` synchronously for a configuration that
- * the network, the transport or the send boundary refuses.
+ * Composes the local Model send path and the preparation resources. Throws `RangeError`
+ * synchronously for a configuration that the network, the transport, the send boundary or the
+ * preparation resources refuse.
  */
 export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P> {
   const network = createNetworkResources(config.network)
   let resources: PiSendResources<P>
   let send: ModelSendBoundary<P>
+  let preparation: ModelPreparationResources<P>
   try {
     resources = createPiSendResources<P>({
       network,
@@ -58,6 +85,15 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
       credentials: config.credentials,
       resources,
       maxRetainedAttempts: config.maxRetainedAttempts,
+    })
+    const options = config.preparation
+    if (typeof options !== 'object' || options === null)
+      throw new RangeError('preparation must be an object')
+    preparation = createModelPreparationResources<P>({
+      commands: config.commands,
+      bindings: config.families,
+      supplierOf: options.supplierOf,
+      maxCitedCalls: options.maxCitedCalls,
     })
   } catch (error) {
     // No exchange ever ran on this network: its close releases the pool and the capacity before
@@ -74,6 +110,7 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
   }
   return {
     send,
+    preparation,
     close() {
       closing ??= closeAll()
       return closing

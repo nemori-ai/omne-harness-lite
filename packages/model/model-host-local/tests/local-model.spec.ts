@@ -39,6 +39,7 @@ import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { assembleLocalModel, createLocalCustodian } from '@omne-harness/model-host-local'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
+import { factorySupplier } from './support/profiles.ts'
 import { readRecordFixture, type FamilyName } from './support/records.ts'
 
 /** The value the vault holds in this environment: a placeholder, never a real key. */
@@ -298,6 +299,7 @@ function assemble(request: FixedModelRequest, label: string) {
     },
     transportLimits: TRANSPORT_LIMITS,
     maxRetainedAttempts: 4,
+    preparation: { maxCitedCalls: 8, supplierOf: factorySupplier() },
   })
   const sent = recording(host.send)
   const provider = createModelRuntime(

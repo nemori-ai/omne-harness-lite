@@ -45,7 +45,7 @@ classDiagram
 - 插件：继承 `ModelCredentialService`，只对外暴露 `present` 与 `resolve`。
 - 发送资源集合（`PiSendResources`）：持有共享的网络资源与家族贡献的引用、配置探针和仍打开的资源。
 - 发送资源（`SendResource`）：持有一个 pi 传输、它的私有凭据槽和它交出的物化传输集合。槽只在 `startWithCredential` 的同步调用内有值。
-- 本地装配（`LocalModel`）：持有它创建的网络资源、发送资源集合与 model 的发送边界。`ModelCommands`、`SendCoordinator` 与保管库归调用方。
+- 本地装配（`LocalModel`）：持有它创建的网络资源、发送资源集合、model 的发送边界与计量准备资源。`ModelCommands`、`SendCoordinator`、家族与保管库归调用方。准备租约归取得它的调用方。
 
 ## 生命周期
 
