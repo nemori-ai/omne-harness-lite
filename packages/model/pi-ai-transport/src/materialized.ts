@@ -15,6 +15,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { ConnectionReservation } from './capacity.ts'
 import type { CheckedConfig, CheckedRoute } from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
+import { producedReplayFormat } from './family-table.ts'
 import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
 import { digestOf, firstModelVisibleReference, serializeBody } from './payload.ts'
@@ -69,10 +70,12 @@ export async function materialize(
     if (!('ok' in encoded)) return encoded
     const body = serializeBody(encoded.ok.body)
     const diagnostics = Object.freeze([...encoded.ok.diagnostics])
+    const replayFormat = producedReplayFormat(config.families, supplier.adoption)
     const receipt: MaterializationReceipt = Object.freeze({
       supplier: supplier.adoption,
       representation: request.representation,
       payloadDigest: digestOf(body),
+      ...(replayFormat === null ? {} : { replayFormat }),
     })
     const materialized = createMaterialized({
       ...input,

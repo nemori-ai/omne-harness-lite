@@ -28,7 +28,7 @@
 | [testing/adoptions.ts](../src/testing/adoptions.ts) | 采用指纹文件是否与记录一致，以及只追加的生成 | family-table.ts、Node `fs/promises` |
 | [config.ts](../src/config.ts) | 三段传输的配置是否合规：路由解析为 `URL`、限额校验 | http.ts、limits.ts、network.ts，json-text 与 family.ts（类型） |
 | [transport.ts](../src/transport.ts) | 外层与每个 prepared 的生命周期：路由查找、请求中的供应商与它的回放声明、家族绑定、在途 acquire 的中止、关闭的顺序 | config.ts、materialized.ts，family.ts、model-contract 与 operation-result（类型） |
-| [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts，capacity.ts、config.ts、family.ts、termination.ts、model-contract 与 operation-result（类型） |
+| [materialized.ts](../src/materialized.ts) | 一次发送：名额、编码后的字节、回执（含记录产出的回放格式）、start 的同步发起与关闭 | payload.ts、fact-stream.ts、http.ts、family-table.ts，capacity.ts、config.ts、family.ts、termination.ts、model-contract 与 operation-result（类型） |
 | [fact-stream.ts](../src/fact-stream.ts) | 响应怎样成为事实：SSE、协议帧、家族解码器，保留解码器的 `ended` 直到最后。2xx 响应体的解码是单独的 `decodeBody`，测试入口用它回放夹具 | sse.ts、frames.ts、http.ts、iteration.ts、termination.ts，config.ts、family.ts 与 model-contract（类型） |
 | [termination.ts](../src/termination.ts) | 一次发送怎样结束：发送结束到流终止的纯函数 | model-contract（类型），frames.ts 与 sse.ts（类型） |
 | [payload.ts](../src/payload.ts) | 固定的 payload：内容引用扫描、JSON 序列化、SHA-256 | json-text、Node `crypto`，model-contract（类型） |
@@ -64,6 +64,7 @@ flowchart LR
   materialized --> payload[payload.ts]
   materialized --> facts[fact-stream.ts]
   materialized --> http
+  materialized --> table
   materialized -.-> capacity[capacity.ts]
   materialized -.-> config
   materialized -.-> family

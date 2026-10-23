@@ -15,6 +15,7 @@ import {
   type PiFamilyBinding,
   type PiModelRecordHead,
 } from '../src/index.ts'
+import { producedReplayFormat } from '../src/family-table.ts'
 import { createTestDecoder } from './support/test-family.ts'
 
 const OWNER = '@omne-harness/pi-ai-test'
@@ -426,5 +427,30 @@ describe('replayFormatsOf', () => {
       replayFormatsOf(families, { ...recordAdoption(OWNER, record()), revision: '9' }),
     ).toBeNull()
     expect(replayFormatsOf(families, recordAdoption(OWNER, bare))).toBeNull()
+  })
+})
+
+describe('producedReplayFormat', () => {
+  const bare: TestRecord = {
+    name: 'bare',
+    revision: '1',
+    route: { recipient: 'gateway', model: 'vendor/bare' },
+    status: 'current',
+    wire: { limit: 1, tags: [], image: null, flag: false },
+  }
+
+  it('reads the produced format of the record that the adoption names in composed families', () => {
+    const families = composeFamilies([family([record(), bare], probe())])
+    expect(producedReplayFormat(families, recordAdoption(OWNER, record()))).toBe('fmt-a')
+  })
+
+  it('answers null for a record without formats, an unknown adoption, or contributions that composeFamilies did not make', () => {
+    const families = composeFamilies([family([record(), bare], probe())])
+    expect(producedReplayFormat(families, recordAdoption(OWNER, bare))).toBeNull()
+    expect(
+      producedReplayFormat(families, { ...recordAdoption(OWNER, record()), revision: '9' }),
+    ).toBeNull()
+    const lookalike = { acquire: families.acquire }
+    expect(producedReplayFormat(lookalike, recordAdoption(OWNER, record()))).toBeNull()
   })
 })

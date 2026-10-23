@@ -72,7 +72,7 @@
 3. 调用家族的 `encode({ request, media: [], declaration, resent })`。`declaration` 与 `resent` 是 prepare 保存的值。家族返回的失败原样返回。本包保存家族返回的 `diagnostics`，交给事实流。
 4. 把 `body` 序列化为不含空白的 JSON 文本，再编码为 UTF-8 字节。
 5. 计算这些字节的 SHA-256，用 64 个小写十六进制数字表示。
-6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。回执冻结，重复读取得到同一个对象。
+6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。`families` 由 `composeFamilies` 形成、且 `supplier.adoption` 对应的记录有 `replay.formats` 时，回执带 `replayFormat`，值是该记录的 `replay.formats.produces`。其他情形下回执没有这一项。回执冻结，重复读取得到同一个对象。
 
 - 第 1 步之后的任何失败，含抛出的异常，都先归还名额，再返回或抛出。
 - 同一 prepared 只能 materialize 一次。第二次调用返回 `invalid`（`field` 为 `materialize`，`reason` 为 `repeated`），不预约容量。prepared 关闭之后调用，返回 `unavailable`（`dependency` 为 `pi-transport`，`diagnostic` 为 `prepared-closed`）。
@@ -364,7 +364,9 @@
 
 #### 回放格式查询
 
-`replayFormatsOf(families, adoption)` 只读返回该采用对应记录的 `replay.formats`（`produces` 与 `accepts`）。没有家族声明该采用，或记录没有 `replay.formats` 时，它返回 `null`。运行时经端口取得回放格式归后续的回放组成集成。
+`replayFormatsOf(families, adoption)` 只读返回该采用对应记录的 `replay.formats`（`produces` 与 `accepts`）。没有家族声明该采用，或记录没有 `replay.formats` 时，它返回 `null`。
+
+Model runtime 不读家族表。传输在物化回执的 `replayFormat` 中交出这次发出产出的格式（见[materialize](#materialize) 第 6 步），Model runtime 收场时从发出记录的回执读取它。`composeFamilies` 返回值唯一的自有属性仍是 `acquire`，传输经包内函数读取记录的 `produces`。
 
 ### 网关引擎：请求
 
@@ -672,7 +674,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 义务 | 测试 | 层 |
 | --- | --- | --- |
 | 构造的配置校验（含不是句柄的 `network`）、prepare 的路由查找、请求不含该供应商时的拒绝与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时等待全部关闭） | [transport.spec.ts](tests/transport.spec.ts) | 快 |
-| materialize：回执、交给家族的输入（含同序的声明与再发略去集合）、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
+| materialize：回执（含组合家族记录的 `replayFormat`）、交给家族的输入（含同序的声明与再发略去集合）、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
 | 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start、凭据只在同步调用中读取一次、不发送时没有编码诊断 | [start.spec.ts](tests/start.spec.ts) | 快 |
 | 失败映射表的每一行 | [termination.spec.ts](tests/termination.spec.ts) | 快 |
 | 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、编码诊断在发出之后先于响应事实（含 HTTP 失败）、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |

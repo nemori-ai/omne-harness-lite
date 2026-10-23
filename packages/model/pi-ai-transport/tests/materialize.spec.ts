@@ -11,6 +11,7 @@ import type {
 import { afterEach, describe, expect, it } from 'vitest'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
+import { composeFamilies, defineFamily, recordAdoption } from '../src/family-table.ts'
 import {
   createTestFamily,
   END_MARKER,
@@ -97,6 +98,52 @@ describe('materialize', () => {
     await first.close()
     const second = await materialized(await prepare())
     expect(second.receipt).toEqual(first.receipt)
+  })
+
+  it('names the replay format that the record of the supplier produces, read through the composed families', async () => {
+    const network = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
+    networks.push(network)
+    const test = createTestFamily()
+    const record = {
+      name: 'formatted',
+      revision: '1',
+      route: { recipient: SUPPLIER.recipient, model: SUPPLIER.model },
+      status: 'current',
+      replay: { formats: { produces: 'test-format-v1', accepts: ['test-format-v1'] } },
+    } as const
+    const owner = 'pi-ai-transport-test-formatted'
+    const families = composeFamilies([
+      defineFamily({
+        owner,
+        records: [record],
+        async acquire(_record, supplier, signal) {
+          const acquired = await test.families.acquire(supplier, signal)
+          return 'ok' in acquired
+            ? { ok: { ...acquired.ok, adoption: supplier.adoption } }
+            : acquired
+        },
+      }),
+    ])
+    const supplier: Supplier = { ...SUPPLIER, adoption: recordAdoption(owner, record) }
+    const request: FixedModelRequest = { ...REQUEST, suppliers: [supplier] }
+    const built = createPiTransport({
+      network: network.handle,
+      families,
+      routes: { [SUPPLIER.recipient]: { url: ROUTE_URL, endMarker: END_MARKER } },
+      credential: { read: () => 'test-secret' },
+      limits: LIMITS,
+    })
+    transports.push(built)
+    const prepared = await built.transport.prepare(request, supplier, { resent: [] })
+    if (!('ok' in prepared)) throw new Error(`prepare: ${JSON.stringify(prepared.failure)}`)
+    const sent = await materialized(prepared.ok)
+    expect(sent.receipt).toEqual({
+      supplier: supplier.adoption,
+      representation: REQUEST.representation,
+      payloadDigest: createHash('sha256').update(EXPECTED_BODY).digest('hex'),
+      replayFormat: 'test-format-v1',
+    })
+    await sent.close()
   })
 
   it('gives the family the request, no media, the declaration of the supplier and no resent message', async () => {
