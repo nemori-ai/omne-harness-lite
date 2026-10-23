@@ -4,6 +4,7 @@ it('the root entry exports the custodian factories, the send path and nothing el
   const root = await import('@omne-harness/model-host-local')
   expect(Object.keys(root).sort()).toEqual([
     'SendResourceDefect',
+    'assembleLocalModel',
     'createLocalCustodian',
     'createPiSendResources',
     'openLocalCustodian',
