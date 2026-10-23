@@ -53,6 +53,8 @@ Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再
 
 当前目标声明和 Model 观察别名见[公开接口](docs/public-api.md#model-当前目标与公共观察)。[类型探针](tests/model-stream-selection.spec-d.ts)核对公开形状，[私有替身场景](tests/model-stream-selection.spec.ts)核对查询顺序和资格；这些检查不验证真实提供者。
 
+[交付协议模型](tests/protocol-model/README.md)说明结果保存、ACK、清理与晚账的有界探索，以及具名负控和运行监督。正式入口归慢层；模型和测试替身均不证明生产持久性或真实提供者符合性。
+
 ## 维护
 
 文件归属变化时同步[文档登记](documentation.json)、消费者链接和[组边界](../docs/architecture.md)。声明只在 `src/` 保存，公开接口页只导航到它们，不维护第二套签名。
