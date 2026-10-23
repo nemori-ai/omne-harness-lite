@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 190 个类型和 34 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 193 个类型和 34 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -21,7 +21,7 @@
 
 ### 增量声明与待实施责任
 
-[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执、结果接收端口和纯交付 judge 已从根入口导出，接收服务与恢复实现仍由提供者承担；current 尚未进入导出清单；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
+[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执、结果接收端口和纯交付 judge 已从根入口导出，接收服务与恢复实现仍由提供者承担；current 与 Model 观察别名已从根入口导出，见[当前目标与公共观察](#model-当前目标与公共观察)；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
 
 新增端口的 `Access` 直接来自 `@omne-harness/legal-identity`。旧 root.ts 的 Access 迁移由共享拥有者维护。current 的对象参数和失败顺序归 [目标查询](../SPEC.md#current-的权威含义)。
 
@@ -75,7 +75,14 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 - 声明和运行函数：[`src/model-stream-values.ts`](../src/model-stream-values.ts)。
 - 公共入口行为与类型探针：[`tests/model-stream-values.spec.ts`](../tests/model-stream-values.spec.ts)、[`tests/model-stream-values.spec-d.ts`](../tests/model-stream-values.spec-d.ts)。
 
-`ModelStreamSnapshot`、`ModelStreamBase`、`ModelStreamDelta` 和 `ModelStreamProjectionFailure` 定义纯值输入与结果。`diffModelStream` 产生累计块变化，`applyModelStreamDelta` 核对原基线并生成新快照；完整规则与失败顺序归 [SPEC](../SPEC.md#model-投影及差分)。两函数同步核验引用、身份和投影关系，成功结果复制并冻结，不改变输入；它们不证明授权、真实发布或持久保存。观察端口与发布目标查询另按其实施状态消费。
+`ModelStreamSnapshot`、`ModelStreamBase`、`ModelStreamDelta` 和 `ModelStreamProjectionFailure` 定义纯值输入与结果。`diffModelStream` 产生累计块变化，`applyModelStreamDelta` 核对原基线并生成新快照；完整规则与失败顺序归 [SPEC](../SPEC.md#model-投影及差分)。两函数同步核验引用、身份和投影关系，成功结果复制并冻结，不改变输入；它们不证明授权、真实发布或持久保存。观察端口与发布目标查询见[当前目标与公共观察](#model-当前目标与公共观察)。
+
+## Model 当前目标与公共观察
+
+- 声明：[`src/model-stream.ts`](../src/model-stream.ts)。
+- 公共入口类型探针：[`tests/model-stream-selection.spec-d.ts`](../tests/model-stream-selection.spec-d.ts)。受控查询行为：[`tests/model-stream-selection.spec.ts`](../tests/model-stream-selection.spec.ts)。
+
+`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和私有测试替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
 
 ## 普通调用面与实例观察
 

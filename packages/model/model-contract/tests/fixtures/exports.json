@@ -76,6 +76,14 @@
           ]
         },
         {
+          "title": "Model 当前目标与公共观察",
+          "names": [
+            { "name": "ModelStreamObservation", "kind": "type", "pending": false },
+            { "name": "ModelStreamSelection", "kind": "type", "pending": false },
+            { "name": "ModelStreamReferences", "kind": "type", "pending": false }
+          ]
+        },
+        {
           "title": "结果、失败和状态",
           "names": [
             { "name": "ModelDeliveryKey", "kind": "type", "pending": false },
