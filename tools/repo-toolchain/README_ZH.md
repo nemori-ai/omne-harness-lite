@@ -103,19 +103,34 @@ pnpm run acceptance:lock --base <任务基线提交或分支>
 
 模板生成的验收入口不算验收内容：`acceptance/` 下名为 `README.md` 或 `index.md`、变化后（删除时看变化前）仍有独立一行文档占位标记的文件，增删改都不计入；去掉标记、写入真实内容的改动照常计入（RFC-0007）。
 
-**基线提交就是清单**：Git 按内容寻址，派发时不必另存一份哈希。工具拿基线与 HEAD 的合并点同当前工作树比，输出三样：
+**基线提交就是清单**：Git 按内容寻址，派发时不必另存一份哈希。工具拿基线与 HEAD 的合并点同当前工作树比，输出以下事实：
 
 - 基线到当前工作树，验收文件的净变化（新增、修改、删除，含未提交与未跟踪）；
 - 这段范围里**每一个**碰过验收文件的提交：短号、作者、来源 trailer 里的 `Agent-Role`、碰了哪些文件；
-- 锁有没有被破。
+- 原始违规、已批准的精确历史例外和未解决违规。
 
 | 判锁被破（退出 1）                                                  | 放行                                            |
 | ------------------------------------------------------------------- | ----------------------------------------------- |
-| 碰过验收文件的提交，`Agent-Role` 不在拥有者角色里（如 `developer`） | `Agent-Role` 是拥有者角色（`main`、`qa`）的提交 |
+| 碰过验收文件的提交，`Agent-Role` 不在拥有者角色里（如 `developer`），且没有精确历史批准 | `Agent-Role` 是拥有者角色（`main`、`qa`）的提交 |
 | 工作树里有未提交或未跟踪的验收改动——说不清是谁改的                  | 没有来源 trailer 的提交：按人写的算             |
 
 哪些根目录下的成员受管、验收目录叫什么、哪些角色算拥有者，只在
 仓库根 [`repo-toolchain.config.json`](../../repo-toolchain.config.json) 的 `acceptanceLock` 一节 里定一次。用法或 Git 出错（`--base` 没给值、基线不存在）退出 2。
+
+`LockReport.violations` 保留原始发现，`commits[].allowed` 仍表示原角色判断。
+`approvedExceptions` 单列已批准历史例外，包含完整 commit、parent、path、oldBlob、newBlob、diffSha256 和 decisionUrl。
+`unresolvedViolations` 表示剩余违规，独立 CLI 据它返回 0 或 1。
+Loop 的 `auditRanges[].acceptance` 保留完整报告，`hardLines.acceptanceLock.violations` 只列未解决项。
+Loop 的 Markdown 同时显示原始违规和批准决定；其他硬线照常判断。
+
+当前制品只包含 [D010 的固定决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)。
+它只批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
+工具读取真实 Git 对象，核对完整提交、唯一父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。
+其他普通文档可以在原提交中一起修改；多一个受保护验收路径不能命中例外。
+未提交改动、未来 developer 提交和任一指纹或决定不匹配仍失败。Git 读取失败退出 2。
+仓库配置、环境变量、CLI 参数和外部 URL 都不能新增批准；运行时不访问 GitHub。
+批准记录随受审查的工具制品发布，安装版本与 npm integrity 是采用边界，源码测试通过不代表已安装修复。
+持续验证见 `tests/acceptance-lock.spec.ts` 和 `tests/loop-strict.spec.ts`。真实历史用例需要本仓库保留上述 Git 对象。
 
 它**不能声称**的：角色取自提交信息里的来源 trailer，那是提交的人自己写的——一个把 `Agent-Role` 写成 `main` 的实施提交它认不出来，
 所以碰过验收的提交一律列出，由接受的人过目。先改后改回的提交照样列出、照样判破，哪怕净变化为零。

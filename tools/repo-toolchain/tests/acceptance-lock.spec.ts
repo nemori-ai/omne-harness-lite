@@ -16,6 +16,10 @@ import {
   render,
   type AcceptanceLockConfig,
 } from '../src/acceptance/lock.ts'
+import {
+  inspectHistoricalApproval,
+  matchHistoricalApproval,
+} from '../src/acceptance/historical-approvals.ts'
 import type { CommitRecord } from '../src/commits.ts'
 
 const config: AcceptanceLockConfig = {
@@ -284,4 +288,183 @@ describe('验收锁：读 Git', () => {
     expect(explicit.status).toBe(0)
     expect(explicit.stdout).toContain('验收锁（基线 main，')
   })
+})
+
+describe('D010 exact historical approval', () => {
+  it('keeps the real developer violation and separately approves its exact historical change', () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url))
+    const report = inspect(
+      root,
+      'e7aab8ec73002713d2ef6486401816850c984fb1',
+      config,
+      '48ad37d292796326d65055a75e8a1fde44fe4233',
+    )
+    expect(report.violations).toHaveLength(1)
+    expect(report.commits[0]?.allowed).toBe(false)
+    expect(report.approvedExceptions).toEqual([
+      {
+        commit: '48ad37d292796326d65055a75e8a1fde44fe4233',
+        parent: 'e7aab8ec73002713d2ef6486401816850c984fb1',
+        path: 'packages/agent/agent/acceptance/README.md',
+        oldBlob: 'f7fac2fc21bfceb51c3dd84542b866eb7bb12c89',
+        newBlob: 'fbf0d08732f5d2004c3d63cff6c8be11442da99b',
+        diffSha256: 'eee5be00ebfdf300db6978cb2981a1b989dcd977846fc3de2669bb835edf3a2c',
+        decisionUrl:
+          'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357',
+      },
+    ])
+    expect(report.unresolvedViolations).toEqual([])
+    const output = render(report, config).join('\n')
+    expect(output).toContain(report.violations[0])
+    expect(output).toContain('已批准历史例外 1')
+    expect(output).toContain('未解决违规 0')
+    expect(output).not.toContain('没有不该改验收的角色动过它')
+  })
+})
+
+const historical = {
+  commit: '48ad37d292796326d65055a75e8a1fde44fe4233',
+  parent: 'e7aab8ec73002713d2ef6486401816850c984fb1',
+  path: 'packages/agent/agent/acceptance/README.md',
+  oldBlob: 'f7fac2fc21bfceb51c3dd84542b866eb7bb12c89',
+  newBlob: 'fbf0d08732f5d2004c3d63cff6c8be11442da99b',
+  diffSha256: 'eee5be00ebfdf300db6978cb2981a1b989dcd977846fc3de2669bb835edf3a2c',
+  decisionUrl: 'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357',
+}
+
+describe('historical fingerprint rejection', () => {
+  it.each(['commit', 'parent', 'path', 'oldBlob', 'newBlob', 'diffSha256', 'decisionUrl'])(
+    'rejects a single changed %s',
+    field => {
+      expect(
+        matchHistoricalApproval({ ...historical, [field]: 'different' }, [historical.path]),
+      ).toBeUndefined()
+    },
+  )
+
+  it('rejects a missing decision and additional protected paths', () => {
+    const { decisionUrl: _decision, ...missingDecision } = historical
+    expect(matchHistoricalApproval(missingDecision, [historical.path])).toBeUndefined()
+    expect(matchHistoricalApproval(historical, [historical.path, SPEC])).toBeUndefined()
+    expect(matchHistoricalApproval(historical, [])).toBeUndefined()
+    expect(matchHistoricalApproval(historical, [SPEC])).toBeUndefined()
+    expect(matchHistoricalApproval(historical, [historical.path])).toEqual(historical)
+  })
+
+  it('does not attach the known approval to a range without that violation', () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url))
+    const report = inspect(root, historical.parent, config, historical.parent)
+    expect(report.approvedExceptions).toEqual([])
+    expect(report.unresolvedViolations).toEqual([])
+    expect(() =>
+      inspectHistoricalApproval('/no-such-repository', historical.commit, [historical.path]),
+    ).toThrow()
+  })
+})
+
+// Slow tier: clones historical Git objects and runs the real CLI in child processes.
+describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () => {
+  const made: string[] = []
+  afterEach(() => {
+    for (const root of made.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+
+  const git = (root: string, ...args: string[]) =>
+    execFileSync('git', args, {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim()
+
+  function repository() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'historical-acceptance-')))
+    made.push(root)
+    const source = fileURLToPath(new URL('../../../', import.meta.url))
+    git(root, 'clone', '--quiet', '--shared', '--no-checkout', source, '.')
+    git(root, 'sparse-checkout', 'set', '--no-cone', `/${historical.path}`)
+    git(root, 'checkout', '--quiet', '--detach', historical.commit)
+    return root
+  }
+
+  const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+  const run = (root: string, env: NodeJS.ProcessEnv = process.env) =>
+    spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', cli, '--root', root, '--base', historical.parent],
+      { env, encoding: 'utf8' },
+    )
+
+  it('exits zero only for the exact history, and still rejects uncommitted and future developer changes', () => {
+    const root = repository()
+    const approved = run(root)
+    expect(approved.status, approved.stderr).toBe(0)
+    expect(approved.stdout).toContain('原始违规')
+    expect(approved.stdout).toContain(historical.decisionUrl)
+    expect(approved.stdout).toContain(historical.diffSha256)
+    expect(approved.stdout).toContain('未解决违规 0')
+    writeFileSync(join(root, historical.path), 'a different acceptance contract\n')
+    const dirty = run(root)
+    expect(dirty.status, dirty.stderr).toBe(1)
+    expect(dirty.stdout).toContain('未提交的验收改动')
+    git(root, 'add', historical.path)
+    git(
+      root,
+      '-c',
+      'user.name=someone',
+      '-c',
+      'user.email=someone@example.com',
+      'commit',
+      '-qm',
+      'future edit\n\nAgent-Role: developer',
+    )
+    const future = run(root)
+    expect(future.status, future.stderr).toBe(1)
+    expect(future.stdout).toContain('已批准历史例外 1')
+    expect(future.stdout).toContain('未解决违规 1')
+    const report = inspect(root, historical.parent, config)
+    expect(report.violations).toHaveLength(2)
+    expect(report.approvedExceptions).toEqual([historical])
+    expect(report.unresolvedViolations).toHaveLength(1)
+  })
+
+  it('rejects Git replacement objects even when the reported SHA and diff still match', () => {
+    const root = repository()
+    const replacement = git(
+      root,
+      '-c',
+      'user.name=someone',
+      '-c',
+      'user.email=someone@example.com',
+      'commit-tree',
+      `${historical.commit}^{tree}`,
+      '-p',
+      historical.parent,
+      '-m',
+      'replacement metadata\n\nAgent-Role: developer',
+    )
+    git(root, 'replace', historical.commit, replacement)
+    const result = run(root)
+    expect(result.status, result.stderr).toBe(1)
+    expect(result.stdout).toContain('已批准历史例外 0')
+    expect(result.stdout).toContain('未解决违规 1')
+  })
+
+  it.each(['--binary', `${historical.commit}:${historical.path}`])(
+    'propagates failed Git read %s as CLI exit 2',
+    failedArgument => {
+      const root = repository()
+      const bin = join(root, 'fault-bin')
+      mkdirSync(bin)
+      const actualGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
+      writeFileSync(
+        join(bin, 'git'),
+        `#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = "${failedArgument}" ]; then echo fingerprint-read-failed >&2; exit 42; fi\ndone\nexec '${actualGit}' "$@"\n`,
+        { mode: 0o755 },
+      )
+      const failed = run(root, { ...process.env, PATH: `${bin}:${process.env['PATH'] ?? ''}` })
+      expect(failed.status).toBe(2)
+      expect(failed.stderr).toContain('fingerprint-read-failed')
+      expect(failed.stdout).not.toContain('已批准历史例外 1')
+    },
+  )
 })
