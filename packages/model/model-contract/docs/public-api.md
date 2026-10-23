@@ -95,6 +95,8 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 
 `TransportFact`、`IndependentModelFact` 与 `LateDispatchFact` 的 `account` 变体带 `CallAccountReport`：它是 `CallAccount` 去掉 `subject` 与 `receipt`。提供者不知道调用身份，也不判断迟到。Model runtime 保存账目时补上这两项，规则见 [SPEC](../SPEC.md#342-独立执行与提供者操作)。`diagnostic` 变体带一条 `ProviderDiagnostic`。它是闭合联合，有四种：`replay-omitted`（消息身份、`scope`、`format`、略去的部件个数）、`reasoning-disabled`（原因 `foreign-prefix`）、`reasoning-state-dropped`（原因 `payload-too-long` 与载荷长度）和 `usage-inconsistent`（自相矛盾的用量字段名）。诊断不带载荷或正文，不改变块。
 
+`MaterializationReceipt.replayFormat` 是这次发出产出的推理续接状态部件的回放 `format`，由适配器按其采用给出。适配器不产出推理续接状态时没有这一项，旧记录也没有。Model runtime 收场时用它作 finish 的 `format`，见 [到达与组成](../SPEC.md#回放的到达与组成)。
+
 `ModelTransport.prepare(request, supplier, dispatch)` 的第三个参数是 `TransportDispatch`，带这次发出不由请求固定的输入。`resent` 列出这次再发须视为不可续接的消息，首次发出为空。传输把它交给回放投影，见 [SPEC](../SPEC.md#回放投影)。
 
 ## 参数与注入的裁定

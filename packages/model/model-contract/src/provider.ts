@@ -124,6 +124,11 @@ export type MaterializationReceipt = Readonly<{
   supplier: Adoption
   representation: Adoption
   payloadDigest: string
+  /**
+   * The replay `format` of the reasoning state parts that this dispatch produces, by the adoption
+   * of the adapter. Absent on an older record, or when the adapter produces no reasoning state.
+   */
+  replayFormat?: string
 }>
 export interface MaterializedTransport {
   readonly receipt: MaterializationReceipt

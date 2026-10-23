@@ -149,7 +149,7 @@ classDiagram
 | AssembledModelInput | 完整系统内容、消息、工具声明、参数及表示来源 | 由组装方产生。Model 不补写遗漏的历史 |
 | FixedModelRequest | 受理后固定的输入、供应商、参数采用与来源，不含预算 | 原调用保管，重试不改用途或路由 |
 | RequestBudget | 完整计量或明确待媒体物化。各维度具有方法与上限，并固定 ModelCountingBasis | 计量能力给请求组装方的报告，不进入固定请求，也不进入物化回执 |
-| MaterializationReceipt | 本次供应商、实际表示和 payloadDigest，不含预算 | ModelCommands 先持久提交到原 dispatch，再进入发送围栏 |
+| MaterializationReceipt | 本次供应商、实际表示和 payloadDigest，可带这次发出产出的回放格式 `replayFormat`，不含预算 | ModelCommands 先持久提交到原 dispatch，再进入发送围栏 |
 | ToolDeclaration | 名称、已组装说明及参数 schema | Model 的请求值，不是 ToolDefinition |
 | ConvertedContent | 原块、其他模态的派生、transcript 和转换采用 | 消息准入者随原块接纳，接纳后不回填 |
 

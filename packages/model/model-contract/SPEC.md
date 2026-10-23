@@ -742,7 +742,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 <a id="回放的到达与组成"></a>
 
-**到达与组成。**推理续接状态部件经共享到达以整块交出：传输的 block-seal 在同一原子映射内生成 `kind` 为 `reasoning_state` 的 open 与含完整部件的 close，与整交的图片相同，没有填充。`scope` 与 `format` 由 Model runtime 按这次发出的供应商与适配器采用给出：正常收场时随共享到达的 finish 交出，装配按部件位置写 `at` 并组成 assistant 消息；输出限额完成映射为 stopped，由流的结算方组成消息时按同样规则写 `replay`。用量不随这些步骤交出，仍走原 dispatch 的账目。共享到达成员的相应规则归 [STREAM-T01](../../../docs/architecture/runtime/streaming-and-consumption.md#stream-t01)。
+**到达与组成。**推理续接状态部件经共享到达以整块交出：传输的 block-seal 在同一原子映射内生成 `kind` 为 `reasoning_state` 的 open 与含完整部件的 close，与整交的图片相同，没有填充。`scope` 与 `format` 由 Model runtime 按这次发出的供应商与适配器采用给出：`scope` 是请求声明中这次发出的供应商的 `produces`，`format` 是这次发出的物化回执的 `replayFormat`（见[物化回执的提交与发送](#物化回执的提交与发送)）。正常收场时它们随共享到达的 finish 交出，装配按部件位置写 `at` 并组成 assistant 消息。回复含推理续接状态部件而回执没有 `replayFormat` 时，Model runtime 不能组成这条消息，保存这次收场的写入（preserve 或 recordLateFact）返回 `invalid`，`field` 为 `termination`，`reason` 为 `replay-format-unknown`，整批不保存。它不丢弃部件，也不按没有 `replay` 收场。回复只含 `thinking` 而回执没有 `replayFormat` 时，finish 不带 `replay`，按 message 成员的 RS-03 表示推理文字来源未知。输出限额完成映射为 stopped，由流的结算方组成消息时按同样规则写 `replay`。用量不随这些步骤交出，仍走原 dispatch 的账目。共享到达成员的相应规则归 [STREAM-T01](../../../docs/architecture/runtime/streaming-and-consumption.md#stream-t01)。
 
 <a id="回放投影"></a>
 
@@ -789,7 +789,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 ## 物化回执的提交与发送
 
-MaterializationReceipt 只记录本次供应商、实际表示采用和无秘密 payload 的摘要，不含预算。物化对象及其租约持有该实际内容，start 必须发送与回执匹配的内容。生成回执不授发出权，也不意味着已向供应商发送。
+MaterializationReceipt 只记录本次供应商、实际表示采用和无秘密 payload 的摘要，不含预算。适配器产出推理续接状态时，回执还带 `replayFormat`：这次发出产出的部件的回放 `format`，按适配器采用给出，满足 message 成员对 `replay.format` 的要求。回执没有这一项，表示旧记录，或适配器不产出推理续接状态。回执随发出记录保存，所以收场与晚到事实两条路径都按它给出 `format`。物化对象及其租约持有该实际内容，start 必须发送与回执匹配的内容。生成回执不授发出权，也不意味着已向供应商发送。
 
 托管 ModelSendBoundary 注入 ModelCommands，以原 execution、当前 revision、独立 operation 和 dispatch 调用 recordMaterialization。Commands 核执行代次、原 dispatch 尚未发出、供应商和固定请求摘要，然后条件持久提交。回执来源由可信 adapter 核验，不接受普通调用者自报的内容。成功返回新 revision 与 DurableEvidence，DispatchRecord.materialization 可恢复地返回原回执及依据。
 
