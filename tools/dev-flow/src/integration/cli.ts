@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { runGhCommand } from '../delivery/github-read.ts'
 import { openIntegration, type Command } from './engine.ts'
 import { fields, integer, json, sha, string, IntegrationError } from './parse.ts'
+import { riNotes } from './ri-notes.ts'
+import { riInput } from './ri-source.ts'
 import { TaskContextError } from '@omne-harness/repo-toolchain/core/task-context'
 
 export function parseCommand(value: unknown): Command {
@@ -32,22 +35,36 @@ async function main(argv: string[]): Promise<void> {
   const [kind, ...args] = argv
   if (kind === '--help' || kind === undefined) {
     process.stdout.write(
-      'integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\nexecute reads a strict command union; see integration/README.md\n',
+      'integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\nintegration ri-notes --track ID [--root PATH] [--format json|markdown]\nexecute reads a strict command union; see integration/README.md\n',
     )
     return
   }
+  const allowed =
+    kind === 'ri-notes' ? ['--root', '--track', '--format'] : ['--root', '--base', '--input']
   const options = new Map<string, string>()
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i],
       value = args[i + 1]
-    if (
-      key === undefined ||
-      !['--root', '--base', '--input'].includes(key) ||
-      value === undefined ||
-      options.has(key)
-    )
+    if (key === undefined || !allowed.includes(key) || value === undefined || options.has(key))
       throw new IntegrationError('input-error', 'Invalid or repeated option')
     options.set(key, value)
+  }
+  if (kind === 'ri-notes') {
+    const track = options.get('--track'),
+      format = options.get('--format') ?? 'json'
+    if (track === undefined || (format !== 'json' && format !== 'markdown'))
+      throw new IntegrationError(
+        'input-error',
+        'ri-notes requires --track ID and --format json|markdown',
+      )
+    // Findings are report-only: they never change the exit code.
+    const notes = riNotes(
+      riInput({ root: resolve(options.get('--root') ?? process.cwd()), track, call: runGhCommand }),
+    )
+    process.stdout.write(
+      format === 'markdown' ? notes.markdown : `${JSON.stringify(notes, null, 2)}\n`,
+    )
+    return
   }
   const engine = await openIntegration({ root: resolve(options.get('--root') ?? process.cwd()) })
   let result: unknown
