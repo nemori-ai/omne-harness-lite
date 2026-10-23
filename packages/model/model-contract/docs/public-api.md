@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 179 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 182 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -19,7 +19,7 @@
 
 ### 已采用但尚未声明的增量
 
-[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。这些新增名字尚未进入本页的导出清单，不是现有可导入 API，不改变上文统计或旧实现的必需成员。
+[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。saved 回执及接收/恢复端口、Model 投影与差分尚未进入导出清单；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
 
 receiver、observe 与 current 的完整公开声明及实际导入依赖公共身份唯一源，启用条件归[交付边界](../SPEC.md#推送与公共观察的交付边界)。本页不复制候选 Access 或用拟议签名替代实际源码。真实 Evidence adapter、Agent 内部保存映射和 Tool 适配不由本包声明页补造。
 
@@ -58,8 +58,10 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 本章给调用方和消费者拥有者：操作的失败值、调用状态、终局与确认回执。
 
-- 声明：[`src/result.ts`](../src/result.ts)。
-- 类型探针：[`tests/result.spec-d.ts`](../tests/result.spec-d.ts)。
+- 声明：[`src/result.ts`](../src/result.ts)、[`src/result-delivery-values.ts`](../src/result-delivery-values.ts)。
+- 类型探针：[`tests/result.spec-d.ts`](../tests/result.spec-d.ts)、[`tests/result-delivery-values.spec-d.ts`](../tests/result-delivery-values.spec-d.ts)。
+
+结果接收者以交付种类收窄稳定键与载荷。账目快照没有报告时显式为 null。只读声明约束静态赋值；版本值一致、全部 dispatch 覆盖、运行时冻结与真实保存仍由[交付协议](../SPEC.md#交付身份与冻结载荷)核验，不由类型声明证明。
 
 ## 普通调用面与实例观察
 

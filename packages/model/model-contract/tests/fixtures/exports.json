@@ -67,6 +67,9 @@
         {
           "title": "结果、失败和状态",
           "names": [
+            { "name": "ModelDeliveryKey", "kind": "type", "pending": false },
+            { "name": "ModelAccountSnapshot", "kind": "type", "pending": false },
+            { "name": "ModelDelivery", "kind": "type", "pending": false },
             { "name": "ModelFailure", "kind": "type", "pending": false },
             { "name": "Reply", "kind": "type", "pending": false },
             { "name": "ToolSuggestion", "kind": "type", "pending": false },

@@ -5,6 +5,7 @@
 // deriveGuardControlOperation, and the replay declaration and projection functions.
 export type * from './root.ts'
 export type * from './result.ts'
+export type * from './result-delivery-values.ts'
 export type * from './call-surface.ts'
 export type * from './provider.ts'
 export type * from './profile.ts'
