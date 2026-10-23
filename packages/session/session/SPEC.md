@@ -130,7 +130,7 @@
 | 输入 | `ControlProgress.pending`、`startFence`；Agent 控制回执；`receive` 带来的生产者事实 |
 | 产出 | `control` 出站调用；`invalidate` 出站调用；`receive` 命令 |
 | 单写 | 同一 `ControlProgress.operation` 的传播幂等。两条路径同时送达同一意图时，生产者按原控制操作认回 |
-| 失败分支 | 回执未知：以同一控制操作身份重发。生产者报告效果未知：保持未知，不改终态。`invalidate` 返回 `pending`、`unavailable` 或 `commit-unknown`：`startFence` 保持 `pending`，按同一操作身份重放；生效之前不声称新发起已被阻止。`resume` 返回 `terminal`：执行已结束，按 [RS-10](../session-contract/SPEC.md#rs-10) 认回。超过 `controlReplay.maxReplays`：进度停在 `propagating` 并报告维护者，不冒充已停。对 Model 的第三条路径在 [P-4](../session-contract/SPEC.md#具名前提与明确缺项) 闭合前不存在（[EC-12](../session-contract/SPEC.md#ec-12)） |
+| 失败分支 | 回执未知：以同一控制操作身份重发。生产者报告效果未知：保持未知，不改终态。`invalidate` 返回 `pending`、`unavailable` 或 `commit-unknown`：`startFence` 保持 `pending`，按同一操作身份重放；生效之前不声称新发起已被阻止。`resume` 返回 `terminal`：执行已结束，按 [RS-10](../session-contract/SPEC.md#rs-10) 认回。超过 `controlReplay.maxReplays`：进度停在 `propagating` 并报告维护者，不冒充已停。第三条路径只对 Tool 存在：Session 不参加 Model 的受理点守卫 |
 
 <a id="c4"></a>
 
@@ -342,6 +342,8 @@
 - 已校验装配候选的缓存归装配协调者，不在本表（[S7](#s7)）。
 - 缓存淘汰与进程重启不影响任何保证。全部缓存可丢，丢失后下一次读取从存储重建。
 
+条目缓存、快照缓存与预求值名额（`preEvaluation.concurrency`）不按租户分额。这是已知的性能偏离：一个租户的负载可以挤占其他租户的缓存命中与提前求值，使它们的读取回到存储、新 Run 失去提前求值。它只影响时延，不影响正确性。租户间的公平归本成员的调度，按租户分开串行区与名额。已知限制：本成员没有这项规则与配置字段，不声称租户间公平。
+
 ## 资源与替换
 
 - 本成员经工厂参数取得全部外部能力，不导入 Cordis，不固定本地提供者。端口的必需性与缺席行为沿契约的[端口表](../session-contract/SPEC.md#构造依赖端口与出站端口)：启动条件只有 `SessionTransactionPort` 与内部主体 `principals`。事务端口缺席时不启动任何协调器与调度器，读与写都返回 `unavailable`。内部主体缺席时不构造实例，因为协调器与调度器不能提交命令；经 Cordis 时服务停在 `PENDING`。其他端口按调用现取，缺席只使需要它的操作返回 `unavailable` 或使任务保留。
@@ -402,7 +404,7 @@
 | CR-21 | `freeze` | 没有冻结。第一条路径：`startRun` 已返回 `frozen`，判定只在该失败的 `verdict` 里 | SE37（与 SE38）已在，通知丢失 | 第一条路径：下一次 S1 触发重新取候选材料，Tool 再次给出同一判定；第二条路径：Tool 宿主协调者重试 | `freeze` 首次提交或认回原回执；S1 读到 `frozen` 后跳过 | 第二条 SE37；冻结取消未终结 Run；待处理输入既无去处又无 SE38 |
 | CR-22 | `change`、`setRelation`、`configureAutoArchive`、`commitDerived(context-reminder)` | 没有变更 | 条目已在，通知或消费者未更新 | 调用方以同一提交身份或变化材料身份重试 | 认回原回执；作用域持有者在下一次拉取补齐 | 未知期间作用域持有者先使注册生效 |
 | CR-23 | `bindExternalCall`、`completeExternalConsumption` | 没有登记或完成 | 条目已在 | 调用方 `queryOperation` | 认回 | 把 Run 内调用改登记为 Run 外调用 |
-| CR-24 | 提交通知 | 不适用 | 通知未发或丢失 | S3 周期扫描，按七个原因读 `pending` | 按权威读补查；每个原因只由快照决定，所以通知要唤醒的工作都在某个原因之下。前提是 S3 能枚举该租户：事务域目录缺席时，未由装配列出的租户要等它的下一条通知 | 通知丢失导致工作丢失 |
+| CR-24 | 提交通知 | 不适用 | 通知未发或丢失 | S3 周期扫描，按七个原因读 `pending` | 按权威读补查；每个原因只由快照决定，所以通知要唤醒的工作都在某个原因之下。前提是 S3 能枚举该租户：事务域目录缺席时，租户要等它的下一条通知 | 通知丢失导致工作丢失 |
 
 ### 明确缺项
 

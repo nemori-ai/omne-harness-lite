@@ -14,7 +14,7 @@ Skill 维护方法专有的材料、发现与读取规则、来源及脚本桥�
 | 已知身份、引用常驻、依赖采用与换代 | [装配与交接](../assembly-and-handoff/README.md)、运行方 | Skill 给定义和依赖事实，装配保护一致采用；合法新方法经显式增量装载后可用，不改 Agent Definition、不因增加能力重建 runtime |
 | 方法创作、提交归属和组织提升 | 创作入口、资产、身份与授权拥有者；组织提升由用户执行 | 创建/修改须授权，产物按实际提交位置属工作区或租户；Agent 不直接产出组织资产或代用户提升，Skill 不设计完整创作或提升流程 |
 | 发现、正文与指定资源读取 | 方法取用责任 | 给获准消费者真实内容及来源，错误/缺失/未知可区分 |
-| 工具 read 的结果及原消费位置 | [工具执行](../tool-execution/README.md)、[Session 与工作](../sessions-and-work/README.md) | 原工具调用可靠承接，不把方法知识全部归入执行账 |
+| 工具 read 的结果及原消费位置 | [工具执行](../tool-execution/README.md)、[Agent 推进](../agent-progression/README.md)宿主里的结果接收方 | 原工具调用可靠承接，不把方法知识全部归入执行账 |
 | 命令绑定、展开和用户消息受理 | [Slash Command](../slash-commands/README.md)、消息接入 | Skill 只提供本次合法材料；匹配、受理、去重和 Run 创建归邻域 |
 | 实际上下文与固定模型请求 | [Runtime Context](../runtime-context/README.md)、请求组装 | 保留实际内容和采用依据；方法更新不重写旧请求 |
 | 脚本准入、实际执行及效果 | 原工具调用、脚本桥接、[执行环境](../execution-environments/README.md) | 显式发起、当前资源准入和原身份结果分别确认；桥接不造 Skill runtime |

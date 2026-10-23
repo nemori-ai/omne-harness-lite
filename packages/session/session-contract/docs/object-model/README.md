@@ -77,7 +77,7 @@ Session 只建模会话治理所需的外域事实。外域对象以引用或耐
 | `AutoArchivePolicy` | 值 | 随租户设置 | 租户设置拥有者为源；Session 保存采用 | `configureAutoArchive` 采用（SE06） | 默认关闭；时限是正的十进制毫秒数 |
 | `IdleObservation`、`IdleCoverage` | 值 | 随 Session | Session（SE31） | `recordIdle` 到被新工作、关系或调用变化中断 | 区间要有覆盖证明；未知不证明空闲；重启不清零已确认起点 |
 | `ClockSample` | 值 | 随采样 | 时钟端口 | 每次采样 | 来源可追溯；采样失败不用系统时间代替 |
-| `ResidentTool` | 值 | 能力身份，会话内唯一 | 内容归 Tool；Session 保存首次定义（SE36） | 采用点纳入，之后不删除 | 常驻集合只增不减；name 与参数形状在会话内不变；当前固定的登记键从最近的 SE08 派生 |
+| `ResidentTool` | 值 | 能力身份，会话内唯一 | 内容归 Tool；Session 保存首次定义（SE36） | 采用点纳入，之后不删除 | 常驻集合只增不减；name 与参数形状在会话内不变；当前记下的登记键从最近的 SE08 派生 |
 | `SessionFrozen` | 值 | 随 Session，至多一个 | Session（SE37）；判定与证据归 Tool | 冻结成立后不消失 | 不可逆；独立于归档；不开始新 Run，在途 Run 按原规则收场 |
 
 ```mermaid

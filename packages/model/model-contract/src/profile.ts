@@ -170,10 +170,58 @@ export type BudgetCheck = Readonly<{
   limit: string
   constraint: Readonly<{ profile: Adoption; upstream: UpstreamLimit }>
 }>
+/**
+ * Why the continuation anchor of a calibrated measurement does not apply. Each reason is its own
+ * fact. SPEC "锚点不命中的原因" defines the condition of each name.
+ */
+export type AnchorMiss =
+  | 'not-declared'
+  | 'call-unreadable'
+  | 'facts-unavailable'
+  | 'messages-unrecorded'
+  | 'ambiguous-dispatch'
+  | 'supplier-changed'
+  | 'representation-changed'
+  | 'not-a-prefix'
+  | 'usage-unknown'
+  | 'units-missing'
+  | 'continuation-shrank'
+/**
+ * Why the output count of a source call cannot stand in for a unit that carries reasoning state.
+ * SPEC "来源扣留的原因" defines the condition of each name.
+ */
+export type OutputWithheld =
+  | 'source-missing'
+  | 'source-unreadable'
+  | 'source-unavailable'
+  | 'ambiguous-dispatch'
+  | 'output-unknown'
+  | 'reasoning-exceeds-output'
+  | 'supplier-changed'
+/**
+ * The numbers a preparation lease hands a family meter. They carry no access, tenant or call
+ * identity: the meter is a pure function of its input and this value.
+ */
+export type MeterCalibration = Readonly<{
+  /** The real input total of the continued call and the messages that total already covers. */
+  anchor: Readonly<{ covered: readonly MessageId[]; inputTotal: string }> | null
+  /** The output count of the source call of each message, or why it is withheld. */
+  outputs: readonly (Readonly<{ message: MessageId }> &
+    (
+      | Readonly<{ kind: 'known'; outputTokens: string }>
+      | Readonly<{ kind: 'withheld'; reason: OutputWithheld }>
+    ))[]
+}>
+/** The calibration verdict of one measurement: reasons only, never the numbers of another call. */
+export type CalibrationReport = Readonly<{
+  anchor: Readonly<{ kind: 'hit' }> | Readonly<{ kind: 'miss'; reason: AnchorMiss }>
+}>
 export type RequestBudget = Readonly<{
   inputDigest: string
   checks: readonly BudgetCheck[]
   counting: readonly [ModelCountingBasis, ...ModelCountingBasis[]]
+  /** Present when a preparation lease with a lineage measured, else absent. */
+  calibration?: CalibrationReport
 }> &
   (
     | Readonly<{ kind: 'complete' }>
@@ -217,6 +265,12 @@ export type MeterRepresentation = Readonly<{
   adoption: Adoption
   tokenInput: JsonValue
   media: readonly MediaMeasurementFact[]
+  /**
+   * The message of each message unit of `tokenInput`, in unit order; `null` for a unit that belongs
+   * to no message, such as the instruction. Absent when the representation did not come from a
+   * family adapter, so no calibration applies to it. The counted bytes are the same with or without it.
+   */
+  units?: readonly (MessageId | null)[]
 }> &
   (
     | Readonly<{
@@ -237,6 +291,17 @@ export interface ModelInputMeter {
       parameters: readonly ParameterAdoption[]
       representation: MeterRepresentation
     }>,
+  ): Outcome<RequestBudget, TransportFailure>
+}
+/**
+ * A family meter that takes a calibration. Only a preparation lease calls `measureCalibrated`;
+ * consumers keep the plain `ModelInputMeter`. `measure(input)` equals `measureCalibrated` with an
+ * empty calibration (no anchor, no outputs): one algorithm, two entries.
+ */
+export interface CalibratedInputMeter extends ModelInputMeter {
+  measureCalibrated(
+    input: Parameters<ModelInputMeter['measure']>[0],
+    calibration: MeterCalibration,
   ): Outcome<RequestBudget, TransportFailure>
 }
 /**

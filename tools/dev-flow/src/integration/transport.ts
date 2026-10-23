@@ -36,6 +36,22 @@ export function fetchObject(root: string, location: string, oid: string, timeout
   if (maybeRef(root, `${sha(oid)}^{object}`) === null)
     git(root, ['fetch', '--no-tags', '--', location, oid], undefined, timeoutMs)
 }
+/** Fetches, in one fetch, every listed object that is missing locally. */
+export function fetchObjects(
+  root: string,
+  location: string,
+  oids: readonly string[],
+  timeoutMs: number,
+): void {
+  if (oids.length === 0) return
+  const missing = lines(
+    git(root, ['cat-file', '--batch-check'], `${oids.map(oid => sha(oid)).join('\n')}\n`),
+  )
+    .filter(line => line.endsWith(' missing'))
+    .map(line => sha(line.slice(0, -' missing'.length)))
+  if (missing.length > 0)
+    git(root, ['fetch', '--no-tags', '--', location, ...missing], undefined, timeoutMs)
+}
 /**
  * Reads the current commit of a remote branch and makes it available locally.
  * Returns null when the remote has no such branch; throws when the remote cannot be read.

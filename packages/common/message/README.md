@@ -6,11 +6,11 @@ The message field inside a fact record, plus parse and equality for `MessageId`.
 
 ## Responsibility and status
 
-A message is a field of one fact record in the session log. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
+A message is a field of one fact record in the log of the history holder. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
 
 This package publishes the message value, `judgeMessage`, and `judgeCompaction`. A message is `{ id, role, blocks }`; a `compaction` message also has `covers`, `retained`, and `derivation`. `id` is a string `parseMessageId` accepts. `role` is one of the six log roles. `blocks` is a non-empty array of parts in arrival order. A part is a closed content block, one of four tool parts (`tool_call`, `tool_call_incomplete`, `tool_call_unparsed`, `tool_result`), or a `reasoning_state` part. A tool part has a block `id` and a block `visibility` like a content block. Its keys are closed: any other own key is `extra`. The package does not invent tool outcome codes, and a part cannot carry an executor, a handle, or a private result object. `docs/public-api.md` has the meaning of each part and the example table.
 
-The session mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. This package exports no mint function.
+The history holder mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. This package exports no mint function.
 
 ## Usage
 
@@ -55,11 +55,11 @@ Role rules: the first block of a `tool` message is a `tool_result`, and the othe
 
 `src/message.ts` owns the role list, the brand, `parseMessageId`, `messageIdEquals`, `MessageRoleMap`, the six role message types, `Message` (the union of the six, told apart by `role`), and `judgeMessage`. The `blocks` of each role type hold only the parts that the role allows, and at least one block: content blocks other than `thinking` (`MessageContentBlock`) for `user`, `tool_internal`, `system_reminder`, and the `compaction` summary; all content blocks and the three call parts (`CallPart`) for `assistant`; a `tool_result` marker, then `MessageContentBlock`s, for `tool`. `src/compaction-shape.ts` owns the entry reference, the types of `covers` and `derivation`, and `judgeCompactionKeys`, which judges the three keys. `src/compaction.ts` owns `judgeCompaction` and the types `CoveredEntry`, `CompactionContext`, `CompactionRejection`, and `CompactionJudgment`. `src/parts.ts` owns the tool part types, `CallPart`, `MessageContentBlock`, and `judgePart`. `src/reasoning.ts` owns `ReasoningStatePart`, `ReasoningReplay`, the two length limits, and the judges of a reasoning state part and of `replay`. `src/values.ts` holds the plain-object and array reads that the judges share: a closed plain object by key name, array items that are data only, and repeated items. `src/index.ts` only exports them. The block identity rules and the value tree rules are not here: they come from content-block and json-text.
 
-The message field sits on a fact record in the session log. `SystemMessage` is assembled for a request and stays off that log.
+The message field sits on a fact record in the log of the history holder. `SystemMessage` is assembled for a request and stays off that log.
 
 ```mermaid
 flowchart TD
-  fact["Fact record in the session log"] --> field["Message field"]
+  fact["Fact record in the log of the history holder"] --> field["Message field"]
   field --> user["user"]
   field --> assistant["assistant"]
   field --> tool["tool"]
@@ -71,7 +71,7 @@ flowchart TD
 
 ## Configuration and operation
 
-The package reads no environment. The session owns entropy and the admission key.
+The package reads no environment. The history holder owns entropy and the admission key.
 
 ## Verification
 
@@ -79,4 +79,4 @@ The package reads no environment. The session owns entropy and the admission key
 
 ## Maintenance
 
-Minting stays in session.
+Minting stays with the history holder.

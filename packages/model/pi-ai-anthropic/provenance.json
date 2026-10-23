@@ -13,7 +13,7 @@
     {
       "path": "src/input-meters/anthropic-replay.ts",
       "sha256": "a68c83cf70aa24aaeefaf43dd16c2927f3f0850e6dcc19b10319b2d91b4593a9",
-      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: by the project convention no record turns reasoning off, and live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated",
+      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: by the project convention no record turns reasoning off, and live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated; the sealed method name `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1` (ANTHROPIC_REPLAY_REVISION, lines 13-14) and the whole-group condition of classifyAnthropicReasoning (lines 157-196), which the meter sees as the units the codec wrote `reasoning_details` for",
       "target": "src/records.ts, src/rules.ts"
     },
     {
@@ -57,6 +57,18 @@
       "sha256": "8125fe5d659cad137e1192e34f6b8916cfd9bbc1f311491a2c275f94cec0cf21",
       "migrated": "copied unchanged",
       "target": "resources/tokenizers/anthropic-legacy/provenance.json"
+    },
+    {
+      "path": "src/input-meters/output-history.ts",
+      "sha256": "649c07751f83da806eaf2ff062016d62d30a2d041b1353d97b2eb091ca3fd73a",
+      "migrated": "the complete-output-group method: the meter counts a whole unit with reasoning state once, as the upstream output tokens O of the call that produced it. O already includes reasoning. The method refuses a unit when O is unknown or when reasoning exceeds output. It also refuses a unit when the source dispatch has no materialization receipt or names another supplier adoption. The private observation protocol, replaySelection and the caller-carried responses are not migrated. The numbers come from the dispatch records of the model runtime through the preparation lease",
+      "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
+    },
+    {
+      "path": "src/input-meters/marginal.ts",
+      "sha256": "4f15b094fb386ed08639e31ad4eebd64a9e323ff4698aaba3dccc967f5e00d58",
+      "migrated": "the complete envelope difference: the new units are counted as count(envelope + new units) - count(envelope + []) with the tools left out of the envelope, and added to the real input total of the continued call as an estimate",
+      "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
     }
   ],
   "tests": [

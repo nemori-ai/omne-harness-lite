@@ -194,13 +194,13 @@
 
 ### UL-session-freeze · 会话冻结 · Session Freeze
 
-> **中**：会话的一个生命周期状态。会话在[采用点](#ul-adoption-point--采用点--adoption-point)判定某个[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)的形状无法保持时进入它：原来固定的实现耐久地不可装载，而合法胜出的新实现派生的定义与首次采用的定义不[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。
+> **中**：会话的一个生命周期状态。会话在[采用点](#ul-adoption-point--采用点--adoption-point)判定某个[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)的形状无法保持时进入它：没有同形可用实现，原实现耐久地不可装载，而合法胜出的新实现派生的定义与首次采用的定义不[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。
 > 进入之后，会话不再开始新的[运行](#ul-run--运行--run)；已经在途的运行照常走到终态。
 > 冻结不可逆，没有解冻。冻结后的会话仍可按会话自己的规则[归档](#ul-session-archival--会话归档--session-archival)；撤销归档后，会话回到冻结，而不是休眠。
 >
 > **EN**: A lifecycle state of a session. The session enters it when, at an adoption point, it
-> finds that a resident tool can no longer keep its shape: the pinned implementation is
-> durably unloadable, and the definition derived from the lawful winning implementation does
+> finds that a resident tool can no longer keep its shape: no implementation of the same shape
+> is available, the original implementation is durably unloadable, and the definition derived from the lawful winning implementation does
 > not have the same shape as the first adopted one. After that the session starts no new Run;
 > a Run already in progress continues to its terminal state. Freezing is irreversible, and
 > there is no unfreeze. A frozen session can still be archived under the session's own rules;
@@ -317,7 +317,7 @@
 - **注意 ④**：**终结之后不再为它发起新动作，但终结前已发起的那些，账迟到了照样归它**，并标明是迟到的——
   [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)；否则「按运行汇总成本」算不全
 - **注意 ⑤**：会话[冻结](#ul-session-freeze--会话冻结--session-freeze)后不再开始新的运行。冻结前已经在途的运行照常走到终态。依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596) 与 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
-- **注意 ⑥**：新 Run 开始是一个[采用点](#ul-adoption-point--采用点--adoption-point)。常驻工具当前固定的版本从这次运行的[采用依据](#ul-adoption-basis--采用依据--adoption-basis)算出
+- **注意 ⑥**：新 Run 开始是一个[采用点](#ul-adoption-point--采用点--adoption-point)。常驻工具当前记下的登记键从这次运行的[采用依据](#ul-adoption-basis--采用依据--adoption-basis)算出
 
 ### UL-trigger · 触发 · Trigger
 

@@ -13,7 +13,7 @@
 ```text
 行 id：session-provider
 插件：@omne-harness/session-cordis 的 ./cordis 导出
-配置：{ policy: { 需要覆盖的 SchedulingPolicy 字段 }, disposeWaitMs }
+配置：{ policy: { 需要覆盖的 SchedulingPolicy 字段 }, disposeWaitMs, admission?: 'none' }
 ```
 
 `policy` 里省略的字段取 session 的初值。在全部进程里只加一行。这一行同时兑现每租户一个扫描者，所以不在两个 isolate 标签下各加一行（[扫描者绑定](cordis.md#扫描者绑定)）。配置错误时装载失败，装配者据此停下装配。

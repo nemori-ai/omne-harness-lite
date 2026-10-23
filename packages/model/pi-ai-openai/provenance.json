@@ -13,7 +13,7 @@
     {
       "path": "src/input-meters/openai-family-policy.ts",
       "sha256": "1819d8aaf5f873e7fd542f621963ae5b74bdcd334d724d1b961201d4d00dcbca",
-      "migrated": "effort sets, image rule per model, the six Pro models with unknown input scope, and the encrypted-item rule (format openai-responses-v1, data not empty and not [REDACTED])",
+      "migrated": "effort sets, image rule per model, the six Pro models with unknown input scope, and the encrypted-item rule (format openai-responses-v1, data not empty and not [REDACTED]); the sealed method name `openai-complete-output-group-workload-estimated/1` (OPENAI_FAMILY_REPLAY, lines 18-20) and the whole-group condition of classifyOpenAiDetail (lines 299-333), which the meter sees as the units the codec wrote `reasoning_details` for",
       "target": "src/records.ts, src/rules.ts"
     },
     {
@@ -39,6 +39,18 @@
       "sha256": "7c686576c0de7fdc5efc677dbb423569e043acf6ff2a67c75aadd870fd8279d0",
       "migrated": "the function tool subset: the parameters schema is an object",
       "target": "src/rules.ts"
+    },
+    {
+      "path": "src/input-meters/output-history.ts",
+      "sha256": "649c07751f83da806eaf2ff062016d62d30a2d041b1353d97b2eb091ca3fd73a",
+      "migrated": "the complete-output-group method: the meter counts a whole unit with reasoning state once, as the upstream output tokens O of the call that produced it. O already includes reasoning. The method refuses a unit when O is unknown or when reasoning exceeds output. It also refuses a unit when the source dispatch has no materialization receipt or names another supplier adoption. The private observation protocol, replaySelection and the caller-carried responses are not migrated. The numbers come from the dispatch records of the model runtime through the preparation lease",
+      "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
+    },
+    {
+      "path": "src/input-meters/marginal.ts",
+      "sha256": "4f15b094fb386ed08639e31ad4eebd64a9e323ff4698aaba3dccc967f5e00d58",
+      "migrated": "the complete envelope difference: the new units are counted as count(envelope + new units) - count(envelope + []) with the tools left out of the envelope, and added to the real input total of the continued call as an estimate",
+      "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
     }
   ],
   "tests": [

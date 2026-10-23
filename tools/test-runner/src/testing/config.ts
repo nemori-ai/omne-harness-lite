@@ -63,6 +63,11 @@ export interface TestRunsConfig {
      * 平时守得住 5 秒的在初跑里就会超时；变异体本身的超时由 Stryker 另判，不受它影响。
      */
     readonly testTimeoutSeconds: number
+    /**
+     * 每个成员单独复核时最多复跑的变异体数（#649），含复核范围里嵌套的变异体。超出的超时不复核，成员测量无效。
+     * 环境变量 `OMNE_MUTATION_RECHECK_MAX` 可改；0 表示不复核。
+     */
+    readonly recheckMaxMutants: number
   }
 }
 
@@ -71,6 +76,12 @@ export const CONFIG_PATH = fileURLToPath(new URL('../../test-runs.config.json', 
 function positiveInteger(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1)
     throw new Error(`${name} 须为正整数`)
+  return value
+}
+
+function nonNegativeInteger(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0)
+    throw new Error(`${name} 须为非负整数`)
   return value
 }
 
@@ -138,7 +149,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
-    mutation?: { testTimeoutSeconds?: unknown }
+    mutation?: { testTimeoutSeconds?: unknown; recheckMaxMutants?: unknown }
   }
   return {
     parallel: {
@@ -160,6 +171,10 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     triage: { repeats: positiveInteger(raw.triage?.repeats, 'triage.repeats') },
     mutation: {
       testTimeoutSeconds: positive(raw.mutation?.testTimeoutSeconds, 'mutation.testTimeoutSeconds'),
+      recheckMaxMutants: nonNegativeInteger(
+        raw.mutation?.recheckMaxMutants,
+        'mutation.recheckMaxMutants',
+      ),
     },
   }
 }
@@ -194,4 +209,19 @@ export function effectiveParallelism(
     memberConcurrency: override(MEMBER_CONCURRENCY_ENV, config.parallel.memberConcurrency),
     vitestMaxWorkers: override(VITEST_MAX_WORKERS_ENV, config.parallel.vitestMaxWorkers),
   }
+}
+
+/** 复核上限的临时覆盖（#649）。 */
+export const RECHECK_MAX_ENV = 'OMNE_MUTATION_RECHECK_MAX'
+
+/** 每个成员复核时最多复跑的变异体数：配置给初值，环境变量已设的以环境变量为准；0 表示不复核。 */
+export function effectiveRecheckMax(
+  config: TestRunsConfig,
+  env: Readonly<Record<string, string | undefined>>,
+): number {
+  const value = env[RECHECK_MAX_ENV]
+  if (value === undefined || value === '') return config.mutation.recheckMaxMutants
+  if (!/^(0|[1-9]\d*)$/u.test(value))
+    throw new Error(`环境变量 ${RECHECK_MAX_ENV} 须为非负整数，现在是 ${value}`)
+  return Number(value)
 }

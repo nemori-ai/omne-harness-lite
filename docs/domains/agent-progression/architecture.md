@@ -10,7 +10,7 @@ Agent 能力拥有定义专有声明、Loop 求值、推进协调和扩展位置
 | --- | --- | --- |
 | AgentDefinition 的类型、依赖、继承声明与工作规则 | Agent 能力 | 校验专有含义，向装配提供可解释声明 |
 | 定义的持有、发布版本及替换资格 | 资产治理 | 读取合法版本，不建立第二份资产注册权威 |
-| Session、Run、attempt、输入承接及逻辑终态 | Session 治理 | 会话适配器映射当前资格与输入，并参加本域终结的共同提交 |
+| Session、Run、attempt、输入承接及逻辑终态 | Session 治理 | Session 在会话日志上实现 Agent 的 Journal 端口，Agent 执行记录是日志里的条目；会话适配器映射当前资格与输入，Session 按 Agent 公开的读取形状读同一日志里的 Agent 条目 |
 | 清单、当前采用值与结构换代 | 装配交接 | 消费已校验依据，交出原进度与等待 |
 | Loop 下一步与已采用扩展判断 | Agent 能力 | 保留规则依据及原求值位置 |
 | 模型与工具原调用、收场、费用和实际效果 | Model 与 Tool | 发起、等待、可靠承接，不拥有执行寿命 |
@@ -34,7 +34,8 @@ flowchart LR
     Agent -->|准入后调用| Tool[Tool runtime]
     Model -->|原结果与消费位置| Agent
     Tool -->|原结果与消费位置| Agent
-    Agent -->|原执行事实及集成提交| Session
+    Agent -->|经 Journal 端口写执行记录| Log[会话日志]
+    Session -->|实现 Journal 端口，读 Agent 条目| Log
 ```
 
 箭头表达输入与结果协作，不规定源码互引或共同寿命。消费者通过公开契约及显式依赖使用能力。Cordis 接入遵循共同 IC，不能用 scope、fiber 或 disposer 代替租户隔离、业务提交或执行取消。

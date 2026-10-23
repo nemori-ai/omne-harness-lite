@@ -230,6 +230,20 @@ describe('independent execution through the public entry', () => {
     },
   )
 
+  it('rejects a receipt whose replay format changes between two reads, and starts on a stable one', async () => {
+    let reads = 0
+    const unstable = controlled({
+      receipt: () => ({ ...receipt, replayFormat: `format-${(reads += 1)}` }),
+    })
+    expect(await collect(executeModel(request, unstable.transport, signal()))).toMatchObject([
+      { kind: 'not-started', reason: 'rejected', failure: { kind: 'invalid', field: 'receipt' } },
+    ])
+    expect(unstable.calls).not.toContain('start')
+    const stable = controlled({ receipt: () => ({ ...receipt, replayFormat: 'format-1' }) })
+    await collect(executeModel(request, stable.transport, signal()))
+    expect(stable.calls).toContain('start')
+  })
+
   it('fixes receipt expectations before asynchronous preparation', async () => {
     const fixed = structuredClone(request)
     const delayed = gate()

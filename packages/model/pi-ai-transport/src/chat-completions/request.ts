@@ -206,6 +206,7 @@ function represent(
         kind: 'materialized',
         adoption: shown.adoption,
         tokenInput: shown.tokenInput,
+        units: shown.units,
         media: [],
         requestBytes: String(serializeBody(body.ok).byteLength),
       },

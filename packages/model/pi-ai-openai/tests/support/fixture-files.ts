@@ -10,6 +10,11 @@ export const FIXTURES_ROOT = new URL('../fixtures/', import.meta.url)
 export const RECORDS_DIRECTORY = 'records'
 /** The extra cases: each is a root with the fixture of one record. */
 export const CASES_DIRECTORY = 'cases'
+/**
+ * The streams captured from the real gateway: a root with the fixture of one record. They are not
+ * rendered from the case table; the stream is the response body byte for byte.
+ */
+export const CAPTURED_DIRECTORY = 'captured'
 
 export type RenderedCase = Readonly<{
   case: FixtureCase

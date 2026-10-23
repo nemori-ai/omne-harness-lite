@@ -641,16 +641,17 @@ function diagnosticFact(value: ProviderDiagnostic): TransportFact {
 }
 
 /**
- * The cost of the account: the gateway `usage.cost` as supplier cost when it is a non-negative
- * number, as its exact plain decimal lexeme (an exponent form is written out); unknown when it is
- * reported in another form; and no item when the usage has no cost.
+ * The cost of the account: the gateway `usage.cost` as billable cost, because the gateway charges
+ * this amount and call-account takes the payable amount from `ledger` or `billable` only. A
+ * non-negative number gives its exact plain decimal lexeme (an exponent form is written out); another
+ * form gives an unknown billable item; and a usage without a cost gives no item.
  */
 function costOf(usage: GatewayUsage | null): CallAccountReport['cost'] {
   const cost = usage?.raw['cost']
   if (cost === undefined || cost.kind === 'null') return []
   const lexeme = cost.kind === 'number' ? plainDecimal(cost.lexeme) : null
-  if (lexeme !== null) return [{ state: 'known', lexeme, unit: COST_UNIT, source: 'supplier' }]
-  return [{ state: 'unknown', unit: COST_UNIT, source: 'supplier' }]
+  if (lexeme !== null) return [{ state: 'known', lexeme, unit: COST_UNIT, source: 'billable' }]
+  return [{ state: 'unknown', unit: COST_UNIT, source: 'billable' }]
 }
 
 function protocol(diagnostic: string): Refusal {

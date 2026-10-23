@@ -44,7 +44,57 @@ flowchart LR
 
 TransportFact 表达块操作，VisibleBlock 表达归约后的当前状态。两者不能共用一个增量含义不明的 output 值。归约器不把未完成工具参数变成 ToolCallPart，不承担消息采用、费用查询或业务取消。完整流协议见 [SPEC](../../model-contract/SPEC.md#供应商解释与流状态归约)。
 
-可选校准留在具体计量提供者内。它可以使用有合法来源的历史观测，但不能读取调用方私有历史、保存原响应控制权或要求所有调用者维护增量计量状态。
+可选校准的数字来自 Model 自己的发出记录，由准备租约读取，见下文[准备租约与调用事实视图](#准备租约与调用事实视图)。家族计量器只收到数字。校准不读取调用方私有历史，不保存原响应控制权，也不要求调用者维护增量计量状态。
+
+## 准备租约与调用事实视图
+
+行为与判决顺序归 [SPEC“准备资源与校准租约”](../SPEC.md#准备资源与校准租约)。源码在 [preparation/](../src/index.md)。
+
+| 对象或逻辑角色 | 单一责任 | 构造依赖与状态 |
+| --- | --- | --- |
+| ModelPreparationResources | 每次 `acquire` 形成一个租约 | 构造时固定 `commands`（只用 `dispatches`）、绑定来源、`supplierOf` 与 `maxCitedCalls`。不在租约之间保留状态 |
+| 租约 | 持有每个档案供应商的一个家族绑定、解析后的 lineage 与调用事实视图，交出计量器 | `acquire` 成功时形成。`release` 释放每个绑定一次，并清空事实视图 |
+| 解析后的 lineage | 被延续的调用、每条消息的来源调用，以及 lineage 引用的不同调用 | 在 `acquire` 的边界解析一次。形状不合格时返回具名 `invalid`（如 `lineage.sources`），不抛出 |
+| 调用事实视图 | 每个被引用调用的一次读取结果：发出记录、无此事实，或事实不可用 | 在 `acquire` 时以调用方的访问依据经 `dispatches` 读取。计量时不再读取 |
+| 租约计量器 | 同步判决锚点与来源，调用家族的 `measureCalibrated`，把判决写进 `RequestBudget.calibration` | 不持有访问依据，不读取事实。家族计量器只收到 MeterCalibration |
+
+```mermaid
+classDiagram
+  class PreparationLease {
+    bindings
+    release()
+  }
+  class LeaseFactsView {
+    每个被引用调用一次读取
+    释放时清空
+  }
+  class LeaseMeter {
+    measure()
+  }
+  ModelPreparationResources --> PreparationLease : acquire
+  PreparationLease *-- LeaseFactsView
+  PreparationLease *-- LeaseMeter
+  PreparationLease --> FamilyBinding : 每个档案供应商一个
+  LeaseFactsView --> ModelCommands : dispatches，调用方的访问依据
+  LeaseMeter --> LeaseFactsView : 只读，同步
+  LeaseMeter --> CalibratedInputMeter : measureCalibrated，只给数字
+  FamilyBinding --> CalibratedInputMeter
+```
+
+```mermaid
+stateDiagram-v2
+  state "取得中" as Acquiring
+  state "可计量" as Ready
+  state "已释放" as Released
+  [*] --> Acquiring : acquire
+  Acquiring --> [*] : lineage 不合格或供应商、绑定失败，已取得的绑定释放
+  Acquiring --> Ready : 绑定全部取得，被引用调用各读一次
+  Ready --> Ready : measure，不读取
+  Ready --> Released : release，绑定各释放一次，视图清空
+  Released --> Released : measure 回答 preparation-lease-released
+```
+
+租约的寿命由取得它的调用方决定，调用方负责调用 `release`。事实视图只服务本租约，不跨租约复用，也不写回任何调用事实。
 
 ## 参数、配置、依赖与资源
 

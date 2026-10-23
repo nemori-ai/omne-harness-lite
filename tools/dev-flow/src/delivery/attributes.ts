@@ -197,7 +197,8 @@ function bindingFindings(
       {
         code: 'binding-v1',
         clause: 'binding',
-        message: 'binding 为版本 1，不含属性。taskBase 中的 dev-flow 能读版本 2 时，新 attempt 用版本 2。',
+        message:
+          'binding 为版本 1，不含属性。taskBase 中的 dev-flow 能读版本 2 时，新 attempt 用版本 2。',
       },
     ]
   const findings: AttributeFinding[] = []

@@ -3,12 +3,11 @@ import {
   judgeAttributes,
   LABEL_PREFIXES,
   projectedLabels,
-  readCardAttributes,
   type CardAttributes,
 } from './attributes.ts'
-import type { GhCommand } from './github-read.ts'
+import { readIssueCard, REST_HEADERS, type GhCommand } from './github-read.ts'
 import type { DeliveryLines } from './lines.ts'
-import { array, InputError, milestoneOf, record, text } from './protocol.ts'
+import { InputError } from './protocol.ts'
 
 /** The label difference of one card in the three attribute families. */
 export type LabelPlan = {
@@ -54,12 +53,6 @@ export type LabelSync = {
   readback?: string[]
   verified?: boolean
 }
-const HEADERS = [
-  '-H',
-  'Accept: application/vnd.github+json',
-  '-H',
-  'X-GitHub-Api-Version: 2026-03-10',
-]
 /**
  * Reads one Issue, plans its attribute labels and, with `apply`, adds and removes only labels
  * of the three families, then reads the Issue again to verify. `call` runs one `gh` command.
@@ -77,19 +70,13 @@ export function syncLabels({
   lines: DeliveryLines
   call: GhCommand
 }): LabelSync {
-  const path = `repos/${repository}/issues/${number}`,
-    url = `https://github.com/${repository}/issues/${number}`
+  const path = `repos/${repository}/issues/${number}`
   function read(): CardAttributes {
-    const raw = record(call(['api', '--method', 'GET', ...HEADERS, path], 15_000), 'Issue')
-    if ('pull_request' in raw || raw.number !== number || raw.html_url !== url)
-      throw new InputError('Issue identity mismatch or pull request')
-    return readCardAttributes(raw.body === null ? '' : text(raw.body, 'Issue.body'), {
-      url,
-      labels: array(raw.labels, 'Issue.labels').map(item =>
-        text(record(item, 'label').name, 'label.name'),
-      ),
-      ...milestoneOf(raw),
-    })
+    return readIssueCard(
+      call(['api', '--method', 'GET', ...REST_HEADERS, path], 15_000),
+      repository,
+      number,
+    ).attributes
   }
   const plan = planLabels(read(), lines)
   if (!apply) return { plan, applied: false }
@@ -101,7 +88,7 @@ export function syncLabels({
             'api',
             '--method',
             'POST',
-            ...HEADERS,
+            ...REST_HEADERS,
             `${path}/labels`,
             ...plan.add.flatMap(label => ['-f', `labels[]=${label}`]),
           ],
@@ -110,7 +97,7 @@ export function syncLabels({
       'api',
       '--method',
       'DELETE',
-      ...HEADERS,
+      ...REST_HEADERS,
       `${path}/labels/${encodeURIComponent(label)}`,
     ]),
   ]

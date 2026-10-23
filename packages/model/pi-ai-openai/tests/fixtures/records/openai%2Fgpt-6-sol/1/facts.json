@@ -63,7 +63,7 @@
           "state": "known",
           "lexeme": "0.000123456789123456789",
           "unit": "openrouter-credit",
-          "source": "supplier"
+          "source": "billable"
         }
       ],
       "trimmed": {

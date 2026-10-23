@@ -6,7 +6,7 @@
 
 This member is the OpenAI family of the pi transport. It gives the OpenAI model records, the rules of the four engine hooks, the input meter and the official profiles. The shared transport gets the family through `composeFamilies`. All models go through OpenRouter. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [the pi family contribution protocol](../docs/architecture.md#pi-家族贡献的取得协议).
 
-The integration test and the cross-family example of `pi-ai-anthropic` use this package as a dev dependency. The planned consumer is the release assembly (official profiles and `composeFamilies`). No assembly consumes this package yet.
+The integration test and the cross-family example of `pi-ai-anthropic` use this package as a dev dependency. The planned consumer is the release assembly (official profiles and `composeFamilies`). The assembly of `model-host-local` gets the composed families from its caller. The tests of `model-host-local` compose this package with `pi-ai-anthropic`.
 
 ### Support levels
 
@@ -19,13 +19,13 @@ Each level states only checked facts. A commit that changes the support level up
 | Acquire and binding | One acquire gives one binding for the exact supplier. An unknown adoption, a wrong route, a mismatched tokenizer and a cancelled acquire fail as a whole | `createOpenAiFamily` with `composeFamilies` | `family.spec.ts` |
 | Parameters and request body | Output limit and the reasoning efforts that each model publishes, written as themselves: `low`, `medium`, `high` and `max`. `none` and every other parameter are `unsupported` before sending, because by the project convention no record turns reasoning off | `binding.rules.plan`, `binding.encode` | `plan.spec.ts` |
 | Rules | Encrypted reasoning seal and replay, usage arithmetic with unknown Pro scope and a `usage-inconsistent` diagnostic for a negative input remainder, object-root tool schema | `src/rules.ts` | `rules.spec.ts` |
-| Meter | o200k proxy estimate of the visible projection with the configured margin. Three image patch rules from pixel facts. No estimate for encrypted reasoning | `binding.meter` | `meter.spec.ts` |
+| Meter | An estimate: the o200k proxy count of the visible projection, plus the configured margin. Three image patch rules use pixel facts. The representation has a `units` side table. Through a preparation lease, the meter counts a unit with encrypted reasoning once, as the output tokens of its source call (sealed method `openai-complete-output-group-workload-estimated/1`). For a continued call, the amount starts at the real input total of that call. The margin applies to the new part only (`+continuation-anchored/1`). A missing or withheld source gives a named unavailable result, never zero. Without a lineage, the behavior is the same as without calibration: encrypted reasoning has no estimate | `binding.meter` (`CalibratedInputMeter`) | `meter.spec.ts`, `calibration.spec.ts` |
 | Official profiles | One profile per current record. Each profile supplier acquires a binding and plans a request | `officialOpenAiProfiles` | `profiles.spec.ts` |
 | Replay fixtures | The inline SSE cases of the sealed tests, as contract facts with the account of each finished response, with intended differences listed | `tests/fixtures` | `fixtures.spec.ts` |
 | Cross-family replay, OpenAI side | A foreign assistant message loses its state and thinking and is named in a `replay-omitted` diagnostic of encode. An OpenAI message keeps its state | `binding.encode` | `cross-family-replay.spec.ts` |
 | Integration through the shared transport | This family and the Anthropic family go through one `composeFamilies` into `createPiTransport`. A local HTTPS server replays the fixture of each record by the model in the request body. The sent body equals the fixture body, and the facts equal the fixture facts. The conformance suite runs its transport group for one record of each family, and the six obligations pass | `composeFamilies`, `createPiTransport` | `two-families.spec.ts` of `pi-ai-anthropic` (slow tier) |
 | Example | [examples/openai-request.ts](examples/openai-request.ts) sends one request to `openai/gpt-5.6-luna` through the proxy. The history has an assistant message with only a tool call, a tool result without content, and an image | Root entry | Type check. `examples.spec.ts` (slow tier) runs the example only when `OMNE_LIVE_TESTS=1` and skips otherwise. Live evidence comes only from manual runs |
-| Not delivered | Credential resolution and continuous verification of real routes (#466) | None | No continuous evidence for these paths |
+| Real routes through credentials | Credential resolution and the send path are in [model-host-local](../model-host-local/README.md). Only its manual recorder sent real requests | `assembleLocalModel` of model-host-local | The slow gate of model-host-local replays the four recordings of pi-ai-transport. No continuous test sends a real request |
 
 ## Usage
 
@@ -48,7 +48,7 @@ const families = composeFamilies([openai])
 const profiles = officialOpenAiProfiles({ retryPolicy, compactionTriggerPercent: '80' })
 ```
 
-`createOpenAiFamily` only computes. The first `acquire` initializes the tokenizer. The family shares the tokenizer between its bindings. The tokenizer holds nothing to release. This package has no Cordis entry; [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
+`createOpenAiFamily` only computes. The first `acquire` initializes the tokenizer. The family shares the tokenizer between its bindings. The tokenizer holds nothing to release. This package has no Cordis entry. [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
 
 ## Contracts
 

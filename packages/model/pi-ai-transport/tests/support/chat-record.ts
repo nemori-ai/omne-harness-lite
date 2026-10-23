@@ -206,16 +206,22 @@ export function testMeter(record: ChatCompletionsRecord, probe: EngineProbe): Fa
     replay: adoption('replay'),
     evidence: adoption('evidence'),
   }
+  const unavailable = (): Outcome<never, TransportFailure> => ({
+    failure: { kind: 'unavailable', dependency: 'meter', diagnostic: 'test' },
+  })
   return {
     instance: {
       basis,
-      measure: () => ({
-        failure: { kind: 'unavailable', dependency: 'meter', diagnostic: 'test' },
-      }),
+      measure: unavailable,
+      measureCalibrated: unavailable,
     },
     represent(view) {
       probe.views.push(view)
-      return { adoption: probe.representation, tokenInput: str(`turns:${view.turns.length}`) }
+      return {
+        adoption: probe.representation,
+        tokenInput: str(`turns:${view.turns.length}`),
+        units: view.turns.map(turn => turn.message),
+      }
     },
   }
 }

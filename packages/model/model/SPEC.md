@@ -122,7 +122,19 @@ calls.admit、dispatches、cancel 分别委托 Commands 的 admit、dispatches�
 
 受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写，取得当前资格后，保护覆盖接收、异步等待与原资源释放。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
 
-发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。Commands 保存账目时用账目报告补上 `subject`（本次调用）与 `receipt`（流内为 `received`，recordLateFact 补录为 `late`），再按原规则核验、去重与修订。同一事件经两条路径到达时只登记一次。诊断事实按到达次序保存在该 dispatch 上，不改变 blocks、首内容与终局；现有公开读面不返回它们。推理续接状态部件可以不经 open 整块封口，与图片和文件相同。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再交出确认终止证据，沿 sender 释放原资源。满足下述收场前提时同时形成真实 Settlement，失联仍沿 drive 返回明确失败。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
+发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。Commands 保存账目时用账目报告补上 `subject`（本次调用）与 `receipt`（流内为 `received`，recordLateFact 补录为 `late`），再按原规则核验、去重与修订。同一事件经两条路径到达时只登记一次。诊断事实按到达次序保存在该 dispatch 上，不改变 blocks、首内容与终局；现有公开读面不返回它们。推理续接状态部件可以不经 open 整块封口，与图片和文件相同。
+
+完成收场组成消息时，finish 的回放按下列规则取值：
+
+- `scope` 取请求声明中这次发出供应商的 `produces`。
+- `format` 取这次发出的物化回执的 `replayFormat`。
+- 回复含推理续接状态部件而回执没有 `replayFormat` 时，preserve 与 recordLateFact 都返回 `invalid`（`termination`，`replay-format-unknown`），整批不保存。
+- 回复只有 `thinking` 而 `scope` 与 `format` 缺一时，finish 不带回放。
+- 物化提交时，回执的 `replayFormat` 不是合格的回放标签则返回 `invalid`（`receipt`，`binding`）。
+
+请求声明覆盖每个可能发出的供应商。清理在同一步清空请求与 blocks，已收场调用的晚到终局不组成消息。所以含推理续接状态部件的收场总能取得 `scope`。取不到时是程序缺陷，内存 Commands 抛出 `TypeError`。
+
+EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再交出确认终止证据，沿 sender 释放原资源。满足下述收场前提时同时形成真实 Settlement，失联仍沿 drive 返回明确失败。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
 
 未知 claim、prepare、sender 写、开窗及 preserve 各由原拥有者认回。prepare/open/preserve 保留完整 operation、expected、dispatch、window 与 facts。query 为 unknown 或失败时保留责任，不继续读取或发布。committed 仍重放原方法取得原回执，未提交也只重放原参数。取消导致原 expected 冲突时不改旧输入；仅终止 preserve 和 settle 依下述有限接续建立新意图。非终止批次仍明确失败。sender 私有未决操作交原 sender 认回。陌生未决操作没有原输入时明确阻塞。
 
@@ -146,7 +158,9 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
-独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
+独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
+
+已知限制：内存 Commands 把每次确认的 Snapshot 计入调用容量。长回复即使分批保存，占用也随确认次数持续增长。耐久 Commands 须规定自己的快照与容量策略，这项工作归[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2。
 
 发送边界在准备前复制 execution、request、supplier、consumer 和 initiator 的值，后续异步步骤、计数和关闭使用同一份需求。合法 TenantId 与不透明 P 保留原身份，AbortSignal 保留原取消语义。调用者改写外层字段或嵌套值不改变本次发送；实际 start 仍重核当前资格、代次与控制。请求参数的统一校验覆盖 parameters、parameterAdoptions.applied 和显式 origin.requested。已知非法参数沿原结果通道拒绝，不进入摘要或消耗 unknown 注入；已有 operation 的异输入仍按原绑定冲突。retry 的决定认回也核对原请求，不重复消费决定。请求拥有的 suppliers、parameters、system、messages、tools、parameterAdoptions 及三个参数承载位置中的 stop 都要求数组无空位，并保留各自的元素规则。合法空序列仍允许，suppliers 与 stop 保持非空要求。内部规范编码独立拒绝空位，不将其编码为合法空数组。
 
@@ -198,6 +212,60 @@ processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evid
 retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的固定 unavailable。保留 operation 先按现行规则返回 invalid。此静态路径不读取资源、不执行 handoff，也不声称已核承接资格。它对存在、不存在、跨租户和伪造主体给同一支持拒绝。
 
 [第五课](examples/05-read-and-acknowledge.ts)演示公开读取及 processed ACK。[消费测试](tests/README.md#公开结果消费)验证真实 runtime、内存 Commands 和脚本上游，不证明生产耐久、真实厂商或跨进程恢复。
+
+## 准备资源与校准租约
+
+`createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据引用的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。
+
+`acquire(access & { profile, lineage? })` 按下列顺序执行：
+
+1. 解析 lineage。以下情形返回 `invalid`：
+   - lineage 本身不是对象：`lineage`，`shape`。
+   - `sources` 不是数组，或某个条目不是对象：`lineage.sources`，`shape`。`sources: null` 也是畸形输入。只有 `undefined` 表示 `sources` 缺席。
+   - `continues` 不是合格的调用身份：`lineage.continues`，`identity`。
+   - 条目的 `message` 缺失、不是字符串或不是合格的消息身份：`lineage.sources`，`message-identity`。条目的 `call` 不是合格的调用身份：`lineage.sources`，`call-identity`。
+   - 同一消息有两个来源：`lineage.sources`，`duplicate-message`。
+   - 不同调用数超过 `maxCitedCalls`：`lineage`，`too-many-calls`。
+
+   租约在边界逐项检查形状。畸形输入返回 `invalid`，不抛出。没有 lineage，或两项都为空，视为没有 lineage。
+2. 按档案供应商的次序逐个取得绑定。以下情形返回失败，并释放已取得的绑定，不形成更窄的档案：
+   - `supplierOf` 失败：原样返回。
+   - 返回的供应商改变了采用、接收方或型号：`invalid`（`supplier`，`route-mismatch`）。
+   - 绑定取得失败：返回该失败。
+3. 有 lineage 时，以取得时的 `principal` 与 `tenant` 经 `commands.dispatches` 读取每个被引用调用一次。`denied` 与 `invalid` 折叠为无此事实；`unavailable` 等其他失败记为事实不可用。读取抛出异常时先释放绑定再抛出。取得不因读取失败而失败。
+
+租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 给家族计量器包一层：释放前，`basis` 与 `measure` 的结果与家族计量器逐字节相同。有 lineage 时，`meter.measure` 同步判决并委托家族的 `measureCalibrated`。每个原因的条件归 model-contract 的[锚点不命中的原因](../model-contract/SPEC.md#锚点不命中的原因)与[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)。本包只规定判决顺序：
+
+- 锚点按下列顺序核对，第一个成立的原因决定结果：
+  1. `not-declared`
+  2. `call-unreadable`
+  3. `facts-unavailable`
+  4. `ambiguous-dispatch`
+  5. `usage-unknown`，X 没有带账目的发出
+  6. `messages-unrecorded`
+  7. `supplier-changed`
+  8. `representation-changed`
+  9. `not-a-prefix`
+  10. `usage-unknown`，`input`、`cache-read`、`cache-write` 中有未知项
+  11. `units-missing`
+
+  全部不成立时，锚点为 X 的三项之和与它的消息序列。锚点只依赖这三项已知，账目其他项的矛盾不影响锚点。`continuation-shrank` 由家族计量器给出。
+
+  延续锚点还以被延续那次发出的 `resent` 为空为前提。今天的[发送边界](#产品发送边界)总以空的 `resent` 调用 prepare，没有 `replay-rejected` 后的再发，所以这个前提总成立，租约不核对它。以后实现再发时，发出记录须保存 `resent`。`resent` 非空时，锚点不命中。
+- 来源按消息判决。lineage 没有为带推理续接状态部件的 assistant 消息给出来源时，结果为 `source-missing`。有声明来源的消息按下列顺序核对，第一个成立的原因决定结果，全部不成立时得到 O：
+  1. `source-unreadable`
+  2. `source-unavailable`
+  3. `ambiguous-dispatch`
+  4. `output-unknown`，来源调用没有带账目的发出
+  5. `supplier-changed`
+  6. `output-unknown`，账目的 `output` 未知
+  7. `reasoning-exceeds-output`
+
+  为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
+- 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
+- 租约交出锚点、而家族计量器的成功结果没有报告锚点判决时，家族违反了 `CalibratedInputMeter` 契约。租约抛出 `TypeError`，消息写明供应商采用，不把缺失的判决当作命中。
+
+`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。`release` 同时清空事实视图。事实视图不跨租约保留。
 
 ## 产品发送边界
 
