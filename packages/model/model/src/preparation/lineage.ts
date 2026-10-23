@@ -1,4 +1,5 @@
-// The boundary parse of the lineage a caller declares at acquire. Identities are decoded once here;
+// The boundary parse of the lineage a caller declares at acquire. The shape and the identities are
+// checked once here, item by item, so a malformed value is a named `invalid` and never a throw;
 // the lease trusts the parsed value. An empty lineage is no lineage.
 import { parseMessageId, type MessageId } from '@omne-harness/message'
 import {
@@ -21,39 +22,64 @@ function invalid(field: string, reason: string): Outcome<never, ModelFailure> {
   return { failure: { kind: 'invalid', field, reason } }
 }
 
-/** The declared sources as a map, one source per message. */
-function parseSources(
-  raw: PreparationLineage['sources'],
-): Outcome<ReadonlyMap<MessageId, ModelCallId>, ModelFailure> {
+function isObject(value: unknown): value is object {
+  return typeof value === 'object' && value !== null
+}
+
+/** The member `key` of an object, read as a property; nothing about its type is assumed. */
+function memberOf(value: object, key: string): unknown {
+  const member: unknown = Reflect.get(value, key)
+  return member
+}
+
+/** One declared source: an object with a message identity and a call identity. */
+function parseSource(
+  raw: unknown,
+): Outcome<Readonly<{ message: MessageId; call: ModelCallId }>, ModelFailure> {
+  if (!isObject(raw)) return invalid('lineage.sources', 'shape')
+  const text = memberOf(raw, 'message')
+  const message = typeof text === 'string' ? parseMessageId(text) : null
+  if (message === null || !message.ok) return invalid('lineage.sources', 'message-identity')
+  const call = decodeModelCallId(memberOf(raw, 'call'))
+  if (!('ok' in call)) return invalid('lineage.sources', 'call-identity')
+  return { ok: { message: message.value, call: call.ok } }
+}
+
+/** The declared sources as a map, one source per message. Absent sources are no sources. */
+function parseSources(raw: unknown): Outcome<ReadonlyMap<MessageId, ModelCallId>, ModelFailure> {
   const sources = new Map<MessageId, ModelCallId>()
-  for (const source of raw ?? []) {
-    const message = parseMessageId(source.message)
-    if (!message.ok) return invalid('lineage.sources', 'message-identity')
-    const call = decodeModelCallId(source.call)
-    if (!('ok' in call)) return invalid('lineage.sources', 'call-identity')
-    if (sources.has(message.value)) return invalid('lineage.sources', 'duplicate-message')
-    sources.set(message.value, call.ok)
+  if (raw === undefined) return { ok: sources }
+  if (!Array.isArray(raw)) return invalid('lineage.sources', 'shape')
+  for (const item of raw) {
+    const source = parseSource(item)
+    if (!('ok' in source)) return source
+    if (sources.has(source.ok.message)) return invalid('lineage.sources', 'duplicate-message')
+    sources.set(source.ok.message, source.ok.call)
   }
   return { ok: sources }
 }
 
 /**
  * `null` when the caller declared nothing: the meters of the lease then answer as the family meters do.
- * More distinct calls than `maxCitedCalls` is `invalid` (`lineage`, `too-many-calls`); a message
- * with two sources is `invalid` (`lineage.sources`, `duplicate-message`).
+ * A lineage that is not an object is `invalid` (`lineage`, `shape`); `sources` that is not an array,
+ * or an item that is not an object, is `invalid` (`lineage.sources`, `shape`); a bad identity names
+ * its field. More distinct calls than `maxCitedCalls` is `invalid` (`lineage`, `too-many-calls`); a
+ * message with two sources is `invalid` (`lineage.sources`, `duplicate-message`).
  */
 export function parseLineage(
   raw: PreparationLineage | undefined,
   maxCitedCalls: number,
 ): Outcome<Lineage | null, ModelFailure> {
   if (raw === undefined) return { ok: null }
+  if (!isObject(raw)) return invalid('lineage', 'shape')
   let continues: ModelCallId | null = null
-  if (raw.continues !== undefined) {
-    const decoded = decodeModelCallId(raw.continues)
+  const declared = memberOf(raw, 'continues')
+  if (declared !== undefined) {
+    const decoded = decodeModelCallId(declared)
     if (!('ok' in decoded)) return invalid('lineage.continues', 'identity')
     continues = decoded.ok
   }
-  const sources = parseSources(raw.sources)
+  const sources = parseSources(memberOf(raw, 'sources'))
   if (!('ok' in sources)) return sources
   if (continues === null && sources.ok.size === 0) return { ok: null }
   const named = continues === null ? [] : [continues]

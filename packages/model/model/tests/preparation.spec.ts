@@ -956,6 +956,39 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
     void m2
   })
 
+  it('refuses a lineage of the wrong shape with a named invalid and acquires nothing', async () => {
+    const family = stubFamily()
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: family.bindings,
+      supplierOf,
+      maxCitedCalls: 4,
+    })
+    /** A lineage as untyped JSON would give it: the parse makes no claim about its shape. */
+    const untyped = (text: string): PreparationLineage => JSON.parse(text)
+    const cases: readonly (readonly [string, Readonly<{ field: string; reason: string }>])[] = [
+      [
+        `{"sources":[{"message":42,"call":"${X}"}]}`,
+        { field: 'lineage.sources', reason: 'message-identity' },
+      ],
+      [`{"sources":[{"call":"${X}"}]}`, { field: 'lineage.sources', reason: 'message-identity' }],
+      ['{"sources":42}', { field: 'lineage.sources', reason: 'shape' }],
+      ['{"sources":null}', { field: 'lineage.sources', reason: 'shape' }],
+      ['{"sources":[null]}', { field: 'lineage.sources', reason: 'shape' }],
+      [
+        `{"sources":[{"message":"${requestWith(two).messages[0]!.id}"}]}`,
+        { field: 'lineage.sources', reason: 'call-identity' },
+      ],
+      ['"not-a-lineage"', { field: 'lineage', reason: 'shape' }],
+      ['null', { field: 'lineage', reason: 'shape' }],
+    ]
+    for (const [text, expected] of cases)
+      expect(await resources.acquire({ ...f.admit, profile, lineage: untyped(text) })).toEqual({
+        failure: { kind: 'invalid', ...expected },
+      })
+    expect(family.given).toEqual([])
+  })
+
   it('releases the bindings it acquired when a later supplier fails, and never forms a narrower profile', async () => {
     const family = stubFamily()
     family.acquireFailures = 0
