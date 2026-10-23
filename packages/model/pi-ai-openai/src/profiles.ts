@@ -29,7 +29,10 @@ function upstreamOf(record: OpenAiRecord, data: UpstreamData): UpstreamLimit {
 }
 
 function tokenLimit(record: OpenAiRecord, supplier: Adoption, data: TokenLimitData): TokenLimit {
-  return { provided: data.provided, upstream: [{ supplier, limit: upstreamOf(record, data.upstream) }] }
+  return {
+    provided: data.provided,
+    upstream: [{ supplier, limit: upstreamOf(record, data.upstream) }],
+  }
 }
 
 /** The profile definition of one record. */
@@ -77,8 +80,13 @@ export function profileOf(
 export function officialOpenAiProfiles(
   input: OfficialProfilesInput,
 ): readonly ModelProfileDefinition[] {
-  if (typeof input.compactionTriggerPercent !== 'string' || !PERCENT.test(input.compactionTriggerPercent))
+  if (
+    typeof input.compactionTriggerPercent !== 'string' ||
+    !PERCENT.test(input.compactionTriggerPercent)
+  )
     throw new RangeError('compactionTriggerPercent must be a decimal integer from 1 to 100')
   const records: readonly OpenAiRecord[] = OPENAI_RECORDS
-  return records.filter(record => record.status === 'current').map(record => profileOf(record, input))
+  return records
+    .filter(record => record.status === 'current')
+    .map(record => profileOf(record, input))
 }

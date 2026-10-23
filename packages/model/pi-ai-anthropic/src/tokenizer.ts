@@ -22,7 +22,8 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 
 /** The special-token table of the file: names to non-negative safe integers. */
 function specialTokensOf(value: unknown): Readonly<Record<string, number>> {
-  if (!isRecord(value)) throw new TokenizerResourceError('claude.json: special_tokens is not an object')
+  if (!isRecord(value))
+    throw new TokenizerResourceError('claude.json: special_tokens is not an object')
   const table: Record<string, number> = {}
   for (const [name, id] of Object.entries(value)) {
     if (typeof id !== 'number' || !Number.isSafeInteger(id) || id < 0)

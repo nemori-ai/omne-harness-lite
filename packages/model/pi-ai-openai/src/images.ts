@@ -7,9 +7,9 @@
 export type ImageDetail = 'low' | 'high' | 'auto' | 'original'
 
 /** One image rule: the estimated tokens of one image, or `null` when the rule does not apply. */
-export type ImageRule = (input: Readonly<{ width: number; height: number; detail: ImageDetail }>) =>
-  | number
-  | null
+export type ImageRule = (
+  input: Readonly<{ width: number; height: number; detail: ImageDetail }>,
+) => number | null
 
 const PATCH = 32
 const HIGH_PATCH_LIMIT = 2500

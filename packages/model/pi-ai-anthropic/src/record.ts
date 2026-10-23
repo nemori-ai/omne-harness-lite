@@ -4,7 +4,12 @@
 import type { LimitMetric, ModelModality, TokenizerDefinition } from '@omne-harness/model-contract'
 import type { ChatCompletionsRecord } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { ImageRuleName } from './images.ts'
-import type { CheckRuleName, ReasoningRuleName, ToolSchemaRuleName, UsageRuleName } from './rules.ts'
+import type {
+  CheckRuleName,
+  ReasoningRuleName,
+  ToolSchemaRuleName,
+  UsageRuleName,
+} from './rules.ts'
 
 /** An upstream limit as the record states it. A finite value has the record evidence as source. */
 export type UpstreamData =
