@@ -27,6 +27,7 @@ import type {
   ReadId,
   ReadState,
   ResultCapacity,
+  ProviderDiagnostic,
   ResultTrim,
   RetryDecision,
   RetryPosition,
@@ -102,6 +103,8 @@ export type MemoryDispatch = {
   nextSeq: Map<string, string>
   trims: Map<string, readonly ResultTrim[]>
   hadContent: Set<string>
+  /** The provider diagnostics of this dispatch, in the order they arrived. */
+  diagnostics: readonly ProviderDiagnostic[]
 }
 export type MemoryCall = {
   state: CallState

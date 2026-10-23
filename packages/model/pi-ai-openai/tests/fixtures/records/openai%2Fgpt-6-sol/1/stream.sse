@@ -1,0 +1,8 @@
+data: {"model":"openai/gpt-6-sol","provider":"OpenAI","choices":[{"delta":{"refusal":"actual refusal"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: {"choices":[{"delta":{"refusal":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":123,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":20,"cache_write_tokens":3},"cost":0.000123456789123456789}}
+
+data: [DONE]
+

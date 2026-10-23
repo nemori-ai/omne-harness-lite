@@ -619,6 +619,19 @@ describe('template adoption and observation', () => {
     fs.rmSync(join(root, member, 'verification/README.md'))
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
   })
+  it('excludes the root Turborepo task log directory but not a nested one', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, '.turbo'))
+    fs.writeFileSync(join(root, member, '.turbo/turbo-build.log'), 'task output')
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result.structure).toBe('pass')
+    expect(result.excludedDirectories).toEqual(['.turbo'])
+    expect(result.tree.some(node => node.path.startsWith('.turbo'))).toBe(false)
+    fs.mkdirSync(join(root, member, 'src/.turbo'))
+    fs.writeFileSync(join(root, member, 'src/.turbo/turbo-build.log'), 'task output')
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
+  })
   it('does not use Git ignore rules to hide undeclared owned files', () => {
     const root = repository(),
       member = adopted(root)

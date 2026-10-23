@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 170 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 173 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -91,6 +91,10 @@ ModelMediaReader 只在实际发送阶段读取模型可见的内容 ref；附�
 
 TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射为共享到达步骤，序号、整交块及终止的精确规则见 [共享到达映射](../SPEC.md#供应商解释与流状态归约)。它不替代 common/stream-arrival，也不直接传给 assembleStream。
 
+`TransportFact`、`IndependentModelFact` 与 `LateDispatchFact` 的 `account` 变体带 `CallAccountReport`：它是 `CallAccount` 去掉 `subject` 与 `receipt`。提供者不知道调用身份，也不判断迟到。Model runtime 保存账目时补上这两项，规则见 [SPEC](../SPEC.md#342-独立执行与提供者操作)。`diagnostic` 变体带一条 `ProviderDiagnostic`。它是闭合联合，有四种：`replay-omitted`（消息身份、`scope`、`format`、略去的部件个数）、`reasoning-disabled`（原因 `foreign-prefix`）、`reasoning-state-dropped`（原因 `payload-too-long` 与载荷长度）和 `usage-inconsistent`（自相矛盾的用量字段名）。诊断不带载荷或正文，不改变块。
+
+`ModelTransport.prepare(request, supplier, dispatch)` 的第三个参数是 `TransportDispatch`，带这次发出不由请求固定的输入。`resent` 列出这次再发须视为不可续接的消息，首次发出为空。传输把它交给回放投影，见 [SPEC](../SPEC.md#回放投影)。
+
 ## 参数与注入的裁定
 
 [行为与约束](../SPEC.md#342-参数与注入的裁定)。
@@ -142,7 +146,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 
 `ProfileSupplier` 没有凭据字段。求值的 credential 只说明当前可用性，不返回秘密或授予发送资格。ModelProfileMaintenance 的身份参数不是跨层维护许可。精确键和摘要规则由实际提供者采用并验证，不把任意字符串当可信证明。
 
-`ProfileSupplier.replay` 是该供应商的[回放声明](../SPEC.md#推理回放)，三项都可省略，省略的项取默认值；`ReplayDeclaration` 是展开后的完整声明。`AssembledModelInput.replay` 与 `FixedModelRequest.replay` 只有一个取值 `'off'`：本次请求关闭回放，对每次发出都有效。`ReplayProjectionInput`、`ReplayProjection`、`ReplayTreatment` 与 `ReplayDiagnostic` 是回放投影的输入与输出，函数见[推理回放的声明与投影](#推理回放的声明与投影)。
+`ProfileSupplier.replay` 是该供应商的[回放声明](../SPEC.md#推理回放)，三项都可省略，省略的项取默认值；`ReplayDeclaration` 是展开后的完整声明。`AssembledModelInput.replay` 与 `FixedModelRequest.replay` 只有一个取值 `'off'`：本次请求关闭回放，对每次发出都有效。`judgeFixedModelRequest` 接受这个取值，拒绝其他值。`FixedModelRequest.declarations` 是每个供应商展开后的 `ReplayDeclaration`，项数与次序同 `suppliers`。准备方用 `judgeReplayDeclaration` 展开档案供应商的声明并写入这一项。编码与计量使用请求中的声明。`ReplayProjectionInput`、`ReplayProjection`、`ReplayTreatment` 与 `ReplayDiagnostic` 是回放投影的输入与输出，函数见[推理回放的声明与投影](#推理回放的声明与投影)。
 
 ## 推理回放的声明与投影
 

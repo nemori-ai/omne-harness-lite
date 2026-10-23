@@ -149,8 +149,8 @@ function boundedTransport(given: ConformanceTransport, waitMs: number): Conforma
   )
   return {
     transport: {
-      prepare: async (request, supplier) => {
-        const outcome = await prepare(request, supplier)
+      prepare: async (request, supplier, dispatch) => {
+        const outcome = await prepare(request, supplier, dispatch)
         return 'ok' in outcome ? { ok: boundedPrepared(outcome.ok, waitMs) } : outcome
       },
     },

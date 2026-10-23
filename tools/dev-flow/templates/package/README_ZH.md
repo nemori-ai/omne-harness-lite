@@ -22,7 +22,7 @@ pnpm package:template scan --member packages/identity/authorization --json
 
 结构判定遍历源码包的全部文件、目录、空目录及节点种类。按变体、明确可选资源与重复源码槽实例化模板，再核对完整节点集合。不是只看几个入口文件。未声明路径、错位文件、空目录、软链接及其他节点均失败；Git ignore 不能隐藏源码文件。
 
-只排除根下明确声明的真实 node_modules、dist、generated、coverage、tmp 目录，并输出排除清单。同名文件或软链接不被跳过，嵌套目录没有这项豁免。构建/依赖/临时结果不作为源码权威。
+只排除根下明确声明的真实 node_modules、dist、generated、coverage、tmp、.turbo 目录，并输出排除清单。同名文件或软链接不被跳过，嵌套目录没有这项豁免。构建/依赖/临时结果及任务日志不作为源码权威。
 
 ## 归属与变体
 

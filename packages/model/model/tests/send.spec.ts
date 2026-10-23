@@ -34,9 +34,11 @@ for (const [stage, acquired, released] of [
             ok: {
               ...resource,
               transport: {
-                async prepare(request, supplier) {
+                async prepare(request, supplier, dispatch) {
                   if (stage === 'prepare') throw new Error(synthetic)
-                  const prepared = unbox(await resource.transport.prepare(request, supplier))
+                  const prepared = unbox(
+                    await resource.transport.prepare(request, supplier, dispatch),
+                  )
                   return {
                     ok: {
                       ...prepared,
@@ -992,8 +994,8 @@ it('a mismatched materialization never reaches a commit or start', async () => {
           ok: {
             ...resource,
             transport: {
-              async prepare(request, supplier) {
-                const prepared = unbox(await prepare(request, supplier))
+              async prepare(request, supplier, dispatch) {
+                const prepared = unbox(await prepare(request, supplier, dispatch))
                 return {
                   ok: {
                     ...prepared,

@@ -314,7 +314,8 @@ sequenceDiagram
   participant D as 诊断入口拥有者
   participant A as 当前读取及外传资格
   participant U as 查询主体
-  M->>B: 原dispatch实际用量费用或未知，迟到更正另留来源
+  M->>B: 原dispatch账目报告（用量、费用或未知），迟到更正另留来源
+  Note over M,B: 保存方补调用身份与到达方式；诊断事实随发出保存，不改块与终局
   Note over M,B: 真实重试可有多笔，多观察者不重复记费
   U->>Q: 查询自身或合法组织范围的成本明细
   Q->>A: 核账目范围与主体资格
@@ -337,6 +338,8 @@ sequenceDiagram
     end
   end
 ```
+
+提供者交出的账目报告不带调用身份与到达方式。Commands 保存时补上 `subject` 与 `receipt`，流内到达为 `received`，经 recordLateFact 补录为 `late`。同一事件经这两条路径到达时只登记一次。提供者的诊断事实随发出保存在原 dispatch 上，诊断入口以后从这里读取。
 
 组织成本及明细可见不授请求内容权，遥测接收方改变需重新满足外传条件。凭据只保留合法绑定关联，不用秘密值作追踪键。费用迟到不受域外工作终局阻止，清理不抹必要结算资料；账目恢复和重复查询不重执行、不复活业务。
 
@@ -374,7 +377,7 @@ sequenceDiagram
   alt 明确不合法或所需依赖不可用
     V-->>F: 原因，未受理且未发送
   else 校验当前可知事实通过
-    V-->>F: FixedModelRequest，不带预算
+    V-->>F: FixedModelRequest，含各供应商展开后的回放声明，不带预算
     F->>R: admit 固定call、operation、consumer与容量
     R->>R: 同步judgeAdmit；结构拒绝不进入Commands
     R->>D: 合法输入沿原资格与容量事务受理
@@ -382,7 +385,7 @@ sequenceDiagram
     R-->>F: 原受理结果，未知按原身份核实
     R->>H: 已确认受理后schedule；通知丢失由扫描补齐
     H->>S: 原dispatch的send
-    S->>T: prepare后materialize
+    S->>T: prepare（带本次resent，首次为空）后materialize
     T-->>S: 物化回执或失败
     S->>D: recordMaterialization
     D-->>S: 已提交依据或未知
@@ -396,6 +399,8 @@ sequenceDiagram
 ```
 
 Context 在请求前使用同一计量规则来选择或压缩表示。最终 prepare 失败若仍能按已有策略调整，由原协调者交回 Context，再判断最终输入；不把预算策略交给原发起者，也不循环执行同次扩展。无合规候选则回原用途失败，原历史不删。
+
+请求准备方把每个供应商展开后的回放声明写进 `FixedModelRequest.declarations`，Model 受理时按共同判断核验并固定它。发送边界以 `TransportDispatch.resent` 调用 prepare，首次发出为空；`replay-rejected` 后的再发由重试决定填入，尚未实现。
 
 deferred-media 只表示已经检查可知事实且列出了必要待核验引用，不表示完整请求已通过。Model 受理后，发送提供者读取内容并按实际 payload 重计；失败仍是未发出失败，不删除历史、不擅自改输入或重跑工具。准备结果和物化回执都不是永久发送许可。
 

@@ -1,0 +1,21 @@
+{
+  "upstreamRepository": "https://github.com/anthropics/anthropic-tokenizer-typescript",
+  "upstreamCommit": "4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b",
+  "artifact": {
+    "path": "claude.json",
+    "sha256": "58dad83d85e9cd57be209172449ebfbc395df2b455c11fe8b7e5b661e6f462ad",
+    "bytes": 696615
+  },
+  "license": {
+    "source": "LICENSE at upstreamCommit",
+    "sha256": "f8508be03f7b370f84fb8411b78cc36b5addaa185628d91b6ca09888d0487798",
+    "upstreamSha256": "8bf96984ff8bcfae7e48cae76a529e8a25317ba9e02abf7fd3cc64fdf95657a6",
+    "notice": "The repository LICENSE contains MIT terms; its package.json declares Apache-2.0. The copied LICENSE removes one trailing blank line; its terms are unchanged."
+  },
+  "referencePackage": {
+    "name": "@anthropic-ai/tokenizer",
+    "version": "0.0.4",
+    "npmIntegrity": "sha512-EHRKbxlxlc8W4KCBEseByJ7YwyYCmgu9OyN59H9+IYIGPoKv8tXyQXinkeGDI+cI8Tiuz9wk2jZb/kK7AyvL7g=="
+  },
+  "scope": "Anthropic labels this legacy Claude BPE a very rough approximation since Claude 3. It is not the current Claude 4.7+/5 tokenizer. OpenRouter's private Chat Completions translation is unknown; the meter reports estimated only and leaves margin external."
+}

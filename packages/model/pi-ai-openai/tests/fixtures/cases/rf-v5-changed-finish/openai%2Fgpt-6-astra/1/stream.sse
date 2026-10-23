@@ -1,0 +1,6 @@
+data: {"model":"openai/gpt-6-astra","provider":"OpenAI","choices":[{"delta":{"refusal":"delivered refusal"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"length"}]}
+

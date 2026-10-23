@@ -628,7 +628,8 @@
       "dist",
       "generated",
       "coverage",
-      "tmp"
+      "tmp",
+      ".turbo"
     ],
     "companions": [
       {

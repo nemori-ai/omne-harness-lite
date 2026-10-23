@@ -1,0 +1,10 @@
+data: {"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"unsigned","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{"content":"Answer 1."}}]}
+
+data: {"choices":[],"model":"anthropic/claude-sonnet-5","provider":"Anthropic","usage":{"prompt_tokens":1000,"completion_tokens":31,"completion_tokens_details":{"reasoning_tokens":7},"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":20}}}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

@@ -1,0 +1,453 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-fable-5.1",
+          "revision": "1",
+          "digest": "3f892a68ac8765ec685b3b49fd6fb3cc1bcfd53063f70a6744c28e1ec60e4701"
+        },
+        "recipient": "openrouter",
+        "model": "anthropic/claude-fable-5.1",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "512"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Answer briefly. Stable certification prefix."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Turn 1."
+          }
+        ]
+      },
+      {
+        "id": "msg_a100000000000000000000",
+        "role": "assistant",
+        "blocks": [
+          {
+            "kind": "thinking",
+            "id": "k1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Plan the lookup. Check CEDAR."
+          },
+          {
+            "kind": "tool_call",
+            "id": "c1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "callId": "toolu_1",
+            "name": "lookup__exact",
+            "arguments": {
+              "kind": "object",
+              "entries": [
+                {
+                  "key": "q",
+                  "value": {
+                    "kind": "string",
+                    "value": "x"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "kind": "reasoning_state",
+            "id": "s1",
+            "visibility": {
+              "toHuman": false,
+              "toModel": true
+            },
+            "payload": "[{\"format\":\"anthropic-claude-v1\",\"index\":0,\"signature\":\"SIG-R1-claude-fable-5.1\",\"text\":\"Plan the lookup. Check CEDAR.\",\"type\":\"reasoning.text\"}]",
+            "pairs": [
+              "k1"
+            ]
+          }
+        ],
+        "replay": {
+          "scope": "openrouter/anthropic/claude-fable-5.1",
+          "format": "anthropic-claude-v1",
+          "at": [
+            2
+          ]
+        }
+      },
+      {
+        "id": "msg_t100000000000000000000",
+        "role": "tool",
+        "blocks": [
+          {
+            "kind": "tool_result",
+            "id": "r1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "callId": "toolu_1"
+          },
+          {
+            "kind": "text",
+            "id": "b2",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "CEDAR => COPPER"
+          }
+        ]
+      },
+      {
+        "id": "msg_a200000000000000000000",
+        "role": "assistant",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "t2",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Answer 2."
+          },
+          {
+            "kind": "reasoning_state",
+            "id": "s2",
+            "visibility": {
+              "toHuman": false,
+              "toModel": true
+            },
+            "payload": "[{\"data\":\"ENC-R2-claude-fable-5.1\",\"format\":\"anthropic-claude-v1\",\"id\":\"enc-2\",\"index\":0,\"type\":\"reasoning.encrypted\"}]",
+            "pairs": []
+          }
+        ],
+        "replay": {
+          "scope": "openrouter/anthropic/claude-fable-5.1",
+          "format": "anthropic-claude-v1",
+          "at": [
+            1
+          ]
+        }
+      },
+      {
+        "id": "msg_u300000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b3",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Turn 3."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "lookup__exact",
+        "description": "Look up an exact value",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "query",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "query"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "additionalProperties",
+              "value": {
+                "kind": "boolean",
+                "value": false
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/anthropic/claude-fable-5.1",
+        "accepts": [
+          "openrouter/anthropic/claude-fable-5.1"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-fable-5.1#representation",
+      "revision": "1",
+      "digest": "3f892a68ac8765ec685b3b49fd6fb3cc1bcfd53063f70a6744c28e1ec60e4701"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-fable-5.1",
+          "revision": "1",
+          "digest": "3f892a68ac8765ec685b3b49fd6fb3cc1bcfd53063f70a6744c28e1ec60e4701"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "512"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "512"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-fable-5.1",
+          "revision": "1",
+          "digest": "3f892a68ac8765ec685b3b49fd6fb3cc1bcfd53063f70a6744c28e1ec60e4701"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Answer briefly. Stable certification prefix."
+          }
+        ],
+        "role": "system"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Turn 1."
+          }
+        ],
+        "role": "user"
+      },
+      {
+        "content": [],
+        "reasoning_details": [
+          {
+            "type": "reasoning.text",
+            "text": "Plan the lookup. Check CEDAR.",
+            "format": "anthropic-claude-v1",
+            "index": 0,
+            "signature": "SIG-R1-claude-fable-5.1"
+          }
+        ],
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"q\":\"x\"}",
+              "name": "lookup__exact"
+            },
+            "id": "toolu_1",
+            "type": "function"
+          }
+        ]
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "CEDAR => COPPER"
+          }
+        ],
+        "role": "tool",
+        "tool_call_id": "toolu_1"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Answer 2."
+          }
+        ],
+        "reasoning_details": [
+          {
+            "type": "reasoning.encrypted",
+            "id": "enc-2",
+            "data": "ENC-R2-claude-fable-5.1",
+            "format": "anthropic-claude-v1",
+            "index": 0
+          }
+        ],
+        "role": "assistant"
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "Turn 3.",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "model": "anthropic/claude-fable-5.1",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "anthropic"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high"
+    },
+    "store": false,
+    "stream": true,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "lookup__exact",
+          "description": "Look up an exact value",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ]
+  }
+}

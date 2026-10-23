@@ -33,7 +33,7 @@
 ├── research/                 当前仅保留 TypeSafe Jev；职责与结构待负责人另行定义
 ├── agents/                   skills 与 roles 的唯一编译源、宿主适配与评估
 ├── tooling/                  确定性生成、设计检查与项目根链接
-├── human/                    人类协作者的学习指南：怎样思考设计问题、指导和评审 agent，不是规则
+├── human/                    人类协作者的学习指南与流程草稿，不是规则，agent 不自动加载
 └── .claude/ .agents/ .codex/ 编译产物，不手改
 ```
 

@@ -4,7 +4,7 @@
 
 目标责任以[组架构](architecture.md)和 [Model 契约](../model-contract/SPEC.md)为准。[#447 技术决定][decision]已接受成员划分、家族取得协议、Tokenizer 分工和迁移接受条件，并允许三项延期。厂商适配细化、官方支持矩阵和资源控制的候选状态仍以组架构为准。本清单分配后续工作，不表示文件已经迁入、能力已经实现或真实 route 已认证。
 
-[#446 实现线][line]只实现 OpenAI，新增实现成员为 `pi-ai-transport`、`pi-ai-openai`、`tokenizer-tiktoken`。其余七家族、`tokenizer-huggingface` 和第二个差异家族验证共享传输接口均留后续线。表中阶段 0～2 链接已建子卡，阶段 3～7 只定位父卡中的阶段，尚无子卡号。具名家族后续线指父卡后备范围，不表示本线建包。
+[#446 实现线][line]实现 OpenAI 与 Anthropic 两个家族，新增实现成员为 `pi-ai-transport`、`pi-ai-openai`、`pi-ai-anthropic` 与 `tokenizer-tiktoken`。Anthropic 是验证共享传输接口的第二个差异显著家族。其余六家族与 `tokenizer-huggingface` 留后续线。表中阶段 0～2 链接已建子卡，阶段 3～7 只定位父卡中的阶段，尚无子卡号。具名家族后续线指父卡后备范围，不表示本线建包。
 
 ## 源码清单
 
@@ -26,8 +26,8 @@
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `accounts.ts` | pi-ai-openai；model 与 call-account 消费结果 | 迁 | [2.5 #465][s25]；[6.3][line] | 保留 OpenRouter usage 字段、缓存分量扣除和非负精确费用事实；未知继续未知，按现行 CallAccount 产出，不迁旧 Usage/Cost 形状。 |
-| `anthropic-cache.ts` | pi-ai-anthropic | 迁 | [后续 Anthropic 家族线][line] | 保留末消息非空文本、纯图顶层标记及 cache-neutral 事实；不迁成通用缓存策略，混图空文本反例交 L02。 |
+| `accounts.ts` | pi-ai-openai；pi-ai-anthropic；model 与 call-account 消费结果 | 迁 | [2.5 #465][s25]；[6.3][line] | 保留 OpenRouter usage 字段、缓存分量扣除和非负精确费用事实；未知继续未知，按现行 CallAccount 产出，不迁旧 Usage/Cost 形状。Anthropic 的缓存读写扣除与余量为负时的诊断迁入 pi-ai-anthropic 的用量规则 `anthropic-usage/1`。 |
+| `anthropic-cache.ts` | pi-ai-anthropic；pi-ai-transport 网关引擎 | 迁 | [2.5 #465][s25]；[2.3 #463][s23] | 缓存规则成为 pi-ai-anthropic 的记录数据 `wire.cache`（`last-message`，`ttl` 为 `1h`）。网关引擎放置标记：最后一条消息的最后一个非空文本部件；最后一条是只有图片的 user 消息时，放在最后一张图片上；没有位置时返回 `unsupported`，`field` 为 `no-cache-target`。不迁成通用缓存策略，不迁标记删除。混图空文本的处理见 L02。 |
 | `assistant-projection.ts` | pi-ai-openai 与共享消息拥有者 | 弃 | [2.5 #465][s25]；[L01 后续线][line] | 弃旧 ContentBlock 到私有 reasoning_details 的直接回放与旧工具块形状；可提取 tool-call ID 编码及同路由历史约束，按合法共享消息重建投影。 |
 | `calibration.ts` | Model 计量与历史消费拥有者 | 弃 | [后续可选校准线][line] | 弃调用方携带原响应、observation 和 replaySelection 的校准实现；保留原依据相容与未知范围反例，本线不交付可选校准。 |
 | `configuration.ts` | pi-ai-openai；model 档案与请求准备 | 弃 | [2.5 #465][s25]；[3.1～3.3][line]；[4.2][line] | 弃旧 ModelDefinition 配置 Schema 和旧 profile builder；参数支持事实归家族，新档案求值与请求准备沿现行契约实现。 |
@@ -64,8 +64,8 @@
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [后续 Anthropic 家族线][line] | 保留具体型号、effort、签名/加密块与原计量版本适用事实；旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
-| `anthropic.ts` | pi-ai-anthropic；tokenizer-tiktoken 引擎 | 迁 | [后续 Anthropic 家族线][line] | 保留 legacy Claude BPE 来源、图像公式和支持子集，精度保持估算；移出文件读取和 Tiktoken 构造，普通文本不得沿旧 encode(..., 'all') 激活特殊 token。 |
+| `anthropic-replay.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 整组规则成为推理规则 `anthropic-signed-group/1`，判据见 [pi-ai-anthropic SPEC“规则”](../pi-ai-anthropic/SPEC.md#规则)。签名前缀型号的降级不迁，见表后说明。冻结的原计量版本不迁。旧 OutputHistoryPolicy 外形和调用方原响应依赖不迁，仍受 L01 约束。 |
+| `anthropic.ts` | pi-ai-anthropic；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25] | `claude.json` 估算（消息与工具的 NFKC JSON，图片以 `[image]` 占位）、28 像素块图片公式与四种图片媒体类型迁入 pi-ai-anthropic 的 `meter.ts` 与 `images.ts`，精度保持估算。文件读取与 SHA-256 核对在 `tokenizer.ts`，计数经 tokenizer-tiktoken。普通文本不激活特殊 token，不迁 encode(..., 'all')、data URL 解码、image-size 与 MIME 检查。带签名组的请求计量见“本线的请求计量”。 |
 | `deepseek-boundary.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留参考 prompt 终止帧、边界补偿及补充字段事实；新 meter 使用固定依据，不迁旧 replay 输入协议。 |
 | `deepseek-prompt.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留 message tool_calls 与工具 Schema 的 DeepSeek 参考模板提取规则；用现行声明及无损 JSON 表示重建。 |
 | `deepseek-v4-pro.ts` | pi-ai-deepseek；tokenizer-huggingface 引擎 | 迁 | [后续 DeepSeek 家族线][line] | 保留 V4 Pro 模板、控制 token 和资源摘要；移出引擎加载，旧 toolArguments 的普通 JSON.parse 数值损失不能迁，适用精度保持估算。 |
@@ -76,7 +76,7 @@
 | `marginal.ts` | Model 可选校准与家族计量拥有者 | 弃 | [后续可选校准线][line] | 弃旧 JSON full/new/replay 边际包装和以原 I 扣 framing 的协议；仅保留估算不能升 exact、工具/包裹不重复计数的调查前提。 |
 | `moonshot-tokenizer.ts` | pi-ai-moonshot 资源；tokenizer-tiktoken 引擎 | 迁 | [后续 Moonshot 家族线][line] | 保留共享词表、K3/K2.7 各自配置、预切分正则及显式控制段事实；文件加载、Tiktoken 构造和缓存归引擎，不能只按同词表合并采用。 |
 | `moonshot.ts` | pi-ai-moonshot | 迁 | [后续 Moonshot 家族线][line] | 保留 K3 XTML、K2.7 Jinja 工具/多轮模板、图片缩放公式及估算范围；移除旧 inline 图像读取和 InputMeter 外形。 |
-| `openai-family-policy.ts` | pi-ai-openai | 迁 | [2.5 #465][s25] | 保留精确型号、effort、图像规则与 Pro scope_unknown 事实；旧 revision/replay 回放表只作研究，GPT6 o200k 代理不升级为 tokenizer identity。 |
+| `openai-family-policy.ts` | pi-ai-openai | 迁 | [2.5 #465][s25] | 保留精确型号、effort、图像规则与 Pro scope_unknown 事实；按不关闭推理的项目约定，推理强度 `none` 为 `unsupported`；旧 revision/replay 回放表只作研究，GPT6 o200k 代理不升级为 tokenizer identity。 |
 | `openai-images.ts` | pi-ai-openai；execution/image 读头 | 迁 | [2.5 #465][s25]；[4.3][line]；[4.4][line] | 保留三类补丁规则、detail/尺寸拟合及单帧 GIF 限制；弃旧 data URL 解码和 image-size 依赖，尺寸来自合法元数据或 execution/image 有界读头。 |
 | `openai.ts` | pi-ai-openai；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25]；[4.3][line] | 保留固定编码、可见 JSON/媒体估算和支持域；编码器初始化归独立引擎，完整输出组/原响应边际回放不迁，完整计量不能因本地分词精确升 exact。 |
 | `output-history.ts` | 共享消息与 Model 历史计量拥有者 | 弃 | [后续历史计量线][line] | 弃完整原响应组、上游 O 和私有 observation 驱动的 full/new/replay；可提取完整组一致性与密文不可当普通文本的反例，受 L01 交接约束。 |
@@ -84,7 +84,7 @@
 | `output-prefix.ts` | Model 可选校准拥有者 | 弃 | [后续可选校准线][line] | 弃 WeakMap 挂接旧 InputProjection 前缀事实的隐式协议；保存签名前缀不能被拆组或猜测的反例，不把它充作 M11 共享历史缓存。 |
 | `qwen.ts` | pi-ai-qwen；tokenizer-huggingface 引擎 | 迁 | [后续 Qwen 家族线][line] | 保留两型号模板、商业子集、effort 差异和图像估算；词表可去重，配置/模板仍分别固定，移出引擎及媒体读取，私有商业模板保持估算。 |
 | `shared.ts` | pi-ai-transport 可复用纯函数；各家族规则 | 改 | [2.3 #463][s23]；[2.5 #465][s25]；[其他家族后续线][line] | 保留 reasoning.text 只计一次、REDACTED 不当可见文本的机制；改用共享消息与固定家族规则，弃旧 guardInputMeter 的 full/new/replay 包装。 |
-| `wire-validation.ts` | pi-ai-openai；其他家族工具投影 | 迁 | [2.5 #465][s25]；[其他家族后续线][line] | 保留当前 OpenRouter 工具及调用字段子集的协议事实；改用现行 ToolDeclaration，超出子集明确 unsupported，不删除未知字段后发送。 |
+| `wire-validation.ts` | pi-ai-openai；pi-ai-anthropic；其他家族工具投影 | 迁 | [2.5 #465][s25]；[其他家族后续线][line] | 保留当前 OpenRouter 工具及调用字段子集的协议事实；改用现行 ToolDeclaration，超出子集明确 unsupported，不删除未知字段后发送。 |
 | `xai-candidate.ts` | xAI 计量研究拥有者 | 迁 | [后续 xAI 可选校准线][line] | 保存 UTF-8 bytes/4 与 765/image 的候选来源、特征及拟合前提；不当 route 认证、可靠 tokenizer 或全模态承诺。 |
 | `xai-family-policy.ts` | pi-ai-xai | 迁 | [后续 xAI 家族线][line] | 保留 Grok 精确 release、可见/完整组/不可解释 detail 分类及 scope 前提；不迁旧私有历史协议，也不补造缺失 tokenizer 资源。 |
 | `xai.ts` | pi-ai-xai | 迁 | [后续 xAI 家族线][line] | 保留固定校准偏移、可见 body 支持域和估算证据；没有可靠 tokenizer 时保持有证据估算或不可用，旧历史 meter 形状不迁。 |
@@ -93,13 +93,15 @@
 | `zai-glm53.ts` | pi-ai-zai | 迁 | [后续 Z.AI 家族线][line] | 保留 GLM-5.3/Flash 多工具分组、effort 和模板差异；各型号证据分开，旧完整历史组入口不迁。 |
 | `zai-release.ts` | pi-ai-zai | 迁 | [后续 Z.AI 家族线][line] | 保留精确 release 匹配及 visible/refuse 历史处理的证据范围；不把未知 release 猜成最新，未验证的私有历史清除政策不迁成默认。 |
 
+`anthropic-replay.ts` 的签名前缀降级：封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。按[不关闭推理的项目约定](architecture.md#厂商适配的内聚范围)，记录不关闭推理，所以这项降级不迁。依据：2026-10-22 经代理实测，网关在推理开启时接受外来工具轮次，而这两个型号拒绝关闭推理，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。
+
 ### pi-ai-transport/src/official-models
 
 本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/src/official-models/`，共 8 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `anthropic.ts` | pi-ai-anthropic | 迁 | [后续 Anthropic 家族线][line] | 保留四个 Claude 定义的精确型号、模态、限额、route 与参数子集事实；drop 改为明确不支持，旧定义存在不证明真实 route 认证。 |
+| `anthropic.ts` | pi-ai-anthropic | 迁 | [2.5 #465][s25] | 四个 Claude 型号成为 pi-ai-anthropic 的四条记录：模态、限额（上游值均为未知）、单图 4194304 字节、user 提醒角色、1h 末消息缓存与参数子集。drop 改为 `unsupported`；推理强度为 `low` 至 `max`，`none` 为 `unsupported`。旧定义存在不证明真实 route 认证。 |
 | `deepseek.ts` | pi-ai-deepseek | 迁 | [后续 DeepSeek 家族线][line] | 保留两型号及 DeepInfra 等具名路由的参数/限额与 release 差异；不迁旧 drop/adjust 外形，不以原生采样事实认证代理条件行为。 |
 | `google.ts` | pi-ai-google | 迁 | [后续 Google 家族线][line] | 保留 Gemini 3.7/3.8 Flash 的具名支持域、上游限制与窄参数子集；不迁静默 drop，不把 Gemma 资源等同于型号身份。 |
 | `moonshot.ts` | pi-ai-moonshot | 迁 | [后续 Moonshot 家族线][line] | 保留 K3/K2.7-Code 型号、各自 effort 和 route 绑定事实；定义与模板分别固定，旧 drop 不能成为现行行为。 |
@@ -162,15 +164,15 @@
 
 ## Tokenizer 资源清单
 
-以下 38 个文件另计，不加入源码数量。八个资源目录属于六家族，DeepSeek、Qwen 各有两套；xAI 没有该目录资源，OpenAI 固定编码由 js-tiktoken 提供。这些资源在本线均不迁入，只分配给具名家族后续线。资源归家族，引擎执行归独立 tokenizer adapter。相同词表可在同一家族去重，完整配置、特殊 token、模板及采用仍分别固定。
+以下 38 个文件另计，不加入源码数量。八个资源目录属于六家族，DeepSeek、Qwen 各有两套；xAI 没有该目录资源，OpenAI 固定编码由 js-tiktoken 提供。`anthropic-legacy` 的三个文件由本线迁入 `pi-ai-anthropic`。其余资源在本线均不迁入，只分配给具名家族后续线。资源归家族，引擎执行归独立 tokenizer adapter。相同词表可在同一家族去重，完整配置、特殊 token、模板及采用仍分别固定。
 
 本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/`。所有行标为“迁”，表示原资源、来源说明或许可证与所属家族一起保留。表中资源名是具体保留对象，不新增公开资源接口。摘要、来源修订和适用限制以同目录 provenance 或 PROVENANCE 为输入；它们不证明私有供应商的完整计量精确。
 
 | 资源文件 | 目标家族与具体去向 | 标记 | 去向线 | 资源或来源边界 |
 | --- | --- | --- | --- | --- |
-| `anthropic-legacy/LICENSE` | `pi-ai-anthropic` 的 `anthropic-legacy/LICENSE` | 迁 | [后续 Anthropic 家族线][line] | 原许可证随对应资源保留，不改写许可结论。 |
-| `anthropic-legacy/claude.json` | `pi-ai-anthropic` 的 `anthropic-legacy/claude.json` | 迁 | [后续 Anthropic 家族线][line] | 保留 legacy Claude BPE；仅作粗略估算，不是当前 Claude tokenizer。 |
-| `anthropic-legacy/provenance.json` | `pi-ai-anthropic` 的 `anthropic-legacy/provenance.json` | 迁 | [后续 Anthropic 家族线][line] | 保留原来源修订、摘要及估算适用范围。 原说明保留 LICENSE 为 MIT 条款而 package.json 声明 Apache-2.0 的差异，不代为裁定。 |
+| `anthropic-legacy/LICENSE` | `pi-ai-anthropic` 的 `resources/tokenizers/anthropic-legacy/LICENSE` | 迁 | [2.5 #465][s25] | 原样复制，随包发布。原许可证随对应资源保留，不改写许可结论。 |
+| `anthropic-legacy/claude.json` | `pi-ai-anthropic` 的 `resources/tokenizers/anthropic-legacy/claude.json` | 迁 | [2.5 #465][s25] | 原样复制，随包发布。pi-ai-anthropic 读取时核对 SHA-256，经 tokenizer-tiktoken 的计数与参考值 150 相等。保留 legacy Claude BPE；仅作粗略估算，不是当前 Claude tokenizer。 |
+| `anthropic-legacy/provenance.json` | `pi-ai-anthropic` 的 `resources/tokenizers/anthropic-legacy/provenance.json` | 迁 | [2.5 #465][s25] | 原样复制。保留原来源修订、摘要及估算适用范围。 原说明保留 LICENSE 为 MIT 条款而 package.json 声明 Apache-2.0 的差异，不代为裁定。 |
 | `deepseek-v4/LICENSE` | `pi-ai-deepseek` 的 `deepseek-v4/LICENSE` | 迁 | [后续 DeepSeek 家族线][line] | 原许可证随对应资源保留，不改写许可结论。 |
 | `deepseek-v4/provenance.json` | `pi-ai-deepseek` 的 `deepseek-v4/provenance.json` | 迁 | [后续 DeepSeek 家族线][line] | 保留原来源修订、摘要及估算适用范围。 |
 | `deepseek-v4/tokenizer.json` | `pi-ai-deepseek` 的 `deepseek-v4/tokenizer.json` | 迁 | [后续 DeepSeek 家族线][line] | 保留原词表与摘要；经固定资源初始化交给引擎，不在 count 时读取或下载。 |
@@ -220,12 +222,16 @@
 | M03 [档案、参数与范围][baseline] | 完整 profile/content/snapshot/ref、参数及精确上限判定，unknown/unbounded/limited 上游事实，tenant→organization→factory 范围链、同名胜者、写资格及凭据槽位；纯算法不授发送权，旧 MP5 默认不因 MP6 资源存在而升级。 | [Model 契约](../model-contract/SPEC.md)拥有现行档案与采用，[阶段 3.1～3.4][line]实现档案求值、维护、内存装载和凭据可用性；[阶段 4.2][line]请求准备；[2.5 #465][s25]发布 OpenAI 官方档案材料。保留精确值、同名不回退和在途采用不变的反例。 | 不迁旧 profile Schema 版本、scope/ref 编码和适配快照形状；本线不以旧 pure helper 代替当前资格检查，不把官方型号记录当真实 route 支持认证。 |
 | M04 [目录与凭据绑定][baseline] | SQLite 耐久登记、整项修订、撤回/恢复、一致快照列表、有序官方 manifest、配置 revision 判重、本人凭据绑定及同 StorageUnit 的原 replica 读取；关闭停准入、等原操作且不关闭借用依赖。旧授权观察与提交之间存在撤权窗口。 | [阶段 3.1～3.4][line]覆盖档案和凭据求值，3.3 仅内存目录装载；[阶段 7.2][line]另交耐久仓储/目录，运行等 [#280 存储提供者](https://github.com/nemori-ai/omne-harness-lite/issues/280)。凭据使用已交付的 [model 判定](../model/docs/public-api.md)和 [model-host-local 保管](../model-host-local/docs/public-api.md)。 | 不迁旧 Kysely 表、CCL/P-1r、manifest 持久布局或旧撤权窗口为新契约。PostgreSQL、中心/据点同步不在本线。保留绑定失败不退 factory、倒退时钟不写及诊断双失败导致 close 等待的 Q-M01 反例。 |
 | M05 [选择、有限重试与恢复辅助][baseline] | 独立 legalTargets/displayList/effectiveModel、失败分类、脱敏、retryDelay/decideRetry 等计算；默认重试贡献只决定、不发请求。旧允许 fallback 时按 provider 顺序尝试，不允许时首家可加一次；完整十五操作、Run 恢复和 ACK 实际由旧 Session 实现。 | [阶段 3.1～3.4][line]覆盖求值协作，[阶段 5.1～5.5][line]覆盖策略、控制、驱动、恢复和排空；[1.3～1.7 #454～#458][s13]建立当前调用与消费主干。选择由调用方保存，Model 持有自己的调用及 dispatch 事实。 | 旧 fallback 顺序、loop-extension 接口和 Session 十五操作实现均弃。5.1 明确不自动换模型；首内容后不重发，input-over-limit 不重试。Run/Session 范围传播、账户额度准入和跨进程交接不在本线。 |
-| M06 [固定字节请求规划与发送][baseline] | 精确版定义、配置 Schema、官方档案、适配 lease、最终 UTF-8 请求及图片/字节/token+margin 限制；八家 37 叶的离线 catalog，HTTPS 有界活动连接。旧 planner 还含参数 drop/adjust 和发送前计量。实际 text/image 支持有限，不含音视频或真实 37 路由认证。 | [2.1 #461][s21]、[2.2 #462][s22]、[2.3 #463][s23]重建三阶段传输；[2.4 #464][s24]引擎与[2.5 #465][s25] OpenAI 家族；[2.6 #466][s26]真实单家联调；[阶段 4.2～4.4][line]处理准备、完整请求计量及媒体。请求组装方在请求前消费 meter 并核输入约束。Model 不复做该预算准入；materialize 仍核实际字节、摘要、媒体类型及提供者资源容量，并完成最终物化一致性检查。 | 只覆盖 OpenAI。其他七家、Hugging Face 与第二家共享接口验证留后续线。旧静默丢参、私有 PlanInput/ToolDefinition、planner 内 token 准入均弃。定义、离线计量或本地 TLS 样本不能替代逐型号/route 证据；真实录制回放还受父卡 D-04 约束。 |
-| M07 [历史续接、缓存与图片准备][baseline] | 有限同路由 signed/encrypted reasoning_details、工具关联和边际估算；跨路由 opaque 明确不可用。Anthropic last_message 选末条非空文本，纯图可用顶层 cache_control；图片有 codec、有限候选、容量、reuse scope，取消等原生结束。 | OpenAI 的合法家族历史及图像事实交[2.5 #465][s25]，[阶段 4.1～4.4][line]兑现现行转换、准备、计量与媒体；图像处理复用 [execution/image](../../execution/image/README.md)，五个旧 image-preparation 源均弃。 | 普遍跨模型 opaque 转换交 L01；Anthropic 缓存及图+空文本反例交 L02，本线不覆盖。旧完整原响应边际计量、可选校准、私有图片 reuseScope 均不迁。cache_control 不证明命中、TTL 或真实费用，也不能用删除空文本或回扫旧消息掩盖失败。 |
+| M06 [固定字节请求规划与发送][baseline] | 精确版定义、配置 Schema、官方档案、适配 lease、最终 UTF-8 请求及图片/字节/token+margin 限制；八家 37 叶的离线 catalog，HTTPS 有界活动连接。旧 planner 还含参数 drop/adjust 和发送前计量。实际 text/image 支持有限，不含音视频或真实 37 路由认证。 | [2.1 #461][s21]、[2.2 #462][s22]、[2.3 #463][s23]重建三阶段传输；[2.4 #464][s24]引擎与[2.5 #465][s25] OpenAI 与 Anthropic 家族；[2.6 #466][s26]真实单家联调；[阶段 4.2～4.4][line]处理准备、完整请求计量及媒体。请求组装方在请求前消费 meter 并核输入约束。Model 不复做该预算准入；materialize 仍核实际字节、摘要、媒体类型及提供者资源容量，并完成最终物化一致性检查。 | 覆盖 OpenAI 与 Anthropic；Anthropic 验证共享传输接口。其他六家与 Hugging Face 留后续线。旧静默丢参、私有 PlanInput/ToolDefinition、planner 内 token 准入均弃。定义、离线计量或本地 TLS 样本不能替代逐型号/route 证据；真实录制回放还受父卡 D-04 约束。 |
+| M07 [历史续接、缓存与图片准备][baseline] | 有限同路由 signed/encrypted reasoning_details、工具关联和边际估算；跨路由 opaque 明确不可用。Anthropic last_message 选末条非空文本，纯图可用顶层 cache_control；图片有 codec、有限候选、容量、reuse scope，取消等原生结束。 | OpenAI 与 Anthropic 的合法家族历史及图像事实交[2.5 #465][s25]，[阶段 4.1～4.4][line]兑现现行转换、准备、计量与媒体；图像处理复用 [execution/image](../../execution/image/README.md)，五个旧 image-preparation 源均弃。 | 普遍跨模型 opaque 转换交 L01。Anthropic 末消息缓存由本线的记录数据与网关引擎兑现；图+空文本反例的处理见 L02。旧完整原响应边际计量、可选校准、私有图片 reuseScope 均不迁。cache_control 不证明命中、TTL 或真实费用，也不能用删除空文本或回扫旧消息掩盖失败。 |
 | M08 [SSE、原回复、工具、账与停止][baseline] | 有界 SSE、text/refusal/reasoning/tool 差量、未知 usage/cost、独立不可变装配与独立 invoke；旧物理池按 tenant/session/call/dispatch 去重并等 invocation.stopped。outcome 与 stopped 独立，关闭失败保持 stopUnconfirmed；活动去重不是持久去重。 | [2.1 #461][s21]、[2.3 #463][s23]、[2.5 #465][s25]拆分 framing、家族解码及 TransportFact；[1.1 #452][s11]独立执行；[1.5 #456][s15]与[1.6 #457][s16]用 [common/stream-arrival](../../common/stream-arrival/README.md)归约并收场；[阶段 5.2、6.3][line]控制与账事实。 | 旧执行池与带账的 stream-assembly 形状弃，当前账与流分别归拥有者。保留拒绝文字不决定成功、error/content_filter 失败、合法 finish 后有界收 usage 尾帧等事实。不能因 close 成功就声称物理停止或发布 released；不确认停止时保留相应未知，不关借入 transport。 |
 | M09 [原响应终结、原件与内容保管][baseline] | Pending→Final 不改原时间/账/headers/reply/calibration；同数据集原 job/claim、原字节摘要、发布许可、retention 与有界义务扫描；未知提交不 launch。外部引用要真实保管完整字节，旧 Session 可靠接管后才 ACK。独立 invoke 不提供完整无 Session 持久消费/ACK。 | [1.3 #454][s13]至[1.7 #458][s17]建立当前受理、事实、终局和最小消费；[阶段 5.4、6.1～6.2][line]负责认回、第二 ACK 路径、未知回执与清理；[阶段 7.2][line]耐久参加者。真实字节保管受 D-02 对象/文件存储约束。当前持久事实与保管沿 [model 架构](../model/docs/architecture.md#持久状态与恢复责任)。 | 弃旧 SessionLogBinding、原位置身份、大响应对象与表格式。Model 不取得外部原字节删除权；消费者可靠保存与 ACK 同提交由应用层具名协调者承接，真实 Session/Agent 集成为父卡集成点，不由独立调用绿测代替。未知、ACK 和 released 不能混成一个 done。 |
 | M10 [精确费用、未知用量与补账][baseline] | 旧 call-accounts 对完整 model/tool/correction 分组精确求和，排镜像重计、重复原账/孤补账/等时金额冲突，返回 knownSum 与 unknownCount；final/ACK witness/ready 来源由调用方完整选择，unknown 不当零。 | 现行 [common/call-account](../../common/call-account/README.md)拥有单调用快照、revision 接纳、source subtotal 和 payable amount；[2.5 #465][s25]解码上游事实，[阶段 6.3][line]保存逐 dispatch 费用、迟到补原工作及去重。持久记录和业务账投影由 Model、Session 与账目拥有者按现行责任协作。 | 本线不迁旧 correction 组 Schema、任意精度 USD 口径或完整 Session 账本分组算法；不提供费率换算、额度准入或完整组织/租户汇总。旧精确原文及未知反例保留，但不能越过现行 call-account 的单位/精度规则。本线费用事实不证明外部账本已完整。 |
 | M11 [模型历史投影与有界前缀复用][baseline] | 固定完整合法日志→不可变 segments，过滤事实/隐藏块、核原回复与工具配对、按块压缩；cache 显式 entries/blocks/bytes 与外部键，generation/gap/来源变化重建，容量不半更新。每租户/Session 独占 owner，私有品牌不是权限。旧 SPEC 仍 F0 候选，独立接受未完成。 | 历史与请求组装归 [Context](../../context/README.md)、共享消息和 Session 历史消费后续线，本线不实现这套投影/cache。[阶段 3.1][line]只消费调用方给出的历史模态要求；[阶段 6.5][line]只承接当前约定的模态点查询与可重建观测，不能据此声称 M11 全覆盖。 | 本线明确不覆盖旧前缀缓存、原 journal 发布和八项外部键失效。源码存在不等于旧候选规范已接受；不能用传输私有 output-prefix 替代它。bytes 是规范化输入字节而非堆大小，materialize/serialization 仍随输出规模增长；同尾查询常数代价不代表端到端选择常数代价。 |
+
+### 本线的请求计量
+
+两个家族的计量器对带回放推理的请求返回 `unavailable`：OpenAI 的诊断为 `encrypted-reasoning-not-countable`，Anthropic 的诊断为 `signed-reasoning-not-countable`。密文与签名组不分词，也不被去掉。封存件按输出组计量回放推理的做法不迁。完整请求计量归[阶段 4.3][line]。
 
 M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但不属于 #446 的交付。旧 API 下已支持的能力与新契约的不同边界须分别交接，不能通过搬回旧包补齐。可选校准、不可解释历史、全部商业 route 认证、音视频传输、跨进程交接与完整 Session/Agent 集成也不在本线。上述明确不覆盖项不因源码清点完备而完成。
 
@@ -235,19 +241,21 @@ M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但�
 
 ### L01 跨模型历史状态兼容
 
-原项为 [#193 L01](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-model-history)，来源 [#18](https://github.com/nemori-ai/omne-harness-lite/issues/18)。责任交 Model、消息、Request Context 与历史消费拥有者，定位 `packages/model/`、`packages/context/` 及后续实际成员。本线明确不覆盖普遍跨模型转换；OpenAI 单家及精确 route 的续接证据不能回答其他模型的 opaque、签名、可读推理或工具关联如何转换。
+原项为 [#193 L01](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-model-history)，来源 [#18](https://github.com/nemori-ai/omne-harness-lite/issues/18)。责任交 Model、消息、Request Context 与历史消费拥有者，定位 `packages/model/`、`packages/context/` 及后续实际成员。本线明确不覆盖普遍跨模型转换；OpenAI 与 Anthropic 的同模型续接证据不能回答其他模型的 opaque、签名、可读推理或工具关联如何转换。本线的两个家族按现行回放声明略去另一模型的推理状态，并给出 `replay-omitted` 诊断。最后一个工具轮次不能接续时，两家都保持请求的推理强度，因为按[项目约定](architecture.md#厂商适配的内聚范围)，本项目的实现与档案不关闭推理。这是现行契约规定的略去，不是转换，不回答 L01。
 
 后续具名范围须分别核对同模型续接与跨模型转换，保留原历史及信息损失的可见性，并验证请求、计量和恢复。旧数据已经清理，旧源码和研究不是现行完整复现。现行 Model/共享消息契约不允许任意 opaque 回放或调用方私有历史旁路。本清单不选择过滤、降级、删除或转换策略，也不把旧同路由规则升级为通用兼容政策。
 
 ### L02 图片与空文本的缓存规划
 
-原项为 [#193 L02](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-anthropic-cache)，来源 [#86](https://github.com/nemori-ai/omne-harness-lite/issues/86)。责任交实际 Anthropic 家族、缓存策略及消息输入拥有者。本线明确不覆盖 Anthropic 缓存适配，后续家族线须承接以下原始输入及判断范围。
+原项为 [#193 L02](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-anthropic-cache)，来源 [#86](https://github.com/nemori-ai/omne-harness-lite/issues/86)。责任交实际 Anthropic 家族、缓存策略及消息输入拥有者。本线的 Anthropic 家族兑现末消息缓存，但 L02 仍不纳入本线。下列原始输入及判断范围保留给其拥有者。
 
 1. 末条消息为空文本后接图片。
 2. 末条消息为图片后接空文本。
 3. 末条纯图消息，作为对照。
 
 两种混排在旧 selector 中都没有 cacheTarget/marker，纯图对照可获顶层标记。报告的内部 helper 实跑只证明选靶，没有 HTTP，也没有认证完整 public plan 或真实缓存。后续在当前合法块范围内确认选靶、失败表达、固定请求字节及计量一致性，再由实际适配器兑现。不把上游接受原始请求当成本地规划已修复，也不扩成所有 route 统一过滤空文本。
+
+本线的网关引擎照原样写出空文本部件，不删除它们（[pi-ai-transport SPEC“投影”](../pi-ai-transport/SPEC.md#投影)）。引擎只去掉对模型不可见的块，以及所有块都对模型不可见的 user、提醒与压缩消息。缓存标记放在末条消息的最后一个非空文本部件上，空文本部件不是位置。只有图片的末条 user 消息，标记放在最后一张图片上。所以纯图对照有标记。两种混排的末条消息都有空文本部件，不是只有图片的消息，又没有非空文本，所以没有位置，引擎返回 `unsupported`，`field` 为 `no-cache-target`（pi-ai-anthropic 的 `tests/plan.spec.ts`）。封存件对两种混排不加标记，引擎改为明确失败，不发出请求，也不删除空文本来取得位置。这是引擎对缓存位置的通用规则，不是本线对 L02 的裁决。
 
 [line]: https://github.com/nemori-ai/omne-harness-lite/issues/446
 [baseline]: https://github.com/nemori-ai/omne-harness-lite/issues/199#issuecomment-6127022557
