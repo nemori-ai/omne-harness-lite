@@ -46,5 +46,12 @@
     "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "service-provider"
+    }
   }
 }
