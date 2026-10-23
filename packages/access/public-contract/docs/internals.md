@@ -2,7 +2,7 @@
 
 本页拥有纯协议编解码的内部构造设计。实际实现与验证证据随成员持续维护。
 
-行为唯一源为[成员SPEC](../SPEC.md#公开编解码入口与实现细化)。公开类型随后归src导出。SDK负责传输报告、再送和缓存，server-entry负责业务接入顺序，public-contract只做纯协议类型和codec。
+行为唯一源为[成员SPEC](../SPEC.md#公开编解码入口与实现细化)。公开类型归[src主入口](../src/index.ts)及其消息定义。SDK负责传输报告、再送和缓存，server-entry负责业务接入顺序，public-contract只做纯协议类型和codec。
 
 ## 固定模块与依赖
 
@@ -18,7 +18,7 @@
 
 ## 关联读取
 
-采用非递归元数据读取，两个pass使用一次核验并冻结的预算。readRequestDocument先快照并核验六项预算，readJsonBytes严格成功才可返回accepted业务树。只有duplicate-key失败调用recoverCorrelation。其他失败立即返回原失败与无关联。两个私有函数同在src/correlation.ts，不再增加透传wrapper。
+采用非递归元数据读取，两个pass使用一次核验并冻结的预算。公开codec入口先核验六项预算并冻结快照，再交readRequestDocument。readJsonBytes严格成功才可提供业务树。只有duplicate-key失败调用recoverCorrelation。其他失败立即返回原失败与无关联。严格读取门与补扫同在src/correlation.ts，词法和frame转换由文件内局部函数维护。
 
 recoverCorrelation使用jsonc-parser扫描token与显式对象/数组frame栈，不用递归visitor。它只计算metadata，不重建树。每个frame维护语法下一状态、成员出现次数及是否处于根messageId值。每个容器/标量计maxItems，进入容器前核maxDepth，每次成员出现计maxMembers，包括相同或转义别名的重复键。解码后的键/值字符串受maxStringLength，原始数字完整lexeme受maxNumberLength，整输入先受maxBytes。
 
@@ -39,3 +39,5 @@ proof的missing/empty/present是本地协议表示，业务身份由后续拥有
 测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider，不新增./testing。
 
 关联向量必须包括ID在duplicate前后、转义等值ID重复、嵌套键、坏后缀、字符串/数字scanner边角、六预算等界/越界，以及超过原生递归容量但在显式预算内的深度。差分向量比较严格成功与补扫语法的适用一致性，duplicate输入永远仍为拒绝。测试只能证明覆盖范围，不能声称真实权限或持久业务验证。
+
+编码时先复制自有数据属性，再做封闭字段和品牌校验。parameters的tagged树也先复制，拒绝访问器、不可枚举字段与环，再由json-text判断并冻结。复制对象数量上限由调用者maxItems推导，合法树每个JSON值至多引入一个节点、一个容器列表和一个成员记录，不增加协议预算。最终写出的整份JSON再次按六预算严格读取。

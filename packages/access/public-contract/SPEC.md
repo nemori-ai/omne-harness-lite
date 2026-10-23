@@ -480,7 +480,7 @@ const encoded = encodeGovernanceRequest({
 
 ## 公开编解码入口与实现细化
 
-本节为B3本域细化的文档草稿，待独立表达评审，不声明实现或整卡接受。类型定义由实施后的 `src/index.ts` 及其导出拥有，本节只规定行为，不重复完整 TypeScript 定义。
+本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的 [消息定义](src/messages.ts) 拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)，整卡接受由任务拥有者另行确认。
 
 ### 操作集合与函数
 
