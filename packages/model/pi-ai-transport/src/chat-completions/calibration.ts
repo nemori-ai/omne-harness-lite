@@ -149,6 +149,9 @@ export function calibratedAmount(
         substituted = true
       } else visible.push(index)
     }
+    // The family image rules run before the tokenizer, as the family orders its checks.
+    const extra = input.extra(visible)
+    if (!('ok' in extra)) return extra
     const kept = visible.map(index => items[index]).filter(item => item !== undefined)
     // Without a replaced unit the full body is the token input itself, so the bytes are the same.
     const body =
@@ -163,8 +166,6 @@ export function calibratedAmount(
       if (!('ok' in empty)) return empty
       text -= empty.ok
     }
-    const extra = input.extra(visible)
-    if (!('ok' in extra)) return extra
     return { ok: { text, outputs: total, extra: extra.ok, substituted } }
   }
 
