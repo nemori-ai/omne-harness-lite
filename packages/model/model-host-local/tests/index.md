@@ -11,5 +11,8 @@
 - [assembly.spec.ts](assembly.spec.ts)：本地装配的配置拒绝、准备租约的绑定来源与关闭
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
-- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务、形成官方档案、装配一次调用的本地宿主
+- [recorder.spec.ts](recorder.spec.ts)：慢层，录制器经本地 HTTPS 服务与本地 CONNECT 代理写出原样正文与旁注，各种不写文件的情形，以及第二轮的输入形状
+- [secret-scan.spec.ts](secret-scan.spec.ts)：录制器的密钥模式检查
+- [live/record.spec.ts](live/record.spec.ts)：录制器的真实入口，只在 `OMNE_LIVE_TESTS=1` 并给出 `OMNE_RECORD_CASE` 时运行（`record:live`）
+- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，以及录制器、正文截取、密钥检查与录制用例
 - [fixtures/](fixtures/index.md)：测试固定输入

@@ -27,7 +27,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "record:live": "vitest run --mode slow --typecheck.enabled=false --reporter=verbose tests/live/record.spec.ts"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
