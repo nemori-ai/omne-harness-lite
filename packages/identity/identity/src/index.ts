@@ -31,8 +31,3 @@ export type {
   RoleResolutionFailure,
 } from './qualification.ts'
 export type { StandingEvidence, TenantStandingReading, TenantStandingSource } from './standing.ts'
-export type {
-  BusinessAccessReport,
-  BusinessAccessReportOutcome,
-  LoginActivityReporter,
-} from './login-activity.ts'

@@ -2,9 +2,9 @@
 
 ## 职责与状态
 
-本成员拥有主体、组织成员、租户、登录与当前租户选择的事实，以及治理模型给出的可解释资格。业务规则的采用范围见 [SPEC](SPEC.md)。首批公开形状由 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659) 交付，依据是 [#638 的 2026-10-23 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)：两种主体与复合主体、具名资格「组织成本账目读取」、登录入口租户冲突只管治理入口、成功业务访问报告的形状。
+本成员拥有主体、组织成员、租户、登录与当前租户选择的事实，以及治理模型给出的可解释资格。业务规则的采用范围见 [SPEC](SPEC.md)。首批公开形状由 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659) 交付，依据是 [#638 的 2026-10-23 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)：两种主体与复合主体、具名资格「组织成本账目读取」。
 
-已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型；成功业务访问报告的类型。尚未实现的部分：账号、组织、成员关系、登录的存储与流程，以及实现读口和报告口的提供者。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
+已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。尚未实现的部分：账号、组织、成员关系、登录的存储与流程，成功业务访问报告的形状，以及实现读口的提供者。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
 
 ## 使用
 
@@ -38,7 +38,6 @@ const acting = authority.issuer.issueActingForTenant({
 | `RoleMapping`、`RoleRef`、`GovernanceModelRef`、`qualificationsOf`、`governanceModelEquals` | 治理模型的角色到资格映射 |
 | `DEFAULT_TEAM_MODEL`、`DEFAULT_TEAM_ROLES`、`DEFAULT_TEAM_ROLE_MAPPING` | 默认团队方案的映射 |
 | `TenantStandingSource`、`TenantStandingReading`、`StandingEvidence` | 当前资格读口 |
-| `BusinessAccessReport`、`BusinessAccessReportOutcome`、`LoginActivityReporter` | 成功业务访问报告 |
 
 ## 契约
 
@@ -48,7 +47,7 @@ const acting = authority.issuer.issueActingForTenant({
 
 ## 设计
 
-`src/principal.ts` 定义两种主体与进程内权威。权威用 `WeakSet` 登记自己签发并冻结的对象；核验就是登记成员资格。`src/qualification.ts` 定义具名资格、角色映射和默认团队映射。`src/standing.ts` 与 `src/login-activity.ts` 只定义端口类型。[内部设计](docs/internals.md)维护机制与流程。
+`src/principal.ts` 定义两种主体与进程内权威。权威用 `WeakSet` 登记自己签发并冻结的对象；核验就是登记成员资格。`src/qualification.ts` 定义具名资格、角色映射和默认团队映射。`src/standing.ts` 只定义端口类型。[内部设计](docs/internals.md)维护机制与流程。
 
 ## 配置与运行
 
@@ -56,14 +55,13 @@ const acting = authority.issuer.issueActingForTenant({
 
 ## 验证
 
-单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。集成测试与端到端测试不适用：本包没有存储、应用服务或用户旅程。`TenantStandingSource` 与 `LoginActivityReporter` 只有端口类型，本包没有它们的实现，所以没有它们的行为测试；提供者自测。
+单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。集成测试与端到端测试不适用：本包没有存储、应用服务或用户旅程。`TenantStandingSource` 只有端口类型，本包没有它的实现，所以没有它的行为测试；提供者自测。
 
 | 文件 | 覆盖 |
 | --- | --- |
 | `tests/principal.spec.ts` | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返 |
 | `tests/principal.spec-d.ts` | 不带租户的代租户行事主体、带租户的系统主体是类型错误 |
 | `tests/qualification.spec.ts` | 具名资格清单、默认团队映射、别的模型与未列出的角色 |
-| `tests/login-activity.spec-d.ts` | 报告不带时间；报告口只答三种结果 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/identity`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
