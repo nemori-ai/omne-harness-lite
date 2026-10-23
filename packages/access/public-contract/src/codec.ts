@@ -42,7 +42,9 @@ const encoder = new TextEncoder()
 type Fields = Readonly<Record<string, unknown>>
 type Converted = { readonly local: unknown; readonly wire: JsonValue }
 type Direction = 'encode' | 'decode'
-const INVALID: GovernanceEncodeResult = { kind: 'invalid', diagnostic: { code: 'field' } }
+function invalid(): GovernanceEncodeResult {
+  return { kind: 'invalid', diagnostic: { code: 'field' } }
+}
 
 function fields(value: unknown): Fields | undefined {
   if (typeof value !== 'object' || value === null) return undefined
@@ -498,7 +500,7 @@ export function encodeGovernanceRequest(input: {
     typeof model.messageId !== 'string' ||
     !isProvided(model.operation)
   )
-    return INVALID
+    return invalid()
   const rule = requestRule(model.operation)
   const keys = [
     'protocolVersion',
@@ -508,7 +510,7 @@ export function encodeGovernanceRequest(input: {
     ...(rule.proof ? ['proof'] : []),
     ...(rule.tenant ? ['actingTenant'] : []),
   ]
-  if (!exact(model, keys)) return INVALID
+  if (!exact(model, keys)) return invalid()
   const body = convert(rule.body, model.body, 'encode', limits)
   const tenant = rule.tenant
     ? convert({ kind: 'tenant' }, model.actingTenant, 'encode', limits)
@@ -519,7 +521,7 @@ export function encodeGovernanceRequest(input: {
     (rule.tenant && tenant === undefined) ||
     (rule.proof && proof === undefined)
   )
-    return INVALID
+    return invalid()
   const wire: Record<string, JsonValue> = {
     protocolVersion: stringWire(VERSION),
     messageId: stringWire(model.messageId),
@@ -617,5 +619,5 @@ export function encodeGovernanceResponse(input: unknown): GovernanceEncodeResult
   const { data, limits } = argumentsOf(input, ['response', 'limits'], ['operation'])
   const operation = Object.hasOwn(data, 'operation') ? operationOf(data.operation) : undefined
   const converted = responseModel(data.response, operation, 'encode', limits)
-  return converted === undefined ? INVALID : write(converted.wire, limits)
+  return converted === undefined ? invalid() : write(converted.wire, limits)
 }

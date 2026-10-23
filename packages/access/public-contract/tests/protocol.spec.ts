@@ -179,6 +179,31 @@ it('validates the entire response before correlation', () => {
 })
 
 describe('hostile local values', () => {
+  it('keeps caller mutations of failures out of subsequent request and response diagnostics', () => {
+    const invalidRequest = { ...health, unexpected: true }
+    const invalidResponse = {
+      protocolVersion: version,
+      messageId: 'm',
+      outcome: 'succeeded',
+      body: { protocolVersion: version },
+      unexpected: true,
+    } as const
+    const calls = [
+      () => encodeGovernanceRequest({ request: invalidRequest, limits }),
+      () =>
+        encodeGovernanceResponse({ operation: 'public-health', response: invalidResponse, limits }),
+    ]
+    for (const call of calls) {
+      const first = call()
+      expect(first.kind).toBe('invalid')
+      if (first.kind !== 'invalid') throw new Error('Expected a closed-field rejection')
+      Object.assign(first.diagnostic, { code: 'poisoned-code', secret: 'caller-secret' })
+      Object.assign(first, { secret: 'caller-secret' })
+      for (const subsequent of calls) {
+        expect(subsequent()).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+      }
+    }
+  })
   it('never invokes model getters or toJSON', () => {
     let calls = 0
     const body = Object.defineProperty({}, 'secret', {
