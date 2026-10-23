@@ -1,6 +1,11 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/public-contract')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('exports only the four shared protocol codecs', async () => {
+  const root = await import('@omne-harness/public-contract')
+  expect(Object.keys(root).sort()).toEqual([
+    'encodeGovernanceRequest',
+    'encodeGovernanceResponse',
+    'readGovernanceRequest',
+    'readGovernanceResponse',
+  ])
 })

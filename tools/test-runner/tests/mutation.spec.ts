@@ -725,7 +725,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
   const git = (cwd: string, ...args: string[]) =>
     execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 
-  /** 一个只有一个成员的仓库：成员的 node_modules 指向 ts-checks 的（Stryker 注入 sandbox 的文件要导入 vitest）。 */
+  /** 一个只有一个成员的仓库：依赖链接到本次安装的包，编译器入口可随成员搬进 sandbox。 */
   function fixture(): { root: string; memberDir: string } {
     const root = temporary('mutation-e2e-')
     const memberDir = join(root, 'packages/core/sign')
@@ -772,12 +772,90 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       join(memberDir, 'tests/sign.spec.ts'),
       "import { zero } from '../src/sign.ts'\ntest('zero', () => { expect(zero).toBe(0) })\n",
     )
-    symlinkSync(TS_CHECKS_MODULES, join(memberDir, 'node_modules'), 'dir')
+    const modules = join(memberDir, 'node_modules')
+    mkdirSync(modules)
+    for (const name of readdirSync(TS_CHECKS_MODULES)) {
+      if (name.startsWith('.')) continue
+      const source = join(TS_CHECKS_MODULES, name)
+      const target = join(modules, name)
+      if (name.startsWith('@')) {
+        mkdirSync(target)
+        for (const pkg of readdirSync(source))
+          symlinkSync(realpathSync(join(source, pkg)), join(target, pkg), 'dir')
+      } else symlinkSync(realpathSync(source), target, 'dir')
+    }
+    mkdirSync(join(modules, '.bin'))
+    // pnpm 的 shim 按调用位置找编译器；Vitest 的类型检查须直接调用本次安装的入口。
+    symlinkSync(
+      realpathSync(join(TS_CHECKS_MODULES, 'typescript/bin/tsc')),
+      join(modules, '.bin/tsc'),
+      'file',
+    )
     git(root, 'init', '--quiet')
     git(root, 'add', '.')
     git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'base')
     return { root, memberDir }
   }
+
+  it('搬移后的成员与 sandbox 真跑类型检查，错误类型断言仍失败', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'tsconfig.test.json'),
+      JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          module: 'nodenext',
+          target: 'es2022',
+          noEmit: true,
+          skipLibCheck: true,
+        },
+        include: ['tests/**/*.spec-d.ts'],
+      }),
+    )
+    writeFileSync(
+      join(memberDir, 'tests/sign.spec-d.ts'),
+      "import { expectTypeOf, test } from 'vitest'\ntest('number type', () => { expectTypeOf(1).toEqualTypeOf<number>() })\n",
+    )
+    const sandbox = join(root, 'packages/core/sandbox')
+    cpSync(memberDir, sandbox, {
+      recursive: true,
+      filter: path => path !== join(memberDir, 'node_modules'),
+    })
+    symlinkSync(join(memberDir, 'node_modules'), join(sandbox, 'node_modules'), 'dir')
+    const check = (cwd: string) =>
+      spawnSync(
+        process.execPath,
+        [
+          join(cwd, 'node_modules/vitest/vitest.mjs'),
+          'run',
+          '--mode',
+          'fast',
+          '--maxWorkers',
+          '1',
+          '--typecheck.enabled=true',
+          '--typecheck.include',
+          'tests/**/*.spec-d.ts',
+          '--typecheck.tsconfig',
+          'tsconfig.test.json',
+        ],
+        { cwd, encoding: 'utf8', timeout: 30_000 },
+      )
+    for (const cwd of [memberDir, sandbox]) {
+      const ran = check(cwd)
+      expect(ran.status, `${ran.stdout}${ran.stderr}`).toBe(0)
+      expect(ran.stdout).toMatch(/Tests\s+2 passed/u)
+      expect(ran.stdout).toMatch(/Type Errors\s+no errors/u)
+      expect(`${ran.stdout}${ran.stderr}`).not.toContain('Unhandled Error')
+    }
+    writeFileSync(
+      join(sandbox, 'tests/sign.spec-d.ts'),
+      "import { expectTypeOf, test } from 'vitest'\ntest('wrong type', () => { expectTypeOf(1).toEqualTypeOf<string>() })\n",
+    )
+    const wrong = check(sandbox)
+    expect(wrong.status, `${wrong.stdout}${wrong.stderr}`).toBe(1)
+    expect(wrong.stderr).toContain('TypeCheckError')
+    expect(wrong.stdout).toMatch(/Type Errors\s+1 failed/u)
+  })
 
   /** 夹具没有本仓库的影响面规则，现算不出计划：手写一份只选这个成员的计划，走准入检查读计划的路径。 */
   function mutate(root: string, out: string, workers = '2', env: Record<string, string> = {}) {

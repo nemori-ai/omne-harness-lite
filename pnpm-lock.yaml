@@ -150,6 +150,19 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/access/public-contract:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

@@ -1,31 +1,79 @@
-# 系统公开契约
+# @omne-harness/public-contract
 
-本成员拥有治理公开协议 `governance-public/1` 的消息、`outcome` 和操作规则。身份和授权的业务事实仍归 identity 与 authorization。
+[中文](README_ZH.md)
 
-## 阅读路径
+Pure codecs for the `governance-public/1` protocol. Clients and server adapters share the same request, response, and refusal rules.
 
-调用者和两端实现者先读[行为规格](SPEC.md)。SDK 与服务端接入使用该规格里的同一张结果表，不另写结果含义。内部结构见[内部设计](docs/internals.md)。
+## Responsibility and status
 
-## 使用
+This package implements 34 governance request operations and recognizes four operations that this stage does not provide. [SPEC.md](SPEC.md) owns their behavior. [The public exports](src/index.ts) expose four functions and their input and result types. [Messages](src/messages.ts) associate each operation with its permitted outcomes and bodies.
 
-请求和响应都是一个 JSON 对象。唯一协议版本是 `governance-public/1`。每个操作的登录证明和行事租户是必填还是禁止，写在行为规格的字段表里。
+The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport. Identity and authorization retain responsibility for authentication, authorization, and business operations. SDK and server-entry remain separate consumers with their own delivery obligations.
 
-撤销本账号的一份登录时不带行事租户。`messageId` 由调用者生成。
+## Usage
 
 ```ts
-governanceOperation({
-  protocolVersion: "governance-public/1",
-  messageId: "caller-generated",
-  operation: "revoke-login",
-  loginProof: proof,
-  body: { targetLoginId },
-});
+import { encodeGovernanceRequest, readGovernanceRequest } from '@omne-harness/public-contract'
+
+const limits = {
+  maxBytes: 65_536,
+  maxDepth: 32,
+  maxItems: 4_096,
+  maxMembers: 256,
+  maxStringLength: 8_192,
+  maxNumberLength: 128,
+}
+const encoded = encodeGovernanceRequest({
+  request: {
+    protocolVersion: 'governance-public/1',
+    messageId: 'caller-generated',
+    operation: 'public-health',
+    body: {},
+  },
+  limits,
+})
+if (encoded.kind === 'encoded') {
+  const received = readGovernanceRequest({ bytes: encoded.bytes, limits })
+  // received.kind is request, protocol-rejected, or stage-not-provided.
+}
 ```
 
-## 验证
+The limits in this example are caller choices. The package supplies no defaults. Use `readGovernanceResponse` with the original operation and expected message ID. It validates the whole response before matching the ID. Use `encodeGovernanceResponse` with that operation for business results. Its common-refusal overload accepts `protocol-rejected` or `stage-not-provided` without an operation.
 
-同一输入只有一个对外结果。结果句子在行为规格。`tests/public-entry.spec.ts` 核对当前公开导出。
+Required login proof becomes local `ProofInput`. Missing and empty proof remain distinct protocol states for the business owner to check. Identity fields use values minted by legal-identity. Time fields use utc-instant values. Tenant text preserves both the organization and account. Parameter objects use json-text trees, including their original number lexemes.
 
-## English promise
+## Contracts
 
-This member owns governance message `governance-public/1`. Identity and authorization own the business facts. Callers read `SPEC.md` for fields and outcomes. One input has one outcome.
+[SPEC.md](SPEC.md#公开编解码入口与实现细化) defines validation order, closed fields, budgets, correlation, and diagnostics. The four functions are synchronous and have no external effects. Invalid programming arguments throw a fixed `TypeError`. Invalid request or response models return `invalid`. Diagnostics contain only a finite code, with no credentials, proofs, input paths, or raw bytes.
+
+A decoded request proves protocol validity only. A decoded response proves its operation-specific shape and correlation only. Neither result proves a business authorization or durable commit.
+
+## Design
+
+[Internal design](docs/internals.md) describes the closed operation table, wire conversion, and duplicate-key correlation scan. Strict json-text parsing is the only source of business data. A duplicate failure can trigger a second, iterative scan that recovers only a unique root message ID. This scan validates the entire document and applies the same six budgets.
+
+The runtime dependencies are json-text, legal-identity, utc-instant, and jsonc-parser. The package has no Cordis entry or lifecycle resources. Published files contain `dist`; the `source` export condition is for workspace development. Independent consumers use the `import` and `types` conditions.
+
+## Configuration and operation
+
+Node.js 24 or later is required. Every call supplies six positive safe-integer budgets. The package reads no environment variables, clock, database, or network. Object models must use own enumerable data properties. Getters and `toJSON` are not executed. A byte budget bounds accepted document bytes, not total process memory.
+
+## Verification
+
+From the repository root, run these commands in order:
+
+```sh
+pnpm --filter '@omne-harness/public-contract...' build
+pnpm --filter @omne-harness/public-contract typecheck
+./scripts/with-test-slot.sh pnpm --filter @omne-harness/public-contract test
+```
+
+The tests exercise the public exports. `protocol.spec.ts` covers common boundaries and the two-end demonstration. `correlation.spec.ts` covers strict suffix grammar, all six budgets, and deep inputs. `operations.spec.ts` and `responses.spec.ts` cover every operation, closed bodies, terminal states, lists, and secret exclusions. `public-consumption.spec-d.ts` checks operation-associated types.
+
+`fixtures/client.ts` and `fixtures/server.ts` independently consume the package name. `install-closure.spec.ts` packs this package and its three workspace dependencies, installs them in a fresh directory, compiles both fixtures, and runs Node against `dist`. That test needs pnpm and access to its configured package registry or cache for jsonc-parser. It removes its temporary installation and records the closure in the task's temporary evidence directory. `fixtures/profile.mjs` observes bounded codec workloads through `dist`.
+
+These are pure protocol and package-consumption checks. Real transport, login, authorization, storage, and end-to-end governance journeys require their owners' validation.
+
+## Maintenance
+
+Keep messages, operation rules, codecs, and the SPEC synchronized. Protocol changes require both consumer fixtures, the type counterexamples, and the full operation matrices. Recheck the installation closure after dependency changes. SDK and server-entry own migration of their future runtime consumers.
