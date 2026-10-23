@@ -810,9 +810,9 @@ MaterializationReceipt 只记录本次供应商、实际表示采用和无秘密
 
 托管 ModelSendBoundary 注入 ModelCommands，以原 execution、当前 revision、独立 operation 和 dispatch 调用 recordMaterialization。Commands 在条件持久提交前核对以下各项：
 
-- 执行代次；
-- 原 dispatch 尚未发出；
-- 供应商与固定请求摘要；
+- 执行代次。
+- 原 dispatch 尚未发出。
+- 供应商与固定请求摘要。
 - 回执带 `replayFormat` 时，它是合格的回放标签，即满足 message 成员对 `replay.format` 的要求。不合格时 Commands 返回 `invalid`，`field` 为 `receipt`，`reason` 为 `binding`，不提交回执。
 
 回执来源由可信 adapter 核验，不接受普通调用者自报的内容。成功返回新 revision 与 DurableEvidence，DispatchRecord.materialization 可恢复地返回原回执及依据。
