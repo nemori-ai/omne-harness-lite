@@ -4,10 +4,10 @@
 
 ## 使用方式
 
-根入口导出两个函数，用途不同：
+根入口导出两个保管库函数，用途不同：
 
-- `createLocalCustodian(path, factorySecret)`：在 `path` 处新建保管库；`path` 已有文件时覆盖。只用于初始化。
-- `openLocalCustodian(path)`：打开已有保管库；文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable' }`，不创建文件。
+- `createLocalCustodian({ path, factorySecret })`：`path` 上没有文件时新建保管库；已有可读文件时直接采用它，不覆盖。
+- `openLocalCustodian({ path })`：打开已有保管库，返回 `{ kind: 'open', custodian }`；文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable', cause }`，不创建文件。
 
 ```ts
 import { createLocalCustodian, openLocalCustodian } from '@omne-harness/model-host-local'
@@ -18,13 +18,16 @@ const decoded = decodeCredentialId('my-key')
 if (!('ok' in decoded)) throw new Error(`credential id rejected: ${decoded.failure.reason}`)
 const id = decoded.ok
 
-const custodian = createLocalCustodian('/var/lib/omne/credentials.json', 'factory-secret')
+const custodian = createLocalCustodian({
+  path: '/var/lib/omne/credentials.json',
+  factorySecret: 'factory-secret',
+})
 custodian.put({ id, tenant: tenant(org, acc), purpose: MODEL_SEND }, 'tenant-secret')
 
 // 另一个进程或同一进程稍后重开
-const reopened = openLocalCustodian('/var/lib/omne/credentials.json')
-if (!('kind' in reopened)) {
-  reopened.resolve(
+const reopened = openLocalCustodian({ path: '/var/lib/omne/credentials.json' })
+if (reopened.kind === 'open') {
+  reopened.custodian.resolve(
     { id, tenant: tenant(org, acc), purpose: MODEL_SEND },
     { authorized: true, official: false },
   )
