@@ -12,9 +12,9 @@
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
 | `createModelRuntime` | 受理、查询、取消意图、原流保存、实例观察与下述支持范围内的调用收场；结果读取与 processed ACK 已实现，retained ACK 仍 unavailable |
 | `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
-| `createModelPreparationResources` | 生产准备租约：每个档案供应商一个家族绑定，按调用方访问依据读一次 lineage 引用的调用事实，判决锚点与来源，并在每份预算报告校准判决。没有 lineage 时，每个计量器给出与家族计量器相同的结果。释放后租约的每个计量器都不可用 |
+| `createModelPreparationResources` | 生产准备租约：每个档案供应商一个家族绑定，按调用方访问依据读一次 lineage 引用的调用事实，判决锚点与来源，并在每份预算报告校准判决。没有 lineage 时，每个计量器给出与家族计量器相同的结果。释放后租约的每个计量器都不可用。Request Context 尚未填写 `lineage`（[#638](https://github.com/nemori-ai/omne-harness-lite/issues/638)）。在它填写之前，经 Request Context 的真实计量只给出完整计量或具名不可用 |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口；发出记录在清理后保留固定请求的消息身份序列 |
-| 耐久 Commands 及生产托管执行 | 未实现 |
+| 耐久 Commands 及生产托管执行 | 未实现。内存 Commands 的已知限制：每次确认的快照计入调用容量，长回复即使分批保存，占用也持续增长。耐久 Commands 须规定自己的快照与容量策略（[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2） |
 | Cordis 运行宿主及厂商执行 | 本成员未实现 |
 
 ## 使用

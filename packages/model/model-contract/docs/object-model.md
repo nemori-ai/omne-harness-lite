@@ -148,7 +148,10 @@ classDiagram
 | ModalityRequirement | 模态集合（四种模态的任意非空子集，含本阶段不支持的视频）及历史覆盖依据 | 调用方随运行时上下文提供。Model 核来源和相容性 |
 | AssembledModelInput | 完整系统内容、消息、工具声明、参数及表示来源 | 由组装方产生。Model 不补写遗漏的历史 |
 | FixedModelRequest | 受理后固定的输入、供应商、参数采用与来源，不含预算 | 原调用保管，重试不改用途或路由 |
-| RequestBudget | 完整计量或明确待媒体物化。各维度具有方法与上限，并固定 ModelCountingBasis | 计量能力给请求组装方的报告，不进入固定请求，也不进入物化回执 |
+| RequestBudget | 完整计量或明确待媒体物化。各维度具有方法与上限，并固定 ModelCountingBasis。有 lineage 的租约计量时带 `calibration`（CalibrationReport），其他计量不带 | 计量能力给请求组装方的报告，不进入固定请求，也不进入物化回执 |
+| PreparationLineage | 请求组装方对一次请求的声明：`continues` 是被延续的调用，`sources` 以消息为键给出产生该 assistant 消息的来源调用。声明者为 `continues` 的前置条件作保（[SPEC lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)） | 每个租约在 `acquire` 时给一次。Model 不检测前置条件是否被违反，也不比较消息内容 |
+| MeterCalibration | 租约交给家族计量器的数字：`anchor` 是被延续调用的真实输入合计与它覆盖的消息，`outputs` 是各来源的 O 或具名扣留原因。不含访问依据、租户或调用身份 | 每次计量由租约形成，只交给实现 CalibratedInputMeter 的家族计量器，不交给普通消费者 |
+| CalibrationReport | 一次计量的锚点判决：命中，或不命中及其 AnchorMiss 原因。只含原因，不含其他调用的数字 | RequestBudget 的一部分，随预算交给请求组装方 |
 | MaterializationReceipt | 本次供应商、实际表示和 payloadDigest，可带这次发出产出的回放格式 `replayFormat`，不含预算 | ModelCommands 先持久提交到原 dispatch，再进入发送围栏 |
 | ToolDeclaration | 名称、已组装说明及参数 schema | Model 的请求值，不是 ToolDefinition |
 | ConvertedContent | 原块、其他模态的派生、transcript 和转换采用 | 消息准入者随原块接纳，接纳后不回填 |
@@ -174,7 +177,7 @@ ToolDeclaration 的说明由组装方形成。ModelToolPayloadAdapter 只把它�
 | --- | --- | --- |
 | ModelCall | ModelCallId，原请求、用途、原 ConsumerRef 与终局 | 独立于发起者和观察者存在 |
 | CallState | 一次读取得到的调用状态：phase、revision、consumer、control、custody | 读取值。phase 之外的正交状态见[状态与转移](#状态与转移) |
-| DispatchRecord | DispatchId，某一次真实发出及原费用 | 一个调用可有多次，未知费用不合并成零 |
+| DispatchRecord | DispatchId，某一次真实发出及原费用。`messages` 是这次发出的固定请求的消息身份序列 | 一个调用可有多次，未知费用不合并成零。`messages`、物化回执与账目同寿命，清理释放请求材料后仍保留 |
 | RetryPosition | 稳定策略位置及原失败关联 | 先保存位置再执行策略，未知按原位置核实 |
 | ControlState | 控制意图的 operation、传播状态与上游实际停止状态 | 意图与上游真实停止分别记录。Model 因原工作资格失效而记录的控制也用它表示 |
 | ModelInstance | ModelInstanceId 和 generation，拥有当前执行推进权 | 可替换。后继必须先排除旧执行者 |
@@ -190,6 +193,17 @@ ToolDeclaration 的说明由组装方形成。ModelToolPayloadAdapter 只把它�
 
 ```mermaid
 classDiagram
+  class DispatchRecord {
+    messages 清理后保留
+    receipt.replayFormat 清理后保留
+    account 清理后保留
+  }
+  class ModelCall {
+    blocks 清理时释放
+  }
+  class FixedModelRequest {
+    清理时与 blocks 一起释放
+  }
   ModelCall "1" *-- "0..*" DispatchRecord
   ModelCall --> FixedModelRequest
   ModelCall --> RetryPosition
@@ -321,7 +335,7 @@ sequenceDiagram
 | ModelCommands | 受信的提交与读写能力：受理、claim、发出记录、保存、结算、控制、读取、交接、清理、查询 | 没有任意 transaction(callback)、任意 load 或 save、外部传入的 allowed 布尔。普通消费者不获得 |
 | ModelDriver、ModelHostAuthority、ModelDriverBinding | 受信宿主的推进入口、当前主体与 continuity、关闭责任 | 调用的控制权。队列字符串不能单独重建可信主体，ModelHostAuthority 核原受理关联和当前宿主资格 |
 | ModelProfileSource | 同次求值快照：层序、候选、来源 | 发送秘密。来源无法证明当前范围时返回 unavailable，不使用半份目录 |
-| ModelPreparationResources | 按固定档案一次取得全部供应商的规则、meter 与合法绑定引用 | 发送许可。部分失败整体释放，不能删掉失败供应商形成更窄档案 |
+| ModelPreparationResources | 按固定档案一次取得全部供应商的规则、meter 与合法绑定引用。取得时可带 PreparationLineage。有 lineage 时，租约以取得时的访问依据经 `dispatches` 读取被引用调用的事实，每个调用读一次。释放后，租约的计量器回答不可用 | 发送许可与调用事实的写入。部分失败整体释放，不能删掉失败供应商形成更窄档案 |
 | ModelContentAuthority | 核内容来源与当前访问，给出 human-only、text、tool-ref 或 convertible | 本次转换。converter 只拥有本次转换 |
 | ModelDiagnostics | 独立授权的只读投影，按调用和 dispatch 的耐久事实形成白名单字段 | 不继承 ModelRuntime，不公开持久写端口。成本账目资格或组织管理员身份不授予诊断访问 |
 

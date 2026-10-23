@@ -530,6 +530,38 @@ sequenceDiagram
 
 一段 append 文本的正常顺序是 block-open、block-delta("你")、block-delta("好")、block-seal("你好")。每步归约后的快照依次为 ""、"你"、"你好"、完整文本块。replace 块每次交新的完整在途值，不能走 append 路径。解码、runtime 映射共享步骤并固定序号、合法性归约、持久 preserve、观察发布按此顺序进行；供应商 finish_reason 后的合法用量尾帧仍属于原 dispatch。
 
+## 校准计量的一次租约
+
+请求组装方经准备租约做校准计量。租约在取得时以调用方的访问依据读取 lineage 引用的调用，每个调用一次。计量时租约只判决，不再读取。租户边界止于租约：访问依据只用于 `dispatches`，家族计量器只收到数字。判决顺序与失败条件归[实现规格](../SPEC.md#准备资源与校准租约)，原因的定义归[契约](../../model-contract/SPEC.md#可选校准及不可解释的历史)。
+
+```mermaid
+sequenceDiagram
+  participant RA as 请求组装方
+  participant L as 准备租约（model）
+  participant C as ModelCommands
+  participant R as rules.plan（家族绑定）
+  participant M as 家族计量器
+  RA->>L: acquire（访问依据、档案、lineage）
+  loop 每个被引用的调用一次
+    L->>C: dispatches（调用方的访问依据）
+    C-->>L: 发出记录
+    Note over L,C: 无权与不存在都读作无此事实（absent）。存储故障另读作不可用（unavailable）
+  end
+  L-->>RA: 租约：每个供应商的 rules 与 meter
+  Note over RA,C: 租户边界止于租约
+  RA->>R: plan
+  R-->>RA: 表示：tokenInput 与 units 侧表
+  RA->>L: meter.measure（表示）
+  L->>L: 锚点与来源判决，同步，不读取
+  L->>M: measureCalibrated（输入，MeterCalibration）
+  Note over M: 只收数字：锚点合计、覆盖的消息、各来源的 O 或扣留原因
+  M->>M: calibratedAmount
+  M-->>L: RequestBudget，锚点判决为 hit 或 continuation-shrank
+  L-->>RA: RequestBudget，calibration 写入锚点判决
+  RA->>L: release
+  L-->>RA: 绑定各释放一次，事实视图清空
+```
+
 ## 家族适配的装配与一次发送
 
 此图细化已采用 pi 技术栈的提供者路径，包职责见[组架构](../../docs/architecture.md#厂商适配的内聚范围)。家族名称不代替精确型号或实际服务商绑定。普通调用者与 adapter 作者消费 model-contract；选择实际工厂是装配者的责任，契约导入不触发装配。

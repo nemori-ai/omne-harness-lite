@@ -47,11 +47,11 @@
 | `openai-input-meter.spec.ts` | o200k 独立向量迁入 `meter.spec.ts`。不迁入：旧绑定、完整请求计量与准入余量，它们归完整请求计量（4.3） |
 | `openai-usage-scope.spec.ts` | Pro 的输入范围未知迁入 `rules.spec.ts`。不迁入：观测锚点与读取器修订，它们属于校准 |
 | `openai-gpt6-text-meter.spec.ts`、`openai-visible-history-candidate.spec.ts`、`openai-luna-completion.spec.ts`、`openai-remaining-meters-astra.spec.ts`、`openai-remaining-meters-pro.spec.ts` | 不迁入。它们检查旧完整、边际与回放计量的固定样本与旧绑定，属于不迁入的历史计量与可选校准 |
-| `openai-output-history.spec.ts`、`openai-family-original-output.spec.ts`、`openai-family-current.spec.ts`、`openai-priority-family-integration.spec.ts` | 不迁入。它们依赖调用方携带的原响应与完整输出组，迁移清单把这些机制标为弃 |
-| `acceptance-calibration-openai.spec.ts`、`openai-sol-calibration.spec.ts`、`openai-unbound-calibration.spec.ts`、`openai-calibration.test.mjs` | 不迁入。可选校准归后续校准线 |
+| `openai-output-history.spec.ts`、`openai-family-original-output.spec.ts`、`openai-family-current.spec.ts`、`openai-priority-family-integration.spec.ts` | 不迁入。它们依赖调用方携带的原响应。完整输出组的方法已按现行契约重写，数字来自发出记录，测试在 `calibration.spec.ts` |
+| `acceptance-calibration-openai.spec.ts`、`openai-sol-calibration.spec.ts`、`openai-unbound-calibration.spec.ts`、`openai-calibration.test.mjs` | 不迁入。可选校准按现行契约重写，经准备租约取得数字，测试在 `calibration.spec.ts` |
 
 ### 未覆盖
 
-- 真实路由的持续验证与凭据解析归 #466。示例的实跑只在手动设置开关时有证据。
+- 真实路由的发送只经 model-host-local 的手动录制器验证。持续验证只回放录下的[pi-ai-transport 的回放件](../../pi-ai-transport/tests/fixtures/README.md)，不发出真实请求。示例的实跑只在手动设置开关时有证据。
 - 回放夹具核对引擎给出的账目事实；夹具中没有余量为负的 usage，`usage-inconsistent` 诊断只经 `rules.spec.ts` 直接调用验证。
 - 带图片事实的表示由测试构造。引擎目前给出的表示没有媒体事实。

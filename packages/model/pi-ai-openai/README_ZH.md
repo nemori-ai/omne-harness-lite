@@ -19,13 +19,13 @@
 | 取得与绑定 | 一次取得给出精确供应商的一个绑定。未知采用、路由不符、tokenizer 不符与取消都整体失败 | `createOpenAiFamily` 与 `composeFamilies` | `family.spec.ts` |
 | 参数与请求体 | 输出上限与各型号公布的推理强度，原样写出：`low`、`medium`、`high` 与 `max`。按项目约定，记录不关闭推理，所以 `none` 与其他参数在发送前返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
 | 规则 | 加密推理的封存与回放、用量算术与 Pro 的未知范围、输入余量为负时的 `usage-inconsistent` 诊断、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |
-| 计量 | 可见投影的 o200k 代理估算与配置余量；按像素事实计算的三条图片补丁规则；表示带 `units` 侧表。经准备租约：带加密推理的单元按来源调用的输出 token 数记一次（封存件方法 `openai-complete-output-group-workload-estimated/1`），被延续的调用以真实输入合计为锚点、余量只按新增部分（`+continuation-anchored/1`）；来源缺失或被扣留是具名不可用，不按零计。没有 lineage 时行为与此前相同：加密推理没有估算 | `binding.meter`（`CalibratedInputMeter`） | `meter.spec.ts`、`calibration.spec.ts` |
+| 计量 | 可见投影的 o200k 代理估算与配置余量；按像素事实计算的三条图片补丁规则；表示带 `units` 侧表。经准备租约：带加密推理的单元按来源调用的输出 token 数记一次（封存件方法 `openai-complete-output-group-workload-estimated/1`），被延续的调用以真实输入合计为锚点、余量只按新增部分（`+continuation-anchored/1`）；来源缺失或被扣留是具名不可用，不按零计。没有 lineage 时行为与没有校准时相同：加密推理没有估算 | `binding.meter`（`CalibratedInputMeter`） | `meter.spec.ts`、`calibration.spec.ts` |
 | 官方档案 | 每条 `current` 记录一份档案。每份档案的供应商都能取得绑定并规划请求 | `officialOpenAiProfiles` | `profiles.spec.ts` |
 | 回放夹具 | 封存测试的内联 SSE 用例，转换为契约事实，含每个已收场响应的账目，有意不同逐条列出 | `tests/fixtures` | `fixtures.spec.ts` |
 | 跨家族回放（OpenAI 一侧） | 另一家的 assistant 消息不带状态与思考，并出现在 encode 的 `replay-omitted` 诊断中；OpenAI 自己的消息带回状态 | `binding.encode` | `cross-family-replay.spec.ts` |
 | 经共享传输的联调 | 本家族与 Anthropic 家族经同一 `composeFamilies` 交给 `createPiTransport`。本地 HTTPS 服务按请求体的型号回放每条记录的夹具：发出的请求体与夹具相同，事实序列与夹具相同。两家各取一条记录运行符合性套件 transport 组，六条义务通过 | `composeFamilies`、`createPiTransport` | `pi-ai-anthropic` 的 `two-families.spec.ts`（慢层） |
 | 示例 | [examples/openai-request.ts](examples/openai-request.ts) 经代理请求 `openai/gpt-5.6-luna` 一次。历史中有只带工具调用的 assistant 消息、没有内容的工具结果与一张图片 | 根入口 | 类型检查。`examples.spec.ts`（慢层）只在 `OMNE_LIVE_TESTS=1` 时运行示例，否则跳过。实跑的证据只来自手动运行 |
-| 未交付 | 凭据解析与真实路由的持续验证（#466） | 无 | 这些路径没有持续验证的证据 |
+| 经凭据的真实路由 | 凭据解析与发送路径在 [model-host-local](../model-host-local/README_ZH.md)。只有它的手动录制器发出过真实请求 | model-host-local 的 `assembleLocalModel` | model-host-local 的慢层门禁回放 pi-ai-transport 的四份回放件。持续运行的测试不发出真实请求 |
 
 ## 使用
 

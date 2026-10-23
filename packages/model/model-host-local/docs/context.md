@@ -48,7 +48,7 @@ const opened = openLocalCustodian({ path: '/var/lib/omne/credentials.json' })
 if (opened.kind !== 'open') throw new Error(`vault unavailable: ${opened.cause}`)
 const local = assembleLocalModel({
   credentials: opened.custodian,
-  commands, // ModelCommands：本卡用内存版，耐久版由后续提供者给出
+  commands, // ModelCommands：现有实现只有 @omne-harness/model/testing 的内存版，耐久版由后续提供者给出
   coordinator, // SendCoordinator：与 commands 共用同一资格权威
   families: composeFamilies([openAiFamily, anthropicFamily]),
   network: { maxConnections: 4, idleConnectionTimeoutMs: 30_000, proxy },
