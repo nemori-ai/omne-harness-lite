@@ -27,7 +27,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { openAiTokenizerResources, type OpenAiRecord } from '@omne-harness/pi-ai-openai'
 import { componentAdoption } from '../src/adoptions.ts'
-import { ANCHORED_METHOD, OUTPUT_GROUP_METHOD, createOpenAiMeter } from '../src/meter.ts'
+import { ANCHORED_METHOD, createOpenAiMeter } from '../src/meter.ts'
 import {
   assembledOf,
   bindingOf,
@@ -581,7 +581,10 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
       kind: 'estimate',
       amount: String(estimated),
       margin: String(ceil10(estimated)),
-      method: { ...anchored(SOL), name: `${SOL.name}#meter+${OUTPUT_GROUP_METHOD}` },
+      method: {
+        ...anchored(SOL),
+        name: `${SOL.name}#meter+openai-complete-output-group-workload-estimated/1`,
+      },
       marginSource: CONFIG.margin.source,
     })
     expect(budget.calibration).toEqual({ anchor: { kind: 'miss', reason: 'not-declared' } })
@@ -609,7 +612,7 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
       margin: String(ceil10(estimated)),
       method: {
         ...anchored(SOL),
-        name: `${SOL.name}#meter+${OUTPUT_GROUP_METHOD}+${ANCHORED_METHOD}`,
+        name: `${SOL.name}#meter+openai-complete-output-group-workload-estimated/1+${ANCHORED_METHOD}`,
       },
       marginSource: CONFIG.margin.source,
     })

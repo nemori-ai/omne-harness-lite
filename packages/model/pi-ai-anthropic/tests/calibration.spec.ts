@@ -25,7 +25,7 @@ import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { anthropicTokenizerResources, type AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
 import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
 import { componentAdoption } from '../src/adoptions.ts'
-import { ANCHORED_METHOD, OUTPUT_GROUP_METHOD } from '../src/meter.ts'
+import { ANCHORED_METHOD } from '../src/meter.ts'
 import {
   assembledOf,
   bindingOf,
@@ -345,7 +345,7 @@ describe('a carried signed group as the output count of its source (M5)', () => 
       margin: String(ceil10(estimated)),
       method: {
         ...componentAdoption(SONNET, 'meter'),
-        name: `${SONNET.name}#meter+${OUTPUT_GROUP_METHOD}`,
+        name: `${SONNET.name}#meter+anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`,
       },
       marginSource: CONFIG.margin.source,
     })

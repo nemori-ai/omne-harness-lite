@@ -296,6 +296,37 @@ describe('measure', () => {
     })
   })
 
+  it('adds the rule of every image of a message, when one message holds two', async () => {
+    const parts = {
+      messages: [
+        message('u1', 'user', [imageBlock('i1'), textBlock('b1', 'and'), imageBlock('i2')]),
+      ],
+    }
+    const second = { ...fact, reference: { ...reference, key: 'image-2' } }
+    const { measured, tokenInput } = await planAndMeasure(SONNET, parts, value => ({
+      ...value,
+      media: [fact, second],
+    }))
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok.checks[0]?.measurement).toMatchObject({
+      kind: 'estimate',
+      amount: String(tokensOf(tokenInput) + 2 * 2691),
+    })
+  })
+
+  it('writes no instruction unit for a request without an instruction', async () => {
+    const { measured, tokenInput } = await planAndMeasure(SONNET, {
+      messages: [message('u1', 'user', [textBlock('b1', 'hello')])],
+    })
+    expect(writeJsonText(tokenInput)).toBe(
+      '{"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}],"tools":[]}',
+    )
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok.checks[0]?.measurement).toMatchObject({
+      amount: String(tokensOf(tokenInput)),
+    })
+  })
+
   it('an image the rule does not cover is unsupported, never a guess', async () => {
     const parts = { messages: [message('u1', 'user', [imageBlock('i1')])] }
     for (const changed of [
