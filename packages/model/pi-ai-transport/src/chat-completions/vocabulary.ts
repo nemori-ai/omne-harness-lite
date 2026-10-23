@@ -5,9 +5,10 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
+  CalibratedInputMeter,
   FixedModelRequest,
+  MeterRepresentation,
   ModelFault,
-  ModelInputMeter,
   Parameter,
   ProfileReplay,
   ProviderDiagnostic,
@@ -274,9 +275,21 @@ export type ProjectedRequest = Readonly<{
   applied: readonly Parameter[]
 }>
 
+/** The message side table of a representation: one entry per message unit of `tokenInput`. */
+export type MeterUnits = NonNullable<MeterRepresentation['units']>
+
 export type FamilyMeter = Readonly<{
-  /** `binding.counting` is `instance.basis`: one source. */
-  instance: ModelInputMeter
-  /** The family-fixed `tokenInput` and its representation adoption. */
-  represent(view: ProjectedRequest): Readonly<{ adoption: Adoption; tokenInput: JsonValue }>
+  /**
+   * `binding.counting` is `instance.basis`: one source. The instance takes a calibration from a
+   * preparation lease; `measure` is the same algorithm with an empty one.
+   */
+  instance: CalibratedInputMeter
+  /**
+   * The family-fixed `tokenInput`, its representation adoption, and the message of each unit of
+   * the `messages` member of `tokenInput`, in unit order (`null` for the instruction). The units
+   * come from `ProjectedTurn.message`; they do not change the counted bytes.
+   */
+  represent(
+    view: ProjectedRequest,
+  ): Readonly<{ adoption: Adoption; tokenInput: JsonValue; units: MeterUnits }>
 }>

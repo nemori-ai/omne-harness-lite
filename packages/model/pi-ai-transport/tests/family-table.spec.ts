@@ -82,7 +82,11 @@ function bindingFor(supplier: Supplier, adoption: Adoption, seen: Probe): PiFami
     adoption,
     counting,
     rules: { plan: () => ({ failure: refused }) },
-    meter: { basis: counting, measure: () => ({ failure: refused }) },
+    meter: {
+      basis: counting,
+      measure: () => ({ failure: refused }),
+      measureCalibrated: () => ({ failure: refused }),
+    },
     tools: { convertToModelPayload: () => ({ failure: refused }) },
     encode: () => ({ failure: refused }),
     createDecoder: createTestDecoder,

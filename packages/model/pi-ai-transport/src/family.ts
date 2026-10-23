@@ -8,7 +8,7 @@ import type {
   Supplier,
   FixedModelRequest,
   ModelRequestRules,
-  ModelInputMeter,
+  CalibratedInputMeter,
   ModelCountingBasis,
   ModelToolPayloadAdapter,
   TransportFact,
@@ -39,7 +39,7 @@ export type PiFamilyBinding = Readonly<{
   adoption: Adoption
   counting: ModelCountingBasis
   rules: ModelRequestRules
-  meter: ModelInputMeter
+  meter: CalibratedInputMeter
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(
     input: Readonly<{

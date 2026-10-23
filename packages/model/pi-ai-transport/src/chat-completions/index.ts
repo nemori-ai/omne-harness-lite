@@ -1,7 +1,13 @@
-// The subpath entry `./chat-completions`: the gateway engine for family packages. The only runtime
-// value is `bindChatCompletions`; the record vocabulary, the hooks and the meter seam are types.
-// Planning, projection, the body writer and the decoder stay inside the package.
+// The subpath entry `./chat-completions`: the gateway engine for family packages. The runtime
+// values are `bindChatCompletions` and the calibrated arithmetic `calibratedAmount` that both
+// family meters share; the record vocabulary, the hooks and the meter seam are types. Planning,
+// projection, the body writer and the decoder stay inside the package.
 export { bindChatCompletions, type ChatCompletionsBindingInput } from './bind.ts'
+export {
+  calibratedAmount,
+  type CalibratedAmount,
+  type CalibrationArithmeticInput,
+} from './calibration.ts'
 export type {
   ChatCompletionsLimits,
   ChatCompletionsRecord,
@@ -13,6 +19,7 @@ export type {
   GatewayField,
   GatewayParam,
   GatewayUsage,
+  MeterUnits,
   ParameterAccept,
   ParameterKind,
   ParameterRule,

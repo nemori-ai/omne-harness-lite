@@ -215,7 +215,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
 import type {
-  Adoption, Supplier, FixedModelRequest, ModelRequestRules, ModelInputMeter,
+  Adoption, Supplier, FixedModelRequest, ModelRequestRules, CalibratedInputMeter,
   ModelCountingBasis, ModelToolPayloadAdapter, TransportFact, TransportFailure, ModelFault,
   MeterRepresentation, MediaMeasurementFact, ReplayDeclaration, TransportDispatch,
   ProviderDiagnostic,
@@ -232,7 +232,7 @@ export type PiMaterializedMedia = Readonly<{
 }>
 export type PiFamilyBinding = Readonly<{
   supplier: Supplier; adoption: Adoption; counting: ModelCountingBasis
-  rules: ModelRequestRules; meter: ModelInputMeter
+  rules: ModelRequestRules; meter: CalibratedInputMeter
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(input: Readonly<{
     request: FixedModelRequest; media: readonly PiMaterializedMedia[]
