@@ -1,8 +1,9 @@
 // The production `ModelPreparationResources`. A lease acquires one family binding per profile
 // supplier, reads the facts of the calls the lineage names once with the access of the caller,
-// and hands out meters. Without a lineage the meter is the family meter itself. With one, the
-// meter judges the anchor and the sources synchronously, calls the family's `measureCalibrated`,
-// and writes the verdict into the budget. The view of the facts dies with the lease.
+// and hands out meters. Without a lineage the meter answers what the family meter answers. With
+// one, the meter judges the anchor and the sources synchronously, calls the family's
+// `measureCalibrated`, and writes the verdict into the budget. After release every meter of the
+// lease is unavailable. The view of the facts dies with the lease.
 import type {
   Access,
   CalibratedInputMeter,
@@ -102,6 +103,27 @@ async function releaseAll(acquired: readonly PreparationBinding[]): Promise<Rele
   }
 }
 
+type Measured = ReturnType<ModelInputMeter['measure']>
+
+/** What every meter of a released lease answers, with or without a lineage. */
+function releasedAnswer(): Measured {
+  return {
+    failure: { kind: 'unavailable', dependency: LEASE, diagnostic: 'preparation-lease-released' },
+  }
+}
+
+/**
+ * The meter of one binding without a lineage: until release it answers exactly what the family
+ * meter answers; after release it answers `preparation-lease-released`.
+ */
+function plainMeter(binding: PreparationBinding, isReleased: () => boolean): ModelInputMeter {
+  const meter: ModelInputMeter = {
+    basis: binding.meter.basis,
+    measure: input => (isReleased() ? releasedAnswer() : binding.meter.measure(input)),
+  }
+  return Object.freeze(meter)
+}
+
 /** The meter of one binding under a lineage: synchronous, reads nothing, judges, delegates. */
 function lineageMeter(
   binding: PreparationBinding,
@@ -112,14 +134,7 @@ function lineageMeter(
   const meter: ModelInputMeter = {
     basis: binding.meter.basis,
     measure(input) {
-      if (isReleased())
-        return {
-          failure: {
-            kind: 'unavailable',
-            dependency: LEASE,
-            diagnostic: 'preparation-lease-released',
-          },
-        }
+      if (isReleased()) return releasedAnswer()
       const supplier = binding.supplier.adoption
       const anchor = judgeAnchor({
         continues: lineage.continues,
@@ -132,7 +147,6 @@ function lineageMeter(
         sources: lineage.sources,
         facts,
         supplier,
-        representation: input.representation.adoption,
         messages: input.assembled.messages,
       })
       const measured = binding.meter.measureCalibrated(input, {
@@ -163,7 +177,10 @@ function leaseOf(
     Object.freeze({
       supplier: binding.supplier,
       rules: binding.rules,
-      meter: lineage === null ? binding.meter : lineageMeter(binding, lineage, facts, isReleased),
+      meter:
+        lineage === null
+          ? plainMeter(binding, isReleased)
+          : lineageMeter(binding, lineage, facts, isReleased),
     })
   const lease: ModelPreparationLease = {
     bindings: [bindingOf(first), ...rest.map(bindingOf)],
@@ -178,8 +195,8 @@ function leaseOf(
 /**
  * Lease life: `acquire` creates the bindings (one per supplier, all or nothing) and the facts view
  * (every named call read once, here); `measure` reads nothing; `release` is idempotent and a later
- * `measure` of a lineage meter is `unavailable` (`preparation-lease-released`). Nothing is kept
- * across leases. Throws `RangeError` for options no lease could use.
+ * `measure` of any meter of the lease is `unavailable` (`preparation-lease-released`). Nothing is
+ * kept across leases. Throws `RangeError` for options no lease could use.
  */
 export function createModelPreparationResources<P>(
   options: ModelPreparationOptions<P>,

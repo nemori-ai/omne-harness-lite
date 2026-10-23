@@ -25,6 +25,7 @@
 - [family-table.spec.ts](family-table.spec.ts)：家族表：规范 JSON 摘要、记录纯度、重复与路由冲突、冻结副本、取得的失败映射、绑定不符与取消时的释放、回放格式查询（快层）
 - [chat-completions-plan.spec.ts](chat-completions-plan.spec.ts)：网关引擎的 `rules.plan`：回放声明比对、参数规划各分支、`check` 与表示（快层）
 - [chat-completions-calibration.spec.ts](chat-completions-calibration.spec.ts)：两家共用的校准算术：完整计量与 O 替换、具名不可用、锚点的包络差与只按估算部分的余量、`continuation-shrank` 与拒绝（快层）
+- [chat-completions-measurement.spec.ts](chat-completions-measurement.spec.ts)：两家共用的计量规则：方法名的后缀拼接、`inputDigest` 的校准条件、单元追加 token 的求和与空校准（快层）
 - [chat-completions-encode.spec.ts](chat-completions-encode.spec.ts)：网关引擎的 `encode` 与绑定：请求体、角色与内容、工具调用与结果、缓存放置、回放、释放与记录缺陷（快层）
 - [chat-completions-decimal.spec.ts](chat-completions-decimal.spec.ts)：费用词法：普通词法照原样，指数形式移动小数点，负数、非 JSON 数与超长结果为 `null`（快层）
 - [chat-completions-decode.spec.ts](chat-completions-decode.spec.ts)：网关引擎的流解释：流解释表逐行、限额、chunk 形状与两段仿照真实网关流的合成流，每次回放恰好一个 `ended`（快层）

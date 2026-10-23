@@ -38,7 +38,7 @@ function parseSources(
 }
 
 /**
- * `null` when the caller declared nothing: the lease then hands out the family meters as they are.
+ * `null` when the caller declared nothing: the meters of the lease then answer as the family meters do.
  * More distinct calls than `maxCitedCalls` is `invalid` (`lineage`, `too-many-calls`); a message
  * with two sources is `invalid` (`lineage.sources`, `duplicate-message`).
  */

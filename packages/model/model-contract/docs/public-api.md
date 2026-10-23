@@ -150,7 +150,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 
 `ProfileSupplier` 没有凭据字段。求值的 credential 只说明当前可用性，不返回秘密或授予发送资格。ModelProfileMaintenance 的身份参数不是跨层维护许可。精确键和摘要规则由实际提供者采用并验证，不把任意字符串当可信证明。
 
-`MeterRepresentation.units` 是与 `tokenInput` 消息单元逐项对齐的侧表，由家族适配器的 `rules.plan` 写出，手写的表示没有它。`CalibratedInputMeter` 是家族计量器给准备租约的校准入口：`measureCalibrated` 接收普通计量输入和 `MeterCalibration`（锚点的真实输入合计与覆盖的消息，各来源的输出 token 数或 `OutputWithheld` 原因）；普通消费者只调用 `measure`。`RequestBudget.calibration` 是 `CalibrationReport`：有 lineage 的租约计量时出现，只含锚点命中或 `AnchorMiss` 原因。行为见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。
+`MeterRepresentation.units` 是与 `tokenInput` 消息单元逐项对齐的侧表，由家族适配器的 `rules.plan` 写出，手写的表示没有它。`CalibratedInputMeter` 是家族计量器给准备租约的校准入口：`measureCalibrated` 接收普通计量输入和 `MeterCalibration`（锚点的真实输入合计与覆盖的消息，各来源的输出 token 数或 `OutputWithheld` 原因）。普通消费者只调用 `measure`。`RequestBudget.calibration` 是 `CalibrationReport`：有 lineage 的租约计量时出现，只含锚点命中或 `AnchorMiss` 原因。每个原因的条件见 SPEC 的[锚点不命中的原因](../SPEC.md#锚点不命中的原因)与[来源扣留的原因](../SPEC.md#来源扣留的原因)。行为见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。
 
 `ProfileSupplier.replay` 是该供应商的[回放声明](../SPEC.md#推理回放)，三项都可省略，省略的项取默认值；`ReplayDeclaration` 是展开后的完整声明。`AssembledModelInput.replay` 与 `FixedModelRequest.replay` 只有一个取值 `'off'`：本次请求关闭回放，对每次发出都有效。`judgeFixedModelRequest` 接受这个取值，拒绝其他值。`FixedModelRequest.declarations` 是每个供应商展开后的 `ReplayDeclaration`，项数与次序同 `suppliers`。准备方用 `judgeReplayDeclaration` 展开档案供应商的声明并写入这一项。编码与计量使用请求中的声明。`ReplayProjectionInput`、`ReplayProjection`、`ReplayTreatment` 与 `ReplayDiagnostic` 是回放投影的输入与输出，函数见[推理回放的声明与投影](#推理回放的声明与投影)。
 
@@ -213,7 +213,7 @@ ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime�
 
 普通消费者继续使用 ModelProfiles、ModelRequestPreparation 和 ModelMessageConversion。写入档案的权威提供者直接实现 ModelProfileMaintenance，不增加只转发 change 的工厂层。
 
-来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。`acquire` 的输入可以带 `PreparationLineage`：`continues` 是被延续的调用，`sources` 以消息为键给出来源调用。没有它时租约交出家族计量器本身；有它时租约按访问依据读取被引用调用的发出记录，`measure` 保持同步并在 `RequestBudget.calibration` 报告判决，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
+来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。`acquire` 的输入可以带 `PreparationLineage`：`continues` 是被延续的调用，`sources` 以消息为键给出来源调用。请求组装方为 `continues` 作保的前置条件、超限拒绝与空 lineage 见 [lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果。有 lineage 时，租约按访问依据读取被引用调用的发出记录，`measure` 保持同步并在 `RequestBudget.calibration` 报告判决，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。租约释放后，它交出的每个计量器都返回 `unavailable`（`preparation-lease-released`）。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
 
 ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒体字节，不联网。ModelContentAuthority 同时核原来源、实际块和当前权限，origin 字段本身不授予转换或绕过资格。
 

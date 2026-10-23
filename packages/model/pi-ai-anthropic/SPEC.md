@@ -75,7 +75,7 @@
 <a id="计量"></a>
 ### 计量
 
-每条记录的计量器由 `createAnthropicMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用，本包只给出哪个单元带推理状态、怎样计数、图片规则与方法名。
+每条记录的计量器由 `createAnthropicMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用。方法名的拼接、输入摘要、单元追加 token 的求和与空校准由 pi-ai-transport 的[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)给出。本包只给出哪个单元带推理状态、怎样计数、图片规则与输出组方法名。
 
 1. 表示采用：`<记录名>#representation`。`represent` 从引擎的投影写出 `anthropic-visible-json/1` 的 token 输入：`messages` 按线顺序，每条有 `role`、部件数组 `content`，以及需要时的 `tool_calls`、`tool_call_id` 与回放成员；`tools` 为函数工具。文本部件只留类型与文本，图片写成 `{ "type": "image_url", "image_url": { "url": "[image]" } }`，签名组只写数量。缓存标记不在 token 输入中。它同时写出 `units` 侧表：`messages` 的每个单元来自哪条消息，前置指令为 `null`，由同一列表构造，所以两者对齐。
 2. `measureCalibrated` 按下列顺序，第一个失败即返回：
@@ -83,15 +83,15 @@
    2. 表示采用不是本记录的：`unsupported`，`field` 为 `representation`；
    3. 表示为 `pending-media`：`unsupported`，`field` 为 `representation.kind`；
    4. token 输入不是这个 schema：`invalid`，`field` 为 `tokenInput`；
-   5. 带签名组的单元（带 `reasoning_details` 成员的单元；家族编解码器只为能回放的整组写出它，条件即封存件 `classifyAnthropicReasoning` 的整组条件：格式 `anthropic-claude-v1`，签名的 `reasoning.text` 或 `data` 非空且不是 `[REDACTED]` 的 `reasoning.encrypted`）需要来源的 O 而校准中没有它的条目：`unavailable`，诊断为 `signed-reasoning-not-countable`；条目为扣留：`unavailable`，诊断为扣留原因（`source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`）。签名组不分词，也不被去掉，不按零计。锚点命中时只有新增部分的签名组需要来源；
+   5. 带签名组的单元（带 `reasoning_details` 成员的单元；家族编解码器只为能回放的整组写出它，条件即封存件 `classifyAnthropicReasoning` 的整组条件：格式 `anthropic-claude-v1`，签名的 `reasoning.text` 或 `data` 非空且不是 `[REDACTED]` 的 `reasoning.encrypted`）需要来源的 O 而校准中没有它的条目：`unavailable`，诊断为 `signed-reasoning-not-countable`；条目为扣留：`unavailable`，诊断为扣留原因（`source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`，条件见 model-contract 的[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)）。签名组不分词，也不被去掉，不按零计。锚点命中时只有新增部分的签名组需要来源；
    6. token 输入中的图片数与 `media` 中图片事实数不同：`unavailable`，诊断为 `image-measurement-missing`；
    7. 某个图片事实的媒体类型不是 png、jpeg、webp 或 gif，或尺寸不是正的安全整数：`unsupported`，`field` 为 `image <序号>`；
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。
    侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
 3. 成功时，`input-tokens` 检查为 `estimate`，`marginSource` 为配置给出的采用，上限是 `context.input`，没有时为窗口减输出。特殊 token 字样按普通文本计：
-   - 没有锚点：数额是 token 输入（带签名组的单元去掉）的排序键 JSON 经 NFKC 规范化后用 `claude.json` 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；有单元被 O 替换时为 `<记录名>#meter+anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`，沿用封存件的方法名。
-   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分是新增非签名单元按完整包络差的计数（包络去掉工具与前置指令，同样经 NFKC）加它们的图片规则数加新增签名单元的 O；余量只按新增部分算。`method` 加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
-   - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 纳入锚点与各 O：换锚点就是换输入；空校准的摘要与没有校准时相同。
+   - 没有锚点：数额是 token 输入（带签名组的单元去掉）的排序键 JSON 经 NFKC 规范化后用 `claude.json` 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；本包的输出组方法名是 `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`，沿用封存件的方法名。后缀按[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)拼接：有单元被 O 替换时为 `<记录名>#meter+anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`。
+   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分按共用[校准算术](../pi-ai-transport/SPEC.md#校准算术)的两个计数项计算，计数同样经 NFKC，加新增的可见单元的图片规则数，加新增签名单元的 O。余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
+   - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 按共用计量规则计算：它纳入锚点与各 O，换锚点就是换输入；空校准的摘要与没有校准时相同。
    档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界；首份实测差值归 #466 的 C9。
 4. `claude.json` 是 Anthropic 发布的旧 Claude BPE。Anthropic 称它对 Claude 3 以后的型号只是很粗的近似，它不是这些型号的 tokenizer。所以结果始终是估算，不声称 tokenizer 身份。
 5. 图片规则 `claude-patch-28/1`：两边都不超过 2576 像素且 `ceil(w/28) × ceil(h/28)` 不超过 4784 时，数额就是这个积。否则保持宽高比，二分查找满足两项限制的最大长边，短边取四舍五入且至少为 1，数额为缩放后尺寸的块数。尺寸不是正的安全整数时规则不适用。

@@ -4,7 +4,6 @@
 // image, and reports an estimate with the configured margin. Encrypted reasoning is never
 // tokenized and never dropped: a unit that carries it is counted as the output tokens of the call
 // that produced it when a preparation lease hands that count over, else the request has no estimate.
-import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
@@ -23,6 +22,10 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import {
   calibratedAmount,
+  calibratedDigest,
+  calibratedMethod,
+  NO_CALIBRATION,
+  unitExtras,
   type CalibratedAmount,
   type FamilyMeter,
   type MeterUnits,
@@ -47,14 +50,11 @@ type MeasureInput = Parameters<ModelInputMeter['measure']>[0]
 
 /**
  * The sealed method of the output-count substitution (input-meters/openai-family-policy.ts,
- * `OPENAI_FAMILY_REPLAY`) and the suffix of an anchored measurement. Both are method name
- * suffixes of the meter adoption.
+ * `OPENAI_FAMILY_REPLAY`): the method name suffix of a measurement that counted a unit as the
+ * output of its source. The anchored suffix is the shared `ANCHORED_METHOD`.
  */
 export const OUTPUT_GROUP_METHOD = 'openai-complete-output-group-workload-estimated/1'
-export const ANCHORED_METHOD = 'continuation-anchored/1'
-
-/** The calibration of a plain `measure`: no anchor, no outputs. */
-const NO_CALIBRATION: MeterCalibration = Object.freeze({ anchor: null, outputs: [] })
+export { ANCHORED_METHOD } from '@omne-harness/pi-ai-transport/chat-completions'
 
 // --- the token input -------------------------------------------------------------------------
 
@@ -290,22 +290,6 @@ function upstreamOf(entries: ModelLimit['upstream'], supplier: Adoption): Upstre
   return entries.find(entry => sameAdoption(entry.supplier, supplier))?.limit ?? { kind: 'unknown' }
 }
 
-/**
- * The method of a measurement: the meter adoption of the record, with the sealed output-group
- * method appended when a unit was counted as the output of its source, and the anchored suffix
- * appended when the anchor applied. Revision and digest stay the record's.
- */
-function methodOf(record: OpenAiRecord, amount: CalibratedAmount): Adoption {
-  const base = componentAdoption(record, 'meter')
-  const suffixes = [
-    ...(amount.substituted ? [OUTPUT_GROUP_METHOD] : []),
-    ...(amount.anchor?.kind === 'hit' ? [ANCHORED_METHOD] : []),
-  ]
-  return suffixes.length === 0
-    ? base
-    : Object.freeze({ ...base, name: `${base.name}+${suffixes.join('+')}` })
-}
-
 /** The input bound: the separate input limit, else the window less the output limit. */
 function inputCheck(
   input: MeasureInput,
@@ -329,7 +313,11 @@ function inputCheck(
       kind: 'estimate',
       amount: String(amount.amount),
       margin: String(amount.margin),
-      method: methodOf(record, amount),
+      method: calibratedMethod({
+        meter: componentAdoption(record, 'meter'),
+        outputGroup: OUTPUT_GROUP_METHOD,
+        amount,
+      }),
       marginSource: margin.source,
     },
     limit: String(limit),
@@ -376,29 +364,6 @@ function exactChecks(input: MeasureInput, record: OpenAiRecord): readonly Budget
   return checks
 }
 
-/**
- * The digest of what the estimate depends on. A calibration enters it only when it carries an
- * anchor or an output, so a plain measurement keeps the digest it had without calibration; a
- * different anchor or output count is a different input.
- */
-function digestOf(input: MeasureInput, calibration: MeterCalibration): string {
-  const fixed = {
-    profile: input.profile,
-    supplier: input.supplier,
-    context: input.context,
-    limits: input.limits,
-    parameters: input.parameters,
-    representation: {
-      adoption: input.representation.adoption,
-      tokenInput: writeJsonText(input.representation.tokenInput),
-      media: input.representation.media,
-    },
-    calibration:
-      calibration.anchor === null && calibration.outputs.length === 0 ? undefined : calibration,
-  }
-  return createHash('sha256').update(JSON.stringify(fixed)).digest('hex')
-}
-
 function countWith(
   tokenizer: ModelTextTokenizer,
   tokenInput: JsonValue,
@@ -435,11 +400,7 @@ function measureCalibrated(
     reasoning: units.map(unit => unit.reasoning),
     calibration,
     count: body => countWith(tokenizer, body),
-    extra: indices => {
-      const extras = imageTokens(record, units, representation.media)
-      if (!('ok' in extras)) return extras
-      return { ok: indices.reduce((sum, index) => sum + (extras.ok[index] ?? 0n), 0n) }
-    },
+    extra: unitExtras(() => imageTokens(record, units, representation.media)),
     uncountable: 'encrypted-reasoning-not-countable',
     dependency: OPENAI_OWNER,
     marginPercent: margin.percent,
@@ -449,7 +410,7 @@ function measureCalibrated(
   return {
     ok: {
       kind: 'complete',
-      inputDigest: digestOf(input, calibration),
+      inputDigest: calibratedDigest({ measure: input, calibration }),
       checks: [inputCheck(input, record, margin, amount.ok), ...exactChecks(input, record)],
       counting: [counting],
       ...(amount.ok.anchor === null ? {} : { calibration: { anchor: amount.ok.anchor } }),
