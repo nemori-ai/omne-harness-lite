@@ -1,3 +1,35 @@
+export {
+  STREAM_ID_MAX_LENGTH,
+  STREAM_POSITION_MAX_LENGTH,
+  STREAM_CALL_MAX_LENGTH,
+  STREAM_REFERENCE_MAX_LENGTH,
+  STREAM_CURSOR_MAX_LENGTH,
+  decodeStreamId,
+  decodeStreamPosition,
+  parseStreamEnvelope,
+  encodeStreamRef,
+  judgeStreamRef,
+  readStreamRef,
+  encodeStreamCursor,
+  judgeStreamCursor,
+  readStreamCursor,
+  compareStreamPositions,
+} from './stream-reference.ts'
+export type {
+  StreamProducer,
+  StreamId,
+  StreamPosition,
+  StreamRef,
+  StreamCursor,
+  StreamEnvelope,
+  StreamCursorParts,
+  StreamValueRejection,
+  StreamCallFailure,
+  StreamCallCodec,
+  StreamReferenceFailure,
+  StreamCursorFailure,
+} from './stream-reference.ts'
+
 import {
   CONTENT_BLOCK_HEAD_KEYS,
   judgeBlockIdentity,

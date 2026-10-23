@@ -27,7 +27,9 @@
   "dependencies": {
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
-    "@omne-harness/message": "workspace:*"
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

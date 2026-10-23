@@ -512,9 +512,15 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../legal-identity
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../message
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

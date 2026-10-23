@@ -10,7 +10,7 @@
 
 本包不分配序号，不保存日志，也不携带用量和费用的正文。`judgeStreamArrival` 只核对一个步骤名和一个序号是否在场。它不给步骤排序。`assembleStream` 把一个目标的步骤折成进行中的装配，或折成已经收场的终态。序号、重复和续接的规则在下面的契约里。它不重排。
 
-本包已采用[公共观察契约](README.md#public-observation-contract)扩展，采用范围见 [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518)。引用、游标、帧和观察端口尚未实现或导出，现有到达与装配契约继续有效。中文投影见[公共观察契约](#公共观察契约)。
+本包已采用[公共观察契约](README.md#public-observation-contract)扩展，采用范围见 [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518)。纯引用与游标操作已从根入口导出；帧和观察端口尚未实现或导出。现有到达与装配契约继续有效。中文投影见[公共观察契约](#公共观察契约)。
 
 ## 使用
 
@@ -104,7 +104,7 @@ assembleStream({
 
 #### 纯操作与失败值
 
-所有操作同步。下表是已采用的输入输出，尚未从本包导出。精确公开声明随实现维护，不在这里建立第二份签名清单。
+所有操作同步，均从根入口导出。下表说明输入输出，精确公开声明由 [src/stream-reference.ts](src/stream-reference.ts) 拥有，不在这里建立第二份签名清单。
 
 | 操作 | 输入 | 成功值 |
 | --- | --- | --- |
@@ -216,3 +216,5 @@ Abort 和迭代器 return 只移除本次观察，不取消生产者工作、不
 ## 维护
 
 执行事实留在发出和执行的一方。半截调用部件由流的结算方构造，本包不构造。
+
+[`tests/stream-reference.spec.ts`](tests/stream-reference.spec.ts) 与 [`tests/stream-reference.spec-d.ts`](tests/stream-reference.spec-d.ts) 从公共入口核对引用/游标编解码、品牌、失败顺序、精确数据记录、租户铸造、规范文本、限额和游标作用域。测试使用真实租户 codec 与明示调用 codec 替身，不证明 Model/Tool 适配器、当前授权或真实观察服务。

@@ -10,7 +10,7 @@ A step belongs to one streaming delivery. It is not an inbound intake and it is 
 
 The package does not assign indexes, store a log, or carry usage and cost bodies. `judgeStreamArrival` checks that one step name and one index are present. It does not order steps. `assembleStream` folds one target's steps into a live assembly or an ended terminal. Index, repeat, and continuation rules are in Contracts. It does not reorder.
 
-The [public observation contract](#public-observation-contract) is an adopted extension under [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518). Its references, cursors, frames, and observation ports are not implemented or exported yet. The existing arrival and assembly contracts remain in force.
+The [public observation contract](#public-observation-contract) is an adopted extension under [#682 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518). Its pure reference and cursor operations are exported from the root entry. Frames and observation ports are not implemented or exported yet. The existing arrival and assembly contracts remain in force.
 
 ## Usage
 
@@ -104,7 +104,7 @@ A cursor's embedded reference must be the complete canonical reference text. `ju
 
 #### Pure operations and failure values
 
-All operations are synchronous. The table describes their adopted inputs and outputs. These operations are not yet exported. Exact public declarations belong to their implementation, rather than a second signature inventory here.
+All operations are synchronous and exported from the root entry. The table describes their inputs and outputs. Exact public declarations belong to [src/stream-reference.ts](src/stream-reference.ts), rather than a second signature inventory here.
 
 | Operation | Input | Success value |
 | --- | --- | --- |
@@ -226,3 +226,5 @@ The package reads no environment. The emitting runtime assigns the index.
 ## Maintenance
 
 Execution facts stay with the code that sends and runs. The settling side of a stream makes the incomplete call parts, and this package does not.
+
+The public-entry tests in [`tests/stream-reference.spec.ts`](tests/stream-reference.spec.ts) and [`tests/stream-reference.spec-d.ts`](tests/stream-reference.spec-d.ts) check the reference/cursor codecs, brands, failure order, exact data records, tenant minting, canonical text, limits, and cursor scope. They use the real tenant codec and an explicit call-codec substitute. They do not prove a Model or Tool adapter, current authorization, or a live observation service.
