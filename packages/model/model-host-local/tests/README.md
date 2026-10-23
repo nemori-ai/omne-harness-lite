@@ -10,7 +10,7 @@
 
 [credential.spec.ts](credential.spec.ts) 用真实文件系统、子进程和注入的文件系统故障覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、保存确认未知、文件锁、发布路径关闭文件描述符与跨进程更新，并在真实 Cordis 4.0.4 下核对注入发送。[custodian-options.spec.ts](custodian-options.spec.ts) 覆盖建库采用已有文件、诊断容量、锁等待与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。[credential-service.spec.ts](credential-service.spec.ts) 核对服务实例只暴露 `present` 与 `resolve`，保管库不可达。[cordis-entry.spec.ts](cordis-entry.spec.ts) 核对插件的发布、空路径建库并服务、撤除、配置校验，以及损坏文件上 `present` 返回不可用与撤除不报错。[deliver-injected.spec.ts](deliver-injected.spec.ts) 在真实 Cordis 4.0.4 下核对注入发送不导入保管库、提供者缺席时不发送、撤除重装后恢复与结果不变、更替提供者与非服务对象。[public-entry.spec.ts](public-entry.spec.ts) 核对根入口的导出清单。
 
-[send-resources.spec.ts](send-resources.spec.ts) 用观察凭据槽的传输工厂代替会离开进程的 pi 发送，核对槽只在 `start` 期间有值、正常返回与抛出后都为空、两个资源互不见对方的值、异物与释放后的物化传输被拒绝、`release` 与 `close` 幂等；它还用真实 pi 传输与 OpenAI 家族核对异物物化传输被拒绝，这一步只编码，不发送。[assembly.spec.ts](assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，准备租约经配置的家族取得绑定，`close` 开始后的取得返回具名不可用，关闭前取得的租约在关闭后仍能计量并释放，以及 `close` 幂等。[local-model.spec.ts](local-model.spec.ts) 属于慢层：本地 HTTPS 服务只代替网关，回放两个家族录制的 SSE 正文；保管库、装配、发送边界、pi 传输、家族、model 运行时与内存 `ModelCommands` 都是真实实现。[continuation.spec.ts](continuation.spec.ts) 同属慢层，在同一组真实实现上让调用 X 收场、确认并清理，再经装配的 `preparation` 取得真实租约，用真实 `rules.plan` 与家族计量器计量延续 X 的请求，核对锚点、余量、方法名与跨租户的逐字节相同。[support/](support/) 里的 `records.ts` 经声明的开发依赖读取家族录制夹具，`https-server.ts` 起本地 HTTPS 服务并记录请求头与正文，`profiles.ts` 把家族记录的官方档案存成工厂档案，并给出测试用的 `supplierOf`，`local-host.ts` 为一次调用装配保管库、本地装配、内存 `ModelCommands` 与 model 运行时。`metering.ts` 用真实租约和租约自己的 `rules.plan` 计量请求，并读取账目里已知的用量。
+[send-resources.spec.ts](send-resources.spec.ts) 用观察凭据槽的传输工厂代替会离开进程的 pi 发送，核对槽只在 `start` 期间有值、正常返回与抛出后都为空、两个资源互不见对方的值、异物与释放后的物化传输被拒绝、`release` 与 `close` 幂等；它还用真实 pi 传输与 OpenAI 家族核对异物物化传输被拒绝，这一步只编码，不发送。[assembly.spec.ts](assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，准备租约经配置的家族取得绑定，`close` 开始后的取得返回具名不可用，关闭前取得的租约在关闭后仍能计量并释放，以及 `close` 幂等。[local-model.spec.ts](local-model.spec.ts) 属于慢层：本地 HTTPS 服务只代替网关，回放两个家族录制的 SSE 正文；保管库、装配、发送边界、pi 传输、家族、model 运行时与内存 `ModelCommands` 都是真实实现。[continuation.spec.ts](continuation.spec.ts) 同属慢层，在同一组真实实现上让调用 X 收场、确认并清理，再经装配的 `preparation` 取得真实租约，用真实 `rules.plan` 与家族计量器计量延续 X 的请求，核对锚点、余量、方法名与跨租户的逐字节相同。[support/](support/) 里的 `records.ts` 经声明的开发依赖读取家族录制夹具，`https-server.ts` 起本地 HTTPS 服务并记录请求头与正文，`profiles.ts` 把家族记录的官方档案存成工厂档案，并给出测试用的 `supplierOf`，`local-host.ts` 为一次调用装配保管库、本地装配、内存 `ModelCommands` 与 model 运行时。`metering.ts` 用真实租约和租约自己的 `rules.plan` 计量请求，并读取账目里已知的用量。`replay.ts` 把一份回放件经装配路径回放，并让宿主保持打开，供读取事实、发出记录与准备租约。
 
 `local-host.ts` 的运行时配置按真实回复设定。真实回复大约每个 token 一个事实。内存 `ModelCommands` 把调用的每个已确认快照都计入调用容量，而每个快照含有到此为止的全部块。所以运行时按批保存事实：一批最多 16 KiB 事实，或从该批首个事实起最多 100 ms。调用容量是整个内存存储的容量，因为一个宿主只有一个调用。逐个事实保存时，约一百个事实的真实回复会超出原来的 100 000 字节容量，调用不能收场（#466）。
 
@@ -25,6 +25,22 @@
 [support/recording-cases.ts](support/recording-cases.ts) 定义四个用例：两家各一个带推理状态的首轮（`openai-reasoning` 用 `openai/gpt-5.6-sol`，`anthropic-reasoning` 用 `anthropic/claude-sonnet-5`），以及两家各一个延续首轮的第二轮（`*-reasoning-continued`）。第二轮的请求由三部分组成：首轮请求、首轮回复与下一个问题。首轮回复不随录制保存。录制器在本机起 HTTPS 服务，把首轮录制的正文经同一条装配路径回放并读出回复。回放的请求体摘要必须等于首轮旁注的 `payloadDigest`，否则录制器拒绝。
 
 [recorder.spec.ts](recorder.spec.ts) 属于慢层。本地 HTTPS 服务分段写出回答，核对录制的字节与服务写出的字节逐字节相同，旁注摘要等于服务收到的请求体的 SHA-256。它还经本地 CONNECT 代理（[support/connect-proxy.ts](support/connect-proxy.ts)）核对同样的结果，并逐一核对上述不写文件的情形与第二轮的输入形状。它还用 pi-ai-openai 的真实网关流 `tests/fixtures/captured` 录制 `openai-reasoning`，核对首轮写出并带推理状态，第二轮把加密项连同真实 id 带回。[secret-scan.spec.ts](secret-scan.spec.ts) 属于快层，核对每个密钥模式、占位值放行，以及结果只含模式名。测试源码中的伪造密钥在运行时拼接，源码本身不含完整的密钥模式。
+
+[recording-replay.spec.ts](recording-replay.spec.ts) 是回放门禁，属于慢层，不依赖网络和密钥。它对 pi-ai-transport 的四份真实回放件逐一经装配路径回放：本地 HTTPS 服务只代替网关，回答录制的 SSE 正文；延续轮的请求由首轮回放读出的回复重建。每份回放件核对以下各项：
+
+- 调用收场，事实流恰好有一个终止，且最后一个事实是它；终止是 `completed/stop`，与 `dispatches` 里发出记录的 `terminal` 一致。
+- 事实里有推理状态块，回执的 `replayFormat` 是家族格式。
+- 本次物化回执的 `payloadDigest` 等于旁注里的摘要，即请求可以复现。
+- 账目经真实路径到达 `ModelCommands`：由 `dispatches` 读回，带本次调用的 `subject` 与 `receipt`；有且只有一条 `billable` 费用，金额已知，单位是 `openrouter-credit`，`payableAmount` 与它相同。
+- 占位凭据只出现在发出的 `Authorization` 头里，不出现在事实和发出记录里。
+
+[recording-c9.spec.ts](recording-c9.spec.ts) 同属慢层，产出 C9 证据，每个家族一组。它回放首轮 X，读出回复，确认并清理；再用同一宿主的 `host.preparation` 取得带 `lineage { continues: X, sources: [X 的回复消息 → X] }` 的租约，计量延续轮的请求；然后回放延续轮，取它账目里 `input`、`cache-read`、`cache-write` 的合计作为真实输入合计。断言只有：锚点命中，方法名带输出组方法与 `+continuation-anchored/1`，两轮应付金额都已知且单位相同，累计金额等于本文件里独立的十进制加法的结果。计量的 `amount` 与真实输入合计之差是测量值，只记录，不是门槛。
+
+设 `OMNE_EVIDENCE_OUT=<目录>` 时，C9 测试向该目录为每个家族写一份 `<家族包名>.json`，含家族、型号、两轮的 `payloadDigest` 与应付金额、计量结果（`amount`、`margin`、方法名、校准）、真实输入合计、差值（真实输入合计减 `amount`）和累计金额。文件不含请求体、响应正文和任何头。没有这个变量时不写文件。经 turbo 运行时，严格模式滤掉未声明的环境变量，所以写证据时直接在包里运行：
+
+```sh
+OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow --typecheck.enabled=false tests/recording-c9.spec.ts
+```
 
 [live/record.spec.ts](live/record.spec.ts) 是录制器的真实入口。它只在 `OMNE_LIVE_TESTS=1` 并且 `OMNE_RECORD_CASE` 给出用例名时运行，否则在用例体内跳过。它读取以下环境变量：
 

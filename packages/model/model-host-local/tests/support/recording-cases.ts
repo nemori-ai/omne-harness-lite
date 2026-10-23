@@ -229,10 +229,10 @@ export async function replayRound(
   }
 }
 
-type LocalHost = ReturnType<typeof assembleLocalHost>
-type CallReference = Awaited<ReturnType<LocalHost['drive']>>['reference']
+export type LocalHost = ReturnType<typeof assembleLocalHost>
+export type CallReference = Awaited<ReturnType<LocalHost['drive']>>['reference']
 
-async function readReply(
+export async function readReply(
   local: LocalHost,
   reference: CallReference,
 ): Promise<readonly ModelBlock[]> {
