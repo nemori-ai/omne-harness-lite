@@ -220,11 +220,14 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 `acquire(access & { profile, lineage? })` 按下列顺序执行：
 
 1. 解析 lineage。以下情形返回 `invalid`：
-   - `continues` 或 `sources` 的形状或身份不合格：`field` 为 `lineage.continues` 或 `lineage.sources`。租约在边界逐项检查形状，例如 `sources` 不是数组、条目缺 `message` 或 `message` 不是字符串。畸形输入返回 `invalid`，不抛出。
+   - lineage 本身不是对象：`lineage`，`shape`。
+   - `sources` 不是数组，或某个条目不是对象：`lineage.sources`，`shape`。`sources: null` 也是畸形输入。只有 `undefined` 表示 `sources` 缺席。
+   - `continues` 不是合格的调用身份：`lineage.continues`，`identity`。
+   - 条目的 `message` 缺失、不是字符串或不是合格的消息身份：`lineage.sources`，`message-identity`。条目的 `call` 不是合格的调用身份：`lineage.sources`，`call-identity`。
    - 同一消息有两个来源：`lineage.sources`，`duplicate-message`。
    - 不同调用数超过 `maxCitedCalls`：`lineage`，`too-many-calls`。
 
-   没有 lineage，或两项都为空，视为没有 lineage。
+   租约在边界逐项检查形状。畸形输入返回 `invalid`，不抛出。没有 lineage，或两项都为空，视为没有 lineage。
 2. 按档案供应商的次序逐个取得绑定。以下情形返回失败，并释放已取得的绑定，不形成更窄的档案：
    - `supplierOf` 失败：原样返回。
    - 返回的供应商改变了采用、接收方或型号：`invalid`（`supplier`，`route-mismatch`）。

@@ -8,6 +8,7 @@
 - [凭据发送接缝](deliver.ts)。
 - [产品发送边界](send.ts)，尝试状态在 [send/attempt.ts](send/attempt.ts)，事实资源在 [send/lifetime.ts](send/lifetime.ts)。
 - [独立执行与资源关闭](execute.ts)。
+- [采用相等的唯一比较](adoption.ts)：独立执行与准备资源共用。
 - 准备资源与校准租约在 `preparation/`：[租约的构造、绑定与计量器](preparation/resources.ts)、[lineage 的边界解析](preparation/lineage.ts)、[调用事实的一次读取与视图](preparation/facts.ts)、[锚点与来源的纯判决](preparation/judge.ts)。行为归[实现规格](../SPEC.md#准备资源与校准租约)。
 
 - [受理、结果消费与实例观察运行工厂](runtime.ts)、[按调用驱动与原操作认回](driver.ts)。
