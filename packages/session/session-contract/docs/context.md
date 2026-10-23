@@ -26,7 +26,6 @@ flowchart LR
   Adapters -->|references, freeze| Faces
   Faces --> Transaction[同提交提供者]
   Journal[Agent 执行记录提供者] --> Transaction
-  Model[Model 受理点守卫] -. 以资格参加者协议闭合为前提 .-> Transaction
   Faces --> History[日志与原位置]
 ```
 
@@ -45,7 +44,7 @@ Tool 宿主的协调者不导入本成员。它调用 Tool 契约定义的两个
 
 独立消费使用显式的 `SessionFaces` 及其注入的端口，不要求 Cordis。候选形状见 [public-api](public-api.md)，装配依赖与资源撤除见 [Cordis 定义](../../session-cordis-contract/docs/cordis.md)。可靠状态由相应的提供者兑现。
 
-Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort` 调用 `invalidate`。Model 一侧的受理点守卫以资格参加者协议闭合为前提，见 SPEC 的[具名前提与明确缺项](../SPEC.md#具名前提与明确缺项)中的 P-4。
+Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort` 调用 `invalidate`。Session 不参加 Model 的受理点守卫。
 
 ## 原消费场景的前提
 

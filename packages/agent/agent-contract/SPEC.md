@@ -528,7 +528,7 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果的 custody 路径先把所需全文或独立可恢复引用保管，再由 Journal 的 custody 交接适配原保管拥有者，绑定原版本/位置/责任，成功后才解除交付责任。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
 
-Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/docs/public-api.md#值定义和固定请求)携带可信调用方式与来源，不另定义许可字段。直接模型工具动作使用 direct，脚本编排的每个目标调用使用 programmatic。受信协调者负责保存来源和原脚本子调用关联，Tool 准入提供者负责核验，脚本不能自行选择 direct。
+Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/docs/public-api.md#值定义和固定请求)携带可信调用方式与来源，不另定义许可字段。固定请求的 `availability` 原样取自请求组装为该工具保存的可用性结论，Agent 不重算工具可用性，也不改写它。直接模型工具动作使用 direct，脚本编排的每个目标调用使用 programmatic。受信协调者负责保存来源和原脚本子调用关联，Tool 准入提供者负责核验，脚本不能自行选择 direct。
 
 脚本入口只暴露明确许可且当前合法可用的工具。扩展修改生效参数或包装工具转调目标时保留编排来源，不能借父脚本批准扩大目标权限。原整批判断屏障继续适用；已知参数的同批动作先完成共同判断，动态产生的新目标动作重新准入，不自动算入已批准批次。脚本宿主不能直接取得 executor 或全局 Cordis Context。此规则不定义完整脚本语言、宿主、调度或恢复协议；实际脚本桥接实现须按 Tool 的持续义务验证。
 
@@ -565,7 +565,7 @@ Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/do
 10. 执行终结时，Agent 以 DecisionCards.invalidate 作废本批尚无答复的卡片。已有答复保留，不因作废改写。
 11. 卡片端口的两种情形按下列规则处置。
     - 人对卡片有话说，但没有给出准驳：read 对 Agent 返回 pending。原话由人在回路领域保存并交原准入拥有者解释，规则见 [INV-HI11](../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)。Agent 不把它当作答复，该轮保持已呈现。
-    - present 确定失败，即返回 denied 或 conflict：该轮卡片所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因。该轮卡片记为呈现失败，同一扩展调用早先已答复的轮次一起记为已处理，发出 `ask` 的扩展调用以拒绝 Conclusion 进入已结论，不再以 `replay` 调用。这条 Conclusion 由 Agent 写入：取报错分支，error 写明卡片呈现失败，output 为 veto，故障依据保存在该轮的呈现失败记录中，审计以该轮状态区分它与扩展自己的结论。该动作的判断为 denied，该链结束，第 4 条按此计入。本批全部动作都因此被拒绝时屏障记为 all-denied。Agent 不登记人工等待，不伪造人的拒答。规则见 [INV-HI04](../../human-intervention/human-intervention/SPEC.md#inv-hi04-授权决定仅在允许范围与真实资格内生效)。present 返回 unavailable 或 commit-unknown 不是确定失败，按上文以 lookup 认回。这一规则对官方准入的卡片与作者扩展的卡片都适用；作者扩展的卡片是否另沿扩展错误策略处置，待人在回路领域确认，见[外域依赖](../agent/docs/architecture/open-questions.md#外域依赖)。
+    - present 确定失败，即返回 denied 或 conflict：该轮卡片所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因。该轮卡片记为呈现失败，同一扩展调用早先已答复的轮次一起记为已处理，发出 `ask` 的扩展调用以拒绝 Conclusion 进入已结论，不再以 `replay` 调用。这条 Conclusion 由 Agent 写入：取报错分支，error 写明卡片呈现失败，output 为 veto，故障依据保存在该轮的呈现失败记录中，审计以该轮状态区分它与扩展自己的结论。该动作的判断为 denied，该链结束，第 4 条按此计入。本批全部动作都因此被拒绝时屏障记为 all-denied。Agent 不登记人工等待，不伪造人的拒答。规则见 [INV-HI04](../../human-intervention/human-intervention/SPEC.md#inv-hi04-授权决定仅在允许范围与真实资格内生效)。present 返回 unavailable 或 commit-unknown 不是确定失败，按上文以 lookup 认回。这一规则对官方准入的卡片与作者扩展的卡片都适用，作者扩展的卡片不另沿扩展错误策略处置。扩展自己执行报错是另一种情形，按该扩展的 `onError` 处置。
 
 卡片的唯一有效答复、答复与原等待的一致交接、批次只阻塞原等待范围、拒答与故障不混同，归人在回路领域的 [INV-HI06](../../human-intervention/human-intervention/SPEC.md#inv-hi06-一张卡片只有一个有效人的处理)、[INV-HI07](../../human-intervention/human-intervention/SPEC.md#inv-hi07-答复和原等待可恢复一致且交接无空档)、[INV-HI10](../../human-intervention/human-intervention/SPEC.md#inv-hi10-批次只阻塞其原等待范围) 与 [INV-HI11](../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)。准入结果的四类与人工决定的授权含义归授权领域的 [AU-04](../../identity/authorization/SPEC.md#au-04-当前准入与结果) 与 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验)。Agent 消费这些结论，不自己解释权限模式。
 

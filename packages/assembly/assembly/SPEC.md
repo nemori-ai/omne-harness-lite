@@ -122,6 +122,8 @@
 
 `node --experimental-strip-types --test verification/close-protocol.test.ts verification/process-kill.test.ts`
 
+包清单在 `dependencies` 里声明 `@omne-harness/agent-contract`。当前只有 `tests/definition-entry.spec.ts` 导入它：测试用 `judgeAgentDefinition` 与 `judgeLoopExtensions` 核对 Agent 定义从资产到消费者的判断。`src/` 不导入它。
+
 2026-10-14 在 Node v26.0.0 上跑过这两条命令。包测试 28 项通过。目录里的 node 测试 21 项通过。进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。本交付接受 Node v26.0.0 作为验证环境。仓库 engines 仍是 `>=24.18.0 <25`。本次接受不修改 engines。
 
 这些测试没有覆盖真实后端，也没有覆盖远端中断。没有可启动的网络、MCP、执行环境或数据库成员，因此没有做这些试验。Cordis 4.0.4 的依赖换代、调用方 Context、配置校验、清理顺序和异常传播沿 [kernel-basis 的测试与验证](../kernel-basis/README_ZH.md)核对。新辅助入口的契约测试在该成员 `tests/`，上游机制探针在其 `verification/`；这些证据不表示本成员的真实后端已经验证。
@@ -191,7 +193,7 @@ sequenceDiagram
 
 本范围的收场证据是 `closed`、`failed`、`timed-out`。超时不是成功收场。进程在 `close` 完成前死亡，则没有报告，不算成功。跨进程关闭尚未定义。更细的报告分类仍由 LIFECYCLE-T01 对账。这三种结果不表示已经满足架构页对关闭报告的全部分类。
 
-原调用归旧的执行拥有者，直到收场或可靠交接。迟到结果须已有仍有效的接收方或可靠记录。旧推进者不得推进新工作。装配不接收、不保存、不重放该结果。协作协议的具体接口归 #262。
+原调用归旧的执行拥有者，直到收场或可靠交接。迟到结果须已有仍有效的接收方或可靠记录。旧推进者不得推进新工作。装配不接收、不保存、不重放该结果。迟到结果由 Agent 宿主里的常驻结果接收方承接，接收方的接口归 Agent 契约。
 
 runtime 启动前取得已校验的装配依据。同一位置的扩展按装配声明的顺序执行。本节不指定 AgentDefinition 的包拥有者，也不新造扩展接口。
 

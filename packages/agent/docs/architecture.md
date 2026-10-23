@@ -52,7 +52,7 @@ flowchart LR
 
 ### 系统与领域
 
-外域概念的含义与当前资格不归本组，下表不登记它们。这些概念归各自成员的公开规格：[Model](../../model/model-contract/SPEC.md)、[Tool](../../tool/tool-contract/SPEC.md)、[Runtime Context](../../context/runtime-context-contract/SPEC.md)、[Request Context](../../context/request-context-contract/SPEC.md)、[HITL](../../human-intervention/human-intervention/SPEC.md)、[授权](../../identity/authorization/SPEC.md)、[Session](../../session/session-contract/SPEC.md)和[装配](../../assembly/assembly/SPEC.md)。Agent 页只写“消费哪些公开事实、谁负责当前资格”，不定义这些概念的含义。
+外域概念的含义与当前资格不归本组，下表不登记它们。这些概念归各自成员的公开规格：[Model](../../model/model-contract/SPEC.md)、[Tool](../../tool/tool-contract/SPEC.md)、[Runtime Context](../../context/runtime-context-contract/SPEC.md)、[Request Context](../../context/request-context-contract/SPEC.md)、[HITL](../../human-intervention/human-intervention/SPEC.md)、[授权](../../identity/authorization/SPEC.md)和[装配](../../assembly/assembly/SPEC.md)。外部协调者的概念不归本组，Agent 页用通用角色指它。Agent 页只写“消费哪些公开事实、谁负责当前资格”，不定义这些概念的含义。
 
 | 主题 | 唯一规范拥有者 | 其他位置允许的内容 | 状态 |
 | --- | --- | --- | --- |
@@ -62,7 +62,7 @@ flowchart LR
 | 控制、取消与恢复的系统关系 | [控制与恢复](../../../docs/architecture/runtime/control-and-recovery.md) | 公开推进保证页引用，不复述系统顺序 | 现存 |
 | 流式到达、消费与 ACK 的系统关系 | [流式与消费](../../../docs/architecture/runtime/streaming-and-consumption.md) | 成员页引用，不另写 ACK 语义 | 现存 |
 | 定义选入、实现解析与装配换代的系统关系 | [装配与变更](../../../docs/architecture/runtime/assembly-and-change.md) | 定义专题只写 Agent 专有声明的解释 | 现存 |
-| 会话路径与 Agent 的系统关系 | [会话与 Run](../../../docs/architecture/runtime/session-and-run.md) | 会话概念本身按本节导语归 Session 的公开规格，本表不登记。Agent 成员页用通用角色指外部协调者，不点名或定义会话概念。系统页和领域页可以点名各域来说明系统关系 | 现存 |
+| 会话路径与 Agent 的系统关系 | [会话与 Run](../../../docs/architecture/runtime/session-and-run.md) | 会话概念不归本组，本表不登记。Agent 成员页用通用角色指外部协调者，不点名或定义会话概念。系统页和领域页可以点名各域来说明系统关系 | 现存 |
 | 跨 runtime 共同对象 | [共同对象模型](../../../docs/architecture/runtime/runtime-contract-model.md) | 成员页引用共同身份与关系，不另定义。成员的状态机和生命周期归成员页 | 现存 |
 | 跨 runtime 共同集成 | [共同集成](../../../docs/architecture/runtime/runtime-contract-integration.md) | 成员页引用共同集成前提与适用范围，不另写。具体服务定义和宿主归 Cordis 成员页 | 现存 |
 | 跨 runtime 共同交接 | [共同交接](../../../docs/architecture/runtime/runtime-contract-handoff.md) | 成员页引用共同交接义务，不另写。成员自己的交接协议归成员页 | 现存 |

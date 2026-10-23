@@ -35,6 +35,8 @@ Skill、Tool 和 MCP 的选入按下面的行为顺序成立。
 
 这些规则仅适用 Skill、Tool 和 MCP，不为其他 AgentDefinition、Slash Command、Plugin 或 Loop Extension 开放统一自动继承。
 
+引用的 `resident` 为 true 时，该引用进入常驻候选。常驻集合由采用依据持有方在采用点求出，规则见 Tool 契约的[常驻规则](../../../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。Agent 只校验 `resident` 的类型，不求常驻集合。
+
 ## 调用方可选声明与已知身份
 
 调用方的可选能力移除声明须持久保留，并参加后续装配求值。重新添加当前声明允许的可选项只撤销对应移除意图，不新增越过定义来源范围的入口。必需项不能移除；新定义将原可选项改为必需时，必需来路优先。

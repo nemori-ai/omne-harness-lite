@@ -57,7 +57,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | --- | --- | --- |
 | 上游公开语言 | 直接依赖其公开入口：TenantId、ContentBlock、Outcome（operation-result）、json-text、资产身份 | 上游拥有值的定义和演进；Tool 不建立同义类型 |
 | 本域定义的端口 | 契约声明、由外部实现的部分：启动资格（ToolStartAuthority）、决策桥（ToolDecisionBridge）与资源回应（ToolResourceResponses）、环境（ToolEnvironment）、执行者绑定（ToolBindings）、时钟（ToolClock）、实例宿主（ToolInstanceHost）、输出保管（ToolOutputCustody）、目录（ToolCatalog）、结果政策（ResultPolicy）、ToolChildren。每个端口的职责与失效见下文应用对象表。消费者能力档案 ToolConsumerProfile 是调用者交来的输入值 | 实现者对自己提供的事实负责，例如环境资源是否存在、决定是否唯一；端口按单一需要切分，没有为某个外部角色准备的字段 |
-| 不建模 | 调用方的工作对象、调用方的 agent 动作、模型、决策方的界面、停止的业务原因 | 各自的拥有者；调用方用调用号、操作号和 ConsumerRef 与 Tool 的事实关联 |
+| 不建模 | 调用方的工作对象、调用方的推进动作、模型、决策方的界面、停止的业务原因 | 各自的拥有者；调用方用调用号、操作号和 ConsumerRef 与 Tool 的事实关联 |
 
 记录仓与范围授予核验者是 `tool` 实现包自己的端口，不在契约里，见 tool 对象模型（`tool/docs/object-model.md#跨域概念与内部可见范围`）。契约只规定 `ResourceScope.grant` 是范围拥有者授予的耐久证据，核验者由装配按范围拥有者声明（[SPEC](../SPEC.md#342-值定义和固定请求)）。`ProgramTools` 不是外部实现的端口：Tool 把它交给程序，见下文应用对象表。
 

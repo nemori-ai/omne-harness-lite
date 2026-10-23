@@ -148,7 +148,10 @@ Tool 契约 P03 的各步怎样对到本成员的操作。集成方是工具宿�
 | `release` 使用独立的 `ReleaseRecord` | `lease.release()` 得到 `LeaseRelease` | 释放只针对这一次获取。共享环境不因一次释放而销毁 |
 | `inspectRelease` 查询释放 | `inspectAcquisition` 的 `releasing`、`pendingRelease`、`released` | 待处置可以用同一个释放操作重试 |
 
-Tool 契约的 `excluded`（已可靠排除全部延迟分配）在本成员里没有同名状态。工具宿主只能凭 `inspectAcquisition` 的确定状态判断排除，`unrecorded` 不能单独证明没有分配。
+Tool 契约的 `excluded`（已可靠排除全部延迟分配）在本成员里没有同名状态。`inspectAcquisition` 答 `unrecorded` 不能单独证明没有分配。下列两种情形之一成立时，工具宿主可以判为 `excluded`：
+
+1. 集成方账本对该获取键已经关闭，并且从未对它发出许可。账本先发许可才有效果，关闭后不再发许可。
+2. `inspectAcquisition` 答确定的 `rejected`，并且没有待处置的释放。
 
 ### 现在的真实消费者
 

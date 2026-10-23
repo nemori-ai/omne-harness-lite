@@ -49,7 +49,7 @@
 
 <a id="cm-01"></a>
 
-**CM-01 模型视图。**有压缩记录 C 时，模型看到的会话历史依次是：
+**CM-01 模型视图。**有压缩记录 C 时，模型看到的历史依次是：
 
 1. `C.retained` 引用的消息，按原历史顺序；
 2. C 本身；
@@ -172,7 +172,7 @@ flowchart LR
 
 - **推理续接状态部件**：`kind` 为 `reasoning_state` 的部件，装一段供应商交回的不透明推理状态。
 - **回放描述**：assistant 消息上的 `replay` 键，说明这条消息的推理内容由谁产出、是什么格式、续接状态部件在 `blocks` 的哪些位置。
-- **回放范围**：`replay.scope`，即统一语言的推理回放范围，一个不透明字符串。本节的「回放」都指推理回放，不是 Agent 接续时的回放。哪些模型能消费哪个范围，由 Model 契约的档案声明，本成员不解释。
+- **回放范围**：`replay.scope`，即统一语言的推理回放范围，一个不透明字符串。本节的「回放」都指推理回放，不是调用方接续时的回放。哪些模型能消费哪个范围，由 Model 契约的档案声明，本成员不解释。
 
 ### 形状
 
@@ -268,7 +268,7 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 ### 消费者
 
 - 压缩策略的拥有者按 CM-01 至 CM-05 生成压缩记录，消费规则见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#压缩与历史保留)。
-- 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交，规则见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `role` 收窄。
+- 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交。提交规则归历史持有者。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `role` 收窄。
 - 模型的适配器产出推理续接状态部件和 `replay`，组成 assistant 消息的一方把它们写进同一条消息；Model 契约在每次发出时按 `replay.scope` 决定带不带这些部件，规则见 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
 
 ### 验证

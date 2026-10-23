@@ -104,7 +104,7 @@ The mint record belongs to one loaded copy of the module. A value does not keep 
 
 ## Verification
 
-Applicable tests are unit tests and contract tests from the public entry. The tests import the package by name. That name resolves to `dist/index.js`, so the tests also check independent consumption of the build. Integration tests and end-to-end journey tests do not apply. This package has no storage, identity service, or user journey. Session and authorization tests stay with their owners.
+Applicable tests are unit tests and contract tests from the public entry. The tests import the package by name. That name resolves to `dist/index.js`, so the tests also check independent consumption of the build. Integration tests and end-to-end journey tests do not apply. This package has no storage, identity service, or user journey. Consumer and authorization tests stay with their owners.
 
 | File | Covers |
 | --- | --- |
@@ -120,6 +120,6 @@ The tests do not cover a type-level ban on hand-built objects, because the accep
 
 ## Maintenance
 
-Named consumers are `packages/identity/identity`, `packages/session/session`, and the `identity-shapes` check in `tools/product-checks`. The check imports `IDENTITY_TYPE_NAMES` from this package. #220 receives a `{ parse, encode }` pair and does not import a parser file.
+These consumers declare a dependency on this package in their package manifests: `agent-contract`, `agent-cordis-contract`, and `agent` in the agent group; `request-context-contract`, `runtime-context-contract`, and `runtime-context-cordis-contract` in the context group; `execution-environment-contract`, `execution-environment`, and `execution-environment-host-local` in the execution group; `model-contract`, `model-cordis-contract`, `model`, and `model-host-local` in the model group; `tool-contract` and `tool-cordis-contract` in the tool group; and the `identity-shapes` check in `tools/product-checks`. The check imports `IDENTITY_TYPE_NAMES` from this package. The design names `packages/identity/identity` and `packages/session/session` as users of this package, but their manifests do not declare the dependency yet. #220 receives a `{ parse, encode }` pair and does not import a parser file.
 
 To add an atomic family, declare its spec constant, include that row in `IDENTITY_SPECS`, then add its type, codec, equality function, and tests. That change also changes `IDENTITY_TYPE_NAMES`, so synchronize the `identity-shapes` owner. A change to a prefix, the alphabet, a failure code, or the check order changes the public contract. Synchronize the named consumers and the common-group README before you change it.

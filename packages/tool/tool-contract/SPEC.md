@@ -394,7 +394,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
 
-呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。会话内常驻集合的规则见[会话常驻规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
+呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。会话内常驻集合的规则见[会话常驻规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
 ### 声明与设置
 
@@ -432,7 +432,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。
 
-常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
+常驻工具是调用方不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
 
 - R1：会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
 - R2：会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入。Run 中途的新工具经 Tools 元工具（非常驻）可达。
@@ -450,7 +450,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 1. 资产：这个租户的作用域里有没有合法持有的资产。必需能力从未取得合法定义时，装配失败。
 2. 绑定登记表：登记键有没有贡献，实现的必需依赖是否在场。没有贡献时，换代协调者按需装载。装载失败时，保留已知定义并标 `known-unavailable`，装配不失败。
 
-版本由持有决定：持有固定某版，或跟随当前版。AgentDefinition 的声明只引用能力身份。跟随当前版对已有会话有条件：同形才跟。这是 [assets 版本选用规则](../../assets/assets/SPEC.md#definition-and-version)的例外。
+版本由持有决定：持有固定某版，或跟随当前版。引用工具的定义只引用能力身份。跟随当前版对已有会话有条件：同形才跟。这是 [assets 版本选用规则](../../assets/assets/SPEC.md#definition-and-version)的例外。
 
 #### 采用点判定
 

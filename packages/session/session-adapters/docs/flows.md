@@ -78,7 +78,7 @@ flowchart LR
 2. 插件以 `receive(execution)` 与 `receive(account)` 提交。读不到时保持未知。
 3. Session 单方保管结果时，插件以 `consumption.beginRead`、`readNext`、`closeRead` 读原结果。
 
-ACK 由 FA-14 发出。受理点守卫的参加不在本流程里：协议闭合之前，会话的 owner 声明为免守卫。
+ACK 由 FA-14 发出。Session 不参加 Model 的受理点守卫：会话的 owner 声明为免守卫。
 
 ### FA-06 Tool 的查询与后台结果
 

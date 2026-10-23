@@ -29,19 +29,19 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | 邻域 | Session 担任的通用角色 | 公开契约 |
 |---|---|---|
 | Agent | 外部协调者、提交参加者、事件消费者、恢复发现者 | [托管协调与运行实例](../../../packages/agent/agent-contract/SPEC.md#托管协调与运行实例)、[外部协调者的前提](../../../packages/agent/agent-contract/docs/context.md#外部协调者的前提) |
-| Model | 消费位置拥有者（受理点守卫的参加者，以资格参加者协议闭合为前提，见[联合前提与具名待决](#联合前提与具名待决)）、结果承接与 ACK 的消费侧、模型选择的保存者 | [资格、共同提交与实际发送](../../../packages/model/model-contract/SPEC.md#资格共同提交与实际发送)、[ACK 的前提与效果](../../../packages/model/model-contract/SPEC.md#ack-的前提与效果) |
+| Model | 消费位置拥有者、结果承接与 ACK 的消费侧、模型选择的保存者。Session 不参加 Model 的受理点守卫 | [ACK 的前提与效果](../../../packages/model/model-contract/SPEC.md#ack-的前提与效果) |
 | Tool | 启动围栏 ToolStartAuthority 的资格版本拥有者：撤销推进资格之后调用 `invalidate`，等到失效已生效；对账与投影的读者 | [P04 实际发起围栏](../../../packages/tool/tool-contract/SPEC.md#p04-实际发起围栏)、[可靠交接与处理的两条路径](../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)、[接续原调用与确认自身失联](../../../packages/tool/tool-contract/SPEC.md#接续原调用与确认自身失联) |
 | Runtime Context | 作用域持有者、会话块的生产者、变化材料的消费者 | [Runtime Context 契约](../../../packages/context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影 | [历史源读口与 epoch 视图](../../../packages/context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[压缩共同结果](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) |
 | 执行环境 | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
 
-Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Model 受理点守卫的参加者，Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
+Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
 
 ```mermaid
 flowchart LR
     Gov[Session 治理与会话日志] --- Adapters[Session 适配成员]
     Adapters -->|外部协调者 · 提交参加者 · 事件消费者| Agent[Agent]
-    Adapters -->|受理点守卫 · ACK 与账目| Model[Model]
+    Adapters -->|ACK 与账目| Model[Model]
     Adapters -->|资格版本与 invalidate · 对账读取| Tool[Tool]
     Adapters -->|作用域持有者 · 块生产者| RC[Runtime Context]
     Adapters -->|历史持有者| RQ[Request Context]
@@ -325,7 +325,7 @@ flowchart LR
 
 这样的事实是依据。只解释发生过什么的留痕可以保存。留痕不改变队列、推进资格、等待或终态。能重新读取的当前值、runtime 内部步骤和 Cordis 通知不进入这套标准。
 
-Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义。缺了它就不能恢复上列的常驻工具 name 与参数形状，因此它满足准入。常驻工具当前的固定版本可从 Run 的采用依据派生，不另写会话事实。常驻规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
+Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义。缺了它就不能恢复上列的常驻工具 name 与参数形状，因此它满足准入。常驻工具当前记下的登记键可从 Run 的采用依据派生，不另写会话事实。常驻规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
 
 会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。例如 `tool-resident-admitted` 的内容由 Tool 规定，它的种类准入由会话规定。日志的追加、分页和恢复只由会话规定。
 
@@ -380,7 +380,6 @@ flowchart TD
 | 结果保管与处理完成 | Agent（保管交接、处理完成交接） | Session 参加者写保管与处理完成，回执供 Model 的 ACK 与 Tool 的交付责任解除使用。迟到结果经 Agent 的结果记录入口，Session 同样参加。 |
 | Agent 条件终结 | Agent | Session 参加者只读核对：有尚未交入的输入或 Run 已被取消时以冲突响应，不写 Run 终态。 |
 | 承接、调用登记、等待、控制阶段与执行结束 | Agent 自己提交 | 不是共同提交。Session 从 Agent 事件流读到后按事件身份写入派生事实，Run 的完成与失败在读到结束事件时按 Agent 的结论成立。 |
-| Model 受理与消费位置 | Model 的受理点 | Session 守卫参加者只读当前 Run、推进资格与控制事实。拒绝即 Model 拒绝受理。这一行以资格参加者协议闭合为前提，见[联合前提与具名待决](#联合前提与具名待决)。 |
 | Tool 启动资格失效 | Session 先提交撤销资格，Tool 再在自己的启动排序域里使资格失效 | Session 作为 ToolStartAuthority 的资格版本拥有者调用 `invalidate`，等到 Tool 确认失效已生效。这是两次提交，顺序固定。失效生效之前，不能声称 Tool 的新发起已被阻止。 |
 | Runtime Context 注册决定 | Session 单独一次提交 | Runtime Context 只提供材料，不参加这次提交，在提交之后应用已确认的决定。 |
 | 自动归档 | Session | 空闲输入的参加者重新核对全部范围。 |
@@ -435,7 +434,6 @@ Agent 工作推进的产品责任见[Agent 定义与工作推进](../../../.meta
 | 受理拓展点的语义 | 命令域与 hooks 拥有者 | Session 只规定[受理流水线](#受理流水线与业务流程拓展点)的顺序与提交边界。 |
 | 迟到账目与收场的读取资格 | Model 与 Tool 拥有者 | 读取资格闭合之前，迟到的收场只能经 Agent 事件到达。Agent 事件不带账目，所以在途与迟到的账目都保持未知，不以查不到当作未发生。 |
 | 有界恢复者：Agent 记录不可解释时恢复者以原事实收束失败 | Agent 拥有者 | 恢复者不收束，Run 保持未终结，恢复任务保留并报告。Agent 执行已结束时不在此列，Session 按 Agent 的结论写终态。见[有界恢复者](control-and-recovery.md#有界恢复者)。 |
-| Model 资格参加者协议：守卫读数在提交内的载体、载体拥有者与参加者先后保证，见 [Model 受理点](../../../packages/model/model-contract/SPEC.md#资格共同提交与实际发送) | 存储契约拥有者与 Model 契约拥有者 | 会话路径上 Session 不能作为受守卫的 owner 装配到 Model。Model 一侧读守卫的兜底保护点不存在，控制只经 Agent 送达。失效推进者发起的新模型调用只由 Agent 的条件提交与动作发出围栏阻止。 |
 | 参加者冲突映射：推进资格已被新 attempt 取代时，Agent 把 Session 参加者的冲突映射为 `stale-advance` | Agent 拥有者 | Session 先提交 `claim` 或 `reload`，再请 Agent 接续。接续失败不撤销已提交的推进授予。其间旧 runtime 的共同提交得到 `changed`，窗口的上界是恢复扫描周期。 |
 | 承接与调用登记的参加种类（可选）：Agent 若将来为输入承接与调用登记提供调用方交接 | Agent 拥有者 | Session 不依赖它，只在消息、压缩转换、保管与处理完成四种交接上参加，承接、登记、等待与执行结束从 Agent 事件派生。 |
 | Agent 宿主创建实例的入口：宿主按指定采用预建空闲实例的公开入口，见 Agent 开放问题[宿主怎样创建并持有实例的 AgentProvider](../../../packages/agent/agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider) | Agent 开放问题页的拥有者 | [预求值与预热](#协调器与调度器)调度器只触发预求值，不调用 Agent 预建实例。新 Run 照常在入口取得采用。 |

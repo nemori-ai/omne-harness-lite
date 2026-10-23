@@ -8,7 +8,7 @@ Module package for modalities. It gives capability contracts one list of the fou
 
 This member owns the type `Modality`, the list `MODALITIES`, and five functions: `judgeModality`, `judgeModalities`, `judgeMediaType`, `isCanonicalMediaType`, and `missingModalities`. It has no runtime dependency. It imports no other member and it does not import Cordis.
 
-The named consumers are Model and Tool. Model uses the modalities for profile inputs and outputs, for converter keys, and to read the modality of a content block from its media type. Tool uses them for the parameter modalities and the result modalities of a tool definition. Later, session, agent, and infrastructure members can use the same entry. The current track has no production call site. The Model trunk session confirmed on 2026-10-19 that the meaning is the same as in the Model contract. PanQiWei accepts the media type table with issue #397.
+The named consumers are Model and Tool. Model uses the modalities for profile inputs and outputs, for converter keys, and to read the modality of a content block from its media type. Tool uses them for the parameter modalities and the result modalities of a tool definition. Later, other members can use the same entry. The production call sites are in the Model and Tool contract members. The Model trunk session confirmed on 2026-10-19 that the meaning is the same as in the Model contract. PanQiWei accepts the media type table with issue #397.
 
 This member says which modalities exist. It does not say which modalities a consumer supports. It does not map block kinds to modalities. It does not hold the history projection, the converter selection, or the initial text rule. [SPEC.md](SPEC.md) lists what is out of scope.
 

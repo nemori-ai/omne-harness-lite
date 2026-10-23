@@ -61,7 +61,7 @@
 - 本包的绑定登记表在单机、单进程内成立，登记不耐久。跨进程、远端目录与耐久存储不在本包覆盖之内。
 - 两个 fiber 同时首次登记同一个键时，本地排序域决定哪一方成功，另一方得到 `conflict`。
 - 换代协调者 `toolGenerations` 是本包 `./cordis` 的 Service。它是 `ctx.plugin` 句柄的唯一持有者，由 `ensureLoaded` 动态 import 实现包。
-- 进程恢复后，`sweep` 重装未归档会话固定的键。包字节保留，同一 digest 可以重新 import。
+- 进程恢复后，`sweep` 重装未归档会话记下的键。包字节保留，同一 digest 可以重新 import。
 - 按键排空与交接依赖契约 [P09](../tool-contract/SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时 `unload` 停在 `draining`。
 
 ## 实例宿主与普通调用的边界

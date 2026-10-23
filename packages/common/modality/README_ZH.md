@@ -8,7 +8,7 @@
 
 本成员拥有类型 `Modality`、列表 `MODALITIES` 和五个函数：`judgeModality`、`judgeModalities`、`judgeMediaType`、`isCanonicalMediaType`、`missingModalities`。它没有运行时依赖，不导入任何其他成员，也不导入 Cordis。
 
-具名消费者是 Model 与 Tool。Model 用模态表示档案的输入输出和转换件的键，并从媒体类型读出内容块的模态。Tool 用模态表示工具定义的参数模态与结果模态。以后会话、代理和基础设施成员可以用同一个入口。当前轨道没有生产调用点。Model 主干会话于 2026-10-19 确认含义与 Model 契约一致。媒体类型对照表由 PanQiWei 随 #397 接受。
+具名消费者是 Model 与 Tool。Model 用模态表示档案的输入输出和转换件的键，并从媒体类型读出内容块的模态。Tool 用模态表示工具定义的参数模态与结果模态。以后其他成员可以用同一个入口。生产调用点在 Model 与 Tool 的契约成员里。Model 主干会话于 2026-10-19 确认含义与 Model 契约一致。媒体类型对照表由 PanQiWei 随 #397 接受。
 
 本成员只说有哪几种模态。它不说消费者支持哪几种，不做块种类到模态的映射，也不持有历史投影、转换件选择和初始文本规则。范围外的内容列在 [SPEC.md](SPEC.md)。
 

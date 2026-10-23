@@ -204,7 +204,7 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 | SE10 且内容块有 `toModel` 为真的部分，且不是压缩记录 | `sl_model_view` 当前 epoch 追加一行，`seq` 加一，`prefix_digest = H(上一行 prefix_digest ‖ 本条目 digest)` |
 | SE10 压缩记录 | `sl_model_view` 新 epoch，见 [W4](#w4) |
 | `refs.target` 非空的条目（SE33，以及其他指向旧条目的标注） | `sl_annotation_idx` 一行，`target_from` 与 `target_to` 为引用范围的首末位置，单条目时两者相等 |
-| SE08 | `sl_resident_idx`：把该会话的行集合替换为本次固定的登记键集合，每个键一行，`capability` 取自登记键所属的能力身份，`admitted_position` 为该能力 SE36 的位置 |
+| SE08 | `sl_resident_idx`：把该会话的行集合替换为本次记下的登记键集合，每个键一行，`capability` 取自登记键所属的能力身份，`admitted_position` 为该能力 SE36 的位置 |
 | SE26 | 会话已归档时，删除该会话在 `sl_resident_idx` 的全部行 |
 | SE27 | 删除该会话在 `sl_resident_idx` 的全部行。归档同批以 SE26 取消未终结 Run，所以已归档的会话没有未终结 Run |
 | SE28 | 按最近一条 SE08 的登记键集合重建该会话在 `sl_resident_idx` 的行。删除该会话在 `sl_released_scope_idx` 的全部行，因为这个索引只收已归档会话的释放读回 |
@@ -420,7 +420,7 @@ references(principal, scope = system, key, after, limit):
     返回 { sessions: [{ tenant, session, capability, shape }], next }
 ```
 
-引用的定义归契约：会话当前固定的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
+引用的定义归契约：会话当前记下的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
 
 <a id="r11"></a>
 
