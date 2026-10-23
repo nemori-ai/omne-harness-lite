@@ -317,7 +317,7 @@
 - **注意 ④**：**终结之后不再为它发起新动作，但终结前已发起的那些，账迟到了照样归它**，并标明是迟到的——
   [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)；否则「按运行汇总成本」算不全
 - **注意 ⑤**：会话[冻结](#ul-session-freeze--会话冻结--session-freeze)后不再开始新的运行。冻结前已经在途的运行照常走到终态。依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596) 与 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
-- **注意 ⑥**：新 Run 开始是一个[采用点](#ul-adoption-point--采用点--adoption-point)。常驻工具当前固定的版本从这次运行的[采用依据](#ul-adoption-basis--采用依据--adoption-basis)算出
+- **注意 ⑥**：新 Run 开始是一个[采用点](#ul-adoption-point--采用点--adoption-point)。常驻工具当前记下的登记键从这次运行的[采用依据](#ul-adoption-basis--采用依据--adoption-basis)算出
 
 ### UL-trigger · 触发 · Trigger
 
