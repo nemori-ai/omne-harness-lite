@@ -60,7 +60,7 @@
 <a id="计量"></a>
 ### 计量
 
-每条记录的计量器由 `createOpenAiMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用。方法名的拼接、输入摘要、单元追加 token 的求和与空校准由 pi-ai-transport 的[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)给出。本包只给出哪个单元带推理状态、怎样计数、图片规则与输出组方法名。
+每条记录的计量器由 `createOpenAiMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用。计量器外壳由 pi-ai-transport 的[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)给出：核对供应商与表示采用，拒绝待定媒体，调用共用算术，组装预算（方法名的拼接、输入摘要、单元追加 token 的求和）。本包只给出家族自己的部分：内容提取（哪个单元带推理状态、怎样计数）、图片规则、owner、输出组方法名，以及不可计数时的诊断名。
 
 1. 表示采用：`<记录名>#representation`。`represent` 从引擎的投影写出 `openai-visible-json/1` 的 token 输入：消息按线顺序；文本、工具调用与工具结果保留；图片只留类型与 `detail`；推理写 `reasoning` 文本，加密项只写数量；工具与参数采用一并写入。它同时写出 `units` 侧表：`messages` 的每个单元来自哪条消息，前置指令为 `null`，由同一列表构造，所以两者对齐。
 2. `measureCalibrated` 按下列顺序，第一个失败即返回：

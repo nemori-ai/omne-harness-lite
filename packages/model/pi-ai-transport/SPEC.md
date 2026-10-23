@@ -481,7 +481,7 @@ plan 不返回诊断。
 
 `calibratedAmount(input)` 是两个家族计量器共用的纯函数，实现 [model-contract“可选校准”](../model-contract/SPEC.md#可选校准及不可解释的历史)的算术。家族给出：token 输入（`messages` 成员列出消息单元的对象）、表示的 `units` 侧表、每个单元是否带推理状态、用家族 tokenizer 计数一个 token 输入的函数、给定单元在文本之外的追加 token（图片规则）、推理单元没有来源时的具名诊断、不可用的 `dependency`，以及余量百分比。方法沿用封存件 `input-meters/marginal.ts`（完整包络差）与 `input-meters/output-history.ts`（每个完整输出组记一次 O）。
 
-- **完整计量。**带推理状态的单元不分词，改记 `calibration.outputs` 中该消息的 O。其余单元照常计数。没有被替换的单元时，计数的就是 token 输入本身，字节不变。任一需要 O 的单元没有条目时返回 `unavailable`，诊断为家族给出的具名诊断。条目为扣留时诊断为扣留原因。先查来源，再计数，再算追加 token。结果整体为估算，余量按整体算。
+- **完整计量。**带推理状态的单元不分词，改记 `calibration.outputs` 中该消息的 O。其余单元照常计数。没有被替换的单元时，计数的就是 token 输入本身，字节不变。任一需要 O 的单元没有条目时返回 `unavailable`，诊断为家族给出的具名诊断。条目为扣留时诊断为扣留原因。顺序是来源 → 图片规则 → 分词：先查来源，再算可见单元的追加 token（图片规则），最后用 tokenizer 计数。这与家族计量器的检查顺序一致。结果整体为估算，余量按整体算。
 - **锚点命中。**`units` 把消息单元分成三类：前缀单元（消息在 `anchor.covered` 中）、`null` 单元（前置指令）与新增单元（其余单元）。新增单元中不带推理状态的是新增的可见单元。包络差有两个计数项，都用家族 tokenizer 计数 token 输入的一个副本。两个副本都去掉 `tools` 与 `tool_choice`，保留其余成员，只替换 `messages`：第一项的 `messages` 只含新增的可见单元，按原次序。第二项的 `messages` 为空。所以两个计数项都不含前置指令与工具，也不含前缀单元与推理单元。计算如下：
   - 新增部分 = 第一项 − 第二项 ＋ Σ 新增推理单元的 O ＋ 新增的可见单元的追加 token。
   - 结果 = `anchor.inputTotal`（不加余量）＋ 新增部分。余量只按新增部分算。
@@ -499,12 +499,13 @@ plan 不返回诊断。
 
 #### 共用计量规则
 
-两个家族计量器在校准算术之外共用以下纯函数与常量。家族只给出自己的值：计量器采用、输出组方法名与每个单元的追加 token。
+两个家族计量器在校准算术之外共用一个计量器外壳与以下纯规则，都在 [chat-completions/measurement.ts](src/chat-completions/measurement.ts)。家族只给出自己的部分：内容提取（哪个单元带推理状态、怎样计数）、图片规则、owner、输出组方法名，以及不可计数时的诊断名。
 
-- **空校准。**`NO_CALIBRATION` 是冻结的空校准（没有锚点，没有 O）。家族的 `measure(input)` 用它调用 `measureCalibrated`。
-- **方法名。**`calibratedMethod({ meter, outputGroup, amount })` 从计量器采用开始。`amount.substituted` 为真时，名字加 `+<outputGroup>`。`amount.anchor` 为 `hit` 时，名字再加 `+continuation-anchored/1`（`ANCHORED_METHOD`）。两者都有时，输出组方法在前。`continuation-shrank` 的不命中不加后缀。`owner`、`revision` 与 `digest` 不变。没有后缀时返回计量器采用本身。
-- **输入摘要。**`calibratedDigest({ measure, calibration })` 是以下字段的 JSON 文本的 SHA-256 十六进制：`profile`、`supplier`、`context`、`limits`、`parameters`，以及表示的 `adoption`、`tokenInput` 的无损 JSON 文本与 `media`。校准有锚点或有 O 条目时，摘要也纳入整个校准，所以换锚点或换 O 就是换输入。空校准不进入摘要，所以普通计量的摘要与没有校准时相同。表示的 `units` 侧表不进入摘要。
-- **追加 token。**`unitExtras(perUnit)` 给出校准算术的 `extra`。每次调用都重新调用 `perUnit`，再对所给单元的追加 token 求和。没有条目的单元加零。`perUnit` 失败时，`extra` 返回同一失败。
+- **计量器外壳。**外壳先核对供应商与表示采用，再拒绝待定媒体，结果与字段见 [pi-ai-openai](../pi-ai-openai/SPEC.md#计量) 与 [pi-ai-anthropic](../pi-ai-anthropic/SPEC.md#计量) 计量步骤 2 的第 1～3 项。之后它用家族给出的部分调用校准算术，并组装预算：检查、方法名、输入摘要与 `calibration`。
+- **空校准。**空校准是冻结的值，没有锚点，也没有 O。家族的 `measure(input)` 等于以空校准调用 `measureCalibrated`。
+- **方法名。**方法名从计量器采用开始。有单元被 O 替换时，名字加 `+<输出组方法名>`。锚点命中时，名字再加 `+continuation-anchored/1`。两者都有时，输出组方法在前。`continuation-shrank` 的不命中不加后缀。`owner`、`revision` 与 `digest` 不变。没有后缀时返回计量器采用本身。
+- **输入摘要。**输入摘要是以下字段的 JSON 文本的 SHA-256 十六进制：`profile`、`supplier`、`context`、`limits`、`parameters`，以及表示的 `adoption`、`tokenInput` 的无损 JSON 文本与 `media`。校准有锚点或有 O 条目时，摘要也纳入整个校准，所以换锚点或换 O 就是换输入。空校准不进入摘要，所以普通计量的摘要与没有校准时相同。表示的 `units` 侧表不进入摘要。
+- **追加 token。**校准算术的 `extra` 每次调用都重新取每个所给单元的追加 token（图片规则），再求和。没有条目的单元加零。图片规则失败时，`extra` 返回同一失败。
 
 ### 网关引擎：流解释
 

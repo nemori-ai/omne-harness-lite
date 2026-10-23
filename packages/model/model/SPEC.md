@@ -208,7 +208,7 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 `acquire(access & { profile, lineage? })` 按下列顺序执行：
 
 1. 解析 lineage。以下情形返回 `invalid`：
-   - `continues` 或 `sources` 的身份不合格：`field` 为 `lineage.continues` 或 `lineage.sources`。
+   - `continues` 或 `sources` 的形状或身份不合格：`field` 为 `lineage.continues` 或 `lineage.sources`。租约在边界逐项检查形状，例如 `sources` 不是数组、条目缺 `message` 或 `message` 不是字符串。畸形输入返回 `invalid`，不抛出。
    - 同一消息有两个来源：`lineage.sources`，`duplicate-message`。
    - 不同调用数超过 `maxCitedCalls`：`lineage`，`too-many-calls`。
 
@@ -235,6 +235,8 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
   11. `units-missing`
 
   全部不成立时，锚点为 X 的三项之和与它的消息序列。锚点只依赖这三项已知，账目其他项的矛盾不影响锚点。`continuation-shrank` 由家族计量器给出。
+
+  延续锚点还以被延续那次发出的 `resent` 为空为前提。今天的[发送边界](#产品发送边界)总以空的 `resent` 调用 prepare，没有 `replay-rejected` 后的再发，所以这个前提总成立，租约不核对它。以后实现再发时，发出记录须保存 `resent`。`resent` 非空时，锚点不命中。
 - 来源按消息判决。lineage 没有为带推理续接状态部件的 assistant 消息给出来源时，结果为 `source-missing`。有声明来源的消息按下列顺序核对，第一个成立的原因决定结果，全部不成立时得到 O：
   1. `source-unreadable`
   2. `source-unavailable`
@@ -246,8 +248,9 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 
   为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
 - 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
+- 租约交出锚点、而家族计量器的成功结果没有报告锚点判决时，家族违反了 `CalibratedInputMeter` 契约。租约抛出 `TypeError`，消息写明供应商采用，不把缺失的判决当作命中。
 
-`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。事实视图随租约消失，不跨租约保留。
+`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。`release` 同时清空事实视图。事实视图不跨租约保留。
 
 ## 产品发送边界
 

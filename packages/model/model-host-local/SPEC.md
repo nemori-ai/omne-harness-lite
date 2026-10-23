@@ -105,7 +105,7 @@
 - 装配不拥有 `commands`、`coordinator`、`credentials` 与 `families`。`close()` 不关闭它们，调用方负责它们的寿命。
 - `close()` 开始后，`preparation.acquire` 返回 `{ kind: 'unavailable', dependency: 'model-host-local', diagnostic: 'assembly-closed' }`。这个名字指向装配，不复用发送资源的名字：发送资源也能单独关闭，`pi-send-resources` 只指它。拒绝时不调用 `supplierOf`，不取得绑定。
 - `close()` 不释放租约。关闭前取得的租约持有自己的绑定，关闭后仍可计量，直到取得它的调用方调用 `release`。家族计量器是纯函数，不持有网络资源。
-- 装配的 `close()` 重复调用返回同一结果。发送资源关闭失败时，网络资源仍然关闭，之后抛出该失败。
+- 装配的 `close()` 重复调用返回同一结果。`close()` 关闭发送资源与网络资源两者，一个失败不跳过另一个。只有一个失败时抛出该失败。两者都失败时抛出 `AggregateError`，含两个失败。
 - 关闭只改变本进程内的状态。已经发出的请求与上游已经产生的费用不可撤回。
 
 ### 资源所有权
