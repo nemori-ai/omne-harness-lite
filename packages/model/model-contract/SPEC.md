@@ -589,13 +589,88 @@ push、重投、证据核验、handoff 与 dispatches 分别核当前资格，�
 
 ### Model 投影及差分
 
-每条内容流绑定原 invocation、dispatch、发布代次和固定投影版本。新 dispatch 或新发布代次使用新 StreamId。旧引用保持原身份，不能接到后继。dispatch 前没有这条内容流，调用等待状态从原调用读面取得。
+每条内容流绑定原 invocation、dispatch、发布代次和固定投影版本。新 dispatch 或新发布代次使用新 `StreamId`。旧引用保持原身份，不能接到后继。dispatch 前没有这条内容流，调用等待状态从原调用读面取得。
 
-Model 快照包含 dispatch 及现有 `Snapshot`。Model delta 包含 outputCursor、`CallState` 和发生变化或新增 index 的累计 `VisibleBlock`。没有出现在 delta 的块保持原值，已有顺序不变，新 index 按原顺序追加。sealed 内容不可改，growing 的 mode 与 content 不可改；跨 dispatch 的 diff 或 apply 必须拒绝。对合法同流投影，向 S0 应用 diff(S0, S1) 必须得到 S1。
+`ModelStreamSnapshot` 和 `ModelStreamDelta` 都携带完整 `StreamRef` 与外层 `DispatchId`。delta 另带原 `OutputCursor` 与 `Revision` 基线。沿用现有 `Snapshot`、`VisibleBlock` 和 `CallState`，不另立业务状态枚举。这些投影类型及纯函数尚未进入[公开导出清单](docs/public-api.md#已采用但尚未声明的增量)。
+
+#### 输入、输出与来源边界
+
+下表给出已采用的值关系及操作边界。精确公开声明由实现的源码拥有，不在行为正文复制类型定义。
+
+| 值或操作 | 输入及输出 |
+| --- | --- |
+| `ModelStreamSnapshot` | `ref`、`dispatch` 和 `value`；`value` 是现有 `Snapshot`，含 `call`、`cursor`、`state`、`blocks` |
+| `ModelStreamBase` | 原 `outputCursor` 与 `revision` |
+| `ModelStreamDelta` | `ref`、`dispatch`、`from` 基线、目标 `outputCursor`、目标完整 `state`，及改变或新增 index 的累计 `blocks` |
+| `diffModelStream` | 一个含 `tenant`、`before`、`after` 的只读输入；两侧均为 `ModelStreamSnapshot`。返回 delta 或 `ModelStreamProjectionFailure` 的 `Outcome` |
+| `applyModelStreamDelta` | 一个含 `tenant`、`before`、`delta` 的只读输入。返回完整 `ModelStreamSnapshot` 或同一失败联合的 `Outcome` |
+
+两函数使用公共身份拥有者的真实 `TenantId`，以 Model 原 invocation codec 核引用。引用校验只验证身份，不证明当前资格。`StreamRef` 已包含原 invocation 与流身份，不另加可独立漂移的 call 来源字段。`Snapshot.call` 与 `CallState.call` 仍须与引用内的 call 核对。即使 settled 状态不带 dispatch，也必须核外层 dispatch。
+
+输入是生产者已确认的 typed 值。持久读取方先用实际边界解析器建立这些值，再调用 helper。函数不负责解析任意 getter、Proxy、循环图、任意 JSON 大图或不符合 `CallState`、`ModelBlock` 定义的对象。本协议不新增完整 `CallState` judge，也不另设输出字节限额。[公共编码限额](../../common/stream-arrival/README.md#canonical-text-and-limits)只约束身份文本，流载荷仍遵守提供者已采用的有限额度。
+
+函数检测类型可表达的来源错配和非法投影变化。生产者仍负责真实提交、来源、参数收齐、媒体关系、控制和 ACK 业务合法性。攻击者同时伪造所有相等身份字段的出处，不能由纯 helper 识别。
+
+#### 检查顺序与失败
+
+检查按下列顺序执行，多重违规返回最先命中的失败。diff 的两侧顺序是 before、after，apply 的两侧顺序是 before、delta。
+
+1. 先通过 `tenantCodec.encode` 核 tenant 的铸造关系。失败返回 `invalid-tenant`。按两侧顺序，用公共 `judgeStreamRef` 配 Model 原 codec 核每个 ref，再以原 Model codec resolve 取得 invocation.call。引用失败返回 `reference`，带 `side` 与原公共 `failure`；其中 `invalid-tenant` 仍归顶层同名分支。然后用对应 Model identity decoder 核 dispatch、`Snapshot.call`、`state.call`、`state.revision` 和 outputCursor。delta.from 的两项也解码，字段归 delta 侧。running 或 retry-decision 的 `state.dispatch` 同样解码。身份失败返回 `identity`，带 `side` 和 `field`；字段优先级是 dispatch、call、revision、outputCursor。两侧的引用与身份检查均完成后才进入下一项。
+2. 按两侧顺序核调用和状态关联。每侧的 `Snapshot.call`（有该字段时）与 `state.call` 必须等于其 invocation.call，否则 `call-mismatch`。running、retry-decision 的 `state.dispatch` 必须等于外层 dispatch，否则 `dispatch-mismatch`。accepted 不属于已发布 dispatch 的内容快照，返回 `state-transition`。settled 没有内层 dispatch，但不免除外层检查。
+3. 跨两侧先比较规范 ref，再比较外层 dispatch。不同分别返回 `stream-mismatch`、`dispatch-mismatch`。相同 call 或输出内容不放宽检查，settled 同样适用。
+4. apply 检查 `delta.from.outputCursor` 与 `before.value.cursor`，以及 `delta.from.revision` 与 `before.value.state.revision`。两项必须逐文本相同，否则 `base-mismatch`。函数不猜基线、不重排、不自动重试。公共帧的 from/cursor 仍独立承担流位置衔接，不能由 Model 基线替代。
+5. 目标 revision、outputCursor 不得小于基线，依次返回 `revision-regression`、`cursor-regression`。比较按十进制长度及等长数字文本执行，不转换为 number。然后检查相同 revision 的整个 `CallState` 是否结构相等，不同为 `state-conflict`。再检查相同 outputCursor 的整个目标 blocks 是否结构相等，不同为 `block-conflict`。state 变化而 outputCursor 不变允许。outputCursor 增加而 blocks 不变也允许，例如仅保存了影响该游标的其他事实。
+6. 同一 ref/dispatch 的 phase 只允许 running 到 running、retry-decision 或 settled，retry-decision 到 retry-decision 或 settled，以及 settled 到 settled。其他配对返回 `state-transition`。settled 到 settled 必须保留 settlement 完整值，否则 `state-conflict`。consumer 完整值也必须相同，否则 `state-conflict`。此项先核 phase、再核 settlement、最后核 consumer。
+7. 先核两侧 blocks 及 delta.blocks 的 index 词法与顺序。index 是规范十进制非负安全整数，最大为 `9007199254740991`，不得重复，必须严格递增。首项可非零，允许间隙。非法词法、重复或失序均为 `block-order`。
+8. 再核块的保留和新增位置。after 必须保留 before 的每个 index，原索引不可移位，缺失返回 `block-removal`。新 index 必须大于 before 的末 index。小于旧末项且不在旧集合中的新 index 返回 `block-order`。apply 以已有 index 的新累计值替换原项，保留未列出的旧项，按顺序追加新项。delta 不删除块、不排序整个旧数组，也不将累计字符串追加到旧字符串。
+9. 最后按旧 index 顺序检查块内容。sealed 到 sealed 只允许完整 block 结构相等，sealed 到 growing 返回 `block-conflict`。growing 到 growing 固定 mode 与 content。append 的目标 value 必须以前值为前缀。replace 允许任意新字符串，包括空串。违反这些条件均为 `block-conflict`。
+10. growing 到 sealed 只允许 text 对 text、thinking 对 thinking、voice 对 voice、tool-arguments 对 tool_call。text、thinking 的 block.text 在 append 模式必须以前累计 value 为前缀，replace 模式允许任意字符串。inline voice 的 inline 同理。合并更新可能在封块前增加内容，故新 sealed 正文不必等于旧 growing 正文。reference voice 不读取媒体、不比较内容字节。tool_call.arguments 保留原 `JsonValue`，不重新解释为原字符串；与累计参数的对应及完整性由原生产者封块契约保证。不相容封块返回 `block-conflict`。新 index 可以直接 sealed，允许合并略过 growing 中间态。此规则不创建不完整工具调用或推理回放新变体。
+
+`reference.side` 和 `identity.side` 是 `before`、`after` 或 `delta`。`identity.field` 是 `dispatch`、`call`、`revision` 或 `outputCursor`，from 内失败归其对应字段。其余失败分支不附加任意提供者错误正文。完整失败集合就是上列 `invalid-tenant`、`reference`、`identity`、`call-mismatch`、`stream-mismatch`、`dispatch-mismatch`、`base-mismatch`、`revision-regression`、`cursor-regression`、`state-conflict`、`state-transition`、`block-order`、`block-removal`、`block-conflict`。
+
+apply 先构造独立临时目标，再按上述目标配对规则检查。失败不修改任何输入，不交部分快照，不采用修改 before 后回滚的方式。
+
+#### 差分、相等与不可变输出
+
+diff 按 after 顺序，只选择新增项和与 before 结构不同的旧项。相同旧项不输出。delta.from 固定 before 的两项基线，目标 state/outputCursor 固定 after，ref/dispatch 固定已核相同来源。apply 允许冗余的相同旧项，视为无变化；diff 自身仍输出最小变化项集。
+
+结构相等按原值树比较。对象键顺序不参与，数组顺序参与，字符串逐码元比较，类型和 variant 参与。`JsonValue` 按公开树比较，number.lexeme 不作数值归一化，object.entries 保留有序数组。缺字段不等于显式 undefined，合法可选字段应省略。不取媒体内容，不以摘要或 block id 替代完整值比较。
+
+完全相同的两侧得到 blocks=[] 的 no-op delta，apply 后得到等值快照。观察者不必发布 no-op 帧。非 no-op 成功应用后，再次应用同一 delta 通常得到 `base-mismatch`。公共帧按三元组身份判重，不能为幂等而略过 Model 基线。
+
+成功返回的 delta 或快照是独立深复制、深冻结的纯值。共享 DAG 按每次出现的位置复制。输入不冻结、不修改，返回后修改原嵌套输入不改变结果。对合法同流投影，apply(S0, diff(S0, S1)) 与 S1 结构相等。函数不写状态、不发布、不持久化、不 ACK、不释放，也不证明真实来源和提交。
+
+#### 投影验证义务
+
+验证使用真实公共 tenant 和 Model 原 codec 建立引用。除明确冲突的条件外，每个负例从合法、同源、revision 与 outputCursor 均已推进的配对出发。
+
+| 场景 | 必须得到的结果 |
+| --- | --- |
+| 从空块到 index 2 的 append text `a`，修订和输出游标推进 | delta 保存原两项基线，只交新块，apply 得完整目标 |
+| 仅合法 state/control 推进，outputCursor 相同 | delta.blocks 为空，apply 保留旧块 |
+| index 2 从 `a` 长为 `ab`，新增 index 5 | delta 两项按 2、5 排列，apply 得完整目标 |
+| replace 值从 `a` 变空串 | 成功 |
+| 相同 ref，delta.dispatch 改为另一合法 dispatch，state 是 settled | `dispatch-mismatch` |
+| 同 call/dispatch，delta.ref 改为另一 stream | `stream-mismatch` |
+| 来源匹配，但 delta.from.revision 不匹配 | `base-mismatch`，before 内容与可变状态均不变 |
+| state.call 与 ref 内 call 不同 | `call-mismatch` |
+| revision、outputCursor 同时倒退 | `revision-regression` |
+| 同 revision 改 control，或同 outputCursor 改块 | 分别为 `state-conflict`、`block-conflict` |
+| 删除旧 index 2 | `block-removal` |
+| index 为 `[5,2]`、`[2,2]`、`01` 或 `9007199254740992` | `block-order` |
+| 旧末 index 5，新增此前不存在的 index 3 | `block-order` |
+| append `ab` 缩为 `a`，或改变 mode/content | `block-conflict` |
+| 改 sealed 文本或将 sealed 改 growing | `block-conflict` |
+| growing append text `a` 封为 sealed text `ab` | 成功，封成 text `b` 或 thinking `a` 则 `block-conflict` |
+| settled 后改变 settlement.version 或 termination | `state-conflict` |
+| settled 后回 running | `state-transition` |
+| 同块对象只重排键 | 相等，diff 不输出该块 |
+
+每个合法场景检验 round-trip。验证还覆盖直接新增 sealed、voice 引用封块、tool_call 的原 JsonValue 大整数 lexeme、无变化、稀疏 index、256 位 revision/outputCursor，以及返回后修改原嵌套输入的隔离。纯值验证不证明生产者已验证工具参数或媒体内容，也不证明真实保存和发布。
 
 公共 cursor 覆盖全部已确认投影变化。state-only 更新即使不改变 `OutputCursor`，也推进公共 cursor，不能直接拿 OutputCursor 充当公共 cursor。流 ended 只终止这次观察，调用结局仍从权威 CallState 或结果读取。
 
-Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C 之后订阅在同一临界区完成，不能先读再普通 subscribe。可以合并已确认变化；每个 delta.from 必须是该观察者最后交出的 cursor。公共帧核权、队列限额与终止规则同样适用，不承诺逐上游分片或持久 replay。
+Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C 之后订阅在同一临界区完成，不能先读再普通 subscribe。可以合并已确认变化；每个公共 delta 帧的 from 必须是该观察者最后交出的 cursor。公共帧核权、队列限额与终止规则同样适用，不承诺逐上游分片或持久 replay。
 
 ### current 的权威含义
 

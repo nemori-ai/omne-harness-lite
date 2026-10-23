@@ -72,11 +72,105 @@ This extension carries producer-confirmed projections. It does not replace arriv
 
 ### References and cursors
 
-StreamProducer distinguishes model and tool. StreamId, StreamRef, and StreamCursor are opaque text identities. A reference binds the producer, the original producer call's canonical reference text, and one published stream identity. Its canonical encoding is versioned. A new dispatch or publication generation uses a new stream identity. An old reference never redirects to a successor.
+`StreamProducer` is `model` or `tool`. `StreamId`, `StreamPosition`, `StreamRef`, and `StreamCursor` are distinct branded text values. Objects and arrays in these pure values are readonly. The common layer consumes `TenantId` and `tenantCodec` from `@omne-harness/legal-identity`, and `Outcome` from `@omne-harness/operation-result`. It imports neither Model nor Tool.
 
-The envelope parser only selects a route. Reference validation checks the producer before delegating the call text to that producer's original codec. The codec validates the explicit tenant and returns canonical call text. The common layer does not redefine tenant, call, or admission. Validation distinguishes an invalid envelope, wrong producer, malformed call reference, and foreign tenant. Successful parsing proves neither existence nor current permission.
+A reference binds the producer, the original invocation's canonical call text, and one published stream identity. The producer chooses the stream text before validation. The helpers allocate no random identity. One `StreamId` within an invocation identifies only one dispatch, publication generation, and projection version. Each new dispatch or publication generation uses a new `StreamId`. An old reference never redirects to a successor. A brand proves neither uniqueness, existence, provenance, nor current permission.
 
-A cursor binds the complete reference and a monotonic position within that stream. Cursor validation distinguishes invalid text from a cursor for another stream. Positions from different streams have no shared order. The producer advances the cursor for every confirmed projection change, including state changes without new content.
+A cursor binds the complete reference and a monotonic position within that stream. Positions from different streams have no shared order. The producer advances the public cursor for every confirmed projection change, including state changes without new content.
+
+#### Canonical text and limits
+
+The canonical representations and limits are fixed below. Lengths count UTF-16 code units.
+
+| Value or boundary | Canonical text or limit |
+| --- | --- |
+| `StreamId` | `str_` followed by at least one `[A-Za-z0-9_-]`, at most 256 code units |
+| `StreamPosition` | `0` or `[1-9][0-9]*`, at most 256 code units |
+| `StreamRef` | `JSON.stringify(['stream-ref', 1, producer, canonicalCallText, stream])` |
+| `StreamCursor` | `JSON.stringify(['stream-cursor', 1, canonicalRefText, position])` |
+| Call text input and codec success output | Nonempty, at most `STREAM_CALL_MAX_LENGTH = 1668` code units |
+| Reference text input and canonical output | At most `STREAM_REFERENCE_MAX_LENGTH = 4096` code units |
+| Cursor text input and canonical output | At most `STREAM_CURSOR_MAX_LENGTH = 8192` code units |
+
+The identity and position constants are `STREAM_ID_MAX_LENGTH = 256` and `STREAM_POSITION_MAX_LENGTH = 256`. A value at its limit proceeds to the next check. A value one code unit over its limit fails with `length` before JSON parsing. These are text parsing limits. Message, queue, tenant capacity, throughput, and actual memory limits remain separate obligations.
+
+The call limit covers the current Tool limit of 1668 and Model limit of 1024. The current largest canonical Tool invocation has length 1154. With two quote-only identities of length 256 and a `StreamId` of length 256, the canonical reference has length 2487. A position of length 256 makes its canonical cursor length 4872. Producer identity limits must be checked again before they expand. Valid identities must not be truncated to fit these boundaries.
+
+Canonical output has no BOM, insignificant whitespace, or trailing newline. Persistent bytes are the UTF-8 encoding of that text. JSON string escaping follows ECMAScript `JSON.stringify`. Tuple order and domain case are fixed. The version is the JSON number `1`. The string `"1"` fails. No Unicode normalization, case folding, trimming of identity fields, or percent encoding occurs.
+
+Reference input may contain JSON whitespace outside the tuple and equivalent JSON string escapes within the input limit. The original call codec normalizes the call. The result uses the canonical tuple again. Stream identities and positions are not rewritten. Positions such as `01`, `+1`, `1.0`, and `1e3`, numeric values, negative values, and empty values fail. Position comparison first compares decimal text lengths, then equal-length digit text. It never converts to a JavaScript number.
+
+A cursor's embedded reference must be the complete canonical reference text. `judgeStreamCursor` compares that text with its already validated target reference, code unit by code unit. Any difference returns `foreign-stream`, including an equivalent reference with noncanonical whitespace. Only the cursor's outer JSON whitespace and equivalent string escapes are normalized. Cursor validation neither calls a producer codec nor creates another call parser.
+
+#### Pure operations and failure values
+
+All operations are synchronous. The table describes their adopted inputs and outputs. These operations are not yet exported. Exact public declarations belong to their implementation, rather than a second signature inventory here.
+
+| Operation | Input | Success value |
+| --- | --- | --- |
+| `decodeStreamId` | One unknown value | `StreamId` |
+| `decodeStreamPosition` | One unknown value | `StreamPosition` |
+| `parseStreamEnvelope` | One unknown reference text | Frozen `{ producer, call, stream }`, without a `StreamRef` brand |
+| `encodeStreamRef` | `{ tenant, producer, call, stream }` and a producer call codec | Canonical `StreamRef` |
+| `judgeStreamRef` | `{ value, tenant }` and a producer call codec | Canonical `StreamRef` |
+| `readStreamRef` | Validated `StreamRef` | Frozen `{ producer, call, stream }` |
+| `encodeStreamCursor` | `{ ref, position }` | Canonical `StreamCursor` |
+| `judgeStreamCursor` | `{ value, ref }` with a validated target reference | Canonical `StreamCursor` |
+| `readStreamCursor` | Validated `StreamCursor` | Frozen `{ ref, position }` |
+| `compareStreamPositions` | Two validated positions, left then right | `-1`, `0`, or `1` |
+
+The decode, parse, encode, and judge operations return `Outcome`. A `StreamValueRejection` has `field` and `reason`. The field is `StreamId`, `StreamPosition`, `StreamRef`, or `StreamCursor`. Reasons are `type`, `length`, `syntax`, `domain`, `version`, `shape`, `producer`, `identity`, `position`, and `unreadable`.
+
+The identity and position decoders, and the envelope parser, return that rejection directly. A reference failure is `invalid-envelope` with `rejection`, `wrong-producer`, `malformed`, `invalid-tenant`, or `foreign-tenant`. A cursor failure is `invalid` with `rejection`, or `foreign-stream`. Call codecs expose `producer` and `resolve({ text, tenant })`. The resolver returns canonical call text, or `malformed`, `invalid-tenant`, or `foreign-tenant` through `Outcome`.
+
+Checks occur in the following order. The first failure wins.
+
+1. `decodeStreamId` checks string type, nonempty length and upper limit, then lexical form. Failures are `type`, `length`, then `identity`. `decodeStreamPosition` uses the same order, with `position` for lexical failure. Each rejection names the decoder's own field.
+2. `parseStreamEnvelope` checks string type, nonempty length and the reference limit, JSON syntax, array shape, domain, version, exact tuple length of five, producer, call, then stream. Every rejection has field `StreamRef`. A non-array or wrong tuple length is `shape`. Producer must be `model` or `tool`, otherwise the reason is `producer`. A nonstring call is `shape`. An empty or oversized call is `length`. Invalid stream text is `identity`. Extra tuple elements are not ignored. Success freezes the envelope but only supplies routing values.
+3. `judgeStreamRef` first checks the tenant's minted identity through `tenantCodec.encode`, returning `invalid-tenant` on failure. It then parses the envelope, wrapping a rejection as `invalid-envelope`. Next it compares the envelope producer with `codec.producer`. A mismatch returns `wrong-producer` without calling `resolve`. Finally it calls `resolve`, preserving the three call failure kinds. Success encodes the canonical reference again. An oversized canonical output is `invalid-envelope` with reason `length`.
+4. `encodeStreamRef` first captures an exact data record with the keys `tenant`, `producer`, `call`, and `stream`. Each key must be an own, enumerable data property. Only `Object.prototype` and null prototypes are allowed. The operation never calls getters, `toJSON`, or conversion functions. Reflection failure is `invalid-envelope` with reason `unreadable`. Other invalid record shapes use `shape`. After capture, it checks the tenant, envelope field values, producer, original call codec, and canonical output as above. It does not freeze the caller's record.
+5. `encodeStreamCursor` captures an exact `ref` and `position` data record under the same descriptor and prototype rules. Record failures use `invalid` with field `StreamCursor`. It accepts an already validated canonical reference brand and checks position lexical form again. An invalid position uses reason `position`. It encodes the fixed cursor tuple and applies the cursor output limit. A forged reference brand is a programming error, not proof of original call validation.
+6. `judgeStreamCursor` checks raw string type, nonempty length and the cursor limit, JSON syntax, array shape, domain, version, exact tuple length of four, embedded reference, then position. Every rejection has field `StreamCursor`. A nonstring embedded reference is `shape`. An empty or oversized embedded reference is `length`. Invalid position is `position`. It completes these structural checks before comparing the embedded reference with the target. A mismatch is `foreign-stream`. Success returns canonical cursor text.
+
+The judge parameter containers and call codecs are typed injected dependencies. They are not unknown serialized object graphs. The descriptor rules apply only to the two encode records. Unknown text operations do not inspect object properties. A codec is an owner-supplied pure function. Codec implementation errors propagate rather than becoming `malformed`. A success output that is not a string, is empty, or exceeds 1668 code units is a codec implementation error.
+
+`judgeStreamRef` is the reference decode boundary. There is no alternate `decodeStreamRef` that bypasses tenant and producer validation. Read operations accept only branded values from the validated boundaries. They neither check current permission nor call the producer codec again. An unreadable forged brand throws a generic `TypeError` without the input text. All object results of parsing and reading are frozen. Caller inputs remain unfrozen and unchanged.
+
+Each producer owns its adapter to the original call codec. Model resolves with `resolveModelInvocationRef(text, tenant)`, then encodes with `encodeModelInvocationRef(parts)`. Tool uses its corresponding `resolveToolInvocationRef` and `encodeToolInvocationRef`. The adapter maps a detailed malformed-call rejection to `malformed`, and preserves `invalid-tenant` and `foreign-tenant`. The common tenant check precedes Tool's codec, so Tool's internal treatment of an unminted tenant as foreign does not change the public result. A test callback without original codec validation is not an identity adapter. Tool's concrete adapter remains a Tool obligation.
+
+#### Fixed codec examples
+
+These generation expressions define canonical text, without randomness or environment-dependent data.
+
+```js
+const tenantText = '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000000"}'
+const call = JSON.stringify(['model-invocation', 1, tenantText, 'mcall_a', 'mop_a'])
+const ref = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
+const c0 = JSON.stringify(['stream-cursor', 1, ref, '0'])
+const c10 = JSON.stringify(['stream-cursor', 1, ref, '10'])
+```
+
+With the matching minted tenant and Model codec, reading `ref` returns `{ producer: 'model', call, stream: 'str_a' }`. Reading `c10` returns `{ ref, position: '10' }`. Adding one outer space at each end before judging returns the same canonical value. Comparing `9` with `10`, or `9007199254740992` with `9007199254740993`, returns `-1`.
+
+The fixed refusal cases have the following results.
+
+| Change to the example | Result |
+| --- | --- |
+| Reference domain becomes `stream-cursor` | `invalid-envelope`, reason `domain` |
+| Reference version becomes the string `"1"` | `invalid-envelope`, reason `version` |
+| Reference gains a sixth null item | `invalid-envelope`, reason `shape` |
+| Producer becomes `tool` with the Model codec | `wrong-producer`, with no codec call |
+| Model producer contains a valid Tool invocation | `malformed` |
+| A same-shaped unminted tenant is supplied | `invalid-tenant`, with no codec call |
+| Another account's minted tenant is supplied | `foreign-tenant` |
+| Stream is `str_` | Reason `identity` |
+| Position is `01`, or cursor position is the number zero | Reason `position` |
+| Cursor embeds a reference with stream `str_b` | `foreign-stream` |
+| Cursor embeds a reference with an initial space | `foreign-stream` |
+| Reference has 4097 code units, or cursor has 8193 | Reason `length`, before JSON parsing |
+| A standalone position contains 256 nines | Success, while 257 nines fails with `length` |
+
+Codec verification uses minted tenants and the producers' original codecs. It covers the fixed vectors, each check's precedence, normalization, limits, and frozen read results. The maximum-length case obtains Tool call text from its original encoder with two quote-only identities of length 256. It then constructs `JSON.stringify(['stream-ref', 1, 'tool', call, 'str_' + 'a'.repeat(252)])` and `JSON.stringify(['stream-cursor', 1, ref, '9'.repeat(256)])`. Their lengths must remain 1154, 2487, and 4872 for call, reference, and cursor. Type checks reject interchange between the four brands and reject a bare string in their place. These checks do not prove real publication or permission.
 
 ### Frames and identity
 
