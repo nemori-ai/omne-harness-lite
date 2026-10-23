@@ -35,6 +35,7 @@ it('the root entry exports exactly the landed runtime values', async () => {
       'decodeRevision',
       'deriveGuardControlOperation',
       'judgeReplayDeclaration',
+      'judgeModelDelivery',
       'projectReplay',
       'sameCredentialHolder',
     ].sort(),

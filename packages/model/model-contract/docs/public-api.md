@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 186 个类型和 33 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 190 个类型和 34 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -17,9 +17,11 @@
 
 行为及调用资格归 [SPEC](../SPEC.md)，消费路径归 [context](context.md)，对象关系归 [object-model](object-model.md)。
 
-### 已采用但尚未声明的增量
+<a id="已采用但尚未声明的增量"></a>
 
-[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执及接收/恢复端口、current 尚未进入导出清单；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
+### 增量声明与待实施责任
+
+[结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执、结果接收端口和纯交付 judge 已从根入口导出，接收服务与恢复实现仍由提供者承担；current 尚未进入导出清单；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
 
 新增端口的 `Access` 直接来自 `@omne-harness/legal-identity`。旧 root.ts 的 Access 迁移由共享拥有者维护。current 的对象参数和失败顺序归 [目标查询](../SPEC.md#current-的权威含义)。
 
@@ -60,8 +62,11 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 本章给调用方和消费者拥有者：操作的失败值、调用状态、终局与确认回执。
 
-- 声明：[`src/result.ts`](../src/result.ts)、[`src/result-delivery-values.ts`](../src/result-delivery-values.ts)。
-- 类型探针：[`tests/result.spec-d.ts`](../tests/result.spec-d.ts)、[`tests/result-delivery-values.spec-d.ts`](../tests/result-delivery-values.spec-d.ts)。
+- 声明：[`src/result.ts`](../src/result.ts)、[`src/result-delivery-values.ts`](../src/result-delivery-values.ts)、[`src/result-delivery.ts`](../src/result-delivery.ts)、[`src/result-delivery-judge.ts`](../src/result-delivery-judge.ts)。
+- 类型探针：[`tests/result.spec-d.ts`](../tests/result.spec-d.ts)、[`tests/result-delivery-values.spec-d.ts`](../tests/result-delivery-values.spec-d.ts)、[`tests/result-delivery.spec-d.ts`](../tests/result-delivery.spec-d.ts)。
+- 纯判断及受控接收行为：[`tests/result-delivery.spec.ts`](../tests/result-delivery.spec.ts)。接收替身不从公开入口导出，不证明真实存储或资格提供者的行为。
+
+`ModelResultReceiver` 供消费者实现结果接收。`judgeModelDelivery` 只核 typed 载荷中的有限关系，成功返回原输入；它不复制、冻结、授权或保存。接收顺序、原 dispatch 归属、已知部分保存和未知接续归 [SPEC](../SPEC.md#结果推送与保存)。
 
 结果接收者以交付种类收窄稳定键与载荷。账目快照没有报告时显式为 null。只读声明约束静态赋值；版本值一致、全部 dispatch 覆盖、运行时冻结与真实保存仍由[交付协议](../SPEC.md#交付身份与冻结载荷)核验，不由类型声明证明。
 
