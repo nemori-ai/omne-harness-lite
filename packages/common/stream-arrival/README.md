@@ -174,14 +174,16 @@ Codec verification uses minted tenants and the producers' original codecs. It co
 
 ### Frames and identity
 
+`StreamObserver<P,S,D,E=never>.observe` accepts one readonly input with `ref`, `access`, and `signal`. Their types are `StreamRef`, the public `Access<P>`, and `AbortSignal`. It returns `AsyncIterable<StreamFrame<S,D,E>>`. The input has no `after` field. The observer imports `Access` directly from the root entry of `@omne-harness/legal-identity`. That type does not prove that the principal is trusted or authorized.
+
 All frames use the `kind` discriminant. The adopted frame vocabulary has these branches:
 
 | Frame | Meaning |
 | --- | --- |
-| snapshot | A confirmed projection value and its cursor |
-| delta | A change value, its starting cursor `from`, and its ending cursor `cursor` |
-| gap | Lost continuity, with the last cursor `after` or null, and reason buffer or source-history |
-| ended | This observation ended, with a standard reason or a producer-specific end value |
+| snapshot | `cursor` and `value: S`, the confirmed projection |
+| delta | `value: D`, the starting cursor `from`, and the ending cursor `cursor` |
+| gap | The last delivered cursor `after`, or null, and `reason` of buffer or source-history |
+| ended | A standard `reason`, or `reason: producer-ended` with `value: E` |
 
 A snapshot's identity is its reference and cursor. A delta's identity is its reference, from, and cursor. Identical identities require identical content. Deltas C10 to C12 and C11 to C12 may have different values. Producers may combine confirmed changes, but each delta starts at the last cursor delivered to that observer.
 
@@ -201,9 +203,25 @@ Before each actual frame output, the source checks current permission, tenant, s
 
 Providers declare finite limits for snapshot bytes, delta bytes, each observer's queued frames and bytes, observers per tenant, total memory, and queue residence time. Normative bytes use UTF-8 JSON with recursively sorted object keys, ordered arrays, and JSON string escaping. These limits do not measure actual heap overhead, which the provider bounds separately.
 
-When a queue limit is reached, the producer first removes the subscription and discards pending data, then emits one terminal gap. It cannot drop intermediate data and continue. An oversized snapshot ends with capacity. Limits also cover producer-specific end values.
+When adding a frame would exceed a queue count or byte limit, or a queued item reaches its residence deadline, the producer first removes the subscription and discards pending data, then emits one terminal gap. It cannot drop intermediate data and continue. An oversized snapshot ends with capacity. Limits also cover producer-specific end values.
 
 Abort and iterator return remove only this observation. They do not cancel producer work, acknowledge a result, or authorize result release. A business terminal and an observation end are separate facts.
+
+### Limit comparisons
+
+Count and byte limits are inclusive maxima. Check the proposed occupancy before allocating or enqueueing; exceeding the limit and then reclaiming resources does not meet this bound. A queued frame, snapshot, delta, or producer-ended frame is oversized only when its measured value exceeds the limit. When the observer count already equals its maximum, a new observation fails admission without evicting existing observers. A queued item's residence deadline expires when elapsed time is greater than or equal to the configured duration. No content is delivered from that item at expiry.
+
+### Failure order and iterator completion
+
+An unminted tenant, a foreign tenant, or denied current permission ends with denied. Unreadable public reference syntax ends with stale-stream without a target lookup. After tenant and syntax checks, permission must allow the request before target lookup. An unavailable permission source ends with unavailable, even when the target is stale.
+
+Once permission allows the request, a wrong producer, an unknown same-tenant mapping, or a retired publication ends with stale-stream. An unavailable target source ends with unavailable. These checks precede capacity checks and ordinary content. Each actual output repeats the disclosure check. An already emitted terminal frame is final and cannot acquire a second terminal reason.
+
+Queue frame, byte, or residence overflow first removes the subscription and clears pending data. It retains one terminal gap with reason buffer and the last delivered cursor. That gap still passes the disclosure check before output. An oversized snapshot ends with capacity. An oversized delta ends with gap(buffer). Observer admission failure due to observer count or total resources ends with capacity. Providers bound actual heap separately from normative bytes.
+
+After abort, the observer emits no further content. If the iterator remains open, it terminates with observer-closed. A pending next receives that end unless return already closed the iterator. Return resolves pending and future next calls as done. Both operations immediately detach and clear queues. Neither operation cancels business work or acknowledges custody.
+
+A dependency exception that prevents a conforming end remains a connection failure through throw or EOF. It cannot become a successful end or a producer-ended value. Producer end limits measure the complete producer-ended frame with the same canonical UTF-8 JSON encoding. After permission allows output, an oversized producer end removes this subscription and discards its pending end value, then emits standard ended(capacity). It does not truncate E, delete producer facts, or establish business completion. Permission denied or unavailable takes precedence. An earlier terminal gap remains final and still passes disclosure checks.
 
 ### Delivery and verification boundary
 

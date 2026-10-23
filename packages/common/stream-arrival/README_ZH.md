@@ -164,6 +164,10 @@ judge 参数容器及调用 codec 是 typed 注入依赖，不是 unknown 序列
 
 ### 帧与身份
 
+`StreamObserver<P,S,D,E=never>.observe` 接收一个只读对象，字段为 ref、access 与 signal。三者分别是 `StreamRef`、公共 `Access<P>` 和 `AbortSignal`。返回值为 `AsyncIterable<StreamFrame<S,D,E>>`。输入没有 after 字段。观察端口直接从 `@omne-harness/legal-identity` 的根入口导入 Access。该类型不证明主体可靠或已经获准。
+
+snapshot 含 cursor 和 value:S。delta 含 from、cursor 和 value:D。gap 含最后已交游标 after 或 null，reason 为 buffer 或 source-history。ended 含标准 reason，或 producer-ended 的 reason 与 value:E。所有分支使用 kind；观察请求与公共游标共同固定原 ref，不另加重复 ref 字段。
+
 所有帧用 `kind` 判别，共有以下分支。
 
 | 帧 | 含义 |
@@ -191,9 +195,25 @@ snapshot 身份是 ref/cursor，delta 身份是 ref/from/cursor。相同身份�
 
 提供者声明有限的 snapshot 字节、delta 字节、每观察者排队帧数与字节、每租户观察者数、总内存及队列驻留时间上限。规范字节采用递归排序对象键、保留数组顺序、JSON 字符串转义的 UTF-8 JSON。它不计真实堆开销，提供者另限实际资源。
 
-队列达到上限时，先移除订阅、丢弃待交数据，再交一个终止 gap。不能丢中间数据后继续。超大 snapshot 以 capacity 结束。上限同样覆盖 producer-ended 值。
+拟加入帧会超过队列数量或字节上限，或队列项达到驻留期限时，先移除订阅、丢弃待交数据，再交一个终止 gap。不能丢中间数据后继续。超大 snapshot 以 capacity 结束。上限同样覆盖 producer-ended 值。
 
 Abort 和迭代器 return 只移除本次观察，不取消生产者工作、不 ACK 结果、不授权释放结果。业务终局与观察结束是不同事实。
+
+### 限额比较
+
+数量与字节上限包含等于上限的值。分配或入队前核拟占用量，不得先超出上限再回收。新增队列帧或单 snapshot、delta、producer-ended 帧的计量值只有大于对应上限才超限。已有观察者数等于最大值时，拒绝新观察，不驱逐已有观察。队列项经过时间大于等于配置驻留期限即到期，到期后不再交该项正文。
+
+### 失败顺序与迭代完成
+
+tenant 未铸造、跨租户或当前资格拒绝均以 denied 结束。公共 ref 语法不可读时以 stale-stream 结束，不查目标。tenant 与公开语法检查后，先取得当前资格允许，再读取目标。资格来源不可用时返回 unavailable，即使目标实际已退役也不能先披露 stale。
+
+资格允许后，wrong producer、同租户未知映射或退役发布返回 stale-stream。目标来源不可用返回 unavailable。之后才检查容量和交付正常内容。每次实际输出重新核披露资格。已交出的终态不再追加第二个终态。
+
+队列帧数、字节或驻留时间超限时，先撤订阅并清除待发数据，再保留一个 reason=buffer 的终止 gap，after 为最后已交 cursor。gap 输出仍经过披露核验。单 snapshot 超限以 capacity 结束。单 delta 超限以 gap(buffer) 结束。观察者数量或总资源无法准入时以 capacity 结束。提供者另限实际堆资源。
+
+abort 后不再交正文。迭代器仍打开时以 observer-closed 结束，pending next 得到该终态。若 return 已关闭迭代器，pending next 和后续 next 都完成为 done。两种操作都立即撤登记、清队列，不取消业务或 ACK。
+
+内部依赖异常若使规范终态无法交出，则 throw 或 EOF 仍是连接失败，不能变成功或 producer-ended。生产者结束限额按同一规范 UTF-8 JSON 计量完整 producer-ended 帧。资格允许后，单一结束帧超限则撤本观察订阅、丢本次待输出 E，并交标准 ended(capacity)。不截断 E，不删除生产者事实，也不说明业务完成。资格拒绝或不可用优先。已有终止 gap 保持，其实际输出仍核披露资格。
 
 ### 交付与验证边界
 
