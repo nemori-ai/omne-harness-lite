@@ -56,9 +56,11 @@ export type RecordCase = Readonly<{
   parameters: readonly Parameter[]
 }>
 
+// At low effort an easy question gets no reasoning at all (reasoning_tokens 0, no reasoning
+// state), so the OpenAI case asks at medium effort.
 const OPENAI_PARAMETERS: readonly Parameter[] = [
   { kind: 'max-output-tokens', value: '1024' },
-  { kind: 'reasoning-effort', value: 'low' },
+  { kind: 'reasoning-effort', value: 'medium' },
 ]
 // Anthropic thinking needs a budget below the output limit, so the limit leaves room for it.
 const ANTHROPIC_PARAMETERS: readonly Parameter[] = [
@@ -110,7 +112,7 @@ const FIRST_QUESTION = {
       kind: 'text',
       id: 'q1',
       visibility: { toHuman: true, toModel: true },
-      text: 'A train leaves at 09:40 and arrives at 13:05 the same day. How long is the trip? Answer in one short sentence.',
+      text: 'How many positive integers below 200 are divisible by 3 or 7 but not by 21? Reply with only the number.',
     },
   ],
 }
@@ -122,7 +124,7 @@ const NEXT_QUESTION = {
       kind: 'text',
       id: 'q2',
       visibility: { toHuman: true, toModel: true },
-      text: 'How many minutes is that in total? Answer with the number only.',
+      text: 'How many of them are odd? Reply with only the number.',
     },
   ],
 }
