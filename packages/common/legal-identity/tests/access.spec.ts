@@ -27,7 +27,9 @@ describe('access()', () => {
       organization: { name: 'OrganizationId', text: 'org_abcdefghjkmnpqrstvwxyz2345' },
       account: { name: 'AccountId', text: 'acc_abcdefghjkmnpqrstvwxyz2345' },
     }
-    expect(() => access('p', forged)).toThrow(TypeError)
+    expect(() => access('p', forged)).toThrow(
+      new TypeError('access() accepts only a TenantId returned by parse or tenant()'),
+    )
     expect(access(null, parsedTenant(TENANT_TEXT)).principal).toBeNull()
   })
 })

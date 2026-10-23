@@ -42,7 +42,9 @@ describe('tenantScope() and systemScope()', () => {
       organization: { name: 'OrganizationId', text: 'org_abcdefghjkmnpqrstvwxyz2345' },
       account: { name: 'AccountId', text: 'acc_abcdefghjkmnpqrstvwxyz2345' },
     }
-    expect(() => tenantScope(forged)).toThrow(TypeError)
+    expect(() => tenantScope(forged)).toThrow(
+      new TypeError('tenantScope() accepts only a TenantId returned by parse or tenant()'),
+    )
   })
 
   it('gives a frozen system scope without any tenant member and encodes it', () => {
@@ -96,12 +98,19 @@ describe('acting scope text codec', () => {
     })
   })
 
-  it('refuses to encode a hand-built scope', () => {
+  it('refuses to encode a hand-built scope or a minted value of another family', () => {
     const forged: ActingScope = { kind: 'system' }
     expect(actingScopeCodec.encode(forged)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code: 'type' },
     })
+    // A parsed tenant is minted, but it is not a scope: encode refuses it instead of reading it.
+    const tenantAsScope = parsedTenant(TENANT_TEXT) as unknown as ActingScope
+    expect(actingScopeCodec.encode(tenantAsScope)).toEqual({
+      ok: false,
+      error: { kind: 'identity-text-error', code: 'type' },
+    })
+    expect(actingScopeEquals(tenantAsScope, systemScope())).toBe(false)
   })
 })
 
