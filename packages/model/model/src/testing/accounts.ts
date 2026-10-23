@@ -60,19 +60,8 @@ export type CommandsAccountsOptions<P> = Readonly<{
   subject(): CommandsAccountsSubject<P> | Promise<CommandsAccountsSubject<P>>
 }>
 
-export type AccountObligation =
-  | 'account-completed-with-subject-and-receipt'
-  | 'account-read-by-original-call'
-  | 'same-event-registered-once'
-  | 'same-event-other-report-refused'
-  | 'later-revision-replaces-and-is-late'
-  | 'report-naming-subject-refused'
-  | 'unqualified-reader-refused'
-  | 'messages-outlive-cleanup'
-  | 'state-reply-without-replay-format-refused'
-
 /** Every obligation, in the order the suite checks them. */
-export const ACCOUNT_OBLIGATIONS: readonly AccountObligation[] = [
+export const ACCOUNT_OBLIGATIONS = [
   'account-completed-with-subject-and-receipt',
   'account-read-by-original-call',
   'same-event-registered-once',
@@ -82,14 +71,14 @@ export const ACCOUNT_OBLIGATIONS: readonly AccountObligation[] = [
   'unqualified-reader-refused',
   'messages-outlive-cleanup',
   'state-reply-without-replay-format-refused',
-]
+] as const
 
-export type AccountObligationResult = Readonly<{
-  obligation: AccountObligation
-  status: 'pass' | 'fail'
-  /** Empty when the obligation passed; otherwise what the suite saw. */
-  detail: string
-}>
+export type AccountObligation = (typeof ACCOUNT_OBLIGATIONS)[number]
+
+/** A passed obligation carries no detail; a failed one says what the suite saw. */
+export type AccountObligationResult =
+  | Readonly<{ obligation: AccountObligation; status: 'pass' }>
+  | Readonly<{ obligation: AccountObligation; status: 'fail'; detail: string }>
 
 export type CommandsAccountsReport = Readonly<{
   ok: boolean
@@ -525,7 +514,7 @@ async function runOne<P>(
   let result: AccountObligationResult
   try {
     await body(subject)
-    result = { obligation, status: 'pass', detail: '' }
+    result = { obligation, status: 'pass' }
   } catch (error) {
     result = { obligation, status: 'fail', detail: describe(error) }
   }

@@ -3,11 +3,10 @@
 // and hands out meters. Without a lineage the meter answers what the family meter answers. With
 // one, the meter judges the anchor and the sources synchronously, calls the family's
 // `measureCalibrated`, and writes the verdict into the budget. After release every meter of the
-// lease is unavailable. The view of the facts dies with the lease.
+// lease is unavailable, and the lease drops its view of the facts.
 import type {
   Access,
   CalibratedInputMeter,
-  CalibrationReport,
   ModelFailure,
   ModelInputMeter,
   ModelPreparationLease,
@@ -19,6 +18,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
+import { sameAdoption } from '../adoption.ts'
 import { readCallFacts, type CallFactsReader, type CallFactsView } from './facts.ts'
 import { judgeAnchor, judgeOutputs } from './judge.ts'
 import { parseLineage, type Lineage } from './lineage.ts'
@@ -77,13 +77,8 @@ function checkOptions<P>(options: ModelPreparationOptions<P>): void {
 }
 
 function sameRoute(supplier: Supplier, declared: ProfileSupplier): boolean {
-  const left = supplier.adoption
-  const right = declared.adoption
   return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest &&
+    sameAdoption(supplier.adoption, declared.adoption) &&
     supplier.recipient === declared.recipient &&
     supplier.model === declared.model
   )
@@ -124,17 +119,26 @@ function plainMeter(binding: PreparationBinding, isReleased: () => boolean): Mod
   return Object.freeze(meter)
 }
 
-/** The meter of one binding under a lineage: synchronous, reads nothing, judges, delegates. */
+/** `owner/name@revision` of the supplier adoption of a binding, for a defect message. */
+function supplierName(binding: PreparationBinding): string {
+  const { owner, name, revision } = binding.supplier.adoption
+  return `${owner}/${name}@${revision}`
+}
+
+/**
+ * The meter of one binding under a lineage: synchronous, reads nothing, judges, delegates.
+ * `factsOf` gives the view of the facts until release and `null` after it.
+ */
 function lineageMeter(
   binding: PreparationBinding,
   lineage: Lineage,
-  facts: CallFactsView,
-  isReleased: () => boolean,
+  factsOf: () => CallFactsView | null,
 ): ModelInputMeter {
   const meter: ModelInputMeter = {
     basis: binding.meter.basis,
     measure(input) {
-      if (isReleased()) return releasedAnswer()
+      const facts = factsOf()
+      if (facts === null) return releasedAnswer()
       const supplier = binding.supplier.adoption
       const anchor = judgeAnchor({
         continues: lineage.continues,
@@ -155,10 +159,15 @@ function lineageMeter(
         outputs,
       })
       if (!('ok' in measured)) return measured
-      // The family reports `continuation-shrank` itself; every other miss is judged here.
-      const verdict: CalibrationReport['anchor'] =
-        anchor.kind === 'miss' ? anchor : (measured.ok.calibration?.anchor ?? { kind: 'hit' })
-      return { ok: { ...measured.ok, calibration: { anchor: verdict } } }
+      if (anchor.kind === 'miss') return { ok: { ...measured.ok, calibration: { anchor } } }
+      // A meter handed an anchor reports its verdict: `hit`, or the `continuation-shrank` that only
+      // the family can judge. Without one the lease cannot tell which, so it does not guess.
+      const reported = measured.ok.calibration?.anchor
+      if (reported === undefined)
+        throw new TypeError(
+          `the CalibratedInputMeter of supplier ${supplierName(binding)} was handed an anchor and reported no anchor verdict`,
+        )
+      return { ok: { ...measured.ok, calibration: { anchor: reported } } }
     },
   }
   return Object.freeze(meter)
@@ -172,6 +181,9 @@ function leaseOf(
   const [first, ...rest] = acquired
   if (first === undefined) throw new TypeError('a profile names at least one supplier')
   let released: Promise<Released> | undefined
+  // The view of the facts until release; release drops it, so no meter keeps it alive.
+  let view: CallFactsView | null = facts
+  const factsOf = (): CallFactsView | null => view
   const isReleased = (): boolean => released !== undefined
   const bindingOf = (binding: PreparationBinding): Binding =>
     Object.freeze({
@@ -180,11 +192,12 @@ function leaseOf(
       meter:
         lineage === null
           ? plainMeter(binding, isReleased)
-          : lineageMeter(binding, lineage, facts, isReleased),
+          : lineageMeter(binding, lineage, factsOf),
     })
   const lease: ModelPreparationLease = {
     bindings: [bindingOf(first), ...rest.map(bindingOf)],
     release: () => {
+      view = null
       released ??= releaseAll(acquired)
       return released
     },
@@ -193,10 +206,41 @@ function leaseOf(
 }
 
 /**
+ * Acquires one binding per supplier of the profile into `acquired`, then reads the facts of the
+ * calls of the lineage. Stops at the first failure and returns it; what it acquired stays in
+ * `acquired` for the caller to give back.
+ */
+async function bindThenRead<P>(
+  input: Readonly<{
+    options: ModelPreparationOptions<P>
+    access: Access<P>
+    profile: ModelProfile
+    lineage: Lineage | null
+    acquired: PreparationBinding[]
+  }>,
+): Promise<Outcome<CallFactsView, ModelFailure>> {
+  const { options, access, profile, lineage, acquired } = input
+  const signal = new AbortController().signal
+  for (const declared of profile.definition.suppliers) {
+    const supplier = options.supplierOf({ ...access, profile, supplier: declared })
+    if (!('ok' in supplier)) return supplier
+    if (!sameRoute(supplier.ok, declared))
+      return { failure: { kind: 'invalid', field: 'supplier', reason: 'route-mismatch' } }
+    const binding = await options.bindings.acquire(supplier.ok, signal)
+    if (!('ok' in binding)) return binding
+    acquired.push(binding.ok)
+  }
+  if (lineage === null) return { ok: new Map() }
+  return { ok: await readCallFacts({ reader: options.commands, access, calls: lineage.calls }) }
+}
+
+/**
  * Lease life: `acquire` creates the bindings (one per supplier, all or nothing) and the facts view
- * (every named call read once, here); `measure` reads nothing; `release` is idempotent and a later
- * `measure` of any meter of the lease is `unavailable` (`preparation-lease-released`). Nothing is
- * kept across leases. Throws `RangeError` for options no lease could use.
+ * (every named call read once, here); `measure` reads nothing; `release` is idempotent, drops the
+ * facts view, and a later `measure` of any meter of the lease is `unavailable`
+ * (`preparation-lease-released`). Nothing is kept across leases. Throws `RangeError` for options
+ * no lease could use. A supplier port, binding source or store that throws is a program defect:
+ * the acquire gives back what it acquired and rethrows.
  */
 export function createModelPreparationResources<P>(
   options: ModelPreparationOptions<P>,
@@ -208,43 +252,29 @@ export function createModelPreparationResources<P>(
       if (!('ok' in lineage)) return lineage
       const access: Access<P> = { principal: input.principal, tenant: input.tenant }
       const acquired: PreparationBinding[] = []
-      const signal = new AbortController().signal
-      for (const declared of input.profile.definition.suppliers) {
-        const supplier = options.supplierOf({
-          ...access,
+      let facts: Outcome<CallFactsView, ModelFailure>
+      try {
+        facts = await bindThenRead({
+          options,
+          access,
           profile: input.profile,
-          supplier: declared,
+          lineage: lineage.ok,
+          acquired,
         })
-        if (!('ok' in supplier)) {
-          await releaseAll(acquired)
-          return supplier
-        }
-        if (!sameRoute(supplier.ok, declared)) {
-          await releaseAll(acquired)
-          return { failure: { kind: 'invalid', field: 'supplier', reason: 'route-mismatch' } }
-        }
-        const binding = await options.bindings.acquire(supplier.ok, signal)
-        if (!('ok' in binding)) {
-          await releaseAll(acquired)
-          return binding
-        }
-        acquired.push(binding.ok)
+      } catch (error) {
+        // A throwing supplier port, binding source or store is a program defect. The bindings
+        // acquired so far are given back before it surfaces.
+        await releaseAll(acquired)
+        throw error
       }
-      let facts: CallFactsView = new Map()
-      if (lineage.ok !== null) {
-        try {
-          facts = await readCallFacts({
-            reader: options.commands,
-            access,
-            calls: lineage.ok.calls,
-          })
-        } catch (error) {
-          // A throwing store is a program defect. The bindings are given back before it surfaces.
-          await releaseAll(acquired)
-          throw error
-        }
+      if (!('ok' in facts)) {
+        // The failure that stopped the acquire is the answer. A failed release on this path is
+        // dropped: the original failure says why there is no lease, which the caller needs more
+        // than the state of a binding it never received.
+        await releaseAll(acquired)
+        return facts
       }
-      return { ok: leaseOf(acquired, lineage.ok, facts) }
+      return { ok: leaseOf(acquired, lineage.ok, facts.ok) }
     },
   }
   return Object.freeze(resources)

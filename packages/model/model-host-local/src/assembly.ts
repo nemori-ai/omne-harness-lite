@@ -18,11 +18,16 @@ import type {
 import {
   createNetworkResources,
   type NetworkConfig,
+  type NetworkResources,
   type PiFamilyContributions,
   type PiRoute,
   type PiTransportLimits,
 } from '@omne-harness/pi-ai-transport'
-import { createPiSendResources, type PiSendResources } from './send-resources.ts'
+import {
+  createPiSendResources,
+  type PiSendResources,
+  type PiSendResourcesConfig,
+} from './send-resources.ts'
 
 /**
  * The refusal of a preparation lease after the assembly's `close` starts. It names the assembly,
@@ -71,10 +76,25 @@ export type LocalModel<P> = Readonly<{
   preparation: ModelPreparationResources<P>
   /**
    * Refuses new send resources and new preparation leases, releases the open send resources, then
-   * closes the network resources and waits for every exchange to stop. It does not close
-   * `commands` or `credentials`, and it does not release a lease. Idempotent.
+   * closes the network resources and waits for every exchange to stop. Both closes run to the end:
+   * one failure rejects with that failure, two with one `AggregateError` of both. It does not
+   * close `commands` or `credentials`, and it does not release a lease. Idempotent.
    */
   close(): Promise<void>
+}>
+
+/** What the assembly needs of the network it creates: its close. */
+type ClosableNetwork = Readonly<{ close(): Promise<void> }>
+
+/**
+ * The network and the send resources over it, as factories, so a test can observe their closes.
+ * `assembleLocalModel` gives the pi factories.
+ */
+export type AssemblyFactories<P, N extends ClosableNetwork> = Readonly<{
+  createNetwork(config: NetworkConfig): N
+  createSendResources(
+    config: Omit<PiSendResourcesConfig, 'network'> & { network: N },
+  ): PiSendResources<P>
 }>
 
 /**
@@ -83,12 +103,52 @@ export type LocalModel<P> = Readonly<{
  * preparation resources refuse.
  */
 export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P> {
-  const network = createNetworkResources(config.network)
-  let resources: PiSendResources<P>
+  return assembleOver<P, NetworkResources>({
+    config,
+    factories: {
+      createNetwork: createNetworkResources,
+      createSendResources: createPiSendResources<P>,
+    },
+  })
+}
+
+/**
+ * Closes what a refused assembly opened: the send resources, if they were built, then the network.
+ * No exchange ever ran on this network, so its close only ends the capacity and the idle pool. The
+ * caller receives the configuration error; a failure of this close cannot change that answer, so it
+ * is dropped here, on purpose, and never left as an unhandled rejection.
+ */
+function abandon<P>(network: ClosableNetwork, resources: PiSendResources<P> | undefined): void {
+  const released = resources === undefined ? Promise.resolve() : resources.close()
+  released.finally(() => network.close()).catch(() => undefined)
+}
+
+/** The rejection reason of a settled close, or nothing when it resolved. */
+async function failureOf(closing: Promise<void>): Promise<readonly unknown[]> {
+  const [settled] = await Promise.allSettled([closing])
+  return settled?.status === 'rejected' ? [settled.reason] : []
+}
+
+/** `assembleLocalModel` over the given factories. */
+export function assembleOver<P, N extends ClosableNetwork>(
+  input: Readonly<{ config: LocalModelConfig<P>; factories: AssemblyFactories<P, N> }>,
+): LocalModel<P> {
+  const { config, factories } = input
+  // What needs no network is checked and built first, so its refusal leaves nothing open.
+  const options = config.preparation
+  if (typeof options !== 'object' || options === null)
+    throw new RangeError('preparation must be an object')
+  const leases = createModelPreparationResources<P>({
+    commands: config.commands,
+    bindings: config.families,
+    supplierOf: options.supplierOf,
+    maxCitedCalls: options.maxCitedCalls,
+  })
+  const network = factories.createNetwork(config.network)
+  let resources: PiSendResources<P> | undefined
   let send: ModelSendBoundary<P>
-  let leases: ModelPreparationResources<P>
   try {
-    resources = createPiSendResources<P>({
+    resources = factories.createSendResources({
       network,
       families: config.families,
       routes: config.routes,
@@ -101,33 +161,29 @@ export function assembleLocalModel<P>(config: LocalModelConfig<P>): LocalModel<P
       resources,
       maxRetainedAttempts: config.maxRetainedAttempts,
     })
-    const options = config.preparation
-    if (typeof options !== 'object' || options === null)
-      throw new RangeError('preparation must be an object')
-    leases = createModelPreparationResources<P>({
-      commands: config.commands,
-      bindings: config.families,
-      supplierOf: options.supplierOf,
-      maxCitedCalls: options.maxCitedCalls,
-    })
   } catch (error) {
-    // No exchange ever ran on this network: its close releases the pool and the capacity before
-    // it returns, and the promise only waits for an empty set of exchanges.
-    void network.close()
+    abandon(network, resources)
     throw error
   }
+  const opened = resources
   let closing: Promise<void> | undefined
   const preparation: ModelPreparationResources<P> = {
-    async acquire(input) {
+    async acquire(acquireInput) {
       if (closing !== undefined) return { failure: ASSEMBLY_CLOSED }
-      return leases.acquire(input)
+      return leases.acquire(acquireInput)
     },
   }
+  // The send resources release their transports before the network stops. Both closes run to the
+  // end; one failure is thrown as it is, two as one `AggregateError`.
   async function closeAll(): Promise<void> {
-    const released = await Promise.allSettled([resources.close()])
-    await network.close()
-    const failed = released.find(result => result.status === 'rejected')
-    if (failed !== undefined) throw failed.reason
+    const failures = [...(await failureOf(opened.close())), ...(await failureOf(network.close()))]
+    const [only, ...more] = failures
+    if (more.length > 0)
+      throw new AggregateError(
+        failures,
+        'model-host-local: the send resources and the network resources both failed to close',
+      )
+    if (failures.length > 0) throw only
   }
   return {
     send,
