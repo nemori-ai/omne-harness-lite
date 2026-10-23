@@ -2,13 +2,13 @@
 
 [English](README.md)
 
-合法身份值的 module 包。它解析、编码和比较账号、组织、登录状态、租户和范围层身份，并把已解析的组织与账号组合成租户。
+合法身份值的 module 包。它解析、编码和比较账号、组织、登录状态、租户和范围层身份，并把已解析的组织与账号组合成租户。它还发布行事作用域，说明一次动作的事实归谁，以及契约成员共用的唯一一份 `Access<P>` 定义。
 
 ## 职责与状态
 
-本成员拥有合法身份文本、相等判断、租户组合，以及唯一的 `IDENTITY_TYPE_NAMES`。位置 `packages/common/legal-identity` 是共同组说明里已经采用的目标。
+本成员拥有合法身份文本、相等判断、租户组合，以及唯一的 `IDENTITY_TYPE_NAMES`。它也拥有 `ActingScope` 和 `Access<P>`。位置 `packages/common/legal-identity` 是共同组说明里已经采用的目标。
 
-Issue #243 实现了公开入口。入口包含五个 codec、五个相等函数、`tenant()` 和 `IDENTITY_TYPE_NAMES`。共同组说明把本成员记为已实现。精确文本归本页。
+Issue #243 实现了公开入口。入口包含五个 codec、五个相等函数、`tenant()` 和 `IDENTITY_TYPE_NAMES`。Issue #659 新增 `ActingScope` 及其构造函数、codec 和相等函数，以及 `Access<P>` 及其构造函数。依据是 #638 的 2026-10-23 决定记录：两种主体形式、唯一一份 `Access<P>`、空租户不可表达。共同组说明把本成员记为已实现。精确文本归本页。
 
 解析成功不表示对象存在、成员有效或授权允许该操作。账号注册、认证、凭证、成员关系、角色、授权、时钟和 session 行为归各自的拥有者。本包不导入 JSON 读取器、数据库、Cordis、身份服务，也不导入两棵 legacy 树。
 
@@ -34,6 +34,11 @@ tenantCodec.encode(pair)
 | `accountEquals`、`organizationEquals`、`loginStateEquals`、`tenantEquals`、`scopeLayerEquals` | 按值比较同一家族的两个值 |
 | `tenant(organization, account)` | 组合一个已解析的组织和一个已解析的账号 |
 | `IDENTITY_TYPE_NAMES` | 五个身份类型名，供静态检查使用 |
+| `ActingScope` | 一次动作的事实归谁：`{ kind: 'tenant', tenant }` 或 `{ kind: 'system' }` |
+| `tenantScope(tenant)`、`systemScope()` | 构造两种作用域。租户作用域需要已解析的租户 |
+| `actingScopeCodec`、`actingScopeEquals` | 行事作用域的 `{ parse, encode }` 和按值比较 |
+| `Access<P>` | 一次调用的访问依据：`Readonly<{ principal: P; tenant: TenantId }>`。契约成员再导出它 |
+| `access(principal, tenant)` | 用主体和已解析的租户构造访问依据 |
 
 `files` 只发布 `dist`。根导出把 `source` 写在 `types` 前面。`source` 指向 `src/index.ts`，`types` 和 `import` 指向 `dist`。这个形状归[产品包组织](../../../docs/package-organization.md)。`build` 先删除 `dist` 再编译。`tsconfig.build.json` 打开 `erasableSyntaxOnly`。
 
@@ -82,7 +87,26 @@ tenantCodec.encode(pair)
 4. 对象的成员只能是 `layer` 和与层同名的成员。缺少成员得到 `missing-member`。有其他成员得到 `extra-member`。
 5. `organization` 成员按原子规则解析。`tenant` 成员按租户文本规则解析，所以不是对象的租户得到 `type`。
 
-只有 `parse` 和 `tenant()` 产生合法值。值是带 `name` 字段的冻结普通数据。手写的 `{ name: 'AccountId', text }` 这类对象仍可能通过类型检查，因为已接受的设计没有编译期品牌。运行时 `encode` 对这类对象返回 `type`，每个相等函数都返回 `false`。另一家族的值得到同样的结果。
+行事作用域文本有两种形式。
+
+- `{"kind":"system"}`
+- `{"kind":"tenant","tenant":{"organization":"<组织文本>","account":"<账号文本>"}}`
+
+行事作用域解析按下面的顺序检查。
+
+1. 输入不是字符串、文本不是 JSON、值是 `null`、数组或其他非对象，得到 `type`。
+2. 缺少 `kind`，得到 `missing-member`。
+3. `kind` 不是 `system` 或 `tenant`，得到 `family`。
+4. `system` 对象只能有 `kind`。`tenant` 对象只能有 `kind` 和 `tenant`。缺少成员得到 `missing-member`。有其他成员得到 `extra-member`。带 `tenant` 成员的 `system` 对象得到 `extra-member`。
+5. `tenant` 成员按租户文本规则解析。
+
+没有空租户或缺省租户的形式。类型没有第三个变体，系统变体没有 `tenant` 成员，所以类型检查器拒绝 `{ kind: 'tenant' }` 和 `{ kind: 'system', tenant }`。
+
+`tenantScope()` 的参数必须是已解析的租户，否则抛出 `TypeError`。`systemScope()` 返回唯一的冻结系统作用域。两个系统作用域相等。两个租户作用域在 `tenantEquals` 判定租户相等时相等。
+
+`Access<P>` 是 `Readonly<{ principal: P; tenant: TenantId }>`。`P` 没有约束：装配选择主体类型，本包不判断它。`access()` 的 `tenant` 必须是已解析的租户，否则抛出 `TypeError`。它原样保留主体并冻结结果。`access()` 成功不证明主体可信。主体拥有者的核验器负责这件事。
+
+只有 `parse`、`tenant()`、`tenantScope()` 和 `systemScope()` 产生合法值。值是带 `name` 字段的冻结普通数据。手写的 `{ name: 'AccountId', text }` 这类对象仍可能通过类型检查，因为已接受的设计没有编译期品牌。运行时 `encode` 对这类对象返回 `type`，每个相等函数都返回 `false`。另一家族的值得到同样的结果。
 
 `tenant()` 的参数必须依次是已解析的组织和已解析的账号，否则抛出 `TypeError`。它不解析文本，也没有角色参数。租户不含角色，所以角色变化不能改变租户。
 
@@ -116,10 +140,12 @@ tenantCodec.encode(pair)
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/legal-identity`。turbo 先构建 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。运行 `pnpm turbo run typecheck --filter=@omne-harness/legal-identity` 按源码类型检查测试。
 
-测试不覆盖对手写对象的类型层禁止，因为已接受的设计允许它们通过类型检查。测试也不覆盖重复 JSON 键，以及同时加载两份本包的情况。
+`tests/acting-scope.spec.ts` 覆盖两种作用域、文本形式及其失败码、相等，以及手写作用域。`tests/acting-scope.spec-d.ts` 核对没有租户的租户作用域、带租户的系统作用域和第三种 kind 都是类型错误。`tests/access.spec.ts` 覆盖 `access()` 对已解析租户和手写租户的处理。`tests/access.spec-d.ts` 核对没有租户的访问依据是类型错误，以及这份定义等于契约成员写过的字面类型。`tests/public-entry.spec.ts` 列出导出，所以这份清单的差异就是一次修改新增了什么。
+
+测试不覆盖对手写对象的类型层禁止，因为已接受的设计允许它们通过类型检查。测试也不覆盖重复 JSON 键，以及同时加载两份本包的情况。`Access<P>` 对 `agent-contract`、`tool-contract`、`model-contract` 里副本的可赋值性在 `packages/identity/authorization/tests/access-equivalence.spec-d.ts` 核对，因为本包不依赖领域成员。
 
 ## 维护
 
-包清单声明依赖本包的消费者是：agent 组的 `agent-contract`、`agent-cordis-contract`、`agent`；context 组的 `request-context-contract`、`runtime-context-contract`、`runtime-context-cordis-contract`；execution 组的 `execution-environment-contract`、`execution-environment`、`execution-environment-host-local`；model 组的 `model-contract`、`model-cordis-contract`、`model`、`model-host-local`；tool 组的 `tool-contract`、`tool-cordis-contract`；以及 `tools/product-checks` 的 `identity-shapes` 检查。该检查从本包导入 `IDENTITY_TYPE_NAMES`。`packages/identity/identity` 与 `packages/session/session` 在设计上点名使用本包，两者的包清单没有声明依赖。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。
+包清单声明依赖本包的消费者是：agent 组的 `agent-contract`、`agent-cordis-contract`、`agent`；context 组的 `request-context-contract`、`runtime-context-contract`、`runtime-context-cordis-contract`；execution 组的 `execution-environment-contract`、`execution-environment`、`execution-environment-host-local`；model 组的 `model-contract`、`model-cordis-contract`、`model`、`model-host-local`；tool 组的 `tool-contract`、`tool-cordis-contract`；以及 `tools/product-checks` 的 `identity-shapes` 检查。该检查从本包导入 `IDENTITY_TYPE_NAMES`。`packages/identity/identity` 与 `packages/identity/authorization` 自 #659 起声明依赖本包。`packages/session/session` 在设计上点名使用本包，它的包清单没有声明依赖。各自写过 `Access<P>` 的契约成员（`agent-contract`、`tool-contract`、`execution-environment-contract`、`model-contract`、`request-context-contract`）是这份共用定义的消费者；改成再导出归它们各自的交付。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。
 
 新增原子家族时，先声明它的 spec 常量，把这一行放进 `IDENTITY_SPECS`，再加它的类型、codec、相等函数和测试。这项修改也会改变 `IDENTITY_TYPE_NAMES`，所以要同步 `identity-shapes` 的拥有者。修改前缀、字母表、失败码或检查顺序都会改变公开契约。修改前先同步已点名的消费者和共同组说明。
