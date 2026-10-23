@@ -8,17 +8,11 @@
 // the facts, the dispatch with its receipt and the account that reached ModelCommands.
 import { describe, expect, it } from 'vitest'
 import { payableAmount } from '@omne-harness/call-account'
-import type { FixedModelRequest, TransportFact } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract'
 import { PLACEHOLDER } from './support/local-host.ts'
-import {
-  continuedRequest,
-  firstRoundRequest,
-  RECORD_CASE_NAMES,
-  RECORD_CASES,
-  type RecordCaseName,
-} from './support/recording-cases.ts'
+import { RECORD_CASE_NAMES, RECORD_CASES } from './support/recording-cases.ts'
 import type { FamilyName } from './support/records.ts'
-import { acknowledgeAndClean, onlyDispatch, openReplay } from './support/replay.ts'
+import { onlyDispatch, openReplay, recordedRequest, replayLabel } from './support/replay.ts'
 
 /** The replay format of the receipt, per family. */
 const FORMATS: Readonly<Record<FamilyName, string>> = {
@@ -26,39 +20,13 @@ const FORMATS: Readonly<Record<FamilyName, string>> = {
   'pi-ai-anthropic': 'anthropic-claude-v1',
 }
 
-const labelOf = (name: string) => name.replace(/[^a-z0-9]/gu, '-')
-
-/**
- * The request of a recording. A first round has its own request. A continued round continues
- * the replay of its first round, which settles, is read and goes into the next request.
- */
-async function requestOf(name: RecordCaseName): Promise<FixedModelRequest> {
-  const item = RECORD_CASES[name]
-  if (item.round.kind === 'first') return firstRoundRequest(item)
-  const first = firstRoundRequest(RECORD_CASES[item.round.first])
-  const opened = await openReplay({
-    request: first,
-    name: item.round.first,
-    label: `first-of-${labelOf(name)}`,
-  })
-  try {
-    expect(opened.driven).toEqual({ ok: undefined })
-    const blocks = await opened.readBlocks()
-    const record = await onlyDispatch(opened.local)
-    await acknowledgeAndClean(opened)
-    return continuedRequest({ first, replayed: { blocks, record } })
-  } finally {
-    await opened.close()
-  }
-}
-
 describe('each real recording replays through the assembled local path', () => {
   it.each(RECORD_CASE_NAMES)(
     '%s: the call settles with one termination and a reasoning state, and the account reaches ModelCommands',
     async name => {
       const item = RECORD_CASES[name]
-      const request = await requestOf(name)
-      const opened = await openReplay({ request, name, label: `gate-${labelOf(name)}` })
+      const request = await recordedRequest(name)
+      const opened = await openReplay({ request, name, label: replayLabel('gate', name) })
       try {
         const { local, note } = opened
         expect(note.model).toBe(item.model)
