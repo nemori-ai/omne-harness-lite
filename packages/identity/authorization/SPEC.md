@@ -1,6 +1,6 @@
 # authorization：长期行为规格
 
-状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 AU-01 至 AU-07、披露与后续治理操作的业务规则。AU-08、AU-10 是后续验证义务。AU-09 继续登记阶段与公开形状的承接责任。目标拥有者为 `packages/identity/authorization`，没有创建实际包。精确公开形状、提供者机制及行为证据尚需设计和验证。
+状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 AU-01 至 AU-07、披露与后续治理操作的业务规则。AU-08、AU-10 是后续验证义务。AU-09 继续登记阶段与公开形状的承接责任。AU-11 定义首批公开形状，类型在本成员 `src/index.ts`。表达解释、人工决定、持久台账与跨进程依据的提供者机制尚需设计，本文不作为那些部分已实现或已验证的证明。
 
 产品规则归[身份与授权产品](../../../.meta_harness/design/product/identity-and-authorization/design.md)，协作与依赖归[领域架构](../../../docs/domains/identity-and-authorization/architecture.md)。本文拥有授权建模、表达解释、范围、决定绑定、当前准入、撤回与消费。资源业务、权限配值、人工交互和运行控制由各自拥有者负责。
 
@@ -154,6 +154,88 @@
 分别核验撤权后的结果读取、交付和消费确认资格，停止交付不能消除生产者或合法承接者的保管责任。控制请求和物理执行结果独立记录，撤权、归档和 disposer 不证明实际执行已停止，也不回滚已发生输出。普通崩溃、重启及断电恢复后认回原操作、范围、决定和消费，已撤回或已消费事实不复活。查询与审计只读取原事实、不重做动作，私有内容和凭据不因管理角色或诊断需要泄露。介质或整机损毁后不提供重新打开，不能借旧快照直接允许。
 
 公开形状、语义识别、参数记录、提交认回、跨边界来源及真实验证资源继续归 T01 至 T06。图和场景完整不表示这些机制已交付或业务已通过。
+
+## AU-11 首批公开形状：准入裁定、许可引用与消费事实
+
+本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。表达解释、人工决定、结构化约束与持久台账不在本节。
+
+消费适配的有限范围按 [#659 的有限采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/659#issuecomment-6370208573)采用。它不表示四个消费端口已全部实现。
+
+### 裁定输入
+
+`AdmissionInput` 是 `{ access, operation, target, arguments, requires, permit }`。`access` 是 `Access<Principal>`：identity 签发的主体与显式租户。`operation` 是 `{ owner, name }`，`target` 是 `{ owner, kind, key }`。两者对本成员不透明：资源拥有者命名它们并拥有含义，本成员只记录它们并与许可比较。
+
+`arguments` 是生效参数的摘要 `{ digest }`。参数本身对本成员不透明：资源拥有者或它的适配器用 `effectiveArgumentsOf` 对实际执行所采用的固定表示算摘要，签发许可与裁定时用同一表示。没有参数的操作出示 `noArguments()`。
+
+`requires` 是资源拥有者为这次操作要求的具名资格；为空表示成员资格足够。`permit` 是调用方出示的许可引用。首批是一个缺口：由资源拥有者决定这次操作是否需要许可并在输入里出示，与 `requires` 同样；本成员是否维护操作与适用表达的对应，随 AU-03 的表达解释形成形状时定。未出示许可时 `permit` 为 null。
+
+### 裁定结论
+
+`AdmissionDecision` 是 `allowed`、`denied` 或 `unavailable`。`allowed` 与 `denied` 带依据 `basis` 与证据 `evidence`。`denied` 另带 `reason`。`unavailable` 带诊断文本；它不是拒绝，也不是允许。消费方收到 `unavailable` 时阻止依赖允许结论的动作，不把它改写成已知无权，也不用旧允许代替。
+
+### 裁定步骤
+
+`decideAdmission(input, facts)` 按固定顺序判断。第一个不满足的步骤决定结果。
+
+1. 主体核验。核验器答 `rejected`，拒绝，原因 `untrusted-principal`。核验器答 `verified` 但核验得到的主体不是输入 `access.principal` 的同一个对象，同样拒绝，原因 `untrusted-principal`：事实必须是对这次输入里那个主体的核验。答 `unavailable`，结论 `unavailable`。
+2. 作用域。系统主体出现在带租户的访问里，拒绝，原因 `scope-mismatch`：系统主体没有租户资格，代租户行事必须签发代租户行事主体。代租户行事主体的租户与访问的租户不相等，拒绝，原因 `tenant-mismatch`。手写的租户同样得到 `tenant-mismatch`。
+3. 当前成员事实。identity 读口答 `not-member`，拒绝，原因 `not-member`。答 `unavailable` 或没有读到，结论 `unavailable`。
+4. 资格。`requires` 中任一资格不在读到的资格里，拒绝，原因 `qualification-missing`。
+5. 许可。只在出示了许可时判断。许可引用的租户与访问的租户不相等，拒绝，原因 `permit-mismatch`。台账答 `unknown`，拒绝，原因 `permit-unknown`。许可的文本、操作（`owner` 与 `name`）、目标（`owner`、`kind` 与 `key`）或参数摘要与输入不符，拒绝，原因 `permit-mismatch`。参数改写后出示同一许可，得到的就是这个结果。许可已消费，拒绝，原因 `permit-consumed`。台账不能读，结论 `unavailable`。
+
+未授予的跨租户访问在第 2 步或第 3 步拒绝。另一个组织的租户从未是成员，答 `not-member`，与本组织的非成员同表现。
+
+这些步骤不核对原工作的当前推进资格。消费者在实际操作点还须向原工作拥有者核对该资格。成员仍有效不表示工作仍有效。缺少必要工作资格守卫的适配器不得推进业务，不能用本裁定的 `allowed` 补足缺失能力。
+
+### 依据与证据
+
+`basis` 记录裁定所依：操作、目标、租户、参数摘要、已核验的主体、读到的成员事实、要求的资格、出示的许可。未出示许可时 `basis.permit` 为 null，读者据此知道这次允许不依赖任何许可。参数摘要进入 `basis`，所以证据摘要随参数变化。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。消费方把四个成员逐项映射到自己的证据类型。
+
+裁定保存值数据的自有不可变快照，包括操作、目标、参数摘要、要求的资格、许可引用包装，以及成员事实中的角色、模型、资格与证据。调用方后续修改这些输入，不能改变已返回的依据或其可重算摘要。快照不冻结调用方对象。已核验主体与已铸造租户按原对象保留，不通过 JSON 复制或重新铸造改变其身份。
+
+### 不缓存允许
+
+`decideAdmission` 是纯函数：同一输入与同一事实给出同一结论；事实变了，结论随之变。`referenceAdmissionCheck` 不保存任何结论，每次调用重新读主体核验、成员事实与许可状态。消费方在实际执行处每次调用裁定，不把一次 `allowed` 沿用到下一次动作。
+
+`referenceAdmissionCheck` 在首次调用依赖前复制并冻结本次输入的值字段，只保留主体和已铸造租户的原对象。后续读取与裁定只使用这份快照。核验回答、成员事实与完整许可答复在读取完成时复制并冻结自有值包装，返回下一异步段前完成快照。许可快照包含授予绑定、授予证据、消费状态与消费事实；已铸造租户保留原对象。后续裁定不回读原答复，调用方及提供者的原对象不被冻结。这些快照绑定本次输入与已读事实，不提供跨数据源的同一时刻快照或操作点一致性。
+
+撤权后再核拒绝：成员关系撤销后，identity 读口答 `not-member`，下一次裁定答 `denied`。原主体对象不变也如此。
+
+每次重读不等于与最终执行共同排序。异步 `referenceAdmissionCheck` 和纯函数 `decideAdmission` 都不提供 [Model 最终发送的 R/S 围栏](../../model/model-contract/SPEC.md)。Model 提供者须协调身份权威资格写者与发送入口，在同一围栏内重读最终权威事实、核对凭据并同步 `start`，中间不得 `await`。纯裁定可以消费围栏内取得的一致事实，但它不建立该围栏。装配必须取得真实的共同排序协议，不能先异步 `check` 再凭旧 `allowed` 发送，也不能用缓存充当最终资格。这个提供者组合尚未交付。
+
+### 许可引用与消费事实
+
+`PermitRef` 是 `{ tenant, permit }`。一个许可绑定一个操作、一个目标与一个参数摘要，三者在授予时记录。台账按（租户，许可文本）保存许可，另一个租户的同名许可答 `unknown`，与从未授予的许可同表现。手写的租户同样答 `unknown`。
+
+带许可的 `allowed` 本身不足以执行。消费方以 `consume` 答 `consumed` 为执行依据：同一开放许可上两次裁定都可能答 `allowed`，只有一次 `consume` 成功。
+
+`PermitLedger.consume({ permit, consumer })` 把开放的许可变为已消费，返回 `ConsumptionFact`：许可、消费位置与证据。同一许可再次消费答 `already-consumed` 并带原事实，不产生第二份消费，无论消费位置是否相同；消费方比较事实里的消费位置来认回自己的消费。消费后的裁定答 `permit-consumed`。已消费的许可不复活。
+
+消费点在消费方的线性化点：Tool 在 P04 的 consume 处消费许可，受理记录带 `PermitRef`。本成员不定义消费与实际发起的同提交；一致性归消费方的原操作契约。
+
+台账在授予时复制并冻结操作、目标、参数摘要与 `granted` 证据，在消费时复制并冻结消费位置。许可引用保留已铸造租户的原对象。修改输入或返回值不能改写已保存的许可和消费事实，调用方的原对象仍可修改。
+
+`PermitGrantor.grant` 由产生许可的表达或决定的拥有者调用，`granted` 是那份表达或决定的证据，`arguments` 是人看到并批准的那份参数的摘要。本节不定义表达的解释、撤回操作和人工决定的绑定；它们沿 AU-03、AU-05 另行形成形状。
+
+### 消费端口的适配
+
+消费端口由授权一侧的适配器接入。适配器把端口的输入映射为 `AdmissionInput`，把结论映射回端口的结论：Agent 的 `AgentAccessCheck` 与 `ActionAdmission`、Tool 的 `access.qualify`。`allowed` 映射为端口的允许并带证据，`denied` 映射为端口的拒绝，`unavailable` 映射为端口的不可用。适配器不产生端口有而本节没有的结论，例如 `need-decision`。实际适配器归应用装配或消费方的适配器成员，不在本成员。
+
+首批 `ActionAdmission` 示例仅在 `permissions` 与 `decision` 都为 null 时使用上述映射。非 null 而必要解释端口未安装时返回 `unavailable`，不得忽略输入后允许。该示例不实现结构化权限、人工答复解释或完整 `invalid` 分类。正式适配器须接续 Agent 契约要求的错动作、错卡片答复校验，并满足实际工作资格守卫等消费前提。
+
+测试内的 `SessionAccessCheck` 仅为本卡首批适配模型，不是 Session 已落地的正式接口。真实 Session 公共接口的兼容重验尚未完成，由 B1/S-2 后续协同补齐。这个未完成子范围不能据本地模型测试声明通过。
+
+### 首批不覆盖的部分
+
+结构化约束（permissions 的锁定允许集合与明确禁止）不进入首批裁定；它们由权限求值的写入者生产，接入形状待定。需要人工决定的结论、表达解释、撤回操作与持久台账待后续形状。系统作用域下的准入（系统主体在系统作用域的动作）不经本节的输入；它的形状随消费端口加入系统作用域变体时定义。
+
+### 参考件
+
+`referenceAdmissionCheck` 与 `inMemoryPermitLedger` 是进程内参考件。它们不持久：进程退出丢失全部许可。依赖抛出异常时结论是 `unavailable`，诊断不带异常文本。它们用于骨架装配，由耐久提供者替换。
+
+### 验证
+
+`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
 
 ## 披露与后续治理操作
 

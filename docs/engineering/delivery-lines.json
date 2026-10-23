@@ -15,7 +15,35 @@
   "shared": [
     "pnpm-lock.yaml",
     "docs/documentation.json",
-    ".meta_harness/design/views"
+    ".meta_harness/design/views",
+    "docs/package-organization.md",
+    "packages/session/session-contract/api",
+    "packages/session/session-cordis-contract/api",
+    "packages/agent/agent-contract/api",
+    "packages/agent/agent-cordis-contract/api",
+    "packages/context/runtime-context-contract/api",
+    "packages/context/runtime-context-cordis-contract/api",
+    "packages/context/request-context-contract/api",
+    "packages/context/request-context-cordis-contract/api",
+    "packages/model/model-contract/api",
+    "packages/model/model-cordis-contract/api",
+    "packages/common/message/api",
+    "packages/common/content-block/api",
+    "packages/common/modality/api",
+    "packages/common/stream-arrival/api",
+    "packages/tool/tool-contract/api",
+    "packages/tool/tool-cordis-contract/api",
+    "packages/execution/execution-environment-contract/api",
+    "packages/execution/execution-environment-cordis-contract/api",
+    "packages/common/legal-identity/api",
+    "packages/identity/identity/api",
+    "packages/identity/authorization/api",
+    "packages/common/utc-instant/api",
+    "packages/access/public-contract/api",
+    "packages/assembly/kernel-basis/api",
+    "packages/common/json-text/api",
+    "packages/common/operation-result/api",
+    "packages/common/call-account/api"
   ],
   "lines": [
     {
@@ -122,7 +150,9 @@
         ".meta_harness/design/product/workspaces"
       ],
       "contracts": [
-        "packages/common/legal-identity"
+        "packages/common/legal-identity",
+        "packages/identity/identity",
+        "packages/identity/authorization"
       ]
     },
     {
@@ -196,7 +226,10 @@
         ".dependency-cruiser.cjs",
         "knip.json",
         "pyproject.toml",
-        "uv.lock"
+        "uv.lock",
+        ".meta_harness/agents",
+        ".meta_harness/tooling",
+        "docs/development.md"
       ],
       "contracts": []
     }
