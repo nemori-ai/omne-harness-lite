@@ -3,11 +3,11 @@ import { branch, object, sha, IntegrationError } from './parse.ts'
 import { activeTrack, parentName, registeredTrack, type Policy, type Track } from './policy.ts'
 import { fetchObject, remoteFile, remoteRefs, tagMessage } from './transport.ts'
 
-const GATE_BRANCH = 'refs/heads/github-gate'
+export const GATE_BRANCH = 'refs/heads/github-gate'
 const CUTOVER_PATH = 'gate/cutover.json'
-const RECORD_SCHEMA = 'omne-gate-record:v1'
+export const RECORD_SCHEMA = 'omne-gate-record:v1'
 
-function startTag(id: string): string {
+export function startTag(id: string): string {
   return `refs/tags/omne/gate/track/${id}`
 }
 
@@ -66,9 +66,16 @@ function tagParent(root: string, policy: Policy, id: string, oid: string): strin
   }
 }
 
-/** Branch names registered in `gate/cutover.json`; empty when the gate branch or file is absent. */
-function cutoverBranches(root: string, policy: Policy, gate: string | undefined): Set<string> {
-  if (gate === undefined) return new Set()
+/**
+ * The entries of `gate/cutover.json`, from branch name to cutover commit; empty when the gate
+ * branch or file is absent.
+ */
+export function cutoverEntries(
+  root: string,
+  policy: Policy,
+  gate: string | undefined,
+): Map<string, string> {
+  if (gate === undefined) return new Map()
   const text = remoteFile(
     root,
     policy.transport.location,
@@ -76,20 +83,22 @@ function cutoverBranches(root: string, policy: Policy, gate: string | undefined)
     CUTOVER_PATH,
     policy.timeouts.networkMs,
   )
-  if (text === null) return new Set()
+  if (text === null) return new Map()
   try {
     const entries = Object.entries(object(JSON.parse(text), CUTOVER_PATH))
-    for (const [name, commit] of entries) {
-      branch(name, CUTOVER_PATH)
-      sha(commit, CUTOVER_PATH)
-    }
-    return new Set(entries.map(([name]) => name))
+    return new Map(
+      entries.map(([name, commit]) => [branch(name, CUTOVER_PATH), sha(commit, CUTOVER_PATH)]),
+    )
   } catch {
     throw new IntegrationError(
       'unknown',
       `${CUTOVER_PATH} is not an object from branch names to commits`,
     )
   }
+}
+/** Branch names registered in `gate/cutover.json`; empty when the gate branch or file is absent. */
+function cutoverBranches(root: string, policy: Policy, gate: string | undefined): Set<string> {
+  return new Set(cutoverEntries(root, policy, gate).keys())
 }
 
 /**
