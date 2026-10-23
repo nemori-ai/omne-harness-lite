@@ -667,6 +667,27 @@ describe('terminal delivery and observation-only cleanup', () => {
     },
   )
 
+  it.each(['before-first-next', 'queued-content'] as const)(
+    'keeps the original signal after the caller replaces its input signal: %s',
+    async timing => {
+      const f = setup()
+      const original = new AbortController()
+      const replacement = new AbortController()
+      const request = { ref: f.ref, access, signal: original.signal }
+      const reader = f.observer.observe(request)[Symbol.asyncIterator]()
+      request.signal = replacement.signal
+      if (timing === 'queued-content') {
+        replacement.abort()
+        expect(await frame(reader)).toEqual({ kind: 'snapshot', cursor: f.cursor(0), value: 's0' })
+        f.commit({ snapshot: 's1', delta: 'post-abort content', cursor: f.cursor(1) })
+      }
+      original.abort()
+      expect(await frame(reader)).toEqual(ended('observer-closed'))
+      expect(await reader.next()).toEqual({ done: true, value: undefined })
+      expect(f.resources()).toEqual(emptyResources)
+    },
+  )
+
   it('O13 abort resolves pending next and leaves the producer available', async () => {
     const f = setup()
     const controller = new AbortController()

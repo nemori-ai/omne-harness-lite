@@ -282,8 +282,10 @@ export function createStreamFixture<P, S, D, E = never>(
                 try {
                   if (observation.status === 'new') {
                     observations.add(observation)
-                    request.signal.addEventListener('abort', observation.onAbort, { once: true })
-                    if (request.signal.aborted) observation.onAbort()
+                    observation.request.signal.addEventListener('abort', observation.onAbort, {
+                      once: true,
+                    })
+                    if (observation.request.signal.aborted) observation.onAbort()
                     else if (barrier !== null && barrier.observation === null) {
                       observation.status = 'waiting'
                       barrier.observation = observation
