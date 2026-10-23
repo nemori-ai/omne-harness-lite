@@ -15,7 +15,7 @@
 
 | 模块 | 职责 | 依据 |
 | --- | --- | --- |
-| 配置 | 静态 `Config` 的 Standard Schema：`policy` 的逐字段覆盖与 `disposeWaitMs`；合成完整的 `SchedulingPolicy` | 性质 3 |
+| 配置 | 静态 `Config` 的 Standard Schema：`policy` 的逐字段覆盖、`disposeWaitMs` 与 `admission`；合成完整的 `SchedulingPolicy` | 性质 3 |
 | 端口接线 | 用本插件 Context 现取端口：按命令必需的端口包成代理，按调用现取的端口包成 `Current`；缺席与抛出映射为 `unavailable` | 性质 2、[端口接线](../SPEC.md#端口接线) |
 | 服务子类 | 持有实例；四个面属性做调用方类的第一层核对后转给 `facesFor` | 性质 1、4、6 |
 | 通知 | 组合通知者：派发 `committed`、转发 `sessionNotifier`；`ctx.on` 监听外来通知并交给实例 | 性质 5 |

@@ -56,7 +56,7 @@ owner: PanQiWei
 
 ### 会话常驻集合的规则（R1–R5）
 
-定义：常驻工具是 Agent 不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等；`shapeOf` 只看 name、kind、参数契约（schema 的规范 JSON 与 vocabulary 的 owner/name/digest）和命令表（命令名按名排序，各命令的参数契约或 `executor-owned` 标记）。description、参数 descriptions、命令 summary、returns、declarations、adoption、executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
+定义：常驻工具是调用方不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等；`shapeOf` 只看 name、kind、参数契约（schema 的规范 JSON 与 vocabulary 的 owner/name/digest）和命令表（命令名按名排序，各命令的参数契约或 `executor-owned` 标记）。description、参数 descriptions、命令 summary、returns、declarations、adoption、executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
 
 R1. 会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
 R2. 会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入；Run 中途的新工具经 Tools 元工具（非常驻）可达。
@@ -69,7 +69,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 非常驻工具不受 R1–R5 约束。MCP 不在本提案范围。补充标注（2026-10-22，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)）：meta 能力入口（Tools 元工具）必定常驻且不可替换，不参与卸载与冻结判定；经它发现和使用非常驻工具只是对它的一次调用。
 
-装配时对每个选入的能力身份回答两个问题。第一个问题问 assets：这个租户的作用域里有没有合法持有的资产。必需能力从未取得合法定义时装配失败。第二个问题问登记表：键 (来源层, 能力身份, 资产版本) 有没有贡献，实现的必需依赖是否在场。没有贡献时协调者按需装载；装载失败时保留已知定义并标 `known-unavailable`，装配不失败。版本由持有决定：持有固定某版或跟随当前版，AgentDefinition 的声明只引用能力身份。
+装配时对每个选入的能力身份回答两个问题。第一个问题问 assets：这个租户的作用域里有没有合法持有的资产。必需能力从未取得合法定义时装配失败。第二个问题问登记表：键 (来源层, 能力身份, 资产版本) 有没有贡献，实现的必需依赖是否在场。没有贡献时协调者按需装载；装载失败时保留已知定义并标 `known-unavailable`，装配不失败。版本由持有决定：持有固定某版或跟随当前版，引用工具的定义只引用能力身份。
 
 采用点判定表（对每个常驻项）：
 
@@ -115,7 +115,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 - `unload({ key })`：先读会话引用。有未归档会话引用、且没有同形的 serving 替代时，返回 `retained`，什么都不动。否则按顺序做五步：把登记表条目标记为 draining，新 Run 不再选它，固定采用继续 resolve；等在途调用收场；按 P09 交接；release 贡献；dispose 作者插件 fiber。五步做完返回 `released`。任一步未完成返回 `draining`，再调用一次从未完成的那一步继续。更正标注（2026-10-21，同上决定）：按键排空与交接依赖 P09 的 `inspectDrain({ executor })` 范围，归 #421 的 6.8；在那之前协调者在有在途调用时停在 `draining`。
 - `sweep()`：恢复后按保留义务重装未归档会话记下的键。对无引用、且不再是任何胜者的贡献调用 `unload`。
 
-保留义务：有未归档会话引用且无同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生（端口 `ToolResidencyReader.referencing`），协调者不建账。已归档但在途 Run 未收场的会话也算引用。包字节保留，同 digest 可重新 import。
+保留义务：有未归档会话引用且无同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生（端口 `ToolResidencyReader.referencing`），协调者不建账。包字节保留，同 digest 可重新 import。
 
 替换 = `ensureLoaded(新版本)`；旧版本在引用归零后由 `unload` 或 `sweep` 收走。不存在原地替换。突然失依赖（fiber 被 Cordis 撤除）不经协调者：登记由 effect 撤除，会话看到 R3 不可用件，在途调用保持 unknown。
 

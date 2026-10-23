@@ -91,21 +91,21 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 | 项 | 内容 |
 | --- | --- |
-| 拥有者 | 会话领域（业务流程拓展点）与 slash-commands 产品负责人。依赖现文的页面是 [slash-commands 的关键流程](../../../../../docs/domains/slash-commands/key-flows.md)和[架构页](../../../../slash-command/docs/architecture.md) |
-| Agent 所需保证 | 消息持久化归会话，不归 Agent。对外部输入的展开、脱敏与否决挂在会话的[业务流程拓展点](../../../../../.meta_harness/design/ubiquitous_language/terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)上，在输入交给 Agent 的 invoke 或 submit 之前完成。Agent 只看到受理后的完整内容，不读取处理前的原文，也不为此提供 Loop 拓展点 |
+| 拥有者 | 输入受理方（外部协调者）一侧业务流程拓展点的拥有者，以及 slash-commands 产品负责人。依赖现文的页面是 [slash-commands 的关键流程](../../../../../docs/domains/slash-commands/key-flows.md)和[架构页](../../../../slash-command/docs/architecture.md) |
+| Agent 所需保证 | 消息持久化归输入受理方，不归 Agent。对外部输入的展开、脱敏与否决挂在输入受理方的[业务流程拓展点](../../../../../.meta_harness/design/ubiquitous_language/terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)上，在输入交给 Agent 的 invoke 或 submit 之前完成。Agent 只看到受理后的完整内容，不读取处理前的原文，也不为此提供 Loop 拓展点 |
 | 阻塞的能力 | 斜杠命令的“落盘前脱敏与否决，拒绝可见”。现文把它挂在已移除的“消息落盘之前”扩展位置上 |
 | Agent 侧已产出的边界 | 消息准入是 Agent 的非扩展规则，见 SPEC 的“[消息准入](../../../agent-contract/SPEC.md#消息准入)”。扩展位置只有九处，见[系统页的位置表](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力) |
-| 关闭条件 | 会话领域定义消息持久化前后的业务流程拓展点，slash-commands 改写上述两页与产品页，把命令内容处理挂到这些拓展点上，不再以 Agent 的“消息落盘之前”位置为前提 |
+| 关闭条件 | 输入受理方的拥有者定义消息持久化前后的业务流程拓展点，slash-commands 改写上述两页与产品页，把命令内容处理挂到这些拓展点上，不再以 Agent 的“消息落盘之前”位置为前提 |
 
 ### 外部协调者怎样与 Agent 共同受理输入和终结
 
 | 项 | 内容 |
 | --- | --- |
-| 拥有者 | Session。该领域的待细化设计归 SW-M01，见其[技术兑现义务](../../../../session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务) |
-| Agent 所需保证 | 第一，协调者作为提交参加者，在输入受理和终结的同一次提交中登记自己的事实，响应限于参加、失败、冲突、不支持四种（[SW-M01](../../../../session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)）。第二，协调者保存自己的业务关联与 Agent 的 execution、执行挂接和操作身份之间的映射。换推进者时用 resume 并带推进资格依据，接管仍在推进的 execution 时另有 takeover 资格（[SW-M01](../../../../session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)）。第三，协调者按 execution 与序号去重读取事件，把事件事实与游标共同保存之后再确认。它自己的外发消息和外部交付的身份、幂等与回执归它自己。单独写入本地完成标志不能消除外部已成功、本地提交前崩溃的窗口，外部渠道没有查询或去重能力时，这类动作保留为未知，见[流式输出后的不可逆边界](mechanisms.md#流式输出后的不可逆边界)。Agent 只保证事件的四个层次与业务接受层的区分（[SW-M01](../../../../session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)） |
+| 拥有者 | 外部协调者，它同时是 Journal 端口的实现方。会话路径上的系统关系见[会话与 Run](../../../../../docs/architecture/runtime/session-and-run.md) |
+| Agent 所需保证 | 第一，实现方在自己的日志上实现 Agent 的 Journal 端口。Agent 的执行记录是这份日志里的条目，条目格式归 Agent。输入受理和终结与实现方自己的业务事实在同一次提交中成立。第二，协调者保存自己的业务关联与 Agent 的 execution、执行挂接和操作身份之间的映射。换推进者时用 resume 并带推进资格依据，接管仍在推进的 execution 时另有 takeover 资格。第三，协调者按 Agent 公开的读取形状读同一份日志里的 Agent 条目，不从事件流抄写第二份副本，也不另设已读游标。它自己的外发消息和外部交付的身份、幂等与回执归它自己。单独写入本地完成标志不能消除外部已成功、本地提交前崩溃的窗口，外部渠道没有查询或去重能力时，这类动作保留为未知，见[流式输出后的不可逆边界](mechanisms.md#流式输出后的不可逆边界)。Agent 只保证事件的四个层次与业务接受层的区分 |
 | 阻塞的能力 | 外部协调者路径上的外部输入拒收（CAP-AG07）、完成与取消（CAP-AG08）、接续与交接（CAP-AG09）。无法兑现共同提交的组合，Agent 拒绝装配 |
 | Agent 侧已产出的边界 | SPEC 的“[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)”“[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)”“[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)”和“[事件流与读取](../../../agent-contract/SPEC.md#事件流与读取)”。协调者一侧的前提见[消费与系统定位](../../../agent-contract/docs/context.md#独立消费与外部协调) |
-| 关闭条件 | Agent 一侧的共同提交边界已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。剩余的是该领域给出精确的适配契约、参与者版本和原操作查询，闭合 SW-M01-A 至 SW-M01-C 的待细化项。该领域公开接口页中表示整批扩展位置的 `extension-batch` 字符串随九处位置更新。此前 Agent 不宣称该组合已经实现 |
+| 关闭条件 | Agent 一侧的共同提交边界已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。剩余两项：Agent 契约给出日志中 Agent 条目的公开读取形状；实现方给出 Journal 端口在其日志上的实现、参与者版本和原操作查询。实现方公开接口页中表示整批扩展位置的 `extension-batch` 字符串随九处位置更新。此前 Agent 不宣称该组合已经实现 |
 
 ### Runtime Context 的拉取时点怎样对应到执行开始和挂接建立
 
@@ -117,32 +117,22 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | Agent 侧已产出的边界 | SPEC 的“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”写明 Agent 的五个拉取时点，前两个与系统页的时点对应。压缩计划的接缝缺口见[实施差异](../../../agent-contract/verification/coverage.md#实施差异) |
 | 关闭条件 | Context 在请求准备接缝实现有限多步的压缩计划，并接受实际收件模型的选择结果。读取时点的对应关系由系统页与 Agent 正文共同标明 |
 
-### Model 与 Tool 的契约源码何时导出 Agent 引用的名称
-
-| 项 | 内容 |
-| --- | --- |
-| 拥有者 | Model 主干。model-contract 的源码入口目前是模板。Tool 的名称已由 tool-contract 导出 |
-| Agent 所需保证 | model-contract 导出公开接口页所列的 Model 名称，形状与设计页一致 |
-| 阻塞的能力 | 引用这些名称的类型无法编译验证（CAP-AG03、CAP-AG04） |
-| Agent 侧已产出的边界 | 公开接口页开头的[依赖说明](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)。消息中的工具部件使用 message 包实际导出的 `ToolPart`。差异登记在[实施差异](../../../agent-contract/verification/coverage.md#实施差异) |
-| 关闭条件 | Model 源码导出这些名称，Agent 公开接口页删去该依赖说明，契约包清单声明类型依赖 |
-
 ### Tool、Skills、MCP 的可用性重算由谁在何时触发
 
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | Tool 主干，以及 Skills 与 MCP 专题的拥有者。现文见 [Tool 契约](../../../../tool/tool-contract/SPEC.md#已知与可用的动态关系)、[Tool 系统页](../../../../../docs/architecture/runtime/tool-runtime.md)、[Skills 关键流程](../../../../skills/docs/key-flows.md)和 [MCP 架构页](../../../../mcp/docs/architecture.md) |
-| Agent 所需保证 | 这些专题现文以“attempt 开始”为重算时点，触发者是发起协调者。Agent 不触发重算，也不等重算完成才开始 execution。它们需要把触发时点对应到 Agent 的执行开始与挂接建立 |
+| Agent 所需保证 | Tool 契约、Tool 系统页与 MCP 架构页以采用点与执行挂接建立为重算时点。Skills 关键流程仍写“attempt 开始”。Agent 不触发重算，也不等重算完成才开始 execution |
 | 阻塞的能力 | 不阻塞 Agent。只影响这些专题对时点的措辞 |
 | Agent 侧已产出的边界 | 工具描述的来源由模型选择端口返回，见 SPEC 的“[模型选择](../../../agent-contract/SPEC.md#模型选择)”第 3 条。Agent 不重算工具可用性 |
-| 关闭条件 | 三个专题的拥有者把触发时点的措辞对应到执行开始与挂接建立，或在发起协调者一侧写明映射 |
+| 关闭条件 | Skills 专题的拥有者把触发时点的措辞对应到采用点与执行挂接建立 |
 
 ### hooks 导入专题怎样映射用户提示提交和整批工具之后的事件
 
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | hooks 导入专题的拥有者。现文见[方言表](../../../../../.meta_harness/design/architecture/hooks-import/verification/dialects.md) |
-| Agent 所需保证 | 映射不使用已移除的“消息落盘之前”位置，也不要求整批范围提供否决。用户提示提交对应会话在消息持久化之前的业务流程拓展点，不对应 Agent 的拓展点。整批工具之后的事件对应执行动作之后的整批范围，该范围只允许 observed、inject、stop、ask |
+| Agent 所需保证 | 映射不使用已移除的“消息落盘之前”位置，也不要求整批范围提供否决。用户提示提交对应输入受理方在消息持久化之前的业务流程拓展点，不对应 Agent 的拓展点。整批工具之后的事件对应执行动作之后的整批范围，该范围只允许 observed、inject、stop、ask |
 | 阻塞的能力 | 方言表中 UserPromptSubmit 与 PostToolBatch 两项的导入 |
 | Agent 侧已产出的边界 | [位置输出表](../../../agent-contract/docs/public-api/extensions.md#位置输出表)和 SPEC 的“[消息准入](../../../agent-contract/SPEC.md#消息准入)” |
 | 关闭条件 | hooks 导入专题改写方言表与场景，使这两项映射符合 Agent 的位置集合和输出表。另需该专题确认各方言能否携带回放绑定：不能携带的方言，其 `ask` 在 Agent 一侧按不合法输出处理，见作者协议的[调用协议](../../../agent-contract/docs/public-api/extensions.md#调用协议)。若主要方言都不能携带，Agent 重新评估由适配器代为消费答复的方案 |
@@ -156,16 +146,6 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | 阻塞的能力 | 在途展示内容的跨 runtime 恢复。首内容前失败处置的 Model 契约写回前提已闭合，实现支持仍须验证 |
 | Agent 侧已产出的边界 | [位置输出表](../../../agent-contract/docs/public-api/extensions.md#位置输出表)中调模型之后位置的 retry 输出。SPEC 的“[事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次)”区分耐久提交、出口接收、消费者处理和业务接受。Agent 正文只写依赖与未解决状态 |
 | 关闭条件 | 首内容前的故障交接设计已闭合；Model 与 Tool 仍须给出在途展示内容的耐久机制并经验证 |
-
-### 目录登记的撤除方式怎样对应 IC-13
-
-| 项 | 内容 |
-| --- | --- |
-| 拥有者 | [Cordis 上层集成约定](../../../../../docs/architecture/cordis-integration-conventions.md#ic-13)的拥有者。四成员集成页的“[生命周期与宿主](../../../../../docs/architecture/runtime/runtime-contract-integration.md#生命周期与宿主)”节有相关的写法 |
-| Agent 所需保证 | 下面三处写法已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，并修订进 IC-13。第一，目录的 `register` 返回 `Reply<Registration>`，不返回撤除函数。第二，撤除函数由目录持有，显式 withdraw 与调用方 fiber 卸载共用同一个幂等删除。第三，同一实例的后继登记在同一个本地动作内原子取代旧登记。Agent 的理由是：登记是业务事实，要能被显式撤销和接替，不能只随调用方 fiber 自动消失。贡献者 fiber 卸载后登记仍随之撤除，这一点与 IC-13 相同 |
-| 阻塞的能力 | 无。Agent 的 Cordis 设计符合修订后的 IC-13，目录实现的撤除行为尚未验证 |
-| Agent 侧已产出的边界 | Cordis 页的[登记输入与撤除协议](../../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议)和[符合性映射](../../../agent-cordis-contract/docs/cordis.md#符合性映射)的 IC-13 行。后继取代的行为见 SPEC 的“[创建、登记与复用](../../../agent-contract/SPEC.md#创建登记与复用)” |
-| 关闭条件 | 本条与 IC-13 的差异已闭合：三处写法已修订进 IC-13，Cordis 页的符合性映射不再记偏离。仍待完成的只有四成员集成页两处措辞的写回：冲突登记句补写 Agent 的后继登记按其 SPEC 取代旧登记，发行行句补目录行 `agent-instances`。写回随该页送入集成轨道时完成 |
 
 ### 扩展发起工具调用的准入
 
@@ -198,3 +178,15 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | ModelSelection、ModelContextReader、RequestPreparation | Model 与设置的适配器、Context 的适配器 | select 返回可选档案和实际收件模型。read 返回模型可读块，full 或 incremental 由 Context 决定。prepare 与 derive 按有限压缩计划工作 | 主请求准备与压缩（CAP-AG04） | SPEC 的“[模型选择](../../../agent-contract/SPEC.md#模型选择)”“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”和“[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)” | 各适配器存在，Context 一侧的压缩计划接缝缺口关闭 |
 | AgentAdoptions、CurrentConditions、ExtensionImplementations、AgentMaterials、RegisteredReads | 装配与资产领域、协作设置、材料保管提供者、各具名读取协议的拥有者 | 只解析精确采用，不取最新版本。CurrentConditions 只投影当前推进要求与采用依据，不复制权限模式，不计算守卫，守卫由循环判断这一受信系统扩展计算并记为 checkpoint 的守卫事实。材料不只存在于 Agent 的内存中 | 定义采用、扩展经过、custody 路径、具名读取 | 公开接口页的[扩展、人工卡片与材料](../../../agent-contract/docs/public-api/README.md#扩展人工卡片与材料)和 SPEC 的[采用交接](../../../agent-contract/SPEC.md#采用交接) | 各提供者存在并通过各自的换代与恢复验证 |
 | AgentJournal | 独立提供者由本域建立，带提交参加者的提供者是外部协调者的适配器。两类包都尚未建立 | 条件提交、原操作查询、可靠事件和围栏。声明能兑现的提交参加者 | 所有托管的 execution | SPEC 的“[托管协调与运行实例](../../../agent-contract/SPEC.md#托管协调与运行实例)”和“[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)” | 两类提供者包建立，并通过断电、围栏和共同提交的验证 |
+
+## 已关闭的问题
+
+下面两项已经关闭，保留标题供原链接定位。
+
+### Model 与 Tool 的契约源码何时导出 Agent 引用的名称
+
+model-contract 与 tool-contract 的根入口导出 Agent 引用的名称，agent-contract 的包清单声明这两个契约包的类型依赖。公开接口页开头的[依赖说明](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)按实际导出写明 `M.*` 与 `T.*` 的来源。
+
+### 目录登记的撤除方式怎样对应 IC-13
+
+[IC-13](../../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 采纳了 Agent 目录的三处写法：`register` 返回 `Reply<Registration>`，撤除函数由目录持有并与调用方 fiber 卸载共用同一个幂等删除，同一实例的后继登记在同一个本地动作内原子取代旧登记。Cordis 页的[符合性映射](../../../agent-cordis-contract/docs/cordis.md#符合性映射)不记偏离。四成员集成页的[生命周期与宿主](../../../../../docs/architecture/runtime/runtime-contract-integration.md#生命周期与宿主)写明后继登记按 Agent 的 SPEC 取代旧登记，[配置与插件树](../../../../../docs/architecture/runtime/runtime-contract-integration.md#配置与插件树)的候选发行行列出 `agent-instances`。目录实现的撤除行为由 `registration.spec.ts` 验证。

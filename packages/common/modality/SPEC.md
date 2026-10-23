@@ -11,7 +11,7 @@
 - 统一语言 [UL-modality](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-modality--模态--modality)：模态恰有四种，块上的模态由它的媒体类型决定。含义没有改变。
 - 统一语言 [UL-media-type](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-media-type--媒体类型--media-type)：媒体类型落在四种模态之一，块就是那一种。落在四种之外，块不属于任何模态。含义没有改变。
 - 请求上下文 [RQ-04](../../context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示)：实际媒体类型决定内容模态。
-- Model 契约的「模态投影与实际表示」一节写明模态由内容媒体类型识别。Model 契约不在本轨道上，这里只用文字提及，不写链接。
+- Model 契约的[模态投影与实际表示](../../model/model-contract/SPEC.md#模态投影与实际表示)写明模态由内容媒体类型识别。
 - 原语义拥有者确认：Model 主干会话于 2026-10-19 确认含义一致，没有冲突条款。
 - 本文件的对照表是 [#397](https://github.com/nemori-ai/omne-harness-lite/issues/397) 新写明的规则。已接受正文只给了原则，没有给对照。对照表由 PanQiWei 随 #397 接受。其中「全部 `audio/*` 都是 `voice`」是 PanQiWei 于 2026-10-19 的裁定。统一语言以后另做一处小改动指向本表。
 
@@ -84,7 +84,7 @@
 
 下列内容不在本成员，也不由本成员的函数暗示。
 
-- 历史模态投影：会话记录是来源，请求上下文把它投影给 Model，Model 与档案声明的输入模态比较。
+- 历史模态投影：历史记录是来源，请求组装方把它投影给 Model，Model 与档案声明的输入模态比较。
 - Model 转换件的键、选择和同键唯一规则。
 - Model 的初始文本约束，它是 Model 的准入规则。
 - Tool 结果块的集合。
@@ -96,11 +96,12 @@
 
 | 消费者 | 用法 | 状态 |
 | --- | --- | --- |
-| Model 契约 | 档案输入输出模态、转换件模态键、媒体类型识别。档案声明用支持子集，要求、投影、转换件键用完整 `Modality` | Model 主干会话于 2026-10-19 同意在 #381 或其后续采用 |
-| Tool 契约 | 工具定义的参数模态与结果模态改用 `readonly Modality[]` 和 `judgeModalities`。既有定义里的 `audio`、`speech` 按拒绝处理，不静默映射 | Tool 主干的后续卡 |
-| 会话、代理、基础设施 | 需要时按公开入口导入 | 未来 |
+| Model 契约（`model-contract`、`model-cordis-contract`） | 档案输入输出模态、转换件模态键、媒体类型识别。档案声明用支持子集，要求、投影、转换件键用完整 `Modality` | 已导入：`model-contract` 的 `profile.ts`、`conversion.ts` 与 `model-cordis-contract` 的 `converters.ts` |
+| Tool 契约（`tool-contract`） | 工具定义的参数模态与结果模态用 `readonly Modality[]` 和 `judgeModalities`。既有定义里的 `audio`、`speech` 按拒绝处理，不静默映射 | 已导入：`authoring.ts` 与 `judge-definition.ts` |
+| Request Context 契约（`request-context-contract`） | 包清单声明依赖。内容模态经 Model 契约的模态类型表达 | 已声明依赖，源码不直接导入 |
+| 其他消费者 | 需要时按公开入口导入 | 未来 |
 
-当前轨道上没有生产调用点。公开入口由本成员测试消费。
+生产调用点在 Model 与 Tool 的契约成员里。
 
 ### 验收对照
 
@@ -112,4 +113,4 @@ C3。媒体类型的文法、规范形式与对照表由 [tests/media-type.spec.
 
 C4。`dependencies` 为空，只有 `.` 入口，构建产物不导入任何模块，由 [tests/public-entry.spec.ts](tests/public-entry.spec.ts) 检查。
 
-未覆盖：没有消费者在本轨道上调用本成员，组合行为留给消费者各自的验证。
+未覆盖：本成员的测试不覆盖消费者的组合行为，组合行为留给消费者各自的验证。

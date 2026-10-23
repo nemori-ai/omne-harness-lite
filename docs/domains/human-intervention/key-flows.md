@@ -2,6 +2,8 @@
 
 本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[human-intervention/human-intervention SPEC](../../../packages/human-intervention/human-intervention/SPEC.md)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
 
+下列流程里的请求、卡片、答复、池查询与通知都带原请求的租户。跨租户的读取与答复默认拒绝。
+
 ## F-HI01 问询和请示回原工具
 
 对应 J-HI01、J-HI02。原 Tool 创建问题/请示和等待关联，Ask 每个问题有描述、必需文本候选及系统保证的独立自由作答；图解可选且不能替代文字。请示提供批准、拒绝及不选按钮而提交原话的路径。HITL 核验呈现资格，人从任一入口处理，协调者裁定有效答复并可靠关联。Ask 多问题全部处理后原 Tool 才继续。

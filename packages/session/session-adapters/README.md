@@ -30,7 +30,7 @@ The application assembly uses this package on the session path only. Independent
 1. Load [session-cordis](../session-cordis/README.md) and one storage provider.
 2. Load the plugins from `@omne-harness/session-adapters/cordis`. Do not load a plugin that the [plugin list](SPEC.md#插件清单) marks as waiting for a premise.
 3. Construct the scope-release port in the assembly entry. Give it the recovery access that the maintenance owner issues.
-4. Declare the session consumer owner to Model as exempt from the guard until the qualification participant protocol closes.
+4. Declare the session consumer owner to Model as exempt from the guard. Session does not take part in the Model admission guard.
 
 An inbound plugin declares its caller class like this:
 

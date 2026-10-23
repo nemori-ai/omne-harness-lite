@@ -8,6 +8,8 @@
 
 本责任治理会话路径中的输入与逻辑工作，包括 Session、Run、执行尝试、消费位置和有效推进资格。Session 拥有业务治理与耐久事实，不是第四个 runtime。它按业务规则协调 Agent、Model 和 Tool 三个 runtime，不要求它们共享线程、实例或寿命。会话日志是唯一的业务写入口，每个意图经一个具名操作进入。
 
+会话事实归租户。Session 是会话日志的唯一写入者，在自己的边界执行租户隔离：每个键都含租户，跨租户读取默认拒绝，会话不存在与跨租户得到同一个拒绝结果。租户随每次操作的访问依据显式传入，不从连接、进程、装配、作用域名或会话身份推断。
+
 Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request Context 和执行环境。邻域的契约只使用通用角色，不认识 Session。Session 在会话路径上担任这些角色，名称与形状的翻译只在 Session 的适配成员里发生。每一对关系见[与邻域的交接](architecture.md#与邻域的交接)。
 
 [日程Job](../schedules-and-jobs/README.md)、独立模型/工具调用和通知各有治理者，不为复用能力创建隐式Session。
@@ -61,19 +63,22 @@ flowchart TD
 
 人能看到的内容只来自两处：会话日志的历史投影，以及生产方已经可靠保管的在途增量，见[用户可见内容的两处来源](../../architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)。
 
-会话在收到一份账时把它记入日志。这条记录只表示会话已经收到。账目随模型响应的流式增量或流的完成、或一次已完成工具执行的工具结果产生，由模型调用与工具执行保管。Agent 的事件不带账目，会话作为消费位置拥有者按原调用读取，见[事件来源与日志准入](../../../packages/session/session-contract/SPEC.md#事件来源与日志准入)。
+账目由生产者按调用给出，由模型调用与工具执行保管：模型调用是 dispatch 记录上的账目，工具执行是执行账。调用收场或迟到账目到达时，Agent 宿主的结果接收方经 Journal 把账目写入会话日志。日志里的账目记录只表示会话已经收到这份账。Session 只读日志里的账目，不按调用向模型调用或工具执行读取账目。全组织账目经账目拥有者的范围查询读取，Session 的读面只服务单租户。
 
 ```mermaid
 sequenceDiagram
-  participant Session as 会话
   participant Model as 模型调用
   participant Tool as 工具执行
-  Session->>Model: 按原调用读取账目
-  Model-->>Session: 用量和费用
-  Session->>Tool: 按原调用读取账目
-  Tool-->>Session: 费用
-  Session->>Session: 记下这笔账
-  Note over Session: 更后修订替换同一来源的已知金额，并标明迟到
+  participant Receiver as Agent 宿主的结果接收方
+  participant Log as 会话日志
+  participant Session as 会话
+  participant Owner as 账目拥有者
+  Model-->>Receiver: 收场或迟到时交出本调用的账目修订
+  Tool-->>Receiver: 收场或迟到时交出本调用的账目修订
+  Receiver->>Log: 经 Journal 写入账目
+  Session->>Log: 只读日志里的账目
+  Note over Session,Log: 更后修订替换同一来源的已知金额，并标明迟到
+  Note over Owner: 全组织账目经账目拥有者的范围查询读取，不经会话
 ```
 
 同一主体、同一费用来源的更后修订整份替换旧快照。后到的修订标明 `receipt` 为 `late`，`revision` 加一。修订准入、按来源小计、应付金额、单位与精度的规则归[调用账目](../../../packages/common/call-account/README.md)。会话按这些规则求和，不另定第二套规则。
@@ -82,7 +87,7 @@ sequenceDiagram
 
 受理消费交付面输入及[命令展开](../slash-commands/README.md)，使用治理提供的合法身份与资格。受理成功须有可恢复去处，不把临时消息发送当作可靠接手。
 
-工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接。Session 只保存执行引用，不保存 Agent 的接续值。Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Model 受理点守卫的参加者，以资格参加者协议闭合为前提；Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。
+工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接。Session 只保存执行引用，不保存 Agent 的接续值。Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有两种关系：资格的参加（Tool 启动围栏的资格版本拥有者），以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成，Session 只读日志里的结果与账目。
 
 Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫，作为 Session 自己的一次提交写入会话日志，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
 

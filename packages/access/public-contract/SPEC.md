@@ -473,6 +473,6 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 
 - 成功业务访问如何报告。identity ID-11 继续拥有该公开形状。这些治理操作不代替那份报告。
 - 人工决定的答复消息。需要决定时只返回原请求标识。
-- Session 的公开接入。
+- Session 的公开接入。它归公开接入的拥有者，见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
 - 传输协议、登录证明的密码学形式、存储和页大小。
 - 资产确认时刻。它归资产读面，不是这些治理消息。

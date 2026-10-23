@@ -42,7 +42,7 @@ Session 的 Service 实现成员，`service-provider` 变体。
 
 ## 配置与运行
 
-插件配置用 Standard Schema 校验，字段是调度策略 `policy` 的逐字段覆盖与撤除等待上限 `disposeWaitMs`。省略的策略字段取 session 的初值。默认值只是初值。配置错误时插件加载失败，fiber 进入 `FAILED`；缺事务端口时 fiber 停在 `PENDING`。
+插件配置用 Standard Schema 校验，字段是调度策略 `policy` 的逐字段覆盖、撤除等待上限 `disposeWaitMs` 与受理槽声明 `admission`。`admission` 只能省略或取 `'none'`。省略的策略字段取 session 的初值。默认值只是初值。配置错误时插件加载失败，fiber 进入 `FAILED`；缺事务端口时 fiber 停在 `PENDING`。
 
 每个租户同一时刻只有一个恢复扫描者，第一版靠装配单实例兑现：全部进程里只装一份本插件，不在两个 isolate 标签下各装一份。租户、主体与回调不进配置。本成员不读取资源，只经事务端口访问存储。
 

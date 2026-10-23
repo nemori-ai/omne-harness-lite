@@ -30,7 +30,7 @@ Session 的适配成员。模板变体：`cordis-module`。
 1. 装载 [session-cordis](../session-cordis/README.md) 与一个存储提供者。
 2. 从 `@omne-harness/session-adapters/cordis` 装载插件。[插件清单](SPEC.md#插件清单)标为等待前提的插件不装载。
 3. 在装配入口构造作用域释放端口，交入维护拥有者签发的恢复授权。
-4. 资格参加者协议闭合之前，把会话的消费者 owner 向 Model 声明为免守卫。
+4. 把会话的消费者 owner 向 Model 声明为免守卫。Session 不参加 Model 的受理点守卫。
 
 入站插件这样声明调用方类：
 

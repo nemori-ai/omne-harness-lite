@@ -15,9 +15,9 @@
 本成员必须保持下列性质。
 
 1. 服务键 `requestContext` 只由抽象类 `RequestContextService` 的 `static readonly provide` 给出。导出的键常量取自它。提供者不另写键。
-2. `RequestContextService` 实现契约根入口的登记面操作类型：`contributeSection`、`contributeVariable`、`contributions(scope)`。它另有组装入口 `assembly(scope, ports)`：`ports` 含历史源读口、计量端口、转换件结果端口与请求序列化端口，由调用方逐次交入。它返回一组纯操作，这组操作已按该 isolate 的配置绑定了选定的策略，并只用这次交入的端口。提供者不 `inject` 作用域持有者或模型侧的服务，四项端口缺席时相关操作返回不可用。操作组在每次调用时从登记面现取该作用域适用的贡献集合，不收调用方传入的贡献；覆盖证据记现取时本作用域适用的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。组装本身仍是纯函数：现取的贡献集合、段列表摘要与实例代次是这次调用的输入。服务只交出已配置的操作组。服务不把 `assemble`、`planCompaction` 这类纯操作直接写成自己的方法。类上的 JSDoc 写 `@owner packages/context/request-context-contract`。
+2. `RequestContextService` 实现契约根入口的登记面操作类型：`contributeSection`、`contributeVariable`、`contributions(scope)`。它另有组装入口 `assembly(scope, ports)`：`ports` 含历史源读口、计量端口、转换件结果端口与请求序列化端口，由调用方逐次交入。计量端口由调用方以本次组装的访问身份取得；计量结论不缓存。它返回一组纯操作，这组操作已按该 isolate 的配置绑定了选定的策略，并只用这次交入的端口。提供者不 `inject` 作用域持有者或模型侧的服务，四项端口缺席时相关操作返回不可用。操作组在每次调用时从登记面现取该作用域适用的贡献集合，不收调用方传入的贡献；覆盖证据记现取时本作用域适用的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。组装本身仍是纯函数：现取的贡献集合、段列表摘要与实例代次是这次调用的输入。服务只交出已配置的操作组。服务不把 `assemble`、`planCompaction` 这类纯操作直接写成自己的方法。类上的 JSDoc 写 `@owner packages/context/request-context-contract`。
 3. `contributeSection` 与 `contributeVariable` 登记即效应（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）：在方法里用 `this.ctx.effect` 登记，登记落在贡献者的 fiber 上，贡献者卸载即撤。提供者须验证贡献者卸载后登记已撤除。
-4. 贡献带作用域引用 `ScopeRef`。全局层的贡献以 `scope: null` 登记。同一层同名拒绝，不覆盖。解析时作用域层遮蔽全局层。
+4. 贡献带作用域引用 `ScopeRef`。全局层的贡献以 `scope: null` 登记。全局层只放与租户无关的贡献；与某个租户相关的贡献按作用域登记。同一层同名拒绝，不覆盖。解析时作用域层遮蔽全局层。
 5. 带逐请求变化变量的段在登记时拒绝（[RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入)）。登记时根据变量显式声明的 `volatility` 识别逐请求变化，不从文本内容推断。登记不渲染文本。
 6. 事件只有一个：`request-context-cordis-contract/changed`，载荷是作用域引用、该层的登记修订与登记面实例的代次，模式 `emit`。登记面的每一层（全局层与每个作用域层）各有自己的修订，一层的登记或撤除只使这一层的修订前进；登记面实例的代次在每次提供者构造登记面时新取，重启后不同。全局层的贡献变化时，载荷的作用域引用为 `null`。贡献变化即发，带修订。它只是失效提示，不携带内容。监听者按载荷过滤：监听作用域 X 的一方接收作用域为 X 的载荷，也接收作用域为 `null` 的载荷。别的作用域的贡献变化不影响作用域 X 的提示词键与前缀变化原因。
 7. intercept 配置类型是 `{ scope: ScopeRef | null }`：贡献者插件以对象形式 `inject` 声明自己的作用域，`null` 表示全局层；服务方法经 `this[Service.resolveConfig]()` 取得。它是装配事实，不是资格授予（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。

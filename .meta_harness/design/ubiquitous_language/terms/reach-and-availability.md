@@ -56,7 +56,7 @@
 > 会话初始化时确定这个集合。此后集合只增不减。会话只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)加入此前未装载的常驻工具，Run 中途不加入。
 > 集合里每一项的名字与参数形状在会话内不变：实现可以换，但新定义必须与首次采用的定义[同形](#ul-same-shape--同形--same-shape)。
 > 某一项被卸载或暂时不可用时，会话用同形的[替换件](#ul-stand-in--替换件--stand-in)占住它。
-> 会话为每一项保存一条首次采用的事实，集合从这些事实算出；当前固定的版本从 Run 的[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)算出，不另存。
+> 会话为每一项保存一条首次采用的事实，集合从这些事实算出；当前记下的登记键从 Run 的[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)算出，不另存。
 >
 > **EN**: All resident tools of one session, together with the tool definition that each one
 > had when the session first adopted it. The session fixes this set at initialization. After
@@ -66,8 +66,8 @@
 > definition must have the same shape as the first one. When an item is unloaded or
 > temporarily unavailable, the session holds its place with a stand-in of the same shape. The
 > session records one first-admission fact per item, and the set is computed from these facts.
-> The currently pinned version is computed from the Run's adoption basis and is not stored
-> separately.
+> The currently recorded registration key is computed from the Run's adoption basis and is
+> not stored separately.
 
 - **形态**：视图
 - **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
