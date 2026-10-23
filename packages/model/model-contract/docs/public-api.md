@@ -21,6 +21,8 @@
 
 [结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执及接收/恢复端口、current 尚未进入导出清单；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
 
+新增端口的 `Access` 直接来自 `@omne-harness/legal-identity`。旧 root.ts 的 Access 迁移由共享拥有者维护。current 的对象参数和失败顺序归 [目标查询](../SPEC.md#current-的权威含义)。
+
 receiver、observe 与 current 的完整公开声明及实际导入依赖公共身份唯一源，启用条件归[交付边界](../SPEC.md#推送与公共观察的交付边界)。本页不复制候选 Access 或用拟议签名替代实际源码。真实 Evidence adapter、Agent 内部保存映射和 Tool 适配不由本包声明页补造。
 
 ## 能力边界

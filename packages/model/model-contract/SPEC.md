@@ -515,6 +515,39 @@ stateDiagram-v2
 
 本协议由 Model 生产者向受理时冻结的 consumer owner 推送完整、有界的结果。接收方保存后返回 saved，Model 再沿原 retained、handoff 和 operation query 协议取得有效 ACK。saved 是原 consumer owner 的保管事实回执，不在 Model 建立第二份保管账本。接收地址不替代 `ConsumerRef`，重投和恢复不重新选择 owner。
 
+### 接收端口与回执
+
+`ModelResultReceiver<P>.push` 接收一个只读对象，含公共 `Access<P>`、`ModelDelivery` 和 `AbortSignal`，字段名分别为 access、delivery 和 signal。返回值为 `Promise<Outcome<ModelSavedReceipt, ModelDeliveryFailure>>`。本包不把该端口加入旧 ModelRuntime 的必需成员。
+
+`ModelSavedReceipt` 只有原交付 key 与 `DurableEvidence`，字段名为 key 和 evidence。Outcome 的成功值就是本节的 saved 回执，不再增加一层 saved 判别包装。成功 key 必须与输入相同。回执只表达本节规定的合取保管事实，不授予清理或当前资格。
+
+新的接收声明直接从 `@omne-harness/legal-identity` 的公开入口导入 `Access`。该定义只给显式主体与租户基底，不能证明主体可靠或接收已授权。本包旧 root.ts 中的重复 Access 定义按共享拥有者的迁移处理，不作为新增端口的定义来源。精确声明及导出状态由[公开 API 导航](docs/public-api.md#已采用但尚未声明的增量)指向源码。
+
+### 纯关系校验与输入固定
+
+`judgeModelDelivery({tenant, delivery})` 消费已合法构造的 typed `ModelDelivery` 与真实 `TenantId`，返回 `Outcome<ModelDelivery, ModelDeliveryRejection>`。成功值是原输入引用，不复制、不冻结。该函数不查存储、当前资格、原 consumer 或完整 dispatch 集合，也不产生 evidence。
+
+拒绝按下表顺序返回第一个失败。reference 使用本包原 invocation codec。除 tenant 铸造与该 codec 外，本函数不重新解析全部 typed 标量，不承担 unknown 全树 parser。
+
+| 顺序 | 条件 | field | reason |
+| --- | --- | --- | --- |
+| 1 | tenant 未铸造 | tenant | identity |
+| 2 | invocation 文本非法 | key.reference | reference-malformed |
+| 3 | invocation 属于其他 tenant | key.reference | foreign-tenant |
+| 4 | result key 与 settlement.version 不同 | key.result | version-mismatch |
+| 4 | account key 与 account.revision 不同 | key.revision | revision-mismatch |
+| 5 | account.subject 不是 model_call 与原 call | account.subject | call-mismatch |
+| 6 | result accounts 有重复 dispatch | accounts | duplicate-dispatch |
+| 7 | result accounts 中非 null subject 不是 model_call 与原 call | accounts | call-mismatch |
+
+第4项按交付分支执行。第5项仅用于 account。第6、7项仅用于 result，第6项先检查整个数组，再按原数组顺序检查第7项。`ModelDeliveryRejection` 是表中 field/reason 对的有限联合。静态 kind 对应仍由 ModelDelivery 联合类型保证。
+
+接收方在首次异步或排队前取得完整合法 typed delivery 的自有副本，并深冻结该副本。它不冻结调用方对象，也不复制或遍历 principal。调用方之后改变原载荷，不能改变已入队 key、内容或原操作。
+
+同内容指完整合法 typed 值树结构相等。对象键次序不参与，数组次序、variant 和字段存在性参与。缺字段与值为 undefined 的字段不同。JsonValue.number.lexeme 不做数值归一化，JsonValue.object.entries 保留数组次序。比较覆盖完整 consumer、账目和结果，不以版本号或 digest 代替。
+
+任意 getter、Proxy、循环图及非法大图由真实外部输入边界处理。typed judge 与副本规则不构成对任意 unknown 的安全接收承诺。
+
 ### 交付身份与冻结载荷
 
 交付键、载荷和回执分别表达结果与账目，不使用随机 deliveryId，也不另复制租户或调用身份。
@@ -547,7 +580,7 @@ Agent 接收路径复用其材料与原消费责任，其他消费者拥有自�
 
 | 可证实状态 | 接收方与生产者的后续责任 |
 | --- | --- |
-| 材料已保存，责任确定未提交 | 保留材料，合法保管者沿原 key 和 operation 补齐责任，尚不能返回 saved |
+| 材料已保存，责任确定未提交 | 当前尝试不能继续时返回 unavailable，dependency 为 responsibility。保留材料和原逻辑额度；后续合法同 key 重投只沿原 operation 补齐责任，不重复保存材料 |
 | 材料保存回包未知，或材料已保存而责任提交未知 | 保留原完整输入，沿原材料身份和 operation 认回；不能另造接管或第二份责任 |
 | 责任成功回包未知 | 查原 operation，并重读材料与原责任关联；committed revision 不代替完整 receipt |
 | 同 key 同内容重投 | 每次核当前资格后认回原事实，不重复责任、计费或逻辑额度 |
@@ -565,11 +598,32 @@ ACK 未知时保留原 operation、引用、result、evidence 和完整参数，
 
 ### 失败、取消与资格
 
-新增接收协议区分 denied、invalid、conflict、backpressured、unavailable、cancelled-before-accept 和 outcome-unknown。invalid 指明字段与原因。backpressured 指明 records、bytes、attachments 或 in-flight，unavailable 指明依赖。后两者只表示确定未接管；可能提交时必须保留 outcome-unknown，不能以普通失败盖过未知。
+新增接收协议区分 denied、invalid、conflict、backpressured、unavailable、cancelled-before-accept 和 outcome-unknown。invalid 指明字段与原因。backpressured 指明 records、bytes、attachments 或 in-flight，unavailable 指明依赖。backpressured 表示本次未取得所需新增资源，不撤销早先保存。unavailable 表示本次不能形成 saved 的全部合取事实，不表示零副作用或从未保存材料。实际写或响应是否成立未知时必须保留 outcome-unknown，不能以普通失败盖过未知。
 
-signal 只停止本次等待。仅在确定接管前未提交时返回 cancelled-before-accept；已经发生保存则返回可证实的 saved 或 unknown。取消 Model 调用不删除已产生结果、真实费用或晚到账目。
+signal 只停止本次等待。仅在确定接管前未提交时返回 cancelled-before-accept。完整合取已确认返回 saved；实际写或响应未知返回 outcome-unknown。材料已知保存而责任确定未提交时，若当前尝试停止，返回 unavailable，dependency 为 responsibility，不能改成 cancelled-before-accept 或虚假的 unknown。仍在途的写不能因 signal 被推定为未提交。取消 Model 调用不删除已产生结果、真实费用或晚到账目。
 
 push、重投、证据核验、handoff 与 dispatches 分别核当前资格，不泄漏另一租户的存在性。推进资格撤销不自动撤销合法保管后继的恢复资格；后继资格由身份与责任拥有者明确，不能用系统身份推导无限权限。
+
+### push 的失败形状与决定顺序
+
+`ModelDeliveryFailure` 的 denied、conflict、cancelled-before-accept、outcome-unknown 分支只有 kind。invalid 另含 string field 与 string reason。backpressured 另含 resource，值为 records、bytes、attachments 或 in-flight。unavailable 另含 string dependency。该联合不复制旧 ModelFailure 的 action、operation、revision 或 diagnostic。
+
+接收方按以下顺序处理。同一 key 曾可能提交时，下面任何新响应都不能清除原未知记录。
+
+1. 核 tenant 铸造与 invocation 租户。未铸造或跨租户返回 denied，不查 key、consumer 或原调用。文本非法返回 invalid(key.reference, reference-malformed)。
+2. 核本主体当前接收资格。拒绝返回 denied，资格依赖故障返回 unavailable。此时不披露原 key 是否保存、冲突或 admission 是否真实。
+3. 核原调用及原 admission、完整冻结 consumer，再按纯关系表核版本和 subject。原调用权威未受理返回 invalid(key.reference, not-accepted)，admission 非原值返回 invalid(key.reference, not-original)，consumer 不同返回 invalid(consumer, not-original)。其余关系失败沿纯关系表的 field/reason。完整 dispatch 集合只能由持有原调用记录的拥有者核验，纯 judge 不声称完成该核验。
+4. 以原调用权威记录核 dispatch 关系。result 的完整集合缺项或多项返回 invalid(accounts, dispatch-set-mismatch)；account.key.dispatch 不在原集合中返回 invalid(key.dispatch, not-original)。集合来源不可读返回 unavailable，dependency 为 dispatches，保持先前 unknown；不可读不是集合不等或不属于。重复项仍由先行 typed 表返回 duplicate-dispatch。此检查在原 key 认回之前，纯 judge 不承担成员关系查询。
+5. 在原 key 记录认回。同内容 saved 返回原 receipt，不重复逻辑额度。异内容返回 conflict，保持原事实。部分或未知沿原身份认回，不按新 key 接管。
+6. 仅对权威确认尚无接管的新 key，已取消 signal 返回 cancelled-before-accept。已经 saved 的同 key 在当前资格允许时仍认回 saved。
+7. 一起预留本次材料、责任、去重与在途资源。额度不足返回 backpressured。依赖失败返回 unavailable；材料确定未成立且没有接管时，dependency 为 material，并按下述资源规则释放临时预留。
+8. 完成保存及关联。只有 saved 的全部合取事实成立才返回成功。材料已确认保存、责任确定未提交且当前尝试不能继续时，返回 unavailable，dependency 为 responsibility。实际提交或响应无法确认时返回 outcome-unknown。已知部分状态不伪造未知，也不要求无限内部重试或无限等待。停止等待不删除已经成立的事实。
+
+逻辑额度与实际 in-flight 槽分别限制。同 key 认回不重复占逻辑额度，但仍受实际在途资源限制。实现可以先取得不披露对象的 in-flight 槽。该槽拒绝不能说明早先 unknown 是否提交。本协议不承诺满额下任何同 key 都立即得到回执。
+
+已知部分保存或未知保存保持原 key、完整 delivery、稳定材料身份、原 operation 及 records、bytes、attachments 的逻辑占用。只有本次实际在途写已经结束，才释放其 in-flight 槽。随后经当前资格核验的同 key 重投跳过已确认材料，只补原责任操作，不另建材料或第二份责任，不重复逻辑计费。材料确定未成立且没有接管时可以释放临时逻辑预留；原输入及稳定身份的冲突语义保持。实现若继续保留失败记录或完整输入，其占用仍计入实际资源上限，不能以释放预留为由无限保留。
+
+invalid 不能回显秘密或完整输入。公开关系失败限上述纯关系表，以及原调用/admission、consumer、result dispatch 集合和 account.key.dispatch 归属的检查映射。
 
 ### 晚到账目与有界保管
 
@@ -675,6 +729,12 @@ Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C �
 
 ### current 的权威含义
 
+Model 的内容观察通过独立 `ModelStreamObservation<P>` 声明，沿用 `StreamObserver<P, ModelStreamSnapshot, ModelStreamDelta>`，生产者终止类型采用默认 never。Model 不把公共观察塞入原 ModelHandle，也不重定义公共帧或 observer。
+
+`ModelStreamReferences<P>.current` 接收一个含 access 与 reference 的只读对象，分别为公共 `Access<P>` 与 `ModelInvocationRef`，返回原 `Reply<ModelStreamSelection>`。它没有位置参数重载，也没有 signal 或 after 参数。新增声明直接从公共身份入口导入 Access，不定义新的身份基底。
+
+`ModelStreamSelection` 含 state 和 current。state 是原 `CallState`。非 null 的 current 含 `StreamRef` ref、`DispatchId` dispatch，以及固定为 `model-output-v1` 的 projection。精确声明由公开源码拥有，不增加 target revision。
+
 当前目标查询是独立可加能力，查询结果同时给出原调用权威 `CallState` 与当前观察目标，来自同一确认边界。current 为 null 只说明该边界没有可公布的内容观察目标。不区分从未发布与退役无后继；两者都显示 CallState，不尝试观察不存在的 ref，并按有界刷新策略再查。
 
 null 不表示调用不存在、未执行、终局或永久没有目标。定位和读取失败保留原失败分支，不折成成功 null。已终局调用仍可有可观察保存投影，不能只因终局而清空目标。历史结果、晚账和保管责任不由 current 决定。
@@ -682,6 +742,18 @@ null 不表示调用不存在、未执行、终局或永久没有目标。定位
 只有新投影已确认、快照与订阅入口就绪后才公布 ref。旧发布退役后立即不再作为当前目标返回，新发布就绪前允许 null 窗口。查询结果不是可达性租约；随后观察失效时消费者重新查询，目标变化时取得新 ref 的快照，不能沿用旧 cursor。
 
 消费者串行查询，或只应用最新已发请求的响应，避免旧响应晚到覆盖新目标。本协议不增加 target revision，也不保证每次短暂切换都被观察。旧 ref 失效后明确结束，绝不转向后继。实际发布及接入有界刷新由迁移实现承担，不能据当前声明声称已经具备。
+
+### current 的失败与读取顺序
+
+current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方法仅产生 denied、invalid、unavailable，不新造 operation、实例租约、容量预留或 handoff。其他旧失败成员仍由旧消费者完整处理。
+
+1. 使用原 Model invocation codec 核 tenant 与 reference。未铸造 tenant 返回 denied(action=tenant)。跨租户返回 denied(action=current)。malformed 返回 invalid(field=reference, reason=reference- 加原 codec rejection.reason)。这些检查不查目标。
+2. 核本主体当前 facts/read 资格。失权返回 denied(action=current)，资格依赖不可用返回 unavailable(dependency=stream-references, diagnostic 为安全诊断标识)。不据此推断对象存在或不存在。
+3. 在同一权威边界读取原 call/admission、CallState、发布目标和有效代次。权威未受理返回 invalid(reference, not-accepted)。已有 call 的错误 admission 返回 invalid(admission, not-original)。不能确认受理或来源不可用返回 unavailable，dependency 为 stream-references。
+4. 准备发生等待时，在实际受保护输出前重核当前资格，并重读同边界 state 与目标。旧 allowed 不是持续许可。
+5. 返回同一确认记录的 selection。首次未发布或退役无后继可为 null。settled 本身不清空仍有效的投影。
+
+无资格者查询真实或错误 admission 都得到相同 denied，不提前披露原 admission。公开文本格式错误只说明请求文本，仍可先返回 invalid。
 
 ## 推送与公共观察的交付边界
 
@@ -702,6 +774,16 @@ M-5 负责真实 runtime、driver、provider 的推送、retained、证据适配
 观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 和 Agent wait 的消费闭包。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
 
 纯值、类型探针、离线替身与有限模型只能证明各自范围。真实合取保存、原操作认回、持久晚账恢复、生产者临界区、每帧披露及真实发送围栏仍需对应提供者及完整组合验证。当前 testing evidence 不成为生产 Evidence adapter，内存替身不证明磁盘耐久、跨进程互斥或无界最终完成。
+
+### 受控替身的声明边界
+
+本次 receiver、公共 observer 与 current 的有状态替身放在成员 tests/helpers。它们通过公开端口接受测试调用，不增加 ./testing 出口。测试控制面默认拒绝，按真实 tenant、principal identity 与操作分类设置 allow、deny 或 unavailable。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。
+
+receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
+
+observer 替身以同步确认点取得快照并登记订阅。手动 clock 驱动驻留期限，不使用 sleep。规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。
+
+current 替身从一个确认记录取得 state/target。未受理、错误 admission、资格不可用、来源不可用和响应等待可分别调度。测试替身不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
 
 ## 档案、模态与转换行为
 
