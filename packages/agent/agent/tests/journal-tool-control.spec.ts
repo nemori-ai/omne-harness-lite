@@ -358,14 +358,16 @@ describe('shared pending recognition prerequisites', () => {
     expect(ok(await journal.query(original)).kind).toBe('excluded')
     expect(await observe(journal, opened.execution)).toEqual(before)
     allowed = true
-    const receipt = ok(await journal.recordResult(original))
+    const separate = { ...original, operation: operation('committed-result') }
+    const receipt = ok(await journal.recordResult(separate))
     const committed = await observe(journal, opened.execution)
     allowed = false
-    expect(failure(await journal.recordResult(original))).toEqual({
+    expect(failure(await journal.recordResult(separate))).toEqual({
       kind: 'denied',
       action: 'recordResult',
     })
-    expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+    expect(ok(await journal.query(separate))).toEqual({ kind: 'committed', receipt })
+    expect(ok(await journal.query(original)).kind).toBe('excluded')
     expect(await observe(journal, opened.execution)).toEqual(committed)
   })
 
@@ -411,14 +413,16 @@ describe('shared pending recognition prerequisites', () => {
     expect(ok(await journal.query(original)).kind).toBe('excluded')
     expect(await observe(journal, opened.execution)).toEqual(before)
     allowed = true
-    const receipt = ok(await journal.recordTerminalObservation(original))
+    const separate = { ...original, operation: operation('committed-observation') }
+    const receipt = ok(await journal.recordTerminalObservation(separate))
     const committed = await observe(journal, opened.execution)
     allowed = false
-    expect(failure(await journal.recordTerminalObservation(original))).toEqual({
+    expect(failure(await journal.recordTerminalObservation(separate))).toEqual({
       kind: 'denied',
       action: 'recordTerminalObservation',
     })
-    expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+    expect(ok(await journal.query(separate))).toEqual({ kind: 'committed', receipt })
+    expect(ok(await journal.query(original)).kind).toBe('excluded')
     expect(await observe(journal, opened.execution)).toEqual(committed)
   })
 })
