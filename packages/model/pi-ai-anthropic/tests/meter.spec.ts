@@ -27,10 +27,7 @@ import {
   type RequestParts,
 } from './support/anthropic.ts'
 
-const CLAUDE_JSON = new URL(
-  '../resources/tokenizers/anthropic-legacy/claude.json',
-  import.meta.url,
-)
+const CLAUDE_JSON = new URL('../resources/tokenizers/anthropic-legacy/claude.json', import.meta.url)
 
 const patch = IMAGE_RULES['claude-patch-28/1']
 
@@ -236,8 +233,18 @@ describe('measure', () => {
         message(
           'a1',
           'assistant',
-          [thinkingBlock('k1', 'signed thinking'), textBlock('t1', 'Answer.'), stateBlock('s1', payload, ['k1'])],
-          { replay: { scope: 'openrouter/anthropic/claude-sonnet-5', format: 'anthropic-claude-v1', at: [2] } },
+          [
+            thinkingBlock('k1', 'signed thinking'),
+            textBlock('t1', 'Answer.'),
+            stateBlock('s1', payload, ['k1']),
+          ],
+          {
+            replay: {
+              scope: 'openrouter/anthropic/claude-sonnet-5',
+              format: 'anthropic-claude-v1',
+              at: [2],
+            },
+          },
         ),
         message('u2', 'user', [textBlock('b2', 'next')]),
       ],
@@ -272,7 +279,9 @@ describe('measure', () => {
       media: [fact],
     }))
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
-    expect(writeJsonText(tokenInput)).toContain('{"type":"image_url","image_url":{"url":"[image]"}}')
+    expect(writeJsonText(tokenInput)).toContain(
+      '{"type":"image_url","image_url":{"url":"[image]"}}',
+    )
     const [input, image] = measured.ok.checks
     expect(input?.measurement).toMatchObject({
       kind: 'estimate',
