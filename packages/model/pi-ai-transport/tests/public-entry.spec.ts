@@ -1,7 +1,24 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
-const groupArchitecture = new URL('../../docs/architecture.md', import.meta.url)
+/**
+ * The workspace root above `from`. The group page is found from it, not from the package
+ * directory, so the check also runs in a copy of the package at another place in the tree
+ * (the mutation sandbox).
+ */
+function workspaceRoot(from: string): string {
+  for (let directory = from; ; directory = dirname(directory)) {
+    if (existsSync(join(directory, 'pnpm-workspace.yaml'))) return directory
+    if (dirname(directory) === directory) throw new Error(`no pnpm-workspace.yaml above ${from}`)
+  }
+}
+
+const groupArchitecture = join(
+  workspaceRoot(fileURLToPath(new URL('.', import.meta.url))),
+  'packages/model/docs/architecture.md',
+)
 const familySource = new URL('../src/family.ts', import.meta.url)
 
 /** Drops comments and every layout difference that the formatter may introduce. */

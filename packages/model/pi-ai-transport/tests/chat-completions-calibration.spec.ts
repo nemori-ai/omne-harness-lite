@@ -342,3 +342,107 @@ describe('anchored metering', () => {
     expect(() => calibratedAmount(h.input({ reasoning: [false] }))).toThrow(TypeError)
   })
 })
+
+describe('the failures of the inputs and of the family functions', () => {
+  const anchorOf = (covered: readonly (typeof U1)[], inputTotal = '1000') => ({
+    covered,
+    inputTotal,
+  })
+  const failure: Outcome<never, TransportFailure> = {
+    failure: { kind: 'unavailable', dependency: 'test-family', diagnostic: 'fixture-down' },
+  }
+
+  it.each([
+    ['has no messages member', obj({ tools: arr([]) })],
+    ['has a messages member that is not an array', obj({ messages: str('one') })],
+  ])('refuses a token input that %s', (_name, body) => {
+    const h = harness()
+    expect(calibratedAmount(h.input({ tokenInput: body, units: [], reasoning: [] }))).toEqual({
+      failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
+    })
+  })
+
+  it('finds the messages member where it stands, not only as the first member', () => {
+    const later = obj({ parameters: str('[]'), messages: arr([items[1]!]) })
+    const h = harness()
+    expect(
+      calibratedAmount(h.input({ tokenInput: later, units: [U1], reasoning: [false] })),
+    ).toEqual({
+      ok: { amount: len(later), margin: ceil10(len(later)), anchor: null, substituted: false },
+    })
+  })
+
+  it('refuses a known output count that is not a decimal count', () => {
+    const h = harness()
+    expect(
+      calibratedAmount(
+        h.input({
+          calibration: {
+            anchor: null,
+            outputs: [{ message: A1, kind: 'known', outputTokens: '4.5' }],
+          },
+        }),
+      ),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'calibration.outputs', reason: 'output-tokens' },
+    })
+  })
+
+  it('throws for a margin percent that is not a decimal integer: a defect of the family', () => {
+    const h = harness()
+    expect(() => calibratedAmount(h.input({ marginPercent: '1.5' }))).toThrow(RangeError)
+  })
+
+  it('passes a failure of the extra tokens or of the counting on as the failure of the measurement', () => {
+    const none = { anchor: null, outputs: [] }
+    const visible = [false, false, false, false]
+    expect(
+      calibratedAmount({
+        ...harness().input({ reasoning: visible, calibration: none }),
+        extra: () => failure,
+      }),
+    ).toBe(failure)
+    expect(
+      calibratedAmount({
+        ...harness().input({ reasoning: visible, calibration: none }),
+        count: () => failure,
+      }),
+    ).toBe(failure)
+    // Anchored: the count of the empty envelope fails after the count of the new units succeeded.
+    const counts: string[] = []
+    expect(
+      calibratedAmount({
+        ...harness().input({
+          reasoning: visible,
+          calibration: { anchor: anchorOf([U1, A1]), outputs: [] },
+        }),
+        count: body => {
+          const text = writeJsonText(body)
+          counts.push(text)
+          return counts.length === 2 ? failure : { ok: BigInt(text.length) }
+        },
+      }),
+    ).toBe(failure)
+    expect(counts).toHaveLength(2)
+  })
+
+  it('adds the extra tokens of the new units to the anchored estimate, with the margin on them', () => {
+    const h = harness()
+    const outcome = calibratedAmount({
+      ...h.input({
+        reasoning: [false, false, false, false],
+        calibration: { anchor: anchorOf([U1, A1]), outputs: [] },
+      }),
+      extra: indices => ({ ok: BigInt(indices.length) * 9n }),
+    })
+    const estimated = len(envelope([items[3]!])) - len(envelope([])) + 9n
+    expect(outcome).toEqual({
+      ok: {
+        amount: 1000n + estimated,
+        margin: ceil10(estimated),
+        anchor: { kind: 'hit' },
+        substituted: false,
+      },
+    })
+  })
+})
