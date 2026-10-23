@@ -6,6 +6,8 @@
 export type * from './root.ts'
 export type * from './result.ts'
 export type * from './result-delivery-values.ts'
+export type * from './model-stream-values.ts'
+export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts'
 export type * from './call-surface.ts'
 export type * from './provider.ts'
 export type * from './profile.ts'

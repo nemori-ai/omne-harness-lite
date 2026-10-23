@@ -38,7 +38,8 @@
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/message": "workspace:*",
     "@omne-harness/modality": "workspace:*",
-    "@omne-harness/operation-result": "workspace:*"
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

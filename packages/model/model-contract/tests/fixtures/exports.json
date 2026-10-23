@@ -65,6 +65,17 @@
           ]
         },
         {
+          "title": "Model 显示投影纯值",
+          "names": [
+            { "name": "ModelStreamSnapshot", "kind": "type", "pending": false },
+            { "name": "ModelStreamBase", "kind": "type", "pending": false },
+            { "name": "ModelStreamDelta", "kind": "type", "pending": false },
+            { "name": "ModelStreamProjectionFailure", "kind": "type", "pending": false },
+            { "name": "diffModelStream", "kind": "value", "pending": false },
+            { "name": "applyModelStreamDelta", "kind": "value", "pending": false }
+          ]
+        },
+        {
           "title": "结果、失败和状态",
           "names": [
             { "name": "ModelDeliveryKey", "kind": "type", "pending": false },

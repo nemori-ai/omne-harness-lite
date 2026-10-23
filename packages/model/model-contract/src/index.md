@@ -12,6 +12,8 @@
 | [reference.ts](reference.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；可保存引用的编码、解码与解析 |
 | [judge-request.ts](judge-request.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；`judgeFixedModelRequest`、`judgeAdmit`、输入拒绝与限额 |
 | [result.ts](result.ts) | 结果、失败和状态 |
+| [result-delivery-values.ts](result-delivery-values.ts) | 结果交付键与冻结载荷声明 |
+| [model-stream-values.ts](model-stream-values.ts) | [Model 显示投影纯值](../docs/public-api.md#model-显示投影纯值)；diff/apply |
 | [call-surface.ts](call-surface.ts) | 普通调用面与实例观察 |
 | [provider.ts](provider.ts) | 独立执行与提供者操作 |
 | [consumer-owner.ts](consumer-owner.ts)、[guard-control.ts](guard-control.ts) | 消费者 owner 的装配声明；守卫派生的控制 operation |

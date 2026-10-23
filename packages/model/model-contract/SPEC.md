@@ -616,6 +616,7 @@ push、重投、证据核验、handoff 与 dispatches 分别核当前资格，�
 检查按下列顺序执行，多重违规返回最先命中的失败。diff 的两侧顺序是 before、after，apply 的两侧顺序是 before、delta。
 
 1. 先通过 `tenantCodec.encode` 核 tenant 的铸造关系。失败返回 `invalid-tenant`。按两侧顺序，用公共 `judgeStreamRef` 配 Model 原 codec 核每个 ref，再以原 Model codec resolve 取得 invocation.call。引用失败返回 `reference`，带 `side` 与原公共 `failure`；其中 `invalid-tenant` 仍归顶层同名分支。然后用对应 Model identity decoder 核 dispatch、`Snapshot.call`、`state.call`、`state.revision` 和 outputCursor。delta.from 的两项也解码，字段归 delta 侧。running 或 retry-decision 的 `state.dispatch` 同样解码。身份失败返回 `identity`，带 `side` 和 `field`；字段优先级是 dispatch、call、revision、outputCursor。两侧的引用与身份检查均完成后才进入下一项。
+   第 1 项先完成两侧 ref 的 judge 和原 codec resolve，再开始两侧 identity 解码；每轮都先 before，后 after 或 delta。例如 before.ref 合法、before.dispatch 非法而 after.ref 畸形时，先返回 `reference`、side 为 `after`，不返回 before 的 `identity`。
 2. 按两侧顺序核调用和状态关联。每侧的 `Snapshot.call`（有该字段时）与 `state.call` 必须等于其 invocation.call，否则 `call-mismatch`。running、retry-decision 的 `state.dispatch` 必须等于外层 dispatch，否则 `dispatch-mismatch`。accepted 不属于已发布 dispatch 的内容快照，返回 `state-transition`。settled 没有内层 dispatch，但不免除外层检查。
 3. 跨两侧先比较规范 ref，再比较外层 dispatch。不同分别返回 `stream-mismatch`、`dispatch-mismatch`。相同 call 或输出内容不放宽检查，settled 同样适用。
 4. apply 检查 `delta.from.outputCursor` 与 `before.value.cursor`，以及 `delta.from.revision` 与 `before.value.state.revision`。两项必须逐文本相同，否则 `base-mismatch`。函数不猜基线、不重排、不自动重试。公共帧的 from/cursor 仍独立承担流位置衔接，不能由 Model 基线替代。
