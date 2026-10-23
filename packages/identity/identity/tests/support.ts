@@ -1,5 +1,10 @@
 // Fixtures of the identity tests: parsed tenants.
-import { accountCodec, organizationCodec, tenant, type TenantId } from '@omne-harness/legal-identity'
+import {
+  accountCodec,
+  organizationCodec,
+  tenant,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 
 export const ORGANIZATION_TEXT = 'org_abcdefghjkmnpqrstvwxyz2345'
 export const ADMIN_ACCOUNT_TEXT = 'acc_abcdefghjkmnpqrstvwxyz2345'
