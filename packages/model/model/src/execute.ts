@@ -32,10 +32,12 @@ function copyAdoption(adoption: Adoption): Adoption {
 }
 
 function copyReceipt(receipt: MaterializationReceipt): MaterializationReceipt {
+  const { replayFormat } = receipt
   return {
     supplier: copyAdoption(receipt.supplier),
     representation: copyAdoption(receipt.representation),
     payloadDigest: receipt.payloadDigest,
+    ...(replayFormat === undefined ? {} : { replayFormat }),
   }
 }
 
@@ -48,6 +50,7 @@ function receiptMatches(
   return (
     first.payloadDigest.length > 0 &&
     first.payloadDigest === second.payloadDigest &&
+    first.replayFormat === second.replayFormat &&
     sameAdoption(first.supplier, expected.supplier) &&
     sameAdoption(first.representation, expected.representation) &&
     sameAdoption(first.supplier, second.supplier) &&

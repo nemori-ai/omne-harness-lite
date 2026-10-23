@@ -12,7 +12,8 @@ import type {
   WriteContext,
 } from '@omne-harness/model-contract'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { accountFact, completionFailure, reduceFacts } from './arrival.ts'
+import { isReplayTag } from '@omne-harness/message'
+import { accountFact, completionOf, reduceFacts } from './arrival.ts'
 import {
   MemoryState,
   bump,
@@ -133,7 +134,8 @@ export function dispatchCommands<P>(
     if (
       digest(input.receipt.supplier) !== digest(dispatch.record.supplier.adoption) ||
       digest(input.receipt.representation) !== digest(call.request.representation) ||
-      !/^[0-9a-f]{64}$/u.test(input.receipt.payloadDigest)
+      !/^[0-9a-f]{64}$/u.test(input.receipt.payloadDigest) ||
+      (input.receipt.replayFormat !== undefined && !isReplayTag(input.receipt.replayFormat))
     )
       return { failure: invalid('receipt', 'binding') }
     const adapter = store.adapter(call)
@@ -518,11 +520,14 @@ export function dispatchCommands<P>(
               if (failure) return { failure }
             } else {
               dispatch.record = { ...dispatch.record, terminal: structuredClone(input.fact.actual) }
-              if (
-                dispatch.logicalTerminal === null &&
-                !completionFailure(dispatch, input.fact.actual)
-              )
-                dispatch.logicalTerminal = structuredClone(input.fact.actual)
+              if (dispatch.logicalTerminal === null) {
+                // Content that does not form a message leaves the logical terminal open. Reasoning
+                // state without a known replay range refuses the whole fact, as at the finish.
+                const completion = completionOf(call, dispatch, input.fact.actual)
+                if (completion.kind === 'replay-unknown') return { failure: completion.failure }
+                if (completion.kind === 'formed')
+                  dispatch.logicalTerminal = structuredClone(input.fact.actual)
+              }
             }
             dispatch.events.set(event, fingerprint)
             const revision = bump(call)
