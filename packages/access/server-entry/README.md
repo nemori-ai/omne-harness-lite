@@ -18,4 +18,8 @@
 
 ## English promise
 
-This member owns the entry duties for the governance protocol. Outcome meanings stay in the public contract. The entry stops at the first terminal result and does not rewrite an identity result. Remote byte streams must stay confidential and intact. The transport follows the [shared technical choices](../../../docs/architecture/technical-foundations.md#共同技术选择): HTTP JSON for control and queries, and fetch SSE for one-way observation. Public operations, authentication, endpoints, and subscription semantics belong to the public contract. This page does not choose a protection protocol. The design signatures in the behavior spec are not installed exports.
+This member owns the entry duties for the governance protocol. Outcome meanings stay in the public contract. The entry stops at the first terminal result and does not rewrite an identity result.
+
+Remote byte streams must stay confidential and intact. The transport follows the [shared technical choices](../../../docs/architecture/technical-foundations.md#共同技术选择): HTTP JSON for control and queries, and fetch SSE for one-way observation. Public operations, authentication, endpoints, and subscription semantics belong to the public contract. This page does not choose a protection protocol.
+
+The design signatures in the behavior spec are not installed exports.
