@@ -620,7 +620,7 @@ Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/do
 | present | 租户核对；advance 必须是当前有效的执行挂接；人在回路一侧另核呈现资格 | passage 加 round 加完整请求身份集合，同输入返回原卡片 | 同一轮只呈现一次；部分已创建时后续调用保持 unknown，由提供者完成原批 | waiting 事件由 Agent 在采纳 asked 时提交 | 卡片随扩展调用保留，执行终结后作废尚无答复的卡片 |
 | lookup、read | 租户核对；读取资格不等于推进资格，不要求旧 advance 有效 | 只读 | 不阻塞答复的提交 | 无 | 终态后仍可读历史答复 |
 | invalidate | 租户核对；由当前合法的终结者或保管方调用，不要求推进资格 | 操作身份 | 与答复提交同一排序：先成立的答复保留，之后的作废只作用于其余卡片 | 无 | 终态后调用 |
-| admit | 租户核对；advance 必须是当前有效的执行挂接；授权领域按当前资格判断，Agent 不缓存 allow | 同一动作、同一生效参数、同一定义采用、同一权限输入与同一答复得到同一结果；任一项变化重新判断 | 不同动作的 admit 并行；同一动作串行 | 无 | allow 的证据保存在 allowed 判断中，Tool 发起前再核 |
+| admit | 租户核对；advance 必须是当前有效的执行挂接；授权领域按当前资格判断，Agent 不缓存 allow | 没有认回语义。每次调用都按当前资格判断，同一动作、同一生效参数、同一定义采用、同一权限输入与同一答复也可以得到不同结果。恢复时 Agent 以 checkpoint 里已保存的 allowed 证据接续，不重调 admit；之后的撤权由 Tool 发起前的再核兜住 | 不同动作的 admit 并行；同一动作串行 | 无 | allow 的证据保存在 allowed 判断中，Tool 发起前再核 |
 | accept | 租户核对；Agent 在已核验主体资格的操作之内调用：外部输入在 invoke 或 submit 的受理之内，其他来源在当前推进之内 | 操作身份加来源身份，同输入返回原结果 | 与 Journal.commit 同一排序；同一 execution 的候选按来源节点的次序串行提交 | message 事件在接纳后由 Agent 提交 | 回执随 checkpoint 或受理记录保留 |
 
 ### 托管协调与运行实例
