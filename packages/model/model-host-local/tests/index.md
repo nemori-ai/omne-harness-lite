@@ -10,5 +10,6 @@
 - [send-resources.spec.ts](send-resources.spec.ts)：发送资源的凭据槽、物化传输归属、释放与关闭
 - [assembly.spec.ts](assembly.spec.ts)：本地装配的配置拒绝、准备租约的绑定来源与关闭
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
-- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务、形成官方档案
+- [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
+- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务、形成官方档案、装配一次调用的本地宿主
 - [fixtures/](fixtures/index.md)：测试固定输入

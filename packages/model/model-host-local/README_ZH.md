@@ -12,7 +12,7 @@
 | 生产发送资源 `createPiSendResources` | 已实现 | 观察凭据槽的传输工厂与真实 pi 传输（不发送） |
 | 本地 Model 装配 `assembleLocalModel` | 已实现 | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场 |
 | 经真实厂商或代理的请求 | 未在本包验证 | 无 |
-| 经 `assembleLocalModel` 的计量准备资源 | 已实现 | model 的真实租约，经家族与内存 `ModelCommands` |
+| 经 `assembleLocalModel` 的计量准备资源 | 已实现 | model 的真实租约，经家族与内存 `ModelCommands`；慢层让两家各一次调用收场并清理，再计量延续它的请求，数据来自本地 HTTPS 回放，不来自真实厂商 |
 | 耐久 `ModelCommands` | 不在本包 | 无 |
 | 时钟、实例调度、目录装载、托管运行插件 | 未实现 | 无 |
 

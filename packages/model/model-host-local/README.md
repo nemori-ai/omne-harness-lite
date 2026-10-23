@@ -12,7 +12,7 @@ This member is the single-machine host provider of Model. It implements local cr
 | Production send resources `createPiSendResources` | Implemented | A transport factory that observes the credential slot, and the real pi transport without a send |
 | Local Model assembly `assembleLocalModel` | Implemented | A local HTTPS server replays the recorded SSE of both families, through the Model runtime and the in-memory `ModelCommands`. Calls whose reply holds a reasoning state settle in both families |
 | Requests through a real vendor or proxy | Not verified in this member | None |
-| Preparation resources through `assembleLocalModel` | Implemented | The real lease of model over the families and the in-memory `ModelCommands` |
+| Preparation resources through `assembleLocalModel` | Implemented | The real lease of model over the families and the in-memory `ModelCommands`. A slow test settles and cleans a call of each family, then meters a request that continues it from a local HTTPS replay, not from a real vendor |
 | Durable `ModelCommands` | Not in this member | None |
 | Clock, instance scheduling, catalog loading, hosted-run plugin | Not implemented | None |
 

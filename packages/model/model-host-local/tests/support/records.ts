@@ -11,6 +11,8 @@ export type FamilyName = 'pi-ai-openai' | 'pi-ai-anthropic'
 
 export type RecordFixture = Readonly<{
   request: FixedModelRequest
+  /** The request as plain JSON, before the judge: a test builds the next request from it. */
+  requestJson: unknown
   /** The SSE body the gateway answered with. */
   stream: string
 }>
@@ -23,7 +25,12 @@ export function readRecordFixture(family: FamilyName, record: RecordHead): Recor
   )
   const directory = join(root, fixtureDirectory(record))
   const parsed: unknown = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8'))
-  const judged = judgeFixedModelRequest(Reflect.get(Object(parsed), 'request'))
+  const requestJson: unknown = Reflect.get(Object(parsed), 'request')
+  const judged = judgeFixedModelRequest(requestJson)
   if (!('ok' in judged)) throw new Error(`${record.name}: ${JSON.stringify(judged.failure)}`)
-  return { request: judged.ok, stream: readFileSync(join(directory, 'stream.sse'), 'utf8') }
+  return {
+    request: judged.ok,
+    requestJson,
+    stream: readFileSync(join(directory, 'stream.sse'), 'utf8'),
+  }
 }
