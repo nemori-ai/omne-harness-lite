@@ -1,7 +1,7 @@
 // Test support of the slow layer: one local host over a vault, the two real families and the
 // in-memory ModelCommands of model, assembled with `assembleLocalModel` and driven by the real
-// Model runtime. The gateway is a local HTTPS server that the spec starts; nothing leaves the
-// machine and the vault holds a placeholder.
+// Model runtime. The vault holds a placeholder. The gateway is a local HTTPS server that the spec
+// starts; only the recorder of real requests points it beyond the machine, through the proxy.
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
 import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
@@ -19,7 +19,7 @@ import {
 } from '@omne-harness/model-contract'
 import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
-import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { assembleLocalModel, createLocalCustodian } from '@omne-harness/model-host-local'
 import { factorySupplier } from './profiles.ts'
@@ -76,9 +76,16 @@ const TRANSPORT_LIMITS = {
     maxNumberLength: 64,
   },
 }
+// A real reply arrives as about one fact per token: a short OpenAI answer at medium effort is about
+// a hundred facts. The in-memory ModelCommands charge every confirmed snapshot of a call to its
+// capacity (model SPEC, the material of a call), and a snapshot holds all blocks so far. A save per
+// fact therefore makes the material grow with the square of the fact count, and the work of each
+// save with it. So the runtime collects facts into batches: up to 16 KiB of facts, or 100 ms from
+// the first fact of a batch. A body that arrives at once makes a few batches, and a streamed reply
+// one batch per 100 ms at most.
 const CONFIGURATION: ModelConfiguration = {
-  outputBatchBytes: 1024,
-  outputBatchDelayMs: 0,
+  outputBatchBytes: 16_384,
+  outputBatchDelayMs: 100,
   observerBufferBytes: 4096,
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
@@ -86,6 +93,9 @@ const CONFIGURATION: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
+
+/** The capacity of the one call of a host: all of the in-memory store, which holds no other call. */
+const CALL_CAPACITY = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
 
 export function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
@@ -129,7 +139,19 @@ export type LocalHostInput = Readonly<{
   label: string
   /** A private directory for the vault file. */
   directory: string
-  gateway: Readonly<{ url: URL; ca: Buffer }>
+  gateway: Gateway
+}>
+
+/**
+ * Where the route of the host points. A local server gives its own certificate as `ca`; without
+ * `ca` the host trusts Node's default certificate authorities. `proxy` and `connectTimeoutMs` are
+ * for a gateway beyond the machine, reached through the environment's proxy.
+ */
+export type Gateway = Readonly<{
+  url: URL
+  ca?: Buffer
+  proxy?: ProxyConfig
+  connectTimeoutMs?: number
 }>
 
 /**
@@ -138,7 +160,7 @@ export type LocalHostInput = Readonly<{
  * drives the call; the consumer evidence accepts a processed completion of this call.
  */
 export function assembleLocalHost(input: LocalHostInput) {
-  const { request, label } = input
+  const { request, label, gateway } = input
   const scope = tenantOf('5')
   const principal = Object.freeze({ subject: 'local-model-test' })
   const call = decoded(decodeModelCallId(`mcall_${label}`))
@@ -164,7 +186,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       resultPageParts: 8,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+      capacity: CALL_CAPACITY,
     },
     authority: {
       authorize: ({ access, action }) =>
@@ -234,14 +256,22 @@ export function assembleLocalHost(input: LocalHostInput) {
     commands: memory.dependencies.commands,
     coordinator: memory.controls.send.coordinator,
     families: FAMILIES,
-    network: { maxConnections: 2, idleConnectionTimeoutMs: 60_000, tls: { ca: input.gateway.ca } },
+    network: {
+      maxConnections: 2,
+      idleConnectionTimeoutMs: 60_000,
+      ...(gateway.ca === undefined ? {} : { tls: { ca: gateway.ca } }),
+      ...(gateway.proxy === undefined ? {} : { proxy: gateway.proxy }),
+    },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, input.gateway.url).href,
+        url: new URL(ROUTE_PATH, gateway.url).href,
         endMarker: GATEWAY_END_MARKER,
       },
     },
-    transportLimits: TRANSPORT_LIMITS,
+    transportLimits: {
+      ...TRANSPORT_LIMITS,
+      connectTimeoutMs: gateway.connectTimeoutMs ?? TRANSPORT_LIMITS.connectTimeoutMs,
+    },
     maxRetainedAttempts: 4,
     preparation: { maxCitedCalls: 8, supplierOf: factorySupplier() },
   })
@@ -277,7 +307,7 @@ export function assembleLocalHost(input: LocalHostInput) {
             position: 'answer',
             purpose: 'local-model-test',
           },
-          capacity: { bytes: '100000', blocks: '20', attachmentBytes: '0' },
+          capacity: CALL_CAPACITY,
         }),
       )
       const driven = await provider.driver.drive(

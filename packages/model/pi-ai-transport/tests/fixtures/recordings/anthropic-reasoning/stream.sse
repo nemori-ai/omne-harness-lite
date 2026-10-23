@@ -1,0 +1,46 @@
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Counting below","reasoning_details":[{"type":"reasoning.text","text":"Counting below","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 200: 66 multi","reasoning_details":[{"type":"reasoning.text","text":" 200: 66 multi","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ples of 3, 28 ","reasoning_details":[{"type":"reasoning.text","text":"ples of 3, 28 ","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"of 7, 9 of","reasoning_details":[{"type":"reasoning.text","text":"of 7, 9 of","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 21.","reasoning_details":[{"type":"reasoning.text","text":" 21.","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Since I want divisible by","reasoning_details":[{"type":"reasoning.text","text":" Since I want divisible by","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 3 or 7 but","reasoning_details":[{"type":"reasoning.text","text":" 3 or 7 but","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" not both","reasoning_details":[{"type":"reasoning.text","text":" not both","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", that","reasoning_details":[{"type":"reasoning.text","text":", that","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'s 66+28-2(","reasoning_details":[{"type":"reasoning.text","text":"'s 66+28-2(","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"9)=76.","reasoning_details":[{"type":"reasoning.text","text":"9)=76.","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\n\n","reasoning_details":[{"type":"reasoning.text","text":"\n\n","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning_details":[{"type":"reasoning.text","signature":"EqgFCuQCCBMYAipA8XQlB+KVhxYuBcN8ZcF4N7KofQ53BB5zFR5qwja7qEBjEmAXuOWYIgiX6MxuXuHLTJ6MpUwBhO8rGMcRTnelsjIPY2xhdWRlLXNvbm5ldC01OABCCHRoaW5raW5nWiQwZDk4M2YzZi00OWZhLTRhNDYtODI1NC1iMWJiMjQ5MWEyYTl6HnVwcm9mXzAxMUNlUU5MQlhqUk1SVjJGeHAxZFR0Q5oBEQoPY2xhdWRlLXNvbm5ldC01qAHUtuzWBsIBOggEEAAaDALaigNPNwVPwQQmrSABMgQScc8lOgQ4MyOKQgQ4MyOKSgQ4MyOKUABaBNkF4VZgAmgBcADaAWAKFnByZWZpeF9iZWZvcmVfYmxvY2tfdjESICBVg35U6I8GdD68dBlXVW+CjZqh0/z9oKpw0MgiyxzVIgAyIMLAE8hqnJLiL5ZvPYYXdo+LekTJAq3MCXv6HgmK+04fSAMSDGH/pCyX6esxloTkHhoMprbQVUic5zs4N4eoIjAndN6rUfK45B0til3O++r+9VozYijJRHXdwNidIXiGE46TEF5kWSbfgtZy9yAZKkoq8AG8eWacrr83mxjJH7WEGnpS0Y1KfI+nip+MVDd/mkGbGaTwN25IfdEGWrLsBJ/64BTH93qlvLlT/FEfK3dV1cGLaoUw5EP4LfMlCie+FlkAkYUdS+I1gxFSybzePpk1qiUcahRyEQv9UajmcEcWq1H6S7xtgFTxpBXKa7vt4BL55ANOUYqTyOTDfUEH358k+T7BWi7XrkVzEZKCoapM9UPXF7yyCHuKgv/3QLoJuDNDLIgM07AT3RBplZPOWa4Plwpiex41N34K3C6VuyzlxWjg6IS6RIl46nPMTrVMNHsy+SkJ6F2mP64VhRnkMPAVdFAYAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1zb25uZXQtNS0yMDI2MDYzMHxhbnRocm9waWMifQ","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"**","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"76**","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"stop","native_finish_reason":"end_turn"}]}
+
+data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","service_tier":"default","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"stop","native_finish_reason":"end_turn"}],"usage":{"prompt_tokens":42,"completion_tokens":125,"total_tokens":167,"cost":0.001334,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.001334,"upstream_inference_prompt_cost":0.000084,"upstream_inference_completions_cost":0.00125},"completion_tokens_details":{"reasoning_tokens":120,"image_tokens":0,"audio_tokens":0}}}
+
+data: [DONE]
+
