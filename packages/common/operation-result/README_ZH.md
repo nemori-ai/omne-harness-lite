@@ -8,11 +8,11 @@
 
 本成员拥有 `Outcome`、`Ack`、`succeed`、`ack`、`fail` 和 `isSuccess`。它没有运行时依赖，也不导入 Cordis。失败词汇 `F` 归调用方。本包不规定共同的失败词汇，也不是所有能力共用的统一信封。
 
-位置 `packages/common/operation-result` 依据 #371 技术采用决定。具名消费者是 `tool-contract`、`tool`、`tool-cordis-contract` 和 `model-contract`。当前轨道没有生产调用点。这四个成员合入本轨道时按公开入口导入本成员，不复制结果类型。形状和函数从 `@omne-harness/kernel-basis` 原样迁来，没有改动。
+位置 `packages/common/operation-result` 依据 #371 技术采用决定。当前消费者清单由 [SPEC.md](SPEC.md#消费者) 唯一维护，区分类型导入、运行时值导入和 testing 支持。静态导入不证明已经实际运行。形状和函数从 `@omne-harness/kernel-basis` 原样迁来，没有改动。
 
 ## 使用
 
-调用方用包名导入公开入口。依赖为空。本包没有 Cordis 入口。[docs/context.md](docs/context.md) 列出消费者和安装闭包。
+调用方用包名导入公开入口。依赖为空。本包没有 Cordis 入口。[docs/context.md](docs/context.md) 说明消费方式和安装闭包。
 
 ```ts
 import { ack, fail, isSuccess, succeed } from '@omne-harness/operation-result'

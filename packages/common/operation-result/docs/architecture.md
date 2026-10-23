@@ -20,4 +20,4 @@
 
 保证与验证的对应：形状与构造函数由 [tests/outcome.spec.ts](../tests/outcome.spec.ts) 检查。运行时导出集合、`dependencies` 为空、只有 `.` 入口、产物不含 Cordis 由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。
 
-改变形状或 `ok`、`failure` 的含义，要先改 SPEC.md，再同步四个具名消费者。新增依赖或入口需要新的采用决定。
+改变形状或 `ok`、`failure` 的含义，要先改 SPEC.md，再同步 [SPEC.md 消费者节](../SPEC.md#消费者)中的实际消费者。新增依赖或入口需要新的采用决定。
