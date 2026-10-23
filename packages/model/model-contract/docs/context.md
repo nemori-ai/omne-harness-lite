@@ -25,6 +25,8 @@ model-contract 的[公开接口页](public-api.md)导航根入口与 `./testing`
 
 model-cordis-contract 的抽象 Service、凭据服务、实例目录与转换目录见其[公开接口页](../../model-cordis-contract/docs/public-api.md)。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现。本地凭据保管及其插件在 model-host-local。下表描述托管运行接口的消费路径，现有凭据入口见 model 的公开文档。
 
+新增 producer push/saved 与公共内容观察协议已采用，尚未提供真实接收、observe 或 current 能力。消费者继续使用当前公开入口。[新协议](../SPEC.md#推送与公共观察的交付边界)规定后续纯值、公共身份声明及 M-5 真实迁移的分界，不把现有 testing evidence 当生产证据。原 Agent wait 对 changed 完整快照的消费保持，current 的发布和有界刷新须随真实接入另验。
+
 | 使用任务 | 安装与导入 |
 | --- | --- |
 | 查询档案、准备请求、调用、观察或消费结果 | 从 model-contract 取得类型及必要纯函数，实际能力由宿主注入 |

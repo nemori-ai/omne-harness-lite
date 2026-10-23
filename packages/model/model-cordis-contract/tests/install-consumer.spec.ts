@@ -36,6 +36,7 @@ const closureMembers = [
   '@omne-harness/content-block',
   '@omne-harness/json-text',
   '@omne-harness/message',
+  '@omne-harness/stream-arrival',
   '@omne-harness/utc-instant',
 ]
 

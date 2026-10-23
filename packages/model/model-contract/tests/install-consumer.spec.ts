@@ -26,6 +26,7 @@ const closureMembers = [
   '@omne-harness/message',
   '@omne-harness/modality',
   '@omne-harness/operation-result',
+  '@omne-harness/stream-arrival',
   '@omne-harness/utc-instant',
 ]
 
