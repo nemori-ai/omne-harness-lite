@@ -195,8 +195,8 @@ function leaseOf(
 /**
  * Lease life: `acquire` creates the bindings (one per supplier, all or nothing) and the facts view
  * (every named call read once, here); `measure` reads nothing; `release` is idempotent and a later
- * `measure` of any meter of the lease is `unavailable` (`preparation-lease-released`). Nothing is kept
- * across leases. Throws `RangeError` for options no lease could use.
+ * `measure` of any meter of the lease is `unavailable` (`preparation-lease-released`). Nothing is
+ * kept across leases. Throws `RangeError` for options no lease could use.
  */
 export function createModelPreparationResources<P>(
   options: ModelPreparationOptions<P>,

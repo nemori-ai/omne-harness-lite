@@ -79,14 +79,20 @@ function isPrefix(prefix: readonly MessageId[], messages: readonly MessageId[]):
   })
 }
 
-/** The receipt of an accounted dispatch when it names this binding and this representation. */
+/** True when the dispatch has a receipt that names the supplier adoption of this binding. */
+function namesSupplier(record: Accounted, supplier: Adoption): boolean {
+  const receipt = record.materialization?.receipt
+  return receipt !== undefined && sameAdoption(receipt.supplier, supplier)
+}
+
+/** Which adoption of the receipt differs from this binding: supplier first, then representation. */
 function receiptMismatch(
   record: Accounted,
   supplier: Adoption,
   representation: Adoption,
 ): 'supplier' | 'representation' | null {
   const receipt = record.materialization?.receipt
-  if (receipt === undefined || !sameAdoption(receipt.supplier, supplier)) return 'supplier'
+  if (receipt === undefined || !namesSupplier(record, supplier)) return 'supplier'
   if (!sameAdoption(receipt.representation, representation)) return 'representation'
   return null
 }
@@ -168,9 +174,7 @@ function judgeOutput(lookup: CallFactsLookup | undefined, supplier: Adoption): O
   if (settled.kind === 'ambiguous') return withheld('ambiguous-dispatch')
   if (settled.kind === 'none') return withheld('output-unknown')
   const { record } = settled
-  const receipt = record.materialization?.receipt
-  if (receipt === undefined || !sameAdoption(receipt.supplier, supplier))
-    return withheld('supplier-changed')
+  if (!namesSupplier(record, supplier)) return withheld('supplier-changed')
   const output = usageOf(record.account, 'output')
   if (output === null) return withheld('output-unknown')
   const reasoning = usageOf(record.account, 'reasoning')
@@ -220,9 +224,7 @@ export function judgeOutputs(
       if (carriesState(message)) outputs.push(entry(message.id, withheld('source-missing')))
       continue
     }
-    outputs.push(
-      entry(message.id, judgeOutput(input.facts.get(source), input.supplier)),
-    )
+    outputs.push(entry(message.id, judgeOutput(input.facts.get(source), input.supplier)))
   }
   return outputs
 }
