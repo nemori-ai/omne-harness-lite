@@ -44,7 +44,7 @@
 
 报告包含版本、目标、采集时段、all-repository-issues 口径、卡观察、findings、偏离与 unknown、uncovered 存量，以及 introduced、resolved、remaining、notComparable。
 
-finding身份由类别、代码、对象和条款组成。卡修订作为独立字段，不改变身份。配置为`github-delivery-config@2`、协议2；采集为`github-delivery-capture@1`、协议2；报告为`github-delivery-report@4`、协议2。旧配置、协议1采集及版本1/2/3报告均为输入错误，退出2，不转换或作为历史基线适配。repository、projectId、protocolVersion 或口径改变时不计改善。当前任何采集层不完整或有采集错误时，消失的旧项进入 notComparable，不计 resolved。该策略保守地限制全局消项，不提供单个 finding 的细粒度完整性证明。
+finding身份由类别、代码、对象和条款组成。类别为 deviation、unknown、uncovered 与 attribute。卡修订作为独立字段，不改变身份。配置为`github-delivery-config@2`、协议2。采集为`github-delivery-capture@1`、协议2，Issue 可带 `milestone`（标题或 null），没有该字段表示未读取。报告为`github-delivery-report@5`、协议2，`stock` 含四个类别的数量。旧配置、协议1采集及版本1/2/3/4报告均为输入错误，退出2，不转换或作为历史基线适配。基线只与同版本报告比较。repository、projectId、protocolVersion 或口径改变时不计改善。当前任何采集层不完整或有采集错误时，消失的旧项进入 notComparable，不计 resolved。该策略保守地限制全局消项，不提供单个 finding 的细粒度完整性证明。
 
 ## live读取与失败
 
@@ -58,7 +58,7 @@ REST 分页读取目标仓库 Issues、评论和原生 blockedBy，排除 PR。R
 
 ## CLI与退出
 
-CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture` 只适用于 live。`--baseline`接收同版本报告，`--report` 指定报告文件，否则输出 stdout。
+CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture` 只适用于 live。`--baseline`接收同版本报告，`--report` 指定报告文件，否则输出 stdout。`--lines` 与 `--registry` 指定属性发现用的线归属表与 policy registry，缺省为本检出的 `docs/engineering/delivery-lines.json` 与 `docs/engineering/integration-policy.json`。两者读不到或不合格时退出2。
 
 输出不得覆盖输入或互相覆盖。现存文件按设备与inode识别；未创建的目标按真实父目录与最终符号链接目标识别。解析保留相对目标中的实际目录语义，悬空链接链仍须对账。循环或过长链接链在读取平台及写入前拒绝。输入与输出须为常规文件，父目录须存在。该预检查不提供对并发文件系统变更的原子锁。
 
@@ -66,15 +66,35 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 持续验证与限制
 
-`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量与真实离线CLI。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
+`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改三族、读回核对、拒绝与写入失败。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
 
 真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
 
 ## 集成绑定与目标条件
 
-当前报告版本4包含可选integrationBinding，TaskBinding版本1保持。Issue 唯一 binding 区块绑定当前交付修订及 attempt，字段归 [binding.ts](binding.ts)。缺区块仍可作原交付观察；集成 start 必须有合法绑定。重复、身份或修订不符是偏离，不能据观察报告授权。
+当前报告版本5包含可选integrationBinding，TaskBinding 为版本1或版本2，形状归[集成工具说明](../integration/README.md#任务与执行权)。Issue 唯一 binding 区块绑定当前交付修订及 attempt，字段归 [binding.ts](binding.ts)。缺区块仍可作原交付观察；集成 start 必须有合法绑定。重复、身份或修订不符是偏离，不能据观察报告授权。
 
 条件使用原表，可增加第七列“适用目标”。integration 条件支持 all、track、main、stable 及相应完整 branch ref；六列表映射 all。start/acceptance 只允许 all。指向未登记轨道的条件由 policy registry 拒绝；未满足的目标条件只阻对应运输。最终“main/stable 已包含结果”放 acceptance，不能作为其自身运输前置。旧报告版本拒绝，不转换。已知阶段等待图仍保守，不声明目标细化的完整无环。
+
+## 属性发现
+
+`observeDelivery` 的第四个参数提供线归属表与 policy registry 时，对每张开放的交付卡调用 [attributes.ts](attributes.ts) 的 `attributeFindings`，把结果记入 `attribute` 类别。没有这个参数时不产生属性发现。关闭的卡、非交付卡与创建交接入口不产生属性发现。
+
+`attributeFindings({ binding, card, conditionCards, lines, registry })` 是纯函数，判据归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)与[多层分支集成](../../../../docs/engineering/integration.md#交付线)：
+
+1. `readCardAttributes` 从「身份与责任」读交付线、性质与契约变更，并带上 Issue 的 milestone、标签与「交付条件」章节的文本。缺失或占位为 `attribute-missing`。重复、取值不在允许值中或组合不合法为 `attribute-invalid`。Issue 读到的 milestone 为 null 时为 `attribute-missing`，条款为 `milestone`。
+2. 正文的属性是判断依据。只有合格的属性参与下面各步。
+3. binding 为版本1时报告 `binding-v1`。版本2的交付线不在表中为 `attribute-invalid`。版本2的三个属性与正文不同、或里程碑与 Issue 现在的 milestone 不同为 `attribute-binding-drift`。
+4. 有 binding 时核对路线。交付线为 `integration`、或性质为 `integration` 或 `baseline` 的卡进入联调轨道。其余卡进入本线的线轨道，线的 `track` 为 null 时进入联调轨道。route 的轨道不同、或目标轨道未在 registry 登记为 `nature-route-mismatch`。交付线为 `integration` 的卡写线内路径时 route 须为 `cross-track`，且 owners 含受影响线的 owner。只写联调轨道路径时 route 须为 `track`。
+5. 有 binding 时核对写范围。`tmp` 下的路径与 `shared` 路径不计入。线内的卡写其他线的路径为 `scope-outside-line`，写联调轨道拥有的路径为 `scope-integration-path`。一项写范围覆盖多个归属时，按它下面的全部归属判断，表中没有列出的部分归联调轨道。`contract` 卡只写本线契约成员，`baseline` 卡没有仓库写范围，否则为 `scope-outside-line`。性质为 `integration` 的卡与交付线为 `integration` 的 `design` 卡不检查写范围归属。
+6. `conditionCards` 是目标为 Issue 的交付条件及目标卡的属性。线内的卡引用交付线不是本线也不是 `integration` 的卡为 `condition-cross-line`。目标卡未读到或交付线不合格时不判断。`baseline` 卡没有任何交付条件：`readCardAttributes` 带上「交付条件」章节的文本，它不是「无」时为 `condition-cross-line`，条款为 `交付条件`。
+7. `line:`、`nature:`、`contract:` 三族标签与正文属性的投影不同为 `label-drift`。契约变更为 `none` 时不应有 `contract:` 标签。
+
+准入观察不提供规则，所以准入不产生属性发现，`start` 的拒绝条件不变。`start` 的属性报告归[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。
+
+## 标签同步
+
+`labels.ts` 的 `syncLabels` 只读写一张卡的标签。它用固定 argv 调用 `gh api`：GET 读卡，POST 加标签，DELETE 删标签，不读 Project。卡身份不符或是 PR 时拒绝。目标集合是正文属性的投影，三个属性任一缺失或不合格时拒绝，不写入。写入只涉及 `line:`、`nature:`、`contract:` 三族中当前与目标的差异。写入后再读一次卡，`verified` 表示三族标签等于目标集合。某次写入失败时报告失败的序号，不回滚之前的写入。标签只是投影，正文仍是属性的唯一源。
 
 ## 任务准入采集
 

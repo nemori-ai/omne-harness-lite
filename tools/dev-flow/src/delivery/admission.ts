@@ -3,6 +3,7 @@ import { declaredIssueParents, observeDelivery } from './observe.ts'
 import {
   array,
   InputError,
+  milestoneOf,
   parseCapture,
   record,
   text,
@@ -216,6 +217,7 @@ export function collectAdmission(
       blockedBy,
       parentIssue,
       stage: null,
+      ...milestoneOf(raw),
     }
     issues.set(url, issue)
     return issue

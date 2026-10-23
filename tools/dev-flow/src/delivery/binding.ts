@@ -5,6 +5,7 @@ import {
   fields,
   integer,
   literal,
+  object,
   safePath,
   section,
   sha,
@@ -13,6 +14,8 @@ import {
   same,
   IntegrationError,
 } from '../integration/parse.ts'
+import { contractChanges, natures, type ContractChange, type Nature } from './attributes.ts'
+import { lineId } from './lines.ts'
 import type { IssueIdentity } from './protocol.ts'
 
 export function parseConditionScope(value: unknown, phase: string): string {
@@ -35,8 +38,7 @@ export function parseConditionScope(value: unknown, phase: string): string {
 export type Route =
   | { kind: 'track'; track: string }
   | { kind: 'global' | 'cross-track'; track: string; owners: string[] }
-export type TaskBinding = {
-  schemaVersion: 1
+type BindingFields = {
   issue: IssueIdentity
   revision: number
   attempt: string
@@ -50,6 +52,19 @@ export type TaskBinding = {
   conditions: string[]
   authorization: string[]
 }
+/** The version 1 binding: dispatch facts only. Attributes live in the Issue body and milestone. */
+export type TaskBindingV1 = { schemaVersion: 1 } & BindingFields
+/**
+ * The version 2 binding also records the card attributes at dispatch. `milestone` is the Issue
+ * milestone title at dispatch, or null when the Issue had none.
+ */
+export type TaskBindingV2 = { schemaVersion: 2 } & BindingFields & {
+    line: string
+    nature: Nature
+    contractChange: ContractChange
+    milestone: string | null
+  }
+export type TaskBinding = TaskBindingV1 | TaskBindingV2
 export function parseRoute(value: unknown): Route {
   const v = fields(value, ['kind', 'track', 'owners'], 'route')
   const kind = choice(v.kind, ['track', 'global', 'cross-track'], 'route.kind')
@@ -74,26 +89,23 @@ export function parseIssueIdentity(value: unknown): IssueIdentity {
   const url = literal(v.url, `https://github.com/${repository}/issues/${number}`, 'issue.url')
   return { repository, number, url, id: string(v.id, 'issue.id') }
 }
-export function parseTaskBinding(value: unknown): TaskBinding {
-  const v = fields(
-    value,
-    [
-      'schemaVersion',
-      'issue',
-      'revision',
-      'attempt',
-      'responsible',
-      'branch',
-      'route',
-      'completionTarget',
-      'taskBase',
-      'writeScope',
-      'dispatch',
-      'conditions',
-      'authorization',
-    ],
-    'binding',
-  )
+const V1_FIELDS = [
+  'schemaVersion',
+  'issue',
+  'revision',
+  'attempt',
+  'responsible',
+  'branch',
+  'route',
+  'completionTarget',
+  'taskBase',
+  'writeScope',
+  'dispatch',
+  'conditions',
+  'authorization',
+] as const
+const V2_FIELDS = [...V1_FIELDS, 'line', 'nature', 'contractChange', 'milestone'] as const
+function parseFields(v: Record<string, unknown>): BindingFields {
   const responsible = string(v.responsible, 'responsible')
   const workBranch = branch(v.branch)
   if (!workBranch.startsWith(`${responsible}/`) || responsible.includes('/'))
@@ -107,7 +119,6 @@ export function parseTaskBinding(value: unknown): TaskBinding {
     'completionTarget',
   )
   return {
-    schemaVersion: literal(v.schemaVersion, 1, 'schemaVersion'),
     issue: parseIssueIdentity(v.issue),
     revision: integer(v.revision, 'revision'),
     attempt: string(v.attempt, 'attempt'),
@@ -122,10 +133,46 @@ export function parseTaskBinding(value: unknown): TaskBinding {
     authorization: strings(v.authorization, 'authorization'),
   }
 }
+/** Parses either version; version 1 keeps its exact field set, version 2 requires all 17. */
+export function parseTaskBinding(value: unknown): TaskBinding {
+  if (object(value, 'binding').schemaVersion === 2) {
+    const v = fields(value, V2_FIELDS, 'binding')
+    if (!('milestone' in v))
+      throw new IntegrationError('input-error', 'binding.milestone is required')
+    const parsed = parseFields(v)
+    return {
+      schemaVersion: 2,
+      ...parsed,
+      line: lineId(v.line, 'line'),
+      nature: choice(v.nature, natures, 'nature'),
+      contractChange: choice(v.contractChange, contractChanges, 'contractChange'),
+      milestone: v.milestone === null ? null : string(v.milestone, 'milestone'),
+    }
+  }
+  const v = fields(value, V1_FIELDS, 'binding')
+  const parsed = parseFields(v)
+  return { schemaVersion: literal(v.schemaVersion, 1, 'schemaVersion'), ...parsed }
+}
+/** The fenced block marker of each binding version; a body carries at most one binding block. */
+export const BINDING_MARKERS = {
+  1: 'omne-integration-binding:v1',
+  2: 'omne-integration-binding:v2',
+} as const
 export function readTaskBinding(body: string, issue: IssueIdentity): TaskBinding | undefined {
-  const raw = section(body, 'omne-integration-binding:v1')
-  if (raw === undefined) return undefined
-  const binding = parseTaskBinding(raw)
+  const blocks = ([1, 2] as const).flatMap(version => {
+    const raw = section(body, BINDING_MARKERS[version])
+    return raw === undefined ? [] : [{ version, raw }]
+  })
+  const block = blocks[0]
+  if (block === undefined) return undefined
+  if (blocks.length > 1)
+    throw new IntegrationError('input-error', 'Duplicate omne-integration-binding sections')
+  const binding = parseTaskBinding(block.raw)
+  if (binding.schemaVersion !== block.version)
+    throw new IntegrationError(
+      'input-error',
+      `${BINDING_MARKERS[block.version]} block must carry schemaVersion ${block.version}`,
+    )
   same(binding.issue, issue, 'Binding identity does not match captured Issue')
   const revisions = [...body.matchAll(/^\s*-\s+交付修订[：:]\s*([1-9]\d*)\s*$/gm)]
   if (revisions.length !== 1 || Number(revisions[0]?.[1]) !== binding.revision)
