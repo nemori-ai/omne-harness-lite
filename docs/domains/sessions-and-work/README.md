@@ -8,6 +8,8 @@
 
 本责任治理会话路径中的输入与逻辑工作，包括 Session、Run、执行尝试、消费位置和有效推进资格。Session 拥有业务治理与耐久事实，不是第四个 runtime。它按业务规则协调 Agent、Model 和 Tool 三个 runtime，不要求它们共享线程、实例或寿命。会话日志是唯一的业务写入口，每个意图经一个具名操作进入。
 
+会话事实归租户。Session 是会话日志的唯一写入者，在自己的边界执行租户隔离：每个键都含租户，跨租户读取默认拒绝，会话不存在与跨租户得到同一个拒绝结果。租户随每次操作的访问依据显式传入，不从连接、进程、装配、作用域名或会话身份推断。
+
 Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request Context 和执行环境。邻域的契约只使用通用角色，不认识 Session。Session 在会话路径上担任这些角色，名称与形状的翻译只在 Session 的适配成员里发生。每一对关系见[与邻域的交接](architecture.md#与邻域的交接)。
 
 [日程Job](../schedules-and-jobs/README.md)、独立模型/工具调用和通知各有治理者，不为复用能力创建隐式Session。

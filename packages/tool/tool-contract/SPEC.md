@@ -551,7 +551,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 收场、消费、费用结算分别可查。费用未知保留待核实责任，不能填零，撤回、归档和消费者失权不删除费用。迟到账目归原调用及原工作；不当普通消息触发新工作。每个调用使用真实归属，不造工作对象来记账。
 
-每个租户可查自己的成本明细；组织管理员可查本组织所有租户账目明细。组织边界不能扩成该账号其他组织。账目资格不授予正文、原文、附件、凭据或秘密权限。遥测估算和采样不冒充完整财务事实，字段复用 CallAccount，来源修订和范围读取见 [P09](#p09-账目恢复与退出)，具体费率由真实计量提供者固定，不增加额度、预算或超限拦截。
+每个租户可查自己的成本明细；持有具名资格「组织成本账目读取」的主体可查本组织所有租户账目明细，该资格由身份领域发布。组织边界不能扩成该账号其他组织。账目资格不授予正文、原文、附件、凭据或秘密权限。遥测估算和采样不冒充完整财务事实，字段复用 CallAccount，来源修订和范围读取见 [P09](#p09-账目恢复与退出)，具体费率由真实计量提供者固定，不增加额度、预算或超限拦截。
 
 <a id="先可靠承接再处理结果"></a>
 
@@ -923,7 +923,7 @@ projectToolResult 是不读字节的纯投影，检查完整结果的块形状�
 
 ToolDefinition.declarations.settings 明确装载/装配时允许从配置赋值的项。items 是封闭路径清单，schema 是对应值约束，defaults 也必须满足同一规则。路径采用属性段数组，不接受任意表达式；空路径、重复、祖先与后代重叠、schema 外字段及未声明项拒绝。可选且无默认项可以缺省，缺必填项拒绝，不猜值。null 是普通值，不自动表示清除。
 
-items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。
+items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。本租户的绑定缺失时，调用按缺凭据失败，不静默退回缺省凭据或其他租户的凭据。
 
 作者构造配置 C、本次调用参数 A、服务与环境依赖 E 分开。受信装载器校验配置后把 C 交实现模块的 `createAuthor(construction)`，它产生 ToolImplementation；C 不合并进 arguments.original/effective，不接受调用方或程序执行方经调用参数改写。服务、SchemaRef、函数、signal 与秘密解析器不作为 JSON 配置。无需给每个 ToolExecutor 再加一个配置参数，作者闭包固定本次合法装配值。
 
@@ -933,7 +933,7 @@ ToolBindingRegistry 接受受信装载结果与 `ToolAuthority { layer, asset, h
 
 `register` 的失败集合：`conflict`（同键已有其他 live 或 draining 贡献）；`denied`（`toolContributionAuthority` 拒绝来源，或登记者没有该层的登记资格）；`invalid`（`ToolLoadedRegistration` 的登记键与核验后的来源层或资产不一致，或 shape 与 definition 不符）；`unavailable`（来源核验器或登记表存储不可读）。失败不留部分登记。`toolContributionAuthority` 是同步端口：`verify(authority)` 返回 `Outcome<VerifiedAuthority { layer, asset, holding, publication }, denied | invalid | unavailable>`，`admits(access, layer)` 核登记资格；它缺席时 `register` 返回 `unavailable`。
 
-登记表的其他方法：`snapshot()` 只读返回全部条目，每条带登记键、登记序号、装载 digest、shape、状态（`live` 或 `draining`）与作者插件 fiber uid；`pins(key)` 返回当前解析到该键、尚未收场的固定请求计数，`resolve` 时登记、收场时解除，是进程内的计数，不是持久账；`close(key)` 把条目标为 draining，`reopen(key)` 撤回该标记，两者都不改贡献；`drain(key)` 返回该键的 `pins` 计数与在途调用清单，P09 的 `inspectDrain({ executor })` 交付之前只报告，不等待。
+登记表的其他方法：`snapshot(scope)` 只读返回 `scope` 可见的条目。`scope` 是调用方的访问依据时，只返回按 G7 对该租户可访问的条目，别的租户的租户层与工作区层条目不出现；换代协调者等内部调用方以系统作用域调用，得到全部条目。每条带登记键、登记序号、装载 digest、shape、状态（`live` 或 `draining`）与作者插件 fiber uid；`pins(key)` 返回当前解析到该键、尚未收场的固定请求计数，`resolve` 时登记、收场时解除，是进程内的计数，不是持久账；`close(key)` 把条目标为 draining，`reopen(key)` 撤回该标记，两者都不改贡献；`drain(key)` 返回该键的 `pins` 计数与在途调用清单，P09 的 `inspectDrain({ executor })` 交付之前只报告，不等待。
 
 draining 的地位：记下该键的请求仍可经 `resolve` 的首选分支解析到它；回退分支与采用点选择都排除它；换代协调者 `ensureLoaded` 遇到 draining 的同键返回 `draining`，不认回。
 

@@ -75,7 +75,7 @@ Model 只建模自己承担的责任。决定档案是否可选、请求是否�
 
 | 分类 | Model 内的表示 | 原拥有者保留的责任 |
 | --- | --- | --- |
-| 上游公布语言：身份与授权 | principal 参数、显式 TenantId、资格适配器的判定结果。`Identity` 品牌只防误混，不授权 | 组织与角色关系（组织超级管理员、组织管理员、租户）、授权算法、主体的可信解析。档案维护与账目读取先核这些角色关系（见 [SPEC 身份、修订及撤回](../SPEC.md#身份修订及撤回)；[真实费用和账目边界](../SPEC.md#真实费用和账目边界)） |
+| 上游公布语言：身份与授权 | principal 参数、显式 TenantId、资格适配器的判定结果。`Identity` 品牌只防误混，不授权 | 组织与角色关系（组织超级管理员、租户）、具名资格（例如「组织成本账目读取」）、授权算法、主体的可信解析。档案维护与账目读取先核资格适配器给出的资格结论，不按角色名推断（见 [SPEC 身份、修订及撤回](../SPEC.md#身份修订及撤回)；[真实费用和账目边界](../SPEC.md#真实费用和账目边界)） |
 | 上游公布语言：共享消息值 | Message、ContentBlock、ContentReference、ToolCallPart（即 ToolSuggestion）、ToolMessage。只引用，不复制，不改义 | 值形状、校验归共享消息与内容契约的拥有者，消息接纳归消息准入者 |
 | 上游公布语言：其他共享值 | JsonValue（无损，数字为 lexeme）、Outcome、CallAccount（DispatchRecord.account）、Modality（四种模态的词表）、common/stream-arrival（Model 把传输事实映射为其共享到达步骤，见 [SPEC](../SPEC.md#供应商解释与流状态归约)） | json-text、operation-result、call-account、modality、stream-arrival 的拥有者。账目查询范围归接入与身份拥有者 |
 | 上游公布语言：存储提交词汇 | committed、rolled_back、unknown、identity_conflict、rejected_before_accept 的含义，以及 not-committed 的完整排除证明 | 存储拥有提交结论与排除证明。见 [SPEC](../SPEC.md#342-独立执行与提供者操作) |

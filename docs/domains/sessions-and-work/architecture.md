@@ -16,7 +16,7 @@
 | 执行环境 | 落点、获取、租约与受管资源的物理状态 | 会话与 Run 的逻辑状态、作用域何时结束的判断 |
 | HITL | 原卡片关联、获准呈现、一次有效答复及可靠交回 | 原问题业务含义、批准的权限解释、Run终态 |
 
-Session 拥有的事实是会话身份、日志、Run 与执行尝试的治理事实、会话设置与模式，以及未结工作的判断依据。Agent 执行与挂接、模型调用、工具执行、context 内容和执行环境的物理状态归各自拥有者。Session 只经对方的公开契约读取、核对和对账这些事实。
+Session 拥有的事实是会话身份、日志、Run 与执行尝试的治理事实、会话设置与模式，以及未结工作的判断依据。这些事实都归一个租户。Session 是会话日志的唯一写入者，在自己的边界默认拒绝跨租户读取；租户随访问依据显式传入，会话关系与级联只在同一租户内成立。Agent 执行与挂接、模型调用、工具执行、context 内容和执行环境的物理状态归各自拥有者。Session 只经对方的公开契约读取、核对和对账这些事实。
 
 Session 为 Tool 实现出站端口 `ToolResidencyReader` 与 `ToolResidencyActions`。`ToolResidencyReader` 是系统作用域读取：输入是 `{ scope: 'system', key }`，不用 `Access<P>`，只返回会话身份与 shape，不返回正文。冻结判定经 `ToolResidencyActions` 交会话，状态转换由会话执行，见 [session-contract](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
 
