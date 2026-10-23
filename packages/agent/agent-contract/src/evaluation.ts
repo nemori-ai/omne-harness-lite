@@ -96,30 +96,35 @@ export type Failure =
   | Readonly<{ kind: 'conflict'; operation: AgentOperationId }>
 export type Reply<A> = Promise<Outcome<A, Failure>>
 export type ModelPurpose = 'main' | 'compaction' | 'extension'
-export type PendingCall = Readonly<{
+type PendingCommon = Readonly<{
   action: ActionId
   consumption: ConsumptionId
   position: ConsumerRef
   fixed: Evidence
-}> &
+}>
+export type PendingCall = PendingCommon &
   (
     | Readonly<{
         kind: 'model'
         reference: M.ModelInvocationRef
         purpose: ModelPurpose
       }>
-    | Readonly<{
+    | (Readonly<{
         kind: 'tool'
-        call: T.ToolCallId
-        admission: T.ToolOperationId
         purpose: 'action'
-      }>
+        call?: never
+        admission?: never
+      }> &
+        (
+          | Readonly<{ association: 'intent'; reference?: never }>
+          | Readonly<{ association: 'associated'; reference: T.ToolInvocationRef }>
+        ))
   )
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
   | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly Evidence[] }>
   | Readonly<{ kind: 'denied'; evidence: Evidence }>
-  | Readonly<{ kind: 'allowed'; evidence: Evidence; request: T.FixedToolRequest }>
+  | Readonly<{ kind: 'allowed'; evidence: Evidence; request: T.ToolInvokeRequest }>
 export type Action = Readonly<{
   id: ActionId
   original: ToolPart & Readonly<{ kind: 'tool_call' }>
@@ -232,20 +237,20 @@ export type ProducerDecisionView =
     }>
   | Readonly<{
       kind: 'tool-active'
-      pending: Extract<PendingCall, { kind: 'tool' }>
+      pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
       source: Evidence
       waiting: 'none' | 'external' | 'human'
       supportedControls: readonly ('interrupt' | 'background')[]
     }>
   | Readonly<{
       kind: 'tool-result'
-      pending: Extract<PendingCall, { kind: 'tool' }>
+      pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
       result: ProducedResult
       source: Evidence
     }>
   | Readonly<{
       kind: 'tool-background'
-      pending: Extract<PendingCall, { kind: 'tool' }>
+      pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
       placeholder: ProducedResult
       confirmation: Evidence
       source: Evidence

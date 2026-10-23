@@ -139,7 +139,7 @@ sequenceDiagram
   A->>A: return idle and retain registration
 ```
 
-每次变更使用独立操作身份。同一原操作的重试保持身份及语义参数。Agent 的每个 PendingCall 保存生产者 admission，回执丢失先 inspect 或 lookup，不用新 operation 重新受理。Model 一次内部重试仍是同 call，策略回原 Model，主 Loop 继续等待整调用真实收场。
+每次变更使用独立操作身份。同一原操作的重试保持身份及语义参数。Model PendingCall 在 admit 前保存 reference，回执丢失先 inspect。Tool PendingCall 先存 intent 与完整原请求，Tool 证明引用后保存 associated，再沿 lookup 与原 invoke 接续，association-unknown 保留原 consumer 重入。较晚 rejected 不排除 Tool 历史未知，不建立竞争 denied，原请求与保管责任保留；认回原受理后沿原槽位接续。两域规则见 [SPEC](../SPEC.md#tool-调用关联与控制引用)。Model 一次内部重试仍是同 call，策略回原 Model，主 Loop 继续等待整调用真实收场。
 
 压缩分支和请求的准备见下一小节。压缩的内部模型调用不作为主流程回复，也不与主流程共用 action。
 

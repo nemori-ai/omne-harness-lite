@@ -36,23 +36,99 @@ Agent 自己的执行结束由本域条件提交成立。外部协调者的业�
 
 登记的最小对接是现行规则。这张表适用于所有调用方，包括外部协调者和独立调用者。Model 的引用与受理前身份由 [Model 引用契约](../../model/model-contract/SPEC.md#可保存调用引用)固定。Tool 的来源关联由 Tool 契约拥有，不从 Model 推广共同铸造规则。
 
-始终要有调用身份、固定输入的引用、原消费位置和发起者。调用方自己的业务关联只在这次调用实际具有它们时才以消费位置携带，Agent 不为独立调用制造这些身份，也不要求它们。托管访问把租户当作参数。缺租户或跨租户默认拒绝。
+登记始终保存固定输入的引用、原消费位置和发起者。Model 在受理前保存调用身份，Tool intent 在身份尚未证明时不含调用身份。调用方自己的业务关联只在这次调用实际具有它们时才以消费位置携带，Agent 不为独立调用制造这些身份，也不要求它们。托管访问把租户当作参数。缺租户或跨租户默认拒绝。
 
-| 项 | 规则 |
-| --- | --- |
-| 关联身份 | Model 调用方在首次 admit 前固定 call/admission 并保存 ModelInvocationRef。Agent 为推进 execution 发起的 Model 调用关联该 execution。独立 Model 调用保留调用方原身份。Tool 的来源关联由 Tool 契约拥有。 |
-| 必要参数 | 调用身份、固定输入的引用、原消费位置、发起者。租户显式携带。调用方实际具有的消费位置一并带上。 |
-| 成功 | 登记已提交。登记不等于已经发出。 |
-| 拒绝 | Agent 发起的调用所属的执行挂接已失去推进资格，输入尚未固定，或该调用身份已经绑了另一组参数。 |
-| 未知 | 按该调用身份查询登记。不另造身份。 |
-| 同身份重试 | 同一调用身份和同一固定输入返回原登记。 |
-| 参数冲突 | 同一调用身份配上不同的固定输入则拒绝。 |
+| 生产者 | 项 | 规则 |
+| --- | --- | --- |
+| Model | 关联身份与必要参数 | 首次 admit 前固定 call/admission，编码保存 ModelInvocationRef、固定输入、原消费位置与发起者。Agent 发起的调用关联 execution，独立调用保留原身份，租户显式携带 |
+| Model | 成功 | 登记已提交，登记不等于已经发出 |
+| Model | 拒绝与参数冲突 | 挂接失去推进资格、输入未固定，或同一调用身份绑定不同固定输入时拒绝 |
+| Model | 未知 | 按提交前原 reference 查询。只有权威 not-accepted 才沿原身份再受理，不另造身份 |
+| Model | 同身份重试 | 同一身份和同一固定输入认回原登记 |
+| Tool | 关联与必要参数 | 先保存完整原 ToolInvokeRequest、consumer、材料 fixed 和 intent。Tool 来源以租户及完整 consumer 分配或认回身份，Agent 不预分配 call/admission |
+| Tool | 成功、拒绝与未知 | invoke 四种结果与 associated 保存按“Tool 调用关联与控制引用”。同 consumer 异请求由 Tool 拒绝，不绕过当前资格 |
 
 Agent 为推进某个 execution 发起的调用关联该 execution 和原消费位置；压缩和扩展判断回到原内部位置。独立调用只使用调用方实际提供的身份，不为它制造外部协调者的关联，也不挂到碰巧活跃的 execution。跨租户默认拒绝；持有历史 ID 或句柄不是读取与控制资格。
 
 业务效果的稳定去重身份与追溯尝试分别表达。稳定身份必须区分同一步多个动作，不能只用调用方关联身份与 step 两项。去重是否能够阻止外部重做，还取决于实际操作契约和接收方能力，本成员不承诺所有调用恰好执行一次。
 
 所有 ID、Evidence 和 Authority 均须在进入本成员的边界验证。身份文本用本包导出的解码函数验证，`Adoption`、`Evidence`、`Access` 与 `Authority` 用结构判定验证，规则见“[身份解码与结构判定](#身份解码与结构判定)”。验证只给出形状：结构相同不代表来自可信拥有者，也不证明对象存在或授予资格。
+
+### Tool 调用关联与控制引用
+
+本节按[已采用的契约同步方案](https://github.com/nemori-ai/omne-harness-lite/issues/551#issuecomment-6370458102)定义 Tool 关联与必要控制记录。并按 [E1/E2 修正采用](https://github.com/nemori-ai/omne-harness-lite/issues/551#issuecomment-6370932728)补齐历史未知与引用失败边界。它不改变 Model 已迁移语义、公共 ExecutionControl 或六阶段的业务含义。A2、T0、生产 Materials 和真实提供者组合仍待实现与验证。
+
+#### 两态登记与完整原请求
+
+`PendingCall` 的 Model 分支保持 `reference: ModelInvocationRef` 与原 ModelPurpose。Tool 分支的 purpose 为 action，共同保存 action、consumption、position 与 fixed，并有以下两态。
+
+| association | 保存的身份 | 允许的生产者视图 |
+| --- | --- | --- |
+| intent | 无 reference，也不允许旧 call 或 admission 字段 | unresolved |
+| associated | 必须保存 ToolInvocationRef，仍不允许旧 call 或 admission 字段 | unresolved、tool-active、tool-result、tool-background |
+
+associated 只证明已知调用身份，不证明受理提交成功。Tool 提供引用及其编解码，Agent 不分配 Tool 业务身份。`tool-active`、`tool-result` 和 `tool-background` 只接受 associated Tool pending。运行输入封闭校验由 Tool 的 `judgeToolInvokeRequest` 拥有，TypeScript 结构兼容不能替代它。
+
+Agent 保存的 `pending.position` 与原请求的 `request.consumer` 按 owner、work、position、purpose 四个字段逐一相等。两个领域分别拥有自己的类型。消费位置不是 ConsumptionId。Agent 为每次逻辑动作保存唯一且稳定的原位置，恢复或替换挂接不重建它。新逻辑动作使用新位置，重发原动作使用完整原 consumer。
+
+`fixed` 指向 `AgentMaterials.preserve` 成功返回的 facts 材料。其 value 是完整原 `ToolInvokeRequest`，schema 是该材料格式的精确 Adoption。恢复解读后以 Tool 的 `judgeToolInvokeRequest` 校验，并核对 consumer 投影。`allowed.request` 与材料输入来自同一次冻结且一致。只存 ToolPart、参数摘要或 consumer 不满足要求，当前 catalog 不能重建原请求。具体 schema 实例与序列化须由后续 A2 采用方案绑定，本节不指定虚构 schema。
+
+AgentMaterials 提供者拥有材料，Journal 拥有 fixed 绑定及 effect intent。先保存完整材料，再共同保存 Tool intent、原位置与 effect intent，随后才能 invoke。材料成功而 Journal 未知时保留材料，沿原 Journal operation 查询。只有可靠排除原写入或全部消费责任终结后才能回收。原意图或引用未知时继续保留，checkpoint 前进不丢材料。
+
+| Tool 登记观察 | 接续责任 |
+| --- | --- |
+| intent，尚未 invoke | 用当前资格和完整原请求发原 invoke |
+| association-unknown | 保留无引用 intent，重复完整原 invoke |
+| accepted | 保存 associated、原引用与原回执，lookup 读取当前权威状态 |
+| commit-unknown 带引用 | 保存 associated 后 lookup；not-accepted 不排除来源继续签发，沿原 invoke 接续 |
+| rejected | 仅确定本次尝试拒绝。只有保留事实证明该逻辑动作没有已受理或未决的较早尝试时才建立 denied 槽位；否则保留原 pending、完整请求、consumer、effect intent 与未决保管责任 |
+
+Model 的受理前引用、not-accepted 判定、原固定输入与 ACK result/evidence 继续沿 Model 契约，不能套用 Tool 身份分配方式。
+
+#### 控制接受与迟到引用
+
+公共 `ExecutionControl` 保持原 call 和原因输入，不增加 ToolOperationRef。Tool control 接受先核对当前所有权与访问资格，再按原 control operation C 认回或返回 conflict，之后才为新 C 扫描当前 pending。checkpoint 前进不阻止原 C 的接受认回。Tool 中断或后台控制受理时，Journal 在该 execution 的 associated Tool pending 中定位原调用。先按 producer kind 区分，再比较 call。Model 控制同样先区分 kind，允许 Model 与 Tool 使用相同文本 ID。Tool 匹配通过当前租户的公开 `resolveToolInvocationRef` 校验。新 C 遇到匹配 producer kind 的畸形引用返回 invalid，field 为 command.call，reason 为 invalid-tool-invocation-reference；外租户引用返回 denied，action 为 control。无匹配或存在多个不同当前租户调用引用时返回 invalid，field 为 command.call，reason 分别为 no-associated-tool-call 或 ambiguous-associated-tool-call。重复相同引用不算多个不同关联。
+
+Tool control 的 `ControlRecord` 保存原 command、`toolInvocation: ToolInvocationRef` 和 `toolOperation: ToolOperationRef | null`，与 accepted 阶段及原接受结果同次保存。toolInvocation 是受理时的原关联快照。非 Tool control 不允许这两个字段。toolOperation 初始 null 只表示尚无已记录操作引用，不证明操作未提交。checkpoint 改变之后，迟到记录仍用 ControlRecord 的 toolInvocation 校验，不重查当前 pending。
+
+`recordControl` 仅增加可选 `toolOperation` 附件。记录者以 `resolveToolOperationRef` 和 `resolveToolInvocationRef` 校验当前租户及原 call、admission 一致。非 Tool target 不接受附件。同一引用可认回，另一引用返回 conflict，省略附件保留旧值。引用只定位，不授予当前资格，不证明 Tool 内部存在或控制完成。source 仍须由有权记录者提供真实阶段依据。
+
+一条 Agent Tool control 对应一次明确 Tool control 尝试，至多保存一个返回操作引用。明确再次提交 Tool control 须使用新的 Agent control operation，保留旧记录。响应在 Agent 保存引用前丢失时保持 unresolved，不能猜 ID 或自动重发。Tool 当前协议不能按原控制意图恢复丢失引用，新操作成功不证明旧 unknown 完成。
+
+#### Recording operation 与阶段事实
+
+相同 recordControl operation 的完整语义输入不变才认回原结果。有效本租户引用以公开 resolver 解码后的规范身份比较，允许的空白差异不改变语义输入。R 首次未带引用，后来用 R 增加引用必须 conflict。后来取得引用时使用新 recording operation R2，target 仍指原 Agent control。
+
+R2 在阶段事实相同而引用由 null 变为已知时仍是真实写入。Journal 原子保存引用、revision 和 R2 的结果回执，不返回旧阶段回执。阶段事实未变时不重复发布阶段事件，也不覆盖原阶段回执。相同阶段且无新引用保留既有同事实认回。阶段改变按原规则记录，已 reached 事实不能被不同事实覆盖。引用冲突校验先于阶段认回。
+
+recordControl 按以下顺序判定，不把 ToolReferenceFailure 直接作为 Agent Failure 返回。
+
+1. 核对当前租户、访问和记录资格。
+2. 用公开 resolveToolOperationRef 处理所供附件，先拒绝外租户，再取得可用的规范身份。外租户输入先于 operation 与 target 查询返回 denied，不泄露目标身份。
+3. 认回原 recording operation R 或因完整语义输入改变返回 conflict。此步先于 target、stage 和保留引用校验。原 R 后加附件，包括给非 Tool 控制加附件或提供畸形附件，均为异输入 conflict；外租户仍先 denied。
+4. 对新 R 拒绝畸形附件，再核对 target 存在、target kind、保留 Tool 引用的完整性及身份和操作一致性。
+5. 核对阶段适用性，最后执行阶段事实认回或新写入。未供附件时保留旧引用。
+
+| 引用边界失败 | Agent Failure |
+| --- | --- |
+| 新 R 的附件 resolveToolOperationRef 返回 malformed | invalid，field 为 toolOperation，reason 为 malformed-tool-operation-reference |
+| 所供附件属于外租户 | denied，action 为 recordControl |
+| 新 R 的有效本租户附件指向非 Tool control | invalid，field 为 toolOperation，reason 为 not-applicable-to-control |
+| 有效本租户附件的 call 或 admission 不等于原 toolInvocation | conflict，operation 为当前 recording operation R |
+| 已有 toolOperation 与有效本租户新附件为不同规范操作身份 | conflict，operation 为当前 recording operation R |
+| 原 R 的完整语义输入改变，包括增加附件或畸形附件 | conflict，operation 为 R；外租户先 denied |
+| 新 R 的 target 不存在 | 既有 invalid，field 为 target |
+| 新 R 读取的原 toolInvocation 畸形 | unavailable，owner 为 AgentJournal，diagnostic 为 invalid-retained-tool-invocation |
+| 新 R 读取的原 toolInvocation 属于外租户 | denied，action 为 recordControl，不返回外租户细节 |
+
+保留引用损坏是提供者不变量失败，不能归为调用者 conflict。原 R 认回之前不检查保留引用。阶段不适用仍按既有 invalid 映射。失败不改变原记录或 revision，不调用 Tool，也不创建阶段事件。这些边界不授予修复记录或绕过资格的权限。
+
+控制接受与记录均共同保存新增字段和原操作结果。现有内存 Journal 只在其原子 apply 边界迁移，不证明生产耐久性。本节只闭合新增引用所需记录。Q11、Q13 的其余认回、终态与事件修订，以及 F0 多前台 Tool 逐调用尝试与总取消记录的对应机制，继续由后续控制设计与实现承接。不得把单个 ToolOperationRef 塞入总 cancel 记录。
+
+#### Tool 交付解除未知
+
+`releaseDelivery` 未知且原 ToolOperationRef 仍可取得时才查询原操作。可靠否定后可明确重入，released 返回原生产者耐久回执。lookup.delivery 可认回当前释放。引用丢失且 lookup 未证明释放时保持未知，pending 不排除旧操作或迟到提交。本节不新增跨重启保存 release 操作引用的协议。
+
 
 ### 租户与作用域绑定
 
@@ -122,7 +198,7 @@ Agent 拒绝不合格的装配。声明的形状是 `AgentJournal.capabilities.p
 
 尚需后续处理时，消费者必须保留足以接续的内容和责任。Model 的交付责任解除只能在整项调用真实收场后由当前合法消费者执行，单次发出失败不满足这一前提。解除生效后，接续从消费侧保存的数据继续，不要求 Model 重新提供完整副本。工具结果按自身保留契约，不能借 Model 的交付责任解除删除全文。
 
-解除回执丢失时以原操作对账，不再调模型，也不再次处理同一份结果。后台占位只解除占位这一版本的前台交付，最终结果以同一 consumption 到达后按两条路径之一解除，该消费关系才闭合。保管者的更替见[机制页](../agent/docs/architecture/mechanisms.md#交付责任解除的两条路径与保管者更替)。
+解除回执丢失时以原操作对账，不再调模型，也不再次处理同一份结果。Tool 仅在原操作引用可取得时 queryOperation；引用丢失且 lookup 未证明释放时保持未知，见“Tool 交付解除未知”。后台占位只解除占位这一版本的前台交付，最终结果以同一 consumption 到达后按两条路径之一解除，该消费关系才闭合。保管者的更替见[机制页](../agent/docs/architecture/mechanisms.md#交付责任解除的两条路径与保管者更替)。
 
 已拒绝的模型回复或工具结果仍保持真实执行记录。它们未形成协作消息不表示原数据、费用或效果可丢弃。推进者死亡也不免除保管责任。
 
@@ -181,7 +257,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 | 暂停 | 适用 | 适用，实现为撤销挂接并保存交接 | 不适用，不请求生产者停止 | 适用，范围是该挂接持有的本地责任 |
 | 停用 | 适用，意图成立表示开始拒绝新的 invoke | 适用，对象是该 runtime 的全部挂接 | 不适用 | 适用，范围是该 runtime 的全部本地责任 |
 
-对 ExecutionControl 的阶段事实由 Journal 的 recordControl 记录，并在事件流中以 control 事件投影。记录核对原控制命令、真实执行方的回执和当前处理资格，只记录阶段，不变更控制范围，也不批准新的效果。推进者崩溃或更换后，新挂接以原 ControlRecord 认回已成立的阶段，不重发控制命令。生产者在中断到达前已真实收场时，以真实收场为准，中断不改变结果。控制与完成、换代、晚到写入的竞争处置见[机制页](../agent/docs/architecture/mechanisms.md#控制与故障交接)。
+对 ExecutionControl 的阶段事实由 Journal 的 recordControl 记录，并在事件流中以 control 事件投影。记录核对原控制命令、真实执行方的回执和当前处理资格，记录阶段及适用的 Tool 操作引用，不变更控制范围，也不批准新的效果。推进者崩溃或更换后，新挂接以原 ControlRecord 认回已成立的阶段，不重发控制命令。生产者在中断到达前已真实收场时，以真实收场为准，中断不改变结果。控制与完成、换代、晚到写入的竞争处置见[机制页](../agent/docs/architecture/mechanisms.md#控制与故障交接)。
 
 停用不是 ExecutionControl，没有 ControlRecord。它适用的阶段事实由下列记录承载。
 
@@ -373,7 +449,7 @@ Agent 将明确事实求成下一步，再通过公开端口协调工作。外�
 
 [本节定义](docs/public-api/README.md#身份原位置与纯求值)。
 
-StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。PendingCall.model 保存 ModelInvocationRef，用于 inspect/connect/beginRead。首次 admit 前即可由已固定的 tenant/call/admission 编码，意图先保存。Tool 分支仍保存其 call/admission，具体关联由 Tool 契约拥有。
+StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。PendingCall.model 保存 ModelInvocationRef，用于 inspect/connect/beginRead。首次 admit 前即可由已固定的 tenant/call/admission 编码，意图先保存。Tool 分支先保存 intent，只有 Tool 证明调用身份后才保存 associated 与 ToolInvocationRef，见“Tool 调用关联与控制引用”。
 
 AgentCheckpoint 由 Agent 解释并通过 AgentJournal 保存。外部协调者的提交参加者可以把它纳入自己的原子提交，但不得另行维护第二份 Agent 工作状态。效果协调层把生产者公开状态投影为 ProducerDecisionView，纯 Evaluator 不解释外域状态编码。查询不可用返回失败，原状态未定保持 unresolved，不用空集合或结束状态代替。decode 必须核对精确采用、身份关系和完整性，不能把任意 JsonValue 当 AgentCheckpoint。编码只允许数据，不含运行对象。
 
@@ -524,11 +600,11 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 每一轮卡片的 round 是稳定的 `CardRoundId`，是卡片轮次自己的身份类型，不复用 ActionId。present 的 identity 在保存卡片需求前确定，卡片端口按原卡请求去重，原扩展调用与卡片需求先保存后呈现。卡片轮次的已请求状态表示卡片草稿已入台账而呈现回执未知。返回未知时，lookup 使用已保存的 passage、round、original 和完整请求身份集合查询原呈现，不要求未知的 card Evidence，也不要求旧 advance 仍有效；当前读取资格仍核验。presented 的 cards 按原请求顺序一一对应，不能遗漏未确认成员。批内只有部分创建时保持 unknown，拥有者持续完成原批或认回确定结果，不能重新问已创建卡。not-presented 需要排除原创建及延迟写入的证据；只有此前提和当前推进仍有效时才可继续同请求呈现。查询不可用保持失败，不能当 not-presented。
 
-取得原卡后 read 返回的 chosen 与 declined 都是人的原决定，由原扩展按原规则解释，不给默认批准或超时。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。Tool 内部 Ask 只交 Tool.acceptDecision，不接到 Agent 扩展的卡片中。执行终结后，Agent 以 DecisionCards.invalidate 作废尚无答复的卡片，已有答复保留；原责任核对由卡片端口的实现者按其原协议收束。
+取得原卡后 read 返回的 chosen 与 declined 都是人的原决定，由原扩展按原规则解释，不给默认批准或超时。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。Tool 内部 Ask 只经 Tool 的受信内部 acceptDecision 端口，不接到 Agent 扩展的卡片中。执行终结后，Agent 以 DecisionCards.invalidate 作废尚无答复的卡片，已有答复保留；原责任核对由卡片端口的实现者按其原协议收束。
 
 AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果的 custody 路径先把所需全文或独立可恢复引用保管，再由 Journal 的 custody 交接适配原保管拥有者，绑定原版本/位置/责任，成功后才解除交付责任。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
 
-Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/docs/public-api.md#值定义和固定请求)携带可信调用方式与来源，不另定义许可字段。固定请求的 `availability` 原样取自请求组装为该工具保存的可用性结论，Agent 不重算工具可用性，也不改写它。直接模型工具动作使用 direct，脚本编排的每个目标调用使用 programmatic。受信协调者负责保存来源和原脚本子调用关联，Tool 准入提供者负责核验，脚本不能自行选择 direct。
+Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.invoke` 发 direct 调用。`ActionJudgment.allowed.request` 使用这个公开请求，不使用受信 `FixedToolRequest`。请求的 `availability` 原样取自请求组装保存的可用性结论，Agent 不重算或改写它。Tool 的受信入口绑定来源、调用方式及内部固定请求。programmatic 子调用由 Tool 原协议拥有，Agent 不另造来源。`acceptDecision` 是 Tool 受信内部端口，普通 Agent 不因持有 ToolRuntime 获得它。
 
 脚本入口只暴露明确许可且当前合法可用的工具。扩展修改生效参数或包装工具转调目标时保留编排来源，不能借父脚本批准扩大目标权限。原整批判断屏障继续适用；已知参数的同批动作先完成共同判断，动态产生的新目标动作重新准入，不自动算入已批准批次。脚本宿主不能直接取得 executor 或全局 Cordis Context。此规则不定义完整脚本语言、宿主、调度或恢复协议；实际脚本桥接实现须按 Tool 的持续义务验证。
 
@@ -559,9 +635,14 @@ Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/do
 6. 人明确拒答是答复。它向原扩展返回没有答案，不授予动作。它不是批准，也不等于人不同意。卡片来自作者扩展时，由原扩展决定后果。卡片来自官方准入时，由授权领域按 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定。Agent 不因没有批准重问同一张卡。重复或并发的答复不产生额外许可，一张卡片只有一个有效答复。
 7. 动作、生效参数、工具定义采用或影响批准的授权依据改变时，旧批准失效。官方准入以新值重新判断，可能再次出卡。无关的配置变化不重问。准入检查、人看到的卡片与实际发起使用同一份生效参数。参数只在两处改变：同链在官方准入之前的扩展改写它，或人选择卡片草稿 `proposedRewrite` 绑定的那个选项。第一种情形下，官方准入按改写后的参数判断。第二种情形下，`proposedRewrite.option` 指向草稿 `options` 中的一项，人的答复 `chosen` 等于该项时改写生效：卡片来自官方准入时，官方准入在 `replay` 中先把生效参数换成 `proposedRewrite.effectiveArguments`，再带答复按新参数再次判断；卡片来自作者扩展时，由该扩展在 `replay` 中以 rewrite 输出这一改写，之后链末官方准入按新参数判断。
 8. 屏障打开后，Agent 按原动作顺序把获准动作交 Tool 发起。固定请求的 `batchDecision` 在屏障打开时填入屏障打开的依据，发起时随请求交给 Tool。Tool 按原准入证据、当前主体资格与当前权限再核，规则见 Tool 的[发起的完整前提](../../tool/tool-contract/SPEC.md#发起的完整前提)与 [P04](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)。再核分两段，撤权在实际发起处生效，不以旧允许发出。
-   - Tool 受理时拒绝：ToolRuntime.admit 返回 denied，没有 Tool 调用。该动作的槽位为 denied，单结果经过的 outcome 为 denied。
+   - `accepted` 返回原调用引用与原受理回执。Agent 保存 associated 后进入 T0，dispatched 槽位不把原回执冒充当前状态。
+   - `commit-unknown` 带原调用引用。Agent 保存 associated 后以 lookup 查询。not-accepted 不能排除来源继续签发，须沿原 invoke 接续。
+   - `association-unknown` 无调用引用。Agent 保留 intent、完整原请求和 consumer，以当前资格重复原 invoke，不进入需要 associated 的 Tool 生产者视图。
+   - `rejected` 只确定拒绝本次尝试。保留事实证明该逻辑动作没有已受理或未决的较早尝试时，才建立 denied 槽位，单结果经过的 outcome 为 denied。首次确定拒绝且此前无未知符合条件；较早未知之后的新拒绝本身不符合。否则保留原 intent 或 associated、fixed 完整请求、consumer、effect intent 与未决保管责任，不建立 denied，不覆盖 dispatched、result 或 background。缺槽位表示未决，不表示拒绝。
    - Tool 受理之后、实际启动之前在启动围栏处拒绝：Tool 调用已经存在，Tool 按自己的规则以 unavailable 终局与未启动的效果收场。该动作的槽位为 result，带这个 Tool 终局，单结果经过的 outcome 为 executed。
-9. 判断阶段本批全部动作被拒绝时，屏障记为 all-denied。屏障打开后全部获准动作都在 Tool 受理时被拒绝时，同样没有已发起的动作。两种情形下 Agent 都不等待任何工具。Agent 按原动作顺序为每个被拒绝的动作建立 denied 槽位，单结果经过、候选消息与消息准入的进度记在槽位中，随 checkpoint 保存。被拒绝的动作各自经过执行动作之后的单结果范围，不经过整批范围。拒绝原因与每个动作的拒绝消息保存，经消息准入后进入回复，Loop 沿已有事实重新求值。
+9. 判断阶段本批全部动作被拒绝时，屏障记为 all-denied。屏障打开后，只有每个动作都确定拒绝且保留事实证明没有已受理或未决的尝试时，才适用无工具等待规则。不能从全部当前响应为 rejected 推导不存在 Tool 或批次可以推进。Agent 仅为符合上述确定拒绝条件的动作按原顺序建立 denied 槽位，单结果经过、候选消息与消息准入的进度记在槽位中，随 checkpoint 保存。被拒绝的动作各自经过执行动作之后的单结果范围，不经过整批范围。拒绝原因与每个动作的拒绝消息保存，经消息准入后进入回复，Loop 沿已有事实重新求值。
+   较早尝试未决或已知受理时，保留屏障原 open 决定，不改为 all-denied，该动作不能以新拒绝授权批次完成。其他动作沿原独立发起与逐槽处理规则继续。恢复复用同一逻辑动作和当前合法资格：association-unknown 重入完整原 invoke，已知引用沿 Tool 原 lookup 与 invoke 恢复。lookup 的 not-accepted 加后来 rejected 仍不可靠排除原调用。资格不可得或被撤销时保留未知及交接、结算责任，不伪造资格。当前接口不能证明解决时允许继续未决，不新增 Tool 否定证明接口。
+   原受理认回后沿原动作槽位继续 dispatched、result 或 background 的保管、逐槽处理与解除路径，不产生竞争的 denied 结果。T3 不把缺槽位视为齐备，T5 不把该动作视为已完成。
 10. 执行终结时，Agent 以 DecisionCards.invalidate 作废本批尚无答复的卡片。已有答复保留，不因作废改写。
 11. 卡片端口的两种情形按下列规则处置。
     - 人对卡片有话说，但没有给出准驳：read 对 Agent 返回 pending。原话由人在回路领域保存并交原准入拥有者解释，规则见 [INV-HI11](../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)。Agent 不把它当作答复，该轮保持已呈现。
@@ -581,7 +662,7 @@ Agent 的工具请求沿 Tool 的 [FixedToolRequest](../../tool/tool-contract/do
 6. 发起前再核：Tool 在实际发起处按原准入证据与当前权限再核，Agent 不以旧允许代替这次再核。两段再核各自的槽位结果见上文“整批判断屏障与动作准入”第 8 条。
 7. 后台：转后台保持原 Tool 执行身份、原 PendingCall 与原消费关系。Agent 不接管 Tool 的协程或内部等待，不启动第二次工具。后台占位足以满足该槽位，当前步骤不等待后台的真实结束。后台关系与许可归 Tool 的[前后台的关系边界](../../tool/tool-contract/SPEC.md#前后台的关系边界)。
 8. 迟到结果：后台的最终结果以原 PendingCall 的 consumption 到达，由 Loop 在合法的后继位置消费。它不改写原槽位的占位，不重开已结束的批次。执行已无推进资格或已终结时，合法保管方只保管与对账，不推进业务。
-9. Tool 内部 Ask：Tool 内部等人的等待归 Tool 执行。Agent 只把它投影为 tool-active 的 waiting human，不为它出卡，不把它转后台。人的答复经 Tool.acceptDecision 回原等待。它与扩展的卡片是两件事。
+9. Tool 内部 Ask：Tool 内部等人的等待归 Tool 执行。Agent 只把它投影为 tool-active 的 waiting human，不为它出卡，不把它转后台。人的答复经 Tool 的受信内部 acceptDecision 端口回原等待。它与扩展的卡片是两件事。
 
 #### 消息准入
 
@@ -696,7 +777,7 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件和原操作结果。commit 原子覆盖 checkpoint、执行状态、稳定 effect intent、已分配序号的事件和操作结果。需要共同成立的消息、压缩记录及接续、结果保管，通过具名的调用方交接（CallerCommit）与提交参加者共同保存，协议见“并发与提交”。事件订阅与普通保存回执不能代替共同提交。
 
-同一操作同一语义输入返回原结果，同一操作不同输入返回 conflict。changed 表示 expected 已过期且本操作没有提交，调用方重读并重新求值。commit-unknown 保留原操作，先 query 再决定，不换身份重试。excluded 必须排除原写入及延迟提交，不是简单的查无记录。通知只唤醒，不作为恢复事实源。effect intent 先可靠保存，才用原 admission 向 Model 或 Tool 受理。生产者受理及发出点另行核对当前围栏，Journal.commit 不预先授予未来的授权。
+同一操作同一语义输入返回原结果，同一操作不同输入返回 conflict。changed 表示 expected 已过期且本操作没有提交，调用方重读并重新求值。commit-unknown 保留原操作，先 query 再决定，不换身份重试。excluded 必须排除原写入及延迟提交，不是简单的查无记录。通知只唤醒，不作为恢复事实源。effect intent 先可靠保存。Model 再用原 admission 受理；Tool 再用完整原 ToolInvokeRequest 经普通 invoke 关联。生产者受理及发出点另行核对当前围栏，Journal.commit 不预先授予未来的授权。
 
 load 返回原控制命令、当前完成意图、effect intent、逐结果的责任台账、终态后观察台账和输出进度，恢复不依赖旧命令的调用栈。大记录可以用同一快照修订号的受限分页实现，但不能用不完整数组冒充完整快照。
 
@@ -786,7 +867,7 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 | AgentRuntime.invoke | Access、操作身份、调用方预先分配的 execution 身份、受理输入（内容、来源依据、优先级）、推进资格依据（可空） | 原 execution 的句柄 | busy；unsupported（装配的提交种类未声明）；unavailable（必需依赖缺席、主体资格核验不可用，或 runtime 处于 draining 或 disposed）；denied（无发起资格，或推进资格依据核对失败）；invalid（首个输入被消息准入拒收，字段为 value，原因为拒收原因；不创建 execution）；conflict（同一操作或同一 execution 身份配不同输入）；commit-unknown，先按原操作查询 |
 | AgentRuntime.resume | Access、操作身份、原 execution、恢复依据（可含宿主的失联判断）、推进资格依据（可空） | 原 execution 的句柄 | 同 invoke；另有 changed（原版本已变化，或提交时发现旧挂接仍 active 而没有 takeover 依据）、terminal（原 execution 已终态）、unavailable（原记录或精确采用不可读）；denied 也包括接管时没有 takeover 资格 |
 | input.submit | Access、操作身份、原 execution、受理输入（内容、来源依据、优先级） | 命令回执，accepted 表示内容已可靠保存 | terminal；denied；unavailable；invalid（输入被消息准入拒收，字段为 value，原因为拒收原因；不保存为消息，见“消息准入”）；conflict（同一输入身份配不同内容）；commit-unknown |
-| control | Access、操作身份、原 execution、ExecutionControl 与原因依据 | 命令回执，accepted 只表示受理 | invalid（调用不属于该 execution）；denied；terminal（对已终态的 execution 只认回终态，不复活）；conflict；commit-unknown |
+| control | Access、操作身份、原 execution、ExecutionControl 与原因依据；当前资格后先认回原 C，再为新 C 扫描 pending | 命令回执，accepted 只表示受理 | invalid（调用不属于该 execution；Tool 新 C 的畸形、缺少或歧义关联的 command.call 与精确 reason 见“控制接受与迟到引用”）；denied（含 Tool 引用外租户，action 为 control）；terminal（对已终态的 execution 只认回终态，不复活）；conflict；commit-unknown |
 | output.read、output.events | Access、execution、after，以及 limit 或 signal | 事件页或缺口 | invalid（after 不属于该 execution，limit 非正或超过上限）；denied；unavailable |
 | output.acknowledge | Access、操作身份、execution、through、读取方的处理依据（可空） | 命令回执 | invalid（through 超出已发出序号）；denied；unavailable；conflict（同一操作配不同 through）；commit-unknown |
 | AgentHandle.observe | Access、signal | 状态投影序列 | 序列以 ended 结束，原因是 closed、denied、retired 或 unavailable |
@@ -803,7 +884,7 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 | AgentJournal.open、attach | ExecutionMutation、instance、推进资格依据、受理输入或恢复依据、初始 checkpoint；attach 另带 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败；attach 对已 ended 的 execution 返回 terminal |
 | AgentJournal.commit | 条件提交的全部内容，含调用方交接 | 命令回执 | changed；commit-unknown；conflict；unsupported；stale-advance（旧挂接） |
 | AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied；unavailable |
-| AgentJournal.recordControl | 目标控制、阶段、来源依据 | 命令回执 | conflict；denied；invalid（阶段不适用于该控制） |
+| AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执 | conflict（原 R 异输入、原调用身份或已存操作引用不一致）；denied（含所供或保留引用外租户）；invalid（target 不存在、阶段不适用、新 R 畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 损坏，owner 为 AgentJournal，diagnostic 为 invalid-retained-tool-invocation） |
 | AgentJournal.tryFinish | 完成授权、expected、完成意图 | ended、changed 或 blocked | stale-advance；denied；commit-unknown。依赖故障与查询未知不伪装成 blocked |
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；denied；unavailable |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |

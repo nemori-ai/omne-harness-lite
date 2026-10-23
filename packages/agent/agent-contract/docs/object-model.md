@@ -67,7 +67,7 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | AgentRegistration | AgentRegistrationId | AgentInstanceHost.publish 受理时创建。宿主重新发布同一个存活实例时创建后继登记 | published、withdrawing、withdrawn。转换见下文状态图 | 宿主。runtime 只经 AgentRegistrationHandle 报告状态和撤除本实例当前的登记 | withdrawn 之后保留身份记录，使同一撤除操作可认回，旧身份不能作用于后继登记 |
 | AgentDirectory 与 AgentInstanceHost | 目录键是租户加 AgentInstanceId，宿主没有自己的对象身份 | 由装配者选择的宿主提供 | 状态属于登记，目录没有独立状态 | 宿主 | 目录不授业务权，不保存恢复真相。目录条目缺席不证明工作结束 |
 | Passage | PassageId，固定位置、维度、用途、扩展采用、动作和链序号 | Loop 到达位置时由 Journal 提交 requested 后产生，一次扩展调用一个 | requested、asked、resolved、applied。其中的每项能力操作经历 requested、resolved、applied，每轮卡片 CardRound 经历 requested、presented、answered、processed，呈现确定失败时为 present-failed。转换见下文状态图 | Agent，由 Journal 保存 | 随 execution 保留。已有最终 Conclusion 后不再调用扩展，不迁移到新版语义，也不重判 |
-| PendingCall | ActionId、ConsumptionId 与生产者调用身份。Model 分支为 reference，Tool 分支保持原 call/admission | Model 在首次 admit 前编码并保存 reference 与固定输入，再受理 | 状态由生产者事实投影：unresolved、model-active、model-settled、tool-active、tool-result、tool-background | 生产者拥有执行，Agent 拥有关联与消费责任 | 不随执行挂接更换重建。结果责任释放前不得删除关联 |
+| PendingCall | ActionId、ConsumptionId、原位置与 fixed。Model 为原 reference；Tool 为 intent 或保存 ToolInvocationRef 的 associated，无旧 call/admission | Model 在 admit 前保存引用。Tool 在 invoke 前保存完整原请求材料与 intent，已证明引用后保存 associated | unresolved 允许 intent；Tool active/result/background 只接受 associated | 生产者拥有执行，Agent 拥有关联、原请求材料绑定与消费责任 | 不随挂接更换重建，原责任未释放不删除 |
 
 下表列出 execution 内保存的值与台账。
 
@@ -75,10 +75,10 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | --- | --- | --- | --- | --- | --- |
 | AcceptedInput | InputId，由调用方分配 | invoke 或 submit 携带内容、来源依据与优先级，Journal 提供者受理时保存 | 不可变值。受理后进入 execution 的输入集合，按水位线分批承接 | Journal 提供者保存内容 | 随 execution 保留。同一身份配不同内容被拒绝 |
 | AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 每次提交随 execution 修订保存。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
-| ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个工具调用一个 Action | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后建立 dispatched 或 denied 槽位，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
+| ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个工具调用一个 Action | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后，受理建立 dispatched，确定拒绝且无历史受理或未决才建立 denied；否则保留原 pending 与 effect intent，缺槽位保持未决，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
 | TerminalObservation | 终态加 PassageId | tryFinish 提交终态时固定全部待观察项 | 待观察转为已观察 | Journal 台账，由长期协调者处理 | 随 execution 保留，观察完成后仍可读取 |
 | ResultResponsibility | ConsumptionId | 结果被登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
-| ControlRecord | AgentOperationId | control 被受理时建立 | 每个阶段独立记录 reached 或 unresolved，阶段只增不减 | Journal | 随 execution 保留 |
+| ControlRecord | AgentOperationId，原 command。Tool 另存 toolInvocation 与 nullable toolOperation | control 受理时将原 associated 引用与 accepted 阶段共同保存 | 阶段独立记录 reached 或 unresolved，后得引用由新 recording operation 附加 | Journal | 随 execution 保留。checkpoint 前进后仍校验原调用快照 |
 
 AgentJournal 是提供者端口，没有对象身份。EffectCoordinator 与 TerminalObserver 是内部责任角色，不新增公开类或服务键。
 
@@ -162,7 +162,7 @@ classDiagram
   EffectCoordinator --> ActionAdmission : current admission per action
   EffectCoordinator --> MessageHandoff : per-source message admission
   EffectCoordinator --> ModelRuntime : public call and ACK protocol
-  EffectCoordinator --> ToolRuntime : public call and delivery protocol
+  EffectCoordinator --> ToolRuntime : invoke with original request and consumer, then reference queries
   AgentInstanceHost --> AgentRuntime : hosts
   AgentInstanceHost --> AgentRegistration : owns
   AgentRegistration --> AgentRuntime : routes to
@@ -357,8 +357,11 @@ stateDiagram-v2
 | ResultResponsibility | 无 | 结果被登记 | 待释放 | 结果版本与消费位置已记录 |
 | ResultResponsibility | 待释放 | recordResult 的 transfer 为 custody 或 processed | 依据已保存 | 提供者的共同提交成功 |
 | ResultResponsibility | 依据已保存 | recordResult 的 release 为 confirmed | 已释放 | 含原生产者确认依据 |
-| ControlRecord | 无 | control 被受理 | accepted 阶段 reached | 控制命令已可靠保存 |
+| PendingCall.tool | 无 | 完整原请求材料保存并提交原意图 | intent | fixed、consumer 投影与 effect intent 已保存，无 call/admission/reference |
+| PendingCall.tool | intent | accepted 或 commit-unknown 证明引用并保存 | associated | 原 consumer 与完整请求保持，associated 不证明受理已提交 |
+| ControlRecord | 无 | control 被受理 | accepted 阶段 reached | Tool control 共同保存原 toolInvocation 与初始 null 的 toolOperation，非 Tool 无引用字段 |
 | ControlRecord | 任一阶段未成立 | recordControl | 该阶段 reached 或 unresolved | 阶段适用于该控制，未知可以后来转为 reached |
+| ControlRecord（Tool） | toolOperation 为 null | 新 recording operation 在相同阶段附原调用的操作引用 | 原阶段不变，操作引用已保存 | 真实写入 revision 与新回执，不重发阶段事件或替换原阶段回执。原 recording operation 改输入 conflict |
 | Passage | 无 | Loop 到达位置，Journal 提交扩展调用的身份与调用模式 | requested | 原实现按精确采用解析成功 |
 | Passage | requested | 调用返回 ask 以外的合法输出，或形成报错分支、不可用分支 | resolved | 最终 Conclusion 已提交 |
 | Passage | requested | 调用返回合法的 ask | asked | 非最终 Conclusion 与新一轮 CardRound 在同一次提交中保存 |
@@ -379,9 +382,10 @@ stateDiagram-v2
 | ActionBatch | 屏障 closed | 一轮卡片的 present 确定失败 | 该轮为 present-failed，同一扩展调用早先已答复的轮次为 processed，所属扩展调用为 resolved，该动作的判断为 denied；屏障按 open 与 all-denied 两行重新判定 | 拒绝依据标明系统准入故障及原因，原扩展调用不再回放 |
 | ActionSlot | 无 | 屏障 open 或 all-denied，该动作的判断为 denied | denied | 拒绝依据已保存 |
 | ActionSlot | 无 | 屏障 open，获准动作交 Tool，Tool 受理 | dispatched | Tool 受理时的再核通过 |
-| ActionSlot | 无 | 屏障 open，获准动作交 Tool，Tool 受理时拒绝 | denied | 带再核的拒绝依据，没有 Tool 调用 |
+| ActionSlot | 无 | 屏障 open，获准动作交 Tool，Tool 确定拒绝且无历史受理或未决尝试 | denied | 带再核的拒绝依据，没有 Tool 调用；历史未知后再拒绝不满足本行 |
 | ActionSlot | dispatched | 真实结果到达并按原动作身份保管，含启动围栏拒绝后 Tool 的 unavailable 终局 | result | 保管依据已保存 |
 | ActionSlot | dispatched | Tool 确认转后台并给出耐久占位 | background | 占位已保管，只释放占位的前台交付。最终结果到达时占位不改写 |
+| ActionSlot | 缺槽位或 dispatched、result、background | 较早尝试未决或已知受理，后来 invoke 返回 rejected | 保留原状态、pending、完整请求、consumer 与 effect intent | 原 open 屏障不变。缺槽位是未决，认回原受理后沿原槽位恢复，不产生竞争 denied |
 | ActionBatch | 槽位逐个建立 | 本批每个动作都已有槽位，且全部槽位为 denied、result 或 background | 整批经过可以运行（若至少一个槽位曾为 dispatched） | 等待并发名额的获准动作尚无槽位时不成立 |
 | ActionSlot | denied、result 或 background | 单结果经过结束（后台槽位不经过），候选消息形成，再经消息准入 | 同一状态，`each`、`candidate`、`handoff` 依次记入 | 进度随 checkpoint 提交，恢复时不重复调用与提交 |
 

@@ -66,7 +66,7 @@
 | NA-R0-1 | R0 | 1（基本形） | 1.9（#517） | Journal 提交回执丢失时 R0 以原操作身份 query，committed 时取原结果回后继节点 | SC-AG-163 | `agent/tests/loop-wait-reconcile.spec.ts`：`NA-R0-1: a lost applied M0 receipt keeps one logical producer and resumes automatically`；`loop-recovery.spec.ts` 保留各原提交的 committed 矩阵。 |
 | NA-R0-2 | R0 | 1（基本形） | 1.9（#517） | query 返回 unknown 时 R0 保持等待，不用新操作身份重试，不把查无记录当作 excluded | SC-AG-195、SC-AG-71 | `agent/tests/loop-wait-reconcile.spec.ts`：原 M0 的 unknown、query/load unavailable 零干扰写入，pending 经过两次检查仍不重做；`NA-R0-2: an unknown W0 commit is queried without a second waiting submission`；`NA-R0-2: %s coordinator continuation queries unknown M3 before another fallible load` 核对同一及新协调者窄接续先查询原操作；取消清理不修改 Journal 责任。 |
 | NA-R0-3 | R0 | 1（基本形） | 1.9（#517） | query 返回带排除依据的 excluded 时，R0 才回原节点重新求值 | SC-AG-163、SC-AG-195 | `agent/tests/loop-wait-reconcile.spec.ts`：`NA-R0-3: a lost dropped M0 receipt keeps one logical producer and resumes automatically`；`loop-recovery.spec.ts` 保留各原提交的 excluded 矩阵。 |
-| NA-R0-4 | R0 | 1（基本形） | 1.9（#517） | 效果意图已提交、生产者未受理时崩溃，R0 按原 admission 查询生产者，原调用至多受理一次 | SC-AG-160、SC-AG-162 | `agent/tests/loop-main-call.spec.ts`：`NA-M0-1: drops the coordinator before intent and rebuilds the same call from saved ready at I2`、`C1: drops the coordinator after intent and rebuilds M6 from Journal under the original authority`、`C1: a fresh coordinator recalls the original admission after its receipt and observation were lost`。原 runtime/Access/Authority 串行。`agent/acceptance/PD-agent-progression.stage1.acceptance.ts` 的 `SIGKILL at M6` 与 `SIGKILL at M1` 另核同一非耐久宿主 Journal 上执行进程死亡后的原调用接续、唯一 admit 与原意图。 |
+| NA-R0-4 | R0 | 1（基本形） | 1.9（#517） | Model 效果意图已提交、尚未受理时崩溃，R0 按原 reference 查询 Model，原调用至多受理一次 | SC-AG-160、SC-AG-162 | `agent/tests/loop-main-call.spec.ts`：`NA-M0-1: drops the coordinator before intent and rebuilds the same call from saved ready at I2`、`C1: drops the coordinator after intent and rebuilds M6 from Journal under the original authority`、`C1: a fresh coordinator recalls the original admission after its receipt and observation were lost`。原 runtime/Access/Authority 串行。`agent/acceptance/PD-agent-progression.stage1.acceptance.ts` 的 `SIGKILL at M6` 与 `SIGKILL at M1` 另核同一非耐久宿主 Journal 上执行进程死亡后的原调用接续、唯一 admit 与原意图。 |
 | NA-I4-2 | I4 | 2（动作批） | 2.1（#520） | 两个完整的工具调用部件解析为两个 Action，顺序与回复一致，各带原参数与身份，节点转 A0 | 新增场景 | 待实现 |
 | NA-I4-3 | I4 | 2（动作批） | 2.1（#520） | 参数块未完整到达的工具调用部件不被解析，部分结果之后没有 A0 | SC-AG-166 | 待实现 |
 | NA-A0-1 | A0 | 2（官方准入链） | 2.2（#521） | 官方准入 allow 时该动作的 ActionJudgment 带准入证据，随 checkpoint 的 `batch` 提交 | 新增场景 | 待实现 |
@@ -76,9 +76,9 @@
 | NA-A1-2 | A1 | 2 | 2.3（#522） | 全部动作在判断阶段被拒绝时屏障记 all-denied，节点转 A3 | SC-AG-115、SC-AG-141 | 待实现 |
 | NA-A3-1 | A3 | 2 | 2.3（#522） | 全拒时 A3 按原动作顺序为每个动作建立 denied 槽位，不等待任何工具，本批没有 T4 | SC-AG-115、SC-AG-141 | 待实现 |
 | NA-A3-2 | A3 | 2 | 2.3（#522） | 全拒之后拒绝消息进入历史，I8 以新 step 转 I0，下一步不是终态候选 | SC-AG-115、SC-AG-141 | 待实现 |
-| NA-A2-1 | A2 | 2 | 2.4（#524） | 获准动作的效果意图先提交，再向 Tool 受理；受理后槽位为 dispatched，节点转 T0 | SC-AG-160、SC-AG-162 | 待实现 |
+| NA-A2-1 | A2 | 2 | 2.4（#524） | 完整请求 facts、intent、原位置与 effect intent 先保存再 invoke；accepted 保存 associated 与 dispatched 后转 T0，commit-unknown 带引用转原调用对账 | SC-AG-160、SC-AG-162、SC-AG-216 | 待实现 |
 | NA-A2-2 | A2 | 2 | 2.4（#524） | `toolConcurrency` 为 1 时获准动作按原顺序逐个发起 | SC-AG-132 | 待实现 |
-| NA-A2-3 | A2 | 2 | 2.4（#524） | Tool 受理时拒绝的动作建立 denied 槽位并转 T2，没有 Tool 调用，不重试 | SC-AG-114 | 待实现 |
+| NA-A2-3 | A2 | 2 | 2.4（#524） | invoke 的 rejected 仅在无历史受理或未决尝试时建 denied 转 T2；否则保留原 pending、请求、consumer、effect intent 与 open 屏障，转原调用恢复，不建竞争 denied | SC-AG-114、SC-AG-162、SC-AG-222、SC-AG-223 | 待实现 |
 | NA-T0-1 | T0 | 2 | 2.5（#525） | 原 Tool 在途时 T0 转 W0，各槽位独立等待，先到的结果不等待其他槽位即转 T1 | SC-AG-120、SC-AG-173 | 待实现 |
 | NA-T0-2 | T0 | 2 | 2.5（#525） | Tool 内部 Ask 投影为 tool-active 且 waiting 为 human，没有 present 调用 | SC-AG-121、SC-AG-68 | 待实现 |
 | NA-T0-3 | T0 | 2 | 2.5（#525） | Tool 的查询暂不可用时槽位保持未知并等待，没有失联结论，没有重发 | SC-AG-182 | 待实现 |
@@ -87,11 +87,11 @@
 | NA-T1-3 | T1 | 2（background） | 2.7（#527） | 推进中迟到的最终结果以同一 consumption 到达，节点序列为 I8、T1、I8，原槽位不变，原批不重开 | SC-AG-122、SC-AG-146、SC-AG-172 | 待实现 |
 | NA-T1-4 | T1 | 2（background） | 2.7（#527） | 执行已无推进资格或已终结时，迟到结果由 O0 只保管与对账，没有新的 Next | SC-AG-123、SC-AG-172 | 待实现 |
 | NA-T2-1 | T2 | 2（直通） | 2.6（#526） | 全拒批次中每个 denied 槽位经 T2 转 T3，候选消息不变 | SC-AG-141 | 待实现 |
-| NA-T3-1 | T3 | 2 | 2.5（#525） | 有槽位缺失时 T3 转 W0；两个槽位一先一后到达时，到齐之后节点才离开 T3 | SC-AG-173 | 待实现 |
+| NA-T3-1 | T3 | 2 | 2.5（#525） | 有槽位缺失或历史尝试未决时 T3 转 W0；较晚 rejected 不补 denied，原受理认回后沿原槽位继续，到齐才离开 T3 | SC-AG-173、SC-AG-222 | 待实现 |
 | NA-T3-2 | T3 | 2 | 2.5（#525） | 槽位齐备且没有已发起的动作时 T3 转 T5，不经过 T4 | SC-AG-115、SC-AG-141 | 待实现 |
 | NA-T3-3 | T3 | 2 | 2.5（#525） | 获准动作在等并发名额、尚无槽位时，T3 不判为齐备 | SC-AG-132 | 待实现 |
 | NA-T4-1 | T4 | 2（直通） | 2.6（#526） | 至少一个槽位曾为 dispatched 时，全部槽位齐备之后 T4 对本批只经过一次，节点转 T5 | SC-AG-120、SC-AG-132 | 待实现 |
-| NA-T5-1 | T5 | 2 | 2.6（#526） | 两个结果按原动作顺序各经 Q2 接纳为一条消息，全部完成后节点转 I8 | SC-AG-120、SC-AG-132 | 待实现 |
+| NA-T5-1 | T5 | 2 | 2.6（#526） | 两个结果按原动作顺序各经 Q2 接纳为一条消息；历史未知后拒绝不计该动作完成，不产生竞争拒绝消息，全部完成后节点转 I8 | SC-AG-120、SC-AG-132、SC-AG-222 | 待实现 |
 | NA-T5-2 | T5 | 2 | 2.6（#526） | T5 部分提交后崩溃，恢复后只提交尚未接纳的候选，每个候选的 accept 只成立一次 | SC-AG-130、SC-AG-173 | 待实现 |
 | NA-T5-3 | T5 | 2 | 2.6（#526） | 全拒的拒绝消息以 action-denied 来源按原动作顺序交消息准入 | SC-AG-115 | 待实现 |
 | NA-H0-1 | H0 | 2 | 2.6（#526） | 执行仍有推进资格时工具结果被拒收，H0 形成失败候选转 F1，Tool 没有第二次受理 | SC-AG-57、SC-AG-126 | 待实现 |
@@ -171,3 +171,13 @@
 9. 读图约定三规定 stopped 的 terminal 为 cancelled 时经 E1 转 F0，F0 属于阶段 5。阶段 3 的 NA-X5-2 只写 failed 一支。
 10. 0.4 的子任务行列出节点组 E、I、M、Q、F、O、A、T、X，0.4 子卡正文另列 W、R、H。生长表还含 U0、P0、P1。本表以生长表为准，包含全部这些节点。
 11. 3.7 不拥有单独的节点。它的规则落在 NA-A0-3、NA-X0-2、NA-X3-2 与 NA-X4-5。
+
+## Tool 关联补充目标
+
+| 行号 | 节点 | 阶段与部分 | 子卡 | 用例名 | SC-AG | 实现用例 |
+| --- | --- | --- | --- | --- | --- | --- |
+| NA-A2-4 | A2 | 2 | 2.4（#524） | association-unknown 保存无引用 intent 与完整材料，以原 consumer 和当前资格重入 invoke | SC-AG-217 | 待实现 |
+| NA-T0-4 | T0 | 2 | 2.5（#525） | 只投影 associated Tool 调用；原受理认回后沿原槽位保管、处理与解除。控制先认回原 C，再扫描新 pending；recordControl 先资格/租户与规范引用、原 R 认回，再校验新 target/引用/stage，失败精确映射归 SPEC | SC-AG-218、SC-AG-219、SC-AG-222、SC-AG-224、SC-AG-225 | 待实现 |
+| NA-R0-5 | R0 | 2 | 2.4、2.5 | Tool commit-unknown 保存原引用后 lookup，not-accepted 仍沿原 invoke 接续，association-unknown 保留 intent；后来 rejected 不排除历史尝试，当前资格不足保留未知与交接责任 | SC-AG-216、SC-AG-217、SC-AG-222、SC-AG-223 | 待实现 |
+
+已有 NA-R0-4、NA-M0-1、NA-M6-1 的实现证据只覆盖 Model。Tool 另按本表与新增场景验证，不从原 admission 查询推广为 Tool 协议。F0 多前台 Tool 取消对应关系与 Q11/Q13 的其余机制仍属后续工作。

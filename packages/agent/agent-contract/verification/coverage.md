@@ -116,3 +116,15 @@
 | 目录登记的撤除方式与 Cordis 集成约定 IC-13 的差异 | 集成约定拥有者 | 已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)：三处差异修订进 IC-13，Agent 的目录登记设计符合修订后的 IC-13，目录实现的撤除行为尚未验证，见[目录登记的撤除方式怎样对应 IC-13](../../agent/docs/architecture/open-questions.md#目录登记的撤除方式怎样对应-ic-13) |
 | 兼容锚点 | 本包维护者 | [消费与系统定位](../docs/context.md)保留一个、[SPEC](../SPEC.md) 保留两个旧标题的兼容锚点，仍指向旧标题的入向链接因此可以解析。共同系统页等仍链到旧锚点的页面改写之后，才能删除这些兼容锚点 |
 | 实现阶段的自行设计选择 | 项目负责人 | 已接受，见 [#395 的放行记录](https://github.com/nemori-ai/omne-harness-lite/issues/395#issuecomment-6282719664)：PanQiWei 2026-10-20 接受本交付的 28 项自行设计选择，接受不改变上表的未完成事项 |
+
+## Tool 契约同步的验证目标
+
+本表只登记新增契约的验证责任。现有 Model 的 M6、M1、M3 用例与受理前引用迁移保持，其证据不证明 Tool A2/T0、生产 Materials 或真实提供者组合。
+
+| 责任 | 唯一行为源与节点 | 场景或检查 | 状态 |
+| --- | --- | --- | --- |
+| 两态、associated-only 视图与 ToolInvokeRequest | [SPEC 两态登记](../SPEC.md#两态登记与完整原请求)，A2、T0、R0 | 类型正反例须含宽变量携旧 call/admission、缺引用 associated、intent 进入 Tool 视图、Model/Tool 品牌混用，以及 allowed.request 正向 | 目标已采用，类型迁移与验证待后续切片 |
+| 完整请求材料、精确 Adoption、consumer 等值投影 | 同上。AgentMaterials 保管，Journal 绑定 fixed 与 effect intent | SC-AG-160、162、216、217、222、223。历史未知后 rejected 保留原 pending、完整请求、consumer、effect intent 与 open 屏障，T3/T5 不判完成，认回原受理沿原槽处理与解除。材料成功而 Journal 未知不回收，恢复不能用当前 catalog 重建 | A2/T0、schema 实例及生产后端待实现 |
+| 控制原调用快照、迟到引用与当前租户 | [SPEC 控制接受](../SPEC.md#控制接受与迟到引用)，Tool control 接受与 recordControl | SC-AG-218、219、224、225，实际 testing Journal 的 control/load/recordControl/query；覆盖当前资格、外租户先拒、规范引用、原 C/R 先认回、新 target/保留引用/stage 顺序与精确 Failure，失败记录/revision/事件不变 | 契约已采用，消费者行为验证待后续切片 |
+| 原 R 输入冲突、新 R2 实际附引用、ACK 未知认回 | [SPEC Recording operation](../SPEC.md#recording-operation-与阶段事实) | SC-AG-220、224，query/load、revision 与事件计数；含原 R 新增畸形或非 Tool 附件先 conflict，允许空白差异的规范同引用认回。非 Tool 字段类型负例 | 仅新增引用的必要记录，Q11/Q13 更广机制未实施 |
+| 丢引用与交付解除未知 | [SPEC Tool 交付解除未知](../SPEC.md#tool-交付解除未知) | SC-AG-221 | 协议限制保留，不声明跨重启 release 引用保管或 exactly-once |

@@ -119,15 +119,27 @@ export type ControlStage =
   | 'physically-stopped'
   | 'duty-released'
 export type ControlStageFact = Readonly<{ state: 'reached' | 'unresolved'; source: Evidence }>
+type ToolControl = Extract<ExecutionControl, { kind: 'interrupt-tool' | 'background-tool' }>
 export type ControlRecord = Readonly<{
   operation: AgentOperationId
-  command: ExecutionControl
   stages: Readonly<
     { accepted: ControlStageFact } & Partial<
       Record<Exclude<ControlStage, 'accepted'>, ControlStageFact>
     >
   >
-}>
+}> &
+  (
+    | Readonly<{
+        command: ToolControl
+        toolInvocation: T.ToolInvocationRef
+        toolOperation: T.ToolOperationRef | null
+      }>
+    | Readonly<{
+        command: Exclude<ExecutionControl, ToolControl>
+        toolInvocation?: never
+        toolOperation?: never
+      }>
+  )
 export type ResultResponsibility = Readonly<{
   result: ProducedResult
   consumption: ConsumptionId

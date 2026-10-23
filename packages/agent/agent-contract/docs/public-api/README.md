@@ -25,7 +25,7 @@
 - [evaluation.ts](../../src/evaluation.ts)：纯求值的值与端口。有 `ProducedResult`、`InputBatch`、`ProgressionDirective`、`Waiting`、`AgentConclusion`、`FailureCandidate`、`PreparedContextTransition`、`Failure` 与 `Reply`，原调用的 `ModelPurpose`、`PendingCall`、`ActionJudgment`、`Action`、`ActionBarrier`、`ActionSlot`、`ActionBatch`，回复准入的 `ModelReplyAdmission`、`ReplyAdmissionProjection`、`ReplyAdmissionPage`，守卫的 `GuardLevel` 与 `GuardFact`，`AgentCheckpoint`、`RuntimeConditions`、`ProducerDecisionView`、`AdvancementFact`、`LoopFacts`、`Next` 与 `AgentEvaluator`。
 - [execution.ts](../../src/execution.ts)：`LoopFacts` 引用的执行记录类型 `ExecutionControl`、`ControlStage`、`ControlStageFact`、`ControlRecord` 与 `ResultResponsibility`，与“托管协调与运行实例”一节的类型同在这个文件。
 
-Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定输入。提交未知或回包丢失时按该引用对账，可信 not-accepted 才沿原身份再受理。当前资格与原 ACK result/evidence 保持。Tool 关联由 Tool 契约与后续组合任务拥有。见 [Model 引用契约](../../../../model/model-contract/SPEC.md#可保存调用引用)。
+Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定输入。提交未知或回包丢失时按该引用对账，可信 not-accepted 才沿原身份再受理。当前资格与原 ACK result/evidence 保持。Tool 在 invoke 前保存无 reference、call 或 admission 的 intent 与完整原请求材料。accepted 或 commit-unknown 带引用时保存 associated；association-unknown 保留 intent，沿完整原请求和 consumer 重入；rejected 保留历史关联。Tool 关联与控制引用的行为归 [Agent SPEC](../../SPEC.md#tool-调用关联与控制引用)。见 [Model 引用契约](../../../../model/model-contract/SPEC.md#可保存调用引用)。
 
 ProgressionDirective 是 Loop 下一步所需的具体推进要求，不是权限或协作模式的复制。CurrentConditions 的受信适配器把合法协作设置投影为该值并保存依据，Agent 不解释 never/auto_permission/bypass-permissions。RuntimeConditions 只是这项投影及其采用依据，不含守卫阶梯：守卫由 Agent 自持的守卫事实承载，见下文 `AgentCheckpoint.guard`。evaluate-completion 仅允许核完成条件，不等于批准完成；continue 不产生任意新效果许可。环境采用由相应请求/动作固定协议携带，Agent 不维护环境选择或权限策略状态机。
 
@@ -57,7 +57,7 @@ Next 的种类对应 [Loop 完整算法](../../../agent/docs/architecture/loop-a
 
 ModelReplyAdmission 是完整主模型回复在消息准入的最终事实，随原 execution 保存。原 call/resultVersion 唯一确定一项事实，step/action 与 source 必须匹配原主调用与最终准入结论。source 是消息准入提供者对该回复返回的接纳回执或拒收依据，见下文 `MessageHandoff`。消息准入不经过扩展，所以这项事实不记录扩展调用。相同事实重复提交不重复计数，异结论或异归属冲突。Journal.commit 同提交该事实、接续及输出，不能由普通事件观察单独增加次数。
 
-ActionBatch 的 `barrier` 是整批判断屏障的状态。closed 的 `judging` 列出链正在运行、尚未到达最终结论的动作，`asked` 列出正在等人的卡片轮次及其动作。一个动作同一时刻只出现在两者之一：链进入已询问时从 `judging` 移入 `asked`，以 `replay` 继续时移回 `judging`；该轮 present 确定失败时从 `asked` 移出，该动作的判断为 denied。open 带屏障依据与按原顺序列出的获准动作。all-denied 表示本批动作在判断阶段全部被拒绝。`slots` 按原动作顺序排列，每个槽位记录该动作的结果承接进度：denied、dispatched、result 或 background。屏障打开或记为 all-denied 时，判断为 denied 的动作建立 denied 槽位。获准动作交 Tool 之后，按 Tool 是否受理建立 dispatched 或 denied 槽位。所以全拒时每个动作也有槽位，单结果经过与消息准入的进度随 checkpoint 保存。`each` 是该槽位单结果经过中的扩展调用，后台槽位不经过单结果范围，`each` 为 null。`candidate` 是交消息准入的候选消息：结果槽位是工具结果消息，拒绝槽位是拒绝消息，后台槽位由占位形成。`handoff` 是消息准入的回执。`batchPass` 是整批经过中的扩展调用，尚未经过时为 null。后台最终结果到达时，原槽位保持 background，结果以原 PendingCall 的 consumption 到达并由 Loop 以 consume 消费。行为见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”与“[工具执行与结果承接](../../SPEC.md#工具执行与结果承接)”。
+ActionBatch 的 `barrier` 是整批判断屏障的状态。closed 的 `judging` 列出链正在运行、尚未到达最终结论的动作，`asked` 列出正在等人的卡片轮次及其动作。一个动作同一时刻只出现在两者之一：链进入已询问时从 `judging` 移入 `asked`，以 `replay` 继续时移回 `judging`；该轮 present 确定失败时从 `asked` 移出，该动作的判断为 denied。open 带屏障依据与按原顺序列出的获准动作。all-denied 表示本批动作在判断阶段全部被拒绝。`slots` 按原动作顺序排列，每个槽位记录该动作的结果承接进度：denied、dispatched、result 或 background。屏障打开或记为 all-denied 时，判断为 denied 的动作建立 denied 槽位。获准动作的 invoke 返回 accepted 后保存 associated 并建立 dispatched 槽位。commit-unknown 保存 associated 后对账，association-unknown 保留 intent，rejected 仅在无保留的历史受理或未决尝试时建立 denied 槽位；否则保留原 pending、完整请求、consumer 与 effect intent，缺槽位保持未决，原 open 屏障不变，T3/T5 不判完成。所以全拒时每个动作也有槽位，单结果经过与消息准入的进度随 checkpoint 保存。`each` 是该槽位单结果经过中的扩展调用，后台槽位不经过单结果范围，`each` 为 null。`candidate` 是交消息准入的候选消息：结果槽位是工具结果消息，拒绝槽位是拒绝消息，后台槽位由占位形成。`handoff` 是消息准入的回执。`batchPass` 是整批经过中的扩展调用，尚未经过时为 null。后台最终结果到达时，原槽位保持 background，结果以原 PendingCall 的 consumption 到达并由 Loop 以 consume 消费。行为见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”与“[工具执行与结果承接](../../SPEC.md#工具执行与结果承接)”。
 
 ReplyAdmissionProjection 由权威事实按提交顺序派生，through 固定执行事实范围，rule 固定计数规则。rejected 增加连续及累计否决数，admitted 将连续数归零，累计数保留。计数为非负十进制整数编码。内部重试、模型失败、压缩、扩展调用、新输入和执行挂接更换不产生主回复准入事实。初始零值须以该执行无既有准入事实为依据；恢复时不得从零起算而丢掉历史。admitted 按上述规则使连续数归零，不改变累计数。循环守卫的阶梯由循环判断这一受信系统扩展按其策略从原始事实计算，不直接等同于该计数。
 
@@ -77,7 +77,7 @@ readReplyAdmissions 按原 through 返回有序事实页，after/next 只在同�
 
 `SelectedModel.recipient` 是请求实际面向的模型，由路由名和档案的精确采用组成。`resolution` 只能是可选的胜出档案。`history` 与同一次准备交给 prepare 的历史依据相同。行为见 SPEC 的“[模型选择](../../SPEC.md#模型选择)”。
 
-`position` 在 `PendingCall`、`ModelSelection.select`、`ModelContextReader.read`、`RequestPreparation.prepare` 与 `Preparation` 中是同一个值：这次调用或准备服务的原消费位置，带拥有者、工作、位置与用途四个子字段。它是 Agent 交给 Model 与 Tool 的 `consumer`，Agent 一侧按它的角色命名。`AgentMaterials.preserve` 的 `consumer` 是材料的消费方，不是消费位置，所以保留原名。
+`position` 在 `PendingCall`、`ModelSelection.select`、`ModelContextReader.read`、`RequestPreparation.prepare` 与 `Preparation` 中是同一个值：这次调用或准备服务的原消费位置，带拥有者、工作、位置与用途四个子字段。Tool 请求的 `consumer` 与它的 owner、work、position、purpose 逐字段相等。Model 仍按原 consumer 规则，Agent 一侧按位置角色命名。`AgentMaterials.preserve` 的 `consumer` 是材料的消费方，不是消费位置，所以保留原名。
 
 `ModelContextReader` 在装配时绑定到模型这一个消费者，没有选择其他消费者的参数。`position` 是这次读取服务的消费位置，不是读取的受众。`adopted` 取自 checkpoint 的 `adoptedContext`，`transition` 只在压缩提交之后的读取中给出。`ModelContextRead.content` 由 Context 决定，`coverage` 在最终请求记录时保存到 `adoptedContext`。行为见“[Runtime Context 的消费](../../SPEC.md#runtime-context-的消费)”。
 
@@ -131,7 +131,7 @@ DecisionCards 是 Agent 定义的卡片端口，由人在回路领域的适配�
 
 ActionAdmission 是 Agent 定义的动作准入端口，由授权领域的适配器实现，对应授权的 [AU-04](../../../../identity/authorization/SPEC.md#au-04-当前准入与结果) 与 [AU-05](../../../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验)。输入是原动作、生效参数、工具定义的精确采用引用、Runtime Context 私有块中的权限输入，以及人对本动作卡片的答复（没有时为 null）。四类结果与 AU-04 的四类对应：allow 带准入证据，deny 带原因与依据，need-decision 带卡片草稿，unavailable 不放行。allow 的 `evidence` 是 ActionJudgment allowed 分支的 `evidence`，Tool 在发起前按它与当前权限再核。该端口由执行动作之前这条链末尾的受信系统扩展消费，作者不直接调用它。行为见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”。
 
-MessageHandoff 是 Agent 定义的消息准入端口，由外部协调者或独立调用方的提供者实现。`accept` 按来源校验候选消息，返回接纳回执或拒收结果。来源有六种。外部输入的拒收后果由产品规定。模型完整回复、工具结果、被拒绝的动作、系统提醒与压缩转换消息只因校验失败或保存失败被拒收，提供者不在本端口做业务否决，拒收后果归 Agent 自己。`action-denied` 是判断阶段或 Tool 受理时被拒绝的动作，它没有 Tool 调用，也没有结果，`evidence` 是拒绝依据。外部输入由 Agent 在 invoke 或 submit 的受理之内调用，`advance` 为 null。其他来源带当前执行挂接。提供者在接纳之前完成必要的模态转换。accepted 的 `admission` 就是 CallerCommit message 分支与 ModelReplyAdmission 的 source 所用的依据。rejected 的 `reason` 受与 Failure 诊断相同的内容限制。幂等身份是操作身份加来源身份。行为见 SPEC 的“[消息准入](../../SPEC.md#消息准入)”。
+MessageHandoff 是 Agent 定义的消息准入端口，由外部协调者或独立调用方的提供者实现。`accept` 按来源校验候选消息，返回接纳回执或拒收结果。来源有六种。外部输入的拒收后果由产品规定。模型完整回复、工具结果、被拒绝的动作、系统提醒与压缩转换消息只因校验失败或保存失败被拒收，提供者不在本端口做业务否决，拒收后果归 Agent 自己。`action-denied` 是判断阶段或 Tool 受理时确定拒绝、且保留事实证明没有已受理或未决尝试的动作，它没有 Tool 调用，也没有结果，`evidence` 是拒绝依据。外部输入由 Agent 在 invoke 或 submit 的受理之内调用，`advance` 为 null。其他来源带当前执行挂接。提供者在接纳之前完成必要的模态转换。accepted 的 `admission` 就是 CallerCommit message 分支与 ModelReplyAdmission 的 source 所用的依据。rejected 的 `reason` 受与 Failure 诊断相同的内容限制。幂等身份是操作身份加来源身份。行为见 SPEC 的“[消息准入](../../SPEC.md#消息准入)”。
 
 ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采用的实现；名称相同不代表精确采用相同。进行中的 Passage 不迁移为新版语义。缺原实现或材料时返回不可用或保留具名 dependency wait，不自动重判。精确接续分支归[扩展接续](../../../agent/docs/architecture/mechanisms.md#扩展经过与精确采用接续)。AgentAdoptions.handover 的行为见 SPEC 的“[采用交接](../../SPEC.md#采用交接)”，操作要素见[定义专题](definition.md#采用解析与交接)。
 
@@ -202,3 +202,9 @@ commit、open、attach、load、recordResult、recordControl、tryFinish、recor
 ## 实现工厂
 
 配置、依赖聚合及构造函数由 [通用实现](../../../agent/docs/public-api.md) 拥有。这里的提供者端口仍是可替换边界，不指定实现。
+
+## Tool 引用的公开消费边界
+
+`PendingCall.tool` 按 association 区分 intent 与 associated，禁止旧 call、admission 字段。`tool-active`、`tool-result`、`tool-background` 的 pending 必须是 associated，unresolved 可以保留 intent。`ActionJudgment.allowed.request` 使用 `T.ToolInvokeRequest`。完整材料、consumer 四字段投影及恢复规则由 [SPEC](../../SPEC.md#tool-调用关联与控制引用)拥有。
+
+`ExecutionControl` 保持原公开输入。Tool `ControlRecord` 保存受理时的 toolInvocation 和 nullable toolOperation，非 Tool 分支不含这两个字段。`AgentJournal.recordControl` 增加可选 toolOperation，以原记录的调用快照校验迟到引用。先核当前资格与附件租户，以 resolver 的规范身份比较引用，再认回原 recording operation 或因异输入冲突，之后才校验新 target、保留引用与 stage。原 R 增加畸形或非 Tool 附件也先 conflict，外租户先 denied。新 operation 附引用是真实写入。精确 invalid 的 field/reason、denied 的 action 及保留引用损坏的 unavailable 归 SPEC 的引用边界失败表。阶段不变时不重复事件或覆盖原阶段回执，详见 [Recording operation 与阶段事实](../../SPEC.md#recording-operation-与阶段事实)。这些是已采用的契约目标，源码类型与测试消费者迁移不由本文档写回证明。

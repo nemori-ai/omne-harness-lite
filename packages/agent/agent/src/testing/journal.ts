@@ -41,6 +41,12 @@ import type {
 } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
+import {
+  resolveToolInvocationRef,
+  resolveToolOperationRef,
+  type ToolInvocationRef,
+  type ToolOperationParts,
+} from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   attachmentIdOf,
@@ -267,15 +273,90 @@ function sameResult(left: ResultResponsibility['result'], right: ResultResponsib
   )
 }
 
-/**
- * The producer call that a pending call names: a Tool call keeps its id, and a Model call is read
- * back from its saved ModelInvocationRef for the execution's tenant. A reference that does not
- * resolve for that tenant names no call of this execution.
- */
-function callOf(pending: PendingCall, tenant: TenantId): string | undefined {
-  if (pending.kind === 'tool') return pending.call
-  const parts = resolveModelInvocationRef(pending.reference, tenant)
-  return 'failure' in parts ? undefined : parts.ok.call
+type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
+type ControlTarget =
+  | Pick<ToolControlRecord, 'command' | 'toolInvocation' | 'toolOperation'>
+  | Pick<Exclude<ControlRecord, ToolControlRecord>, 'command'>
+
+function controlTarget(
+  command: ExecutionControl,
+  calls: readonly PendingCall[],
+  tenant: TenantId,
+): Outcome<ControlTarget, Failure> {
+  if (command.kind === 'cancel' || command.kind === 'suspend') return succeed({ command })
+  if (command.kind === 'interrupt-model') {
+    const matches = calls.some(pending => {
+      if (pending.kind !== 'model') return false
+      const parts = resolveModelInvocationRef(pending.reference, tenant)
+      return 'ok' in parts && parts.ok.call === command.call
+    })
+    return matches
+      ? succeed({ command })
+      : fail(invalid('command.call', 'not a call of this execution'))
+  }
+  let matched: Extract<PendingCall, { association: 'associated' }> | undefined
+  let admission: ToolOperationParts['admission'] | undefined
+  let ambiguous = false
+  for (const pending of calls) {
+    if (pending.kind !== 'tool' || pending.association !== 'associated') continue
+    const parts = resolveToolInvocationRef(pending.reference, tenant)
+    if ('failure' in parts) {
+      return fail(
+        parts.failure.kind === 'foreign-tenant'
+          ? denied('control')
+          : invalid('command.call', 'invalid-tool-invocation-reference'),
+      )
+    }
+    if (parts.ok.call !== command.call) continue
+    if (matched !== undefined && admission !== parts.ok.admission) ambiguous = true
+    matched = pending
+    admission = parts.ok.admission
+  }
+  if (ambiguous) return fail(invalid('command.call', 'ambiguous-associated-tool-call'))
+  if (matched === undefined) return fail(invalid('command.call', 'no-associated-tool-call'))
+  return succeed({ command, toolInvocation: matched.reference, toolOperation: null })
+}
+
+function isToolControl(record: ControlRecord): record is ToolControlRecord {
+  return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
+}
+
+function attachToolOperation<P>(
+  record: ControlRecord,
+  input: Parameters<AgentJournal<P>['recordControl']>[0],
+  supplied: ToolOperationParts | undefined,
+): Outcome<ControlRecord, Failure> {
+  if (!isToolControl(record)) {
+    return supplied === undefined
+      ? succeed(record)
+      : fail(invalid('toolOperation', 'not-applicable-to-control'))
+  }
+  const invocation = resolveToolInvocationRef(record.toolInvocation, input.tenant)
+  if ('failure' in invocation) {
+    return fail(
+      invocation.failure.kind === 'foreign-tenant'
+        ? denied('recordControl')
+        : {
+            kind: 'unavailable',
+            owner: 'AgentJournal',
+            diagnostic: 'invalid-retained-tool-invocation',
+          },
+    )
+  }
+  if (supplied === undefined || input.toolOperation === undefined) return succeed(record)
+  if (supplied.call !== invocation.ok.call || supplied.admission !== invocation.ok.admission) {
+    return fail(conflict(input.operation))
+  }
+  if (record.toolOperation === null) {
+    return succeed({ ...record, toolOperation: input.toolOperation })
+  }
+  const retained = resolveToolOperationRef(record.toolOperation, input.tenant)
+  return 'ok' in retained &&
+    retained.ok.call === supplied.call &&
+    retained.ok.admission === supplied.admission &&
+    retained.ok.operation === supplied.operation
+    ? succeed(record)
+    : fail(conflict(input.operation))
 }
 
 function sameEvidence(left: Evidence | null, right: Evidence | null): boolean {
@@ -985,15 +1066,8 @@ export function createMemoryAgentJournal<P>(
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const command = input.command
-        if (command.kind !== 'cancel' && command.kind !== 'suspend') {
-          const call = command.call
-          if (
-            !execution.checkpoint.calls.some(pending => callOf(pending, execution.tenant) === call)
-          ) {
-            return answer(fail(invalid('command.call', 'not a call of this execution')))
-          }
-        }
+        const target = controlTarget(input.command, execution.checkpoint.calls, execution.tenant)
+        if ('failure' in target) return answer(target)
         // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'control', revision)
@@ -1005,7 +1079,7 @@ export function createMemoryAgentJournal<P>(
           apply: () => {
             execution.controls.push({
               operation: input.operation,
-              command: copy(command),
+              ...copy(target.ok),
               stages: { accepted: { state: 'reached', source: evidence } },
             })
             execution.revision = revision
@@ -1142,33 +1216,63 @@ export function createMemoryAgentJournal<P>(
       })
     },
 
-    recordControl(input) {
-      const key = semanticKey('recordControl', input)
+    async recordControl(request) {
+      const access = owned(request, 'recordControl')
+      if ('failure' in access) return access
+      const toolOperation = request.toolOperation
+      const supplied =
+        toolOperation === undefined
+          ? undefined
+          : resolveToolOperationRef(toolOperation, request.tenant)
+      if (supplied && 'failure' in supplied && supplied.failure.kind === 'foreign-tenant') {
+        return fail(denied('recordControl'))
+      }
+      const input = {
+        principal: request.principal,
+        tenant: request.tenant,
+        execution: request.execution,
+        operation: request.operation,
+        target: request.target,
+        stage: request.stage,
+        state: request.state,
+        source: copy(request.source),
+        ...(toolOperation === undefined ? {} : { toolOperation }),
+      }
+      const key = semanticKey(
+        'recordControl',
+        supplied && 'ok' in supplied ? { ...input, toolOperation: supplied.ok } : input,
+      )
       return write('recordControl', input, key, () => {
         const found = owned(input, 'recordControl')
         if ('failure' in found) return answer(found)
         const execution = found.ok
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
+        if (supplied && 'failure' in supplied) {
+          return answer(fail(invalid('toolOperation', 'malformed-tool-operation-reference')))
+        }
         const index = execution.controls.findIndex(record => record.operation === input.target)
         const record = execution.controls[index]
         if (record === undefined)
           return answer(fail(invalid('target', 'not a control of this execution')))
+        const attached = attachToolOperation(record, input, supplied?.ok)
+        if ('failure' in attached) return answer(attached)
+        const referenceAdded = attached.ok !== record
         if (!STAGES[record.command.kind].has(input.stage)) {
           return answer(fail(invalid('stage', `not a stage of ${record.command.kind}`)))
         }
         const fact = record.stages[input.stage]
         const stageKey = JSON.stringify([input.target, input.stage])
-        if (
+        const sameFact =
           fact !== undefined &&
           fact.state === input.state &&
           sameEvidence(fact.source, input.source)
-        ) {
+        if (sameFact && !referenceAdded) {
           // SPEC "六个阶段": a new attachment recognizes a stage that already holds; it is not recorded twice.
           const first = execution.stageReceipts.get(stageKey)
           if (first !== undefined) return answer(succeed(copy(first)))
         }
-        if (fact !== undefined && fact.state === 'reached') {
+        if (!sameFact && fact !== undefined && fact.state === 'reached') {
           return answer(fail(conflict(input.operation)))
         }
         // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
@@ -1182,17 +1286,17 @@ export function createMemoryAgentJournal<P>(
           receipt,
           apply: () => {
             execution.controls[index] = {
-              ...record,
+              ...attached.ok,
               stages: {
                 ...record.stages,
                 [input.stage]: { state: input.state, source: copy(input.source) },
               },
             }
-            execution.stageReceipts.set(stageKey, receipt)
+            if (!sameFact) execution.stageReceipts.set(stageKey, receipt)
             execution.revision = revision
             // 临时做法，待 #558 裁定：ended 之后 recordControl 照常记录阶段事实，但不投影事件，因为
             // ended 事件是 execution 的最后一个事件（SPEC「条件终结」「终态后与 ended」）。
-            if (ended) return
+            if (ended || sameFact) return
             // 临时做法，待 #558 裁定（M04-1 的读法）：按 SPEC「六个阶段」把阶段事实投影为 control 事件。
             appendEvents(
               execution,
