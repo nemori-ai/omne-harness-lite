@@ -16,11 +16,12 @@
 
 ## 本包事实
 
-本目录有三类固定输入：
+本目录有四类固定输入：
 
 - `adoptions.json`：每条记录一行 `{name, revision, digest}`。`pnpm run fingerprints` 只追加新记录的行；已有行的摘要会变时，脚本拒绝写入。`adoptions.spec.ts` 双向核对。
 - `records/<name>/<revision>/`：每条记录一组回放夹具，共 12 组。目录名用 `encodeURIComponent` 编码，例如 `openai%2Fgpt-6-astra/1`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
 - `cases/<用例>/<name>/<revision>/`：其余封存用例，每个用例一个根目录，只含一条记录的夹具。`fixtures.spec.ts` 用只含该记录的家族逐个核对。
+- `captured/<name>/<revision>/`：真实网关回答的流，现有一组 `openai%2Fgpt-5.6-sol/1`。`fixtures.spec.ts` 用只含该记录的家族核对，见下文“真实流”。
 
 每组夹具有三个文件，格式归 [pi-ai-transport SPEC“家族测试助手”](../../../pi-ai-transport/SPEC.md)：
 
@@ -33,6 +34,23 @@
 用例表在 [`../support/legacy-cases.ts`](../support/legacy-cases.ts)。每个用例写明来源测试的文件、行号与测试名，期望请求体与期望事实都在表中手写。`pnpm run fixtures` 把表写成本目录的文件。`fixtures.spec.ts` 先核对文件与表逐字相等，再用真实绑定编码与解码。期望事实不由引擎生成。
 
 来源是封存件 `packages.0.0.1.legacy/model/pi-ai-transport/tests/` 的内联 SSE 用例。封存的 `tests/fixtures/openai` 不含 SSE 帧。
+
+### 真实流
+
+`captured/openai%2Fgpt-5.6-sol/1` 来自 #466 在 2026-10-23 经 OpenRouter 发出的一次直接请求。请求是 `openai/gpt-5.6-sol`，推理强度 medium，输出上限 1024，问一个需要推理的问题。三个文件的来源如下：
+
+- `stream.sse`：网关回答的 SSE 正文，按收到的字节原样保存。正文有 92 个 `reasoning.summary` 片段与一个 `reasoning.encrypted` 项，格式都是 `openai-responses-v1`，加密项带真实的 `rs_` id。尾帧 usage 的 `reasoning_tokens` 是 91。
+- `request.json`：`body` 是当次实际发出的请求体，`request` 是编码成这个请求体的固定请求。
+- `facts.json`：本包当时的引擎对 `stream.sse` 的解码结果。它不是独立的期望，只用来发现解码的变化。
+
+`fixtures.spec.ts` 另从 `stream.sse` 直接取出片段与加密项，独立核对 `facts.json` 的要点：
+
+- 全部摘要片段按顺序拼成一个思考块，每个片段只出现一次。
+- 加密项原样成为一个推理状态部件，并与思考块配对。
+- 回答文本封口。
+- 用量取尾帧，调用以 `completed`/`stop` 收场。
+
+入库前，正文、请求与事实都经过 model-host-local 录制器的密钥模式检查，没有命中。正文只含模型输出，不含响应头。这组文件不是录制器的回放件，没有旁注。
 
 ### 对照表
 
