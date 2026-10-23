@@ -13,6 +13,8 @@ import {
   type TrackCommit,
 } from '../src/integration/ri-notes.ts'
 import { githubReaders } from '../src/integration/ri-source.ts'
+import type { TaskBinding } from '../src/delivery/binding.ts'
+import { body as cardBody } from './fixtures/integration.ts'
 import { registry, table } from './fixtures/lines.ts'
 
 /**
@@ -207,6 +209,16 @@ describe('ri-notes sections', () => {
     )
     expect(sections.contracts).toEqual({ kind: 'none' })
   })
+  it('does not read「无」 when the section also has an indented or quoted list line', () => {
+    for (const line of [
+      '  - packages/model/model-contract：additive',
+      '   - packages/model/model-contract：additive',
+      '> - packages/model/model-contract：breaking',
+    ])
+      expect(parsePullSections(`## 契约变化\n\n无\n\n${line}\n`).contracts).toEqual({
+        kind: 'empty',
+      })
+  })
   it('ignores fenced code and nested items, and reads every occurrence of a section', () => {
     const sections = parsePullSections(
       [
@@ -396,7 +408,7 @@ describe('ri-notes aggregation', () => {
       [sha(4), 12],
     ])
     expect(contractsSection(notes)).toBe(
-      `待确认：提交 ${sha(5).slice(0, 9)}、PR #11、PR #12 的契约变化未知，逐个核对后改写本节。\n`,
+      `- 待确认：提交 ${sha(5).slice(0, 9)}、PR #11、PR #12 的契约变化未知，逐个核对后改写本节。\n`,
     )
     expect(codes(notes)).toContain('contracts-unknown')
     // With every PR known, the same declarations give「无」.
@@ -424,7 +436,63 @@ describe('ri-notes aggregation', () => {
       }),
     )
     expect(contractsSection(notes)).toBe(
-      '- packages/model/model-contract：additive\n\n待确认：PR #11 的契约变化未知，逐个核对后改写本节。\n',
+      '- packages/model/model-contract：additive\n- 待确认：PR #11 的契约变化未知，逐个核对后改写本节。\n',
+    )
+  })
+})
+
+describe('ri-notes across two layers', () => {
+  it('keeps an unknown of a child track unknown when its output is pasted into the parent', () => {
+    const child = riNotes(
+      input({
+        track: 'model',
+        commits: [
+          unitCommit(2, 10, 'refs/heads/integration/model'),
+          {
+            commit: sha(3),
+            subject: 'direct push',
+            coverage: 'checked',
+            unit: { kind: 'missing' },
+          },
+        ],
+        pulls: {
+          10: work(
+            body(
+              ['- #20 revision 1 attempt `20-a1`：无'],
+              ['- packages/model/model-contract：additive'],
+            ),
+            'integration/model',
+          ),
+        },
+        cards: { 20: { line: 'model', nature: 'impl', change: 'additive' } },
+      }),
+    )
+    expect(child.contractGaps).toHaveLength(1)
+    const parent = riNotes(
+      input({
+        commits: [unitCommit(5, 30)],
+        pulls: {
+          30: {
+            headRef: 'integration/model',
+            baseRef: 'integration/legacy-refactor',
+            body: child.markdown,
+          },
+        },
+        cards: { 20: { line: 'model', nature: 'impl', change: 'additive' } },
+      }),
+    )
+    expect(parent.cards.map(card => [card.issue, card.attempt])).toEqual([[20, '20-a1']])
+    expect(parent.contracts.map(item => [item.path, item.level])).toEqual([
+      ['packages/model/model-contract', 'additive'],
+    ])
+    expect(parent.contractGaps).toEqual([
+      { commit: sha(5), pr: 30, reason: '「契约变化」有未计入的行' },
+    ])
+    expect(parent.findings.find(f => f.code === 'contract-line-invalid')?.message).toContain(
+      '仍有「待确认」行',
+    )
+    expect(contractsSection(parent)).toBe(
+      '- packages/model/model-contract：additive\n- 待确认：PR #30 的契约变化未知，逐个核对后改写本节。\n',
     )
   })
 })
@@ -703,6 +771,27 @@ describe('ri-notes GitHub readers', () => {
       const read = readers(issue(body)).readCard(7)
       return read.kind === 'read' ? read.card.binding : read
     }
+    const task: TaskBinding = {
+      schemaVersion: 1,
+      issue: {
+        repository: 'owner/repo',
+        id: 'I_7',
+        number: 7,
+        url: 'https://github.com/owner/repo/issues/7',
+      },
+      revision: 2,
+      attempt: '7-a2',
+      responsible: 'human',
+      branch: 'human/issue-7-x',
+      route: { kind: 'track', track: 'legacy-refactor' },
+      completionTarget: 'track',
+      taskBase: 'a'.repeat(40),
+      writeScope: ['tools'],
+      dispatch: 'https://github.com/owner/repo/issues/7#issuecomment-1',
+      conditions: [],
+      authorization: [],
+    }
+    expect(binding(cardBody(task))).toEqual({ kind: 'found', revision: 2, attempt: '7-a2' })
     expect(binding('无 binding')).toEqual({ kind: 'absent' })
     expect(binding('```json omne-integration-binding:v1\n{}\n```')).toEqual({
       kind: 'invalid',

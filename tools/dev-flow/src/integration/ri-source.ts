@@ -37,7 +37,7 @@ function unitRecord(text: string, commit: string): UnitRecord {
   }
 }
 /** A unit tag's record. A Git failure propagates; a tag or record defect is an invalid unit. */
-function readUnit(root: string, policy: Policy, commit: string, oid: string): CommitUnit {
+export function readUnit(root: string, policy: Policy, commit: string, oid: string): CommitUnit {
   let message: string
   try {
     message = tagMessage(root, policy.transport.location, oid, policy.timeouts.networkMs)

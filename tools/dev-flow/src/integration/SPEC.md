@@ -157,7 +157,7 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 - 每个 PR 经 `gh api` 读取正文、head 与 base。head 为上游分支的是同步 PR，不读两节。head 是 registry 中以源轨道为 `parent` 的轨道分支时为提升 PR，其余为个人分支的 PR。提升 PR 与个人分支的 PR 都读两节。
 - 一节从 `## <节名>` 标题开始，到下一个一级或二级标题或分隔线为止。分隔线是单独一行的 `---`、`***` 或 `___`。HTML 注释与围栏代码块中的内容不计。同名的节出现多次时都读。
 - 节内只读顶层列表行，即行首最多一个空格后接 `-`、`*` 或 `+`。说明文字与缩进的子列表不计。
-- 「契约变化」没有列表行而有一行「无」时，表示 PR 没有改动契约成员。契约成员路径可以写成 Markdown 代码。
+- 「契约变化」没有顶层列表行、有一行「无」，并且没有任何列表样式的行（包括缩进的行与引用块中的 `> - …`）时，表示 PR 没有改动契约成员。有列表样式的行而没有顶层列表行时，该节按没有列表行处理。契约成员路径可以写成 Markdown 代码。
 - 列表行逐字符合格式时直接采用。「所含的卡」的行有编号、修订与 attempt 而分隔不对时，仍计入并报告 `cards-line-invalid`。「契约变化」的行有路径与级别而分隔不对时，仍计入并报告 `contract-line-invalid`。发现写明该行是否计入。其他列表行报告且不计入。
 - 同一张卡取修订最大的声明。修订相同时取范围中最晚的 PR。明确声明优先于推测。
 - PR 没有声明「所含的卡」或该节没有列表行时，报告 `pr-section-missing`，并按分支名中的 `issue-<N>` 推测卡。该节的列表行都不能计入时，同样推测。推测的卡的修订与 attempt 取卡当前正文的 binding，条件写「待确认」，并报告 `card-inferred`。推测不出、卡读不到、正文没有 binding 或 binding 不合格时，报告 `card-unresolved` 并写明原因，该卡不进入输出。
@@ -166,16 +166,16 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 ### 契约变化
 
 - 同一契约成员取各 PR 声明的最高级别，按 PR 保留说明。
-- 下列提交的契约变化未知：没有 PR 的提交（包括下限之前的提交）、PR 读不到、PR 没有声明「契约变化」或该节没有列表行、该节有未计入的行。同步 PR 不计。有未知时，「契约变化」在已知成员之后写一行「待确认」并列出这些 PR 与提交，不写「无」，并报告 `contracts-unknown`。JSON 的 `contractGaps` 逐个列出原因。只有全部已知且没有成员时才写「无」。
+- 下列提交的契约变化未知：没有 PR 的提交（包括下限之前的提交）、PR 读不到、PR 没有声明「契约变化」或该节没有列表行、该节有未计入的行。同步 PR 不计。有未知时，「契约变化」在已知成员之后写一个列表行 `- 待确认：…`，列出这些 PR 与提交，不写「无」，并报告 `contracts-unknown`。读 PR 时，以「待确认」开头的列表行总是不计入的行，所以子轨道的输出原样贴进上一层的提升 PR 后，上一层仍把这个 PR 计为未知。JSON 的 `contractGaps` 逐个列出原因。只有全部已知且没有成员时才写「无」。
 - 路径不是线归属表 `contracts` 中的成员时报告 `contract-path-unknown`。PR 的某项级别高于该 PR 所含卡的最高契约变更时报告 `contract-level-exceeds-card`，所含卡中有读不到契约变更的卡时不核对。源轨道不是联调轨道而有 breaking 时报告 `contract-breaking-off-integration`。
 - 命令行不核对契约 API 快照，JSON 的 `contractCheck.kind` 为 `unavailable` 并写明原因。`riNotes` 的输入 `diffContracts` 可以提供从合并点到轨道头的成员级快照差异，类型为 `ContractDiff`。差异覆盖的范围不是本次范围时报告 `contract-diff-stale`，不比较。差异的 none、additive 分别与声明的 none、additive 相符，review 只与 breaking 相符，不符时报告 `contract-diff-mismatch`。
 
 ### 输出与失败
 
 - JSON 输出到标准输出，含源轨道、可信上游、核对下限、逐提交的 unit 与 PR、汇总的卡、契约变化与 `contractGaps`、`contractCheck`、发现与 Markdown。
-- `--format markdown` 只把两节输出到标准输出，可直接贴进 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总：发现总数、各代码的条数与 `contractCheck`。
+- `--format markdown` 只把两节输出到标准输出，供贴进提升 PR。推测的卡的条件与「待确认」行须先按发现改写。发现逐条以 JSON 行写到标准错误，最后一行是汇总：发现总数、各代码的条数与 `contractCheck`。
 - 每条发现带 `severity:"report"`、代码、定位与说明。定位取 `commit`、`pr`、`issue`、`section` 与 `path` 中适用的几项。发现不改变退出码。
-- PR 或卡读取的已知失败（GitHub 的错误响应、身份不符、响应字段不合格）报告 `pr-unreadable` 或 `card-unreadable`，其余照常输出。其他错误不转为发现：远端 Git 读不到、`gh` 不能运行、registry 或线归属表缺失或不合格时，命令按本工具的失败约定退出 2。
+- PR 或卡读取的已知失败（GitHub 带 JSON 正文的错误响应、身份不符、响应字段不合格）报告 `pr-unreadable` 或 `card-unreadable`，其余照常输出。其他错误不转为发现，整次运行按本工具的失败约定退出 2：远端 Git 读不到、`gh` 不能运行、`gh` 的错误响应没有 JSON 正文（例如未认证）、registry 或线归属表缺失或不合格。
 - `ri-notes --help` 输出用法并退出 0。
 
 发现代码：
@@ -214,6 +214,6 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 
 ## 验证义务与限制
 
-持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；I15 的来源识别与非法覆盖值、事实齐备时写出 context、两次采集都不发 GraphQL 与 environment 读取，以及每一项评论、区块、运行与授权核对的反例，每个反例都不写 context；I15 的等待与超时用注入的时钟、睡眠与随机数在单元层验证；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。I16 的测试覆盖 v2 卡无发现与有发现、v1 卡、线归属表缺失和报告写入失败，每种情况下 context、标准输出与退出码都不变，报告只进标准错误。两次采集之间 milestone 与 updatedAt 一起变化时拒绝写入。I17 的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行、同卡取最新修订与 attempt、同步与提升 PR 的分类、子轨道的卡不报跨线、契约变化的合并与「待确认」，以及未声明两节、unit 缺失、别的线的卡、下限不在历史上与上游漂移各报一条可定位的发现。真实 Git 测试覆盖范围（含上次提升之后的同步合并）、起点标签与切换点给出的上游与下限、unit 读取，CLI 有发现时退出码为 0，Markdown 模式把发现写到标准错误。快照差异的核对只用注入的差异测试，没有与任何真实快照组合。GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限、云端代理、`delivery-facts` workflow 与宿主加载不由本模块的测试证明。
+持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；I15 的来源识别与非法覆盖值、事实齐备时写出 context、两次采集都不发 GraphQL 与 environment 读取，以及每一项评论、区块、运行与授权核对的反例，每个反例都不写 context；I15 的等待与超时用注入的时钟、睡眠与随机数在单元层验证；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。I16 的测试覆盖 v2 卡无发现与有发现、v1 卡、线归属表缺失和报告写入失败，每种情况下 context、标准输出与退出码都不变，报告只进标准错误。两次采集之间 milestone 与 updatedAt 一起变化时拒绝写入。I17 的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行、同卡取最新修订与 attempt、同步与提升 PR 的分类、子轨道的卡不报跨线、契约变化的合并与「待确认」、子轨道输出贴进上一层后仍为未知、有列表样式的行时不判「无」，以及未声明两节、unit 缺失、别的线的卡、下限不在历史上与上游漂移各报一条可定位的发现。真实 Git 测试覆盖范围（含上次提升之后的同步合并）、起点标签与切换点给出的上游与下限、起点标签指向另一条轨道作为上游及该分支不存在时拒绝、unit 读取（轻量标签为 invalid，Git 读取失败照常抛出），CLI 有发现时退出码为 0，Markdown 模式把发现写到标准错误。快照差异的核对只用注入的差异测试，没有与任何真实快照组合。GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限、云端代理、`delivery-facts` workflow 与宿主加载不由本模块的测试证明。
 
 Git 网络读取使用 policy 的 `timeouts.networkMs`，fetch 仅在本地缺对象时执行。超时或读取失败为 unknown。平台读取沿[Get an issue comment](https://docs.github.com/en/rest/issues/comments#get-an-issue-comment)。这些来源不代替实际运行证据。

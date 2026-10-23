@@ -171,10 +171,10 @@ pnpm run ri-notes --track <轨道 ID>
 命令读源轨道上游不包含的 first-parent 提交、它们的 unit 记录与 PR 正文，汇总各 PR 声明的「所含的卡」与「契约变化」。上游按起点标签与切换点确定，与 gate 相同。
 
 - 缺省把 JSON 写到标准输出，含逐提交的 unit 与 PR、汇总的卡、契约变化、发现与 Markdown。
-- `--format markdown` 只把两节写到标准输出，可以直接贴进提升 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总。
+- `--format markdown` 只把两节写到标准输出，供贴进提升 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总。
 - `ri-notes --help` 输出用法。
 
-命令只读，只报告。发现不改变退出码，也不进入 `pnpm run check`。远端 Git 读不到或 `gh` 不能运行时，命令失败并退出 2。
+命令只读，只报告。发现不改变退出码，也不进入 `pnpm run check`。远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
 
 贴进 PR 之前，先处理发现：
 
@@ -183,7 +183,7 @@ pnpm run ri-notes --track <轨道 ID>
 - `unit-invalid`、`unit-target-mismatch`：unit 记录不合格或不属于这条轨道。下限之前的提交也报告。
 - `lower-bound-unknown`、`lower-bound-not-ancestor`、`parent-registry-drift`：轨道的核对下限或上游登记有问题。
 - `card-other-line`、`card-line-unknown`：卡的交付线不属于这条轨道，或卡没有登记交付线。
-- `contracts-unknown`：有提交的契约变化未知，「契约变化」写的是「待确认」。JSON 的 `contractGaps` 列出这些提交与原因。逐个核对后改写本节。
+- `contracts-unknown`：有提交的契约变化未知，「契约变化」有一行 `- 待确认：…`。JSON 的 `contractGaps` 列出这些提交与原因。逐个核对后改写本节。原样贴进 PR 时，上一层的 `ri-notes` 仍把这个 PR 计为未知。
 - 其他 `contract-*` 与 `cards-*`：两节的行格式、路径或级别有问题。
 
 命令行不核对契约 API 快照，JSON 的 `contractCheck.kind` 为 `unavailable`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。

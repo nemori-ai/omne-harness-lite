@@ -14,6 +14,7 @@ import {
   type CardDeclaration,
   type ContractEntry,
   type PullSections,
+  UNKNOWN_MARK,
 } from './pr-sections.ts'
 
 const RANK = { none: 0, additive: 1, breaking: 2 } as const satisfies Record<ContractChange, number>
@@ -430,7 +431,9 @@ function contractLines(
       finding(
         'contract-line-invalid',
         { ...at, section: CONTRACTS_SECTION },
-        `PR #${pull.number}「${CONTRACTS_SECTION}」的行不符合「- <路径>：<none、additive 或 breaking>」，${counted ? '已按其中的路径与级别计入' : '未计入'}：${line}`,
+        line.startsWith(`- ${UNKNOWN_MARK}`)
+          ? `PR #${pull.number}「${CONTRACTS_SECTION}」仍有「${UNKNOWN_MARK}」行，所列来源的契约变化未知，未计入：${line}`
+          : `PR #${pull.number}「${CONTRACTS_SECTION}」的行不符合「- <路径>：<none、additive 或 breaking>」，${counted ? '已按其中的路径与级别计入' : '未计入'}：${line}`,
       ),
     ),
   }
@@ -721,8 +724,7 @@ function renderMarkdown(
     gaps.length > 0
       ? [
           ...members,
-          ...(members.length > 0 ? [''] : []),
-          `待确认：${[...new Set(unknown)].join('、')} 的契约变化未知，逐个核对后改写本节。`,
+          `- ${UNKNOWN_MARK}：${[...new Set(unknown)].join('、')} 的契约变化未知，逐个核对后改写本节。`,
         ]
       : members.length > 0
         ? members

@@ -36,6 +36,10 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/
 const HEADING = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/
 const BREAK = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/
 const ITEM = /^ ?[-*+][ \t]+(.*)$/
+/** Any list-like line: indented, nested or inside a block quote. */
+const LISTISH = /^[ \t>]*[-*+][ \t]+\S/
+/** The line this tool writes for unknown contract changes; it is never a known entry. */
+export const UNKNOWN_MARK = '待确认'
 /** Only the gate format: one space after each part and a full-width colon before the condition. */
 const CARD_LINE = /^- #([1-9]\d*) revision ([1-9]\d*) attempt `([^`\s]+)`：(\S.*)$/
 /** A card item with the gate's facts and other separators. */
@@ -136,12 +140,20 @@ function looseContractOf(match: RegExpExecArray | null): ContractEntry | undefin
   return { path: match[2], level, note: text.join('。') }
 }
 function parseContract(line: string, item: string): Parsed<ContractEntry> {
+  if (item.startsWith(UNKNOWN_MARK)) return { kind: 'invalid' }
   const exact = contractOf(CONTRACT_LINE.exec(line))
   if (exact !== undefined) return { kind: 'exact', entry: exact }
   const loose = looseContractOf(LOOSE_CONTRACT.exec(item))
   return loose === undefined ? { kind: 'invalid' } : { kind: 'loose', entry: loose }
 }
 
+/**
+ * A section without a top-level list line means「无」 only when it has a line「无」 and no
+ * list-like line at all, indented or quoted.
+ */
+function isNone(lines: readonly string[]): boolean {
+  return lines.some(line => line.trim() === '无') && !lines.some(line => LISTISH.test(line))
+}
 /** Reads the two sections of a PR body. Every occurrence of a section counts. */
 export function parsePullSections(body: string): PullSections {
   const cards = occurrences(body, CARDS_SECTION),
@@ -152,7 +164,7 @@ export function parsePullSections(body: string): PullSections {
     contracts:
       contractList === undefined
         ? { kind: 'absent' }
-        : contractList.kind === 'empty' && contracts.flat().some(line => line.trim() === '无')
+        : contractList.kind === 'empty' && isNone(contracts.flat())
           ? { kind: 'none' }
           : contractList,
   }

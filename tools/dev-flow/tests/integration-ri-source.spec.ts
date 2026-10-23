@@ -6,14 +6,17 @@ import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { git } from '../src/integration/git.ts'
-import { trackFacts } from '../src/integration/ri-source.ts'
+import { git, GitError } from '../src/integration/git.ts'
+import { parsePolicy } from '../src/integration/policy.ts'
+import { readUnit, trackFacts } from '../src/integration/ri-source.ts'
 import {
   commit,
   gateRecord,
   integrationFixture,
+  policyDocument,
   setGate,
   setStartTag,
+  trackEntry,
 } from './fixtures/integration.ts'
 
 const homes: string[] = []
@@ -183,6 +186,69 @@ describe('ri-notes track facts', () => {
   })
 })
 
+describe('ri-notes unit tags and upstream', () => {
+  it('reads a lightweight unit tag as an invalid unit', () => {
+    const { f, direct } = trackFixture()
+    git(f.remote, ['tag', `omne/gate/unit/${direct}`, direct])
+    const unit = trackFacts(f.root, f.policy, 'runtime').commits.at(-1)?.unit
+    expect(unit).toEqual({
+      kind: 'invalid',
+      reason: expect.stringContaining('not an annotated tag'),
+    })
+  })
+  it('lets a Git read failure through instead of an invalid unit', () => {
+    const { f, direct } = trackFixture()
+    const policy = {
+      ...f.policy,
+      transport: { kind: 'local-bare' as const, location: `${f.home}/missing.git` },
+    }
+    expect(() => readUnit(f.root, policy, direct, 'f'.repeat(40))).toThrow(GitError)
+  })
+  /** A child track `child` on top of `runtime`, with its start tag recording `parent`. */
+  function childFixture(parent: string) {
+    const fixture = trackFixture(),
+      { f } = fixture
+    git(f.root, ['checkout', '-q', 'track'])
+    const start = git(f.root, ['rev-parse', 'HEAD'])
+    git(f.root, ['checkout', '-q', '-b', 'child'])
+    feature(f, 'human/issue-8-z', 'z.txt')
+    git(f.root, ['checkout', '-q', 'child'])
+    git(f.root, [
+      'merge',
+      '-q',
+      '--no-ff',
+      'human/issue-8-z',
+      '-m',
+      'Merge pull request #50 from human/issue-8-z',
+    ])
+    const merge = git(f.root, ['rev-parse', 'HEAD'])
+    git(f.root, ['push', '-q', 'origin', 'child:refs/heads/integration/child'])
+    git(f.root, ['checkout', '-q', 'human/task'])
+    setStartTag(f.remote, 'child', start, gateRecord('child', start, parent))
+    const policy = parsePolicy(
+      policyDocument(f.initial, f.remote, [
+        trackEntry('runtime', f.initial),
+        trackEntry('child', start, 'runtime'),
+      ]),
+    )
+    return { ...fixture, start, merge, policy }
+  }
+  it('takes a track as the upstream when the start tag names it', () => {
+    const { f, start, merge, direct, policy } = childFixture('runtime')
+    const facts = trackFacts(f.root, policy, 'child')
+    expect(facts.parent).toEqual({ name: 'runtime', branch: 'integration/runtime', head: direct })
+    expect(facts.registryParent).toBe('runtime')
+    expect(facts.lowerBound).toEqual({ commit: start, source: 'start-tag', ancestor: true })
+    expect(facts.commits.map(item => item.commit)).toEqual([merge])
+  })
+  it('refuses when the upstream named by the start tag has no branch', () => {
+    const { f, policy } = childFixture('gone')
+    expect(() => trackFacts(f.root, policy, 'child')).toThrow(
+      'Remote branch integration/gone does not exist',
+    )
+  })
+})
+
 describe('ri-notes CLI', () => {
   const cli = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.url))
   function server(f: Fixture, responses: Record<string, unknown>) {
@@ -249,7 +315,7 @@ process.stdout.write(readFileSync(file, 'utf8'))
     const markdown = run(...args, '--format', 'markdown')
     expect(markdown.status, markdown.stderr).toBe(0)
     expect(markdown.stdout).toBe(
-      `## 所含的卡\n\n- #5 revision 1 attempt \`5-a1\`：无\n\n## 契约变化\n\n待确认：提交 ${notes.contractGaps[0].commit.slice(0, 9)}、提交 ${direct.slice(0, 9)} 的契约变化未知，逐个核对后改写本节。\n`,
+      `## 所含的卡\n\n- #5 revision 1 attempt \`5-a1\`：无\n\n## 契约变化\n\n- 待确认：提交 ${notes.contractGaps[0].commit.slice(0, 9)}、提交 ${direct.slice(0, 9)} 的契约变化未知，逐个核对后改写本节。\n`,
     )
     const reports = markdown.stderr
       .trim()
