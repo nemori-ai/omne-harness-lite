@@ -136,7 +136,7 @@ function completionBlockSteps(
  * Whether the blocks of a completed dispatch form one assistant message. `formed`: they do, or the
  * termination does not complete. `refused`: the content does not form a message, so the logical
  * terminal stays open. `replay-unknown`: the content holds reasoning state parts, but the replay
- * `scope` or `format` of this dispatch is unknown, so the message cannot be written.
+ * `format` of this dispatch is unknown, so the message cannot be written.
  */
 export type Completion =
   | Readonly<{ kind: 'formed' }>
@@ -149,7 +149,8 @@ type FinishReplay =
  * The replay of the finish. `scope` is the `produces` of the request declaration of the dispatch
  * supplier; `format` is the `replayFormat` of the dispatch receipt. Content without reasoning
  * leaves the finish without replay. Thinking alone without a known range does too (RS-03: the
- * origin of the reasoning text is unknown). Reasoning state parts need both, or fail named.
+ * origin of the reasoning text is unknown). Reasoning state parts need both: a missing `format`
+ * fails named (`replay-format-unknown`); a missing `scope` breaks an invariant and throws.
  */
 function finishReplay(
   call: MemoryCall,
@@ -166,11 +167,15 @@ function finishReplay(
   const supplier = digest(dispatch.record.supplier)
   const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
   const scope = call.request?.declarations[index]?.produces
-  if (scope === undefined)
-    return state
-      ? { kind: 'unknown', failure: invalid('termination', 'replay-scope-unknown') }
-      : { kind: 'none' }
-  return { kind: 'range', scope, format }
+  if (scope !== undefined) return { kind: 'range', scope, format }
+  if (!state) return { kind: 'none' }
+  // Unreachable while the invariants hold: the request declares every supplier it may dispatch
+  // to; the cleanup clears the request and the blocks in one step; and a late terminal of a
+  // settled call forms no message. Reaching here is a program defect, not a failure of the write.
+  throw new TypeError(
+    'a completion with reasoning state found no replay declaration for its dispatch supplier: ' +
+      'the request must declare every supplier, and cleanup must clear the blocks with the request',
+  )
 }
 export function completionOf(
   call: MemoryCall,

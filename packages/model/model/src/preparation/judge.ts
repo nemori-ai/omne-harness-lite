@@ -157,18 +157,19 @@ function withheld(reason: OutputWithheld): OutputJudgment {
   return { kind: 'withheld', reason }
 }
 
-function judgeOutput(
-  lookup: CallFactsLookup | undefined,
-  supplier: Adoption,
-  representation: Adoption,
-): OutputJudgment {
+/**
+ * O is a fact of the supplier, not of the representation: the source check compares only that a
+ * receipt exists and that it names the supplier adoption of this binding.
+ */
+function judgeOutput(lookup: CallFactsLookup | undefined, supplier: Adoption): OutputJudgment {
   if (lookup === undefined || lookup.kind === 'absent') return withheld('source-unreadable')
   if (lookup.kind === 'unavailable') return withheld('source-unavailable')
   const settled = settledOf(lookup.records)
   if (settled.kind === 'ambiguous') return withheld('ambiguous-dispatch')
   if (settled.kind === 'none') return withheld('output-unknown')
   const { record } = settled
-  if (receiptMismatch(record, supplier, representation) !== null)
+  const receipt = record.materialization?.receipt
+  if (receipt === undefined || !sameAdoption(receipt.supplier, supplier))
     return withheld('supplier-changed')
   const output = usageOf(record.account, 'output')
   if (output === null) return withheld('output-unknown')
@@ -209,7 +210,6 @@ export function judgeOutputs(
     sources: ReadonlyMap<MessageId, ModelCallId>
     facts: CallFactsView
     supplier: Adoption
-    representation: Adoption
     messages: readonly Message[]
   }>,
 ): readonly OutputVerdict[] {
@@ -221,7 +221,7 @@ export function judgeOutputs(
       continue
     }
     outputs.push(
-      entry(message.id, judgeOutput(input.facts.get(source), input.supplier, input.representation)),
+      entry(message.id, judgeOutput(input.facts.get(source), input.supplier)),
     )
   }
   return outputs

@@ -351,16 +351,19 @@ async function acquire(
   )
 }
 
-function measureWith(
+type MeterInput = Parameters<ModelPreparationLease['bindings'][number]['meter']['measure']>[0]
+
+/** The input of `measure` for this request, planned with the rules of the first binding. */
+function inputWith(
   lease: ModelPreparationLease,
   fixed: FixedModelRequest,
   change: (representation: MeterRepresentation) => MeterRepresentation = value => value,
-): Measured {
+): MeterInput {
   const [binding] = lease.bindings
   const assembled = assembledOf(fixed)
   const planned = binding.rules.plan({ profile, supplier: binding.supplier, assembled })
   if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned.failure)}`)
-  return binding.meter.measure({
+  return {
     profile: adoption,
     supplier: profileSupplier,
     context,
@@ -368,7 +371,15 @@ function measureWith(
     assembled,
     parameters: planned.ok.parameters,
     representation: change(planned.ok.representation),
-  })
+  }
+}
+
+function measureWith(
+  lease: ModelPreparationLease,
+  fixed: FixedModelRequest,
+  change: (representation: MeterRepresentation) => MeterRepresentation = value => value,
+): Measured {
+  return lease.bindings[0].meter.measure(inputWith(lease, fixed, change))
 }
 
 function reportOf(measured: Measured): RequestBudget['calibration'] {
@@ -466,7 +477,7 @@ const accountFact: TransportFact = {
 }
 
 describe('a lease over the real memory Commands', () => {
-  it('without a lineage hands out the family meter itself and reads nothing', async () => {
+  it('without a lineage answers what the family meter answers and reads nothing', async () => {
     const f = fixture()
     const { commands } = createMemoryModelCommands(f.options)
     const family = stubFamily()
@@ -478,8 +489,12 @@ describe('a lease over the real memory Commands', () => {
       ),
     }
     const lease = await acquire({ commands: spy, bindings: family.bindings }, f.admit)
-    expect(lease.bindings[0].meter).toBe(family.given[0]?.meter)
-    const measured = measureWith(lease, requestWith(two))
+    const meter = family.given[0]?.meter
+    if (meter === undefined) throw new Error('fixture')
+    expect(lease.bindings[0].meter.basis).toEqual(meter.basis)
+    const input = inputWith(lease, requestWith(two))
+    const measured = lease.bindings[0].meter.measure(input)
+    expect(JSON.stringify(measured)).toBe(JSON.stringify(meter.measure(input)))
     expect(reportOf(measured)).toBeUndefined()
     expect(reads).toEqual([])
     await lease.release()
@@ -812,6 +827,31 @@ describe('sources: the output count of each declared source, or why it is withhe
     ])
   })
 
+  it('a source whose receipt names another representation but the same supplier still gives its O', async () => {
+    const answers = new Map([
+      [
+        Y,
+        {
+          ok: [
+            recordOf({
+              materialization: {
+                receipt: {
+                  supplier: adoption,
+                  representation: otherAdoption,
+                  payloadDigest: 'a'.repeat(64),
+                },
+                source: proof('y'),
+              },
+            }),
+          ],
+        },
+      ],
+    ])
+    expect(await outputsOf(answers, { sources: [{ message: a1.id, call: Y }] })).toEqual([
+      { message: a1.id, kind: 'known', outputTokens: '18' },
+    ])
+  })
+
   it('a source whose only accounted dispatch has no account is output-unknown', async () => {
     expect(
       await outputsOf(new Map([[Y, { ok: [recordOf({ account: null })] }]]), {
@@ -975,6 +1015,25 @@ describe('release', () => {
       },
     })
     expect(family.calibrations).toEqual([])
+  })
+
+  it('a meter of a lease without a lineage answers unavailable after release as well', async () => {
+    const family = stubFamily()
+    const lease = await acquire(
+      { commands: stubStore(new Map()), bindings: family.bindings },
+      f.admit,
+    )
+    const input = inputWith(lease, requestWith(two))
+    expect('ok' in lease.bindings[0].meter.measure(input)).toBe(true)
+    expect(await lease.release()).toEqual({})
+    expect(lease.bindings[0].meter.measure(input)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-preparation',
+        diagnostic: 'preparation-lease-released',
+      },
+    })
+    expect(family.calibrations).toHaveLength(1)
   })
 
   it('reports a failed release hook as a value that names the resource provider', async () => {
