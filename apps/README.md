@@ -34,6 +34,12 @@ flowchart TD
 <!-- documentation:placeholder -->
 最小 CLI 的成员已经存在。个人设备常驻 Harness Server、云节点与集群两个装配角色的成员名、提供包及装配规格仍待设计；没有成员名时不伪造文件目标。
 
+## 临时契约消费者
+
+[`m2-contract-skeleton`](m2-contract-skeleton/README.md) 是 M1 联合验收的临时私有消费者。它通过公开入口运行治理消息编解码和 Model scripted conformance，逐跳报告 M2 路径尚未连接的部分。片段检查通过不表示完整路径通过，也不提供生产服务或部署入口。
+
+应用的报告规则与缺口清单归其 [SPEC](m2-contract-skeleton/SPEC.md)。B3 负责随实际入轨契约串行同步；N-1 确定永久归属后，迁移时一并更新消费者、测试和本页导航，再删除临时成员。
+
 ## 旧应用
 
 已有CLI与宿主实现保持于[apps.0.0.1.legacy](../apps.0.0.1.legacy/README.md)。它们是封存实现和现有工具依赖，不属于新树的已完成能力。
