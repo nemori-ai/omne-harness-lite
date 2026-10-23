@@ -17,7 +17,7 @@
 
 - 不发出请求，不读取凭据、环境、文件或网络。
 - 不读取媒体字节，不解码 data URL，不核验单帧 GIF。图片尺寸来自媒体计量事实。
-- 不迁移封存件的冻结旧修订与费用解释。完整输出组计量与可选校准按 PanQiWei 2026-10-23 的决定（#466 revision 3）采用，形状按现行契约重写，见[计量](#计量)。
+- 不迁移封存件的冻结旧修订与费用解释。完整输出组计量与可选校准的方法来自封存件，形状按现行契约重写，见[计量](#计量)。采用依据记在[迁移清单“本线的请求计量”](../docs/migration.md#本线的请求计量)。
 
 ## 结果与不变量
 
@@ -68,7 +68,12 @@
    2. 表示采用不是本记录的：`unsupported`，`field` 为 `representation`；
    3. 表示为 `pending-media`：`unsupported`，`field` 为 `representation.kind`；
    4. token 输入不是这个 schema：`invalid`，`field` 为 `tokenInput`；
-   5. 带推理状态的单元（带 `reasoning_details` 成员的单元；家族编解码器只为能回放的整组写出它，条件即封存件 `classifyOpenAiDetail` 的整组条件：`reasoning.encrypted`、格式 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]`）需要来源的 O 而校准中没有它的条目：`unavailable`，诊断为 `encrypted-reasoning-not-countable`；条目为扣留：`unavailable`，诊断为扣留原因（`source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`，条件见 model-contract 的[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)）。密文不分词，也不被去掉，不按零计。锚点命中时只有新增部分的推理单元需要来源；
+   5. 带推理状态的单元需要来源的 O 时，按校准中它的条目判断：
+      - 带推理状态的单元是带 `reasoning_details` 成员的单元。家族编解码器只为能回放的整组写出这个成员，条件即封存件 `classifyOpenAiDetail` 的整组条件：`reasoning.encrypted`、格式 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]`。
+      - 校准中没有它的条目：`unavailable`，诊断为 `encrypted-reasoning-not-countable`。
+      - 条目为扣留：`unavailable`，诊断为扣留原因。原因有 `source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output` 与 `supplier-changed`，条件见 model-contract 的[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)。
+      - 锚点命中时，只有新增部分的推理单元需要来源。
+      - 密文不分词，也不被去掉，不按零计。
    6. token 输入中的图片数与 `media` 中图片事实数不同：`unavailable`，诊断为 `image-measurement-missing`；
    7. 记录的图片规则不覆盖某张图片：`unsupported`，`field` 为 `image <序号>`；
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。

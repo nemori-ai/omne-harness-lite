@@ -12,7 +12,12 @@
 
 [send-resources.spec.ts](send-resources.spec.ts) 用观察凭据槽的传输工厂代替会离开进程的 pi 发送，核对槽只在 `start` 期间有值、正常返回与抛出后都为空、两个资源互不见对方的值、异物与释放后的物化传输被拒绝、`release` 与 `close` 幂等；它还用真实 pi 传输与 OpenAI 家族核对异物物化传输被拒绝，这一步只编码，不发送。[assembly.spec.ts](assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，准备租约经配置的家族取得绑定，`close` 开始后的取得返回具名不可用，关闭前取得的租约在关闭后仍能计量并释放，以及 `close` 幂等。[local-model.spec.ts](local-model.spec.ts) 属于慢层：本地 HTTPS 服务只代替网关，回放两个家族录制的 SSE 正文；保管库、装配、发送边界、pi 传输、家族、model 运行时与内存 `ModelCommands` 都是真实实现。[continuation.spec.ts](continuation.spec.ts) 同属慢层，在同一组真实实现上让调用 X 收场、确认并清理，再经装配的 `preparation` 取得真实租约，用真实 `rules.plan` 与家族计量器计量延续 X 的请求，核对锚点、余量、方法名与跨租户的逐字节相同。[support/](support/) 里的 `records.ts` 经声明的开发依赖读取家族录制夹具，`https-server.ts` 起本地 HTTPS 服务并记录请求头与正文，`profiles.ts` 把家族记录的官方档案存成工厂档案，并给出测试用的 `supplierOf`，`local-host.ts` 为一次调用装配保管库、本地装配、内存 `ModelCommands` 与 model 运行时。`metering.ts` 用真实租约和租约自己的 `rules.plan` 计量请求，并读取账目里已知的用量。`replay.ts` 把一份回放件经装配路径回放，并让宿主保持打开，供读取事实、发出记录与准备租约。
 
-`local-host.ts` 的运行时配置按真实回复设定。真实回复大约每个 token 一个事实。内存 `ModelCommands` 把调用的每个已确认快照都计入调用容量，而每个快照含有到此为止的全部块。所以运行时按批保存事实：一批最多 16 KiB 事实，或从该批首个事实起最多 100 ms。调用容量是整个内存存储的容量，因为一个宿主只有一个调用。逐个事实保存时，约一百个事实的真实回复会超出原来的 100 000 字节容量，调用不能收场（#466）。
+`local-host.ts` 的运行时配置按真实回复设定：
+
+- 真实回复大约每个 token 一个事实。中等推理强度下，一个简短的 OpenAI 回答约有一百个事实。
+- 内存 `ModelCommands` 把调用的每个已确认快照都计入调用容量，而每个快照含有到此为止的全部块。逐个事实保存时，占用随事实数的平方增长。见 model 的[已知限制](../../model/SPEC.md#当前构造支持与本地模拟)。
+- 所以运行时按批保存事实：一批最多 16 KiB 事实，或从该批首个事实起最多 100 ms。
+- 一个宿主只有一个调用，所以调用容量是整个内存存储的容量：1 000 000 字节、100 个块。
 
 真实请求的录制器在 [support/recorder.ts](support/recorder.ts)。它经 `local-host.ts` 的同一条装配路径发出一次请求，把收到的 SSE 正文原样写进回放件目录，并写一个旁注。录制器的规则如下：
 
@@ -34,9 +39,9 @@
 - 账目经真实路径到达 `ModelCommands`：由 `dispatches` 读回，带本次调用的 `subject` 与 `receipt`；有且只有一条 `billable` 费用，金额已知，单位是 `openrouter-credit`，`payableAmount` 与它相同。
 - 占位凭据只出现在发出的 `Authorization` 头里，不出现在事实和发出记录里。
 
-[recording-c9.spec.ts](recording-c9.spec.ts) 同属慢层，产出 C9 证据，每个家族一组。它回放首轮 X，读出回复，确认并清理；再用同一宿主的 `host.preparation` 取得带 `lineage { continues: X, sources: [X 的回复消息 → X] }` 的租约，计量延续轮的请求；然后回放延续轮，取它账目里 `input`、`cache-read`、`cache-write` 的合计作为真实输入合计。断言只有：锚点命中，方法名带输出组方法与 `+continuation-anchored/1`，两轮应付金额都已知且单位相同，累计金额等于本文件里独立的十进制加法的结果。计量的 `amount` 与真实输入合计之差是测量值，只记录，不是门槛。
+[recording-c9.spec.ts](recording-c9.spec.ts) 同属慢层，产出发送前计量与真实输入合计的对照证据，每个家族一组。它回放首轮 X，读出回复，确认并清理；再用同一宿主的 `host.preparation` 取得带 `lineage { continues: X, sources: [X 的回复消息 → X] }` 的租约，计量延续轮的请求；然后回放延续轮，取它账目里 `input`、`cache-read`、`cache-write` 的合计作为真实输入合计。断言只有：锚点命中，方法名带输出组方法与 `+continuation-anchored/1`，两轮应付金额都已知且单位相同，累计金额等于本文件里独立的十进制加法的结果。计量的 `amount` 与真实输入合计之差是测量值，只记录，不是门槛。
 
-设 `OMNE_EVIDENCE_OUT=<目录>` 时，C9 测试向该目录为每个家族写一份 `<家族包名>.json`，含家族、型号、两轮的 `payloadDigest` 与应付金额、计量结果（`amount`、`margin`、方法名、校准）、真实输入合计、差值（真实输入合计减 `amount`）和累计金额。文件不含请求体、响应正文和任何头。没有这个变量时不写文件。经 turbo 运行时，严格模式滤掉未声明的环境变量，所以写证据时直接在包里运行：
+设 `OMNE_EVIDENCE_OUT=<目录>` 时，这个测试向该目录为每个家族写一份 `<家族包名>.json`，含家族、型号、两轮的 `payloadDigest` 与应付金额、计量结果（`amount`、`margin`、方法名、校准）、真实输入合计、差值（真实输入合计减 `amount`）和累计金额。文件不含请求体、响应正文和任何头。没有这个变量时不写文件。经 turbo 运行时，严格模式滤掉未声明的环境变量，所以写证据时直接在包里运行：
 
 ```sh
 OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow --typecheck.enabled=false tests/recording-c9.spec.ts

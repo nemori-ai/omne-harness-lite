@@ -12,7 +12,7 @@
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
 - [recording-replay.spec.ts](recording-replay.spec.ts)：慢层，回放门禁：四份真实回放件经装配路径回放，核对收场、终止、推理状态、回执格式、请求摘要、账目与费用来源
-- [recording-c9.spec.ts](recording-c9.spec.ts)：慢层，C9 证据：延续轮的计量与真实输入合计之差、两轮应付金额的精确累计；设 `OMNE_EVIDENCE_OUT` 时写 JSON
+- [recording-c9.spec.ts](recording-c9.spec.ts)：慢层，计量对照证据：延续轮的计量与真实输入合计之差、两轮应付金额的精确累计；设 `OMNE_EVIDENCE_OUT` 时写 JSON
 - [recorder.spec.ts](recorder.spec.ts)：慢层，录制器经本地 HTTPS 服务与本地 CONNECT 代理写出原样正文与旁注，各种不写文件的情形，以及第二轮的输入形状
 - [secret-scan.spec.ts](secret-scan.spec.ts)：录制器的密钥模式检查
 - [live/record.spec.ts](live/record.spec.ts)：录制器的真实入口，只在 `OMNE_LIVE_TESTS=1` 并给出 `OMNE_RECORD_CASE` 时运行（`record:live`）

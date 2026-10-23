@@ -58,7 +58,14 @@ pnpm run check:docs
 
 The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model-contract test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
 
-Current tests cover the 173 type declarations and the 31 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`, and the replay functions `judgeReplayDeclaration`, `projectReplay`, `continuedMessages`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
+Current tests cover these items:
+
+- The 179 type declarations and the 31 runtime values of the root entry. The values are the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`, and the replay functions `judgeReplayDeclaration`, `projectReplay` and `continuedMessages`.
+- The export inventory, the type-consumption probes and the install-closure facility.
+- The scripted provider and transport of `./testing`.
+- The conformance suite of `./testing`. The scripted pair must pass it. It fails a provider that breaks one obligation.
+
+The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 
