@@ -14,5 +14,5 @@
 - [recorder.spec.ts](recorder.spec.ts)：慢层，录制器经本地 HTTPS 服务与本地 CONNECT 代理写出原样正文与旁注，各种不写文件的情形，以及第二轮的输入形状
 - [secret-scan.spec.ts](secret-scan.spec.ts)：录制器的密钥模式检查
 - [live/record.spec.ts](live/record.spec.ts)：录制器的真实入口，只在 `OMNE_LIVE_TESTS=1` 并给出 `OMNE_RECORD_CASE` 时运行（`record:live`）
-- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，以及录制器、正文截取、密钥检查与录制用例
+- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，用真实租约计量请求，以及录制器、正文截取、密钥检查与录制用例
 - [fixtures/](fixtures/index.md)：测试固定输入

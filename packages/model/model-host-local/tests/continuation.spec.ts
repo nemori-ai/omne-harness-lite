@@ -15,20 +15,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   decodeModelCallId,
   judgeFixedModelRequest,
-  type AssembledModelInput,
   type FixedModelRequest,
   type ModelBlock,
-  type ModelInputMeter,
-  type ModelPreparationLease,
-  type ModelProfile,
   type PreparationLineage,
-  type RequestBudget,
   type ResultPart,
 } from '@omne-harness/model-contract'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
 import { assembleLocalHost, decoded, MARGIN_PERCENT, ROUTE_PATH } from './support/local-host.ts'
+import { inputEstimate, known, measureOn } from './support/metering.ts'
 import { officialProfile } from './support/profiles.ts'
 import { readRecordFixture, type FamilyName, type RecordFixture } from './support/records.ts'
 
@@ -143,52 +139,6 @@ function nextRequest(fixture: RecordFixture, appended: readonly unknown[]): Fixe
   const messages: unknown = Reflect.get(Object(json), 'messages')
   if (!Array.isArray(messages)) throw new Error('fixture request without messages')
   return decoded(judgeFixedModelRequest({ ...Object(json), messages: [...messages, ...appended] }))
-}
-
-function assembledOf(request: FixedModelRequest): AssembledModelInput {
-  return {
-    system: request.system,
-    messages: request.messages,
-    tools: request.tools,
-    toolChoice: request.toolChoice,
-    parameters: request.parameters,
-    representation: request.representation,
-    source: request.source,
-  }
-}
-
-/** Plans the request with the lease's rules and measures it with the lease's meter. */
-function measureOn(
-  lease: ModelPreparationLease,
-  profile: ModelProfile,
-  request: FixedModelRequest,
-): ReturnType<ModelInputMeter['measure']> {
-  const [binding] = lease.bindings
-  const assembled = assembledOf(request)
-  const planned = decoded(binding.rules.plan({ profile, supplier: binding.supplier, assembled }))
-  return binding.meter.measure({
-    profile: profile.adoption,
-    supplier: profile.definition.suppliers[0],
-    context: profile.definition.context,
-    limits: profile.definition.limits,
-    assembled,
-    parameters: planned.parameters,
-    representation: planned.representation,
-  })
-}
-
-function inputEstimate(budget: RequestBudget) {
-  const check = budget.checks.find(item => item.metric === 'input-tokens')
-  if (check?.measurement.kind !== 'estimate') throw new Error('no estimated input check')
-  return check.measurement
-}
-
-function known(account: { usage: readonly unknown[] } | null, name: string): bigint {
-  const item = account?.usage.find(entry => Reflect.get(Object(entry), 'name') === name)
-  const lexeme: unknown = Reflect.get(Object(item), 'lexeme')
-  if (Reflect.get(Object(item), 'state') !== 'known' || typeof lexeme !== 'string')
-    throw new Error(`usage ${name} is not known`)
-  return BigInt(lexeme)
 }
 
 const ceilMargin = (estimated: bigint): bigint => (estimated * MARGIN_PERCENT + 99n) / 100n
