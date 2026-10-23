@@ -15,6 +15,7 @@ import {
   type Admit,
   type CallAccess,
   type CallAccountReport,
+  type CustodyState,
   type DispatchId,
   type DispatchRecord,
   type DurableEvidence,
@@ -164,9 +165,19 @@ type Started<P> = Readonly<{
   record(): Promise<DispatchRecord | undefined>
   /** Settles the call with this termination and gives the result version. */
   settle(termination: Termination): Promise<ResultVersion>
-  /** Hands the result off as processed, then advances the cleanup once. */
-  clean(result: ResultVersion): ReturnType<ModelCommands<P>['advanceCleanup']>
+  /**
+   * Hands the result off as processed, then advances the cleanup step by step until it is
+   * `released`, at most `MAX_CLEANUP_STEPS` times. Gives the released custody.
+   */
+  clean(result: ResultVersion): Promise<CustodyState>
 }>
+
+/**
+ * The most `advanceCleanup` steps the suite takes after a processed handoff. The contract lets the
+ * recovery worker advance the cleanup in steps until `released`; an implementation that is still
+ * short of `released` after this many steps fails the obligation.
+ */
+const MAX_CLEANUP_STEPS = 16
 
 /** Admits and claims a call, then prepares, materializes and starts one dispatch of it. */
 async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<Started<P>> {
@@ -260,7 +271,21 @@ async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<
         }),
         'handoff',
       )
-      return commands.advanceCleanup({ ...execution, operation: operation() })
+      let last: CustodyState | undefined
+      for (let step = 1; step <= MAX_CLEANUP_STEPS; step += 1) {
+        last = succeeded(
+          await commands.advanceCleanup({ ...execution, operation: operation() }),
+          `cleanup step ${step}`,
+        )
+        if (last.kind !== 'acknowledged')
+          throw new AccountsViolation(
+            `after a processed handoff, cleanup step ${step} gave ${show(last)}`,
+          )
+        if (last.cleanup === 'released') return last
+      }
+      throw new AccountsViolation(
+        `after a processed handoff the cleanup did not reach released in ${MAX_CLEANUP_STEPS} steps; the last state was ${show(last)}`,
+      )
     },
   }
 }
@@ -443,11 +468,7 @@ function obligations<P>(): Readonly<Record<AccountObligation, Obligation<P>>> {
         ]),
         'preserve of a completed reply',
       )
-      const custody = succeeded(await started.clean(await started.settle(COMPLETED)), 'cleanup')
-      check(
-        custody.kind === 'acknowledged' && custody.cleanup === 'released',
-        `after a processed handoff the cleanup gave ${show(custody)}`,
-      )
+      await started.clean(await started.settle(COMPLETED))
       const record = await started.record()
       check(
         isDeepStrictEqual(record?.messages, expected),
