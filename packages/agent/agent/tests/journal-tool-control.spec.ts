@@ -198,7 +198,6 @@ describe('Tool control association', () => {
     ).toEqual({ kind: 'invalid', field: 'command.call', reason: 'not a call of this execution' })
     expect(await observe(journal, opened.execution)).toEqual(before)
 
-    // A broader Model value may have extra fields; they must not select the Tool parser.
     const extendedModel = { ...model, association: 'associated' } as const
     const tool = await setup([extendedModel, associated])
     ok(await tool.journal.control(tool.control))
@@ -209,7 +208,6 @@ describe('Tool control association', () => {
   })
 
   it('accepts repeated canonical identity and rejects two admissions for one call', async () => {
-    // Deliberately pass a valid noncanonical wire representation through the public boundary.
     const spaced = ` ${invocation} ` as tools.ToolInvocationRef
     const duplicate = await setup([associated, { ...associated, reference: spaced }])
     ok(
@@ -665,8 +663,6 @@ describe('Tool operation attachment', () => {
     'contains injected %s retained-snapshot corruption at a new R',
     async (_, reference, expected) => {
       const { journal, opened, control, recording } = await setup([{ ...associated, reference }])
-      // One resolver fault seeds a corrupt retained snapshot through the public control port.
-      // All subsequent checks use the actual public resolver; this is not a durable-store test.
       const resolver = vi
         .spyOn(tools, 'resolveToolInvocationRef')
         .mockReturnValueOnce({ ok: parts })

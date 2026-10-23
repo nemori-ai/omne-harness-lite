@@ -177,7 +177,7 @@
 | 行号 | 节点 | 阶段与部分 | 子卡 | 用例名 | SC-AG | 实现用例 |
 | --- | --- | --- | --- | --- | --- | --- |
 | NA-A2-4 | A2 | 2 | 2.4（#524） | association-unknown 保存无引用 intent 与完整材料，以原 consumer 和当前资格重入 invoke | SC-AG-217 | 待实现 |
-| NA-T0-4 | T0 | 2 | 2.5（#525） | 只投影 associated Tool 调用；原受理认回后沿原槽位保管、处理与解除。控制先认回原 C，再扫描新 pending；recordControl 先资格/租户与规范引用、原 R 认回，再校验新 target/引用/stage，失败精确映射归 SPEC | SC-AG-218、SC-AG-219、SC-AG-222、SC-AG-224、SC-AG-225 | 待实现 |
+| NA-T0-4 | T0 | 2 | 2.5（#525） | 只投影 associated Tool 调用；原受理认回后沿原槽位保管、处理与解除。控制先认回原 C，再扫描新 pending；recordControl 先资格/租户与规范引用、原 R 认回，再校验新 target/引用/stage，失败精确映射归 SPEC | SC-AG-218、SC-AG-219、SC-AG-222、SC-AG-224、SC-AG-225 | T0 节点待实现；其中 Journal 控制与引用记录子承诺已有[公开端口测试](../../agent/tests/journal-tool-control.spec.ts)，不代表节点通过 |
 | NA-R0-5 | R0 | 2 | 2.4、2.5 | Tool commit-unknown 保存原引用后 lookup，not-accepted 仍沿原 invoke 接续，association-unknown 保留 intent；后来 rejected 不排除历史尝试，当前资格不足保留未知与交接责任 | SC-AG-216、SC-AG-217、SC-AG-222、SC-AG-223 | 待实现 |
 
 已有 NA-R0-4、NA-M0-1、NA-M6-1 的实现证据只覆盖 Model。Tool 另按本表与新增场景验证，不从原 admission 查询推广为 Tool 协议。F0 多前台 Tool 取消对应关系与 Q11/Q13 的其余机制仍属后续工作。
