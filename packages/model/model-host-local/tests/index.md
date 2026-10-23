@@ -7,7 +7,7 @@
 - [custodian-options.spec.ts](custodian-options.spec.ts)：建库采用、诊断容量、锁等待与 `ELOCKED`、不可用原因、快照字段类型与选项取值
 - [deliver-injected.spec.ts](deliver-injected.spec.ts)：注入发送的模块边界，以及提供者缺席、恢复、重装后结果不变、更替与非服务对象
 - [credential-service.spec.ts](credential-service.spec.ts)：服务实例经真实 Cordis 代理的暴露面
-- [send-resources.spec.ts](send-resources.spec.ts)：发送资源的凭据槽、物化传输归属、释放与关闭
+- [send-resources.spec.ts](send-resources.spec.ts)：发送资源的凭据槽、物化传输归属、失败穿过、释放与关闭及其失败
 - [assembly.spec.ts](assembly.spec.ts)：本地装配的配置拒绝、准备租约的绑定来源、被拒装配的网络关闭与两个关闭的失败汇总
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户

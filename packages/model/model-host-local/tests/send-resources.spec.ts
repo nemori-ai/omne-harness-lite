@@ -12,6 +12,7 @@ import {
   type MaterializedTransport,
   type SendDemand,
   type TransportFact,
+  type TransportFailure,
 } from '@omne-harness/model-contract'
 import {
   composeFamilies,
@@ -54,6 +55,18 @@ type Observed = {
   /** The slot value each start read, in order. */
   reads: (string | undefined)[]
   closes: number
+  /** How often a prepared transport of this transport was closed. */
+  preparedCloses: number
+}
+
+/** What the next transport the observing factory makes does instead of succeeding. */
+type Faults = {
+  /** `prepare` answers this failure. */
+  prepare?: TransportFailure
+  /** `materialize` answers this failure. */
+  materialize?: TransportFailure
+  /** `close` of the transport rejects with this reason. */
+  close?: { reason: unknown }
 }
 
 /** What the next start of an observed transport does after it reads the slot. */
@@ -67,15 +80,20 @@ const NO_FACTS: AsyncIterable<TransportFact> = {
 function observingFactory() {
   const transports: Observed[] = []
   let plan: StartPlan = () => {}
+  /** The faults of each transport, by its position in `transports`. */
+  const faults = new Map<number, Faults>()
   function createTransport(config: PiTransportConfig): PiTransport {
-    const observed: Observed = { config, reads: [], closes: 0 }
+    const observed: Observed = { config, reads: [], closes: 0, preparedCloses: 0 }
+    const fault = faults.get(transports.length) ?? {}
     transports.push(observed)
     return {
       transport: {
         async prepare(request) {
+          if (fault.prepare !== undefined) return { failure: fault.prepare }
           return {
             ok: {
               async materialize() {
+                if (fault.materialize !== undefined) return { failure: fault.materialize }
                 const materialized: MaterializedTransport = {
                   receipt: {
                     supplier: request.suppliers[0].adoption,
@@ -91,18 +109,25 @@ function observingFactory() {
                 }
                 return { ok: materialized }
               },
-              close: async () => {},
+              close: async () => {
+                observed.preparedCloses++
+              },
             },
           }
         },
       },
       async close() {
         observed.closes++
+        if (fault.close !== undefined) throw fault.close.reason
       },
     }
   }
   return {
     transports,
+    /** The transport at `position` (0 is the configuration probe) answers with these faults. */
+    fail(position: number, next: Faults) {
+      faults.set(position, next)
+    },
     /** The transports of acquired resources, without the configuration probe. */
     acquired: () => transports.slice(1),
     onStart(next: StartPlan) {
@@ -170,9 +195,10 @@ afterEach(async () => {
   network = undefined
 })
 
-function observed() {
+function observed(faults: readonly (readonly [number, Faults])[] = []) {
   network = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
   const factory = observingFactory()
+  for (const [position, fault] of faults) factory.fail(position, fault)
   const resources = sendResourcesOver<Principal>({
     config: { network, families: composeFamilies([]), routes: ROUTES, limits: LIMITS },
     createTransport: factory.createTransport,
@@ -242,7 +268,11 @@ describe('the ownership of a materialized transport', () => {
     const start = () =>
       second.startWithCredential(foreign, 'placeholder-b', new AbortController().signal)
     expect(start).toThrow(ModuleDefect)
-    expect(start).toThrow(expect.objectContaining({ reason: 'foreign-materialization' }))
+    // The defect names its reason, and only its reason: never the credential value.
+    expect(start).toThrow(
+      expect.objectContaining({ name: 'SendResourceDefect', reason: 'foreign-materialization' }),
+    )
+    expect(start).toThrow(/foreign-materialization/u)
     expect(start).not.toThrow(/placeholder/)
     expect(factory.acquired().map(item => item.reads)).toEqual([[], []])
     await resources.close()
@@ -334,5 +364,77 @@ describe('release and close', () => {
         limits: LIMITS,
       }),
     ).toThrow(RangeError)
+  })
+})
+
+describe('the transport of a resource', () => {
+  const failure: TransportFailure = {
+    kind: 'unavailable',
+    dependency: 'pi-ai-transport',
+    diagnostic: 'fixture-down',
+  }
+
+  it('passes a failed prepare through unchanged', async () => {
+    const { resources } = observed([[1, { prepare: failure }]])
+    const resource = await acquired(resources)
+    expect(await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], { resent: [] })).toEqual(
+      { failure },
+    )
+    await resources.close()
+  })
+
+  it('passes a failed materialize through unchanged', async () => {
+    const { resources } = observed([[1, { materialize: failure }]])
+    const resource = await acquired(resources)
+    const prepared = await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], {
+      resent: [],
+    })
+    if (!('ok' in prepared)) throw new Error('fixture prepare')
+    expect(await prepared.ok.materialize(new AbortController().signal)).toEqual({ failure })
+    await resources.close()
+  })
+
+  it('closes the prepared transport of the pi transport when its own is closed', async () => {
+    const { factory, resources } = observed()
+    const resource = await acquired(resources)
+    const prepared = await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], {
+      resent: [],
+    })
+    if (!('ok' in prepared)) throw new Error('fixture prepare')
+    await prepared.ok.close()
+    expect(factory.acquired()[0]?.preparedCloses).toBe(1)
+    await resources.close()
+  })
+})
+
+describe('close failures', () => {
+  it('rejects close with the failure of a resource that close released', async () => {
+    const reason = new Error('transport close failed')
+    const { factory, resources } = observed([[1, { close: { reason } }]])
+    await acquired(resources)
+    await acquired(resources)
+    await expect(resources.close()).rejects.toBe(reason)
+    // The other resource was released all the same.
+    expect(factory.acquired().map(item => item.closes)).toEqual([1, 1])
+  })
+
+  it('does not report again the failed release of a resource that its caller released', async () => {
+    const reason = new Error('transport close failed')
+    const { factory, resources } = observed([[1, { close: { reason } }]])
+    const resource = await acquired(resources)
+    await expect(resource.release()).rejects.toBe(reason)
+    await expect(resources.close()).resolves.toBeUndefined()
+    expect(factory.acquired()[0]?.closes).toBe(1)
+  })
+
+  it('rejects close with the failure of the configuration probe', async () => {
+    const reason = new Error('probe close failed')
+    const { resources } = observed([[0, { close: { reason } }]])
+    await expect(resources.close()).rejects.toBe(reason)
+  })
+
+  it('rejects close with an error when the probe close rejects without a reason', async () => {
+    const { resources } = observed([[0, { close: { reason: undefined } }]])
+    await expect(resources.close()).rejects.toThrow(/probe close failed/u)
   })
 })
