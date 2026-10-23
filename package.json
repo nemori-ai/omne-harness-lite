@@ -26,6 +26,7 @@
     "check:design": "./scripts/check-design.sh",
     "check:delivery": "node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts",
     "check:lines": "node --experimental-strip-types tools/dev-flow/src/delivery/lines-cli.ts",
+    "ri-notes": "node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes",
     "check:formal-tools": "uv run --locked omne-spec-tools-check",
     "check:declarations": "omne-declarations",
     "lint:rules": "pnpm --filter @omne-harness/product-checks run scan",
