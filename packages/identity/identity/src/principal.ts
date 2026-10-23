@@ -67,7 +67,7 @@ export interface PrincipalVerifier {
 
 export type PrincipalAuthority = Readonly<{ issuer: PrincipalIssuer; verifier: PrincipalVerifier }>
 
-/** The acting scope of a principal. Throws TypeError for a hand-built acting principal. */
+/** Extracts the scope without checking provenance or current standing. Throws TypeError for an unminted tenant. */
 export function scopeOf(principal: Principal): ActingScope {
   return principal.kind === 'system' ? systemScope() : tenantScope(principal.tenant)
 }

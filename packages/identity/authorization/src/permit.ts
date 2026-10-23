@@ -137,10 +137,19 @@ export function inMemoryPermitLedger(): Readonly<{ grantor: PermitGrantor; ledge
     const ref: PermitRef = Object.freeze({ tenant: input.tenant, permit })
     const issued: PermitGrant = Object.freeze({
       ref,
-      operation: input.operation,
-      target: input.target,
-      arguments: input.arguments,
-      granted: input.granted,
+      operation: Object.freeze({ owner: input.operation.owner, name: input.operation.name }),
+      target: Object.freeze({
+        owner: input.target.owner,
+        kind: input.target.kind,
+        key: input.target.key,
+      }),
+      arguments: Object.freeze({ digest: input.arguments.digest }),
+      granted: Object.freeze({
+        owner: input.granted.owner,
+        record: input.granted.record,
+        revision: input.granted.revision,
+        digest: input.granted.digest,
+      }),
     })
     entries.set(`${tenant}#${permit}`, { grant: issued, state: Object.freeze({ kind: 'open' }) })
     return Promise.resolve({ kind: 'granted', grant: issued })
@@ -160,7 +169,11 @@ export function inMemoryPermitLedger(): Readonly<{ grantor: PermitGrantor; ledge
     if (entry.state.kind === 'consumed')
       return Promise.resolve({ kind: 'already-consumed', fact: entry.state.fact })
     sequence += 1
-    const consumer: ConsumerPosition = Object.freeze({ ...input.consumer })
+    const consumer: ConsumerPosition = Object.freeze({
+      owner: input.consumer.owner,
+      work: input.consumer.work,
+      position: input.consumer.position,
+    })
     const fact: ConsumptionFact = Object.freeze({
       permit: entry.grant.ref,
       consumer,

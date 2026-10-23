@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings, the tenant standing read port and the business access report shape",
+  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings and the tenant standing read port",
   "engines": {
     "node": ">=24"
   },

@@ -106,7 +106,7 @@ tenantCodec.encode(pair)
 
 `Access<P>` 是 `Readonly<{ principal: P; tenant: TenantId }>`。`P` 没有约束：装配选择主体类型，本包不判断它。`access()` 的 `tenant` 必须是已解析的租户，否则抛出 `TypeError`。它原样保留主体并冻结结果。`access()` 成功不证明主体可信。主体拥有者的核验器负责这件事。
 
-只有 `parse`、`tenant()`、`tenantScope()` 和 `systemScope()` 产生合法值。值是带 `name` 字段的冻结普通数据。手写的 `{ name: 'AccountId', text }` 这类对象仍可能通过类型检查，因为已接受的设计没有编译期品牌。运行时 `encode` 对这类对象返回 `type`，每个相等函数都返回 `false`。另一家族的值得到同样的结果。
+`parse` 和 `tenant()` 产生 `IDENTITY_TYPE_NAMES` 所列五个身份家族的合法值。这些值是带 `name` 字段的冻结普通数据。`ActingScope` 值使用 `kind` 字段，没有 `name` 字段。它们由 `actingScopeCodec.parse`、`tenantScope()` 和 `systemScope()` 构造。手写的 `{ name: 'AccountId', text }` 这类对象仍可能通过类型检查，因为已接受的设计没有编译期品牌。运行时 `encode` 对这类对象返回 `type`，每个相等函数都返回 `false`。另一家族的值得到同样的结果。
 
 `tenant()` 的参数必须依次是已解析的组织和已解析的账号，否则抛出 `TypeError`。它不解析文本，也没有角色参数。租户不含角色，所以角色变化不能改变租户。
 

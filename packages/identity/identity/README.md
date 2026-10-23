@@ -41,9 +41,9 @@ const acting = authority.issuer.issueActingForTenant({
 
 ## 契约
 
-公开类型在 `src/`。[SPEC](SPEC.md) 的 ID-16 拥有类型表达不了的条款：签发条件、核验的三种答复、资格的含义、读口答当下事实、治理入口的租户冲突、报告不带时间。其余条款沿 ID-01 至 ID-15。合法身份的纯值归 [legal-identity](../../common/legal-identity/README_ZH.md)。
+公开类型在 `src/`。[SPEC](SPEC.md) 的 ID-16 拥有类型表达不了的条款：签发条件、核验的三种答复、资格的含义、读口答当下事实。治理入口的租户冲突归 ID-08。其余条款沿 ID-01 至 ID-15。合法身份的纯值归 [legal-identity](../../common/legal-identity/README_ZH.md)。
 
-签发与核验都不抛出：签发失败返回 `IssueFailure`，核验失败返回 `rejected` 或 `unavailable`。`verify` 是判定，不是解码：`verified` 带回的 `principal` 就是传入的那个对象。`scopeOf` 对手写的代租户行事主体抛出 `TypeError`，因为它的租户没有铸造。
+签发与核验都不抛出：签发失败返回 `IssueFailure`，核验失败返回 `rejected` 或 `unavailable`。`verify` 是判定，不是解码：`verified` 带回的 `principal` 就是传入的那个对象。`scopeOf` 只提取作用域，不验证主体来源或当前资格。代租户主体的租户未经合法铸造时，它抛出 `TypeError`。手写主体即使携带合法租户，仍须经 `PrincipalVerifier` 核验来源。
 
 ## 设计
 
@@ -68,4 +68,4 @@ const acting = authority.issuer.issueActingForTenant({
 
 ## 维护
 
-改公开形状先改 `src/`，再同步 SPEC ID-16、本页与消费者。当前消费者是 `packages/identity/authorization`。实现读口或报告口的提供者按 SPEC 的条款写自己的资源、失败与持久责任，不另写一份公共保证。
+改公开形状先改 `src/`，再同步 SPEC ID-16、本页与消费者。当前消费者是 `packages/identity/authorization`。实现当前资格读口的提供者按 SPEC 的条款写自己的资源、失败与持久责任，不另写一份公共保证。

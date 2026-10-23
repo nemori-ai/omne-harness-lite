@@ -102,14 +102,24 @@ function allowed(basis: AdmissionBasis): AdmissionDecision {
 
 function initialBasis(input: AdmissionInput): AdmissionBasis {
   return Object.freeze({
-    operation: input.operation,
-    target: input.target,
+    operation: Object.freeze({ owner: input.operation.owner, name: input.operation.name }),
+    target: Object.freeze({
+      owner: input.target.owner,
+      kind: input.target.kind,
+      key: input.target.key,
+    }),
     tenant: input.access.tenant,
-    arguments: input.arguments,
+    arguments: Object.freeze({ digest: input.arguments.digest }),
     principal: null,
     standing: null,
-    required: input.requires,
-    permit: input.permit,
+    required: Object.freeze([...input.requires]),
+    permit:
+      input.permit === null
+        ? null
+        : Object.freeze({
+            tenant: input.permit.tenant,
+            permit: input.permit.permit,
+          }),
   })
 }
 
@@ -168,12 +178,32 @@ function principalStep(input: AdmissionInput, facts: AdmissionFacts, basis: Admi
   return scope === null ? next(known) : denied(scope, known)
 }
 
+function standingSnapshot(standing: StandingBasis): StandingBasis {
+  const evidence = Object.freeze({
+    record: standing.evidence.record,
+    revision: standing.evidence.revision,
+  })
+  if (standing.kind === 'not-member') return Object.freeze({ kind: 'not-member', evidence })
+  return Object.freeze({
+    kind: 'member',
+    role: Object.freeze({
+      role: standing.role.role,
+      model: Object.freeze({
+        model: standing.role.model.model,
+        revision: standing.role.model.revision,
+      }),
+    }),
+    qualifications: Object.freeze([...standing.qualifications]),
+    evidence,
+  })
+}
+
 /** Steps 3 and 4: the tenant's account is a member now and holds every required qualification. */
 function membershipStep(input: AdmissionInput, facts: AdmissionFacts, basis: AdmissionBasis): Step {
   const standing = facts.standing
   if (standing === null) return unavailable('the standing of the tenant was not read')
   if (standing.kind === 'unavailable') return unavailable(standing.diagnostic)
-  const known = Object.freeze({ ...basis, standing })
+  const known = Object.freeze({ ...basis, standing: standingSnapshot(standing) })
   if (standing.kind === 'not-member') return denied('not-member', known)
   if (!hasAll(standing.qualifications, input.requires))
     return denied('qualification-missing', known)

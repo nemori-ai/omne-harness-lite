@@ -73,6 +73,7 @@ const decision = await check.check({
 | `tests/evidence.spec.ts` | 规范 JSON 的成员顺序、undefined 成员、数组保序；摘要与证据 |
 | `tests/reference-check.spec.ts` | 撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行 |
 | `tests/permit.spec.ts` | 许可文本、授予、查找、跨租户、手写租户、重复消费 |
+| `tests/snapshots.spec.ts` | 修改输入或返回值不能改写许可、消费事实或历史裁定依据；证据仍可重算，主体与租户保留原身份 |
 | `tests/port-adapters.spec.ts` | 进程内适配器实现 `AgentAccessCheck`、`ActionAdmission`、Tool `access.qualify`、`SessionAccessCheck` |
 | `tests/access-equivalence.spec-d.ts` | `Access<P>` 与 agent、tool、model、执行环境、request-context 契约的副本是同一类型 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |

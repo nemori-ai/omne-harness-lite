@@ -106,7 +106,7 @@ There is no form with an empty or default tenant. The type has no third variant,
 
 `Access<P>` is `Readonly<{ principal: P; tenant: TenantId }>`. `P` has no constraint: the assembly chooses the principal type, and this package does not judge it. `access()` throws `TypeError` unless `tenant` is a parsed tenant; it keeps the principal as given and freezes the result. A successful `access()` proves nothing about the principal. The verifier of the principal's owner does that.
 
-Only `parse`, `tenant()`, `tenantScope()` and `systemScope()` make legal values. Values are frozen plain data with a `name` field. A hand-built object such as `{ name: 'AccountId', text }` can still pass the type checker, because the accepted design has no compile-time brand. At run time, `encode` returns `type` for that object, and every equality function returns `false`. A value of a different family gets the same result.
+`parse` and `tenant()` create the five identity families listed in `IDENTITY_TYPE_NAMES`. These values are frozen plain data with a `name` field. `ActingScope` values instead have a `kind` field and no `name` field. Their constructors are `actingScopeCodec.parse`, `tenantScope()` and `systemScope()`. A hand-built object such as `{ name: 'AccountId', text }` can still pass the type checker, because the accepted design has no compile-time brand. At run time, `encode` returns `type` for that object, and every equality function returns `false`. A value of a different family gets the same result.
 
 `tenant()` throws `TypeError` unless its arguments are a parsed organization and a parsed account, in that order. It does not parse text and has no role parameter. A tenant holds no role, so a role change cannot change the tenant.
 
