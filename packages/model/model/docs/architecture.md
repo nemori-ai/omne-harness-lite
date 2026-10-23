@@ -16,6 +16,7 @@
 | 档案求值 | ModelProfiles，调用方与请求组装者 | 范围筛选、同名胜出、合法列表、模态及凭据元数据 | 读取固定快照；历史模态投影由调用方随运行时上下文提供，Model 只接收 |
 | 消息转换 | ModelMessageConversion，消息准入者 | 选件、固定资源、本地转换、结果校验及释放 | 单次转换；接纳后的原块/派生归消息拥有者 |
 | 请求准备 | ModelRequestPreparation，请求组装者或发起者 | 参数采用、schema、供应商相容和参数上限比较；不计量输入 | 固定请求值，无调用方历史写权 |
+| 准备资源 | ModelPreparationResources，请求组装者（[preparation/](../src/preparation/)） | 逐供应商绑定取得与全有全无释放、按访问依据经 `dispatches` 读一次被引用调用的事实、锚点与来源的纯判决、把数字交给家族的 `measureCalibrated` 并报告判决 | 租约；事实视图随租约消失，家族计量器仍是纯函数 |
 | 调用推进 | ModelCalls 与受信 ModelProvider 生命周期，原发起者/恢复宿主 | 可靠受理、实例取得、逐次发出、有限重试、控制和终局 | 原 call/dispatch；执行者可换代 |
 | 发送 | ModelSendBoundary，执行者 | 物化、回执提交、当前资格围栏、真实 start 和未知发送；不计量 | 每次 dispatch 的固定采用及临时资源 |
 | 输出交付 | ModelHandle.observe，观察者 | 供应商解码、共享到达映射、合法归约、保存后发布及有界缓冲 | 归约状态按 dispatch 隔离；持久事实仍归 Commands |

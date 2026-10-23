@@ -10,14 +10,15 @@
 | [index.ts](../src/index.ts) | 根入口，转出 family.ts 的类型、family-table.ts 的家族表、config.ts 的配置类型、transport.ts 的工厂、network.ts 的工厂与配置类型，以及 diagnostics.ts 的观察者类型 | family-table.ts、transport.ts、network.ts，family.ts、config.ts 与 diagnostics.ts（只转出类型） |
 | [family-table.ts](../src/family-table.ts) | 精确采用怎样解析到家族与记录：每个家族的记录冻结副本与采用，组合后的采用表，取得时的失败映射 | canonical-json.ts，family.ts、model-contract 与 operation-result（类型） |
 | [canonical-json.ts](../src/canonical-json.ts) | 纯数据的规范 JSON 与它的 SHA-256 | Node `crypto` |
-| [chat-completions/index.ts](../src/chat-completions/index.ts) | 子入口，转出 `bindChatCompletions` 与 vocabulary.ts 的类型 | bind.ts，vocabulary.ts（类型） |
+| [chat-completions/index.ts](../src/chat-completions/index.ts) | 子入口，转出 `bindChatCompletions`、`calibratedAmount` 与 vocabulary.ts 的类型 | bind.ts、calibration.ts，vocabulary.ts（类型） |
+| [chat-completions/calibration.ts](../src/chat-completions/calibration.ts) | 两家共用的校准算术：推理单元按来源 O 替换、锚点的完整包络差、只按估算部分的余量、`continuation-shrank` | json-text、model-contract 与 operation-result（类型）；方法来自封存件 marginal.ts 与 output-history.ts |
 | [chat-completions/bind.ts](../src/chat-completions/bind.ts) | 一条记录怎样成为完整绑定：绑定时的记录检查、请求上下文、只包一层的释放 | family-table.ts、limits.ts、request.ts、projection.ts、parameters.ts、gateway.ts、decoder.ts，family.ts、vocabulary.ts 与 model-contract（类型） |
 | [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明的展开、请求体、表示与编码诊断 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`，family.ts、vocabulary.ts、json-text 与 operation-result（类型）；改编自 pi |
 | [chat-completions/projection.ts](../src/chat-completions/projection.ts) | 请求怎样投影为网关消息：角色、内容、工具调用与结果、回放、缓存位置、工具 | json.ts、json-text、model-contract 的 `projectReplay` 与 `judgeReplayDeclaration`、Node `crypto`，vocabulary.ts、content-block 与 operation-result（类型）；改编自 pi |
 | [chat-completions/parameters.ts](../src/chat-completions/parameters.ts) | 参数怎样按记录表规划与写出 | gateway.ts，vocabulary.ts、model-contract 与 operation-result（类型） |
 | [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts，vocabulary.ts 与 json-text（类型） |
 | [chat-completions/json.ts](../src/chat-completions/json.ts) | 排序键的 json-text 值树构造 | json-text（类型） |
-| [chat-completions/vocabulary.ts](../src/chat-completions/vocabulary.ts) | 记录词表、四个 hook 与计量接缝的类型 | family-table.ts、model-contract、json-text、content-block、operation-result（类型） |
+| [chat-completions/vocabulary.ts](../src/chat-completions/vocabulary.ts) | 记录词表、四个 hook 与计量接缝的类型（`FamilyMeter.instance` 是 `CalibratedInputMeter`，`represent` 写出 `units` 侧表） | family-table.ts、model-contract、json-text、content-block、operation-result（类型） |
 | [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`faulted`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、decimal.ts、termination.ts、content-block 的 `judgeBlockIdentity`、json-text，family.ts、vocabulary.ts、model-contract 与 operation-result（类型）；改编自 pi |
 | [chat-completions/chunk.ts](../src/chat-completions/chunk.ts) | 一个数据帧是不是网关 chunk：边界上读成具名的 chunk，或给出形状失败 | vocabulary.ts 与 json-text（类型）；改编自 pi |
 | [chat-completions/details.ts](../src/chat-completions/details.ts) | 推理片段怎样拼接成项，以及一个片段的可见文本 | json.ts、json-text，chunk.ts 与 vocabulary.ts（类型） |

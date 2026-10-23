@@ -92,16 +92,14 @@ export function dispatchCommands<P>(
   }
   function prepareSupplierFailure(
     call: MemoryCall,
+    request: FixedModelRequest,
     input: Parameters<ModelCommands<P>['prepareDispatch']>[0],
   ): ModelFailure | null {
-    if (!call.request || !call.request.suppliers.some(s => digest(s) === digest(input.supplier)))
+    if (!request.suppliers.some(s => digest(s) === digest(input.supplier)))
       return invalid('supplier', 'outside-request')
     const prior = call.dispatches.at(-1)
     if (prior) return retrySupplierFailure(call, prior, input)
-    if (
-      digest(input.supplier) !== digest(call.request.suppliers[0]) ||
-      input.policyDecision !== null
-    )
+    if (digest(input.supplier) !== digest(request.suppliers[0]) || input.policyDecision !== null)
       return invalid('supplier', 'first-supplier')
     return null
   }
@@ -290,7 +288,10 @@ export function dispatchCommands<P>(
             call.dispatches.some(d => d.record.dispatch === input.dispatch)
           )
             return invalid('dispatch', 'duplicate-or-identity')
-          const supplier = prepareSupplierFailure(call, input)
+          // A released request has no supplier to prepare against: the same refusal as a
+          // supplier outside the request.
+          if (call.request === null) return invalid('supplier', 'outside-request')
+          const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
           call.dispatches.push({
             record: {
@@ -302,6 +303,8 @@ export function dispatchCommands<P>(
               terminal: null,
               account: null,
               materialization: null,
+              // Identities only. They outlive the request material, which cleanup releases.
+              messages: call.request.messages.map(message => message.id),
             },
             logicalTerminal: null,
             windows: new Map(),

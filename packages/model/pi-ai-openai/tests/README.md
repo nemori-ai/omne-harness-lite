@@ -23,6 +23,7 @@
 - 真实依赖：pi-ai-transport 的家族表、网关引擎与 `./testing` 的夹具检查；tokenizer-tiktoken 与 js-tiktoken 的 o200k 秩数据；model-contract 的请求校验与回放投影。没有替身。
 - 测试配置在 [support/openai.ts](support/openai.ts)：解码器限额与 10% 余量是测试参数，不是包的默认值。整个测试进程共用一个家族，所以 tokenizer 只初始化一次。
 - 请求经 `judgeFixedModelRequest` 构造，所以消息与采用的身份是真实的品牌值。
+- `calibration.spec.ts` 用开发依赖 `@omne-harness/model` 的 `createModelPreparationResources` 与 `composeFamilies([FAMILY])` 组合真实租约，表示来自真实 `rules.plan`。存储端口是只实现 `dispatches` 的替身，按调用返回发出记录、拒绝或不可用；租户与主体借自 model-contract 的脚本化符合性主体。期望数额在用例里用同一 tokenizer 算出。真实内存 Commands 上的读取与清理在 `@omne-harness/model` 的测试中。
 - 回放夹具的用例表在 [support/legacy-cases.ts](support/legacy-cases.ts)，对照表与有意不同见 [fixtures/README.md](fixtures/README.md)。
 
 两个脚本：

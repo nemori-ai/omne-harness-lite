@@ -31,9 +31,9 @@ it('the root entry exports the family table, the network resources factory and t
   ])
 })
 
-it('the subpath entry chat-completions exports bindChatCompletions as its only runtime value', async () => {
+it('the subpath entry chat-completions exports the binding entry and the shared calibrated arithmetic as its runtime values', async () => {
   const engine: object = await import('@omne-harness/pi-ai-transport/chat-completions')
-  expect(Object.keys(engine)).toEqual(['bindChatCompletions'])
+  expect(Object.keys(engine).toSorted()).toEqual(['bindChatCompletions', 'calibratedAmount'])
 })
 
 it('the subpath entry testing exports the fixture check and the adoption fingerprint helpers', async () => {

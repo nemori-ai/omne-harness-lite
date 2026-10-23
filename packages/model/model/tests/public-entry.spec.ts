@@ -7,6 +7,7 @@ it('the public entry exports standalone execution, runtime construction and cred
   const root = await import('@omne-harness/model')
   expect(Object.keys(root).sort()).toEqual(
     [
+      'createModelPreparationResources',
       'createModelRuntime',
       'createModelSendBoundary',
       'executeModel',

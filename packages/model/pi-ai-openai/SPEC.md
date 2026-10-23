@@ -17,7 +17,7 @@
 
 - 不发出请求，不读取凭据、环境、文件或网络。
 - 不读取媒体字节，不解码 data URL，不核验单帧 GIF。图片尺寸来自媒体计量事实。
-- 不迁移封存件的冻结旧修订、完整输出组计量、可选校准与费用解释。
+- 不迁移封存件的冻结旧修订与费用解释。完整输出组计量与可选校准按 PanQiWei 2026-10-23 的决定（#466 revision 3）采用，形状按现行契约重写，见[计量](#计量)。
 
 ## 结果与不变量
 
@@ -60,19 +60,24 @@
 <a id="计量"></a>
 ### 计量
 
-每条记录的计量器由 `createOpenAiMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。
+每条记录的计量器由 `createOpenAiMeter` 构造，`binding.counting` 等于 `binding.meter.basis`。计量器实现 `CalibratedInputMeter`：`measure(input)` 等于 `measureCalibrated(input, 空校准)`，一套算法两个入口。算术由 pi-ai-transport 的 [`calibratedAmount`](../pi-ai-transport/SPEC.md#校准算术) 共用，本包只给出哪个单元带推理状态、怎样计数、图片规则与方法名。
 
-1. 表示采用：`<记录名>#representation`。`represent` 从引擎的投影写出 `openai-visible-json/1` 的 token 输入：消息按线顺序；文本、工具调用与工具结果保留；图片只留类型与 `detail`；推理写 `reasoning` 文本，加密项只写数量；工具与参数采用一并写入。
-2. `measure` 按下列顺序，第一个失败即返回：
+1. 表示采用：`<记录名>#representation`。`represent` 从引擎的投影写出 `openai-visible-json/1` 的 token 输入：消息按线顺序；文本、工具调用与工具结果保留；图片只留类型与 `detail`；推理写 `reasoning` 文本，加密项只写数量；工具与参数采用一并写入。它同时写出 `units` 侧表：`messages` 的每个单元来自哪条消息，前置指令为 `null`，由同一列表构造，所以两者对齐。
+2. `measureCalibrated` 按下列顺序，第一个失败即返回：
    1. 供应商不是本记录：`invalid`，`field` 为 `supplier`；
    2. 表示采用不是本记录的：`unsupported`，`field` 为 `representation`；
    3. 表示为 `pending-media`：`unsupported`，`field` 为 `representation.kind`；
    4. token 输入不是这个 schema：`invalid`，`field` 为 `tokenInput`；
-   5. 有加密推理：`unavailable`，诊断为 `encrypted-reasoning-not-countable`。密文不分词，也不被去掉；
+   5. 带推理状态的单元（带 `reasoning_details` 成员的单元；家族编解码器只为能回放的整组写出它，条件即封存件 `classifyOpenAiDetail` 的整组条件：`reasoning.encrypted`、格式 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]`）需要来源的 O 而校准中没有它的条目：`unavailable`，诊断为 `encrypted-reasoning-not-countable`；条目为扣留：`unavailable`，诊断为扣留原因（`source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`）。密文不分词，也不被去掉，不按零计。锚点命中时只有新增部分的推理单元需要来源；
    6. token 输入中的图片数与 `media` 中图片事实数不同：`unavailable`，诊断为 `image-measurement-missing`；
    7. 记录的图片规则不覆盖某张图片：`unsupported`，`field` 为 `image <序号>`；
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。
-3. 成功时，`input-tokens` 检查为 `estimate`：数额是 token 输入的排序键 JSON 经 o200k 计数，加上每张图片的规则数；余量是数额乘以配置百分比再向上取整；`method` 为 `<记录名>#meter`，`marginSource` 为配置给出的采用。上限是 `context.input`，没有时为窗口减输出。档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。
+   侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
+3. 成功时，`input-tokens` 检查为 `estimate`，`marginSource` 为配置给出的采用，上限是 `context.input`，没有时为窗口减输出：
+   - 没有锚点：数额是 token 输入（带推理状态的单元去掉）的排序键 JSON 经 o200k 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；有单元被 O 替换时为 `<记录名>#meter+openai-complete-output-group-workload-estimated/1`，沿用封存件的方法名。
+   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分是新增非推理单元按完整包络差的 o200k 计数（包络去掉工具与前置指令）加它们的图片规则数加新增推理单元的 O；余量只按新增部分算。`method` 加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
+   - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 纳入锚点与各 O：换锚点就是换输入；空校准的摘要与没有校准时相同。
+   档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界；首份实测差值归 #466 的 C9。
 4. o200k 是代理编码：OpenAI 的 tiktoken 表只把 gpt-5* 映射到 o200k_base，没有 GPT-6。所以结果始终是估算，不声称 tokenizer 身份。
 5. 三条图片规则：
 
@@ -123,7 +128,7 @@
 | --- | --- | --- |
 | [记录](#记录)的迁入事实与线数据 | `records.spec.ts`、`adoptions.spec.ts` | 与封存件的表逐项比较 |
 | [规则](#规则) | `rules.spec.ts` | `usage` 直接调用；经引擎形成的账目事实由回放夹具核对 |
-| [计量](#计量) | `meter.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造 |
+| [计量](#计量) | `meter.spec.ts`、`calibration.spec.ts` | 图片规则用封存件的金值；带图片事实的表示由测试构造。校准经 `@omne-harness/model` 的真实准备租约与 `composeFamilies` 组合，表示来自真实 `rules.plan`，存储端口是 `dispatches` 替身；期望数额用 o200k 在用例里算出 |
 | [官方档案](#官方档案) | `profiles.spec.ts` | 每份档案的供应商都能取得绑定并规划请求 |
 | [家族与取得](#家族与取得) | `family.spec.ts`、`plan.spec.ts` | — |
 | 回放夹具与封存件逐条一致 | `fixtures.spec.ts` 与 [tests/fixtures](tests/fixtures/README.md) | 有意不同逐条列在夹具 README |
