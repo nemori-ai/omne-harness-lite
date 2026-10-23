@@ -178,7 +178,7 @@ function principalStep(input: AdmissionInput, facts: AdmissionFacts, basis: Admi
   return scope === null ? next(known) : denied(scope, known)
 }
 
-function standingSnapshot(standing: StandingBasis): StandingBasis {
+export function standingSnapshot(standing: StandingBasis): StandingBasis {
   const evidence = Object.freeze({
     record: standing.evidence.record,
     revision: standing.evidence.revision,

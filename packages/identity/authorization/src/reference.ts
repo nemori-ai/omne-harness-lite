@@ -8,7 +8,12 @@ import type {
   TenantStandingReading,
   TenantStandingSource,
 } from '@omne-harness/identity'
-import { decideAdmission, type AdmissionCheck, type AdmissionInput } from './admission.ts'
+import {
+  decideAdmission,
+  standingSnapshot,
+  type AdmissionCheck,
+  type AdmissionInput,
+} from './admission.ts'
 import type { PermitLedger, PermitLookup, PermitRef } from './permit.ts'
 
 export type ReferenceAdmissionDependencies = Readonly<{
@@ -20,12 +25,30 @@ export type ReferenceAdmissionDependencies = Readonly<{
 
 const THREW = 'threw an exception; its message is not reported'
 
+function inputSnapshot(input: AdmissionInput): AdmissionInput {
+  return Object.freeze({
+    access: Object.freeze({ principal: input.access.principal, tenant: input.access.tenant }),
+    operation: Object.freeze({ owner: input.operation.owner, name: input.operation.name }),
+    target: Object.freeze({
+      owner: input.target.owner,
+      kind: input.target.kind,
+      key: input.target.key,
+    }),
+    arguments: Object.freeze({ digest: input.arguments.digest }),
+    requires: Object.freeze([...input.requires]),
+    permit:
+      input.permit === null
+        ? null
+        : Object.freeze({ tenant: input.permit.tenant, permit: input.permit.permit }),
+  })
+}
+
 async function verify(
   deps: ReferenceAdmissionDependencies,
   principal: unknown,
 ): Promise<PrincipalVerification> {
   try {
-    return await deps.verifier.verify(principal)
+    return Object.freeze({ ...(await deps.verifier.verify(principal)) })
   } catch {
     return { kind: 'unavailable', diagnostic: `the principal verifier ${THREW}` }
   }
@@ -36,7 +59,10 @@ async function readStanding(
   input: AdmissionInput,
 ): Promise<TenantStandingReading> {
   try {
-    return await deps.standing.read({ tenant: input.access.tenant })
+    const standing = await deps.standing.read({ tenant: input.access.tenant })
+    return standing.kind === 'unavailable'
+      ? Object.freeze({ ...standing })
+      : standingSnapshot(standing)
   } catch {
     return { kind: 'unavailable', diagnostic: `the tenant standing source ${THREW}` }
   }
@@ -64,12 +90,13 @@ function presentedPermit(input: AdmissionInput): PermitRef | null {
 
 export function referenceAdmissionCheck(deps: ReferenceAdmissionDependencies): AdmissionCheck {
   const check: AdmissionCheck['check'] = async input => {
-    const principal = await verify(deps, input.access.principal)
+    const snapshot = inputSnapshot(input)
+    const principal = await verify(deps, snapshot.access.principal)
     const acting = principal.kind === 'verified' && principal.principal.kind === 'acting-for-tenant'
-    const standing = acting ? await readStanding(deps, input) : null
-    const permit = presentedPermit(input)
+    const standing = acting ? await readStanding(deps, snapshot) : null
+    const permit = presentedPermit(snapshot)
     const lookup = permit === null ? null : await lookupPermit(deps, permit)
-    return decideAdmission(input, { principal, standing, permit: lookup })
+    return decideAdmission(snapshot, { principal, standing, permit: lookup })
   }
   return Object.freeze({ check })
 }
