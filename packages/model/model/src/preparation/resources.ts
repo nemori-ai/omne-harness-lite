@@ -18,6 +18,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
+import { sameAdoption } from '../adoption.ts'
 import { readCallFacts, type CallFactsReader, type CallFactsView } from './facts.ts'
 import { judgeAnchor, judgeOutputs } from './judge.ts'
 import { parseLineage, type Lineage } from './lineage.ts'
@@ -76,13 +77,8 @@ function checkOptions<P>(options: ModelPreparationOptions<P>): void {
 }
 
 function sameRoute(supplier: Supplier, declared: ProfileSupplier): boolean {
-  const left = supplier.adoption
-  const right = declared.adoption
   return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest &&
+    sameAdoption(supplier.adoption, declared.adoption) &&
     supplier.recipient === declared.recipient &&
     supplier.model === declared.model
   )

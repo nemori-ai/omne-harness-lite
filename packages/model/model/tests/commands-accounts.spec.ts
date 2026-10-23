@@ -64,7 +64,7 @@ describe('checkCommandsAccounts', () => {
   it('passes every account obligation against the in-memory ModelCommands', async () => {
     const report = await checkCommandsAccounts({ subject: subjectOf() })
     expect(report.results).toEqual(
-      ACCOUNT_OBLIGATIONS.map(obligation => ({ obligation, status: 'pass', detail: '' })),
+      ACCOUNT_OBLIGATIONS.map(obligation => ({ obligation, status: 'pass' })),
     )
     expect(report.ok).toBe(true)
   })
@@ -158,7 +158,8 @@ describe('checkCommandsAccounts', () => {
           // that keys the accounts by tenant instead of by call.
           async dispatches(input) {
             const read = await commands.dispatches(input)
-            if ('failure' in read || accounted === undefined || accounted === input.call) return read
+            if ('failure' in read || accounted === undefined || accounted === input.call)
+              return read
             if (read.ok.some(record => record.account !== null)) return read
             return commands.dispatches({ ...input, call: accounted })
           },
@@ -264,6 +265,7 @@ describe('checkCommandsAccounts', () => {
     expect(report.results.map(result => result.status)).toEqual(
       ACCOUNT_OBLIGATIONS.map(() => 'fail'),
     )
-    expect(report.results[0]?.detail).toContain('no store')
+    const [first] = report.results
+    expect(first?.status === 'fail' ? first.detail : '').toContain('no store')
   })
 })

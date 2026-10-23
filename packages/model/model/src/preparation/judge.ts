@@ -12,6 +12,7 @@ import type {
   ModelCallId,
   OutputWithheld,
 } from '@omne-harness/model-contract'
+import { sameAdoption } from '../adoption.ts'
 import type { CallFactsLookup, CallFactsView } from './facts.ts'
 
 /**
@@ -60,15 +61,6 @@ function usageOf(account: CallAccount, name: string): string | null {
   const item = account.usage.find(entry => entry.name === name)
   if (item === undefined || item.state !== 'known' || !DECIMAL.test(item.lexeme)) return null
   return item.lexeme
-}
-
-function sameAdoption(left: Adoption, right: Adoption): boolean {
-  return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
 }
 
 function isPrefix(prefix: readonly MessageId[], messages: readonly MessageId[]): boolean {

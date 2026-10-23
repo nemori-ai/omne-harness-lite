@@ -10,17 +10,9 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { sameAdoption } from './adoption.ts'
 
 type Terminal = Extract<IndependentModelFact, { kind: 'ended' | 'not-started' }>
-
-function sameAdoption(left: Adoption, right: Adoption): boolean {
-  return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
 
 function copyAdoption(adoption: Adoption): Adoption {
   return {

@@ -12,6 +12,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ChatMessageId } from './vocabulary.ts'
 
 export type CalibrationArithmeticInput = Readonly<{
   /** The token input of the family schema: an object whose `messages` member lists the units. */
@@ -80,10 +81,13 @@ function unitsOf(entries: readonly JsonEntry[]): readonly JsonValue[] | null {
  * tool choice: the anchor already holds them (sealed marginal.ts drops `tools` the same way).
  */
 function withMessages(
-  entries: readonly JsonEntry[],
-  units: readonly JsonValue[],
-  anchored: boolean,
+  input: Readonly<{
+    entries: readonly JsonEntry[]
+    units: readonly JsonValue[]
+    anchored: boolean
+  }>,
 ): JsonValue {
+  const { entries, units, anchored } = input
   return {
     kind: 'object',
     entries: entries.flatMap(entry => {
@@ -104,7 +108,7 @@ type Context = Readonly<{
   input: CalibrationArithmeticInput
   entries: readonly JsonEntry[]
   items: readonly JsonValue[]
-  outputs: ReadonlyMap<string, MeterCalibration['outputs'][number]>
+  outputs: ReadonlyMap<ChatMessageId, MeterCalibration['outputs'][number]>
 }>
 
 /** The output count that stands for the reasoning unit at `index`, or the named unavailability. */
@@ -124,10 +128,9 @@ function outputOf(context: Context, index: number): Outcome<bigint, TransportFai
  * body, or the envelope difference when anchored.
  */
 function estimateOf(
-  context: Context,
-  indices: readonly number[],
-  anchored: boolean,
+  request: Readonly<{ context: Context; indices: readonly number[]; anchored: boolean }>,
 ): Outcome<Estimate, TransportFailure> {
+  const { context, indices, anchored } = request
   const { input, entries, items } = context
   let outputs = 0n
   let substituted = false
@@ -149,11 +152,11 @@ function estimateOf(
   const body =
     !anchored && kept.length === items.length
       ? input.tokenInput
-      : withMessages(entries, kept, anchored)
+      : withMessages({ entries, units: kept, anchored })
   const counted = input.count(body)
   if (!('ok' in counted)) return counted
   if (!anchored) return { ok: { text: counted.ok, outputs, extra: extra.ok, substituted } }
-  const empty = input.count(withMessages(entries, [], true))
+  const empty = input.count(withMessages({ entries, units: [], anchored: true }))
   if (!('ok' in empty)) return empty
   return { ok: { text: counted.ok - empty.ok, outputs, extra: extra.ok, substituted } }
 }
@@ -161,7 +164,7 @@ function estimateOf(
 /** The units after the covered prefix: those of a message that the anchor does not cover. */
 function freshOf(
   units: NonNullable<CalibrationArithmeticInput['units']>,
-  covered: ReadonlySet<string>,
+  covered: ReadonlySet<ChatMessageId>,
 ): number[] {
   return units.flatMap((message, index) =>
     message !== null && !covered.has(message) ? [index] : [],
@@ -173,13 +176,20 @@ function freshOf(
  * the full path answers.
  */
 function anchoredAmount(
-  context: Context,
-  anchor: NonNullable<MeterCalibration['anchor']>,
-  units: NonNullable<CalibrationArithmeticInput['units']>,
-  percent: bigint,
+  input: Readonly<{
+    context: Context
+    anchor: NonNullable<MeterCalibration['anchor']>
+    units: NonNullable<CalibrationArithmeticInput['units']>
+    percent: bigint
+  }>,
 ): Outcome<CalibratedAmount | null, TransportFailure> {
+  const { context, anchor, units, percent } = input
   if (!DECIMAL.test(anchor.inputTotal)) return invalid('calibration.anchor', 'input-total')
-  const estimate = estimateOf(context, freshOf(units, new Set(anchor.covered)), true)
+  const estimate = estimateOf({
+    context,
+    indices: freshOf(units, new Set(anchor.covered)),
+    anchored: true,
+  })
   if (!('ok' in estimate)) return estimate
   if (estimate.ok.text < 0n) return { ok: null }
   const estimated = estimate.ok.text + estimate.ok.outputs + estimate.ok.extra
@@ -195,15 +205,14 @@ function anchoredAmount(
 
 /** The full path over every unit; `shrank` records that an anchor was tried and missed. */
 function fullAmount(
-  context: Context,
-  percent: bigint,
-  shrank: boolean,
+  input: Readonly<{ context: Context; percent: bigint; shrank: boolean }>,
 ): Outcome<CalibratedAmount, TransportFailure> {
-  const estimate = estimateOf(
+  const { context, percent, shrank } = input
+  const estimate = estimateOf({
     context,
-    context.items.map((_, index) => index),
-    false,
-  )
+    indices: context.items.map((_, index) => index),
+    anchored: false,
+  })
   if (!('ok' in estimate)) return estimate
   const estimated = estimate.ok.text + estimate.ok.outputs + estimate.ok.extra
   return {
@@ -246,9 +255,9 @@ export function calibratedAmount(
     outputs: new Map(input.calibration.outputs.map(entry => [entry.message, entry])),
   }
   const { anchor } = input.calibration
-  if (anchor === null) return fullAmount(context, percent, false)
+  if (anchor === null) return fullAmount({ context, percent, shrank: false })
   if (units === undefined) return invalid('representation.units', 'missing')
-  const anchored = anchoredAmount(context, anchor, units, percent)
+  const anchored = anchoredAmount({ context, anchor, units, percent })
   if (!('ok' in anchored)) return anchored
-  return anchored.ok === null ? fullAmount(context, percent, true) : { ok: anchored.ok }
+  return anchored.ok === null ? fullAmount({ context, percent, shrank: true }) : { ok: anchored.ok }
 }
