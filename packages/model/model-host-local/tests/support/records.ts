@@ -19,6 +19,17 @@ export type RecordFixture = Readonly<{
 
 type RecordHead = Parameters<typeof fixtureDirectory>[0]
 
+/**
+ * The SSE body of the family's stream captured from the real gateway for `record`, byte for byte:
+ * `tests/fixtures/captured` of the family package.
+ */
+export function readCapturedStream(family: FamilyName, record: RecordHead): Buffer {
+  const root = fileURLToPath(
+    new URL(`../../node_modules/@omne-harness/${family}/tests/fixtures/captured/`, import.meta.url),
+  )
+  return readFileSync(join(root, fixtureDirectory(record), 'stream.sse'))
+}
+
 export function readRecordFixture(family: FamilyName, record: RecordHead): RecordFixture {
   const root = fileURLToPath(
     new URL(`../../node_modules/@omne-harness/${family}/tests/fixtures/records/`, import.meta.url),

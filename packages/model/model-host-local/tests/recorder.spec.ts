@@ -34,7 +34,7 @@ import {
   REPLY_ID,
   type RecordCaseName,
 } from './support/recording-cases.ts'
-import { readRecordFixture, type FamilyName } from './support/records.ts'
+import { readCapturedStream, readRecordFixture, type FamilyName } from './support/records.ts'
 
 /** The record body of the family model with a reasoning state reply: the server's answer. */
 function recordedStream(family: FamilyName, model: string): string {
@@ -54,7 +54,7 @@ const certificate = createCertificate()
 let server: HttpsFixture
 const PIECE_BYTES = 40
 /** What the server answers next: a status and the body, written in pieces of `PIECE_BYTES`. */
-let answer: Readonly<{ status: number; body: string }>
+let answer: Readonly<{ status: number; body: string | Buffer }>
 let root: string
 let output: string
 let vault: string
@@ -68,7 +68,7 @@ beforeAll(async () => {
     }
     res.writeHead(answer.status, { 'content-type': 'text/event-stream' })
     // One piece per timer turn: each reaches the client as its own chunk of the transfer coding.
-    const bytes = Buffer.from(answer.body, 'utf8')
+    const bytes = typeof answer.body === 'string' ? Buffer.from(answer.body, 'utf8') : answer.body
     const writeFrom = (at: number): void => {
       if (at >= bytes.byteLength) {
         res.end()
@@ -290,5 +290,48 @@ describe('a continued round', () => {
         vault,
       }),
     ).rejects.toThrow('the replayed request body is not the recorded one')
+  })
+})
+
+describe('a real reply captured from the gateway', () => {
+  // openai/gpt-5.6-sol at medium effort, the request of the openai-reasoning case: 92 summary
+  // pieces, one encrypted item and the answer, about a hundred facts. Each fact used to be saved
+  // on its own, and the confirmed snapshots of all of them did not fit the call's capacity.
+  it('openai-reasoning: the first round is written with its reasoning state, and the continued round carries it', async () => {
+    const first = RECORD_CASES['openai-reasoning']
+    const record = OPENAI_RECORDS.find(entry => entry.name === first.model)
+    if (record === undefined) throw new Error(`no record ${first.model}`)
+    const body = readCapturedStream(first.family, record)
+    answer = { status: 200, body }
+    const firstRequest = firstRoundRequest(first)
+    expect(await recordRound(inputOf('openai-reasoning'))).toMatchObject({
+      kind: 'written',
+      bytes: body.byteLength,
+      reasoningState: true,
+    })
+    const written = readFileSync(join(output, 'openai-reasoning', RECORDING_FILES.stream))
+    expect(written.equals(body)).toBe(true)
+
+    const replayed = await replayRound({
+      request: firstRequest,
+      recording: join(output, 'openai-reasoning'),
+      label: 'replay-captured',
+      vault,
+    })
+    expect(replayed.blocks.map(block => block.kind)).toEqual([
+      'thinking',
+      'text',
+      'reasoning_state',
+    ])
+    const request = continuedRequest({ first: firstRequest, replayed })
+    const before = server.requests.length
+    const outcome = await recordRound(inputOf('openai-reasoning-continued', { request }))
+    const sent = server.requests.slice(before)
+    expect(sent).toHaveLength(1)
+    const messages: unknown = Reflect.get(Object(JSON.parse(sent[0]?.body ?? '')), 'messages')
+    const reply = JSON.stringify(Reflect.get(Object(messages), 1))
+    // The encrypted item goes back with its real id.
+    expect(reply).toContain('rs_0d68cbc2f79b1f96016adb17346bd887d196f9c22bc3fc528a')
+    expect(outcome).toMatchObject({ kind: 'written', reasoningState: true })
   })
 })

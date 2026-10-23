@@ -76,9 +76,16 @@ const TRANSPORT_LIMITS = {
     maxNumberLength: 64,
   },
 }
+// A real reply arrives as about one fact per token: a short OpenAI answer at medium effort is about
+// a hundred facts. The in-memory ModelCommands charge every confirmed snapshot of a call to its
+// capacity (model SPEC, the material of a call), and a snapshot holds all blocks so far. A save per
+// fact therefore makes the material grow with the square of the fact count, and the work of each
+// save with it. So the runtime collects facts into batches: up to 16 KiB of facts, or 100 ms from
+// the first fact of a batch. A body that arrives at once makes a few batches, and a streamed reply
+// one batch per 100 ms at most.
 const CONFIGURATION: ModelConfiguration = {
-  outputBatchBytes: 1024,
-  outputBatchDelayMs: 0,
+  outputBatchBytes: 16_384,
+  outputBatchDelayMs: 100,
   observerBufferBytes: 4096,
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
@@ -86,6 +93,9 @@ const CONFIGURATION: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
+
+/** The capacity of the one call of a host: all of the in-memory store, which holds no other call. */
+const CALL_CAPACITY = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
 
 export function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
@@ -176,7 +186,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       resultPageParts: 8,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+      capacity: CALL_CAPACITY,
     },
     authority: {
       authorize: ({ access, action }) =>
@@ -297,7 +307,7 @@ export function assembleLocalHost(input: LocalHostInput) {
             position: 'answer',
             purpose: 'local-model-test',
           },
-          capacity: { bytes: '100000', blocks: '20', attachmentBytes: '0' },
+          capacity: CALL_CAPACITY,
         }),
       )
       const driven = await provider.driver.drive(
