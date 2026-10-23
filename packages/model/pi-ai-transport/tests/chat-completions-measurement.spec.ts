@@ -1,12 +1,15 @@
 // The measurement rules both family meters share around the calibrated arithmetic: the method
 // name of a measurement, the input digest and its calibration condition, the per-unit extra
-// tokens and the calibration of a plain `measure`.
+// tokens, the calibration of a plain `measure`, and the shared meter that uses them. The family
+// packages cover the shared meter with their real tokenizers and image rules.
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
   MeterCalibration,
+  ModelCountingBasis,
   ModelInputMeter,
+  ModelTextTokenizer,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -15,8 +18,11 @@ import {
   NO_CALIBRATION,
   calibratedDigest,
   calibratedMethod,
+  createCalibratedMeter,
   unitExtras,
   type CalibratedAmount,
+  type CalibratedMeterRules,
+  type MeteredUnit,
 } from '../src/chat-completions/index.ts'
 import {
   REPRESENTATION,
@@ -204,5 +210,132 @@ describe('NO_CALIBRATION', () => {
   it('is the frozen empty calibration', () => {
     expect(NO_CALIBRATION).toEqual({ anchor: null, outputs: [] })
     expect(Object.isFrozen(NO_CALIBRATION)).toBe(true)
+  })
+})
+
+describe('createCalibratedMeter', () => {
+  /** One unit whose text has a different length in its NFKC form: U+FB01 is `fi`. */
+  const units: JsonValue = {
+    kind: 'object',
+    entries: [
+      { key: 'messages', value: { kind: 'array', items: [{ kind: 'string', value: '\uFB01' }] } },
+    ],
+  }
+  const metered: MeasureInput = {
+    ...measure,
+    representation: { ...measure.representation, tokenInput: units },
+  }
+  const basis: ModelCountingBasis = {
+    supplier,
+    meter: METER,
+    tokenization: { kind: 'not-used', method: METER },
+    prompt: { kind: 'provider-private', estimation: METER },
+    projection: METER,
+    mediaTransform: METER,
+    replay: METER,
+    evidence: METER,
+  }
+  /** Counts one token per UTF-16 code unit of the text it is given. */
+  const tokenizer: ModelTextTokenizer = {
+    definition: {
+      adoption: adoption('tokenizer'),
+      implementation: adoption('tokenizer-implementation'),
+      vocabulary: adoption('tokenizer-vocabulary'),
+      configuration: adoption('tokenizer-configuration'),
+    },
+    count: segments => ({
+      ok: {
+        tokens: String(
+          segments.reduce(
+            (sum, segment) => sum + (segment.kind === 'text' ? segment.text.length : 0),
+            0,
+          ),
+        ),
+      },
+    }),
+  }
+  const rules = (
+    overrides: Partial<CalibratedMeterRules<MeteredUnit>> = {},
+  ): CalibratedMeterRules<MeteredUnit> => ({
+    owner: 'family',
+    supplier: supplier.adoption,
+    adoptions: { meter: METER, representation: REPRESENTATION, media: adoption('media') },
+    basis,
+    margin: { percent: '0', source: adoption('margin') },
+    outputGroup: OUTPUT_GROUP,
+    uncountable: 'reasoning-not-countable',
+    tokens: { tokenizer, form: 'as-written' },
+    contentOf: value => (value.kind === 'object' ? [{ reasoning: false }] : null),
+    imageTokens: ({ units: read }) => ({ ok: read.map(() => 0n) }),
+    ...overrides,
+  })
+  const inputAmount = (result: ReturnType<ModelInputMeter['measure']>) =>
+    'ok' in result ? result.ok.checks[0]?.measurement.amount : result.failure
+
+  it('refuses another supplier, another representation, pending media and another schema', () => {
+    const meter = createCalibratedMeter(rules())
+    expect(
+      meter.measure({ ...metered, supplier: { ...supplier, adoption: adoption('other') } }),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-meter' },
+    })
+    expect(
+      meter.measure({
+        ...metered,
+        representation: { ...metered.representation, adoption: adoption('other') },
+      }),
+    ).toEqual({ failure: { kind: 'unsupported', field: 'representation', adapter: METER } })
+    const reference = {
+      storage: 'tests',
+      key: 'image-1',
+      mediaType: 'image/png',
+      bytes: '1',
+      digest: '0'.repeat(64),
+    }
+    expect(
+      meter.measure({
+        ...metered,
+        representation: {
+          kind: 'pending-media',
+          adoption: REPRESENTATION,
+          tokenInput: units,
+          media: [],
+          references: [reference],
+        },
+      }),
+    ).toEqual({ failure: { kind: 'unsupported', field: 'representation.kind', adapter: METER } })
+    expect(createCalibratedMeter(rules({ contentOf: () => null })).measure(metered)).toEqual({
+      failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
+    })
+  })
+
+  it('counts the text as written, or its NFKC form when the family asks for it', () => {
+    const written = writeJsonText(units)
+    expect(written.normalize('NFKC').length).toBe(written.length + 1)
+    expect(inputAmount(createCalibratedMeter(rules()).measure(metered))).toBe(
+      String(written.length),
+    )
+    expect(
+      inputAmount(
+        createCalibratedMeter(rules({ tokens: { tokenizer, form: 'nfkc' } })).measure(metered),
+      ),
+    ).toBe(String(written.length + 1))
+  })
+
+  it('reports the anchor verdict only for a calibration with an anchor, and names the anchored method', () => {
+    const meter = createCalibratedMeter(rules())
+    const plain = meter.measure(metered)
+    expect('ok' in plain && plain.ok.calibration).toBe(undefined)
+    expect('ok' in plain && plain.ok.counting).toEqual([basis])
+    const hit = meter.measureCalibrated(metered, anchored('100'))
+    if (!('ok' in hit)) throw new Error('the anchored measurement failed')
+    expect(hit.ok.calibration).toEqual({ anchor: { kind: 'hit' } })
+    expect(hit.ok.checks[0]?.measurement).toEqual({
+      kind: 'estimate',
+      amount: '100',
+      margin: '0',
+      method: { ...METER, name: `${METER.name}+${ANCHORED_METHOD}` },
+      marginSource: adoption('margin'),
+    })
   })
 })
