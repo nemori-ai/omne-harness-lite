@@ -1,7 +1,12 @@
 // The accounts conformance suite against the in-memory ModelCommands, and against altered copies of
 // it that each break one account rule, so every failure the suite reports is shown to be reachable.
 import { describe, expect, it } from 'vitest'
-import { judgeFixedModelRequest, type ModelCommands } from '@omne-harness/model-contract'
+import {
+  judgeFixedModelRequest,
+  type CallAccountReport,
+  type ModelCallId,
+  type ModelCommands,
+} from '@omne-harness/model-contract'
 import {
   ACCOUNT_OBLIGATIONS,
   checkCommandsAccounts,
@@ -113,6 +118,78 @@ describe('checkCommandsAccounts', () => {
     })
     expect(statusOf(report.results, 'same-event-registered-once')).toBe('fail')
     expect(statusOf(report.results, 'same-event-other-report-refused')).toBe('fail')
+  })
+
+  it('fails the completion obligation when the reader gets the account without its subject', async () => {
+    const report = await checkCommandsAccounts({
+      subject: subjectOf(commands => ({
+        ...commands,
+        // Keeps the report as the supplier sent it, as a provider that never completes it.
+        async dispatches(input) {
+          const read = await commands.dispatches(input)
+          if ('failure' in read) return read
+          return {
+            ok: read.ok.map(record => {
+              if (record.account === null) return record
+              const { subject: _completed, ...account } = record.account
+              return { ...record, account: account as typeof record.account }
+            }),
+          }
+        },
+      })),
+    })
+    expect(statusOf(report.results, 'account-completed-with-subject-and-receipt')).toBe('fail')
+    expect(statusOf(report.results, 'unqualified-reader-refused')).toBe('pass')
+  })
+
+  it('fails the original-call obligation when dispatches shows the account of another call', async () => {
+    const report = await checkCommandsAccounts({
+      subject: subjectOf(commands => {
+        let accounted: ModelCallId | undefined
+        return {
+          ...commands,
+          async preserve(input) {
+            const kept = await commands.preserve(input)
+            if ('ok' in kept && input.facts.some(fact => fact.kind === 'account'))
+              accounted = input.call
+            return kept
+          },
+          // Gives a call without an account the records of the call that has one, as a provider
+          // that keys the accounts by tenant instead of by call.
+          async dispatches(input) {
+            const read = await commands.dispatches(input)
+            if ('failure' in read || accounted === undefined || accounted === input.call) return read
+            if (read.ok.some(record => record.account !== null)) return read
+            return commands.dispatches({ ...input, call: accounted })
+          },
+        }
+      }),
+    })
+    expect(statusOf(report.results, 'account-read-by-original-call')).toBe('fail')
+    expect(statusOf(report.results, 'account-completed-with-subject-and-receipt')).toBe('pass')
+  })
+
+  it('fails the subject obligation when the commands drop the subject a report names', async () => {
+    const report = await checkCommandsAccounts({
+      subject: subjectOf(commands => ({
+        ...commands,
+        // Removes the subject from the report and keeps the rest, as a provider that overwrites
+        // the subject instead of refusing the report.
+        preserve: input =>
+          commands.preserve({
+            ...input,
+            facts: input.facts.map(fact => {
+              if (fact.kind !== 'account') return fact
+              const { subject: _named, ...value } = fact.value as CallAccountReport & {
+                subject?: unknown
+              }
+              return { ...fact, value }
+            }),
+          }),
+      })),
+    })
+    expect(statusOf(report.results, 'report-naming-subject-refused')).toBe('fail')
+    expect(statusOf(report.results, 'account-completed-with-subject-and-receipt')).toBe('pass')
   })
 
   it('fails the reader obligation when dispatches ignores the qualification of the caller', async () => {
