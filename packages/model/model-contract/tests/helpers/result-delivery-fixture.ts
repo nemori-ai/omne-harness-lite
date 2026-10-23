@@ -44,6 +44,10 @@ export type DeliveryRecord = Readonly<{
 }>
 type Dependency = 'original-call' | 'dispatches' | 'material' | 'responsibility'
 type Reply = Outcome<ModelSavedReceipt, ModelDeliveryFailure>
+type Attempt = {
+  pending: Promise<Reply>
+  phase: { kind: 'writing' } | { kind: 'reply'; lost: boolean } | { kind: 'complete'; reply: Reply }
+}
 export type DeliveryFixture<P> = Readonly<{
   receiver: ModelResultReceiver<P>
   establishOriginalCall(
@@ -75,7 +79,7 @@ export type DeliveryFixture<P> = Readonly<{
 }>
 type MutableBudget = { -readonly [K in keyof Budget]: Budget[K] }
 type RecordState = { -readonly [K in keyof DeliveryRecord]: DeliveryRecord[K] } & {
-  active: Promise<Reply> | null
+  active: Attempt | null
   materialCopy: ModelDelivery | null
   attachmentCopies: readonly Uint8Array[]
   readonly evidenceIdentity: DurableEvidence
@@ -128,6 +132,16 @@ function knownReply(record: RecordState): Reply {
   if (receipt !== null) return succeed(receipt)
   if (hasUnknown(record)) return fail({ kind: 'outcome-unknown' })
   return unavailable(record.material.actual === 'committed' ? 'responsibility' : 'material')
+}
+function completeAttempt(attempt: Attempt, reply: Reply): Reply {
+  attempt.phase = { kind: 'complete', reply }
+  return reply
+}
+function startAttempt(run: (attempt: Attempt) => Promise<Reply>): Attempt {
+  const pending = Promise.withResolvers<Reply>()
+  const attempt: Attempt = { pending: pending.promise, phase: { kind: 'writing' } }
+  run(attempt).then(pending.resolve, pending.reject)
+  return attempt
 }
 
 export function createDeliveryFixture<P>(
@@ -258,70 +272,87 @@ export function createDeliveryFixture<P>(
     }
     record[stage] = frozenCopy(fact)
   }
-  async function deliverReply(record: RecordState): Promise<Reply> {
+  function claimReplyLoss(attempt: Attempt, key: string): boolean {
+    if (attempt.phase.kind === 'complete') return false
+    if (attempt.phase.kind === 'writing') attempt.phase = { kind: 'reply', lost: false }
+    if (!attempt.phase.lost && droppedReplies.delete(key)) attempt.phase.lost = true
+    return attempt.phase.lost
+  }
+  async function deliverReply(record: RecordState, attempt: Attempt): Promise<Reply> {
     const receipt = saved(record)
-    if (!receipt) return knownReply(record)
+    if (!receipt) return completeAttempt(attempt, knownReply(record))
     const key = deliveryIdentity(record.delivery.key)
+    claimReplyLoss(attempt, key)
     const barrier = barriers.get(barrierKey(record.delivery.key, 'reply'))
     if (barrier) {
       barrier.reached = true
       barrier.arrived.resolve()
       await barrier.released.promise
     }
-    if (droppedReplies.delete(key)) {
-      record.receiptObserved = false
+    if (claimReplyLoss(attempt, key)) {
+      const reply = completeAttempt(attempt, fail({ kind: 'outcome-unknown' }))
       event('reply.lost', key)
-      return fail({ kind: 'outcome-unknown' })
-    }
-    record.receiptObserved = true
-    event('reply.saved', key)
-    return succeed(receipt)
-  }
-  async function execute(record: RecordState, signal: AbortSignal): Promise<Reply> {
-    if (hasUnknown(record)) return knownReply(record)
-    if (record.material.actual === 'absent') {
-      if (!dependency('material')) return unavailable('material')
-      await step(record, 'material', signal)
-    }
-    if (record.material.actual !== 'committed' || hasUnknown(record)) return knownReply(record)
-    if (record.responsibility.actual === 'absent') {
-      if (signal.aborted || !dependency('responsibility')) return unavailable('responsibility')
-      await step(record, 'responsibility', signal)
-    }
-    return deliverReply(record)
-  }
-  function waitFor(
-    pending: Promise<Reply>,
-    record: RecordState,
-    signal: AbortSignal,
-  ): Promise<Reply> {
-    function stopped(): Reply {
-      const key = deliveryIdentity(record.delivery.key)
-      if (saved(record) && droppedReplies.has(key)) return fail({ kind: 'outcome-unknown' })
-      const reply = knownReply(record)
-      if ('ok' in reply) {
-        record.receiptObserved = true
-        event('reply.saved', key)
-      }
       return reply
     }
-    if (signal.aborted) return Promise.resolve(stopped())
+    return completeAttempt(attempt, succeed(receipt))
+  }
+  async function execute(
+    record: RecordState,
+    signal: AbortSignal,
+    attempt: Attempt,
+  ): Promise<Reply> {
+    if (hasUnknown(record)) return completeAttempt(attempt, knownReply(record))
+    if (record.material.actual === 'absent') {
+      if (!dependency('material')) return completeAttempt(attempt, unavailable('material'))
+      await step(record, 'material', signal)
+    }
+    if (record.material.actual !== 'committed' || hasUnknown(record))
+      return completeAttempt(attempt, knownReply(record))
+    if (record.responsibility.actual === 'absent') {
+      if (signal.aborted || !dependency('responsibility'))
+        return completeAttempt(attempt, unavailable('responsibility'))
+      await step(record, 'responsibility', signal)
+    }
+    return deliverReply(record, attempt)
+  }
+  function waitFor(
+    attempt: Attempt,
+    record: RecordState,
+    signal: AbortSignal,
+    recoveredReceipt: ModelSavedReceipt | null = null,
+  ): Promise<Reply> {
+    function stopped(): Reply {
+      if (recoveredReceipt !== null) return succeed(recoveredReceipt)
+      if (attempt.phase.kind === 'complete') return attempt.phase.reply
+      const key = deliveryIdentity(record.delivery.key)
+      if (saved(record) && claimReplyLoss(attempt, key)) return fail({ kind: 'outcome-unknown' })
+      return knownReply(record)
+    }
     return new Promise((resolve, reject) => {
-      const abort = () => {
+      let settled = false
+      function takeSettlement(): boolean {
+        if (settled) return false
+        settled = true
         signal.removeEventListener('abort', abort)
-        resolve(stopped())
+        return true
       }
-      signal.addEventListener('abort', abort, { once: true })
-      pending.then(
-        value => {
-          signal.removeEventListener('abort', abort)
-          resolve(value)
-        },
-        error => {
-          signal.removeEventListener('abort', abort)
-          reject(error)
-        },
-      )
+      function finish(reply: Reply): void {
+        if (!takeSettlement()) return
+        if ('ok' in reply) {
+          record.receiptObserved = true
+          event('reply.saved', deliveryIdentity(record.delivery.key))
+        }
+        resolve(reply)
+      }
+      function rejectOnce(error: unknown): void {
+        if (takeSettlement()) reject(error)
+      }
+      function abort(): void {
+        finish(stopped())
+      }
+      attempt.pending.then(finish, rejectOnce)
+      if (signal.aborted) abort()
+      else signal.addEventListener('abort', abort, { once: true })
     })
   }
   function ownerCheck(
@@ -409,7 +440,14 @@ export function createDeliveryFixture<P>(
       let record = records.get(key)
       if (record && !sameValue(record.delivery, delivery)) return fail({ kind: 'conflict' })
       if (record?.active) return await waitFor(record.active, record, signal)
-      if (record && saved(record)) return await deliverReply(record)
+      if (record) {
+        const recoveredReceipt = saved(record)
+        if (recoveredReceipt !== null) {
+          const savedRecord = record
+          const attempt = startAttempt(current => deliverReply(savedRecord, current))
+          return await waitFor(attempt, record, signal, recoveredReceipt)
+        }
+      }
       if (record && hasUnknown(record)) return knownReply(record)
       if (signal.aborted)
         return record ? knownReply(record) : fail({ kind: 'cancelled-before-accept' })
@@ -435,10 +473,12 @@ export function createDeliveryFixture<P>(
       record.attempts++
       const activeRecord = record
       executionOwnsFlight = true
-      const execution = execute(record, signal).finally(() => {
-        activeRecord.active = null
-        releaseFlight(access.tenant)
-      })
+      const execution = startAttempt(attempt =>
+        execute(activeRecord, signal, attempt).finally(() => {
+          activeRecord.active = null
+          releaseFlight(access.tenant)
+        }),
+      )
       record.active = execution
       return await waitFor(execution, record, signal)
     } finally {
