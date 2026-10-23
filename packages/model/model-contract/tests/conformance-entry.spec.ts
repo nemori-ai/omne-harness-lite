@@ -413,7 +413,7 @@ describe('the conformance entry', () => {
                   first = false
                   return hang
                     ? new Promise<never>(() => undefined)
-                    : given.transport.prepare(request, supplier)
+                    : given.transport.prepare(request, supplier, { resent: [] })
                 },
               },
             },

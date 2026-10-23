@@ -1,0 +1,139 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Plan the lookup. "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Check CEDAR."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\"query\":\"CEDAR\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "Plan the lookup. Check CEDAR."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_1",
+      "name": "lookup__exact",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "query",
+            "value": {
+              "kind": "string",
+              "value": "CEDAR"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"format\":\"anthropic-claude-v1\",\"index\":0,\"signature\":\"SIG-R1-claude-opus-5.5\",\"text\":\"Plan the lookup. Check CEDAR.\",\"type\":\"reasoning.text\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "980",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "31",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "20",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "7",
+          "unit": "token"
+        }
+      ],
+      "cost": [],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

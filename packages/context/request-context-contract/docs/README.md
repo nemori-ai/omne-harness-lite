@@ -20,11 +20,11 @@
 
 | 专题 | 本成员里承载什么 |
 | --- | --- |
-| [architecture.md](architecture.md) | 根入口的十个模块、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
+| [architecture.md](architecture.md) | 源码模块与组装阶段、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-RQ01 至 F-RQ06 六条协议级流程，以及共用的失败与生命周期规则 |
 | [object-model.md](object-model.md) | 对象的身份、拥有者、生命周期、状态与对象层的 SOLID 选择 |
-| [public-api.md](public-api.md) | 导出入口，以及随实现进入的值类型、纯操作、端口与常量索引 |
+| [public-api.md](public-api.md) | 导出入口，以及已实现的值类型、纯操作、端口与常量索引 |
 | [context.md](context.md) | 独立消费与托管消费、邻域交接、协调者端口的字段对应、适配方案与上层页面指针 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-当前缺口：SPEC 点名的全部类型与操作都还不在 `src/` 里，见[公开接口页](public-api.md#随实现进入的导出)。字段对应里有几项两边对不上，见[对不上的字段](context.md#对不上的字段)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+类型与操作的公开索引见[公开接口页](public-api.md#现有根导出)。字段对应里有几项两边对不上，见[对不上的字段](context.md#对不上的字段)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

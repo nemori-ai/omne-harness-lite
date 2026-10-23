@@ -1,0 +1,24 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "delivered refusal"
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "failed",
+      "fault": {
+        "cause": "stream-lost",
+        "diagnostic": "ended-without-finish",
+        "upstreamStatus": null
+      }
+    }
+  }
+]

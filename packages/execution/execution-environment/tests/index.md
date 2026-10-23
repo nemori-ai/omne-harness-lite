@@ -13,3 +13,5 @@
 - [scope.spec.ts](scope.spec.ts)：请求方作用域：作用域释放、描述与恢复按它过滤，带作用域的绑定层与它核对
 - [doubles.ts](doubles.ts)：测试共用的替身：租户、作用域、账本、守卫与可编排的提供者
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
+
+- [contract-conformance.spec.ts](contract-conformance.spec.ts)：登记表直接消费二十项公开执行环境义务，不触碰宿主资源。

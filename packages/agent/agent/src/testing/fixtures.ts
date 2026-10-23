@@ -162,6 +162,14 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
       messages: [],
       tools: [],
       toolChoice: 'auto',
+      // The default replay declaration of the test supplier, expanded.
+      declarations: [
+        {
+          produces: `${input.selection.recipient.route}/test-model`,
+          accepts: [`${input.selection.recipient.route}/test-model`],
+          foreignThinking: 'omit',
+        },
+      ],
       representation: testAdoption('representation'),
       parameterAdoptions: [],
       source: testAdoption('request-source'),

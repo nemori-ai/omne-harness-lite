@@ -71,9 +71,9 @@ export interface ScriptController<P> {
   /**
    * The call receives these upstream facts in order and shows the blocks they build. A fact that
    * the contract forbids is refused, and the facts after it are dropped. Facts and `emit` are two
-   * ways to set the blocks: the last one used wins. An `ended` or `account` fact is accepted
-   * but does not change the blocks or the phase: the call stays running, and only `settle` ends
-   * it. Each `play` still commits a new revision and notifies the observers.
+   * ways to set the blocks: the last one used wins. An `ended`, `account` or `diagnostic` fact is
+   * accepted but does not change the blocks or the phase: the call stays running, and only
+   * `settle` ends it. Each `play` still commits a new revision and notifies the observers.
    */
   play(input: ScriptedCall & Readonly<{ facts: readonly TransportFact[] }>): void
   /**

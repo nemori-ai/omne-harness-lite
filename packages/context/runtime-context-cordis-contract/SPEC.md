@@ -1,10 +1,10 @@
 # @omne-harness/runtime-context-cordis-contract 行为规格
 
-状态：Cordis 定义成员，`draft`。本成员只拥有 Runtime Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。领域行为归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 的源码现在只有模板标记，没有运行实现。
+状态：Cordis 定义成员，`draft`。本成员只拥有 Runtime Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。领域行为归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；领域机制及生产提供者不在本成员。
 
 ## 范围与依据
 
-本成员承接 [IC-1](../../../docs/architecture/cordis-integration-conventions.md#ic-1) 至 [IC-3](../../../docs/architecture/cordis-integration-conventions.md#ic-3)、[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)、[IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11)、[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)、[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17) 对 Runtime Context 这一个接缝的要求。服务定义、依赖分类、登记与撤除协议、事件和三条尚未进入的机制读数归 [docs/cordis.md](docs/cordis.md)。
+本成员承接 [IC-1](../../../docs/architecture/cordis-integration-conventions.md#ic-1) 至 [IC-3](../../../docs/architecture/cordis-integration-conventions.md#ic-3)、[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)、[IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11)、[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)、[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17) 对 Runtime Context 这一个接缝的要求。服务定义、依赖分类、登记与撤除协议、事件和三条机制读数的当前验证边界归 [docs/cordis.md](docs/cordis.md)。
 
 根入口与 Cordis 无关，只重新导出契约词汇所需的类型（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。Cordis 定义从 `./cordis` 导出。
 
@@ -48,6 +48,6 @@
 - `emit-filter-selects-listeners-by-extended-ctx` 与 `ctx-set-does-not-notify` 支撑性质 5，即按作用域过滤的唤醒，以及值变化只经本事件通知。
 - 性质 4 里「生产者卸载即撤」的效应归属已有 basis。代际由机制新取，不依赖 fiber `uid`，所以不需要 fiber `uid` 的 probe。新旧两代交错的撤除由提供者的测试覆盖。
 
-以上三条候选条目都还没有进入 basis。读数补齐之前，性质 3、5 与性质 4 的交错部分是假设，不是已核验的保证。
+三条读数已在本成员的真实 Cordis 4.0.4 测试中固定，结论与性质一致。它们尚未登记到 basis；本地验证不授予跨成员的共同采用，也不证明生产提供者的完整并发和恢复行为。提供者的交错与资源结算义务仍须自行验证。
 
 文档导航见 [index](index.md)。

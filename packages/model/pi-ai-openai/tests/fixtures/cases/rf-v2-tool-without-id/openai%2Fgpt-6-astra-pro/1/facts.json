@@ -1,0 +1,51 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "think"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "refuse"
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\"x\":1}"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "after"
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "failed",
+      "fault": {
+        "cause": "upstream-protocol",
+        "diagnostic": "tool-call-without-id",
+        "upstreamStatus": null
+      }
+    }
+  }
+]

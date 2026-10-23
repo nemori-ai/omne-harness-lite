@@ -1,0 +1,8 @@
+data: {"model":"openai/gpt-5.6-terra","provider":"OpenAI","choices":[{"delta":{"reasoning_details":[{"type":"reasoning.encrypted","data":"ENCRYPTED_NEVER_TOKENIZE","format":"openai-responses-v1","id":"rs-local","index":0}],"content":"visible answer"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":400,"completion_tokens":18,"completion_tokens_details":{"reasoning_tokens":11},"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0},"cost":0.000123}}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

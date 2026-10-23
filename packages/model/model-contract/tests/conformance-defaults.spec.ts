@@ -31,7 +31,7 @@ function recorded(subject: Subject, log: Log): Subject {
   const transport: ModelTransport = {
     prepare: (request, supplier) => {
       log.prepared.push({ request, supplier })
-      return given.transport.prepare(request, supplier)
+      return given.transport.prepare(request, supplier, { resent: [] })
     },
   }
   const through = patched(subject, {
@@ -86,6 +86,7 @@ describe('the values that the conformance suite sends when the subject gives non
       parameterAdoptions: [],
     })
     expect(Object.keys(request).sort()).toEqual([
+      'declarations',
       'fallback',
       'messages',
       'parameterAdoptions',
@@ -105,6 +106,10 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(supplier.credential).toEqual({ kind: 'factory' })
     expect(supplier.recipient).not.toBe('')
     expect(supplier.model).not.toBe('')
+    const identity = `${supplier.recipient}/${supplier.model}`
+    expect(request.declarations).toEqual([
+      { produces: identity, accepts: [identity], foreignThinking: 'omit' },
+    ])
   })
 
   it('names every adoption by an owner, a name, a revision and a 64-character hexadecimal digest', async () => {

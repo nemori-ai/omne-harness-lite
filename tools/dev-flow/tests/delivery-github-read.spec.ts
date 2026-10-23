@@ -153,7 +153,7 @@ function page(nodes: unknown[], cursor: string | null = null) {
 }
 function admissionBackend() {
   const calls: string[][] = [],
-    issues = new Map([[1, { ...rawIssue }]]),
+    issues = new Map<number, Record<string, unknown>>([[1, { ...rawIssue }]]),
     comments = new Map<number, unknown[]>(),
     blockedBy = new Map<number, number[]>(),
     parents = new Map<number, number>(),
@@ -711,5 +711,32 @@ describe('gh read process outcomes', () => {
     const error = failure(script, timeoutMs)
     expect(error).toBeInstanceOf(Error)
     expect(error).not.toBeInstanceOf(GhReadError)
+  })
+})
+
+describe('Issue milestone in captures', () => {
+  it('records the milestone title, null without one, and nothing when the field is absent', () => {
+    const f = admissionBackend()
+    f.add(1)
+    f.issues.set(1, { ...f.issues.get(1), milestone: { title: 'M1 首次联合验收' } })
+    expect(collectAdmission(config, f.scope, f.read).issues[0]?.milestone).toBe('M1 首次联合验收')
+    f.issues.set(1, { ...f.issues.get(1), milestone: null })
+    expect(collectAdmission(config, f.scope, f.read).issues[0]?.milestone).toBeNull()
+    f.add(1)
+    expect(collectAdmission(config, f.scope, f.read).issues[0]).not.toHaveProperty('milestone')
+  })
+  it('reads the milestone in the repository capture and keeps it through parsing', () => {
+    const calls: string[][] = [],
+      base = backend(calls)
+    const read: GhRead = (argv, timeoutMs) =>
+      (argv.at(-1) ?? '').includes('/issues?')
+        ? [{ ...rawIssue, milestone: { title: 'M1' } }]
+        : base(argv, timeoutMs)
+    const capture = collectDelivery(config, read)
+    expect(capture.issues[0]?.milestone).toBe('M1')
+    expect(parseCapture(JSON.parse(JSON.stringify(capture))).issues[0]?.milestone).toBe('M1')
+    expect(() =>
+      parseCapture({ ...capture, issues: [{ ...capture.issues[0], milestone: '' }] }),
+    ).toThrow('milestone')
   })
 })

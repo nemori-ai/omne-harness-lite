@@ -1,13 +1,20 @@
 import { expect, it } from 'vitest'
 import {
   decodeDispatchId,
+  type CallAccountReport,
+  type ProviderDiagnostic,
   type TransportFact,
   type WriteContext,
 } from '@omne-harness/model-contract'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
+import { judgePart } from '@omne-harness/message'
 import { digest } from '../src/testing/value.ts'
+import { memoryAssembly } from '../src/testing/memory.ts'
+import type { MemoryState } from '../src/testing/state.ts'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
+
+type Principal = ReturnType<typeof fixture>['admit']['principal']
 
 export function textBlock(text = 'hello', id = 'text-one') {
   const judged = judgeContentBlock({
@@ -19,9 +26,9 @@ export function textBlock(text = 'hello', id = 'text-one') {
   if ('rejected' in judged) throw new Error('fixture block')
   return judged.ok
 }
-export async function running() {
+export async function running(assemble = createMemoryModelCommands<Principal>) {
   const f = fixture()
-  const memory = createMemoryModelCommands(f.options)
+  const memory = assemble(f.options)
   const store = { control: memory.control }
   const commands = memory.commands
   unbox(await commands.admit(f.admit))
@@ -595,25 +602,27 @@ for (const bad of ['window', 'batchDigest', 'paused', 'noPrefetch'])
       'uncertain',
     )
   })
-it('atomically saves supplier accounts, recognizes events and rejects wrong subjects or regressing revisions', async () => {
+it('atomically saves supplier accounts with the call and the receipt, recognizes events and rejects named subjects or regressing revisions', async () => {
   const f = await running()
-  const account = {
-    subject: { kind: 'model_call', id: f.admit.call },
+  const report = {
     usage: [{ name: 'output', state: 'known', lexeme: '1', unit: 'token' }],
     cost: [],
     trimmed: { state: 'known', lexeme: '0', unit: 'token' },
     place: 'supplier',
     duration: { state: 'unknown' },
-    receipt: 'received',
     revision: '1',
-  } satisfies import('@omne-harness/call-account').CallAccount
+  } satisfies CallAccountReport
+  const subject = { kind: 'model_call', id: f.admit.call } as const
+  const account = { ...report, subject, receipt: 'received' } as const
   const window = 'account'
   unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
   const before = await f.commands.loadRecovery(f.admit)
-  for (const subject of [
-    { kind: 'model_call', id: 'mcall_other' },
-    { kind: 'tool_execution', id: f.admit.call },
-  ] as const) {
+  // A provider that still names the call or the receipt is refused: the runtime adds them.
+  for (const named of [
+    Object.assign({}, report, { subject: { kind: 'model_call', id: 'mcall_other' } }),
+    Object.assign({}, report, { subject }),
+    Object.assign({}, report, { receipt: 'received' }),
+  ]) {
     expect(
       await f.commands.preserve({
         ...(await f.write()),
@@ -622,36 +631,39 @@ it('atomically saves supplier accounts, recognizes events and rejects wrong subj
         facts: [
           { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
           { kind: 'block-delta', index: '0', delta: 'must not commit' },
-          { kind: 'account', event: 'original', value: { ...account, subject } },
+          { kind: 'account', event: 'original', value: named },
         ],
       }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'account' } })
     expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
     expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toBeNull()
   }
-  const facts: readonly TransportFact[] = [{ kind: 'account', event: 'original', value: account }]
+  const facts: readonly TransportFact[] = [{ kind: 'account', event: 'original', value: report }]
   f.completeWindows.add(`${f.admit.call}/${window}/${digest(facts)}`)
   const input = { ...(await f.write()), dispatch: f.dispatch, window, facts }
   const saved = unbox(await f.commands.preserve(input))
   expect(unbox(await f.commands.preserve(input))).toEqual(saved)
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(account)
   const late = {
     ...f.admit,
     operation: op('account-late'),
     dispatch: f.dispatch,
     source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
-    fact: { kind: 'account', event: 'original', value: account },
+    fact: { kind: 'account', event: 'original', value: report },
   } satisfies Parameters<typeof f.commands.recordLateFact>[0]
+  // The same event with the same report is the same account on either path.
   unbox(await f.commands.recordLateFact(late))
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(account)
   const revision = unbox(await f.commands.loadRecovery(f.admit)).state.revision
   expect(
     unbox(await f.commands.recordLateFact({ ...late, operation: op('account-replay') })).recovered,
   ).toBe(true)
   expect(unbox(await f.commands.loadRecovery(f.admit)).state.revision).toEqual(revision)
   for (const fact of [
-    { ...late.fact, value: { ...account, revision: '2' } },
-    { ...late.fact, event: 'stale', value: { ...account, revision: '0' } },
-    { ...late.fact, event: 'equal', value: account },
-    { ...late.fact, event: 'malformed', value: { ...account, revision: '2', duration: 'invalid' } },
+    { ...late.fact, value: { ...report, revision: '2' } },
+    { ...late.fact, event: 'stale', value: { ...report, revision: '0' } },
+    { ...late.fact, event: 'equal', value: report },
+    { ...late.fact, event: 'malformed', value: { ...report, revision: '2', duration: 'invalid' } },
   ]) {
     const state = await f.commands.loadRecovery(f.admit)
     expect(
@@ -660,7 +672,7 @@ it('atomically saves supplier accounts, recognizes events and rejects wrong subj
     expect(await f.commands.loadRecovery(f.admit)).toEqual(state)
     expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(account)
   }
-  const updated = { ...account, revision: '2', receipt: 'late' } as const
+  const updated = { ...report, revision: '2' } as const
   unbox(
     await f.commands.recordLateFact({
       ...late,
@@ -668,26 +680,33 @@ it('atomically saves supplier accounts, recognizes events and rejects wrong subj
       fact: { kind: 'account', event: 'update', value: updated },
     }),
   )
-  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(updated)
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual({
+    ...updated,
+    subject,
+    receipt: 'late',
+  })
 })
 
 it('accepts an account after terminal in the same batch and rejects later content atomically', async () => {
   const f = await running()
   const window = 'terminal-account'
   unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
-  const account = {
-    subject: { kind: 'model_call', id: f.admit.call },
+  const report = {
     usage: [],
     cost: [],
     trimmed: { state: 'known', lexeme: '0', unit: 'token' },
     place: 'supplier',
     duration: { state: 'unknown' },
-    receipt: 'received',
     revision: '1',
-  } satisfies import('@omne-harness/call-account').CallAccount
+  } satisfies CallAccountReport
+  const account = {
+    ...report,
+    subject: { kind: 'model_call', id: f.admit.call },
+    receipt: 'received',
+  }
   const facts: TransportFact[] = [
     { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } },
-    { kind: 'account', event: 'tail', value: account },
+    { kind: 'account', event: 'tail', value: report },
   ]
   const before = await f.commands.loadRecovery(f.admit)
   expect(
@@ -705,4 +724,101 @@ it('accepts an account after terminal in the same batch and rejects later conten
     terminal: { kind: 'completed', reason: 'limit' },
     account,
   })
+})
+
+/** A running call whose memory state the test can read, to see what a dispatch keeps. */
+async function inspectable() {
+  let state: MemoryState<Principal> | undefined
+  const f = await running(options => {
+    const assembled = memoryAssembly(options)
+    state = assembled.store
+    return assembled
+  })
+  const dispatchState = () => {
+    const key = state?.identity(f.admit)
+    if (state === undefined || typeof key !== 'string') throw new Error('a memory state')
+    const kept = state.root(key).calls.get(f.admit.call)?.dispatches[0]
+    if (kept === undefined) throw new Error('a dispatch')
+    return kept
+  }
+  return { ...f, dispatchState }
+}
+
+it('keeps provider diagnostics on the dispatch without changing blocks, first content or terminal', async () => {
+  const f = await inspectable()
+  const window = 'diagnostics'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const diagnostics: readonly ProviderDiagnostic[] = [
+    { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
+    { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 2_000_000 },
+    { kind: 'usage-inconsistent', field: 'completion_tokens' },
+  ]
+  const facts: readonly TransportFact[] = [
+    ...diagnostics.map(value => ({ kind: 'diagnostic', value }) as const),
+    { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } },
+  ]
+  const before = unbox(await f.commands.dispatches(f.admit))[0]
+  const snapshot = unbox(
+    await f.commands.preserve({ ...(await f.write()), dispatch: f.dispatch, window, facts }),
+  )
+  expect(snapshot.blocks).toEqual([])
+  expect(f.dispatchState().diagnostics).toEqual(diagnostics)
+  expect(unbox(await f.commands.dispatches(f.admit))[0]).toEqual({
+    ...before,
+    firstContent: 'uncertain',
+    terminal: { kind: 'completed', reason: 'limit' },
+  })
+})
+
+it('refuses a diagnostic that carries more than its kind allows, and keeps nothing of the batch', async () => {
+  const f = await inspectable()
+  const window = 'bad-diagnostic'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const before = await f.commands.loadRecovery(f.admit)
+  for (const value of [
+    Object.assign(
+      { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 3 } as const,
+      { payload: 'secret' },
+    ),
+    { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: -1 } as const,
+    { kind: 'usage-inconsistent', field: '' } as const,
+  ]) {
+    expect(
+      await f.commands.preserve({
+        ...(await f.write()),
+        dispatch: f.dispatch,
+        window,
+        facts: [
+          { kind: 'diagnostic', value: { kind: 'reasoning-disabled', reason: 'foreign-prefix' } },
+          { kind: 'diagnostic', value },
+        ],
+      }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'diagnostic', reason: 'shape' } })
+    expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
+    expect(f.dispatchState().diagnostics).toEqual([])
+  }
+})
+
+it('seals a whole reasoning state part at an index that was never opened', async () => {
+  const f = await running()
+  const window = 'reasoning-state'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const judged = judgePart({
+    kind: 'reasoning_state',
+    id: 'rs',
+    visibility: { toHuman: false, toModel: true },
+    payload: 'opaque',
+    pairs: [],
+  })
+  if (!('ok' in judged) || judged.ok.kind !== 'reasoning_state') throw new Error('fixture part')
+  const block = judged.ok
+  const snapshot = unbox(
+    await f.commands.preserve({
+      ...(await f.write()),
+      dispatch: f.dispatch,
+      window,
+      facts: [{ kind: 'block-seal', index: '0', block }],
+    }),
+  )
+  expect(snapshot.blocks).toEqual([{ kind: 'sealed', index: '0', block }])
 })

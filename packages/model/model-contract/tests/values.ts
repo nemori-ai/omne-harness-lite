@@ -15,6 +15,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { CallAccount } from '@omne-harness/call-account'
 import type {
   Adoption,
+  CallAccountReport,
   ConsumerRef,
   ContextLimits,
   CredentialId,
@@ -52,6 +53,7 @@ export declare const unparsedCall: UnparsedToolCallPart
 export declare const toolResult: ToolResultPart
 export declare const json: JsonValue
 export declare const account: CallAccount
+export declare const report: CallAccountReport
 
 export declare const credential: CredentialId
 export declare const call: ModelCallId
@@ -66,7 +68,12 @@ export declare const diagnosticId: ModelDiagnosticId
 export declare const diagnosticCursor: ModelDiagnosticCursor
 
 export const adoption: Adoption = { owner: 'owner', name: 'name', revision: '1', digest: 'd' }
-export const evidence: DurableEvidence = { owner: 'owner', record: 'r', revision: '1', digest: 'd' }
+export const evidence: DurableEvidence = {
+  owner: 'owner',
+  record: 'r',
+  revision: '1',
+  digest: 'd',
+}
 export const consumer: ConsumerRef = { owner: 'owner', work: 'w', position: 'p', purpose: 'u' }
 export const supplier: Supplier = {
   adoption,
@@ -74,7 +81,11 @@ export const supplier: Supplier = {
   model: 'model',
   credential: { kind: 'factory' },
 }
-export const profileSupplier: ProfileSupplier = { adoption, recipient: 'recipient', model: 'model' }
+export const profileSupplier: ProfileSupplier = {
+  adoption,
+  recipient: 'recipient',
+  model: 'model',
+}
 export const capacity: ResultCapacity = { bytes: '1', blocks: '1', attachmentBytes: '0' }
 export const tool: ToolDeclaration = { name: 'tool', description: 'd', argumentsSchema: json }
 export const limit: ModelLimit = { metric: 'image-bytes', provided: '1', upstream: [] }
@@ -116,6 +127,9 @@ export const request: FixedModelRequest = {
   messages: [message],
   tools: [tool],
   toolChoice: 'auto',
+  declarations: [
+    { produces: 'recipient/model', accepts: ['recipient/model'], foreignThinking: 'omit' },
+  ],
   representation: adoption,
   parameterAdoptions: [parameterAdoption],
   source: adoption,

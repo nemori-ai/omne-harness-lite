@@ -4,8 +4,10 @@ import { assembleStream } from '@omne-harness/stream-arrival'
 import { admitRevision, judgeCallAccount } from '@omne-harness/call-account'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type {
+  CallAccountReport,
   ModelBlock,
   ModelFailure,
+  ProviderDiagnostic,
   TransportFact,
   Termination,
   VisibleBlock,
@@ -72,21 +74,28 @@ function sealed(
   const result = assembleStream({ target: target(), steps })
   return 'rejected' in result ? invalid('block', result.detail ?? result.rejected) : null
 }
+/**
+ * Keeps the account that a provider reported for a dispatch. The runtime adds the subject (this
+ * call) and the receipt (`received` in the stream, `late` through `recordLateFact`). A report that
+ * names a subject or a receipt itself is refused. The same event with the same report is accepted
+ * once on either path; the same event with another report is a conflict.
+ */
 export function accountFact(
   call: MemoryCall,
   dispatch: MemoryDispatch,
-  event: string,
-  value: Parameters<typeof judgeCallAccount>[0],
+  input: Readonly<{ event: string; report: CallAccountReport; receipt: 'received' | 'late' }>,
 ): ModelFailure | null {
-  const judged = judgeCallAccount(value)
-  if (
-    'rejected' in judged ||
-    !event ||
-    judged.ok.subject.kind !== 'model_call' ||
-    judged.ok.subject.id !== call.state.call
-  )
+  const { event, report, receipt } = input
+  if (!event || Object.hasOwn(report, 'subject') || Object.hasOwn(report, 'receipt'))
     return invalid('account', 'shape-or-subject')
-  const fingerprint = digest(judged.ok)
+  const judged = judgeCallAccount({
+    ...report,
+    subject: { kind: 'model_call', id: call.state.call },
+    receipt,
+  })
+  if ('rejected' in judged) return invalid('account', 'shape-or-subject')
+  const { receipt: _receipt, ...reported } = judged.ok
+  const fingerprint = digest(reported)
   const seen = dispatch.events.get(`account:${event}`)
   if (seen !== undefined) return seen === fingerprint ? null : invalid('event', 'conflict')
   if (dispatch.record.account) {
@@ -203,13 +212,16 @@ function hasContent(block: ModelBlock): boolean {
   if (block.kind === 'text' || block.kind === 'thinking') return block.text.length > 0
   return 'inline' in block ? block.inline.length > 0 : true
 }
+/** Media blocks and reasoning state parts may arrive sealed, without an open before them. */
+function sealsWhole(block: ModelBlock): boolean {
+  return block.kind === 'image' || block.kind === 'file' || block.kind === 'reasoning_state'
+}
 function sealBlock(
   dispatch: MemoryDispatch,
   fact: Extract<TransportFact, { kind: 'block-seal' }>,
   prior: VisibleBlock | undefined,
 ): ModelFailure | null {
-  if (!prior && fact.block.kind !== 'image' && fact.block.kind !== 'file')
-    return invalid('block', 'unopened')
+  if (!prior && !sealsWhole(fact.block)) return invalid('block', 'unopened')
   if (!prior && dispatch.blocks.some(b => BigInt(b.index) >= BigInt(fact.index)))
     return invalid('index', 'order')
   const failure = sealed(
@@ -248,6 +260,55 @@ function trimBlock(
   ])
   return null
 }
+const DIAGNOSTIC_FIELDS: Readonly<Record<ProviderDiagnostic['kind'], readonly string[]>> = {
+  'replay-omitted': ['kind', 'message', 'scope', 'format', 'omittedParts'],
+  'reasoning-disabled': ['kind', 'reason'],
+  'reasoning-state-dropped': ['kind', 'reason', 'length'],
+  'usage-inconsistent': ['kind', 'field'],
+}
+function isCount(value: unknown): boolean {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+function isText(value: unknown): boolean {
+  return typeof value === 'string' && value.length > 0
+}
+/** True when the diagnostic has exactly the fields of its kind, each of the right type. */
+function wellFormed(diagnostic: ProviderDiagnostic): boolean {
+  const fields: readonly string[] | undefined = Object.hasOwn(DIAGNOSTIC_FIELDS, diagnostic.kind)
+    ? DIAGNOSTIC_FIELDS[diagnostic.kind]
+    : undefined
+  const keys = Object.keys(diagnostic)
+  if (fields === undefined || keys.length !== fields.length) return false
+  if (!keys.every(key => fields.includes(key))) return false
+  switch (diagnostic.kind) {
+    case 'replay-omitted':
+      return (
+        parseMessageId(diagnostic.message).ok &&
+        isText(diagnostic.scope) &&
+        isText(diagnostic.format) &&
+        isCount(diagnostic.omittedParts)
+      )
+    case 'reasoning-disabled':
+      return diagnostic.reason === 'foreign-prefix'
+    case 'reasoning-state-dropped':
+      return diagnostic.reason === 'payload-too-long' && isCount(diagnostic.length)
+    case 'usage-inconsistent':
+      return isText(diagnostic.field)
+    default: {
+      const _exhaustive: never = diagnostic
+      return _exhaustive
+    }
+  }
+}
+/** Keeps a diagnostic on the dispatch. It changes no block, no first content and no terminal. */
+function diagnosticFact(
+  dispatch: MemoryDispatch,
+  diagnostic: ProviderDiagnostic,
+): ModelFailure | null {
+  if (!wellFormed(diagnostic)) return invalid('diagnostic', 'shape')
+  dispatch.diagnostics = [...dispatch.diagnostics, structuredClone(diagnostic)]
+  return null
+}
 function reduceFact(
   call: MemoryCall,
   dispatch: MemoryDispatch,
@@ -255,13 +316,19 @@ function reduceFact(
 ): ModelFailure | null {
   if (fact.kind !== 'account' && dispatch.logicalTerminal !== null)
     return invalid('facts', 'after-terminal')
-  if (fact.kind === 'account') return accountFact(call, dispatch, fact.event, fact.value)
+  if (fact.kind === 'account')
+    return accountFact(call, dispatch, {
+      event: fact.event,
+      report: fact.value,
+      receipt: 'received',
+    })
+  if (fact.kind === 'diagnostic') return diagnosticFact(dispatch, fact.value)
   if (fact.kind === 'ended') return endDispatch(call, dispatch, fact.termination)
   return reduceBlock(dispatch, fact)
 }
 function reduceBlock(
   dispatch: MemoryDispatch,
-  fact: Exclude<TransportFact, { kind: 'account' | 'ended' }>,
+  fact: Exclude<TransportFact, { kind: 'account' | 'diagnostic' | 'ended' }>,
 ): ModelFailure | null {
   if (!decimal(fact.index) || !Number.isSafeInteger(Number(fact.index)))
     return invalid('index', 'safe-integer')

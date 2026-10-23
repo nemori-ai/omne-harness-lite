@@ -1,0 +1,14 @@
+data: {"model":"anthropic/claude-opus-5.5","provider":"Anthropic","choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"Plan the lookup. ","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"Check CEDAR.","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","signature":"SIG-R1-claude-opus-5.5","format":"anthropic-claude-v1","index":0}]}}]}
+
+data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"toolu_1","function":{"name":"lookup__exact","arguments":"{\"query\":\"CEDAR\"}"}}]}}]}
+
+data: {"choices":[],"model":"anthropic/claude-opus-5.5","provider":"Anthropic","usage":{"prompt_tokens":1000,"completion_tokens":31,"completion_tokens_details":{"reasoning_tokens":7},"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":20}}}
+
+data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}
+
+data: [DONE]
+

@@ -1,6 +1,5 @@
 # @omne-harness/runtime-context-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Runtime Context 的纯契约成员，`module` 变体。
@@ -11,15 +10,15 @@ Runtime Context 的纯契约成员，`module` 变体。
 
 状态：契约成员，`draft`。[SPEC](SPEC.md) 写明了哪些部分由技术接受采用，哪些部分依据产品正文第 4 版写入。现在的实现情况如下：
 
-- 已实现：`src/` 只有共享类型与两类块声明，全部是类型，根入口没有运行值。
-- 未实现：需要、绑定、注册、资格、读者、更新、步提交、变化材料的类型，以及 `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder`。
+- 已实现：根入口的值类型、两个解码函数和五个纯函数。
+- 已实现：需要、绑定、注册、资格、读者、更新、步提交、变化材料，五个纯函数与两个解码函数。`./testing` 提供契约套件和明确无耐久保证的内存替身。
 - 未验证：SPEC 的全部行为条款。本成员没有运行实现，不宣称租户隔离、并发、恢复或性能通过。
 
 现在的真实消费者是 execution-environment-contract 与 execution-environment，它们使用作用域引用与块声明类型。
 
 ## 使用
 
-本成员只有根入口 `@omne-harness/runtime-context-contract`。语义拥有者在自己的包里导出块声明，并增补块表：
+本成员提供根入口和 `./testing`。根入口为 `@omne-harness/runtime-context-contract`。语义拥有者在自己的包里导出块声明，并增补块表：
 
 ```ts
 import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
@@ -51,14 +50,14 @@ export const localeBlock: SuppliedBlockDescriptor<'example.locale', { tag: strin
 
 - 公开形状归 [src/index.ts](src/index.ts)。
 - 类型以外的行为归 [SPEC](SPEC.md)，条款 RC-01 至 RC-08。
-- 导出索引归[公开接口页](docs/public-api.md)，它分开列出现有导出与随实现进入的导出。
+- 导出索引归[公开接口页](docs/public-api.md)，它按模块导航实际公开导出。
 - 对象的身份、拥有者与生灭归[对象模型](docs/object-model.md)。
 
 读取有四种结果：成功、拒绝、缺项、未知；`changes` 另有游标作废。注册、块内容与步提交是三笔分开的提交，都不在本成员内发生，本成员只给核对结果与合并材料。本成员不持有资源，没有需要释放的对象。
 
 ## 设计
 
-根入口按共享类型、块声明、需要与绑定、注册与资格、读者与观察、更新与提交、纯函数七个模块组织，依赖单向。包外依赖只有 `@standard-schema/spec`，以及随读取资格进入的 legal-identity。模块切分与设计理由见[内部架构](docs/architecture.md)，八条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+根入口按共享类型、块声明、需要与绑定、注册与资格、读者与观察、更新与提交、纯函数七个模块组织，依赖单向。包外依赖为 `@standard-schema/spec`、legal-identity 和 operation-result。模块切分与设计理由见[内部架构](docs/architecture.md)，八条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -72,7 +71,7 @@ export const localeBlock: SuppliedBlockDescriptor<'example.locale', { tag: strin
 pnpm turbo run test --filter=@omne-harness/runtime-context-contract
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有运行导出，见 [tests/](tests/README.md)。SPEC 的[持续验证义务](SPEC.md#持续验证义务)都还没有测试覆盖。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试覆盖纯函数、公开入口、导出清单和框架无关契约套件，见 [tests/](tests/README.md)。真实机制仍需验证 SPEC 的[持续验证义务](SPEC.md#持续验证义务)中并发、耐久与恢复部分。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -95,8 +94,8 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         导出入口与定义索引
 ├── context.md            独立消费、邻域交接与系统定位
 └── cordis.md             不适用 Cordis 集成的理由
-src/                      公开类型，现在只有 index.ts
-tests/                    持续测试，fixtures/ 现在为空
+src/                      公开类型、纯函数和 testing 辅助
+tests/                    持续测试，fixtures/ 含公开导出清单
 schema/                   现在为空，本成员不发布 Schema
 verification/             models/ 与 proofs/，现在为空
 adr/                      现在为空

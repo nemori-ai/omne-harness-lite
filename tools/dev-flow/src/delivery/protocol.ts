@@ -48,6 +48,8 @@ export type CapturedIssue = {
   blockedBy: string[]
   parentIssue: string | null
   stage: string | null
+  /** The milestone title, null without one; absent in captures that did not read it. */
+  milestone?: string | null
 }
 export type DeliveryCapture = {
   schemaVersion: 1
@@ -69,9 +71,11 @@ export type Condition = {
   evidence: string
   scope?: string
 }
+export const findingCategories = ['deviation', 'unknown', 'uncovered', 'attribute'] as const
 export type Finding = {
   id: string
-  category: 'deviation' | 'unknown' | 'uncovered'
+  /** `attribute` holds report-only card attribute findings; they never block delivery. */
+  category: (typeof findingCategories)[number]
   code: string
   object: string
   clause: string
@@ -102,7 +106,7 @@ export type CardObservation = {
   execution: 'requires-review'
 }
 export type DeliveryReport = {
-  schemaVersion: 4
+  schemaVersion: 5
   kind: 'github-delivery-report'
   protocolVersion: 2
   repository: string
@@ -118,7 +122,7 @@ export type DeliveryReport = {
     completeness: 'known-subgraph-only'
     cycles: { phases: string[]; conditions: string[] }[]
   }
-  stock: { deviation: number; unknown: number; uncovered: number }
+  stock: { deviation: number; unknown: number; uncovered: number; attribute: number }
   delta: { introduced: string[]; resolved: string[]; remaining: string[]; notComparable: string[] }
 }
 export class InputError extends Error {
@@ -130,6 +134,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function record(value: unknown, path: string): Record<string, unknown> {
   if (!isRecord(value)) throw new InputError(`${path} must be an object`)
   return value
+}
+/**
+ * The `milestone` entry of a captured Issue from a raw GitHub Issue: the title, null when the
+ * Issue has none, and no entry when the response does not carry the field.
+ */
+export function milestoneOf(raw: Record<string, unknown>): Pick<CapturedIssue, 'milestone'> {
+  if (!('milestone' in raw)) return {}
+  return {
+    milestone:
+      raw.milestone === null
+        ? null
+        : nullable(record(raw.milestone, 'Issue.milestone').title, 'milestone.title'),
+  }
 }
 export function text(value: unknown, path: string): string {
   if (typeof value !== 'string') throw new InputError(`${path} must be a string`)
@@ -144,7 +161,7 @@ export function array(value: unknown, path: string): unknown[] {
   if (!Array.isArray(value)) throw new InputError(`${path} must be an array`)
   return value
 }
-function nullable(value: unknown, path: string): string | null {
+export function nullable(value: unknown, path: string): string | null {
   return value === null ? null : nonempty(value, path)
 }
 function boolean(value: unknown, path: string): boolean {
@@ -268,6 +285,7 @@ export function parseCapture(value: unknown): DeliveryCapture {
       blockedBy: strings(i.blockedBy, `${p}.blockedBy`),
       parentIssue: nullable(i.parentIssue, `${p}.parentIssue`),
       stage: nullable(i.stage, `${p}.stage`),
+      ...('milestone' in i ? { milestone: nullable(i.milestone, `${p}.milestone`) } : {}),
     }
   })
   if (
@@ -310,7 +328,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     s = record(v.stock, 'baseline.stock'),
     d = record(v.delta, 'baseline.delta'),
     g = record(v.graph, 'baseline.graph')
-  if (v.schemaVersion !== 4) throw new InputError('unsupported baseline schemaVersion')
+  if (v.schemaVersion !== 5) throw new InputError('unsupported baseline schemaVersion')
   const version = v.schemaVersion
   const capture = parseCapture({
     ...v,
@@ -378,7 +396,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     const f = record(item, `baseline.findings[${index}]`)
     return {
       id: nonempty(f.id, 'finding.id'),
-      category: oneOf(f.category, ['deviation', 'unknown', 'uncovered'], 'finding.category'),
+      category: oneOf(f.category, findingCategories, 'finding.category'),
       code: nonempty(f.code, 'finding.code'),
       object: text(f.object, 'finding.object'),
       clause: text(f.clause, 'finding.clause'),
@@ -391,7 +409,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     throw new InputError('baseline finding identity is invalid')
   if (new Set(findings.map(f => f.id)).size !== findings.length)
     throw new InputError('baseline has duplicate finding ids')
-  for (const category of ['deviation', 'unknown', 'uncovered'])
+  for (const category of findingCategories)
     if (s[category] !== findings.filter(f => f.category === category).length)
       throw new InputError('baseline stock does not match findings')
   for (const key of ['introduced', 'resolved', 'remaining', 'notComparable'])
@@ -422,6 +440,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
       deviation: findings.filter(f => f.category === 'deviation').length,
       unknown: findings.filter(f => f.category === 'unknown').length,
       uncovered: findings.filter(f => f.category === 'uncovered').length,
+      attribute: findings.filter(f => f.category === 'attribute').length,
     },
     delta: {
       introduced: strings(d.introduced, 'delta.introduced'),

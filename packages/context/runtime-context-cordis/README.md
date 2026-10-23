@@ -13,9 +13,11 @@ Status: Service implementation member, `draft`. The adoption basis is the [membe
 
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the concrete subclass, the plugin, and the configuration schema. The root entry stays empty.
-- Not verified: properties 2 and 4 of the SPEC depend on mechanism readings that are not in the basis yet. They are assumptions now. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- Not verified: the definition member tests the mechanisms for SPEC properties 2 and 4 on Cordis 4.0.4. The readings are not registered in the shared basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
 
 No application loads this plugin now, and no package depends on this package.
+
+The two Runtime Context contract members publish their types, checks, and Cordis service definition. Their package tests do not implement this member or prove production behavior.
 
 ## Usage
 

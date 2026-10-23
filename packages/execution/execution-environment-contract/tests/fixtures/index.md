@@ -4,4 +4,6 @@
 
 ## 内容
 
-- [README.md](README.md)：固定输入的来源与约束。现在没有固定输入
+- [README.md](README.md)：固定输入的来源与约束。包含机读导出清单
+
+- [exports.json](exports.json)：全部公开导出与增补的机读清单。

@@ -1,0 +1,75 @@
+{
+  "repository": "https://github.com/earendil-works/pi",
+  "version": "1.0.0",
+  "commit": "a13d35a742c6ef8462812a28fbe1d8c8b7431c32",
+  "source_archive": "git archive --format=tar.gz a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (git 2.25.1)",
+  "source_archive_sha256": "1de4da19981f0caed95df5ed76a14aa90b082fa08d997407e6e3a1898fc913d1",
+  "license_sha256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48",
+  "sources": [
+    {
+      "path": "packages/ai/src/api/openai-codex-responses.ts",
+      "sha256": "1f7a4f169d826a30189e3905475ca9f4c7edc518812013ae4b9f86b367942a05"
+    },
+    {
+      "path": "packages/ai/src/api/openai-completions.ts",
+      "sha256": "7c1bc51ddf740ce69b371e1ae391fcdcecde26852428451e7b17eeabdcfb4eb4"
+    }
+  ],
+  "rebase": {
+    "date": "2026-10-02",
+    "from": {
+      "version": "0.86.1",
+      "commit": "3390bd93630965a12a0a1a5c36ce890ec22f7e1d",
+      "note": "main two commits after the v0.86.1 release tag (v0.86.1-2-g3390bd93); the source file is byte-identical to the tag",
+      "source_archive_sha256": "29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163",
+      "sources_sha256": {
+        "packages/ai/src/api/openai-codex-responses.ts": "ea1860ea6f78d1ed4e935e86b5dcb149ccb1f03a12669ff8550cc7243ec6ddc8"
+      }
+    },
+    "code_changed": false,
+    "upstream_changes": [
+      {
+        "where": "openai-codex-responses.ts parseSSE",
+        "change": "none",
+        "disposition": "src/sse.ts baseline unchanged"
+      }
+    ]
+  },
+  "adaptations": [
+    {
+      "file": "src/sse.ts",
+      "source": "packages/ai/src/api/openai-codex-responses.ts",
+      "symbol": "parseSSE",
+      "changes": "Async iterable of Uint8Array input instead of a Node response; strict UTF-8 decoding that survives arbitrary byte cuts; a per-event byte limit that counts line breaks; all SSE newline forms including a CRLF split across chunks; rejection of an unterminated tail; SseProtocolError with the closed reasons non-byte, invalid-utf8, event-too-large and unterminated. Changes against the archived fork: only an error of the TextDecoder maps to invalid-utf8 and other errors pass through; a data line without a colon has an empty value (WHATWG); JSON reading and the end-marker moved to the project-owned src/frames.ts; a reader that ends the events before the first one closes the byte source, through the project-owned src/iteration.ts.",
+      "basis": "packages/model/pi-ai-transport/SPEC.md, section SSE 分帧 (#sse-分帧); packages/model/docs/migration.md pi-ai-transport/src sse.ts row"
+    },
+    {
+      "file": "src/chat-completions/projection.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "convertMessages, convertTools, addCacheControlToTextContent",
+      "changes": "Pure projection of the contract request (system blocks, shared log messages, tool declarations) onto gateway chat-completions messages instead of pi transcript messages; no compat detection, provider branch, SDK or environment read. Kept from upstream: tool results as `tool` messages, the images of a run of tool results moved into one following user message, tool calls as function calls with JSON text arguments, tools wrapped as `{type:'function', function:{name, description, parameters}}`, the cache marker on the last text part of a message. Changed: roles, content form, image form, cache placement and replay come from the record and four family hooks; reasoning replay follows the contract projectReplay; tool-call ids keep `^[A-Za-z0-9_-]{1,64}$` and otherwise become `call_` and 32 base64url characters of the SHA-256 (archived assistant-projection.ts); an orphan tool call or tool result is invalid; no placeholder text and no bridging assistant message; the last message of images only takes the cache marker on its last image; all objects have sorted keys.",
+      "basis": "packages/model/pi-ai-transport/SPEC.md, section 投影 (#投影)"
+    },
+    {
+      "file": "src/chat-completions/request.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "buildParams",
+      "changes": "Request body of the gateway: model from the record route, `provider` from the record serving pin with `allow_fallbacks: false` and `require_parameters: true`, `stream: true`, planned parameters through the record table and the closed gateway field vocabulary, fixed record fields. Not taken: the usage switch (`stream_options`), prompt cache keys, `max_completion_tokens`, every thinking format branch, sampling overrides, SDK types and environment reads. Added: parameter planning with explicit, default, unsupported and invalid results, the replay declaration check and the meter representation with the request bytes.",
+      "basis": "packages/model/pi-ai-transport/SPEC.md, sections plan (#plan), encode (#encode) and 请求体 (#请求体)"
+    },
+    {
+      "file": "src/chat-completions/chunk.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "stream (chunk loop), parseChunkUsage",
+      "changes": "Boundary parse of one json-text data frame into a typed chunk instead of reading SDK chunk objects: served model and provider, an in-band error with its numeric code only, at most one choice, the delta members content, refusal, reasoning, reasoning_details and tool_calls, the finish value and the usage object. Kept from upstream: the usage fields prompt_tokens, completion_tokens, prompt_tokens_details.cached_tokens and completion_tokens_details.reasoning_tokens. Changed: a count that is not a decimal integer stays unknown instead of 0, no arithmetic and no cost calculation (family usage hook), no choice.usage fallback, a reasoning_details item of an unknown type is kept as `other`, a signature-only reasoning.text item is kept, two choices or non-empty images or audio members are protocol failures, the other reasoning field names are not read.",
+      "basis": "packages/model/pi-ai-transport/SPEC.md, sections chunk 的形状 (#chunk-的形状) and 账目 (#账目)"
+    },
+    {
+      "file": "src/chat-completions/decoder.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "symbol": "stream (chunk loop), finishBlock, mapStopReason",
+      "changes": "A phase union (streaming, finished, faulted, ended) and one pure reduce step per frame that gives contract TransportFacts instead of pi message events. Kept from upstream: one text block and one thinking block, the first non-empty reasoning source, tool-call blocks keyed by stream index, the finish mapping stop, tool_calls and length, other finish values as failures, an error when the stream ends without a finish. Changed: content and refusal share the text channel; the reasoning source is chosen once per response among delta.reasoning, reasoning.text and reasoning.summary and never shows [REDACTED]; reasoning_details fragments join by index without id and adopt one signature (archived stream.ts rule); all joined details go to the family reasoning hook at finish and each result is sealed whole as a reasoning state part; tool argument text is buffered until the name within a configured limit and decoded at the seal; a length finish seals text, thinking and reasoning and keeps tool arguments unsealed; a bounded tail after finish accepts usage and the repeated finish; a frame refused after the finish moves the phase to faulted, which keeps the usage for the account; the first chunk fixes the served provider, which the record pins; an in-band error maps its numeric code like an HTTP status and never copies its text.",
+      "basis": "packages/model/pi-ai-transport/SPEC.md, section 网关引擎：流解释 (#网关引擎流解释): 映射, 封口, 失败与阶段 and 账目"
+    }
+  ]
+}

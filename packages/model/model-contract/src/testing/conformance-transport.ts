@@ -42,7 +42,10 @@ async function viaPrepared<P, T>(
 ): Promise<T> {
   const given = transportOf(scene)
   const { request, supplier } = inputOf(scene)
-  const prepared = succeeded(await given.transport.prepare(request, supplier), 'prepare')
+  const prepared = succeeded(
+    await given.transport.prepare(request, supplier, { resent: [] }),
+    'prepare',
+  )
   try {
     return await body(prepared, given)
   } finally {

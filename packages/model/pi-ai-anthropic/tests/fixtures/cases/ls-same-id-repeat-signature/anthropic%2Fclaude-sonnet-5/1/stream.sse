@@ -1,0 +1,8 @@
+data: {"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","id":"one-thinking-block","index":0,"format":"anthropic-claude-v1","extension":{"source":"controlled"},"text":"first ","signature":"signed-one"}]}}]}
+
+data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","id":"one-thinking-block","index":0,"format":"anthropic-claude-v1","extension":{"source":"controlled"},"text":"second","signature":"signed-one"}]}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

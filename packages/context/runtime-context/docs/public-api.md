@@ -27,7 +27,7 @@
 | 配置 | 工厂的参数 | 观察链保留上限；来源调用与生产者回调的超时。默认值只是初值 | [SPEC 范围与依据](../SPEC.md#范围与依据)、[SPEC 本地行为](../SPEC.md#本地行为) |
 | 变化出口 | 工厂的参数，回调 `onChange(scope, revision)` | 视图修订每前进一次同步调用一次；抛错只记诊断，写入不回滚 | [SPEC 变化出口](../SPEC.md#变化出口) |
 
-三面操作的签名在契约里写一次。本成员不另写。契约现在还没有导出这些操作类型，见契约的[随实现进入的导出](../../runtime-context-contract/docs/public-api.md#随实现进入的导出)。
+三面操作的签名在契约里写一次。本成员不另写。契约已导出 `RuntimeContextOperations` 等操作类型，见契约的[公开定义索引](../../runtime-context-contract/docs/public-api.md#定义索引)。
 
 机制实例经变化出口 `onChange(scope, revision)` 把视图修订的前进告诉工厂调用方。runtime-context-cordis 用它派发唤醒事件（[runtime-context-cordis 的唤醒](../../runtime-context-cordis/docs/cordis.md#按作用域过滤的唤醒)）。
 

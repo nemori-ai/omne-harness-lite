@@ -1,0 +1,126 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "First block."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Second block."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "Answer 3."
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "First block.Second block."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "Answer 3."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"format\":\"anthropic-claude-v1\",\"id\":\"think-a\",\"index\":0,\"signature\":\"SIG-R3-A-claude-fable-5.1\",\"text\":\"First block.\",\"type\":\"reasoning.text\"},{\"format\":\"anthropic-claude-v1\",\"id\":\"think-b\",\"index\":1,\"signature\":\"SIG-R3-B-claude-fable-5.1\",\"text\":\"Second block.\",\"type\":\"reasoning.text\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "2980",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "33",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "20",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "7",
+          "unit": "token"
+        }
+      ],
+      "cost": [],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "stop"
+    }
+  }
+]

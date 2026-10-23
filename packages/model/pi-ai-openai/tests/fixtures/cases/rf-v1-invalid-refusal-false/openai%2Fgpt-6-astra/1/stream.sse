@@ -1,0 +1,8 @@
+data: {"model":"openai/gpt-6-astra","provider":"OpenAI","choices":[{"delta":{"content":"must-not-leak","refusal":false}}],"usage":{"prompt_tokens":123,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":20,"cache_write_tokens":3},"cost":0.000123456789123456789}}
+
+data: {"choices":[],"usage":{"prompt_tokens":999}}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

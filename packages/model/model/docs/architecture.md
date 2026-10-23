@@ -319,7 +319,7 @@ ModelCommands 是持久边界。以下是提供者内部的逻辑记录，不要
 | Output | tenant、call、dispatch、连续序号；window、块事实、游标 | 批次、归约快照、首内容依据及revision同提交；按游标读取，不扫全历史 |
 | Retry | tenant、call、retry operation；原失败dispatch、position、decision | 同位置只落一决定，未知先inspect；外部策略副作用不在事务中重试 |
 | Read / Custody | tenant、call、read或result version；活动租约、ACK、保留责任 | acquireRead、handoff及清理准入共同排序；ACK提交后拒绝新全文读取 |
-| Late fact / Cleanup | tenant、call、dispatch、可信event；各资源清理项与保留依据 | 账目按原事件去重；待清理索引持续扫描，逐资源幂等释放 |
+| Late fact / Cleanup | tenant、call、dispatch、可信event；各资源清理项与保留依据 | 账目报告补上本次调用的 subject 与 receipt 后按原事件去重，流内与补录的同一事件只登记一次；待清理索引持续扫描，逐资源幂等释放 |
 
 Operation 输入指纹涵盖动作及业务参数，绑定公开格式的固定 codec adoption。主体验证证据在提交时重新核验，不用旧许可参与指纹替代授权。JSON 值树按采用的 codec 编码，拒绝重复键、不可表示值和未声明字段；不能直接以对象地址、默认 JSON.stringify 顺序或当前配置生成幂等身份。摘要只用于冲突检测，持久结果仍保存原固定参数或可核实引用。
 
@@ -393,11 +393,11 @@ classDiagram
 | `prepareDispatch` | 发出尝试与重试 | 状态变更 | 当前代次、尚未控制且尚未收场、首内容界、合法政策和唯一 dispatch 意图 | Model 的 operation、expected/revision、generation 与 dispatch；意图不证明已发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作) |
 | `recordMaterialization` | 发出尝试与重试 | 状态变更 | 当前代次、原未发出 dispatch、供应商、固定输入与物化回执 | Model 固定 supplier/representation/payload 摘要；Storage 耐久确认后才形成 source | [物化提交](../../model-contract/SPEC.md#物化回执的提交与发送) |
 | `recordSend` | 发出尝试与重试 | 状态变更 | 原 dispatch 的真实启动观察或发送未知，started 不倒退 not-sent | Model 的 operation、expected/revision 与 generation；本地记录不能推断网络未发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[恢复](../../model-contract/SPEC.md#342-重试失联与恢复) |
-| `recordLateFact` | 发出尝试与重试 | 状态变更 | 当前补录资格、原 dispatch 归属、可信 source、事件去重和账目修订或实际终结事实 | Model 的 operation、dispatch/event 与 DurableEvidence；无须新 claim，不取得执行权，不改逻辑终局、结果版本、ACK 或 cleanup | [恢复与晚到补录](../../model-contract/SPEC.md#342-重试失联与恢复) |
+| `recordLateFact` | 发出尝试与重试 | 状态变更 | 当前补录资格、原 dispatch 归属、可信 source、事件去重和账目修订（账目报告补上 receipt late）或实际终结事实 | Model 的 operation、dispatch/event 与 DurableEvidence；无须新 claim，不取得执行权，不改逻辑终局、结果版本、ACK 或 cleanup | [恢复与晚到补录](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `prepareRetry` | 发出尝试与重试 | 状态变更 | 原失败 dispatch、尚未首内容、当前策略资格、唯一策略 operation 和固定策略消费位置 | Model 固定 RetryPosition；策略拥有者保存自身经过，调用前先提交位置 | [重试协议](../../model-contract/SPEC.md#342-重试失联与恢复)、[资格提交](../../model-contract/SPEC.md#342-资格共同提交与实际发送) |
 | `decideRetry` | 发出尝试与重试 | 状态变更 | 原失败、原政策资格、原 position、可核验决定 source 和唯一决定 | Model 的条件修订与 position 认回；策略拥有者按原身份 inspect，不重做付费判断 | [重试协议](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `openReceiveWindow` | 接收/读窗口与承接 | 状态变更 | 有效实例、原 dispatch、唯一 window 与首内容 uncertain 标记 | Model 的 generation、window、operation 和条件修订；提交后才可接收 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[接收窗口](../../model-contract/SPEC.md#342-重试失联与恢复) |
-| `preserve` | 接收/读窗口与承接 | 状态变更 | 原实例/dispatch/window、完整有序批次、可恢复内容、首内容、账目、游标和窗口关闭 | Model 按 window/序号去重及 revision 提交；提交后发布快照 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[接收窗口](../../model-contract/SPEC.md#342-重试失联与恢复) |
+| `preserve` | 接收/读窗口与承接 | 状态变更 | 原实例/dispatch/window、完整有序批次、可恢复内容、首内容、账目（账目报告补上 subject 与 receipt received）、随发出保存的诊断事实、游标和窗口关闭 | Model 按 window/序号去重及 revision 提交；提交后发布快照 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[接收窗口](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `acquireRead` | 接收/读窗口与承接 | 状态变更 | 当前读取资格、实际终局、原 result version、首页及真实读取登记；与 ACK 排序 | Model 的 operation 先认回原 read；新 operation 在 ACK 后不能取得全文 | [读准入与分页](../../model-contract/SPEC.md#342-普通调用面与实例观察)、[逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `nextRead` | 接收/读窗口与承接 | 查询 | 当前读取资格、原 read、同一 result version 和原 after 对应页 | Model 的稳定页身份；同 after 返回同页，不消费或暗移游标 | [读准入与分页](../../model-contract/SPEC.md#342-普通调用面与实例观察) |
 | `endRead` | 接收/读窗口与承接 | 状态变更 | 当前读取资格、原 read 的实际资源结束及保护关系解除，保留结束原因 | Model 的 read 身份和幂等结束；公开输入没有 operation，内部适配见下文假设 | [提供者接口](../../model-contract/src/provider.ts)、[逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |

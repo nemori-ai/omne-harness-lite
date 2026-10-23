@@ -8,7 +8,7 @@
 
 ## 成员与依赖
 
-两块各按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 agent、model、tool 组同构。八个成员由模板生成，公开承诺归各自 `SPEC.md`，当前都是骨架。
+两块各按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 agent、model、tool 组同构。公开承诺归各成员 `SPEC.md`。Runtime Context 与 Request Context 的纯契约及 Cordis 服务定义已有源码、契约套件和包测试。四个机制与 Service 实现成员仍是模板，没有运行实现。
 
 | 成员 | 变体 | 责任 |
 | --- | --- | --- |
@@ -27,11 +27,11 @@
 
 Runtime Context 的三面（生产者面、持有者面、读者面）与 Request Context 的纯操作经公开契约交接；跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。登记与步提交是持有者各自单独的提交；压缩转换是持有者与协调者的共同提交，唯一提交点归两方契约，现在尚未裁定：持有者一侧在 [#580](https://github.com/nemori-ai/omne-harness-lite/issues/580)，协调者一侧在 [#558](https://github.com/nemori-ai/omne-harness-lite/issues/558)。本组成员只给材料。
 
-请求组装有两条入口。托管路径：装配了 Cordis 的系统里，协调者一侧的适配器调用服务定义 [request-context-cordis-contract](request-context-cordis-contract/README.md) 的 `assembly(scope, ports)`，逐次交入历史源读口、计量端口与转换件结果端口；贡献从登记面现取，策略与缓存在提供者里。独立路径：不装配 Cordis 的调用方调用 [request-context](request-context/README.md) 的机制工厂，在构造时给出三项端口与两个策略，自己传入贡献；只要纯操作、不要缓存时直接用 [request-context-contract](request-context-contract/README.md) 的根入口。两个 `-cordis` 成员的根入口不导出任何东西。
+请求组装有两条入口。托管路径：装配了 Cordis 的系统里，协调者一侧的适配器调用服务定义 [request-context-cordis-contract](request-context-cordis-contract/README.md) 的 `assembly(scope, ports)`，逐次交入历史源读口、计量端口、转换件结果端口与请求序列化端口；贡献从登记面现取，策略与缓存在提供者里。独立路径：不装配 Cordis 的调用方调用 [request-context](request-context/README.md) 的机制工厂，在构造时给出四项端口与两个策略，自己传入贡献；只要纯操作、不要缓存时直接用 [request-context-contract](request-context-contract/README.md) 的根入口。两个 `-cordis` 成员的根入口不导出任何东西。
 
 ## 组合验证
 
-契约成员的验证覆盖纯函数与导出面。跨成员性质（一次模型请求的上下文闭环、块变化到模型可见、压缩后重给快照）由持有者、协调者与本组成员联合验证，验证入口随各成员 `verification/` 与真实协调者维护。当前八个成员没有实现与运行验证；骨架通过不证明行为。
+契约成员的验证覆盖纯函数与导出面。跨成员性质（一次模型请求的上下文闭环、块变化到模型可见、压缩后重给快照）由持有者、协调者与本组成员联合验证，验证入口随各成员 `verification/` 与真实协调者维护。两块的四个契约成员已有纯操作、契约套件与 Cordis 机制读数测试。四个实现成员没有运行实现；契约测试和模板检查不证明真实持有者、协调者或生产提供者的组合保证。
 
 ## 维护
 

@@ -1,6 +1,5 @@
 # @omne-harness/execution-environment-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Execution Environment 的纯契约成员，`module` 变体。
@@ -16,14 +15,14 @@ Execution Environment 的纯契约成员，`module` 变体。
 - 已实现：全部公开类型、三个核心设施的协议与声明、需要声明的 JSON Schema 与 Standard Schema、采用身份、两条块声明、两个纯函数、`describeFacility` 与 `createRecoveryAccess`。
 - 已有测试：导出面、设施声明、块声明、不导入 Cordis、环境要求的解码、提供者匹配、需要声明的 schema 与摘要，以及类型测试。
 - 没有提供者：本成员不实现任何设施或环境。宿主提供者在 [execution-environment-host-local](../execution-environment-host-local/README.md)。
-- 未进入：逐操作参数与结果的 schema，设施与提供者的契约验证套件。
+- 已实现：三面八操作的参数 schema、六个数据结果 schema 与 `operationSchemas`；登记面返回撤除函数，不另做结果 schema。`./testing` 提供用例列表与非耐久替身。设施自身逐操作 schema 留后续。
 - 未验证：SPEC 的大部分行为条款需要机制成员、提供者与真实集成方的组合验证。本成员不宣称租户隔离、资源关闭、耐久或恢复已经通过。
 
 现在的真实消费者是组内的 execution-environment-cordis-contract、execution-environment 与 execution-environment-host-local。
 
 ## 使用
 
-本成员只有根入口 `@omne-harness/execution-environment-contract`。工具包用它写环境声明，并推出执行者能拿到的设施：
+本成员有根入口 `@omne-harness/execution-environment-contract` 与测试入口 `./testing`。工具包用它写环境声明，并推出执行者能拿到的设施：
 
 ```ts
 import {
@@ -58,7 +57,7 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 
 ## 设计
 
-根入口按身份、绑定层、要求、设施、三个核心设施、端口、租约、提供者与操作面、需要声明、块声明、纯函数分成源模块，依赖单向。包外依赖是 runtime-context-contract、legal-identity、operation-result、json-text、schema-provider 与 `@standard-schema/spec`，其中只有 operation-result 是运行值依赖。模块切分、关键机制的理由与设施协议见[内部架构](docs/architecture.md)，六条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+根入口按身份、绑定层、要求、设施、三个核心设施、端口、租约、提供者与操作面、需要声明、块声明、纯函数分成源模块，依赖单向。包外依赖是 runtime-context-contract、legal-identity、operation-result、json-text、schema-provider 与 `@standard-schema/spec`，其中operation-result、json-text 与 legal-identity 是运行值依赖。模块切分、关键机制的理由与设施协议见[内部架构](docs/architecture.md)，九条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

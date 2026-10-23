@@ -35,7 +35,7 @@ function transported(change: (prepared: PreparedTransport) => PreparedTransport)
       ...given,
       transport: {
         async prepare(request, supplier) {
-          const outcome = await given.transport.prepare(request, supplier)
+          const outcome = await given.transport.prepare(request, supplier, { resent: [] })
           return 'ok' in outcome ? succeed(change(outcome.ok)) : outcome
         },
       },
@@ -46,7 +46,9 @@ function transported(change: (prepared: PreparedTransport) => PreparedTransport)
 /** The prepared transport that the view of the subject gives. */
 async function preparedOf(subject: Subject): Promise<PreparedTransport> {
   const view = boundedSubject(subject, WAIT)
-  const outcome = await view.transport?.transport.prepare(DEFAULT_REQUEST, DEFAULT_SUPPLIER)
+  const outcome = await view.transport?.transport.prepare(DEFAULT_REQUEST, DEFAULT_SUPPLIER, {
+    resent: [],
+  })
   if (outcome === undefined || !('ok' in outcome))
     throw new Error('prepare did not give a transport')
   return outcome.ok

@@ -5,8 +5,8 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责与现状
-- [index.ts](index.ts)：根入口，只重导出契约类型，现在为空
-- [cordis.ts](cordis.ts)：`./cordis` 入口，承载服务定义，现在为空
+- [index.ts](index.ts)：根入口，只重导出契约类型
+- [cordis.ts](cordis.ts)：`./cordis` 入口，承载服务定义
 
 ## 阅读路径
 
