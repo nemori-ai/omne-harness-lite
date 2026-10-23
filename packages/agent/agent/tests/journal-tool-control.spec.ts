@@ -5,6 +5,11 @@ import { encodeModelInvocationRef, decodeModelOperationId } from '@omne-harness/
 import * as tools from '@omne-harness/tool-contract'
 import {
   access,
+  acceptedInput,
+  afterTerminalPassage,
+  finishInput,
+  producedResult,
+  takeInputs,
   checkpoint,
   commitAt,
   consumption,
@@ -291,6 +296,131 @@ describe('pending control operation custody', () => {
       expect(await observe(journal, opened.execution)).toEqual(settled)
     },
   )
+})
+
+describe('shared pending recognition prerequisites', () => {
+  it('checks participant support before pending commit identity', async () => {
+    const memory = createMemoryAgentJournal<string>()
+    const journal = memory.port
+    const opened = await open(journal)
+    const original = commitAt(await load(journal, opened.execution), opened.authority, 'pending')
+    memory.failNext('commit', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.commit(original)).kind).toBe('commit-unknown')
+    const held = await observe(journal, opened.execution)
+    expect(
+      failure(
+        await journal.commit({
+          ...original,
+          caller: {
+            kind: 'message',
+            message: acceptedInput('caller').content,
+            source: evidence('source'),
+            admission: evidence('admission'),
+          },
+        }),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    expect(await observe(journal, opened.execution)).toEqual(held)
+    expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
+    expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(true)
+    const receipt = ok(await journal.commit(original))
+    expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+  })
+
+  it('rechecks custody before pending and committed recognition and settlement', async () => {
+    let allowed = true
+    const memory = createMemoryAgentJournal<string>({ custodian: () => allowed })
+    const journal = memory.port
+    const opened = await open(journal)
+    const original = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('pending-result'),
+      result: producedResult('result'),
+      consumption: consumption('result'),
+      transfer: { kind: 'none' },
+      release: { kind: 'pending' },
+    } as const
+    const before = await observe(journal, opened.execution)
+    memory.failNext('recordResult', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.recordResult(original)).kind).toBe('commit-unknown')
+    const held = await observe(journal, opened.execution)
+    allowed = false
+    for (const request of [original, { ...original, consumption: consumption('other') }]) {
+      expect(failure(await journal.recordResult(request))).toEqual({
+        kind: 'denied',
+        action: 'recordResult',
+      })
+    }
+    expect(await observe(journal, opened.execution)).toEqual(held)
+    expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
+    expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(true)
+    expect(ok(await journal.query(original)).kind).toBe('excluded')
+    expect(await observe(journal, opened.execution)).toEqual(before)
+    allowed = true
+    const receipt = ok(await journal.recordResult(original))
+    const committed = await observe(journal, opened.execution)
+    allowed = false
+    expect(failure(await journal.recordResult(original))).toEqual({
+      kind: 'denied',
+      action: 'recordResult',
+    })
+    expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+    expect(await observe(journal, opened.execution)).toEqual(committed)
+  })
+
+  it('rechecks observation qualification before pending and committed recognition and settlement', async () => {
+    let allowed = true
+    const memory = createMemoryAgentJournal<string>({ observer: () => allowed })
+    const journal = memory.port
+    const opened = await open(journal)
+    ok(
+      await journal.commit(
+        commitAt(await load(journal, opened.execution), opened.authority, 'with-passage', {
+          checkpoint: checkpoint('F2', [afterTerminalPassage('observer')]),
+        }),
+      ),
+    )
+    ok(await takeInputs(journal, opened))
+    expect(ok(await journal.tryFinish(await finishInput(journal, opened))).kind).toBe('ended')
+    const item = (await load(journal, opened.execution)).terminalObservations[0]
+    if (item === undefined) throw new Error('expected one terminal observation')
+    const original = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('pending-observation'),
+      terminal: item.terminal,
+      passage: item.passage,
+      implementation: item.implementation,
+      observed: evidence('seen'),
+    }
+    const before = await observe(journal, opened.execution)
+    memory.failNext('recordTerminalObservation', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.recordTerminalObservation(original)).kind).toBe('commit-unknown')
+    const held = await observe(journal, opened.execution)
+    allowed = false
+    for (const request of [original, { ...original, observed: evidence('other') }]) {
+      expect(failure(await journal.recordTerminalObservation(request))).toEqual({
+        kind: 'denied',
+        action: 'recordTerminalObservation',
+      })
+    }
+    expect(await observe(journal, opened.execution)).toEqual(held)
+    expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
+    expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(true)
+    expect(ok(await journal.query(original)).kind).toBe('excluded')
+    expect(await observe(journal, opened.execution)).toEqual(before)
+    allowed = true
+    const receipt = ok(await journal.recordTerminalObservation(original))
+    const committed = await observe(journal, opened.execution)
+    allowed = false
+    expect(failure(await journal.recordTerminalObservation(original))).toEqual({
+      kind: 'denied',
+      action: 'recordTerminalObservation',
+    })
+    expect(ok(await journal.query(original))).toEqual({ kind: 'committed', receipt })
+    expect(await observe(journal, opened.execution)).toEqual(committed)
+  })
 })
 
 describe('Tool control association', () => {

@@ -212,6 +212,7 @@ type Committed = Readonly<{
 type Excluded = Readonly<{ kind: 'excluded'; evidence: Evidence }>
 type Pending = Readonly<{
   kind: 'pending'
+  key: string
   tenant: TenantId
   execution: AgentExecutionId
   operation: AgentOperationId
@@ -512,6 +513,7 @@ export function createMemoryAgentJournal<P>(
     input: ExecutionMutation<P>,
     key: string,
     prepare: () => Attempt<R>,
+    beforeRecognition?: () => Failure | undefined,
   ): Promise<Outcome<R, Failure>> {
     const at = operationKey(input.tenant, input.execution, input.operation)
     if (at === undefined) return fail(denied(method))
@@ -524,6 +526,17 @@ export function createMemoryAgentJournal<P>(
       target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
     if (foreign) return fail(denied(method))
     const commitUnknown = fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
+    const check = (): Failure | undefined => {
+      if (beforeRecognition === undefined) return undefined
+      const found = owned(input, method)
+      return 'failure' in found ? found.failure : beforeRecognition()
+    }
+    const pending = operations.get(at)
+    if (pending?.kind === 'pending') {
+      const rejected = check()
+      if (rejected !== undefined) return fail(rejected)
+      return pending.key === key ? commitUnknown : fail(conflict(input.operation))
+    }
     const exclude = (reason: string) => {
       if (operations.get(at)?.kind === 'committed') return
       operations.set(at, {
@@ -536,6 +549,8 @@ export function createMemoryAgentJournal<P>(
       | Readonly<{ kind: 'answered'; value: Outcome<R, Failure> }>
       | Readonly<{ kind: 'unknown' }>
     const attempt = (): Run => {
+      const rejected = check()
+      if (rejected !== undefined) return { kind: 'answered', value: fail(rejected) }
       const prepared = prepare()
       if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
       if (prepared.kind === 'unknown') return prepared
@@ -557,6 +572,7 @@ export function createMemoryAgentJournal<P>(
       if (operations.get(at)?.kind === 'committed') return
       operations.set(at, {
         kind: 'pending',
+        key,
         tenant: input.tenant,
         execution: input.execution,
         operation: input.operation,
@@ -931,14 +947,10 @@ export function createMemoryAgentJournal<P>(
 
     commit(input) {
       const key = semanticKey('commit', input)
-      return write('commit', input, key, () => {
+      const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'commit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        // Fact 9: an undeclared caller kind is unsupported before anything is saved.
-        if (input.caller.kind !== 'none' && !participants.has(input.caller.kind)) {
-          return answer(fail({ kind: 'unsupported' }))
-        }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -1022,7 +1034,12 @@ export function createMemoryAgentJournal<P>(
             appendEvents(execution, input.events, evidence)
           },
         }
-      })
+      }
+      const beforeRecognition = (): Failure | undefined =>
+        input.caller.kind !== 'none' && !participants.has(input.caller.kind)
+          ? { kind: 'unsupported' }
+          : undefined
+      return write('commit', input, key, prepare, beforeRecognition)
     },
 
     submit(input) {
@@ -1057,7 +1074,14 @@ export function createMemoryAgentJournal<P>(
       })
     },
 
-    control(input) {
+    control(request) {
+      const input = {
+        principal: request.principal,
+        tenant: request.tenant,
+        execution: request.execution,
+        operation: request.operation,
+        command: copy(request.command),
+      }
       const key = semanticKey('control', input)
       return write('control', input, key, () => {
         const found = owned(input, 'control')
@@ -1134,20 +1158,10 @@ export function createMemoryAgentJournal<P>(
 
     recordResult(input) {
       const key = semanticKey('recordResult', input)
-      return write('recordResult', input, key, () => {
+      const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordResult')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        if (
-          options.custodian !== undefined &&
-          !options.custodian({
-            principal: input.principal,
-            tenant: input.tenant,
-            execution: execution.id,
-          })
-        ) {
-          return answer(fail(denied('recordResult')))
-        }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         const rejected = answer<CommandReceipt>(fail(conflict(input.operation)))
@@ -1213,7 +1227,17 @@ export function createMemoryAgentJournal<P>(
             execution.revision = revision
           },
         }
-      })
+      }
+      const beforeRecognition = (): Failure | undefined =>
+        options.custodian !== undefined &&
+        !options.custodian({
+          principal: input.principal,
+          tenant: input.tenant,
+          execution: input.execution,
+        })
+          ? denied('recordResult')
+          : undefined
+      return write('recordResult', input, key, prepare, beforeRecognition)
     },
 
     async recordControl(request) {
@@ -1392,20 +1416,10 @@ export function createMemoryAgentJournal<P>(
 
     recordTerminalObservation(input) {
       const key = semanticKey('recordTerminalObservation', input)
-      return write('recordTerminalObservation', input, key, () => {
+      const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordTerminalObservation')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        if (
-          options.observer !== undefined &&
-          !options.observer({
-            principal: input.principal,
-            tenant: input.tenant,
-            execution: execution.id,
-          })
-        ) {
-          return answer(fail(denied('recordTerminalObservation')))
-        }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         const index = execution.observations.findIndex(item => item.passage === input.passage)
@@ -1442,7 +1456,17 @@ export function createMemoryAgentJournal<P>(
             execution.revision = revision
           },
         }
-      })
+      }
+      const beforeRecognition = (): Failure | undefined =>
+        options.observer !== undefined &&
+        !options.observer({
+          principal: input.principal,
+          tenant: input.tenant,
+          execution: input.execution,
+        })
+          ? denied('recordTerminalObservation')
+          : undefined
+      return write('recordTerminalObservation', input, key, prepare, beforeRecognition)
     },
 
     async load(input) {
