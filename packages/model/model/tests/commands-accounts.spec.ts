@@ -1,7 +1,7 @@
 // The accounts conformance suite against the in-memory ModelCommands, and against altered copies of
 // it that each break one account rule, so every failure the suite reports is shown to be reachable.
 import { describe, expect, it } from 'vitest'
-import type { ModelCommands } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest, type ModelCommands } from '@omne-harness/model-contract'
 import {
   ACCOUNT_OBLIGATIONS,
   checkCommandsAccounts,
@@ -9,11 +9,25 @@ import {
   type AccountObligation,
   type CommandsAccountsSubject,
 } from '@omne-harness/model/testing'
-import { fixture, instance, proof } from './memory-fixture.ts'
+import { fixture, instance, proof, request } from './memory-fixture.ts'
 
 type Principal = ReturnType<typeof fixture>['principal']
 
 const OUTSIDER: Principal = Object.freeze({ subject: 'trusted' })
+
+/** The request of every admission: two user messages, so kept message identities are visible. */
+const REQUEST = (() => {
+  const user = (id: string) => ({
+    id: `msg_${id.padEnd(22, '0')}`,
+    role: 'user',
+    blocks: [
+      { kind: 'text', id: `b-${id}`, visibility: { toHuman: true, toModel: true }, text: 'hello' },
+    ],
+  })
+  const judged = judgeFixedModelRequest({ ...request, messages: [user('u1'), user('u2')] })
+  if (!('ok' in judged)) throw new Error(`fixture request: ${JSON.stringify(judged.failure)}`)
+  return judged.ok
+})()
 
 function subjectOf(
   alter: (commands: ModelCommands<Principal>) => ModelCommands<Principal> = commands => commands,
@@ -23,10 +37,11 @@ function subjectOf(
     const { commands } = createMemoryModelCommands(f.options)
     return {
       commands: alter(commands),
-      admit: f.admit,
+      admit: { ...f.admit, request: REQUEST },
       instance: instance(),
       continuity: call => proof(call),
       lateSource: ({ call, dispatch }) => proof(`${call}/${dispatch}`, 'supplier'),
+      completion: ({ call, result }) => proof(`${call}/${result}`, f.admit.consumer.owner),
       // A principal of the same tenant and the same claims that the authority did not mint.
       outsider: { principal: OUTSIDER, tenant: f.tenant },
     }
@@ -116,6 +131,50 @@ describe('checkCommandsAccounts', () => {
       },
     })
     expect(statusOf(report.results, 'unqualified-reader-refused')).toBe('fail')
+  })
+
+  it('fails the message obligation when the cleanup also drops the message identities', async () => {
+    const report = await checkCommandsAccounts({
+      subject: subjectOf(commands => {
+        const cleaned = new Set<string>()
+        return {
+          ...commands,
+          async advanceCleanup(input) {
+            const custody = await commands.advanceCleanup(input)
+            if ('ok' in custody && custody.ok.kind === 'acknowledged') cleaned.add(input.call)
+            return custody
+          },
+          // Releases the message identities with the request material, as a provider that keeps
+          // them only while the request lives.
+          async dispatches(input) {
+            const read = await commands.dispatches(input)
+            if ('failure' in read || !cleaned.has(input.call)) return read
+            return { ok: read.ok.map(({ messages: _released, ...record }) => record) }
+          },
+        }
+      }),
+    })
+    expect(statusOf(report.results, 'messages-outlive-cleanup')).toBe('fail')
+    expect(statusOf(report.results, 'account-completed-with-subject-and-receipt')).toBe('pass')
+  })
+
+  it('fails the replay obligation when the commands fill in a replay format of their own', async () => {
+    const report = await checkCommandsAccounts({
+      subject: subjectOf(commands => ({
+        ...commands,
+        // Writes a format that the adapter never reported, so the reply settles.
+        recordMaterialization: input =>
+          commands.recordMaterialization({
+            ...input,
+            receipt: {
+              ...input.receipt,
+              replayFormat: input.receipt.replayFormat ?? 'invented-v1',
+            },
+          }),
+      })),
+    })
+    expect(statusOf(report.results, 'state-reply-without-replay-format-refused')).toBe('fail')
+    expect(statusOf(report.results, 'messages-outlive-cleanup')).toBe('pass')
   })
 
   it('reports a subject that throws as a failure of each obligation, without throwing', async () => {

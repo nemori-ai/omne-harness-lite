@@ -203,6 +203,54 @@ describe('the conformance suite on a transport', () => {
     expect(reasons).toEqual([expect.stringContaining('the receipt names the supplier')])
   })
 
+  it('passes a transport whose receipt names a replay tag as its replay format', async () => {
+    const { failing } = await failures(subject =>
+      through(
+        subject,
+        materializing(materialized => ({
+          ...materialized,
+          receipt: { ...materialized.receipt, replayFormat: 'scripted-replay-v1' },
+        })),
+      ),
+    )
+    expect(failing).toEqual([])
+  })
+
+  it('fails a transport whose receipt names a replay format that is not a replay tag', async () => {
+    const { failing, reasons } = await failures(subject =>
+      through(
+        subject,
+        materializing(materialized => ({
+          ...materialized,
+          receipt: { ...materialized.receipt, replayFormat: '' },
+        })),
+      ),
+    )
+    expect(failing).toEqual(['materialization-receipt-matches-request'])
+    expect(reasons).toEqual([expect.stringContaining('which is not a replay tag')])
+  })
+
+  it('fails a transport whose replay format changes between two reads of one receipt', async () => {
+    const { failing, reasons } = await failures(subject =>
+      through(
+        subject,
+        materializing(materialized => {
+          let reads = 0
+          // One receipt object, so the two reads of the receipt are the same; its format is not.
+          const receipt = Object.defineProperty({ ...materialized.receipt }, 'replayFormat', {
+            enumerable: true,
+            get: () => `scripted-replay-v${++reads}`,
+          })
+          return { ...materialized, receipt }
+        }),
+      ),
+    )
+    expect(failing).toEqual(['materialization-receipt-matches-request'])
+    expect(reasons).toEqual([
+      expect.stringContaining('the replay format changes between two reads'),
+    ])
+  })
+
   it('fails a transport that ends its stream twice', async () => {
     const { failing, reasons } = await failures(subject =>
       through(

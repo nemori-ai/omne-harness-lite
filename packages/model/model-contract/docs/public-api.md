@@ -336,7 +336,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 | `quiesce-reports-pending-and-running` | `quiesce` 报告的待处理与运行中数量是十进制数，且不少于套件已知未收场的调用数 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | `startRun`（只检查运行中数量时） |
 | `transport-sends-only-at-start` | `prepare` 与 `materialize` 不发送，`start` 一返回就已发送，不等第一次迭代 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
 | `repeated-transport-step-sends-nothing` | 同一 prepared 再 `materialize`、同一 materialized 再 `start`，不给出能产出事实的流，也不再发送 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
-| `materialization-receipt-matches-request` | 回执有非空的 payload 摘要，供应商与表示采用同请求一致，两次读取相同 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
+| `materialization-receipt-matches-request` | 回执有非空的 payload 摘要，供应商与表示采用同请求一致，两次读取相同；回执带 `replayFormat` 时，它是合法的回放标签，两次读取相同 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
 | `fact-stream-ends-once` | 事实流恰有一个 `ended`，它是最后一个事实 | [供应商解释与流状态归约](../SPEC.md#供应商解释与流状态归约) | 传输 |
 | `interruption-is-confirmed` | 信号中止后的事实流里，每个 `interrupted` 终止都带 `stop: 'confirmed'` | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |
 | `transport-close-is-idempotent` | `close` 重复调用不抛错，关闭不发送 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | 传输 |

@@ -1,8 +1,12 @@
 // The accounts conformance suite of ModelCommands: drives an implementation through its public
 // methods only and reports, for each account obligation of the Model contract, whether it is kept.
-// The in-memory ModelCommands runs it now; a durable provider runs the same suite later.
+// The account obligations include what lives as long as the account on the dispatch record (the
+// message identities) and the batch whose termination cannot settle (nothing of it is kept, the
+// account included). The in-memory ModelCommands runs it now; a durable provider runs the same
+// suite later.
 import { randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
+import { judgePart } from '@omne-harness/message'
 import {
   decodeDispatchId,
   decodeModelCallId,
@@ -14,10 +18,13 @@ import {
   type DispatchId,
   type DispatchRecord,
   type DurableEvidence,
+  type ModelBlock,
   type ModelCallId,
   type ModelCommands,
   type ModelInstanceId,
   type ModelOperationId,
+  type ResultVersion,
+  type Termination,
   type TransportFact,
   type WriteContext,
 } from '@omne-harness/model-contract'
@@ -25,7 +32,10 @@ import {
 /** What the party that assembled the ModelCommands gives the suite. */
 export type CommandsAccountsSubject<P> = Readonly<{
   commands: ModelCommands<P>
-  /** An admission the commands accept. The suite gives each call its own `call` and `operation`. */
+  /**
+   * An admission the commands accept. The suite gives each call its own `call` and `operation`.
+   * Its request holds at least one message, so that the suite can see the message identities.
+   */
   admit: Admit<P>
   /** The instance that claims each call; the commands must accept its execution channel. */
   instance: ModelInstanceId
@@ -33,6 +43,11 @@ export type CommandsAccountsSubject<P> = Readonly<{
   continuity(call: ModelCallId): DurableEvidence
   /** A trusted supplier receipt the commands accept for a late fact of this dispatch. */
   lateSource(input: Readonly<{ call: ModelCallId; dispatch: DispatchId }>): DurableEvidence
+  /**
+   * The completion evidence of the admission's consumer that the commands accept for a processed
+   * handoff of this result version of the call.
+   */
+  completion(input: Readonly<{ call: ModelCallId; result: ResultVersion }>): DurableEvidence
   /** A caller of the admission's tenant without the qualification to read dispatch facts. */
   outsider: Access<P>
   /** Releases what the subject holds. */
@@ -52,6 +67,8 @@ export type AccountObligation =
   | 'later-revision-replaces-and-is-late'
   | 'report-naming-subject-refused'
   | 'unqualified-reader-refused'
+  | 'messages-outlive-cleanup'
+  | 'state-reply-without-replay-format-refused'
 
 /** Every obligation, in the order the suite checks them. */
 export const ACCOUNT_OBLIGATIONS: readonly AccountObligation[] = [
@@ -62,6 +79,8 @@ export const ACCOUNT_OBLIGATIONS: readonly AccountObligation[] = [
   'later-revision-replaces-and-is-late',
   'report-naming-subject-refused',
   'unqualified-reader-refused',
+  'messages-outlive-cleanup',
+  'state-reply-without-replay-format-refused',
 ]
 
 export type AccountObligationResult = Readonly<{
@@ -143,6 +162,10 @@ type Started<P> = Readonly<{
   deliver(facts: readonly TransportFact[]): ReturnType<ModelCommands<P>['preserve']>
   /** The dispatch record of this dispatch as `dispatches` gives it to `access`. */
   record(): Promise<DispatchRecord | undefined>
+  /** Settles the call with this termination and gives the result version. */
+  settle(termination: Termination): Promise<ResultVersion>
+  /** Hands the result off as processed, then advances the cleanup once. */
+  clean(result: ResultVersion): ReturnType<ModelCommands<P>['advanceCleanup']>
 }>
 
 /** Admits and claims a call, then prepares, materializes and starts one dispatch of it. */
@@ -220,6 +243,25 @@ async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<
       const records = succeeded(await commands.dispatches(access), 'dispatches')
       return records.find(item => item.dispatch === dispatch)
     },
+    async settle(termination) {
+      const settled = succeeded(
+        await commands.settle({ ...(await write()), termination }),
+        'settle',
+      )
+      return settled.version
+    },
+    async clean(result) {
+      succeeded(
+        await commands.handoff({
+          ...access,
+          operation: operation(),
+          result,
+          evidence: { kind: 'processed', completion: subject.completion({ call, result }) },
+        }),
+        'handoff',
+      )
+      return commands.advanceCleanup({ ...execution, operation: operation() })
+    },
   }
 }
 
@@ -233,6 +275,44 @@ function completed<P>(
 
 function accountFact(event: string, value: CallAccountReport): TransportFact {
   return { kind: 'account', event, value }
+}
+
+const COMPLETED = { kind: 'completed', reason: 'stop' } as const
+
+/** A part of the reply through the message judge, so its shape is the one the contract accepts. */
+function part(value: unknown): ModelBlock {
+  const judged = judgePart(value)
+  if (!('ok' in judged)) throw new Error(`the suite made an invalid part: ${show(judged.rejected)}`)
+  const block = judged.ok
+  if (block.kind === 'text' || block.kind === 'reasoning_state') return block
+  throw new Error(`the suite made a part of kind ${block.kind}`)
+}
+
+/** One text part of the reply at this index: open, one delta and its seal. */
+function textPart(index: string): readonly TransportFact[] {
+  const text = part({
+    kind: 'text',
+    id: 'accounts-reply',
+    visibility: { toHuman: true, toModel: true },
+    text: 'answer',
+  })
+  return [
+    { kind: 'block-open', index, mode: 'append', content: 'text' },
+    { kind: 'block-delta', index, delta: 'answer' },
+    { kind: 'block-seal', index, block: text },
+  ]
+}
+
+/** A reasoning state part sealed whole, then one text part. */
+function stateReply(): readonly TransportFact[] {
+  const state = part({
+    kind: 'reasoning_state',
+    id: 'accounts-state',
+    visibility: { toHuman: false, toModel: true },
+    payload: 'opaque',
+    pairs: [],
+  })
+  return [{ kind: 'block-seal', index: '0', block: state }, ...textPart('1')]
 }
 
 async function lateAccount<P>(
@@ -348,6 +428,56 @@ function obligations<P>(): Readonly<Record<AccountObligation, Obligation<P>>> {
       check(
         'failure' in read && read.failure.kind === 'denied',
         `a reader without qualification got ${show(read)}`,
+      )
+    },
+
+    async 'messages-outlive-cleanup'(subject) {
+      const expected = subject.admit.request.messages.map(message => message.id)
+      check(expected.length > 0, 'the request of the admission holds no message to keep')
+      const started = await startedDispatch(subject)
+      succeeded(
+        await started.deliver([
+          ...textPart('0'),
+          accountFact('usage', REPORT),
+          { kind: 'ended', termination: COMPLETED },
+        ]),
+        'preserve of a completed reply',
+      )
+      const custody = succeeded(await started.clean(await started.settle(COMPLETED)), 'cleanup')
+      check(
+        custody.kind === 'acknowledged' && custody.cleanup === 'released',
+        `after a processed handoff the cleanup gave ${show(custody)}`,
+      )
+      const record = await started.record()
+      check(
+        isDeepStrictEqual(record?.messages, expected),
+        `after the cleanup the record holds the messages ${show(record?.messages)}, expected ${show(expected)}`,
+      )
+      check(
+        isDeepStrictEqual(record?.account, completed(started, REPORT, 'received')),
+        `after the cleanup the account is ${show(record?.account)}`,
+      )
+    },
+
+    // The receipt of `startedDispatch` names no replay format, so the reply cannot form a message.
+    async 'state-reply-without-replay-format-refused'(subject) {
+      const started = await startedDispatch(subject)
+      const refused = await started.deliver([
+        ...stateReply(),
+        accountFact('usage', REPORT),
+        { kind: 'ended', termination: COMPLETED },
+      ])
+      const expected = {
+        failure: { kind: 'invalid', field: 'termination', reason: 'replay-format-unknown' },
+      }
+      check(
+        isDeepStrictEqual(refused, expected),
+        `a reply with reasoning state and no replay format gave ${show(refused)}`,
+      )
+      const record = await started.record()
+      check(
+        record?.account === null && record.terminal === null,
+        `after the refused batch the record is ${show(record)}`,
       )
     },
   }
