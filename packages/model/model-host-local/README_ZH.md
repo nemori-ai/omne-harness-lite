@@ -10,9 +10,8 @@
 | --- | --- | --- |
 | 文件保管库与 Cordis 插件 | 已实现 | 真实文件系统、子进程与真实 Cordis 4.0.4 |
 | 生产发送资源 `createPiSendResources` | 已实现 | 观察凭据槽的传输工厂与真实 pi 传输（不发送） |
-| 本地 Model 装配 `assembleLocalModel` | 已实现 | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands` |
+| 本地 Model 装配 `assembleLocalModel` | 已实现 | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场 |
 | 经真实厂商或代理的请求 | 未在本包验证 | 无 |
-| 输出含推理状态的调用收场 | 未覆盖 | 内存 `ModelCommands` 尚未组成这类消息的回放 |
 | 计量准备资源、耐久 `ModelCommands` | 不在本包 | 无 |
 | 时钟、实例调度、目录装载、托管运行插件 | 未实现 | 无 |
 

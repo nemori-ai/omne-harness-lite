@@ -10,9 +10,8 @@ This member is the single-machine host provider of Model. It implements local cr
 | --- | --- | --- |
 | File vault and Cordis plugin | Implemented | Real file system, child processes, and real Cordis 4.0.4 |
 | Production send resources `createPiSendResources` | Implemented | A transport factory that observes the credential slot, and the real pi transport without a send |
-| Local Model assembly `assembleLocalModel` | Implemented | A local HTTPS server replays the recorded SSE of both families, through the Model runtime and the in-memory `ModelCommands` |
+| Local Model assembly `assembleLocalModel` | Implemented | A local HTTPS server replays the recorded SSE of both families, through the Model runtime and the in-memory `ModelCommands`. Calls whose reply holds a reasoning state settle in both families |
 | Requests through a real vendor or proxy | Not verified in this member | None |
-| Settlement of a call whose output holds a reasoning state | Not covered | The in-memory `ModelCommands` does not form the replay of such a message yet |
 | Preparation resources, durable `ModelCommands` | Not in this member | None |
 | Clock, instance scheduling, catalog loading, hosted-run plugin | Not implemented | None |
 

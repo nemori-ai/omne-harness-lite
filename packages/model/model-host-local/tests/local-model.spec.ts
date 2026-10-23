@@ -104,12 +104,10 @@ type Case = Readonly<{
   name: string
   /** The gateway cost of the recorded stream, in OpenRouter credit. */
   payable: string
-  /**
-   * Whether the call is expected to settle. An output that holds a reasoning state needs the
-   * replay of its message at the finish; the in-memory ModelCommands does not form it yet, so the
-   * settlement of such a call is not judged here. The send path and the account are judged.
-   */
-  settles: boolean
+  /** Whether the recorded reply holds a reasoning state part. */
+  reasoning: boolean
+  /** The replay format that the record of the family produces. */
+  format: string
 }>
 
 const CASES: readonly Case[] = [
@@ -117,13 +115,22 @@ const CASES: readonly Case[] = [
     family: 'pi-ai-openai',
     name: 'openai/gpt-6-sol',
     payable: '0.000123456789123456789',
-    settles: true,
+    reasoning: false,
+    format: 'openai-responses-v1',
+  },
+  {
+    family: 'pi-ai-openai',
+    name: 'openai/gpt-5.6-sol',
+    payable: '0.000123',
+    reasoning: true,
+    format: 'openai-responses-v1',
   },
   {
     family: 'pi-ai-anthropic',
     name: 'anthropic/claude-sonnet-5',
     payable: '0.000858',
-    settles: false,
+    reasoning: true,
+    format: 'anthropic-claude-v1',
   },
 ]
 
@@ -339,15 +346,16 @@ function assemble(request: FixedModelRequest, label: string) {
 
 describe('one call of each family through the assembled local send path', () => {
   it.each(CASES.map((item): [string, Case] => [item.name, item]))(
-    '%s: the custodian credential reaches the gateway and the account reaches ModelCommands',
+    '%s: the custodian credential reaches the gateway, the call settles and the account reaches ModelCommands',
     async (name, item) => {
       const { request } = recordOf(item)
       const label = name.replace(/[^a-z0-9]/gu, '-')
       const local = assemble(request, label)
       try {
         const before = server.requests.length
-        const driven = await local.drive()
-        if (item.settles) expect(driven).toEqual({ ok: undefined })
+        // The call settles, also when its reply holds a reasoning state part: the finish takes
+        // the replay format from the receipt that the transport gave and the Model kept.
+        expect(await local.drive()).toEqual({ ok: undefined })
 
         // The request carried the value the custodian resolved, inside the send fence.
         const received = server.requests.slice(before)
@@ -368,7 +376,10 @@ describe('one call of each family through the assembled local send path', () => 
         const ended = local.facts.find(
           (fact): fact is Extract<TransportFact, { kind: 'ended' }> => fact.kind === 'ended',
         )
-        if (item.settles) expect(dispatches[0]?.terminal).toEqual(ended?.termination)
+        expect(dispatches[0]?.terminal).toEqual(ended?.termination)
+        expect(dispatches[0]?.materialization?.receipt.replayFormat).toBe(item.format)
+        const sealed = local.facts.flatMap(fact => (fact.kind === 'block-seal' ? [fact.block] : []))
+        expect(sealed.some(block => block.kind === 'reasoning_state')).toBe(item.reasoning)
         const account = dispatches[0]?.account
         expect(account).toEqual({
           ...reported[0]?.value,
