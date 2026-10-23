@@ -27,7 +27,7 @@ const acting = authority.issuer.issueActingForTenant({
 // authority.verifier.verify(acting.ok) → { kind: 'verified', principal }
 ```
 
-应用装配创建一个权威，把 `issuer` 交给签发主体的协调者，把 `verifier` 交给授权。协调者代租户行事时签发代租户行事主体，并把它放进 `Access<Principal>` 的 `principal`。
+应用装配创建一个权威，把 `verifier` 交给授权与其他消费方。`issuer` 留在 identity 自己的登录与会话建立流程里，不交给 identity 以外的成员；协调者需要代租户行事的主体时，经这些流程取得已签发的主体，并把它放进 `Access<Principal>` 的 `principal`。`inProcessPrincipalAuthority` 同时返回两者，这是骨架参考件的便利，不证明持有约束。
 
 | 导出 | 用途 |
 | --- | --- |
@@ -56,14 +56,13 @@ const acting = authority.issuer.issueActingForTenant({
 
 ## 验证
 
-单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。集成测试与端到端测试不适用：本包没有存储、应用服务或用户旅程。
+单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。集成测试与端到端测试不适用：本包没有存储、应用服务或用户旅程。`TenantStandingSource` 与 `LoginActivityReporter` 只有端口类型，本包没有它们的实现，所以没有它们的行为测试；提供者自测。
 
 | 文件 | 覆盖 |
 | --- | --- |
-| `tests/principal.spec.ts` | 签发两种主体、拒绝的输入、核验、手写副本与 JSON 往返 |
+| `tests/principal.spec.ts` | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返 |
 | `tests/principal.spec-d.ts` | 不带租户的代租户行事主体、带租户的系统主体是类型错误 |
 | `tests/qualification.spec.ts` | 具名资格清单、默认团队映射、别的模型与未列出的角色 |
-| `tests/standing.spec.ts` | 读口用内存替身答当下事实；未知租户与非成员同表现 |
 | `tests/login-activity.spec-d.ts` | 报告不带时间；报告口只答三种结果 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 

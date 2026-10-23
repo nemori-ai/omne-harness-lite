@@ -70,6 +70,10 @@ function isText(value: unknown): value is string {
   return typeof value === 'string'
 }
 
+function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null
+}
+
 function textMember(value: unknown, field: IssueFailure['field']): Outcome<string, IssueFailure> {
   if (!isText(value)) return fail({ field, reason: 'type' })
   if (value.length === 0) return fail({ field, reason: 'empty' })
@@ -98,19 +102,24 @@ export function inProcessPrincipalAuthority(): PrincipalAuthority {
     return principal
   }
 
+  // The inputs are typed, but an issuer sits at a boundary: a malformed value is a failure
+  // result, never an exception.
   const issueSystem: PrincipalIssuer['issueSystem'] = input => {
-    const component = textMember(input.component, 'component')
+    const component = textMember(isObject(input) ? input.component : undefined, 'component')
     if ('failure' in component) return component
     return succeed(register({ kind: 'system', component: component.ok }))
   }
 
   const issueActingForTenant: PrincipalIssuer['issueActingForTenant'] = input => {
+    if (!isObject(input)) return fail({ field: 'actor', reason: 'type' })
     if (!isIssued(input.actor) || input.actor.kind !== 'system')
       return fail({ field: 'actor', reason: 'unissued' })
     if (!isMintedTenant(input.tenant)) return fail({ field: 'tenant', reason: 'unminted' })
-    const owner = textMember(input.work.owner, 'work.owner')
+    const given: unknown = input.work
+    if (!isObject(given)) return fail({ field: 'work.owner', reason: 'type' })
+    const owner = textMember(given.owner, 'work.owner')
     if ('failure' in owner) return owner
-    const work = textMember(input.work.work, 'work.work')
+    const work = textMember(given.work, 'work.work')
     if ('failure' in work) return work
     return succeed(
       register({

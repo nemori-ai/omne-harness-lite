@@ -280,11 +280,11 @@
 
 ### 签发与核验
 
-`PrincipalIssuer` 签发主体。只有 identity 提供签发者；应用装配安装它，不自己签发。签发系统主体要求非空 `component`。签发代租户行事主体要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一条件不满足，返回 `IssueFailure`，不签发。
+`PrincipalIssuer` 签发主体。只有 identity 提供签发者。签发者是 identity 自己的登录与会话建立流程持有的能力；应用装配只把核验器交给消费方，不把签发者交给 identity 以外的成员。签发系统主体要求非空 `component`。签发代租户行事主体要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一条件不满足，返回 `IssueFailure`，不签发。输入不是对象，或 `work` 不是对象，同样返回 `IssueFailure`，不抛出。签发时核对工作归属与登录的形状尚未定义，归登录流程；这是具名缺口。
 
 `PrincipalVerifier.verify(value)` 答 `verified`、`rejected` 或 `unavailable`。与已签发主体形状相同的手写副本答 `rejected`。核验器不能回答时答 `unavailable`，不答 `verified`。核验只证明来源；它不证明当前成员资格，也不证明动作获准。
 
-`inProcessPrincipalAuthority()` 是进程内权威。它登记自己签发的对象，核验是登记成员资格。这只在同一进程、同一份已加载模块内成立。主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。跨进程的来源验证归后续提供者，不由本节承诺。
+`inProcessPrincipalAuthority()` 是进程内权威，是骨架参考件。它登记自己签发的对象，核验是登记成员资格。它同时返回签发者与核验器，这不证明上面的持有约束；持有约束由装配兑现。这只在同一进程、同一份已加载模块内成立。主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。跨进程的来源验证归后续提供者，不由本节承诺。
 
 ### 具名资格与角色映射
 
@@ -316,7 +316,7 @@
 
 ### 验证
 
-`tests/principal.spec.ts` 覆盖签发、核验、手写副本与 JSON 往返。`tests/principal.spec-d.ts` 核对不带租户的代租户行事主体是类型错误。`tests/qualification.spec.ts` 覆盖具名资格与默认团队映射。`tests/standing.spec.ts` 用内存替身核对读口答当下事实。`tests/login-activity.spec-d.ts` 核对报告不带时间。这些测试不覆盖持久存储、登录流程和跨进程来源。
+`tests/principal.spec.ts` 覆盖签发、畸形输入、核验、手写副本与 JSON 往返。`tests/principal.spec-d.ts` 核对不带租户的代租户行事主体是类型错误。`tests/qualification.spec.ts` 覆盖具名资格与默认团队映射。`tests/login-activity.spec-d.ts` 核对报告不带时间。`TenantStandingSource` 只有端口类型，没有本成员的实现，所以没有它的行为测试；它的提供者按本节条款写自己的测试。这些测试不覆盖持久存储、登录流程和跨进程来源。
 
 ## 本阶段范围
 

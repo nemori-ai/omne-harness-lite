@@ -37,6 +37,9 @@ describe('issuing a system principal', () => {
     ['a missing component', {}, 'type'],
     ['a component that is not text', { component: 7 }, 'type'],
     ['an empty component', { component: '' }, 'empty'],
+    ['an undefined input', undefined, 'type'],
+    ['a null input', null, 'type'],
+    ['a text input', 'session-coordinator', 'type'],
   ])('refuses %s with %s', (_case, input, reason) => {
     const { authority } = issuedSystem()
     expect(authority.issuer.issueSystem(input as never)).toEqual({
@@ -101,12 +104,25 @@ describe('issuing a principal that acts for a tenant', () => {
     ['an empty work owner', { owner: '', work: 'x' }, 'work.owner', 'empty'],
     ['an empty work', { owner: 'session', work: '' }, 'work.work', 'empty'],
     ['a work that is not text', { owner: 'session', work: 1 }, 'work.work', 'type'],
+    ['a work that is not an object', 'ses_1', 'work.owner', 'type'],
+    ['a missing work', undefined, 'work.owner', 'type'],
   ])('refuses %s', (_case, work, field, reason) => {
     const { authority, actor } = issuedSystem()
     const tenant = parsedTenant(ORGANIZATION_TEXT, ADMIN_ACCOUNT_TEXT)
     expect(authority.issuer.issueActingForTenant({ actor, tenant, work: work as never })).toEqual({
       failure: { field, reason },
     })
+  })
+})
+
+describe('issuing with a malformed input', () => {
+  it('returns a failure for a non-object input and does not throw', () => {
+    const { authority } = issuedSystem()
+    for (const input of [undefined, null, 'x', 7]) {
+      expect(authority.issuer.issueActingForTenant(input as never)).toEqual({
+        failure: { field: 'actor', reason: 'type' },
+      })
+    }
   })
 })
 

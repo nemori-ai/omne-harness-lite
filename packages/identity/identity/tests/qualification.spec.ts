@@ -19,6 +19,16 @@ describe('named qualifications', () => {
 })
 
 describe('the default team role mapping', () => {
+  it('names the default team model and its two roles', () => {
+    expect(DEFAULT_TEAM_MODEL).toEqual({ model: 'default-team', revision: '1' })
+    expect(DEFAULT_TEAM_ROLES).toEqual({ superAdmin: 'super-admin', member: 'member' })
+    expect(DEFAULT_TEAM_ROLE_MAPPING.model).toBe(DEFAULT_TEAM_MODEL)
+    expect(DEFAULT_TEAM_ROLE_MAPPING.roles.map(role => role.role)).toEqual([
+      'super-admin',
+      'member',
+    ])
+  })
+
   it('maps the super administrator to the cost ledger read and the member to nothing', () => {
     const superAdmin = { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.superAdmin }
     const member = { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.member }
