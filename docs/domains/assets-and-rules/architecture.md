@@ -15,7 +15,7 @@ flowchart LR
   D --> S[settings：来源过滤与设置求值]
   D --> P
   S --> C
-  P --> G[identity：动作准入]
+  P --> G[authorization：动作准入]
   G --> H[HITL：规则允许的人工决定]
   H --> G
   G --> E[实际模型、工具或资源边界]
