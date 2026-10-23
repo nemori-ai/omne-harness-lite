@@ -188,7 +188,12 @@
             { "name": "ReplayTreatment", "kind": "type", "pending": false },
             { "name": "ReplayDiagnostic", "kind": "type", "pending": false },
             { "name": "ReplayProjectionInput", "kind": "type", "pending": false },
-            { "name": "ReplayProjection", "kind": "type", "pending": false }
+            { "name": "ReplayProjection", "kind": "type", "pending": false },
+            { "name": "AnchorMiss", "kind": "type", "pending": false },
+            { "name": "OutputWithheld", "kind": "type", "pending": false },
+            { "name": "MeterCalibration", "kind": "type", "pending": false },
+            { "name": "CalibrationReport", "kind": "type", "pending": false },
+            { "name": "CalibratedInputMeter", "kind": "type", "pending": false }
           ]
         },
         {
@@ -242,7 +247,8 @@
             { "name": "ModelRequestRules", "kind": "type", "pending": false },
             { "name": "ModelPreparationLease", "kind": "type", "pending": false },
             { "name": "ModelPreparationResources", "kind": "type", "pending": false },
-            { "name": "ModelContentAuthority", "kind": "type", "pending": false }
+            { "name": "ModelContentAuthority", "kind": "type", "pending": false },
+            { "name": "PreparationLineage", "kind": "type", "pending": false }
           ]
         },
         {

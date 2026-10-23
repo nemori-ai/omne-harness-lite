@@ -1,6 +1,7 @@
 // Declarations of the public-api chapter "档案来源与准备资源".
 // ModelPreparationLease and ModelPreparationResources carry Message through the meter and rules.
-import type { Access } from './root.ts'
+import type { MessageId } from '@omne-harness/message'
+import type { Access, ModelCallId } from './root.ts'
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts'
 import type { Supplier } from './root.ts'
 import type { ConversionReply, ModelMessageConversion } from './conversion.ts'
@@ -55,8 +56,21 @@ export type ModelPreparationLease = Readonly<{
   /** Gives the lease back. A failed release hook comes back as `failure`; a throw means a program defect. */
   release(): Promise<Readonly<{ failure?: Extract<ModelFailure, { kind: 'unavailable' }> }>>
 }>
+/**
+ * What the request assembler declares about the calls behind one request, once per lease. It
+ * vouches for the invariant behind `continues`: the request starts with the unchanged input of
+ * that call. The lease verifies only the facts Model owns and never compares message content.
+ */
+export type PreparationLineage = Readonly<{
+  /** The call whose real input this request continues. */
+  continues?: ModelCallId
+  /** The call that produced each assistant message that carries reasoning state. */
+  sources?: readonly Readonly<{ message: MessageId; call: ModelCallId }>[]
+}>
 export interface ModelPreparationResources<P> {
-  acquire(input: Access<P> & Readonly<{ profile: ModelProfile }>): Reply<ModelPreparationLease>
+  acquire(
+    input: Access<P> & Readonly<{ profile: ModelProfile; lineage?: PreparationLineage }>,
+  ): Reply<ModelPreparationLease>
 }
 export interface ModelContentAuthority<P> {
   check(input: Parameters<ModelMessageConversion<P>['prepare']>[0]): ConversionReply<

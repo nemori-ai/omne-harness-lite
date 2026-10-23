@@ -1,13 +1,17 @@
 import { expectTypeOf, it } from 'vitest'
 import type { Modality } from '@omne-harness/modality'
 import type {
+  AnchorMiss,
   AssembledModelInput,
+  CalibratedInputMeter,
+  CalibrationReport,
   BudgetCheck,
   ContextLimits,
   ForeignThinking,
   LimitMetric,
   MediaMeasurementFact,
   Measurement,
+  MeterCalibration,
   MeterRepresentation,
   ModalityRequirement,
   ModelChoices,
@@ -19,6 +23,7 @@ import type {
   ModelProfileMaintenance,
   ModelProfiles,
   ModelRequestPreparation,
+  OutputWithheld,
   ParameterAdoption,
   ProfileChange,
   ProfileIdentity,
@@ -461,4 +466,82 @@ it('a meter measures from the context limits and the other limits and returns a 
   // @ts-expect-error a measurement needs the context limits
   const noContext: Parameters<ModelInputMeter['measure']>[0] = withoutContext
   void [meter, noLimits, noContext]
+})
+
+it('a representation may carry the message side table, and it does not change the counted bytes', () => {
+  const plain: MeterRepresentation = {
+    adoption,
+    tokenInput: json,
+    media: [],
+    kind: 'materialized',
+    requestBytes: '1',
+  }
+  const aligned: MeterRepresentation = { ...plain, units: [null, message.id] }
+  // @ts-expect-error a unit names a message identity or null, never a position
+  const positional: MeterRepresentation = { ...plain, units: [0] }
+  expectTypeOf<NonNullable<MeterRepresentation['units']>[number]>().toEqualTypeOf<
+    (typeof message)['id'] | null
+  >()
+  void [aligned, positional]
+})
+
+it('a calibration carries numbers and reasons only, and each miss and withholding is its own fact', () => {
+  const calibration: MeterCalibration = {
+    anchor: { covered: [message.id], inputTotal: '120' },
+    outputs: [
+      { message: message.id, kind: 'known', outputTokens: '18' },
+      { message: message.id, kind: 'withheld', reason: 'output-unknown' },
+    ],
+  }
+  const none: MeterCalibration = { anchor: null, outputs: [] }
+  // @ts-expect-error a known output carries its count
+  const uncounted: MeterCalibration['outputs'][number] = { message: message.id, kind: 'known' }
+  const identified: MeterCalibration = {
+    ...none,
+    // @ts-expect-error a calibration never carries a call identity
+    anchor: { call: 'c', inputTotal: '1', covered: [] },
+  }
+  expectTypeOf<AnchorMiss>().toEqualTypeOf<
+    | 'not-declared'
+    | 'call-unreadable'
+    | 'facts-unavailable'
+    | 'messages-unrecorded'
+    | 'ambiguous-dispatch'
+    | 'supplier-changed'
+    | 'representation-changed'
+    | 'not-a-prefix'
+    | 'usage-unknown'
+    | 'usage-inconsistent'
+    | 'units-missing'
+    | 'continuation-shrank'
+  >()
+  expectTypeOf<OutputWithheld>().toEqualTypeOf<
+    | 'source-missing'
+    | 'source-unreadable'
+    | 'source-unavailable'
+    | 'ambiguous-dispatch'
+    | 'output-unknown'
+    | 'reasoning-exceeds-output'
+    | 'supplier-changed'
+  >()
+  void [calibration, none, uncounted, identified]
+})
+
+it('a calibrated meter is a plain meter with one more entry, and the report names reasons only', () => {
+  const calibrated: CalibratedInputMeter = {
+    basis: counting,
+    measure: () => ({ ok: budget }),
+    measureCalibrated: (_input, _calibration) => ({ ok: budget }),
+  }
+  const plain: ModelInputMeter = calibrated
+  // @ts-expect-error a plain meter has no calibration entry
+  const widened: CalibratedInputMeter = { basis: counting, measure: () => ({ ok: budget }) }
+  const hit: CalibrationReport = { anchor: { kind: 'hit' } }
+  const miss: CalibrationReport = { anchor: { kind: 'miss', reason: 'not-a-prefix' } }
+  // @ts-expect-error a miss names its reason
+  const silent: CalibrationReport = { anchor: { kind: 'miss' } }
+  // @ts-expect-error the report carries no numbers of another call
+  const numbered: CalibrationReport = { anchor: { kind: 'hit', inputTotal: '120' } }
+  const reported: RequestBudget = { ...budget, calibration: hit }
+  void [plain, widened, miss, silent, numbered, reported]
 })
