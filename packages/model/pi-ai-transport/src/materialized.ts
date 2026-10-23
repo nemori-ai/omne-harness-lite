@@ -69,10 +69,12 @@ export async function materialize(
     if (!('ok' in encoded)) return encoded
     const body = serializeBody(encoded.ok.body)
     const diagnostics = Object.freeze([...encoded.ok.diagnostics])
+    const { replayFormat } = binding
     const receipt: MaterializationReceipt = Object.freeze({
       supplier: supplier.adoption,
       representation: request.representation,
       payloadDigest: digestOf(body),
+      ...(replayFormat === null ? {} : { replayFormat }),
     })
     const materialized = createMaterialized({
       ...input,

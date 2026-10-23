@@ -122,9 +122,9 @@ function checkFields(record: ChatCompletionsRecord): void {
 
 /**
  * Builds the complete binding of one record. Pure: no environment, secret, network or file.
- * `counting` is `meter.instance.basis`. `release` wraps the release of the family once: every
- * call returns the promise of the first. Throws `RangeError` for a record or an input that the
- * engine cannot bind.
+ * `counting` is `meter.instance.basis`, and `replayFormat` is `record.replay.formats.produces`.
+ * `release` wraps the release of the family once: every call returns the promise of the first.
+ * Throws `RangeError` for a record or an input that the engine cannot bind.
  */
 export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamilyBinding {
   const { record, supplier, hooks, meter } = input
@@ -150,6 +150,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
       plan: (planInput: Parameters<typeof planRequest>[1]) => planRequest(context, planInput),
     }),
     meter: meter.instance,
+    replayFormat: record.replay.formats.produces,
     tools: Object.freeze({
       convertToModelPayload: (declaration: Parameters<typeof toolPayload>[0]) =>
         toolPayload(declaration, hooks),

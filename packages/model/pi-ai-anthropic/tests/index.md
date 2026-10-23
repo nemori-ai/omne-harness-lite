@@ -12,6 +12,7 @@
 - [plan.spec.ts](plan.spec.ts)：参数规划与请求体
 - [rules.spec.ts](rules.spec.ts)：四个 hook 的规则
 - [meter.spec.ts](meter.spec.ts)：图片规则、词表资源与计量
+- [calibration.spec.ts](calibration.spec.ts)：经 `@omne-harness/model` 的真实准备租约与真实 `rules.plan` 的校准计量：锚点命中与不命中、带推理状态的单元按来源 O 估算、每种扣留原因、没有 lineage 时与没有校准时逐字节相同
 - [profiles.spec.ts](profiles.spec.ts)：官方档案与往返
 - [fixtures.spec.ts](fixtures.spec.ts)：回放夹具
 - [cross-family-replay.spec.ts](cross-family-replay.spec.ts)：跨家族回放的 Anthropic 一侧，以及外来工具轮次之后保持推理强度

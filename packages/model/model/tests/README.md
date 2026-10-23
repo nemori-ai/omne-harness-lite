@@ -25,6 +25,9 @@
 - [memory-admission.spec.ts](memory-admission.spec.ts) 检查显式/采用/请求值的参数边界、工具关联、typed 拒绝及未知注入不被非法请求消费；请求各序列与三个 stop 承载的单空位、中间空位、合法密集值及绑定冲突。
 - [memory-core.spec.ts](memory-core.spec.ts) 检查身份、受理、操作唯一、未知与恢复。
 - [memory-dispatch.spec.ts](memory-dispatch.spec.ts) 检查物化、首内容、批次原子性、重试、终局和供应商账目修订。
+- [memory-dispatch-refusals.spec.ts](memory-dispatch-refusals.spec.ts) 检查发出边界的具名拒绝：首次发出只接受请求的第一个供应商且没有策略决定；回执须指名发出的供应商、请求的表示与合格的摘要；完成终局没有块、有未封口的块，或封口块组成不了一条消息时拒绝，整批不保存；没有回执的发出只有思考块时照常保存，有推理续接状态时以 `replay-format-unknown` 拒绝。
+- [memory-replay.spec.ts](memory-replay.spec.ts) 检查收场的回放：`scope` 取请求声明，`format` 取物化回执的 `replayFormat`；含推理续接状态的回复在流内与晚到终局两条路径上，缺格式时都以 `replay-format-unknown` 拒绝且不保存。
+- [commands-accounts.spec.ts](commands-accounts.spec.ts) 对内存 ModelCommands 运行账目共用套件 `checkCommandsAccounts`，要求全部九项通过。admit 的请求含两条消息，使保留的消息身份可见。它还对改坏一条规则的内存副本运行套件，要求对应项失败，证明每项都能变红。每一项至少有一份这样的副本。改坏的规则是：读取时账目缺少调用方的 `subject`；读取时每份账目都标为 `received`；每次到达都当成新事件；没有账目的调用读到另一调用的账目；报告自带的 `subject` 被删去而不是被拒绝；读取不核对调用方的资格；清理时一并丢弃消息身份；物化回执缺 `replayFormat` 时自行补一个格式。
 - [memory-consumption.spec.ts](memory-consumption.spec.ts) 检查完整块分页、当前资格、ACK 与材料释放。
 - [runtime-testing.spec.ts](runtime-testing.spec.ts) 检查逐方法构造依赖、发送身份关联与调用后引用修改隔离、send/retry 参数及稀疏序列失败通道、一次发送及耗尽/异常/取消释放、宿主和手动时钟。
 
@@ -40,6 +43,10 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 共同符合性使用[runtime-conformance-fixture.ts](runtime-conformance-fixture.ts)唯一装配，完整保存53项实际结果。15项 settlement、未知 ACK 原操作认回和三项消费 route 逐名要求 pass。startRun/settleCall 使用真实 driver、receiver、preserve 和 settle；证据来自[承接方完成记录](completion-records.ts)，adapter 核全部字段及 tenant/call/result/consumer。unknown 包装真实 handoff，撤权映射 content/handoff，清理 hook 使用有效 execution 调实际 advanceCleanup。quiesce 等未支持项仍按真实结果报告。
 
+
+## 准备资源与校准租约
+
+[preparation.spec.ts](preparation.spec.ts) 经根入口的 `createModelPreparationResources` 验证租约：家族绑定来源是替身，它的计量器记录收到的 `MeterCalibration`；调用事实一部分来自真实内存 Commands（受理、分派、物化、账目、收场、ACK 与清理），一部分来自只实现 `dispatches` 的存储端口替身。测试覆盖：没有 lineage 时计量结果与家族计量器相同且不读取；锚点命中交出 X 的三项之和与消息序列；X 被确认并清理后仍命中；另一租户的调用与不存在的调用给出逐字节相同的结果；每种锚点不命中原因与每种来源扣留原因；来源回执的表示采用不同而供应商相同时照常交出 O；每个调用按调用方访问依据只读一次；超限、重复消息与坏身份的拒绝，以及恰好到上限时接受；空 lineage 等于没有 lineage；回执只差一个采用字段、没有回执、计数缺席或不是十进制整数时的判决；构造选项逐条的 `RangeError` 与供应商端口改动路线的每个字段；后一供应商失败时释放先取得的绑定；释放幂等、释放失败为值、释放后有无 lineage 的计量器都不可用。token 算术不在这里：两个家族包用真实计量器与 `rules.plan` 的表示验证它。
 
 ## 产品发送验证
 

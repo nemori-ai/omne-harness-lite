@@ -10,7 +10,7 @@
 2. 根入口导出的网络资源：工厂 `createNetworkResources` 与类型 `NetworkConfig`、`NetworkResources`、`ProxyConfig`、`DiagnosticObserver`。装配创建并拥有网络资源，再把它交给 `createPiTransport`。`NetworkResources` 是不透明句柄，包外只能调用它的 `close()`。行为见[“网络资源”](#网络资源)与[“代理”](#代理)。
 3. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
 4. 根入口导出的家族表：`defineFamily`、`composeFamilies`、`recordAdoption`、`replayFormatsOf` 与类型 `PiModelRecordHead`、`PiFamilySpec`、`PiFamily`、`PiReplayFormats`。行为见[“家族表”](#家族表)。
-5. 子入口 `./chat-completions` 导出的网关引擎：唯一的运行时值 `bindChatCompletions`，以及记录词表、四个家族 hook、计量接缝与解码器限额的类型。行为见[“网关引擎：请求”](#网关引擎请求)与[“网关引擎：流解释”](#网关引擎流解释)。
+5. 子入口 `./chat-completions` 导出的网关引擎：运行时值 `bindChatCompletions`、校准算术 `calibratedAmount`、两家共用的计量器外壳 `createCalibratedMeter` 与计量规则，以及记录词表、四个家族 hook、计量接缝与解码器限额的类型。行为见[“网关引擎：请求”](#网关引擎请求)、[“校准算术”](#校准算术)、[“共用计量规则”](#共用计量规则)与[“网关引擎：流解释”](#网关引擎流解释)。
 6. 子入口 `./testing` 导出的家族测试助手：`checkChatCompletionsFixtures`、`checkAdoptionFingerprints`、`appendAdoptionFingerprints` 与夹具格式的常量和类型。它读写文件，只供家族包的测试与脚本使用。行为见[“家族测试助手”](#家族测试助手)。
 7. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧与诊断隔离。这些机制不经入口导出（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。本文件对它们的条款约束同包的调用代码，即网络资源与三段传输。
 
@@ -25,7 +25,7 @@
 本包当前不提供以下能力。本文件对它们不作承诺：
 
 - 家族本身。家族由独立的家族包提供，现有 `@omne-harness/pi-ai-openai` 与 `@omne-harness/pi-ai-anthropic`。本包只提供家族表、网关引擎与测试助手。
-- 凭据解析与真实供应商请求。归 2.6。
+- 凭据解析，以及 Model 发送路径与本传输的组合。二者由 [model-host-local](../model-host-local/SPEC.md#本地-model-装配) 交付。
 - 媒体读取。materialize 遇到模型可见的内容引用时拒绝，见“三段传输”。媒体读取器的注入与读取归阶段四 4.4。引擎只编码内联图片。
 - 家族对错误体的解释，例如输入超限。所有请求都经 OpenRouter，错误体格式属于网关，本包保持“交换结果”中的映射。
 - 按优先级与等待方式分配名额。这是未实现的方向，记录在[内部架构](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位)。
@@ -72,7 +72,7 @@
 3. 调用家族的 `encode({ request, media: [], declaration, resent })`。`declaration` 与 `resent` 是 prepare 保存的值。家族返回的失败原样返回。本包保存家族返回的 `diagnostics`，交给事实流。
 4. 把 `body` 序列化为不含空白的 JSON 文本，再编码为 UTF-8 字节。
 5. 计算这些字节的 SHA-256，用 64 个小写十六进制数字表示。
-6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。回执冻结，重复读取得到同一个对象。
+6. 形成回执：`supplier` 是 `supplier.adoption`，`representation` 是 `request.representation`，`payloadDigest` 是第 5 步的摘要。绑定的 `replayFormat` 不是 `null` 时，回执带 `replayFormat`，值与绑定的相同。绑定的 `replayFormat` 是 `null` 时，回执没有这一项。回执冻结，重复读取得到同一个对象。
 
 - 第 1 步之后的任何失败，含抛出的异常，都先归还名额，再返回或抛出。
 - 同一 prepared 只能 materialize 一次。第二次调用返回 `invalid`（`field` 为 `materialize`，`reason` 为 `repeated`），不预约容量。prepared 关闭之后调用，返回 `unavailable`（`dependency` 为 `pi-transport`，`diagnostic` 为 `prepared-closed`）。
@@ -364,7 +364,9 @@
 
 #### 回放格式查询
 
-`replayFormatsOf(families, adoption)` 只读返回该采用对应记录的 `replay.formats`（`produces` 与 `accepts`）。没有家族声明该采用，或记录没有 `replay.formats` 时，它返回 `null`。运行时经端口取得回放格式归后续的回放组成集成。
+`replayFormatsOf(families, adoption)` 只读返回该采用对应记录的 `replay.formats`（`produces` 与 `accepts`）。没有家族声明该采用，或记录没有 `replay.formats` 时，它返回 `null`。
+
+Model runtime 不读家族表。家族在绑定的 `replayFormat` 中给出这次发出产出的格式，传输把它写入物化回执（见[materialize](#materialize) 第 6 步）。Model runtime 收场时从发出记录的回执读取它。
 
 ### 网关引擎：请求
 
@@ -375,7 +377,8 @@
 `bindChatCompletions({ record, supplier, hooks, meter, limits, release })` 返回完整的 `PiFamilyBinding`：
 
 - `adoption` 是 `recordAdoption(supplier.adoption.owner, record)`。它必须等于 `supplier.adoption`。
-- `counting` 是 `meter.instance.basis`，`meter` 是 `meter.instance`。
+- `replayFormat` 是记录的 `replay.formats.produces`。
+- `counting` 是 `meter.instance.basis`，`meter` 是 `meter.instance`。它实现 `CalibratedInputMeter`：`measureCalibrated` 接收准备租约交来的 `MeterCalibration`，`measure` 是同一算法加空校准（没有锚点、没有来源）。
 - `rules.plan`、`tools`、`encode` 都是纯计算，不读环境、秘密、网络或文件。
 - `createDecoder()` 每次返回一个新的解码器，按 `limits` 限制缓冲，见“网关引擎：流解释”。
 - `release` 包一层家族的 `release`：第一次调用调用它，之后每次调用返回第一次的 Promise。
@@ -423,7 +426,7 @@
    参数采用先按 `temperature`、`top-p`、`max-output-tokens`、`stop`、`reasoning-effort`、`seed`、`frequency-penalty`、`presence-penalty` 的顺序列出，再按请求顺序列出扩展参数。
 4. 投影。引擎做一次投影，投影的失败（见下文“投影”）在这一步返回。最后一个用过工具的 assistant 消息不可续接时，参数采用不变：请求保持请求的推理强度。
 5. 调用 `hooks.check({ applied, messages, treatments })`。它只校验，不改写。它的失败原样返回。
-6. 形成表示。引擎用第 4 步的投影与参数写出请求体，再调用 `meter.represent(view)`。写出请求体的失败（见下文“请求体”）在这一步返回。返回的采用必须等于 `assembled.representation`，不等时返回 `unsupported`（`field` 为 `representation`）。表示为 `materialized`，`media` 为空，`requestBytes` 是请求体的字节数。
+6. 形成表示。引擎用第 4 步的投影与参数写出请求体，再调用 `meter.represent(view)`。写出请求体的失败（见下文“请求体”）在这一步返回。返回的采用必须等于 `assembled.representation`，不等时返回 `unsupported`（`field` 为 `representation`）。表示为 `materialized`，`media` 为空，`requestBytes` 是请求体的字节数，`units` 是家族 `represent` 从投影的 `ProjectedTurn.message` 写出的消息侧表：与 `tokenInput` 的消息单元逐项对齐，前置指令为 `null`。侧表不改变计数字节。
 
 plan 不返回诊断。
 
@@ -473,6 +476,55 @@ plan 不返回诊断。
 - `wire.cache` 为 `last-message` 时，最后一条消息的最后一个非空文本部件加 `cache_control: { type: 'ephemeral', ttl }`。字符串内容先改写成一个文本部件。空文本部件不是位置。最后一条是只有图片的 user 消息时，标记加在它的最后一张图片上。图片与空文本混排的消息不是只有图片的消息。没有可放位置时返回 `unsupported`，`field` 为 `no-cache-target`，例如最后一条 user 消息是空文本加图片，或图片加空文本。
 
 `requestBytes` 是传输序列化请求体（`writeJsonText` 的 UTF-8 字节）的字节数。
+
+#### 校准算术
+
+`calibratedAmount(input)` 是两个家族计量器共用的纯函数，实现 [model-contract“可选校准”](../model-contract/SPEC.md#可选校准及不可解释的历史)的算术。家族给出：token 输入（`messages` 成员列出消息单元的对象）、表示的 `units` 侧表、每个单元是否带推理状态、用家族 tokenizer 计数一个 token 输入的函数、给定单元在文本之外的追加 token（图片规则）、推理单元没有来源时的具名诊断、不可用的 `dependency`，以及余量百分比。方法沿用封存件 `input-meters/marginal.ts`（完整包络差）与 `input-meters/output-history.ts`（每个完整输出组记一次 O）。
+
+- **完整计量。**带推理状态的单元不分词，改记 `calibration.outputs` 中该消息的 O。其余单元照常计数。没有被替换的单元时，计数的就是 token 输入本身，字节不变。任一需要 O 的单元没有条目时返回 `unavailable`，诊断为家族给出的具名诊断。条目为扣留时诊断为扣留原因。顺序是来源 → 图片规则 → 分词：先查来源，再算可见单元的追加 token（图片规则），最后用 tokenizer 计数。这与家族计量器的检查顺序一致。结果整体为估算，余量按整体算。
+- **锚点命中。**`units` 把消息单元分成三类：前缀单元（消息在 `anchor.covered` 中）、`null` 单元（前置指令）与新增单元（其余单元）。新增单元中不带推理状态的是新增的可见单元。包络差有两个计数项，都用家族 tokenizer 计数 token 输入的一个副本。两个副本都去掉 `tools` 与 `tool_choice`，保留其余成员，只替换 `messages`：第一项的 `messages` 只含新增的可见单元，按原次序。第二项的 `messages` 为空。所以两个计数项都不含前置指令与工具，也不含前缀单元与推理单元。计算如下：
+  - 新增部分 = 第一项 − 第二项 ＋ Σ 新增推理单元的 O ＋ 新增的可见单元的追加 token。
+  - 结果 = `anchor.inputTotal`（不加余量）＋ 新增部分。余量只按新增部分算。
+  - 前缀中的推理单元不需要来源。
+  - 第一项减第二项为负时不命中，原因为 `continuation-shrank`，按完整计量回答。
+- **拒绝。**以下输入返回 `invalid`：
+  - `tokenInput` 不是带 `messages` 数组的对象：`field` 为 `tokenInput`。
+  - `units` 与单元数不等：`field` 为 `representation.units`，`reason` 为 `length`。
+  - 有锚点而没有 `units`：`field` 为 `representation.units`，`reason` 为 `missing`。
+  - `anchor.inputTotal` 或某个 O 不是十进制整数：`field` 为 `calibration.anchor` 或 `calibration.outputs`。
+
+  推理标志与单元数不对齐、余量百分比不是非负十进制整数是家族缺陷，同步抛出。
+
+下图是锚点命中时各类单元的去向：
+
+```mermaid
+flowchart LR
+  Units["units 侧表中的消息单元"] --> Prefix["前缀单元：消息在 anchor.covered 中"]
+  Units --> Null["null 单元：前置指令"]
+  Units --> FreshVisible["新增的可见单元"]
+  Units --> FreshReasoning["新增的推理单元"]
+  Prefix --> Anchor["锚点 anchor.inputTotal：不加余量"]
+  Null --> Anchor
+  FreshVisible --> Envelope["包络差：第一项 − 第二项，加图片规则的追加 token"]
+  FreshReasoning --> Output["来源调用的 O"]
+  Envelope --> Estimate["估算部分：余量只按它计算"]
+  Output --> Estimate
+  Anchor --> Amount["amount = 锚点 ＋ 估算部分"]
+  Estimate --> Amount
+```
+
+返回 `amount`（锚点加估算部分）、`margin`（只按估算部分）、`anchor`（`hit`、`continuation-shrank` 的 `miss`，或没有锚点时的 `null`）与 `substituted`（是否有单元被 O 替换）。方法名按[共用计量规则](#共用计量规则)由这两项得出。
+
+#### 共用计量规则
+
+两个家族计量器在校准算术之外共用一个计量器外壳与以下纯规则，都在 [chat-completions/measurement.ts](src/chat-completions/measurement.ts)。家族只给出自己的部分：内容提取（哪个单元带推理状态、怎样计数）、图片规则、owner、输出组方法名，以及不可计数时的诊断名。
+
+- **外壳的构造。**`createCalibratedMeter(rules)` 返回冻结的 `CalibratedInputMeter`。`rules` 的类型是 `CalibratedMeterRules<U>`，`U` 扩展 `MeteredUnit`：每个单元至少说明它是否带推理状态（`reasoning`）。`rules` 给出家族 owner、记录的供应商采用、计量器、表示与媒体三个组件采用、计数依据、余量、输出组方法名、不可计数时的诊断名、tokenizer 与计数形式（原样或 NFKC）、内容提取，以及图片规则。余量的类型是 `MeterMargin`：`percent` 是非负十进制整数，`source` 是装配配置的余量策略采用。两个家族包从各自入口转导 `MeterMargin`，定义在本包。
+- **计量器外壳。**外壳先核对供应商与表示采用，再拒绝待定媒体，结果与字段见 [pi-ai-openai](../pi-ai-openai/SPEC.md#计量) 与 [pi-ai-anthropic](../pi-ai-anthropic/SPEC.md#计量) 计量步骤 2 的第 1～3 项。之后它用家族给出的部分调用校准算术，并组装预算：检查、方法名、输入摘要与 `calibration`。
+- **空校准。**空校准是冻结的值，没有锚点，也没有 O。家族的 `measure(input)` 等于以空校准调用 `measureCalibrated`。
+- **方法名。**方法名从计量器采用开始。有单元被 O 替换时，名字加 `+<输出组方法名>`。锚点命中时，名字再加 `+continuation-anchored/1`。两者都有时，输出组方法在前。`continuation-shrank` 的不命中不加后缀。`owner`、`revision` 与 `digest` 不变。没有后缀时返回计量器采用本身。
+- **输入摘要。**输入摘要是以下字段的 JSON 文本的 SHA-256 十六进制：`profile`、`supplier`、`context`、`limits`、`parameters`，以及表示的 `adoption`、`tokenInput` 的无损 JSON 文本与 `media`。校准有锚点或有 O 条目时，摘要也纳入整个校准，所以换锚点或换 O 就是换输入。空校准不进入摘要，所以普通计量的摘要与没有校准时相同。表示的 `units` 侧表不进入摘要。
+- **追加 token。**校准算术的 `extra` 每次调用都重新取每个所给单元的追加 token（图片规则），再求和。没有条目的单元加零。图片规则失败时，`extra` 返回同一失败。
 
 ### 网关引擎：流解释
 
@@ -537,7 +589,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 1. 一个 `account` 事实，`event` 为 `usage`，值是账目报告 `CallAccountReport`：
    - `usage` 是 hook 返回的 `items`；
-   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `supplier`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`；
+   - `cost`：usage 的 `cost` 成员是非负 JSON 数时，为一项 `known`，`unit` 为 `openrouter-credit`，`source` 为 `billable`。没有指数的词法照原样。有指数的词法改写成精确的普通十进制词法：只移动小数点，不经浮点数，例如 `2.25e-7` 写成 `0.000000225`。改写后超过 512 个字符时为 `unknown`。该成员是负数或不是数时，为一项同单位、同来源的 `unknown`。没有该成员或为 `null` 时，为空。网关的 `cost` 以额度计，不是货币，所以单位不是 `USD`。网关按该成员扣除额度，所以来源是 `billable`，不是 `supplier`；
    - `trimmed` 为 `{ state: 'unknown', unit: 'token' }`；
    - `place` 为 `openrouter/<第一帧报告的 provider>`；
    - `duration` 为 `{ state: 'unknown' }`，解码器不计时；
@@ -662,7 +714,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 义务 | 测试 | 层 |
 | --- | --- | --- |
 | 构造的配置校验（含不是句柄的 `network`）、prepare 的路由查找、请求不含该供应商时的拒绝与家族绑定、materialize 期间开始的 prepared 关闭、prepared 与外层的关闭（含 release 失败时等待全部关闭） | [transport.spec.ts](tests/transport.spec.ts) | 快 |
-| materialize：回执、交给家族的输入（含同序的声明与再发略去集合）、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
+| materialize：回执（绑定的 `replayFormat` 有值与为 `null` 两种情形）、交给家族的输入（含同序的声明与再发略去集合）、内容引用拒绝、encode 失败、重复调用、容量等待、取消与关闭归还名额 | [materialize.spec.ts](tests/materialize.spec.ts) | 快 |
 | 不发送的 start：无凭据、凭据不能写入请求头、信号已中止、网络资源已关闭（先于凭据检查）、关闭之前的重复 start、三种关闭之后的 start、start 与关闭之后再 start、凭据只在同步调用中读取一次、不发送时没有编码诊断 | [start.spec.ts](tests/start.spec.ts) | 快 |
 | 失败映射表的每一行 | [termination.spec.ts](tests/termination.spec.ts) | 快 |
 | 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、编码诊断在发出之后先于响应事实（含 HTTP 失败）、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
@@ -683,6 +735,8 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 公开消费例与反例：只经根入口对本地 HTTPS 服务发送一次，内容引用得到 `unsupported` | [examples.spec.ts](tests/examples.spec.ts) 运行 [examples/local-send.ts](examples/local-send.ts) | 慢 |
 | 家族表：规范 JSON 摘要与键序无关，改动线数据即改变摘要，不纯的记录、重复的 `(name, revision)`、同一路由的两条 `current`、重复 owner 与非 `defineFamily` 值的拒绝，冻结副本；取得的未安装、摘要漂移、其他修订、路由不符、家族失败原样返回、绑定的供应商或采用不符时释放、取消前不调用家族、取消后释放；回放格式查询 | [family-table.spec.ts](tests/family-table.spec.ts) | 快 |
 | 网关引擎 plan：投影使用档案的声明（可与记录声明不同），档案声明不合格，默认、显式、不支持、越界、输出上限与扩展参数的各分支，`hooks.check` 的输入与失败，计量表示与 encode 一致，表示采用不符 | [chat-completions-plan.spec.ts](tests/chat-completions-plan.spec.ts) | 快 |
+| 校准算术：没有校准时计数 token 输入本身且余量按整体；推理单元按来源的 O 替换，没有条目与每种扣留原因各为具名不可用；追加 token 只加在计数的单元上；锚点命中时只计新增部分、两个计数项都不含前置指令与工具、锚点不加余量；前缀中的推理单元不需要来源；全部覆盖时估算为零；包络差为负为 `continuation-shrank` 并退回完整计量；侧表不对齐、有锚点无侧表、锚点合计不是整数、O 不是整数与 token 输入不是 schema 的拒绝；计数、追加 token 的失败透传与余量百分比不是整数时的缺陷 | [chat-completions-calibration.spec.ts](tests/chat-completions-calibration.spec.ts) | 快 |
+| 共用计量规则：方法名的两个后缀、顺序与不命中不加后缀，采用的其他成员不变；空校准不进入摘要，锚点、O 与扣留各自改变摘要，`units` 不进入摘要；追加 token 的求和、缺项为零、每次调用重新取值与失败透传；空校准冻结；计量器外壳的拒绝、输入上限与上游限额、精确检查与 tokenizer 失败 | [chat-completions-measurement.spec.ts](tests/chat-completions-measurement.spec.ts) | 快 |
 | 网关引擎 encode：请求体快照，不写用量开关，只写本供应商的参数，同一字段的两项参数为 `invalid`，`requestBytes`，角色与两种内容形式，图片的拒绝，调用 id 规范化，工具结果图片，孤立的调用与结果，工具与 `tool_choice`，schema hook 的拒绝，缓存放置的各种情况（含图片与空文本混排的拒绝），空文本照原样写出，网关推理强度 `max`，回放使用请求的声明而不是记录声明、续接、略去、再发略去、`text` 与 `adapter` 处理（`text` 交给计量器的是文本块）、经判定的关闭回放与缺少编解码器，`replay-omitted` 诊断；绑定的采用、计量来源、只释放一次、记录缺陷的拒绝（含写入 `reasoning.enabled` 的固定值），以及经家族表取得引擎绑定 | [chat-completions-encode.spec.ts](tests/chat-completions-encode.spec.ts) | 快 |
 | 网关引擎流解释：文本通道与拒绝，可见推理的来源选择与 `[REDACTED]`，推理片段的拼接与签名，封存部件、配对、空载荷、超长载荷的 `reasoning-state-dropped` 诊断、hook 失败，推理缓冲上限；工具片段的缓存与开块、空参数、没有名字、参数上限、不能解码、没有 id、改名；三种完成与 `length` 的封块、没有内容或没有工具调用的收场、其他 finish 与诊断的裁剪；尾帧的接受、帧数上限、内容与不同 finish；服务方的固定、未钉住、未报告与变化；带内错误的映射与不回显；结束标记、没有 finish 的结束、结束后的拒绝、每次 dispatch 的独立状态；chunk 形状；按真实网关流的形状手写的两段合成流；账目报告（最后一份 usage、费用的三种情况与指数形式、没有 usage、被拒收场、用量诊断的次序、hook 失败、收场之前失败的流没有账目）；收场之后失败的账目（响应体断开、取消、坏帧、尾帧被拒，保留的用量与未知用量，`faulted` 阶段的 `end()`）；绑定限额的校验。每个回放都核对恰好一个 `ended` 且在最后 | [chat-completions-decode.spec.ts](tests/chat-completions-decode.spec.ts) | 快 |
 | 费用的普通十进制词法：普通词法照原样，指数形式的改写，负数、非 JSON 数与超长结果 | [chat-completions-decimal.spec.ts](tests/chat-completions-decimal.spec.ts) | 快 |
@@ -694,8 +748,8 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 - 真实供应商、真实代理与公网 TLS 不在持续验证中。慢层只证明本地 HTTPS 服务与本地 CONNECT 代理上的行为。`test:live` 只在手动设置开关时运行，turbo 运行它时总是跳过。
 - `https:` 协议的代理。本包只校验它的配置，没有运行验证。
-- Model 发送路径（`SendResource`）与本传输的组合。慢层只用脚本化的提供者与本包的测试家族运行符合性套件。
-- 真实凭据（2.6）下的三段传输。本包的测试只用测试记录与 hook 替身驱动网关引擎。两个家族包在自己的测试中经家族表与夹具检查驱动引擎。两个真实家族经三段传输与本地 HTTPS 服务的发送，以及对它们的符合性套件 transport 组，在 `pi-ai-anthropic` 的慢层用例 `two-families.spec.ts` 中，不在本包。解码器在本包的输入是手写的合成流，形状仿照真实网关流，不是真实样本。
+- 本包的测试不覆盖 Model 发送路径（`SendResource`）与本传输的组合。本包的慢层只用脚本化的提供者与本包的测试家族运行符合性套件。这个组合由 [model-host-local](../model-host-local/SPEC.md#本地-model-装配) 交付，它的慢层门禁把四份真实回放件经装配路径回放。
+- 真实凭据下的三段传输。本包的测试只用测试记录与 hook 替身驱动网关引擎。两个家族包在自己的测试中经家族表与夹具检查驱动引擎。两个真实家族经三段传输与本地 HTTPS 服务的发送，以及对它们的符合性套件 transport 组，在 `pi-ai-anthropic` 的慢层用例 `two-families.spec.ts` 中，不在本包。解码器在本包的输入是手写的合成流，形状仿照真实网关流，不是真实样本。
 - 网关引擎请求体被真实网关接受。空的工具结果写空内容、没有文本的 assistant 消息写空内容，这两种写法不在持续验证中。两个家族包的示例发出这两种写法，只在手动运行时有证据。
 - 消息中模型可见的内容引用。快层只用 `system` 中的引用核对 materialize 的拒绝；构造消息需要本包不依赖的 `@omne-harness/message`。
 - 在途响应长时间没有数据时，连接池空闲超时的效果。

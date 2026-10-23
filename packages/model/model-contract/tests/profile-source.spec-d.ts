@@ -7,13 +7,16 @@ import type {
   ModelProfileSnapshot,
   ModelProfileSource,
   ModelRequestRules,
+  PreparationLineage,
 } from '@omne-harness/model-contract'
 import {
   adoption,
   budget,
+  call,
   counting,
   evidence,
   json,
+  message,
   parameterAdoption,
   supplier,
   tenant,
@@ -97,4 +100,31 @@ it('the content authority answers with a closed treatment', () => {
     check: async () => ({ ok: { treatment: 'skip' } }),
   }
   void [authority, wrong]
+})
+
+it('a lineage is declared once at acquire, both parts optional, and the lease stays the same type', () => {
+  const continued: PreparationLineage = { continues: call }
+  const sourced: PreparationLineage = { sources: [{ message: message.id, call }] }
+  const empty: PreparationLineage = {}
+  // @ts-expect-error a source is keyed by a message identity, not by a position
+  const positional: PreparationLineage = { sources: [{ message: 0, call }] }
+  const resources: ModelPreparationResources<string> = {
+    acquire: async input => {
+      const lineage: PreparationLineage | undefined = input.lineage
+      void lineage
+      return {
+        ok: {
+          bindings: [
+            { supplier, rules, meter: { basis: counting, measure: () => ({ ok: budget }) } },
+          ],
+          release: async () => ({}),
+        },
+      }
+    },
+  }
+  void resources.acquire({ principal: 'p', tenant, profile })
+  void resources.acquire({ principal: 'p', tenant, profile, lineage: continued })
+  // @ts-expect-error the lineage is not a measure input
+  void rules.plan({ profile, supplier, assembled: undefined, lineage: continued })
+  void [sourced, empty, positional]
 })

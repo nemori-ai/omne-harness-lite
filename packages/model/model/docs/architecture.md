@@ -16,6 +16,7 @@
 | 档案求值 | ModelProfiles，调用方与请求组装者 | 范围筛选、同名胜出、合法列表、模态及凭据元数据 | 读取固定快照；历史模态投影由调用方随运行时上下文提供，Model 只接收 |
 | 消息转换 | ModelMessageConversion，消息准入者 | 选件、固定资源、本地转换、结果校验及释放 | 单次转换；接纳后的原块/派生归消息拥有者 |
 | 请求准备 | ModelRequestPreparation，请求组装者或发起者 | 参数采用、schema、供应商相容和参数上限比较；不计量输入 | 固定请求值，无调用方历史写权 |
+| 准备资源 | ModelPreparationResources，请求组装者（[preparation/](../src/preparation/)） | 逐供应商绑定取得与全有全无释放、按访问依据经 `dispatches` 读一次被引用调用的事实、锚点与来源的纯判决、把数字交给家族的 `measureCalibrated` 并报告判决 | 租约；事实视图随租约消失，家族计量器仍是纯函数 |
 | 调用推进 | ModelCalls 与受信 ModelProvider 生命周期，原发起者/恢复宿主 | 可靠受理、实例取得、逐次发出、有限重试、控制和终局 | 原 call/dispatch；执行者可换代 |
 | 发送 | ModelSendBoundary，执行者 | 物化、回执提交、当前资格围栏、真实 start 和未知发送；不计量 | 每次 dispatch 的固定采用及临时资源 |
 | 输出交付 | ModelHandle.observe，观察者 | 供应商解码、共享到达映射、合法归约、保存后发布及有界缓冲 | 归约状态按 dispatch 隔离；持久事实仍归 Commands |
@@ -150,6 +151,9 @@ flowchart LR
   Context[Request Context] --> Profiles
   Context --> Preparation[ModelRequestPreparation]
   Preparation --> Meter[ModelInputMeter]
+  Context -->|"acquire：访问依据、档案、lineage"| Lease["ModelPreparationResources：带 lineage 的租约"]
+  Lease -->|"dispatches，以调用方的访问依据读取"| Commands[ModelCommands]
+  Lease -->|"MeterCalibration：只有数字"| FamilyMeter["家族计量器（CalibratedInputMeter）"]
   Preparation --> Fixed[FixedModelRequest]
   Fixed --> Calls[ModelCalls]
   Calls --> Send[ModelSendBoundary]
@@ -160,9 +164,11 @@ flowchart LR
   Conversion --> Catalog[系统转换目录]
 ```
 
+请求组装方经 ModelPreparationResources 取得租约，用租约的计量器计量输入。租约以调用方的访问依据经 `dispatches` 读取 lineage 引用的调用，租户边界止于租约。家族计量器只收到数字，不收到访问依据、租户或调用身份。规则归[实现规格](../SPEC.md#准备资源与校准租约)。
+
 每个公开入口对应实际不同消费者。内部档案排序、参数合并和限制比较仍是普通实现函数，不各加抽象Service。准备和发送共享确定的校验规则，但依赖和输入事实不同。准备只能验证已经取得的内容，发送阶段才能确认实际媒体和供应商编码。
 
-RequestBudget 是计量能力给请求组装方的报告，用 complete 与 deferred-media 区分已完成计量和待物化事实。Token、单图字节、图数和整次请求大小分别检查，报告绑定原输入摘要和供应商。估算保留方法与余量，不能与真实账目合并。修改已组装输入须重新计量。准备与发送路径不调用计量能力。
+RequestBudget 是计量能力给请求组装方的报告，用 complete 与 deferred-media 区分已完成计量和待物化事实。Token、单图字节、图数和整次请求大小分别检查，报告绑定原输入摘要和供应商。估算保留方法与余量，不写入真实账目。这不禁止校准以真实账目上的输入合计为锚点：租约只读取账目，不改写账目，见[准备租约与调用事实视图](object-model.md#准备租约与调用事实视图)。修改已组装输入须重新计量。准备与发送路径不调用计量能力。
 
 ## 接缝及实际替换理由
 

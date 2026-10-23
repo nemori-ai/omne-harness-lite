@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-This member implements standalone execution, credential judgments, admission, stream preservation, instance observation, confirmed call settlement, result reading, processed ACK, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+This member implements the items in the table below. They include standalone execution, credential judgments, admission, stream preservation, instance observation and call settlement. They also include result reading, processed ACK, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
 
 | Entry or capability | Current support |
 | --- | --- |
@@ -12,8 +12,9 @@ This member implements standalone execution, credential judgments, admission, st
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
 | `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, instance observation, and confirmed call settlement within the boundaries below. Result reading and processed ACK are implemented. Retained ACK remains unavailable |
 | `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
-| `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
-| Durable Commands and production managed execution | Not implemented |
+| `createModelPreparationResources` | The production preparation lease. It holds one family binding for each profile supplier. It reads the call facts of a declared lineage once, with the access of the caller. It judges the anchor and the sources, and each budget reports the calibration verdict. Without a lineage, each meter gives the same result as the family meter. After release, every meter of the lease is unavailable. Request Context does not fill `lineage` yet ([#638](https://github.com/nemori-ai/omne-harness-lite/issues/638)). Until it does, a real measurement through Request Context gives a full measurement or a named unavailable result |
+| `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports. A dispatch record keeps the message identities of its fixed request after cleanup |
+| Durable Commands and production managed execution | Not implemented. A known limit of the memory Commands: each confirmed snapshot counts against the call capacity. Thus a long reply uses more capacity as it continues, also when the runtime saves it in batches. Durable Commands must define their own snapshot and capacity policy (stage 7.2 of the [parent card](https://github.com/nemori-ai/omne-harness-lite/issues/446)) |
 | Cordis runtime host and vendor execution | Not implemented in this package |
 
 ## Usage
@@ -27,6 +28,8 @@ For memory testing, import `createTestModelDependencies` from `@omne-harness/mod
 The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
 
 The caller encodes and saves the invocation reference before admit. Inspect, connect and beginRead use that reference with current Access. Lesson 05 saves an operation reference with the original ACK result and evidence. See the [shared reference contract](../model-contract/SPEC.md#可保存调用引用).
+
+A request assembler measures through a preparation lease. It constructs `createModelPreparationResources` with the Commands, a family binding source, a supplier port and `maxCitedCalls`. Then it acquires a lease with its access, the profile and an optional `lineage`. The lease reads the dispatch records of the calls that the lineage names. It reads each call once, with that access. Before each family measurement, it judges the anchor and the sources. The budget reports the verdict in `calibration`. The rules are in [SPEC, "准备资源与校准租约"](SPEC.md#准备资源与校准租约).
 
 ## Run the learning examples
 
@@ -76,7 +79,7 @@ The constructor takes Commands, the sending fence, the retry policy, the instanc
 
 The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. The driver publishes the initial instance before preparing and sending. It consumes the sender's original window and stream once. Commands confirm each batch before the driver publishes its complete snapshot. Explicit sending failures remain failures from drive. Unknown writes retain their original inputs.
 
-Consumers call `runtime.instances.connect` and then `handle.observe`. Each observer uses its own current observe permission. Closing an observer keeps the call running. The required positive `observerCheckIntervalMs` controls checks while an observer waits. An instance without a recovered content snapshot ends observation as unavailable.
+Consumers call `runtime.instances.connect` and then `handle.observe`. Each observer uses its own current observe permission. Closing an observer keeps the call running. The required positive `observerCheckIntervalMs` sets the interval between two permission reads of a waiting observer. An instance without a recovered content snapshot ends observation as unavailable.
 
 `outputBatchBytes` and `outputBatchDelayMs` control batch boundaries. Zero delay saves each received fact before another read. Positive delay permits aggregation. A timer requests a flush, but a pending read stays in its original window. If that read remains silent, the received prefix can remain unpublished indefinitely. The delay does not guarantee maximum visibility latency.
 
@@ -86,11 +89,11 @@ Consumers call `runtime.instances.connect` and then `handle.observe`. Each obser
 
 Construct `createModelSendBoundary` with Commands, a synchronous `SendCoordinator`, a `CredentialPort`, `SendResources`, and a positive `maxRetainedAttempts`. The [construction types](src/send/types.ts) define these dependencies. The sender commits the materialization receipt and receive window before the final fence. The coordinator rechecks current qualification and claims the dispatch before credential resolution and synchronous start. All qualification changes and sender instances must share that coordinator's state owner.
 
-Factory credentials require an explicit trusted registration of the exact profile, supplier, recipient, model, official origin, current lack of a tenant binding, and a human-named query ID. A request's factory tag grants no permission. Tenant resolution never falls back to factory credentials. The resource holds its credential value only for the synchronous start.
+Factory credentials require an explicit trusted registration. The registration names the exact profile, supplier, recipient, model and official origin. It also states that no tenant binding exists now, and it gives a human-named query ID. A request's factory tag grants no permission. Tenant resolution never falls back to factory credentials. The resource holds its credential value only for the synchronous start.
 
-Unknown writes retain their original operation, expected revision, resource, and input. Repeated sends query and replay the original write. If start returned facts but its record is unconfirmed, the sender retains those facts without reading or closing them. Once the record is confirmed, it hands out the original stream once. Signal cancellation reaches the transport. Exhaustion or consumer return releases materialized, prepared, and acquired resources in reverse order. Safe exceptions expose release failures. Unresolved attempts and failed releases retain capacity; there is no automatic expiry.
+Unknown writes retain their original operation, expected revision, resource, and input. Repeated sends query and replay the original write. If start returned facts but its record is unconfirmed, the sender retains those facts without reading or closing them. Once the record is confirmed, it hands out the original stream once. Signal cancellation reaches the transport. Exhaustion or consumer return releases materialized, prepared, and acquired resources in reverse order. Safe exceptions expose release failures. Unresolved attempts and failed releases retain capacity. They do not expire automatically.
 
-The scripted testing assembly uses this same sender. Explicit `sending` options supply credential and source checks. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee.
+The scripted testing assembly uses this same sender. Explicit `sending` options supply the credential and source rules. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee.
 
 A started result carries the confirmed original `window` and its single `facts` stream. Consumers pass `result.window` to Commands.preserve with the original execution and dispatch. The window grants no access rights. The runtime driver consumes this original stream and publishes only confirmed snapshots.
 
@@ -110,7 +113,23 @@ The Turbo test tasks build this package and its dependencies before they run the
 
 The full `test` runs Vitest, then executes the five learning scripts if Vitest succeeds. Neither test layer runs examples automatically. With build output ready, run `pnpm --filter @omne-harness/model examples` separately. Acceptance remains a separate script, scheduled by the [test runner](../../../tools/test-runner/README.md). Run `pnpm run acceptance` from the repository root.
 
-The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The preparation tests drive the real memory Commands and a stub family meter that records the calibration it receives. They cover these items:
+
+- The anchor hit, also after cleanup released the request material.
+- The same result for a call of another tenant and for a missing call.
+- Each anchor miss reason and each withheld source reason.
+- The reads with the access of the caller.
+- The acquire that gets all bindings or none.
+- The idempotent release.
+
+A conformance test runs the six transport obligations against the provider directly. The other tests cover these items:
+
+- The credential judgment, including the rejection of each tenant that was not minted.
+- The export set of the root entry.
+- The old subpaths, which do not resolve.
+- The manifest, which has no Cordis-type dependency.
+
+The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 

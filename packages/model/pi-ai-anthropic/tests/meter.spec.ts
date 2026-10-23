@@ -27,10 +27,7 @@ import {
   type RequestParts,
 } from './support/anthropic.ts'
 
-const CLAUDE_JSON = new URL(
-  '../resources/tokenizers/anthropic-legacy/claude.json',
-  import.meta.url,
-)
+const CLAUDE_JSON = new URL('../resources/tokenizers/anthropic-legacy/claude.json', import.meta.url)
 
 const patch = IMAGE_RULES['claude-patch-28/1']
 
@@ -236,8 +233,18 @@ describe('measure', () => {
         message(
           'a1',
           'assistant',
-          [thinkingBlock('k1', 'signed thinking'), textBlock('t1', 'Answer.'), stateBlock('s1', payload, ['k1'])],
-          { replay: { scope: 'openrouter/anthropic/claude-sonnet-5', format: 'anthropic-claude-v1', at: [2] } },
+          [
+            thinkingBlock('k1', 'signed thinking'),
+            textBlock('t1', 'Answer.'),
+            stateBlock('s1', payload, ['k1']),
+          ],
+          {
+            replay: {
+              scope: 'openrouter/anthropic/claude-sonnet-5',
+              format: 'anthropic-claude-v1',
+              at: [2],
+            },
+          },
         ),
         message('u2', 'user', [textBlock('b2', 'next')]),
       ],
@@ -272,7 +279,9 @@ describe('measure', () => {
       media: [fact],
     }))
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
-    expect(writeJsonText(tokenInput)).toContain('{"type":"image_url","image_url":{"url":"[image]"}}')
+    expect(writeJsonText(tokenInput)).toContain(
+      '{"type":"image_url","image_url":{"url":"[image]"}}',
+    )
     const [input, image] = measured.ok.checks
     expect(input?.measurement).toMatchObject({
       kind: 'estimate',
@@ -284,6 +293,37 @@ describe('measure', () => {
       measurement: { kind: 'exact', amount: '1000', method: componentAdoption(SONNET, 'media') },
       limit: '4194304',
       constraint: { upstream: { kind: 'unknown' } },
+    })
+  })
+
+  it('adds the rule of every image of a message, when one message holds two', async () => {
+    const parts = {
+      messages: [
+        message('u1', 'user', [imageBlock('i1'), textBlock('b1', 'and'), imageBlock('i2')]),
+      ],
+    }
+    const second = { ...fact, reference: { ...reference, key: 'image-2' } }
+    const { measured, tokenInput } = await planAndMeasure(SONNET, parts, value => ({
+      ...value,
+      media: [fact, second],
+    }))
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok.checks[0]?.measurement).toMatchObject({
+      kind: 'estimate',
+      amount: String(tokensOf(tokenInput) + 2 * 2691),
+    })
+  })
+
+  it('writes no instruction unit for a request without an instruction', async () => {
+    const { measured, tokenInput } = await planAndMeasure(SONNET, {
+      messages: [message('u1', 'user', [textBlock('b1', 'hello')])],
+    })
+    expect(writeJsonText(tokenInput)).toBe(
+      '{"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}],"tools":[]}',
+    )
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok.checks[0]?.measurement).toMatchObject({
+      amount: String(tokensOf(tokenInput)),
     })
   })
 

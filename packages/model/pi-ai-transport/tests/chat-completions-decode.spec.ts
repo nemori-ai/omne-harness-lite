@@ -932,7 +932,7 @@ describe('account', () => {
               state: 'known',
               lexeme: '0.00012345',
               unit: 'openrouter-credit',
-              source: 'supplier',
+              source: 'billable',
             },
           ],
           trimmed: { state: 'unknown', unit: 'token' },
@@ -986,7 +986,7 @@ describe('account', () => {
       const facts = await replay(bind(), chunk({ delta: { content: 'x' } }), frame)
       expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
         value: {
-          cost: [{ state: 'known', lexeme: plain, unit: 'openrouter-credit', source: 'supplier' }],
+          cost: [{ state: 'known', lexeme: plain, unit: 'openrouter-credit', source: 'billable' }],
         },
       })
     }
@@ -1003,7 +1003,7 @@ describe('account', () => {
           )
         ).find(fact => fact.kind === 'account'),
       ).toMatchObject({
-        value: { cost: [{ state: 'unknown', unit: 'openrouter-credit', source: 'supplier' }] },
+        value: { cost: [{ state: 'unknown', unit: 'openrouter-credit', source: 'billable' }] },
       })
   })
 

@@ -101,7 +101,12 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
     adoption: adoption('family'),
     counting,
     rules: { plan: () => ({ failure: refused }) },
-    meter: { basis: counting, measure: () => ({ failure: refused }) },
+    meter: {
+      basis: counting,
+      measure: () => ({ failure: refused }),
+      measureCalibrated: () => ({ failure: refused }),
+    },
+    replayFormat: null,
     tools: { convertToModelPayload: () => ({ failure: refused }) },
     encode: () => ({
       ok: {
