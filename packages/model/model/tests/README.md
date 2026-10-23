@@ -41,6 +41,10 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 共同符合性使用[runtime-conformance-fixture.ts](runtime-conformance-fixture.ts)唯一装配，完整保存53项实际结果。15项 settlement、未知 ACK 原操作认回和三项消费 route 逐名要求 pass。startRun/settleCall 使用真实 driver、receiver、preserve 和 settle；证据来自[承接方完成记录](completion-records.ts)，adapter 核全部字段及 tenant/call/result/consumer。unknown 包装真实 handoff，撤权映射 content/handoff，清理 hook 使用有效 execution 调实际 advanceCleanup。quiesce 等未支持项仍按真实结果报告。
 
 
+## 准备资源与校准租约
+
+[preparation.spec.ts](preparation.spec.ts) 经根入口的 `createModelPreparationResources` 验证租约：家族绑定来源是替身，它的计量器记录收到的 `MeterCalibration`；调用事实一部分来自真实内存 Commands（受理、分派、物化、账目、收场、ACK 与清理），一部分来自只实现 `dispatches` 的存储端口替身。测试覆盖：没有 lineage 时交出家族计量器本身且不读取；锚点命中交出 X 的三项之和与消息序列；X 被确认并清理后仍命中；另一租户的调用与不存在的调用给出逐字节相同的结果；每种锚点不命中原因与每种来源扣留原因；每个调用按调用方访问依据只读一次；超限、重复消息与坏身份的拒绝；后一供应商失败时释放先取得的绑定；释放幂等、释放失败为值、释放后计量不可用。token 算术不在这里：两个家族包用真实计量器与 `rules.plan` 的表示验证它。
+
 ## 产品发送验证
 
 [send.spec.ts](send.spec.ts) 通过真实 runtime 和 driver 建立 prepared dispatch，经公开产品 sender 验证凭据五结果、scope 与禁止回退、显式 factory 来源、回执提交、物化/开窗/send 写的 applied 与 not-applied 原参数认回、当前撤权/取消/代次排序，以及两个 sender 共用后端的一次 start。查询拒绝、异常或仍未知时保留原尝试和容量；已确认提交但回执暂不可取时仍保留资源。产品闭包在同步重入和重复调用时最多解析并 start 一次，保留原事实流。后端认领另在 recordSend 尚未提交时核实，不能用本地 map 替代。单 iterator、原流未预取、abort 中断事实、done/return/throw/读取异常、逆序幂等释放及释放失败均有行为断言。

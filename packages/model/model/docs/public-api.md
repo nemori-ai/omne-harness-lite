@@ -37,7 +37,7 @@ export declare function createModelMessageConversion<P>(dependencies: Readonly<{
 }>): ModelMessageConversion<P>
 ```
 
-这些构造函数不启动网络、读取词表或登记框架服务。profiles 隐藏同名胜出、撤回遮蔽、模态相容和选择解释；preparation 隐藏逐供应商参数与 schema 相容检查，不计量；conversion 隐藏选择、校验和租约收尾。删除这些 module 会把同一算法散布到调用者。档案维护由实际权威提供者实现共同写协议，不另造一个无行为的转发工厂。
+这些构造函数不启动网络、读取词表或登记框架服务。profiles 隐藏同名胜出、撤回遮蔽、模态相容和选择解释；preparation 隐藏逐供应商参数与 schema 相容检查，不计量；conversion 隐藏选择、校验和租约收尾。删除这些 module 会把同一算法散布到调用者。档案维护由实际权威提供者实现共同写协议，不另造一个无行为的转发工厂。`ModelPreparationResources` 的生产实现已由下文的 `createModelPreparationResources` 提供。
 
 createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。装配者先创建宿主，再构造 runtime，await host.bind(provider.driver) 成功后才发布普通服务并执行 recover。binding 不在构造期间回调，避免半初始化依赖。普通使用者不能从 ModelRuntime 取得 driver。
 
@@ -96,6 +96,12 @@ Commands、同步 coordinator、credentials 和 resources 由受信装配提供�
 测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。消费者从公共 started 结果取得原 window 与 facts，并将 result.window 连同原执行与分派传给 Commands.preserve；命令仍核全部绑定。
 
 原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。原终局收场的具体支持见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 和生产宿主仍未完成。
+
+## 准备资源构造
+
+根入口 `createModelPreparationResources(options)` 返回共同 `ModelPreparationResources<P>`。公开构造类型 `ModelPreparationOptions`、`PreparationBinding`、`PreparationBindingSource` 与 `SupplierPort` 的唯一声明在 [preparation/resources.ts](../src/preparation/resources.ts)。`options.commands` 是 `Pick<ModelCommands, 'dispatches'>`；`options.bindings` 的形状与 pi 家族贡献相同，装配直接传 `composeFamilies(...)`；`options.supplierOf` 由拥有凭据范围的宿主提供；`options.maxCitedCalls` 来自配置。
+
+请求组装方按 acquire、`rules.plan`、`meter.measure`、release 的顺序使用租约。它在 `acquire` 的输入上以 `lineage` 声明被延续的调用与各消息的来源调用；不声明时得到家族计量器本身。计量结果的 `calibration` 报告锚点命中或不命中的原因。读取、判决、报告与释放的行为归 [SPEC“准备资源与校准租约”](../SPEC.md#准备资源与校准租约)，数字的算法归家族包。
 
 ## 已实现的收场与返回判别
 

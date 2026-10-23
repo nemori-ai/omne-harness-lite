@@ -18,4 +18,5 @@
 [runtime-settlement.spec.ts](runtime-settlement.spec.ts)验证真实 driver 的原终局收场、未知认回、确定竞争、晚到事实及唯一释放。[教学脚本](../examples/README.md)由包 test 入口持续运行。
 
 - [公开结果读取](runtime-reading.spec.ts)、[processed ACK 与交错风险](runtime-acknowledgement.spec.ts)、[分页准备预算](memory-paging.spec.ts)。
+- [准备资源与校准租约](preparation.spec.ts)：真实内存 Commands 上的锚点命中、清理后仍命中、另一租户与不存在同结果、每种不命中与扣留原因、按访问依据读取、全有全无取得与幂等释放。
 - [符合性装配](runtime-conformance-fixture.ts)、[消费者完成记录](completion-records.ts)、[真实收场准备](runtime-consumption-fixture.ts)。

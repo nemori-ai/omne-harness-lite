@@ -146,7 +146,7 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
-独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
+独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
 
 发送边界在准备前复制 execution、request、supplier、consumer 和 initiator 的值，后续异步步骤、计数和关闭使用同一份需求。合法 TenantId 与不透明 P 保留原身份，AbortSignal 保留原取消语义。调用者改写外层字段或嵌套值不改变本次发送；实际 start 仍重核当前资格、代次与控制。请求参数的统一校验覆盖 parameters、parameterAdoptions.applied 和显式 origin.requested。已知非法参数沿原结果通道拒绝，不进入摘要或消耗 unknown 注入；已有 operation 的异输入仍按原绑定冲突。retry 的决定认回也核对原请求，不重复消费决定。请求拥有的 suppliers、parameters、system、messages、tools、parameterAdoptions 及三个参数承载位置中的 stop 都要求数组无空位，并保留各自的元素规则。合法空序列仍允许，suppliers 与 stop 保持非空要求。内部规范编码独立拒绝空位，不将其编码为合法空数组。
 
@@ -198,6 +198,24 @@ processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evid
 retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的固定 unavailable。保留 operation 先按现行规则返回 invalid。此静态路径不读取资源、不执行 handoff，也不声称已核承接资格。它对存在、不存在、跨租户和伪造主体给同一支持拒绝。
 
 [第五课](examples/05-read-and-acknowledge.ts)演示公开读取及 processed ACK。[消费测试](tests/README.md#公开结果消费)验证真实 runtime、内存 Commands 和脚本上游，不证明生产耐久、真实厂商或跨进程恢复。
+
+## 准备资源与校准租约
+
+`createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据引用的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。
+
+`acquire(access & { profile, lineage? })` 按下列顺序执行：
+
+1. 解析 lineage。`continues` 或 `sources` 的身份不合格时返回 `invalid`（`field` 为 `lineage.continues` 或 `lineage.sources`）；同一消息有两个来源时返回 `invalid`（`lineage.sources`，`duplicate-message`）；不同调用数超过 `maxCitedCalls` 时返回 `invalid`（`lineage`，`too-many-calls`）。没有 lineage，或两项都为空，视为没有 lineage。
+2. 按档案供应商的次序逐个取得绑定。`supplierOf` 失败时原样返回；返回的供应商改变了采用、接收方或型号时返回 `invalid`（`supplier`，`route-mismatch`）；绑定取得失败时返回该失败。任一失败释放已取得的绑定，不形成更窄的档案。
+3. 有 lineage 时，以取得时的 `principal` 与 `tenant` 经 `commands.dispatches` 读取每个被引用调用一次。`denied` 与 `invalid` 折叠为无此事实；`unavailable` 等其他失败记为事实不可用。读取抛出异常时先释放绑定再抛出。取得不因读取失败而失败。
+
+租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 就是绑定的家族计量器本身。有 lineage 时，`meter.measure` 同步判决并委托家族的 `measureCalibrated`：
+
+- 锚点按 [model-contract“可选校准”](../model-contract/SPEC.md#可选校准及不可解释的历史) 的条件判决，第一个不满足的条件决定原因：`not-declared`、`call-unreadable`（无此事实）、`facts-unavailable`、`ambiguous-dispatch`（X 有不止一次带账目的发出）、`usage-unknown`（X 没有带账目的发出）、`messages-unrecorded`、`supplier-changed`（回执缺失或供应商采用不同）、`representation-changed`、`not-a-prefix`、`usage-unknown`（`input`、`cache-read`、`cache-write` 有未知项）、`units-missing`。全部满足时锚点为 X 的三项之和与它的消息序列。相等的序列是前缀。`usage-inconsistent` 属于契约词表，本实现不给出它：该诊断保存在 dispatch 上而 `DispatchRecord` 不携带它，账目里的 `input` 已为未知，所以报告为 `usage-unknown`。`continuation-shrank` 由家族计量器给出。
+- 来源按消息判决：有声明来源的消息得到 O（`output` 已知且 `reasoning` 不大于它）或具名扣留原因（`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`）；带推理续接状态部件（`replay.at` 非空）而没有声明来源的 assistant 消息得到 `source-missing`；为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
+- 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
+
+`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后 lineage 计量器的 `measure` 返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`）；事实视图随租约消失，不跨租约保留。
 
 ## 产品发送边界
 

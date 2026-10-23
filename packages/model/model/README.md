@@ -12,7 +12,8 @@ This member implements standalone execution, credential judgments, admission, st
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
 | `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, instance observation, and confirmed call settlement within the boundaries below. Result reading and processed ACK are implemented. Retained ACK remains unavailable |
 | `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
-| `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
+| `createModelPreparationResources` | The production preparation lease: one family binding per profile supplier, the call facts of a declared lineage read once with the caller's access, the anchor and source verdicts, and the calibration report of each budget. Without a lineage the lease hands out the family meter itself |
+| `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports. A dispatch record keeps the message identities of its fixed request after cleanup |
 | Durable Commands and production managed execution | Not implemented |
 | Cordis runtime host and vendor execution | Not implemented in this package |
 
@@ -27,6 +28,8 @@ For memory testing, import `createTestModelDependencies` from `@omne-harness/mod
 The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
 
 The caller encodes and saves the invocation reference before admit. Inspect, connect and beginRead use that reference with current Access. Lesson 05 saves an operation reference with the original ACK result and evidence. See the [shared reference contract](../model-contract/SPEC.md#可保存调用引用).
+
+A request assembler measures through a preparation lease. It constructs `createModelPreparationResources` with the Commands, a family binding source, a supplier port and `maxCitedCalls`, then acquires a lease with its access, the profile and an optional `lineage`. The lease reads the dispatch records of the calls the lineage names once, with that access, and judges the anchor and the sources before each family measurement. The budget reports the verdict in `calibration`. The rules are in [SPEC, "准备资源与校准租约"](SPEC.md#准备资源与校准租约).
 
 ## Run the learning examples
 
@@ -110,7 +113,7 @@ The Turbo test tasks build this package and its dependencies before they run the
 
 The full `test` runs Vitest, then executes the five learning scripts if Vitest succeeds. Neither test layer runs examples automatically. With build output ready, run `pnpm --filter @omne-harness/model examples` separately. Acceptance remains a separate script, scheduled by the [test runner](../../../tools/test-runner/README.md). Run `pnpm run acceptance` from the repository root.
 
-The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The preparation tests drive the real memory Commands and a stub family meter that records the calibration it receives: the anchor hit, the hit after the request material was released, the equality of a foreign call and a missing call, every anchor miss reason and every withheld source reason, the reads with the caller's access, the all-or-nothing acquire and the idempotent release. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 
