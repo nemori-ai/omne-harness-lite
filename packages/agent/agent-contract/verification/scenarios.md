@@ -376,7 +376,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 
 ## Tool 关联与控制引用
 
-这些场景是已采用契约的验证目标，尚无本次运行证据。控制场景使用现有 testing Journal 的 control、recordControl、load 与 query 公开入口，不能由直接调用私有 helper 替代。
+这些场景定义已采用契约的验证目标。实现覆盖与未覆盖范围见 [覆盖表](coverage.md#tool-契约同步的验证目标)。控制场景使用 testing Journal 的 control、recordControl、load 与 query 公开入口。SC-AG-219/224 的保留引用损坏条件可经 [显式故障控制](../../agent/docs/public-api.md#测试-journal-的保留引用故障) 建立：先观察正常 S0，再核对注入后的 S1 仅变目标字段，最后调用真实新 R 并核对 S2 等于 S1、原回执和完整事件不变。测试控制拒绝不算业务防御通过；独立 QA 仍须从构建后的默认公开入口执行。
 
 | 场景 | 条件与故障 | 必须结果 | 可观察依据 |
 | --- | --- | --- | --- |

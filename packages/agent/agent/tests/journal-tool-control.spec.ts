@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
-import { decodeActionId, type AgentJournal, type PendingCall } from '@omne-harness/agent-contract'
+import {
+  decodeActionId,
+  type AgentJournal,
+  type PendingCall,
+  type AgentEvent,
+  type EventPage,
+} from '@omne-harness/agent-contract'
 import { encodeModelInvocationRef, decodeModelOperationId } from '@omne-harness/model-contract'
 import * as tools from '@omne-harness/tool-contract'
 import {
@@ -62,8 +68,11 @@ const model = {
 
 type Recording = Parameters<AgentJournal<string>['recordControl']>[0]
 
-async function setup(calls: readonly PendingCall[] = [associated]) {
-  const memory = createMemoryAgentJournal<string>()
+async function setup(
+  calls: readonly PendingCall[] = [associated],
+  options: Parameters<typeof createMemoryAgentJournal<string>>[0] = {},
+) {
+  const memory = createMemoryAgentJournal<string>(options)
   const journal = memory.port
   const opened = await open(journal)
   ok(
@@ -109,6 +118,159 @@ function operationRef(overrides: Partial<tools.ToolOperationParts>) {
 }
 
 afterEach(() => vi.restoreAllMocks())
+
+async function observeRetained(journal: AgentJournal<string>, execution: Recording['execution']) {
+  const events: AgentEvent[] = []
+  let after: string | null = null
+  for (;;) {
+    const page: EventPage = ok(await journal.output.read({ ...access, execution, after, limit: 1 }))
+    if (page.kind !== 'page') throw new Error('retained fixture must have complete events')
+    events.push(...page.events)
+    if (page.caughtUp) break
+    after = page.next
+  }
+  return { snapshot: await load(journal, execution), events }
+}
+
+describe('public retained invocation faults', () => {
+  const faults = [
+    { kind: 'malformed' },
+    {
+      kind: 'foreign-tenant',
+      reference: ok(tools.encodeToolInvocationRef({ ...parts, tenant: otherTenant.tenant })),
+    },
+  ] as const
+
+  describe.each(['interrupt-tool', 'background-tool'] as const)('%s', kind => {
+    describe.each(faults)('$kind', fault => {
+      it.each([true, false])('observes S0/S1/S2 with attachment=%s', async attachment => {
+        const { memory, journal, opened, control, recording } = await setup([associated], {
+          retainedToolInvocationFaults: true,
+        })
+        const other = await open(journal, 'other-execution')
+        const otherBefore = await observeRetained(journal, other.execution)
+        const otherQuery = {
+          ...access,
+          execution: other.execution,
+          operation: operation('open-other-execution'),
+        }
+        const accepted = { ...control, command: { ...control.command, kind } }
+        const acceptedReceipt = ok(await journal.control(accepted))
+        const originalReceipt = ok(await journal.recordControl(recording))
+        const s0 = await observeRetained(journal, opened.execution)
+        expect(
+          tools.resolveToolInvocationRef(s0.snapshot.controls[0]?.toolInvocation, access.tenant),
+        ).toEqual({ ok: parts })
+        const selector = {
+          tenant: access.tenant,
+          execution: opened.execution,
+          control: accepted.operation,
+        }
+        expect(memory.setRetainedToolInvocationFault({ ...selector, fault })).toEqual({
+          kind: 'applied',
+        })
+        const badReference =
+          fault.kind === 'malformed'
+            ? 'memory-journal:malformed-retained-tool-invocation'
+            : fault.reference
+        const s1 = await observeRetained(journal, opened.execution)
+        expect(await observeRetained(journal, other.execution)).toEqual(otherBefore)
+        expect(ok(await journal.query(otherQuery))).toEqual({
+          kind: 'committed',
+          receipt: other.receipt,
+        })
+        expect(s1).toEqual({
+          ...s0,
+          snapshot: {
+            ...s0.snapshot,
+            controls: s0.snapshot.controls.map(record => ({
+              ...record,
+              toolInvocation: badReference,
+            })),
+          },
+        })
+        expect(
+          failure(
+            tools.resolveToolInvocationRef(s1.snapshot.controls[0]?.toolInvocation, access.tenant),
+          ),
+        ).toMatchObject({ kind: fault.kind })
+        expect(s0.snapshot.controls[0]?.toolInvocation).toBe(invocation)
+
+        expect(ok(await journal.recordControl(recording))).toEqual(originalReceipt)
+        const changes: readonly Partial<Recording>[] = [
+          { toolOperation },
+          { target: operation('missing-control') },
+          { stage: 'physically-stopped' },
+        ]
+        for (const change of changes) {
+          expect(failure(await journal.recordControl({ ...recording, ...change }))).toEqual({
+            kind: 'conflict',
+            operation: recording.operation,
+          })
+        }
+        expect(
+          await Reflect.apply(journal.recordControl, journal, [
+            { ...recording, toolOperation: 'invalid' },
+          ]),
+        ).toEqual({ failure: { kind: 'conflict', operation: recording.operation } })
+        expect(
+          failure(
+            await journal.recordControl({
+              ...recording,
+              toolOperation: operationRef({ tenant: otherTenant.tenant }),
+            }),
+          ),
+        ).toEqual({ kind: 'denied', action: 'recordControl' })
+
+        const next = {
+          ...recording,
+          operation: operation('new-R'),
+          ...(attachment ? { toolOperation } : {}),
+        }
+        expect(failure(await journal.recordControl(next))).toEqual(
+          fault.kind === 'malformed'
+            ? {
+                kind: 'unavailable',
+                owner: 'AgentJournal',
+                diagnostic: 'invalid-retained-tool-invocation',
+              }
+            : { kind: 'denied', action: 'recordControl' },
+        )
+        expect(await observeRetained(journal, opened.execution)).toEqual(s1)
+        expect(await observeRetained(journal, other.execution)).toEqual(otherBefore)
+        expect(ok(await journal.query(otherQuery))).toEqual({
+          kind: 'committed',
+          receipt: other.receipt,
+        })
+        expect(ok(await journal.query(next))).toEqual({ kind: 'unknown' })
+        expect(ok(await journal.query(accepted))).toEqual({
+          kind: 'committed',
+          receipt: acceptedReceipt,
+        })
+        expect(ok(await journal.query(recording))).toEqual({
+          kind: 'committed',
+          receipt: originalReceipt,
+        })
+
+        expect(memory.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+          kind: 'cleared',
+        })
+        expect(await observeRetained(journal, opened.execution)).toEqual(s0)
+        const restored = ok(await journal.recordControl({ ...next, toolOperation }))
+        const after = await observeRetained(journal, opened.execution)
+        expect(after.snapshot.controls[0]?.toolInvocation).toBe(invocation)
+        expect(after.snapshot.controls[0]?.toolOperation).toBe(toolOperation)
+        expect(Number(after.snapshot.revision)).toBe(Number(s0.snapshot.revision) + 1)
+        expect(after.events).toEqual(s0.events)
+        expect(ok(await journal.query(next))).toEqual({ kind: 'committed', receipt: restored })
+        expect(ok(await journal.query(recording))).toEqual({
+          kind: 'committed',
+          receipt: originalReceipt,
+        })
+      })
+    })
+  })
+})
 
 describe('pending control operation custody', () => {
   const retries = [undefined, 'applied', 'dropped', 'pending'] as const

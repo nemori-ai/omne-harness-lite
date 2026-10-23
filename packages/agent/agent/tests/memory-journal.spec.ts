@@ -3,7 +3,9 @@
 // durable provider unchanged. Tests read only what the port returns. The three choices that wait
 // for #558 have their own `describe` at the end, named 「临时做法，待 #558 裁定」.
 import { describe, expect, it } from 'vitest'
-import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
+import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
+import { decodeActionId, type AgentEvent, type EventPage } from '@omne-harness/agent-contract'
+import * as toolReferences from '@omne-harness/tool-contract'
 import {
   access,
   acceptedInput,
@@ -1901,5 +1903,484 @@ describe('scripted read faults', () => {
       'unavailable',
     )
     expect(await load(journal.port, opened.execution)).toEqual(before)
+  })
+})
+
+// Public controls establish corrupted storage; the real Journal remains the behavior oracle.
+describe('retained invocation fault controls', () => {
+  async function fixture(label = 'A', spaced = false) {
+    const control = memory({ retainedToolInvocationFaults: true, participants: ['message'] })
+    const journal = control.port
+    const entries = []
+    for (const id of ['fault-execution-1', 'fault-execution-2']) {
+      const opened = await open(journal, id)
+      const calls = ['first', 'second'].map(name => {
+        const call = ok(toolReferences.decodeToolCallId(`${label}-${id}-${name}`))
+        const parts = {
+          tenant: access.tenant,
+          call,
+          admission: ok(toolReferences.decodeToolOperationId(`${label}-${id}-${name}-admission`)),
+        }
+        const reference = ok(toolReferences.encodeToolInvocationRef(parts))
+        return { parts, reference, raw: spaced ? ` \n${reference} ` : reference }
+      })
+      const commit = commitAt(await load(journal, opened.execution), opened.authority, 'calls', {
+        checkpoint: checkpoint(),
+      })
+      // JS callers can provide non-canonical valid text. The real resolver checks these bytes.
+      const committed: Awaited<ReturnType<Journal['commit']>> = await Reflect.apply(
+        journal.commit,
+        journal,
+        [
+          {
+            ...commit,
+            checkpoint: {
+              ...commit.checkpoint,
+              calls: calls.map(({ parts, raw }) => ({
+                action: ok(decodeActionId(parts.call)),
+                consumption: consumption(parts.call),
+                position: { owner: 'agent', work: id, position: 'T0', purpose: 'action' },
+                fixed: evidence('request'),
+                kind: 'tool',
+                purpose: 'action',
+                association: 'associated',
+                reference: raw,
+              })),
+            },
+          },
+        ],
+      )
+      ok(committed)
+      const selectors = []
+      for (const [index, { parts, raw }] of calls.entries()) {
+        expect(toolReferences.resolveToolInvocationRef(raw, access.tenant)).toEqual({ ok: parts })
+        const accepted = {
+          ...access,
+          execution: opened.execution,
+          operation: operation(index === 0 ? 'C' : 'C2'),
+          command: { kind: 'interrupt-tool', call: parts.call, reason: evidence('reason') },
+        } as const
+        ok(await journal.control(accepted))
+        selectors.push({
+          tenant: access.tenant,
+          execution: opened.execution,
+          control: accepted.operation,
+        })
+      }
+      ok(
+        await journal.control({
+          ...access,
+          execution: opened.execution,
+          operation: operation('suspend'),
+          command: { kind: 'suspend', reason: evidence('suspend') },
+        }),
+      )
+      const first = calls[0]
+      const selector = selectors[0]
+      const second = selectors[1]
+      if (first === undefined || selector === undefined || second === undefined)
+        throw new Error('fixture requires two calls')
+      const recording = {
+        ...access,
+        execution: opened.execution,
+        operation: operation('R'),
+        target: selector.control,
+        stage: 'producer-confirmed',
+        state: 'reached',
+        source: evidence('confirmed'),
+      } as const
+      const receipt = ok(await journal.recordControl(recording))
+      entries.push({ opened, selector, second, first, recording, receipt })
+    }
+    const first = entries[0]
+    const second = entries[1]
+    if (first === undefined || second === undefined)
+      throw new Error('fixture requires two executions')
+    return { control, journal, entries, first, second }
+  }
+
+  async function observeAll(store: Awaited<ReturnType<typeof fixture>>) {
+    const observations = []
+    for (const { opened } of store.entries) {
+      const events: AgentEvent[] = []
+      let after: string | null = null
+      for (;;) {
+        const page: EventPage = ok(
+          await store.journal.output.read({
+            ...access,
+            execution: opened.execution,
+            after,
+            limit: 1,
+          }),
+        )
+        if (page.kind !== 'page') throw new Error('fixture must retain all events')
+        events.push(...page.events)
+        if (page.caughtUp) break
+        after = page.next
+      }
+      const queries = []
+      for (const name of [
+        `open-${opened.execution}`,
+        'calls',
+        'C',
+        'C2',
+        'suspend',
+        'R',
+        'pending-R',
+        'new-R',
+      ]) {
+        queries.push(
+          ok(
+            await store.journal.query({
+              ...access,
+              execution: opened.execution,
+              operation: operation(name),
+            }),
+          ),
+        )
+      }
+      observations.push({ snapshot: await load(store.journal, opened.execution), events, queries })
+    }
+    return observations
+  }
+
+  it('captures strict opt-in once and rejects disabled input without reading it', () => {
+    const late = { retainedToolInvocationFaults: false }
+    const disabled = memory(late)
+    late.retainedToolInvocationFaults = true
+    for (const option of [undefined, false, null, 0, 1, 'true']) {
+      const instance: ReturnType<typeof memory> = Reflect.apply(
+        createMemoryAgentJournal,
+        undefined,
+        [{ retainedToolInvocationFaults: option }],
+      )
+      for (const target of [disabled, instance]) {
+        const hostile = {
+          get tenant() {
+            throw new Error('disabled control read input')
+          },
+        }
+        expect(Reflect.apply(target.setRetainedToolInvocationFault, target, [hostile])).toEqual({
+          kind: 'rejected',
+          reason: 'disabled',
+        })
+        expect(Reflect.apply(target.setRetainedToolInvocationFault, target, [null])).toEqual({
+          kind: 'rejected',
+          reason: 'disabled',
+        })
+      }
+    }
+    const options = { retainedToolInvocationFaults: true }
+    const enabled = memory(options)
+    options.retainedToolInvocationFaults = false
+    expect(
+      enabled.setRetainedToolInvocationFault({
+        tenant: access.tenant,
+        execution: execution(),
+        control: operation('C'),
+        fault: null,
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'target-unavailable' })
+    const assembly = createTestAgentDependencies<string>({
+      journal: { retainedToolInvocationFaults: true },
+    })
+    expect(
+      assembly.controls.journal.setRetainedToolInvocationFault({
+        tenant: access.tenant,
+        execution: execution(),
+        control: operation('C'),
+        fault: null,
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'target-unavailable' })
+    expect('setRetainedToolInvocationFault' in assembly.controls.journal.port).toBe(false)
+  })
+
+  it('rejects invalid shapes before selection without changing storage or its recovery baseline', async () => {
+    const store = await fixture()
+    const s0 = await observeAll(store)
+    const input = { ...store.first.selector, fault: { kind: 'malformed' } } as const
+    expect(store.control.setRetainedToolInvocationFault(input)).toEqual({ kind: 'applied' })
+    const s1 = await observeAll(store)
+    const foreign = ok(
+      toolReferences.encodeToolInvocationRef({
+        ...store.first.first.parts,
+        tenant: otherTenant.tenant,
+      }),
+    )
+    const invalidInputs: readonly unknown[] = [
+      null,
+      undefined,
+      [],
+      'input',
+      {},
+      { ...input, tenant: {} },
+      { ...input, tenant: undefined },
+      { ...input, execution: '' },
+      { ...input, execution: 'has space' },
+      { ...input, control: 1 },
+      { ...input, control: '' },
+      { ...input, extra: true },
+      { ...input, [Symbol('extra')]: true },
+      { ...input, fault: undefined },
+      { ...input, fault: false },
+      { ...input, fault: [] },
+      { ...input, fault: {} },
+      { ...input, fault: { kind: 'other' } },
+      { ...input, fault: { kind: 'malformed', reference: foreign } },
+      { ...input, fault: { kind: 'foreign-tenant' } },
+      { ...input, fault: { kind: 'foreign-tenant', reference: 'invalid' } },
+      { ...input, fault: { kind: 'foreign-tenant', reference: 1 } },
+      { ...input, fault: { kind: 'foreign-tenant', reference: store.first.first.reference } },
+      { ...input, fault: { kind: 'foreign-tenant', reference: foreign, raw: foreign } },
+      {
+        ...input,
+        get fault() {
+          throw new Error('getter must not run')
+        },
+      },
+      {
+        ...input,
+        fault: {
+          get kind() {
+            throw new Error('getter must not run')
+          },
+        },
+      },
+      {
+        ...input,
+        execution: execution('missing'),
+        fault: { kind: 'foreign-tenant', reference: store.first.first.reference },
+      },
+    ]
+    for (const invalidInput of invalidInputs) {
+      expect(
+        Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [invalidInput]),
+      ).toEqual({ kind: 'rejected', reason: 'invalid-input' })
+      expect(await observeAll(store)).toEqual(s1)
+    }
+    expect(store.control.setRetainedToolInvocationFault({ ...input, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(await observeAll(store)).toEqual(s0)
+  })
+
+  it('selects the accepted C in exactly one owned execution and hides unavailable targets', async () => {
+    const store = await fixture()
+    const s0 = await observeAll(store)
+    const target = store.second.second
+    expect(
+      store.control.setRetainedToolInvocationFault({ ...target, fault: { kind: 'malformed' } }),
+    ).toEqual({ kind: 'applied' })
+    const expected = s0.map(item => ({
+      ...item,
+      snapshot: {
+        ...item.snapshot,
+        controls: item.snapshot.controls.map(record =>
+          item.snapshot.execution === target.execution && record.operation === target.control
+            ? { ...record, toolInvocation: 'memory-journal:malformed-retained-tool-invocation' }
+            : record,
+        ),
+      },
+    }))
+    expect(await observeAll(store)).toEqual(expected)
+    for (const selector of [
+      { ...target, execution: execution('missing') },
+      { ...target, control: operation('missing') },
+      { ...target, control: operation('R') },
+      { ...target, tenant: otherTenant.tenant },
+      { ...target, tenant: otherTenant.tenant, control: operation('suspend') },
+    ]) {
+      expect(store.control.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+        kind: 'rejected',
+        reason: 'target-unavailable',
+      })
+      expect(await observeAll(store)).toEqual(expected)
+    }
+    expect(
+      store.control.setRetainedToolInvocationFault({
+        ...target,
+        control: operation('suspend'),
+        fault: null,
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'not-tool-control' })
+    expect(await observeAll(store)).toEqual(expected)
+    expect(store.control.setRetainedToolInvocationFault({ ...target, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(await observeAll(store)).toEqual(s0)
+  })
+
+  it('keeps the first exact bytes across repeated faults and clears only the selected field', async () => {
+    const store = await fixture('spaced', true)
+    const s0 = await observeAll(store)
+    const selector = store.first.selector
+    const foreign = ` \n${ok(toolReferences.encodeToolInvocationRef({ ...store.first.first.parts, tenant: otherTenant.tenant }))} `
+    for (const fault of [
+      { kind: 'malformed' },
+      { kind: 'malformed' },
+      { kind: 'foreign-tenant', reference: foreign },
+      { kind: 'foreign-tenant', reference: foreign },
+    ]) {
+      expect(
+        Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [
+          { ...selector, fault },
+        ]),
+      ).toEqual({ kind: 'applied' })
+    }
+    expect((await load(store.journal, selector.execution)).controls[0]?.toolInvocation).toBe(
+      foreign,
+    )
+    expect(
+      store.control.setRetainedToolInvocationFault({
+        ...store.second.selector,
+        fault: { kind: 'malformed' },
+      }),
+    ).toEqual({ kind: 'applied' })
+    const otherFault = (await observeAll(store))[1]
+    // A later normal write must survive clear; the baseline owns only the invocation field.
+    ok(
+      await store.journal.recordControl({
+        ...store.first.recording,
+        operation: operation('other-stage'),
+        target: store.first.second.control,
+      }),
+    )
+    const beforeClear = await observeAll(store)
+    expect(store.control.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    const expected = beforeClear.map(item => ({
+      ...item,
+      snapshot: {
+        ...item.snapshot,
+        controls: item.snapshot.controls.map(record =>
+          item.snapshot.execution === selector.execution && record.operation === selector.control
+            ? { ...record, toolInvocation: store.first.first.raw }
+            : record,
+        ),
+      },
+    }))
+    expect(await observeAll(store)).toEqual(expected)
+    expect((await observeAll(store))[1]).toEqual(otherFault)
+    expect(store.control.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(await observeAll(store)).toEqual(expected)
+    expect(s0[0]?.snapshot.controls[0]?.toolInvocation).toBe(store.first.first.raw)
+    expect(store.first.first.raw).not.toBe(store.first.first.reference)
+  })
+
+  it('keeps baselines separate across instances with identical selector IDs', async () => {
+    const a = await fixture('A')
+    const b = await fixture('B')
+    const a0 = await observeAll(a)
+    const b0 = await observeAll(b)
+    expect(
+      a.control.setRetainedToolInvocationFault({
+        ...a.first.selector,
+        fault: { kind: 'malformed' },
+      }),
+    ).toEqual({ kind: 'applied' })
+    expect(await observeAll(b)).toEqual(b0)
+    expect(
+      b.control.setRetainedToolInvocationFault({
+        ...b.first.selector,
+        fault: { kind: 'malformed' },
+      }),
+    ).toEqual({ kind: 'applied' })
+    expect(a.control.setRetainedToolInvocationFault({ ...a.first.selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(await observeAll(a)).toEqual(a0)
+    expect(b.control.setRetainedToolInvocationFault({ ...b.first.selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(await observeAll(b)).toEqual(b0)
+  })
+
+  it('preserves queued failures and pending original input through fault and clear', async () => {
+    const store = await fixture()
+    const { control, journal, first } = store
+    const selector = first.selector
+    control.failNext('recordControl', { kind: 'unavailable' })
+    control.failNextRead('load')
+    expect(
+      control.setRetainedToolInvocationFault({ ...selector, fault: { kind: 'malformed' } }),
+    ).toEqual({ kind: 'applied' })
+    expect(control.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(failure(await journal.load({ ...access, execution: selector.execution }))).toMatchObject(
+      { kind: 'unavailable' },
+    )
+    expect(
+      failure(await journal.recordControl({ ...first.recording, operation: operation('new-R') })),
+    ).toMatchObject({ kind: 'unavailable' })
+    expect(ok(await journal.query({ ...first.recording, operation: operation('new-R') }))).toEqual({
+      kind: 'unknown',
+    })
+    const reference = ok(
+      toolReferences.encodeToolOperationRef({
+        ...first.first.parts,
+        operation: ok(toolReferences.decodeToolOperationId('stop')),
+      }),
+    )
+    control.respond('message', 'fail')
+    expect(
+      control.setRetainedToolInvocationFault({ ...selector, fault: { kind: 'malformed' } }),
+    ).toEqual({ kind: 'applied' })
+    expect(control.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    const beforeJoint = await observeAll(store)
+    expect(
+      failure(
+        await journal.commit(
+          commitAt(await load(journal, selector.execution), first.opened.authority, 'joint', {
+            caller: {
+              kind: 'message',
+              message: acceptedInput('joint-message').content,
+              source: evidence('joint-source'),
+              admission: evidence('joint-admission'),
+            },
+          }),
+        ),
+      ),
+    ).toMatchObject({ kind: 'unavailable' })
+    expect(control.joint()).toEqual([])
+    expect(await observeAll(store)).toEqual(beforeJoint)
+    const pending = {
+      ...first.recording,
+      operation: operation('pending-R'),
+      toolOperation: reference,
+    }
+    control.failNext('recordControl', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.recordControl(pending))).toEqual({
+      kind: 'commit-unknown',
+      operation: pending.operation,
+    })
+    const held = await observeAll(store)
+    expect(
+      control.setRetainedToolInvocationFault({ ...selector, fault: { kind: 'malformed' } }),
+    ).toEqual({ kind: 'applied' })
+    pending.toolOperation = ok(
+      toolReferences.encodeToolOperationRef({
+        ...first.first.parts,
+        operation: ok(toolReferences.decodeToolOperationId('replacement')),
+      }),
+    )
+    expect(control.setRetainedToolInvocationFault({ ...selector, fault: null })).toEqual({
+      kind: 'cleared',
+    })
+    expect(await observeAll(store)).toEqual(held)
+    expect(control.settle(selector.execution, pending.operation, 'applied')).toBe(true)
+    const receipt = ok(await journal.recordControl({ ...pending, toolOperation: reference }))
+    expect(ok(await journal.query(pending))).toEqual({ kind: 'committed', receipt })
+    expect((await load(journal, selector.execution)).controls[0]?.toolOperation).toBe(reference)
+    expect(failure(await journal.recordControl(pending))).toEqual({
+      kind: 'conflict',
+      operation: pending.operation,
+    })
+    expect(control.settle(selector.execution, pending.operation, 'applied')).toBe(false)
   })
 })

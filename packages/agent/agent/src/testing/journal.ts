@@ -39,6 +39,7 @@ import type {
   Adoption,
   Access,
 } from '@omne-harness/agent-contract'
+import { decodeAgentExecutionId, decodeAgentOperationId } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import {
@@ -116,6 +117,8 @@ export type JointFact = Readonly<{
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
 export type MemoryAgentJournalOptions<P> = Readonly<{
+  /** Explicitly enables retained invocation corruption controls. Default: false. */
+  retainedToolInvocationFaults?: boolean
   /** The joint-commit kinds whose participant this provider declares. Default: none. */
   participants?: Iterable<JointCommitKind>
   /**
@@ -140,6 +143,24 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
 export type MemoryAgentJournal<P> = Readonly<{
   port: AgentJournal<P>
   durability: 'none'
+  /** Changes one saved Tool control's invocation, or restores its first saved bytes with null. */
+  setRetainedToolInvocationFault(
+    input: Readonly<{
+      tenant: TenantId
+      execution: AgentExecutionId
+      control: AgentOperationId
+      fault:
+        | Readonly<{ kind: 'malformed' }>
+        | Readonly<{ kind: 'foreign-tenant'; reference: ToolInvocationRef }>
+        | null
+    }>,
+  ):
+    | Readonly<{ kind: 'applied' }>
+    | Readonly<{ kind: 'cleared' }>
+    | Readonly<{
+        kind: 'rejected'
+        reason: 'disabled' | 'invalid-input' | 'target-unavailable' | 'not-tool-control'
+      }>
   /** Scripts a fault on the next call of one write method. Faults are used in order. */
   failNext(method: JournalWrite, fault: WriteFault): void
   /** Makes the next call of one read method return `unavailable`. */
@@ -322,6 +343,45 @@ function isToolControl(record: ControlRecord): record is ToolControlRecord {
   return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
 }
 
+// Only for explicitly enabled storage-corruption fixtures, never for minting a valid brand.
+const MALFORMED_RETAINED_TOOL_INVOCATION =
+  'memory-journal:malformed-retained-tool-invocation' as ToolInvocationRef
+
+function exactDataFields(value: unknown, fields: readonly string[]): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return false
+  const keys = Reflect.ownKeys(value)
+  return (
+    keys.length === fields.length &&
+    fields.every(field => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, field)
+      return descriptor !== undefined && 'value' in descriptor
+    })
+  )
+}
+
+type RetainedFaultInput = Parameters<
+  MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
+>[0]
+
+function validRetainedFaultInput(input: RetainedFaultInput): boolean {
+  if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return false
+  if (
+    !tenantCodec.encode(input.tenant).ok ||
+    'failure' in decodeAgentExecutionId(input.execution) ||
+    'failure' in decodeAgentOperationId(input.control)
+  )
+    return false
+  const fault = input.fault
+  if (fault === null) return true
+  if (exactDataFields(fault, ['kind']) && fault.kind === 'malformed') return true
+  if (!exactDataFields(fault, ['kind', 'reference']) || fault.kind !== 'foreign-tenant')
+    return false
+  const resolved = resolveToolInvocationRef(fault.reference, input.tenant)
+  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant'
+}
+
 function attachToolOperation<P>(
   record: ControlRecord,
   input: Parameters<AgentJournal<P>['recordControl']>[0],
@@ -374,6 +434,8 @@ function sameEvidence(left: Evidence | null, right: Evidence | null): boolean {
 export function createMemoryAgentJournal<P>(
   options: MemoryAgentJournalOptions<P> = {},
 ): MemoryAgentJournal<P> {
+  const retainedToolInvocationFaults = options.retainedToolInvocationFaults === true
+  const retainedToolInvocationBaselines = new Map<string, ToolInvocationRef>()
   const participants = frozenSet(options.participants ?? [])
   const readLimit = options.readLimit ?? 100
   const eventSchema: Adoption = options.eventSchema ?? {
@@ -1597,6 +1659,35 @@ export function createMemoryAgentJournal<P>(
   return {
     port,
     durability: 'none',
+    setRetainedToolInvocationFault(input) {
+      if (!retainedToolInvocationFaults) return { kind: 'rejected', reason: 'disabled' }
+      if (!validRetainedFaultInput(input)) return { kind: 'rejected', reason: 'invalid-input' }
+      const execution = executions.get(input.execution)
+      if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) {
+        return { kind: 'rejected', reason: 'target-unavailable' }
+      }
+      const index = execution.controls.findIndex(record => record.operation === input.control)
+      const record = execution.controls[index]
+      if (record === undefined) return { kind: 'rejected', reason: 'target-unavailable' }
+      if (!isToolControl(record)) return { kind: 'rejected', reason: 'not-tool-control' }
+      const key = operationKey(input.tenant, input.execution, input.control)
+      if (key === undefined) return { kind: 'rejected', reason: 'invalid-input' }
+      const original = retainedToolInvocationBaselines.get(key)
+      if (input.fault === null) {
+        if (original !== undefined) {
+          execution.controls[index] = { ...record, toolInvocation: original }
+          retainedToolInvocationBaselines.delete(key)
+        }
+        return { kind: 'cleared' }
+      }
+      const reference =
+        input.fault.kind === 'malformed'
+          ? MALFORMED_RETAINED_TOOL_INVOCATION
+          : input.fault.reference
+      if (original === undefined) retainedToolInvocationBaselines.set(key, record.toolInvocation)
+      execution.controls[index] = { ...record, toolInvocation: reference }
+      return { kind: 'applied' }
+    },
     failNext(method, fault) {
       const queue = writeFaults.get(method) ?? []
       queue.push(fault)

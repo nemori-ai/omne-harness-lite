@@ -181,3 +181,25 @@ M3 将已解释的 reply、partial 或 no-reply 与原 tenant、execution、step
 I3 与当前内部窄接续读取 Journal 完成依据，不依赖旧协调者的结果缓存。该接缝只覆盖原 runtime/Access/Authority、旧驱动已停的必要串行切点；它不提供新的公开恢复端口、custody 或阶段 5 通用水合。
 
 M3 已提交 producer/M4 后，新协调者通过 I3 查询原 reference 的真实 acknowledged 状态，核原 call/version/consumer、ACK operation 与 completion receipt，认回已丢失的原确认依据，不重新 ACK。随后既有 O0 以原 consumption 的稳定操作记录 release.confirmed；Journal 写入未知用原操作 query，unknown 与 unavailable 保持失败及责任。此处只支持本卡主调用接续，O0 的整体责任交清仍由后续阶段接受。
+
+## 测试 Journal 的保留引用故障
+
+`@omne-harness/agent/testing` 的 `createMemoryAgentJournal` 提供单进程、非耐久的测试 Journal。`MemoryAgentJournalOptions.retainedToolInvocationFaults` 仅在构造时严格为 `true` 才开启故障控制，默认关闭。以后修改 options 不改变开关。`createTestAgentDependencies({ journal: options })` 将同一选项传入，控制句柄为 `controls.journal`。
+
+开启后，控制句柄的同步方法 `setRetainedToolInvocationFault({ tenant, execution, control, fault })` 只更改一个已保存 Tool control 的 `toolInvocation`。`control` 指接受控制 C 的 operation，不是 recording R。公开类型由已有 `MemoryAgentJournal` 导出；调用者可用 `Parameters` 和 `ReturnType` 取得方法类型。此方法不在 `AgentJournal` port 上。
+
+| fault | 对目标字段的操作 |
+| --- | --- |
+| `{ kind: 'malformed' }` | 写入固定文本 `memory-journal:malformed-retained-tool-invocation`。这是显式存储损坏 fixture，不是合法引用的品牌铸造 |
+| `{ kind: 'foreign-tenant', reference }` | 保存经真实 Tool resolver 确认为外租户的引用原字节。调用方用公开 `encodeToolInvocationRef` 为第二租户构造引用；它不证明存在实际 Tool 调用 |
+| `null` | 恢复本设施首次保存的原字段字节，并删除该目标的恢复基线。没有基线也返回 `cleared` |
+
+设置成功返回 `applied`，清除成功返回 `cleared`。开关关闭首先返回 `rejected(disabled)`，不读取输入。开启时按普通对象的精确字段和现有 tenant/Agent ID codec 校验；额外字段、未知 fault、缺少或伪造的 foreign 引用均返回 `rejected(invalid-input)`。foreign payload 的校验先于目标查询。execution 不存在、owner tenant 不同或 control 不存在均返回 `rejected(target-unavailable)`。只有自有非 Tool control 返回 `rejected(not-tool-control)`。所有拒绝保持原状态与恢复基线，结果不携目标详情。
+
+每个实例按 canonical tenant、execution、control 组合保存首次原字段。重复设置或切换 fault 保留首次基线，清除恢复精确原字节，包括合法空白。故障持续到显式清除或实例丢弃。清除只恢复引用，不撤销阶段事实、toolOperation、回执、revision、事件或其他记录。该控制不进入正常写入，不消费排队故障，不改变 pending 原请求、查询记录或参加者响应。
+
+验证先用正常公开操作保存 Tool control，并保存完整正常状态 S0。注入后用 `load` 取得 S1，检查仅目标字段改变，再以真实 `resolveToolInvocationRef` 判定损坏。故障 fixture 的 `load` 静态品牌不证明引用合法，resolver 接受 `unknown`；不要用要求合法品牌的 `readToolInvocationRef` 代替检查。旧 load 快照保持不变。
+
+随后调用真实 `port.recordControl` 的新 R，按 [控制接受与迟到引用](../../agent-contract/SPEC.md#控制接受与迟到引用) 观察精确失败，并核对 S2 等于 S1、原 C/R 回执与完整事件不变、新 R 仍 query unknown。原 R 的同输入认回、异输入冲突及外租户附件次序仍按原业务规则。清除后还须验证真实合法写入。设施自身的 `rejected` 不是业务防御证据。
+
+行为资源为 [保留引用公开观察](../tests/journal-tool-control.spec.ts) 和 [控制隔离与恢复](../tests/memory-journal.spec.ts)。它们覆盖内存存储故障，不证明生产存储损坏、耐久恢复、跨进程隔离或独立 QA 已接受。
