@@ -122,7 +122,7 @@ calls.admit、dispatches、cancel 分别委托 Commands 的 admit、dispatches�
 
 受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写，取得当前资格后，保护覆盖接收、异步等待与原资源释放。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
 
-发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。Commands 保存账目时用账目报告补上 `subject`（本次调用）与 `receipt`（流内为 `received`，recordLateFact 补录为 `late`），再按原规则核验、去重与修订。同一事件经两条路径到达时只登记一次。诊断事实按到达次序保存在该 dispatch 上，不改变 blocks、首内容与终局；现有公开读面不返回它们。推理续接状态部件可以不经 open 整块封口，与图片和文件相同。完成收场组成消息时，finish 的回放 `scope` 取请求声明中这次发出供应商的 `produces`，`format` 取这次发出的物化回执的 `replayFormat`。回复含推理续接状态部件而两者缺一时，preserve 与 recordLateFact 都返回 `invalid`（`termination`，`replay-format-unknown` 或 `replay-scope-unknown`），整批不保存。回复只有 `thinking` 而两者缺一时，finish 不带回放。物化提交时，回执的 `replayFormat` 不是合格的回放标签则返回 `invalid`（`receipt`，`binding`）。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再交出确认终止证据，沿 sender 释放原资源。满足下述收场前提时同时形成真实 Settlement，失联仍沿 drive 返回明确失败。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
+发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。Commands 保存账目时用账目报告补上 `subject`（本次调用）与 `receipt`（流内为 `received`，recordLateFact 补录为 `late`），再按原规则核验、去重与修订。同一事件经两条路径到达时只登记一次。诊断事实按到达次序保存在该 dispatch 上，不改变 blocks、首内容与终局；现有公开读面不返回它们。推理续接状态部件可以不经 open 整块封口，与图片和文件相同。完成收场组成消息时，finish 的回放 `scope` 取请求声明中这次发出供应商的 `produces`，`format` 取这次发出的物化回执的 `replayFormat`。回复含推理续接状态部件而回执没有 `replayFormat` 时，preserve 与 recordLateFact 都返回 `invalid`（`termination`，`replay-format-unknown`），整批不保存。请求声明覆盖每个可能发出的供应商，清理在同一步清空请求与 blocks，已收场调用的晚到终局不组成消息，所以含推理续接状态部件的收场总能取得 `scope`。取不到时是程序缺陷，内存 Commands 抛出 `TypeError`。回复只有 `thinking` 而两者缺一时，finish 不带回放。物化提交时，回执的 `replayFormat` 不是合格的回放标签则返回 `invalid`（`receipt`，`binding`）。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再交出确认终止证据，沿 sender 释放原资源。满足下述收场前提时同时形成真实 Settlement，失联仍沿 drive 返回明确失败。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
 
 未知 claim、prepare、sender 写、开窗及 preserve 各由原拥有者认回。prepare/open/preserve 保留完整 operation、expected、dispatch、window 与 facts。query 为 unknown 或失败时保留责任，不继续读取或发布。committed 仍重放原方法取得原回执，未提交也只重放原参数。取消导致原 expected 冲突时不改旧输入；仅终止 preserve 和 settle 依下述有限接续建立新意图。非终止批次仍明确失败。sender 私有未决操作交原 sender 认回。陌生未决操作没有原输入时明确阻塞。
 
@@ -205,17 +205,47 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 
 `acquire(access & { profile, lineage? })` 按下列顺序执行：
 
-1. 解析 lineage。`continues` 或 `sources` 的身份不合格时返回 `invalid`（`field` 为 `lineage.continues` 或 `lineage.sources`）；同一消息有两个来源时返回 `invalid`（`lineage.sources`，`duplicate-message`）；不同调用数超过 `maxCitedCalls` 时返回 `invalid`（`lineage`，`too-many-calls`）。没有 lineage，或两项都为空，视为没有 lineage。
-2. 按档案供应商的次序逐个取得绑定。`supplierOf` 失败时原样返回；返回的供应商改变了采用、接收方或型号时返回 `invalid`（`supplier`，`route-mismatch`）；绑定取得失败时返回该失败。任一失败释放已取得的绑定，不形成更窄的档案。
+1. 解析 lineage。以下情形返回 `invalid`：
+   - `continues` 或 `sources` 的身份不合格：`field` 为 `lineage.continues` 或 `lineage.sources`。
+   - 同一消息有两个来源：`lineage.sources`，`duplicate-message`。
+   - 不同调用数超过 `maxCitedCalls`：`lineage`，`too-many-calls`。
+
+   没有 lineage，或两项都为空，视为没有 lineage。
+2. 按档案供应商的次序逐个取得绑定。以下情形返回失败，并释放已取得的绑定，不形成更窄的档案：
+   - `supplierOf` 失败：原样返回。
+   - 返回的供应商改变了采用、接收方或型号：`invalid`（`supplier`，`route-mismatch`）。
+   - 绑定取得失败：返回该失败。
 3. 有 lineage 时，以取得时的 `principal` 与 `tenant` 经 `commands.dispatches` 读取每个被引用调用一次。`denied` 与 `invalid` 折叠为无此事实；`unavailable` 等其他失败记为事实不可用。读取抛出异常时先释放绑定再抛出。取得不因读取失败而失败。
 
-租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 就是绑定的家族计量器本身。有 lineage 时，`meter.measure` 同步判决并委托家族的 `measureCalibrated`：
+租约的 `bindings` 与档案供应商同序。没有 lineage 时，`meter` 给家族计量器包一层：释放前，`basis` 与 `measure` 的结果与家族计量器逐字节相同。有 lineage 时，`meter.measure` 同步判决并委托家族的 `measureCalibrated`。每个原因的条件归 model-contract 的[锚点不命中的原因](../model-contract/SPEC.md#锚点不命中的原因)与[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)。本包只规定判决顺序：
 
-- 锚点按 [model-contract“可选校准”](../model-contract/SPEC.md#可选校准及不可解释的历史) 的条件判决，第一个不满足的条件决定原因：`not-declared`、`call-unreadable`（无此事实）、`facts-unavailable`、`ambiguous-dispatch`（X 有不止一次带账目的发出）、`usage-unknown`（X 没有带账目的发出）、`messages-unrecorded`、`supplier-changed`（回执缺失或供应商采用不同）、`representation-changed`、`not-a-prefix`、`usage-unknown`（`input`、`cache-read`、`cache-write` 有未知项）、`units-missing`。全部满足时锚点为 X 的三项之和与它的消息序列。相等的序列是前缀。上游用量自相矛盾时，账目里的 `input` 已为未知，所以报告为 `usage-unknown`。`continuation-shrank` 由家族计量器给出。
-- 来源按消息判决：有声明来源的消息得到 O（`output` 已知且 `reasoning` 不大于它）或具名扣留原因（`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`）；带推理续接状态部件（`replay.at` 非空）而没有声明来源的 assistant 消息得到 `source-missing`；为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
+- 锚点按下列顺序核对，第一个成立的原因决定结果：
+  1. `not-declared`
+  2. `call-unreadable`
+  3. `facts-unavailable`
+  4. `ambiguous-dispatch`
+  5. `usage-unknown`，X 没有带账目的发出
+  6. `messages-unrecorded`
+  7. `supplier-changed`
+  8. `representation-changed`
+  9. `not-a-prefix`
+  10. `usage-unknown`，`input`、`cache-read`、`cache-write` 中有未知项
+  11. `units-missing`
+
+  全部不成立时，锚点为 X 的三项之和与它的消息序列。锚点只依赖这三项已知，账目其他项的矛盾不影响锚点。`continuation-shrank` 由家族计量器给出。
+- 来源按消息判决。lineage 没有为带推理续接状态部件的 assistant 消息给出来源时，结果为 `source-missing`。有声明来源的消息按下列顺序核对，第一个成立的原因决定结果，全部不成立时得到 O：
+  1. `source-unreadable`
+  2. `source-unavailable`
+  3. `ambiguous-dispatch`
+  4. `output-unknown`，来源调用没有带账目的发出
+  5. `supplier-changed`
+  6. `output-unknown`，账目的 `output` 未知
+  7. `reasoning-exceeds-output`
+
+  为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
 - 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
 
-`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后 lineage 计量器的 `measure` 返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`）；事实视图随租约消失，不跨租约保留。
+`release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。事实视图随租约消失，不跨租约保留。
 
 ## 产品发送边界
 

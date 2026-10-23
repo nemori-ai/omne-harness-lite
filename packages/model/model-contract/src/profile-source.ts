@@ -57,9 +57,10 @@ export type ModelPreparationLease = Readonly<{
   release(): Promise<Readonly<{ failure?: Extract<ModelFailure, { kind: 'unavailable' }> }>>
 }>
 /**
- * What the request assembler declares about the calls behind one request, once per lease. It
- * vouches for the invariant behind `continues`: the request starts with the unchanged input of
- * that call. The lease verifies only the facts Model owns and never compares message content.
+ * What the request assembler declares about the calls behind one request, once per lease. The
+ * assembler vouches for the preconditions of `continues` in SPEC "lineage 的声明与前置条件"; Model
+ * does not detect a violation, and the declarer owns the result. The lease verifies only the facts
+ * Model owns and never compares message content.
  */
 export type PreparationLineage = Readonly<{
   /** The call whose real input this request continues. */

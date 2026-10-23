@@ -12,7 +12,7 @@ This member implements standalone execution, credential judgments, admission, st
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
 | `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, instance observation, and confirmed call settlement within the boundaries below. Result reading and processed ACK are implemented. Retained ACK remains unavailable |
 | `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
-| `createModelPreparationResources` | The production preparation lease: one family binding per profile supplier, the call facts of a declared lineage read once with the caller's access, the anchor and source verdicts, and the calibration report of each budget. Without a lineage the lease hands out the family meter itself |
+| `createModelPreparationResources` | The production preparation lease: one family binding per profile supplier, the call facts of a declared lineage read once with the caller's access, the anchor and source verdicts, and the calibration report of each budget. Without a lineage each meter gives the same result as the family meter. After release every meter of the lease is unavailable |
 | `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports. A dispatch record keeps the message identities of its fixed request after cleanup |
 | Durable Commands and production managed execution | Not implemented |
 | Cordis runtime host and vendor execution | Not implemented in this package |

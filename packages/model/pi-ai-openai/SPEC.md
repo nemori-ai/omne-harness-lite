@@ -68,14 +68,14 @@
    2. 表示采用不是本记录的：`unsupported`，`field` 为 `representation`；
    3. 表示为 `pending-media`：`unsupported`，`field` 为 `representation.kind`；
    4. token 输入不是这个 schema：`invalid`，`field` 为 `tokenInput`；
-   5. 带推理状态的单元（带 `reasoning_details` 成员的单元；家族编解码器只为能回放的整组写出它，条件即封存件 `classifyOpenAiDetail` 的整组条件：`reasoning.encrypted`、格式 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]`）需要来源的 O 而校准中没有它的条目：`unavailable`，诊断为 `encrypted-reasoning-not-countable`；条目为扣留：`unavailable`，诊断为扣留原因（`source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`）。密文不分词，也不被去掉，不按零计。锚点命中时只有新增部分的推理单元需要来源；
+   5. 带推理状态的单元（带 `reasoning_details` 成员的单元；家族编解码器只为能回放的整组写出它，条件即封存件 `classifyOpenAiDetail` 的整组条件：`reasoning.encrypted`、格式 `openai-responses-v1`、`data` 非空且不是 `[REDACTED]`）需要来源的 O 而校准中没有它的条目：`unavailable`，诊断为 `encrypted-reasoning-not-countable`；条目为扣留：`unavailable`，诊断为扣留原因（`source-missing`、`source-unreadable`、`source-unavailable`、`ambiguous-dispatch`、`output-unknown`、`reasoning-exceeds-output`、`supplier-changed`，条件见 model-contract 的[来源扣留的原因](../model-contract/SPEC.md#来源扣留的原因)）。密文不分词，也不被去掉，不按零计。锚点命中时只有新增部分的推理单元需要来源；
    6. token 输入中的图片数与 `media` 中图片事实数不同：`unavailable`，诊断为 `image-measurement-missing`；
    7. 记录的图片规则不覆盖某张图片：`unsupported`，`field` 为 `image <序号>`；
    8. tokenizer 失败：`unavailable`，`dependency` 为 `tokenizer`。
    侧表与单元数不对齐、有锚点而没有侧表、锚点合计或 O 不是十进制整数时返回共用算术的 `invalid`。
 3. 成功时，`input-tokens` 检查为 `estimate`，`marginSource` 为配置给出的采用，上限是 `context.input`，没有时为窗口减输出：
    - 没有锚点：数额是 token 输入（带推理状态的单元去掉）的排序键 JSON 经 o200k 计数，加上每张图片的规则数，再加每个被替换单元的来源 O；余量是数额乘以配置百分比再向上取整。`method` 为 `<记录名>#meter`；本包的输出组方法名是 `openai-complete-output-group-workload-estimated/1`，沿用封存件的方法名。后缀按[共用计量规则](../pi-ai-transport/SPEC.md#共用计量规则)拼接：有单元被 O 替换时为 `<记录名>#meter+openai-complete-output-group-workload-estimated/1`。
-   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分是新增非推理单元按完整包络差的 o200k 计数（包络去掉工具与前置指令）加它们的图片规则数加新增推理单元的 O；余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
+   - 锚点命中：数额是锚点的真实输入合计加新增部分，新增部分按共用[校准算术](../pi-ai-transport/SPEC.md#校准算术)的两个计数项计算，计数用 o200k，加新增的可见单元的图片规则数，加新增推理单元的 O。余量只按新增部分算。`method` 按共用计量规则加后缀 `+continuation-anchored/1`，两者都有时先输出组方法再锚点后缀。包络差为负时不命中，按没有锚点计量，`calibration.anchor` 为 `continuation-shrank`。
    - `calibration`：有锚点时写 `hit` 或 `continuation-shrank`；没有锚点时不写，准备租约补上它的判决。`inputDigest` 按共用计量规则计算：它纳入锚点与各 O，换锚点就是换输入；空校准的摘要与没有校准时相同。
    档案的 `image-bytes`、`image-count` 与 `request-bytes` 限额各给出 `exact` 检查。报告为 `complete`。O 估算是与工作量相关的代理，不是精确占用，也不是上界；首份实测差值归 #466 的 C9。
 4. o200k 是代理编码：OpenAI 的 tiktoken 表只把 gpt-5* 映射到 o200k_base，没有 GPT-6。所以结果始终是估算，不声称 tokenizer 身份。

@@ -79,7 +79,7 @@
 | `openai-family-policy.ts` | pi-ai-openai | 迁 | [2.5 #465][s25] | 保留精确型号、effort、图像规则与 Pro scope_unknown 事实；按不关闭推理的项目约定，推理强度 `none` 为 `unsupported`；旧 revision/replay 回放表只作研究，GPT6 o200k 代理不升级为 tokenizer identity。 |
 | `openai-images.ts` | pi-ai-openai；execution/image 读头 | 迁 | [2.5 #465][s25]；[4.3][line]；[4.4][line] | 保留三类补丁规则、detail/尺寸拟合及单帧 GIF 限制；弃旧 data URL 解码和 image-size 依赖，尺寸来自合法元数据或 execution/image 有界读头。 |
 | `openai.ts` | pi-ai-openai；tokenizer-tiktoken 引擎 | 迁 | [2.4 #464][s24]；[2.5 #465][s25]；[4.3][line] | 保留固定编码、可见 JSON/媒体估算和支持域；编码器初始化归独立引擎，完整输出组/原响应边际回放不迁，完整计量不能因本地分词精确升 exact。 |
-| `output-history.ts` | pi-ai-transport 的校准算术；pi-ai-openai 与 pi-ai-anthropic 的计量器 | 改 | [#466 revision 3][s26] 按 PanQiWei 2026-10-23 的决定采用 | 采用完整输出组方法：带推理状态的单元整体不分词，改记来源调用上报的输出 token 数 O 一次，记为估算；O 未知、`reasoning` 大于 `output`、来源的供应商或表示采用不同时具名不可用。方法名沿用 `openai-complete-output-group-workload-estimated/1` 与 `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`。私有 observation、replaySelection 与调用方原响应不迁：数字来自发出记录。密文不可当普通文本的反例保留。原来标为“弃”，依据 [#466 revision 3][s26]。 |
+| `output-history.ts` | pi-ai-transport 的校准算术；pi-ai-openai 与 pi-ai-anthropic 的计量器 | 改 | [#466 revision 3][s26] 按 PanQiWei 2026-10-23 的决定采用 | 采用完整输出组方法：带推理状态的单元整体不分词，改记来源调用上报的输出 token 数 O 一次，记为估算；O 未知、`reasoning` 大于 `output`、来源调用没有物化回执或供应商采用不同时具名不可用。O 是供应商的事实，所以不比较表示采用。方法名沿用 `openai-complete-output-group-workload-estimated/1` 与 `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1`。私有 observation、replaySelection 与调用方原响应不迁：数字来自发出记录。密文不可当普通文本的反例保留。原来标为“弃”，依据 [#466 revision 3][s26]。 |
 | `output-input.ts` | model-contract 的 `PreparationLineage`；model 的准备租约 | 改 | [#466 revision 3][s26] 按 PanQiWei 2026-10-23 的决定采用 | 采用“调用方说明历史来自哪些调用”的输入，形状改为取得租约时的 `lineage`（`continues` 与以消息为键的 `sources`），由请求组装方填写。ownFull/New/ReplayOutputInput 对私有 outputHistory、原响应身份与 selection spans 的接收不迁，没有旁路 JSON。原来标为“弃”，依据 [#466 revision 3][s26]。 |
 | `output-prefix.ts` | model-contract 的 `DispatchRecord.messages`；model 的内存 Commands | 改 | [#466 revision 3][s26] 按 PanQiWei 2026-10-23 的决定采用 | 采用“前缀事实随调用保存”的机制，形状改为发出记录上的消息身份序列：`prepareDispatch` 抄写固定请求的消息身份，与账目同寿命，清理请求材料时不删除；租约只核对它是本次消息的前缀，不比较内容。WeakMap 挂接旧 InputProjection 的隐式协议不迁，不充作 M11 共享历史缓存。原来标为“弃”，依据 [#466 revision 3][s26]。 |
 | `qwen.ts` | pi-ai-qwen；tokenizer-huggingface 引擎 | 迁 | [后续 Qwen 家族线][line] | 保留两型号模板、商业子集、effort 差异和图像估算；词表可去重，配置/模板仍分别固定，移出引擎及媒体读取，私有商业模板保持估算。 |
@@ -128,7 +128,7 @@
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
-| `calibration-diagnostic.ts` | Model 计量与诊断拥有者 | 弃 | [6.4][line]；[后续可选校准线][line] | 弃旧 calibrationSource、原响应诊断与 BoundCredentialRedaction 外形；可保留有界无秘密投影反例，可选校准不在本线。 |
+| `calibration-diagnostic.ts` | Model 计量与诊断拥有者 | 弃 | [6.4][line]；[本线的请求计量](#本线的请求计量) | 弃旧 calibrationSource、原响应诊断与 BoundCredentialRedaction 外形。可保留有界无秘密投影反例。可选校准已按[本线的请求计量](#本线的请求计量)采用，数字来自发出记录，不用本文件的外形。 |
 | `cordis.ts` | model-host-local；model 重试策略 | 弃 | [5.1][line]；[7.1][line] | 弃 loop-extension-runner 注册和旧 retry sample 服务；新 ModelRetryPolicy 由明确依赖装配，不要求扩展运行器。 |
 | `default-retry.ts` | model 重试策略 | 弃 | [5.1][line] | 弃 ExtensionInput/Output、旧 fallback 顺序和工具 Duration 依赖；保留有限尝试/退避反例，按新首内容围栏实现可替换策略，不自动换模型。 |
 | `diagnostics-types.ts` | model-contract；model 诊断 | 弃 | [6.4][line] | 弃旧 tenant/session 作用域、journal、sink/export 与 collector 公开形状；诊断查询和当前资格沿现行接口，不再造诊断契约。 |
@@ -233,7 +233,7 @@
 
 两个家族的计量器实现 [model-contract 的可选校准](../model-contract/SPEC.md#可选校准及不可解释的历史)，依据 PanQiWei 2026-10-23 的决定（[#466 revision 3][s26]）。请求组装方在取得准备租约时以 `lineage` 声明被延续的调用与各消息的来源调用；租约按访问依据读取这些调用的发出记录，把真实输入合计与输出 token 数交给家族计量器。带回放推理的单元按来源调用的 O 记一次估算，方法名沿用封存件；被延续的调用以真实输入合计为锚点，新增部分按完整包络差估算，余量只按估算部分。没有 lineage 时行为不变：带回放推理的请求返回 `unavailable`，OpenAI 的诊断为 `encrypted-reasoning-not-countable`，Anthropic 的诊断为 `signed-reasoning-not-countable`。密文与签名组任何时候都不分词，也不被去掉。来源缺失或被扣留时返回具名不可用，不按零计。完整请求计量归[阶段 4.3][line]。
 
-M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但不属于 #446 的交付。旧 API 下已支持的能力与新契约的不同边界须分别交接，不能通过搬回旧包补齐。可选校准、不可解释历史、全部商业 route 认证、音视频传输、跨进程交接与完整 Session/Agent 集成也不在本线。上述明确不覆盖项不因源码清点完备而完成。
+M01、M02、M10、M11 的外部部分都有现行或后续责任拥有者，但不属于 #446 的交付。旧 API 下已支持的能力与新契约的不同边界须分别交接，不能通过搬回旧包补齐。可选校准按[本线的请求计量](#本线的请求计量)采用，计量器不能解释的历史返回具名不可用。以下各项不在本线：全部商业 route 认证、音视频传输、跨进程交接与完整 Session/Agent 集成。上述明确不覆盖项不因源码清点完备而完成。
 
 ## L01 与 L02 的处理
 

@@ -770,7 +770,24 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 **持续拒绝与关闭回放。**同一段历史可能对同一供应商反复被拒，例如凭据换到另一个账户后，旧状态不能再被解密。默认策略下，这样的每次调用多一次被拒发出，直到压缩把这些消息整条摘要；这是默认路径的代价。Model 不记住某段历史被拒过，也不改历史。为保证会话在持续拒绝下仍能前进，组装输入可以声明本次请求关闭回放：全部消息对全部供应商都不可续接，按回放投影第 2、3 项处理。失败交接用 `ModelFault.replayCarried` 写明这次发出带有推理状态。以 `replay-rejected` 失败时，它恒为 true。以上游不接受内容等其他原因失败、而这次发出带有推理状态时，它也为 true。未带推理状态时没有这个键。原消费者按自己的规则决定是否以新调用关闭回放再试。
 
-**计量。**ModelInputMeter 对每个供应商使用同一投影。被略去的部件不计入。带上的部件不按密文长度做文本分词，使用计量采用为该供应商写明的不透明回放估算方法，估算带余量；没有这种方法时返回具名不可用，不按零计。采用输出代理方法的计量器这样估算：带推理状态、且租约的 lineage 给出来源调用的 assistant 单元整体不分词，改记来源调用账目上报的输出 token 数 O 一次，记为估算；O 已含推理 token。来源缺失、O 未知、`reasoning` 大于 `output`、来源调用的实际供应商或表示采用与本次不同时，计量返回具名不可用，不按零计。这个方法是与工作量相关的估算代理，不是精确占用，也不是上界。估算方法若要用到产出该状态那次调用的上游用量，须满足[可选校准及不可解释的历史](#可选校准及不可解释的历史)对历史观测的条件，并从原调用的账目取得，消息里不保存用量。为了满足上限而去掉某个已被接受的推理状态是不允许的；要缩短输入，由压缩整条摘要消息。回放声明或 `foreignThinking` 变化时，依据旧声明的计量结论失效，`ModelCountingBasis.replay` 固定所用的声明。
+**计量。**ModelInputMeter 对每个供应商使用同一投影。被略去的部件不计入。带上的部件不按密文长度做文本分词，使用计量采用为该供应商写明的不透明回放估算方法，估算带余量。没有这种方法时返回具名不可用，不按零计。
+
+采用输出代理方法的计量器这样估算：带推理状态、且租约的 lineage 给出来源调用的 assistant 单元整体不分词，改记来源调用账目上报的输出 token 数 O 一次，记为估算。O 已含推理 token。O 是供应商的事实，与表示采用无关，所以来源核对不比较表示采用。这个方法是与工作量相关的估算代理，不是精确占用，也不是上界。
+
+<a id="来源扣留的原因"></a>
+**来源扣留的原因。**租约为每条消息给出 O，或给出扣留原因 `OutputWithheld`。每个原因的条件如下：
+
+- `source-missing`：租约有 lineage，消息带推理续接状态部件（`replay.at` 非空），而 lineage 没有为它给出来源调用。
+- `source-unreadable`：来源调用读作无此事实。另一租户的调用与不存在的调用结果相同。
+- `source-unavailable`：读取来源调用时存储故障。
+- `ambiguous-dispatch`：来源调用有不止一次带账目的发出。
+- `output-unknown`：来源调用没有带账目的发出，或该发出账目的 `output` 未知。
+- `supplier-changed`：来源调用那次带账目的发出没有物化回执，或回执的供应商采用与本次不同。
+- `reasoning-exceeds-output`：该发出账目的 `reasoning` 已知且大于 `output`。
+
+几个条件同时成立时，由实现规定哪一个决定原因。计量需要某个推理单元的 O、而它被扣留时，计量返回具名不可用，诊断为扣留原因，不按零计。
+
+估算方法若要用到产出该状态那次调用的上游用量，须满足[可选校准及不可解释的历史](#可选校准及不可解释的历史)对历史观测的条件，并从原调用的账目取得，消息里不保存用量。为了满足上限而去掉某个已被接受的推理状态是不允许的。要缩短输入，由压缩整条摘要消息。回放声明或 `foreignThinking` 变化时，依据旧声明的计量结论失效，`ModelCountingBasis.replay` 固定所用的声明。
 
 **数据保护。**载荷是租户数据，不进入错误、诊断、遥测或普通展示。诊断事实只带 `ProviderDiagnostic` 列出的字段：消息身份、`scope`、`format`、部件个数、载荷长度或用量字段名。
 
@@ -791,7 +808,14 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 MaterializationReceipt 只记录本次供应商、实际表示采用和无秘密 payload 的摘要，不含预算。适配器产出推理续接状态时，回执还带 `replayFormat`：这次发出产出的部件的回放 `format`，按适配器采用给出，满足 message 成员对 `replay.format` 的要求。回执没有这一项，表示旧记录，或适配器不产出推理续接状态。回执随发出记录保存，所以收场与晚到事实两条路径都按它给出 `format`。物化对象及其租约持有该实际内容，start 必须发送与回执匹配的内容。生成回执不授发出权，也不意味着已向供应商发送。
 
-托管 ModelSendBoundary 注入 ModelCommands，以原 execution、当前 revision、独立 operation 和 dispatch 调用 recordMaterialization。Commands 核执行代次、原 dispatch 尚未发出、供应商和固定请求摘要，然后条件持久提交。回执来源由可信 adapter 核验，不接受普通调用者自报的内容。成功返回新 revision 与 DurableEvidence，DispatchRecord.materialization 可恢复地返回原回执及依据。
+托管 ModelSendBoundary 注入 ModelCommands，以原 execution、当前 revision、独立 operation 和 dispatch 调用 recordMaterialization。Commands 在条件持久提交前核对以下各项：
+
+- 执行代次；
+- 原 dispatch 尚未发出；
+- 供应商与固定请求摘要；
+- 回执带 `replayFormat` 时，它是合格的回放标签，即满足 message 成员对 `replay.format` 的要求。不合格时 Commands 返回 `invalid`，`field` 为 `receipt`，`reason` 为 `binding`，不提交回执。
+
+回执来源由可信 adapter 核验，不接受普通调用者自报的内容。成功返回新 revision 与 DurableEvidence，DispatchRecord.materialization 可恢复地返回原回执及依据。
 
 recordMaterialization 的幂等、参数冲突和提交未知沿 ModelCommands 通用协议。未知时先按原 operation 查询并读取原 dispatch；未能确定已提交且内容匹配前，不得 start。明确未提交才重试同操作。receipt 提交后发生取消或撤权，最终 S 围栏仍拒绝发送，保留已准备但 not-sent 的事实；物化提交不把控制排序提前到实际发送之前。
 
@@ -811,7 +835,7 @@ ModelCountingBasis 将精确供应商/物理模型及适配、计量算法、tok
 
 本地分词结果准确不等于供应商输入计量准确。模板包装、角色标记、工具声明、媒体处理和回放只要有估算组成，最终输入结果保持 estimate 并带明确余量。upper-bound 须有覆盖所有组成的可靠界，不能把样本中未超估升级为上界。exact 须有适用于当前完整输入的证据。缺完整依据时返回 unsupported 或 unavailable；未知项不得按零计。字节、图数及单图限制仍逐项检查。
 
-tokenInput 由固定表示适配器从实际将发送的内容生成。普通文本、工具 schema 和控制 token 的边界保留，模板包装和媒体贡献不能重复加入。计量报告里的 `amount`、`margin` 与 `limit` 以十进制整数字符串给出，不用 JavaScript 浮点数表示，使恰好限额和超限不会因舍入交换。压缩触发线的比较与取整归压缩拥有者。余量只作用于估算部分：没有锚点时整个结果都是估算，余量按它计算；有锚点时锚点部分不加余量，余量只按新增部分的估算计算。不把每块余量重复累加。RequestBudget.inputDigest 与 counting 的组合共同识别可复用结论，压缩方核当前输入、约束及实际供应商一致后才复用结论。
+tokenInput 由固定表示适配器从实际将发送的内容生成。普通文本、工具 schema 和控制 token 的边界保留，模板包装和媒体贡献不能重复加入。计量报告里的 `amount`、`margin` 与 `limit` 以十进制整数字符串给出，不用 JavaScript 浮点数表示，使恰好限额和超限不会因舍入交换。压缩触发线的比较与取整归压缩拥有者。余量只作用于估算部分。没有锚点时整个结果都是估算，余量按它计算。有锚点时锚点部分不加余量，余量只按新增部分的估算计算。不把每块余量重复累加。RequestBudget.inputDigest 与 counting 的组合共同识别可复用结论，压缩方核当前输入、约束及实际供应商一致后才复用结论。租约交给家族计量器的校准有锚点或有来源条目时，`inputDigest` 也标识这份校准：换锚点或换任一来源条目就是换输入。没有锚点也没有来源条目的空校准不改变摘要。
 
 ## 可选校准及不可解释的历史
 
@@ -819,11 +843,41 @@ tokenInput 由固定表示适配器从实际将发送的内容生成。普通文
 
 只有来源可核验的原请求和响应、明确的实际模型/供应商、已知 usage 统计口径、适用的计量组合及可证明的原前缀关系同时成立，才能使用历史观测。系统提示、工具声明、可见性、压缩、模板、媒体处理或回放变化后须重新判断适用性。相同摘要或模型名称不能单独证明统计口径及前缀关系。不能把前次 input_tokens 与本次新增文本的独立计数直接相加；新增部分按完整包络差计数，即加入新增单元前后各计一次取差。也不能普遍把原 output_tokens 当下一请求的输入量；只有带推理状态的单元按[推理回放](#推理回放)的输出代理记其来源调用的 O。
 
-**延续证明与租户读取。**延续与来源由请求组装方在取得租约时以 `lineage` 声明一次：`continues` 是被延续的调用 X，`sources` 以消息为键给出产生该 assistant 消息的来源调用。声明不在 `measure` 的输入上，调用顺序仍是 acquire、plan、measure、release。租约按取得时的访问依据经 `ModelCommands.dispatches` 读取被引用调用的发出记录：消息身份序列（`DispatchRecord.messages`）、物化回执与账目。每个被引用的调用只读一次，总数受配置上限约束。读不到的调用（另一租户的，或不存在的）一律按无此事实处理，两者结果相同，不披露存在与否。存储故障单独可辨认；校准退回完整计量，不使取得失败。前缀由请求组装方的不变量保证：历史只追加、消息不可变、投影确定。Model 只核对自己拥有的事实与边界身份，不比较消息内容：X 可读；X 恰有一次带账目的发出，且该发出记录了消息身份序列；该序列是本次消息身份序列的前缀；回执的供应商采用与表示采用与本次相同；`input`、`cache-read`、`cache-write` 全部已知。任一不满足即不命中，退回完整计量，原因写进 `RequestBudget.calibration`。
+<a id="lineage-的声明与前置条件"></a>
+**lineage 的声明与前置条件。**请求组装方在取得租约时以 `acquire` 输入的 `lineage` 声明一次延续与来源：`continues` 是被延续的调用 X，`sources` 以消息为键给出产生该 assistant 消息的来源调用。声明不在 `measure` 的输入上，调用顺序仍是 acquire、plan、measure、release。`continues` 缺席，且 `sources` 缺席或为空时，lineage 等同没有 lineage。lineage 引用的不同调用数超过配置上限时，`acquire` 返回 `invalid`，`field` 为 `lineage`，`reason` 为 `too-many-calls`。这是拒绝：租约不截断 lineage，也不只读取其中一部分。
 
-**侧表与校准入口。**家族表示带与 `tokenInput` 消息单元逐项对齐的 `units` 侧表，记录每个单元来自哪条消息；`null` 是不属于任何消息的单元。侧表不改变计数字节。租约把读出的数字以 `MeterCalibration` 交给实现 `CalibratedInputMeter` 的家族计量器：`anchor` 是 X 的真实输入合计（`input`、`cache-read`、`cache-write` 之和）与它覆盖的消息，`outputs` 是各来源的 O 或具名的扣留原因。校准值不含访问依据、租户或调用身份，家族计量器保持纯函数。普通消费者拿到的仍是 `ModelInputMeter`。没有 lineage 时，租约交出家族计量器本身，行为与没有本节时相同。
+请求组装方声明 `continues` 时，为以下前置条件作保：
 
-**命中时的结果。**结果 = X 的真实输入合计（锚点，不加余量）＋ 新增部分的估算（余量只按它计算）。新增部分只含 X 之后的消息单元：带推理状态的单元记其来源的 O，其余单元按完整包络差计数，包络去掉工具与前置指令，它们已在锚点里。系统提示词、工具或参数变化时，请求组装方不声明延续，所以得到完整估算。`RequestBudget.calibration` 只在有 lineage 的租约计量时出现，只含命中或不命中的原因，不含其他调用的数字。
+- 历史只追加：本次请求的消息以 X 发出的消息开头，次序相同。
+- 消息不可变：前缀中的每条消息与 X 发出时相同。
+- 投影确定：同一消息在同样的设置下得到同一投影。
+- 系统提示词、工具声明与请求参数与 X 相同。
+- 回放设置与可见性设置与 X 相同。回放设置包括回放声明、`foreignThinking` 与关闭回放。
+
+Model 不检测这些前置条件是否被违反。条件被违反时计量结果可能错误，这个结果由声明者负责。Model 只核对自己拥有的事实与边界身份，不比较消息内容，见下文[锚点不命中的原因](#锚点不命中的原因)。
+
+**租户读取。**租约按取得时的访问依据经 `ModelCommands.dispatches` 读取被引用调用的发出记录：消息身份序列（`DispatchRecord.messages`）、物化回执与账目。每个被引用的调用只读一次。读不到的调用（另一租户的，或不存在的）一律按无此事实处理。两者结果相同，不披露存在与否。存储故障单独可辨认。这时校准退回完整计量，`acquire` 不因此失败。
+
+<a id="锚点不命中的原因"></a>
+**锚点不命中的原因。**有 lineage 的租约每次计量都给出锚点命中，或给出不命中原因 `AnchorMiss`。每个原因的条件如下：
+
+- `not-declared`：lineage 没有 `continues`。
+- `call-unreadable`：X 读作无此事实。另一租户的调用与不存在的调用结果相同。
+- `facts-unavailable`：读取 X 时存储故障。
+- `ambiguous-dispatch`：X 有不止一次带账目的发出。
+- `usage-unknown`：X 没有带账目的发出，或该发出账目的 `input`、`cache-read`、`cache-write` 中有未知项。
+- `messages-unrecorded`：该发出记录没有消息身份序列（`DispatchRecord.messages`）。
+- `supplier-changed`：该发出没有物化回执，或回执的供应商采用与本次不同。
+- `representation-changed`：回执的表示采用与本次不同。
+- `not-a-prefix`：该发出的消息身份序列不是本次消息身份序列的前缀。相等的序列算前缀。
+- `units-missing`：本次表示没有 `units` 侧表。
+- `continuation-shrank`：家族计量器算出的新增部分的包络差为负。
+
+任一条件成立即不命中，计量退回完整计量，原因写进 `RequestBudget.calibration`。几个条件同时成立时，由实现规定哪一个决定原因。
+
+**侧表与校准入口。**家族表示带与 `tokenInput` 消息单元逐项对齐的 `units` 侧表，记录每个单元来自哪条消息；`null` 是不属于任何消息的单元。侧表不改变计数字节。租约把读出的数字以 `MeterCalibration` 交给实现 `CalibratedInputMeter` 的家族计量器：`anchor` 是 X 的真实输入合计（`input`、`cache-read`、`cache-write` 之和）与它覆盖的消息，`outputs` 是各来源的 O 或具名的扣留原因。校准值不含访问依据、租户或调用身份，家族计量器保持纯函数。普通消费者拿到的仍是 `ModelInputMeter`。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果，行为与没有本节时相同。释放后的回答见[组合协议](#档案和准备提供者的组合协议)。
+
+**命中时的结果。**结果 = X 的真实输入合计（锚点，不加余量）＋ 新增部分的估算（余量只按它计算）。新增部分只含 X 之后的消息单元。带推理状态的单元记其来源的 O，其余单元按完整包络差计数。前置指令与工具已在锚点里，不进入新增部分。两个计数项各含哪些单元由计量采用规定，pi 家族的规定见 [pi-ai-transport“校准算术”](../pi-ai-transport/SPEC.md#校准算术)。系统提示词、工具或参数变化时，请求组装方不声明延续，所以得到完整估算。`RequestBudget.calibration` 只在有 lineage 的租约计量时出现，只含命中或不命中的原因，不含其他调用的数字。
 
 条件不满足先回完整计量；完整计量也无法解释实际输入时，计量能力返回具名不可用，不删除历史或捏造零贡献。部分输出组不继承整组计数，重复选中的内容不重复抵扣。校准中存在估算贡献时，组合结果仍为估算；不得因一个准确锚点升级为 exact。最终结果不得为负；新增部分为负时不命中，退回完整计量。余量只按估算部分应用，锚点部分不加余量。
 
@@ -891,7 +945,7 @@ ModelProfileSource 的快照由合法身份、设置及档案来源组成。prec
 
 createModelProfiles 对固定快照按既有层序求同名胜出，计算 required 模态相容和 locked 原因。selected 只解释传入选择，不写调用方的选择记录。凭据状态来自来源元数据，missing 与 unreadable 保持区别，不暴露秘密。ModelProfileMaintenance 的权威提供者在同一提交核当前维护资格、expected 修订、身份占用、定义校验及 `updatedAt` 不倒退，inspect 认回原 operation。查询算法的事前检查不替代该提交检查。
 
-ModelPreparationResources 按固定 profile 一次取得全部供应商的精确 rules 和 meter。返回顺序及采用必须与档案相同，credential 只带引用。部分失败释放已取得资源，不能删掉失败供应商后形成更窄档案。`acquire` 的输入可以带可选的 `lineage`：没有它时，租约的 meter 就是家族计量器本身；有它时，租约在取得时按访问依据读取被引用调用的事实，`measure` 保持同步，释放后 `measure` 返回具名不可用（`preparation-lease-released`）。规则见[可选校准](#可选校准及不可解释的历史)。规则计划输出的参数采用和表示均绑定原输入；每个 meter 对应同一供应商及档案定义的 `context` 与限额。meter 供请求组装方在请求前使用，prepare 不调用它。请求组装方合并逐供应商检查和 counting 时，任何适用检查缺项都算未完成计量。
+ModelPreparationResources 按固定 profile 一次取得全部供应商的精确 rules 和 meter。返回顺序及采用必须与档案相同，credential 只带引用。部分失败释放已取得资源，不能删掉失败供应商后形成更窄档案。`acquire` 的输入可以带可选的 `lineage`。声明方式、前置条件、超限拒绝与空 lineage 见[lineage 的声明与前置条件](#lineage-的声明与前置条件)。没有它时，租约的 meter 在释放前给出与家族计量器相同的结果。有它时，租约在取得时按访问依据读取被引用调用的事实，`measure` 保持同步。租约释放后，它交出的每个 meter 都返回 `unavailable`，诊断为 `preparation-lease-released`，有无 lineage 相同。规则计划输出的参数采用和表示均绑定原输入；每个 meter 对应同一供应商及档案定义的 `context` 与限额。meter 供请求组装方在请求前使用，prepare 不调用它。请求组装方合并逐供应商检查和 counting 时，任何适用检查缺项都算未完成计量。
 
 prepare 对每个供应商执行 rules.plan，形成参数采用。它不调用 meter.measure，不读取二进制，不发送请求。请求组装方在请求前另经 ModelPreparationResources.acquire 取得自己的租约，用其中的 rules 形成表示、用 meter 计量，用完释放；两份租约按同一档案采用解析到同一实现。存在未读取的媒体 ref 时，请求组装方按媒体元数据计量，结果保留 deferred-media；最终是否超限以上游响应为准。成功形成 FixedModelRequest 后释放算法租约，固定采用描述继续保留。实际发送无法重新取得该采用时明确不可用，不能改用最新实现。租约的 `release` 返回结果而不是只能抛出：释放钩子失败时结果带 `failure`（kind 为 `unavailable`，`dependency` 指明释放失败的资源提供者，诊断安全，不含提供者私有内容），提供者仍欠这次释放，不把未完成的资源清理当作成功结束。重复 `release` 返回同一结果。异常只表示程序缺陷。
 

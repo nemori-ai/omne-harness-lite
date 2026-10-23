@@ -103,7 +103,7 @@ Commands、同步 coordinator、credentials 和 resources 由受信装配提供�
 
 根入口 `createModelPreparationResources(options)` 返回共同 `ModelPreparationResources<P>`。公开构造类型 `ModelPreparationOptions`、`PreparationBinding`、`PreparationBindingSource` 与 `SupplierPort` 的唯一声明在 [preparation/resources.ts](../src/preparation/resources.ts)。`options.commands` 是 `Pick<ModelCommands, 'dispatches'>`；`options.bindings` 的形状与 pi 家族贡献相同，装配直接传 `composeFamilies(...)`；`options.supplierOf` 由拥有凭据范围的宿主提供；`options.maxCitedCalls` 来自配置。
 
-请求组装方按 acquire、`rules.plan`、`meter.measure`、release 的顺序使用租约。它在 `acquire` 的输入上以 `lineage` 声明被延续的调用与各消息的来源调用；不声明时得到家族计量器本身。计量结果的 `calibration` 报告锚点命中或不命中的原因。读取、判决、报告与释放的行为归 [SPEC“准备资源与校准租约”](../SPEC.md#准备资源与校准租约)，数字的算法归家族包。
+请求组装方按 acquire、`rules.plan`、`meter.measure`、release 的顺序使用租约。它在 `acquire` 的输入上以 `lineage` 声明被延续的调用与各消息的来源调用。不声明时，租约的计量器给出与家族计量器相同的结果。释放后，租约的每个计量器都返回 `unavailable`。计量结果的 `calibration` 报告锚点命中或不命中的原因。读取、判决、报告与释放的行为归 [SPEC“准备资源与校准租约”](../SPEC.md#准备资源与校准租约)，数字的算法归家族包。
 
 ## 已实现的收场与返回判别
 

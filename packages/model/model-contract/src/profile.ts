@@ -172,7 +172,7 @@ export type BudgetCheck = Readonly<{
 }>
 /**
  * Why the continuation anchor of a calibrated measurement does not apply. Each reason is its own
- * fact; `call-unreadable` covers a call of another tenant and a call that does not exist alike.
+ * fact. SPEC "锚点不命中的原因" defines the condition of each name.
  */
 export type AnchorMiss =
   | 'not-declared'
@@ -186,7 +186,10 @@ export type AnchorMiss =
   | 'usage-unknown'
   | 'units-missing'
   | 'continuation-shrank'
-/** Why the output count of a source call cannot stand in for a unit that carries reasoning state. */
+/**
+ * Why the output count of a source call cannot stand in for a unit that carries reasoning state.
+ * SPEC "来源扣留的原因" defines the condition of each name.
+ */
 export type OutputWithheld =
   | 'source-missing'
   | 'source-unreadable'
