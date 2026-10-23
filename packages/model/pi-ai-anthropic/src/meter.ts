@@ -1,14 +1,18 @@
 // The input meter of the Anthropic family. `represent` turns the projection that encode writes
-// into the token input of `anthropic-visible-json/1`; `measure` counts the NFKC form of that text
-// with the legacy Claude BPE, adds the 28-pixel patch rule per measured image, and reports an
-// estimate with the configured margin. Signed reasoning is never tokenized and never dropped: a
-// request that carries it has no estimate.
+// into the token input of `anthropic-visible-json/1` and the message side table of its units;
+// `measure` counts the NFKC form of that text with the legacy Claude BPE, adds the 28-pixel patch
+// rule per measured image, and reports an estimate with the configured margin. Signed reasoning
+// is never tokenized and never dropped: a unit that carries a signed group is counted as the
+// output tokens of the call that produced it when a preparation lease hands that count over, else
+// the request has no estimate.
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   BudgetCheck,
+  CalibratedInputMeter,
   MediaMeasurementFact,
+  MeterCalibration,
   ModelInputMeter,
   ModelLimit,
   ModelTextTokenizer,
@@ -18,10 +22,13 @@ import type {
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
-import type {
-  FamilyMeter,
-  ProjectedRequest,
-  ProjectedTurn,
+import {
+  calibratedAmount,
+  type CalibratedAmount,
+  type FamilyMeter,
+  type MeterUnits,
+  type ProjectedRequest,
+  type ProjectedTurn,
 } from '@omne-harness/pi-ai-transport/chat-completions'
 import { componentAdoption, countingBasis } from './adoptions.ts'
 import { IMAGE_MEDIA_TYPES, IMAGE_RULES } from './images.ts'
@@ -37,6 +44,18 @@ export type MeterMargin = Readonly<{
 }>
 
 type MeasureInput = Parameters<ModelInputMeter['measure']>[0]
+
+/**
+ * The sealed method of the output-count substitution (input-meters/anthropic-replay.ts,
+ * `ANTHROPIC_REPLAY_REVISION`) and the suffix of an anchored measurement. Both are method name
+ * suffixes of the meter adoption.
+ */
+export const OUTPUT_GROUP_METHOD =
+  'anthropic-complete-signed-encrypted-output-zero-framing-estimated/1'
+export const ANCHORED_METHOD = 'continuation-anchored/1'
+
+/** The calibration of a plain `measure`: no anchor, no outputs. */
+const NO_CALIBRATION: MeterCalibration = Object.freeze({ anchor: null, outputs: [] })
 
 /** What the token input writes in place of image data. */
 const IMAGE_PLACEHOLDER = '[image]'
@@ -137,20 +156,31 @@ function turnJson(turn: ProjectedTurn): JsonValue {
 /**
  * The token input of `anthropic-visible-json/1`: the wire messages and the tools, in wire order.
  * Images are `[image]` placeholders without data; cache markers select reuse, not prompt text, so
- * they are not part of it.
+ * they are not part of it. The units name the message of each member of `messages`, built from
+ * the same list, so the two stay aligned by construction; the instruction unit is `null`.
  */
-export function tokenInputOf(record: AnthropicRecord, view: ProjectedRequest): JsonValue {
+export function representationOf(
+  record: AnthropicRecord,
+  view: ProjectedRequest,
+): Readonly<{ tokenInput: JsonValue; units: MeterUnits }> {
   const instruction = view.instruction.flatMap(block =>
     block.kind === 'text' ? [obj({ type: str('text'), text: str(block.text) })] : [],
   )
-  const messages = [
-    ...(instruction.length === 0
+  const leading: readonly Readonly<{ json: JsonValue; message: null }>[] =
+    instruction.length === 0
       ? []
-      : [obj({ role: str(record.wire.roles.instruction), content: arr(instruction) })]),
-    ...view.turns.map(turnJson),
+      : [
+          {
+            json: obj({ role: str(record.wire.roles.instruction), content: arr(instruction) }),
+            message: null,
+          },
+        ]
+  const units = [
+    ...leading,
+    ...view.turns.map(turn => ({ json: turnJson(turn), message: turn.message })),
   ]
-  return obj({
-    messages: arr(messages),
+  const tokenInput = obj({
+    messages: arr(units.map(unit => unit.json)),
     tools: arr(
       view.tools.map(tool =>
         obj({
@@ -164,33 +194,49 @@ export function tokenInputOf(record: AnthropicRecord, view: ProjectedRequest): J
       ),
     ),
   })
+  return { tokenInput, units: units.map(unit => unit.message) }
+}
+
+/** The token input alone, for callers that need only the counted value. */
+export function tokenInputOf(record: AnthropicRecord, view: ProjectedRequest): JsonValue {
+  return representationOf(record, view).tokenInput
 }
 
 // --- reading the token input -----------------------------------------------------------------
 
-type Content = Readonly<{ images: number; opaque: boolean }>
+/** What the meter reads from one message unit of the token input. */
+type UnitContent = Readonly<{
+  images: number
+  /**
+   * True when the unit carries a `reasoning_details` member. The family codec wrote it only for
+   * a whole group it can replay (sealed classifyAnthropicReasoning: format `anthropic-claude-v1`,
+   * signed `reasoning.text` or `reasoning.encrypted` with ciphertext that is not `[REDACTED]`),
+   * so this is the sealed whole-group condition seen from the meter.
+   */
+  reasoning: boolean
+}>
 
 function memberOf(value: JsonValue, key: string): JsonValue | undefined {
   return value.kind === 'object' ? value.entries.find(entry => entry.key === key)?.value : undefined
 }
 
-/** The image count and the opaque reasoning of a token input, or `null` when it is not this schema. */
-function contentOf(tokenInput: JsonValue): Content | null {
+/** The image count and the reasoning of each unit of a token input, or `null` when it is not this schema. */
+function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   const messages = memberOf(tokenInput, 'messages')
   if (messages?.kind !== 'array') return null
-  let images = 0
-  let opaque = false
+  const units: UnitContent[] = []
   for (const message of messages.items) {
     const content = memberOf(message, 'content')
     if (content?.kind !== 'array') return null
-    if (memberOf(message, 'reasoning_details') !== undefined) opaque = true
+    let images = 0
     for (const part of content.items) {
       const type = memberOf(part, 'type')
       if (type?.kind !== 'string') return null
       if (type.value === 'image_url') images += 1
     }
+    units.push({ images, reasoning: memberOf(message, 'reasoning_details') !== undefined })
   }
-  return { images, opaque }
+  return units
 }
 
 // --- measuring -------------------------------------------------------------------------------
@@ -212,36 +258,57 @@ function isImageMediaType(mediaType: string): boolean {
   return IMAGE_MEDIA_TYPES.some(item => item === mediaType)
 }
 
-/** The estimated tokens of the measured images, or the failure that keeps one out. */
+/**
+ * The estimated tokens of the measured images, per unit and in order, or the failure that keeps
+ * one out. The facts stand for the images of the whole token input, in image order.
+ */
 function imageTokens(
   record: AnthropicRecord,
-  images: number,
+  units: readonly UnitContent[],
   media: readonly MediaMeasurementFact[],
-): Outcome<bigint, TransportFailure> {
+): Outcome<readonly bigint[], TransportFailure> {
   const facts = media.filter(fact => fact.kind === 'image')
-  if (facts.length !== images) return unavailable('image-measurement-missing')
+  const owners = units.flatMap((unit, index) => Array.from({ length: unit.images }, () => index))
+  if (facts.length !== owners.length) return unavailable('image-measurement-missing')
   const rule = IMAGE_RULES[record.meter.image]
-  let total = 0n
-  for (const [index, fact] of facts.entries()) {
+  const extras = units.map(() => 0n)
+  for (const [position, fact] of facts.entries()) {
+    const owner = owners[position]
     const tokens =
-      fact.kind === 'image' && isImageMediaType(fact.mediaType)
+      owner !== undefined && fact.kind === 'image' && isImageMediaType(fact.mediaType)
         ? rule({ width: Number(fact.widthPixels), height: Number(fact.heightPixels) })
         : null
-    if (tokens === null)
+    if (tokens === null || owner === undefined)
       return {
         failure: {
           kind: 'unsupported',
-          field: `image ${index}`,
+          field: `image ${position}`,
           adapter: componentAdoption(record, 'media'),
         },
       }
-    total += BigInt(tokens)
+    extras[owner] = (extras[owner] ?? 0n) + BigInt(tokens)
   }
-  return { ok: total }
+  return { ok: extras }
 }
 
 function upstreamOf(entries: ModelLimit['upstream'], supplier: Adoption): UpstreamLimit {
   return entries.find(entry => sameAdoption(entry.supplier, supplier))?.limit ?? { kind: 'unknown' }
+}
+
+/**
+ * The method of a measurement: the meter adoption of the record, with the sealed output-group
+ * method appended when a unit was counted as the output of its source, and the anchored suffix
+ * appended when the anchor applied. Revision and digest stay the record's.
+ */
+function methodOf(record: AnthropicRecord, amount: CalibratedAmount): Adoption {
+  const base = componentAdoption(record, 'meter')
+  const suffixes = [
+    ...(amount.substituted ? [OUTPUT_GROUP_METHOD] : []),
+    ...(amount.anchor?.kind === 'hit' ? [ANCHORED_METHOD] : []),
+  ]
+  return suffixes.length === 0
+    ? base
+    : Object.freeze({ ...base, name: `${base.name}+${suffixes.join('+')}` })
 }
 
 /** The input bound: the separate input limit, else the window less the output limit. */
@@ -249,7 +316,7 @@ function inputCheck(
   input: MeasureInput,
   record: AnthropicRecord,
   margin: MeterMargin,
-  amount: bigint,
+  amount: CalibratedAmount,
 ): BudgetCheck {
   const supplier = input.supplier.adoption
   const { context } = input
@@ -259,16 +326,15 @@ function inputCheck(
       ? BigInt(context.window.provided) - BigInt(context.output.provided)
       : BigInt(separate.provided)
   const upstream = upstreamOf((separate ?? context.window).upstream, supplier)
-  const marginTokens = (amount * BigInt(margin.percent) + 99n) / 100n
   return {
     supplier,
     metric: 'input-tokens',
     subject: 'request',
     measurement: {
       kind: 'estimate',
-      amount: String(amount),
-      margin: String(marginTokens),
-      method: componentAdoption(record, 'meter'),
+      amount: String(amount.amount),
+      margin: String(amount.margin),
+      method: methodOf(record, amount),
       marginSource: margin.source,
     },
     limit: String(limit),
@@ -315,7 +381,12 @@ function exactChecks(input: MeasureInput, record: AnthropicRecord): readonly Bud
   return checks
 }
 
-function digestOf(input: MeasureInput): string {
+/**
+ * The digest of what the estimate depends on. A calibration enters it only when it carries an
+ * anchor or an output, so a plain measurement keeps the digest it had without calibration; a
+ * different anchor or output count is a different input.
+ */
+function digestOf(input: MeasureInput, calibration: MeterCalibration): string {
   const fixed = {
     profile: input.profile,
     supplier: input.supplier,
@@ -327,15 +398,32 @@ function digestOf(input: MeasureInput): string {
       tokenInput: writeJsonText(input.representation.tokenInput),
       media: input.representation.media,
     },
+    calibration:
+      calibration.anchor === null && calibration.outputs.length === 0 ? undefined : calibration,
   }
   return createHash('sha256').update(JSON.stringify(fixed)).digest('hex')
 }
 
-function measure(
+/** The NFKC form of a token input, as the sealed meter counted it. */
+function countWith(
+  tokenizer: ModelTextTokenizer,
+  tokenInput: JsonValue,
+): Outcome<bigint, TransportFailure> {
+  const text = writeJsonText(tokenInput).normalize('NFKC')
+  const counted = tokenizer.count([{ kind: 'text', text }])
+  if (!('ok' in counted))
+    return {
+      failure: { kind: 'unavailable', dependency: 'tokenizer', diagnostic: counted.failure.kind },
+    }
+  return { ok: BigInt(counted.ok.tokens) }
+}
+
+function measureCalibrated(
   record: AnthropicRecord,
   tokenizer: ModelTextTokenizer,
   margin: MeterMargin,
   input: MeasureInput,
+  calibration: MeterCalibration,
 ): Outcome<RequestBudget, TransportFailure> {
   const adapter = componentAdoption(record, 'meter')
   if (!sameAdoption(input.supplier.adoption, recordAdoption(ANTHROPIC_OWNER, record)))
@@ -346,27 +434,32 @@ function measure(
   // Media that is not read yet has no pixels here; the media path is not part of this meter.
   if (representation.kind === 'pending-media')
     return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
-  const content = contentOf(representation.tokenInput)
-  if (content === null)
-    return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
-  if (content.opaque) return unavailable('signed-reasoning-not-countable')
-  const images = imageTokens(record, content.images, representation.media)
-  if (!('ok' in images)) return images
-  // The NFKC form of the token input, as the sealed meter counted it.
-  const text = writeJsonText(representation.tokenInput).normalize('NFKC')
-  const counted = tokenizer.count([{ kind: 'text', text }])
-  if (!('ok' in counted))
-    return {
-      failure: { kind: 'unavailable', dependency: 'tokenizer', diagnostic: counted.failure.kind },
-    }
-  const amount = BigInt(counted.ok.tokens) + images.ok
+  const units = contentOf(representation.tokenInput)
+  if (units === null) return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
+  const amount = calibratedAmount({
+    tokenInput: representation.tokenInput,
+    units: representation.units,
+    reasoning: units.map(unit => unit.reasoning),
+    calibration,
+    count: body => countWith(tokenizer, body),
+    extra: indices => {
+      const extras = imageTokens(record, units, representation.media)
+      if (!('ok' in extras)) return extras
+      return { ok: indices.reduce((sum, index) => sum + (extras.ok[index] ?? 0n), 0n) }
+    },
+    uncountable: 'signed-reasoning-not-countable',
+    dependency: ANTHROPIC_OWNER,
+    marginPercent: margin.percent,
+  })
+  if (!('ok' in amount)) return amount
   const counting = countingBasis(record)
   return {
     ok: {
       kind: 'complete',
-      inputDigest: digestOf(input),
-      checks: [inputCheck(input, record, margin, amount), ...exactChecks(input, record)],
+      inputDigest: digestOf(input, calibration),
+      checks: [inputCheck(input, record, margin, amount.ok), ...exactChecks(input, record)],
       counting: [counting],
+      ...(amount.ok.anchor === null ? {} : { calibration: { anchor: amount.ok.anchor } }),
     },
   }
 }
@@ -378,15 +471,18 @@ export function createAnthropicMeter(
   margin: MeterMargin,
 ): FamilyMeter {
   const representation = componentAdoption(record, 'representation')
-  const instance: ModelInputMeter = Object.freeze({
+  const instance: CalibratedInputMeter = Object.freeze({
     basis: countingBasis(record),
-    measure: (input: MeasureInput) => measure(record, tokenizer, margin, input),
+    measure: (input: MeasureInput) =>
+      measureCalibrated(record, tokenizer, margin, input, NO_CALIBRATION),
+    measureCalibrated: (input: MeasureInput, calibration: MeterCalibration) =>
+      measureCalibrated(record, tokenizer, margin, input, calibration),
   })
   return Object.freeze({
     instance,
     represent: (view: ProjectedRequest) => ({
       adoption: representation,
-      tokenInput: tokenInputOf(record, view),
+      ...representationOf(record, view),
     }),
   })
 }

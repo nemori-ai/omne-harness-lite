@@ -27,6 +27,7 @@
 - 独立对照：`meter.spec.ts` 用 js-tiktoken/lite 直接载入 `claude.json`，核对特殊 token 字样的计数；用封存件记录的 @anthropic-ai/tokenizer 0.0.4 参考值 150 核对经 tokenizer-tiktoken 的计数。js-tiktoken 只是测试依赖。
 - 测试配置在 [support/anthropic.ts](support/anthropic.ts)：解码器限额与 10% 余量是测试参数，不是包的默认值。整个测试进程共用一个家族，所以 tokenizer 只初始化一次。
 - 请求经 `judgeFixedModelRequest` 构造，所以消息与采用的身份是真实的品牌值。
+- `calibration.spec.ts` 用开发依赖 `@omne-harness/model` 的 `createModelPreparationResources` 与 `composeFamilies([FAMILY])` 组合真实租约，表示来自真实 `rules.plan`。存储端口是只实现 `dispatches` 的替身，按调用返回发出记录、拒绝或不可用；租户与主体借自 model-contract 的脚本化符合性主体。期望数额在用例里用同一 tokenizer 算出。真实内存 Commands 上的读取与清理在 `@omne-harness/model` 的测试中。
 - 回放夹具的用例表在 [support/legacy-cases.ts](support/legacy-cases.ts)，对照表与有意不同见 [fixtures/README.md](fixtures/README.md)。
 - 跨家族历史用纯数据构造：OpenAI 的消息只是带 OpenAI 回放范围与格式的 assistant 消息，`cross-family-replay.spec.ts` 不导入 OpenAI 家族。只有 `two-families.spec.ts` 导入 OpenAI 家族。
 
