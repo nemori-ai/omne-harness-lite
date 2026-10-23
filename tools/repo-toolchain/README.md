@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See the [development guide](../../docs/development.md#仓库工具链的版本).
+`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, contract API snapshots, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See the [development guide](../../docs/development.md#仓库工具链的版本).
 
 Three unpublished tool members import this package through its subpaths. This package does not import them:
 
@@ -14,7 +14,7 @@ Three unpublished tool members import this package through its subpaths. This pa
 
 - The checked repository is `OMNE_SUBJECT_ROOT`. When it is not set, it is the Git root of the current directory.
 - The runner repository is `OMNE_RUNNER_ROOT`. When it is not set, it is the checked repository. Dependency rules (`.dependency-cruiser.cjs`, `tsconfig.base.json`) and configuration come only from the runner repository, so a checked tree cannot change them.
-- Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics` and `acceptanceLock`. A missing file, a missing section or an unknown section is an error. No defaults apply.
+- Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics`, `acceptanceLock` and `contractApi`. Each command reads only its own section. A missing file, a missing section that a command reads, or an unknown section is an error. No defaults apply. Version 0.0.10 is the first version that accepts `contractApi`. Earlier versions reject it, so the root configuration adds that section only after the pin moves to 0.0.10.
 - dependency-cruiser needs TypeScript to parse `.ts` files. With pnpm, add `typescript` to dependency-cruiser under `packageExtensions` in `pnpm-workspace.yaml`. If TypeScript is not found, the dependency check exits with an error. It does not pass with the `.ts` files left out.
 
 ## Default baseline
@@ -41,6 +41,7 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 | --- | --- | --- |
 | `omne-deps` | `src/deps/cli.ts` | Dependency rules, and cycles between members and groups |
 | `omne-declarations` | `src/declarations/cli.ts` | Reads member `dist` declarations with TypeScript 6 |
+| `omne-contract-api` | `src/declarations/api-cli.ts` | Contract API snapshots: write, check, and a coarse class of the change against a base |
 | `omne-metrics` | `src/metrics/cli.ts` | Structure metrics and the review page |
 | `omne-loop-status` | `src/loop/cli.ts` | Clean loop status |
 | `omne-loop-health` | `src/loop/health-cli.ts` | Process health page |
@@ -50,6 +51,10 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 The actual architecture extraction reads only the files of one revision. A package-name `extends` (for example `@omne-harness/repo-config/tsconfig.base.json`) points at an installed module. The extraction does not apply its options and lists it under `configuration.installedExtends` as `<config file> -> <specifier>`.
 
 `pnpm run check:design` checks current design sources, domain objects, and generated inputs. `pnpm run loop:health` reports trends, test timings, and Git history.
+
+## Contract API snapshots
+
+`omne-contract-api` keeps one API snapshot file for each contract member. The contract members are the `contracts` entries of `docs/engineering/delivery-lines.json`. `--write` writes the snapshots from `dist`. `--check` compares them with `dist` and reports each difference. `--diff <base>` compares the snapshots at a base commit with the working tree and gives `none`, `additive` or `review` for each member. `--check` and `--diff` only report and exit 0. The `contractApi` configuration section gives the member list path and the snapshot path template. The snapshot lists each export entry, the unexported declarations that public declarations reference, and the module augmentations of the member. The class does not tell which side (writer or reader) a change breaks. See the Chinese README section "契约 API 快照" for the format and the class rules.
 
 ## Stop-hook revision reads
 

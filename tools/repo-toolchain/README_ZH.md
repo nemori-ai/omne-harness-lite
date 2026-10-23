@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
+`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、契约 API 快照、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
 
 三个不发布的工具成员经本包的子路径导入它，本包不引用它们：
 
@@ -14,7 +14,7 @@
 
 - 被检查的仓库取 `OMNE_SUBJECT_ROOT`，未设置时取当前目录所在 Git 仓库的根。
 - 运行检查器的仓库取 `OMNE_RUNNER_ROOT`，未设置时与被检查的仓库相同。依赖规则（`.dependency-cruiser.cjs`、`tsconfig.base.json`）与配置只从这个仓库读，被检查的检出改不了它们。
-- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，分 `loop`、`metrics`、`acceptanceLock` 三节。缺文件、缺节或有认不出的节时报错，不使用默认值。
+- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，可有 `loop`、`metrics`、`acceptanceLock`、`contractApi` 四节，每个命令只读自己的那一节。缺文件、缺所读的节或有认不出的节时报错，不使用默认值。`contractApi` 从 0.0.10 起才认得，0.0.9 及更早的版本见到它会报错，所以根配置在钉子升到 0.0.10 之后才加这一节。
 - dependency-cruiser 需要 TypeScript 才能解析 `.ts`。用 pnpm 安装时，在 `pnpm-workspace.yaml` 的 `packageExtensions` 里给 dependency-cruiser 加上 `typescript`。找不到 TypeScript 时，依赖图检查报错退出，不会在漏掉 `.ts` 的情况下通过。
 
 ## 包内分层
@@ -31,6 +31,7 @@
 | --- | --- | --- |
 | `omne-deps` | `src/deps/cli.ts` | 依赖规则与成员、组之间的环 |
 | `omne-declarations` | `src/declarations/cli.ts` | 用 TypeScript 6 读成员 dist 里的声明 |
+| `omne-contract-api` | `src/declarations/api-cli.ts` | 契约成员的 API 快照：写、核对与相对基线的粗分类 |
 | `omne-metrics` | `src/metrics/cli.ts` | 结构度量与审讯页 |
 | `omne-loop-status` | `src/loop/cli.ts` | 回路状态 |
 | `omne-loop-health` | `src/loop/health-cli.ts` | 流程体检页 |
@@ -588,3 +589,40 @@ pnpm run loop:health # --out 可改产物目录
 `pnpm run check` 在构建一步之后常驻跑它。
 
 本工具调用 `createProgram`、`createSourceFile` 等旧编程接口的模块都从 `@typescript/typescript6` 导入，行为与 TypeScript 6 相同。
+
+## 契约 API 快照
+
+契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把相对基线的差异粗分为 `none`、`additive` 与 `review`。它只报告，不拦截。
+
+```sh
+omne-contract-api --write                 # 从 dist 重写全部快照（先构建）
+omne-contract-api --check                 # 拿 dist 现场生成的快照与快照文件比
+omne-contract-api --diff <基线提交或分支>   # 基线提交上的快照对工作树的快照，逐成员粗分类
+```
+
+三个动作都可加 `--json`，把结果按 JSON 写到标准输出；`--root <检出目录>` 指定被检查的检出。
+
+- 配置：`repo-toolchain.config.json` 的 `contractApi` 一节有两个键。`members` 是线归属表的路径。`snapshot` 是快照路径模板，`{member}` 换成成员目录，`{package}` 换成不带 scope 的包名。本仓库取 `{member}/api/{package}.api.md`。两个成员落到同一路径时报错。
+- 读法：与[声明兼容](#声明兼容)用同一个 TypeScript 6 程序与选项，按消费者视角读 dist，`src` 不进程序。成员的每个 `exports` 子路径取 `types` 条件指向的声明文件。
+- 快照内容：每个入口一节，导出符号按名字的码位排序，每个符号一个 ts 代码块。声明经 TypeScript 打印器规范化，注释、空白与顶层的 `export`、`declare` 不进快照。改名导出写成 `` `新名` = `原名` ``，只能当类型用的值标「仅类型」。转导出别的包的声明只写一行 `export { X } from '<包名>'`，不抄对方的声明。
+- 内部引用：公开声明引用到、却没有从任何入口导出的本成员声明，列在「内部引用」一节，它们的形状同样属于公开面。
+- 模块扩充：本成员的 `declare module '…'` 与 `declare global` 按目标分节，同名接口合并成一项。相对目标写成成员 dist 内的路径，例如 `./facility.ts`。别的成员写进来的扩充不进本成员的快照，归写它的成员。
+- 确定性：同一份 dist 两次生成的字节相同。快照只取决于成员自己的声明，与一起生成的其他成员无关。
+- 状态：`--check` 对每个成员报告一致、不一致、没有快照文件、没有 dist 或声明不全。不一致时按下面的规则列出快照到 dist 的差异。`--write` 不写没有 dist 的成员。
+
+粗分类按项比较两份快照。一项是一个节里的一个符号或扩充的接口：
+
+| 差异 | 分类 |
+| --- | --- |
+| 新增导出、新增入口、新增整份快照 | `additive` |
+| 接口或对象类型只加了可选成员（`a?:`、`m?()`），嵌套的对象类型同样 | `additive` |
+| 只有注释、空白或声明顺序不同 | `none` |
+| 删除导出、入口或整份快照 | `review` |
+| 改签名、改类型、改字面量、加必填成员、可选改必填或必填改可选、给联合加成员、重载改顺序 | `review` |
+| 改名或「仅类型」标注变化 | `review` |
+| 模块扩充新增一个接口：按与空接口的差异分类，只有可选成员时是 `additive` | 视成员 |
+| 内部引用的项新增或消失：引用它的公开声明另有分类 | `additive` |
+
+退出码：`--check` 与 `--diff` 有发现也退出 0。`--write` 有成员没写成时退出 1。用法、配置、基线或工具出错时退出 2。
+
+它**不能声称**的：粗分类不区分写方与读方，「可加改动」表里只破坏一方的改动它一律报 `review`，由人判断方向。它只看声明的形状，不看行为、文档或运行时校验；转导出的别的包的声明变化归那个包的快照。快照与 dist 一致只说明快照是最新的，不说明改动可加。自测：`tests/contract-api-snapshot.spec.ts`、`tests/contract-api-classify.spec.ts`、`tests/contract-api-cli.spec.ts`。

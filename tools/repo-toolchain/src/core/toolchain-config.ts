@@ -1,11 +1,16 @@
-// 仓库专用的配置只在仓库根的 `repo-toolchain.config.json` 里定一次，按节分给回路、度量与验收锁。
+// 仓库专用的配置只在仓库根的 `repo-toolchain.config.json` 里定一次，按节分给回路、度量、验收锁与契约 API 快照。
 // 文件从运行检查器的仓库读（见 subject.ts）；缺文件、缺节或不是 JSON 对象都报错，不悄悄用默认。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runnerRoot } from './subject.ts'
 
 export const TOOLCHAIN_CONFIG_FILE = 'repo-toolchain.config.json'
-export const TOOLCHAIN_CONFIG_SECTIONS = ['loop', 'metrics', 'acceptanceLock'] as const
+export const TOOLCHAIN_CONFIG_SECTIONS = [
+  'loop',
+  'metrics',
+  'acceptanceLock',
+  'contractApi',
+] as const
 export type ToolchainConfigSection = (typeof TOOLCHAIN_CONFIG_SECTIONS)[number]
 
 export function toolchainConfigPath(root: string = runnerRoot()): string {
