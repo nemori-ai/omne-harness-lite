@@ -63,7 +63,8 @@ export const FAMILIES = composeFamilies([
     margin: MARGIN,
   }),
 ])
-const TRANSPORT_LIMITS = {
+/** The transport limits of every local host, and of the transport the C1 evidence builds. */
+export const TRANSPORT_LIMITS = {
   connectTimeoutMs: 5_000,
   maxErrorBodyBytes: 4_096,
   maxEventBytes: 1_048_576,
