@@ -338,4 +338,171 @@ describe('createCalibratedMeter', () => {
       marginSource: adoption('margin'),
     })
   })
+
+  it('refuses a supplier whose adoption differs from the record in any one field', () => {
+    const meter = createCalibratedMeter(rules())
+    for (const field of ['owner', 'name', 'revision', 'digest'] as const)
+      expect(
+        meter.measure({
+          ...metered,
+          supplier: {
+            ...supplier,
+            adoption: { ...supplier.adoption, [field]: `${supplier.adoption[field]}-other` },
+          },
+        }),
+      ).toEqual({ failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-meter' } })
+  })
+
+  const other = adoption('other-supplier')
+  const evidence = adoption('evidence')
+  const withContext = (context: MeasureInput['context']): MeasureInput => ({ ...metered, context })
+
+  it('bounds the request input by the window less the output limit, with the upstream limit of this supplier', () => {
+    const measured = createCalibratedMeter(rules()).measure(
+      withContext({
+        window: {
+          provided: '1000',
+          upstream: [
+            { supplier: other, limit: { kind: 'finite', amount: '5', source: evidence } },
+            {
+              supplier: supplier.adoption,
+              limit: { kind: 'finite', amount: '900', source: evidence },
+            },
+          ],
+        },
+        input: null,
+        output: { provided: '100', upstream: [] },
+        compactionTriggerPercent: '80',
+      }),
+    )
+    const amount = String(writeJsonText(units).length)
+    expect(measured).toMatchObject({ ok: { kind: 'complete' } })
+    expect('ok' in measured && measured.ok.checks).toEqual([
+      {
+        supplier: supplier.adoption,
+        metric: 'input-tokens',
+        subject: 'request',
+        measurement: {
+          kind: 'estimate',
+          amount,
+          margin: '0',
+          method: METER,
+          marginSource: adoption('margin'),
+        },
+        limit: '900',
+        constraint: {
+          profile: measure.profile,
+          upstream: { kind: 'finite', amount: '900', source: evidence },
+        },
+      },
+    ])
+  })
+
+  it('takes a separate input limit as the bound, and an unknown upstream when none names this supplier', () => {
+    const measured = createCalibratedMeter(rules()).measure(
+      withContext({
+        window: { provided: '1000', upstream: [] },
+        input: {
+          provided: '500',
+          upstream: [{ supplier: other, limit: { kind: 'unlimited', source: evidence } }],
+        },
+        output: { provided: '100', upstream: [] },
+        compactionTriggerPercent: '80',
+      }),
+    )
+    expect('ok' in measured && measured.ok.checks[0]).toMatchObject({
+      limit: '500',
+      constraint: { profile: measure.profile, upstream: { kind: 'unknown' } },
+    })
+  })
+
+  it('adds one exact check per image for image-bytes, one for image-count and one for request-bytes, and none for voice', () => {
+    const reference = (key: string) => ({
+      storage: 'tests',
+      key,
+      mediaType: 'image/png',
+      bytes: '1',
+      digest: '0'.repeat(64),
+    })
+    const image = (key: string, bytes: string) =>
+      ({
+        reference: reference(key),
+        bytes,
+        mediaType: 'image/png',
+        kind: 'image',
+        widthPixels: '1',
+        heightPixels: '1',
+      }) as const
+    const voice = {
+      reference: reference('voice-1'),
+      bytes: '30',
+      mediaType: 'audio/wav',
+      kind: 'voice',
+      durationMs: '10',
+      sampleRate: '8000',
+      channels: '1',
+    } as const
+    const limit = (metric: MeasureInput['limits'][number]['metric'], provided: string) => ({
+      metric,
+      provided,
+      upstream: [
+        {
+          supplier: supplier.adoption,
+          limit: { kind: 'finite', amount: provided, source: evidence },
+        } as const,
+      ],
+    })
+    const measured = createCalibratedMeter(rules()).measure({
+      ...metered,
+      limits: [
+        limit('image-bytes', '100'),
+        limit('image-count', '4'),
+        limit('request-bytes', '64'),
+        limit('voice-bytes', '1000'),
+        limit('voice-duration-ms', '1000'),
+      ],
+      representation: {
+        ...metered.representation,
+        media: [image('image-1', '11'), voice, image('image-2', '12')],
+      },
+    })
+    const exact = (metric: string, subject: string, amount: string, provided: string) => ({
+      supplier: supplier.adoption,
+      metric,
+      subject,
+      measurement: { kind: 'exact', amount, method: adoption('media') },
+      limit: provided,
+      constraint: {
+        profile: measure.profile,
+        upstream: { kind: 'finite', amount: provided, source: evidence },
+      },
+    })
+    expect('ok' in measured && measured.ok.checks.slice(1)).toEqual([
+      exact('image-bytes', 'image-1', '11', '100'),
+      exact('image-bytes', 'image-2', '12', '100'),
+      exact('image-count', 'request', '2', '4'),
+      exact('request-bytes', 'request', '7', '64'),
+    ])
+  })
+
+  it('reports a failed count as unavailable, with the tokenizer as the dependency', () => {
+    const failing: ModelTextTokenizer = {
+      ...tokenizer,
+      count: () => ({ failure: { kind: 'unsupported-token', name: '<|x|>' } }),
+    }
+    expect(
+      createCalibratedMeter(rules({ tokens: { tokenizer: failing, form: 'as-written' } })).measure(
+        metered,
+      ),
+    ).toEqual({
+      failure: { kind: 'unavailable', dependency: 'tokenizer', diagnostic: 'unsupported-token' },
+    })
+  })
+
+  it('hands the reasoning flags of the family units to the arithmetic: an uncounted reasoning unit is unavailable', () => {
+    const meter = createCalibratedMeter(rules({ contentOf: () => [{ reasoning: true }] }))
+    expect(meter.measure(metered)).toEqual({
+      failure: { kind: 'unavailable', dependency: 'family', diagnostic: 'reasoning-not-countable' },
+    })
+  })
 })

@@ -10,7 +10,7 @@
 
 [credential.spec.ts](credential.spec.ts) 用真实文件系统、子进程和注入的文件系统故障覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、保存确认未知、文件锁、发布路径关闭文件描述符与跨进程更新，并在真实 Cordis 4.0.4 下核对注入发送。[custodian-options.spec.ts](custodian-options.spec.ts) 覆盖建库采用已有文件、诊断容量、锁等待与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。[credential-service.spec.ts](credential-service.spec.ts) 核对服务实例只暴露 `present` 与 `resolve`，保管库不可达。[cordis-entry.spec.ts](cordis-entry.spec.ts) 核对插件的发布、空路径建库并服务、撤除、配置校验，以及损坏文件上 `present` 返回不可用与撤除不报错。[deliver-injected.spec.ts](deliver-injected.spec.ts) 在真实 Cordis 4.0.4 下核对注入发送不导入保管库、提供者缺席时不发送、撤除重装后恢复与结果不变、更替提供者与非服务对象。[public-entry.spec.ts](public-entry.spec.ts) 核对根入口的导出清单。
 
-[send-resources.spec.ts](send-resources.spec.ts) 用观察凭据槽的传输工厂代替会离开进程的 pi 发送，核对槽只在 `start` 期间有值、正常返回与抛出后都为空、两个资源互不见对方的值、异物与释放后的物化传输被拒绝、`release` 与 `close` 幂等；它还用真实 pi 传输与 OpenAI 家族核对异物物化传输被拒绝，这一步只编码，不发送。[assembly.spec.ts](assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，准备租约经配置的家族取得绑定，`close` 开始后的取得返回具名不可用，关闭前取得的租约在关闭后仍能计量并释放，以及 `close` 幂等。它还经可观察的网络与发送资源工厂核对：准备配置被拒时不创建网络；装配被拒时关闭已创建的网络，关闭失败不成为未处理的拒绝；`close` 让两个关闭都执行完，一个失败时抛出该失败，两个都失败时抛出含两者的 `AggregateError`。[local-model.spec.ts](local-model.spec.ts) 属于慢层：本地 HTTPS 服务只代替网关，回放两个家族录制的 SSE 正文；保管库、装配、发送边界、pi 传输、家族、model 运行时与内存 `ModelCommands` 都是真实实现。[continuation.spec.ts](continuation.spec.ts) 同属慢层，在同一组真实实现上让调用 X 收场、确认并清理，再经装配的 `preparation` 取得真实租约，用真实 `rules.plan` 与家族计量器计量延续 X 的请求，核对锚点、余量、方法名与跨租户的逐字节相同。[support/](support/) 里的 `records.ts` 经声明的开发依赖读取家族录制夹具，`https-server.ts` 起本地 HTTPS 服务并记录请求头与正文，`profiles.ts` 把家族记录的官方档案存成工厂档案，并给出测试用的 `supplierOf`，`local-host.ts` 为一次调用装配保管库、本地装配、内存 `ModelCommands` 与 model 运行时。`metering.ts` 用真实租约和租约自己的 `rules.plan` 计量请求，并读取账目里已知的用量。`replay.ts` 把一份回放件经装配路径回放，并让宿主保持打开，供读取事实、发出记录与准备租约；打开或驱动失败时，它先关闭已打开的资源再抛出。它的 `recordedRequest` 给出回放件的请求，延续轮的请求由首轮回放读出的回复重建。
+[send-resources.spec.ts](send-resources.spec.ts) 用观察凭据槽的传输工厂代替会离开进程的 pi 发送，核对槽只在 `start` 期间有值、正常返回与抛出后都为空、两个资源互不见对方的值、异物与释放后的物化传输被拒绝、`release` 与 `close` 幂等，prepare 与 materialize 的失败原样穿过，关闭时资源或配置探针的关闭失败使 `close` 拒绝，调用方自己释放失败的资源不再由 `close` 重复报告；它还用真实 pi 传输与 OpenAI 家族核对异物物化传输被拒绝，这一步只编码，不发送。[assembly.spec.ts](assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，准备租约经配置的家族取得绑定，`close` 开始后的取得返回具名不可用，关闭前取得的租约在关闭后仍能计量并释放，以及 `close` 幂等。它还经可观察的网络与发送资源工厂核对：准备配置被拒时不创建网络；装配被拒时关闭已创建的发送资源与网络，关闭失败不成为未处理的拒绝；`close` 让两个关闭都执行完，一个失败时抛出该失败，两个都失败时抛出含两者的 `AggregateError`。[local-model.spec.ts](local-model.spec.ts) 属于慢层：本地 HTTPS 服务只代替网关，回放两个家族录制的 SSE 正文；保管库、装配、发送边界、pi 传输、家族、model 运行时与内存 `ModelCommands` 都是真实实现。[continuation.spec.ts](continuation.spec.ts) 同属慢层，在同一组真实实现上让调用 X 收场、确认并清理，再经装配的 `preparation` 取得真实租约，用真实 `rules.plan` 与家族计量器计量延续 X 的请求，核对锚点、余量、方法名与跨租户的逐字节相同。[support/](support/) 里的 `records.ts` 经声明的开发依赖读取家族录制夹具，`https-server.ts` 起本地 HTTPS 服务并记录请求头与正文，`profiles.ts` 把家族记录的官方档案存成工厂档案，并给出测试用的 `supplierOf`，`local-host.ts` 为一次调用装配保管库、本地装配、内存 `ModelCommands` 与 model 运行时；它的 `close` 在宿主关闭失败时也关闭保管库。`metering.ts` 用真实租约和租约自己的 `rules.plan` 计量请求，并读取账目里已知的用量。`replay.ts` 把一份回放件经装配路径回放，并让宿主保持打开，供读取事实、发出记录与准备租约；打开或驱动失败时，它先关闭已打开的资源再抛出。它的 `recordedRequest` 给出回放件的请求，延续轮的请求由首轮回放读出的回复重建。
 
 `local-host.ts` 的运行时配置按真实回复设定：
 
@@ -47,12 +47,12 @@
 OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow --typecheck.enabled=false tests/recording-c9.spec.ts
 ```
 
-[recording-c1.spec.ts](recording-c1.spec.ts) 同属慢层，产出 C1 证据。本地 HTTPS 服务对每份回放件原样返回录制的字节。每份回放件跑两次：
+[recording-c1.spec.ts](recording-c1.spec.ts) 同属慢层，产出传输义务证据。本地 HTTPS 服务对每份回放件原样返回录制的字节。每份回放件跑两次：
 
 - 经装配路径发出重建的请求一次。核对回执摘要等于旁注摘要，事实流恰好一个终止且它是 `completed/stop`，费用只有已知或未知两种状态并且恰好一条 `billable`，占位凭据只出现在发出的头里。
 - 用真实 `createPiTransport` 与两个真实家族，对同一请求与同一字节跑 model-contract 符合性套件的六条传输义务，要求全部通过；计数的发送与服务收到的请求数相等。
 
-设 `OMNE_EVIDENCE_OUT=<目录>` 时，每份回放件写一份 `<用例名>.json`：用例名、家族、型号、`payloadDigest`、回放格式、事实种类序列（只有种类与块种类，连续相同的合并计数）、终止、账目的用量与费用（来源、状态、金额、单位）与应付金额、六条义务的结果，以及凭据的保管方式。文件不含请求体、响应正文、任何头和推理载荷。运行方式与 C9 相同：
+设 `OMNE_EVIDENCE_OUT=<目录>` 时，每份回放件写一份 `<用例名>.json`：用例名、家族、型号、`payloadDigest`、回放格式、事实种类序列（只有种类与块种类，连续相同的合并计数）、终止、账目的用量与费用（来源、状态、金额、单位）与应付金额、六条义务的结果，以及凭据的保管方式。文件不含请求体、响应正文、任何头和推理载荷。运行方式与计量对照相同：
 
 ```sh
 OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow --typecheck.enabled=false tests/recording-c1.spec.ts

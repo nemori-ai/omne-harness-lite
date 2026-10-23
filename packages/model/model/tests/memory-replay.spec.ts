@@ -145,6 +145,19 @@ describe('the finish of a reply that holds reasoning state', () => {
     expect(unbox(await f.settle()).termination).toEqual(COMPLETED)
   })
 
+  it('settles thinking alone with a replay format, in the replay range of the dispatch supplier', async () => {
+    const f = await sent(FORMAT)
+    unbox(
+      await f.preserve([
+        { kind: 'block-open', index: '0', mode: 'append', content: 'thinking' },
+        { kind: 'block-delta', index: '0', delta: 'pondering' },
+        { kind: 'block-seal', index: '0', block: thinking },
+        ended,
+      ]),
+    )
+    expect(unbox(await f.settle()).termination).toEqual(COMPLETED)
+  })
+
   it('refuses a receipt whose replay format is not a replay tag', async () => {
     const f = await running()
     expect(

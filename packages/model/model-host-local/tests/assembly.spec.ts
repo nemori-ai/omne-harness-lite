@@ -141,9 +141,12 @@ describe('assembleLocalModel', () => {
         config({ preparation: { maxCitedCalls: 0, supplierOf: factorySupplier() } }),
       ),
     ).toThrow(RangeError)
-    expect(() =>
-      assembleLocalModel(config({ preparation: Reflect.get({}, 'preparation') })),
-    ).toThrow(RangeError)
+    // A missing or null preparation is refused by name, before anything reads its members.
+    for (const preparation of [Reflect.get({}, 'preparation'), JSON.parse('null')]) {
+      const assemble = () => assembleLocalModel(config({ preparation }))
+      expect(assemble).toThrow(RangeError)
+      expect(assemble).toThrow(/preparation/u)
+    }
   })
 
   it('takes the bindings of a preparation lease from the configured families', async () => {
@@ -285,6 +288,15 @@ describe('the resources of the assembly', () => {
     })
     expect(events).toEqual(['network', 'resources', 'network-close'])
     expect(unhandled).toEqual([])
+  })
+
+  it('closes the built send resources and then the network when the send boundary refuses the configuration', async () => {
+    const { events, factories } = observedFactories()
+    expect(() => assembleOver({ config: config({ maxRetainedAttempts: 0 }), factories })).toThrow(
+      RangeError,
+    )
+    for (let turn = 0; turn < 5; turn += 1) await new Promise(resolve => setImmediate(resolve))
+    expect(events).toEqual(['network', 'resources', 'resources-close', 'network-close'])
   })
 
   it('runs both closes to the end and throws both failures as one AggregateError', async () => {

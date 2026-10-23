@@ -324,8 +324,12 @@ export function assembleLocalHost(input: LocalHostInput) {
       return { driven, reference: admitted.reference }
     },
     async close() {
-      await host.close()
-      custodian.close()
+      // The custody closes also when the host close rejects; the rejection still reaches the caller.
+      try {
+        await host.close()
+      } finally {
+        custodian.close()
+      }
     },
   }
 }

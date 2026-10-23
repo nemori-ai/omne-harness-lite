@@ -43,7 +43,7 @@
     {
       "path": "src/input-meters/output-history.ts",
       "sha256": "649c07751f83da806eaf2ff062016d62d30a2d041b1353d97b2eb091ca3fd73a",
-      "migrated": "the complete-output-group method: a whole unit that carries reasoning state is counted once as the upstream output tokens O of the call that produced it, O already including reasoning; the refusals when O is unknown, when reasoning exceeds output, or when the counting combination of the source differs. The private observation protocol, replaySelection and the caller-carried responses are not migrated: the numbers come from the dispatch records of the model runtime through the preparation lease",
+      "migrated": "the complete-output-group method: the meter counts a whole unit with reasoning state once, as the upstream output tokens O of the call that produced it. O already includes reasoning. The method refuses a unit when O is unknown or when reasoning exceeds output. It also refuses a unit when the source dispatch has no materialization receipt or names another supplier adoption. The private observation protocol, replaySelection and the caller-carried responses are not migrated. The numbers come from the dispatch records of the model runtime through the preparation lease",
       "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
     },
     {
