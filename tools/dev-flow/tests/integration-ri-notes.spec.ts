@@ -318,6 +318,19 @@ describe('ri-notes findings', () => {
       expect.objectContaining({ issue: 7, revision: 3, attempt: '7-a3', inferred: true }),
     ])
   })
+  it('infers the card when no line of「所含的卡」can be read', () => {
+    const notes = riNotes(
+      input({
+        commits: [unitCommit(2, 10)],
+        pulls: { 10: work(body(['- #7 issuecomment-1'])) },
+        cards: { 7: { ...toolchain, binding: [2, '7-a2'] } },
+      }),
+    )
+    expect(codes(notes)).toEqual(['cards-line-invalid', 'card-inferred'])
+    expect(notes.cards).toEqual([
+      expect.objectContaining({ issue: 7, revision: 2, attempt: '7-a2', inferred: true }),
+    ])
+  })
   it('reports a missing unit record at its commit, and only after the lower bound', () => {
     const notes = riNotes(
       input({

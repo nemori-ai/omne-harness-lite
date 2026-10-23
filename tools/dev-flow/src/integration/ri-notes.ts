@@ -314,26 +314,19 @@ export function riNotes(input: RiInput): RiNotes {
       if (record.pr === null)
         report('unit-invalid', at, `提交 ${commit.commit} 的 unit 记录没有 pr。`)
     }
+    const listed = {
+      commit: commit.commit,
+      subject: commit.subject,
+      coverage: commit.coverage,
+      unit: commit.unit.kind,
+    }
     const pr = pullOf(commit)
-    if (pr === null)
-      return {
-        commit: commit.commit,
-        subject: commit.subject,
-        coverage: commit.coverage,
-        unit: commit.unit.kind,
-        pr,
-      }
+    if (pr === null) return { ...listed, pr }
     const read = input.readPull(pr.number),
       prAt = { commit: commit.commit, pr: pullUrl(pr.number) }
     if (read.kind === 'unreadable') {
       report('pr-unreadable', prAt, `读不到 PR #${pr.number}：${read.reason}`)
-      return {
-        commit: commit.commit,
-        subject: commit.subject,
-        coverage: commit.coverage,
-        unit: commit.unit.kind,
-        pr,
-      }
+      return { ...listed, pr }
     }
     const pull = read.pull,
       kind = pullKind(pull.headRef, input)
@@ -344,13 +337,7 @@ export function riNotes(input: RiInput): RiNotes {
         `PR #${pull.number} 的 base 为 ${pull.baseRef}，不是 ${input.track.branch}。`,
       )
     if (kind !== 'sync') collectPull(pull, prAt)
-    return {
-      commit: commit.commit,
-      subject: commit.subject,
-      coverage: commit.coverage,
-      unit: commit.unit.kind,
-      pr: { ...pr, url: pull.url, kind },
-    }
+    return { ...listed, pr: { ...pr, url: pull.url, kind } }
   })
 
   function collectPull(pull: PullFact, at: RiFinding['at']): void {
@@ -391,6 +378,8 @@ export function riNotes(input: RiInput): RiNotes {
           })
         else current.pulls.push(pull.number)
       }
+      // No line could be read: the card is unknown, as if the section were missing.
+      if (entries.length === 0) inferCard(pull, at)
     } else {
       missing(CARDS_SECTION, sections.cards.kind === 'empty')
       inferCard(pull, at)
