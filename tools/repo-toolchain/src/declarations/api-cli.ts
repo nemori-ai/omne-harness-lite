@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 契约 API 快照入口：`--write` 写快照，`--check` 核对快照与 dist，`--diff <基线>` 对比基线提交上的快照并粗分类。
-// `--check` 与 `--diff` 只报告，有发现也退出 0；`--write` 有成员没写成时退出 1；用法、配置或工具出错退出 2。
+// `--check` 与 `--diff` 只报告，有发现也退出 0；`--write` 有成员没写成时退出 1；用法、配置、基线或工具出错退出 2。
 // 读 dist：先构建。`--json` 把结果按 JSON 写到标准输出。
 import { resolve } from 'node:path'
 import { subjectRoot } from '../core/subject.ts'
@@ -21,28 +21,51 @@ type Action =
   | { readonly kind: 'check' }
   | { readonly kind: 'diff'; readonly base: string }
 
-function parseArguments(argv: readonly string[]): { action: Action; json: boolean; root: string } {
-  let action: Action | undefined
-  let json = false
-  let root = subjectRoot()
-  const choose = (next: Action) => {
-    if (action !== undefined) throw new Error(`--write、--check、--diff 只能给一个\n${USAGE}`)
-    action = next
+interface Arguments {
+  action?: Action
+  json: boolean
+  root: string
+}
+
+function valueAfter(argv: readonly string[], index: number, flag: string): string {
+  const value = argv[index + 1]
+  if (value === undefined || value === '' || value.startsWith('--'))
+    throw new Error(`${flag} 要一个值\n${USAGE}`)
+  return value
+}
+
+function choose(parsed: Arguments, action: Action): void {
+  if (parsed.action !== undefined) throw new Error(`--write、--check、--diff 只能给一个\n${USAGE}`)
+  parsed.action = action
+}
+
+/** 读一个参数，返回它占了几个位置。 */
+function readFlag(argv: readonly string[], index: number, parsed: Arguments): number {
+  const flag = argv[index]
+  switch (flag) {
+    case '--write':
+    case '--check':
+      choose(parsed, { kind: flag === '--write' ? 'write' : 'check' })
+      return 1
+    case '--json':
+      parsed.json = true
+      return 1
+    case '--diff':
+      choose(parsed, { kind: 'diff', base: valueAfter(argv, index, flag) })
+      return 2
+    case '--root':
+      parsed.root = resolve(valueAfter(argv, index, flag))
+      return 2
+    default:
+      throw new Error(`认不出的参数 ${flag ?? ''}\n${USAGE}`)
   }
-  for (let index = 0; index < argv.length; index += 1) {
-    const flag = argv[index]
-    const value = argv[index + 1]
-    if (flag === '--write') choose({ kind: 'write' })
-    else if (flag === '--check') choose({ kind: 'check' })
-    else if (flag === '--json') json = true
-    else if ((flag === '--diff' || flag === '--root') && value !== undefined && value !== '') {
-      if (flag === '--diff') choose({ kind: 'diff', base: value })
-      else root = resolve(value)
-      index += 1
-    } else throw new Error(`认不出的参数 ${flag ?? ''}\n${USAGE}`)
-  }
-  if (action === undefined) throw new Error(USAGE)
-  return { action, json, root }
+}
+
+function parseArguments(argv: readonly string[]): Required<Arguments> {
+  const parsed: Arguments = { json: false, root: subjectRoot() }
+  for (let index = 0; index < argv.length;) index += readFlag(argv, index, parsed)
+  if (parsed.action === undefined) throw new Error(USAGE)
+  return { action: parsed.action, json: parsed.json, root: parsed.root }
 }
 
 function main(argv: readonly string[]): number {
@@ -81,5 +104,6 @@ try {
   process.exitCode = main(process.argv.slice(2))
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
+  if (error instanceof Error && error.cause instanceof Error) console.error(error.cause.message)
   process.exitCode = 2
 }

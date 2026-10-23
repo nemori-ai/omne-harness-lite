@@ -28,7 +28,13 @@ export interface DeclarationReport {
 
 const DECLARATION = /\.d\.[cm]?ts$/u
 
-function declarationsIn(directory: string): string[] {
+/** 成员的构建产物目录；`root` 应是真实路径，诊断与归属都按它前缀判断。 */
+export function distOf(root: string, member: string): string {
+  return join(root, member, 'dist')
+}
+
+/** 目录下全部声明文件，按名字排序、逐层展开。 */
+export function declarationsIn(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name))
     .flatMap(entry => {
@@ -42,7 +48,6 @@ function declarationsIn(directory: string): string[] {
  * 与成员构建同一套严格选项（仓库根 `tsconfig.base.json`），另外不跳过库检查、不产出。
  * 去掉仓库的 `customConditions`（现为 `source`）：消费者不带这些条件，成员之间的导入要解析到对方的 dist 声明。
  * 带着它们，导入会落到对方的 `src`，同一成员的 src 与 dist 同在程序里，模块扩充就被声明两次（TS2717）。
- * 契约 API 快照（`api-snapshot.ts`）用同一套选项读 dist。
  */
 export function consumerCompilerOptions(root: string): ts.CompilerOptions {
   const path = join(root, 'tsconfig.base.json')
@@ -74,7 +79,7 @@ export function checkDeclarations(root: string, memberPaths: readonly string[]):
   const dists: string[] = []
   const unbuilt: string[] = []
   for (const member of memberPaths) {
-    const dist = join(realRoot, member, 'dist')
+    const dist = distOf(realRoot, member)
     if (existsSync(dist)) dists.push(dist)
     else unbuilt.push(member)
   }

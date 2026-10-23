@@ -3,7 +3,13 @@
 import { copyFileSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { snapshotContracts } from '../../src/declarations/api-snapshot.ts'
+import { classifySnapshots } from '../../src/declarations/api-classify.ts'
+import type { ApiSnapshot } from '../../src/declarations/api-format.ts'
+import {
+  readContractMember,
+  readWorkingFile,
+  snapshotContracts,
+} from '../../src/declarations/api-snapshot.ts'
 import type { ContractApiConfig } from '../../src/declarations/contract-api.ts'
 import { temporaryDirectory } from './loop-canary/repository.ts'
 
@@ -78,14 +84,66 @@ export function setDist(
   for (const [file, text] of Object.entries(dist)) write(root, join(member, 'dist', file), text)
 }
 
-/** 单成员 `packages/x/a`（`@fixture/a`）的快照文本。 */
+/** 按目录读出检出里的契约成员；读不出时抛出。 */
+export function membersOf(root: string, directories: readonly string[]) {
+  return directories.map(directory => {
+    const outcome = readContractMember(readWorkingFile(root), directory)
+    if (outcome.kind === 'invalid') throw new Error(outcome.problem.message)
+    return outcome.member
+  })
+}
+
+/** 单成员 `packages/x/a`（`@fixture/a`）的快照模型。 */
 export function snapshotOf(
   dist: Readonly<Record<string, string>>,
   exports: Readonly<Record<string, string>> = { '.': 'index.d.ts' },
-): string {
+): ApiSnapshot {
   const root = contractCheckout({ 'packages/x/a': { name: '@fixture/a', exports, dist } })
-  const run = snapshotContracts(root, ['packages/x/a'])
-  const [snapshot] = run.snapshots
-  if (snapshot === undefined) throw new Error(JSON.stringify(run))
-  return snapshot.text
+  const [result] = snapshotContracts(root, membersOf(root, ['packages/x/a'])).results
+  if (result?.kind !== 'snapshot') throw new Error(JSON.stringify(result))
+  return result.snapshot
+}
+
+/** 外部包 `x`：成员 a 的依赖，不是契约成员。扩充它的 `Context`、`Events` 测对外扩充。 */
+export const EXTERNAL_X =
+  'export interface Context { base: string }\nexport interface Events { ready(): void }\nexport type KeysOf<T> = keyof T;\n'
+
+type Dist = Readonly<Record<string, string>>
+
+/** 成员 a（依赖外部包 x）的一侧：建检出并生成快照。 */
+function sideOf(dist: Dist, exports: Readonly<Record<string, string>>) {
+  const root = contractCheckout(
+    {
+      'packages/x/a': { name: '@fixture/a', exports, dist },
+      'packages/x/x': {
+        name: 'x',
+        exports: { '.': 'index.d.ts' },
+        dist: { 'index.d.ts': EXTERNAL_X },
+      },
+    },
+    ['packages/x/a'],
+  )
+  const [result] = snapshotContracts(root, membersOf(root, ['packages/x/a'])).results
+  if (result?.kind !== 'snapshot') throw new Error(JSON.stringify(result))
+  return { root, snapshot: result.snapshot }
+}
+
+/** 两份 dist 的分类：只给 `index.d.ts` 时可以直接传文本。 */
+export function classifyDists(
+  before: string | Dist,
+  after: string | Dist,
+  exports: {
+    before?: Readonly<Record<string, string>>
+    after?: Readonly<Record<string, string>>
+  } = {},
+) {
+  const dist = (value: string | Dist): Dist =>
+    typeof value === 'string' ? { 'index.d.ts': value } : value
+  const entry = { '.': 'index.d.ts' }
+  const old = sideOf(dist(before), exports.before ?? entry)
+  const next = sideOf(dist(after), exports.after ?? entry)
+  return classifySnapshots(old.snapshot, next.snapshot, {
+    root: next.root,
+    directory: 'packages/x/a',
+  })
 }

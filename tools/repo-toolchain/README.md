@@ -14,7 +14,7 @@ Three unpublished tool members import this package through its subpaths. This pa
 
 - The checked repository is `OMNE_SUBJECT_ROOT`. When it is not set, it is the Git root of the current directory.
 - The runner repository is `OMNE_RUNNER_ROOT`. When it is not set, it is the checked repository. Dependency rules (`.dependency-cruiser.cjs`, `tsconfig.base.json`) and configuration come only from the runner repository, so a checked tree cannot change them.
-- Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics`, `acceptanceLock` and `contractApi`. Each command reads only its own section. A missing file, a missing section that a command reads, or an unknown section is an error. No defaults apply. Version 0.0.10 is the first version that accepts `contractApi`. Earlier versions reject it, so the root configuration adds that section only after the pin moves to 0.0.10.
+- Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics`, `acceptanceLock` and `contractApi`. Each command reads only its own section. A missing file, a missing section that a command reads, or an unknown section is an error. No defaults apply. Version 0.0.10 is the first version that accepts the `contractApi` section. Earlier versions reject it.
 - dependency-cruiser needs TypeScript to parse `.ts` files. With pnpm, add `typescript` to dependency-cruiser under `packageExtensions` in `pnpm-workspace.yaml`. If TypeScript is not found, the dependency check exits with an error. It does not pass with the `.ts` files left out.
 
 ## Default baseline
@@ -54,7 +54,26 @@ The actual architecture extraction reads only the files of one revision. A packa
 
 ## Contract API snapshots
 
-`omne-contract-api` keeps one API snapshot file for each contract member. The contract members are the `contracts` entries of `docs/engineering/delivery-lines.json`. `--write` writes the snapshots from `dist`. `--check` compares them with `dist` and reports each difference. `--diff <base>` compares the snapshots at a base commit with the working tree and gives `none`, `additive` or `review` for each member. `--check` and `--diff` only report and exit 0. The `contractApi` configuration section gives the member list path and the snapshot path template. The snapshot lists each export entry, the unexported declarations that public declarations reference, and the module augmentations of the member. The class does not tell which side (writer or reader) a change breaks. See the Chinese README section "契约 API 快照" for the format and the class rules.
+`omne-contract-api` keeps one API snapshot file for each contract member. The contract members are the `contracts` entries of `docs/engineering/delivery-lines.json`. The behavior contract is in the [SPEC](src/declarations/SPEC.md).
+
+- `--write` writes the snapshots from `dist`. It does not write a member that has no `dist`, incomplete declarations or compile diagnostics.
+- `--check` compares each snapshot file with a snapshot that it makes from `dist` now, and reports each difference. With `--json`, it gives the SHA-256 of each snapshot file. The snapshot digest is this SHA-256 of the file bytes.
+- `--diff <base>` compares the snapshot files at a base commit with the snapshot files in the working tree. It gives `none`, `additive` or `review` for each member and reports which side a change breaks. It reads only the snapshot files, not `dist`, so run `--check` first. The member list is the union of the contract lists at the base and now. A member without a snapshot at the base counts as `additive`. To decide whether a change is additive, give the milestone baseline commit.
+- `--check` and `--diff` only report and exit 0. `--write` exits 1 when it cannot write a member. Errors exit 2.
+
+A snapshot has two parts: the names that each entry exports, and every declaration file of the member's `dist`, normalized by the TypeScript printer. The declaration files keep their imports, exports and module augmentations, so a snapshot can be restored to declarations that compile.
+
+The TypeScript checker decides the shape of a change. The tool restores the old and the new snapshot into one program and checks assignability in two directions for each export and each augmentation. New to old shows that existing readers still accept the new value. Old to new shows that existing writers (providers, doubles and implementers) still produce an accepted value. Both directions must hold for `additive`. If one direction fails, the result is `review`. The tool uses `@typescript/typescript6`, which repo-toolchain already depends on. It adds no new dependency.
+
+The tool does not use API Extractor, because API Extractor does not analyze ambient declarations. It drops every `declare module` and `declare global` augmentation, and the public surface of 8 of the 25 contract members is mostly augmentations.
+
+The `contractApi` configuration section has two keys. `members` is the path of the line table. `snapshot` is the snapshot path template. It ends with `.md` and contains `{member}` or `{package}`. Any other key, a missing key or a bad value is an error.
+
+`review` means that a person must decide. It includes changes that break the writer, the reader or both. It also includes changes that the additive-change table allows but that the tool cannot recognize. An example is a new member of a union that the contract declares open. `review` is not a level for the "契约变化" section of a PR. A person decides that level (none, additive or breaking) from the additive-change table in `docs/engineering/integration.md`.
+
+The tool reads only the shape of the declarations. It does not read behavior, documentation or runtime validation. It reports which side breaks, but it does not decide whether that break is acceptable. When the checker cannot decide, the result is `review`, so `review` results are more frequent than with a text comparison. A snapshot that matches `dist` shows only that the snapshot is current. It does not show that a change is additive.
+
+A card that changes the public surface of a contract member runs `--write` in the same PR. When the snapshot format version changes, all snapshots must be made again. See the Chinese README section "契约 API 快照" for the operating rules.
 
 ## Stop-hook revision reads
 

@@ -1,271 +1,217 @@
 // 契约 API 快照的差异粗分类：none、additive、review。
-// 只新增导出、只给接口或对象类型加可选成员是 additive；删除、改签名、加必填成员与其余一切改动是 review。
-// 这是粗分类：它不区分写方与读方（见 docs/engineering/integration.md「可加改动」），拿不准一律 review。
-import ts from '@typescript/typescript6'
-import { SECTION_AUGMENTATION, SECTION_INTERNAL } from './api-snapshot.ts'
+// 结构上的增删（入口、导出、整份快照、标注）在这里按规则定；同名导出与扩充的形状由检查器双向比较（api-compare.ts）：
+// 两向都可赋值是 additive（声明文本也相同时是 none），任一向不成立是 review。
+// 这是粗分类：review 的意思是「需要人判断」，不是 PR「契约变化」的级别。拿不准一律 review。
+import { compareSnapshots, type CompareTarget, type Verdict } from './api-compare.ts'
+import {
+  byCodeUnit,
+  renderSnapshot,
+  type ApiSnapshot,
+  type EntryExport,
+  type EntrySection,
+  type ExportOrigin,
+} from './api-format.ts'
+import { normalizedFiles } from './api-normalize.ts'
 
-export const API_CHANGES = ['none', 'additive', 'review'] as const
-export type ApiChange = (typeof API_CHANGES)[number]
+export type ApiChange = 'none' | 'additive' | 'review'
 
-export interface ItemDifference {
-  readonly section: string
-  /** 项的标题，例如 `` `Foo` ``；整份快照增删时为空串。 */
-  readonly item: string
-  readonly kind: 'added' | 'removed' | 'changed'
+const RANK: Readonly<Record<ApiChange, number>> = { none: 0, additive: 1, review: 2 }
+
+export function strongest(changes: readonly ApiChange[]): ApiChange {
+  return changes.reduce<ApiChange>((a, b) => (RANK[b] > RANK[a] ? b : a), 'none')
+}
+
+/** 差异落在哪里：整份快照、一个入口、入口里的一个导出，或一处对外扩充。 */
+export type DifferenceTarget =
+  | { readonly scope: 'snapshot' }
+  | { readonly scope: 'entry'; readonly entry: string }
+  | { readonly scope: 'export'; readonly entry: string; readonly name: string }
+  | { readonly scope: 'augmentation'; readonly target: string; readonly name: string }
+
+/**
+ * added／removed／changed：增删改；marked：导出标注变了（改名、仅类型、声明来源）；
+ * renamed：包名变了；missing：两边都没有快照；unresolved：还原的声明有编译诊断，检查器的结论不可信。
+ */
+export type DifferenceKind =
+  | 'added'
+  | 'removed'
+  | 'changed'
+  | 'marked'
+  | 'renamed'
+  | 'missing'
+  | 'unresolved'
+
+export interface Difference {
+  readonly target: DifferenceTarget
+  readonly kind: DifferenceKind
   readonly change: Exclude<ApiChange, 'none'>
+  /** 检查器比较过时：新值能否交给旧读方、旧写方的值能否被新声明接受。 */
+  readonly readers?: boolean
+  readonly writers?: boolean
+  readonly notes?: readonly string[]
 }
 
 export interface SnapshotDifference {
   readonly change: ApiChange
-  readonly items: readonly ItemDifference[]
+  readonly differences: readonly Difference[]
 }
 
-interface Item {
-  /** `###` 一行里名字之后的标注（改名、仅类型）。 */
-  readonly heading: string
-  readonly code: string
+/** 检查器还原声明要用的位置：外部包从检出根解析。 */
+export interface ClassifyContext {
+  readonly root: string
+  readonly directory: string
 }
 
-type Sections = Map<string, Map<string, Item>>
-
-export function strongest(changes: readonly ApiChange[]): ApiChange {
-  return changes.reduce<ApiChange>(
-    (a, b) => (API_CHANGES.indexOf(b) > API_CHANGES.indexOf(a) ? b : a),
-    'none',
-  )
+function result(differences: readonly Difference[]): SnapshotDifference {
+  return { change: strongest(differences.map(item => item.change)), differences }
 }
 
-/** 读回 `api-snapshot.ts` 写出的快照：`##` 是节，`###` 是项，项的正文是一个 ts 代码块。 */
-export function parseSnapshot(text: string): Sections {
-  const sections: Sections = new Map()
-  let section: Map<string, Item> | undefined
-  let item: { name: string; heading: string; code: string[] } | undefined
-  let inCode = false
-  const close = () => {
-    if (item !== undefined && section !== undefined)
-      section.set(item.name, { heading: item.heading, code: item.code.join('\n') })
-    item = undefined
-  }
-  for (const line of text.split('\n')) {
-    if (inCode) {
-      if (line === '```') inCode = false
-      else item?.code.push(line)
-      continue
-    }
-    if (line.startsWith('## ')) {
-      close()
-      section = new Map()
-      sections.set(line.slice(3), section)
-    } else if (line.startsWith('### ')) {
-      close()
-      const heading = line.slice(4)
-      const name = /^`[^`]*`( · \S+)?/u.exec(heading)?.[0] ?? heading
-      item = { name, heading: heading.slice(name.length), code: [] }
-    } else if (line === '```ts') inCode = true
-  }
-  close()
-  return sections
-}
+const WHOLE = { scope: 'snapshot' } as const
 
-const isAugmentation = (section: string) => section.startsWith(SECTION_AUGMENTATION + ' ')
-
-/** 比较两份快照；`before` 或 `after` 缺失表示那一侧没有快照文件。 */
+/** 比较两份快照；`undefined` 表示那一侧没有快照。两侧都没有是 review：没有可比的东西，不能当作没变。 */
 export function classifySnapshots(
-  before: string | undefined,
-  after: string | undefined,
+  before: ApiSnapshot | undefined,
+  after: ApiSnapshot | undefined,
+  context: ClassifyContext,
 ): SnapshotDifference {
-  if (before === undefined && after === undefined) return { change: 'none', items: [] }
-  if (before === undefined)
-    return {
+  if (before === undefined && after === undefined)
+    return result([{ target: WHOLE, kind: 'missing', change: 'review' }])
+  if (before === undefined) return result([{ target: WHOLE, kind: 'added', change: 'additive' }])
+  if (after === undefined) return result([{ target: WHOLE, kind: 'removed', change: 'review' }])
+  const renamed: Difference[] =
+    before.packageName === after.packageName
+      ? []
+      : [{ target: WHOLE, kind: 'renamed', change: 'review' }]
+  if (renderSnapshot(before) === renderSnapshot({ ...after, packageName: before.packageName }))
+    return result(renamed)
+  const structure = compareEntries(before, after)
+  const checked = compareShapes(before, after, structure.common, context)
+  const differences = [...renamed, ...structure.differences, ...checked]
+  if (strongest(differences.map(item => item.change)) === 'none' && changedText(before, after))
+    differences.push({
+      target: WHOLE,
+      kind: 'changed',
       change: 'additive',
-      items: [{ section: '', item: '', kind: 'added', change: 'additive' }],
-    }
-  if (after === undefined)
-    return {
+      notes: ['声明有变化，检查器没有发现不兼容'],
+    })
+  return result(differences)
+}
+
+/** 参数改名、注释与布局之外的声明变化。 */
+function changedText(before: ApiSnapshot, after: ApiSnapshot): boolean {
+  const a = normalizedFiles(before.files)
+  const b = normalizedFiles(after.files)
+  return a.size !== b.size || [...a].some(([path, text]) => b.get(path) !== text)
+}
+
+interface Structure {
+  readonly differences: Difference[]
+  /** 两侧都有、标注也相同的导出：交给检查器比形状。 */
+  readonly common: { entry: string; name: string }[]
+}
+
+function compareEntries(before: ApiSnapshot, after: ApiSnapshot): Structure {
+  const structure: Structure = { differences: [], common: [] }
+  const old = new Map(before.entries.map(entry => [entry.subpath, entry]))
+  const next = new Map(after.entries.map(entry => [entry.subpath, entry]))
+  for (const subpath of [...new Set([...old.keys(), ...next.keys()])].sort(byCodeUnit)) {
+    const a = old.get(subpath)
+    const b = next.get(subpath)
+    if (a !== undefined && b !== undefined) compareExports(structure, a, b)
+    else if (a !== undefined)
+      structure.differences.push({
+        target: { scope: 'entry', entry: subpath },
+        kind: 'removed',
+        change: 'review',
+      })
+    else
+      structure.differences.push({
+        target: { scope: 'entry', entry: subpath },
+        kind: 'added',
+        change: 'additive',
+      })
+  }
+  return structure
+}
+
+function compareExports(structure: Structure, before: EntrySection, after: EntrySection): void {
+  const old = new Map(before.exports.map(item => [item.name, item]))
+  const next = new Map(after.exports.map(item => [item.name, item]))
+  for (const name of [...new Set([...old.keys(), ...next.keys()])].sort(byCodeUnit)) {
+    const a = old.get(name)
+    const b = next.get(name)
+    const target = { scope: 'export', entry: after.subpath, name } as const
+    if (a === undefined) structure.differences.push({ target, kind: 'added', change: 'additive' })
+    else if (b === undefined)
+      structure.differences.push({ target, kind: 'removed', change: 'review' })
+    else if (!sameMarks(a, b))
+      structure.differences.push({ target, kind: 'marked', change: 'review' })
+    else if (b.origin.kind !== 'package') structure.common.push({ entry: after.subpath, name })
+  }
+}
+
+/** 标注相同：改名、仅类型一致，来源同为本成员（文件可以挪动）或同一个外部包。 */
+function sameMarks(a: EntryExport, b: EntryExport): boolean {
+  if (a.typeOnly !== b.typeOnly || a.renamedFrom !== b.renamedFrom) return false
+  return sameOrigin(a.origin, b.origin)
+}
+
+function sameOrigin(a: ExportOrigin, b: ExportOrigin): boolean {
+  if (a.kind === 'package' && b.kind === 'package') return a.name === b.name
+  return a.kind === b.kind
+}
+
+function compareShapes(
+  before: ApiSnapshot,
+  after: ApiSnapshot,
+  exports: readonly { entry: string; name: string }[],
+  context: ClassifyContext,
+): Difference[] {
+  const comparison = compareSnapshots({
+    root: context.root,
+    directory: context.directory,
+    before,
+    after,
+    exports,
+  })
+  const differences = comparison.verdicts.flatMap(verdictDifference)
+  if (comparison.problems.length > 0)
+    differences.push({
+      target: WHOLE,
+      kind: 'unresolved',
       change: 'review',
-      items: [{ section: '', item: '', kind: 'removed', change: 'review' }],
+      notes: comparison.problems,
+    })
+  return differences
+}
+
+function differenceTarget(target: CompareTarget): DifferenceTarget {
+  switch (target.kind) {
+    case 'export':
+      return { scope: 'export', entry: target.entry, name: target.name }
+    case 'augmentation':
+      return { scope: 'augmentation', target: target.target, name: target.name }
+    default: {
+      const _exhaustive: never = target
+      return _exhaustive
     }
-  const old = parseSnapshot(before)
-  const next = parseSnapshot(after)
-  const items: ItemDifference[] = []
-  const titles = [...new Set([...old.keys(), ...next.keys()])].sort()
-  for (const title of titles) {
-    const a = old.get(title) ?? new Map<string, Item>()
-    const b = next.get(title) ?? new Map<string, Item>()
-    for (const name of [...new Set([...a.keys(), ...b.keys()])].sort()) {
-      const difference = classifyItem(title, a.get(name), b.get(name))
-      if (difference !== undefined) items.push({ section: title, item: name, ...difference })
-    }
   }
-  return { change: strongest(items.map(item => item.change)), items }
 }
 
-function classifyItem(
-  section: string,
-  before: Item | undefined,
-  after: Item | undefined,
-): Pick<ItemDifference, 'kind' | 'change'> | undefined {
-  if (before === undefined && after === undefined) return undefined
-  if (after === undefined) {
-    // 内部引用消失：要么引用它的公开声明变了（那一项另有分类），要么它改成了导出。
-    return { kind: 'removed', change: section === SECTION_INTERNAL ? 'additive' : 'review' }
+function verdictDifference(verdict: Verdict): Difference[] {
+  const compatible = verdict.readers && verdict.writers
+  if (compatible && verdict.same) return []
+  const detail = {
+    readers: verdict.readers,
+    writers: verdict.writers,
+    ...(verdict.notes.length > 0 ? { notes: verdict.notes } : {}),
   }
-  if (before === undefined) {
-    // 扩充一个别人的接口，就是给它加成员：按与空接口的差异分类。
-    if (!isAugmentation(section)) return { kind: 'added', change: 'additive' }
-    const change = compareCode(emptyLike(after.code), after.code)
-    return change === 'none' ? undefined : { kind: 'added', change }
-  }
-  if (before.heading !== after.heading) return { kind: 'changed', change: 'review' }
-  const change = compareCode(before.code, after.code)
-  return change === 'none' ? undefined : { kind: 'changed', change }
-}
-
-/** 同头的空接口；不是接口时没有可比的空形状，返回空文本（于是任何内容都算新增语句）。 */
-function emptyLike(code: string): string {
-  const head = /^interface [^{]*\{/u.exec(code)?.[0]
-  return head === undefined ? '' : `${head}\n}`
-}
-
-const printer = ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed })
-
-function parse(code: string): ts.SourceFile {
-  return ts.createSourceFile('item.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-}
-
-/** 结构比较两段声明文本。 */
-export function compareCode(before: string, after: string): ApiChange {
-  const a = parse(before)
-  const b = parse(after)
-  if (print(a) === print(b)) return 'none'
-  return compareLists(a.statements, b.statements, statementKey)
-}
-
-function print(node: ts.Node): string {
-  return printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile())
-}
-
-function compareNodes(a: ts.Node, b: ts.Node): ApiChange {
-  if (print(a) === print(b)) return 'none'
-  if (a.kind !== b.kind) return 'review'
-  if (ts.isInterfaceDeclaration(a) && ts.isInterfaceDeclaration(b)) {
-    if (interfaceHead(a) !== interfaceHead(b)) return 'review'
-    return compareLists(a.members, b.members, memberKey)
-  }
-  if (ts.isTypeLiteralNode(a) && ts.isTypeLiteralNode(b))
-    return compareLists(a.members, b.members, memberKey)
-  const left = children(a)
-  const right = children(b)
-  // 叶子（名字、字面量、关键字）文本不同，或子结构的个数不同（例如多了 `?`、少了参数）。
-  if (left.length === 0 || left.length !== right.length) return 'review'
-  return strongest(
-    left.map((slot, index) => {
-      const other = right[index]
-      if (other === undefined || other.kind !== slot.kind) return 'review'
-      if (slot.kind === 'node' && other.kind === 'node') return compareNodes(slot.node, other.node)
-      if (slot.kind === 'list' && other.kind === 'list') {
-        if (slot.nodes.length !== other.nodes.length) return 'review'
-        return strongest(
-          slot.nodes.map((node, at) => {
-            const peer = other.nodes[at]
-            return peer === undefined ? 'review' : compareNodes(node, peer)
-          }),
-        )
-      }
-      return 'review'
-    }),
-  )
-}
-
-type Slot =
-  | { readonly kind: 'node'; readonly node: ts.Node }
-  | { readonly kind: 'list'; readonly nodes: readonly ts.Node[] }
-
-function children(node: ts.Node): Slot[] {
-  const slots: Slot[] = []
-  ts.forEachChild(
-    node,
-    child => {
-      slots.push({ kind: 'node', node: child })
+  return [
+    {
+      target: differenceTarget(verdict.target),
+      kind: 'changed',
+      change: compatible ? 'additive' : 'review',
+      ...detail,
     },
-    list => {
-      slots.push({ kind: 'list', nodes: [...list] })
-    },
-  )
-  return slots
-}
-
-function interfaceHead(node: ts.InterfaceDeclaration): string {
-  const source = node.getSourceFile()
-  const typeParameters = (node.typeParameters ?? []).map(p =>
-    printer.printNode(ts.EmitHint.Unspecified, p, source),
-  )
-  const heritage = (node.heritageClauses ?? []).map(c =>
-    printer.printNode(ts.EmitHint.Unspecified, c, source),
-  )
-  return `${node.name.text}<${typeParameters.join(',')}>${heritage.join(' ')}`
-}
-
-/**
- * 按键对齐两组成员或语句：删掉的键是 review；新增的键只有全部是可选成员时是 additive；
- * 同键各一个时递归比较；同键多个（重载）时按顺序比较文本，重载的先后影响解析，有出入即 review。
- */
-function compareLists(
-  before: readonly ts.Node[],
-  after: readonly ts.Node[],
-  key: (node: ts.Node) => string,
-): ApiChange {
-  const group = (nodes: readonly ts.Node[]) => {
-    const groups = new Map<string, ts.Node[]>()
-    for (const node of nodes) groups.set(key(node), [...(groups.get(key(node)) ?? []), node])
-    return groups
-  }
-  const old = group(before)
-  const next = group(after)
-  const changes: ApiChange[] = []
-  for (const [name, nodes] of old) if (!next.has(name) && nodes.length > 0) changes.push('review')
-  for (const [name, nodes] of next) {
-    const previous = old.get(name)
-    if (previous === undefined) {
-      changes.push(nodes.every(isOptionalMember) ? 'additive' : 'review')
-      continue
-    }
-    const [single] = previous
-    const [peer] = nodes
-    if (previous.length === 1 && nodes.length === 1 && single !== undefined && peer !== undefined) {
-      changes.push(compareNodes(single, peer))
-      continue
-    }
-    const texts = (list: readonly ts.Node[]) => list.map(print).join('\n\u0000')
-    changes.push(texts(previous) === texts(nodes) ? 'none' : 'review')
-  }
-  return strongest(changes)
-}
-
-function isOptionalMember(node: ts.Node): boolean {
-  return (
-    (ts.isPropertySignature(node) || ts.isMethodSignature(node)) && node.questionToken !== undefined
-  )
-}
-
-function memberKey(node: ts.Node): string {
-  if (ts.isPropertySignature(node) || ts.isMethodSignature(node))
-    return `member:${propertyName(node.name)}`
-  if (ts.isIndexSignatureDeclaration(node))
-    return `index:${node.parameters.map(p => (p.type === undefined ? '' : print(p.type))).join(',')}`
-  return ts.SyntaxKind[node.kind]
-}
-
-function propertyName(name: ts.PropertyName): string {
-  if (ts.isIdentifier(name) || ts.isPrivateIdentifier(name)) return name.text
-  if (ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text
-  return print(name)
-}
-
-function statementKey(node: ts.Node): string {
-  const named: ts.Node & { readonly name?: ts.Node } = node
-  const name = named.name !== undefined && ts.isIdentifier(named.name) ? named.name.text : ''
-  if (ts.isVariableStatement(node))
-    return `variable:${node.declarationList.declarations.map(d => d.name.getText()).join(',')}`
-  return `${ts.SyntaxKind[node.kind]}:${name}`
+  ]
 }

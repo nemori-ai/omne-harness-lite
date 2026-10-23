@@ -14,7 +14,7 @@
 
 - 被检查的仓库取 `OMNE_SUBJECT_ROOT`，未设置时取当前目录所在 Git 仓库的根。
 - 运行检查器的仓库取 `OMNE_RUNNER_ROOT`，未设置时与被检查的仓库相同。依赖规则（`.dependency-cruiser.cjs`、`tsconfig.base.json`）与配置只从这个仓库读，被检查的检出改不了它们。
-- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，可有 `loop`、`metrics`、`acceptanceLock`、`contractApi` 四节，每个命令只读自己的那一节。缺文件、缺所读的节或有认不出的节时报错，不使用默认值。`contractApi` 从 0.0.10 起才认得，0.0.9 及更早的版本见到它会报错，所以根配置在钉子升到 0.0.10 之后才加这一节。
+- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，可有 `loop`、`metrics`、`acceptanceLock`、`contractApi` 四节，每个命令只读自己的那一节。缺文件、缺所读的节或有认不出的节时报错，不使用默认值。`contractApi` 一节从 0.0.10 起认得，更早的版本见到它会报错。
 - dependency-cruiser 需要 TypeScript 才能解析 `.ts`。用 pnpm 安装时，在 `pnpm-workspace.yaml` 的 `packageExtensions` 里给 dependency-cruiser 加上 `typescript`。找不到 TypeScript 时，依赖图检查报错退出，不会在漏掉 `.ts` 的情况下通过。
 
 ## 包内分层
@@ -592,37 +592,45 @@ pnpm run loop:health # --out 可改产物目录
 
 ## 契约 API 快照
 
-契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把相对基线的差异粗分为 `none`、`additive` 与 `review`。它只报告，不拦截。
+契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
 
 ```sh
-omne-contract-api --write                 # 从 dist 重写全部快照（先构建）
+omne-contract-api --write                 # 从 dist 重写快照（先构建）
 omne-contract-api --check                 # 拿 dist 现场生成的快照与快照文件比
 omne-contract-api --diff <基线提交或分支>   # 基线提交上的快照对工作树的快照，逐成员粗分类
 ```
 
-三个动作都可加 `--json`，把结果按 JSON 写到标准输出；`--root <检出目录>` 指定被检查的检出。
+三个动作都可加 `--json`，把结果按 JSON 写到标准输出。`--root <检出目录>` 指定被检查的检出。
 
-- 配置：`repo-toolchain.config.json` 的 `contractApi` 一节有两个键。`members` 是线归属表的路径。`snapshot` 是快照路径模板，`{member}` 换成成员目录，`{package}` 换成不带 scope 的包名。本仓库取 `{member}/api/{package}.api.md`。两个成员落到同一路径时报错。
-- 读法：与[声明兼容](#声明兼容)用同一个 TypeScript 6 程序与选项，按消费者视角读 dist，`src` 不进程序。成员的每个 `exports` 子路径取 `types` 条件指向的声明文件。
-- 快照内容：每个入口一节，导出符号按名字的码位排序，每个符号一个 ts 代码块。声明经 TypeScript 打印器规范化，注释、空白与顶层的 `export`、`declare` 不进快照。改名导出写成 `` `新名` = `原名` ``，只能当类型用的值标「仅类型」。转导出别的包的声明只写一行 `export { X } from '<包名>'`，不抄对方的声明。
-- 内部引用：公开声明引用到、却没有从任何入口导出的本成员声明，列在「内部引用」一节，它们的形状同样属于公开面。
-- 模块扩充：本成员的 `declare module '…'` 与 `declare global` 按目标分节，同名接口合并成一项。相对目标写成成员 dist 内的路径，例如 `./facility.ts`。别的成员写进来的扩充不进本成员的快照，归写它的成员。
-- 确定性：同一份 dist 两次生成的字节相同。快照只取决于成员自己的声明，与一起生成的其他成员无关。
-- 状态：`--check` 对每个成员报告一致、不一致、没有快照文件、没有 dist 或声明不全。不一致时按下面的规则列出快照到 dist 的差异。`--write` 不写没有 dist 的成员。
+配置在 `repo-toolchain.config.json` 的 `contractApi` 一节，有两个键：
 
-粗分类按项比较两份快照。一项是一个节里的一个符号或扩充的接口：
+- `members`：线归属表的路径。
+- `snapshot`：快照路径模板，以 `.md` 结尾，至少含 `{member}`（成员目录）或 `{package}`（不带 scope 的包名）之一。
 
-| 差异 | 分类 |
-| --- | --- |
-| 新增导出、新增入口、新增整份快照 | `additive` |
-| 接口或对象类型只加了可选成员（`a?:`、`m?()`），嵌套的对象类型同样 | `additive` |
-| 只有注释、空白或声明顺序不同 | `none` |
-| 删除导出、入口或整份快照 | `review` |
-| 改签名、改类型、改字面量、加必填成员、可选改必填或必填改可选、给联合加成员、重载改顺序 | `review` |
-| 改名或「仅类型」标注变化 | `review` |
-| 模块扩充新增一个接口：按与空接口的差异分类，只有可选成员时是 `additive` | 视成员 |
-| 内部引用的项新增或消失：引用它的公开声明另有分类 | `additive` |
+这一节有别的键、缺键或值不合条件时，命令报错退出。两个成员算出同一个快照路径时，命令也报错退出。
 
-退出码：`--check` 与 `--diff` 有发现也退出 0。`--write` 有成员没写成时退出 1。用法、配置、基线或工具出错时退出 2。
+读法与[声明兼容](#声明兼容)用同一套 TypeScript 6 选项，另建一个程序，按消费者视角读 dist。成员 dist 有编译诊断时，不生成它的快照。
 
-它**不能声称**的：粗分类不区分写方与读方，「可加改动」表里只破坏一方的改动它一律报 `review`，由人判断方向。它只看声明的形状，不看行为、文档或运行时校验；转导出的别的包的声明变化归那个包的快照。快照与 dist 一致只说明快照是最新的，不说明改动可加。自测：`tests/contract-api-snapshot.spec.ts`、`tests/contract-api-classify.spec.ts`、`tests/contract-api-cli.spec.ts`。
+快照分两部分：每个入口导出的名字（写明声明在哪个文件或哪个外部包），以及成员 dist 里经打印器规范化的全部声明文件。声明文件保留导入、导出与模块扩充，所以快照能还原成一组能编译的声明。
+
+分类的形状判断交给 TypeScript 检查器：把新旧两份快照还原进同一个程序，对每个导出与对外扩充比两个方向的可赋值性。新 → 旧成立表示读方不破坏，旧 → 新成立表示写方（提供者、替身、实现者）不破坏。两个方向都成立是 `additive`，任一方向不成立是 `review`，报告写明哪个方向破坏。它用的是 repo-toolchain 已有的 `@typescript/typescript6`，不加新依赖。规则与归一化见 [SPEC](src/declarations/SPEC.md#分类)。
+
+不用 API Extractor 的理由：它不分析 ambient 声明，`declare module` 与 `declare global` 的扩充在它的报告里全部缺失，而 25 个契约成员里有 8 个的公开面主要是这类扩充。探路与复核的结论记在卡 #645 的评论里。
+
+操作要求：
+
+- 改了契约成员公开面的卡，在同一个 PR 里构建并运行 `--write`，把快照的变化一起提交。`--check` 报不一致时，先判断改动是否有意。
+- 本工具改了快照格式（格式版本变了）时，全部快照要重新生成。
+- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/integration.md#里程碑内的规则)。
+
+`--diff` 的前提：
+
+- 它只比快照文件，不读 dist。先用 `--check` 确认工作树的快照与 dist 一致，或先运行 `--write`。
+- 成员取基线与当前两份线归属表的并集，每侧的快照路径按那一侧的包名算。基线上没有快照的成员整份算 `additive`。
+- 判断改动是否可加时，传里程碑登记的基线提交。
+
+快照摘要是快照文件字节的 SHA-256。`--check --json` 对每个有快照文件的成员给出 `sha256`。
+
+`review` 不是 PR「契约变化」一节的级别。它包括两方都破坏的改动、只破坏一方的改动，也包括按「可加改动」表不破坏、但本工具认不出的改动（例如契约声明开放的联合加成员）。PR 的 none、additive 或 breaking 由人按「可加改动」表判定。
+
+它**不能声称**的：它报出读方与写方两个方向，但不判定哪个方向的破坏可以接受。检查器法失败关闭，拿不准时给 `review`，所以 `review` 会比只比文本时多。它只看声明的形状，不看行为、文档或运行时校验。转导出的别的包的声明变化归那个包的快照。快照与 dist 一致只说明快照是最新的，不说明改动可加。其余限制见 [SPEC](src/declarations/SPEC.md#已知限制)。
