@@ -19,7 +19,7 @@
 - 正文取自 Node 的 `http.client.response.finish` 诊断通道。[support/body-tap.ts](support/body-tap.ts) 只包装目标请求那一个响应的 `push`，所以写下的是 Node 去掉分块编码之后交给响应流的字节。录制器不改装配，也不改传输。
 - 录制器不写请求头、响应头与请求体。旁注 `recording.json` 只有 `model`、`payloadDigest` 与 `recordedAt`。`payloadDigest` 取自物化回执，是请求体的 SHA-256。
 - 写入之前，[support/secret-scan.ts](support/secret-scan.ts) 检查正文与旁注。命中任一密钥模式时，录制器不写任何文件，拒绝结果只给出模式名。AWS 模式按访问密钥 ID 的完整格式匹配，因为单独的前缀会在加密推理状态的 base64 中偶然出现。
-- 以下情形同样不写文件：状态不是 200，目标响应不是恰好一个，调用没有收场，发出记录不是恰好一个，终止不是恰好一个，或要求推理状态的用例回复里没有推理状态。录制目录已经存在时，录制器在发送之前拒绝，不覆盖已有录制。
+- 以下情形同样不写文件：状态不是 200，目标响应不是恰好一个，调用没有收场（拒绝结果给出失败的种类，不含细节），发出记录不是恰好一个，终止不是恰好一个，或要求推理状态的用例回复里没有推理状态。录制目录已经存在时，录制器在发送之前拒绝，不覆盖已有录制。
 - 两个文件先写进同级的私有目录，再整体改名，所以录制目录要么完整，要么不存在。
 
 [support/recording-cases.ts](support/recording-cases.ts) 定义四个用例：两家各一个带推理状态的首轮（`openai-reasoning` 用 `openai/gpt-5.6-sol`，`anthropic-reasoning` 用 `anthropic/claude-sonnet-5`），以及两家各一个延续首轮的第二轮（`*-reasoning-continued`）。第二轮的请求由三部分组成：首轮请求、首轮回复与下一个问题。首轮回复不随录制保存。录制器在本机起 HTTPS 服务，把首轮录制的正文经同一条装配路径回放并读出回复。回放的请求体摘要必须等于首轮旁注的 `payloadDigest`，否则录制器拒绝。

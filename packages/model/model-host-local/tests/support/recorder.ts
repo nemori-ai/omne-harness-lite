@@ -6,7 +6,7 @@
 // the note pass the key pattern check; any finding, or any condition below, writes nothing.
 import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { FixedModelRequest, TransportFact } from '@omne-harness/model-contract'
+import type { FixedModelRequest, ModelFailure, TransportFact } from '@omne-harness/model-contract'
 import { tapResponseBodies } from './body-tap.ts'
 import { assembleLocalHost, decoded, ROUTE_PATH, type Gateway } from './local-host.ts'
 import { RECORDING_FILES, type RecordingNote } from './recording-cases.ts'
@@ -21,7 +21,8 @@ export type RecordRefusal =
   | Readonly<{ kind: 'status'; status: number }>
   | Readonly<{ kind: 'body-not-bytes' }>
   | Readonly<{ kind: 'empty-body' }>
-  | Readonly<{ kind: 'not-settled' }>
+  /** The call did not settle. `failure` is the kind of the drive's failure, without its details. */
+  | Readonly<{ kind: 'not-settled'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'dispatches'; count: number }>
   | Readonly<{ kind: 'no-receipt' }>
   | Readonly<{ kind: 'terminations'; count: number }>
@@ -86,7 +87,7 @@ export async function recordRound(input: RecordInput): Promise<RecordOutcome> {
   if (response.foreign()) return refused({ kind: 'body-not-bytes' })
   const body = response.body()
   if (body.byteLength === 0) return refused({ kind: 'empty-body' })
-  if (!('ok' in driven)) return refused({ kind: 'not-settled' })
+  if (!('ok' in driven)) return refused({ kind: 'not-settled', failure: driven.failure.kind })
   const records = decoded(dispatches)
   const [record] = records
   if (record === undefined || records.length > 1)
