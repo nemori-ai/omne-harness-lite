@@ -254,6 +254,8 @@ acquire 核型号、接收方、route 和所有采用相容后，一次交付完
 
 `acquire` 是提供者内部的绑定取得，不增加传输阶段。`ModelTransport` 继续按领域契约执行 `prepare → materialize → start`。
 
+绑定的 `replayFormat` 是本次发出产出的回放格式。物化回执原样带上它，供 Commands 收场时组成消息。家族记录没有回放格式时，`replayFormat` 为 `null`，回执不带该项。
+
 `PiFamilyBinding.release` 只有在本次资源确已释放后才成功返回。资源清理失败时拒绝该 Promise，不吞掉失败或标记释放完成；持有绑定的装配拥有者继续负责未完成的清理。向 `ModelPreparationResources` 提供租约时，该拥有者捕获预期的清理失败，转换为既定的 `unavailable` 结果，`dependency` 指明资源提供者，诊断不含私有内容。租约重复释放返回同一结果，后续清理仍由提供者负责，遵守[准备资源的释放协议](../model-contract/SPEC.md#档案和准备提供者的组合协议)。这不改变领域契约的失败形状。
 
 rules、tools 和 encode 是纯计算，不读环境、秘密、网络或文件。encode 使用已固定的表示、合法物化媒体、请求中该供应商的回放声明（`declaration`，取 `request.declarations` 中与该供应商同序的一项）和本次发出的再发略去集合（`resent`，取 `prepare` 的第三个参数），只返回请求 body 的 JsonValue、相应物化计量表示和本次编码的诊断（`diagnostics`：回放略去），不返回 URL、headers 或重定向命令。公共传输在发出之后、解码器的事实之前，把这些诊断逐条作为 `diagnostic` 事实交出。传输侧提供已核验的媒体计量事实；family 形成其固定 schema 的 tokenInput，公共传输以实际序列化字节核 representation.requestBytes。传输与发送路径都不计量预算；预算由请求组装方在请求前计量，最终是否超限以上游响应为准。bytes 由传输暂借，家族不能保留或修改；后续原生库需要复制时，该副本归本次编码操作并受同一配额及清理约束。公共传输核返回体与已固定参数、工具声明和表示相容，完成序列化及摘要后密封发送对象。不得悄悄删工具、改历史或重新压图。
