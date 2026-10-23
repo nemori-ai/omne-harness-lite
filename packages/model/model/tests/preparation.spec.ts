@@ -162,19 +162,23 @@ type StubFamily = {
   readonly released: number
   failRelease: boolean
   acquireFailures: number
+  /** When true, the meter breaks its contract: it does not report the anchor it was handed. */
+  silent: boolean
 }
 
 function stubFamily(): StubFamily {
   const calibrations: MeterCalibration[] = []
   const given: PreparationBinding[] = []
-  const state = { released: 0, failRelease: false, acquireFailures: 0 }
+  const state = { released: 0, failRelease: false, acquireFailures: 0, silent: false }
   const budgetOf = (calibration: MeterCalibration): Outcome<RequestBudget, never> => ({
     ok: {
       kind: 'complete',
       inputDigest: 'stub',
       checks: [],
       counting: [basis],
-      ...(calibration.anchor === null ? {} : { calibration: { anchor: { kind: 'hit' } } }),
+      ...(calibration.anchor === null || state.silent
+        ? {}
+        : { calibration: { anchor: { kind: 'hit' } } }),
     },
   })
   const meter: CalibratedInputMeter = {
@@ -236,6 +240,12 @@ function stubFamily(): StubFamily {
     },
     set acquireFailures(value: number) {
       state.acquireFailures = value
+    },
+    get silent() {
+      return state.silent
+    },
+    set silent(value: boolean) {
+      state.silent = value
     },
   }
 }
@@ -513,6 +523,27 @@ describe('a lease over the real memory Commands', () => {
       { anchor: { covered: ids(requestWith(two)), inputTotal: '123' }, outputs: [] },
     ])
     await lease.release()
+  })
+
+  it('throws a TypeError that names the supplier when the family meter does not report the anchor it was handed', async () => {
+    const f = fixture()
+    const { commands } = createMemoryModelCommands(f.options)
+    await settledCall(f, commands, X, requestWith(two), accountFact)
+    const family = stubFamily()
+    family.silent = true
+    const lease = await acquire({ commands, bindings: family.bindings }, f.admit, { continues: X })
+    const supplierName = `${adoption.owner}/${adoption.name}@${adoption.revision}`
+    expect(() => measureWith(lease, requestWith(three))).toThrow(TypeError)
+    expect(() => measureWith(lease, requestWith(three))).toThrow(supplierName)
+    await lease.release()
+    // Without a handed anchor the family has nothing to report: the miss of the lease stands.
+    const missed = await acquire({ commands, bindings: family.bindings }, f.admit, {
+      continues: callId('missing'),
+    })
+    expect(reportOf(measureWith(missed, requestWith(three)))).toEqual({
+      anchor: { kind: 'miss', reason: 'call-unreadable' },
+    })
+    await missed.release()
   })
 
   it('still hits after X was acknowledged and its request material released', async () => {
@@ -950,6 +981,87 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
       failure: { kind: 'unavailable', dependency: 'stub-family', diagnostic: 'down' },
     })
     expect(family.given).toHaveLength(1)
+    expect(family.released).toBe(1)
+  })
+
+  it('gives back the bindings it acquired when the supplier port, the binding source or the store throws', async () => {
+    const wide: ModelProfile = {
+      ...profile,
+      definition: { ...profile.definition, suppliers: [profileSupplier, profileSupplier] },
+    }
+    const defect = new Error('program defect')
+    const throwingSupplier = stubFamily()
+    let ports = 0
+    const second = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: throwingSupplier.bindings,
+      supplierOf: input => {
+        ports += 1
+        if (ports === 2) throw defect
+        return supplierOf(input)
+      },
+      maxCitedCalls: 2,
+    })
+    await expect(second.acquire({ ...f.admit, profile: wide })).rejects.toBe(defect)
+    expect(throwingSupplier.given).toHaveLength(1)
+    expect(throwingSupplier.released).toBe(1)
+
+    const throwingSource = stubFamily()
+    const source = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: {
+        acquire: async (supplier, signal) => {
+          if (throwingSource.given.length === 1) throw defect
+          return throwingSource.bindings.acquire(supplier, signal)
+        },
+      },
+      supplierOf,
+      maxCitedCalls: 2,
+    })
+    await expect(source.acquire({ ...f.admit, profile: wide })).rejects.toBe(defect)
+    expect(throwingSource.released).toBe(1)
+
+    const throwingStore = stubFamily()
+    const store = createModelPreparationResources<Principal>({
+      commands: {
+        dispatches: () => {
+          throw defect
+        },
+      },
+      bindings: throwingStore.bindings,
+      supplierOf,
+      maxCitedCalls: 2,
+    })
+    await expect(store.acquire({ ...f.admit, profile, lineage: { continues: X } })).rejects.toBe(
+      defect,
+    )
+    expect(throwingStore.released).toBe(1)
+  })
+
+  it('returns the failure that stopped the acquire even when giving a binding back fails', async () => {
+    const family = stubFamily()
+    family.failRelease = true
+    const wide: ModelProfile = {
+      ...profile,
+      definition: { ...profile.definition, suppliers: [profileSupplier, profileSupplier] },
+    }
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: {
+        acquire: async (supplier, signal) => {
+          if (family.given.length === 1)
+            return {
+              failure: { kind: 'unavailable', dependency: 'stub-family', diagnostic: 'down' },
+            }
+          return family.bindings.acquire(supplier, signal)
+        },
+      },
+      supplierOf,
+      maxCitedCalls: 2,
+    })
+    expect(await resources.acquire({ ...f.admit, profile: wide })).toEqual({
+      failure: { kind: 'unavailable', dependency: 'stub-family', diagnostic: 'down' },
+    })
     expect(family.released).toBe(1)
   })
 
