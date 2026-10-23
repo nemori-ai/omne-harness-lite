@@ -99,15 +99,131 @@ function ceilPercent(amount: bigint, percent: bigint): bigint {
   return (amount * percent + 99n) / 100n
 }
 
+/** What the two paths of one measurement share. */
+type Context = Readonly<{
+  input: CalibrationArithmeticInput
+  entries: readonly JsonEntry[]
+  items: readonly JsonValue[]
+  outputs: ReadonlyMap<string, MeterCalibration['outputs'][number]>
+}>
+
+/** The output count that stands for the reasoning unit at `index`, or the named unavailability. */
+function outputOf(context: Context, index: number): Outcome<bigint, TransportFailure> {
+  const { input } = context
+  const message = input.units?.[index] ?? null
+  const entry = message === null ? undefined : context.outputs.get(message)
+  if (entry === undefined) return unavailable(input.dependency, input.uncountable)
+  if (entry.kind === 'withheld') return unavailable(input.dependency, entry.reason)
+  if (!DECIMAL.test(entry.outputTokens)) return invalid('calibration.outputs', 'output-tokens')
+  return { ok: BigInt(entry.outputTokens) }
+}
+
+/**
+ * The estimate over these units: the output counts of the reasoning units, the family image rules
+ * of the others (before the tokenizer, as the family orders its checks), then the count of the
+ * body, or the envelope difference when anchored.
+ */
+function estimateOf(
+  context: Context,
+  indices: readonly number[],
+  anchored: boolean,
+): Outcome<Estimate, TransportFailure> {
+  const { input, entries, items } = context
+  let outputs = 0n
+  let substituted = false
+  const visible: number[] = []
+  for (const index of indices) {
+    if (input.reasoning[index] !== true) {
+      visible.push(index)
+      continue
+    }
+    const output = outputOf(context, index)
+    if (!('ok' in output)) return output
+    outputs += output.ok
+    substituted = true
+  }
+  const extra = input.extra(visible)
+  if (!('ok' in extra)) return extra
+  const kept = visible.map(index => items[index]).filter(item => item !== undefined)
+  // Without a replaced unit the full body is the token input itself, so the bytes are the same.
+  const body =
+    !anchored && kept.length === items.length
+      ? input.tokenInput
+      : withMessages(entries, kept, anchored)
+  const counted = input.count(body)
+  if (!('ok' in counted)) return counted
+  if (!anchored) return { ok: { text: counted.ok, outputs, extra: extra.ok, substituted } }
+  const empty = input.count(withMessages(entries, [], true))
+  if (!('ok' in empty)) return empty
+  return { ok: { text: counted.ok - empty.ok, outputs, extra: extra.ok, substituted } }
+}
+
+/** The units after the covered prefix: those of a message that the anchor does not cover. */
+function freshOf(
+  units: NonNullable<CalibrationArithmeticInput['units']>,
+  covered: ReadonlySet<string>,
+): number[] {
+  return units.flatMap((message, index) =>
+    message !== null && !covered.has(message) ? [index] : [],
+  )
+}
+
+/**
+ * The anchored path: `null` when the envelope difference is negative (`continuation-shrank`), so
+ * the full path answers.
+ */
+function anchoredAmount(
+  context: Context,
+  anchor: NonNullable<MeterCalibration['anchor']>,
+  units: NonNullable<CalibrationArithmeticInput['units']>,
+  percent: bigint,
+): Outcome<CalibratedAmount | null, TransportFailure> {
+  if (!DECIMAL.test(anchor.inputTotal)) return invalid('calibration.anchor', 'input-total')
+  const estimate = estimateOf(context, freshOf(units, new Set(anchor.covered)), true)
+  if (!('ok' in estimate)) return estimate
+  if (estimate.ok.text < 0n) return { ok: null }
+  const estimated = estimate.ok.text + estimate.ok.outputs + estimate.ok.extra
+  return {
+    ok: {
+      amount: BigInt(anchor.inputTotal) + estimated,
+      margin: ceilPercent(estimated, percent),
+      anchor: { kind: 'hit' },
+      substituted: estimate.ok.substituted,
+    },
+  }
+}
+
+/** The full path over every unit; `shrank` records that an anchor was tried and missed. */
+function fullAmount(
+  context: Context,
+  percent: bigint,
+  shrank: boolean,
+): Outcome<CalibratedAmount, TransportFailure> {
+  const estimate = estimateOf(
+    context,
+    context.items.map((_, index) => index),
+    false,
+  )
+  if (!('ok' in estimate)) return estimate
+  const estimated = estimate.ok.text + estimate.ok.outputs + estimate.ok.extra
+  return {
+    ok: {
+      amount: estimated,
+      margin: ceilPercent(estimated, percent),
+      anchor: shrank ? { kind: 'miss', reason: 'continuation-shrank' } : null,
+      substituted: estimate.ok.substituted,
+    },
+  }
+}
+
 /**
  * Full metering: every unit counts, except that a unit with reasoning state is replaced by the
  * output count of its source (the complete-output-group method of sealed output-history.ts; each
- * family keeps the name of its own method). With an anchor: only
- * the units after the covered prefix count, by the complete envelope difference
- * (`count(envelope + new units) − count(envelope + [])`, sealed marginal.ts), and the anchor is
- * added without margin. A negative difference misses the anchor (`continuation-shrank`) and the
- * full path answers. A reasoning unit whose source is withheld, or absent, is a named
- * unavailability on the path that needs it, never zero.
+ * family keeps the name of its own method). With an anchor: only the units after the covered
+ * prefix count, by the complete envelope difference (`count(envelope + new units) − count(envelope
+ * + [])`, sealed marginal.ts), and the anchor is added without margin. A negative difference
+ * misses the anchor (`continuation-shrank`) and the full path answers. A reasoning unit whose
+ * source is withheld, or absent, is a named unavailability on the path that needs it, never zero.
  */
 export function calibratedAmount(
   input: CalibrationArithmeticInput,
@@ -123,87 +239,16 @@ export function calibratedAmount(
   if (units !== undefined && units.length !== items.length)
     return invalid('representation.units', 'length')
   const percent = BigInt(input.marginPercent)
-  const outputs = new Map(input.calibration.outputs.map(entry => [entry.message, entry]))
-
-  const outputOf = (index: number): Outcome<bigint, TransportFailure> => {
-    const message = units?.[index] ?? null
-    const entry = message === null ? undefined : outputs.get(message)
-    if (entry === undefined) return unavailable(input.dependency, input.uncountable)
-    if (entry.kind === 'withheld') return unavailable(input.dependency, entry.reason)
-    if (!DECIMAL.test(entry.outputTokens)) return invalid('calibration.outputs', 'output-tokens')
-    return { ok: BigInt(entry.outputTokens) }
+  const context: Context = {
+    input,
+    entries,
+    items,
+    outputs: new Map(input.calibration.outputs.map(entry => [entry.message, entry])),
   }
-
-  const estimate = (
-    indices: readonly number[],
-    anchored: boolean,
-  ): Outcome<Estimate, TransportFailure> => {
-    let total = 0n
-    let substituted = false
-    const visible: number[] = []
-    for (const index of indices) {
-      if (input.reasoning[index] === true) {
-        const output = outputOf(index)
-        if (!('ok' in output)) return output
-        total += output.ok
-        substituted = true
-      } else visible.push(index)
-    }
-    // The family image rules run before the tokenizer, as the family orders its checks.
-    const extra = input.extra(visible)
-    if (!('ok' in extra)) return extra
-    const kept = visible.map(index => items[index]).filter(item => item !== undefined)
-    // Without a replaced unit the full body is the token input itself, so the bytes are the same.
-    const body =
-      !anchored && kept.length === items.length
-        ? input.tokenInput
-        : withMessages(entries, kept, anchored)
-    const counted = input.count(body)
-    if (!('ok' in counted)) return counted
-    let text = counted.ok
-    if (anchored) {
-      const empty = input.count(withMessages(entries, [], true))
-      if (!('ok' in empty)) return empty
-      text -= empty.ok
-    }
-    return { ok: { text, outputs: total, extra: extra.ok, substituted } }
-  }
-
-  const all = items.map((_, index) => index)
   const { anchor } = input.calibration
-  let shrank = false
-  if (anchor !== null) {
-    if (units === undefined) return invalid('representation.units', 'missing')
-    if (!DECIMAL.test(anchor.inputTotal)) return invalid('calibration.anchor', 'input-total')
-    const covered = new Set<string>(anchor.covered)
-    const fresh = all.filter(index => {
-      const message = units[index]
-      return message !== null && message !== undefined && !covered.has(message)
-    })
-    const anchored = estimate(fresh, true)
-    if (!('ok' in anchored)) return anchored
-    if (anchored.ok.text >= 0n) {
-      const estimated = anchored.ok.text + anchored.ok.outputs + anchored.ok.extra
-      return {
-        ok: {
-          amount: BigInt(anchor.inputTotal) + estimated,
-          margin: ceilPercent(estimated, percent),
-          anchor: { kind: 'hit' },
-          substituted: anchored.ok.substituted,
-        },
-      }
-    }
-    shrank = true
-  }
-  const full = estimate(all, false)
-  if (!('ok' in full)) return full
-  const estimated = full.ok.text + full.ok.outputs + full.ok.extra
-  return {
-    ok: {
-      amount: estimated,
-      margin: ceilPercent(estimated, percent),
-      anchor: shrank ? { kind: 'miss', reason: 'continuation-shrank' } : null,
-      substituted: full.ok.substituted,
-    },
-  }
+  if (anchor === null) return fullAmount(context, percent, false)
+  if (units === undefined) return invalid('representation.units', 'missing')
+  const anchored = anchoredAmount(context, anchor, units, percent)
+  if (!('ok' in anchored)) return anchored
+  return anchored.ok === null ? fullAmount(context, percent, true) : { ok: anchored.ok }
 }

@@ -91,8 +91,36 @@ function receiptMismatch(
   return null
 }
 
-function miss(reason: Exclude<AnchorMiss, 'continuation-shrank'>): AnchorVerdict {
+type AnchorMissVerdict = Extract<AnchorVerdict, { kind: 'miss' }>
+
+function miss(reason: AnchorMissVerdict['reason']): AnchorMissVerdict {
   return { kind: 'miss', reason }
+}
+
+/**
+ * The one accounted dispatch of the continued call, or the miss that stands in its way. A call
+ * without an accounted dispatch has no usage to anchor on.
+ */
+function accountedOf(
+  lookup: CallFactsLookup | undefined,
+): Readonly<{ kind: 'record'; record: Accounted }> | AnchorMissVerdict {
+  if (lookup === undefined || lookup.kind === 'absent') return miss('call-unreadable')
+  if (lookup.kind === 'unavailable') return miss('facts-unavailable')
+  const settled = settledOf(lookup.records)
+  if (settled.kind === 'ambiguous') return miss('ambiguous-dispatch')
+  if (settled.kind === 'none') return miss('usage-unknown')
+  return { kind: 'record', record: settled.record }
+}
+
+/** The usage items of the real input total, when every one of them is a known count. */
+function inputTotalOf(account: CallAccount): string | null {
+  const parts = ['input', 'cache-read', 'cache-write'].map(name => usageOf(account, name))
+  let total = 0n
+  for (const part of parts) {
+    if (part === null) return null
+    total += BigInt(part)
+  }
+  return String(total)
 }
 
 /**
@@ -113,27 +141,18 @@ export function judgeAnchor(
   }>,
 ): AnchorVerdict {
   if (input.continues === null) return miss('not-declared')
-  const lookup = input.facts.get(input.continues)
-  if (lookup === undefined || lookup.kind === 'absent') return miss('call-unreadable')
-  if (lookup.kind === 'unavailable') return miss('facts-unavailable')
-  const settled = settledOf(lookup.records)
-  if (settled.kind === 'ambiguous') return miss('ambiguous-dispatch')
-  if (settled.kind === 'none') return miss('usage-unknown')
-  const { record } = settled
+  const accounted = accountedOf(input.facts.get(input.continues))
+  if (accounted.kind === 'miss') return accounted
+  const { record } = accounted
   if (record.messages === undefined) return miss('messages-unrecorded')
   const mismatch = receiptMismatch(record, input.supplier, input.representation.adoption)
   if (mismatch === 'supplier') return miss('supplier-changed')
   if (mismatch === 'representation') return miss('representation-changed')
   if (!isPrefix(record.messages, input.messages)) return miss('not-a-prefix')
-  const parts = ['input', 'cache-read', 'cache-write'].map(name => usageOf(record.account, name))
-  const known: string[] = []
-  for (const part of parts) {
-    if (part === null) return miss('usage-unknown')
-    known.push(part)
-  }
+  const inputTotal = inputTotalOf(record.account)
+  if (inputTotal === null) return miss('usage-unknown')
   if (input.representation.units === undefined) return miss('units-missing')
-  const total = known.reduce((sum, part) => sum + BigInt(part), 0n)
-  return { kind: 'hit', covered: record.messages, inputTotal: String(total) }
+  return { kind: 'hit', covered: record.messages, inputTotal }
 }
 
 function withheld(reason: OutputWithheld): OutputJudgment {

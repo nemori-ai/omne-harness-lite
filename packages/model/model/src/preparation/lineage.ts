@@ -21,6 +21,22 @@ function invalid(field: string, reason: string): Outcome<never, ModelFailure> {
   return { failure: { kind: 'invalid', field, reason } }
 }
 
+/** The declared sources as a map, one source per message. */
+function parseSources(
+  raw: PreparationLineage['sources'],
+): Outcome<ReadonlyMap<MessageId, ModelCallId>, ModelFailure> {
+  const sources = new Map<MessageId, ModelCallId>()
+  for (const source of raw ?? []) {
+    const message = parseMessageId(source.message)
+    if (!message.ok) return invalid('lineage.sources', 'message-identity')
+    const call = decodeModelCallId(source.call)
+    if (!('ok' in call)) return invalid('lineage.sources', 'call-identity')
+    if (sources.has(message.value)) return invalid('lineage.sources', 'duplicate-message')
+    sources.set(message.value, call.ok)
+  }
+  return { ok: sources }
+}
+
 /**
  * `null` when the caller declared nothing: the lease then hands out the family meters as they are.
  * More distinct calls than `maxCitedCalls` is `invalid` (`lineage`, `too-many-calls`); a message
@@ -37,17 +53,11 @@ export function parseLineage(
     if (!('ok' in decoded)) return invalid('lineage.continues', 'identity')
     continues = decoded.ok
   }
-  const sources = new Map<MessageId, ModelCallId>()
-  for (const source of raw.sources ?? []) {
-    const message = parseMessageId(source.message)
-    if (!message.ok) return invalid('lineage.sources', 'message-identity')
-    const call = decodeModelCallId(source.call)
-    if (!('ok' in call)) return invalid('lineage.sources', 'call-identity')
-    if (sources.has(message.value)) return invalid('lineage.sources', 'duplicate-message')
-    sources.set(message.value, call.ok)
-  }
-  if (continues === null && sources.size === 0) return { ok: null }
-  const calls = [...new Set([...(continues === null ? [] : [continues]), ...sources.values()])]
+  const sources = parseSources(raw.sources)
+  if (!('ok' in sources)) return sources
+  if (continues === null && sources.ok.size === 0) return { ok: null }
+  const named = continues === null ? [] : [continues]
+  const calls = [...new Set([...named, ...sources.ok.values()])]
   if (calls.length > maxCitedCalls) return invalid('lineage', 'too-many-calls')
-  return { ok: { continues, sources, calls } }
+  return { ok: { continues, sources: sources.ok, calls } }
 }
