@@ -6,4 +6,4 @@
 
 - [README.md](README.md)：固定输入的来源与约束
 
-本目录目前没有其他文件，原因见 [README.md](README.md)。
+真实请求的回放件将放在 `recordings/<用例>/`，格式与来源见 [README.md](README.md)。目前还没有回放件。
