@@ -17,6 +17,7 @@ import {
   type ContextLimits,
   type DispatchRecord,
   type FixedModelRequest,
+  type MaterializationReceipt,
   type MeterCalibration,
   type MeterRepresentation,
   type ModelCallId,
@@ -1195,5 +1196,359 @@ describe('release', () => {
       failure: { kind: 'unavailable', dependency: adoption.owner, diagnostic: 'release-failed' },
     })
     expect(family.released).toBe(1)
+  })
+})
+
+// --- boundary cases of the judges, through the lease --------------------------------------------
+
+type UsageItem = NonNullable<DispatchRecord['account']>['usage'][number]
+
+/** An account whose `name` item is replaced by `item`, or dropped when `item` is null. */
+function accountWith(name: string, item: UsageItem | null): NonNullable<DispatchRecord['account']> {
+  const account = accountOf()
+  return {
+    ...account,
+    usage: account.usage.flatMap(entry =>
+      entry.name !== name ? [entry] : item === null ? [] : [item],
+    ),
+  }
+}
+
+/** The same adoption with one field changed. */
+const changed = (field: keyof typeof adoption) => ({
+  ...adoption,
+  [field]: `${adoption[field]}-other`,
+})
+const FIELDS = ['owner', 'name', 'revision', 'digest'] as const
+
+/** Counts that the store hands over but that are no known decimal count. */
+const NOT_A_COUNT: readonly (readonly [string, UsageItem | null])[] = [
+  ['absent', null],
+  ['provisional', { name: 'x', state: 'provisional', lexeme: '18', unit: 'token' }],
+  [
+    'a lexeme with a leading non-digit',
+    { name: 'x', state: 'known', lexeme: 'x18', unit: 'token' },
+  ],
+  [
+    'a lexeme with a trailing non-digit',
+    { name: 'x', state: 'known', lexeme: '18x', unit: 'token' },
+  ],
+]
+
+describe('anchor boundaries', () => {
+  const f = fixture()
+  const current = requestWith(three)
+  const prefix = ids(requestWith(two))
+
+  async function anchorOf(record: DispatchRecord) {
+    const family = stubFamily()
+    const lease = await acquire(
+      { commands: stubStore(new Map([[X, { ok: [record] }]])), bindings: family.bindings },
+      f.admit,
+      { continues: X },
+    )
+    const report = reportOf(measureWith(lease, current))
+    await lease.release()
+    return { report, handed: family.calibrations[0]?.anchor }
+  }
+
+  const receiptWith = (receipt: Partial<MaterializationReceipt>) => ({
+    receipt: {
+      supplier: adoption,
+      representation: adoption,
+      payloadDigest: 'a'.repeat(64),
+      ...receipt,
+    },
+    source: proof('x'),
+  })
+
+  it.each(FIELDS)('supplier-changed: the receipt supplier differs only in its %s', async field => {
+    expect(
+      await anchorOf(
+        recordOf({
+          messages: prefix,
+          materialization: receiptWith({ supplier: changed(field) }),
+        }),
+      ),
+    ).toEqual({ report: { anchor: { kind: 'miss', reason: 'supplier-changed' } }, handed: null })
+  })
+
+  it.each(FIELDS)(
+    'representation-changed: the receipt representation differs only in its %s',
+    async field => {
+      expect(
+        await anchorOf(
+          recordOf({
+            messages: prefix,
+            materialization: receiptWith({ representation: changed(field) }),
+          }),
+        ),
+      ).toEqual({
+        report: { anchor: { kind: 'miss', reason: 'representation-changed' } },
+        handed: null,
+      })
+    },
+  )
+
+  it('supplier-changed: the dispatch has no receipt', async () => {
+    expect(await anchorOf(recordOf({ messages: prefix, materialization: null }))).toEqual({
+      report: { anchor: { kind: 'miss', reason: 'supplier-changed' } },
+      handed: null,
+    })
+  })
+
+  it.each(NOT_A_COUNT)('usage-unknown: the input count is %s', async (_name, item) => {
+    const account = accountWith('input', item === null ? null : { ...item, name: 'input' })
+    expect(await anchorOf(recordOf({ messages: prefix, account }))).toEqual({
+      report: { anchor: { kind: 'miss', reason: 'usage-unknown' } },
+      handed: null,
+    })
+  })
+
+  it('a hit hands over the sum of the three known input counts', async () => {
+    expect(await anchorOf(recordOf({ messages: prefix }))).toEqual({
+      report: { anchor: { kind: 'hit' } },
+      handed: { covered: prefix, inputTotal: '123' },
+    })
+  })
+})
+
+describe('source boundaries', () => {
+  const f = fixture()
+  const history = requestWith([user('u1'), assistantWithState('a1'), user('u2')])
+  const a1 = history.messages[1]?.id
+  if (a1 === undefined) throw new Error('fixture')
+
+  const outputOf = async (record: DispatchRecord) => {
+    const family = stubFamily()
+    const lease = await acquire(
+      { commands: stubStore(new Map([[Y, { ok: [record] }]])), bindings: family.bindings },
+      f.admit,
+      { sources: [{ message: a1, call: Y }] },
+    )
+    reportOf(measureWith(lease, history))
+    await lease.release()
+    return family.calibrations[0]?.outputs
+  }
+
+  it('supplier-changed: the source dispatch has no receipt', async () => {
+    expect(await outputOf(recordOf({ materialization: null }))).toEqual([
+      { message: a1, kind: 'withheld', reason: 'supplier-changed' },
+    ])
+  })
+
+  it.each(FIELDS)('supplier-changed: the receipt supplier differs only in its %s', async field => {
+    expect(
+      await outputOf(
+        recordOf({
+          materialization: {
+            receipt: {
+              supplier: changed(field),
+              representation: adoption,
+              payloadDigest: 'a'.repeat(64),
+            },
+            source: proof('y'),
+          },
+        }),
+      ),
+    ).toEqual([{ message: a1, kind: 'withheld', reason: 'supplier-changed' }])
+  })
+
+  it.each(NOT_A_COUNT)('output-unknown: the output count is %s', async (_name, item) => {
+    const account = accountWith('output', item === null ? null : { ...item, name: 'output' })
+    expect(await outputOf(recordOf({ account }))).toEqual([
+      { message: a1, kind: 'withheld', reason: 'output-unknown' },
+    ])
+  })
+
+  it('an unknown reasoning count does not withhold a known output', async () => {
+    expect(await outputOf(recordOf({ account: accountOf({ reasoning: null }) }))).toEqual([
+      { message: a1, kind: 'known', outputTokens: '18' },
+    ])
+  })
+
+  it('a reasoning count equal to the output count is within it', async () => {
+    expect(
+      await outputOf(recordOf({ account: accountOf({ output: '11', reasoning: '11' }) })),
+    ).toEqual([{ message: a1, kind: 'known', outputTokens: '11' }])
+  })
+
+  it('needs no source for an assistant message without replay', async () => {
+    const plain = {
+      id: `msg_${'p1'.padEnd(22, '0')}`,
+      role: 'assistant',
+      blocks: [textBlock('t-p1', 'answer')],
+    }
+    const fixed = requestWith([user('u1'), plain, assistantWithState('a2'), user('u2')])
+    const family = stubFamily()
+    const lease = await acquire(
+      { commands: stubStore(new Map()), bindings: family.bindings },
+      f.admit,
+      { continues: X },
+    )
+    reportOf(measureWith(lease, fixed))
+    await lease.release()
+    expect(family.calibrations[0]?.outputs).toEqual([
+      { message: fixed.messages[2]?.id, kind: 'withheld', reason: 'source-missing' },
+    ])
+  })
+})
+
+describe('lineage boundaries', () => {
+  const f = fixture()
+  const [m1, m2] = ids(requestWith(two))
+  if (m1 === undefined || m2 === undefined) throw new Error('fixture')
+
+  it.each([
+    ['no member', {}],
+    ['an empty list of sources', { sources: [] }],
+  ] as const)(
+    'a lineage with %s is no lineage: the meter answers as the family meter, and nothing is read',
+    async (_name, lineage) => {
+      const reads: Reads = []
+      const family = stubFamily()
+      const lease = await acquire(
+        { commands: stubStore(new Map(), reads), bindings: family.bindings },
+        f.admit,
+        lineage,
+      )
+      expect(reportOf(measureWith(lease, requestWith(two)))).toBeUndefined()
+      expect(reads).toEqual([])
+      await lease.release()
+    },
+  )
+
+  it('a lineage of sources only reads exactly the source calls', async () => {
+    const reads: Reads = []
+    const family = stubFamily()
+    const lease = await acquire(
+      { commands: stubStore(new Map(), reads), bindings: family.bindings },
+      f.admit,
+      { sources: [{ message: m1, call: Y }] },
+    )
+    expect(reads.map(read => read.access.call)).toEqual([Y])
+    await lease.release()
+  })
+
+  it('accepts exactly as many distinct calls as the configured limit', async () => {
+    const family = stubFamily()
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: family.bindings,
+      supplierOf,
+      maxCitedCalls: 2,
+    })
+    const lease = unbox(
+      await resources.acquire({
+        ...f.admit,
+        profile,
+        lineage: {
+          continues: X,
+          sources: [
+            { message: m1, call: Y },
+            { message: m2, call: X },
+          ],
+        },
+      }),
+    )
+    await lease.release()
+  })
+
+  it('refuses a message identity that is a string but no message identity', async () => {
+    const family = stubFamily()
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: family.bindings,
+      supplierOf,
+      maxCitedCalls: 2,
+    })
+    const untyped: PreparationLineage = JSON.parse(
+      JSON.stringify({ sources: [{ message: 'not-a-message', call: X }] }),
+    )
+    expect(await resources.acquire({ ...f.admit, profile, lineage: untyped })).toEqual({
+      failure: { kind: 'invalid', field: 'lineage.sources', reason: 'message-identity' },
+    })
+    expect(family.given).toEqual([])
+  })
+})
+
+describe('options and routes', () => {
+  const f = fixture()
+
+  it.each([
+    ['not an object', null, /options must be an object/u],
+    ['a string', 'options', /options must be an object/u],
+    ['without commands', { commands: undefined }, /options\.commands/u],
+    ['with commands that cannot read dispatches', { commands: {} }, /options\.commands/u],
+    ['without bindings', { bindings: undefined }, /options\.bindings/u],
+    ['with bindings that cannot acquire', { bindings: { acquire: 'no' } }, /options\.bindings/u],
+    ['with a supplier port that is no function', { supplierOf: {} }, /options\.supplierOf/u],
+    ['with a limit of zero', { maxCitedCalls: 0 }, /options\.maxCitedCalls/u],
+  ] as const)(
+    'throws a RangeError that names the option for options %s',
+    (_name, change, message) => {
+      const family = stubFamily()
+      const valid = {
+        commands: stubStore(new Map()),
+        bindings: family.bindings,
+        supplierOf,
+        maxCitedCalls: 2,
+      }
+      const options: ModelPreparationOptions<Principal> =
+        change === null || typeof change === 'string'
+          ? JSON.parse(JSON.stringify(change))
+          : { ...valid, ...change }
+      expect(() => createModelPreparationResources<Principal>(options)).toThrow(RangeError)
+      expect(() => createModelPreparationResources<Principal>(options)).toThrow(message)
+    },
+  )
+
+  it.each([
+    ...FIELDS.map(field => [`adoption ${field}`, { adoption: changed(field) }] as const),
+    ['recipient', { recipient: 'elsewhere.invalid' }] as const,
+    ['model', { model: 'another' }] as const,
+  ])('refuses a supplier port that changes the %s of the route', async (_name, change) => {
+    const family = stubFamily()
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      bindings: family.bindings,
+      supplierOf: ({ supplier: declared }) => ({
+        ok: { ...declared, ...change, credential: { kind: 'factory' } },
+      }),
+      maxCitedCalls: 2,
+    })
+    expect(await resources.acquire({ ...f.admit, profile })).toEqual({
+      failure: { kind: 'invalid', field: 'supplier', reason: 'route-mismatch' },
+    })
+    expect(family.given).toEqual([])
+  })
+
+  it('passes the failure of the family meter through a lineage meter unchanged', async () => {
+    const family = stubFamily()
+    const failure = { kind: 'unavailable', dependency: 'tokenizer', diagnostic: 'down' } as const
+    const failing: PreparationBindingSource = {
+      acquire: async (supplier, signal) => {
+        const bound = await family.bindings.acquire(supplier, signal)
+        if (!('ok' in bound)) return bound
+        return {
+          ok: {
+            ...bound.ok,
+            meter: { ...bound.ok.meter, measureCalibrated: () => ({ failure }) },
+          },
+        }
+      },
+    }
+    const lease = await acquire(
+      {
+        commands: stubStore(
+          new Map([[X, { ok: [recordOf({ messages: ids(requestWith(two)) })] }]]),
+        ),
+        bindings: failing,
+      },
+      f.admit,
+      { continues: X },
+    )
+    expect(measureWith(lease, requestWith(three))).toEqual({ failure })
+    await lease.release()
   })
 })

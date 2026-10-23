@@ -7,7 +7,7 @@
 - [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `executeModel`、`deliver`、判定及真实受理、首次分派与实例观察。
 - [测试夹具](fixtures/index.md)。
 
-- [请求准入与参数](memory-admission.spec.ts)、[内存身份与恢复](memory-core.spec.ts)、[发出与流](memory-dispatch.spec.ts)、[收场的回放](memory-replay.spec.ts)、[读/ACK/清理](memory-consumption.spec.ts)。
+- [请求准入与参数](memory-admission.spec.ts)、[内存身份与恢复](memory-core.spec.ts)、[发出与流](memory-dispatch.spec.ts)、[发出边界的拒绝](memory-dispatch-refusals.spec.ts)、[收场的回放](memory-replay.spec.ts)、[读/ACK/清理](memory-consumption.spec.ts)。
 - [账目共用套件](commands-accounts.spec.ts)：账目规则、清理后仍可读的消息身份、缺回放格式的收场整批被拒。
 - [真实受理、首次分派与完整符合性](runtime-admission.spec.ts)。
 - [实例观察](runtime-observation.spec.ts)、[原流保存及交错](runtime-receive.spec.ts)、[受控外部流与宿主](runtime-fixture.ts)。
