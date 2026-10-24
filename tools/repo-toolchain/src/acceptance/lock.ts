@@ -3,6 +3,7 @@
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
 // 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
+import { inspectHistoricalApproval, type HistoricalApproval } from './historical-approvals.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { repositoryEnv } from '../core/git-environment.ts'
@@ -103,7 +104,10 @@ export interface LockReport {
   readonly commits: readonly TouchingCommit[]
   /** 工作树里还没提交的验收改动：说不清是谁改的。 */
   readonly uncommitted: readonly string[]
+  /** Original findings, including precisely approved historical changes. */
   readonly violations: readonly string[]
+  readonly approvedExceptions: readonly HistoricalApproval[]
+  readonly unresolvedViolations: readonly string[]
 }
 
 export interface CommitTouch {
@@ -159,8 +163,10 @@ function lines(text: string): string[] {
 function contentAt(root: string, revision: string, path: string): string | undefined {
   try {
     return git(root, ['show', `${revision}:${path}`])
-  } catch {
-    return undefined
+  } catch (error) {
+    // A missing path is expected for additions/deletions; a failed read of an existing path is not.
+    if (git(root, ['ls-tree', revision, '--', path]) === '') return undefined
+    throw error
   }
 }
 
@@ -266,12 +272,28 @@ export function inspect(
 ): LockReport {
   const mergeBase = git(root, ['merge-base', base, head])
   const uncommitted = head === 'HEAD' ? uncommittedPaths(root, config) : []
+  const touches = touchesSince(root, mergeBase, config, head, integration)
+  const original = judge(touches, uncommitted, config)
+  const approvedExceptions = original.commits.flatMap(commit => {
+    if (commit.allowed) return []
+    const approval = inspectHistoricalApproval(root, commit.sha, commit.files)
+    return approval === undefined ? [] : [approval]
+  })
+  const unresolvedTouches = touches.flatMap(touch => {
+    const files = touch.files.filter(
+      path =>
+        !approvedExceptions.some(item => item.commit === touch.record.sha && item.path === path),
+    )
+    return files.length === 0 ? [] : [{ ...touch, files }]
+  })
   return {
     base,
     mergeBase,
     changes: changesSince(root, mergeBase, config, head),
     uncommitted,
-    ...judge(touchesSince(root, mergeBase, config, head, integration), uncommitted, config),
+    ...original,
+    approvedExceptions,
+    unresolvedViolations: judge(unresolvedTouches, uncommitted, config).violations,
   }
 }
 
@@ -298,9 +320,17 @@ export function render(report: LockReport, config: AcceptanceLockConfig): string
   }
   if (report.violations.length === 0) out.push('  没有不该改验收的角色动过它。')
   else {
-    out.push(`  锁被破 ${report.violations.length} 处：`)
+    out.push(`  原始违规（锁被破 ${report.violations.length} 处）：`)
     for (const violation of report.violations) out.push(`    ${violation}`)
   }
+  out.push(`  已批准历史例外 ${report.approvedExceptions.length} 处：`)
+  for (const approval of report.approvedExceptions) {
+    out.push(`    ${approval.commit}  ${approval.path}`, `      决定：${approval.decisionUrl}`)
+    out.push(`      parent: ${approval.parent}`, `      oldBlob: ${approval.oldBlob}`)
+    out.push(`      newBlob: ${approval.newBlob}`, `      diffSha256: ${approval.diffSha256}`)
+  }
+  out.push(`  未解决违规 ${report.unresolvedViolations.length} 处：`)
+  for (const violation of report.unresolvedViolations) out.push(`    ${violation}`)
   return out
 }
 

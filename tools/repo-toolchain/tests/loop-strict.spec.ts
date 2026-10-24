@@ -478,3 +478,49 @@ describe('严格模式', { timeout: 60_000 }, () => {
     expect(readdirSync(home)).toEqual([])
   })
 })
+
+describe('Loop historical acceptance audit', { timeout: 60_000 }, () => {
+  it('retains original findings and the decision in JSON and Markdown, while rejecting later changes', () => {
+    const root = temporaryDirectory('loop-history-')
+    const source = fileURLToPath(new URL('../../../', import.meta.url))
+    const parent = 'e7aab8ec73002713d2ef6486401816850c984fb1'
+    const approvedCommit = '48ad37d292796326d65055a75e8a1fde44fe4233'
+    const path = 'packages/agent/agent/acceptance/README.md'
+    const decision =
+      'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357'
+    git(root, 'clone', '--quiet', '--shared', '--no-checkout', source, '.')
+    git(root, 'sparse-checkout', 'set', '--no-cone', `/${path}`)
+    git(root, 'checkout', '--quiet', '--detach', approvedCommit)
+    const home = temporaryDirectory('loop-history-home-')
+    const out = temporaryDirectory('loop-history-out-')
+    const approved = run(root, home, '--base', parent, '--out', out)
+    expect(approved.status, approved.stdout + approved.stderr).toBe(0)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status.hardLines.acceptanceLock).toEqual({ status: 'judged', violations: [] })
+    expect(status.auditRanges).toHaveLength(1)
+    expect(status.auditRanges[0].acceptance).toMatchObject({
+      commits: [expect.objectContaining({ sha: approvedCommit, allowed: false })],
+      violations: [expect.stringContaining('Agent-Role: developer')],
+      approvedExceptions: [
+        expect.objectContaining({ commit: approvedCommit, decisionUrl: decision }),
+      ],
+      unresolvedViolations: [],
+    })
+    const markdown = readFileSync(join(out, 'status.md'), 'utf8')
+    expect(markdown).toContain('原始违规')
+    expect(markdown).toContain(decision)
+    expect(markdown).toContain('验收锁 无未解决违规')
+    expect(markdown).not.toContain('没有不该改验收的角色动过它')
+    write(root, path, 'new acceptance contract\n')
+    const dirty = run(root, home, '--base', parent, '--out', out)
+    expect(dirty.status, dirty.stderr).toBe(1)
+    expect(dirty.stdout).toContain('未提交的验收改动')
+    commit(root, 'future acceptance edit\n\nAgent-Role: developer')
+    const future = run(root, home, '--base', parent, '--out', out)
+    expect(future.status, future.stderr).toBe(1)
+    const unresolved = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(unresolved.hardLines.acceptanceLock.violations).toHaveLength(1)
+    expect(unresolved.auditRanges[0].acceptance.violations).toHaveLength(2)
+    expect(unresolved.auditRanges[0].acceptance.approvedExceptions).toHaveLength(1)
+  })
+})
