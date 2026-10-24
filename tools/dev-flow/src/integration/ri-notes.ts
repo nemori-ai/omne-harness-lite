@@ -68,8 +68,9 @@ export type CardBinding =
   | { kind: 'invalid'; reason: string }
 export type CardFact = { url: string; attributes: CardAttributes; binding: CardBinding }
 export type CardRead = { kind: 'read'; card: CardFact } | { kind: 'unreadable'; reason: string }
-/** How a contract API snapshot changed for one member: no change, additions only, or other. */
-export type SnapshotChange = 'none' | 'additive' | 'review'
+/** How a contract API snapshot changes for one member: no change, additions only, or other. */
+export const SNAPSHOT_CHANGES = ['none', 'additive', 'review'] as const
+export type SnapshotChange = (typeof SNAPSHOT_CHANGES)[number]
 /** The declared level each snapshot change matches. `review` does not decide direction. */
 const SNAPSHOT_MATCH = {
   none: 'none',
@@ -81,6 +82,8 @@ export type ContractDiff =
   | { kind: 'unavailable'; reason: string }
   | { kind: 'available'; base: string; head: string; members: ReadonlyMap<string, SnapshotChange> }
 export type DiffContracts = (range: { base: string; head: string }) => ContractDiff
+/** Builds the snapshot difference for a checkout root, with the policy's timeout. */
+export type ContractDiffProvider = (context: { root: string; timeoutMs: number }) => DiffContracts
 
 export type FindingCode =
   | 'parent-registry-drift'
