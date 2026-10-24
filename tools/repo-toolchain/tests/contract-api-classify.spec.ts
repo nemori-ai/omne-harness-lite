@@ -1,5 +1,6 @@
 // 分类规则的正反例：白名单门。只有正证据成立才是 additive：每处差异都在「可加改动」表的白名单里
 // （新增导出；接口、类型字面量或扩充接口里新增可选属性），并且检查器对涉及的导出用同一种写法证明两个方向都可赋值。
+// 全局作用域（扩充块、脚本文件的顶层）、无绑定的导入与三斜线指令按同一道门判断。
 // 其余一律 review，附注写明命中哪一条。每条用例只给两份声明，断言分类与附注种类。
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -339,6 +340,172 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
         },
       ],
     })
+  })
+
+  it('global scope through a script file: a top-level declaration that is not an optional-only interface is outside the whitelist', () => {
+    const member = 'export interface O { a: string }\n'
+    const global = 'interface ErrorOptions { code: string }\n'
+    const reason = {
+      kind: 'outside-whitelist',
+      why: '脚本文件的顶层声明是全局的，新增的不只是接口的可选属性',
+    }
+    // A new script file merges a required member into lib's ErrorOptions: `new Error('x', { cause: 1 })` stops compiling.
+    const added = classifyDists(
+      { 'index.d.ts': member },
+      { 'index.d.ts': member, 'globals.d.ts': global },
+    )
+    expect(added.change).toBe('review')
+    expect(reasonsOf(added, declared('interface ErrorOptions', 'globals.d.ts'))).toEqual([reason])
+    // The same declaration added to a script file that already existed, with or without a side-effect import.
+    const existing = 'interface Foo { x?: string }\n'
+    for (const head of ['', "import './globals.js';\n"]) {
+      const grown = classifyDists(
+        { 'index.d.ts': head + member, 'globals.d.ts': existing },
+        { 'index.d.ts': head + member, 'globals.d.ts': existing + global },
+      )
+      expect(grown.change).toBe('review')
+      expect(reasonsOf(grown, declared('interface ErrorOptions', 'globals.d.ts'))).toEqual([reason])
+    }
+    // Positive control: a global interface with only optional properties is whitelist (b), and the checker covers it as a global augmentation.
+    expect(
+      classifyDists(
+        { 'index.d.ts': member },
+        { 'index.d.ts': member, 'globals.d.ts': 'interface Foo { x?: string }\n' },
+      ),
+    ).toEqual({
+      change: 'additive',
+      differences: [
+        {
+          target: { scope: 'augmentation', target: 'global', name: 'Foo' },
+          kind: 'changed',
+          change: 'additive',
+          proved: true,
+        },
+      ],
+    })
+  })
+
+  it('a new side-effect import, and a file switching between script and module, are outside the whitelist', () => {
+    const member = 'export interface O { a: string }\n'
+    const imported = classifyDists(
+      { 'index.d.ts': member },
+      {
+        'index.d.ts': "import './globals.js';\n" + member,
+        'globals.d.ts': 'interface Foo { x?: string }\n',
+      },
+    )
+    expect(imported.change).toBe('review')
+    expect(reasonsOf(imported, declared("import './globals.js';"))).toEqual([
+      { kind: 'outside-whitelist', why: '新增的无绑定导入可能引入全局声明' },
+    ])
+    const external = classifyDists(member, "import 'x';\n" + member)
+    expect(reasonsOf(external, declared("import 'x';"))).toEqual([
+      { kind: 'outside-whitelist', why: '新增的无绑定导入可能引入全局声明' },
+    ])
+    // Adding `export {}` to a script file takes every top-level declaration out of the global scope.
+    const flipped = classifyDists(
+      { 'index.d.ts': member, 'globals.d.ts': 'interface Foo { x?: string }\n' },
+      { 'index.d.ts': member, 'globals.d.ts': 'interface Foo { x?: string }\nexport {};\n' },
+    )
+    expect(flipped.change).toBe('review')
+    expect(reasonsOf(flipped, declared('（文件成了模块）', 'globals.d.ts'))).toEqual([
+      { kind: 'outside-whitelist', why: '文件在脚本与模块之间切换，顶层声明的作用域变了' },
+    ])
+  })
+
+  it('reaches an augmented interface through lib declarations, not only through this member’s statements', () => {
+    // `OptKeys` names ErrorOptions only through lib's ErrorConstructor; `Record<OptKeys, true>` gains a required key.
+    const keys =
+      'export type OptKeys = keyof NonNullable<ConstructorParameters<ErrorConstructor>[1]>;\n'
+    const result = classifyDists(
+      keys,
+      keys + 'declare global { interface ErrorOptions { code?: string } }\n',
+    )
+    expect(result.change).toBe('review')
+    expect(reasonsOf(result, exported('OptKeys'))).toEqual([
+      { kind: 'augmented-reference', target: 'global', name: 'ErrorOptions' },
+    ])
+    // Through a script file's global declaration as well.
+    const script = classifyDists(
+      { 'index.d.ts': keys },
+      { 'index.d.ts': keys, 'globals.d.ts': 'interface ErrorOptions { code?: string }\n' },
+    )
+    expect(script.change).toBe('review')
+    expect(reasonsOf(script, exported('OptKeys'))).toEqual([
+      { kind: 'augmented-reference', target: 'global', name: 'ErrorOptions' },
+    ])
+    // An export that reaches lib but not the augmented interface keeps its additive verdict.
+    const other = 'export type Len = Parameters<typeof Array.isArray>;\n'
+    expect(
+      classifyDists(other, other + 'declare global { interface ErrorOptions { code?: string } }\n')
+        .change,
+    ).toBe('additive')
+  })
+
+  it('triple-slash directives are part of the normalized text: any difference is outside the whitelist', () => {
+    const lib = '/// <reference lib="esnext.disposable" />\n'
+    const f = 'export declare function f(): Disposable;\n'
+    const removed = classifyDists(lib + f, f)
+    expect(removed.change).toBe('review')
+    expect(reasonsOf(removed, declared('/// <reference lib="esnext.disposable" />'))).toEqual([
+      { kind: 'outside-whitelist', why: '三斜线指令变了，消费者程序里的声明随之变化' },
+    ])
+    const types = 'export declare const b: Buffer;\n'
+    const cases: readonly [before: string, after: string][] = [
+      [types, '/// <reference types="node" />\n' + types],
+      ['/// <reference lib="es2022" />\n' + types, '/// <reference lib="es2023" />\n' + types],
+      [lib + f, '/// <reference lib="es2022" />\n' + lib + f],
+    ]
+    for (const [before, after] of cases) {
+      const result = classifyDists(before, after)
+      expect(result.change).toBe('review')
+      expect(reasonKinds(result)).toEqual(['outside-whitelist'])
+    }
+    // Unchanged directives stay comparable: identical is none, an unrelated optional property is additive.
+    expect(classifyDists(lib + f, lib + f).change).toBe('none')
+    expect(
+      classifyDists(
+        lib + f + 'export interface O { a: string }\n',
+        lib + f + 'export interface O { a: string; b?: number }\n',
+      ),
+    ).toEqual({
+      change: 'additive',
+      differences: [{ target: exported('O'), kind: 'changed', change: 'additive', proved: true }],
+    })
+  })
+
+  it('narrowing an inherited or intersected optional member, a wider `extends` clause and a required internal member are review', () => {
+    const inherited = classifyDists(
+      "export interface Base { mode?: 'a' | 'b' }\nexport interface Options extends Base {}\n",
+      "export interface Base { mode?: 'a' | 'b' }\nexport interface Options extends Base { mode?: 'a' }\n",
+    )
+    expect(inherited.change).toBe('review')
+    expect(reasonsOf(inherited, exported('Options'))).toEqual([
+      expect.objectContaining({ kind: 'direction', readers: true, writers: false }),
+    ])
+    const intersected = classifyDists(
+      "export interface Base { mode: 'a' | 'b' }\nexport type Options = Base & { extra?: string };\n",
+      "export interface Base { mode: 'a' | 'b' }\nexport type Options = Base & { extra?: string; mode?: 'a' };\n",
+    )
+    expect(intersected.change).toBe('review')
+    expect(reasonsOf(intersected, exported('Options'))).toEqual([
+      expect.objectContaining({ kind: 'direction', writers: false }),
+    ])
+    // An optional field added inside a conditional `extends` clause changes which types take the true branch.
+    const conditional = classifyDists(
+      'export type IsOpt<T> = T extends { a: string } ? true : false;\n',
+      'export type IsOpt<T> = T extends { a: string; b?: number } ? true : false;\n',
+    )
+    expect(conditional.change).toBe('review')
+    expect(reasonKinds(conditional)).toContain('direction')
+    const internal = classifyDists(
+      'interface Bar { a: string }\nexport interface Foo { x: Bar }\nexport {};\n',
+      'interface Bar { a: string; b: number }\nexport interface Foo { x: Bar }\nexport {};\n',
+    )
+    expect(internal.change).toBe('review')
+    expect(reasonsOf(internal, declared('interface Bar'))).toEqual([
+      { kind: 'outside-whitelist', why: '改动不是新增可选属性' },
+    ])
   })
 
   it('N1: adding or removing readonly is outside the whitelist', () => {

@@ -11,6 +11,7 @@
 // 每个目标的结论带着比较条数与结构化的问题：方向不成立、检查器未完成、实例组合超限分开报，不合并成「失败」。
 // 另给每个导出算它经本成员内部声明能到达的顶层语句，以及到达的、本次有扩充改动的外部接口：
 // 分类层用前者判断哪些导出被改动「涉及」，用后者实现「导出引用了被扩充的外部接口」判 review。
+// 找被扩充接口时穿过 lib 与外部包的声明（有上限，超过记为未完成）；脚本文件的顶层声明按 `global` 的扩充处理。
 // 规则来源与探针见 SPEC.md「分类」。
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -176,19 +177,31 @@ function restore(base: string, side: Side, files: readonly DeclarationFile[]): R
 
 type Edit = readonly [start: number, end: number, replacement: string]
 
-/** 一个声明文件的归一化（见文件开头）；返回改写后的文本与它写的对外扩充。 */
+/**
+ * 一个声明文件的归一化（见文件开头）；返回改写后的文本与它写的对外扩充。
+ * 脚本文件（没有导入导出）的顶层声明都是全局的：与 `declare global` 一样改写成本侧的命名空间，
+ * 两侧的全局声明才不会在同一个程序里合并到一起。
+ */
 export function prepareForChecker(
   path: string,
   text: string,
 ): { text: string; augmentations: Augmentation[] } {
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true)
+  const script = !ts.isExternalModule(source)
   const edits: Edit[] = []
   const augmentations: Augmentation[] = []
   const visit = (node: ts.Node): void => {
-    if (ts.isModuleDeclaration(node) && node.parent === source && isForeignAugmentation(node)) {
-      const result = rewriteAugmentation(source, path, node)
-      edits.push(...result.edits)
-      augmentations.push(...result.augmentations)
+    if (node.parent === source) {
+      const result =
+        ts.isModuleDeclaration(node) && isForeignAugmentation(node)
+          ? rewriteAugmentation(source, path, node)
+          : script && ts.isStatement(node)
+            ? rewriteScriptGlobal(source, path, node)
+            : undefined
+      if (result !== undefined) {
+        edits.push(...result.edits)
+        augmentations.push(...result.augmentations)
+      }
     }
     const edit =
       brandEdit(source, path, node) ?? classMemberEdit(source, node) ?? methodEdit(source, node)
@@ -200,6 +213,34 @@ export function prepareForChecker(
   }
   visit(source)
   return { text: applyEdits(text, edits), augmentations }
+}
+
+const GLOBAL_NAMESPACE = '__aug_global'
+
+/** 脚本文件的一条顶层声明：包进 `export declare namespace __aug_global { export … }`，去掉它自己的 `declare`。 */
+function rewriteScriptGlobal(
+  source: ts.SourceFile,
+  path: string,
+  statement: ts.Statement,
+): { edits: Edit[]; augmentations: Augmentation[] } {
+  const start = statement.getStart(source)
+  const edits: Edit[] = [
+    [start, start, `export declare namespace ${GLOBAL_NAMESPACE} { export `],
+    [statement.getEnd(), statement.getEnd(), ' }'],
+  ]
+  const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined
+  for (const modifier of modifiers ?? [])
+    if (modifier.kind === ts.SyntaxKind.DeclareKeyword)
+      edits.push([modifier.getStart(source), modifier.getEnd(), ''])
+  return {
+    edits,
+    augmentations: augmentationsOf(statement, {
+      target: 'global',
+      namespace: GLOBAL_NAMESPACE,
+      file: path,
+      source,
+    }),
+  }
 }
 
 function applyEdits(text: string, edits: readonly Edit[]): string {
@@ -532,7 +573,21 @@ function augmentedTargets(
   return targets
 }
 
-/** 从一个符号出发，沿本成员还原的声明里的标识符走：收集到达的顶层语句与被扩充的外部接口。 */
+/** 一次可达分析走过的符号上限；超过就停下，记为没有结论（分类层按 review 计）。 */
+export const REACH_LIMIT = 20_000
+
+interface Reach {
+  readonly reaches: string[]
+  readonly augmented: AugmentedInterface[]
+  /** false：走过的符号超过 REACH_LIMIT，没有走完。 */
+  readonly complete: boolean
+}
+
+/**
+ * 从一个符号出发，沿声明里的标识符走。到达的顶层语句只记本成员还原的声明；
+ * 本次有扩充改动时，还要穿过 lib 与外部包的声明找被扩充的接口：`keyof` 一类派生经 lib 的
+ * 构造器签名间接到达被扩充接口时，只看本成员的语句看不到它。没有扩充改动时不走外部声明。
+ */
 class Reachability {
   private readonly adjacency = new Map<ts.Symbol, readonly ts.Symbol[]>()
   private readonly checker: ts.TypeChecker
@@ -549,28 +604,37 @@ class Reachability {
     this.targets = targets
   }
 
-  from(start: ts.Symbol): { reaches: string[]; augmented: AugmentedInterface[] } {
+  from(start: ts.Symbol): Reach {
+    const external = this.targets.size > 0
     const visited = new Set<ts.Symbol>()
     const reaches = new Set<string>()
     const augmented = new Map<string, AugmentedInterface>()
     const queue = [start]
+    let complete = true
     for (let symbol = queue.pop(); symbol !== undefined; symbol = queue.pop()) {
       if (visited.has(symbol)) continue
+      if (visited.size >= REACH_LIMIT) {
+        complete = false
+        break
+      }
       visited.add(symbol)
       const target = this.targets.get(symbol)
       if (target !== undefined) augmented.set(augmentationKey(target), target)
+      let follow = external
       for (const declaration of symbol.declarations ?? []) {
         const id = this.statementOf(declaration)
         if (id === undefined) continue
         reaches.add(id)
-        queue.push(...this.referenced(symbol))
+        follow = true
       }
+      if (follow) queue.push(...this.referenced(symbol, external))
     }
     return {
       reaches: [...reaches].sort(byCodeUnit),
       augmented: [...augmented.values()].sort((a, b) =>
         byCodeUnit(augmentationKey(a), augmentationKey(b)),
       ),
+      complete,
     }
   }
 
@@ -586,7 +650,8 @@ class Reachability {
     return statementId(file.slice(path.length), node)
   }
 
-  private referenced(symbol: ts.Symbol): readonly ts.Symbol[] {
+  /** 符号各个声明里出现的符号；`external` 为 false 时只看本成员还原的声明。 */
+  private referenced(symbol: ts.Symbol, external: boolean): readonly ts.Symbol[] {
     const known = this.adjacency.get(symbol)
     if (known !== undefined) return known
     const found: ts.Symbol[] = []
@@ -598,7 +663,7 @@ class Reachability {
       ts.forEachChild(node, visit)
     }
     for (const declaration of symbol.declarations ?? [])
-      if (this.statementOf(declaration) !== undefined) visit(declaration)
+      if (external || this.statementOf(declaration) !== undefined) visit(declaration)
     this.adjacency.set(symbol, found)
     return found
   }
@@ -698,6 +763,11 @@ function planExport(
       [...oldReach.augmented, ...newReach.augmented].map(item => [augmentationKey(item), item]),
     ).values(),
   ]
+  if (!oldReach.complete || !newReach.complete)
+    pending.problems.push({
+      kind: 'incomplete',
+      why: `到达被扩充接口的判断走过 ${REACH_LIMIT} 个符号仍没有走完`,
+    })
   pending.same = o.text === n.text
   if (o.isType !== n.isType || o.isValue !== n.isValue)
     return settle(pending, '导出的含义变了（类型与值）')

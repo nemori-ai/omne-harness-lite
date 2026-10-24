@@ -45,8 +45,8 @@ export function sameText(node: ts.Node, sourceFile = node.getSourceFile()): stri
 }
 
 /**
- * 每个声明文件的比较文本，按路径。语句按语法种类与名字排序，所以声明顺序不算变化；
- * 同名的语句（重载）保持原来的先后，重载的顺序影响解析。
+ * 每个声明文件的比较文本，按路径。三斜线指令先于语句、保持原顺序；语句按语法种类与名字排序，
+ * 所以声明顺序不算变化；同名的语句（重载）保持原来的先后，重载的顺序影响解析。
  */
 export function normalizedFiles(files: readonly DeclarationFile[]): Map<string, string> {
   return new Map(files.map(file => [file.path, normalizedFile(file)]))
@@ -60,7 +60,25 @@ function normalizedFile(file: DeclarationFile): string {
     text: sameText(statement),
   }))
   statements.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.index - b.index))
-  return statements.map(item => item.text).join('\n')
+  return [...referenceDirectives(source), ...statements.map(item => item.text)].join('\n')
+}
+
+/**
+ * 文件开头的三斜线指令（`path`、`types`、`lib`），按原顺序。它们不是语句，打印器照原样输出；
+ * 它们改变消费者程序里有哪些声明，所以比较文本与白名单门都要看它们。
+ */
+export function referenceDirectives(source: ts.SourceFile): string[] {
+  const directive = (attribute: string, item: ts.FileReference) =>
+    `/// <reference ${attribute}="${item.fileName}"${item.resolutionMode === undefined ? '' : ` resolution-mode="${resolutionMode(item.resolutionMode)}"`} />`
+  return [
+    ...source.referencedFiles.map(item => directive('path', item)),
+    ...source.typeReferenceDirectives.map(item => directive('types', item)),
+    ...source.libReferenceDirectives.map(item => directive('lib', item)),
+  ]
+}
+
+function resolutionMode(mode: ts.ResolutionMode): string {
+  return mode === ts.ModuleKind.ESNext ? 'import' : 'require'
 }
 
 /** 顶层语句的键：语法种类加名字。同键的语句是一组（重载、同名的扩充块）。 */

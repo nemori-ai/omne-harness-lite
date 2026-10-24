@@ -1,13 +1,16 @@
 // 白名单门的正证据：两侧声明文件逐条顶层语句对齐，判断每一处差异是不是「可加改动」表允许的两类改动。
 //   (a) 新增顶层语句（新导出、新内部声明、新导入或导出语句），已有语句的文本不变；
 //   (b) 在接口、类型字面量或扩充接口里新增可选属性（属性写法，不是方法签名或索引签名）。
-// 模块扩充块（`declare module '…'`、`declare global`）新增时只有「全是可选属性的接口」算 (b)。
+// 全局作用域的新增按同一条规则：模块扩充块（`declare module '…'`、`declare global`）与脚本文件
+// （没有导入导出的 `.d.ts`，顶层声明都是全局的）新增时只有「全是可选属性、没有继承的接口」算 (b)。
+// 无绑定的导入（`import './x.js'`、`import 'pkg'`）可能把全局声明带进消费者的程序，新增就是白名单外；
+// 三斜线指令改变程序里有哪些声明，任何差异都是白名单外；文件在脚本与模块之间切换，全局声明的作用域就变了。
 // 这里只看语法，不跑检查器；检查器的证明另在 api-compare.ts。两步都成立才是 additive。
 // 判断的权威是文本：把新语句里判定为新增的可选属性去掉后，规范化文本必须与旧语句相同；
 // 对齐只是提出哪些成员是新增的，任何没对上的差异都落到白名单外。
 import ts from '@typescript/typescript6'
 import type { DeclarationFile } from './api-format.ts'
-import { sameText, statementId, statementKey } from './api-normalize.ts'
+import { referenceDirectives, sameText, statementId, statementKey } from './api-normalize.ts'
 
 /** 一处白名单外的改动：哪个文件里的哪条语句，是删了、改了还是新增了不许新增的东西。 */
 export interface OutsideChange {
@@ -31,6 +34,14 @@ interface Group {
   readonly source: ts.SourceFile
 }
 
+interface ParsedFile {
+  readonly source: ts.SourceFile
+  readonly groups: Map<string, Group>
+  /** 没有导入导出的文件：顶层声明都在全局作用域。 */
+  readonly script: boolean
+  readonly directives: readonly string[]
+}
+
 export function whitelistDifferences(
   before: readonly DeclarationFile[],
   after: readonly DeclarationFile[],
@@ -40,28 +51,32 @@ export function whitelistDifferences(
   const old = new Map(before.map(file => [file.path, parse(file)]))
   const next = new Map(after.map(file => [file.path, parse(file)]))
   for (const path of new Set([...old.keys(), ...next.keys()])) {
-    const a = old.get(path)?.groups ?? new Map<string, Group>()
-    const b = next.get(path)?.groups ?? new Map<string, Group>()
+    const o = old.get(path)
+    const n = next.get(path)
+    outside.push(...fileLevelChanges(path, o, n))
+    const a = o?.groups ?? new Map<string, Group>()
+    const b = n?.groups ?? new Map<string, Group>()
     for (const key of new Set([...a.keys(), ...b.keys()])) {
-      const o = a.get(key)
-      const n = b.get(key)
-      if (o === undefined && n !== undefined) outside.push(...addedGroup(path, n))
-      else if (o !== undefined && n === undefined) {
-        if (isRedundantModuleMarker(o, next.get(path)?.source)) continue
-        outside.push({ path, statement: label(o), change: 'removed', why: '删除了语句' })
-      } else if (o !== undefined && n !== undefined) {
-        const verdict = changedGroup(o, n)
+      const og = a.get(key)
+      const ng = b.get(key)
+      if (og === undefined && ng !== undefined)
+        outside.push(...addedGroup(path, ng, n?.script === true))
+      else if (og !== undefined && ng === undefined) {
+        if (isRedundantModuleMarker(og, n?.source)) continue
+        outside.push({ path, statement: label(og), change: 'removed', why: '删除了语句' })
+      } else if (og !== undefined && ng !== undefined) {
+        const verdict = changedGroup(og, ng)
         if (verdict.kind === 'same') continue
         if (verdict.kind === 'outside')
-          outside.push({ path, statement: label(n), change: 'changed', why: verdict.why })
-        else for (const statement of n.statements) changed.add(statementId(path, statement))
+          outside.push({ path, statement: label(ng), change: 'changed', why: verdict.why })
+        else for (const statement of ng.statements) changed.add(statementId(path, statement))
       }
     }
   }
   return { outside, changed }
 }
 
-function parse(file: DeclarationFile): { source: ts.SourceFile; groups: Map<string, Group> } {
+function parse(file: DeclarationFile): ParsedFile {
   const source = ts.createSourceFile(file.path, file.code, ts.ScriptTarget.Latest, true)
   const groups = new Map<string, Group>()
   for (const statement of source.statements) {
@@ -73,7 +88,43 @@ function parse(file: DeclarationFile): { source: ts.SourceFile; groups: Map<stri
       statements: [...(previous?.statements ?? []), statement],
     })
   }
-  return { source, groups }
+  return {
+    source,
+    groups,
+    script: !ts.isExternalModule(source),
+    directives: referenceDirectives(source),
+  }
+}
+
+/** 语句之外的文件级差异：三斜线指令的任何变化，以及文件在脚本与模块之间切换。 */
+function fileLevelChanges(
+  path: string,
+  o: ParsedFile | undefined,
+  n: ParsedFile | undefined,
+): OutsideChange[] {
+  const changes: OutsideChange[] = []
+  const before = o?.directives ?? []
+  const after = n?.directives ?? []
+  if (before.join('\n') !== after.join('\n'))
+    changes.push({
+      path,
+      statement: after[0] ?? before[0] ?? '/// <reference />',
+      change:
+        after.length > before.length
+          ? 'added'
+          : before.length > after.length
+            ? 'removed'
+            : 'changed',
+      why: '三斜线指令变了，消费者程序里的声明随之变化',
+    })
+  if (o !== undefined && n !== undefined && o.script !== n.script)
+    changes.push({
+      path,
+      statement: n.script ? '（文件成了脚本）' : '（文件成了模块）',
+      change: 'changed',
+      why: '文件在脚本与模块之间切换，顶层声明的作用域变了',
+    })
+  return changes
 }
 
 /** 删掉的只是空的 `export {}`，而新侧文件仍是模块（有别的导入或导出）：文件的含义没变。 */
@@ -130,30 +181,47 @@ function isAugmentationBlock(statement: ts.Statement): statement is ts.ModuleDec
   )
 }
 
-/** 新增的一组语句：扩充块只许「全是可选属性的接口」，其余顶层语句都是新增声明或导出。 */
-function addedGroup(path: string, group: Group): OutsideChange[] {
+/**
+ * 新增的一组语句。进入全局作用域的（扩充块的内容、脚本文件的顶层声明）只许「全是可选属性、没有继承的接口」；
+ * 无绑定的导入可能把全局声明带进消费者的程序；其余顶层语句都是新增声明或导出。
+ */
+function addedGroup(path: string, group: Group, script: boolean): OutsideChange[] {
+  const added = (why: string): OutsideChange => ({
+    path,
+    statement: label(group),
+    change: 'added',
+    why,
+  })
   return group.statements.flatMap(statement => {
-    if (!isAugmentationBlock(statement) || optionalOnlyAugmentation(statement)) return []
-    return [
-      {
-        path,
-        statement: label(group),
-        change: 'added' as const,
-        why: '新增的扩充不只是接口的可选属性',
-      },
-    ]
+    if (isAugmentationBlock(statement))
+      return optionalOnlyAugmentation(statement) ? [] : [added('新增的扩充不只是接口的可选属性')]
+    if (script)
+      return isOptionalOnlyInterface(statement)
+        ? []
+        : [added('脚本文件的顶层声明是全局的，新增的不只是接口的可选属性')]
+    if (isSideEffectImport(statement)) return [added('新增的无绑定导入可能引入全局声明')]
+    return []
   })
 }
 
 function optionalOnlyAugmentation(statement: ts.ModuleDeclaration): boolean {
   const body = statement.body
   if (body === undefined || !ts.isModuleBlock(body)) return false
-  return body.statements.every(
-    item =>
-      ts.isInterfaceDeclaration(item) &&
-      item.heritageClauses === undefined &&
-      item.members.every(isOptionalProperty),
+  return body.statements.every(isOptionalOnlyInterface)
+}
+
+/** 只含可选属性、没有继承的接口：合并进已有的全局或外部接口时，不给任何一方加义务。 */
+function isOptionalOnlyInterface(statement: ts.Statement): boolean {
+  return (
+    ts.isInterfaceDeclaration(statement) &&
+    statement.heritageClauses === undefined &&
+    statement.members.every(isOptionalProperty)
   )
+}
+
+/** `import './x.js'`、`import 'pkg'`：没有绑定，只为了副作用，副作用可能是全局声明。 */
+function isSideEffectImport(statement: ts.Statement): boolean {
+  return ts.isImportDeclaration(statement) && statement.importClause === undefined
 }
 
 function isOptionalProperty(member: ts.Node): member is ts.PropertySignature {
