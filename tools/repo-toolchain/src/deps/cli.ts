@@ -29,7 +29,7 @@ function directionCheck(
   const unknown = findings.filter(finding => finding.kind === 'direction-unknown').length
   return {
     findings,
-    summary: `依赖方向：检查了 ${constraints.value.directions?.length ?? 0} 条方向行、${memberPairCount(pairs)} 个成员对，命中 ${findings.length - unknown} 处${unknown === 0 ? '' : `，${unknown} 处源角色没有文件`}`,
+    summary: `依赖方向：检查了 ${constraints.value.directions?.length ?? 0} 条方向行、${memberPairCount(pairs)} 个成员对，命中 ${findings.length - unknown} 处${unknown === 0 ? '' : `，${unknown} 处角色没有文件`}`,
   }
 }
 

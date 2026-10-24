@@ -3,7 +3,7 @@
 // 命中与退出码（C2）、合法对照（C3）、规则只从可信 runner 读（C4）、架构符合性报告的方向行（C5）。
 // 归慢层：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程）。
 import { spawnSync } from 'node:child_process'
-import { rmSync } from 'node:fs'
+import { existsSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -136,6 +136,19 @@ const POLICY_FILES = [CONSTRAINTS, ORGANIZATION, 'docs/domains/boundaries.md']
 // ---- 可信 runner：预设、解析配置、规则 -------------------------------------------------------------
 
 const PRESET = `module.exports = require(${JSON.stringify(join(REPOSITORY_ROOT, 'node_modules/@omne-harness/repo-config/dependency-cruiser.cjs'))})\n`
+/**
+ * 同一个预设，加载时在 runner 与被检树之外的 `marker` 追加一行：dependency-cruiser 读配置就会加载它，
+ * 所以标记文件存在就说明这次运行取了依赖图。
+ */
+function markPreset(root: string): string {
+  const marker = join(temporaryDirectory('omne-direction-marker-'), 'loaded')
+  write(
+    root,
+    '.dependency-cruiser.cjs',
+    `require('node:fs').appendFileSync(${JSON.stringify(marker)}, 'loaded\\n')\n${PRESET}`,
+  )
+  return marker
+}
 /**
  * runner 的预设取本仓库安装的 repo-config；tsconfig 里的别名指向被检树，让「别名」这种导入形态能解析。
  * `constraints` 传 null 表示 runner 没有 constraints.json。
@@ -368,7 +381,7 @@ function deps(root: string, runnerRoot: string) {
 const HIT =
   /^ {2}error \[(?<direction>DIR-[A-Z-]+)\] (?<path>\S+) 依赖了 (?<target>\S+)（(?<from>\S+) → (?<to>\S+)）：(?<source>\S+)（(?<at>\S+):(?<line>\d+)）$/u
 const UNKNOWN =
-  /^ {2}error \[(?<direction>DIR-[A-Z-]+)\] 源角色 (?<role>\S+) 的 paths 在被检树中匹配不到任何文件，不能判方向：(?<source>\S+)$/u
+  /^ {2}error \[(?<direction>DIR-[A-Z-]+)\] (?<side>源|目标)角色 (?<role>\S+) 的 paths 在被检树中匹配不到任何文件，不能判方向：(?<source>\S+)$/u
 function group(match: RegExpExecArray, key: string): string {
   const value = match.groups?.[key]
   if (value === undefined) throw new Error(`命中行缺少 ${key}：${match[0]}`)
@@ -400,7 +413,13 @@ function unknowns(stdout: string) {
   return stdout.split('\n').flatMap(line => {
     const match = UNKNOWN.exec(line)
     if (match === null) return []
-    return [{ direction: group(match, 'direction'), role: group(match, 'role') }]
+    return [
+      {
+        direction: group(match, 'direction'),
+        side: group(match, 'side'),
+        role: group(match, 'role'),
+      },
+    ]
   })
 }
 const located = (rows: ReturnType<typeof hits>) =>
@@ -435,7 +454,7 @@ describe('schema 3 的方向行（C1）', () => {
     [
       '来源与目标相交',
       { to: [MEMBERS.session, MEMBERS.agent] },
-      'same roles on both sides: packages/agent/agent-contract',
+      `puts source role ${MEMBERS.agent} and target role ${MEMBERS.agent} in the same member`,
     ],
     ['id 不合格式', { id: 'dir-agent-session' }, 'Invalid architecture direction id'],
     ['from 为空', { from: [] }, 'nonempty role lists'],
@@ -491,6 +510,24 @@ describe('schema 3 的方向行（C1）', () => {
       `${MEMBERS.host}/src/testing/**`,
     ])
     expect(parse(policy(3, DIRECTIONS, [...roles(), aside])).directions).toHaveLength(5)
+  })
+  it('源角色与目标角色在同一个成员里时报错：成员内部的依赖不进依赖图，这一对永远不会命中', () => {
+    // 与 agent-contract 同成员、paths 不重叠的另一个角色，放在目标一侧。
+    const neighbour: ArchitectureRole = {
+      id: `${MEMBERS.agent}/lib`,
+      paths: [`${MEMBERS.agent}/lib/**`],
+      layer: 'unknown',
+      domains: ['agent'],
+      status: 'candidate',
+      source: `${MEMBERS.agent}/SPEC.md`,
+    }
+    // 对照：角色只是声明了、没有被方向行引用，不是错。
+    expect(parse(policy(3, DIRECTIONS, [...roles(), neighbour])).directions).toHaveLength(5)
+    const [, ...rest] = DIRECTIONS
+    const sameMember = { ...AGENT_SESSION, to: [MEMBERS.session, neighbour.id] }
+    expect(() => parse(policy(3, [sameMember, ...rest], [...roles(), neighbour]))).toThrow(
+      `Architecture direction DIR-AGENT-SESSION puts source role ${MEMBERS.agent} and target role ${neighbour.id} in the same member ${MEMBERS.agent}`,
+    )
   })
   it('方向行的 source 按角色 source 的规则核对：缺锚点在可信 runner 读取时报错', () => {
     const root = temporaryDirectory('omne-direction-policy-')
@@ -625,13 +662,39 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
     expect(run.status).toBe(1)
     expect(hits(run.stdout)).toEqual([])
     expect(unknowns(run.stdout)).toEqual([
-      { direction: 'DIR-TOOL-SESSION', role: MEMBERS.toolCordis },
-      { direction: 'DIR-TOOL-AGENT', role: MEMBERS.toolCordis },
+      { direction: 'DIR-TOOL-SESSION', side: '源', role: MEMBERS.toolCordis },
+      { direction: 'DIR-TOOL-AGENT', side: '源', role: MEMBERS.toolCordis },
     ])
     expect(run.stdout).toContain(
-      '依赖方向：检查了 5 条方向行、20 个成员对，命中 0 处，2 处源角色没有文件',
+      '依赖方向：检查了 5 条方向行、20 个成员对，命中 0 处，2 处角色没有文件',
     )
     expect(run.stdout).toContain('✗ 2 处依赖违规、方向命中或环')
+  })
+
+  it('目标成员迁到别的目录后仍有导入：目标角色没有文件，报 direction-unknown 并退出 1，不以命中 0 处通过', () => {
+    // 没有合法对照的树，再加一处 Agent → Session 纯契约的导入：迁走之前它是唯一的发现。
+    const tree = subject(undefined, false)
+    const trusted = runner(tree)
+    const single = writeNegative(tree, AGENT_SESSION, 'value')
+    const before = deps(tree, trusted)
+    expect(before.status).toBe(1)
+    expect(located(hits(before.stdout))).toEqual(expected([single]))
+    // 迁走 session-contract，包名链接改指新目录：导入照样解析，只是落到了不属于任何角色的成员里。
+    renameSync(join(tree, MEMBERS.session), join(tree, 'packages/session/session-moved'))
+    rmSync(join(tree, 'node_modules', name(MEMBERS.session)))
+    linkWorkspace(tree, join(tree, 'node_modules'))
+    const run = deps(tree, trusted)
+    expect(run.stderr).toBe('')
+    expect(run.status).toBe(1)
+    expect(hits(run.stdout)).toEqual([])
+    expect(run.stdout).not.toContain('no-unresolvable')
+    expect(unknowns(run.stdout)).toEqual([
+      { direction: 'DIR-AGENT-SESSION', side: '目标', role: MEMBERS.session },
+      { direction: 'DIR-MODEL-SESSION', side: '目标', role: MEMBERS.session },
+      { direction: 'DIR-TOOL-SESSION', side: '目标', role: MEMBERS.session },
+    ])
+    expect(run.stdout).toContain('命中 0 处，3 处角色没有文件')
+    expect(run.stdout).toContain('✗ 3 处依赖违规、方向命中或环')
   })
 
   it('runner 没有 constraints.json 就不检查方向；schema 2 没有方向行；文件坏了退出 2 且不跑 dependency-cruiser', () => {
@@ -672,6 +735,20 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
     const ambiguous = deps(tree, missing)
     expect(ambiguous.status).toBe(2)
     expect(ambiguous.stderr).toContain('Ambiguous architecture constraints')
+  })
+
+  it('runner 的 constraints.json 坏了时先退出 2，不运行 dependency-cruiser', () => {
+    const tree = subject(undefined, false)
+    const trusted = runner(tree)
+    const marker = markPreset(trusted)
+    write(trusted, CONSTRAINTS, '{ "schemaVersion": 3, ')
+    const broken = deps(tree, trusted)
+    expect(broken.status).toBe(2)
+    expect(existsSync(marker)).toBe(false)
+    // 对照：文件修好后同一个预设被加载，标记出现。
+    writePolicy(trusted, policy())
+    expect(deps(tree, trusted).status).toBe(0)
+    expect(existsSync(marker)).toBe(true)
   })
 })
 
@@ -744,6 +821,40 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
     expect(deviations.every(item => item.sites.length > 0)).toBe(true)
   })
 
+  it('目标角色在被检树里没有文件时，以它为目标的每一对都是未知并写明原因', () => {
+    const { tree, trusted } = reportable()
+    rmSync(join(tree, MEMBERS.session, 'src'), { recursive: true })
+    const rows = withRunner(trusted, () => directionRows(tree))
+    expect(rows).toHaveLength(20)
+    const unknown = rows.filter(row => row.state === 'unknown')
+    expect(unknown).toHaveLength(6)
+    expect(unknown.every(row => row.targetMember === MEMBERS.session)).toBe(true)
+    expect(
+      unknown.every(row =>
+        row.reason.includes(`目标角色 ${MEMBERS.session} 的 paths 在被检树中匹配不到任何文件`),
+      ),
+    ).toBe(true)
+    expect(rows.filter(row => row.targetMember !== MEMBERS.session).map(row => row.state)).toEqual(
+      Array.from({ length: 14 }, () => 'converged'),
+    )
+  })
+
+  it('runner 没有方向行时不取依赖图：不运行 dependency-cruiser', () => {
+    const { tree } = reportable()
+    // runner 是 schema 2，或者没有 constraints.json：报告里没有方向行，预设一次都没有加载。
+    for (const constraints of [policy(2, null), policy(3, null), null]) {
+      const plain = runner(tree, constraints)
+      const marker = markPreset(plain)
+      expect(withRunner(plain, () => directionRows(tree))).toEqual([])
+      expect(existsSync(marker)).toBe(false)
+    }
+    // 对照：runner 有方向行时同一个预设被加载，标记出现。
+    const trusted = runner(tree)
+    const marker = markPreset(trusted)
+    expect(withRunner(trusted, () => directionRows(tree))).toHaveLength(20)
+    expect(existsSync(marker)).toBe(true)
+  })
+
   it('依赖事实不可得时每一行都是未知并写明原因', () => {
     const { tree, trusted } = reportable()
     write(
@@ -803,5 +914,10 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
     )
     expect(unjudged.map(row => row.state)).toEqual(rows.map(row => row.state))
     expect(unjudged.every(row => row.age === 'unjudged')).toBe(true)
+    // 不判的原因写在每一行里，报告的读者看得到基线依赖事实不可得。
+    expect(unjudged.every(row => row.reason.includes('基线依赖事实不可得，偏离行未判新旧：'))).toBe(
+      true,
+    )
+    expect(rows.some(row => row.reason.includes('基线依赖事实不可得'))).toBe(false)
   })
 })

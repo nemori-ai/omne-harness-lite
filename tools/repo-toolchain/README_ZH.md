@@ -83,9 +83,9 @@ pnpm --filter @omne-harness/repo-toolchain test
 `omne-deps` 从 0.0.12 起按 `constraints.json` 的方向行检查依赖方向。方向行与角色只从运行检查器的仓库读，`--root` 只改变被检查的树；被检查的树改动或删除自己的 `constraints.json` 与预设都不改变结果。
 
 - 命中：一处已解析的导入，所在文件落在某条方向行某个 `from` 角色的 `paths` 里（按 `paths` 匹配，不取最精确的角色；方向行引用的角色的 `paths` 在校验时已保证不与别的角色相同或互相包含），并且解析后的目标文件所在的成员等于某个 `to` 角色的成员。类型导入、`export … from`（含 `export *` 与 `export { x } from`）、动态 `import()`、按包名或公开子路径导入、tsconfig 别名、跨成员相对路径都按解析后的目标判断；目标在 `src/`、`dist/` 或声明文件里都算同一成员。解析失败的导入不是方向命中，仍由 `no-unresolvable` 报出；别名只有运行检查器的 `tsconfig.base.json` 声明了 `paths` 才解析得到。
-- 发现：每处命中一条 `direction-rule`，写 `[<方向行 id>] <源文件> 依赖了 <目标文件>（<源角色> → <目标角色>）：<出处>`，后面是导入处的路径与行号；一处导入同时命中几条方向行就报几条。某条方向行的某个源角色在被检树里匹配不到任何文件时，报一条 `direction-unknown`，写明方向行与角色：成员改名或迁走后，方向检查不以「命中 0 处」通过。
+- 发现：每处命中一条 `direction-rule`，写 `[<方向行 id>] <源文件> 依赖了 <目标文件>（<源角色> → <目标角色>）：<出处>`，后面是导入处的路径与行号；一处导入同时命中几条方向行就报几条。某条方向行的某个源角色或目标角色在被检树里匹配不到任何文件时，报一条 `direction-unknown`，写明方向行、源或目标与角色：源成员或目标成员改名、迁走后，方向检查都不以「命中 0 处」通过。
 - 退出码：有任何 `direction-rule` 或 `direction-unknown` 退出 1，原有发现与退出码的含义不变。
-- 汇总行：`依赖方向：检查了 <n> 条方向行、<m> 个成员对，命中 <k> 处`，有源角色没有文件时再写几处。
+- 汇总行：`依赖方向：检查了 <n> 条方向行、<m> 个成员对，命中 <k> 处`，有角色没有文件时再写几处。
 - 没有方向行：运行检查器的仓库没有 `constraints.json` 时不检查方向，写「runner 没有 docs/architecture/constraints.json，未检查」，退出码只由其他发现决定；文件是 schema 1、2，或 schema 3 缺省 `directions`，写「没有方向行」。
 - 退出 2：`constraints.json` 解析失败、校验失败、来源核对失败，或 `docs/architecture/constraints.json` 与 `.meta_harness/design/architecture/constraints.json` 两份并存。先读它再运行 dependency-cruiser，所以文件坏了不出依赖图。
 
@@ -389,7 +389,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 全局预期归 `docs/architecture/constraints.json`。
 当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2 与 3 的依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
 缺当前或BASE输入保留unknown或no-data，删除变化仍可见。只修改依据Markdown也触发收工测量。精确输入、范围和不能证明的性质见[符合性契约](src/arch/CONFORMANCE.md)。
-符合性报告带[方向行](src/arch/CONFORMANCE.md#方向行)：方向行与角色读运行检查器仓库的 `constraints.json`（与 `omne-deps` 同一份），依赖事实读本版的依赖图，图不可得时这些行是 unknown；方向偏离在回路里只报告，不是硬线。
+符合性报告带[方向行](src/arch/CONFORMANCE.md#方向行)：方向行与角色读运行检查器仓库的 `constraints.json`（与 `omne-deps` 同一份），依赖事实读本版的依赖图，图不可得时这些行是 unknown；基线的图不可得时偏离行不判新旧，每一行写明原因；方向偏离在回路里只报告，不是硬线。
 集成约定归 [Cordis 集成约定](../../docs/architecture/cordis-integration-conventions.md)。
 工具不反写预期，也不从目录存在性或手写绑定推断实现状态。
 

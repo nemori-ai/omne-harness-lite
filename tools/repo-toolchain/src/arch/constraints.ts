@@ -114,14 +114,19 @@ export function roleMember(role: ArchitectureRole): string {
 /** `pattern` 覆盖 `other`：两者相同，或 `other` 在 `pattern` 的 `/**` 目录之下。 */
 const covers = (pattern: string, other: string): boolean =>
   pattern === other || (pattern.endsWith('/**') && other.startsWith(pattern.slice(0, -2)))
+/** 方向行引用的一个角色与它的成员目录。 */
+interface DirectionRoleRef {
+  readonly id: string
+  readonly member: string
+}
 /**
  * 方向行引用的角色：成员唯一，且 `paths` 不与任何别的角色相同或互相包含。否则一个文件会同时属于两个角色，
  * 源的归属就不唯一（更精确的角色会把 `src/**` 的一部分截走）。
  */
-function directionRole(id: string, roles: ReadonlyMap<string, ArchitectureRole>): void {
+function directionRole(id: string, roles: ReadonlyMap<string, ArchitectureRole>): DirectionRoleRef {
   const role = roles.get(id)
   if (role === undefined) throw new Error(`Architecture direction references unknown role ${id}`)
-  roleMember(role)
+  const member = roleMember(role)
   for (const other of roles.values()) {
     if (other.id === role.id) continue
     const overlap = role.paths.find(path =>
@@ -132,13 +137,31 @@ function directionRole(id: string, roles: ReadonlyMap<string, ArchitectureRole>)
         `Architecture role ${role.id} shares or contains the paths of ${other.id}: ${overlap}`,
       )
   }
+  return { id, member }
 }
 const DIRECTION_ID = /^DIR-[A-Z0-9]+(?:-[A-Z0-9]+)*$/u
-function roleIds(v: unknown, roles: ReadonlyMap<string, ArchitectureRole>): [string, ...string[]] {
+type RoleRefs = readonly [DirectionRoleRef, ...DirectionRoleRef[]]
+function roleRefs(v: unknown, roles: ReadonlyMap<string, ArchitectureRole>): RoleRefs {
   const [first, ...rest] = strings(v)
   if (first === undefined) throw new Error('Architecture directions require nonempty role lists')
-  for (const id of [first, ...rest]) directionRole(id, roles)
-  return [first, ...rest]
+  return [directionRole(first, roles), ...rest.map(id => directionRole(id, roles))]
+}
+const idsOf = ([first, ...rest]: RoleRefs): [string, ...string[]] => [
+  first.id,
+  ...rest.map(ref => ref.id),
+]
+/**
+ * 源角色与目标角色不能在同一个成员里：成员内部的依赖不进依赖图，这样的一对永远不会命中。
+ * 同一个角色同时出现在两边是它的特例。
+ */
+function rejectSameMember(id: string, from: RoleRefs, to: RoleRefs): void {
+  for (const source of from) {
+    const target = to.find(ref => ref.member === source.member)
+    if (target !== undefined)
+      throw new Error(
+        `Architecture direction ${id} puts source role ${source.id} and target role ${target.id} in the same member ${source.member}`,
+      )
+  }
 }
 function direction(
   value: unknown,
@@ -147,14 +170,10 @@ function direction(
   const row = obj(value, ['id', 'from', 'to', 'source'])
   const id = str(row['id'])
   if (!DIRECTION_ID.test(id)) throw new Error(`Invalid architecture direction id: ${id}`)
-  const from = roleIds(row['from'], roles),
-    to = roleIds(row['to'], roles)
-  const shared = from.filter(role => to.includes(role))
-  if (shared.length > 0)
-    throw new Error(
-      `Architecture direction ${id} lists the same roles on both sides: ${shared.join(', ')}`,
-    )
-  return { id, from, to, source: str(row['source']) }
+  const from = roleRefs(row['from'], roles),
+    to = roleRefs(row['to'], roles)
+  rejectSameMember(id, from, to)
+  return { id, from: idsOf(from), to: idsOf(to), source: str(row['source']) }
 }
 const LAYERS: readonly Layer[] = [
   'interaction',
@@ -453,34 +472,37 @@ function validateConstraintSources(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([path, digest]) => ({ path, digest }))
 }
+const sortedById = <T extends { readonly id: string }>(items: readonly T[]) =>
+  [...items].sort((a, b) => a.id.localeCompare(b.id))
+/** 语义比较里的方向行：没有方向行时不出现这个键，所以 schema 3 不写 `directions` 与写空数组语义相同。 */
+function semanticDirections(rows: ArchitectureConstraints['directions']) {
+  if (!rows?.length) return {}
+  return {
+    directions: sortedById(
+      rows.map(row => ({
+        id: row.id,
+        from: [...row.from].sort(),
+        to: [...row.to].sort(),
+        source: row.source,
+      })),
+    ),
+  }
+}
 export function semanticConstraints(value: ArchitectureConstraints | null): string | null {
   if (value === null) return null
-  const sorted = <T extends { readonly id: string }>(items: readonly T[]) =>
-    [...items].sort((a, b) => a.id.localeCompare(b.id))
   return JSON.stringify({
     schemaVersion: value.schemaVersion,
-    domains: sorted(value.domains),
+    domains: sortedById(value.domains),
     ...(value.importExceptions?.length
       ? {
-          importExceptions: sorted(
+          importExceptions: sortedById(
             value.importExceptions.map(row => ({ ...row, symbols: [...row.symbols].sort() })),
           ),
         }
       : {}),
-    ...(value.directions?.length
-      ? {
-          directions: sorted(
-            value.directions.map(row => ({
-              id: row.id,
-              from: [...row.from].sort(),
-              to: [...row.to].sort(),
-              source: row.source,
-            })),
-          ),
-        }
-      : {}),
-    rules: sorted(value.rules),
-    roles: sorted(
+    ...semanticDirections(value.directions),
+    rules: sortedById(value.rules),
+    roles: sortedById(
       value.roles.map(row => ({
         id: row.id,
         paths: [...row.paths].sort(),

@@ -32,7 +32,7 @@ export interface DirectionHit {
   readonly dependency: FileDependency
 }
 export type DirectionPolicy = Pick<ArchitectureConstraints, 'roles' | 'directions'>
-/** `omne-deps` 的方向发现：命中一条方向行，或源角色在被检树里没有文件、不能判方向。 */
+/** `omne-deps` 的方向发现：命中一条方向行，或源角色、目标角色在被检树里没有文件、不能判方向。 */
 export type DirectionFinding = DependencyFinding<'direction-rule' | 'direction-unknown'>
 
 export function directionPairs(policy: DirectionPolicy): DirectionPair[] {
@@ -62,7 +62,7 @@ export function memberPairCount(pairs: readonly DirectionPair[]): number {
   return new Set(pairs.map(pair => `${pair.fromMember}\u0000${pair.toMember}`)).size
 }
 
-/** 文件按角色的 `paths` 落在角色里。命中判定与「源角色有没有文件」都只用这一条规则，不取最精确的角色。 */
+/** 文件按角色的 `paths` 落在角色里。命中判定与「角色有没有文件」都只用这一条规则，不取最精确的角色。 */
 export const inRole = (path: string, role: ArchitectureRole): boolean =>
   role.paths.some(pattern => matchesRolePath(path, pattern))
 
@@ -92,44 +92,71 @@ function hitsOf(
   return hits.sort(byPosition)
 }
 
-/** 一对的判定：from 角色在被检树里有没有文件（没有就不能判方向），以及命中了哪些依赖。 */
+/** 一对里在被检树中匹配不到任何文件的角色，以及它在这一对里是源还是目标。 */
+export interface EmptyRole {
+  readonly side: 'source' | 'target'
+  readonly role: ArchitectureRole
+}
+/** 一对的判定：哪些角色在被检树里没有文件（有一个就不能判方向），以及命中了哪些依赖。 */
 export interface DirectionJudgement {
   readonly pair: DirectionPair
-  readonly populated: boolean
+  readonly empty: readonly EmptyRole[]
   readonly hits: readonly DirectionHit[]
 }
-/** `omne-deps` 与报告共用的判定：同一份方向行、全部角色、同一张图。 */
+/**
+ * `omne-deps` 与报告共用的判定：同一份方向行、全部角色、同一张图。源角色与目标角色有没有文件用同一条规则判：
+ * 图的 `modules` 里有没有文件落在角色的 `paths` 里。成员改名或迁走后，两边都不能以「命中 0 处」通过。
+ */
 export function judgeDirections(
   policy: DirectionPolicy,
   graph: Pick<DependencyGraph, 'modules' | 'dependencies'>,
 ): DirectionJudgement[] {
   const pairs = directionPairs(policy)
   const hits = hitsOf(graph.dependencies, pairs)
-  return pairs.map(pair => ({
-    pair,
-    populated: graph.modules.some(path => inRole(path, pair.from)),
-    hits: hits.filter(hit => hit.pair === pair),
-  }))
+  const populated = new Map<string, boolean>()
+  const isEmpty = (role: ArchitectureRole): boolean => {
+    const known = populated.get(role.id)
+    if (known !== undefined) return !known
+    const found = graph.modules.some(path => inRole(path, role))
+    populated.set(role.id, found)
+    return !found
+  }
+  return pairs.map(pair => {
+    const sides: readonly EmptyRole[] = [
+      { side: 'source', role: pair.from },
+      { side: 'target', role: pair.to },
+    ]
+    return {
+      pair,
+      empty: sides.filter(item => isEmpty(item.role)),
+      hits: hits.filter(hit => hit.pair === pair),
+    }
+  })
 }
+
+const SIDE_LABEL: Record<EmptyRole['side'], string> = { source: '源角色', target: '目标角色' }
+/** 角色没有文件时给人看的原因；`omne-deps` 的发现与报告的未知行用同一句。 */
+const emptyReason = ({ side, role }: EmptyRole): string =>
+  `${SIDE_LABEL[side]} ${role.id} 的 paths 在被检树中匹配不到任何文件，不能判方向`
 
 /**
  * `omne-deps` 的发现：每处命中一条 `direction-rule`，`rule` 是方向行 id，`sites` 是导入处；
- * 源角色没有文件的每个（方向行，角色）一条 `direction-unknown`。
+ * 源角色或目标角色没有文件的每个（方向行，角色）一条 `direction-unknown`。
  */
 export function directionFindings(judgements: readonly DirectionJudgement[]): DirectionFinding[] {
   const unknown = new Map<string, DirectionFinding>()
-  for (const { pair, populated } of judgements) {
-    if (populated) continue
-    const key = `${pair.direction.id}\u0000${pair.from.id}`
-    if (!unknown.has(key))
-      unknown.set(key, {
-        kind: 'direction-unknown',
-        rule: pair.direction.id,
-        message: `[${pair.direction.id}] 源角色 ${pair.from.id} 的 paths 在被检树中匹配不到任何文件，不能判方向：${pair.direction.source}`,
-        sites: [],
-        edges: [],
-      })
-  }
+  for (const { pair, empty } of judgements)
+    for (const item of empty) {
+      const key = `${pair.direction.id}\u0000${item.side}\u0000${item.role.id}`
+      if (!unknown.has(key))
+        unknown.set(key, {
+          kind: 'direction-unknown',
+          rule: pair.direction.id,
+          message: `[${pair.direction.id}] ${emptyReason(item)}：${pair.direction.source}`,
+          sites: [],
+          edges: [],
+        })
+    }
   const hits = judgements
     .flatMap(judgement => judgement.hits)
     .sort(byPosition)
@@ -167,34 +194,39 @@ export function versionGraph(
   return source.kind === 'worktree' ? workingGraph(root) : revisionGraph(root, source.commit)
 }
 
+/** 有图时一对的状态与原因：有角色没有文件为 unknown，没有命中为 converged，有命中为 deviation。 */
+function judgedState({
+  empty,
+  hits,
+}: Pick<DirectionJudgement, 'empty' | 'hits'>): [ConformanceRow['state'], string] {
+  if (empty.length > 0) return ['unknown', empty.map(emptyReason).join('；')]
+  if (hits.length === 0)
+    return ['converged', '该成员对的已解析源码导入没有指向目标成员；不表示整体符合']
+  return [
+    'deviation',
+    `${hits.length} 处依赖了目标成员：${hits
+      .map(hit => `${hit.dependency.path}:${hit.dependency.line} → ${hit.dependency.resolved}`)
+      .join('；')}`,
+  ]
+}
+
 /**
  * 架构符合性报告的方向行：每对一行。没有命中为 converged；有命中为 deviation，`reason` 逐处列源文件、
- * 目标文件与行号；源角色在被检版本里没有文件、或依赖事实不可得时为 unknown 并写明原因。`age` 一律 unjudged，
+ * 目标文件与行号；源角色或目标角色在被检版本里没有文件、或依赖事实不可得时为 unknown 并写明原因。`age` 一律 unjudged，
  * 由 `directionConformance` 对基线判。
  */
 export function directionRows(policy: DirectionPolicy, facts: DirectionFacts): ConformanceRow[] {
   const judgements =
     facts.kind === 'graph'
       ? judgeDirections(policy, facts.graph)
-      : directionPairs(policy).map(pair => ({ pair, populated: false, hits: [] }))
-  return judgements.map(({ pair, populated, hits }) => {
+      : directionPairs(policy).map(pair => ({ pair, empty: [], hits: [] }))
+  return judgements.map(judgement => {
+    const { pair, hits } = judgement
     const { direction, from, to } = pair
     const [state, reason]: [ConformanceRow['state'], string] =
       facts.kind === 'unavailable'
         ? ['unknown', `依赖事实不可得：${facts.reason}`]
-        : !populated
-          ? ['unknown', `源角色 ${from.id} 的 paths 在被检树中匹配不到任何文件，不能判方向`]
-          : hits.length === 0
-            ? ['converged', '该成员对的已解析源码导入没有指向目标成员；不表示整体符合']
-            : [
-                'deviation',
-                `${hits.length} 处依赖了目标成员：${hits
-                  .map(
-                    hit =>
-                      `${hit.dependency.path}:${hit.dependency.line} → ${hit.dependency.resolved}`,
-                  )
-                  .join('；')}`,
-              ]
+        : judgedState(judgement)
     return {
       id: JSON.stringify(['DIRECTION', direction.id, from.id, to.id]),
       rule: 'DIRECTION',
@@ -214,7 +246,7 @@ export function directionRows(policy: DirectionPolicy, facts: DirectionFacts): C
  * 报告的方向行一节。方向行与角色只从可信 runner 的 `constraints.json` 读（全部角色，不按退休过滤），
  * 与 `omne-deps` 同一份；runner 没有文件或没有方向行就没有这一节，也不取依赖图。
  * 被检版本与基线版本都用这份方向行，依赖事实各取各的版本：`graph` 是调用方已经算好的被检版本的图。
- * 给了基线时偏离行判新旧；基线的图不可得就不判，`age` 留 unjudged。
+ * 给了基线时偏离行判新旧；基线的图不可得就不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
  */
 export function directionConformance(input: {
   readonly root: string
@@ -232,20 +264,18 @@ export function directionConformance(input: {
   if (input.baseline === undefined) return rows
   const baseline = input.baseline
   const stock = directionFacts(() => versionGraph(input.root, baseline))
+  if (stock.kind === 'unavailable')
+    return rows.map(row => ({
+      ...row,
+      reason: `${row.reason}；基线依赖事实不可得，偏离行未判新旧：${stock.reason}`,
+    }))
   const stockIds = new Set(
-    stock.kind === 'graph'
-      ? directionRows(policy, stock)
-          .filter(row => row.state === 'deviation')
-          .map(row => row.id)
-      : [],
+    directionRows(policy, stock)
+      .filter(row => row.state === 'deviation')
+      .map(row => row.id),
   )
   return rows.map(row => ({
     ...row,
-    age:
-      row.state !== 'deviation' || stock.kind === 'unavailable'
-        ? 'unjudged'
-        : stockIds.has(row.id)
-          ? 'stock'
-          : 'new',
+    age: row.state !== 'deviation' ? 'unjudged' : stockIds.has(row.id) ? 'stock' : 'new',
   }))
 }

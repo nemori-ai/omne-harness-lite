@@ -73,7 +73,7 @@ export interface DependencyFinding<Kind extends string = DependencyFindingKind> 
 
 export interface DependencyGraph {
   readonly members: readonly Member[]
-  /** 成员目录里 dependency-cruiser 走到的模块（仓库相对路径，含测试）；方向规则据此判源角色有没有文件。 */
+  /** 成员目录里 dependency-cruiser 走到的模块（仓库相对路径，含测试）；方向规则据此判源角色与目标角色有没有文件。 */
   readonly modules: readonly string[]
   readonly edges: readonly MemberEdge[]
   /** 跨成员的文件级依赖事实；`edges` 是其中产品源码部分按成员对的归并。 */
@@ -281,7 +281,7 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
     return member
   }
 
-  // 成员里的模块本身留下，方向规则据此判源角色有没有文件。
+  // 成员里的模块本身留下，方向规则据此判源角色与目标角色有没有文件。
   const modules = output.modules
     .map(module => module.source)
     .filter(path => memberOf(path) !== undefined)

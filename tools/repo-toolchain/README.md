@@ -57,9 +57,9 @@ The actual architecture extraction reads only the files of one revision. A packa
 Version 0.0.12 is the first version in which `omne-deps` checks the direction rows of `constraints.json`. The rows and the roles come only from the runner repository. `--root` changes only the checked tree.
 
 - A hit is a resolved import whose file matches the `paths` of a `from` role of a row (the match uses `paths` only, not the most precise role; validation already rejects a referenced role whose `paths` equal or contain the `paths` of another role) and whose resolved target file is in the member of a `to` role. Type imports, `export … from` (including `export *` and `export { x } from`), dynamic `import()`, package subpaths, tsconfig aliases and relative paths are judged by the resolved target. A target in `src/`, `dist/` or a declaration file is the same member. An unresolved import is not a hit; `no-unresolvable` reports it.
-- Each hit is one `direction-rule` finding with the row id, the source file, the target file, the source role, the target role, the cited source and the import line. When a `from` role of a row matches no file in the checked tree, the command reports one `direction-unknown` finding that names the row and the role. A renamed or moved member does not pass with zero hits.
+- Each hit is one `direction-rule` finding with the row id, the source file, the target file, the source role, the target role, the cited source and the import line. When a `from` role or a `to` role of a row matches no file in the checked tree, the command reports one `direction-unknown` finding that names the row, the side and the role. A renamed or moved source member or target member does not pass with zero hits.
 - Any `direction-rule` or `direction-unknown` finding exits 1. The other findings and exit codes keep their meaning.
-- The summary line prints the number of rows, member pairs and hits, and the number of source roles without files when there are any.
+- The summary line prints the number of rows, member pairs and hits, and the number of roles without files when there are any.
 - No direction rows: when the runner has no `constraints.json`, the command prints that it did not check directions, and the exit code comes from the other findings. A schema 1 or 2 file, or a schema 3 file without `directions`, prints that there are no direction rows.
 - Exit 2: `constraints.json` does not parse, fails validation, fails the check of its cited sources, or `docs/architecture/constraints.json` and `.meta_harness/design/architecture/constraints.json` both exist. The command reads the file before it runs dependency-cruiser.
 
@@ -106,7 +106,7 @@ Schema 2 and 3 source paths start at repository root. Referenced files and Markd
 IC-1 and IC-5 use adopted roles and actual public exports. Directory names grant no exception.
 A missing current or BASE input remains unknown or no-data. Current deletion still reports its semantic change.
 Changes to cited Markdown also trigger the hook. See the [conformance contract](src/arch/CONFORMANCE.md).
-The conformance report has [direction rows](src/arch/CONFORMANCE.md#方向行). The rows and the roles come from the runner repository's `constraints.json`, the same file that `omne-deps` reads. The dependency facts come from the dependency graph of the reported version. When that graph is not available, the rows are unknown. A direction deviation is reported in the loop. It is not a hard line.
+The conformance report has [direction rows](src/arch/CONFORMANCE.md#方向行). The rows and the roles come from the runner repository's `constraints.json`, the same file that `omne-deps` reads. The dependency facts come from the dependency graph of the reported version. When that graph is not available, the rows are unknown. When the graph of the baseline is not available, the report does not mark deviations as new or stock, and each row gives the reason. A direction deviation is reported in the loop. It is not a hard line.
 It reports static conformance separately from added, removed and changed assembly facts.
 Fact counts are neutral. They have no thresholds or trend comparison.
 

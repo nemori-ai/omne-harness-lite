@@ -17,7 +17,8 @@ schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史
 表示（schemaVersion 3）：
 
 - schema 3 在 schema 2 之上新增顶层数组 `directions`，可以缺省；给了就必须是数组，`null` 等别的值拒绝。schema 1、2 照旧解析，出现 `directions` 时按未知字段拒绝。
-- 一行是 `{ "id", "from", "to", "source" }`，字段不多不少。`id` 匹配 `^DIR-[A-Z0-9]+(-[A-Z0-9]+)*$` 且在 `directions` 内唯一；`from`、`to` 非空、元素唯一、每个都是 `roles` 里声明的角色 id，两边不相交；`source` 按角色 `source` 的规则校验。
+- 一行是 `{ "id", "from", "to", "source" }`，字段不多不少。`id` 匹配 `^DIR-[A-Z0-9]+(-[A-Z0-9]+)*$` 且在 `directions` 内唯一；`from`、`to` 非空、元素唯一、每个都是 `roles` 里声明的角色 id；`source` 按角色 `source` 的规则校验。
+- 一行的源角色与目标角色不在同一个成员里，同一个角色也不能同时在两边。成员内部的依赖不进依赖图，这样的一对永远不会命中，所以拒绝。
 - 方向行引用的角色：每条 `paths` 都落在同一个成员目录里（按依赖图的成员规则，`packages/<组>/<成员>` 或 `apps/<成员>`；`examples/` 不行），这个目录是该角色的成员；它的 `paths` 不与任何别的角色相同或互相包含（一个是另一个 `/**` 目录之下的），否则一个文件会同时属于两个角色。违反的都拒绝。
 - 角色的 `status` 不影响方向行：方向行按角色 id 绑定，报告也不按退休过滤这些角色。`directions` 参与语义预期比较，增删改一行是语义变化。
 
@@ -25,14 +26,14 @@ schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史
 
 - 方向行与角色只从可信 runner 的 `constraints.json` 读，不从被检版本读；被检版本与基线版本都用这份方向行。runner 没有文件或没有方向行时报告没有这些行，也不取依赖图。
 - 依赖事实只取 dependency-cruiser 的输出（`deps/graph.ts` 的 `modules` 与 `dependencies`，可信 runner 的预设），各版本取各自的图，不另走静态抽取。
-- 源：依赖所在文件匹配某个 `from` 角色的 `paths`；不取最精确的角色。目标：解析后的文件所在成员等于某个 `to` 角色的成员，在 `src/`、`dist/` 或声明文件里都算。源角色有没有文件按同一条 `paths` 规则对 `modules` 判。
+- 源：依赖所在文件匹配某个 `from` 角色的 `paths`；不取最精确的角色。目标：解析后的文件所在成员等于某个 `to` 角色的成员，在 `src/`、`dist/` 或声明文件里都算。源角色与目标角色有没有文件按同一条 `paths` 规则对 `modules` 判。
 
 报告行：
 
 - 按成员对展开：每条方向行 × 每个 `from` 角色 × 每个 `to` 角色一行。`rule` 为 `DIRECTION`，`key` 为 `<方向行 id> <源角色> → <目标角色>`，`member` 与 `targetMember` 是两个成员，`expected` 是方向行的 `source`。
 - `DIRECTION` 是报告行的身份，不是 `RuleId`，不能写进 `constraints.json` 的 `rules`；省略规则列表也关不掉这些行。
-- 没有命中为 converged；有命中为 deviation，`sites` 与 `reason` 逐处列源文件、目标文件与行号；源角色在被检版本里匹配不到任何文件，或依赖事实不可得（dependency-cruiser 或 Git 的已知失败，没有给出图）时为 unknown，`reason` 写明原因。别的异常照常失败，不记成 unknown。
-- 给 BASE 时，偏离行对基线版本的图判新旧：基线上同一行也偏离为 stock，否则为 new。基线的图不可得时不判，`age` 留 unjudged。
+- 没有命中为 converged；有命中为 deviation，`sites` 与 `reason` 逐处列源文件、目标文件与行号；源角色或目标角色在被检版本里匹配不到任何文件，或依赖事实不可得（dependency-cruiser 或 Git 的已知失败，没有给出图）时为 unknown，`reason` 写明原因。别的异常照常失败，不记成 unknown。
+- 给 BASE 时，偏离行对基线版本的图判新旧：基线上同一行也偏离为 stock，否则为 new。基线的图不可得时不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
 - 报告 exit 0 不表示符合：偏离与未知都只报告，硬线归 `omne-deps`。
 
 当前输入拒绝来源位于 `packages.0.0.1.legacy/` 或 `apps.0.0.1.legacy/` 的登记，包括用 `--revision` 选择的当前版本。只在 BASE 比较中，工具可退休来源位于这两个根、且路径在该版本实际源码快照中全部零命中的角色。匹配沿用精确路径和末尾 `/**` 规则，快照沿用架构读取器的活动范围。历史角色仍命中源码时拒绝旧来源；domains、rules 和 importExceptions 没有退休豁免。
