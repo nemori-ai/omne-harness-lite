@@ -3,15 +3,16 @@
 //   旧 → 新（writers）：已有的写方（提供者、替身、实现者）按旧形状产出的值，仍被接受。
 // 判断全部由检查器做；这里只负责还原声明、生成比较文件、读结果。还原前对每侧做几项归一化，
 // 让检查器的结论贴近「消费者还能不能编译」：
-//   - 对别的模块与 `global` 的扩充改写成本侧的命名空间，两侧能同时存在；对本成员模块的扩充保留，各侧自然生效；
+//   - 对别的模块与 `global` 的扩充改写成本侧的命名空间，两侧才能同时存在；对本成员模块的扩充保留，各侧自然生效。
+//     分类层保证走到这里时扩充两侧相同（有差异整份 review，不跑检查器），所以扩充本身不比较；
+//   - 脚本文件（顶层声明都是全局的）只还原一份：分类层同样保证它两侧相同，还原两份会在同一个程序里重复声明；
 //   - 方法签名改成函数类型的属性，避开方法参数的双变；
 //   - 本成员的 `unique symbol` 改成按文件与名字定位的字面量，两侧的品牌才能互相比较；
 //   - 类的 private 与 `#` 成员删除、protected 放开，避开名义性；
 //   - 新增 `any` 与「能否当值用」的变化另记为不兼容。
 // 每个目标的结论带着比较条数与结构化的问题：方向不成立、检查器未完成、实例组合超限分开报，不合并成「失败」。
-// 另给每个导出算它经本成员内部声明能到达的顶层语句，以及到达的、本次有扩充改动的外部接口：
-// 分类层用前者判断哪些导出被改动「涉及」，用后者实现「导出引用了被扩充的外部接口」判 review。
-// 找被扩充接口时穿过 lib 与外部包的声明（有上限，超过记为未完成）；脚本文件的顶层声明按 `global` 的扩充处理。
+// 另给每个导出算它经本成员内部声明能到达的顶层语句：分类层用它判断哪些导出被改动「涉及」。
+// 只沿本成员还原的声明走，不进 lib 与外部包：全局作用域的差异不在这里判断。
 // 规则来源与探针见 SPEC.md「分类」。
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -25,19 +26,14 @@ import {
 import { sameText, statementId } from './api-normalize.ts'
 import { consumerCompilerOptions } from './compat.ts'
 
-export type CompareTarget =
-  | { readonly kind: 'export'; readonly entry: string; readonly name: string }
-  | { readonly kind: 'augmentation'; readonly target: string; readonly name: string }
-
-/** 被本成员扩充的外部接口：模块名（或 `global`）与接口名。 */
-export interface AugmentedInterface {
-  readonly target: string
+export interface CompareTarget {
+  readonly entry: string
   readonly name: string
 }
 
 /**
  * 一个目标上检查器发现的问题。direction：某条比较有一个方向不成立，或不必比较就能定的不兼容
- * （含义变了、类型参数个数变了、新增 any、重载换序、扩充增删）；incomplete：检查器没有给出结论；
+ * （含义变了、类型参数个数变了、新增 any、重载换序）；incomplete：检查器没有给出结论；
  * truncated：类型参数的实例组合超过上限，没有全部比较。
  */
 export type VerdictProblem =
@@ -62,10 +58,8 @@ export interface Verdict {
   /** 跑完的可赋值比较条数；0 表示没有任何比较覆盖这个目标。 */
   readonly comparisons: number
   readonly problems: readonly VerdictProblem[]
-  /** 导出经本成员内部声明能到达的顶层语句（`statementId`，两侧并集）；扩充为空。 */
+  /** 导出经本成员内部声明能到达的顶层语句（`statementId`，两侧并集）。 */
   readonly reaches: readonly string[]
-  /** 导出到达的、本次有扩充改动的外部接口；扩充为空。 */
-  readonly augmentedReferences: readonly AugmentedInterface[]
 }
 
 export interface CheckerComparison {
@@ -82,7 +76,7 @@ export interface CompareInput {
   readonly before: ApiSnapshot
   readonly after: ApiSnapshot
   /** 两侧都有的导出：由调用方按入口对齐。 */
-  readonly exports: readonly { readonly entry: string; readonly name: string }[]
+  readonly exports: readonly CompareTarget[]
 }
 
 /** 类型参数实例组合的上限；超过的目标记 truncated，不静默截断。 */
@@ -90,48 +84,35 @@ export const INSTANCE_LIMIT = 16
 
 type Side = 'old' | 'new'
 
-interface Augmentation {
-  readonly target: string
-  readonly name: string
-  /** other：扩充块里的类、枚举、命名空间等，检查器不比较，变了就算没有覆盖。 */
-  readonly kind: 'interface' | 'value' | 'type' | 'other'
-  /** 写这个扩充的文件（dist 内相对路径）与它改写成的命名空间。 */
-  readonly file: string
-  readonly namespace: string
-  readonly text: string
-}
-
-/** 一侧还原后的文件与扩充。 */
-interface Restored {
-  readonly files: Map<string, string>
-  readonly augmentations: readonly Augmentation[]
-}
-
+/**
+ * 前提：两侧的脚本文件文本相同（分类层在它们有差异时整份 review，不调用这里）。
+ * 脚本文件只还原新侧一份，旧侧同路径的跳过；跳过的文本与新侧不同时记为问题，结论按 review 计，不静默丢掉。
+ */
 export function compareSnapshots(input: CompareInput): CheckerComparison {
   const base = join(input.root, input.directory, '.omne-contract-api')
-  const old = restore(base, 'old', input.before.files)
-  const next = restore(base, 'new', input.after.files)
-  const overlay = new Map([...old.files, ...next.files])
+  const scripts = new Map(input.after.files.filter(isScript).map(file => [file.path, file.code]))
+  const dropped = input.before.files
+    .filter(file => scripts.has(file.path) && scripts.get(file.path) !== file.code)
+    .map(file => `脚本文件 ${file.path} 两侧不同，旧侧没有还原`)
+  const overlay = new Map([
+    ...restore(base, 'old', input.before.files, new Set(scripts.keys())),
+    ...restore(base, 'new', input.after.files, new Set()),
+  ])
   const compareFile = join(base, 'compare.ts')
-  overlay.set(compareFile, probeImports([...old.augmentations, ...next.augmentations]))
+  overlay.set(compareFile, 'export {};\n')
   const options = compareOptions(input.root)
   const first = ts.createProgram([...overlay.keys()], options, overlayHost(options, overlay, base))
-  const plan = planComparisons(first, base, input, old.augmentations, next.augmentations)
+  const plan = planComparisons(first, base, input)
   overlay.set(compareFile, plan.lines.join('\n') + '\n')
   const second = ts.createProgram([...overlay.keys()], options, overlayHost(options, overlay, base))
-  return readResults(second, compareFile, overlay, plan)
+  const results = readResults(second, compareFile, overlay, plan)
+  return { ...results, problems: [...dropped, ...results.problems] }
 }
 
-/** 第一个程序的比较文件：导入每个被扩充的外部模块，供可达分析解析被扩充的接口。 */
-function probeImports(augmentations: readonly Augmentation[]): string {
-  const targets = [...new Set(augmentations.map(item => item.target))]
-    .filter(target => target !== 'global')
-    .sort(byCodeUnit)
-  return [
-    ...targets.map((target, i) => `import * as __m${i} from ${JSON.stringify(target)};`),
-    'export {};',
-    '',
-  ].join('\n')
+function isScript(file: DeclarationFile): boolean {
+  return !ts.isExternalModule(
+    ts.createSourceFile(file.path, file.code, ts.ScriptTarget.Latest, false),
+  )
 }
 
 function compareOptions(root: string): ts.CompilerOptions {
@@ -164,45 +145,28 @@ function sidePath(base: string, side: Side, path: string): string {
   return join(base, side, path)
 }
 
-function restore(base: string, side: Side, files: readonly DeclarationFile[]): Restored {
+function restore(
+  base: string,
+  side: Side,
+  files: readonly DeclarationFile[],
+  skip: ReadonlySet<string>,
+): Map<string, string> {
   const restored = new Map<string, string>()
-  const augmentations: Augmentation[] = []
-  for (const file of files) {
-    const result = prepareForChecker(file.path, file.code)
-    restored.set(sidePath(base, side, file.path), result.text)
-    augmentations.push(...result.augmentations)
-  }
-  return { files: restored, augmentations }
+  for (const file of files)
+    if (!skip.has(file.path))
+      restored.set(sidePath(base, side, file.path), prepareForChecker(file.path, file.code))
+  return restored
 }
 
 type Edit = readonly [start: number, end: number, replacement: string]
 
-/**
- * 一个声明文件的归一化（见文件开头）；返回改写后的文本与它写的对外扩充。
- * 脚本文件（没有导入导出）的顶层声明都是全局的：与 `declare global` 一样改写成本侧的命名空间，
- * 两侧的全局声明才不会在同一个程序里合并到一起。
- */
-export function prepareForChecker(
-  path: string,
-  text: string,
-): { text: string; augmentations: Augmentation[] } {
+/** 一个声明文件的归一化（见文件开头）；返回改写后的文本。 */
+export function prepareForChecker(path: string, text: string): string {
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true)
-  const script = !ts.isExternalModule(source)
   const edits: Edit[] = []
-  const augmentations: Augmentation[] = []
   const visit = (node: ts.Node): void => {
-    if (node.parent === source) {
-      const result =
-        ts.isModuleDeclaration(node) && isForeignAugmentation(node)
-          ? rewriteAugmentation(source, path, node)
-          : script && ts.isStatement(node)
-            ? rewriteScriptGlobal(source, path, node)
-            : undefined
-      if (result !== undefined) {
-        edits.push(...result.edits)
-        augmentations.push(...result.augmentations)
-      }
-    }
+    if (node.parent === source && ts.isModuleDeclaration(node) && isForeignAugmentation(node))
+      edits.push(...rewriteAugmentation(source, node))
     const edit =
       brandEdit(source, path, node) ?? classMemberEdit(source, node) ?? methodEdit(source, node)
     if (edit !== undefined) {
@@ -212,35 +176,7 @@ export function prepareForChecker(
     ts.forEachChild(node, visit)
   }
   visit(source)
-  return { text: applyEdits(text, edits), augmentations }
-}
-
-const GLOBAL_NAMESPACE = '__aug_global'
-
-/** 脚本文件的一条顶层声明：包进 `export declare namespace __aug_global { export … }`，去掉它自己的 `declare`。 */
-function rewriteScriptGlobal(
-  source: ts.SourceFile,
-  path: string,
-  statement: ts.Statement,
-): { edits: Edit[]; augmentations: Augmentation[] } {
-  const start = statement.getStart(source)
-  const edits: Edit[] = [
-    [start, start, `export declare namespace ${GLOBAL_NAMESPACE} { export `],
-    [statement.getEnd(), statement.getEnd(), ' }'],
-  ]
-  const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined
-  for (const modifier of modifiers ?? [])
-    if (modifier.kind === ts.SyntaxKind.DeclareKeyword)
-      edits.push([modifier.getStart(source), modifier.getEnd(), ''])
-  return {
-    edits,
-    augmentations: augmentationsOf(statement, {
-      target: 'global',
-      namespace: GLOBAL_NAMESPACE,
-      file: path,
-      source,
-    }),
-  }
+  return applyEdits(text, edits)
 }
 
 function applyEdits(text: string, edits: readonly Edit[]): string {
@@ -256,60 +192,22 @@ function isForeignAugmentation(node: ts.ModuleDeclaration): boolean {
   return ts.isStringLiteral(node.name) && !node.name.text.startsWith('.')
 }
 
-function rewriteAugmentation(
-  source: ts.SourceFile,
-  path: string,
-  node: ts.ModuleDeclaration,
-): { edits: Edit[]; augmentations: Augmentation[] } {
+/** `declare module 'x' { … }`／`declare global { … }` 改成 `export declare namespace __aug_x { export … }`。 */
+function rewriteAugmentation(source: ts.SourceFile, node: ts.ModuleDeclaration): Edit[] {
   const target = ts.isStringLiteral(node.name) ? node.name.text : 'global'
   const namespace = '__aug_' + target.replace(/[^A-Za-z0-9]/gu, '_')
   const body = node.body !== undefined && ts.isModuleBlock(node.body) ? node.body : undefined
-  if (body === undefined) return { edits: [], augmentations: [] }
+  if (body === undefined) return []
   const edits: Edit[] = [
     [node.getStart(source), body.getStart(source), `export declare namespace ${namespace} `],
   ]
-  const augmentations: Augmentation[] = []
   for (const statement of body.statements) {
     const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined
     const exported = modifiers?.some(item => item.kind === ts.SyntaxKind.ExportKeyword)
     if (exported !== true)
       edits.push([statement.getStart(source), statement.getStart(source), 'export '])
-    augmentations.push(...augmentationsOf(statement, { target, namespace, file: path, source }))
   }
-  return { edits, augmentations }
-}
-
-function augmentationsOf(
-  statement: ts.Statement,
-  at: { target: string; namespace: string; file: string; source: ts.SourceFile },
-): Augmentation[] {
-  const base = {
-    target: at.target,
-    namespace: at.namespace,
-    file: at.file,
-    text: sameText(statement, at.source),
-  }
-  if (ts.isInterfaceDeclaration(statement))
-    return [{ ...base, name: statement.name.text, kind: 'interface' }]
-  if (ts.isTypeAliasDeclaration(statement))
-    return [{ ...base, name: statement.name.text, kind: 'type' }]
-  if (ts.isVariableStatement(statement))
-    return statement.declarationList.declarations.map(item => ({
-      ...base,
-      name: item.name.getText(at.source),
-      kind: 'value',
-    }))
-  if (ts.isFunctionDeclaration(statement) && statement.name !== undefined)
-    return [{ ...base, name: statement.name.text, kind: 'value' }]
-  if (
-    (ts.isClassDeclaration(statement) || ts.isModuleDeclaration(statement)) &&
-    statement.name !== undefined &&
-    ts.isIdentifier(statement.name)
-  )
-    return [{ ...base, name: statement.name.text, kind: 'other' }]
-  if (ts.isEnumDeclaration(statement))
-    return [{ ...base, name: statement.name.text, kind: 'other' }]
-  return []
+  return edits
 }
 
 /** `unique symbol` 改成按文件与外层名字定位的字面量：两侧同一处声明的品牌相同，不同处的仍不同。 */
@@ -412,20 +310,16 @@ interface Pending {
   comparisons: number
   readonly problems: VerdictProblem[]
   reaches: readonly string[]
-  augmentedReferences: readonly AugmentedInterface[]
   readonly value: { new?: boolean; old?: boolean }
 }
 
 interface Plan {
   readonly lines: string[]
   readonly checks: Check[]
-  /** 辅助行（合并扩充的接口声明）属于哪个目标：这些行上的诊断记为该目标未完成。 */
-  readonly helpers: Map<number, CompareTarget>
   readonly pending: Map<string, Pending>
 }
 
-const targetId = (target: CompareTarget) =>
-  `${target.kind}\u0000${target.kind === 'export' ? target.entry : target.target}\u0000${target.name}`
+const targetId = (target: CompareTarget) => `${target.entry}\u0000${target.name}`
 
 function pendingFor(plan: Plan, target: CompareTarget): Pending {
   const id = targetId(target)
@@ -439,7 +333,6 @@ function pendingFor(plan: Plan, target: CompareTarget): Pending {
     comparisons: 0,
     problems: [],
     reaches: [],
-    augmentedReferences: [],
     value: {},
   }
   plan.pending.set(id, created)
@@ -461,21 +354,11 @@ function alias(side: Side, path: string): string {
   return `${side === 'old' ? 'O' : 'N'}_${path.replace(/\W/gu, '_')}`
 }
 
-function planComparisons(
-  program: ts.Program,
-  base: string,
-  input: CompareInput,
-  oldAugmentations: readonly Augmentation[],
-  newAugmentations: readonly Augmentation[],
-): Plan {
-  const plan: Plan = { lines: [], checks: [], helpers: new Map(), pending: new Map() }
+function planComparisons(program: ts.Program, base: string, input: CompareInput): Plan {
+  const plan: Plan = { lines: [], checks: [], pending: new Map() }
   const checker = program.getTypeChecker()
   const enclosing = program.getSourceFile(join(base, 'compare.ts'))
-  const reach = new Reachability(
-    checker,
-    base,
-    augmentedTargets(checker, enclosing, changedAugmentations(oldAugmentations, newAugmentations)),
-  )
+  const reach = new Reachability(checker, base)
   const entryFile = (snapshot: ApiSnapshot, subpath: string) =>
     snapshot.entries.find(item => item.subpath === subpath)
   const files = new Map<string, { side: Side; path: string }>()
@@ -488,18 +371,8 @@ function planComparisons(
     use('new', after.file)
     const o = exportInfo(checker, program, sidePath(base, 'old', before.file), item.name)
     const n = exportInfo(checker, program, sidePath(base, 'new', after.file), item.name)
-    planExport(
-      plan,
-      { kind: 'export', entry: item.entry, name: item.name },
-      refs(before, after, item.name),
-      o,
-      n,
-      { checker, enclosing, reach },
-    )
+    planExport(plan, item, refs(before, after, item.name), o, n, { checker, enclosing, reach })
   }
-  for (const augmentation of oldAugmentations) use('old', augmentation.file)
-  for (const augmentation of newAugmentations) use('new', augmentation.file)
-  planAugmentations(plan, oldAugmentations, newAugmentations)
   const imports = [...files]
     .sort(([a], [b]) => byCodeUnit(a, b))
     .map(
@@ -518,124 +391,40 @@ function planComparisons(
     plan.checks.length,
     ...plan.checks.map(check => ({ ...check, line: check.line + shift })),
   )
-  const helpers = [...plan.helpers].map(([line, target]): [number, CompareTarget] => [
-    line + shift,
-    target,
-  ])
-  plan.helpers.clear()
-  for (const [line, target] of helpers) plan.helpers.set(line, target)
   return plan
 }
 
-const augmentationKey = (item: AugmentedInterface) => `${item.target}\u0000${item.name}`
-
-/** 两侧扩充文本不同（含只在一侧有）的（目标，名字）。 */
-function changedAugmentations(
-  olds: readonly Augmentation[],
-  news: readonly Augmentation[],
-): AugmentedInterface[] {
-  const texts = (list: readonly Augmentation[], key: string) =>
-    list
-      .filter(item => augmentationKey(item) === key)
-      .map(item => item.text)
-      .join('|')
-  const all = [...olds, ...news]
-  return [...new Set(all.map(augmentationKey))]
-    .filter(key => texts(olds, key) !== texts(news, key))
-    .map(key => {
-      const [target = '', name = ''] = key.split('\u0000')
-      return { target, name }
-    })
-}
-
-/** 被扩充的外部接口在检查器里的符号：模块的导出经第一个程序的探针导入解析，`global` 按名字解析。 */
-function augmentedTargets(
-  checker: ts.TypeChecker,
-  enclosing: ts.SourceFile | undefined,
-  changed: readonly AugmentedInterface[],
-): Map<ts.Symbol, AugmentedInterface> {
-  const targets = new Map<ts.Symbol, AugmentedInterface>()
-  if (enclosing === undefined) return targets
-  const modules = new Map<string, ts.Symbol>()
-  for (const statement of enclosing.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier))
-      continue
-    const symbol = checker.getSymbolAtLocation(statement.moduleSpecifier)
-    if (symbol !== undefined) modules.set(statement.moduleSpecifier.text, symbol)
-  }
-  for (const item of changed) {
-    const symbol =
-      item.target === 'global'
-        ? checker.resolveName(item.name, enclosing, ts.SymbolFlags.Type, false)
-        : lookup(checker, modules.get(item.target), item.name)
-    if (symbol !== undefined) targets.set(symbol, item)
-  }
-  return targets
-}
-
-/** 一次可达分析走过的符号上限；超过就停下，记为没有结论（分类层按 review 计）。 */
-export const REACH_LIMIT = 20_000
-
-interface Reach {
-  readonly reaches: string[]
-  readonly augmented: AugmentedInterface[]
-  /** false：走过的符号超过 REACH_LIMIT，没有走完。 */
-  readonly complete: boolean
-}
-
 /**
- * 从一个符号出发，沿声明里的标识符走。到达的顶层语句只记本成员还原的声明；
- * 本次有扩充改动时，还要穿过 lib 与外部包的声明找被扩充的接口：`keyof` 一类派生经 lib 的
- * 构造器签名间接到达被扩充接口时，只看本成员的语句看不到它。没有扩充改动时不走外部声明。
+ * 从一个符号出发，沿本成员还原的声明里出现的标识符走，收集到达的顶层语句。
+ * 不进 lib 与外部包的声明：走到那里就停。
  */
 class Reachability {
   private readonly adjacency = new Map<ts.Symbol, readonly ts.Symbol[]>()
   private readonly checker: ts.TypeChecker
   private readonly base: string
-  private readonly targets: ReadonlyMap<ts.Symbol, AugmentedInterface>
 
-  constructor(
-    checker: ts.TypeChecker,
-    base: string,
-    targets: ReadonlyMap<ts.Symbol, AugmentedInterface>,
-  ) {
+  constructor(checker: ts.TypeChecker, base: string) {
     this.checker = checker
     this.base = base
-    this.targets = targets
   }
 
-  from(start: ts.Symbol): Reach {
-    const external = this.targets.size > 0
+  from(start: ts.Symbol): string[] {
     const visited = new Set<ts.Symbol>()
     const reaches = new Set<string>()
-    const augmented = new Map<string, AugmentedInterface>()
     const queue = [start]
-    let complete = true
     for (let symbol = queue.pop(); symbol !== undefined; symbol = queue.pop()) {
       if (visited.has(symbol)) continue
-      if (visited.size >= REACH_LIMIT) {
-        complete = false
-        break
-      }
       visited.add(symbol)
-      const target = this.targets.get(symbol)
-      if (target !== undefined) augmented.set(augmentationKey(target), target)
-      let follow = external
+      let own = false
       for (const declaration of symbol.declarations ?? []) {
         const id = this.statementOf(declaration)
         if (id === undefined) continue
         reaches.add(id)
-        follow = true
+        own = true
       }
-      if (follow) queue.push(...this.referenced(symbol, external))
+      if (own) queue.push(...this.referenced(symbol))
     }
-    return {
-      reaches: [...reaches].sort(byCodeUnit),
-      augmented: [...augmented.values()].sort((a, b) =>
-        byCodeUnit(augmentationKey(a), augmentationKey(b)),
-      ),
-      complete,
-    }
+    return [...reaches].sort(byCodeUnit)
   }
 
   /** 声明所在的顶层语句的 `statementId`；不在还原的文件里（外部包、lib）时是 undefined。 */
@@ -650,8 +439,8 @@ class Reachability {
     return statementId(file.slice(path.length), node)
   }
 
-  /** 符号各个声明里出现的符号；`external` 为 false 时只看本成员还原的声明。 */
-  private referenced(symbol: ts.Symbol, external: boolean): readonly ts.Symbol[] {
+  /** 符号在本成员还原的声明里出现的符号。 */
+  private referenced(symbol: ts.Symbol): readonly ts.Symbol[] {
     const known = this.adjacency.get(symbol)
     if (known !== undefined) return known
     const found: ts.Symbol[] = []
@@ -663,7 +452,7 @@ class Reachability {
       ts.forEachChild(node, visit)
     }
     for (const declaration of symbol.declarations ?? [])
-      if (external || this.statementOf(declaration) !== undefined) visit(declaration)
+      if (this.statementOf(declaration) !== undefined) visit(declaration)
     this.adjacency.set(symbol, found)
     return found
   }
@@ -755,19 +544,9 @@ function planExport(
     pending.problems.push({ kind: 'incomplete', why: '还原后的声明里找不到这个导出' })
     return
   }
-  const oldReach = printing.reach.from(o.symbol)
-  const newReach = printing.reach.from(n.symbol)
-  pending.reaches = [...new Set([...oldReach.reaches, ...newReach.reaches])].sort(byCodeUnit)
-  pending.augmentedReferences = [
-    ...new Map(
-      [...oldReach.augmented, ...newReach.augmented].map(item => [augmentationKey(item), item]),
-    ).values(),
-  ]
-  if (!oldReach.complete || !newReach.complete)
-    pending.problems.push({
-      kind: 'incomplete',
-      why: `到达被扩充接口的判断走过 ${REACH_LIMIT} 个符号仍没有走完`,
-    })
+  pending.reaches = [
+    ...new Set([...printing.reach.from(o.symbol), ...printing.reach.from(n.symbol)]),
+  ].sort(byCodeUnit)
   pending.same = o.text === n.text
   if (o.isType !== n.isType || o.isValue !== n.isValue)
     return settle(pending, '导出的含义变了（类型与值）')
@@ -878,74 +657,6 @@ function parameterArguments(printing: Printing, parameter: ts.Type, i: number): 
   return [`(__P${i} & ${typeText(printing, constraint)})`]
 }
 
-/** 对外扩充按（目标，名字）合并后比较：接口取各侧全部扩充的合并，值取类型。 */
-function planAugmentations(
-  plan: Plan,
-  olds: readonly Augmentation[],
-  news: readonly Augmentation[],
-): void {
-  for (const id of [...new Set([...olds, ...news].map(augmentationKey))].sort(byCodeUnit)) {
-    const o = olds.filter(item => augmentationKey(item) === id)
-    const n = news.filter(item => augmentationKey(item) === id)
-    const first = o[0] ?? n[0]
-    if (first === undefined) continue
-    const target: CompareTarget = { kind: 'augmentation', target: first.target, name: first.name }
-    planAugmentation(plan, target, o, n)
-  }
-}
-
-function planAugmentation(
-  plan: Plan,
-  target: CompareTarget,
-  o: readonly Augmentation[],
-  n: readonly Augmentation[],
-): void {
-  const pending = pendingFor(plan, target)
-  const ref = (side: Side, list: readonly Augmentation[]) =>
-    list.map(item => `${alias(side, item.file)}.${item.namespace}.${item.name}`)
-  const texts = (list: readonly Augmentation[]) => list.map(item => item.text).join('|')
-  pending.same = o.length > 0 && n.length > 0 && texts(o) === texts(n)
-  if (n.length === 0) return settle(pending, '扩充删除了')
-  const kind = (o[0] ?? n[0])?.kind
-  if (o.length === 0 && n.every(item => item.kind === 'interface')) {
-    // 新增的扩充对着空接口比：全是可选成员、没有继承时两个方向都成立。
-    const id = helperLines(plan, target, [
-      `interface __AO${id0(plan)} {}`,
-      `interface __AN${id0(plan)} extends ${ref('new', n).join(', ')} {}`,
-    ])
-    return emit(plan, target, '新增的扩充（对空接口）', `__AO${id}`, `__AN${id}`)
-  }
-  if (o.length === 0) return settle(pending, '新增的扩充不是接口')
-  if (kind === 'other') return
-  if (kind !== 'interface') {
-    const prefix = kind === 'value' ? 'typeof ' : ''
-    return emit(
-      plan,
-      target,
-      '扩充',
-      `${prefix}${ref('old', o)[0] ?? ''}`,
-      `${prefix}${ref('new', n)[0] ?? ''}`,
-    )
-  }
-  const id = helperLines(plan, target, [
-    `interface __AO${id0(plan)} extends ${ref('old', o).join(', ')} {}`,
-    `interface __AN${id0(plan)} extends ${ref('new', n).join(', ')} {}`,
-  ])
-  emit(plan, target, '扩充（合并后）', `__AO${id}`, `__AN${id}`)
-}
-
-const id0 = (plan: Plan) => plan.lines.length
-
-/** 写几行属于某个目标的辅助声明，返回它们的编号（第一行的行号）。 */
-function helperLines(plan: Plan, target: CompareTarget, lines: readonly string[]): number {
-  const id = plan.lines.length
-  for (const line of lines) {
-    plan.helpers.set(plan.lines.length, target)
-    plan.lines.push(line)
-  }
-  return id
-}
-
 interface Outcome {
   readonly check: Check
   readonly readers: boolean
@@ -979,14 +690,9 @@ function readResults(
     const line =
       item.start === undefined ? undefined : source.getLineAndCharacterOfPosition(item.start).line
     if (line === undefined || owned.has(line)) continue
-    const message = `TS${item.code} ${ts.flattenDiagnosticMessageText(item.messageText, ' ').slice(0, 160)}`
-    const target = plan.helpers.get(line)
-    if (target !== undefined)
-      pendingFor(plan, target).problems.push({
-        kind: 'incomplete',
-        why: `合并扩充的声明报错 ${message}`,
-      })
-    else stray.push(`比较文件第 ${line + 1} 行 ${message}`)
+    stray.push(
+      `比较文件第 ${line + 1} 行 TS${item.code} ${ts.flattenDiagnosticMessageText(item.messageText, ' ').slice(0, 160)}`,
+    )
   }
   return {
     verdicts: [...plan.pending.values()].map(finish),
@@ -1063,7 +769,6 @@ function finish(entry: Pending): Verdict {
     comparisons: entry.comparisons,
     problems: entry.problems,
     reaches: entry.reaches,
-    augmentedReferences: entry.augmentedReferences,
   }
 }
 

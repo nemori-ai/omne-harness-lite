@@ -66,6 +66,7 @@ function normalizedFile(file: DeclarationFile): string {
 /**
  * 文件开头的三斜线指令（`path`、`types`、`lib`），按原顺序。它们不是语句，打印器照原样输出；
  * 它们改变消费者程序里有哪些声明，所以比较文本与白名单门都要看它们。
+ * `no-default-lib` 不在其中：TypeScript 6 只在 lib 文件里认它，快照的打印器也不输出它。
  */
 export function referenceDirectives(source: ts.SourceFile): string[] {
   const directive = (attribute: string, item: ts.FileReference) =>

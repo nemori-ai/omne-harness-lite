@@ -459,8 +459,6 @@ function describeTarget(target: DifferenceTarget): string {
       return `入口 \`${target.entry}\``
     case 'export':
       return `入口 \`${target.entry}\` · \`${target.name}\``
-    case 'augmentation':
-      return `模块扩充 \`${target.target}\` · \`${target.name}\``
     case 'declaration':
       return `声明文件 \`${target.path}\` · \`${target.statement}\``
     default: {
@@ -473,6 +471,8 @@ function describeTarget(target: DifferenceTarget): string {
 /** 一条 review 依据的一句话；方向类写出两个方向，并附第一条原因。 */
 function describeReason(reason: ReviewReason): string {
   switch (reason.kind) {
+    case 'global-scope-change':
+      return `全局作用域变了：${reason.why}`
     case 'outside-whitelist':
       return `白名单外：${reason.why}`
     case 'uncovered':
@@ -487,8 +487,6 @@ function describeReason(reason: ReviewReason): string {
       return `类型参数实例 ${reason.total} 组，超过上限 ${reason.limit}，没有全部比较`
     case 'diagnostics':
       return `编译诊断：${reason.details[0] ?? ''}`
-    case 'augmented-reference':
-      return `引用了被扩充的外部接口 \`${reason.target}\` · \`${reason.name}\``
     default: {
       const _exhaustive: never = reason
       return _exhaustive
