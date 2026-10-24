@@ -16,6 +16,7 @@ import {
   adminTenant,
   issued,
   memberTenant,
+  reached,
   standingTable,
 } from './support.ts'
 
@@ -220,7 +221,7 @@ describe.each<ReadStage>(['verifier', 'standing', 'permit'])('input binding duri
       input.permit,
     ]
     const pending = check.check(input)
-    await gate.entered
+    await reached(gate.entered, pending)
     expect(callerObjects.every(value => !Object.isFrozen(value))).toBe(true)
     mutate(input)
     gate.release()
@@ -247,7 +248,7 @@ describe.each<ReadStage>(['verifier', 'standing', 'permit'])('input binding duri
     const { check, input, gate } = await fixture(stage)
     input.requires.push('organization-cost-ledger-read')
     const pending = check.check(input)
-    await gate.entered
+    await reached(gate.entered, pending)
     input.requires.length = 0
     gate.release()
     expect(await pending).toMatchObject({
@@ -263,7 +264,7 @@ describe.each<ReadStage>(['verifier', 'standing', 'permit'])('input binding duri
     if ('failure' in permit) throw new Error('fixture permit did not decode')
     input.permit = { tenant: input.access.tenant, permit: permit.ok }
     const pending = check.check(input)
-    await gate.entered
+    await reached(gate.entered, pending)
     input.permit = null
     gate.release()
     expect(await pending).toMatchObject({
@@ -302,7 +303,7 @@ it('does not combine another tenant standing with a changed access tenant', asyn
   table.join(foreign, DEFAULT_ROLES.superAdmin)
   input.requires.push('organization-cost-ledger-read')
   const pending = check.check(input)
-  await gate.entered
+  await reached(gate.entered, pending)
   input.access.tenant = adminTenant()
   gate.release()
   const result = await pending
@@ -330,7 +331,7 @@ it('retains a verification answer while the standing source is pending', async (
     permits: null,
   })
   const pending = check.check(mutableInput(principals.actingForAdmin, adminTenant(), null))
-  await gate.entered
+  await reached(gate.entered, pending)
   verification.principal = principals.actingFor(memberTenant())
   gate.release()
   const result = await pending
@@ -361,7 +362,7 @@ it('retains the standing read before a pending permit lookup', async () => {
     },
   })
   const pending = check.check(input)
-  await gate.entered
+  await reached(gate.entered, pending)
   qualifications.push('organization-cost-ledger-read')
   standing.role.role = 'super-admin'
   standing.role.model.revision = '2'

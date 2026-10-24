@@ -144,3 +144,20 @@ export function readHistoryInput(
 }
 
 export const DEFAULT_ROLES = DEFAULT_TEAM_ROLES
+
+/**
+ * Waits until a paused dependency of the check is entered. If the check settles first, it never
+ * reaches that dependency, so this fails at once instead of waiting for the test timeout.
+ */
+export async function reached(entered: Promise<void>, pending: Promise<unknown>): Promise<void> {
+  let paused = false
+  const settledFirst = pending.then(
+    () => {
+      if (!paused) throw new Error('the check settled before it entered the paused dependency')
+    },
+    (error: unknown) => {
+      if (!paused) throw error
+    },
+  )
+  await Promise.race([entered.then(() => void (paused = true)), settledFirst])
+}
