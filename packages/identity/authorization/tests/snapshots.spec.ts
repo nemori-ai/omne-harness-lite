@@ -176,6 +176,19 @@ describe('stored authorization snapshots', () => {
       expect(decision.kind).toBe(result === 'allowed' ? 'allowed' : 'denied')
       if (decision.kind === 'unavailable') throw new Error('fixture decision unavailable')
       if (decision.kind === 'denied') expect(decision.reason).toBe(result)
+      expect(decision.basis.standing).toStrictEqual(
+        result === 'not-member'
+          ? { kind: 'not-member', evidence: { record: 'membership', revision: '1' } }
+          : {
+              kind: 'member',
+              role: {
+                model: { model: 'default-team', revision: '1' },
+                role: 'super-admin',
+              },
+              qualifications: result === 'allowed' ? ['organization-cost-ledger-read'] : [],
+              evidence: { record: 'membership', revision: '1' },
+            },
+      )
       const original = canonicalText(decision.basis)
 
       Object.assign(input.operation, { owner: 'other', name: 'delete' })
