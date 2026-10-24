@@ -701,6 +701,25 @@ describe('ri-notes contract check against a supplied snapshot difference', () =>
       ['contract-diff-mismatch', 'packages/model/model-contract'],
     ])
   })
+  it('reports nothing when the difference agrees with the declarations', () => {
+    const notes = riNotes(
+      input({
+        commits: [unitCommit(2, 10)],
+        pulls,
+        cards,
+        diffContracts: range => ({
+          kind: 'available',
+          ...range,
+          members: new Map([
+            ['packages/model/model-contract', 'additive'],
+            ['packages/common/message', 'none'],
+          ]),
+        }),
+      }),
+    )
+    expect(notes.contractCheck).toEqual({ kind: 'checked', base: sha(1), head: sha(2) })
+    expect(codes(notes)).toEqual([])
+  })
   it('does not compare a difference over another range', () => {
     const notes = riNotes(
       input({

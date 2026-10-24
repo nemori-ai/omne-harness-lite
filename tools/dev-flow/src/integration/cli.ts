@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { snapshotContractDiff } from './contract-diff.ts'
 import { openIntegration, type Command } from './engine.ts'
 import { fields, integer, json, sha, string, IntegrationError } from './parse.ts'
 import { riNotes, type RiNotes } from './ri-notes.ts'
@@ -72,7 +73,13 @@ function runRiNotes(args: readonly string[]): void {
       'input-error',
       'ri-notes requires --track ID and --format json|markdown',
     )
-  const notes = riNotes(riInput({ root: resolve(options.get('--root') ?? process.cwd()), track }))
+  const notes = riNotes(
+    riInput({
+      root: resolve(options.get('--root') ?? process.cwd()),
+      track,
+      contractDiff: snapshotContractDiff,
+    }),
+  )
   if (format === 'markdown') writeMarkdown(notes)
   else process.stdout.write(`${JSON.stringify(notes, null, 2)}\n`)
 }

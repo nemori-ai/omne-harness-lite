@@ -186,7 +186,12 @@ pnpm run ri-notes --track <轨道 ID>
 - `contracts-unknown`：有提交的契约变化未知，「契约变化」有一行 `- 待确认：…`。JSON 的 `contractGaps` 列出这些提交与原因。逐个核对后改写本节。原样贴进 PR 时，上一层的 `ri-notes` 仍把这个 PR 计为未知。
 - 其他 `contract-*` 与 `cards-*`：两节的行格式、路径或级别有问题。
 
-命令行不核对契约 API 快照，JSON 的 `contractCheck.kind` 为 `unavailable`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
+命令用 dev-flow 依赖里钉住的 `omne-contract-api --diff <合并点> --json` 核对「契约变化」。这个命令拿合并点上的契约 API 快照与工作树的快照比较，所以只在下列条件都成立时运行：
+
+- 检出的 `HEAD` 等于轨道头。
+- `repo-toolchain.config.json`、线归属表与快照文件都没有未提交改动或未跟踪文件。
+
+核对完成时，JSON 的 `contractCheck.kind` 为 `checked`，快照差异与声明不符的成员各报一条 `contract-diff-mismatch`。核对没有完成时，`contractCheck.kind` 为 `unavailable`，`reason` 写明原因：HEAD 不对、有改动的文件、超时、退出码与标准错误、输出解析失败，或快照差异不可得的成员。成员在合并点或工作树上没有快照、快照读不出时，整个核对为 `unavailable`，不把这些成员当作没有变化。`--format markdown` 模式的 `contractCheck` 在标准错误的汇总行里。超时取 policy 的 `timeouts.networkMs`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
 
 ## 持续验证
 
@@ -197,6 +202,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport` 与 `integration-upstream` 十一个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport` 与 `integration-upstream` 十二个 `.spec.ts`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

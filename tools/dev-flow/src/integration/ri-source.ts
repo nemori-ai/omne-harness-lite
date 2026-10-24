@@ -268,11 +268,8 @@ export function githubReaders({
   }
 }
 
-/** The command line provides no contract snapshot difference. */
-const noContractDiff: DiffContracts = () => ({
-  kind: 'unavailable',
-  reason: '命令行没有契约 API 快照差异的提供者，「契约变化」只汇总 PR 声明，未与快照核对。',
-})
+/** Builds the snapshot difference provider for the repository root and the policy's timeout. */
+export type ContractDiffProvider = (context: { root: string; timeoutMs: number }) => DiffContracts
 
 /**
  * Collects every input of `riNotes` for one track. The registry and the line table come from
@@ -282,12 +279,12 @@ export function riInput({
   root,
   track,
   read = runGhRead,
-  diffContracts = noContractDiff,
+  contractDiff,
 }: {
   root: string
   track: string
   read?: GhRead
-  diffContracts?: DiffContracts
+  contractDiff: ContractDiffProvider
 }): RiInput {
   const info = repository(root)
   const committed = (path: string) => {
@@ -302,6 +299,6 @@ export function riInput({
     lines: parseDeliveryLines(committed(LINES_PATH)),
     registry: policy,
     ...githubReaders({ repository: policy.repository, read, timeoutMs: policy.timeouts.networkMs }),
-    diffContracts,
+    diffContracts: contractDiff({ root: info.root, timeoutMs: policy.timeouts.networkMs }),
   }
 }
