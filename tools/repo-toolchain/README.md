@@ -84,3 +84,26 @@ The extractor does not prove lifecycle, authorization, isolation or shared commi
 Public services, member SPEC files and behavior verification own those obligations.
 Tests cover source moves, injection additions, metadata changes, collisions, unknowns and missing inputs.
 See [the full configuration and output description](README_ZH.md#实际装配与全局架构约束).
+
+
+## Exact historical acceptance approvals
+
+The acceptance lock preserves original role violations in `LockReport.violations` and `commits[].allowed`.
+`approvedExceptions` lists approved historical changes with their complete commit, parent, path, old and new blobs, diff SHA-256, and decision URL.
+`unresolvedViolations` lists the remaining findings. The acceptance CLI returns 1 for these findings and 2 for tool errors.
+Loop keeps each full report in `auditRanges[].acceptance`. Its acceptance hard line contains only unresolved findings.
+Both text reports show original violations and approvals. Other Loop hard lines still apply.
+
+The artifact contains only the fixed [D010 decision](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357).
+It covers commit `48ad37d292796326d65055a75e8a1fde44fe4233` and `packages/agent/agent/acceptance/README.md`.
+The tool checks real Git objects, one parent, exact blobs, and all bytes from `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`.
+The call fixes `core.abbrev=8`, `diff.noprefix=false`, `diff.mnemonicPrefix=false`, `diff.algorithm=myers`, `diff.indentHeuristic=true`, `diff.context=3`, `diff.interHunkContext=0`, `diff.suppressBlankEmpty=false`, `diff.srcPrefix=a/`, `diff.dstPrefix=b/`, `core.attributesFile=/dev/null`, and `attr.tree` (the empty tree). It removes `GIT_DIFF_OPTS` and `GIT_ATTR_SOURCE` from its environment and sets `GIT_ATTR_NOSYSTEM=1`. Repository size and these settings do not change the bytes.
+Known limits: a funcname, xfuncname or `binary` attribute in `info/attributes`, a `.gitattributes` file in the worktree on Git older than 2.43, and an object prefix collision change the bytes. D010 then does not receive approval. These cases fail as a rejection, never as a false approval.
+Ordinary documents in that historical commit do not prevent approval. An additional protected path cannot receive this approval.
+Uncommitted edits, future developer commits, and fingerprint or decision mismatches still fail.
+Git read failures remain tool errors. Configuration, environment variables, arguments, and supplied URLs cannot authorize changes.
+No runtime GitHub request is required. Adoption trusts the reviewed artifact and its npm integrity.
+Source tests alone do not establish that consumers installed the release.
+
+Regression tests are in `tests/acceptance-lock.spec.ts` and `tests/loop-strict.spec.ts`.
+The real history cases require this repository's D010 Git objects.

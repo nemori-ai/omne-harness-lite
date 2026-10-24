@@ -1,6 +1,6 @@
 {
   "name": "@omne-harness/repo-toolchain",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "type": "module",
   "description": "仓库工具链：规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取与 clean loop",
   "license": "UNLICENSED",
