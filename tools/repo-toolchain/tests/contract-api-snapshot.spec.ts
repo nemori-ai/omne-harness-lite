@@ -233,11 +233,16 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
           change: 'additive',
         },
         {
+          target: { scope: 'declaration', path: 'index.d.ts', statement: 'type Id' },
+          kind: 'changed',
+          change: 'review',
+          reasons: [{ kind: 'outside-whitelist', why: '改动不是新增可选属性' }],
+        },
+        {
           target: { scope: 'export', entry: '.', name: 'Id' },
           kind: 'changed',
           change: 'review',
-          readers: false,
-          writers: false,
+          reasons: [{ kind: 'direction', readers: false, writers: false }],
         },
       ],
     })
@@ -245,7 +250,9 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
     expect(text).toContain(
       'packages/x/base：packages/x/base/api/base.api.md 与 dist 不一致，review',
     )
-    expect(text).toContain('入口 `.` · `Id`：改动，review（读方破坏，写方破坏）')
+    expect(text).toContain(
+      '入口 `.` · `Id`：改动，review（读方破坏，写方破坏：实例 （无类型参数）：',
+    )
     expect(text).toContain('1 个不一致')
 
     setDist(root, 'packages/x/base', undefined)

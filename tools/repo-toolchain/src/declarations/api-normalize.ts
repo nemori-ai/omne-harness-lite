@@ -1,15 +1,23 @@
-// 「声明文本相同」的判断：去掉注释与布局差异，参数改名不算不同。分类层与检查器比较共用它。
+// 「声明文本相同」的判断：去掉注释与布局差异，参数改名不算不同。分类层、白名单门与检查器比较共用它。
+// 这里的归一化只能抹掉不改变类型的差异：`this` 参数不改名（它决定 this 类型，不是普通参数），
+// 解构参数照原样保留，同名语句（重载）保持先后。
 import ts from '@typescript/typescript6'
 import type { DeclarationFile } from './api-format.ts'
 
 const printer = ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed })
 
-/** 打印一个节点，参数名依次换成 `p0`、`p1`……；解构参数的模式照原样保留。 */
-export function sameText(node: ts.Node): string {
+function isRenamableParameter(
+  node: ts.Node,
+): node is ts.ParameterDeclaration & { name: ts.Identifier } {
+  return ts.isParameter(node) && ts.isIdentifier(node.name) && node.name.text !== 'this'
+}
+
+/** 打印一个节点，参数名依次换成 `p0`、`p1`……；`this` 参数与解构参数的模式照原样保留。 */
+export function sameText(node: ts.Node, sourceFile = node.getSourceFile()): string {
   let index = 0
   const rename: ts.TransformerFactory<ts.Node> = context => {
     const visit = (child: ts.Node): ts.Node => {
-      if (ts.isParameter(child) && ts.isIdentifier(child.name)) {
+      if (isRenamableParameter(child)) {
         const name = ts.factory.createIdentifier(`p${index++}`)
         const renamed = ts.factory.updateParameterDeclaration(
           child,
@@ -30,7 +38,7 @@ export function sameText(node: ts.Node): string {
   const printed = printer.printNode(
     ts.EmitHint.Unspecified,
     result.transformed[0] ?? node,
-    node.getSourceFile(),
+    sourceFile,
   )
   result.dispose()
   return printed
@@ -55,7 +63,8 @@ function normalizedFile(file: DeclarationFile): string {
   return statements.map(item => item.text).join('\n')
 }
 
-function statementKey(statement: ts.Statement): string {
+/** 顶层语句的键：语法种类加名字。同键的语句是一组（重载、同名的扩充块）。 */
+export function statementKey(statement: ts.Node): string {
   const named: ts.Node & { readonly name?: ts.Node } = statement
   const name =
     named.name !== undefined && (ts.isIdentifier(named.name) || ts.isStringLiteral(named.name))
@@ -65,4 +74,9 @@ function statementKey(statement: ts.Statement): string {
     return `variable:${statement.declarationList.declarations.map(item => item.name.getText(statement.getSourceFile())).join(',')}`
   // 导入与无名语句按文本排，名字相同的才保持先后。
   return `${ts.SyntaxKind[statement.kind]}:${name === '' ? statement.getText(statement.getSourceFile()) : name}`
+}
+
+/** 一条顶层语句在成员里的位置：声明文件路径加语句键。白名单门与检查器的可达分析用它对齐。 */
+export function statementId(path: string, statement: ts.Node): string {
+  return `${path}\u0000${statementKey(statement)}`
 }

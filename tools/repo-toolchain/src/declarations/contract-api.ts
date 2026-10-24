@@ -14,6 +14,7 @@ import {
   type ClassifyContext,
   type Difference,
   type DifferenceTarget,
+  type ReviewReason,
 } from './api-classify.ts'
 import {
   byCodeUnit,
@@ -439,7 +440,15 @@ function sideDifferences(context: ClassifyContext, before: Side, after: Side): D
     after.kind === 'present' &&
     before.packageName !== after.packageName
   if (!renamed || differences.some(item => item.kind === 'renamed')) return [...differences]
-  return [{ target: { scope: 'snapshot' }, kind: 'renamed', change: 'review' }, ...differences]
+  return [
+    {
+      target: { scope: 'snapshot' },
+      kind: 'renamed',
+      change: 'review',
+      reasons: [{ kind: 'outside-whitelist', why: '包名变了' }],
+    },
+    ...differences,
+  ]
 }
 
 function describeTarget(target: DifferenceTarget): string {
@@ -452,8 +461,36 @@ function describeTarget(target: DifferenceTarget): string {
       return `入口 \`${target.entry}\` · \`${target.name}\``
     case 'augmentation':
       return `模块扩充 \`${target.target}\` · \`${target.name}\``
+    case 'declaration':
+      return `声明文件 \`${target.path}\` · \`${target.statement}\``
     default: {
       const _exhaustive: never = target
+      return _exhaustive
+    }
+  }
+}
+
+/** 一条 review 依据的一句话；方向类写出两个方向，并附第一条原因。 */
+function describeReason(reason: ReviewReason): string {
+  switch (reason.kind) {
+    case 'outside-whitelist':
+      return `白名单外：${reason.why}`
+    case 'uncovered':
+      return '没有任何比较覆盖'
+    case 'direction': {
+      const sides = `读方${reason.readers ? '不破坏' : '破坏'}，写方${reason.writers ? '不破坏' : '破坏'}`
+      return reason.details[0] === undefined ? sides : `${sides}：${reason.details[0]}`
+    }
+    case 'incomplete':
+      return `检查器未完成：${reason.details[0] ?? ''}`
+    case 'truncated':
+      return `类型参数实例 ${reason.total} 组，超过上限 ${reason.limit}，没有全部比较`
+    case 'diagnostics':
+      return `编译诊断：${reason.details[0] ?? ''}`
+    case 'augmented-reference':
+      return `引用了被扩充的外部接口 \`${reason.target}\` · \`${reason.name}\``
+    default: {
+      const _exhaustive: never = reason
       return _exhaustive
     }
   }
@@ -469,14 +506,12 @@ const KIND_WORDS: Readonly<Record<Difference['kind'], string>> = {
   unresolved: '还原的声明有编译诊断',
 }
 
-/** 一项差异的一行说明；检查器比较过的项写出两个方向，并附第一条原因。 */
+/** 一项差异的一行说明；review 的项把每条依据写出来，检查器证明过的 additive 项标明。 */
 function describeDifference(item: Difference): string {
-  const sides =
-    item.readers === undefined || item.writers === undefined
-      ? ''
-      : `（读方${item.readers ? '不破坏' : '破坏'}，写方${item.writers ? '不破坏' : '破坏'}）`
-  const note = item.notes?.[0] === undefined ? '' : `：${item.notes[0]}`
-  return `${describeTarget(item.target)}：${KIND_WORDS[item.kind]}，${item.change}${sides}${note}`
+  const head = `${describeTarget(item.target)}：${KIND_WORDS[item.kind]}，${item.change}`
+  if (item.change === 'additive')
+    return item.proved === true ? `${head}（读方不破坏，写方不破坏）` : head
+  return `${head}（${item.reasons.map(describeReason).join(' / ')}）`
 }
 
 export function renderCheck(run: CheckRun): string[] {

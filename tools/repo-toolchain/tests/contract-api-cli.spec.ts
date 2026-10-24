@@ -78,8 +78,7 @@ describe('contract API diff and command', { timeout: 120_000 }, () => {
           target: { scope: 'export', entry: '.', name: 'A' },
           kind: 'changed',
           change: 'additive',
-          readers: true,
-          writers: true,
+          proved: true,
         },
       ],
     })
