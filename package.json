@@ -29,6 +29,7 @@
     "ri-notes": "node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes",
     "check:formal-tools": "uv run --locked omne-spec-tools-check",
     "check:declarations": "omne-declarations",
+    "contract:api": "omne-contract-api",
     "lint:rules": "pnpm --filter @omne-harness/product-checks run scan",
     "lint:oxlint": "oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts packages apps",
     "lint:deps": "omne-deps",

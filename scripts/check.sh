@@ -48,6 +48,8 @@ pnpm run test:format
 step build
 # 常驻：成员用 TypeScript 7 构建，dist 里的声明要能被 TypeScript 6 读；读的是磁盘上现有的 dist。
 pnpm run check:declarations
+# 常驻：契约成员的 API 快照与现有 dist 核对。不一致只报告，不让检查失败；用法或配置错误才失败。
+pnpm --silent run contract:api --check
 step typecheck
 step test
 # 常驻：结构规则、验收的覆盖声明与提交署名；它导入的成员已在上面构建。
