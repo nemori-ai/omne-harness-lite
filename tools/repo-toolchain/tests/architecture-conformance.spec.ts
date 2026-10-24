@@ -603,7 +603,12 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     )
     const compared = readConformance({ root, base })
     expect(compared.baseline?.value).toBeNull()
-    expect(compared.rows.every(row => row.rule === 'ROLE' || row.rule === 'INPUT')).toBe(true)
+    // DIRECTION 行来自运行检查器的仓库，与被比较的版本无关：runner 的 constraints.json 是 schema 3 时它们总会出现。
+    expect(
+      compared.rows
+        .filter(row => row.rule !== 'DIRECTION')
+        .every(row => row.rule === 'ROLE' || row.rule === 'INPUT'),
+    ).toBe(true)
     expect(compared.rows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ rule: 'INPUT', key: 'baseline', state: 'unknown' }),
