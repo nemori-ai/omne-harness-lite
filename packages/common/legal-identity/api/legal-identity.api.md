@@ -6,7 +6,9 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `Access` · `index.d.ts`
 - `AccountId` · `index.d.ts`
+- `ActingScope` · `index.d.ts`
 - `IDENTITY_TYPE_NAMES` · `index.d.ts`
 - `IdentityTextCodec` · `index.d.ts`
 - `IdentityTextError` · `index.d.ts`
@@ -15,17 +17,22 @@
 - `OrganizationId` · `index.d.ts`
 - `ScopeLayerIdentity` · `index.d.ts`
 - `TenantId` · `index.d.ts`
+- `access` · `index.d.ts`
 - `accountCodec` · `index.d.ts`
 - `accountEquals` · `index.d.ts`
+- `actingScopeCodec` · `index.d.ts`
+- `actingScopeEquals` · `index.d.ts`
 - `loginStateCodec` · `index.d.ts`
 - `loginStateEquals` · `index.d.ts`
 - `organizationCodec` · `index.d.ts`
 - `organizationEquals` · `index.d.ts`
 - `scopeLayerCodec` · `index.d.ts`
 - `scopeLayerEquals` · `index.d.ts`
+- `systemScope` · `index.d.ts`
 - `tenant` · `index.d.ts`
 - `tenantCodec` · `index.d.ts`
 - `tenantEquals` · `index.d.ts`
+- `tenantScope` · `index.d.ts`
 
 ## 声明文件 `index.d.ts`
 
@@ -103,5 +110,20 @@ export declare const tenantCodec: IdentityTextCodec<TenantId>;
 export declare function tenantEquals(left: TenantId, right: TenantId): boolean;
 export declare const scopeLayerCodec: IdentityTextCodec<ScopeLayerIdentity>;
 export declare function scopeLayerEquals(left: ScopeLayerIdentity, right: ScopeLayerIdentity): boolean;
+export type ActingScope = {
+    readonly kind: 'tenant';
+    readonly tenant: TenantId;
+} | {
+    readonly kind: 'system';
+};
+export declare function tenantScope(tenant: TenantId): ActingScope;
+export declare function systemScope(): ActingScope;
+export declare const actingScopeCodec: IdentityTextCodec<ActingScope>;
+export declare function actingScopeEquals(left: ActingScope, right: ActingScope): boolean;
+export type Access<P> = Readonly<{
+    principal: P;
+    tenant: TenantId;
+}>;
+export declare function access<P>(principal: P, tenant: TenantId): Access<P>;
 export {};
 ```
