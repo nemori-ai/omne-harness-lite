@@ -427,6 +427,18 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     expect(report.unresolvedViolations).toHaveLength(1)
   })
 
+  it('still approves the exact history when repository configuration changes diff output', () => {
+    const root = repository()
+    git(root, 'config', 'core.abbrev', '12')
+    git(root, 'config', 'diff.noprefix', 'true')
+    git(root, 'config', 'diff.mnemonicPrefix', 'true')
+    git(root, 'config', 'diff.algorithm', 'histogram')
+    const approved = run(root)
+    expect(approved.status, approved.stderr).toBe(0)
+    expect(approved.stdout).toContain('原始违规（锁被破 1 处）')
+    expect(approved.stdout).toContain('已批准历史例外 1 处')
+  })
+
   it('rejects Git replacement objects even when the reported SHA and diff still match', () => {
     const root = repository()
     const replacement = git(

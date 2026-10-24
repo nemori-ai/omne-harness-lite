@@ -23,6 +23,27 @@ const D010: HistoricalApproval = Object.freeze({
   decisionUrl: 'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357',
 })
 
+// Fixed diff settings: the same Git objects must give the same bytes in every repository and
+// user configuration. core.abbrev=8 matches the abbreviation length at approval time.
+// Do not use --full-index: it changes the bytes and so the approved digest.
+const FINGERPRINT_DIFF_ARGS = [
+  '-c',
+  'core.abbrev=8',
+  '-c',
+  'diff.noprefix=false',
+  '-c',
+  'diff.mnemonicPrefix=false',
+  '-c',
+  'diff.algorithm=myers',
+  '-c',
+  'diff.indentHeuristic=true',
+  'diff',
+  '--no-ext-diff',
+  '--no-textconv',
+  '--no-color',
+  '--binary',
+] as const
+
 /** Internal matcher: it can recognize the compiled decision, never authorize a new one. */
 export function matchHistoricalApproval(
   candidate: Partial<HistoricalApproval>,
@@ -72,7 +93,7 @@ export function inspectHistoricalApproval(
       oldBlob: objectId('blob', `${D010.parent}:${D010.path}`),
       newBlob: objectId('blob', `${commit}:${D010.path}`),
       diffSha256: createHash('sha256')
-        .update(git(['diff', '--no-ext-diff', '--binary', D010.parent, commit, '--', D010.path]))
+        .update(git([...FINGERPRINT_DIFF_ARGS, D010.parent, commit, '--', D010.path]))
         .digest('hex'),
       decisionUrl: D010.decisionUrl,
     },
