@@ -12,6 +12,12 @@ domains 和 roles/rules 的身份分别唯一。入口路径为仓库相对路�
 
 schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史schemaVersion 1保留具名根前缀与同目录相对形式；不通过搜索哪个文件存在来选择基准。有效source的文件及锚点都从输入相同版本读取，坏引用拒绝。工作树中的符号链接不能让读取越出检出；历史版只读取该commit中的普通文件。
 
+## 方向行
+
+schemaVersion 3 在 schema 2 之上新增顶层可选数组 `directions`；schema 1、2 照旧解析，出现 `directions` 时按未知字段拒绝。一行是 `{ "id", "from", "to", "source" }`，字段不多不少：`id` 匹配 `^DIR-[A-Z0-9]+(-[A-Z0-9]+)*$` 且在 `directions` 内唯一；`from`、`to` 非空、元素唯一、每个都是 `roles` 里声明的角色 id，两边不相交；`source` 按角色 `source` 的规则校验。方向行引用的每个角色，其 `paths` 都必须落在同一个成员目录（`packages/<组>/<成员>` 或 `apps/<成员>`）里，否则拒绝；这个目录是该角色的成员。角色的 `status` 不影响方向行：方向行按角色 id 绑定。`directions` 参与语义预期比较，增删改一行是语义变化。
+
+报告把方向行按成员对展开：每条方向行 × 每个 `from` 角色 × 每个 `to` 角色一行，`rule` 为 `DIRECTION`，`key` 为 `<方向行 id> <源角色> → <目标角色>`，`member` 与 `targetMember` 是两个成员，`expected` 是方向行的 `source`。依赖事实只取 dependency-cruiser 的输出（`deps/graph.ts` 的 `dependencies`，可信 runner 的预设），与 `omne-deps` 用同一个函数判命中，不另走静态抽取：源文件按 `roleAt` 落在源角色，解析后的目标文件所在成员等于目标成员。没有命中为 converged；有命中为 deviation，`sites` 与 `reason` 逐处列源文件、目标文件与行号；源角色的 `paths` 在被检版本里匹配不到任何文件，或依赖事实不可得（dependency-cruiser 没有给出图）时为 unknown，`reason` 写明原因。报告的方向行读被检版本自己的 `constraints.json`（给 BASE 时与其他行一样对 BASE 预期判），`omne-deps` 的方向行只从可信 runner 读；两者在同一个仓库里检查自己时是同一份文件。报告 exit 0 不表示符合：偏离与未知都只报告，硬线归 `omne-deps`。
+
 当前输入拒绝来源位于 `packages.0.0.1.legacy/` 或 `apps.0.0.1.legacy/` 的登记，包括用 `--revision` 选择的当前版本。只在 BASE 比较中，工具可退休来源位于这两个根、且路径在该版本实际源码快照中全部零命中的角色。匹配沿用精确路径和末尾 `/**` 规则，快照沿用架构读取器的活动范围。历史角色仍命中源码时拒绝旧来源；domains、rules 和 importExceptions 没有退休豁免。
 
 退休角色不参与机械判定、报告责任映射或来源读取。输入仍保留原始 `value`，并在同一输入的 `retiredRoleIds` 列出退休 ID，版本归 `source.commit`。原始值继续参与预期差分，因此删除登记仍是可见变化。有效来源继续核对正文、锚点和摘要；退休角色不能让另一条有效登记的来源免于校验。
@@ -35,6 +41,7 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 | IC-3        | 定义是 Context 增补，或缺少 contract/owner                                                         | 签名/行为与契约完全一致                      |
 | IC-4        | manifest各根exports映射源码的闭包引入Cordis或本包集成入口；例外只保留封存 kernel-basis 路径与 apps | 声明、实际制品、安装闭包和动态非字面量       |
 | IC-5        | 非装配消费者引用私有入口或已采用外侧实现；公开定义值闭包引入独立提供者；例外取BASE精确声明         | 声明、制品隔离、动态选择与同提交行为保证     |
+| DIRECTION   | 源角色的源码经 dependency-cruiser 已解析的导入（含类型、重导出、动态、子路径、别名、相对路径）指向目标成员 | 解析失败的导入、发布产物与安装闭包、运行时授权；converged 不表示整体符合 |
 
 IC-5的源或目标责任没有采用时是unknown。具体装配豁免只归已采用的源文件；目标同包公开服务定义可以消费，但其值闭包不得引入独立提供者。IC-3允许的定义自有登记逻辑不因此成为独立提供者。
 尚不明确的例外不得当作符合。泛化存储契约即使满足 DIP，仍由 LAYER-ENTRY 判交互越界。

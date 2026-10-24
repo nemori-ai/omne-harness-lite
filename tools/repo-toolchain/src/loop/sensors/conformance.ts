@@ -5,6 +5,7 @@ import { analyzeConformance, readConformance } from '../../arch/conformance.ts'
 import { readArchitectureSource } from '../../arch/source.ts'
 import { CONSTRAINT_PATH, CONSTRAINT_PATHS } from '../../arch/constraints.ts'
 import type { Conformance, ConstraintChange } from '../../arch/conformance-model.ts'
+import type { DependencyGraph } from '../../deps/graph.ts'
 import { data, noData, type Reading } from '../reading.ts'
 import { observeAssembly, type AssemblyDelta, type AssemblyObservations } from './assembly.ts'
 
@@ -14,11 +15,15 @@ export interface ArchitectureReadings {
   readonly architectureChanges: Reading<readonly ConstraintChange[]>
   readonly conformance: Reading<Conformance>
 }
-/** Read each complete source version once. No manual node declaration oracle remains. */
+/**
+ * Read each complete source version once. No manual node declaration oracle remains.
+ * `graph` 是调用方已经算过的工作树依赖图：符合性的方向行读它，不再跑一次 dependency-cruiser。
+ */
 export function readArchitectureSensors(
   root: string,
   config: { readonly enabled: boolean },
   base?: string,
+  graph?: DependencyGraph,
 ): ArchitectureReadings {
   if (!config.enabled)
     return {
@@ -50,7 +55,7 @@ export function readArchitectureSensors(
       conformance: noData(reason),
     }
   }
-  const observed = analyzeConformance(root, currentSource, baselineSource)
+  const observed = analyzeConformance(root, currentSource, baselineSource, graph)
   const assembly = observeAssembly(observed.headActual, observed.baseActual)
   return {
     architecture:

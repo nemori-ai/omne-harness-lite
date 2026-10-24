@@ -56,6 +56,14 @@ const graph: DependencyGraph = {
       sites: [{ path: consumer.path, line: 1, specifier: '@omne-harness/storage' }],
     },
   ],
+  dependencies: [
+    {
+      path: consumer.path,
+      line: 1,
+      specifier: '@omne-harness/storage',
+      resolved: 'packages/core/storage/src/index.ts',
+    },
+  ],
   findings: [],
 }
 const base = { files: [storage, consumer], graph, thresholds, bands }

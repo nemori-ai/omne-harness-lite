@@ -2,9 +2,11 @@ import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { isAbsolute, join, posix, relative } from 'node:path'
 import { fileAt, git } from '../core/git.ts'
+import { runnerRoot } from '../core/subject.ts'
 import {
   RULE_IDS,
   type ArchitectureConstraints,
+  type ArchitectureDirection,
   type ArchitectureImportException,
   type ArchitectureRole,
   type ConstraintInput,
@@ -22,8 +24,10 @@ export const CONSTRAINT_PATHS = [CONSTRAINT_PATH, LEGACY_CONSTRAINT_PATH] as con
 const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 function obj(v: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (!record(v) || Object.keys(v).some(key => !keys.includes(key)))
-    throw new Error('Architecture constraints contain invalid object fields')
+  if (!record(v)) throw new Error('Architecture constraints require objects')
+  const unknown = Object.keys(v).filter(key => !keys.includes(key))
+  if (unknown.length > 0)
+    throw new Error(`Architecture constraints contain unknown fields: ${unknown.join(', ')}`)
   return v
 }
 function str(v: unknown): string {
@@ -90,17 +94,61 @@ function importExceptions(value: unknown): ArchitectureImportException[] {
     }
   return rows
 }
+const MEMBER_PREFIX = /^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\//u
+/**
+ * 角色所在的成员目录（`packages/<组>/<成员>` 或 `apps/<成员>`）。方向行按成员判目标，
+ * 所以它引用的角色的每条 `paths` 都必须落在同一个成员里。
+ */
+export function roleMember(role: ArchitectureRole): string {
+  const members = new Set(role.paths.map(path => MEMBER_PREFIX.exec(path)?.[1]))
+  const [member, ...rest] = members
+  if (member === undefined || rest.length > 0)
+    throw new Error(
+      `Architecture role ${role.id} does not stay inside one member: ${role.paths.join(', ')}`,
+    )
+  return member
+}
+const DIRECTION_ID = /^DIR-[A-Z0-9]+(?:-[A-Z0-9]+)*$/u
+function roleIds(v: unknown, roles: ReadonlyMap<string, ArchitectureRole>): [string, ...string[]] {
+  const [first, ...rest] = strings(v)
+  if (first === undefined) throw new Error('Architecture directions require nonempty role lists')
+  for (const id of [first, ...rest]) {
+    const role = roles.get(id)
+    if (role === undefined) throw new Error(`Architecture direction references unknown role ${id}`)
+    roleMember(role)
+  }
+  return [first, ...rest]
+}
+function direction(
+  value: unknown,
+  roles: ReadonlyMap<string, ArchitectureRole>,
+): ArchitectureDirection {
+  const row = obj(value, ['id', 'from', 'to', 'source'])
+  const id = str(row['id'])
+  if (!DIRECTION_ID.test(id)) throw new Error(`Invalid architecture direction id: ${id}`)
+  const from = roleIds(row['from'], roles),
+    to = roleIds(row['to'], roles)
+  const shared = from.filter(role => to.includes(role))
+  if (shared.length > 0)
+    throw new Error(
+      `Architecture direction ${id} lists the same roles on both sides: ${shared.join(', ')}`,
+    )
+  return { id, from, to, source: str(row['source']) }
+}
 export function parseConstraints(text: string): ArchitectureConstraints {
-  const value = obj(JSON.parse(text), [
+  const parsed: unknown = JSON.parse(text)
+  if (!record(parsed)) throw new Error('Architecture constraints require an object')
+  const schemaVersion = parsed['schemaVersion']
+  if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3)
+    throw new Error('Unsupported architecture constraint schema')
+  const value = obj(parsed, [
     'schemaVersion',
     'domains',
     'roles',
     'rules',
     'importExceptions',
+    ...(schemaVersion === 3 ? ['directions'] : []),
   ])
-  const schemaVersion = value['schemaVersion']
-  if (schemaVersion !== 1 && schemaVersion !== 2)
-    throw new Error('Unsupported architecture constraint schema')
   const domains = unique(
     list(value['domains']).map(item => {
       const row = obj(item, ['id', 'label', 'source'])
@@ -150,12 +198,18 @@ export function parseConstraints(text: string): ArchitectureConstraints {
       return { id: known, source: str(row['source']) }
     }),
   )
+  const byId = new Map(roles.map(role => [role.id, role]))
+  const directions =
+    schemaVersion === 3
+      ? unique(list(value['directions'] ?? []).map(item => direction(item, byId)))
+      : undefined
   return {
     schemaVersion,
     domains,
     roles,
     rules,
     importExceptions: importExceptions(value['importExceptions']),
+    ...(directions === undefined ? {} : { directions }),
   }
 }
 export function readConstraints(root: string, source: SourceCoordinates): ConstraintInput {
@@ -176,8 +230,22 @@ export function readBaselineConstraints(
 }
 
 const legacySource = (path: string) => /^(?:apps|packages)\.0\.0\.1\.legacy\//u.test(path)
-const matchesRolePath = (path: string, pattern: string) =>
+export const matchesRolePath = (path: string, pattern: string): boolean =>
   pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern
+
+export type RunnerConstraints =
+  | { readonly kind: 'missing'; readonly path: string }
+  | { readonly kind: 'present'; readonly path: string; readonly value: ArchitectureConstraints }
+/**
+ * 运行检查器的仓库的 `constraints.json`（与 `cruiseConfig()` 同一个根）。`omne-deps` 的方向行只从这里读，
+ * 被检查的检出改不了它。文件缺失返回 missing；存在但解析、校验或来源核对失败则抛错。
+ */
+export function readRunnerConstraints(root: string = runnerRoot()): RunnerConstraints {
+  const document = readDocument(root, { kind: 'worktree', commit: root })
+  return document.value === null
+    ? { kind: 'missing', path: document.path }
+    : { kind: 'present', path: document.path, value: document.value }
+}
 
 function readDocument(
   root: string,
@@ -262,7 +330,7 @@ function versionReader(root: string, source: Pick<SourceCoordinates, 'kind' | 'c
 
 export function constraintSourcePath(
   path: string,
-  schemaVersion: 1 | 2,
+  schemaVersion: ArchitectureConstraints['schemaVersion'],
   reference: string,
 ): string {
   const [raw, fragment, extra] = reference.split('#')
@@ -279,7 +347,7 @@ export function constraintSourcePath(
   if (!decoded.endsWith('.md'))
     throw new Error(`Architecture source must be Markdown: ${reference}`)
   const rooted =
-    schemaVersion === 2 || /^(?:packages|apps|docs|tools|scripts|\.meta_harness)\//u.test(decoded)
+    schemaVersion !== 1 || /^(?:packages|apps|docs|tools|scripts|\.meta_harness)\//u.test(decoded)
   return safePath(rooted ? decoded : posix.join(posix.dirname(path), decoded))
 }
 
@@ -338,6 +406,7 @@ function validateConstraintSources(
     ...value.roles,
     ...value.rules,
     ...(value.importExceptions ?? []),
+    ...(value.directions ?? []),
   ]) {
     const target = constraintSourcePath(path, value.schemaVersion, row.source)
     if (legacySource(target))
@@ -370,6 +439,18 @@ export function semanticConstraints(value: ArchitectureConstraints | null): stri
       ? {
           importExceptions: sorted(
             value.importExceptions.map(row => ({ ...row, symbols: [...row.symbols].sort() })),
+          ),
+        }
+      : {}),
+    ...(value.directions?.length
+      ? {
+          directions: sorted(
+            value.directions.map(row => ({
+              id: row.id,
+              from: [...row.from].sort(),
+              to: [...row.to].sort(),
+              source: row.source,
+            })),
           ),
         }
       : {}),

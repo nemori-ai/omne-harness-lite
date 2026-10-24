@@ -51,16 +51,17 @@ export function readArchitectureReport(
       }
     }
   }
+  // 与抽取同一个版本：给了 revision 读那个提交，否则读工作树。符合性的方向行与度量读同一张图。
+  const graph =
+    input.revision === undefined
+      ? workingGraph(input.root)
+      : revisionGraph(input.root, input.revision)
   return {
     document,
-    conformance: conformanceOf(input.root, currentSource, baselineSource),
+    conformance: conformanceOf(input.root, currentSource, baselineSource, graph),
     report: buildReport({
       files,
-      // 与抽取同一个版本：给了 revision 读那个提交，否则读工作树。
-      graph:
-        input.revision === undefined
-          ? workingGraph(input.root)
-          : revisionGraph(input.root, input.revision),
+      graph,
       thresholds: config.thresholds,
       bands: config.bands,
       ...(baselineSource === undefined ? {} : { changed, baseTexts }),

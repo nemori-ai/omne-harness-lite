@@ -411,7 +411,7 @@ describe('architecture view projection', () => {
     const html = renderPage(
       buildReport({
         files: [],
-        graph: { members: [], edges: [], findings: [] },
+        graph: { members: [], edges: [], dependencies: [], findings: [] },
         thresholds: { warn: 10, alert: 12 },
         bands,
       }),

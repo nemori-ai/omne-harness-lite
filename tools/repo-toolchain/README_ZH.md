@@ -68,13 +68,15 @@ pnpm --filter @omne-harness/repo-toolchain test
 仓库只有一张依赖图，由 dependency-cruiser 按根 `.dependency-cruiser.cjs` 生成，入口在 `src/deps/graph.ts`。`pnpm run lint:deps`（`src/deps/cli.ts`）、[回路状态](#回路状态)的硬线与新增跨成员依赖、[结构度量](#结构度量)和[实际架构](#全局实际架构视图)的报告都读它，本包不再自写导入解析或层位表。
 
 - 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
-- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。
+- 方向行：`docs/architecture/constraints.json` schema 3 的 `directions`（格式见[符合性契约](src/arch/CONFORMANCE.md#方向行)）。`omne-deps` 只从运行检查器的仓库读它，`--root` 只改变被检查的树；被检查的树改动或删除自己的 `constraints.json` 与预设都不改变结果。一处导入命中一条方向行，就是：导入所在的文件按角色的 `paths` 落在某个 `from` 角色（最精确的角色优先，同精度冲突不算），并且解析后的目标文件所在的成员等于某个 `to` 角色的成员。类型导入、`export … from`、动态导入、按包名或公开子路径导入、tsconfig 别名、跨成员相对路径都按解析后的目标判断；目标在 `src/`、`dist/` 或声明文件里都算同一成员。解析失败的导入不是方向命中，仍由 `no-unresolvable` 报出；别名只有运行检查器的 `tsconfig.base.json` 声明了 `paths` 才解析得到。每处命中一条发现：`[<方向行 id>] <源文件> 依赖了 <目标文件>（<源角色> → <目标角色>）：<出处>`，后面是导入处的路径与行号；一处导入同时命中几条方向行就报几条。有任何方向命中退出 1，原有发现与退出码的含义不变。汇总一行写检查了几条方向行、几个成员对、命中几处。运行检查器的仓库没有 `constraints.json` 时不检查方向，写「runner 没有 docs/architecture/constraints.json，未检查」，退出码只由其他发现决定；文件是 schema 1、2 时写「没有方向行」；文件存在但解析、校验或来源核对失败退出 2 并写明原因。
+- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。图里另保留跨成员的文件级依赖事实（`dependencies`，含测试与 `src` 下的 testing 入口，不含 Node 内建模块），方向行与架构符合性报告的方向行都从它判断，不另解析导入。
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
-- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交与规则文件摘要缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
+- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
 - 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
+- 回路状态的硬线仍是依赖违规与环；方向命中现在只让 `lint:deps` 退出 1，回路没有把它算成硬线。
 
-自测：`tests/deps-graph.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+自测：`tests/deps-graph.spec.ts`、`tests/direction-rules.spec.ts`（runner 与被检树分开的临时仓库，五条方向 × 六种导入形态的反例、合法对照与可信 runner）；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
 
 ## 提交署名
 

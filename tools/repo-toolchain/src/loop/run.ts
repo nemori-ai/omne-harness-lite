@@ -11,7 +11,7 @@ import {
 } from '../acceptance/lock.ts'
 import { readMetricsConfig, type MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, changedLines, coordinates, git, type Coordinates } from '../core/git.ts'
-import { memberOf, revisionGraph, workingGraph } from '../deps/graph.ts'
+import { memberOf, revisionGraph, workingGraph, type DependencyGraph } from '../deps/graph.ts'
 import { buildReport, isMeasuredSource, type Report } from '../metrics/report.ts'
 import { baseTextsOf, collectMemberSources } from '../metrics/sources.ts'
 import { isTestPath, type SourceFile } from '../core/rule.ts'
@@ -117,16 +117,17 @@ export function changeSince(root: string, mergeBase: string): Change {
   return { mergeBase, paths, baseTexts: baseTextsOf(root, mergeBase, paths) }
 }
 
-/** 度量报告（不跑覆盖率）；给了改动就标出变更的函数与导入。 */
+/** 度量报告（不跑覆盖率）；给了改动就标出变更的函数与导入。`graph` 是工作树的依赖图，调用方可以与别的传感器共用。 */
 export function measuredReport(
   root: string,
   files: readonly SourceFile[],
   metrics: MetricsConfig,
   change: Change | undefined,
+  graph: DependencyGraph = workingGraph(root),
 ): Report {
   return buildReport({
     files,
-    graph: workingGraph(root),
+    graph,
     thresholds: metrics.thresholds,
     bands: metrics.bands,
     ...(change === undefined
@@ -189,6 +190,7 @@ async function readSensors(
   config: LoopConfig,
   files: readonly SourceFile[],
   report: Report,
+  graph: DependencyGraph,
   change: Change | undefined,
   acceptanceAt: AcceptanceLocation,
 ): Promise<Sensors> {
@@ -198,6 +200,7 @@ async function readSensors(
     root,
     sensors.architecture,
     change?.mergeBase,
+    graph,
   )
   return {
     conformance,
@@ -558,8 +561,9 @@ export async function runLoopStatus(
           ]),
         }
   const change = at.base === undefined ? undefined : changeSince(root, at.base.mergeBase)
-  const report = measuredReport(root, files, metrics, change)
-  const sensors = await readSensors(root, config, files, report, change, {
+  const graph = workingGraph(root)
+  const report = measuredReport(root, files, metrics, change, graph)
+  const sensors = await readSensors(root, config, files, report, graph, change, {
     root,
     mainRoot: at.mainRoot,
     shortHead: at.shortHead,

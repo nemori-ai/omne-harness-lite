@@ -44,15 +44,25 @@ export interface MemberEdge {
   readonly sites: readonly ImportSite[]
 }
 
+/**
+ * 文件级的依赖事实：一个模块里指向别的成员、且已解析的一处导入。不限产品源码，测试与 `src` 下的 testing
+ * 入口都在；Node 内建模块与解析失败的导入不在。方向规则（arch/directions.ts）只从这里判命中。
+ */
+export interface FileDependency extends ImportSite {
+  /** 解析后的目标文件，仓库相对路径；可以在目标成员的 `src/`、`dist/` 或声明文件里。 */
+  readonly resolved: string
+}
+
 export type DependencyFindingKind =
   | 'dependency-rule'
+  | 'direction-rule'
   | 'file-cycle'
   | 'member-cycle'
   | 'group-cycle'
 
 export interface DependencyFinding {
   readonly kind: DependencyFindingKind
-  /** dependency-cruiser 的规则名；成员环与组环是本模块算的，取 kind。 */
+  /** dependency-cruiser 的规则名；方向规则取方向行 id；成员环与组环是本模块算的，取 kind。 */
   readonly rule: string
   readonly message: string
   /** 可定位的导入处；环取环上各边的首个导入处。 */
@@ -64,6 +74,8 @@ export interface DependencyFinding {
 export interface DependencyGraph {
   readonly members: readonly Member[]
   readonly edges: readonly MemberEdge[]
+  /** 跨成员的文件级依赖事实；`edges` 是其中产品源码部分按成员对的归并。 */
+  readonly dependencies: readonly FileDependency[]
   readonly findings: readonly DependencyFinding[]
 }
 
@@ -255,7 +267,8 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
     return member
   }
 
-  // 产品源码（不含测试）里指向别的成员的依赖，按成员对归并；类型导入也算。
+  // 指向别的成员、已解析的依赖逐处记下（内建模块不算）；产品源码（不含测试）的那些再按成员对归并成边，类型导入也算。
+  const dependencies: FileDependency[] = []
   const edges = new Map<string, { from: string; to: string; sites: ImportSite[] }>()
   const specifierOf = new Map<string, string>()
   for (const module of output.modules) {
@@ -265,6 +278,13 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
       specifierOf.set(pairKey(module.source, dependency.resolved), dependency.module)
       const to = note(dependency.resolved)
       if (from === undefined || to === undefined || from.path === to.path) continue
+      if (dependency.dependencyTypes.includes('core')) continue
+      const site = {
+        path: module.source,
+        line: lineOf(module.source, dependency.module),
+        specifier: dependency.module,
+      }
+      dependencies.push({ ...site, resolved: dependency.resolved })
       if (!isProductSource(module.source, from)) continue
       const key = pairKey(from.path, to.path)
       let edge = edges.get(key)
@@ -272,11 +292,7 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
         edge = { from: from.path, to: to.path, sites: [] }
         edges.set(key, edge)
       }
-      edge.sites.push({
-        path: module.source,
-        line: lineOf(module.source, dependency.module),
-        specifier: dependency.module,
-      })
+      edge.sites.push(site)
     }
   }
   const memberList = [...members.values()].sort((a, b) => a.path.localeCompare(b.path))
@@ -365,8 +381,11 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
       edges: inside.map(edge => ({ from: edge.from, to: edge.to })),
     })
   }
-  return { members: memberList, edges: edgeList, findings }
+  return { members: memberList, edges: edgeList, dependencies, findings }
 }
+
+/** 缓存的图的格式版本；`DependencyGraph` 的形状变了就加一。 */
+const GRAPH_FORMAT = 'v2'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
@@ -473,7 +492,8 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
     .trim()
   const rules = createHash('sha256').update(readFileSync(cruiseConfig())).digest('hex').slice(0, 12)
   const directory = cacheDirectory(root)
-  const cached = join(directory, `${commit}-${rules}.json`)
+  // 文件名带图的格式版本：旧格式的缓存没有 `dependencies`，不能当现在的图读。
+  const cached = join(directory, `${commit}-${rules}-${GRAPH_FORMAT}.json`)
   if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8')) as DependencyGraph
 
   const present = new Set(
