@@ -142,7 +142,7 @@ Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和
 
 钉住的版本承担这些检查：
 
-- 根脚本 `check:declarations`、`lint:deps`、`metrics`、`loop:status`、`loop:health`、`acceptance:lock` 运行安装包的命令：`omne-declarations`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
+- 根脚本 `check:declarations`、`contract:api`、`lint:deps`、`metrics`、`loop:status`、`loop:health`、`acceptance:lock` 运行安装包的命令：`omne-declarations`、`omne-contract-api`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
 - 三个工具成员导入的也是钉住的版本。`lint:rules`、影响面计划与成员测试的编排都不读工作区的 repo-toolchain。
 - 根 `tsconfig.base.json` 与 `.dependency-cruiser.cjs` 按包名引用预设。`.oxlintrc.json` 的 `extends` 只接受相对路径，所以写成 `./node_modules/@omne-harness/repo-config/oxlint.json`，指向的仍是安装的预设。
 
