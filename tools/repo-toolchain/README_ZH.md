@@ -125,7 +125,9 @@ Loop 的 Markdown 同时显示原始违规和批准决定；其他硬线照常�
 
 当前制品只包含 [D010 的固定决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)。
 它只批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
-工具读取真实 Git 对象，核对完整提交、唯一父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary`，并固定 `core.abbrev=8`、`diff.noprefix=false`、`diff.mnemonicPrefix=false`、`diff.algorithm=myers`、`diff.indentHeuristic=true`，因此仓库大小与用户配置不会改变字节。
+工具读取真实 Git 对象，核对完整提交、唯一父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`。
+调用固定 `core.abbrev=8`、`diff.noprefix=false`、`diff.mnemonicPrefix=false`、`diff.algorithm=myers`、`diff.indentHeuristic=true`、`diff.context=3`、`diff.interHunkContext=0`、`diff.suppressBlankEmpty=false`、`diff.srcPrefix=a/`、`diff.dstPrefix=b/`、`core.attributesFile=/dev/null`，并从环境中去掉 `GIT_DIFF_OPTS`。仓库大小与这些配置不会改变字节。
+已知限制：`info/attributes` 或被跟踪的 `.gitattributes` 中的 diff 驱动或 `binary` 属性，以及对象前缀碰撞，会改变字节，D010 因此不获批准。这些情况的失败方向是拒绝，不会误批准。
 其他普通文档可以在原提交中一起修改；多一个受保护验收路径不能命中例外。
 未提交改动、未来 developer 提交和任一指纹或决定不匹配仍失败。Git 读取失败退出 2。
 仓库配置、环境变量、CLI 参数和外部 URL 都不能新增批准；运行时不访问 GitHub。

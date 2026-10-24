@@ -439,6 +439,69 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     expect(approved.stdout).toContain('已批准历史例外 1 处')
   })
 
+  const scratch = () => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), 'historical-config-')))
+    made.push(directory)
+    return directory
+  }
+  const infoAttributes = (root: string, line: string) => {
+    const info = join(git(root, 'rev-parse', '--absolute-git-dir'), 'info')
+    mkdirSync(info, { recursive: true })
+    writeFileSync(join(info, 'attributes'), `${line}\n`)
+  }
+
+  // Each setup changes the bytes of a plain `git diff` for the approved commit.
+  it.each<[string, (root: string) => NodeJS.ProcessEnv]>([
+    ['diff.context=5', root => (git(root, 'config', 'diff.context', '5'), process.env)],
+    [
+      'diff.suppressBlankEmpty=true',
+      root => (git(root, 'config', 'diff.suppressBlankEmpty', 'true'), process.env),
+    ],
+    [
+      'diff.srcPrefix and diff.dstPrefix',
+      root => (
+        git(root, 'config', 'diff.srcPrefix', 'X/'),
+        git(root, 'config', 'diff.dstPrefix', 'Y/'),
+        process.env
+      ),
+    ],
+    ['color.diff=always', root => (git(root, 'config', 'color.diff', 'always'), process.env)],
+    [
+      'a textconv driver from info/attributes',
+      root => (
+        infoAttributes(root, '*.md diff=tc'),
+        git(root, 'config', 'diff.tc.textconv', 'sed s/a/b/'),
+        process.env
+      ),
+    ],
+    [
+      'a global core.attributesFile with a markdown diff driver',
+      () => {
+        const directory = scratch()
+        const attributes = join(directory, 'attributes')
+        const global = join(directory, 'gitconfig')
+        writeFileSync(attributes, '*.md diff=markdown\n')
+        writeFileSync(global, `[core]\n\tattributesFile = ${attributes}\n`)
+        return { ...process.env, GIT_CONFIG_GLOBAL: global }
+      },
+    ],
+    ['GIT_DIFF_OPTS=--unified=1', () => ({ ...process.env, GIT_DIFF_OPTS: '--unified=1' })],
+  ])('still approves the exact history under %s', (_name, setup) => {
+    const root = repository()
+    const approved = run(root, setup(root))
+    expect(approved.status, approved.stderr).toBe(0)
+    expect(approved.stdout).toContain('原始违规（锁被破 1 处）')
+    expect(approved.stdout).toContain('已批准历史例外 1 处')
+  })
+
+  it('known limit: a diff driver in info/attributes changes the bytes, so approval fails closed', () => {
+    const root = repository()
+    infoAttributes(root, '*.md diff=markdown')
+    const rejected = run(root)
+    expect(rejected.status, rejected.stderr).toBe(1)
+    expect(rejected.stdout).toContain('已批准历史例外 0')
+  })
+
   it('rejects Git replacement objects even when the reported SHA and diff still match', () => {
     const root = repository()
     const replacement = git(

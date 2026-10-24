@@ -23,9 +23,12 @@ const D010: HistoricalApproval = Object.freeze({
   decisionUrl: 'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357',
 })
 
-// Fixed diff settings: the same Git objects must give the same bytes in every repository and
-// user configuration. core.abbrev=8 matches the abbreviation length at approval time.
-// Do not use --full-index: it changes the bytes and so the approved digest.
+// Fixed diff settings: the same Git objects must give the same bytes under any user or repository
+// configuration that these settings cover. core.abbrev=8 matches the abbreviation length at
+// approval time. Do not use --full-index: it changes the bytes and so the approved digest.
+// Not covered: diff drivers or binary attributes from info/attributes or tracked .gitattributes,
+// and object prefix collisions that lengthen the index line. They change the bytes, so the
+// approval fails closed (rejection), never opens.
 const FINGERPRINT_DIFF_ARGS = [
   '-c',
   'core.abbrev=8',
@@ -37,12 +40,34 @@ const FINGERPRINT_DIFF_ARGS = [
   'diff.algorithm=myers',
   '-c',
   'diff.indentHeuristic=true',
+  '-c',
+  'diff.context=3',
+  '-c',
+  'diff.interHunkContext=0',
+  '-c',
+  'diff.suppressBlankEmpty=false',
+  '-c',
+  'diff.srcPrefix=a/',
+  '-c',
+  'diff.dstPrefix=b/',
+  '-c',
+  'core.attributesFile=/dev/null',
   'diff',
   '--no-ext-diff',
   '--no-textconv',
   '--no-color',
   '--binary',
+  '-U3',
+  '--src-prefix=a/',
+  '--dst-prefix=b/',
+  '--text',
 ] as const
+
+/** GIT_DIFF_OPTS overrides the context width even over -U3, so the fingerprint call drops it. */
+function fingerprintEnv(base: Readonly<NodeJS.ProcessEnv>): NodeJS.ProcessEnv {
+  const { GIT_DIFF_OPTS: _diffOptions, ...env } = repositoryEnv(base)
+  return env
+}
 
 /** Internal matcher: it can recognize the compiled decision, never authorize a new one. */
 export function matchHistoricalApproval(
@@ -70,10 +95,10 @@ export function inspectHistoricalApproval(
 ): HistoricalApproval | undefined {
   if (commit !== D010.commit || protectedPaths.length !== 1 || protectedPaths[0] !== D010.path)
     return undefined
-  const git = (args: readonly string[]) =>
+  const git = (args: readonly string[], env: NodeJS.ProcessEnv = repositoryEnv(process.env)) =>
     execFileSync('git', args, {
       cwd: root,
-      env: repositoryEnv(process.env),
+      env,
       maxBuffer: 256 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -93,7 +118,12 @@ export function inspectHistoricalApproval(
       oldBlob: objectId('blob', `${D010.parent}:${D010.path}`),
       newBlob: objectId('blob', `${commit}:${D010.path}`),
       diffSha256: createHash('sha256')
-        .update(git([...FINGERPRINT_DIFF_ARGS, D010.parent, commit, '--', D010.path]))
+        .update(
+          git(
+            [...FINGERPRINT_DIFF_ARGS, D010.parent, commit, '--', D010.path],
+            fingerprintEnv(process.env),
+          ),
+        )
         .digest('hex'),
       decisionUrl: D010.decisionUrl,
     },

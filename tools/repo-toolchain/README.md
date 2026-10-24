@@ -96,7 +96,9 @@ Both text reports show original violations and approvals. Other Loop hard lines 
 
 The artifact contains only the fixed [D010 decision](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357).
 It covers commit `48ad37d292796326d65055a75e8a1fde44fe4233` and `packages/agent/agent/acceptance/README.md`.
-The tool checks real Git objects, one parent, exact blobs, and all bytes from `git diff --no-ext-diff --no-textconv --no-color --binary`. The call fixes `core.abbrev=8`, `diff.noprefix=false`, `diff.mnemonicPrefix=false`, `diff.algorithm=myers`, and `diff.indentHeuristic=true`, so repository size and user configuration do not change the bytes.
+The tool checks real Git objects, one parent, exact blobs, and all bytes from `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`.
+The call fixes `core.abbrev=8`, `diff.noprefix=false`, `diff.mnemonicPrefix=false`, `diff.algorithm=myers`, `diff.indentHeuristic=true`, `diff.context=3`, `diff.interHunkContext=0`, `diff.suppressBlankEmpty=false`, `diff.srcPrefix=a/`, `diff.dstPrefix=b/`, and `core.attributesFile=/dev/null`, and removes `GIT_DIFF_OPTS` from its environment. Repository size and these settings do not change the bytes.
+Known limits: a diff driver or `binary` attribute in `info/attributes` or in a tracked `.gitattributes`, and an object prefix collision, change the bytes. D010 then does not receive approval. These cases fail as a rejection, never as a false approval.
 Ordinary documents in that historical commit do not prevent approval. An additional protected path cannot receive this approval.
 Uncommitted edits, future developer commits, and fingerprint or decision mismatches still fail.
 Git read failures remain tool errors. Configuration, environment variables, arguments, and supplied URLs cannot authorize changes.
