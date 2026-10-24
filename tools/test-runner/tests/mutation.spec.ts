@@ -838,7 +838,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
           '--typecheck.tsconfig',
           'tsconfig.test.json',
         ],
-        { cwd, encoding: 'utf8', timeout: 30_000 },
+        // turbo 的严格环境模式下子进程会上色，颜色码插进摘要行使正则失配：显式关掉颜色。
+        {
+          cwd,
+          encoding: 'utf8',
+          timeout: 30_000,
+          env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: undefined },
+        },
       )
     for (const cwd of [memberDir, sandbox]) {
       const ran = check(cwd)
