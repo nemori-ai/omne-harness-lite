@@ -450,6 +450,19 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     writeFileSync(join(info, 'attributes'), `${line}\n`)
   }
 
+  const markdownAttributesTree = (root: string) => {
+    const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], {
+      cwd: root,
+      input: '*.md diff=markdown\n',
+      encoding: 'utf8',
+    }).trim()
+    return execFileSync('git', ['mktree'], {
+      cwd: root,
+      input: `100644 blob ${blob}\t.gitattributes\n`,
+      encoding: 'utf8',
+    }).trim()
+  }
+
   // Each setup changes the bytes of a plain `git diff` for the approved commit.
   it.each<[string, (root: string) => NodeJS.ProcessEnv]>([
     ['diff.context=5', root => (git(root, 'config', 'diff.context', '5'), process.env)],
@@ -486,6 +499,18 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
       },
     ],
     ['GIT_DIFF_OPTS=--unified=1', () => ({ ...process.env, GIT_DIFF_OPTS: '--unified=1' })],
+    [
+      'a worktree .gitattributes with a markdown diff driver',
+      root => (writeFileSync(join(root, '.gitattributes'), '*.md diff=markdown\n'), process.env),
+    ],
+    [
+      'GIT_ATTR_SOURCE and attr.tree naming a tree with a markdown diff driver',
+      root => {
+        const tree = markdownAttributesTree(root)
+        git(root, 'config', 'attr.tree', tree)
+        return { ...process.env, GIT_ATTR_SOURCE: tree }
+      },
+    ],
   ])('still approves the exact history under %s', (_name, setup) => {
     const root = repository()
     const approved = run(root, setup(root))
@@ -494,7 +519,7 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     expect(approved.stdout).toContain('已批准历史例外 1 处')
   })
 
-  it('known limit: a diff driver in info/attributes changes the bytes, so approval fails closed', () => {
+  it('known limit: a funcname diff driver in info/attributes changes the bytes, so approval fails closed', () => {
     const root = repository()
     infoAttributes(root, '*.md diff=markdown')
     const rejected = run(root)

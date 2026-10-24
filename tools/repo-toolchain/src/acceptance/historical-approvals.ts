@@ -26,9 +26,11 @@ const D010: HistoricalApproval = Object.freeze({
 // Fixed diff settings: the same Git objects must give the same bytes under any user or repository
 // configuration that these settings cover. core.abbrev=8 matches the abbreviation length at
 // approval time. Do not use --full-index: it changes the bytes and so the approved digest.
-// Not covered: diff drivers or binary attributes from info/attributes or tracked .gitattributes,
-// and object prefix collisions that lengthen the index line. They change the bytes, so the
-// approval fails closed (rejection), never opens.
+// attr.tree reads attributes from the empty tree instead of the worktree (Git 2.46 and later).
+// Not covered: funcname, xfuncname or binary attributes from info/attributes; .gitattributes in the
+// worktree on Git older than 2.46; and object prefix collisions that lengthen the index line.
+// They change the bytes, so the approval fails closed (rejection), never opens.
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 const FINGERPRINT_DIFF_ARGS = [
   '-c',
   'core.abbrev=8',
@@ -52,6 +54,8 @@ const FINGERPRINT_DIFF_ARGS = [
   'diff.dstPrefix=b/',
   '-c',
   'core.attributesFile=/dev/null',
+  '-c',
+  `attr.tree=${EMPTY_TREE}`,
   'diff',
   '--no-ext-diff',
   '--no-textconv',
@@ -63,10 +67,17 @@ const FINGERPRINT_DIFF_ARGS = [
   '--text',
 ] as const
 
-/** GIT_DIFF_OPTS overrides the context width even over -U3, so the fingerprint call drops it. */
+/**
+ * GIT_DIFF_OPTS overrides the context width even over -U3, and GIT_ATTR_SOURCE overrides
+ * attr.tree, so the fingerprint call drops both. GIT_ATTR_NOSYSTEM skips system attributes.
+ */
 function fingerprintEnv(base: Readonly<NodeJS.ProcessEnv>): NodeJS.ProcessEnv {
-  const { GIT_DIFF_OPTS: _diffOptions, ...env } = repositoryEnv(base)
-  return env
+  const {
+    GIT_DIFF_OPTS: _diffOptions,
+    GIT_ATTR_SOURCE: _attributeSource,
+    ...env
+  } = repositoryEnv(base)
+  return { ...env, GIT_ATTR_NOSYSTEM: '1' }
 }
 
 /** Internal matcher: it can recognize the compiled decision, never authorize a new one. */
