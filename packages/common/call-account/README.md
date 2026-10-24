@@ -6,7 +6,7 @@ One call account for a model call or a tool execution.
 
 ## Responsibility and status
 
-This member checks one account snapshot, replaces an older snapshot with a higher revision, and selects a source subtotal or a payable amount. A model call and a tool execution use the same shape. The subject kind distinguishes them. Session writes the account into the session log. Request context does not import this package. The business ledger owner keeps persistence. Stream assembly does not carry usage or cost.
+This member checks one account snapshot, replaces an older snapshot with a higher revision, and selects a source subtotal or a payable amount. A model call and a tool execution use the same shape. The subject kind distinguishes them. In session integration, the result receiver saves account revisions through Journal. Session reads that log. Request context does not import this package. The business ledger owner keeps persistence. Stream assembly does not carry usage or cost.
 
 ## Usage
 
@@ -32,7 +32,7 @@ judgeCallAccount(account)
 payableAmount(account)
 ```
 
-Model and tool produce that value. Session calls `admitRevision` when a later snapshot arrives, then `payableAmount`. The sample is not a live runtime call. There is no Cordis entry.
+Model and tool produce that value. A consumer can use `admitRevision` for a later snapshot and `payableAmount` for payable selection. In session integration, the Agent host result receiver saves revisions through Journal, as specified by [model runtime](../../../docs/architecture/runtime/model-runtime.md#结果确认与费用). The sample is not a live runtime call. There is no Cordis entry.
 
 ## Contracts
 
@@ -64,4 +64,4 @@ The package reads no environment. `engines.node` is `>=24`.
 
 ## Maintenance
 
-Token category names stay with model invocation. Session log storage stays with session. Ledger persistence stays with the business ledger owner.
+Token category names stay with model invocation. The result receiver saves session account revisions through Journal. Session reads the same log. Ledger persistence stays with the business ledger owner.

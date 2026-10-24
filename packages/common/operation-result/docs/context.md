@@ -22,14 +22,12 @@ isSuccess(broken) // false
 
 ## 消费者与定位
 
-具名消费者是 `tool-contract`、`tool`、`tool-cordis-contract` 和 `model-contract`。当前轨道没有业务成员的生产调用点，公开入口目前只由本成员的测试消费。这四个成员合入本轨道时按公开入口导入本成员，不复制结果类型。依据见 [SPEC.md](../SPEC.md#消费者)。
+当前直接消费者及其类型、运行时值和 testing 支持导入由 [SPEC.md 消费者节](../SPEC.md#消费者) 唯一维护。依赖声明和静态导入说明代码消费关系，不证明真实调用或组合验证已经运行。
 
 ```text
-tool-contract  tool  tool-cordis-contract  model-contract   (当前轨道无生产调用点)
-        \           \            /            /
-         +-----------+----------+------------+
-                       |  import
-         @omne-harness/operation-result       (packages/common/operation-result)
+消费方契约、实现与 testing 支持（精确清单见 SPEC.md）
+                       |  按包名导入类型或值
+         @omne-harness/operation-result
                        |
                     无依赖
 ```

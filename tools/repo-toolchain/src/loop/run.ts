@@ -1,10 +1,14 @@
 // 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
 // 除硬线外一切只报告：结果码 1 只在依赖违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
 // 命令行外壳在 cli.ts。
-import { auditRanges, baselines } from '../core/task-context.ts'
+import { baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { auditHistory, readAcceptanceLockConfig } from '../acceptance/lock.ts'
+import {
+  auditHistory,
+  readAcceptanceLockConfig,
+  render as renderAcceptanceLock,
+} from '../acceptance/lock.ts'
 import { readMetricsConfig, type MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, changedLines, coordinates, git, type Coordinates } from '../core/git.ts'
 import { memberOf, revisionGraph, workingGraph } from '../deps/graph.ts'
@@ -486,8 +490,8 @@ function hardLinesOf(
   report: Report,
   base: string | undefined,
   sensors: SensorLine,
+  history: ReturnType<typeof auditHistory>,
 ): HardLines {
-  const history = auditHistory(root, base, readAcceptanceLockConfig())
   const bound = baselines(root, base).state === 'bound'
   const range = (judge: (base: string) => readonly string[]): RangeLine =>
     base === undefined
@@ -497,7 +501,7 @@ function hardLinesOf(
     ...directionLines(report),
     acceptanceLock: range(() =>
       history.flatMap(item =>
-        item.acceptance.violations.map(message =>
+        item.acceptance.unresolvedViolations.map(message =>
           bound ? `${item.label} ${item.base}..${item.head}: ${message}` : message,
         ),
       ),
@@ -540,7 +544,8 @@ export async function runLoopStatus(
   )
 
   const files = collectMemberSources(root)
-  const audits = auditRanges(root, options.base)
+  const acceptanceConfig = readAcceptanceLockConfig()
+  const audits = auditHistory(root, options.base, acceptanceConfig)
   const scope: SensorScope =
     scopeKind === 'all'
       ? { kind: 'all' }
@@ -592,6 +597,7 @@ export async function runLoopStatus(
     options.strict
       ? judgeSensors(sensors, config, scope)
       : { status: 'unjudged', reason: '只在严格模式（STRICT=1）下判' },
+    audits,
   )
   const catalogue = readCatalogue(
     root,
@@ -632,7 +638,10 @@ export async function runLoopStatus(
     })
 
   const notes = [
-    ...audits.map(range => `审计：${range.label} ${range.base}..${range.head}`),
+    ...audits.flatMap(range => [
+      `审计：${range.label} ${range.base}..${range.head}`,
+      ...renderAcceptanceLock(range.acceptance, acceptanceConfig),
+    ]),
     `趋势：${trendPath}；上一次的带位${previous === undefined ? '：没有更早的快照' : `取自 ${previous.commit.slice(0, 9)}`}；` +
       (decision.write ? '已写入这个提交的快照' : decision.reason) +
       (trend.badLines.length === 0

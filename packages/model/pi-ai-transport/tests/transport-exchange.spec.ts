@@ -1,8 +1,8 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits for
 // real connect timeouts and physical socket closure.
-import type { ServerResponse } from 'node:http'
+import { IncomingMessage, type ServerResponse } from 'node:http'
 import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { NetworkInternals } from '../src/network.ts'
 import { network, settle, watch } from './support/exchange.ts'
 import {
@@ -260,6 +260,23 @@ describe('the end marker', () => {
       },
     )
   })
+
+  it('discards complete marker suffixes without changing facts or connection reuse', async () => {
+    await withTransport(
+      res => answerSse(res, `${sseBody(STOP)}data: ${TEXT('late')}\n\ndata: {invalid json\n\n`),
+      async ({ server, resources, transport }) => {
+        for (let send = 0; send < 2; send += 1) {
+          expect(
+            await collect((await transport.materialize()).start(new AbortController().signal)),
+          ).toEqual([COMPLETED])
+          expect(resources.inFlight.size).toBe(0)
+          expect(await slotFree(resources)).toBe(true)
+        }
+        expect(server.requests).toHaveLength(2)
+        expect(server.openedSockets()).toBe(1)
+      },
+    )
+  })
 })
 
 describe('the failures after the send', () => {
@@ -452,6 +469,90 @@ describe('stopping a started send', () => {
         expect(await slotFree(resources)).toBe(true)
       },
     )
+  })
+
+  it('a cancel after a complete marker response starts yielding keeps the decoder termination', async () => {
+    await withTransport(
+      res => answerSse(res, sseBody(TEXT('hi'), STOP)),
+      async ({ resources, transport }) => {
+        const controller = new AbortController()
+        const iterator = (await transport.materialize())
+          .start(controller.signal)
+          [Symbol.asyncIterator]()
+        expect((await iterator.next()).value).toMatchObject({ kind: 'block-open' })
+        controller.abort()
+        expect((await iterator.next()).value).toEqual({
+          kind: 'block-delta',
+          index: '0',
+          delta: 'hi',
+        })
+        expect((await iterator.next()).value).toEqual(COMPLETED)
+        expect(resources.inFlight.size).toBe(0)
+        expect(await slotFree(resources)).toBe(true)
+        expect((await iterator.next()).done).toBe(true)
+      },
+    )
+  })
+
+  it('a cancel during native iterator return keeps the complete marker termination', async () => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const originalIterator = IncomingMessage.prototype.iterator
+    const restoreReturns: (() => void)[] = []
+    let returnCalls = 0
+    const iteratorSpy = vi
+      .spyOn(IncomingMessage.prototype, 'iterator')
+      .mockImplementation(function (this: IncomingMessage, options) {
+        const source = originalIterator.call(this, options)
+        if (this.statusCode !== 200) return source
+        const originalReturn = source.return
+        if (originalReturn === undefined) throw new Error('expected a native iterator return')
+        const returnSpy = vi.spyOn(source, 'return').mockImplementation(async value => {
+          const step = await originalReturn.call(source, value)
+          returnCalls += 1
+          expect(this.complete).toBe(true)
+          entered.resolve()
+          await release.promise
+          return step
+        })
+        restoreReturns.push(() => returnSpy.mockRestore())
+        return source
+      })
+    try {
+      await withTransport(
+        res => answerSse(res, sseBody(TEXT('hi'), STOP)),
+        async ({ resources, transport }) => {
+          const controller = new AbortController()
+          const facts = collect((await transport.materialize()).start(controller.signal))
+          try {
+            await Promise.race([
+              entered.promise,
+              facts.then(() => {
+                throw new Error('native iterator return gate was not reached')
+              }),
+            ])
+            expect(returnCalls).toBe(1)
+            expect(resources.inFlight.size).toBe(1)
+            controller.abort()
+            release.resolve()
+            expect(await facts).toEqual([
+              { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
+              { kind: 'block-delta', index: '0', delta: 'hi' },
+              COMPLETED,
+            ])
+            expect(resources.inFlight.size).toBe(0)
+            expect(await slotFree(resources)).toBe(true)
+          } finally {
+            release.resolve()
+            await Promise.allSettled([facts])
+          }
+        },
+      )
+    } finally {
+      release.resolve()
+      for (const restore of restoreReturns) restore()
+      iteratorSpy.mockRestore()
+    }
   })
 
   it('a cancel before the response ends the stream interrupted and confirmed', async () => {

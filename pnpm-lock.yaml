@@ -19,8 +19,8 @@ catalogs:
       specifier: 0.0.3
       version: 0.0.3
     '@omne-harness/repo-toolchain':
-      specifier: 0.0.9
-      version: 0.0.9
+      specifier: 0.0.10
+      version: 0.0.10
     '@standard-schema/spec':
       specifier: 1.1.0
       version: 1.1.0
@@ -117,7 +117,7 @@ importers:
         version: 0.0.3
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.9(vitest@4.1.11)
+        version: 0.0.10(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -150,6 +150,19 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/access/public-contract:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -835,7 +848,35 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/identity/authorization:
+    dependencies:
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../../context/request-context-contract
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -847,6 +888,13 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/identity/identity:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1517,7 +1565,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.9(vitest@4.1.11)
+        version: 0.0.10(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1538,7 +1586,7 @@ importers:
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.9(vitest@4.1.11)
+        version: 0.0.10(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1610,7 +1658,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.9(vitest@4.1.11)
+        version: 0.0.10(vitest@4.1.11)
       '@stryker-mutator/api':
         specifier: 'catalog:'
         version: 10.0.0
@@ -2376,8 +2424,8 @@ packages:
     resolution: {integrity: sha512-aEw6ZlUaN2yYnFxS7Tn0H0fnCCf2fwuDm63q373RwJ6tv22dV6GYgOw9r93lF3AYHCffhn1aLw1BkYtWUaSJpQ==}
     engines: {node: '>=24'}
 
-  '@omne-harness/repo-toolchain@0.0.9':
-    resolution: {integrity: sha512-z3y0+BPRLZtGr3xQQPgIm04vfWSiMIKbrh4kEThwHFSBMG5UrybeEnFnYpJStM0BHxiyUlkyGywA/HDN1BPMig==}
+  '@omne-harness/repo-toolchain@0.0.10':
+    resolution: {integrity: sha512-XelyzhrWVfut6zOkrJqfRTjE/K2/sD1yoG+xJRwav3Wfbg+kYv/9KqaMcUtCnMNJB7LJ7RzHX+EQ+pkkZT0ohg==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -5262,7 +5310,7 @@ snapshots:
 
   '@omne-harness/repo-config@0.0.3': {}
 
-  '@omne-harness/repo-toolchain@0.0.9(vitest@4.1.11)':
+  '@omne-harness/repo-toolchain@0.0.10(vitest@4.1.11)':
     dependencies:
       '@jscpd/core': 4.0.1
       '@jscpd/tokenizer': 4.0.1

@@ -268,7 +268,7 @@ function hardLineLines(lines: HardLines): string[] {
     '## 硬线',
     finding('依赖违规', lines.direction),
     finding('环', lines.cycles),
-    range(lines.acceptanceLock, '验收锁', '没破', '破'),
+    range(lines.acceptanceLock, '验收锁', '无未解决违规', '破'),
     sensorLine(lines.sensors),
   ]
 }

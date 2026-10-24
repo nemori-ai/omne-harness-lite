@@ -294,6 +294,21 @@ flowchart TD
 
 共同提交仍须满足实际存储与协调协议；相邻目录、同库路径或相同租户不证明原子性。[IC-5](architecture/cordis-integration-conventions.md#ic-5)的精确事务读例外保持原范围，不能借组织更新扩大提供者互引或装配豁免。
 
+Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Agent 的公开操作产生 Model 或 Tool 效果，Agent 可消费 Model 与 Tool 的必要公开契约。Agent、Model、Tool 的契约不要求认识 Session 的状态、生命周期或治理；Model、Tool 的契约也不要求认识 Agent 的状态、生命周期或治理。不透明的结果去处、调用身份或公共身份值不能暗含对外层内部状态的判断义务。
+
+| 来源职责 | 可以消费的方向 | 禁止的反向耦合 |
+| --- | --- | --- |
+| Session 的邻域适配与协调 | Agent 公开契约；显示经公共流契约 | 不直接依赖 Model、Tool 操作契约执行控制或交付解除，也不从 Agent 取得服务后自行调用 |
+| Agent 的契约与协调 | Model、Tool 的必要公开契约 | 契约不依赖 Session 领域职责 |
+| Model 契约 | 按职责需要的公共值与窄端口 | 不依赖 Session、Agent 领域职责 |
+| Tool 契约 | 按职责需要的公共值与窄端口 | 不依赖 Session、Agent 领域职责 |
+
+本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
+
+同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
+
+领域语义、源码依赖、公开声明、发布产物和运行时授权是不同检查对象。导入检查只报告其已实现并采用的静态范围；没有代码禁边不证明旧行为条款已经迁移。当前静态覆盖继续由本页“现有成员与工具适配”及工具符合性说明维护。共同值仍遵守领域模型边界，不能复制完整 Session 或 Agent 状态后改名 common 来绕过方向。
+
 ## 新增与扩展
 
 先明确新增行为的要求、采用范围、身份与事实拥有者、调用方、结果、副作用和验证责任。普通既有承诺扩展就近处理，新增产品含义或公开保证由其拥有者决定。
