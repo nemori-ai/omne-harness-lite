@@ -17,6 +17,7 @@ import {
   adminTenant,
   issued,
   memberTenant,
+  reached,
   readHistoryInput,
   standingTable,
 } from './support.ts'
@@ -76,7 +77,7 @@ async function fixture(consumed = false) {
       },
     })
     const pending = check.check(input)
-    await entered.promise
+    await reached(entered.promise, pending)
     released.resolve(answer)
     // The lookup continuation runs first, then this provider reuse, then the check continuation.
     const reused = Promise.withResolvers<void>()
