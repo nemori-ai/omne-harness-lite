@@ -49,11 +49,20 @@ const graph: DependencyGraph = {
       name: 'account-identity-sql',
     },
   ],
+  modules: ['packages/core/storage/src/index.ts', consumer.path],
   edges: [
     {
       from: 'packages/tenancy/account-identity-sql',
       to: 'packages/core/storage',
       sites: [{ path: consumer.path, line: 1, specifier: '@omne-harness/storage' }],
+    },
+  ],
+  dependencies: [
+    {
+      path: consumer.path,
+      line: 1,
+      specifier: '@omne-harness/storage',
+      resolved: 'packages/core/storage/src/index.ts',
     },
   ],
   findings: [],

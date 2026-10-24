@@ -3,7 +3,7 @@
 // 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +14,7 @@ import {
   describeCheckPlan,
   patternToRegExp,
   planCheck,
+  RESIDENT_STEPS,
   type CheckPlan,
 } from '../src/testing/scope.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
@@ -482,5 +483,23 @@ describe('取改动', () => {
     expect(lines[2]).toBe('| aaa | docs \\| x | 1 | scoped | 0 | — | 只需常驻检查 |')
     expect(lines[3]).toContain('全局或未归类：pnpm-lock.yaml')
     expect(lines.at(-1)).toBe('共 2 个提交：全量 1，按影响面 1（其中只需常驻检查 1），引擎出错 0')
+  })
+})
+
+describe('计划打印的常驻清单', () => {
+  /** `scripts/check.sh` 里每次都跑的 `pnpm run <脚本>`，按出现顺序；按计划跑的那些经 `step`，不是 pnpm 调用。 */
+  function residentStepsOfCheckScript(): string[] {
+    const script = readFileSync(join(ROOT, 'scripts/check.sh'), 'utf8')
+    return [...script.matchAll(/^pnpm (?:--silent )?run ([\w:]+)/gmu)].flatMap(match =>
+      match[1] === undefined ? [] : [match[1]],
+    )
+  }
+
+  it('与 scripts/check.sh 的常驻步骤一致，含 check:lines 与 contract:api；打印原样列出', () => {
+    expect([...RESIDENT_STEPS]).toEqual(residentStepsOfCheckScript())
+    expect(RESIDENT_STEPS).toContain('check:lines')
+    expect(RESIDENT_STEPS).toContain('contract:api')
+    const text = describe_(plan(['docs/development.md']))
+    expect(text).toContain(`常驻：${RESIDENT_STEPS.join('、')}`)
   })
 })

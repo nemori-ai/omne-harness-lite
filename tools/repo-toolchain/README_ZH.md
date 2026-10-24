@@ -29,7 +29,7 @@
 
 | 命令 | 源码入口 | 作用 |
 | --- | --- | --- |
-| `omne-deps` | `src/deps/cli.ts` | 依赖规则与成员、组之间的环 |
+| `omne-deps` | `src/deps/cli.ts` | 依赖规则、`constraints.json` 的方向行，与成员、组之间的环 |
 | `omne-declarations` | `src/declarations/cli.ts` | 用 TypeScript 6 读成员 dist 里的声明 |
 | `omne-contract-api` | `src/declarations/api-cli.ts` | 契约成员的 API 快照：写、核对与相对基线的粗分类 |
 | `omne-metrics` | `src/metrics/cli.ts` | 结构度量与审讯页 |
@@ -68,13 +68,26 @@ pnpm --filter @omne-harness/repo-toolchain test
 仓库只有一张依赖图，由 dependency-cruiser 按根 `.dependency-cruiser.cjs` 生成，入口在 `src/deps/graph.ts`。`pnpm run lint:deps`（`src/deps/cli.ts`）、[回路状态](#回路状态)的硬线与新增跨成员依赖、[结构度量](#结构度量)和[实际架构](#全局实际架构视图)的报告都读它，本包不再自写导入解析或层位表。
 
 - 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
-- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。
+- 方向行：`docs/architecture/constraints.json` schema 3 的 `directions`，格式与校验见[符合性契约](src/arch/CONFORMANCE.md#方向行)；`omne-deps` 怎样用它见下面[依赖方向](#依赖方向)一节。
+- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。图里另保留成员里 dependency-cruiser 走到的模块清单（`modules`）与跨成员的文件级依赖事实（`dependencies`，含测试与 `src` 下的 testing 入口，不含 Node 内建模块），方向行的判定与架构符合性报告的方向行都只从这两项判断，不另解析导入。
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
-- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交与规则文件摘要缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
+- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
 - 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
+- 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。
 
-自测：`tests/deps-graph.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+自测：`tests/deps-graph.spec.ts`、`tests/direction-rules.spec.ts`（runner 与被检树分开的临时仓库）；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+
+### 依赖方向
+
+`omne-deps` 从 0.0.12 起按 `constraints.json` 的方向行检查依赖方向。方向行与角色只从运行检查器的仓库读，`--root` 只改变被检查的树；被检查的树改动或删除自己的 `constraints.json` 与预设都不改变结果。
+
+- 命中：一处已解析的导入，所在文件落在某条方向行某个 `from` 角色的 `paths` 里（按 `paths` 匹配，不取最精确的角色；方向行引用的角色的 `paths` 在校验时已保证不与别的角色相同或互相包含），并且解析后的目标文件所在的成员等于某个 `to` 角色的成员。类型导入、`export … from`（含 `export *` 与 `export { x } from`）、动态 `import()`、按包名或公开子路径导入、tsconfig 别名、跨成员相对路径都按解析后的目标判断；目标在 `src/`、`dist/` 或声明文件里都算同一成员。解析失败的导入不是方向命中，仍由 `no-unresolvable` 报出；别名只有运行检查器的 `tsconfig.base.json` 声明了 `paths` 才解析得到。
+- 发现：每处命中一条 `direction-rule`，写 `[<方向行 id>] <源文件> 依赖了 <目标文件>（<源角色> → <目标角色>）：<出处>`，后面是导入处的路径与行号；一处导入同时命中几条方向行就报几条。某条方向行的某个源角色或目标角色在被检树里匹配不到任何文件时，报一条 `direction-unknown`，写明方向行、源或目标与角色：源成员或目标成员改名、迁走后，方向检查都不以「命中 0 处」通过。
+- 退出码：有任何 `direction-rule` 或 `direction-unknown` 退出 1，原有发现与退出码的含义不变。
+- 汇总行：`依赖方向：检查了 <n> 条方向行、<m> 个成员对，命中 <k> 处`，有角色没有文件时再写几处。
+- 没有方向行：运行检查器的仓库没有 `constraints.json` 时不检查方向，写「runner 没有 docs/architecture/constraints.json，未检查」，退出码只由其他发现决定；文件是 schema 1、2，或 schema 3 缺省 `directions`，写「没有方向行」。
+- 退出 2：`constraints.json` 解析失败、校验失败、来源核对失败，或 `docs/architecture/constraints.json` 与 `.meta_harness/design/architecture/constraints.json` 两份并存。先读它再运行 dependency-cruiser，所以文件坏了不出依赖图。
 
 ## 提交署名
 
@@ -236,7 +249,7 @@ architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报
 `pnpm run metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `pnpm run check` 里；能让检查失败的只有上面的方向规则与提交署名。
 
 ```sh
-pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、方向与环
+pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、依赖方向与环
 pnpm run metrics --base <基线提交或分支>    # 另标出基线以来变更的成员、函数、导入与提交形状
 omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
 ```
@@ -324,7 +337,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 只有当前与全部基线的两类计数均为零，duplication、assertions 启用但无数据时才列入 `hardLines.sensors.notApplicable`，原因码为 `engineering-without-product-inputs`。
 `status.json` 的 `scope.evidence` 保存当前计数和各基线的精确提交、计数。原始 `sensors` 仍是 no-data；终端与 Markdown 点名工程范围不适用。关闭项仍列 `off`，其他启用的无数据项仍列 `silent` 并失败。
 最后一个输入被删除或迁入 legacy 时，历史输入仍阻止豁免。无效 context、无效基线、缺对象、读取错误及无法分类的历史链接或子模块按工具错误失败。输入范围沿现有扫描器，包括 legacy、构建产物、测试和声明文件规则。
-普通本地 `pnpm run check`、默认 strict、方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
+普通本地 `pnpm run check`、默认 strict、依赖方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
 
 适用性与编排回归位于 `tests/loop-product-inputs.spec.ts`、`tests/loop-status.spec.ts`、`tests/loop-strict.spec.ts`、`tests/formatting-boundaries.spec.ts` 和 dev-flow 的 `tests/integration-boundaries.spec.ts`。真实 Git 与 shell fixture、受控命令替身、真实工程入口分别提供证据。
 
@@ -374,8 +387,9 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 
 `src/arch/` 按完整版本源码抽取实际关系，回路经 `sensors.architecture` 读取。
 全局预期归 `docs/architecture/constraints.json`。
-当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
+当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2 与 3 的依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
 缺当前或BASE输入保留unknown或no-data，删除变化仍可见。只修改依据Markdown也触发收工测量。精确输入、范围和不能证明的性质见[符合性契约](src/arch/CONFORMANCE.md)。
+符合性报告带[方向行](src/arch/CONFORMANCE.md#方向行)：方向行与角色读运行检查器仓库的 `constraints.json`（与 `omne-deps` 同一份），依赖事实读本版的依赖图，图不可得时这些行是 unknown；基线的图不可得时偏离行不判新旧，每一行写明原因；方向偏离在回路里只报告，不是硬线。
 集成约定归 [Cordis 集成约定](../../docs/architecture/cordis-integration-conventions.md)。
 工具不反写预期，也不从目录存在性或手写绑定推断实现状态。
 
@@ -405,7 +419,7 @@ contract、owner、layer、定义形式、提供形式和表达形状独立参�
 实际增减与全局预期改动分别进入 explain／钩子，均不称“新增偏离”。
 新增架构偏离仍对完整 BASE 预期比较，修改 HEAD 预期不能抹掉它。
 IC-5 例外仅放行 BASE 点名的精确导出符号，namespace 通配符和新增符号仍不放行。
-例外记录共同存储与出处，不据此证明同提交；方向和环硬线保持独立。
+例外记录共同存储与出处，不据此证明同提交；依赖方向和环硬线保持独立。
 
 当前或BASE全局预期缺失时，architecture是no-data，严格模式点名失败；已有 BASE 的预期删除差分仍可见。
 有效预期与完整实际源码都已读取时，空事实集是真实空结果，不能和 no-data 混淆。

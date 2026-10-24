@@ -7,9 +7,9 @@ import {
 import { readArchitectureSource } from './source.ts'
 import { productSource } from './resolve.ts'
 import { buildReport, type Report } from '../metrics/report.ts'
-import { revisionGraph, workingGraph } from '../deps/graph.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { conformanceOf } from './conformance.ts'
+import { versionGraph } from './directions.ts'
 import type { Conformance } from './conformance-model.ts'
 
 /** Read each version once. Architecture and function differences use the exact same snapshots. */
@@ -51,16 +51,14 @@ export function readArchitectureReport(
       }
     }
   }
+  // 与抽取同一个版本的图：符合性的方向行与度量读同一张。
+  const graph = versionGraph(input.root, currentSource.source)
   return {
     document,
-    conformance: conformanceOf(input.root, currentSource, baselineSource),
+    conformance: conformanceOf(input.root, currentSource, baselineSource, graph),
     report: buildReport({
       files,
-      // 与抽取同一个版本：给了 revision 读那个提交，否则读工作树。
-      graph:
-        input.revision === undefined
-          ? workingGraph(input.root)
-          : revisionGraph(input.root, input.revision),
+      graph,
       thresholds: config.thresholds,
       bands: config.bands,
       ...(baselineSource === undefined ? {} : { changed, baseTexts }),

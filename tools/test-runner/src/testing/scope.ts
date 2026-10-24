@@ -115,6 +115,25 @@ export interface CheckPlan {
   readonly python: { readonly run: boolean; readonly reason: string }
 }
 
+/**
+ * `scripts/check.sh` 每次都跑的常驻步骤，按脚本里的顺序写根 `package.json` 的脚本名；计划打印原样列出。
+ * `scripts/check.sh` 改了常驻步骤这里要跟着改，`tests/scope.spec.ts` 从脚本读出来比对。
+ */
+export const RESIDENT_STEPS = [
+  'check:agents',
+  'check:docs',
+  'check:design',
+  'check:lines',
+  'format:check',
+  'test:format',
+  'check:declarations',
+  'contract:api',
+  'lint:rules',
+  'lint:oxlint',
+  'lint:deps',
+  'loop:status',
+] as const
+
 /** 列出前几个，多了写总数。 */
 export function sample(paths: readonly string[], top = 5): string {
   return paths.length <= top
@@ -356,9 +375,7 @@ export function describeCheckPlan(
         `（依据：${configPath} 的 affected.residentPaths 与 memberDocuments）`,
     )
   lines.push('步骤：')
-  lines.push(
-    '  常驻：agents-check、docs-check、design-check、format:check、test:format、check:declarations、lint:rules、lint:oxlint、lint:deps、loop-status STRICT',
-  )
+  lines.push(`  常驻：${RESIDENT_STEPS.join('、')}（loop:status 带 --strict）`)
   lines.push(`  pytest：${plan.python.run ? '跑' : '跳过'}——${plan.python.reason}`)
   if (plan.mode === 'full') {
     lines.push(`  构建：${plan.build.length} 个计划成员，含必要依赖准备`)
