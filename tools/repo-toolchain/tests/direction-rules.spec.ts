@@ -1,15 +1,18 @@
 // @module-tag slow
 // 依赖方向规则（constraints.json schema 3 的 `directions`）：schema 校验（C1）、`omne-deps` 对五条禁边 × 八种导入形态的
-// 命中与退出码（C2）、合法对照（C3）、规则只从可信 runner 读（C4）、架构符合性报告的方向行（C5）。
+// 命中与退出码（C2）、合法对照（C3）、规则只从可信 runner 读（C4）、架构符合性报告的方向行（C5）、
+// 依赖图的 `modules` 只含解析到的文件（规格 S10）与能由路径判定时报告不取图（规格 S9）。
 // 归慢层：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程）。
 import { spawnSync } from 'node:child_process'
-import { existsSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readConformance } from '../src/arch/conformance.ts'
 import { parseConstraints, readRunnerConstraints } from '../src/arch/constraints.ts'
-import type { ArchitectureRole } from '../src/arch/conformance-model.ts'
+import type { ArchitectureRole, ConformanceRow } from '../src/arch/conformance-model.ts'
+import { directionConformance, versionGraph, type GraphReader } from '../src/arch/directions.ts'
+import type { SourceCoordinates } from '../src/arch/source.ts'
 import { linkWorkspace, workingGraph } from '../src/deps/graph.ts'
 import {
   commit,
@@ -919,5 +922,223 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
       true,
     )
     expect(rows.some(row => row.reason.includes('基线依赖事实不可得'))).toBe(false)
+  })
+})
+
+/** 在可信 runner 下跑：方向行与预设只从它读。 */
+function underRunner<T>(trusted: string, body: () => T): T {
+  const previous = process.env['OMNE_RUNNER_ROOT']
+  process.env['OMNE_RUNNER_ROOT'] = trusted
+  try {
+    return body()
+  } finally {
+    if (previous === undefined) delete process.env['OMNE_RUNNER_ROOT']
+    else process.env['OMNE_RUNNER_ROOT'] = previous
+  }
+}
+type Version = Pick<SourceCoordinates, 'kind' | 'commit'>
+
+describe('依赖图的 modules 只含解析到的文件（规格 S10）', { timeout: 180_000 }, () => {
+  const PHANTOM = `${MEMBERS.agent}/src/phantom.ts`
+  const MISSING = `${MEMBERS.session}/src/index.ts`
+  /**
+   * 目标成员 session-contract 的源码不在树里，agent-contract 仍以写成成员路径的裸说明符导入它，解析不了。
+   * dependency-cruiser 把这个说明符留成节点：0.0.12 把它当成目标角色的文件，这一对因此报 converged。
+   */
+  function phantom(): { tree: string; trusted: string; base: string } {
+    const tree = subject(repository(), false)
+    write(tree, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+    writePolicy(tree, policy())
+    rmSync(join(tree, MEMBERS.session, 'src'), { recursive: true })
+    write(
+      tree,
+      PHANTOM,
+      `import { session_contract } from '${MISSING}'\nexport const p = session_contract\n`,
+    )
+    const base = commit(tree, 'phantom import')
+    return { tree, trusted: runner(tree), base }
+  }
+
+  it('工作树与提交：图里没有不存在的文件，报告里以它为目标的每一对都是未知，原因是目标角色匹配不到文件', () => {
+    const { tree, trusted, base } = phantom()
+    const versions: Version[] = [
+      { kind: 'worktree', commit: base },
+      { kind: 'revision', commit: base },
+    ]
+    for (const version of versions)
+      expect(underRunner(trusted, () => versionGraph(tree, version).modules)).not.toContain(MISSING)
+    const reported = (revision?: string) =>
+      underRunner(trusted, () =>
+        readConformance({
+          root: tree,
+          ...(revision === undefined ? {} : { revision }),
+        }).rows.filter(row => row.rule === 'DIRECTION'),
+      )
+    const working = reported()
+    const toSession = working.filter(row => row.targetMember === MEMBERS.session)
+    expect(toSession).toHaveLength(6)
+    for (const row of toSession) {
+      expect(row.state).toBe('unknown')
+      expect(row.reason).toContain(
+        `目标角色 ${MEMBERS.session} 的 paths 在被检树中匹配不到任何文件`,
+      )
+    }
+    // 解析失败的导入不是命中：哪一行都不把它列成导入处。
+    expect(working.flatMap(row => row.sites).map(site => site.path)).not.toContain(PHANTOM)
+    expect(reported(base)).toEqual(working)
+  })
+
+  it('omne-deps：多报 direction-unknown 并退出 1，未解析的导入仍由 no-unresolvable 报出，不算方向命中', () => {
+    const { tree, trusted } = phantom()
+    const run = deps(tree, trusted)
+    expect(run.stderr).toBe('')
+    expect(run.status).toBe(1)
+    expect(hits(run.stdout)).toEqual([])
+    expect(unknowns(run.stdout)).toEqual([
+      { direction: 'DIR-AGENT-SESSION', side: '目标', role: MEMBERS.session },
+      { direction: 'DIR-MODEL-SESSION', side: '目标', role: MEMBERS.session },
+      { direction: 'DIR-TOOL-SESSION', side: '目标', role: MEMBERS.session },
+    ])
+    expect(run.stdout).toContain(`error [no-unresolvable] ${PHANTOM} 依赖了 ${MISSING}`)
+  })
+})
+
+describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout: 180_000 }, () => {
+  /** 计数的读图函数：记下每次取的是哪一种版本，取法与默认的相同。 */
+  function counting(): { readonly read: GraphReader; readonly calls: string[] } {
+    const calls: string[] = []
+    return {
+      calls,
+      read: (root, source) => {
+        calls.push(source.kind)
+        return versionGraph(root, source)
+      },
+    }
+  }
+  /** 同一版本的方向行两份：按路径判的（读图计数），与把强制取到的图传进去的。 */
+  function bothWays(tree: string, trusted: string, current: Version) {
+    const { read, calls } = counting()
+    return underRunner(trusted, () => ({
+      rows: directionConformance({ root: tree, current, readGraph: read }),
+      forced: directionConformance({ root: tree, current, graph: versionGraph(tree, current) }),
+      calls,
+    }))
+  }
+  /** 没有任何角色文件的仓库：只有一个不属于任何角色的成员，dependency-cruiser 照常有文件可走。 */
+  function bare(): { tree: string; head: string } {
+    const tree = repository()
+    write(tree, 'packages/common/thing/src/index.ts', 'export const thing = 1\n')
+    return { tree, head: commit(tree, 'no role files') }
+  }
+  const versionsAt = (head: string): Version[] => [
+    { kind: 'worktree', commit: head },
+    { kind: 'revision', commit: head },
+  ]
+  const agentToSession = (rows: readonly ConformanceRow[]) =>
+    rows.find(row => row.member === MEMBERS.agent && row.targetMember === MEMBERS.session)
+
+  it('方向行引用的角色都没有文件：工作树与提交都不取图，行与取图时逐字相同', () => {
+    const { tree, head } = bare()
+    const trusted = runner(tree)
+    for (const version of versionsAt(head)) {
+      const { rows, forced, calls } = bothWays(tree, trusted, version)
+      expect(rows).toEqual(forced)
+      expect(calls).toEqual([])
+      expect(rows).toHaveLength(20)
+      expect(
+        rows.every(
+          row =>
+            row.state === 'unknown' &&
+            row.reason.includes('源角色') &&
+            row.reason.includes('目标角色'),
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it('只有一边角色有文件时照常取图：清单里有文件不等于图里有模块，目标角色没有文件时目标成员的 dist 仍会命中', () => {
+    // 目标角色里只有 README.md：清单有文件，图里没有模块，取图的行两边角色都写进原因。
+    const readme = bare()
+    write(readme.tree, `${MEMBERS.session}/src/README.md`, '# notes\n')
+    const readmeRun = bothWays(readme.tree, runner(readme.tree), {
+      kind: 'worktree',
+      commit: readme.head,
+    })
+    expect(readmeRun.rows).toEqual(readmeRun.forced)
+    expect(readmeRun.calls).toEqual(['worktree'])
+    expect(agentToSession(readmeRun.rows)).toMatchObject({
+      state: 'unknown',
+      reason: expect.stringContaining(`；目标角色 ${MEMBERS.session} 的 paths`),
+    })
+    // 源角色有文件、目标角色没有，导入落在目标成员的 dist：取图的未知行带着导入处。
+    const dist = bare()
+    write(dist.tree, `${MEMBERS.session}/dist/index.js`, 'export const s = 1\n')
+    write(
+      dist.tree,
+      `${MEMBERS.agent}/src/index.ts`,
+      "import { s } from '../../../session/session-contract/dist/index.js'\nexport const a = s\n",
+    )
+    const distRun = bothWays(dist.tree, runner(dist.tree), { kind: 'worktree', commit: dist.head })
+    expect(distRun.rows).toEqual(distRun.forced)
+    expect(distRun.calls).toEqual(['worktree'])
+    expect(agentToSession(distRun.rows)).toMatchObject({
+      state: 'unknown',
+      sites: [{ path: `${MEMBERS.agent}/src/index.ts`, line: 1 }],
+    })
+  })
+
+  it('角色目录经符号链接才有文件：工作树与提交都取图，图走进链接的目录', () => {
+    // 链接是角色的 src 本身，或者在 src 下面一层：Git 不走进链接，dependency-cruiser 走进去。
+    for (const [link, target] of [
+      ['src', '../../common/real/src'],
+      ['src/lib', '../../../common/real/src'],
+    ] as const) {
+      const { tree } = bare()
+      write(tree, 'packages/common/real/src/r.ts', 'export const r = 1\n')
+      mkdirSync(join(tree, MEMBERS.agent, link, '..'), { recursive: true })
+      symlinkSync(target, join(tree, MEMBERS.agent, link), 'dir')
+      const head = commit(tree, 'linked role directory')
+      const trusted = runner(tree)
+      for (const version of versionsAt(head)) {
+        const { rows, forced, calls } = bothWays(tree, trusted, version)
+        expect(rows).toEqual(forced)
+        expect(calls).toEqual([version.kind])
+        expect(agentToSession(rows)?.reason).not.toContain(`源角色 ${MEMBERS.agent}`)
+      }
+    }
+  })
+
+  it('有一对两边都有文件：取图，命中与收敛与强制取图相同', () => {
+    const tree = subject(repository(), false)
+    writeNegative(tree, AGENT_SESSION, 'value')
+    const head = commit(tree, 'members')
+    const { rows, forced, calls } = bothWays(tree, runner(tree), { kind: 'worktree', commit: head })
+    expect(rows).toEqual(forced)
+    expect(calls).toEqual(['worktree'])
+    expect(agentToSession(rows)?.state).toBe('deviation')
+    expect(rows.filter(row => row.state === 'converged')).toHaveLength(19)
+  })
+
+  it('工作树有角色文件、基线提交没有：被检版本取图，基线不取图，偏离行判为新增', () => {
+    const { tree, head } = bare()
+    subject(tree, false)
+    writeNegative(tree, AGENT_SESSION, 'value')
+    const trusted = runner(tree)
+    const current: Version = { kind: 'worktree', commit: head }
+    const baseline: Version = { kind: 'revision', commit: head }
+    const { read, calls } = counting()
+    const rows = underRunner(trusted, () =>
+      directionConformance({ root: tree, current, baseline, readGraph: read }),
+    )
+    expect(calls).toEqual(['worktree'])
+    expect(agentToSession(rows)).toMatchObject({ state: 'deviation', age: 'new' })
+    expect(rows.filter(row => row.state !== 'deviation').every(row => row.age === 'unjudged')).toBe(
+      true,
+    )
+    // 对照：基线强制取图也没有偏离行，所以「新增」与取图时相同。
+    const stock = underRunner(trusted, () =>
+      directionConformance({ root: tree, current: baseline, graph: versionGraph(tree, baseline) }),
+    )
+    expect(stock.filter(row => row.state === 'deviation')).toEqual([])
   })
 })
