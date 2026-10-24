@@ -15,7 +15,7 @@ import type {
   CardBinding,
   CardRead,
   CommitUnit,
-  DiffContracts,
+  ContractDiffProvider,
   LowerBound,
   PullRead,
   RiInput,
@@ -268,9 +268,6 @@ export function githubReaders({
   }
 }
 
-/** Builds the snapshot difference provider for the repository root and the policy's timeout. */
-export type ContractDiffProvider = (context: { root: string; timeoutMs: number }) => DiffContracts
-
 /**
  * Collects every input of `riNotes` for one track. The registry and the line table come from
  * the HEAD commit of `root`, like `start`.
@@ -279,12 +276,12 @@ export function riInput({
   root,
   track,
   read = runGhRead,
-  contractDiff,
+  contractDiffProvider,
 }: {
   root: string
   track: string
   read?: GhRead
-  contractDiff: ContractDiffProvider
+  contractDiffProvider: ContractDiffProvider
 }): RiInput {
   const info = repository(root)
   const committed = (path: string) => {
@@ -299,6 +296,6 @@ export function riInput({
     lines: parseDeliveryLines(committed(LINES_PATH)),
     registry: policy,
     ...githubReaders({ repository: policy.repository, read, timeoutMs: policy.timeouts.networkMs }),
-    diffContracts: contractDiff({ root: info.root, timeoutMs: policy.timeouts.networkMs }),
+    diffContracts: contractDiffProvider({ root: info.root, timeoutMs: policy.timeouts.networkMs }),
   }
 }

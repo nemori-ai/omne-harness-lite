@@ -1,14 +1,26 @@
 // @module-tag slow
 // ri-notes against a real task worktree and a local bare remote with unit record tags; the CLI
-// cases start a Node process with a `gh` stand-in that serves fixed REST responses.
+// cases start a Node process with a `gh` stand-in that serves fixed REST responses. The contract
+// check runs the installed `omne-contract-api` against contract members in the same checkout.
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { GhRead } from '../src/delivery/github-read.ts'
+import { snapshotContractDiff } from '../src/integration/contract-diff.ts'
 import { git, GitError } from '../src/integration/git.ts'
 import { parsePolicy } from '../src/integration/policy.ts'
-import { readUnit, trackFacts } from '../src/integration/ri-source.ts'
+import { riNotes } from '../src/integration/ri-notes.ts'
+import { readUnit, riInput, trackFacts } from '../src/integration/ri-source.ts'
+import {
+  A_ADDITIVE,
+  contracts,
+  MEMBERS,
+  SNAPSHOT_TEMPLATE,
+  write,
+  writeSnapshots,
+} from './fixtures/contract-api.ts'
 import {
   commit,
   gateRecord,
@@ -249,6 +261,98 @@ describe('ri-notes unit tags and upstream', () => {
   })
 })
 
+describe('ri-notes with the snapshot difference of the installed omne-contract-api', () => {
+  const LINE_TABLE = 'docs/engineering/delivery-lines.json'
+  const contractLines = {
+    ...lines,
+    lines: [{ ...lines.lines[0], paths: ['feature', 'pkg'], contracts: Object.keys(MEMBERS) }],
+  }
+  function commitAll(root: string, message: string): string {
+    git(root, ['add', '-A'])
+    git(root, ['commit', '-q', '-m', message])
+    return git(root, ['rev-parse', 'HEAD'])
+  }
+  /**
+   * Main holds the contract members with their snapshots. The track gets one gate merge of
+   * PR #10, which adds an optional property to `pkg/a`. The checkout is left clean on the track
+   * head, so the provider runs the CLI.
+   */
+  function contractTrackFixture() {
+    const f = integrationFixture({ lines: contractLines })
+    homes.push(f.home)
+    write(f.root, '.gitignore', 'tmp/\nnode_modules/\n')
+    contracts(f.root, { members: LINE_TABLE, snapshot: SNAPSHOT_TEMPLATE })
+    writeSnapshots(f.root)
+    const base = commitAll(f.root, 'Contract members with snapshots')
+    git(f.root, ['push', '-q', 'origin', `${base}:refs/heads/main`])
+    git(f.root, ['checkout', '-q', '-b', 'track', base])
+    git(f.root, ['checkout', '-q', '-b', 'human/issue-5-x'])
+    write(f.root, 'pkg/a/dist/index.d.ts', A_ADDITIVE)
+    writeSnapshots(f.root)
+    commitAll(f.root, 'Add A.b')
+    git(f.root, ['checkout', '-q', 'track'])
+    const head = gateMerge(f, 'human/issue-5-x', 10)
+    git(f.root, ['push', '-q', 'origin', 'track:refs/heads/integration/runtime'])
+    setGate(f.remote, JSON.stringify({ main: base, 'integration/runtime': base }))
+    return { f, base, head }
+  }
+  /** Serves PR #10 with `contractsSection` and its card #5, which declares an additive change. */
+  function reader(contractsSection: string): GhRead {
+    const responses: Record<string, unknown> = {
+      'repos/owner/repo/pulls/10': {
+        number: 10,
+        html_url: 'https://github.com/owner/repo/pull/10',
+        head: { ref: 'human/issue-5-x' },
+        base: { ref: 'integration/runtime' },
+        body: `## 所含的卡\n\n- #5 revision 1 attempt \`5-a1\`：无\n\n## 契约变化\n\n${contractsSection}\n`,
+      },
+      'repos/owner/repo/issues/5': {
+        number: 5,
+        node_id: 'I_5',
+        html_url: 'https://github.com/owner/repo/issues/5',
+        body: '## 身份与责任\n\n- 交付线：tools-line\n- 性质：impl\n- 契约变更：additive\n',
+        labels: [],
+        milestone: { title: 'M1' },
+      },
+    }
+    return argv => {
+      const endpoint = argv.at(-1) ?? ''
+      if (!(endpoint in responses)) throw new Error(`unexpected read ${argv.join(' ')}`)
+      return responses[endpoint]
+    }
+  }
+  const notesWith = (root: string, contractsSection: string) =>
+    riNotes(
+      riInput({
+        root,
+        track: 'runtime',
+        read: reader(contractsSection),
+        contractDiffProvider: snapshotContractDiff,
+      }),
+    )
+  const mismatches = (notes: ReturnType<typeof riNotes>) =>
+    notes.findings
+      .filter(item => item.code === 'contract-diff-mismatch')
+      .map(item => [item.at.path, item.message])
+
+  it(
+    'checks the declarations against the CLI difference over the promoted range',
+    { tags: ['slow'] },
+    () => {
+      const { f, base, head } = contractTrackFixture()
+      const agreed = notesWith(f.root, '- pkg/a：additive')
+      expect(agreed.contractCheck).toEqual({ kind: 'checked', base, head })
+      expect(mismatches(agreed)).toEqual([])
+
+      const omitted = notesWith(f.root, '无')
+      expect(omitted.contractCheck).toEqual({ kind: 'checked', base, head })
+      expect(mismatches(omitted)).toEqual([
+        ['pkg/a', '快照差异把 pkg/a 分为 additive，PR 声明汇总为 none。'],
+      ])
+    },
+  )
+})
+
 describe('ri-notes CLI', () => {
   const cli = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.url))
   function server(f: Fixture, responses: Record<string, unknown>) {
@@ -311,7 +415,11 @@ process.stdout.write(readFileSync(file, 'utf8'))
       'unit-missing',
       'contracts-unknown',
     ])
-    expect(notes.contractCheck.kind).toBe('unavailable')
+    // The command's snapshot provider sees the task branch checked out, not the track head.
+    expect(notes.contractCheck).toEqual({
+      kind: 'unavailable',
+      reason: expect.stringContaining(`HEAD 为 ${f.main}，不是范围头 ${direct}`),
+    })
     const markdown = run(...args, '--format', 'markdown')
     expect(markdown.status, markdown.stderr).toBe(0)
     expect(markdown.stdout).toBe(

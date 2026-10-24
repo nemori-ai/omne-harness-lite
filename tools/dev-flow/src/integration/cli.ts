@@ -77,7 +77,7 @@ function runRiNotes(args: readonly string[]): void {
     riInput({
       root: resolve(options.get('--root') ?? process.cwd()),
       track,
-      contractDiff: snapshotContractDiff,
+      contractDiffProvider: snapshotContractDiff,
     }),
   )
   if (format === 'markdown') writeMarkdown(notes)

@@ -186,12 +186,12 @@ pnpm run ri-notes --track <轨道 ID>
 - `contracts-unknown`：有提交的契约变化未知，「契约变化」有一行 `- 待确认：…`。JSON 的 `contractGaps` 列出这些提交与原因。逐个核对后改写本节。原样贴进 PR 时，上一层的 `ri-notes` 仍把这个 PR 计为未知。
 - 其他 `contract-*` 与 `cards-*`：两节的行格式、路径或级别有问题。
 
-命令用 dev-flow 依赖里钉住的 `omne-contract-api --diff <合并点> --json` 核对「契约变化」。这个命令拿合并点上的契约 API 快照与工作树的快照比较，所以只在下列条件都成立时运行：
+命令用 dev-flow 依赖里钉住的 `omne-contract-api --diff <合并点> --json` 核对「契约变化」。这个命令拿合并点上的契约 API 快照与工作树的快照比较，还读工作树的配置、线归属表、成员的 `package.json`、tsconfig 与已安装的类型。所以只在下列条件都成立时运行：
 
 - 检出的 `HEAD` 等于轨道头。
-- `repo-toolchain.config.json`、线归属表与快照文件都没有未提交改动或未跟踪文件。
+- 工作树没有未提交改动或未跟踪文件。被 `.gitignore` 忽略的文件不算。
 
-核对完成时，JSON 的 `contractCheck.kind` 为 `checked`，快照差异与声明不符的成员各报一条 `contract-diff-mismatch`。核对没有完成时，`contractCheck.kind` 为 `unavailable`，`reason` 写明原因：HEAD 不对、有改动的文件、超时、退出码与标准错误、输出解析失败，或快照差异不可得的成员。成员在合并点或工作树上没有快照、快照读不出时，整个核对为 `unavailable`，不把这些成员当作没有变化。`--format markdown` 模式的 `contractCheck` 在标准错误的汇总行里。超时取 policy 的 `timeouts.networkMs`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
+核对完成时，JSON 的 `contractCheck.kind` 为 `checked`，快照差异与声明不符的成员各报一条 `contract-diff-mismatch`。核对没有完成时，`contractCheck.kind` 为 `unavailable`，`reason` 写明原因：HEAD 不对、工作树有改动、Git 读取失败、超时、进程出错（附错误码）、退出码与标准错误、输出解析失败，或快照差异不可得的成员。成员在合并点或工作树上没有快照、快照读不出时，整个核对为 `unavailable`，不把这些成员当作没有变化。`--format markdown` 模式的 `contractCheck` 在标准错误的汇总行里。超时取 policy 的 `timeouts.networkMs`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
 
 ## 持续验证
 
