@@ -26,9 +26,9 @@ const D010: HistoricalApproval = Object.freeze({
 // Fixed diff settings: the same Git objects must give the same bytes under any user or repository
 // configuration that these settings cover. core.abbrev=8 matches the abbreviation length at
 // approval time. Do not use --full-index: it changes the bytes and so the approved digest.
-// attr.tree reads attributes from the empty tree instead of the worktree (Git 2.46 and later).
+// attr.tree reads attributes from the empty tree instead of the worktree (Git 2.43 and later).
 // Not covered: funcname, xfuncname or binary attributes from info/attributes; .gitattributes in the
-// worktree on Git older than 2.46; and object prefix collisions that lengthen the index line.
+// worktree on Git older than 2.43; and object prefix collisions that lengthen the index line.
 // They change the bytes, so the approval fails closed (rejection), never opens.
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 const FINGERPRINT_DIFF_ARGS = [
