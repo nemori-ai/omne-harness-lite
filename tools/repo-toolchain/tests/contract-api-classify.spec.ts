@@ -1,7 +1,7 @@
 // 分类规则的正反例：白名单门。只有正证据成立才是 additive：每处差异都在「可加改动」表的白名单里
-// （新增一个此前不存在的名字的导出；模块作用域的接口或类型字面量里新增可选属性），
-// 并且检查器对涉及的导出用同一种写法证明两个方向都可赋值。
-// 全局作用域的任何差异（扩充块、脚本文件、三斜线指令、导入或导出的模块边）整份 review，不跑检查器。
+// （新增一个旧侧不知道的名字的导出：不与本文件声明合并、不是入口已有的导出名、在文件作用域里解析不到已有符号；
+// 模块作用域的接口或类型字面量里新增可选属性），并且检查器对涉及的导出用同一种写法证明两个方向都可赋值。
+// 全局作用域的任何差异（扩充块、脚本文件、三斜线指令、导入或导出的模块边、`export as namespace`）整份 review，不跑检查器。
 // 其余一律 review，附注写明命中哪一条。每条用例只给两份声明，断言分类与附注种类。
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -10,6 +10,7 @@ import {
   type ReviewReason,
   type SnapshotDifference,
 } from '../src/declarations/api-classify.ts'
+import { whitelistDifferences } from '../src/declarations/api-whitelist.ts'
 import { classifyDists, contractCheckout, snapshotOf } from './fixtures/contract-api.ts'
 import { removeTemporaries } from './fixtures/loop-canary/repository.ts'
 
@@ -648,6 +649,104 @@ describe('contract API change classes', { timeout: 60_000 }, () => {
     )
     expect(internal.change).toBe('review')
     expect(reasonKinds(internal)).toContain('outside-whitelist')
+  })
+
+  it('whitelist (a) needs a name the old side does not know: an entry export or a symbol in file scope that the new declaration shadows is review', () => {
+    const star = {
+      'index.d.ts': "export * from './a.js';\n",
+      'a.d.ts':
+        'export declare class Foo { private p; x: string }\nexport declare function make(): Foo;\n',
+    }
+    // X3: `export *` already exports Foo. A local Foo shadows it; consumers writing `const v: Foo = make()` break.
+    const shadowedExport = classifyDists(star, {
+      ...star,
+      'index.d.ts': "export * from './a.js';\nexport declare class Foo { private p; x: string }\n",
+    })
+    expect(shadowedExport.change).toBe('review')
+    expect(reasonsOf(shadowedExport, declared('class Foo'))).toEqual([
+      { kind: 'outside-whitelist', why: '新增的名字 `Foo` 与入口 `.` 已有的导出重名' },
+    ])
+    // S4: a non-exported `Error` shadows the lib's. `f<T = Error>()` now defaults to it; `f().stack` breaks.
+    const shadowedGlobal = classifyDists(
+      'export declare function f<T = Error>(): T;\nexport {};\n',
+      'export declare function f<T = Error>(): T;\ninterface Error { name: string; message: string; code: number }\nexport {};\n',
+    )
+    expect(shadowedGlobal.change).toBe('review')
+    expect(reasonsOf(shadowedGlobal, declared('interface Error'))).toEqual([
+      {
+        kind: 'outside-whitelist',
+        why: '新增的名字 `Error` 在文件作用域里已经解析到已有符号（typescript/lib/lib.es5.d.ts）',
+      },
+    ])
+    // A name that is new on every count (entry exports, file scope, lib globals) stays additive.
+    const fresh = classifyDists(star, {
+      ...star,
+      'index.d.ts': "export * from './a.js';\nexport interface Bar { y: number }\n",
+    })
+    expect(fresh).toEqual({
+      change: 'additive',
+      differences: [{ target: exported('Bar'), kind: 'added', change: 'additive' }],
+    })
+  })
+
+  it('whitelist (a) fails closed: a name whose old-side resolution is unknown is outside the whitelist', () => {
+    const before = [{ path: 'index.d.ts', code: 'export interface A { a: string }\n' }]
+    const after = [
+      {
+        path: 'index.d.ts',
+        code: 'export interface A { a: string }\nexport interface B { b: string }\n',
+      },
+    ]
+    const resolved = (kind: 'free' | 'unknown') =>
+      whitelistDifferences(before, after, {
+        exported: new Map(),
+        resolve: () => (kind === 'free' ? { kind } : { kind, why: '旧侧程序建不起来' }),
+      })
+    expect(resolved('unknown')).toEqual({
+      global: [],
+      outside: [
+        {
+          path: 'index.d.ts',
+          statement: 'interface B',
+          change: 'added',
+          why: '新增的名字 `B` 在旧侧判断不了是否重名：旧侧程序建不起来',
+        },
+      ],
+      changed: new Set(),
+    })
+    expect(resolved('free').outside).toEqual([])
+  })
+
+  it('`export as namespace` declares a UMD global name: adding, removing or renaming it is global scope', () => {
+    const member = 'export interface Foo { x: string }\n'
+    const umd = (name: string) => `${member}export as namespace ${name};\n`
+    const why = '`export as namespace` 声明 UMD 全局名，属于全局作用域'
+    expect(classifyDists(member, umd('FooLib')).differences).toEqual([
+      {
+        target: declared('export as namespace FooLib;'),
+        kind: 'added',
+        change: 'review',
+        reasons: [{ kind: 'global-scope-change', why }],
+      },
+    ])
+    const renamed = classifyDists(umd('FooLib'), umd('BarLib'))
+    expect(renamed.change).toBe('review')
+    expect(reasonKinds(renamed)).toEqual(['global-scope-change'])
+    expect(classifyDists(umd('FooLib'), member).change).toBe('review')
+    expect(classifyDists(umd('FooLib'), umd('FooLib')).change).toBe('none')
+  })
+
+  it("any change inside an augmentation of the member's own module is outside the whitelist, even a new optional property", () => {
+    const files = (members: string) => ({
+      'index.d.ts': "export * from './a.js';\nimport './b.js';\n",
+      'a.d.ts': 'export interface Foo { x: string }\n',
+      'b.d.ts': `declare module './a.js' { interface Foo { ${members} } }\nexport {};\n`,
+    })
+    const result = classifyDists(files('y?: string'), files('y?: string; z?: number'))
+    expect(result.change).toBe('review')
+    expect(reasonsOf(result, declared("module './a.js'", 'b.d.ts'))).toEqual([
+      { kind: 'outside-whitelist', why: '对本成员模块的扩充块内有改动，它合并进别的文件里的声明' },
+    ])
   })
 
   it('keeps the checker direction for people: a new required member breaks writers, a wider union breaks readers', () => {

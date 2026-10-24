@@ -1,15 +1,18 @@
 // 契约 API 快照的差异粗分类：none、additive、review。白名单门：只有正证据成立才是 additive。
 //   none：两侧规范化文本相同。
-//   review（全局作用域）：扩充块、脚本文件、三斜线指令或导入导出的模块边有任何差异，整份 review，不跑检查器。
-//     消费者程序里全局作用域只有一份，检查器证明不了「这处改动没有影响已有导出」。
-//   additive：每一处差异都在模块作用域的白名单里（新增一个此前不存在的名字的导出；模块作用域的接口或
-//     类型字面量里新增可选属性），并且检查器对涉及的每个导出用同一种写法证明两个方向都可赋值。
+//   review（全局作用域）：扩充块、脚本文件、三斜线指令、导入导出的模块边或 `export as namespace` 有任何差异，
+//     整份 review，不跑检查器。消费者程序里全局作用域只有一份，检查器证明不了「这处改动没有影响已有导出」。
+//   additive：每一处差异都在模块作用域的白名单里（新增一个旧侧不知道的名字：不是入口已有的导出名，也不能在
+//     该文件作用域里解析到已有符号；模块作用域的接口或类型字面量里新增可选属性），
+//     并且检查器对涉及的每个导出用同一种写法证明两个方向都可赋值。
 //   review：其余一切。附注写明命中哪一条：全局作用域变了、白名单外改动、涉及的导出没有被比较覆盖、
 //     方向不成立、检查器未完成、实例组合超限、编译诊断。
-// 白名单的语法判断在 api-whitelist.ts，检查器证明在 api-compare.ts，这里把两者合成结论（judge 是纯函数）。
+// 白名单的判断在 api-whitelist.ts（名字的作用域解析借旧侧程序），检查器证明在 api-compare.ts，
+// 这里把两者合成结论（judge 是纯函数）。
 // 这是粗分类：review 的意思是「需要人判断」，不是 PR「契约变化」的级别。拿不准一律 review。
 import {
   compareSnapshots,
+  oldSideScope,
   type CheckerComparison,
   type Verdict,
   type VerdictProblem,
@@ -136,7 +139,14 @@ export function classifySnapshots(
   if (renderSnapshot(before) === renderSnapshot({ ...after, packageName: before.packageName }))
     return result(renamed)
   const structure = compareEntries(before, after)
-  const whitelist = whitelistDifferences(before.files, after.files)
+  const whitelist = whitelistDifferences(before.files, after.files, {
+    exported: exportedNames(before),
+    resolve: oldSideScope({
+      root: context.root,
+      directory: context.directory,
+      files: before.files,
+    }),
+  })
   const judging = {
     structure: [...renamed, ...structure.differences],
     whitelist,
@@ -190,6 +200,18 @@ export function judge(input: JudgeInput): SnapshotDifference {
   if (strongest(differences.map(item => item.change)) === 'none' && input.textChanged)
     differences.push({ target: WHOLE, kind: 'changed', change: 'additive' })
   return result(differences)
+}
+
+/** 旧侧每个入口导出的名字（`export *` 与改名导出已经展开）到它所在的入口，给白名单 (a) 判断新名字。 */
+function exportedNames(snapshot: ApiSnapshot): ReadonlyMap<string, readonly string[]> {
+  const names = new Map<string, string[]>()
+  for (const entry of snapshot.entries)
+    for (const item of entry.exports) {
+      const entries = names.get(item.name) ?? []
+      entries.push(entry.subpath)
+      names.set(item.name, entries)
+    }
+  return names
 }
 
 /** 参数改名、注释与布局之外的声明变化。 */

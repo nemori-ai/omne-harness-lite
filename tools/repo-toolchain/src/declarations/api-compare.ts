@@ -145,6 +145,62 @@ function sidePath(base: string, side: Side, path: string): string {
   return join(base, side, path)
 }
 
+/** 一个新增名字在旧侧的解析：没有这个符号；已经有了（声明在哪个文件）；或判断不了。 */
+export type NameResolution =
+  | { readonly kind: 'free' }
+  | { readonly kind: 'taken'; readonly where: string }
+  | { readonly kind: 'unknown'; readonly why: string }
+
+export interface ScopeInput {
+  readonly root: string
+  readonly directory: string
+  /** 旧侧的声明文件。 */
+  readonly files: readonly DeclarationFile[]
+}
+
+const ANY_MEANING = ts.SymbolFlags.Value | ts.SymbolFlags.Type | ts.SymbolFlags.Namespace
+
+/**
+ * 旧侧程序里的作用域解析，给白名单 (a) 判断「新名字」：在该文件的作用域里（文件自己的声明、经导入可见的名字、
+ * lib 与外部包的全局名）能否解析到已有符号。值、类型与命名空间三种含义都算：新声明无论哪种含义，
+ * 同名就改变这个文件里已有引用的落点。程序在第一次查询时才建立；文件在旧侧不存在时只看全局作用域。
+ * 建程序或解析抛出时返回 unknown，由白名单按「白名单外」处理，不静默放行。
+ */
+export function oldSideScope(input: ScopeInput): (path: string, name: string) => NameResolution {
+  const base = join(input.root, input.directory, '.omne-contract-api')
+  let program: ts.Program | undefined
+  return (path, name) => {
+    try {
+      if (program === undefined) {
+        const overlay = restore(base, 'old', input.files, new Set())
+        const options = compareOptions(input.root)
+        program = ts.createProgram(
+          [...overlay.keys()],
+          options,
+          overlayHost(options, overlay, base),
+        )
+      }
+      const location = program.getSourceFile(sidePath(base, 'old', path))
+      const symbol = program.getTypeChecker().resolveName(name, location, ANY_MEANING, false)
+      if (symbol === undefined) return { kind: 'free' }
+      const file = symbol.declarations?.[0]?.getSourceFile().fileName
+      return { kind: 'taken', where: file === undefined ? name : whereOf(file, base, input.root) }
+    } catch (error) {
+      return { kind: 'unknown', why: error instanceof Error ? error.message : String(error) }
+    }
+  }
+}
+
+/** 符号声明所在的文件，给人看：本成员的声明文件路径、`node_modules` 之后的路径（lib、外部包），或检出相对路径。 */
+function whereOf(file: string, base: string, root: string): string {
+  const old = sidePath(base, 'old', '') + '/'
+  if (file.startsWith(old)) return file.slice(old.length)
+  const marker = '/node_modules/'
+  const modules = file.lastIndexOf(marker)
+  if (modules >= 0) return file.slice(modules + marker.length)
+  return file.startsWith(root + '/') ? file.slice(root.length + 1) : file
+}
+
 function restore(
   base: string,
   side: Side,

@@ -4,15 +4,21 @@
 //     `declare global` 与对外部模块的 `declare module '…'` 块的增删改；脚本文件（没有导入导出的 `.d.ts`，
 //     顶层声明都是全局的）的增删、语句变化、与模块之间的切换；三斜线指令的任何差异；
 //     导入或 `export … from` 的模块边的增删（带绑定、仅类型、空导入、无绑定导入与 `import()` 类型都算），
-//     它们决定入口可达的文件集合，集合变了，消费者程序里的全局声明就可能变。
+//     它们决定入口可达的文件集合，集合变了，消费者程序里的全局声明就可能变；
+//     `export as namespace` 声明 UMD 全局名，它的增删也在这里。
 //   第二桶：模块作用域的白名单，只有两类。
-//     (a) 新增顶层语句，引入文件里此前不存在的名字。与已有同名声明合并的不算：新增重载、第二个同名接口、
-//         命名空间合并到类或函数上，都会改 `typeof` 与已有导出的形状。
+//     (a) 新增顶层语句，引入旧侧不知道的名字：既不是本文件已有的声明（否则是合并：新增重载、第二个同名接口、
+//         命名空间合并到类或函数上，都会改 `typeof` 与已有导出的形状），也不是任何入口已有的导出名
+//         （`export *` 与改名导出展开后），也不能在该文件的作用域里解析到已有符号（经导入可见的名字、
+//         lib 与外部包的全局名）。后两条命中时新声明遮住已有的名字，文件里已有引用的落点就变了。
 //     (b) 模块作用域的接口或类型字面量里新增可选属性（属性写法，不是方法签名或索引签名）。
-// 这里只看语法，不跑检查器；检查器的证明另在 api-compare.ts。两步都成立才是 additive。
+//         对本成员模块的 `declare module './x'` 块内的任何改动都不在这里：它合并进别的文件里的声明。
+// 语法判断在这里；(a) 的作用域解析用旧侧程序（api-compare.ts 的 oldSideScope），判断不了时按白名单外处理。
+// 检查器的可赋值证明另在 api-compare.ts。两步都成立才是 additive。
 // 判断 (b) 的权威是文本：把新语句里判定为新增的可选属性去掉后，规范化文本必须与旧语句相同；
 // 对齐只是提出哪些成员是新增的，任何没对上的差异都落到白名单外。
 import ts from '@typescript/typescript6'
+import type { NameResolution } from './api-compare.ts'
 import type { DeclarationFile } from './api-format.ts'
 import { referenceDirectives, sameText, statementId, statementKey } from './api-normalize.ts'
 
@@ -34,11 +40,19 @@ export interface WhitelistResult {
   readonly changed: ReadonlySet<string>
 }
 
+/** 旧侧的名字：每个入口的导出名（展开后）到它所在的入口，以及该文件作用域里的解析。 */
+export interface NameScope {
+  readonly exported: ReadonlyMap<string, readonly string[]>
+  readonly resolve: (path: string, name: string) => NameResolution
+}
+
 const SCRIPT = '脚本文件的顶层声明都是全局的'
 const AUGMENTATION = '对全局或外部模块的扩充'
+const UMD = '`export as namespace` 声明 UMD 全局名，属于全局作用域'
 const EDGE = (change: 'added' | 'removed') =>
   `导入或导出的模块边${change === 'added' ? '新增' : '删除'}了，入口可达的文件集合随之变化`
 const MERGE = '新增的声明与已有的同名声明合并（重载、接口、命名空间或类的合并）'
+const OWN_CHANGED = '对本成员模块的扩充块内有改动，它合并进别的文件里的声明'
 
 interface Group {
   readonly key: string
@@ -61,6 +75,7 @@ interface ParsedFile {
 export function whitelistDifferences(
   before: readonly DeclarationFile[],
   after: readonly DeclarationFile[],
+  scope: NameScope,
 ): WhitelistResult {
   const global: StatementChange[] = []
   const outside: StatementChange[] = []
@@ -83,10 +98,12 @@ export function whitelistDifferences(
       if (og === undefined && ng !== undefined) {
         if (isForeignAugmentationGroup(ng))
           global.push(at(path, ng, 'added', `${AUGMENTATION}新增了`))
-        else outside.push(...addedGroup(path, ng, o))
+        else if (isUmdGroup(ng)) global.push(at(path, ng, 'added', UMD))
+        else outside.push(...addedGroup(path, ng, o, scope))
       } else if (og !== undefined && ng === undefined) {
         if (isForeignAugmentationGroup(og))
           global.push(at(path, og, 'removed', `${AUGMENTATION}删除了`))
+        else if (isUmdGroup(og)) global.push(at(path, og, 'removed', UMD))
         else if (og.statements.every(isEdgeStatement)) continue
         else if (isOwnAugmentationGroup(og))
           outside.push(at(path, og, 'removed', '删除了对本成员模块的扩充'))
@@ -97,6 +114,8 @@ export function whitelistDifferences(
         if (verdict.kind === 'same') continue
         if (isForeignAugmentationGroup(ng))
           global.push(at(path, ng, 'changed', `${AUGMENTATION}变了`))
+        else if (isOwnAugmentationGroup(og) || isOwnAugmentationGroup(ng))
+          outside.push(at(path, ng, 'changed', OWN_CHANGED))
         else if (verdict.kind === 'outside') outside.push(at(path, ng, 'changed', verdict.why))
         else for (const statement of ng.statements) changed.add(statementId(path, statement))
       }
@@ -322,6 +341,8 @@ function isOwnAugmentation(statement: ts.Statement): boolean {
 
 const isForeignAugmentationGroup = (group: Group) => group.statements.every(isForeignAugmentation)
 const isOwnAugmentationGroup = (group: Group) => group.statements.every(isOwnAugmentation)
+/** `export as namespace X`：UMD 全局名。键含名字，所以改名是一删一增。 */
+const isUmdGroup = (group: Group) => group.statements.every(ts.isNamespaceExportDeclaration)
 
 /** 导入与 `export … from`：模块边，归第一桶判断。 */
 function isEdgeStatement(statement: ts.Statement): boolean {
@@ -335,18 +356,50 @@ function isEdgeStatement(statement: ts.Statement): boolean {
 
 /**
  * 模块作用域里新增的一组语句：边不在这里判断；对本成员模块的扩充合并进别的文件的声明；
- * 其余只许引入文件里此前不存在的名字。
+ * 其余只许引入旧侧不知道的名字。
  */
-function addedGroup(path: string, group: Group, old: ParsedFile | undefined): StatementChange[] {
+function addedGroup(
+  path: string,
+  group: Group,
+  old: ParsedFile | undefined,
+  scope: NameScope,
+): StatementChange[] {
   return group.statements.flatMap(statement => {
     if (isEdgeStatement(statement)) return []
     if (isOwnAugmentation(statement))
       return [at(path, group, 'added', '新增的对本成员模块的扩充与已有声明合并')]
-    const merged = declaredNames(statement, group.source).some(
-      name => old?.names.has(name) === true,
-    )
-    return merged ? [at(path, group, 'added', MERGE)] : []
+    for (const name of declaredNames(statement, group.source)) {
+      const why = takenName(path, name, old, scope)
+      if (why !== undefined) return [at(path, group, 'added', why)]
+    }
+    return []
   })
+}
+
+/** 新增的名字在旧侧已经有主时，说明是谁：本文件的同名声明、入口的导出，或文件作用域里解析到的符号。 */
+function takenName(
+  path: string,
+  name: string,
+  old: ParsedFile | undefined,
+  scope: NameScope,
+): string | undefined {
+  if (old?.names.has(name) === true) return MERGE
+  const entries = scope.exported.get(name)
+  if (entries !== undefined)
+    return `新增的名字 \`${name}\` 与入口 ${entries.map(entry => `\`${entry}\``).join('、')} 已有的导出重名`
+  const resolution = scope.resolve(path, name)
+  switch (resolution.kind) {
+    case 'free':
+      return undefined
+    case 'taken':
+      return `新增的名字 \`${name}\` 在文件作用域里已经解析到已有符号（${resolution.where}）`
+    case 'unknown':
+      return `新增的名字 \`${name}\` 在旧侧判断不了是否重名：${resolution.why}`
+    default: {
+      const _exhaustive: never = resolution
+      return _exhaustive
+    }
+  }
 }
 
 function isOptionalProperty(member: ts.Node): member is ts.PropertySignature {
