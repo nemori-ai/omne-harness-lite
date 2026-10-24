@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
+`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、契约 API 快照、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
 
 三个不发布的工具成员经本包的子路径导入它，本包不引用它们：
 
@@ -14,7 +14,7 @@
 
 - 被检查的仓库取 `OMNE_SUBJECT_ROOT`，未设置时取当前目录所在 Git 仓库的根。
 - 运行检查器的仓库取 `OMNE_RUNNER_ROOT`，未设置时与被检查的仓库相同。依赖规则（`.dependency-cruiser.cjs`、`tsconfig.base.json`）与配置只从这个仓库读，被检查的检出改不了它们。
-- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，分 `loop`、`metrics`、`acceptanceLock` 三节。缺文件、缺节或有认不出的节时报错，不使用默认值。
+- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，可有 `loop`、`metrics`、`acceptanceLock`、`contractApi` 四节，每个命令只读自己的那一节。缺文件、缺所读的节或有认不出的节时报错，不使用默认值。`contractApi` 一节从 0.0.10 起认得，更早的版本见到它会报错。
 - dependency-cruiser 需要 TypeScript 才能解析 `.ts`。用 pnpm 安装时，在 `pnpm-workspace.yaml` 的 `packageExtensions` 里给 dependency-cruiser 加上 `typescript`。找不到 TypeScript 时，依赖图检查报错退出，不会在漏掉 `.ts` 的情况下通过。
 
 ## 包内分层
@@ -31,6 +31,7 @@
 | --- | --- | --- |
 | `omne-deps` | `src/deps/cli.ts` | 依赖规则与成员、组之间的环 |
 | `omne-declarations` | `src/declarations/cli.ts` | 用 TypeScript 6 读成员 dist 里的声明 |
+| `omne-contract-api` | `src/declarations/api-cli.ts` | 契约成员的 API 快照：写、核对与相对基线的粗分类 |
 | `omne-metrics` | `src/metrics/cli.ts` | 结构度量与审讯页 |
 | `omne-loop-status` | `src/loop/cli.ts` | 回路状态 |
 | `omne-loop-health` | `src/loop/health-cli.ts` | 流程体检页 |
@@ -605,3 +606,48 @@ pnpm run loop:health # --out 可改产物目录
 `pnpm run check` 在构建一步之后常驻跑它。
 
 本工具调用 `createProgram`、`createSourceFile` 等旧编程接口的模块都从 `@typescript/typescript6` 导入，行为与 TypeScript 6 相同。
+
+## 契约 API 快照
+
+契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
+
+```sh
+omne-contract-api --write                 # 从 dist 重写快照（先构建）
+omne-contract-api --check                 # 拿 dist 现场生成的快照与快照文件比
+omne-contract-api --diff <基线提交或分支>   # 基线提交上的快照对工作树的快照，逐成员粗分类
+```
+
+三个动作都可加 `--json`，把结果按 JSON 写到标准输出。`--root <检出目录>` 指定被检查的检出。
+
+配置在 `repo-toolchain.config.json` 的 `contractApi` 一节，有两个键：
+
+- `members`：线归属表的路径。
+- `snapshot`：快照路径模板，以 `.md` 结尾，至少含 `{member}`（成员目录）或 `{package}`（不带 scope 的包名）之一。
+
+这一节有别的键、缺键或值不合条件时，命令报错退出。两个成员算出同一个快照路径时，命令也报错退出。
+
+读法与[声明兼容](#声明兼容)用同一套 TypeScript 6 选项，另建一个程序，按消费者视角读 dist。成员 dist 有编译诊断时，不生成它的快照。
+
+快照分两部分：每个入口导出的名字（写明声明在哪个文件或哪个外部包），以及成员 dist 里经打印器规范化的全部声明文件。声明文件保留导入、导出与模块扩充，所以快照能还原成一组能编译的声明。
+
+分类是白名单门：只有正证据成立才是 `additive`。差异分两桶。全局作用域的任何差异整份 `review`，不跑检查器：`declare global` 与对外部模块的 `declare module` 块的增删改、脚本文件的增删改或与模块之间切换、三斜线指令的变化、导入或 `export … from` 的模块边增删（带绑定、仅类型、空导入、无绑定导入都算）、`export as namespace` 的增删改。消费者程序里全局作用域只有一份，检查器证明不了「这处改动没有影响已有导出」。模块作用域的正证据有两条。第一，每一处差异都在白名单里，白名单只有两类：新增一个旧侧不知道的名字的导出（与已有同名声明合并的不算，例如新增重载；与入口已有的导出名或该文件作用域里已有符号重名的也不算，例如遮住 `export *` 导出的名字或 lib 的 `Error`），以及在模块作用域的接口或类型字面量里新增可选属性（属性写法；对本成员模块的扩充块内的改动不算）。第二，TypeScript 检查器对涉及的每个导出证明两个方向都可赋值：新 → 旧成立表示读方不破坏，旧 → 新成立表示写方（提供者、替身、实现者）不破坏。其余一律 `review`，报告写明命中哪一条：全局作用域变了、白名单外改动、没有比较覆盖、方向不成立、检查器未完成、实例组合超限、编译诊断。它用的是 repo-toolchain 已有的 `@typescript/typescript6`，不加新依赖。规则、白名单与归一化见 [SPEC](src/declarations/SPEC.md#分类)。
+
+不用 API Extractor 的理由：它不分析 ambient 声明，`declare module` 与 `declare global` 的扩充在它的报告里全部缺失，而 27 个契约成员里有 8 个的公开面含这类扩充。探路与复核的结论记在卡 #645 的评论里。
+
+操作要求：
+
+- 改了契约成员公开面的卡，在同一个 PR 里构建并运行 `--write`，把快照的变化一起提交。`--check` 报不一致时，先判断改动是否有意。
+- 本工具改了快照格式（格式版本变了）时，全部快照要重新生成。
+- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/integration.md#里程碑内的规则)。
+
+`--diff` 的前提：
+
+- 它只比快照文件，不读 dist。先用 `--check` 确认工作树的快照与 dist 一致，或先运行 `--write`。
+- 成员取基线与当前两份线归属表的并集，每侧的快照路径按那一侧的包名算。基线上没有快照的成员整份算 `additive`。
+- 判断改动是否可加时，传里程碑登记的基线提交。
+
+快照摘要是快照文件字节的 SHA-256。`--check --json` 对每个有快照文件的成员给出 `sha256`。
+
+`review` 不是 PR「契约变化」一节的级别。它包括两方都破坏的改动、只破坏一方的改动，也包括按「可加改动」表不破坏、但不在白名单里的改动（例如契约声明开放的联合加成员、给类型参数加默认值）。PR 的 none、additive 或 breaking 由人按「可加改动」表判定。
+
+它**不能声称**的：它报出读方与写方两个方向，但不判定哪个方向的破坏可以接受。白名单门失败关闭，拿不准时给 `review`，所以 `review` 会比只用检查器时多。这是 P1 只报告阶段的有意取舍。它只看声明的形状，不看行为、文档或运行时校验。转导出的别的包的声明变化归那个包的快照。快照与 dist 一致只说明快照是最新的，不说明改动可加。其余限制（例如 `ToolBindings` 一类的递归启发式误报）见 [SPEC](src/declarations/SPEC.md#已知限制)。

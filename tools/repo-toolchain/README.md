@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See the [development guide](../../docs/development.md#仓库工具链的版本).
+`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, contract API snapshots, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See the [development guide](../../docs/development.md#仓库工具链的版本).
 
 Three unpublished tool members import this package through its subpaths. This package does not import them:
 
@@ -14,7 +14,7 @@ Three unpublished tool members import this package through its subpaths. This pa
 
 - The checked repository is `OMNE_SUBJECT_ROOT`. When it is not set, it is the Git root of the current directory.
 - The runner repository is `OMNE_RUNNER_ROOT`. When it is not set, it is the checked repository. Dependency rules (`.dependency-cruiser.cjs`, `tsconfig.base.json`) and configuration come only from the runner repository, so a checked tree cannot change them.
-- Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics` and `acceptanceLock`. A missing file, a missing section or an unknown section is an error. No defaults apply.
+- Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics`, `acceptanceLock` and `contractApi`. Each command reads only its own section. A missing file, a missing section that a command reads, or an unknown section is an error. No defaults apply. Version 0.0.10 is the first version that accepts the `contractApi` section. Earlier versions reject it.
 - dependency-cruiser needs TypeScript to parse `.ts` files. With pnpm, add `typescript` to dependency-cruiser under `packageExtensions` in `pnpm-workspace.yaml`. If TypeScript is not found, the dependency check exits with an error. It does not pass with the `.ts` files left out.
 
 ## Default baseline
@@ -41,6 +41,7 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 | --- | --- | --- |
 | `omne-deps` | `src/deps/cli.ts` | Dependency rules, and cycles between members and groups |
 | `omne-declarations` | `src/declarations/cli.ts` | Reads member `dist` declarations with TypeScript 6 |
+| `omne-contract-api` | `src/declarations/api-cli.ts` | Contract API snapshots: write, check, and a coarse class of the change against a base |
 | `omne-metrics` | `src/metrics/cli.ts` | Structure metrics and the review page |
 | `omne-loop-status` | `src/loop/cli.ts` | Clean loop status |
 | `omne-loop-health` | `src/loop/health-cli.ts` | Process health page |
@@ -50,6 +51,29 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 The actual architecture extraction reads only the files of one revision. A package-name `extends` (for example `@omne-harness/repo-config/tsconfig.base.json`) points at an installed module. The extraction does not apply its options and lists it under `configuration.installedExtends` as `<config file> -> <specifier>`.
 
 `pnpm run check:design` checks current design sources, domain objects, and generated inputs. `pnpm run loop:health` reports trends, test timings, and Git history.
+
+## Contract API snapshots
+
+`omne-contract-api` keeps one API snapshot file for each contract member. The contract members are the `contracts` entries of `docs/engineering/delivery-lines.json`. The behavior contract is in the [SPEC](src/declarations/SPEC.md).
+
+- `--write` writes the snapshots from `dist`. It does not write a member that has no `dist`, incomplete declarations or compile diagnostics.
+- `--check` compares each snapshot file with a snapshot that it makes from `dist` now, and reports each difference. With `--json`, it gives the SHA-256 of each snapshot file. The snapshot digest is this SHA-256 of the file bytes.
+- `--diff <base>` compares the snapshot files at a base commit with the snapshot files in the working tree. It gives `none`, `additive` or `review` for each member and reports which side a change breaks. It reads only the snapshot files, not `dist`, so run `--check` first. The member list is the union of the contract lists at the base and now. A member without a snapshot at the base counts as `additive`. To decide whether a change is additive, give the milestone baseline commit.
+- `--check` and `--diff` only report and exit 0. `--write` exits 1 when it cannot write a member. Errors exit 2.
+
+A snapshot has two parts: the names that each entry exports, and every declaration file of the member's `dist`, normalized by the TypeScript printer. The declaration files keep their imports, exports and module augmentations, so a snapshot can be restored to declarations that compile.
+
+The class is a whitelist gate. Differences fall into two buckets. Any difference in global scope makes the whole member `review` without running the checker: a `declare global` block or a `declare module` block for an external module that is added, removed or changed; a script file (a `.d.ts` without imports or exports) that is added, removed, changed or switched to a module; any triple-slash directive difference; an added or removed import or `export … from` edge (bound, type-only, empty and side-effect imports all count); an added, removed or renamed `export as namespace`. A consumer's program has one global scope, so the checker cannot prove that such a change leaves existing exports untouched. In module scope a change is `additive` only with two pieces of positive evidence. First, every difference is in the whitelist. The whitelist has two kinds of change: a new export that introduces a name the old side does not know (a declaration that merges with an existing one, such as a new overload, does not count; nor does a name that an entry already exports or that resolves to an existing symbol in the file's scope, such as a local `Error` shadowing the lib's), and a new optional property (property syntax) in a module-scope interface or type literal (a change inside an augmentation of the member's own module does not count). Second, the TypeScript checker proves assignability in two directions for each export that the change touches. New to old shows that existing readers still accept the new value. Old to new shows that existing writers (providers, doubles and implementers) still produce an accepted value. Everything else is `review`, and the report names the rule: a global-scope change, a change outside the whitelist, no comparison covers the export, a direction fails, the checker did not finish, too many instance combinations, or compile diagnostics. The tool uses `@typescript/typescript6`, which repo-toolchain already depends on. It adds no new dependency.
+
+The tool does not use API Extractor, because API Extractor does not analyze ambient declarations. It drops every `declare module` and `declare global` augmentation, and the public surface of 8 of the 27 contract members contains such augmentations.
+
+The `contractApi` configuration section has two keys. `members` is the path of the line table. `snapshot` is the snapshot path template. It ends with `.md` and contains `{member}` or `{package}`. Any other key, a missing key or a bad value is an error.
+
+`review` means that a person must decide. It includes changes that break the writer, the reader or both. It also includes changes that the additive-change table allows but that are outside the whitelist. Examples are a new member of a union that the contract declares open, and a new default for a type parameter. `review` is not a level for the "契约变化" section of a PR. A person decides that level (none, additive or breaking) from the additive-change table in `docs/engineering/integration.md`.
+
+The tool reads only the shape of the declarations. It does not read behavior, documentation or runtime validation. It reports which side breaks, but it does not decide whether that break is acceptable. The gate fails closed: when the evidence is not complete, the result is `review`. So `review` results are more frequent than with the checker alone. This is a deliberate trade-off for the report-only stage. A snapshot that matches `dist` shows only that the snapshot is current. It does not show that a change is additive. See the SPEC for the known limits, including the recursion heuristic that puts additive changes to types like `ToolBindings` into `review`.
+
+A card that changes the public surface of a contract member runs `--write` in the same PR. When the snapshot format version changes, all snapshots must be made again. See the Chinese README section "契约 API 快照" for the operating rules.
 
 ## Stop-hook revision reads
 
