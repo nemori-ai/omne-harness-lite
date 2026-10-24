@@ -389,7 +389,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 全局预期归 `docs/architecture/constraints.json`。
 当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2 与 3 的依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
 缺当前或BASE输入保留unknown或no-data，删除变化仍可见。只修改依据Markdown也触发收工测量。精确输入、范围和不能证明的性质见[符合性契约](src/arch/CONFORMANCE.md)。
-符合性报告带[方向行](src/arch/CONFORMANCE.md#方向行)：方向行与角色读运行检查器仓库的 `constraints.json`（与 `omne-deps` 同一份），依赖事实读本版的依赖图，图不可得时这些行是 unknown；基线的图不可得时偏离行不判新旧，每一行写明原因；方向偏离在回路里只报告，不是硬线。
+符合性报告带[方向行](src/arch/CONFORMANCE.md#方向行)：方向行与角色读运行检查器仓库的 `constraints.json`（与 `omne-deps` 同一份），依赖事实读本版的依赖图，方向行引用的角色在本版里都匹配不到文件时不取图，每一行都是 unknown，文字与取图时相同；图不可得时这些行是 unknown；基线的图不可得时偏离行不判新旧，每一行写明原因；方向偏离在回路里只报告，不是硬线。
 集成约定归 [Cordis 集成约定](../../docs/architecture/cordis-integration-conventions.md)。
 工具不反写预期，也不从目录存在性或手写绑定推断实现状态。
 

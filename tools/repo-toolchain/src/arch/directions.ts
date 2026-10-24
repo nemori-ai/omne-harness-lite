@@ -1,6 +1,10 @@
 // 方向规则：schema 3 `constraints.json` 的 `directions` 对依赖图里文件级事实的判定。
 // `omne-deps` 的方向发现与架构符合性报告的 `DIRECTION` 行都从这里算，输入是同一份可信 runner 的方向行与
 // 同一份 dependency-cruiser 依赖事实（deps/graph.ts），不另走 arch/extract.ts 的静态抽取。
+import { execFileSync } from 'node:child_process'
+import { lstatSync, readdirSync, type Dirent } from 'node:fs'
+import { join } from 'node:path'
+import { repositoryEnv } from '../core/git-environment.ts'
 import {
   DependencyGraphUnavailable,
   memberOf,
@@ -172,7 +176,7 @@ export function directionFindings(judgements: readonly DirectionJudgement[]): Di
 
 /** 报告能拿到的依赖事实：有图，或者说明为什么没有。 */
 export type DirectionFacts =
-  | { readonly kind: 'graph'; readonly graph: DependencyGraph }
+  | { readonly kind: 'graph'; readonly graph: Pick<DependencyGraph, 'modules' | 'dependencies'> }
   | { readonly kind: 'unavailable'; readonly reason: string }
 
 /** 只把 dependency-cruiser 或 Git 的已知失败记成不可得；别的异常照常抛出。 */
@@ -242,28 +246,159 @@ export function directionRows(policy: DirectionPolicy, facts: DirectionFacts): C
   })
 }
 
+/** 读某个版本依赖图的函数；默认是 `versionGraph`，测试可以换成计数的读法。 */
+export type GraphReader = (
+  root: string,
+  source: Pick<SourceCoordinates, 'kind' | 'commit'>,
+) => DependencyGraph
+
+/** 读文件清单时的已知「没有」：路径不存在，或路径上某一段不是目录。别的失败都按「可能有文件」处理。 */
+const absent = (error: unknown): boolean => {
+  const code = (error as { code?: unknown }).code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
+/**
+ * 工作树里落在角色 `paths` 下的文件有没有：按每条 `paths` 的静态前缀查磁盘，找到一个就停。经过符号链接的路径照常
+ * 跟进（dependency-cruiser 也走进链接的目录）；遇到不是目录的项（文件、链接、别的）就算有。读不了的目录按有处理。
+ */
+function workingTreeHasFiles(root: string, role: ArchitectureRole): boolean {
+  const walk = (directory: string): boolean => {
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(join(root, directory), { withFileTypes: true })
+    } catch (error) {
+      return !absent(error)
+    }
+    return entries.some(entry => {
+      const path = `${directory}/${entry.name}`
+      return entry.isDirectory() ? walk(path) : inRole(path, role)
+    })
+  }
+  return role.paths.some(pattern => {
+    if (pattern.endsWith('/**')) return walk(pattern.slice(0, -3))
+    try {
+      lstatSync(join(root, pattern))
+      return true
+    } catch (error) {
+      return !absent(error)
+    }
+  })
+}
+
+/** `a/b/c` 与它的上级目录：`a`、`a/b`、`a/b/c`。 */
+const withAncestors = (path: string): string[] =>
+  path.split('/').map((_, index, parts) => parts.slice(0, index + 1).join('/'))
+
+/**
+ * 提交里落在角色 `paths` 下的文件有没有，清单是 `git ls-tree -r --name-only <commit>`。Git 不走进符号链接与子模块，
+ * 依赖图的导出树却会走进链接的目录，所以前缀或它的某个上级在提交里不是目录（链接、子模块、文件）时按有处理。
+ * 提交本身不在仓库里、或 Git 失败，也按有处理：交给取图，图取不到时照常记成依赖事实不可得。
+ */
+function commitHasFiles(root: string, commit: string, role: ArchitectureRole): boolean {
+  /** 跑一条 git；起不来或退出码非零时为 undefined。 */
+  const git = (args: readonly string[], input?: string): string | undefined => {
+    try {
+      return execFileSync('git', ['-C', root, ...args], {
+        env: repositoryEnv(process.env),
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        ...(input === undefined ? {} : { input }),
+      })
+    } catch {
+      return undefined
+    }
+  }
+  const patternHasFiles = (pattern: string): boolean => {
+    const prefix = pattern.endsWith('/**') ? pattern.slice(0, -3) : undefined
+    // 先确认提交在，再从最上一级往下看每一段在提交里是什么：缺了就没有；不是目录就按有处理
+    // （链接、子模块，或精确路径本身就是文件）。
+    const checked = git(
+      ['cat-file', '--batch-check=%(objecttype)'],
+      [`${commit}^{commit}`, ...withAncestors(prefix ?? pattern).map(path => `${commit}:${path}`)]
+        .map(line => `${line}\n`)
+        .join(''),
+    )
+    if (checked === undefined) return true
+    const [self, ...types] = checked.split('\n').filter(line => line !== '')
+    if (self !== 'commit') return true
+    for (const type of types) {
+      if (type.endsWith(' missing')) return false
+      if (type !== 'tree') return true
+    }
+    // 精确路径是个目录：图的 `modules` 只有文件，不会等于它。
+    if (prefix === undefined) return false
+    const listed = git([
+      '--literal-pathspecs',
+      'ls-tree',
+      '-r',
+      '--name-only',
+      '-z',
+      commit,
+      '--',
+      prefix,
+    ])
+    return (
+      listed === undefined || listed.split('\u0000').some(path => path !== '' && inRole(path, role))
+    )
+  }
+  return role.paths.some(patternHasFiles)
+}
+
+/** 某个版本里，方向行引用的角色有没有一个匹配得到文件；找到一个就停。 */
+function anyRoleHasFiles(
+  root: string,
+  source: Pick<SourceCoordinates, 'kind' | 'commit'>,
+  policy: DirectionPolicy,
+): boolean {
+  const seen = new Set<string>()
+  return directionPairs(policy).some(({ from, to }) =>
+    [from, to].some(role => {
+      if (seen.has(role.id)) return false
+      seen.add(role.id)
+      return source.kind === 'worktree'
+        ? workingTreeHasFiles(root, role)
+        : commitHasFiles(root, source.commit, role)
+    }),
+  )
+}
+
+/** 方向行引用的角色都没有文件时的依赖事实：没有文件，也就没有依赖。 */
+const NO_FILES: Pick<DependencyGraph, 'modules' | 'dependencies'> = {
+  modules: [],
+  dependencies: [],
+}
+
 /**
  * 报告的方向行一节。方向行与角色只从可信 runner 的 `constraints.json` 读（全部角色，不按退休过滤），
  * 与 `omne-deps` 同一份；runner 没有文件或没有方向行就没有这一节，也不取依赖图。
  * 被检版本与基线版本都用这份方向行，依赖事实各取各的版本：`graph` 是调用方已经算好的被检版本的图。
- * 给了基线时偏离行判新旧；基线的图不可得就不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
+ * 没给 `graph` 时先按路径看：方向行引用的角色在这个版本的文件清单里都匹配不到文件，就不取图，每一行都是两边角色都没有
+ * 文件的 unknown，与取图的结果逐字相同（清单覆盖图的 `modules`，清单里没有的图里也没有）。有一个角色有文件就照常取图。
+ * 基线版本独立判断。给了基线时偏离行判新旧；基线的图不可得就不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
  */
 export function directionConformance(input: {
   readonly root: string
   readonly current: Pick<SourceCoordinates, 'kind' | 'commit'>
   readonly baseline?: Pick<SourceCoordinates, 'kind' | 'commit'> | undefined
   readonly graph?: DependencyGraph | undefined
+  readonly readGraph?: GraphReader | undefined
 }): ConformanceRow[] {
   const runner = readRunnerConstraints()
   if (runner.kind === 'missing' || (runner.value.directions ?? []).length === 0) return []
   const policy = runner.value
+  const readGraph = input.readGraph ?? versionGraph
+  const factsOf = (source: Pick<SourceCoordinates, 'kind' | 'commit'>): DirectionFacts =>
+    anyRoleHasFiles(input.root, source, policy)
+      ? directionFacts(() => readGraph(input.root, source))
+      : { kind: 'graph', graph: NO_FILES }
   const rows = directionRows(
     policy,
-    directionFacts(() => input.graph ?? versionGraph(input.root, input.current)),
+    input.graph === undefined ? factsOf(input.current) : { kind: 'graph', graph: input.graph },
   )
   if (input.baseline === undefined) return rows
-  const baseline = input.baseline
-  const stock = directionFacts(() => versionGraph(input.root, baseline))
+  const stock = factsOf(input.baseline)
   if (stock.kind === 'unavailable')
     return rows.map(row => ({
       ...row,
