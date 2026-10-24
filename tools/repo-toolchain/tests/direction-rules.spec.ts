@@ -1,7 +1,7 @@
 // @module-tag slow
 // 依赖方向规则（constraints.json schema 3 的 `directions`）：schema 校验（C1）、`omne-deps` 对五条禁边 × 八种导入形态的
 // 命中与退出码（C2）、合法对照（C3）、规则只从可信 runner 读（C4）、架构符合性报告的方向行（C5）、
-// 依赖图的 `modules` 只含解析到的文件（C10）与能由路径判定时报告不取图（C9）。
+// 依赖图的 `modules` 只含解析到的文件（规格 S10）与能由路径判定时报告不取图（规格 S9）。
 // 归慢层：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程）。
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, renameSync, rmSync, symlinkSync } from 'node:fs'
@@ -938,7 +938,7 @@ function underRunner<T>(trusted: string, body: () => T): T {
 }
 type Version = Pick<SourceCoordinates, 'kind' | 'commit'>
 
-describe('依赖图的 modules 只含解析到的文件（C10）', { timeout: 180_000 }, () => {
+describe('依赖图的 modules 只含解析到的文件（规格 S10）', { timeout: 180_000 }, () => {
   const PHANTOM = `${MEMBERS.agent}/src/phantom.ts`
   const MISSING = `${MEMBERS.session}/src/index.ts`
   /**
@@ -1003,7 +1003,7 @@ describe('依赖图的 modules 只含解析到的文件（C10）', { timeout: 18
   })
 })
 
-describe('能由路径判定时报告不取依赖图（C9）', { timeout: 180_000 }, () => {
+describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout: 180_000 }, () => {
   /** 计数的读图函数：记下每次取的是哪一种版本，取法与默认的相同。 */
   function counting(): { readonly read: GraphReader; readonly calls: string[] } {
     const calls: string[] = []
