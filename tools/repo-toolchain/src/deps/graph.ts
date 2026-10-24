@@ -53,16 +53,16 @@ export interface FileDependency extends ImportSite {
   readonly resolved: string
 }
 
+/** 本模块自己产生的发现种类；方向规则的种类由产生它们的 arch/directions.ts 声明。 */
 export type DependencyFindingKind =
   | 'dependency-rule'
-  | 'direction-rule'
   | 'file-cycle'
   | 'member-cycle'
   | 'group-cycle'
 
-export interface DependencyFinding {
-  readonly kind: DependencyFindingKind
-  /** dependency-cruiser 的规则名；方向规则取方向行 id；成员环与组环是本模块算的，取 kind。 */
+export interface DependencyFinding<Kind extends string = DependencyFindingKind> {
+  readonly kind: Kind
+  /** dependency-cruiser 的规则名；成员环与组环是本模块算的，取 kind。 */
   readonly rule: string
   readonly message: string
   /** 可定位的导入处；环取环上各边的首个导入处。 */
@@ -73,10 +73,20 @@ export interface DependencyFinding {
 
 export interface DependencyGraph {
   readonly members: readonly Member[]
+  /** 成员目录里 dependency-cruiser 走到的模块（仓库相对路径，含测试）；方向规则据此判源角色有没有文件。 */
+  readonly modules: readonly string[]
   readonly edges: readonly MemberEdge[]
   /** 跨成员的文件级依赖事实；`edges` 是其中产品源码部分按成员对的归并。 */
   readonly dependencies: readonly FileDependency[]
   readonly findings: readonly DependencyFinding[]
+}
+
+/**
+ * dependency-cruiser 或 Git 的已知失败：图取不到。架构符合性报告据此把方向行记成「依赖事实不可得」；
+ * 别的异常不属于这一类，照常抛出。
+ */
+export class DependencyGraphUnavailable extends Error {
+  override readonly name = 'DependencyGraphUnavailable'
 }
 
 /** 路径相对于仓库根。 */
@@ -176,7 +186,8 @@ function cruiserBin(): string {
   for (let dir = dirname(fileURLToPath(import.meta.url)); ; dir = dirname(dir)) {
     const bin = join(dir, 'node_modules', 'dependency-cruiser', 'bin', 'dependency-cruiser.mjs')
     if (existsSync(bin)) return bin
-    if (dirname(dir) === dir) throw new Error('找不到本包依赖的 dependency-cruiser')
+    if (dirname(dir) === dir)
+      throw new DependencyGraphUnavailable('找不到本包依赖的 dependency-cruiser')
   }
 }
 
@@ -188,7 +199,7 @@ export function requireCruiserTypeScript(bin: string): void {
   for (let dir = dirname(realpathSync(bin)); ; dir = dirname(dir)) {
     if (existsSync(join(dir, 'node_modules', 'typescript', 'package.json'))) return
     if (dirname(dir) === dir)
-      throw new Error(
+      throw new DependencyGraphUnavailable(
         'dependency-cruiser 找不到 TypeScript，无法解析 .ts。用 pnpm 时在 pnpm-workspace.yaml 的 packageExtensions 里给 dependency-cruiser 加上 typescript 依赖。',
       )
   }
@@ -214,11 +225,14 @@ export function cruise(root: string): CruiseOutput {
     encoding: 'utf8',
     maxBuffer: 512 * 1024 * 1024,
   })
-  if (run.error !== undefined) throw run.error
+  if (run.error !== undefined)
+    throw new DependencyGraphUnavailable(`起不来 dependency-cruiser：${run.error.message}`, {
+      cause: run.error,
+    })
   try {
     return JSON.parse(run.stdout) as CruiseOutput
   } catch {
-    throw new Error(
+    throw new DependencyGraphUnavailable(
       `dependency-cruiser 没有给出依赖图（退出码 ${run.status}）：${run.stderr.trim()}`,
     )
   }
@@ -267,7 +281,13 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
     return member
   }
 
-  // 指向别的成员、已解析的依赖逐处记下（内建模块不算）；产品源码（不含测试）的那些再按成员对归并成边，类型导入也算。
+  // 成员里的模块本身留下，方向规则据此判源角色有没有文件。
+  const modules = output.modules
+    .map(module => module.source)
+    .filter(path => memberOf(path) !== undefined)
+    .sort()
+  // 指向别的成员、已解析的依赖逐处记下（内建模块没有成员，自然不在）；产品源码（不含测试）的那些再按成员对归并成边，
+  // 类型导入也算。
   const dependencies: FileDependency[] = []
   const edges = new Map<string, { from: string; to: string; sites: ImportSite[] }>()
   const specifierOf = new Map<string, string>()
@@ -278,7 +298,6 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
       specifierOf.set(pairKey(module.source, dependency.resolved), dependency.module)
       const to = note(dependency.resolved)
       if (from === undefined || to === undefined || from.path === to.path) continue
-      if (dependency.dependencyTypes.includes('core')) continue
       const site = {
         path: module.source,
         line: lineOf(module.source, dependency.module),
@@ -381,11 +400,11 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
       edges: inside.map(edge => ({ from: edge.from, to: edge.to })),
     })
   }
-  return { members: memberList, edges: edgeList, dependencies, findings }
+  return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
 /** 缓存的图的格式版本；`DependencyGraph` 的形状变了就加一。 */
-const GRAPH_FORMAT = 'v2'
+const GRAPH_FORMAT = 'v3'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
@@ -478,7 +497,9 @@ function git(root: string, args: readonly string[], input?: Buffer): Buffer {
     maxBuffer: 1024 * 1024 * 1024,
   })
   if (run.status !== 0)
-    throw new Error(`git ${args.join(' ')} 失败：${run.stderr.toString().trim()}`)
+    throw new DependencyGraphUnavailable(
+      `git ${args.join(' ')} 失败：${run.stderr.toString().trim()}`,
+    )
   return run.stdout
 }
 
@@ -492,7 +513,7 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
     .trim()
   const rules = createHash('sha256').update(readFileSync(cruiseConfig())).digest('hex').slice(0, 12)
   const directory = cacheDirectory(root)
-  // 文件名带图的格式版本：旧格式的缓存没有 `dependencies`，不能当现在的图读。
+  // 文件名带图的格式版本：旧格式的缓存没有 `dependencies` 或 `modules`，不能当现在的图读。
   const cached = join(directory, `${commit}-${rules}-${GRAPH_FORMAT}.json`)
   if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8')) as DependencyGraph
 
@@ -510,7 +531,8 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
         input: archive,
         maxBuffer: 64 * 1024 * 1024,
       })
-      if (untar.status !== 0) throw new Error(`解开 ${commit} 失败：${untar.stderr.toString()}`)
+      if (untar.status !== 0)
+        throw new DependencyGraphUnavailable(`解开 ${commit} 失败：${untar.stderr.toString()}`)
     }
     linkWorkspace(tree, join(tree, 'node_modules'))
     // 树里没装第三方依赖，外部包一律无法解析；基线图只用来比成员边，不保留这类违规。

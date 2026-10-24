@@ -1,5 +1,5 @@
 // @module-tag slow
-// 依赖方向规则（constraints.json schema 3 的 `directions`）：schema 校验（C1）、`omne-deps` 对五条禁边 × 六种导入形态的
+// 依赖方向规则（constraints.json schema 3 的 `directions`）：schema 校验（C1）、`omne-deps` 对五条禁边 × 八种导入形态的
 // 命中与退出码（C2）、合法对照（C3）、规则只从可信 runner 读（C4）、架构符合性报告的方向行（C5）。
 // 归慢层：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程）。
 import { spawnSync } from 'node:child_process'
@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readConformance } from '../src/arch/conformance.ts'
 import { parseConstraints, readRunnerConstraints } from '../src/arch/constraints.ts'
-import type { ArchitectureConstraints } from '../src/arch/conformance-model.ts'
-import { linkWorkspace } from '../src/deps/graph.ts'
+import type { ArchitectureRole } from '../src/arch/conformance-model.ts'
+import { linkWorkspace, workingGraph } from '../src/deps/graph.ts'
 import {
   commit,
   removeTemporaries,
@@ -57,7 +57,7 @@ const ROLE_LAYERS: Record<string, ['contract' | 'unknown' | 'assembly', 'adopted
   }
 const DOMAINS = ['agent', 'model', 'tool', 'session']
 const domainOf = (member: string) => member.split('/')[1] ?? ''
-const roles = (): ArchitectureConstraints['roles'] =>
+const roles = (): ArchitectureRole[] =>
   Object.values(MEMBERS).map(member => {
     const [layer, status] = ROLE_LAYERS[member] ?? ['unknown', 'candidate']
     return {
@@ -70,40 +70,52 @@ const roles = (): ArchitectureConstraints['roles'] =>
     }
   })
 const SOURCE = `${ORGANIZATION}#依赖方向与cordis集成`
-const DIRECTIONS = [
-  {
-    id: 'DIR-AGENT-SESSION',
-    from: [MEMBERS.agent, MEMBERS.agentCordis],
-    to: [MEMBERS.session, MEMBERS.sessionCordis],
-  },
+interface DirectionRow {
+  readonly id: string
+  readonly from: readonly string[]
+  readonly to: readonly string[]
+  readonly source: string
+}
+const AGENT_SESSION: DirectionRow = {
+  id: 'DIR-AGENT-SESSION',
+  from: [MEMBERS.agent, MEMBERS.agentCordis],
+  to: [MEMBERS.session, MEMBERS.sessionCordis],
+  source: SOURCE,
+}
+const DIRECTIONS: readonly DirectionRow[] = [
+  AGENT_SESSION,
   {
     id: 'DIR-MODEL-SESSION',
     from: [MEMBERS.model, MEMBERS.modelCordis],
     to: [MEMBERS.session, MEMBERS.sessionCordis],
+    source: SOURCE,
   },
   {
     id: 'DIR-TOOL-SESSION',
     from: [MEMBERS.tool, MEMBERS.toolCordis],
     to: [MEMBERS.session, MEMBERS.sessionCordis],
+    source: SOURCE,
   },
   {
     id: 'DIR-MODEL-AGENT',
     from: [MEMBERS.model, MEMBERS.modelCordis],
     to: [MEMBERS.agent, MEMBERS.agentCordis],
+    source: SOURCE,
   },
   {
     id: 'DIR-TOOL-AGENT',
     from: [MEMBERS.tool, MEMBERS.toolCordis],
     to: [MEMBERS.agent, MEMBERS.agentCordis],
+    source: SOURCE,
   },
-].map(row => ({ ...row, source: SOURCE }))
+]
 
 /** `directions` 传 null 表示文档里没有这个字段。 */
 function policy(
-  schemaVersion: 2 | 3 = 3,
+  schemaVersion: 1 | 2 | 3 = 3,
   directions: unknown = DIRECTIONS,
   roleRows: unknown = roles(),
-): unknown {
+): Record<string, unknown> {
   return {
     schemaVersion,
     domains: DOMAINS.map(id => ({ id, label: id, source: 'docs/domains/boundaries.md#责任地图' })),
@@ -119,18 +131,18 @@ function writePolicy(root: string, value: unknown): void {
   write(root, 'docs/domains/boundaries.md', '# 领域\n\n## 责任地图\n\n正文。\n')
   for (const member of Object.values(MEMBERS)) write(root, `${member}/SPEC.md`, `# ${member}\n`)
 }
+const POLICY_FILES = [CONSTRAINTS, ORGANIZATION, 'docs/domains/boundaries.md']
 
 // ---- 可信 runner：预设、解析配置、规则 -------------------------------------------------------------
 
-/** runner 的预设取本仓库安装的 repo-config；tsconfig 里的别名指向被检树，让「别名」这种导入形态能解析。 */
-/** `constraints` 传 null 表示 runner 没有 constraints.json。 */
+const PRESET = `module.exports = require(${JSON.stringify(join(REPOSITORY_ROOT, 'node_modules/@omne-harness/repo-config/dependency-cruiser.cjs'))})\n`
+/**
+ * runner 的预设取本仓库安装的 repo-config；tsconfig 里的别名指向被检树，让「别名」这种导入形态能解析。
+ * `constraints` 传 null 表示 runner 没有 constraints.json。
+ */
 function runner(subject: string, constraints: unknown = policy()): string {
   const root = temporaryDirectory('omne-direction-runner-')
-  write(
-    root,
-    '.dependency-cruiser.cjs',
-    `module.exports = require(${JSON.stringify(join(REPOSITORY_ROOT, 'node_modules/@omne-harness/repo-config/dependency-cruiser.cjs'))})\n`,
-  )
+  write(root, '.dependency-cruiser.cjs', PRESET)
   // TypeScript 不接受没有输入文件的配置，所以列一个空文件。
   write(root, 'stub.ts', 'export {}\n')
   write(
@@ -164,7 +176,7 @@ const manifest = (member: string, subpaths: readonly string[]) =>
       ]),
     ),
   })
-const CORDIS = [
+const CORDIS: readonly string[] = [
   MEMBERS.agentCordis,
   MEMBERS.modelCordis,
   MEMBERS.toolCordis,
@@ -174,9 +186,16 @@ const CORDIS = [
 ]
 const pureOf = (cordis: string) => `packages/${domainOf(cordis)}/${domainOf(cordis)}-contract`
 const name = (member: string) => `@omne-harness/${member.split('/').pop() ?? ''}`
+const valueOf = (member: string) => member.split('/').pop()?.replaceAll('-', '_') ?? ''
 
-/** C3 的合法对照都在：Agent 纯契约 → Model/Tool 纯契约、各 Cordis 定义 → 自身纯契约、session-adapters → Agent、名字含 Session 的公共值、同前缀兄弟成员。 */
-function subject(root: string = temporaryDirectory('omne-direction-subject-')): string {
+/**
+ * 十一个成员的最小源码。`contrasts` 为真时再放 C3 的合法对照：Agent 纯契约 → Model/Tool 纯契约、各 Cordis 定义 → 自身纯契约、
+ * session-adapters → Agent、名字含 Session 的公共值、同前缀兄弟成员。为假时树里没有任何跨成员导入，单独一个反例就是唯一的发现。
+ */
+function subject(
+  root: string = temporaryDirectory('omne-direction-subject-'),
+  contrasts = true,
+): string {
   write(root, '.gitignore', 'node_modules/\n')
   for (const member of Object.values(MEMBERS)) {
     const subpaths = CORDIS.includes(member)
@@ -185,7 +204,7 @@ function subject(root: string = temporaryDirectory('omne-direction-subject-')): 
         ? ['binding', 'testing']
         : []
     write(root, `${member}/package.json`, manifest(member, subpaths))
-    const value = member.split('/').pop()?.replaceAll('-', '_') ?? ''
+    const value = valueOf(member)
     write(
       root,
       `${member}/src/index.ts`,
@@ -202,6 +221,11 @@ function subject(root: string = temporaryDirectory('omne-direction-subject-')): 
     `${MEMBERS.session}/dist/index.d.ts`,
     'export declare const session_contract: number\n',
   )
+  if (contrasts) writeContrasts(root)
+  linkWorkspace(root, join(root, 'node_modules'))
+  return root
+}
+function writeContrasts(root: string): void {
   // 公共值：名字含 Session，但在 common 组。
   write(
     root,
@@ -226,7 +250,6 @@ function subject(root: string = temporaryDirectory('omne-direction-subject-')): 
     'packages/session/session-contract-extra/src/extra.ts',
     'export const sibling_extra = 1\n',
   )
-  // 合法对照。
   write(
     root,
     `${MEMBERS.agent}/src/legal-model.ts`,
@@ -251,20 +274,27 @@ function subject(root: string = temporaryDirectory('omne-direction-subject-')): 
     write(
       root,
       `${cordis}/src/legal-own.ts`,
-      `import { ${pureOf(cordis).split('/').pop()?.replaceAll('-', '_') ?? ''} } from '${name(pureOf(cordis))}'\nexport const own = 1\n`,
+      `import { ${valueOf(pureOf(cordis))} } from '${name(pureOf(cordis))}'\nexport const own = 1\n`,
     )
   write(
     root,
     `${MEMBERS.adapters}/src/legal-agent.ts`,
     `import { agent_contract } from '${name(MEMBERS.agent)}'\nexport const a = agent_contract\n`,
   )
-  linkWorkspace(root, join(root, 'node_modules'))
-  return root
 }
 
-// ---- 反例：五条方向 × 六种导入形态 ------------------------------------------------------------------
+// ---- 反例：五条方向 × 八种导入形态 ------------------------------------------------------------------
 
-const FORMS = ['type', 'value', 'reexport', 'subpath', 'alias', 'relative'] as const
+const FORMS = [
+  'type',
+  'value',
+  'reexport',
+  'named',
+  'subpath',
+  'alias',
+  'relative',
+  'dynamic',
+] as const
 type Form = (typeof FORMS)[number]
 interface Negative {
   readonly direction: string
@@ -272,17 +302,16 @@ interface Negative {
   readonly path: string
   readonly target: string
 }
-/** 纯契约放类型、值、重导出三种；Cordis 定义放公开子路径、别名、跨成员相对路径三种。导入都写在第 2 行。 */
-function negative(
-  direction: (typeof DIRECTIONS)[number],
-  form: Form,
-): { readonly text: string } & Negative {
+/** 纯契约放类型、值、`export *`、`export { x } from` 四种；Cordis 定义放公开子路径、别名、跨成员相对路径、动态 `import()` 四种。导入都写在第 2 行。 */
+function negative(direction: DirectionRow, form: Form): { readonly text: string } & Negative {
   const toKind = direction.to.includes(MEMBERS.session) ? 'session' : 'agent'
   const pure = toKind === 'session' ? MEMBERS.session : MEMBERS.agent
   const cordis = toKind === 'session' ? MEMBERS.sessionCordis : MEMBERS.agentCordis
   const value = `${toKind}_contract`
   const [fromPure, fromCordis] = direction.from
-  const source = ['type', 'value', 'reexport'].includes(form) ? fromPure : (fromCordis ?? fromPure)
+  if (fromPure === undefined || fromCordis === undefined)
+    throw new Error(`方向行 ${direction.id} 要有纯契约与 Cordis 定义两个源角色`)
+  const source = ['type', 'value', 'reexport', 'named'].includes(form) ? fromPure : fromCordis
   const up = '../../../'
   const forms: Record<Form, [string, string]> = {
     type: [
@@ -294,6 +323,7 @@ function negative(
       `${pure}/src/index.ts`,
     ],
     reexport: [`export * from '${name(pure)}'`, `${pure}/src/index.ts`],
+    named: [`export { ${value} } from '${name(pure)}'`, `${pure}/src/index.ts`],
     subpath: [
       `import { ${value.replace('_contract', '_cordis_contract')}_cordis } from '${name(cordis)}/cordis'\nexport const c = 1`,
       `${cordis}/src/cordis.ts`,
@@ -306,6 +336,7 @@ function negative(
       `import { ${value}_extra } from '${up}${pure.slice('packages/'.length)}/src/extra.ts'\nexport const r = ${value}_extra`,
       `${pure}/src/extra.ts`,
     ],
+    dynamic: [`export const load = () => import('${name(pure)}')`, `${pure}/src/index.ts`],
   }
   const [body, target] = forms[form]
   return {
@@ -316,14 +347,13 @@ function negative(
     text: `// 反例 ${direction.id} ${form}\n${body}\n`,
   }
 }
+function writeNegative(root: string, direction: DirectionRow, form: Form): Negative {
+  const { text, ...row } = negative(direction, form)
+  write(root, row.path, text)
+  return row
+}
 function writeNegatives(root: string): Negative[] {
-  return DIRECTIONS.flatMap(direction =>
-    FORMS.map(form => {
-      const { text, ...row } = negative(direction, form)
-      write(root, row.path, text)
-      return row
-    }),
-  )
+  return DIRECTIONS.flatMap(direction => FORMS.map(form => writeNegative(root, direction, form)))
 }
 
 // ---- 跑 CLI -------------------------------------------------------------------------------------------
@@ -336,18 +366,45 @@ function deps(root: string, runnerRoot: string) {
   return { status: run.status, stdout: run.stdout, stderr: run.stderr }
 }
 const HIT =
-  /^ {2}error \[(DIR-[A-Z-]+)\] (\S+) 依赖了 (\S+)（(\S+) → (\S+)）：(\S+)（(\S+):(\d+)）$/u
+  /^ {2}error \[(?<direction>DIR-[A-Z-]+)\] (?<path>\S+) 依赖了 (?<target>\S+)（(?<from>\S+) → (?<to>\S+)）：(?<source>\S+)（(?<at>\S+):(?<line>\d+)）$/u
+const UNKNOWN =
+  /^ {2}error \[(?<direction>DIR-[A-Z-]+)\] 源角色 (?<role>\S+) 的 paths 在被检树中匹配不到任何文件，不能判方向：(?<source>\S+)$/u
+function group(match: RegExpExecArray, key: string): string {
+  const value = match.groups?.[key]
+  if (value === undefined) throw new Error(`命中行缺少 ${key}：${match[0]}`)
+  return value
+}
 function hits(stdout: string) {
   return stdout
     .split('\n')
     .flatMap(line => {
       const match = HIT.exec(line)
       if (match === null) return []
-      const [, direction, path, target, from, to, source, at, number] = match
-      return [{ direction, path, target, from, to, source, at, line: Number(number) }]
+      const field = (key: string) => group(match, key)
+      return [
+        {
+          direction: field('direction'),
+          path: field('path'),
+          target: field('target'),
+          from: field('from'),
+          to: field('to'),
+          source: field('source'),
+          at: field('at'),
+          line: Number(field('line')),
+        },
+      ]
     })
     .sort((a, b) => `${a.path}${a.direction}`.localeCompare(`${b.path}${b.direction}`))
 }
+function unknowns(stdout: string) {
+  return stdout.split('\n').flatMap(line => {
+    const match = UNKNOWN.exec(line)
+    if (match === null) return []
+    return [{ direction: group(match, 'direction'), role: group(match, 'role') }]
+  })
+}
+const located = (rows: ReturnType<typeof hits>) =>
+  rows.map(({ direction, path, target, line }) => ({ direction, path, target, line }))
 const expected = (rows: readonly Negative[]) =>
   [...rows]
     .map(row => ({ direction: row.direction, path: row.path, target: row.target, line: 2 }))
@@ -355,13 +412,19 @@ const expected = (rows: readonly Negative[]) =>
 
 describe('schema 3 的方向行（C1）', () => {
   const parse = (value: unknown) => parseConstraints(JSON.stringify(value))
-  it('schema 3 声明方向行；schema 2 照旧解析，带 directions 时按未知字段报错', () => {
+  it('schema 3 声明方向行；schema 1、2 照旧解析，带 directions 时按未知字段报错', () => {
     const parsed = parse(policy())
     expect(parsed.schemaVersion).toBe(3)
     expect(parsed.directions?.map(row => row.id)).toEqual(DIRECTIONS.map(row => row.id))
     expect(parse(policy(2, null)).directions).toBeUndefined()
+    expect(parse(policy(1, null)).directions).toBeUndefined()
     expect(() => parse(policy(2))).toThrow('unknown fields: directions')
+    expect(() => parse(policy(1))).toThrow('unknown fields: directions')
     expect(parse(policy(3, null)).directions).toEqual([])
+  })
+  it('directions 只能缺省或是数组', () => {
+    expect(() => parse({ ...policy(3, null), directions: null })).toThrow('require arrays')
+    expect(() => parse(policy(3, {}))).toThrow('require arrays')
   })
   it.each([
     [
@@ -384,9 +447,9 @@ describe('schema 3 的方向行（C1）', () => {
     expect(() => parse(policy(3, [{ ...first, ...patch }, ...rest]))).toThrow(message)
   })
   it('方向行 id 重复报错', () => {
-    expect(() => parse(policy(3, [...DIRECTIONS, DIRECTIONS[0]]))).toThrow('duplicate identities')
+    expect(() => parse(policy(3, [...DIRECTIONS, AGENT_SESSION]))).toThrow('duplicate identities')
   })
-  it('方向行引用的角色的 paths 跨成员时报错', () => {
+  it('方向行引用的角色的 paths 跨成员、不在成员目录里或在 examples/ 时报错', () => {
     const withPaths = (paths: string[]) =>
       policy(
         3,
@@ -397,6 +460,37 @@ describe('schema 3 的方向行（C1）', () => {
       parse(withPaths([`${MEMBERS.agent}/src/**`, `${MEMBERS.agentCordis}/src/**`])),
     ).toThrow(`${MEMBERS.agent} does not stay inside one member`)
     expect(() => parse(withPaths([MEMBERS.agent]))).toThrow('does not stay inside one member')
+    expect(() => parse(withPaths(['examples/agent-demo/src/**']))).toThrow(
+      `${MEMBERS.agent} is in examples/`,
+    )
+  })
+  it('方向行引用的角色的 paths 与别的角色相同或互相包含时报错（R1 的两个反例）', () => {
+    const extra = (id: string, paths: string[]): ArchitectureRole => ({
+      id,
+      paths,
+      layer: 'unknown',
+      domains: ['agent'],
+      status: 'candidate',
+      source: `${MEMBERS.agent}/SPEC.md`,
+    })
+    // 更精确、不在 from 里的角色会把 src/** 的一部分截走。
+    const precise = extra(`${MEMBERS.agent}/testing`, [`${MEMBERS.agent}/src/testing/**`])
+    expect(() => parse(policy(3, DIRECTIONS, [...roles(), precise]))).toThrow(
+      `${MEMBERS.agent} shares or contains the paths of ${precise.id}: ${MEMBERS.agent}/src/**`,
+    )
+    expect(() => parse(policy(3, DIRECTIONS, [precise, ...roles()]))).toThrow(
+      'shares or contains the paths of',
+    )
+    // paths 相同的角色让成员归属不唯一。
+    const twin = extra(`${MEMBERS.agent}/twin`, [`${MEMBERS.agent}/src/**`])
+    expect(() => parse(policy(3, DIRECTIONS, [...roles(), twin]))).toThrow(
+      `${MEMBERS.agent} shares or contains the paths of ${twin.id}`,
+    )
+    // 与方向行无关的两个角色互相包含不是方向行的错。
+    const aside = extra('packages/agent/agent-host-local/testing', [
+      `${MEMBERS.host}/src/testing/**`,
+    ])
+    expect(parse(policy(3, DIRECTIONS, [...roles(), aside])).directions).toHaveLength(5)
   })
   it('方向行的 source 按角色 source 的规则核对：缺锚点在可信 runner 读取时报错', () => {
     const root = temporaryDirectory('omne-direction-policy-')
@@ -408,6 +502,7 @@ describe('schema 3 的方向行（C1）', () => {
       ),
     )
     expect(() => readRunnerConstraints(root)).toThrow('missing source anchor')
+    expect(() => readRunnerConstraints(root)).toThrow(`runner ${root} ${CONSTRAINTS}`)
     writePolicy(root, policy())
     expect(readRunnerConstraints(root)).toMatchObject({ kind: 'present', path: CONSTRAINTS })
     rmSync(join(root, CONSTRAINTS))
@@ -415,8 +510,8 @@ describe('schema 3 的方向行（C1）', () => {
   })
 })
 
-describe('omne-deps 的方向发现（C2–C4）', { timeout: 120_000 }, () => {
-  it('合法对照通过；每条方向 × 六种形态都命中，写明方向行、源、目标与行号；未解析与环不算命中；被检树改不了规则；删掉反例后恢复', () => {
+describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
+  it('合法对照通过；每条方向 × 八种形态都命中，写明方向行、源、目标与行号；未解析与环不算命中；被检树改不了规则；删掉反例后恢复', () => {
     const tree = subject()
     const trusted = runner(tree)
     // C3：只有合法对照时通过，汇总行写明检查了几条方向行、几个成员对。
@@ -441,7 +536,7 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 120_000 }, () => {
     expect(siblingRun.stdout).toContain('组之间成环：packages/agent、packages/session')
     rmSync(join(tree, sibling))
 
-    // C2：三十个反例，外加一处未解析的导入与一个文件环。
+    // C2：四十个反例，外加一处未解析的导入与一个文件环。
     const negatives = writeNegatives(tree)
     write(
       tree,
@@ -462,16 +557,14 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 120_000 }, () => {
     expect(failing.stderr).toBe('')
     expect(failing.status).toBe(1)
     const found = hits(failing.stdout)
-    expect(
-      found.map(({ direction, path, target, line }) => ({ direction, path, target, line })),
-    ).toEqual(expected(negatives))
+    expect(located(found)).toEqual(expected(negatives))
     expect(found.every(hit => hit.source === SOURCE)).toBe(true)
     expect(found.find(hit => hit.path.includes('-type.ts'))).toMatchObject({
       from: MEMBERS.agent,
       to: MEMBERS.session,
       at: `${MEMBERS.agent}/src/neg-DIR-AGENT-SESSION-type.ts`,
     })
-    expect(failing.stdout).toContain('依赖方向：检查了 5 条方向行、20 个成员对，命中 30 处')
+    expect(failing.stdout).toContain('依赖方向：检查了 5 条方向行、20 个成员对，命中 40 处')
     expect(failing.stdout).toMatch(
       /\[no-unresolvable\] packages\/agent\/agent-contract\/src\/unresolved\.ts 依赖了 @omne-harness\/nonexistent/u,
     )
@@ -480,47 +573,68 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 120_000 }, () => {
       false,
     )
 
-    // C4：被检树自己的规则文件与预设改了也不改变结果。
+    // C4：被检树自己的规则文件与预设，改了也好、删了也好，都不改变结果。
     writePolicy(tree, policy(2, null))
     write(tree, '.dependency-cruiser.cjs', 'module.exports = { forbidden: [], options: {} }\n')
     write(tree, 'tsconfig.base.json', '{ "compilerOptions": {} }\n')
-    const unchanged = deps(tree, trusted)
-    expect(unchanged.status).toBe(1)
-    expect(
-      hits(unchanged.stdout).map(({ direction, path, target, line }) => ({
-        direction,
-        path,
-        target,
-        line,
-      })),
-    ).toEqual(expected(negatives))
+    const overridden = deps(tree, trusted)
+    expect(overridden.status).toBe(1)
+    expect(located(hits(overridden.stdout))).toEqual(expected(negatives))
+    for (const path of [...POLICY_FILES, '.dependency-cruiser.cjs', 'tsconfig.base.json'])
+      rmSync(join(tree, path))
+    const deleted = deps(tree, trusted)
+    expect(deleted.status).toBe(1)
+    expect(located(hits(deleted.stdout))).toEqual(expected(negatives))
 
     // 删掉反例、未解析导入与环后恢复通过。
     for (const row of negatives) rmSync(join(tree, row.path))
-    for (const path of ['unresolved.ts']) rmSync(join(tree, MEMBERS.agent, 'src', path))
+    rmSync(join(tree, MEMBERS.agent, 'src', 'unresolved.ts'))
     for (const path of ['cycle-a.ts', 'cycle-b.ts']) rmSync(join(tree, MEMBERS.model, 'src', path))
     const restored = deps(tree, trusted)
     expect(restored.status).toBe(0)
     expect(restored.stdout).toContain('命中 0 处')
-
-    // 单独一个反例就退出 1：取别名这种只有 runner 的 tsconfig 声明了 paths 才解析得到的形态。
-    const [first] = DIRECTIONS
-    const { text, ...single } = negative(first, 'alias')
-    write(tree, single.path, text)
-    const alone = deps(tree, trusted)
-    expect(alone.status).toBe(1)
-    expect(
-      hits(alone.stdout).map(({ direction, path, target, line }) => ({
-        direction,
-        path,
-        target,
-        line,
-      })),
-    ).toEqual(expected([single]))
-    expect(alone.stdout).toContain('命中 1 处')
   })
 
-  it('runner 没有 constraints.json 就不检查方向；schema 2 没有方向行；文件坏了退出 2', () => {
+  it('每条方向单独一个反例就在没有其他发现的树上退出 1', () => {
+    // 没有合法对照的树：没有任何跨成员导入，所以一个反例就是唯一的一处发现，退出码只来自它。
+    const tree = subject(undefined, false)
+    const trusted = runner(tree)
+    const clean = deps(tree, trusted)
+    expect(clean.status).toBe(0)
+    for (const [index, direction] of DIRECTIONS.entries()) {
+      // 形态轮着取，别名这种只有 runner 的 tsconfig 声明了 paths 才解析得到的也在其中。
+      const form = FORMS[index % FORMS.length] ?? 'value'
+      const single = writeNegative(tree, direction, form)
+      const alone = deps(tree, trusted)
+      expect(alone.stderr).toBe('')
+      expect(alone.status).toBe(1)
+      expect(located(hits(alone.stdout))).toEqual(expected([single]))
+      expect(alone.stdout).toContain('命中 1 处')
+      expect(alone.stdout).toContain('✗ 1 处依赖违规、方向命中或环')
+      rmSync(join(tree, single.path))
+    }
+    expect(deps(tree, trusted).status).toBe(0)
+  })
+
+  it('源角色在被检树里没有文件时报 direction-unknown 并退出 1', () => {
+    const tree = subject()
+    const trusted = runner(tree)
+    rmSync(join(tree, MEMBERS.toolCordis, 'src'), { recursive: true })
+    const run = deps(tree, trusted)
+    expect(run.stderr).toBe('')
+    expect(run.status).toBe(1)
+    expect(hits(run.stdout)).toEqual([])
+    expect(unknowns(run.stdout)).toEqual([
+      { direction: 'DIR-TOOL-SESSION', role: MEMBERS.toolCordis },
+      { direction: 'DIR-TOOL-AGENT', role: MEMBERS.toolCordis },
+    ])
+    expect(run.stdout).toContain(
+      '依赖方向：检查了 5 条方向行、20 个成员对，命中 0 处，2 处源角色没有文件',
+    )
+    expect(run.stdout).toContain('✗ 2 处依赖违规、方向命中或环')
+  })
+
+  it('runner 没有 constraints.json 就不检查方向；schema 2 没有方向行；文件坏了退出 2 且不跑 dependency-cruiser', () => {
     const tree = subject()
     // 反例让 Agent、Model、Tool 的纯契约成环，所以退出码 1 来自预设的环，不来自方向。
     writeNegatives(tree)
@@ -543,18 +657,26 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 120_000 }, () => {
     write(missing, CONSTRAINTS, '{ "schemaVersion": 3, ')
     const broken = deps(tree, missing)
     expect(broken.status).toBe(2)
-    expect(broken.stderr).toContain(CONSTRAINTS)
+    expect(broken.stderr).toContain(`runner ${missing} ${CONSTRAINTS}`)
     expect(broken.stdout).toBe('')
 
     writePolicy(missing, policy(2, DIRECTIONS))
     const rejected = deps(tree, missing)
     expect(rejected.status).toBe(2)
     expect(rejected.stderr).toContain('unknown fields: directions')
+    expect(rejected.stdout).toBe('')
+
+    // 两份约束文件并存也退出 2。
+    writePolicy(missing, policy())
+    write(missing, '.meta_harness/design/architecture/constraints.json', '{}')
+    const ambiguous = deps(tree, missing)
+    expect(ambiguous.status).toBe(2)
+    expect(ambiguous.stderr).toContain('Ambiguous architecture constraints')
   })
 })
 
-describe('架构符合性报告的方向行（C5）', { timeout: 120_000 }, () => {
-  /** 报告读被检树自己版本的 constraints.json，所以规则也写进被检树；预设仍只从 runner 读。 */
+describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () => {
+  /** 报告的其他行读被检树自己的 constraints.json，所以规则也写进被检树；方向行与预设只从 runner 读。 */
   function reportable(): { tree: string; trusted: string } {
     // readConformance 要求根是 Git 仓库顶层，成员直接写进 git 仓库。
     const tree = subject(repository())
@@ -573,8 +695,10 @@ describe('架构符合性报告的方向行（C5）', { timeout: 120_000 }, () =
       else process.env['OMNE_RUNNER_ROOT'] = previous
     }
   }
-  const directionRows = (root: string) =>
-    readConformance({ root }).rows.filter(row => row.rule === 'DIRECTION')
+  const directionRows = (root: string, base?: string) =>
+    readConformance({ root, ...(base === undefined ? {} : { base }) }).rows.filter(
+      row => row.rule === 'DIRECTION',
+    )
 
   it('每个成员对一行：收敛、偏离与未知各有一例，偏离逐处列源、目标与行号；报告本身不因偏离失败', () => {
     const { tree, trusted } = reportable()
@@ -634,11 +758,17 @@ describe('架构符合性报告的方向行（C5）', { timeout: 120_000 }, () =
     ).toBe(true)
   })
 
-  it('schema 2 的被检树没有方向行；--member 投影按源成员或目标成员取行', () => {
+  it('方向行只从 runner 读：runner 没有方向行就没有这些行，被检树的 schema 不起作用；--member 投影按源成员或目标成员取行', () => {
     const { tree, trusted } = reportable()
+    // 被检树是 schema 2 也有方向行，因为 runner 有。
     writePolicy(tree, policy(2, null))
-    expect(withRunner(trusted, () => directionRows(tree))).toEqual([])
+    expect(withRunner(trusted, () => directionRows(tree))).toHaveLength(20)
+    // runner 是 schema 2 或缺文件时没有方向行，被检树自己的方向行不算数。
     writePolicy(tree, policy())
+    const plain = runner(tree, policy(2, null))
+    expect(withRunner(plain, () => directionRows(tree))).toEqual([])
+    const absent = runner(tree, null)
+    expect(withRunner(absent, () => directionRows(tree))).toEqual([])
     const projected = withRunner(trusted, () =>
       readConformance({ root: tree, member: MEMBERS.session }).rows.filter(
         row => row.rule === 'DIRECTION',
@@ -646,5 +776,32 @@ describe('架构符合性报告的方向行（C5）', { timeout: 120_000 }, () =
     )
     expect(projected).toHaveLength(6)
     expect(projected.every(row => row.targetMember === MEMBERS.session)).toBe(true)
+  })
+
+  it('给基线时偏离行按基线的图判新旧；基线的图不可得就不判，留 unjudged', () => {
+    const { tree, trusted } = reportable()
+    const stock = writeNegative(tree, AGENT_SESSION, 'value')
+    const base = commit(tree, 'stock deviation')
+    const fresh = writeNegative(tree, DIRECTIONS[3] ?? AGENT_SESSION, 'value')
+    const rows = withRunner(trusted, () => directionRows(tree, base))
+    const ageOf = (path: string) =>
+      rows.find(row => row.sites.some(site => site.path === path))?.age
+    expect(ageOf(stock.path)).toBe('stock')
+    expect(ageOf(fresh.path)).toBe('new')
+    expect(rows.filter(row => row.state !== 'deviation').every(row => row.age === 'unjudged')).toBe(
+      true,
+    )
+    // 被检版本的图已经算好传进来，然后弄坏 runner 的预设：基线的图取不到，当前的偏离不判为新增。
+    const graph = withRunner(trusted, () => workingGraph(tree))
+    write(
+      trusted,
+      '.dependency-cruiser.cjs',
+      'module.exports = { forbidden: [ { name: "broken" ],\n',
+    )
+    const unjudged = withRunner(trusted, () =>
+      readConformance({ root: tree, base, graph }).rows.filter(row => row.rule === 'DIRECTION'),
+    )
+    expect(unjudged.map(row => row.state)).toEqual(rows.map(row => row.state))
+    expect(unjudged.every(row => row.age === 'unjudged')).toBe(true)
   })
 })

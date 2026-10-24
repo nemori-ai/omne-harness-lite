@@ -13,8 +13,7 @@ Three unpublished tool members import this package through its subpaths. This pa
 ## Repository roots and configuration
 
 - The checked repository is `OMNE_SUBJECT_ROOT`. When it is not set, it is the Git root of the current directory.
-- The runner repository is `OMNE_RUNNER_ROOT`. When it is not set, it is the checked repository. Dependency rules (`.dependency-cruiser.cjs`, `tsconfig.base.json`), the direction rows of `docs/architecture/constraints.json` (schema 3, see the [conformance contract](src/arch/CONFORMANCE.md#方向行)) and configuration come only from the runner repository, so a checked tree cannot change them.
-- `omne-deps` reports each resolved import that hits a direction row with the row id, the source file, the target file and the line, and exits 1. It judges type imports, re-exports, dynamic imports, package subpaths, tsconfig aliases and relative paths by the resolved target. An unresolved import is not a hit; `no-unresolvable` reports it. When the runner has no `constraints.json`, the command prints that it did not check directions and the exit code comes from the other findings. A `constraints.json` that does not parse or validate exits 2.
+- The runner repository is `OMNE_RUNNER_ROOT`. When it is not set, it is the checked repository. Dependency rules (`.dependency-cruiser.cjs`, `tsconfig.base.json`), the direction rows of `docs/architecture/constraints.json` (schema 3, see the [conformance contract](src/arch/CONFORMANCE.md#方向行) and [Dependency directions](#dependency-directions)) and configuration come only from the runner repository, so a checked tree cannot change them.
 - Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics`, `acceptanceLock` and `contractApi`. Each command reads only its own section. A missing file, a missing section that a command reads, or an unknown section is an error. No defaults apply. Version 0.0.10 is the first version that accepts the `contractApi` section. Earlier versions reject it.
 - dependency-cruiser needs TypeScript to parse `.ts` files. With pnpm, add `typescript` to dependency-cruiser under `packageExtensions` in `pnpm-workspace.yaml`. If TypeScript is not found, the dependency check exits with an error. It does not pass with the `.ts` files left out.
 
@@ -40,7 +39,7 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 
 | Command | Source entry | Purpose |
 | --- | --- | --- |
-| `omne-deps` | `src/deps/cli.ts` | Dependency rules, and cycles between members and groups |
+| `omne-deps` | `src/deps/cli.ts` | Dependency rules, the direction rows of `constraints.json`, and cycles between members and groups |
 | `omne-declarations` | `src/declarations/cli.ts` | Reads member `dist` declarations with TypeScript 6 |
 | `omne-contract-api` | `src/declarations/api-cli.ts` | Contract API snapshots: write, check, and a coarse class of the change against a base |
 | `omne-metrics` | `src/metrics/cli.ts` | Structure metrics and the review page |
@@ -52,6 +51,17 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 The actual architecture extraction reads only the files of one revision. A package-name `extends` (for example `@omne-harness/repo-config/tsconfig.base.json`) points at an installed module. The extraction does not apply its options and lists it under `configuration.installedExtends` as `<config file> -> <specifier>`.
 
 `pnpm run check:design` checks current design sources, domain objects, and generated inputs. `pnpm run loop:health` reports trends, test timings, and Git history.
+
+## Dependency directions
+
+Version 0.0.12 is the first version in which `omne-deps` checks the direction rows of `constraints.json`. The rows and the roles come only from the runner repository. `--root` changes only the checked tree.
+
+- A hit is a resolved import whose file matches the `paths` of a `from` role of a row (the match uses `paths` only, not the most precise role; validation already rejects a referenced role whose `paths` equal or contain the `paths` of another role) and whose resolved target file is in the member of a `to` role. Type imports, `export … from` (including `export *` and `export { x } from`), dynamic `import()`, package subpaths, tsconfig aliases and relative paths are judged by the resolved target. A target in `src/`, `dist/` or a declaration file is the same member. An unresolved import is not a hit; `no-unresolvable` reports it.
+- Each hit is one `direction-rule` finding with the row id, the source file, the target file, the source role, the target role, the cited source and the import line. When a `from` role of a row matches no file in the checked tree, the command reports one `direction-unknown` finding that names the row and the role. A renamed or moved member does not pass with zero hits.
+- Any `direction-rule` or `direction-unknown` finding exits 1. The other findings and exit codes keep their meaning.
+- The summary line prints the number of rows, member pairs and hits, and the number of source roles without files when there are any.
+- No direction rows: when the runner has no `constraints.json`, the command prints that it did not check directions, and the exit code comes from the other findings. A schema 1 or 2 file, or a schema 3 file without `directions`, prints that there are no direction rows.
+- Exit 2: `constraints.json` does not parse, fails validation, fails the check of its cited sources, or `docs/architecture/constraints.json` and `.meta_harness/design/architecture/constraints.json` both exist. The command reads the file before it runs dependency-cruiser.
 
 ## Contract API snapshots
 
@@ -92,10 +102,11 @@ That explicit base does not change the automatic hook's base. The internal 40-se
 The clean loop reads complete current and BASE sources through `sensors.architecture`.
 Global expectations belong to `docs/architecture/constraints.json`.
 Each version discovers its own current or historical input. Duplicate owners and invalid source references fail.
-Schema 2 source paths start at repository root. Referenced files and Markdown anchors are read at the same version.
+Schema 2 and 3 source paths start at repository root. Referenced files and Markdown anchors are read at the same version.
 IC-1 and IC-5 use adopted roles and actual public exports. Directory names grant no exception.
 A missing current or BASE input remains unknown or no-data. Current deletion still reports its semantic change.
 Changes to cited Markdown also trigger the hook. See the [conformance contract](src/arch/CONFORMANCE.md).
+The conformance report has [direction rows](src/arch/CONFORMANCE.md#方向行). The rows and the roles come from the runner repository's `constraints.json`, the same file that `omne-deps` reads. The dependency facts come from the dependency graph of the reported version. When that graph is not available, the rows are unknown. A direction deviation is reported in the loop. It is not a hard line.
 It reports static conformance separately from added, removed and changed assembly facts.
 Fact counts are neutral. They have no thresholds or trend comparison.
 

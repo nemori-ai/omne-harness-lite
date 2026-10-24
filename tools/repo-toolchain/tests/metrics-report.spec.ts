@@ -49,6 +49,7 @@ const graph: DependencyGraph = {
       name: 'account-identity-sql',
     },
   ],
+  modules: ['packages/core/storage/src/index.ts', consumer.path],
   edges: [
     {
       from: 'packages/tenancy/account-identity-sql',

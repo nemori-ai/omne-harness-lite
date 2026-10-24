@@ -11,8 +11,8 @@ import type { ActualExtraction, PackageImport, Fact } from './actual-model.ts'
 import type { ActualArchitectureInput } from './actual.ts'
 import { publicEntries, StaticResolver, type PublicEntry } from './resolve.ts'
 import type { Snapshot } from './actual-model.ts'
-import { directionRows, type DirectionFacts } from './directions.ts'
-import { revisionGraph, workingGraph, type DependencyGraph } from '../deps/graph.ts'
+import { directionConformance } from './directions.ts'
+import type { DependencyGraph } from '../deps/graph.ts'
 import type {
   ArchitectureConstraints,
   Conformance,
@@ -506,17 +506,10 @@ export function conformanceOf(
 ): Conformance {
   return analyzeConformance(root, current, baseline, graph).conformance
 }
-/** 方向行要的依赖事实：拿不到图不算符合，记成 unavailable 让每一行都是 unknown 并带原因。 */
-function directionFacts(read: () => DependencyGraph): DirectionFacts {
-  try {
-    return { kind: 'graph', dependencies: read().dependencies }
-  } catch (error) {
-    return { kind: 'unavailable', reason: error instanceof Error ? error.message : String(error) }
-  }
-}
 /**
  * One extraction per source version for constraints and actual assembly observations.
- * 调用方已经算过当前版本的依赖图时传进来，免得再跑一次 dependency-cruiser；没传就按版本自己取。
+ * 方向行一节另从可信 runner 读（arch/directions.ts）；调用方已经算过当前版本的依赖图时传进来，
+ * 免得再跑一次 dependency-cruiser；没传就按版本自己取，而且只在 runner 有方向行时才取。
  */
 export function analyzeConformance(
   root: string,
@@ -528,22 +521,7 @@ export function analyzeConformance(
     base = baseline === undefined ? undefined : readBaselineConstraints(root, baseline)
   const headActual = extractArchitecture(current.snapshot),
     baseActual = baseline === undefined ? undefined : extractArchitecture(baseline.snapshot)
-  const intent = base ?? head
-  const rows = rowsOf(headActual, intent, current.snapshot)
-  if (intent.value !== null)
-    rows.push(
-      ...directionRows(
-        { roles: activeRoles(intent), directions: intent.value.directions ?? [] },
-        directionFacts(() =>
-          graph !== undefined
-            ? graph
-            : current.source.kind === 'worktree'
-              ? workingGraph(root)
-              : revisionGraph(root, current.source.commit),
-        ),
-        current.snapshot.texts.keys(),
-      ),
-    )
+  const rows = rowsOf(headActual, base ?? head, current.snapshot)
   for (const [version, input] of [
     ['current', head],
     ['baseline', base],
@@ -562,18 +540,9 @@ export function analyzeConformance(
       })
   }
   const stock = new Set(
-    baseActual === undefined || baseline === undefined
+    baseActual === undefined
       ? []
-      : [
-          ...rowsOf(baseActual, intent, baseline.snapshot),
-          ...(intent.value === null
-            ? []
-            : directionRows(
-                { roles: activeRoles(intent), directions: intent.value.directions ?? [] },
-                directionFacts(() => revisionGraph(root, baseline.source.commit)),
-                baseline.snapshot.texts.keys(),
-              )),
-        ]
+      : rowsOf(baseActual, base ?? head, baseline?.snapshot ?? current.snapshot)
           .filter(row => row.state === 'deviation')
           .map(row => row.id),
   )
@@ -604,15 +573,18 @@ export function analyzeConformance(
     current: head,
     ...(base === undefined ? {} : { baseline: base }),
     comparedWith: base === undefined ? 'current' : 'baseline',
-    rows: rows.map(row => ({
-      ...row,
-      age:
-        row.state !== 'deviation' || baseline === undefined
-          ? 'unjudged'
-          : stock.has(row.id)
-            ? 'stock'
-            : 'new',
-    })),
+    rows: [
+      ...rows.map((row): ConformanceRow => ({
+        ...row,
+        age:
+          row.state !== 'deviation' || baseline === undefined
+            ? 'unjudged'
+            : stock.has(row.id)
+              ? 'stock'
+              : 'new',
+      })),
+      ...directionConformance({ root, current: current.source, baseline: baseline?.source, graph }),
+    ],
     changes,
     sourceChanges,
     changeState: base === undefined ? 'no-baseline' : 'compared',

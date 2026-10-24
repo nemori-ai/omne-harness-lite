@@ -62,8 +62,9 @@ describe('graphOf', () => {
     expect(graph.findings).toEqual([])
   })
 
-  it('文件级的依赖事实逐处保留：测试里的也在，成员内部、内建模块与解析失败的不在', () => {
+  it('文件级的依赖事实逐处保留：测试里的也在，成员内部、内建模块与解析失败的不在；成员里的模块本身也留下', () => {
     // 方向规则要按源文件判角色，所以不能只有按成员对归并的边；源范围是 src/** 全部，包含测试与 testing 入口。
+    // 模块清单让「源角色有没有文件」能从同一张图判，没有跨成员导入的文件也算有。
     const output: CruiseOutput = {
       modules: [
         {
@@ -79,10 +80,18 @@ describe('graphOf', () => {
           source: 'packages/model/m/tests/m.spec.ts',
           dependencies: [dependency('@omne-harness/n', 'packages/model/n/dist/index.js')],
         },
+        { source: 'packages/model/n/src/alone.ts', dependencies: [] },
+        { source: 'tools/x/src/index.ts', dependencies: [] },
       ],
       summary: { violations: [] },
     }
-    expect(graphOf('/nonexistent', output).dependencies).toEqual([
+    const graph = graphOf('/nonexistent', output)
+    expect(graph.modules).toEqual([
+      'packages/model/m/src/index.ts',
+      'packages/model/m/tests/m.spec.ts',
+      'packages/model/n/src/alone.ts',
+    ])
+    expect(graph.dependencies).toEqual([
       {
         path: 'packages/model/m/src/index.ts',
         line: 1,
