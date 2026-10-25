@@ -27,10 +27,10 @@
   "dependencies": {
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/message": "workspace:*",
     "@types/node": "catalog:",

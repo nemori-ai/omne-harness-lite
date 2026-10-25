@@ -9,6 +9,8 @@ import {
   decodeCommitOrder,
   decodeRecoveryGrantRef,
   type AccountingLimits,
+  type AdoptedRequestSource,
+  type ContextReadEligibility,
   type AdoptedRequestFact,
   type ContextAccountingInput,
   type ContextTarget,
@@ -99,20 +101,22 @@ async function* replayOf(...facts: ContextAccountingInput[]) {
 }
 function setup(
   options: {
-    source?: () => SourceDecision
-    recovery?: () => SourceDecision
+    source?: () => SourceDecision | Promise<SourceDecision>
+    recovery?: () => SourceDecision | Promise<SourceDecision>
     checkFact?: (input: ContextAccountingInput) => SourceDecision
     limits?: AccountingLimits
+    eligibility?: ContextReadEligibility<string>
+    adopted?: AdoptedRequestSource<string>
   } = {},
 ) {
   const adoptedSource = createMemoryAdoptedSource<string>()
   const eligibility = createMemoryReadEligibility<string>()
   const accounting = createContextAccounting<string>({
-    sourceAuthority: { check: async () => options.source?.() ?? { kind: 'allowed' } },
-    readEligibility: eligibility,
-    adoptedSource,
+    sourceAuthority: { check: async () => (await options.source?.()) ?? { kind: 'allowed' } },
+    readEligibility: options.eligibility ?? eligibility,
+    adoptedSource: options.adopted ?? adoptedSource,
     recoveryAuthority: {
-      check: async () => options.recovery?.() ?? { kind: 'allowed' },
+      check: async () => (await options.recovery?.()) ?? { kind: 'allowed' },
       checkFact: async ({ input }) => options.checkFact?.(input) ?? { kind: 'allowed' },
     },
     limits: options.limits ?? limits,
@@ -123,7 +127,13 @@ function setup(
       target,
       replay: { snapshot: evidence, facts: replayOf(...facts) },
     })
-  return { ...accounting, adoptedSource, eligibility, rebuild }
+  const rebuildAt = (at: ContextTarget, ...facts: ContextAccountingInput[]) =>
+    accounting.recovery.rebuildAccounts({
+      access: system,
+      target: at,
+      replay: { snapshot: evidence, facts: replayOf(...facts) },
+    })
+  return { ...accounting, adoptedSource, eligibility, rebuild, rebuildAt }
 }
 
 describe('limits', () => {
@@ -377,5 +387,440 @@ describe('usage: the four window states', () => {
     })
     a.eligibility.set({ kind: 'denied' })
     expect(await a.inbox.usage({ access, target })).toEqual({ kind: 'denied' })
+  })
+})
+
+function withUsage(usage: CallAccount['usage'], revision = '0'): ContextAccountingInput {
+  return { ...fact(revision), account: { ...account(revision), usage } }
+}
+const token = (name: string, lexeme: string) =>
+  ({ name, state: 'known', lexeme, unit: 'token' }) as CallAccount['usage'][number]
+function deferred<T>() {
+  let open: (value: T) => void = () => {}
+  const promise = new Promise<T>(resolve => {
+    open = resolve
+  })
+  return { promise, open }
+}
+
+describe('receive: the fixed order of checks', () => {
+  it('a receive without access is invalid', async () => {
+    const a = setup()
+    await a.rebuild()
+    expect(await a.inbox.receive({ access: null as never, input: fact() })).toEqual({
+      kind: 'invalid',
+      field: 'access',
+      reason: 'missing-access',
+    })
+  })
+  it.each([
+    ['not an object', 'x'],
+    ['another kind', { ...fact(), kind: 'other' }],
+    ['no origin', { ...fact(), origin: null }],
+    ['no target', { ...fact(), target: 'scope' }],
+    ['no call', { ...fact(), call: [] }],
+    ['a dispatch that is not text', { ...fact(), dispatch: 7 }],
+    ['no commit evidence', { ...fact(), committed: null }],
+  ])(
+    'a fact with %s is unsupported, and shape comes before the access tenant',
+    async (_name, bad) => {
+      const authorityCalls: string[] = []
+      const a = setup({
+        source: () => {
+          authorityCalls.push('check')
+          return { kind: 'allowed' }
+        },
+      })
+      await a.rebuild()
+      const stranger = { principal: 'p', tenant: tenantOf('9') }
+      expect(await a.inbox.receive({ access: stranger, input: bad as never })).toEqual({
+        kind: 'invalid',
+        field: 'input',
+        reason: 'unsupported-format',
+      })
+      expect(authorityCalls).toEqual([])
+    },
+  )
+  it.each([
+    ['a producer that is not model', { origin: { producer: 'tool', sender, resultVersion: null } }],
+    [
+      'a subject that is not a model call',
+      { account: { ...account('0'), subject: { kind: 'tool_call', id: call } } },
+    ],
+    ['an account its owner refuses', { account: { ...account('0'), revision: 'x' } }],
+  ])('%s is an invalid account', async (_name, change) => {
+    const a = setup()
+    await a.rebuild()
+    expect(
+      await a.inbox.receive({ access, input: { ...fact(), ...change } as never }),
+    ).toMatchObject({
+      kind: 'invalid',
+      field: 'input.account',
+      reason: 'invalid-account',
+    })
+  })
+  it('a target that starts rebuilding while the source is verified is unavailable', async () => {
+    const gate = deferred<SourceDecision>()
+    let answer: () => SourceDecision | Promise<SourceDecision> = () => ({ kind: 'allowed' })
+    const a = setup({ source: () => answer(), recovery: () => ({ kind: 'allowed' }) })
+    await a.rebuild()
+    answer = () => gate.promise
+    const pending = a.inbox.receive({ access, input: fact() })
+    const replay = deferred<void>()
+    async function* slow(): AsyncGenerator<ContextAccountingInput> {
+      await replay.promise
+      yield* []
+    }
+    const rebuilding = a.recovery.rebuildAccounts({
+      access: system,
+      target,
+      replay: { snapshot: evidence, facts: slow() },
+    })
+    await Promise.resolve()
+    gate.open({ kind: 'allowed' })
+    expect(await pending).toEqual({ kind: 'unavailable', diagnostic: 'rebuilding' })
+    replay.open()
+    expect((await rebuilding).kind).toBe('rebuilt')
+  })
+  it('a higher revision after a lower one is inserted and becomes current', async () => {
+    const a = setup()
+    await a.rebuild()
+    await a.inbox.receive({ access, input: fact('1', '100') })
+    expect(await a.inbox.receive({ access, input: fact('2', '200') })).toMatchObject({
+      change: 'inserted',
+    })
+    a.adoptedSource.set(adopted())
+    expect(await a.inbox.usage({ access, target })).toMatchObject({ value: { usedTokens: '200' } })
+  })
+  it('revisions per dispatch are capped; another dispatch still has room', async () => {
+    const a = setup({ limits: { maxTargets: 2, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 2 } })
+    await a.rebuild()
+    await a.inbox.receive({ access, input: fact('0') })
+    await a.inbox.receive({ access, input: fact('1') })
+    expect(await a.inbox.receive({ access, input: fact('2') })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'capacity',
+    })
+    const other = { ...fact('0'), dispatch: must(decodeDispatchId('mdisp_two')) }
+    expect(await a.inbox.receive({ access, input: other })).toMatchObject({ change: 'inserted' })
+  })
+})
+
+describe('only a complete known token input is actual', () => {
+  it.each([
+    [
+      'a provisional item',
+      [
+        token('input', '700'),
+        { ...token('cache-read', '0'), state: 'provisional' },
+        token('cache-write', '0'),
+      ],
+    ],
+    ['a missing cache-read', [token('input', '700'), token('cache-write', '0')]],
+    [
+      'an item in another unit',
+      [
+        token('input', '700'),
+        { ...token('cache-read', '0'), unit: 'byte' },
+        token('cache-write', '0'),
+      ],
+    ],
+    [
+      'an unknown item',
+      [
+        token('input', '700'),
+        { name: 'cache-read', state: 'unknown', unit: 'token' },
+        token('cache-write', '0'),
+      ],
+    ],
+    [
+      'a repeated input item (500 + 300)',
+      [
+        token('input', '500'),
+        token('input', '300'),
+        token('cache-read', '0'),
+        token('cache-write', '0'),
+      ],
+    ],
+  ])('%s gives estimate or unmeasured, never actual', async (_name, usage) => {
+    const a = setup()
+    await a.rebuild()
+    expect(
+      await a.inbox.receive({ access, input: withUsage(usage as CallAccount['usage']) }),
+    ).toMatchObject({
+      kind: 'received',
+    })
+    a.adoptedSource.set(adopted())
+    expect(await a.inbox.usage({ access, target })).toMatchObject({ value: { kind: 'unmeasured' } })
+  })
+  it('the three items are added', async () => {
+    const a = setup()
+    await a.rebuild()
+    await a.inbox.receive({
+      access,
+      input: withUsage([
+        token('input', '100'),
+        token('cache-read', '20'),
+        token('cache-write', '3'),
+      ]),
+    })
+    a.adoptedSource.set(adopted())
+    expect(await a.inbox.usage({ access, target })).toMatchObject({
+      value: { kind: 'actual', usedTokens: '123', ratio: '0.123' },
+    })
+  })
+})
+
+describe('usage: the adopted fact is parsed at the boundary', () => {
+  it.each([
+    ['windowTokens', { windowTokens: '0' }],
+    ['windowTokens', { windowTokens: 'abc' }],
+    ['forecast.usedTokens', { forecast: { kind: 'estimate', usedTokens: 'abc' } }],
+    ['forecast', { forecast: { kind: 'guess', usedTokens: '1' } }],
+    ['accounting', { accounting: { kind: 'some' } }],
+    ['accounting.dispatch', { accounting: { kind: 'unique', dispatch: '' } }],
+    ['order', { order: 'x' }],
+  ])('a bad %s is the named invalid result, never a thrown error', async (field, change) => {
+    const a = setup()
+    await a.rebuild()
+    a.adoptedSource.set({ ...adopted(), ...change } as never)
+    expect(await a.inbox.usage({ access, target })).toEqual({
+      kind: 'invalid',
+      field: `adopted.${field}`,
+      reason: 'unsupported-format',
+    })
+  })
+  it.each([
+    ['target tenant', { target: { tenant: tenantOf('9'), scope: target.scope } }],
+    ['call tenant', { call: { tenant: tenantOf('9'), call } }],
+    ['scope', { target: { tenant, scope: { ...target.scope, ref: 'scope:other' } } }],
+  ])('an adopted fact of another %s contradicts the source', async (_name, change) => {
+    const a = setup()
+    await a.rebuild()
+    a.adoptedSource.set({ ...adopted(), ...change } as never)
+    expect(await a.inbox.usage({ access, target })).toMatchObject({
+      kind: 'invalid',
+      reason: 'source-evidence-conflict',
+    })
+  })
+})
+
+describe('usage: reads keep their class and publication is checked last', () => {
+  it('a usage without access is invalid', async () => {
+    const a = setup()
+    expect(await a.inbox.usage({ access: null as never, target })).toMatchObject({
+      kind: 'invalid',
+      field: 'access',
+    })
+  })
+  it.each([[{ kind: 'unknown' as const }], [{ kind: 'unavailable' as const, diagnostic: 'gone' }]])(
+    'eligibility %j is returned without observing the index',
+    async decision => {
+      const a = setup()
+      await a.rebuild()
+      a.eligibility.set(decision)
+      expect(await a.inbox.usage({ access, target })).toEqual(decision)
+      expect(a.adoptedSource.reads()).toBe(0)
+    },
+  )
+  it.each(['before', 'source', 'after', 'last'] as const)(
+    'a %s read of the adopted source that fails keeps its class',
+    async step => {
+      let counts = 0
+      const failing: AdoptedRequestSource<string> = {
+        authority: sender,
+        async readCount() {
+          counts++
+          const failAt = step === 'before' ? 1 : step === 'after' ? 2 : step === 'last' ? 3 : 0
+          return counts === failAt ? { kind: 'unknown' } : { kind: 'value', value: 'c' as never }
+        },
+        async readSource() {
+          return step === 'source' ? { kind: 'unknown' } : { kind: 'value', value: null }
+        },
+      }
+      const a = setup({ adopted: failing })
+      await a.rebuild()
+      expect(await a.inbox.usage({ access, target })).toEqual({ kind: 'unknown' })
+    },
+  )
+  it('a count that moves before publication discards the attempt and reads again', async () => {
+    let counts = 0
+    const moving: AdoptedRequestSource<string> = {
+      authority: sender,
+      async readCount() {
+        counts++
+        return {
+          kind: 'value',
+          value: (counts === 3 ? 'moved' : `c${counts > 3 ? 2 : 1}`) as never,
+        }
+      },
+      async readSource() {
+        return { kind: 'value', value: null }
+      },
+    }
+    const a = setup({ adopted: moving })
+    await a.rebuild()
+    expect(await a.inbox.usage({ access, target })).toEqual({
+      kind: 'value',
+      value: { kind: 'not-fixed' },
+    })
+    expect(counts).toBe(6)
+  })
+  it('eligibility withdrawn before publication drops the value', async () => {
+    let checks = 0
+    const flipping: ContextReadEligibility<string> = {
+      async check() {
+        checks++
+        return checks === 2 ? { kind: 'denied' } : { kind: 'allowed', revision: 'r' as never }
+      },
+    }
+    const a = setup({ eligibility: flipping })
+    await a.rebuild()
+    expect(await a.inbox.usage({ access, target })).toEqual({ kind: 'denied' })
+  })
+  it('a projection rebuilt between the value and publication is unavailable', async () => {
+    let a: ReturnType<typeof setup> | null = null
+    let checks = 0
+    const rebuilding: ContextReadEligibility<string> = {
+      async check() {
+        checks++
+        if (checks === 2 && a !== null) await a.rebuild()
+        return { kind: 'allowed', revision: 'r' as never }
+      },
+    }
+    a = setup({ eligibility: rebuilding })
+    await a.rebuild()
+    expect(await a.inbox.usage({ access, target })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'Account projection changed',
+    })
+  })
+  it('an unknown target is unavailable as not initialized', async () => {
+    const a = setup()
+    expect(await a.inbox.usage({ access, target })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'uninitialized',
+    })
+  })
+})
+
+describe('rebuild: access, capacity and failure paths', () => {
+  it.each([
+    ['an ordinary access', { principal: 'p', tenant }],
+    ['another scope', { ...system, scope: 'tenant' }],
+    ['a grant that is not text', { ...system, grant: 7 }],
+    ['no access', null],
+  ])('%s is invalid', async (_name, value) => {
+    const a = setup()
+    expect(
+      await a.recovery.rebuildAccounts({
+        access: value as never,
+        target,
+        replay: { snapshot: evidence, facts: replayOf() },
+      }),
+    ).toMatchObject({ kind: 'invalid', field: 'access' })
+  })
+  it('a refused first decision changes nothing', async () => {
+    const a = setup({ recovery: () => ({ kind: 'denied' }) })
+    expect(await a.rebuild()).toEqual({ kind: 'denied' })
+    expect(await a.inbox.receive({ access, input: fact() })).toMatchObject({
+      diagnostic: 'uninitialized',
+    })
+  })
+  it('a second rebuild of a target that is rebuilding is unavailable', async () => {
+    const a = setup()
+    const gate = deferred<void>()
+    async function* slow(): AsyncGenerator<ContextAccountingInput> {
+      await gate.promise
+      yield* []
+    }
+    const first = a.recovery.rebuildAccounts({
+      access: system,
+      target,
+      replay: { snapshot: evidence, facts: slow() },
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(await a.rebuild()).toEqual({ kind: 'unavailable', diagnostic: 'rebuilding' })
+    gate.open()
+    expect((await first).kind).toBe('rebuilt')
+  })
+  it('maxTargets refuses a new target; rebuilding a known target needs no new slot', async () => {
+    const a = setup({ limits: { maxTargets: 1, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 } })
+    await a.rebuild()
+    const other: ContextTarget = { tenant, scope: { ...target.scope, ref: 'scope:other' } as never }
+    expect(await a.rebuildAt(other)).toEqual({ kind: 'unavailable', diagnostic: 'capacity' })
+    expect((await a.rebuild()).kind).toBe('rebuilt')
+  })
+  it('a failed rebuild of a new target gives its capacity slot back', async () => {
+    const a = setup({
+      limits: { maxTargets: 1, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 },
+      checkFact: () => ({ kind: 'denied' }),
+    })
+    const other: ContextTarget = { tenant, scope: { ...target.scope, ref: 'scope:other' } as never }
+    expect(await a.rebuildAt(other, { ...fact(), target: other })).toEqual({ kind: 'denied' })
+    expect((await a.rebuild()).kind).toBe('rebuilt')
+  })
+  it.each([
+    ['a bad shape', () => 'x' as never, 'unsupported-format'],
+    [
+      'another scope',
+      () => ({ ...fact(), target: { tenant, scope: { ...target.scope, ref: 'scope:other' } } }),
+      'tenant-mismatch',
+    ],
+    [
+      'another target tenant',
+      () => ({ ...fact(), target: { tenant: tenantOf('9'), scope: target.scope } }),
+      'tenant-mismatch',
+    ],
+    [
+      'another call tenant',
+      () => ({ ...fact(), call: { tenant: tenantOf('9'), call } }),
+      'tenant-mismatch',
+    ],
+    [
+      'an invalid account',
+      () => ({ ...fact(), account: { ...account('0'), revision: 'x' } }),
+      'invalid-account',
+    ],
+  ])(
+    'a replayed fact with %s fails the rebuild and the target is not ready',
+    async (_n, make, reason) => {
+      const a = setup()
+      expect(await a.rebuild(make() as never)).toMatchObject({ kind: 'invalid', reason })
+      expect(await a.inbox.receive({ access, input: fact() })).toMatchObject({
+        diagnostic: 'uninitialized',
+      })
+    },
+  )
+  it('a refused or throwing final decision leaves the target not ready and not stuck', async () => {
+    let calls = 0
+    let mode: 'deny' | 'throw' | 'allow' = 'deny'
+    const a = setup({
+      recovery: () => {
+        calls++
+        if (calls % 2 === 1) return { kind: 'allowed' }
+        if (mode === 'throw') throw new Error('authority crashed')
+        return mode === 'deny' ? { kind: 'denied' } : { kind: 'allowed' }
+      },
+    })
+    expect(await a.rebuild()).toEqual({ kind: 'denied' })
+    mode = 'throw'
+    expect(await a.rebuild()).toMatchObject({ kind: 'unavailable' })
+    expect(await a.inbox.receive({ access, input: fact() })).toMatchObject({
+      diagnostic: 'uninitialized',
+    })
+    mode = 'allow'
+    expect((await a.rebuild()).kind).toBe('rebuilt')
+  })
+  it('each successful rebuild takes a new generation', async () => {
+    const a = setup()
+    const first = await a.rebuild()
+    const second = await a.rebuild()
+    if (first.kind !== 'rebuilt' || second.kind !== 'rebuilt') throw new Error('rebuild')
+    expect(second.generation).not.toBe(first.generation)
+    expect(await a.inbox.receive({ access, input: fact() })).toMatchObject({
+      generation: second.generation,
+    })
   })
 })

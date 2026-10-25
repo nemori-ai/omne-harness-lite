@@ -40,7 +40,9 @@ function sameSupplier(left: M.Supplier, right: M.ProfileSupplier): boolean {
 /**
  * Measures one complete candidate (RQ-05): acquire a lease with this access and lineage, plan
  * per supplier, measure with that supplier's own representation and parameter adoptions, then
- * give the lease back on every path. A release failure never yields a fixable success.
+ * give the lease back on every path. A release failure never yields a fixable success; when the
+ * operation already failed, that failure is returned and the give-back failure stays with the
+ * lease owner (the registry records it per generation, RQ-12).
  */
 export async function measureCandidate<P>(
   context: MeasureContext<P>,
@@ -71,7 +73,7 @@ export async function measureCandidate<P>(
   return outcome
 }
 function isFailure(value: M.RequestBudget | Failure): value is Failure {
-  return ['denied', 'invalid', 'unavailable', 'unknown'].includes(value.kind)
+  return value.kind !== 'complete' && value.kind !== 'deferred-media'
 }
 function measureWithLease(
   lease: M.ModelPreparationLease,
@@ -104,8 +106,36 @@ function measureWithLease(
       return { kind: 'unavailable', owner: 'meter', diagnostic: canonical(result.failure) }
     reports.push(result.ok)
   }
+  return mergeReports(reports)
+}
+
+/**
+ * One budget for the candidate that keeps every supplier: all checks, every counting basis once,
+ * and the union of deferred media. A supplier's own report is never cut away.
+ */
+function mergeReports(reports: readonly M.RequestBudget[]): M.RequestBudget | Failure {
   const first = reports[0]
   if (first === undefined)
     return { kind: 'invalid', field: 'profile.suppliers', reason: 'missing-input' }
-  return { ...first, checks: reports.flatMap(r => r.checks) }
+  const unique = <T>(items: readonly T[]): T[] => {
+    const seen = new Set<string>()
+    return items.filter(item => {
+      const key = canonical(item)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+  const counting = unique(reports.flatMap(r => r.counting))
+  const base = {
+    inputDigest: first.inputDigest,
+    checks: reports.flatMap(r => r.checks),
+    counting: [first.counting[0], ...counting.slice(1)] as M.RequestBudget['counting'],
+    ...(first.calibration === undefined ? {} : { calibration: first.calibration }),
+  }
+  const references = unique(reports.flatMap(r => (r.kind === 'deferred-media' ? r.references : [])))
+  const [head, ...rest] = references
+  return head === undefined
+    ? { ...base, kind: 'complete' }
+    : { ...base, kind: 'deferred-media', references: [head, ...rest] }
 }

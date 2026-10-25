@@ -88,6 +88,11 @@ function measuredFailure(measured: Exclude<RetentionMeasurement, { kind: 'measur
     : measured
 }
 
+/** A draft that the compaction policy should not have given is a fault of that policy (RQ-06). */
+function policyFault(diagnostic: string) {
+  return { kind: 'unavailable' as const, owner: 'compaction-policy' as const, diagnostic }
+}
+
 async function acceptDraft<P>(
   input: AssemblyInput<P>,
   window: CompactionContext,
@@ -99,14 +104,15 @@ async function acceptDraft<P>(
 ): Promise<PlanResult> {
   const { policies } = context
   const end = window.covered.findIndex(e => e.ref === draft.coverTo)
-  if (end < 0) return invalid('unsupported-format')
+  if (end < 0) return policyFault('The draft ends outside the judgment window')
   const covered = window.covered.slice(0, end + 1)
   const floor = window.open.filter(ref => covered.some(e => e.ref === ref))
   const selected = new Set([...draft.retained, ...floor])
   const retained = covered.filter(e => selected.has(e.ref)).map(e => e.ref)
   const kept = await measure(retained)
   if (kept.kind !== 'measured') return measuredFailure(kept)
-  if (BigInt(kept.tokens) > limit) return invalid('unsupported-format')
+  if (BigInt(kept.tokens) > limit)
+    return policyFault('The draft retains more than the retention budget')
   const bound = draft.bound
   if (
     bound !== policies.compaction.config.stepBound ||
@@ -134,7 +140,7 @@ async function acceptDraft<P>(
   if ('rejected' in legal)
     return legal.rejected === 'source-evidence'
       ? invalid('source-evidence-conflict', 'compaction.context')
-      : invalid('unsupported-format')
+      : policyFault(`The draft is not a legal compaction: ${legal.rejected}`)
   const unsigned: Omit<CompactionBasis, 'digest'> = {
     target: context.target,
     history: input.history,

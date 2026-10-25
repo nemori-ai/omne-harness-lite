@@ -540,7 +540,9 @@ export declare function retentionMeasure<P>(context: OperationContext<P>, candid
 import type { AssemblyFailure, CompactionPlan, InvalidReason, StepRequest, SummaryMaterial } from './values.js';
 import type { AssemblyPolicies } from './ports.js';
 export declare function invalid(reason: InvalidReason, field?: string): AssemblyFailure;
+export declare function baseMaterial(plan: CompactionPlan): SummaryMaterial;
 export declare function planMaterial(plan: CompactionPlan, policies: AssemblyPolicies): SummaryMaterial;
+export declare function materialOfPlan(plan: CompactionPlan, material: SummaryMaterial): boolean;
 export declare function summaryStep(plan: CompactionPlan, index: string, material: SummaryMaterial, policies: AssemblyPolicies): StepRequest;
 ```
 
@@ -2261,7 +2263,7 @@ export type AssemblyFailure = Readonly<{
     original?: M.ConversionResult;
 }>;
 export type InvalidReason = 'missing-input' | 'missing-access' | 'missing-scope' | 'inputs-not-saved' | 'missing-snapshot-material' | 'missing-assembly-context' | 'unsupported-format' | 'compaction-purpose' | 'per-request-variable' | 'profile-binding-conflict' | 'resume-without-full-snapshot' | 'scope-mismatch' | 'contradictory-retry' | 'contributions-not-accepted' | 'cursor-invalidated' | 'plan-mismatch' | 'progress-mismatch' | 'policy-mismatch' | 'tenant-mismatch' | 'unknown-epoch' | 'upper-out-of-range' | 'source-evidence-conflict' | 'invalid-account';
-export type UnavailableOwner = 'history-source' | 'meter' | 'conversion-results' | 'runtime-context' | 'representation' | 'instance' | 'source-registry' | 'input-source' | 'principal-binding' | 'read-eligibility' | 'preparation' | 'accounting';
+export type UnavailableOwner = 'history-source' | 'meter' | 'conversion-results' | 'runtime-context' | 'representation' | 'compaction-policy' | 'instance' | 'source-registry' | 'input-source' | 'principal-binding' | 'read-eligibility' | 'preparation' | 'accounting';
 export type AssemblyUnknown = Readonly<{
     kind: 'unknown';
     source: 'read' | 'commit';

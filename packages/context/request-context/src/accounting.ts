@@ -1,9 +1,10 @@
 // The derived account projection (RQ-14) and its recovery (RQ-15). The durable facts stay in the
 // result receiver's log; this index is rebuilt from it and never authorizes cleaning it.
-import { judgeCallAccount, type CallAccount } from '@omne-harness/call-account'
+import { canonicalAccount, judgeCallAccount, type CallAccount } from '@omne-harness/call-account'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
   decodeAccountingGeneration,
+  decodeCommitOrder,
   windowRatio,
   type Access,
   type AccountingGeneration,
@@ -16,7 +17,6 @@ import {
   type ContextTarget,
   type GroupToken,
   type RecoveryResult,
-  type SourceDecision,
   type SourceRead,
   type WindowUsageValue,
 } from '@omne-harness/request-context-contract'
@@ -33,18 +33,9 @@ type TargetState = {
 const ATTEMPTS = 2
 const INPUT_ITEMS = ['input', 'cache-read', 'cache-write'] as const
 
-function canonical(value: unknown): string {
-  if (value === undefined) return 'null'
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
-  return `{${Object.entries(value)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
-    .join(',')}}`
-}
+/** The account owner's canonical form of an account that `judgeCallAccount` admitted. */
 function fingerprint(account: CallAccount): string {
-  return createHash('sha256').update(canonical(account)).digest('base64url')
+  return createHash('sha256').update(canonicalAccount(account)).digest('base64url')
 }
 function keyOf(target: ContextTarget): string | null {
   const tenant = tenantCodec.encode(target.tenant)
@@ -69,11 +60,12 @@ type Applied =
 function apply(
   index: Index,
   input: ContextAccountingInput,
+  account: CallAccount,
   limits: AccountingOptions<unknown>['limits'],
 ): Applied {
   const key = `${input.call.call}\u0000${input.dispatch}`
-  const revision = input.account.revision
-  const print = fingerprint(input.account)
+  const revision = account.revision
+  const print = fingerprint(account)
   const dispatch = index.dispatches.get(key)
   const known = dispatch?.revisions.get(revision)
   if (known !== undefined)
@@ -91,7 +83,7 @@ function apply(
   const value = BigInt(revision)
   if (entry.current !== null && entry.current.revision > value)
     return { kind: 'applied', change: 'superseded' }
-  entry.current = { revision: value, fingerprint: print, account: input.account }
+  entry.current = { revision: value, fingerprint: print, account }
   return { kind: 'applied', change: 'inserted' }
 }
 
@@ -113,7 +105,12 @@ function factFailure(input: unknown): Readonly<{
     return { kind: 'invalid', field: 'input', reason: 'unsupported-format' }
   return null
 }
-function accountFailure(input: ContextAccountingInput) {
+/** The account as its owner admits it, or the named invalid result. */
+function admittedAccount(
+  input: ContextAccountingInput,
+):
+  | Readonly<{ kind: 'account'; account: CallAccount }>
+  | Readonly<{ kind: 'invalid'; field: string; reason: 'invalid-account' }> {
   const judged = judgeCallAccount(input.account)
   if (
     'rejected' in judged ||
@@ -121,19 +118,59 @@ function accountFailure(input: ContextAccountingInput) {
     judged.ok.subject.kind !== 'model_call' ||
     judged.ok.subject.id !== input.call.call
   )
-    return { kind: 'invalid' as const, field: 'input.account', reason: 'invalid-account' as const }
-  return null
-}
-function decision(value: Exclude<SourceDecision, { kind: 'allowed' }>) {
-  return value
+    return { kind: 'invalid', field: 'input.account', reason: 'invalid-account' }
+  return { kind: 'account', account: judged.ok }
 }
 
-/** The complete known input amount in tokens of one account, or null. */
+const COUNT = /^(0|[1-9][0-9]*)$/u
+const POSITIVE = /^[1-9][0-9]*$/u
+type Adopted = Readonly<{
+  fact: AdoptedRequestFact
+  windowTokens: string
+  forecast: string | null
+  dispatch: string | null
+}>
+/** Parses the adopted fact at the boundary; a bad value is the named invalid result. */
+function decodeAdopted(
+  fact: AdoptedRequestFact,
+): Adopted | Readonly<{ kind: 'invalid'; field: string; reason: 'unsupported-format' }> {
+  const bad = (field: string) =>
+    ({ kind: 'invalid', field: `adopted.${field}`, reason: 'unsupported-format' }) as const
+  const value: unknown = fact
+  if (!record(value)) return bad('fact')
+  if (typeof value.windowTokens !== 'string' || !POSITIVE.test(value.windowTokens))
+    return bad('windowTokens')
+  if ('failure' in decodeCommitOrder(value.order)) return bad('order')
+  const accounting = value.accounting
+  if (!record(accounting)) return bad('accounting')
+  let dispatch: string | null = null
+  if (accounting.kind === 'unique') {
+    if (typeof accounting.dispatch !== 'string' || accounting.dispatch === '')
+      return bad('accounting.dispatch')
+    dispatch = accounting.dispatch
+  } else if (accounting.kind !== 'unsettled' && accounting.kind !== 'multiple')
+    return bad('accounting')
+  const forecast = value.forecast
+  let used: string | null = null
+  if (forecast !== null) {
+    if (!record(forecast) || forecast.kind !== 'estimate') return bad('forecast')
+    if (typeof forecast.usedTokens !== 'string' || !COUNT.test(forecast.usedTokens))
+      return bad('forecast.usedTokens')
+    used = forecast.usedTokens
+  }
+  return { fact, windowTokens: value.windowTokens, forecast: used, dispatch }
+}
+/**
+ * The complete known input amount in tokens of one account, or null. A missing, provisional,
+ * unknown or non-token item, or a repeated item name (the basis is unclear), is not `actual`.
+ */
 function knownInput(account: CallAccount): bigint | null {
   let total = 0n
   for (const name of INPUT_ITEMS) {
-    const item = account.usage.find(usage => usage.name === name)
-    if (item === undefined || item.state !== 'known' || item.unit !== 'token') return null
+    const items = account.usage.filter(usage => usage.name === name)
+    const item = items[0]
+    if (items.length !== 1 || item === undefined || item.state !== 'known' || item.unit !== 'token')
+      return null
     if (!/^(0|[1-9][0-9]*)$/u.test(item.lexeme)) return null
     total += BigInt(item.lexeme)
   }
@@ -161,12 +198,13 @@ export function createContextAccounting<P>(
     return value.ok
   }
 
-  function valueOf(fact: AdoptedRequestFact | null, state: TargetState): WindowUsageValue {
-    if (fact === null) return { kind: 'not-fixed' }
+  function valueOf(adopted: Adopted | null, state: TargetState): WindowUsageValue {
+    if (adopted === null) return { kind: 'not-fixed' }
+    const { fact, windowTokens } = adopted
     const candidate = fact.candidate
-    if (fact.accounting.kind === 'unique') {
+    if (adopted.dispatch !== null) {
       const current = state.index.dispatches.get(
-        `${fact.call.call}\u0000${fact.accounting.dispatch}`,
+        `${fact.call.call}\u0000${adopted.dispatch}`,
       )?.current
       const used = current === null || current === undefined ? null : knownInput(current.account)
       if (used !== null)
@@ -174,19 +212,19 @@ export function createContextAccounting<P>(
           kind: 'actual',
           candidate,
           usedTokens: used.toString(),
-          windowTokens: fact.windowTokens,
-          ratio: windowRatio(used.toString(), fact.windowTokens),
+          windowTokens,
+          ratio: windowRatio(used.toString(), windowTokens),
         }
     }
-    if (fact.forecast !== null)
+    if (adopted.forecast !== null)
       return {
         kind: 'estimate',
         candidate,
-        usedTokens: fact.forecast.usedTokens,
-        windowTokens: fact.windowTokens,
-        ratio: windowRatio(fact.forecast.usedTokens, fact.windowTokens),
+        usedTokens: adopted.forecast,
+        windowTokens,
+        ratio: windowRatio(adopted.forecast, windowTokens),
       }
-    return { kind: 'unmeasured', candidate, windowTokens: fact.windowTokens }
+    return { kind: 'unmeasured', candidate, windowTokens }
   }
 
   async function eligible(
@@ -207,9 +245,9 @@ export function createContextAccounting<P>(
       if (!tenantEquals(input.call.tenant, input.target.tenant))
         return { kind: 'invalid', field: 'input.call.tenant', reason: 'tenant-mismatch' }
       const authority = await options.sourceAuthority.check({ access, input })
-      if (authority.kind !== 'allowed') return decision(authority)
-      const account = accountFailure(input)
-      if (account !== null) return account
+      if (authority.kind !== 'allowed') return authority
+      const account = admittedAccount(input)
+      if (account.kind !== 'account') return account
       const key = keyOf(input.target)
       const state = key === null ? undefined : states.get(key)
       // The state and generation are checked after the asynchronous checks, right before the write.
@@ -217,7 +255,7 @@ export function createContextAccounting<P>(
         return { kind: 'unavailable', diagnostic: 'uninitialized' }
       if (state.status === 'rebuilding' || state.generation === null)
         return { kind: 'unavailable', diagnostic: 'rebuilding' }
-      const applied = apply(state.index, input, limits)
+      const applied = apply(state.index, input, account.account, limits)
       if (applied.kind !== 'applied') return applied
       return { kind: 'received', generation: state.generation, change: applied.change }
     },
@@ -245,11 +283,13 @@ export function createContextAccounting<P>(
             fact.target.scope.ref !== target.scope.ref)
         )
           return { kind: 'invalid', field: 'adopted', reason: 'source-evidence-conflict' }
+        const adopted = fact === null ? null : decodeAdopted(fact)
+        if (adopted !== null && 'kind' in adopted) return adopted
         const state = key === null ? undefined : states.get(key)
         if (state === undefined || state.status !== 'ready')
           return { kind: 'unavailable', diagnostic: state?.status ?? 'uninitialized' }
         const generation = state.generation
-        const value = valueOf(fact, state)
+        const value = valueOf(adopted, state)
         const again = await eligible(access, target)
         if (again !== null) return again
         const last: SourceRead<GroupToken> = await options.adoptedSource.readCount(read)
@@ -279,7 +319,7 @@ export function createContextAccounting<P>(
           operation: 'rebuild-accounts',
         })
       const first = await check()
-      if (first.kind !== 'allowed') return decision(first)
+      if (first.kind !== 'allowed') return first
       const existing = states.get(key)
       if (existing?.status === 'rebuilding')
         return { kind: 'unavailable', diagnostic: 'rebuilding' }
@@ -293,48 +333,51 @@ export function createContextAccounting<P>(
       states.set(key, state)
       state.status = 'rebuilding'
       state.generation = null
-      const fail = (result: RecoveryResult): RecoveryResult => {
-        // The old complete index is kept, but a not-ready target never serves it.
-        state.status = 'uninitialized'
-        return result
-      }
-      const staging = emptyIndex()
+      let rebuilt = false
       try {
+        const staging = emptyIndex()
         for await (const fact of replay.facts) {
           const shape = factFailure(fact)
-          if (shape !== null) return fail(shape)
+          if (shape !== null) return shape
           if (
             !tenantEquals(fact.target.tenant, target.tenant) ||
             fact.target.scope.ref !== target.scope.ref
           )
-            return fail({ kind: 'invalid', field: 'replay.target', reason: 'tenant-mismatch' })
+            return { kind: 'invalid', field: 'replay.target', reason: 'tenant-mismatch' }
           if (!tenantEquals(fact.call.tenant, target.tenant))
-            return fail({ kind: 'invalid', field: 'replay.call.tenant', reason: 'tenant-mismatch' })
+            return { kind: 'invalid', field: 'replay.call.tenant', reason: 'tenant-mismatch' }
           const verified = await options.recoveryAuthority.checkFact({
             access,
             target,
             snapshot: replay.snapshot,
             input: fact,
           })
-          if (verified.kind !== 'allowed') return fail(decision(verified))
-          const account = accountFailure(fact)
-          if (account !== null) return fail(account)
-          const applied = apply(staging, fact, limits)
-          if (applied.kind !== 'applied') return fail(applied)
+          if (verified.kind !== 'allowed') return verified
+          const account = admittedAccount(fact)
+          if (account.kind !== 'account') return account
+          const applied = apply(staging, fact, account.account, limits)
+          if (applied.kind !== 'applied') return applied
         }
+        const last = await check()
+        if (last.kind !== 'allowed') return last
+        state.index = staging
+        state.generation = nextGeneration()
+        state.status = 'ready'
+        rebuilt = true
+        return { kind: 'rebuilt', generation: state.generation }
       } catch (error) {
-        fail({ kind: 'unavailable', diagnostic: 'replay' })
         return {
           kind: 'unavailable',
           diagnostic: `Replay did not end normally: ${error instanceof Error ? error.message : String(error)}`,
         }
+      } finally {
+        if (!rebuilt) {
+          // The old complete index is kept, but a not-ready target never serves it; a new target
+          // that never became ready gives its capacity slot back.
+          state.status = 'uninitialized'
+          if (existing === undefined) states.delete(key)
+        }
       }
-      const last = await check()
-      if (last.kind !== 'allowed') return fail(decision(last))
-      state.index = staging
-      state.generation = nextGeneration()
-      state.status = 'ready'
-      return { kind: 'rebuilt', generation: state.generation }
     },
   }
   return { inbox, recovery }

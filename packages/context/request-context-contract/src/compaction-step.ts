@@ -10,7 +10,7 @@ import type {
   StepResult,
 } from './values.js'
 import type { OperationContext } from './operation-context.js'
-import { invalid, planMaterial, summaryStep } from './compaction-request.js'
+import { invalid, materialOfPlan, summaryStep } from './compaction-request.js'
 import { basisDigest } from './plan.js'
 import { measureCompactionCandidate, projectedOf } from './compaction-context.js'
 import { canonical, digest, messageId, measuredAmount } from './internal.js'
@@ -49,8 +49,7 @@ export function validatePlan<P>(
   )
     return invalid('progress-mismatch')
   if (step.index !== progress.completed) return invalid('progress-mismatch', 'step.index')
-  if (canonical(material) !== canonical(planMaterial(plan, policies)))
-    return invalid('plan-mismatch', 'material')
+  if (!materialOfPlan(plan, material)) return invalid('plan-mismatch', 'material')
   return null
 }
 

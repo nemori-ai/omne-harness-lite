@@ -519,6 +519,7 @@ export type UnavailableOwner =
   | 'conversion-results'
   | 'runtime-context'
   | 'representation'
+  | 'compaction-policy'
   | 'instance'
   | 'source-registry'
   | 'input-source'

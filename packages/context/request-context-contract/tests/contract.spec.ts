@@ -393,7 +393,7 @@ describe('projection and compaction plans', () => {
     if (planned.kind !== 'planned') throw new Error(planned.kind)
     expect(planned.first).toMatchObject({ kind: 'summarize', index: '0' })
     expect(planned.progress.completed).toBe('0')
-    expect(trimmed.length).toBeGreaterThan(0)
+    expect(trimmed).toHaveLength(1)
     const summary = {
       kind: 'summary' as const,
       produced: [text('summary')] as const,
@@ -426,6 +426,8 @@ describe('projection and compaction plans', () => {
         policies,
       ),
     ).toMatchObject({ kind: 'transition', progress: { completed: '1' } })
+    // Later steps consume the same material; nothing trims again.
+    expect(trimmed).toHaveLength(1)
   })
   it('rejects floor above retention budget and step veto closes the plan', async () => {
     const f = fixture()

@@ -64,21 +64,19 @@
 
 ```mermaid
 classDiagram
-  class AssemblyInput {
-    identity
-    history
-    inputs
-    contextRead
+  class AssemblyCall {
+    access
+    purpose
+    position
+    candidate
+  }
+  class ContextSources {
+    groups
     adopted
-    transition
-    promptContributions
-    assembleContext
-    selection
-    tools
-    conditions
-    previous
-    alterations
-    beforeModelCall
+    history
+    conversions
+    eligibility
+    preparation
   }
   class RequestCandidate {
     candidate
@@ -129,22 +127,24 @@ classDiagram
     kind
     revision
   }
-  AssemblyInput --> RequestCandidate : assemble
+  AssemblyCall --> RequestCandidate : assemble
+  ContextSources --> RequestCandidate : 六组稳定读取
   RequestCandidate *-- Coverage
   RequestCandidate *-- SnapshotReminder
   RequestCandidate *-- TailFacts
-  AssemblyInput --> CompactionPlan : planCompaction
+  AssemblyCall --> CompactionPlan : planCompaction
   CompactionPlan --> PlanProgress
   CompactionPlan --> StepRequest : deriveStep
   CompactionPlan --> ContextTransition : 摘要步成功
-  AssemblyInput o-- PromptContribution
+  ContextSources o-- PromptContribution : 第四组
 ```
 
 ## 生命周期
 
 | 对象 | 创建 | 变化 | 结束 |
 | --- | --- | --- | --- |
-| 组装输入 | 调用方准备 | 无；七组任一变化即另一份输入 | 一次调用 |
+| 组装调用 | 调用方给出；六组由操作组读取 | 无；任一组令牌变化即另一份输入 | 一次调用 |
+| 来源集合 | 调用方绑定，或来源适配者登记 | 托管时经 `replace` 换代 | 独立路径随调用方；托管路径到撤除并结算 |
 | 请求候选 | `assemble` 成功 | 无；重算得到新候选 | 固定、取代或丢弃 |
 | 覆盖证据 | 随候选 | 无 | 随最终请求记录保存 |
 | 压缩计划 | `planCompaction` | 无；上界固定 | 转换提交，或装不下 |

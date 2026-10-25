@@ -466,7 +466,7 @@ it('compaction cannot split call/result pairing or move the coverage start', asy
   }
   expect(
     await planCompaction(f.input, { ...f.ports, history }, { ...f.policies, compaction: policy }),
-  ).toMatchObject({ kind: 'invalid' })
+  ).toMatchObject({ kind: 'unavailable', owner: 'compaction-policy' })
 })
 it('runtime refusal distinguishes unauthorized from missing registration and closed', async () => {
   const f = fixture()

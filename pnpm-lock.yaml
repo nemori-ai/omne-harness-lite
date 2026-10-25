@@ -583,6 +583,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
       '@omne-harness/request-context-contract':
         specifier: workspace:*
         version: link:../request-context-contract
@@ -590,9 +593,6 @@ importers:
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../../common/message
-      '@omne-harness/model-contract':
-        specifier: workspace:*
-        version: link:../../model/model-contract
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../runtime-context-contract

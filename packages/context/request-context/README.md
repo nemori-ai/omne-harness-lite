@@ -37,9 +37,9 @@ The party that calls a factory owns the instance. `close()` of the registry refu
 
 ## Design
 
-The factory has eight modules: candidate cache, derivations, assembly, plan and steps, default compaction strategy, default representation strategy, trimmer, and lifecycle. The only outside dependency is request-context-contract. The key mechanisms are:
+The implemented modules are the source registry and the account projection. The planned modules are the candidate cache, the derivations, the default compaction strategy, the default representation strategy, and the trimmer. The outside run-time dependencies are request-context-contract, model-contract (types), call-account, and legal-identity. The key mechanisms are:
 
-- the revision digests of the seven input groups as the cache key
+- a cache key equal to `PreparedInputKey` (RQ-13): the source generation, the group-one identity, the six group tokens, and the adopted derivation rules
 - invalidation by group, so that only the affected layers are computed again
 - invalidation by change notifications, not by time or content hashes
 - derivations computed when their inputs change, not when a request arrives

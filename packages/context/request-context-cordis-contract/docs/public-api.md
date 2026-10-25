@@ -12,7 +12,7 @@
 
 ### 根类型导出
 
-根入口 [src/index.ts](../src/index.ts) 显式重导出 request-context-contract 的全部类型名字。没有运行值，也不导入 Cordis。纯操作、Schema 和测试工厂仍从原契约入口导入。
+根入口 [src/index.ts](../src/index.ts) 显式重导出服务签名与登记面所需的契约类型，不是 request-context-contract 的全部类型名字；精确名单以[导出清单](../tests/fixtures/exports.json)为准。没有运行值，也不导入 Cordis。纯操作、Schema 和测试工厂仍从原契约入口导入。
 
 ### Cordis 定义
 

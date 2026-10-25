@@ -10,7 +10,7 @@
 
 本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
 
-状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；CM-02 的增量窗口、CM-03 的配对见证与拒绝值 `source-evidence` 依据[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676) 的 J15 与 [RQ-D02](https://github.com/nemori-ai/omne-harness-lite/issues/676#issuecomment-6371278636) 写入，未经独立表达评审；公开形状以 [src/](src) 为准。推理续接状态已实现，设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
+状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；CM-02 的增量窗口、CM-03 的配对见证与拒绝值 `source-evidence` 依据[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676) 的 J15 与 [RQ-D02](https://github.com/nemori-ai/omne-harness-lite/issues/676#issuecomment-6371278636) 写入，已通过独立表达评审（记录在[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676)），评审裁定已写入；公开形状以 [src/](src) 为准。推理续接状态已实现，设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
 
 依据如下。
 

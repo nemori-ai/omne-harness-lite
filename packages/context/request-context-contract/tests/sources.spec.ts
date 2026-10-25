@@ -292,3 +292,37 @@ describe('J15: the incremental window of a later compaction', () => {
     })
   })
 })
+
+describe('a policy draft the policy should not have given', () => {
+  it('a draft that retains more than the retention budget is a compaction-policy fault', async () => {
+    const rows = [row(0), row(1), row(2)]
+    const base = createAssemblyFixture({ rows })
+    const policies = {
+      ...base.policies,
+      compaction: {
+        ...base.policies.compaction,
+        plan: async () => ({
+          kind: 'draft' as const,
+          coverTo: rows[1]!.entry,
+          retained: [rows[0]!.entry, rows[1]!.entry],
+          bound: '2',
+          shape: { kind: 'summarize' as const, trimFirst: false },
+        }),
+      },
+    }
+    const f = createAssemblyFixture({
+      rows,
+      policies,
+      preparation: {
+        meter: createScriptedInputMeter(countingBasis, input => ({
+          ok: fixtureBudget(input.assembled.messages.length >= 2 ? '500' : '1'),
+        })),
+      },
+    })
+    expect(await f.operations().planCompaction(f.call)).toMatchObject({
+      kind: 'unavailable',
+      owner: 'compaction-policy',
+      diagnostic: expect.stringContaining('retention budget'),
+    })
+  })
+})
