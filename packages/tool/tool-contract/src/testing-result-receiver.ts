@@ -38,9 +38,12 @@ import {
 
 /**
  * What the receiver suite needs. A fresh fixture serves one case. `consumer` is a consumer position
- * that the receiver registered, so a push to it is accepted when nothing else is wrong. The
- * receiver answers each push definitely in this suite: no fault is injected. `tenantCapacity` is
- * how many new keys one tenant may hold before a further new key is backpressured; the capacity
+ * that the receiver registered as waiting for results, so a push to it has its original
+ * association when nothing else is wrong; the suite takes a position that differs from it only in
+ * `position` as one the receiver never registered. `otherConsumer` is a second registered
+ * position: the case that pushes one call to two positions is reported not applicable without it.
+ * The receiver answers each push definitely in this suite: no fault is injected. `tenantCapacity`
+ * is how many new keys one tenant may hold before a further new key is backpressured; the capacity
  * case is reported not applicable without it, and the cases that need a second tenant without
  * `otherAccess`.
  */
@@ -49,6 +52,7 @@ export interface ToolResultReceiverFixture<P> {
   readonly access: Access<P>
   readonly otherAccess?: Access<P>
   readonly consumer: ConsumerRef
+  readonly otherConsumer?: ConsumerRef
   readonly tenantCapacity?: number
 }
 
@@ -284,6 +288,29 @@ async function tenantCapacity<P>(fixture: Fixture<P>): Promise<void> {
   assert.deepEqual(await own.saved(own.result('call-0'), 'resend at capacity'), receipts[0])
 }
 
+async function notAccepted<P>(fixture: Fixture<P>): Promise<void> {
+  const s = scene(fixture)
+  const stranger = { ...fixture.consumer, position: `${fixture.consumer.position}-never-registered` }
+  const invalid = failureOf(
+    await s.push({ ...s.result('call-1'), consumer: stranger }),
+    'push to a position without the original association',
+  )
+  assert.deepEqual(invalid, { kind: 'invalid', field: 'key.reference', reason: 'not-accepted' })
+  await s.saved(s.result('call-1'), 'push to the registered position')
+}
+
+async function notOriginal<P>(fixture: Fixture<P>): Promise<void> {
+  const other = handle(fixture.otherConsumer, 'otherConsumer')
+  const s = scene(fixture)
+  await s.saved(s.result('call-1'), 'push of the result')
+  const invalid = failureOf(
+    await s.push({ ...s.account('call-1', '2'), consumer: other }),
+    'push of the same call to another position',
+  )
+  assert.deepEqual(invalid, { kind: 'invalid', field: 'consumer', reason: 'not-original' })
+  await s.saved(s.account('call-1', '2'), 'push of the account to the original position')
+}
+
 export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fixture<P>>[] {
   const named = (name: string, run: (fixture: Fixture<P>) => Promise<void>) =>
     conformanceCase('结果推送与保存', name, run)
@@ -307,6 +334,8 @@ export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fix
       cancelledBeforeAccept,
     ),
     named('one tenant at its capacity is backpressured without blocking another', tenantCapacity),
+    named('a push to a position without the original association is invalid', notAccepted),
+    named('a push of a call to another position than its original is invalid', notOriginal),
   ]
 }
 
@@ -321,15 +350,19 @@ export interface MemoryToolResultReceiver<P> extends ToolResultReceiver<P, Conte
 type Stored = Readonly<{ delivery: ToolDelivery<ContentBlock>; receipt: ToolSavedReceipt }>
 
 /**
- * A receiver that keeps its records in memory, for the consumer positions of `owner`. Each tenant
- * holds at most `tenantCapacity` keys; a resend takes no new share. Every push runs to its end
- * before the next one, and the receiver copies the payload before it looks at it.
+ * A receiver that keeps its records in memory for the registered consumer positions `consumers`.
+ * The double stands in for the original association this way: a push to a position that is not
+ * registered has none, and the first saved push of a call binds the call to its position, so a
+ * later push of the call to another position is not original. Each tenant holds at most
+ * `tenantCapacity` keys; a resend takes no new share. Every push runs to its end before the next
+ * one, and the receiver copies the payload before it looks at it.
  */
 export function createMemoryToolResultReceiver<P>(
-  input: Readonly<{ owner: string; tenantCapacity: number }>,
+  input: Readonly<{ consumers: readonly ConsumerRef[]; tenantCapacity: number }>,
 ): MemoryToolResultReceiver<P> {
   const records = new Map<string, Stored>()
   const held = new Map<string, number>()
+  const bound = new Map<string, ConsumerRef>()
   let minted = 0
 
   const push: ToolResultReceiver<P, ContentBlock>['push'] = request => {
@@ -342,14 +375,18 @@ export function createMemoryToolResultReceiver<P>(
           ? fail({ kind: 'invalid', field: 'key.reference', reason: 'reference-malformed' })
           : fail({ kind: 'denied' }),
       )
-    if (delivery.consumer.owner !== input.owner)
+    if (!input.consumers.some(consumer => isDeepStrictEqual(consumer, delivery.consumer)))
+      return answer(fail({ kind: 'invalid', field: 'key.reference', reason: 'not-accepted' }))
+    const tenant = tenantKey(request.access.tenant)
+    const call = JSON.stringify([tenant, resolved.ok.call])
+    const original = bound.get(call)
+    if (original !== undefined && !isDeepStrictEqual(original, delivery.consumer))
       return answer(fail({ kind: 'invalid', field: 'consumer', reason: 'not-original' }))
     const judged = judgeToolDelivery({ tenant: request.access.tenant, delivery })
     if ('failure' in judged)
       return answer(
         fail({ kind: 'invalid', field: judged.failure.field, reason: judged.failure.reason }),
       )
-    const tenant = tenantKey(request.access.tenant)
     const key = JSON.stringify(
       delivery.key.kind === 'result'
         ? [tenant, delivery.key.producer, 'result', resolved.ok.call, delivery.key.result]
@@ -384,20 +421,30 @@ export function createMemoryToolResultReceiver<P>(
       }),
     })
     records.set(key, Object.freeze({ delivery, receipt }))
+    if (original === undefined) bound.set(call, delivery.consumer)
     held.set(tenant, share + 1)
     return answer(succeed(receipt))
   }
   return Object.freeze({ push, durability: 'none' as const })
 }
 
-/** A fresh fixture over a fresh in-memory receiver with a capacity of two keys per tenant. */
+/**
+ * A fresh fixture over a fresh in-memory receiver with two registered positions and a capacity of
+ * two keys per tenant.
+ */
 export function memoryToolResultReceiverFixture(): ToolResultReceiverFixture<string> {
   const owner = 'conformance-receiver'
+  const consumer = { owner, work: 'work-1', position: 'position-1', purpose: 'result' }
+  const otherConsumer = { ...consumer, position: 'position-2' }
   return {
-    receiver: createMemoryToolResultReceiver<string>({ owner, tenantCapacity: 2 }),
+    receiver: createMemoryToolResultReceiver<string>({
+      consumers: [consumer, otherConsumer],
+      tenantCapacity: 2,
+    }),
     access: memoryAccess('tester'),
     otherAccess: memoryOtherAccess('tester-other'),
-    consumer: { owner, work: 'work-1', position: 'position-1', purpose: 'result' },
+    consumer,
+    otherConsumer,
     tenantCapacity: 2,
   }
 }

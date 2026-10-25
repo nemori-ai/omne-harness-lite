@@ -5,13 +5,21 @@
 import assert from 'node:assert/strict'
 import type { FixedToolRequest } from './definitions.ts'
 import type { Access, DurableEvidence, ToolCallId } from './identity.ts'
-import type { StartGuard, StartPermit, StartProgress, ToolStartFence } from './records.ts'
+import { fail } from '@omne-harness/operation-result'
+import type {
+  StartGuard,
+  StartPermit,
+  StartProgress,
+  ToolStartAuthority,
+  ToolStartFence,
+} from './records.ts'
 import {
   completionOf,
   conformanceCase,
   expectKind,
   expectOneOf,
   finalAnswer,
+  handle,
   otherAccessOf,
   refused,
   resendRecalls,
@@ -32,17 +40,22 @@ import {
   memoryOtherAccess,
   operationId,
   startRecord,
+  tenantKey,
 } from './testing-values.ts'
 
 /**
  * What the start fence suite needs, on top of the start authority fixture. `fence` is the view
  * that an outer caller holds, served by the provider of `authority`. `guard` names the guard
  * resource of the outer caller that the trusted configuration of the provider applies to the
- * fixed request of the fixture, so that every permit of the suite carries it.
+ * fixed request of the fixture, so that every permit of the suite carries it; the principal of
+ * `access` may invalidate it, and the principal of `otherAccess` may invalidate the guard of the
+ * same name in its own tenant. `strangerAccess` is an access of the tenant of `access` whose
+ * principal may invalidate no guard: the case that needs it is reported not applicable without it.
  */
 export interface ToolStartFenceFixture<P> extends ToolStartAuthorityFixture<P> {
   readonly fence: ToolStartFence<P>
   readonly guard: Readonly<{ owner: string; resource: string }>
+  readonly strangerAccess?: Access<P>
 }
 
 type Fixture<P> = ToolStartFenceFixture<P>
@@ -177,6 +190,47 @@ async function foreignFence<P>(fixture: Fixture<P>): Promise<void> {
   expectKind(await call.consumeFinal(permit), 'started', 'consume after a fence of another tenant')
 }
 
+async function crossTenantPrincipal<P>(fixture: Fixture<P>): Promise<void> {
+  const own = scene(fixture)
+  const call = own.at('call-1')
+  const permit = await call.prepare()
+  // The principal of another tenant presents the tenant of the fixture: it holds no qualification.
+  const mixed = { ...fixture.access, principal: otherAccessOf(fixture).principal }
+  const denied = refused(
+    await fixture.fence.invalidate({ ...mixed, operation: operationId('fence-9'), guard: own.guard() }),
+    'fence by a principal of another tenant',
+  )
+  assert.equal(denied.kind, 'denied')
+  expectKind(await call.consumeFinal(permit), 'started', 'consume after the denied fence')
+}
+
+async function unqualifiedPrincipal<P>(fixture: Fixture<P>): Promise<void> {
+  const stranger = handle(fixture.strangerAccess, 'strangerAccess')
+  const own = scene(fixture)
+  const call = own.at('call-1')
+  const permit = await call.prepare()
+  const real = refused(
+    await fixture.fence.invalidate({
+      ...stranger,
+      operation: operationId('fence-9'),
+      guard: own.guard(),
+    }),
+    'fence of the guard by an unqualified principal',
+  )
+  const ghost = refused(
+    await fixture.fence.invalidate({
+      ...stranger,
+      operation: operationId('fence-10'),
+      guard: { ...own.guard(), owner: 'never-an-owner', resource: 'never-a-resource' },
+    }),
+    'fence of a guard that does not exist by an unqualified principal',
+  )
+  // Both are denied alike: the answer tells nothing of whether the guard exists.
+  assert.equal(real.kind, 'denied')
+  assert.deepEqual(ghost, real, 'the denial tells a real guard from a ghost')
+  expectKind(await call.consumeFinal(permit), 'started', 'consume after the denied fence')
+}
+
 export function toolStartFenceConformance<P>(): readonly ConformanceCase<Fixture<P>>[] {
   const named = (name: string, run: (fixture: Fixture<P>) => Promise<void>) =>
     conformanceCase('P04', name, run)
@@ -196,21 +250,57 @@ export function toolStartFenceConformance<P>(): readonly ConformanceCase<Fixture
       fenceConflict,
     ),
     named('the fence of another tenant does not refuse the starts of a tenant', foreignFence),
+    named(
+      'a principal of another tenant cannot fence the guard of a tenant',
+      crossTenantPrincipal,
+    ),
+    named(
+      'an unqualified principal cannot fence a guard and learns nothing of whether it exists',
+      unqualifiedPrincipal,
+    ),
   ]
 }
 
 /**
+ * The fence view of the double: it checks the fence qualification of the access, the trusted
+ * configuration `qualified`, before it enters the ordering domain of `authority`. A refusal moves no
+ * guard and is the same for every guard.
+ */
+function qualifiedFence<P>(
+  authority: ToolStartAuthority<P>,
+  qualified: (access: Access<P>, owner: string) => boolean,
+): ToolStartFence<P> {
+  return {
+    invalidate: input =>
+      qualified(input, input.guard.owner)
+        ? authority.invalidate(input)
+        : Promise.resolve(fail({ kind: 'denied', action: 'invalidate' })),
+  }
+}
+
+/**
  * A fresh fixture: one in-memory start authority, and the fence view of the same instance. The
- * double applies one guard resource to every request; the outer caller names it.
+ * double applies one guard resource to every request. The principal of `access` may fence it in
+ * its tenant, the principal of `otherAccess` in its own tenant, and the stranger nowhere.
  */
 export function memoryToolStartFenceFixture(): ToolStartFenceFixture<string> {
   const authority = createMemoryToolStartAuthority<string>()
+  const access = memoryAccess('tester')
+  const otherAccess = memoryOtherAccess('tester-other')
+  const grants = new Set(
+    [access, otherAccess].map(granted =>
+      JSON.stringify([granted.principal, tenantKey(granted.tenant), MEMORY_START_GUARD.owner]),
+    ),
+  )
   return {
     authority,
-    fence: { invalidate: authority.invalidate },
+    fence: qualifiedFence(authority, (presented, owner) =>
+      grants.has(JSON.stringify([presented.principal, tenantKey(presented.tenant), owner])),
+    ),
     guard: MEMORY_START_GUARD,
-    access: memoryAccess('tester'),
-    otherAccess: memoryOtherAccess('tester-other'),
+    access,
+    otherAccess,
+    strangerAccess: memoryAccess('tester-stranger'),
     settle: () => Promise.resolve(),
   }
 }

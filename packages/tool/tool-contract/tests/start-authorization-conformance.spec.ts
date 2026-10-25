@@ -271,6 +271,7 @@ describe('the acceptance record of the authorized double', () => {
     expect(record?.authorizations).toHaveLength(1)
     expect(record?.authorizations[0]?.permit.tenant).toEqual(fixture.access.tenant)
     expect(record?.authorizations[0]?.consumer.work).toBe(record?.call)
+    expect(record?.authorizations[0]?.consumer.position).toBe('start')
   })
 
   it('has no record for an evidence it did not mint', () => {

@@ -3842,6 +3842,7 @@ export interface ToolResultReceiverFixture<P> {
     readonly access: Access<P>;
     readonly otherAccess?: Access<P>;
     readonly consumer: ConsumerRef;
+    readonly otherConsumer?: ConsumerRef;
     readonly tenantCapacity?: number;
 }
 type Fixture<P> = ToolResultReceiverFixture<P>;
@@ -3850,7 +3851,7 @@ export interface MemoryToolResultReceiver<P> extends ToolResultReceiver<P, Conte
     readonly durability: 'none';
 }
 export declare function createMemoryToolResultReceiver<P>(input: Readonly<{
-    owner: string;
+    consumers: readonly ConsumerRef[];
     tenantCapacity: number;
 }>): MemoryToolResultReceiver<P>;
 export declare function memoryToolResultReceiverFixture(): ToolResultReceiverFixture<string>;
@@ -3956,6 +3957,7 @@ export {};
 ## 声明文件 `testing-start-fence.d.ts`
 
 ```ts
+import type { Access } from './identity.ts';
 import type { ToolStartFence } from './records.ts';
 import { type ConformanceCase } from './testing-case.ts';
 import { type ToolStartAuthorityFixture } from './testing-start-authority.ts';
@@ -3965,6 +3967,7 @@ export interface ToolStartFenceFixture<P> extends ToolStartAuthorityFixture<P> {
         owner: string;
         resource: string;
     }>;
+    readonly strangerAccess?: Access<P>;
 }
 type Fixture<P> = ToolStartFenceFixture<P>;
 export declare function toolStartFenceConformance<P>(): readonly ConformanceCase<Fixture<P>>[];

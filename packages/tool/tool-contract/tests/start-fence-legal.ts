@@ -18,3 +18,9 @@ export function fenceWithoutSettle(): Fixture {
   const { settle: _dropped, ...rest } = memoryToolStartFenceFixture()
   return rest
 }
+
+/** The double without a stranger: the case of the unqualified principal is not applicable. */
+export function fenceWithoutStranger(): Fixture {
+  const { strangerAccess: _dropped, ...rest } = memoryToolStartFenceFixture()
+  return rest
+}

@@ -82,9 +82,9 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 | SA7–SA11 | CAP-TL03 | TL-V02 | inspect 认回拒绝；not-started 收回旧 permit，新 permit 可受理；exclude 永久排除未受理的启动，不能推翻已受理的启动 |
 | SA13、SA14 | CAP-TL03 | TL-V02 | 同一操作号用于另一个守卫或另一个原因，是 conflict 且没有效果（P01） |
 | SA15–SA19 | CAP-TL03 | TL-V02 | 另一租户读不到、受理不了、失效不了、排除不了、准备不了启动，得到的答复与不存在的记录相同 |
-| F1–F6 | CAP-TL03、CAP-TL10 | TL-V02、[TL-V07](#tl-v07) | 围栏证据返回后旧修订号的 permit 不再受理，已受理的启动不受影响，之后的 permit 照常受理；重送认回首次证据，同一操作号配另一守卫输入是 conflict；另一租户的围栏不影响本租户。围栏与启动排序域共用一个排序域 |
+| F1–F8 | CAP-TL03、CAP-TL10 | TL-V02、[TL-V07](#tl-v07) | 围栏证据返回后旧修订号的 permit 不再受理，已受理的启动不受影响，之后的 permit 照常受理；重送认回首次证据，同一操作号配另一守卫输入是 conflict；另一租户的围栏不影响本租户；另一租户的主体与无资格主体的失效回复 denied，守卫不变，不披露守卫是否存在。围栏与启动排序域共用一个排序域 |
 | A1–A5 | CAP-TL03 | TL-V02 | consume 消费绑定的许可一次，重送认回；另一调用出示已消费的许可不启动；受理前撤权拒绝且不消费许可；受理后撤权不撤销受理（残余窗口）；not-started 不消费许可 |
-| RP1–RP10 | CAP-TL07、CAP-TL09 | [TL-V05](#tl-v05)、[TL-V06](#tl-v06) | saved 回执带原 key，证据归冻结的消费拥有者；同 key 同内容认回，异内容 conflict；接收方保留自己的副本；租户取自调用引用并进入认回键；非法引用与纯关系表的失败；已中止的 signal 只取消新 key；一个租户占满份额不阻塞另一租户 |
+| RP1–RP12 | CAP-TL07、CAP-TL09 | [TL-V05](#tl-v05)、[TL-V06](#tl-v06) | saved 回执带原 key，证据归冻结的消费拥有者；同 key 同内容认回，异内容 conflict；接收方保留自己的副本；租户取自调用引用并进入认回键；非法引用与纯关系表的失败；已中止的 signal 只取消新 key；一个租户占满份额不阻塞另一租户；没有原消费关联是 invalid not-accepted，同一调用推向另一位置是 consumer not-original |
 | E1–E6 | CAP-TL04、CAP-TL11 | [TL-V07](#tl-v07) | 按准备操作去重（含并发与 pending 时的重送），inspectPreparation 认回，不给另一调用 |
 | E7–E10 | CAP-TL11 | TL-V07 | pending 保留原分配，excluded 排除延迟分配，rejected 不降级也不改写原因 |
 | E11–E13 | CAP-TL11 | TL-V07 | release 去重，inspectRelease 认回且不冒充已释放 |

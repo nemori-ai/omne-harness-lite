@@ -2,7 +2,7 @@
 // under a violating variant. The variants wrap the fence or the authority of the double at the port
 // boundary; they live here and are not exported.
 import { describe, expect, it } from 'vitest'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createMemoryToolStartAuthority,
   memoryToolStartFenceFixture,
@@ -17,7 +17,12 @@ import {
   judge,
   type Variant,
 } from './conformance-harness.ts'
-import { fenceWithoutSettle, oneTenantFence, type Fixture } from './start-fence-legal.ts'
+import {
+  fenceWithoutSettle,
+  fenceWithoutStranger,
+  oneTenantFence,
+  type Fixture,
+} from './start-fence-legal.ts'
 import { evidence } from './tool-values.ts'
 
 const NAMES = {
@@ -27,6 +32,8 @@ const NAMES = {
   F4: 'a resent fence returns the first evidence and moves the guard once',
   F5: 'a fence operation reused for another guard input is a conflict that changes nothing',
   F6: 'the fence of another tenant does not refuse the starts of a tenant',
+  F7: 'a principal of another tenant cannot fence the guard of a tenant',
+  F8: 'an unqualified principal cannot fence a guard and learns nothing of whether it exists',
 } as const
 
 /** The double with `build` laid over its fence and its authority. */
@@ -61,14 +68,14 @@ function refusingAfter(
 const variants: readonly Variant<Fixture>[] = [
   {
     name: 'the fence confirms without invalidating',
-    fails: [NAMES.F1, NAMES.F5],
+    fails: [NAMES.F1, NAMES.F5, NAMES.F7, NAMES.F8],
     fixture: variant(() => ({
       fence: { invalidate: () => Promise.resolve(succeed(evidence('fake-fence'))) },
     })),
   },
   {
     name: 'the fence and the authority are two ordering domains',
-    fails: [NAMES.F1],
+    fails: [NAMES.F1, NAMES.F7, NAMES.F8],
     fixture: variant(() => {
       const elsewhere = createMemoryToolStartAuthority<string>()
       return { fence: { invalidate: elsewhere.invalidate } }
@@ -103,7 +110,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'a fence refuses every later start',
-    fails: [NAMES.F2, NAMES.F3, NAMES.F4, NAMES.F5, NAMES.F6],
+    fails: [NAMES.F2, NAMES.F3, NAMES.F4, NAMES.F5, NAMES.F6, NAMES.F7, NAMES.F8],
     fixture: variant(base => {
       let fenced = false
       return {
@@ -137,9 +144,28 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'a fence of one tenant moves the guard of every tenant',
-    fails: [NAMES.F6],
+    fails: [NAMES.F6, NAMES.F7, NAMES.F8],
     fixture: variant(base => ({
       fence: { invalidate: input => base.fence.invalidate({ ...input, ...base.access }) },
+    })),
+  },
+  {
+    name: 'the fence checks no qualification',
+    fails: [NAMES.F7, NAMES.F8],
+    fixture: variant(base => ({ fence: { invalidate: base.authority.invalidate } })),
+  },
+  {
+    name: 'the fence tells a real guard from a ghost when it denies',
+    fails: [NAMES.F8],
+    fixture: variant(base => ({
+      fence: {
+        invalidate: async input => {
+          const answer = await base.fence.invalidate(input)
+          if ('failure' in answer && input.guard.owner !== base.guard.owner)
+            return fail({ kind: 'invalid', field: 'guard', reason: 'unknown-owner' })
+          return answer
+        },
+      },
     })),
   },
 ]
@@ -169,7 +195,12 @@ describe('ToolStartFence conformance suite', () => {
     {
       name: 'one tenant only',
       fixture: oneTenantFence,
-      notApplicable: { [NAMES.F6]: 'otherAccess' },
+      notApplicable: { [NAMES.F6]: 'otherAccess', [NAMES.F7]: 'otherAccess' },
+    },
+    {
+      name: 'no stranger to deny',
+      fixture: fenceWithoutStranger,
+      notApplicable: { [NAMES.F8]: 'strangerAccess' },
     },
     { name: 'no settle', fixture: fenceWithoutSettle },
   ])

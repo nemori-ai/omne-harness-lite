@@ -18,3 +18,9 @@ export function receiverWithoutCapacity(): Fixture {
   const { tenantCapacity: _dropped, ...rest } = memoryToolResultReceiverFixture()
   return rest
 }
+
+/** The double that registers one position only: the case of two positions is not applicable. */
+export function oneConsumerReceiver(): Fixture {
+  const { otherConsumer: _dropped, ...rest } = memoryToolResultReceiverFixture()
+  return rest
+}

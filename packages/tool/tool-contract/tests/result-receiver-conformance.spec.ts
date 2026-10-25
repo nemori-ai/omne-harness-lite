@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import {
   encodeToolInvocationRef,
+  type ConsumerRef,
   type ToolDelivery,
   type ToolResultReceiver,
   type ToolSavedReceipt,
@@ -28,6 +29,7 @@ import {
   type Variant,
 } from './conformance-harness.ts'
 import {
+  oneConsumerReceiver,
   oneTenantReceiver,
   receiverWithoutCapacity,
   type Fixture,
@@ -45,6 +47,8 @@ const NAMES = {
   RP8: 'the relation table rejects another revision and another call',
   RP9: 'an aborted signal cancels a new key and still recalls a saved one',
   RP10: 'one tenant at its capacity is backpressured without blocking another',
+  RP11: 'a push to a position without the original association is invalid',
+  RP12: 'a push of a call to another position than its original is invalid',
 } as const
 
 type Receiver = ToolResultReceiver<string, ContentBlock>
@@ -125,8 +129,9 @@ const variants: readonly Variant<Fixture>[] = [
         const earlier = kept.get(name)
         if (earlier !== undefined && !isDeepStrictEqual(earlier, input.delivery))
           return fail({ kind: 'conflict' })
-        kept.set(name, input.delivery)
-        return real(input)
+        const answer = await real(input)
+        if ('ok' in answer) kept.set(name, input.delivery)
+        return answer
       }
     }),
   },
@@ -158,7 +163,7 @@ const variants: readonly Variant<Fixture>[] = [
       if (
         'failure' in answer &&
         answer.failure.kind === 'invalid' &&
-        answer.failure.field === 'key.reference'
+        answer.failure.reason === 'reference-malformed'
       )
         return fail({ kind: 'denied' })
       return answer
@@ -172,7 +177,7 @@ const variants: readonly Variant<Fixture>[] = [
       if (
         'failure' in answer &&
         answer.failure.kind === 'invalid' &&
-        answer.failure.field !== 'key.reference'
+        (answer.failure.field === 'key.revision' || answer.failure.field === 'account.subject')
       )
         return succeed(fakeReceipt(input.delivery))
       return answer
@@ -189,7 +194,10 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: () => ({
       ...memoryToolResultReceiverFixture(),
       receiver: createMemoryToolResultReceiver<string>({
-        owner: 'conformance-receiver',
+        consumers: [
+          memoryToolResultReceiverFixture().consumer,
+          memoryToolResultReceiverFixture().otherConsumer as ConsumerRef,
+        ],
         tenantCapacity: 100,
       }),
     }),
@@ -211,6 +219,26 @@ const variants: readonly Variant<Fixture>[] = [
         if ('ok' in answer) held += 1
         return answer
       }
+    }),
+  },
+  {
+    name: 'any position is taken as associated',
+    fails: [NAMES.RP11],
+    fixture: variant(real => async input => {
+      const answer = await real(input)
+      if ('failure' in answer && answer.failure.kind === 'invalid' && answer.failure.reason === 'not-accepted')
+        return succeed(fakeReceipt(input.delivery))
+      return answer
+    }),
+  },
+  {
+    name: 'a call is not bound to its original position',
+    fails: [NAMES.RP12],
+    fixture: variant(real => async input => {
+      const answer = await real(input)
+      if ('failure' in answer && answer.failure.kind === 'invalid' && answer.failure.reason === 'not-original')
+        return succeed(fakeReceipt(input.delivery))
+      return answer
     }),
   },
 ]
@@ -245,6 +273,11 @@ describe('ToolResultReceiver conformance suite', () => {
         [NAMES.RP6]: 'otherAccess',
         [NAMES.RP10]: 'otherAccess',
       },
+    },
+    {
+      name: 'one registered position only',
+      fixture: oneConsumerReceiver,
+      notApplicable: { [NAMES.RP12]: 'otherConsumer' },
     },
     {
       name: 'capacity not told',

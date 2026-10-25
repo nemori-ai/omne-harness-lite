@@ -769,8 +769,9 @@ type Entry = { readonly ref: ToolPermitRef; state: ToolPermitReading }
 
 /**
  * A start authority whose consume rechecks the admission and consumes the bound permits in the same
- * turn as the acceptance (P04). The position of a consumption is the call, so every start of the
- * call recognises its own consumption and every other call meets `already-consumed`.
+ * turn as the acceptance (P04). The position of a consumption is `{ owner, work: call, position:
+ * 'start' }`, so every start of the call recognises its own consumption and every other call meets
+ * `already-consumed`.
  */
 export function createMemoryAuthorizedToolStartAuthority<
   P,
@@ -788,7 +789,7 @@ export function createMemoryAuthorizedToolStartAuthority<
   const domain = buildMemoryStartDomain<P>({
     admitted: (tenant, call) => !revoked.has(callKey(tenant, call)),
     consume: (tenant, call) => {
-      const consumer = { owner: CONSUMER_OWNER, work: call, position: call }
+      const consumer = { owner: CONSUMER_OWNER, work: call, position: 'start' }
       const facts: ToolPermitConsumption[] = []
       for (const ref of bindings.get(callKey(tenant, call)) ?? []) {
         const entry = permits.get(permitKey(ref))
