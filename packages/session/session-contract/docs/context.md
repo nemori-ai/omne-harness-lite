@@ -90,7 +90,7 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与�
 
 | 入口 | 终态 | 怎样成立 |
 | --- | --- | --- |
-| 读到执行结束 | completed、failed 或 cancelled | Session 读到 Agent 的结束事件或执行记录的结束状态后，以 `receive` 按 Agent 的结论写 SE26 与 SE16（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
+| 读到执行结束 | completed、failed 或 cancelled | Session 读到 Agent 的结束事件或执行记录的结束状态后（已被替代：事件副本协议撤回，到达机制归 #756；首条路径上 Run 终态只经 `finishRun`），以 `receive` 按 Agent 的结论写 SE26 与 SE16（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
 | 取消 | cancelled | `control(cancel-run)`、`control(archive)` 或到期的 `considerAutoArchive` 在提交时同批写 SE26 cancelled，不等传播 |
 | 有界收束 | failed | Session 以 `finishRun` 提交。只有两种依据：Agent 记录不可解释（P-5），或首条输入在 `invoke` 被消息准入拒收（[PM-02](../SPEC.md#pm-02)） |
 

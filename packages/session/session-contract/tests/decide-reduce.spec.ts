@@ -27,6 +27,7 @@ import {
   memoryAccess,
   memoryOtherAccess,
   operationId,
+  createMemorySessionEvidenceBridge,
   guard,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
@@ -400,6 +401,33 @@ describe('the pure judgments at their edges', () => {
       unreadEvents: [{ execution, after: '0' }],
     })
     expect(judgeCompletion(dormant(), 'none')).toEqual({ kind: 'allowed' })
+  })
+
+  it('the evidence bridge double hands the login-entry material to startRun unless scripted out, and decide follows it', async () => {
+    const previous = accepted()
+    const command: SessionCommand = {
+      kind: 'startRun',
+      input: {
+        ...base,
+        operation: operationId('start-bridge'),
+        entry: 'interactive',
+        candidate: creation().definition.candidate,
+        instance: { owner: 'agent', id: 'i' },
+      },
+    }
+    const bridge = createMemorySessionEvidenceBridge()
+    const withLogin = await bridge.prepare(command)
+    if (!('ok' in withLogin)) throw new Error('prepare failed')
+    expect(withLogin.ok.map(material => material.owner)).toContain('login-entry')
+    expect(decide(previous, command, withLogin.ok, null, { compaction: null }).kind).toBe('entries')
+    bridge.controls.loginEntry(false)
+    const without = await bridge.prepare(command)
+    if (!('ok' in without)) throw new Error('prepare failed')
+    expect(without.ok.map(material => material.owner)).not.toContain('login-entry')
+    expect(decide(previous, command, without.ok, null, { compaction: null })).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'login-required' },
+    })
   })
 
   it('judgeIdle answers unavailable naming #756; resolveControlScope and resolveCascade throw naming it', () => {

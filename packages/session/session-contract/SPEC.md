@@ -1051,7 +1051,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：事件消费者按序读取 Agent 事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留），按下表处理。每个产生条目的事件以 `receive` 写入，身份为执行与序号。
 - 结果：
 
-  | Agent 事件 | Session 的动作 | 条目 |
+  | Agent 事件（下表各行已被替代：Session 不再经 `receive(agent-event)` 复制这些事件；每行的义务保留，到达机制归 #756） | Session 的动作 | 条目 |
   | --- | --- | --- |
   | `input-taken` | 写承接事实，解除批次成员的待处理资格 | SE14 |
   | `message` | 不写条目。消息已在 `message` 参加时成立；只推进游标 | 无 |
