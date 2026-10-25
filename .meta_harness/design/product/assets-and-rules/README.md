@@ -11,7 +11,7 @@ relations:
 
 # 资产与规则
 
-本 topic 维护产品需求、能力定义、状态记录、版本承诺与有效未决。负责人已定的能力及阶段决定保持；已有会话常驻工具只跟随同形新版的例外依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 及 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)写回，整体正文默认待审。领域责任正文已接受，详细分解已评审的范围与正式维护位置分别判断，迁移不表示技术或交付接受。
+本 topic 维护产品需求、能力定义、状态记录、版本承诺与有效未决。负责人已定的能力及阶段决定保持；已有会话常驻工具只跟随同形新版的例外依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 及 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)写回，产品负责人已于 2026-10-22 接受该写回，见[#618 的接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)；其余正文默认待审。领域责任正文已接受，详细分解已评审的范围与正式维护位置分别判断，迁移不表示技术或交付接受。
 
 ## 阅读入口
 
