@@ -1,8 +1,8 @@
 {
   "name": "@omne-harness/repo-toolchain",
-  "version": "0.0.9",
+  "version": "0.0.13",
   "type": "module",
-  "description": "仓库工具链：规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取与 clean loop",
+  "description": "仓库工具链：规则引擎、提交署名、依赖图、声明兼容、契约 API 快照、结构度量、实际架构抽取与 clean loop",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -16,6 +16,7 @@
   "bin": {
     "omne-acceptance-lock": "./dist/acceptance/cli.js",
     "omne-architecture": "./dist/arch/cli.js",
+    "omne-contract-api": "./dist/declarations/api-cli.js",
     "omne-declarations": "./dist/declarations/cli.js",
     "omne-deps": "./dist/deps/cli.js",
     "omne-loop-health": "./dist/loop/health-cli.js",

@@ -2,9 +2,12 @@ import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { isAbsolute, join, posix, relative } from 'node:path'
 import { fileAt, git } from '../core/git.ts'
+import { runnerRoot } from '../core/subject.ts'
+import { memberOf } from '../deps/graph.ts'
 import {
   RULE_IDS,
   type ArchitectureConstraints,
+  type ArchitectureDirection,
   type ArchitectureImportException,
   type ArchitectureRole,
   type ConstraintInput,
@@ -22,8 +25,10 @@ export const CONSTRAINT_PATHS = [CONSTRAINT_PATH, LEGACY_CONSTRAINT_PATH] as con
 const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 function obj(v: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (!record(v) || Object.keys(v).some(key => !keys.includes(key)))
-    throw new Error('Architecture constraints contain invalid object fields')
+  if (!record(v)) throw new Error('Architecture constraints require objects')
+  const unknown = Object.keys(v).filter(key => !keys.includes(key))
+  if (unknown.length > 0)
+    throw new Error(`Architecture constraints contain unknown fields: ${unknown.join(', ')}`)
   return v
 }
 function str(v: unknown): string {
@@ -90,17 +95,137 @@ function importExceptions(value: unknown): ArchitectureImportException[] {
     }
   return rows
 }
+/**
+ * 角色所在的成员目录，按 deps/graph.ts 的 `memberOf` 算（`packages/<组>/<成员>` 或 `apps/<成员>`）。方向行按成员判目标，
+ * 所以它引用的角色的每条 `paths` 都必须落在同一个成员里；`examples/` 不是方向行可引用的成员。
+ */
+export function roleMember(role: ArchitectureRole): string {
+  const [member, ...rest] = role.paths.map(path => memberOf(path))
+  if (member === undefined || rest.some(other => other?.path !== member.path))
+    throw new Error(
+      `Architecture role ${role.id} does not stay inside one member: ${role.paths.join(', ')}`,
+    )
+  if (member.group === 'examples')
+    throw new Error(
+      `Architecture role ${role.id} is in examples/, which directions cannot reference`,
+    )
+  return member.path
+}
+/** `pattern` 覆盖 `other`：两者相同，或 `other` 在 `pattern` 的 `/**` 目录之下。 */
+const covers = (pattern: string, other: string): boolean =>
+  pattern === other || (pattern.endsWith('/**') && other.startsWith(pattern.slice(0, -2)))
+/** 方向行引用的一个角色与它的成员目录。 */
+interface DirectionRoleRef {
+  readonly id: string
+  readonly member: string
+}
+/**
+ * 方向行引用的角色：成员唯一，且 `paths` 不与任何别的角色相同或互相包含。否则一个文件会同时属于两个角色，
+ * 源的归属就不唯一（更精确的角色会把 `src/**` 的一部分截走）。
+ */
+function directionRole(id: string, roles: ReadonlyMap<string, ArchitectureRole>): DirectionRoleRef {
+  const role = roles.get(id)
+  if (role === undefined) throw new Error(`Architecture direction references unknown role ${id}`)
+  const member = roleMember(role)
+  for (const other of roles.values()) {
+    if (other.id === role.id) continue
+    const overlap = role.paths.find(path =>
+      other.paths.some(candidate => covers(path, candidate) || covers(candidate, path)),
+    )
+    if (overlap !== undefined)
+      throw new Error(
+        `Architecture role ${role.id} shares or contains the paths of ${other.id}: ${overlap}`,
+      )
+  }
+  return { id, member }
+}
+const DIRECTION_ID = /^DIR-[A-Z0-9]+(?:-[A-Z0-9]+)*$/u
+type RoleRefs = readonly [DirectionRoleRef, ...DirectionRoleRef[]]
+function roleRefs(v: unknown, roles: ReadonlyMap<string, ArchitectureRole>): RoleRefs {
+  const [first, ...rest] = strings(v)
+  if (first === undefined) throw new Error('Architecture directions require nonempty role lists')
+  return [directionRole(first, roles), ...rest.map(id => directionRole(id, roles))]
+}
+const idsOf = ([first, ...rest]: RoleRefs): [string, ...string[]] => [
+  first.id,
+  ...rest.map(ref => ref.id),
+]
+/**
+ * 源角色与目标角色不能在同一个成员里：成员内部的依赖不进依赖图，这样的一对永远不会命中。
+ * 同一个角色同时出现在两边是它的特例。
+ */
+function rejectSameMember(id: string, from: RoleRefs, to: RoleRefs): void {
+  for (const source of from) {
+    const target = to.find(ref => ref.member === source.member)
+    if (target !== undefined)
+      throw new Error(
+        `Architecture direction ${id} puts source role ${source.id} and target role ${target.id} in the same member ${source.member}`,
+      )
+  }
+}
+function direction(
+  value: unknown,
+  roles: ReadonlyMap<string, ArchitectureRole>,
+): ArchitectureDirection {
+  const row = obj(value, ['id', 'from', 'to', 'source'])
+  const id = str(row['id'])
+  if (!DIRECTION_ID.test(id)) throw new Error(`Invalid architecture direction id: ${id}`)
+  const from = roleRefs(row['from'], roles),
+    to = roleRefs(row['to'], roles)
+  rejectSameMember(id, from, to)
+  return { id, from: idsOf(from), to: idsOf(to), source: str(row['source']) }
+}
+const LAYERS: readonly Layer[] = [
+  'interaction',
+  'policy',
+  'contract',
+  'storage-port',
+  'storage-adapter',
+  'assembly',
+  'unknown',
+]
+const STATUSES: readonly ArchitectureRole['status'][] = ['adopted', 'candidate', 'unknown']
+function role(item: unknown, domainIds: ReadonlySet<string>): ArchitectureRole {
+  const row = obj(item, ['id', 'paths', 'layer', 'domains', 'status', 'source'])
+  const paths = strings(row['paths']).map(safePath),
+    layer = LAYERS.find(v => v === str(row['layer'])),
+    status = STATUSES.find(v => v === str(row['status'])),
+    related = strings(row['domains'])
+  if (
+    paths.length === 0 ||
+    layer === undefined ||
+    status === undefined ||
+    related.some(id => !domainIds.has(id))
+  )
+    throw new Error('Invalid architecture role')
+  return { id: str(row['id']), paths, layer, domains: related, status, source: str(row['source']) }
+}
+function rule(item: unknown): ArchitectureConstraints['rules'][number] {
+  const row = obj(item, ['id', 'source']),
+    id = str(row['id'])
+  const known = RULE_IDS.find(candidate => candidate === id)
+  if (known === undefined) throw new Error(`Unknown architecture rule ${id}`)
+  return { id: known, source: str(row['source']) }
+}
+/** schema 3 的 `directions`：缺省是没有方向行；给了就必须是数组（`null` 也不行）。 */
+function directions(value: unknown, roles: readonly ArchitectureRole[]): ArchitectureDirection[] {
+  const byId = new Map(roles.map(declared => [declared.id, declared]))
+  return unique((value === undefined ? [] : list(value)).map(item => direction(item, byId)))
+}
 export function parseConstraints(text: string): ArchitectureConstraints {
-  const value = obj(JSON.parse(text), [
+  const parsed: unknown = JSON.parse(text)
+  if (!record(parsed)) throw new Error('Architecture constraints require an object')
+  const schemaVersion = parsed['schemaVersion']
+  if (schemaVersion !== 1 && schemaVersion !== 2 && schemaVersion !== 3)
+    throw new Error('Unsupported architecture constraint schema')
+  const value = obj(parsed, [
     'schemaVersion',
     'domains',
     'roles',
     'rules',
     'importExceptions',
+    ...(schemaVersion === 3 ? ['directions'] : []),
   ])
-  const schemaVersion = value['schemaVersion']
-  if (schemaVersion !== 1 && schemaVersion !== 2)
-    throw new Error('Unsupported architecture constraint schema')
   const domains = unique(
     list(value['domains']).map(item => {
       const row = obj(item, ['id', 'label', 'source'])
@@ -108,58 +233,27 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     }),
   )
   const domainIds = new Set(domains.map(d => d.id))
-  const layers: readonly Layer[] = [
-    'interaction',
-    'policy',
-    'contract',
-    'storage-port',
-    'storage-adapter',
-    'assembly',
-    'unknown',
-  ]
-  const roles = unique(
-    list(value['roles']).map((item): ArchitectureRole => {
-      const row = obj(item, ['id', 'paths', 'layer', 'domains', 'status', 'source'])
-      const paths = strings(row['paths']).map(safePath),
-        layer = str(row['layer']),
-        status = str(row['status']),
-        related = strings(row['domains'])
-      if (
-        paths.length === 0 ||
-        !layers.some(v => v === layer) ||
-        !['adopted', 'candidate', 'unknown'].includes(status) ||
-        related.some(id => !domainIds.has(id))
-      )
-        throw new Error('Invalid architecture role')
-      return {
-        id: str(row['id']),
-        paths,
-        layer: layer as Layer,
-        domains: related,
-        status: status as ArchitectureRole['status'],
-        source: str(row['source']),
-      }
-    }),
-  )
-  const rules = unique(
-    list(value['rules']).map(item => {
-      const row = obj(item, ['id', 'source']),
-        id = str(row['id'])
-      const known = RULE_IDS.find(rule => rule === id)
-      if (known === undefined) throw new Error(`Unknown architecture rule ${id}`)
-      return { id: known, source: str(row['source']) }
-    }),
-  )
+  const roles = unique(list(value['roles']).map(item => role(item, domainIds)))
   return {
     schemaVersion,
     domains,
     roles,
-    rules,
+    rules: unique(list(value['rules']).map(rule)),
     importExceptions: importExceptions(value['importExceptions']),
+    ...(schemaVersion === 3 ? { directions: directions(value['directions'], roles) } : {}),
   }
 }
+/** 读哪一版：工作树读文件，历史版本读那个提交。 */
+type DocumentAt =
+  | { readonly kind: 'worktree' }
+  | { readonly kind: 'revision'; readonly commit: string }
+const at = (source: Pick<SourceCoordinates, 'kind' | 'commit'>): DocumentAt =>
+  source.kind === 'worktree' ? { kind: 'worktree' } : { kind: 'revision', commit: source.commit }
+const label = (source: Pick<SourceCoordinates, 'kind' | 'commit'>) =>
+  `${source.kind} ${source.commit}`
+
 export function readConstraints(root: string, source: SourceCoordinates): ConstraintInput {
-  const document = readDocument(root, source)
+  const document = readDocument(root, at(source), label(source))
   return { ...document, source }
 }
 
@@ -170,18 +264,36 @@ export function readBaselineConstraints(
   if (baseline.source.kind !== 'revision')
     throw new Error('Historical constraint retirement requires a revision snapshot')
   return {
-    ...readDocument(root, baseline.source, [...baseline.snapshot.texts.keys()]),
+    ...readDocument(root, at(baseline.source), label(baseline.source), [
+      ...baseline.snapshot.texts.keys(),
+    ]),
     source: baseline.source,
   }
 }
 
 const legacySource = (path: string) => /^(?:apps|packages)\.0\.0\.1\.legacy\//u.test(path)
-const matchesRolePath = (path: string, pattern: string) =>
+export const matchesRolePath = (path: string, pattern: string): boolean =>
   pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern
 
+export type RunnerConstraints =
+  | { readonly kind: 'missing'; readonly path: string }
+  | { readonly kind: 'present'; readonly path: string; readonly value: ArchitectureConstraints }
+/**
+ * 运行检查器的仓库的 `constraints.json`（与 `cruiseConfig()` 同一个根）。`omne-deps` 的方向行只从这里读，
+ * 被检查的检出改不了它。文件缺失返回 missing；存在但解析、校验或来源核对失败则抛错。
+ */
+export function readRunnerConstraints(root: string = runnerRoot()): RunnerConstraints {
+  const document = readDocument(root, { kind: 'worktree' }, `runner ${root}`)
+  return document.value === null
+    ? { kind: 'missing', path: document.path }
+    : { kind: 'present', path: document.path, value: document.value }
+}
+
+/** `where` 只进错误消息，说明读的是哪一版（或哪个 runner）。 */
 function readDocument(
   root: string,
-  source: Pick<SourceCoordinates, 'kind' | 'commit'>,
+  source: DocumentAt,
+  where: string,
   baselinePaths?: readonly string[],
 ) {
   const read = versionReader(root, source)
@@ -191,7 +303,7 @@ function readDocument(
   })
   if (present.length > 1)
     throw new Error(
-      `Ambiguous architecture constraints at ${source.kind} ${source.commit}: ${present.map(item => item.path).join(', ')}`,
+      `Ambiguous architecture constraints at ${where}: ${present.map(item => item.path).join(', ')}`,
     )
   const selected = present[0]
   if (selected === undefined) return { path: CONSTRAINT_PATH, value: null, sources: [] }
@@ -218,7 +330,7 @@ function readDocument(
     }
   } catch (error) {
     throw new Error(
-      `${source.kind} ${source.commit} ${selected.path}: ${error instanceof Error ? error.message : String(error)}`,
+      `${where} ${selected.path}: ${error instanceof Error ? error.message : String(error)}`,
       { cause: error },
     )
   }
@@ -227,13 +339,13 @@ function readDocument(
 export function constraintDependencies(root: string, revision?: string): readonly string[] {
   const { path, value, sources } =
     revision === undefined
-      ? readDocument(root, { kind: 'worktree', commit: git(root, ['rev-parse', 'HEAD']) })
+      ? readDocument(root, { kind: 'worktree' }, `worktree ${git(root, ['rev-parse', 'HEAD'])}`)
       : readBaselineConstraints(root, readArchitectureSource(root, revision))
   if (value === null) return CONSTRAINT_PATHS
   return [path, ...sources.map(source => source.path)]
 }
 
-function versionReader(root: string, source: Pick<SourceCoordinates, 'kind' | 'commit'>) {
+function versionReader(root: string, source: DocumentAt) {
   const texts = new Map<string, string | undefined>()
   return (path: string): string | undefined => {
     safePath(path)
@@ -262,7 +374,7 @@ function versionReader(root: string, source: Pick<SourceCoordinates, 'kind' | 'c
 
 export function constraintSourcePath(
   path: string,
-  schemaVersion: 1 | 2,
+  schemaVersion: ArchitectureConstraints['schemaVersion'],
   reference: string,
 ): string {
   const [raw, fragment, extra] = reference.split('#')
@@ -279,7 +391,7 @@ export function constraintSourcePath(
   if (!decoded.endsWith('.md'))
     throw new Error(`Architecture source must be Markdown: ${reference}`)
   const rooted =
-    schemaVersion === 2 || /^(?:packages|apps|docs|tools|scripts|\.meta_harness)\//u.test(decoded)
+    schemaVersion !== 1 || /^(?:packages|apps|docs|tools|scripts|\.meta_harness)\//u.test(decoded)
   return safePath(rooted ? decoded : posix.join(posix.dirname(path), decoded))
 }
 
@@ -338,6 +450,7 @@ function validateConstraintSources(
     ...value.roles,
     ...value.rules,
     ...(value.importExceptions ?? []),
+    ...(value.directions ?? []),
   ]) {
     const target = constraintSourcePath(path, value.schemaVersion, row.source)
     if (legacySource(target))
@@ -359,22 +472,37 @@ function validateConstraintSources(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([path, digest]) => ({ path, digest }))
 }
+const sortedById = <T extends { readonly id: string }>(items: readonly T[]) =>
+  [...items].sort((a, b) => a.id.localeCompare(b.id))
+/** 语义比较里的方向行：没有方向行时不出现这个键，所以 schema 3 不写 `directions` 与写空数组语义相同。 */
+function semanticDirections(rows: ArchitectureConstraints['directions']) {
+  if (!rows?.length) return {}
+  return {
+    directions: sortedById(
+      rows.map(row => ({
+        id: row.id,
+        from: [...row.from].sort(),
+        to: [...row.to].sort(),
+        source: row.source,
+      })),
+    ),
+  }
+}
 export function semanticConstraints(value: ArchitectureConstraints | null): string | null {
   if (value === null) return null
-  const sorted = <T extends { readonly id: string }>(items: readonly T[]) =>
-    [...items].sort((a, b) => a.id.localeCompare(b.id))
   return JSON.stringify({
     schemaVersion: value.schemaVersion,
-    domains: sorted(value.domains),
+    domains: sortedById(value.domains),
     ...(value.importExceptions?.length
       ? {
-          importExceptions: sorted(
+          importExceptions: sortedById(
             value.importExceptions.map(row => ({ ...row, symbols: [...row.symbols].sort() })),
           ),
         }
       : {}),
-    rules: sorted(value.rules),
-    roles: sorted(
+    ...semanticDirections(value.directions),
+    rules: sortedById(value.rules),
+    roles: sortedById(
       value.roles.map(row => ({
         id: row.id,
         paths: [...row.paths].sort(),

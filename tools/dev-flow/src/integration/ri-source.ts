@@ -15,7 +15,7 @@ import type {
   CardBinding,
   CardRead,
   CommitUnit,
-  DiffContracts,
+  ContractDiffProvider,
   LowerBound,
   PullRead,
   RiInput,
@@ -268,12 +268,6 @@ export function githubReaders({
   }
 }
 
-/** The command line provides no contract snapshot difference. */
-const noContractDiff: DiffContracts = () => ({
-  kind: 'unavailable',
-  reason: '命令行没有契约 API 快照差异的提供者，「契约变化」只汇总 PR 声明，未与快照核对。',
-})
-
 /**
  * Collects every input of `riNotes` for one track. The registry and the line table come from
  * the HEAD commit of `root`, like `start`.
@@ -282,12 +276,12 @@ export function riInput({
   root,
   track,
   read = runGhRead,
-  diffContracts = noContractDiff,
+  contractDiffProvider,
 }: {
   root: string
   track: string
   read?: GhRead
-  diffContracts?: DiffContracts
+  contractDiffProvider: ContractDiffProvider
 }): RiInput {
   const info = repository(root)
   const committed = (path: string) => {
@@ -302,6 +296,6 @@ export function riInput({
     lines: parseDeliveryLines(committed(LINES_PATH)),
     registry: policy,
     ...githubReaders({ repository: policy.repository, read, timeoutMs: policy.timeouts.networkMs }),
-    diffContracts,
+    diffContracts: contractDiffProvider({ root: info.root, timeoutMs: policy.timeouts.networkMs }),
   }
 }
