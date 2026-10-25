@@ -2,7 +2,12 @@
 // take identity from the fixture (`Access`), so no value here names a caller or a tenant.
 import { createHash } from 'node:crypto'
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
-import type { TenantId } from '@omne-harness/legal-identity'
+import {
+  accountCodec,
+  organizationCodec,
+  tenant as composeTenant,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 import type { FixedToolRequest } from './definitions.ts'
 import {
   decodeToolCallId,
@@ -63,16 +68,30 @@ export function identifyingValues(
   ]
 }
 
+/**
+ * Mints a real legal-identity tenant for a test: both halves must be legal atomic texts
+ * (`org_`/`acc_` plus the 26-character body). A reference can be encoded only for a minted
+ * tenant, so a test of the reference paths builds its tenants here, not as shaped objects.
+ */
+export function testingTenant(organization: string, account: string): TenantId {
+  const org = organizationCodec.parse(organization)
+  const acc = accountCodec.parse(account)
+  if (!org.ok || !acc.ok) throw new Error(`illegal test tenant text: ${organization} / ${account}`)
+  return composeTenant(org.value, acc.value)
+}
+
+const MEMORY_TENANT = testingTenant(
+  'org_c0nf0rmance000000000000000',
+  'acc_c0nf0rmance000000000000000',
+)
+const MEMORY_OTHER_TENANT = testingTenant(
+  'org_c0nf0rmance0ther0000000000',
+  'acc_c0nf0rmance0ther0000000000',
+)
+
 /** The access of the tenant that the in-memory fixtures use. */
 export function memoryAccess<P>(principal: P): Access<P> {
-  return {
-    principal,
-    tenant: {
-      name: 'TenantId',
-      organization: { name: 'OrganizationId', text: 'org_conformance' },
-      account: { name: 'AccountId', text: 'acc_conformance' },
-    },
-  }
+  return { principal, tenant: MEMORY_TENANT }
 }
 
 /**
@@ -80,14 +99,7 @@ export function memoryAccess<P>(principal: P): Access<P> {
  * in-memory fixtures. Its tenant and its principal both differ from those of `memoryAccess`.
  */
 export function memoryOtherAccess<P>(principal: P): Access<P> {
-  return {
-    principal,
-    tenant: {
-      name: 'TenantId',
-      organization: { name: 'OrganizationId', text: 'org_conformance_other' },
-      account: { name: 'AccountId', text: 'acc_conformance_other' },
-    },
-  }
+  return { principal, tenant: MEMORY_OTHER_TENANT }
 }
 
 function minted<T>(decoded: { ok: T } | { failure: unknown }, text: string): T {

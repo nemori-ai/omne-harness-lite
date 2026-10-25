@@ -11,6 +11,7 @@ import {
   finalAnswer,
   isProgress,
   NotApplicable,
+  testingTenant,
   type AnswerRow,
 } from '@omne-harness/tool-contract/testing'
 
@@ -183,16 +184,10 @@ describe('crossTenantAnswers', () => {
   ): Promise<unknown> =>
     crossTenantAnswers({ ask: ask(real), row: FINAL_ONLY, identifying, submitted, what: 'probe' })
   const unknown = (extra: object): Answer => ({ ok: { kind: 'unknown', ...extra } })
-  const TENANT = {
-    name: 'TenantId',
-    organization: { name: 'OrganizationId', text: 'org_conformance' },
-    account: { name: 'AccountId', text: 'acc_conformance' },
-  }
-  const OTHER_TENANT = {
-    name: 'TenantId',
-    organization: { name: 'OrganizationId', text: 'org_conformance_other' },
-    account: { name: 'AccountId', text: 'acc_conformance_other' },
-  }
+  const ACCOUNT = 'acc_c0nf0rmance000000000000000'
+  const OTHER_ORGANIZATION = 'org_c0nf0rmance0ther0000000000'
+  const TENANT = testingTenant('org_c0nf0rmance000000000000000', ACCOUNT)
+  const OTHER_TENANT = testingTenant(OTHER_ORGANIZATION, 'acc_c0nf0rmance0ther0000000000')
 
   it('fails when a text of the answer, at any depth, contains a long identifying value', async () => {
     const read = check(unknown({ notes: [{ diagnostic: 'seen as record-7 of another tenant' }] }), [
@@ -261,17 +256,18 @@ describe('crossTenantAnswers', () => {
   })
 
   it('takes a text that the other tenant sent as an echo, and finds what lies outside it', async () => {
-    const echo = unknown({ diagnostic: 'held by org_conformance_other' })
-    await expect(check(echo, ['org_conformance'])).rejects.toThrow(/carries "org_conformance"/u)
-    await expect(check(echo, ['org_conformance'], [OTHER_TENANT])).resolves.toBeDefined()
+    // The other tenant's own organization text holds a long identifying value inside it.
+    const echo = unknown({ diagnostic: `held by ${OTHER_ORGANIZATION}` })
+    await expect(check(echo, ['c0nf0rmance0ther'])).rejects.toThrow(/carries "c0nf0rmance0ther"/u)
+    await expect(check(echo, ['c0nf0rmance0ther'], [OTHER_TENANT])).resolves.toBeDefined()
     // An identifying value anywhere inside an echo, not only at its start, tells nothing.
     const inside = unknown({ diagnostic: 'seen: x-registration/77' })
     await expect(check(inside, ['registration/77'], ['x-registration/77'])).resolves.toBeDefined()
     // An echo of a part of an identifying value does not hide the value around it.
-    const sent = [{ owner: 'conformance', revision: '1' }]
+    const sent = [{ owner: 'c0nf0rmance', revision: '1' }]
     await expect(
-      check(unknown({ diagnostic: 'held by acc_conformance' }), ['acc_conformance'], sent),
-    ).rejects.toThrow(/carries "acc_conformance"/u)
+      check(unknown({ diagnostic: `held by ${ACCOUNT}` }), [ACCOUNT], sent),
+    ).rejects.toThrow(new RegExp(`carries "${ACCOUNT}"`, 'u'))
     await expect(
       check(unknown({ digest: 'sha256:00112233' }), ['sha256:00112233'], sent),
     ).rejects.toThrow(/carries "sha256:00112233"/u)

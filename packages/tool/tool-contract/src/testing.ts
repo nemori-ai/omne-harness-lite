@@ -2,12 +2,6 @@
 // and a non-durable double for each port that passes its suite. A suite returns a list of cases
 // and does not depend on a test framework; a case fails with a `node:assert` AssertionError. Each
 // double declares `durability: 'none'` and must not be assembled into production.
-import {
-  accountCodec,
-  organizationCodec,
-  tenant,
-  type TenantId,
-} from '@omne-harness/legal-identity'
 export {
   NotApplicable,
   completionOf,
@@ -83,14 +77,4 @@ export {
   type ToolResourceResponsesFixture,
 } from './testing-resource-responses.ts'
 
-/**
- * Mints a real legal-identity tenant for a test: both halves must be legal atomic texts
- * (`org_`/`acc_` plus the 26-character body). A reference can be encoded only for a minted
- * tenant, so a test of the reference paths builds its tenants here, not as shaped objects.
- */
-export function testingTenant(organization: string, account: string): TenantId {
-  const org = organizationCodec.parse(organization)
-  const acc = accountCodec.parse(account)
-  if (!org.ok || !acc.ok) throw new Error(`illegal test tenant text: ${organization} / ${account}`)
-  return tenant(org.value, acc.value)
-}
+export { testingTenant } from './testing-values.ts'
