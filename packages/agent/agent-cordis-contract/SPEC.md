@@ -15,3 +15,7 @@
 ## 实现与验证
 
 具体插件归 [agent-host-local](../agent-host-local/README.md)。本包的测试在真实 Cordis 4.0.4 上验证唯一服务身份、类型增补、定义入口不引入提供者，以及目录的登记、取代、撤除、监听失败与跨租户规则，见[测试说明](tests/README.md)。这些测试用测试子类代替发布权威、主体资格核验和宿主，不证明真实提供者、跨进程行为或持久性。
+
+## Tool 契约消费
+
+服务键与公共 ExecutionControl 不因 Tool 普通 invoke 关联而改变。注入的 ToolRuntime 沿公开 invoke、queries、commands、instances 与 content 使用，acceptDecision 不因此成为普通 Agent 能力。AgentJournal 服务的 Tool 控制记录须保留原调用与返回操作引用，行为归 [Agent SPEC](../agent-contract/SPEC.md#tool-调用关联与控制引用)。引用失败及当前资格、附件租户、规范引用、原 operation 认回与新 target/stage 的判定顺序同属该 SPEC；服务注入不改变其顺序。服务定义不提供 A2/T0、生产材料保管或控制恢复的实现证明。

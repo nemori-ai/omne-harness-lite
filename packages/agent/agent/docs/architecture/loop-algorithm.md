@@ -87,9 +87,12 @@ flowchart TB
         A0 --> A1{"A1 整批判断屏障"}
         A1 -->|未齐：有链在判断或在等人| W0
         A1 -->|all-denied| A3["A3 全拒：保存原因，按原顺序建 denied 槽位"]
-        A1 -->|open| A2["A2 发起前再核，以原动作身份交 Tool"]
-        A2 -->|Tool 受理| T0
-        A2 -->|Tool 受理时拒绝：denied 槽位| T2
+        A1 -->|open| A2["A2 保存 intent，以完整原请求 invoke Tool"]
+        A2 -->|accepted：保存 associated| T0
+        A2 -->|commit-unknown：保存 associated，lookup 并沿原 invoke 接续| R0
+        A2 -->|association-unknown：保留 intent 与完整原请求| R0
+        A2 -->|rejected 且无历史受理或未决：denied 槽位| T2
+        A2 -->|rejected 但历史受理或未决：保留原责任与 open 屏障| R0
         A2 -->|超出并发上限：按原顺序等名额| A2
         A3 --> T2
     end
@@ -209,13 +212,13 @@ flowchart TB
 | A0 | 每个动作的生效参数、定义采用、私有权限输入 | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `ActionBarrier` 的 judging 与 asked 列表、每轮卡片状态 | checkpoint 的 `batch.barrier`。open 时另写 `batchDecision` 依据 | 屏障状态变化时提交 | 有链在判断或在等人时转 W0 | all-denied 转 A3。open 转 A2 | 本轮卡片在每条链到达最终 Conclusion 或合法等待后一次呈现 | 打开与全拒的条件只由 SPEC 同节第 4、9 条拥有，本页不另写 |
 | A3 | 每个动作的拒绝依据 | checkpoint 的 `batch.slots`：按原顺序建立 denied 槽位 | 槽位建立后提交 | 不等待从未发起的工具 | 转 T2 | 串行 | 全拒不触发 T4。拒绝事实经回复消息与执行事实到达后续位置 |
-| A2 | 获准动作的准入证据、生效参数、当前权限 | `calls` 中用途为 action 的 PendingCall，`effects` 的效果意图。Tool 受理后槽位为 dispatched | 效果意图先提交，再向 Tool 受理 | 超出工具并行上限的动作按原顺序等名额 | Tool 受理转 T0。Tool 受理时拒绝建 denied 槽位转 T2 | 并行上限是[工厂配置](../public-api.md#工厂配置)的 toolConcurrency | Tool 在受理与启动围栏两处再核，规则见 SPEC 同节第 8 条 |
-| T0 | Tool 的 observe 与 readWait、控制能力 | 事件 stream（Tool 先保存后发布的增量）。中断类控制的阶段事实经 recordControl 写 control 事件 | 阶段事实成立时记录 | 原 Tool 在途时转 W0 | 真实结果或确认的后台占位转 T1 | 各槽位独立等待，不互相阻塞 | Tool 内部 Ask 只投影为 waiting human，不出卡。查询失败保持未知 |
+| A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |
+| T0 | associated Tool pending 的原引用，Tool 公开 queries、instances、content 及 commands | 事件 stream。Tool control 的阶段与可选操作引用经 recordControl 保存 | 控制接受先保存原 toolInvocation。迟到附件用原记录校验 | 在途转 W0，查询不可读保留未知 | 认回原受理后沿原槽位继续，真实结果或确认后台占位转 T1，不建竞争 denied | 各槽位独立等待 | intent 只能 unresolved，Tool 内部 Ask 仅投影 waiting human。T0 尚待实现 |
 | T1 | 原结果或占位、原动作身份 | `slots` 的 result 或 background 分支。recordResult 的 custody 或 processed。事件 producer | 保管依据保存后才解除该结果的生产责任 | 不等待 | 真实结果或拒绝转 T2。后台占位转 T3。迟到结果转 I8 | 逐槽独立 | 后台占位只释放占位这一版本的前台交付。迟到结果不改原槽位、不重开批次 |
 | T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 含结果卸载这一受信系统扩展。后台占位不经过本节点 |
-| T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
+| T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失、历史尝试未决或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
 | T4 | 本批全部 outcomes | `batchPass` 的 Passage。合法 inject 经 Q | 随 X 协议提交 | X4 等待 | 转 T5 | 一批只经过一次 | 只 observed、inject、stop、ask。不修改候选 |
-| T5 | 各槽位的 `candidate` 与 `handoff` 进度 | Q2 提交消息。`slots[].handoff` 记回执。事件 message | 每个候选接纳后随 checkpoint 提交 | 不等待 | 全部完成转 I8。拒收转 H0 | 按原动作顺序串行 | 恢复时不重复提交已接纳的候选 |
+| T5 | 各槽位的 `candidate` 与 `handoff` 进度 | Q2 提交消息。`slots[].handoff` 记回执。事件 message | 每个候选接纳后随 checkpoint 提交 | 不等待 | 全部完成且无缺槽位或历史未决动作才转 I8。拒收转 H0 | 按原动作顺序串行 | 恢复时不重复提交已接纳的候选 |
 | M0 | 本用途的准备、改写依据、覆盖 | 主请求：FinalRequest 与 adoptedContext 的采用、effects 的效果意图与预编码 PendingCall.model.reference，一次提交。压缩步骤：该用途的调模型之前 Passage 与提交前引用 | 向 Model 受理之前提交 | X4 等待 | 转 M6。压缩用途被否决时步骤请求不发出，转 M5，由 M5 按返回去处回 C1 | 主请求的位置已在 P0 完成时只复用。用途为 extension 时不经过位置 | 记录之后不再改写 |
 | M6 | 原 PendingCall.model.reference 与固定输入；reference 在首次 admit 前已保存 | 不写。Model 保存受理并返回同一 reference | 不提交 | 不等待 | 转 M1 | 真实发出前 Model 核资格与围栏 | 同一原调用只受理一次 |
 | M1 | Model 的 observe、凭原 reference 与当前资格的受理查询、中断类控制 | 事件 stream。中断阶段事实经 recordControl 写 control 事件 | 阶段事实成立时记录 | 原调用在途时等待，可挂起或交还资源 | 首内容前可重试失败转 M2。整调用真实收场转 M3 | 一个原调用一个等待 | 用户中断后该响应未发出的工具建议不执行 |
@@ -371,7 +374,8 @@ judgeActions(actions):                                // A0、A1
 
 executeActions(decided):                              // A2、A3、T0 至 T5
   若 屏障为 all-denied：按原顺序建 denied 槽位           // A3
-  否则 按原顺序、按工具并行上限：tools 受理原动作        // A2
+  否则 按原顺序、按工具并行上限：保存完整请求材料、intent 与 effect intent，再 tools.invoke 原请求 // A2
+  accepted 保存 associated 后等待；commit-unknown 保存 associated 并对账；association-unknown 保留 intent 重入；rejected 仅在无历史受理或未决时建 denied；否则保留原 pending、请求、consumer、effect intent 与 open 屏障，沿原调用恢复
   并行每个槽位：
     等待结果或确认的后台占位                           // T0
     按原动作身份保管                                   // T1
@@ -418,7 +422,7 @@ U0、Q1、Q2、Q4、Q5 只做非扩展的消息准入。行为归 SPEC 的[消�
 - 工具结果消息与被拒绝动作的拒绝消息在 T5 进入，按原动作顺序。拒收转 H0。
 - 系统提醒由 X5 在采纳 inject 时进入一次。拒收不改变该扩展的 Conclusion。
 
-全部动作被拒收时没有已执行动作。A3 为每个动作建立 denied 槽位，每个槽位在 T2 各自经过执行动作之后的单结果范围，再由 T3 直接转 T5，不经过 T4。拒收事实经回复消息与 `execution` 事实到达后续位置。后续位置的 `earlier` 只含同一次经过、同一条链上前序扩展的 Conclusion，不扩到跨位置。T5 完成后转 I8。这条边界归系统页，见[位置表](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)。
+只有每个动作都确定拒绝且无保留的已受理或未决尝试时，才适用无工具等待路径。A3 为每个动作建立 denied 槽位，每个槽位在 T2 各自经过执行动作之后的单结果范围，再由 T3 直接转 T5，不经过 T4。拒收事实经回复消息与 `execution` 事实到达后续位置。后续位置的 `earlier` 只含同一次经过、同一条链上前序扩展的 Conclusion，不扩到跨位置。T5 完成后转 I8。这条边界归系统页，见[位置表](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)。
 
 ## 工具结果节点
 
@@ -427,9 +431,9 @@ T0 至 T5 为逐槽结果保管加整批准入。行为归 SPEC 的[工具执行
 - T0 等原 Tool。Tool 内部等待与后台转换由 Tool 拥有，Agent 不接管 Tool 的协程。
 - T1 按原动作身份把真实结果或 Tool 确认的后台占位保管到该槽位。真实结果保管后解除该结果的生产责任。后台占位只释放占位这一版本的前台交付。
 - T2 对结果槽位与拒绝槽位各自运行单结果范围，含结果卸载这一受信系统扩展的改写。后台占位不经过 T2，其候选消息由占位直接形成。
-- T3 在本批每个动作都有槽位、全部槽位齐备、全部单结果经过结束时成立。等待并发名额的获准动作尚无槽位时不成立。
+- T3 在本批每个动作都有槽位、全部槽位齐备、全部单结果经过结束时成立。等待并发名额或历史调用未决的动作尚无槽位时不成立。缺槽位不能当作 denied，较晚 rejected 不解除原责任。
 - T4 只产生 observed、inject、stop、ask，没有候选改写。只在至少一个槽位曾为 dispatched 时经过。
-- T5 按原动作顺序把候选消息交消息准入，进度随 checkpoint 保存。
+- T5 按原动作顺序把候选消息交消息准入，进度随 checkpoint 保存。历史尝试未决不能被该动作的新拒绝标记完成。原受理认回后沿原 dispatched、result 或 background 槽继续，不产生 denied 候选。
 
 后台最终结果以原 PendingCall 的 consumption 到达。本执行仍在推进时，I8 把它转 T1 保管，T1 不改原槽位、不重开批次，再回 I8 由评估器以 consume 消费。执行已无推进资格或已终结时，O0 只保管与对账。
 
@@ -452,7 +456,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 
 | 编号 | 不变量 | 执行它的节点 | SPEC 条款 |
 | --- | --- | --- | --- |
-| I1 | 同一原动作不能因恢复得到第二个调用身份 | A2、M6、X2、C1：效果意图先提交。Model 在首次 admit 前保存 reference，再受理；R0 沿原引用与固定输入认回，Tool 保持原协议 | [身份、范围与归属](../../../agent-contract/SPEC.md#身份范围与归属)的登记表 |
+| I1 | 同一原动作不能因恢复得到第二个逻辑调用 | M6 在 admit 前保存 Model reference。A2 在 invoke 前保存完整请求、consumer、intent，Tool 证明引用后保存 associated。R0 按两域各自恢复规则接续 | [两态登记与完整原请求](../../../agent-contract/SPEC.md#两态登记与完整原请求) |
 | I2 | 已失效挂接不得提交新业务或实际发出 | E1、E9、F3、Q2、A2、M6：提交核围栏与修订号，发出前核资格 | [并发与提交](../../../agent-contract/SPEC.md#并发与提交)、[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管) |
 | I3 | 责任交接前原结果一直有耐久保管者 | T1、M3、H0、O0：保管依据保存后才解除生产责任 | [持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
 | I4 | unknown 不推导 absent、failed 或 finished | E2、R0、T0、M1、Q2、X3：查询未知保持未知，先查原操作 | [并发与提交](../../../agent-contract/SPEC.md#并发与提交)、[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
@@ -547,7 +551,7 @@ checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `A
 | `inputBatch` | 非空且尚未准备时回 I1 |
 | `requestPreparation` | assembled 回 P0。ready 回 P1，由 P1 复核后转 I2。I1 的 `resume` 结果与 P1 的复核结果都按此处理。最终请求已记录时由 `calls` 决定。needs-compaction 且 `compaction` 为空时：C0 的经过尚未结束回 C0，C0 的经过为 vetoed 回 I1 转 F1。needs-compaction 且 `compaction` 非空时按 `compaction` 一行。cannot-fit 回 F1 |
 | `compaction` | 为空表示本 step 尚未进入计划，C1 首次进入计划时才写入。`ended` 为空时回 C1：C1 以已保存的进度与最后一步的保管结果再次调用 `derive`，同一输入得到同一返回。返回 transition 时经 C2 转 C3，C3 的提交回执未知时先经 R0 查原操作。`ended` 为 committed 回 C4 之后的 I1。`ended` 为 failed 回 F1 |
-| `calls` | 用途 main 回 M1 经 I3。用途 compaction 回 M1 经 C1。用途 action 回 T0。用途 extension 回 X2 |
+| `calls` | Model 用途 main 回 M1 经 I3，用途 compaction 回 M1 经 C1，用途 extension 回 X2。Tool 用途 action：intent 或 association-unknown 经 R0 回 A2，以当前合法资格和完整原请求重入 invoke；已有 associated 引用但受理或来源仍未定时，经 R0 沿原 lookup / invoke 认回，lookup 的 not-accepted 不能排除来源继续签发。保存 associated 的 Journal 回执未知时，先查询原 Journal 操作。认回原受理且关联已保存后，才回原 T0 或已有结果、后台责任槽的接续节点；已完成槽位不重新创建或处理 |
 | `passages` | requested 回 X2。asked 回 X4 或 X2。resolved 回 X5。applied 回原扩展节点的后继 |
 | `batch` | 屏障 closed 回 A1。open 回 A2 或 T 子图的原槽位。all-denied 回 T2、T3 或 T5 |
 | `adoptedContext` | 不决定节点。作为下一次 `ModelContextReader.read` 的 adopted 传入 |
@@ -589,3 +593,9 @@ flowchart LR
 ## 旅程与持续验证
 
 能力与旅程到本页节点的追踪归[产品能力与设计覆盖](../../../agent-contract/verification/coverage.md)。本页节点的验收场景归[持续验证场景](../../../agent-contract/verification/scenarios.md)。这些是持续验证义务，不是已运行的证据。
+
+## Tool 恢复与控制引用的节点约束
+
+R0 对 Model 保留原受理前引用、inspect 和权威 not-accepted 规则。Tool intent 或 association-unknown 沿当前资格和完整原 ToolInvokeRequest 重入 invoke，不猜调用 ID。Tool commit-unknown 先保存引用并 lookup，not-accepted 不能排除来源继续签发。associated 保存的 Journal 回执未知时先认回原 Journal 操作。
+
+Tool control 先核当前资格并认回原 C，再为新 C 扫描当前 associated pending。recordControl 先核当前资格、附件租户与规范身份，再认回原 R 或因异输入 conflict，随后才核新 target、保留引用与 stage。精确 Failure 映射归 [SPEC](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)。T0 的 Tool 中断与后台控制先在接受记录中保存原调用快照，再附返回操作引用。F0 总 cancel 不携带单个 ToolOperationRef，多前台调用的逐调用控制尝试与总取消对应关系仍待后续控制方案。Q11、Q13 的其余机制、A2/T0 实现与真实提供者组合均不由本页声明完成。
