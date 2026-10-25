@@ -80,18 +80,15 @@ export function testingTenant(organization: string, account: string): TenantId {
   return composeTenant(org.value, acc.value)
 }
 
-const MEMORY_TENANT = testingTenant(
-  'org_c0nf0rmance000000000000000',
-  'acc_c0nf0rmance000000000000000',
-)
-const MEMORY_OTHER_TENANT = testingTenant(
-  'org_c0nf0rmance0ther0000000000',
-  'acc_c0nf0rmance0ther0000000000',
-)
+// Each access mints its tenant when it is built, not when the module loads: an illegal text then
+// fails the case that uses it instead of the import of every suite.
 
 /** The access of the tenant that the in-memory fixtures use. */
 export function memoryAccess<P>(principal: P): Access<P> {
-  return { principal, tenant: MEMORY_TENANT }
+  return {
+    principal,
+    tenant: testingTenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000'),
+  }
 }
 
 /**
@@ -99,7 +96,10 @@ export function memoryAccess<P>(principal: P): Access<P> {
  * in-memory fixtures. Its tenant and its principal both differ from those of `memoryAccess`.
  */
 export function memoryOtherAccess<P>(principal: P): Access<P> {
-  return { principal, tenant: MEMORY_OTHER_TENANT }
+  return {
+    principal,
+    tenant: testingTenant('org_c0nf0rmance0ther0000000000', 'acc_c0nf0rmance0ther0000000000'),
+  }
 }
 
 function minted<T>(decoded: { ok: T } | { failure: unknown }, text: string): T {
