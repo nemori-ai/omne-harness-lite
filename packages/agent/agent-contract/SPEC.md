@@ -634,7 +634,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 5. 原扩展消费答复后再次返回 `ask`，或后继扩展返回 `ask`，都开出新一轮卡片。新一轮有新的 round，仍属原批，屏障继续关闭。
 6. 人明确拒答是答复。它向原扩展返回没有答案，不授予动作。它不是批准，也不等于人不同意。卡片来自作者扩展时，由原扩展决定后果。卡片来自官方准入时，由授权领域按 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定。Agent 不因没有批准重问同一张卡。重复或并发的答复不产生额外许可，一张卡片只有一个有效答复。
 7. 动作、生效参数、工具定义采用或影响批准的授权依据改变时，旧批准失效。官方准入以新值重新判断，可能再次出卡。无关的配置变化不重问。准入检查、人看到的卡片与实际发起使用同一份生效参数。参数只在两处改变：同链在官方准入之前的扩展改写它，或人选择卡片草稿 `proposedRewrite` 绑定的那个选项。第一种情形下，官方准入按改写后的参数判断。第二种情形下，`proposedRewrite.option` 指向草稿 `options` 中的一项，人的答复 `chosen` 等于该项时改写生效：卡片来自官方准入时，官方准入在 `replay` 中先把生效参数换成 `proposedRewrite.effectiveArguments`，再带答复按新参数再次判断；卡片来自作者扩展时，由该扩展在 `replay` 中以 rewrite 输出这一改写，之后链末官方准入按新参数判断。
-8. 屏障打开后，Agent 按原动作顺序把获准动作交 Tool 发起。固定请求的 `batchDecision` 在屏障打开时填入屏障打开的依据，发起时随请求交给 Tool。Tool 按原准入证据、当前主体资格与当前权限再核，规则见 Tool 的[发起的完整前提](../../tool/tool-contract/SPEC.md#发起的完整前提)与 [P04](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)。再核分两段，撤权在实际发起处生效，不以旧允许发出。
+8. 屏障打开后，Agent 按原动作顺序把获准动作交 Tool 发起。发起请求（`ToolInvokeRequest`）的 `batchDecision` 在屏障打开时填入屏障打开的依据，发起时随请求交给 Tool。Tool 按原准入证据、当前主体资格与当前权限再核，规则见 Tool 的[发起的完整前提](../../tool/tool-contract/SPEC.md#发起的完整前提)与 [P04](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)。再核分两段，撤权在实际发起处生效，不以旧允许发出。
    - `accepted` 返回原调用引用与原受理回执。Agent 保存 associated 后进入 T0，dispatched 槽位不把原回执冒充当前状态。
    - `commit-unknown` 带原调用引用。Agent 保存 associated 后以 lookup 查询。not-accepted 不能排除来源继续签发，须沿原 invoke 接续。
    - `association-unknown` 无调用引用。Agent 保留 intent、完整原请求和 consumer，以当前资格重复原 invoke，不进入需要 associated 的 Tool 生产者视图。

@@ -45,8 +45,10 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import {
   resolveToolInvocationRef,
   resolveToolOperationRef,
+  type ToolInvocationParts,
   type ToolInvocationRef,
   type ToolOperationParts,
+  type ToolOperationRef,
 } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -89,6 +91,11 @@ export type JournalRead = 'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 
  * - `commit-unknown` with `pending`: the write is held. `query` answers `unknown` and the snapshot
  *   lists the operation in `unresolved` until `settle` runs or decides it, or until an `attach`
  *   fences it, which excludes it.
+ *
+ * The call that takes a fault answers with it, also when it re-sends an operation whose write is
+ * held; the held write belongs to the earlier call and stays as it is. A call that is denied because
+ * its tenant does not own the execution, or because its Tool reference belongs to another tenant,
+ * still uses up the fault and is never held.
  */
 export type WriteFault =
   | Readonly<{ kind: 'unavailable' }>
@@ -365,59 +372,133 @@ type RetainedFaultInput = Parameters<
   MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
 >[0]
 
-function validRetainedFaultInput(input: RetainedFaultInput): boolean {
-  if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return false
+/** The text that keys one operation of one tenant's execution, from the canonical tenant text. */
+function operationText(tenant: string, execution: AgentExecutionId, operation: AgentOperationId) {
+  return JSON.stringify([tenant, execution, operation])
+}
+
+/**
+ * The key of the restore baseline of a well-formed retained-fault request: the canonical tenant,
+ * execution and control. A request with another shape, or with a foreign payload that the real
+ * resolver does not call foreign, has no key.
+ */
+function retainedFaultKey(input: RetainedFaultInput): string | undefined {
+  if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return undefined
+  const tenant = tenantCodec.encode(input.tenant)
   if (
-    !tenantCodec.encode(input.tenant).ok ||
+    !tenant.ok ||
     'failure' in decodeAgentExecutionId(input.execution) ||
     'failure' in decodeAgentOperationId(input.control)
   )
-    return false
+    return undefined
+  const key = operationText(tenant.value, input.execution, input.control)
   const fault = input.fault
-  if (fault === null) return true
-  if (exactDataFields(fault, ['kind']) && fault.kind === 'malformed') return true
+  if (fault === null) return key
+  if (exactDataFields(fault, ['kind']) && fault.kind === 'malformed') return key
   if (!exactDataFields(fault, ['kind', 'reference']) || fault.kind !== 'foreign-tenant')
-    return false
+    return undefined
   const resolved = resolveToolInvocationRef(fault.reference, input.tenant)
-  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant'
+  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant' ? key : undefined
 }
 
-function attachToolOperation<P>(
+/** A supplied `toolOperation` that resolved in the caller's tenant: the bytes as given and the parts. */
+type LocalAttachment = Readonly<{
+  kind: 'local'
+  reference: ToolOperationRef
+  parts: ToolOperationParts
+}>
+type SuppliedAttachment =
+  | LocalAttachment
+  | Readonly<{ kind: 'malformed'; reference: ToolOperationRef }>
+  | Readonly<{ kind: 'foreign' }>
+
+/** Reads the optional attachment of a recording once, through the public Tool resolver. */
+function suppliedAttachment(
+  request: Readonly<{ tenant: TenantId; toolOperation?: ToolOperationRef }>,
+): SuppliedAttachment | undefined {
+  const reference = request.toolOperation
+  if (reference === undefined) return undefined
+  const resolved = resolveToolOperationRef(reference, request.tenant)
+  if ('ok' in resolved) return { kind: 'local', reference, parts: resolved.ok }
+  return resolved.failure.kind === 'foreign-tenant'
+    ? { kind: 'foreign' }
+    : { kind: 'malformed', reference }
+}
+
+/** Whether a recording adds a Tool operation reference to its control record. */
+type Attached =
+  | Readonly<{ kind: 'unchanged' }>
+  | Readonly<{ kind: 'attached'; record: ToolControlRecord }>
+
+const damaged = (diagnostic: string): Failure => ({
+  kind: 'unavailable',
+  owner: 'AgentJournal',
+  diagnostic,
+})
+
+/**
+ * A retained reference that does not resolve in the record's tenant, or that does not agree with the
+ * other retained reference, breaks an invariant of this provider. It is not a caller conflict (SPEC
+ * "Recording operation 与阶段事实"): a foreign reference is denied without details, any other damage
+ * makes the record unavailable.
+ */
+function retainedFailure(
+  failure: Readonly<{ kind: 'malformed' | 'foreign-tenant' }>,
+  diagnostic: string,
+): Failure {
+  return failure.kind === 'foreign-tenant' ? denied('recordControl') : damaged(diagnostic)
+}
+
+/** The parts of the retained operation reference of a Tool control, checked against its invocation. */
+function retainedOperation(
+  record: ToolControlRecord,
+  invocation: ToolInvocationParts,
+  tenant: TenantId,
+): Outcome<ToolOperationParts | null, Failure> {
+  if (record.toolOperation === null) return succeed(null)
+  const diagnostic = 'invalid-retained-tool-operation'
+  const retained = resolveToolOperationRef(record.toolOperation, tenant)
+  if ('failure' in retained) return fail(retainedFailure(retained.failure, diagnostic))
+  return retained.ok.call === invocation.call && retained.ok.admission === invocation.admission
+    ? succeed(retained.ok)
+    : fail(damaged(diagnostic))
+}
+
+/**
+ * Checks the retained references of a new recording's target, then the supplied attachment against
+ * them, in the order of SPEC "Recording operation 与阶段事实" step 4.
+ */
+function attachToolOperation(
   record: ControlRecord,
-  input: Parameters<AgentJournal<P>['recordControl']>[0],
-  supplied: ToolOperationParts | undefined,
-): Outcome<ControlRecord, Failure> {
+  tenant: TenantId,
+  recording: AgentOperationId,
+  attachment: LocalAttachment | undefined,
+): Outcome<Attached, Failure> {
   if (!isToolControl(record)) {
-    return supplied === undefined
-      ? succeed(record)
+    return attachment === undefined
+      ? succeed({ kind: 'unchanged' })
       : fail(invalid('toolOperation', 'not-applicable-to-control'))
   }
-  const invocation = resolveToolInvocationRef(record.toolInvocation, input.tenant)
+  const invocation = resolveToolInvocationRef(record.toolInvocation, tenant)
   if ('failure' in invocation) {
-    return fail(
-      invocation.failure.kind === 'foreign-tenant'
-        ? denied('recordControl')
-        : {
-            kind: 'unavailable',
-            owner: 'AgentJournal',
-            diagnostic: 'invalid-retained-tool-invocation',
-          },
-    )
+    return fail(retainedFailure(invocation.failure, 'invalid-retained-tool-invocation'))
   }
-  if (supplied === undefined || input.toolOperation === undefined) return succeed(record)
+  const retained = retainedOperation(record, invocation.ok, tenant)
+  if ('failure' in retained) return retained
+  if (attachment === undefined) return succeed({ kind: 'unchanged' })
+  const supplied = attachment.parts
   if (supplied.call !== invocation.ok.call || supplied.admission !== invocation.ok.admission) {
-    return fail(conflict(input.operation))
+    return fail(conflict(recording))
   }
-  if (record.toolOperation === null) {
-    return succeed({ ...record, toolOperation: input.toolOperation })
+  if (retained.ok === null) {
+    return succeed({
+      kind: 'attached',
+      record: { ...record, toolOperation: attachment.reference },
+    })
   }
-  const retained = resolveToolOperationRef(record.toolOperation, input.tenant)
-  return 'ok' in retained &&
-    retained.ok.call === supplied.call &&
-    retained.ok.admission === supplied.admission &&
-    retained.ok.operation === supplied.operation
-    ? succeed(record)
-    : fail(conflict(input.operation))
+  return retained.ok.operation === supplied.operation
+    ? succeed({ kind: 'unchanged' })
+    : fail(conflict(recording))
 }
 
 function sameEvidence(left: Evidence | null, right: Evidence | null): boolean {
@@ -467,7 +548,7 @@ export function createMemoryAgentJournal<P>(
     operation: AgentOperationId,
   ): string | undefined => {
     const text = tenantCodec.encode(tenant)
-    return text.ok ? JSON.stringify([text.value, execution, operation]) : undefined
+    return text.ok ? operationText(text.value, execution, operation) : undefined
   }
 
   // ------------------------------------------------------------------------------------------
@@ -577,17 +658,45 @@ export function createMemoryAgentJournal<P>(
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
   ): Promise<Outcome<R, Failure>> {
-    const at = operationKey(input.tenant, input.execution, input.operation)
-    if (at === undefined) return fail(denied(method))
-    // The scripted fault belongs to the next call of the method, whoever makes it. Ownership is
-    // checked before the fault takes effect: a write on another tenant's execution, or on an
-    // execution that does not exist (other than `open`), is denied and never becomes pending.
+    const entered = enter(method, input)
+    if ('failure' in entered) return entered
+    return run(method, entered.ok.fault, input, key, prepare, beforeRecognition)
+  }
+
+  /**
+   * The first step of every write. The scripted fault belongs to the next call of the method,
+   * whoever makes it, so it is taken here, before anything else of the call is read. Ownership is
+   * checked before the fault takes effect: a write on another tenant's execution, or on an execution
+   * that does not exist (other than `open`), is denied and never becomes pending.
+   */
+  function enter(
+    method: JournalWrite,
+    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+  ): Outcome<Readonly<{ fault: WriteFault | undefined }>, Failure> {
     const fault = writeFaults.get(method)?.shift()
     const target = executions.get(input.execution)
     const foreign =
       target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
-    if (foreign) return fail(denied(method))
+    return foreign ? fail(denied(method)) : succeed({ fault })
+  }
+
+  /** The rest of a write after `enter`, under the fault that `enter` took. */
+  async function run<R>(
+    method: JournalWrite,
+    fault: WriteFault | undefined,
+    input: ExecutionMutation<P>,
+    key: string,
+    prepare: () => Attempt<R>,
+    beforeRecognition?: () => Failure | undefined,
+  ): Promise<Outcome<R, Failure>> {
+    const at = operationKey(input.tenant, input.execution, input.operation)
+    if (at === undefined) return fail(denied(method))
     const commitUnknown = fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
+    const scriptedUnavailable = fail<Failure>({
+      kind: 'unavailable',
+      owner: JOURNAL_OWNER,
+      diagnostic: `${method} is scripted unavailable`,
+    })
     const check = (): Failure | undefined => {
       if (beforeRecognition === undefined) return undefined
       const found = owned(input, method)
@@ -595,6 +704,10 @@ export function createMemoryAgentJournal<P>(
     }
     const pending = operations.get(at)
     if (pending?.kind === 'pending') {
+      // A call that meets the held write of its operation still answers with its own fault. The
+      // held write belongs to the earlier call: no fault of this call runs, drops or holds it again.
+      if (fault !== undefined)
+        return fault.kind === 'unavailable' ? scriptedUnavailable : commitUnknown
       const rejected = check()
       if (rejected !== undefined) return fail(rejected)
       return pending.key === key ? commitUnknown : fail(conflict(input.operation))
@@ -651,13 +764,7 @@ export function createMemoryAgentJournal<P>(
       hold()
       return commitUnknown
     }
-    if (fault.kind === 'unavailable') {
-      return fail({
-        kind: 'unavailable',
-        owner: JOURNAL_OWNER,
-        diagnostic: `${method} is scripted unavailable`,
-      })
-    }
+    if (fault.kind === 'unavailable') return scriptedUnavailable
     switch (fault.outcome) {
       case 'applied':
         decide(attempt())
@@ -1303,16 +1410,13 @@ export function createMemoryAgentJournal<P>(
     },
 
     async recordControl(request) {
-      const access = owned(request, 'recordControl')
-      if ('failure' in access) return access
-      const toolOperation = request.toolOperation
-      const supplied =
-        toolOperation === undefined
-          ? undefined
-          : resolveToolOperationRef(toolOperation, request.tenant)
-      if (supplied && 'failure' in supplied && supplied.failure.kind === 'foreign-tenant') {
-        return fail(denied('recordControl'))
-      }
+      const method = 'recordControl'
+      const entered = enter(method, request)
+      if ('failure' in entered) return entered
+      const attachment = suppliedAttachment(request)
+      // SPEC "Recording operation 与阶段事实" step 2: a foreign attachment is denied before the
+      // operation and the target are read, like a write on another tenant's execution.
+      if (attachment?.kind === 'foreign') return fail(denied(method))
       const input = {
         principal: request.principal,
         tenant: request.tenant,
@@ -1322,28 +1426,34 @@ export function createMemoryAgentJournal<P>(
         stage: request.stage,
         state: request.state,
         source: copy(request.source),
-        ...(toolOperation === undefined ? {} : { toolOperation }),
       }
+      // A local attachment takes part in the key by its canonical parts, a malformed one by its bytes.
       const key = semanticKey(
-        'recordControl',
-        supplied && 'ok' in supplied ? { ...input, toolOperation: supplied.ok } : input,
+        method,
+        attachment === undefined
+          ? input
+          : {
+              ...input,
+              toolOperation: attachment.kind === 'local' ? attachment.parts : attachment.reference,
+            },
       )
-      return write('recordControl', input, key, () => {
-        const found = owned(input, 'recordControl')
+      return run(method, entered.ok.fault, input, key, () => {
+        const found = owned(input, method)
         if ('failure' in found) return answer(found)
         const execution = found.ok
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        if (supplied && 'failure' in supplied) {
+        if (attachment?.kind === 'malformed') {
           return answer(fail(invalid('toolOperation', 'malformed-tool-operation-reference')))
         }
         const index = execution.controls.findIndex(record => record.operation === input.target)
         const record = execution.controls[index]
         if (record === undefined)
           return answer(fail(invalid('target', 'not a control of this execution')))
-        const attached = attachToolOperation(record, input, supplied?.ok)
+        const attached = attachToolOperation(record, input.tenant, input.operation, attachment)
         if ('failure' in attached) return answer(attached)
-        const referenceAdded = attached.ok !== record
+        const referenceAdded = attached.ok.kind === 'attached'
+        const updated = attached.ok.kind === 'attached' ? attached.ok.record : record
         if (!STAGES[record.command.kind].has(input.stage)) {
           return answer(fail(invalid('stage', `not a stage of ${record.command.kind}`)))
         }
@@ -1354,7 +1464,8 @@ export function createMemoryAgentJournal<P>(
           fact.state === input.state &&
           sameEvidence(fact.source, input.source)
         if (sameFact && !referenceAdded) {
-          // SPEC "六个阶段": a new attachment recognizes a stage that already holds; it is not recorded twice.
+          // SPEC "六个阶段": the same stage fact without a new reference recognizes the first receipt;
+          // it is not recorded twice.
           const first = execution.stageReceipts.get(stageKey)
           if (first !== undefined) return answer(succeed(copy(first)))
         }
@@ -1372,7 +1483,7 @@ export function createMemoryAgentJournal<P>(
           receipt,
           apply: () => {
             execution.controls[index] = {
-              ...attached.ok,
+              ...updated,
               stages: {
                 ...record.stages,
                 [input.stage]: { state: input.state, source: copy(input.source) },
@@ -1661,7 +1772,8 @@ export function createMemoryAgentJournal<P>(
     durability: 'none',
     setRetainedToolInvocationFault(input) {
       if (!retainedToolInvocationFaults) return { kind: 'rejected', reason: 'disabled' }
-      if (!validRetainedFaultInput(input)) return { kind: 'rejected', reason: 'invalid-input' }
+      const key = retainedFaultKey(input)
+      if (key === undefined) return { kind: 'rejected', reason: 'invalid-input' }
       const execution = executions.get(input.execution)
       if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) {
         return { kind: 'rejected', reason: 'target-unavailable' }
@@ -1670,8 +1782,6 @@ export function createMemoryAgentJournal<P>(
       const record = execution.controls[index]
       if (record === undefined) return { kind: 'rejected', reason: 'target-unavailable' }
       if (!isToolControl(record)) return { kind: 'rejected', reason: 'not-tool-control' }
-      const key = operationKey(input.tenant, input.execution, input.control)
-      if (key === undefined) return { kind: 'rejected', reason: 'invalid-input' }
       const original = retainedToolInvocationBaselines.get(key)
       if (input.fault === null) {
         if (original !== undefined) {

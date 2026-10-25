@@ -7,6 +7,7 @@ import {
   type AgentEvent,
   type EventPage,
 } from '@omne-harness/agent-contract'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import { encodeModelInvocationRef, decodeModelOperationId } from '@omne-harness/model-contract'
 import * as tools from '@omne-harness/tool-contract'
 import {
@@ -276,7 +277,7 @@ describe('pending control operation custody', () => {
   const retries = [undefined, 'applied', 'dropped', 'pending'] as const
 
   it.each(retries)(
-    'rejects a replacement call under pending C with retry fault %s',
+    'rejects a replacement call under pending C after a retry fault %s',
     async retry => {
       const secondCall = ok(tools.decodeToolCallId('second-call'))
       const secondReference = ok(tools.encodeToolInvocationRef({ ...parts, call: secondCall }))
@@ -291,13 +292,21 @@ describe('pending control operation custody', () => {
       })
       const held = await observe(journal, opened.execution)
       expect(held.snapshot.unresolved).toContain(control.operation)
-      if (retry !== undefined)
+      const replacement = { ...control, command: { ...control.command, call: secondCall } }
+      if (retry !== undefined) {
+        // The call that takes the fault answers with it, and the held write stays as it is.
         memory.failNext('control', { kind: 'commit-unknown', outcome: retry })
-      expect(
-        failure(
-          await journal.control({ ...control, command: { ...control.command, call: secondCall } }),
-        ),
-      ).toEqual({ kind: 'conflict', operation: control.operation })
+        expect(failure(await journal.control(replacement))).toEqual({
+          kind: 'commit-unknown',
+          operation: control.operation,
+        })
+        expect(await observe(journal, opened.execution)).toEqual(held)
+        expect(ok(await journal.query(control))).toEqual({ kind: 'unknown' })
+      }
+      expect(failure(await journal.control(replacement))).toEqual({
+        kind: 'conflict',
+        operation: control.operation,
+      })
       expect(await observe(journal, opened.execution)).toEqual(held)
       expect(ok(await journal.query(control))).toEqual({ kind: 'unknown' })
       expect(memory.settle(opened.execution, control.operation, 'applied')).toBe(true)
@@ -322,7 +331,7 @@ describe('pending control operation custody', () => {
   )
 
   it.each(retries)(
-    'rejects a replacement attachment under pending R with retry fault %s',
+    'rejects a replacement attachment under pending R after a retry fault %s',
     async retry => {
       const { memory, journal, opened, control, recording } = await setup()
       ok(await journal.control(control))
@@ -334,18 +343,24 @@ describe('pending control operation custody', () => {
       })
       const held = await observe(journal, opened.execution)
       expect(held.snapshot.unresolved).toContain(original.operation)
-      if (retry !== undefined)
+      const replacement = {
+        ...original,
+        toolOperation: operationRef({ operation: ok(tools.decodeToolOperationId('replacement')) }),
+      }
+      if (retry !== undefined) {
+        // The call that takes the fault answers with it, and the held write stays as it is.
         memory.failNext('recordControl', { kind: 'commit-unknown', outcome: retry })
-      expect(
-        failure(
-          await journal.recordControl({
-            ...original,
-            toolOperation: operationRef({
-              operation: ok(tools.decodeToolOperationId('replacement')),
-            }),
-          }),
-        ),
-      ).toEqual({ kind: 'conflict', operation: original.operation })
+        expect(failure(await journal.recordControl(replacement))).toEqual({
+          kind: 'commit-unknown',
+          operation: original.operation,
+        })
+        expect(await observe(journal, opened.execution)).toEqual(held)
+        expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
+      }
+      expect(failure(await journal.recordControl(replacement))).toEqual({
+        kind: 'conflict',
+        operation: original.operation,
+      })
       expect(await observe(journal, opened.execution)).toEqual(held)
       expect(ok(await journal.query(original))).toEqual({ kind: 'unknown' })
       expect(memory.settle(opened.execution, original.operation, 'applied')).toBe(true)
@@ -1292,4 +1307,166 @@ it('does not attach a reference when the stage is inapplicable or a reached fact
     ),
   ).toEqual({ kind: 'conflict', operation: operation('changed-stage') })
   expect(await observe(journal, opened.execution)).toEqual(saved)
+})
+
+describe('retained Tool operation corruption', () => {
+  // The original R attaches the reference with permitted whitespace, so the stored bytes differ from
+  // every reference a later caller supplies; only the Journal's read of the stored bytes is damaged.
+  const stored = ` ${toolOperation} ` as tools.ToolOperationRef
+  const resolve = tools.resolveToolOperationRef
+  const unavailable = {
+    kind: 'unavailable',
+    owner: 'AgentJournal',
+    diagnostic: 'invalid-retained-tool-operation',
+  } as const
+  const retainedParts = ok(resolve(toolOperation, access.tenant))
+  const damages = [
+    ['malformed', resolve('invalid', access.tenant), unavailable],
+    [
+      'foreign',
+      resolve(operationRef({ tenant: otherTenant.tenant }), access.tenant),
+      { kind: 'denied', action: 'recordControl' },
+    ],
+    [
+      'another call',
+      { ok: { ...retainedParts, call: ok(tools.decodeToolCallId('another-call')) } },
+      unavailable,
+    ],
+    [
+      'another admission',
+      { ok: { ...retainedParts, admission: ok(tools.decodeToolOperationId('another-admission')) } },
+      unavailable,
+    ],
+  ] as const
+
+  it.each(damages)(
+    'answers %s retained bytes as a provider failure, never as a caller conflict',
+    async (_, damaged, expected) => {
+      const { journal, opened, control, recording } = await setup()
+      ok(await journal.control(control))
+      const original = { ...recording, toolOperation: stored }
+      const receipt = ok(await journal.recordControl(original))
+      expect((await load(journal, opened.execution)).controls[0]?.toolOperation).toBe(stored)
+      vi.spyOn(tools, 'resolveToolOperationRef').mockImplementation((reference, tenant) =>
+        reference === stored ? damaged : resolve(reference, tenant),
+      )
+      const before = await observe(journal, opened.execution)
+      // SPEC: the original R is recognized before any retained reference is read.
+      expect(ok(await journal.recordControl({ ...original, toolOperation }))).toEqual(receipt)
+      const stopped = {
+        ...recording,
+        operation: operation('stopped'),
+        stage: 'physically-stopped',
+        source: evidence('stopped'),
+      } as const
+      const replacement = operationRef({ operation: ok(tools.decodeToolOperationId('changed')) })
+      for (const next of [
+        stopped,
+        { ...stopped, toolOperation },
+        { ...stopped, toolOperation: replacement },
+        { ...recording, operation: operation('same-stage') },
+      ]) {
+        expect(failure(await journal.recordControl(next))).toEqual(expected)
+        expect(ok(await journal.query(next))).toEqual({ kind: 'unknown' })
+      }
+      expect(await observe(journal, opened.execution)).toEqual(before)
+    },
+  )
+})
+
+describe('scripted faults on recordControl', () => {
+  const faults = [
+    [{ kind: 'unavailable' }, 'unavailable'],
+    [{ kind: 'commit-unknown', outcome: 'applied' }, 'commit-unknown'],
+    [{ kind: 'commit-unknown', outcome: 'dropped' }, 'commit-unknown'],
+    [{ kind: 'commit-unknown', outcome: 'pending' }, 'commit-unknown'],
+  ] as const
+
+  it.each(faults)(
+    'answers a re-send of a held R with the queued fault %o and keeps the held write',
+    async (fault, answer) => {
+      const { memory, journal, opened, control, recording } = await setup()
+      ok(await journal.control(control))
+      memory.failNext('recordControl', { kind: 'commit-unknown', outcome: 'pending' })
+      const unknown = await journal.recordControl(recording)
+      expect(failure(unknown)).toEqual({ kind: 'commit-unknown', operation: recording.operation })
+      const held = await observe(journal, opened.execution)
+      memory.failNext('recordControl', fault)
+      expect(failure(await journal.recordControl(recording)).kind).toBe(answer)
+      expect(await observe(journal, opened.execution)).toEqual(held)
+      expect(ok(await journal.query(recording))).toEqual({ kind: 'unknown' })
+      // The fault is used up; the next re-send meets the held write without it.
+      expect(await journal.recordControl(recording)).toEqual(unknown)
+      expect(memory.settle(opened.execution, recording.operation, 'applied')).toBe(true)
+      const receipt = ok(await journal.recordControl(recording))
+      expect(ok(await journal.query(recording))).toEqual({ kind: 'committed', receipt })
+    },
+  )
+
+  it('names the queued fault in the answer to a held re-send', async () => {
+    const { memory, journal, control, recording } = await setup()
+    ok(await journal.control(control))
+    memory.failNext('recordControl', { kind: 'commit-unknown', outcome: 'pending' })
+    failure(await journal.recordControl(recording))
+    memory.failNext('recordControl', { kind: 'unavailable' })
+    expect(failure(await journal.recordControl(recording))).toEqual({
+      kind: 'unavailable',
+      owner: 'memory-agent-journal',
+      diagnostic: 'recordControl is scripted unavailable',
+    })
+  })
+
+  it.each([
+    ['a foreign attachment', { toolOperation: operationRef({ tenant: otherTenant.tenant }) }],
+    ['a caller of another tenant', otherTenant],
+  ] as const)(
+    'lets %s use up the queued fault, answers denied and holds nothing',
+    async (_, change) => {
+      const { memory, journal, opened, control, recording } = await setup()
+      ok(await journal.control(control))
+      const before = await observe(journal, opened.execution)
+      memory.failNext('recordControl', { kind: 'commit-unknown', outcome: 'pending' })
+      const denied = { ...recording, ...change }
+      expect(failure(await journal.recordControl(denied))).toEqual({
+        kind: 'denied',
+        action: 'recordControl',
+      })
+      const after = await observe(journal, opened.execution)
+      expect(after).toEqual(before)
+      expect(after.snapshot.unresolved).not.toContain(recording.operation)
+      expect(ok(await journal.query(recording))).toEqual({ kind: 'unknown' })
+      expect(memory.settle(opened.execution, recording.operation, 'applied')).toBe(false)
+      // The next call of the method meets no fault.
+      const receipt = ok(await journal.recordControl(recording))
+      expect(ok(await journal.query(recording))).toEqual({ kind: 'committed', receipt })
+    },
+  )
+})
+
+it('never asks the custodian about an execution for a tenant that does not own it', async () => {
+  const asked: tools.ToolInvocationParts['tenant'][] = []
+  const memory = createMemoryAgentJournal<string>({
+    custodian: input => {
+      asked.push(input.tenant)
+      return true
+    },
+  })
+  const journal = memory.port
+  const opened = await open(journal)
+  const input: Parameters<typeof journal.recordResult>[0] = {
+    ...access,
+    execution: opened.execution,
+    operation: operation('held-result'),
+    result: producedResult('result'),
+    consumption: consumption('result'),
+    transfer: { kind: 'none' },
+    release: { kind: 'pending' },
+  }
+  memory.failNext('recordResult', { kind: 'commit-unknown', outcome: 'pending' })
+  expect(failure(await journal.recordResult(input)).kind).toBe('commit-unknown')
+  // The caller still holds its request object; whatever it changes later, the held write must not
+  // turn into a qualification question about another tenant.
+  Object.assign(input, { tenant: otherTenant.tenant })
+  expect(memory.settle(opened.execution, operation('held-result'), 'applied')).toBe(true)
+  expect(asked.some(tenant => tenantEquals(tenant, otherTenant.tenant))).toBe(false)
 })
