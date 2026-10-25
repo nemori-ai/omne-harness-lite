@@ -39,7 +39,6 @@ import type {
   RunTerminal,
   ScopeReleaseDisposition,
   SessionCreation,
-  Waiting,
   WorkSnapshot,
 } from './values.ts'
 

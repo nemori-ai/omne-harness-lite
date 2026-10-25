@@ -98,10 +98,17 @@ export function shapeOf(answer: Outcome<unknown, SessionFailure>): string {
  * read alike, and neither may be a success.
  */
 export function assertIndistinguishable(
-  answers: Readonly<{ real: Outcome<unknown, SessionFailure>; ghost: Outcome<unknown, SessionFailure> }>,
+  answers: Readonly<{
+    real: Outcome<unknown, SessionFailure>
+    ghost: Outcome<unknown, SessionFailure>
+  }>,
   what: string,
 ): void {
-  assert.equal(shapeOf(answers.real), shapeOf(answers.ghost), `${what}: the answer tells that the session exists`)
+  assert.equal(
+    shapeOf(answers.real),
+    shapeOf(answers.ghost),
+    `${what}: the answer tells that the session exists`,
+  )
   assert.notEqual(shapeOf(answers.real), 'ok', `${what}: another tenant reads the session`)
   assert.deepEqual(answers.real, answers.ghost, `${what}: the answer differs for the real session`)
 }

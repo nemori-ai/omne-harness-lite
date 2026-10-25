@@ -26,7 +26,8 @@ export async function judge<F>(
     } catch (error) {
       if (isNotApplicable(error)) notApplicable[conformance.name] = error.handle
       else if (error instanceof AssertionError) failed.push(conformance.name)
-      else throw new Error(`case "${conformance.name}" crashed instead of failing`, { cause: error })
+      else
+        throw new Error(`case "${conformance.name}" crashed instead of failing`, { cause: error })
     }
   }
   return { passed, failed, notApplicable }

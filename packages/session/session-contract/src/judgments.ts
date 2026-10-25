@@ -9,7 +9,14 @@
 // that names #756; `resolveCascade` has neither outcome and throws, so a caller cannot mistake
 // an empty cascade for a judged one.
 import type { CompactionContext } from '@omne-harness/message'
-import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts'
+import type {
+  AdvanceRef,
+  InputId,
+  RunId,
+  SessionId,
+  SessionOperationId,
+  SessionRevision,
+} from './identity.ts'
 import type {
   AutoArchivePolicy,
   BoundedClose,
@@ -24,12 +31,7 @@ import type {
   Waiting,
   WorkSnapshot,
 } from './values.ts'
-import type {
-  CommitReceipt,
-  EntryClass,
-  HistoryEntry,
-  SessionFailure,
-} from './faces.ts'
+import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 
@@ -91,7 +93,10 @@ export type OperationRecord = Readonly<{
   digest: string
   receipt: CommitReceipt
 }>
-export type CommittedBatch = Readonly<{ revision: SessionRevision; entries: readonly HistoryEntry[] }>
+export type CommittedBatch = Readonly<{
+  revision: SessionRevision
+  entries: readonly HistoryEntry[]
+}>
 export type ReduceResult =
   | Readonly<{ kind: 'reduced'; snapshot: WorkSnapshot }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
@@ -135,12 +140,14 @@ export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): Advan
       if (claim.advance.run !== run.run) return { kind: 'stale-advance', current: run.advance }
       if (run.advance === null || run.advance.attempt !== claim.advance.attempt)
         return { kind: 'stale-advance', current: run.advance }
-      if (claim.expected !== snapshot.revision) return { kind: 'changed', revision: snapshot.revision }
+      if (claim.expected !== snapshot.revision)
+        return { kind: 'changed', revision: snapshot.revision }
       return { kind: 'ok' }
     }
     case 'bounded': {
       if (claim.run !== run.run) return { kind: 'stale-advance', current: run.advance }
-      if (claim.expected !== snapshot.revision) return { kind: 'changed', revision: snapshot.revision }
+      if (claim.expected !== snapshot.revision)
+        return { kind: 'changed', revision: snapshot.revision }
       return { kind: 'ok' }
     }
     case 'participation': {
@@ -201,7 +208,12 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
     unresolved: snapshot.unresolved,
     unreadEvents:
       snapshot.run.kind === 'active'
-        ? [{ execution: snapshot.run.execution.execution, after: snapshot.run.execution.readThrough }]
+        ? [
+            {
+              execution: snapshot.run.execution.execution,
+              after: snapshot.run.execution.readThrough,
+            },
+          ]
         : [],
   }
 }
@@ -214,7 +226,9 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
 export function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment {
   const terminal = terminalOf(snapshot)
   if (terminal !== null)
-    return terminal.outcome === 'cancelled' ? { kind: 'cancelled', terminal } : { kind: 'terminal', terminal }
+    return terminal.outcome === 'cancelled'
+      ? { kind: 'cancelled', terminal }
+      : { kind: 'terminal', terminal }
   if (snapshot.run.kind !== 'active' || snapshot.run.execution.execution !== execution)
     return { kind: 'allowed' }
   const handed = new Set(snapshot.handed)
@@ -235,7 +249,11 @@ export function resolveCascade(
 
 export function judgeIdle(
   _snapshot: WorkSnapshot,
-  _input: Readonly<{ observation: IdleObservation; policy: AutoArchivePolicy; coverage: IdleCoverage }>,
+  _input: Readonly<{
+    observation: IdleObservation
+    policy: AutoArchivePolicy
+    coverage: IdleCoverage
+  }>,
 ): IdleJudgment {
   return { kind: 'unavailable', reason: OFF_PATH_DIAGNOSTIC }
 }

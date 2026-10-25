@@ -24,7 +24,13 @@ it('exports exactly the two derivations, the nine services, decide, reduce and t
 })
 
 it('keeps the entry codec and the testing values off the root entry', () => {
-  for (const internal of ['encodeEntry', 'decodeEntry', 'toJsonValue', 'commandDigest', 'memoryAccess'])
+  for (const internal of [
+    'encodeEntry',
+    'decodeEntry',
+    'toJsonValue',
+    'commandDigest',
+    'memoryAccess',
+  ])
     expect(Object.keys(session)).not.toContain(internal)
 })
 

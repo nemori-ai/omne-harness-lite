@@ -46,7 +46,11 @@ export function createScriptedSessionIdentityBridge<P>(
           return Promise.resolve(fail({ kind: 'denied' as const, action: command.kind }))
         case 'unavailable':
           return Promise.resolve(
-            fail({ kind: 'unavailable' as const, owner: 'identity', diagnostic: 'the identity source is scripted down' }),
+            fail({
+              kind: 'unavailable' as const,
+              owner: 'identity',
+              diagnostic: 'the identity source is scripted down',
+            }),
           )
         case 'allow':
           return Promise.resolve(
@@ -83,8 +87,17 @@ export function createMemorySessionEvidenceBridge(): MemorySessionEvidenceBridge
     prepare: (command: SessionCommand) =>
       Promise.resolve(
         down
-          ? fail({ kind: 'unavailable' as const, owner: 'evidence', diagnostic: 'the evidence source is scripted down' })
-          : succeed<readonly GuardCommand[]>([guard('evidence-bridge', 'evidence', { kind: command.kind, operation: command.input.operation })]),
+          ? fail({
+              kind: 'unavailable' as const,
+              owner: 'evidence',
+              diagnostic: 'the evidence source is scripted down',
+            })
+          : succeed<readonly GuardCommand[]>([
+              guard('evidence-bridge', 'evidence', {
+                kind: command.kind,
+                operation: command.input.operation,
+              }),
+            ]),
       ),
     controls: Object.freeze({
       unavailable: (next: boolean) => {
@@ -104,12 +117,23 @@ export function createMemorySessionContextInput<P>(): MemorySessionContextInput<
   let down = false
   return Object.freeze({
     durability: 'none' as const,
-    prepare: (input: SessionAccess<P>, command: Extract<SessionCommand, { kind: 'create' | 'change' | 'startRun' | 'reload' }>) =>
+    prepare: (
+      input: SessionAccess<P>,
+      command: Extract<SessionCommand, { kind: 'create' | 'change' | 'startRun' | 'reload' }>,
+    ) =>
       Promise.resolve(
         down
-          ? fail({ kind: 'unavailable' as const, owner: 'runtime-context', diagnostic: 'the Context input is scripted down' })
+          ? fail({
+              kind: 'unavailable' as const,
+              owner: 'runtime-context',
+              diagnostic: 'the Context input is scripted down',
+            })
           : succeed<readonly GuardCommand[]>([
-              guard('context-input', 'runtime-context', { session: input.session, kind: command.kind, operation: command.input.operation }),
+              guard('context-input', 'runtime-context', {
+                session: input.session,
+                kind: command.kind,
+                operation: command.input.operation,
+              }),
             ]),
       ),
     controls: Object.freeze({
@@ -148,7 +172,11 @@ export function createMemorySessionClock(): MemorySessionClock {
     sample: () => {
       if (down)
         return Promise.resolve(
-          fail({ kind: 'unavailable' as const, owner: 'clock', diagnostic: 'the clock is scripted down' }),
+          fail({
+            kind: 'unavailable' as const,
+            owner: 'clock',
+            diagnostic: 'the clock is scripted down',
+          }),
         )
       minted += 1
       const sample: ClockSample = {

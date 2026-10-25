@@ -73,7 +73,14 @@ export function userMessage(text: string, id = 'msg_c0nf0rmance0000000000000'): 
   return {
     id: id as MessageId,
     role: 'user',
-    blocks: [{ kind: 'text', id: `block-${digestOf(text).slice(0, 8)}`, visibility: { toHuman: true, toModel: true }, text }],
+    blocks: [
+      {
+        kind: 'text',
+        id: `block-${digestOf(text).slice(0, 8)}`,
+        visibility: { toHuman: true, toModel: true },
+        text,
+      },
+    ],
   } as unknown as Message
 }
 
@@ -82,13 +89,28 @@ export function assistantMessage(text: string, id = 'msg_c0nf0rmance000000000000
   return {
     id: id as MessageId,
     role: 'assistant',
-    blocks: [{ kind: 'text', id: `block-${digestOf(text).slice(0, 8)}`, visibility: { toHuman: true, toModel: true }, text }],
+    blocks: [
+      {
+        kind: 'text',
+        id: `block-${digestOf(text).slice(0, 8)}`,
+        visibility: { toHuman: true, toModel: true },
+        text,
+      },
+    ],
   } as unknown as Message
 }
 
 /** An ordinary routed input of `input` with the text `text`. */
-export function ordinaryInput(input: string, text = `input ${input}`): Extract<RoutedInput, { kind: 'ordinary' }> {
-  return { kind: 'ordinary', input: inputId(input), message: userMessage(text, `msg_${input.padEnd(22, '0')}`), origin: evidence(`intake/${input}`) }
+export function ordinaryInput(
+  input: string,
+  text = `input ${input}`,
+): Extract<RoutedInput, { kind: 'ordinary' }> {
+  return {
+    kind: 'ordinary',
+    input: inputId(input),
+    message: userMessage(text, `msg_${input.padEnd(22, '0')}`),
+    origin: evidence(`intake/${input}`),
+  }
 }
 
 /** A creation that `decide` accepts, with no required identity, so the session is dormant at once. */
