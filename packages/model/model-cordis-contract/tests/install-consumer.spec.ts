@@ -34,6 +34,7 @@ const closureMembers = [
   '@omne-harness/operation-result',
   '@omne-harness/call-account',
   '@omne-harness/content-block',
+  '@omne-harness/exchange-refs',
   '@omne-harness/json-text',
   '@omne-harness/message',
   '@omne-harness/stream-arrival',

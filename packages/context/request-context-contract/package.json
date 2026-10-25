@@ -35,6 +35,7 @@
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/message": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/modality": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",

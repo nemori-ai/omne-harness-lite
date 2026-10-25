@@ -16,7 +16,7 @@ import {
   type AgentExecutionId,
   type AgentOperationId,
   type ConsumptionId,
-  type Evidence,
+  type DurableEvidence,
   type ExecutionRevision,
   type LoopFacts,
   type StepId,
@@ -155,7 +155,7 @@ export function replyMessageId(execution: AgentExecutionId, step: StepId): Messa
 }
 
 /** Evidence of a fact that this coordinator records itself, bound to its payload by a digest. */
-export function agentEvidence(record: string, payload: unknown = null): Evidence {
+export function agentEvidence(record: string, payload: unknown = null): DurableEvidence {
   return {
     owner: AGENT_OWNER,
     record,

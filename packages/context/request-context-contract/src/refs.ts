@@ -1,13 +1,8 @@
-import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
-export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
-export type Adoption = Readonly<{ owner: string; name: string; revision: string; digest: string }>
-export type DurableEvidence = Readonly<{
-  owner: string
-  record: string
-  revision: string
-  digest: string
-}>
+// `Access` has one definition in legal-identity, the two exchange values have one in
+// exchange-refs. The structure judgments stay in schema-primitives.ts.
+export type { Access } from '@omne-harness/legal-identity'
+export type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs'
 declare const brand: unique symbol
 export type RequestContextRef<K extends string> = string & { readonly [brand]: K }
 export type CandidateRef = RequestContextRef<'CandidateRef'>

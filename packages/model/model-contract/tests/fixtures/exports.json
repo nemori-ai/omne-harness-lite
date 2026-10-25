@@ -36,10 +36,25 @@
             { "name": "OutputCursor", "kind": "type", "pending": false },
             { "name": "ReadId", "kind": "type", "pending": false },
             { "name": "Revision", "kind": "type", "pending": false },
-            { "name": "Adoption", "kind": "type", "pending": false },
-            { "name": "ConsumerRef", "kind": "type", "pending": false },
+            {
+              "name": "Adoption",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
+            },
+            {
+              "name": "ConsumerRef",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
+            },
             { "name": "ActorRef", "kind": "type", "pending": false },
-            { "name": "Access", "kind": "type", "pending": false },
+            {
+              "name": "Access",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/legal-identity"
+            },
             { "name": "CallAccess", "kind": "type", "pending": false },
             { "name": "Mutation", "kind": "type", "pending": false },
             { "name": "Parameter", "kind": "type", "pending": false },
@@ -108,7 +123,12 @@
             { "name": "ControlState", "kind": "type", "pending": false },
             { "name": "Lookup", "kind": "type", "pending": false },
             { "name": "Admission", "kind": "type", "pending": false },
-            { "name": "DurableEvidence", "kind": "type", "pending": false },
+            {
+              "name": "DurableEvidence",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
+            },
             { "name": "Handoff", "kind": "type", "pending": false },
             { "name": "AckInput", "kind": "type", "pending": false },
             { "name": "AckReceipt", "kind": "type", "pending": false }

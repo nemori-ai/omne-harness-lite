@@ -41,7 +41,7 @@ const decision = await check.check({
 | `AdmissionDecision`、`DenialReason`、`AdmissionBasis`、`StandingBasis` | 裁定结论、拒绝原因与依据 |
 | `AdmissionFacts`、`decideAdmission(input, facts)` | 对已读事实的纯裁定 |
 | `AdmissionCheck` | 裁定端口 |
-| `EvidenceRef`、`DecisionEvidence`、`decisionEvidence`、`digestOf`、`canonicalText` | 可核对证据与摘要 |
+| `DurableEvidence`（再导出 exchange-refs 的唯一定义）、`DecisionEvidence`、`decisionEvidence`、`digestOf`、`canonicalText` | 可核对证据与摘要 |
 | `EffectiveArguments`、`effectiveArgumentsOf`、`noArguments()` | 生效参数的摘要；许可绑定它 |
 | `PermitId`、`decodePermitId`、`PERMIT_ID_MAX_LENGTH`、`PermitRef` | 许可引用 |
 | `PermitGrant`、`PermitState`、`ConsumptionFact`、`ConsumerPosition` | 许可与消费事实 |
@@ -75,10 +75,9 @@ const decision = await check.check({
 | `tests/permit.spec.ts` | 许可文本、授予、查找、跨租户、手写租户、重复消费 |
 | `tests/snapshots.spec.ts` | 修改输入或返回值不能改写许可、消费事实或历史裁定依据；证据仍可重算，主体与租户保留原身份 |
 | `tests/port-adapters.spec.ts` | Agent、Tool 的有限映射；未支持的权限或答复输入不放行；本地 Session 适配模型 |
-| `tests/access-equivalence.spec-d.ts` | `Access<P>` 与 agent、tool、model、执行环境、request-context 契约的副本是同一类型 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
-端口适配器与类型等价测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract`、`@omne-harness/model-contract`、`@omne-harness/execution-environment-contract`、`@omne-harness/request-context-contract` 作为 devDependencies 取端口与副本类型。测试内 `SessionAccessCheck` 只是本卡适配模型。真实 Session 公共接口的兼容重验仍未完成，由 B1/S-2 接续。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
+端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。测试内 `SessionAccessCheck` 只是本卡适配模型。真实 Session 公共接口的兼容重验仍未完成，由 B1/S-2 接续。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/authorization`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 

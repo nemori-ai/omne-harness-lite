@@ -183,17 +183,20 @@
             {
               "name": "Access",
               "kind": "type",
-              "pending": false
+              "pending": false,
+              "sameAs": "@omne-harness/legal-identity"
             },
             {
               "name": "Adoption",
               "kind": "type",
-              "pending": false
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
             },
             {
               "name": "DurableEvidence",
               "kind": "type",
-              "pending": false
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
             },
             {
               "name": "RequestContextRef",

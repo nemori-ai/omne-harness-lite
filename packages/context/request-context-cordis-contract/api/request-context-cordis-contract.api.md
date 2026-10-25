@@ -6,8 +6,8 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `Access` · 包 `@omne-harness/request-context-contract`
-- `Adoption` · 包 `@omne-harness/request-context-contract`
+- `Access` · 包 `@omne-harness/legal-identity`
+- `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AlterationEvidence` · 包 `@omne-harness/request-context-contract`
 - `AssemblyContext` · 包 `@omne-harness/request-context-contract`
 - `AssemblyFailure` · 包 `@omne-harness/request-context-contract`
@@ -43,7 +43,7 @@
 - `Decoded` · 包 `@omne-harness/request-context-contract`
 - `Decoder` · 包 `@omne-harness/request-context-contract`
 - `DeriveInput` · 包 `@omne-harness/request-context-contract`
-- `DurableEvidence` · 包 `@omne-harness/request-context-contract`
+- `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EpochId` · 包 `@omne-harness/request-context-contract`
 - `FitVerdict` · 包 `@omne-harness/request-context-contract`
 - `HistoryEvidence` · 包 `@omne-harness/request-context-contract`

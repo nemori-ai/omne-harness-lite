@@ -11,7 +11,7 @@
 [行为与约束](../SPEC.md#342-值定义和固定请求)。
 
 - [reference.ts](../src/reference.ts)：调用与操作引用、encode/decode 及租户解析。引用是定位文本，每次访问仍核当前资格。
-- [identity.ts](../src/identity.ts)：品牌身份、采用与耐久证据引用、访问输入，以及每个品牌身份的解码函数。
+- [identity.ts](../src/identity.ts)：品牌身份、访问输入，以及每个品牌身份的解码函数。`Adoption`、`ConsumerRef`、`DurableEvidence` 再导出 [exchange-refs](../../../common/exchange-refs/SPEC.md) 的唯一定义，`Access` 再导出 legal-identity 的唯一定义。结构判定留在 `value-shapes.ts` 与 `judge-release.ts`。
 - [definitions.ts](../src/definitions.ts)：参数契约、返回声明、工具定义、可用性、调用参数、资源 scope（owner、key 与授予证据 grant）与固定请求。
 - [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查。
 - [judge-request.ts](../src/judge-request.ts)：`judgeFixedToolRequest` 与普通 payload 的 `judgeToolInvokeRequest`，对未知输入做固定请求的封闭检查：每个字段的形状、定义经 `judgeToolDefinition`、并发上限是正整数或 null、时限是非负整数或 null、`command` 选中定义声明的操作（函数工具只接受 null，多命令工具要求具名且存在）。它不读存储，不授予资格；来源、当前资格与可用性事实由受理提供者核验。
@@ -134,7 +134,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 - 入参带 `access` 的端口套件有跨租户用例：用第二个租户的 access 读或改第一个租户的记录，既不读到也不改动，也得不到记录存在与否的任何信息。判据是四条：外租户对“存在于他租户的记录”的答复，与对“从未存在的记录”的答复同类（成功或同一种失败，答复的 kind 也相同），首答是进度时在完成手柄之后仍然同类；外租户对真实记录的答复不得带出该记录的识别值，首答与完成手柄之后的答复都查（前两条经 `crossTenantAnswers`）；第一个租户的记录之后原样可读；外租户的写入没有落到第一个租户的记录上。第二条按下面五步检查：
   1. 两组值，都由用例给出。`identifying` 是本租户记录的识别值，可以是文本，也可以是结构值：记录名、证据摘要、本租户的操作号、本租户的组织文本与账户文本，以及本租户的 `TenantId` 对象本身。`submitted` 是外租户自己提交的值：它的 access（含它自己 `TenantId` 的组织文本与账户文本）、它用的操作号，以及它送来的 resource、permit、registration 等。提交值里任何一层的文本都算提交的文本。
   2. 遍历范围。检查遍历对真实记录的答复的每一层：值和键（键按 `Reflect.ownKeys` 取，symbol 键按它的描述读）、`Map` 的键和值、`Set` 的元素、`Error` 的 `name`、`message` 与 `cause`、数组元素。数组下标是位置，不按文本读。同一个对象只读一次，所以有环的答复也会读完。
-  3. 先去掉提交值。字符串里提交的文本的每次出现都是回显。识别文本的一次出现若整个落在一次回显之内，就不算泄露。这相当于先把提交的文本替换成占位符（长的先替换）再查，只有一点不同：一个识别值只有一部分落在回显里时，仍按原文查到。所以外租户回显自己的操作号或身份（例如 `ensure-1`、`org_conformance_other`），不会因为其中含有本租户较短的识别值（`1`、`org_conformance`）而被误判；外租户提交了 `conformance`，答复里的 `acc_conformance` 仍是泄露。外租户自己提交过的结构识别值不查。
+  3. 先去掉提交值。字符串里提交的文本的每次出现都是回显。识别文本的一次出现若整个落在一次回显之内，就不算泄露。这相当于先把提交的文本替换成占位符（长的先替换）再查，只有一点不同：一个识别值只有一部分落在回显里时，仍按原文查到。所以外租户回显自己的操作号或身份（例如 `ensure-1`、`org_c0nf0rmance0ther0000000000`），不会因为其中含有一个识别值（`1`、`c0nf0rmance0ther`）而被误判；外租户提交了 `c0nf0rmance`，答复里的 `acc_c0nf0rmance000000000000000` 仍是泄露。外租户自己提交过的结构识别值不查。
   4. 等值检查。任何字符串（值或键）与某个识别文本完全相等，或任何对象与某个结构识别值深相等，都判泄露。
   5. 子串检查。长度不小于 8 的识别文本，出现在更长的字符串里也判泄露，写在诊断文本里的也算。短于 8 的识别文本只做等值检查：短值（例如以行号命名的记录 `1`）会偶然出现在提供者普通的文本里（版本号、计数、外租户的操作号、十六进制摘要），长值不会。
 

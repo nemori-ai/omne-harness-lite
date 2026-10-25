@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面九份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面十份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。`exchange-refs` 只导出三个类型，没有运行时值。
 
 ## 责任与范围
 
@@ -10,7 +10,7 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的九份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的十份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
@@ -23,6 +23,7 @@
 | `call-account` | 快照准入、修订替换、来源小计和应付金额已导出 | 一次模型调用或工具执行的调用账目 | 值消费者与会话结果接收职责见[成员说明](call-account/README_ZH.md#职责与状态) |
 | `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851) | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方 | 当前直接消费者由[成员 SPEC](operation-result/SPEC.md#消费者)唯一维护，区分 src 类型、运行时值和 testing 支持 |
 | `modality` | 公开入口已实现，零依赖。含义与 Model 契约一致，由 Model 主干会话于 2026-10-19 确认。媒体类型到模态的对照表由 PanQiWei 随 [#397](https://github.com/nemori-ai/omne-harness-lite/issues/397) 接受，其中全部 `audio/*` 读作 `voice` 是 PanQiWei 2026-10-19 的裁定 | 四种模态、媒体类型规范形式与按顶层类型识别的模态、模态判定、缺失模态。不含历史模态投影、转换件选择、初始文本约束和块种类到模态的映射 | 具名消费者是 Model 与 Tool。以后有会话、代理与基础设施。当前轨道没有生产调用点。Model 与 Tool 在各自的交付里采用，采用前保留各自的副本 |
+| `exchange-refs` | 公开入口已实现，零依赖，只有类型。逐字段核对与收归由 PanQiWei 在 [#734 派发裁定](https://github.com/nemori-ai/omne-harness-lite/issues/734#issuecomment-6394333906)中决定。判定、摘要算法与跨值规则留在原域 | 可以恢复的精确采用 `Adoption`、一个 owner 的耐久记录定位 `DurableEvidence`、消费者拥有者登记的稳定位置 `ConsumerRef` | agent-contract、model-contract、tool-contract、request-context-contract 以原名再导出，authorization 的 `DecisionEvidence` 建在 `DurableEvidence` 上。清单见[成员 SPEC](exchange-refs/SPEC.md#composition) |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
@@ -93,4 +94,4 @@
 
 ## 维护
 
-组技术拥有者与原语义或事实拥有者共同判断新增成员，文档维护者同步导航、登记及链接。长期个人负责人尚未具名。建包前核对[成员文档规范](../../docs/member-documentation.md)和[开发指南](../../docs/development.md#创建和整改产品包)；条件未满足时在原拥有者处维护局部机制。
+组技术拥有者与原语义或事实拥有者共同判断新增成员，文档维护者同步导航、登记及链接。组负责人是 PanQiWei。建包前核对[成员文档规范](../../docs/member-documentation.md)和[开发指南](../../docs/development.md#创建和整改产品包)；条件未满足时在原拥有者处维护局部机制。

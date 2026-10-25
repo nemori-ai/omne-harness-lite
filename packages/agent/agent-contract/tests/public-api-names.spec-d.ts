@@ -81,7 +81,7 @@ import type {
   DecisionCards,
   EffectIntent,
   EventPage,
-  Evidence,
+  DurableEvidence,
   ExecutionAttachmentId,
   ExecutionControl,
   ExecutionMutation,
@@ -186,7 +186,7 @@ type Landed = {
   Continuation: Continuation
   CurrentConditions: CurrentConditions<string>
   DecisionCards: DecisionCards<string>
-  Evidence: Evidence
+  DurableEvidence: DurableEvidence
   ExecutionAttachmentId: ExecutionAttachmentId
   ExecutionRevision: ExecutionRevision
   ExtensionImplementations: ExtensionImplementations<string>
@@ -381,7 +381,7 @@ describe('the discriminants of the evaluation chapter', () => {
     expectTypeOf<KindOf<Waiting>>().toEqualTypeOf<'producer' | 'human' | 'dependency'>()
     expectTypeOf<Extract<Waiting, { kind: 'producer' }>['pending']>().toEqualTypeOf<PendingCall>()
     expectTypeOf<Extract<Waiting, { kind: 'human' }>['cards']>().toEqualTypeOf<
-      readonly Evidence[]
+      readonly DurableEvidence[]
     >()
   })
 
@@ -526,7 +526,7 @@ describe('the subject of each position', () => {
     // Each row as the table of docs/public-api/extensions.md, "位置与作者可见的 subject", writes it.
     // A row equals exactly one variant: `Extract` keeps every variant assignable to the row, so a
     // second match or a drifted shape makes the two sides differ.
-    type Started = Readonly<{ execution: AgentExecutionId; conditions: Evidence }>
+    type Started = Readonly<{ execution: AgentExecutionId; conditions: DurableEvidence }>
     type BeforeCompaction = Readonly<{
       preparation: Extract<Preparation, { kind: 'needs-compaction' }>
     }>
@@ -566,7 +566,7 @@ describe('the subject of each position', () => {
     type EachResult = Readonly<{
       action: ActionId
       outcome:
-        | Readonly<{ kind: 'denied'; evidence: Evidence }>
+        | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
         | Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>
       candidate: Message
     }>
@@ -578,8 +578,8 @@ describe('the subject of each position', () => {
         terminal: T.ToolTerminal | null
       }>[]
     }>
-    type BeforeTerminal = Readonly<{ proposed: AgentConclusion; basis: Evidence }>
-    type AfterTerminal = Readonly<{ terminal: AgentConclusion; disposition: Evidence }>
+    type BeforeTerminal = Readonly<{ proposed: AgentConclusion; basis: DurableEvidence }>
+    type AfterTerminal = Readonly<{ terminal: AgentConclusion; disposition: DurableEvidence }>
 
     expectTypeOf<Extract<Subject, Started>>().toEqualTypeOf<Started>()
     expectTypeOf<Extract<Subject, BeforeCompaction>>().toEqualTypeOf<BeforeCompaction>()
@@ -643,7 +643,7 @@ describe('the subject of each position', () => {
   })
 
   it('accepts a start subject and refuses a loose record', () => {
-    expectTypeOf<{ execution: AgentExecutionId; conditions: Evidence }>().toExtend<Subject>()
+    expectTypeOf<{ execution: AgentExecutionId; conditions: DurableEvidence }>().toExtend<Subject>()
     expectTypeOf<Record<string, unknown>>().not.toExtend<Subject>()
     expectTypeOf<{ purpose: 'other'; preparation: unknown }>().not.toExtend<Subject>()
   })
@@ -693,7 +693,7 @@ describe('the discriminants of the passage ledger', () => {
     >()
     expectTypeOf<ReturnType<DecisionCards<string>['read']>>().toEqualTypeOf<Reply<CardReply>>()
     expectTypeOf<ReturnType<AgentMaterials<string, ContentBlock>['preserve']>>().toEqualTypeOf<
-      Reply<Evidence>
+      Reply<DurableEvidence>
     >()
     expectTypeOf<ReturnType<ExtensionImplementations<string>['resolve']>>().toEqualTypeOf<
       Reply<LoopExtensionImplementation>
@@ -714,10 +714,10 @@ describe('the discriminants of the coordination chapter', () => {
     >().toEqualTypeOf<FinishIntent>()
     expectTypeOf<
       Extract<ExecutionState, { kind: 'suspended' }>['handoff']
-    >().toEqualTypeOf<Evidence>()
+    >().toEqualTypeOf<DurableEvidence>()
     expectTypeOf<
       Extract<ExecutionState, { kind: 'ended' }>['disposition']
-    >().toEqualTypeOf<Evidence>()
+    >().toEqualTypeOf<DurableEvidence>()
     expectTypeOf<
       Extract<ExecutionState, { kind: 'ended' }>['conclusion']
     >().toEqualTypeOf<AgentConclusion>()
@@ -793,7 +793,7 @@ describe('the discriminants of the coordination chapter', () => {
     >()
     expectTypeOf<
       Extract<AgentAccessDecision, { kind: 'allowed' }>['evidence']
-    >().toEqualTypeOf<Evidence>()
+    >().toEqualTypeOf<DurableEvidence>()
     expectTypeOf<
       Extract<AgentAccessDecision, { kind: 'unavailable' }>['diagnostic']
     >().toEqualTypeOf<string>()
@@ -839,10 +839,12 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<KindOf<CallerCommit>>().toEqualTypeOf<
       'none' | 'message' | 'context-transition' | 'custody' | 'processed'
     >()
-    expectTypeOf<Extract<CallerCommit, { kind: 'custody' }>['retained']>().toEqualTypeOf<Evidence>()
+    expectTypeOf<
+      Extract<CallerCommit, { kind: 'custody' }>['retained']
+    >().toEqualTypeOf<DurableEvidence>()
     expectTypeOf<
       Extract<CallerCommit, { kind: 'processed' }>['completion']
-    >().toEqualTypeOf<Evidence>()
+    >().toEqualTypeOf<DurableEvidence>()
     expectTypeOf<JournalCapabilities['participants']>().toEqualTypeOf<
       ReadonlySet<'message' | 'context-transition' | 'custody' | 'processed'>
     >()
@@ -935,7 +937,7 @@ describe('Tool association and control references', () => {
     >().toEqualTypeOf<T.ToolInvokeRequest>()
     expectTypeOf<{
       kind: 'allowed'
-      evidence: Evidence
+      evidence: DurableEvidence
       request: T.ToolInvokeRequest
     }>().toExtend<ActionJudgment>()
   })

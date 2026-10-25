@@ -9,7 +9,7 @@
 - `AGENT_IDENTITY_MAX_LENGTH` · `identity.d.ts`
 - `ATTRIBUTE_ITEMS` · `definition.d.ts`
 - `AcceptedInput` · `execution.d.ts`
-- `Access` · `identity.d.ts`
+- `Access` · 包 `@omne-harness/legal-identity`
 - `Action` · `evaluation.d.ts`
 - `ActionAdmission` · `passages.d.ts`
 - `ActionBarrier` · `evaluation.d.ts`
@@ -20,7 +20,7 @@
 - `ActionJudgment` · `evaluation.d.ts`
 - `ActionSlot` · `evaluation.d.ts`
 - `AdmissionDecision` · `passages.d.ts`
-- `Adoption` · `identity.d.ts`
+- `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdvancementFact` · `evaluation.d.ts`
 - `AgentAccessCheck` · `execution.d.ts`
 - `AgentAccessDecision` · `execution.d.ts`
@@ -80,7 +80,7 @@
 - `CompactionProgress` · `request.d.ts`
 - `CompactionState` · `request.d.ts`
 - `Conclusion` · `extensions.d.ts`
-- `ConsumerRef` · `identity.d.ts`
+- `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ConsumptionId` · `identity.d.ts`
 - `ContextContent` · `request.d.ts`
 - `Continuation` · `identity.d.ts`
@@ -91,10 +91,10 @@
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
 - `Dimension` · `extensions.d.ts`
+- `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectIntent` · `journal.d.ts`
 - `ErrorPolicy` · `extensions.d.ts`
 - `EventPage` · `execution.d.ts`
-- `Evidence` · `identity.d.ts`
 - `ExecutionAttachmentId` · `identity.d.ts`
 - `ExecutionControl` · `execution.d.ts`
 - `ExecutionMutation` · `execution.d.ts`
@@ -287,7 +287,7 @@ import type { Message, ToolPart } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { ControlRecord, ResultResponsibility } from './execution.ts';
-import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, Evidence, InputBatchId, InputId, PassageId, StepId } from './identity.ts';
+import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, StepId } from './identity.ts';
 import type { MessageSource, Passage } from './passages.ts';
 import type { CompactionProgress, CompactionState, Preparation } from './request.ts';
 export type ProducedResult = Readonly<{
@@ -300,19 +300,19 @@ export type ProducedResult = Readonly<{
     }>;
     version: string;
     delivery: string | null;
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type InputBatch = Readonly<{
     id: InputBatchId;
-    watermark: Evidence;
+    watermark: DurableEvidence;
     ordered: readonly InputId[];
 }>;
 export type ProgressionDirective = Readonly<{
     kind: 'evaluate-completion';
-    basis: Evidence;
+    basis: DurableEvidence;
 }> | Readonly<{
     kind: 'continue';
-    basis: Evidence;
+    basis: DurableEvidence;
 }>;
 export type Waiting = Readonly<{
     kind: 'producer';
@@ -320,7 +320,7 @@ export type Waiting = Readonly<{
 }> | Readonly<{
     kind: 'human';
     passage: PassageId;
-    cards: readonly Evidence[];
+    cards: readonly DurableEvidence[];
 }> | Readonly<{
     kind: 'dependency';
     owner: string;
@@ -330,34 +330,34 @@ export type AgentConclusion = Readonly<{
     kind: 'complete';
 }> | Readonly<{
     kind: 'fail' | 'cancelled';
-    cause: Evidence;
+    cause: DurableEvidence;
 }>;
 export type FailureCandidate = Readonly<{
     step: StepId | null;
     at: AgentInstant;
-    source: Evidence;
+    source: DurableEvidence;
 }> & (Readonly<{
     kind: 'cannot-fit';
     reason: 'fixed' | 'after-compaction';
-    context: Evidence;
-    veto?: Evidence;
-    rejection?: Evidence;
+    context: DurableEvidence;
+    veto?: DurableEvidence;
+    rejection?: DurableEvidence;
     plan?: CompactionProgress;
 }> | Readonly<{
     kind: 'compaction-invalid';
-    plan: Evidence;
+    plan: DurableEvidence;
     progress?: Readonly<{
         expected: CompactionProgress;
         returned: CompactionProgress;
     }>;
-    transition?: Evidence;
+    transition?: DurableEvidence;
 }> | Readonly<{
     kind: 'request-rejected';
     failure: Extract<Failure, {
         kind: 'invalid';
     }>;
-    model: Evidence;
-    selection: Evidence;
+    model: DurableEvidence;
+    selection: DurableEvidence;
 }> | Readonly<{
     kind: 'no-reply';
     call: M.ModelCallId;
@@ -365,7 +365,7 @@ export type FailureCandidate = Readonly<{
 }> | Readonly<{
     kind: 'message-rejected';
     from: MessageSource;
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'extension-stop';
     passage: PassageId;
@@ -373,14 +373,14 @@ export type FailureCandidate = Readonly<{
 }> | Readonly<{
     kind: 'guard';
     level: 3;
-    basis: Evidence;
+    basis: DurableEvidence;
 }>);
 export type PreparedContextTransition = Readonly<{
     preparation: ActionId;
     message: Message;
-    source: Evidence;
-    derivation: Evidence;
-    commitment: Evidence;
+    source: DurableEvidence;
+    derivation: DurableEvidence;
+    commitment: DurableEvidence;
 }>;
 export type Failure = Readonly<{
     kind: 'denied';
@@ -408,7 +408,7 @@ type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
     position: ConsumerRef;
-    fixed: Evidence;
+    fixed: DurableEvidence;
 }>;
 export type PendingCall = PendingCommon & (Readonly<{
     kind: 'model';
@@ -432,13 +432,13 @@ export type ActionJudgment = Readonly<{
 }> | Readonly<{
     kind: 'waiting';
     passage: PassageId;
-    cards: readonly Evidence[];
+    cards: readonly DurableEvidence[];
 }> | Readonly<{
     kind: 'denied';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'allowed';
-    evidence: Evidence;
+    evidence: DurableEvidence;
     request: T.ToolInvokeRequest;
 }>;
 export type Action = Readonly<{
@@ -460,34 +460,34 @@ export type ActionBarrier = Readonly<{
     }>[];
 }> | Readonly<{
     kind: 'open';
-    evidence: Evidence;
+    evidence: DurableEvidence;
     approved: readonly [
         ActionId,
         ...ActionId[]
     ];
 }> | Readonly<{
     kind: 'all-denied';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }>;
 export type ActionSlot = Readonly<{
     action: ActionId;
     each: readonly PassageId[] | null;
     candidate: Message | null;
-    handoff: Evidence | null;
+    handoff: DurableEvidence | null;
 }> & (Readonly<{
     kind: 'denied';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'dispatched';
 }> | Readonly<{
     kind: 'result';
     result: ProducedResult;
     terminal: T.ToolTerminal;
-    custody: Evidence;
+    custody: DurableEvidence;
 }> | Readonly<{
     kind: 'background';
     placeholder: ProducedResult;
-    confirmation: Evidence;
+    confirmation: DurableEvidence;
 }>);
 export type ActionBatch = Readonly<{
     id: ActionBatchId;
@@ -503,18 +503,18 @@ export type ModelReplyAdmission = Readonly<{
     call: M.ModelCallId;
     resultVersion: string;
     decision: 'admitted' | 'rejected';
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type ReplyAdmissionProjection = Readonly<{
-    through: Evidence;
+    through: DurableEvidence;
     rule: Adoption;
-    lastAdmission: Evidence | null;
+    lastAdmission: DurableEvidence | null;
     consecutiveDenials: string;
     totalDenials: string;
 }>;
 export type ReplyAdmissionPage = Readonly<{
     kind: 'page';
-    through: Evidence;
+    through: DurableEvidence;
     items: readonly Readonly<{
         sequence: string;
         fact: ModelReplyAdmission;
@@ -523,14 +523,14 @@ export type ReplyAdmissionPage = Readonly<{
     complete: boolean;
 }> | Readonly<{
     kind: 'gap';
-    recovery: Evidence;
+    recovery: DurableEvidence;
 }>;
 export type GuardLevel = 0 | 1 | 2 | 3;
 export type GuardFact = Readonly<{
     level: GuardLevel;
     policy: Adoption;
-    through: Evidence;
-    basis: Evidence;
+    through: DurableEvidence;
+    basis: DurableEvidence;
     passage: PassageId;
     at: AgentInstant;
 }>;
@@ -545,43 +545,43 @@ export type AgentCheckpoint = Readonly<{
     inputBatch: InputBatchId | null;
     requestPreparation: Preparation | null;
     compaction: CompactionState | null;
-    adoptedContext: Evidence | null;
+    adoptedContext: DurableEvidence | null;
     guard: GuardFact | null;
     completedPassages: readonly PassageId[];
-    priorConditions: Evidence | null;
+    priorConditions: DurableEvidence | null;
 }>;
 export type RuntimeConditions = Readonly<{
-    source: Evidence;
+    source: DurableEvidence;
     configuration: Adoption;
     progression: ProgressionDirective;
     model: Adoption;
-    context: Evidence;
+    context: DurableEvidence;
     bindings: readonly Adoption[];
 }>;
 export type ProducerDecisionView = Readonly<{
     kind: 'unresolved';
     pending: PendingCall;
-    source: Evidence;
+    source: DurableEvidence;
 }> | Readonly<{
     kind: 'model-active';
     pending: Extract<PendingCall, {
         kind: 'model';
     }>;
-    source: Evidence;
+    source: DurableEvidence;
 }> | Readonly<{
     kind: 'model-settled';
     pending: Extract<PendingCall, {
         kind: 'model';
     }>;
     result: ProducedResult;
-    source: Evidence;
+    source: DurableEvidence;
 }> | Readonly<{
     kind: 'tool-active';
     pending: Extract<PendingCall, {
         kind: 'tool';
         association: 'associated';
     }>;
-    source: Evidence;
+    source: DurableEvidence;
     waiting: 'none' | 'external' | 'human';
     supportedControls: readonly ('interrupt' | 'background')[];
 }> | Readonly<{
@@ -591,7 +591,7 @@ export type ProducerDecisionView = Readonly<{
         association: 'associated';
     }>;
     result: ProducedResult;
-    source: Evidence;
+    source: DurableEvidence;
 }> | Readonly<{
     kind: 'tool-background';
     pending: Extract<PendingCall, {
@@ -599,12 +599,12 @@ export type ProducerDecisionView = Readonly<{
         association: 'associated';
     }>;
     placeholder: ProducedResult;
-    confirmation: Evidence;
-    source: Evidence;
+    confirmation: DurableEvidence;
+    source: DurableEvidence;
 }>;
 export type AdvancementFact = Readonly<{
     kind: 'current' | 'stopping' | 'ended' | 'superseded';
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type LoopFacts = Readonly<{
     advancement: AdvancementFact;
@@ -635,7 +635,7 @@ export type Next = Readonly<{
     progress: CompactionProgress;
     result: Readonly<{
         produced: ProducedResult;
-        consumed: Evidence;
+        consumed: DurableEvidence;
     }> | null;
 }> | Readonly<{
     kind: 'commit-transition';
@@ -645,7 +645,7 @@ export type Next = Readonly<{
     original: Extract<Preparation, {
         kind: 'needs-compaction';
     }>;
-    transition: Evidence;
+    transition: DurableEvidence;
 }> | Readonly<{
     kind: 'extension';
     passage: PassageId;
@@ -699,7 +699,7 @@ import type * as T from '@omne-harness/tool-contract';
 import type { AgentDefinition } from './definition.ts';
 import type { AgentCheckpoint, AgentConclusion, AgentEvaluator, Failure, FailureCandidate, InputBatch, ProducedResult, Reply, ReplyAdmissionProjection, Waiting } from './evaluation.ts';
 import type { LoopExtensionDeclaration } from './extensions.ts';
-import type { Access, Adoption, AgentExecutionId, AgentInstanceId, AgentInstant, AgentOperationId, AgentRegistrationId, Authority, ConsumptionId, Continuation, Evidence, ExecutionAttachmentId, ExecutionRevision, InputId, PassageId } from './identity.ts';
+import type { Access, Adoption, AgentExecutionId, AgentInstanceId, AgentInstant, AgentOperationId, AgentRegistrationId, Authority, ConsumptionId, Continuation, DurableEvidence, ExecutionAttachmentId, ExecutionRevision, InputId, PassageId } from './identity.ts';
 import type { EffectIntent } from './journal.ts';
 export type ExecutionState = Readonly<{
     kind: 'reconciling' | 'advancing';
@@ -711,19 +711,19 @@ export type ExecutionState = Readonly<{
     intent: FinishIntent;
 }> | Readonly<{
     kind: 'suspended';
-    handoff: Evidence;
+    handoff: DurableEvidence;
 }> | Readonly<{
     kind: 'ended';
     conclusion: AgentConclusion;
-    disposition: Evidence;
+    disposition: DurableEvidence;
 }>;
 export type ExecutionSnapshot = Readonly<{
     execution: AgentExecutionId;
     revision: ExecutionRevision;
     state: ExecutionState;
     checkpoint: AgentCheckpoint;
-    inputWatermark: Evidence;
-    history: Evidence;
+    inputWatermark: DurableEvidence;
+    history: DurableEvidence;
     replyAdmissions: ReplyAdmissionProjection;
     executionAttachment: Authority | null;
     unresolved: readonly AgentOperationId[];
@@ -755,20 +755,20 @@ export type AgentState = Readonly<{
 export type AcceptedInput = Readonly<{
     id: InputId;
     content: Message;
-    source: Evidence | null;
+    source: DurableEvidence | null;
     priority: 'ordinary' | 'urgent';
 }>;
 export type TerminalObservation = Readonly<{
-    terminal: Evidence;
+    terminal: DurableEvidence;
     passage: PassageId;
     implementation: Adoption;
-    observed: Evidence | null;
+    observed: DurableEvidence | null;
 }>;
 export type FinishIntent = Readonly<{
     conclusion: AgentConclusion;
-    inputWatermark: Evidence;
-    obligations: Evidence;
-    beforeTerminal: Evidence | null;
+    inputWatermark: DurableEvidence;
+    obligations: DurableEvidence;
+    beforeTerminal: DurableEvidence | null;
     failure: FailureCandidate | null;
 }>;
 export type FinishResult = Readonly<{
@@ -780,7 +780,7 @@ export type FinishResult = Readonly<{
 }> | Readonly<{
     kind: 'blocked';
     reason: 'inputs' | 'controls' | 'operations' | 'passages' | 'custody';
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type FinishAuthorization = Readonly<{
     kind: 'advancement';
@@ -788,27 +788,27 @@ export type FinishAuthorization = Readonly<{
 }> | Readonly<{
     kind: 'cancel';
     control: AgentOperationId;
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type ExecutionControl = Readonly<{
     kind: 'interrupt-model';
     call: M.ModelCallId;
-    reason: Evidence;
+    reason: DurableEvidence;
 }> | Readonly<{
     kind: 'interrupt-tool' | 'background-tool';
     call: T.ToolCallId;
-    reason: Evidence;
+    reason: DurableEvidence;
 }> | Readonly<{
     kind: 'cancel';
-    reason: Evidence;
+    reason: DurableEvidence;
 }> | Readonly<{
     kind: 'suspend';
-    reason: Evidence;
+    reason: DurableEvidence;
 }>;
 export type ControlStage = 'accepted' | 'intent-established' | 'qualification-revoked' | 'producer-confirmed' | 'physically-stopped' | 'duty-released';
 export type ControlStageFact = Readonly<{
     state: 'reached' | 'unresolved';
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 type ToolControl = Extract<ExecutionControl, {
     kind: 'interrupt-tool' | 'background-tool';
@@ -830,13 +830,13 @@ export type ControlRecord = Readonly<{
 export type ResultResponsibility = Readonly<{
     result: ProducedResult;
     consumption: ConsumptionId;
-    custody: Evidence | null;
-    completion: Evidence | null;
+    custody: DurableEvidence | null;
+    completion: DurableEvidence | null;
     release: Readonly<{
         kind: 'pending';
     }> | Readonly<{
         kind: 'confirmed';
-        receipt: Evidence;
+        receipt: DurableEvidence;
     }>;
 }>;
 export type ExecutionMutation<P> = Access<P> & Readonly<{
@@ -847,7 +847,7 @@ export type CommandReceipt = Readonly<{
     operation: AgentOperationId;
     execution: AgentExecutionId;
     revision: ExecutionRevision;
-    evidence: Evidence;
+    evidence: DurableEvidence;
     state: 'accepted' | 'applied' | 'unresolved';
 }>;
 export type AgentEventBody = Readonly<{
@@ -856,7 +856,7 @@ export type AgentEventBody = Readonly<{
 }> | Readonly<{
     kind: 'message';
     message: Message;
-    source: Evidence;
+    source: DurableEvidence;
 }> | Readonly<{
     kind: 'producer';
     result: ProducedResult;
@@ -865,7 +865,7 @@ export type AgentEventBody = Readonly<{
     kind: 'stream';
     producer: ProducedResult['producer'];
     cursor: string;
-    source: Evidence;
+    source: DurableEvidence;
     schema: Adoption;
     value: JsonValue;
 }> | Readonly<{
@@ -876,18 +876,18 @@ export type AgentEventBody = Readonly<{
     operation: AgentOperationId;
     stage: ControlStage;
     state: 'reached' | 'unresolved';
-    source: Evidence;
+    source: DurableEvidence;
 }> | Readonly<{
     kind: 'ended';
     conclusion: AgentConclusion;
-    disposition: Evidence;
+    disposition: DurableEvidence;
 }>;
 export type AgentEvent = Readonly<{
     execution: AgentExecutionId;
     sequence: string;
     executionAttachment: ExecutionAttachmentId;
     schema: Adoption;
-    cause: Evidence;
+    cause: DurableEvidence;
     body: AgentEventBody;
 }>;
 export type EventPage = Readonly<{
@@ -898,7 +898,7 @@ export type EventPage = Readonly<{
 }> | Readonly<{
     kind: 'gap';
     retainedFrom: string;
-    recovery: Evidence;
+    recovery: DurableEvidence;
 }>;
 export interface AgentExecutionInput<P> {
     submit(input: ExecutionMutation<P> & Readonly<{
@@ -923,7 +923,7 @@ export interface AgentExecutionEvents<P> {
     }>): AsyncIterable<Outcome<EventPage, Failure>>;
     acknowledge(input: ExecutionMutation<P> & Readonly<{
         through: string;
-        receipt: Evidence | null;
+        receipt: DurableEvidence | null;
     }>): Reply<CommandReceipt>;
 }
 export interface AgentExecutionHandle<P> {
@@ -936,11 +936,11 @@ export interface AgentRuntime<P> {
     readonly instance: AgentInstanceId;
     invoke(input: ExecutionMutation<P> & Readonly<{
         initial: AcceptedInput;
-        grant: Evidence | null;
+        grant: DurableEvidence | null;
     }>): Reply<AgentExecutionHandle<P>>;
     resume(input: ExecutionMutation<P> & Readonly<{
-        recovery: Evidence;
-        grant: Evidence | null;
+        recovery: DurableEvidence;
+        grant: DurableEvidence | null;
     }>): Reply<AgentExecutionHandle<P>>;
 }
 export type AgentObservation = Readonly<{
@@ -975,7 +975,7 @@ export interface AgentExecutionRecovery<P> {
         receipt: CommandReceipt;
     }> | Readonly<{
         kind: 'excluded';
-        evidence: Evidence;
+        evidence: DurableEvidence;
     }> | Readonly<{
         kind: 'unknown';
     }>>;
@@ -984,12 +984,12 @@ export interface AgentExecutionRecovery<P> {
     }>): Reply<ExecutionSnapshot>;
     reconcile(input: ExecutionMutation<P>): Reply<Readonly<{
         remaining: readonly ConsumptionId[];
-        evidence: Evidence;
+        evidence: DurableEvidence;
     }>>;
     detach(input: ExecutionMutation<P> & Readonly<{
         authority: Authority;
-        reason: Evidence;
-    }>): Reply<Evidence>;
+        reason: DurableEvidence;
+    }>): Reply<DurableEvidence>;
 }
 export interface AgentAdoptions<P> {
     resolve(input: Access<P> & Readonly<{
@@ -1006,7 +1006,7 @@ export interface AgentAdoptions<P> {
         original: Continuation;
     }>): Reply<Readonly<{
         continuation: Continuation;
-        evidence: Evidence;
+        evidence: DurableEvidence;
     }>>;
 }
 export type RegistrationState = 'published' | 'withdrawing' | 'withdrawn';
@@ -1021,13 +1021,13 @@ export interface AgentRegistrationHandle<P> {
     }>): void;
     withdraw(input: Access<P> & Readonly<{
         operation: AgentOperationId;
-        reason: Evidence;
+        reason: DurableEvidence;
     }>): Reply<Registration | null>;
 }
 export interface AgentInstanceHost<P> {
     reserve(input: Access<P> & Readonly<{
         operation: AgentOperationId;
-        scope: Evidence;
+        scope: DurableEvidence;
         definition: Adoption;
     }>): Reply<Readonly<{
         instance: AgentInstanceId;
@@ -1036,7 +1036,7 @@ export interface AgentInstanceHost<P> {
     publish(input: Access<P> & Readonly<{
         operation: AgentOperationId;
         instance: AgentInstanceId;
-        scope: Evidence;
+        scope: DurableEvidence;
         state: AgentState;
     }>): Reply<Registration>;
     withdraw(input: Access<P> & Readonly<{
@@ -1049,18 +1049,18 @@ export interface AgentInstanceHost<P> {
 export type QuiesceResult = Readonly<{
     kind: 'drained' | 'unresolved';
     remaining: readonly AgentExecutionId[];
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }>;
 export interface AgentRuntimeControl<P> {
     quiesce(input: Access<P> & Readonly<{
         operation: AgentOperationId;
-        reason: Evidence;
+        reason: DurableEvidence;
     }>): Reply<QuiesceResult>;
 }
 export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation';
 export type AgentAccessTarget = Readonly<{
     kind: 'scope';
-    scope: Evidence;
+    scope: DurableEvidence;
     definition: Adoption;
 }> | Readonly<{
     kind: 'instance';
@@ -1072,7 +1072,7 @@ export type AgentAccessTarget = Readonly<{
 }>;
 export type AgentAccessDecision = Readonly<{
     kind: 'allowed';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'denied';
 }> | Readonly<{
@@ -1099,7 +1099,7 @@ export {};
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Message } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
-import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, Evidence, PassageId } from './identity.ts';
+import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
 import type { CardAnswer, Subject } from './passages.ts';
 export declare const POSITIONS: readonly [
     'execution_started',
@@ -1284,9 +1284,9 @@ export type ExtensionReplayBinding = Readonly<{
         round: CardRoundId;
         cards: readonly Readonly<{
             identity: string;
-            card: Evidence;
+            card: DurableEvidence;
             response: Readonly<{
-                evidence: Evidence;
+                evidence: DurableEvidence;
                 answer: CardAnswer;
             }> | null;
         }>[];
@@ -1316,7 +1316,8 @@ export interface LoopExtensionImplementation {
 ## 声明文件 `identity.d.ts`
 
 ```ts
-import { type TenantId } from '@omne-harness/legal-identity';
+import { type Access } from '@omne-harness/legal-identity';
+import type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs';
 import type { JsonValue } from '@omne-harness/json-text';
 import { type Outcome } from '@omne-harness/operation-result';
 declare const agentIdentity: unique symbol;
@@ -1337,34 +1338,14 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>;
 export type InputId = AgentIdentity<'AgentInputId'>;
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>;
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>;
-export type Adoption = Readonly<{
-    owner: string;
-    name: string;
-    revision: string;
-    digest: string;
-}>;
-export type Evidence = Readonly<{
-    owner: string;
-    record: string;
-    revision: string;
-    digest: string;
-}>;
-export type Access<P> = Readonly<{
-    principal: P;
-    tenant: TenantId;
-}>;
-export type ConsumerRef = Readonly<{
-    owner: string;
-    work: string;
-    position: string;
-    purpose: string;
-}>;
+export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs';
+export type { Access } from '@omne-harness/legal-identity';
 export type Authority = Readonly<{
     execution: AgentExecutionId;
     executionAttachment: ExecutionAttachmentId;
     instance: AgentInstanceId;
     generation: string;
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type Continuation = Readonly<{
     position: string;
@@ -1398,10 +1379,9 @@ export declare const decodeInputId: IdentityDecoder<InputId, "InputId">;
 export declare const decodeInputBatchId: IdentityDecoder<InputBatchId, "InputBatchId">;
 export declare const decodeConsumptionId: IdentityDecoder<ConsumptionId, "ConsumptionId">;
 export declare function judgeAdoption(value: unknown): Outcome<Adoption, StructureFailure>;
-export declare function judgeEvidence(value: unknown): Outcome<Evidence, StructureFailure>;
+export declare function judgeEvidence(value: unknown): Outcome<DurableEvidence, StructureFailure>;
 export declare function judgeAccess<P>(value: unknown, judgePrincipal: (value: unknown) => Outcome<P, StructureFailure>): Outcome<Access<P>, StructureFailure>;
 export declare function judgeAuthority(value: unknown): Outcome<Authority, StructureFailure>;
-export {};
 ```
 
 ## 声明文件 `index.d.ts`
@@ -1433,28 +1413,28 @@ import type { ToolOperationRef } from '@omne-harness/tool-contract';
 import type { Message } from '@omne-harness/message';
 import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, PreparedContextTransition, ProducedResult, Reply, ReplyAdmissionPage } from './evaluation.ts';
 import type { AcceptedInput, AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
-import type { Access, ActionId, Adoption, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, ConsumptionId, Evidence, ExecutionRevision, PassageId } from './identity.ts';
+import type { Access, ActionId, Adoption, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId } from './identity.ts';
 export type CallerCommit = Readonly<{
     kind: 'none';
 }> | Readonly<{
     kind: 'message';
     message: Message;
-    source: Evidence;
-    admission: Evidence;
+    source: DurableEvidence;
+    admission: DurableEvidence;
 }> | Readonly<{
     kind: 'context-transition';
     value: PreparedContextTransition;
-    admission: Evidence;
+    admission: DurableEvidence;
 }> | Readonly<{
     kind: 'custody';
     result: ProducedResult;
     consumption: ConsumptionId;
-    retained: Evidence;
+    retained: DurableEvidence;
 }> | Readonly<{
     kind: 'processed';
     result: ProducedResult;
     consumption: ConsumptionId;
-    completion: Evidence;
+    completion: DurableEvidence;
 }>;
 export type EffectIntent = Readonly<{
     action: ActionId;
@@ -1478,7 +1458,7 @@ export type JournalCommit<P> = ExecutionMutation<P> & Readonly<{
 export interface AgentJournalAttachment<P> {
     open(input: ExecutionMutation<P> & Readonly<{
         instance: AgentInstanceId;
-        grant: Evidence | null;
+        grant: DurableEvidence | null;
         initial: AcceptedInput;
         checkpoint: AgentCheckpoint;
     }>): Reply<Readonly<{
@@ -1487,14 +1467,14 @@ export interface AgentJournalAttachment<P> {
     }>>;
     attach(input: ExecutionMutation<P> & Readonly<{
         instance: AgentInstanceId;
-        grant: Evidence | null;
-        recovery: Evidence;
-        takeover: Evidence | null;
+        grant: DurableEvidence | null;
+        recovery: DurableEvidence;
+        takeover: DurableEvidence | null;
     }>): Reply<Readonly<{
         receipt: CommandReceipt;
         authority: Authority;
     }>>;
-    detach(input: Parameters<AgentExecutionRecovery<P>['detach']>[0]): Reply<Evidence>;
+    detach(input: Parameters<AgentExecutionRecovery<P>['detach']>[0]): Reply<DurableEvidence>;
 }
 export interface AgentJournalRecording<P> {
     commit(input: JournalCommit<P>): Reply<CommandReceipt>;
@@ -1513,7 +1493,7 @@ export interface AgentJournalRecording<P> {
             kind: 'pending';
         }> | Readonly<{
             kind: 'confirmed';
-            receipt: Evidence;
+            receipt: DurableEvidence;
         }>;
     }>): Reply<CommandReceipt>;
     recordControl(input: ExecutionMutation<P> & Readonly<{
@@ -1521,7 +1501,7 @@ export interface AgentJournalRecording<P> {
         toolOperation?: ToolOperationRef;
         stage: Exclude<ControlStage, 'accepted'>;
         state: 'reached' | 'unresolved';
-        source: Evidence;
+        source: DurableEvidence;
     }>): Reply<CommandReceipt>;
 }
 export interface AgentJournalFinishing<P> {
@@ -1533,10 +1513,10 @@ export interface AgentJournalFinishing<P> {
 }
 export interface AgentJournalObservation<P> {
     recordTerminalObservation(input: ExecutionMutation<P> & Readonly<{
-        terminal: Evidence;
+        terminal: DurableEvidence;
         passage: PassageId;
         implementation: Adoption;
-        observed: Evidence;
+        observed: DurableEvidence;
     }>): Reply<CommandReceipt>;
 }
 export interface AgentJournalReading<P> {
@@ -1545,14 +1525,14 @@ export interface AgentJournalReading<P> {
     }>): Reply<ExecutionSnapshot>;
     inputs(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
-        watermark: Evidence;
+        watermark: DurableEvidence;
     }>): Reply<Readonly<{
         batch: InputBatch;
         messages: readonly Message[];
     }>>;
     readReplyAdmissions(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
-        through: Evidence;
+        through: DurableEvidence;
         after: string | null;
         limit: number;
     }>): Reply<ReplyAdmissionPage>;
@@ -1650,12 +1630,12 @@ import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { Action, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
 import type { Conclusion, DecisionCardDraft, Dimension, ExtensionInvocationMode, ExtensionOutput, LoopExtensionDeclaration, LoopExtensionImplementation, Position } from './extensions.ts';
-import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentOperationId, Authority, CardRoundId, ConsumerRef, Evidence, InputId, PassageId, StepId } from './identity.ts';
+import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentOperationId, Authority, CardRoundId, ConsumerRef, DurableEvidence, InputId, PassageId, StepId } from './identity.ts';
 import type { CompactionProgress, Preparation } from './request.ts';
 export type CapturedRead = Readonly<{
     schema: Adoption;
     value: JsonValue;
-    source: Evidence;
+    source: DurableEvidence;
 }>;
 export type CardRequest = Readonly<{
     identity: string;
@@ -1666,24 +1646,24 @@ export type CardAnswer = Readonly<{
     kind: 'chosen';
     option: string;
     value: JsonValue | null;
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'declined';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }>;
 export type CardReply = CardAnswer | Readonly<{
     kind: 'pending';
 }> | Readonly<{
     kind: 'invalidated';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }>;
 export type PassageCard = Readonly<{
     identity: string;
-    card: Evidence;
+    card: DurableEvidence;
     response: Exclude<CardReply, {
         kind: 'pending';
     }> | null;
-    processed: Evidence | null;
+    processed: DurableEvidence | null;
 }>;
 export type PassageOperationProgress<R> = Readonly<{
     kind: 'requested';
@@ -1693,7 +1673,7 @@ export type PassageOperationProgress<R> = Readonly<{
 }> | Readonly<{
     kind: 'applied';
     result: R;
-    transition: Evidence;
+    transition: DurableEvidence;
 }>;
 export type CardRoundProgress = Readonly<{
     kind: 'requested';
@@ -1706,10 +1686,10 @@ export type CardRoundProgress = Readonly<{
 }> | Readonly<{
     kind: 'processed';
     cards: readonly PassageCard[];
-    conclusion: Evidence;
+    conclusion: DurableEvidence;
 }> | Readonly<{
     kind: 'present-failed';
-    failure: Evidence;
+    failure: DurableEvidence;
 }>;
 export type CardRound = Readonly<{
     round: CardRoundId;
@@ -1724,7 +1704,7 @@ export type CardRound = Readonly<{
 export type PassageOperation = Readonly<{
     action: ActionId;
     ordinal: number;
-    input: Evidence;
+    input: DurableEvidence;
 }> & (Readonly<{
     kind: 'producer';
     pending: Extract<PendingCall, {
@@ -1732,7 +1712,7 @@ export type PassageOperation = Readonly<{
     }>;
     progress: PassageOperationProgress<Readonly<{
         result: ProducedResult;
-        consumed: Evidence;
+        consumed: DurableEvidence;
     }>>;
 }> | Readonly<{
     kind: 'read';
@@ -1761,7 +1741,7 @@ export type PassageProgress = Readonly<{
     kind: 'applied';
     rounds: readonly CardRound[];
     conclusion: Conclusion;
-    transition: Evidence;
+    transition: DurableEvidence;
 }>;
 export type Passage = Readonly<{
     id: PassageId;
@@ -1772,14 +1752,14 @@ export type Passage = Readonly<{
     ordinal: number;
     declaration: LoopExtensionDeclaration;
     implementation: Adoption;
-    input: Evidence;
-    effective: Evidence;
+    input: DurableEvidence;
+    effective: DurableEvidence;
     operations: readonly PassageOperation[];
     progress: PassageProgress;
 }>;
 export type Subject = Readonly<{
     execution: AgentExecutionId;
-    conditions: Evidence;
+    conditions: DurableEvidence;
 }> | Readonly<{
     preparation: Extract<Preparation, {
         kind: 'needs-compaction';
@@ -1822,7 +1802,7 @@ export type Subject = Readonly<{
     candidate: Message;
     outcome: Readonly<{
         kind: 'denied';
-        evidence: Evidence;
+        evidence: DurableEvidence;
     }> | Readonly<{
         kind: 'executed';
         result: ProducedResult;
@@ -1837,10 +1817,10 @@ export type Subject = Readonly<{
     }>[];
 }> | Readonly<{
     proposed: AgentConclusion;
-    basis: Evidence;
+    basis: DurableEvidence;
 }> | Readonly<{
     terminal: AgentConclusion;
-    disposition: Evidence;
+    disposition: DurableEvidence;
 }>;
 export interface ExtensionImplementations<P> {
     resolve(input: Access<P> & Readonly<{
@@ -1852,34 +1832,34 @@ export interface DecisionCards<P> {
         advance: Authority;
         passage: PassageId;
         round: CardRoundId;
-        original: Evidence;
+        original: DurableEvidence;
         requests: readonly CardRequest[];
-    }>): Reply<readonly Evidence[]>;
+    }>): Reply<readonly DurableEvidence[]>;
     lookup(input: Access<P> & Readonly<{
         passage: PassageId;
         round: CardRoundId;
-        original: Evidence;
+        original: DurableEvidence;
         requests: readonly string[];
     }>): Reply<Readonly<{
         kind: 'presented';
-        cards: readonly Evidence[];
+        cards: readonly DurableEvidence[];
     }> | Readonly<{
         kind: 'not-presented';
-        exclusion: Evidence;
+        exclusion: DurableEvidence;
     }> | Readonly<{
         kind: 'unknown';
     }>>;
     read(input: Access<P> & Readonly<{
-        card: Evidence;
+        card: DurableEvidence;
     }>): Reply<CardReply>;
     invalidate(input: Access<P> & Readonly<{
         operation: AgentOperationId;
         passage: PassageId;
         round: CardRoundId;
-        cards: readonly Evidence[];
-        reason: Evidence;
+        cards: readonly DurableEvidence[];
+        reason: DurableEvidence;
     }>): Reply<readonly Readonly<{
-        card: Evidence;
+        card: DurableEvidence;
         reply: Exclude<CardReply, {
             kind: 'pending';
         }>;
@@ -1887,15 +1867,15 @@ export interface DecisionCards<P> {
 }
 export type AdmissionDecision = Readonly<{
     kind: 'allow';
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'deny';
     reason: string;
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'need-decision';
     card: DecisionCardDraft;
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'unavailable';
     diagnostic: string;
@@ -1911,7 +1891,7 @@ export interface ActionAdmission<P> {
         definition: Adoption;
         permissions: CapturedRead | null;
         decision: Readonly<{
-            card: Evidence;
+            card: DurableEvidence;
             answer: CardAnswer;
         }> | null;
     }>): Reply<AdmissionDecision>;
@@ -1933,7 +1913,7 @@ export type MessageSource = Readonly<{
 }> | Readonly<{
     kind: 'action-denied';
     action: ActionId;
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'reminder';
     passage: PassageId;
@@ -1943,11 +1923,11 @@ export type MessageSource = Readonly<{
 }>;
 export type HandoffResult = Readonly<{
     kind: 'accepted';
-    admission: Evidence;
+    admission: DurableEvidence;
 }> | Readonly<{
     kind: 'rejected';
     reason: string;
-    evidence: Evidence;
+    evidence: DurableEvidence;
 }>;
 export interface MessageHandoff<P> {
     accept(input: Access<P> & Readonly<{
@@ -1976,16 +1956,16 @@ export interface AgentMaterials<P, B extends ContentBlock> {
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
-    }>): Reply<Evidence>;
+    }>): Reply<DurableEvidence>;
     read(input: Access<P> & Readonly<{
-        source: Evidence;
+        source: DurableEvidence;
     }>): Reply<Material<B>>;
 }
 export interface RegisteredReads<P> {
     read(input: Access<P> & Readonly<{
         action: ActionId;
         passage: PassageId;
-        original: Evidence;
+        original: DurableEvidence;
         owner: string;
         protocol: Adoption;
         query: JsonValue;
@@ -1998,13 +1978,13 @@ export interface RegisteredReads<P> {
     lookup(input: Access<P> & Readonly<{
         action: ActionId;
         passage: PassageId;
-        original: Evidence;
+        original: DurableEvidence;
     }>): Reply<Readonly<{
         kind: 'captured';
         value: CapturedRead;
     }> | Readonly<{
         kind: 'excluded';
-        evidence: Evidence;
+        evidence: DurableEvidence;
     }> | Readonly<{
         kind: 'unknown';
     }>>;
@@ -2017,7 +1997,7 @@ export interface RegisteredReads<P> {
 import type { JsonValue } from '@omne-harness/json-text';
 import type * as M from '@omne-harness/model-contract';
 import type { ModelPurpose, PreparedContextTransition, ProducedResult, InputBatch, RuntimeConditions, Reply } from './evaluation.ts';
-import type { Access, Adoption, ActionId, Authority, ConsumerRef, Evidence, PassageId } from './identity.ts';
+import type { Access, Adoption, ActionId, Authority, ConsumerRef, DurableEvidence, PassageId } from './identity.ts';
 export type ModelRecipient = Readonly<{
     route: string;
     profile: Adoption;
@@ -2030,39 +2010,39 @@ export type SelectedModel = Readonly<{
         selectable: true;
     }>;
     parameters: readonly M.Parameter[];
-    tools: Evidence;
-    evidence: Evidence;
+    tools: DurableEvidence;
+    evidence: DurableEvidence;
 }>;
 export interface ModelSelection<P> {
     select(input: Access<P> & Readonly<{
         advance: Authority;
-        scope: Evidence;
+        scope: DurableEvidence;
         purpose: ModelPurpose;
         position: ConsumerRef;
-        history: Evidence;
+        history: DurableEvidence;
         conditions: RuntimeConditions;
-        alterations: readonly Evidence[];
+        alterations: readonly DurableEvidence[];
     }>): Reply<SelectedModel>;
 }
 export type ContextContent = 'full' | 'incremental';
 export type ModelContextRead = Readonly<{
     recipient: ModelRecipient;
     content: ContextContent;
-    source: Evidence;
-    coverage: Evidence;
+    source: DurableEvidence;
+    coverage: DurableEvidence;
 }>;
 export interface ModelContextReader<P> {
     read(input: Access<P> & Readonly<{
         advance: Authority;
         position: ConsumerRef;
         recipient: ModelRecipient;
-        history: Evidence;
-        adopted: Evidence | null;
-        transition: Evidence | null;
+        history: DurableEvidence;
+        adopted: DurableEvidence | null;
+        transition: DurableEvidence | null;
     }>): Reply<ModelContextRead>;
 }
 export type CompactionProgress = Readonly<{
-    plan: Evidence;
+    plan: DurableEvidence;
     bound: string;
     completed: string;
 }>;
@@ -2070,27 +2050,27 @@ export type Preparation = Readonly<{
     id: ActionId;
     purpose: ModelPurpose;
     position: ConsumerRef;
-    source: Evidence;
+    source: DurableEvidence;
     state: JsonValue;
     schema: Adoption;
 }> & (Readonly<{
     kind: 'assembled';
     input: M.AssembledModelInput;
-    budget: Evidence;
+    budget: DurableEvidence;
     recipient: ModelRecipient;
-    coverage: Evidence;
+    coverage: DurableEvidence;
 }> | Readonly<{
     kind: 'ready';
     request: M.FixedModelRequest;
     capacity: M.ResultCapacity;
-    budget: Evidence;
+    budget: DurableEvidence;
     recipient: ModelRecipient;
-    coverage: Evidence;
+    coverage: DurableEvidence;
 }> | Readonly<{
     kind: 'needs-compaction';
     original: Readonly<{
-        input: Evidence;
-        alterations: readonly Evidence[];
+        input: DurableEvidence;
+        alterations: readonly DurableEvidence[];
         beforeModelCall: readonly PassageId[] | null;
     }>;
     progress: CompactionProgress;
@@ -2129,8 +2109,8 @@ export type FinalRequest = Readonly<{
     request: M.FixedModelRequest;
     capacity: M.ResultCapacity;
     recipient: ModelRecipient;
-    coverage: Evidence;
-    alterations: readonly Evidence[];
+    coverage: DurableEvidence;
+    alterations: readonly DurableEvidence[];
 }>;
 export interface RequestPreparation<P> {
     prepare(input: Access<P> & Readonly<{
@@ -2138,13 +2118,13 @@ export interface RequestPreparation<P> {
         action: ActionId;
         purpose: Exclude<ModelPurpose, 'compaction'>;
         position: ConsumerRef;
-        history: Evidence;
+        history: DurableEvidence;
         inputs: InputBatch;
         conditions: RuntimeConditions;
         selection: SelectedModel;
         context: ModelContextRead;
         previous: Preparation | null;
-        alterations: readonly Evidence[];
+        alterations: readonly DurableEvidence[];
         beforeModelCall: readonly PassageId[] | null;
     }>): Reply<Preparation>;
     derive(input: Access<P> & Readonly<{
@@ -2157,7 +2137,7 @@ export interface RequestPreparation<P> {
         selection: SelectedModel;
         result: Readonly<{
             produced: ProducedResult;
-            consumed: Evidence;
+            consumed: DurableEvidence;
         }> | null;
     }>): Reply<CompactionAdvance>;
     resume(input: Access<P> & Readonly<{
@@ -2165,7 +2145,7 @@ export interface RequestPreparation<P> {
         original: Extract<Preparation, {
             kind: 'needs-compaction';
         }>;
-        transition: Evidence;
+        transition: DurableEvidence;
         selection: SelectedModel;
         context: ModelContextRead;
     }>): Reply<Preparation>;
@@ -2173,7 +2153,7 @@ export interface RequestPreparation<P> {
 export interface CurrentConditions<P> {
     read(input: Access<P> & Readonly<{
         advance: Authority;
-        previous: Evidence | null;
+        previous: DurableEvidence | null;
     }>): Reply<RuntimeConditions>;
 }
 ```

@@ -21,7 +21,8 @@
             {
               "name": "Access",
               "kind": "type",
-              "pending": false
+              "pending": false,
+              "sameAs": "@omne-harness/legal-identity"
             },
             {
               "name": "AcquisitionRef",

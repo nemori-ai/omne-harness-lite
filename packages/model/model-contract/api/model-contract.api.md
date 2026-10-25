@@ -6,13 +6,13 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `Access` · `root.d.ts`
+- `Access` · 包 `@omne-harness/legal-identity`
 - `AckInput` · `result.d.ts`
 - `AckReceipt` · `result.d.ts`
 - `ActorRef` · `root.d.ts`
 - `Admission` · `result.d.ts`
 - `Admit` · `root.d.ts`
-- `Adoption` · `root.d.ts`
+- `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AnchorMiss` · `profile.d.ts`
 - `AssembledModelInput` · `profile.d.ts`
 - `BudgetCheck` · `profile.d.ts`
@@ -22,7 +22,7 @@
 - `CallAccountReport` · `provider.d.ts`
 - `CallState` · `result.d.ts`
 - `CommitQuery` · `provider.d.ts`
-- `ConsumerRef` · `root.d.ts`
+- `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
 - `ControlState` · `result.d.ts`
 - `ConversionFailure` · `conversion.d.ts`
@@ -42,7 +42,7 @@
 - `DispatchId` · `root.d.ts`
 - `DispatchPlan` · `provider.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
-- `DurableEvidence` · `result.d.ts`
+- `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `ExecutionRef` · `provider.d.ts`
 - `FixedModelRequest` · `root.d.ts`
 - `ForeignThinking` · `profile.d.ts`
@@ -961,7 +961,7 @@ export interface ModelContentAuthority<P> {
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result';
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
 import type { Modality } from '@omne-harness/modality';
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block';
 import type { Message, MessageId } from '@omne-harness/message';
@@ -975,7 +975,7 @@ export type ProfileScope = Readonly<{
     kind: 'factory';
 }> | Readonly<{
     kind: 'organization';
-    organization: string;
+    organization: OrganizationId;
 }> | Readonly<{
     kind: 'tenant';
     tenant: TenantId;
@@ -1819,6 +1819,7 @@ export interface ModelResultReceiver<P> {
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result';
+import type { DurableEvidence } from '@omne-harness/exchange-refs';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message';
 import type { ModelInvocationRef } from './reference.ts';
@@ -1946,12 +1947,7 @@ export type Admission = Readonly<{
     recovered: boolean;
     reference: ModelInvocationRef;
 }>;
-export type DurableEvidence = Readonly<{
-    owner: string;
-    record: string;
-    revision: string;
-    digest: string;
-}>;
+export type { DurableEvidence } from '@omne-harness/exchange-refs';
 export type Handoff = Readonly<{
     kind: 'processed';
     completion: DurableEvidence;
@@ -1975,7 +1971,8 @@ export type AckReceipt = Readonly<{
 ## 声明文件 `root.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { Access } from '@omne-harness/legal-identity';
+import type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { Message } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
@@ -1999,26 +1996,12 @@ export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
     field: K;
     reason: 'type' | 'empty' | 'length' | 'prefix' | 'character' | 'leading-zero';
 }>;
-export type Adoption = Readonly<{
-    owner: string;
-    name: string;
-    revision: string;
-    digest: string;
-}>;
-export type ConsumerRef = Readonly<{
-    owner: string;
-    work: string;
-    position: string;
-    purpose: string;
-}>;
+export type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs';
+export type { Access } from '@omne-harness/legal-identity';
 export type ActorRef = Readonly<{
     owner: string;
     subject: string;
     revision: string;
-}>;
-export type Access<P> = Readonly<{
-    principal: P;
-    tenant: TenantId;
 }>;
 export type ModelReferenceAccess<P> = Access<P> & Readonly<{
     reference: ModelInvocationRef;
@@ -2108,7 +2091,6 @@ export type Admit<P> = Mutation<P> & Readonly<{
     consumer: ConsumerRef;
     capacity: ResultCapacity;
 }>;
-export {};
 ```
 
 ## 声明文件 `testing/calls.d.ts`

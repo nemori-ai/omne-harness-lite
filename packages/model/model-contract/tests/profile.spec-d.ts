@@ -1,4 +1,5 @@
 import { expectTypeOf, it } from 'vitest'
+import { organizationCodec } from '@omne-harness/legal-identity'
 import type { Modality } from '@omne-harness/modality'
 import type {
   AnchorMiss,
@@ -93,17 +94,21 @@ const assembled: AssembledModelInput = {
 }
 
 it('scopes, identities and modalities are closed vocabularies', () => {
+  const parsed = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
+  if (!parsed.ok) throw new Error('fixture organization')
   const scopes: ProfileScope[] = [
     { kind: 'factory' },
-    { kind: 'organization', organization: 'org' },
+    { kind: 'organization', organization: parsed.value },
     { kind: 'tenant', tenant },
   ]
+  // @ts-expect-error an organization scope takes a minted OrganizationId, not bare text
+  const bare: ProfileScope = { kind: 'organization', organization: 'org' }
   const modalities: ModelModality[] = ['text', 'image', 'voice']
   // @ts-expect-error video is a modality, and this phase of Model does not support it
   const video: ModelModality = 'video'
   // @ts-expect-error an unlisted scope
   const user: ProfileScope = { kind: 'user' }
-  void [scopes, modalities, video, user]
+  void [scopes, bare, modalities, video, user]
 })
 
 it('the supported modalities are a subset of the shared vocabulary, and a requirement may carry any of it', () => {

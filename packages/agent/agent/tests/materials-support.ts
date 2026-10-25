@@ -7,7 +7,7 @@ import {
   decodeStepId,
   type Access,
   type AgentMaterials,
-  type Evidence,
+  type DurableEvidence,
   type Material,
 } from '@omne-harness/agent-contract'
 import type { AgentDependencies } from '@omne-harness/agent'
@@ -23,7 +23,7 @@ export function memoryMaterials<P>(owner = AGENT_OWNER): AgentMaterials<P, Conte
   type Stored = {
     principal: P
     tenant: Access<P>['tenant']
-    source: Evidence
+    source: DurableEvidence
     consumer: unknown
     value: Material<ContentBlock>
   }

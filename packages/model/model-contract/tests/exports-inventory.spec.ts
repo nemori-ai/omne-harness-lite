@@ -123,6 +123,40 @@ describe('compareEntries', () => {
     })
     expect(result[1]!.notSameDeclaration).toEqual(['Own'])
   })
+
+  describe('a re-export of another package', () => {
+    build({
+      'node_modules/@fixture/shared/package.json': JSON.stringify({
+        name: '@fixture/shared',
+        type: 'module',
+        exports: { '.': { types: './index.d.ts' } },
+      }),
+      'node_modules/@fixture/shared/index.d.ts': 'export type Shared = { a: string }\n',
+      'forward.d.ts': "export type { Shared } from '@fixture/shared'\n",
+      'copy.d.ts': 'export type Shared = { a: string }\n',
+    })
+    const foreign: InventoryName = { ...type('Shared'), sameAs: '@fixture/shared' }
+
+    it('accepts the declaration of the named package', () => {
+      const [result] = compareEntries(inventoryOf([foreign]), {
+        '.': join(directory, 'forward.d.ts'),
+      })
+      expect(result!.notSameDeclaration).toEqual([])
+      expect(result!.missing).toEqual([])
+    })
+
+    it('reports a local copy that only looks the same', () => {
+      const [result] = compareEntries(inventoryOf([foreign]), { '.': join(directory, 'copy.d.ts') })
+      expect(result!.notSameDeclaration).toEqual(['Shared'])
+    })
+
+    it('fails loudly when the named package cannot be resolved', () => {
+      const stray: InventoryName = { ...type('Shared'), sameAs: '@fixture/absent' }
+      expect(() =>
+        compareEntries(inventoryOf([stray]), { '.': join(directory, 'forward.d.ts') }),
+      ).toThrow('.: cannot resolve sameAs @fixture/absent')
+    })
+  })
 })
 
 describe('sameAsProblems', () => {
@@ -164,6 +198,11 @@ describe('sameAsProblems', () => {
     expect(sameAsProblems(entries([type('Own')], [stray]))).toEqual([
       './sub: Own is sameAs ./missing, which is not an entry',
     ])
+  })
+
+  it('leaves a re-export of another package to compareEntries', () => {
+    const foreign: InventoryName = { ...type('Shared'), sameAs: '@fixture/shared' }
+    expect(sameAsProblems(entries([type('Own')], [foreign]))).toEqual([])
   })
 })
 
@@ -328,6 +367,55 @@ describe('navigationProblems', () => {
     expect(problemsOf(page, { First: ['A'], Second: ['A'] })).toEqual([
       'Second: no linked source file declares A',
     ])
+  })
+
+  it('does not ask a linked file to declare a name that another package owns', () => {
+    const withForeign: Inventory = {
+      ...inventory({ Second: ['J'] }),
+      entries: {
+        '.': {
+          chapters: [
+            {
+              title: 'Second',
+              names: [type('J'), { ...type('Shared'), sameAs: '@fixture/shared' }],
+            },
+          ],
+        },
+      },
+    }
+    expect(
+      navigationProblems(withForeign, publicApiChapters(page), root, join(root, 'docs')),
+    ).toEqual([])
+    // An own-entry sameAs still needs a linked declaration, so only a foreign package is exempt.
+    const withOwn: Inventory = {
+      ...withForeign,
+      entries: {
+        '.': { chapters: [{ title: 'Second', names: [{ ...type('Shared'), sameAs: '.' }] }] },
+      },
+    }
+    expect(navigationProblems(withOwn, publicApiChapters(page), root, join(root, 'docs'))).toEqual([
+      'Second: no linked source file declares Shared',
+    ])
+  })
+
+  it('still reports a code block that declares a name another package owns', () => {
+    const withForeign: Inventory = {
+      ...inventory({}),
+      entries: {
+        '.': {
+          chapters: [
+            {
+              title: 'First',
+              names: [type('A'), { ...type('Shared'), sameAs: '@fixture/shared' }],
+            },
+          ],
+        },
+      },
+    }
+    const markdown = '## First\n[a](../src/a.ts)\n```ts\ntype Shared = 1\n```'
+    expect(
+      navigationProblems(withForeign, publicApiChapters(markdown), root, join(root, 'docs')),
+    ).toEqual(['First: a code block declares Shared again; the source is the only declaration'])
   })
 
   it('reports a listed chapter that links no source file, and one that the page lacks', () => {

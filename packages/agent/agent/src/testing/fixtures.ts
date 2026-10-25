@@ -21,7 +21,7 @@ import type {
   AgentMaterials,
   CurrentConditions,
   DecisionCards,
-  Evidence,
+  DurableEvidence,
   ExtensionImplementations,
   Failure,
   HandoffResult,
@@ -39,7 +39,7 @@ import { scriptedMethod, type In, type Out, type ScriptOf } from './script.ts'
 export const TEST_OWNER = 'agent-testing'
 
 /** An evidence value that a double mints for a test. It proves nothing outside the test. */
-export function testEvidence(record: string): Evidence {
+export function testEvidence(record: string): DurableEvidence {
   return { owner: TEST_OWNER, record, revision: '1', digest: `test:${record}` }
 }
 

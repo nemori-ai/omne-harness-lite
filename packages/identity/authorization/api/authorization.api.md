@@ -18,8 +18,8 @@
 - `ConsumptionFact` · `permit.d.ts`
 - `DecisionEvidence` · `evidence.d.ts`
 - `DenialReason` · `admission.d.ts`
+- `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectiveArguments` · `evidence.d.ts`
-- `EvidenceRef` · `evidence.d.ts`
 - `GrantOutcome` · `permit.d.ts`
 - `PERMIT_ID_MAX_LENGTH` · `permit.d.ts`
 - `PermitGrant` · `permit.d.ts`
@@ -102,13 +102,9 @@ export declare function decideAdmission(input: AdmissionInput, facts: AdmissionF
 ## 声明文件 `evidence.d.ts`
 
 ```ts
-export type EvidenceRef = Readonly<{
-    owner: string;
-    record: string;
-    revision: string;
-    digest: string;
-}>;
-export type DecisionEvidence = EvidenceRef & Readonly<{
+import type { DurableEvidence } from '@omne-harness/exchange-refs';
+export type { DurableEvidence } from '@omne-harness/exchange-refs';
+export type DecisionEvidence = DurableEvidence & Readonly<{
     owner: 'authorization';
 }>;
 export declare function canonicalText(value: unknown): string;
@@ -127,7 +123,7 @@ export declare function decisionEvidence(record: string, revision: string, conte
 export { decideAdmission } from './admission.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
 export { canonicalText, decisionEvidence, digestOf, effectiveArgumentsOf, noArguments, } from './evidence.ts';
-export type { DecisionEvidence, EffectiveArguments, EvidenceRef } from './evidence.ts';
+export type { DecisionEvidence, DurableEvidence, EffectiveArguments } from './evidence.ts';
 export { operationEquals, targetEquals } from './operation.ts';
 export type { AdmissionOperation, AdmissionTarget } from './operation.ts';
 export { PERMIT_ID_MAX_LENGTH, decodePermitId, inMemoryPermitLedger } from './permit.ts';
@@ -157,7 +153,7 @@ export declare function targetEquals(left: AdmissionTarget, right: AdmissionTarg
 ```ts
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
-import { type DecisionEvidence, type EffectiveArguments, type EvidenceRef } from './evidence.ts';
+import { type DecisionEvidence, type DurableEvidence, type EffectiveArguments } from './evidence.ts';
 import type { AdmissionOperation, AdmissionTarget } from './operation.ts';
 declare const permitBrand: unique symbol;
 export type PermitId = string & {
@@ -183,7 +179,7 @@ export type PermitGrant = Readonly<{
     operation: AdmissionOperation;
     target: AdmissionTarget;
     arguments: EffectiveArguments;
-    granted: EvidenceRef;
+    granted: DurableEvidence;
 }>;
 export type ConsumptionFact = Readonly<{
     permit: PermitRef;
@@ -240,7 +236,7 @@ export interface PermitGrantor {
         operation: AdmissionOperation;
         target: AdmissionTarget;
         arguments: EffectiveArguments;
-        granted: EvidenceRef;
+        granted: DurableEvidence;
     }>): Promise<GrantOutcome>;
 }
 export declare function inMemoryPermitLedger(): Readonly<{

@@ -14,7 +14,10 @@ export type InventoryName = Readonly<{
   kind: ExportKind
   /** True while the accepted declaration has no implementation in the built entry yet. */
   pending: boolean
-  /** Set when another entry owns the declaration and this entry only re-exports it. */
+  /**
+   * Set when another entry (`.`, `./sub`) or another package (`@scope/name`) owns the declaration
+   * and this entry only re-exports it.
+   */
   sameAs?: string
 }>
 
@@ -63,6 +66,11 @@ export type EntryComparison = Readonly<{
   pending: number
 }>
 
+/** Whether `sameAs` names an entry of this package rather than another package. */
+export function isOwnEntry(sameAs: string): boolean {
+  return sameAs === '.' || sameAs.startsWith('./')
+}
+
 export function loadInventory(path: string): Inventory {
   return JSON.parse(readFileSync(path, 'utf8')) as Inventory
 }
@@ -88,18 +96,30 @@ export function compareEntries(
   inventory: Inventory,
   declarations: Readonly<Record<string, string>>,
 ): EntryComparison[] {
-  const roots = Object.values(declarations)
-  const program = ts.createProgram(roots, {
+  const options: ts.CompilerOptions = {
     module: ts.ModuleKind.NodeNext,
     moduleResolution: ts.ModuleResolutionKind.NodeNext,
     target: ts.ScriptTarget.ES2022,
     skipLibCheck: true,
     noEmit: true,
     types: [],
-  })
+  }
+  // A foreign `sameAs` is resolved from the entry that re-exports it, as a consumer would.
+  const foreign = new Map<string, string>()
+  for (const [entry, value] of Object.entries(inventory.entries)) {
+    const from = declarations[entry]
+    if (from === undefined) continue
+    for (const item of namesOf(value)) {
+      if (item.sameAs === undefined || isOwnEntry(item.sameAs) || foreign.has(item.sameAs)) continue
+      const found = ts.resolveModuleName(item.sameAs, from, options, ts.sys).resolvedModule
+      if (found === undefined) throw new Error(`${entry}: cannot resolve sameAs ${item.sameAs}`)
+      foreign.set(item.sameAs, found.resolvedFileName)
+    }
+  }
+  const program = ts.createProgram([...Object.values(declarations), ...foreign.values()], options)
   const checker = program.getTypeChecker()
   const exportsByEntry = new Map<string, Map<string, ts.Symbol>>()
-  for (const [entry, path] of Object.entries(declarations)) {
+  for (const [entry, path] of [...Object.entries(declarations), ...foreign.entries()]) {
     const file = program.getSourceFile(path)
     const module = file === undefined ? undefined : checker.getSymbolAtLocation(file)
     if (module === undefined) throw new Error(`${path} is not a module declaration file`)
@@ -244,7 +264,8 @@ export function sameAsProblems(inventory: Inventory): string[] {
   const problems: string[] = []
   for (const [entry, value] of Object.entries(inventory.entries))
     for (const item of namesOf(value)) {
-      if (item.sameAs === undefined) continue
+      // A foreign package is not in this inventory; compareEntries checks its declaration.
+      if (item.sameAs === undefined || !isOwnEntry(item.sameAs)) continue
       const ownerEntry = inventory.entries[item.sameAs]
       if (ownerEntry === undefined) {
         problems.push(`${entry}: ${item.name} is sameAs ${item.sameAs}, which is not an entry`)
@@ -405,16 +426,20 @@ export function navigationProblems(
   packageDirectory: string,
   pageDirectory: string,
 ): string[] {
+  // A name that re-exports another package is declared there, so no linked file declares it.
   const listed = new Map<string, Set<string>>()
+  const inventoryNames = new Set<string>()
   for (const entry of Object.values(inventory.entries))
-    for (const chapter of entry.chapters)
-      listed.set(
-        chapter.title,
-        new Set([...(listed.get(chapter.title) ?? []), ...chapter.names.map(item => item.name)]),
-      )
+    for (const chapter of entry.chapters) {
+      const names = listed.get(chapter.title) ?? new Set<string>()
+      for (const item of chapter.names) {
+        inventoryNames.add(item.name)
+        if (item.sameAs === undefined || isOwnEntry(item.sameAs)) names.add(item.name)
+      }
+      listed.set(chapter.title, names)
+    }
   const inPackage = (path: string, folder: 'src' | 'tests') =>
     path.startsWith(`${resolve(packageDirectory, folder)}${sep}`) && path.endsWith('.ts')
-  const inventoryNames = new Set([...listed.values()].flatMap(names => [...names]))
   const problems: string[] = []
   for (const [title, chapter] of chapters) {
     for (const name of chapter.blockNames)

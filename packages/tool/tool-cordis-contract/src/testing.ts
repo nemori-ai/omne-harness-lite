@@ -21,6 +21,7 @@ import {
   finalAnswer,
   NotApplicable,
   resendRecalls,
+  testingTenant,
   type AnswerModel,
   type ConformanceCase,
 } from '@omne-harness/tool-contract/testing'
@@ -591,16 +592,12 @@ function tenantKey(tenant: TenantId): string {
 const sameEvidence = (left: DurableEvidence, right: DurableEvidence): boolean =>
   left.owner === right.owner && left.record === right.record && left.digest === right.digest
 
-const MEMORY_TENANT: TenantId = {
-  name: 'TenantId',
-  organization: { name: 'OrganizationId', text: 'org_conformance' },
-  account: { name: 'AccountId', text: 'acc_conformance' },
-}
-const MEMORY_OTHER_TENANT: TenantId = {
-  name: 'TenantId',
-  organization: { name: 'OrganizationId', text: 'org_conformance_other' },
-  account: { name: 'AccountId', text: 'acc_conformance_other' },
-}
+// Minted when a fixture is built, not when the module loads: an illegal text then fails the case
+// that uses it instead of the import of every suite.
+const memoryTenant = (): TenantId =>
+  testingTenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')
+const memoryOtherTenant = (): TenantId =>
+  testingTenant('org_c0nf0rmance0ther0000000000', 'acc_c0nf0rmance0ther0000000000')
 const evidenceOf = (record: string): DurableEvidence => ({
   owner: 'conformance',
   record,
@@ -612,11 +609,13 @@ const MEMORY_RENEWED_AUTHORITY = evidenceOf('authority-renewed')
 const MEMORY_OTHER_AUTHORITY = evidenceOf('authority-other')
 
 /** The grants of the in-memory fixture: two evidences of one tenant, and one of another. */
-const MEMORY_GRANTS: readonly ToolRegistrationGrant[] = [
-  { authority: MEMORY_AUTHORITY, tenant: MEMORY_TENANT },
-  { authority: MEMORY_RENEWED_AUTHORITY, tenant: MEMORY_TENANT },
-  { authority: MEMORY_OTHER_AUTHORITY, tenant: MEMORY_OTHER_TENANT },
-]
+function memoryGrants(tenant: TenantId, otherTenant: TenantId): readonly ToolRegistrationGrant[] {
+  return [
+    { authority: MEMORY_AUTHORITY, tenant },
+    { authority: MEMORY_RENEWED_AUTHORITY, tenant },
+    { authority: MEMORY_OTHER_AUTHORITY, tenant: otherTenant },
+  ]
+}
 
 /**
  * A register service in memory. The check, the test for a conflicting entry and the write are one
@@ -626,7 +625,7 @@ const MEMORY_GRANTS: readonly ToolRegistrationGrant[] = [
  * its own token, whether by `release` or by the end of its fiber.
  */
 export function createMemoryToolRegistrations<P>(
-  grants: readonly ToolRegistrationGrant[] = MEMORY_GRANTS,
+  grants: readonly ToolRegistrationGrant[] = memoryGrants(memoryTenant(), memoryOtherTenant()),
 ): MemoryToolRegistrations<P> {
   const entries = new Map<string, Entry<P>>()
   const ended = new Set<string>()
@@ -707,14 +706,16 @@ export function createMemoryToolRegistrations<P>(
 
 /** A fresh fixture over a fresh in-memory register service, with every control handle. */
 export function memoryToolRegistrationFixture(): ToolRegistrationFixture<string> {
-  const service = createMemoryToolRegistrations<string>()
+  const tenant = memoryTenant()
+  const otherTenant = memoryOtherTenant()
+  const service = createMemoryToolRegistrations<string>(memoryGrants(tenant, otherTenant))
   const { controls } = service
   return {
     service,
-    tenant: MEMORY_TENANT,
+    tenant,
     authority: MEMORY_AUTHORITY,
     renewedAuthority: MEMORY_RENEWED_AUTHORITY,
-    otherTenant: MEMORY_OTHER_TENANT,
+    otherTenant,
     otherAuthority: MEMORY_OTHER_AUTHORITY,
     asFiber: controls.asFiber,
     endFiber: controls.endFiber,

@@ -154,6 +154,6 @@ coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型
 
 ## 实际模块接缝
 
-值类型集中在 `src/values.ts`，品牌引用与解码在 `src/refs.ts`。`src/schema.ts` 解码持久回流值与策略配置。纯操作依赖这些值，根入口只显式重导出。`src/testing/` 只拥有测试替身和用例列表，不拥有生产实现。
+值类型集中在 `src/values.ts`，品牌引用与解码在 `src/refs.ts`。`src/refs.ts` 再导出 legal-identity 的 `Access` 与 exchange-refs 的 `Adoption`、`DurableEvidence`，不另写副本，结构判定留在 `src/schema-primitives.ts`。`src/schema.ts` 解码持久回流值与策略配置。纯操作依赖这些值，根入口只显式重导出。`src/testing/` 只拥有测试替身和用例列表，不拥有生产实现。
 
 计量的实际字节数来自适配器 `RequestSerializer`。转换结果读口归本成员，结果类型归 Model。`deriveStep` 的选定模型由调用者交入，以复核摘要及保留内容的预算。计划保留范围后消息，用于核对覆盖边界的调用与结果配对。

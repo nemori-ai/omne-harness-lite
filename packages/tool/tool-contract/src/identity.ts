@@ -1,6 +1,6 @@
 // Branded Tool identities, adoption and evidence references, and access inputs.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { Access } from '@omne-harness/legal-identity'
 
 declare const toolIdentity: unique symbol
 export type ToolIdentity<K extends string> = string & { readonly [toolIdentity]: K }
@@ -12,20 +12,10 @@ export type ToolResultVersion = ToolIdentity<'ToolResultVersion'>
 export type ToolDeliveryId = ToolIdentity<'ToolDeliveryId'>
 export type ToolCursor = ToolIdentity<'ToolCursor'>
 export type ToolRevision = ToolIdentity<'ToolRevision'>
-export type Adoption = Readonly<{ owner: string; name: string; revision: string; digest: string }>
-export type ConsumerRef = Readonly<{
-  owner: string
-  work: string
-  position: string
-  purpose: string
-}>
-export type DurableEvidence = Readonly<{
-  owner: string
-  record: string
-  revision: string
-  digest: string
-}>
-export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
+// The three exchange values have one definition in exchange-refs and `Access` has one in
+// legal-identity. The structure judgments stay in value-shapes.ts and judge-release.ts.
+export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs'
+export type { Access } from '@omne-harness/legal-identity'
 export type CallAccess<P> = Access<P> & Readonly<{ call: ToolCallId }>
 export type Mutation<P> = CallAccess<P> & Readonly<{ operation: ToolOperationId }>
 
