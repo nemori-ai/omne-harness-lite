@@ -46,7 +46,7 @@ proxy.spec.ts 的连接池空闲时限是 60 秒。停止、关闭与连接超�
 
 三段传输的用例只替身本地无法运行的部分：家族。[support/test-family.ts](support/test-family.ts) 是测试家族，编码与解码都是纯函数，协议写在文件头。它记录 acquire、release 与 encode 的输入，并可以让 acquire 或 encode 失败。包内用例用内部工厂 `openNetwork` 建立网络资源。它返回包内资源，其中的 `handle` 是根入口 `createNetworkResources` 返回的同一种不透明句柄。[support/transport.ts](support/transport.ts) 在给定的网络资源上构造传输，并计数发送：它包装网络资源在途登记的 `add`。每个交换在把请求交给 Node 的同一个同步调用中登记，所以 `start` 返回时计数已经准确，不依赖服务端的异步计数。慢层的用例同时核对包内计数与服务端收到的请求数一致。
 
-[conformance.spec.ts](conformance.spec.ts) 用 model-contract 的 `createScriptedConformanceSubject` 提供提供者，把真实传输挂在 `transport` 上，对本地 HTTPS 服务运行 `checkModelProviderConformance`，断言 transport 组的六条义务都是 `pass`。其他义务属于脚本化的提供者，本包不对它们断言。
+[conformance.spec.ts](conformance.spec.ts) 用 model-contract 的 `createScriptedConformanceSubject` 提供提供者，把真实传输挂在 `transport` 上，对本地 HTTPS 服务运行 `checkModelProviderConformance`（来自 model-contract 的 `./conformance`），断言 transport 组的六条义务都是 `pass`。其他义务属于脚本化的提供者，本包不对它们断言。
 
 [support/exchange.ts](support/exchange.ts) 提供交换的输入、预约与观察工具，含清理断言。其中的限额只是本套测试的初值，不是本包的默认值。[support/sources.ts](support/sources.ts) 提供记录读者行为的字节源，供分帧层的提前结束用例使用。
 

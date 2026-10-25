@@ -2,13 +2,13 @@ import type { PreparedTransport } from '@omne-harness/model-contract'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import { succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
-import { boundedSubject } from '../src/testing/conformance-bounded.ts'
+import { boundedSubject } from '../src/conformance/conformance-bounded.ts'
 import {
   DEFAULT_CAPACITY,
   DEFAULT_CONSUMER,
   DEFAULT_REQUEST,
   DEFAULT_SUPPLIER,
-} from '../src/testing/conformance-defaults.ts'
+} from '../src/conformance/conformance-defaults.ts'
 import { hooked, patched, type Subject } from './conformance-support.ts'
 
 const WAIT = 20

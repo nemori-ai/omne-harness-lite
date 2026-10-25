@@ -23,7 +23,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 | 类型探针与覆盖下限       | `tests/*.spec-d.ts`、`tests/values.ts`（探针的类型化输入，只声明不构造）、`tests/type-coverage.spec.ts`                                                                                                             | 类型消费文档的正例与负例（`@ts-expect-error`）；清单里每个已落地的类型至少在一个探针里被使用（导入列表、注释和字符串里的名字不算）                                                                                                                            | 探针以赋值为主，看不到多出的可选成员、变宽的联合和丢失的 `readonly`，这些现在没有机器检查                   |
 | 受控替代提供者 | `src/testing/`、`tests/testing-*.spec.ts`、`tests/scripted-support.ts`。运行 `pnpm --filter @omne-harness/model-contract test` | 外部协调者在六种失败路径（提交未知、无活体路由、陈旧实例、失权、重复 ACK、断流）上依赖的可观察结果：认回与冲突、观察结束原因、读取与确认的结果、取消三态与迟到结果、传输的终止、耗尽与抛错 | 生产提供者的真实发送、持久化与恢复；脚本给出的结果不是生产证明 |
 | G4 不变量追踪 | G4 的 22 个短语逐条对应测试名；新增的两条行为断言是 `tests/testing-provider.spec.ts` 的 `serves the blocks across its pages in the order they were given, under rising indices` 与 provider-author 夹具的 `a meter that only has a tokenizer gives no measurement of the request and the assembler does not judge from it`。运行 `pnpm --filter @omne-harness/model-contract test` 与 `... run fixtures`。状态汇总见[不变量覆盖（G4）](#不变量覆盖g4) | 块顺序与分页顺序不一致；只持有 tokenizer 的计量器给出完整预算，或组装方据分词计数判断压缩 | 五项全部或一半不在契约包内可观察，见[不变量覆盖（G4）](#不变量覆盖g4)的未覆盖列表 |
-| 提供者符合性断言 | `src/testing/conformance*.ts`、`tests/conformance-*.spec.ts`、`tests/conformance-support.ts`。运行 `pnpm --filter @omne-harness/model-contract test`，详见[符合性断言](#符合性断言) | 一个被测方在公开面上违反契约义务的 53 种情形：认回与冲突、保留值、提交未知、先证据后确认、重复确认、读取与确认的先后、取消、观察的结束原因与块的归约、租户与资格、路由、`quiesce`、传输的发送时机与终止；替代件通过全部义务，每条义务有一个只违反它的提供者让它失败 | 生产提供者的真实发送、持久化与恢复；契约没有给出失败 kind 或判据的义务只做较弱断言；被测方不给义务需要的钩子或传输、或结果只有一页时，相应义务报告 `not-applicable`（三个来源见公开页）；已收场调用的终局不反转、取消后终局为 `interrupted` 这两件事的一半在公开面看不到，列入弱断言清单 |
+| 提供者符合性断言 | `src/conformance/`、`src/testing/conformance-scripted.ts`、`tests/conformance-*.spec.ts`、`tests/conformance-support.ts`。运行 `pnpm --filter @omne-harness/model-contract test`，详见[符合性断言](#符合性断言) | 一个被测方在公开面上违反契约义务的 53 种情形：认回与冲突、保留值、提交未知、先证据后确认、重复确认、读取与确认的先后、取消、观察的结束原因与块的归约、租户与资格、路由、`quiesce`、传输的发送时机与终止；替代件通过全部义务，每条义务有一个只违反它的提供者让它失败 | 生产提供者的真实发送、持久化与恢复；契约没有给出失败 kind 或判据的义务只做较弱断言；被测方不给义务需要的钩子或传输、或结果只有一页时，相应义务报告 `not-applicable`（三个来源见公开页）；已收场调用的终局不反转、取消后终局为 `interrupted` 这两件事的一半在公开面看不到，列入弱断言清单 |
 | 角色夹具 | `tests/fixtures/consumers/<角色>/`、`tests/fixtures/consumers/roles.json`、`tests/install/fixtures.ts`（整组入口）、`tests/install/fixture-*.ts`（设施）、`tests/fixture-runner.ts`（声明规则）。运行 `pnpm --filter @omne-harness/model-contract run fixtures`，详见[角色夹具](#角色夹具) | 五个角色（独立调用者、编排协调者、Context、结果消费者、通用提供者作者）只靠已打包安装的公开制品就能完成各自的消费：夹具导入未声明的包、编译失败、解析离开消费目录、缺正常路径或失败路径、失败路径没有写明改变的协调决策、路径名重复、路径抛错、必需角色缺夹具，以及夹具依赖了闭包之外的包或本角色禁止的包 | 夹具里的替代件由脚本给出结果，不证明生产提供者；Context 的档案、准备、计量与转换服务是夹具自己的替身；未列入夹具的角色（Cordis 消费插件归 model-cordis-contract） |
 
 ### 导出清单
@@ -34,7 +34,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 
 [judge-request.spec.ts](../tests/judge-request.spec.ts) 从公开入口核对封闭字段、领域值、七项解析预算与安全副本。[admit-boundary.spec.ts](../../model/tests/admit-boundary.spec.ts) 驱动真实 runtime 与直接 Memory Commands。它们不证明生产后端或厂商保证。
 
-清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 210 项：179 个类型和 31 个值；`./testing` 入口 27 项：21 个类型、5 个值和 1 个类。每章数量如下。
+清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 210 项：179 个类型和 31 个值；`./testing` 入口 16 项：12 个类型、3 个值和 1 个类；`./conformance` 入口 11 项：9 个类型和 2 个值。每章数量如下。
 
 | 章节                    | 项数 | 类型 | 值  |
 | ----------------------- | ---- | ---- | --- |
@@ -52,9 +52,10 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 | 凭据引用与解析端口      | 11   | 8    | 3   |
 | 供应商尝试诊断          | 8    | 6    | 2   |
 | 受控替代提供者（`./testing`） | 14 | 11 | 3 |
-| 符合性断言（`./testing`） | 13 | 10 | 3 |
+| 符合性断言（`./conformance`） | 11 | 9 | 2 |
+| 符合性断言（`./testing`） | 2 | 1 | 1 |
 
-public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章，`./testing` 2 章。其余 7 章只指向 SPEC 或写归属说明，没有声明，清单不为它们造项。测试要求每个出现在清单中的章节非空，并解析 `docs/public-api.md`，核对该页是源码导航：清单列出的每一章链接至少一个存在的 `src/` 文件，这些文件声明该章的每个名字，页面链接的源码与测试文件都存在，页面的 TypeScript 围栏代码块（`ts`、`typescript`、`tsx`、`mts`、`cts`）不声明清单里的名字，带不带 `export` 都算；其他围栏和清单外的名字不检查。
+public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章，`./testing` 与 `./conformance` 共 2 章（「符合性断言」在两个入口各有名字）。其余 7 章只指向 SPEC 或写归属说明，没有声明，清单不为它们造项。测试要求每个出现在清单中的章节非空，并解析 `docs/public-api.md`，核对该页是源码导航：清单列出的每一章链接至少一个存在的 `src/` 文件，这些文件声明该章的每个名字，页面链接的源码与测试文件都存在，页面的 TypeScript 围栏代码块（`ts`、`typescript`、`tsx`、`mts`、`cts`）不声明清单里的名字，带不带 `export` 都算；其他围栏和清单外的名字不检查。
 
 每项有 `pending` 标记。`pending: true` 表示声明已接受但产物还没有。比对规则如下：
 
@@ -63,7 +64,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 3. 产物里清单没有的导出算多导出。
 4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 0：已落地 179 个类型和 31 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
 
-`./testing` 入口已在清单里，章节名是「受控替代提供者」与「符合性断言」。再增加入口时，同时在清单里加这个入口，否则"清单覆盖全部 `exports` 子路径"的测试失败。
+`./testing` 与 `./conformance` 入口已在清单里，章节名是「受控替代提供者」与「符合性断言」。再增加入口时，同时在清单里加这个入口，否则"清单覆盖全部 `exports` 子路径"的测试失败。
 
 ### 安装闭包
 
@@ -190,7 +191,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 
 ### 符合性断言
 
-`checkModelProviderConformance`（`src/testing/conformance.ts`）对任意提供者逐条运行 53 条义务检查。义务名、依据条款与所需钩子见[公开页](../docs/public-api.md#符合性断言)。替代提供者自身必须通过它（AC-G3-6）。
+`checkModelProviderConformance`（`src/conformance/conformance.ts`，由 `./conformance` 入口导出）对任意提供者逐条运行 53 条义务检查。义务名、依据条款与所需钩子见[公开页](../docs/public-api.md#符合性断言)。替代提供者自身必须通过它（AC-G3-6）。
 
 | 要证明的 | 测试 | 能发现 |
 | --- | --- | --- |
@@ -215,7 +216,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 
 ### 未覆盖
 
-- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 179 个已落地的类型名，不覆盖 `./testing` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；31 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts`、`tests/replay.spec.ts` 等运行测试。
+- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 179 个已落地的类型名，不覆盖 `./testing` 与 `./conformance` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；31 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts`、`tests/replay.spec.ts` 等运行测试。
 - 清单比对不检查声明的形状。形状只由类型探针负责。页面不再保存第二份声明，所以没有页面与源码的形状比较。
 - 类型探针以赋值为主：探针不拦多出的可选成员、变宽的联合和丢失的 `readonly`，这些现在没有机器检查。覆盖下限只要求每个已落地类型在某个探针里被使用，不要求使用得充分。
 - 类型断言检查只扫描 `src/` 与 `tests/fixtures/`，探针 `tests/*.spec-d.ts` 不在其中，探针靠 `tests/values.ts` 只声明不构造品牌值。
@@ -246,7 +247,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 | 迁移事件与文档 | 全部真实监听者采用 model-cordis-contract/call-changed；无旧名双发、无旧入口转导实现、无重复规格或品牌 |
 | 同一契约配受控替代实现与实际实现 | 均执行契约符合性套件；故障、提交未知、首内容与 ACK 等协议不因不同构造器而改变 |
 
-契约成员的 ./testing 可承载共同断言和确定性样本，不能创建默认宿主或导入具体提供者，测试运行器不进入生产依赖。本成员的 ./testing 已提供受控替代提供者与替代传输，六种失败路径（提交未知、无活体路由、陈旧实例、失权、重复 ACK、断流）在它们上有运行测试，覆盖表见[持续验证设施](#受控替代提供者)。脚本给出的结果不是生产证明。同一入口提供的提供者符合性断言已交付，替代件通过它的全部义务，覆盖见[符合性断言](#符合性断言)；它只证明公开面上可观察的义务，真实提供者上的运行另行验证。实现测试装配归 model/testing，单机与 Cordis 测试装配归 model-host-local/testing。其他领域生产代码只消费契约；需要真实组合验证的测试可显式选择实现作为开发依赖，并单独检查生产安装闭包。
+契约成员的 ./testing 可承载共同断言和确定性样本，不能创建默认宿主或导入具体提供者，测试运行器不进入生产依赖。本成员的 ./testing 已提供受控替代提供者与替代传输，六种失败路径（提交未知、无活体路由、陈旧实例、失权、重复 ACK、断流）在它们上有运行测试，覆盖表见[持续验证设施](#受控替代提供者)。脚本给出的结果不是生产证明。`./conformance` 入口提供的提供者符合性断言已交付，替代件通过它的全部义务，覆盖见[符合性断言](#符合性断言)；它只证明公开面上可观察的义务，真实提供者上的运行另行验证。实现测试装配归 model/testing，单机与 Cordis 测试装配归 model-host-local/testing。其他领域生产代码只消费契约；需要真实组合验证的测试可显式选择实现作为开发依赖，并单独检查生产安装闭包。
 
 领域外消费者的独立开发由角色夹具持续验证：五个角色（独立调用者、编排协调者、Context、结果消费者、通用提供者作者）各有一个夹具，从打包的制品安装，只依赖各自声明的包，运行命令 `pnpm --filter @omne-harness/model-contract run fixtures`。每个夹具至少一条正常路径和一条改变外部协调决策的失败路径，运行报告逐夹具列出路径名与结果。取消场景（请求、受理与实际停止分开，重复取消，无权取消，迟到结果与费用，不波及别的调用，不自动确认）归独立调用者夹具。覆盖的路径、设施的判定与未覆盖的部分见[角色夹具](#角色夹具)与[角色夹具的限度](#角色夹具的限度)；夹具里的替代件由脚本给出结果，通过不等于生产提供者满足契约。第六个角色 Cordis 消费插件不在本成员。
 

@@ -19,8 +19,10 @@ import {
 } from '@omne-harness/model-contract'
 import {
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceSubject,
+} from '@omne-harness/model-contract/conformance'
+import {
+  createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import {

@@ -1,4 +1,4 @@
-import { reservedReference } from './reference-input.ts'
+import { reservedReference } from '../testing/reference-input.ts'
 // The checks of acceptance: recognising a repeat, refusing a conflict or a reserved operation, and
 // keeping the identity of an operation whose commit is not known.
 import { variantOf } from './conformance-defaults.ts'

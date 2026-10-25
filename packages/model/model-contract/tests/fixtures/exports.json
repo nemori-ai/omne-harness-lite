@@ -329,6 +329,26 @@
         }
       ]
     },
+    "./conformance": {
+      "chapters": [
+        {
+          "title": "符合性断言",
+          "names": [
+            { "name": "checkModelProviderConformance", "kind": "value", "pending": false },
+            { "name": "CONFORMANCE_OBLIGATIONS", "kind": "value", "pending": false },
+            { "name": "ConformanceObligation", "kind": "type", "pending": false },
+            { "name": "ConformanceAction", "kind": "type", "pending": false },
+            { "name": "ConformanceCall", "kind": "type", "pending": false },
+            { "name": "ConformanceHooks", "kind": "type", "pending": false },
+            { "name": "ConformanceTransport", "kind": "type", "pending": false },
+            { "name": "ConformanceSubject", "kind": "type", "pending": false },
+            { "name": "ConformanceOptions", "kind": "type", "pending": false },
+            { "name": "ConformanceReport", "kind": "type", "pending": false },
+            { "name": "ObligationResult", "kind": "type", "pending": false }
+          ]
+        }
+      ]
+    },
     "./testing": {
       "chapters": [
         {
@@ -353,18 +373,7 @@
         {
           "title": "符合性断言",
           "names": [
-            { "name": "checkModelProviderConformance", "kind": "value", "pending": false },
             { "name": "createScriptedConformanceSubject", "kind": "value", "pending": false },
-            { "name": "CONFORMANCE_OBLIGATIONS", "kind": "value", "pending": false },
-            { "name": "ConformanceObligation", "kind": "type", "pending": false },
-            { "name": "ConformanceAction", "kind": "type", "pending": false },
-            { "name": "ConformanceCall", "kind": "type", "pending": false },
-            { "name": "ConformanceHooks", "kind": "type", "pending": false },
-            { "name": "ConformanceTransport", "kind": "type", "pending": false },
-            { "name": "ConformanceSubject", "kind": "type", "pending": false },
-            { "name": "ConformanceOptions", "kind": "type", "pending": false },
-            { "name": "ConformanceReport", "kind": "type", "pending": false },
-            { "name": "ObligationResult", "kind": "type", "pending": false },
             { "name": "ScriptedPrincipal", "kind": "type", "pending": false }
           ]
         }
