@@ -12,7 +12,6 @@ import { runContractSkeleton } from '../src/index.ts'
 import {
   agentDouble,
   identityDouble,
-  loginGateEvidence,
   pathDependencies,
   REPLY_TEXT,
   skeletonInputs,
@@ -79,19 +78,25 @@ describe('connected first tenant path', () => {
   })
 
   it('stops at H03 when the Session evidence bridge is unavailable', async () => {
-    const memory = createMemorySessionEvidenceBridge()
-    memory.controls.unavailable(true)
-    const observed = await runFirstTenantPath(
-      pathDependencies({ evidence: loginGateEvidence(memory) }),
-    )
+    const evidence = createMemorySessionEvidenceBridge()
+    evidence.controls.unavailable(true)
+    const observed = await runFirstTenantPath(pathDependencies({ evidence }))
     expect(observed.H03).toEqual({ connected: false, evidence: ['session-create:unavailable'] })
     expect(observed.H04.connected).toBe(false)
   })
 
-  // Enabled after the #536 head whose `decide` checks the login gate on `startRun` is merged.
-  it.todo(
-    'refuses startRun with login-required when the evidence bridge gives no login-entry guard',
-  )
+  it('refuses startRun with login-required when the evidence bridge gives no login confirmation', async () => {
+    const evidence = createMemorySessionEvidenceBridge()
+    evidence.controls.loginEntry(false)
+    const observed = await runFirstTenantPath(pathDependencies({ evidence }))
+    expect(observed.H03.connected).toBe(true)
+    expect(observed.H04).toEqual({
+      connected: false,
+      evidence: ['session-startRun:login-required'],
+    })
+    for (const hop of ['H05', 'H06', 'H07', 'H08'] as const)
+      expect(observed[hop]).toEqual({ connected: false, evidence: ['not-reached'] })
+  })
 
   it('does not claim a Model result, reply or history entry when the Model never settles', async () => {
     const observed = await runFirstTenantPath(

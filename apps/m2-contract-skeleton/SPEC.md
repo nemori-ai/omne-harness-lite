@@ -60,7 +60,7 @@ The tests wire the doubles in [first-path-doubles.ts](tests/first-path-doubles.t
 | Capability | Double |
 | --- | --- |
 | Registration, login, recognition | `inProcessIdentityOperations` with `manualIdentityClock` and `adjustableLoginTerms` |
-| Session commits and history | `createMemorySessionTransactions`, and `createMemorySessionEvidenceBridge` with the login-gate guard of `startRun` |
+| Session commits, login gate, and history | `createMemorySessionTransactions` and `createMemorySessionEvidenceBridge` |
 | Agent runtime | `createAgentRuntime` over `createTestAgentDependencies`, with the generic `agentEvaluator` |
 | Model call | the scripted Model provider inside `createTestAgentDependencies` |
 | Request Context assembly and Model preparation lease | `createAssemblyOperations` through `createAssemblyFixture`, with its scripted preparation resources |
@@ -92,7 +92,7 @@ The path commits `create` for the recognized tenant with the definition mapping 
 
 ## H04
 
-The path commits `accept` for an ordinary first request. The request origin has the owner `login-entry`, as the access layer sets it after a login. The evidence bridge of the tests adds a guard with the owner `login-entry` to `startRun`, which is the material of the Session login gate. On this path `startRun` is reached only after H02 recognized the login. The path builds the Agent of the tenant and commits `startRun`. It invokes the Agent runtime with the Session execution and the first input. The Agent message hand-over of the external input commits `receive(input-handover)`. The hop is connected when `startRun` fixed the first request and the hand-over committed.
+The path commits `accept` for an ordinary first request. The request origin has the owner `login-entry`, as the access layer sets it after a login. The Session evidence bridge hands over the login confirmation (a guard material with the owner `login-entry`) with `startRun`. Session `decide` refuses `startRun` with `login-required` without it. On this path `startRun` is reached only after H02 recognized the login. The tests also run the path with a bridge that omits the confirmation, and H04 then fails with `login-required`. The path builds the Agent of the tenant and commits `startRun`. It invokes the Agent runtime with the Session execution and the first input. The Agent message hand-over of the external input commits `receive(input-handover)`. The hop is connected when `startRun` fixed the first request and the hand-over committed.
 
 ## H05
 

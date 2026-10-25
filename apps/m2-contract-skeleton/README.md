@@ -48,7 +48,7 @@ Node.js 24 or later and the repository's frozen workspace dependencies are requi
 
 ## Verification
 
-The [tests](tests) run the connected path over the doubles. They check that each hop is connected, that Request Context acquired and released a Model preparation lease, that the history reply has the Model reply text, and that another tenant cannot read the session. They also check that the path stops at the owning hop when identity refuses the login, when the Session evidence bridge is unavailable, when the Model does not settle, and when the history does not carry the reply. The report tests check missing, repeated, and unexecuted hops, scenarios, and obligations. A report does not contain credentials, login proofs, message bodies, or raw provider errors.
+The [tests](tests) run the connected path over the doubles. They check that each hop is connected, that Request Context acquired and released a Model preparation lease, that the history reply has the Model reply text, and that another tenant cannot read the session. They also check that the path stops at the owning hop when identity refuses the login, when the Session login gate has no login confirmation, when the Session evidence bridge is unavailable, when the Model does not settle, and when the history does not carry the reply. The report tests check missing, repeated, and unexecuted hops, scenarios, and obligations. A report does not contain credentials, login proofs, message bodies, or raw provider errors.
 
 These tests establish the connection with controlled inputs. They do not establish a durable identity provider, durable Session storage, a real Model supplier, an HTTP access layer, or a complete M2 deployment. Independent acceptance belongs to the repository delivery process.
 

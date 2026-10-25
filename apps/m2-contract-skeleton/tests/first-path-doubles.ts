@@ -35,9 +35,7 @@ import {
   createMemorySessionEvidenceBridge,
   createMemorySessionTransactions,
   creation,
-  guard,
 } from '@omne-harness/session-contract/testing'
-import type { SessionEvidenceBridge } from '@omne-harness/session-contract'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import type { PathAgent, PathDependencies, PathPrincipal } from '../src/path.ts'
@@ -232,35 +230,12 @@ export const assembleWithMemorySources: PathDependencies['assemble'] = async ({
   }
 }
 
-/**
- * The memory evidence bridge with the login-gate guard of `startRun`. In the target system the
- * evidence bridge derives it from the first input's origin, which the access layer marks with the
- * owner `login-entry` after a login. On this path `startRun` is reached only after H02 recognized the
- * login, so the guard is added to every `startRun`.
- */
-export function loginGateEvidence(
-  bridge: SessionEvidenceBridge = createMemorySessionEvidenceBridge(),
-): SessionEvidenceBridge {
-  return {
-    async prepare(command) {
-      const prepared = await bridge.prepare(command)
-      if ('failure' in prepared || command.kind !== 'startRun') return prepared
-      return {
-        ok: [
-          ...prepared.ok,
-          guard('login-entry', 'login-entry', { operation: command.input.operation }),
-        ],
-      }
-    },
-  }
-}
-
 export function pathDependencies(overrides: Partial<PathDependencies> = {}): PathDependencies {
   return {
     identity: identityDouble(),
     login: { loginIdentifier: 'first@example.test', credential: 'first tenant credential' },
     session: createMemorySessionTransactions<PathPrincipal>(),
-    evidence: loginGateEvidence(),
+    evidence: createMemorySessionEvidenceBridge(),
     creation: creation({ purpose: 'm2-first-path' }),
     request: firstRequest(),
     agent: agentDouble(),
