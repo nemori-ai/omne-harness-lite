@@ -658,6 +658,26 @@ describe('observation.observe: an untrusted request', () => {
       drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
     ).rejects.toThrow('source exploded')
   })
+
+  it('lets a rejection of the handle source iterator through as a connection failure, not an end frame', async () => {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    const rejecting: ToolHandle<Principal> = {
+      ...g1.handle,
+      observation: {
+        observe: () => ({
+          [Symbol.asyncIterator]: () => ({
+            next: () => Promise.reject(new Error('next exploded')),
+          }),
+        }),
+      },
+    }
+    w.routes.push(live(rejecting))
+    await expect(
+      drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
+    ).rejects.toThrow('next exploded')
+  })
 })
 
 describe('observation.observe: abort around routing', () => {
