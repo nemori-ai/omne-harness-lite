@@ -1,1 +1,1 @@
-export { runContractSkeleton } from "./run.ts";
+export { runContractSkeleton } from './run.ts'

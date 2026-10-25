@@ -1,143 +1,143 @@
-import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { runContractSkeleton } from "../src/index.ts";
-import { aggregatePath, HOP_IDS } from "../src/path-report.ts";
-import { REQUIRED_SCENARIOS } from "../src/scenarios.ts";
-import { modelFragments, pathDependencies, skeletonInputs } from "./first-path-doubles.ts";
+import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { runContractSkeleton } from '../src/index.ts'
+import { aggregatePath, HOP_IDS } from '../src/path-report.ts'
+import { REQUIRED_SCENARIOS } from '../src/scenarios.ts'
+import { modelFragments, pathDependencies, skeletonInputs } from './first-path-doubles.ts'
 
-describe("M2 path observations", () => {
-  it("reports eight verified hops, a complete path and the residual gaps of SPEC and README", async () => {
-    const report = await runContractSkeleton(skeletonInputs());
-    expect(report.hops.map((hop) => hop.hopId)).toEqual([...HOP_IDS]);
-    expect(report.scenarios.map((result) => result.scenarioId)).toEqual([...REQUIRED_SCENARIOS]);
-    expect(report.checksPassed).toBe(true);
-    expect(report.hops.map((hop) => hop.state)).toEqual(HOP_IDS.map(() => "verified"));
-    expect(report.fullPath).toBe("complete");
-    expect(report.gaps).toEqual([]);
-    const spec = readFileSync(new URL("../SPEC.md", import.meta.url), "utf8");
-    for (const document of ["../README.md", "../README_ZH.md"]) {
-      const text = readFileSync(new URL(document, import.meta.url), "utf8");
-      for (const gap of report.residualGaps) expect(text).toContain(gap.gapId);
+describe('M2 path observations', () => {
+  it('reports eight verified hops, a complete path and the residual gaps of SPEC and README', async () => {
+    const report = await runContractSkeleton(skeletonInputs())
+    expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
+    expect(report.scenarios.map(result => result.scenarioId)).toEqual([...REQUIRED_SCENARIOS])
+    expect(report.checksPassed).toBe(true)
+    expect(report.hops.map(hop => hop.state)).toEqual(HOP_IDS.map(() => 'verified'))
+    expect(report.fullPath).toBe('complete')
+    expect(report.gaps).toEqual([])
+    const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
+    for (const document of ['../README.md', '../README_ZH.md']) {
+      const text = readFileSync(new URL(document, import.meta.url), 'utf8')
+      for (const gap of report.residualGaps) expect(text).toContain(gap.gapId)
     }
     for (const gap of report.residualGaps) {
-      expect(gap.owners.length).toBeGreaterThan(0);
-      expect(spec).toContain(`## ${gap.gapId}`);
-      expect(gap.reason).toBe(`SPEC.md#${gap.gapId.toLowerCase()}`);
+      expect(gap.owners.length).toBeGreaterThan(0)
+      expect(spec).toContain(`## ${gap.gapId}`)
+      expect(gap.reason).toBe(`SPEC.md#${gap.gapId.toLowerCase()}`)
     }
     for (const hop of report.hops) {
-      expect(hop.ownerCards.length).toBeGreaterThan(0);
-      expect(hop.publicEntry.length).toBeGreaterThan(0);
-      expect(hop.reason).toBe(`SPEC.md#${hop.hopId.toLowerCase()}`);
-      expect(spec).toContain(`## ${hop.hopId}`);
+      expect(hop.ownerCards.length).toBeGreaterThan(0)
+      expect(hop.publicEntry.length).toBeGreaterThan(0)
+      expect(hop.reason).toBe(`SPEC.md#${hop.hopId.toLowerCase()}`)
+      expect(spec).toContain(`## ${hop.hopId}`)
     }
-    const text = JSON.stringify(report);
-    const { login } = pathDependencies();
+    const text = JSON.stringify(report)
+    const { login } = pathDependencies()
     for (const secret of [
-      "fixed-test-credential",
-      "fixed-test-proof",
-      "fixed-response-proof",
+      'fixed-test-credential',
+      'fixed-test-proof',
+      'fixed-response-proof',
       login.credential,
       login.loginIdentifier,
     ])
-      expect(text).not.toContain(secret);
-  });
+      expect(text).not.toContain(secret)
+  })
 
-  it("makes a missing hop explicit and retains duplicate diagnostics", async () => {
-    const report = await runContractSkeleton(skeletonInputs());
+  it('makes a missing hop explicit and retains duplicate diagnostics', async () => {
+    const report = await runContractSkeleton(skeletonInputs())
     const missing = aggregatePath({
       ...report,
-      hops: report.hops.filter((hop) => hop.hopId !== "H04"),
-    });
-    expect(missing.hops.find((hop) => hop.hopId === "H04")).toMatchObject({ state: "gap" });
-    expect(missing.structureErrors).toContain("missing-hop:H04");
-    expect(missing.checksPassed).toBe(false);
-    expect(missing.fullPath).toBe("incomplete");
-    const h06 = report.hops.find((hop) => hop.hopId === "H06");
-    if (h06 === undefined) throw new Error("H06 missing");
-    const duplicate = aggregatePath({ ...report, hops: [...report.hops, h06] });
-    expect(duplicate.structureErrors).toContain("duplicate-hop:H06:2");
-    expect(duplicate.duplicateObservations).toEqual([h06, h06]);
-    expect(duplicate.hops.map((hop) => hop.hopId)).toEqual([...HOP_IDS]);
-    expect(duplicate.checksPassed).toBe(false);
-    expect(duplicate.fullPath).toBe("incomplete");
-  });
+      hops: report.hops.filter(hop => hop.hopId !== 'H04'),
+    })
+    expect(missing.hops.find(hop => hop.hopId === 'H04')).toMatchObject({ state: 'gap' })
+    expect(missing.structureErrors).toContain('missing-hop:H04')
+    expect(missing.checksPassed).toBe(false)
+    expect(missing.fullPath).toBe('incomplete')
+    const h06 = report.hops.find(hop => hop.hopId === 'H06')
+    if (h06 === undefined) throw new Error('H06 missing')
+    const duplicate = aggregatePath({ ...report, hops: [...report.hops, h06] })
+    expect(duplicate.structureErrors).toContain('duplicate-hop:H06:2')
+    expect(duplicate.duplicateObservations).toEqual([h06, h06])
+    expect(duplicate.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
+    expect(duplicate.checksPassed).toBe(false)
+    expect(duplicate.fullPath).toBe('incomplete')
+  })
 
-  it("checks structure even when every supplied observation claims verified", async () => {
-    const report = await runContractSkeleton(skeletonInputs());
-    const hops = report.hops.map((hop) => ({
+  it('checks structure even when every supplied observation claims verified', async () => {
+    const report = await runContractSkeleton(skeletonInputs())
+    const hops = report.hops.map(hop => ({
       ...hop,
-      state: "verified" as const,
+      state: 'verified' as const,
       fragments:
         hop.fragments.length > 0
           ? hop.fragments
           : [
               {
-                fragmentId: "hypothetical-connection",
-                status: "pass" as const,
+                fragmentId: 'hypothetical-connection',
+                status: 'pass' as const,
                 evidence: hop.publicEntry,
               },
             ],
-    }));
-    expect(aggregatePath({ ...report, hops }).fullPath).toBe("complete");
-    const missing = aggregatePath({ ...report, hops: hops.filter((hop) => hop.hopId !== "H04") });
-    expect(missing.fullPath).toBe("incomplete");
-    expect(missing.checksPassed).toBe(false);
-    const h06 = hops.find((hop) => hop.hopId === "H06");
-    if (h06 === undefined) throw new Error("H06 missing");
-    expect(aggregatePath({ ...report, hops: [...hops, h06] }).fullPath).toBe("incomplete");
-    const uncovered = hops.map((hop) =>
-      hop.hopId === "H06" ? { ...hop, fragments: hop.fragments.slice(1) } : hop,
-    );
-    expect(aggregatePath({ ...report, hops: uncovered }).fullPath).toBe("incomplete");
-    expect(aggregatePath({ ...report, hops: uncovered }).checksPassed).toBe(false);
-  });
+    }))
+    expect(aggregatePath({ ...report, hops }).fullPath).toBe('complete')
+    const missing = aggregatePath({ ...report, hops: hops.filter(hop => hop.hopId !== 'H04') })
+    expect(missing.fullPath).toBe('incomplete')
+    expect(missing.checksPassed).toBe(false)
+    const h06 = hops.find(hop => hop.hopId === 'H06')
+    if (h06 === undefined) throw new Error('H06 missing')
+    expect(aggregatePath({ ...report, hops: [...hops, h06] }).fullPath).toBe('incomplete')
+    const uncovered = hops.map(hop =>
+      hop.hopId === 'H06' ? { ...hop, fragments: hop.fragments.slice(1) } : hop,
+    )
+    expect(aggregatePath({ ...report, hops: uncovered }).fullPath).toBe('incomplete')
+    expect(aggregatePath({ ...report, hops: uncovered }).checksPassed).toBe(false)
+  })
 
-  it("rejects missing, repeated and unexecuted fixed scenarios", async () => {
-    const report = await runContractSkeleton(skeletonInputs());
-    const first = report.scenarios[0];
-    if (first === undefined) throw new Error("No scenarios");
+  it('rejects missing, repeated and unexecuted fixed scenarios', async () => {
+    const report = await runContractSkeleton(skeletonInputs())
+    const first = report.scenarios[0]
+    if (first === undefined) throw new Error('No scenarios')
     for (const scenarios of [
       report.scenarios.slice(1),
       [...report.scenarios, first],
-      report.scenarios.map((result) =>
-        result === first ? { ...result, status: "exception" as const } : result,
+      report.scenarios.map(result =>
+        result === first ? { ...result, status: 'exception' as const } : result,
       ),
     ]) {
-      expect(aggregatePath({ ...report, scenarios }).checksPassed).toBe(false);
+      expect(aggregatePath({ ...report, scenarios }).checksPassed).toBe(false)
     }
-  });
+  })
 
-  it("does not let Model passes cover failed or uncovered required fragments", async () => {
-    const report = await runContractSkeleton(skeletonInputs());
-    for (const status of ["fail", "not-applicable"] as const) {
-      const hops = report.hops.map((hop) => ({
+  it('does not let Model passes cover failed or uncovered required fragments', async () => {
+    const report = await runContractSkeleton(skeletonInputs())
+    for (const status of ['fail', 'not-applicable'] as const) {
+      const hops = report.hops.map(hop => ({
         ...hop,
-        state: "verified" as const,
+        state: 'verified' as const,
         fragments: [
           {
-            fragmentId: "observed-public-entry",
-            status: hop.hopId === "H04" ? status : ("pass" as const),
+            fragmentId: 'observed-public-entry',
+            status: hop.hopId === 'H04' ? status : ('pass' as const),
             evidence: hop.publicEntry,
           },
         ],
-      }));
-      expect(aggregatePath({ ...report, hops }).fullPath).toBe("incomplete");
-      expect(aggregatePath({ ...report, hops }).checksPassed).toBe(false);
+      }))
+      expect(aggregatePath({ ...report, hops }).fullPath).toBe('incomplete')
+      expect(aggregatePath({ ...report, hops }).checksPassed).toBe(false)
     }
-    const failed = report.hops.map((hop) =>
-      hop.hopId === "H04" ? { ...hop, state: "failed" as const } : hop,
-    );
-    expect(aggregatePath({ ...report, hops: failed }).checksPassed).toBe(false);
-  });
+    const failed = report.hops.map(hop =>
+      hop.hopId === 'H04' ? { ...hop, state: 'failed' as const } : hop,
+    )
+    expect(aggregatePath({ ...report, hops: failed }).checksPassed).toBe(false)
+  })
 
-  it("keeps independent Model evidence when a governance call fails", async () => {
+  it('keeps independent Model evidence when a governance call fails', async () => {
     const report = await runContractSkeleton(
-      skeletonInputs({ governance: { registrationResponseBytes: new TextEncoder().encode("{") } }),
-    );
-    expect(report.checksPassed).toBe(false);
-    expect(report.hops.find((hop) => hop.hopId === "H01")?.state).toBe("failed");
-    expect(modelFragments(report).every((fragment) => fragment.status === "pass")).toBe(true);
-    expect(report.hops.map((hop) => hop.hopId)).toEqual([...HOP_IDS]);
-    expect(report.fullPath).toBe("incomplete");
-  });
-});
+      skeletonInputs({ governance: { registrationResponseBytes: new TextEncoder().encode('{') } }),
+    )
+    expect(report.checksPassed).toBe(false)
+    expect(report.hops.find(hop => hop.hopId === 'H01')?.state).toBe('failed')
+    expect(modelFragments(report).every(fragment => fragment.status === 'pass')).toBe(true)
+    expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
+    expect(report.fullPath).toBe('incomplete')
+  })
+})
