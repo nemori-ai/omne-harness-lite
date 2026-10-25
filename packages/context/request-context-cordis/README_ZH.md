@@ -14,7 +14,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：具体子类、插件、配置 Schema、贡献登记表。根入口保持为空。
 - 未验证：定义成员已有 Cordis 4.0.4 的 intercept 机制测试，读数尚未登记到共同 basis。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
-- 经 Cordis 的调用方用 `assembly(scope, ports)` 取得已配置的操作组，并逐次交入四项端口；操作组每次调用时现取该作用域的贡献。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给机制实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
+- 经 Cordis 的调用方用 `assembly(target)` 取得已配置的操作组；操作组借用来源适配者经 `register` 为该目标登记的来源集合，每次调用时现取该作用域的贡献；目标没有登记时返回不可用。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给机制实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
 现在没有应用装配本插件，也没有包依赖本成员。
 
@@ -23,7 +23,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 本成员有两个入口：
 
 - `@omne-harness/request-context-cordis/cordis`：插件。应用装配者在插件树里加一行本插件并给出配置。
-- `@omne-harness/request-context-cordis`：不导出任何东西。不装配 Cordis 的调用方从 [request-context](../request-context/README_ZH.md) 取机制工厂。
+- `@omne-harness/request-context-cordis`：不导出任何东西。不装配 Cordis 的调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂在 [request-context](../request-context/README_ZH.md)。
 
 贡献者与组装请求的调用方不导入本成员，它们经服务定义使用服务。装配行与独立使用见[使用与定位](docs/context.md#使用方式)。插件没有实现，现在没有可运行的示例。
 
@@ -38,7 +38,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 
 ## 设计
 
-`./cordis` 分为配置与策略选择、服务子类、贡献登记表、事件派发与撤除五块。包外依赖是 request-context-contract、request-context-cordis-contract、request-context 与 `@deepseek-ai/cordis`。撤除放在一个 effect 里，作用域每次调用时读取，策略选择失败即加载失败、不回退，登记与撤除都通知机制实例，端口逐次交入，Runtime Context 是可选依赖，不为每次请求开 fiber。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+`./cordis` 分为配置与策略选择、服务子类、贡献登记表、事件派发与撤除五块。包外依赖是 request-context-contract、request-context-cordis-contract、request-context 与 `@deepseek-ai/cordis`。撤除放在一个 effect 里，作用域每次调用时读取，策略选择失败即加载失败、不回退，登记与撤除都通知机制实例，来源集合按目标登记，Runtime Context 是可选依赖，不为每次请求开 fiber。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

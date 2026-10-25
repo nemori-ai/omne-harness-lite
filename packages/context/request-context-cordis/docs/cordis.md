@@ -10,16 +10,16 @@
 
 `./cordis` 导出 `RequestContextService` 的具体子类与插件。本成员只提供一个键 `requestContext`。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
-插件加载时按配置选定两个策略实现，再调用 request-context 的工厂，交入两个策略与登记面的读口，得到一个机制实例。本插件不在构造时交四项端口，也不 `inject` 作用域持有者或模型侧的服务。服务实例拥有这个机制实例与贡献登记表。登记面三项方法的 Cordis 责任如下：
+插件加载时按配置选定两个策略实现，并用 request-context 的 `createContextSourceRegistry` 建来源登记表。本插件不 `inject` 作用域持有者或模型侧的服务。服务实例拥有来源登记表与贡献登记表。登记面三项方法的 Cordis 责任如下：
 
 | 方法 | 本插件加的责任 | 交给谁 |
 | --- | --- | --- |
 | `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，调用 `notify('contributions', …)`，派发变化事件。关闭后拒绝 | 机制实例从登记面读口读段并渲染，渲染结果只归它 |
-| `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方查看。`assembly(scope, ports)` 的操作组自己现取贡献，不经调用方转交 |
+| `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方查看。`assembly(target)` 的操作组自己现取贡献，不经调用方转交 |
 
 本成员不导出第二个服务键，不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
 
-经 Cordis 的调用方用服务的 `assembly(scope, ports)` 取得已按配置绑定策略与登记面的一组纯操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。`ports` 是历史源读口、计量端口、转换件结果端口与请求序列化端口，由调用方逐次交入，本插件经机制实例的按调用交入端口的入口转交，这组操作只用这次交入的端口（性质 6）。性质 5 取消的在途组装就是经这组操作发起的组装。这组操作每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次；操作组的作用域与组装上下文、历史依据的作用域引用不一致时返回无效（性质 9）。
+经 Cordis 的调用方用服务的 `assembly(target)` 取得已按配置绑定策略与登记面的一组操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。这组操作只借用来源适配者经 `register` 或 `replace` 为该目标登记的来源集合；目标没有登记时返回不可用（性质 6）。性质 5 取消的在途组装就是经这组操作发起的组装。这组操作每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次；操作组的作用域与组装上下文、历史依据的作用域引用不一致时返回无效（性质 9）。
 
 本插件只把登记与撤除经 `notify('contributions', …)` 交给机制实例（性质 8）。它不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更：订阅前两者要导入对方的服务定义或做全局监听，而正确性本来只靠每次调用时比较输入携带的修订（[request-context 候选缓存](../../request-context/SPEC.md#候选缓存)）。
 
@@ -146,7 +146,7 @@
 5. 配置指向不存在的策略时 fiber 进入 `FAILED`。
 6. 插件卸载时在途组装被取消并返回不可用，撤除不无限等待；关闭后的组装返回不可用。
 7. 登记与撤除都经 `notify('contributions', …)` 到达机制实例（性质 8）。
-8. `assembly(scope, ports)` 只用这次交入的端口。
+8. `assembly(target)` 只借用该目标已登记的来源集合，目标没有登记时返回不可用。
 9. Runtime Context 不在场时本插件照常可用、两块读到缺项；Runtime Context 到场后两块有值。
 10. 同一 isolate 标签下重复装载失败。
 

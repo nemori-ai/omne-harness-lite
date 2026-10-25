@@ -27,7 +27,7 @@
 
 Runtime Context 的三面（生产者面、持有者面、读者面）与 Request Context 的纯操作经公开契约交接；跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。登记与步提交是持有者各自单独的提交；压缩转换是持有者与协调者的共同提交，唯一提交点归两方契约，现在尚未裁定：持有者一侧在 [#580](https://github.com/nemori-ai/omne-harness-lite/issues/580)，协调者一侧在 [#558](https://github.com/nemori-ai/omne-harness-lite/issues/558)。本组成员只给材料。
 
-请求组装有两条入口。托管路径：装配了 Cordis 的系统里，协调者一侧的适配器调用服务定义 [request-context-cordis-contract](request-context-cordis-contract/README.md) 的 `assembly(scope, ports)`，逐次交入历史源读口、计量端口、转换件结果端口与请求序列化端口；贡献从登记面现取，策略与缓存在提供者里。独立路径：不装配 Cordis 的调用方调用 [request-context](request-context/README.md) 的机制工厂，在构造时给出四项端口与两个策略，自己传入贡献；只要纯操作、不要缓存时直接用 [request-context-contract](request-context-contract/README.md) 的根入口。两个 `-cordis` 成员的根入口不导出任何东西。
+请求组装有两条入口。托管路径：装配了 Cordis 的系统里，协调者一侧的适配器调用服务定义 [request-context-cordis-contract](request-context-cordis-contract/README.md) 的 `assembly(target)`，取得借用该目标已登记来源集合的操作组；来源集合由来源适配者经 `register` 按目标（租户与作用域）登记，贡献从登记面现取，策略在提供者里。独立路径：不装配 Cordis 的调用方用 [request-context-contract](request-context-contract/README.md) 根入口的 `createAssemblyOperations` 绑定自己的来源集合与策略；[request-context](request-context/README.md) 提供来源登记表与账目的工厂（`createContextSourceRegistry`、`createContextAccounting`）。两个 `-cordis` 成员的根入口不导出任何东西。
 
 ## 组合验证
 
