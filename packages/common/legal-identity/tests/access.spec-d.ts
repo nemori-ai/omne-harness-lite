@@ -19,8 +19,8 @@ const _principal: Principal = built.principal
 // @ts-expect-error the members are read-only
 built.tenant = tenant
 
-// The definition is exactly `Readonly<{ principal: P; tenant: TenantId }>`, so a member that wrote
-// the same literal type can replace it by a re-export without changing what its consumers accept.
+// The definition is exactly `Readonly<{ principal: P; tenant: TenantId }>`; the contract members
+// re-export it, so this is the shape their consumers accept.
 type Local<P> = Readonly<{ principal: P; tenant: TenantId }>
 const _toLocal: Local<Principal> = built
 declare const local: Local<Principal>

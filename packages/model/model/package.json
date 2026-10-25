@@ -35,6 +35,7 @@
   "dependencies": {
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/message": "workspace:*",

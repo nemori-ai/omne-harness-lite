@@ -1201,13 +1201,13 @@ describe('the boundary of the directory', () => {
     expect(world.retired).toEqual([])
   })
 
-  it('answers invalid for register when the scope is not an Evidence, and asks nobody', async () => {
+  it('answers invalid for register when the scope is not a DurableEvidence, and asks nobody', async () => {
     const world = await start()
     const { record: _record, ...withoutRecord } = evidence
     const scopes: readonly (readonly [string, unknown])[] = [
       ['a scope without a record', withoutRecord],
       ['a scope with an empty owner', { ...evidence, owner: '' }],
-      ['a scope with a member that Evidence does not have', { ...evidence, extra: 'x' }],
+      ['a scope with a member that DurableEvidence does not have', { ...evidence, extra: 'x' }],
       ['a scope that is a text', 'scope'],
     ]
     for (const [label, bad] of scopes) {

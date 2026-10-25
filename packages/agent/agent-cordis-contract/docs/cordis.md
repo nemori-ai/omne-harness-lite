@@ -87,7 +87,7 @@
 | resolve | `agentInstances.resolve` | 目录核验 resolve | 只解析 published 登记 |
 | connect | `agentInstances.connect` | 目录核验 connect | 没有活体路由时返回 no-live-route |
 
-目录在边界验证身份文本与 Evidence，验证不通过的请求不交给发布权威，也不交给资格核验。四个操作先核对租户是 legal-identity 解析得到的 `TenantId`。然后目录用 agent-contract 的函数验证输入成员：
+目录在边界验证身份文本与 `DurableEvidence`，验证不通过的请求不交给发布权威，也不交给资格核验。四个操作先核对租户是 legal-identity 解析得到的 `TenantId`。然后目录用 agent-contract 的函数验证输入成员：
 
 - `register` 用 `decodeAgentInstanceId`、`decodeAgentOperationId` 验证 `instance` 与 `operation`，用 `judgeEvidence` 验证 `scope`。
 - `withdraw` 用 `decodeAgentInstanceId`、`decodeAgentOperationId`、`decodeAgentRegistrationId` 验证 `instance`、`operation` 与 `registration`。

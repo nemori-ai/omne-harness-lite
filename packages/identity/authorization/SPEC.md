@@ -189,7 +189,7 @@
 
 ### 依据与证据
 
-`basis` 记录裁定所依：操作、目标、租户、参数摘要、已核验的主体、读到的成员事实、要求的资格、出示的许可。未出示许可时 `basis.permit` 为 null，读者据此知道这次允许不依赖任何许可。参数摘要进入 `basis`，所以证据摘要随参数变化。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。证据类型是 `DurableEvidence & { owner: 'authorization' }`。`DurableEvidence` 的唯一定义在 exchange-refs，消费方契约再导出同一类型，所以不需要逐项映射。摘要算法仍归本成员。
+`basis` 记录裁定所依：操作、目标、租户、参数摘要、已核验的主体、读到的成员事实、要求的资格、出示的许可。未出示许可时 `basis.permit` 为 null，读者据此知道这次允许不依赖任何许可。参数摘要进入 `basis`，所以证据摘要随参数变化。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。证据类型是 `DurableEvidence & { owner: 'authorization' }`。`DurableEvidence` 的唯一定义在 exchange-refs，消费方契约再导出同一类型。摘要算法仍归本成员。
 
 裁定保存值数据的自有不可变快照，包括操作、目标、参数摘要、要求的资格、许可引用包装，以及成员事实中的角色、模型、资格与证据。调用方后续修改这些输入，不能改变已返回的依据或其可重算摘要。快照不冻结调用方对象。已核验主体与已铸造租户按原对象保留，不通过 JSON 复制或重新铸造改变其身份。
 
