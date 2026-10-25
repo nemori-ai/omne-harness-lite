@@ -142,7 +142,7 @@ tenantCodec.encode(pair)
 
 `tests/acting-scope.spec.ts` 覆盖两种作用域、文本形式及其失败码、相等，以及手写作用域。`tests/acting-scope.spec-d.ts` 核对没有租户的租户作用域、带租户的系统作用域和第三种 kind 都是类型错误。`tests/access.spec.ts` 覆盖 `access()` 对已解析租户和手写租户的处理。`tests/access.spec-d.ts` 核对没有租户的访问依据是类型错误，以及这份定义等于契约成员写过的字面类型。`tests/public-entry.spec.ts` 列出导出，所以这份清单的差异就是一次修改新增了什么。
 
-测试不覆盖对手写对象的类型层禁止，因为已接受的设计允许它们通过类型检查。测试也不覆盖重复 JSON 键，以及同时加载两份本包的情况。`Access<P>` 对 `agent-contract`、`tool-contract`、`model-contract`、`execution-environment-contract`、`request-context-contract` 五份副本的可赋值性在 `packages/identity/authorization/tests/access-equivalence.spec-d.ts` 核对，因为本包不依赖领域成员。
+测试不覆盖对手写对象的类型层禁止，因为已接受的设计允许它们通过类型检查。测试也不覆盖重复 JSON 键，以及同时加载两份本包的情况。`Access<P>` 没有需要比对的副本：`agent-contract`、`tool-contract`、`model-contract`、`execution-environment-contract`、`request-context-contract` 再导出本包的定义。
 
 ## 维护
 
