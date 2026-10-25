@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
           ),
         },
         {
+          find: /^@omne-harness\/tool-contract\/provider$/,
+          replacement: fileURLToPath(
+            new URL('./node_modules/@omne-harness/tool-contract/src/provider.ts', import.meta.url),
+          ),
+        },
+        {
           find: /^@omne-harness\/tool-contract\/binding$/,
           replacement: fileURLToPath(
             new URL('./node_modules/@omne-harness/tool-contract/src/binding.ts', import.meta.url),

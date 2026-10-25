@@ -5,13 +5,13 @@
 // the double behave.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { ControlProgress } from '@omne-harness/tool-contract'
 import type {
   ControlDispatch,
-  ControlProgress,
   FactBatch,
   ToolLiveExecution,
   ToolStartLookup,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   executorBindingAnswers,
   memoryToolExecutorBindingFixture,

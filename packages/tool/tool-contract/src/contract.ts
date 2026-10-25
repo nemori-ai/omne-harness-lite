@@ -10,7 +10,7 @@ import {
 } from '@omne-harness/assets'
 
 const schemaRead = readBodyText(
-  '{"kind":"tool-body","properties":{"name":"string","programmable":"boolean","composes":{"skills":"string[]"}}}',
+  '{"kind":"tool-body","properties":{"name":"string","programmable":"boolean","requiredCapabilities":"string[]","composes":{"skills":"string[]"},"implementation":{"executor":"string","module":"string","construction":"json"}}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -57,7 +57,43 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
     return refusal('name-mismatch')
   if (skillNames(body) === undefined) return refusal('incomplete-reference')
   if (programmable(body) === 'invalid') return refusal('invalid-programmable')
+  if (requiredCapabilities(body) === undefined) return refusal('invalid-required-capabilities')
+  if (implementation(body) === 'invalid') return refusal('invalid-implementation')
   return { ok: true }
+}
+
+/**
+ * `requiredCapabilities` is optional (RFC-0012 governance). When present it is a list of
+ * non-empty names; anything else is undefined, which the judgment refuses.
+ */
+function requiredCapabilities(body: unknown): readonly string[] | undefined {
+  const value = field(body, 'requiredCapabilities')
+  if (value === undefined) return isObject(body) ? [] : undefined
+  if (value.kind !== 'array' || !Array.isArray(value.items)) return undefined
+  const names: string[] = []
+  for (let index = 0; index < value.items.length; index += 1) {
+    const item = value.items[index]
+    if (item === undefined || item.kind !== 'string' || item.value === '') return undefined
+    names.push(item.value)
+  }
+  return names
+}
+
+/**
+ * `implementation { executor, module, construction }` is the implementation reference of the
+ * asset (RFC-0012). It is optional: a body without it declares no implementation and cannot be
+ * loaded. When present, `executor` and `module` are non-empty texts and `construction` is any JSON
+ * value; a missing `construction` reads as JSON null.
+ */
+function implementation(body: unknown): 'absent' | 'present' | 'invalid' {
+  const value = field(body, 'implementation')
+  if (value === undefined) return 'absent'
+  if (!isObject(value)) return 'invalid'
+  const executor = stringField(value, 'executor')
+  const module = stringField(value, 'module')
+  if (executor === undefined || executor === '' || module === undefined || module === '')
+    return 'invalid'
+  return 'present'
 }
 
 /** The declaration entry of a tool body whose `programmable` is boolean true. */

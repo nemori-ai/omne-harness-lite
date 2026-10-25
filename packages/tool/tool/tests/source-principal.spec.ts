@@ -5,7 +5,8 @@ import {
   createTestToolDependencies,
   createTestToolIdentities,
 } from '@omne-harness/tool/testing'
-import { readToolInvocationRef, type ToolInvokeOutcome } from '@omne-harness/tool-contract'
+import { type ToolInvokeOutcome } from '@omne-harness/tool-contract'
+import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import {
   configuration,
   dummyRequest,

@@ -2,7 +2,7 @@
 // Oracle: product/tool-execution/acceptance.md S3; Tool SPEC 20–23, 26; P04.
 import assert from 'node:assert/strict'
 import { it } from 'vitest'
-import { readToolInvocationRef } from '@omne-harness/tool-contract'
+import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import { assembly, ok } from './fixtures/assembly.ts'
 
 it('S3 publicly excludes an accepted call before driver startup and consumes its unavailable result', async () => {

@@ -43,3 +43,5 @@ export function resolveOptional<T>(ctx: Context, name: string): T | undefined {
   // Cordis types this read as any. T is the caller's assertion, per the package contract.
   return ctx.get(name) as T | undefined
 }
+
+export { registerInCallerFiber, type Admission } from './caller-fiber.ts'

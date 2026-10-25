@@ -3,19 +3,21 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Attachment,
-  CallAccess,
   ContentPage,
   RawOutput,
-  ToolContentReader,
   ToolFailure,
-  ToolBindings,
   ToolCatalog,
+} from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import type {
+  ToolContentReader,
+  ToolBindings,
   ToolChildren,
   ToolExecutorBinding,
   ToolInstanceHost,
   ToolInvocationSourceIssuer,
   ToolOperationIdentities,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   NotApplicable,
   testingTenant,

@@ -19,6 +19,7 @@
 - [ledger-exclusion.ts](ledger-exclusion.ts) 是按操作号定键的命令的排除规则：第一次读取之后给出的否定答案，以及推进协程据以重做的排除回复。
 - [ledger.ts](ledger.ts) 实现 `createToolLedger`：每个入口做边界、资格、读取、决定与按修订号提交；否定的查询答案先提交排除围栏（一条 `exclusion` 记录），被围栏排除的在途命令在重试时停止；后续增量的操作回复具名 `unsupported`（原因写操作名与增量名）。
 - [runtime.ts](runtime.ts) 实现 `createToolRuntime`：构造时检查配置与端口，逻辑终局路径的操作接到账本端口，其余回复具名 `unsupported`。
+- [stream-facade.ts](stream-facade.ts) 实现公共流协议上的观察门面：`instances.current` 给出当前发布代次的公共引用与权威状态，`observation.observe` 把公共引用路由到当前代次的 handle，交出每一帧之前按实例目录重核资格。门面不保存过程数据。行为见 [SPEC 的运行时观察门面](../SPEC.md#运行时观察门面)。
 - [testing.ts](testing.ts) 是 `./testing` 公开入口，并实现 `createTestToolDependencies`：显式输入、七个契约内存替身、记录仓与账本，返回依赖及原控制手柄。
 - [testing-store.ts](testing-store.ts) 实现非耐久记录仓 `createMemoryToolLedgerStore`，带故障注入。
 - 本包经 `@omne-harness/tool-contract` 取得公共类型，不复制它们。`Outcome` 来自 `@omne-harness/operation-result`。

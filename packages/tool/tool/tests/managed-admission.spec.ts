@@ -891,7 +891,12 @@ describe('13 invocation permission', () => {
     const { ledger } = harness()
     const definition = functionDefinition({ programmable: true })
     const script = fixedRequestForNamedSourceGuard({
-      availability: { kind: 'available', definition, executor: { ...definition.adoption } },
+      availability: {
+        kind: 'available',
+        definition,
+        executor: { ...definition.adoption },
+        layer: { kind: 'official' },
+      },
       invocation: { kind: 'programmatic', source: evidence('script') },
       arguments: { original: '{', effective: '{', complete: true },
     })
@@ -936,7 +941,12 @@ describe('13 invocation permission', () => {
     const definition = functionDefinition({ backgroundAllowed: true })
     const launched = request({
       mode: 'background',
-      availability: { kind: 'available', definition, executor: { ...definition.adoption } },
+      availability: {
+        kind: 'available',
+        definition,
+        executor: { ...definition.adoption },
+        layer: { kind: 'official' },
+      },
     })
     const admitted = accepted(await assembly.admitInternal(launched))
     expect(judged(admitted.state)).toMatchObject({

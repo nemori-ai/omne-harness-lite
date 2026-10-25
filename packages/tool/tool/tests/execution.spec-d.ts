@@ -4,7 +4,7 @@ import type {
   IndependentToolScopeInput,
   ToolExecutionScope,
   ToolExecutor,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   createIndependentToolScope,
   executeTool,

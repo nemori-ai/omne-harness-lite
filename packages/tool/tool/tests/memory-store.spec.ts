@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { recordKey, type LedgerDomain, type LedgerRecord } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import { decodeToolRevision } from '@omne-harness/tool-contract'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import {
   callId,
   ok,

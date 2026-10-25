@@ -358,6 +358,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1030,6 +1033,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -1418,6 +1424,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../tool-contract
@@ -1467,6 +1476,9 @@ importers:
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1495,6 +1507,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../tool-contract

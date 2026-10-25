@@ -39,7 +39,9 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 [invocation-runtime.spec.ts](invocation-runtime.spec.ts) 的再次释放回包丢失用例验证真实 ledger 不写入该次操作、原操作查询可靠否定，再明确释放取得原回执且不新增写入。[managed-delivery.spec.ts](managed-delivery.spec.ts) 保留首次释放、原回执重入及首次未知提交认回。
 
-普通 `instances.connect` 的边界回归使用可控目录，核对原 handle 对象透传、目录更新不替换旧观察、显式重连返回新 handle，以及退出观察不提交控制或新操作。该测试不提供生产观察提供者的 stale-instance 流结束证明。lookup 的真实账本回归核对释放前 pending、释放后当前 released，以及精确 result、delivery 和 consumer。
+[stream-observation.spec.ts](stream-observation.spec.ts) 验证运行时观察门面：`instances.current` 回复表的每一行，`observation.observe` 在公共失败顺序里的每种 Tool 情形，两个 `ToolStreamEnd` 值，快照先于订阅，gap 终止，中止与 return，capacity，旧代次终止帧的四种情形，交出每一帧之前的资格重核（快照后撤权在下一个增量前结束于 `denied`，资格来源不可用结束于 `unavailable`），畸形请求结束于 `denied`，观察源抛错保持为连接失败，路由前和路由期间的中止，以及门面自己负责的终止与释放（观察源在终止帧后继续产出时门面停止并只关闭一次观察源，观察源自行结束时不发终止帧也不关闭它，资格重核加上的中止监听全部移除，路由携带引用里的主体、租户、调用与受理）。[stream-source.ts](stream-source.ts) 是这些用例的受控进程内发布者，不是提供者。这些用例不证明真实观察提供者的原子订阅边界。
+
+lookup 的真实账本回归核对释放前 pending、释放后当前 released，以及精确 result、delivery 和 consumer。
 
 [caught-rejection.ts](caught-rejection.ts) 由 `binding-start.spec.ts` 启动独立 Node 子进程。它捕获真实 driver 的标记写入拒绝，等待两个事件循环检查点，核对原错误对象及额外 `unhandledRejection` 为零。子进程使用源码条件，测试运行器拥有其启动和退出。该样本不证明真实执行桥或后端耐久性。
 

@@ -15,7 +15,7 @@
 
 本章给装配者和提供者作者：运行时服务、实例目录与登记类型。
 
-- 声明：[`src/cordis.ts`](../src/cordis.ts)、[`src/registration.ts`](../src/registration.ts)、[`src/instances.ts`](../src/instances.ts)、[`src/caller-fiber.ts`](../src/caller-fiber.ts)。
+- 声明：[`src/cordis.ts`](../src/cordis.ts)、[`src/registration.ts`](../src/registration.ts)、[`src/instances.ts`](../src/instances.ts)；两个目录的登记前置是 kernel-basis 的 [`registerInCallerFiber`](../../../assembly/kernel-basis/SPEC.md#调用方-fiber-登记辅助)。
 - 类型探针：[`tests/registration-types.spec-d.ts`](../tests/registration-types.spec-d.ts)、[`tests/cordis-entry.spec-d.ts`](../tests/cordis-entry.spec-d.ts)。行为测试：[`tests/instances.spec.ts`](../tests/instances.spec.ts)、[`tests/service-definitions.spec.ts`](../tests/service-definitions.spec.ts)。
 
 `ModelInstancesService.register` 是实例上的属性，不是方法。目录状态在构造函数建立的闭包里，`register` 用调用方的 Context 运行，登记随调用方 fiber 结束。依据见[目录的 Cordis 事实](cordis.md#目录的-cordis-事实)。

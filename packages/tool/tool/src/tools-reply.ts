@@ -1,5 +1,6 @@
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { ResultPage, ToolMessageContentBlock } from '@omne-harness/tool-contract'
+import type { ResultPage } from '@omne-harness/tool-contract'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import type { ToolsAccess, ToolsOptions, ToolsReadRuntime } from './tools.ts'
 import { budgetFailure, jsonBytes, type MessageResult } from './tools-results.ts'
 

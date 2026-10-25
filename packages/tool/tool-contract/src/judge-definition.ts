@@ -4,10 +4,11 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { judgeModalities, type Modality } from '@omne-harness/modality'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDeclarations, ToolSettingsDeclaration } from './authoring.ts'
+import type { ToolImplementationDeclaration } from './authoring.ts'
 import type {
   ParameterContract,
   ToolDefinition,
-  ToolDefinitionMetadata,
+  ToolImplementationFacts,
   ToolProgramDeclaration,
   ToolReturnDeclaration,
 } from './definitions.ts'
@@ -169,21 +170,24 @@ export const commandName: Check<string> = filled
 /** A command summary is one line (P02). */
 export const commandSummary: Check<string> = oneLine
 
-const metadataFields = {
-  adoption,
-  name: toolName,
+/** The implementation-side fields of a definition (P13): what the author declares. */
+const declarationFields = {
   description: nonBlank,
-  requiredCapabilities: names(filled),
   backgroundAllowed: bool,
   declarations: toolDeclarations,
 }
+/** The asset-side fields of a definition: identity and governance (RFC-0012 object chain). */
+const governanceFields = {
+  adoption,
+  name: toolName,
+  requiredCapabilities: names(filled),
+}
+const metadataFields = { ...governanceFields, ...declarationFields }
 /** `programmable` is optional. An omitted value stays omitted; only boolean `true` permits. */
 const metadataOptional = { programmable: bool }
 
-export const toolDefinitionMetadata: Check<ToolDefinitionMetadata> = record(
-  metadataFields,
-  metadataOptional,
-)
+export const implementationDeclaration: Check<ToolImplementationDeclaration> =
+  record(declarationFields)
 
 const command = record({
   name: commandName,
@@ -195,26 +199,40 @@ const command = record({
   returns: returnDeclaration,
 })
 
+const functionShapeFields = {
+  kind: literal('function'),
+  parameters: parameterContract,
+  returns: returnDeclaration,
+}
+const commandsShapeFields = {
+  kind: literal('commands'),
+  commands: unique(nonEmpty(list(command)), entry => entry.name, 'name'),
+}
+
 /** The closed shape of a complete definition, shared with the fixed-request judgment. */
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
-  function: record(
-    {
-      ...metadataFields,
-      kind: literal('function'),
-      parameters: parameterContract,
-      returns: returnDeclaration,
-    },
-    metadataOptional,
-  ),
-  commands: record(
-    {
-      ...metadataFields,
-      kind: literal('commands'),
-      commands: unique(nonEmpty(list(command)), entry => entry.name, 'name'),
-    },
-    metadataOptional,
-  ),
+  function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
+  commands: record({ ...metadataFields, ...commandsShapeFields }, metadataOptional),
 })
+
+/** The closed shape of the implementation facts: the declaration and the projected shape. */
+const implementationFacts: Check<ToolImplementationFacts> = record({
+  ...declarationFields,
+  implements: variant('kind', {
+    function: record(functionShapeFields),
+    commands: record(commandsShapeFields),
+  }),
+})
+
+/**
+ * Judges an untrusted value as the implementation facts of a tool (P13). The check is closed in
+ * the same way as `judgeToolDefinition`, over the implementation side only.
+ */
+export function judgeImplementationFacts(
+  value: unknown,
+): Outcome<ToolImplementationFacts, Readonly<{ field: string; reason: string }>> {
+  return judgeUnknown(implementationFacts, value, 'ToolImplementationFacts')
+}
 
 /**
  * Judges an untrusted value as a complete Tool definition (P02). The check is closed: an unknown

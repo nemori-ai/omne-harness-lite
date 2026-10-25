@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
+import { registerInCallerFiber, type Admission } from '@omne-harness/kernel-basis/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
   DurableEvidence,
@@ -11,7 +12,6 @@ import type {
   Reply,
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { registerInCallerFiber, type Admission } from './caller-fiber.ts'
 import type {
   ModelPublicationAuthority,
   ModelRegistration,
@@ -74,7 +74,7 @@ function createDirectory<P>(authority: ModelPublicationAuthority<P>) {
     fiber: CordisContext['fiber'],
     request: ModelRegistrationInput<P>,
     dropEffect: () => void,
-  ): Admission<ModelRegistration, Entry<P>> {
+  ): Admission<Entry<P>, ModelRegistrationFailure> {
     const checked = authority.check(request)
     if ('failure' in checked) return { kind: 'refused', failure: checked.failure }
     const [from, handle] = request.publication
@@ -147,7 +147,7 @@ function createDirectory<P>(authority: ModelPublicationAuthority<P>) {
       return registerInCallerFiber(
         ctx,
         dropEffect => admit(ctx.fiber, request, dropEffect),
-        entry => () => void remove(entry),
+        entry => void remove(entry),
       )
     },
   }

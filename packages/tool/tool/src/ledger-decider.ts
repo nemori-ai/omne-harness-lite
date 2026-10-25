@@ -12,9 +12,7 @@ import type {
   DurableEvidence,
   FixedToolRequest,
   Handoff,
-  ParsedToolArguments,
   ToolArguments,
-  ToolArgumentsRejection,
   ToolCallId,
   ToolFailure,
   ToolOperationId,
@@ -22,9 +20,13 @@ import type {
   ToolResultVersion,
   ToolRevision,
   ToolState,
-  ToolTask,
   ToolTerminal,
 } from '@omne-harness/tool-contract'
+import type {
+  ParsedToolArguments,
+  ToolArgumentsRejection,
+  ToolTask,
+} from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import {
   INITIAL_REVISION,

@@ -4,16 +4,18 @@
 import { createHash } from 'node:crypto'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
-  decodeToolDeliveryId,
   decodeToolOperationId,
-  decodeToolResultVersion,
-  decodeToolRevision,
   type DurableEvidence,
   type ToolCallId,
   type ToolDeliveryId,
   type ToolResultVersion,
   type ToolRevision,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolDeliveryId,
+  decodeToolResultVersion,
+  decodeToolRevision,
+} from '@omne-harness/tool-contract/provider'
 import type { TenantId } from './ledger-store.ts'
 
 /** The owner of every evidence the ledger mints. */

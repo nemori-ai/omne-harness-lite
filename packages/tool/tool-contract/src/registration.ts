@@ -3,24 +3,25 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ToolAuthor,
-  ToolAuthorRegistration,
+  ToolImplementation,
+  ToolImplementationDeclaration,
   ToolOperation,
   ToolOperationParameters,
   ToolOperationSpec,
 } from './authoring.ts'
 import type {
-  ToolDefinition,
-  ToolDefinitionMetadata,
+  ToolImplementationFacts,
+  ToolImplementationShape,
   ToolProgramDeclaration,
   ToolReturnDeclaration,
 } from './definitions.ts'
 import {
   commandName,
   commandSummary,
-  judgeToolDefinition,
+  implementationDeclaration,
+  judgeImplementationFacts,
   parameterContract,
   returnDeclaration,
-  toolDefinitionMetadata,
 } from './judge-definition.ts'
 import {
   inheritedSlot,
@@ -195,7 +196,7 @@ export function readToolOperation(value: unknown): ToolOperationSlot | undefined
   return readMark(value, operationMark) as ToolOperationSlot | undefined
 }
 
-/** The slot of a registration that this module made. The binding provider reads it (G7). */
+/** The slot of an implementation that this module made. The binding provider reads it (G7). */
 export function readToolRegistration(value: unknown): ToolRegistrationSlot | undefined {
   // Only this module writes the mark, and it always writes a ToolRegistrationSlot.
   return readMark(value, registrationMark) as ToolRegistrationSlot | undefined
@@ -234,40 +235,47 @@ export function defineToolOperation<
   return succeed(handle as unknown as ToolOperation<E, B, P>)
 }
 
-function register<E, B extends ContentBlock>(
-  definition: ToolDefinition,
+/**
+ * Builds the implementation from the checked declaration and the projected shape. The facts pass
+ * the closed judgment once more as a whole, so a projection this module could get wrong is caught
+ * here and not at the loader.
+ */
+function implement<E, B extends ContentBlock>(
+  declaration: ToolImplementationDeclaration,
+  implementsShape: ToolImplementationShape,
   content: ToolRegistrationSlot,
-): Outcome<ToolAuthorRegistration<E, B>, Rejection> {
-  const judged = judgeToolDefinition(definition)
+): Outcome<ToolImplementation<E, B>, Rejection> {
+  const facts: ToolImplementationFacts = { ...declaration, implements: implementsShape }
+  const judged = judgeImplementationFacts(facts)
   if ('failure' in judged) return judged
-  const registration = marked({ definition: judged.ok }, registrationMark, Object.freeze(content))
-  // The mark holds the operations; the phantom brand of the registration has no run-time value.
-  return succeed(registration as unknown as ToolAuthorRegistration<E, B>)
+  const implementation = marked({ facts: judged.ok }, registrationMark, Object.freeze(content))
+  // The mark holds the operations; the phantom brand of the implementation has no run-time value.
+  return succeed(implementation as unknown as ToolImplementation<E, B>)
 }
 
-/** Registers a function tool from one operation with declared parameters (P13). */
+/**
+ * Defines a function tool from one operation with declared parameters (P13). The input carries
+ * implementation-side fields only: the name, the adoption and the governance come from the asset
+ * when the loader derives the definition.
+ */
 export function defineFunctionTool<E, B extends ContentBlock>(
   input: Readonly<{
-    metadata: ToolDefinitionMetadata
+    implementation: ToolImplementationDeclaration
     operation: ToolOperation<E, B, Extract<ToolOperationParameters, { kind: 'declared' }>>
   }>,
-): Outcome<ToolAuthorRegistration<E, B>, Rejection> {
+): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
-    record({ metadata: toolDefinitionMetadata, operation: operationHandle }),
+    record({ implementation: implementationDeclaration, operation: operationHandle }),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { metadata, operation } = checked.ok
+  const { implementation, operation } = checked.ok
   if (operation.parameters.kind !== 'declared')
     return reject('operation.parameters.kind', 'executor-owned')
-  return register(
-    {
-      ...metadata,
-      kind: 'function',
-      parameters: operation.parameters.value,
-      returns: operation.returns,
-    },
+  return implement(
+    implementation,
+    { kind: 'function', parameters: operation.parameters.value, returns: operation.returns },
     { kind: 'function', operation },
   )
 }
@@ -298,25 +306,25 @@ const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
   return succeed(entries)
 }
 
-/** Registers a multi-command tool. Each command keeps its own operation and return mode (P13). */
+/** Defines a multi-command tool. Each command keeps its own operation and return mode (P13). */
 export function defineCommandTool<E, B extends ContentBlock>(
   input: Readonly<{
-    metadata: ToolDefinitionMetadata
+    implementation: ToolImplementationDeclaration
     commands: Readonly<
       Record<string, Readonly<{ summary: string; operation: ToolOperation<E, B> }>>
     >
   }>,
-): Outcome<ToolAuthorRegistration<E, B>, Rejection> {
+): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
-    record({ metadata: toolDefinitionMetadata, commands: commandTable }),
+    record({ implementation: implementationDeclaration, commands: commandTable }),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { metadata, commands } = checked.ok
-  return register(
+  const { implementation, commands } = checked.ok
+  return implement(
+    implementation,
     {
-      ...metadata,
       kind: 'commands',
       commands: commands.map(([name, { summary, operation }]) => ({
         name,

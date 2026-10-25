@@ -6,7 +6,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { DurableEvidence, ToolExecutionRef, ToolHandle } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolExecutionRef } from '@omne-harness/tool-contract'
+import type { ToolHandle } from '@omne-harness/tool-contract/provider'
 import {
   memoryToolRegistrationFixture,
   type ToolRegistrationFixture,
@@ -172,10 +173,9 @@ export function flawedFixture(flaws: Flaws = {}): ToolRegistrationFixture<string
       release: () => {
         releases += 1
         if (flaws.releaseTouchesWork === true)
-          handle.observe({
-            principal: 'tester',
-            tenant: execution.tenant,
-            after: null,
+          handle.observation.observe({
+            ref: 'not-a-reference' as never,
+            access: { principal: 'tester', tenant: execution.tenant },
             signal: AbortSignal.abort(),
           })
         if (

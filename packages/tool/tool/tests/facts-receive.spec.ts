@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { decodeToolInstanceId, decodeToolWaitId } from '@omne-harness/tool-contract'
+import { decodeToolInstanceId, decodeToolWaitId } from '@omne-harness/tool-contract/provider'
+import type { ProcessBlock, ToolTerminal } from '@omne-harness/tool-contract'
 import type {
   FactBatch,
-  ProcessBlock,
   ToolExecutionFact,
   ToolLiveExecution,
-  ToolTerminal,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { createToolLedger, type FactBatchRecord } from '@omne-harness/tool'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { admitCall, startHarness } from './start-values.ts'

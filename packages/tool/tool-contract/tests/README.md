@@ -15,7 +15,8 @@
 | [release-judgment.spec.ts](release-judgment.spec.ts) | 交付解除输入判定：消费位置与交接证据是封闭值，多出字段、函数字段、空串、缺证据与非对象被拒绝并给出字段，读取时抛出的值是 `unreadable` |
 | [state-judgment.spec.ts](state-judgment.spec.ts) | 状态判定：阶段与前后台分支，后台不接受 `no-response` 或 Ask，占位与 call 一致，`unavailable` 的效果是 `not-started` |
 | [catalog.spec.ts](catalog.spec.ts) | 呈现摘要只把布尔 `true` 读作可编程许可。可用性判定列出全部未满足的条件 |
-| [author-registration.spec.ts](author-registration.spec.ts) | 作者注册：空命令表、非法名称、返回模式与作者种类不符、程序契约不符和伪造句柄在构造时被拒绝。`./binding` 入口的 `readToolOperation` 与 `readToolRegistration` 读出句柄的作者与注册的操作表，未标记的值读作 `undefined`。等待契约不装载 schema，Ask 不接受到期 |
+| [dynamics.spec.ts](dynamics.spec.ts) | RFC-0012 的纯函数：`deriveDefinition` 从资产取 name、adoption、requiredCapabilities 与 programmable，从实现取形状、description、backgroundAllowed 与 declarations；`shapeOf`/`sameShape` 只看 name、kind、规范化 schema、vocabulary 身份与按名排序的命令表；`sameSourceLayer`/`sameBindingKey` 按层与身份文本比较；`planAdoption` 按 SPEC 采用点判定表逐行（七行，含重装结果的每个分支：loaded/recognized 保持、missing/rejected 在不同形胜出者下冻结、暂时与撤权给替换件、conflict 按持有者是否可用）；`refreshAvailability` 只有可用、路由、不可用；`foldResident` 只增不减、同能力一次、shape 与定义一致 |
+| [author-registration.spec.ts](author-registration.spec.ts) | 作者注册只收实现侧字段，产出 `ToolImplementation { facts }`；资产侧字段（name、adoption）出现在实现输入里以 `unknown-field` 拒绝；装载器用 `deriveDefinition` 与资产治理派生定义，`programmable` 省略则省略。空命令表、非法名称、返回模式与作者种类不符、程序契约不符和伪造句柄在构造时被拒绝。`./binding` 入口的 `readToolOperation` 与 `readToolRegistration` 读出句柄的作者与注册的操作表，未标记的值读作 `undefined`。等待契约不装载 schema，Ask 不接受到期 |
 | [parameter-codec.spec.ts](parameter-codec.spec.ts) | 参数 codec：重复键、`complete=false`、半截 JSON 和超预算都不产生参数值。采用摘要覆盖预算。参数判定：两份文本都解析，任一失败指明是哪份，`complete=false` 不解析，坏输入或坏预算是 `shape` 拒绝 |
 | [result-rendering.spec.ts](result-rendering.spec.ts) | 结构化判定：带 `content` 的普通对象对普通作者仍是普通值。普通返回按程序编码填 `data`，渲染失败不抛出 |
 | [result-projection.spec.ts](result-projection.spec.ts) | `projectToolResult`：附件身份数量不等、重复或与已有块冲突时拒绝。地址文本使用固定前缀和 JSON 定位 |

@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
-  projectToolResult,
-  readToolInvocationRef,
   type ResultPage,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
-  type ToolMessageContentBlock,
   type ToolResult,
   type ToolState,
 } from '@omne-harness/tool-contract'
+import {
+  projectToolResult,
+  readToolInvocationRef,
+  type ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 import { createDemo, type Demo } from '../tests/example-assembly.ts'
 import { evidence, valueOf } from './report-tool.ts'
 

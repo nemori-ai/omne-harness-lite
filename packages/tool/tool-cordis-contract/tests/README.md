@@ -5,8 +5,11 @@
 | 文件 | 检查的行为 |
 | --- | --- |
 | [public-entry.spec.ts](public-entry.spec.ts) | 根入口不导出值。`./testing` 入口的值导出清单，替身声明 `durability: 'none'`，源码、产物和声明的导入图都不含 Tool 实现，产物不加载 Cordis |
-| [cordis-entry.spec.ts](cordis-entry.spec.ts) | 18 个键逐对等于对应类的 `static provide`。`./cordis` 的源码、产物和声明都不导入 Tool 实现。清单依赖 Cordis 与契约包。真实 Cordis 4.0.4 下抽象定义可被继承并按键取得，`ToolInstancesService` 返回具名失败而不抛出 |
+| [cordis-entry.spec.ts](cordis-entry.spec.ts) | 20 个键逐对等于对应类的 `static provide`，含 RFC-0012 的 `toolContributionAuthority` 与 `toolGenerations`。`./cordis` 的源码、产物和声明都不导入 Tool 实现。清单依赖 Cordis 与契约包。真实 Cordis 4.0.4 下抽象定义可被继承并按键取得，`ToolInstancesService` 返回具名失败而不抛出 |
 | [registration-conformance.spec.ts](registration-conformance.spec.ts) | 登记语义套件（IC-3）的自证：对守约替身全过且无不适用用例；20 条用例各在一个只破坏一条规则的登记服务上失败，失败的用例恰好是表中列明的；每条用例至少被一个变体命中；没有控制手柄的夹具把需要手柄的用例报告为不适用并指明手柄 |
+| [binding-registry-conformance.spec.ts](binding-registry-conformance.spec.ts) | G7 套件（绑定登记表）的自证：对守约的非耐久登记表全过且无不适用用例；十一个违约变体各恰好让列明的用例失败，每条用例至少被一个变体打红；没有 fiber 控制手柄的夹具把需要手柄的用例恰好报告为不适用（`binding-registry-legal.ts` 列出哪些）。动态性套件骨架按序给出 RFC-0012 十条判据，每条报告不适用并指明手柄 `generations`，用例体归 2.5 |
+| [binding-registry-legal.ts](binding-registry-legal.ts) | G7 自证的合法提供者：守约替身与没有 fiber 控制手柄的替身。不是测试文件 |
+| [flawed-bindings.ts](flawed-bindings.ts) | G7 自证用的有缺陷登记表：在守约替身的登记表边界上包一层，不设缺陷时与替身同语义，设一个缺陷就破坏一条规则（空 token、序号不递增、同 fiber 同 digest 不认回、冲突覆盖持有者、按键而非按 token 释放、fiber 结束不撤、键忽略资产版本、拒绝报成 unavailable、键不符报成 denied、close 等于释放、租户范围看到全部）。spec 里每个变体列明它让哪些用例失败，`expectEveryCaseIsCaught` 核每条用例至少被一个变体打红。不是测试文件 |
 | [testing-source.spec.ts](testing-source.spec.ts) | 套件源码的规则：`src/testing.ts` 没有轮询，唯一的定时等待是夹具给的静默期 `quietMs`；合法提供者都在 `registration-legal.ts`，它不引用 `flawed-registrations.ts`，也不以任何写法点名替身的 `controls`；spec 的 `legal` 表只引用这个文件里的提供者，规则自己的用例证明它拒绝写在 spec 里的提供者 |
 | [registration-legal.ts](registration-legal.ts) | 自证的合法提供者：生成的提供者、先做预核验再做最后核验的服务（`preChecked`，违约变体也把它叠在有缺陷的服务上）、核验自身租户的 authority（两个租户与只有一个租户）。不是测试文件 |
 | [legal-source-rule.ts](legal-source-rule.ts) | 合法提供者的源码规则，读语法树，与 `tool-contract` 的副本相同，因为测试不能跨包导入相对路径。不是测试文件 |

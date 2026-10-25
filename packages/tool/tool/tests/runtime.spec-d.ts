@@ -1,16 +1,14 @@
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { FixedToolRequest, Reply, ToolState } from '@omne-harness/tool-contract'
 import type {
-  FixedToolRequest,
   Mutation,
-  Reply,
   ToolClock,
   ToolCommands,
   ToolProvider,
   ToolReads,
   ToolContentReader,
-  ToolState,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   createToolLedger,
   createToolRuntime,

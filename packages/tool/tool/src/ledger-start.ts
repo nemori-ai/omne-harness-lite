@@ -9,9 +9,7 @@ import type {
   ClockSegment,
   DurableEvidence,
   FixedToolRequest,
-  PreparationRecord,
   QueuePosition,
-  StartProgress,
   ToolCallId,
   ToolExecutionRef,
   ToolFailure,
@@ -20,9 +18,13 @@ import type {
   ToolRevision,
   ToolStartRecord,
   ToolState,
-  ToolTask,
   ToolTerminal,
 } from '@omne-harness/tool-contract'
+import type {
+  PreparationRecord,
+  StartProgress,
+  ToolTask,
+} from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { mintEvidence, digestOf } from './evidence.ts'
 import {

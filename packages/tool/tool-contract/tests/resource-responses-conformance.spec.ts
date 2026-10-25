@@ -10,7 +10,7 @@ import {
   toolResourceResponsesConformance,
   type ToolResourceResponsesFixture,
 } from '@omne-harness/tool-contract/testing'
-import type { ToolResourceResponses } from '@omne-harness/tool-contract'
+import type { ToolResourceResponses } from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectWellFormed,

@@ -3,16 +3,19 @@
 // and configuration.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
-  CallAccess,
   FixedToolRequest,
   DurableEvidence,
-  Mutation,
   Reply,
+  ToolCallId,
+  ToolCatalog,
+  ToolState,
+} from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import type {
+  Mutation,
   ResultPolicy,
   ToolAuthorLimits,
   ToolBindings,
-  ToolCallId,
-  ToolCatalog,
   ToolChildren,
   ToolContentReader,
   ToolClock,
@@ -26,8 +29,7 @@ import type {
   ToolReads,
   ToolResourceResponses,
   ToolStartAuthority,
-  ToolState,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 
 export type ToolConfiguration = ToolAuthorLimits &
   Readonly<{

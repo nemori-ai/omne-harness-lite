@@ -10,7 +10,8 @@ import {
   toolDecisionBridgeConformance,
   type ToolDecisionBridgeFixture,
 } from '@omne-harness/tool-contract/testing'
-import type { DecisionValue, ToolDecisionBridge } from '@omne-harness/tool-contract'
+import type { DecisionValue } from '@omne-harness/tool-contract'
+import type { ToolDecisionBridge } from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectWellFormed,

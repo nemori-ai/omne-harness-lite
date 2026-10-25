@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createTools, type ToolsReadRuntime } from '@omne-harness/tool'
-import { projectToolResult, type ToolResult } from '@omne-harness/tool-contract'
+import { type ToolResult } from '@omne-harness/tool-contract'
+import { projectToolResult } from '@omne-harness/tool-contract/provider'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
@@ -46,7 +47,7 @@ const size = (value: unknown) => Buffer.byteLength(JSON.stringify(value))
 describe('Tools real author registration and presentation', () => {
   it('registers two structured nonprogrammable commands with closed declared schemas and real codecs', async () => {
     const f = await sourceFixture()
-    const definition = f.tools.author.definition
+    const definition = f.tools.definition
     expect(definition.name).toBe('Tools')
     expect(definition.programmable).toBe(false)
     if (definition.kind !== 'commands') throw new Error('not commands')
@@ -332,7 +333,7 @@ describe('Tools canonical references and attachment bytes', () => {
       options,
     )
     await expect(tools.present(access)).rejects.toThrow('unexpected provider fault')
-    const slots = readToolRegistration(tools.author)
+    const slots = readToolRegistration(tools.implementation)
     if (slots?.kind !== 'commands') throw new Error('not commands')
     const author = slots.operations[0]?.[1].author
     if (author === undefined) throw new Error('missing author')
@@ -510,8 +511,8 @@ it('declares text input and all supported direct output modalities for an actual
     },
   )
   const f = await sourceFixture(result(blocks))
-  expect(f.tools.author.definition.declarations.inputModalities).toEqual(['text'])
-  expect(f.tools.author.definition.declarations.outputModalities).toEqual([
+  expect(f.tools.definition.declarations.inputModalities).toEqual(['text'])
+  expect(f.tools.definition.declarations.outputModalities).toEqual([
     'text',
     'image',
     'voice',

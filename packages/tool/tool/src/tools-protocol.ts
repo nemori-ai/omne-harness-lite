@@ -1,16 +1,18 @@
 import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  createDefaultParameterCodec,
-  decodeToolInvocationRef,
-  decodeToolResultVersion,
-  describedAdoption,
-  type ParameterCodec,
   type ParameterContract,
   type ToolFailure,
   type ToolInvocationRef,
   type ToolResultVersion,
 } from '@omne-harness/tool-contract'
+import {
+  createDefaultParameterCodec,
+  decodeToolInvocationRef,
+  decodeToolResultVersion,
+  describedAdoption,
+  type ParameterCodec,
+} from '@omne-harness/tool-contract/provider'
 
 export const toolsAdoption = describedAdoption({
   owner: '@omne-harness/tool',

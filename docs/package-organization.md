@@ -183,7 +183,7 @@ scripts/                       仓库自动化
 
 `kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口为空导出，并且不导入 `@deepseek-ai/cordis`。操作结果归 `packages/common/operation-result`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 
-`packages/assembly/kernel-basis` 已是 workspace 成员。根入口为空导出，`./cordis` 导出 `definePlugin` 与 `resolveOptional`，`./testing` 导出 `startTestAssembly`。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
+`packages/assembly/kernel-basis` 已是 workspace 成员。根入口为空导出，`./cordis` 导出 `definePlugin`、`resolveOptional`、`registerInCallerFiber` 与类型 `Admission`，`./testing` 导出 `startTestAssembly`。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
 
 <a id="模型组的成员与采用范围"></a>
 ### 模型组的成员与采用范围

@@ -28,6 +28,7 @@ const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment }
 // and nothing else in the expected report.
 const closureMembers = [
   '@omne-harness/model-cordis-contract',
+  '@omne-harness/kernel-basis',
   '@omne-harness/legal-identity',
   '@omne-harness/modality',
   '@omne-harness/model-contract',

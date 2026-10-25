@@ -9,34 +9,35 @@ import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
-  decodeToolInstanceId,
   decodeToolOperationId,
-  defaultResultPolicy,
   encodeToolInvocationRef,
   encodeToolOperationRef,
-  judgeToolState,
-  readToolInvocationRef,
   type Adoption,
   type DurableEvidence,
   type FixedToolRequest,
   type ParameterContract,
-  type TextResultFactory,
   type ToolCallId,
   type ToolDefinition,
-  type ToolDefinitionMetadata,
-  type ToolDriver,
-  type ToolInstanceHost,
   type ToolInstanceId,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
   type ToolInvokeRequest,
-  type ToolMessageContentBlock,
   type ToolOperationId,
   type ToolOperationRef,
-  type ToolProvider,
   type ToolResult,
   type ToolState,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolInstanceId,
+  defaultResultPolicy,
+  judgeToolState,
+  readToolInvocationRef,
+  type TextResultFactory,
+  type ToolDriver,
+  type ToolInstanceHost,
+  type ToolMessageContentBlock,
+  type ToolProvider,
+} from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
   createTestInvocationSource,
@@ -44,7 +45,7 @@ import {
   type TestInvocationSource,
   type TestToolIdentities,
 } from '@omne-harness/tool/testing'
-import type { ToolInstanceIdentities } from '@omne-harness/tool-contract'
+import type { ToolInstanceIdentities } from '@omne-harness/tool-contract/provider'
 import {
   createToolLedger,
   createToolRuntime,
@@ -121,7 +122,12 @@ function parameters(): ParameterContract {
   }
 }
 
-function metadata(name: string): ToolDefinitionMetadata {
+type DefinitionMetadata = Omit<
+  Extract<ToolDefinition, { kind: 'function' }>,
+  'kind' | 'parameters' | 'returns'
+>
+
+function metadata(name: string): DefinitionMetadata {
   return {
     adoption: adoption(name),
     name,
@@ -139,9 +145,7 @@ function metadata(name: string): ToolDefinitionMetadata {
   }
 }
 
-export function functionDefinition(
-  overrides: Partial<ToolDefinitionMetadata> = {},
-): ToolDefinition {
+export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}): ToolDefinition {
   return {
     ...metadata('read_file'),
     ...overrides,
@@ -157,6 +161,7 @@ export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeR
       kind: 'available',
       definition: functionDefinition(),
       executor: adoption('exec'),
+      layer: { kind: 'official' },
     },
     command: null,
     arguments: { original: '{"path":"a.txt"}', effective: '{"path":"a.txt"}', complete: true },

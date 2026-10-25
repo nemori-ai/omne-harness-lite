@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createToolLedger, createToolRuntime, toolRuntimeAdoption } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import type {
-  ToolConsumerProfile,
-  ToolDirectory,
-  ToolInvokeOutcome,
-} from '@omne-harness/tool-contract'
+import type { ToolConsumerProfile, ToolInvokeOutcome } from '@omne-harness/tool-contract'
+import { readToolInvocationRef, type ToolDirectory } from '@omne-harness/tool-contract/provider'
 import {
   callId,
   configuration,
@@ -194,7 +191,7 @@ describe('17 the runtime factory and later increments', () => {
     expect(runtime.catalog).toBe(dependencies.catalog)
     expect(Object.isFrozen(provider)).toBe(true)
     expect(Object.isFrozen(runtime)).toBe(true)
-    accepted(
+    const invoked = accepted(
       await runtime.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }),
     )
     const connected: unknown[] = []
@@ -211,14 +208,24 @@ describe('17 the runtime factory and later increments', () => {
       },
       configuration(),
     )
-    const answer = await withDirectory.runtime.instances.connect({
+    const answer = await withDirectory.runtime.instances.current({
+      access: { principal: principalA, tenant: tenantA },
+      reference: invoked.reference,
+    })
+    const looked = await withDirectory.runtime.queries.lookup({
       principal: principalA,
       tenant: tenantA,
-      reference: referenceFor('call-1', 'op-1'),
+      reference: invoked.reference,
     })
-    expect(answer).toEqual({ ok: { kind: 'no-live-route' } })
+    expect(answer).toEqual({
+      ok: {
+        state: 'ok' in looked && looked.ok.kind === 'found' ? looked.ok.state : null,
+        current: null,
+      },
+    })
+    const parts = readToolInvocationRef(invoked.reference)
     expect(connected).toEqual([
-      { principal: principalA, tenant: tenantA, call: callId('call-1'), admission: 'op-1' },
+      { principal: principalA, tenant: tenantA, call: parts.call, admission: parts.admission },
     ])
   })
 

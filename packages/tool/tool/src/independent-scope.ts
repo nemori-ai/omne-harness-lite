@@ -3,11 +3,11 @@
 // promises no durability; a success receipt is `local`.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { ToolDecision } from '@omne-harness/tool-contract'
 import type {
   IndependentToolScopeInput,
   ToolAskRequest,
   ToolAuthorLimits,
-  ToolDecision,
   ToolEmitReceipt,
   ToolExecutionContext,
   ToolExecutionScope,
@@ -17,7 +17,7 @@ import type {
   ToolResourceReply,
   ToolResourceWaitRequest,
   ToolWaiter,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { fixJsonTree } from './json-tree.ts'
 import { readOwnSlot as slot } from '@omne-harness/tool-contract/binding'
 import { isPositiveSafeInteger, judgeAuthorLimits, type Rejection } from './limits.ts'

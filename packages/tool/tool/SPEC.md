@@ -15,8 +15,9 @@
 - 事实保管：受信 `commands.receiveFacts` 接收 process/final，`recordFactAcknowledgement` 核来源确认并清除 ACK 责任，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
 - 已启动调用收场：从原保存 final 主动确认独立结果保管，原子建立原结果、交付、真实 effect、物理结束及后继任务，跨域修复释放队列名额。环境释放只交付计划与报告核验（第 26 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
+- 过程观察的门面：`instances.current` 与 `observation.observe` 经实例目录路由到当前代次的 handle，交出每一帧之前重核资格（[运行时观察门面](#运行时观察门面)）。
 
-尚未实现：真实环境 release 自动驱动、完整计时、控制、等待、过程观察、恢复扫描、排空与交接。未交付的操作或分支回复具名 `unsupported`。slot 释放不证明环境资源已经释放。内部机制见 [architecture](docs/architecture.md)。
+尚未实现：真实环境 release 自动驱动、完整计时、控制、等待、真实过程观察源与 readProcess、恢复扫描、排空与交接。未交付的操作或分支回复具名 `unsupported`。slot 释放不证明环境资源已经释放。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 
@@ -186,6 +187,19 @@
 
 未实现的操作回复 `unsupported`，`adoption` 是 `tool-runtime` 或 `tool-ledger` 的采用，`reason` 说明操作名与它所属的后续增量。没有操作抛异常或回复空成功。`catalog` 是依赖给出的端口，content 与 instances 先解析调用引用再进入原读取端口或目录。
 
+### 运行时观察门面
+
+runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-facade.ts) 实现，兑现契约的[公共流协议上的观察](../tool-contract/SPEC.md#公共流协议上的观察)。门面只做路由与核权，不保存过程数据。每一帧都由当前代次 handle 的观察源产生。
+
+- `instances.current` 先解析调用引用。引用不可读回复 `invalid`（`field` 为 `reference`）。跨租户或伪造租户回复 `denied`，不进入目录。之后门面问实例目录 `ToolDirectory.connect`，再用 `reads.lookup` 读当前权威状态。目录答 `live` 时，门面用 `toolStreamCallCodec` 把调用引用与 handle 的 `stream` 编为公共引用。回复的全部情形见契约的「`current` 的回复」表。
+- `observation.observe` 把输入当不可信值核验。`request`、`access` 或 `signal` 形状不对时结束于 `denied`，不抛 `TypeError`。之后按公共失败顺序判定租户、引用语法、producer 与调用文本，再问实例目录。目录答 `live` 且 handle 的 `stream` 等于引用的 `stream` 时，门面把请求交给该 handle 的 `observation.observe`。
+- 引用判定通过后、路由之前 `signal` 已中止时，门面不问目录，结束于 `observer-closed`。路由期间中止时，门面不等目录答复，同样结束于 `observer-closed`。门面只在两次目录调用（路由与逐帧重核）期间等待中止。handle 观察源的 `next` 在等待时，中止后结束于 `observer-closed` 是观察源的义务，门面不替它等待。
+- 门面是最终集成输出边界。交出每一帧之前（含 gap 与 ended），门面再问一次实例目录，资格来源与 `connect` 相同，按同一调用与同一 `access`。目录拒绝时，门面先关闭 handle 的迭代器（移除订阅，丢弃排队），再结束于 `denied`。目录缺席、抛错或答 `unsupported` 时，门面以同样方式结束于 `unavailable`。目录答 `live`（任何代次）或 `no-live-route` 时资格仍成立，门面照常交出该帧。代次被替换或收场由生产者结束（契约「旧代次的终止帧」情形 1 与 2），不由门面结束。重核之后 `signal` 已中止时，门面不交出该帧，结束于 `observer-closed`。
+- 偏离：门面是异步生成器，`return()` 不能打断在途的 `next()`。门面在 `await` 源的下一帧或资格重核时，`return()` 要等这次等待结束（来帧、资格答复或 `signal` 中止）才完成，订阅在此之前保持。公共协议要求 `return()` 立即解除；需要立即解除的消费者先中止 `signal`。
+- handle 观察源的 `observe` 或迭代器抛错时，门面不捕获。异常保持为连接失败，这是 [stream-arrival 的失败顺序](../../common/stream-arrival/README.md#failure-order-and-iterator-completion)允许的通道。门面不把它改成结束帧。
+
+本包只对受控的进程内发布者（`tests/stream-source.ts`）验证门面，用例在 `tests/stream-observation.spec.ts`。这些用例不证明真实观察提供者的原子订阅边界与披露检查。生产实例目录 `ToolInstancesService.connect` 仍回复 `unsupported`，所以在生产装配里 `current` 透传 `unsupported`，`observe` 结束于 `unavailable`。
+
 ### 18 非耐久记录仓（`./testing`）
 
 `createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号时生效，否则回复 `conflict`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
@@ -348,7 +362,7 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 process/final 全批预判成功后，以域 revision 为条件一次提交完整新事件、过程当前块或 settle 待办、原 receipt、cursor、fact-ack 与调用 revision。event 与 custody evidence 分用途，摘要覆盖原输入，任务身份覆盖用途及完整稳定定位。同 start 的同值 final 不形成第二 settle 待办，冲突 final 不覆盖原候选。final 不写 settled、结果版本、delivery 或释放依据。
 
-process 按原 start/index 保存当前块，并保留历史事件。sequence 用 BigInt 比较，严格增大但不要求加一。相同历史 sequence 必须同值，mode 开块后固定，closed 后禁止新更新。append 只支持 text/thinking 的累计前缀，同时固定 id、kind 和 visibility。媒体、file 和 ref append 返回 unsupported，replace 支持合法完整块。过程必须对人可见。trim 的数量、原因和历史原文持续保存，不能借 trim 绕过前缀约束。readProcess/observe 仍不支持。
+process 按原 start/index 保存当前块，并保留历史事件。sequence 用 BigInt 比较，严格增大但不要求加一。相同历史 sequence 必须同值，mode 开块后固定，closed 后禁止新更新。append 只支持 text/thinking 的累计前缀，同时固定 id、kind 和 visibility。媒体、file 和 ref append 返回 unsupported，replace 支持合法完整块。过程必须对人可见。trim 的数量、原因和历史原文持续保存，不能借 trim 绕过前缀约束。readProcess 仍不支持。普通观察经[运行时观察门面](#运行时观察门面)路由到当前代次的 handle，本包不提供真实观察源。
 
 含 wait、continued、account 或 program-scheduling 的批次整体 unsupported，零写入、零成功回执、零 ACK。源继续持有责任。原批重投只认回原保管回执。来源确认由下述 ACK 命令推进。
 

@@ -13,6 +13,7 @@
 - [状态判定测试](state-judgment.spec.ts)。
 - [呈现与可用性测试](catalog.spec.ts)。
 - [作者注册与等待契约测试](author-registration.spec.ts)。
+- [定义派生、同形判据与采用点判定表的表驱动测试](dynamics.spec.ts)。
 - [默认参数 codec 测试](parameter-codec.spec.ts)。
 - [结果渲染与结构化判定测试](result-rendering.spec.ts)。
 - [结果投影测试](result-projection.spec.ts)。

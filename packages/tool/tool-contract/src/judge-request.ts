@@ -26,7 +26,7 @@ import {
   type Check,
   type ShapeRejection,
 } from './shape.ts'
-import { adoption, consumerRef, durableEvidence } from './value-shapes.ts'
+import { adoption, consumerRef, durableEvidence, sourceLayer } from './value-shapes.ts'
 
 /** A time limit is a non-negative finite integer of milliseconds (342 values). */
 const nonNegativeSafeInteger: Check<number> = (value, at) => {
@@ -39,6 +39,7 @@ const availability: Check<ToolAvailability> = variant('kind', {
     kind: literal('available'),
     definition: toolDefinition,
     executor: adoption,
+    layer: sourceLayer,
   }),
   'known-unavailable': record({
     kind: literal('known-unavailable'),

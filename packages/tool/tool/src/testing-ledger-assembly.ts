@@ -2,13 +2,12 @@ import assert from 'node:assert/strict'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { succeed } from '@omne-harness/operation-result'
 import {
-  defaultResultPolicy,
-  decodeToolInstanceId,
   type Adoption,
-  type CallAccess,
   type FixedToolRequest,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { type CallAccess } from '@omne-harness/tool-contract/provider'
+import { defaultResultPolicy, decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import type { createToolLedger } from './ledger.ts'
 import type { LedgerDomain } from './ledger-store.ts'
 import { digestOf } from './evidence.ts'
@@ -57,6 +56,7 @@ function invokeRequest(): ToolInvokeRequest {
     availability: {
       kind: 'available',
       executor: adoption('executor'),
+      layer: { kind: 'official' },
       definition: {
         kind: 'function',
         adoption: adoption('definition'),

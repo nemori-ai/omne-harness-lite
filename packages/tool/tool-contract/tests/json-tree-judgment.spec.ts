@@ -5,7 +5,7 @@ import {
   defaultResultPolicy,
   judgeToolDefinition,
   renderToolResult,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   adoption,
   functionDefinition,

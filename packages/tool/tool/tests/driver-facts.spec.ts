@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { type ToolStartRecord } from '@omne-harness/tool-contract'
 import {
   decodeToolResultVersion,
   decodeToolWaitId,
   readToolInvocationRef,
   type ToolLiveExecution,
-  type ToolStartRecord,
   type ToolRecoveryBinding,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   completedFinal,
   createMemoryToolClock,

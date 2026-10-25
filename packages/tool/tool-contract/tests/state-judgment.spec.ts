@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
-  decodeToolInstanceId,
   decodeToolOperationId,
+  type ToolState,
+} from '@omne-harness/tool-contract'
+import {
+  decodeToolInstanceId,
   decodeToolResultVersion,
   decodeToolRevision,
   decodeToolWaitId,
   judgeToolState,
-  type ToolState,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { evidence } from './tool-values.ts'
 
 function decoded<T>(outcome: Outcome<T, unknown>): T {

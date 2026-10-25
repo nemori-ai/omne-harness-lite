@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { FixedToolRequest, Mutation } from '@omne-harness/tool-contract'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import type { Mutation } from '@omne-harness/tool-contract/provider'
 import { testAssembly } from './testing-values.ts'
 import {
   dummyRequest,

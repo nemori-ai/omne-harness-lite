@@ -147,7 +147,10 @@ classDiagram
     }
     class ToolHandle {
       <<interface>>
-      observe()
+      instance
+      generation
+      stream
+      observation
     }
     ToolRuntime --> ToolCommands
     ToolRuntime --> ToolReads
@@ -299,7 +302,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolOutputCustody / ContentReader | 耐久内容与附件提供者、当前读取资格 | 原 operation、codec/bytes 或精确结果引用 | 返回耐久证据；临时 URL 不够；读取与删除权分开 |
 | ToolCatalog | 合法定义选择、消费者能力与设置读取 | inspect/search/usage 的范围 | 同实例数据变化可重求值，不依赖 Cordis 重跑；会话常驻项的 name 与参数形状在会话内不变（[R1](../SPEC.md#会话常驻规则r1r5)） |
 | ToolInstanceHost | 长期宿主上下文、调度器、目录及发布资格 | 安装 driver，按 call 唤醒 | 不挂在调用方下；同 call 提示归并；可从扫描补偿 |
-| ToolDirectory / ToolHandle | 发布资格与贡献 token / 原实例投影源 | connect / after + signal | 只提供观察路由；旧 handle 不暗连后继 |
+| ToolDirectory / ToolHandle | 发布资格与贡献 token / 发布代次 `(instance, generation)`、该代次的过程流 `stream` 与只服务该引用的观察源 `observation` | connect（受信路由查找，只服务实例绑定）；普通观察经门面的 `instances.current` 与 `observation.observe({ ref, access, signal })`，没有 `after` | 只提供观察路由；已建立的观察在代次替换后以 `producer-ended`/`stale-instance` 结束，对非当前代次的新观察请求在门面层得到 `stale-stream`，不暗连后继。按 [SPEC D-10](../SPEC.md#公共流协议上的观察)；门面实现在 `tool/src/stream-facade.ts` |
 | ToolChildren | 本域持久关联、受信来源签发、子调用门面 | parent/ordinal、子受理及保管回执 | 父程序退出后继续；程序拿不到此端口 |
 | ProgramTools | Tool 交给程序的受控代理，由宿主闭包固定身份、父调用、来源、作用域和允许集合。它不是外部实现的端口 | 工具名/命令/参数、自己的结果引用 | 关闭后不发新子调用；不是 Context 或 executor |
 | ToolAccounts / ToolOffloader | 账目/内容能力和资格 | 查询范围 / 原结果与显式预算 | 作为独立适配能力使用，不扩大 Runtime 的普通读权限 |
@@ -331,7 +334,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | [CAP-TL05](../verification/README.md#产品到成员的覆盖) 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | 转后台须许可；重复转换只产生一个占位；不回前台 |
 | [CAP-TL06](../verification/README.md#产品到成员的覆盖) 等待答复 | WaitIntent/WaitRecord、ResponseRecord、ToolDecisionBridge、ToolResourceResponses | 一次等待只有一个有效答复；登记或确认丢失后可认回；Ask 不用资源超时 |
 | [CAP-TL07](../verification/README.md#产品到成员的覆盖) 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | 原件先于渲染与政策检查保管；失败不重跑，不假报耐久 |
-| [CAP-TL08](../verification/README.md#产品到成员的覆盖) 过程观察 | ProcessBlock、ToolObservation、ProcessSnapshot、ProcessProjection | 保存先于展示；快照与增量无缝隙；人用内容不进入消费方的请求 |
+| [CAP-TL08](../verification/README.md#产品到成员的覆盖) 过程观察 | ProcessBlock、公共 `StreamFrame` 上的 `ToolStreamSnapshot` / `ToolStreamDelta` / `ToolStreamEnd`、ProcessSnapshot、ProcessProjection | 保存先于展示；快照与增量无缝隙；人用内容不进入消费方的请求 |
 | [CAP-TL09](../verification/README.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不删除全文 |
 | [CAP-TL10](../verification/README.md#产品到成员的覆盖) 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | 受理不等于已停；拒绝或未知不假报停止；withdraw 的 reach 必填且范围分别生效；reach 不及目标当时的关系时回 rejected（out-of-reach），调用不变 |
 | [CAP-TL11](../verification/README.md#产品到成员的覆盖) 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | 响应丢失或查询未知时认回原操作；被围栏的旧协调者不再推进；恢复不产生第二次执行 |

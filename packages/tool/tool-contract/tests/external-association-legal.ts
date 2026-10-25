@@ -5,13 +5,8 @@
 // `excludeDeferred`) to make the double behave.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Outcome } from '@omne-harness/operation-result'
-import type {
-  DurableEvidence,
-  ExternalOperationResolution,
-  Mutation,
-  ToolFailure,
-  ToolOperationId,
-} from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
+import type { ExternalOperationResolution, Mutation } from '@omne-harness/tool-contract/provider'
 import type { AnswerModel } from '@omne-harness/tool-contract/testing'
 import type { ExternalBase, ExternalPort, MakeVariant } from './external-association-variants.ts'
 import { createMask, lostReplyOf, maskedPort, type MaskRule } from './generated-provider.ts'

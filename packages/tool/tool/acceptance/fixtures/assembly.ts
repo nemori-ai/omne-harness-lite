@@ -8,24 +8,27 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  createDefaultParameterCodec,
-  defaultResultPolicy,
-  defineFunctionTool,
-  defineToolOperation,
-  describedAdoption,
-  readToolInvocationRef,
-  renderToolResult,
   type DurableEvidence,
-  type ToolDriver,
-  type ToolInstanceHost,
   type ToolInvokeRequest,
   type ToolInvocationRef,
-  type ToolLiveExecution,
   type ToolResultVersion,
   type ToolState,
   type ToolResult,
   type ResultPage,
 } from '@omne-harness/tool-contract'
+import {
+  createDefaultParameterCodec,
+  defaultResultPolicy,
+  defineFunctionTool,
+  defineToolOperation,
+  deriveDefinition,
+  describedAdoption,
+  readToolInvocationRef,
+  renderToolResult,
+  type ToolDriver,
+  type ToolInstanceHost,
+  type ToolLiveExecution,
+} from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
@@ -182,11 +185,8 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
   )
   const registration = ok(
     defineFunctionTool({
-      metadata: {
-        adoption: adoption('delivery_manifest'),
-        name: 'delivery_manifest',
+      implementation: {
         description: 'Return the two delivery ledger paragraphs.',
-        requiredCapabilities: [],
         backgroundAllowed: false,
         declarations: {
           adoption: adoption('declarations'),
@@ -202,8 +202,15 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
   )
   const availability = {
     kind: 'available',
-    definition: registration.definition,
+    definition: deriveDefinition(
+      {
+        asset: { name: 'delivery_manifest', adoption: adoption('delivery_manifest') },
+        requiredCapabilities: [],
+      },
+      registration.facts,
+    ),
     executor: adoption('manifest-executor'),
+    layer: { kind: 'official' },
   } as const
   const request: ToolInvokeRequest = {
     availability,
