@@ -28,11 +28,14 @@ const NAMES = {
   accept: 'accept queues an ordinary input and readInput returns it',
   start: 'startRun fixes the first input, opens the Run and keeps the inputs pending',
   runActive: 'a second startRun on an unfinished Run is run-active, and without input no-input',
-  handover: 'the hand-over and the taken batch move the input through handed and out of pending',
-  message: 'the message hand-over records the assistant message and the ended event ends the Run',
-  history: 'history pages the entries in commit order, next continues, a cursor of another session is invalid',
+  handover: 'the hand-over marks the input handed, keeps it pending, and refuses another execution',
+  message:
+    'the message hand-over records the assistant message, and after the terminal the next input opens another Run',
+  history:
+    'history pages the entries in commit order, next continues, a cursor of another session is invalid',
   pending: 'pending lists the session while inputs or a Run are open, and omits it afterwards',
-  query: 'queryOperation answers committed with the receipt, and unknown for an operation never seen',
+  query:
+    'queryOperation answers committed with the receipt, and unknown for an operation never seen',
   finish: 'finishRun with an admission rejection fails the Run and releases the first input',
   offPath: 'a kind off the first path is refused unavailable naming #756',
 } as const
@@ -80,7 +83,12 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
-        if ('ok' in answer && typeof answer.ok === 'object' && answer.ok !== null && 'receipt' in answer.ok) {
+        if (
+          'ok' in answer &&
+          typeof answer.ok === 'object' &&
+          answer.ok !== null &&
+          'receipt' in answer.ok
+        ) {
           const receipt = (answer.ok as { receipt: { recovered: boolean } }).receipt
           return succeed({ ...answer.ok, receipt: { ...receipt, recovered: false } })
         }
@@ -107,7 +115,10 @@ const variants: readonly Variant<Fixture>[] = [
       queryOperation: async input => {
         const answer = await real.queryOperation(input)
         return 'ok' in answer && answer.ok.kind === 'unknown'
-          ? succeed({ kind: 'not-committed' as const, exclusion: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' } })
+          ? succeed({
+              kind: 'not-committed' as const,
+              exclusion: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' },
+            })
           : answer
       },
     })),
@@ -160,7 +171,8 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
-        if ('failure' in answer && answer.failure.kind === 'run-active') return fail({ kind: 'no-input' as const })
+        if ('failure' in answer && answer.failure.kind === 'run-active')
+          return fail({ kind: 'no-input' as const })
         return answer
       }) as Port['commit'],
     })),
@@ -170,24 +182,43 @@ const variants: readonly Variant<Fixture>[] = [
     fails: [NAMES.handover],
     fixture: variant(real => ({
       commit: (async input => {
-        const { command } = input
-        if (command.kind === 'receive' && command.input.fact.kind === 'input-handover') {
-          const snapshot = await real.readWork(command.input)
-          const execution = 'ok' in snapshot && snapshot.ok.run.kind === 'active' ? snapshot.ok.run.execution.execution : command.input.fact.execution
-          return real.commit({ ...input, command: { ...command, input: { ...command.input, fact: { ...command.input.fact, execution } } } })
-        }
-        return real.commit(input)
+        const answer = await real.commit(input)
+        if (
+          'failure' in answer &&
+          answer.failure.kind === 'invalid' &&
+          answer.failure.field === 'fact.execution'
+        )
+          return succeed({
+            operation: input.command.input.operation,
+            revision: '0',
+            first: '0',
+            last: '0',
+            recovered: false,
+            source: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' },
+          })
+        return answer
       }) as Port['commit'],
     })),
   },
   {
-    name: 'the ended event is accepted after the terminal',
+    name: 'a message after the terminal is accepted',
     fails: [NAMES.message],
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
-        if ('failure' in answer && answer.failure.kind === 'terminal' && input.command.kind === 'receive')
-          return succeed({ operation: input.command.input.operation, revision: '0', first: '0', last: '0', recovered: false, source: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' } })
+        if (
+          'failure' in answer &&
+          answer.failure.kind === 'terminal' &&
+          input.command.kind === 'recordMessage'
+        )
+          return succeed({
+            operation: input.command.input.operation,
+            revision: '0',
+            first: '0',
+            last: '0',
+            recovered: false,
+            source: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' },
+          })
         return answer
       }) as Port['commit'],
     })),
@@ -198,8 +229,22 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
-        if ('failure' in answer && answer.failure.kind === 'terminal' && input.command.kind === 'finishRun')
-          return succeed({ receipt: { operation: input.command.input.operation, revision: '0', first: '0', last: '0', recovered: false, source: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' } }, terminal: answer.failure.terminal })
+        if (
+          'failure' in answer &&
+          answer.failure.kind === 'terminal' &&
+          input.command.kind === 'finishRun'
+        )
+          return succeed({
+            receipt: {
+              operation: input.command.input.operation,
+              revision: '0',
+              first: '0',
+              last: '0',
+              recovered: false,
+              source: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' },
+            },
+            terminal: answer.failure.terminal,
+          })
         return answer
       }) as Port['commit'],
     })),
@@ -224,7 +269,10 @@ const variants: readonly Variant<Fixture>[] = [
         const answer = await real.commit(input)
         if (input.command.kind === 'create' && 'ok' in answer) {
           const created = answer.ok as { state: { session: string } }
-          return succeed({ ...created, state: { ...created.state, session: `${created.state.session}-other` } })
+          return succeed({
+            ...created,
+            state: { ...created.state, session: `${created.state.session}-other` },
+          })
         }
         return answer
       }) as Port['commit'],

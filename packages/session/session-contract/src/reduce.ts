@@ -2,7 +2,7 @@
 // interprets committed entries only, in batch order, and publishes no partial state: an unknown
 // kind, a missing origin or a contradiction quarantines the session.
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
-import type { ExecutionRef, RecoveryTask, RunState, WorkSnapshot } from './values.ts'
+import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import { SESSION_INTERPRETER, decodeEntry, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { digestOf } from './operations.ts'
@@ -129,17 +129,6 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
       draft.run = { ...draft.run, advance: null }
       return null
     }
-    case 'run.batch-taken': {
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
-        return 'a batch taken outside the active Run'
-      const members = entry.batch.ordered
-      if (members.some(input => !draft.pending.includes(input)))
-        return 'the batch names an input that is not pending'
-      draft.pending = without(draft.pending, members)
-      draft.handed = without(draft.handed, members)
-      draft.run = { ...draft.run, execution: readThrough(draft.run, entry.sequence, entry.source) }
-      return null
-    }
     case 'run.terminal': {
       if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
         return 'a terminal outside the active Run'
@@ -147,19 +136,6 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
       draft.run = { kind: 'terminal', terminal: entry.terminal }
       return null
     }
-  }
-}
-
-function readThrough(
-  run: Extract<RunState, { kind: 'active' }>,
-  sequence: string | null,
-  source: DurableEvidence,
-): ExecutionRef {
-  return {
-    execution: run.execution.execution,
-    revision: source.revision,
-    evidence: source,
-    readThrough: sequence ?? run.execution.readThrough,
   }
 }
 
@@ -178,7 +154,10 @@ function created(
     lifecycle: 'dormant',
     frozen: null,
     residents: [],
-    definition: { name: entry.creation.definition.name, adopted: entry.creation.definition.candidate },
+    definition: {
+      name: entry.creation.definition.name,
+      adopted: entry.creation.definition.candidate,
+    },
     execution: entry.creation.execution,
     declarations: origin,
     revisions: { workspace: '0', declarations: '0' },

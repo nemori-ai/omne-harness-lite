@@ -31,7 +31,6 @@ import type {
   FreezeVerdict,
   IdleObservation,
   InitializationResult,
-  InputBatch,
   Participation,
   ProducedResult,
   ProducerRef,
@@ -217,36 +216,13 @@ export interface SessionManagement<P> {
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
 }
 
-export type AgentEventFact =
-  | Readonly<{ kind: 'input-taken'; batch: InputBatch }>
-  | Readonly<{ kind: 'waiting'; waits: readonly Waiting[] }>
-  | Readonly<{ kind: 'producer'; result: ProducedResult; consumption: ConsumptionId }>
-  | Readonly<{
-      kind: 'control'
-      control: SessionOperationId
-      stage:
-        | 'intent-established'
-        | 'qualification-revoked'
-        | 'producer-confirmed'
-        | 'physically-stopped'
-        | 'duty-released'
-      state: 'reached' | 'unresolved'
-    }>
-  | Readonly<{
-      kind: 'ended'
-      conclusion: 'complete' | 'fail' | 'cancelled'
-      cause: DurableEvidence | null
-      disposition: DurableEvidence
-    }>
+/**
+ * The facts that `receive` writes. The superseded Agent-event copy (`agent-event`) and the tool
+ * start fence (`start-fence`) are not here: Agent facts reach Session by the Agent host's
+ * receiving surface and the Agent journal `start-fence` entry (#672); the expression of the
+ * control, result, recovery and unknown responsibilities they carried is design work of #756.
+ */
 export type ProducerFact =
-  | Readonly<{
-      kind: 'agent-event'
-      execution: string
-      sequence: string | null
-      attachment: string
-      source: DurableEvidence
-      body: AgentEventFact
-    }>
   | Readonly<{
       kind: 'input-handover'
       execution: string
@@ -270,18 +246,16 @@ export type ProducerFact =
       childOperation: SessionOperationId
       source: DurableEvidence
     }>
-  | Readonly<{ kind: 'routed-input'; originalOperation: SessionOperationId; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'routed-input'
+      originalOperation: SessionOperationId
+      source: DurableEvidence
+    }>
   | Readonly<{
       kind: 'scope-release'
       archive: SessionOperationId
       scope: string
       dispositions: readonly ScopeReleaseDisposition[]
-      source: DurableEvidence
-    }>
-  | Readonly<{
-      kind: 'start-fence'
-      operation: SessionOperationId
-      advance: AdvanceRef
       source: DurableEvidence
     }>
 
@@ -364,7 +338,12 @@ export type ModelViewRow = Readonly<{
   message: Message
 }>
 export type ModelViewRead =
-  | Readonly<{ kind: 'page'; basis: ModelViewBasis; rows: readonly ModelViewRow[]; next: string | null }>
+  | Readonly<{
+      kind: 'page'
+      basis: ModelViewBasis
+      rows: readonly ModelViewRow[]
+      next: string | null
+    }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
 export interface SessionHistory<P> {
   begin(

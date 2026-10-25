@@ -74,24 +74,24 @@ export function digestOf(value: unknown): string {
 }
 
 /**
- * The stable elements of a `receive` fact (OP-00 `receive` row): an Agent event is named by its
- * execution and sequence; a hand-over by its execution and input; the other facts by their source
- * record. The payload of the fact is not part of the identity, so the same fact resent with a
+ * The stable elements of a `receive` fact (OP-00 `receive` row): a hand-over by its execution
+ * and input; the other facts by their source record. The payload of the fact is not part of the identity, so the same fact resent with a
  * different payload is a `conflict`, not a second entry.
  */
 function factElements(fact: ProducerFact): unknown {
   switch (fact.kind) {
-    case 'agent-event':
-      return fact.sequence === null
-        ? { kind: fact.kind, execution: fact.execution, snapshot: fact.source.record }
-        : { kind: fact.kind, execution: fact.execution, sequence: fact.sequence }
     case 'input-handover':
       return { kind: fact.kind, execution: fact.execution, input: fact.input }
     case 'agent-exit':
       return { kind: fact.kind, advance: fact.advance }
     case 'execution':
     case 'account':
-      return { kind: fact.kind, producer: fact.producer, record: fact.source.record, revision: fact.source.revision }
+      return {
+        kind: fact.kind,
+        producer: fact.producer,
+        record: fact.source.record,
+        revision: fact.source.revision,
+      }
     case 'release':
       return { kind: fact.kind, consumption: fact.consumption, version: fact.result.version }
     case 'cascade':
@@ -100,13 +100,12 @@ function factElements(fact: ProducerFact): unknown {
       return { kind: fact.kind, originalOperation: fact.originalOperation }
     case 'scope-release':
       return { kind: fact.kind, archive: fact.archive, scope: fact.scope }
-    case 'start-fence':
-      return { kind: fact.kind, operation: fact.operation, advance: fact.advance }
   }
 }
 
 export function deriveSessionOperation(elements: SessionOperationElements): SessionOperationId {
-  const stable = elements.kind === 'fact' ? { kind: 'fact', fact: factElements(elements.fact) } : elements
+  const stable =
+    elements.kind === 'fact' ? { kind: 'fact', fact: factElements(elements.fact) } : elements
   return `sop_${digestOf(stable)}` as SessionOperationId
 }
 

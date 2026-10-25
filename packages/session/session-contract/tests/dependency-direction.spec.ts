@@ -66,7 +66,7 @@ describe('the root entry reaches no Cordis and no dependent member', () => {
     // A guard for the walk: an empty or shallow graph would pass the check above for free.
     const graph = walkModules(memberPath('dist/index.js'), 'javascript')
     const seen = new Set(graph.imports.map(edge => edge.specifier))
-    for (const name of ['@omne-harness/legal-identity', '@omne-harness/exchange-refs', '@omne-harness/message']) {
+    for (const name of ['@omne-harness/legal-identity']) {
       expect(seen).toContain(name)
     }
   })

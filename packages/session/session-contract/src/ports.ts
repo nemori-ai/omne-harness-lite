@@ -1,7 +1,10 @@
 // The construction ports that a provider supplies, the outbound ports that Session calls, the
 // command and guard shapes that cross the transaction port, and the block declaration
 // (SPEC「构造依赖端口与出站端口」,「会话块声明与设置值的固定时点」). The outbound ports carry only
-// this member's values and opaque evidence: no Agent, Model or Tool type appears here.
+// this member's values and opaque evidence: no Agent, Model or Tool type appears here. The
+// superseded `ToolStartFencePort` and `DeliveryReleasePort` are not declared: the delivery release
+// goes through the Agent host's result receiver (CA-06), the tool start fence is the Agent journal
+// `start-fence` entry (#672 J03).
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -12,7 +15,6 @@ import type {
   DurableEvidence,
   InputId,
   ResidentKey,
-  RunId,
   SessionAccess,
   SessionId,
   SessionOperationId,
@@ -41,7 +43,14 @@ import type {
 
 export type DriveFailure =
   | Readonly<{
-      kind: 'denied' | 'busy' | 'terminal' | 'changed' | 'stale-advance' | 'unsupported' | 'conflict'
+      kind:
+        | 'denied'
+        | 'busy'
+        | 'terminal'
+        | 'changed'
+        | 'stale-advance'
+        | 'unsupported'
+        | 'conflict'
     }>
   | Readonly<{ kind: 'invalid'; reason: string; rejection: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -70,7 +79,9 @@ export interface AgentDrivePort {
     input: DriveTarget &
       Readonly<{ first: InputId; source: DurableEvidence; grant: DurableEvidence }>,
   ): DriveReply<DriveReceipt>
-  submit(input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>): DriveReply<DriveReceipt>
+  submit(
+    input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>,
+  ): DriveReply<DriveReceipt>
   resume(
     input: DriveTarget & Readonly<{ recovery: DurableEvidence; grant: DurableEvidence }>,
   ): DriveReply<DriveReceipt>
@@ -87,7 +98,9 @@ export interface AgentDrivePort {
           | Readonly<{ kind: 'custody'; retained: DurableEvidence }>
           | Readonly<{ kind: 'processed'; completion: DurableEvidence }>
           | Readonly<{ kind: 'none' }>
-        release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: DurableEvidence }>
+        release:
+          | Readonly<{ kind: 'pending' }>
+          | Readonly<{ kind: 'confirmed'; receipt: DurableEvidence }>
       }>,
   ): DriveReply<DriveReceipt>
   query(input: DriveTarget): DriveReply<'committed' | 'excluded' | 'unknown'>
@@ -102,40 +115,10 @@ export interface AgentDrivePort {
     }>,
   ): DriveReply<'requested'>
 }
-export interface ToolStartFencePort {
-  invalidate(
-    input: Readonly<{
-      tenant: TenantId
-      session: SessionId
-      operation: SessionOperationId
-      scope:
-        | Readonly<{ kind: 'run'; run: RunId }>
-        | Readonly<{ kind: 'attempt'; advance: AdvanceRef }>
-        | Readonly<{ kind: 'session' }>
-      revision: SessionRevision
-    }>,
-  ): Promise<'effective' | 'pending' | 'unavailable' | 'commit-unknown'>
-}
 export type ScopeReleaseReadback = Readonly<{
   dispositions: readonly ScopeReleaseDisposition[]
   source: DurableEvidence
 }>
-export interface DeliveryReleasePort {
-  /** Model ACK or Tool delivery release for one result version, with the custody or completion evidence. */
-  release(
-    input: Readonly<{
-      tenant: TenantId
-      session: SessionId
-      operation: SessionOperationId
-      consumption: ConsumptionId
-      result: ProducedResult
-      evidence: DurableEvidence
-    }>,
-  ): Promise<
-    | Readonly<{ kind: 'confirmed'; source: DurableEvidence }>
-    | Readonly<{ kind: 'not-ready' | 'unavailable' | 'commit-unknown' }>
-  >
-}
 export interface ScopeReleasePort {
   release(
     input: Readonly<{
@@ -221,7 +204,10 @@ export interface SessionContextInput<P> {
 }
 export interface SessionTransactionPort<P> {
   commit<K extends MutationName>(
-    input: Readonly<{ command: Extract<SessionCommand, { kind: K }>; guards: readonly GuardCommand[] }>,
+    input: Readonly<{
+      command: Extract<SessionCommand, { kind: K }>
+      guards: readonly GuardCommand[]
+    }>,
   ): ReturnType<Mutations[K]>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readInput(

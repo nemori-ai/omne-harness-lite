@@ -146,14 +146,13 @@ export type ControlIntent =
       decision: DurableEvidence
     }>
   | Readonly<{ kind: 'auto-archive'; idleEvidence: DurableEvidence }>
-/** state: committed = intent saved; propagating = some producer or start fence still unconfirmed; reconciled = all confirmed. */
+/** state: committed = intent saved; propagating = some producer still unconfirmed; reconciled = all confirmed. The superseded `startFence` is not here: the tool start fence is the Agent journal `start-fence` entry (#672 J03). */
 export type ControlProgress = Readonly<{
   operation: SessionOperationId
   target: ControlTarget
   intent: ControlIntent
   state: 'committed' | 'propagating' | 'reconciled'
   pending: readonly ProducerRef[]
-  startFence: 'not-required' | 'pending' | 'effective'
 }>
 export type ScopeReleaseDisposition =
   | 'released'
@@ -194,12 +193,6 @@ export type RecoveryTask =
       state: 'pending' | 'unknown'
       last: readonly ScopeReleaseDisposition[]
     }>
-  | Readonly<{
-      kind: 'start-fence'
-      operation: SessionOperationId
-      advance: AdvanceRef
-      state: 'pending' | 'unknown'
-    }>
 /** Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds. */
 export type BoundedClose =
   | Readonly<{ kind: 'uninterpretable'; evidence: DurableEvidence }>
@@ -219,7 +212,9 @@ export type SessionCreation = Readonly<{
   requiredIdentities: readonly Readonly<{ capability: string; name: string }>[]
   purpose: string
   workspace: Adoption | null
-  modes: Readonly<{ kind: 'explicit'; value: Modes }> | Readonly<{ kind: 'tenant-default'; source: Adoption }>
+  modes:
+    | Readonly<{ kind: 'explicit'; value: Modes }>
+    | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
 }>
@@ -263,7 +258,12 @@ export type DeclarationChange =
       basis: DurableEvidence
       updates: readonly Readonly<{ block: string; value: ContextMaterial }>[]
     }>
-  | Readonly<{ kind: 'recovery-input'; item: string; value: DurableEvidence; basis: DurableEvidence }>
+  | Readonly<{
+      kind: 'recovery-input'
+      item: string
+      value: DurableEvidence
+      basis: DurableEvidence
+    }>
 export type Relation =
   | Readonly<{ kind: 'main'; resident: boolean }>
   | Readonly<{ kind: 'child'; parent: SessionId; basis: DurableEvidence }>
@@ -285,7 +285,12 @@ export type IdleObservation =
       coverage: IdleCoverage
       source: DurableEvidence
     }>
-  | Readonly<{ kind: 'interrupted'; at: ClockSample; cause: DurableEvidence; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'interrupted'
+      at: ClockSample
+      cause: DurableEvidence
+      source: DurableEvidence
+    }>
   | Readonly<{ kind: 'unknown'; at: ClockSample; scope: DurableEvidence; source: DurableEvidence }>
 export type AutoArchivePolicy =
   | Readonly<{ kind: 'disabled' }>

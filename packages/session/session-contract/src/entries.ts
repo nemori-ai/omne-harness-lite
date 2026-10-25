@@ -20,7 +20,6 @@ import type {
 import type {
   BoundedClose,
   InitializationResult,
-  InputBatch,
   Participation,
   RecoveryTask,
   RunTerminal,
@@ -102,14 +101,6 @@ export type SessionEntry =
       reason: 'ended' | 'bounded' | 'cancelled' | 'released' | 'superseded'
     }>
   | Readonly<{
-      kind: 'run.batch-taken'
-      run: RunId
-      execution: string
-      sequence: string | null
-      source: DurableEvidence
-      batch: InputBatch
-    }>
-  | Readonly<{
       kind: 'run.terminal'
       terminal: RunTerminal
       sequence: string | null
@@ -170,7 +161,8 @@ export function encodeEntry(entry: SessionEntry, origin: HistoryEntry['origin'])
 
 function tenantText(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw new TypeError('the tenant of the creation was not minted by legal-identity')
+  if (!encoded.ok)
+    throw new TypeError('the tenant of the creation was not minted by legal-identity')
   return encoded.value
 }
 
@@ -194,7 +186,6 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'run.started',
   'run.attempt-started',
   'run.attempt-released',
-  'run.batch-taken',
   'run.terminal',
 ])
 
@@ -205,7 +196,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
  */
 export function decodeEntry(entry: Pick<HistoryEntry, 'kind' | 'payload'>): DecodedEntry {
   if (!KNOWN_KINDS.has(entry.kind)) return { unknown: entry.kind }
-  if (entry.payload.kind !== 'object') return { malformed: `${entry.kind}: the payload is not an object` }
+  if (entry.payload.kind !== 'object')
+    return { malformed: `${entry.kind}: the payload is not an object` }
   const payload = fromJsonValue(entry.payload) as Record<string, unknown>
   if (entry.kind === 'session.created') {
     const text = payload['tenant']

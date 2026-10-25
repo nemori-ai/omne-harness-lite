@@ -59,7 +59,6 @@ export type {
 } from './values.ts'
 export type {
   AdmittedMessage,
-  AgentEventFact,
   CommitReceipt,
   Completion,
   EntryClass,
@@ -91,7 +90,6 @@ export {
 } from './operations.ts'
 export type {
   AgentDrivePort,
-  DeliveryReleasePort,
   DriveFailure,
   DriveReceipt,
   DriveReply,
@@ -111,7 +109,6 @@ export type {
   SessionInternalPrincipals,
   SessionNotifier,
   SessionTransactionPort,
-  ToolStartFencePort,
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
