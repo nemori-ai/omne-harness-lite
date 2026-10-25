@@ -152,6 +152,19 @@ describe('typed delivery relations through the public entry', () => {
       failure: { field: 'accounts', reason: 'call-mismatch' },
     })
   })
+  it.each([
+    { kind: 'tool_execution', id: call },
+    { kind: 'model_call', id: otherCall },
+  ] satisfies CallAccount['subject'][])(
+    'R05 rejects a foreign result account subject %j',
+    subject => {
+      const delivery = resultDelivery()
+      const accounts = [{ dispatch, account: { ...account(), subject } }]
+      expect(judge({ ...delivery, accounts })).toEqual({
+        failure: { field: 'accounts', reason: 'call-mismatch' },
+      })
+    },
+  )
   it('R06 returns each original reference without freezing or creating evidence', () => {
     for (const delivery of [resultDelivery(), accountDelivery()]) {
       expect(must(judge(delivery))).toBe(delivery)

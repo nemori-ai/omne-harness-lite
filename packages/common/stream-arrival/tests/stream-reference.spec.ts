@@ -46,9 +46,10 @@ const call = JSON.stringify(['model-invocation', 1, tenantText, 'mcall_a', 'mop_
 const refText = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
 const c0 = JSON.stringify(['stream-cursor', 1, refText, '0'])
 const c10 = JSON.stringify(['stream-cursor', 1, refText, '10'])
-const stream = success(decodeStreamId('str_a'))
-const zero = success(decodeStreamPosition('0'))
-const ten = success(decodeStreamPosition('10'))
+// Decoded fixtures are built inside each test, so a decoder fault fails that test rather than
+// the module load.
+const streamId = () => success(decodeStreamId('str_a'))
+const positionOf = (text: string) => success(decodeStreamPosition(text))
 
 // This is a protocol stub, not a Model identity adapter. Tenant minting is real.
 function codecStub() {
@@ -98,7 +99,9 @@ function encodeUnknownCursor(value: unknown) {
 }
 
 function envelope() {
-  return { tenant, producer: 'model', call, stream } satisfies StreamEnvelope & { tenant: TenantId }
+  return { tenant, producer: 'model', call, stream: streamId() } satisfies StreamEnvelope & {
+    tenant: TenantId
+  }
 }
 
 describe('stream identity and position text', () => {
@@ -317,10 +320,10 @@ describe('canonical values and frozen reads', () => {
       const canonicalCall = 'Ä e\u0301 É \\ " \u0000 \ud800 😀'
       const codec: StreamCallCodec = { producer, resolve: () => ({ ok: canonicalCall }) }
       const ref = success(encodeStreamRef({ ...envelope(), producer }, codec))
-      expect(ref).toBe(JSON.stringify(['stream-ref', 1, producer, canonicalCall, stream]))
+      expect(ref).toBe(JSON.stringify(['stream-ref', 1, producer, canonicalCall, streamId()]))
       expect(readStreamRef(ref).call).toBe(canonicalCall)
-      const cursor = success(encodeStreamCursor({ ref, position: ten }))
-      expect(readStreamCursor(cursor)).toEqual({ ref, position: ten })
+      const cursor = success(encodeStreamCursor({ ref, position: positionOf('10') }))
+      expect(readStreamCursor(cursor)).toEqual({ ref, position: positionOf('10') })
       expect(judgeStreamCursor({ value: cursor, ref })).toEqual({ ok: cursor })
     },
   )
@@ -329,8 +332,8 @@ describe('canonical values and frozen reads', () => {
     const codec = codecStub()
     const ref = success(encodeStreamRef(envelope(), codec))
     expect(ref).toBe(refText)
-    expect(encodeStreamCursor({ ref, position: zero })).toEqual({ ok: c0 })
-    expect(encodeStreamCursor({ ref, position: ten })).toEqual({ ok: c10 })
+    expect(encodeStreamCursor({ ref, position: positionOf('0') })).toEqual({ ok: c0 })
+    expect(encodeStreamCursor({ ref, position: positionOf('10') })).toEqual({ ok: c10 })
     expect(readStreamRef(ref)).toEqual({ producer: 'model', call, stream: 'str_a' })
     expect(readStreamCursor(success(judgeStreamCursor({ value: c10, ref })))).toEqual({
       ref,
@@ -361,7 +364,7 @@ describe('canonical values and frozen reads', () => {
     const codec = codecStub()
     const input = envelope()
     const ref = success(encodeStreamRef(input, codec))
-    const parts = { ref, position: ten }
+    const parts = { ref, position: positionOf('10') }
     const cursor = success(encodeStreamCursor(parts))
     const parsed = success(parseStreamEnvelope(ref))
     const read = readStreamRef(ref)
@@ -370,21 +373,21 @@ describe('canonical values and frozen reads', () => {
     expect(Object.isFrozen(input)).toBe(false)
     expect(Object.isFrozen(parts)).toBe(false)
     input.call = 'changed'
-    parts.position = zero
+    parts.position = positionOf('0')
     expect(read.call).toBe(call)
     expect(cursorRead.position).toBe('10')
     expect(codec.resolve).toHaveBeenCalledTimes(1)
     expect(() => Object.assign(read, { call: 'mutated' })).toThrow(TypeError)
-    expect(() => Object.assign(cursorRead, { position: zero })).toThrow(TypeError)
+    expect(() => Object.assign(cursorRead, { position: positionOf('0') })).toThrow(TypeError)
   })
 
   it.each(['private input', ' ' + refText, refTuple('bad')])(
     'rejects unreadable forged reference brands without exposing text',
     value => {
       expect(() => readStreamRef(value as StreamRef)).toThrow(new TypeError('Invalid StreamRef'))
-      expect(() => encodeStreamCursor({ ref: value as StreamRef, position: zero })).toThrow(
-        TypeError,
-      )
+      expect(() =>
+        encodeStreamCursor({ ref: value as StreamRef, position: positionOf('0') }),
+      ).toThrow(TypeError)
     },
   )
 
@@ -461,7 +464,7 @@ describe('exact constructor data records', () => {
     expect(encodeStreamRef(Object.freeze(input), codecStub())).toEqual({ ok: refText })
     const parts = Object.assign(Object.create(null), {
       ref: reference(),
-      position: zero,
+      position: positionOf('0'),
     }) as StreamCursorParts
     expect(encodeStreamCursor(Object.freeze(parts))).toEqual({ ok: c0 })
   })
@@ -479,20 +482,34 @@ describe('exact constructor data records', () => {
     const invalid = [
       { ...valid, extra: 1 },
       { ...valid, [Symbol('extra')]: 1 },
-      { producer: 'model', call, stream },
+      { producer: 'model', call, stream: streamId() },
       Object.defineProperty({ ...valid }, 'tenant', { enumerable: false }),
-      Object.assign(Object.create({ tenant }), { producer: 'model', call, stream }),
+      Object.assign(Object.create({ tenant }), { producer: 'model', call, stream: streamId() }),
     ]
     for (const value of invalid) expect(encodeUnknownRef(value)).toEqual(invalidRef('shape'))
     const ref = reference()
     for (const value of [
-      { ref, position: zero, extra: 1 },
-      { ref, position: zero, [Symbol('extra')]: 1 },
+      { ref, position: positionOf('0'), extra: 1 },
+      { ref, position: positionOf('0'), [Symbol('extra')]: 1 },
       { ref },
-      Object.defineProperty({ ref, position: zero }, 'ref', { enumerable: false }),
-      Object.assign(Object.create({ ref }), { position: zero }),
+      Object.defineProperty({ ref, position: positionOf('0') }, 'ref', { enumerable: false }),
+      Object.assign(Object.create({ ref }), { position: positionOf('0') }),
     ])
       expect(encodeUnknownCursor(value)).toEqual(invalidCursor('shape'))
+  })
+
+  it('rejects exact own fields on a prototype other than Object.prototype or null', () => {
+    class Parts {}
+    const prototypes = [{}, Object.create(null), Parts.prototype]
+    for (const prototype of prototypes) {
+      const input = Object.assign(Object.create(prototype), envelope())
+      expect(encodeUnknownRef(input)).toEqual(invalidRef('shape'))
+      const parts = Object.assign(Object.create(prototype), {
+        ref: reference(),
+        position: positionOf('0'),
+      })
+      expect(encodeUnknownCursor(parts)).toEqual(invalidCursor('shape'))
+    }
   })
 
   it('never invokes getters, toJSON or conversion functions', () => {
@@ -503,16 +520,20 @@ describe('exact constructor data records', () => {
       get: sideEffect,
       enumerable: true,
     })
-    const cursorGetter = Object.defineProperty({ ref: reference(), position: zero }, 'position', {
-      get: sideEffect,
-      enumerable: true,
-    })
+    const cursorGetter = Object.defineProperty(
+      { ref: reference(), position: positionOf('0') },
+      'position',
+      {
+        get: sideEffect,
+        enumerable: true,
+      },
+    )
     expect(encodeUnknownRef(refGetter)).toEqual(invalidRef('shape'))
     expect(encodeUnknownCursor(cursorGetter)).toEqual(invalidCursor('shape'))
     expect(encodeUnknownRef({ ...envelope(), toJSON: sideEffect })).toEqual(invalidRef('shape'))
-    expect(encodeUnknownCursor({ ref: reference(), position: zero, toJSON: sideEffect })).toEqual(
-      invalidCursor('shape'),
-    )
+    expect(
+      encodeUnknownCursor({ ref: reference(), position: positionOf('0'), toJSON: sideEffect }),
+    ).toEqual(invalidCursor('shape'))
     const unknownText = {
       get value() {
         return sideEffect()
@@ -544,15 +565,15 @@ describe('exact constructor data records', () => {
         },
       }
       expect(encodeUnknownRef(new Proxy(envelope(), handler))).toEqual(invalidRef('unreadable'))
-      expect(encodeUnknownCursor(new Proxy({ ref: reference(), position: zero }, handler))).toEqual(
-        invalidCursor('unreadable'),
-      )
+      expect(
+        encodeUnknownCursor(new Proxy({ ref: reference(), position: positionOf('0') }, handler)),
+      ).toEqual(invalidCursor('unreadable'))
     },
   )
 
   it('reports revoked proxy reflection failure as unreadable', () => {
     const ref = Proxy.revocable(envelope(), {})
-    const cursor = Proxy.revocable({ ref: reference(), position: zero }, {})
+    const cursor = Proxy.revocable({ ref: reference(), position: positionOf('0') }, {})
     ref.revoke()
     cursor.revoke()
     expect(encodeUnknownRef(ref.proxy)).toEqual(invalidRef('unreadable'))
@@ -588,7 +609,7 @@ describe('exact constructor data records', () => {
     })
     const input = new Proxy(envelope(), { get })
     expect(encodeStreamRef(input, codecStub())).toEqual({ ok: refText })
-    const parts = new Proxy({ ref: reference(), position: zero }, { get })
+    const parts = new Proxy({ ref: reference(), position: positionOf('0') }, { get })
     expect(encodeStreamCursor(parts)).toEqual({ ok: c0 })
     expect(get).not.toHaveBeenCalled()
   })

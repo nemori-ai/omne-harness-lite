@@ -376,6 +376,25 @@ describe('reference, identity and source checks', () => {
     },
   )
 
+  it.each(['before', 'after'] as const)(
+    'decodes the outer dispatch of a settled %s projection, which has no inner dispatch',
+    side => {
+      const before = snapshot([], state('settled'))
+      const after = advance(before)
+      const bad = { ...(side === 'before' ? before : after), dispatch: 'bad' as DispatchId }
+      const left = side === 'before' ? bad : before
+      const right = side === 'after' ? bad : after
+      expect(diff(left, right)).toEqual({ failure: { kind: 'identity', side, field: 'dispatch' } })
+      expect(apply(left, delta(left, right))).toEqual({
+        failure: {
+          kind: 'identity',
+          side: side === 'before' ? 'before' : 'delta',
+          field: 'dispatch',
+        },
+      })
+    },
+  )
+
   it('validates state.call separately and checks all identities before associations', () => {
     const before = snapshot()
     const after = advance(before)
@@ -431,6 +450,15 @@ describe('reference, identity and source checks', () => {
       },
     }
     pairFailure(before, mismatch, 'dispatch-mismatch')
+  })
+
+  it('requires a retry-decision inner dispatch to equal the outer dispatch', () => {
+    const before = snapshot()
+    const pending = state('retry-decision', '2')
+    if (pending.phase !== 'retry-decision') throw new Error('retry-decision fixture')
+    const after = snapshot([growing()], { ...pending, dispatch: otherDispatch }, '2')
+    pairFailure(before, after, 'dispatch-mismatch')
+    roundTrip(before, snapshot([growing()], pending, '2'))
   })
 
   it.each(['before', 'after'] as const)('refuses an accepted %s projection', side => {
@@ -660,6 +688,19 @@ describe('block order and cumulative changes', () => {
       advance(before, [growing('2'), growing('3'), growing('5', 'a')]),
       'block-order',
     )
+  })
+
+  it.each([
+    { before: ['5'], after: ['3', '5'] },
+    { before: ['2', '5', '8'], after: ['2', '5', '6', '8'] },
+  ])('measures a new index against the last old index $before', indexes => {
+    const before = snapshot(indexes.before.map(index => growing(index)))
+    const after = advance(
+      before,
+      indexes.after.map(index => growing(index)),
+    )
+    expect(diff(before, after)).toEqual({ failure: { kind: 'block-order' } })
+    roundTrip(before, advance(before, [...before.value.blocks, growing('9')]))
   })
 
   it.each([
