@@ -11,7 +11,6 @@ import {
   testEvidence,
 } from '@omne-harness/agent/testing'
 import {
-  decodeAgentExecutionId,
   decodeAgentInstanceId,
   type Material,
   type SelectedModel,
@@ -196,7 +195,6 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
     const provider = ok(
       await createAgentRuntime({ ...dependencies, models, handoff, requests }, runtimeOptions),
     )
-    void decodeAgentExecutionId
     return { provider, journal: dependencies.journal, instance: AGENT_INSTANCE }
   }
 }
@@ -209,15 +207,19 @@ export const assembleWithMemorySources: PathDependencies['assemble'] = async ({
   const rows = history.map((item, index) => {
     const entry = parseRecordEntryRef(String(item.entry))
     if (entry === null) throw new Error(`Session entry ${item.entry} is not a RecordEntryRef`)
+    const { message } = item
+    // A history row of an assistant message also names its source call. The first path assembles
+    // before the first reply, so its history holds no assistant message.
+    if (message.role === 'assistant')
+      throw new Error('an assistant history row needs its source call; not on the first path')
     return {
       seq: ok(decodeHistorySequence(String(index))),
       entry,
-      message: item.message,
-      bytes: String(JSON.stringify(item.message).length),
-      prefixDigest: `chain:${index}`,
+      message,
+      bytes: String(JSON.stringify(message).length),
     }
   })
-  const fixture = createAssemblyFixture({ tenant, rows: rows as never })
+  const fixture = createAssemblyFixture({ tenant, rows })
   const result = await fixture.operations().assemble(fixture.call)
   const calls = fixture.preparation.calls()
   return {
