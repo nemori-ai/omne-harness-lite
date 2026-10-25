@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -35,6 +40,7 @@
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "zod": "catalog:"
   },

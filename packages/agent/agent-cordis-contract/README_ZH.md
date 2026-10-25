@@ -6,8 +6,8 @@ Agent 能力唯一的 Cordis 服务定义：服务、键、类型增补及框架
 
 `./cordis` 入口导出：
 
-- 17 个抽象 Service 和具体的 `AgentInstancesService`，另有 18 个键常量。
-- 18 个键的 `Context` 增补，以及 `Events` 中的 `agent-cordis-contract/instance-retired` 事件。
+- 20 个抽象 Service 和具体的 `AgentInstancesService`，另有 21 个键常量。
+- 21 个键的 `Context` 增补，以及 `Events` 中的 `agent-cordis-contract/instance-retired` 事件。
 - 接口 `AgentPublicationAuthority`。
 - 目录插件 `agentInstancesPlugin`。
 

@@ -37,6 +37,7 @@
     "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/tool-cordis-contract": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

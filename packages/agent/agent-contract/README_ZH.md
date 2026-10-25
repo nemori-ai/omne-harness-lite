@@ -6,11 +6,13 @@ Agent 能力的契约：公共值、操作、结果、行为及可替换提供�
 
 本包导出：
 
-- 全部契约类型，覆盖定义、扩展、身份、求值、请求、台账、执行与 Journal。
+- 全部契约类型，覆盖定义、扩展、身份、求值、请求、台账、执行、Journal 与生产者接收面。
 - 五个常量：`ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS` 与 `AGENT_IDENTITY_MAX_LENGTH`。
 - 三个判定函数：`judgeAgentDefinition`、`judgeLoopExtensions` 与 `judgeExtensionOutput`。
 - 资产正文契约 `agentBodyContract`。
 - 十四个 `decode*` 身份解码函数，以及四个结构判定：`judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。
+
+`./testing` 入口导出接收面两个端口 `AgentJournalEntries` 与 `AgentAccountOutlet` 的一致性套件和非耐久替身。替身声明 `durability: 'none'`，不得装进生产。包根不加载 `./testing`。
 
 本包没有实现推进 Loop、评估器、runtime、Journal 提供者和宿主插件。这些部分的接口在包里只有类型，目前没有提供者实现它们。提供者与宿主插件归 [agent](../agent/README.md)、[agent-host-local](../agent-host-local/README.md) 和各提供者包。
 
@@ -48,7 +50,7 @@ createCategoryRegistry().register(agentBodyContract())
 
 ## 验证
 
-在仓库根运行 `pnpm turbo run test --filter=@omne-harness/agent-contract`，在本目录运行 `pnpm typecheck`。turbo 先构建本包及其依赖。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试覆盖声明判断、输出判断、身份解码与结构判定、正文契约、导出集合和依赖方向，文件清单见[测试说明](tests/README.md)。这些测试不证明 runtime、提供者、装配或 Cordis 集成。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/agent-contract`，在本目录运行 `pnpm typecheck`。turbo 先构建本包及其依赖。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试覆盖声明判断、输出判断、身份解码与结构判定、正文契约、导出集合、依赖方向和接收面的套件与替身，文件清单见[测试说明](tests/README.md)。这些测试不证明 runtime、提供者、装配或 Cordis 集成。
 
 ## 维护
 
