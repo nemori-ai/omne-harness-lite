@@ -66,6 +66,7 @@
 - `MeterCalibration` · `profile.d.ts`
 - `MeterRepresentation` · `profile.d.ts`
 - `ModalityRequirement` · `profile.d.ts`
+- `ModelAccountSnapshot` · `result-delivery-values.d.ts`
 - `ModelAdmitCandidate` · `judge-request.d.ts`
 - `ModelAttemptDiagnostic` · `diagnostics.d.ts`
 - `ModelBindingFailure` · `driver.d.ts`
@@ -81,6 +82,10 @@
 - `ModelConverter` · `conversion.d.ts`
 - `ModelConverterCatalog` · `conversion.d.ts`
 - `ModelCountingBasis` · `tokenizer.d.ts`
+- `ModelDelivery` · `result-delivery-values.d.ts`
+- `ModelDeliveryFailure` · `result-delivery.d.ts`
+- `ModelDeliveryKey` · `result-delivery-values.d.ts`
+- `ModelDeliveryRejection` · `result-delivery-judge.d.ts`
 - `ModelDiagnosticCursor` · `diagnostics.d.ts`
 - `ModelDiagnosticId` · `diagnostics.d.ts`
 - `ModelDiagnostics` · `diagnostics.d.ts`
@@ -127,9 +132,18 @@
 - `ModelReferenceRejection` · `reference.d.ts`
 - `ModelRequestPreparation` · `profile.d.ts`
 - `ModelRequestRules` · `profile-source.d.ts`
+- `ModelResultReceiver` · `result-delivery.d.ts`
 - `ModelRetryPolicy` · `provider.d.ts`
 - `ModelRuntime` · `call-surface.d.ts`
+- `ModelSavedReceipt` · `result-delivery.d.ts`
 - `ModelSendBoundary` · `provider.d.ts`
+- `ModelStreamBase` · `model-stream-values.d.ts`
+- `ModelStreamDelta` · `model-stream-values.d.ts`
+- `ModelStreamObservation` · `model-stream.d.ts`
+- `ModelStreamProjectionFailure` · `model-stream-values.d.ts`
+- `ModelStreamReferences` · `model-stream.d.ts`
+- `ModelStreamSelection` · `model-stream.d.ts`
+- `ModelStreamSnapshot` · `model-stream-values.d.ts`
 - `ModelTextTokenizer` · `tokenizer.d.ts`
 - `ModelToolPayloadAdapter` · `provider.d.ts`
 - `ModelTransport` · `provider.d.ts`
@@ -190,6 +204,7 @@
 - `UpstreamLimit` · `profile.d.ts`
 - `VisibleBlock` · `call-surface.d.ts`
 - `WriteContext` · `provider.d.ts`
+- `applyModelStreamDelta` · `model-stream-values.d.ts`
 - `compareOutputCursors` · `identity-values.d.ts`
 - `compareRevisions` · `identity-values.d.ts`
 - `continuedMessages` · `replay-values.d.ts`
@@ -207,10 +222,12 @@
 - `decodeResultVersion` · `identity-values.d.ts`
 - `decodeRevision` · `identity-values.d.ts`
 - `deriveGuardControlOperation` · `guard-control.d.ts`
+- `diffModelStream` · `model-stream-values.d.ts`
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOperationRef` · `reference.d.ts`
 - `judgeAdmit` · `judge-request.d.ts`
 - `judgeFixedModelRequest` · `judge-request.d.ts`
+- `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `judgeReplayDeclaration` · `replay-values.d.ts`
 - `projectReplay` · `replay-values.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
@@ -658,6 +675,13 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ```ts
 export type * from './root.ts';
 export type * from './result.ts';
+export type * from './result-delivery-values.ts';
+export type * from './result-delivery.ts';
+export type * from './result-delivery-judge.ts';
+export { judgeModelDelivery } from './result-delivery-judge.ts';
+export type * from './model-stream-values.ts';
+export type * from './model-stream.ts';
+export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts';
 export type * from './call-surface.ts';
 export type * from './provider.ts';
 export type * from './profile.ts';
@@ -741,6 +765,123 @@ import type { ModelInvocationRef, ModelOperationRef } from './reference.ts';
 export declare function mintIdentity<K extends ModelIdentityKey>(text: string): Identity<K>;
 export declare function mintInvocationReference(text: string): ModelInvocationRef;
 export declare function mintOperationReference(text: string): ModelOperationRef;
+```
+
+## 声明文件 `model-stream-values-blocks.d.ts`
+
+```ts
+import type { VisibleBlock } from './call-surface.ts';
+type BlockFailure = 'block-order' | 'block-removal' | 'block-conflict';
+export declare function checkStreamBlocks(before: readonly VisibleBlock[], after: readonly VisibleBlock[], delta: readonly VisibleBlock[]): BlockFailure | null;
+export declare function mergeStreamBlocks(before: readonly VisibleBlock[], delta: readonly VisibleBlock[]): readonly VisibleBlock[];
+export declare function changedStreamBlocks(before: readonly VisibleBlock[], after: readonly VisibleBlock[]): readonly VisibleBlock[];
+export {};
+```
+
+## 声明文件 `model-stream-values-tree.d.ts`
+
+```ts
+export declare function equalStreamValues(left: unknown, right: unknown): boolean;
+export declare function copyStreamValue<T>(value: T): T;
+```
+
+## 声明文件 `model-stream-values.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import { type StreamRef, type StreamReferenceFailure } from '@omne-harness/stream-arrival';
+import type { Snapshot, VisibleBlock } from './call-surface.ts';
+import type { CallState } from './result.ts';
+import type { DispatchId, OutputCursor, Revision } from './root.ts';
+export type ModelStreamSnapshot = Readonly<{
+    ref: StreamRef;
+    dispatch: DispatchId;
+    value: Snapshot;
+}>;
+export type ModelStreamBase = Readonly<{
+    outputCursor: OutputCursor;
+    revision: Revision;
+}>;
+export type ModelStreamDelta = Readonly<{
+    ref: StreamRef;
+    dispatch: DispatchId;
+    from: ModelStreamBase;
+    outputCursor: OutputCursor;
+    state: CallState;
+    blocks: readonly VisibleBlock[];
+}>;
+export type ModelStreamProjectionFailure = Readonly<{
+    kind: 'invalid-tenant';
+}> | Readonly<{
+    kind: 'reference';
+    side: 'before' | 'after' | 'delta';
+    failure: Exclude<StreamReferenceFailure, {
+        kind: 'invalid-tenant';
+    }>;
+}> | Readonly<{
+    kind: 'identity';
+    side: 'before' | 'after' | 'delta';
+    field: 'dispatch' | 'call' | 'revision' | 'outputCursor';
+}> | Readonly<{
+    kind: 'call-mismatch';
+}> | Readonly<{
+    kind: 'stream-mismatch';
+}> | Readonly<{
+    kind: 'dispatch-mismatch';
+}> | Readonly<{
+    kind: 'base-mismatch';
+}> | Readonly<{
+    kind: 'revision-regression';
+}> | Readonly<{
+    kind: 'cursor-regression';
+}> | Readonly<{
+    kind: 'state-conflict';
+}> | Readonly<{
+    kind: 'state-transition';
+}> | Readonly<{
+    kind: 'block-order';
+}> | Readonly<{
+    kind: 'block-removal';
+}> | Readonly<{
+    kind: 'block-conflict';
+}>;
+export declare function diffModelStream(input: Readonly<{
+    tenant: TenantId;
+    before: ModelStreamSnapshot;
+    after: ModelStreamSnapshot;
+}>): Outcome<ModelStreamDelta, ModelStreamProjectionFailure>;
+export declare function applyModelStreamDelta(input: Readonly<{
+    tenant: TenantId;
+    before: ModelStreamSnapshot;
+    delta: ModelStreamDelta;
+}>): Outcome<ModelStreamSnapshot, ModelStreamProjectionFailure>;
+```
+
+## 声明文件 `model-stream.d.ts`
+
+```ts
+import type { Access } from '@omne-harness/legal-identity';
+import type { StreamObserver, StreamRef } from '@omne-harness/stream-arrival';
+import type { ModelStreamDelta, ModelStreamSnapshot } from './model-stream-values.ts';
+import type { ModelInvocationRef } from './reference.ts';
+import type { CallState, Reply } from './result.ts';
+import type { DispatchId } from './root.ts';
+export type ModelStreamObservation<P> = StreamObserver<P, ModelStreamSnapshot, ModelStreamDelta>;
+export type ModelStreamSelection = Readonly<{
+    state: CallState;
+    current: Readonly<{
+        ref: StreamRef;
+        dispatch: DispatchId;
+        projection: 'model-output-v1';
+    }> | null;
+}>;
+export interface ModelStreamReferences<P> {
+    current(input: Readonly<{
+        access: Access<P>;
+        reference: ModelInvocationRef;
+    }>): Reply<ModelStreamSelection>;
+}
 ```
 
 ## 声明文件 `profile-source.d.ts`
@@ -1561,6 +1702,117 @@ export declare function requestShape(value: unknown, field: string): Checked<Fix
 export declare function consumerShape(value: unknown): Checked<ConsumerRef>;
 export declare function capacityShape(value: unknown): Checked<ResultCapacity>;
 export {};
+```
+
+## 声明文件 `result-delivery-judge.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ModelDelivery } from './result-delivery-values.ts';
+export type ModelDeliveryRejection = Readonly<{
+    field: 'tenant';
+    reason: 'identity';
+}> | Readonly<{
+    field: 'key.reference';
+    reason: 'reference-malformed' | 'foreign-tenant';
+}> | Readonly<{
+    field: 'key.result';
+    reason: 'version-mismatch';
+}> | Readonly<{
+    field: 'key.revision';
+    reason: 'revision-mismatch';
+}> | Readonly<{
+    field: 'account.subject';
+    reason: 'call-mismatch';
+}> | Readonly<{
+    field: 'accounts';
+    reason: 'duplicate-dispatch' | 'call-mismatch';
+}>;
+export declare function judgeModelDelivery(input: Readonly<{
+    tenant: TenantId;
+    delivery: ModelDelivery;
+}>): Outcome<ModelDelivery, ModelDeliveryRejection>;
+```
+
+## 声明文件 `result-delivery-values.d.ts`
+
+```ts
+import type { CallAccount } from '@omne-harness/call-account';
+import type { ResultPart } from './call-surface.ts';
+import type { ModelInvocationRef } from './reference.ts';
+import type { Settlement } from './result.ts';
+import type { ConsumerRef, DispatchId, ResultVersion } from './root.ts';
+export type ModelDeliveryKey = Readonly<{
+    kind: 'result';
+    reference: ModelInvocationRef;
+    result: ResultVersion;
+}> | Readonly<{
+    kind: 'account';
+    reference: ModelInvocationRef;
+    dispatch: DispatchId;
+    revision: CallAccount['revision'];
+}>;
+export type ModelAccountSnapshot = Readonly<{
+    dispatch: DispatchId;
+    account: CallAccount | null;
+}>;
+export type ModelDelivery = Readonly<{
+    kind: 'result';
+    key: Extract<ModelDeliveryKey, {
+        kind: 'result';
+    }>;
+    consumer: ConsumerRef;
+    settlement: Settlement;
+    parts: readonly ResultPart[];
+    accounts: readonly ModelAccountSnapshot[];
+}> | Readonly<{
+    kind: 'account';
+    key: Extract<ModelDeliveryKey, {
+        kind: 'account';
+    }>;
+    consumer: ConsumerRef;
+    account: CallAccount;
+}>;
+```
+
+## 声明文件 `result-delivery.d.ts`
+
+```ts
+import type { Access } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { DurableEvidence } from './result.ts';
+import type { ModelDelivery, ModelDeliveryKey } from './result-delivery-values.ts';
+export type ModelSavedReceipt = Readonly<{
+    key: ModelDeliveryKey;
+    evidence: DurableEvidence;
+}>;
+export type ModelDeliveryFailure = Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'invalid';
+    field: string;
+    reason: string;
+}> | Readonly<{
+    kind: 'conflict';
+}> | Readonly<{
+    kind: 'backpressured';
+    resource: 'records' | 'bytes' | 'attachments' | 'in-flight';
+}> | Readonly<{
+    kind: 'unavailable';
+    dependency: string;
+}> | Readonly<{
+    kind: 'cancelled-before-accept';
+}> | Readonly<{
+    kind: 'outcome-unknown';
+}>;
+export interface ModelResultReceiver<P> {
+    push(input: Readonly<{
+        access: Access<P>;
+        delivery: ModelDelivery;
+        signal: AbortSignal;
+    }>): Promise<Outcome<ModelSavedReceipt, ModelDeliveryFailure>>;
+}
 ```
 
 ## 声明文件 `result.d.ts`
