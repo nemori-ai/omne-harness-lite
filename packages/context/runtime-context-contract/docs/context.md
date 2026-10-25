@@ -6,7 +6,7 @@
 
 ### 独立消费
 
-独立调用方不建作用域持有者，也不装配 Cordis。它只安装本成员，自己给出 `ScopeRef`、块声明、生产者与资格材料。只处理调用方自己给出的数据时，缺上层对象不算拒绝。访问系统托管的数据时，仍适用原访问契约（[RC-01](../SPEC.md#rc-01-消费者身份与范围)）。
+独立调用方不建作用域持有者，也不装配 Cordis。它只安装本成员，自己给出 `ScopeRef`、块声明、生产者与资格材料。用到三面操作时，它还给出两个权威端口的适配器：可信绑定来源 `ScopeBindingSource` 与权威端口 `RuntimeContextAuthority<P>`；访问系统托管数据的适配器必须接到该数据的真实权威来源，本成员没有免核验模式（[通用权威端口](../SPEC.md#通用权威端口)）。只处理调用方自己给出的数据时，缺上层对象不算拒绝。访问系统托管的数据时，仍适用原访问契约（[RC-01](../SPEC.md#rc-01-消费者身份与范围)）。
 
 根入口同时提供类型和纯函数。下例在语义拥有者的包里声明一个供给块，它只用现有导出：
 
@@ -48,7 +48,7 @@ export const localeBlock: SuppliedBlockDescriptor<'example.locale', Locale> = {
 
 这些函数已导出，见[公开接口页](public-api.md)。提交与存储仍归调用方自己。
 
-`ScopeRef.ref` 是品牌字符串。本成员现在不导出它的构造或解码函数。
+`ScopeRef.ref` 是品牌字符串。根入口的 `decodeScopeRef` 与 `decodeContextBlockKey` 从字符串得到品牌类型，独立调用方不用类型断言。作用域引用的文本由持有者铸造，带租户、持有者侧标识与作用域代次；任何一方都不从文本解析租户（[作用域引用的铸造](../SPEC.md#作用域引用的铸造)）。
 
 ### 初始化与释放
 
@@ -78,16 +78,17 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | 声明面 | 块的语义拥有者 | 集成方与供给中介 | 语义拥有者包导出块声明，用 `declare module` 增补 `ContextBlocks` | 块声明类型与空块表 |
 | 需要面 | 消费者契约的作者 | 集成方 | 在消费者自己的定义里声明 `ContextNeed`，不点名块键 | 需要类型、`judgeNeed` |
-| 生产者面 | [runtime-context](../../runtime-context/README.md) 的机制，经 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/docs/cordis.md) 的服务提供 | 生产者 | 生产者在自己的插件生命周期里登记供值，得到生产者句柄 | `ProducerHandle` 与代际规则 |
-| 持有者面 | 同上 | 作用域持有者，它在注册时是集成方 | 经同一服务提交注册、签发资格、提交步 | `Registration`、`Eligibility`、`StepCommit` 材料，`judgeRegistration`、`judgeBinding`、`reduceStep`、`diffForReminder` |
+| 生产者面 | [runtime-context](../../runtime-context/README.md) 的机制，经 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/docs/cordis.md) 的服务提供 | 生产者 | 生产者在自己的插件生命周期里为一个租户登记供值，得到带租户的生产者句柄 | `ProducerHandle`、按租户的生产者槽与代际规则 |
+| 持有者面 | 同上 | 作用域持有者，它在注册时是集成方 | 经同一服务提交注册、签发资格、提交步与作用域结束，并用恢复会话恢复作用域 | `Registration`、`Eligibility`、`StepCommit` 与恢复材料，`judgeRegistration`、`judgeBinding`、`reduceStep`、`diffForReminder` |
 | 读者面 | 同上 | 消费者一侧的适配器，按消费者类读取 | 按持有者签发的资格建立绑定读者 | `ContextReader`、`Snapshot`、`Changes` 与四种读取结果、游标作废 |
+| 权威面 | 集成方或应用装配的适配器 | 本成员的三面操作 | 每个带目标的入口先问权威端口，再问可信绑定来源 | `RuntimeContextAuthority<P>`、`ScopeBindingSource`、`AuthorityDecision` 与动作类型 |
 | 请求组装 | [request-context-contract](../../request-context-contract/README.md) | 发起请求的协调者 | 依赖本成员的读取结果类型与块声明的 `volatility` | 读取结果类型、`volatility` |
 
 服务键、各面方法名与消费者类的读取方式归 runtime-context-cordis-contract，本页不复制。
 
 ### 现在的真实消费者
 
-execution-environment-contract 与 request-context-contract 都用本成员的公开类型声明自己拥有的块，并增补 `ContextBlocks`。前者声明执行安置与宿主事实，后者声明压缩设置与窗口占用。runtime-context-cordis-contract 已依赖本成员的操作类型；execution-environment 也导入 `ScopeRef`。四个 Context 机制与 Cordis 提供者的生产实现仍待完成。
+execution-environment-contract 与 request-context-contract 都用本成员的公开类型声明自己拥有的块，并增补 `ContextBlocks`。前者声明执行安置与宿主事实，后者声明压缩设置与窗口占用。runtime-context-cordis-contract 已依赖本成员的操作类型；execution-environment-contract 另用 `ScopeBindingSource` 与 `AuthorityDecision` 的形状做访问核验，execution-environment 导入 `ScopeRef` 与 `ScopeBindingSource`。四个 Context 机制与 Cordis 提供者的生产实现仍待完成。
 
 ### 上层页面
 

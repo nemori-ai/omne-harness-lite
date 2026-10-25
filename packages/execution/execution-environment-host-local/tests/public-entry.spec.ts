@@ -5,11 +5,12 @@ import { expect, it } from 'vitest'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 
-it('exports the host files facility, its object token reader and the host provider from the root', async () => {
+it('exports the host files facility, its object token reader, the domain and the host provider from the root', async () => {
   const root: Record<string, unknown> =
     await import('@omne-harness/execution-environment-host-local')
   expect(Object.keys(root).sort()).toEqual([
     'createHostFiles',
+    'createHostFilesDomain',
     'createHostFilesProvider',
     'hostObjectToken',
   ])
@@ -21,8 +22,8 @@ it('keeps Cordis out of every module the root entry reaches', async () => {
   const names = await readdir(directory).catch(() => undefined)
   const files =
     names === undefined
-      ? ['src/index.ts', 'src/host-files.ts', 'src/host-provider.ts'].map(name =>
-          join(packageRoot, name),
+      ? ['src/index.ts', 'src/host-files.ts', 'src/host-domain.ts', 'src/host-provider.ts'].map(
+          name => join(packageRoot, name),
         )
       : ['index.js', 'host-files.js', 'host-provider.js'].map(name => join(directory, name))
   for (const file of files) {

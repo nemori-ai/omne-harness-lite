@@ -8,7 +8,7 @@
 
 ## 边界
 
-本成员只有服务定义，没有 Service 实现。本目录的测试核对入口的导出与键、八个模板方法的调用方类、装载撤除、调用方效应及三条机制读数。测试在真实 Cordis 上运行，不需要替身。登记随调用方撤除、撤除即退役与关闭顺序归 Service 实现的测试，见 [execution-environment-host-local](../../execution-environment-host-local/tests/README.md)。测试通过不代替规格或验收。
+本成员只有服务定义，没有 Service 实现。本目录的测试核对入口的导出与键、九个模板方法的调用方类、装载撤除、调用方效应及三条机制读数。测试在真实 Cordis 上运行，不需要替身。登记随调用方撤除、撤除即退役与关闭顺序归 Service 实现的测试，见 [execution-environment-host-local](../../execution-environment-host-local/tests/README.md)。测试通过不代替规格或验收。
 
 ## 维护
 

@@ -121,6 +121,7 @@ Request Context 是一次模型请求输入的派生计算与装入保证。它�
 | 输入本身不合法，如十进制序位、游标形状、必需计划字段缺失 | 无效，`unsupported-format` 或已有的具体理由 | 保留原 `field` 与 `reason`，不改成未知 |
 | 访问身份的租户与目标不符 | 无权 | 无权，不查询目标是否存在；输入内部的调用租户与目标租户矛盾为无效 `tenant-mismatch`，但不能先于访问身份的租户拒绝透露来源事实 |
 | epoch 无法识别、上界越界、游标属于另一份依据 | 无效，`unknown-epoch`、`upper-out-of-range`、`cursor-invalidated` | 已知 epoch 在读取中变化单独返回 epoch 已变，计入第二组的重读预算 |
+| runtime context 读取结果是拒绝或未知（[RC-03](../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项) 的读取结果） | 拒绝 `unauthorized`；其余拒绝原因，含 `no-registration`、`closed`、`scope-ended` 与 `replay-incomplete`；未知，含 `scope-binding-unknown` 与 `replay-unknown` | 拒绝 `unauthorized` 为无权（组装）。其余拒绝为不可用，`owner` 为 runtime context，诊断带原拒绝原因；作用域已结束与恢复未完成不当作无权。未知为未知，诊断带原因 |
 | 压缩判断的窗口来源关系缺失、重复或矛盾 | `judgeCompaction` 返回 `source-evidence` | 无效，`field` 为 `compaction.context`，`reason` 为 `source-evidence-conflict` |
 | 新摘要本身违反消息、范围、保留、配对或未结工作规则 | `judgeCompaction` 的原拒绝值 | 计划阶段拒绝计划为无效；`deriveStep` 按已消费一步的规则返回装不下或下一步 |
 

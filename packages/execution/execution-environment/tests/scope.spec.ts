@@ -2,7 +2,6 @@
 // binding layer, and description, scope release and recovery filter by it on every layer.
 import { expect, it } from 'vitest'
 import {
-  acquisitionRef,
   createRecoveryAccess,
   originRef,
   type EnvironmentBinding,
@@ -24,6 +23,7 @@ import {
   session,
   tenantA,
   want,
+  stateOf,
 } from './doubles.ts'
 
 const scope2 = scope('scope-2')
@@ -48,7 +48,7 @@ it('invalidates a host lease of the released scope and refuses that scope from t
     source: 'registry',
     reason: 'scopeReleased',
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('host-2'))).toEqual({
+  expect(await stateOf(registry, accessA, 'host-2')).toEqual({
     kind: 'acquired',
     adoption: inScope2.adoption,
   })
@@ -57,7 +57,7 @@ it('invalidates a host lease of the released scope and refuses that scope from t
   expect(
     await registry.acquire(accessA, acquireInput(placement, 'host-3', undefined, scope1)),
   ).toEqual(expired)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('host-3'))).toEqual({
+  expect(await stateOf(registry, accessA, 'host-3')).toEqual({
     kind: 'rejected',
     reason: 'referenceExpired',
   })
@@ -91,7 +91,7 @@ it('refuses a sandbox layer that names another scope than the requester, without
     invalidInput,
   )
   expect(provider.calls.acquire).toBe(0)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'unrecorded',
   })
 })
@@ -112,7 +112,7 @@ it('a repeat under the same key from another requester scope is a parameter conf
   await leased(registry, placement, 'host-1')
   expect(
     await registry.acquire(accessA, acquireInput(placement, 'host-1', undefined, scope2)),
-  ).toEqual(invalidInput)
+  ).toEqual({ kind: 'rejected', reason: 'acquisitionConflict' })
   expect(provider.calls.acquire).toBe(1)
 })
 

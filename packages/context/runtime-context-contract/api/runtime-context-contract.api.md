@@ -6,7 +6,12 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `AppliedCommit` · `replay.d.ts`
 - `ApplyCommitResult` · `operations.d.ts`
+- `AuthorityDecision` · `authority.d.ts`
+- `BeginReplayAction` · `authority.d.ts`
+- `BeginReplayInput` · `replay.d.ts`
+- `BeginReplayResult` · `replay.d.ts`
 - `BindResult` · `operations.d.ts`
 - `BindingRejection` · `judge.d.ts`
 - `BlockDescriptorBase` · `descriptor.d.ts`
@@ -18,6 +23,9 @@
 - `ChangeMaterial` · `reader.d.ts`
 - `Changes` · `reader.d.ts`
 - `ChangesResult` · `reader.d.ts`
+- `CheckCause` · `authority.d.ts`
+- `CheckUnavailable` · `authority.d.ts`
+- `CheckUnknown` · `authority.d.ts`
 - `CommitInput` · `operations.d.ts`
 - `CommitRef` · `shared.d.ts`
 - `ConsumerClass` · `shared.d.ts`
@@ -36,9 +44,15 @@
 - `EligibilityId` · `registration.d.ts`
 - `EligibilityMaterial` · `registration.d.ts`
 - `EligibilityState` · `registration.d.ts`
+- `FinishReplayAction` · `authority.d.ts`
+- `FinishReplayInput` · `replay.d.ts`
+- `FinishReplayResult` · `replay.d.ts`
 - `Generation` · `shared.d.ts`
+- `HolderAction` · `authority.d.ts`
+- `HolderDecision` · `authority.d.ts`
 - `HolderOperations` · `operations.d.ts`
 - `InvalidateResult` · `producer.d.ts`
+- `InvalidateTarget` · `producer.d.ts`
 - `IssueEligibilityResult` · `operations.d.ts`
 - `JudgeRegistrationContext` · `judge.d.ts`
 - `JudgedRegistration` · `judge.d.ts`
@@ -50,13 +64,16 @@
 - `NeedRejection` · `judge.d.ts`
 - `NeedRequest` · `reader.d.ts`
 - `NeedValue` · `reader.d.ts`
+- `OrdinaryHolderAction` · `authority.d.ts`
 - `PerRequestEntry` · `reader.d.ts`
 - `PrepareRegistrationResult` · `operations.d.ts`
 - `PreviousValue` · `reader.d.ts`
+- `ProducerAction` · `authority.d.ts`
 - `ProducerHandle` · `producer.d.ts`
 - `ProducerOperations` · `operations.d.ts`
 - `ProducerRef` · `shared.d.ts`
 - `ProducerRegistration` · `producer.d.ts`
+- `PublishInput` · `producer.d.ts`
 - `PublishResult` · `producer.d.ts`
 - `ReadOutcome` · `reader.d.ts`
 - `ReadRefusalReason` · `reader.d.ts`
@@ -70,9 +87,16 @@
 - `RegistrationRejection` · `judge.d.ts`
 - `RegistrationRevision` · `shared.d.ts`
 - `RejectedUpdate` · `reduce.d.ts`
+- `ReplayBlock` · `replay.d.ts`
+- `ReplayMaterial` · `replay.d.ts`
+- `ReplayPrevious` · `replay.d.ts`
+- `ReplayRef` · `replay.d.ts`
 - `RevisionPair` · `reader.d.ts`
 - `RevokeEligibilityResult` · `operations.d.ts`
+- `RuntimeContextAuthority` · `authority.d.ts`
 - `RuntimeContextOperations` · `operations.d.ts`
+- `ScopeBinding` · `authority.d.ts`
+- `ScopeBindingSource` · `authority.d.ts`
 - `ScopeRef` · `shared.d.ts`
 - `ScopeRefRejection` · `decode.d.ts`
 - `ScopeText` · `shared.d.ts`
@@ -86,6 +110,7 @@
 - `SuppliedBlockDescriptor` · `descriptor.d.ts`
 - `SupplyAnswer` · `producer.d.ts`
 - `SupplyCallback` · `producer.d.ts`
+- `SupplyInput` · `producer.d.ts`
 - `Translation` · `need.d.ts`
 - `UnknownCause` · `reader.d.ts`
 - `UpdateOriginRef` · `shared.d.ts`
@@ -102,17 +127,124 @@
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
+- `AuthorityCall` · `testing/ports.d.ts`
+- `AuthorityFace` · `testing/ports.d.ts`
+- `AuthorityScript` · `testing/ports.d.ts`
 - `CaseVerdict` · `testing/case.d.ts`
 - `ConformanceCase` · `testing/case.d.ts`
 - `MemoryRuntimeContext` · `testing/memory.d.ts`
 - `MemoryRuntimeContextOptions` · `testing/memory.d.ts`
 - `NotApplicable` · `testing/case.d.ts`
 - `RUNTIME_CONTEXT_OBLIGATIONS` · `testing/conformance.d.ts`
-- `RuntimeContextFixture` · `testing/conformance.d.ts`
+- `RuntimeContextFixture` · `testing/suite.d.ts`
 - `RuntimeContextObligation` · `testing/conformance.d.ts`
+- `RuntimeContextPorts` · `testing/suite.d.ts`
+- `TestAuthorityPorts` · `testing/ports.d.ts`
 - `createMemoryRuntimeContext` · `testing/memory.d.ts`
+- `createTestAuthorityPorts` · `testing/ports.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
 - `runtimeContextConformance` · `testing/conformance.d.ts`
+
+## 声明文件 `authority.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ScopeRef, ContextBlockKey, CommitRef, ProducerRef } from './shared.js';
+import type { RegistrationChange, EligibilityId, Eligibility, EligibilityMaterial } from './registration.js';
+import type { CommitInput } from './operations.js';
+import type { ReplayRef, ReplayMaterial, ReplayPrevious, AppliedCommit } from './replay.js';
+export type ScopeBinding = Readonly<{
+    kind: 'bound';
+    tenant: TenantId;
+}> | Readonly<{
+    kind: 'unbound';
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
+export interface ScopeBindingSource {
+    lookup(scope: ScopeRef): Promise<ScopeBinding>;
+}
+export type AuthorityDecision<P> = Readonly<{
+    kind: 'authorized';
+    principal: P;
+    current(): boolean;
+}> | Readonly<{
+    kind: 'refused';
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
+export type OrdinaryHolderAction<P = unknown> = Readonly<{
+    kind: 'prepare';
+    change: RegistrationChange;
+}> | Readonly<{
+    kind: 'commit';
+    input: CommitInput;
+}> | Readonly<{
+    kind: 'issue';
+    material: EligibilityMaterial<P>;
+}> | Readonly<{
+    kind: 'revoke';
+    eligibility: EligibilityId;
+}>;
+export type BeginReplayAction = Readonly<{
+    kind: 'begin-replay';
+    scope: ScopeRef;
+    tenant: TenantId;
+    through: CommitRef | null;
+    supersedes: ReplayRef | null;
+    previous: ReplayPrevious;
+}>;
+export type FinishReplayAction = Readonly<{
+    kind: 'finish-replay';
+    scope: ScopeRef;
+    tenant: TenantId;
+    replay: ReplayRef;
+    through: CommitRef | null;
+    material: ReplayMaterial;
+    previous: ReplayPrevious;
+    appliedCommits: readonly AppliedCommit[];
+}>;
+export type HolderAction<P = unknown> = OrdinaryHolderAction<P> | BeginReplayAction | FinishReplayAction;
+export type HolderDecision<P> = AuthorityDecision<P> | Readonly<{
+    kind: 'invalid';
+    reason: 'checkpoint-conflict' | 'replay-incomplete';
+}>;
+export type ProducerAction = Readonly<{
+    kind: 'register';
+    tenant: TenantId;
+    key: ContextBlockKey;
+    producer: ProducerRef;
+}> | Readonly<{
+    kind: 'publish' | 'invalidate' | 'supply';
+    scope: ScopeRef;
+    tenant: TenantId;
+    key: ContextBlockKey;
+    producer: ProducerRef;
+}> | Readonly<{
+    kind: 'invalidate-tenant';
+    tenant: TenantId;
+    key: ContextBlockKey;
+    producer: ProducerRef;
+}>;
+export interface RuntimeContextAuthority<P> {
+    holder(principal: P, action: HolderAction<P>): Promise<HolderDecision<P>>;
+    producer(principal: P, action: ProducerAction): Promise<AuthorityDecision<P>>;
+    reader(principal: P, eligibility: Eligibility<P>): Promise<AuthorityDecision<P>>;
+}
+export type CheckCause = 'authority' | 'scope-binding' | 'replay';
+export type CheckUnavailable = Readonly<{
+    kind: 'unavailable';
+    cause: CheckCause;
+}>;
+export type CheckUnknown = Readonly<{
+    kind: 'unknown';
+    cause: CheckCause;
+}>;
+```
 
 ## 声明文件 `decode.d.ts`
 
@@ -186,7 +318,9 @@ export type { ContextUpdate, StepBlockMaterial, StepCommit } from './update.js';
 export type { Registration, RegistrationChange, EligibilityId, EligibilityState, Eligibility, EligibilityMaterial, } from './registration.js';
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js';
 export type { BlockDescriptorBase, SuppliedBlockDescriptor, StatefulBlockDescriptor, ContextBlockDescriptor, DescriptorCatalog, } from './descriptor.js';
-export type { SupplyAnswer, SupplyCallback, ProducerRegistration, PublishResult, InvalidateResult, ProducerHandle, } from './producer.js';
+export type { SupplyAnswer, SupplyInput, SupplyCallback, ProducerRegistration, PublishInput, PublishResult, InvalidateTarget, InvalidateResult, ProducerHandle, } from './producer.js';
+export type { ScopeBinding, ScopeBindingSource, AuthorityDecision, OrdinaryHolderAction, BeginReplayAction, FinishReplayAction, HolderAction, HolderDecision, ProducerAction, RuntimeContextAuthority, CheckCause, CheckUnavailable, CheckUnknown, } from './authority.js';
+export type { ReplayRef, BeginReplayInput, ReplayBlock, ReplayMaterial, FinishReplayInput, ReplayPrevious, AppliedCommit, BeginReplayResult, FinishReplayResult, } from './replay.js';
 export type { ScopeText, BlockValue, RegistrationRevision, ViewRevision, BlockRevision, Generation, CommitRef, ProducerRef, StepRef, UpdateOriginRef, } from './shared.js';
 export { decodeScopeRef, decodeContextBlockKey } from './decode.js';
 export type { ScopeRefRejection, ContextBlockKeyRejection } from './decode.js';
@@ -283,23 +417,29 @@ export type NeedBindingRef = Readonly<{
 ## 声明文件 `operations.d.ts`
 
 ```ts
+import type { TenantId } from '@omne-harness/legal-identity';
 import type { RejectedUpdate } from './reduce.js';
-import type { ContextBlockKey } from './shared.js';
+import type { ContextBlockKey, ScopeRef } from './shared.js';
 import type { RegistrationRejection, JudgedRegistration } from './judge.js';
 import type { ContextReader } from './reader.js';
 import type { StepCommit } from './update.js';
 import type { RegistrationChange, EligibilityId, Eligibility, EligibilityMaterial } from './registration.js';
 import type { ProducerRegistration, ProducerHandle } from './producer.js';
 import type { RegistrationRevision, ViewRevision, CommitRef } from './shared.js';
+import type { CheckUnavailable, CheckUnknown } from './authority.js';
+import type { BeginReplayInput, BeginReplayResult, FinishReplayInput, FinishReplayResult } from './replay.js';
 export type RegisterProducerResult<K extends ContextBlockKey = ContextBlockKey> = Readonly<{
     kind: 'registered';
     handle: ProducerHandle<K>;
 }> | Readonly<{
     kind: 'rejected';
     reason: 'declaration-missing' | 'declaration-mismatch' | 'other-producer' | 'closed';
-}>;
-export interface ProducerOperations {
-    registerProducer<K extends ContextBlockKey>(registration: ProducerRegistration<K>): Promise<RegisterProducerResult<K>>;
+}> | Readonly<{
+    kind: 'refused';
+    reason: 'unauthorized';
+}> | CheckUnavailable | CheckUnknown;
+export interface ProducerOperations<P = unknown> {
+    registerProducer<K extends ContextBlockKey>(principal: P, registration: ProducerRegistration<K, P>): Promise<RegisterProducerResult<K>>;
 }
 export type PrepareRegistrationResult = Readonly<{
     kind: 'prepared';
@@ -310,30 +450,39 @@ export type PrepareRegistrationResult = Readonly<{
     rejections: readonly RegistrationRejection[];
 }> | Readonly<{
     kind: 'refused';
-    reason: 'closed' | 'callerMismatch';
-}>;
+    reason: 'closed' | 'callerMismatch' | 'unauthorized' | 'scope-ended';
+}> | CheckUnavailable | CheckUnknown;
 export type IssueEligibilityResult<P = unknown> = Readonly<{
     kind: 'issued';
     eligibility: Eligibility<P>;
 }> | Readonly<{
     kind: 'refused';
-    reason: 'unauthorized' | 'supersedes-unknown' | 'closed';
-}>;
+    reason: 'unauthorized' | 'supersedes-unknown' | 'closed' | 'scope-ended' | 'replay-incomplete';
+}> | CheckUnavailable | CheckUnknown;
 export type RevokeEligibilityResult = Readonly<{
     kind: 'revoked';
 }> | Readonly<{
     kind: 'refused';
-    reason: 'unknown-eligibility' | 'closed' | 'callerMismatch';
-}>;
+    reason: 'unknown-eligibility' | 'closed' | 'callerMismatch' | 'unauthorized';
+}> | CheckUnavailable | CheckUnknown;
 export type CommitInput = Readonly<{
     kind: 'registration';
     commit: CommitRef;
     change: RegistrationChange;
+    scopeEnded?: true;
 }> | Readonly<{
     kind: 'step';
     commit: CommitRef;
+    tenant: TenantId;
     stepCommit: StepCommit;
     executionEnded: boolean;
+    scopeEnded?: true;
+}> | Readonly<{
+    kind: 'scope';
+    commit: CommitRef;
+    scope: ScopeRef;
+    tenant: TenantId;
+    scopeEnded: true;
 }>;
 export type ApplyCommitResult = Readonly<{
     kind: 'applied';
@@ -341,39 +490,46 @@ export type ApplyCommitResult = Readonly<{
     viewRevision: ViewRevision;
 }> | Readonly<{
     kind: 'invalid';
-    reason: 'out-of-order' | 'commit-conflict' | 'tenant-mismatch' | 'registration' | 'rejected-update';
+    reason: 'out-of-order' | 'commit-conflict' | 'tenant-mismatch' | 'registration' | 'rejected-update' | 'malformed-input';
     current: RegistrationRevision;
     rejections?: readonly RegistrationRejection[];
     rejected?: readonly RejectedUpdate[];
 }> | Readonly<{
     kind: 'refused';
-    reason: 'unauthorized' | 'closed' | 'callerMismatch';
-}>;
+    reason: 'unauthorized' | 'closed' | 'callerMismatch' | 'scope-ended' | 'replay-incomplete';
+}> | CheckUnavailable | CheckUnknown;
 export interface HolderOperations<P = unknown> {
-    prepareRegistration(change: RegistrationChange): Promise<PrepareRegistrationResult>;
-    issueEligibility(material: EligibilityMaterial<P>): Promise<IssueEligibilityResult<P>>;
-    revokeEligibility(id: EligibilityId): Promise<RevokeEligibilityResult>;
-    applyCommit(input: CommitInput): Promise<ApplyCommitResult>;
+    prepareRegistration(principal: P, change: RegistrationChange): Promise<PrepareRegistrationResult>;
+    issueEligibility(principal: P, material: EligibilityMaterial<P>): Promise<IssueEligibilityResult<P>>;
+    revokeEligibility(principal: P, id: EligibilityId): Promise<RevokeEligibilityResult>;
+    applyCommit(principal: P, input: CommitInput): Promise<ApplyCommitResult>;
+    beginReplay(principal: P, input: BeginReplayInput): Promise<BeginReplayResult>;
+    finishReplay(principal: P, input: FinishReplayInput): Promise<FinishReplayResult>;
 }
 export type BindResult = Readonly<{
     kind: 'bound';
     reader: ContextReader;
 }> | Readonly<{
     kind: 'refused';
-    reason: 'unauthorized' | 'closed' | 'callerMismatch';
+    reason: 'unauthorized' | 'closed' | 'callerMismatch' | 'scope-ended' | 'replay-incomplete';
+}> | Readonly<{
+    kind: 'unknown';
+    cause: 'eligibility-unknown' | 'scope-binding-unknown' | 'replay-unknown';
 }>;
 export interface ReaderOperations {
     bind(eligibility: EligibilityId): Promise<BindResult>;
 }
-export type RuntimeContextOperations<P = unknown> = ProducerOperations & HolderOperations<P> & ReaderOperations;
+export type RuntimeContextOperations<P = unknown> = ProducerOperations<P> & HolderOperations<P> & ReaderOperations;
 ```
 
 ## 声明文件 `producer.d.ts`
 
 ```ts
+import type { TenantId } from '@omne-harness/legal-identity';
 import type { ScopeRef, ContextBlockKey } from './shared.js';
 import type { SuppliedBlockDescriptor } from './descriptor.js';
 import type { BlockValue, BlockRevision, Generation, ProducerRef } from './shared.js';
+import type { CheckUnavailable, CheckUnknown } from './authority.js';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 export type SupplyAnswer<V> = Readonly<{
     kind: 'value';
@@ -382,30 +538,41 @@ export type SupplyAnswer<V> = Readonly<{
     kind: 'none';
 }> | Readonly<{
     kind: 'unavailable';
+}> | Readonly<{
+    kind: 'refused';
+}> | Readonly<{
+    kind: 'unknown';
 }>;
-export type SupplyCallback<V> = (scope: ScopeRef) => Promise<SupplyAnswer<V>>;
-export type ProducerRegistration<K extends ContextBlockKey = ContextBlockKey> = Readonly<{
+export type SupplyInput<P = unknown> = Readonly<{
+    scope: ScopeRef;
+    tenant: TenantId;
+    principal: P;
+}>;
+export type SupplyCallback<V, P = unknown> = (input: SupplyInput<P>) => Promise<SupplyAnswer<V>>;
+export type ProducerRegistration<K extends ContextBlockKey = ContextBlockKey, P = unknown> = Readonly<{
     key: K;
+    tenant: TenantId;
     producer: ProducerRef;
 }> & (Readonly<{
     declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
         volatility: 'per-request';
     };
     scoped: boolean;
-    supply: SupplyCallback<BlockValue<K>>;
+    supply: SupplyCallback<BlockValue<K>, P>;
 }> | Readonly<{
     declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
         volatility: 'stable' | 'per-step';
     };
     scoped: false;
-    supply: SupplyCallback<BlockValue<K>>;
+    supply: SupplyCallback<BlockValue<K>, P>;
 }> | Readonly<{
     declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
         volatility: 'stable' | 'per-step';
     };
     scoped: true;
-    supply?: SupplyCallback<BlockValue<K>>;
+    supply?: SupplyCallback<BlockValue<K>, P>;
 }>);
+type HandleRejection = 'stale-generation' | 'withdrawn' | 'closed' | 'scope-unregistered' | 'scope-ended' | 'replay-incomplete';
 export type PublishResult = Readonly<{
     kind: 'published';
     scope: ScopeRef;
@@ -416,23 +583,44 @@ export type PublishResult = Readonly<{
     issues: readonly StandardSchemaV1.Issue[];
 }> | Readonly<{
     kind: 'rejected';
-    reason: 'stale-generation' | 'withdrawn' | 'closed';
-}>;
+    reason: HandleRejection;
+}> | Readonly<{
+    kind: 'refused';
+    reason: 'unauthorized';
+}> | CheckUnavailable | CheckUnknown;
 export type InvalidateResult = Readonly<{
     kind: 'invalidated';
     scopes: readonly ScopeRef[];
 }> | Readonly<{
     kind: 'rejected';
-    reason: 'stale-generation' | 'withdrawn' | 'closed';
+    reason: HandleRejection;
+}> | Readonly<{
+    kind: 'refused';
+    reason: 'unauthorized';
+}> | CheckUnavailable | CheckUnknown;
+export type InvalidateTarget = Readonly<{
+    kind: 'scope';
+    scope: ScopeRef;
+    tenant: TenantId;
+}> | Readonly<{
+    kind: 'tenant';
+    tenant: TenantId;
+}>;
+export type PublishInput = Readonly<{
+    scope: ScopeRef;
+    tenant: TenantId;
+    value: unknown;
 }>;
 export interface ProducerHandle<K extends ContextBlockKey = ContextBlockKey> {
     readonly key: K;
+    readonly tenant: TenantId;
     readonly producer: ProducerRef;
     readonly generation: Generation;
-    publish(scope: ScopeRef, value: unknown): Promise<PublishResult>;
-    invalidate(scope?: ScopeRef): Promise<InvalidateResult>;
+    publish(input: PublishInput): Promise<PublishResult>;
+    invalidate(target: InvalidateTarget): Promise<InvalidateResult>;
     dispose(): Promise<void>;
 }
+export {};
 ```
 
 ## 声明文件 `reader.d.ts`
@@ -444,9 +632,9 @@ import type { RegistrationRevision, ViewRevision, BlockRevision, Generation } fr
 export type Cursor = Readonly<{
     cursor: string;
 }>;
-export type ReadRefusalReason = 'unauthorized' | 'no-registration' | 'closed';
+export type ReadRefusalReason = 'unauthorized' | 'no-registration' | 'closed' | 'scope-ended' | 'replay-incomplete';
 export type MissingCause = 'no-value' | 'source-unavailable' | 'producer-withdrawn' | 'translation-failed' | 'uninterpretable';
-export type UnknownCause = 'source-unknown' | 'eligibility-unknown' | 'commit-unknown';
+export type UnknownCause = 'source-unknown' | 'eligibility-unknown' | 'commit-unknown' | 'scope-binding-unknown' | 'replay-unknown';
 export type MissingItem = Readonly<{
     key: ContextBlockKey;
     cause: MissingCause;
@@ -669,6 +857,83 @@ export type EligibilityMaterial<P = unknown> = Omit<Eligibility<P>, 'id' | 'stat
 export {};
 ```
 
+## 声明文件 `replay.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { RejectedUpdate } from './reduce.js';
+import type { RegistrationRejection } from './judge.js';
+import type { ScopeRef, ContextBlockKey, CommitRef, StepRef, RegistrationRevision, ViewRevision } from './shared.js';
+import type { RegistrationChange } from './registration.js';
+import type { CheckUnavailable, CheckUnknown } from './authority.js';
+export type ReplayRef = Readonly<{
+    replay: string;
+}>;
+export type BeginReplayInput = Readonly<{
+    scope: ScopeRef;
+    tenant: TenantId;
+    through: CommitRef | null;
+    supersedes: ReplayRef | null;
+}>;
+export type ReplayBlock = Readonly<{
+    key: ContextBlockKey;
+    value: unknown;
+    updates: readonly [
+    ];
+}>;
+export type ReplayMaterial = Readonly<{
+    registrations: readonly Readonly<{
+        commit: CommitRef;
+        change: RegistrationChange;
+    }>[];
+    checkpoints: readonly Readonly<{
+        commit: CommitRef;
+        step: StepRef;
+        blocks: readonly ReplayBlock[];
+    }>[];
+    end: Readonly<{
+        commit: CommitRef;
+    }> | null;
+}>;
+export type FinishReplayInput = Readonly<{
+    replay: ReplayRef;
+    material: ReplayMaterial;
+}>;
+export type ReplayPrevious = Readonly<{
+    checkpoint: CommitRef | null;
+    registrationRevision: RegistrationRevision;
+    end: CommitRef | null;
+}>;
+export type AppliedCommit = Readonly<{
+    commit: CommitRef;
+    digest: string;
+}>;
+export type BeginReplayResult = Readonly<{
+    kind: 'replaying';
+    replay: ReplayRef;
+}> | Readonly<{
+    kind: 'invalid';
+    reason: 'checkpoint-conflict' | 'replay-conflict' | 'malformed-input';
+}> | Readonly<{
+    kind: 'refused';
+    reason: 'unauthorized' | 'closed' | 'callerMismatch';
+}> | CheckUnavailable | CheckUnknown;
+export type FinishReplayResult = Readonly<{
+    kind: 'ready';
+    state: 'open' | 'ended';
+    registrationRevision: RegistrationRevision;
+    viewRevision: ViewRevision;
+}> | Readonly<{
+    kind: 'invalid';
+    reason: 'replay-incomplete' | 'checkpoint-conflict' | 'replay-conflict' | 'registration' | 'rejected-update' | 'malformed-input';
+    rejections?: readonly RegistrationRejection[];
+    rejected?: readonly RejectedUpdate[];
+}> | Readonly<{
+    kind: 'refused';
+    reason: 'unauthorized' | 'closed' | 'callerMismatch';
+}> | CheckUnavailable | CheckUnknown;
+```
+
 ## 声明文件 `shared.d.ts`
 
 ```ts
@@ -702,6 +967,27 @@ export type UpdateOriginRef = Readonly<{
 }>;
 ```
 
+## 声明文件 `testing/authority-conformance.d.ts`
+
+```ts
+import type { ConformanceCase } from './case.js';
+import { type RuntimeContextFixture } from './suite.js';
+export declare const AUTHORITY_OBLIGATIONS: readonly [
+    'forged-first-binding-refused',
+    'principal-tenant-mismatch-refused',
+    'authority-unavailable-and-unknown',
+    'stale-current-refused',
+    'revocation-during-supply-discarded',
+    'input-snapshot-stable',
+    'producer-slot-per-tenant',
+    'publish-tenant-mismatch-refused',
+    'tenant-invalidate-scoped-to-tenant',
+    'tenant-invalidate-batch-atomic',
+    'supply-answer-mapping'
+];
+export declare function authorityConformance<P>(): readonly ConformanceCase<RuntimeContextFixture<P>>[];
+```
+
 ## 声明文件 `testing/case.d.ts`
 
 ```ts
@@ -726,17 +1012,9 @@ export declare function runConformanceCase<F>(test: ConformanceCase<F>, fixture:
 ## 声明文件 `testing/conformance.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity';
-import type { RuntimeContextOperations } from '../index.js';
 import { type ConformanceCase } from './case.js';
-export type RuntimeContextFixture<P = unknown> = Readonly<{
-    subject(): Promise<RuntimeContextOperations<P>>;
-    tenant: TenantId;
-    otherTenant: TenantId;
-    principal: P;
-    retention?: number;
-    close?(subject: RuntimeContextOperations<P>): Promise<void>;
-}>;
+import { type RuntimeContextFixture } from './suite.js';
+export type { RuntimeContextFixture, RuntimeContextPorts } from './suite.js';
 export declare const RUNTIME_CONTEXT_OBLIGATIONS: readonly [
     "scope-isolated-publication",
     "cross-tenant-refused",
@@ -779,7 +1057,29 @@ export declare const RUNTIME_CONTEXT_OBLIGATIONS: readonly [
     "optional-need-reads-none",
     "child-scope-shadows-parent",
     "declaration-digest-mismatch-refused",
-    "register-before-producer-then-incompatible-reads-missing"
+    "register-before-producer-then-incompatible-reads-missing",
+    "forged-first-binding-refused",
+    "principal-tenant-mismatch-refused",
+    "authority-unavailable-and-unknown",
+    "stale-current-refused",
+    "revocation-during-supply-discarded",
+    "input-snapshot-stable",
+    "producer-slot-per-tenant",
+    "publish-tenant-mismatch-refused",
+    "tenant-invalidate-scoped-to-tenant",
+    "tenant-invalidate-batch-atomic",
+    "supply-answer-mapping",
+    "scope-end-only",
+    "scope-end-commit-conflict",
+    "scope-end-atomic-with-registration",
+    "replay-fence-closed-until-finish",
+    "replay-begin-invalidates-readers",
+    "replay-retry-and-conflict",
+    "replay-restores-projection",
+    "replay-capacity-unavailable",
+    "replay-cannot-reopen-ended",
+    "refresh-after-replay",
+    "out-of-order-recovered-by-replay"
 ];
 export type RuntimeContextObligation = (typeof RUNTIME_CONTEXT_OBLIGATIONS)[number];
 export declare function runtimeContextConformance<P>(): readonly ConformanceCase<RuntimeContextFixture<P>>[];
@@ -788,8 +1088,9 @@ export declare function runtimeContextConformance<P>(): readonly ConformanceCase
 ## 声明文件 `testing/extended-conformance.d.ts`
 
 ```ts
-import type { RuntimeContextFixture } from './conformance.js';
 import { type ConformanceCase } from './case.js';
+import { type RuntimeContextFixture } from './suite.js';
+import type { StatefulBlockDescriptor } from '../index.js';
 export declare const EXTENDED_OBLIGATIONS: readonly [
     'reissue-cannot-change-reader-consumer',
     'reissue-cannot-change-reader-scope',
@@ -814,14 +1115,16 @@ export declare const EXTENDED_OBLIGATIONS: readonly [
     'register-before-producer-then-incompatible-reads-missing'
 ];
 export declare function extendedConformance<P>(): readonly ConformanceCase<RuntimeContextFixture<P>>[];
+export declare function statefulDeclaration(persistence: 'untracked' | 'checkpointed'): StatefulBlockDescriptor<'suite.state', unknown, unknown>;
 ```
 
 ## 声明文件 `testing/fixtures.d.ts`
 
 ```ts
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { ScopeRef, SuppliedBlockDescriptor, RuntimeContextOperations, ProducerHandle, ContextReader, Eligibility, EligibilityMaterial } from '../index.js';
+import type { ScopeRef, SuppliedBlockDescriptor, RuntimeContextOperations, ProducerHandle, ContextReader, Eligibility, EligibilityMaterial, ReplayRef } from '../index.js';
 import type { TenantId } from '@omne-harness/legal-identity';
+import type { TestAuthorityPorts } from './ports.js';
 export declare const numberSchema: StandardSchemaV1<unknown, number>;
 export declare function scope(ref: string, parent?: ScopeRef): ScopeRef;
 export declare function declaration(overrides: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & {
@@ -834,16 +1137,32 @@ export declare function declaration(overrides?: Partial<SuppliedBlockDescriptor<
 }): SuppliedBlockDescriptor<'suite.value', unknown> & {
     volatility: 'stable';
 };
-export declare function setup<P>(subject: RuntimeContextOperations<P>, tenant: TenantId, principal: P, descriptor?: SuppliedBlockDescriptor<'suite.value', unknown> & {
-    volatility: 'stable';
-}, scopeRef?: ScopeRef): Promise<{
+export declare function openScope<P>(subject: RuntimeContextOperations<P>, ports: TestAuthorityPorts<P>, principal: P, target: ScopeRef, tenant: TenantId): Promise<ReplayRef>;
+export declare function requiredBinding(): {
+    readonly key: 'suite.value';
+    readonly need: {
+        readonly name: 'value';
+        readonly shape: StandardSchemaV1<unknown, number>;
+        readonly consumer: 'model';
+        readonly purpose: 'conformance';
+        readonly necessity: 'required';
+    };
+};
+export type Setup<P> = Readonly<{
     subject: RuntimeContextOperations<P>;
+    ports: TestAuthorityPorts<P>;
+    principal: P;
+    tenant: TenantId;
     scope: ScopeRef;
     handle: ProducerHandle<'suite.value'>;
     reader: ContextReader;
     eligibility: Eligibility<P>;
     material: EligibilityMaterial<P>;
 }>;
+export declare function setup<P>(subject: RuntimeContextOperations<P>, ports: TestAuthorityPorts<P>, tenant: TenantId, principal: P, descriptor?: SuppliedBlockDescriptor<'suite.value', unknown> & {
+    volatility: 'stable';
+}, scopeRef?: ScopeRef): Promise<Setup<P>>;
+export declare function snapshotValue(reader: ContextReader): Promise<unknown>;
 ```
 
 ## 声明文件 `testing/index.d.ts`
@@ -851,25 +1170,322 @@ export declare function setup<P>(subject: RuntimeContextOperations<P>, tenant: T
 ```ts
 export { createMemoryRuntimeContext } from './memory.js';
 export type { MemoryRuntimeContextOptions, MemoryRuntimeContext } from './memory.js';
+export { createTestAuthorityPorts } from './ports.js';
+export type { TestAuthorityPorts, AuthorityCall, AuthorityFace, AuthorityScript } from './ports.js';
 export { NotApplicable, runConformanceCase } from './case.js';
 export type { ConformanceCase, CaseVerdict } from './case.js';
 export { RUNTIME_CONTEXT_OBLIGATIONS, runtimeContextConformance } from './conformance.js';
-export type { RuntimeContextFixture, RuntimeContextObligation } from './conformance.js';
+export type { RuntimeContextFixture, RuntimeContextPorts, RuntimeContextObligation, } from './conformance.js';
+```
+
+## 声明文件 `testing/memory-holder.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ScopeRef, RegistrationChange, EligibilityId, EligibilityMaterial, CommitInput, ApplyCommitResult, PrepareRegistrationResult, IssueEligibilityResult, RevokeEligibilityResult } from '../index.js';
+import { type Authorized, type CheckFailure, type ScopeState, type World } from './memory-world.js';
+import type { Supplier } from './memory-producer.js';
+type Gate<P> = Authorized<P> | CheckFailure;
+export declare function holderGate<P>(world: World<P>, principal: P, action: Parameters<World<P>['options']['authority']['holder']>[1], scope: ScopeRef, tenant: TenantId): Promise<Gate<P>>;
+export declare function ownChange(change: RegistrationChange): RegistrationChange | undefined;
+export declare function ownCommit(input: CommitInput): CommitInput | undefined;
+export declare function createHolder<P>(world: World<P>, supplier: Supplier<P>): {
+    prepareRegistration: (principal: P, raw: RegistrationChange) => Promise<PrepareRegistrationResult>;
+    issueEligibility: (principal: P, raw: EligibilityMaterial<P>) => Promise<IssueEligibilityResult<P>>;
+    revokeEligibility: (principal: P, raw: EligibilityId) => Promise<RevokeEligibilityResult>;
+    applyCommit: (principal: P, raw: CommitInput) => Promise<ApplyCommitResult>;
+};
+export declare function storeRegistration<P>(world: World<P>, change: RegistrationChange, s: ScopeState): void;
+export {};
+```
+
+## 声明文件 `testing/memory-producer.d.ts`
+
+```ts
+import type { ContextBlockKey, ProducerRegistration, RegisterProducerResult } from '../index.js';
+import { type Producer, type ScopeState, type World } from './memory-world.js';
+export type SupplyOutcome = Readonly<{
+    kind: 'stored';
+}> | Readonly<{
+    kind: 'refused';
+}> | Readonly<{
+    kind: 'unknown';
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'stale';
+}> | Readonly<{
+    kind: 'value';
+    value: unknown;
+    generation: number;
+}> | Readonly<{
+    kind: 'none';
+}> | Readonly<{
+    kind: 'uninterpretable';
+}>;
+export type Supplier<P> = ReturnType<typeof createSupplier<P>>;
+export declare function createSupplier<P>(world: World<P>): {
+    registerProducer: <K extends ContextBlockKey>(principal: P, raw: ProducerRegistration<K, P>) => Promise<RegisterProducerResult<K>>;
+    supplyOnce: (producer: Producer<P>, s: ScopeState, store: boolean) => Promise<SupplyOutcome>;
+    producerFor: (s: ScopeState, key: ContextBlockKey) => Producer<P> | undefined;
+    afterRegistration: (s: ScopeState, key: ContextBlockKey) => Promise<void>;
+    drivesSupply: (producer: Producer<P>) => boolean;
+    isCurrent: (producer: Producer<P>) => boolean;
+};
+```
+
+## 声明文件 `testing/memory-reader.d.ts`
+
+```ts
+import type { EligibilityId, BindResult } from '../index.js';
+import { type World } from './memory-world.js';
+import type { Supplier } from './memory-producer.js';
+export declare function createReaders<P>(world: World<P>, supplier: Supplier<P>): {
+    bind: (raw: EligibilityId) => Promise<BindResult>;
+};
+```
+
+## 声明文件 `testing/memory-replay.d.ts`
+
+```ts
+import type { BeginReplayInput, BeginReplayResult, FinishReplayInput, FinishReplayResult } from '../index.js';
+import { type World } from './memory-world.js';
+export declare function createReplay<P>(world: World<P>): {
+    beginReplay: (principal: P, raw: BeginReplayInput) => Promise<BeginReplayResult>;
+    finishReplay: (principal: P, raw: FinishReplayInput) => Promise<FinishReplayResult>;
+};
+```
+
+## 声明文件 `testing/memory-world.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ScopeRef, ContextBlockKey, ContextBlockDescriptor, Registration, Eligibility, EligibilityId, CommitInput, ApplyCommitResult, RuntimeContextAuthority, ScopeBindingSource, AuthorityDecision, HolderDecision, CheckCause, CheckUnavailable, CheckUnknown, CommitRef, ReplayRef, FinishReplayResult, SupplyCallback, ProducerRef } from '../index.js';
+export type Descriptor = ContextBlockDescriptor<ContextBlockKey, unknown, unknown>;
+export type Stored = {
+    value: unknown;
+    revision: number;
+    generation: number | null;
+    present: boolean;
+    cause?: 'no-value' | 'source-unavailable' | 'producer-withdrawn' | 'uninterpretable';
+    unknown?: boolean;
+    refused?: boolean;
+};
+export type ReplaySession = {
+    ref: ReplayRef;
+    scope: string;
+    epoch: number;
+    through: CommitRef | null;
+    supersedes: ReplayRef | null;
+    finished: {
+        fingerprint: string;
+        result: FinishReplayResult;
+    } | null;
+};
+export type ScopeState = {
+    scope: ScopeRef;
+    tenant: TenantId;
+    revision: number;
+    view: number;
+    epoch: number;
+    registrations: Map<ContextBlockKey, Registration>;
+    values: Map<ContextBlockKey, Stored>;
+    fence: 'open' | 'closed';
+    ended: CommitRef | null;
+    replayEpoch: number;
+    replay: ReplaySession | null;
+    checkpoint: CommitRef | null;
+    needsSupply: Map<ContextBlockKey, number>;
+    supplySeq: Map<ContextBlockKey, number>;
+    commitsVersion: number;
+};
+export type Producer<P> = {
+    key: ContextBlockKey;
+    tenant: TenantId;
+    tenantText: string;
+    producer: ProducerRef;
+    principal: P;
+    generation: number;
+    scoped: boolean;
+    supply: SupplyCallback<unknown, P> | undefined;
+    declaration: Descriptor;
+    active: boolean;
+    inFlight: Set<Promise<unknown>>;
+};
+export type AppliedEntry = {
+    input: CommitInput;
+    digest: string;
+    result: ApplyCommitResult;
+};
+export type Authorized<P> = Readonly<{
+    principal: P;
+    current: () => boolean;
+}>;
+export type CheckFailure = Readonly<{
+    kind: 'refused';
+    reason: 'unauthorized';
+}> | CheckUnavailable | CheckUnknown;
+export type WorldOptions<P> = Readonly<{
+    authority: RuntimeContextAuthority<P>;
+    bindings: ScopeBindingSource;
+    retention: number;
+    replayCapacity: number;
+    supplyBoundMs: number;
+    settleBoundMs: number;
+}>;
+type Registered = {
+    s: ScopeState;
+    r: Registration;
+};
+type Decided<P> = Authorized<P> | CheckFailure | Readonly<{
+    kind: 'invalid';
+    reason: string;
+}>;
+export interface World<P> {
+    readonly options: WorldOptions<P>;
+    closed: boolean;
+    serial: number;
+    targetsVersion: number;
+    readonly incompatible: Set<string>;
+    readonly descriptors: Map<ContextBlockKey, Descriptor>;
+    readonly scopes: Map<string, ScopeState>;
+    readonly producers: Map<string, Producer<P>>;
+    readonly generations: Map<string, number>;
+    readonly eligibilities: Map<string, Eligibility<P>>;
+    readonly commits: Map<string, AppliedEntry>;
+    readonly sessions: Map<string, ReplaySession>;
+    readonly listeners: Set<(scope: ScopeRef, revision: number) => void>;
+    readonly catalog: {
+        get(key: ContextBlockKey): Descriptor | undefined;
+    };
+    state(scope: ScopeRef): ScopeState | undefined;
+    changed(s: ScopeState, key: ContextBlockKey | null): void;
+    put(s: ScopeState, key: ContextBlockKey, value: unknown, generation: number | null, present: boolean, cause?: Stored['cause']): void;
+    nextSeq(s: ScopeState, key: ContextBlockKey): number;
+    registration(scope: ScopeRef, key: ContextBlockKey): Registered | undefined;
+    currentEligibility(id: EligibilityId): Eligibility<P> | undefined;
+    newScope(scope: ScopeRef, tenant: TenantId): ScopeState;
+    decide(ask: () => Promise<AuthorityDecision<P> | HolderDecision<P>>): Promise<Decided<P>>;
+    bound(scope: ScopeRef, tenant: TenantId): Promise<CheckFailure | null>;
+}
+export declare function createWorld<P>(options: WorldOptions<P>): World<P>;
+export declare function isMinted(tenant: TenantId): boolean;
+export declare function tenantText(tenant: TenantId): string | undefined;
+export declare function isFailure<P>(value: Authorized<P> | CheckFailure | Readonly<{
+    kind: 'invalid';
+    reason: string;
+}>): value is CheckFailure | Readonly<{
+    kind: 'invalid';
+    reason: string;
+}>;
+export declare function unavailable(cause: CheckCause): CheckUnavailable;
+export declare function ownScope(value: ScopeRef, seen?: Set<object>): ScopeRef | undefined;
+export declare function ownData(value: unknown): {
+    value: unknown;
+} | undefined;
+export declare function digest(value: unknown): string;
+export {};
 ```
 
 ## 声明文件 `testing/memory.d.ts`
 
 ```ts
-import type { RuntimeContextOperations, ScopeRef } from '../index.js';
-export type MemoryRuntimeContextOptions = Readonly<{
+import type { RuntimeContextOperations, RuntimeContextAuthority, ScopeBindingSource, ScopeRef } from '../index.js';
+export type MemoryRuntimeContextOptions<P = unknown> = Readonly<{
+    authority: RuntimeContextAuthority<P>;
+    bindings: ScopeBindingSource;
     retention?: number;
+    replayCapacity?: number;
+    supplyBoundMs?: number;
+    settleBoundMs?: number;
 }>;
 export type MemoryRuntimeContext<P = unknown> = RuntimeContextOperations<P> & Readonly<{
     durability: 'none';
     close(): Promise<void>;
     onChange(listener: (scope: ScopeRef, revision: number) => void): () => void;
 }>;
-export declare function createMemoryRuntimeContext<P = unknown>(options?: MemoryRuntimeContextOptions): MemoryRuntimeContext<P>;
+export declare function createMemoryRuntimeContext<P = unknown>(options: MemoryRuntimeContextOptions<P>): MemoryRuntimeContext<P>;
+```
+
+## 声明文件 `testing/ports.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ScopeRef, ScopeBinding, ScopeBindingSource, RuntimeContextAuthority, HolderAction, HolderDecision, ProducerAction, Eligibility } from '../index.js';
+export type AuthorityFace = 'holder' | 'producer' | 'reader';
+export type AuthorityCall<P> = Readonly<{
+    face: 'holder';
+    principal: P;
+    action: HolderAction<P>;
+}> | Readonly<{
+    face: 'producer';
+    principal: P;
+    action: ProducerAction;
+}> | Readonly<{
+    face: 'reader';
+    principal: P;
+    eligibility: Eligibility<P>;
+}>;
+export type AuthorityScript<P> = (call: AuthorityCall<P>) => HolderDecision<P> | undefined;
+export type TestAuthorityPorts<P> = Readonly<{
+    authority: RuntimeContextAuthority<P>;
+    bindings: ScopeBindingSource;
+    bind(scope: ScopeRef, tenant: TenantId): void;
+    answerBinding(scope: ScopeRef, answer: ScopeBinding): void;
+    script(next: AuthorityScript<P> | undefined): void;
+    revokeAll(): void;
+    readonly calls: readonly AuthorityCall<P>[];
+}>;
+export declare function createTestAuthorityPorts<P>(): TestAuthorityPorts<P>;
+```
+
+## 声明文件 `testing/replay-conformance.d.ts`
+
+```ts
+import { type ConformanceCase } from './case.js';
+import { type RuntimeContextFixture } from './suite.js';
+export declare const REPLAY_OBLIGATIONS: readonly [
+    'scope-end-only',
+    'scope-end-commit-conflict',
+    'scope-end-atomic-with-registration',
+    'replay-fence-closed-until-finish',
+    'replay-begin-invalidates-readers',
+    'replay-retry-and-conflict',
+    'replay-restores-projection',
+    'replay-capacity-unavailable',
+    'replay-cannot-reopen-ended',
+    'refresh-after-replay',
+    'out-of-order-recovered-by-replay'
+];
+export declare function replayConformance<P>(): readonly ConformanceCase<RuntimeContextFixture<P>>[];
+```
+
+## 声明文件 `testing/suite.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { RuntimeContextOperations, RuntimeContextAuthority, ScopeBindingSource, ScopeRef } from '../index.js';
+import { type Setup } from './fixtures.js';
+import { type TestAuthorityPorts } from './ports.js';
+export type RuntimeContextPorts<P> = Readonly<{
+    authority: RuntimeContextAuthority<P>;
+    bindings: ScopeBindingSource;
+}>;
+export type RuntimeContextFixture<P = unknown> = Readonly<{
+    subject(ports: RuntimeContextPorts<P>): Promise<RuntimeContextOperations<P>>;
+    tenant: TenantId;
+    otherTenant: TenantId;
+    principal: P;
+    retention?: number;
+    replayCapacity?: number;
+    close?(subject: RuntimeContextOperations<P>): Promise<void>;
+}>;
+export declare function start<P>(fixture: RuntimeContextFixture<P>): Promise<{
+    subject: RuntimeContextOperations<P>;
+    ports: TestAuthorityPorts<P>;
+}>;
+export declare function started<P>(fixture: RuntimeContextFixture<P>): Promise<Setup<P>>;
+export declare function addScope<P>(s: Setup<P>, ref: string, required?: boolean): Promise<ScopeRef>;
 ```
 
 ## 声明文件 `update.d.ts`

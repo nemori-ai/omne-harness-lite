@@ -197,7 +197,10 @@ const decodeHostFacts: Decoder<ExecutionHostFactsValue> = (value, path) => {
 
 const observers: readonly ConsumerClass[] = Object.freeze(['model', 'tool', 'extension'])
 
-/** Current placements of one scope, as a list of original calls. */
+/**
+ * Current placements of one scope, as a list of original calls. Optional (PC-21): a lawful absence
+ * may be absent, but an unavailable, unknown, refused or uninterpretable source is never dropped.
+ */
 export const executionPlacementBlock: SuppliedBlockDescriptor<
   'execution.placement',
   ExecutionPlacementValue
@@ -206,7 +209,7 @@ export const executionPlacementBlock: SuppliedBlockDescriptor<
   key: 'execution.placement',
   schema: standardSchema(decodeArray(decodePlacementEntry)),
   consumers: observers,
-  required: true,
+  required: false,
   disclosure: 'plain',
   carriesPrevious: true,
   volatility: 'stable',
@@ -225,7 +228,7 @@ export const executionHostFactsBlock: SuppliedBlockDescriptor<
   key: 'execution.host-facts',
   schema: standardSchema(decodeHostFacts),
   consumers: observers,
-  required: true,
+  required: false,
   disclosure: 'plain',
   carriesPrevious: true,
   volatility: 'stable',

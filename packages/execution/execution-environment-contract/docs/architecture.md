@@ -10,18 +10,18 @@
 
 | 源文件 | 承载 | 条款 |
 | --- | --- | --- |
-| `identity.ts` | 访问身份 `Access`（再导出 legal-identity 的唯一定义）、原调用引用 `OriginRef`、获取幂等键 `AcquisitionRef`，以及两个引用的构造函数 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、[INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束) |
+| `identity.ts` | 访问身份 `Access`（再导出 legal-identity 的唯一定义）、原调用引用 `OriginRef`、获取键 `AcquisitionRef`，以及两个引用的构造函数 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、[INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束) |
 | `binding.ts` | 四种绑定层 `EnvironmentBinding`、连续性 `EnvironmentContinuity`、`bindingKinds`、`bindingScope` | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、[INV-EE06](../SPEC.md#inv-ee06-逻辑工作实例资源和数据不共用寿命) |
 | `requirement.ts` | 开放的隔离断言表 `IsolationClaims` 与环境要求 `EnvironmentRequirement` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足) |
 | `facility.ts` | 开放的设施表 `EnvironmentFacilities`、设施声明、设施请求、设施结果四态、拒绝原因，以及 `describeFacility` | [设施协议](../SPEC.md#设施协议) |
 | `facilities/files.ts`、`facilities/command.ts`、`facilities/terminal.ts` | 三个核心设施的接口与声明。三个文件各自增补 `EnvironmentFacilities` | [设施协议](../SPEC.md#设施协议)、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) |
 | `ports.ts` | 受管资源 `ManagedResource`，三个需要端口 `FacilityGuard`、`ResourceLedger`、`RecoveryAuthority`，恢复授权 `RecoveryAccess` 与 `createRecoveryAccess` | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)、[恢复](../SPEC.md#恢复) |
-| `lease.ts` | 提供者身份、实例身份、落点、采用记录、租约、获取状态、释放结果、拒绝原因与 `FacilitySet` | [获取与租约](../SPEC.md#获取与租约)、[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
-| `environment.ts` | 提供者接口 `EnvironmentProvider` 及其事实、回执、退役与恢复结果；操作面 `ExecutionEnvironment`；登记面 `ProviderRegistrations` | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
+| `lease.ts` | 提供者身份、实例身份、落点（带配额域）、采用记录、租约、获取状态、采用失败与清理状态、获取未知、原获取描述、两种查询与答复、释放结果、拒绝原因与 `FacilitySet` | [获取与租约](../SPEC.md#获取与租约)、[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
+| `environment.ts` | 提供者接口 `EnvironmentProvider` 及其事实、配额声明、回执、原获取状态、获取列出、结清、退役与恢复结果；环境授权端口 `EnvironmentAuthority` 与动作 `EnvironmentAction`；操作面 `ExecutionEnvironment`；登记面 `ProviderRegistrations` | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `need-declaration.ts` | 工具环境声明 `EnvironmentNeedDeclaration`、它的 Standard Schema 与采用身份 | [工具环境声明](../SPEC.md#工具环境声明) |
 | `blocks.ts` | 两条块声明及其值类型，增补 Runtime Context 的 `ContextBlocks` | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
 | `judge.ts` | 纯函数 `judgeRequirement` 与 `matchProviders` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[获取与租约](../SPEC.md#获取与租约) |
-| `operation-schemas.ts` | 三面八操作的参数、六个数据结果 schema 与索引 | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
+| `operation-schemas.ts` | 三面九操作的参数、七个数据结果 schema 与索引 | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
 | `testing/` | 非耐久替身、提供者与环境的契约用例列表 | [持续验证义务](../SPEC.md#持续验证义务) |
 | `decode.ts` | 内部解码器与 `standardSchema` 包装。根入口只再导出它的 `Issue` 类型，名为 `DecodeIssue` | [工具环境声明](../SPEC.md#工具环境声明) |
 
@@ -61,7 +61,7 @@ flowchart BT
 
 本成员不导入 `@deepseek-ai/cordis`。根入口按 [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 与 Cordis 无关，测试逐个源文件核对这一点，见 [Cordis 说明](cordis.md)。本成员也不导入 Tool、授权或任何上层工作流的契约。它们依赖本成员，反方向不成立。
 
-`operation-schemas.ts` 通过同一解码器形制提供三面八操作的参数与六个数据结果 schema。`testing/` 独立暴露非耐久替身与契约用例；测试框架由消费者选择，断言使用 `node:assert`。
+`operation-schemas.ts` 通过同一解码器形制提供三面九操作的参数与七个数据结果 schema。`testing/` 独立暴露非耐久替身与契约用例；测试框架由消费者选择，断言使用 `node:assert`。
 
 ## 关键机制与理由
 
@@ -97,17 +97,29 @@ flowchart BT
 
 理由：宿主机与租户级沙箱的绑定层不带作用域，但落在那里的工作仍属于某个作用域。如果只按绑定层的归属过滤，作用域释放之后，宿主机上的租约不会失效，同一作用域还能再获取；描述与落点块列不出宿主落点；提供者也不知道该把宿主进程或终端记在哪个作用域下，恢复枚举会漏掉它们。代价是每次落点解析与获取都要多传一个作用域，带作用域的绑定层还要与它核对一次。
 
-### 幂等获取
+### 访问核验先于读槽
 
-获取以集成方给的 `AcquisitionRef` 识别。同键重复请求返回同一状态，不重新分配。`AcquisitionState` 列出获取的全部状态，其中 `unrecorded` 表示本成员的实现没有调用方能看到的记录。`invalidInput` 是非法查询答复，不是获取记录。`Pending` 只用于获取存在但现在没有可用租约的状态。
+普通入口经两个集成方端口核对访问：`EnvironmentAuthority<P>` 对一个封闭的动作答授权判定，`ScopeBindingSource`（类型归 Runtime Context）答目标作用域绑定到哪个租户。先授权，再绑定；查询原获取时再核原获取描述的租户等于访问租户。拒绝、未绑定与错租户对外同为 `notAuthorized`（[访问核验](../SPEC.md#访问核验)）。
 
-理由：答复可能丢失。集成方用同一个键再问，得到原来那次获取的状态，资源不会分配两次。获取的耐久状态归集成方的账本，实现里的登记表只有进程内副本。重启之后，执行环境的实现对同一个键的 `inspectAcquisition` 答复 `unrecorded`；对同一个键再调用 `acquire` 会被当作新获取。所以集成方先查自己的账本，对账本里已有记录的键走恢复，不再调用 `acquire`（[获取与租约](../SPEC.md#获取与租约)）。跨租户查询同一个键也按无记录处理，不泄露另一租户是否有这个键。
+理由：槽的键含租户，若先读槽，冲突与认回的答复会让未获授权的调用方探测别人的键。绑定来源回答作用域属于谁，执行环境不从作用域文本解析租户。授权判定带同步的 `current()`，在最后的状态转移与采用之前再核，因为授权在等待提供者期间可能被撤销。代价是每次普通操作多两次端口调用，集成方要实现两个端口。
+
+### 同键认回与原获取
+
+获取以调用方租户加集成方给的 `AcquisitionRef` 识别。同键同描述的重复请求返回同一状态，不重新分配；描述不同为 `acquisitionConflict`。执行环境在调用提供者之前形成原获取描述 `OriginalAcquisition`，集成方保存它。提供者按配额域、租户与获取键持有原记录，并提供原获取查询、按作用域列出与结清。`AcquisitionState` 列出获取的全部存储状态；查询答复是另一组类型，`unrecorded` 与 `invalidInput` 都只是答复。
+
+理由：答复可能丢失。分配答复丢失时记为获取未知，同键不重发，而是查询原记录；原记录答已分配才采用。登记表重启之后，本地查询对同一个键答复 `unrecorded`，集成方用保存的原获取描述查询原获取，或由维护者结清，不用获取键去猜配额域（[原获取的查询与结清](../SPEC.md#原获取的查询与结清)）。跨租户查询同一个键也按无记录处理，不泄露另一租户是否有这个键。
+
+### 配额由提供者原子判定
+
+提供者按租户声明配额上界与可选的全局上界，并在 `acquire` 里一步核对与占用名额；名额只在全部责任确认结清时恰好返还一次。执行环境在获取之前只问配额能不能读（[配额与安全上界](../SPEC.md#配额与安全上界)）。
+
+理由：同一配额域可能有多份登记、多个登记表实例，只有原记录的拥有者能在一步里核对并占用。执行环境自己计数会与它竞争，并在答复丢失或清理未结清时提前返还。公平排队需要按租户的队列，放在集成方的协调者。
 
 ### 采用记录由本成员签发
 
-提供者的 `acquire` 只交回 `ProviderAcquisition`：一份租约原件加提供者证据。它是临时回执。执行环境的实现核验回执之后才签发 `EnvironmentAdoption` 并交付租约。核验的各项归 SPEC [获取与租约](../SPEC.md#获取与租约)：提供者仍在场、执行环境没有关闭、请求方作用域没有释放、回执的绑定层与落点一致、要求里的设施键都能从租约取到。访问身份由获取记录绑定，不在回执里核验（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本)）。
+提供者的 `acquire` 只交回 `ProviderAcquisition`：一份租约原件加提供者证据。它是临时回执。执行环境的实现核验回执之后才签发 `EnvironmentAdoption` 并交付租约。核验的各项归 SPEC [获取与租约](../SPEC.md#获取与租约)：提供者仍在场、执行环境没有关闭、请求方作用域没有释放、回执的绑定层与落点一致、要求里的设施键都能从租约取到、当前授权仍成立。访问身份由获取记录绑定，不在回执里核验（[INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本)）。
 
-理由：如果提供者自签采用记录，它就能凭自己的回执给自己授权。签发与核验放在本成员一侧，提供者证据只是证据。核验失败时实现尝试释放这份临时资源。释放待处置时，资源保留在原提供者的登记上，不当成没有分配。
+理由：如果提供者自签采用记录，它就能凭自己的回执给自己授权。签发与核验放在本成员一侧，提供者证据只是证据。核验失败时原获取永久转为采用失败，保留第一个确定的原因；实现经原回执清理，清理状态是已结清、待定或未知，后两种保留名额，不当成没有分配（[分配后采用失败与清理](../SPEC.md#分配后采用失败与清理)）。
 
 ### 账本先许可，后效果
 
@@ -117,9 +129,9 @@ flowchart BT
 
 ### 恢复授权独立于访问
 
-`recoverOwned` 与 `releaseScope` 接收 `RecoveryAccess`，不接收访问身份。`RecoveryAccess` 带一个模块内的 `unique symbol` 标记，序列化后标记丢失，所以它只能是原对象。持有它不授予任何权利；每次使用由集成方实现的 `RecoveryAuthority` 核对（[恢复](../SPEC.md#恢复)）。
+`recoverOwned`、`releaseScope` 与 `inspectRecoveryAcquisition` 接收 `RecoveryAccess`，不接收访问身份。`RecoveryAccess` 带一个模块内的 `unique symbol` 标记，序列化后标记丢失，所以它只能是原对象。持有它不授予任何权利；每次使用由集成方实现的 `RecoveryAuthority` 核对（[恢复](../SPEC.md#恢复)）。
 
-理由：用户撤权或退出不能阻断系统回收资源，所以收场的权利不来自用户访问。恢复授权只能用于停止、认回与结算一个作用域的受管资源，不能用于获取或新执行。签名把两种身份分开，类型检查就能拦住混用。
+理由：用户撤权或退出不能阻断系统回收资源，所以收场的权利不来自用户访问。恢复授权只能用于停止、认回与结算一个作用域的受管资源与获取，以及恢复查询，不能用于获取或新执行。签名把两种身份分开，类型检查就能拦住混用。
 
 ### 两条块声明
 
@@ -219,7 +231,7 @@ flowchart BT
 | 单一职责 | 每个模块只因一类变化而改：设施协议随设施操作改，租约与获取随获取协议改，块声明随观察内容改，纯函数随核对规则改 | 纯函数模块持有登记表、缓存或计时器。类型模块里出现服务键或提供者实现 |
 | 开闭 | 新设施只在设施拥有者的包里增补 `EnvironmentFacilities`。新隔离种类增补 `IsolationClaims`。新沙箱是新的提供者，放在新的提供者成员里，登记到同一个登记表，不是新的 Service 实现 | 本成员为某个提供者或某种上层工作流加特例分支，或在绑定层里加入上层工作流的标识 |
 | 里氏替换 | 每个提供者实现同一个 `EnvironmentProvider`。没有 `listRecoveryResources` 与 `recover` 的提供者明确记为不支持恢复，不伪造空列表 | 提供者以统一形状虚构它不支持的设施或隔离断言。按提供者名字判断能力 |
-| 接口隔离 | 集成方用 `ExecutionEnvironment`，提供者与设施拥有者用 `ProviderRegistrations`，维护者只用恢复两操作。三个端口各管一件事 | 一个聚合接口同时暴露获取、登记与恢复。设施守卫兼管资源许可 |
+| 接口隔离 | 集成方用 `ExecutionEnvironment`，提供者与设施拥有者用 `ProviderRegistrations`，维护者只用恢复两操作与恢复查询。五个端口各管一件事 | 一个聚合接口同时暴露获取、登记与恢复。设施守卫兼管资源许可 |
 | 依赖倒置 | 本成员只定义账本、守卫与恢复授权的端口，实现由集成方注入。本成员只依赖通用基础包与 Runtime Context 契约 | 导入 Cordis、Tool、授权或上层工作流的契约。纯函数调用存储端口或服务 |
 
 ## 技术后续设计与来源缺项
@@ -358,7 +370,9 @@ flowchart BT
 | 匹配沿允许清单的顺序，不选清单外的层，拒绝原因取最接近的一项 | `match-providers.spec.ts` | 落点的歧义拒绝与获取时的重新核对由机制成员验证 |
 | 需要声明接受开放的设施键，拒绝未知字段与不存在的绑定层，`digest` 等于 schema 文件字节的摘要 | `need-declaration.spec.ts` | 改 schema 文件时同步 `digest`，形状变化时前进 `revision` |
 | `FacilitySet` 只给出声明点名的设施，示例按公开入口编译 | `facility-set.spec-d.ts` | 无 |
-| SPEC 的其余行为条款 | 没有。本成员没有运行实现 | [持续验证义务](../SPEC.md#持续验证义务) V-EE01 至 V-EE22，由机制成员、提供者与集成方的组合验证 |
+| 三面九操作的参数与七个数据结果按 schema 逐项拒绝 | `operation-schemas.spec.ts` | 操作或结果变化时同步 |
+| 提供者套件十六项义务能否定坏提供者（含配额、原获取查询、列出与结清） | `provider-conformance.spec.ts` | 套件变化时同步；执行环境套件由登记表成员与 host-local 运行 |
+| SPEC 的其余行为条款 | 没有。本成员没有运行实现 | [持续验证义务](../SPEC.md#持续验证义务) V-EE01 至 V-EE27，由机制成员、提供者与集成方的组合验证 |
 
 维护规则：
 

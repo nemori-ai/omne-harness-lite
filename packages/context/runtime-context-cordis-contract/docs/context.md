@@ -38,7 +38,7 @@ inject: ['runtimeContext']
 
 ### 作用域持有者的适配器
 
-持有者的适配器用数组形式 `inject`，调用 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`。注册与步提交的耐久保存仍归持有者自己。服务重建或提供者换代之后，持有者按耐久顺序重放注册提交、交回 `checkpointed` 状态块的全值、重新签发资格（[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。
+持有者的适配器用数组形式 `inject`，调用 `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`beginReplay`、`finishReplay`。注册、步提交与作用域结束的耐久保存仍归持有者自己。服务重建或提供者换代之后，持有者经恢复会话用一份完整恢复材料装回作用域投影，再重新签发资格（[RC-09](../../runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)）。调用方主体是每个操作的第一个参数；两个权威端口由装配入口交给 Service 实现，本成员不为它们定义服务键（性质 9）。
 
 ### 只监听唤醒的一方
 
@@ -72,7 +72,7 @@ flowchart LR
 | [runtime-context-cordis](../../runtime-context-cordis/README.md) | `extends RuntimeContextService` | 抽象类、键、事件增补 |
 | 消费者一侧的适配器 | 对象形式 `inject`，按 [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 取类型 | `bind` |
 | 生产者插件 | 数组形式 `inject` | `registerProducer` |
-| 作用域持有者的适配器 | 数组形式 `inject` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit` |
+| 作用域持有者的适配器 | 数组形式 `inject` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`beginReplay`、`finishReplay` |
 | 监听唤醒的一方 | `import type {}` 与 `ctx.on` | 事件 |
 
 依赖方不导入提供者的实现入口（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。

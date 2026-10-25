@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { type ProviderAcquireInput } from '@omne-harness/execution-environment-contract'
+import {
+  createRecoveryAccess,
+  type ProviderAcquireInput,
+} from '@omne-harness/execution-environment-contract'
 import {
   environmentProviderConformance,
   executionEnvironmentConformance,
@@ -13,6 +16,7 @@ import {
 import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 import {
   hostObjectToken,
+  createHostFilesDomain,
   createHostFilesProvider,
 } from '@omne-harness/execution-environment-host-local'
 function tenant(account: string) {
@@ -32,16 +36,18 @@ function scope(): ProviderAcquireInput['scope'] {
   if (!valid(ref)) throw new Error('scope fixture')
   return { ref }
 }
-for (const test of executionEnvironmentConformance({
-  subject() {
+for (const test of executionEnvironmentConformance<string>({
+  subject(ports) {
     const environment = createEnvironmentRegistry<string>({
       recovery: createScriptedRecoveryAuthority(),
+      ...ports,
     })
     return {
       environment,
       access,
       otherAccess,
       scope: scope(),
+      recoveryAccess: createRecoveryAccess(),
       hooks: {
         close: async () => {
           await environment.close()
@@ -58,7 +64,7 @@ for (const test of executionEnvironmentConformance({
   })
 for (const test of environmentProviderConformance({
   subject() {
-    const provider = createHostFilesProvider()
+    const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
     let root: string | undefined
     return {
       provider,
@@ -110,10 +116,11 @@ for (const test of environmentProviderConformance({
 // These broken providers/registries are deliberately denied by the public cases, not by private checks.
 for (const fault of ['self-signed', 'retirement', 'repeat', 'declaration', 'scope'] as const)
   it('suite denies ' + fault, async () => {
-    const cases = executionEnvironmentConformance({
-      subject() {
+    const cases = executionEnvironmentConformance<string>({
+      subject(ports) {
         const registry = createEnvironmentRegistry<string>({
           recovery: createScriptedRecoveryAuthority(),
+          ...ports,
         })
         const environment = new Proxy(registry, {
           get(target, key, receiver) {

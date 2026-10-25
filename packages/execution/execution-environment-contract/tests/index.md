@@ -13,7 +13,7 @@
 - [facility-set.spec-d.ts](facility-set.spec-d.ts)：`FacilitySet`、示例与设施键的类型测试
 - [fixtures/](fixtures/index.md)：测试固定输入与机读导出清单
 
-- [operation-schemas.spec.ts](operation-schemas.spec.ts)：三面八操作与拒绝原因。
+- [operation-schemas.spec.ts](operation-schemas.spec.ts)：三面九操作、七个数据结果与拒绝原因。
 - [exports-inventory.spec.ts](exports-inventory.spec.ts)：共享库存工具核对。
 
-- [provider-conformance.spec.ts](provider-conformance.spec.ts)：公开提供者套件十项义务的直接消费、逐项坏提供者否定与惰性组装。
+- [provider-conformance.spec.ts](provider-conformance.spec.ts)：公开提供者套件十六项义务的直接消费、逐项坏提供者否定与惰性组装。

@@ -11,8 +11,8 @@ PACKAGE_TEMPLATE_DRAFT
 
 状态：Service 实现成员，`draft`。宿主文件使用一节已被接受，见 [SPEC 宿主文件使用](SPEC.md#宿主文件使用)。采用依据还有[系统页执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)与组的[主题与唯一拥有者](../docs/architecture.md#主题与唯一拥有者)。现在的实现情况如下：
 
-- 已实现：宿主文件设施的读取、查看、写入与关闭；宿主文件提供者；Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin` 与插件 `hostFilesPlugin`。
-- 未实现：`files` 的其余八项操作（现在返回 `unsupported`）、`command` 与 `terminal` 提供者、平台前提的探测、授予根限制、Runtime Context 两条块的发布、调用方类核对，以及两个插件经 `definePlugin`，见 SPEC [明确缺项](SPEC.md#明确缺项)。
+- 已实现：宿主文件设施的读取、查看、写入与关闭；宿主文件责任域 `createHostFilesDomain`；宿主文件提供者：每份获取一个门面、配额、原获取查询、获取枚举与结清；Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin` 与插件工厂 `createHostFilesPlugin(domain)`。
+- 未实现：`files` 的其余八项操作（现在返回 `unsupported`）、`command` 与 `terminal` 提供者、平台前提的探测、授予根限制、Runtime Context 两条块的发布、调用方类核对、两个插件经 `definePlugin`，以及进程结束之后对旧容量的结清（需要域外的进程退出证据，见 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)），见 SPEC [明确缺项](SPEC.md#明确缺项)。
 - 未验证：同一 isolate 标签下重复装载失败、配置校验失败，都没有测试。
 
 现在没有应用装配本成员，也没有包依赖本成员。
@@ -21,43 +21,48 @@ PACKAGE_TEMPLATE_DRAFT
 
 本成员有两个入口：
 
-- `@omne-harness/execution-environment-host-local/cordis`：插件。应用装配者装载服务、`files` 声明插件与宿主文件插件。
-- `@omne-harness/execution-environment-host-local`：不依赖 Cordis 的宿主文件设施、对象身份读取与宿主文件提供者。
+- `@omne-harness/execution-environment-host-local/cordis`：插件。应用装配者装载服务、三个端口服务、`files` 声明插件与宿主文件插件。
+- `@omne-harness/execution-environment-host-local`：不依赖 Cordis 的宿主文件设施、对象身份读取、宿主文件责任域与宿主文件提供者。
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
+import { createHostFilesDomain } from '@omne-harness/execution-environment-host-local'
 import {
   ExecutionEnvironmentRegistry,
+  createHostFilesPlugin,
   filesFacilityPlugin,
-  hostFilesPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
 
+// 进程宿主只创建一次责任域，插件重载时保留它。
+const domain = createHostFilesDomain()
 const ctx = new Context()
-await ctx.plugin(ExecutionEnvironmentRegistry)
+await ctx.plugin(MyEnvironmentAuthority)
+await ctx.plugin(MyScopeBinding)
 await ctx.plugin(MyRecoveryAuthority)
+await ctx.plugin(ExecutionEnvironmentRegistry)
 await ctx.plugin(filesFacilityPlugin)
-await ctx.plugin(hostFilesPlugin)
+await ctx.plugin(createHostFilesPlugin(domain))
 ```
 
-`MyRecoveryAuthority` 是 `@omne-harness/execution-environment-cordis-contract/cordis` 的 `ExecutionRecoveryAuthorityService` 的子类，由集成方的维护拥有者实现。服务每次恢复操作现取它；没有装载时恢复答不可用。调用方插件经服务定义使用服务，不导入本成员。执行适配用根入口的 `hostObjectToken` 点名对象。装配、点名与独立使用见[使用与定位](docs/context.md#使用方式)。
+`MyEnvironmentAuthority`、`MyScopeBinding` 与 `MyRecoveryAuthority` 分别是 `@omne-harness/execution-environment-cordis-contract/cordis` 的 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService` 与 `ExecutionRecoveryAuthorityService` 的子类，由集成方实现。服务每次使用时从自己装载时的上下文现取；没有装载时答不可用，不放行。调用方插件经服务定义使用服务，不导入本成员。执行适配用根入口的 `hostObjectToken` 点名对象。装配、点名与独立使用见[使用与定位](docs/context.md#使用方式)。
 
 ## 契约
 
 - 公开形状归 `src/`。导出索引归[公开接口页](docs/public-api.md)。
 - 类型以外的行为归 [SPEC](SPEC.md)：宿主提供者的事实、宿主文件使用（已接受）、其余现行行为、Service 实现与撤除顺序。
-- 宿主文件使用的机制与运行记录归[内部架构的宿主文件使用](docs/architecture.md#宿主文件使用)。
+- 宿主文件使用的机制归[内部架构的宿主文件使用](docs/architecture.md#宿主文件使用)，运行记录归 SPEC [组合与验证](SPEC.md#组合与验证)。
 - 插件、配置、登记即效应、撤除顺序与 IC 映射归 [Cordis 说明](docs/cordis.md)。
 - 服务键与抽象类归 [execution-environment-cordis-contract](../execution-environment-cordis-contract/docs/cordis.md)。
 
-服务插件的 fiber 拥有服务实例与登记表实例。服务卸载时关闭登记表：拒新请求，使租约失效，退役全部提供者；退役待处置时撤除函数抛出 `RetirementPending`。fiber 卸载时 Cordis 把这个错误写入 `ctx.logger`，卸载照常完成；调用方直接调用返回的撤除函数时可以重试。`filesFacilityPlugin` 的 fiber 拥有 `files` 设施声明的登记，`hostFilesPlugin` 的 fiber 拥有宿主文件提供者的登记。撤除不撤回已写入的字节。
+服务插件的 fiber 拥有服务实例与登记表实例。服务卸载时关闭登记表：拒新请求，使租约失效，退役全部提供者；退役待处置时撤除函数抛出 `RetirementPending`。fiber 卸载时 Cordis 把这个错误写入 `ctx.logger`，卸载照常完成；调用方直接调用返回的撤除函数时可以重试。`filesFacilityPlugin` 的 fiber 拥有 `files` 设施声明的登记，宿主文件插件的 fiber 拥有一代宿主文件提供者。责任域比插件活得久：重载后的插件加入同一个责任域，看到原占用与原获取。撤除不撤回已写入的字节。
 
 ## 设计
 
-根入口有宿主文件设施与宿主文件提供者两个模块，`./cordis` 有 Service 子类与两个插件。包外依赖是 execution-environment-contract、execution-environment、execution-environment-cordis-contract 与 `@deepseek-ai/cordis`。宿主文件设施只核对对象身份，租户与守卫由登记表的租约视图核对。一个提供者共用一个设施实例，并记录在途的文件操作。账本关闭后由登记表的门以 `closed` 拒绝操作，提供者不查账本。退役时提供者不再接纳新操作，并等在途操作结束，最多 `drainBoundMs`，超界为待处置。Service 子类只转发与管理生命周期。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+根入口有宿主文件设施、宿主文件责任域与宿主文件提供者三个模块，`./cordis` 有 Service 子类与两个插件。包外依赖是 execution-environment-contract、execution-environment、execution-environment-cordis-contract、legal-identity、runtime-context-contract（只用类型）与 `@deepseek-ai/cordis`。宿主文件设施只核对对象身份，租户与守卫由登记表的租约视图核对。责任域持有一个共用的文件引擎；每份获取有自己的门面：自己的准入、在途操作，以及关闭失败的描述符上的所有者标签。释放、结清或退役先封门面，最多等 `drainBoundMs`，再重试失败的关闭。只有什么都不剩时，名额才返还，且只返还一次；否则答待处置，资源清单可以为空。账本关闭后由登记表的门以 `closed` 拒绝操作，提供者不查账本。Service 子类只转发与管理生命周期。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
-Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。`hostFilesPlugin` 另接受 `drainBoundMs`：有限的非负毫秒数，是宿主提供者退役等在途文件操作的上界，初值 10000。退役超界时，`ctx.logger` 收到一条带在途数目的错误级诊断。恢复授权端口以 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
+Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。宿主文件插件另接受 `drainBoundMs`：有限的非负毫秒数，是释放、结清或退役等在途文件操作的上界，初值 10000。结果为待处置时，`ctx.logger` 收到一条错误级诊断。配额策略是 `createHostFilesDomain` 的选项，不是插件配置；初值是每租户 64 个未结清的获取，没有全局上界。三个端口以 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
 
 宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。没有探测，所以前提报 `unknown`。
 
@@ -69,7 +74,7 @@ Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。八个测试文件共七十九个测试，见 [tests/](tests/README.md)。文件字节、符号链接与对象替换用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；有一个测试文件用模块替身让一次 `open` 停住，使文件操作保持在途。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；2026-10-21 在 Node v24.18.0、linux 上，七十九个测试全部通过。授予根限制、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。十个测试文件共一百四十八个测试，见 [tests/](tests/README.md)。文件字节、符号链接、对象替换与描述符用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；两个测试文件用模块替身让 `open` 停住，使文件操作保持在途；两个测试文件让活描述符上的 `FileHandle.close` 失败。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；当前的运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。授予根限制、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -90,12 +95,12 @@ documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       模块、依赖、关键机制、宿主文件使用（已接受）
 ├── flows.md              F-EEH01 至 F-EEH03 机制流程
-├── object-model.md       服务实例、提供者、设施实例与句柄代际
+├── object-model.md       服务实例、责任域、提供者、获取记录与句柄代际
 ├── public-api.md         导出入口与定义索引
 ├── context.md            装配、点名、独立使用与定位
 └── cordis.md             插件、配置、登记即效应、撤除顺序与 IC 映射
-src/                      index.ts、host-files.ts、host-provider.ts、cordis.ts
-tests/                    八个测试文件，fixtures/ 现在为空
+src/                      index.ts、host-files.ts、host-domain.ts、host-provider.ts、cordis.ts
+tests/                    十个测试文件与一个测试辅助，fixtures/ 现在为空
 schema/                   现在为空，配置 Schema 写在 src/cordis.ts
 verification/             models/ 与 proofs/，现在为空
 adr/                      现在为空

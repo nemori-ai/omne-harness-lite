@@ -5,8 +5,9 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责与现状
-- [index.ts](index.ts)：根入口，重导出三个函数
-- [host-files.ts](host-files.ts)：宿主文件设施与对象身份读取
+- [index.ts](index.ts)：根入口，重导出四个函数与类型
+- [host-files.ts](host-files.ts)：宿主文件设施、对象身份读取与共用文件引擎
+- [host-domain.ts](host-domain.ts)：宿主文件责任域：获取记录、门面、配额与排空
 - [host-provider.ts](host-provider.ts)：宿主文件提供者
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、插件与两份配置 Schema
 

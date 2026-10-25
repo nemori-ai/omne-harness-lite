@@ -6,7 +6,14 @@ import type { RegistrationRevision, ViewRevision, BlockRevision, Generation } fr
 export type Cursor = Readonly<{ cursor: string }>
 
 /** Why a read is refused (RC-03 读取结果 表「拒绝」行). No unauthorized content, no source internals. */
-export type ReadRefusalReason = 'unauthorized' | 'no-registration' | 'closed'
+export type ReadRefusalReason =
+  | 'unauthorized'
+  | 'no-registration'
+  | 'closed'
+  /** The scope ended; disclosed only after authorization (RC-09). */
+  | 'scope-ended'
+  /** The replay disclosure fence of the scope is closed (RC-09). */
+  | 'replay-incomplete'
 /** Why a required value is missing (「缺项」行). */
 export type MissingCause =
   | 'no-value'
@@ -15,7 +22,15 @@ export type MissingCause =
   | 'translation-failed'
   | 'uninterpretable'
 /** Why the outcome is unknown (「未知」行). */
-export type UnknownCause = 'source-unknown' | 'eligibility-unknown' | 'commit-unknown'
+export type UnknownCause =
+  | 'source-unknown'
+  /** The reader authority was unavailable or unknown. */
+  | 'eligibility-unknown'
+  | 'commit-unknown'
+  /** The trusted scope binding was unavailable or unknown. */
+  | 'scope-binding-unknown'
+  /** The replay coverage could not be confirmed. */
+  | 'replay-unknown'
 
 export type MissingItem = Readonly<{
   key: ContextBlockKey

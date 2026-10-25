@@ -5,6 +5,7 @@ import {
   runtimeContextConformance,
   runConformanceCase,
 } from '@omne-harness/runtime-context-contract/testing'
+import type { RuntimeContextPorts } from '@omne-harness/runtime-context-contract/testing'
 const first = tenantCodec.parse(
   JSON.stringify({
     organization: 'org_00000000000000000000000000',
@@ -24,8 +25,13 @@ const fixture = {
   otherTenant: second.value,
   principal: 'suite',
   retention: 64,
-  subject: async () => {
-    const subject = createMemoryRuntimeContext<string>()
+  replayCapacity: 8,
+  subject: async (ports: RuntimeContextPorts<string>) => {
+    const subject = createMemoryRuntimeContext<string>({
+      ...ports,
+      retention: 64,
+      replayCapacity: 8,
+    })
     closers.set(subject, () => subject.close())
     return subject
   },

@@ -24,7 +24,7 @@
 | [architecture.md](architecture.md) | 两个入口、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-EED01 提供者登记与撤除、F-EED02 调用方类声明与读取 |
 | [object-model.md](object-model.md) | 两个技术对象与一项类型增补。领域对象指向契约的对象模型 |
-| [public-api.md](public-api.md) | 两个入口，`./cordis` 的导出与八个方法的契约位置 |
+| [public-api.md](public-api.md) | 两个入口，`./cordis` 的导出与九个方法的契约位置 |
 | [context.md](context.md) | 各类依赖方的用法与定位 |
 
-八个模板方法已核对调用方类，相关读数由真实装载测试固定；候选 basis 登记仍归拥有者，见 [Cordis 说明](cordis.md#机制读数与假设)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+九个模板方法已核对调用方类，相关读数由真实装载测试固定；候选 basis 登记仍归拥有者，见 [Cordis 说明](cordis.md#机制读数与假设)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

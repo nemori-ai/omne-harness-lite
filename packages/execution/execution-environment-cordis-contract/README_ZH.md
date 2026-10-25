@@ -6,12 +6,12 @@
 
 ## 职责与状态
 
-本成员只拥有执行环境这一接缝的 Cordis 定义：服务键 `executionEnvironment`、抽象类 `ExecutionEnvironmentService<P>`、intercept 配置类型 `ExecutionEnvironmentIntercept`，以及 `Context` 增补。八个方法的领域行为归 [execution-environment-contract](../execution-environment-contract/README_ZH.md)，登记表机制归 [execution-environment](../execution-environment/README_ZH.md)，Service 实现与宿主提供者归 [execution-environment-host-local](../execution-environment-host-local/README_ZH.md)。本成员只认通用角色：集成方、维护者、提供者与设施拥有者。
+本成员只拥有执行环境这一接缝的 Cordis 定义：服务键 `executionEnvironment`、抽象类 `ExecutionEnvironmentService<P>`、intercept 配置类型 `ExecutionEnvironmentIntercept`、三个端口服务（恢复授权 `executionRecoveryAuthority`、环境授权 `executionEnvironmentAuthority`、可信绑定 `executionScopeBinding`）的键与抽象类，以及 `Context` 增补。九个方法的领域行为归 [execution-environment-contract](../execution-environment-contract/README_ZH.md)，登记表机制归 [execution-environment](../execution-environment/README_ZH.md)，Service 实现与宿主提供者归 [execution-environment-host-local](../execution-environment-host-local/README_ZH.md)。本成员只认通用角色：集成方、维护者、提供者与设施拥有者。
 
 状态：Cordis 定义成员，`draft`。采用依据是[系统页执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
 - 已实现：`./cordis` 导出抽象类与键常量，并声明 intercept 配置类型与 `Context` 增补。根入口是空导出。
-- 已实现：八个模板方法先核对调用方类，再委托受保护钩子；登记面必须声明 provider，环境与恢复面未声明放行。见 [Cordis 说明](docs/cordis.md#intercept-配置与调用方类)。
+- 已实现：九个模板方法先核对调用方类，再委托受保护钩子；登记面必须声明 provider，环境与恢复面未声明放行。见 [Cordis 说明](docs/cordis.md#intercept-配置与调用方类)。
 - 已有测试：三类调用方、未声明/非法/祖先声明、三条机制读数、调用方效应、导出清单与入口导入边界。候选读数的 basis 登记与交付接受仍独立判断。
 
 现在 execution-environment-host-local 依赖本成员。
@@ -43,10 +43,10 @@ export function apply(ctx: Context) {
 ## 契约
 
 - 公开形状归 `src/cordis.ts`。
-- 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 8。
+- 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 10。
 - 服务定义、方法分面、intercept 配置、登记与撤除协议、依赖分类与 IC 符合性映射归 [Cordis 说明](docs/cordis.md)。
 - 导出索引归[公开接口页](docs/public-api.md)。
-- 八个方法的输入、结果与失败归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)。
+- 九个方法的输入、结果与失败归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)。
 
 本成员不持有资源。设施声明与提供者的登记寿命归调用方插件的 fiber。服务撤除时的关闭顺序与退役待处置的报告归 Service 实现。
 
@@ -66,7 +66,7 @@ export function apply(ctx: Context) {
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。入口测试在真实 Cordis 4.0.4 中核对八方法、装载卸载、分面拒绝、调用方效应与三条机制读数，库存测试对照构建产物。覆盖和限制见 [tests/](tests/README.md)。结构检查通过不表示全部环境行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。入口测试在真实 Cordis 4.0.4 中核对九方法、装载卸载、分面拒绝、调用方效应与三条机制读数，库存测试对照构建产物。覆盖和限制见 [tests/](tests/README.md)。结构检查通过不表示全部环境行为已验证。
 
 ## 维护
 
@@ -80,7 +80,7 @@ pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```text
 README.md、README_ZH.md   入口：用途、状态与本结构图
 index.md                  全包的阅读路径
-SPEC.md                   类型以外的行为，性质 1 至 8
+SPEC.md                   类型以外的行为，性质 1 至 10
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       两个入口、依赖、关键机制与理由

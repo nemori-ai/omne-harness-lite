@@ -1,7 +1,6 @@
 // The lease view: which keys resolve, the per-operation gate, invalidation and release.
 import { expect, it } from 'vitest'
 import {
-  acquisitionRef,
   originRef,
   commandFacility,
   describeFacility,
@@ -33,6 +32,8 @@ import {
   startRequest,
   tenantFrom,
   type Calls,
+  stateOf,
+  openPorts,
 } from './doubles.ts'
 
 function terminalStub(): TerminalFacility<unknown> {
@@ -53,7 +54,18 @@ async function hostLease(script: Parameters<typeof scriptedProvider>[0] = {}, gu
 }
 
 it('resolves only the keys of the requirement, even when the provider lease has more', async () => {
-  const calls: Calls = { acquire: 0, release: 0, retire: 0, start: 0, list: 0, recover: 0 }
+  const calls: Calls = {
+    acquire: 0,
+    release: 0,
+    retire: 0,
+    start: 0,
+    list: 0,
+    recover: 0,
+    quota: 0,
+    inspect: 0,
+    listAcquisitions: 0,
+    settle: 0,
+  }
   const provider = scriptedProvider({
     keys: ['command', 'terminal'],
     facilities: { command: commandStub(calls), terminal: terminalStub() },
@@ -135,7 +147,7 @@ it('checks the tenant with the owner equality, so a reparsed tenant passes and a
 
 it('lets an open operation through without asking the guard', async () => {
   const provider = scriptedProvider()
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(describeFacility('command', { start: 'open' }))
   registry.registerProvider(provider)
   const refusing: FacilityGuard<string> = {
@@ -206,7 +218,7 @@ async function leaseOnLedger(
 
 it('answers closed without calling the facility once the acquisition ledger is closed', async () => {
   const provider = scriptedProvider()
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   const removeDeclaration = registry.registerFacility(commandFacility)
   registry.registerProvider(provider)
   let asked = 0
@@ -258,7 +270,7 @@ it('refuses as closed when the acquisition ledger closes while the guard is answ
 
 it('refuses operations on a facility object after its declaration is removed', async () => {
   const provider = scriptedProvider()
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   const removeDeclaration = registry.registerFacility(commandFacility)
   registry.registerProvider(provider)
   const acquired = await leased(registry, await placed(registry, requirement([host])))
@@ -275,7 +287,7 @@ it('refuses operations on a facility object after its declaration is removed', a
 
 it('answers closed, not unsupported, when the lease is released and its declaration removed', async () => {
   const provider = scriptedProvider()
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   const removeDeclaration = registry.registerFacility(commandFacility)
   registry.registerProvider(provider)
   const acquired = await leased(registry, await placed(registry, requirement([host])))
@@ -298,7 +310,7 @@ it('records a provider-reported invalidation once, as the provider reason', asyn
     reason: 'scopeReleased',
   })
   await registry.close()
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'invalidated',
     adoption: acquired.adoption,
     invalidation: { source: 'provider', reason: 'scopeReleased' },
@@ -318,7 +330,7 @@ it('invalidates with providerInvalidated when the provider notice ends in a reje
     source: 'registry',
     reason: 'providerInvalidated',
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toMatchObject({
+  expect(await stateOf(registry, accessA, 'acq-1')).toMatchObject({
     kind: 'invalidated',
     invalidation: { source: 'registry', reason: 'providerInvalidated' },
   })
@@ -331,14 +343,14 @@ it('closes the lease to new operations as soon as a release starts, and keeps it
     release: () => answer.promise,
   })
   const releasing = acquired.lease.release()
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'releasing',
     adoption: acquired.adoption,
   })
   expect(await command.start(startRequest('while-releasing'))).toMatchObject({ reason: 'closed' })
   answer.resolve({ kind: 'pending', resources: [resource('r1')] })
   expect(await releasing).toEqual({ kind: 'pending', resources: [resource('r1')] })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'pendingRelease',
     adoption: acquired.adoption,
     resources: [resource('r1')],
@@ -364,7 +376,7 @@ it('retries a pending release, shares a concurrent one, and answers released wit
     source: 'registry',
     reason: 'released',
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'released',
     adoption: acquired.adoption,
   })
@@ -379,7 +391,7 @@ it('treats a throwing release as pending with no known resources', async () => {
     },
   })
   expect(await acquired.lease.release()).toEqual({ kind: 'pending', resources: [] })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'pendingRelease',
     adoption: acquired.adoption,
     resources: [],
@@ -404,7 +416,7 @@ it('refuses another original call before guard or facility', async () => {
 
 it('checks original call on an open operation too', async () => {
   const provider = scriptedProvider()
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(describeFacility('command', { start: 'open' }))
   registry.registerProvider(provider)
   const acquired = await leased(registry, await placed(registry, requirement([host])))

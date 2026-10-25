@@ -5,20 +5,27 @@ import type {
   RegisterProducerResult,
   RuntimeContextOperations,
   ConsumerClass,
+  ScopeRef,
 } from '@omne-harness/runtime-context-contract'
-import { createMemoryRuntimeContext } from '@omne-harness/runtime-context-contract/testing'
+import type { TenantId } from '@omne-harness/legal-identity'
+import {
+  createMemoryRuntimeContext,
+  createTestAuthorityPorts,
+} from '@omne-harness/runtime-context-contract/testing'
 import { RuntimeContextService } from '@omne-harness/runtime-context-cordis-contract/cordis'
 
 /** A fixture provider only. The product definition imports no implementation or stand-in. */
 export class Probe extends RuntimeContextService {
-  readonly memory = createMemoryRuntimeContext()
+  readonly ports = createTestAuthorityPorts<unknown>()
+  readonly memory = createMemoryRuntimeContext<unknown>(this.ports)
   readonly consumers: (ConsumerClass | undefined)[] = []
   async registerProducer<K extends ContextBlockKey>(
+    principal: unknown,
     registration: ProducerRegistration<K>,
   ): Promise<RegisterProducerResult<K>> {
     let pending: Promise<RegisterProducerResult<K>> | undefined
     const dispose = this.ctx.effect(async () => {
-      pending = this.memory.registerProducer(registration)
+      pending = this.memory.registerProducer(principal, registration)
       const result = await pending
       return async () => {
         if (result.kind === 'registered') await result.handle.dispose()
@@ -48,6 +55,42 @@ export class Probe extends RuntimeContextService {
   }
   applyCommit(...args: Parameters<RuntimeContextOperations['applyCommit']>) {
     return this.memory.applyCommit(...args)
+  }
+  beginReplay(...args: Parameters<RuntimeContextOperations['beginReplay']>) {
+    return this.memory.beginReplay(...args)
+  }
+  finishReplay(...args: Parameters<RuntimeContextOperations['finishReplay']>) {
+    return this.memory.finishReplay(...args)
+  }
+  /** Fixture only: binds and opens the scope and registers one optional block in it. */
+  async prepare(target: ScopeRef, tenant: TenantId, key: ContextBlockKey): Promise<void> {
+    this.ports.bind(target, tenant)
+    const begun = await this.memory.beginReplay('probe', {
+      scope: target,
+      tenant,
+      through: null,
+      supersedes: null,
+    })
+    if (begun.kind !== 'replaying') throw new Error('Replay refused')
+    const empty = { registrations: [], checkpoints: [], end: null }
+    const ready = await this.memory.finishReplay('probe', { replay: begun.replay, material: empty })
+    if (ready.kind !== 'ready') throw new Error('Replay not ready')
+    const applied = await this.memory.applyCommit('probe', {
+      kind: 'registration',
+      commit: { commit: target.ref },
+      change: {
+        kind: 'add',
+        creating: true,
+        scope: target,
+        tenant,
+        key,
+        basedOn: 0,
+        required: false,
+        bindings: [],
+        parameters: undefined,
+      },
+    })
+    if (applied.kind !== 'applied') throw new Error('Registration refused')
   }
   async bind(
     ...args: Parameters<RuntimeContextOperations['bind']>

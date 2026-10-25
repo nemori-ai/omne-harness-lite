@@ -21,7 +21,7 @@
 
 定义见 [cordis.ts](../src/cordis.ts)。
 
-- `RuntimeContextService`：抽象类，实现三面六操作。方法参数与结果从根契约推导；登记方法保留块键泛型。
+- `RuntimeContextService`：抽象类，实现三面八操作。方法参数与结果从根契约推导；登记方法保留块键泛型。
 - `runtimeContextKey`：只取自类的 provide。
 - `runtimeContextScopeKey`：监听上下文的作用域标记键。
 - `RuntimeContextIntercept`：调用方声明的消费者类。它不是读取资格。

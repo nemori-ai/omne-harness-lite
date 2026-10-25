@@ -45,6 +45,12 @@ export abstract class RuntimeContextService<P = unknown>
   abstract applyCommit(
     ...args: Operation<P, 'applyCommit'>['args']
   ): Operation<P, 'applyCommit'>['result']
+  abstract beginReplay(
+    ...args: Operation<P, 'beginReplay'>['args']
+  ): Operation<P, 'beginReplay'>['result']
+  abstract finishReplay(
+    ...args: Operation<P, 'finishReplay'>['args']
+  ): Operation<P, 'finishReplay'>['result']
   /** The provider compares caller intercept consumer with the current eligibility consumer. */
   abstract bind(...args: Operation<P, 'bind'>['args']): Operation<P, 'bind'>['result']
 }

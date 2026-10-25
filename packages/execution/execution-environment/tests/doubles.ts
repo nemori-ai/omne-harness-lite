@@ -1,14 +1,24 @@
 // Test doubles shared by the registry tests: tenants, scopes, a ledger, guards and a scripted
 // provider whose answers each test chooses. None of them touches machine resources.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { ScopeRef } from '@omne-harness/runtime-context-contract'
+import type {
+  ScopeBinding,
+  ScopeBindingSource,
+  ScopeRef,
+} from '@omne-harness/runtime-context-contract'
 import {
   acquisitionRef,
   bindingScope,
   commandFacility,
   originRef,
   type Access,
+  type AcquisitionListing,
+  type AcquisitionSettlement,
   type CommandFacility,
+  type EnvironmentAuthority,
+  type OriginalAcquisition,
+  type ProviderAcquisitionStatus,
+  type QuotaAnswer,
   type EnvironmentBinding,
   type EnvironmentContinuity,
   type EnvironmentFacilities,
@@ -79,6 +89,61 @@ export const ledger: ResourceLedger = {
 export const allow: FacilityGuard<string> = { authorize: async () => 'authorized' }
 export const recovery: RecoveryAuthority = { authorizeRecovery: async () => 'authorized' }
 
+/** An environment authority that authorizes every action until a test revokes it. */
+export function openAuthority() {
+  let revision = 0
+  const calls: Parameters<EnvironmentAuthority<string>['authorize']>[1][] = []
+  const authority: EnvironmentAuthority<string> = {
+    async authorize(access, action) {
+      calls.push(action)
+      const issued = revision
+      return { kind: 'authorized', principal: access.principal, current: () => issued === revision }
+    },
+  }
+  return Object.assign(authority, {
+    calls,
+    revokeAll() {
+      revision++
+    },
+  })
+}
+
+/**
+ * A trusted binding source for tests. Every scope is bound to tenant A unless a test binds it to
+ * another tenant or scripts another answer.
+ */
+export function bindingTable() {
+  const table = new Map<string, ScopeBinding>()
+  const source: ScopeBindingSource = {
+    async lookup(scopeRef) {
+      return table.get(scopeRef.ref) ?? { kind: 'bound', tenant: tenantA }
+    },
+  }
+  return Object.assign(source, {
+    bind(scopeRef: ScopeRef, tenant: TenantId) {
+      table.set(scopeRef.ref, { kind: 'bound', tenant })
+    },
+    answer(scopeRef: ScopeRef, binding: ScopeBinding) {
+      table.set(scopeRef.ref, binding)
+    },
+  })
+}
+
+/** The scope bound to tenant B by `openPorts`. */
+export const scopeB = scope('scope-b')
+
+/** Open access ports: every action authorized; every scope bound to tenant A except `scopeB`. */
+export function openPorts() {
+  const bindings = bindingTable()
+  bindings.bind(scopeB, tenantB)
+  return { authority: openAuthority(), bindings }
+}
+
+/** The local query of one acquisition key. */
+export function local(acquisition: string) {
+  return { kind: 'local', acquisition: acquisitionRef(acquisition) } as const
+}
+
 export function resource(key: string, provider = 'scripted'): ManagedResource {
   return { key, provider, reference: { kind: 'string', value: key } }
 }
@@ -90,6 +155,10 @@ export type Calls = {
   start: number
   list: number
   recover: number
+  quota: number
+  inspect: number
+  listAcquisitions: number
+  settle: number
 }
 
 export function commandStub(calls: Calls): CommandFacility<unknown> {
@@ -106,6 +175,11 @@ export type Script = {
   name?: string
   generation?: string
   version?: string
+  quotaDomain?: string
+  quota?: (tenant: TenantId) => Promise<QuotaAnswer>
+  inspect?: (original: OriginalAcquisition) => Promise<ProviderAcquisitionStatus>
+  listAcquisitions?: (scopeRef: ScopeRef) => Promise<AcquisitionListing>
+  settle?: (original: OriginalAcquisition) => Promise<AcquisitionSettlement>
   bindingKinds?: EnvironmentProvider['bindingKinds']
   continuity?: EnvironmentContinuity
   keys?: readonly FacilityKey[]
@@ -132,7 +206,23 @@ export type Scripted = EnvironmentProvider & {
 }
 
 export function scriptedProvider(script: Script = {}): Scripted {
-  const calls: Calls = { acquire: 0, release: 0, retire: 0, start: 0, list: 0, recover: 0 }
+  const calls: Calls = {
+    acquire: 0,
+    release: 0,
+    retire: 0,
+    start: 0,
+    list: 0,
+    recover: 0,
+    quota: 0,
+    inspect: 0,
+    listAcquisitions: 0,
+    settle: 0,
+  }
+  // The double's original record, keyed by acquisition key; enough for registry tests only.
+  const held = new Map<
+    string,
+    { original: OriginalAcquisition; lease: EnvironmentLease; open: boolean }
+  >()
   const name = script.name ?? 'scripted'
   const generation = script.generation ?? '1'
   const version = script.version ?? 'test-version'
@@ -148,6 +238,7 @@ export function scriptedProvider(script: Script = {}): Scripted {
     name,
     generation,
     version,
+    quotaDomain: script.quotaDomain ?? name,
     bindingKinds: script.bindingKinds ?? ['host_machine'],
     continuity: script.continuity ?? { kind: 'not_guaranteed' },
     facilities: keys,
@@ -162,6 +253,45 @@ export function scriptedProvider(script: Script = {}): Scripted {
         isolation: script.isolation ?? [],
         prerequisites: 'satisfied',
       }
+    },
+    async quota(tenant) {
+      calls.quota += 1
+      if (script.quota !== undefined) return script.quota(tenant)
+      return {
+        kind: 'declared',
+        quota: { unit: 'unsettled-acquisition', perTenant: 100, global: null },
+      }
+    },
+    async inspectAcquisition(original) {
+      calls.inspect += 1
+      if (script.inspect !== undefined) return script.inspect(original)
+      const record = held.get(original.acquisition)
+      if (record === undefined) return { kind: 'notAllocated' }
+      if (record.original.origin !== original.origin) return { kind: 'conflict' }
+      return record.open
+        ? { kind: 'acquired', lease: record.lease, evidence: { kind: 'string', value: 'held' } }
+        : { kind: 'settled' }
+    },
+    async listAcquisitions(scopeRef) {
+      calls.listAcquisitions += 1
+      if (script.listAcquisitions !== undefined) return script.listAcquisitions(scopeRef)
+      const acquisitions = [...held.values()]
+        .filter(record => record.open && record.original.scope.ref === scopeRef.ref)
+        .map(record => record.original)
+      return { kind: 'listed', acquisitions }
+    },
+    async settleAcquisition(original) {
+      calls.settle += 1
+      if (script.settle !== undefined) return script.settle(original)
+      const record = held.get(original.acquisition)
+      if (record === undefined) return { kind: 'notAllocated' }
+      if (record.original.origin !== original.origin) return { kind: 'conflict' }
+      if (record.open) {
+        const released = await record.lease.release()
+        if (released.kind === 'pending') return released
+      }
+      record.open = false
+      return { kind: 'settled' }
     },
     async acquire(input) {
       calls.acquire += 1
@@ -182,9 +312,24 @@ export function scriptedProvider(script: Script = {}): Scripted {
         },
         async release() {
           calls.release += 1
-          return script.release === undefined ? { kind: 'released' } : script.release()
+          const released: LeaseRelease =
+            script.release === undefined ? { kind: 'released' } : await script.release()
+          const record = held.get(input.acquisition)
+          if (record && released.kind === 'released') record.open = false
+          return released
         },
       }
+      held.set(input.acquisition, {
+        original: {
+          tenant: input.tenant,
+          acquisition: input.acquisition,
+          origin: input.origin,
+          scope: input.scope,
+          placement: input.placement,
+        },
+        lease,
+        open: true,
+      })
       return { kind: 'acquired', lease, evidence: { kind: 'string', value: `${name}-evidence` } }
     },
     async retire() {
@@ -224,8 +369,14 @@ export function requirement(
 export function registryWith(
   providers: readonly EnvironmentProvider[],
   authority: RecoveryAuthority = recovery,
+  ports: Readonly<{ authority?: EnvironmentAuthority<string>; bindings?: ScopeBindingSource }> = {},
 ): EnvironmentRegistry<string> {
-  const registry = createEnvironmentRegistry<string>({ recovery: authority })
+  const open = openPorts()
+  const registry = createEnvironmentRegistry<string>({
+    recovery: authority,
+    authority: ports.authority ?? open.authority,
+    bindings: ports.bindings ?? open.bindings,
+  })
   registry.registerFacility(commandFacility)
   for (const provider of providers) registry.registerProvider(provider)
   return registry
@@ -243,7 +394,7 @@ export async function placed(
   requester: ScopeRef = scope1,
 ): Promise<Placement> {
   const placement = await registry.resolvePlacement(access, want(wanted, requester))
-  if (placement.kind !== 'placement') throw new Error(`no placement: ${placement.reason}`)
+  if (placement.kind !== 'placement') throw new Error(`no placement: ${JSON.stringify(placement)}`)
   return placement
 }
 
@@ -309,4 +460,14 @@ export function deferred<T>() {
     resolve = settle
   })
   return { promise, resolve }
+}
+
+/** The stored state of a local query when known; any other answer as it is. */
+export async function stateOf(
+  registry: EnvironmentRegistry<string>,
+  access: Access<string>,
+  key: string,
+) {
+  const answer = await registry.inspectAcquisition(access, local(key))
+  return answer.kind === 'known' ? answer.state : answer
 }

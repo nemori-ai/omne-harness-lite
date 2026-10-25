@@ -256,12 +256,12 @@ it('accepts host facts and refuses each malformed field', () => {
   expect(hostFacts([withoutVersion])).toEqual(at('version'))
 })
 
-it('describes the two blocks as required, plain, stable and recomputed, read by model, tool and extension', () => {
+it('describes the two blocks as optional, plain, stable and recomputed, read by model, tool and extension', () => {
   for (const block of [executionPlacementBlock, executionHostFactsBlock])
     expect(block).toMatchObject({
       kind: 'supplied',
       consumers: ['model', 'tool', 'extension'],
-      required: true,
+      required: false,
       disclosure: 'plain',
       carriesPrevious: true,
       volatility: 'stable',

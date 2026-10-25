@@ -468,15 +468,34 @@ it('compaction cannot split call/result pairing or move the coverage start', asy
     await planCompaction(f.input, { ...f.ports, history }, { ...f.policies, compaction: policy }),
   ).toMatchObject({ kind: 'unavailable', owner: 'compaction-policy' })
 })
-it('runtime refusal distinguishes unauthorized from missing registration and closed', async () => {
+it('runtime refusal distinguishes unauthorized from missing registration, closed, an ended scope and an unfinished replay', async () => {
   const f = fixture()
-  for (const reason of ['unauthorized', 'no-registration', 'closed'] as const) {
+  for (const reason of [
+    'unauthorized',
+    'no-registration',
+    'closed',
+    'scope-ended',
+    'replay-incomplete',
+  ] as const) {
     const result = await assemble(
       { ...f.input, contextRead: { ...f.input.contextRead, read: { kind: 'refused', reason } } },
       f.ports,
       f.policies,
     )
-    expect(result.kind).toBe(reason === 'unauthorized' ? 'denied' : 'unavailable')
+    if (reason === 'unauthorized') expect(result).toMatchObject({ kind: 'denied' })
+    else
+      expect(result).toEqual({ kind: 'unavailable', owner: 'runtime-context', diagnostic: reason })
+  }
+})
+it('an unknown runtime read stays unknown with its cause, including the binding and replay causes', async () => {
+  const f = fixture()
+  for (const cause of ['scope-binding-unknown', 'replay-unknown', 'source-unknown'] as const) {
+    const result = await assemble(
+      { ...f.input, contextRead: { ...f.input.contextRead, read: { kind: 'unknown', cause } } },
+      f.ports,
+      f.policies,
+    )
+    expect(result).toEqual({ kind: 'unknown', source: 'read', diagnostic: cause })
   }
 })
 it('headroom and fractional token margins are conservative and exact', async () => {

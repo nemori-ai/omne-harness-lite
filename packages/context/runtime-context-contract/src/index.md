@@ -13,6 +13,7 @@
 
 ## 模块
 
+- [authority.ts](authority.ts)：可信绑定来源、权威端口、授权判定与三面动作
 - [decode.ts](decode.ts)
 - [descriptor.ts](descriptor.ts)
 - [diff.ts](diff.ts)
@@ -22,8 +23,12 @@
 - [producer.ts](producer.ts)
 - [reader.ts](reader.ts)
 - [reduce.ts](reduce.ts)
+- [replay.ts](replay.ts)：恢复引用、开始与完成恢复的输入、恢复材料与结果
 - [registration.ts](registration.ts)
 - [shared.ts](shared.ts)
 - [update.ts](update.ts)
 - [validation.ts](validation.ts)
 - [testing/index.ts](testing/index.ts)：套件与非耐久替身
+- [testing/conformance.ts](testing/conformance.ts)、[testing/extended-conformance.ts](testing/extended-conformance.ts)、[testing/authority-conformance.ts](testing/authority-conformance.ts)、[testing/replay-conformance.ts](testing/replay-conformance.ts)：四组用例；[testing/suite.ts](testing/suite.ts) 是夹具与端口类型，[testing/case.ts](testing/case.ts) 是用例与不适用结果，[testing/fixtures.ts](testing/fixtures.ts) 是共用安排
+- [testing/ports.ts](testing/ports.ts)：可编排的权威端口与可信绑定替身
+- [testing/memory.ts](testing/memory.ts)：非耐久替身的组装；[testing/memory-world.ts](testing/memory-world.ts)、[testing/memory-holder.ts](testing/memory-holder.ts)、[testing/memory-producer.ts](testing/memory-producer.ts)、[testing/memory-reader.ts](testing/memory-reader.ts)、[testing/memory-replay.ts](testing/memory-replay.ts) 分别是世界状态、持有者面、生产者面、读者面与恢复会话

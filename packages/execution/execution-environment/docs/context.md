@@ -6,7 +6,7 @@
 
 ### 经 Cordis 使用
 
-装配 Cordis 的系统不直接导入本成员。Service 实现 [execution-environment-host-local](../../execution-environment-host-local/docs/cordis.md) 在构造时调用 `createEnvironmentRegistry`，把八个操作转给登记表，并在服务撤除时调用 `close()`。调用方经服务定义 `executionEnvironment` 使用登记表，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md)。
+装配 Cordis 的系统不直接导入本成员。Service 实现 [execution-environment-host-local](../../execution-environment-host-local/docs/cordis.md) 在构造时调用 `createEnvironmentRegistry`，把九个操作转给登记表，并在服务撤除时调用 `close()`。调用方经服务定义 `executionEnvironment` 使用登记表，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md)。
 
 ### 独立使用
 
@@ -16,7 +16,11 @@
 import { filesFacility } from '@omne-harness/execution-environment-contract'
 import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 
-const registry = createEnvironmentRegistry<MyPrincipal>({ recovery: myRecoveryAuthority })
+const registry = createEnvironmentRegistry<MyPrincipal>({
+  recovery: myRecoveryAuthority,
+  authority: myEnvironmentAuthority,
+  bindings: myScopeBindings,
+})
 const removeFiles = registry.registerFacility(filesFacility)
 const removeProvider = registry.registerProvider(myProvider)
 
@@ -30,19 +34,21 @@ if (placement.kind === 'placement') {
 await registry.close()
 ```
 
-`MyPrincipal`、`myRecoveryAuthority`、`myProvider`、`myLedger`、`myGuard`、`access`、`scope`、`requirement`、`acquisition` 与 `origin` 是调用方自己的值。`scope` 是请求方作用域，落点解析与获取用同一个。形状归 [execution-environment-contract](../../execution-environment-contract/docs/public-api.md)。`removeFiles` 与 `removeProvider` 是撤除函数，调用 `removeProvider()` 即开始这个提供者的退役。
+`MyPrincipal`、`myRecoveryAuthority`、`myEnvironmentAuthority`、`myScopeBindings`、`myProvider`、`myLedger`、`myGuard`、`access`、`scope`、`requirement`、`acquisition` 与 `origin` 是调用方自己的值。`scope` 是请求方作用域，落点解析与获取用同一个。形状归 [execution-environment-contract](../../execution-environment-contract/docs/public-api.md)。`removeFiles` 与 `removeProvider` 是撤除函数，调用 `removeProvider()` 即开始这个提供者的退役。
 
 ### 调用方要提供的端口
 
 | 端口 | 何时给出 | 本成员怎样用 |
 | --- | --- | --- |
-| 恢复授权 `RecoveryAuthority` | 调用工厂时 | `recoverOwned` 与 `releaseScope` 先调用一次 `authorizeRecovery` |
+| 恢复授权 `RecoveryAuthority` | 调用工厂时 | `recoverOwned`、`releaseScope` 与 `inspectRecoveryAcquisition` 先调用一次 `authorizeRecovery` |
+| 环境授权 `EnvironmentAuthority<P>` | 调用工厂时 | 每次普通操作先调用一次 `authorize`；获取在写入的最后一步之前与采用之前再核它给的 `current()` |
+| 作用域绑定 `ScopeBindingSource` | 调用工厂时 | 动作有目标作用域时调用一次 `lookup`，绑定到访问租户才通过。类型归 [Runtime Context 契约](../../../context/runtime-context-contract/SPEC.md) |
 | 资源账本 `ResourceLedger` | 每次 `acquire` | 原样交给提供者的 `acquire`；租约视图的门读它的 `closed` 信号，已关闭时设施操作答 `closed`。本成员不调用它的方法 |
 | 设施守卫 `FacilityGuard` | 每次 `acquire` | 装进租约视图，每次须授权的操作调用一次 `authorize` |
 
 ### 初始化与释放
 
-工厂没有初始化步骤，不读取资源，不访问存储。调用方结束时调用 `close()`。`close()` 退役全部提供者，结果是已排空或待处置。待处置的受管资源在集成方账本里，由维护者凭恢复授权处置。
+工厂没有初始化步骤，不读取资源，不访问存储。`cleanupWaitMs` 与 `diagnose` 可选：前者是采用失败后第一次调用等清理的上界，缺省 1000 毫秒；后者收到结构化诊断，诊断只带获取键与原因。调用方结束时调用 `close()`。`close()` 退役全部提供者，结果是已排空或待处置。待处置的受管资源在集成方账本里，由维护者凭恢复授权处置。
 
 ## 消费者与定位
 

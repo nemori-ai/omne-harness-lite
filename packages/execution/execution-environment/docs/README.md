@@ -20,8 +20,8 @@
 
 | 专题 | 本成员里承载什么 |
 | --- | --- |
-| [architecture.md](architecture.md) | 三个模块、包外依赖、七条关键机制的理由、模块层的 SOLID 选择 |
-| [flows.md](flows.md) | F-EER01 落点到租约、F-EER02 设施操作过门、F-EER03 释放与重试、F-EER04 作用域释放与恢复、F-EER05 退役与关闭 |
+| [architecture.md](architecture.md) | 六个模块、包外依赖、十一条关键机制的理由、模块层的 SOLID 选择 |
+| [flows.md](flows.md) | F-EER01 落点到租约、F-EER02 设施操作过门、F-EER03 释放与重试、F-EER04 作用域释放与恢复、F-EER05 退役与关闭、F-EER06 丢失答复与原获取查询 |
 | [object-model.md](object-model.md) | 表的条目、获取记录、租约视图与实例的生灭 |
 | [public-api.md](public-api.md) | 根入口的四个导出与 `EnvironmentRegistry` 的方法 |
 | [context.md](context.md) | 经 Cordis 使用、独立使用、调用方要提供的端口与定位 |

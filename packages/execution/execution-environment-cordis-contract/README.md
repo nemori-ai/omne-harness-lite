@@ -6,14 +6,14 @@ The Cordis definition member of the execution environment. Variant: `service-con
 
 ## Responsibility and status
 
-This package owns only the Cordis definition of the execution environment seam. The definition has four parts: the service key `executionEnvironment`, the abstract class `ExecutionEnvironmentService<P>`, the intercept configuration type `ExecutionEnvironmentIntercept`, and the `Context` augmentation.
+This package owns only the Cordis definition of the execution environment seam. The definition has five parts: the service key `executionEnvironment`, the abstract class `ExecutionEnvironmentService<P>`, the intercept configuration type `ExecutionEnvironmentIntercept`, the keys and abstract classes of three port services (the recovery authority `executionRecoveryAuthority`, the environment authority `executionEnvironmentAuthority`, and the trusted scope binding `executionScopeBinding`), and the `Context` augmentation.
 
-The package does not own domain behavior. [execution-environment-contract](../execution-environment-contract/README.md) owns the behavior of the eight methods. [execution-environment](../execution-environment/README.md) owns the registry mechanism. [execution-environment-host-local](../execution-environment-host-local/README.md) owns the Service implementation and the host provider. The package knows only generic roles: integrator, maintainer, provider, and facility owner.
+The package does not own domain behavior. [execution-environment-contract](../execution-environment-contract/README.md) owns the behavior of the nine methods. [execution-environment](../execution-environment/README.md) owns the registry mechanism. [execution-environment-host-local](../execution-environment-host-local/README.md) owns the Service implementation and the host provider. The package knows only generic roles: integrator, maintainer, provider, and facility owner.
 
 Status: Cordis definition member, `draft`. The adoption basis is the member split on the [system page](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备) and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
 - Implemented: `./cordis` exports the abstract class and the key constant. It also declares the intercept configuration type and the `Context` augmentation. The root entry exports nothing.
-- Implemented: eight template methods check the caller declaration before protected hooks. Registration requires `provider`; environment and recovery calls allow an absent declaration. See the [Cordis page](docs/cordis.md#intercept-配置与调用方类).
+- Implemented: nine template methods check the caller declaration before protected hooks. Registration requires `provider`; environment and recovery calls allow an absent declaration. See the [Cordis page](docs/cordis.md#intercept-配置与调用方类).
 - Tested: caller classes, ancestor declarations, registration effects, three Cordis mechanism readings, export inventory, and entry import boundaries. Candidate readings still need basis registration.
 
 execution-environment-host-local depends on this package now.
@@ -45,10 +45,10 @@ Independent use does not need this package. A caller without Cordis uses the roo
 ## Contracts
 
 - `src/cordis.ts` owns the public shapes.
-- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 8.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 10.
 - The [Cordis page](docs/cordis.md) owns the service definition, the method faces, the intercept configuration, the registration and removal protocol, the dependency classes, and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
-- The [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) owns the inputs, results, and failures of the eight methods.
+- The [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) owns the inputs, results, and failures of the nine methods.
 
 The package holds no resources. The fiber of the calling plugin owns the life of a facility or provider registration. The Service implementation owns the close order on removal and the report of a pending retirement.
 
@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-Run `pnpm typecheck` here for type checking. Entry tests run on real Cordis 4.0.4 and cover eight method templates, caller declarations, loading, unloading, caller effects, and three mechanism readings. The inventory test compares built declarations with the public API page. See [tests/](tests/README.md) for scope and limits. Passing structure checks do not prove all environment behavior.
+Run `pnpm typecheck` here for type checking. Entry tests run on real Cordis 4.0.4 and cover nine method templates, caller declarations, loading, unloading, caller effects, and three mechanism readings. The inventory test compares built declarations with the public API page. See [tests/](tests/README.md) for scope and limits. Passing structure checks do not prove all environment behavior.
 
 ## Maintenance
 
@@ -82,7 +82,7 @@ Run `pnpm typecheck` here for type checking. Entry tests run on real Cordis 4.0.
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the types, properties 1 to 8
+SPEC.md                   Behavior beyond the types, properties 1 to 10
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Two entries, dependencies, mechanisms and reasons

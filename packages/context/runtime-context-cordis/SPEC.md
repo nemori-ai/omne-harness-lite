@@ -1,6 +1,6 @@
 # @omne-harness/runtime-context-cordis 行为规格
 
-状态：Service 实现成员，`draft`，没有运行实现。本成员把 [runtime-context](../runtime-context/SPEC.md) 的机制装进 [runtime-context-cordis-contract](../runtime-context-cordis-contract/SPEC.md) 定义的服务 `runtimeContext`，并承担 isolate 绑定、消费者类读取、按作用域过滤的唤醒、撤除与清理。领域行为和机制行为都不在本页。
+状态：Service 实现成员，`draft`，没有运行实现。本成员把 [runtime-context](../runtime-context/SPEC.md) 的机制装进 [runtime-context-cordis-contract](../runtime-context-cordis-contract/SPEC.md) 定义的服务 `runtimeContext`，并承担 isolate 绑定、消费者类读取、按作用域过滤的唤醒、撤除与清理。领域行为和机制行为都不在本页。本页沿用 [runtime-context](../runtime-context/SPEC.md) 的本地设计；契约新增的持有者面 `beginReplay` 与 `finishReplay`、调用方主体参数，以及两个权威端口由装配入口交给 Service 实现（[runtime-context-cordis-contract 性质 9](../runtime-context-cordis-contract/SPEC.md#结果与不变量)），随机制成员的重新设计一起进入本页，见 runtime-context 的[明确缺项](../runtime-context/SPEC.md#明确缺项)。
 
 ## 范围与依据
 

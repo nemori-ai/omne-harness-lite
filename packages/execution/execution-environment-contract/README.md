@@ -6,7 +6,7 @@ The pure contract member of Execution Environment. Variant: `module`.
 
 ## Responsibility and status
 
-This package owns the execution environment contract. It defines the types for access identity, binding layers, continuity, environment requirements, placements, acquisitions, adoption records, leases, and managed resources. It defines three needed ports: the resource ledger, the facility guard, and the recovery authority. It defines the named facility protocol and three core facilities: `files`, `command`, and `terminal`. It also owns the schema and adoption identity of the tool environment declaration. It owns two block declarations: `execution.placement` and `execution.host-facts`. It owns two pure functions: `judgeRequirement` and `matchProviders`.
+This package owns the execution environment contract. It defines the types for access identity, binding layers, continuity, environment requirements, placements, quota domains, acquisitions, original acquisition descriptions, adoption records, leases, and managed resources. It defines five needed ports: the resource ledger, the facility guard, the recovery authority, the environment authority, and the scope binding source (its type belongs to Runtime Context). It defines the provider side of quota, original acquisition query, acquisition listing, and settlement. It defines the named facility protocol and three core facilities: `files`, `command`, and `terminal`. It also owns the schema and adoption identity of the tool environment declaration. It owns two block declarations: `execution.placement` and `execution.host-facts`. It owns two pure functions: `judgeRequirement` and `matchProviders`.
 
 The package does not decide whether an action is allowed. It does not choose a binding layer, does not know policy words, and does not record what a tool did. It knows only generic roles: access identity, scope reference, origin reference, request identity, integrator, provider, facility owner, maintainer, and observer.
 
@@ -18,8 +18,8 @@ Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come fr
 - Tested: the export surface, the facility descriptors, the block declarations, and the absence of Cordis imports.
 - Tested: requirement decoding, provider matching, the need schema and its digest. Type tests cover `FacilitySet` and the example.
 - No provider: the package implements no facility and no environment. The host provider is in [execution-environment-host-local](../execution-environment-host-local/README.md).
-- Implemented: parameter schemas for eight environment, recovery, and registration operations, six data result schemas, and `operationSchemas`. Registration results are removal functions. Facility operation schemas remain follow-up work.
-- Implemented: `./testing` conformance cases and non-durable doubles. Provider and environment cases are exercised by host-local tests.
+- Implemented: parameter schemas for nine environment, recovery, and registration operations, seven data result schemas, and `operationSchemas`. Registration results are removal functions. Facility operation schemas remain follow-up work.
+- Implemented: `./testing` conformance cases and non-durable doubles, including scripted environment authority and scope bindings. The registry runs the environment suite; host-local runs both suites.
 - Not verified: most behavior clauses in the SPEC need the mechanism member, providers, and a real integrator together. The package makes no claim about tenant isolation, resource close, durability, or recovery.
 
 The current consumers are the group members execution-environment-cordis-contract, execution-environment, and execution-environment-host-local.
@@ -52,12 +52,12 @@ Independent use needs only this package. It needs no Cordis. To get a placement 
 ## Contracts
 
 - `src/index.ts` owns the public shapes.
-- The [SPEC](SPEC.md) owns behavior beyond the types: invariants INV-EE01 to INV-EE18 and verification obligations V-EE01 to V-EE22.
+- The [SPEC](SPEC.md) owns behavior beyond the types: invariants INV-EE01 to INV-EE18 and verification obligations V-EE01 to V-EE27.
 - The [API page](docs/public-api.md) indexes the exports. It also owns the need schema and the two block declarations.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
 - The [SPEC](SPEC.md#设施协议) is the single source of the facility protocol rules. The [architecture page](docs/architecture.md#设施协议) expands each facility and gives the reasons.
 
-A facility operation has four results: done, unresolved, rejected, and unknown. The integrator's idempotency key identifies an acquisition. A repeated request with the same key does not allocate again. The implementation of this contract issues the adoption record after it checks the provider receipt. The package commits no durable fact. The integrator's ledger keeps resource permits, outcomes, adoption records, and release records.
+A facility operation has four results: done, unresolved, rejected, and unknown. The caller's tenant and the integrator's acquisition key identify an acquisition. A repeated request with the same key and the same description does not allocate again; a different description is `acquisitionConflict`. A lost allocation answer is queried through the original record, never sent again. The implementation of this contract issues the adoption record after it checks the provider receipt. The package commits no durable fact. The integrator's ledger keeps resource permits, outcomes, adoption records, and release records.
 
 ## Design
 
@@ -65,7 +65,7 @@ The root entry has one source module for each concern. The [architecture page](d
 
 ## Configuration and operation
 
-The package has no configuration, needs no environment, and reads no resources at run time. The integrator supplies access identity, scope references, origin references, the allowed list, acquisition keys, and request identities. The integrator also implements the three ports: the resource ledger, the facility guard, and the recovery authority. Policy evaluation for the allowed list happens outside this package.
+The package has no configuration, needs no environment, and reads no resources at run time. The integrator supplies access identity, scope references, origin references, the allowed list, acquisition keys, and request identities. The integrator also implements the five ports: the resource ledger, the facility guard, the recovery authority, the environment authority, and the scope binding source. Policy evaluation for the allowed list happens outside this package.
 
 ## Verification
 
