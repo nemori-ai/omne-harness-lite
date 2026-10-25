@@ -5,6 +5,7 @@ import {
   judgeMessage,
   parseRecordEntryRef,
   type AssistantMessage,
+  type CompactionBase,
   type CompactionContext,
   type CoveredEntry,
   type Message,
@@ -271,8 +272,17 @@ function shorthandMessage(shorthand: string): Message {
         { kind: 'tool_result', id: 'r1', visibility: SEEN, callId },
         { ...textBlock(), id: 'b2' },
       ])
-    case 'compaction':
-      return admit('compaction', [textBlock()], COMPACTION_KEYS)
+    case 'compaction': {
+      // `compaction:TO:R1+R2` covers e1 to TO and keeps R1, R2; bare `compaction` is the base keys.
+      const [, to, retained] = shorthand.split(':')
+      if (to === undefined) return admit('compaction', [textBlock()], COMPACTION_KEYS)
+      const kept = retained === undefined || retained === '' ? [] : retained.split('+')
+      return admit('compaction', [textBlock()], {
+        ...COMPACTION_KEYS,
+        covers: { from: 'e1', to },
+        retained: kept,
+      })
+    }
     default:
       throw new Error(`unknown shorthand ${shorthand}`)
   }
@@ -284,20 +294,42 @@ function entryRef(raw: string): RecordEntryRef {
   return ref
 }
 
+type CellEntries = readonly (readonly [string, string | null])[]
 interface ContextCell {
-  readonly covered: readonly (readonly [string, string | null])[]
-  readonly after: readonly string[]
+  readonly origin?: string
+  readonly base?: Readonly<{
+    record: string
+    pairings: readonly (readonly [string, string | null])[]
+  }>
+  readonly covered: CellEntries
+  readonly after: CellEntries
   readonly open: readonly string[]
 }
 
-function contextOf(cell: ContextCell): CompactionContext {
-  const covered: CoveredEntry[] = cell.covered.map(([ref, shorthand]) => ({
+function entriesOf(cell: CellEntries): CoveredEntry[] {
+  return cell.map(([ref, shorthand]) => ({
     ref: entryRef(ref),
     message: shorthand === null ? null : shorthandMessage(shorthand),
   }))
+}
+
+function contextOf(cell: ContextCell): CompactionContext {
+  const base: CompactionBase =
+    cell.base === undefined
+      ? { kind: 'initial' }
+      : {
+          kind: 'previous',
+          record: entryRef(cell.base.record),
+          pairings: cell.base.pairings.map(([result, call]) => ({
+            result: entryRef(result),
+            call: call === null ? null : entryRef(call),
+          })),
+        }
   return {
-    covered,
-    after: cell.after.map(shorthandMessage),
+    origin: entryRef(cell.origin ?? 'e1'),
+    base,
+    covered: entriesOf(cell.covered),
+    after: entriesOf(cell.after),
     open: cell.open.map(entryRef),
   }
 }
@@ -359,15 +391,16 @@ const EXPECTED_COMPACTION_ROWS: Readonly<Record<string, number>> = {
   'history.message/反': 1,
   'history.range/正': 1,
   'history.range/反': 5,
+  'history.source-evidence/反': 10,
   'history.outside/反': 1,
   'history.order/反': 1,
   'history.not-model/反': 3,
-  'history.pairing/正': 4,
-  'history.pairing/反': 4,
+  'history.pairing/正': 6,
+  'history.pairing/反': 6,
   'history.open-work/正': 1,
   'history.open-work/反': 2,
-  'history.repeat/正': 1,
-  'history.first-failure/反': 1,
+  'history.repeat/正': 2,
+  'history.first-failure/反': 2,
 }
 
 const compaction = compactionRows()

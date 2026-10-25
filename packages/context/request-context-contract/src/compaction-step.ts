@@ -1,29 +1,85 @@
-import { judgeCompaction, type CompactionContext } from '@omne-harness/message'
+import { tenantEquals } from '@omne-harness/legal-identity'
+import { judgeCompaction } from '@omne-harness/message'
 import type {
-  DeriveInput,
-  StepResult,
-  CompactionPlan,
-  PlanProgress,
-  StepInput,
-  SummaryMaterial,
   AssemblyFailure,
+  CompactionPlan,
+  DeriveInput,
+  PlanProgress,
+  SelectedModel,
+  StepInput,
+  StepResult,
 } from './values.js'
-import type { AssemblyPorts, AssemblyPolicies } from './ports.js'
-import { invalid, request, summary } from './compaction-request.js'
-import { measure } from './measurement.js'
+import type { OperationContext } from './operation-context.js'
+import { invalid, planMaterial, summaryStep } from './compaction-request.js'
+import { basisDigest } from './plan.js'
+import { measureCompactionCandidate, projectedOf } from './compaction-context.js'
 import { canonical, digest, messageId, measuredAmount } from './internal.js'
-export async function deriveStep<P>(
-  input: DeriveInput,
-  ports: AssemblyPorts<P>,
-  policies: AssemblyPolicies,
-): Promise<StepResult> {
+
+const INDEX = /^(0|[1-9][0-9]*)$/u
+
+/** Checks plan, progress, basis and step index; nothing here creates new progress. */
+export function validatePlan<P>(
+  input: DeriveInput<P>,
+  context: OperationContext<P>,
+): AssemblyFailure | null {
   const { plan, progress, step, material } = input
-  const identity = validatePlanIdentity(plan, progress, policies)
-  if (identity !== null) return identity
-  if (material === null) return invalid('unsupported-format')
-  const position = validateStepPosition(plan, progress, step)
-  if (position !== null) return position
-  const next = advanceProgress(plan, progress, step, material)
+  const { policies } = context
+  if (plan.planId !== progress.planId || plan.candidate !== input.call.candidate)
+    return invalid('plan-mismatch')
+  if (
+    canonical(plan.policy.identity) !== canonical(policies.compaction.identity) ||
+    plan.policy.configDigest !== policies.compaction.configDigest()
+  )
+    return invalid('policy-mismatch')
+  const { digest: recorded, ...unsigned } = plan.basis
+  if (basisDigest(unsigned) !== recorded) return invalid('plan-mismatch', 'plan.basis')
+  if (!tenantEquals(plan.basis.target.tenant, context.target.tenant))
+    return invalid('tenant-mismatch', 'plan.basis.target')
+  if (plan.basis.target.scope.ref !== context.target.scope.ref)
+    return invalid('plan-mismatch', 'plan.basis.target')
+  if (canonical(plan.basis.representation) !== canonical(policies.representation.identity))
+    return invalid('policy-mismatch', 'plan.basis.representation')
+  if (!INDEX.test(progress.completed) || BigInt(progress.completed) >= BigInt(plan.bound))
+    return invalid('progress-mismatch')
+  if (
+    BigInt(progress.completed) !== BigInt(progress.consumed.length) ||
+    progress.consumed.some(
+      (item, index) => !INDEX.test(item.index) || BigInt(item.index) !== BigInt(index),
+    )
+  )
+    return invalid('progress-mismatch')
+  if (step.index !== progress.completed) return invalid('progress-mismatch', 'step.index')
+  if (canonical(material) !== canonical(planMaterial(plan, policies)))
+    return invalid('plan-mismatch', 'material')
+  return null
+}
+
+function advance(plan: CompactionPlan, progress: PlanProgress, step: StepInput): PlanProgress {
+  return {
+    planId: plan.planId,
+    completed: (BigInt(progress.completed) + 1n).toString(),
+    consumed: [
+      ...progress.consumed,
+      {
+        index: progress.completed,
+        evidence: step.kind === 'summary' ? step.consumed : step.evidence,
+      },
+    ],
+  }
+}
+
+/** Derives the next step or the transition from one summarize result (RQ-06). */
+export async function deriveFrom<P>(
+  input: DeriveInput<P>,
+  selection: SelectedModel,
+  context: OperationContext<P>,
+): Promise<StepResult> {
+  const failure = validatePlan(input, context)
+  if (failure !== null) return failure
+  const { plan, progress, step, material } = input
+  if (canonical(selection) !== canonical(plan.basis.selection))
+    return invalid('plan-mismatch', 'model')
+  const next = advance(plan, progress, step)
   const fail = (cause: 'bound-exhausted' | 'step-vetoed' | 'summary-illegal'): StepResult => ({
     kind: 'cannot-fit',
     reason: 'after-compaction',
@@ -32,19 +88,11 @@ export async function deriveStep<P>(
     diagnostic: cause,
   })
   if (step.kind === 'vetoed') return fail('step-vetoed')
-  if (step.kind === 'trim') {
-    const trimmed = policies.compaction.trim(material, { maxBlockBytes: '65536' })
-    return {
-      kind: 'next',
-      progress: next,
-      step: request(plan, next.completed, trimmed, 'summarize', policies),
-    }
-  }
   const derivation = {
     owner: 'request-context-contract',
     record: plan.planId,
     revision: next.completed,
-    digest: digest({ plan, material, produced: step.produced }),
+    digest: digest({ plan: plan.planId, material, produced: step.produced }),
   }
   const message = {
     role: 'compaction' as const,
@@ -54,27 +102,23 @@ export async function deriveStep<P>(
     retained: plan.retained,
     derivation,
   }
-  const context: CompactionContext = {
-    covered: material.covered,
-    after: plan.after,
-    open: plan.floor,
-  }
-  const legal = judgeCompaction(message, context)
-  const budget = measure(
-    { selection: input.selection },
-    ports,
+  const legal = judgeCompaction(message, plan.basis.context)
+  if ('rejected' in legal && legal.rejected === 'source-evidence')
+    return invalid('source-evidence-conflict', 'compaction.context')
+  const retained = projectedOf(plan.basis.projected, plan.retained)
+  const after = projectedOf(
+    plan.basis.projected,
+    plan.basis.context.after.map(entry => entry.ref),
+  )
+  const budget = await measureCompactionCandidate(
+    context,
     {
-      ...summary(material, policies),
-      system: [],
-      messages: [
-        ...material.covered.flatMap(e =>
-          e.message !== null && plan.retained.includes(e.ref) ? [e.message] : [],
-        ),
-        message,
-        ...plan.after,
-      ],
+      selection: plan.basis.selection,
+      representation: plan.basis.representation,
+      source: plan.policy.identity,
     },
-    [],
+    [...retained, ...after],
+    [...retained.map(item => item.message), message, ...after.map(item => item.message)],
   )
   if (budget.kind !== 'complete' && budget.kind !== 'deferred-media') return budget
   const fits = budget.checks.every(c => measuredAmount(c) <= BigInt(c.limit))
@@ -98,70 +142,6 @@ export async function deriveStep<P>(
   return {
     kind: 'next',
     progress: next,
-    step: request(plan, next.completed, material, 'summarize', policies),
-  }
-}
-
-function validatePlanIdentity(
-  plan: CompactionPlan,
-  progress: PlanProgress,
-  policies: AssemblyPolicies,
-): AssemblyFailure | null {
-  if (plan.planId !== progress.planId) return invalid('plan-mismatch')
-  if (
-    canonical(plan.policy.identity) !== canonical(policies.compaction.identity) ||
-    plan.policy.configDigest !== policies.compaction.configDigest()
-  )
-    return invalid('policy-mismatch')
-  if (
-    !/^(0|[1-9][0-9]*)$/u.test(progress.completed) ||
-    BigInt(progress.completed) >= BigInt(plan.bound)
-  )
-    return invalid('progress-mismatch')
-  return null
-}
-
-function validateStepPosition(
-  plan: CompactionPlan,
-  progress: PlanProgress,
-  step: StepInput,
-): AssemblyFailure | null {
-  const trim = plan.shape === 'trim-then-summarize' && progress.completed === '0'
-  if (step.kind !== 'vetoed' && (step.kind === 'trim') !== trim) return invalid('progress-mismatch')
-  if (
-    BigInt(progress.completed) !== BigInt(progress.consumed.length) ||
-    progress.consumed.some(
-      (step, index) =>
-        !/^(0|[1-9][0-9]*)$/u.test(step.index) || BigInt(step.index) !== BigInt(index),
-    )
-  )
-    return invalid('progress-mismatch')
-  return null
-}
-
-function advanceProgress(
-  plan: CompactionPlan,
-  progress: PlanProgress,
-  step: StepInput,
-  material: SummaryMaterial,
-): PlanProgress {
-  return {
-    planId: plan.planId,
-    completed: (BigInt(progress.completed) + 1n).toString(),
-    consumed:
-      step.kind === 'summary'
-        ? [...progress.consumed, { index: progress.completed, evidence: step.consumed }]
-        : [
-            ...progress.consumed,
-            {
-              index: progress.completed,
-              evidence: {
-                owner: 'request-context-contract',
-                record: plan.planId,
-                revision: progress.completed,
-                digest: digest(material),
-              },
-            },
-          ],
+    step: summaryStep(plan, next.completed, material, context.policies),
   }
 }

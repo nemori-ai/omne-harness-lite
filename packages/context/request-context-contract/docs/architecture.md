@@ -2,7 +2,7 @@
 
 本页说明本成员怎样组织根入口与依赖，来兑现 [SPEC](../SPEC.md)。对象的身份、状态与生灭归[对象模型](object-model.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员提供纯操作，不提供生产运行时，不持有状态，也不持有资源。候选缓存、历史索引、默认压缩策略、默认表示策略与修剪器归 [request-context](../../request-context/README.md)。提示词贡献的登记面归 [request-context-cordis-contract](../../request-context-cordis-contract/README.md)。最终请求的固定与记录归协调者，历史与压缩记录的保存归历史持有者。
+本成员提供无状态的操作组与纯函数，不提供生产运行时，不持有状态，也不持有资源；操作组只在一次调用内借用 Model 准备租约并在全部路径上归还。来源登记表、账目投影、候选缓存、历史索引、默认压缩策略、默认表示策略与修剪器归 [request-context](../../request-context/README.md)。提示词贡献的登记面归 [request-context-cordis-contract](../../request-context-cordis-contract/README.md)。最终请求的固定与记录归协调者，历史与压缩记录的保存归历史持有者。
 
 ## 模块与依赖
 
@@ -10,7 +10,7 @@
 
 | 模块               | 承载                                                                                                           | 条款                                                                                                                                                        |
 | ------------------ | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 输入与候选的值类型 | `AssemblyInput` 的七组、`RequestCandidate`、四种组装结果、三类失败                                             | [RQ-01](../SPEC.md#rq-01-调用方与计算边界)、[RQ-02](../SPEC.md#rq-02-组装的前置输入)、[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)                          |
+| 输入与候选的值类型 | `AssemblyCall` 与内部的七组视图、`RequestCandidate`、四种组装结果、三类失败                                     | [RQ-01](../SPEC.md#rq-01-调用方与计算边界)、[RQ-02](../SPEC.md#rq-02-组装的前置输入)、[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)                          |
 | 投影               | `project`（模型侧）、`projectForHuman`（人侧），两者共用同一套块标注规则                                       | [RQ-03](../SPEC.md#rq-03-历史与块投影)                                                                                                                      |
 | 提示词组装         | `PromptContribution`、`assembleSystemPrompt`                                                                   | [RQ-02](../SPEC.md#rq-02-组装的前置输入)                                                                                                                    |
 | 声明投影           | `declareTools`：从完整工具定义形成直接集合与脚本可调用集合                                                     | [RQ-02](../SPEC.md#rq-02-组装的前置输入)、[RQ-04](../SPEC.md#rq-04-模态与可追溯表示)                                                                        |
@@ -19,7 +19,9 @@
 | 预算裁定           | `judgeBudget`、`FitVerdict`                                                                                    | [RQ-05](../SPEC.md#rq-05-完整预算与候选完成)                                                                                                                |
 | 组装与覆盖证据     | `assemble`、`Coverage`，以及契约常量：六层顺序、快照锚点规则、前缀变化原因的取值                               | [RQ-02](../SPEC.md#rq-02-组装的前置输入)、[装载布局与前缀](../SPEC.md#装载布局与前缀)                                                                       |
 | 计划与步           | `planCompaction`、`deriveStep`、`resume`、`CompactionPlan`、`PlanProgress`、`StepRequest`、`ContextTransition` | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界)、[RQ-07](../SPEC.md#rq-07-扩展修改发起与固定采用)、[RQ-09](../SPEC.md#rq-09-取消恢复与迟到)                |
-| 历史源与策略端口   | `HistorySource`、`HistoryEvidence`、压缩策略端口、表示策略端口                                                 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图)、[RQ-04](../SPEC.md#rq-04-模态与可追溯表示)、[RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
+| 历史源与策略端口   | `HistorySource`、`HistoryEvidence`、`HistoryCursor`、压缩策略端口、表示策略端口                                 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图)、[RQ-04](../SPEC.md#rq-04-模态与可追溯表示)、[RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
+
+另有三个模块：来源与读取（`sources.ts` 的来源集合与登记协议类型、`input-read.ts` 的七组稳定读取）、操作组（`operations.ts` 的 `createAssemblyOperations`：访问与资格、主体键、读取、派生、发布前再核资格）与账目协议类型（`accounting.ts`）。条款为 [RQ-12](../SPEC.md#rq-12-来源集合与登记面) 至 [RQ-15](../SPEC.md#rq-15-普通访问与系统恢复)。
 
 模块之间只有单向依赖。端口模块与各计算模块读取值类型模块，表示选择、组装与计划还读取端口模块。组装模块调用投影、提示词组装、声明投影、放置、表示选择与预算裁定六个模块。共享输入、结果、准备依据、历史行、投影和声明集均归 values.ts；端口组合归 ports.ts。计划和组装共用输入校验、历史读取及计量，不互相导入。resume.ts 单向调用组装入口。
 
@@ -44,22 +46,27 @@ flowchart LR
   Asm --> Shared
   Plan --> Port
   Resume[恢复] --> Asm
+  Ops[操作组] --> Read[七组稳定读取]
+  Ops --> Asm
+  Ops --> Plan
+  Ops --> Resume
+  Read --> Port
 ```
 
 ### 组装的内部阶段
 
-公开的 assemble 只串联固定阶段，失败结果按原顺序立即返回：
+操作组的 `assemble` 先核访问身份、目标租户、读取资格与主体键，再由 input-read.ts 按组读计数、读来源、再读计数，然后串联固定阶段，失败结果按原顺序立即返回，最后再核一次读取资格才发布结果：
 
-1. input-validation.ts 校验端口、身份、保存依据、模型绑定与 Runtime Context 读取结果。
-2. preparation.ts 比较来源修订与显式身份；principal 用 Object.is，租户用 tenantEquals。只有稳定历史、提示词和声明可以认回，未藏缓存。
+1. input-validation.ts 校验目标与租户、保存依据、模型绑定与 Runtime Context 读取结果。
+2. preparation.ts 按 `PreparedInputKey` 比较来源代际、主体键、调用身份与六组令牌。只有稳定历史、提示词和声明可以认回，未藏缓存。
 3. assembly-layers.ts 每次重算快照锚点与动态尾部；历史链摘要仍取自历史源。
 4. assembly-representation.ts 读取本次转换结果并调用表示选择；representation.ts 分开块选择、模态核验与来源证据。
-5. assembly-budget.ts 用 measurement.ts 分别计量整体与固定部分；实际字节数仍取调用方 serializer。
+5. assembly-budget.ts 经 model-input.ts 把选择转换成一次 Model 输入，用 measurement.ts 对每份候选取得准备租约，按供应商的 `rules.plan` 物化表示计量整体与固定部分，在全部路径上归还租约。
 6. assembly-coverage.ts 构建七组来源及派生证据；assembly-outcome.ts 按预算与本候选是否已经压缩交出结果。
 
 ### 计划、步和边界校验
 
-plan.ts 读取完整历史和 compaction-context.ts 的持有者上下文，先检查完整 open 下界预算，再接受策略给的覆盖范围。acceptDraft 保留范围后的消息并通过 judgeCompaction 核验；不缩小下界绕过预算。compaction-step.ts 分开计划身份、步位置、消费依据推进和摘要验证；compaction-request.ts 只构造摘要输入与步请求。resume.ts 只检查恢复前提并调用 assemble。
+plan.ts 读取完整历史和 compaction-context.ts 的增量判断窗口（CM-02），先检查完整 open 下界预算，再接受策略给的覆盖范围，并把窗口与摘要记入计划的 `basis`。草案经 judgeCompaction 核验，窗口本身违反来源关系时为无效，不消耗摘要步；不缩小下界绕过预算。compaction-step.ts 分开计划身份、步序号、依据核对、消费依据推进和摘要验证；compaction-request.ts 构造摘要材料与步请求，修剪在第一个摘要步之前完成一次，不算一步。resume.ts 只检查恢复前提并调用 assemble。
 
 coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型、工具与预算逐组核验。schema-primitives.ts 拥有边界解码的小型谓词和 Standard Schema 适配；schema.ts 组合各公开 Schema。声明模块不导入组装或计划执行模块。
 
@@ -134,7 +141,7 @@ coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型
 | 开闭     | 新的压缩策略与表示策略是策略端口的新实现，计算模块不变。新的提示词贡献者只在登记面登记                             | 为某个策略或某个协调者在组装模块里加特例分支                  |
 | 里氏替换 | `HistorySource` 与两个策略端口的实现可以互换，调用方得到的结果集合不变                                             | 某个实现返回契约没有的结果，或把「epoch 已变」当成不可用      |
 | 接口隔离 | 协调者使用组装与计划两组操作。历史持有者与交付面只使用 `projectForHuman`。独立调用方按需导入单个操作               | 一个聚合对象同时暴露组装、计划与人侧投影                      |
-| 依赖倒置 | 本成员只依赖邻域契约的公开值。历史与策略经端口注入；计量端口与转换结果类型归 Model，转换结果读口归本成员，请求序列化由适配器提供                            | 导入 Cordis、协调者或持有者的契约。计算模块直接调用存储或服务 |
+| 依赖倒置 | 本成员只依赖邻域契约的公开值。历史、组读口与策略经来源集合与端口注入；准备资源、计量与转换结果类型归 Model，转换结果读口归本成员                            | 导入 Cordis、协调者或持有者的契约。计算模块直接调用存储或服务 |
 
 ## 验证与维护
 
@@ -156,4 +163,4 @@ coverage-validation.ts 按历史、压缩、输入、快照、提示词、模型
 
 值类型集中在 `src/values.ts`，品牌引用与解码在 `src/refs.ts`。`src/refs.ts` 再导出 legal-identity 的 `Access` 与 exchange-refs 的 `Adoption`、`DurableEvidence`，不另写副本，结构判定留在 `src/schema-primitives.ts`。`src/schema.ts` 解码持久回流值与策略配置。纯操作依赖这些值，根入口只显式重导出。`src/testing/` 只拥有测试替身和用例列表，不拥有生产实现。
 
-计量的实际字节数来自适配器 `RequestSerializer`。转换结果读口归本成员，结果类型归 Model。`deriveStep` 的选定模型由调用者交入，以复核摘要及保留内容的预算。计划保留范围后消息，用于核对覆盖边界的调用与结果配对。
+请求字节取自 Model `rules.plan` 的物化表示，本成员没有序列化端口。转换结果读口归本成员，结果类型归 Model。`deriveStep` 由操作组稳定读取第五组的选定模型，以复核摘要及保留内容的预算。计划的 `basis` 保留增量判断窗口，用于核对覆盖边界的调用与结果配对。

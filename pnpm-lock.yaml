@@ -576,7 +576,26 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/context/request-context:
+    dependencies:
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../request-context-contract
     devDependencies:
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../runtime-context-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -589,6 +608,9 @@ importers:
 
   packages/context/request-context-contract:
     dependencies:
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -658,6 +680,9 @@ importers:
         specifier: workspace:*
         version: link:../request-context-contract
     devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

@@ -5,13 +5,18 @@ import {
   type RecordEntryRef,
 } from '@omne-harness/message'
 import type { BlockId } from '@omne-harness/content-block'
-import type { EpochId } from './refs.js'
+import type { EpochId, HistorySequence } from './refs.js'
 import type { HistoryRow } from './ports.js'
 export type { ProjectedMessage, ProjectedHistory } from './values.js'
-import type { ProjectedMessage, ProjectedHistory } from './values.js'
+import type {
+  ProjectedMessage,
+  ProjectedHistory,
+  SourcedMessage,
+  TenantModelCall,
+} from './values.js'
 export type HumanProjection = Readonly<{
   entries: readonly Readonly<{
-    seq: number
+    seq: HistorySequence
     entry: RecordEntryRef
     message: Message
     summarized: 'retained' | 'summarized' | 'after' | null
@@ -45,6 +50,11 @@ function filterMessage(
   if ('rejected' in judged) return null
   return { message: judged.ok, dropped: message.blocks.filter(b => !ids.has(b.id)).map(b => b.id) }
 }
+/** Keeps the source call only on an assistant message (J48). */
+export function sourced(message: Message, call: TenantModelCall | undefined): SourcedMessage {
+  if (message.role !== 'assistant') return { message }
+  return call === undefined ? { message } : { message, sourceCall: call }
+}
 export function project(rows: readonly HistoryRow[], epoch: EpochId): ProjectedHistory {
   const latest = [...rows].reverse().find(r => r.message.role === 'compaction')
   const compact = latest?.message.role === 'compaction' ? latest.message : null
@@ -56,7 +66,13 @@ export function project(rows: readonly HistoryRow[], epoch: EpochId): ProjectedH
     if (row.message.role === 'compaction' && row !== latest && !retained.has(row.entry)) continue
     const filtered = filterMessage(row.message, 'toModel')
     if (filtered !== null)
-      messages.push({ seq: row.seq, entry: row.entry, prefixDigest: row.prefixDigest, ...filtered })
+      messages.push({
+        seq: row.seq,
+        entry: row.entry,
+        prefixDigest: row.prefixDigest,
+        dropped: filtered.dropped,
+        ...sourced(filtered.message, row.sourceCall),
+      })
   }
   return {
     epoch,

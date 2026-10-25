@@ -36,6 +36,7 @@
     "@omne-harness/message": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
+    "@omne-harness/call-account": "workspace:*",
     "@omne-harness/modality": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",

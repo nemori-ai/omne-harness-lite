@@ -183,12 +183,6 @@
               "pending": false
             },
             {
-              "name": "AssemblyPorts",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "AssemblyPolicies",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
@@ -280,12 +274,6 @@
             },
             {
               "name": "RepresentationPolicyPort",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "RequestSerializer",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
@@ -418,12 +406,6 @@
             },
             {
               "name": "PreviousPreparation",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "AssemblyInput",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
@@ -595,6 +577,132 @@
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
+            },
+            {
+              "name": "AssemblyCall",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextTarget",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "GroupToken",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PrincipalKey",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RegistrationRef",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SourceGeneration",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SourceRead",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "GroupSource",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextGroupSources",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRequestSource",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRequestFact",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextReadEligibility",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "PrincipalBinding",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextSources",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SourceRegistrationAuthority",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SourceDecision",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "SourceSettlement",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextRegistration",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "RegistrationResult",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextSourceRegistry",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
+              "name": "ContextRegistryOptions",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
             }
           ]
         }
@@ -621,11 +729,6 @@
               "pending": false
             },
             {
-              "name": "AssemblyAccess",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "RequestContextPolicySelection",
               "kind": "type",
               "pending": false
@@ -644,13 +747,17 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": ["requestContext"],
+      "members": [
+        "requestContext"
+      ],
       "pending": false
     },
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Events",
-      "members": ["request-context-cordis-contract/changed"],
+      "members": [
+        "request-context-cordis-contract/changed"
+      ],
       "pending": false
     }
   ]

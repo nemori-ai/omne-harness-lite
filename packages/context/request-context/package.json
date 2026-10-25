@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft request-context package; complete the accepted public contract before delivery",
+  "description": "Request Context mechanisms: the source registry and the account projection",
   "engines": {
     "node": ">=24"
   },
@@ -24,8 +24,15 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/request-context-contract": "workspace:*"
+  },
   "devDependencies": {
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/message": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

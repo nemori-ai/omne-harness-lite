@@ -62,19 +62,19 @@ flowchart LR
 
 | 邻域 | 它对本成员是什么 | 怎样交接 | 本成员给什么、要什么 |
 | --- | --- | --- | --- |
-| 协调者 | 发起方。固定最终请求，执行压缩步，保存计划进度 | 经适配器调用 `assemble`、`planCompaction`、`deriveStep`、`resume` | 给四种结局、覆盖证据、计划与步请求、压缩转换。要七组输入与步结果 |
+| 协调者 | 发起方。固定最终请求，执行压缩步，保存计划进度与采用事实 | 经适配器以 `AssemblyCall` 调用 `assemble`、`planCompaction`、`deriveStep`、`resume`；适配器为其余六组实现组读口并登记来源集合（[RQ-13](../SPEC.md#rq-13-七组的稳定读取)） | 给四种结局、覆盖证据、计划与步请求、压缩转换。要调用身份、各组读口与步结果 |
 | 历史持有者 | 历史、压缩记录与未结工作的拥有者 | 实现 `HistorySource`。与协调者一起提交压缩转换。调用 `projectForHuman` | 给人侧投影与压缩转换的材料。要 epoch 视图、前缀摘要与未结工作集合 |
-| Runtime Context | 模型侧读取结果的来源 | 协调者以模型类资格读取后作为第三组传入。本成员不读 Runtime Context | 要读取结果、块材料与块的 `volatility`，见 [runtime-context-contract](../../runtime-context-contract/docs/context.md) |
+| Runtime Context | 模型侧读取结果的来源 | 协调者一侧以模型类资格读取，经第三组读口交给操作组，读计数、读来源、再读计数。本成员不直接读 Runtime Context | 要读取结果、块材料与块的 `volatility`，见 [runtime-context-contract](../../runtime-context-contract/docs/context.md) |
 | Model | 档案、限制、计量与转换件结果的提供方，请求准备与发出的拥有者 | 选定模型由协调者传入。Model 准备资源与转换件结果读口随来源集合登记或绑定（[RQ-12](../SPEC.md#rq-12-来源集合与登记面)），每份候选经租约按供应商计量（[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)） | 给 Model 的工具声明与历史模态约束。候选交 Model 准备成固定请求的一步归协调者 |
-| Tool | 工具定义、绑定与可编程许可的拥有者 | 协调者经装配求值后作为第六组传入 | 给直接集合与脚本可调用集合。声明投影不是执行授权 |
+| Tool | 工具定义、绑定与可编程许可的拥有者 | 协调者一侧经装配求值，经第六组读口交给操作组 | 给直接集合与脚本可调用集合。声明投影不是执行授权 |
 | 贡献者 | 提示词贡献的拥有者 | 在 [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的登记面登记 | 要有序段与变量两类贡献 |
-| 扩展位置 | 调模型之前位置的经过与改写 | 协调者把改写依据与经过作为第七组传入 | 重组装并复核，前缀变化原因可见 |
+| 扩展位置 | 调模型之前位置的经过与改写 | 协调者一侧把改写依据与经过经第七组读口交给操作组 | 重组装并复核，前缀变化原因可见 |
 
 ### 字段对应
 
 本节写协调者一侧的真实端口与本成员的对应。现在唯一定义了这类端口的是 Agent 契约：[request.ts](../../../agent/agent-contract/src/request.ts) 的 `ModelContextReader` 与 `RequestPreparation`。它们的行为见 Agent SPEC 的[请求、扩展和材料接缝](../../../agent/agent-contract/SPEC.md#请求扩展和材料接缝)、[请求准备与压缩](../../../agent/agent-contract/SPEC.md#请求准备与压缩)与[调模型之前的复核与最终请求](../../../agent/agent-contract/SPEC.md#调模型之前的复核与最终请求)。
 
-Agent 契约是本成员的消费者，本成员不依赖它。下表只说适配器要翻译哪些字段，不给本成员增加对 Agent 类型的依赖。表中「组一」至「组七」指 [RQ-02](../SPEC.md#rq-02-组装的前置输入) 的七组，依次是：调用身份与用途、历史与新输入、runtime context 读取结果、系统提示词、模型侧、工具侧、当前条件与本次经过。
+Agent 契约是本成员的消费者，本成员不依赖它。下表只说适配器要翻译哪些字段，不给本成员增加对 Agent 类型的依赖。表中「组一」至「组七」指 [RQ-02](../SPEC.md#rq-02-组装的前置输入) 的七组，依次是：调用身份与用途、历史与新输入、runtime context 读取结果、系统提示词、模型侧、工具侧、当前条件与本次经过。组一的字段进入 `AssemblyCall`；其余各组的字段由适配器实现的组读口给出，操作组按 [RQ-13](../SPEC.md#rq-13-七组的稳定读取) 读计数、读来源、再读计数，适配器不把七组作为一个值传入。
 
 #### `RequestPreparation.prepare` 的输入
 

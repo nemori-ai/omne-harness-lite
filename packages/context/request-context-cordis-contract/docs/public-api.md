@@ -16,9 +16,9 @@
 
 ### Cordis 定义
 
-[src/cordis.ts](../src/cordis.ts) 导出抽象类 RequestContextService、派生键 requestContextKey、RequestContextIntercept、AssemblyAccess、RequestContextPolicySelection 和 RequestContextChangedPayload。它增补 Cordis Context 的 requestContext 属性及 Events 的 request-context-cordis-contract/changed 位置参数事件。
+[src/cordis.ts](../src/cordis.ts) 导出抽象类 RequestContextService、派生键 requestContextKey、RequestContextIntercept、RequestContextPolicySelection 和 RequestContextChangedPayload。它增补 Cordis Context 的 requestContext 属性及 Events 的 request-context-cordis-contract/changed 位置参数事件。
 
-服务实现登记面的三个操作，参数与结果直接复用原契约；assembly(scope, ports) 返回绑定策略和本次端口的操作组，关闭后不可用。每次托管操作现取贡献，拒绝非 null 的调用方 promptContributions，拒绝作用域不一致。类型不提供运行时登记表、缓存或默认策略。
+服务实现登记面的三个操作，参数与结果直接复用原契约。它逐签名投影来源登记表 `ContextSourceRegistry` 的 `register` 与 `replace`，登记挂在调用者的 fiber 上；`assembly(target)` 返回绑定策略与该目标当前登记的来源集合的操作组，目标没有登记或服务已撤除时操作返回不可用（来源登记）。每次托管操作从登记面现取贡献，替换第四组读口给出的贡献；目标作用域与组装上下文、历史依据不一致时返回无效。类型不提供运行时登记表、缓存或默认策略。
 
 策略配置分开指定压缩和表示实现及其可序列化参数。提供者负责选择实现、用原契约的 Standard Schema 校验参数和管理生命周期。
 

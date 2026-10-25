@@ -8,6 +8,12 @@ import type {
   PositionRef,
   PassageRef,
   PlanId,
+  ContextTarget,
+  HistorySequence,
+  CommitOrder,
+  PrincipalKey,
+  GroupToken,
+  SourceGeneration,
 } from './refs.js'
 import type {
   ScopeRef,
@@ -32,8 +38,30 @@ import type { ContentBlock, BlockId, ContentReference } from '@omne-harness/cont
 
 export type RequestPurpose = 'main' | 'extension'
 
+/** 历史上界：空历史没有任何行，不借用 -1。 */
+export type HistoryUpper =
+  | Readonly<{ kind: 'empty' }>
+  | Readonly<{ kind: 'entry'; seq: HistorySequence }>
 /** 组二：历史依据。一次组装内固定（H1）。 */
-export type HistoryEvidence = Readonly<{ scope: ScopeRef; epoch: EpochId; upper: number }>
+export type HistoryEvidence = Readonly<{
+  target: ContextTarget
+  epoch: EpochId
+  upper: HistoryUpper
+}>
+/** 分页游标：带它所属的历史依据与已读到的序号。 */
+export type HistoryCursor = Readonly<{ evidence: HistoryEvidence; after: HistorySequence }>
+/** 编入租户的模型调用引用。 */
+export type TenantModelCall = Readonly<{
+  tenant: import('@omne-harness/legal-identity').TenantId
+  call: M.ModelCallId
+}>
+/** 只有 assistant 消息可以带来源调用（J48）。 */
+export type SourcedMessage =
+  | Readonly<{
+      message: Extract<Message, { role: 'assistant' }>
+      sourceCall?: TenantModelCall
+    }>
+  | Readonly<{ message: Exclude<Message, { role: 'assistant' }>; sourceCall?: never }>
 
 /** 组二：已可靠保存的新输入批。`saved` 为 null 即「新输入未保存」→ 无效（RQ-02）。 */
 export type NewInputBatch = Readonly<{
@@ -131,8 +159,19 @@ export type PreviousPreparation = Readonly<{
   carried?: RequestCandidate
 }>
 
-/** 七组、十四字段；字段名取自 S-03 类图。 */
+/** 一次组装调用：组一，调用方不可变的身份与用途。 */
+export type AssemblyCall<P> = Readonly<{
+  access: Access<P>
+  candidate: CandidateRef
+  position: PositionRef
+  purpose: RequestPurpose
+}>
+
+/**
+ * 已稳定读取的七组材料的内部视图。它不是公开入口：操作组只经来源集合读出它（RQ-13）。
+ */
 export type AssemblyInput<P> = Readonly<{
+  target: ContextTarget
   // 组一 调用身份与用途
   identity: Readonly<{
     access: Access<P>
@@ -145,7 +184,7 @@ export type AssemblyInput<P> = Readonly<{
   inputs: NewInputBatch
   // 组三 runtime context 读取结果
   contextRead: ContextReadGroup
-  adopted: Coverage | null
+  adopted: AdoptedRequestFact | null
   transition: TransitionEvidence | null
   // 组四 系统提示词
   promptContributions: PromptContributionSet | null
@@ -159,6 +198,60 @@ export type AssemblyInput<P> = Readonly<{
   previous: PreviousPreparation | null
   alterations: readonly AlterationEvidence[]
   beforeModelCall: readonly PassageRef[] | null
+}>
+
+/** 七组的数据视图；第三组的已采用事实由本成员从窄采用来源填入。 */
+export type InputGroups<P> = Readonly<{
+  identity: AssemblyCall<P>
+  history: Readonly<{ evidence: HistoryEvidence; inputs: NewInputBatch }>
+  context: Readonly<{
+    contextRead: ContextReadGroup
+    adopted: AdoptedRequestFact | null
+    transition: TransitionEvidence | null
+  }>
+  prompt: Readonly<{
+    promptContributions: PromptContributionSet | null
+    assembleContext: AssemblyContext
+  }>
+  model: SelectedModel
+  tools: readonly ToolAdoption[]
+  control: Readonly<{
+    conditions: ConditionsEvidence
+    previous: PreviousPreparation | null
+    alterations: readonly AlterationEvidence[]
+    beforeModelCall: readonly PassageRef[] | null
+  }>
+}>
+export type GroupName = keyof InputGroups<unknown>
+
+/** 协调者随已采用事实保存并传回的被延续调用依据（J48）。 */
+export type ContinuationBasis = Readonly<{
+  call: TenantModelCall
+  fixed: DurableEvidence
+  history: HistoryEvidence
+  messagePrefix: readonly import('@omne-harness/message').MessageId[]
+  projection: Adoption
+  system: DurableEvidence
+  tools: DurableEvidence
+  parameters: DurableEvidence
+  replay: DurableEvidence
+  visibility: DurableEvidence
+}>
+
+/** 当前已固定采用的请求：原覆盖证据加协调者保存的固定调用关联（RQ-14）。 */
+export type AdoptedRequestFact = Readonly<{
+  coverage: Coverage
+  target: ContextTarget
+  call: TenantModelCall
+  candidate: CandidateRef
+  order: CommitOrder
+  committed: DurableEvidence
+  windowTokens: string
+  accounting:
+    | Readonly<{ kind: 'unique'; dispatch: M.DispatchId }>
+    | Readonly<{ kind: 'unsettled' | 'multiple' }>
+  forecast: Readonly<{ kind: 'estimate'; usedTokens: string }> | null
+  continuation: ContinuationBasis | null
 }>
 
 /** 压缩转换依据：共同提交之后由调用方传入 `resume`（RQ-06）。 */
@@ -193,14 +286,18 @@ export type PrefixBreakReason = (typeof PREFIX_BREAK_REASONS)[number]
 /** 一层锚点处的序号与前缀摘要（H3）。 */
 export type LayerAnchor = Readonly<{
   layer: Extract<Layer, 'history-head' | 'snapshot-reminder' | 'history-body'>
-  seq: number
+  seq: HistorySequence
   prefixDigest: string
 }>
-/** 快照锚点：完整读取时的模型可见历史尾部（R4）。`seq` 为 -1 表示空历史的起点之前。 */
-export type SnapshotAnchor = Readonly<{ epoch: EpochId; seq: number; prefixDigest: string | null }>
+/** 快照锚点：完整读取时的模型可见历史尾部（R4）。位置为空时前缀摘要为 null。 */
+export type SnapshotAnchor = Readonly<{
+  epoch: EpochId
+  position: HistoryUpper
+  prefixDigest: string | null
+}>
 
 export type Coverage = Readonly<{
-  history: Readonly<{ epoch: EpochId; upper: number; anchors: readonly LayerAnchor[] }>
+  history: Readonly<{ epoch: EpochId; upper: HistoryUpper; anchors: readonly LayerAnchor[] }>
   compactions: Readonly<{ record: RecordEntryRef | null; derivation: string | null }>
   inputs: Readonly<{ batch: BatchRef; saved: DurableEvidence | null }>
   snapshot: Readonly<{
@@ -292,7 +389,6 @@ export type RequestLayers = Readonly<{
 
 export type RequestCandidate = Readonly<{
   preparation: Readonly<{
-    access: Access<unknown>
     key: PreparedInputKey
     rows: readonly HistoryRow[]
     view: ProjectedHistory
@@ -305,19 +401,31 @@ export type RequestCandidate = Readonly<{
   /** 按 Model 的形状交出的组装输入，供协调者直接交 `ModelRequestPreparation.prepare`。 */
   assembled: M.AssembledModelInput
   modality: M.ModalityRequirement | null
+  /** The facts a later request compares before it declares `continues`; the coordinator adds the call and the commit when it fixes this candidate. */
+  continuation: Omit<ContinuationBasis, 'call' | 'fixed'>
 }>
 
+/** 计划时冻结的压缩依据：可保存的数据值，不带读口、租约或句柄（RQ-06）。 */
+export type CompactionBasis = Readonly<{
+  target: ContextTarget
+  history: HistoryEvidence
+  context: import('@omne-harness/message').CompactionContext
+  projected: ProjectedHistory
+  selection: SelectedModel
+  representation: Adoption
+  continuation: ContinuationBasis | null
+  retainedBudget: string
+  digest: string
+}>
 export type CompactionPlan = Readonly<{
   planId: PlanId
   candidate: CandidateRef
-  epoch: EpochId
   bound: string
   policy: Readonly<{ identity: Adoption; configDigest: string }>
   covers: import('@omne-harness/message').CompactedRange
   retained: readonly RecordEntryRef[]
-  floor: readonly RecordEntryRef[]
-  after: readonly Message[]
-  shape: 'trim-then-summarize' | 'summarize'
+  shape: Readonly<{ kind: 'summarize'; trimFirst: boolean }>
+  basis: CompactionBasis
 }>
 export type PlanProgress = Readonly<{
   planId: PlanId
@@ -335,20 +443,23 @@ export type SummaryMaterial = Readonly<{
     keptBytes: string
   }>[]
 }>
-export type StepRequest = Readonly<{ planId: PlanId; index: string }> &
-  (
-    | Readonly<{ kind: 'trim'; material: SummaryMaterial }>
-    | Readonly<{ kind: 'summarize'; material: SummaryMaterial; assembled: M.AssembledModelInput }>
-  )
+/** 摘要步；修剪在第一个摘要步之前完成，不是一步（J12）。 */
+export type StepRequest = Readonly<{
+  planId: PlanId
+  index: string
+  kind: 'summarize'
+  material: SummaryMaterial
+  assembled: M.AssembledModelInput
+}>
 
 export type StepInput =
-  | Readonly<{ kind: 'trim' }>
   | Readonly<{
       kind: 'summary'
+      index: string
       produced: readonly [MessageContentBlock, ...MessageContentBlock[]]
       consumed: DurableEvidence
     }>
-  | Readonly<{ kind: 'vetoed'; reason: string; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'vetoed'; index: string; reason: string; evidence: DurableEvidence }>
 
 export type ContextTransition = Readonly<{
   planId: PlanId
@@ -368,7 +479,7 @@ export type ContextTransition = Readonly<{
 export type AssemblyFailure =
   | Readonly<{
       kind: 'denied'
-      action: 'read-history' | 'read-conversions' | 'assemble'
+      action: 'read-history' | 'read-conversions' | 'assemble' | 'read-inputs' | 'read-accounts'
       diagnostic: string
     }>
   | Readonly<{ kind: 'invalid'; field: string; reason: InvalidReason }>
@@ -397,6 +508,11 @@ export type InvalidReason =
   | 'plan-mismatch'
   | 'progress-mismatch'
   | 'policy-mismatch'
+  | 'tenant-mismatch'
+  | 'unknown-epoch'
+  | 'upper-out-of-range'
+  | 'source-evidence-conflict'
+  | 'invalid-account'
 export type UnavailableOwner =
   | 'history-source'
   | 'meter'
@@ -404,6 +520,12 @@ export type UnavailableOwner =
   | 'runtime-context'
   | 'representation'
   | 'instance'
+  | 'source-registry'
+  | 'input-source'
+  | 'principal-binding'
+  | 'read-eligibility'
+  | 'preparation'
+  | 'accounting'
 export type AssemblyUnknown = Readonly<{
   kind: 'unknown'
   source: 'read' | 'commit'
@@ -452,42 +574,21 @@ export type StepResult =
   | AssemblyFailure
   | AssemblyUnknown
 
-/** Revision comparison uses source-owned evidence and counters, never content hashes. */
+/** Source-owned group tokens and the principal key; never content hashes or measurements. */
 export type PreparedInputKey = Readonly<{
-  identity: Omit<AssemblyInput<unknown>['identity'], 'access'>
-  history: HistoryEvidence
-  inputs: AssemblyInput<unknown>['inputs']
-  context: Readonly<{
-    source: DurableEvidence
-    coverage: DurableEvidence
-    snapshot: Pick<SnapshotMaterial, 'scope' | 'eligibility' | 'revision'> | null
-  }>
-  prompt: Readonly<{ digest: string; generation: string | null }>
-  assembly: AssemblyContext
-  model: Readonly<{
-    evidence: DurableEvidence
-    toolsEvidence: DurableEvidence
-    adoption: Adoption
-    revision: M.Revision
-    recipient: SelectedModel['recipient']
-    parameters: readonly M.ParameterAdoption[]
-    replay: 'on' | 'off'
-  }>
-  tools: readonly Readonly<{
-    resident: boolean
-    definition: Adoption
-    binding: Adoption
-  }>[]
-  conditions: ConditionsEvidence
-  alterations: readonly AlterationEvidence[]
-  beforeModelCall: readonly PassageRef[] | null
+  /** The source set generation of a hosted operation group; `null` for a standalone group. */
+  generation: SourceGeneration | null
+  principal: PrincipalKey
+  identity: Omit<AssemblyCall<unknown>, 'access'>
+  tokens: Readonly<Record<Exclude<GroupName, 'identity'>, GroupToken>>
+  rules: Readonly<{ compaction: Adoption; configDigest: string; representation: Adoption }>
 }>
-export type DeriveInput = Readonly<{
+export type DeriveInput<P> = Readonly<{
+  call: AssemblyCall<P>
   plan: CompactionPlan
   progress: PlanProgress
   step: StepInput
-  material: SummaryMaterial | null
-  selection: SelectedModel
+  material: SummaryMaterial
 }>
 
 export type ToolRoute = Readonly<{
@@ -504,25 +605,25 @@ export type ToolDeclarationSet = Readonly<{
 }>
 
 export type HistoryRow = Readonly<{
-  seq: number
+  seq: HistorySequence
   entry: RecordEntryRef
-  message: Message
   bytes: string
   /** 前缀摘要：上一行摘要与本行摘要的链式散列（H3）。 */
   prefixDigest: string
-}>
+}> &
+  SourcedMessage
 
 export type ProjectedMessage = Readonly<{
-  seq: number
+  seq: HistorySequence
   entry: RecordEntryRef
   prefixDigest: string
-  message: Message
   dropped: readonly BlockId[]
-}>
+}> &
+  SourcedMessage
 export type ProjectedHistory = Readonly<{
   epoch: EpochId
   messages: readonly ProjectedMessage[]
-  compaction: Readonly<{ seq: number; entry: RecordEntryRef }> | null
+  compaction: Readonly<{ seq: HistorySequence; entry: RecordEntryRef }> | null
 }>
 
 export type ConversionIndex = ReadonlyMap<BlockId, M.ConversionResult>

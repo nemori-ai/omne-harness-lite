@@ -4,7 +4,7 @@ import {
   type RequestBudget,
   type ModelCountingBasis,
 } from '@omne-harness/model-contract'
-import { tenantCodec } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { parseRecordEntryRef, parseMessageId, type Message } from '@omne-harness/message'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
@@ -13,11 +13,33 @@ import {
   decodePositionRef,
   decodeEpochId,
   decodeBatchRef,
-  type AssemblyInput,
-  type AssemblyPorts,
+  decodeHistorySequence,
+  type AssemblyCall,
   type AssemblyPolicies,
+  type ContextTarget,
   type HistoryRow,
+  type HistorySequence,
 } from '../index.js'
+import { createAssemblyOperations } from '../operations.js'
+import type { AssemblyOperations } from '../ports.js'
+import {
+  createMemoryContextSources,
+  createTestingPrincipalBinding,
+  type AssemblyGroupValues,
+  type MemoryContextSources,
+} from './sources.js'
+import {
+  createMemoryConversionResults,
+  createScriptedInputMeter,
+  createScriptedPreparationResources,
+  type ScriptedPreparationResources,
+  type PreparationScript,
+} from './doubles.js'
+import {
+  createMemoryHistorySource,
+  type HistoryFixtureRow,
+  type MemoryHistorySource,
+} from './history-source.js'
 export const adoption = { owner: 'test', name: 'test', revision: '1', digest: 'd' }
 export const evidence = { owner: 'test', record: 'test', revision: '1', digest: 'd' }
 export function must<T>(v: { ok: T } | { failure: unknown }): T {
@@ -28,6 +50,9 @@ export const scope: import('@omne-harness/runtime-context-contract').ScopeRef = 
   decodeScopeRef({ ref: 'scope:test' }),
 )
 export const epoch = must(decodeEpochId('epoch:1'))
+export function seq(index: number): HistorySequence {
+  return must(decodeHistorySequence(String(index)))
+}
 export function entry(raw: string) {
   const v = parseRecordEntryRef(raw)
   if (v === null) throw new Error('Entry invalid')
@@ -38,19 +63,29 @@ export function text(raw: string, id = 'b1') {
   if ('rejected' in v) throw new Error('Block invalid')
   return { kind: 'text' as const, ...v.ok, text: raw }
 }
-export function message(raw: string, id = 'abcdefghijklmnopqrstuv'): Message {
+export function message(
+  raw: string,
+  id = 'abcdefghijklmnopqrstuv',
+): Extract<Message, { role: 'user' }> {
   const v = parseMessageId('msg_' + id)
   if (!v.ok) throw new Error('Id invalid')
   return { role: 'user', id: v.value, blocks: [text(raw)] }
 }
-export function row(seq = 0): HistoryRow {
+export function row(index = 0): HistoryRow {
   return {
-    seq,
-    entry: entry('entry:' + seq),
-    message: message('hello', String(seq).padStart(22, 'a')),
+    seq: seq(index),
+    entry: entry('entry:' + index),
+    message: message('hello', String(index).padStart(22, 'a')),
     bytes: '5',
-    prefixDigest: 'chain:' + seq,
+    prefixDigest: 'chain:' + index,
   }
+}
+export function fixtureTenant(account = '0'): TenantId {
+  const tenant = tenantCodec.parse(
+    `{"organization":"org_00000000000000000000000000","account":"acc_${account.padStart(26, '0')}"}`,
+  )
+  if (!tenant.ok) throw new Error('Tenant invalid')
+  return tenant.value
 }
 export const profile: ModelProfile = {
   identity: { scope: { kind: 'factory' }, route: 'route' },
@@ -76,74 +111,21 @@ export const profile: ModelProfile = {
     retryPolicy: adoption,
   },
 }
-function createFixture() {
-  const tenant = tenantCodec.parse(
-    '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000000"}',
-  )
-  if (!tenant.ok) throw new Error('Tenant invalid')
-  const input: AssemblyInput<string> = {
-    identity: {
-      access: { principal: 'p', tenant: tenant.value },
-      purpose: 'main',
-      position: must(decodePositionRef('position:1')),
-      candidate: must(decodeCandidateRef('candidate:1')),
-    },
-    history: { scope, epoch, upper: 0 },
-    inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
-    contextRead: {
-      scope,
-      recipient: 'route/model',
-      read: {
-        kind: 'success',
-        registration: { issued: 0, current: 0 },
-        value: {
-          scope,
-          viewRevision: 1,
-          cursor: { cursor: 'c' },
-          blocks: [],
-          missing: [],
-          perRequest: [],
-        },
-      },
-      snapshot: { scope, eligibility: { eligibility: 'eligible' }, revision: 1, blocks: [] },
-      perRequest: [],
-      source: evidence,
-      coverage: evidence,
-    },
-    adopted: null,
-    transition: null,
-    promptContributions: { contributions: [], digest: 'empty', generation: null },
-    assembleContext: { scope, definition: null, workspace: null, keys: {} },
-    selection: {
-      recipient: { route: 'route', model: 'model' },
-      profile,
-      parameters: [],
-      replay: 'on',
-      toolsEvidence: evidence,
-      evidence,
-    },
-    tools: [],
-    conditions: { evidence, revision: '1' },
-    previous: null,
-    alterations: [],
-    beforeModelCall: null,
-  }
-  let reads = 0,
-    meters = 0
-  const basis: ModelCountingBasis = {
-    supplier: profile.definition.suppliers[0],
-    meter: adoption,
-    tokenization: { kind: 'not-used', method: adoption },
-    prompt: { kind: 'provider-private', estimation: adoption },
-    projection: adoption,
-    mediaTransform: adoption,
-    replay: adoption,
-    evidence: adoption,
-  }
-  const budget = (amount = '1'): RequestBudget => ({
+export const countingBasis: ModelCountingBasis = {
+  supplier: profile.definition.suppliers[0],
+  meter: adoption,
+  tokenization: { kind: 'not-used', method: adoption },
+  prompt: { kind: 'provider-private', estimation: adoption },
+  projection: adoption,
+  mediaTransform: adoption,
+  replay: adoption,
+  evidence: adoption,
+}
+export function fixtureBudget(amount = '1'): RequestBudget {
+  return {
     kind: 'complete',
     inputDigest: 'budget',
-    counting: [basis],
+    counting: [countingBasis],
     checks: [
       {
         supplier: adoption,
@@ -157,40 +139,74 @@ function createFixture() {
         },
       },
     ],
-  })
-  const ports: AssemblyPorts<string> = {
+  }
+}
+export function testingAccess<P>(principal: P, tenant: TenantId): import('../refs.js').Access<P> {
+  return { principal, tenant }
+}
+
+/** Default values of the six source groups for one target, with an empty saved input batch. */
+export function createAssemblyGroups(
+  target: ContextTarget,
+  overrides: Partial<AssemblyGroupValues<string>> = {},
+): AssemblyGroupValues<string> {
+  const base: AssemblyGroupValues<string> = {
     history: {
-      async read() {
-        reads++
-        return { kind: 'page', page: { rows: [row()], next: null } }
-      },
-      async compactionContext() {
-        return {
-          kind: 'context',
-          epoch,
+      evidence: { target, epoch, upper: { kind: 'entry', seq: seq(0) } },
+      inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
+    },
+    context: {
+      contextRead: {
+        scope: target.scope,
+        recipient: 'route/model',
+        read: {
+          kind: 'success',
+          registration: { issued: 0, current: 0 },
           value: {
-            covered: [{ ref: entry('entry:0'), message: row().message }],
-            after: [],
-            open: [],
+            scope: target.scope,
+            viewRevision: 1,
+            cursor: { cursor: 'c' },
+            blocks: [],
+            missing: [],
+            perRequest: [],
           },
-        }
+        },
+        snapshot: {
+          scope: target.scope,
+          eligibility: { eligibility: 'eligible' },
+          revision: 1,
+          blocks: [],
+        },
+        perRequest: [],
+        source: evidence,
+        coverage: evidence,
       },
+      transition: null,
     },
-    conversions: {
-      async read() {
-        return { kind: 'index', entries: new Map() }
-      },
+    prompt: {
+      promptContributions: { contributions: [], digest: 'empty', generation: null },
+      assembleContext: { scope: target.scope, definition: null, workspace: null, keys: {} },
     },
-    serializer: { bytesOf: () => '71' },
-    meter: {
-      basis,
-      measure() {
-        meters++
-        return { ok: budget() }
-      },
+    model: {
+      recipient: { route: 'route', model: 'model' },
+      profile,
+      parameters: [],
+      replay: 'on',
+      toolsEvidence: evidence,
+      evidence,
+    },
+    tools: [],
+    control: {
+      conditions: { evidence, revision: '1' },
+      previous: null,
+      alterations: [],
+      beforeModelCall: null,
     },
   }
-  const policies: AssemblyPolicies = {
+  return { ...base, ...overrides }
+}
+export function fixturePolicies(): AssemblyPolicies {
+  return {
     representation: {
       identity: adoption,
       config: { preferences: { text: ['original'], image: ['original'], voice: ['original'] } },
@@ -207,29 +223,96 @@ function createFixture() {
         stepBound: '2',
       },
       configDigest: () => 'config:1',
-      plan: ({ context }) => ({
+      plan: async ({ context }) => ({
         kind: 'draft',
         coverTo: context.covered.at(-1)?.ref ?? entry('entry:0'),
         retained: [],
         bound: '2',
-        shape: 'summarize',
+        shape: { kind: 'summarize', trimFirst: false },
       }),
       trim: m => m,
       summaryInstruction: () => [text('summarize')],
     },
   }
-  return { input, ports, policies, budget, counts: () => ({ reads, meters }) }
 }
 
-export type AssemblyInputFixtureOptions = Partial<AssemblyInput<string>>
-export function createAssemblyInput(
-  options: AssemblyInputFixtureOptions = {},
-): AssemblyInput<string> {
-  return { ...createFixture().input, ...options }
-}
-export function testingAccess<P>(
-  principal: P,
-  tenant: import('@omne-harness/legal-identity').TenantId,
-): import('../refs.js').Access<P> {
-  return { principal, tenant }
+export type AssemblyFixtureOptions = Readonly<{
+  tenant?: TenantId
+  rows?: readonly HistoryFixtureRow[]
+  groups?: Partial<AssemblyGroupValues<string>>
+  policies?: AssemblyPolicies
+  preparation?: Partial<PreparationScript>
+  /** Open-work entries the history holder reports. */
+  open?: readonly import('@omne-harness/message').RecordEntryRef[]
+}>
+export type AssemblyFixture = Readonly<{
+  target: ContextTarget
+  call: AssemblyCall<string>
+  history: MemoryHistorySource<string>
+  sources: MemoryContextSources<string>
+  preparation: ScriptedPreparationResources<string>
+  policies: AssemblyPolicies
+  operations: () => AssemblyOperations<string>
+}>
+/** A complete in-memory source set for one target: one saved row, a scripted lease, no adoption. */
+export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): AssemblyFixture {
+  const tenant = options.tenant ?? fixtureTenant()
+  const target: ContextTarget = { tenant, scope }
+  const rows = options.rows ?? [row(0)]
+  const history = createMemoryHistorySource<string>({
+    scope,
+    tenant,
+    epochs: [
+      {
+        epoch,
+        rows: [...rows],
+        entries: rows.map(r => ({ ref: r.entry, message: r.message })),
+        open: options.open ?? [],
+      },
+    ],
+  })
+  const last = rows.at(-1)
+  const groups = createAssemblyGroups(target, {
+    history: {
+      evidence: {
+        target,
+        epoch,
+        upper: last === undefined ? { kind: 'empty' } : { kind: 'entry', seq: last.seq },
+      },
+      inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
+    },
+    ...options.groups,
+  })
+  const preparation = createScriptedPreparationResources<string>({
+    meter: createScriptedInputMeter(countingBasis, () => ({ ok: fixtureBudget() })),
+    ...options.preparation,
+  })
+  const sources = createMemoryContextSources<string>({
+    target,
+    values: groups,
+    history,
+    conversions: createMemoryConversionResults<string>(),
+    preparation,
+  })
+  const policies = options.policies ?? fixturePolicies()
+  return {
+    target,
+    call: {
+      access: { principal: 'p', tenant },
+      purpose: 'main',
+      position: must(decodePositionRef('position:1')),
+      candidate: must(decodeCandidateRef('candidate:1')),
+    },
+    history,
+    sources,
+    preparation,
+    policies,
+    operations: () =>
+      createAssemblyOperations({
+        target,
+        sources,
+        principalBinding: createTestingPrincipalBinding<string>(),
+        policies,
+      }),
+  }
 }

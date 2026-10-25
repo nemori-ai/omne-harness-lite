@@ -1,14 +1,13 @@
 import { expect, it } from 'vitest'
 import {
   compactionPlanSchema,
-  planCompaction,
   compactionPolicySchema,
   compactionSettingsSchema,
   windowUsageSchema,
   representationPolicyConfigSchema,
   planProgressSchema,
 } from '@omne-harness/request-context-contract'
-import { fixture, adoption, evidence } from './fixtures.js'
+import { fixture, adoption, evidence, planCompaction } from './fixtures.js'
 const policy = {
   retainBudget: { kind: 'ratio', retainRatio: '1' },
   retainPreference: 'newest-first',
@@ -33,32 +32,69 @@ it('policy boundaries preserve exact budget and step representations and reject 
     { retainPreference: 'oldest' },
     { triggerPercent: '100.1' },
     { headroomTokens: '-1' },
-    { stepBound: '1' },
+    { stepBound: '0' },
     { trimFirst: false, stepBound: '0' },
   ])
     expect(compactionPolicySchema['~standard'].validate({ ...policy, ...change })).toHaveProperty(
       'issues',
     )
+  // Trimming is not a step: one summarize step may follow the trim.
+  expect(
+    compactionPolicySchema['~standard'].validate({ ...policy, stepBound: '1' }),
+  ).toHaveProperty('value')
 })
 it('required block schemas compose policy validation and keep their own failure diagnostics', () => {
   const settings = { ...policy, policy: adoption }
   expect(compactionSettingsSchema['~standard'].validate(settings)).toEqual({ value: settings })
   for (const value of [
     { ...settings, policy: { ...adoption, digest: 4 } },
-    { ...settings, stepBound: '1' },
+    { ...settings, stepBound: '0' },
   ])
     expect(compactionSettingsSchema['~standard'].validate(value)).toEqual({
       issues: [{ path: [], message: 'Invalid compaction settings' }],
     })
-  const usage = { candidate: 'candidate:one', usedTokens: '0', windowTokens: '0', ratio: '1' }
-  expect(windowUsageSchema['~standard'].validate(usage)).toEqual({ value: usage })
-  for (const change of [
-    { candidate: '' },
-    { usedTokens: '-1' },
-    { windowTokens: 2 },
-    { ratio: '1.01' },
+  const valid = [
+    { kind: 'not-fixed' },
+    { kind: 'unmeasured', candidate: 'candidate:one', windowTokens: '1000' },
+    {
+      kind: 'estimate',
+      candidate: 'candidate:one',
+      usedTokens: '0',
+      windowTokens: '1000',
+      ratio: '0',
+    },
+    // A real overflow keeps its ratio above 1, rounded up to six decimals.
+    {
+      kind: 'actual',
+      candidate: 'candidate:one',
+      usedTokens: '1001',
+      windowTokens: '1000',
+      ratio: '1.001',
+    },
+    {
+      kind: 'actual',
+      candidate: 'candidate:one',
+      usedTokens: '1',
+      windowTokens: '3',
+      ratio: '0.333334',
+    },
+  ]
+  for (const usage of valid)
+    expect(windowUsageSchema['~standard'].validate(usage)).toEqual({ value: usage })
+  const usage = valid[3]!
+  for (const value of [
+    { candidate: 'candidate:one', usedTokens: '1', windowTokens: '3', ratio: '0.333334' },
+    { ...usage, candidate: '' },
+    { ...usage, usedTokens: '-1' },
+    { ...usage, windowTokens: 2 },
+    { ...usage, windowTokens: '0' },
+    { ...usage, ratio: '1' },
+    { kind: 'not-fixed', usedTokens: '0' },
+    { kind: 'unmeasured', candidate: 'candidate:one', windowTokens: '1000', usedTokens: '0' },
+    { kind: 'unmeasured', candidate: 'candidate:one' },
+    { kind: 'missing' },
   ])
-    expect(windowUsageSchema['~standard'].validate({ ...usage, ...change })).toEqual({
+    expect(windowUsageSchema['~standard'].validate(value)).toEqual({
       issues: [{ path: [], message: 'Invalid window usage' }],
     })
 })
@@ -103,30 +139,22 @@ it('progress requires contiguous consumption, durable evidence, and exact comple
     )
 })
 
-it('plan decoding keeps floor containment and retained uniqueness without strengthening the schema', async () => {
+it('plan decoding keeps the complete basis and rejects an old plan or a tampered basis', async () => {
   const f = fixture()
   const planned = await planCompaction(f.input, f.ports, f.policies)
   if (planned.kind !== 'planned') throw new Error(planned.kind)
   const plan = planned.plan
   expect(compactionPlanSchema['~standard'].validate(plan)).toEqual({ value: plan })
-  for (const change of [
-    { retained: [plan.covers.from, plan.covers.from] },
-    { retained: [], floor: [plan.covers.from] },
-    { covers: { from: '', to: plan.covers.to } },
-    { after: [{}] },
-    { candidate: '' },
-    { bound: '0' },
-    { shape: 'unknown' },
+  const { basis: _basis, ...old } = plan
+  for (const value of [
+    { ...plan, retained: [plan.covers.from, plan.covers.from] },
+    { ...plan, covers: { from: '', to: plan.covers.to } },
+    { ...plan, candidate: '' },
+    { ...plan, bound: '0' },
+    { ...plan, shape: 'summarize' },
+    { ...plan, shape: { kind: 'trim-then-summarize', trimFirst: true } },
+    { ...old, epoch: 'epoch:1', floor: [], after: [] },
+    { ...plan, basis: { ...plan.basis, retainedBudget: '7' } },
   ])
-    expect(compactionPlanSchema['~standard'].validate({ ...plan, ...change })).toHaveProperty(
-      'issues',
-    )
-  const duplicateFloor = {
-    ...plan,
-    retained: [plan.covers.from],
-    floor: [plan.covers.from, plan.covers.from],
-  }
-  expect(compactionPlanSchema['~standard'].validate(duplicateFloor)).toEqual({
-    value: duplicateFloor,
-  })
+    expect(compactionPlanSchema['~standard'].validate(value)).toHaveProperty('issues')
 })

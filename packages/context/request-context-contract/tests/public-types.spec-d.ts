@@ -13,7 +13,13 @@ import type {
   ContextReadGroup,
   ContextTransition,
   AssemblyOutcome,
-  AssemblyInput,
+  AssemblyCall,
+  HistorySource,
+  ConversionResultSource,
+  WindowUsageValue,
+  ContextAccountingInbox,
+  SystemRecoveryAccess,
+  HistoryRow,
   CompactionPolicy,
   CandidateRef,
   PlanId,
@@ -27,7 +33,19 @@ test('RC-owned identities and revisions stay in their original types', () => {
   expectTypeOf<AssemblyOutcome['kind']>().toEqualTypeOf<
     'candidate-before-extension' | 'candidate-fixable' | 'needs-compaction' | 'cannot-fit'
   >()
-  expectTypeOf<AssemblyInput<string>['identity']['access']>().not.toBeNullable()
+  expectTypeOf<AssemblyCall<string>['access']>().not.toBeNullable()
+  // J41: ordinary ports take Access, never null; recovery has its own system access.
+  expectTypeOf<Parameters<HistorySource<string>['read']>[0]['access']>().not.toBeNullable()
+  expectTypeOf<Parameters<ConversionResultSource<string>['read']>[0]['access']>().not.toBeNullable()
+  expectTypeOf<
+    Parameters<ContextAccountingInbox<string>['usage']>[0]['access']
+  >().not.toBeNullable()
+  expectTypeOf<SystemRecoveryAccess<string>['scope']>().toEqualTypeOf<'system'>()
+  expectTypeOf<WindowUsageValue['kind']>().toEqualTypeOf<
+    'not-fixed' | 'unmeasured' | 'actual' | 'estimate'
+  >()
+  // J48: only an assistant row can carry a source call.
+  expectTypeOf<Extract<HistoryRow, { message: { role: 'user' } }>['sourceCall']>().toBeNever()
   expectTypeOf<CompactionPolicy['triggerPercent']>().toEqualTypeOf<string | null>()
   expectTypeOf<CandidateRef>().not.toEqualTypeOf<PlanId>()
 })

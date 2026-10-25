@@ -27,4 +27,4 @@
 | [public-api.md](public-api.md)     | 两个入口。根类型重导出、Cordis 定义与导出库存                                                              |
 | [context.md](context.md)           | 各类依赖方的用法与定位                                                                                    |
 
-两个入口的公开定义已进入[源码](../src/cordis.ts)。经 Cordis 的组装入口 `assembly(scope, ports)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 从 Runtime Context 契约原样复用。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+两个入口的公开定义已进入[源码](../src/cordis.ts)。经 Cordis 的来源登记 `register`、`replace` 与组装入口 `assembly(target)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 从 Runtime Context 契约原样复用。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

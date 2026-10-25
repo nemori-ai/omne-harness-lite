@@ -34,6 +34,7 @@
     "@omne-harness/request-context-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

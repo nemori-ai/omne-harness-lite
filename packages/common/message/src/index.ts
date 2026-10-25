@@ -19,10 +19,12 @@ export { parseRecordEntryRef } from './compaction-shape.ts'
 export type { CompactedRange, CompactionDerivation, RecordEntryRef } from './compaction-shape.ts'
 export { judgeCompaction } from './compaction.ts'
 export type {
+  CompactionBase,
   CompactionContext,
   CompactionJudgment,
   CompactionRejection,
   CoveredEntry,
+  PairingWitness,
 } from './compaction.ts'
 export { judgePart } from './parts.ts'
 export {

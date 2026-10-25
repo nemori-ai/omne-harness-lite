@@ -53,7 +53,14 @@ export function placeContext(
   const anchor =
     !full && adopted !== null
       ? adopted.snapshot.anchor
-      : { epoch: view.epoch, seq: last?.seq ?? -1, prefixDigest: last?.prefixDigest ?? null }
+      : {
+          epoch: view.epoch,
+          position:
+            last === undefined
+              ? { kind: 'empty' as const }
+              : { kind: 'entry' as const, seq: last.seq },
+          prefixDigest: last?.prefixDigest ?? null,
+        }
   const blocks = material.blocks
     .filter(b => b.volatility !== 'per-request')
     .sort((a, b) => a.key.localeCompare(b.key, 'en'))

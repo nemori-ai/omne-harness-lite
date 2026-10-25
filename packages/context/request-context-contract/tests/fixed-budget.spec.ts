@@ -1,7 +1,6 @@
 import { expect, it } from 'vitest'
-import { assemble } from '@omne-harness/request-context-contract'
 import type { Message } from '@omne-harness/message'
-import { fixture, row } from './fixtures.js'
+import { fixture, row, upper, assemble } from './fixtures.js'
 it.each([
   [
     'only old history exceeds',
@@ -58,7 +57,7 @@ it.each([
   const result = await assemble(
     {
       ...f.input,
-      history: { ...f.input.history, upper: 1 },
+      history: { ...f.input.history, upper: upper(1) },
       inputs: { ...f.input.inputs, entries: [inputRow.entry] },
       contextRead: {
         ...f.input.contextRead,

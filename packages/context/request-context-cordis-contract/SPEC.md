@@ -1,6 +1,6 @@
 # @omne-harness/request-context-cordis-contract 行为规格
 
-状态：Cordis 定义成员，`draft`。本成员只拥有 Request Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。它承载两件事：提示词贡献的登记面，以及压缩策略与表示策略的提供者选择。领域行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；生产提供者实现不在本成员。
+状态：Cordis 定义成员，`draft`。本成员只拥有 Request Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。它承载三件事：提示词贡献的登记面、来源登记表 `register`、`replace` 与 `assembly(target)` 的投影，以及压缩策略与表示策略的提供者选择。领域行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；生产提供者实现不在本成员。
 
 ## 范围与依据
 

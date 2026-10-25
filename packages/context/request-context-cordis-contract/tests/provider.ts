@@ -1,27 +1,38 @@
 import { Context, Service } from '@deepseek-ai/cordis'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import {
-  assemble,
-  planCompaction,
-  deriveStep,
-  resume,
-  type AssemblyInput,
-  type AssemblyPorts,
+  createAssemblyOperations,
+  decodeGroupToken,
+  decodeRegistrationRef,
+  decodeSourceGeneration,
+  type AssemblyOperations,
   type AssemblyPolicies,
+  type ContextRegistration,
+  type ContextSourceRegistry,
+  type ContextSources,
+  type ContextTarget,
   type ContributionResult,
   type ContributionsResult,
   type PromptContribution,
   type PromptContributionRegistry,
+  type RegistrationResult,
   type ScopeRef,
 } from '@omne-harness/request-context-contract'
 import {
   createScriptedCompactionPolicy,
   createScriptedRepresentationPolicy,
+  createTestingPrincipalBinding,
 } from '@omne-harness/request-context-contract/testing'
 import {
   RequestContextService,
-  type AssemblyAccess,
   type RequestContextIntercept,
 } from '@omne-harness/request-context-cordis-contract/cordis'
+type SourceSet = {
+  readonly target: ContextTarget
+  readonly sources: ContextSources<unknown>
+  readonly handle: ContextRegistration
+  withdrawn: boolean
+}
 let generations = 0
 /** A non-production provider used only to validate the Cordis definition's promises. */
 export class ProbeProvider extends RequestContextService<unknown> {
@@ -31,6 +42,8 @@ export class ProbeProvider extends RequestContextService<unknown> {
   private closed = false
   private readonly layers = new Map<string | null, Map<string, PromptContribution>>()
   private readonly revisions = new Map<string | null, number>()
+  private readonly sourceSets: SourceSet[] = []
+  private registrations = 0
   private readonly policies: AssemblyPolicies = {
     compaction: createScriptedCompactionPolicy(),
     representation: createScriptedRepresentationPolicy(),
@@ -60,7 +73,7 @@ export class ProbeProvider extends RequestContextService<unknown> {
       this.listenerErrors.push(error)
     }
   }
-  private register(
+  private add(
     input:
       | Parameters<PromptContributionRegistry['contributeSection']>[0]
       | Parameters<PromptContributionRegistry['contributeVariable']>[0],
@@ -104,14 +117,14 @@ export class ProbeProvider extends RequestContextService<unknown> {
       if (variable?.kind === 'variable' && variable.volatility === 'per-request')
         return { kind: 'rejected', reason: 'per-request-variable', name: input.name }
     }
-    return this.register(input)
+    return this.add(input)
   }
   contributeVariable(
     ...[input]: Parameters<PromptContributionRegistry['contributeVariable']>
   ): ContributionResult {
     if (input.volatility === 'per-request')
       return { kind: 'rejected', reason: 'per-request-variable', name: input.name }
-    return this.register(input)
+    return this.add(input)
   }
   contributions(scope: ScopeRef | null): ContributionsResult {
     if (this.closed) return { kind: 'rejected', reason: 'closed' }
@@ -130,51 +143,125 @@ export class ProbeProvider extends RequestContextService<unknown> {
       },
     }
   }
-  assembly(scope: ScopeRef, ports: AssemblyPorts<unknown>): AssemblyAccess<unknown> {
-    if (this.closed) return { kind: 'unavailable', reason: 'closed' }
-    const prepare = (input: AssemblyInput<unknown>) => {
-      if (this.closed)
-        return {
-          kind: 'unavailable' as const,
-          owner: 'instance' as const,
-          diagnostic: 'Provider is closed',
-        }
-      if (input.promptContributions !== null)
-        return {
-          kind: 'invalid' as const,
-          field: 'promptContributions',
-          reason: 'contributions-not-accepted' as const,
-        }
-      if (input.history.scope.ref !== scope.ref || input.assembleContext.scope.ref !== scope.ref)
-        return { kind: 'invalid' as const, field: 'scope', reason: 'scope-mismatch' as const }
-      const contributions = this.contributions(scope)
-      return contributions.kind === 'current'
-        ? { kind: 'input' as const, value: { ...input, promptContributions: contributions.set } }
-        : {
-            kind: 'unavailable' as const,
-            owner: 'instance' as const,
-            diagnostic: 'Registry is closed',
-          }
+  private current(target: ContextTarget): SourceSet | undefined {
+    return this.sourceSets.find(
+      item =>
+        !item.withdrawn &&
+        item.target.scope.ref === target.scope.ref &&
+        tenantEquals(item.target.tenant, target.tenant),
+    )
+  }
+  /** Publishes one source set on the caller's fiber; unloading that fiber withdraws it. */
+  private publish(target: ContextTarget, sources: ContextSources<unknown>): RegistrationResult {
+    const n = ++this.registrations
+    const ref = decodeRegistrationRef(`registration_${n}`)
+    const generation = decodeSourceGeneration(`generation_${n}`)
+    if ('failure' in ref || 'failure' in generation) throw new Error('Probe identity')
+    let receipt: ReturnType<ContextRegistration['withdraw']> | null = null
+    let set: SourceSet | null = null
+    const dispose = this.ctx.effect(() => {
+      return () => {
+        if (set !== null) set.withdrawn = true
+      }
+    })
+    const handle: ContextRegistration = {
+      ref: ref.ok,
+      generation: generation.ok,
+      withdraw() {
+        receipt ??=
+          (dispose(), { kind: 'withdrawn', settled: Promise.resolve({ kind: 'settled' }) })
+        return receipt
+      },
     }
+    set = { target, sources, handle, withdrawn: false }
+    this.sourceSets.push(set)
+    return { kind: 'registered', handle }
+  }
+  async register(
+    ...[input]: Parameters<ContextSourceRegistry<unknown>['register']>
+  ): Promise<RegistrationResult> {
+    if (this.closed) return { kind: 'unavailable', diagnostic: 'Provider is closed' }
+    if (input.access === null || input.access === undefined)
+      return { kind: 'invalid', field: 'access', reason: 'missing-access' }
+    if (this.current(input.target) !== undefined) return { kind: 'conflict' }
+    return this.publish(input.target, input.sources)
+  }
+  async replace(
+    ...[input]: Parameters<ContextSourceRegistry<unknown>['replace']>
+  ): Promise<RegistrationResult> {
+    if (this.closed) return { kind: 'unavailable', diagnostic: 'Provider is closed' }
+    const previous = this.sourceSets.find(
+      item => !item.withdrawn && item.handle.ref === input.expected,
+    )
+    if (previous === undefined) return { kind: 'conflict' }
+    previous.withdrawn = true
+    return this.publish(previous.target, input.sources)
+  }
+  /** The fourth group read from the registration face, not from the registered source set. */
+  private live(sources: ContextSources<unknown>, scope: ScopeRef): ContextSources<unknown> {
+    const prompt = sources.groups.prompt
     return {
-      kind: 'operations',
-      operations: {
-        assemble: async input => {
-          const value = prepare(input)
-          return value.kind === 'input' ? assemble(value.value, ports, this.policies) : value
-        },
-        planCompaction: async input => {
-          const value = prepare(input)
-          return value.kind === 'input' ? planCompaction(value.value, ports, this.policies) : value
-        },
-        deriveStep: input => deriveStep(input, ports, this.policies),
-        resume: async input => {
-          const value = prepare(input)
-          return value.kind === 'input'
-            ? resume({ ...value.value, transition: input.transition }, ports, this.policies)
-            : value
+      ...sources,
+      groups: {
+        ...sources.groups,
+        prompt: {
+          readCount: async call => {
+            const count = await prompt.readCount(call)
+            if (count.kind !== 'value') return count
+            const set = this.contributions(scope)
+            if (set.kind !== 'current')
+              return { kind: 'unavailable', diagnostic: 'Registry is closed' }
+            const token = decodeGroupToken(`${count.value}_${set.set.generation}_${set.set.digest}`)
+            return 'failure' in token
+              ? { kind: 'unavailable', diagnostic: 'Prompt token' }
+              : { kind: 'value', value: token.ok }
+          },
+          readSource: async call => {
+            const value = await prompt.readSource(call)
+            if (value.kind !== 'value') return value
+            const set = this.contributions(scope)
+            if (set.kind !== 'current')
+              return { kind: 'unavailable', diagnostic: 'Registry is closed' }
+            return { kind: 'value', value: { ...value.value, promptContributions: set.set } }
+          },
         },
       },
+    }
+  }
+  assembly(target: ContextTarget): AssemblyOperations<unknown> {
+    const run = async <R>(
+      operate: (operations: AssemblyOperations<unknown>) => Promise<R>,
+    ): Promise<
+      R | Readonly<{ kind: 'unavailable'; owner: 'source-registry'; diagnostic: string }>
+    > => {
+      const set = this.closed ? undefined : this.current(target)
+      if (set === undefined)
+        return {
+          kind: 'unavailable',
+          owner: 'source-registry',
+          diagnostic: 'No source set is registered',
+        }
+      const result = await operate(
+        createAssemblyOperations({
+          target,
+          sources: this.live(set.sources, target.scope),
+          principalBinding: createTestingPrincipalBinding<unknown>(),
+          policies: this.policies,
+        }),
+      )
+      return set.withdrawn || this.closed
+        ? {
+            kind: 'unavailable',
+            owner: 'source-registry',
+            diagnostic: 'Withdrawn during the operation',
+          }
+        : result
+    }
+    return {
+      assemble: call => run(o => o.assemble(call)),
+      planCompaction: call => run(o => o.planCompaction(call)),
+      deriveStep: input => run(o => o.deriveStep(input)),
+      resume: call => run(o => o.resume(call)),
     }
   }
 }

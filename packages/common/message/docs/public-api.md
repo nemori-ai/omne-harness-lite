@@ -41,11 +41,13 @@
 | `parseRecordEntryRef` | 函数 | 空串返回 `null`，其他字符串原样带品牌返回 | [src/compaction-shape.ts](../src/compaction-shape.ts) |
 | `CompactedRange` | 类型 | 压缩覆盖范围 `{ from, to }` | [src/compaction-shape.ts](../src/compaction-shape.ts) |
 | `CompactionDerivation` | 类型 | 派生证据 `{ owner, record, revision, digest }`，本包不解释 | [src/compaction-shape.ts](../src/compaction-shape.ts) |
-| `CoveredEntry` | 类型 | 覆盖范围内的一个条目，不带消息的条目 `message` 为 `null` | [src/compaction.ts](../src/compaction.ts) |
-| `CompactionContext` | 类型 | `judgeCompaction` 的 `context` 参数：`covered`、`after`、`open` | [src/compaction.ts](../src/compaction.ts) |
+| `CoveredEntry` | 类型 | 判断窗口里的一个条目 `{ ref, message }`，不带消息的条目 `message` 为 `null` | [src/compaction.ts](../src/compaction.ts) |
+| `PairingWitness` | 类型 | 再次压缩时一条 `tool` 消息的配对见证 `{ result, call }`，`call` 可为 `null`（CM-03） | [src/compaction.ts](../src/compaction.ts) |
+| `CompactionBase` | 类型 | 首次压缩 `{ kind: 'initial' }`，或再次压缩 `{ kind: 'previous', record, pairings }`（CM-02） | [src/compaction.ts](../src/compaction.ts) |
+| `CompactionContext` | 类型 | `judgeCompaction` 的 `context` 参数：`origin`、`base`、`covered`、`after`、`open` | [src/compaction.ts](../src/compaction.ts) |
 | `CompactionRejection` | 类型 | 历史规则的拒绝值 | [src/compaction.ts](../src/compaction.ts) |
 | `CompactionJudgment` | 类型 | `judgeCompaction` 的结论：`{ ok }`，或 `{ rejected, ref }`，`ref` 可为 `null` | [src/compaction.ts](../src/compaction.ts) |
-| `judgeCompaction` | 函数 | 先用 `judgeMessage` 判 `message`，再判范围、保留名单、调用与结果的配对、未结工作 | [src/compaction.ts](../src/compaction.ts) |
+| `judgeCompaction` | 函数 | 先用 `judgeMessage` 判 `message`，再判范围、窗口的来源证据、保留名单、调用与结果的配对、未结工作 | [src/compaction.ts](../src/compaction.ts) |
 
 `MessageRejection` 含 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型是 `Message`，可以用 `role` 收窄，例如 `message.role === 'compaction'` 得到 `CompactionMessage`。消费者也可以直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为与判定顺序见 [SPEC.md](../SPEC.md)，用例见下面的[压缩用例表](#压缩用例表)。
 
@@ -171,7 +173,7 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 每行是压缩变体一条规则的一个示例，历史里的条目记作 e1、e2……，按写入顺序。表同时是文档和测试：[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行，删掉一行或改变一个结论都会变红。
 
 - `消息`：对基准压缩消息的覆盖。基准是 `{"id":"msg_abcdefghijklmnopqrstuv","role":"compaction","blocks":[一个对模型可见的文本块],"covers":{"from":"e1","to":"e1"},"retained":[],"derivation":{"owner":"o","record":"r","revision":"1","digest":"d"}}`，格里写的键替换基准里的同名键。值为 `"<absent>"` 时删去这个键，值为 `"<getter>"` 时在这个位置放一个访问器，访问器记录自己是否被调用。
-- `context`：`-` 表示这一行只用 `judgeMessage` 判；否则是 `judgeCompaction` 的 `context`。`covered` 的每项是 `[引用, 消息]`，`after` 的每项是消息，`open` 是引用列表。消息写成下列简写，`null` 表示不带消息的条目：`text` 是对模型可见的 `user` 消息，`hidden` 是全部块 `toModel` 为假的 `user` 消息，`internal` 是对模型可见的 `tool_internal` 消息，`call:K`、`unparsed:K`、`incomplete:K` 是带 `callId` 为 K 的 `tool_call`、`tool_call_unparsed`、`tool_call_incomplete` 的 `assistant` 消息，`answer:K` 是回答 K 的 `tool` 消息，`compaction` 是一条合法的 `compaction` 消息。
+- `context`：`-` 表示这一行只用 `judgeMessage` 判；否则是 `judgeCompaction` 的 `context`。`covered` 与 `after` 的每项是 `[引用, 消息]`，`open` 是引用列表。`origin` 缺省为 `e1`。没有 `base` 时是首次压缩；`base` 写成 `{"record":引用,"pairings":[[结果引用, 调用引用或 null]]}` 时是再次压缩，每对是一条配对见证。消息写成下列简写，`null` 表示不带消息的条目：`text` 是对模型可见的 `user` 消息，`hidden` 是全部块 `toModel` 为假的 `user` 消息，`internal` 是对模型可见的 `tool_internal` 消息，`call:K`、`unparsed:K`、`incomplete:K` 是带 `callId` 为 K 的 `tool_call`、`tool_call_unparsed`、`tool_call_incomplete` 的 `assistant` 消息，`answer:K` 是回答 K 的 `tool` 消息，`compaction` 是一条合法的 `compaction` 消息，`compaction:T:R1+R2` 是覆盖 e1 至 T、保留 R1、R2 的 `compaction` 消息（`compaction:T:` 不保留任何条目）。
 - `结论`：`ok`、`rejected:<拒绝值>` 或 `rejected:<拒绝值>@<ref>`，没有 `@<ref>` 表示 `ref` 为 `null`。用 `;` 分隔的附加断言：`getter 未被调用`，`成功值不变且已冻结`（判定后修改输入的 `retained` 数组，成功值的三个键不变且已冻结）。
 
 | 规则 | 极性 | 消息 | context | 结论 |
@@ -199,8 +201,18 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `history.range` | 反 | `{}` | `{"covered":[],"after":[],"open":[]}` | `rejected:range` |
 | `history.range` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
 | `history.range` | 反 | `{}` | `{"covered":[["e1","text"],["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
-| `history.range` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e1","text"],["e2","text"],["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
-| `history.range` | 反 | `{}` | `{"covered":[["e1","text"]],"after":["compaction"],"open":[]}` | `rejected:range` |
+| `history.range` | 反 | `{}` | `{"covered":[["e1","text"]],"after":[["e2","compaction"]],"open":[]}` | `rejected:range` |
+| `history.range` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e1","text"],["e2","text"],["e2","text"]],"after":[],"open":[]}` | `rejected:source-evidence@e2` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","compaction"],["e3","text"]],"after":[],"open":[]}` | `rejected:source-evidence@e2` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e3"}}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","text"]],"after":[],"open":[]}` | `rejected:source-evidence@e3` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e0","to":"e3"}}` | `{"origin":"e0","base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","compaction:e2:e2"]],"after":[],"open":[]}` | `rejected:source-evidence@e3` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e4"}}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","compaction:e3:"]],"after":[],"open":[]}` | `rejected:source-evidence@e4` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e4"}}` | `{"base":{"record":"e4","pairings":[]},"covered":[["e3","text"],["e4","compaction:e2:e2"]],"after":[],"open":[]}` | `rejected:source-evidence@e2` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e3"}}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","compaction:e2:"]],"after":[],"open":[]}` | `rejected:source-evidence@e2` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e4"}}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","answer:k"]],"after":[],"open":[]}` | `rejected:source-evidence@e4` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e4"}}` | `{"base":{"record":"e3","pairings":[["e4","e5"]]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","answer:k"]],"after":[["e5","call:k"]],"open":[]}` | `rejected:source-evidence@e4` |
+| `history.source-evidence` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e2"]}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","text"]],"after":[],"open":["e1"]}` | `rejected:source-evidence@e1` |
 | `history.outside` | 反 | `{"retained":["e9"]}` | `{"covered":[["e1","text"]],"after":[],"open":[]}` | `rejected:retained-outside@e9` |
 | `history.order` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e3","e2"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"]],"after":[],"open":[]}` | `rejected:retained-order@e2` |
 | `history.not-model` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e4"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4",null]],"after":[],"open":[]}` | `rejected:retained-not-model@e4` |
@@ -209,16 +221,22 @@ assistant 消息可以带推理续接状态部件 `reasoning_state` 和可选的
 | `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2","e3"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"]],"after":[],"open":[]}` | `ok` |
 | `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e2` |
 | `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e3"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e3` |
-| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e1","text"],["e2","call:k"]],"after":["answer:k"],"open":[]}` | `rejected:pairing@e2` |
-| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e2"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","call:k"]],"after":["answer:k"],"open":[]}` | `ok` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e1","text"],["e2","call:k"]],"after":[["e3","answer:k"]],"open":[]}` | `rejected:pairing@e2` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e2"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","call:k"]],"after":[["e3","answer:k"]],"open":[]}` | `ok` |
 | `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e8"},"retained":["e7","e8"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"],["e4","text"],["e5","text"],["e6","text"],["e7","call:k"],["e8","answer:k"]],"after":[],"open":[]}` | `ok` |
 | `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","unparsed:k"],["e3","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e2` |
 | `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e3"]}` | `{"covered":[["e1","text"],["e2","incomplete:k"],["e3","answer:k"]],"after":[],"open":[]}` | `ok` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e5"},"retained":["e4"]}` | `{"base":{"record":"e3","pairings":[["e5","e4"]]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","call:k"],["e5","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e4` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e4"]}` | `{"base":{"record":"e3","pairings":[["e4","e1"]]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e4` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e4"}}` | `{"base":{"record":"e3","pairings":[["e4","e1"]]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","answer:k"]],"after":[],"open":[]}` | `ok` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e4"},"retained":["e4"]}` | `{"base":{"record":"e3","pairings":[["e4",null]]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","answer:k"]],"after":[],"open":[]}` | `ok` |
 | `history.open-work` | 反 | `{"covers":{"from":"e1","to":"e4"}}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"]],"after":[],"open":["e4"]}` | `rejected:open-work@e4` |
-| `history.open-work` | 正 | `{}` | `{"covered":[["e1","text"]],"after":["text"],"open":["e7"]}` | `ok` |
+| `history.open-work` | 正 | `{}` | `{"covered":[["e1","text"]],"after":[["e2","text"]],"open":["e2"]}` | `ok` |
 | `history.open-work` | 反 | `{"covers":{"from":"e1","to":"e6"}}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"],["e5","text"],["e6","text"]],"after":[],"open":["e6","e4"]}` | `rejected:open-work@e4` |
-| `history.repeat` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","compaction"],["e3","text"]],"after":[],"open":[]}` | `ok` |
+| `history.repeat` | 正 | `{"covers":{"from":"e1","to":"e4"},"retained":["e2"]}` | `{"base":{"record":"e3","pairings":[]},"covered":[["e2","text"],["e3","compaction:e2:e2"],["e4","text"]],"after":[],"open":[]}` | `ok` |
+| `history.repeat` | 正 | `{"covers":{"from":"e1","to":"e4"},"retained":["e3"]}` | `{"base":{"record":"e4","pairings":[]},"covered":[["e2","text"],["e3","text"],["e4","compaction:e2:e2"]],"after":[],"open":[]}` | `ok` |
 | `history.first-failure` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e9"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"]],"after":[],"open":["e4"]}` | `rejected:retained-outside@e9` |
+| `history.first-failure` | 反 | `{"covers":{"from":"e1","to":"e2"},"retained":["e9"]}` | `{"covered":[["e1","text"],["e2","text"],["e2","text"]],"after":[],"open":[]}` | `rejected:source-evidence@e2` |
 
 ## 推理续接状态用例表
 
