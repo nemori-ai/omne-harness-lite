@@ -32,7 +32,7 @@ import {
   testingTenant,
   type ConformanceCase,
 } from '@omne-harness/tool-contract/testing'
-import type { ToolAuthorityFailure } from './cordis.ts'
+import type { ToolAuthorityFailure, VerifiedAuthority } from './cordis.ts'
 
 /** The registry that the G7 suite checks: `register` and the registry reads and marks. */
 export type ToolBindingRegistryService<P> = ToolBindingRegistry<P, unknown, ContentBlock>
@@ -364,7 +364,7 @@ export interface MemoryToolBindingRegistry<P> extends ToolBindingRegistryService
     asFiber<T>(fiber: string, work: () => T): T
     endFiber(fiber: string): Promise<void>
     /** The answer of the origin check for an authority, by the text of its holding evidence. */
-    verify(authority: ToolAuthority): Outcome<ToolAuthority, ToolAuthorityFailure>
+    verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
   }>
 }
 
@@ -406,14 +406,15 @@ export function createMemoryToolBindingRegistry<P>(
 
   const find = (key: ToolBindingKey): Entry | undefined =>
     entries.find(entry => sameBindingKey(entry.key, key))
-  const verify = (authority: ToolAuthority): Outcome<ToolAuthority, ToolAuthorityFailure> => {
+  // The double is the origin check here, so it is the one place that brands a granted authority.
+  const verify = (authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure> => {
     const grant = grants.find(candidate =>
       sameEvidence(candidate.authority.holding, authority.holding),
     )
     if (grant === undefined) return fail({ kind: 'denied' })
     if (!sameSourceLayer(grant.authority.layer, authority.layer))
       return fail({ kind: 'invalid', reason: 'layer' })
-    return succeed(grant.authority)
+    return succeed(grant.authority as VerifiedAuthority)
   }
   const admits = (tenant: Access<unknown>['tenant'], authority: ToolAuthority): boolean => {
     const grant = grants.find(candidate =>

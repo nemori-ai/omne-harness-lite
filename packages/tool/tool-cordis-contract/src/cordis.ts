@@ -126,8 +126,14 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E>
 }
 export const toolBindingsKey = ToolBindingsService.provide
 
-/** The authority after the origin check: the same four fields, now trusted for the layer (G7). */
-export type VerifiedAuthority = ToolAuthority
+declare const verifiedAuthority: unique symbol
+/**
+ * The authority after the origin check: the same four fields, now trusted for the layer (G7). The
+ * brand has no runtime constructor here: only an implementation of
+ * `ToolContributionAuthority.verify` produces it, at that one boundary, so a plain `ToolAuthority`
+ * cannot stand where a verified one is required.
+ */
+export type VerifiedAuthority = ToolAuthority & { readonly [verifiedAuthority]: true }
 export type ToolAuthorityFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
