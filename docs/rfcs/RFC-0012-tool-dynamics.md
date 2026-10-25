@@ -93,7 +93,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 持有的"跟随当前版本"对已有会话是有条件的：同形才跟。这是 assets 版本选用规则的一条例外。
 
-更正标注（2026-10-22，expression 判读处置，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：采用点判定表、刷新点表、R3 的前提、登记表的方法与失败集合、协调者的返回与失败集合、驻留端口的形状与服务键、`binding-changed` 的载荷，以 [Tool 契约 SPEC](../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5) 与 [tool-cordis-contract](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约) 的现行正文为准；本页上面两张表保留提案时的写法。其中回退顺序（按登记序号）与「协调者按保留义务重装记下的键不算回头找旧版本」两条是主代理的设计，待 PanQiWei 复核，正文已标注。
+更正标注（2026-10-22，expression 判读处置，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：采用点判定表、刷新点表、R3 的前提、登记表的方法与失败集合、协调者的返回与失败集合、驻留端口的形状与服务键、`binding-changed` 的载荷，以 [Tool 契约 SPEC](../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5) 与 [tool-cordis-contract](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约) 的现行正文为准；本页上面两张表保留提案时的写法。其中回退顺序（按登记序号）与「协调者按保留义务重装记下的键不算回头找旧版本」两条由 PanQiWei 于 2026-10-22 随 #618 接受采用（[#618 的接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)）。
 
 更正标注（2026-10-22，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6334452839)）：PanQiWei 采纳「会话与三个 runtime 不钉版本，按形状核对同形可用实现」。本提案据此更正：固定采用改为记形状、按形状选取，`definition.adoption` 仍等于装载时的资产版本，只用于追溯与并存；`resolve`、R5a、R5b 与判据 4、5、6 按下文更正后的措辞执行。R1 至 R4、冻结、登记键三分量、协调者与保留义务不变。
 
@@ -205,18 +205,18 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| Tool 验收判据；119 行刷新规则收窄 | `docs/requirements.md` | 已写回（2026-10-21，#618 分支） | 已切换，本页引用；PanQiWei 接受待 #618 合父 |
-| 81 行收窄；新能力在采用点加入；同形才跟的引用 | `docs/architecture/runtime/assembly-and-change.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受待 #618 合父 |
-| 已知能力不可用与替换的措辞 | `docs/architecture/runtime/tool-runtime.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受待 #618 合父 |
-| LIFECYCLE-M02 的 Tool 部分 | `docs/architecture/deployment/cordis-and-lifecycle.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受待 #618 合父 |
-| 新事实种类、冻结状态与原因 | `docs/architecture/runtime/session-and-run.md`、`docs/domains/sessions-and-work/` | 已写回（2026-10-21，#618 分支）；Session 成员正文由 [#580 评论](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6315702781) 承接 | 需会话拥有者接受 |
-| 换代协调者归属 | `docs/domains/assembly-and-handoff/README.md`、`docs/domains/tool-execution/README.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受待 #618 合父 |
+| Tool 验收判据；119 行刷新规则收窄 | `docs/requirements.md` | 已写回（2026-10-21，#618 分支） | 已切换，本页引用；PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
+| 81 行收窄；新能力在采用点加入；同形才跟的引用 | `docs/architecture/runtime/assembly-and-change.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
+| 已知能力不可用与替换的措辞 | `docs/architecture/runtime/tool-runtime.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
+| LIFECYCLE-M02 的 Tool 部分 | `docs/architecture/deployment/cordis-and-lifecycle.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
+| 新事实种类、冻结状态与原因 | `docs/architecture/runtime/session-and-run.md`、`docs/domains/sessions-and-work/` | 已写回（2026-10-21，#618 分支）；Session 成员正文由 [#580 评论](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6315702781) 承接 | PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)）；Session 成员正文的跟改由 #580 落位 |
+| 换代协调者归属 | `docs/domains/assembly-and-handoff/README.md`、`docs/domains/tool-execution/README.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
 | 对象链、R1–R5、G7、协调者、P16 补充 | `packages/tool/tool-contract/SPEC.md`、`docs/object-model.md`、`docs/public-api.md` | 已写回（2026-10-21，#618 分支）；源码迁移归 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) | 正文已切换；源码未切换 |
 | 登记输入、新键、事件 | `packages/tool/tool-cordis-contract/docs/cordis.md` | 已写回（2026-10-21，#618 分支）；键与事件的源码归 #626 | 正文已切换；源码未切换 |
 | 作者插件、协调者、保留义务 | `packages/tool/tool-host-local/docs/cordis.md` | 已写回（2026-10-21，#618 分支）；实现归 2.4、2.4.1 | 正文已切换；实现未交付 |
-| 跟随规则例外；tool body 字段 | `packages/assets/assets/SPEC.md` | 已写回（2026-10-21，#618 分支） | 需 assets 拥有者接受 |
+| 跟随规则例外；tool body 字段 | `packages/assets/assets/SPEC.md` | 已写回（2026-10-21，#618 分支） | 已切换；assets 拥有者 PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
 | 动态装载探针 | `.meta_harness/design/basis/cordis/` | 已写回：条目 `late-plugin-load-unload-does-not-rerun-others` 与 `kernel-basis` 探针，4.0.4 通过 | 已切换 |
-| 产品后果（常驻工具、冻结、同形才跟、厂商一致性） | `.meta_harness/design/product/`（tool-execution、assets-and-rules、sessions-and-work、agent-progression、workspaces、model-invocation） | 已写回（2026-10-21，#618 分支），各 topic revision 已升 | 需产品负责人接受 |
+| 产品后果（常驻工具、冻结、同形才跟、厂商一致性） | `.meta_harness/design/product/`（tool-execution、assets-and-rules、sessions-and-work、agent-progression、workspaces、model-invocation） | 已写回（2026-10-21，#618 分支），各 topic revision 已升 | 产品负责人 PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
 | 统一语言与领域对象 | `.meta_harness/design/ubiquitous_language/`、`domain_objects/` | 已写回（2026-10-21，#618 分支）：新增常驻工具集合、同形、来源层、会话冻结、采用点、采用依据；C-65、C-66 | `check:design` 对账一致 |
 | 阶段二子卡与新卡 | #421 revision 5、#439–#444 revision 2、#626（2.0.1）；#580、#619、#446、#502 的要求评论 | 已完成（2026-10-21） | 各卡单写者读回 |
 
