@@ -83,7 +83,7 @@ describe('the deadlines of the double come from the injected terms', () => {
     ).resolves.toMatchObject({ kind: 'basis-unavailable' })
   })
 
-  it('answers invalid for a login it saw end, without reading the clock again', async () => {
+  it('reads the clock again for an ended login and never revives it', async () => {
     const clock = manualIdentityClock(instant('2026-10-25T12:00:00Z'))
     const terms = adjustableLoginTerms({
       maxLifetime: duration('PT60S'),
@@ -97,10 +97,20 @@ describe('the deadlines of the double come from the injected terms', () => {
     await expect(operations.recognizeLogin({ loginProof: login.loginProof })).resolves.toEqual({
       kind: 'invalid',
     })
-    clock.makeUnavailable('clock down')
+    terms.set({ maxLifetime: duration('PT3600S'), idlePeriod: duration('PT3600S') })
     await expect(operations.recognizeLogin({ loginProof: login.loginProof })).resolves.toEqual({
       kind: 'invalid',
     })
+    // The record is still there, so the clock decides (SPEC ID-17 step 4).
+    clock.makeUnavailable('clock down')
+    await expect(
+      operations.recognizeLogin({ loginProof: login.loginProof }),
+    ).resolves.toMatchObject({ kind: 'basis-unavailable' })
+    clock.restore()
+    clock.advanceBy(duration('-PT30S'))
+    await expect(
+      operations.recognizeLogin({ loginProof: login.loginProof }),
+    ).resolves.toMatchObject({ kind: 'basis-unavailable' })
   })
 })
 

@@ -21,7 +21,10 @@ function duration(text: string): Duration {
   return parsed.value
 }
 
-const doubleFixture: IdentityContractFixture = { create: inProcessIdentityOperations }
+const doubleFixture: IdentityContractFixture = {
+  create: inProcessIdentityOperations,
+  injectsRecordFaults: true,
+}
 
 // Two configurations far apart: whole seconds across a day boundary, and fractions near a year end.
 const CONFIGURATIONS: readonly (readonly [string, IdentityContractOptions])[] = [
@@ -164,6 +167,36 @@ describe('the contract suite on broken providers', () => {
     const result = report.cases.find(entry => entry.id === 'recognize-valid')
     expect(result).toMatchObject({ status: 'failed', detail: 'the case threw TypeError' })
     expect(JSON.stringify(report)).not.toContain('secret-proof-text')
+  })
+
+  it('reports the record store cases not applicable when the fixture does not wire the faults', async () => {
+    const report = await checkIdentityOperationsContract(
+      { create: inProcessIdentityOperations },
+      CONFIGURATIONS[0]![1],
+    )
+    expect(report.passed).toBe(true)
+    expect(
+      report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
+    ).toEqual([
+      'login-inactive-uniform',
+      'account-store-unavailable',
+      'recognize-record-unavailable',
+    ])
+  })
+
+  it('fails a provider that ignores the login store fault and answers from a stale copy', async () => {
+    const fixture: IdentityContractFixture = {
+      injectsRecordFaults: true,
+      // The provider is built without the suite's faults, so its stores always answer.
+      create: ({ clock, terms }) => inProcessIdentityOperations({ clock, terms }),
+    }
+    const report = await checkIdentityOperationsContract(fixture, CONFIGURATIONS[0]![1])
+    expect(report.cases.find(result => result.id === 'recognize-record-unavailable')?.status).toBe(
+      'failed',
+    )
+    expect(report.cases.find(result => result.id === 'account-store-unavailable')?.status).toBe(
+      'failed',
+    )
   })
 
   it('runs the inactive-account case when the fixture can leave a registration inactive', async () => {

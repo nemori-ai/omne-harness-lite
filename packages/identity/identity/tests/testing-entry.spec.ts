@@ -9,6 +9,7 @@ it('publishes the reference double, its controls and the contract suite in ./tes
       'checkIdentityOperationsContract',
       'inProcessIdentityOperations',
       'manualIdentityClock',
+      'recordStoreFaults',
     ].sort(),
   )
 })

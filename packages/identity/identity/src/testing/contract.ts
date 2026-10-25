@@ -1,5 +1,6 @@
 // The contract suite of the identity operations (SPEC ID-17). It runs each case on a fresh provider
-// that the fixture makes over the suite's own clock and terms, and reports every case by name. It
+// that the fixture makes over the suite's own clock, terms and record store faults, and reports
+// every case by name. It
 // needs no test framework, so a durable provider can run the same cases in its own tests. Messages
 // never quote a proof or a credential.
 import {
@@ -28,17 +29,30 @@ import type {
 import {
   adjustableLoginTerms,
   manualIdentityClock,
+  recordStoreFaults,
   type AdjustableLoginTerms,
   type ManualIdentityClock,
+  type RecordStoreFaultControl,
+  type RecordStoreFaults,
 } from './controls.ts'
 import { addDuration, isPositive, justBefore } from './time.ts'
+
+/** What the suite gives `create`: its clock, its terms and its record store fault switch. */
+export type IdentityContractProviderOptions = IdentityOperationsOptions &
+  Readonly<{ faults: RecordStoreFaults }>
 
 /**
  * How the suite gets providers. Every call of `create` must give a new, empty provider that stands
  * for a separate deployment: one case presents a proof of another call's provider as foreign.
  */
 export interface IdentityContractFixture {
-  create(options: IdentityOperationsOptions): IdentityOperations | Promise<IdentityOperations>
+  create(options: IdentityContractProviderOptions): IdentityOperations | Promise<IdentityOperations>
+  /**
+   * True when the provider consults `faults` before it queries its account store and its login
+   * store, so that a store the suite switches off does not answer. Without it the cases that need a
+   * silent store are not applicable.
+   */
+  injectsRecordFaults?: boolean
   /**
    * Optional: leaves a registration with this identifier and credential that is not activated. A
    * provider that activates on registration has none, and the case that needs it is not applicable.
@@ -70,6 +84,7 @@ type Context = Readonly<{
   options: IdentityContractOptions
   clock: ManualIdentityClock
   terms: AdjustableLoginTerms
+  faults: RecordStoreFaultControl
   operations: IdentityOperations
   /** Another provider over the same clock and terms. */
   another(): Promise<IdentityOperations>
@@ -338,6 +353,39 @@ const CASES: readonly ContractCase[] = [
       await expectUnavailable('the maximum lifetime is zero')
       source.set(terms(options.long, options.short))
       await issued(operations, 'contract-ada', 'credential-ada')
+      clock.setTo(before(options.start))
+      await expectUnavailable('the clock reads earlier than the latest reading adopted')
+      return 'passed'
+    },
+  },
+  {
+    id: 'account-store-unavailable',
+    rule: 'ID-03, ID-17: a silent account store gives basis-unavailable to every login and opens no account',
+    async run({ fixture, operations, faults }) {
+      if (fixture.injectsRecordFaults !== true) return 'not-applicable'
+      await registered(operations, 'contract-ada', 'credential-ada')
+      faults.makeUnavailable('accounts', 'suite: account store down')
+      for (const loginIdentifier of ['contract-ada', 'contract-nobody']) {
+        const outcome = await operations.issueLogin({
+          loginIdentifier,
+          credential: 'credential-ada',
+        })
+        check(outcome.kind === 'basis-unavailable', `a silent account store gave ${outcome.kind}`)
+      }
+      const malformed = await operations.issueLogin({ loginIdentifier: '', credential: 'x' })
+      check(malformed.kind === 'uniform-auth-failure', 'a malformed login read the account store')
+      const opened = await operations.registerAndActivate({
+        loginIdentifier: 'contract-bob',
+        credential: 'credential-bob',
+      })
+      check(opened.kind === 'not-loginable', 'a silent account store opened an account')
+      faults.restore()
+      const bob = await operations.issueLogin({
+        loginIdentifier: 'contract-bob',
+        credential: 'credential-bob',
+      })
+      check(bob.kind === 'uniform-auth-failure', 'a refused registration left an account')
+      await issued(operations, 'contract-ada', 'credential-ada')
       return 'passed'
     },
   },
@@ -445,13 +493,35 @@ const CASES: readonly ContractCase[] = [
       clock.setTo(before(options.start))
       const back = await operations.recognizeLogin({ loginProof: login.loginProof })
       check(back.kind === 'basis-unavailable', `a backward clock gave ${back.kind}`)
-      const issuedBack = await operations.issueLogin({
-        loginIdentifier: 'contract-ada',
-        credential: 'credential-ada',
-      })
-      check(issuedBack.kind === 'basis-unavailable', `a backward clock issued: ${issuedBack.kind}`)
       clock.setTo(options.start)
       await recognizedAs(operations, login, 'after the clock catches up')
+      return 'passed'
+    },
+  },
+  {
+    id: 'recognize-record-unavailable',
+    rule: 'ID-03, ID-17: a silent login store gives basis-unavailable after the text check, before the record check',
+    async run({ fixture, operations, faults, clock }) {
+      if (fixture.injectsRecordFaults !== true) return 'not-applicable'
+      await registered(operations, 'contract-ada', 'credential-ada')
+      const login = await issued(operations, 'contract-ada', 'credential-ada')
+      faults.makeUnavailable('logins', 'suite: login store down')
+      await invalidAt(operations, '', 'an empty proof with a silent login store')
+      for (const [proof, what] of [
+        [login.loginProof, 'an issued proof'],
+        [`${login.loginProof}x`, 'an unissued proof'],
+      ] as const) {
+        const outcome = await operations.recognizeLogin({ loginProof: proof })
+        check(
+          outcome.kind === 'basis-unavailable',
+          `${what} with a silent store gave ${outcome.kind}`,
+        )
+      }
+      clock.makeUnavailable('suite: clock down')
+      faults.restore()
+      await invalidAt(operations, `${login.loginProof}x`, 'an unissued proof before the clock')
+      clock.restore()
+      await recognizedAs(operations, login, 'after the login store returns')
       return 'passed'
     },
   },
@@ -484,7 +554,8 @@ export async function checkIdentityOperationsContract(
   for (const contractCase of CASES) {
     const clock = manualIdentityClock(options.start)
     const source = adjustableLoginTerms(terms(options.long, options.short))
-    const injected = { clock: clock.clock, terms: source.source }
+    const faults = recordStoreFaults()
+    const injected = { clock: clock.clock, terms: source.source, faults: faults.faults }
     const base = { id: contractCase.id, rule: contractCase.rule }
     try {
       const operations = await fixture.create(injected)
@@ -493,6 +564,7 @@ export async function checkIdentityOperationsContract(
         options,
         clock,
         terms: source,
+        faults,
         operations,
         another: async () => fixture.create(injected),
         at: duration => {

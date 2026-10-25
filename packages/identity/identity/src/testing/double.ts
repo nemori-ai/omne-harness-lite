@@ -21,7 +21,12 @@ import type {
   LoginTerms,
   RegisterAndActivateOutcome,
 } from '../operations.ts'
+import type { RecordStoreFaults } from './controls.ts'
 import { addDuration, isPositive } from './time.ts'
+
+/** The injected clock and terms, and an optional fault switch for the two record stores. */
+export type InProcessIdentityOptions = IdentityOperationsOptions &
+  Readonly<{ faults?: RecordStoreFaults }>
 
 // The lexicon of an atomic identity body: 26 characters, no i, l, o or u.
 const ID_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz'
@@ -33,22 +38,22 @@ type AccountRecord = Readonly<{
   digest: Buffer
 }>
 
-type LoginRecord = {
-  readonly login: LoginStateId
-  readonly account: AccountId
-  readonly tenant: TenantId
-  readonly maxDeadline: Instant
-  readonly idleDeadline: Instant
-  ended: boolean
-}
+type LoginRecord = Readonly<{
+  login: LoginStateId
+  account: AccountId
+  tenant: TenantId
+  maxDeadline: Instant
+  idleDeadline: Instant
+}>
 
-type TimeBasis =
-  | Readonly<{ kind: 'read'; instant: Instant }>
-  | Readonly<{ kind: 'basis-unavailable'; diagnostic: string }>
+type Unavailable = Readonly<{ kind: 'basis-unavailable'; diagnostic: string }>
+
+type TimeBasis = Readonly<{ kind: 'read'; instant: Instant }> | Unavailable
 
 const NOT_LOGINABLE: RegisterAndActivateOutcome = Object.freeze({ kind: 'not-loginable' })
 const UNIFORM_AUTH_FAILURE: IssueLoginOutcome = Object.freeze({ kind: 'uniform-auth-failure' })
 const INVALID: LoginRecognition = Object.freeze({ kind: 'invalid' })
+const NO_FAULTS: RecordStoreFaults = Object.freeze({ unavailable: () => undefined })
 
 function isFilledText(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
@@ -72,21 +77,20 @@ function digestOf(salt: Buffer, credential: string): Buffer {
   return createHash('sha256').update(salt).update(credential, 'utf8').digest()
 }
 
-function unavailable(diagnostic: string): TimeBasis {
-  return { kind: 'basis-unavailable', diagnostic }
+function unavailable(diagnostic: string): Unavailable {
+  return Object.freeze({ kind: 'basis-unavailable', diagnostic })
 }
 
 /**
  * Creates the double over an injected clock and injected login terms. There is no default for
- * either. Each call makes a separate deployment: a proof from one is `invalid` in another.
+ * either. Each call makes a separate deployment: a proof from one is `invalid` in another. A read
+ * failure comes only from `faults`, so it never depends on whether an account exists.
  */
-export function inProcessIdentityOperations(
-  options: IdentityOperationsOptions,
-): IdentityOperations {
-  const { clock, terms } = options
+export function inProcessIdentityOperations(options: InProcessIdentityOptions): IdentityOperations {
+  const { clock, terms, faults = NO_FAULTS } = options
   const accounts = new Map<string, AccountRecord>()
   const logins = new Map<string, LoginRecord>()
-  // The latest instant this provider used. A reading earlier than it is not trusted (SPEC ID-03).
+  // The latest clock reading this provider adopted. An earlier reading is not adopted (SPEC ID-17).
   let latest: Instant | undefined
 
   const readTime = async (): Promise<TimeBasis> => {
@@ -99,22 +103,30 @@ export function inProcessIdentityOperations(
     if (reading.kind !== 'read')
       return unavailable(`the clock is unavailable: ${reading.diagnostic}`)
     if (latest !== undefined && compareInstants(reading.instant, latest) < 0)
-      return unavailable('the clock reads earlier than an instant already used')
+      return unavailable('the clock reads earlier than the latest reading adopted')
     latest = reading.instant
-    return { kind: 'read', instant: reading.instant }
+    return Object.freeze({ kind: 'read', instant: reading.instant })
   }
 
-  const readTerms = async (): Promise<LoginTerms | string> => {
+  const readTerms = async (): Promise<LoginTerms | Unavailable> => {
     let reading
     try {
       reading = await terms.read()
     } catch {
-      return 'the login terms source failed'
+      return unavailable('the login terms source failed')
     }
-    if (reading.kind !== 'read') return `the login terms are unavailable: ${reading.diagnostic}`
+    if (reading.kind !== 'read')
+      return unavailable(`the login terms are unavailable: ${reading.diagnostic}`)
     if (!isPositive(reading.terms.maxLifetime) || !isPositive(reading.terms.idlePeriod))
-      return 'the login terms are not legal: a lifetime is not longer than zero'
+      return unavailable('the login terms are not legal: a duration is not longer than zero')
     return reading.terms
+  }
+
+  const storeDown = (store: 'accounts' | 'logins'): Unavailable | undefined => {
+    const diagnostic = faults.unavailable(store)
+    return diagnostic === undefined
+      ? undefined
+      : unavailable(`the ${store} store does not answer: ${diagnostic}`)
   }
 
   const registerAndActivate: IdentityOperations['registerAndActivate'] = input => {
@@ -122,6 +134,8 @@ export function inProcessIdentityOperations(
     const credential = field(input, 'credential')
     if (!isFilledText(loginIdentifier) || !isFilledText(credential))
       return Promise.resolve(NOT_LOGINABLE)
+    // The store cannot be read, so nothing is written: this call activated nothing.
+    if (storeDown('accounts') !== undefined) return Promise.resolve(NOT_LOGINABLE)
     // Check and insert run with no await between them, so one identifier gets one account.
     if (accounts.has(loginIdentifier)) return Promise.resolve(NOT_LOGINABLE)
     const account = emit(accountCodec, 'acc_')
@@ -139,27 +153,29 @@ export function inProcessIdentityOperations(
     )
   }
 
+  // The steps follow SPEC ID-17 "签发登录"; an earlier step's answer wins.
   const issueLogin: IdentityOperations['issueLogin'] = async input => {
-    // The basis comes first, so `basis-unavailable` never tells whether the credential matches.
+    // 1. The basis comes first, so `basis-unavailable` never tells whether the credential matches.
     const time = await readTime()
     if (time.kind !== 'read') return time
     const lifetimes = await readTerms()
-    if (typeof lifetimes === 'string') return { kind: 'basis-unavailable', diagnostic: lifetimes }
+    if ('kind' in lifetimes) return lifetimes
     const maxDeadline = addDuration(time.instant, lifetimes.maxLifetime)
     const idleDeadline = addDuration(time.instant, lifetimes.idlePeriod)
     if (maxDeadline === undefined || idleDeadline === undefined)
-      return {
-        kind: 'basis-unavailable',
-        diagnostic: 'a deadline falls outside years 0000 to 9999',
-      }
-
+      return unavailable('a deadline falls outside years 0000 to 9999')
+    // 2. A malformed input.
     const loginIdentifier = field(input, 'loginIdentifier')
     const credential = field(input, 'credential')
     if (!isFilledText(loginIdentifier) || !isFilledText(credential)) return UNIFORM_AUTH_FAILURE
+    // 3. The account store does not answer.
+    const down = storeDown('accounts')
+    if (down !== undefined) return down
+    // 4. No account, or a wrong credential.
     const record = accounts.get(loginIdentifier)
     if (record === undefined || !timingSafeEqual(record.digest, digestOf(record.salt, credential)))
       return UNIFORM_AUTH_FAILURE
-
+    // 5. A new, independent login.
     const login = emit(loginStateCodec, 'lgn_')
     const loginProof = randomBytes(32).toString('base64url')
     logins.set(loginProof, {
@@ -168,7 +184,6 @@ export function inProcessIdentityOperations(
       tenant: record.tenant,
       maxDeadline,
       idleDeadline,
-      ended: false,
     })
     return Object.freeze({
       kind: 'succeeded',
@@ -183,21 +198,23 @@ export function inProcessIdentityOperations(
     })
   }
 
+  // The steps follow SPEC ID-17 "识别登录"; an earlier step's answer wins.
   const recognizeLogin: IdentityOperations['recognizeLogin'] = async input => {
     const loginProof = field(input, 'loginProof')
     if (!isFilledText(loginProof)) return INVALID
+    const down = storeDown('logins')
+    if (down !== undefined) return down
     const record = logins.get(loginProof)
-    if (record === undefined || record.ended) return INVALID
+    if (record === undefined) return INVALID
     const time = await readTime()
     if (time.kind !== 'read') return time
-    // Reaching a deadline ends the login; the first deadline reached wins.
+    // Reaching a deadline ends the login; the first deadline reached wins. The deadlines are frozen
+    // and the adopted reading never goes back, so an ended login stays ended.
     if (
       compareInstants(time.instant, record.maxDeadline) >= 0 ||
       compareInstants(time.instant, record.idleDeadline) >= 0
-    ) {
-      record.ended = true
+    )
       return INVALID
-    }
     // Recognition does not refresh the idle deadline (SPEC ID-17).
     return Object.freeze({
       kind: 'recognized',

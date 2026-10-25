@@ -73,11 +73,12 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 
 | 导出 | 用途 |
 | --- | --- |
-| `inProcessIdentityOperations({ clock, terms })` | 三项操作的进程内参考替身。时钟与期限配置都须注入，没有默认值 |
+| `inProcessIdentityOperations({ clock, terms, faults })`、`InProcessIdentityOptions` | 三项操作的进程内参考替身。时钟与期限配置都须注入，没有默认值。`faults` 可选 |
 | `manualIdentityClock(start)`、`ManualIdentityClock` | 可控时钟：前进、后退、置为不可得 |
 | `adjustableLoginTerms(initial)`、`AdjustableLoginTerms` | 可控期限配置：改值、置为不可得 |
+| `recordStoreFaults()`、`RecordStoreFaultControl`、`RecordStoreFaults`、`RecordStore` | 可控记录库故障：使账号记录库或登录记录库对查询不作答 |
 | `checkIdentityOperationsContract(fixture, options)`、`IDENTITY_CONTRACT_CASES` | 契约测试套件与用例清单。真实提供者用同一套件检查自己 |
-| `IdentityContractFixture`、`IdentityContractOptions`、`IdentityContractReport`、`IdentityContractCaseResult` | 套件的输入与逐项报告 |
+| `IdentityContractFixture`、`IdentityContractProviderOptions`、`IdentityContractOptions`、`IdentityContractReport`、`IdentityContractCaseResult` | 套件的输入与逐项报告 |
 
 ## 契约
 
@@ -87,7 +88,7 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 
 ## 设计
 
-`src/principal.ts` 定义两种主体与进程内权威。权威用 `WeakSet` 登记自己签发并冻结的对象；核验就是登记成员资格。`src/qualification.ts` 定义具名资格、角色映射和默认团队映射。`src/standing.ts` 只定义端口类型。`src/operations.ts` 定义三项操作、注入时钟与期限配置的类型。`src/testing/` 是测试入口：`double.ts` 是参考替身，`controls.ts` 是可控时钟与期限配置，`contract.ts` 是契约测试套件，`time.ts` 是替身的期限加法。[内部设计](docs/internals.md)维护机制与流程。
+`src/principal.ts` 定义两种主体与进程内权威。权威用 `WeakSet` 登记自己签发并冻结的对象；核验就是登记成员资格。`src/qualification.ts` 定义具名资格、角色映射和默认团队映射。`src/standing.ts` 只定义端口类型。`src/operations.ts` 定义三项操作、注入时钟与期限配置的类型。`src/testing/` 是测试入口：`double.ts` 是参考替身，`controls.ts` 是可控时钟、期限配置与记录库故障，`contract.ts` 是契约测试套件，`time.ts` 是替身的期限加法。[内部设计](docs/internals.md)维护机制与流程。
 
 ## 配置与运行
 
@@ -105,7 +106,7 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 | `tests/testing-entry.spec.ts` | `./testing` 的导出清单 |
 | `tests/operations-contract.spec.ts` | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败 |
-| `tests/operations-double.spec.ts` | 替身的期限来自注入配置、闰秒限制、端口抛出与诊断不含秘密、可控时钟 |
+| `tests/operations-double.spec.ts` | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟 |
 | `tests/operations-scenario.spec.ts` | 只经包入口完成注册、登录与识别 |
 | `tests/operations.spec-d.ts` | 三项操作结果种类的类型正反例 |
 

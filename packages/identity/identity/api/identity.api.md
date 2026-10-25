@@ -56,12 +56,18 @@
 - `IdentityContractCaseResult` · `testing/contract.d.ts`
 - `IdentityContractFixture` · `testing/contract.d.ts`
 - `IdentityContractOptions` · `testing/contract.d.ts`
+- `IdentityContractProviderOptions` · `testing/contract.d.ts`
 - `IdentityContractReport` · `testing/contract.d.ts`
+- `InProcessIdentityOptions` · `testing/double.d.ts`
 - `ManualIdentityClock` · `testing/controls.d.ts`
+- `RecordStore` · `testing/controls.d.ts`
+- `RecordStoreFaultControl` · `testing/controls.d.ts`
+- `RecordStoreFaults` · `testing/controls.d.ts`
 - `adjustableLoginTerms` · `testing/controls.d.ts`
 - `checkIdentityOperationsContract` · `testing/contract.d.ts`
 - `inProcessIdentityOperations` · `testing/double.d.ts`
 - `manualIdentityClock` · `testing/controls.d.ts`
+- `recordStoreFaults` · `testing/controls.d.ts`
 
 ## 声明文件 `index.d.ts`
 
@@ -285,8 +291,13 @@ export interface TenantStandingSource {
 ```ts
 import { type Duration, type Instant } from '@omne-harness/utc-instant';
 import type { IdentityOperations, IdentityOperationsOptions, LoginCredentialInput } from '../operations.ts';
+import { type RecordStoreFaults } from './controls.ts';
+export type IdentityContractProviderOptions = IdentityOperationsOptions & Readonly<{
+    faults: RecordStoreFaults;
+}>;
 export interface IdentityContractFixture {
-    create(options: IdentityOperationsOptions): IdentityOperations | Promise<IdentityOperations>;
+    create(options: IdentityContractProviderOptions): IdentityOperations | Promise<IdentityOperations>;
+    injectsRecordFaults?: boolean;
     registerWithoutActivation?(operations: IdentityOperations, input: LoginCredentialInput): Promise<void>;
 }
 export type IdentityContractOptions = Readonly<{
@@ -325,6 +336,16 @@ export type ManualIdentityClock = Readonly<{
     restore(): void;
 }>;
 export declare function manualIdentityClock(start: Instant): ManualIdentityClock;
+export type RecordStore = 'accounts' | 'logins';
+export interface RecordStoreFaults {
+    unavailable(store: RecordStore): string | undefined;
+}
+export type RecordStoreFaultControl = Readonly<{
+    faults: RecordStoreFaults;
+    makeUnavailable(store: RecordStore, diagnostic: string): void;
+    restore(): void;
+}>;
+export declare function recordStoreFaults(): RecordStoreFaultControl;
 export type AdjustableLoginTerms = Readonly<{
     source: LoginTermsSource;
     set(terms: LoginTerms): void;
@@ -338,17 +359,22 @@ export declare function adjustableLoginTerms(initial: LoginTerms): AdjustableLog
 
 ```ts
 import type { IdentityOperations, IdentityOperationsOptions } from '../operations.ts';
-export declare function inProcessIdentityOperations(options: IdentityOperationsOptions): IdentityOperations;
+import type { RecordStoreFaults } from './controls.ts';
+export type InProcessIdentityOptions = IdentityOperationsOptions & Readonly<{
+    faults?: RecordStoreFaults;
+}>;
+export declare function inProcessIdentityOperations(options: InProcessIdentityOptions): IdentityOperations;
 ```
 
 ## 声明文件 `testing/index.d.ts`
 
 ```ts
 export { checkIdentityOperationsContract, IDENTITY_CONTRACT_CASES } from './contract.ts';
-export type { IdentityContractCaseResult, IdentityContractFixture, IdentityContractOptions, IdentityContractReport, } from './contract.ts';
-export { adjustableLoginTerms, manualIdentityClock } from './controls.ts';
-export type { AdjustableLoginTerms, ManualIdentityClock } from './controls.ts';
+export type { IdentityContractCaseResult, IdentityContractFixture, IdentityContractOptions, IdentityContractProviderOptions, IdentityContractReport, } from './contract.ts';
+export { adjustableLoginTerms, manualIdentityClock, recordStoreFaults } from './controls.ts';
+export type { AdjustableLoginTerms, ManualIdentityClock, RecordStore, RecordStoreFaultControl, RecordStoreFaults, } from './controls.ts';
 export { inProcessIdentityOperations } from './double.ts';
+export type { InProcessIdentityOptions } from './double.ts';
 ```
 
 ## 声明文件 `testing/time.d.ts`
