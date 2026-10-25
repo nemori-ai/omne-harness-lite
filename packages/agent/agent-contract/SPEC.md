@@ -120,6 +120,8 @@ recordControl 按以下顺序判定，不把 ToolReferenceFailure 直接作为 A
 | 新 R 的 target 不存在 | 既有 invalid，field 为 target |
 | 新 R 读取的原 toolInvocation 畸形 | unavailable，owner 为 AgentJournal，diagnostic 为 invalid-retained-tool-invocation |
 | 新 R 读取的原 toolInvocation 属于外租户 | denied，action 为 recordControl，不返回外租户细节 |
+| 新 R 读取的已有 toolOperation 畸形，或其 call、admission 不等于原 toolInvocation | unavailable，owner 为 AgentJournal，diagnostic 为 invalid-retained-tool-operation |
+| 新 R 读取的已有 toolOperation 属于外租户 | denied，action 为 recordControl，不返回外租户细节 |
 
 保留引用损坏是提供者不变量失败，不能归为调用者 conflict。原 R 认回之前不检查保留引用。阶段不适用仍按既有 invalid 映射。失败不改变原记录或 revision，不调用 Tool，也不创建阶段事件。这些边界不授予修复记录或绕过资格的权限。
 
@@ -884,7 +886,7 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 | AgentJournal.open、attach | ExecutionMutation、instance、推进资格依据、受理输入或恢复依据、初始 checkpoint；attach 另带 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败；attach 对已 ended 的 execution 返回 terminal |
 | AgentJournal.commit | 条件提交的全部内容，含调用方交接 | 命令回执 | changed；commit-unknown；conflict；unsupported；stale-advance（旧挂接） |
 | AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied；unavailable |
-| AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执 | conflict（原 R 异输入、原调用身份或已存操作引用不一致）；denied（含所供或保留引用外租户）；invalid（target 不存在、阶段不适用、新 R 畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 损坏，owner 为 AgentJournal，diagnostic 为 invalid-retained-tool-invocation） |
+| AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执 | conflict（原 R 异输入、原调用身份或已存操作引用不一致）；denied（含所供或保留引用外租户）；invalid（target 不存在、阶段不适用、新 R 畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 或已有 toolOperation 损坏，owner 为 AgentJournal，diagnostic 分别为 invalid-retained-tool-invocation、invalid-retained-tool-operation） |
 | AgentJournal.tryFinish | 完成授权、expected、完成意图 | ended、changed 或 blocked | stale-advance；denied；commit-unknown。依赖故障与查询未知不伪装成 blocked |
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；denied；unavailable |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |

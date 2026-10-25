@@ -103,7 +103,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | C3 | 转换消息、范围转换与接续，事件 message | `commit`，经 Q2。提供者声明了 context-transition 时 `caller` 为 context-transition。未声明时 `caller` 为 none 是本页的读法，待 AGENT-M04 的 M04-10 裁定 | 条件提交 | 声明时为 Context 参加者 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条，[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议) |
 | C4 | `passages`（压缩之后），`compaction.ended` 为 committed | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 C4 |
 | A0 | 每条链的 `passages`，`batch.actions` 中的 ActionJudgment | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
-| A1 | `batch.barrier`。open 时固定请求的 `batchDecision` | `commit` | 条件提交 | 无 | 同上第 8 条 |
+| A1 | `batch.barrier`。open 时确定发起请求（`ToolInvokeRequest`）的 `batchDecision` | `commit` | 条件提交 | 无 | 同上第 8 条 |
 | A3 | `batch.slots`（按原顺序建立 denied 槽位） | `commit` | 条件提交 | 无 | 节点表 A3 |
 | A2 | 完整原 ToolInvokeRequest facts 材料，`calls` 的 Tool intent、fixed、position 及 `effects`。引用已证明后改为 associated | 材料 preserve，再 commit 原意图；关联保存另沿 commit | 条件提交，未知先查原 Journal operation | 无 | [两态登记与完整原请求](../../../agent-contract/SPEC.md#两态登记与完整原请求)，节点仍待实现 |
 | A2 | `batch.slots`：accepted 保存 associated 后为 dispatched，rejected 且无历史受理或未决才为 denied，否则保留原 pending、完整请求、consumer、effect intent 与 open 屏障；两类未知先保留原责任并对账 | `commit` | 条件提交 | 无 | 节点表 A2 |
