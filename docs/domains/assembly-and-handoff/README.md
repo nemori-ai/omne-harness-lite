@@ -28,6 +28,8 @@
 
 内核辅助是同组的另一个成员，名字是 `kernel-basis`。它提供 Cordis 插件辅助和测试装配。操作结果归 `packages/common/operation-result`。它不是求值、采用和交接成员 `assembly`。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。目录和封存路径归[产品包组织](../../package-organization.md)。
 
+进程级的应用装配（插件树、运行时对象与桥接）不是本责任的定义求值；单机首条租户路径的应用装配见[应用装配](../../architecture/runtime/application-assembly.md)。
+
 ## 主路径与交接
 
 1. 取得合法定义/来源、所需依赖及工作条件，求值候选组合。
