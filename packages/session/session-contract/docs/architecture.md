@@ -1,5 +1,8 @@
 # Session 纯契约的架构边界
 
+> 本页带「（已被替代）」标记的名字是历史叙述：替代拥有者与现状见 [SPEC 被替代的协议](../SPEC.md#被替代的协议)。
+
+
 本成员是会话组的纯契约成员。它声明 Session 的值、身份、操作形状、端口接口与纯判断，不执行任何调用。运行接口仍是候选，精确采用范围见 [SPEC](../SPEC.md)。组内六个成员的分工与落位判据见[组根架构](../../docs/architecture.md)。
 
 ## 本成员拥有什么
@@ -9,7 +12,7 @@
 | 值与身份 | 品牌身份（`SessionId`、`RunId`、`AttemptId`、`InputId`、`ResidentKey` 等）、`WorkSnapshot`、`RunState`、`ExecutionRef`、`Consumption`、`CommitReceipt`、`SessionFailure` 与各操作的结果联合 | [公开入口](public-api.md#值当前工作与原位置)、[值与结果项的约束](../SPEC.md#值与结果项的约束) |
 | 四个面 | `SessionWork`、`SessionManagement`、`SessionReconciliation`、`SessionHistory` 的接口，以及聚合它们的 `SessionFaces<P>`；调用方类的取值 | [四个面与公开操作](../SPEC.md#四个面与公开操作) |
 | 会话侧的常驻工具与冻结 | 常驻集合的值（`ResidentTool`）、冻结状态（`SessionFrozen`）、冻结命令 `freeze` 与它的入参 `FreezeVerdict`、引用查询 `references` 与它的结果 `ResidentReference` | [常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结) |
-| 端口接口 | 七个构造依赖端口与四个出站端口（`AgentDrivePort`、已被替代的 `ToolStartFencePort`（已被替代）、已被替代的 `DeliveryReleasePort`（已被替代）、`ScopeReleasePort`） | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
+| 端口接口 | 七个构造依赖端口与四个出站端口（`AgentDrivePort`、`ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）、`ScopeReleasePort`） | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
 | 领域服务与归约 | 九个领域服务、`decide`、`reduce`，以及两个操作身份派生函数 `deriveSessionOperation` 与 `deriveDriveOperation` | [领域服务与归约](../SPEC.md#领域服务与归约)、[OP-00](../SPEC.md#op-00) |
 | 事件目录 | 条目的 `kind` 与载荷 `schema`，以及按批次解释版本解释条目的规则 | [事件目录](object-model/session-log-events.md#原生事实类别)、[事件来源与日志准入](../SPEC.md#事件来源与日志准入) |
 | 块声明 | `session.modes` 的声明值 `sessionModesBlock` | [会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点) |

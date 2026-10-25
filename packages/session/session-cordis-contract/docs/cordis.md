@@ -52,9 +52,9 @@ export const inject = {
 | `sessionContextInput` | `SessionContextInput` | session-adapters | 按调用现取。缺席时创建、声明修改与推进采用返回 `unavailable` |
 | `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
-| 已被替代的 `sessionDeliveryRelease`（已被替代） | 已被替代的 `DeliveryReleasePort`（已被替代）：向 Model 或 Tool 发出交付责任解除 | session-adapters | 按调用现取。缺席时结果的 `release` 保持 pending，恢复协调按 `pending(release)` 找回后重发 |
+| `sessionDeliveryRelease`（已被替代） | `DeliveryReleasePort`（已被替代）：向 Model 或 Tool 发出交付责任解除 | session-adapters | 按调用现取。缺席时结果的 `release` 保持 pending，恢复协调按 `pending(release)` 找回后重发 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
-| 已被替代的 `sessionToolStartFence`（已被替代） | 已被替代的 `ToolStartFencePort`（已被替代）：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 按调用现取。缺席时控制进度保持传播中，启动资格失效任务保留，不声称新发起已被阻止 |
+| `sessionToolStartFence`（已被替代） | `ToolStartFencePort`（已被替代）：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 按调用现取。缺席时控制进度保持传播中，启动资格失效任务保留，不声称新发起已被阻止 |
 
 事务端口与内部主体进 `inject`：没有事务端口任何读写都不成立，没有内部主体本组的协调器与调度器不能提交命令。内部主体是应用装配交付的运行时对象，按 [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 经服务键 `sessionPrincipals` 提供，不放进插件配置。其余端口按调用用 `ctx.get` 现取，使一个端口缺席只影响需要它的操作，不让整个服务停下（[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)）。各端口缺席时的契约表现以 [session-contract SPEC](../../session-contract/SPEC.md) 的端口表为准。
 

@@ -727,7 +727,7 @@ Session 命令：
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
-Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 在 Tool 的启动排序域里是工作资格的版本拥有者：撤销资格的提交成功之后，推进协调、控制传播或归档经 已被替代的 `ToolStartFencePort`（已被替代） 调用 Tool 的启动资格失效，等到失效已生效（[Tool 的实际发起围栏](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)）。失效生效之前，Session 不声称新的 Tool 发起已被阻止。
+Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 在 Tool 的启动排序域里是工作资格的版本拥有者：撤销资格的提交成功之后，推进协调、控制传播或归档经 `ToolStartFencePort`（已被替代） 调用 Tool 的启动资格失效，等到失效已生效（[Tool 的实际发起围栏](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)）。失效生效之前，Session 不声称新的 Tool 发起已被阻止。
 
 ### 与 Agent 的参加与核对
 
@@ -1011,7 +1011,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：控制传播协调按三条路径传播。
   1. 挂接存活时，控制经出站端口 `control` 送到原执行。
   2. 没有挂接时，恢复协调先 `resume` 原执行，必要时接管，取得挂接后再送控制。该挂接以取消授权条件终结，参加者按 [PA-02](#pa-02) 响应「参加」。之后读到的结束事件按 [RS-10](#rs-10) 认回。
-  3. Tool 拒绝新的发起：撤销资格的提交成功后，控制传播经 已被替代的 `ToolStartFencePort`（已被替代） 调用启动资格失效，等到失效已生效。Session 不参加 Model 的受理点守卫：失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
+  3. Tool 拒绝新的发起：撤销资格的提交成功后，控制传播经 `ToolStartFencePort`（已被替代） 调用启动资格失效，等到失效已生效。Session 不参加 Model 的受理点守卫：失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
 - 结果：Session 的终态在提交时已经成立，不等传播。`ControlProgress` 停在 propagating，直到每个待核对的生产者经 `receive` 确认或报告未知，且 Tool 的启动资格失效已生效。失效生效计入对账进度。超过策略上限时，进度停在 propagating 并报告，不冒充已停。取不到挂接且 Agent 记录不可解释时，Session 不再要求 Agent 终态，恢复任务只剩传播核对。
 - 失败：`resume` 返回 `terminal` 时执行已结束。读结束状态后按 [RS-10](#rs-10) 认回，没有其他动作。
 - 责任：路径选择归控制传播协调。围栏归生产者与执行记录提供者。
@@ -1429,8 +1429,8 @@ Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[
 | `SessionContextInput` | 创建、声明修改与推进采用的注册材料 | 这些命令必需 | 对应命令返回 `unavailable` |
 | `SessionNotifier` | 提交后的唤醒 | 可选，每次提交后现取 | 缺席或失败不回滚提交；工作由扫描恢复 |
 | `AgentDrivePort` | 驱动 Agent：发起、交入、接续、控制、交还、迟到结果记录、查询、读执行记录、预热 | 推进、恢复与控制传播必需；预热在 [P-7](#具名前提与明确缺项) 闭合前不调用 | 出站调用不发出，任务保留，由调度器按策略重放 |
-| 已被替代的 `ToolStartFencePort`（已被替代） | 请 Tool 让启动资格失效，并读回失效是否已生效 | 控制传播、归档与换代必需 | 控制进度保持 propagating，`tasks.start-fence`（已被替代） 保留，按策略重放；不声称新发起已被阻止 |
-| 已被替代的 `DeliveryReleasePort`（已被替代） | 向生产者发出交付责任解除：Model 的 ACK 或 Tool 的交付释放 | 结果保管或处理之后必需 | `release` 保持 pending，由恢复协调按 `pending(release)` 找回后重发 |
+| `ToolStartFencePort`（已被替代） | 请 Tool 让启动资格失效，并读回失效是否已生效 | 控制传播、归档与换代必需 | 控制进度保持 propagating，`tasks.start-fence`（已被替代） 保留，按策略重放；不声称新发起已被阻止 |
+| `DeliveryReleasePort`（已被替代） | 向生产者发出交付责任解除：Model 的 ACK 或 Tool 的交付释放 | 结果保管或处理之后必需 | `release` 保持 pending，由恢复协调按 `pending(release)` 找回后重发 |
 | `ScopeReleasePort` | 请执行环境释放会话作用域 | 归档后的作用域释放必需 | 任务保留并报告 |
 
 #### SessionTransactionPort
