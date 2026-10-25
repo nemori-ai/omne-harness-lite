@@ -49,7 +49,7 @@
 新增名字按同一规则归入口：
 
 - [结果推送与保存](#结果推送与保存)的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）当前没有组外导入者，也不被根入口声明引用。它们由 Tool 组外的消费拥有者实现或调用，不是提供者协议，按规则 3 进根入口。
-- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录。两者的声明引用 `./provider` 的名字，按规则 2、3 进 `./provider`。外层调用方成为组外导入者时，按规则 6 移回根入口。
+- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录，`ToolPermitRef` 与 `ToolPermitConsumption` 只被受理记录引用。它们的声明引用 `./provider` 的名字或只被这些名字引用，按规则 2、3 进 `./provider`。外层调用方成为组外导入者时，按规则 6 移回根入口。
 - 这些新面的一致性套件与内存替身在 `./testing`。
 
 下列详细行为章节与本页操作协议共同构成本规格。
@@ -937,7 +937,7 @@ recordStart 显式绑定原 invocation。unknown 查 authority 和原 binding.in
 
 关闭先写关闭意图和具名 scope 的 program-fence 任务，再由 authority.invalidate 使相应守卫失效，确认后由 Children.confirmBarrier 保存 closed。该回执确认的是适用范围的屏障，不是全体子调用永久失权。已 consume 子调用按真实原因控制及保管。正常 returned 只关闭新 reserve，不使原预留的启动资格失效。不能用父是否 closed 一个布尔值决定全部子 start/resume。
 
-consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ConsumptionFact` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
+consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ToolPermitConsumption` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
 
 #### 外层调用方的启动围栏
 
@@ -953,10 +953,10 @@ consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `st
 
 #### 授权消费点与撤权再核
 
-本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用采用 `@omne-harness/authorization` 的 `PermitRef`，消费事实采用其 `ConsumptionFact`，Tool 不另造同义类型。许可的授予、撤回与解释归授权拥有者。
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用是 `ToolPermitRef`，消费事实是 `ToolPermitConsumption`。两者对 Tool 不透明，字段与 `@omne-harness/authorization` 的 `PermitRef`、`ConsumptionFact` 同形，授权侧的值可以直接赋给它们。authorization 的测试以开发依赖导入本包，本包若导入 authorization 会形成成员依赖环，所以暂用 Tool 自有的引用类型。依赖环解除后，这两个类型换成 authorization 的类型（待换）。许可的授予、撤回与解释归授权拥有者。
 
 1. 绑定。一次调用需要消费哪些授权许可，由启动排序域的提供者按受信配置解析。当前公开请求没有出示许可的字段。
-2. 消费。consume 依次核对守卫、做第 4 项的撤权再核，然后在形成受理记录之前、在同一排序内向授权拥有者的 `PermitLedger.consume` 消费每个绑定许可。消费位置 `ConsumerPosition` 标识原调用：同一调用的每次启动与接续使用同一位置，其他调用使用不同位置。每个许可都答 `consumed`，或答 `already-consumed` 且事实中的位置是本调用时，consume 才能受理。受理记录的 `authorizations` 带全部消费事实，每个事实含许可引用。
+2. 消费。consume 依次核对守卫、做第 4 项的撤权再核，然后在形成受理记录之前、在同一排序内向授权拥有者的许可台账（authorization 的 `PermitLedger.consume`）消费每个绑定许可。消费位置 `ConsumerPosition` 标识原调用：同一调用的每次启动与接续使用同一位置，其他调用使用不同位置。每个许可都答 `consumed`，或答 `already-consumed` 且事实中的位置是本调用时，consume 才能受理。受理记录的 `authorizations` 带全部消费事实，每个事实含许可引用。
 3. 不复活已消费授权。许可答 `already-consumed` 且位置属于另一调用，或答 `unknown` 时，consume 回复 `rejected`，本调用不启动。台账回复 `unavailable` 时 consume 不受理，回复 `unknown` 并保留原任务。同一启动重送时认回原受理，不再次消费。恢复读取原受理记录，不重新消费许可。许可后来再被允许，也不能使已消费的许可供另一调用使用。
 4. 撤权再核。身份与权限的撤权不经 invalidate 进入排序域。Tool 在启动线性化点，即 consume 的同一排序内，重读授权拥有者对本次动作的当前准入裁定。裁定为 `denied` 时回复 `rejected`。裁定为 `unavailable` 时不受理。不能用缓存或先前的 `allowed` 放行。
 5. 残余窗口。受理之后发生的撤权不撤销受理，也不停止在途执行。远端效果可能在撤权之后才实际发生，Tool 不承诺撤权回滚或阻止已受理的外发。这个窗口从 consume 的再核开始，到外部效果实际完成为止。需要停止时按在途控制处理。
