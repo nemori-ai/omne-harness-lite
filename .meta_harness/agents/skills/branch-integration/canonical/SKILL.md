@@ -1,6 +1,6 @@
 ---
 name: branch-integration
-description: 在本项目把成果送入轨道、main 或 stable，做 FI/RI、任务同步、stable checkpoint、新建轨道或子轨道及未知发布恢复时，核对真实任务与 Git 事实，经 PR 和 github-gate 流程发布。
+description: 在本项目把成果送入轨道、main 或 stable，做 FI/RI、任务同步、stable checkpoint、新建轨道或子轨道、经 gate-release 做 npm 发行（发布 repo-toolchain 等工具包）及未知发布恢复时，核对真实任务与 Git 事实，经 PR 和 github-gate 流程发布。
 ---
 
 # 分支集成
@@ -15,10 +15,10 @@ description: 在本项目把成果送入轨道、main 或 stable，做 FI/RI、�
 
 四条主干按 `docs/engineering/integration.md` 的“现行准入”进入，只经 PR 与 `github-gate` 流程发布。本机的候选、验证、发布与采用命令已删除。
 
-1. 推送个人工作分支，开 PR：送入轨道时 base 为 `integration/<track>`；RI 时 base 为轨道的上游、head 为轨道；FI 时 base 为轨道、head 为它的上游；stable 时 base 为 stable、head 为 main。顶层轨道的上游是 main。轨道的上游按 integration.md「轨道树与上游」判定；跨层或兄弟轨道之间的 PR 会被拒绝。RI 的 PR 说明按 `gate/README.md` 列出所含的卡。PR 标题用具体的 type(scope)，提交带真实的 Harness/Agent-Role 来源。
-2. 派发：`gh workflow run gate-publish.yml --ref github-gate -f pr=<PR号> -f head=<PR head 完整提交号>`，stable 另加 `-f checkpoint=<名称>`。新建轨道用 `gate-track.yml`，传入 `parent`，参数见 `github-gate` 分支的 `gate/README.md`。
+1. 推送个人工作分支，开 PR：送入轨道时 base 为 `integration/<track>`；RI 时 base 为轨道的上游、head 为轨道；FI 时 base 为轨道、head 为它的上游；stable 时 base 为 stable、head 为 main。顶层轨道的上游是 main。轨道的上游按 integration.md「轨道树与上游」判定；跨层或兄弟轨道之间的 PR 会被拒绝。RI 的 PR 说明按 `gate/README.md` 列出所含的卡。PR 标题和正文只按 `CONTRIBUTING.md` 写，标题用具体的 type(scope)，提交带真实的 Harness/Agent-Role 来源。PR 标题和正文不加 `Generated with <agent>` 一类的工具署名页脚，宿主自动附加的也删掉。每次上下文压缩之后，重新对照 `CONTRIBUTING.md` 核对这些格式。
+2. 派发：`gh workflow run gate-publish.yml --ref github-gate -f pr=<PR号> -f head=<PR head 完整提交号>`，stable 另加 `-f checkpoint=<名称>`。新建轨道用 `gate-track.yml`，传入 `parent`，参数见 `github-gate` 分支的 `gate/README.md`。npm 发行用 `gate-release.yml`，规则见 integration.md「现行准入」的 npm 发行一条，参数同样见 `gate/README.md`。
 3. 确认：只有 admin 能确认。说明必须写明本地运行的检查及结果、已核对的卡上条件。agent 用 admin 凭据代为确认时，说明中注明代为确认的人。没有获得该 admin 对本次动作的授权时，停在等待确认，把运行链接交回。
-4. 读回：确认运行成功，目标分支等于流程报告的结果，记录标签存在，PR 上有发布决定评论。
+4. 读回：确认运行成功，目标分支等于流程报告的结果，记录标签存在，PR 上有发布决定评论。npm 发行没有 PR 和目标分支：读回 registry 上的版本与完整性，以及 Issue 上的发布决定评论。
 
 流程停止时按报告处理：PR head 或目标在派发后变化就重新派发；合并冲突先在来源分支解决；来源轨道缺 unit 时先闭合缺口 Issue。不要用 admin 权限修改规则集绕过流程。流程失效时的恢复由 admin 按 `docs/engineering/integration.md` 的“权限、候选与恢复”执行：先在 Issue 中写明原因，事后在缺口 Issue 中写具名决定。没有该 admin 对本次恢复的明确授权时，停下报告。RI 携带轨道的完整前缀，不手选卡或 cherry-pick。main 的变化逐层同步，先进顶层轨道，再进下一层。已接受历史卡随后运输时逐 tuple 重核，不改写历史绑定。
 
