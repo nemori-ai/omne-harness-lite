@@ -11,6 +11,8 @@ import type { ActualExtraction, PackageImport, Fact } from './actual-model.ts'
 import type { ActualArchitectureInput } from './actual.ts'
 import { publicEntries, StaticResolver, type PublicEntry } from './resolve.ts'
 import type { Snapshot } from './actual-model.ts'
+import { directionConformance } from './directions.ts'
+import type { DependencyGraph } from '../deps/graph.ts'
 import type {
   ArchitectureConstraints,
   Conformance,
@@ -47,6 +49,12 @@ const coverage: Conformance['coverage'] = [
     scope: '插件树加载器已交付；本静态规则尚未覆盖最终配置，须核对真实组合证据',
   })),
   { id: 'IC-17', evidence: 'undecided', scope: '会话作用域机制待设计；图框不证明隔离' },
+  {
+    id: 'DIRECTION',
+    evidence: 'static-subset',
+    scope:
+      '只覆盖 dependency-cruiser 已解析的源码导入（schema 3 的方向行）；converged 不表示整体符合',
+  },
 ]
 const limitations = [
   '完整两版解析后筛选；新增偏离对 BASE 预期比较。',
@@ -494,14 +502,20 @@ export function conformanceOf(
   root: string,
   current: ArchitectureSource,
   baseline?: ArchitectureSource,
+  graph?: DependencyGraph,
 ): Conformance {
-  return analyzeConformance(root, current, baseline).conformance
+  return analyzeConformance(root, current, baseline, graph).conformance
 }
-/** One extraction per source version for constraints and actual assembly observations. */
+/**
+ * One extraction per source version for constraints and actual assembly observations.
+ * 方向行一节另从可信 runner 读（arch/directions.ts）；调用方已经算过当前版本的依赖图时传进来，
+ * 免得再跑一次 dependency-cruiser；没传就按版本自己取，而且只在 runner 有方向行时才取。
+ */
 export function analyzeConformance(
   root: string,
   current: ArchitectureSource,
   baseline?: ArchitectureSource,
+  graph?: DependencyGraph,
 ) {
   const head = readConstraints(root, current.source),
     base = baseline === undefined ? undefined : readBaselineConstraints(root, baseline)
@@ -559,15 +573,18 @@ export function analyzeConformance(
     current: head,
     ...(base === undefined ? {} : { baseline: base }),
     comparedWith: base === undefined ? 'current' : 'baseline',
-    rows: rows.map(row => ({
-      ...row,
-      age:
-        row.state !== 'deviation' || baseline === undefined
-          ? 'unjudged'
-          : stock.has(row.id)
-            ? 'stock'
-            : 'new',
-    })),
+    rows: [
+      ...rows.map((row): ConformanceRow => ({
+        ...row,
+        age:
+          row.state !== 'deviation' || baseline === undefined
+            ? 'unjudged'
+            : stock.has(row.id)
+              ? 'stock'
+              : 'new',
+      })),
+      ...directionConformance({ root, current: current.source, baseline: baseline?.source, graph }),
+    ],
     changes,
     sourceChanges,
     changeState: base === undefined ? 'no-baseline' : 'compared',
@@ -577,11 +594,11 @@ export function analyzeConformance(
   return { conformance, headActual, baseActual }
 }
 export function readConformance(
-  input: ActualArchitectureInput & { readonly member?: string },
+  input: ActualArchitectureInput & { readonly member?: string; readonly graph?: DependencyGraph },
 ): Conformance {
   const current = readArchitectureSource(input.root, input.revision),
     baseline = input.base === undefined ? undefined : readArchitectureSource(input.root, input.base)
-  const result = conformanceOf(input.root, current, baseline)
+  const result = conformanceOf(input.root, current, baseline, input.graph)
   return input.member === undefined
     ? result
     : projectConformance(

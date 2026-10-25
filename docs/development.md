@@ -134,6 +134,7 @@ tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../too
 
 `lint:oxlint` 与 `lint:deps` 违反即失败，`pnpm run check` 每次都跑。oxlint 检查工具、脚本、源码包与应用；dependency-cruiser 对这些目录的依赖违规同样失败。
 dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 repo-toolchain 在同一张图上算；`lint:deps` 运行钉住的 repo-toolchain 的 `omne-deps`。
+自 0.0.12 起，`omne-deps` 还执行 `docs/architecture/constraints.json` 的方向行。规则与角色只从运行检查器的仓库读取，被检查的检出改不了它们。命中方向行失败；方向行引用的角色没有文件时也失败。没有方向行时，命令只输出一行说明。详见 repo-toolchain README 的[依赖方向](../tools/repo-toolchain/README.md#dependency-directions)一节。
 Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
 
 ### 仓库工具链的版本
@@ -142,7 +143,7 @@ Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和
 
 钉住的版本承担这些检查：
 
-- 根脚本 `check:declarations`、`lint:deps`、`metrics`、`loop:status`、`loop:health`、`acceptance:lock` 运行安装包的命令：`omne-declarations`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
+- 根脚本 `check:declarations`、`contract:api`、`lint:deps`、`metrics`、`loop:status`、`loop:health`、`acceptance:lock` 运行安装包的命令：`omne-declarations`、`omne-contract-api`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
 - 三个工具成员导入的也是钉住的版本。`lint:rules`、影响面计划与成员测试的编排都不读工作区的 repo-toolchain。
 - 根 `tsconfig.base.json` 与 `.dependency-cruiser.cjs` 按包名引用预设。`.oxlintrc.json` 的 `extends` 只接受相对路径，所以写成 `./node_modules/@omne-harness/repo-config/oxlint.json`，指向的仍是安装的预设。
 

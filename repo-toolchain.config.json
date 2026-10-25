@@ -209,5 +209,9 @@
     "memberRoots": ["packages", "apps"],
     "directory": "acceptance",
     "ownerRoles": ["main", "qa"]
+  },
+  "contractApi": {
+    "members": "docs/engineering/delivery-lines.json",
+    "snapshot": "{member}/api/{package}.api.md"
   }
 }

@@ -121,9 +121,11 @@ function main(): void {
       ? baseTextsOf(root, at.base.mergeBase, changed.keys())
       : new Map<string, string | undefined>()
 
+  // 工作树的图算一次：度量与符合性的方向行读同一张。
+  const graph = workingGraph(root)
   const report = buildReport({
     files,
-    graph: workingGraph(root),
+    graph,
     thresholds: config.thresholds,
     bands: config.bands,
     ...(changed === undefined ? {} : { changed, baseTexts }),
@@ -179,6 +181,7 @@ function main(): void {
   })
   const conformance = readConformance({
     root,
+    graph,
     ...(baseRef === undefined ? {} : { base: baseRef }),
   })
   const architecture = { ...buildArchitectureView(actual, config.bands), conformance }

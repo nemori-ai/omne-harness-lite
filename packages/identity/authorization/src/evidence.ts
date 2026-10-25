@@ -14,17 +14,14 @@ export type EvidenceRef = Readonly<{
 /** Evidence that authorization produced. `revision` is the revision of the identity fact the decision rests on, or `0` when no fact was read. */
 export type DecisionEvidence = EvidenceRef & Readonly<{ owner: 'authorization' }>
 
-function byCodeUnit(left: string, right: string): number {
-  if (left < right) return -1
-  return left > right ? 1 : 0
-}
-
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue)
   if (typeof value !== 'object' || value === null) return value
   // JSON.stringify drops a member whose value is undefined, so no filter is needed here.
-  const members = Object.entries(value).sort(([left], [right]) => byCodeUnit(left, right))
-  return Object.fromEntries(members.map(([name, member]) => [name, canonicalValue(member)]))
+  const members = new Map(Object.entries(value))
+  // The default sort compares strings by UTF-16 code units, which is the canonical member order.
+  const names = [...members.keys()].sort()
+  return Object.fromEntries(names.map(name => [name, canonicalValue(members.get(name))]))
 }
 
 /** The canonical JSON text of plain data: member names in code-unit order, arrays in order; a member whose value is undefined is absent, as in JSON. */
