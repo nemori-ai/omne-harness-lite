@@ -74,7 +74,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The ten test files hold one hundred forty-six tests. See [tests/](tests/README.md). File bytes, symbolic links, object replacement, and descriptors use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. Two test files hold `open` with a module mock to keep a file operation in flight; two test files make `FileHandle.close` fail on a live descriptor. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. The run record of this change is in the SPEC [verification section](SPEC.md#组合与验证). No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The ten test files hold one hundred forty-eight tests. See [tests/](tests/README.md). File bytes, symbolic links, object replacement, and descriptors use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. Two test files hold `open` with a module mock to keep a file operation in flight; two test files make `FileHandle.close` fail on a live descriptor. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. Current run records are in the SPEC [verification section](SPEC.md#组合与验证). No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
 
 ## Maintenance
 

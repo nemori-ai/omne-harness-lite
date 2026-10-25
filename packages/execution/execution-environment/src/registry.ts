@@ -628,23 +628,33 @@ export function createEnvironmentRegistry<P>(
     )
   }
 
-  const inspectLocal = async (record: AcquisitionRecord<P>): Promise<AcquisitionInspection> => {
+  const inspectLocal = async (
+    record: AcquisitionRecord<P>,
+    current: () => boolean,
+  ): Promise<AcquisitionInspection> => {
     if (!needsOriginal(record)) return { kind: 'known', state: record.state }
     const route = routeFor(routes(), record.original)
     if (route === undefined) return { kind: 'queryUnavailable', cause: 'provider' }
     const version = record.version
     const status = await queryOriginal(route, record.original)
+    // The authorization may have been revoked while the provider answered: neither update nor disclose.
+    if (!current()) return { kind: 'refused', reason: 'notAuthorized' }
     if (record.version !== version) return { kind: 'known', state: record.state }
     return applyStatus(record, status)
   }
 
   /** Answers an original query from the provider's record. It never adopts and never returns a lease. */
-  const originalAnswer = async (original: OriginalAcquisition): Promise<RecoveryInspection> => {
+  const originalAnswer = async (
+    original: OriginalAcquisition,
+    current: () => boolean,
+  ): Promise<RecoveryInspection> => {
     const route = routeFor(routes(), original)
     if (route === undefined) return { kind: 'queryUnavailable', cause: 'provider' }
+    const status = await queryOriginal(route, original)
+    // Checked synchronously before anything of the answer is disclosed.
+    if (!current()) return { kind: 'refused', reason: 'notAuthorized' }
     const local = records.get(slotKey(original.tenant, original.acquisition))
     const matching = local && local.fingerprint === fingerprint(original) ? local : undefined
-    const status = await queryOriginal(route, original)
     const adoption = matching ? adoptionOf(matching.state) : null
     const failure = matching ? failed(matching) : undefined
     const answer = (inspection: OriginalInspection): RecoveryInspection => inspection
@@ -890,7 +900,7 @@ export function createEnvironmentRegistry<P>(
         )
         if (checked.kind !== 'granted') return queryAnswer(checked)
         const record = records.get(slotKey(access.tenant, acquisition))
-        return record === undefined ? { kind: 'unrecorded' } : inspectLocal(record)
+        return record === undefined ? { kind: 'unrecorded' } : inspectLocal(record, checked.current)
       }
       const original = copyOriginal(query.original)
       const checked = await checkAccess(
@@ -903,7 +913,7 @@ export function createEnvironmentRegistry<P>(
       // Rule 3 of the access check: the description's tenant is the caller's, or the provider is not asked.
       if (!tenantEquals(original.tenant, access.tenant))
         return { kind: 'refused', reason: 'notAuthorized' }
-      return originalAnswer(original)
+      return originalAnswer(original, checked.current)
     },
 
     async inspectRecoveryAcquisition(access, input) {
@@ -912,7 +922,8 @@ export function createEnvironmentRegistry<P>(
       if (decision === 'unknown') return { kind: 'queryUnknown', cause: 'authority' }
       if (decision === 'unavailable') return { kind: 'queryUnavailable', cause: 'authority' }
       if (decision === 'notAuthorized') return { kind: 'refused', reason: 'notAuthorized' }
-      return originalAnswer(original)
+      // The recovery authority has no current() premise; it answers once per query.
+      return originalAnswer(original, () => true)
     },
 
     async describe(access, input) {

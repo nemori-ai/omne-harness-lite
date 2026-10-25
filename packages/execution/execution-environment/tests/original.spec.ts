@@ -15,6 +15,7 @@ import {
   acquireInput,
   host,
   local,
+  openAuthority,
   placed,
   registryWith,
   requirement,
@@ -302,4 +303,53 @@ it('settles a listed acquisition once per quota domain and releases the local re
     kind: 'released',
     adoption: acquired.adoption,
   })
+})
+
+it('refuses a local query whose access is revoked while the provider answers, and keeps the record', async () => {
+  const authority = openAuthority()
+  let answering: () => void = () => undefined
+  let asked = 0
+  const { provider } = lostResponse(async () => {
+    asked += 1
+    if (asked > 1) return { kind: 'unknown' }
+    return new Promise<ProviderAcquisitionStatus>(resolve => {
+      answering = () => resolve({ kind: 'notAllocated' })
+    })
+  })
+  const registry = registryWith([provider], undefined, { authority })
+  const placement = await placed(registry, requirement([host]))
+  await registry.acquire(accessA, acquireInput(placement))
+  const query = registry.inspectAcquisition(accessA, local('acq-1'))
+  await new Promise(resolve => setTimeout(resolve, 0))
+  authority.revokeAll()
+  answering()
+  expect(await query).toEqual({ kind: 'refused', reason: 'notAuthorized' })
+  // The late notAllocated was not applied: the record still needs the original, so a fresh
+  // authorized query asks again instead of reading a final refusal.
+  expect(await registry.inspectAcquisition(accessA, local('acq-1'))).toEqual({
+    kind: 'queryUnknown',
+    cause: 'provider',
+  })
+  expect(provider.calls.acquire).toBe(1)
+})
+
+it('refuses an original query whose access is revoked while the provider answers', async () => {
+  const authority = openAuthority()
+  let answering: () => void = () => undefined
+  const provider = scriptedProvider({
+    inspect: () =>
+      new Promise<ProviderAcquisitionStatus>(resolve => {
+        answering = () => resolve({ kind: 'notAllocated' })
+      }),
+  })
+  const registry = registryWith([provider], undefined, { authority })
+  const placement = await placed(registry, requirement([host]))
+  const query = registry.inspectAcquisition(accessA, {
+    kind: 'original',
+    original: originalOf(placement),
+  })
+  await new Promise(resolve => setTimeout(resolve, 0))
+  authority.revokeAll()
+  answering()
+  expect(await query).toEqual({ kind: 'refused', reason: 'notAuthorized' })
 })

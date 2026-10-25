@@ -74,7 +74,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The eight test files hold 120 tests. See [tests/](tests/README.md); the SPEC [composition and verification](SPEC.md#组合与验证) section records the run. The tests use stub providers, a stub ledger, stub guards, and stub access ports. Evidence for persistence, cross-process consistency, and real resource stop is not in this package. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The eight test files hold 124 tests. See [tests/](tests/README.md); the SPEC [composition and verification](SPEC.md#组合与验证) section records the run. The tests use stub providers, a stub ledger, stub guards, and stub access ports. Evidence for persistence, cross-process consistency, and real resource stop is not in this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 

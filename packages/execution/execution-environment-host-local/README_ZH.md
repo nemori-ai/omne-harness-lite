@@ -50,7 +50,7 @@ await ctx.plugin(createHostFilesPlugin(domain))
 
 - 公开形状归 `src/`。导出索引归[公开接口页](docs/public-api.md)。
 - 类型以外的行为归 [SPEC](SPEC.md)：宿主提供者的事实、宿主文件使用（已接受）、其余现行行为、Service 实现与撤除顺序。
-- 宿主文件使用的机制与运行记录归[内部架构的宿主文件使用](docs/architecture.md#宿主文件使用)。
+- 宿主文件使用的机制归[内部架构的宿主文件使用](docs/architecture.md#宿主文件使用)，运行记录归 SPEC [组合与验证](SPEC.md#组合与验证)。
 - 插件、配置、登记即效应、撤除顺序与 IC 映射归 [Cordis 说明](docs/cordis.md)。
 - 服务键与抽象类归 [execution-environment-cordis-contract](../execution-environment-cordis-contract/docs/cordis.md)。
 
@@ -74,7 +74,7 @@ Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。十个测试文件共一百四十六个测试，见 [tests/](tests/README.md)。文件字节、符号链接、对象替换与描述符用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；两个测试文件用模块替身让 `open` 停住，使文件操作保持在途；两个测试文件让活描述符上的 `FileHandle.close` 失败。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；本次变更的运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。授予根限制、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。十个测试文件共一百四十八个测试，见 [tests/](tests/README.md)。文件字节、符号链接、对象替换与描述符用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；两个测试文件用模块替身让 `open` 停住，使文件操作保持在途；两个测试文件让活描述符上的 `FileHandle.close` 失败。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；当前的运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。授予根限制、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
 
 ## 维护
 

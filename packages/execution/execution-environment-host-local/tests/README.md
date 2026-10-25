@@ -16,7 +16,7 @@ SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文�
 
 ## 本包事实
 
-现在有十个测试文件，共一百四十六个测试，另有一个测试辅助：
+现在有十个测试文件，共一百四十八个测试，另有一个测试辅助：
 
 - [host-file-results.spec.ts](host-file-results.spec.ts)：宿主文件使用的结果：点名、空字节、未解析、符号链接、对象替换、关闭失败、代次、尾部斜杠、目录、快照与错误路径的描述符保留。
 - [host-files.spec.ts](host-files.spec.ts)：工作区目录外的读取、字节范围、查看、新建、父目录核对、预期版本与相对路径拒绝。
@@ -32,6 +32,6 @@ SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文�
 
 没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/execution-environment-host-local test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过。本次变更的运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
+运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过。当前的运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
 
 当前缺口：授予根限制、同一 isolate 标签下重复装载、配置校验失败，都没有测试。具名维护者由负责人指定。

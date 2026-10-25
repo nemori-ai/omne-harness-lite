@@ -497,6 +497,44 @@ async function checkOriginalOfOtherTenantIsNotAuthorized<P>(
   assert.equal(f.provider.calls.inspect, asked)
 }
 
+/** Rule 3 alone: the scope is the caller's own, but the description names another tenant. */
+async function checkOriginalNamingAnotherTenantIsNotAuthorized<P>(
+  s: EnvironmentConformanceSubject<P>,
+  f: EnvironmentFixture<P>,
+  ports: Ports<P>,
+): Promise<void> {
+  const other = s.otherAccess
+  if (!other) throw new NotApplicable('requires another tenant')
+  await f.acquired()
+  const ownScope = anotherScope(s.scope, '-tenant-b')
+  ports.bindings.bind(ownScope, other.tenant)
+  const asked = f.provider.calls.inspect
+  const claimed: OriginalAcquisition = { ...f.original, scope: ownScope }
+  assert.deepEqual(
+    await s.environment.inspectAcquisition(other, { kind: 'original', original: claimed }),
+    { kind: 'refused', reason: 'notAuthorized' },
+  )
+  assert.equal(f.provider.calls.inspect, asked)
+}
+
+/** A revocation while the provider answers an original query withholds the answer. */
+async function checkRevokedDuringOriginalQueryIsNotDisclosed<P>(
+  s: EnvironmentConformanceSubject<P>,
+  ports: Ports<P>,
+): Promise<void> {
+  const f = await setupEnvironmentFixture(s, {
+    inspect: async () => {
+      ports.authority.revokeAll()
+      return { kind: 'notAllocated' }
+    },
+  })
+  assert.deepEqual(
+    await s.environment.inspectAcquisition(s.access, { kind: 'original', original: f.original }),
+    { kind: 'refused', reason: 'notAuthorized' },
+  )
+  assert.equal(f.provider.calls.inspect, 1)
+}
+
 async function checkRecoveryQueryAnswersOriginal<P>(
   s: EnvironmentConformanceSubject<P>,
   f: EnvironmentFixture<P>,
@@ -821,6 +859,16 @@ export function executionEnvironmentConformance<P>(
       options,
       'V-EE04.original-of-other-tenant-is-not-authorized',
       checkOriginalOfOtherTenantIsNotAuthorized,
+    ),
+    fixtureCase(
+      options,
+      'V-EE04.original-naming-another-tenant-is-not-authorized',
+      checkOriginalNamingAnotherTenantIsNotAuthorized,
+    ),
+    environmentCase(
+      options,
+      'V-EE04.revoked-during-original-query-is-not-disclosed',
+      checkRevokedDuringOriginalQueryIsNotDisclosed,
     ),
     fixtureCase(
       options,

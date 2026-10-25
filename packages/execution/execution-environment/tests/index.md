@@ -15,4 +15,4 @@
 - [doubles.ts](doubles.ts)：测试共用的替身：租户、作用域、账本、守卫、访问端口与可编排的提供者
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
 
-- [contract-conformance.spec.ts](contract-conformance.spec.ts)：登记表直接消费三十三项公开执行环境义务，访问端口用套件的替身，不触碰宿主资源。
+- [contract-conformance.spec.ts](contract-conformance.spec.ts)：登记表直接消费三十五项公开执行环境义务，访问端口用套件的替身，不触碰宿主资源。

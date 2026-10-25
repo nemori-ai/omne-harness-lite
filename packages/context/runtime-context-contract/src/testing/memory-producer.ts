@@ -355,7 +355,8 @@ export function createSupplier<P>(world: World<P>) {
       s.needsSupply.delete(producer.key)
       return { kind: 'published', scope, revision: s.values.get(producer.key)?.revision ?? 0 }
     }
-    async function invalidateOne(s: ScopeState) {
+    /** Synchronous, so a batch of targets commits in one segment without `await`. */
+    function invalidateOne(s: ScopeState) {
       world.nextSeq(s, producer.key)
       world.put(s, producer.key, undefined, producer.generation, false)
     }
@@ -366,7 +367,7 @@ export function createSupplier<P>(world: World<P>) {
       const late = refusal() ?? targetState(s)
       if (late) return { kind: 'rejected', reason: late }
       if (!gate.current() || !s) return { kind: 'refused', reason: 'unauthorized' }
-      await invalidateOne(s)
+      invalidateOne(s)
       if (drivesSupply(producer)) await supplyOnce(producer, s, true)
       return { kind: 'invalidated', scopes: [s.scope] }
     }
@@ -385,11 +386,13 @@ export function createSupplier<P>(world: World<P>) {
         if ('kind' in gate) return gate
         gates.push(gate)
       }
+      // From here to the last write there is no `await`: every check and every write is one segment.
       const late = refusal()
       if (late) return { kind: 'rejected', reason: late }
       if (world.targetsVersion !== version) return 'changed'
+      if (targets.some(s => s.ended || s.fence !== 'open')) return 'changed'
       if (!gates.every(gate => gate.current())) return { kind: 'refused', reason: 'unauthorized' }
-      for (const s of targets) await invalidateOne(s)
+      for (const s of targets) invalidateOne(s)
       if (drivesSupply(producer)) for (const s of targets) await supplyOnce(producer, s, true)
       return { kind: 'invalidated', scopes: targets.map(s => s.scope) }
     }

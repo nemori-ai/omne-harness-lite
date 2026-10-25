@@ -60,7 +60,7 @@ await registry.close()
 pnpm --filter @omne-harness/execution-environment test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。八个测试文件共一百二十个测试，见 [tests/](tests/README.md)，运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。测试使用替身提供者、替身账本、替身守卫与替身访问端口。持久化、跨进程一致性与真实资源停止的证据不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。八个测试文件共一百二十四个测试，见 [tests/](tests/README.md)，运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。测试使用替身提供者、替身账本、替身守卫与替身访问端口。持久化、跨进程一致性与真实资源停止的证据不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 

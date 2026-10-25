@@ -21,7 +21,7 @@
 | 落点在集成方给的允许清单内匹配；同一层多个提供者同时满足时按歧义拒绝 | [环境要求与落点](../../../../.meta_harness/design/product/execution-environments/design.md#环境要求与落点) |
 | 提供者声明隔离断言；提供者身份带代与版本 | [提供者与隔离断言](../../../../.meta_harness/design/product/execution-environments/design.md#提供者与隔离断言) |
 | 设施由设施声明给出操作名单与须授权的操作；须授权的操作逐次问设施守卫 | [设施的声明、请求与守卫](../../../../.meta_harness/design/product/execution-environments/design.md#设施的声明请求与守卫) |
-| 获取带幂等键；采用记录由执行环境核验提供者回执后签发；租约可失效 | [获取、采用记录与租约](../../../../.meta_harness/design/product/execution-environments/design.md#获取采用记录与租约) |
+| 获取带获取键（产品正文称幂等键），登记表的槽是租户加获取键；采用记录由执行环境核验提供者回执后签发；租约可失效 | [获取、采用记录与租约](../../../../.meta_harness/design/product/execution-environments/design.md#获取采用记录与租约) |
 | 受管资源先经资源账本许可，再发出效果 | [受管资源与资源账本：先许可，后效果](../../../../.meta_harness/design/product/execution-environments/design.md#受管资源与资源账本先许可后效果) |
 | 恢复授权独立于访问身份 | [恢复授权与作用域收场](../../../../.meta_harness/design/product/execution-environments/design.md#恢复授权与作用域收场) |
 

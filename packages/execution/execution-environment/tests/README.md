@@ -16,13 +16,13 @@ SPEC 的行为或[明确缺项](../SPEC.md#明确缺项)变化时，同步对应
 
 ## 本包事实
 
-现在有八个测试文件，共一百二十个测试，替身集中在 [doubles.ts](doubles.ts)：
+现在有八个测试文件，共一百二十四个测试，替身集中在 [doubles.ts](doubles.ts)：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：两个测试。根入口只导出 `createEnvironmentRegistry` 与 `RetirementPending`；任何模块都不导入 `@deepseek-ai/cordis`。
 - [registry.spec.ts](registry.spec.ts)：十二个测试，对应 SPEC [组合与验证](../SPEC.md#组合与验证)的第一张场景表。
 - [acquisition.spec.ts](acquisition.spec.ts)：二十五个测试。获取的失败与分配未知、采用核验与采用失败的清理、清理等待上界、重核落点、同键的指纹比较、租户级沙箱与未铸造的访问租户。
-- [original.spec.ts](original.spec.ts)：十个测试。原获取描述查询的租户核对、丢失答复后的一次采用、缓存表、恢复查询、已知列表的核对与获取组。
-- [contract-conformance.spec.ts](contract-conformance.spec.ts)：三十三个测试，每个是契约公开执行环境套件的一项。
+- [original.spec.ts](original.spec.ts)：十二个测试。原获取描述查询的租户核对、提供者作答期间撤权、丢失答复后的一次采用、缓存表、恢复查询、已知列表的核对与获取组。
+- [contract-conformance.spec.ts](contract-conformance.spec.ts)：三十五个测试，每个是契约公开执行环境套件的一项。
 - [lease-gate.spec.ts](lease-gate.spec.ts)：十八个测试。逐操作门（含账本关闭）、失效与释放。
 - [lifecycle.spec.ts](lifecycle.spec.ts)：十三个测试。登记、退役、关闭、描述与资源路径的恢复。
 - [scope.spec.ts](scope.spec.ts)：七个测试。请求方作用域：宿主机与租户级沙箱上的获取随作用域释放失效、在描述与恢复里按作用域列出；带作用域的绑定层与请求方作用域不同时拒绝。

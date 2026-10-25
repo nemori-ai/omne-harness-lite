@@ -94,8 +94,8 @@
 
 `inspectAcquisition` 按 `AcquisitionQuery` 的两种形式作答。访问身份里的租户未铸造时答复 `invalidInput`。
 
-- 按键查询（`local`）：[访问核验](#访问核验)的动作为 `inspect`，没有目标作用域。然后只读本租户在这个键下的记录。没有本租户的记录时答复 `unrecorded`，不论另一租户有没有用过这个键。记录处于分配未知、获取中、临时但没有回执、或采用失败且清理未结清时，本成员经原配额域的路由查询原记录，按[契约的原获取的查询与结清](../execution-environment-contract/SPEC.md#原获取的查询与结清)的缓存表更新本地副本；查询期间记录的版本号变了，就丢弃这个答复，答复当前状态。答 `acquired` 时只保留回执、状态为临时，下一次同键获取才采用；答 `notAllocated` 时状态为已拒绝，原因 `allocationNotPerformed`；本地已有采用记录或采用失败，而原记录答 `notAllocated` 时，答复 `queryUnknown` 并给出诊断 `contradictoryOriginal`；答 `conflict` 时答复冲突并给出诊断 `originalConflict`。没有该配额域的路由时答复 `queryUnavailable`。
-- 按原获取描述查询（`original`）：访问核验的动作为 `inspect-original`，目标作用域是描述里的请求方作用域。核验通过后，描述里的租户必须等于访问租户，否则答复 `refused`（`notAuthorized`），不调用提供者。然后本成员经原配额域的路由问原记录，答复提供者的事实，并附本地相同指纹记录的采用记录或采用失败。这个答复从不采用，也不交出租约。
+- 按键查询（`local`）：[访问核验](#访问核验)的动作为 `inspect`，没有目标作用域。然后只读本租户在这个键下的记录。没有本租户的记录时答复 `unrecorded`，不论另一租户有没有用过这个键。记录处于分配未知、获取中、临时但没有回执、或采用失败且清理未结清时，本成员经原配额域的路由查询原记录，按[契约的原获取的查询与结清](../execution-environment-contract/SPEC.md#原获取的查询与结清)的缓存表更新本地副本；原记录答复之后，本成员先同步核对 `current()`：为假时答复 `refused`（`notAuthorized`），不更新本地副本；查询期间记录的版本号变了，就丢弃这个答复，答复当前状态。答 `acquired` 时只保留回执、状态为临时，下一次同键获取才采用；答 `notAllocated` 时状态为已拒绝，原因 `allocationNotPerformed`；本地已有采用记录或采用失败，而原记录答 `notAllocated` 时，答复 `queryUnknown` 并给出诊断 `contradictoryOriginal`；答 `conflict` 时答复冲突并给出诊断 `originalConflict`。没有该配额域的路由时答复 `queryUnavailable`。
+- 按原获取描述查询（`original`）：访问核验的动作为 `inspect-original`，目标作用域是描述里的请求方作用域。核验通过后，描述里的租户必须等于访问租户，否则答复 `refused`（`notAuthorized`），不调用提供者。然后本成员经原配额域的路由问原记录；答复之后同步核对 `current()`，为假时答复 `refused`（`notAuthorized`），不披露任何事实；否则答复提供者的事实，并附本地相同指纹记录的采用记录或采用失败。这个答复从不采用，也不交出租约。
 
 路由按配额域选择：优先原提供者代，原代已不在表里时用同一配额域的另一份登记；从不问另一配额域，也不问另一配额域里同名的提供者。原记录的查询抛出或答复不在闭合集合里时按未知处理。
 
@@ -228,7 +228,7 @@
 | 退役待处置的提供者 | 不再参与落点解析 |
 | 访问身份里的租户未铸造 | 落点解析、获取与描述返回 `invalidInput`（描述在关闭后也是），获取不写记录、不调用提供者；按键查询答复 `invalidInput`，即使这个键有铸造租户的记录 |
 
-[tests/original.spec.ts](tests/original.spec.ts) 覆盖原获取：按原获取描述查询另一租户的描述为 `notAuthorized`，即使作用域属于访问租户也不问提供者；丢失答复后同键的两个并发重复只采用一次，不再调用提供者；原记录确认未分配为终局 `allocationNotPerformed`；原记录答不可用、未知、冲突与释放中时按缓存表作答；原记录与已确认的采用失败矛盾时答 `queryUnknown`；按原获取描述查询答复提供者事实、附采用记录且不交租约，没有该配额域的路由时为 `queryUnavailable`；恢复查询依次答恢复授权的不允许、不可用与未知；已知列表的作用域不对时不问恢复授权；结清答复分入各获取组，列出失败记为不可用；每个配额域只列一次，结清后本地记录转为已释放。
+[tests/original.spec.ts](tests/original.spec.ts) 覆盖原获取：按原获取描述查询另一租户的描述为 `notAuthorized`，即使作用域属于访问租户也不问提供者；提供者作答期间访问被撤销时，本地查询与原获取查询都答 `notAuthorized`，本地记录不被改写；丢失答复后同键的两个并发重复只采用一次，不再调用提供者；原记录确认未分配为终局 `allocationNotPerformed`；原记录答不可用、未知、冲突与释放中时按缓存表作答；原记录与已确认的采用失败矛盾时答 `queryUnknown`；按原获取描述查询答复提供者事实、附采用记录且不交租约，没有该配额域的路由时为 `queryUnavailable`；恢复查询依次答恢复授权的不允许、不可用与未知；已知列表的作用域不对时不问恢复授权；结清答复分入各获取组，列出失败记为不可用；每个配额域只列一次，结清后本地记录转为已释放。
 
 [tests/lease-gate.spec.ts](tests/lease-gate.spec.ts) 覆盖租约视图：只暴露要求里的键；各种不合形的请求为 `invalidInput`；绑定层不等为 `invalidInput` 且不问守卫；重新解析的同一租户通过、另一租户 `notAuthorized`；开放操作不问守卫；守卫抛出为 `unavailable`；守卫作答期间租约失效为 `closed`；这次获取的账本关闭后为 `closed`，不问守卫、不调设施，另一份获取的账本不受影响，声明也撤除时仍为 `closed`；守卫作答期间账本关闭为 `closed`；撤除声明后已取到的设施对象为 `unsupported`，租约已释放时即使声明已撤除也为 `closed`；原件自报失效记为来源 `provider`，只记一次；原件失效通知以拒绝结束为 `providerInvalidated`；释放一发起就拒新操作，待处置后仍拒；待处置后重试、并发共用一次调用、已释放后不再调用原件；释放抛出为待处置且资源为空。
 
@@ -240,7 +240,7 @@
 
 [tests/public-entry.spec.ts](tests/public-entry.spec.ts) 核对根入口只导出 `createEnvironmentRegistry` 与 `RetirementPending`，并核对任何模块都不导入 `@deepseek-ai/cordis`。测试替身集中在 [tests/doubles.ts](tests/doubles.ts)。
 
-2026-10-25 在 Node v26.12.0、linux 上，`pnpm --filter @omne-harness/execution-environment test` 的 8 个测试文件、120 个测试全部通过，退出码 0。`test:slow` 没有测试文件。
+2026-10-25 在 Node v26.12.0、linux 上，`pnpm --filter @omne-harness/execution-environment test` 的 8 个测试文件、124 个测试全部通过，退出码 0。`test:slow` 没有测试文件。
 
 本成员不覆盖：持久化、跨进程一致性、真实提供者的资源停止，以及账本的许可先于效果。这些归 Service 实现、提供者与集成方的真实组合验证。
 
