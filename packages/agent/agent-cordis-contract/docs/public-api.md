@@ -4,7 +4,7 @@
 
 `./cordis` 由 [src/cordis.ts](../src/cordis.ts) 定义，源码是唯一定义，本页不手写签名。
 
-- 17 个抽象 Service 类与 1 个具体类 `AgentInstancesService`，共 18 个，另有 18 个键常量，命名是服务键加 `Key`，例如 `agentJournalKey`。键、类与契约类型的对照见 [Cordis 页的服务键表](cordis.md#服务键与提供者)。
+- 20 个抽象 Service 类与 1 个具体类 `AgentInstancesService`，共 21 个，另有 21 个键常量，命名是服务键加 `Key`，例如 `agentJournalKey`。键、类与契约类型的对照见 [Cordis 页的服务键表](cordis.md#服务键与提供者)。
 - `Context` 增补：每个键对应的服务类型。
 - `Events` 增补：`agent-cordis-contract/instance-retired`，参数是 tenant、AgentInstanceId、发布代次与原因。
 - 接口 `AgentPublicationAuthority`：宿主对一次登记或撤除的同步最终核验。它带 Cordis 的 `Context` 类型，所以只从 `./cordis` 导出。

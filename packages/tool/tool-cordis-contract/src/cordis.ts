@@ -14,7 +14,6 @@ import {
   type ToolRevision,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
-import { type ToolDirectory } from '@omne-harness/tool-contract/provider'
 import {
   describedAdoption,
   type ResultPolicy,
@@ -28,6 +27,7 @@ import {
   type ToolClock,
   type ToolCommands,
   type ToolDecisionBridge,
+  type ToolDirectory,
   type ToolEnvironment,
   type ToolInstanceHost,
   type ToolLoader,
@@ -36,6 +36,7 @@ import {
   type ToolReads,
   type ToolResourceResponses,
   type ToolStartAuthority,
+  type ToolStartFence,
 } from '@omne-harness/tool-contract/provider'
 
 /** @owner packages/tool/tool-cordis-contract */
@@ -414,6 +415,19 @@ export abstract class ToolStartAuthorityService<P>
 }
 export const toolStartAuthorityKey = ToolStartAuthorityService.provide
 
+// The start fence of an outer caller (contract SPEC「外层调用方的启动围栏」): only `invalidate` of
+// the start authority. The provider of `toolStartAuthority` serves this key in the same ordering
+// domain; an assembly that serves the two keys from two domains has no start fence guarantee.
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolStartFenceService<P> extends Service implements ToolStartFence<P> {
+  static readonly provide = 'toolStartFence'
+  constructor(ctx: Context) {
+    super(ctx, ToolStartFenceService.provide)
+  }
+  abstract readonly invalidate: ToolStartFence<P>['invalidate']
+}
+export const toolStartFenceKey = ToolStartFenceService.provide
+
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolResourceResponsesService<P>
   extends Service
@@ -503,6 +517,7 @@ declare module '@deepseek-ai/cordis' {
     toolReads: ToolReadsService<unknown, ContentBlock>
     toolCatalog: ToolCatalogService<unknown>
     toolStartAuthority: ToolStartAuthorityService<unknown>
+    toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>
     toolOutputCustody: ToolOutputCustodyService<unknown>
     toolChildren: ToolChildrenService<unknown>

@@ -542,7 +542,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 
 | 编号 | 缺什么 | 拥有者 | 之前 |
 | --- | --- | --- | --- |
-| <a id="np-02"></a>NP-02 | Request Context 没有为 `HistorySource` 与历史依据定义取得方式。调用方在 `assembly(scope, ports)` 时逐次交入读口 | Request Context 与协调者一侧的集成包拥有者 | AD-04 不登记。Request Context 读不到会话历史 |
+| <a id="np-02"></a>NP-02 | `HistorySource` 与历史依据属于来源集合 `ContextSources` 的一部分，由来源适配者按目标登记（[RQ-12](../../context/request-context-contract/SPEC.md#rq-12-来源集合与登记面)）；AD-04 怎样作为来源适配者登记、登记材料从哪里取得仍未定义 | Request Context 与协调者一侧的集成包拥有者 | AD-04 不登记。Request Context 读不到会话历史 |
 | <a id="np-03"></a>NP-03 | 无活体 runtime 时按 execution 取得输入、控制与输出视图的入口，见 Agent 开放问题[无活体 runtime 时怎样按 execution 取得执行视图](../../agent/agent/docs/architecture/open-questions.md#无活体-runtime-时怎样按-execution-取得执行视图) | Agent 拥有者 | 句柄不在时，`submit` 与 `control` 返回 `unavailable`，事件只经 `load` 的快照对账 |
 | <a id="np-04"></a>NP-04 | 合格保管方记录迟到结果的公开入口。`reconcile` 的输入只有操作身份，不带结果、交接与释放；`recordResult` 是执行记录端口，只在 Agent 已核验的操作内调用 | Agent 拥有者 | `recordResult` 返回 `unavailable`，任务保留。Agent 记录已删除时，Session 照契约单方保管 |
 | <a id="np-05"></a>NP-05 | `load` 不区分记录不存在与读取失败 | Agent 拥有者 | 本成员不产生 `missing` |

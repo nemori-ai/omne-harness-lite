@@ -1,6 +1,6 @@
 # Agent 能力的长期行为规格
 
-状态：调用身份与资格、调用登记、原消费位置、取消与恢复、结果保管及交接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是该接受范围内的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。本页其余内容及所引专题，即公开接口、扩展作者协议、对象模型、外部协调者前提、Loop 算法、恢复切点与机制，已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，同样是现行协作契约。仍然开放的事项由各专题与开放问题页逐项写明。设计接受不表示生产实现、提供者或运行验证已完成。
+状态：调用身份与资格、调用登记、原消费位置、取消与恢复、结果保管及交接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是该接受范围内的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。本页其余内容及所引专题，即公开接口、扩展作者协议、对象模型、外部协调者前提、Loop 算法、恢复切点与机制，已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，同样是现行协作契约。“[生产者接收面](#生产者接收面)”一节，以及提交参加者协议中推进资格失效的冲突映射，属 [#672 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/672) 的写回，其接受在该卡交付时记录。仍然开放的事项由各专题与开放问题页逐项写明。设计接受不表示生产实现、提供者或运行验证已完成。
 
 目标拥有者为 `packages/agent/agent-contract/`。本规格表达持续约束实现的行为。公开类型与机制的设计已按上述状态接受，提供者与实现的接受另行判断，不由设计接受代替。正式产品和全系统架构仍是上层依据。
 
@@ -136,7 +136,7 @@ recordControl 按以下顺序判定，不把 ToolReferenceFailure 直接作为 A
 
 runtime 在创建时绑定租户和安全作用域。这两项与实例身份、精确采用一起构成身份绑定，不是可序列化配置：配置不能覆盖它们，改变其中任何一项都必须创建新实例。
 
-每次操作的 Access 显式携带主体和租户。runtime 核对 Access 的租户与自身绑定一致，也核对被操作的 execution、句柄、事件和登记属于该租户。任一项不一致都按跨租户拒绝处理：返回 denied，不区分对象不存在与无权访问，不返回对象的内容或状态。
+每次操作的 Access 显式携带主体和租户。runtime 核对 Access 的租户与自身绑定一致，也核对被操作的 execution、句柄、事件和登记属于该租户。execution 身份只在租户内唯一，规则见“[执行身份的范围](#执行身份的范围)”。任一项不一致都按跨租户拒绝处理：返回 denied，不区分对象不存在与无权访问，不返回对象的内容或状态。
 
 缺少租户的操作返回输入无效。本成员不从 runtime 绑定、运行态、Context、历史标识或全局当前状态推断、补全租户。身份参数不是授权证明：主体的当前资格由注入的 AgentAccessCheck 核验，规则见下一小节。撤权后的新动作在实际发起处被拒绝，已经合法发出的调用沿原身份查询和控制。目录键是显式租户加实例身份，跨租户的 resolve 与 connect 同样返回 denied。
 
@@ -154,7 +154,7 @@ AgentAccessCheck 是必需的注入依赖，由授权领域的适配器实现。
 
 核验结果只对这一次操作有效。Agent 不缓存 allowed，不用较早的 allowed 放行后来的操作。所以撤权在下一次实际执行处生效。已经合法受理的操作不因后来的撤权被回滚，已经合法发出的 Model 或 Tool 调用沿原身份查询和控制。
 
-宿主的登记操作（reserve、publish、withdraw）由宿主核验，目录操作（resolve、connect）由目录核验，两者都在实际执行处以同一端口核验。宿主恢复入口提供的执行视图，以及长期保管者直接调用的执行记录操作，同样由宿主的长期执行记录适配器在实际执行处以同一端口核验，传入与公开操作相同的操作名。这里的执行记录操作包括 query、load、reconcile、detach、终态后观察登记，以及经恢复入口发生的 read、events、acknowledge、submit 与 control。宿主、目录和长期执行记录适配器以静态依赖取得 `agentAccessCheck` 服务，工厂得到的是同一个服务实例。取得方式和每个操作名的核验位置见 [Cordis 页](../agent-cordis-contract/docs/cordis.md#主体资格核验的调用位置)。
+宿主的登记操作（reserve、publish、withdraw）由宿主核验，目录操作（resolve、connect）由目录核验，两者都在实际执行处以同一端口核验。宿主恢复入口提供的执行视图，以及长期保管者直接调用的执行记录操作，同样由宿主的长期执行记录适配器在实际执行处以同一端口核验，传入与公开操作相同的操作名。这里的执行记录操作包括 query、load、reconcile、detach、终态后观察登记，以及经恢复入口发生的 read、events、acknowledge、submit 与 control。结果接收方在写 `received` 条目之前，以操作名 receive-result 在实际执行处核验推送主体，见“[结果接收](#结果接收)”。宿主、目录和长期执行记录适配器以静态依赖取得 `agentAccessCheck` 服务，工厂得到的是同一个服务实例。取得方式和每个操作名的核验位置见 [Cordis 页](../agent-cordis-contract/docs/cordis.md#主体资格核验的调用位置)。
 
 runtime 的协调角色在已核验的公开操作之内调用 Journal 端口时，不再次核验主体，只核对挂接、围栏、修订号与保管资格。“不再次核验”只限定这一种调用，不适用于上一段列出的直接调用。推进中途主体被撤权，由动作准入在 Model 或 Tool 动作发起处负责，不由主体资格核验承担。
 
@@ -182,7 +182,7 @@ runtime 的协调角色在已核验的公开操作之内调用 Journal 端口时
 | --- | --- | --- |
 | 参加 | 参加者的事实与 Agent 的事实在同一次提交中成立 | 提交成功，返回回执 |
 | 失败 | 参加者当前不能完成自己的部分，任何一方的事实都没有保存 | 返回 unavailable，可用同一操作重试。结果无法确定时返回 commit-unknown，先按原操作查询 |
-| 冲突 | 参加者的当前事实与这次提交的前提不一致，例如已受理的新输入先成立，或参加者一方的终态先成立 | 本次提交不成立，返回 changed 并给出依据，Agent 重读事实后重新求值。同一操作身份配上不同输入，另返回 conflict |
+| 冲突 | 参加者的当前事实与这次提交的前提不一致，例如已受理的新输入先成立，或参加者一方的终态先成立 | 本次提交不成立，返回 changed 并给出依据，Agent 重读事实后重新求值。冲突的原因是本次提交所用挂接的推进资格已被取代或撤销时，返回 stale-advance，不返回 changed。同一操作身份配上不同输入，另返回 conflict |
 | 不支持 | 参加者或提供者不能兑现这种共同提交 | 返回 unsupported，不保存任何一半 |
 
 参加者一方的终态先成立时，Agent 允许参加者先记录自己的终态，再以已保存的取消依据收束 execution。此时 Agent 只认回原取消，不重新裁定，也不恢复业务推进。
@@ -220,12 +220,14 @@ Agent 拒绝不合格的装配。声明的形状是 `AgentJournal.capabilities.p
 | --- | --- | --- | --- |
 | 中断（interrupt） | 一个具名的模型或工具调用 | 请求生产者中断该调用。工具调用另可请求转后台。模型调用被中断后，该响应中尚未发出的工具建议不执行 | 不终结 execution，不取消其他调用，不撤销执行挂接 |
 | 取消（cancel） | 一个 execution | 停止该 execution 的新推进，形成 cancelled 终态候选，并请求中断该 execution 仍在前台的调用 | 不停止已确认转后台的工具、同一 runtime 的其他 execution、其他租户的工作，以及任何不属于该 execution 的调用 |
-| 暂停（suspend） | 一个 execution 的推进 | 保存接续并撤销当前执行挂接，execution 进入 suspended，可由合法的接手者恢复 | 不终结 execution，不请求任何生产者停止 |
+| 暂停（suspend） | 一个 execution 的推进 | 保存接续并撤销当前执行挂接，execution 进入 suspended，可由合法的接手者恢复。撤销挂接的次序与其间崩溃后的恢复是未决项，见下文 | 不终结 execution，不请求任何生产者停止 |
 | 停用（quiesce） | 一个 runtime 实例 | 新的 invoke 与 resume 返回 unavailable，把在途 execution 交接后撤销登记与资源 | 不取消 Model 与 Tool 的独立执行，不终结 execution |
 
 中断类控制的公开形状是 `interrupt-model`、`interrupt-tool` 和 `background-tool`。取消与暂停是 ExecutionControl 的 `cancel` 与 `suspend`。停用是 AgentRuntimeControl 的 quiesce 操作，不是 ExecutionControl。形状见[公开接口页](docs/public-api/README.md#托管协调与运行实例)。
 
 detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管协调与运行实例”定义。本节定义控制的种类、范围和阶段。
+
+暂停有一个未决项，承接卡是 [#730](https://github.com/nemori-ai/omne-harness-lite/issues/730)。暂停时记录控制意图与解除挂接的先后次序，以及两步之间或解除挂接前后崩溃时的恢复，本契约尚未规定。本页凡写到暂停撤销挂接或进入 suspended 的地方，都不承诺这部分行为。实现不得按某一种次序或恢复方式声称已兑现本契约。
 
 ### 插队
 
@@ -256,7 +258,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 | --- | --- | --- | --- | --- |
 | 中断 | 适用 | 不适用，execution 继续推进 | 适用，对象是该调用 | 适用，范围是该调用的结果与费用 |
 | 取消 | 适用 | 适用 | 适用，对象是该 execution 仍在前台的每个调用 | 适用，范围是该 execution 的全部未收尾责任 |
-| 暂停 | 适用 | 适用，实现为撤销挂接并保存交接 | 不适用，不请求生产者停止 | 适用，范围是该挂接持有的本地责任 |
+| 暂停 | 适用 | 适用，实现为撤销挂接并保存交接。次序与崩溃恢复未决（#730） | 不适用，不请求生产者停止 | 适用，范围是该挂接持有的本地责任 |
 | 停用 | 适用，意图成立表示开始拒绝新的 invoke | 适用，对象是该 runtime 的全部挂接 | 不适用 | 适用，范围是该 runtime 的全部本地责任 |
 
 对 ExecutionControl 的阶段事实由 Journal 的 recordControl 记录，并在事件流中以 control 事件投影。记录核对原控制命令、真实执行方的回执和当前处理资格，记录阶段及适用的 Tool 操作引用，不变更控制范围，也不批准新的效果。推进者崩溃或更换后，新挂接以原 ControlRecord 认回已成立的阶段，不重发控制命令。生产者在中断到达前已真实收场时，以真实收场为准，中断不改变结果。控制与完成、换代、晚到写入的竞争处置见[机制页](../agent/docs/architecture/mechanisms.md#控制与故障交接)。
@@ -730,7 +732,7 @@ resume 只恢复原 execution。它必须认回原执行及精确采用，不能
 
 runtime 可顺序承接多个 execution，同一时刻至多一个有效执行挂接。执行结束不撤登记，runtime 回 idle。普通新请求使用新的 execution 身份。插队沿原 execution，规则见“取消、退出与结构变更”的“插队”。恢复与接管保持原 action、call、admission、passage 和输入身份，替换推进者取得新的执行挂接。每个 execution 单独建立输入状态、取消状态、调用关联和事件游标，不沿用上一个 execution 的主体、授权、取消状态、输入队列和结果游标。定义解析和连接池等不可变或可重建的内容可以复用。
 
-权限分面由装配者分别发放：connect 只给观察，resolve 在额外核验发起资格后给同一实例的 invoker，两者都不授予发布能力。执行输入、控制、输出与恢复是原 execution 的能力视图，其耐久操作由宿主的长期 Journal 适配器提供，不以某个 runtime 的 fiber 存活为前提。宿主恢复入口按 execution 重新取得这些视图，活体句柄只用于活体观察和唤醒。断开旧的活体路由不删除执行视图或原记录。
+权限分面由装配者分别发放：connect 只给观察，resolve 在额外核验发起资格后给同一实例的 invoker，两者都不授予发布能力。执行输入、控制、输出与恢复是原 execution 的能力视图，其耐久操作由宿主的长期执行记录适配器提供，不以某个 runtime 的 fiber 存活为前提。宿主恢复入口按 execution 重新取得这些视图，活体句柄只用于活体观察和唤醒。断开旧的活体路由不删除执行视图或原记录。
 
 登记有自己的身份和状态。发布返回类型化的登记身份，登记状态是 published、withdrawing 和 withdrawn。publish 与 withdraw 都带 Access 和操作身份：同一操作同一输入返回原结果，同一操作不同输入返回 conflict。withdraw 只撤销自己的登记，旧登记身份不能撤销后继登记。publish 的输入只含可序列化的身份与状态，其中的状态只是登记时的初值。runtime 状态变化时不重新 publish，只经登记句柄的 report 更新活体观察投影。运行对象如何交给宿主，属于宿主实现的装配接线，不是根契约操作。
 
@@ -807,7 +809,7 @@ checkpoint 是 execution 当前状态的权威物化，不是状态历史。Jour
 
 #### 交接与停用
 
-detach 只适用于 active 的执行挂接。它同时保存原位置与责任并撤销该挂接，返回可核验的交接依据，成功交接后 runtime 才可回 idle。经恢复入口对仍存活的其他 runtime 的 active 挂接做 detach，另需 takeover 资格，见“[恢复与接管](#恢复与接管)”。对 superseded 的挂接发出新的 detach 返回 stale-advance，对已 detached 的挂接只认回既有交接。暂停控制的结果就是一次 detach 交接，execution 进入 suspended。宿主停用实例和换代时的挂接交接同样使用 detach。失去业务资格时，detach 只允许认回既有交接，不写新的业务位置。reconcile 在无活体或 execution 已结束时仍可由合格的保管者处理原结果，不能据此发起新工作。生产者事实的登记与耐久保管由原消费拥有者承担，不能强迫旧的失效挂接重新通过推进检查。
+detach 只适用于 active 的执行挂接。它同时保存原位置与责任并撤销该挂接，返回可核验的交接依据，成功交接后 runtime 才可回 idle。经恢复入口对仍存活的其他 runtime 的 active 挂接做 detach，另需 takeover 资格，见“[恢复与接管](#恢复与接管)”。对 superseded 的挂接发出新的 detach 返回 stale-advance，对已 detached 的挂接只认回既有交接。暂停控制的结果就是一次 detach 交接，execution 进入 suspended。暂停控制与这次 detach 的先后次序及其间崩溃的恢复未决，见“[四种控制](#四种控制)”后的未决项。宿主停用实例和换代时的挂接交接同样使用 detach。失去业务资格时，detach 只允许认回既有交接，不写新的业务位置。reconcile 在无活体或 execution 已结束时仍可由合格的保管者处理原结果，不能据此发起新工作。生产者事实的登记与耐久保管由原消费拥有者承担，不能强迫旧的失效挂接重新通过推进检查。
 
 quiesce 是 AgentRuntimeControl 的操作。它使 runtime 进入 draining，此后新的 invoke 与 resume 返回 unavailable。对本实例的全部责任完成交接后，它经登记句柄撤销本实例的登记，释放资源，返回 drained。任一交接未知时返回 unresolved 并报告剩余的 execution，不宣称 drained。quiesce 带操作身份：同一操作同一原因的重试认回原结果；已 unresolved 的重试继续交接并返回当前的剩余；对已在停用中的 runtime 发出的新 quiesce，认回进行中的交接，不创建第二个。Model 与 Tool 的独立执行不因 detach 与 quiesce 而取消，已发生的外部效果不声称可逆。
 
@@ -829,7 +831,7 @@ handover 不读取活体的 execution，也不写入任何状态。它的幂等�
 
 事件由 Journal 在条件提交中分配，身份是 execution 加序号。序号是十进制整数的字符串编码，在同一 execution 内从 1 开始，每个事件加 1。提交成功的事件序号连续，没有空洞。序号按数值比较，不按字典序。序号 0 表示第一个事件之前。重放允许重复交付，同一身份的内容不能变化，原文不被后置改写。事件带有产生它的执行挂接、schema 和因果引用。
 
-stream 事件携带原生产者的 schema 与 cursor，不把任意 JSON 当作共享内容块。Agent 可靠接受某个增量之后才发布它。生产者尚未确认可恢复的上游片段不被声称已经耐久，逐片跨生产者失联的耐久机制由具名拥有者负责。
+stream 事件携带原生产者的 schema 与 cursor，不把任意 JSON 当作共享内容块。Agent 可靠接受某个增量之后才发布它。生产者尚未确认可恢复的上游片段不被声称已经耐久，逐片跨生产者失联的耐久机制由具名拥有者负责。J04 决定以流引用取代这种透传，取代在 #673 收窄时生效，在此之前本段有效。目标形状见“[流引用与自身事件](#流引用与自身事件)”，stream 分支的收窄归 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)。
 
 #### 读取、游标与缺口
 
@@ -859,6 +861,117 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 4. 业务接受：消息的拥有者按自己的准入规则接受了该消息。读到 message 事件不是业务接受。业务接受由消息准入决定，不由事件流决定。
 
 确认只表示第三层，不证明终态，不证明业务成功，也不确认 Model 或 Tool 的结果。Model 与 Tool 的结果确认另需真实收场及原处理完成或耐久保管证明，沿各自契约。EOF、超时、撤登记和确认都不自动证明业务终态。
+
+### 生产者接收面
+
+本节依据[决定台账](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)第三节采用的 J01、J02、J03、J04、J07、J08、J28 与 J40，本节承载其中可加的承诺。改动现有联合或现有字段类型的部分归 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)，各小节逐处写明。只有一处例外由本节承担：`AgentAccessOperation` 增加 receive-result 是给闭合联合加成员，属破坏性改动，见“[结果接收](#结果接收)”第 9 条。本节不定义 Model 或 Tool 的回执类型，也不定义 `StreamRef`。它们归各自的原拥有者。类型的唯一来源是源码，导航见[公开接口页](docs/public-api/README.md#生产者接收面)。
+
+#### 日志条目
+
+J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录里另存三类接收面条目，类型是 `AgentJournalEntry`。
+
+| kind | 记下的事实 | 写入者 | 写入时的挂接 |
+| --- | --- | --- | --- |
+| `start-fence` | Tool 启动围栏已在 Tool 的排序域内生效 | 推进者 | 当前有效的 Authority |
+| `received` | 生产者推送的一个结果版本或一个账目修订已被结果接收方保存 | 结果接收方，即合法的保管方 | 不要求挂接 |
+| `stream-reference` | Agent 取得的一个生产者流引用 | 推进者 | 当前有效的 Authority |
+
+条目按下列规则写入和读取。
+
+1. 条目经 `AgentJournalEntries.record` 写入。该端口与 `AgentJournal` 由同一提供者在同一权威排序中兑现。两者由不同排序域提供时，该装配不具备本节的保证。
+2. record 成功时推进 execution 修订号，返回 `CommandReceipt`。同一操作同一条目认回原回执。同一操作配不同条目返回 conflict。
+3. 推进者写入时带自己的 Authority。该挂接已被取代或其推进资格已撤销时，record 返回 stale-advance，不写入。结果接收方写入 `received` 时 Authority 为 null。`start-fence` 或 `stream-reference` 的 Authority 为 null 时返回 invalid，field 为 `authority`。
+4. execution 已 ended 时，`start-fence` 与 `stream-reference` 返回 terminal。`received` 仍可写入，因为保管资格与推进权分别检查，规则同 recordResult。
+5. Access 的租户与 execution 所属租户不同时返回 denied，不区分对象不存在与无权访问。
+6. 读取形状是 `ExecutionSnapshot` 与 `AgentEvent`。`ExecutionSnapshot.entries` 是可选字段。提供者支持本端口时，它按提交顺序给出该 execution 的全部已提交条目。字段缺席表示提供者不支持接收面条目，不表示没有条目。需要条目的读方在字段缺席时返回 unavailable，不把缺席当作空列表。把条目投影为 `AgentEventBody` 的新事件种类，要给闭合联合加成员，归 #673。在此之前，读方经 load 读取条目。
+7. `AgentJournalEntry` 是开放联合。读方遇到不认识的 kind 时保留原条目，不解释它，不报错，也不丢弃。读方不得对 kind 做穷尽断言。今后增加种类按可加改动处理。
+8. 共同提交中，参加者因推进资格已被取代或撤销而冲突时，Agent 返回 stale-advance，规则见“[提交参加者协议](#提交参加者协议)”。
+9. 未决项（[#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)）：`AgentJournalEntries` 与 `AgentAccountOutlet` 在工厂依赖中是必需还是可选，尚未分类。
+
+#### 结果接收
+
+J02 规定结果的去处、常驻的结果接收方、保存回执与账目。Agent 宿主的结果接收方实现 Model 的 `ModelResultReceiver` 与 Tool 的 `ToolResultReceiver`，按原拥有者的协议返回 saved 回执。回执与失败的形状、saved 的合取事实和 push 的决定顺序归 Model 的[结果推送与保存](../../model/model-contract/SPEC.md#结果推送与保存)与 Tool 的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)。本小节只规定接收方在 Agent 一侧的责任。
+
+1. 去处。生产者推送到受理时冻结的 `ConsumerRef`。接收方按冻结 consumer 找到原 `PendingCall` 及其 consumption，不重新选择去处。
+2. 租户。载荷的调用引用编入租户。接收方用原拥有者的公开 resolve 函数取得这个租户，核对它与 `access.tenant` 相同。接收方不从去处、地址或宿主取得租户。
+3. 保存次序。接收方先经 `AgentMaterials` 保存完整冻结载荷，或保存不依赖生产者待释放副本的可恢复引用。然后它写 `received` 条目。条目提交成功之后，接收方才返回 saved。saved 证据的 owner 是冻结的 `consumer.owner`，证据定位 `received` 条目、材料和原消费责任。
+4. 认回键。结果的认回键是（租户，生产者种类，调用，结果版本）。账目的认回键是（调用，Model 的 dispatch 或 Tool 的账目事件 event，修订），租户来自调用引用。键直接取生产者的交付键：Model 的 `ModelDeliveryKey` 与 Tool 的 `ToolDeliveryKey`。record 的操作身份由交付键确定派生。同键同内容认回原条目与原 saved。同键异内容返回 conflict，原条目不变。
+5. 账目。`received` 条目带推送载荷里运行时补全的账目。Model 结果带冻结时全部 dispatch 的账目快照。Tool 结果带 account 或 null。账目交付带该修订的 `CallAccount`。尚无报告时保持 null，不填零。
+6. 主体。接收方以代原租户行事的主体写 Journal（J19）。写入所用 Access 的租户就是调用引用的租户。接收方不以系统作用域的主体写某个租户的条目。
+7. 容量与背压。接收入口按租户分开容量。份额是可配置策略，由实现的工厂配置给出（[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)），本契约不定数值。额度不足时按生产者的协议返回 backpressured，不删除旧责任来腾出空间。
+8. 恢复。接收方恢复时从 `received` 条目认回已保存的交付。尚未收到的账目修订，接收方经 Model 按调用读取账目的入口取回，即 Model [逐操作行为](../../model/model-contract/SPEC.md#342-逐操作行为)中的 dispatches。当前阶段该入口的账目只保存在内存里，进程重启之后的取回要等 [#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)。本契约不把它写成重启后的耐久保证。
+9. 主体资格。接收方在写 `received` 条目之前，以 `AgentAccessCheck` 核验推送主体，操作名是 receive-result，目标是冻结 consumer 对应的 execution。allowed 之后才写入。denied 与 unavailable 按生产者协议的 denied 与 unavailable 返回，不写入，没有默认放行。核验结果只对这一次 push 有效。接收方怎样取得目标里的实例身份，是未决项，承接卡是 #502。`AgentAccessOperation` 增加 receive-result 是给闭合联合加成员，属破坏性改动，由本节承担。
+
+#### Tool 启动围栏
+
+J03 规定 Agent 怎样使 Tool 的旧启动失效，以及“已生效”记在哪里。Agent 是 Tool 的外层调用方，经 Tool 的窄服务 `toolStartFence` 使它负责的、尚未受理的启动失效。服务、键与失效协议归 Tool 的[外层调用方的启动围栏](../../tool/tool-contract/SPEC.md#外层调用方的启动围栏)。依赖方向是 Agent 契约依赖 Tool 契约，Tool 不依赖 Agent。
+
+1. Agent 只取得 `toolStartFence`，不取得 `toolStartAuthority` 的 prepare、consume、inspect 或 exclude。
+2. 守卫是 Agent 自己的资源。owner 是 Agent 的拥有者名，resource 是该拥有者内的资源名，例如被撤销的挂接代次。revision 与 evidence 指向 Agent 自己保存的失效依据。
+3. invalidate 返回失效证据之后，Agent 把证据写成独立的 `start-fence` 条目，与业务取消的 `ControlRecord` 分开保存。取得证据之前，Agent 不声称新的发起已被阻止。回执未知时，Agent 用原 operation 与原守卫重送。
+4. 围栏不停止进行中的调用。对控制责任内仍需停止的每个调用，Agent 分别经公开的 `ToolRuntime.commands.control` 以原调用引用提交 stop，每次使用自己的操作号。stop 受理不等于物理停止。
+5. 未决项（#502）：哪些控制或挂接变化触发 invalidate，以及 invalidate 返回 denied 或 unavailable、`start-fence` 的 record 返回 stale-advance 时 Agent 怎样处置，本契约尚未规定。
+
+#### 流引用与自身事件
+
+J04 规定显示投影凭什么观察生产者，以及观察资格由谁签发。
+
+1. J04 的目标是 Agent 的事件流只发自身事件。#673 收窄 stream 分支之前，现有 stream 分支按“[事件身份与序号](#事件身份与序号)”的规则保持有效。生产者的过程流由观察者经 [stream-arrival](../../common/stream-arrival/README.md) 的观察端口直接观察，先快照后增量。观察资格由授权与接入一侧签发，生产者核验。Agent 不签发观察资格。
+2. Agent 取得生产者流的引用时写 `stream-reference` 条目，记下 `StreamRef`、生产者种类与原 consumption。`StreamRef` 不带凭据，持有它不是观察资格。观察者经它观察时另带显式 Access，生产者核对两处租户相同。
+3. 现有 `AgentEventBody` 的 stream 分支透传上游内容。J04 决定以流引用取代这种透传。收窄该分支是破坏性改动，归 #673，取代在收窄时生效。
+
+#### 账目出站
+
+J28 规定“某次固定请求的账目已收到”由谁、经哪个端口交给 Request Context。
+
+1. 结果接收方在 `received` 条目提交之后，经 Agent 自有的出站端口 `AgentAccountOutlet` 把账目交给 Context 一侧的适配器。账目不经第三方转交，Context 也不直接读 Model。
+2. 交接元组 `AgentAccountHandoff` 带编入租户的 Model 调用引用、dispatch、该修订的 `CallAccount`、原结果版本和 `received` 条目的提交证据。原账目确有结果版本的关联时才给出结果版本，否则为 null，不从账目修订推造。端口输入另带 Access。Context 一侧核对 Access 的租户与调用引用的租户相同。
+3. 本端口只交 Model 账目。Tool 的账目不经本端口交给 Context。
+4. 幂等键是（租户，调用，dispatch，修订）。同一交接可以重交。结果有六种：received、denied、conflict、invalid、unknown、unavailable。received 包括对方认回的重复交接和被较高修订取代的乱序修订。结果为 unknown 或 unavailable 时，接收方保留待办，以同一交接重试。结果为 denied、conflict 或 invalid 时不重试同一交接，接收方仍保留原待办并报告带具名原因的诊断，不静默丢弃。这与 RQ-14 的“调用方保持原待办”一致。received 不是清理 Journal 条目的依据。
+5. 恢复时，接收方从 `received` 条目重放全部 Model 账目交接，结果幂等。出站失败不撤销已经交给生产者的 saved。
+6. Context 一侧的适配器与目标作用域的取得归 Request Context 的 [RQ-14](../../context/request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)。Agent 契约不导入 Request Context 的成员。
+
+#### 控制映射与无活体入口
+
+J07 规定外部协调者的控制怎样映射到 Agent，以及没有活体 runtime 时控制走哪个入口。外部协调者按下表把自己的控制意图翻译为 Agent 操作。
+
+| 外部协调者的控制意图 | Agent 操作 | 是否需要推进资格 |
+| --- | --- | --- |
+| 中断一个具名的模型调用 | control，`ExecutionControl` 为 interrupt-model | 否 |
+| 中断一个工具调用，或请它转后台 | control，`ExecutionControl` 为 interrupt-tool 或 background-tool | 否 |
+| 取消该执行 | control，`ExecutionControl` 为 cancel | 否 |
+| 暂停该执行 | control，`ExecutionControl` 为 suspend。解除挂接的次序与崩溃恢复未决，见“[四种控制](#四种控制)”后的未决项 | 否 |
+| 插队输入 | input.submit，优先级为 urgent。插队不是控制，见“[插队](#插队)” | 否 |
+| 交还当前挂接 | 经 `agentExecutionRecovery` 服务调用 `AgentExecutionRecovery.detach`。调用方先经 load 取得目标挂接的 Authority | 否。目标是仍存活的其他 runtime 的挂接时，另需 takeover 资格 |
+
+Agent 提供两个不需推进资格的入口：control 与 detach。
+
+1. control 的形状是 `AgentExecutionControl.control`。`agentExecutionControl` 服务就是经恢复入口发生的 control。宿主的长期执行记录适配器提供这个服务，并在实际执行处以操作名 control 核验主体。外部协调者经它提交控制，不需要执行句柄或挂接。受理、主体资格与六个阶段的规则不变。
+2. detach 的形状是 `AgentExecutionRecovery.detach`，经 `agentExecutionRecovery` 服务调用，行为见“[交接与停用](#交接与停用)”。detach 仍带目标挂接的 Authority，调用方经 load 取得它，自己不需要持有挂接。
+3. 两个入口都在实际执行处按“[主体资格核验](#主体资格核验)”核验主体。它们不要求调用方持有挂接，也不授予推进资格。
+4. 两个入口的形状以本节和公开接口页为准。实现归 #502。
+5. 未决项（#502）：经 `agentExecutionControl` 受理控制时 execution 仍有 active 挂接，该挂接的 runtime 怎样得知新的控制，本契约尚未规定。
+
+#### 作为 Model 调用方
+
+J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
+
+1. Agent 宿主为 Agent 的消费者 owner 提交 Model 的装配声明 `ModelConsumerOwnerDeclaration`。声明的 work 为 exempt，evidence 是该 owner 的受信证据适配器的采用。声明规则归 Model 的[资格、共同提交与实际发送](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)。
+2. [资格参加者协议闭合之前](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)，Agent 的全部 Model 调用都按免守卫受理。免守卫不提供单调失格的保护。推进资格撤销之后，新的 Model 发出由 Journal 的条件提交（stale-advance）与动作发出围栏阻止。
+3. `retry` 计划的 `notBefore` 改为 UTC 时刻类型，是现有字段类型的改动，归 #673。
+4. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。
+   - 证据适配器的端口形状。Model 契约只有装配声明里的 evidence 采用，没有导出该端口的类型。承接卡未定。
+   - replay 被拒之后的再次发出怎样由重试决定表达，以及 resent 从哪里来（PM-05）。这一点与 [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) 的 5.1 同批确认。
+   - J08 原文所说交 Model 确认的其余四点，在具名来源中没有找到，本契约不列出。
+
+#### 执行身份的范围
+
+J40 规定 `AgentExecutionId` 的唯一范围。
+
+1. `AgentExecutionId` 只在租户内唯一，与 Model 的调用身份一致。两个租户可以持有相同文本的 execution 身份，它们是两个不同的 execution。
+2. Journal 提供者以（租户，execution）为键保存和查找执行记录。
+3. Access 的租户与 execution 所属的租户不同时，操作返回 denied，不区分对象不存在与无权访问。
+4. 别的对象引用一个 execution 时同时带租户。只持有 execution 文本不是读取或控制的资格。
 
 ### 逐操作及输入分类
 
@@ -891,6 +1004,8 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；denied；unavailable |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |
 | AgentRuntimeControl.quiesce | Access、操作身份、原因依据 | drained 或 unresolved，附剩余 execution 与依据 | denied；conflict；unavailable |
+| AgentJournalEntries.record | ExecutionMutation、Authority（`received` 为 null）、接收面条目 | 命令回执 | stale-advance（挂接已被取代或推进资格已撤销）；terminal（ended 之后写 `start-fence` 或 `stream-reference`）；invalid（推进者条目缺 Authority，field 为 authority）；conflict（同一操作配不同条目，或同一交付键配不同内容）；denied（跨租户，含调用引用的租户与 Access 不同）；unavailable；commit-unknown。见“[日志条目](#日志条目)” |
+| AgentAccountOutlet.deliver | Access、账目交接元组 | received | denied、conflict、invalid：不重试，保留待办并报告诊断；unknown 与 unavailable：以同一交接重试。见“[账目出站](#账目出站)” |
 
 授权列中的“主体资格”都由 AgentAccessCheck 在实际执行处核验，括号内是传入的操作名。Journal 端口的操作在已核验的公开操作之内由 Agent 调用，授权列只写它另外核对的资格。
 
@@ -916,6 +1031,9 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 | Journal.inputs | 在已核验的操作之内调用；另核当前挂接的资格 | 只读，同一水位线返回同一批 | 与 submit 同一排序，只返回水位线以内已受理的输入 | 无 | 返回受理时保存的内容，不读取调用方另存的副本 |
 | Journal.readReplyAdmissions | 在已核验的操作或 load 之内调用；另核读取资格 | 只读，after 与 next 只在同一 execution、同一范围内有效 | 不阻塞推进 | 无 | 范围内缺页返回缺口，不把空页当作完成 |
 | AgentRuntimeControl.quiesce | 主体资格（quiesce），目标是该实例；只交给宿主，不交给执行的调用方 | 操作身份 | 已在停用的 runtime 认回进行中的交接 | 无 | runtime 进入 draining，交清后撤登记并 disposed |
+| AgentJournalEntries.record | 推进者在已核验的操作之内调用，另核当前挂接。结果接收方在 push 的决定顺序里核验推送主体的当前接收资格，再写 `received`，另核保管资格，不要求挂接。结果接收方以主体资格（receive-result）在写入之前核验，目标是冻结 consumer 对应的 execution | 操作身份；`received` 的操作身份由交付键确定派生 | 与 commit 同一排序 | 无新的事件种类；投影为事件归 #673 | `received` 在 ended 之后仍可写入 |
+| AgentAccountOutlet.deliver | 结果接收方在 `received` 条目提交之后调用；Context 一侧核对租户与来源 | 租户、调用、dispatch 与修订 | 不阻塞推进；与 saved 互不等待 | 无 | 恢复时从 `received` 条目重放 |
+| agentExecutionControl 的 control | 同 control；由宿主的长期执行记录适配器在实际执行处核验 | 同 control | 同 control | 同 control | 形状同 `AgentExecutionControl`，实现归 #502 |
 
 下面的接缝由各自的专题补全逐操作的要素，这里只保留不变的约束，并写明要素的所在位置。
 

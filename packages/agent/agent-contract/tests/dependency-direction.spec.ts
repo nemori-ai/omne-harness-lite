@@ -36,7 +36,17 @@ describe('the manifest', () => {
       declared.filter(name => dependentMember.test(name) || name.startsWith('@deepseek-ai/')),
     ).toEqual([])
     expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@deepseek-ai/cordis')
-    expect(Object.keys(manifest.exports)).toEqual(['.'])
+    expect(Object.keys(manifest.exports)).toEqual(['.', './testing'])
+  })
+})
+
+describe('the testing entry reaches no Cordis and no dependent member', () => {
+  it('in the javascript graph from dist/testing.js', () => {
+    const graph = walkModules(memberPath('dist/testing.js'), 'javascript')
+    expect(graph.files.size).toBeGreaterThan(1)
+    expect(
+      graph.imports.filter(edge => forbiddenFromRoot(edge.specifier)).map(describeImport),
+    ).toEqual([])
   })
 })
 
@@ -59,6 +69,13 @@ describe('the root entry reaches no Cordis and no dependent member', () => {
     for (const name of ['@omne-harness/assets', '@omne-harness/legal-identity']) {
       expect(seen).toContain(name)
     }
+  })
+
+  it('does not load the testing entry or node:assert', () => {
+    // The doubles and suites of `./testing` must stay out of what a production consumer loads.
+    const graph = walkModules(memberPath('dist/index.js'), 'javascript')
+    expect([...graph.files].filter(file => /\/dist\/testing/u.test(file))).toEqual([])
+    expect(graph.imports.filter(edge => edge.specifier.startsWith('node:assert'))).toEqual([])
   })
 
   it('sees every import form that can load a module', () => {

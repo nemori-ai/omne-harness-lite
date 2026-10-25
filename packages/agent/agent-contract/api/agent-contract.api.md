@@ -26,6 +26,9 @@
 - `AgentAccessDecision` · `execution.d.ts`
 - `AgentAccessOperation` · `execution.d.ts`
 - `AgentAccessTarget` · `execution.d.ts`
+- `AgentAccountHandoff` · `receiving.d.ts`
+- `AgentAccountOutcome` · `receiving.d.ts`
+- `AgentAccountOutlet` · `receiving.d.ts`
 - `AgentAdoptions` · `execution.d.ts`
 - `AgentCheckpoint` · `evaluation.d.ts`
 - `AgentClock` · `execution.d.ts`
@@ -48,6 +51,8 @@
 - `AgentInstant` · `identity.d.ts`
 - `AgentJournal` · `journal.d.ts`
 - `AgentJournalAttachment` · `journal.d.ts`
+- `AgentJournalEntries` · `receiving.d.ts`
+- `AgentJournalEntry` · `receiving.d.ts`
 - `AgentJournalFinishing` · `journal.d.ts`
 - `AgentJournalObservation` · `journal.d.ts`
 - `AgentJournalReading` · `journal.d.ts`
@@ -124,6 +129,7 @@
 - `InputId` · `identity.d.ts`
 - `JournalCapabilities` · `journal.d.ts`
 - `JournalCommit` · `journal.d.ts`
+- `JournalEntryRecord` · `receiving.d.ts`
 - `Judgment` · `judgment.d.ts`
 - `LoopExtensionDeclaration` · `extensions.d.ts`
 - `LoopExtensionImplementation` · `extensions.d.ts`
@@ -159,6 +165,8 @@
 - `ProducerDecisionView` · `evaluation.d.ts`
 - `ProgressionDirective` · `evaluation.d.ts`
 - `QuiesceResult` · `execution.d.ts`
+- `ReceivedDelivery` · `receiving.d.ts`
+- `ReceivedEntry` · `receiving.d.ts`
 - `RefusalReason` · `judgment.d.ts`
 - `RegisteredReads` · `passages.d.ts`
 - `Registration` · `execution.d.ts`
@@ -170,7 +178,9 @@
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
 - `SelectedModel` · `request.d.ts`
+- `StartFenceEntry` · `receiving.d.ts`
 - `StepId` · `identity.d.ts`
+- `StreamReferenceEntry` · `receiving.d.ts`
 - `StructureFailure` · `identity.d.ts`
 - `Subject` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
@@ -199,6 +209,26 @@
 - `judgeEvidence` · `identity.d.ts`
 - `judgeExtensionOutput` · `judge-output.d.ts`
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
+
+## 入口 `./testing` · `testing.d.ts`
+
+- `AgentAccountOutletFixture` · `testing-account-outlet.d.ts`
+- `AgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
+- `ConformanceCase` · `testing-case.d.ts`
+- `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
+- `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
+- `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
+- `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
+- `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
+- `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
+- `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
+- `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
+- `sampleAccountHandoff` · `testing-account-outlet.d.ts`
+- `sampleReceivedModelAccount` · `testing-journal-entries.d.ts`
+- `sampleReceivedModelResult` · `testing-journal-entries.d.ts`
+- `sampleReceivedToolAccount` · `testing-journal-entries.d.ts`
+- `sampleStartFence` · `testing-journal-entries.d.ts`
+- `sampleStreamReference` · `testing-journal-entries.d.ts`
 
 ## 声明文件 `body-contract.d.ts`
 
@@ -701,6 +731,7 @@ import type { AgentCheckpoint, AgentConclusion, AgentEvaluator, Failure, Failure
 import type { LoopExtensionDeclaration } from './extensions.ts';
 import type { Access, Adoption, AgentExecutionId, AgentInstanceId, AgentInstant, AgentOperationId, AgentRegistrationId, Authority, ConsumptionId, Continuation, DurableEvidence, ExecutionAttachmentId, ExecutionRevision, InputId, PassageId } from './identity.ts';
 import type { EffectIntent } from './journal.ts';
+import type { AgentJournalEntry } from './receiving.ts';
 export type ExecutionState = Readonly<{
     kind: 'reconciling' | 'advancing';
 }> | Readonly<{
@@ -735,6 +766,7 @@ export type ExecutionSnapshot = Readonly<{
         emittedThrough: string | null;
         acknowledgedThrough: string | null;
     }>;
+    entries?: readonly AgentJournalEntry[];
 }>;
 export type AgentState = Readonly<{
     kind: 'idle';
@@ -1057,7 +1089,7 @@ export interface AgentRuntimeControl<P> {
         reason: DurableEvidence;
     }>): Reply<QuiesceResult>;
 }
-export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation';
+export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result';
 export type AgentAccessTarget = Readonly<{
     kind: 'scope';
     scope: DurableEvidence;
@@ -1402,6 +1434,7 @@ export type * from './extensions.ts';
 export type * from './identity.ts';
 export type * from './journal.ts';
 export type * from './passages.ts';
+export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 ```
@@ -1991,6 +2024,107 @@ export interface RegisteredReads<P> {
 }
 ```
 
+## 声明文件 `receiving.d.ts`
+
+```ts
+import type { CallAccount } from '@omne-harness/call-account';
+import type * as M from '@omne-harness/model-contract';
+import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival';
+import type * as T from '@omne-harness/tool-contract';
+import type { Reply } from './evaluation.ts';
+import type { CommandReceipt, ExecutionMutation } from './execution.ts';
+import type { Access, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
+export type StartFenceEntry = Readonly<{
+    kind: 'start-fence';
+    operation: T.ToolOperationId;
+    guard: Readonly<{
+        owner: string;
+        resource: string;
+        revision: string;
+        evidence: DurableEvidence;
+    }>;
+    fence: DurableEvidence;
+}>;
+export type ReceivedDelivery = Readonly<{
+    producer: 'model';
+    key: Extract<M.ModelDeliveryKey, {
+        kind: 'result';
+    }>;
+    accounts: readonly M.ModelAccountSnapshot[];
+}> | Readonly<{
+    producer: 'model';
+    key: Extract<M.ModelDeliveryKey, {
+        kind: 'account';
+    }>;
+    account: CallAccount;
+}> | Readonly<{
+    producer: 'tool';
+    key: Extract<T.ToolDeliveryKey, {
+        kind: 'result';
+    }>;
+    account: CallAccount | null;
+}> | Readonly<{
+    producer: 'tool';
+    key: Extract<T.ToolDeliveryKey, {
+        kind: 'account';
+    }>;
+    account: CallAccount;
+}>;
+export type ReceivedEntry = Readonly<{
+    kind: 'received';
+    delivery: ReceivedDelivery;
+    consumer: ConsumerRef;
+    consumption: ConsumptionId;
+    material: DurableEvidence;
+}>;
+export type StreamReferenceEntry = Readonly<{
+    kind: 'stream-reference';
+    producer: StreamProducer;
+    reference: StreamRef;
+    consumption: ConsumptionId;
+}>;
+export type AgentJournalEntry = StartFenceEntry | ReceivedEntry | StreamReferenceEntry;
+export type JournalEntryRecord<P> = ExecutionMutation<P> & (Readonly<{
+    authority: Authority;
+    entry: StartFenceEntry | StreamReferenceEntry;
+}> | Readonly<{
+    authority: null;
+    entry: ReceivedEntry;
+}>);
+export interface AgentJournalEntries<P> {
+    record(input: JournalEntryRecord<P>): Reply<CommandReceipt>;
+}
+export type AgentAccountHandoff = Readonly<{
+    call: M.ModelInvocationRef;
+    dispatch: M.DispatchId;
+    account: CallAccount;
+    resultVersion: M.ResultVersion | null;
+    committed: DurableEvidence;
+}>;
+export type AgentAccountOutcome = Readonly<{
+    kind: 'received';
+}> | Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'conflict';
+}> | Readonly<{
+    kind: 'invalid';
+    field: string;
+    reason: string;
+}> | Readonly<{
+    kind: 'unknown';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface AgentAccountOutlet<P> {
+    deliver(input: Readonly<{
+        access: Access<P>;
+        handoff: AgentAccountHandoff;
+    }>): Promise<AgentAccountOutcome>;
+}
+```
+
 ## 声明文件 `request.d.ts`
 
 ```ts
@@ -2156,4 +2290,98 @@ export interface CurrentConditions<P> {
         previous: DurableEvidence | null;
     }>): Reply<RuntimeConditions>;
 }
+```
+
+## 声明文件 `testing-account-outlet.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { Access } from './identity.ts';
+import type { AgentAccountHandoff, AgentAccountOutlet } from './receiving.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export interface MemoryAgentAccountOutlet<P> extends AgentAccountOutlet<P> {
+    readonly durability: 'none';
+    received(tenant: TenantId): readonly AgentAccountHandoff[];
+}
+export declare function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P>;
+export interface AgentAccountOutletFixture<P> {
+    readonly outlet: AgentAccountOutlet<P>;
+    readonly access: Access<P>;
+    readonly otherAccess: Access<P>;
+    current(access: Access<P>, handoff: AgentAccountHandoff): Promise<string | null>;
+}
+export declare function sampleAccountHandoff(tenant: TenantId, name: string, revision?: string, lexeme?: string): AgentAccountHandoff;
+export declare function agentAccountOutletConformance<P>(fixture: AgentAccountOutletFixture<P>): readonly ConformanceCase[];
+export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentAccountOutletFixture<P> & Readonly<{
+    double: MemoryAgentAccountOutlet<P>;
+}>;
+```
+
+## 声明文件 `testing-case.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { DurableEvidence } from './identity.ts';
+export type ConformanceCase = Readonly<{
+    name: string;
+    run: () => Promise<void>;
+}>;
+export declare function canonicalText(value: unknown): string;
+export declare function tenantText(tenant: TenantId): string;
+export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
+```
+
+## 声明文件 `testing-journal-entries.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type Access, type AgentExecutionId, type Authority } from './identity.ts';
+import type { AgentJournalEntries, AgentJournalEntry, ReceivedEntry, StartFenceEntry, StreamReferenceEntry } from './receiving.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
+    readonly durability: 'none';
+    open(input: Readonly<{
+        tenant: TenantId;
+        authority: Authority;
+    }>): void;
+    supersede(input: Readonly<{
+        tenant: TenantId;
+        authority: Authority;
+    }>): void;
+    end(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>): void;
+    entries(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>): readonly AgentJournalEntry[] | undefined;
+}
+export declare function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<P>;
+export interface AgentJournalEntriesFixture<P> {
+    readonly entries: AgentJournalEntries<P>;
+    readonly access: Access<P>;
+    readonly otherAccess: Access<P>;
+    open(access: Access<P>, execution: AgentExecutionId): Promise<Authority>;
+    supersede(access: Access<P>, execution: AgentExecutionId): Promise<Authority>;
+    end(access: Access<P>, execution: AgentExecutionId): Promise<void>;
+    read(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentJournalEntry[] | undefined>;
+}
+export declare function sampleStartFence(name: string): StartFenceEntry;
+export declare function sampleReceivedModelResult(tenant: TenantId, name: string, dispatchRevision?: string): ReceivedEntry;
+export declare function sampleReceivedModelAccount(tenant: TenantId, name: string, revision?: string): ReceivedEntry;
+export declare function sampleReceivedToolAccount(tenant: TenantId, name: string, lexeme?: string): ReceivedEntry;
+export declare function sampleStreamReference(tenant: TenantId, name: string): StreamReferenceEntry;
+export declare function agentJournalEntriesConformance<P>(fixture: AgentJournalEntriesFixture<P>): readonly ConformanceCase[];
+export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
+    double: MemoryAgentJournalEntries<P>;
+}>;
+```
+
+## 声明文件 `testing.d.ts`
+
+```ts
+export type { ConformanceCase } from './testing-case.ts';
+export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, sampleStreamReference, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, } from './testing-journal-entries.ts';
+export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 ```

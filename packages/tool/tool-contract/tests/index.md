@@ -19,6 +19,12 @@
 - [结果投影测试](result-projection.spec.ts)。
 - [启动围栏套件自证](start-authority-conformance.spec.ts)。
 - [环境套件自证](environment-conformance.spec.ts)。
+- [外层调用方的启动围栏套件自证](start-fence-conformance.spec.ts)。
+- [授权消费点套件自证与授权替身的受理记录](start-authorization-conformance.spec.ts)。
+- [结果接收端口套件自证](result-receiver-conformance.spec.ts)。
+- [结果推送的纯关系判定测试](result-delivery.spec.ts)。
+- [结果推送、启动围栏视图与受理记录的编译用例](result-delivery.spec-d.ts)。
+- 三个新套件的合法提供者：[启动围栏](start-fence-legal.ts)、[授权消费点](start-authorization-legal.ts)、[结果接收端口](result-receiver-legal.ts)。
 - [执行者绑定套件自证](executor-binding-conformance.spec.ts)。
 - [输出保管套件自证](output-custody-conformance.spec.ts)。
 - [时钟套件自证](clock-conformance.spec.ts)。

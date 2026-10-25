@@ -2,8 +2,11 @@
 // `@ts-expect-error` names the diagnostic that the accepted types must produce.
 import type { Context, Events } from '@deepseek-ai/cordis'
 import type {
+  AgentAccountOutlet,
+  AgentExecutionControl,
   AgentExecutionId,
   AgentClock,
+  AgentJournalEntries,
   AgentInstanceHost,
   AgentInstanceId,
   AgentRegistrationId,
@@ -21,9 +24,12 @@ import {
   agentInstancesKey,
   agentMaterialsKey,
   type AgentAccessCheckService,
+  type AgentAccountOutletService,
   type AgentClockService,
+  type AgentExecutionControlService,
   type AgentInstanceHostService,
   type AgentInstancesService,
+  type AgentJournalEntriesService,
   type AgentJournalService,
   type AgentMaterialsService,
   type AgentPublicationAuthority,
@@ -51,6 +57,21 @@ it('types the injected Agent services on the context, with the principal left op
     AgentPublicationAuthorityService<unknown>
   >()
   expectTypeOf(ctx.agentMaterials).toEqualTypeOf<AgentMaterialsService<unknown, ContentBlock>>()
+})
+
+it('types the receiving services on the context with the operations of their ports', () => {
+  expectTypeOf(ctx.agentJournalEntries).toEqualTypeOf<AgentJournalEntriesService<unknown>>()
+  expectTypeOf(ctx.agentAccountOutlet).toEqualTypeOf<AgentAccountOutletService<unknown>>()
+  expectTypeOf(ctx.agentExecutionControl).toEqualTypeOf<AgentExecutionControlService<unknown>>()
+  expectTypeOf<AgentJournalEntriesService<string>['record']>().toEqualTypeOf<
+    AgentJournalEntries<string>['record']
+  >()
+  expectTypeOf<AgentAccountOutletService<string>['deliver']>().toEqualTypeOf<
+    AgentAccountOutlet<string>['deliver']
+  >()
+  expectTypeOf<AgentExecutionControlService<string>['control']>().toEqualTypeOf<
+    AgentExecutionControl<string>['control']
+  >()
 })
 
 it('gives each key constant the literal of its service name', () => {
