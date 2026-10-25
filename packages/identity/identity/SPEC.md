@@ -409,12 +409,12 @@
 
 | 导出 | 用途 |
 | --- | --- |
-| `checkIdentityOperationsContract(fixture)` | 契约测试套件。它对 `fixture` 产生的提供者逐项运行用例，返回逐项报告。它不依赖测试框架 |
+| `checkIdentityOperationsContract(fixture, options)` | 契约测试套件。它对 `fixture` 产生的提供者逐项运行用例，返回逐项报告。它不依赖测试框架 |
 | `inProcessIdentityOperations({ clock, terms })` | 进程内参考替身 |
 | `manualIdentityClock(start)` | 可控时钟：前进、后退、置为不可得 |
 | `adjustableLoginTerms(initial)` | 可控期限配置：改值、置为不可得 |
 
-`fixture.create({ clock, terms })` 每次产生一个新的提供者，套件为每个用例调用一次。真实提供者用同一个套件检查自己。可选的 `fixture.registerWithoutActivation` 产生一个未激活账号。没有它时，未激活账号的用例报告为不适用。
+`fixture.create({ clock, terms })` 每次产生一个新的提供者，套件为每个用例调用一次。`options` 给出起始时间点和一长一短两个时长。套件的合法期限配置只由这两个时长组成，所以调用方可以用不同的配置运行同一套件。真实提供者用同一个套件检查自己。可选的 `fixture.registerWithoutActivation` 产生一个未激活账号。没有它时，未激活账号的用例报告为不适用。
 
 套件覆盖下面的条款，每条至少有一个反例。
 
