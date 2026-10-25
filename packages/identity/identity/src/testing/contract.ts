@@ -10,6 +10,7 @@ import {
   tenant,
   tenantCodec,
   tenantEquals,
+  type LoginStateId,
 } from '@omne-harness/legal-identity'
 import {
   compareInstants,
@@ -35,7 +36,7 @@ import {
   type RecordStoreFaultControl,
   type RecordStoreFaults,
 } from './controls.ts'
-import { addDuration, isPositive, justBefore } from './time.ts'
+import { addDuration, isPositive, justBefore, spansLeapSecond } from './time.ts'
 
 /** What the suite gives `create`: its clock, its terms and its record store fault switch. */
 export type IdentityContractProviderOptions = IdentityOperationsOptions &
@@ -135,7 +136,29 @@ async function recognizedAs(
 ): Promise<void> {
   const outcome = await operations.recognizeLogin({ loginProof: login.loginProof })
   check(outcome.kind === 'recognized', `a valid login was not recognized ${when}`)
-  check(loginStateEquals(outcome.login, login), `recognition named another login ${when}`)
+  check(loginStateEquals(outcome.login, login.login), `recognition named another login ${when}`)
+}
+
+/** A diagnostic is internal, and still never quotes an identifier, a credential or a proof. */
+function checkDiagnostic(outcome: object, secrets: readonly string[], what: string): void {
+  if (!('diagnostic' in outcome)) return
+  const diagnostic = outcome.diagnostic
+  check(typeof diagnostic === 'string', `${what}: the diagnostic is not text`)
+  for (const secret of secrets)
+    check(secret === '' || !diagnostic.includes(secret), `${what}: the diagnostic quotes a secret`)
+}
+
+/** A backward reading after the given verdict is not adopted, so it cannot revive the login. */
+async function backwardIsUnavailable(
+  operations: IdentityOperations,
+  clock: ManualIdentityClock,
+  login: IssuedLogin,
+  what: string,
+): Promise<void> {
+  clock.setTo(before(clock.current()))
+  const outcome = await operations.recognizeLogin({ loginProof: login.loginProof })
+  check(outcome.kind === 'basis-unavailable', `${what}: a backward clock gave ${outcome.kind}`)
+  checkDiagnostic(outcome, [login.loginProof], what)
 }
 
 async function invalidAt(operations: IdentityOperations, proof: unknown, what: string) {
@@ -143,9 +166,9 @@ async function invalidAt(operations: IdentityOperations, proof: unknown, what: s
   check(outcome.kind === 'invalid', `${what} was not invalid (got ${outcome.kind})`)
 }
 
-function loginStateEquals(left: IssuedLogin['login'], right: IssuedLogin): boolean {
+function loginStateEquals(left: LoginStateId, right: LoginStateId): boolean {
   const a = loginStateCodec.encode(left)
-  const b = loginStateCodec.encode(right.login)
+  const b = loginStateCodec.encode(right)
   return a.ok && b.ok && a.value === b.value
 }
 
@@ -251,6 +274,7 @@ const CASES: readonly ContractCase[] = [
         credential: 'credential-ada',
       })
       check(login.kind === 'uniform-auth-failure', 'a malformed registration opened an account')
+      await registered(operations, 'contract-ada', 'credential-ada')
       return 'passed'
     },
   },
@@ -317,7 +341,7 @@ const CASES: readonly ContractCase[] = [
       await registered(operations, 'contract-ada', 'credential-ada')
       const first = await issued(operations, 'contract-ada', 'credential-ada')
       const second = await issued(operations, 'contract-ada', 'credential-ada')
-      check(!loginStateEquals(first.login, second), 'two logins share a login state')
+      check(!loginStateEquals(first.login, second.login), 'two logins share a login state')
       check(first.loginProof !== second.loginProof, 'two logins share a proof')
       await recognizedAs(operations, first, 'for the first login')
       await recognizedAs(operations, second, 'for the second login')
@@ -333,12 +357,13 @@ const CASES: readonly ContractCase[] = [
         { loginIdentifier: 'contract-ada', credential: 'credential-ada' },
         { loginIdentifier: 'contract-ada', credential: 'credential-wrong' },
         { loginIdentifier: 'contract-nobody', credential: 'credential-ada' },
+        { loginIdentifier: '', credential: 'credential-ada' },
       ]
       const expectUnavailable = async (why: string) => {
         for (const attempt of attempts) {
           const outcome = await operations.issueLogin(attempt)
           check(outcome.kind === 'basis-unavailable', `${why}: got ${outcome.kind}`)
-          check(typeof outcome.diagnostic === 'string', `${why}: no diagnostic`)
+          checkDiagnostic(outcome, [attempt.loginIdentifier, attempt.credential], why)
         }
       }
       clock.makeUnavailable('suite: clock down')
@@ -371,6 +396,7 @@ const CASES: readonly ContractCase[] = [
           credential: 'credential-ada',
         })
         check(outcome.kind === 'basis-unavailable', `a silent account store gave ${outcome.kind}`)
+        checkDiagnostic(outcome, [loginIdentifier, 'credential-ada'], 'a silent account store')
       }
       const malformed = await operations.issueLogin({ loginIdentifier: '', credential: 'x' })
       check(malformed.kind === 'uniform-auth-failure', 'a malformed login read the account store')
@@ -385,6 +411,29 @@ const CASES: readonly ContractCase[] = [
         credential: 'credential-bob',
       })
       check(bob.kind === 'uniform-auth-failure', 'a refused registration left an account')
+      await registered(operations, 'contract-bob', 'credential-bob')
+      await issued(operations, 'contract-ada', 'credential-ada')
+      return 'passed'
+    },
+  },
+  {
+    id: 'login-store-unavailable-on-issue',
+    rule: 'ID-03, ID-17: a login store that cannot record gives basis-unavailable before the credential',
+    async run({ fixture, operations, faults }) {
+      if (fixture.injectsRecordFaults !== true) return 'not-applicable'
+      await registered(operations, 'contract-ada', 'credential-ada')
+      faults.makeUnavailable('logins', 'suite: login store down')
+      for (const credential of ['credential-ada', 'credential-wrong']) {
+        for (const loginIdentifier of ['contract-ada', 'contract-nobody']) {
+          const outcome = await operations.issueLogin({ loginIdentifier, credential })
+          check(
+            outcome.kind === 'basis-unavailable',
+            `a login store that cannot record gave ${outcome.kind}`,
+          )
+          checkDiagnostic(outcome, [loginIdentifier, credential], 'a silent login store')
+        }
+      }
+      faults.restore()
       await issued(operations, 'contract-ada', 'credential-ada')
       return 'passed'
     },
@@ -417,7 +466,7 @@ const CASES: readonly ContractCase[] = [
       const accountText = accountCodec.encode(outcome.account)
       const expected = accountCodec.encode(account.account)
       check(accountText.ok && expected.ok && accountText.value === expected.value, 'wrong account')
-      check(loginStateEquals(outcome.login, login), 'wrong login')
+      check(loginStateEquals(outcome.login, login.login), 'wrong login')
       check(
         tenantEquals(outcome.tenant, account.tenant),
         'the selection is not the personal tenant',
@@ -456,6 +505,7 @@ const CASES: readonly ContractCase[] = [
       await recognizedAs(operations, login, 'just before the maximum deadline')
       clock.setTo(at(options.short))
       await invalidAt(operations, login.loginProof, 'a login at its maximum deadline')
+      await backwardIsUnavailable(operations, clock, login, 'after the maximum deadline')
       return 'passed'
     },
   },
@@ -476,6 +526,7 @@ const CASES: readonly ContractCase[] = [
         login.loginProof,
         'a login at its idle deadline after recognition',
       )
+      await backwardIsUnavailable(operations, clock, login, 'after the idle deadline')
       return 'passed'
     },
   },
@@ -488,6 +539,7 @@ const CASES: readonly ContractCase[] = [
       clock.makeUnavailable('suite: clock down')
       const down = await operations.recognizeLogin({ loginProof: login.loginProof })
       check(down.kind === 'basis-unavailable', `an unavailable clock gave ${down.kind}`)
+      checkDiagnostic(down, [login.loginProof], 'an unavailable clock')
       clock.restore()
       await recognizedAs(operations, login, 'after the clock returns')
       clock.setTo(before(options.start))
@@ -516,6 +568,7 @@ const CASES: readonly ContractCase[] = [
           outcome.kind === 'basis-unavailable',
           `${what} with a silent store gave ${outcome.kind}`,
         )
+        checkDiagnostic(outcome, [proof], `${what} with a silent store`)
       }
       clock.makeUnavailable('suite: clock down')
       faults.restore()
@@ -538,6 +591,10 @@ function checkOptions(options: IdentityContractOptions): void {
   const long = addDuration(options.start, options.long)
   if (short === undefined || long === undefined || compareInstants(short, long) >= 0)
     throw new RangeError('the short lifetime must be shorter than the long one')
+  // The cases look a little before the start, and the double's days have 86400 seconds.
+  const earliest = justBefore(options.start)
+  if (earliest === undefined || spansLeapSecond(earliest, long))
+    throw new RangeError('the suite window must not span a leap second')
 }
 
 /**

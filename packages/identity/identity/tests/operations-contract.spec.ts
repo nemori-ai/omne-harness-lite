@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { parseDuration, parseInstant, type Duration, type Instant } from '@omne-harness/utc-instant'
-import type { IdentityOperations } from '@omne-harness/identity'
+import {
+  compareInstants,
+  parseDuration,
+  parseInstant,
+  type Duration,
+  type Instant,
+} from '@omne-harness/utc-instant'
+import type {
+  IdentityOperations,
+  IdentityOperationsOptions,
+  IssuedLogin,
+} from '@omne-harness/identity'
 import {
   IDENTITY_CONTRACT_CASES,
   checkIdentityOperationsContract,
@@ -68,12 +78,100 @@ describe('the contract suite on the reference double', () => {
       checkIdentityOperationsContract(doubleFixture, { ...options, short: duration('PT0S') }),
     ).rejects.toThrow(RangeError)
   })
+
+  it('refuses a window that spans a listed leap second, and accepts one that ends before it', async () => {
+    const short = duration('PT30S')
+    await expect(
+      checkIdentityOperationsContract(doubleFixture, {
+        start: instant('2016-12-31T23:59:00Z'),
+        short,
+        long: duration('PT120S'),
+      }),
+    ).rejects.toThrow('leap second')
+    const report = await checkIdentityOperationsContract(doubleFixture, {
+      start: instant('2016-12-31T23:58:00Z'),
+      short,
+      long: duration('PT59S'),
+    })
+    expect(report.passed).toBe(true)
+  })
 })
 
 // Each broken provider wraps the double and breaks one rule; the suite must name that rule.
-type Breakage = (real: IdentityOperations) => IdentityOperations
+type Breakage = (real: IdentityOperations, options: IdentityOperationsOptions) => IdentityOperations
 
 const BREAKAGES: readonly (readonly [string, string, Breakage])[] = [
+  [
+    'adopts clock readings only when it issues, so a backward clock revives an ended login',
+    'recognize-max-first',
+    (real, { clock }) => {
+      const issued = new Map<string, IssuedLogin>()
+      return {
+        ...real,
+        async issueLogin(input) {
+          const outcome = await real.issueLogin(input)
+          if (outcome.kind === 'succeeded') issued.set(outcome.loginProof, outcome)
+          return outcome
+        },
+        async recognizeLogin(input) {
+          const outcome = await real.recognizeLogin(input)
+          const login = issued.get(input.loginProof)
+          const reading = await clock.now()
+          if (
+            outcome.kind !== 'basis-unavailable' ||
+            login === undefined ||
+            reading.kind !== 'read'
+          )
+            return outcome
+          // Judges the earlier reading against the deadlines alone, as if it had never moved on.
+          const live =
+            compareInstants(reading.instant, login.maxDeadline) < 0 &&
+            compareInstants(reading.instant, login.idleDeadline) < 0
+          return live
+            ? {
+                kind: 'recognized',
+                account: login.account,
+                login: login.login,
+                tenant: login.tenant,
+              }
+            : outcome
+        },
+      }
+    },
+  ],
+  [
+    'quotes the login identifier in a diagnostic',
+    'login-basis-unavailable',
+    real => ({
+      ...real,
+      async issueLogin(input) {
+        const outcome = await real.issueLogin(input)
+        return outcome.kind === 'basis-unavailable'
+          ? {
+              ...outcome,
+              diagnostic: `${outcome.diagnostic} for ${String(input?.loginIdentifier)}`,
+            }
+          : outcome
+      },
+    }),
+  ],
+  [
+    'reserves an identifier for a rejected registration',
+    'account-store-unavailable',
+    real => {
+      const reserved = new Set<string>()
+      return {
+        ...real,
+        async registerAndActivate(input) {
+          if (reserved.has(input.loginIdentifier)) return { kind: 'not-loginable' }
+          const outcome = await real.registerAndActivate(input)
+          if (outcome.kind === 'not-loginable' && typeof input?.loginIdentifier === 'string')
+            reserved.add(input.loginIdentifier)
+          return outcome
+        },
+      }
+    },
+  ],
   [
     'tells a wrong credential apart',
     'login-uniform-failure',
@@ -149,7 +247,8 @@ const BREAKAGES: readonly (readonly [string, string, Breakage])[] = [
 describe('the contract suite on broken providers', () => {
   it.each(BREAKAGES)('fails a provider that %s, in case %s', async (_name, id, breakage) => {
     const fixture: IdentityContractFixture = {
-      create: options => breakage(inProcessIdentityOperations(options)),
+      injectsRecordFaults: true,
+      create: options => breakage(inProcessIdentityOperations(options), options),
     }
     const report = await checkIdentityOperationsContract(fixture, CONFIGURATIONS[0]![1])
     expect(report.passed).toBe(false)
@@ -180,6 +279,7 @@ describe('the contract suite on broken providers', () => {
     ).toEqual([
       'login-inactive-uniform',
       'account-store-unavailable',
+      'login-store-unavailable-on-issue',
       'recognize-record-unavailable',
     ])
   })

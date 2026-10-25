@@ -384,4 +384,5 @@ import { type Duration, type Instant } from '@omne-harness/utc-instant';
 export declare function addDuration(instant: Instant, duration: Duration): Instant | undefined;
 export declare function isPositive(duration: Duration): boolean;
 export declare function justBefore(instant: Instant): Instant | undefined;
+export declare function spansLeapSecond(from: Instant, to: Instant): boolean;
 ```

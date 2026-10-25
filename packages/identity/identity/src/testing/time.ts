@@ -2,6 +2,7 @@
 // to every fraction digit. It counts each UTC day as 86400 seconds and ignores leap seconds, so a
 // lifetime that spans an inserted second ends one second early; SPEC ID-17 lists that limit.
 import {
+  compareInstants,
   encodeDuration,
   encodeInstant,
   parseInstant,
@@ -114,4 +115,34 @@ export function justBefore(instant: Instant): Instant | undefined {
   const value = scaledInstant(instant)
   const scale = value.scale + 3
   return instantOf({ units: scaleTo(value, scale) - 1n, scale })
+}
+
+function dayOf(instant: Instant): number {
+  const value = scaledInstant(instant)
+  const perDay = 86400n * 10n ** BigInt(value.scale)
+  const days = value.units >= 0n ? value.units / perDay : -((-value.units + perDay - 1n) / perDay)
+  return Number(days)
+}
+
+function within(from: Instant, instant: Instant, to: Instant): boolean {
+  return compareInstants(from, instant) <= 0 && compareInstants(instant, to) <= 0
+}
+
+/**
+ * True when a leap second that the bundled leap-second table lists falls inside `[from, to]`: an
+ * inserted 23:59:60, or the end of a day whose 23:59:59 the table deletes. Inside such a window the
+ * double's 86400-second days and SI seconds disagree, so the contract suite refuses it.
+ */
+export function spansLeapSecond(from: Instant, to: Instant): boolean {
+  for (let days = dayOf(from); days <= dayOf(to); days++) {
+    const [year, month, day] = civilFromDays(days)
+    const date = `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}`
+    const inserted = parseInstant(`${date}T23:59:60Z`)
+    if (inserted.ok && within(from, inserted.value, to)) return true
+    const deleted = parseInstant(`${date}T23:59:59Z`)
+    const before = parseInstant(`${date}T23:59:58Z`)
+    const deletes = !deleted.ok && deleted.failure.kind === 'leap-second'
+    if (deletes && before.ok && within(from, before.value, to)) return true
+  }
+  return false
 }

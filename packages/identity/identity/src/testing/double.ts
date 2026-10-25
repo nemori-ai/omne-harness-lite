@@ -28,7 +28,8 @@ import { addDuration, isPositive } from './time.ts'
 export type InProcessIdentityOptions = IdentityOperationsOptions &
   Readonly<{ faults?: RecordStoreFaults }>
 
-// The lexicon of an atomic identity body: 26 characters, no i, l, o or u.
+// An atomic identity body is 26 characters from this 32-character alphabet, which leaves out i, l,
+// o and u.
 const ID_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz'
 
 type AccountRecord = Readonly<{
@@ -49,6 +50,8 @@ type LoginRecord = Readonly<{
 type Unavailable = Readonly<{ kind: 'basis-unavailable'; diagnostic: string }>
 
 type TimeBasis = Readonly<{ kind: 'read'; instant: Instant }> | Unavailable
+
+type TermsBasis = Readonly<{ kind: 'read'; terms: LoginTerms }> | Unavailable
 
 const NOT_LOGINABLE: RegisterAndActivateOutcome = Object.freeze({ kind: 'not-loginable' })
 const UNIFORM_AUTH_FAILURE: IssueLoginOutcome = Object.freeze({ kind: 'uniform-auth-failure' })
@@ -108,7 +111,7 @@ export function inProcessIdentityOperations(options: InProcessIdentityOptions): 
     return Object.freeze({ kind: 'read', instant: reading.instant })
   }
 
-  const readTerms = async (): Promise<LoginTerms | Unavailable> => {
+  const readTerms = async (): Promise<TermsBasis> => {
     let reading
     try {
       reading = await terms.read()
@@ -119,7 +122,7 @@ export function inProcessIdentityOperations(options: InProcessIdentityOptions): 
       return unavailable(`the login terms are unavailable: ${reading.diagnostic}`)
     if (!isPositive(reading.terms.maxLifetime) || !isPositive(reading.terms.idlePeriod))
       return unavailable('the login terms are not legal: a duration is not longer than zero')
-    return reading.terms
+    return Object.freeze({ kind: 'read', terms: reading.terms })
   }
 
   const storeDown = (store: 'accounts' | 'logins'): Unavailable | undefined => {
@@ -159,17 +162,18 @@ export function inProcessIdentityOperations(options: InProcessIdentityOptions): 
     const time = await readTime()
     if (time.kind !== 'read') return time
     const lifetimes = await readTerms()
-    if ('kind' in lifetimes) return lifetimes
-    const maxDeadline = addDuration(time.instant, lifetimes.maxLifetime)
-    const idleDeadline = addDuration(time.instant, lifetimes.idlePeriod)
+    if (lifetimes.kind !== 'read') return lifetimes
+    const maxDeadline = addDuration(time.instant, lifetimes.terms.maxLifetime)
+    const idleDeadline = addDuration(time.instant, lifetimes.terms.idlePeriod)
     if (maxDeadline === undefined || idleDeadline === undefined)
       return unavailable('a deadline falls outside years 0000 to 9999')
     // 2. A malformed input.
     const loginIdentifier = field(input, 'loginIdentifier')
     const credential = field(input, 'credential')
     if (!isFilledText(loginIdentifier) || !isFilledText(credential)) return UNIFORM_AUTH_FAILURE
-    // 3. The account store does not answer.
-    const down = storeDown('accounts')
+    // 3. The account store does not answer, or the login store cannot record a login. Both are
+    // known before the credential is compared, so the answer does not tell whether it matches.
+    const down = storeDown('accounts') ?? storeDown('logins')
     if (down !== undefined) return down
     // 4. No account, or a wrong credential.
     const record = accounts.get(loginIdentifier)
