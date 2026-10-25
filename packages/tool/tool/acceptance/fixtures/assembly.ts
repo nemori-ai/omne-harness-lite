@@ -12,6 +12,7 @@ import {
   defaultResultPolicy,
   defineFunctionTool,
   defineToolOperation,
+  deriveDefinition,
   describedAdoption,
   readToolInvocationRef,
   renderToolResult,
@@ -182,11 +183,8 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
   )
   const registration = ok(
     defineFunctionTool({
-      metadata: {
-        adoption: adoption('delivery_manifest'),
-        name: 'delivery_manifest',
+      implementation: {
         description: 'Return the two delivery ledger paragraphs.',
-        requiredCapabilities: [],
         backgroundAllowed: false,
         declarations: {
           adoption: adoption('declarations'),
@@ -202,8 +200,15 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
   )
   const availability = {
     kind: 'available',
-    definition: registration.definition,
+    definition: deriveDefinition(
+      {
+        asset: { name: 'delivery_manifest', adoption: adoption('delivery_manifest') },
+        requiredCapabilities: [],
+      },
+      registration.facts,
+    ),
     executor: adoption('manifest-executor'),
+    layer: { kind: 'official' },
   } as const
   const request: ToolInvokeRequest = {
     availability,
