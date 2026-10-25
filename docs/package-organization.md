@@ -340,7 +340,23 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 当前 typescript-package@3.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。具体范围见[模板](../tools/dev-flow/templates/package/README_ZH.md)及[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。
 
-分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。契约不依赖其提供者、提供者经接口接入这类按角色判断的规则，仓库还没有机读的角色标记，暂未表达，仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
+分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。除下一段的五条方向行外，契约不依赖其提供者、提供者经接口接入这类按角色判断的规则仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
+
+角色标记和方向行已经机读。[`constraints.json`](architecture/constraints.json)的 `roles` 登记成员的角色，`directions` 登记方向行。`pnpm run lint:deps` 从 repo-toolchain 0.0.12 起执行这些方向行。
+
+当前静态覆盖是 Agent、Model、Tool、Session 四个能力各自的契约成员。每个能力有纯契约和 Cordis 契约两个成员，共八个成员。检查范围是这八个成员的 `src/**`。检查执行五条禁边：Agent 不依赖 Session，Model 不依赖 Session，Tool 不依赖 Session，Model 不依赖 Agent，Tool 不依赖 Agent。五条禁边展开为 20 个成员对。检查规则如下。
+
+- 检查按解析后的真实目标成员判断。类型导入、重导出、公开子路径和跨成员相对路径都算命中。
+- 未解析的导入不算方向命中。`no-unresolvable` 规则继续单独报告它。
+- 方向行的源角色或目标角色在被检树中没有文件时，检查失败。
+- 规则只从可信 runner 读取，不从被检树读取。
+
+不覆盖的范围如下。
+
+- session-adapters 到 Model 或 Tool 的全包禁令没有采用。上文“依赖方向与Cordis集成”的表对它的限制仍靠评审。
+- 公共流方向（显示经公共流契约）没有方向行，仍靠评审。
+- 运行时行为条款不在静态依赖检查范围内。
+- [#689 N-PD4](https://github.com/nemori-ai/omne-harness-lite/issues/689#issuecomment-6372915674) 记录的历史条款原文没有恢复，不进入方向行。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。
 

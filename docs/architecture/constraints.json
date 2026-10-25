@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "domains": [
     {
       "id": "identity",
@@ -292,6 +292,94 @@
       "domains": ["identity"],
       "status": "candidate",
       "source": "docs/domains/boundaries.md#责任地图"
+    },
+    {
+      "id": "packages/agent/agent-contract",
+      "paths": ["packages/agent/agent-contract/src/**"],
+      "layer": "contract",
+      "domains": ["agent"],
+      "status": "adopted",
+      "source": "packages/agent/agent-contract/SPEC.md"
+    },
+    {
+      "id": "packages/agent/agent-cordis-contract",
+      "paths": ["packages/agent/agent-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["agent"],
+      "status": "candidate",
+      "source": "packages/agent/agent-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-contract",
+      "paths": ["packages/model/model-contract/src/**"],
+      "layer": "contract",
+      "domains": ["model"],
+      "status": "adopted",
+      "source": "packages/model/model-contract/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-cordis-contract",
+      "paths": ["packages/model/model-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/model-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-contract",
+      "paths": ["packages/tool/tool-contract/src/**"],
+      "layer": "contract",
+      "domains": ["tool"],
+      "status": "adopted",
+      "source": "packages/tool/tool-contract/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-cordis-contract",
+      "paths": ["packages/tool/tool-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/tool-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-contract",
+      "paths": ["packages/session/session-contract/src/**"],
+      "layer": "contract",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/session-contract/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-cordis-contract",
+      "paths": ["packages/session/session-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/agent/agent-host-local",
+      "paths": ["packages/agent/agent-host-local/src/**"],
+      "layer": "assembly",
+      "domains": ["agent"],
+      "status": "adopted",
+      "source": "packages/agent/agent-host-local/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-cordis",
+      "paths": ["packages/session/session-cordis/src/**"],
+      "layer": "assembly",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/session-cordis/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-adapters",
+      "paths": ["packages/session/session-adapters/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-adapters/SPEC.md"
     }
   ],
   "rules": [
@@ -322,6 +410,38 @@
     {
       "id": "IC-5",
       "source": "docs/architecture/cordis-integration-conventions.md"
+    }
+  ],
+  "directions": [
+    {
+      "id": "DIR-AGENT-SESSION",
+      "from": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-MODEL-SESSION",
+      "from": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-TOOL-SESSION",
+      "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-MODEL-AGENT",
+      "from": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-TOOL-AGENT",
+      "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
     }
   ]
 }
