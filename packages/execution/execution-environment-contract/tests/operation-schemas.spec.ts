@@ -28,6 +28,7 @@ const placement = {
   binding: { kind: 'host_machine' },
   provider: { name: 'p', generation: 'g', version: 'v' },
   continuity: { kind: 'not_guaranteed' },
+  quotaDomain: 'domain',
 }
 const adoption = {
   acquisition: 'acq',
@@ -60,6 +61,8 @@ const guard = {
 }
 const input = { acquisition: 'acq', origin: 'origin', scope, placement, ledger, guard }
 const recovery = contract.createRecoveryAccess()
+const original = { tenant, acquisition: 'acq', origin: 'origin', scope, placement }
+const groups = { settledAcquisitions: [], pendingAcquisitions: [], unsupportedAcquisitions: [] }
 const rejection = { kind: 'rejected', reason: 'callerMismatch' }
 const cases = () =>
   [
@@ -80,7 +83,16 @@ const cases = () =>
         adoption,
       },
     ],
-    ['inspectAcquisition', [access, 'acq'], { kind: 'invalidInput' }],
+    [
+      'inspectAcquisition',
+      [access, { kind: 'local', acquisition: 'acq' }],
+      { kind: 'known', state: { kind: 'provisional' } },
+    ],
+    [
+      'inspectRecoveryAcquisition',
+      [recovery, original],
+      { kind: 'original', status: 'settled', original },
+    ],
     [
       'describe',
       [access, scope],
@@ -100,7 +112,15 @@ const cases = () =>
     [
       'recoverOwned',
       [scope, recovery],
-      { kind: 'recovered', scope, stopped: [], pending: [], unsupported: [], unavailable: [] },
+      {
+        kind: 'recovered',
+        scope,
+        stopped: [],
+        pending: [],
+        unsupported: [],
+        unavailable: [],
+        ...groups,
+      },
     ],
     ['releaseScope', [scope, recovery], rejection],
     ['registerFacility', [contract.commandFacility]],
@@ -110,6 +130,7 @@ for (const name of [
   'resolvePlacement',
   'acquire',
   'inspectAcquisition',
+  'inspectRecoveryAcquisition',
   'describe',
   'recoverOwned',
   'releaseScope',
@@ -132,9 +153,9 @@ for (const name of [
       )
     }
   })
-it('has only eight parameter and six result schemas; no invented request envelope', () => {
-  expect(Object.keys(contract.operationSchemas)).toHaveLength(8)
-  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(6)
+it('has only nine parameter and seven result schemas; no invented request envelope', () => {
+  expect(Object.keys(contract.operationSchemas)).toHaveLength(9)
+  expect(Object.values(contract.operationSchemas).filter(s => 'result' in s)).toHaveLength(7)
   expect('facilityRequestSchema' in contract).toBe(false)
 })
 it('gives nested item reasons and does not coerce runtime ports or recovery access', async () => {
@@ -182,35 +203,75 @@ it('gives nested item reasons and does not coerce runtime ports or recovery acce
   expect(result.value[1].ledger).toBe(ledger)
   expect(result.value[1].guard).toBe(guard)
 })
-it('decodes every acquisition state and refuses malformed adoption/resource/invalidations', async () => {
-  const state = contract.inspectAcquisitionResultSchema['~standard']
-  for (const value of [
-    { kind: 'unrecorded' },
-    { kind: 'invalidInput' },
+it('decodes every acquisition state and query answer, and refuses malformed nested facts', async () => {
+  const inspection = contract.inspectAcquisitionResultSchema['~standard']
+  const states = [
     { kind: 'acquiring' },
     { kind: 'provisional' },
     { kind: 'acquired', adoption },
     { kind: 'rejected', reason: 'invalidInput' },
+    { kind: 'allocationFailed', reason: 'unsupportedFacility', cleanup: { kind: 'pending' } },
     { kind: 'invalidated', adoption, invalidation: { source: 'registry', reason: 'released' } },
     { kind: 'releasing', adoption },
     { kind: 'pendingRelease', adoption: null, resources: [] },
     { kind: 'released', adoption },
-  ])
-    expect(await state.validate(value)).toHaveProperty('value')
+    { kind: 'allocationUnknown', acquisition: 'acq' },
+    { kind: 'settled' },
+  ]
+  for (const state of states)
+    expect(await inspection.validate({ kind: 'known', state })).toHaveProperty('value')
+  const answers = [
+    { kind: 'unrecorded' },
+    { kind: 'invalidInput' },
+    { kind: 'refused', reason: 'notAuthorized' },
+    { kind: 'queryUnavailable', cause: 'provider' },
+    { kind: 'queryUnknown', cause: 'scope-binding' },
+    { kind: 'original', status: 'allocated', original, adoption: null },
+    { kind: 'original', status: 'pending', original, adoption, phase: 'releasing', resources: [] },
+    { kind: 'original', status: 'notAllocated', original },
+    { kind: 'original', status: 'conflict', original },
+    {
+      kind: 'original',
+      status: 'allocationFailed',
+      original,
+      reason: 'referenceExpired',
+      cleanup: { kind: 'unknown' },
+    },
+  ]
+  for (const answer of answers) expect(await inspection.validate(answer)).toHaveProperty('value')
+  const recovery = contract.inspectRecoveryAcquisitionResultSchema['~standard']
+  expect(await recovery.validate({ kind: 'unrecorded' })).toHaveProperty('issues')
+  expect(await recovery.validate({ kind: 'known', state: { kind: 'settled' } })).toHaveProperty(
+    'issues',
+  )
+  expect(await inspection.validate({ kind: 'unrecorded', state: null })).toHaveProperty('issues')
   expect(
-    await state.validate({
-      kind: 'invalidated',
-      adoption,
-      invalidation: { source: 'registry', reason: 'invented' },
+    await inspection.validate({
+      kind: 'known',
+      state: {
+        kind: 'invalidated',
+        adoption,
+        invalidation: { source: 'registry', reason: 'invented' },
+      },
     }),
-  ).toMatchObject({ issues: [{ path: ['invalidation', 'reason'] }] })
+  ).toMatchObject({ issues: [{ path: ['state', 'invalidation', 'reason'] }] })
   expect(
-    await state.validate({
-      kind: 'pendingRelease',
-      adoption: null,
-      resources: [{ key: 'r', provider: 'p', reference: undefined }],
+    await inspection.validate({
+      kind: 'known',
+      state: {
+        kind: 'pendingRelease',
+        adoption: null,
+        resources: [{ key: 'r', provider: 'p', reference: undefined }],
+      },
     }),
-  ).toMatchObject({ issues: [{ path: ['resources', 0, 'reference'] }] })
+  ).toMatchObject({ issues: [{ path: ['state', 'resources', 0, 'reference'] }] })
+  expect(
+    await inspection.validate({
+      kind: 'original',
+      status: 'settled',
+      original: { ...original, tenant: { ...tenant } },
+    }),
+  ).toMatchObject({ issues: [{ path: ['original', 'tenant'] }] })
   expect(
     await contract.acquireResultSchema['~standard'].validate({
       kind: 'pending',
@@ -263,7 +324,18 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     ['acquire', [access, { ...input, acquisition: '' }], [1, 'acquisition']],
     ['acquire', [access, { ...input, origin: '' }], [1, 'origin']],
     ['acquire', [access, { ...input, ledger: { ...ledger, plan: 0 } }], [1, 'ledger', 'plan']],
-    ['inspectAcquisition', [{ principal: 'p', tenant: { ...tenant } }, 'acq'], [0, 'tenant']],
+    [
+      'inspectAcquisition',
+      [{ principal: 'p', tenant: { ...tenant } }, { kind: 'local', acquisition: 'acq' }],
+      [0, 'tenant'],
+    ],
+    ['inspectAcquisition', [access, { kind: 'local', acquisition: '' }], [1, 'acquisition']],
+    [
+      'inspectRecoveryAcquisition',
+      [recovery, { ...original, placement: { ...placement, quotaDomain: '' } }],
+      [1, 'placement', 'quotaDomain'],
+    ],
+    ['recoverOwned', [scope, recovery, [{ ...original, origin: '' }]], [2, 0, 'origin']],
     ['describe', [access, { ref: 's', extra: 1 }], [1, 'extra']],
     ['releaseScope', [scope, JSON.parse(JSON.stringify(recovery))], [1]],
     [
@@ -307,6 +379,12 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     ['acquire', { kind: 'pending', state: { kind: 'unrecorded' } }, ['state', 'kind']],
     [
       'acquire',
+      { kind: 'allocationFailed', acquisition: 'acq', reason: 'x', cleanup: { kind: 'settled' } },
+      ['reason'],
+    ],
+    ['acquire', { kind: 'unknown', acquisition: 'acq', phase: 'later' }, ['phase']],
+    [
+      'acquire',
       {
         kind: 'acquired',
         lease: {
@@ -339,8 +417,8 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     ],
     [
       'inspectAcquisition',
-      { kind: 'released', adoption: { ...adoption, evidence: { raw: 'object' } } },
-      ['adoption', 'evidence', 'kind'],
+      { kind: 'known', state: { kind: 'released', adoption: { ...adoption, evidence: { raw: 'object' } } } },
+      ['state', 'adoption', 'evidence', 'kind'],
     ],
     [
       'describe',
@@ -367,6 +445,7 @@ it('refuses malformed nested input and result fields at the boundary', async () 
         pending: [],
         unsupported: [{ kind: 'provider', provider: { name: 'p', generation: 'g' } }],
         unavailable: [],
+        ...groups,
       },
       ['unsupported', 0, 'provider', 'version'],
     ],
@@ -379,6 +458,7 @@ it('refuses malformed nested input and result fields at the boundary', async () 
         pending: [],
         unsupported: [],
         unavailable: [{ name: 1, generation: 'g', version: 'v' }],
+        ...groups,
       },
       ['unavailable', 0, 'name'],
     ],
@@ -556,6 +636,7 @@ it('keeps data records closed across all operation families while retaining runt
     pending: [],
     unsupported: [],
     unavailable: [],
+    ...groups,
   }
   const closed: [
     (
@@ -636,7 +717,17 @@ it('requires authentic recovery authority and complete paired provider recovery 
     ).toHaveProperty('value')
   }
   const provider = createScriptedEnvironmentProvider()
-  for (const method of ['describe', 'acquire', 'retire', 'listRecoveryResources', 'recover']) {
+  for (const method of [
+    'describe',
+    'quota',
+    'acquire',
+    'inspectAcquisition',
+    'listAcquisitions',
+    'settleAcquisition',
+    'retire',
+    'listRecoveryResources',
+    'recover',
+  ]) {
     const value = { ...provider, [method]: null }
     expect(
       await contract.registerProviderParamsSchema['~standard'].validate([value]),
@@ -663,6 +754,7 @@ it('requires authentic recovery authority and complete paired provider recovery 
     'name',
     'generation',
     'version',
+    'quotaDomain',
     'bindingKinds',
     'facilities',
     'isolation',
@@ -702,6 +794,7 @@ it('preserves access identity and refuses forged tenants before invoking any run
       pending: [],
       unsupported: [],
       unavailable: [],
+      ...groups,
     }
     expect(await schema['~standard'].validate(report)).toHaveProperty('value')
     expect(

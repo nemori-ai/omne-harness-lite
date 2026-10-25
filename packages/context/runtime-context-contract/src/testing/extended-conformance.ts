@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import type { RuntimeContextFixture } from './conformance.js'
 import { NotApplicable, type ConformanceCase } from './case.js'
-import { declaration, numberSchema, scope, setup } from './fixtures.js'
+import { declaration, numberSchema, scope, setup, openScope, snapshotValue, type Setup } from './fixtures.js'
+import { start, started, type RuntimeContextFixture } from './suite.js'
 import { reduceStep } from '../index.js'
-import type { StatefulBlockDescriptor, ContextUpdate } from '../index.js'
+import type { StatefulBlockDescriptor, ContextUpdate, ScopeRef, CommitInput } from '../index.js'
 export const EXTENDED_OBLIGATIONS = [
   'reissue-cannot-change-reader-consumer',
   'reissue-cannot-change-reader-scope',
@@ -60,20 +60,17 @@ export function extendedConformance<P>(): readonly ConformanceCase<RuntimeContex
     run: extendedCases[name],
   }))
 }
-async function reissueCannotChangeReaderScope<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
 
-  const s = await setup(subject, fixture.tenant, fixture.principal)
-  const before = await s.reader.snapshot()
-  assert.ok(before.kind === 'success')
-  const other = scope('other-scope')
-  const added = await subject.applyCommit({
+/** Opens a new scope of the setup's tenant and adds the suite block to it. */
+async function addRequired<P>(s: Setup<P>, target: ScopeRef, commit: string) {
+  await openScope(s.subject, s.ports, s.principal, target, s.tenant)
+  const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
-    commit: { commit: 'other-register' },
+    commit: { commit },
     change: {
       kind: 'add',
-      scope: other,
-      tenant: fixture.tenant,
+      scope: target,
+      tenant: s.tenant,
       key: 'suite.value',
       basedOn: 0,
       creating: true,
@@ -83,53 +80,72 @@ async function reissueCannotChangeReaderScope<P>(fixture: RuntimeContextFixture<
     },
   })
   assert.equal(added.kind, 'applied')
-  await s.handle.publish(other, 987)
-  const issued = await subject.issueEligibility({
+}
+
+async function bindReader<P>(s: Setup<P> | Fresh<P>, target: ScopeRef, keys: readonly ('suite.value' | 'suite.state')[]) {
+  const issued = await s.subject.issueEligibility(s.principal, {
+    scope: target,
+    tenant: s.tenant,
+    principal: s.principal,
+    consumer: 'model',
+    keys,
+    bindings: [],
+    registrationRevision: 1,
+    supersedes: null,
+  })
+  assert.ok(issued.kind === 'issued', `issueEligibility: ${issued.kind}`)
+  const bound = await s.subject.bind(issued.eligibility.id)
+  assert.ok(bound.kind === 'bound', `bind: ${bound.kind}`)
+  return bound.reader
+}
+
+type Fresh<P> = Awaited<ReturnType<typeof fresh<P>>>
+async function fresh<P>(fixture: RuntimeContextFixture<P>) {
+  const { subject, ports } = await start(fixture)
+  return { subject, ports, principal: fixture.principal, tenant: fixture.tenant }
+}
+
+async function reissueCannotChangeReaderScope<P>(fixture: RuntimeContextFixture<P>) {
+  const s = await started(fixture)
+  const before = await s.reader.snapshot()
+  assert.ok(before.kind === 'success')
+  const other = scope('other-scope')
+  await addRequired(s, other, 'other-register')
+  await s.handle.publish({ scope: other, tenant: s.tenant, value: 987 })
+  const issued = await s.subject.issueEligibility(s.principal, {
     ...s.material,
     scope: other,
     supersedes: s.eligibility.id,
   })
   assert.ok(issued.kind === 'issued')
-  const current = await subject.bind(issued.eligibility.id)
+  const current = await s.subject.bind(issued.eligibility.id)
   assert.ok(current.kind === 'bound')
-  const currentRead = await current.reader.snapshot()
-  assert.ok(currentRead.kind === 'success')
-  assert.equal(
-    currentRead.value.blocks[0]?.state.kind === 'value'
-      ? currentRead.value.blocks[0].state.value
-      : undefined,
-    987,
-  )
+  assert.equal(await snapshotValue(current.reader), 987)
   assert.equal(s.reader.scope.ref, s.scope.ref)
   assert.deepEqual(await s.reader.read([]), { kind: 'refused', reason: 'unauthorized' })
   assert.deepEqual(await s.reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
-  assert.deepEqual(await s.reader.changes(before.value.cursor), {
-    kind: 'refused',
-    reason: 'unauthorized',
-  })
-  return
+  assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'refused', reason: 'unauthorized' })
 }
 
 async function reissueCannotChangeReaderConsumer<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-
-  const s = await setup(subject, fixture.tenant, fixture.principal)
+  const s = await started(fixture)
   const before = await s.reader.snapshot()
   assert.ok(before.kind === 'success')
-  const producer = await subject.registerProducer({
+  const producer = await s.subject.registerProducer(s.principal, {
     key: 'suite.tool',
+    tenant: s.tenant,
     producer: { producer: 'tool-only' },
     declaration: { ...declaration(), key: 'suite.tool', consumers: ['tool'] },
     scoped: true,
   })
   assert.ok(producer.kind === 'registered')
-  const added = await subject.applyCommit({
+  const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'tool-register' },
     change: {
       kind: 'add',
       scope: s.scope,
-      tenant: fixture.tenant,
+      tenant: s.tenant,
       key: 'suite.tool',
       basedOn: 1,
       creating: false,
@@ -139,8 +155,8 @@ async function reissueCannotChangeReaderConsumer<P>(fixture: RuntimeContextFixtu
     },
   })
   assert.equal(added.kind, 'applied')
-  await producer.handle.publish(s.scope, 99)
-  const issued = await subject.issueEligibility({
+  await producer.handle.publish({ scope: s.scope, tenant: s.tenant, value: 99 })
+  const issued = await s.subject.issueEligibility(s.principal, {
     ...s.material,
     consumer: 'tool',
     keys: ['suite.tool'],
@@ -148,41 +164,28 @@ async function reissueCannotChangeReaderConsumer<P>(fixture: RuntimeContextFixtu
     supersedes: s.eligibility.id,
   })
   assert.ok(issued.kind === 'issued')
-  const current = await subject.bind(issued.eligibility.id)
+  const current = await s.subject.bind(issued.eligibility.id)
   assert.ok(current.kind === 'bound')
   assert.equal(current.reader.consumer, 'tool')
-  const currentRead = await current.reader.snapshot()
-  assert.ok(currentRead.kind === 'success')
-  assert.equal(
-    currentRead.value.blocks[0]?.state.kind === 'value'
-      ? currentRead.value.blocks[0].state.value
-      : undefined,
-    99,
-  )
+  assert.equal(await snapshotValue(current.reader), 99)
   assert.equal(s.reader.consumer, 'model')
   assert.deepEqual(await s.reader.read([]), { kind: 'refused', reason: 'unauthorized' })
   assert.deepEqual(await s.reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
-  assert.deepEqual(await s.reader.changes(before.value.cursor), {
-    kind: 'refused',
-    reason: 'unauthorized',
-  })
-  return
+  assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'refused', reason: 'unauthorized' })
 }
 
-async function registerBeforeProducerThenIncompatibleReadsMissing<P>(
-  fixture: RuntimeContextFixture<P>,
-) {
-  const subject = await fixture.subject()
-
+async function registerBeforeProducerThenIncompatibleReadsMissing<P>(fixture: RuntimeContextFixture<P>) {
+  const f = await fresh(fixture)
   const target = scope('early')
-  const applied = await subject.applyCommit({
+  await openScope(f.subject, f.ports, f.principal, target, f.tenant)
+  const applied = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'early' },
     change: {
       kind: 'add',
       creating: true,
       scope: target,
-      tenant: fixture.tenant,
+      tenant: f.tenant,
       key: 'suite.value',
       basedOn: 0,
       required: true,
@@ -191,54 +194,43 @@ async function registerBeforeProducerThenIncompatibleReadsMissing<P>(
     },
   })
   assert.equal(applied.kind, 'applied')
-  const p = await subject.registerProducer({
+  const p = await f.subject.registerProducer(f.principal, {
     key: 'suite.value',
+    tenant: f.tenant,
     producer: { producer: 'late' },
     declaration: declaration(),
     scoped: true,
   })
   assert.ok(p.kind === 'registered')
-  await p.handle.publish(target, 7)
-  const e = await subject.issueEligibility({
-    scope: target,
-    tenant: fixture.tenant,
-    principal: fixture.principal,
-    consumer: 'model',
-    keys: ['suite.value'],
-    bindings: [],
-    supersedes: null,
-    registrationRevision: 1,
-  })
-  assert.ok(e.kind === 'issued')
-  const b = await subject.bind(e.eligibility.id)
-  assert.ok(b.kind === 'bound')
-  const read = await b.reader.snapshot()
+  await p.handle.publish({ scope: target, tenant: f.tenant, value: 7 })
+  const reader = await bindReader(f, target, ['suite.value'])
+  const read = await reader.snapshot()
   assert.ok(read.kind === 'success')
   assert.equal(read.value.missing.length, 1)
-  return
 }
 
 async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-
+  const f = await fresh(fixture)
   const target = scope('independent')
+  await openScope(f.subject, f.ports, f.principal, target, f.tenant)
   let calls = 0
-  const registered = await subject.registerProducer({
+  const registered = await f.subject.registerProducer(f.principal, {
     key: 'suite.value',
+    tenant: f.tenant,
     producer: { producer: 'independent' },
     declaration: declaration(),
     scoped: false,
     supply: async () => ({ kind: 'value', value: ++calls }),
   })
   assert.ok(registered.kind === 'registered')
-  await subject.applyCommit({
+  await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'one' },
     change: {
       kind: 'add',
       creating: true,
       scope: target,
-      tenant: fixture.tenant,
+      tenant: f.tenant,
       key: 'suite.value',
       basedOn: 0,
       bindings: [],
@@ -247,10 +239,11 @@ async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextF
     },
   })
   assert.equal(calls, 1)
-  await registered.handle.invalidate()
+  await registered.handle.invalidate({ kind: 'tenant', tenant: f.tenant })
   assert.equal(calls, 2)
-  const replacement = await subject.registerProducer({
+  const replacement = await f.subject.registerProducer(f.principal, {
     key: 'suite.value',
+    tenant: f.tenant,
     producer: { producer: 'independent' },
     declaration: declaration(),
     scoped: false,
@@ -258,30 +251,30 @@ async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextF
   })
   assert.ok(replacement.kind === 'registered')
   assert.equal(calls, 3)
-  return
 }
 
 async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-
+  const f = await fresh(fixture)
   const target = scope('request')
+  await openScope(f.subject, f.ports, f.principal, target, f.tenant)
   let calls = 0
-  const p = await subject.registerProducer({
+  const p = await f.subject.registerProducer(f.principal, {
     key: 'suite.value',
+    tenant: f.tenant,
     producer: { producer: 'request' },
     declaration: declaration({ volatility: 'per-request' }),
     scoped: true,
     supply: async () => ({ kind: 'value', value: ++calls }),
   })
   assert.ok(p.kind === 'registered')
-  await subject.applyCommit({
+  await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'request' },
     change: {
       kind: 'add',
       creating: true,
       scope: target,
-      tenant: fixture.tenant,
+      tenant: f.tenant,
       key: 'suite.value',
       basedOn: 0,
       bindings: [],
@@ -289,86 +282,62 @@ async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<
       required: true,
     },
   })
-  const e = await subject.issueEligibility({
-    scope: target,
-    tenant: fixture.tenant,
-    principal: fixture.principal,
-    consumer: 'model',
-    keys: ['suite.value'],
-    bindings: [],
-    registrationRevision: 1,
-    supersedes: null,
-  })
-  assert.ok(e.kind === 'issued')
-  const b = await subject.bind(e.eligibility.id)
-  assert.ok(b.kind === 'bound')
-  const a = await b.reader.snapshot(),
-    c = await b.reader.snapshot()
+  const reader = await bindReader(f, target, ['suite.value'])
+  const a = await reader.snapshot(),
+    c = await reader.snapshot()
   assert.ok(a.kind === 'success' && c.kind === 'success')
   assert.equal(a.value.blocks.length, 0)
   assert.equal(a.value.perRequest[0]?.kind, 'value')
   assert.equal(calls, 2)
   assert.equal(a.value.viewRevision, c.value.viewRevision)
-  return
 }
 
 async function cursorInvalidatedBelowRetention<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-  const s = await setup(subject, fixture.tenant, fixture.principal)
-
+  const s = await started(fixture)
   const before = await s.reader.snapshot()
   assert.ok(before.kind === 'success')
   if (fixture.retention === undefined) throw new NotApplicable('retention')
-  for (let n = 0; n <= fixture.retention; n++) await s.handle.publish(s.scope, n)
-  assert.deepEqual(await s.reader.changes(before.value.cursor), {
-    kind: 'cursor-invalidated',
-  })
-  return
+  for (let n = 0; n <= fixture.retention; n++) await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: n })
+  assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'cursor-invalidated' })
 }
 
 async function declarationDigestMismatchRefused<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-  await setup(subject, fixture.tenant, fixture.principal)
-
-  const r = await subject.registerProducer({
+  const s = await started(fixture)
+  const r = await s.subject.registerProducer(s.principal, {
     key: 'suite.value',
+    tenant: s.tenant,
     producer: { producer: 'suite' },
     declaration: declaration({ required: false }),
     scoped: true,
   })
   assert.deepEqual(r, { kind: 'rejected', reason: 'declaration-mismatch' })
-  return
 }
 
 async function invalidateReadsMissingAndAdvances<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-  const s = await setup(subject, fixture.tenant, fixture.principal)
-
-  await s.handle.publish(s.scope, 1)
+  const s = await started(fixture)
+  await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })
   const before = await s.reader.snapshot()
   assert.ok(before.kind === 'success')
-  await s.handle.invalidate(s.scope)
+  await s.handle.invalidate({ kind: 'scope', scope: s.scope, tenant: s.tenant })
   const after = await s.reader.snapshot()
   assert.ok(after.kind === 'success')
   assert.ok(after.value.viewRevision > before.value.viewRevision)
   assert.equal(after.value.missing.length, 1)
-  return
 }
 
 async function childScopeShadowsParent<P>(fixture: RuntimeContextFixture<P>) {
-  const subject = await fixture.subject()
-  const s = await setup(subject, fixture.tenant, fixture.principal)
-
-  await s.handle.publish(s.scope, 10)
+  const s = await started(fixture)
+  await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 10 })
   const child = scope('child', s.scope)
-  await subject.applyCommit({
+  await openScope(s.subject, s.ports, s.principal, child, s.tenant)
+  await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'child' },
     change: {
       kind: 'add',
       creating: true,
       scope: child,
-      tenant: fixture.tenant,
+      tenant: s.tenant,
       key: 'suite.other',
       bindings: [],
       required: false,
@@ -376,28 +345,25 @@ async function childScopeShadowsParent<P>(fixture: RuntimeContextFixture<P>) {
       basedOn: 0,
     },
   })
-  const e = await subject.issueEligibility({ ...s.material, scope: child })
+  const e = await s.subject.issueEligibility(s.principal, { ...s.material, scope: child })
   assert.ok(e.kind === 'issued')
-  const b = await subject.bind(e.eligibility.id)
+  const b = await s.subject.bind(e.eligibility.id)
   assert.ok(b.kind === 'bound')
   const r = await b.reader.snapshot()
   assert.ok(r.kind === 'success')
   assert.equal(r.value.blocks[0]?.evidence.scope.ref, s.scope.ref)
-  return
 }
 
 async function removedPlainRegistrationRefused<P>(fixture: RuntimeContextFixture<P>) {
   await removedRegistration(fixture, 'plain')
 }
 
-async function removedEligibilityCheckedRegistrationConcealed<P>(
-  fixture: RuntimeContextFixture<P>,
-) {
+async function removedEligibilityCheckedRegistrationConcealed<P>(fixture: RuntimeContextFixture<P>) {
   await removedRegistration(fixture, 'eligibility-checked')
 }
 
 async function singleWriterPerStepRejectsSecond<P>(fixture: RuntimeContextFixture<P>) {
-  const { subject, target, key, d, first, second } = await statefulCase(fixture)
+  const { f, target, key, d, first, second } = await statefulCase(fixture)
   const reduced = reduceStep({
     scope: target,
     step: { step: 'one' },
@@ -405,18 +371,16 @@ async function singleWriterPerStepRejectsSecond<P>(fixture: RuntimeContextFixtur
     descriptors: { get: () => d },
     current: () => undefined,
   })
-
   assert.equal(reduced.committed[0]?.value, 1)
   assert.equal(reduced.rejected[0]?.rejection.kind, 'unauthorized')
   assert.equal(
-    reduced.rejected[0]?.rejection.kind === 'unauthorized'
-      ? reduced.rejected[0].rejection.cause
-      : undefined,
+    reduced.rejected[0]?.rejection.kind === 'unauthorized' ? reduced.rejected[0].rejection.cause : undefined,
     'single-writer',
   )
-  const committed = await subject.applyCommit({
+  const committed = await f.subject.applyCommit(f.principal, {
     kind: 'step',
     commit: { commit: 'conflict' },
+    tenant: f.tenant,
     executionEnded: false,
     stepCommit: {
       scope: target,
@@ -427,87 +391,63 @@ async function singleWriterPerStepRejectsSecond<P>(fixture: RuntimeContextFixtur
   })
   assert.ok(committed.kind === 'invalid')
   assert.equal(committed.reason, 'rejected-update')
-  return
 }
 
 async function pendingUpdatesNotApplied<P>(fixture: RuntimeContextFixture<P>) {
   const context = await statefulCase(fixture)
-  const { subject, target, first } = context
-
-  const result = await subject.applyCommit({
+  const { f, target, first } = context
+  const result = await f.subject.applyCommit(f.principal, {
     kind: 'step',
     commit: { commit: 'pending' },
+    tenant: f.tenant,
     executionEnded: false,
-    stepCommit: {
-      scope: target,
-      step: { step: 'failed' },
-      committed: [],
-      pending: [first],
-    },
+    stepCommit: { scope: target, step: { step: 'failed' }, committed: [], pending: [first] },
   })
   assert.equal(result.kind, 'applied')
-  await assertStatefulMissing(fixture, context)
+  await assertStatefulMissing(context)
 }
 
 async function stepCommitIdempotent<P>(fixture: RuntimeContextFixture<P>) {
   const context = await statefulCase(fixture)
-  const { subject } = context
   const input = statefulCommit(context, 'tool', false)
-  const result = await subject.applyCommit(input)
+  const result = await context.f.subject.applyCommit(context.f.principal, input)
   assert.equal(result.kind, 'applied')
-  assert.deepEqual(await subject.applyCommit(input), result)
+  assert.deepEqual(await context.f.subject.applyCommit(context.f.principal, input), result)
 }
 
 async function unauthorizedUpdateRejectedAndCommitInvalid<P>(fixture: RuntimeContextFixture<P>) {
   const context = await statefulCase(fixture)
-  const { subject } = context
-  const input = statefulCommit(context, 'model', false)
-  const result = await subject.applyCommit(input)
+  const result = await context.f.subject.applyCommit(context.f.principal, statefulCommit(context, 'model', false))
   assert.ok(result.kind === 'invalid')
   assert.equal(result.reason, 'rejected-update')
 }
 
 async function untrackedBlockEndsWithExecution<P>(fixture: RuntimeContextFixture<P>) {
   const context = await statefulCase(fixture, 'untracked')
-  const { subject } = context
-  const input = statefulCommit(context, 'tool', true)
-  const result = await subject.applyCommit(input)
+  const result = await context.f.subject.applyCommit(context.f.principal, statefulCommit(context, 'tool', true))
   assert.equal(result.kind, 'applied')
-  await assertStatefulMissing(fixture, context)
+  await assertStatefulMissing(context)
 }
 
 async function optionalNeedReadsNone<P>(fixture: RuntimeContextFixture<P>) {
-  const { b } = await translatedCase(fixture, {
-    necessity: 'optional',
-    listed: true,
-    translate: value => value,
-  })
+  const { b } = await translatedCase(fixture, { necessity: 'optional', listed: true, translate: value => value })
   const r = await b.reader.read([{ key: 'suite.value', need: 'value' }])
   assert.ok(r.kind === 'success')
   assert.equal(r.value[0]?.kind, 'none')
 }
 
 async function translatedBlockNotReadableRaw<P>(fixture: RuntimeContextFixture<P>) {
-  const { s, b } = await translatedCase(fixture, {
-    necessity: 'required',
-    listed: true,
-    translate: value => value,
-  })
-  await s.handle.publish(s.scope, 12)
+  const { s, b } = await translatedCase(fixture, { necessity: 'required', listed: true, translate: value => value })
+  await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
   const r = await b.reader.snapshot()
   assert.ok(r.kind === 'success')
   assert.equal(r.value.blocks.length, 0)
 }
 
 async function unlistedBindingRefused<P>(fixture: RuntimeContextFixture<P>) {
-  const { s, b } = await translatedCase(fixture, {
-    necessity: 'required',
-    listed: false,
-    translate: value => value,
-  })
-  await s.handle.publish(s.scope, 12)
-  const r = await b.reader.read([{ key: 'suite.value', need: 'value' }])
-  assert.deepEqual(r, { kind: 'refused', reason: 'unauthorized' })
+  const { s, b } = await translatedCase(fixture, { necessity: 'required', listed: false, translate: value => value })
+  await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
+  assert.deepEqual(await b.reader.read([{ key: 'suite.value', need: 'value' }]), { kind: 'refused', reason: 'unauthorized' })
 }
 
 async function translationThrowReadsMissing<P>(fixture: RuntimeContextFixture<P>) {
@@ -518,44 +458,39 @@ async function translationThrowReadsMissing<P>(fixture: RuntimeContextFixture<P>
       throw new Error('translation refused')
     },
   })
-  await s.handle.publish(s.scope, 12)
+  await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
   const r = await b.reader.read([{ key: 'suite.value', need: 'value' }])
   assert.ok(r.kind === 'missing')
   assert.equal(r.items[0]?.cause, 'translation-failed')
 }
 
 async function translatedBindingGivesConsumerShape<P>(fixture: RuntimeContextFixture<P>) {
-  const { s, b } = await translatedCase(fixture, {
-    necessity: 'required',
-    listed: true,
-    translate: value => value,
-  })
-  await s.handle.publish(s.scope, 12)
+  const { s, b } = await translatedCase(fixture, { necessity: 'required', listed: true, translate: value => value })
+  await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
   const r = await b.reader.read([{ key: 'suite.value', need: 'value' }])
   assert.ok(r.kind === 'success')
   assert.equal(r.value[0]?.kind === 'value' ? r.value[0].value : undefined, 12)
 }
-async function removedRegistration<P>(
-  fixture: RuntimeContextFixture<P>,
-  disclosure: 'plain' | 'eligibility-checked',
-) {
-  const subject = await fixture.subject()
 
+async function removedRegistration<P>(fixture: RuntimeContextFixture<P>, disclosure: 'plain' | 'eligibility-checked') {
+  const f = await fresh(fixture)
   const target = scope('removal')
-  const producer = await subject.registerProducer({
+  await openScope(f.subject, f.ports, f.principal, target, f.tenant)
+  const producer = await f.subject.registerProducer(f.principal, {
     key: 'suite.value',
+    tenant: f.tenant,
     producer: { producer: 'removable' },
     declaration: declaration({ required: false, disclosure }),
     scoped: true,
   })
   assert.ok(producer.kind === 'registered')
-  const added = await subject.applyCommit({
+  const added = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'add' },
     change: {
       kind: 'add',
       scope: target,
-      tenant: fixture.tenant,
+      tenant: f.tenant,
       key: 'suite.value',
       basedOn: 0,
       creating: true,
@@ -564,85 +499,41 @@ async function removedRegistration<P>(
       bindings: [
         {
           key: 'suite.value',
-          need: {
-            name: 'value',
-            shape: numberSchema,
-            consumer: 'model',
-            purpose: 'removal',
-            necessity: 'optional',
-          },
+          need: { name: 'value', shape: numberSchema, consumer: 'model', purpose: 'removal', necessity: 'optional' },
         },
       ],
     },
   })
   assert.equal(added.kind, 'applied')
-  await producer.handle.publish(target, 7)
-  const issued = await subject.issueEligibility({
-    scope: target,
-    tenant: fixture.tenant,
-    principal: fixture.principal,
-    consumer: 'model',
-    keys: ['suite.value'],
-    bindings: [],
-    registrationRevision: 1,
-    supersedes: null,
-  })
-  assert.ok(issued.kind === 'issued')
-  const bound = await subject.bind(issued.eligibility.id)
-  assert.ok(bound.kind === 'bound')
-  const before = await bound.reader.snapshot()
+  await producer.handle.publish({ scope: target, tenant: f.tenant, value: 7 })
+  const reader = await bindReader(f, target, ['suite.value'])
+  const before = await reader.snapshot()
   assert.ok(before.kind === 'success')
-  const removed = await subject.applyCommit({
+  const removed = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'remove' },
-    change: {
-      kind: 'remove',
-      scope: target,
-      tenant: fixture.tenant,
-      key: 'suite.value',
-      basedOn: 1,
-      creating: false,
-    },
+    change: { kind: 'remove', scope: target, tenant: f.tenant, key: 'suite.value', basedOn: 1, creating: false },
   })
   assert.equal(removed.kind, 'applied')
-  const expected = {
-    kind: 'refused',
-    reason: disclosure === 'plain' ? 'no-registration' : 'unauthorized',
-  }
-  assert.deepEqual(await bound.reader.read([{ key: 'suite.value', need: 'value' }]), expected)
-  assert.deepEqual(await bound.reader.snapshot(), expected)
-  return
+  const expected = { kind: 'refused', reason: disclosure === 'plain' ? 'no-registration' : 'unauthorized' }
+  assert.deepEqual(await reader.read([{ key: 'suite.value', need: 'value' }]), expected)
+  assert.deepEqual(await reader.snapshot(), expected)
 }
-async function statefulCase<P>(
-  fixture: RuntimeContextFixture<P>,
-  persistence: 'untracked' | 'checkpointed' = 'checkpointed',
-) {
-  const subject = await fixture.subject()
+
+async function statefulCase<P>(fixture: RuntimeContextFixture<P>, persistence: 'untracked' | 'checkpointed' = 'checkpointed') {
+  const f = await fresh(fixture)
   const target = scope('stateful'),
     key = 'suite.state'
-  const d: StatefulBlockDescriptor<typeof key, unknown, unknown> = {
-    kind: 'stateful',
-    key,
-    schema: numberSchema,
-    required: true,
-    consumers: ['model'],
-    disclosure: 'plain',
-    carriesPrevious: true,
-    volatility: 'stable',
-    writers: ['tool'],
-    singleWriterPerStep: true,
-    persistence: persistence,
-    reduce: (previous, update) => Number(previous ?? 0) + Number(update),
-    updateSchema: numberSchema,
-  }
-  const reg = await subject.applyCommit({
+  await openScope(f.subject, f.ports, f.principal, target, f.tenant)
+  const d: StatefulBlockDescriptor<typeof key, unknown, unknown> = statefulDeclaration(persistence)
+  const reg = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'stateful' },
     change: {
       kind: 'add',
       creating: true,
       scope: target,
-      tenant: fixture.tenant,
+      tenant: f.tenant,
       key,
       basedOn: 0,
       required: true,
@@ -652,101 +543,88 @@ async function statefulCase<P>(
     },
   })
   assert.equal(reg.kind, 'applied')
-  const first: ContextUpdate = {
-      key,
-      origin: { origin: 'first' },
-      writer: 'tool',
-      update: 1,
-    },
+  const first: ContextUpdate = { key, origin: { origin: 'first' }, writer: 'tool', update: 1 },
     second: ContextUpdate = { key, origin: { origin: 'second' }, writer: 'tool', update: 3 }
-  return { subject, target, key, d, first, second } as const
+  return { f, target, key, d, first, second } as const
 }
+
+/** The stateful block the suite uses: a tool-written counter. */
+export function statefulDeclaration(
+  persistence: 'untracked' | 'checkpointed',
+): StatefulBlockDescriptor<'suite.state', unknown, unknown> {
+  return {
+    kind: 'stateful',
+    key: 'suite.state',
+    schema: numberSchema,
+    required: true,
+    consumers: ['model'],
+    disclosure: 'plain',
+    carriesPrevious: true,
+    volatility: 'stable',
+    writers: ['tool'],
+    singleWriterPerStep: true,
+    persistence,
+    reduce: (previous, update) => Number(previous ?? 0) + Number(update),
+    updateSchema: numberSchema,
+  }
+}
+
 function statefulCommit<P>(
   context: Awaited<ReturnType<typeof statefulCase<P>>>,
   writer: 'model' | 'tool',
   executionEnded: boolean,
-) {
-  const { target, key, first } = context
+): CommitInput {
+  const { target, key, first, f } = context
   return {
     kind: 'step',
     commit: { commit: 'step' },
-    executionEnded: executionEnded,
+    tenant: f.tenant,
+    executionEnded,
     stepCommit: {
       scope: target,
       step: { step: 'one' },
-      committed: [
-        {
-          key,
-          value: 1,
-          updates: [{ ...first, writer }],
-        },
-      ],
+      committed: [{ key, value: 1, updates: [{ ...first, writer }] }],
       pending: [],
     },
-  } as const
+  }
 }
-async function assertStatefulMissing<P>(
-  fixture: RuntimeContextFixture<P>,
-  context: Awaited<ReturnType<typeof statefulCase<P>>>,
-) {
-  const { subject, target, key } = context
-  const e = await subject.issueEligibility({
-    scope: target,
-    tenant: fixture.tenant,
-    principal: fixture.principal,
-    consumer: 'model',
-    keys: [key],
-    bindings: [],
-    registrationRevision: 1,
-    supersedes: null,
-  })
-  assert.ok(e.kind === 'issued')
-  const b = await subject.bind(e.eligibility.id)
-  assert.ok(b.kind === 'bound')
-  const read = await b.reader.snapshot()
+
+async function assertStatefulMissing<P>(context: Awaited<ReturnType<typeof statefulCase<P>>>) {
+  const reader = await bindReader(context.f, context.target, [context.key])
+  const read = await reader.snapshot()
   assert.ok(read.kind === 'success')
   assert.equal(read.value.missing.length, 1)
 }
+
 async function translatedCase<P>(
   fixture: RuntimeContextFixture<P>,
-  options: {
-    necessity: 'optional' | 'required'
-    listed: boolean
-    translate: (value: unknown) => unknown
-  },
+  options: { necessity: 'optional' | 'required'; listed: boolean; translate: (value: unknown) => unknown },
 ) {
-  const subject = await fixture.subject()
-  const s = await setup(subject, fixture.tenant, fixture.principal)
-  const change = {
-    kind: 'update',
-    creating: false,
-    scope: s.scope,
-    tenant: fixture.tenant,
-    key: 'suite.value',
-    basedOn: 1,
-    parameters: undefined,
-    bindings: [
-      {
-        key: 'suite.value',
-        need: {
-          name: 'value',
-          shape: numberSchema,
-          consumer: 'model',
-          purpose: 'test',
-          necessity: options.necessity,
-        },
-        translate: options.translate,
-        integrator: 'tool',
-      },
-    ],
-  } as const
-  const commit = await subject.applyCommit({
+  const { subject, ports } = await start(fixture)
+  const s = await setup(subject, ports, fixture.tenant, fixture.principal)
+  const commit = await subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'translation' },
-    change,
+    change: {
+      kind: 'update',
+      creating: false,
+      scope: s.scope,
+      tenant: s.tenant,
+      key: 'suite.value',
+      basedOn: 1,
+      parameters: undefined,
+      bindings: [
+        {
+          key: 'suite.value',
+          need: { name: 'value', shape: numberSchema, consumer: 'model', purpose: 'test', necessity: options.necessity },
+          translate: options.translate,
+          integrator: 'tool',
+        },
+      ],
+    },
   })
   assert.equal(commit.kind, 'applied')
-  const e = await subject.issueEligibility({
+  const e = await subject.issueEligibility(s.principal, {
     ...s.material,
     keys: [],
     bindings: options.listed ? [{ key: 'suite.value', need: 'value' }] : [],
@@ -754,6 +632,5 @@ async function translatedCase<P>(
   assert.ok(e.kind === 'issued')
   const b = await subject.bind(e.eligibility.id)
   assert.ok(b.kind === 'bound')
-
   return { s, b }
 }

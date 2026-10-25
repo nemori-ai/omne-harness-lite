@@ -1,8 +1,11 @@
 // The Cordis service definitions of the execution environment: the environment Service and the
-// recovery authority Service, their keys and the intercept configuration type. It has no events;
-// placement changes reach readers as Runtime Context blocks.
+// three port Services (recovery authority, environment authority, trusted scope binding), their keys
+// and the intercept configuration type. It has no events; placement changes reach readers as Runtime
+// Context blocks.
 import { type Context, Service } from '@deepseek-ai/cordis'
+import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import type {
+  EnvironmentAuthority,
   ExecutionEnvironment,
   FacilityDescriptor,
   FacilityKey,
@@ -26,6 +29,7 @@ export const operationFaces: Readonly<Record<ServiceOperation, ServiceFace>> = O
   acquire: 'environment',
   inspectAcquisition: 'environment',
   describe: 'environment',
+  inspectRecoveryAcquisition: 'recovery',
   recoverOwned: 'recovery',
   releaseScope: 'recovery',
   registerFacility: 'registration',
@@ -88,16 +92,28 @@ export abstract class ExecutionEnvironmentService<P>
   protected abstract onAcquire(
     ...args: Operation<P, 'acquire'>['args']
   ): Operation<P, 'acquire'>['result']
+  /** A caller mismatch is a query answer here, not a stored acquisition state. */
   inspectAcquisition(
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result'] {
     if (this.callerRefusal('inspectAcquisition'))
-      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+      return Promise.resolve({ kind: 'refused', reason: 'callerMismatch' })
     return this.onInspectAcquisition(...args)
   }
   protected abstract onInspectAcquisition(
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result']
+  /** The maintainer's query by original description. A caller mismatch is a query answer. */
+  inspectRecoveryAcquisition(
+    ...args: Operation<P, 'inspectRecoveryAcquisition'>['args']
+  ): Operation<P, 'inspectRecoveryAcquisition'>['result'] {
+    if (this.callerRefusal('inspectRecoveryAcquisition'))
+      return Promise.resolve({ kind: 'refused', reason: 'callerMismatch' })
+    return this.onInspectRecoveryAcquisition(...args)
+  }
+  protected abstract onInspectRecoveryAcquisition(
+    ...args: Operation<P, 'inspectRecoveryAcquisition'>['args']
+  ): Operation<P, 'inspectRecoveryAcquisition'>['result']
   describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'] {
     if (this.callerRefusal('describe'))
       return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
@@ -172,11 +188,53 @@ export abstract class ExecutionRecoveryAuthorityService
 
 export const executionRecoveryAuthorityKey = ExecutionRecoveryAuthorityService.provide
 
+/**
+ * The environment authority port as a service. The assembly entry provides it by loading a
+ * subclass; the Service implementation reads it from its own load context on each ordinary
+ * operation and treats its absence as `unavailable`. It is an optional dependency.
+ *
+ * @owner packages/execution/execution-environment-cordis-contract
+ */
+export abstract class ExecutionEnvironmentAuthorityService<P = unknown>
+  extends Service
+  implements EnvironmentAuthority<P>
+{
+  static readonly provide = 'executionEnvironmentAuthority'
+  constructor(ctx: Context) {
+    super(ctx, ExecutionEnvironmentAuthorityService.provide)
+  }
+  abstract authorize(
+    ...args: Parameters<EnvironmentAuthority<P>['authorize']>
+  ): ReturnType<EnvironmentAuthority<P>['authorize']>
+}
+
+export const executionEnvironmentAuthorityKey = ExecutionEnvironmentAuthorityService.provide
+
+/**
+ * The trusted scope binding source as a service, with the same rules as the environment authority.
+ * The binding type belongs to the Runtime Context contract.
+ *
+ * @owner packages/execution/execution-environment-cordis-contract
+ */
+export abstract class ExecutionScopeBindingService extends Service implements ScopeBindingSource {
+  static readonly provide = 'executionScopeBinding'
+  constructor(ctx: Context) {
+    super(ctx, ExecutionScopeBindingService.provide)
+  }
+  abstract lookup(
+    ...args: Parameters<ScopeBindingSource['lookup']>
+  ): ReturnType<ScopeBindingSource['lookup']>
+}
+
+export const executionScopeBindingKey = ExecutionScopeBindingService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still check
   // every input at run time.
   interface Context {
     executionEnvironment: ExecutionEnvironmentService<unknown>
     executionRecoveryAuthority: ExecutionRecoveryAuthorityService
+    executionEnvironmentAuthority: ExecutionEnvironmentAuthorityService<unknown>
+    executionScopeBinding: ExecutionScopeBindingService
   }
 }

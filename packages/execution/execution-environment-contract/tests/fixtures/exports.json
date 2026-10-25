@@ -393,6 +393,51 @@
               "name": "Rejected",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "AllocationCleanup",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AllocationFailed",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "UnknownAcquisition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LookupUnknown",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OriginalAcquisition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AcquisitionQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OriginalInspection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AcquisitionInspection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryInspection",
+              "kind": "type",
+              "pending": false
             }
           ]
         },
@@ -471,6 +516,41 @@
             },
             {
               "name": "UnsupportedRecovery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderQuota",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "QuotaAnswer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderAcquisitionStatus",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AcquisitionListing",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AcquisitionSettlement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentAuthority",
               "kind": "type",
               "pending": false
             }
@@ -623,6 +703,21 @@
               "name": "OperationName",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "inspectRecoveryAcquisitionParamsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "inspectRecoveryAcquisitionResultSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "originalAcquisitionSchema",
+              "kind": "value",
+              "pending": false
             }
           ]
         },
@@ -735,6 +830,36 @@
             },
             {
               "name": "ScriptedRecoveryAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedEnvironmentAuthority",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedScopeBindings",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentAuthorityScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedEnvironmentAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedScopeBindings",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentConformancePorts",
               "kind": "type",
               "pending": false
             }

@@ -826,6 +826,9 @@ importers:
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../execution-environment-contract
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

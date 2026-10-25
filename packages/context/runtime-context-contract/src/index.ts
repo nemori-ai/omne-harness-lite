@@ -55,12 +55,41 @@ export type {
 } from './descriptor.js'
 export type {
   SupplyAnswer,
+  SupplyInput,
   SupplyCallback,
   ProducerRegistration,
+  PublishInput,
   PublishResult,
+  InvalidateTarget,
   InvalidateResult,
   ProducerHandle,
 } from './producer.js'
+export type {
+  ScopeBinding,
+  ScopeBindingSource,
+  AuthorityDecision,
+  OrdinaryHolderAction,
+  BeginReplayAction,
+  FinishReplayAction,
+  HolderAction,
+  HolderDecision,
+  ProducerAction,
+  RuntimeContextAuthority,
+  CheckCause,
+  CheckUnavailable,
+  CheckUnknown,
+} from './authority.js'
+export type {
+  ReplayRef,
+  BeginReplayInput,
+  ReplayBlock,
+  ReplayMaterial,
+  FinishReplayInput,
+  ReplayPrevious,
+  AppliedCommit,
+  BeginReplayResult,
+  FinishReplayResult,
+} from './replay.js'
 export type {
   ScopeText,
   BlockValue,

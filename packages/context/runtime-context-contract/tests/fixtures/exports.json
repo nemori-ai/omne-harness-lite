@@ -309,6 +309,11 @@
               "pending": false
             },
             {
+              "name": "SupplyInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "SupplyCallback",
               "kind": "type",
               "pending": false
@@ -319,7 +324,17 @@
               "pending": false
             },
             {
+              "name": "PublishInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "PublishResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InvalidateTarget",
               "kind": "type",
               "pending": false
             },
@@ -330,6 +345,126 @@
             },
             {
               "name": "ProducerHandle",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "权威端口",
+          "names": [
+            {
+              "name": "ScopeBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScopeBindingSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityDecision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OrdinaryHolderAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BeginReplayAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FinishReplayAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HolderAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HolderDecision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProducerAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CheckCause",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CheckUnavailable",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CheckUnknown",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "恢复会话",
+          "names": [
+            {
+              "name": "ReplayRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BeginReplayInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayBlock",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FinishReplayInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayPrevious",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AppliedCommit",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BeginReplayResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FinishReplayResult",
               "kind": "type",
               "pending": false
             }
@@ -555,6 +690,36 @@
           ]
         },
         {
+          "title": "权威端口替身",
+          "names": [
+            {
+              "name": "createTestAuthorityPorts",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "TestAuthorityPorts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityFace",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityScript",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
           "title": "用例形制",
           "names": [
             {
@@ -584,6 +749,11 @@
           "names": [
             {
               "name": "RuntimeContextFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextPorts",
               "kind": "type",
               "pending": false
             },

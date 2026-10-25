@@ -10,6 +10,7 @@ import {
   type EnvironmentBinding,
   type ProviderAcquireInput,
   type FacilityKey,
+  type OriginalAcquisition,
 } from '../index.ts'
 import { createMemoryResourceLedger } from './doubles.ts'
 import { bounded, NotApplicable, type ConformanceCase } from './case.ts'
@@ -57,7 +58,17 @@ function providerInput(s: ProviderConformanceSubject): ProviderAcquireInput {
         version: s.provider.version,
       },
       continuity: s.provider.continuity,
+      quotaDomain: s.provider.quotaDomain,
     },
+  }
+}
+function originalOf(input: ProviderAcquireInput): OriginalAcquisition {
+  return {
+    tenant: input.tenant,
+    acquisition: input.acquisition,
+    origin: input.origin,
+    scope: input.scope,
+    placement: input.placement,
   }
 }
 
@@ -235,6 +246,96 @@ async function checkFactsSchemaRefusalHasItemReasons({
   assert.deepEqual(result.issues[0]?.path, ['prerequisites'])
 }
 
+async function checkQuotaDeclarationHasBounds(
+  { provider }: ProviderConformanceSubject,
+  input: ProviderAcquireInput,
+): Promise<void> {
+  const answer = await provider.quota(input.tenant)
+  if (answer.kind !== 'declared') return
+  const { perTenant, global } = answer.quota
+  assert.equal(answer.quota.unit, 'unsettled-acquisition')
+  assert.ok(Number.isSafeInteger(perTenant) && perTenant >= 0)
+  assert.ok(global === null || (Number.isSafeInteger(global) && global >= 0))
+}
+
+async function checkInspectFindsHeldAcquisition(
+  { provider }: ProviderConformanceSubject,
+  input: ProviderAcquireInput,
+): Promise<void> {
+  const receipt = await provider.acquire(input)
+  assert.equal(receipt.kind, 'acquired')
+  if (receipt.kind !== 'acquired') return
+  try {
+    const answer = await provider.inspectAcquisition(originalOf(input))
+    assert.equal(answer.kind, 'acquired')
+  } finally {
+    await receipt.lease.release()
+  }
+}
+
+async function checkInspectNeverInventsAllocation(
+  { provider }: ProviderConformanceSubject,
+  input: ProviderAcquireInput,
+): Promise<void> {
+  const answer = await provider.inspectAcquisition({
+    ...originalOf(input),
+    acquisition: acquisitionRef('suite-never-acquired'),
+  })
+  assert.ok(['notAllocated', 'unavailable', 'unknown'].includes(answer.kind))
+}
+
+async function checkDifferentDescriptionIsConflict(
+  { provider }: ProviderConformanceSubject,
+  input: ProviderAcquireInput,
+): Promise<void> {
+  const receipt = await provider.acquire(input)
+  assert.equal(receipt.kind, 'acquired')
+  if (receipt.kind !== 'acquired') return
+  try {
+    const other = { ...originalOf(input), origin: originRef('suite-other-origin') }
+    assert.equal((await provider.inspectAcquisition(other)).kind, 'conflict')
+    assert.equal((await provider.settleAcquisition(other)).kind, 'conflict')
+    assert.equal((await provider.inspectAcquisition(originalOf(input))).kind, 'acquired')
+  } finally {
+    await receipt.lease.release()
+  }
+}
+
+async function checkListIncludesOpenAcquisition(
+  { provider }: ProviderConformanceSubject,
+  input: ProviderAcquireInput,
+): Promise<void> {
+  const receipt = await provider.acquire(input)
+  assert.equal(receipt.kind, 'acquired')
+  if (receipt.kind !== 'acquired') return
+  try {
+    const listing = await provider.listAcquisitions(input.scope)
+    assert.equal(listing.kind, 'listed')
+    if (listing.kind !== 'listed') return
+    assert.ok(listing.acquisitions.some(a => a.acquisition === input.acquisition))
+  } finally {
+    await receipt.lease.release()
+  }
+}
+
+async function checkSettleIsIdempotentAndNeverRewritesAllocation(
+  { provider }: ProviderConformanceSubject,
+  input: ProviderAcquireInput,
+): Promise<void> {
+  const receipt = await provider.acquire(input)
+  assert.equal(receipt.kind, 'acquired')
+  if (receipt.kind !== 'acquired') return
+  const first = await provider.settleAcquisition(originalOf(input))
+  assert.ok(first.kind === 'settled' || first.kind === 'pending')
+  if (first.kind !== 'settled') return
+  assert.deepEqual(await provider.settleAcquisition(originalOf(input)), { kind: 'settled' })
+  const after = await provider.inspectAcquisition(originalOf(input))
+  assert.equal(after.kind, 'settled')
+  const listing = await provider.listAcquisitions(input.scope)
+  if (listing.kind === 'listed')
+    assert.ok(!listing.acquisitions.some(a => a.acquisition === input.acquisition))
+}
+
 export function environmentProviderConformance(
   options: ProviderConformanceOptions,
 ): readonly ConformanceCase[] {
@@ -264,6 +365,32 @@ export function environmentProviderConformance(
       options,
       'V-EE22.facts-schema-refusal-has-item-reasons',
       checkFactsSchemaRefusalHasItemReasons,
+    ),
+    providerCase(options, 'V-EE25.quota-declaration-has-bounds', checkQuotaDeclarationHasBounds),
+    providerCase(
+      options,
+      'V-EE23.inspect-finds-held-acquisition',
+      checkInspectFindsHeldAcquisition,
+    ),
+    providerCase(
+      options,
+      'V-EE23.inspect-never-invents-allocation',
+      checkInspectNeverInventsAllocation,
+    ),
+    providerCase(
+      options,
+      'V-EE23.different-description-is-conflict',
+      checkDifferentDescriptionIsConflict,
+    ),
+    providerCase(
+      options,
+      'V-EE26.list-includes-open-acquisition',
+      checkListIncludesOpenAcquisition,
+    ),
+    providerCase(
+      options,
+      'V-EE25.settle-is-idempotent-and-never-rewrites-allocation',
+      checkSettleIsIdempotentAndNeverRewritesAllocation,
     ),
   ]
 }

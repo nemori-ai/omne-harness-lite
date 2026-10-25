@@ -1,7 +1,11 @@
 import { expect, it } from 'vitest'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { createMemoryRuntimeContext } from '@omne-harness/runtime-context-contract/testing'
+import {
+  createMemoryRuntimeContext,
+  createTestAuthorityPorts,
+} from '@omne-harness/runtime-context-contract/testing'
+import type { TestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
 import type {
   NeedBinding,
   ConsumerClass,
@@ -9,7 +13,7 @@ import type {
   RuntimeContextOperations,
   ScopeRef,
 } from '@omne-harness/runtime-context-contract'
-import { declaration, numberSchema, scope, setup } from '../src/testing/fixtures.js'
+import { declaration, numberSchema, scope, setup, openScope } from '../src/testing/fixtures.js'
 function tenant(account: string) {
   const parsed = tenantCodec.parse(
     JSON.stringify({ organization: 'org_00000000000000000000000000', account }),
@@ -19,6 +23,10 @@ function tenant(account: string) {
 }
 const owner = tenant('acc_00000000000000000000000000')
 const other = tenant('acc_00000000000000000000000001')
+function fresh() {
+  const ports = createTestAuthorityPorts<string>()
+  return { ports, memory: createMemoryRuntimeContext<string>(ports) }
+}
 const need = {
   name: 'value',
   shape: numberSchema,
@@ -28,7 +36,8 @@ const need = {
 } as const
 
 it('refuses invalid bindings without a producer declaration and does not commit rejected preparation', async () => {
-  const memory = createMemoryRuntimeContext<string>()
+  const { memory, ports } = fresh()
+  await openScope(memory, ports, 'principal', scope('undeclared'), owner)
   const base = {
     kind: 'add',
     scope: scope('undeclared'),
@@ -51,12 +60,12 @@ it('refuses invalid bindings without a producer declaration and does not commit 
   ]
   for (const [index, binding] of cases.entries()) {
     const change = { ...base, bindings: [binding] }
-    expect(await memory.prepareRegistration(change)).toMatchObject({
+    expect(await memory.prepareRegistration('principal', change)).toMatchObject({
       kind: 'rejected',
       rejections: [{ path: ['bindings', 0], reason: 'key' }],
     })
     expect(
-      await memory.applyCommit({
+      await memory.applyCommit('principal', {
         kind: 'registration',
         commit: { commit: 'invalid-' + index },
         change,
@@ -65,7 +74,7 @@ it('refuses invalid bindings without a producer declaration and does not commit 
   }
   // A lawful declaration-independent registration still succeeds at revision zero.
   expect(
-    await memory.applyCommit({
+    await memory.applyCommit('principal', {
       kind: 'registration',
       commit: { commit: 'valid' },
       change: { ...base, bindings: [{ key: 'suite.value', need }] },
@@ -74,12 +83,14 @@ it('refuses invalid bindings without a producer declaration and does not commit 
 })
 async function add(
   memory: RuntimeContextOperations<string>,
+  ports: TestAuthorityPorts<string>,
   target: ScopeRef,
   tenantId = owner,
   key: ContextBlockKey = 'suite.value',
 ) {
+  await openScope(memory, ports, 'principal', target, tenantId)
   expect(
-    await memory.applyCommit({
+    await memory.applyCommit('principal', {
       kind: 'registration',
       commit: { commit: target.ref },
       change: {
@@ -97,7 +108,7 @@ async function add(
   ).toMatchObject({ kind: 'applied' })
 }
 async function reader(memory: RuntimeContextOperations<string>, target: ScopeRef) {
-  const issued = await memory.issueEligibility({
+  const issued = await memory.issueEligibility('principal', {
     supersedes: null,
     scope: target,
     tenant: owner,
@@ -113,11 +124,11 @@ async function reader(memory: RuntimeContextOperations<string>, target: ScopeRef
   return bound.reader
 }
 it('inherits the parent value and its evidence when the child registration has no local value', async () => {
-  const memory = createMemoryRuntimeContext<string>()
-  const parent = await setup(memory, owner, 'principal', declaration(), scope('inherit-parent'))
-  await parent.handle.publish(parent.scope, 73)
+  const { memory, ports } = fresh()
+  const parent = await setup(memory, ports, owner, 'principal', declaration(), scope('inherit-parent'))
+  await parent.handle.publish({ scope: parent.scope, tenant: owner, value: 73 })
   const child = scope('inherit-child', parent.scope)
-  await add(memory, child)
+  await add(memory, ports, child)
   const bound = await reader(memory, child)
   expect(await bound.read([{ key: 'suite.value', need: 'value' }])).toMatchObject({
     kind: 'success',
@@ -132,20 +143,21 @@ it('inherits the parent value and its evidence when the child registration has n
   })
 })
 it('stops value fallback when the parent has no registration for the requested block', async () => {
-  const memory = createMemoryRuntimeContext<string>()
-  const producer = await memory.registerProducer({
+  const { memory, ports } = fresh()
+  const producer = await memory.registerProducer('principal', {
     key: 'suite.value',
+    tenant: owner,
     producer: { producer: 'fixture' },
     declaration: declaration(),
     scoped: true,
   })
   if (producer.kind !== 'registered') throw new Error('Producer refused')
   const parent = scope('unregistered-parent')
-  await add(memory, parent, owner, 'suite.other')
+  await add(memory, ports, parent, owner, 'suite.other')
   // Publishing does not grant registration or make an unregistered block inheritable.
-  await producer.handle.publish(parent, 91)
+  await producer.handle.publish({ scope: parent, tenant: owner, value: 91 })
   const child = scope('registered-child', parent)
-  await add(memory, child)
+  await add(memory, ports, child)
   const bound = await reader(memory, child)
   expect(await bound.read([{ key: 'suite.value', need: 'value' }])).toMatchObject({
     kind: 'missing',
@@ -157,17 +169,18 @@ it('stops value fallback when the parent has no registration for the requested b
   })
 })
 it('does not inherit a registered parent value owned by another tenant', async () => {
-  const memory = createMemoryRuntimeContext<string>()
+  const { memory, ports } = fresh()
   const parent = await setup(
     memory,
+    ports,
     other,
     'other-principal',
     declaration(),
     scope('foreign-parent'),
   )
-  await parent.handle.publish(parent.scope, 99)
+  await parent.handle.publish({ scope: parent.scope, tenant: other, value: 99 })
   const child = scope('local-child', parent.scope)
-  await add(memory, child)
+  await add(memory, ports, child)
   const bound = await reader(memory, child)
   expect(await bound.read([{ key: 'suite.value', need: 'value' }])).toMatchObject({
     kind: 'missing',
@@ -179,12 +192,12 @@ it('does not inherit a registered parent value owned by another tenant', async (
   })
 })
 it('refuses changes from a previously valid cursor after eligibility revocation', async () => {
-  const memory = createMemoryRuntimeContext<string>()
-  const s = await setup(memory, owner, 'principal')
-  await s.handle.publish(s.scope, 1)
+  const { memory, ports } = fresh()
+  const s = await setup(memory, ports, owner, 'principal')
+  await s.handle.publish({ scope: s.scope, tenant: owner, value: 1 })
   const snapshot = await s.reader.snapshot()
   if (snapshot.kind !== 'success') throw new Error('Snapshot refused')
-  expect(await memory.revokeEligibility(s.eligibility.id)).toEqual({ kind: 'revoked' })
+  expect(await memory.revokeEligibility('principal', s.eligibility.id)).toEqual({ kind: 'revoked' })
   expect(await s.reader.changes(snapshot.value.cursor)).toEqual({
     kind: 'refused',
     reason: 'unauthorized',
