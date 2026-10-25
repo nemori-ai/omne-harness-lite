@@ -1,8 +1,8 @@
-本成员的公开名字分两个入口（[SPEC「公开入口的分组」](SPEC.md#公开入口的分组)）：根入口导出 Tool 组外成员实际导入的名字及其声明的传递闭包（调用与操作引用的 codec、`decodeToolCallId`、`decodeToolOperationId`、`ToolRuntime` 及它到达的公开类型）；子路径入口 `./provider` 导出只被 Tool 组实现成员使用的提供者协议：资产类别端口 `toolBodyContract`、其余品牌身份解码函数、默认结果政策、契约函数（定义与状态判定、呈现、可用性判定、作者注册（实现侧）、定义派生与常驻规则（RFC-0012）、等待契约、默认参数 codec、结果渲染与投影）、由外部提供者实现的端口与协议记录。子路径入口 `./binding` 导出读取句柄内作者的函数，只供受信的执行绑定提供者使用。子路径入口 `./testing` 导出环境、启动围栏、执行者绑定、输出保管、ToolClock、决策桥和资源应答七个端口的一致性套件，以及各自守约的非耐久替身。登记语义套件在 `tool-cordis-contract` 的 `./testing`。本包不依赖 Cordis。服务定义、20 个服务键和事件增补在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README.md)。本包不含 runtime 与提供者的实现。独立执行函数和 runtime 在 `@omne-harness/tool`。支持范围见[支持范围](#支持范围)。
-
 # @omne-harness/tool-contract
 
 本成员的协作契约已技术接受，精确范围见 [SPEC](SPEC.md)。公开类型和契约函数已经导出，一致性套件已交付。本包不含独立执行函数、runtime 与提供者。它们在其他包，支持范围见[支持范围](#支持范围)。
+
+本成员的公开名字分两个入口（[SPEC「公开入口的分组」](SPEC.md#公开入口的分组)）：根入口导出 Tool 组外成员实际导入的名字及其声明的传递闭包（调用与操作引用的 codec、`decodeToolCallId`、`decodeToolOperationId`、`ToolRuntime` 及它到达的公开类型）；子路径入口 `./provider` 导出只被 Tool 组实现成员使用的提供者协议：资产类别端口 `toolBodyContract`、其余品牌身份解码函数、默认结果政策、契约函数（定义与状态判定、呈现、可用性判定、作者注册（实现侧）、定义派生与常驻规则（RFC-0012）、等待契约、默认参数 codec、结果渲染与投影）、由外部提供者实现的端口与协议记录。子路径入口 `./binding` 导出读取句柄内作者的函数，只供受信的执行绑定提供者使用。子路径入口 `./testing` 导出环境、启动围栏、执行者绑定、输出保管、ToolClock、决策桥和资源应答七个端口的一致性套件，以及各自守约的非耐久替身。登记语义套件在 `tool-cordis-contract` 的 `./testing`。本包不依赖 Cordis。服务定义、20 个服务键和事件增补在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README.md)。本包不含 runtime 与提供者的实现。独立执行函数和 runtime 在 `@omne-harness/tool`。支持范围见[支持范围](#支持范围)。
 
 ## 支持范围
 

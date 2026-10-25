@@ -602,7 +602,7 @@ Tool 提供三样：
 观察入口的输入与中止：
 
 - `observe` 把输入当不可信值核验。`request`、`access` 或 `signal` 的形状不对时结束于 `denied`，不抛 `TypeError`。`access` 里的租户由公共引用判定核验。
-- 路由之前 `signal` 已中止时，结束于 `observer-closed`，不问目录。路由期间中止时，不等目录答复，同样结束于 `observer-closed`。
+- 引用判定通过后、路由之前 `signal` 已中止时，结束于 `observer-closed`，不问目录（引用判定先给出的 `denied` 或 `stale-stream` 照旧）。路由期间中止时，不等目录答复，同样结束于 `observer-closed`。
 - handle 观察源的 `observe` 或迭代器抛错时，异常保持为连接失败（公共失败顺序允许的通道），不改成结束帧，也不改成 `producer-ended`。
 
 逐帧重核：运行时门面是最终集成输出边界。交出每一帧之前（含 gap 与 ended），门面按与路由相同的资格来源（实例目录，按同一调用与同一 `access`）再核一次。目录拒绝时，门面先移除订阅并丢弃排队，再结束于 `denied`。资格来源缺席、抛错或回复 `unsupported` 时，以同样方式结束于 `unavailable`。其余回复（任何代次的 `live` 或 `no-live-route`）不由门面结束观察，代次的结束归下文情形 1 与 2 的生产者。重核之后 `signal` 已中止时，门面不交出该帧，结束于 `observer-closed`。真实观察提供者自己的披露检查归该提供者，门面的重核不代替它。
