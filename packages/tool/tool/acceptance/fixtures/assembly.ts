@@ -8,6 +8,15 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  type DurableEvidence,
+  type ToolInvokeRequest,
+  type ToolInvocationRef,
+  type ToolResultVersion,
+  type ToolState,
+  type ToolResult,
+  type ResultPage,
+} from '@omne-harness/tool-contract'
+import {
   createDefaultParameterCodec,
   defaultResultPolicy,
   defineFunctionTool,
@@ -16,17 +25,10 @@ import {
   describedAdoption,
   readToolInvocationRef,
   renderToolResult,
-  type DurableEvidence,
   type ToolDriver,
   type ToolInstanceHost,
-  type ToolInvokeRequest,
-  type ToolInvocationRef,
   type ToolLiveExecution,
-  type ToolResultVersion,
-  type ToolState,
-  type ToolResult,
-  type ResultPage,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
