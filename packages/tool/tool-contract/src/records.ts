@@ -118,6 +118,44 @@ export interface ToolStartAuthority<P> {
     input: Access<P> & Readonly<{ operation: ToolOperationId; guard: StartGuard }>,
   ): Reply<DurableEvidence>
 }
+/**
+ * The view of the start authority that an outer caller holds (SPEC「外层调用方的启动围栏」, J03):
+ * only `invalidate`. One provider serves it and the authority in one ordering domain. The returned
+ * evidence is the fence confirmation that the outer caller saves as its own `start-fence` entry.
+ */
+export type ToolStartFence<P> = Pick<ToolStartAuthority<P>, 'invalidate'>
+/**
+ * The reference of an authorization permit (SPEC「授权消费点与撤权再核」, J50). It is opaque to
+ * Tool and has the fields of `PermitRef` of `@omne-harness/authorization`, so a value of that type
+ * is assignable to it. It stands in for that type until the member dependency cycle is lifted.
+ */
+export type ToolPermitRef = Readonly<{ tenant: TenantId; permit: string }>
+/**
+ * The fact that a permit was consumed at the consumption point. It has the fields of
+ * `ConsumptionFact` of `@omne-harness/authorization` and stands in for it in the same way.
+ * `consumer` identifies the original call: the same for every start and resume of that call.
+ */
+export type ToolPermitConsumption = Readonly<{
+  permit: ToolPermitRef
+  consumer: Readonly<{ owner: string; work: string; position: string }>
+  evidence: DurableEvidence
+}>
+/**
+ * The acceptance record that `consume` forms and that `StartProgress.started.acceptance` locates
+ * (P04): the start, the request evidence of the consumed permit, the guard revisions frozen at the
+ * acceptance, the authorization permits consumed with it, the executor receipt and the acceptance
+ * itself. A later invalidation, revocation or recovery does not rewrite it.
+ */
+export type ToolStartAcceptance = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  permit: DurableEvidence
+  guards: readonly StartGuard[]
+  authorizations: readonly ToolPermitConsumption[]
+  executorReceipt: DurableEvidence
+  acceptance: DurableEvidence
+}>
 export type WaitIntent = Readonly<{
   wait: ToolWaitId
   resume: DurableEvidence

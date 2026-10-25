@@ -119,3 +119,12 @@ export type {
   WaitRecord,
 } from './records.ts'
 export type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts'
+export { judgeToolDelivery } from './result-delivery.ts'
+export type {
+  ToolDelivery,
+  ToolDeliveryFailure,
+  ToolDeliveryKey,
+  ToolDeliveryRejection,
+  ToolResultReceiver,
+  ToolSavedReceipt,
+} from './result-delivery.ts'

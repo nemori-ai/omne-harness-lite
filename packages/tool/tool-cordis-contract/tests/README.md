@@ -5,7 +5,7 @@
 | 文件 | 检查的行为 |
 | --- | --- |
 | [public-entry.spec.ts](public-entry.spec.ts) | 根入口不导出值。`./testing` 入口的值导出清单，替身声明 `durability: 'none'`，源码、产物和声明的导入图都不含 Tool 实现，产物不加载 Cordis |
-| [cordis-entry.spec.ts](cordis-entry.spec.ts) | 20 个键逐对等于对应类的 `static provide`，含 RFC-0012 的 `toolContributionAuthority` 与 `toolGenerations`。`./cordis` 的源码、产物和声明都不导入 Tool 实现。清单依赖 Cordis 与契约包。真实 Cordis 4.0.4 下抽象定义可被继承并按键取得，`ToolInstancesService` 返回具名失败而不抛出 |
+| [cordis-entry.spec.ts](cordis-entry.spec.ts) | 21 个键逐对等于对应类的 `static provide`，含 RFC-0012 的 `toolContributionAuthority` 与 `toolGenerations`，以及外层调用方的启动围栏 `toolStartFence`。`./cordis` 的源码、产物和声明都不导入 Tool 实现。清单依赖 Cordis 与契约包。真实 Cordis 4.0.4 下抽象定义可被继承并按键取得，`ToolInstancesService` 返回具名失败而不抛出 |
 | [registration-conformance.spec.ts](registration-conformance.spec.ts) | 登记语义套件（IC-3）的自证：对守约替身全过且无不适用用例；20 条用例各在一个只破坏一条规则的登记服务上失败，失败的用例恰好是表中列明的；每条用例至少被一个变体命中；没有控制手柄的夹具把需要手柄的用例报告为不适用并指明手柄 |
 | [binding-registry-conformance.spec.ts](binding-registry-conformance.spec.ts) | G7 套件（绑定登记表）的自证：对守约的非耐久登记表全过且无不适用用例；十一个违约变体各恰好让列明的用例失败，每条用例至少被一个变体打红；没有 fiber 控制手柄的夹具把需要手柄的用例恰好报告为不适用（`binding-registry-legal.ts` 列出哪些）。动态性套件骨架按序给出 RFC-0012 十条判据，每条报告不适用并指明手柄 `generations`，用例体归 2.5 |
 | [binding-registry-legal.ts](binding-registry-legal.ts) | G7 自证的合法提供者：守约替身与没有 fiber 控制手柄的替身。不是测试文件 |
@@ -15,7 +15,7 @@
 | [legal-source-rule.ts](legal-source-rule.ts) | 合法提供者的源码规则，读语法树，与 `tool-contract` 的副本相同，因为测试不能跨包导入相对路径。不是测试文件 |
 | [flawed-registrations.ts](flawed-registrations.ts) | 自证用的登记服务：不设缺陷时与替身同语义，设一个缺陷就破坏一条规则。登记服务的规则是自己步骤的顺序，从外面无法破坏，所以变体在这里构造，不叠在替身上。无缺陷时它须通过套件，防止这份副本偏离替身。不是测试文件 |
 | [conformance-harness.ts](conformance-harness.ts) | 自证的运行器，与 `tool-contract` 的副本同形，因为测试不能跨包导入相对路径。条款锚点接受 `IC-<编号>` |
-| [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts) | `Context` 增补的服务类型、键的字面量类型和 `tool-cordis-contract/call-changed` 的参数 |
+| [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts) | `Context` 增补的服务类型、键的字面量类型和 `tool-cordis-contract/call-changed` 的参数；启动围栏服务只有 `invalidate`，启动排序域服务可以充当它 |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
 运行命令分快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-cordis-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-cordis-contract`。turbo 先构建本包及其依赖，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。

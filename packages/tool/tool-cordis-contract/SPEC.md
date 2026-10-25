@@ -9,6 +9,9 @@
 3. 根入口不导出值，也不导入 Cordis。
 4. ToolRuntimeService 按 ToolRuntime 投影 invoke、inspect、queries、commands、instances、content 与 catalog，不增加普通 admission 或受信回应入口。ToolCommandsService 保留内部协议。
 5. 事件名以包名为范围，为 `tool-cordis-contract/call-changed`（IC-10）。
+6. ToolStartFenceService 的键为 `toolStartFence`，只投影 `ToolStartFence` 的 `invalidate`。它与 `toolStartAuthority` 的关系见契约 SPEC 的[外层调用方的启动围栏](../tool-contract/SPEC.md#外层调用方的启动围栏)。
+
+[结果推送与保存](../tool-contract/SPEC.md#结果推送与保存)的接收端口由消费拥有者实现，本包不为它定义服务键。
 
 契约 SPEC 的 [G1–G9 总表](../tool-contract/SPEC.md#342-契约缺口决定)没有归属本包的决定。服务定义的归属由四包拆分确定。
 

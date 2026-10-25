@@ -56,7 +56,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | 分类 | Tool 内的表示 | 原拥有者保留的责任 |
 | --- | --- | --- |
 | 上游公开语言 | 直接依赖其公开入口：TenantId、ContentBlock、Outcome（operation-result）、json-text、资产身份 | 上游拥有值的定义和演进；Tool 不建立同义类型 |
-| 本域定义的端口 | 契约声明、由外部实现的部分：启动资格（ToolStartAuthority）、决策桥（ToolDecisionBridge）与资源回应（ToolResourceResponses）、环境（ToolEnvironment）、执行者绑定（ToolBindings）、时钟（ToolClock）、实例宿主（ToolInstanceHost）、输出保管（ToolOutputCustody）、目录（ToolCatalog）、结果政策（ResultPolicy）、ToolChildren。每个端口的职责与失效见下文应用对象表。消费者能力档案 ToolConsumerProfile 是调用者交来的输入值 | 实现者对自己提供的事实负责，例如环境资源是否存在、决定是否唯一；端口按单一需要切分，没有为某个外部角色准备的字段 |
+| 本域定义的端口 | 契约声明、由外部实现的部分：启动资格（ToolStartAuthority，及其给外层调用方的视图 ToolStartFence）、结果接收（ToolResultReceiver）、决策桥（ToolDecisionBridge）与资源回应（ToolResourceResponses）、环境（ToolEnvironment）、执行者绑定（ToolBindings）、时钟（ToolClock）、实例宿主（ToolInstanceHost）、输出保管（ToolOutputCustody）、目录（ToolCatalog）、结果政策（ResultPolicy）、ToolChildren。每个端口的职责与失效见下文应用对象表。消费者能力档案 ToolConsumerProfile 是调用者交来的输入值 | 实现者对自己提供的事实负责，例如环境资源是否存在、决定是否唯一；端口按单一需要切分，没有为某个外部角色准备的字段 |
 | 不建模 | 调用方的工作对象、调用方的推进动作、模型、决策方的界面、停止的业务原因 | 各自的拥有者；调用方用调用号、操作号和 ConsumerRef 与 Tool 的事实关联 |
 
 记录仓与范围授予核验者是 `tool` 实现包自己的端口，不在契约里，见 tool 对象模型（`tool/docs/object-model.md#跨域概念与内部可见范围`）。契约只规定 `ResourceScope.grant` 是范围拥有者授予的耐久证据，核验者由装配按范围拥有者声明（[SPEC](../SPEC.md#342-值定义和固定请求)）。`ProgramTools` 不是外部实现的端口：Tool 把它交给程序，见下文应用对象表。
@@ -282,7 +282,8 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolBindings | 资产/装配的合法采用解析、执行提供者映射 | 固定 adoption、原 start 或消费方档案 | resolve 新发起与 recover 原查询分面；不自动取最新实现 |
 | ToolRecoveryBinding | `ToolBindings.recover` 按原启动记录交出的恢复面 | 原 start、事实回执、暂停记录、控制派发 | 只有原事实查询与控制（acknowledge、inspectStart、inspectSuspension、stop、inspectControl），没有 start；撤权后仍须有受权托管者处理原责任 |
 | ToolEnvironment | 环境拥有者的准备与释放能力 | 原 PreparationRecord 或 ReleaseRecord | 按同一操作去重，inspect 认回原分配；缺条件拒绝，不降级到更宽松环境 |
-| ToolStartAuthority | 受信的启动资格守卫 | prepare 的输入，consume 的 permit | permit 本身不授权；失效与 consume 在同一排序域；准入资料不可读时拒绝新的 consume |
+| ToolStartAuthority | 受信的启动资格守卫 | prepare 的输入，consume 的 permit | permit 本身不授权；失效与 consume 在同一排序域；准入资料不可读时不受理新的 consume，回复 `unknown` 并保留原任务；consume 是授权许可的消费点，受理记录 ToolStartAcceptance 冻结所核守卫修订号并带 ToolPermitConsumption，撤权在这里再核，受理后的撤权留在残余窗口（[授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核)） |
+| ToolStartFence | 同一启动排序域提供者给外层调用方的视图，只有 invalidate | 外层调用方自己的守卫资源、失效操作号与失效依据 | 与 ToolStartAuthority 共用排序域；证据返回后旧修订号的 permit 不再受理，已受理的启动不受影响，由外层调用方逐个 stop；证据由外层调用方写成独立的 `start-fence` 条目（[外层调用方的启动围栏](../SPEC.md#外层调用方的启动围栏)） |
 | ToolClock | 持续时间来源，提供 now、begin、elapsed、waitUntil | 原操作与执行引用；一段计时的证据 | `begin` 只产生标记，没有提交的计时段没有效果，也不需要关闭；已用时间只累计已提交的计时段；跨 epoch 比较返回 unknown，不归零 |
 | ResultPolicy | 具名结果政策，校验结果块的许可 | 一个 ToolResult 的块与附件 | 采用明确；缺对应政策不把任意 ContentBlock 当合法终局 |
 | ToolExecutorBinding | 固定作者适配、限权环境、受信启动边界、事实保管 | 原 start/permit/request 和 E | live-only 或 checkpointed；原绑定消失须保留原恢复路由 |
@@ -305,6 +306,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolDirectory / ToolHandle | 发布资格与贡献 token / 发布代次 `(instance, generation)`、该代次的过程流 `stream` 与只服务该引用的观察源 `observation` | connect（受信路由查找，只服务实例绑定）；普通观察经门面的 `instances.current` 与 `observation.observe({ ref, access, signal })`，没有 `after` | 只提供观察路由；已建立的观察在代次替换后以 `producer-ended`/`stale-instance` 结束，对非当前代次的新观察请求在门面层得到 `stale-stream`，不暗连后继。按 [SPEC D-10](../SPEC.md#公共流协议上的观察)；门面实现在 `tool/src/stream-facade.ts` |
 | ToolChildren | 本域持久关联、受信来源签发、子调用门面 | parent/ordinal、子受理及保管回执 | 父程序退出后继续；程序拿不到此端口 |
 | ProgramTools | Tool 交给程序的受控代理，由宿主闭包固定身份、父调用、来源、作用域和允许集合。它不是外部实现的端口 | 工具名/命令/参数、自己的结果引用 | 关闭后不发新子调用；不是 Context 或 executor |
+| ToolResultReceiver | 消费拥有者实现的接收端口；Tool 宿主按冻结的 consumer.owner 取得它的方式由装配提供 | 代原租户行事的 access、一个冻结的 ToolDelivery、本次等待的 signal | 返回 saved 回执才释放 delivery；未知沿原 key 重投；按租户分开容量与背压；不点名接收方（[结果推送与保存](../SPEC.md#结果推送与保存)） |
 | ToolAccounts / ToolOffloader | 账目/内容能力和资格 | 查询范围 / 原结果与显式预算 | 作为独立适配能力使用，不扩大 Runtime 的普通读权限 |
 
 这些接口按消费者拆分。普通读取者不实现恢复命令，纯函数作者不依赖存储，环境提供者不负责消费方的工作，目录不负责队列。
