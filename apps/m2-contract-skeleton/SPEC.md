@@ -31,13 +31,15 @@ Every hop has one fragment `<hop>-connected` from the connected path. H01 and H0
 
 Hop state follows these rules:
 
-- `verified`: the path reached the hop and every fragment passed.
+- `verified`: the path reached the hop, every fragment passed, and no blocking residual gap names the hop.
 - `failed`: the path reached the hop and at least one fragment failed or is `not-applicable`.
-- `gap`: the path did not reach the hop, or the observation is missing.
+- `gap`: the path did not reach the hop, the observation is missing, or a blocking residual gap names the hop. `blockedBy` lists the blocking gaps of the hop.
 
 `fullPath` is `complete` only when all eight unique hops are `verified` with a connected fragment and there is no structural error. Any other result keeps it `incomplete`. `gaps` lists the hops that are not verified.
 
-`residualGaps` lists what the connected path does not include. Each entry has `gapId`, `hops`, `owners`, and `reason`. A residual gap does not stop a hop from being verified. It names a part of the target system that this path replaces with a call sequence of this application or does not exercise. The sections below are the only detailed gap inventory.
+`residualGaps` lists what the connected path does not include. Each entry has `gapId`, `hops`, `owners`, `blocking`, and `reason`. A residual gap names a part of the target system that this path replaces with a call sequence of this application or does not exercise. A blocking gap names a part that #684 requires for the hop, so the hop stays a gap. A non-blocking gap names a part that #684 lets this application call directly or leave out for G1. The sections below are the only detailed gap inventory.
+
+In this edition H01 through H05, H07, and H08 are verified. H06 is a gap, because GAP-RECEIVE-SURFACE blocks it. `fullPath` is therefore `incomplete`, and `checksPassed` is true.
 
 `checksPassed` describes the checks inside one invocation. Every required scenario must occur once, execute, and match its expectation. Every hop fragment must pass. Exceptions, timeouts, missing or repeated entries, `fail`, and `not-applicable` make this value false. External Vitest results, independent reviews, and QA do not change this value.
 
@@ -58,15 +60,17 @@ The tests wire the doubles in [first-path-doubles.ts](tests/first-path-doubles.t
 | Capability | Double |
 | --- | --- |
 | Registration, login, recognition | `inProcessIdentityOperations` with `manualIdentityClock` and `adjustableLoginTerms` |
-| Session commits and history | `createMemorySessionTransactions` and `createMemorySessionEvidenceBridge` |
+| Session commits and history | `createMemorySessionTransactions`, and `createMemorySessionEvidenceBridge` with the login-gate guard of `startRun` |
 | Agent runtime | `createAgentRuntime` over `createTestAgentDependencies`, with the generic `agentEvaluator` |
 | Model call | the scripted Model provider inside `createTestAgentDependencies` |
-| Request Context assembly | `createAssemblyOperations` through `createAssemblyFixture` |
+| Request Context assembly and Model preparation lease | `createAssemblyOperations` through `createAssemblyFixture`, with its scripted preparation resources |
 | Model obligations | `createScriptedConformanceSubject` |
 
 The application owns two bridges in [path.ts](src/path.ts). The message bridge is the Agent `MessageHandoff`. It commits `receive(input-handover)` for the external input and `recordMessage` with a `message` participation for a Model reply. The context bridge is the Agent `RequestPreparation`. It assembles through Request Context on the first preparation and fixes the request from the assembled input on the second.
 
 ## Resource lifetime and failure
+
+Failure evidence of an exception or of an Agent invoke refusal holds at most 120 or 80 characters of the failure text. The happy-path tests check that the report holds no credential or message body. The failure text of a supplier can still enter these truncated labels.
 
 The path does not call `quiesce` on the Agent runtime. On the happy path the Agent execution has ended when the path returns. The runtime and the memory doubles stay reachable only from the caller, and the process releases them. When the Model does not settle, the admitted call stays open in the scripted provider until the process exits. The Model obligation suite owns its subject disposal and its bounded waits. The default wait bound is 500 ms for each suite operation. Tests use a 15 second outer limit.
 
@@ -88,15 +92,15 @@ The path commits `create` for the recognized tenant with the definition mapping 
 
 ## H04
 
-The path commits `accept` for an ordinary first request. The request origin has the owner `login-entry`, as the access layer sets it after a login. The path builds the Agent of the tenant and commits `startRun`. It invokes the Agent runtime with the Session execution and the first input. The Agent message hand-over of the external input commits `receive(input-handover)`. The hop is connected when `startRun` fixed the first request and the hand-over committed.
+The path commits `accept` for an ordinary first request. The request origin has the owner `login-entry`, as the access layer sets it after a login. The evidence bridge of the tests adds a guard with the owner `login-entry` to `startRun`, which is the material of the Session login gate. On this path `startRun` is reached only after H02 recognized the login. The path builds the Agent of the tenant and commits `startRun`. It invokes the Agent runtime with the Session execution and the first input. The Agent message hand-over of the external input commits `receive(input-handover)`. The hop is connected when `startRun` fixed the first request and the hand-over committed.
 
 ## H05
 
-The Agent calls its request preparation. The context bridge reads the Session history and runs Request Context `assemble` over it. The first preparation returns the assembled input. The second preparation fixes the request with the assembled messages. The hop is connected when Request Context assembled at least one history message, the fixed request carries the assembled messages, and the Agent journal binds an admitted Model call.
+The Agent calls its request preparation. The context bridge reads the Session history and runs Request Context `assemble` over it. During the assembly Request Context acquires a Model preparation lease from its sources, plans the assembled input with the lease, and releases it. The first preparation returns the assembled input. The second preparation fixes the request with the assembled messages. The hop is connected when Request Context assembled at least one history message, at least one lease was acquired and planned an input, no lease is still open, the fixed request carries the assembled messages, and the Agent journal binds an admitted Model call.
 
 ## H06
 
-The Model settles the admitted call. The Agent processes the result and records it in its journal. The hop is connected when the journal holds a processed Model result and the Agent message hand-over carries the reply of the same Model call. The public Model obligations are additional fragments.
+The Model settles the admitted call. The Agent processes the result and records it in its journal. The hop is connected when the journal holds a processed Model result and the Agent message hand-over carries the reply of the same Model call. The public Model obligations are additional fragments. #684 names the receive surface of [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672) as the receiver of this hop. The Agent runtime does not use that surface, so the hop stays a gap with GAP-RECEIVE-SURFACE as its blocking gap.
 
 ## H07
 
@@ -108,23 +112,23 @@ The path reads the Session history with `history.begin`. The hop is connected wh
 
 ## GAP-SESSION-WIRE
 
-The session public operations have no wire codec on the track. The path calls the Session transaction port directly. It mints the caller operation ids of `create`, `accept`, `startRun`, and the hand-over itself. [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) owns the session codecs.
+Non-blocking. The session public operations have no wire codec on the track. The path calls the Session transaction port directly. It mints the caller operation ids of `create`, `accept`, `startRun`, and the hand-over itself. [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) owns the session codecs.
 
 ## GAP-SESSION-COORDINATOR
 
-No Session implementation supplies the Session faces, the `AgentDrivePort` adapter, or the Session-side `MessageHandoff`. This application orders the port commits and the Agent invoke, and its message bridge stands in for the Session-side hand-over. The application assembly page lists these rows without an owner card. [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536) owns the Session contract. [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) owns the design of how the Agent host returns its conclusion to Session.
+Non-blocking. No Session implementation supplies the Session faces, the `AgentDrivePort` adapter, or the Session-side `MessageHandoff`. This application orders the port commits and the Agent invoke, and its message bridge stands in for the Session-side hand-over. The application assembly page lists these rows without an owner card. [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536) owns the Session contract. [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) owns the design of how the Agent host returns its conclusion to Session.
 
 ## GAP-RUN-COMPLETED
 
-Session cannot form a `completed` Run terminal on this path. The only terminal is the bounded `finishRun`, which fails the Run. The Agent execution ends, but the Session Run stays active after H08. G1 does not need the terminal, because the reply comes from history. [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) owns the replacement of the Agent event protocol.
+Non-blocking. Session cannot form a `completed` Run terminal on this path. The only terminal is the bounded `finishRun`, which fails the Run. The Agent execution ends, but the Session Run stays active after H08. G1 does not need the terminal, because the reply comes from history. [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) owns the replacement of the Agent event protocol.
 
 ## GAP-AGENT-CONTEXT
 
-No Agent-side Context adapter is on the track. The context bridge of this application stands in for it. It does not call a Model preparation lease. It takes the source, state, schema, budget, and coverage of the preparation from the Agent test frame. It keeps the representation and source adoptions of the frame, because the Request Context testing policies carry adoption digests that the Model request check refuses. [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) owns the adapter. [#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) owns the Request Context doubles.
+Non-blocking. No Agent-side Context adapter is on the track. The context bridge of this application stands in for it. The Model preparation lease of the path is the one that Request Context acquires during assembly. The bridge fixes the request itself and does not run a second Model preparation. It takes the source, state, schema, budget, and coverage of the preparation from the Agent test frame. It keeps the representation and source adoptions of the frame, because the Request Context testing policies carry adoption digests that the Model request check refuses. [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) owns the adapter. [#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) owns the Request Context doubles.
 
 ## GAP-RECEIVE-SURFACE
 
-`@omne-harness/agent` does not use the receive surface of `@omne-harness/agent-contract` (`AgentJournalEntries`, `AgentAccountOutlet`). The Model result reaches the Agent through the Model runtime calls of the Agent loop. No Model account hand-over occurs on the path. [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672) owns the receive surface. [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) owns the Agent runtime.
+Blocking for H06. `@omne-harness/agent` does not use the receive surface of `@omne-harness/agent-contract` (`AgentJournalEntries`, `AgentAccountOutlet`). The Model result reaches the Agent through the Model runtime calls of the Agent loop. No Model account hand-over occurs on the path. [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672) owns the receive surface. [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) owns the Agent runtime.
 
 ## Maintenance and exit
 

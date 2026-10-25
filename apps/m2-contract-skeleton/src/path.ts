@@ -92,14 +92,21 @@ export type PathDependencies = Readonly<{
   ): Promise<PathAgent>
   /**
    * Request Context assembly of the tenant over the given Session history messages, through
-   * `createAssemblyOperations` and the caller's sources.
+   * `createAssemblyOperations` and the caller's sources. `lease` reports what the Model preparation
+   * resources of those sources saw: leases acquired, leases still open, and plans of an assembled
+   * input.
    */
   assemble(
     input: Readonly<{
       tenant: TenantId
       history: readonly Readonly<{ entry: EntryId; message: Message }>[]
     }>,
-  ): Promise<AssemblyResult>
+  ): Promise<
+    Readonly<{
+      result: AssemblyResult
+      lease: Readonly<{ acquired: number; outstanding: number; planned: number }>
+    }>
+  >
   /**
    * The Agent preparation fields that Request Context does not produce (source, state, schema,
    * budget, coverage). The Agent-side Context adapter that owns them is not supplied (#542).
@@ -342,6 +349,7 @@ type BridgeLog = {
   fixed: number
   fixedMessages: number
   historyMessages: number
+  lease: Readonly<{ acquired: number; outstanding: number; planned: number }> | null
   failures: string[]
 }
 
@@ -463,7 +471,8 @@ function contextBridge(
         const message = messageOf(entry)
         return message === null ? [] : [{ entry: entry.id, message }]
       })
-      const assembled = await deps.assemble({ tenant, history })
+      const { result: assembled, lease } = await deps.assemble({ tenant, history })
+      log.lease = lease
       if (
         assembled.kind !== 'candidate-fixable' &&
         assembled.kind !== 'candidate-before-extension'
@@ -562,6 +571,7 @@ export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstP
     fixed: 0,
     fixedMessages: 0,
     historyMessages: 0,
+    lease: null,
     failures: [],
   }
   const agent = await deps.agent({
@@ -639,11 +649,23 @@ export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstP
       binding => binding.result.producer.kind === 'model' && binding.completion !== null,
     ) ?? null
   const replyCall = log.reply?.call ?? null
+  const leased =
+    log.lease !== null &&
+    log.lease.acquired > 0 &&
+    log.lease.outstanding === 0 &&
+    log.lease.planned > 0
   result.H05 = {
     connected:
-      log.assembled > 0 && log.historyMessages > 0 && log.fixedMessages > 0 && modelResult !== null,
+      log.assembled > 0 &&
+      log.historyMessages > 0 &&
+      leased &&
+      log.fixedMessages > 0 &&
+      modelResult !== null,
     evidence: [
       `request-context-contract:assemble produced the Agent request from ${log.historyMessages} Session history message(s)`,
+      leased
+        ? 'model-contract:Request Context acquired and released a Model preparation lease and planned the assembled input'
+        : `model-contract:preparation lease not observed (${JSON.stringify(log.lease)})`,
       `agent:prepare fixed the request with ${log.fixedMessages} assembled message(s)`,
       modelResult === null
         ? 'agent:journal has no Model call'

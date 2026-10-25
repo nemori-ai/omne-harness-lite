@@ -12,6 +12,7 @@ import { runContractSkeleton } from '../src/index.ts'
 import {
   agentDouble,
   identityDouble,
+  loginGateEvidence,
   pathDependencies,
   REPLY_TEXT,
   skeletonInputs,
@@ -78,12 +79,19 @@ describe('connected first tenant path', () => {
   })
 
   it('stops at H03 when the Session evidence bridge is unavailable', async () => {
-    const evidence = createMemorySessionEvidenceBridge()
-    evidence.controls.unavailable(true)
-    const observed = await runFirstTenantPath(pathDependencies({ evidence }))
+    const memory = createMemorySessionEvidenceBridge()
+    memory.controls.unavailable(true)
+    const observed = await runFirstTenantPath(
+      pathDependencies({ evidence: loginGateEvidence(memory) }),
+    )
     expect(observed.H03).toEqual({ connected: false, evidence: ['session-create:unavailable'] })
     expect(observed.H04.connected).toBe(false)
   })
+
+  // Enabled after the #536 head whose `decide` checks the login gate on `startRun` is merged.
+  it.todo(
+    'refuses startRun with login-required when the evidence bridge gives no login-entry guard',
+  )
 
   it('does not claim a Model result, reply or history entry when the Model never settles', async () => {
     const observed = await runFirstTenantPath(
@@ -118,9 +126,11 @@ describe('connected first tenant path', () => {
     expect(observed.H08.connected).toBe(false)
   })
 
-  it('reports a complete path without message bodies or credentials', async () => {
+  it('keeps the path incomplete on the blocking H06 gap and reports no message body', async () => {
     const report = await runContractSkeleton(skeletonInputs())
-    expect(report.fullPath).toBe('complete')
+    expect(report.checksPassed).toBe(true)
+    expect(report.gaps).toEqual(['H06'])
+    expect(report.fullPath).toBe('incomplete')
     const text = JSON.stringify(report)
     expect(text).not.toContain(REPLY_TEXT)
     expect(text).not.toContain('hello, first request')

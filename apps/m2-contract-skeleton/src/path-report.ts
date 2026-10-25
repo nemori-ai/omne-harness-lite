@@ -16,6 +16,8 @@ export type HopObservation = Readonly<{
   ownerCards: readonly string[]
   reason: string
   state: 'verified' | 'gap' | 'failed'
+  /** The blocking residual gaps that keep this hop a gap although its fragments pass. */
+  blockedBy: readonly string[]
   fragments: readonly FragmentObservation[]
 }>
 const card = (id: number) => `https://github.com/nemori-ai/omne-harness-lite/issues/${id}`
@@ -86,11 +88,16 @@ export const HOP_DEFINITIONS = [
   reason: string
 }>[]
 
-/** What the connected path does not include. A residual gap does not stop a hop from being verified. */
+/**
+ * What the connected path does not include. A blocking gap names a part that #684 requires for the
+ * hop, so the hop stays a gap even when every fragment passes. A non-blocking gap names a part that
+ * #684 lets this application call directly or leave out for G1.
+ */
 export type ResidualGap = Readonly<{
   gapId: string
   hops: readonly HopId[]
   owners: readonly string[]
+  blocking: boolean
   reason: string
 }>
 
@@ -99,30 +106,35 @@ export const RESIDUAL_GAPS = [
     gapId: 'GAP-SESSION-WIRE',
     hops: ['H03', 'H04', 'H08'],
     owners: [card(685)],
+    blocking: false,
     reason: 'SPEC.md#gap-session-wire',
   },
   {
     gapId: 'GAP-SESSION-COORDINATOR',
     hops: ['H04', 'H07'],
     owners: [card(536), card(756)],
+    blocking: false,
     reason: 'SPEC.md#gap-session-coordinator',
   },
   {
     gapId: 'GAP-RUN-COMPLETED',
     hops: ['H07'],
     owners: [card(756)],
+    blocking: false,
     reason: 'SPEC.md#gap-run-completed',
   },
   {
     gapId: 'GAP-AGENT-CONTEXT',
     hops: ['H05'],
     owners: [card(542), card(676)],
+    blocking: false,
     reason: 'SPEC.md#gap-agent-context',
   },
   {
     gapId: 'GAP-RECEIVE-SURFACE',
     hops: ['H06'],
     owners: [card(672), card(502)],
+    blocking: true,
     reason: 'SPEC.md#gap-receive-surface',
   },
 ] as const satisfies readonly ResidualGap[]
@@ -140,18 +152,30 @@ function requiredFragments(hopId: HopId): readonly string[] {
   return hopId === 'H06' ? [...own, ...CONFORMANCE_OBLIGATIONS] : own
 }
 
+function blockingGaps(
+  hopId: HopId,
+  residual: readonly ResidualGap[] = RESIDUAL_GAPS,
+): readonly string[] {
+  return residual
+    .filter(gap => gap.blocking && (gap.hops as readonly HopId[]).includes(hopId))
+    .map(gap => gap.gapId)
+}
+
 function stateOf(
   fragments: readonly FragmentObservation[],
   reached: boolean,
+  blockedBy: readonly string[],
 ): HopObservation['state'] {
   if (!reached) return 'gap'
-  return fragments.every(fragment => fragment.status === 'pass') ? 'verified' : 'failed'
+  if (!fragments.every(fragment => fragment.status === 'pass')) return 'failed'
+  return blockedBy.length > 0 ? 'gap' : 'verified'
 }
 
 /**
  * Builds one observation per hop from the connected path, the governance protocol scenarios and the
- * public Model obligations. A hop that the path did not reach is a gap; a reached hop with any
- * failing fragment is failed.
+ * public Model obligations. A hop that the path did not reach is a gap. A reached hop with any
+ * failing fragment is failed. A reached hop whose fragments pass stays a gap while a blocking
+ * residual gap names it.
  */
 export function observeHops(
   path: FirstPathObservation | null,
@@ -186,10 +210,12 @@ export function observeHops(
               evidence: `${result.scenarioId}:${result.evidence}`,
             }))
     const fragments = [...own, ...extra]
+    const blockedBy = blockingGaps(definition.hopId)
     return {
       ...definition,
       ownerCards: definition.ownerCards.map(card),
-      state: stateOf(fragments, reached),
+      state: stateOf(fragments, reached, blockedBy),
+      blockedBy,
       fragments,
     }
   })
@@ -241,6 +267,7 @@ function missingHop(hopId: HopId): HopObservation {
     ...definition,
     ownerCards: definition.ownerCards.map(card),
     state: 'gap',
+    blockedBy: blockingGaps(hopId),
     fragments: [],
   }
 }
@@ -259,9 +286,10 @@ function normalizeHop(hopId: HopId, observations: readonly HopObservation[]): No
   return { hop: first, errors: hopErrors(first), duplicates: [] }
 }
 
-function verifiedHop(hop: HopObservation): boolean {
+function verifiedHop(hop: HopObservation, residual: readonly ResidualGap[]): boolean {
   return (
     hop.state === 'verified' &&
+    blockingGaps(hop.hopId, residual).length === 0 &&
     hop.fragments.some(fragment => fragment.fragmentId === CONNECTED(hop.hopId)) &&
     hop.fragments.every(fragment => fragment.status === 'pass' && fragment.evidence.length > 0)
   )
@@ -272,8 +300,11 @@ export function aggregatePath(
     hops: readonly HopObservation[]
     scenarios: readonly ScenarioResult[]
     structureErrors?: readonly string[]
+    /** The residual gap table. Default: `RESIDUAL_GAPS`. Tests replace it to reach both outcomes. */
+    residualGaps?: readonly ResidualGap[]
   }>,
 ): PathReport {
+  const residual = input.residualGaps ?? RESIDUAL_GAPS
   const normalized = HOP_IDS.map(hopId => normalizeHop(hopId, input.hops))
   const hops = normalized.map(result => result.hop)
   const structureErrors = [
@@ -291,14 +322,16 @@ export function aggregatePath(
       hop => hop.state !== 'failed' && hop.fragments.every(fragment => fragment.status === 'pass'),
     )
   const fullPath =
-    structureErrors.length === 0 && hops.every(verifiedHop) ? 'complete' : 'incomplete'
+    structureErrors.length === 0 && hops.every(hop => verifiedHop(hop, residual))
+      ? 'complete'
+      : 'incomplete'
   return {
     checksPassed,
     fullPath,
     hops,
     scenarios: input.scenarios,
-    gaps: hops.filter(hop => !verifiedHop(hop)).map(hop => hop.hopId),
-    residualGaps: RESIDUAL_GAPS,
+    gaps: hops.filter(hop => !verifiedHop(hop, residual)).map(hop => hop.hopId),
+    residualGaps: residual,
     structureErrors,
     duplicateObservations: normalized.flatMap(result => result.duplicates),
   }

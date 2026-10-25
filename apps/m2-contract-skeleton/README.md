@@ -6,7 +6,7 @@
 
 `@omne-harness/m2-contract-skeleton` is the private verification application (CS) of the M1 joint acceptance (G1). It connects the M2 first tenant path in one process: create a tenant, log in, create a session, send the first request, let Session hand it to Agent, let Agent assemble through Request Context and call Model, record the reply in the Session journal, and read the reply from history. It uses only the public exports of contract members and their `./testing` doubles.
 
-The path report gives each hop H01 through H08 as `verified`, `failed`, or `gap`. `fullPath` is `complete` only when all eight hops are verified. In this edition all eight hops are verified with the doubles. The report also lists the residual gaps below. The application has no production command or deployment role. [SPEC.md](SPEC.md) owns the report behavior and the detailed gap inventory.
+The path report gives each hop H01 through H08 as `verified`, `failed`, or `gap`. `fullPath` is `complete` only when all eight hops are verified. In this edition seven hops are verified with the doubles. H06 is a gap, because the Agent runtime does not use the receive surface that #684 names for that hop. `fullPath` is `incomplete`. The report also lists the residual gaps below. The application has no production command or deployment role. [SPEC.md](SPEC.md) owns the report behavior and the detailed gap inventory.
 
 ## Usage
 
@@ -32,15 +32,15 @@ The path proves that these public entries connect in order for one tenant, and i
 
 [path.ts](src/path.ts) runs the hops through ports that the caller passes in, and records safe evidence labels for each hop. A failed hop stops the path, and every later hop reports `not-reached`. The application owns two bridges: the Agent message hand-over that commits to Session, and the Agent request preparation that assembles through Request Context. [path-report.ts](src/path-report.ts) turns the observations into hop states and keeps missing and duplicate diagnostics.
 
-Residual gaps name what the connected path does not include. They do not stop a hop from being verified:
+Residual gaps name what the connected path does not include. Only a blocking gap keeps a hop a gap:
 
-| Gap | Owner | Summary |
-| --- | --- | --- |
-| [GAP-SESSION-WIRE](SPEC.md#gap-session-wire) | [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) | No session wire codec. The path calls the Session port directly. |
-| [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536), [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | No Session faces, drive adapter, or Session-side hand-over. This application orders the calls. |
-| [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | Session cannot form a completed Run terminal on this path. |
-| [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542), [#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) | No Agent-side Context adapter. No Model preparation lease call. |
-| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672), [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) | The Agent runtime does not use the receive surface. No account hand-over occurs. |
+| Gap | Blocking | Owner | Summary |
+| --- | --- | --- | --- |
+| [GAP-SESSION-WIRE](SPEC.md#gap-session-wire) | no | [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) | No session wire codec. The path calls the Session port directly. |
+| [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | no | [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536), [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | No Session faces, drive adapter, or Session-side hand-over. This application orders the calls. |
+| [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | no | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | Session cannot form a completed Run terminal on this path. |
+| [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | no | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542), [#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) | No Agent-side Context adapter. The bridge fixes the request after the Request Context lease. |
+| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | H06 | [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672), [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) | The Agent runtime does not use the receive surface. No account hand-over occurs. |
 
 ## Configuration and operation
 
@@ -48,7 +48,7 @@ Node.js 24 or later and the repository's frozen workspace dependencies are requi
 
 ## Verification
 
-The [tests](tests) run the connected path over the doubles. They check that each hop is connected, that the history reply has the Model reply text, and that another tenant cannot read the session. They also check that the path stops at the owning hop when identity refuses the login, when the Session evidence bridge is unavailable, when the Model does not settle, and when the history does not carry the reply. The report tests check missing, repeated, and unexecuted hops, scenarios, and obligations. A report does not contain credentials, login proofs, message bodies, or raw provider errors.
+The [tests](tests) run the connected path over the doubles. They check that each hop is connected, that Request Context acquired and released a Model preparation lease, that the history reply has the Model reply text, and that another tenant cannot read the session. They also check that the path stops at the owning hop when identity refuses the login, when the Session evidence bridge is unavailable, when the Model does not settle, and when the history does not carry the reply. The report tests check missing, repeated, and unexecuted hops, scenarios, and obligations. A report does not contain credentials, login proofs, message bodies, or raw provider errors.
 
 These tests establish the connection with controlled inputs. They do not establish a durable identity provider, durable Session storage, a real Model supplier, an HTTP access layer, or a complete M2 deployment. Independent acceptance belongs to the repository delivery process.
 

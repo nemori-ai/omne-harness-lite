@@ -15,8 +15,11 @@ describe('public Model conformance consumer', () => {
     expect(fragments.map(fragment => fragment.fragmentId)).toEqual([...CONFORMANCE_OBLIGATIONS])
     expect(fragments.every(fragment => fragment.status === 'pass')).toBe(true)
     expect(report.checksPassed).toBe(true)
-    expect(report.hops.find(hop => hop.hopId === 'H06')?.state).toBe('verified')
-    expect(report.fullPath).toBe('complete')
+    expect(report.hops.find(hop => hop.hopId === 'H06')).toMatchObject({
+      state: 'gap',
+      blockedBy: ['GAP-RECEIVE-SURFACE'],
+    })
+    expect(report.fullPath).toBe('incomplete')
   })
 
   it('rejects not-applicable even when the public suite reports ok', async () => {
