@@ -1,6 +1,7 @@
 // 方向规则：schema 3 `constraints.json` 的 `directions` 对依赖图里文件级事实的判定。
 // `omne-deps` 的方向发现与架构符合性报告的 `DIRECTION` 行都从这里算，输入是同一份可信 runner 的方向行与
 // 同一份 dependency-cruiser 依赖事实（deps/graph.ts），不另走 arch/extract.ts 的静态抽取。
+import { filePresence } from '../core/version-files.ts'
 import {
   DependencyGraphUnavailable,
   memberOf,
@@ -172,7 +173,7 @@ export function directionFindings(judgements: readonly DirectionJudgement[]): Di
 
 /** 报告能拿到的依赖事实：有图，或者说明为什么没有。 */
 export type DirectionFacts =
-  | { readonly kind: 'graph'; readonly graph: DependencyGraph }
+  | { readonly kind: 'graph'; readonly graph: Pick<DependencyGraph, 'modules' | 'dependencies'> }
   | { readonly kind: 'unavailable'; readonly reason: string }
 
 /** 只把 dependency-cruiser 或 Git 的已知失败记成不可得；别的异常照常抛出。 */
@@ -242,28 +243,67 @@ export function directionRows(policy: DirectionPolicy, facts: DirectionFacts): C
   })
 }
 
+/** 读某个版本依赖图的函数；默认是 `versionGraph`，测试可以换成计数的读法。 */
+export type GraphReader = (
+  root: string,
+  source: Pick<SourceCoordinates, 'kind' | 'commit'>,
+) => DependencyGraph
+
+/**
+ * 某个版本里，方向行引用的角色有没有一个在文件清单里匹配得到文件；找到一个就停。清单（工作树的磁盘、提交的
+ * `git ls-tree`）覆盖这个版本依赖图的 `modules`，所以这里回答「没有」时图里也没有。判定见 core/version-files.ts，
+ * 与 `inRole` 用同一套 `paths` 写法。
+ */
+function anyRoleHasFiles(
+  root: string,
+  source: Pick<SourceCoordinates, 'kind' | 'commit'>,
+  policy: DirectionPolicy,
+): boolean {
+  const roles = new Map(
+    directionPairs(policy)
+      .flatMap(({ from, to }) => [from, to])
+      .map(role => [role.id, role]),
+  )
+  const present = filePresence(root, source)
+  return [...roles.values()].some(role => present(role.paths))
+}
+
+/** 方向行引用的角色都没有文件时的依赖事实：没有文件，也就没有依赖。 */
+const NO_FILES: Pick<DependencyGraph, 'modules' | 'dependencies'> = {
+  modules: [],
+  dependencies: [],
+}
+
 /**
  * 报告的方向行一节。方向行与角色只从可信 runner 的 `constraints.json` 读（全部角色，不按退休过滤），
  * 与 `omne-deps` 同一份；runner 没有文件或没有方向行就没有这一节，也不取依赖图。
  * 被检版本与基线版本都用这份方向行，依赖事实各取各的版本：`graph` 是调用方已经算好的被检版本的图。
- * 给了基线时偏离行判新旧；基线的图不可得就不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
+ * 没给 `graph` 时先按路径看：方向行引用的角色在这个版本的文件清单里都匹配不到文件，就不取图，每一行都是两边角色都没有
+ * 文件的 unknown，与取图的结果逐字相同（清单覆盖图的 `modules`，清单里没有的图里也没有）。有一个角色有文件、或清单读不确定，
+ * 就照常取图。不取图时看不到取图会遇到的失败（预设坏了、缓存坏了），行写路径原因：结果本来就与图无关。
+ * `root` 不必是仓库顶层：清单与取图都按 `root` 下的相对路径读同一棵树。基线版本独立判断。给了基线时偏离行判新旧；基线的图不可得就不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
  */
 export function directionConformance(input: {
   readonly root: string
   readonly current: Pick<SourceCoordinates, 'kind' | 'commit'>
   readonly baseline?: Pick<SourceCoordinates, 'kind' | 'commit'> | undefined
   readonly graph?: DependencyGraph | undefined
+  readonly readGraph?: GraphReader | undefined
 }): ConformanceRow[] {
   const runner = readRunnerConstraints()
   if (runner.kind === 'missing' || (runner.value.directions ?? []).length === 0) return []
   const policy = runner.value
+  const readGraph = input.readGraph ?? versionGraph
+  const factsOf = (source: Pick<SourceCoordinates, 'kind' | 'commit'>): DirectionFacts =>
+    anyRoleHasFiles(input.root, source, policy)
+      ? directionFacts(() => readGraph(input.root, source))
+      : { kind: 'graph', graph: NO_FILES }
   const rows = directionRows(
     policy,
-    directionFacts(() => input.graph ?? versionGraph(input.root, input.current)),
+    input.graph === undefined ? factsOf(input.current) : { kind: 'graph', graph: input.graph },
   )
   if (input.baseline === undefined) return rows
-  const baseline = input.baseline
-  const stock = directionFacts(() => versionGraph(input.root, baseline))
+  const stock = factsOf(input.baseline)
   if (stock.kind === 'unavailable')
     return rows.map(row => ({
       ...row,
