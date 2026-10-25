@@ -193,7 +193,7 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 - `instances.current` 先解析调用引用。引用不可读回复 `invalid`（`field` 为 `reference`）。跨租户或伪造租户回复 `denied`，不进入目录。之后门面问实例目录 `ToolDirectory.connect`，再用 `reads.lookup` 读当前权威状态。目录答 `live` 时，门面用 `toolStreamCallCodec` 把调用引用与 handle 的 `stream` 编为公共引用。回复的全部情形见契约的「`current` 的回复」表。
 - `observation.observe` 把输入当不可信值核验。`request`、`access` 或 `signal` 形状不对时结束于 `denied`，不抛 `TypeError`。之后按公共失败顺序判定租户、引用语法、producer 与调用文本，再问实例目录。目录答 `live` 且 handle 的 `stream` 等于引用的 `stream` 时，门面把请求交给该 handle 的 `observation.observe`。
-- 路由之前 `signal` 已中止时，门面不问目录，结束于 `observer-closed`。路由期间中止时，门面不等目录答复，同样结束于 `observer-closed`。
+- 路由之前 `signal` 已中止时，门面不问目录，结束于 `observer-closed`。路由期间中止时，门面不等目录答复，同样结束于 `observer-closed`。门面只在两次目录调用（路由与逐帧重核）期间等待中止。handle 观察源的 `next` 在等待时，中止后结束于 `observer-closed` 是观察源的义务，门面不替它等待。
 - 门面是最终集成输出边界。交出每一帧之前（含 gap 与 ended），门面再问一次实例目录，资格来源与 `connect` 相同，按同一调用与同一 `access`。目录拒绝时，门面先关闭 handle 的迭代器（移除订阅，丢弃排队），再结束于 `denied`。目录缺席、抛错或答 `unsupported` 时，门面以同样方式结束于 `unavailable`。目录答 `live`（任何代次）或 `no-live-route` 时资格仍成立，门面照常交出该帧。代次被替换或收场由生产者结束（契约「旧代次的终止帧」情形 1 与 2），不由门面结束。重核之后 `signal` 已中止时，门面不交出该帧，结束于 `observer-closed`。
 - handle 观察源的 `observe` 或迭代器抛错时，门面不捕获。异常保持为连接失败，这是 [stream-arrival 的失败顺序](../../common/stream-arrival/README.md#failure-order-and-iterator-completion)允许的通道。门面不把它改成结束帧。
 
