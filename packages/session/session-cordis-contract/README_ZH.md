@@ -44,7 +44,7 @@ export const inject = {
 
 ## 契约
 
-- 公开形状归 `src/`，现在为空。
+- 服务定义归 `src/`。
 - 性质与生命周期表归 [SPEC](SPEC.md)。
 - 服务定义、端口服务键、事件、依赖分类与 IC 符合性映射归 [Cordis 说明](docs/cordis.md)。
 - 导出索引归[公开接口页](docs/public-api.md)。

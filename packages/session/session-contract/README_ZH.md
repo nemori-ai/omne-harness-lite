@@ -90,8 +90,8 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         候选定义与导出索引
 ├── flows/                跨成员流程与失败分支
 └── object-model/         日志事件与状态转移
-src/                      公开类型，现在只有 index.ts
-tests/                    入口测试，fixtures/ 现在为空
+src/                      公开类型、判定、decide、reduce 与测试替身
+tests/                    导出集合、decide/reduce、套件自证、依赖方向
 schema/                   模板占位
 verification/             models/ 与 proofs/，模板占位
 adr/                      模板占位

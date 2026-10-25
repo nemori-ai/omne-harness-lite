@@ -68,15 +68,24 @@
 | `decide` | [decide.ts](../src/decide.ts) | 路径种类按 SPEC 判定，其余返回 `rejected`/`unavailable` 指向 #756。`previous` 对 `create` 为 null |
 | `reduce` | [reduce.ts](../src/reduce.ts) | 纯批次归约；条目编码只在 [entries.ts](../src/entries.ts) 一份 |
 
-## 构造依赖端口、出站端口与纯函数
+## 出站端口与块声明
 
-[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)、[会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点)。服务键归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)。
+[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)、[会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点)。出站端口的参数只含本成员的值与不透明证据。服务键归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)。
 
 | 导出 | 源文件 |
 | --- | --- |
 | `DriveFailure`、`DriveReply`、`DriveTarget`、`DriveReceipt`、`ExecutionStatus`、`AgentDrivePort`、`ScopeReleaseReadback`、`ScopeReleasePort` | [ports.ts](../src/ports.ts) |
-| `MutationName`、`SessionCommand`、`GuardCommand`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`、`SessionTransactionPort`、`SessionInternalPrincipals`、`SessionNotifier`、`SessionBlockDeclaration` | [ports.ts](../src/ports.ts) |
-| `sessionModesBlock` | [block.ts](../src/block.ts) |
+| `SessionBlockDeclaration`、`sessionModesBlock` | [ports.ts](../src/ports.ts)、[block.ts](../src/block.ts) |
+
+`ToolStartFencePort`（已被替代）与 `DeliveryReleasePort`（已被替代）不声明，见[被替代的协议](../SPEC.md#被替代的协议)。
+
+## 构造依赖端口、出站端口与纯函数
+
+[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)。
+
+| 导出 | 源文件 |
+| --- | --- |
+| `MutationName`、`SessionCommand`、`GuardCommand`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`、`SessionTransactionPort`、`SessionInternalPrincipals`、`SessionNotifier` | [ports.ts](../src/ports.ts) |
 
 ## 实现工厂
 
