@@ -25,15 +25,17 @@ schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史
 判定（与 `omne-deps` 同一个函数、同一份输入）：
 
 - 方向行与角色只从可信 runner 的 `constraints.json` 读，不从被检版本读；被检版本与基线版本都用这份方向行。runner 没有文件或没有方向行时报告没有这些行，也不取依赖图。
-- 依赖事实只取 dependency-cruiser 的输出（`deps/graph.ts` 的 `modules` 与 `dependencies`，可信 runner 的预设），各版本取各自的图，不另走静态抽取。
+- 依赖事实只取 dependency-cruiser 的输出（`deps/graph.ts` 的 `modules` 与 `dependencies`，可信 runner 的预设），各版本取各自的图，不另走静态抽取。`modules` 只含解析到的文件，解析失败的导入不在其中。
 - 源：依赖所在文件匹配某个 `from` 角色的 `paths`；不取最精确的角色。目标：解析后的文件所在成员等于某个 `to` 角色的成员，在 `src/`、`dist/` 或声明文件里都算。源角色与目标角色有没有文件按同一条 `paths` 规则对 `modules` 判。
+- 不取图：方向行引用的角色在某个版本里都匹配不到文件时，报告不取这个版本的依赖图。这时角色有没有文件对该版本的文件清单判，不对 `modules` 判：工作树是 root 下磁盘上的文件，提交是 `git ls-tree` 列出的文件。清单覆盖 `modules`，所以每一行都是两边角色都没有文件的 unknown，与取图时逐字相同。只要有一个角色有文件，或者清单读不确定（读不了的目录、Git 失败、提交不在、链接或子模块挡在路径上），就照常取图。被检版本与基线版本各自判断，一个取图不要求另一个也取。
+- 不取图时，取图才会遇到的失败一律看不到：runner 的预设坏了、图缓存坏了等读图错误都不出现，行写角色没有文件的原因。这是有意的：这时结果与图无关。
 
 报告行：
 
 - 按成员对展开：每条方向行 × 每个 `from` 角色 × 每个 `to` 角色一行。`rule` 为 `DIRECTION`，`key` 为 `<方向行 id> <源角色> → <目标角色>`，`member` 与 `targetMember` 是两个成员，`expected` 是方向行的 `source`。
 - `DIRECTION` 是报告行的身份，不是 `RuleId`，不能写进 `constraints.json` 的 `rules`；省略规则列表也关不掉这些行。
-- 没有命中为 converged；有命中为 deviation，`sites` 与 `reason` 逐处列源文件、目标文件与行号；源角色或目标角色在被检版本里匹配不到任何文件，或依赖事实不可得（dependency-cruiser 或 Git 的已知失败，没有给出图）时为 unknown，`reason` 写明原因。别的异常照常失败，不记成 unknown。
-- 给 BASE 时，偏离行对基线版本的图判新旧：基线上同一行也偏离为 stock，否则为 new。基线的图不可得时不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
+- 没有命中为 converged；有命中为 deviation，`sites` 与 `reason` 逐处列源文件、目标文件与行号；源角色或目标角色在被检版本里匹配不到任何文件（包括上面不取图的情况），或取了图但依赖事实不可得（dependency-cruiser 或 Git 的已知失败，没有给出图）时为 unknown，`reason` 写明原因。别的异常照常失败，不记成 unknown。
+- 给 BASE 时，偏离行对基线版本的图判新旧：基线上同一行也偏离为 stock，否则为 new；基线不取图时它没有偏离行，被检版本的偏离行都是 new。取了基线的图但图不可得时不判，`age` 留 unjudged，每一行的 `reason` 末尾写明基线依赖事实不可得及原因。
 - 报告 exit 0 不表示符合：偏离与未知都只报告，硬线归 `omne-deps`。
 
 当前输入拒绝来源位于 `packages.0.0.1.legacy/` 或 `apps.0.0.1.legacy/` 的登记，包括用 `--revision` 选择的当前版本。只在 BASE 比较中，工具可退休来源位于这两个根、且路径在该版本实际源码快照中全部零命中的角色。匹配沿用精确路径和末尾 `/**` 规则，快照沿用架构读取器的活动范围。历史角色仍命中源码时拒绝旧来源；domains、rules 和 importExceptions 没有退休豁免。

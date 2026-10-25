@@ -158,10 +158,11 @@ export interface CruiseDependency {
 export interface CruiseModule {
   readonly source: string
   readonly dependencies: readonly CruiseDependency[]
-  /** 解析失败的导入也留成节点，`source` 是说明符原文，不是文件。 */
+  /**
+   * 与依赖上的同名字段同义：解析失败。解析失败的导入也留成节点，`source` 是说明符原文，不是文件。dependency-cruiser
+   * 只给依赖到的节点写这个字段，走到的文件没有它，所以可以缺省（与它自己的类型声明一致）。
+   */
   readonly couldNotResolve?: boolean
-  /** Node 内建模块的节点（`fs`、`node:fs`），不是文件。 */
-  readonly coreModule?: boolean
 }
 export interface CruiseViolation {
   readonly from: string
@@ -290,8 +291,9 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
 
   // 成员里的文件留下，方向规则据此判源角色与目标角色有没有文件。dependency-cruiser 把解析失败的导入也留成节点，
   // `source` 是说明符原文：写成成员路径的裸说明符（`packages/x/y/src/z.ts`）会让不存在的目标角色显得有文件。
+  // 内建模块的节点（`fs`、`node:fs`）不像成员路径，下面的 `memberOf` 就把它们去掉了。
   const modules = output.modules
-    .filter(module => module.couldNotResolve !== true && module.coreModule !== true)
+    .filter(module => !module.couldNotResolve)
     .map(module => module.source)
     .filter(path => memberOf(path) !== undefined)
     .sort()

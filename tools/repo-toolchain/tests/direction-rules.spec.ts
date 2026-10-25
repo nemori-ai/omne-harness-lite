@@ -4,7 +4,7 @@
 // 依赖图的 `modules` 只含解析到的文件（规格 S10）与能由路径判定时报告不取图（规格 S9）。
 // 归慢层：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程）。
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, renameSync, rmSync, symlinkSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, renameSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -16,6 +16,7 @@ import type { SourceCoordinates } from '../src/arch/source.ts'
 import { linkWorkspace, workingGraph } from '../src/deps/graph.ts'
 import {
   commit,
+  git,
   removeTemporaries,
   repository,
   temporaryDirectory,
@@ -1140,5 +1141,179 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
       directionConformance({ root: tree, current: baseline, graph: versionGraph(tree, baseline) }),
     )
     expect(stock.filter(row => row.state === 'deviation')).toEqual([])
+  })
+
+  it('角色里只有更深一层的文件：工作树与提交都取图，行与取图时逐字相同', () => {
+    const { tree } = bare()
+    write(tree, `${MEMBERS.agent}/src/deep/x.ts`, 'export const x = 1\n')
+    const head = commit(tree, 'nested role file')
+    const trusted = runner(tree)
+    for (const version of versionsAt(head)) {
+      const { rows, forced, calls } = bothWays(tree, trusted, version)
+      expect(rows).toEqual(forced)
+      expect(calls).toEqual([version.kind])
+      expect(agentToSession(rows)?.reason).not.toContain(`源角色 ${MEMBERS.agent}`)
+    }
+  })
+
+  it('精确路径的角色：文件在就取图，不在或是目录就不取图；工作树与提交都一样，行与取图时逐字相同', () => {
+    const exact = `${MEMBERS.agent}/src/index.ts`
+    const exactPolicy = policy(
+      3,
+      DIRECTIONS,
+      roles().map(role => (role.id === MEMBERS.agent ? { ...role, paths: [exact] } : role)),
+    )
+    const cases: readonly [string, (tree: string) => void, boolean][] = [
+      ['文件在', tree => write(tree, exact, 'export const a = 1\n'), true],
+      ['不在', tree => write(tree, `${MEMBERS.agent}/README.md`, '# agent\n'), false],
+      ['是目录', tree => write(tree, `${exact}/inner.ts`, 'export const i = 1\n'), false],
+    ]
+    for (const [label, prepare, taken] of cases) {
+      const { tree } = bare()
+      prepare(tree)
+      const head = commit(tree, label)
+      const trusted = runner(tree, exactPolicy)
+      for (const version of versionsAt(head)) {
+        const { rows, forced, calls } = bothWays(tree, trusted, version)
+        expect(rows, `${label} ${version.kind}`).toEqual(forced)
+        expect(calls, `${label} ${version.kind}`).toEqual(taken ? [version.kind] : [])
+      }
+    }
+  })
+
+  it('提交不在或不是提交（文件、树）：照常取图，被检版本是依赖事实不可得，基线留 unjudged，不按没有文件判', () => {
+    const { tree, head } = bare()
+    const trusted = runner(tree)
+    const blob = git(tree, 'rev-parse', `${head}:packages/common/thing/src/index.ts`)
+    // 树对象能 `ls-tree`，依赖图却按提交取：不能拿它的树当清单。
+    const treeObject = git(tree, 'rev-parse', `${head}^{tree}`)
+    for (const commit of ['0'.repeat(40), blob, treeObject]) {
+      const bad: Version = { kind: 'revision', commit }
+      const current = counting()
+      const rows = underRunner(trusted, () =>
+        directionConformance({ root: tree, current: bad, readGraph: current.read }),
+      )
+      expect(current.calls).toEqual(['revision'])
+      expect(rows).toHaveLength(20)
+      expect(
+        rows.every(row => row.state === 'unknown' && row.reason.startsWith('依赖事实不可得：')),
+      ).toBe(true)
+      const baseline = counting()
+      const based = underRunner(trusted, () =>
+        directionConformance({
+          root: tree,
+          current: { kind: 'worktree', commit: head },
+          baseline: bad,
+          readGraph: baseline.read,
+        }),
+      )
+      expect(baseline.calls).toEqual(['revision'])
+      expect(
+        based.every(
+          row =>
+            row.age === 'unjudged' && row.reason.includes('基线依赖事实不可得，偏离行未判新旧：'),
+        ),
+      ).toBe(true)
+    }
+  })
+
+  it('root 不是 Git 仓库时按提交读：Git 失败，照常取图，行是依赖事实不可得', () => {
+    const tree = temporaryDirectory('omne-direction-no-git-')
+    write(tree, 'packages/common/thing/src/index.ts', 'export const thing = 1\n')
+    const { read, calls } = counting()
+    const rows = underRunner(runner(tree), () =>
+      directionConformance({
+        root: tree,
+        current: { kind: 'revision', commit: '1'.repeat(40) },
+        readGraph: read,
+      }),
+    )
+    expect(calls).toEqual(['revision'])
+    expect(rows).toHaveLength(20)
+    expect(
+      rows.every(row => row.state === 'unknown' && row.reason.startsWith('依赖事实不可得：')),
+    ).toBe(true)
+  })
+
+  it('角色前缀上有一段是普通文件：下面不会有文件，工作树与提交都不取图，行与取图时逐字相同', () => {
+    const { tree } = bare()
+    write(tree, `${MEMBERS.agent}/src`, 'not a directory\n')
+    const head = commit(tree, 'file in the way')
+    const trusted = runner(tree)
+    for (const version of versionsAt(head)) {
+      const { rows, forced, calls } = bothWays(tree, trusted, version)
+      expect(rows).toEqual(forced)
+      expect(calls).toEqual([])
+    }
+  })
+
+  it('提交里角色前缀或它的上级是子模块：Git 不走进去，按有处理，照常取图', () => {
+    for (const at of [`${MEMBERS.agent}/src`, MEMBERS.agent]) {
+      const { tree, head } = bare()
+      // 只改索引再提交：工作树里没有这个目录，`git add -A` 会把子模块项删掉。
+      git(tree, 'update-index', '--add', '--cacheinfo', `160000,${head},${at}`)
+      git(tree, 'commit', '-q', '-m', `gitlink at ${at}`)
+      const next = git(tree, 'rev-parse', 'HEAD')
+      const { rows, forced, calls } = bothWays(tree, runner(tree), {
+        kind: 'revision',
+        commit: next,
+      })
+      expect(rows, at).toEqual(forced)
+      expect(calls, at).toEqual(['revision'])
+    }
+  })
+
+  it.skipIf(process.getuid?.() === 0)('工作树里角色下的目录读不了：按有处理，照常取图', () => {
+    const exact = `${MEMBERS.agent}/src/index.ts`
+    // 目录模式的角色下有一个读不了的子目录；精确路径的角色所在目录读不了（stat 得到 EACCES）。
+    const cases: readonly [string, unknown][] = [
+      [`${MEMBERS.agent}/src/locked`, policy()],
+      [
+        `${MEMBERS.agent}/src`,
+        policy(
+          3,
+          DIRECTIONS,
+          roles().map(role => (role.id === MEMBERS.agent ? { ...role, paths: [exact] } : role)),
+        ),
+      ],
+    ]
+    for (const [directory, constraints] of cases) {
+      const { tree, head } = bare()
+      write(tree, `${directory}/index.ts`, 'export const x = 1\n')
+      const locked = join(tree, directory)
+      chmodSync(locked, 0o000)
+      try {
+        const { read, calls } = counting()
+        underRunner(runner(tree, constraints), () =>
+          directionConformance({
+            root: tree,
+            current: { kind: 'worktree', commit: head },
+            readGraph: read,
+          }),
+        )
+        expect(calls, directory).toEqual(['worktree'])
+      } finally {
+        chmodSync(locked, 0o755)
+      }
+    }
+  })
+
+  it('root 不是仓库顶层：提交的清单与取图都按 root 下的路径读同一棵树', () => {
+    const top = repository()
+    const tree = join(top, 'sub')
+    write(top, 'sub/packages/common/thing/src/index.ts', 'export const thing = 1\n')
+    // 仓库顶层有角色文件，root 下没有：不取图。
+    write(top, `${MEMBERS.session}/src/index.ts`, 'export const s = 1\n')
+    const before = commit(top, 'role file only at top level')
+    const quiet = bothWays(tree, runner(tree), { kind: 'revision', commit: before })
+    expect(quiet.rows).toEqual(quiet.forced)
+    expect(quiet.calls).toEqual([])
+    // root 下有角色文件，仓库顶层同一路径没有：取图。
+    write(top, `sub/${MEMBERS.agent}/src/index.ts`, 'export const a = 1\n')
+    const after = commit(top, 'role file under root')
+    const taken = bothWays(tree, runner(tree), { kind: 'revision', commit: after })
+    expect(taken.rows).toEqual(taken.forced)
+    expect(taken.calls).toEqual(['revision'])
+    expect(agentToSession(taken.rows)?.reason).not.toContain(`源角色 ${MEMBERS.agent}`)
   })
 })
