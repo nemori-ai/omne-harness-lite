@@ -1,6 +1,7 @@
 // Self-proof of the ToolOutputCustody suite: it passes on the conforming double, each case
 // fails under a violating variant that breaks the rule of that case, and a fixture without control
 // handles reports the cases that need them as not applicable.
+import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {
@@ -64,7 +65,12 @@ function variant(
 
 const otherCodec = (raw: RawOutput): RawOutput => ({ ...raw, codec: adoption('another-codec') })
 
-const own = memoryToolOutputCustodyFixture().access
+// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
+const own = {
+  get tenant(): TenantId {
+    return memoryToolOutputCustodyFixture().access.tenant
+  },
+}
 
 /** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>

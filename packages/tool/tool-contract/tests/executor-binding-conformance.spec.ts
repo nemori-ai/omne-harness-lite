@@ -1,6 +1,7 @@
 // Self-proof of the live-only ToolExecutorBinding suite: it passes on the conforming double,
 // each case fails under a violating variant that breaks the rule of that case, and a fixture
 // without control handles reports the cases that need them as not applicable.
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
@@ -117,7 +118,12 @@ function startOfAnotherRecord(input: StartInput): StartInput {
 const keyOf = (input: StartInput): string =>
   JSON.stringify([input.tenant, input.call, input.start.operation])
 
-const own = memoryToolExecutorBindingFixture().access
+// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
+const own = {
+  get tenant(): TenantId {
+    return memoryToolExecutorBindingFixture().access.tenant
+  },
+}
 
 /** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>

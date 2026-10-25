@@ -1,6 +1,7 @@
 // Self-proof of the ToolEnvironment suite: it passes on the conforming double, each case fails
 // under a violating variant that breaks the rule of that case, and a fixture without control
 // handles reports the cases that need them as not applicable.
+import type { TenantId } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -111,7 +112,12 @@ function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
   return outcome.ok
 }
 
-const own = memoryToolEnvironmentFixture().access
+// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
+const own = {
+  get tenant(): TenantId {
+    return memoryToolEnvironmentFixture().access.tenant
+  },
+}
 
 /** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>

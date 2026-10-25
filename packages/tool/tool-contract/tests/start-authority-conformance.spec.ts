@@ -1,6 +1,7 @@
 // Self-proof of the ToolStartAuthority suite: it passes on the conforming double, and each
 // case fails under a violating variant that breaks the rule of that case. The variants are wrappers
 // around the double; they live here and are not exported.
+import type { TenantId } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -69,7 +70,12 @@ const NEEDS_GUARD = {
   [NAMES.SA17]: 'guard',
 }
 
-const own = memoryToolStartAuthorityFixture().access
+// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
+const own = {
+  get tenant(): TenantId {
+    return memoryToolStartAuthorityFixture().access.tenant
+  },
+}
 
 /** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>
