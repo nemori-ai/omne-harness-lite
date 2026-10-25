@@ -2,7 +2,8 @@
 // the branded identities, and the structure judgments of the values that cross a boundary as data.
 // Every function here is pure and returns an `Outcome`. None throws, except that `judgeAccess`
 // runs the principal judgment that the caller injects and does not catch what it throws.
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
+import type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
@@ -22,26 +23,16 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>
 export type InputId = AgentIdentity<'AgentInputId'>
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>
-export type Adoption = Readonly<{ owner: string; name: string; revision: string; digest: string }>
-export type Evidence = Readonly<{
-  owner: string
-  record: string
-  revision: string
-  digest: string
-}>
-export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
-export type ConsumerRef = Readonly<{
-  owner: string
-  work: string
-  position: string
-  purpose: string
-}>
+// The three exchange values have one definition in exchange-refs and `Access` has one in
+// legal-identity. This member re-exports them; the judgments below stay here.
+export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs'
+export type { Access } from '@omne-harness/legal-identity'
 export type Authority = Readonly<{
   execution: AgentExecutionId
   executionAttachment: ExecutionAttachmentId
   instance: AgentInstanceId
   generation: string
-  source: Evidence
+  source: DurableEvidence
 }>
 export type Continuation = Readonly<{
   position: string
@@ -231,10 +222,11 @@ export function judgeAdoption(value: unknown): Outcome<Adoption, StructureFailur
 }
 
 /**
- * Judges the structure of an `Evidence`: exactly `owner`, `record`, `revision` and `digest`, each a
- * non-empty string. The judgment gives the shape only; it does not prove that the record exists.
+ * Judges the structure of a `DurableEvidence`: exactly `owner`, `record`, `revision` and `digest`,
+ * each a non-empty string. The judgment gives the shape only; it does not prove that the record
+ * exists. A value that is not a plain object fails with the structure name `Evidence`.
  */
-export function judgeEvidence(value: unknown): Outcome<Evidence, StructureFailure> {
+export function judgeEvidence(value: unknown): Outcome<DurableEvidence, StructureFailure> {
   return judgeTextRecord(value, 'Evidence', EVIDENCE_FIELDS)
 }
 
@@ -291,8 +283,8 @@ function identityMember<T extends AgentIdentity<string>>(
   return 'failure' in decoded ? refusal(name, 'identity') : decoded
 }
 
-/** The `source` member: an Evidence structure, whose own failure is kept under the path `source.`. */
-function sourceMember(members: OwnMembers): Outcome<Evidence, StructureFailure> {
+/** The `source` member: a DurableEvidence structure, whose own failure is kept under the path `source.`. */
+function sourceMember(members: OwnMembers): Outcome<DurableEvidence, StructureFailure> {
   if (!Object.hasOwn(members, 'source')) return refusal('source', 'missing')
   const source = judgeEvidence(members['source'])
   if (!('failure' in source)) return source
@@ -303,8 +295,8 @@ function sourceMember(members: OwnMembers): Outcome<Evidence, StructureFailure> 
 /**
  * Judges the structure of an `Authority`: exactly `execution`, `executionAttachment`, `instance`,
  * `generation` and `source`. The three identities go through their decoders, and a failure of any
- * decoder is `identity` for that member. `generation` is a non-empty string, and `source` is an
- * `Evidence`. The members are read in the order of the type. The judgment gives the shape only; it
+ * decoder is `identity` for that member. `generation` is a non-empty string, and `source` is a
+ * `DurableEvidence`. The members are read in the order of the type. The judgment gives the shape only; it
  * does not prove that the execution attachment is current.
  */
 export function judgeAuthority(value: unknown): Outcome<Authority, StructureFailure> {

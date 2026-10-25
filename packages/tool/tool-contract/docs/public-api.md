@@ -11,7 +11,7 @@
 [行为与约束](../SPEC.md#342-值定义和固定请求)。
 
 - [reference.ts](../src/reference.ts)：调用与操作引用、encode/decode 及租户解析。引用是定位文本，每次访问仍核当前资格。
-- [identity.ts](../src/identity.ts)：品牌身份、采用与耐久证据引用、访问输入，以及每个品牌身份的解码函数。
+- [identity.ts](../src/identity.ts)：品牌身份、访问输入，以及每个品牌身份的解码函数。`Adoption`、`ConsumerRef`、`DurableEvidence` 再导出 [exchange-refs](../../../common/exchange-refs/SPEC.md) 的唯一定义，`Access` 再导出 legal-identity 的唯一定义。结构判定留在 `value-shapes.ts` 与 `judge-release.ts`。
 - [definitions.ts](../src/definitions.ts)：参数契约、返回声明、工具定义、可用性、调用参数、资源 scope（owner、key 与授予证据 grant）与固定请求。
 - [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查。
 - [judge-request.ts](../src/judge-request.ts)：`judgeFixedToolRequest` 与普通 payload 的 `judgeToolInvokeRequest`，对未知输入做固定请求的封闭检查：每个字段的形状、定义经 `judgeToolDefinition`、并发上限是正整数或 null、时限是非负整数或 null、`command` 选中定义声明的操作（函数工具只接受 null，多命令工具要求具名且存在）。它不读存储，不授予资格；来源、当前资格与可用性事实由受理提供者核验。

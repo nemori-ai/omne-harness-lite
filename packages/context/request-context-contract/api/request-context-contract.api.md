@@ -6,8 +6,8 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `Access` · `refs.d.ts`
-- `Adoption` · `refs.d.ts`
+- `Access` · 包 `@omne-harness/legal-identity`
+- `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AlterationEvidence` · `values.d.ts`
 - `AssemblyContext` · `values.d.ts`
 - `AssemblyFailure` · `values.d.ts`
@@ -43,7 +43,7 @@
 - `Decoded` · `schema-primitives.d.ts`
 - `Decoder` · `schema-primitives.d.ts`
 - `DeriveInput` · `values.d.ts`
-- `DurableEvidence` · `refs.d.ts`
+- `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EpochId` · `refs.d.ts`
 - `FitVerdict` · `values.d.ts`
 - `HistoryEvidence` · `values.d.ts`
@@ -714,24 +714,9 @@ export declare function assembleSystemPrompt(set: PromptContributionSet, context
 ## 声明文件 `refs.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
-export type Access<P> = Readonly<{
-    principal: P;
-    tenant: TenantId;
-}>;
-export type Adoption = Readonly<{
-    owner: string;
-    name: string;
-    revision: string;
-    digest: string;
-}>;
-export type DurableEvidence = Readonly<{
-    owner: string;
-    record: string;
-    revision: string;
-    digest: string;
-}>;
+export type { Access } from '@omne-harness/legal-identity';
+export type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs';
 declare const brand: unique symbol;
 export type RequestContextRef<K extends string> = string & {
     readonly [brand]: K;
@@ -772,7 +757,6 @@ export declare const decodePassageRef: (v: unknown) => Outcome<RequestContextRef
     field: RefKind;
     reason: 'type' | 'empty' | 'length' | 'character';
 }>>;
-export {};
 ```
 
 ## 声明文件 `registry.d.ts`
@@ -899,7 +883,7 @@ export declare const planProgressSchema: import("@standard-schema/spec").Standar
     completed: string;
     consumed: readonly Readonly<{
         index: string;
-        evidence: import("./refs.js").DurableEvidence;
+        evidence: import("@omne-harness/exchange-refs").DurableEvidence;
     }>[];
 }>>;
 export declare const compactionPlanSchema: import("@standard-schema/spec").StandardSchemaV1<unknown, Readonly<{
@@ -908,7 +892,7 @@ export declare const compactionPlanSchema: import("@standard-schema/spec").Stand
     epoch: import("./refs.js").EpochId;
     bound: string;
     policy: Readonly<{
-        identity: import("./refs.js").Adoption;
+        identity: import("@omne-harness/exchange-refs").Adoption;
         configDigest: string;
     }>;
     covers: import('@omne-harness/message').CompactedRange;
@@ -929,7 +913,7 @@ export declare const coverageSchema: import("@standard-schema/spec").StandardSch
     }>;
     inputs: Readonly<{
         batch: import("./refs.js").BatchRef;
-        saved: import("./refs.js").DurableEvidence | null;
+        saved: import("@omne-harness/exchange-refs").DurableEvidence | null;
     }>;
     snapshot: Readonly<{
         scope: import("@omne-harness/runtime-context-contract").ScopeRef;
@@ -942,14 +926,14 @@ export declare const coverageSchema: import("@standard-schema/spec").StandardSch
         sections: readonly Readonly<{
             name: string;
             scope: import("@omne-harness/runtime-context-contract").ScopeRef | null;
-            source: import("./refs.js").Adoption;
+            source: import("@omne-harness/exchange-refs").Adoption;
             revision: string;
         }>[];
         digest: string;
         generation: string | null;
     }>;
     model: Readonly<{
-        profile: import("./refs.js").Adoption;
+        profile: import("@omne-harness/exchange-refs").Adoption;
         revision: string;
         recipient: string;
         parametersDigest: string;

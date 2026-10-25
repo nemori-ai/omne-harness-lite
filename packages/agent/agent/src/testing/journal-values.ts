@@ -4,7 +4,7 @@ import {
   decodeExecutionAttachmentId,
   decodeExecutionRevision,
   decodeInputBatchId,
-  type Evidence,
+  type DurableEvidence,
   type ExecutionAttachmentId,
   type ExecutionRevision,
   type InputBatchId,
@@ -48,7 +48,7 @@ export function batchIdOf(execution: string, from: number, to: number): InputBat
   return minted(decodeInputBatchId(text), text)
 }
 
-export function journalEvidence(record: string, revision: number): Evidence {
+export function journalEvidence(record: string, revision: number): DurableEvidence {
   return {
     owner: JOURNAL_OWNER,
     record,

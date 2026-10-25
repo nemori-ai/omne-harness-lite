@@ -15,7 +15,7 @@ import type {
   ConsumerRef,
   ConsumptionId,
   Continuation,
-  Evidence,
+  DurableEvidence,
   InputBatchId,
   InputId,
   PassageId,
@@ -30,60 +30,60 @@ export type ProducedResult = Readonly<{
     | Readonly<{ kind: 'tool'; call: T.ToolCallId }>
   version: string
   delivery: string | null
-  source: Evidence
+  source: DurableEvidence
 }>
 export type InputBatch = Readonly<{
   id: InputBatchId
-  watermark: Evidence
+  watermark: DurableEvidence
   ordered: readonly InputId[]
 }>
 export type ProgressionDirective =
-  | Readonly<{ kind: 'evaluate-completion'; basis: Evidence }>
-  | Readonly<{ kind: 'continue'; basis: Evidence }>
+  | Readonly<{ kind: 'evaluate-completion'; basis: DurableEvidence }>
+  | Readonly<{ kind: 'continue'; basis: DurableEvidence }>
 export type Waiting =
   | Readonly<{ kind: 'producer'; pending: PendingCall }>
-  | Readonly<{ kind: 'human'; passage: PassageId; cards: readonly Evidence[] }>
+  | Readonly<{ kind: 'human'; passage: PassageId; cards: readonly DurableEvidence[] }>
   | Readonly<{ kind: 'dependency'; owner: string; position: string }>
 export type AgentConclusion =
   | Readonly<{ kind: 'complete' }>
-  | Readonly<{ kind: 'fail' | 'cancelled'; cause: Evidence }>
+  | Readonly<{ kind: 'fail' | 'cancelled'; cause: DurableEvidence }>
 export type FailureCandidate = Readonly<{
   step: StepId | null
   at: AgentInstant
-  source: Evidence
+  source: DurableEvidence
 }> &
   (
     | Readonly<{
         kind: 'cannot-fit'
         reason: 'fixed' | 'after-compaction'
-        context: Evidence
-        veto?: Evidence
-        rejection?: Evidence
+        context: DurableEvidence
+        veto?: DurableEvidence
+        rejection?: DurableEvidence
         plan?: CompactionProgress
       }>
     | Readonly<{
         kind: 'compaction-invalid'
-        plan: Evidence
+        plan: DurableEvidence
         progress?: Readonly<{ expected: CompactionProgress; returned: CompactionProgress }>
-        transition?: Evidence
+        transition?: DurableEvidence
       }>
     | Readonly<{
         kind: 'request-rejected'
         failure: Extract<Failure, { kind: 'invalid' }>
-        model: Evidence
-        selection: Evidence
+        model: DurableEvidence
+        selection: DurableEvidence
       }>
     | Readonly<{ kind: 'no-reply'; call: M.ModelCallId; result: ProducedResult }>
-    | Readonly<{ kind: 'message-rejected'; from: MessageSource; evidence: Evidence }>
+    | Readonly<{ kind: 'message-rejected'; from: MessageSource; evidence: DurableEvidence }>
     | Readonly<{ kind: 'extension-stop'; passage: PassageId; reason: string }>
-    | Readonly<{ kind: 'guard'; level: 3; basis: Evidence }>
+    | Readonly<{ kind: 'guard'; level: 3; basis: DurableEvidence }>
   )
 export type PreparedContextTransition = Readonly<{
   preparation: ActionId
   message: Message
-  source: Evidence
-  derivation: Evidence
-  commitment: Evidence
+  source: DurableEvidence
+  derivation: DurableEvidence
+  commitment: DurableEvidence
 }>
 export type Failure =
   | Readonly<{ kind: 'denied'; action: string }>
@@ -100,7 +100,7 @@ type PendingCommon = Readonly<{
   action: ActionId
   consumption: ConsumptionId
   position: ConsumerRef
-  fixed: Evidence
+  fixed: DurableEvidence
 }>
 export type PendingCall = PendingCommon &
   (
@@ -122,9 +122,9 @@ export type PendingCall = PendingCommon &
   )
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
-  | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly Evidence[] }>
-  | Readonly<{ kind: 'denied'; evidence: Evidence }>
-  | Readonly<{ kind: 'allowed'; evidence: Evidence; request: T.ToolInvokeRequest }>
+  | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly DurableEvidence[] }>
+  | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: T.ToolInvokeRequest }>
 export type Action = Readonly<{
   id: ActionId
   original: ToolPart & Readonly<{ kind: 'tool_call' }>
@@ -138,24 +138,28 @@ export type ActionBarrier =
       judging: readonly ActionId[]
       asked: readonly Readonly<{ action: ActionId; passage: PassageId; round: CardRoundId }>[]
     }>
-  | Readonly<{ kind: 'open'; evidence: Evidence; approved: readonly [ActionId, ...ActionId[]] }>
-  | Readonly<{ kind: 'all-denied'; evidence: Evidence }>
+  | Readonly<{
+      kind: 'open'
+      evidence: DurableEvidence
+      approved: readonly [ActionId, ...ActionId[]]
+    }>
+  | Readonly<{ kind: 'all-denied'; evidence: DurableEvidence }>
 export type ActionSlot = Readonly<{
   action: ActionId
   each: readonly PassageId[] | null
   candidate: Message | null
-  handoff: Evidence | null
+  handoff: DurableEvidence | null
 }> &
   (
-    | Readonly<{ kind: 'denied'; evidence: Evidence }>
+    | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
     | Readonly<{ kind: 'dispatched' }>
     | Readonly<{
         kind: 'result'
         result: ProducedResult
         terminal: T.ToolTerminal
-        custody: Evidence
+        custody: DurableEvidence
       }>
-    | Readonly<{ kind: 'background'; placeholder: ProducedResult; confirmation: Evidence }>
+    | Readonly<{ kind: 'background'; placeholder: ProducedResult; confirmation: DurableEvidence }>
   )
 export type ActionBatch = Readonly<{
   id: ActionBatchId
@@ -171,30 +175,30 @@ export type ModelReplyAdmission = Readonly<{
   call: M.ModelCallId
   resultVersion: string
   decision: 'admitted' | 'rejected'
-  source: Evidence
+  source: DurableEvidence
 }>
 export type ReplyAdmissionProjection = Readonly<{
-  through: Evidence
+  through: DurableEvidence
   rule: Adoption
-  lastAdmission: Evidence | null
+  lastAdmission: DurableEvidence | null
   consecutiveDenials: string
   totalDenials: string
 }>
 export type ReplyAdmissionPage =
   | Readonly<{
       kind: 'page'
-      through: Evidence
+      through: DurableEvidence
       items: readonly Readonly<{ sequence: string; fact: ModelReplyAdmission }>[]
       next: string | null
       complete: boolean
     }>
-  | Readonly<{ kind: 'gap'; recovery: Evidence }>
+  | Readonly<{ kind: 'gap'; recovery: DurableEvidence }>
 export type GuardLevel = 0 | 1 | 2 | 3
 export type GuardFact = Readonly<{
   level: GuardLevel
   policy: Adoption
-  through: Evidence
-  basis: Evidence
+  through: DurableEvidence
+  basis: DurableEvidence
   passage: PassageId
   at: AgentInstant
 }>
@@ -209,36 +213,36 @@ export type AgentCheckpoint = Readonly<{
   inputBatch: InputBatchId | null
   requestPreparation: Preparation | null
   compaction: CompactionState | null
-  adoptedContext: Evidence | null
+  adoptedContext: DurableEvidence | null
   guard: GuardFact | null
   completedPassages: readonly PassageId[]
-  priorConditions: Evidence | null
+  priorConditions: DurableEvidence | null
 }>
 export type RuntimeConditions = Readonly<{
-  source: Evidence
+  source: DurableEvidence
   configuration: Adoption
   progression: ProgressionDirective
   model: Adoption
-  context: Evidence
+  context: DurableEvidence
   bindings: readonly Adoption[]
 }>
 export type ProducerDecisionView =
-  | Readonly<{ kind: 'unresolved'; pending: PendingCall; source: Evidence }>
+  | Readonly<{ kind: 'unresolved'; pending: PendingCall; source: DurableEvidence }>
   | Readonly<{
       kind: 'model-active'
       pending: Extract<PendingCall, { kind: 'model' }>
-      source: Evidence
+      source: DurableEvidence
     }>
   | Readonly<{
       kind: 'model-settled'
       pending: Extract<PendingCall, { kind: 'model' }>
       result: ProducedResult
-      source: Evidence
+      source: DurableEvidence
     }>
   | Readonly<{
       kind: 'tool-active'
       pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
-      source: Evidence
+      source: DurableEvidence
       waiting: 'none' | 'external' | 'human'
       supportedControls: readonly ('interrupt' | 'background')[]
     }>
@@ -246,18 +250,18 @@ export type ProducerDecisionView =
       kind: 'tool-result'
       pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
       result: ProducedResult
-      source: Evidence
+      source: DurableEvidence
     }>
   | Readonly<{
       kind: 'tool-background'
       pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
       placeholder: ProducedResult
-      confirmation: Evidence
-      source: Evidence
+      confirmation: DurableEvidence
+      source: DurableEvidence
     }>
 export type AdvancementFact = Readonly<{
   kind: 'current' | 'stopping' | 'ended' | 'superseded'
-  source: Evidence
+  source: DurableEvidence
 }>
 export type LoopFacts = Readonly<{
   advancement: AdvancementFact
@@ -278,13 +282,13 @@ export type Next =
       kind: 'compact-derive'
       original: Extract<Preparation, { kind: 'needs-compaction' }>
       progress: CompactionProgress
-      result: Readonly<{ produced: ProducedResult; consumed: Evidence }> | null
+      result: Readonly<{ produced: ProducedResult; consumed: DurableEvidence }> | null
     }>
   | Readonly<{ kind: 'commit-transition'; value: PreparedContextTransition }>
   | Readonly<{
       kind: 'resume-request'
       original: Extract<Preparation, { kind: 'needs-compaction' }>
-      transition: Evidence
+      transition: DurableEvidence
     }>
   | Readonly<{ kind: 'extension'; passage: PassageId }>
   | Readonly<{ kind: 'admit-model'; preparation: Extract<Preparation, { kind: 'ready' }> }>

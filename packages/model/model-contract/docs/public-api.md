@@ -23,7 +23,7 @@
 
 [结果推送与保存](../SPEC.md#结果推送与保存)定义结果键、冻结载荷、saved 合取事实及接收/恢复义务；[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)定义 Model 投影、差分及 current 语义；其中[投影行为契约](../SPEC.md#model-投影及差分)固定完整 ref/dispatch 来源、原修订与输出游标基线、失败顺序和不可变输出。公共 ref/cursor/frame 由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract)拥有。结果键、账目快照与交付载荷的三个纯值类型已从根入口导出，见[结果、失败和状态](#结果失败和状态)。Model 投影与差分纯值见[显示投影入口](#model-显示投影纯值)。saved 回执、结果接收端口和纯交付 judge 已从根入口导出，接收服务与恢复实现仍由提供者承担；current 与 Model 观察别名已从根入口导出，见[当前目标与公共观察](#model-当前目标与公共观察)；公共引用和游标的出口由其拥有者提供。尚未声明的名字不是现有可导入 API，不改变旧实现的必需成员。
 
-新增端口的 `Access` 直接来自 `@omne-harness/legal-identity`。旧 root.ts 的 Access 迁移由共享拥有者维护。current 的对象参数和失败顺序归 [目标查询](../SPEC.md#current-的权威含义)。
+新增端口的 `Access` 直接来自 `@omne-harness/legal-identity`。root.ts 再导出同一定义，不另写副本。current 的对象参数和失败顺序归 [目标查询](../SPEC.md#current-的权威含义)。
 
 receiver、observe 与 current 的完整公开声明及实际导入依赖公共身份唯一源，启用条件归[交付边界](../SPEC.md#推送与公共观察的交付边界)。本页不复制候选 Access 或用拟议签名替代实际源码。真实 Evidence adapter、Agent 内部保存映射和 Tool 适配不由本包声明页补造。
 
@@ -39,6 +39,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 `judgeFixedModelRequest(unknown)` 判断独立固定请求。`judgeAdmit<P>(ModelAdmitCandidate<P>)` 保留 typed Access，只将五个 payload 字段视为未知输入。二者返回现有 Outcome。成功值独立深冻结；admit 根浅冻结，P 与已铸造 tenant 保持原对象。失败为 ModelInputRejection 的 field/reason，field 是规范 JSON Pointer。字段集合、资源限制、失败顺序与 Proxy 限制归 [SPEC](../SPEC.md#封闭输入判断)。结构通过不授予资格、采用或容量。
 
+- 再导出：`Adoption` 与 `ConsumerRef` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，`Access` 的唯一定义在 legal-identity。root.ts 以原名再导出它们。封闭判断与 64 位小写十六进制的摘要规则留在本包。
 - 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
 - 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)、[`tests/reference.spec-d.ts`](../tests/reference.spec-d.ts)、[`tests/judge-request.spec-d.ts`](../tests/judge-request.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)、[`tests/reference.spec.ts`](../tests/reference.spec.ts)、[`tests/judge-request.spec.ts`](../tests/judge-request.spec.ts)。
 
@@ -62,6 +63,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 本章给调用方和消费者拥有者：操作的失败值、调用状态、终局与确认回执。
 
+- 再导出：`DurableEvidence` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，result.ts 以原名再导出。摘要算法归证据的 owner。
 - 声明：[`src/result.ts`](../src/result.ts)、[`src/result-delivery-values.ts`](../src/result-delivery-values.ts)、[`src/result-delivery.ts`](../src/result-delivery.ts)、[`src/result-delivery-judge.ts`](../src/result-delivery-judge.ts)。
 - 类型探针：[`tests/result.spec-d.ts`](../tests/result.spec-d.ts)、[`tests/result-delivery-values.spec-d.ts`](../tests/result-delivery-values.spec-d.ts)、[`tests/result-delivery.spec-d.ts`](../tests/result-delivery.spec-d.ts)。
 - 纯判断及受控接收行为：[`tests/result-delivery.spec.ts`](../tests/result-delivery.spec.ts)。接收替身不从公开入口导出，不证明真实存储或资格提供者的行为。

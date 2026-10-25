@@ -6,7 +6,7 @@ import type {
   JournalCommit,
   FinishIntent,
   Material,
-  Evidence,
+  DurableEvidence,
 } from '@omne-harness/agent-contract'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import {
@@ -510,7 +510,7 @@ describe('#514 main call boundary', () => {
     async fault => {
       let first = true
       let acknowledgements = 0
-      let orphan: Evidence | null = null
+      let orphan: DurableEvidence | null = null
       let reads = 0
       const assembly = await settledAssembly(
         [{ kind: 'partial', content: 'text', value: 'saved partial', trims: [] }],
@@ -1709,7 +1709,7 @@ describe('#514 main call boundary', () => {
     async outcome => {
       let original: ReturnType<typeof operation> | null = null
       let reads = 0
-      let completion: Evidence | null = null
+      let completion: DurableEvidence | null = null
       let acknowledgements = 0
       const assembly = await settledAssembly([], FINAL_FAILURE, d => ({
         ...d,

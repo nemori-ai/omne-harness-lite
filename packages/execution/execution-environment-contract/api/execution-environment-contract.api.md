@@ -6,7 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `Access` · `identity.d.ts`
+- `Access` · 包 `@omne-harness/legal-identity`
 - `AcquireInput` · `environment.d.ts`
 - `Acquired` · `lease.d.ts`
 - `AcquisitionRef` · `identity.d.ts`
@@ -692,17 +692,13 @@ export declare function describeFacility<K extends FacilityKey>(key: K, operatio
 ## 声明文件 `identity.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity';
 export type OriginRef = string & {
     readonly __origin: unique symbol;
 };
 export type AcquisitionRef = string & {
     readonly __acquisition: unique symbol;
 };
-export type Access<P> = Readonly<{
-    principal: P;
-    tenant: TenantId;
-}>;
+export type { Access } from '@omne-harness/legal-identity';
 export declare function originRef(text: string): OriginRef;
 export declare function acquisitionRef(text: string): AcquisitionRef;
 ```

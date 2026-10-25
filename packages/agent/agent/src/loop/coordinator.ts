@@ -44,7 +44,7 @@ import type {
   ConsumptionId,
   ActionId,
   EffectIntent,
-  Evidence,
+  DurableEvidence,
   ExecutionRevision,
   ExecutionSnapshot,
   ExecutionState,
@@ -118,7 +118,7 @@ export type ExecutionEntry<P> = Readonly<{
   /** The operation of the invoke, which `open` uses as its own. */
   operation: AgentOperationId
   initial: AcceptedInput
-  grant: Evidence | null
+  grant: DurableEvidence | null
   /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
 }>
@@ -202,7 +202,7 @@ type ResultReadFrame = {
 type Acknowledged = Readonly<{
   produced: ProducedResult
   consumption: ConsumptionId
-  receipt: Evidence
+  receipt: DurableEvidence
 }>
 
 const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
@@ -257,7 +257,7 @@ function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {
   )
 }
 
-function sameEvidence(left: Evidence, right: Evidence): boolean {
+function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
   return (
     left.owner === right.owner &&
     left.record === right.record &&
@@ -361,7 +361,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let facts: LoopFacts | null = null
   let decided: Next | null = null
   let candidate: Candidate | null = null
-  let admission: Evidence | null = null
+  let admission: DurableEvidence | null = null
   let iteration: Iteration | null = null
   let intent: FinishIntent | null = null
   // Only the identity and original node of this coordinator's uncertain conditional commit.
@@ -1446,7 +1446,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
 
   async function readCompletion(
     current: Iteration,
-  ): Promise<Outcome<{ result: ModelOutcome; completion: Evidence }, Failure>> {
+  ): Promise<Outcome<{ result: ModelOutcome; completion: DurableEvidence }, Failure>> {
     const saved = await completionOf(current)
     if ('failure' in saved) return saved
     const item = saved.ok
@@ -1512,7 +1512,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   async function recallAcknowledgement(
     current: Iteration,
     result: ModelOutcome,
-    completion: Evidence,
+    completion: DurableEvidence,
   ): Promise<Outcome<void, Failure>> {
     if (acknowledged.some(item => item.consumption === current.consumption))
       return succeed(undefined)
@@ -1526,7 +1526,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     pending: Pick<ModelPendingCall, 'consumption' | 'reference' | 'position'> &
       Readonly<{ step: StepId }>,
     result: ModelOutcome,
-    completion: Evidence,
+    completion: DurableEvidence,
     node: 'I3' | 'O0',
   ): Promise<Outcome<void, Failure>> {
     const call = invocationParts(pending.reference, access.tenant).call

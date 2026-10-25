@@ -1,0 +1,19 @@
+# adr
+
+本目录承载有持续消费者的实现取舍与必要理由。
+
+## 允许的内容
+
+每项取舍一份 Markdown 文件。
+
+## 边界
+
+只保留现行理由。单次评审、提案过程与执行日志归任务 tmp，不进本目录。
+
+## 维护
+
+取舍被替换时，更新或删除对应文件，并同步引用它的设计正文。
+
+## 本包事实
+
+不适用。本成员目前没有仍有持续消费者的实现取舍需要单独记录。建立本成员的依据是 [#734 派发裁定](https://github.com/nemori-ai/omne-harness-lite/issues/734#issuecomment-6394333906)，理由写在 [docs/architecture.md](../docs/architecture.md)。

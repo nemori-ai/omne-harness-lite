@@ -163,6 +163,7 @@ packages/
 │   ├── stream-arrival/         流式交付的开块、填充、封块、削减、结束
 │   ├── call-account/           一次模型调用或工具执行的调用账目
 │   ├── modality/               四种模态与媒体类型到模态的识别
+│   ├── exchange-refs/          跨域交接的采用、耐久证据与消费位置三种值
 │   └── operation-result/       带值成功、无值确认与失败两种操作结果
 ├── util/
 │   ├── unix-format/          按码位排版的终端文本

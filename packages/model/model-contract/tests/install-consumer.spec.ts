@@ -21,6 +21,7 @@ const closureMembers = [
   '@omne-harness/model-contract',
   '@omne-harness/call-account',
   '@omne-harness/content-block',
+  '@omne-harness/exchange-refs',
   '@omne-harness/json-text',
   '@omne-harness/legal-identity',
   '@omne-harness/message',

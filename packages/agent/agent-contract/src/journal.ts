@@ -39,30 +39,35 @@ import type {
   AgentOperationId,
   Authority,
   ConsumptionId,
-  Evidence,
+  DurableEvidence,
   ExecutionRevision,
   PassageId,
 } from './identity.ts'
 
 export type CallerCommit =
   | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'message'; message: Message; source: Evidence; admission: Evidence }>
+  | Readonly<{
+      kind: 'message'
+      message: Message
+      source: DurableEvidence
+      admission: DurableEvidence
+    }>
   | Readonly<{
       kind: 'context-transition'
       value: PreparedContextTransition
-      admission: Evidence
+      admission: DurableEvidence
     }>
   | Readonly<{
       kind: 'custody'
       result: ProducedResult
       consumption: ConsumptionId
-      retained: Evidence
+      retained: DurableEvidence
     }>
   | Readonly<{
       kind: 'processed'
       result: ProducedResult
       consumption: ConsumptionId
-      completion: Evidence
+      completion: DurableEvidence
     }>
 export type EffectIntent = Readonly<{
   action: ActionId
@@ -86,7 +91,7 @@ export interface AgentJournalAttachment<P> {
     input: ExecutionMutation<P> &
       Readonly<{
         instance: AgentInstanceId
-        grant: Evidence | null
+        grant: DurableEvidence | null
         initial: AcceptedInput
         checkpoint: AgentCheckpoint
       }>,
@@ -95,12 +100,12 @@ export interface AgentJournalAttachment<P> {
     input: ExecutionMutation<P> &
       Readonly<{
         instance: AgentInstanceId
-        grant: Evidence | null
-        recovery: Evidence
-        takeover: Evidence | null
+        grant: DurableEvidence | null
+        recovery: DurableEvidence
+        takeover: DurableEvidence | null
       }>,
   ): Reply<Readonly<{ receipt: CommandReceipt; authority: Authority }>>
-  detach(input: Parameters<AgentExecutionRecovery<P>['detach']>[0]): Reply<Evidence>
+  detach(input: Parameters<AgentExecutionRecovery<P>['detach']>[0]): Reply<DurableEvidence>
 }
 /** The role group that records commits, inputs, controls, acknowledgements and results; see SPEC "托管协调与运行实例" and "提交参加者协议". */
 export interface AgentJournalRecording<P> {
@@ -116,7 +121,9 @@ export interface AgentJournalRecording<P> {
         transfer:
           | Extract<CallerCommit, { kind: 'custody' | 'processed' }>
           | Readonly<{ kind: 'none' }>
-        release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: Evidence }>
+        release:
+          | Readonly<{ kind: 'pending' }>
+          | Readonly<{ kind: 'confirmed'; receipt: DurableEvidence }>
       }>,
   ): Reply<CommandReceipt>
   recordControl(
@@ -126,7 +133,7 @@ export interface AgentJournalRecording<P> {
         toolOperation?: ToolOperationRef
         stage: Exclude<ControlStage, 'accepted'>
         state: 'reached' | 'unresolved'
-        source: Evidence
+        source: DurableEvidence
       }>,
   ): Reply<CommandReceipt>
 }
@@ -146,10 +153,10 @@ export interface AgentJournalObservation<P> {
   recordTerminalObservation(
     input: ExecutionMutation<P> &
       Readonly<{
-        terminal: Evidence
+        terminal: DurableEvidence
         passage: PassageId
         implementation: Adoption
-        observed: Evidence
+        observed: DurableEvidence
       }>,
   ): Reply<CommandReceipt>
 }
@@ -157,13 +164,13 @@ export interface AgentJournalObservation<P> {
 export interface AgentJournalReading<P> {
   load(input: Access<P> & Readonly<{ execution: AgentExecutionId }>): Reply<ExecutionSnapshot>
   inputs(
-    input: Access<P> & Readonly<{ execution: AgentExecutionId; watermark: Evidence }>,
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; watermark: DurableEvidence }>,
   ): Reply<Readonly<{ batch: InputBatch; messages: readonly Message[] }>>
   readReplyAdmissions(
     input: Access<P> &
       Readonly<{
         execution: AgentExecutionId
-        through: Evidence
+        through: DurableEvidence
         after: string | null
         limit: number
       }>,

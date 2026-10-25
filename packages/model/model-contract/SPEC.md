@@ -521,7 +521,7 @@ stateDiagram-v2
 
 `ModelSavedReceipt` 只有原交付 key 与 `DurableEvidence`，字段名为 key 和 evidence。Outcome 的成功值就是本节的 saved 回执，不再增加一层 saved 判别包装。成功 key 必须与输入相同。回执只表达本节规定的合取保管事实，不授予清理或当前资格。
 
-新的接收声明直接从 `@omne-harness/legal-identity` 的公开入口导入 `Access`。该定义只给显式主体与租户基底，不能证明主体可靠或接收已授权。本包旧 root.ts 中的重复 Access 定义按共享拥有者的迁移处理，不作为新增端口的定义来源。精确声明及导出状态由[公开 API 导航](docs/public-api.md#已采用但尚未声明的增量)指向源码。
+新的接收声明直接从 `@omne-harness/legal-identity` 的公开入口导入 `Access`。该定义只给显式主体与租户基底，不能证明主体可靠或接收已授权。本包 root.ts 不再定义 `Access`，只再导出 legal-identity 的唯一定义。精确声明及导出状态由[公开 API 导航](docs/public-api.md#已采用但尚未声明的增量)指向源码。
 
 ### 纯关系校验与输入固定
 

@@ -52,7 +52,7 @@ Agent 为推进某个 execution 发起的调用关联该 execution 和原消费�
 
 业务效果的稳定去重身份与追溯尝试分别表达。稳定身份必须区分同一步多个动作，不能只用调用方关联身份与 step 两项。去重是否能够阻止外部重做，还取决于实际操作契约和接收方能力，本成员不承诺所有调用恰好执行一次。
 
-所有 ID、Evidence 和 Authority 均须在进入本成员的边界验证。身份文本用本包导出的解码函数验证，`Adoption`、`Evidence`、`Access` 与 `Authority` 用结构判定验证，规则见“[身份解码与结构判定](#身份解码与结构判定)”。验证只给出形状：结构相同不代表来自可信拥有者，也不证明对象存在或授予资格。
+所有 ID、DurableEvidence 和 Authority 均须在进入本成员的边界验证。身份文本用本包导出的解码函数验证，`Adoption`、`DurableEvidence`、`Access` 与 `Authority` 用结构判定验证，规则见“[身份解码与结构判定](#身份解码与结构判定)”。验证只给出形状：结构相同不代表来自可信拥有者，也不证明对象存在或授予资格。
 
 ### Tool 调用关联与控制引用
 
@@ -377,18 +377,18 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ### 身份解码与结构判定
 
-“[身份、范围与归属](#身份范围与归属)”要求所有 ID、Evidence 和 Authority 在边界验证。本包为每个品牌身份导出一个解码函数，另导出四个结构判定，作为这项验证的方法。设计没有给出身份文本规则。身份文本规则与 Tool 契约相同。
+“[身份、范围与归属](#身份范围与归属)”要求所有 ID、DurableEvidence 和 Authority 在边界验证。本包为每个品牌身份导出一个解码函数，另导出四个结构判定，作为这项验证的方法。设计没有给出身份文本规则。身份文本规则与 Tool 契约相同。
 
 十四个解码函数是 `decodeAgentInstanceId`、`decodeStepId`、`decodeActionId`、`decodePassageId`、`decodeCardRoundId`、`decodeActionBatchId`、`decodeAgentExecutionId`、`decodeExecutionAttachmentId`、`decodeAgentRegistrationId`、`decodeAgentOperationId`、`decodeExecutionRevision`、`decodeInputId`、`decodeInputBatchId` 与 `decodeConsumptionId`。身份文本是可打印 ASCII，不含空格，长度从 1 到 `AGENT_IDENTITY_MAX_LENGTH`（256 个 UTF-16 码元）。解码函数接受 `unknown`，返回 `Outcome`。失败值是 `{ field, reason }`：`field` 是身份类型名，`reason` 是 `type`（不是字符串）、`empty`、`length` 或 `character`。解码按类型、空串、长度、字符的次序检查，返回第一个失败。成功值只是品牌类型。解码不证明实例、执行或登记存在，也不授予资格。
 
-四个结构判定是 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。它们对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。`reason` 是 `type`、`empty`、`unknown-field`、`missing` 或 `identity`。值本身不是普通对象时，`field` 是结构名：`Adoption`、`Evidence`、`Access` 或 `Authority`。成员出错时，`field` 是成员名。嵌套的 `source` 不是普通对象时，`field` 是 `source`。`source` 的成员出错时，`field` 是 `source.` 加成员名，例如 `source.owner`。
+四个结构判定是 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。它们对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。`reason` 是 `type`、`empty`、`unknown-field`、`missing` 或 `identity`。值本身不是普通对象时，`field` 是结构名：`Adoption`、`Evidence`、`Access` 或 `Authority`。`judgeEvidence` 判定 `DurableEvidence`，它的结构名仍是 `Evidence`。成员出错时，`field` 是成员名。嵌套的 `source` 不是普通对象时，`field` 是 `source`。`source` 的成员出错时，`field` 是 `source.` 加成员名，例如 `source.owner`。
 
 每个判定先核对值是普通对象，再按下面写的次序检查必需成员，最后检查未列出的成员，返回第一个失败。成员缺席得到 `missing`。文本成员不是字符串得到 `type`，是空字符串得到 `empty`。未列出的成员得到 `unknown-field`。
 
 - `judgeAdoption` 要求恰好 `owner`、`name`、`revision`、`digest` 四个非空字符串。
 - `judgeEvidence` 要求恰好 `owner`、`record`、`revision`、`digest` 四个非空字符串。
 - `judgeAccess` 要求恰好 `principal` 与 `tenant`。次序是 `principal` 缺席、`tenant` 缺席、主体判定、租户、未列出的成员。主体的判定由调用方作为第二个参数注入，因为本包不知道主体是什么。主体失败保留其原因，`field` 加前缀 `principal.`。租户必须是 legal-identity 铸造的 `TenantId`，否则得到 `tenant` 的 `type`。
-- `judgeAuthority` 要求恰好 `execution`、`executionAttachment`、`instance`、`generation` 与 `source`，按这个次序检查。前三项经各自的解码函数，缺席得到 `missing`，解码失败得到该成员的 `identity`。`generation` 是非空字符串。`source` 是 `Evidence`，按 `judgeEvidence` 的规则检查。
+- `judgeAuthority` 要求恰好 `execution`、`executionAttachment`、`instance`、`generation` 与 `source`，按这个次序检查。前三项经各自的解码函数，缺席得到 `missing`，解码失败得到该成员的 `identity`。`generation` 是非空字符串。`source` 是 `DurableEvidence`，按 `judgeEvidence` 的规则检查。
 
 判定只读普通对象的自有数据成员。数组、其他原型的实例、带访问器或符号键的对象，以及反射时抛出异常的对象，都得到 `type`。判定不执行这些访问器。`judgeAccess` 会执行调用方注入的主体判定，不捕获它抛出的异常。除这一处外，这些函数不抛出异常。成功值是冻结的新对象。`judgeAccess` 成功值中的 `principal` 是注入的主体判定返回的值，`tenant` 是输入中的同一个 `TenantId`。判定只给出形状，不证明记录存在，也不证明来源。
 
@@ -600,7 +600,7 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 压缩步骤的模型调用只经过压缩用途的调模型之前与之后两次经过，不经过主请求的那一次调模型之前位置。扩展用途的模型调用不经过这两个位置；它的请求准备以用途 `extension` 调用 prepare 并传空的 `beforeModelCall`，返回 needs-compaction 时不进入压缩计划，而是作为装不下的失败交回扩展。压缩用途与扩展用途的模型选择各用哪份历史依据，见[压缩用途与扩展用途的模型调用](docs/public-api/extensions.md#压缩用途与扩展用途的模型调用)。
 
-每一轮卡片的 round 是稳定的 `CardRoundId`，是卡片轮次自己的身份类型，不复用 ActionId。present 的 identity 在保存卡片需求前确定，卡片端口按原卡请求去重，原扩展调用与卡片需求先保存后呈现。卡片轮次的已请求状态表示卡片草稿已入台账而呈现回执未知。返回未知时，lookup 使用已保存的 passage、round、original 和完整请求身份集合查询原呈现，不要求未知的 card Evidence，也不要求旧 advance 仍有效；当前读取资格仍核验。presented 的 cards 按原请求顺序一一对应，不能遗漏未确认成员。批内只有部分创建时保持 unknown，拥有者持续完成原批或认回确定结果，不能重新问已创建卡。not-presented 需要排除原创建及延迟写入的证据；只有此前提和当前推进仍有效时才可继续同请求呈现。查询不可用保持失败，不能当 not-presented。
+每一轮卡片的 round 是稳定的 `CardRoundId`，是卡片轮次自己的身份类型，不复用 ActionId。present 的 identity 在保存卡片需求前确定，卡片端口按原卡请求去重，原扩展调用与卡片需求先保存后呈现。卡片轮次的已请求状态表示卡片草稿已入台账而呈现回执未知。返回未知时，lookup 使用已保存的 passage、round、original 和完整请求身份集合查询原呈现，不要求未知的 card DurableEvidence，也不要求旧 advance 仍有效；当前读取资格仍核验。presented 的 cards 按原请求顺序一一对应，不能遗漏未确认成员。批内只有部分创建时保持 unknown，拥有者持续完成原批或认回确定结果，不能重新问已创建卡。not-presented 需要排除原创建及延迟写入的证据；只有此前提和当前推进仍有效时才可继续同请求呈现。查询不可用保持失败，不能当 not-presented。
 
 取得原卡后 read 返回的 chosen 与 declined 都是人的原决定，由原扩展按原规则解释，不给默认批准或超时。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。Tool 内部 Ask 只经 Tool 的受信内部 acceptDecision 端口，不接到 Agent 扩展的卡片中。执行终结后，Agent 以 DecisionCards.invalidate 作废尚无答复的卡片，已有答复保留；原责任核对由卡片端口的实现者按其原协议收束。
 

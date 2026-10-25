@@ -23,7 +23,7 @@ import type {
   ControlStage,
   EffectIntent,
   EventPage,
-  Evidence,
+  DurableEvidence,
   ExecutionControl,
   ExecutionMutation,
   ExecutionSnapshot,
@@ -132,7 +132,7 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
    * Whether a non-null grant of `open` or `attach` holds. Default: no grant holds, because an
    * assembly without an external coordinator has no participant that can check one.
    */
-  grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: Evidence }>>
+  grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: DurableEvidence }>>
   /** Whether `open` and `attach` need a non-null grant. Default: `false`. */
   requireGrant?: boolean
   /** Whether the caller of `recordResult` is the lawful custodian or processor. Default: yes. */
@@ -198,7 +198,7 @@ export type MemoryAgentJournal<P> = Readonly<{
 type Attachment = {
   authority: Authority
   status: 'active' | 'detached' | 'superseded'
-  handoff: Evidence | null
+  handoff: DurableEvidence | null
 }
 
 type Range = Readonly<{ from: number; to: number }>
@@ -237,7 +237,7 @@ type Committed = Readonly<{
   value: unknown
   receipt: CommandReceipt
 }>
-type Excluded = Readonly<{ kind: 'excluded'; evidence: Evidence }>
+type Excluded = Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
 type Pending = Readonly<{
   kind: 'pending'
   key: string
@@ -514,7 +514,7 @@ function attachedRecord(
   }
 }
 
-function sameEvidence(left: Evidence | null, right: Evidence | null): boolean {
+function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | null): boolean {
   if (left === null || right === null) return left === right
   return (
     left.owner === right.owner &&
@@ -592,7 +592,7 @@ export function createMemoryAgentJournal<P>(
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
   }
 
-  function nextEvidence(execution: Execution, what: string, revision: number): Evidence {
+  function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
     execution.serial += 1
     return journalEvidence(`${execution.id}/${what}/${execution.serial}`, revision)
   }
@@ -601,7 +601,7 @@ export function createMemoryAgentJournal<P>(
     execution: Execution,
     operation: AgentOperationId,
     revision: number,
-    evidence: Evidence,
+    evidence: DurableEvidence,
     state: CommandReceipt['state'],
   ): CommandReceipt {
     return {
@@ -635,7 +635,7 @@ export function createMemoryAgentJournal<P>(
   function appendEvents(
     execution: Execution,
     bodies: readonly AgentEventBody[],
-    cause: Evidence,
+    cause: DurableEvidence,
   ): void {
     const attachment = latestAttachment(execution)
     if (attachment === undefined) return
@@ -827,7 +827,7 @@ export function createMemoryAgentJournal<P>(
   }
 
   function grantHolds(
-    input: Access<P> & Readonly<{ execution: AgentExecutionId; grant: Evidence | null }>,
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; grant: DurableEvidence | null }>,
   ): boolean {
     if (input.grant === null) return options.requireGrant !== true
     if (options.grant === undefined) return false
@@ -848,14 +848,14 @@ export function createMemoryAgentJournal<P>(
     return { from, to: execution.inputs.length }
   }
 
-  function watermarkOf(execution: Execution): Evidence {
+  function watermarkOf(execution: Execution): DurableEvidence {
     const range = inputBoundary(execution)
     const evidence = journalEvidence(`${execution.id}/inputs/${range.from}-${range.to}`, range.to)
     execution.watermarks.set(evidence.record, range)
     return evidence
   }
 
-  function admissionsThrough(execution: Execution): Evidence {
+  function admissionsThrough(execution: Execution): DurableEvidence {
     const count = execution.admissions.length
     const evidence = journalEvidence(`${execution.id}/reply-admissions/${count}`, count)
     execution.admissionThroughs.set(evidence.record, count)
@@ -865,7 +865,7 @@ export function createMemoryAgentJournal<P>(
   function snapshotOf(execution: Execution): ExecutionSnapshot {
     let consecutive = 0
     let total = 0
-    let last: Evidence | null = null
+    let last: DurableEvidence | null = null
     for (const { fact } of execution.admissions) {
       if (fact.decision === 'rejected') {
         consecutive += 1
@@ -1098,7 +1098,7 @@ export function createMemoryAgentJournal<P>(
         const found = owned(input, 'detach')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<Evidence>(input, key)
+        const original = recognized<DurableEvidence>(input, key)
         if (original !== undefined) return answer(original)
         const target = execution.attachments.find(
           attachment =>

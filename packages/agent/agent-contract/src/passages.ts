@@ -35,38 +35,38 @@ import type {
   Authority,
   CardRoundId,
   ConsumerRef,
-  Evidence,
+  DurableEvidence,
   InputId,
   PassageId,
   StepId,
 } from './identity.ts'
 import type { CompactionProgress, Preparation } from './request.ts'
 
-export type CapturedRead = Readonly<{ schema: Adoption; value: JsonValue; source: Evidence }>
+export type CapturedRead = Readonly<{ schema: Adoption; value: JsonValue; source: DurableEvidence }>
 export type CardRequest = Readonly<{ identity: string; schema: Adoption; value: JsonValue }>
 export type CardAnswer =
-  | Readonly<{ kind: 'chosen'; option: string; value: JsonValue | null; evidence: Evidence }>
-  | Readonly<{ kind: 'declined'; evidence: Evidence }>
+  | Readonly<{ kind: 'chosen'; option: string; value: JsonValue | null; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'declined'; evidence: DurableEvidence }>
 export type CardReply =
   | CardAnswer
   | Readonly<{ kind: 'pending' }>
-  | Readonly<{ kind: 'invalidated'; evidence: Evidence }>
+  | Readonly<{ kind: 'invalidated'; evidence: DurableEvidence }>
 export type PassageCard = Readonly<{
   identity: string
-  card: Evidence
+  card: DurableEvidence
   response: Exclude<CardReply, { kind: 'pending' }> | null
-  processed: Evidence | null
+  processed: DurableEvidence | null
 }>
 export type PassageOperationProgress<R> =
   | Readonly<{ kind: 'requested' }>
   | Readonly<{ kind: 'resolved'; result: R }>
-  | Readonly<{ kind: 'applied'; result: R; transition: Evidence }>
+  | Readonly<{ kind: 'applied'; result: R; transition: DurableEvidence }>
 export type CardRoundProgress =
   | Readonly<{ kind: 'requested' }>
   | Readonly<{ kind: 'presented'; cards: readonly PassageCard[] }>
   | Readonly<{ kind: 'answered'; cards: readonly PassageCard[] }>
-  | Readonly<{ kind: 'processed'; cards: readonly PassageCard[]; conclusion: Evidence }>
-  | Readonly<{ kind: 'present-failed'; failure: Evidence }>
+  | Readonly<{ kind: 'processed'; cards: readonly PassageCard[]; conclusion: DurableEvidence }>
+  | Readonly<{ kind: 'present-failed'; failure: DurableEvidence }>
 export type CardRound = Readonly<{
   round: CardRoundId
   ask: Conclusion & Readonly<{ output: Extract<ExtensionOutput, { kind: 'ask' }> }>
@@ -76,13 +76,15 @@ export type CardRound = Readonly<{
 export type PassageOperation = Readonly<{
   action: ActionId
   ordinal: number
-  input: Evidence
+  input: DurableEvidence
 }> &
   (
     | Readonly<{
         kind: 'producer'
         pending: Extract<PendingCall, { kind: 'model' }>
-        progress: PassageOperationProgress<Readonly<{ result: ProducedResult; consumed: Evidence }>>
+        progress: PassageOperationProgress<
+          Readonly<{ result: ProducedResult; consumed: DurableEvidence }>
+        >
       }>
     | Readonly<{
         kind: 'read'
@@ -101,7 +103,7 @@ export type PassageProgress =
       kind: 'applied'
       rounds: readonly CardRound[]
       conclusion: Conclusion
-      transition: Evidence
+      transition: DurableEvidence
     }>
 export type Passage = Readonly<{
   id: PassageId
@@ -112,8 +114,8 @@ export type Passage = Readonly<{
   ordinal: number
   declaration: LoopExtensionDeclaration
   implementation: Adoption
-  input: Evidence
-  effective: Evidence
+  input: DurableEvidence
+  effective: DurableEvidence
   operations: readonly PassageOperation[]
   progress: PassageProgress
 }>
@@ -123,7 +125,7 @@ export type Passage = Readonly<{
  * positions. See extensions.md, "输入".
  */
 export type Subject =
-  | Readonly<{ execution: AgentExecutionId; conditions: Evidence }>
+  | Readonly<{ execution: AgentExecutionId; conditions: DurableEvidence }>
   | Readonly<{ preparation: Extract<Preparation, { kind: 'needs-compaction' }> }>
   | Readonly<{ transition: PreparedContextTransition }>
   | Readonly<{ purpose: 'main'; preparation: Extract<Preparation, { kind: 'assembled' }> }>
@@ -159,7 +161,7 @@ export type Subject =
       action: ActionId
       candidate: Message
       outcome:
-        | Readonly<{ kind: 'denied'; evidence: Evidence }>
+        | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
         | Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>
     }>
   | Readonly<{
@@ -170,8 +172,8 @@ export type Subject =
         terminal: T.ToolTerminal | null
       }>[]
     }>
-  | Readonly<{ proposed: AgentConclusion; basis: Evidence }>
-  | Readonly<{ terminal: AgentConclusion; disposition: Evidence }>
+  | Readonly<{ proposed: AgentConclusion; basis: DurableEvidence }>
+  | Readonly<{ terminal: AgentConclusion; disposition: DurableEvidence }>
 /** The port that resolves the implementation of an extension by its exact adoption; see SPEC "扩展、卡片与材料". */
 export interface ExtensionImplementations<P> {
   resolve(input: Access<P> & Readonly<{ passage: Passage }>): Reply<LoopExtensionImplementation>
@@ -184,39 +186,41 @@ export interface DecisionCards<P> {
         advance: Authority
         passage: PassageId
         round: CardRoundId
-        original: Evidence
+        original: DurableEvidence
         requests: readonly CardRequest[]
       }>,
-  ): Reply<readonly Evidence[]>
+  ): Reply<readonly DurableEvidence[]>
   lookup(
     input: Access<P> &
       Readonly<{
         passage: PassageId
         round: CardRoundId
-        original: Evidence
+        original: DurableEvidence
         requests: readonly string[]
       }>,
   ): Reply<
-    | Readonly<{ kind: 'presented'; cards: readonly Evidence[] }>
-    | Readonly<{ kind: 'not-presented'; exclusion: Evidence }>
+    | Readonly<{ kind: 'presented'; cards: readonly DurableEvidence[] }>
+    | Readonly<{ kind: 'not-presented'; exclusion: DurableEvidence }>
     | Readonly<{ kind: 'unknown' }>
   >
-  read(input: Access<P> & Readonly<{ card: Evidence }>): Reply<CardReply>
+  read(input: Access<P> & Readonly<{ card: DurableEvidence }>): Reply<CardReply>
   invalidate(
     input: Access<P> &
       Readonly<{
         operation: AgentOperationId
         passage: PassageId
         round: CardRoundId
-        cards: readonly Evidence[]
-        reason: Evidence
+        cards: readonly DurableEvidence[]
+        reason: DurableEvidence
       }>,
-  ): Reply<readonly Readonly<{ card: Evidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]>
+  ): Reply<
+    readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
+  >
 }
 export type AdmissionDecision =
-  | Readonly<{ kind: 'allow'; evidence: Evidence }>
-  | Readonly<{ kind: 'deny'; reason: string; evidence: Evidence }>
-  | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: Evidence }>
+  | Readonly<{ kind: 'allow'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'deny'; reason: string; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 /** The port of the authorization domain that admits one action; see SPEC "整批判断屏障与动作准入". */
 export interface ActionAdmission<P> {
@@ -231,7 +235,7 @@ export interface ActionAdmission<P> {
         effectiveArguments: string
         definition: Adoption
         permissions: CapturedRead | null
-        decision: Readonly<{ card: Evidence; answer: CardAnswer }> | null
+        decision: Readonly<{ card: DurableEvidence; answer: CardAnswer }> | null
       }>,
   ): Reply<AdmissionDecision>
 }
@@ -245,12 +249,12 @@ export type MessageSource =
       result: ProducedResult
     }>
   | Readonly<{ kind: 'tool-result'; action: ActionId; call: T.ToolCallId; result: ProducedResult }>
-  | Readonly<{ kind: 'action-denied'; action: ActionId; evidence: Evidence }>
+  | Readonly<{ kind: 'action-denied'; action: ActionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'reminder'; passage: PassageId }>
   | Readonly<{ kind: 'context-transition'; transition: PreparedContextTransition }>
 export type HandoffResult =
-  | Readonly<{ kind: 'accepted'; admission: Evidence }>
-  | Readonly<{ kind: 'rejected'; reason: string; evidence: Evidence }>
+  | Readonly<{ kind: 'accepted'; admission: DurableEvidence }>
+  | Readonly<{ kind: 'rejected'; reason: string; evidence: DurableEvidence }>
 /** The port that admits a candidate message from one of six sources; see SPEC "消息准入". */
 export interface MessageHandoff<P> {
   accept(
@@ -277,8 +281,8 @@ export interface AgentMaterials<P, B extends ContentBlock> {
         consumer: ConsumerRef
         value: Material<B>
       }>,
-  ): Reply<Evidence>
-  read(input: Access<P> & Readonly<{ source: Evidence }>): Reply<Material<B>>
+  ): Reply<DurableEvidence>
+  read(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<Material<B>>
 }
 /** The port that captures a registered read-only protocol; see SPEC "扩展、卡片与材料". */
 export interface RegisteredReads<P> {
@@ -287,7 +291,7 @@ export interface RegisteredReads<P> {
       Readonly<{
         action: ActionId
         passage: PassageId
-        original: Evidence
+        original: DurableEvidence
         owner: string
         protocol: Adoption
         query: JsonValue
@@ -298,11 +302,11 @@ export interface RegisteredReads<P> {
       Readonly<{
         action: ActionId
         passage: PassageId
-        original: Evidence
+        original: DurableEvidence
       }>,
   ): Reply<
     | Readonly<{ kind: 'captured'; value: CapturedRead }>
-    | Readonly<{ kind: 'excluded'; evidence: Evidence }>
+    | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
     | Readonly<{ kind: 'unknown' }>
   >
 }

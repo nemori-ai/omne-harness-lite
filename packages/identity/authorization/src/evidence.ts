@@ -2,17 +2,16 @@
 // basis that the decision carries and compares it; the owner, record and revision say where the
 // facts came from.
 import { createHash } from 'node:crypto'
+import type { DurableEvidence } from '@omne-harness/exchange-refs'
 
-/** A reference to one checkable record of one owner. The four members are what consumer contracts map, one by one. */
-export type EvidenceRef = Readonly<{
-  owner: string
-  record: string
-  revision: string
-  digest: string
-}>
+/**
+ * A reference to one checkable record of one owner, with one definition in exchange-refs. Consumer
+ * contracts re-export the same type, so they take it without a mapping.
+ */
+export type { DurableEvidence } from '@omne-harness/exchange-refs'
 
 /** Evidence that authorization produced. `revision` is the revision of the identity fact the decision rests on, or `0` when no fact was read. */
-export type DecisionEvidence = EvidenceRef & Readonly<{ owner: 'authorization' }>
+export type DecisionEvidence = DurableEvidence & Readonly<{ owner: 'authorization' }>
 
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue)
