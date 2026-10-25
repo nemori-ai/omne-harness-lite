@@ -44,7 +44,7 @@ Tool 宿主的协调者不导入本成员。它调用 Tool 契约定义的两个
 
 独立消费使用显式的 `SessionFaces` 及其注入的端口，不要求 Cordis。候选形状见 [public-api](public-api.md)，装配依赖与资源撤除见 [Cordis 定义](../../session-cordis-contract/docs/cordis.md)。可靠状态由相应的提供者兑现。
 
-Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort` 调用 `invalidate`。Session 不参加 Model 的受理点守卫。
+Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 已被替代的 `ToolStartFencePort`（已被替代） 调用 `invalidate`。Session 不参加 Model 的受理点守卫。
 
 ## 原消费场景的前提
 

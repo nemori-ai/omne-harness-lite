@@ -1,6 +1,6 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的全部类型，并按本规格判定 M2 首条租户路径经过的提交种类：`create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）与 `finishRun`，以及领域服务 `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` 和 `reduce`。其余提交种类的 `decide` 返回 `unavailable` 并指向 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)；`resolveControlScope`、`judgeIdle` 同样指向 #756，`resolveCascade` 抛出指向 #756 的错误。`judgeRunStart` 不从快照得出 `login-required`：登录确认是证据桥的材料。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`，本成员已初始化，公开治理接口尚未实现。本规格表达已具依据的必要行为，不定义尚未确定的公开类型、存储提供者或认领协议。
 
@@ -727,7 +727,7 @@ Session 命令：
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
-Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 在 Tool 的启动排序域里是工作资格的版本拥有者：撤销资格的提交成功之后，推进协调、控制传播或归档经 `ToolStartFencePort` 调用 Tool 的启动资格失效，等到失效已生效（[Tool 的实际发起围栏](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)）。失效生效之前，Session 不声称新的 Tool 发起已被阻止。
+Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫。Session 在 Tool 的启动排序域里是工作资格的版本拥有者：撤销资格的提交成功之后，推进协调、控制传播或归档经 已被替代的 `ToolStartFencePort`（已被替代） 调用 Tool 的启动资格失效，等到失效已生效（[Tool 的实际发起围栏](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)）。失效生效之前，Session 不声称新的 Tool 发起已被阻止。
 
 ### 与 Agent 的参加与核对
 
@@ -902,9 +902,9 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：`run.active`，并满足下列之一：`advance` 为 null；旧挂接已交还或已被取代；恢复者持有接管资格。`continuity` 是指向 Agent 原记录的耐久证据，绑定读得的修订与来源，不是接续值。
 - 动作：
-  1. 第一次提交 `claim`（JC-07）：`judgeAdvance` 核对旧 attempt 已交还或可信排除，写 SE15，序号加一。旧 attempt 尚无 SE16 时同批写 SE16，并产生 `tasks.start-fence`（范围为旧 attempt）。
+  1. 第一次提交 `claim`（JC-07）：`judgeAdvance` 核对旧 attempt 已交还或可信排除，写 SE15，序号加一。旧 attempt 尚无 SE16 时同批写 SE16，并产生 `tasks.start-fence`（已被替代）（范围为旧 attempt）。
   2. 第二次提交是 `resume`：恢复依据为 `continuity` 加恢复者材料，可以含宿主的失联判断；推进资格依据为新 attempt 的 SE15 证据。执行记录提供者授予挂接的条件提交内，Session 参加者只读核对推进资格依据指向的 attempt 等于当前 `advance`。
-  3. `claim` 成功之后，推进协调以 `claim` 的操作身份调用 `ToolStartFencePort.invalidate`，范围为旧 attempt。失效生效时解除 `tasks.start-fence`。生效不是 `resume` 的前提。
+  3. `claim` 成功之后，推进协调以 `claim` 的操作身份调用 `ToolStartFencePort.invalidate`，范围为旧 attempt。失效生效时解除 `tasks.start-fence`（已被替代）。生效不是 `resume` 的前提。
 - 结果：恢复路径下，旧挂接保持交还状态，新挂接 active。接管路径下，同一次条件提交内旧挂接被取代、新挂接 active，旧 runtime 的后续提交得到 `stale-advance`。两条路径由执行记录提供者按状态选择，Session 不选择。
 - 失败：
   - `claim` 返回 `stale-advance`（已有其他后继）或 `changed`（旧 attempt 仍有效且未被排除）。
@@ -921,9 +921,9 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：[PM-03](#pm-03) 取得交接证明。旧推进已按 [PM-04](#pm-04) 撤除，或旧 runtime 已失联。
 - 动作：
-  1. 第一次提交 `reload`（JC-08）：核对同一定义标识、候选等于交接证明的目标采用、`expected` 等于当前修订、Run 未终态且会话未归档。写 SE15 与旧 attempt 的 SE16，采用变化时写 SE08；旧 attempt 尚未交还时同批产生 `tasks.start-fence`。
+  1. 第一次提交 `reload`（JC-08）：核对同一定义标识、候选等于交接证明的目标采用、`expected` 等于当前修订、Run 未终态且会话未归档。写 SE15 与旧 attempt 的 SE16，采用变化时写 SE08；旧 attempt 尚未交还时同批产生 `tasks.start-fence`（已被替代）。
   2. 第二次提交是 `resume`：恢复依据绑定交接证明，推进资格依据为新 attempt 的证据。执行记录提供者核验原版本仍适用，并共同保存转换后的接续。Session 参加者只读核对推进资格依据。
-  3. `tasks.start-fence` 存在时，推进协调以 `reload` 的操作身份调用 `ToolStartFencePort.invalidate`，范围为旧 attempt，与 [PM-05](#pm-05) 第 3 项相同。
+  3. `tasks.start-fence`（已被替代） 存在时，推进协调以 `reload` 的操作身份调用 `ToolStartFencePort.invalidate`，范围为旧 attempt，与 [PM-05](#pm-05) 第 3 项相同。
 - 结果：新 attempt 按新采用推进。原调用、等待与卡片保留。新采用只影响尚未开始的经过。候选等于当前采用时不写 SE08，仍可以写新 attempt。
 - 失败：
   - `resume` 返回 `changed`（原版本已变化）时，`reload` 的 SE15 已经成立。恢复者重新读执行记录、重新取交接证明，再以同一 attempt 的推进资格依据接续，不第二次提交 `reload`。否则序号会无界增长。
@@ -1011,7 +1011,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：控制传播协调按三条路径传播。
   1. 挂接存活时，控制经出站端口 `control` 送到原执行。
   2. 没有挂接时，恢复协调先 `resume` 原执行，必要时接管，取得挂接后再送控制。该挂接以取消授权条件终结，参加者按 [PA-02](#pa-02) 响应「参加」。之后读到的结束事件按 [RS-10](#rs-10) 认回。
-  3. Tool 拒绝新的发起：撤销资格的提交成功后，控制传播经 `ToolStartFencePort` 调用启动资格失效，等到失效已生效。Session 不参加 Model 的受理点守卫：失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
+  3. Tool 拒绝新的发起：撤销资格的提交成功后，控制传播经 已被替代的 `ToolStartFencePort`（已被替代） 调用启动资格失效，等到失效已生效。Session 不参加 Model 的受理点守卫：失效推进者发起的新 Model 发出由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
 - 结果：Session 的终态在提交时已经成立，不等传播。`ControlProgress` 停在 propagating，直到每个待核对的生产者经 `receive` 确认或报告未知，且 Tool 的启动资格失效已生效。失效生效计入对账进度。超过策略上限时，进度停在 propagating 并报告，不冒充已停。取不到挂接且 Agent 记录不可解释时，Session 不再要求 Agent 终态，恢复任务只剩传播核对。
 - 失败：`resume` 返回 `terminal` 时执行已结束。读结束状态后按 [RS-10](#rs-10) 认回，没有其他动作。
 - 责任：路径选择归控制传播协调。围栏归生产者与执行记录提供者。
@@ -1090,7 +1090,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### EC-04 交付责任解除的时刻与责任
 
 - 前提：SE20（先保管）或 SE21（先处理并保存完成依据）已提交，`CommitReceipt.source` 可以作保管或完成证据。
-- 动作：提交成功之后，消费位置拥有者（Session 的协调经 [DeliveryReleasePort](#deliveryreleaseport)，由 session-adapters 的消费适配实现）以保管或完成证据向生产者发出交付责任解除：Model 的 ACK，或 Tool 的交付释放。发出者是当前合格消费者，不要求旧 attempt 有效，也不要求 Agent 在场。生产者核对证据与当前承接责任后返回确认，消费适配以 `receive(release)` 写回确认（SE19），`release` 派生为 confirmed。
+- 动作：提交成功之后，消费位置拥有者（Session 的协调经 [DeliveryReleasePort（已被替代）](#deliveryreleaseport)，由 session-adapters 的消费适配实现）以保管或完成证据向生产者发出交付责任解除：Model 的 ACK，或 Tool 的交付释放。发出者是当前合格消费者，不要求旧 attempt 有效，也不要求 Agent 在场。生产者核对证据与当前承接责任后返回确认，消费适配以 `receive(release)` 写回确认（SE19），`release` 派生为 confirmed。
 - 结果：交付责任解除在数据库提交之后作为提交后反应发出，数据库事务不包含它。同一结果版本的解除如果也由 Agent 的在线路径发出，按 [P-6](#具名前提与明确缺项) 认回同一确认。
 - 失败：生产者答复尚不具备确认条件时，不解除，`release` 保持 pending，由恢复协调稍后重发。证据适配不可用时以同一操作重试。
 - 未知与认回：按 [EC-05](#ec-05)。
@@ -1180,7 +1180,7 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | <a id="rs-04"></a>RS-04 | waiting → advancing | `completeConsumption`（`processed` 参加，原位置）；`accept(card-decision)` 使整批卡片处理齐；`control`（取消原等待）；`receive` 读到不含该项的新 `waiting` 集合 | 参加时执行等于 `run.active.execution`；原位置匹配 | SE21、SE25、SE22 | 没有等待结束条目。多端答同一张卡只有一个 SE23 |
 | <a id="rs-05"></a>RS-05 | advancing 或 waiting → released | `release` | `judgeAdvance` 为 `ok`；交接依据指向该 attempt 的挂接 | SE16 | 已被取代的 attempt 得到 `stale-advance`，认回既有 SE16 |
 | <a id="rs-06"></a>RS-06 | released → granted | `claim`、`reload` | `judgeAdvance`：`advance` 为空，或旧 attempt 可信排除 | SE15，`reload` 另有 SE08 | 两个恢复者一个成立，另一个得到 `stale-advance` |
-| <a id="rs-07"></a>RS-07 | advancing 或 waiting → superseded → granted（同批） | `claim`（接管）、`reload`（旧 runtime 失联） | 接管资格；`judgeAdvance` | 旧 attempt 的 SE16 与新 attempt 的 SE15 同批；`tasks.start-fence` | 旧 runtime 的后续提交得到 `stale-advance`。窗口内参加者响应「冲突」（[PM-05](#pm-05)） |
+| <a id="rs-07"></a>RS-07 | advancing 或 waiting → superseded → granted（同批） | `claim`（接管）、`reload`（旧 runtime 失联） | 接管资格；`judgeAdvance` | 旧 attempt 的 SE16 与新 attempt 的 SE15 同批；`tasks.start-fence`（已被替代） | 旧 runtime 的后续提交得到 `stale-advance`。窗口内参加者响应「冲突」（[PM-05](#pm-05)） |
 | <a id="rs-08"></a>RS-08 | active → completed | `receive` 读到结论为 complete 的结束事件或结束状态 | Run 未终态；事件属于 `run.active.execution` | SE26 completed、SE16 | 取消先成立时只认回：Agent 的结论作为 SE26 cancelled 的引用保留，终态不改。条件终结之前的待交输入由 [PA-02](#pa-02) 挡住 |
 | <a id="rs-09"></a>RS-09 | active → failed | `receive` 读到结论为 fail 的结束事件或结束状态；有界收束（[P-5](#具名前提与明确缺项)，或 [PM-02](#pm-02) 的准入拒绝）时由 Session 提交 `finishRun` | 读结束事实时同 RS-08；有界收束时核对收束依据 | SE26 failed、SE16；准入拒绝另有 SE35 | 取消先成立时只认回。完成先成立时 `finishRun` 返回 `terminal` |
 | <a id="rs-10"></a>RS-10 | active → cancelled | `control(cancel-run)`、`control(archive)`、到期的 `considerAutoArchive`；`receive` 读到结论为 cancelled 的结束事件 | `resolveControlScope`：Run 未终态；读结束事实时 Run 未终态 | SE24、SE25、SE26 cancelled、SE16；归档另有 SE27 | 完成或失败先成立时 `control` 返回 `terminal` 并带回既有终态。SE26 cancelled 已成立时，结束事件只认回。优雅或强制不改变终态时点 |
@@ -1298,7 +1298,7 @@ SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类�
 | 装配 | 定义与装配的实际采用 | SE08 | `startRun`、`reload`、`create` |
 | 子会话 | 级联回执 | SE25 | `receive(cascade)` |
 | 执行环境 | 作用域释放的读回 | SE25；解除或保留 `tasks.scope-release` | `receive(scope-release)` |
-| Tool 启动围栏 | 启动资格失效已生效 | SE25；解除 `tasks.start-fence`，或把 `ControlProgress.startFence` 记为 `effective` | `receive(start-fence)` |
+| Tool 启动围栏 | 启动资格失效已生效 | SE25；解除 `tasks.start-fence`（已被替代），或把 `ControlProgress.startFence` 记为 `effective` | `receive(start-fence)`（已被替代） |
 | 时钟与空闲输入 | 连续空闲依据 | SE31 | `recordIdle` |
 | 初始化项的负责方 | 初始化结果 | SE02 | `completeInitialization` |
 
@@ -1339,7 +1339,7 @@ assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内�
 | `commitDerived(compaction)` | ST25 | 压缩记录与对人时间线的标注同批；`judgeCompaction` 失败时整体拒绝 |
 | `commitDerived(context-reminder)` | ST25 | 同一变化材料认回；归档后不追加 |
 | 归档同批产生的作用域释放任务 | ST21 | `tasks.scope-release` 与 SE27 同批 |
-| 换代同批产生的启动资格失效任务 | ST09、ST11 | `tasks.start-fence` 与旧 attempt 的 SE16 同批；失效生效时解除 |
+| 换代同批产生的启动资格失效任务 | ST09、ST11 | `tasks.start-fence`（已被替代） 与旧 attempt 的 SE16 同批；失效生效时解除 |
 | `receive(scope-release)` | ST26 | 按[作用域释放的处置](#构造依赖端口与出站端口)解除或保留任务 |
 | 消费游标的推进 | ST26 | 游标随产生的条目同批保存；不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进（[EC-02](#ec-02)） |
 | 采用点纳入常驻工具 | ST01、ST06、ST11 | 候选采用材料列出的新常驻工具写 SE36；已纳入的能力身份不再写 |
@@ -1400,6 +1400,21 @@ Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[
 - 这是系统作用域读取：输入是 `{ scope: 'system', key }`，不用 `Access<P>`，跨租户返回。调用方类是 `maintainer`，调用方仍须出示系统作用域的读取资格。
 - 存储提供者在提交 SE08、SE26、SE27 与 SE28 时维护「登记键到会话」的派生索引。读取不扫描会话日志。查询按游标分页，读不到时返回 `unavailable`，不返回空页冒充没有引用。
 
+### 被替代的协议
+
+<a id="toolstartfenceport"></a><a id="deliveryreleaseport"></a>
+
+按 [P1 决定第 1 项](https://github.com/nemori-ai/omne-harness-lite/issues/536#issuecomment-6373024264)，下列协议已被替代，`@omne-harness/session-contract` 与 `@omne-harness/session-cordis-contract` 不声明它们。本页其余段落里带「（已被替代）」标记的名字只是历史叙述，不是承诺。
+
+| 被替代的声明 | 原位置 | 替代拥有者 |
+| --- | --- | --- |
+| 出站端口 `DeliveryReleasePort`（已被替代）与服务键 `sessionDeliveryRelease`（已被替代） | 本规格 [EC-04](#ec-04)、[EC-05](#ec-05)、出站端口表 | 交付责任解除经 Agent 宿主的结果接收方发出（CA-06，[CP-15c 输入](https://github.com/nemori-ai/omne-harness-lite/issues/536#issuecomment-6392857271)）；Agent 契约的生产者接收面（#672） |
+| 出站端口 `ToolStartFencePort`（已被替代）与服务键 `sessionToolStartFence`（已被替代） | 本规格 [PM-05](#pm-05)、[PM-13](#pm-13)、出站端口表 | Tool 启动围栏是 Agent 日志的 `start-fence`（已被替代）条目（#672 J03，`agent-contract` 的 `StartFenceEntry`） |
+| `ControlProgress.startFence`（已被替代）、`RecoveryTask` 的 `start-fence`（已被替代）变体、`ProducerFact` 的 `start-fence`（已被替代）变体 | 公开接口页 | 同上 |
+| `ProducerFact` 的 `agent-event` 变体与 `AgentEventFact`（Agent 事件副本协议） | [EC-01](#ec-01)、[EC-02](#ec-02) 的 `receive` 写入 | Agent 事实经 Agent 宿主的接收面到达；承接批次（SE14）、等待（SE18、SE22）、生产者结果（SE19）、控制阶段（SE25）与 Agent 结论的 Run 终态（SE26）的替代表达是 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) 的设计工作 |
+
+替代表达必须承接原来仍有效的控制、结果、恢复与未知责任，本规格不在此发明它。在替代落地之前：`ControlProgress` 没有围栏字段；`receive` 只有 `input-handover` 与其余生产者事实；Run 的完成终态只能经 `finishRun` 的有界收束（failed）成立，Agent 结论的 completed/failed 终态等 #756。
+
 ### 构造依赖端口与出站端口
 
 本成员声明七个构造依赖端口与四个出站端口，另声明一个由应用装配交付的值 `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体，由应用装配的维护拥有者签发，身份桥核实。接口与类型在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。`SessionTransactionPort` 与内部主体是装配的必需依赖；其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`，不使整个服务停下。下表的「缺席或失败时」一列与 Cordis 定义的端口表一致。
@@ -1414,8 +1429,8 @@ Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[
 | `SessionContextInput` | 创建、声明修改与推进采用的注册材料 | 这些命令必需 | 对应命令返回 `unavailable` |
 | `SessionNotifier` | 提交后的唤醒 | 可选，每次提交后现取 | 缺席或失败不回滚提交；工作由扫描恢复 |
 | `AgentDrivePort` | 驱动 Agent：发起、交入、接续、控制、交还、迟到结果记录、查询、读执行记录、预热 | 推进、恢复与控制传播必需；预热在 [P-7](#具名前提与明确缺项) 闭合前不调用 | 出站调用不发出，任务保留，由调度器按策略重放 |
-| `ToolStartFencePort` | 请 Tool 让启动资格失效，并读回失效是否已生效 | 控制传播、归档与换代必需 | 控制进度保持 propagating，`tasks.start-fence` 保留，按策略重放；不声称新发起已被阻止 |
-| `DeliveryReleasePort` | 向生产者发出交付责任解除：Model 的 ACK 或 Tool 的交付释放 | 结果保管或处理之后必需 | `release` 保持 pending，由恢复协调按 `pending(release)` 找回后重发 |
+| 已被替代的 `ToolStartFencePort`（已被替代） | 请 Tool 让启动资格失效，并读回失效是否已生效 | 控制传播、归档与换代必需 | 控制进度保持 propagating，`tasks.start-fence`（已被替代） 保留，按策略重放；不声称新发起已被阻止 |
+| 已被替代的 `DeliveryReleasePort`（已被替代） | 向生产者发出交付责任解除：Model 的 ACK 或 Tool 的交付释放 | 结果保管或处理之后必需 | `release` 保持 pending，由恢复协调按 `pending(release)` 找回后重发 |
 | `ScopeReleasePort` | 请执行环境释放会话作用域 | 归档后的作用域释放必需 | 任务保留并报告 |
 
 #### SessionTransactionPort
@@ -1471,18 +1486,18 @@ Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[
 
 事件读取与确认不经本端口：session-adapters 的事件消费插件直接读 Agent 的输出，提交 `receive` 后再向 Agent 确认（[EC-02](#ec-02)）。它从 `readWork` 读 `ExecutionRef.readThrough` 作为读取起点。
 
-#### ToolStartFencePort
+#### ToolStartFencePort（已被替代）
 
 Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是被动守卫。Tool 一侧的行为沿 [P04 实际发起围栏](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)。
 
 - 时点：`control(cancel-run)`、`control(archive)`、到期的 `considerAutoArchive` 与换代（`claim`、`reload`）撤销资格的提交成功之后，控制传播、归档协调或推进协调调用 `invalidate`。提交未知期间不调用。
 - 参数：租户、会话、控制或换代的操作身份、受影响的资格范围（Run、attempt 或整个会话）与撤销后的资格版本。参数不含 Tool 的类型。
-- 结果：`effective`（失效已在排序域内生效）、`pending`（已受理，尚未生效）、`unavailable`、`commit-unknown`。只有 `effective` 经 `receive(start-fence)` 计入 `ControlProgress` 的对账进度或解除 `tasks.start-fence`。其他结果使 `startFence` 保持 `pending`、任务保留，由重放按同一操作身份再次调用。
+- 结果：`effective`（失效已在排序域内生效）、`pending`（已受理，尚未生效）、`unavailable`、`commit-unknown`。只有 `effective` 经 `receive(start-fence)`（已被替代） 计入 `ControlProgress` 的对账进度或解除 `tasks.start-fence`（已被替代）。其他结果使 `startFence`（已被替代） 保持 `pending`、任务保留，由重放按同一操作身份再次调用。
 - 责任：资格版本归 Session。排序与启动拒绝归 Tool。
 
 服务键归 session-cordis-contract。
 
-#### DeliveryReleasePort
+#### DeliveryReleasePort（已被替代）
 
 交付责任解除是提交后的外部动作，按 [EC-04](#ec-04) 与 [EC-05](#ec-05) 发出。
 
@@ -1584,7 +1599,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | VC-B12 | 恢复读到的每一类未结事项 | 先查后做；查不到不当作不存在 | [PM-14](#pm-14) |
 | VC-B13 | 任何推进命令携带接续值 | 类型上不能构造；Session 的状态里没有接续值 | [PM-01](#pm-01)、[I-R8](#i-r8) |
 | VC-B14 | 执行尝试已授予而 Agent 尚无该执行的记录 | 以同一出站操作身份重放 `invoke`；不按有界恢复者收束 | [PM-14](#pm-14)、[P-5](#具名前提与明确缺项) |
-| VC-B15 | 换代撤销旧 attempt 后 Tool 启动资格失效未生效 | `tasks.start-fence` 保留并重放；`resume` 不等生效；生效前不声称新发起已被阻止 | [PM-05](#pm-05)、[ToolStartFencePort](#toolstartfenceport) |
+| VC-B15 | 换代撤销旧 attempt 后 Tool 启动资格失效未生效 | `tasks.start-fence`（已被替代） 保留并重放；`resume` 不等生效；生效前不声称新发起已被阻止 | [PM-05](#pm-05)、[ToolStartFencePort（已被替代）](#toolstartfenceport) |
 | VC-C01 | 承接、等待、生产者、控制、结束、消息与流事件到达 | 承接、登记、等待、控制阶段与终态各写一次；消息与流事件不写条目；重放认回 | [EC-01](#ec-01) |
 | VC-C02 | 游标丢失后从 `"0"` 重读 | 重放认回，不重复写入；确认只在游标持久后发出 | [EC-02](#ec-02) |
 | VC-C03 | Run 未终结、事件尚未读到时裁定空闲或完成 | 不得出 `due`；终态只在读到结束事实后成立 | [EC-03](#ec-03)、[I-R10](#i-r10) |
@@ -1601,12 +1616,12 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | VC-R04 | 执行已结束而 Session 没有终态 | 按 Agent 的结论写 completed、failed 或 cancelled，不改写为失败 | [PM-14](#pm-14)、[RS-08](#rs-08) 至 [RS-10](#rs-10) |
 | VC-O01 | 每个变更操作的结果未知 | 不改写为失败或成功；按表中的认回方式取得原结果 | [四个面与公开操作](#四个面与公开操作) |
 | VC-O02 | 作用域释放读回的五类处置及其组合，以及执行环境提供者换代 | 只在全部为已释放时解除任务；未获授权不改用用户身份重试；换代后按页重新释放已归档会话的作用域 | [ScopeReleasePort](#scopereleaseport) |
-| VC-O03 | 取消或归档之后，Tool 的启动资格失效未生效、已受理未生效或不可用 | 只有失效已生效才计入对账进度；之前不声称新发起已被阻止 | [ToolStartFencePort](#toolstartfenceport)、[PM-13](#pm-13) |
+| VC-O03 | 取消或归档之后，Tool 的启动资格失效未生效、已受理未生效或不可用 | 只有失效已生效才计入对账进度；之前不声称新发起已被阻止 | [ToolStartFencePort（已被替代）](#toolstartfenceport)、[PM-13](#pm-13) |
 | VC-O04 | 执行环境模式变化，随后发起工具调用；设置求值不可用 | 模式与会话层目标环境设置声明同批；Tool 装载时固定设置；不可用时调用不发出，不回退工具缺省 | [会话块声明与设置值的固定时点](#会话块声明与设置值的固定时点) |
 | VC-O05 | 调用方类不在操作允许的范围内 | 调用被拒绝；调用方类核对不替代资格核对 | [四个面与公开操作](#四个面与公开操作) |
 | VC-O06 | 同一历史依据分页读 epoch 视图，期间提交压缩 | 各页同一 epoch 与上界；压缩之后以旧依据读取返回 `epoch-changed` 与当前依据；视图行与从日志朴素推导的模型视图一致 | [SessionHistory](#sessionhistory) |
 | VC-O07 | 执行环境提供者换代，已归档会话的作用域此前已释放 | 经 `releasedScopes` 取全所有作用域，按原任务身份重新释放，重复释放认回 | [ScopeReleasePort](#scopereleaseport) |
-| VC-O08 | 保管或处理已提交，交付责任解除未确认时进程重启、通知丢失 | 恢复协调经 `pending(release)` 找回并以同一操作身份重发；确认后 `release` 为 confirmed；不重复调用生产者的执行 | [DeliveryReleasePort](#deliveryreleaseport)、[EC-05](#ec-05) |
+| VC-O08 | 保管或处理已提交，交付责任解除未确认时进程重启、通知丢失 | 恢复协调经 `pending(release)` 找回并以同一操作身份重发；确认后 `release` 为 confirmed；不重复调用生产者的执行 | [DeliveryReleasePort（已被替代）](#deliveryreleaseport)、[EC-05](#ec-05) |
 | VC-F01 | 两条路径先后交来同一会话的冻结判定，证据相同或不同 | 只有一条 SE37；第二次返回原回执，`recovered` 为真 | [I-F1](#i-f1) |
 | VC-F02 | 冻结后到达新 Run 触发、`reload` 与 `claim` | `startRun` 与 `reload` 返回 `frozen`；`claim` 照常，原 Run 接续 | [I-F2](#i-f2) |
 | VC-F03 | 冻结时有未终结 Run 与待处理输入 | Run 不被取消；待处理输入交入这个 Run；Run 终态同批以 SE38 解除余下的待处理输入 | [I-F3](#i-f3)、[I-F4](#i-f4) |

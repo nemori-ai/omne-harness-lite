@@ -15,7 +15,7 @@ F-SC 是本页的文档定位号。每条流程细化组根的一条或几条[�
 | [F-SC03](#f-sc03-压缩转换的共同提交与-epoch-新代) | 压缩转换的共同提交与 epoch 新代 | [F-SE06](../../../docs/key-flows.md#f-se06-压缩共同提交与模型视图新代) | JC-09、PA-04、PA-05 |
 | [F-SC04](#f-sc04-结果保管的共同提交) | 结果保管的共同提交 | [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | JC-11、PA-05、EC-04 |
 | [F-SC05](#f-sc05-处理完成的共同提交) | 处理完成的共同提交 | [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | JC-12、PA-05、RS-04、EC-04 |
-| [F-SC06](#f-sc06-交付责任解除与重发) | 交付责任解除与重发 | [F-SE05](../../../docs/key-flows.md#f-se05-恢复)、[F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | EC-04、EC-05、EC-06、DeliveryReleasePort、P-6 |
+| [F-SC06](#f-sc06-交付责任解除与重发) | 交付责任解除与重发 | [F-SE05](../../../docs/key-flows.md#f-se05-恢复)、[F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | EC-04、EC-05、EC-06、DeliveryReleasePort（已被替代）、P-6 |
 | [F-SC07](#f-sc07-从-agent-事件派生事实) | 从 Agent 事件派生事实 | [F-SE02](../../../docs/key-flows.md#f-se02-agent-事件到日志条目) | EC-01、EC-02、EC-03、JC-24 |
 | [F-SC08](#f-sc08-条件终结与-run-终态) | 条件终结与 Run 终态 | [F-SE03](../../../docs/key-flows.md#f-se03-控制传播)、[F-SE05](../../../docs/key-flows.md#f-se05-恢复) | PA-02、PA-08、PM-13、PM-14、RS-08 至 RS-10、P-5 |
 | [F-SC09](#f-sc09-推进映射与换代) | 推进映射与换代 | [F-SE05](../../../docs/key-flows.md#f-se05-恢复)、[F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定) | PM-03 至 PM-12、JC-07、JC-08、JC-15 |
@@ -259,7 +259,7 @@ sequenceDiagram
 
 ## F-SC06 交付责任解除与重发
 
-细化 [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志)的确认步与 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的 `release` 项。依据：[EC-04](../../SPEC.md#ec-04)、[EC-05](../../SPEC.md#ec-05)、[EC-06](../../SPEC.md#ec-06)、[DeliveryReleasePort](../../SPEC.md#deliveryreleaseport)、[PM-14](../../SPEC.md#pm-14) 的 `release` 行、`PendingReason` 的 `release`（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[P-6](../../SPEC.md#具名前提与明确缺项)。
+细化 [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志)的确认步与 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的 `release` 项。依据：[EC-04](../../SPEC.md#ec-04)、[EC-05](../../SPEC.md#ec-05)、[EC-06](../../SPEC.md#ec-06)、[DeliveryReleasePort（已被替代）](../../SPEC.md#deliveryreleaseport)、[PM-14](../../SPEC.md#pm-14) 的 `release` 行、`PendingReason` 的 `release`（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[P-6](../../SPEC.md#具名前提与明确缺项)。
 
 交付责任解除是提交后的外部动作，数据库事务不包含它。发出者是当前合格消费者，不要求旧 attempt 有效，也不要求 Agent 在场。
 
@@ -267,7 +267,7 @@ sequenceDiagram
 sequenceDiagram
     participant S as Session 协调
     participant D as 存储事务域
-    participant R as DeliveryReleasePort
+    participant R as DeliveryReleasePort（已被替代）
     participant P as 生产者 Model 或 Tool
     Note over S,D: SE20 或 SE21 已提交并认回为 committed
     S->>R: release(操作身份从 consumption 与结果版本派生，consumption，ProducedResult，保管或完成证据)
@@ -410,7 +410,7 @@ flowchart TD
     W --> P["控制传播，终态不等传播"]
     P -->|挂接存活| P1["经出站端口 control 送到原执行"]
     P -->|没有挂接| P2["resume 取得挂接后送控制，挂接以取消授权终结"]
-    P -->|Tool| P3["ToolStartFencePort.invalidate，等到 effective"]
+    P -->|Tool| P3["ToolStartFencePort（已被替代）.invalidate，等到 effective"]
     P1 --> E["之后读到的 ended 事件只认回"]
     P2 --> E
     P3 --> Q["receive(start-fence) 计入对账进度"]
@@ -436,7 +436,7 @@ flowchart TD
 
 ## F-SC09 推进映射与换代
 
-细化 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的接续部分与 [F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定)的 reload 入口。依据：[PM-01](../../SPEC.md#pm-01) 至 [PM-12](../../SPEC.md#pm-12)、JC-07、JC-08、JC-15、[RS-05](../../SPEC.md#rs-05) 至 [RS-07](../../SPEC.md#rs-07)、[I-R2](../../SPEC.md#i-r2)、[I-R8](../../SPEC.md#i-r8)、[ToolStartFencePort](../../SPEC.md#toolstartfenceport)。Agent 一侧沿[恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../../../agent/agent-contract/SPEC.md#采用交接)。
+细化 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的接续部分与 [F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定)的 reload 入口。依据：[PM-01](../../SPEC.md#pm-01) 至 [PM-12](../../SPEC.md#pm-12)、JC-07、JC-08、JC-15、[RS-05](../../SPEC.md#rs-05) 至 [RS-07](../../SPEC.md#rs-07)、[I-R2](../../SPEC.md#i-r2)、[I-R8](../../SPEC.md#i-r8)、[ToolStartFencePort（已被替代）](../../SPEC.md#toolstartfenceport)。Agent 一侧沿[恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../../../agent/agent-contract/SPEC.md#采用交接)。
 
 Run 与 Agent 执行一一对应，attempt 与执行挂接一一对应。Session 不保存接续值。`claim.continuity` 与 `reload.handover` 都是耐久证据。
 
@@ -447,7 +447,7 @@ sequenceDiagram
     participant J as 执行记录提供者
     participant S as Session 参加者
     participant D as 存储事务域
-    participant T as ToolStartFencePort
+    participant T as ToolStartFencePort（已被替代）
     opt reload 第一阶段，候选准备
         R->>G: 求值候选，取 Agent 采用交接的证明
         G-->>R: 交接证明，绑定执行、修订与目标采用。本阶段不写条目
@@ -507,7 +507,7 @@ sequenceDiagram
 | `claim` 或 `reload` 回执丢失 | `queryOperation`。`committed` 读新 `AdvanceRef` 继续，`unknown` 时不第二次 `claim` | PM-10 |
 | 重复 reload | 同候选同证明认回，同身份异候选 `conflict`，不同候选的第二个 `changed` | PM-12 |
 | 各阶段由另一进程接手 | 谁读到 `advance` 并能出示它的 SE15 证据，谁就能继续映射提交 | PM-07 |
-| 启动资格失效未生效 | `tasks.start-fence` 保留并重放。`resume` 不等生效。生效前不声称新发起已被阻止 | ToolStartFencePort |
+| 启动资格失效未生效 | `tasks.start-fence`（已被替代） 保留并重放。`resume` 不等生效。生效前不声称新发起已被阻止 | ToolStartFencePort（已被替代） |
 
 契约未定：宿主失联判断的证据形状归 Agent 宿主。「推进资格已被取代」的参加者冲突映射为 `stale-advance` 归 Agent 拥有者，补上之前旧 runtime 在 `claim` 与接续之间得到 `changed`，见[明确缺项](../../SPEC.md#具名前提与明确缺项)。
 
