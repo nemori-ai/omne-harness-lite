@@ -78,7 +78,7 @@ function unavailable(diagnostic: string): TimeBasis {
 
 /**
  * Creates the double over an injected clock and injected login terms. There is no default for
- * either. Each call makes a separate provider: a proof from one is `invalid` in another.
+ * either. Each call makes a separate deployment: a proof from one is `invalid` in another.
  */
 export function inProcessIdentityOperations(
   options: IdentityOperationsOptions,

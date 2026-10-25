@@ -33,7 +33,10 @@ import {
 } from './controls.ts'
 import { addDuration, isPositive, justBefore } from './time.ts'
 
-/** How the suite gets providers. Every call of `create` must give a new, empty provider. */
+/**
+ * How the suite gets providers. Every call of `create` must give a new, empty provider that stands
+ * for a separate deployment: one case presents a proof of another call's provider as foreign.
+ */
 export interface IdentityContractFixture {
   create(options: IdentityOperationsOptions): IdentityOperations | Promise<IdentityOperations>
   /**
@@ -376,7 +379,7 @@ const CASES: readonly ContractCase[] = [
   },
   {
     id: 'recognize-invalid-proof',
-    rule: 'ID-03: an empty, forged, foreign or identity-text proof is invalid, without the clock',
+    rule: 'ID-03: an empty or forged proof, a proof of another deployment and the login identity text are invalid, without the clock',
     async run({ operations, another, clock }) {
       await registered(operations, 'contract-ada', 'credential-ada')
       const login = await issued(operations, 'contract-ada', 'credential-ada')
@@ -389,7 +392,7 @@ const CASES: readonly ContractCase[] = [
       await invalidAt(operations, '', 'an empty proof')
       await invalidAt(operations, 42, 'a proof that is not text')
       await invalidAt(operations, `${login.loginProof}x`, 'a forged proof')
-      await invalidAt(operations, foreign.loginProof, 'a proof of another provider')
+      await invalidAt(operations, foreign.loginProof, 'a proof of another deployment')
       await invalidAt(operations, identityText.value, 'the login identity text')
       return 'passed'
     },
