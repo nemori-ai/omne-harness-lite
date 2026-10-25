@@ -100,6 +100,8 @@ Agent 独立装配只要求本域输入受理与终结的条件提交，不依�
 
 候选发行行是 session-provider、agent-host、agent-instances、model-host、tool-host 与各必要提供者/目录行。精确包导出和配置由后继应用装配实现时登记；本候选不发布一个可运行的假插件树。运行时创建的实例贡献 fiber 不进两层树。Session 作用域只是显式身份和本次贡献，既不是根 Context，也不是组织/租户配置层。
 
+单机首条租户路径用到的发行行、各行现状与缺口见[应用装配](application-assembly.md#插件树)。
+
 ## IC 逐项对账
 
 | IC | 本候选的适用位置 | 验证与边界 |
