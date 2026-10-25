@@ -14,12 +14,18 @@ export {
   executionEnvironmentConformance,
   type EnvironmentConformanceOptions,
   type EnvironmentConformanceSubject,
+  type EnvironmentConformancePorts,
 } from './environment-conformance.ts'
 export {
   createScriptedEnvironmentProvider,
   createMemoryResourceLedger,
   createScriptedFacilityGuard,
   createScriptedRecoveryAuthority,
+  createScriptedEnvironmentAuthority,
+  createScriptedScopeBindings,
+  type EnvironmentAuthorityScript,
+  type ScriptedEnvironmentAuthority,
+  type ScriptedScopeBindings,
   type ProviderScript,
   type ScriptedEnvironmentProvider,
   type MemoryResourceLedger,

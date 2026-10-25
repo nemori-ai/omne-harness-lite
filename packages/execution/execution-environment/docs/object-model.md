@@ -1,15 +1,16 @@
 # 执行环境登记表的对象模型
 
-本页说明本成员内部对象的身份、关系与生灭。领域对象（访问身份、落点、获取、采用记录、租约、受管资源、设施声明、恢复授权）的含义归 [execution-environment-contract 的对象模型](../../execution-environment-contract/docs/object-model.md)。本页只写登记表怎样持有和转移它们。行为条款归 [SPEC](../SPEC.md)。
+本页说明本成员内部对象的身份、关系与生灭。领域对象（访问身份、落点、获取、原获取描述、采用记录、租约、受管资源、设施声明、恢复授权）的含义归 [execution-environment-contract 的对象模型](../../execution-environment-contract/docs/object-model.md)。本页只写登记表怎样持有和转移它们。行为条款归 [SPEC](../SPEC.md)。
 
 ## 对象与关系
 
 | 对象 | 身份 | 拥有者 | 内容 |
 | --- | --- | --- | --- |
-| 登记表实例 `EnvironmentRegistry<P>` | 每次调用 `createEnvironmentRegistry` 一个 | 调用工厂的一方 | 四张表、关闭标记、恢复授权端口 |
+| 登记表实例 `EnvironmentRegistry<P>` | 每次调用 `createEnvironmentRegistry` 一个 | 调用工厂的一方 | 四张表、关闭标记、恢复授权、环境授权与作用域绑定三个端口、清理等待上界、诊断出口 |
 | 提供者条目 | 提供者名称加代 | 登记表 | 提供者、身份（名称、代与版本）、是否在场、进行中的退役 |
 | 设施声明条目 | 设施键 | 登记表 | 操作名单、须授权的操作名单 |
-| 获取记录 | 幂等键 `AcquisitionRef` 加获取方租户 | 登记表 | 获取方租户、请求方作用域、原调用、落点、所选提供者条目、`AcquisitionState`、租约视图、失效函数 |
+| 获取记录 | 获取方租户加获取键 `AcquisitionRef` | 登记表 | 原获取描述（租户、获取键、原调用、请求方作用域、落点）及其指纹、首次调用的账本与守卫、所选提供者条目、`AcquisitionState` 与版本号、首次调用是否仍在进行、尚未采用的临时回执、进行中的采用、租约视图、失效函数 |
+| 临时回执 | 所属获取记录 | 获取记录，采用或采用失败时清掉 | 提供者交回的租约原件与证据 |
 | 已释放作用域 | 作用域引用 | 登记表 | 只有引用本身 |
 | 租约视图 | 所属获取记录 | 获取记录 | 租约原件、守卫、这次获取的账本的 `closed` 信号、是否有效、释放进行中、是否已释放 |
 | `RetirementPending` | 每次抛出一个 | 抛出它的撤除函数 | 退役主体的描述、未停的受管资源 |
@@ -21,6 +22,7 @@ classDiagram
     acquire()
     inspectAcquisition()
     describe()
+    inspectRecoveryAcquisition()
     recoverOwned()
     releaseScope()
     registerFacility()
@@ -39,12 +41,13 @@ classDiagram
     guarded
   }
   class AcquisitionRecord {
-    acquisition
-    tenant
-    scope
-    origin
-    placement
+    original
+    fingerprint
+    ledger
+    guard
     state
+    version
+    receipt
   }
   class LeaseView {
     lease
@@ -53,10 +56,18 @@ classDiagram
   class RecoveryAuthority {
     authorizeRecovery()
   }
+  class EnvironmentAuthority {
+    authorize()
+  }
+  class ScopeBindingSource {
+    lookup()
+  }
   EnvironmentRegistry "1" *-- "*" ProviderEntry : 提供者表
   EnvironmentRegistry "1" *-- "*" StoredDescriptor : 设施声明表
   EnvironmentRegistry "1" *-- "*" AcquisitionRecord : 获取表
   EnvironmentRegistry --> RecoveryAuthority : 工厂注入
+  EnvironmentRegistry --> EnvironmentAuthority : 工厂注入
+  EnvironmentRegistry --> ScopeBindingSource : 工厂注入
   AcquisitionRecord --> ProviderEntry : 所选提供者
   AcquisitionRecord "1" o-- "0..1" LeaseView : 已获取后
   LeaseView --> StoredDescriptor : 每次取设施时查
@@ -66,7 +77,8 @@ classDiagram
 
 - 获取记录引用提供者条目，不复制它。提供者退役时，登记表按这个引用找到它交出的全部租约。
 - 获取记录记下请求方作用域。描述、作用域释放、恢复授权收集的资源都按它过滤，不按绑定层的归属；宿主机与租户级沙箱上的获取也在内。
-- 获取记录在核验通过前没有租约视图。核验失败时也没有，租约原件已交还提供者释放。
+- 获取记录在采用前没有租约视图。采用失败时也没有，临时回执被清掉，它的租约原件经释放清理。
+- 原获取的查询不经过本地记录的租约视图：它问原配额域的原记录，答复提供者的事实，不交出租约。
 - 租约视图每次 `facility(键)` 与每次设施操作都查设施声明表。撤除声明之后新的查询取不到这个键，已经取到的设施对象上的操作返回 `unsupported`。
 - 采用记录写在获取状态里，与租约视图同属一次获取。它是给集成方保存的值，本成员不持有它的耐久副本。
 
@@ -78,17 +90,24 @@ classDiagram
 
 | 转移 | 触发 |
 | --- | --- |
-| 写入，获取中 | 新键通过了租户与关闭的检查 |
-| 获取中 → 已拒绝 | 重新核对失败，或提供者抛出、拒绝 |
+| 写入，获取中 | 新键通过了访问核验、租户与关闭的检查 |
+| 获取中 → 删除 | 配额预查不可用或未知，或授权已撤销 |
+| 获取中 → 已拒绝 | 重新核对失败，或提供者拒绝 |
+| 获取中 → 分配未知 | 提供者抛出、答未知或答复非法 |
 | 获取中 → 临时 | 提供者交回回执 |
-| 临时 → 已获取 | 核验通过，签发采用记录 |
-| 临时 → 已拒绝或待处置释放 | 核验失败后释放成功或待处置 |
+| 临时 → 已获取 | 采用核验通过，签发采用记录 |
+| 临时 → 采用失败（清理 `pending`） | 采用核验失败，或关闭、退役、作用域释放时尚未采用 |
+| 采用失败的清理 → `settled`、`pending` 或 `unknown` | 回执释放的结果，或超过等待上界；查询与结清也会更新它。原因不变 |
+| 分配未知、获取中或无回执的临时 → 临时、已拒绝、已结清或待处置释放 | 按键查询得到原记录的答复，按契约的缓存表 |
 | 已获取 → 已失效 | 租约视图失效 |
 | 已获取或已失效 → 释放中 | `release()` |
 | 释放中 → 已释放或待处置释放 | 原件释放的结果 |
 | 待处置释放 → 释放中 | 再次 `release()` |
+| 有采用记录的状态 → 已释放；其余 → 已结清或已拒绝 | 恢复时 `settleAcquisition` 答 `settled` 或 `notAllocated` |
 
-`invalidInput` 是非法查询答复，不是记录状态。`unrecorded` 不是记录的状态。它是本成员对本租户在这个键下没有记录时的答复，不论另一租户有没有用过这个键。同一个键下每个租户各一条记录，彼此独立。记录从不删除，进程结束时随表消失。
+每次转移版本号加一。查询发出之后版本号变了，查询的答复就不再改状态。
+
+`invalidInput` 是非法查询答复，不是记录状态。`unrecorded` 不是记录的状态。它是本成员对本租户在这个键下没有记录时的答复，不论另一租户有没有用过这个键。同一个键下每个租户各一条记录，彼此独立。除配额预查失败时删除第一次写入的记录外，记录从不删除，进程结束时随表消失。
 
 ### 提供者条目
 

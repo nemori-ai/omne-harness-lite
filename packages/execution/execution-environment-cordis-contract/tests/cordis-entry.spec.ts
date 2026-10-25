@@ -2,15 +2,20 @@ import { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import {
   createRecoveryAccess,
-  type AcquisitionState,
+  type AcquisitionInspection,
   type EnvironmentBinding,
+  type RecoveryInspection,
   type Rejected,
 } from '@omne-harness/execution-environment-contract'
 import {
+  ExecutionEnvironmentAuthorityService,
   ExecutionEnvironmentService,
   ExecutionRecoveryAuthorityService,
+  ExecutionScopeBindingService,
+  executionEnvironmentAuthorityKey,
   executionEnvironmentKey,
   executionRecoveryAuthorityKey,
+  executionScopeBindingKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
 
 type ScopeText = Extract<EnvironmentBinding, { kind: 'session_sandbox' }>['scope']['ref']
@@ -34,13 +39,50 @@ it('exports only the public Cordis definitions', async () => {
     await import('@omne-harness/execution-environment-cordis-contract/cordis')
   expect(Object.keys(cordis).sort()).toEqual([
     'CallerClassMismatch',
+    'ExecutionEnvironmentAuthorityService',
     'ExecutionEnvironmentService',
     'ExecutionRecoveryAuthorityService',
+    'ExecutionScopeBindingService',
+    'executionEnvironmentAuthorityKey',
     'executionEnvironmentKey',
     'executionRecoveryAuthorityKey',
+    'executionScopeBindingKey',
     'faceCallers',
     'operationFaces',
   ])
+})
+
+it('writes the two access port keys once, on their abstract Services, and provides them from loaded subclasses', async () => {
+  expect(executionEnvironmentAuthorityKey).toBe('executionEnvironmentAuthority')
+  expect(ExecutionEnvironmentAuthorityService.provide).toBe(executionEnvironmentAuthorityKey)
+  expect(executionScopeBindingKey).toBe('executionScopeBinding')
+  expect(ExecutionScopeBindingService.provide).toBe(executionScopeBindingKey)
+  class Authority extends ExecutionEnvironmentAuthorityService {
+    async authorize() {
+      return { kind: 'refused' } as const
+    }
+  }
+  class Bindings extends ExecutionScopeBindingService {
+    async lookup() {
+      return { kind: 'unbound' } as const
+    }
+  }
+  const ctx = new Context()
+  const authorityFiber = await ctx.plugin(Authority)
+  const bindingFiber = await ctx.plugin(Bindings)
+  const fixture = await invocationFixture()
+  const authority = ctx.get(executionEnvironmentAuthorityKey)
+  const bindings = ctx.get(executionScopeBindingKey)
+  expect(authority).toBeInstanceOf(Authority)
+  expect(bindings).toBeInstanceOf(Bindings)
+  expect(
+    await authority?.authorize(fixture.access, { kind: 'describe', scope: fixture.input.scope }),
+  ).toEqual({ kind: 'refused' })
+  expect(await bindings?.lookup(fixture.input.scope)).toEqual({ kind: 'unbound' })
+  await authorityFiber.dispose()
+  await bindingFiber.dispose()
+  expect(ctx.get(executionEnvironmentAuthorityKey)).toBeUndefined()
+  expect(ctx.get(executionScopeBindingKey)).toBeUndefined()
 })
 
 it('writes the recovery authority key once, on its abstract Service, and provides it from a loaded subclass', async () => {
@@ -64,7 +106,8 @@ it('writes the recovery authority key once, on its abstract Service, and provide
 
 it('registers a subclass under the key on the fiber that loads it and removes it on unload', async () => {
   const refused: Rejected = { kind: 'rejected', reason: 'unavailable' }
-  const unrecorded: AcquisitionState = { kind: 'unrecorded' }
+  const unrecorded: AcquisitionInspection = { kind: 'unrecorded' }
+  const unknown: RecoveryInspection = { kind: 'queryUnknown', cause: 'provider' }
   class Probe extends ExecutionEnvironmentService<unknown> {
     protected async onResolvePlacement() {
       return refused
@@ -74,6 +117,9 @@ it('registers a subclass under the key on the fiber that loads it and removes it
     }
     protected async onInspectAcquisition() {
       return unrecorded
+    }
+    protected async onInspectRecoveryAcquisition() {
+      return unknown
     }
     protected async onDescribe() {
       return []
@@ -113,6 +159,10 @@ class FaceProbe extends ExecutionEnvironmentService<unknown> {
   protected async onInspectAcquisition() {
     this.calls.push('inspectAcquisition')
     return { kind: 'unrecorded' } as const
+  }
+  protected async onInspectRecoveryAcquisition() {
+    this.calls.push('inspectRecoveryAcquisition')
+    return { kind: 'queryUnknown', cause: 'provider' } as const
   }
   protected async onDescribe() {
     this.calls.push('describe')
@@ -185,6 +235,7 @@ async function invocationFixture() {
     binding: { kind: 'host_machine' },
     provider: { name: provider.name, generation: provider.generation, version: provider.version },
     continuity: provider.continuity,
+    quotaDomain: provider.quotaDomain,
   }
   return {
     access,
@@ -192,6 +243,13 @@ async function invocationFixture() {
     provider,
     commandFacility,
     acquisition: acquisitionRef('fixture-acquisition'),
+    original: {
+      tenant: access.tenant,
+      acquisition: acquisitionRef('fixture-acquisition'),
+      origin: originRef('fixture-origin'),
+      scope: input.scope,
+      placement,
+    },
     acquire: {
       acquisition: acquisitionRef('fixture-acquisition'),
       origin: originRef('fixture-origin'),
@@ -204,7 +262,7 @@ async function invocationFixture() {
   }
 }
 for (const caller of ['integrator', 'maintainer', 'provider', 'admin', undefined] as const)
-  it(`checks all eight templates for caller ${String(caller)}`, async () => {
+  it(`checks all nine templates for caller ${String(caller)}`, async () => {
     const { CallerClassMismatch } =
       await import('@omne-harness/execution-environment-cordis-contract/cordis')
     const ctx = new Context()
@@ -228,29 +286,43 @@ for (const caller of ['integrator', 'maintainer', 'provider', 'admin', undefined
       const environmental = [
         await service.resolvePlacement(fixture.access, fixture.input),
         await service.acquire(fixture.access, fixture.acquire),
-        await service.inspectAcquisition(fixture.access, fixture.acquisition),
         await service.describe(fixture.access, fixture.input.scope),
       ]
+      const inspection = await service.inspectAcquisition(fixture.access, {
+        kind: 'local',
+        acquisition: fixture.acquisition,
+      })
       const recoveries = [
         await service.recoverOwned(fixture.input.scope, fixture.recovery),
         await service.releaseScope(fixture.input.scope, fixture.recovery),
       ]
+      const recoveryInspection = await service.inspectRecoveryAcquisition(
+        fixture.recovery,
+        fixture.original,
+      )
       const environmentAllowed = caller === undefined || caller === 'integrator'
       const recoveryAllowed = caller === undefined || caller === 'maintainer'
-      if (!environmentAllowed)
+      const mismatch = { kind: 'refused', reason: 'callerMismatch' }
+      if (!environmentAllowed) {
         for (const answer of environmental)
           expect(answer).toEqual({ kind: 'rejected', reason: 'callerMismatch' })
-      if (!recoveryAllowed)
+        expect(inspection).toEqual(mismatch)
+      }
+      if (!recoveryAllowed) {
         for (const answer of recoveries)
           expect(answer).toEqual({ kind: 'rejected', reason: 'callerMismatch' })
+        expect(recoveryInspection).toEqual(mismatch)
+      }
       expect(
         root.calls.filter(name =>
           ['resolvePlacement', 'acquire', 'inspectAcquisition', 'describe'].includes(name),
         ),
       ).toHaveLength(environmentAllowed ? 4 : 0)
       expect(
-        root.calls.filter(name => ['recoverOwned', 'releaseScope'].includes(name)),
-      ).toHaveLength(recoveryAllowed ? 2 : 0)
+        root.calls.filter(name =>
+          ['recoverOwned', 'releaseScope', 'inspectRecoveryAcquisition'].includes(name),
+        ),
+      ).toHaveLength(recoveryAllowed ? 3 : 0)
       if (caller === 'provider') {
         const removeFacility = service.registerFacility(fixture.commandFacility)
         const removeProvider = service.registerProvider(fixture.provider)

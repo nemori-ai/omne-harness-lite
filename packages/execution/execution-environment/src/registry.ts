@@ -1,41 +1,88 @@
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import type { ScopeRef } from '@omne-harness/runtime-context-contract'
+import type { ScopeBindingSource, ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   bindingScope,
   matchProviders,
   type AcquireInput,
-  type AcquisitionRef,
+  type AcquisitionInspection,
+  type AcquisitionQuery,
+  type AcquisitionSettlement,
   type AcquisitionState,
   type Acquired,
+  type AllocationCleanup,
+  type AllocationFailed,
   type EnvironmentAdoption,
+  type EnvironmentAuthority,
   type EnvironmentBinding,
   type EnvironmentDescription,
   type EnvironmentLease,
   type EnvironmentProvider,
   type ExecutionEnvironment,
   type FacilityDescriptor,
+  type FacilityGuard,
   type FacilityKey,
   type LeaseInvalidation,
   type LeaseRelease,
+  type LookupUnknown,
   type ManagedResource,
-  type OriginRef,
+  type OriginalAcquisition,
+  type OriginalInspection,
   type Pending,
   type Placement,
   type ProviderAcquisition,
+  type ProviderAcquisitionStatus,
   type ProviderCapabilities,
   type ProviderIdentity,
   type ProviderRegistrations,
   type RecoveryAccess,
   type RecoveryAuthority,
+  type RecoveryInspection,
   type RejectReason,
   type Rejected,
+  type ResourceLedger,
   type Retirement,
+  type UnknownAcquisition,
 } from '@omne-harness/execution-environment-contract'
-import { sameBinding, sameScope, sameSet } from './compare.ts'
+import { checkAccess, mintedTenant, type AccessFailure } from './access.ts'
+import {
+  copyOriginal,
+  copyPlacement,
+  copyScope,
+  fingerprint,
+  sameBinding,
+  sameScope,
+  tenantText,
+} from './compare.ts'
 import { createLeaseView, type StoredDescriptor } from './lease-view.ts'
-import { driveRecovery } from './recovery.ts'
+import { queryOriginal, routeFor, type DomainRoute } from './original.ts'
+import { driveRecovery, sameOriginal } from './recovery.ts'
 
-export type RegistryDependencies = Readonly<{ recovery: RecoveryAuthority }>
+/** A structured diagnostic. It carries keys and reasons, never provider error text or secrets. */
+export type RegistryDiagnostic = Readonly<{
+  event:
+    | 'receiptForOtherKey'
+    | 'originalConflict'
+    | 'contradictoryOriginal'
+    | 'cleanupUnconfirmed'
+    | 'providerThrew'
+  acquisition: string
+  detail?: string
+}>
+
+export type RegistryDependencies<P> = Readonly<{
+  recovery: RecoveryAuthority
+  /** The environment authority port. Ordinary operations ask it before any slot is read. */
+  authority: EnvironmentAuthority<P>
+  /** The trusted scope binding source; its type belongs to the Runtime Context contract. */
+  bindings: ScopeBindingSource
+  /**
+   * How long the first `acquire` waits for the cleanup of an allocation whose adoption failed,
+   * in milliseconds. A configurable initial value; past it the cleanup state is `unknown` and the
+   * release keeps running. Default 1000.
+   */
+  cleanupWaitMs?: number
+  diagnose?: (diagnostic: RegistryDiagnostic) => void
+}>
 
 /** The registry: the environment surface, the provider surface, and its own closing. */
 export interface EnvironmentRegistry<P> extends ExecutionEnvironment<P>, ProviderRegistrations {
@@ -65,20 +112,29 @@ type ProviderEntry = {
   retiring: Promise<Retirement> | undefined
 }
 
-type AcquisitionRecord = {
-  readonly acquisition: AcquisitionRef
-  readonly tenant: TenantId
-  /** The requester's scope. Description, scope release and recovery filter by it, on every layer. */
-  readonly scope: ScopeRef
-  readonly origin: OriginRef
-  readonly placement: Placement
+type ProviderReceipt = Readonly<{
+  lease: EnvironmentLease
+  evidence: EnvironmentAdoption['evidence']
+}>
+
+type AcquisitionRecord<P> = {
+  readonly original: OriginalAcquisition
+  readonly fingerprint: string
+  /** The ports the first call captured. A retry that replaces them is a conflict. */
+  readonly ledger: ResourceLedger
+  readonly guard: FacilityGuard<P>
   readonly entry: ProviderEntry | null
-  state: Exclude<AcquisitionState, { readonly kind: 'invalidInput' }>
+  state: AcquisitionState
+  /** Bumped on every transition; a query response older than the current version is dropped. */
+  version: number
+  /** True while the first `acquire` still waits on the provider or on the adoption. */
+  inFlight: boolean
+  /** The provider receipt kept while the record is provisional and not adopted. */
+  receipt: ProviderReceipt | null
+  adopting: Promise<Acquired | AllocationFailed | Pending | UnknownAcquisition> | undefined
   lease: EnvironmentLease | null
   invalidate: (invalidation: LeaseInvalidation) => void
 }
-
-type ProviderReceipt = Extract<ProviderAcquisition, { kind: 'acquired' }>
 
 function rejected(reason: RejectReason): Rejected {
   return Object.freeze({ kind: 'rejected', reason })
@@ -88,16 +144,9 @@ function byRegistry(reason: Extract<LeaseInvalidation, { source: 'registry' }>['
   return Object.freeze({ source: 'registry', reason } satisfies LeaseInvalidation)
 }
 
-function adoptionOf(
-  state: Exclude<AcquisitionState, { readonly kind: 'invalidInput' }>,
-): EnvironmentAdoption | null {
-  // The closed union carries adoption only after verification. A pending compensation carries null.
+function adoptionOf(state: AcquisitionState): EnvironmentAdoption | null {
+  // The closed union carries adoption only after verification.
   return 'adoption' in state ? state.adoption : null
-}
-
-/** legal-identity's equality is false for any value it did not mint, so it doubles as the mint check. */
-function mintedTenant(tenant: TenantId): boolean {
-  return tenantEquals(tenant, tenant)
 }
 
 /** A layer that names an owning scope must name the requester's scope; other layers fit any scope. */
@@ -106,78 +155,212 @@ function fitsScope(binding: EnvironmentBinding, scope: ScopeRef): boolean {
   return owner === undefined || sameScope(owner, scope)
 }
 
-function samePlacement(left: Placement, right: Placement): boolean {
-  return (
-    sameBinding(left.binding, right.binding) &&
-    left.provider.name === right.provider.name &&
-    left.provider.generation === right.provider.generation &&
-    left.provider.version === right.provider.version &&
-    sameSet(left.requirement.facilities, right.requirement.facilities) &&
-    sameSet(left.requirement.isolation, right.requirement.isolation)
-  )
+function unknownAcquisition(
+  acquisition: AcquisitionInput['acquisition'],
+  phase: UnknownAcquisition['phase'],
+): UnknownAcquisition {
+  return Object.freeze({ kind: 'unknown', acquisition, phase })
 }
 
-function current(record: AcquisitionRecord): Acquired | Pending | Rejected {
+type AcquisitionInput = AcquireInput<unknown>
+
+function pendingProvisional(): Pending {
+  return Object.freeze({ kind: 'pending', state: Object.freeze({ kind: 'provisional' }) })
+}
+
+function failed<P>(record: AcquisitionRecord<P>): AllocationFailed | undefined {
+  const state = record.state
+  return state.kind === 'allocationFailed'
+    ? Object.freeze({
+        kind: 'allocationFailed',
+        acquisition: record.original.acquisition,
+        reason: state.reason,
+        cleanup: state.cleanup,
+      })
+    : undefined
+}
+
+/** What a repeat with the same fingerprint reads from an existing record, without a new allocation. */
+function replayAnswer<P>(
+  record: AcquisitionRecord<P>,
+): Acquired | Pending | Rejected | AllocationFailed | UnknownAcquisition {
   const state = record.state
   switch (state.kind) {
     case 'acquired':
       return record.lease === null
-        ? rejected('unavailable')
+        ? pendingProvisional()
         : Object.freeze({ kind: 'acquired', lease: record.lease, adoption: state.adoption })
     case 'rejected':
       return rejected(state.reason)
-    case 'unrecorded':
-      return rejected('unavailable')
-    default:
+    case 'allocationFailed':
+      return failed(record) ?? rejected('unavailable')
+    case 'allocationUnknown':
+      return unknownAcquisition(record.original.acquisition, 'allocation')
+    case 'acquiring':
+    case 'provisional':
+    case 'invalidated':
+    case 'releasing':
+    case 'pendingRelease':
+    case 'released':
+    case 'settled':
       return Object.freeze({ kind: 'pending', state })
+    default: {
+      const exhaustive: never = state
+      return exhaustive
+    }
   }
 }
 
-function settleRejected(record: AcquisitionRecord, reason: RejectReason): Rejected {
-  record.state = { kind: 'rejected', reason }
-  return rejected(reason)
+function accessRefusal(failure: AccessFailure): Rejected {
+  return rejected(failure.kind === 'refused' ? 'notAuthorized' : 'unavailable')
+}
+
+function lookupAnswer(failure: AccessFailure): Rejected | LookupUnknown {
+  return failure.kind === 'unknown'
+    ? Object.freeze({ kind: 'unknown', cause: failure.cause })
+    : accessRefusal(failure)
+}
+
+function queryAnswer(failure: AccessFailure): AcquisitionInspection {
+  switch (failure.kind) {
+    case 'refused':
+      return { kind: 'refused', reason: 'notAuthorized' }
+    case 'unavailable':
+      return { kind: 'queryUnavailable', cause: failure.cause }
+    case 'unknown':
+      return { kind: 'queryUnknown', cause: failure.cause }
+    default: {
+      const exhaustive: never = failure.kind
+      return exhaustive
+    }
+  }
+}
+
+/** Waits at most `ms` for a promise. `undefined` means the bound passed first. */
+async function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<undefined>(resolve => {
+        timer = setTimeout(() => resolve(undefined), ms)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /**
- * Creates the environment registry: provider and facility tables, placement matching, the acquisition
- * state machine, lease views with their per-operation gate, and recovery orchestration. It has no
- * Cordis dependency and keeps only a process-local copy of acquisitions; durable facts stay in the
- * caller's ledger.
+ * Creates the environment registry: provider and facility tables, placement matching, the
+ * acquisition state machine with its original-acquisition queries, lease views with their
+ * per-operation gate, and recovery over resources and acquisitions. It has no Cordis dependency and
+ * keeps only a process-local copy of acquisitions; durable facts stay in the caller's ledger.
  */
-export function createEnvironmentRegistry<P>(deps: RegistryDependencies): EnvironmentRegistry<P> {
+export function createEnvironmentRegistry<P>(
+  deps: RegistryDependencies<P>,
+): EnvironmentRegistry<P> {
+  const cleanupWaitMs = deps.cleanupWaitMs ?? 1000
+  if (!Number.isFinite(cleanupWaitMs) || cleanupWaitMs < 0)
+    throw new RangeError('cleanupWaitMs must be a finite number, zero or more')
+  const diagnose = (diagnostic: RegistryDiagnostic) => {
+    try {
+      deps.diagnose?.(diagnostic)
+    } catch {
+      /* A diagnostic sink never changes the operation's result. */
+    }
+  }
   const providers: ProviderEntry[] = []
   const facilities = new Map<FacilityKey, StoredDescriptor>()
-  // Keyed by the integrator's idempotency key; one record per tenant under a key, so another
-  // tenant reusing the key neither sees nor disturbs the first tenant's acquisition.
-  const records = new Map<AcquisitionRef, AcquisitionRecord[]>()
+  // The slot is tenant plus acquisition key; another tenant reusing a key never sees this slot.
+  const records = new Map<string, AcquisitionRecord<P>>()
   const releasedScopes = new Set<string>()
   let closed = false
   let closing: Promise<Retirement> | undefined
 
-  function* allRecords(): Generator<AcquisitionRecord> {
-    for (const list of records.values()) yield* list
-  }
-
-  const findRecord = (acquisition: AcquisitionRef, tenant: TenantId) =>
-    records.get(acquisition)?.find(record => tenantEquals(record.tenant, tenant))
-
+  const slotKey = (tenant: TenantId, acquisition: string) =>
+    JSON.stringify([tenantText(tenant) ?? null, acquisition])
   const scopeReleased = (scope: ScopeRef) => releasedScopes.has(scope.ref)
-
   const foreignTenantBinding = (binding: EnvironmentBinding, tenant: TenantId) =>
     binding.kind === 'tenant_sandbox' && !tenantEquals(binding.tenant, tenant)
+  const ports = { authority: deps.authority, bindings: deps.bindings }
 
-  // What a provider can serve right now: its facility keys narrowed to declarations that are
-  // registered. Placement resolution and the recheck in `acquire` both read this.
+  // What a provider can serve right now: its facility keys narrowed to registered declarations.
   const capabilities = (entry: ProviderEntry): ProviderCapabilities => ({
     bindingKinds: entry.provider.bindingKinds,
     facilities: entry.provider.facilities.filter(key => facilities.has(key)),
     isolation: entry.provider.isolation,
   })
 
+  const transition = (record: AcquisitionRecord<P>, state: AcquisitionState) => {
+    record.state = state
+    record.version++
+  }
+
+  // ---- cleanup of an allocation whose adoption failed ----------------------------------------
+
+  const cleanupOf = async (receipt: ProviderReceipt): Promise<AllocationCleanup> => {
+    let release: LeaseRelease
+    try {
+      release = await receipt.lease.release()
+    } catch {
+      return { kind: 'unknown' }
+    }
+    if (release?.kind === 'released') return { kind: 'settled' }
+    if (release?.kind === 'pending') return { kind: 'pending' }
+    return { kind: 'unknown' }
+  }
+
+  /**
+   * Seals the adoption in the same synchronous step that records the failure, then drives cleanup
+   * through the original receipt. The first caller observes the cleanup within the bound; a late
+   * answer still updates the record. The reason never changes.
+   */
+  const failAdoption = async (
+    record: AcquisitionRecord<P>,
+    receipt: ProviderReceipt,
+    reason: RejectReason,
+  ): Promise<AllocationFailed> => {
+    record.receipt = null
+    transition(record, { kind: 'allocationFailed', reason, cleanup: { kind: 'pending' } })
+    const cleanup = cleanupOf(receipt).then(result => {
+      if (record.state.kind === 'allocationFailed' && record.state.cleanup.kind !== 'settled')
+        transition(record, { kind: 'allocationFailed', reason, cleanup: result })
+      if (result.kind !== 'settled')
+        diagnose({
+          event: 'cleanupUnconfirmed',
+          acquisition: record.original.acquisition,
+          detail: result.kind,
+        })
+      return result
+    })
+    const observed = await within(cleanup, cleanupWaitMs)
+    if (observed === undefined && record.state.kind === 'allocationFailed')
+      transition(record, { kind: 'allocationFailed', reason, cleanup: { kind: 'unknown' } })
+    const answer: AllocationFailed = failed(record) ?? {
+      kind: 'allocationFailed',
+      acquisition: record.original.acquisition,
+      reason,
+      cleanup: { kind: 'unknown' },
+    }
+    return answer
+  }
+
+  /** A provisional record whose adoption can no longer happen turns into an adoption failure. */
+  const failProvisional = (record: AcquisitionRecord<P>, reason: RejectReason) => {
+    if (record.state.kind !== 'provisional' || record.adopting || record.receipt === null) return
+    void failAdoption(record, record.receipt, reason)
+  }
+
+  // ---- providers ------------------------------------------------------------------------------
+
   const retireEntry = (entry: ProviderEntry): Promise<Retirement> => {
     entry.active = false
-    for (const record of allRecords())
-      if (record.entry === entry) record.invalidate(byRegistry('providerRetired'))
+    for (const record of records.values())
+      if (record.entry === entry) {
+        record.invalidate(byRegistry('providerRetired'))
+        failProvisional(record, 'providerUnavailable')
+      }
     entry.retiring ??= (async (): Promise<Retirement> => {
       let result: Retirement
       try {
@@ -196,27 +379,18 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     return entry.retiring
   }
 
-  /** An existing record answers with its current state, or refuses a conflicting repeat. */
-  const replay = (existing: AcquisitionRecord, placement: Placement, scope: ScopeRef) =>
-    sameScope(existing.scope, scope) && samePlacement(existing.placement, placement)
-      ? current(existing)
-      : rejected('invalidInput')
-
-  /** Refusals that leave no record behind. */
-  const preAdmit = (tenant: TenantId, placement: Placement): RejectReason | undefined => {
-    if (closed) return 'ownerStopped'
-    if (foreignTenantBinding(placement.binding, tenant)) return 'notAuthorized'
-    return undefined
-  }
+  const routes = (): readonly DomainRoute[] =>
+    providers.map(entry => ({ provider: entry.provider, identity: entry.identity }))
 
   /** Checks the placement again, since resolving and acquiring are not atomic. */
   const recheckPlacement = (
     entry: ProviderEntry | undefined,
-    record: AcquisitionRecord,
+    original: OriginalAcquisition,
   ): RejectReason | ProviderEntry => {
-    const placement = record.placement
-    if (entry === undefined) return 'providerUnavailable'
-    if (scopeReleased(record.scope)) return 'referenceExpired'
+    const placement = original.placement
+    if (entry === undefined || entry.provider.quotaDomain !== placement.quotaDomain)
+      return 'providerUnavailable'
+    if (scopeReleased(original.scope)) return 'referenceExpired'
     const offered = capabilities(entry)
     const listed = placement.requirement.allowedBindings.some(binding =>
       sameBinding(binding, placement.binding),
@@ -230,110 +404,397 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     return entry
   }
 
-  /** Asks the provider. A throw is `providerUnavailable`; a provider refusal keeps its reason. */
-  const callProvider = async (
-    record: AcquisitionRecord,
-    entry: ProviderEntry,
-    tenant: TenantId,
-    input: AcquireInput<P>,
-  ): Promise<ProviderReceipt | Rejected> => {
-    let result: ProviderAcquisition
-    try {
-      result = await entry.provider.acquire({
-        acquisition: input.acquisition,
-        origin: input.origin,
-        scope: record.scope,
-        placement: record.placement,
-        tenant,
-        ledger: input.ledger,
-      })
-    } catch {
-      return settleRejected(record, 'providerUnavailable')
-    }
-    if (result.kind === 'rejected') return settleRejected(record, result.reason)
-    record.state = { kind: 'provisional' }
-    return result
-  }
-
-  /** The five checks on a provisional receipt. */
+  /** The checks on a provisional receipt; the last is the caller's current authorization. */
   const verify = (
-    record: AcquisitionRecord,
-    entry: ProviderEntry,
+    record: AcquisitionRecord<P>,
     receipt: ProviderReceipt,
+    current: () => boolean,
   ): RejectReason | undefined => {
+    const entry = record.entry
     if (closed) return 'ownerStopped'
-    if (!entry.active || !providers.includes(entry)) return 'providerUnavailable'
-    if (scopeReleased(record.scope)) return 'referenceExpired'
-    if (!sameBinding(record.placement.binding, receipt.lease.placement.binding))
+    if (entry === null || !entry.active || !providers.includes(entry)) return 'providerUnavailable'
+    if (scopeReleased(record.original.scope)) return 'referenceExpired'
+    if (!sameBinding(record.original.placement.binding, receipt.lease.placement.binding))
       return 'unavailable'
-    const missing = record.placement.requirement.facilities.some(
+    const missing = record.original.placement.requirement.facilities.some(
       key => receipt.lease.facility(key) === undefined,
     )
-    return missing ? 'unsupportedFacility' : undefined
-  }
-
-  /** A receipt that failed verification is released; a pending release keeps its resources. */
-  const compensate = async (
-    record: AcquisitionRecord,
-    receipt: ProviderReceipt,
-    failure: RejectReason,
-  ): Promise<Pending | Rejected> => {
-    let release: LeaseRelease
-    try {
-      release = await receipt.lease.release()
-    } catch {
-      release = { kind: 'pending', resources: [] }
-    }
-    if (release.kind === 'released') return settleRejected(record, failure)
-    record.state = { kind: 'pendingRelease', adoption: null, resources: release.resources }
-    return Object.freeze({ kind: 'pending', state: record.state })
+    if (missing) return 'unsupportedFacility'
+    return current() ? undefined : 'notAuthorized'
   }
 
   /** Issues the adoption record and wraps the receipt's lease in a view. */
-  const adopt = (
-    record: AcquisitionRecord,
-    entry: ProviderEntry,
-    receipt: ProviderReceipt,
-    input: AcquireInput<P>,
-  ): Acquired => {
+  const adopt = (record: AcquisitionRecord<P>, receipt: ProviderReceipt): Acquired => {
+    const entry = record.entry
+    if (entry === null) throw new Error('adoption without a provider entry')
+    const original = record.original
     const adoption: EnvironmentAdoption = Object.freeze({
-      acquisition: record.acquisition,
-      origin: record.origin,
-      placement: record.placement,
+      acquisition: original.acquisition,
+      origin: original.origin,
+      placement: original.placement,
       provider: entry.identity,
       instance: receipt.lease.instance,
       continuity: receipt.lease.continuity,
       evidence: receipt.evidence,
     })
-    const view = createLeaseView(receipt.lease, input.guard, {
-      tenant: record.tenant,
-      origin: record.origin,
-      placement: record.placement,
-      ledgerClosed: input.ledger.closed,
+    const view = createLeaseView(receipt.lease, record.guard, {
+      tenant: original.tenant,
+      origin: original.origin,
+      placement: original.placement,
+      ledgerClosed: record.ledger.closed,
       descriptor: key => facilities.get(key),
       invalidated: invalidation => {
         if (record.state.kind === 'acquired')
-          record.state = { kind: 'invalidated', adoption, invalidation }
+          transition(record, { kind: 'invalidated', adoption, invalidation })
       },
-      releasing: () => {
-        record.state = { kind: 'releasing', adoption }
-      },
-      released: release => {
-        record.state =
+      releasing: () => transition(record, { kind: 'releasing', adoption }),
+      released: release =>
+        transition(
+          record,
           release.kind === 'released'
             ? { kind: 'released', adoption }
-            : { kind: 'pendingRelease', adoption, resources: release.resources }
-      },
+            : { kind: 'pendingRelease', adoption, resources: release.resources },
+        ),
     })
     record.invalidate = view.invalidate
     record.lease = view.lease
-    record.state = { kind: 'acquired', adoption }
+    record.receipt = null
+    transition(record, { kind: 'acquired', adoption })
     return Object.freeze({ kind: 'acquired', lease: view.lease, adoption })
   }
 
+  /** One adoption transition per record: concurrent callers share it, so only one lease is issued. */
+  const adoptOnce = (
+    record: AcquisitionRecord<P>,
+    current: () => boolean,
+  ): Promise<Acquired | AllocationFailed | Pending | UnknownAcquisition> => {
+    const receipt = record.receipt
+    if (record.adopting) return record.adopting
+    if (receipt === null || record.state.kind !== 'provisional')
+      return Promise.resolve(replayFor(record))
+    record.adopting = (async () => {
+      try {
+        const failure = verify(record, receipt, current)
+        if (failure !== undefined) return await failAdoption(record, receipt, failure)
+        return adopt(record, receipt)
+      } finally {
+        record.adopting = undefined
+      }
+    })()
+    return record.adopting
+  }
+
+  const replayFor = (record: AcquisitionRecord<P>) => {
+    const answer = replayAnswer(record)
+    return answer.kind === 'rejected' ? pendingProvisional() : answer
+  }
+
+  /** Asks the provider. A throw or an unknown answer keeps the slot as an unknown allocation. */
+  const allocate = async (
+    record: AcquisitionRecord<P>,
+    entry: ProviderEntry,
+    current: () => boolean,
+  ): Promise<Acquired | Rejected | AllocationFailed | Pending | UnknownAcquisition> => {
+    const original = record.original
+    let result: ProviderAcquisition
+    try {
+      result = await entry.provider.acquire({
+        acquisition: original.acquisition,
+        origin: original.origin,
+        scope: original.scope,
+        placement: original.placement,
+        tenant: original.tenant,
+        ledger: record.ledger,
+      })
+    } catch {
+      diagnose({ event: 'providerThrew', acquisition: original.acquisition })
+      result = { kind: 'unknown', acquisition: original.acquisition }
+    }
+    switch (result?.kind) {
+      case 'rejected':
+        record.inFlight = false
+        transition(record, { kind: 'rejected', reason: result.reason })
+        return rejected(result.reason)
+      case 'acquired':
+        record.inFlight = false
+        record.receipt = Object.freeze({ lease: result.lease, evidence: result.evidence })
+        transition(record, { kind: 'provisional' })
+        return adoptOnce(record, current)
+      default:
+        if (result?.kind === 'unknown' && result.acquisition !== original.acquisition)
+          diagnose({ event: 'receiptForOtherKey', acquisition: original.acquisition })
+        record.inFlight = false
+        transition(record, { kind: 'allocationUnknown', acquisition: original.acquisition })
+        return unknownAcquisition(original.acquisition, 'allocation')
+    }
+  }
+
+  /** Asks the provider's quota before the slot is written. Only a declared quota continues. */
+  const quotaPreflight = async (
+    entry: ProviderEntry,
+    tenant: TenantId,
+  ): Promise<'declared' | 'unavailable' | 'unknown'> => {
+    try {
+      const answer = await entry.provider.quota(tenant)
+      if (answer?.kind === 'declared' || answer?.kind === 'unavailable') return answer.kind
+      return 'unknown'
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  const findEntry = (placement: Placement) =>
+    providers.find(
+      candidate =>
+        candidate.active &&
+        candidate.identity.name === placement.provider.name &&
+        candidate.identity.generation === placement.provider.generation &&
+        candidate.identity.version === placement.provider.version,
+    )
+
+  // ---- queries --------------------------------------------------------------------------------
+
+  /**
+   * Applies an original-provider answer to the local cache, per the contract's table. A response
+   * older than the record's current version is dropped. Returns the query answer.
+   */
+  const applyStatus = (
+    record: AcquisitionRecord<P>,
+    status: ProviderAcquisitionStatus,
+  ): AcquisitionInspection => {
+    const state = record.state
+    const failedReason = state.kind === 'allocationFailed' ? state.reason : undefined
+    const adoption = adoptionOf(state)
+    switch (status.kind) {
+      case 'acquired':
+        if (failedReason === undefined && adoption === null && state.kind !== 'rejected') {
+          record.receipt = Object.freeze({ lease: status.lease, evidence: status.evidence })
+          if (state.kind !== 'provisional') transition(record, { kind: 'provisional' })
+        }
+        break
+      case 'pending':
+        if (failedReason !== undefined)
+          transition(record, {
+            kind: 'allocationFailed',
+            reason: failedReason,
+            cleanup: { kind: 'pending' },
+          })
+        else if (status.phase === 'releasing')
+          transition(record, { kind: 'pendingRelease', adoption, resources: status.resources })
+        else if (adoption === null && state.kind !== 'rejected' && state.kind !== status.phase)
+          transition(record, { kind: status.phase })
+        break
+      case 'notAllocated':
+        if (failedReason !== undefined || adoption !== null) {
+          diagnose({ event: 'contradictoryOriginal', acquisition: record.original.acquisition })
+          return { kind: 'queryUnknown', cause: 'provider' }
+        }
+        if (state.kind !== 'rejected')
+          transition(record, { kind: 'rejected', reason: 'allocationNotPerformed' })
+        break
+      case 'settled':
+        if (failedReason !== undefined)
+          transition(record, {
+            kind: 'allocationFailed',
+            reason: failedReason,
+            cleanup: { kind: 'settled' },
+          })
+        else if (adoption !== null) transition(record, { kind: 'released', adoption })
+        else if (state.kind !== 'rejected') transition(record, { kind: 'settled' })
+        break
+      case 'conflict':
+        diagnose({ event: 'originalConflict', acquisition: record.original.acquisition })
+        return { kind: 'original', status: 'conflict', original: record.original }
+      case 'unavailable':
+        return { kind: 'queryUnavailable', cause: 'provider' }
+      case 'unknown':
+        return { kind: 'queryUnknown', cause: 'provider' }
+      default: {
+        const exhaustive: never = status
+        return exhaustive
+      }
+    }
+    return { kind: 'known', state: record.state }
+  }
+
+  const needsOriginal = (record: AcquisitionRecord<P>) => {
+    if (record.inFlight || record.adopting) return false
+    const state = record.state
+    return (
+      state.kind === 'allocationUnknown' ||
+      state.kind === 'acquiring' ||
+      (state.kind === 'provisional' && record.receipt === null) ||
+      (state.kind === 'allocationFailed' && state.cleanup.kind !== 'settled')
+    )
+  }
+
+  const inspectLocal = async (
+    record: AcquisitionRecord<P>,
+    current: () => boolean,
+  ): Promise<AcquisitionInspection> => {
+    if (!needsOriginal(record)) return { kind: 'known', state: record.state }
+    const route = routeFor(routes(), record.original)
+    if (route === undefined) return { kind: 'queryUnavailable', cause: 'provider' }
+    const version = record.version
+    const status = await queryOriginal(route, record.original)
+    // The authorization may have been revoked while the provider answered: neither update nor disclose.
+    if (!current()) return { kind: 'refused', reason: 'notAuthorized' }
+    if (record.version !== version) return { kind: 'known', state: record.state }
+    return applyStatus(record, status)
+  }
+
+  /** Answers an original query from the provider's record. It never adopts and never returns a lease. */
+  const originalAnswer = async (
+    original: OriginalAcquisition,
+    current: () => boolean,
+  ): Promise<RecoveryInspection> => {
+    const route = routeFor(routes(), original)
+    if (route === undefined) return { kind: 'queryUnavailable', cause: 'provider' }
+    const status = await queryOriginal(route, original)
+    // Checked synchronously before anything of the answer is disclosed.
+    if (!current()) return { kind: 'refused', reason: 'notAuthorized' }
+    const local = records.get(slotKey(original.tenant, original.acquisition))
+    const matching = local && local.fingerprint === fingerprint(original) ? local : undefined
+    const adoption = matching ? adoptionOf(matching.state) : null
+    const failure = matching ? failed(matching) : undefined
+    const answer = (inspection: OriginalInspection): RecoveryInspection => inspection
+    switch (status.kind) {
+      case 'acquired':
+        return answer({ kind: 'original', status: 'allocated', original, adoption })
+      case 'pending':
+        return failure
+          ? answer({
+              kind: 'original',
+              status: 'allocationFailed',
+              original,
+              reason: failure.reason,
+              cleanup: { kind: 'pending' },
+            })
+          : answer({
+              kind: 'original',
+              status: 'pending',
+              original,
+              adoption,
+              phase: status.phase,
+              resources: status.resources,
+            })
+      case 'notAllocated':
+        return answer({ kind: 'original', status: 'notAllocated', original })
+      case 'settled':
+        return failure
+          ? answer({
+              kind: 'original',
+              status: 'allocationFailed',
+              original,
+              reason: failure.reason,
+              cleanup: { kind: 'settled' },
+            })
+          : answer({ kind: 'original', status: 'settled', original })
+      case 'conflict':
+        return answer({ kind: 'original', status: 'conflict', original })
+      case 'unavailable':
+        return { kind: 'queryUnavailable', cause: 'provider' }
+      case 'unknown':
+        return { kind: 'queryUnknown', cause: 'provider' }
+      default: {
+        const exhaustive: never = status
+        return exhaustive
+      }
+    }
+  }
+
+  // ---- recovery -------------------------------------------------------------------------------
+
+  type RecoveryDecision = 'authorized' | 'notAuthorized' | 'unavailable' | 'unknown'
+
+  const authorizeRecovery = async (
+    access: RecoveryAccess,
+    scope: ScopeRef,
+  ): Promise<RecoveryDecision> => {
+    const known: ManagedResource[] = []
+    for (const record of records.values())
+      if (record.state.kind === 'pendingRelease' && sameScope(record.original.scope, scope))
+        known.push(...record.state.resources)
+    try {
+      const answer = await deps.recovery.authorizeRecovery(access, scope, known)
+      return answer === 'authorized' || answer === 'notAuthorized' || answer === 'unavailable'
+        ? answer
+        : 'unknown'
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  /** The known list is data the maintainer brought back; it must fit the scope before authorization. */
+  const validKnown = (scope: ScopeRef, known: readonly OriginalAcquisition[] | undefined) =>
+    known === undefined ||
+    (Array.isArray(known) &&
+      known.every(
+        original =>
+          typeof original === 'object' &&
+          original !== null &&
+          mintedTenant(original.tenant) &&
+          typeof original.acquisition === 'string' &&
+          original.acquisition !== '' &&
+          typeof original.placement?.quotaDomain === 'string' &&
+          sameScope(original.scope, scope),
+      ))
+
+  /** Updates the local copy after a settlement. It never returns quota itself. */
+  const observeSettlement = (original: OriginalAcquisition, answer: AcquisitionSettlement) => {
+    const record = records.get(slotKey(original.tenant, original.acquisition))
+    if (!record || !sameOriginal(record.original, original)) return
+    if (answer.kind !== 'settled' && answer.kind !== 'notAllocated') return
+    const state = record.state
+    if (state.kind === 'allocationFailed') {
+      if (answer.kind === 'settled')
+        transition(record, { kind: 'allocationFailed', reason: state.reason, cleanup: answer })
+      return
+    }
+    const adoption = adoptionOf(state)
+    if (adoption !== null) transition(record, { kind: 'released', adoption })
+    else if (state.kind !== 'rejected')
+      transition(
+        record,
+        answer.kind === 'settled'
+          ? { kind: 'settled' }
+          : { kind: 'rejected', reason: 'allocationNotPerformed' },
+      )
+  }
+
+  const recover = async (
+    scope: ScopeRef,
+    access: RecoveryAccess,
+    known: readonly OriginalAcquisition[] | undefined,
+    release: boolean,
+  ) => {
+    if (!validKnown(scope, known)) return rejected('invalidInput')
+    const target = copyScope(scope)
+    const originals = (known ?? []).map(copyOriginal)
+    const decision = await authorizeRecovery(access, target)
+    if (decision === 'unknown')
+      return Object.freeze({ kind: 'unknown', cause: 'authority' } as const)
+    if (decision !== 'authorized') return rejected(decision)
+    if (release) {
+      releasedScopes.add(target.ref)
+      for (const record of records.values())
+        if (sameScope(record.original.scope, target)) {
+          record.invalidate(byRegistry('scopeReleased'))
+          failProvisional(record, 'referenceExpired')
+        }
+    }
+    return driveRecovery(target, routes(), originals, observeSettlement)
+  }
+
+  // ---- the surfaces ---------------------------------------------------------------------------
+
   const registry: EnvironmentRegistry<P> = {
-    async resolvePlacement(access, { scope, requirement }) {
+    async resolvePlacement(access, input) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
+      const scope = copyScope(input.scope)
+      const requirement = input.requirement
+      const checked = await checkAccess(ports, access, { kind: 'resolve', scope }, scope)
+      if (checked.kind !== 'granted') return lookupAnswer(checked)
       if (closed) return rejected('ownerStopped')
       if (scopeReleased(scope)) return rejected('referenceExpired')
       const candidates = providers
@@ -343,78 +804,150 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       if (match.kind === 'rejected') return match
       if (foreignTenantBinding(match.binding, access.tenant)) return rejected('notAuthorized')
       if (!fitsScope(match.binding, scope)) return rejected('invalidInput')
+      const entry = match.provider.entry
       return Object.freeze({
         kind: 'placement',
         requirement,
         binding: match.binding,
-        provider: match.provider.entry.identity,
-        continuity: match.provider.entry.provider.continuity,
+        provider: entry.identity,
+        continuity: entry.provider.continuity,
+        quotaDomain: entry.provider.quotaDomain,
       })
     },
 
     async acquire(access, input) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
-      const placement = input.placement
-      if (!fitsScope(placement.binding, input.scope)) return rejected('invalidInput')
-      const existing = findRecord(input.acquisition, access.tenant)
-      if (existing !== undefined) return replay(existing, placement, input.scope)
-      const refusal = preAdmit(access.tenant, placement)
-      if (refusal !== undefined) return rejected(refusal)
-      const entry = providers.find(
-        candidate =>
-          candidate.active &&
-          candidate.identity.name === placement.provider.name &&
-          candidate.identity.generation === placement.provider.generation &&
-          candidate.identity.version === placement.provider.version,
-      )
-      // The record is written before the first await, so a concurrent repeat sees `acquiring`.
-      const record: AcquisitionRecord = {
-        acquisition: input.acquisition,
+      // Snapshot the data fields before the first await; the ports keep their identity.
+      const original: OriginalAcquisition = Object.freeze({
         tenant: access.tenant,
-        scope: input.scope,
+        acquisition: input.acquisition,
         origin: input.origin,
-        placement,
+        scope: copyScope(input.scope),
+        placement: copyPlacement(input.placement),
+      })
+      const { ledger, guard } = input
+      if (!fitsScope(original.placement.binding, original.scope)) return rejected('invalidInput')
+      const checked = await checkAccess(
+        ports,
+        access,
+        { kind: 'acquire', original },
+        original.scope,
+      )
+      if (checked.kind !== 'granted')
+        return checked.kind === 'unknown'
+          ? unknownAcquisition(original.acquisition, 'preflight')
+          : accessRefusal(checked)
+      const key = slotKey(access.tenant, original.acquisition)
+      const print = fingerprint(original)
+      const existing = records.get(key)
+      if (existing !== undefined) {
+        if (
+          existing.fingerprint !== print ||
+          existing.ledger !== ledger ||
+          existing.guard !== guard
+        )
+          return rejected('acquisitionConflict')
+        if (existing.state.kind === 'provisional' && existing.receipt !== null)
+          return adoptOnce(existing, checked.current)
+        return replayAnswer(existing)
+      }
+      if (closed) return rejected('ownerStopped')
+      if (foreignTenantBinding(original.placement.binding, access.tenant))
+        return rejected('notAuthorized')
+      const entry = findEntry(original.placement)
+      // The record is written before the next await, so a concurrent repeat sees `acquiring`.
+      const record: AcquisitionRecord<P> = {
+        original,
+        fingerprint: print,
+        ledger,
+        guard,
         entry: entry ?? null,
         state: { kind: 'acquiring' },
+        version: 0,
+        inFlight: true,
+        receipt: null,
+        adopting: undefined,
         lease: null,
         invalidate: () => undefined,
       }
-      records.set(input.acquisition, [...(records.get(input.acquisition) ?? []), record])
-      const checked = recheckPlacement(entry, record)
-      if (typeof checked === 'string') return settleRejected(record, checked)
-      const receipt = await callProvider(record, checked, access.tenant, input)
-      if (receipt.kind === 'rejected') return receipt
-      const failure = verify(record, checked, receipt)
-      if (failure !== undefined) return compensate(record, receipt, failure)
-      return adopt(record, checked, receipt, input)
+      records.set(key, record)
+      const placed = recheckPlacement(entry, original)
+      if (typeof placed === 'string') {
+        record.inFlight = false
+        transition(record, { kind: 'rejected', reason: placed })
+        return rejected(placed)
+      }
+      const quota = await quotaPreflight(placed, access.tenant)
+      if (quota !== 'declared' || !checked.current()) {
+        // A temporary preflight refusal does not occupy the slot.
+        if (records.get(key) === record) records.delete(key)
+        if (quota === 'unavailable') return rejected('unavailable')
+        if (quota === 'unknown') return unknownAcquisition(original.acquisition, 'preflight')
+        return rejected('notAuthorized')
+      }
+      return allocate(record, placed, checked.current)
     },
 
-    async inspectAcquisition(access, acquisition) {
+    async inspectAcquisition(access, query: AcquisitionQuery) {
       if (!mintedTenant(access.tenant)) return { kind: 'invalidInput' }
-      const record = findRecord(acquisition, access.tenant)
-      if (record === undefined) return { kind: 'unrecorded' }
-      return record.state
+      if (query.kind === 'local') {
+        const acquisition = query.acquisition
+        const checked = await checkAccess(
+          ports,
+          access,
+          { kind: 'inspect', tenant: access.tenant, acquisition },
+          undefined,
+        )
+        if (checked.kind !== 'granted') return queryAnswer(checked)
+        const record = records.get(slotKey(access.tenant, acquisition))
+        return record === undefined ? { kind: 'unrecorded' } : inspectLocal(record, checked.current)
+      }
+      const original = copyOriginal(query.original)
+      const checked = await checkAccess(
+        ports,
+        access,
+        { kind: 'inspect-original', original },
+        original.scope,
+      )
+      if (checked.kind !== 'granted') return queryAnswer(checked)
+      // Rule 3 of the access check: the description's tenant is the caller's, or the provider is not asked.
+      if (!tenantEquals(original.tenant, access.tenant))
+        return { kind: 'refused', reason: 'notAuthorized' }
+      return originalAnswer(original, checked.current)
     },
 
-    async describe(access, scope) {
+    async inspectRecoveryAcquisition(access, input) {
+      const original = copyOriginal(input)
+      const decision = await authorizeRecovery(access, original.scope)
+      if (decision === 'unknown') return { kind: 'queryUnknown', cause: 'authority' }
+      if (decision === 'unavailable') return { kind: 'queryUnavailable', cause: 'authority' }
+      if (decision === 'notAuthorized') return { kind: 'refused', reason: 'notAuthorized' }
+      // The recovery authority has no current() premise; it answers once per query.
+      return originalAnswer(original, () => true)
+    },
+
+    async describe(access, input) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
       if (closed) return rejected('ownerStopped')
+      const scope = copyScope(input)
+      const checked = await checkAccess(ports, access, { kind: 'describe', scope }, scope)
+      if (checked.kind !== 'granted') return lookupAnswer(checked)
       const descriptions: EnvironmentDescription[] = []
-      for (const record of allRecords()) {
-        if (!tenantEquals(record.tenant, access.tenant)) continue
-        if (!sameScope(record.scope, scope)) continue
+      for (const record of records.values()) {
+        if (!tenantEquals(record.original.tenant, access.tenant)) continue
+        if (!sameScope(record.original.scope, scope)) continue
         if (record.state.kind === 'released') continue
         const adoption = adoptionOf(record.state)
         if (adoption === null) continue
         descriptions.push(
           Object.freeze({
-            acquisition: record.acquisition,
-            origin: record.origin,
-            binding: record.placement.binding,
+            acquisition: record.original.acquisition,
+            origin: record.original.origin,
+            binding: record.original.placement.binding,
             provider: adoption.provider,
             instance: adoption.instance,
             continuity: adoption.continuity,
-            facilities: record.placement.requirement.facilities,
+            facilities: record.original.placement.requirement.facilities,
             state: record.state.kind,
           }),
         )
@@ -422,19 +955,12 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       return descriptions
     },
 
-    async recoverOwned(scope, access) {
-      const decision = await authorize(access, scope)
-      if (decision !== 'authorized') return rejected(decision)
-      return driveRecovery(scope, providers)
+    recoverOwned(scope, access, known) {
+      return recover(scope, access, known, false)
     },
 
-    async releaseScope(scope, access) {
-      const decision = await authorize(access, scope)
-      if (decision !== 'authorized') return rejected(decision)
-      releasedScopes.add(scope.ref)
-      for (const record of allRecords())
-        if (sameScope(record.scope, scope)) record.invalidate(byRegistry('scopeReleased'))
-      return driveRecovery(scope, providers)
+    releaseScope(scope, access, known) {
+      return recover(scope, access, known, true)
     },
 
     registerFacility<K extends FacilityKey>(descriptor: FacilityDescriptor<K>) {
@@ -485,7 +1011,10 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
     close() {
       closing ??= (async (): Promise<Retirement> => {
         closed = true
-        for (const record of allRecords()) record.invalidate(byRegistry('registryClosed'))
+        for (const record of records.values()) {
+          record.invalidate(byRegistry('registryClosed'))
+          failProvisional(record, 'ownerStopped')
+        }
         const results = await Promise.all([...providers].map(retireEntry))
         const resources = results.flatMap(result =>
           result.kind === 'pending' ? result.resources : [],
@@ -496,21 +1025,6 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
       })()
       return closing
     },
-  }
-
-  async function authorize(
-    access: RecoveryAccess,
-    scope: ScopeRef,
-  ): Promise<'authorized' | 'notAuthorized' | 'unavailable'> {
-    const known: ManagedResource[] = []
-    for (const record of allRecords())
-      if (record.state.kind === 'pendingRelease' && sameScope(record.scope, scope))
-        known.push(...record.state.resources)
-    try {
-      return await deps.recovery.authorizeRecovery(access, scope, known)
-    } catch {
-      return 'unavailable'
-    }
   }
 
   return Object.freeze(registry)

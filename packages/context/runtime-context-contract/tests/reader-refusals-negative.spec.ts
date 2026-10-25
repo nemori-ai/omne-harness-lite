@@ -4,7 +4,10 @@ import {
   createMemoryRuntimeContext,
   runtimeContextConformance,
 } from '@omne-harness/runtime-context-contract/testing'
-import type { RuntimeContextFixture } from '@omne-harness/runtime-context-contract/testing'
+import type {
+  RuntimeContextFixture,
+  RuntimeContextPorts,
+} from '@omne-harness/runtime-context-contract/testing'
 import type {
   Eligibility,
   RuntimeContextOperations,
@@ -26,9 +29,15 @@ if (!first.ok || !second.ok) throw new Error('Invalid fixture tenant')
 const tenant = first.value,
   otherTenant = second.value
 function fixture(
-  subject: () => Promise<RuntimeContextOperations<string>>,
+  wrap: (memory: RuntimeContextOperations<string>) => RuntimeContextOperations<string>,
 ): RuntimeContextFixture<string> {
-  return { tenant, otherTenant, principal: 'negative', subject }
+  return {
+    tenant,
+    otherTenant,
+    principal: 'negative',
+    subject: async (ports: RuntimeContextPorts<string>) =>
+      wrap(createMemoryRuntimeContext<string>(ports)),
+  }
 }
 function obligation(name: string) {
   const found = runtimeContextConformance<string>().find(test => test.name === name)
@@ -37,12 +46,11 @@ function obligation(name: string) {
 }
 for (const dimension of ['consumer', 'scope'] as const)
   it(`the public ${dimension}-fixed obligation rejects a forwarded reader`, async () => {
-    const memory = createMemoryRuntimeContext<string>()
     let successor: Eligibility<string> | undefined
-    const bad: RuntimeContextOperations<string> = {
+    const bad = (memory: RuntimeContextOperations<string>): RuntimeContextOperations<string> => ({
       ...memory,
-      async issueEligibility(material) {
-        const result = await memory.issueEligibility(material)
+      async issueEligibility(principal, material) {
+        const result = await memory.issueEligibility(principal, material)
         if (result.kind === 'issued' && material.supersedes) successor = result.eligibility
         return result
       },
@@ -69,9 +77,9 @@ for (const dimension of ['consumer', 'scope'] as const)
           },
         }
       },
-    }
+    })
     await expect(
-      obligation(`reissue-cannot-change-reader-${dimension}`).run(fixture(async () => bad)),
+      obligation(`reissue-cannot-change-reader-${dimension}`).run(fixture(bad)),
     ).rejects.toThrow()
   })
 for (const name of [
@@ -79,8 +87,7 @@ for (const name of [
   'removed-eligibility-checked-registration-concealed',
 ]) {
   it(`the public ${name} obligation rejects a success-plus-missing subject`, async () => {
-    const memory = createMemoryRuntimeContext<string>()
-    const bad: RuntimeContextOperations<string> = {
+    const bad = (memory: RuntimeContextOperations<string>): RuntimeContextOperations<string> => ({
       ...memory,
       async bind(id) {
         const result = await memory.bind(id)
@@ -109,7 +116,7 @@ for (const name of [
           },
         }
       },
-    }
-    await expect(obligation(name).run(fixture(async () => bad))).rejects.toThrow()
+    })
+    await expect(obligation(name).run(fixture(bad))).rejects.toThrow()
   })
 }

@@ -117,6 +117,8 @@ function observe<T extends object>(object: T, record: { count: number; mutate?: 
           'applyCommit',
           'issueEligibility',
           'revokeEligibility',
+          'beginReplay',
+          'finishReplay',
           'bind',
           'publish',
           'invalidate',
@@ -147,8 +149,13 @@ for (const test of runtimeContextConformance<string>()) {
         otherTenant: otherTenantId,
         principal: 'negative',
         retention: 64,
-        async subject() {
-          const memory = createMemoryRuntimeContext<string>()
+        replayCapacity: 8,
+        async subject(ports) {
+          const memory = createMemoryRuntimeContext<string>({
+            ...ports,
+            retention: 64,
+            replayCapacity: 8,
+          })
           const subject = observe(memory, record)
           closers.set(subject, () => memory.close())
           return subject

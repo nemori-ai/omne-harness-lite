@@ -32,6 +32,26 @@
               "pending": false
             },
             {
+              "name": "ExecutionEnvironmentAuthorityService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "executionEnvironmentAuthorityKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ExecutionScopeBindingService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "executionScopeBindingKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ExecutionEnvironmentIntercept",
               "kind": "type",
               "pending": false
@@ -75,7 +95,12 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": ["executionEnvironment", "executionRecoveryAuthority"],
+      "members": [
+        "executionEnvironment",
+        "executionRecoveryAuthority",
+        "executionEnvironmentAuthority",
+        "executionScopeBinding"
+      ],
       "pending": false
     }
   ]

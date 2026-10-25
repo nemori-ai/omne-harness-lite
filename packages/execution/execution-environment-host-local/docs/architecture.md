@@ -6,22 +6,26 @@
 
 | 入口 | 源文件 | 承载 |
 | --- | --- | --- |
-| `@omne-harness/execution-environment-host-local` | `src/index.ts` | 重导出下面两个模块的三个函数，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） |
-| 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles` 与对象身份读取 `hostObjectToken` |
+| `@omne-harness/execution-environment-host-local` | `src/index.ts` | 重导出下面三个模块的四个函数与类型，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） |
+| 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles`、对象身份读取 `hostObjectToken` 与共用文件引擎（不从根入口导出） |
+| 同上 | `src/host-domain.ts` | 宿主文件责任域 `createHostFilesDomain`：获取记录、门面、配额与排空 |
 | 同上 | `src/host-provider.ts` | 宿主文件提供者 `createHostFilesProvider` |
-| `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件 `hostFilesPlugin`、空配置 Schema |
+| `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema |
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
 | --- | --- | --- |
-| 宿主文件设施 | 已发出的句柄代际表、关闭失败待重试的描述符集合、下一个代次 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
-| 宿主文件提供者 | 一个宿主文件设施实例、已交租约的失效回调、是否已退役 | [宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
+| 共用文件引擎与宿主文件设施 | 已发出的句柄代际表（带所有者）、关闭失败待重试的描述符（带所有者）、引擎内唯一的下一个代次 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
+| 宿主文件责任域 | 共用文件引擎、签发过的提供者代、获取记录（原描述、指纹、状态、门面、租约）、配额策略 | [宿主文件责任域](../SPEC.md#宿主文件责任域) |
+| 宿主文件提供者（一代） | 是否已退役、上界与诊断出口；记录都在责任域 | [宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
 | Service 与插件 | 一个登记表实例 | [Service 实现](../SPEC.md#service-实现)与[撤除顺序](../SPEC.md#撤除顺序) |
 
 ```mermaid
 flowchart LR
   Root[根入口] --> Files[host-files.ts]
+  Root --> Domain[host-domain.ts]
   Root --> Provider[host-provider.ts]
-  Provider --> Files
+  Domain --> Files
+  Provider --> Domain
   Cordis[./cordis] --> Provider
   Cordis --> EE[execution-environment]
   Cordis --> EECC[execution-environment-cordis-contract]
@@ -39,7 +43,8 @@ flowchart LR
 - `@omne-harness/execution-environment`：`createEnvironmentRegistry` 与 `RetirementPending`，只由 `./cordis` 使用。
 - `@omne-harness/execution-environment-cordis-contract`：抽象类与键常量，只由 `./cordis` 使用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
-- `@omne-harness/legal-identity` 只是开发依赖，测试用它构造租户。
+- `@omne-harness/legal-identity`：责任域用 `tenantCodec` 把租户编成记录键。
+- `@omne-harness/runtime-context-contract`：只用类型（作用域引用与可信绑定来源）。
 
 宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`。提供者另用 `node:crypto` 生成代，用 `node:os` 读操作系统版本，用 `node:fs` 读本包 `package.json` 的版本。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
@@ -51,15 +56,21 @@ flowchart LR
 
 代价：直接调用 `createHostFiles` 的一方得到一个不核对租户的设施。根入口导出它，是为了测试与独立组合。生产装配应经租约取设施。
 
-### 一个提供者一个设施实例
+### 一个责任域，一个共用文件引擎，每份获取一个门面
 
-一个宿主文件提供者只造一个宿主文件设施，它交出的全部租约共用这个实例。理由：句柄代际表与关闭失败的描述符集合要跨请求存在，关闭请求要能找到读取时发出的代次。每个租约一个实例会让关闭找不到别的租约发出的代次。
+进程宿主保管一个宿主文件责任域，它持有一个共用的文件引擎。每份获取有自己的门面：准入开关与在途操作集合。引擎给每个签发的句柄与每个关闭失败的描述符记上这份获取的所有者标签。理由：句柄代际表与关闭失败的描述符要跨请求存在，关闭请求要能找到读取时发出的代次；同时，一份获取的释放只能排空它自己的操作与描述符，不能关闭另一份获取的门面或替它结清（[契约的提供者的进程内证据边界](../../execution-environment-contract/SPEC.md#提供者的进程内证据边界)）。代次在引擎内唯一，所以同一对象上两份获取的句柄不碰撞。
 
-代价：句柄代际表随提供者实例存在，不随租约释放清空。
+责任域比提供者与登记表活得久。提供者每一代都把自己的代登记进责任域，接纳、查询、枚举与结清都读写责任域的记录。理由：一代卸载之后，原占用、原记录与仍打开的描述符必须有人承接；新的一代经同一责任域看到它们，不会每代各拿一份完整额度，也不会把旧获取当成新获取。
 
-### 退役等在途操作，有上界
+代价：句柄代际表与已结清的记录随责任域存在，不随租约释放清空（[SPEC 明确缺项](../SPEC.md#明确缺项)）。责任域只在本进程内，进程结束之后的冷恢复需要域外证据。
 
-提供者给共用的设施实例包一层计数，记录已接纳、尚未结束的文件操作。`retire()` 先停止接纳新操作，再使租约失效，再等在途操作结束，最多 `drainBoundMs`。都结束报已排空；超界报待处置，受管资源为空，诊断写明仍在途的操作数。理由：契约的排空要求已接纳的操作都已结束（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）；替换写入截断文件之后、写完之前被卸载时，立即报已排空会让原请求的未知结果无人承接。上界归提供者，登记表不设计时器；上界是配置，`10000` 毫秒只是初值。代价：一个卡住的文件操作会让卸载等满上界；超界之后它仍在运行，结果仍交回原请求，退役结果只能报待处置。
+### 排空有上界，名额只在什么都不剩时返还
+
+释放、结清与退役都排空获取：封门面，标为释放中，最多等 `drainBoundMs` 让在途操作结束，然后重试这份获取的失败关闭。在途操作已结束且没有打开的描述符时，记录结清，名额恰好返还一次；否则答待处置，资源清单为空，名额仍占用，诊断写明在途操作数与打开的描述符数。理由：契约的排空要求已接纳的操作都已结束、关闭责任都已结清（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）；替换写入截断文件之后、写完之前被卸载时，立即报已排空会让原请求的未知结果无人承接；空的受管资源列表不证明没有描述符。上界归提供者，登记表不设计时器；上界是配置，`10000` 毫秒只是初值。代价：一个卡住的文件操作会让释放或卸载等满上界；超界之后它仍在运行，结果仍交回原请求。
+
+### 配额接纳是一个同步段
+
+接纳在一个没有 `await` 的同步段里读配额策略、数尚未结清的记录、写入新记录。理由：同一配额域里抢最后一个名额的两次获取必须只有一次得到；JavaScript 单线程下，同步段就是这次判定与占用的原子边界。代价：策略函数必须是同步的；策略抛出或给出非法上界时答未知，不接纳。
 
 ### 账本关闭由登记表的门核对
 
@@ -67,15 +78,15 @@ flowchart LR
 
 ### Service 子类转发，登记落在调用方 fiber
 
-`ExecutionEnvironmentRegistry` 只做转发与生命周期：六个环境与恢复方法原样转给登记表，两个登记方法用 `this.ctx.effect` 包住登记表的同名方法，构造时登记一个关闭效应。`registerProvider` 返回给调用方的撤除函数直接调用登记表的撤除函数，不经效应，因为效应撤除只运行一次，经效应就不能重试待处置的退役。匹配、核验与恢复的规则都留在登记表。理由是登记表可以不装配 Cordis 独立使用，Service 子类不应改变它的行为（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。
+`ExecutionEnvironmentRegistry` 只做转发与生命周期：七个环境与恢复方法原样转给登记表，两个登记方法用 `this.ctx.effect` 包住登记表的同名方法，构造时登记一个关闭效应。`registerProvider` 返回给调用方的撤除函数直接调用登记表的撤除函数，不经效应，因为效应撤除只运行一次，经效应就不能重试待处置的退役。匹配、核验与恢复的规则都留在登记表。理由是登记表可以不装配 Cordis 独立使用，Service 子类不应改变它的行为（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。
 
-### 恢复授权缺省为不可用
+### 三个端口缺省为不可用
 
-没有装载 `executionRecoveryAuthority` 服务时，恢复两操作一律以 `unavailable` 拒绝。理由：没有维护拥有者签发授权时，恢复不能默认允许。恢复授权端口是运行时对象，不进插件树，也不写进配置（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。装配入口装载 `ExecutionRecoveryAuthorityService` 的子类来提供它。Service 子类每次恢复操作现取，不持有旧引用（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
+没有装载 `executionRecoveryAuthority` 服务时，恢复面一律以 `unavailable` 拒绝；没有装载 `executionEnvironmentAuthority` 或 `executionScopeBinding` 服务时，环境面一律以 `unavailable` 拒绝。理由：没有授权来源时，访问与恢复都不能默认允许。三个端口都是运行时对象，不进插件树，也不写进配置（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。装配入口装载对应抽象类的子类来提供它们。Service 子类每次使用时从自己装载时的上下文现取，不持有旧引用，也不从调用方的上下文取（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
 
 ### `files` 声明与宿主提供者分成两个插件
 
-`filesFacilityPlugin` 只登记 `files` 设施声明，`hostFilesPlugin` 只登记宿主文件提供者。理由：声明的拥有者是 `files` 设施，宿主提供者只是它的一个实现者。两者有不同的变化原因；合在一个插件里时，宿主提供者卸载会带走声明，别的 `files` 提供者也就无法独立存在。
+`filesFacilityPlugin` 只登记 `files` 设施声明，宿主文件插件只登记一代宿主文件提供者。理由：声明的拥有者是 `files` 设施，宿主提供者只是它的一个实现者。两者有不同的变化原因；合在一个插件里时，宿主提供者卸载会带走声明，别的 `files` 提供者也就无法独立存在。
 
 ### 撤除失败不报告完成
 
@@ -127,7 +138,8 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 
 - 上面「条件选择仍按 INV-EE02」引用的 INV-EE02 已按产品正文第 2 版改写：策略在域外求值，执行环境只在允许清单内匹配。改写后的 INV-EE02 未经技术接受。
 - 上表的六种结果对应契约的设施结果四态：前三种是 `done`，未解析是 `unresolved`，拒绝是 `rejected`，未知是 `unknown`。同一次请求身份 `requestId` 只得到其中一种。
-- 本成员的包测试在 Node v24.18.0、linux 上的运行记录见 [SPEC 的组合与验证](../SPEC.md#组合与验证)。其中包括读取、查看与写入时关闭失败后关闭返回未知的三个测试。这些运行没有重做 2026-10-16 的两次 `close` 观察。
+- 经宿主文件责任域使用时，上文的「本设施实例」是责任域的共用引擎：pending-close 集合里的每个描述符带所属获取的标记，排空该获取时也重试它们；提供者代退役后它们仍留在责任域里，由之后的结清或 `maintain()` 再试。句柄代次在共用引擎内唯一，不按每份获取从 `1` 起。直接调用 `createHostFiles` 的设施仍按上文。
+- 本成员的包测试的运行记录见 [SPEC 的组合与验证](../SPEC.md#组合与验证)。其中包括读取、查看与写入时关闭失败后关闭返回未知的三个测试。这些运行没有重做 2026-10-16 的两次 `close` 观察。
 
 ## 宿主命令与终端机制（设计，未实现）
 
@@ -187,11 +199,11 @@ sequenceDiagram
 
 | 原则 | 本成员的具体选择 | 必须防止的反例 |
 | --- | --- | --- |
-| 单一职责 | 宿主文件设施只管宿主机上的对象身份与字节，提供者只管事实与租约原件，Service 子类只管转发与生命周期 | 在宿主文件设施里核对租户或问守卫，或在 Service 子类里重写匹配规则 |
+| 单一职责 | 宿主文件设施只管宿主机上的对象身份与字节，责任域只管获取记录、门面、名额与排空，提供者只管事实、租约原件与契约端口，Service 子类只管转发与生命周期 | 在宿主文件设施里核对租户或问守卫，或在 Service 子类里重写匹配规则 |
 | 开闭 | `command` 与 `terminal` 加在同一个宿主提供者上，宿主层仍由一个提供者提供全部所需设施。沙箱是新的提供者，放在新的提供者成员里，登记到同一个登记表，不是新的 Service 实现，不改本成员 | 为新设施另立宿主提供者，使宿主层出现两个提供者；在 Service 子类里为某种设施加分支 |
-| 里氏替换 | 宿主文件提供者满足契约的 `EnvironmentProvider`：真实声明只支持宿主层、不确认隔离、没有受管资源与恢复；退役先停止接纳新操作，再在 `drainBoundMs` 内等在途操作结束，超界报待处置；前提未探测时报未知 | 声明不支持的绑定层或隔离断言；在途操作未结束或退役待处置时报告已排空；未探测就报前提已满足 |
+| 里氏替换 | 宿主文件提供者满足契约的 `EnvironmentProvider`：真实声明只支持宿主层、不确认隔离；资源枚举答完整的空列表，原获取查询、获取枚举与结清读写责任域；排空在 `drainBoundMs` 内等在途操作并重试失败的关闭，什么都不剩才报已排空或已结清 | 把空的受管资源列表当作没有描述符或在途操作；对责任域没有签发过的代答未分配 |
 | 接口隔离 | 根入口只给宿主文件设施与提供者，`./cordis` 只给插件与 Service 子类 | 让调用方导入 `./cordis` 的子类来调用环境操作 |
-| 依赖倒置 | 本成员依赖契约、服务定义与登记表工厂。恢复授权由装配经服务键 `executionRecoveryAuthority` 提供，Service 现取；租户与授权随操作参数进入 | 从 `ctx`、isolate 标签或插件实例推断租户或恢复授权 |
+| 依赖倒置 | 本成员依赖契约、服务定义与登记表工厂。三个端口由装配经服务键提供，Service 从自己装载时的上下文现取；责任域由装配入口作为运行时对象交给插件工厂；租户与授权随操作参数进入 | 从 `ctx`、isolate 标签或插件实例推断租户或恢复授权 |
 
 ## 验证与维护
 
@@ -201,6 +213,8 @@ sequenceDiagram
 | 八项未实现操作 | [host-files-unsupported.spec.ts](../tests/host-files-unsupported.spec.ts) | 实现时改为真实行为并复用对象绑定 |
 | Service 装载、撤除、恢复缺省 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts)，真实 Cordis | 重复装载失败、配置校验失败、调用方类核对 |
 | 退役等在途操作、超界待处置与诊断 | [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts)，用 `vi.mock` 让一次 `open` 停住，其余是真实文件系统与真实 Cordis | 无 |
+| 责任域：每份获取的排空、关闭失败的归属、跨代共用配额与原记录、查询与结清、冷恢复的保守答复 | [host-domain.spec.ts](../tests/host-domain.spec.ts)，用 `vi.mock` 让 `open` 停住、让活描述符上的 `close` 失败，其余是真实文件系统与真实描述符 | 真实进程退出之后的冷恢复结清（[#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)）；行为模型；独立验收场景 |
+| 登记表与提供者经契约套件 | [contract-conformance.spec.ts](../tests/contract-conformance.spec.ts) | 无 |
 | 根入口不导入 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新增根入口模块时加入文件清单 |
 | 两条块的发布 | 没有 | 随 Runtime Context 生产者插件进入 |
 | `command` 与 `terminal` 的宿主机制 | 没有，只有[设计](#宿主命令与终端机制设计未实现) | 实现时按机制表补测试，在满足平台前提的真实 Linux 上运行 |

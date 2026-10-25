@@ -1,6 +1,6 @@
 # @omne-harness/runtime-context 行为规格
 
-状态：机制实现成员，`draft`，没有运行实现。本成员实现 Runtime Context 的供给机制：注册表、生产者表、资格表、需要绑定、当前投影、观察链、资格核对与翻译。公开行为归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。本页只写实现真实承担的本地行为，不重复契约条款。
+状态：机制实现成员，`draft`，没有运行实现。本成员实现 Runtime Context 的供给机制：注册表、生产者表、资格表、需要绑定、当前投影、观察链、资格核对与翻译。公开行为归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。本页只写实现真实承担的本地行为，不重复契约条款。本页的本地设计还没有按契约的[通用权威端口](../runtime-context-contract/SPEC.md#通用权威端口)、按租户的生产者槽（[RC-07](../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）与[作用域结束和恢复会话](../runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)重新设计，冲突处以契约为准，见[明确缺项](#明确缺项)。
 
 ## 范围与依据
 
@@ -149,3 +149,13 @@
 | 当前点读取成本 | 与块数和链长成正比，与历史长度无关 |
 
 本成员不覆盖：持久化、跨进程一致性、租户隔离的端到端证据。这些归持有者与装配的真实组合验证。
+
+### 明确缺项
+
+本页的本地设计早于契约的三组新条款，实现之前要重新设计，届时以契约为准：
+
+- 访问经调用方提供的可信绑定来源与权威端口核对，带同步的 `current()`（[通用权威端口](../runtime-context-contract/SPEC.md#通用权威端口)、[当前授权前提](../runtime-context-contract/SPEC.md#当前授权前提)）。本页的资格核对与生产者核对没有这两个端口。
+- 生产者槽是租户加块键，句柄带租户，另有按租户失效（[RC-07](../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。本页的生产者表仍按块键登记。
+- 作用域结束、恢复披露围栏、`beginReplay` 与 `finishReplay`、恢复后的待刷新供值（[RC-09](../runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)）。本页的重建顺序（逐条重放注册、交回检查点全值）已被契约取代。
+
+这些缺项不影响契约的 `./testing` 非耐久替身；那份替身已经按新条款实现，只作测试用。

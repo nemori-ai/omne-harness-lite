@@ -1,7 +1,6 @@
 // Registration, retirement, closing, description and recovery of the registry.
 import { expect, it } from 'vitest'
 import {
-  acquisitionRef,
   commandFacility,
   createRecoveryAccess,
   type EnvironmentBinding,
@@ -24,13 +23,16 @@ import {
   requirement,
   resource,
   scope,
+  scopeB,
   scriptedProvider,
   session,
   want,
+  stateOf,
+  openPorts,
 } from './doubles.ts'
 
 it('refuses a second declaration of a key and keeps the first; a stale removal leaves the new one', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerProvider(scriptedProvider())
   const removeFirst = registry.registerFacility(commandFacility)
   expect(() => registry.registerFacility(commandFacility)).toThrow(
@@ -67,12 +69,12 @@ it('invalidates only the leases of the provider being removed', async () => {
     'in-sandbox',
   )
   await remove()
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('on-host'))).toEqual({
+  expect(await stateOf(registry, accessA, 'on-host')).toEqual({
     kind: 'invalidated',
     adoption: hostLease.adoption,
     invalidation: { source: 'registry', reason: 'providerRetired' },
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('in-sandbox'))).toEqual({
+  expect(await stateOf(registry, accessA, 'in-sandbox')).toEqual({
     kind: 'acquired',
     adoption: sandboxLease.adoption,
   })
@@ -169,7 +171,7 @@ it('refuses placement, description and new providers after close, but still answ
   expect(() => registry.registerProvider(scriptedProvider({ name: 'late' }))).toThrow(
     'The environment registry is closed',
   )
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toMatchObject({
+  expect(await stateOf(registry, accessA, 'acq-1')).toMatchObject({
     kind: 'invalidated',
     adoption: acquired.adoption,
   })
@@ -186,7 +188,15 @@ it('describes only adopted, unreleased acquisitions of the caller tenant in the 
   const kept = await leased(registry, inScope1, 'kept')
   const released = await leased(registry, inScope1, 'released')
   await released.lease.release()
-  await leased(registry, inScope1, 'other-tenant', undefined, accessB)
+  const sessionB: EnvironmentBinding = { kind: 'session_sandbox', scope: scopeB }
+  await leased(
+    registry,
+    await placed(registry, requirement([sessionB]), accessB, scopeB),
+    'other-tenant',
+    undefined,
+    accessB,
+    scopeB,
+  )
   await leased(
     registry,
     await placed(registry, requirement([scope2]), accessA, scope('scope-2')),
@@ -205,9 +215,11 @@ it('describes only adopted, unreleased acquisitions of the caller tenant in the 
     },
   ])
   expect(kept.adoption.acquisition).toBe('kept')
-  expect(await registry.describe(accessB, scope('scope-1'))).toMatchObject([
-    { acquisition: 'other-tenant' },
-  ])
+  expect(await registry.describe(accessB, scope('scope-1'))).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  expect(await registry.describe(accessB, scopeB)).toMatchObject([{ acquisition: 'other-tenant' }])
 })
 
 function recoveringProvider(name: string, answers: Readonly<Record<string, ResourceRecovery>>) {
@@ -286,11 +298,14 @@ it('sorts recovered resources into stopped, pending and unsupported, and keeps t
       { name: 'unlisted', generation: '1', version: 'test-version' },
       { name: 'throwing-list', generation: '1', version: 'test-version' },
     ],
+    settledAcquisitions: [],
+    pendingAcquisitions: [],
+    unsupportedAcquisitions: [],
   })
   expect(unlisted.calls.recover).toBe(0)
 })
 
-it('refuses recovery with the authority answer, or unavailable when the authority throws, and recovers nothing', async () => {
+it('refuses recovery with the authority answer, or unknown when the authority throws, and recovers nothing', async () => {
   const answers: ('notAuthorized' | 'unavailable' | Error)[] = [
     'notAuthorized',
     'unavailable',
@@ -317,10 +332,11 @@ it('refuses recovery with the authority answer, or unavailable when the authorit
     reason: 'unavailable',
   })
   expect(await registry.releaseScope(scope('scope-1'), access)).toEqual({
-    kind: 'rejected',
-    reason: 'unavailable',
+    kind: 'unknown',
+    cause: 'authority',
   })
   expect(provider.calls.list).toBe(0)
+  expect(provider.calls.listAcquisitions).toBe(0)
   expect(provider.calls.recover).toBe(0)
 })
 
@@ -328,18 +344,20 @@ it('releases one scope only: leases of another scope stay valid', async () => {
   const provider = scriptedProvider({ bindingKinds: ['session_sandbox'] })
   const registry = registryWith([provider])
   const scope2: EnvironmentBinding = { kind: 'session_sandbox', scope: scope('scope-2') }
-  await leased(registry, await placed(registry, requirement([session])), 'in-1')
+  const first = await leased(registry, await placed(registry, requirement([session])), 'in-1')
   const other = await leased(
     registry,
     await placed(registry, requirement([scope2]), accessA, scope('scope-2')),
     'in-2',
   )
   await registry.releaseScope(scope('scope-1'), createRecoveryAccess())
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('in-1'))).toMatchObject({
-    kind: 'invalidated',
-    invalidation: { source: 'registry', reason: 'scopeReleased' },
+  expect(await first.lease.invalidated).toEqual({ source: 'registry', reason: 'scopeReleased' })
+  // The acquisition path settled the original acquisition after the invalidation.
+  expect(await stateOf(registry, accessA, 'in-1')).toEqual({
+    kind: 'released',
+    adoption: first.adoption,
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('in-2'))).toEqual({
+  expect(await stateOf(registry, accessA, 'in-2')).toEqual({
     kind: 'acquired',
     adoption: other.adoption,
   })

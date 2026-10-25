@@ -26,6 +26,12 @@ const obligations = [
   'V-EE20.lease-exposes-only-declared-keys',
   'V-EE13.release-is-retryable',
   'V-EE22.facts-schema-refusal-has-item-reasons',
+  'V-EE25.quota-declaration-has-bounds',
+  'V-EE23.inspect-finds-held-acquisition',
+  'V-EE23.inspect-never-invents-allocation',
+  'V-EE23.different-description-is-conflict',
+  'V-EE26.list-includes-open-acquisition',
+  'V-EE25.settle-is-idempotent-and-never-rewrites-allocation',
 ] as const
 
 function subject(fault?: (typeof obligations)[number]): ProviderConformanceSubject {
@@ -119,6 +125,26 @@ function subject(fault?: (typeof obligations)[number]): ProviderConformanceSubje
       return facts
     })
   }
+  if (fault === 'V-EE25.quota-declaration-has-bounds')
+    provider.quota = async () => ({
+      kind: 'declared',
+      quota: { unit: 'unsettled-acquisition', perTenant: -1, global: null },
+    })
+  if (fault === 'V-EE23.inspect-finds-held-acquisition')
+    provider.inspectAcquisition = async () => ({ kind: 'notAllocated' })
+  if (
+    fault === 'V-EE23.inspect-never-invents-allocation' ||
+    fault === 'V-EE23.different-description-is-conflict'
+  )
+    provider.inspectAcquisition = async () => ({ kind: 'settled' })
+  if (fault === 'V-EE26.list-includes-open-acquisition')
+    provider.listAcquisitions = async () => ({ kind: 'listed', acquisitions: [] })
+  if (fault === 'V-EE25.settle-is-idempotent-and-never-rewrites-allocation') {
+    const settle = provider.settleAcquisition.bind(provider)
+    let calls = 0
+    provider.settleAcquisition = async original =>
+      ++calls === 1 ? settle(original) : { kind: 'notAllocated' }
+  }
   const ref = 'provider-suite'
   function isScope(value: string): value is ProviderAcquireInput['scope']['ref'] {
     return value.length > 0
@@ -171,6 +197,7 @@ function subject(fault?: (typeof obligations)[number]): ProviderConformanceSubje
               version: provider.version,
             },
             continuity: provider.continuity,
+            quotaDomain: provider.quotaDomain,
           },
         }
         const answer = await provider.acquire(input)
@@ -232,7 +259,7 @@ it('assembles both public case lists without allocating a subject or invoking it
   const providers = environmentProviderConformance({ subject })
   const environments = executionEnvironmentConformance({ subject })
   expect(providers.map(test => test.name)).toEqual(obligations)
-  expect(environments).toHaveLength(20)
-  expect(new Set(environments.map(test => test.name)).size).toBe(20)
+  expect(environments).toHaveLength(35)
+  expect(new Set(environments.map(test => test.name)).size).toBe(35)
   for (const test of [...providers, ...environments]) expect(test.run).toBeTypeOf('function')
 })

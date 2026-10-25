@@ -17,15 +17,17 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import {
+  createHostFilesDomain,
   createHostFilesProvider,
   hostObjectToken,
   type HostFilesDiagnostic,
 } from '@omne-harness/execution-environment-host-local'
 import {
   ExecutionEnvironmentRegistry,
+  createHostFilesPlugin,
   filesFacilityPlugin,
-  hostFilesPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
+import { testPorts } from './ports.ts'
 
 // `open` on a path with the marker signals `entered`, then waits until the test calls `release`.
 const hold = vi.hoisted(() => ({
@@ -133,6 +135,7 @@ async function providerFiles(provider: ReturnType<typeof createHostFilesProvider
       binding: host,
       provider: { name: provider.name, generation: provider.generation, version: provider.version },
       continuity: { kind: 'not_guaranteed' },
+      quotaDomain: provider.quotaDomain,
     },
     tenant,
     ledger,
@@ -155,6 +158,7 @@ it('waits for an in-flight write before it reports drained, and admits no new op
   const { path, named } = await heldFile()
   const diagnostics: HostFilesDiagnostic[] = []
   const provider = createHostFilesProvider({
+    domain: createHostFilesDomain(),
     drainBoundMs: 5_000,
     diagnose: diagnostic => diagnostics.push(diagnostic),
   })
@@ -179,6 +183,7 @@ it('reports pending with no resources past the bound, with a diagnostic of the o
   const { path, named } = await heldFile()
   const diagnostics: HostFilesDiagnostic[] = []
   const provider = createHostFilesProvider({
+    domain: createHostFilesDomain(),
     drainBoundMs: 20,
     diagnose: diagnostic => diagnostics.push(diagnostic),
   })
@@ -192,6 +197,7 @@ it('reports pending with no resources past the bound, with a diagnostic of the o
       provider: 'host-files',
       generation: provider.generation,
       inFlight: 1,
+      openDescriptors: 0,
       boundMs: 20,
     },
   ])
@@ -209,9 +215,12 @@ it('logs the diagnostic and RetirementPending when the host files plugin unloads
       if (message.type === 'error') errors.push(...message.args)
     },
   })
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
   await ctx.plugin(filesFacilityPlugin)
-  const hostFiles = await ctx.plugin(hostFilesPlugin, { drainBoundMs: 20 })
+  const hostFiles = await ctx.plugin(createHostFilesPlugin(createHostFilesDomain()), {
+    drainBoundMs: 20,
+  })
   const service = ctx.get(executionEnvironmentKey)
   if (service === undefined) throw new Error('executionEnvironment is not provided')
   const access = { principal: 'subject-a', tenant }
@@ -248,7 +257,10 @@ it('passes the public provider in-flight drain case with a controlled real file 
   const cases = environmentProviderConformance({
     waitMs: 5000,
     async subject() {
-      const provider = createHostFilesProvider({ drainBoundMs: 5000 })
+      const provider = createHostFilesProvider({
+        domain: createHostFilesDomain(),
+        drainBoundMs: 5000,
+      })
       return {
         provider,
         binding: host,

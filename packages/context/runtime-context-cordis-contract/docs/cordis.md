@@ -1,6 +1,6 @@
 # Runtime Context 的 Cordis 定义
 
-本页是 Runtime Context 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、事件、依赖分类、登记与撤除协议，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 8。三面操作的领域行为归 [runtime-context-contract SPEC](../../runtime-context-contract/SPEC.md)，机制归 [runtime-context](../../runtime-context/docs/architecture.md)，Service 实现、isolate 绑定、撤除与资源清理归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，本页不复制。
+本页是 Runtime Context 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、事件、依赖分类、登记与撤除协议，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 9。三面操作的领域行为归 [runtime-context-contract SPEC](../../runtime-context-contract/SPEC.md)，机制归 [runtime-context](../../runtime-context/docs/architecture.md)，Service 实现、isolate 绑定、撤除与资源清理归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，本页不复制。
 
 现状：`src/cordis.ts` 已提供服务定义，根入口显式重导出契约类型。下文形状已进入源码，具体提供者的业务状态与资源结算另有拥有者。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
@@ -19,7 +19,7 @@
 | 面 | 方法 | 调用方 | 本成员加的 Cordis 承诺 |
 | --- | --- | --- | --- |
 | 生产者面 | `registerProducer` | 生产者插件，在自己的插件体里调用 | 登记即效应，登记落在调用方 fiber 上。代际由机制新取，撤除函数只移除本代登记。见[登记与撤除协议](#登记与撤除协议) |
-| 持有者面 | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit` | 作用域持有者的适配器 | 没有额外的 Cordis 承诺。注册、资格与步提交都是参数与结果，提交归持有者（[RC-02](../../runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-05](../../runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)） |
+| 持有者面 | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`beginReplay`、`finishReplay` | 作用域持有者的适配器 | 没有额外的 Cordis 承诺。注册、资格、步提交、作用域结束与恢复材料都是参数与结果，提交归持有者（[RC-02](../../runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)、[RC-05](../../runtime-context-contract/SPEC.md#rc-05-状态块上下文更新与步提交)、[RC-09](../../runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)） |
 | 读者面 | `bind` | 消费者一侧的适配器插件 | 消费者类从调用方 fiber 的 intercept 配置读出，与读取资格核对。见 [intercept 配置与消费者类](#intercept-配置与消费者类) |
 
 本成员不定义第二个服务键，不定义块级服务。块是数据，不是服务。没有任何一方 `inject` 一个块。必需块缺席是读取时的缺项（[RC-03](../../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)），不让消费者 fiber 进入 `PENDING`（性质 7）。
@@ -75,7 +75,7 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 
 1. 生产者插件在自己的插件体里调用 `registerProducer`。
 2. 提供者在方法里用 `this.ctx.effect` 登记。`this.ctx` 是调用方的上下文，所以效应落在生产者插件的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。
-3. 登记带生产者身份。生产者句柄的代际由机制在每次登记时新取，单调递增（[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。提供者不取 fiber `uid` 作代际，因为插件体重跑后 `uid` 是否变化没有核验。
+3. 登记带调用方主体、租户与生产者身份，生产者槽是租户加块键；一个插件为几个租户供值时为每个租户分别登记。生产者句柄的代际由机制在每次登记时新取，单调递增（[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。提供者不取 fiber `uid` 作代际，因为插件体重跑后 `uid` 是否变化没有核验。
 4. 生产者句柄的 `dispose` 调用 effect 返回的撤除函数。显式 `dispose` 与 fiber 卸载走同一个撤除函数。
 5. 撤除函数先取消本代在途调用，再在超时内等本代在途读取结算，然后只移除本代登记（[RC-07](../../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。本代已被新一代替换时，撤除函数不改动登记。这个次序必须写在同一个 effect 里。不同 effect 之间的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
 
@@ -102,7 +102,8 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 | [IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件增补位置 | 在 `./cordis` 增补 `Events`，JSDoc 写 `@mode emit` 与 `@param` | [cordis.ts](../src/cordis.ts) 与入口测试 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | `registerProducer` 在方法里 `this.ctx.effect` 登记，不采用目录写法 | 机制有 basis。撤除验证归提供者 |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是操作参数 `ScopeRef`。事件按作用域引用过滤。每次读取不建 fiber，不建 isolate | 按作用域过滤有本成员测试，basis 登记仍缺，见下一节 |
-| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随读取资格作为参数进入。intercept 配置只声明消费者类，不授予资格；`bind` 的消费者类核对是一致性检查 | [cordis.ts](../src/cordis.ts) 与入口测试 |
+| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树 | 契约的两个权威端口由装配入口交给 Service 实现，不进插件树，本成员不为它们定义服务键（性质 9） | 归 Service 实现与应用装配 |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户随读取资格、注册材料、生产者登记与发布输入作为参数进入；调用方主体是每个操作的第一个参数。intercept 配置只声明消费者类，不授予资格；`bind` 的消费者类核对是一致性检查 | [cordis.ts](../src/cordis.ts) 与入口测试 |
 
 ## 机制读数与假设
 

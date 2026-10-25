@@ -91,6 +91,7 @@ it('bind compares declared consumer against an actually issued eligibility, with
     provider = await ctx.plugin(Probe),
     instance = ctx.get(runtimeContextKey)
   if (!(instance instanceof Probe)) throw new Error('Missing fixture provider')
+  await instance.prepare(first, tenant, 'probe.other')
   const material: EligibilityMaterial = {
     scope: first,
     tenant,
@@ -101,7 +102,7 @@ it('bind compares declared consumer against an actually issued eligibility, with
     registrationRevision: 0,
     supersedes: null,
   }
-  const issued = await instance.issueEligibility(material)
+  const issued = await instance.issueEligibility('probe', material)
   expect(issued.kind).toBe('issued')
   if (issued.kind !== 'issued') throw new Error('No fixture eligibility')
   expect(await instance.bind(issued.eligibility.id)).toEqual({
@@ -134,13 +135,14 @@ it('bind compares declared consumer against an actually issued eligibility, with
 it('registerProducer effect belongs to the caller fiber, and caller unload withdraws only its registration', async () => {
   const ctx = new Context(),
     provider = await ctx.plugin(Probe)
-  let handle: ProducerHandle<'probe.value'> | undefined
+  let handle: ProducerHandle | undefined
   const producer = await ctx.plugin(
     plugin(
       'producer',
       async inner => {
-        const result = await inner.runtimeContext.registerProducer({
+        const result = await inner.runtimeContext.registerProducer('probe', {
           key: 'probe.value',
+          tenant,
           producer: { producer: 'producer' },
           declaration: descriptor,
           scoped: true,
@@ -153,20 +155,21 @@ it('registerProducer effect belongs to the caller fiber, and caller unload withd
   )
   expect(handle).toBeDefined()
   await producer.dispose()
-  expect((await handle?.publish(first, 12))?.kind).toBe('rejected')
+  expect((await handle?.publish({ scope: first, tenant, value: 12 }))?.kind).toBe('rejected')
   expect(ctx.get(runtimeContextKey)).toBeInstanceOf(Probe)
   await provider.dispose()
 })
 it('explicit handle disposal and later caller disposal share idempotent cleanup', async () => {
   const ctx = new Context(),
     provider = await ctx.plugin(Probe)
-  let handle: ProducerHandle<'probe.value'> | undefined
+  let handle: ProducerHandle | undefined
   const producer = await ctx.plugin(
     plugin(
       'explicit-producer',
       async inner => {
-        const result = await inner.runtimeContext.registerProducer({
+        const result = await inner.runtimeContext.registerProducer('probe', {
           key: 'probe.value',
+          tenant,
           producer: { producer: 'producer' },
           declaration: descriptor,
           scoped: true,
@@ -177,7 +180,7 @@ it('explicit handle disposal and later caller disposal share idempotent cleanup'
     ),
   )
   await handle?.dispose()
-  expect((await handle?.publish(first, 12))?.kind).toBe('rejected')
+  expect((await handle?.publish({ scope: first, tenant, value: 12 }))?.kind).toBe('rejected')
   await producer.dispose()
   await provider.dispose()
 })
@@ -296,10 +299,11 @@ it('ancestor intercept is inherited, while a nearer caller declaration overrides
 it('late disposal from an older caller does not remove a newer generation of the same producer', async () => {
   const ctx = new Context(),
     provider = await ctx.plugin(Probe)
-  const handles: ProducerHandle<'probe.value'>[] = []
+  const handles: ProducerHandle[] = []
   async function register(inner: Context) {
-    const result = await inner.runtimeContext.registerProducer({
+    const result = await inner.runtimeContext.registerProducer('probe', {
       key: 'probe.value',
+      tenant,
       producer: { producer: 'shared' },
       declaration: descriptor,
       scoped: true,
@@ -312,9 +316,12 @@ it('late disposal from an older caller does not remove a newer generation of the
     current = handles[1]
   if (!previous || !current) throw new Error('Missing handles')
   expect(current.generation).toBeGreaterThan(previous.generation)
+  const instance = ctx.get(runtimeContextKey)
+  if (!(instance instanceof Probe)) throw new Error('Missing fixture provider')
+  await instance.prepare(first, tenant, 'probe.value')
   await old.dispose()
-  expect((await current.publish(first, 8)).kind).toBe('published')
-  expect((await previous.publish(first, 9)).kind).toBe('rejected')
+  expect((await current.publish({ scope: first, tenant, value: 8 })).kind).toBe('published')
+  expect((await previous.publish({ scope: first, tenant, value: 9 })).kind).toBe('rejected')
   await replacement.dispose()
   await provider.dispose()
 })

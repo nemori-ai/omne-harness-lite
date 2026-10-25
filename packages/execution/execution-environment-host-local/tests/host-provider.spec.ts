@@ -18,6 +18,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 import {
+  createHostFilesDomain,
   createHostFilesProvider,
   hostObjectToken,
 } from '@omne-harness/execution-environment-host-local'
@@ -77,6 +78,7 @@ function placementOn(
     binding,
     provider: { name: provider.name, generation: provider.generation, version: provider.version },
     continuity: { kind: 'not_guaranteed' },
+    quotaDomain: 'host-files',
   }
   return placement
 }
@@ -85,9 +87,10 @@ function inputFor(
   provider: { name: string; generation: string; version: string },
   closed = new AbortController().signal,
   binding: EnvironmentBinding = host,
+  key = 'acq-1',
 ): ProviderAcquireInput {
   return {
-    acquisition: acquisitionRef('acq-1'),
+    acquisition: acquisitionRef(key),
     origin: originRef('call-1'),
     scope: scope1,
     placement: placementOn(binding, provider),
@@ -101,7 +104,7 @@ async function leaseOf(
   input: ProviderAcquireInput,
 ): Promise<EnvironmentLease> {
   const acquired = await provider.acquire(input)
-  if (acquired.kind !== 'acquired') throw new Error(`expected a lease: ${acquired.reason}`)
+  if (acquired.kind !== 'acquired') throw new Error(`expected a lease: ${JSON.stringify(acquired)}`)
   return acquired.lease
 }
 
@@ -113,8 +116,8 @@ async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> 
   ])
 }
 
-it('declares the host layer, the files key, no isolation and no recovery', async () => {
-  const provider = createHostFilesProvider()
+it('declares the host layer, the files key, no isolation, and an empty resource recovery', async () => {
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   expect(provider).toMatchObject({
     name: 'host-files',
     bindingKinds: ['host_machine'],
@@ -123,9 +126,14 @@ it('declares the host layer, the files key, no isolation and no recovery', async
     isolation: [],
   })
   expect(provider.generation).toMatch(/^[0-9a-f-]{36}$/)
-  expect(createHostFilesProvider().generation).not.toBe(provider.generation)
-  expect(provider.listRecoveryResources).toBeUndefined()
-  expect(provider.recover).toBeUndefined()
+  expect(createHostFilesProvider({ domain: createHostFilesDomain() }).generation).not.toBe(
+    provider.generation,
+  )
+  expect(provider.quotaDomain).toBe('host-files')
+  expect(await provider.listRecoveryResources?.(scope1)).toEqual({ kind: 'listed', resources: [] })
+  expect(
+    await provider.recover?.({ key: 'r', provider: 'host-files', reference: { kind: 'null' } }),
+  ).toEqual({ status: 'unsupported', evidence: null })
   expect(provider.version).toBe(packageVersion)
   expect(await provider.describe()).toEqual({
     provider: 'host-files',
@@ -139,7 +147,7 @@ it('declares the host layer, the files key, no isolation and no recovery', async
 })
 
 it('hands out a host lease with its own identity and evidence, and only the files facility', async () => {
-  const provider = createHostFilesProvider()
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   const input = inputFor(provider)
   const acquired = await provider.acquire(input)
   expect(acquired).toMatchObject({
@@ -163,7 +171,7 @@ it('hands out a host lease with its own identity and evidence, and only the file
 })
 
 it('refuses a sandbox placement and, once retired, any placement', async () => {
-  const provider = createHostFilesProvider()
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   const sandbox: EnvironmentBinding = { kind: 'tenant_sandbox', tenant }
   expect(await provider.acquire(inputFor(provider, undefined, sandbox))).toEqual({
     kind: 'rejected',
@@ -201,9 +209,15 @@ it('answers closed through the registry gate once the acquisition ledger is clos
   const { path, named } = await namedNotes('before')
   const registry = createEnvironmentRegistry<unknown>({
     recovery: { authorizeRecovery: async () => 'authorized' },
+    authority: {
+      async authorize(caller) {
+        return { kind: 'authorized', principal: caller.principal, current: () => true }
+      },
+    },
+    bindings: { lookup: async () => ({ kind: 'bound', tenant }) },
   })
   registry.registerFacility(filesFacility)
-  const provider = createHostFilesProvider()
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   registry.registerProvider(provider)
   const requester = scope1
   const access = { principal: 'subject-a', tenant }
@@ -244,7 +258,7 @@ it('answers closed through the registry gate once the acquisition ledger is clos
 
 it('drains at once when no file operation is in flight, and admits no new operation after', async () => {
   const { path, named } = await namedNotes('kept')
-  const provider = createHostFilesProvider()
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   const files = (await leaseOf(provider, inputFor(provider))).facility('files')
   if (files === undefined) throw new Error('expected files')
   expect(await provider.retire()).toEqual({ kind: 'drained' })
@@ -257,15 +271,21 @@ it('drains at once when no file operation is in flight, and admits no new operat
 })
 
 it('refuses a drain bound that is not a finite number zero or more', () => {
-  expect(() => createHostFilesProvider({ drainBoundMs: -1 })).toThrow(RangeError)
-  expect(() => createHostFilesProvider({ drainBoundMs: Number.NaN })).toThrow(RangeError)
-  expect(createHostFilesProvider({ drainBoundMs: 0 }).name).toBe('host-files')
+  expect(() =>
+    createHostFilesProvider({ domain: createHostFilesDomain(), drainBoundMs: -1 }),
+  ).toThrow(RangeError)
+  expect(() =>
+    createHostFilesProvider({ domain: createHostFilesDomain(), drainBoundMs: Number.NaN }),
+  ).toThrow(RangeError)
+  expect(createHostFilesProvider({ domain: createHostFilesDomain(), drainBoundMs: 0 }).name).toBe(
+    'host-files',
+  )
 })
 
 it('invalidates live leases on retirement but not a lease it already released', async () => {
-  const provider = createHostFilesProvider()
-  const released = await leaseOf(provider, inputFor(provider))
-  const live = await leaseOf(provider, inputFor(provider))
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  const released = await leaseOf(provider, inputFor(provider, undefined, host, 'released'))
+  const live = await leaseOf(provider, inputFor(provider, undefined, host, 'live'))
   await released.release()
   await provider.retire()
   await expect(live.invalidated).resolves.toEqual({ source: 'provider', reason: 'providerRetired' })

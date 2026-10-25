@@ -6,14 +6,14 @@ The pure contract member of Runtime Context. Variant: `module`.
 
 ## Responsibility and status
 
-This package owns the Runtime Context protocol. It defines types for block declarations, context needs, need bindings, registrations, and read eligibility. It also defines types for bound readers, snapshots and changes, context updates, step commits, and change material. It also owns five pure check functions over these types.
+This package owns the Runtime Context protocol. It defines types for block declarations, context needs, need bindings, registrations, and read eligibility. It also defines types for bound readers, snapshots and changes, context updates, step commits, change material, and replay sessions. It defines the operation types of three faces with eight operations and two needed ports: the trusted scope binding source and the authority port. It also owns five pure check functions over these types.
 
 The package does not own the content of any block. It does not decide whether an action is allowed, does not assemble model requests, and does not store history. It knows only generic roles: scope holder, producer, consumer class, integrator, coordinator, and caller.
 
 Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come from technical acceptance and which parts come from the product text, revision 4.
 
 - Implemented: value types, two decoders and five pure operations through the root entry.
-- Implemented: a framework-independent conformance case list and a non-durable memory stand-in through `./testing`.
+- Implemented: framework-independent core, extended, authority, and replay case lists, scripted authority ports, and a non-durable memory stand-in through `./testing`.
 - Verification: tests cover pure operations and in-process contract obligations. They do not prove durability, concurrent production behavior or performance.
 
 The current consumers are execution-environment-contract and execution-environment. They use the scope reference and the block declaration types.
@@ -51,15 +51,15 @@ Independent use needs only this package. It needs no scope holder and no Cordis.
 ## Contracts
 
 - `src/index.ts` owns the public shapes.
-- The [SPEC](SPEC.md) owns behavior beyond the types, in clauses RC-01 to RC-08.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in clauses RC-01 to RC-09.
 - The [API page](docs/public-api.md) indexes the exports. It indexes the actual exports by module.
 - The [object model](docs/object-model.md) owns identity, owners, and lifecycle of each object.
 
-A read has four results: success, refusal, missing, and unknown. `changes` can also return cursor invalidated. Registration, block content, and step commit are three separate commits. None of them happens inside this package. The package gives only check results and merge material. It holds no resources and has nothing to dispose.
+A read has four results: success, refusal, missing, and unknown. `changes` can also return cursor invalidated. Access is checked through the authority port and the trusted scope binding source; an unbound scope, another tenant, and a refusal all read as not authorized. A producer slot is a tenant plus a block key. An ended scope never opens again. After this instance is rebuilt, the holder installs the scope projection atomically through a replay session. Registration, block content, and step commit are three separate commits. None of them happens inside this package. The package gives only check results and merge material. It holds no resources and has nothing to dispose.
 
 ## Design
 
-The root entry separates operation surfaces from the other modules: shared types, block declarations, needs and bindings, registration and eligibility, readers and observation, updates and commits, and pure functions. Dependencies between them go one way. The outside dependencies are `@standard-schema/spec`, legal-identity and operation-result. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the eight protocol flows. The [object model](docs/object-model.md) describes the objects.
+The root entry separates operation surfaces from the other modules: shared types, block declarations, needs and bindings, registration and eligibility, readers and observation, updates and commits, authority ports, replay sessions, and pure functions. Dependencies between them go one way. The outside dependencies are `@standard-schema/spec`, legal-identity and operation-result. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the nine protocol flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
@@ -87,11 +87,11 @@ In this directory, run `pnpm typecheck` for the type check. Tests check pure ope
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the public types, RC-01 to RC-08
+SPEC.md                   Behavior beyond the public types, RC-01 to RC-09
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, dependencies, mechanisms and reasons
-├── flows.md              Protocol flows F-RC01 to F-RC08
+├── flows.md              Protocol flows F-RC01 to F-RC09
 ├── object-model.md       Objects, lifecycle, and states
 ├── public-api.md         Export entry and definition index
 ├── context.md            Independent use, neighbor handoff, position

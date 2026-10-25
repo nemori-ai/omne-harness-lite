@@ -18,6 +18,7 @@ import {
   decodeRequirement,
   decodeScope,
   decodeString,
+  decodeTenant,
   exactKeys,
   hasFunctions,
   isRecord,
@@ -27,7 +28,7 @@ import {
   type Decoded,
 } from './decode.ts'
 import type { ExecutionEnvironment, EnvironmentProvider } from './environment.ts'
-import type { EnvironmentLease } from './lease.ts'
+import type { EnvironmentLease, OriginalAcquisition } from './lease.ts'
 import {
   isRecoveryAccess,
   type RecoveryAccess,
@@ -86,24 +87,28 @@ const placement = record({
   binding: decodeBinding,
   provider: providerIdentity,
   continuity: decodeContinuity,
+  quotaDomain: decodeNonEmpty,
 })
-const rejected = record({
-  kind: literal('rejected'),
-  reason: decodeLiteral([
-    'notAuthorized',
-    'noMatchingEnvironment',
-    'missingFacility',
-    'unsupportedFacility',
-    'isolationUnconfirmed',
-    'referenceExpired',
-    'providerUnavailable',
-    'ownerStopped',
-    'invalidInput',
-    'unavailable',
-    'ambiguousEnvironment',
-    'callerMismatch',
-  ]),
-})
+const rejectReason = decodeLiteral([
+  'notAuthorized',
+  'noMatchingEnvironment',
+  'missingFacility',
+  'unsupportedFacility',
+  'isolationUnconfirmed',
+  'referenceExpired',
+  'providerUnavailable',
+  'ownerStopped',
+  'invalidInput',
+  'unavailable',
+  'ambiguousEnvironment',
+  'callerMismatch',
+  'quotaExceeded',
+  'globalCapacityExceeded',
+  'recoveryUnready',
+  'acquisitionConflict',
+  'allocationNotPerformed',
+])
+const rejected = record({ kind: literal('rejected'), reason: rejectReason })
 const resource = record({ key: decodeString, provider: decodeString, reference: decodeJsonValue })
 const resources = decodeArray(resource)
 const invalidation = variants('source', {
@@ -139,13 +144,73 @@ const pendingStates = {
     resources,
   }),
   released: record({ kind: literal('released'), adoption }),
+  settled: record({ kind: literal('settled') }),
 }
+const cleanup = variants('kind', {
+  settled: record({ kind: literal('settled') }),
+  pending: record({ kind: literal('pending') }),
+  unknown: record({ kind: literal('unknown') }),
+})
 const acquisitionState = variants('kind', {
   ...pendingStates,
-  unrecorded: record({ kind: literal('unrecorded') }),
-  invalidInput: record({ kind: literal('invalidInput') }),
   acquired: record({ kind: literal('acquired'), adoption }),
   rejected,
+  allocationFailed: record({ kind: literal('allocationFailed'), reason: rejectReason, cleanup }),
+  allocationUnknown: record({ kind: literal('allocationUnknown'), acquisition: decodeAcquisition }),
+})
+const original = record({
+  tenant: decodeTenant,
+  acquisition: decodeAcquisition,
+  origin: decodeOrigin,
+  scope: decodeScope,
+  placement,
+})
+const queryCause = decodeLiteral(['authority', 'scope-binding', 'provider'])
+const originalInspection = variants('status', {
+  allocated: record({
+    kind: literal('original'),
+    status: literal('allocated'),
+    original,
+    adoption: nullable(adoption),
+  }),
+  pending: record({
+    kind: literal('original'),
+    status: literal('pending'),
+    original,
+    adoption: nullable(adoption),
+    phase: decodeLiteral(['acquiring', 'provisional', 'releasing']),
+    resources,
+  }),
+  notAllocated: record({ kind: literal('original'), status: literal('notAllocated'), original }),
+  settled: record({ kind: literal('original'), status: literal('settled'), original }),
+  conflict: record({ kind: literal('original'), status: literal('conflict'), original }),
+  allocationFailed: record({
+    kind: literal('original'),
+    status: literal('allocationFailed'),
+    original,
+    reason: rejectReason,
+    cleanup,
+  }),
+})
+const recoveryInspectionVariants = {
+  invalidInput: record({ kind: literal('invalidInput') }),
+  refused: record({
+    kind: literal('refused'),
+    reason: decodeLiteral(['notAuthorized', 'callerMismatch']),
+  }),
+  queryUnavailable: record({ kind: literal('queryUnavailable'), cause: queryCause }),
+  queryUnknown: record({ kind: literal('queryUnknown'), cause: queryCause }),
+  original: originalInspection,
+}
+const inspection = variants('kind', {
+  ...recoveryInspectionVariants,
+  known: record({ kind: literal('known'), state: acquisitionState }),
+  unrecorded: record({ kind: literal('unrecorded') }),
+})
+const recoveryInspection = variants('kind', recoveryInspectionVariants)
+const lookupUnknown = record({
+  kind: literal('unknown'),
+  cause: decodeLiteral(['authority', 'scope-binding', 'provider', 'quota']),
 })
 const description = record({
   acquisition: decodeAcquisition,
@@ -156,15 +221,17 @@ const description = record({
   continuity: decodeContinuity,
   facilities: decodeArray(decodeFacilityKey),
   state: decodeLiteral([
-    'unrecorded',
     'acquiring',
     'provisional',
     'acquired',
     'rejected',
+    'allocationFailed',
     'invalidated',
     'releasing',
     'pendingRelease',
     'released',
+    'allocationUnknown',
+    'settled',
   ]),
 })
 const ownedRecovery = record({
@@ -179,6 +246,13 @@ const ownedRecovery = record({
     }),
   ),
   unavailable: decodeArray(providerIdentity),
+  settledAcquisitions: decodeArray(
+    record({ original, outcome: decodeLiteral(['settled', 'notAllocated']) }),
+  ),
+  pendingAcquisitions: decodeArray(
+    record({ original, reason: decodeLiteral(['pending', 'unknown']), resources }),
+  ),
+  unsupportedAcquisitions: decodeArray(original),
 })
 const recoveryAccess: Decoder<RecoveryAccess> = (value, path) =>
   isRecoveryAccess(value) ? accept(value) : refuse(path, 'expected a recovery access object')
@@ -206,6 +280,7 @@ const providerData = record({
   name: decodeString,
   generation: decodeString,
   version: decodeString,
+  quotaDomain: decodeNonEmpty,
   bindingKinds: decodeArray(decodeBindingKind),
   continuity: decodeContinuity,
   facilities: decodeArray(decodeFacilityKey),
@@ -219,6 +294,7 @@ const provider: Decoder<EnvironmentProvider> = (value, path) => {
         name: 0,
         generation: 0,
         version: 0,
+        quotaDomain: 0,
         bindingKinds: 0,
         continuity: 0,
         facilities: 0,
@@ -228,7 +304,15 @@ const provider: Decoder<EnvironmentProvider> = (value, path) => {
     path,
   )
   if (!data.ok) return data
-  const functions = hasFunctions(value, path, ['describe', 'acquire', 'retire'])
+  const functions = hasFunctions(value, path, [
+    'describe',
+    'quota',
+    'acquire',
+    'inspectAcquisition',
+    'listAcquisitions',
+    'settleAcquisition',
+    'retire',
+  ])
   if (!functions.ok) return functions
   const list = value['listRecoveryResources'],
     recover = value['recover']
@@ -289,6 +373,22 @@ function pair<A, B>(first: Decoder<A>, second: Decoder<B>): Decoder<[A, B]> {
     return accept([a.value, b.value])
   }
 }
+function pairWithOptional<A, B, C>(
+  first: Decoder<A>,
+  second: Decoder<B>,
+  third: Decoder<C>,
+): Decoder<[A, B, C?]> {
+  return (value, path) => {
+    if (!Array.isArray(value) || value.length < 2 || value.length > 3)
+      return refuse(path, 'expected a two- or three-item parameter tuple')
+    const head = pair(first, second)(value.slice(0, 2), path)
+    if (!head.ok) return head
+    if (value.length === 2 || value[2] === undefined) return accept([head.value[0], head.value[1]])
+    const c = third(value[2], [...path, 2])
+    if (!c.ok) return c
+    return accept([head.value[0], head.value[1], c.value])
+  }
+}
 function single<T>(decoder: Decoder<T>): Decoder<[T]> {
   return (value, path) => {
     if (!Array.isArray(value) || value.length !== 1)
@@ -317,18 +417,25 @@ export const acquireParamsSchema: OperationSchema<
     }),
   ),
 )
+const acquisitionQuery = variants('kind', {
+  local: record({ kind: literal('local'), acquisition: decodeAcquisition }),
+  original: record({ kind: literal('original'), original }),
+})
 export const inspectAcquisitionParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['inspectAcquisition']>
-> = standardSchema(pair(decodeAccess, decodeAcquisition))
+> = standardSchema(pair(decodeAccess, acquisitionQuery))
+export const inspectRecoveryAcquisitionParamsSchema: OperationSchema<
+  Parameters<ExecutionEnvironment<unknown>['inspectRecoveryAcquisition']>
+> = standardSchema(pair(recoveryAccess, original))
 export const describeParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['describe']>
 > = standardSchema(pair(decodeAccess, decodeScope))
 export const recoverOwnedParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['recoverOwned']>
-> = standardSchema(pair(decodeScope, recoveryAccess))
+> = standardSchema(pairWithOptional(decodeScope, recoveryAccess, decodeArray(original)))
 export const releaseScopeParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['releaseScope']>
-> = standardSchema(pair(decodeScope, recoveryAccess))
+> = standardSchema(pairWithOptional(decodeScope, recoveryAccess, decodeArray(original)))
 export const registerFacilityParamsSchema: OperationSchema<
   [
     Readonly<{
@@ -343,7 +450,7 @@ export const registerProviderParamsSchema: OperationSchema<[EnvironmentProvider]
 )
 export const resolvePlacementResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['resolvePlacement']>>
-> = standardSchema(variants('kind', { placement, rejected }))
+> = standardSchema(variants('kind', { placement, rejected, unknown: lookupUnknown }))
 export const acquireResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['acquire']>>
 > = standardSchema(
@@ -351,24 +458,43 @@ export const acquireResultSchema: OperationSchema<
     acquired: record({ kind: literal('acquired'), lease, adoption }),
     pending: record({ kind: literal('pending'), state: variants('kind', pendingStates) }),
     rejected,
+    allocationFailed: record({
+      kind: literal('allocationFailed'),
+      acquisition: decodeAcquisition,
+      reason: rejectReason,
+      cleanup,
+    }),
+    unknown: record({
+      kind: literal('unknown'),
+      acquisition: decodeAcquisition,
+      phase: decodeLiteral(['preflight', 'allocation']),
+    }),
   }),
 )
 export const inspectAcquisitionResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['inspectAcquisition']>>
-> = standardSchema(acquisitionState)
+> = standardSchema(inspection)
+export const inspectRecoveryAcquisitionResultSchema: OperationSchema<
+  Awaited<ReturnType<ExecutionEnvironment<unknown>['inspectRecoveryAcquisition']>>
+> = standardSchema(recoveryInspection)
 export const describeResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['describe']>>
 > = standardSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['describe']>>>((value, path) =>
-  Array.isArray(value) ? decodeArray(description)(value, path) : rejected(value, path),
+  Array.isArray(value)
+    ? decodeArray(description)(value, path)
+    : variants('kind', { rejected, unknown: lookupUnknown })(value, path),
 )
 export const recoverOwnedResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverOwned']>>
-> = standardSchema(variants('kind', { recovered: ownedRecovery, rejected }))
+> = standardSchema(variants('kind', { recovered: ownedRecovery, rejected, unknown: lookupUnknown }))
 export const releaseScopeResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['releaseScope']>>
-> = standardSchema(variants('kind', { recovered: ownedRecovery, rejected }))
+> = standardSchema(variants('kind', { recovered: ownedRecovery, rejected, unknown: lookupUnknown }))
 export const providerFactsSchema = standardSchema(decodeFacts)
 export const managedResourceSchema = standardSchema(resource)
+/** The description a caller keeps before the provider is called; recovery uses it to find the original. */
+export const originalAcquisitionSchema: OperationSchema<OriginalAcquisition> =
+  standardSchema(original)
 type EnvironmentSchemas = {
   readonly [K in keyof ExecutionEnvironment<unknown>]: Readonly<{
     params: OperationSchema<Parameters<ExecutionEnvironment<unknown>[K]>>
@@ -388,6 +514,10 @@ export const operationSchemas: EnvironmentSchemas &
   inspectAcquisition: Object.freeze({
     params: inspectAcquisitionParamsSchema,
     result: inspectAcquisitionResultSchema,
+  }),
+  inspectRecoveryAcquisition: Object.freeze({
+    params: inspectRecoveryAcquisitionParamsSchema,
+    result: inspectRecoveryAcquisitionResultSchema,
   }),
   describe: Object.freeze({ params: describeParamsSchema, result: describeResultSchema }),
   recoverOwned: Object.freeze({

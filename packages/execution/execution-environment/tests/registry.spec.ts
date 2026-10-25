@@ -28,6 +28,7 @@ import {
   createEnvironmentRegistry,
   type EnvironmentRegistry,
 } from '@omne-harness/execution-environment'
+import { openPorts, scopeB, stateOf } from './doubles.ts'
 
 function tenantFrom(organization: string, account: string): TenantId {
   const parsed = tenantCodec.parse(JSON.stringify({ organization, account }))
@@ -88,10 +89,26 @@ function stubProvider(options: {
     name: options.name,
     generation: '1',
     version: 'test-version',
+    quotaDomain: options.name,
     bindingKinds: options.bindingKinds,
     continuity: options.continuity,
     facilities: options.keys,
     isolation: [],
+    async quota() {
+      return {
+        kind: 'declared',
+        quota: { unit: 'unsettled-acquisition', perTenant: 10, global: null },
+      }
+    },
+    async inspectAcquisition() {
+      return { kind: 'unknown' }
+    },
+    async listAcquisitions() {
+      return { kind: 'listed', acquisitions: [] }
+    },
+    async settleAcquisition() {
+      return { kind: 'unknown' }
+    },
     async describe() {
       return {
         provider: options.name,
@@ -139,7 +156,7 @@ async function placed(
   wanted: EnvironmentRequirement,
 ): Promise<Placement> {
   const placement = await registry.resolvePlacement(accessA, want(wanted))
-  if (placement.kind !== 'placement') throw new Error(`no placement: ${placement.reason}`)
+  if (placement.kind !== 'placement') throw new Error(`no placement: ${JSON.stringify(placement)}`)
   return placement
 }
 
@@ -162,7 +179,7 @@ function want(wanted: EnvironmentRequirement) {
 }
 
 it('refuses a facility the provider lacks and keeps the host binding for the facility it has', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   registry.registerFacility(filesFacility)
   registry.registerFacility(commandFacility)
@@ -189,7 +206,7 @@ it('refuses a facility the provider lacks and keeps the host binding for the fac
 })
 
 it('refuses a layer with no provider, and refuses again after the provider is removed', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   const provider = stubProvider({
@@ -230,7 +247,7 @@ it('refuses a layer with no provider, and refuses again after the provider is re
 })
 
 it('uses the matched provider continuity for a session sandbox placement and lease', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const continuity: EnvironmentContinuity = { kind: 'continuous', data: 'data-1', revision: '3' }
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
@@ -250,7 +267,7 @@ it('uses the matched provider continuity for a session sandbox placement and lea
 })
 
 it('uses the same provider continuity for placement and lease when two providers share a layer', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(filesFacility)
   registry.registerFacility(commandFacility)
   const filesContinuity: EnvironmentContinuity = {
@@ -289,7 +306,7 @@ it('uses the same provider continuity for placement and lease when two providers
 })
 
 it('returns the same acquisition for a repeated key and does not allocate again', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   const provider = stubProvider({
@@ -312,14 +329,14 @@ it('returns the same acquisition for a repeated key and does not allocate again'
   if (first.kind !== 'acquired' || again.kind !== 'acquired') throw new Error('expected leases')
   expect(again.lease).toBe(first.lease)
   expect(again.adoption).toBe(first.adoption)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'acquired',
     adoption: first.adoption,
   })
 })
 
 it('does not show an acquisition to another tenant that reuses its key', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   const provider = stubProvider({
@@ -332,21 +349,26 @@ it('does not show an acquisition to another tenant that reuses its key', async (
   registry.registerProvider(provider)
   const placement = await placed(registry, requirement([host], ['command']))
   const first = await registry.acquire(accessA, acquireInput(placement))
-  expect(await registry.inspectAcquisition(accessB, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessB, 'acq-1')).toEqual({
     kind: 'unrecorded',
   })
-  const second = await registry.acquire(accessB, acquireInput(placement))
+  // Tenant B cannot use tenant A's scope, so it reuses the key in its own scope.
+  expect(await registry.acquire(accessB, acquireInput(placement))).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  const second = await registry.acquire(accessB, { ...acquireInput(placement), scope: scopeB })
   expect(provider.calls.acquire).toBe(2)
   if (first.kind !== 'acquired' || second.kind !== 'acquired') throw new Error('expected leases')
   expect(second.lease).not.toBe(first.lease)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'acquired',
     adoption: first.adoption,
   })
 })
 
 it('refuses the same key with a different placement as a parameter conflict', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   const provider = stubProvider({
@@ -366,13 +388,13 @@ it('refuses the same key with a different placement as a parameter conflict', as
   expect(first.kind).toBe('acquired')
   expect(await registry.acquire(accessA, acquireInput(inSandbox))).toEqual({
     kind: 'rejected',
-    reason: 'invalidInput',
+    reason: 'acquisitionConflict',
   })
   expect(provider.calls.acquire).toBe(1)
 })
 
 it('refuses placement as ambiguous when two providers of one layer both qualify', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   for (const name of ['host-command-a', 'host-command-b'])
@@ -392,7 +414,7 @@ it('refuses placement as ambiguous when two providers of one layer both qualify'
 })
 
 it('refuses a facility key whose descriptor is not registered, even when the provider declares it', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   const provider = stubProvider({
     name: 'host-command',
@@ -418,7 +440,7 @@ it('refuses a facility key whose descriptor is not registered, even when the pro
 })
 
 it('asks the guard before a guarded operation and does not call the facility when refused', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   registry.registerProvider(
@@ -479,6 +501,7 @@ it('asks the guard before a guarded operation and does not call the facility whe
 it('releases a scope only with recovery authorization, then refuses new acquisitions there', async () => {
   let answer: 'authorized' | 'notAuthorized' | 'unavailable' = 'notAuthorized'
   const registry = createEnvironmentRegistry<string>({
+    ...openPorts(),
     recovery: { authorizeRecovery: async () => answer },
   })
   registry.registerFacility(commandFacility)
@@ -519,6 +542,9 @@ it('releases a scope only with recovery authorization, then refuses new acquisit
       },
     ],
     unavailable: [],
+    settledAcquisitions: [],
+    pendingAcquisitions: [],
+    unsupportedAcquisitions: [],
   })
   await expect(acquired.lease.invalidated).resolves.toEqual({
     source: 'registry',
@@ -531,7 +557,7 @@ it('releases a scope only with recovery authorization, then refuses new acquisit
 })
 
 it('closes by refusing new acquisitions, invalidating leases and retiring providers', async () => {
-  const registry = createEnvironmentRegistry<string>({ recovery })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery })
   registry.registerFacility(commandFacility)
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
   const provider = stubProvider({

@@ -31,7 +31,8 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness/execution-environment-contract": "workspace:*"
+    "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

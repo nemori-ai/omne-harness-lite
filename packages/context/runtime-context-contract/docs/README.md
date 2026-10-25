@@ -21,7 +21,7 @@
 | 专题 | 本成员里承载什么 |
 | --- | --- |
 | [architecture.md](architecture.md) | 根入口的七个模块、包外依赖、六条关键机制的理由、模块层的 SOLID 选择 |
-| [flows.md](flows.md) | F-RC01 至 F-RC08 八条协议级流程，以及共用的失败与生命周期规则 |
+| [flows.md](flows.md) | F-RC01 至 F-RC09 九条协议级流程，以及共用的失败与生命周期规则 |
 | [object-model.md](object-model.md) | 对象的身份、拥有者、生命周期、状态与对象层的 SOLID 选择 |
 | [public-api.md](public-api.md) | 按模块组织的公开定义索引 |
 | [context.md](context.md) | 独立消费路径、邻域交接与上层页面指针 |

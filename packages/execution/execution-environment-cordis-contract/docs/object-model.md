@@ -11,7 +11,8 @@
 | `ExecutionEnvironmentService<P>` 抽象类 | 服务键 `executionEnvironment` | 本成员 | 静态，随包发布 | `extends` Cordis 的 `Service<ExecutionEnvironmentIntercept>`，`implements` 契约的 `ExecutionEnvironment<P>` 与 `ProviderRegistrations`。Service 实现 `extends` 它 |
 | intercept 配置 `ExecutionEnvironmentIntercept` | 调用方插件 fiber 上的一份配置 | 声明它的调用方插件 | 随该插件的 `inject` 声明，运行时不改 | `caller` 取 `integrator`、`maintainer` 或 `provider` |
 | `CallerClassMismatch` | 一次登记拒绝 | 本成员 | 创建后保留操作、期望类和实际声明 | 不是资源或获取记录 |
-| `Context` 增补 | `executionEnvironment` 属性 | 本成员 | 静态 | 属性类型是 `ExecutionEnvironmentService<unknown>` |
+| 端口服务抽象类 `ExecutionRecoveryAuthorityService`、`ExecutionEnvironmentAuthorityService<P>`、`ExecutionScopeBindingService` | 服务键 `executionRecoveryAuthority`、`executionEnvironmentAuthority`、`executionScopeBinding` | 本成员定义；子类由装配入口装载 | 静态，随包发布 | 分别 `implements` 契约的 `RecoveryAuthority`、`EnvironmentAuthority<P>` 与 Runtime Context 契约的 `ScopeBindingSource`。Service 实现每次从自己装载时的上下文现取 |
+| `Context` 增补 | `executionEnvironment` 与三个端口服务属性 | 本成员 | 静态 | `executionEnvironment` 的类型是 `ExecutionEnvironmentService<unknown>`，其余三个是对应的端口服务抽象类 |
 
 ```mermaid
 classDiagram
@@ -23,6 +24,7 @@ classDiagram
     acquire()
     inspectAcquisition()
     describe()
+    inspectRecoveryAcquisition()
     recoverOwned()
     releaseScope()
     registerFacility()
@@ -42,7 +44,7 @@ classDiagram
   ExecutionEnvironment <|.. ExecutionEnvironmentService
   ProviderRegistrations <|.. ExecutionEnvironmentService
   ExecutionEnvironmentService <|-- ServiceImplementation
-  ExecutionEnvironmentService ..> ExecutionEnvironmentIntercept : 八方法读取与核对
+  ExecutionEnvironmentService ..> ExecutionEnvironmentIntercept : 九方法读取与核对
 ```
 
 图中 `ServiceImplementation` 是说明用的名字，代表 [execution-environment-host-local](../../execution-environment-host-local/docs/object-model.md) 的具体子类 `ExecutionEnvironmentRegistry`。`ExecutionEnvironment` 与 `ProviderRegistrations` 是契约根入口的操作类型。

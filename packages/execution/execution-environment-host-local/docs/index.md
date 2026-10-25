@@ -7,7 +7,7 @@
 - [cordis.md](cordis.md)：插件与配置、服务子类、登记即效应、撤除顺序、isolate 绑定、IC 符合性映射、验证义务
 - [architecture.md](architecture.md)：模块与依赖、关键机制与理由、宿主文件使用（已接受）、SOLID 与扩展边界、验证与维护
 - [flows.md](flows.md)：F-EEH01 至 F-EEH03 机制流程，失败与生命周期
-- [object-model.md](object-model.md)：服务实例、提供者、设施实例、句柄代际与生命周期
+- [object-model.md](object-model.md)：服务实例、责任域、提供者、获取记录、句柄代际与生命周期
 - [public-api.md](public-api.md)：导出入口与定义索引
 - [context.md](context.md)：装配、点名、独立使用与定位
 

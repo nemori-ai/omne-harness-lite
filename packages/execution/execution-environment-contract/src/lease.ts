@@ -1,6 +1,8 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { EnvironmentBinding, EnvironmentContinuity } from './binding.ts'
 import type { EnvironmentFacilities, FacilityKey } from './facility.ts'
+import type { TenantId } from '@omne-harness/legal-identity'
+import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { AcquisitionRef, OriginRef } from './identity.ts'
 import type { ManagedResource } from './ports.ts'
 import type { EnvironmentRequirement } from './requirement.ts'
@@ -28,6 +30,16 @@ export type RejectReason =
   | 'ambiguousEnvironment'
   /** The caller class an assembly declared does not match the surface of the operation. */
   | 'callerMismatch'
+  /** The provider's per-tenant bound refused a new unsettled acquisition: a zero-effect final answer. */
+  | 'quotaExceeded'
+  /** The provider's global safety bound refused a new unsettled acquisition: a zero-effect final answer. */
+  | 'globalCapacityExceeded'
+  /** The provider's quota or owner index is not rebuilt yet. */
+  | 'recoveryUnready'
+  /** The same tenant and key already name an acquisition with another fingerprint. */
+  | 'acquisitionConflict'
+  /** The original query proved no allocation and no late success, without an original refusal reason. */
+  | 'allocationNotPerformed'
 
 export type Rejected = Readonly<{ kind: 'rejected'; reason: RejectReason }>
 
@@ -41,6 +53,8 @@ export type Placement = Readonly<{
   binding: EnvironmentBinding
   provider: ProviderIdentity
   continuity: EnvironmentContinuity
+  /** The trusted capacity domain of the chosen provider; it routes the original acquisition after a rebuild. */
+  quotaDomain: string
 }>
 
 /** Reasons the registry itself gives when it invalidates a lease. */
@@ -89,18 +103,26 @@ export type EnvironmentAdoption = Readonly<{
   evidence: JsonValue
 }>
 
+/** Cleanup of an allocation whose adoption failed. Only `settled` returns the quota slot. */
+export type AllocationCleanup =
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'pending' }>
+  | Readonly<{ kind: 'unknown' }>
+
 /**
- * State of one acquisition, by `AcquisitionRef`. `unrecorded` means this registry holds no record
- * visible to the caller; the durable record lives in the caller's ledger. `invalidInput` is an
- * answer, not a state: the query itself was invalid, so it says nothing about the key.
+ * The stored state of one acquisition. `allocationUnknown` is a fact not known yet; a failed query
+ * never overwrites a known `acquired` with it.
  */
 export type AcquisitionState =
-  | { readonly kind: 'unrecorded' }
-  | { readonly kind: 'invalidInput' }
   | { readonly kind: 'acquiring' }
   | { readonly kind: 'provisional' }
   | { readonly kind: 'acquired'; readonly adoption: EnvironmentAdoption }
   | { readonly kind: 'rejected'; readonly reason: RejectReason }
+  | {
+      readonly kind: 'allocationFailed'
+      readonly reason: RejectReason
+      readonly cleanup: AllocationCleanup
+    }
   | {
       readonly kind: 'invalidated'
       readonly adoption: EnvironmentAdoption
@@ -113,6 +135,8 @@ export type AcquisitionState =
       readonly resources: readonly ManagedResource[]
     }
   | { readonly kind: 'released'; readonly adoption: EnvironmentAdoption }
+  | { readonly kind: 'allocationUnknown'; readonly acquisition: AcquisitionRef }
+  | { readonly kind: 'settled' }
 
 export type Acquired = Readonly<{
   kind: 'acquired'
@@ -120,11 +144,110 @@ export type Acquired = Readonly<{
   adoption: EnvironmentAdoption
 }>
 
-/** The acquisition exists but holds no usable lease right now; nothing new was allocated. */
+/**
+ * This call delivered no usable lease and allocated nothing again. The original acquisition may
+ * still hold an allocation and its responsibilities.
+ */
 export type Pending = Readonly<{
   kind: 'pending'
-  state: Exclude<
+  state: Extract<
     AcquisitionState,
-    { readonly kind: 'unrecorded' | 'invalidInput' | 'acquired' | 'rejected' }
+    {
+      readonly kind:
+        | 'acquiring'
+        | 'provisional'
+        | 'invalidated'
+        | 'releasing'
+        | 'pendingRelease'
+        | 'released'
+        | 'settled'
+    }
   >
 }>
+
+/** The provider allocated, the adoption check failed for a known reason, and cleanup is driven. No lease. */
+export type AllocationFailed = Readonly<{
+  kind: 'allocationFailed'
+  acquisition: AcquisitionRef
+  reason: RejectReason
+  cleanup: AllocationCleanup
+}>
+
+/**
+ * The result is not known. `preflight`: the provider was not called and the same key may be checked
+ * again. `allocation`: the provider may have allocated; query the original key, never re-send.
+ */
+export type UnknownAcquisition = Readonly<{
+  kind: 'unknown'
+  acquisition: AcquisitionRef
+  phase: 'preflight' | 'allocation'
+}>
+
+/** A lookup could not give a result this time. */
+export type LookupUnknown = Readonly<{
+  kind: 'unknown'
+  cause: 'authority' | 'scope-binding' | 'provider' | 'quota'
+}>
+
+/** What the caller keeps before the provider is called: tenant, key, origin, scope and placement. */
+export type OriginalAcquisition = Readonly<{
+  tenant: TenantId
+  acquisition: AcquisitionRef
+  origin: OriginRef
+  scope: ScopeRef
+  placement: Placement
+}>
+
+export type AcquisitionQuery =
+  | Readonly<{ kind: 'local'; acquisition: AcquisitionRef }>
+  | Readonly<{ kind: 'original'; original: OriginalAcquisition }>
+
+type QueryCause = 'authority' | 'scope-binding' | 'provider'
+
+/** The answer of an original-acquisition query. It never carries a lease. */
+export type OriginalInspection =
+  | Readonly<{
+      kind: 'original'
+      status: 'allocated'
+      original: OriginalAcquisition
+      adoption: EnvironmentAdoption | null
+    }>
+  | Readonly<{
+      kind: 'original'
+      status: 'pending'
+      original: OriginalAcquisition
+      adoption: EnvironmentAdoption | null
+      phase: 'acquiring' | 'provisional' | 'releasing'
+      resources: readonly ManagedResource[]
+    }>
+  | Readonly<{
+      kind: 'original'
+      status: 'notAllocated' | 'settled' | 'conflict'
+      original: OriginalAcquisition
+    }>
+  | Readonly<{
+      kind: 'original'
+      status: 'allocationFailed'
+      original: OriginalAcquisition
+      reason: RejectReason
+      cleanup: AllocationCleanup
+    }>
+
+/**
+ * The answer of a query, not a stored state. `unrecorded` means no record of the caller's tenant;
+ * `invalidInput` says nothing about the key. `queryUnknown` never implies that the query allocated.
+ */
+export type AcquisitionInspection =
+  | Readonly<{ kind: 'known'; state: AcquisitionState }>
+  | Readonly<{ kind: 'unrecorded' }>
+  | Readonly<{ kind: 'invalidInput' }>
+  | Readonly<{ kind: 'refused'; reason: 'notAuthorized' | 'callerMismatch' }>
+  | Readonly<{ kind: 'queryUnavailable'; cause: QueryCause }>
+  | Readonly<{ kind: 'queryUnknown'; cause: QueryCause }>
+  | OriginalInspection
+
+/** The maintainer's query by original description: no local `known` or `unrecorded`. */
+export type RecoveryInspection = Exclude<
+  AcquisitionInspection,
+  Readonly<{ kind: 'known' | 'unrecorded' }>
+>

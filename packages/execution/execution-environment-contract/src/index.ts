@@ -56,8 +56,17 @@ export type {
 } from './ports.ts'
 
 export type {
+  AcquisitionInspection,
+  AcquisitionQuery,
   AcquisitionState,
   Acquired,
+  AllocationCleanup,
+  AllocationFailed,
+  LookupUnknown,
+  OriginalAcquisition,
+  OriginalInspection,
+  RecoveryInspection,
+  UnknownAcquisition,
   EnvironmentAdoption,
   EnvironmentLease,
   FacilitySet,
@@ -74,8 +83,15 @@ export type {
 
 export type {
   AcquireInput,
+  AcquisitionListing,
+  AcquisitionSettlement,
+  EnvironmentAction,
+  EnvironmentAuthority,
   EnvironmentDescription,
   EnvironmentProvider,
+  ProviderAcquisitionStatus,
+  ProviderQuota,
+  QuotaAnswer,
   ExecutionEnvironment,
   OwnedRecovery,
   PlacementInput,
@@ -108,6 +124,7 @@ export {
   resolvePlacementParamsSchema,
   acquireParamsSchema,
   inspectAcquisitionParamsSchema,
+  inspectRecoveryAcquisitionParamsSchema,
   describeParamsSchema,
   recoverOwnedParamsSchema,
   releaseScopeParamsSchema,
@@ -116,12 +133,14 @@ export {
   resolvePlacementResultSchema,
   acquireResultSchema,
   inspectAcquisitionResultSchema,
+  inspectRecoveryAcquisitionResultSchema,
   describeResultSchema,
   recoverOwnedResultSchema,
   releaseScopeResultSchema,
   operationSchemas,
   providerFactsSchema,
   managedResourceSchema,
+  originalAcquisitionSchema,
 } from './operation-schemas.ts'
 export type { OperationSchema, OperationName } from './operation-schemas.ts'
 export type { HostDate } from './blocks.ts'

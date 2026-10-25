@@ -8,7 +8,7 @@
 
 | 入口 | 源码 | 发布产物 | 调用者 |
 | --- | --- | --- | --- |
-| `@omne-harness/execution-environment-contract` | [src/index.ts](../src/index.ts) | `dist/index.js`、`dist/index.d.ts` | 任何包。集成方用它翻译环境要求、实现三个端口；提供者用它实现 `EnvironmentProvider`；设施拥有者用它发布设施声明；工具包用它写环境声明；观察者用它读块值的类型 |
+| `@omne-harness/execution-environment-contract` | [src/index.ts](../src/index.ts) | `dist/index.js`、`dist/index.d.ts` | 任何包。集成方用它翻译环境要求、实现账本、设施守卫、恢复授权与环境授权四个端口（可信绑定来源的类型归 Runtime Context）；提供者用它实现 `EnvironmentProvider`；设施拥有者用它发布设施声明；工具包用它写环境声明；观察者用它读块值的类型 |
 
 本成员有根入口与 `./testing`，没有 `./cordis` 入口。根入口不导入 Cordis，见 [Cordis 说明](cordis.md)。服务键 `executionEnvironment` 与抽象 Service 归 [execution-environment-cordis-contract](../../execution-environment-cordis-contract/README.md)。
 
@@ -34,7 +34,7 @@
 | --- | --- | --- | --- |
 | `Access` | 类型 | 访问身份：主体加租户。主体类型由集成方给出，执行环境只传递主体，租约只比较租户 | [INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[对象模型 身份](object-model.md#身份) |
 | `OriginRef` | 类型 | 不透明的原调用引用，资源与采用记录挂在它上面 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
-| `AcquisitionRef` | 类型 | 集成方给一次获取的幂等键 | [获取与租约](../SPEC.md#获取与租约) |
+| `AcquisitionRef` | 类型 | 集成方给一次获取的获取键；登记表的槽是租户加获取键 | [获取与租约](../SPEC.md#获取与租约) |
 | `originRef` | 函数 | 把非空字符串接受为原调用引用。空串抛出 `TypeError` | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
 | `acquisitionRef` | 函数 | 把非空字符串接受为获取键。空串抛出 `TypeError` | [获取与租约](../SPEC.md#获取与租约) |
 | `EnvironmentBinding` | 类型 | 四种绑定层：`host_machine`、`stateless_sandbox`（作用域加原调用）、`session_sandbox`（作用域）、`tenant_sandbox`（租户） | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、产品正文[绑定层说寿命，连续性说此刻](../../../../.meta_harness/design/product/execution-environments/design.md#绑定层说寿命连续性说此刻) |
@@ -140,17 +140,26 @@
 | --- | --- | --- | --- |
 | `ProviderIdentity` | 类型 | 提供者身份：名称、代（一次登记化身）与版本（提供者代码的版本） | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `InstanceIdentity` | 类型 | 实例身份加代。同名的新实例不冒充原实例 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
-| `Placement` | 类型 | 落点：原环境要求、选中的绑定层与提供者、连续性。它不授予设施或资源 | [获取与租约](../SPEC.md#获取与租约) |
-| `RejectReason` | 类型 | 获取与落点的拒绝原因 | 同上 |
+| `Placement` | 类型 | 落点：原环境要求、选中的绑定层与提供者、连续性与提供者的配额域。它不授予设施或资源 | [获取与租约](../SPEC.md#获取与租约) |
+| `RejectReason` | 类型 | 获取与落点的十七个拒绝原因 | [拒绝原因](../SPEC.md#拒绝原因) |
 | `Rejected` | 类型 | 带拒绝原因的结果 | 同上 |
 | `EnvironmentAdoption` | 类型 | 采用记录：获取键、原调用、落点、提供者、实例、连续性与提供者证据。由本成员的实现签发，不由提供者自签 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
 | `EnvironmentLease` | 接口 | 租约：落点、实例、连续性、按键取设施、失效信号与释放 | [获取与租约](../SPEC.md#获取与租约)、[对象模型 获取](object-model.md#获取) |
 | `LeaseInvalidation` | 类型 | 失效原因，按来源区分：`source: 'registry'` 带登记表的封闭原因集合，`source: 'provider'` 带提供者自报的原因文本 | 同上 |
 | `RegistryInvalidationReason` | 类型 | 登记表给出的失效原因：`providerRetired`、`scopeReleased`、`registryClosed`、`released`、`providerInvalidated` | 同上 |
 | `LeaseRelease` | 类型 | 释放的结果：已释放，或待处置并列出未停的受管资源 | 同上 |
-| `AcquisitionState` | 类型 | 一次获取的状态，按获取键查询。`unrecorded` 表示没有调用方能看到的记录；`invalidInput` 是无效查询答复，不是记录状态。`invalidated` 状态带 `invalidation`（`LeaseInvalidation`） | 同上 |
+| `AcquisitionState` | 类型 | 一次获取的存储状态，十一种之一。`invalidated` 状态带 `invalidation`（`LeaseInvalidation`）；`allocationFailed` 带原因与清理状态；`allocationUnknown` 带获取键 | [获取的状态与答复](../SPEC.md#获取的状态与答复) |
 | `Acquired` | 类型 | 已获取：租约与采用记录 | 同上 |
 | `Pending` | 类型 | 获取存在但现在没有可用租约；没有新分配 | 同上 |
+| `AllocationCleanup` | 类型 | 分配后采用失败的清理状态：已结清、待定或未知。只有已结清返还名额 | [分配后采用失败与清理](../SPEC.md#分配后采用失败与清理) |
+| `AllocationFailed` | 类型 | `acquire` 的采用失败：获取键、第一个确定的原因与清理状态。不带租约 | 同上 |
+| `UnknownAcquisition` | 类型 | `acquire` 的获取未知：`preflight` 表示没有调用提供者，`allocation` 表示可能已分配，只能按原键查询 | [访问核验](../SPEC.md#访问核验)、[获取与租约](../SPEC.md#获取与租约) |
+| `LookupUnknown` | 类型 | 落点解析、`describe` 与恢复这一次查不清：原因是授权、可信绑定、提供者或配额 | [访问核验](../SPEC.md#访问核验) |
+| `OriginalAcquisition` | 类型 | 原获取描述：租户、获取键、原调用、请求方作用域与落点。调用方在调用提供者之前保存它 | [获取与租约](../SPEC.md#获取与租约)、[对象模型 原获取描述](object-model.md#原获取描述) |
+| `AcquisitionQuery` | 类型 | 查询的对象：本地获取键，或完整的原获取描述 | [原获取的查询与结清](../SPEC.md#原获取的查询与结清) |
+| `OriginalInspection` | 类型 | 原获取的查询答复：已分配、待定、未分配、已结清、冲突或采用失败。不带租约 | 同上 |
+| `AcquisitionInspection` | 类型 | 查询答复，不是存储状态：已知、`unrecorded`、`invalidInput`、拒绝、查询不可用、查询未知或原获取答复 | [获取的状态与答复](../SPEC.md#获取的状态与答复) |
+| `RecoveryInspection` | 类型 | 恢复查询的答复：去掉本地的已知与 `unrecorded` | 同上、[恢复](../SPEC.md#恢复) |
 
 ### 提供者与操作面
 
@@ -158,20 +167,27 @@
 
 | 名称 | 种类 | 用途 | 条款或对象模型 |
 | --- | --- | --- | --- |
-| `EnvironmentProvider` | 接口 | 提供者：名称、代与版本、绑定层、连续性、设施键、隔离断言；描述、获取、退役，以及可选的恢复枚举与认回。获取与退役在提供者自己配置的上界内返回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
+| `EnvironmentProvider` | 接口 | 提供者：名称、代与版本、配额域、绑定层、连续性、设施键、隔离断言；描述、配额声明、获取、原获取查询、获取枚举、结清、退役，以及可选的资源恢复枚举与认回。获取与退役在提供者自己配置的上界内返回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
 | `ProviderFacts` | 类型 | 提供者声明的事实：名称、代、版本、平台、设施键、隔离断言，以及运行前提（满足、不满足或未知）。它是观察，不是控制 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
 | `PlatformFacts` | 类型 | 平台事实：操作系统类型与版本 | 同上 |
 | `ProviderAcquireInput` | 类型 | 执行环境交给提供者的获取输入：获取键、原调用、请求方作用域、落点、租户与账本 | [获取与租约](../SPEC.md#获取与租约) |
-| `ProviderAcquisition` | 类型 | 提供者的临时回执：租约原件与证据，或拒绝 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
+| `ProviderAcquisition` | 类型 | 提供者的临时回执：租约原件与证据、拒绝，或只带原键的未知 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
+| `ProviderQuota` | 类型 | 按租户的配额声明：单位、按租户上界与全局上界（可空） | [配额与安全上界](../SPEC.md#配额与安全上界) |
+| `QuotaAnswer` | 类型 | 配额查询的答复：已声明、不可用或未知。它不保留名额 | 同上 |
+| `ProviderAcquisitionStatus` | 类型 | 提供者按原描述查到的原获取状态 | [原获取的查询与结清](../SPEC.md#原获取的查询与结清) |
+| `AcquisitionListing` | 类型 | 按作用域的获取枚举：有限且完整的列表、不可用或未知。不可用不是空表 | 同上 |
+| `AcquisitionSettlement` | 类型 | 结清的答复：已结清、未分配、待定、不支持、冲突、不可用或未知 | 同上 |
 | `Retirement` | 类型 | 退役的结果：已排空，或待处置并列出未停的受管资源 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 | `RecoveryListing` | 类型 | 恢复枚举的结果：列出的资源，或不可用。不可用不是空集 | [恢复](../SPEC.md#恢复) |
 | `ResourceRecovery` | 类型 | 一项资源的认回结果：已确认停止、待处置或不支持，带证据 | 同上 |
-| `OwnedRecovery` | 类型 | 一次恢复驱动的结果：已停、待处置、不支持与枚举不可用的提供者 | 同上 |
+| `OwnedRecovery` | 类型 | 一次恢复驱动的结果：资源路的已停、待处置、不支持与不可用的提供者四组，获取路的已结清、待定与不支持三组 | 同上 |
 | `UnsupportedRecovery` | 类型 | 不支持恢复的提供者或资源 | 同上 |
 | `PlacementInput` | 类型 | 集成方的落点解析输入：请求方作用域与环境要求 | [获取与租约](../SPEC.md#获取与租约) |
 | `AcquireInput` | 类型 | 集成方的获取输入：获取键、原调用、请求方作用域、落点、账本与守卫 | [获取与租约](../SPEC.md#获取与租约) |
 | `EnvironmentDescription` | 类型 | 一个作用域内一次获取的描述：获取键、原调用、绑定层、提供者、实例、连续性、设施键与状态 | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露) |
-| `ExecutionEnvironment` | 接口 | 集成方、独立调用者与维护者的操作面：`resolvePlacement`、`acquire`、`inspectAcquisition`、`describe`、`recoverOwned`、`releaseScope` | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
+| `EnvironmentAction` | 类型 | 环境授权端口判定的动作：解析落点、获取、查询本地获取、查询原获取、列出作用域 | [访问核验](../SPEC.md#访问核验) |
+| `EnvironmentAuthority` | 接口 | 需要端口，集成方实现：对访问身份与一个动作答复 Runtime Context 的 `AuthorityDecision` | 同上 |
+| `ExecutionEnvironment` | 接口 | 集成方、独立调用者与维护者的操作面：`resolvePlacement`、`acquire`、`inspectAcquisition`、`inspectRecoveryAcquisition`、`describe`、`recoverOwned`、`releaseScope` | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复) |
 | `ProviderRegistrations` | 接口 | 提供者与设施拥有者的登记面：`registerFacility`、`registerProvider`。每次登记返回自己的撤除函数 | [设施协议](../SPEC.md#设施协议)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |
 
 ### 工具环境声明
@@ -224,7 +240,7 @@ schema 的规则：
 | --- | --- | --- |
 | `kind` | `supplied` | 供给块，由生产者供值 |
 | `consumers` | `model`、`tool`、`extension` | 可以读这两条块的消费者类 |
-| `required` | `true` | 必需的感知。值缺失时读为缺项，不读为不存在 |
+| `required` | `false` | 可选的感知。来源确认没有值时读为缺席；不可用、未知、拒绝或无法解释仍按原失败报告，不读为缺席（PC-21） |
 | `disclosure` | `plain` | 披露方式是 `plain`，不是 `eligibility-checked` |
 | `carriesPrevious` | `true` | 快照与提醒可以带前一个值 |
 | `volatility` | `stable` | 变化频率是 `stable`，不是每步或每次请求 |
@@ -236,7 +252,7 @@ schema 的规则：
 
 精确定义在 [operation-schemas.ts](../src/operation-schemas.ts)。参数是按位置解码的元组，逐项拒绝路径从参数下标开始。登记面的返回值是函数，没有结果 schema。设施自身逐操作 schema 留 Q-EE05。
 
-`operationSchemas` 按八个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema` 与 `managedResourceSchema`。八个参数 schema 与六个结果 schema 见同一源码。
+`operationSchemas` 按九个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema`、`managedResourceSchema` 与 `originalAcquisitionSchema`。九个参数 schema 与七个结果 schema 见同一源码。`originalAcquisitionSchema` 解码集成方保存的原获取描述：租户按租户文本解码，作用域按完整父级链解码。
 
 ### 日期类型
 
@@ -246,6 +262,6 @@ schema 的规则：
 
 `@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts) 与 [doubles.ts](../src/testing/doubles.ts)。
 
-`environmentProviderConformance` 与 `executionEnvironmentConformance` 返回独立用例列表，每条用例新建主体并在结束时清理。`runConformanceCase` 只把 `NotApplicable` 转成不适用，其余断言和清理失败照常抛出。未提供在途操作控制钩子时，对应排空用例记为不适用，不能算通过。替身 `durability` 为 `none`，只用于进程内验证。套件不证明耐久账本、真实隔离或设施外部效果。
+`environmentProviderConformance` 与 `executionEnvironmentConformance` 返回独立用例列表，每条用例新建主体并在结束时清理。`runConformanceCase` 只把 `NotApplicable` 转成不适用，其余断言和清理失败照常抛出。未提供在途操作控制钩子时，对应排空用例记为不适用，不能算通过。`executionEnvironmentConformance` 的 `subject` 收到套件给的环境授权端口与可信绑定来源，套件把主体的作用域绑定到 `access` 的租户，并保留脚本控制。恢复相关用例需要主体给出它的恢复授权接受的 `recoveryAccess`；缺少时记为不适用。替身 `createScriptedEnvironmentAuthority` 默认对每个动作答已授权，`revokeAll` 之后此前答复的 `current()` 都为假；`createScriptedScopeBindings` 只信任测试绑定的作用域。脚本提供者的原获取记录只在替身对象内，不代表真实提供者的保管。替身 `durability` 为 `none`，只用于进程内验证。套件不证明耐久账本、真实隔离或设施外部效果。
 
 提供者套件的 `prepareHeldOperation` 钩子在退役前取得已持设施上的合法操作与效果观察；退役后必须返回 `rejected/closed`，且观察结果不变。缺钩子时该用例明确不适用，不算通过。这项义务不读取或要求提供者自行触发租约 `invalidated`。脚本替身的默认设施遵守这项关闭规则，自定义脚本可用于构造反例。
