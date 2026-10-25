@@ -1,0 +1,152 @@
+import assert from 'node:assert/strict'
+import { initial, transitions, violations } from './model.mjs'
+
+const cases = []
+function scenario(name, run) {
+  let state = initial(2)
+  const trace = [{ action: 'initial', state }]
+  function step(action, key = 0) {
+    const edge = transitions(state).find(e => e.name === action && e.key === key)
+    assert.ok(edge, `Action ${action}[${key}] must be reachable`)
+    assert.deepEqual(violations(state, edge), [], action)
+    state = edge.next
+    trace.push({ action: `${action}[${key}]`, observation: edge.observation, state })
+    return state.records[key ?? 0]
+  }
+  function saved(key = 0) {
+    step('push-original', key)
+    step('material-commit-response-lost', key)
+    step('query-original-material', key)
+    step('submit-original-journal-operation', key)
+    step('journal-commit-response-lost', key)
+    step('query-original-journal-operation', key)
+    step('read-associated-custody-and-observe-saved', key)
+  }
+  function acknowledged(key = 0) {
+    saved(key)
+    step('handoff-original-result-evidence', key)
+    step('ack-commit-response-lost', key)
+    step('query-original-ack-receipt', key)
+  }
+  run({ step, saved, acknowledged, get: () => state })
+  cases.push({ name, status: 'passed', transitions: trace.length - 1, trace })
+}
+
+scenario('non-atomic material and Journal, original operation recovery', ({ step, get }) => {
+  step('push-original')
+  step('material-commit-response-lost')
+  const afterCrash = step('crash-and-recover-stable-record')
+  assert.equal(afterCrash.material, 'committed')
+  assert.equal(afterCrash.journal, 'none')
+  assert.equal(afterCrash.saved, false)
+  assert.equal(afterCrash.materialKnown, 'unknown')
+  assert.equal(afterCrash.source, true)
+  step('revoke-current-qualification', null)
+  step('push-denied-now')
+  step('query-denied-now')
+  step('cancel-current-wait')
+  step('new-request-unavailable')
+  assert.equal(get().records[0].materialKnown, 'unknown')
+  step('appoint-custody-successor', null)
+  step('retry-same-key-same-body')
+  step('query-original-material')
+  step('submit-original-journal-operation')
+  step('journal-commit-response-lost')
+  step('observe-ordinary-committed-revision')
+  assert.equal(get().records[0].saved, false)
+  step('retry-same-key-same-body')
+  step('query-original-journal-operation')
+  step('read-associated-custody-and-observe-saved')
+  assert.equal(get().records[0].receiveOperation, 'receive:result-0')
+  assert.equal(get().records[0].responsibility, 1)
+  assert.equal(get().authority, 'successor')
+})
+scenario('authority excludes delayed commit before retry with same operation', ({ step, get }) => {
+  step('push-original')
+  step('material-authority-excludes-write')
+  assert.equal(get().records[0].materialKnown, 'unknown')
+  step('query-original-material')
+  step('push-original')
+  step('material-commit-response-lost')
+  step('query-original-material')
+  step('submit-original-journal-operation')
+  step('journal-authority-excludes-write')
+  step('query-original-journal-operation')
+  step('submit-original-journal-operation')
+  step('journal-commit-response-lost')
+  step('query-original-journal-operation')
+  step('read-associated-custody-and-observe-saved')
+  assert.equal(get().records[0].responsibility, 1)
+  assert.equal(get().records[0].receiveOperation, 'receive:result-0')
+})
+scenario('two keys remain independent under duplicate and conflict', ({ saved, step, get }) => {
+  saved(0)
+  saved(1)
+  const second = structuredClone(get().records[1])
+  step('retry-same-key-same-body', 0)
+  step('push-same-key-conflicting-body', 0)
+  assert.deepEqual(get().records[1], second)
+  assert.equal(get().records[0].body, 'frozen:result-0')
+  assert.equal(get().records[0].responsibility, 1)
+  assert.equal(get().records[1].responsibility, 1)
+})
+scenario(
+  'ACK committed but unknown, revoked query and original ACK recovery',
+  ({ saved, step, get }) => {
+    saved()
+    step('handoff-original-result-evidence')
+    step('ack-commit-response-lost')
+    step('observe-ack-committed-revision-only')
+    assert.equal(get().records[0].ackKnown, 'unknown')
+    assert.equal(get().records[0].source, true)
+    step('revoke-current-qualification', null)
+    step('query-denied-now')
+    step('cancel-current-wait')
+    assert.equal(get().records[0].ackKnown, 'unknown')
+    step('appoint-custody-successor', null)
+    step('query-original-ack-receipt')
+    step('cleanup-fails')
+    assert.equal(get().records[0].ackKnown, 'committed')
+    assert.equal(get().records[0].cleanup, 'blocked')
+    assert.equal(get().records[0].ackOperation, 'ack:result-0')
+    assert.equal(get().records[0].source, true)
+    step('cleanup-releases-body')
+    assert.equal(get().records[0].source, false)
+  },
+)
+scenario('account receipt never promotes to result ACK', ({ saved, step, get }) => {
+  saved()
+  step('accept-late-revision-1')
+  step('save-and-deliver-account-1')
+  assert.equal(get().records[0].lateDelivered, 1)
+  assert.equal(get().records[0].ack, 'none')
+  assert.equal(get().records[0].source, true)
+})
+scenario(
+  'release preserves pending late revisions, accepts and scans after release',
+  ({ acknowledged, step, get }) => {
+    acknowledged()
+    step('accept-late-revision-1')
+    step('cleanup-releases-body')
+    assert.equal(get().records[0].latePending, 1)
+    step('accept-late-revision-2')
+    step('reject-new-late-revision-capacity')
+    step('retention-expired-report-only')
+    assert.equal(get().records[0].lateAccepted, 3)
+    assert.equal(get().records[0].lateFacts, 3)
+    step('crash-and-recover-stable-record')
+    step('save-and-deliver-account-1')
+    step('save-and-deliver-account-2')
+    assert.equal(get().records[0].lateDelivered, 3)
+    assert.equal(get().records[0].latePending, 0)
+  },
+)
+scenario('cleanup failure only applies to selected key', ({ acknowledged, step, get }) => {
+  acknowledged(0)
+  acknowledged(1)
+  const second = structuredClone(get().records[1])
+  step('cleanup-fails', 0)
+  assert.equal(get().records[0].cleanup, 'blocked')
+  assert.deepEqual(get().records[1], second)
+})
+console.log(JSON.stringify({ status: 'passed', scenarios: cases.length, cases }, null, 2))

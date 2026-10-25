@@ -2,9 +2,16 @@
 // Every chapter file is re-exported as types, except the credential chapter, which also carries
 // the MODEL_SEND constant. The runtime values are exported by name from their leaf files: the
 // identity decoders, comparators and constants, the credential decoder and comparator,
-// deriveGuardControlOperation, and the replay declaration and projection functions.
+// deriveGuardControlOperation, the delivery judge, and the replay declaration and projection functions.
 export type * from './root.ts'
 export type * from './result.ts'
+export type * from './result-delivery-values.ts'
+export type * from './result-delivery.ts'
+export type * from './result-delivery-judge.ts'
+export { judgeModelDelivery } from './result-delivery-judge.ts'
+export type * from './model-stream-values.ts'
+export type * from './model-stream.ts'
+export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts'
 export type * from './call-surface.ts'
 export type * from './provider.ts'
 export type * from './profile.ts'

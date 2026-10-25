@@ -7,7 +7,7 @@
 This package owns public domain values, operation interfaces, replaceable provider ports, and shared protocols. The design is accepted as recorded in [SPEC](SPEC.md). The status has four parts. Each part describes only its own scope.
 
 1. Existing: the pure credential contract. It has the reference, the query, the presence and resolution results, `CredentialPort`, `decodeCredentialId`, and `sameCredentialHolder`. The declarations are in [`src/credential.ts`](src/credential.ts) and [`src/credential-values.ts`](src/credential-values.ts). Custody and the judgment are not in this package. [model-host-local](../model-host-local/README.md) owns local custody. [model](../model/README.md) owns the judgment. [model-cordis-contract](../model-cordis-contract/README.md) owns the Cordis service definition.
-2. Implemented in this package: the root entry exports 179 types and 31 runtime values. The `./testing` entry exports a scripted provider, a scripted transport, and the conformance suite `checkModelProviderConformance`, 27 names in all. The test script gives the results of the scripted provider and transport, so they prove nothing about a real provider. The conformance suite checks a provider against the contract obligations that the public face shows. Limit: these checks show the contract face and do not show any runtime implementation.
+2. Implemented in this package: the root entry exports 193 types and 34 runtime values. The `./testing` entry exports a scripted provider, a scripted transport, and the conformance suite `checkModelProviderConformance`, 27 names in all. The test script gives the results of the scripted provider and transport, so they prove nothing about a real provider. The conformance suite checks a provider against the contract obligations that the public face shows. Limit: these checks show the contract face and do not show any runtime implementation.
 3. Not implemented or verified: this package has no execution implementation. `executeModel`, `createModelRuntime`, a complete host, and other providers are not in this package.
 4. Technical design: the non-pi-ai technical design is accepted. The [group architecture](../docs/architecture.md#成员与新增条件) defines which pi-ai designs are accepted and which remain candidates. Implementing the contract does not mean that CAP-MD01 to CAP-MD13 are delivered. The reasoning replay design in [SPEC](SPEC.md#推理回放) is accepted. Item 2 counts its three functions; the adapter mapping, the re-dispatch and the metering method belong to the Model runtime and are not implemented.
 
@@ -60,12 +60,14 @@ The Turbo test tasks build this package and its dependencies before they run the
 
 Current tests cover these items:
 
-- The 179 type declarations and the 31 runtime values of the root entry. The values are the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`, and the replay functions `judgeReplayDeclaration`, `projectReplay` and `continuedMessages`.
+- The 193 type declarations and the 34 runtime values of the root entry. The values are the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`, and the replay functions `judgeReplayDeclaration`, `projectReplay` and `continuedMessages`.
 - The export inventory, the type-consumption probes and the install-closure facility.
 - The scripted provider and transport of `./testing`.
 - The conformance suite of `./testing`. The scripted pair must pass it. It fails a provider that breaks one obligation.
 
 The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
+
+The current-target declarations and the Model observation alias are listed in [the public API](docs/public-api.md#model-当前目标与公共观察). [The type probe](tests/model-stream-selection.spec-d.ts) checks the public shape; [the private fixture scenarios](tests/model-stream-selection.spec.ts) check query ordering and qualification. They do not verify a real provider.
 
 ## Maintenance
 

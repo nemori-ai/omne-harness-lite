@@ -65,8 +65,35 @@
           ]
         },
         {
+          "title": "Model 显示投影纯值",
+          "names": [
+            { "name": "ModelStreamSnapshot", "kind": "type", "pending": false },
+            { "name": "ModelStreamBase", "kind": "type", "pending": false },
+            { "name": "ModelStreamDelta", "kind": "type", "pending": false },
+            { "name": "ModelStreamProjectionFailure", "kind": "type", "pending": false },
+            { "name": "diffModelStream", "kind": "value", "pending": false },
+            { "name": "applyModelStreamDelta", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "Model 当前目标与公共观察",
+          "names": [
+            { "name": "ModelStreamObservation", "kind": "type", "pending": false },
+            { "name": "ModelStreamSelection", "kind": "type", "pending": false },
+            { "name": "ModelStreamReferences", "kind": "type", "pending": false }
+          ]
+        },
+        {
           "title": "结果、失败和状态",
           "names": [
+            { "name": "ModelDeliveryKey", "kind": "type", "pending": false },
+            { "name": "ModelAccountSnapshot", "kind": "type", "pending": false },
+            { "name": "ModelDelivery", "kind": "type", "pending": false },
+            { "name": "ModelSavedReceipt", "kind": "type", "pending": false },
+            { "name": "ModelDeliveryFailure", "kind": "type", "pending": false },
+            { "name": "ModelResultReceiver", "kind": "type", "pending": false },
+            { "name": "ModelDeliveryRejection", "kind": "type", "pending": false },
+            { "name": "judgeModelDelivery", "kind": "value", "pending": false },
             { "name": "ModelFailure", "kind": "type", "pending": false },
             { "name": "Reply", "kind": "type", "pending": false },
             { "name": "ToolSuggestion", "kind": "type", "pending": false },
