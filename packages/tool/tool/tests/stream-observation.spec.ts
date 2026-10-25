@@ -3,7 +3,8 @@
 // to the controlled publisher of stream-source.ts. The cases follow the SPEC's verification
 // obligations: every Tool situation in the public failure order, the two Tool-owned end values,
 // snapshot before subscription, a terminal gap, abort, the four cases of an old generation's
-// terminal frame, and every row of the `current` table.
+// terminal frame, every row of the `current` table, and the termination and release the facade
+// owns itself when a scripted source misbehaves.
 import { describe, expect, it } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -15,6 +16,8 @@ import {
 } from '@omne-harness/stream-arrival'
 import { createToolRuntime } from '@omne-harness/tool'
 import {
+  encodeToolInvocationRef,
+  resolveToolInvocationRef,
   type ToolFailure,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
@@ -729,5 +732,177 @@ describe('observation.observe: abort around routing', () => {
     answer(live(g1.handle))
     await new Promise(resolve => setImmediate(resolve))
     expect(g1.source.observed).toEqual([])
+  })
+})
+
+/**
+ * A handle source that hands on exactly the scripted frames and keeps going after a terminal one,
+ * as a misbehaving publisher would; it records how often the facade closed it.
+ */
+function scriptedSource(frames: readonly Frame[], options: { finish?: boolean } = {}) {
+  let returns = 0
+  let pulled = 0
+  const observation: ToolHandle<Principal>['observation'] = {
+    observe: () => ({
+      [Symbol.asyncIterator]: () => ({
+        async next(): Promise<IteratorResult<Frame>> {
+          const frame = frames[pulled]
+          pulled += 1
+          if (frame !== undefined) return { done: false, value: frame }
+          if (options.finish === true) return { done: true, value: undefined }
+          return { done: false, value: frames.at(-1) as Frame }
+        },
+        async return(): Promise<IteratorResult<Frame>> {
+          returns += 1
+          return { done: true, value: undefined }
+        },
+      }),
+    }),
+  }
+  return { observation, returns: () => returns, pulled: () => pulled }
+}
+
+describe('observation.observe: the facade owns termination and release', () => {
+  // The scripted source bypasses the publisher, so its cursors are opaque test values.
+  const snapshotOf = (state: ToolState, cursor: string): Frame =>
+    ({
+      kind: 'snapshot',
+      cursor,
+      value: { state, process: [], foreground: null },
+    }) as unknown as Frame
+
+  async function routedTo(frames: (state: ToolState) => readonly Frame[], finish = false) {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    const scripted = scriptedSource(frames(call.state), { finish })
+    w.routes.push(live({ ...g1.handle, observation: scripted.observation }))
+    return { w, g1, scripted }
+  }
+
+  it.each([
+    ['an ended frame', { kind: 'ended', reason: 'producer-ended', value: { reason: 'closed' } }],
+    ['a gap frame', { kind: 'gap', after: 'c0', reason: 'buffer' }],
+  ])(
+    'stops after %s even when the source keeps producing, and closes the source once',
+    async (_name, terminal) => {
+      const { w, g1, scripted } = await routedTo(state => [
+        snapshotOf(state, 'c0'),
+        terminal as Frame,
+      ])
+      const frames = await drain(
+        w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() }),
+      )
+      expect(frames.map(frame => frame.kind)).toEqual(['snapshot', terminal.kind])
+      expect(scripted.pulled()).toBe(2)
+      expect(scripted.returns()).toBe(1)
+    },
+  )
+
+  it('completes without an end frame and without closing the source when the source finishes by itself', async () => {
+    const { w, g1, scripted } = await routedTo(state => [snapshotOf(state, 'c0')], true)
+    const iterator = w.runtime.observation
+      .observe({ ref: g1.ref, access, signal: signal() })
+      [Symbol.asyncIterator]()
+    expect((await iterator.next()).value).toMatchObject({ kind: 'snapshot' })
+    expect(await iterator.next()).toEqual({ done: true, value: undefined })
+    expect(scripted.returns()).toBe(0)
+  })
+
+  it('closes the source exactly once when the eligibility is refused mid-stream', async () => {
+    const { w, g1, scripted } = await routedTo(state => [
+      snapshotOf(state, 'c0'),
+      snapshotOf(state, 'c1'),
+    ])
+    const iterator = w.runtime.observation
+      .observe({ ref: g1.ref, access, signal: signal() })
+      [Symbol.asyncIterator]()
+    await iterator.next()
+    w.routes.push(fail({ kind: 'denied', action: 'connect' }))
+    expect((await iterator.next()).value).toEqual({ kind: 'ended', reason: 'denied' })
+    expect(await iterator.next()).toEqual({ done: true, value: undefined })
+    expect(scripted.returns()).toBe(1)
+  })
+
+  it('removes every abort listener it adds while it checks eligibility', async () => {
+    const { w, g1 } = await routedTo(state => [
+      snapshotOf(state, 'c0'),
+      snapshotOf(state, 'c1'),
+      snapshotOf(state, 'c2'),
+    ])
+    const controller = new AbortController()
+    const listening = new Set<unknown>()
+    const add = controller.signal.addEventListener.bind(controller.signal)
+    const remove = controller.signal.removeEventListener.bind(controller.signal)
+    controller.signal.addEventListener = ((type: string, listener: unknown, options: unknown) => {
+      if (type === 'abort') listening.add(listener)
+      add(type, listener as never, options as never)
+    }) as typeof controller.signal.addEventListener
+    controller.signal.removeEventListener = ((type: string, listener: unknown) => {
+      if (type === 'abort') listening.delete(listener)
+      remove(type, listener as never)
+    }) as typeof controller.signal.removeEventListener
+    const seen = await take(
+      w.runtime.observation.observe({ ref: g1.ref, access, signal: controller.signal }),
+      3,
+    )
+    expect(seen).toHaveLength(3)
+    expect(listening.size).toBe(0)
+  })
+
+  it('routes with the principal, tenant, call and admission of the reference', async () => {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    w.routes.push(live(g1.handle))
+    await take(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() }), 1)
+    const parts = ok(resolveToolInvocationRef(call.reference, tenantA))
+    expect(w.connects.at(-1)).toMatchObject({
+      principal: principalA,
+      tenant: tenantA,
+      call: parts.call,
+      admission: parts.admission,
+    })
+  })
+
+  it('ends with denied, before routing, when the call inside the reference belongs to another tenant', async () => {
+    const w = world()
+    const call = await w.invoke()
+    const parts = ok(resolveToolInvocationRef(call.reference, tenantA))
+    const foreign = ok(encodeToolInvocationRef({ ...parts, tenant: tenantB }))
+    const ref = JSON.stringify(['stream-ref', 1, 'tool', foreign, 'str_a']) as StreamRef
+    const connectsBefore = w.connects.length
+    expect(await drain(w.runtime.observation.observe({ ref, access, signal: signal() }))).toEqual(
+      endedWith('denied'),
+    )
+    expect(w.connects.length).toBe(connectsBefore)
+  })
+})
+
+describe('instances.current: failures of its own', () => {
+  it('answers unavailable from toolInstances, without the exception message, when the directory throws', async () => {
+    const w = world(['throw' as never])
+    const call = await w.invoke()
+    expect(await w.runtime.instances.current({ access, reference: call.reference })).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'toolInstances',
+        diagnostic: 'toolInstances threw an exception; its message is not reported',
+      },
+    })
+  })
+
+  it('answers unavailable from toolInstances when the published stream identity does not encode', async () => {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    w.routes.push(live({ ...g1.handle, stream: 'not a stream id' as StreamId }))
+    expect(await w.runtime.instances.current({ access, reference: call.reference })).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'toolInstances',
+        diagnostic: 'the published stream identity does not encode as a public reference',
+      },
+    })
   })
 })
