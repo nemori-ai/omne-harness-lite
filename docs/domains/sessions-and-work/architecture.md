@@ -59,7 +59,7 @@ flowchart TD
 
 Session 依赖这些公开契约，邻域不依赖 Session。邻域契约变化时，只有适配成员需要同步。
 
-外部调用者经服务端接入使用会话。服务端接入依赖 Session 的 `SessionManagement`、`SessionWork` 与 `SessionHistory`，Session 不依赖它。公开消息与结果映射见[公开接入与宿主](../../architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
+外部调用者经服务端接入使用会话。服务端接入依赖 Session 的 `SessionManagement`、`SessionWork` 与 `SessionHistory`，Session 不依赖它。公开消息与结果归[公开契约的会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)，操作到 Session 的映射见[公开接入与宿主](../../architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
 
 ## 执行环境的寿命对应
 

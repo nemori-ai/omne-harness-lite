@@ -41,7 +41,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 | `query-create-session` | `SessionWork.queryOperation` | `intake` | 同一派生的创建操作身份 |
 | `send-input` | `SessionWork.accept`，普通输入 | `intake` | 派生的受理操作身份与 `InputId` |
 | `query-send-input` | `SessionWork.queryOperation` | `intake` | 同一派生的受理操作身份 |
-| `read-history` | `SessionHistory.begin`、`next` | `reader` | 只读 |
+| `read-history` | `SessionHistory.begin`（`from` 为 null）、`next` | `reader` | 只读 |
 
 服务端接入是这些调用的唯一调用方。SDK 只编码请求、读取回复，不直接调用 Session。
 
@@ -56,20 +56,20 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 | 受理操作身份 | `["session-public/1:accept", 租户文本, 会话文本, acceptId]` |
 | `InputId` | `["session-public/1:input", 租户文本, 会话文本, inputId]` |
 
-租户文本是第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本同理取 codec 的规范编码。摘要编码成 Session 品牌值的 codec 归 [P-2 #685](https://github.com/nemori-ai/omne-harness-lite/issues/685)。
+租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。摘要怎样成为 Session 的品牌值归 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)。
 
-`create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`：同一 `createCallId` 的两次请求之间部署映射变了，第二次得到 `conflict`。
+`create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)）。
 
 #### 登录到 `Access`
 
-1. 服务端接入用 identity 的登录识别（[#745](https://github.com/nemori-ai/omne-harness-lite/issues/745)）核验 `loginProof`，得到账号、登录标识与当前选择的租户。
-2. 服务端接入用 tenantCodec 解析目标租户文本，得到的值就是签发要求的已解析租户；租户是否存在不在这里判断。服务端接入是 [ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 所列「装配授权的系统部件」：应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)）把签发者安装给它。目标租户的账号等于识别出的账号时，它签发代租户行事主体：`actor` 是服务端接入的系统主体，`tenant` 是目标租户，`work` 是 `{ owner: 'identity-login', work: 登录标识文本 }`。原工作关系的核对就是这次识别：登录归 identity，识别已证明它属于该账号。这一读法写入 ID-16（本设计同批增补一句）。账号不等时不签发，结果是 `denied`。
-3. 服务端接入以这个主体、目标租户与会话标识组成 `Access` 交给 Session：`create-session` 与 `query-create-session` 用派生的会话标识，其他操作用 body 的 `session`。服务端接入不另核资格。变更操作的当前成员与发送资格由 Session 的身份桥核，桥不可得时返回 `unavailable`；读取由 Session 事务端口的读路径按身份与披露边界核权。租户或会话不存在与没有资格都是 `denied`。
+1. 服务端接入用 identity 的登录识别（[#745](https://github.com/nemori-ai/omne-harness-lite/issues/745)）核验 `loginProof`，得到账号、这份登录的 `login`（`LoginStateId`）与当前选择的租户。
+2. 服务端接入用 tenantCodec 解析目标租户文本，得到的值就是签发要求的已解析租户；租户是否存在不在这里判断。服务端接入是 [ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 所列「装配授权的系统部件」：应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)）把签发者安装给它。目标租户的账号等于识别出的账号时，它签发代租户行事主体：`actor` 是服务端接入的系统主体，`tenant` 是目标租户，`work` 是 `{ owner: 'identity-login', work: login 的 loginStateCodec 文本 }`。关系核对按 [ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 的登录条款。账号不等时不签发，结果是 `denied`。
+3. 服务端接入以这个主体、目标租户与会话标识组成 `Access` 交给 Session：`create-session` 与 `query-create-session` 用派生的会话标识，其他操作用 body 的 `session`。服务端接入不另核资格。变更操作的当前成员资格与创建、发送资格由 Session 的身份桥核，桥不可得时返回 `unavailable`；读取由 Session 事务端口的读路径按身份与披露边界核权。租户或会话不存在与没有资格都是 `denied`。
 4. 会话的租户由会话固定。Session 不核该登录当前选择的租户（[J52](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)）。只有 `create-session` 要求行事租户等于当前选择，因为新会话建在它下面。
 
 #### 普通输入的来源与登录门
 
-服务端接入把普通输入的 `origin` 写成登录入口证据：`{ owner: 'login-entry', record: 登录标识文本, revision: '1', digest: ["login-entry", 账号文本, 登录标识文本] 按上述派生规则得到的摘要 }`。它不含识别时刻：Session 的输入摘要包含 `origin`，同一登录下原样再送必须得到同一份内容。换了登录之后再送同一 `acceptId` 会得到 `conflict`，这时用 `query-send-input` 认回。Session 的新 Run 要求登录入口已确认登录有效。装配的证据桥在 `startRun` 时从首条输入的 `origin` 取这项确认。受理时的识别就是登录门的证据。
+服务端接入把普通输入的 `origin` 写成登录入口证据：`{ owner: 'login-entry', record: login 的 loginStateCodec 文本, revision: '1', digest: ["login-entry", 账号的 accountCodec 文本, login 的 loginStateCodec 文本] 按上述派生规则得到的摘要 }`。它不含识别时刻：Session 的输入摘要包含 `origin`，同一登录下原样再送必须得到同一份内容。换了登录之后原样再送的结果见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)。Session 的新 Run 要求登录入口已确认登录有效。装配的证据桥在 `startRun` 时从首条输入的 `origin` 取这项确认。受理时的识别就是登录门的证据。
 
 `startRun` 由装配的推进触发发起，不是公开操作。`login-required` 不进入公开结果：Run 不开时，读历史读不到回复，原因由宿主诊断。
 
@@ -79,13 +79,13 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 #### 传输
 
-- 进程内环回：同一进程里 SDK 编码请求，服务端接入读取并回写字节。它证明消息格式、判断次序与结果映射。它不证明网络、并发连接、进程隔离或跨进程的主体来源。
-- HTTP：同样的字节经 HTTP 承载（[补记](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6358025478)）。它另外证明跨进程的请求与回复能完整往返。它不证明多实例部署、连接复用下的隔离或长连接观察。状态码不替代消息里的 `outcome`。
+- 进程内环回是骨架的承载：同一进程里 SDK 编码请求，服务端接入读取并回写字节。它证明消息格式、判断次序与结果映射。它不证明网络、并发连接、进程隔离或跨进程的主体来源。
+- HTTP 是结束标志的承载：同样的字节经 HTTP 承载（[补记](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6358025478)）。它另外证明跨进程的请求与回复能完整往返。它不证明多实例部署、连接复用下的隔离或长连接观察。状态码不替代消息里的 `outcome`。
 
 #### 尚未提供
 
 - 成功业务访问报告：服务端接入在业务成功后报告（[J53](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)），形状归 identity ID-11，尚未定义。定义之前不报告，会话操作不刷新空闲计时。
-- `startRun` 时再核登录是否仍有效：需要 identity 按登录标识读有效性，该读口尚未定义。在它就绪之前，登录在受理之后被撤销，已受理的输入仍可能开 Run。
+- `startRun` 时再核登录是否仍有效：需要 identity 按 `login` 读有效性，该读口尚未定义。在它就绪之前，登录在受理之后被撤销，已受理的输入仍可能开 Run。
 - Session 对被拒的受理是否在原操作身份下留痕：Session SPEC 变更操作次序写「任一步失败不提交」，命令表写「拒绝时只有 SE12」。前者成立时 `query-send-input` 的 `succeeded` 只表示受理已提交；两处由 Session 拥有者统一。
 - 观察推送与业务控制分开，观察取消不是业务控制。观察推送、脱离与重附着，宿主身份、启停、状态目录、重复启动、资源关闭、模型选择分责与旧实例数据调查：归 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。宿主计划换代先业务交接再撤插件；意外退出保留原身份与结果责任；重连不得靠目录为空重发原 Model 或 Tool 调用。这三条是现行约束，#746 兑现。
 
