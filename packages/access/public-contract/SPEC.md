@@ -1,14 +1,16 @@
 # 系统公开契约行为规格
 
-本页拥有治理消息的字段、`outcome`、操作名，以及同一输入的可见结果。身份和授权的业务事实仍归 identity 与 authorization。本页固定治理消息版本和治理操作名。它不决定传输协议，也不决定治理以外的 SDK 覆盖范围。
+本页拥有治理消息与会话公开消息的字段、`outcome`、操作名，以及同一输入的可见结果。身份和授权的业务事实仍归 identity 与 authorization，会话的业务事实归 Session。本页固定两个协议版本及其操作名。它不决定传输协议，也不决定这两类消息以外的 SDK 覆盖范围。
 
 SDK 和服务端接入使用本页的结果表。它们不另写一套结果含义。
 
 ## 共同消息
 
+本节与[重复的 protocolVersion](#重复的-protocolversion)按治理位置书写。会话位置适用同样规则，其中的 `governance-public/1` 读作 `session-public/1`，见[会话公开操作](#会话公开操作)。
+
 请求和响应都是一个 JSON 对象。公开契约用 `packages/common/json-text` 的严格读取。注释、尾逗号和重复键都不是本协议的合法消息。
 
-本协议只接受一个协议版本，文本为 `governance-public/1`。以后增加版本必须改本页。调用者发送另一个版本时，整份消息得到 `protocol-rejected`。本地和远程可以使用不同的传输适配。适配变化不改变租户、授权、登录或完成的含义。本页不定义中心标识。
+治理位置只接受一个协议版本，文本为 `governance-public/1`。会话消息使用 `session-public/1`，见[会话公开操作](#会话公开操作)。以后增加版本必须改本页。调用者发送另一个版本时，整份消息得到 `protocol-rejected`。本地和远程可以使用不同的传输适配。适配变化不改变租户、授权、登录或完成的含义。本页不定义中心标识。
 
 请求字段：
 
@@ -57,10 +59,10 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 
 ## 判断次序
 
-服务端接入按下面的次序处理一份已经完成传输保护的消息。前一步已经给出终端结果时，不再做后面的步骤。
+服务端接入按下面的次序处理一份已经完成传输保护的治理消息。前一步已经给出终端结果时，不再做后面的步骤。
 
 1. 严格 JSON 读取。失败则 `protocol-rejected`。不读取账号库。
-2. 版本不是 `governance-public/1` 时，结果是 `protocol-rejected`。这包括操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 的消息。操作名不在本页时，也是 `protocol-rejected`。版本是 `governance-public/1` 且操作名是这四个时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。
+2. 版本不是 `governance-public/1` 时，结果是 `protocol-rejected`。这包括操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 的消息。操作名不是治理操作时，也是 `protocol-rejected`。版本是 `governance-public/1` 且操作名是这四个时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。
 3. 按信封表和下面的 body 表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
 4. 上表要求登录证明时，把缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威登录记录不可得时，identity 返回 `basis-unavailable`。服务端接入不改写这两个结果，也不另持一份登录表。传输保护不证明调用者是谁。裸账号标识、证书、地址、旧连接和调用者自报的授权结果都不是当前登录。
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
@@ -103,7 +105,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 这些治理操作都不刷新登录的空闲计时。失败请求、`public-health` 和仅完成认证也不刷新。成功业务访问的报告不是本表中的操作。identity 的 ID-11 仍要求公开形状定义该报告。本规格不补这个操作。
 
-每一份名单都适用同一条完整性规则。成功时 `completeness` 在 `body` 里，紧挨名单数组，值为 `complete`，数组给出全部当前项。不可用时 `outcome` 是 `basis-unavailable`，`body` 没有该数组，也没有 `completeness`。任一项的状态无法在读取时判定时，整份名单不可用。不丢项，不把不可用改成空名单，也不把待处理改成过期。本协议不按页返回名单。历史登录不在「查询本人有效登录」里。
+每一份名单都适用同一条完整性规则。成功时 `completeness` 在 `body` 里，紧挨名单数组，值为 `complete`，数组给出全部当前项。不可用时 `outcome` 是 `basis-unavailable`，`body` 没有该数组，也没有 `completeness`。任一项的状态无法在读取时判定时，整份名单不可用。不丢项，不把不可用改成空名单，也不把待处理改成过期。治理协议不按页返回名单。历史登录不在「查询本人有效登录」里。
 
 | 名单 | 数组名 | 每一项 |
 | --- | --- | --- |
@@ -427,7 +429,101 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 旧备份中的角色不授予访问。坏的 `body` 和坏的登录证明都不改变 `stage-not-provided`。
 
-任何其他 `operation` 都是 `protocol-rejected`。
+在治理位置，任何其他 `operation` 都是 `protocol-rejected`。
+
+## 会话公开操作
+
+本节拥有会话公开消息的字段、`outcome`、操作名、判断次序与 body。会话的业务事实归 [Session](../../session/session-contract/SPEC.md)，登录与主体归 [identity](../../identity/identity/SPEC.md)。服务端接入怎样把这些消息接到 Session，见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
+
+### 版本、入口与信封
+
+会话消息的协议版本是 `session-public/1`，与 `governance-public/1` 分开计版本。严格 JSON 读取、重复 `protocolVersion`、可信 `messageId` 与协议拒绝的规则同[共同消息](#共同消息)与[重复的 protocolVersion](#重复的-protocolversion)，其中的版本文本换成 `session-public/1`；会话入口的 `protocol-rejected` 响应写 `session-public/1`。
+
+会话消息与治理消息使用两组编解码函数和两个承载位置。会话一组是 `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest` 与 `encodeSessionResponse`，参数与可见结果的约定同[操作集合与函数](#操作集合与函数)中的治理四函数。承载适配为两组消息分设位置，例如 HTTP 的两个路径。服务端按位置选择读取函数，不按消息里的版本文本分派。会话位置收到 `governance-public/1` 的消息，或治理位置收到 `session-public/1` 的消息，都是 `protocol-rejected`。
+
+`loginProof` 与 `actingTenant` 的字段要求同共同消息。信封按操作闭合：
+
+| 操作 | `loginProof` | `actingTenant` | body 字段（全部必填，除非另写） |
+| --- | --- | --- | --- |
+| `create-session` | 必填 | 必填 | `createCallId`、`definition`、`purpose` |
+| `query-create-session` | 必填 | 禁止 | `tenant`、`createCallId` |
+| `send-input` | 必填 | 禁止 | `tenant`、`session`、`acceptId`、`inputId`、`message` |
+| `query-send-input` | 必填 | 禁止 | `tenant`、`session`、`acceptId` |
+| `read-history` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `direction`、`pageBytes` |
+
+任何其他操作名在会话位置都是 `protocol-rejected`。
+
+### body 字段
+
+| 字段 | 要求 |
+| --- | --- |
+| `createCallId` | 非空字符串，调用者在首次发送前生成。唯一范围是同一租户的 `create-session` 调用。同一次创建的重试保持同值。 |
+| `definition` | 非空字符串，部署提供的会话定义名。定义名集合归部署装配。 |
+| `purpose` | 字符串，可以为空。 |
+| `tenant` | 租户文本，读取规则与 `tenantId` 相同（见[本地值与线上表示](#本地值与线上表示)）。它是目标会话的租户，不是行事租户。 |
+| `session` | 非空字符串，`create-session` 成功时返回的会话标识文本，须能被会话标识 codec（[#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)）读取。 |
+| `acceptId` | 非空字符串，调用者在首次发送前生成的受理标识。唯一范围是同一会话。重试保持同值。 |
+| `inputId` | 非空字符串，调用者在首次发送前生成的输入标识。唯一范围是同一会话。重试保持同值。 |
+| `message` | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。 |
+| `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。 |
+| `direction` | `forward` 或 `backward`。只在 `cursor` 为 null 时出现。 |
+| `pageBytes` | 匹配 `^[1-9][0-9]*$` 的文本，一页的字节上界。只在 `cursor` 为 null 时出现。 |
+
+### 判断次序
+
+服务端接入按下面的次序处理一份已经完成传输保护的会话消息。前一步给出终端结果时，不做后面的步骤。
+
+1. 协议读取：严格 JSON、版本、操作名、信封与 body 的封闭字段和类型；`tenant` 的内层读取；`session` 的 codec 读取；`message` 按 message 包解码且 `role` 为 `user`；`pageBytes` 的文本格式；`cursor` 与 `direction`、`pageBytes` 的出现规则。任一不合规是 `protocol-rejected`，Session 不被调用。必填 `loginProof` 缺失或为空字符串不在这一步拒绝。
+2. 登录识别：`loginProof` 交给 identity。缺失、空字符串、无效或不是本部署签发的证明，对外同一份 `denied`；依据不可得是 `basis-unavailable`。
+3. 行事租户：`create-session` 的 `actingTenant` 不等于该登录的当前选择时是 `denied`，响应不包含实际选择。
+4. 目标租户与主体：目标租户（`create-session` 为 `actingTenant`，其他操作为 body 的 `tenant`）的账号不等于识别出的账号时是 `denied`。签发主体不可用（签发者未安装或签发失败）时是 `basis-unavailable`。
+5. 定义名：只用于 `create-session`。定义名不在部署集合内时是 `invalid`。
+6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。
+
+### 结果
+
+下列四个对外结果只用于 `session-public/1`，补充[对外结果](#对外结果)的表：
+
+| outcome | 调用者可以知道的 | 不能从该结果推出的 |
+| --- | --- | --- |
+| `invalid` | 消息合乎协议，但这份内容不被接受 | 会话或调用者的资格状态 |
+| `archived` | 会话已归档，不再受理输入 | 归档何时发生，或能否撤销归档 |
+| `frozen` | 会话已冻结且没有进行中的工作，普通输入不受理 | 冻结的原因或何时解除 |
+| `not-committed` | 原操作已确定没有提交，调用者可以用原标识或新标识重新发起 | 重新发起一定成功 |
+
+会话操作的 `denied` 不能推出会话是否存在。
+
+| operation | 线上业务 outcome | Session 结果的映射 |
+| --- | --- | --- |
+| `create-session` | `succeeded`、`denied`、`invalid`、`conflict`、`basis-unavailable`、`unknown` | `create`：`conflict` 为同 `createCallId` 异创建输入 |
+| `query-create-session` | `succeeded`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`attempt-rejected` 与 `unknown` 为 `unknown`。创建从未提交时会话不存在，结果是 `denied` |
+| `send-input` | `succeeded`、`denied`、`invalid`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容 |
+| `query-send-input` | `succeeded`、`not-committed`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `not-committed`；`attempt-rejected` 与 `unknown` 为 `unknown` |
+| `read-history` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `begin` 或 `next`：`invalid` 含游标错域、失效或被篡改，以及 `pageBytes` 越出部署上界；不返回空页代替 `basis-unavailable` |
+
+表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
+
+| 结果 | body |
+| --- | --- |
+| `create-session` 与 `query-create-session` 的 `succeeded` | `session`；`create-session` 另有 `recovered`（布尔，认回此前已提交的同一次创建时为真） |
+| `send-input` 的 `succeeded` | `recovered`（布尔，认回此前已提交的同一受理时为真） |
+| `query-send-input` 的 `succeeded` | 空对象 |
+| `read-history` 的 `succeeded` | `entries`、`next`、`exhausted`、`scannedThrough`，见下节 |
+| 其他结果 | 空对象 |
+
+### 历史页
+
+`entries` 是一个数组。每项有四个字段：`entryId`（条目标识文本）、`revision`（提交修订文本）、`kind`（条目种类短名）与 `payload`（Session 历史页给出的条目载荷，原样）。种类与载荷形状归 Session 的[事件目录](../../session/session-contract/docs/object-model/session-log-events.md#原生事实类别)。
+
+服务端接入只读取部署配置列出的条目种类，配置归部署装配。默认清单是 `message.user` 与 `message.assistant`。其他种类，例如带来源的 `intake.routed`，部署确认其披露范围后才可加入。读者可以导出未知 `kind`，不按未知种类推断业务结论。
+
+`next` 是字符串或 null，原样作为下一次的 `cursor`。`exhausted` 为真表示当前上界之内已读完。空页不表示读完；`scannedThrough` 是实际扫描到的位置文本。
+
+### 未知与再送
+
+连接断开、超时与响应丢失使调用者本地保持未知，不是未提交。调用者可以用同一组标识原样再送，同内容得到原回执，`recovered` 为真；也可以用 `query-create-session` 或 `query-send-input` 认回。`query-create-session` 得到 `denied` 时，创建可能从未提交，调用者用同一 `createCallId` 原样再送 `create-session`。存储不能产生排除证明时，`query-send-input` 得到 `unknown` 而不是 `not-committed`。确认 `not-committed` 之前，不换新标识重做同一意图。SDK 的零字节再送规则同[未知、重复、重试、缓存和列表](#未知重复重试缓存和列表)。
+
+会话操作不刷新登录的空闲计时，直到 identity 定义成功业务访问报告的形状。
 
 ## 三个成员
 
@@ -435,12 +531,14 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依赖 server-entry。它不依赖服务器存储包。安装闭包以 SDK 发布产物的依赖清单为准。源码能编译不能代替该清单。
 
-服务端接入依赖公开契约，并把已经通过协议检查的请求交给 identity 与 authorization 的公开入口。它不改写允许和拒绝。它不把存储对象放到公开响应里。
+服务端接入依赖公开契约，并把已经通过协议检查的请求交给 identity 与 authorization 的公开入口。会话消息另交给 Session 的公开入口，映射见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。它不改写允许和拒绝。它不把存储对象放到公开响应里。
 
 ```text
 client application -> sdk -> public-contract
 server-entry -> public-contract
 server-entry -> identity and authorization public entries
+server-entry -> session public entries
+public-contract -> message
 public-contract does not import sdk or server-entry
 sdk does not import server-entry
 ```
@@ -474,7 +572,6 @@ const encoded = encodeGovernanceRequest({
 
 - 成功业务访问如何报告。identity ID-11 继续拥有该公开形状。这些治理操作不代替那份报告。
 - 人工决定的答复消息。需要决定时只返回原请求标识。
-- Session 的公开接入。它归公开接入的拥有者，见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。
 - 传输协议、登录证明的密码学形式、存储和页大小。
 - 资产确认时刻。它归资产读面，不是这些治理消息。
 
@@ -486,7 +583,7 @@ const encoded = encodeGovernanceRequest({
 
 正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body，正常行没有 `stage-not-provided`，阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
-主入口仅导出四个纯函数及其公开输入结果类型。
+主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。本表是治理一组；会话一组的约定见[会话公开操作](#会话公开操作)，由 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) 实现。
 
 | 函数 | 输入与可见结果 |
 | --- | --- |
