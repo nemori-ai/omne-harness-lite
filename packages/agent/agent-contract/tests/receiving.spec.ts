@@ -100,7 +100,9 @@ describe('the entries suite fails a provider that breaks a rule', () => {
           ? { failure: { kind: 'unavailable', owner: 'agentJournal', diagnostic: 'exists' } }
           : port.record(input),
     }))
-    await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow()
+    await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow(
+      /should fail with denied/u,
+    )
   })
 
   it('fails the key case when a repeated delivery is written again', async () => {
@@ -118,7 +120,9 @@ describe('the entries suite fails a provider that breaks a rule', () => {
         },
       }
     })
-    await expect(caseNamed(cases, 'by its key').run()).rejects.toThrow()
+    await expect(caseNamed(cases, 'by its key').run()).rejects.toThrow(
+      /recall the original receipt/u,
+    )
   })
 })
 
@@ -129,7 +133,9 @@ describe('the outlet suite fails a provider that breaks a rule', () => {
       deliver: async () => ({ kind: 'received' }),
     }
     const cases = agentAccountOutletConformance({ ...fixture, outlet: lenient })
-    await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow()
+    await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow(
+      /call of another tenant should be denied/u,
+    )
   })
 
   it('fails the order case when a late lower revision replaces the higher one', async () => {
@@ -146,6 +152,8 @@ describe('the outlet suite fails a provider that breaks a rule', () => {
       outlet: lastWins,
       current: async () => last,
     })
-    await expect(caseNamed(cases, 'higher revision').run()).rejects.toThrow()
+    await expect(caseNamed(cases, 'arrives late').run()).rejects.toThrow(
+      /should not replace the higher one/u,
+    )
   })
 })

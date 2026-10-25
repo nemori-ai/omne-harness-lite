@@ -9,8 +9,11 @@ export {
   agentJournalEntriesConformance,
   createMemoryAgentJournalEntries,
   memoryAgentJournalEntriesFixture,
+  sampleReceivedModelAccount,
   sampleReceivedModelResult,
+  sampleReceivedToolAccount,
   sampleStartFence,
+  sampleStreamReference,
   type AgentJournalEntriesFixture,
   type MemoryAgentJournalEntries,
 } from './testing-journal-entries.ts'

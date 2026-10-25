@@ -373,6 +373,7 @@ export type AgentAccessOperation =
   | 'reconcile'
   | 'detach'
   | 'record-terminal-observation'
+  | 'receive-result'
 export type AgentAccessTarget =
   | Readonly<{ kind: 'scope'; scope: DurableEvidence; definition: Adoption }>
   | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>

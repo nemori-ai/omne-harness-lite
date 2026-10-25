@@ -13,7 +13,13 @@ import {
   resolveModelInvocationRef,
   type ModelDeliveryKey,
 } from '@omne-harness/model-contract'
-import { decodeToolOperationId, resolveToolInvocationRef } from '@omne-harness/tool-contract'
+import { decodeStreamId, encodeStreamRef, type StreamCallCodec } from '@omne-harness/stream-arrival'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  encodeToolInvocationRef,
+  resolveToolInvocationRef,
+} from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { Failure } from './evaluation.ts'
@@ -229,9 +235,13 @@ export function sampleStartFence(name: string): StartFenceEntry {
   }
 }
 
-function account(call: string, revision: string): CallAccount {
+function account(
+  call: string,
+  revision: string,
+  kind: CallAccount['subject']['kind'] = 'model_call',
+): CallAccount {
   return {
-    subject: { kind: 'model_call', id: call },
+    subject: { kind, id: call },
     usage: [{ name: 'input', state: 'known', lexeme: '12', unit: 'token' }],
     cost: [],
     trimmed: { state: 'unknown', unit: 'token' },
@@ -277,6 +287,103 @@ export function sampleReceivedModelResult(
     consumer: { owner: 'agent', work: `exec-${name}`, position: `pos-${name}`, purpose: 'main' },
     consumption: identity(decodeConsumptionId(`cons-${name}`), name),
     material: evidence(`material-${name}`),
+  }
+}
+
+function modelReference(tenant: TenantId, name: string) {
+  const call = identity(decodeModelCallId(`mcall_${name}`), name)
+  const reference = identity(
+    encodeModelInvocationRef({
+      tenant,
+      call,
+      admission: identity(decodeModelOperationId(`mop_${name}`), name),
+    }),
+    name,
+  )
+  return { call, reference }
+}
+
+const consumerOf = (name: string) => ({
+  consumer: { owner: 'agent', work: `exec-${name}`, position: `pos-${name}`, purpose: 'main' },
+  consumption: identity(decodeConsumptionId(`cons-${name}`), name),
+  material: evidence(`material-${name}`),
+})
+
+/** A received Model account delivery of the suite, with its call reference minted for `tenant`. */
+export function sampleReceivedModelAccount(
+  tenant: TenantId,
+  name: string,
+  revision = '0',
+): ReceivedEntry {
+  const { call, reference } = modelReference(tenant, name)
+  return {
+    kind: 'received',
+    delivery: {
+      producer: 'model',
+      key: {
+        kind: 'account',
+        reference,
+        dispatch: identity(decodeDispatchId(`mdisp_${name}`), name),
+        revision,
+      },
+      account: account(call, revision),
+    },
+    ...consumerOf(name),
+  }
+}
+
+/** A received Tool account delivery of the suite, with its call reference minted for `tenant`. */
+export function sampleReceivedToolAccount(
+  tenant: TenantId,
+  name: string,
+  lexeme = '12',
+): ReceivedEntry {
+  const call = identity(decodeToolCallId(`tcall_${name}`), name)
+  const reference = identity(
+    encodeToolInvocationRef({
+      tenant,
+      call,
+      admission: identity(decodeToolOperationId(`top_${name}`), name),
+    }),
+    name,
+  )
+  const kept = account(call, '0', 'tool_execution')
+  return {
+    kind: 'received',
+    delivery: {
+      producer: 'tool',
+      key: { kind: 'account', producer: 'tool', reference, event: `event-${name}`, revision: '0' },
+      account: { ...kept, usage: [{ name: 'input', state: 'known', lexeme, unit: 'token' }] },
+    },
+    ...consumerOf(name),
+  }
+}
+
+/** The stream call codec of the suite: the call text is a Model invocation reference. */
+const modelStreamCodec: StreamCallCodec = {
+  producer: 'model',
+  resolve: ({ text, tenant }) => {
+    const resolved = resolveModelInvocationRef(text, tenant)
+    if ('ok' in resolved && typeof text === 'string') return { ok: text }
+    if ('failure' in resolved && resolved.failure.kind === 'foreign-tenant') {
+      return { failure: { kind: 'foreign-tenant' } }
+    }
+    return { failure: { kind: 'malformed' } }
+  },
+}
+
+/** A stream-reference entry of the suite for a Model call that `tenant` owns. */
+export function sampleStreamReference(tenant: TenantId, name: string): StreamReferenceEntry {
+  const { reference } = modelReference(tenant, name)
+  const stream = identity(decodeStreamId(`str_${name}`), name)
+  return {
+    kind: 'stream-reference',
+    producer: 'model',
+    reference: identity(
+      encodeStreamRef({ tenant, producer: 'model', call: reference, stream }, modelStreamCodec),
+      name,
+    ),
+    consumption: identity(decodeConsumptionId(`cons-${name}`), name),
   }
 }
 
@@ -487,7 +594,7 @@ export function agentJournalEntriesConformance<P>(
           receiving(access, execution, operationId('k2'), entry),
           'repeated push',
         )
-        assert.deepEqual(again, first)
+        assert.deepEqual(again, first, 'a repeated push should recall the original receipt')
         await refused(
           receiving(
             access,
@@ -532,7 +639,91 @@ export function agentJournalEntriesConformance<P>(
           advancing(access, execution, authority, operationId('v2'), sampleStartFence('v2')),
           'second',
         )
+        const recalled = await recorded(
+          advancing(access, execution, authority, operationId('v1'), sampleStartFence('v1')),
+          'recall of the first',
+        )
+        const third = await recorded(
+          receiving(
+            access,
+            execution,
+            operationId('v3'),
+            sampleReceivedModelAccount(access.tenant, 'v3'),
+          ),
+          'third',
+        )
+        assert.equal(new Set([first.revision, second.revision, third.revision]).size, 3)
+        assert.equal(
+          recalled.revision,
+          first.revision,
+          'a recall should keep the original revision',
+        )
+      },
+    },
+    {
+      name: 'records Model and Tool account deliveries and recognizes them by their keys',
+      async run() {
+        const execution = executionId('accounts')
+        await fixture.open(access, execution)
+        const model = sampleReceivedModelAccount(access.tenant, 'acc-model')
+        const tool = sampleReceivedToolAccount(access.tenant, 'acc-tool')
+        const first = await recorded(
+          receiving(access, execution, operationId('am'), model),
+          'Model account delivery',
+        )
+        const second = await recorded(
+          receiving(access, execution, operationId('at'), tool),
+          'Tool account delivery',
+        )
         assert.notEqual(second.revision, first.revision)
+        assert.deepEqual(
+          await recorded(receiving(access, execution, operationId('at2'), tool), 'repeat'),
+          second,
+          'a repeated Tool account push should recall the original receipt',
+        )
+        await refused(
+          receiving(
+            access,
+            execution,
+            operationId('at3'),
+            sampleReceivedToolAccount(access.tenant, 'acc-tool', '99'),
+          ),
+          'conflict',
+          'the same Tool account key with another account',
+        )
+        await refused(
+          receiving(
+            access,
+            execution,
+            operationId('at4'),
+            sampleReceivedToolAccount(otherAccess.tenant, 'acc-foreign'),
+          ),
+          'denied',
+          'a Tool account with a call of another tenant',
+        )
+        assert.deepEqual(await fixture.read(access, execution), [model, tool])
+      },
+    },
+    {
+      name: 'records a stream-reference entry only under the current Authority',
+      async run() {
+        const execution = executionId('stream')
+        const old = await fixture.open(access, execution)
+        const entry = sampleStreamReference(access.tenant, 'stream')
+        await recorded(advancing(access, execution, old, operationId('s1'), entry), 'stream')
+        await fixture.supersede(access, execution)
+        await refused(
+          advancing(
+            access,
+            execution,
+            old,
+            operationId('s2'),
+            sampleStreamReference(access.tenant, 'late'),
+          ),
+          'stale-advance',
+          'stream-reference under a superseded Authority',
+        )
+        assert.deepEqual(await fixture.read(access, execution), [entry])
       },
     },
   ]

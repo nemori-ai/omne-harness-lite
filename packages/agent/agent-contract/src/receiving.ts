@@ -23,17 +23,32 @@ export type StartFenceEntry = Readonly<{
 
 /**
  * The delivery that the result receiver saved, with the producer's own delivery key as the key
- * that recognizes it again (J02). A Model result carries the account snapshot of every dispatch
- * at freeze time; a Model account delivery carries its one dispatch. A Tool delivery carries its
- * account or null. A missing report stays null and is never zero.
+ * that recognizes it again (J02). The branch follows the kind of the key. A Model result carries
+ * the account snapshot of every dispatch at freeze time. A Tool result carries its account or
+ * null. An account delivery of either producer carries the `CallAccount` of its revision. A
+ * missing report stays null and is never zero.
  */
 export type ReceivedDelivery =
   | Readonly<{
       producer: 'model'
-      key: M.ModelDeliveryKey
+      key: Extract<M.ModelDeliveryKey, { kind: 'result' }>
       accounts: readonly M.ModelAccountSnapshot[]
     }>
-  | Readonly<{ producer: 'tool'; key: T.ToolDeliveryKey; account: CallAccount | null }>
+  | Readonly<{
+      producer: 'model'
+      key: Extract<M.ModelDeliveryKey, { kind: 'account' }>
+      account: CallAccount
+    }>
+  | Readonly<{
+      producer: 'tool'
+      key: Extract<T.ToolDeliveryKey, { kind: 'result' }>
+      account: CallAccount | null
+    }>
+  | Readonly<{
+      producer: 'tool'
+      key: Extract<T.ToolDeliveryKey, { kind: 'account' }>
+      account: CallAccount
+    }>
 
 /**
  * A pushed result version or account revision that the result receiver saved (J02). `consumer`

@@ -8,6 +8,7 @@ import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Access,
+  AgentAccessOperation,
   AgentAccountHandoff,
   AgentAccountOutcome,
   AgentAccountOutlet,
@@ -31,17 +32,31 @@ describe('the receiving entries', () => {
     >()
   })
 
-  it('reuse the delivery keys of Model and Tool as the key of a received delivery', () => {
+  it('reuse the delivery keys of Model and Tool, one branch per kind of key', () => {
+    type Model = Extract<ReceivedDelivery, { producer: 'model' }>
+    type Tool = Extract<ReceivedDelivery, { producer: 'tool' }>
+    expectTypeOf<Model['key']>().toEqualTypeOf<M.ModelDeliveryKey>()
+    expectTypeOf<Tool['key']>().toEqualTypeOf<T.ToolDeliveryKey>()
+    expectTypeOf<Extract<Model, { key: { kind: 'result' } }>['accounts']>().toEqualTypeOf<
+      readonly M.ModelAccountSnapshot[]
+    >()
     expectTypeOf<
-      Extract<ReceivedDelivery, { producer: 'model' }>['key']
-    >().toEqualTypeOf<M.ModelDeliveryKey>()
+      Extract<Model, { key: { kind: 'account' } }>['account']
+    >().toEqualTypeOf<CallAccount>()
     expectTypeOf<
-      Extract<ReceivedDelivery, { producer: 'tool' }>['key']
-    >().toEqualTypeOf<T.ToolDeliveryKey>()
-    expectTypeOf<
-      Extract<ReceivedDelivery, { producer: 'tool' }>['account']
+      Extract<Tool, { key: { kind: 'result' } }>['account']
     >().toEqualTypeOf<CallAccount | null>()
+    expectTypeOf<
+      Extract<Tool, { key: { kind: 'account' } }>['account']
+    >().toEqualTypeOf<CallAccount>()
     expectTypeOf<ReceivedEntry['kind']>().toEqualTypeOf<'received'>()
+  })
+
+  it('cannot carry a null account on an account delivery', () => {
+    const key = null as unknown as Extract<M.ModelDeliveryKey, { kind: 'account' }>
+    // @ts-expect-error An account delivery carries the CallAccount of its revision.
+    const refused: ReceivedDelivery = { producer: 'model', key, account: null }
+    void refused
   })
 
   it('keep the stream reference of stream-arrival and no credential', () => {
@@ -86,6 +101,12 @@ describe('the snapshot', () => {
     const snapshot = null as unknown as Omit<ExecutionSnapshot, 'entries'>
     const withoutEntries: ExecutionSnapshot = snapshot
     void withoutEntries
+  })
+})
+
+describe('the access check', () => {
+  it('names the receive operation of the result receiver', () => {
+    expectTypeOf<'receive-result'>().toExtend<AgentAccessOperation>()
   })
 })
 

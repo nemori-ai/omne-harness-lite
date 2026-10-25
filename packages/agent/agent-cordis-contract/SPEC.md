@@ -1,6 +1,6 @@
 # Agent Cordis 定义的行为边界
 
-公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。“[生产者接收面的服务](#生产者接收面的服务)”一节属 [#672 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/672) 的写回，其接受在该卡交付时记录。本包已实现这些定义：`./cordis` 导出 21 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出三个类型。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
+公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。“[生产者接收面的服务](#生产者接收面的服务)”一节依据 [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672)。本包已实现这些定义：`./cordis` 导出 21 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出三个类型。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
 
 ## 唯一性
 
@@ -28,6 +28,6 @@
 | --- | --- | --- |
 | `agentJournalEntries` | `AgentJournalEntries` | 与 `agentJournal` 相同的 Journal 提供者，两者在同一权威排序中兑现。装配用两个排序域分别提供这两个键时，该组合不具备接收面的保证 |
 | `agentAccountOutlet` | `AgentAccountOutlet` | Request Context 一侧的适配器。Agent 拥有端口与键，适配器的实现归 Request Context |
-| `agentExecutionControl` | `AgentExecutionControl` | 宿主的长期 Journal 适配器。没有活体 runtime 时，外部协调者经它提交控制。实现归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
+| `agentExecutionControl` | `AgentExecutionControl` | 宿主的长期执行记录适配器。它就是经恢复入口发生的 control，外部协调者经它提交控制，不需要活体 runtime。实现归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
 
 Tool 启动围栏的服务不由本包声明。Agent 宿主以静态依赖取得 Tool 的 Cordis 定义的 `toolStartFence` 键，不取得 `toolStartAuthority`。依赖方向是 Agent 依赖 Tool，Tool 的定义不引用本包。本包的测试从 `@omne-harness/tool-cordis-contract/cordis` 读取该键名，核对本包没有重新声明它。
