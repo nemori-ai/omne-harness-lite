@@ -6,10 +6,10 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `Access` · `identity.d.ts`
+- `Access` · 包 `@omne-harness/legal-identity`
 - `AccountScope` · `custody.d.ts`
 - `ActiveRelation` · `results.d.ts`
-- `Adoption` · `identity.d.ts`
+- `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdoptionRules` · `adoption.d.ts`
 - `Attachment` · `results.d.ts`
 - `AvailabilityFacts` · `authoring.d.ts`
@@ -20,7 +20,7 @@
 - `ChildReservation` · `program.d.ts`
 - `ChildState` · `program.d.ts`
 - `ClockSegment` · `records.d.ts`
-- `ConsumerRef` · `identity.d.ts`
+- `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContentPage` · `custody.d.ts`
 - `ControlDispatch` · `records.d.ts`
 - `ControlProgress` · `records.d.ts`
@@ -30,7 +30,7 @@
 - `DeliveryState` · `results.d.ts`
 - `DiagnosticPage` · `custody.d.ts`
 - `DrainState` · `records.d.ts`
-- `DurableEvidence` · `identity.d.ts`
+- `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `Effect` · `results.d.ts`
 - `ExternalOperationResolution` · `records.d.ts`
 - `ExternalResponse` · `records.d.ts`
@@ -1197,7 +1197,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { Access } from '@omne-harness/legal-identity';
 declare const toolIdentity: unique symbol;
 export type ToolIdentity<K extends string> = string & {
     readonly [toolIdentity]: K;
@@ -1210,28 +1210,8 @@ export type ToolResultVersion = ToolIdentity<'ToolResultVersion'>;
 export type ToolDeliveryId = ToolIdentity<'ToolDeliveryId'>;
 export type ToolCursor = ToolIdentity<'ToolCursor'>;
 export type ToolRevision = ToolIdentity<'ToolRevision'>;
-export type Adoption = Readonly<{
-    owner: string;
-    name: string;
-    revision: string;
-    digest: string;
-}>;
-export type ConsumerRef = Readonly<{
-    owner: string;
-    work: string;
-    position: string;
-    purpose: string;
-}>;
-export type DurableEvidence = Readonly<{
-    owner: string;
-    record: string;
-    revision: string;
-    digest: string;
-}>;
-export type Access<P> = Readonly<{
-    principal: P;
-    tenant: TenantId;
-}>;
+export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs';
+export type { Access } from '@omne-harness/legal-identity';
 export type CallAccess<P> = Access<P> & Readonly<{
     call: ToolCallId;
 }>;
@@ -1251,7 +1231,6 @@ export declare function decodeToolResultVersion(text: unknown): Outcome<ToolResu
 export declare function decodeToolDeliveryId(text: unknown): Outcome<ToolDeliveryId, ToolIdentityRejection<'ToolDeliveryId'>>;
 export declare function decodeToolCursor(text: unknown): Outcome<ToolCursor, ToolIdentityRejection<'ToolCursor'>>;
 export declare function decodeToolRevision(text: unknown): Outcome<ToolRevision, ToolIdentityRejection<'ToolRevision'>>;
-export {};
 ```
 
 ## 声明文件 `index.d.ts`

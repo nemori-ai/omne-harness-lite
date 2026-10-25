@@ -6,8 +6,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decisionEvidence,
   type DecisionEvidence,
+  type DurableEvidence,
   type EffectiveArguments,
-  type EvidenceRef,
 } from './evidence.ts'
 import type { AdmissionOperation, AdmissionTarget } from './operation.ts'
 
@@ -47,7 +47,7 @@ export type PermitGrant = Readonly<{
   operation: AdmissionOperation
   target: AdmissionTarget
   arguments: EffectiveArguments
-  granted: EvidenceRef
+  granted: DurableEvidence
 }>
 
 export type ConsumptionFact = Readonly<{
@@ -93,7 +93,7 @@ export interface PermitGrantor {
       operation: AdmissionOperation
       target: AdmissionTarget
       arguments: EffectiveArguments
-      granted: EvidenceRef
+      granted: DurableEvidence
     }>,
   ): Promise<GrantOutcome>
 }

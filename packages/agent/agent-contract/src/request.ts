@@ -16,7 +16,7 @@ import type {
   ActionId,
   Authority,
   ConsumerRef,
-  Evidence,
+  DurableEvidence,
   PassageId,
 } from './identity.ts'
 
@@ -25,8 +25,8 @@ export type SelectedModel = Readonly<{
   recipient: ModelRecipient
   resolution: Extract<M.ProfileResolution, { kind: 'resolved' }> & Readonly<{ selectable: true }>
   parameters: readonly M.Parameter[]
-  tools: Evidence
-  evidence: Evidence
+  tools: DurableEvidence
+  evidence: DurableEvidence
 }>
 /** The port that selects the model of one request; see SPEC "模型选择". */
 export interface ModelSelection<P> {
@@ -34,12 +34,12 @@ export interface ModelSelection<P> {
     input: Access<P> &
       Readonly<{
         advance: Authority
-        scope: Evidence
+        scope: DurableEvidence
         purpose: ModelPurpose
         position: ConsumerRef
-        history: Evidence
+        history: DurableEvidence
         conditions: RuntimeConditions
-        alterations: readonly Evidence[]
+        alterations: readonly DurableEvidence[]
       }>,
   ): Reply<SelectedModel>
 }
@@ -47,8 +47,8 @@ export type ContextContent = 'full' | 'incremental'
 export type ModelContextRead = Readonly<{
   recipient: ModelRecipient
   content: ContextContent
-  source: Evidence
-  coverage: Evidence
+  source: DurableEvidence
+  coverage: DurableEvidence
 }>
 /** The port that reads the runtime context for the model as the one consumer; see SPEC "Runtime Context 的消费". */
 export interface ModelContextReader<P> {
@@ -58,18 +58,22 @@ export interface ModelContextReader<P> {
         advance: Authority
         position: ConsumerRef
         recipient: ModelRecipient
-        history: Evidence
-        adopted: Evidence | null
-        transition: Evidence | null
+        history: DurableEvidence
+        adopted: DurableEvidence | null
+        transition: DurableEvidence | null
       }>,
   ): Reply<ModelContextRead>
 }
-export type CompactionProgress = Readonly<{ plan: Evidence; bound: string; completed: string }>
+export type CompactionProgress = Readonly<{
+  plan: DurableEvidence
+  bound: string
+  completed: string
+}>
 export type Preparation = Readonly<{
   id: ActionId
   purpose: ModelPurpose
   position: ConsumerRef
-  source: Evidence
+  source: DurableEvidence
   state: JsonValue
   schema: Adoption
 }> &
@@ -77,23 +81,23 @@ export type Preparation = Readonly<{
     | Readonly<{
         kind: 'assembled'
         input: M.AssembledModelInput
-        budget: Evidence
+        budget: DurableEvidence
         recipient: ModelRecipient
-        coverage: Evidence
+        coverage: DurableEvidence
       }>
     | Readonly<{
         kind: 'ready'
         request: M.FixedModelRequest
         capacity: M.ResultCapacity
-        budget: Evidence
+        budget: DurableEvidence
         recipient: ModelRecipient
-        coverage: Evidence
+        coverage: DurableEvidence
       }>
     | Readonly<{
         kind: 'needs-compaction'
         original: Readonly<{
-          input: Evidence
-          alterations: readonly Evidence[]
+          input: DurableEvidence
+          alterations: readonly DurableEvidence[]
           beforeModelCall: readonly PassageId[] | null
         }>
         progress: CompactionProgress
@@ -125,8 +129,8 @@ export type FinalRequest = Readonly<{
   request: M.FixedModelRequest
   capacity: M.ResultCapacity
   recipient: ModelRecipient
-  coverage: Evidence
-  alterations: readonly Evidence[]
+  coverage: DurableEvidence
+  alterations: readonly DurableEvidence[]
 }>
 /** The port that prepares, derives and resumes a model request; see SPEC "请求准备与压缩". */
 export interface RequestPreparation<P> {
@@ -137,13 +141,13 @@ export interface RequestPreparation<P> {
         action: ActionId
         purpose: Exclude<ModelPurpose, 'compaction'>
         position: ConsumerRef
-        history: Evidence
+        history: DurableEvidence
         inputs: InputBatch
         conditions: RuntimeConditions
         selection: SelectedModel
         context: ModelContextRead
         previous: Preparation | null
-        alterations: readonly Evidence[]
+        alterations: readonly DurableEvidence[]
         beforeModelCall: readonly PassageId[] | null
       }>,
   ): Reply<Preparation>
@@ -155,7 +159,7 @@ export interface RequestPreparation<P> {
         progress: CompactionProgress
         action: ActionId
         selection: SelectedModel
-        result: Readonly<{ produced: ProducedResult; consumed: Evidence }> | null
+        result: Readonly<{ produced: ProducedResult; consumed: DurableEvidence }> | null
       }>,
   ): Reply<CompactionAdvance>
   resume(
@@ -163,7 +167,7 @@ export interface RequestPreparation<P> {
       Readonly<{
         advance: Authority
         original: Extract<Preparation, { kind: 'needs-compaction' }>
-        transition: Evidence
+        transition: DurableEvidence
         selection: SelectedModel
         context: ModelContextRead
       }>,
@@ -172,6 +176,6 @@ export interface RequestPreparation<P> {
 /** The port that reads the current runtime conditions through a trusted adapter; see SPEC "身份、原位置与纯求值". */
 export interface CurrentConditions<P> {
   read(
-    input: Access<P> & Readonly<{ advance: Authority; previous: Evidence | null }>,
+    input: Access<P> & Readonly<{ advance: Authority; previous: DurableEvidence | null }>,
   ): Reply<RuntimeConditions>
 }

@@ -189,7 +189,7 @@
 
 ### 依据与证据
 
-`basis` 记录裁定所依：操作、目标、租户、参数摘要、已核验的主体、读到的成员事实、要求的资格、出示的许可。未出示许可时 `basis.permit` 为 null，读者据此知道这次允许不依赖任何许可。参数摘要进入 `basis`，所以证据摘要随参数变化。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。消费方把四个成员逐项映射到自己的证据类型。
+`basis` 记录裁定所依：操作、目标、租户、参数摘要、已核验的主体、读到的成员事实、要求的资格、出示的许可。未出示许可时 `basis.permit` 为 null，读者据此知道这次允许不依赖任何许可。参数摘要进入 `basis`，所以证据摘要随参数变化。证据是 `{ owner: 'authorization', record, revision, digest }`。`record` 是 `admission/<operation.owner>/<operation.name>`。`revision` 是裁定所依身份事实的修订；没有读到事实时是 `0`。`digest` 是 `{ kind, reason?, basis }` 规范 JSON 文本的 SHA-256。读者用 `digestOf` 重算并比较。证据类型是 `DurableEvidence & { owner: 'authorization' }`。`DurableEvidence` 的唯一定义在 exchange-refs，消费方契约再导出同一类型，所以不需要逐项映射。摘要算法仍归本成员。
 
 裁定保存值数据的自有不可变快照，包括操作、目标、参数摘要、要求的资格、许可引用包装，以及成员事实中的角色、模型、资格与证据。调用方后续修改这些输入，不能改变已返回的依据或其可重算摘要。快照不冻结调用方对象。已核验主体与已铸造租户按原对象保留，不通过 JSON 复制或重新铸造改变其身份。
 
@@ -235,7 +235,7 @@
 
 ### 验证
 
-`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。`tests/access-equivalence.spec-d.ts` 核对 `Access<P>` 与 agent、tool、model、执行环境、request-context 五份契约副本是同一类型。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
+`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
 
 ## 披露与后续治理操作
 

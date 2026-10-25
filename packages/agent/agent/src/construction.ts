@@ -22,7 +22,7 @@ import type {
   CallerCommit,
   CurrentConditions,
   DecisionCards,
-  Evidence,
+  DurableEvidence,
   ExtensionImplementations,
   MessageHandoff,
   ModelContextReader,
@@ -35,7 +35,7 @@ import type {
 export type AgentRuntimeBinding = Readonly<{
   instance: AgentInstanceId
   tenant: TenantId
-  scope: Evidence
+  scope: DurableEvidence
   definition: Adoption
 }>
 

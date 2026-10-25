@@ -31,6 +31,7 @@
     "packages/common/content-block/api",
     "packages/common/modality/api",
     "packages/common/stream-arrival/api",
+    "packages/common/exchange-refs/api",
     "packages/tool/tool-contract/api",
     "packages/tool/tool-cordis-contract/api",
     "packages/execution/execution-environment-contract/api",
@@ -90,6 +91,7 @@
         "packages/common/content-block",
         "packages/common/modality",
         "packages/common/stream-arrival",
+        "packages/common/exchange-refs",
         "docs/domains/model-invocation",
         ".meta_harness/design/product/model-invocation"
       ],
@@ -99,7 +101,8 @@
         "packages/common/message",
         "packages/common/content-block",
         "packages/common/modality",
-        "packages/common/stream-arrival"
+        "packages/common/stream-arrival",
+        "packages/common/exchange-refs"
       ]
     },
     {

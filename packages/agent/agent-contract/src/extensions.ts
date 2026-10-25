@@ -9,7 +9,7 @@ import type {
   AgentExecutionId,
   AgentInstant,
   CardRoundId,
-  Evidence,
+  DurableEvidence,
   PassageId,
 } from './identity.ts'
 import type { CardAnswer, Subject } from './passages.ts'
@@ -153,8 +153,8 @@ export type ExtensionReplayBinding = Readonly<{
     round: CardRoundId
     cards: readonly Readonly<{
       identity: string
-      card: Evidence
-      response: Readonly<{ evidence: Evidence; answer: CardAnswer }> | null
+      card: DurableEvidence
+      response: Readonly<{ evidence: DurableEvidence; answer: CardAnswer }> | null
     }>[]
   }>[]
   control: 'valid' | 'replayInconsistent' | 'unavailable'

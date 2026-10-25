@@ -1,5 +1,6 @@
 // Declarations of the public-api chapter "结果、失败和状态".
 import type { Outcome } from '@omne-harness/operation-result'
+import type { DurableEvidence } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ReasoningStatePart, ToolCallPart } from '@omne-harness/message'
 import type { ModelInvocationRef } from './reference.ts'
@@ -125,12 +126,8 @@ export type Admission = Readonly<{
   recovered: boolean
   reference: ModelInvocationRef
 }>
-export type DurableEvidence = Readonly<{
-  owner: string
-  record: string
-  revision: string
-  digest: string
-}>
+// One definition in exchange-refs. The digest algorithm belongs to the owner of the evidence.
+export type { DurableEvidence } from '@omne-harness/exchange-refs'
 export type Handoff =
   | Readonly<{ kind: 'processed'; completion: DurableEvidence }>
   | Readonly<{ kind: 'retained'; custody: DurableEvidence }>

@@ -10,7 +10,7 @@
 
 | 源文件 | 承载 | 条款 |
 | --- | --- | --- |
-| `identity.ts` | 访问身份 `Access`、原调用引用 `OriginRef`、获取幂等键 `AcquisitionRef`，以及两个引用的构造函数 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、[INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束) |
+| `identity.ts` | 访问身份 `Access`（再导出 legal-identity 的唯一定义）、原调用引用 `OriginRef`、获取幂等键 `AcquisitionRef`，以及两个引用的构造函数 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、[INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束) |
 | `binding.ts` | 四种绑定层 `EnvironmentBinding`、连续性 `EnvironmentContinuity`、`bindingKinds`、`bindingScope` | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、[INV-EE06](../SPEC.md#inv-ee06-逻辑工作实例资源和数据不共用寿命) |
 | `requirement.ts` | 开放的隔离断言表 `IsolationClaims` 与环境要求 `EnvironmentRequirement` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足) |
 | `facility.ts` | 开放的设施表 `EnvironmentFacilities`、设施声明、设施请求、设施结果四态、拒绝原因，以及 `describeFacility` | [设施协议](../SPEC.md#设施协议) |

@@ -1,5 +1,6 @@
 // Declarations of the public-api chapter "根入口的值与请求".
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { Access } from '@omne-harness/legal-identity'
+import type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -36,20 +37,11 @@ export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
   reason: 'type' | 'empty' | 'length' | 'prefix' | 'character' | 'leading-zero'
 }>
 
-export type Adoption = Readonly<{
-  owner: string
-  name: string
-  revision: string
-  digest: string
-}>
-export type ConsumerRef = Readonly<{
-  owner: string
-  work: string
-  position: string
-  purpose: string
-}>
+// `Adoption` and `ConsumerRef` have one definition in exchange-refs, `Access` has one in
+// legal-identity. The closed judgments and the digest rule stay in request-shape.ts.
+export type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs'
+export type { Access } from '@omne-harness/legal-identity'
 export type ActorRef = Readonly<{ owner: string; subject: string; revision: string }>
-export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
 export type ModelReferenceAccess<P> = Access<P> & Readonly<{ reference: ModelInvocationRef }>
 export type CallAccess<P> = Access<P> & Readonly<{ call: ModelCallId }>
 export type Mutation<P> = CallAccess<P> & Readonly<{ operation: ModelOperationId }>

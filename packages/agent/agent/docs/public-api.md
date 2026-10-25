@@ -18,7 +18,7 @@ import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Adoption,
-  Evidence,
+  DurableEvidence,
   AgentInstanceId,
   AgentAdoptions,
   CurrentConditions,
@@ -46,7 +46,7 @@ import type {
 export type AgentRuntimeBinding = Readonly<{
   instance: AgentInstanceId
   tenant: TenantId
-  scope: Evidence
+  scope: DurableEvidence
   definition: Adoption
 }>
 export type AgentConfiguration = Readonly<{

@@ -21,7 +21,6 @@ import {
   type AgentAccessDecision,
   type AgentAccessTarget,
   type Authority,
-  type Evidence as AgentEvidence,
 } from '@omne-harness/agent-contract'
 import type { AccessVerdict, ToolAccessGuard } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
@@ -32,7 +31,7 @@ import {
   type AdmissionCheck,
   type AdmissionDecision,
   type AdmissionTarget,
-  type EvidenceRef,
+  type DurableEvidence,
 } from '@omne-harness/authorization'
 import {
   DEFAULT_ROLES,
@@ -46,16 +45,6 @@ import {
 
 // ---------------------------------------------------------------------------------------------
 // The adapters
-
-/** Maps the four members of an evidence one by one; the shapes agree, the types stay the owners'. */
-function agentEvidence(evidence: EvidenceRef): AgentEvidence {
-  return {
-    owner: evidence.owner,
-    record: evidence.record,
-    revision: evidence.revision,
-    digest: evidence.digest,
-  }
-}
 
 function agentTarget(target: AgentAccessTarget): AdmissionTarget {
   switch (target.kind) {
@@ -75,7 +64,7 @@ function agentTarget(target: AgentAccessTarget): AdmissionTarget {
 function toAgentAccessDecision(decision: AdmissionDecision): AgentAccessDecision {
   switch (decision.kind) {
     case 'allowed':
-      return { kind: 'allowed', evidence: agentEvidence(decision.evidence) }
+      return { kind: 'allowed', evidence: decision.evidence }
     case 'denied':
       return { kind: 'denied' }
     case 'unavailable':
@@ -103,9 +92,9 @@ function agentAccessCheck(check: AdmissionCheck): AgentAccessCheck<Principal> {
 function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDecision {
   switch (decision.kind) {
     case 'allowed':
-      return { kind: 'allow', evidence: agentEvidence(decision.evidence) }
+      return { kind: 'allow', evidence: decision.evidence }
     case 'denied':
-      return { kind: 'deny', reason: decision.reason, evidence: agentEvidence(decision.evidence) }
+      return { kind: 'deny', reason: decision.reason, evidence: decision.evidence }
     case 'unavailable':
       return { kind: 'unavailable', diagnostic: decision.diagnostic }
   }
@@ -202,7 +191,7 @@ function startCoordinatorAccess(check: AdmissionCheck): StartCoordinatorAccess<P
 type SessionAccessOperation = 'read-history' | 'append' | 'change' | 'begin' | 'next'
 type SessionAccessTarget = Readonly<{ kind: 'session'; session: string }>
 type SessionAccessDecision =
-  | Readonly<{ kind: 'allowed'; evidence: EvidenceRef }>
+  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 interface SessionAccessCheck<P> {
@@ -259,7 +248,7 @@ function blockId(text: string): Original['id'] {
   return text
 }
 
-const EVIDENCE: AgentEvidence = { owner: 'agent', record: 'exec_1', revision: '1', digest: 'd' }
+const EVIDENCE: DurableEvidence = { owner: 'agent', record: 'exec_1', revision: '1', digest: 'd' }
 
 function authority(): Authority {
   return {

@@ -17,7 +17,7 @@ import {
   type AgentJournal,
   type Authority,
   type CommandReceipt,
-  type Evidence,
+  type DurableEvidence,
   type ExecutionSnapshot,
   type JournalCommit,
   type ModelReplyAdmission,
@@ -65,7 +65,7 @@ export const passageId = (text: string) => decoded(decodePassageId(text))
 export const attachment = (text = 'attachment-1') => decoded(decodeExecutionAttachmentId(text))
 export const modelCall = (text: string) => decoded(decodeModelCallId(`mcall_${text}`))
 
-export function evidence(record: string): Evidence {
+export function evidence(record: string): DurableEvidence {
   return { owner: 'journal-test', record, revision: '1', digest: `test:${record}` }
 }
 

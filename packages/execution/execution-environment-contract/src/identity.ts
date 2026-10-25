@@ -1,13 +1,14 @@
-import type { TenantId } from '@omne-harness/legal-identity'
-
 /** Opaque identity of the original call that resources and adoption records hang on. */
 export type OriginRef = string & { readonly __origin: unique symbol }
 
 /** Idempotency key the caller gives to one acquisition. */
 export type AcquisitionRef = string & { readonly __acquisition: unique symbol }
 
-/** Access identity: the environment only passes the principal on; it neither compares nor interprets it. */
-export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
+/**
+ * Access identity, re-exported from legal-identity, which has the one definition. The environment
+ * only passes the principal on; it neither compares nor interprets it.
+ */
+export type { Access } from '@omne-harness/legal-identity'
 
 function isOriginText(text: string): text is OriginRef {
   return text.length > 0

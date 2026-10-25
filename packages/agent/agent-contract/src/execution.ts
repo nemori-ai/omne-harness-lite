@@ -32,7 +32,7 @@ import type {
   Authority,
   ConsumptionId,
   Continuation,
-  Evidence,
+  DurableEvidence,
   ExecutionAttachmentId,
   ExecutionRevision,
   InputId,
@@ -44,15 +44,15 @@ export type ExecutionState =
   | Readonly<{ kind: 'reconciling' | 'advancing' }>
   | Readonly<{ kind: 'waiting'; waits: readonly Waiting[] }>
   | Readonly<{ kind: 'settling'; intent: FinishIntent }>
-  | Readonly<{ kind: 'suspended'; handoff: Evidence }>
-  | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: Evidence }>
+  | Readonly<{ kind: 'suspended'; handoff: DurableEvidence }>
+  | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: DurableEvidence }>
 export type ExecutionSnapshot = Readonly<{
   execution: AgentExecutionId
   revision: ExecutionRevision
   state: ExecutionState
   checkpoint: AgentCheckpoint
-  inputWatermark: Evidence
-  history: Evidence
+  inputWatermark: DurableEvidence
+  history: DurableEvidence
   replyAdmissions: ReplyAdmissionProjection
   executionAttachment: Authority | null
   unresolved: readonly AgentOperationId[]
@@ -79,20 +79,20 @@ export type AgentState =
 export type AcceptedInput = Readonly<{
   id: InputId
   content: Message
-  source: Evidence | null
+  source: DurableEvidence | null
   priority: 'ordinary' | 'urgent'
 }>
 export type TerminalObservation = Readonly<{
-  terminal: Evidence
+  terminal: DurableEvidence
   passage: PassageId
   implementation: Adoption
-  observed: Evidence | null
+  observed: DurableEvidence | null
 }>
 export type FinishIntent = Readonly<{
   conclusion: AgentConclusion
-  inputWatermark: Evidence
-  obligations: Evidence
-  beforeTerminal: Evidence | null
+  inputWatermark: DurableEvidence
+  obligations: DurableEvidence
+  beforeTerminal: DurableEvidence | null
   failure: FailureCandidate | null
 }>
 export type FinishResult =
@@ -101,16 +101,20 @@ export type FinishResult =
   | Readonly<{
       kind: 'blocked'
       reason: 'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
-      source: Evidence
+      source: DurableEvidence
     }>
 export type FinishAuthorization =
   | Readonly<{ kind: 'advancement'; authority: Authority }>
-  | Readonly<{ kind: 'cancel'; control: AgentOperationId; source: Evidence }>
+  | Readonly<{ kind: 'cancel'; control: AgentOperationId; source: DurableEvidence }>
 export type ExecutionControl =
-  | Readonly<{ kind: 'interrupt-model'; call: M.ModelCallId; reason: Evidence }>
-  | Readonly<{ kind: 'interrupt-tool' | 'background-tool'; call: T.ToolCallId; reason: Evidence }>
-  | Readonly<{ kind: 'cancel'; reason: Evidence }>
-  | Readonly<{ kind: 'suspend'; reason: Evidence }>
+  | Readonly<{ kind: 'interrupt-model'; call: M.ModelCallId; reason: DurableEvidence }>
+  | Readonly<{
+      kind: 'interrupt-tool' | 'background-tool'
+      call: T.ToolCallId
+      reason: DurableEvidence
+    }>
+  | Readonly<{ kind: 'cancel'; reason: DurableEvidence }>
+  | Readonly<{ kind: 'suspend'; reason: DurableEvidence }>
 export type ControlStage =
   | 'accepted'
   | 'intent-established'
@@ -118,7 +122,10 @@ export type ControlStage =
   | 'producer-confirmed'
   | 'physically-stopped'
   | 'duty-released'
-export type ControlStageFact = Readonly<{ state: 'reached' | 'unresolved'; source: Evidence }>
+export type ControlStageFact = Readonly<{
+  state: 'reached' | 'unresolved'
+  source: DurableEvidence
+}>
 type ToolControl = Extract<ExecutionControl, { kind: 'interrupt-tool' | 'background-tool' }>
 export type ControlRecord = Readonly<{
   operation: AgentOperationId
@@ -143,9 +150,9 @@ export type ControlRecord = Readonly<{
 export type ResultResponsibility = Readonly<{
   result: ProducedResult
   consumption: ConsumptionId
-  custody: Evidence | null
-  completion: Evidence | null
-  release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: Evidence }>
+  custody: DurableEvidence | null
+  completion: DurableEvidence | null
+  release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: DurableEvidence }>
 }>
 export type ExecutionMutation<P> = Access<P> &
   Readonly<{
@@ -156,18 +163,18 @@ export type CommandReceipt = Readonly<{
   operation: AgentOperationId
   execution: AgentExecutionId
   revision: ExecutionRevision
-  evidence: Evidence
+  evidence: DurableEvidence
   state: 'accepted' | 'applied' | 'unresolved'
 }>
 export type AgentEventBody =
   | Readonly<{ kind: 'input-taken'; batch: InputBatch }>
-  | Readonly<{ kind: 'message'; message: Message; source: Evidence }>
+  | Readonly<{ kind: 'message'; message: Message; source: DurableEvidence }>
   | Readonly<{ kind: 'producer'; result: ProducedResult; consumption: ConsumptionId }>
   | Readonly<{
       kind: 'stream'
       producer: ProducedResult['producer']
       cursor: string
-      source: Evidence
+      source: DurableEvidence
       schema: Adoption
       value: JsonValue
     }>
@@ -177,20 +184,20 @@ export type AgentEventBody =
       operation: AgentOperationId
       stage: ControlStage
       state: 'reached' | 'unresolved'
-      source: Evidence
+      source: DurableEvidence
     }>
-  | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: Evidence }>
+  | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: DurableEvidence }>
 export type AgentEvent = Readonly<{
   execution: AgentExecutionId
   sequence: string
   executionAttachment: ExecutionAttachmentId
   schema: Adoption
-  cause: Evidence
+  cause: DurableEvidence
   body: AgentEventBody
 }>
 export type EventPage =
   | Readonly<{ kind: 'page'; events: readonly AgentEvent[]; next: string; caughtUp: boolean }>
-  | Readonly<{ kind: 'gap'; retainedFrom: string; recovery: Evidence }>
+  | Readonly<{ kind: 'gap'; retainedFrom: string; recovery: DurableEvidence }>
 /** The input view of one execution handle; see SPEC "托管协调与运行实例". */
 export interface AgentExecutionInput<P> {
   submit(input: ExecutionMutation<P> & Readonly<{ value: AcceptedInput }>): Reply<CommandReceipt>
@@ -212,7 +219,7 @@ export interface AgentExecutionEvents<P> {
       Readonly<{ execution: AgentExecutionId; after: string | null; signal: AbortSignal }>,
   ): AsyncIterable<Outcome<EventPage, Failure>>
   acknowledge(
-    input: ExecutionMutation<P> & Readonly<{ through: string; receipt: Evidence | null }>,
+    input: ExecutionMutation<P> & Readonly<{ through: string; receipt: DurableEvidence | null }>,
   ): Reply<CommandReceipt>
 }
 /** The input, control and output views of the one execution that invoke or resume returned; see SPEC "托管协调与运行实例". */
@@ -226,10 +233,12 @@ export interface AgentExecutionHandle<P> {
 export interface AgentRuntime<P> {
   readonly instance: AgentInstanceId
   invoke(
-    input: ExecutionMutation<P> & Readonly<{ initial: AcceptedInput; grant: Evidence | null }>,
+    input: ExecutionMutation<P> &
+      Readonly<{ initial: AcceptedInput; grant: DurableEvidence | null }>,
   ): Reply<AgentExecutionHandle<P>>
   resume(
-    input: ExecutionMutation<P> & Readonly<{ recovery: Evidence; grant: Evidence | null }>,
+    input: ExecutionMutation<P> &
+      Readonly<{ recovery: DurableEvidence; grant: DurableEvidence | null }>,
   ): Reply<AgentExecutionHandle<P>>
 }
 export type AgentObservation =
@@ -253,16 +262,16 @@ export interface AgentExecutionRecovery<P> {
     input: ExecutionMutation<P>,
   ): Reply<
     | Readonly<{ kind: 'committed'; receipt: CommandReceipt }>
-    | Readonly<{ kind: 'excluded'; evidence: Evidence }>
+    | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
     | Readonly<{ kind: 'unknown' }>
   >
   load(input: Access<P> & Readonly<{ execution: AgentExecutionId }>): Reply<ExecutionSnapshot>
   reconcile(
     input: ExecutionMutation<P>,
-  ): Reply<Readonly<{ remaining: readonly ConsumptionId[]; evidence: Evidence }>>
+  ): Reply<Readonly<{ remaining: readonly ConsumptionId[]; evidence: DurableEvidence }>>
   detach(
-    input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: Evidence }>,
-  ): Reply<Evidence>
+    input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
+  ): Reply<DurableEvidence>
 }
 /** The port that resolves an adoption into its definition, evaluator and extensions and hands a snapshot over to another adoption; see SPEC "采用交接". */
 export interface AgentAdoptions<P> {
@@ -281,7 +290,7 @@ export interface AgentAdoptions<P> {
         snapshot: ExecutionSnapshot
         original: Continuation
       }>,
-  ): Reply<Readonly<{ continuation: Continuation; evidence: Evidence }>>
+  ): Reply<Readonly<{ continuation: Continuation; evidence: DurableEvidence }>>
 }
 export type RegistrationState = 'published' | 'withdrawing' | 'withdrawn'
 export type Registration = Readonly<{
@@ -293,14 +302,14 @@ export interface AgentRegistrationHandle<P> {
   readonly instance: AgentInstanceId
   report(input: Readonly<{ state: AgentState }>): void
   withdraw(
-    input: Access<P> & Readonly<{ operation: AgentOperationId; reason: Evidence }>,
+    input: Access<P> & Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
   ): Reply<Registration | null>
 }
 /** The host that reserves, publishes and withdraws instances and owns the directory; see SPEC "创建、登记与复用". */
 export interface AgentInstanceHost<P> {
   reserve(
     input: Access<P> &
-      Readonly<{ operation: AgentOperationId; scope: Evidence; definition: Adoption }>,
+      Readonly<{ operation: AgentOperationId; scope: DurableEvidence; definition: Adoption }>,
   ): Reply<
     Readonly<{
       instance: AgentInstanceId
@@ -312,7 +321,7 @@ export interface AgentInstanceHost<P> {
       Readonly<{
         operation: AgentOperationId
         instance: AgentInstanceId
-        scope: Evidence
+        scope: DurableEvidence
         state: AgentState
       }>,
   ): Reply<Registration>
@@ -329,12 +338,12 @@ export interface AgentInstanceHost<P> {
 export type QuiesceResult = Readonly<{
   kind: 'drained' | 'unresolved'
   remaining: readonly AgentExecutionId[]
-  evidence: Evidence
+  evidence: DurableEvidence
 }>
 /** The control plane that retires an instance, given by the runtime provider to the host only; see SPEC "交接与停用". */
 export interface AgentRuntimeControl<P> {
   quiesce(
-    input: Access<P> & Readonly<{ operation: AgentOperationId; reason: Evidence }>,
+    input: Access<P> & Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
   ): Reply<QuiesceResult>
 }
 export type AgentAccessOperation =
@@ -359,11 +368,11 @@ export type AgentAccessOperation =
   | 'detach'
   | 'record-terminal-observation'
 export type AgentAccessTarget =
-  | Readonly<{ kind: 'scope'; scope: Evidence; definition: Adoption }>
+  | Readonly<{ kind: 'scope'; scope: DurableEvidence; definition: Adoption }>
   | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>
   | Readonly<{ kind: 'execution'; instance: AgentInstanceId; execution: AgentExecutionId }>
 export type AgentAccessDecision =
-  | Readonly<{ kind: 'allowed'; evidence: Evidence }>
+  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 /** The port of the authorization domain that checks the current standing of a principal for one public operation; see SPEC "主体资格核验". */
