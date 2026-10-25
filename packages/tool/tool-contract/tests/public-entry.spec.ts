@@ -12,13 +12,15 @@ import {
 
 it('exports on the root only the names members outside the Tool group import, and their closure', () => {
   // SPEC「公开入口的分组」rule 1: the root runtime names are the reference codecs and the two
-  // identity decoders that members outside `packages/tool` import. The grouping table of the
+  // identity decoders that members outside `packages/tool` import, and by rule 3 the relation
+  // check of a result push, which receivers outside the group call. The grouping table of the
   // switch is in the PR (tmp/issue-626/provider-split.md).
   expect(Object.keys(tool).sort()).toEqual([
     'decodeToolCallId',
     'decodeToolOperationId',
     'encodeToolInvocationRef',
     'encodeToolOperationRef',
+    'judgeToolDelivery',
     'readToolOperationRef',
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
@@ -136,12 +138,14 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'clockAnswers',
     'completedFinal',
     'completionOf',
+    'createMemoryAuthorizedToolStartAuthority',
     'createMemoryToolClock',
     'createMemoryToolDecisionBridge',
     'createMemoryToolEnvironment',
     'createMemoryToolExecutorBinding',
     'createMemoryToolOutputCustody',
     'createMemoryToolResourceResponses',
+    'createMemoryToolResultReceiver',
     'createMemoryToolStartAuthority',
     'crossTenantAnswers',
     'decisionBridgeAnswers',
@@ -156,7 +160,10 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'memoryToolExecutorBindingFixture',
     'memoryToolOutputCustodyFixture',
     'memoryToolResourceResponsesFixture',
+    'memoryToolResultReceiverFixture',
     'memoryToolStartAuthorityFixture',
+    'memoryToolStartAuthorizationFixture',
+    'memoryToolStartFenceFixture',
     'outputCustodyAnswers',
     'resendRecalls',
     'resourceResponsesAnswers',
@@ -169,7 +176,10 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'toolExecutorBindingConformance',
     'toolOutputCustodyConformance',
     'toolResourceResponsesConformance',
+    'toolResultReceiverConformance',
     'toolStartAuthorityConformance',
+    'toolStartAuthorizationConformance',
+    'toolStartFenceConformance',
   ])
   const provider = await import('@omne-harness/tool-contract/provider')
   for (const name of Object.keys(testing)) {

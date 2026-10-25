@@ -4,7 +4,7 @@
 
 ## 服务定义与入口
 
-`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、20 个键常量和事件增补。[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的两个键 `toolContributionAuthority`、`toolGenerations` 与事件 `binding-changed` 已进入源码；它们的提供者尚未交付。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
+`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、21 个键常量和事件增补。[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的两个键 `toolContributionAuthority`、`toolGenerations` 与事件 `binding-changed` 已进入源码；它们的提供者尚未交付。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -139,7 +139,8 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolResultPolicy | ResultPolicy | Tool | 结果处理必需；固定B及版本，缺失保留原输出与明确失败，不重做效果 |
 | toolReads | ToolReads | Tool | 持久读取，门面必需；无活体也可查 |
 | toolCatalog | ToolCatalog | Tool | 定义及用法；当前消费方档案必须核验 |
-| toolStartAuthority | ToolStartAuthority | Tool | 启动阶段必需；跨拥有者失效共排序 |
+| toolStartAuthority | ToolStartAuthority | Tool | 启动阶段必需；工作资格与推进资格的失效共排序，身份与权限的撤权在 consume 再核（[授权消费点与撤权再核](../../tool-contract/SPEC.md#授权消费点与撤权再核)） |
+| toolStartFence | ToolStartFence（ToolStartAuthority 的 invalidate 视图） | Tool | 外层调用方使启动失效时必需；与 toolStartAuthority 由同一提供者兑现同一排序域，两个键分属两个排序域的装配不具备启动围栏保证；失效证据由外层调用方写成独立的 `start-fence` 条目（[外层调用方的启动围栏](../../tool-contract/SPEC.md#外层调用方的启动围栏)） |
 | toolResourceResponses | ToolResourceResponses | Tool | 资源应答阶段局部必需 |
 | toolOutputCustody | ToolOutputCustody | Tool | 原输出与附件保管阶段必需 |
 | toolChildren | ToolChildren | Tool | 程序执行方组合阶段必需；父程序退出后由scanPending/loadRecovery驱动child和program-fence待办 |

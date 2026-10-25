@@ -1,10 +1,10 @@
 # Tool 公开入口与设计定义
 
-公开名字分两个入口，规则见 [SPEC「公开入口的分组」](../SPEC.md#公开入口的分组)。根入口 `@omne-harness/tool-contract` 导出 Tool 组外成员实际导入的名字及其声明的传递闭包：调用与操作引用的 codec（`encodeToolInvocationRef`、`encodeToolOperationRef`、`readToolOperationRef`、`resolveToolInvocationRef`、`resolveToolOperationRef`）、`decodeToolCallId`、`decodeToolOperationId`，以及 `ToolRuntime`、`ToolDefinition`、`ToolAvailability`、`ToolFailure`、`ResultPage` 等类型和它们到达的类型。子路径入口 `@omne-harness/tool-contract/provider` 导出只被 Tool 组实现成员使用的提供者协议：资产正文端口 `toolBodyContract`、`describedAdoption`、其余品牌身份解码函数、默认结果政策、契约函数（定义、请求、交付解除与状态的判定，呈现与可用性，作者注册，定义派生与常驻规则纯函数，等待契约，默认参数 codec，结果渲染与投影）、由外部提供者实现的端口、协议记录、保管与账目读写端口、装载与绑定登记表。一个名字只从一个入口导出；下文各节按主题导航源码模块，不再逐名标注入口，精确归属以 [src/index.ts](../src/index.ts) 与 [src/provider.ts](../src/provider.ts) 为准。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。两个入口都不导入 Cordis，也不导入提供者成员。
+公开名字分两个入口，规则见 [SPEC「公开入口的分组」](../SPEC.md#公开入口的分组)。根入口 `@omne-harness/tool-contract` 导出 Tool 组外成员实际导入的名字及其声明的传递闭包：调用与操作引用的 codec（`encodeToolInvocationRef`、`encodeToolOperationRef`、`readToolOperationRef`、`resolveToolInvocationRef`、`resolveToolOperationRef`）、`decodeToolCallId`、`decodeToolOperationId`，以及 `ToolRuntime`、`ToolDefinition`、`ToolAvailability`、`ToolFailure`、`ResultPage` 等类型和它们到达的类型。按规则 3，结果推送的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）也在根入口。子路径入口 `@omne-harness/tool-contract/provider` 导出只被 Tool 组实现成员使用的提供者协议：资产正文端口 `toolBodyContract`、`describedAdoption`、其余品牌身份解码函数、默认结果政策、契约函数（定义、请求、交付解除与状态的判定，呈现与可用性，作者注册，定义派生与常驻规则纯函数，等待契约，默认参数 codec，结果渲染与投影）、由外部提供者实现的端口、协议记录（含启动围栏视图 `ToolStartFence`、受理记录 `ToolStartAcceptance` 与许可引用 `ToolPermitRef`、`ToolPermitConsumption`）、保管与账目读写端口、装载与绑定登记表。一个名字只从一个入口导出；下文各节按主题导航源码模块，不再逐名标注入口，精确归属以 [src/index.ts](../src/index.ts) 与 [src/provider.ts](../src/provider.ts) 为准。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。两个入口都不导入 Cordis，也不导入提供者成员。
 
 公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。`createToolRuntime`、`createToolLedger`、`executeTool` 与 `createIndependentToolScope` 在 `@omne-harness/tool`，导航见该包的 public-api（`tool/docs/public-api.md`）。其中 `executeTool` 与 `createIndependentToolScope` 已实现。`createToolLedger` 与 `createToolRuntime` 只实现了一部分路径，其余操作回复具名的 `unsupported`。宿主在 `@omne-harness/tool-host-local`：G5 的 `createLocalStartCoordinator` 已实现，G4 的宿主时钟与 G7 的绑定登记表尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。
 
-服务定义、18 个服务键和 `tool-cordis-contract/call-changed` 事件增补由 `@omne-harness/tool-cordis-contract/cordis` 导出，本包不导出它们。源码是 [tool-cordis-contract/src/cordis.ts](../../tool-cordis-contract/src/cordis.ts)，装配规则归 [cordis](../../tool-cordis-contract/docs/cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
+服务定义、21 个服务键和 `tool-cordis-contract/call-changed` 事件增补由 `@omne-harness/tool-cordis-contract/cordis` 导出，本包不导出它们。源码是 [tool-cordis-contract/src/cordis.ts](../../tool-cordis-contract/src/cordis.ts)，装配规则归 [cordis](../../tool-cordis-contract/docs/cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
 
 ## 值、定义和固定请求
 
@@ -79,6 +79,12 @@
 
 [行为与约束](../SPEC.md#342-结果过程与后继责任)。
 
+## 结果推送与保存
+
+[行为与约束](../SPEC.md#结果推送与保存)。
+
+- [result-delivery.ts](../src/result-delivery.ts)：接收端口 `ToolResultReceiver<P, B>`（由消费拥有者实现）、冻结载荷 `ToolDelivery<B>`（result 与 account 两个分支）、认回键 `ToolDeliveryKey`、saved 回执 `ToolSavedReceipt`、失败 `ToolDeliveryFailure`，以及纯关系判定 `judgeToolDelivery` 与它的失败 `ToolDeliveryRejection`。判定不查存储、当前资格或原 consumer，成功时原样返回输入。
+
 <a id="当前增量与验证边界"></a>
 
 ## 运行契约的验证边界
@@ -104,7 +110,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 
 这些值是提供者协议，不开放给脚本。值引用均须查验其拥有者记录。时间、序号和字节计数使用规范非负十进制字符串，解析边界禁止符号、前导零、非整数和溢出投影。
 
-- [records.ts](../src/records.ts)：物理执行、队列位置、计时、协议身份、准备与释放、启动进度与围栏、等待意图与记录、外部回应、控制、检查点、事实批次、程序调度、待办任务与排空状态。
+- [records.ts](../src/records.ts)：物理执行、队列位置、计时、协议身份、准备与释放、启动进度与围栏、外层调用方的启动围栏视图 `ToolStartFence`（[外层调用方的启动围栏](../SPEC.md#外层调用方的启动围栏)）、受理记录 `ToolStartAcceptance` 与许可引用 `ToolPermitRef`、`ToolPermitConsumption`（[授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核)）、等待意图与记录、外部回应、控制、检查点、事实批次、程序调度、待办任务与排空状态。
 
 ## 输出保管、持久读取与账目
 
@@ -123,6 +129,9 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 | `ToolClock` | `toolClockConformance`，`ToolClockFixture` | [P07](../SPEC.md#p07-计时控制与检查点) | `createMemoryToolClock` |
 | `ToolDecisionBridge` | `toolDecisionBridgeConformance`，`ToolDecisionBridgeFixture` | [P06](../SPEC.md#p06-内部等待与答复)、[P12](../SPEC.md#p12-等待-schema-与响应提交) | `createMemoryToolDecisionBridge` |
 | `ToolResourceResponses` | `toolResourceResponsesConformance`，`ToolResourceResponsesFixture` | P06、P12 | `createMemoryToolResourceResponses` |
+| `ToolStartFence`（与 `ToolStartAuthority` 同一提供者） | `toolStartFenceConformance`，`ToolStartFenceFixture` | [外层调用方的启动围栏](../SPEC.md#外层调用方的启动围栏) | `createMemoryToolStartAuthority` 的同一实例，夹具 `memoryToolStartFenceFixture` |
+| `ToolStartAuthority` 的授权消费点 | `toolStartAuthorizationConformance`，`ToolStartAuthorizationFixture`，手柄 `ToolStartAuthorizationHandles`，读数 `ToolPermitReading` | [授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核) | `createMemoryAuthorizedToolStartAuthority`（另有 `acceptanceOf`，读出受理记录） |
+| `ToolResultReceiver` | `toolResultReceiverConformance`，`ToolResultReceiverFixture` | [结果推送与保存](../SPEC.md#结果推送与保存) | `createMemoryToolResultReceiver` |
 
 - 用例的形状是共用类型 `ConformanceCase<F>`：`name`、`clause`（SPEC 条款锚点，如 `P04`）和 `run(fixture)`。套件函数返回只读用例数组。用例以 `node:assert/strict` 的 `AssertionError` 表示失败。
 - 夹具由消费方的工厂在每条用例前新建一次。必需成员是被测端口和它接受的 `access`（主体与租户）。`otherAccess` 是第二个租户的 access，带它自己的主体；它与 `access` 必须是不同的租户，否则跨租户用例失败并说明原因。可选成员是提供者的控制手柄，用契约词汇命名，例如 `launches`、`emit`、`finish`、`hold`、`settle`、`readBytes`、`advance`、`decide`、`respond`。每个手柄的含义写在夹具接口的注释里。执行者绑定套件读取分片事实的等待期限是夹具成员 `readDeadlineMs`，缺省 1000 毫秒；它“等一个不该出现的事实”的静默期是夹具成员 `quietMs`，缺省 25 毫秒；时钟套件的 `waitMs` 与 `quietMs`、登记套件的 `quietMs`（拒绝后观察目录有无迟到写入，登记套件唯一的定时等待）同理。资源应答套件的 `deadline` 是带期限的等待所携带的时刻，用提供者自己的格式，缺省是一个遥远的未来时刻。这些期限是策略，由提供者按自己的速度配置，不写死在套件里。
@@ -148,6 +157,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 - 执行者绑定替身核对 permit：permit 指向另一个调用、另一个启动或另一个租户，`start` 被拒绝（P04“绑定的 start/resume 封装这一过程”）。套件有三条对应用例（B4、B5、B6），夹具的 `permit` 手柄缺省时，套件取一份指向该启动的 permit 再改它的调用、启动或租户。停止回执（B17）按 P07“pending/unknown、accepted、stopped、already-ended、rejected 分别保留”读：已终局的回执被原样认回，accepted 之后 `inspectControl` 只能答 accepted 或 stopped，不退回 pending。这一读法依据“分别保留”一句，若契约拥有者认为 accepted 之后可以退回 pending，B17 须放宽。采用哪种读法待契约拥有者裁定。
 - 时钟套件把 `elapsed` 的入参取为 `begin` 回的 `segment.marker`，并以 `ClockSegment` 之间互不影响、已测时间只前进、不可比较的 epoch 失败（端口上没有 unknown 值，所以 unknown 只能是一个失败）判定。`waitUntil` 没有 SPEC 句子，只按签名判定：到时回 `elapsed`，信号中止回 `cancelled`。这些读法与未判定的条款见 [coverage](../verification/README.md#端口一致性套件)。
 - 决策桥与资源应答套件共有一组 P06 用例：`ensure` 按原 call 与 wait 认回同一登记，`inspect` 只读，`inspectOperation` 的 committed、excluded 与 pending，迟到的失效仍作用于原登记且幂等；同一操作号重用于另一种动作或另一个 wait 回 `conflict` 且没有效果（P01、P06“回执逐项绑定动作种类、原 wait、采用和输入摘要”）。对从未发出的操作答 `excluded` 是围栏：契约允许，只要之后该操作确实不会生效，所以用例接受“pending 或 unknown”或“excluded 且随后拒绝该操作、不登记它的 wait”。资源应答另查 `expire` 只在确实到期且无更早回应时成立、按登记时的期限与到期支持判断而不是按 expire 调用里的、`deadline: null` 不到期、契约不支持到期时回 `unsupported`，以及 Tool 不替资源拥有者造出超时答案；决策桥另查 `resolve` 交回原决定，包括 no-answer 与 declined。
+- 外层调用方的启动围栏与授权消费点两个套件沿用启动排序域的回答表 `startAuthorityAnswers`，经 `prepare`、`consume` 与 `inspect` 观察结果：围栏套件因此同时检查围栏视图与启动排序域共用一个排序域；授权套件经夹具的 `authorization` 手柄绑定许可、撤回准入并读取许可台账，缺手柄时全部用例不适用。结果接收端口套件没有回答表：夹具的接收方在套件里对每次推送确定作答，不注入故障；它有跨租户用例（缺 `otherAccess` 时不适用）与租户容量用例（缺 `tenantCapacity` 时不适用）。这三个套件还没有对真实实现运行。
 - 套件只查单个端口对契约的承诺，不做跨端口组合。登记语义套件在 `@omne-harness/tool-cordis-contract/testing`，不在本入口，因为它的对象是 Cordis 目录服务。`answer`、`inspectAnswer` 和 checkpointed 执行者绑定不在套件内。
 - 真实实现的对照只有一项已经运行：启动围栏套件在 `tool-host-local` 对本地协调器运行（含跨租户用例）。19 项一致性用例全部通过，无不适用项。SA13 核对同一操作号复用于另一守卫的 `invalidate`，SA14 核对同一操作号复用于另一原因的 `exclude`；本地协调器均回复 `conflict`，同输入重送认回首次证据，符合 [P01](../SPEC.md#p01-操作事实与资格) 的操作绑定。该对照使用非耐久记录仓，不覆盖耐久性、进程崩溃或跨进程装配。时钟没有真实实现，宿主时钟实现后，在 `tool-host-local` 的测试里运行同一套件。登记语义套件等实例目录实现后，在真实 Cordis 下运行。环境、执行者绑定、输出保管、决策桥与资源应答也还没有真实实现。在这些端口有第二个实现之前，套件不能以“对一个实现通过”证明自己：回答表和生成的提供者替代第二个实现。每个套件的自证为表生成一个端口边界上的合法提供者：它遮住新操作每个方法的首答，依次用表中每种进度和丢失回复，并在夹具的完成手柄 resolve 时揭开；它不借替身的控制手柄，所以能在替身从不延迟的地方延迟，包括延迟一个拒绝。生成的提供者必须全过且不适用集为空；不给手柄时，需要手柄的用例恰好是不适用的那些，没有一条被判通过。每个套件另有 `legal` 表，列出契约允许的提供者类别：生成的“首答进度、之后各种终局”、真正延迟的提供者（先答进度或丢失回复，落地时才向替身要操作，自带 `hold` 与 `excludeDeferred`）、首答丢失回复、围栏式的 `excluded`、合并就绪事实的执行者、首答 `pending` 之后读当前进度的停止、先预检再终检的登记服务、不带守卫的 permit、只有一个租户的夹具（只有不适用）、核验自身租户的 authority。合法提供者只在端口边界构造，只覆盖端口方法与它自己定义的手柄。违约提供者留作回归行，各让列明的用例恰好失败；重送规则（进度单调、终局逐字节认回）的三类违约在每个有重送路径的方法上各有一个变体。
 - 替身对每个改变状态的方法按身份认回，并比较动作种类与输入摘要（登记另加 authority 与资格）：同一身份而种类或输入不同，答 `conflict` 且没有效果。每个端口对每个改变状态的方法有一条用例证明这一点，违约变体（操作账只按身份认）恰好让这些用例失败。启动围栏的 `prepare` 与 `consume` 以 start 与 permit 为身份，不带操作号，执行者绑定的 `acknowledge` 以回执为身份，时钟的 `begin` 每次发新标记，这三类不适用本条。
