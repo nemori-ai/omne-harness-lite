@@ -16,8 +16,8 @@
 
 ## 本包事实
 
-[public-entry.spec.ts](public-entry.spec.ts) 核对运行导出。[contract.spec.ts](contract.spec.ts)、[advanced.spec.ts](advanced.spec.ts) 验证纯行为，[conformance.spec.ts](conformance.spec.ts) 验证好实现通过、针对性坏实现失败。[exports.spec.ts](exports.spec.ts) 核对构建导出清单。
+[public-entry.spec.ts](public-entry.spec.ts) 核对运行导出。[contract.spec.ts](contract.spec.ts)、[advanced.spec.ts](advanced.spec.ts) 验证纯行为，[conformance.spec.ts](conformance.spec.ts) 验证好实现通过、针对性坏实现失败。[exports.spec.ts](exports.spec.ts) 核对构建导出清单。 [sources.spec.ts](sources.spec.ts) 验证七组稳定读取、普通访问与读取资格、准备租约计量、来源调用与延续、十进制历史序号与增量压缩窗口。[input-read.spec.ts](input-read.spec.ts) 逐项验证七组稳定读取的失败类别、重读上界、携带行复用键与判断窗口的答复。[fixtures.ts](fixtures.ts) 与 [profile.ts](profile.ts) 是测试辅助：前者把旧式快照适配成来源集合并构造行、调用身份与采用事实，后者构造模型档案。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/request-context-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：SPEC 的[持续验证义务](../SPEC.md#rq-11-持续验证与未覆盖)都还没有测试。纯操作进入后，先补七组逐项相同返回已有候选、四种结局、三类失败、计划进度每步恰加一与 epoch 变化重取，再由实现成员与真实组合补缓存一致性、超长历史与恢复。具名维护者由负责人指定。
+当前缺口：缓存一致性、超长历史、真实持久化与真实组合的义务归实现成员与组合验证，见 [RQ-11 对照表](../verification/rq11.md)。依赖 #558 写回的条款不适用，待写回后重验。具名维护者由负责人指定。

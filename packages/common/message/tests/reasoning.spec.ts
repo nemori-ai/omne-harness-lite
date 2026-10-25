@@ -293,6 +293,8 @@ describe('what a retained message keeps', () => {
 
   function context(...messages: Message[]): CompactionContext {
     return {
+      origin: ref('e1'),
+      base: { kind: 'initial' },
       covered: messages.map((message, at) => ({ ref: ref(`e${at + 1}`), message })),
       after: [],
       open: [],

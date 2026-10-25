@@ -3,6 +3,7 @@ import {
   judgeCompaction,
   judgeMessage,
   type CompactedRange,
+  type CompactionBase,
   type CompactionContext,
   type CompactionDerivation,
   type CompactionJudgment,
@@ -13,6 +14,7 @@ import {
   type MessageContentBlock,
   type MessageId,
   type MessageRejection,
+  type PairingWitness,
   type RecordEntryRef,
   type UserMessage,
 } from '@omne-harness/message'
@@ -85,4 +87,24 @@ it('the role of a success value of judgeMessage narrows it to the compaction var
   if (!('ok' in judged)) return
   const message = judged.ok
   if (message.role === 'compaction') expectTypeOf(message).toEqualTypeOf<CompactionMessage>()
+})
+
+it('the judgment window names its origin, its base and the windowed entries', () => {
+  expectTypeOf<CompactionContext>().toEqualTypeOf<
+    Readonly<{
+      origin: RecordEntryRef
+      base: CompactionBase
+      covered: readonly CoveredEntry[]
+      after: readonly CoveredEntry[]
+      open: readonly RecordEntryRef[]
+    }>
+  >()
+  expectTypeOf<CompactionBase>().toEqualTypeOf<
+    | Readonly<{ kind: 'initial' }>
+    | Readonly<{ kind: 'previous'; record: RecordEntryRef; pairings: readonly PairingWitness[] }>
+  >()
+  expectTypeOf<PairingWitness>().toEqualTypeOf<
+    Readonly<{ result: RecordEntryRef; call: RecordEntryRef | null }>
+  >()
+  expectTypeOf<'source-evidence'>().toExtend<CompactionRejection>()
 })

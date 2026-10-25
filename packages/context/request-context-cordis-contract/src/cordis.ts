@@ -1,8 +1,9 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
   AssemblyOperations,
-  AssemblyPorts,
   CompactionPolicy,
+  ContextSourceRegistry,
+  ContextTarget,
   PromptContributionRegistry,
   RepresentationPolicyConfig,
   ScopeRef,
@@ -10,9 +11,6 @@ import type {
 
 /** Scope is an assembly declaration, not an access grant. */
 export type RequestContextIntercept = Readonly<{ scope: ScopeRef | null }>
-export type AssemblyAccess<P> =
-  | Readonly<{ kind: 'operations'; operations: AssemblyOperations<P> }>
-  | Readonly<{ kind: 'unavailable'; reason: 'closed' }>
 
 /** Provider selection contains serializable configuration, never runtime ports. */
 export type RequestContextPolicySelection = Readonly<{
@@ -39,8 +37,19 @@ export abstract class RequestContextService<P>
   abstract contributions(
     ...args: Parameters<PromptContributionRegistry['contributions']>
   ): ReturnType<PromptContributionRegistry['contributions']>
-  /** Binds this call's ports. Each operation reads the current registered contributions. */
-  abstract assembly(scope: ScopeRef, ports: AssemblyPorts<P>): AssemblyAccess<P>
+  /** Registers the source set of one target; an effect of the caller's fiber (RQ-12). */
+  abstract register(
+    ...args: Parameters<ContextSourceRegistry<P>['register']>
+  ): ReturnType<ContextSourceRegistry<P>['register']>
+  /** Replaces the current source set of one target in one local step (RQ-12). */
+  abstract replace(
+    ...args: Parameters<ContextSourceRegistry<P>['replace']>
+  ): ReturnType<ContextSourceRegistry<P>['replace']>
+  /**
+   * The configured operation group of one target. Each operation borrows the source set
+   * registered now and reads the current registered contributions; none registered is unavailable.
+   */
+  abstract assembly(target: ContextTarget): AssemblyOperations<P>
 }
 
 export const requestContextKey = RequestContextService.provide

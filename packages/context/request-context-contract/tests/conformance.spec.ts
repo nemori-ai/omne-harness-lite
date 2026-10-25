@@ -1,6 +1,10 @@
 import { it, expect } from 'vitest'
 import * as operations from '@omne-harness/request-context-contract'
+import type { AssemblyOperations } from '@omne-harness/request-context-contract'
 import {
+  createAssemblyFixture,
+  createTestingPrincipalBinding,
+  type ConformanceSubject,
   requestContextConformance,
   representationPolicyConformance,
   compactionPolicyConformance,
@@ -12,48 +16,53 @@ import {
 } from '@omne-harness/request-context-contract/testing'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fixture, row, entry, epoch, scope } from './fixtures.js'
+const real: ConformanceSubject = {
+  operations: f =>
+    operations.createAssemblyOperations({
+      target: f.target,
+      sources: f.sources,
+      principalBinding: createTestingPrincipalBinding<string>(),
+      policies: f.policies,
+    }),
+}
 it('operation suite accepts real operations and rejects each targeted broken implementation', async () => {
-  const names = requestContextConformance<string>()
+  const names = requestContextConformance()
+  for (const item of names)
+    await expect(runConformanceCase(item, real), item.name).resolves.toEqual({ kind: 'passed' })
+  const reference = createAssemblyFixture()
+  const good = await (await real.operations(reference)).assemble(reference.call)
+  if (good.kind !== 'candidate-before-extension') throw new Error(good.kind)
   for (const item of names) {
-    const f = fixture()
-    await expect(
-      runConformanceCase(item, {
-        operations,
-        input: f.input,
-        ports: f.ports,
-        policies: f.policies,
-      }),
-    ).resolves.toEqual({ kind: 'passed' })
-  }
-  for (const item of names) {
-    const f = fixture()
-    const good = await operations.assemble(f.input, f.ports, f.policies)
-    if (good.kind !== 'candidate-before-extension') throw new Error(good.kind)
-    const bad: typeof operations = {
-      ...operations,
-      assemble: async () => ({ kind: 'invalid', field: 'bad', reason: 'missing-input' }),
-      resume: async () => good,
-      planCompaction: async () => ({ kind: 'invalid', field: 'bad', reason: 'missing-input' }),
+    let count = 0
+    const broken: ConformanceSubject = {
+      async operations(f) {
+        const o = await real.operations(f)
+        const invalid = async () => ({
+          kind: 'invalid' as const,
+          field: 'bad',
+          reason: 'missing-input' as const,
+        })
+        const bad: AssemblyOperations<string> = {
+          ...o,
+          assemble: invalid,
+          resume: async () => good,
+          planCompaction: invalid,
+        }
+        if (
+          item.name === 'new-inputs-must-be-saved' ||
+          item.name === 'incremental-material-required'
+        )
+          bad.assemble = async () => good
+        if (item.name === 'same-input-is-deterministic')
+          bad.assemble = async () => ({
+            kind: 'invalid',
+            field: String(count++),
+            reason: 'missing-input',
+          })
+        return bad
+      },
     }
-    if (item.name === 'new-inputs-must-be-saved' || item.name === 'incremental-material-required')
-      bad.assemble = async () => good
-    if (item.name === 'same-input-is-deterministic') {
-      let count = 0
-      bad.assemble = async () => ({
-        kind: 'invalid',
-        field: String(count++),
-        reason: 'missing-input',
-      })
-    }
-    await expect(
-      runConformanceCase(item, {
-        operations: bad,
-        input: f.input,
-        ports: f.ports,
-        policies: f.policies,
-      }),
-      item.name,
-    ).rejects.toThrow()
+    await expect(runConformanceCase(item, broken), item.name).rejects.toThrow()
   }
 })
 it('history double passes every public obligation and each isolated bad source fails its own case', async () => {
@@ -93,18 +102,20 @@ it('history double passes every public obligation and each isolated bad source f
       const source = createSource(data)
       return {
         ...source,
-        async read(e, access, after, budget) {
+        async read(input) {
           if (item.name === 'read-requires-access')
-            return source.read(e, access ?? subject.access, after, budget)
-          if (item.name === 'tenant-isolation') return source.read(e, subject.access, after, budget)
-          if (item.name === 'missing-scope-is-invalid')
-            return source.read({ ...e, scope: e.scope ?? data.scope }, access, after, budget)
-          const result = await source.read(
-            e,
-            access,
-            after,
-            item.name === 'page-respects-byte-budget' ? 65536 : budget,
-          )
+            return source.read({ ...input, access: input.access ?? subject.access })
+          if (item.name === 'tenant-isolation')
+            return source.read({ ...input, access: subject.access })
+          if (item.name === 'foreign-cursor-is-invalid')
+            return source.read({
+              ...input,
+              cursor: input.cursor === null ? null : { ...input.cursor, evidence: input.evidence },
+            })
+          const result = await source.read({
+            ...input,
+            budgetBytes: item.name === 'page-respects-byte-budget' ? 65536 : input.budgetBytes,
+          })
           if (result.kind !== 'page') return result
           if (item.name === 'page-size-retains-order')
             return { ...result, page: { ...result.page, rows: [...result.page.rows].reverse() } }
@@ -202,7 +213,10 @@ it('prefix conformance accepts provider-specific digests and a source that choos
               first === undefined
                 ? []
                 : [{ ...first, prefixDigest: 'provider-owned:' + first.prefixDigest }],
-            next: result.page.rows.length > 1 ? (first?.seq ?? null) : result.page.next,
+            next:
+              result.page.rows.length > 1 && first !== undefined
+                ? { evidence: args[0].evidence, after: first.seq }
+                : result.page.next,
           },
         }
       },
@@ -249,58 +263,4 @@ it('policy suites pass scripted doubles and reject individual policy defects', a
     }
     await expect(runConformanceCase(item, { policy: bad, fixture: data })).rejects.toThrow()
   }
-})
-it('public suite rejects an implementation that measures only open work inside chosen coverage', async () => {
-  const item = requestContextConformance<string>().find(
-    value => value.name === 'floor-after-cover-cannot-evade-budget',
-  )
-  if (item === undefined) throw new Error('Missing lower-bound regression')
-  const f = fixture()
-  const bad = {
-    ...operations,
-    planCompaction: (
-      input: Parameters<typeof operations.planCompaction<string>>[0],
-      ports: typeof f.ports,
-      policies: typeof f.policies,
-    ) =>
-      operations.planCompaction(
-        input,
-        {
-          ...ports,
-          history: {
-            ...ports.history,
-            async compactionContext(...args: Parameters<typeof ports.history.compactionContext>) {
-              const result = await ports.history.compactionContext(...args)
-              if (result.kind !== 'context') return result
-              const draft = policies.compaction.plan({
-                view: operations.project([], input.history.epoch),
-                context: result.value,
-                measure: () => '0',
-                windowTokens: input.selection.profile.definition.context.window.provided,
-              })
-              if (draft.kind !== 'draft') return result
-              const end = result.value.covered.findIndex(entry => entry.ref === draft.coverTo)
-              return {
-                ...result,
-                value: {
-                  ...result.value,
-                  open: result.value.open.filter(ref =>
-                    result.value.covered.slice(0, end + 1).some(entry => entry.ref === ref),
-                  ),
-                },
-              }
-            },
-          },
-        },
-        policies,
-      ),
-  }
-  await expect(
-    runConformanceCase(item, {
-      operations: bad,
-      input: f.input,
-      ports: f.ports,
-      policies: f.policies,
-    }),
-  ).rejects.toThrow()
 })

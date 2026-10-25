@@ -13,7 +13,7 @@ Request Context 的 Cordis 定义成员，`service-contract` 变体。
 - 已实现：抽象 Service、派生服务键、intercept、策略选择类型、Context/Events 增补和根入口类型重导出。
 - 生产登记表、缓存、策略实现和装配不属于本成员。
 - 本地验证：真实 Cordis 4.0.4 探针覆盖对象注入、祖先作用域、调用方效应、事件过滤与 ctx.set，以及托管操作边界。共同 basis 登记尚未完成，测试提供者不证明生产提供者行为。
-- 经 Cordis 的调用方用 `assembly(scope, ports)` 用到带缓存与选定策略的实现，四项端口逐次交入；全局层以 `scope: null` 表达；事件由监听者按载荷过滤。`ScopeRef` 原样复用 Runtime Context，见 [Cordis 说明](docs/cordis.md)。
+- 经 Cordis 的来源适配者用 `register` 与 `replace` 按目标登记来源集合，登记挂在调用者的 fiber 上；调用方用 `assembly(target)` 取绑定选定策略与该目标来源集合的操作组；全局层以 `scope: null` 表达；事件由监听者按载荷过滤。`ScopeRef` 原样复用 Runtime Context，见 [Cordis 说明](docs/cordis.md)。
 
 现在没有包依赖本成员。
 
@@ -32,9 +32,9 @@ inject: { requestContext: { scope: 作用域引用 } }
 插件体：dispose = ctx.requestContext.contributeSection(段)
 ```
 
-登记随贡献者插件卸载自动撤除。组装请求的调用方用 `inject: ['requestContext']`，调用 `assembly(scope, ports)` 并交入四项端口，取得已按配置绑定策略的一组纯操作。这组操作每次调用时从登记面现取该作用域的贡献，调用方不传入贡献。各类依赖方的完整用法见[使用与定位](docs/context.md#使用方式)。
+登记随贡献者插件卸载自动撤除。来源适配者用 `register` 或 `replace` 登记某个目标的来源集合，登记挂在适配者的 fiber 上。组装请求的调用方用 `inject: ['requestContext']`，调用 `assembly(target)`，取得已按配置绑定策略与该目标来源集合的一组操作。这组操作每次调用时从登记面现取该作用域的贡献，替换第四组读口给出的贡献。各类依赖方的完整用法见[使用与定位](docs/context.md#使用方式)。
 
-独立使用不需要本成员。不装配 Cordis 的调用方自己收集提示词贡献，直接使用 request-context-contract 与 request-context 的根入口。
+独立使用不需要本成员。不装配 Cordis 的调用方用 request-context-contract 根入口的 `createAssemblyOperations` 绑定自己的来源集合，或使用 request-context 的工厂。
 
 ## 契约
 

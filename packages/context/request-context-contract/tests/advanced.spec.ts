@@ -2,12 +2,9 @@ import { it, expect } from 'vitest'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
 import {
-  assemble,
   declareTools,
   project,
   chooseRepresentations,
-  planCompaction,
-  deriveStep,
   decodePlanId,
   compactionPlanSchema,
   coverageSchema,
@@ -15,7 +12,26 @@ import {
 } from '@omne-harness/request-context-contract'
 import type { ToolAdoption } from '@omne-harness/request-context-contract'
 import { createMemoryHistorySource } from '@omne-harness/request-context-contract/testing'
-import { fixture, row, text, scope, epoch, entry, adoption, evidence, must } from './fixtures.js'
+import {
+  fixture,
+  row,
+  text,
+  scope,
+  epoch,
+  entry,
+  adoption,
+  evidence,
+  must,
+  target,
+  upper,
+  assemble,
+  planCompaction,
+  deriveStep,
+  adoptedOf,
+  operationsFor,
+  rowWith,
+  message,
+} from './fixtures.js'
 it('resident known-unavailable declarations retain definition; nonresidents remain meta-tool data', () => {
   const definition = {
     kind: 'function' as const,
@@ -91,7 +107,7 @@ it('projection preserves reasoning payload, rewrites at indices and removes dang
     replay: { scope: 's', format: 'f', at: [2] },
   })
   if ('rejected' in msg) throw new Error(msg.rejected)
-  const result = project([{ ...row(), message: msg.ok }], epoch).messages[0]?.message
+  const result = project([rowWith(0, msg.ok)], epoch).messages[0]?.message
   expect(result?.role).toBe('assistant')
   if (result?.role === 'assistant') {
     expect(result.replay?.at).toEqual([1])
@@ -138,18 +154,21 @@ it('tool media references remain deferred without reading or converting content'
 it('pagination retains the identical evidence and never concatenates old epoch pages', async () => {
   const f = fixture()
   const seen: unknown[] = []
-  const history = {
+  const history: typeof f.ports.history = {
     ...f.ports.history,
-    async read(e: typeof f.input.history, _access: unknown, after: number | null) {
+    async read({ evidence: e, cursor }) {
       seen.push(e)
       return {
         kind: 'page' as const,
-        page: { rows: [row(after === null ? 0 : 1)], next: after === null ? 0 : null },
+        page: {
+          rows: [row(cursor === null ? 0 : 1)],
+          next: cursor === null ? { evidence: e, after: row(0).seq } : null,
+        },
       }
     },
   }
   const result = await assemble(
-    { ...f.input, history: { ...f.input.history, upper: 1 } },
+    { ...f.input, history: { ...f.input.history, upper: upper(1) } },
     { ...f.ports, history },
     f.policies,
   )
@@ -182,7 +201,7 @@ it('snapshot reminder is byte-identical and anchored across incremental reads', 
   const second = await assemble(
     {
       ...f.input,
-      adopted: first.candidate.coverage,
+      adopted: adoptedOf(first.candidate),
       contextRead: {
         ...f.input.contextRead,
         snapshot: material,
@@ -222,7 +241,7 @@ it('new prompt and existing-layer extension immediately record prefix break reas
   const changed = await assemble(
     {
       ...f.input,
-      adopted: initial.candidate.coverage,
+      adopted: adoptedOf(initial.candidate),
       promptContributions: {
         digest: 'changed',
         generation: null,
@@ -249,7 +268,7 @@ it('new prompt and existing-layer extension immediately record prefix break reas
   const extension = await assemble(
     {
       ...f.input,
-      adopted: initial.candidate.coverage,
+      adopted: adoptedOf(initial.candidate),
       alterations: [{ evidence, touches: 'existing-layers' }],
       beforeModelCall: [],
     },
@@ -266,19 +285,24 @@ it('policy identity change, plan mismatch, and veto all preserve closed result s
   if (planned.kind !== 'planned') throw new Error(planned.kind)
   const input = {
     plan: planned.plan,
-    selection: f.input.selection,
     progress: planned.progress,
     material: planned.first.material,
-    step: { kind: 'summary' as const, produced: [text('summary')] as const, consumed: evidence },
+    step: {
+      kind: 'summary' as const,
+      index: '0',
+      produced: [text('summary')] as const,
+      consumed: evidence,
+    },
   }
   expect(
-    await deriveStep(input, f.ports, {
+    await deriveStep(f.input, input, f.ports, {
       ...f.policies,
       compaction: { ...f.policies.compaction, configDigest: () => 'changed' },
     }),
   ).toMatchObject({ kind: 'invalid', reason: 'policy-mismatch' })
   expect(
     await deriveStep(
+      f.input,
       { ...input, progress: { ...input.progress, planId: must(decodePlanId('plan:other')) } },
       f.ports,
       f.policies,
@@ -286,11 +310,30 @@ it('policy identity change, plan mismatch, and veto all preserve closed result s
   ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch' })
   expect(
     await deriveStep(
-      { ...input, step: { kind: 'vetoed', reason: 'reject', evidence } },
+      f.input,
+      { ...input, step: { kind: 'vetoed', index: '0', reason: 'reject', evidence } },
       f.ports,
       f.policies,
     ),
   ).toMatchObject({ kind: 'cannot-fit', cause: 'step-vetoed', progress: { completed: '1' } })
+  // A changed model selection after planning is a plan mismatch, not a silent model switch.
+  expect(
+    await deriveStep(
+      { ...f.input, selection: { ...f.input.selection, replay: 'off' } },
+      input,
+      f.ports,
+      f.policies,
+    ),
+  ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch', field: 'model' })
+  // A basis that does not match its digest is rejected before any progress.
+  expect(
+    await deriveStep(
+      f.input,
+      { ...input, plan: { ...input.plan, basis: { ...input.plan.basis, retainedBudget: '1' } } },
+      f.ports,
+      f.policies,
+    ),
+  ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch', field: 'plan.basis' })
 })
 it('summary is checked against actual full input budget before transition', async () => {
   const f = fixture()
@@ -298,12 +341,12 @@ it('summary is checked against actual full input budget before transition', asyn
   if (planned.kind !== 'planned') throw new Error(planned.kind)
   const p = { ...f.ports, meter: { ...f.ports.meter, measure: () => ({ ok: f.budget('9999') }) } }
   const result = await deriveStep(
+    f.input,
     {
       plan: planned.plan,
-      selection: f.input.selection,
       progress: { ...planned.progress, completed: '1', consumed: [{ index: '0', evidence }] },
       material: planned.first.material,
-      step: { kind: 'summary', produced: [text('too large')], consumed: evidence },
+      step: { kind: 'summary', index: '1', produced: [text('too large')], consumed: evidence },
     },
     p,
     f.policies,
@@ -350,14 +393,16 @@ it('history chained digest changes all later prefixes when an earlier row change
           entries: [],
           open: [],
           rows: [
-            { ...row(0), message: { ...row(0).message, role: 'user', blocks: [text('changed')] } },
+            rowWith(0, { ...message('hello', '0'.padStart(22, 'a')), blocks: [text('changed')] }),
             row(1),
           ],
         },
       ],
     })
-  const a = await source.read({ scope, epoch, upper: 1 }, f.input.identity.access, null, 1000),
-    b = await changed.read({ scope, epoch, upper: 1 }, f.input.identity.access, null, 1000)
+  const access = f.input.identity.access
+  const evidenceOf = { target, epoch, upper: upper(1) }
+  const a = await source.read({ access, evidence: evidenceOf, cursor: null, budgetBytes: 1000 }),
+    b = await changed.read({ access, evidence: evidenceOf, cursor: null, budgetBytes: 1000 })
   if (a.kind !== 'page' || b.kind !== 'page') throw new Error('No pages')
   expect(a.page.rows[0]?.prefixDigest).not.toBe(b.page.rows[0]?.prefixDigest)
   expect(a.page.rows[1]?.prefixDigest).not.toBe(b.page.rows[1]?.prefixDigest)
@@ -392,12 +437,14 @@ it('compaction cannot split call/result pairing or move the coverage start', asy
     ],
   })
   if ('rejected' in call || 'rejected' in answer) throw new Error('Pair fixture')
-  const history = {
+  const history: typeof f.ports.history = {
     ...f.ports.history,
-    compactionContext: async () => ({
+    compactionContext: async ({ evidence: current }) => ({
       kind: 'context' as const,
-      epoch,
+      evidence: current,
       value: {
+        origin: entry('entry:0'),
+        base: { kind: 'initial' as const },
         covered: [
           { ref: entry('entry:0'), message: call.ok },
           { ref: entry('entry:1'), message: answer.ok },
@@ -409,17 +456,17 @@ it('compaction cannot split call/result pairing or move the coverage start', asy
   }
   const policy = {
     ...f.policies.compaction,
-    plan: () => ({
+    plan: async () => ({
       kind: 'draft' as const,
       coverTo: entry('entry:1'),
       retained: [entry('entry:0')],
       bound: '2',
-      shape: 'summarize' as const,
+      shape: { kind: 'summarize' as const, trimFirst: false },
     }),
   }
   expect(
     await planCompaction(f.input, { ...f.ports, history }, { ...f.policies, compaction: policy }),
-  ).toMatchObject({ kind: 'invalid' })
+  ).toMatchObject({ kind: 'unavailable', owner: 'compaction-policy' })
 })
 it('runtime refusal distinguishes unauthorized from missing registration and closed', async () => {
   const f = fixture()
@@ -485,7 +532,7 @@ it('new candidate resets compaction allowance while adopted same-candidate contr
   const result = await assemble(
     {
       ...f.input,
-      adopted: first.candidate.coverage,
+      adopted: adoptedOf(first.candidate),
       conditions: { ...f.input.conditions, revision: '2' },
       previous: {
         candidate: f.input.identity.candidate,
@@ -498,57 +545,15 @@ it('new candidate resets compaction allowance while adopted same-candidate contr
   )
   expect(result).toMatchObject({ kind: 'invalid', reason: 'contradictory-retry' })
 })
-function opaqueFixture(principal: object) {
+it('carried rows are reused only for the same principal key', async () => {
   const f = fixture()
-  const ports: import('@omne-harness/request-context-contract').AssemblyPorts<object> = {
-    ...f.ports,
-    history: {
-      read: (e, access, after, budget) =>
-        f.ports.history.read(
-          e,
-          access === null ? null : { tenant: access.tenant, principal: 'fixture' },
-          after,
-          budget,
-        ),
-      compactionContext: (e, access, to) =>
-        f.ports.history.compactionContext(
-          e,
-          access === null ? null : { tenant: access.tenant, principal: 'fixture' },
-          to,
-        ),
-    },
-    conversions: {
-      read: (access, blocks) =>
-        f.ports.conversions.read(
-          access === null ? null : { tenant: access.tenant, principal: 'fixture' },
-          blocks,
-        ),
-    },
-  }
-  return {
-    ...f,
-    ports,
-    input: {
-      ...f.input,
-      identity: {
-        ...f.input.identity,
-        access: { tenant: f.input.identity.access.tenant, principal },
-      },
-    },
-  }
-}
-it('equal JSON principal objects remain distinct identities and never share prepared history', async () => {
-  const f = opaqueFixture({ id: 'same' })
   const first = await assemble(f.input, f.ports, f.policies)
   if (first.kind !== 'candidate-before-extension') throw new Error(first.kind)
   const before = f.counts().reads
   await assemble(
     {
       ...f.input,
-      identity: {
-        ...f.input.identity,
-        access: { ...f.input.identity.access, principal: { id: 'same' } },
-      },
+      identity: { ...f.input.identity, access: { ...f.input.identity.access, principal: 'other' } },
       previous: {
         candidate: f.input.identity.candidate,
         enteredCompaction: null,
@@ -560,25 +565,19 @@ it('equal JSON principal objects remain distinct identities and never share prep
   )
   expect(f.counts().reads).toBe(before + 1)
 })
-it('cyclic principal is opaque and does not enter canonical data serialization', async () => {
+it('a principal the binding cannot key is unavailable, never a shared identity', async () => {
+  const f = fixture()
   const principal: { self?: object } = {}
   principal.self = principal
-  const f = opaqueFixture(principal)
-  const first = await assemble(f.input, f.ports, f.policies)
-  if (first.kind !== 'candidate-before-extension') throw new Error(first.kind)
-  const before = f.counts().reads
-  const result = await assemble(
-    {
-      ...f.input,
-      previous: {
-        candidate: f.input.identity.candidate,
-        enteredCompaction: null,
-        carried: first.candidate,
-      },
-    },
+  const operations = operationsFor(
+    f.input,
     f.ports,
     f.policies,
-  )
-  expect(result.kind).toBe('candidate-before-extension')
-  expect(f.counts().reads).toBe(before)
+  ) as unknown as import('@omne-harness/request-context-contract').AssemblyOperations<object>
+  const result = await operations.assemble({
+    ...f.input.identity,
+    access: { tenant: f.input.identity.access.tenant, principal },
+  })
+  expect(result).toMatchObject({ kind: 'unavailable', owner: 'principal-binding' })
+  expect(f.counts().reads).toBe(0)
 })

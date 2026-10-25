@@ -9,6 +9,6 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务定义、真实 Cordis 机制和贡献者生命周期
 - [fixtures/](fixtures/index.md)：公开导出固定清单
 
-- [assembly.spec.ts](assembly.spec.ts)：托管操作边界。
+- [assembly.spec.ts](assembly.spec.ts)：来源登记与托管操作边界。
 - [boundary.spec.ts](boundary.spec.ts)：产物导入与共享导出清单。
 - [contract.spec-d.ts](contract.spec-d.ts)：公开类型复用。

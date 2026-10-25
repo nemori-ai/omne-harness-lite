@@ -4,12 +4,12 @@
 
 ## 适用性
 
-本成员不需要 Cordis 集成。根入口按 [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 与 Cordis 无关，只导出一个不依赖 Cordis 的工厂与默认策略。理由是变化原因不同：
+本成员不需要 Cordis 集成。根入口按 [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 与 Cordis 无关，只导出两个不依赖 Cordis 的工厂：来源登记表与账目投影。理由是变化原因不同：
 
-- 缓存键、按组失效、预计算派生物与默认策略的数值随派生计算的算法变化。
+- 登记代际、借用与发布、账目索引与重建、缓存键、按组失效、预计算派生物与默认策略的数值随派生计算的机制变化。
 - 服务键、贡献登记的寿命、策略实现按配置的选择与 isolate 绑定随装配约定变化。
 
-独立调用方使用缓存与默认策略时，不应因此加载 Cordis。本成员只比较修订，不从 fiber 或 Context 取任何东西，不读 intercept 配置，不派发事件。这些都由 Cordis 成员替它完成：
+独立调用方托管登记或账目投影时，不应因此加载 Cordis。登记表的撤除与结算是本成员自己的协议，不是 Cordis 的 effect；Cordis 成员把它投影为服务时，用插件 effect 调 `withdraw` 并等待 `settled`。本成员只比较修订，不从 fiber 或 Context 取任何东西，不读 intercept 配置，不派发事件。这些都由 Cordis 成员替它完成：
 
 - 服务键、抽象类、intercept 配置、变化事件与策略选择的配置形状：[request-context-cordis-contract 的 Cordis 说明](../../request-context-cordis-contract/docs/cordis.md)。
 - Service 实现、贡献登记表、策略实现的选择、isolate 绑定与撤除顺序：[request-context-cordis 的 Cordis 说明](../../request-context-cordis/docs/cordis.md)。

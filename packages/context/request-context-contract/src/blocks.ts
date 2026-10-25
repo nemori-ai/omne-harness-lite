@@ -3,7 +3,7 @@ import type { Adoption, CandidateRef } from './refs.js'
 import { decodeCandidateRef } from './refs.js'
 import type { RetainBudget, CompactionPolicy } from './ports.js'
 import { compactionPolicySchema } from './schema.js'
-import { standardSchema, record, decimal, adoption, type Decoder } from './schema-primitives.js'
+import { standardSchema, record, integer, adoption, type Decoder } from './schema-primitives.js'
 export type CompactionSettingsValue = Readonly<{
   policy: Adoption
   retainBudget: RetainBudget
@@ -13,12 +13,20 @@ export type CompactionSettingsValue = Readonly<{
   trimFirst: boolean
   stepBound: string
 }>
-export type WindowUsageValue = Readonly<{
-  candidate: CandidateRef
-  usedTokens: string
-  windowTokens: string
-  ratio: string
-}>
+/**
+ * The window usage of the current fixed request of one target (RQ-02). `not-fixed` and
+ * `unmeasured` are valid required facts, not a missing block; numeric branches never default to 0.
+ */
+export type WindowUsageValue =
+  | Readonly<{ kind: 'not-fixed' }>
+  | Readonly<{ kind: 'unmeasured'; candidate: CandidateRef; windowTokens: string }>
+  | Readonly<{
+      kind: 'actual' | 'estimate'
+      candidate: CandidateRef
+      usedTokens: string
+      windowTokens: string
+      ratio: string
+    }>
 declare module '@omne-harness/runtime-context-contract' {
   interface ContextBlocks {
     'context.compaction-settings': CompactionSettingsValue
@@ -43,20 +51,49 @@ const decodeCompactionSettings: Decoder<CompactionSettingsValue> = (v, path) => 
   }
 }
 export const compactionSettingsSchema = standardSchema(decodeCompactionSettings)
+const POSITIVE = /^[1-9][0-9]*$/u
+function exactKeys(v: Record<string, unknown>, keys: readonly string[]): boolean {
+  const own = Object.keys(v)
+  return own.length === keys.length && keys.every(k => Object.hasOwn(v, k))
+}
+/** `used/window` rounded up to six decimals with trailing zeros removed; may exceed 1. */
+export function windowRatio(usedTokens: string, windowTokens: string): string {
+  const scaled =
+    (BigInt(usedTokens) * 1_000_000n + BigInt(windowTokens) - 1n) / BigInt(windowTokens)
+  const whole = scaled / 1_000_000n
+  const fraction = (scaled % 1_000_000n).toString().padStart(6, '0').replace(/0+$/u, '')
+  return fraction.length ? `${whole}.${fraction}` : whole.toString()
+}
 const decodeWindowUsage: Decoder<WindowUsageValue> = (v, path) => {
-  const candidate = decodeCandidateRef(record(v) ? v.candidate : null)
+  const bad = { ok: false as const, issues: [{ path, message: 'Invalid window usage' }] }
+  if (!record(v)) return bad
+  if (v.kind === 'not-fixed')
+    return exactKeys(v, ['kind']) ? { ok: true, value: { kind: 'not-fixed' } } : bad
+  const candidate = decodeCandidateRef(v.candidate)
   if (
-    !record(v) ||
     'failure' in candidate ||
-    !decimal(v.usedTokens) ||
-    !decimal(v.windowTokens) ||
-    !decimal(v.ratio) ||
-    Number(v.ratio) > 1
+    typeof v.windowTokens !== 'string' ||
+    !POSITIVE.test(v.windowTokens)
   )
-    return { ok: false, issues: [{ path, message: 'Invalid window usage' }] }
+    return bad
+  if (v.kind === 'unmeasured')
+    return exactKeys(v, ['kind', 'candidate', 'windowTokens'])
+      ? {
+          ok: true,
+          value: { kind: 'unmeasured', candidate: candidate.ok, windowTokens: v.windowTokens },
+        }
+      : bad
+  if (
+    (v.kind !== 'actual' && v.kind !== 'estimate') ||
+    !exactKeys(v, ['kind', 'candidate', 'usedTokens', 'windowTokens', 'ratio']) ||
+    !integer(v.usedTokens) ||
+    v.ratio !== windowRatio(v.usedTokens, v.windowTokens)
+  )
+    return bad
   return {
     ok: true,
     value: {
+      kind: v.kind,
       candidate: candidate.ok,
       usedTokens: v.usedTokens,
       windowTokens: v.windowTokens,

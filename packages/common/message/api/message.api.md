@@ -9,6 +9,7 @@
 - `AssistantMessage` · `message.d.ts`
 - `CallPart` · `parts.d.ts`
 - `CompactedRange` · `compaction-shape.d.ts`
+- `CompactionBase` · `compaction.d.ts`
 - `CompactionContext` · `compaction.d.ts`
 - `CompactionDerivation` · `compaction-shape.d.ts`
 - `CompactionJudgment` · `compaction.d.ts`
@@ -27,6 +28,7 @@
 - `MessagePart` · `parts.d.ts`
 - `MessageRejection` · `message.d.ts`
 - `MessageRoleMap` · `message.d.ts`
+- `PairingWitness` · `compaction.d.ts`
 - `REASONING_STATE_PAYLOAD_MAX_LENGTH` · `reasoning.d.ts`
 - `REPLAY_TAG_MAX_LENGTH` · `reasoning.d.ts`
 - `ReasoningReplay` · `reasoning.d.ts`
@@ -95,12 +97,25 @@ export type CoveredEntry = Readonly<{
     ref: RecordEntryRef;
     message: Message | null;
 }>;
+export type PairingWitness = Readonly<{
+    result: RecordEntryRef;
+    call: RecordEntryRef | null;
+}>;
+export type CompactionBase = Readonly<{
+    kind: 'initial';
+}> | Readonly<{
+    kind: 'previous';
+    record: RecordEntryRef;
+    pairings: readonly PairingWitness[];
+}>;
 export type CompactionContext = Readonly<{
+    origin: RecordEntryRef;
+    base: CompactionBase;
     covered: readonly CoveredEntry[];
-    after: readonly Message[];
+    after: readonly CoveredEntry[];
     open: readonly RecordEntryRef[];
 }>;
-export type CompactionRejection = 'message' | 'range' | 'retained-outside' | 'retained-order' | 'retained-not-model' | 'pairing' | 'open-work';
+export type CompactionRejection = 'message' | 'range' | 'source-evidence' | 'retained-outside' | 'retained-order' | 'retained-not-model' | 'pairing' | 'open-work';
 export type CompactionJudgment = Readonly<{
     ok: CompactionMessage;
 }> | Readonly<{
@@ -118,7 +133,7 @@ export type { AssistantMessage, CompactionMessage, LogMessageRole, Message, Mess
 export { parseRecordEntryRef } from './compaction-shape.ts';
 export type { CompactedRange, CompactionDerivation, RecordEntryRef } from './compaction-shape.ts';
 export { judgeCompaction } from './compaction.ts';
-export type { CompactionContext, CompactionJudgment, CompactionRejection, CoveredEntry, } from './compaction.ts';
+export type { CompactionBase, CompactionContext, CompactionJudgment, CompactionRejection, CoveredEntry, PairingWitness, } from './compaction.ts';
 export { judgePart } from './parts.ts';
 export { REASONING_STATE_PAYLOAD_MAX_LENGTH, REPLAY_TAG_MAX_LENGTH, isReplayTag, } from './reasoning.ts';
 export type { ReasoningReplay, ReasoningStatePart } from './reasoning.ts';

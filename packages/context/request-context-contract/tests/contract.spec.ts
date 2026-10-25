@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
-  assemble,
   assembleSystemPrompt,
   project,
   projectForHuman,
   placeContext,
-  planCompaction,
-  deriveStep,
-  resume,
   decodePlanId,
   compactionSettingsBlock,
   windowUsageBlock,
@@ -15,15 +11,44 @@ import {
   planProgressSchema,
   coverageSchema,
 } from '@omne-harness/request-context-contract'
-import { fixture, must, text, row, entry, adoption, evidence, scope, epoch } from './fixtures.js'
+import {
+  fixture,
+  must,
+  text,
+  row,
+  entry,
+  adoption,
+  evidence,
+  scope,
+  epoch,
+  assemble,
+  resume,
+  planCompaction,
+  deriveStep,
+  sourcesFor,
+  rowWith,
+  type Ports,
+} from './fixtures.js'
 
 describe('assembly closed outcomes and source boundaries', () => {
-  it('assembles deterministic six-layer candidates and measures actual serializer bytes', async () => {
+  it('assembles deterministic six-layer candidates and measures the planned request bytes', async () => {
     const f = fixture()
     const seen: string[] = []
     const meter = f.ports.meter
     const ports = {
       ...f.ports,
+      plan: ((value: Parameters<NonNullable<Ports['plan']>>[0]) => ({
+        ok: {
+          parameters: [],
+          representation: {
+            kind: 'materialized' as const,
+            adoption: value.assembled.representation,
+            tokenInput: { kind: 'null' as const },
+            media: [],
+            requestBytes: '103',
+          },
+        },
+      })) satisfies NonNullable<Ports['plan']>,
       meter: {
         ...meter,
         measure: (input: Parameters<typeof meter.measure>[0]) => {
@@ -40,7 +65,7 @@ describe('assembly closed outcomes and source boundaries', () => {
       b = await assemble(f.input, ports, f.policies)
     expect(a).toEqual(b)
     expect(a.kind).toBe('candidate-before-extension')
-    expect(seen).toEqual(['71', '71', '71', '71'])
+    expect(seen).toEqual(['103', '103', '103', '103'])
     if (a.kind === 'candidate-before-extension') {
       expect(a.candidate.coverage.history.anchors.at(-1)?.prefixDigest).toBe('chain:0')
       expect(a.candidate.assembled.messages).toHaveLength(1)
@@ -139,16 +164,19 @@ describe('assembly closed outcomes and source boundaries', () => {
     const next = must(
       (await import('@omne-harness/request-context-contract')).decodeEpochId('epoch:2'),
     )
-    const p = {
+    const p: typeof f.ports = {
       ...f.ports,
       history: {
         ...f.ports.history,
-        read: async (e: typeof f.input.history) => {
+        read: async ({ evidence: e }) => {
           seen.push(e.epoch)
           n++
-          return n === 1
-            ? { kind: 'epoch-changed' as const, current: { ...e, epoch: next } }
-            : { kind: 'page' as const, page: { rows: [row()], next: null } }
+          if (n > 1) return { kind: 'page' as const, page: { rows: [row()], next: null } }
+          // The holder committed a compaction: the history group itself moves to the new epoch.
+          const sources = sourcesFor(f.input, p)
+          const history = sources.values().history
+          sources.update('history', { ...history, evidence: { ...history.evidence, epoch: next } })
+          return { kind: 'epoch-changed' as const, current: { ...e, epoch: next } }
         },
       },
     }
@@ -190,7 +218,7 @@ describe('assembly closed outcomes and source boundaries', () => {
       f.policies,
     )
     expect(result).toMatchObject({ kind: 'invalid', reason: 'resume-without-full-snapshot' })
-    expect(f.counts().reads).toBe(0)
+    expect(f.counts().meters).toBe(0)
   })
 })
 describe('prompt and placement', () => {
@@ -287,7 +315,7 @@ describe('prompt and placement', () => {
       newInputs: { ...f.input.inputs, entries: [entry('entry:0')] },
     })
     expect(placed).toMatchObject({
-      snapshot: { blocks: [], anchor: { seq: -1 } },
+      snapshot: { blocks: [], anchor: { position: { kind: 'empty' }, prefixDigest: null } },
       tail: { blocks: [block] },
     })
   })
@@ -312,8 +340,8 @@ describe('projection and compaction plans', () => {
       role: 'user',
       blocks: [{ ...text('secret'), visibility: { toModel: false, toHuman: true } }],
     } as const
-    expect(project([{ ...r, message: privateMessage }], epoch).messages).toHaveLength(0)
-    expect(projectForHuman([{ ...r, message: privateMessage }]).entries).toHaveLength(1)
+    expect(project([rowWith(0, privateMessage)], epoch).messages).toHaveLength(0)
+    expect(projectForHuman([rowWith(0, privateMessage)]).entries).toHaveLength(1)
     expect(privateMessage.blocks[0].text).toBe('secret')
   })
   it('returns planned step and transitions with deterministic required message id', async () => {
@@ -322,69 +350,84 @@ describe('projection and compaction plans', () => {
     expect(planned.kind).toBe('planned')
     if (planned.kind !== 'planned') return
     const input = {
-      selection: f.input.selection,
       plan: planned.plan,
       progress: planned.progress,
       material: planned.first.material,
-      step: { kind: 'summary' as const, produced: [text('summary')] as const, consumed: evidence },
+      step: {
+        kind: 'summary' as const,
+        index: '0',
+        produced: [text('summary')] as const,
+        consumed: evidence,
+      },
     }
-    const result = await deriveStep(input, f.ports, f.policies)
+    const result = await deriveStep(f.input, input, f.ports, f.policies)
     expect(result.kind).toBe('transition')
-    expect(await deriveStep(input, f.ports, f.policies)).toEqual(result)
+    expect(await deriveStep(f.input, input, f.ports, f.policies)).toEqual(result)
     if (result.kind === 'transition') {
       expect(result.progress.completed).toBe('1')
       expect(result.value.message.id).toMatch(/^msg_/)
     }
   })
-  it('checks plan/policy/progress and never calls meter for trim', async () => {
+  it('trims inside the first summarize step and checks step index against progress', async () => {
     const f = fixture()
+    const trimmed: unknown[] = []
     const policies = {
       ...f.policies,
       compaction: {
         ...f.policies.compaction,
-        config: { ...f.policies.compaction.config, trimFirst: true },
-        plan: () => ({
+        config: { ...f.policies.compaction.config, trimFirst: true, stepBound: '1' },
+        trim: (material: Parameters<typeof f.policies.compaction.trim>[0]) => {
+          trimmed.push(material)
+          return { ...material, trimmed: [] }
+        },
+        plan: async () => ({
           kind: 'draft' as const,
           coverTo: entry('entry:0'),
           retained: [],
-          bound: '2',
-          shape: 'trim-then-summarize' as const,
+          bound: '1',
+          shape: { kind: 'summarize' as const, trimFirst: true },
         }),
       },
     }
     const planned = await planCompaction(f.input, f.ports, policies)
     if (planned.kind !== 'planned') throw new Error(planned.kind)
-    const before = f.counts()
-    const result = await deriveStep(
-      {
-        selection: f.input.selection,
-        plan: planned.plan,
-        progress: planned.progress,
-        step: { kind: 'trim' },
-        material: planned.first.material,
-      },
-      f.ports,
-      policies,
-    )
-    expect(result).toMatchObject({
-      kind: 'next',
-      step: { kind: 'summarize' },
-      progress: { completed: '1' },
-    })
-    expect(f.counts()).toEqual(before)
+    expect(planned.first).toMatchObject({ kind: 'summarize', index: '0' })
+    expect(planned.progress.completed).toBe('0')
+    expect(trimmed).toHaveLength(1)
+    const summary = {
+      kind: 'summary' as const,
+      produced: [text('summary')] as const,
+      consumed: evidence,
+    }
     expect(
       await deriveStep(
+        f.input,
         {
-          selection: f.input.selection,
           plan: planned.plan,
-          progress: { ...planned.progress, completed: '2' },
-          step: { kind: 'trim' },
+          progress: planned.progress,
           material: planned.first.material,
+          step: { ...summary, index: '1' },
         },
         f.ports,
         policies,
       ),
     ).toMatchObject({ kind: 'invalid', reason: 'progress-mismatch' })
+    // Bound 1: the trimmed material completes in one summarize step.
+    expect(
+      await deriveStep(
+        f.input,
+        {
+          plan: planned.plan,
+          progress: planned.progress,
+          material: planned.first.material,
+          step: { ...summary, index: '0' },
+        },
+        f.ports,
+        policies,
+      ),
+    ).toMatchObject({ kind: 'transition', progress: { completed: '1' } })
+    // Later steps consume the same material; nothing trims again.
+    expect(trimmed).toHaveLength(1)
   })
   it('rejects floor above retention budget and step veto closes the plan', async () => {
     const f = fixture()
@@ -402,10 +445,12 @@ describe('projection and compaction plans', () => {
       ...f.ports,
       history: {
         ...f.ports.history,
-        compactionContext: async () => ({
+        compactionContext: async ({ evidence: current }: { evidence: typeof f.input.history }) => ({
           kind: 'context' as const,
-          epoch,
+          evidence: current,
           value: {
+            origin: entry('entry:0'),
+            base: { kind: 'initial' as const },
             covered: [{ ref: entry('entry:0'), message: row().message }],
             after: [],
             open: [entry('entry:0')],
@@ -462,5 +507,7 @@ it('caller-carried stable layers skip history reads while tail/representation/bu
     f.policies,
   )
   expect(changed.kind).toBe('candidate-before-extension')
-  expect(f.counts().reads).toBe(before.reads + 1)
+  // Only the control group changed: the history token is equal, so the rows are reused.
+  expect(f.counts().reads).toBe(before.reads)
+  expect(f.counts().meters).toBe(before.meters + 4)
 })

@@ -8,7 +8,7 @@
 
 | 对象                           | 身份                          | 拥有者             | 可变性                               | 关联                                                                                                                         |
 | ------------------------------ | ----------------------------- | ------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `RequestContextService` 抽象类 | 服务键 `requestContext`       | 本成员             | 静态，随包发布                       | `extends` Cordis 的 `Service`，`implements` 契约的登记面操作类型，另有组装入口 `assembly(scope, ports)`。提供者 `extends` 它 |
+| `RequestContextService` 抽象类 | 服务键 `requestContext`       | 本成员             | 静态，随包发布                       | `extends` Cordis 的 `Service`，`implements` 契约的登记面操作类型，另投影来源登记表的 `register`、`replace` 与 `assembly(target)`。提供者 `extends` 它 |
 | intercept 配置 `{ scope }`     | 贡献者插件 fiber 上的一份配置 | 声明它的贡献者插件 | 随该插件的 `inject` 声明，运行时不改 | `scope` 是不透明的作用域引用。登记方法拿它决定登记在哪一层                                                                   |
 | 事件载荷                       | 一次派发                      | 派发它的提供者     | 值，派发即完                         | 作用域引用、该层的登记修订与登记面实例的代次，事件名 `request-context-cordis-contract/changed`                               |
 
@@ -21,7 +21,9 @@ classDiagram
     contributeSection()
     contributeVariable()
     contributions(scope)
-    assembly(scope, ports)
+    register(input)
+    replace(input)
+    assembly(target)
   }
   class RequestContextIntercept {
     scope

@@ -2,28 +2,33 @@
 
 本页说明本成员怎样组织派生计算、缓存与默认策略来兑现 [SPEC](../SPEC.md)。它是组内「供给机制与缓存」这一主题在 Request Context 一侧的唯一拥有者（[组架构](../../docs/architecture.md#主题与唯一拥有者)）。公开行为归 [request-context-contract SPEC](../../request-context-contract/SPEC.md)，贡献登记面与 Cordis 绑定归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md) 与 [request-context-cordis](../../request-context-cordis/docs/cordis.md)。实现内部对象的身份与生灭归[对象模型](object-model.md)。
 
-本成员没有运行实现。`src/index.ts` 只有模板标记。下文是 SPEC 固定的结构，文件名由实现确定。
+来源登记表（`src/registry.ts`）与账目投影（`src/accounting.ts`）已实现。候选缓存、派生物、默认策略与修剪器尚未实现，下文是 SPEC 固定的结构，文件名由实现确定。
 
 ## 模块与依赖
 
-根入口导出一个工厂，输出是实现契约纯操作的实例。工厂的输入是两个策略实现、四项端口（历史源读口、计量端口、转换件结果端口与请求序列化端口）、贡献登记面的读口与配置。独立路径在构造时给出四项端口，没有登记面读口；经 Cordis 时四项端口不在构造时给，由调用方在每次 `assembly(scope, ports)` 时经实例的按调用交入端口的入口给出（[SPEC 范围与依据](../SPEC.md#范围与依据)）。工厂内部分成下列模块：
+根入口导出两个工厂。`createContextSourceRegistry` 的输入是主体绑定、登记授权判定者与两个策略实现；来源集合（七组读口、窄采用来源、历史源读口、转换件结果读口、读取资格与 Model 准备资源）由来源适配者经 `register` 登记，调用方经 `assembly(target)` 取操作组。`createContextAccounting` 的输入是来源核验、读取资格、窄采用来源、恢复授权与必填的容量上限（[SPEC 范围与依据](../SPEC.md#范围与依据)）。本成员没有序列化端口：请求字节取自 Model 的 `rules.plan` 返回的物化表示。内部分成下列模块：
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
 | --- | --- | --- |
+| 来源登记表（已实现） | 每个 `(tenant, scope)` 一项：当前登记引用、代际、来源集合、在途借用数与未归还租约的拥有者 | 登记、替换、撤除与结算、借用、发布核对与关闭（[来源登记表](../SPEC.md#来源登记表)） |
+| 账目投影（已实现） | 每个 `(tenant, scope)` 一份目标状态、代际与按 `(call, dispatch)` 的修订指纹索引 | 收件口的核验顺序、幂等、容量、窗口占用与暂存重建（[账目投影](../SPEC.md#账目投影)） |
 | 候选缓存 | 按消费位置：最近一个已固定候选、一个在算候选，各带缓存键、它看到的各组修订、候选内容与各层渲染结果；不存结局 | 七组修订摘要做键、命中、按组失效、修订落后即作废（[候选缓存](../SPEC.md#候选缓存)） |
-| 派生物 | 段渲染结果（唯一拥有者）、工具声明投影、快照提醒文本、窗口占用记录 | 段渲染在收到 `contributions` 通知后从登记面读口读段并渲染；其余在输入变化时预计算，组装时只取用（[预计算的派生物](../SPEC.md#预计算的派生物)） |
+| 派生物 | 段渲染结果（唯一拥有者）、工具声明投影、快照提醒文本 | 段渲染在收到 `contributions` 通知后从登记面读口读段并渲染；其余在输入变化时预计算，组装时只取用（[预计算的派生物](../SPEC.md#预计算的派生物)） |
 | 组装 | 无持久状态 | 比缓存键，按组只重算对应层，每次重算 ⑥、装入裁定与结局，按锚点比前缀摘要，epoch 已变时丢页重取（[本地行为](../SPEC.md#本地行为)） |
-| 计划与步 | 无持久状态 | 用压缩策略出计划并记下策略身份与参数摘要；`deriveStep` 核计划身份、已完成步数与策略，修剪步在这里由修剪器完成 |
+| 计划与步 | 无持久状态 | 用压缩策略出计划并记下策略身份、参数摘要与压缩依据；`deriveStep` 核计划身份、步序号、依据与策略；修剪由修剪器在第一个摘要步之前完成，不算一步 |
 | 默认压缩策略 | 配置初值：触发界线、保留预算、保留偏好、修剪优先、步数上界 | [默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
 | 默认表示策略 | 配置初值：按模态的偏好顺序 | 同上 |
 | 修剪器 | 配置初值：修剪阈值 | 同上 |
-| 生命周期 | 实例状态：开放、关闭中、已关闭 | 关闭后新的组装返回不可用，取消在途组装，释放缓存（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)） |
+| 生命周期 | 登记表状态：开放、已关闭 | 关闭后新登记与新借用返回不可用，等待全部代际结算；缓存实现后同时释放缓存（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)） |
 
 ```mermaid
 flowchart LR
-  Factory[工厂] --> Life[生命周期]
-  Factory --> Asm[组装]
-  Factory --> Plan[计划与步]
+  Factory[登记表工厂] --> Life[生命周期]
+  Factory --> Reg[来源登记表]
+  Reg --> Asm[组装]
+  Reg --> Plan[计划与步]
+  Acc[账目工厂] --> Proj[账目投影]
+  Proj --> RQC
   Asm --> Cache[候选缓存]
   Asm --> Derived[派生物]
   Asm --> Rep[表示策略实现]
@@ -36,11 +41,11 @@ flowchart LR
 
 压缩策略与表示策略是构造依赖。本成员同时提供两者的默认实现，调用方可以传入默认实现，也可以传入别的实现。经 Cordis 时由 [request-context-cordis](../../request-context-cordis/docs/cordis.md#配置与策略选择) 按配置选择。
 
-本成员不持有任何耐久状态。缓存与派生物都是进程内副本，失效后从输入重建，不改变任何结果（[SPEC 范围与依据](../SPEC.md#范围与依据)）。计划进度、压缩转换与最终请求记录归协调者与历史持有者。
+本成员不持有任何耐久状态。登记表、账目索引、缓存与派生物都是进程内状态：登记项由来源适配者重新登记，账目索引从结果接收方的日志授权重建，缓存失效后从输入重建，不改变任何结果（[SPEC 范围与依据](../SPEC.md#范围与依据)）。计划进度、压缩转换与最终请求记录归协调者与历史持有者。
 
-包外依赖只有 `@omne-harness/request-context-contract`：它给出全部值类型、纯操作、`HistorySource` 与两个策略端口的类型。它现在还不在 `package.json` 里，随实现进入。本成员不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)），也不导入任何协调者、历史持有者或贡献者的契约。
+包外运行依赖是 `@omne-harness/request-context-contract`、`@omne-harness/call-account` 与 `@omne-harness/legal-identity`：契约给出全部值类型、操作组 `createAssemblyOperations`、来源集合与账目协议的类型；call-account 判账目合法；legal-identity 编码与比较租户。本成员不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)），也不导入任何协调者、历史持有者或贡献者的契约。
 
-实例经 `notify(change)` 只得知一种变化：`contributions`，即贡献登记面某一层的变化，带作用域引用与该层的修订（[候选缓存](../SPEC.md#候选缓存)）。Cordis 路径上由 request-context-cordis 在登记或撤除之后调用它。实例收到后自己从登记面读口读段并渲染，渲染结果只归实例。历史、runtime context、模型侧与工具侧的变化不经通知，每次调用时由输入携带的修订比较得知。
+缓存实现后，登记表实例经 `notify(change)` 只得知一种变化：`contributions`，即贡献登记面某一层的变化，带作用域引用与该层的修订（[候选缓存](../SPEC.md#候选缓存)）。Cordis 路径上由 request-context-cordis 在登记或撤除之后调用它。实例收到后自己从登记面读口读段并渲染，渲染结果只归实例。历史、runtime context、模型侧与工具侧的变化不经通知，每次调用时由输入携带的修订比较得知。
 
 ## 关键机制与理由
 
@@ -117,7 +122,7 @@ flowchart LR
 
 ### 计划进度不在本成员保存
 
-`deriveStep` 只接受调用方传回的进度，核计划身份与已完成步数后给出下一步。理由：契约要求本成员保持纯函数，进度由协调者可靠保存，中断后从已完成的步接续（[RQ-06](../../request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。本成员保存进度会使恢复依赖进程内状态。
+`deriveStep` 只接受调用方传回的进度，核计划身份、步序号与压缩依据后给出下一步。理由：契约要求本成员保持纯函数，进度由协调者可靠保存，中断后从已完成的步接续（[RQ-06](../../request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。本成员保存进度会使恢复依赖进程内状态。
 
 ## SOLID 与扩展边界
 
@@ -131,11 +136,13 @@ flowchart LR
 
 ## 验证与维护
 
-SPEC 的[组合与验证](../SPEC.md#组合与验证)列出持续验证场景。现在都没有测试。
+SPEC 的[组合与验证](../SPEC.md#组合与验证)列出持续验证场景。登记表、账目投影与窗口占用块有测试，其余随实现进入。
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口没有导出 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口的导出为空 | 工厂进入后，改为核对导出集合 |
+| 根入口恰好导出两个工厂 | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新导出进入时同步 |
+| 登记表：冲突、代际、借用、发布、撤除、关闭，操作组一致性 | [registry.spec.ts](../tests/registry.spec.ts) | 缓存进入后补缓存与登记的交错 |
+| 账目投影：核验顺序、幂等、容量、四种状态、重建 | [accounting.spec.ts](../tests/accounting.spec.ts) | — |
 | 命中、按组失效、修订落后作废 | 没有 | 随实现进入 `tests/`，按组失效表每行一个场景 |
 | 有缓存与无缓存同输入同结果 | 没有 | 同一组输入分别走缓存与不走缓存，逐字比较，含结局与 ⑥ |
 | 修剪器、epoch 已变、依赖缺席、默认数值 | 没有 | 随实现进入 `tests/` |

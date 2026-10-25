@@ -1,86 +1,116 @@
-import type { CompactionContext } from '@omne-harness/message'
-import type { AssemblyInput, PlanResult, AssemblyFailure, AssemblyUnknown } from './values.js'
-import type { AssemblyPorts, AssemblyPolicies, CompactionContextResult } from './ports.js'
-import type { readHistory } from './history-read.js'
-import { invalid, summary } from './compaction-request.js'
-import { measure } from './measurement.js'
-import { measuredAmount, decimalParts } from './internal.js'
-export async function readCompactionContext<P>(
-  input: AssemblyInput<P>,
-  ports: AssemblyPorts<P>,
-  history: Extract<Awaited<ReturnType<typeof readHistory>>, { kind: 'history' }>,
-): Promise<
-  Extract<CompactionContextResult, { kind: 'context' }> | AssemblyFailure | AssemblyUnknown
-> {
-  const last = history.rows.at(-1)
-  if (last === undefined) return invalid('unsupported-format')
-  const context = await ports.history.compactionContext(
-    history.evidence,
-    input.identity.access,
-    last.entry,
-  )
-  if (context.kind === 'epoch-changed')
-    return {
-      kind: 'unavailable',
-      owner: 'history-source',
-      diagnostic: 'Compaction epoch changed; retry with current evidence',
-    }
-  if (context.kind === 'denied')
-    return { kind: 'denied', action: 'read-history', diagnostic: 'Compaction context refused' }
-  if (context.kind === 'unknown')
-    return { kind: 'unknown', source: 'read', diagnostic: 'Compaction context unknown' }
-  if (context.kind === 'invalid') return invalid('unsupported-format')
-  if (context.kind === 'unavailable')
-    return { kind: 'unavailable', owner: 'history-source', diagnostic: context.diagnostic }
-  if (context.epoch !== history.evidence.epoch) return invalid('plan-mismatch')
-  return context
+import type * as M from '@omne-harness/model-contract'
+import type {
+  CompactionContext,
+  CoveredEntry,
+  Message,
+  RecordEntryRef,
+} from '@omne-harness/message'
+import type { Adoption } from './refs.js'
+import type { RetentionMeasurement } from './ports.js'
+import type {
+  AssemblyFailure,
+  AssemblyUnknown,
+  ProjectedHistory,
+  ProjectedMessage,
+  SelectedModel,
+  SummaryMaterial,
+} from './values.js'
+import type { OperationContext } from './operation-context.js'
+import { buildModelInput } from './model-input.js'
+import { lineageFor } from './model-input.js'
+import { measureCandidate } from './measurement.js'
+import { decimalParts, measuredAmount } from './internal.js'
+
+/** The projected messages of the window: the model view rows whose entry is in the window. */
+export function projectWindow(view: ProjectedHistory, window: CompactionContext): ProjectedHistory {
+  const refs = new Set([...window.covered, ...window.after].map(entry => entry.ref))
+  return { ...view, messages: view.messages.filter(item => refs.has(item.entry)) }
 }
-export function measureRetention<P>(
-  input: AssemblyInput<P>,
-  ports: AssemblyPorts<P>,
-  policies: AssemblyPolicies,
-  context: Readonly<{ value: CompactionContext }>,
-):
-  | Readonly<{
-      kind: 'measured'
-      measureEntries: (entries: readonly import('@omne-harness/message').RecordEntryRef[]) => string
-      limit: bigint
-    }>
-  | AssemblyFailure
-  | Extract<PlanResult, { kind: 'cannot-fit' }> {
-  const measured = new Map<string, bigint>()
-  for (const entry of context.value.covered) {
-    const assembled = {
-      ...summary({ covered: [], retained: [], trimmed: [] }, policies),
-      system: [],
-      messages: entry.message === null ? [] : [entry.message],
-    }
-    const budget = measure(input, ports, assembled, [])
-    if (budget.kind !== 'complete' && budget.kind !== 'deferred-media') return budget
-    const check = budget.checks.filter(c => c.metric === 'input-tokens').map(measuredAmount)
-    measured.set(
-      entry.ref,
-      check.reduce((a, b) => (a > b ? a : b), 0n),
-    )
+export function projectedOf(
+  projected: ProjectedHistory,
+  entries: readonly RecordEntryRef[],
+): readonly ProjectedMessage[] {
+  const wanted = new Set(entries)
+  return projected.messages.filter(item => wanted.has(item.entry))
+}
+/** The summary material: covered entries with their model-visible projection, or null. */
+export function materialOf(
+  projected: ProjectedHistory,
+  covered: readonly CoveredEntry[],
+  retained: readonly RecordEntryRef[],
+): SummaryMaterial {
+  const byEntry = new Map(projected.messages.map(item => [item.entry, item.message] as const))
+  return {
+    covered: covered.map(entry => ({ ref: entry.ref, message: byEntry.get(entry.ref) ?? null })),
+    retained,
+    trimmed: [],
   }
-  const measureEntries = (entries: readonly import('@omne-harness/message').RecordEntryRef[]) =>
-    entries.reduce((sum, ref) => sum + (measured.get(ref) ?? 0n), 0n).toString()
-  // The holder's complete open-work floor applies before policy coverage is shortened.
-  if (context.value.open.some(ref => !measured.has(ref))) return invalid('unsupported-format')
-  const retain = policies.compaction.config.retainBudget
-  const limit =
-    retain.kind === 'tokens'
-      ? BigInt(retain.retainTokens)
-      : (BigInt(input.selection.profile.definition.context.window.provided) *
-          decimalParts(retain.retainRatio).n) /
+}
+
+/** The retention budget of the policy, in tokens of the selected model window. */
+export function retentionLimit(
+  retain: import('./ports.js').RetainBudget,
+  selection: SelectedModel,
+): bigint {
+  return retain.kind === 'tokens'
+    ? BigInt(retain.retainTokens)
+    : (BigInt(selection.profile.definition.context.window.provided) *
+        decimalParts(retain.retainRatio).n) /
         decimalParts(retain.retainRatio).scale
-  if (BigInt(measureEntries(context.value.open)) > limit)
-    return {
-      kind: 'cannot-fit',
-      reason: 'floor-exceeds-budget',
-      floor: context.value.open,
-      budget: limit.toString(),
-      diagnostic: 'Open-work floor exceeds retention budget',
+}
+
+export type CompactionCandidate = Readonly<{
+  selection: SelectedModel
+  representation: Adoption
+  source: Adoption
+}>
+/** Measures one compaction candidate: empty system and tools, `auto`, its own lineage (RQ-05). */
+export async function measureCompactionCandidate<P>(
+  context: OperationContext<P>,
+  candidate: CompactionCandidate,
+  projected: readonly ProjectedMessage[],
+  messages: readonly Message[],
+): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown> {
+  const assembled = buildModelInput(candidate.selection, {
+    system: [],
+    messages,
+    tools: [],
+    toolChoice: 'auto',
+    representation: candidate.representation,
+    source: candidate.source,
+  })
+  const lineage = lineageFor(context.access, projected, messages, null)
+  if ('kind' in lineage) return lineage
+  return measureCandidate(
+    { access: context.access, preparation: context.sources.preparation },
+    candidate.selection,
+    lineage,
+    assembled,
+  )
+}
+
+/** The callback a compaction policy receives: one complete measurement per retained set. */
+export function retentionMeasure<P>(
+  context: OperationContext<P>,
+  candidate: CompactionCandidate,
+  projected: ProjectedHistory,
+): (entries: readonly RecordEntryRef[]) => Promise<RetentionMeasurement> {
+  return async entries => {
+    const items = projectedOf(projected, entries)
+    const budget = await measureCompactionCandidate(
+      context,
+      candidate,
+      items,
+      items.map(item => item.message),
+    )
+    if (budget.kind !== 'complete' && budget.kind !== 'deferred-media') {
+      if (budget.kind === 'unknown') return { kind: 'unknown', diagnostic: budget.diagnostic }
+      return budget
     }
-  return { kind: 'measured' as const, measureEntries, limit }
+    const tokens = budget.checks
+      .filter(check => check.metric === 'input-tokens')
+      .map(measuredAmount)
+      .reduce((a, b) => (a > b ? a : b), 0n)
+    return { kind: 'measured', tokens: tokens.toString() }
+  }
 }

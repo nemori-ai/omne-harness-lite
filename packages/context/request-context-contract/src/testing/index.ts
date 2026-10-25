@@ -1,16 +1,43 @@
 export { createMemoryHistorySource } from './history-source.js'
-export type { MemoryHistorySource, HistoryFixture } from './history-source.js'
+export type { MemoryHistorySource, HistoryFixture, HistoryFixtureRow } from './history-source.js'
 export {
   createScriptedInputMeter,
+  createScriptedPreparationResources,
   createMemoryConversionResults,
   createScriptedCompactionPolicy,
   createScriptedRepresentationPolicy,
   FIXTURE_COMPACTION_POLICY,
   FIXTURE_REPRESENTATION_CONFIG,
 } from './doubles.js'
-export type { MeterScript, ScriptedInputMeter, MemoryConversionResults } from './doubles.js'
-export type { AssemblyInputFixtureOptions } from './fixtures.js'
-export { createAssemblyInput, testingAccess } from './fixtures.js'
+export type {
+  MeterScript,
+  ScriptedInputMeter,
+  MemoryConversionResults,
+  PreparationCall,
+  PreparationScript,
+  ScriptedPreparationResources,
+} from './doubles.js'
+export {
+  createMemoryContextSources,
+  createMemoryAdoptedSource,
+  createMemoryReadEligibility,
+  createTestingPrincipalBinding,
+} from './sources.js'
+export type {
+  AssemblyGroupValues,
+  MemoryContextSources,
+  MemoryContextSourcesInput,
+  MemoryAdoptedSource,
+  MemoryReadEligibility,
+} from './sources.js'
+export type { AssemblyFixture, AssemblyFixtureOptions } from './fixtures.js'
+export {
+  createAssemblyFixture,
+  createAssemblyGroups,
+  testingAccess,
+  countingBasis,
+  fixtureBudget,
+} from './fixtures.js'
 export {
   requestContextConformance,
   historySourceConformance,

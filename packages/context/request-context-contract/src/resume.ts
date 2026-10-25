@@ -1,21 +1,23 @@
-import type { AssemblyInput, AssemblyResult, TransitionEvidence } from './values.js'
-import type { AssemblyPolicies, AssemblyPorts } from './ports.js'
-import { assemble } from './assembly.js'
+import type { AssemblyInput, AssemblyResult, PreparedInputKey } from './values.js'
+import type { HistoryRow } from './ports.js'
+import type { OperationContext } from './operation-context.js'
+import { assembleInputs } from './assembly.js'
 import { invalid } from './compaction-request.js'
-export async function resume<P>(
-  input: AssemblyInput<P> & Readonly<{ transition: TransitionEvidence }>,
-  ports: AssemblyPorts<P>,
-  policies: AssemblyPolicies,
+/** Re-assembles after a committed compaction; the third group must carry a full snapshot (RQ-06). */
+export async function resumeInputs<P>(
+  input: AssemblyInput<P>,
+  key: PreparedInputKey,
+  rows: readonly HistoryRow[],
+  context: OperationContext<P>,
 ): Promise<AssemblyResult> {
   if (
     input.contextRead.read.kind !== 'success' ||
     !('viewRevision' in input.contextRead.read.value)
   )
     return { kind: 'invalid', field: 'contextRead', reason: 'resume-without-full-snapshot' }
-  if (
-    input.transition.candidate !== input.identity.candidate ||
-    input.transition.epoch !== input.history.epoch
-  )
+  const transition = input.transition
+  if (transition === null) return invalid('missing-input', 'context.transition')
+  if (transition.candidate !== input.identity.candidate || transition.epoch !== input.history.epoch)
     return invalid('plan-mismatch')
-  return assemble(input, ports, policies)
+  return assembleInputs(input, key, rows, context)
 }

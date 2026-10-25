@@ -16,6 +16,7 @@ export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './proj
 export { project, projectForHuman } from './projection.js'
 export type { CompactionSettingsValue, WindowUsageValue } from './blocks.js'
 export {
+  windowRatio,
   compactionSettingsSchema,
   windowUsageSchema,
   compactionSettingsBlock,
@@ -36,6 +37,15 @@ export type {
   EpochId,
   BatchRef,
   PassageRef,
+  RegistrationRef,
+  SourceGeneration,
+  GroupToken,
+  CommitOrder,
+  AccountingGeneration,
+  RecoveryGrantRef,
+  PrincipalKey,
+  HistorySequence,
+  ContextTarget,
   RefKind,
   RefRejection,
 } from './refs.js'
@@ -47,10 +57,53 @@ export {
   decodeEpochId,
   decodeBatchRef,
   decodePassageRef,
+  decodeRegistrationRef,
+  decodeSourceGeneration,
+  decodeGroupToken,
+  decodeCommitOrder,
+  decodeAccountingGeneration,
+  decodeRecoveryGrantRef,
+  decodePrincipalKey,
+  decodeHistorySequence,
+  compareHistorySequence,
 } from './refs.js'
-export type { AssemblyPorts, AssemblyPolicies, AssemblyOperations } from './ports.js'
+export type { AssemblyPolicies, AssemblyOperations } from './ports.js'
 export type { PreparedInputKey } from './values.js'
-export { assemble } from './assembly.js'
+export type { AssemblyOperationsInput } from './operations.js'
+export { createAssemblyOperations } from './operations.js'
+export type {
+  SourceRead,
+  SourceGroupValue,
+  GroupSource,
+  ContextGroupSources,
+  AdoptedRead,
+  AdoptedRequestSource,
+  SourceDecision,
+  ContextReadEligibility,
+  PrincipalBinding,
+  ContextSources,
+  SourceRegistrationAuthority,
+  SourceSettlement,
+  ContextRegistration,
+  RegistrationResult,
+  ContextSourceRegistry,
+  ContextRegistryOptions,
+} from './sources.js'
+export type {
+  AccountingOrigin,
+  ReceivedAccountFact,
+  ContextAccountingInput,
+  AccountReceipt,
+  ContextAccountingInbox,
+  SystemRecoveryAccess,
+  AccountReplay,
+  RecoveryResult,
+  ContextRecovery,
+  AccountingSourceAuthority,
+  RecoveryAuthority,
+  AccountingLimits,
+  AccountingOptions,
+} from './accounting.js'
 export type {
   HistoryRow,
   HistoryPage,
@@ -65,7 +118,7 @@ export type {
   CompactionPolicyPort,
   RepresentationPolicyConfig,
   RepresentationPolicyPort,
-  RequestSerializer,
+  RetentionMeasurement,
 } from './ports.js'
 export type { BudgetInput } from './budget.js'
 export { judgeBudget } from './budget.js'
@@ -77,6 +130,16 @@ export type {
 } from './registry.js'
 export type {
   RequestPurpose,
+  AssemblyCall,
+  InputGroups,
+  GroupName,
+  HistoryUpper,
+  HistoryCursor,
+  TenantModelCall,
+  SourcedMessage,
+  ContinuationBasis,
+  AdoptedRequestFact,
+  CompactionBasis,
   HistoryEvidence,
   NewInputBatch,
   BlockMaterial,
@@ -93,7 +156,6 @@ export type {
   ConditionsEvidence,
   AlterationEvidence,
   PreviousPreparation,
-  AssemblyInput,
   TransitionEvidence,
   Layer,
   PrefixBreakReason,
@@ -124,6 +186,3 @@ export type {
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js'
 export type { DeriveInput } from './values.js'
-export { planCompaction } from './plan.js'
-export { deriveStep } from './compaction-step.js'
-export { resume } from './resume.js'

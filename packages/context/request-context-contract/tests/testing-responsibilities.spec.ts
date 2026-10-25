@@ -1,7 +1,6 @@
 import { expect, it } from 'vitest'
 import type { CompactionMessage } from '@omne-harness/message'
 import {
-  assemble,
   coverageSchema,
   decodeEpochId,
   project,
@@ -12,7 +11,21 @@ import {
   createScriptedCompactionPolicy,
   FIXTURE_COMPACTION_POLICY,
 } from '@omne-harness/request-context-contract/testing'
-import { fixture, row, entry, scope, epoch, text, message, evidence } from './fixtures.js'
+import {
+  fixture,
+  row,
+  entry,
+  scope,
+  epoch,
+  text,
+  message,
+  evidence,
+  target,
+  upper,
+  seq,
+  assemble,
+} from './fixtures.js'
+import type { HistoryEvidence } from '@omne-harness/request-context-contract'
 function historyFixture() {
   const f = fixture(),
     rows = [row(0), row(1), row(2), row(3)]
@@ -46,92 +59,106 @@ function compaction(): CompactionMessage {
     derivation: evidence,
   }
 }
-it('compaction context preserves non-message entries, after messages and the complete open-work responsibility', async () => {
+const origin = entry('entry:0')
+const initial = { kind: 'initial' as const }
+function at(epochId: HistoryEvidence['epoch'], last: number): HistoryEvidence {
+  return { target, epoch: epochId, upper: upper(last) }
+}
+it('compaction context preserves non-message entries, after entries and the complete open-work responsibility', async () => {
   const { f, data } = historyFixture(),
     source = createMemoryHistorySource<string>(data)
-  const result = await source.compactionContext(
-    { ...f.input.history, upper: 3 },
-    f.input.identity.access,
-    entry('entry:1'),
-  )
+  const access = f.input.identity.access
+  const evidence3 = at(epoch, 3)
+  const result = await source.compactionContext({
+    access,
+    evidence: evidence3,
+    coverTo: entry('entry:1'),
+  })
   expect(result).toEqual({
     kind: 'context',
-    epoch,
+    evidence: evidence3,
     value: {
+      origin,
+      base: initial,
       covered: data.epochs[0]!.entries.slice(0, 3),
-      after: [row(2).message, row(3).message],
+      after: data.epochs[0]!.entries.slice(3),
       open: [entry('entry:0'), entry('entry:3')],
     },
   })
-  expect(await source.compactionContext(f.input.history, null, entry('entry:1'))).toMatchObject({
-    kind: 'invalid',
-    reason: 'missing-access',
-  })
   expect(
-    await source.compactionContext(
-      { ...f.input.history, scope: { ref: 'scope:other' as typeof scope.ref } },
-      f.input.identity.access,
-      entry('entry:1'),
-    ),
+    await source.compactionContext({
+      access: null as never,
+      evidence: evidence3,
+      coverTo: entry('entry:1'),
+    }),
+  ).toMatchObject({ kind: 'invalid', reason: 'missing-access' })
+  expect(
+    await source.compactionContext({
+      access,
+      evidence: {
+        ...evidence3,
+        target: { ...target, scope: { ref: 'scope:other' as typeof scope.ref } },
+      },
+      coverTo: entry('entry:1'),
+    }),
   ).toMatchObject({ kind: 'invalid', reason: 'missing-scope' })
   expect(
-    await source.compactionContext(
-      { ...f.input.history, upper: 99 },
-      f.input.identity.access,
-      entry('entry:1'),
-    ),
-  ).toMatchObject({ kind: 'invalid' })
+    await source.compactionContext({ access, evidence: at(epoch, 99), coverTo: entry('entry:1') }),
+  ).toMatchObject({ kind: 'invalid', reason: 'upper-out-of-range' })
   expect(
-    await source.compactionContext(f.input.history, f.input.identity.access, entry('entry:absent')),
+    await source.compactionContext({ access, evidence: evidence3, coverTo: entry('entry:absent') }),
   ).toMatchObject({ kind: 'invalid' })
-  source.denyTenant(f.input.identity.access.tenant)
+  source.denyTenant(access.tenant)
   expect(
-    await source.compactionContext(f.input.history, f.input.identity.access, entry('entry:1')),
+    await source.compactionContext({ access, evidence: evidence3, coverTo: entry('entry:1') }),
   ).toEqual({ kind: 'denied' })
   const failed = createMemoryHistorySource<string>(data)
   failed.fail('offline')
   expect(
-    await failed.compactionContext(f.input.history, f.input.identity.access, entry('entry:1')),
+    await failed.compactionContext({ access, evidence: evidence3, coverTo: entry('entry:1') }),
   ).toEqual({ kind: 'unavailable', diagnostic: 'offline' })
 })
 it('a synthesized compaction epoch exposes the same retained/summary/tail history through both read ports', async () => {
   const { f, data } = historyFixture(),
     source = createMemoryHistorySource<string>(data),
     record = compaction()
+  const access = f.input.identity.access
   const next = source.commitCompaction(record)
   expect(next).not.toBe(epoch)
-  const old = await source.read(
-    { ...f.input.history, upper: 3 },
-    f.input.identity.access,
-    null,
-    65536,
-  )
-  expect(old).toMatchObject({ kind: 'epoch-changed', current: { epoch: next, upper: 2 } })
+  const old = await source.read({
+    access,
+    evidence: at(epoch, 3),
+    cursor: null,
+    budgetBytes: 65536,
+  })
+  expect(old).toMatchObject({ kind: 'epoch-changed', current: { epoch: next, upper: upper(2) } })
   expect(
-    await source.compactionContext(
-      { ...f.input.history, upper: 3 },
-      f.input.identity.access,
-      record.covers.to,
-    ),
+    await source.compactionContext({ access, evidence: at(epoch, 3), coverTo: record.covers.to }),
   ).toMatchObject({ kind: 'epoch-changed' })
-  const current = { scope, epoch: next, upper: 2 }
-  const page = await source.read(current, f.input.identity.access, null, 65536)
+  const current = at(next, 2)
+  const page = await source.read({ access, evidence: current, cursor: null, budgetBytes: 65536 })
   expect(page.kind).toBe('page')
   if (page.kind !== 'page') throw new Error(page.kind)
-  expect(page.page.rows.map(row => row.seq)).toEqual([0, 1, 2])
+  expect(page.page.rows.map(row => row.seq)).toEqual([seq(0), seq(1), seq(2)])
   expect(page.page.rows.map(row => row.message)).toEqual([row(0).message, record, row(3).message])
   const summaryEntry = page.page.rows[1]!.entry
   expect(summaryEntry).not.toBe(entry('entry:0'))
-  const context = await source.compactionContext(current, f.input.identity.access, summaryEntry)
+  const context = await source.compactionContext({
+    access,
+    evidence: current,
+    coverTo: summaryEntry,
+  })
   expect(context).toEqual({
     kind: 'context',
-    epoch: next,
+    evidence: current,
     value: {
+      origin,
+      base: { kind: 'previous', record: summaryEntry, pairings: [] },
       covered: [
         { ref: entry('entry:0'), message: row(0).message },
         { ref: summaryEntry, message: record },
       ],
-      after: [row(3).message],
+      after: [{ ref: entry('entry:3'), message: row(3).message }],
       open: [entry('entry:0'), entry('entry:3')],
     },
   })
@@ -159,10 +186,11 @@ it('retaining the coverage endpoint and colliding opaque refs never overwrite th
       },
     ],
   }
+  const access = f.input.identity.access
   const source = createMemoryHistorySource<string>(fixtureData),
     next = source.commitCompaction(record),
-    current = { scope, epoch: next, upper: 2 }
-  const result = await source.read(current, f.input.identity.access, null, 65536)
+    current = at(next, 2)
+  const result = await source.read({ access, evidence: current, cursor: null, budgetBytes: 65536 })
   if (result.kind !== 'page') throw new Error(result.kind)
   const refs = result.page.rows.map(row => row.entry),
     inserted = result.page.rows[1]!
@@ -171,15 +199,22 @@ it('retaining the coverage endpoint and colliding opaque refs never overwrite th
   expect(inserted.entry).not.toBe(record.covers.to)
   expect(inserted.entry).not.toBe(occupied)
   expect(inserted.entry).not.toBe(occupiedSuffix)
-  expect(await source.compactionContext(current, f.input.identity.access, inserted.entry)).toEqual({
+  expect(
+    await source.compactionContext({ access, evidence: current, coverTo: inserted.entry }),
+  ).toEqual({
     kind: 'context',
-    epoch: next,
+    evidence: current,
     value: {
+      origin,
+      base: { kind: 'previous', record: inserted.entry, pairings: [] },
       covered: [
         { ref: entry('entry:2'), message: row(2).message },
         { ref: inserted.entry, message: record },
       ],
-      after: [tail.message],
+      after: [
+        { ref: occupied, message: tail.message },
+        { ref: occupiedSuffix, message: null },
+      ],
       open: [entry('entry:2'), occupied, occupiedSuffix],
     },
   })
@@ -187,10 +222,11 @@ it('retaining the coverage endpoint and colliding opaque refs never overwrite th
 it('a non-message coverage endpoint does not duplicate earlier rows or discard the uncovered tail', async () => {
   const { f, data } = historyFixture(),
     record = { ...compaction(), covers: { from: entry('entry:0'), to: entry('entry:metadata') } }
+  const access = f.input.identity.access
   const source = createMemoryHistorySource<string>(data),
     next = source.commitCompaction(record),
-    current = { scope, epoch: next, upper: 4 }
-  const result = await source.read(current, f.input.identity.access, null, 65536)
+    current = at(next, 4)
+  const result = await source.read({ access, evidence: current, cursor: null, budgetBytes: 65536 })
   if (result.kind !== 'page') throw new Error(result.kind)
   expect(result.page.rows.map(row => row.message)).toEqual([
     row(0).message,
@@ -200,15 +236,19 @@ it('a non-message coverage endpoint does not duplicate earlier rows or discard t
     row(3).message,
   ])
   const inserted = result.page.rows[1]!
-  expect(await source.compactionContext(current, f.input.identity.access, inserted.entry)).toEqual({
+  expect(
+    await source.compactionContext({ access, evidence: current, coverTo: inserted.entry }),
+  ).toEqual({
     kind: 'context',
-    epoch: next,
+    evidence: current,
     value: {
+      origin,
+      base: { kind: 'previous', record: inserted.entry, pairings: [] },
       covered: [
         { ref: entry('entry:0'), message: row(0).message },
         { ref: inserted.entry, message: record },
       ],
-      after: [row(1).message, row(2).message, row(3).message],
+      after: [1, 2, 3].map(i => ({ ref: entry('entry:' + i), message: row(i).message })),
       open: [entry('entry:0'), entry('entry:3')],
     },
   })
@@ -221,8 +261,8 @@ it('a supplied next epoch controls the post-commit projection and access still a
     newEntry = entry('entry:predeclared-summary')
   const rows = [
     row(0),
-    { ...row(2), entry: newEntry, seq: 1, message: record },
-    { ...row(3), seq: 2 },
+    { seq: seq(1), entry: newEntry, bytes: row(2).bytes, message: record },
+    { ...row(3), seq: seq(2) },
   ]
   const source = createMemoryHistorySource<string>({
     ...data,
@@ -236,34 +276,40 @@ it('a supplied next epoch controls the post-commit projection and access still a
       },
     ],
   })
+  const access = f.input.identity.access
   expect(source.commitCompaction(record)).toBe(decoded.ok)
   expect(
-    await source.read({ scope, epoch: decoded.ok, upper: 2 }, null, null, 65536),
+    await source.read({
+      access: null as never,
+      evidence: at(decoded.ok, 2),
+      cursor: null,
+      budgetBytes: 65536,
+    }),
   ).toMatchObject({ kind: 'invalid', reason: 'missing-access' })
   expect(
-    await source.compactionContext(
-      { scope, epoch: decoded.ok, upper: 2 },
-      f.input.identity.access,
-      newEntry,
-    ),
+    await source.compactionContext({ access, evidence: at(decoded.ok, 2), coverTo: newEntry }),
   ).toEqual({
     kind: 'context',
-    epoch: decoded.ok,
+    evidence: at(decoded.ok, 2),
     value: {
+      origin,
+      base: { kind: 'previous', record: newEntry, pairings: [] },
       covered: [
         { ref: entry('entry:0'), message: row(0).message },
         { ref: newEntry, message: record },
       ],
-      after: [row(3).message],
+      after: [{ ref: entry('entry:3'), message: row(3).message }],
       open: [entry('entry:0'), entry('entry:3')],
     },
   })
 })
-it('scripted compaction preserves the mandatory floor and spends remaining budget on newer message entries', () => {
+it('scripted compaction preserves the mandatory floor and spends remaining budget on newer message entries', async () => {
   const { data } = historyFixture(),
     context = {
+      origin,
+      base: initial,
       covered: data.epochs[0]!.entries.slice(0, 4),
-      after: [row(3).message],
+      after: [{ ref: entry('entry:3'), message: row(3).message }],
       open: [entry('entry:0'), entry('entry:3')],
     }
   const policy = createScriptedCompactionPolicy({
@@ -274,32 +320,37 @@ it('scripted compaction preserves the mandatory floor and spends remaining budge
   const input = {
     context,
     view: project(data.epochs[0]!.rows, epoch),
-    measure: (refs: readonly unknown[]) => String(new Set(refs).size * 10),
+    measure: async (refs: readonly unknown[]) => ({
+      kind: 'measured' as const,
+      tokens: String(new Set(refs).size * 10),
+    }),
     windowTokens: '100',
   }
-  const draft = policy.plan(input)
+  const draft = await policy.plan(input)
   expect(draft).toEqual({
     kind: 'draft',
     coverTo: entry('entry:2'),
     retained: [entry('entry:0'), entry('entry:2')],
     bound: '2',
-    shape: 'trim-then-summarize',
+    shape: { kind: 'summarize', trimFirst: true },
   })
   const ratio = createScriptedCompactionPolicy({
     ...policy.config,
     retainBudget: { kind: 'ratio', retainRatio: '0.2' },
   })
-  expect(ratio.plan(input)).toEqual(draft)
+  expect(await ratio.plan(input)).toEqual(draft)
   const insufficient = createScriptedCompactionPolicy({
     ...policy.config,
     retainBudget: { kind: 'tokens', retainTokens: '5' },
   })
-  expect(insufficient.plan(input)).toEqual({
+  expect(await insufficient.plan(input)).toEqual({
     kind: 'floor-exceeds-budget',
     floor: [entry('entry:0')],
     budget: '5',
   })
-  expect(() => policy.plan({ ...input, context: { covered: [], after: [], open: [] } })).toThrow()
+  await expect(
+    policy.plan({ ...input, context: { ...context, covered: [], after: [], open: [] } }),
+  ).rejects.toThrow()
 })
 async function coveragePacket(): Promise<Coverage> {
   const f = fixture(),

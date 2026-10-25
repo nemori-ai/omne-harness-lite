@@ -1,7 +1,7 @@
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { decodeRevision } from '@omne-harness/model-contract'
 import { parseRecordEntryRef, parseMessageId } from '@omne-harness/message'
-import { decodeEpochId, decodeBatchRef } from './refs.js'
+import { decodeEpochId, decodeBatchRef, decodeHistorySequence } from './refs.js'
 import { PREFIX_BREAK_REASONS, type Coverage } from './values.js'
 import { record, integer, revision, adoption, isEvidence } from './schema-primitives.js'
 function ref(value: unknown): boolean {
@@ -43,11 +43,22 @@ function representation(value: unknown): boolean {
   )
 }
 
+function sequence(value: unknown): boolean {
+  return !('failure' in decodeHistorySequence(value))
+}
+/** `{ kind: 'empty' }` or `{ kind: 'entry', seq }` with nothing else. */
+export function isHistoryUpper(value: unknown): boolean {
+  if (!record(value)) return false
+  const keys = Object.keys(value).sort().join(',')
+  return value.kind === 'empty'
+    ? keys === 'kind'
+    : value.kind === 'entry' && keys === 'kind,seq' && sequence(value.seq)
+}
 function history(value: unknown): boolean {
   return (
     record(value) &&
     !('failure' in decodeEpochId(value.epoch)) &&
-    Number.isSafeInteger(value.upper) &&
+    isHistoryUpper(value.upper) &&
     Array.isArray(value.anchors) &&
     value.anchors.every(anchor)
   )
@@ -56,7 +67,7 @@ function anchor(value: unknown): boolean {
   return (
     record(value) &&
     ['history-head', 'snapshot-reminder', 'history-body'].includes(String(value.layer)) &&
-    Number.isSafeInteger(value.seq) &&
+    sequence(value.seq) &&
     typeof value.prefixDigest === 'string'
   )
 }
@@ -78,8 +89,10 @@ function snapshotAnchor(value: unknown): boolean {
   return (
     record(value) &&
     !('failure' in decodeEpochId(value.epoch)) &&
-    Number.isSafeInteger(value.seq) &&
-    (typeof value.prefixDigest === 'string' || value.prefixDigest === null)
+    isHistoryUpper(value.position) &&
+    (record(value.position) && value.position.kind === 'empty'
+      ? value.prefixDigest === null
+      : typeof value.prefixDigest === 'string')
   )
 }
 function snapshot(value: unknown): boolean {
