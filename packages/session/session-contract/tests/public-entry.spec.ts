@@ -1,6 +1,78 @@
 import { expect, it } from 'vitest'
+import * as session from '@omne-harness/session-contract'
+import * as testing from '@omne-harness/session-contract/testing'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/session-contract')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+// The whole runtime surface of the root entry. Every type is erased, so a new value export has to
+// be added here on purpose; the entry codec and the identity derivations of `decide` stay out.
+it('exports exactly the two derivations, the nine services, decide, reduce and the block', () => {
+  expect(Object.keys(session).sort()).toEqual([
+    'decide',
+    'deriveDriveOperation',
+    'deriveSessionOperation',
+    'judgeAdvance',
+    'judgeCompletion',
+    'judgeIdle',
+    'judgeRunStart',
+    'openWork',
+    'reduce',
+    'resolveCascade',
+    'resolveControlScope',
+    'resolveOperation',
+    'routeInput',
+    'sessionModesBlock',
+  ])
+})
+
+it('keeps the entry codec and the testing values off the root entry', () => {
+  for (const internal of ['encodeEntry', 'decodeEntry', 'toJsonValue', 'commandDigest', 'memoryAccess'])
+    expect(Object.keys(session)).not.toContain(internal)
+})
+
+it('exports the suite, the doubles and the legal values from ./testing', () => {
+  expect(Object.keys(testing).sort()).toEqual([
+    'NotApplicable',
+    'TESTING_OWNER',
+    'adoption',
+    'assertIndistinguishable',
+    'assistantMessage',
+    'conformanceCase',
+    'createMemorySessionClock',
+    'createMemorySessionContextInput',
+    'createMemorySessionEvidenceBridge',
+    'createMemorySessionTransactions',
+    'createScriptedSessionIdentityBridge',
+    'creation',
+    'evidence',
+    'expectKind',
+    'guard',
+    'handle',
+    'inputId',
+    'isNotApplicable',
+    'memoryAccess',
+    'memoryOtherAccess',
+    'memorySessionTransactionsFixture',
+    'mintEvidence',
+    'operationId',
+    'ordinaryInput',
+    'pendingReasonsOf',
+    'refused',
+    'runConformanceCase',
+    'sessionId',
+    'sessionTransactionsConformance',
+    'shapeOf',
+    'succeeded',
+    'testingTenant',
+    'userMessage',
+  ])
+})
+
+it('declares the block session.modes with its two consumers', () => {
+  expect(session.sessionModesBlock).toMatchObject({
+    name: 'session.modes',
+    kind: 'supplied',
+    recovery: 'persisted',
+    volatility: 'stable',
+    consumers: ['model', 'coordinator'],
+  })
+  expect(session.sessionModesBlock.schema.digest).toMatch(/^sha256:[0-9a-f]{64}$/u)
 })
