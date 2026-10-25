@@ -2,7 +2,7 @@
 
 本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
-现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，两个入口都没有导出。下文是 SPEC 固定的目标形状，不是源码事实。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 导出下文的服务定义，`src/index.ts` 只重导出契约类型。被替代的两个端口键不定义，见[被替代的协议](../../session-contract/SPEC.md#被替代的协议)。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 服务定义
 
@@ -39,7 +39,7 @@ export const inject = {
 
 ## 端口服务键
 
-七个构造依赖端口、四个出站端口与内部主体各有一个服务键，共十二个。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
+七个构造依赖端口、两个出站端口与内部主体各有一个服务键，共十个；下表另列两个已被替代、不再定义的键。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
 
 | 键 | 端口 | 谁提供 | 怎样取得；缺席时 |
 | --- | --- | --- | --- |
@@ -52,9 +52,9 @@ export const inject = {
 | `sessionContextInput` | `SessionContextInput` | session-adapters | 按调用现取。缺席时创建、声明修改与推进采用返回 `unavailable` |
 | `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
-| `sessionDeliveryRelease` | `DeliveryReleasePort`：向 Model 或 Tool 发出交付责任解除 | session-adapters | 按调用现取。缺席时结果的 `release` 保持 pending，恢复协调按 `pending(release)` 找回后重发 |
+| `sessionDeliveryRelease`（已被替代） | `DeliveryReleasePort`（已被替代）：向 Model 或 Tool 发出交付责任解除 | session-adapters | 按调用现取。缺席时结果的 `release` 保持 pending，恢复协调按 `pending(release)` 找回后重发 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
-| `sessionToolStartFence` | `ToolStartFencePort`：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 按调用现取。缺席时控制进度保持传播中，启动资格失效任务保留，不声称新发起已被阻止 |
+| `sessionToolStartFence`（已被替代） | `ToolStartFencePort`（已被替代）：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 按调用现取。缺席时控制进度保持传播中，启动资格失效任务保留，不声称新发起已被阻止 |
 
 事务端口与内部主体进 `inject`：没有事务端口任何读写都不成立，没有内部主体本组的协调器与调度器不能提交命令。内部主体是应用装配交付的运行时对象，按 [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 经服务键 `sessionPrincipals` 提供，不放进插件配置。其余端口按调用用 `ctx.get` 现取，使一个端口缺席只影响需要它的操作，不让整个服务停下（[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)）。各端口缺席时的契约表现以 [session-contract SPEC](../../session-contract/SPEC.md) 的端口表为准。
 
@@ -94,15 +94,15 @@ Tool 宿主协调者调用的 `ToolResidencyReader` 与 `ToolResidencyActions` �
 
 | 规则 | 本成员怎样符合 | 现在的证据 |
 | --- | --- | --- |
-| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 每个键只在对应抽象类的 `provide`，键常量取自它，提供者 `extends` 不写键 | 没有源码 |
-| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner` | 抽象类的属性取契约类型，JSDoc 写 `@owner packages/session/session-contract` | 没有源码 |
-| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口只重导出契约类型，Cordis 定义只在 `./cordis` | 没有源码 |
+| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 每个键只在对应抽象类的 `provide`，键常量取自它，提供者 `extends` 不写键 | `src/cordis.ts` |
+| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner` | 抽象类的属性取契约类型，JSDoc 写 `@owner packages/session/session-contract` | `src/cordis.ts` |
+| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口只重导出契约类型，Cordis 定义只在 `./cordis` | `src/cordis.ts` |
 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 本成员每个接缝只定义一个键。重复装载的处置归提供者 | 归 session-cordis |
-| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | `session-cordis-contract/committed`，在 `./cordis` 增补 `Events` | 没有源码 |
+| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | `session-cordis-contract/committed`，在 `./cordis` 增补 `Events` | `src/cordis.ts` |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 本成员不定义登记操作。提交参加者的登记归登记它的适配插件 | 归 session-adapters |
-| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 租户与会话是操作参数，不为会话建 fiber 或 isolate | 没有源码 |
-| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | intercept 配置只声明调用方类，不授予资格 | 没有源码 |
-| [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 靠同进程成立的保证写明兑现方式 | 见[靠装配兑现的保证](#靠装配兑现的保证) | 没有源码 |
+| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 租户与会话是操作参数，不为会话建 fiber 或 isolate | `src/cordis.ts` |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | intercept 配置只声明调用方类，不授予资格 | `src/cordis.ts` |
+| [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 靠同进程成立的保证写明兑现方式 | 见[靠装配兑现的保证](#靠装配兑现的保证) | `src/cordis.ts` |
 
 ## 机制读数与假设
 

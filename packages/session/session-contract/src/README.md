@@ -1,23 +1,19 @@
 # src
 
-本目录承载本包的公开定义、运行时校验与内部实现。`index.ts` 是代码入口，本文件与 `index.md` 只是文档导航。
+本目录承载本包的公开定义、纯函数与测试替身。`index.ts` 与 `testing.ts` 是两个代码入口，本文件与 `index.md` 只是文档导航。
 
 ## 允许的内容
 
-TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
+TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：`.` 指向 `index.ts`，`./testing` 指向 `testing.ts`。
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。本成员是 `module` 变体，没有 `cordis.ts`，根入口不导入 `@deepseek-ai/cordis`。非类型行为写在包根 [SPEC.md](../SPEC.md)，不写在源码注释里代替规格。
+源码只用可擦除的 TypeScript 语法。本成员是 `module` 变体，没有 `cordis.ts`，根入口不导入 `@deepseek-ai/cordis`，也不导入 Agent、Model、Tool 的契约包。非类型行为写在包根 [SPEC.md](../SPEC.md)，不写在源码注释里代替规格。`testing*.ts` 只给 `./testing` 入口，根入口不加载它们。
 
 ## 维护
 
-新增或改名公开导出时，同步 `package.json` 的 `exports`、[公开入口与候选定义](../docs/public-api.md)、本目录 `index.md` 与导出测试。按[内部架构](../docs/architecture.md)的模块切分新增源文件，`index.ts` 只做再导出。
+新增或改名公开导出时，同步 `package.json` 的 `exports`、[公开入口与源码导航](../docs/public-api.md)、本目录 `index.md`、`tests/public-entry.spec.ts` 的导出集合，并重新生成 `api/session-contract.api.md`。命令到条目的编码只在 `entries.ts` 一份；新增条目种类时同时改 `decide.ts`、`reduce.ts` 与事件目录。
 
 ## 本包事实
 
-现在只有 `index.ts` 一个源文件，内容是 `export {}` 与一行 `PACKAGE_TEMPLATE_DRAFT` 标记。根入口为空，没有类型也没有运行值。候选声明只写在公开入口页，那里是唯一的候选定义，不是源码。后继实现接管精确定义时，公开入口页改为源码导航。
-
-对候选声明做过编译检查，探针只在任务临时目录，不是成员资源，也不进本目录。
-
-当前缺口：值与结果项、工作与管理等操作、构造依赖端口与出站端口、块声明、纯函数 `decide` 与历史页的类型都还没有进入源码，清单见[公开入口与候选定义](../docs/public-api.md)。具名维护者由负责人指定。
+根入口导出公开接口页导航的全部类型、两个派生函数、九个领域服务、`decide`、`reduce` 与 `sessionModesBlock`。`decide` 按 SPEC 判定 M2 首条租户路径的提交种类，其余返回指向 #756 的 `unavailable`；支持范围见 SPEC 状态行。被替代的 `ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）与围栏、Agent 事件副本协议不声明。`./testing` 导出事务端口的一致性套件与非耐久替身、四个构造端口替身与合法测试值。具名维护者由负责人指定。

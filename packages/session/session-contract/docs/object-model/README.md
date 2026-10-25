@@ -1,5 +1,8 @@
 # Session 对象模型
 
+> 本页带「（已被替代）」标记的名字是历史叙述：替代拥有者与现状见 [SPEC 被替代的协议](../../SPEC.md#被替代的协议)。
+
+
 候选修订的节：[调用方怎样使用](#调用方怎样使用)、[跨域概念与内部可见范围](#跨域概念与内部可见范围)、[对象与生命周期](#对象与生命周期)、[无状态性与有状态性](#无状态性与有状态性)、[状态与转移](#状态与转移)、[值、参数与依赖](#值参数与依赖)、[领域特有的结果与提交](#领域特有的结果与提交)、[SOLID 与扩展边界](#solid-与扩展边界)。这些节在技术接受前不扩大本页既有承诺。
 
 Session 是会话治理的聚合根。Run 是聚合内的实体，记录一次逻辑工作的治理事实。attempt 是 Run 的值属性，表示当前推进资格。会话日志的一次提交是聚合的一致性边界。执行本身归 Agent 的执行，模型调用归 Model，工具执行归 Tool。
@@ -151,9 +154,9 @@ Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态�
 
 | 分类 | 内容 | 决定时点 | 能否序列化 | 与授权的关系 |
 | --- | --- | --- | --- | --- |
-| 单次操作参数 | `Access` 的主体、租户与会话，`SessionOperationId`，`advance` 与 `expected`，参加材料，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
+| 单次操作参数 | `SessionAccess`（`Access` 加会话）的主体、租户与会话，`SessionOperationId`，`advance` 与 `expected`，参加材料，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
 | 构造依赖端口 | `SessionTransactionPort`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`，可选 `SessionNotifier` | 构造时交入；除事务端口外按调用现取 | 不能，是能力对象 | 身份桥提供资格材料。其他端口的使用同样受每次操作的资格约束 |
-| 出站端口 | `AgentDrivePort`、`ToolStartFencePort`、`DeliveryReleasePort`、`ScopeReleasePort` | 按调用现取 | 不能 | 参数只含 Session 自己的值与不透明证据。作用域释放使用装配层维护者签发的恢复授权，不使用会话用户的访问身份 |
+| 出站端口 | `AgentDrivePort`、`ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）、`ScopeReleasePort` | 按调用现取 | 不能 | 参数只含 Session 自己的值与不透明证据。作用域释放使用装配层维护者签发的恢复授权，不使用会话用户的访问身份 |
 | 可序列化配置 | `SchedulingPolicy` 等调度策略 | 工厂创建时校验 | 能，不含业务身份、权限或秘密 | 无。配置归 `session` 工厂，不进本成员 |
 
 请求身份、固定采用和原位置作为显式值传递。存储、当前资格判断、时钟、空闲覆盖与 Context 材料通过构造依赖取得。逐操作的必需性与缺席行为沿 [SPEC](../../SPEC.md#构造依赖端口与出站端口) 核对。Cordis 只在[集成主题](../../../session-cordis-contract/docs/cordis.md)中装配这些能力。

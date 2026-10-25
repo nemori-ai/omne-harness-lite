@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft session-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Cordis service definitions of Session: the session service, the ten port services, keys and the committed event",
   "engines": {
     "node": ">=24"
   },
@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/session-contract": "workspace:*"
   },
   "devDependencies": {

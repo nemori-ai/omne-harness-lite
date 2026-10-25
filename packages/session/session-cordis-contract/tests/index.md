@@ -5,6 +5,6 @@
 ## 内容
 
 - [README.md](README.md)：测试范围、真实依赖与替身
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口没有导出的断言
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 绑定入口没有导出的断言
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行值，不导入 Cordis
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：`./cordis` 的导出、键与真实 Context 装载
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空

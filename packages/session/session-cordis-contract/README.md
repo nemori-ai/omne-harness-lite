@@ -1,6 +1,5 @@
 # @omne-harness/session-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The Cordis definition member of Session. Variant: `service-contract`.
@@ -13,8 +12,13 @@ The package does not own domain behavior. [session-contract](../session-contract
 
 Status: Cordis definition member, `draft`. The [SPEC](SPEC.md) states the properties. It is a candidate design. Technical acceptance has not happened for it. The adoption basis is the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
-- Not implemented: the abstract classes, the key constants, the intercept configuration type, the `Context` and `Events` augmentations, and the type re-exports of the root entry.
+| Export | Support | Where |
+| --- | --- | --- |
+| `SessionService` with the four faces, `sessionKey` | Exported | `src/cordis.ts` |
+| Ten port Services and keys: `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
+| `SessionIntercept`, the `Context` and `Events` augmentations, the event `session-cordis-contract/committed` | Exported | `src/cordis.ts` |
+| Type re-exports of the root entry | Exported, no runtime value | `src/index.ts` |
+| `sessionToolStartFence`, `sessionDeliveryRelease` | Superseded, not defined | [session-contract SPEC](../session-contract/SPEC.md#被替代的协议) |
 - Not verified: the Cordis mechanism reading for the intercept configuration is source reading only. Thus property 4 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
 
 ## Usage
@@ -24,7 +28,7 @@ The package has two entries:
 - The root entry `@omne-harness/session-cordis-contract` re-exports only contract types. It does not import Cordis.
 - `@omne-harness/session-cordis-contract/cordis` holds the service definition.
 
-After the implementation arrives, a caller plugin declares its caller class like this:
+A caller plugin declares its caller class like this:
 
 ```ts
 import type {} from '@omne-harness/session-cordis-contract/cordis'
@@ -40,7 +44,7 @@ Independent use does not need this package. A caller that uses only values and p
 
 ## Contracts
 
-- `src/` owns the public shapes. It is empty now.
+- `src/` owns the service definitions.
 - The [SPEC](SPEC.md) owns the properties and the lifecycle table.
 - The [Cordis page](docs/cordis.md) owns the service definition, the port service keys, the event, the dependency classes, and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
@@ -64,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-cordis-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The obligations in the SPEC lifecycle section are not covered yet. The provider tests check most of them. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The tests check the export sets of both entries, that every key equals the `provide` of its class, that the root entry imports no Cordis and no provider, and that a real `Context` loads a `SessionService` subclass and removes it on unload. See [tests/](tests/README.md). The obligations of the SPEC lifecycle section belong to the provider tests. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -88,8 +92,8 @@ docs/                     Internal design, public use, and integration
 ├── flows.md              Why this member has no flows of its own
 ├── object-model.md       Why this member has no domain objects
 └── public-api.md         Export entries and definition index
-src/                      index.ts and cordis.ts, template markers only now
-tests/                    Two entry tests, fixtures/ is empty now
+src/                      index.ts (type re-exports) and cordis.ts (definitions)
+tests/                    Entry tests: export sets, keys, real Context load
 schema/                   Template placeholder
 verification/             models/ and proofs/, template placeholders
 adr/                      Template placeholder
