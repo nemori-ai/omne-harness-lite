@@ -77,7 +77,7 @@ const decision = await check.check({
 | `tests/port-adapters.spec.ts` | Agent、Tool 的有限映射；未支持的权限或答复输入不放行；本地 Session 适配模型 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
-端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以不再需要类型等价测试。测试内 `SessionAccessCheck` 只是本卡适配模型。真实 Session 公共接口的兼容重验仍未完成，由 B1/S-2 接续。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
+端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。测试内 `SessionAccessCheck` 只是本卡适配模型。真实 Session 公共接口的兼容重验仍未完成，由 B1/S-2 接续。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/authorization`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 

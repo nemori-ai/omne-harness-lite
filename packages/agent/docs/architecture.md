@@ -216,7 +216,7 @@ sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep '^| `[
 | 文件 | 类 | 去向 | 理由 |
 | --- | --- | --- | --- |
 | `action-types.ts` | 弃 | 无 | 它的动作请求带 Session 的访问、范围与 attempt 身份，编码了旧领域边界。 |
-| `admission-digest.ts` | 弃 | 无 | 它只为旧 runner 的准入令牌计算参数摘要，新边界下准入证据由 `ActionAdmission` 以 `Evidence` 提供。 |
+| `admission-digest.ts` | 弃 | 无 | 它只为旧 runner 的准入令牌计算参数摘要，新边界下准入证据由 `ActionAdmission` 以 `DurableEvidence` 提供。 |
 | `conclusion-codec.ts` | 弃 | 无 | 它把扩展结论编码为 Session 日志条目，编码了日志即 Journal。 |
 | `cordis.ts` | 弃 | 无 | 它注册旧 runner 的 Cordis 服务，属于旧装配。 |
 | `effect.ts` | 弃 | 无 | 纯归约、否决结束链与 ask 暂停链已由[机制页“扩展协议的边界”](../agent/docs/architecture/mechanisms.md#扩展协议的边界)、系统页“有序组合与参数改写”和扩展作者协议“调用协议”规定，`stop`、`retry` 是否结束链、是否必须是最后一条，拥有者尚未规定，不取，select_model 替换主体与 SPEC“模型选择”第 5 条不一致，不可用即否决漏掉扩展作者协议“不可用与报错”中干预力被收窄时跳过的分支，这两条也不取。 |
@@ -228,7 +228,7 @@ sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep '^| `[
 | `retry-history.ts` | 弃 | 无 | 它从 Session 日志条目读回重试结论，编码了日志即 Journal。 |
 | `run-log-types.ts` | 弃 | 无 | 它声明把扩展结论写入旧日志的适配器，编码了日志即 Journal。 |
 | `run-pass-types.ts` | 弃 | 无 | 它的端口类型以 Session 日志条目读写结论，编码了日志即 Journal。 |
-| `runner-admission-token.ts` | 弃 | 无 | 它把准入令牌编码为指向旧日志键的定位符，新边界下准入证据由 `ActionAdmission` 以 `Evidence` 提供。 |
+| `runner-admission-token.ts` | 弃 | 无 | 它把准入令牌编码为指向旧日志键的定位符，新边界下准入证据由 `ActionAdmission` 以 `DurableEvidence` 提供。 |
 | `runner-chain-types.ts` | 弃 | 无 | 它从 Session 范围的装配清单与 Session 租户服务取扩展链的来源，编码了旧领域边界。 |
 | `runner-chain.ts` | 弃 | 无 | 它按 Session 读装配清单头与资产历史取扩展链，新边界下扩展调用使用装配给出的精确采用。 |
 | `service-types.ts` | 弃 | 无 | 它的服务宿主接口以 attempt 与 Session 日志的绑定定义调度范围，编码了旧领域边界。 |

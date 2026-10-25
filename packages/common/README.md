@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面十份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。`exchange-refs` 只导出三个类型，没有运行时值，是本组第一个纯类型成员。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面十份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。`exchange-refs` 只导出三个类型，没有运行时值。
 
 ## 责任与范围
 

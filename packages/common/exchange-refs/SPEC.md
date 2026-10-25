@@ -68,6 +68,8 @@
 
 可用 `rg -n '@omne-harness/exchange-refs' packages --glob package.json --glob '**/src/**'` 复核。
 
+session-contract 的公开接口文档（`packages/session/session-contract/docs/public-api.md`）仍各自写着这三个值的形状。它是待迁移的消费者：Session 契约的类型落地以本成员为唯一定义，迁移由 Session 契约落地的卡承担。
+
 ### 验证
 
 C1。三个类型各有四个必需的只读 `string` 成员，由 [tests/shapes.spec-d.ts](tests/shapes.spec-d.ts) 检查。

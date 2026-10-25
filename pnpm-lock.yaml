@@ -944,6 +944,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/exchange-refs':
+        specifier: workspace:*
+        version: link:../../common/exchange-refs
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text

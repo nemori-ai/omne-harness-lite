@@ -2,9 +2,11 @@
 // the accepted types must produce. The cases come from the #342 type probes.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
+import { organizationCodec } from '@omne-harness/legal-identity'
 import { expectTypeOf, it } from 'vitest'
 import {
   decodeToolCallId,
+  type AccountScope,
   type ControlDispatch,
   type IndependentToolScopeInput,
   type ToolAskRequest,
@@ -225,4 +227,17 @@ it('a successful delivery release has no operation claim and cannot return a pen
     void pending
   }
   void declareReleaseShape
+})
+
+it('an account scope names its organization with a minted OrganizationId', () => {
+  const parsed = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
+  if (!parsed.ok) throw new Error('fixture organization')
+  const scope: AccountScope = { kind: 'organization', organization: parsed.value }
+  const bare: AccountScope = {
+    kind: 'organization',
+    // @ts-expect-error an organization scope takes a minted OrganizationId, not bare text
+    organization: 'org_0123456789abcdefghjkmnpqrs',
+  }
+  void scope
+  void bare
 })
