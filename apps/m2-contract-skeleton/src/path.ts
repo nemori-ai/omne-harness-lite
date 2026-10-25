@@ -7,6 +7,7 @@ import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeInputId as decodeAgentInputId,
+  type AgentExecutionId,
   type AgentJournal,
   type DurableEvidence as AgentEvidence,
   type MessageHandoff,
@@ -523,6 +524,249 @@ function contextBridge(
 // ---------------------------------------------------------------------------------------------
 // The path
 
+type SessionStart = Readonly<{
+  observation: ConnectedObservation
+  scene: SessionScene | null
+}>
+
+/** H03: create the session for the recognized tenant and principal. */
+async function createSession(
+  deps: PathDependencies,
+  identified: Identified,
+): Promise<SessionStart> {
+  const access: SessionAccess<PathPrincipal> = {
+    principal: identified.principal,
+    tenant: identified.tenant,
+    session: 'session-cs-first' as SessionId,
+  }
+  const scene = sessionScene(deps.session, deps.evidence, access)
+  const created = await scene.commit<'create'>({
+    kind: 'create',
+    input: {
+      tenant: access.tenant,
+      session: access.session,
+      operation: callerOperation('create'),
+      creation: deps.creation,
+    },
+  })
+  if ('failure' in created)
+    return { observation: none(`session-create:${created.failure.kind}`), scene: null }
+  const work = await deps.session.readWork(access)
+  const connected = 'ok' in work && work.ok.session === access.session
+  return {
+    observation: {
+      connected,
+      evidence: [
+        'session-contract:commit(create) committed for the identity tenant',
+        'session-contract:readWork returns the session',
+      ],
+    },
+    scene: connected ? scene : null,
+  }
+}
+
+type Drive = Readonly<{
+  observation: ConnectedObservation
+  /** Present once the Agent accepted the invoke; the later hops read its journal. */
+  agent: Readonly<{ journal: AgentJournal<PathPrincipal>; execution: AgentExecutionId }> | null
+  log: BridgeLog
+}>
+
+function emptyLog(): BridgeLog {
+  return {
+    handedOver: null,
+    reply: null,
+    assembled: 0,
+    fixed: 0,
+    fixedMessages: 0,
+    historyMessages: 0,
+    lease: null,
+    failures: [],
+  }
+}
+
+/** H04: the first request, the Run, and the hand-over to Agent; then waits for the Agent reply. */
+async function driveFirstRequest(
+  deps: PathDependencies,
+  scene: SessionScene,
+  identified: Identified,
+): Promise<Drive> {
+  const log = emptyLog()
+  const stop = (reason: string): Drive => ({ observation: none(reason), agent: null, log })
+  const base = { tenant: scene.access.tenant, session: scene.access.session }
+  const sessionInput = 'input-cs-first' as InputId
+  const accepted = await scene.commit<'accept'>({
+    kind: 'accept',
+    input: {
+      ...base,
+      operation: callerOperation('accept-first'),
+      value: {
+        kind: 'ordinary',
+        input: sessionInput,
+        message: deps.request,
+        // The access layer marks a request that arrived after a successful login (#318 design).
+        origin: { ...evidence('login-entry/first-request'), owner: 'login-entry' },
+      },
+    },
+  })
+  if ('failure' in accepted) return stop(`session-accept:${accepted.failure.kind}`)
+  const binding: Binding = { execution: null, sessionInput, written: 0 }
+  const agent = await deps.agent({
+    tenant: identified.tenant,
+    handoff: messageBridge(scene, binding, log),
+    requests: contextBridge(scene, identified.tenant, deps, log),
+  })
+  const startedOutcome = await scene.commit<'startRun'>({
+    kind: 'startRun',
+    input: {
+      ...base,
+      operation: callerOperation('start-run'),
+      entry: 'interactive',
+      candidate: deps.creation.definition.candidate,
+      instance: { owner: 'agent', id: agent.instance },
+    },
+  })
+  if ('failure' in startedOutcome) return stop(`session-startRun:${startedOutcome.failure.kind}`)
+  const started = startedOutcome.ok as StartedRun
+  binding.execution = started.execution
+  const execution = decodeAgentExecutionId(started.execution)
+  const agentInput = decodeAgentInputId(String(started.first))
+  const agentOperation = decodeAgentOperationId(
+    deriveDriveOperation({
+      kind: 'invoke',
+      execution: started.execution,
+      first: started.first,
+      started: started.receipt.source,
+    }),
+  )
+  if ('failure' in execution || 'failure' in agentInput || 'failure' in agentOperation)
+    return stop('session-execution-or-input-not-an-agent-identity')
+  const invoked = await agent.provider.runtime.invoke({
+    principal: identified.principal,
+    tenant: identified.tenant,
+    execution: execution.ok,
+    operation: agentOperation.ok,
+    initial: {
+      id: agentInput.ok,
+      content: deps.request,
+      source: started.receipt.source as AgentEvidence,
+      priority: 'ordinary',
+    },
+    grant: null,
+  })
+  if ('failure' in invoked) return stop(`agent-invoke:${kindOf(invoked.failure)}`)
+  const turns = deps.replyTurns ?? 2000
+  for (let turn = 0; turn < turns && log.reply === null && log.failures.length === 0; turn += 1)
+    await new Promise(resolve => setTimeout(resolve, 0))
+  return {
+    observation: {
+      connected: started.first === sessionInput && log.handedOver !== null,
+      evidence: [
+        'session-contract:commit(accept ordinary) committed the first request',
+        'session-contract:commit(startRun) fixed the first request and opened the Run',
+        'agent:runtime.invoke accepted the Session execution and input',
+        log.handedOver === null
+          ? 'session-contract:commit(receive input-handover) not reached'
+          : 'session-contract:commit(receive input-handover) committed through the Agent message hand-over',
+      ],
+    },
+    agent: { journal: agent.journal, execution: execution.ok },
+    log,
+  }
+}
+
+type AgentSnapshot = Extract<
+  Awaited<ReturnType<AgentJournal<PathPrincipal>['load']>>,
+  { ok: unknown }
+>['ok']
+
+function leaseLabel(log: BridgeLog): string {
+  return log.lease === null
+    ? 'caller-reported: no Request Context lease counts'
+    : `caller-reported: Request Context lease counts acquired=${log.lease.acquired}, planned=${log.lease.planned}, outstanding=${log.lease.outstanding}`
+}
+
+/** H05, H06 and H07: what the Agent journal and the bridges observed. */
+function observeAgent(
+  snapshot: AgentSnapshot | null,
+  log: BridgeLog,
+): Readonly<Record<'H05' | 'H06' | 'H07', ConnectedObservation>> {
+  const modelResult =
+    snapshot?.results.find(
+      binding => binding.result.producer.kind === 'model' && binding.completion !== null,
+    ) ?? null
+  const leased =
+    log.lease !== null &&
+    log.lease.acquired > 0 &&
+    log.lease.outstanding === 0 &&
+    log.lease.planned > 0
+  const producer = modelResult?.result.producer
+  const sameCall = producer?.kind === 'model' && String(producer.call) === (log.reply?.call ?? null)
+  const ended = snapshot?.state.kind === 'ended'
+  return {
+    H05: {
+      connected:
+        log.assembled > 0 &&
+        log.historyMessages > 0 &&
+        leased &&
+        log.fixedMessages > 0 &&
+        modelResult !== null,
+      evidence: [
+        `request-context-contract:assemble produced the Agent request from ${log.historyMessages} Session history message(s)`,
+        leaseLabel(log),
+        `agent:prepare fixed the request with ${log.fixedMessages} assembled message(s)`,
+        modelResult === null
+          ? 'agent:journal has no Model call'
+          : 'agent:journal binds a Model call admitted through the Model runtime',
+      ],
+    },
+    H06: {
+      connected: modelResult !== null && sameCall,
+      evidence: [
+        modelResult === null
+          ? 'agent:journal has no processed Model result'
+          : 'agent:journal records the Model result as processed by the Agent',
+        sameCall
+          ? 'agent:message hand-over carries the reply of the same Model call'
+          : 'agent:no reply of the journal Model call',
+      ],
+    },
+    H07: {
+      connected: log.reply !== null && ended,
+      evidence: [
+        log.reply === null
+          ? 'session-contract:commit(recordMessage) not reached'
+          : 'session-contract:commit(recordMessage participation message) committed the Agent reply',
+        ended
+          ? 'agent:journal state ended'
+          : `agent:journal state ${snapshot?.state.kind ?? 'unread'}`,
+      ],
+    },
+  }
+}
+
+/** H08: the history returns exactly one assistant message with the Model reply text. */
+async function readReply(scene: SessionScene, log: BridgeLog): Promise<ConnectedObservation> {
+  const entries = await scene.history()
+  const replies = entries.filter(entry => entry.kind === 'message.assistant')
+  const replied = replies[0] === undefined ? null : messageOf(replies[0])
+  const found =
+    log.reply !== null &&
+    replies.length === 1 &&
+    replied !== null &&
+    replied.role === 'assistant' &&
+    textOf(replied) === log.reply.text
+  return {
+    connected: found,
+    evidence: [
+      `session-contract:history.begin kinds ${entries.map(entry => entry.kind).join(',')}`,
+      found
+        ? 'session-contract:history returns one assistant message with the Model reply text'
+        : 'session-contract:history has no assistant message with the Model reply text',
+    ],
+  }
+}
+
 export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstPathObservation> {
   const result: Record<FirstPathHop, ConnectedObservation> = {
     H01: none('not-reached'),
@@ -540,215 +784,24 @@ export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstP
   const login = await logIn(deps, registered.tenant)
   result.H02 = login.observation
   if (login.identified === null) return result
-  const { tenant, principal } = login.identified
-
-  // H03: create the session for the recognized tenant and principal.
-  const access: SessionAccess<PathPrincipal> = {
-    principal,
-    tenant,
-    session: 'session-cs-first' as SessionId,
-  }
-  const scene = sessionScene(deps.session, deps.evidence, access)
-  const base = { tenant, session: access.session }
-  const created = await scene.commit<'create'>({
-    kind: 'create',
-    input: { ...base, operation: callerOperation('create'), creation: deps.creation },
+  const session = await createSession(deps, login.identified)
+  result.H03 = session.observation
+  if (session.scene === null) return result
+  const drive = await driveFirstRequest(deps, session.scene, login.identified)
+  result.H04 = drive.observation
+  if (drive.agent === null) return result
+  const loaded = await drive.agent.journal.load({
+    principal: login.identified.principal,
+    tenant: login.identified.tenant,
+    execution: drive.agent.execution,
   })
-  if ('failure' in created) {
-    result.H03 = none(`session-create:${created.failure.kind}`)
-    return result
-  }
-  const work = await deps.session.readWork(access)
-  result.H03 = {
-    connected: 'ok' in work && work.ok.session === access.session,
-    evidence: [
-      'session-contract:commit(create) committed for the identity tenant',
-      'session-contract:readWork returns the session',
-    ],
-  }
-  if (!result.H03.connected) return result
-
-  // H04: the first request, the Run, and the hand-over to Agent.
-  const sessionInput = 'input-cs-first' as InputId
-  const accepted = await scene.commit<'accept'>({
-    kind: 'accept',
-    input: {
-      ...base,
-      operation: callerOperation('accept-first'),
-      value: {
-        kind: 'ordinary',
-        input: sessionInput,
-        message: deps.request,
-        // The access layer marks a request that arrived after a successful login (#318 design).
-        origin: { ...evidence('login-entry/first-request'), owner: 'login-entry' },
-      },
-    },
-  })
-  if ('failure' in accepted) {
-    result.H04 = none(`session-accept:${accepted.failure.kind}`)
-    return result
-  }
-  const binding: Binding = { execution: null, sessionInput, written: 0 }
-  const log: BridgeLog = {
-    handedOver: null,
-    reply: null,
-    assembled: 0,
-    fixed: 0,
-    fixedMessages: 0,
-    historyMessages: 0,
-    lease: null,
-    failures: [],
-  }
-  const agent = await deps.agent({
-    tenant,
-    handoff: messageBridge(scene, binding, log),
-    requests: contextBridge(scene, tenant, deps, log),
-  })
-  const startedOutcome = await scene.commit<'startRun'>({
-    kind: 'startRun',
-    input: {
-      ...base,
-      operation: callerOperation('start-run'),
-      entry: 'interactive',
-      candidate: deps.creation.definition.candidate,
-      instance: { owner: 'agent', id: agent.instance },
-    },
-  })
-  if ('failure' in startedOutcome) {
-    result.H04 = none(`session-startRun:${startedOutcome.failure.kind}`)
-    return result
-  }
-  const started = startedOutcome.ok as StartedRun
-  binding.execution = started.execution
-  const execution = decodeAgentExecutionId(started.execution)
-  const agentInput = decodeAgentInputId(String(started.first))
-  const agentOperation = decodeAgentOperationId(
-    deriveDriveOperation({
-      kind: 'invoke',
-      execution: started.execution,
-      first: started.first,
-      started: started.receipt.source,
-    }),
-  )
-  if ('failure' in execution || 'failure' in agentInput || 'failure' in agentOperation) {
-    result.H04 = none('session-execution-or-input-not-an-agent-identity')
-    return result
-  }
-  const invoked = await agent.provider.runtime.invoke({
-    principal,
-    tenant,
-    execution: execution.ok,
-    operation: agentOperation.ok,
-    initial: {
-      id: agentInput.ok,
-      content: deps.request,
-      source: started.receipt.source as AgentEvidence,
-      priority: 'ordinary',
-    },
-    grant: null,
-  })
-  if ('failure' in invoked) {
-    result.H04 = none(`agent-invoke:${kindOf(invoked.failure)}`)
-    return result
-  }
-  const turns = deps.replyTurns ?? 2000
-  for (let turn = 0; turn < turns && log.reply === null && log.failures.length === 0; turn += 1)
-    await new Promise(resolve => setTimeout(resolve, 0))
-  result.H04 = {
-    connected: started.first === sessionInput && log.handedOver !== null,
-    evidence: [
-      'session-contract:commit(accept ordinary) committed the first request',
-      'session-contract:commit(startRun) fixed the first request and opened the Run',
-      'agent:runtime.invoke accepted the Session execution and input',
-      log.handedOver === null
-        ? 'session-contract:commit(receive input-handover) not reached'
-        : 'session-contract:commit(receive input-handover) committed through the Agent message hand-over',
-    ],
-  }
-
-  // H05 and H06: the Agent journal shows the assembled request, the Model call and its result.
-  const loaded = await agent.journal.load({ principal, tenant, execution: execution.ok })
-  const snapshot = 'ok' in loaded ? loaded.ok : null
-  const modelResult =
-    snapshot?.results.find(
-      binding => binding.result.producer.kind === 'model' && binding.completion !== null,
-    ) ?? null
-  const replyCall = log.reply?.call ?? null
-  const leased =
-    log.lease !== null &&
-    log.lease.acquired > 0 &&
-    log.lease.outstanding === 0 &&
-    log.lease.planned > 0
-  result.H05 = {
-    connected:
-      log.assembled > 0 &&
-      log.historyMessages > 0 &&
-      leased &&
-      log.fixedMessages > 0 &&
-      modelResult !== null,
-    evidence: [
-      `request-context-contract:assemble produced the Agent request from ${log.historyMessages} Session history message(s)`,
-      log.lease === null
-        ? 'caller-reported: no Request Context lease counts'
-        : `caller-reported: Request Context lease counts acquired=${log.lease.acquired}, planned=${log.lease.planned}, outstanding=${log.lease.outstanding}`,
-      `agent:prepare fixed the request with ${log.fixedMessages} assembled message(s)`,
-      modelResult === null
-        ? 'agent:journal has no Model call'
-        : 'agent:journal binds a Model call admitted through the Model runtime',
-    ],
-  }
-  const producer = modelResult?.result.producer
-  const sameCall = producer?.kind === 'model' && String(producer.call) === replyCall
-  result.H06 = {
-    connected: modelResult !== null && sameCall,
-    evidence: [
-      modelResult === null
-        ? 'agent:journal has no processed Model result'
-        : 'agent:journal records the Model result as processed by the Agent',
-      sameCall
-        ? 'agent:message hand-over carries the reply of the same Model call'
-        : 'agent:no reply of the journal Model call',
-    ],
-  }
-
-  // H07: the reply in the Session journal; H08: history returns the pure-message reply.
-  const ended = snapshot?.state.kind === 'ended'
-  result.H07 = {
-    connected: log.reply !== null && ended,
-    evidence: [
-      log.reply === null
-        ? 'session-contract:commit(recordMessage) not reached'
-        : 'session-contract:commit(recordMessage participation message) committed the Agent reply',
-      ended
-        ? 'agent:journal state ended'
-        : `agent:journal state ${snapshot?.state.kind ?? 'unread'}`,
-    ],
-  }
-  const entries = await scene.history()
-  const kinds = entries.map(entry => entry.kind)
-  const replies = entries.filter(entry => entry.kind === 'message.assistant')
-  const reply = log.reply
-  const replied = replies[0] === undefined ? null : messageOf(replies[0])
-  const found =
-    reply !== null &&
-    replies.length === 1 &&
-    replied !== null &&
-    replied.role === 'assistant' &&
-    textOf(replied) === reply.text
-  result.H08 = {
-    connected: found,
-    evidence: [
-      `session-contract:history.begin kinds ${kinds.join(',')}`,
-      found
-        ? 'session-contract:history returns one assistant message with the Model reply text'
-        : 'session-contract:history has no assistant message with the Model reply text',
-    ],
-  }
-  if (log.failures.length > 0)
+  Object.assign(result, observeAgent('ok' in loaded ? loaded.ok : null, drive.log))
+  result.H08 = await readReply(session.scene, drive.log)
+  if (drive.log.failures.length > 0)
     for (const hop of ['H04', 'H05', 'H06', 'H07'] as const)
       result[hop] = {
         ...result[hop],
-        evidence: [...result[hop].evidence, ...log.failures.map(f => `bridge:${f}`)],
+        evidence: [...result[hop].evidence, ...drive.log.failures.map(f => `bridge:${f}`)],
       }
   return result
 }
