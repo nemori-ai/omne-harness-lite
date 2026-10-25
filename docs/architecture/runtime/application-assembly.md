@@ -25,10 +25,10 @@
 | 行 id | 成员与插件 | 提供 | 必需（`inject`） | 按调用现取 | 配置（可序列化） |
 | --- | --- | --- | --- | --- | --- |
 | `storage` | 存储契约的 SQLite 提供者 | 按事务域登记的存储服务 | 无 | 无 | 存储根目录；[存储契约](../../../packages/storage/docs/storage-contract/SPEC.md#提供者义务)要求的四项数值（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`） |
-| `tenant-domains` | 应用成员的目录插件 | `tenantDomains`：租户到事务域的解析，含首次解析时的组合登记 | `storage` | 无 | 事务域推导规则；组合版本与共同提交的参加者清单；登记表的文件位置（在存储根目录下）。见[租户到事务域的目录](#租户到事务域的目录) |
+| `tenant-domains` | 应用成员的目录插件 | `tenantDomains`：租户到事务域的解析，含首次解析时的组合登记 | `storage` | 无 | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）。见[租户到事务域的目录](#租户到事务域的目录) |
 | `identity` | `@omne-harness/identity` 的提供者插件 | 注册激活、签发登录、识别登录；`TenantStandingSource` | `storage` | 无 | 登录期限与空闲期限 |
 | `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck` | `identity` | 无 | 角色映射的选择 |
-| `session-storage` | `@omne-harness/session-storage-sql` 的提供者插件 | `sessionTransactions` | `storage`、`tenantDomains` | 无 | 介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；快照重建方式。其余字段取[成员配置](../../../packages/session/session-storage-sql/docs/cordis.md#配置)的初值 |
+| `session-storage` | `@omne-harness/session-storage-sql` 的提供者插件 | `sessionTransactions` | `storage`、`tenantDomains` | 游标签名密钥的取用入口 | 介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；快照重建方式。其余字段取[成员配置](../../../packages/session/session-storage-sql/docs/cordis.md#配置)的初值 |
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionTransactions`、`sessionPrincipals` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionAgentDrive`、`sessionClock`、`sessionNotifier`、`sessionDeliveryRelease` | `admission: 'none'`（本部署没有命令域与 hooks） |
 | `session-ad01` | session-adapters 的 AD-01 Agent 提交参加者 | 无（向执行记录提供者登记 Session 参加者） | `session`（`caller: 'coordinator'`） | 无 | 无 |
 | `session-ad02` | AD-02 Agent 事件消费 | 无 | `session`（`'coordinator'`）、`agentExecutionRecovery` | 无 | 无 |
@@ -43,7 +43,7 @@
 | `session-handoff` | Session 一侧的消息准入插件（成员见缺口表） | `agentMessageHandoff` | 由承接者定 | 无 | 无 |
 | `agent-journal` | Agent Journal 提供者（带 Session 提交参加者） | `agentJournal` | `storage`、`tenantDomains` | 无 | 无 |
 | `agent-adoptions` | 应用成员的采用适配插件 | `agentAdoptions`、`agentConditions` | 无 | 无 | [定义名映射](#桥接责任) |
-| `agent-host` | `@omne-harness/agent-host-local` 的宿主插件 | Agent 宿主、`agentPublicationAuthority`、`agentExecutionRecovery` | `agentJournal`、`agentAccessCheck`、`agentAdoptions`、`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext`、`agentMessageHandoff`、`modelRuntime`、`agentClock` | 无 | `jointCommits`：与 `tenant-domains` 行的参加者清单一致；Agent [工厂配置](../../../packages/agent/agent/docs/public-api.md#工厂配置)的其余项 |
+| `agent-host` | `@omne-harness/agent-host-local` 的宿主插件 | Agent 宿主、`agentPublicationAuthority`、`agentExecutionRecovery` | `agentJournal`、`agentAccessCheck`、`agentAdoptions`、`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext`、`agentMessageHandoff`、`modelRuntime`、`agentClock` | 无 | `jointCommits`：与 Journal 提供者支持的共同提交种类一致；Agent [工厂配置](../../../packages/agent/agent/docs/public-api.md#工厂配置)的其余项 |
 | `agent-instances` | `@omne-harness/agent-cordis-contract` 的 `agentInstancesPlugin` | `agentInstances` | `agentPublicationAuthority`、`agentAccessCheck` | 无 | 无 |
 | `model-host` | `@omne-harness/model-host-local` 的宿主插件 | `modelRuntime`、`modelProfiles`、`modelCredential` | 无 | 凭据解析 | 供应商适配的选择（首条路径用 `pi-ai-openai`）、端点与模型名、凭据引用 |
 | `request-context` | `@omne-harness/request-context-cordis` 的插件 | `requestContext` | 无 | 按 [request-context-cordis 的 Cordis 页](../../../packages/context/request-context-cordis/docs/cordis.md)现取 | 压缩策略的选择 |
@@ -122,6 +122,7 @@ flowchart LR
 | `identity` 行：持久提供者与插件；identity 自己的记录落在哪个事务域（租户在注册时才产生，[ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 未写） | identity 持久提供者，待建卡 |
 | `session-storage`、`session-provider`、`session-ad*` 行的源码与 `session` 服务键 | Session 实现，待建卡；目标形状已在 [session-cordis-contract 的 Cordis 页](../../../packages/session/session-cordis-contract/docs/cordis.md)固定 |
 | `session-storage` 的组合登记时机：成员 Cordis 页的[加载次序](../../../packages/session/session-storage-sql/docs/cordis.md#加载与组合登记)第 3 步在插件加载时登记一次，与每租户一个事务域不符 | Session 实现：改为由 `tenant-domains` 在租户首次解析时用本成员给出的登记材料登记，与成员[装配须知](../../../packages/session/session-storage-sql/docs/context.md)第 2 条一致 |
+| 登记表重建的两个前提：存储提供者文件名与事务域标识的对应、推导规则可逆 | 存储提供者（[#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)、[#540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）与应用装配实现；前提不成立时登记表丢失只能人工恢复 |
 | `session-handoff` 行：Session 一侧的 `MessageHandoff` 没有提供者；[Agent 的 Cordis 页](../../../packages/agent/agent-cordis-contract/docs/cordis.md)写「由装配者选择」 | Session 拥有者认领实现成员；认领前 `agent-host` 停在 `PENDING`，首条路径不能开始接收消息 |
 | `session-ad10` 行：所 `inject` 的装配采用与保管来源服务的键未定 | Session 实现 |
 | `agent-journal` 行：Journal 入口与 Session 提交参加者 | Agent 自身的 Journal 入口归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；Session 参加者与原 J 查询的桥接归 Session 实现 |
@@ -165,9 +166,9 @@ flowchart LR
 存储只把事务域绑定当作不透明分区键的守卫，一个事务域只服务一个租户（[存储契约](../../../packages/storage/docs/storage-contract/SPEC.md)）。目录由应用装配维护：
 
 - 推导规则：每个租户一个事务域，事务域标识由租户的 tenantCodec 文本按 `tenant-domains` 行配置的规则推导。运行时新建的租户不需要改配置。
-- 组合登记：`session-storage` 与 `agent-journal` 第一次为某个租户向 `tenantDomains` 解析事务域时，`tenant-domains` 先以该租户、推导出的事务域和配置的组合版本调用 `registerCombination`，参加者清单取本行配置。登记材料（参加者模块与迁移片段）由 `session-storage-sql` 与 Journal 提供者的公开导出给出，应用成员在构建时导入，不经插件树。登记成功后才返回事务域，所以第一次提交之前登记已经完成。再次登记同一组合是幂等的；参加者清单与已登记的不一致时得到 `registration_conflict`，解析返回 `unavailable` 并报告诊断。`agent-host` 的 `jointCommits` 必须与这份清单一致。
-- 登记表：`tenant-domains` 在第一次登记成功、返回事务域之前，把该租户写进登记表。登记表是存储根目录下由应用装配持有的一个文件，以先写临时文件再改名的方式整体替换；它不是事务域，不经存储契约，只记租户的 tenantCodec 文本。登记表只记解析过的租户，不按 identity 核对租户是否存在：[TenantStandingSource](../../../packages/identity/identity/SPEC.md#当前资格读口) 不区分未知租户与非成员，而进入 Session 的租户已经经过身份桥的资格判断。
-- 启动扫描与恢复的维护者以系统作用域读登记表，逐个租户扫描。登记表丢失或损坏时，按存储根目录下的事务域文件重建；重建完成之前启动扫描不开始。
+- 组合登记：`session-storage` 与 `agent-journal` 第一次为某个租户向 `tenantDomains` 解析事务域时，`tenant-domains` 先以该租户、推导出的事务域和配置的组合版本调用 `registerCombination`。参加者清单与登记材料（参加者模块与迁移片段）都取自 `session-storage-sql` 与 Journal 提供者的公开导出，应用成员在构建时导入，不经插件树，也不另写一份名字。登记成功、该事务域的迁移片段按存储契约的期望 XP-5 执行完毕之后，才返回事务域；所以第一次提交之前登记与迁移都已完成。再次登记同一组合是幂等的；参加者清单与已登记的不一致时得到 `registration_conflict`，解析返回 `unavailable` 并报告诊断。`agent-host` 的 `jointCommits` 是共同提交的种类，另行与 Journal 提供者核对，不与这份名字清单比较。
+- 登记表：`tenant-domains` 在第一次登记成功、返回事务域之前，把该租户写进登记表。登记表是存储根目录下由应用装配持有的一个文件，以先写临时文件、刷盘、再改名并刷盘目录的方式整体替换；它不是事务域，不经存储契约，只记租户的 tenantCodec 文本。登记表只记解析过的租户，不按 identity 核对租户是否存在：[TenantStandingSource](../../../packages/identity/identity/SPEC.md#当前资格读口) 不区分未知租户与非成员，而进入 Session 的租户已经经过身份桥的资格判断。
+- 启动扫描与恢复的维护者以系统作用域读登记表，逐个租户扫描。登记表丢失或损坏时，按存储根目录下的事务域文件重建；重建完成之前启动扫描不开始。重建有两个前提：存储提供者的文件名能还原事务域标识，推导规则能从事务域标识还原租户。两者都还没有承诺，见缺口表。
 - 隔离：本部署每个事务域一个数据库文件。写者 Worker 是否按租户分开归存储提供者；不分开时，按[存储契约](../../../packages/storage/docs/storage-contract/SPEC.md#提供者义务)记为该部署的已知限制。
 
 ## 替身与真件
@@ -195,7 +196,7 @@ CS 是私有验证应用 `apps/m2-contract-skeleton`，用于 M1 首次联合验
 
 - 固定：组件版本、Node 与数据库环境、进程拓扑（单进程）、持久目录（`storage` 行的根目录）、独立 QA 与原始证据的入口。
 - 公开场景覆盖：没有活体时的推进、进程重启、权限失效、原 J 查询、最终权威读取，以及目录登记表的退出与重建。
-- 同一事务域的共同提交：`agent-journal` 与 `session-storage` 在同一租户的事务域登记同一组合版本；`agent-host` 的 `jointCommits` 与 `tenant-domains` 的参加者清单逐种一致，否则 Agent 工厂返回 `unsupported`，Session 服务构造时报告 `unavailable`（[P-1](../../../packages/session/session-contract/SPEC.md#具名前提与明确缺项)）。
+- 同一事务域的共同提交：`agent-journal` 与 `session-storage` 在同一租户的事务域登记同一组合版本；`tenant-domains` 登记的参加者清单取自两个提供者的公开导出；`agent-host` 的 `jointCommits` 与 Journal 提供者支持的共同提交种类一致，否则 Agent 工厂返回 `unsupported`，Session 服务构造时报告 `unavailable`（[P-1](../../../packages/session/session-contract/SPEC.md#具名前提与明确缺项)）。
 - 契约套件对真实提供者运行：Session、identity、存储与 Agent Journal 各自的套件。契约通过不证明耐久，耐久另由崩溃与查询未知的认回用例证明。
 
 Session 实现的后继任务尚未建立；在它们写成可派发材料之前，不标为就绪。本页的接受不宣称上述运行保证已经兑现。
