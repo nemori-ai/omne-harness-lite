@@ -35,16 +35,16 @@ import {
 import { evidence } from './tool-values.ts'
 
 const NAMES = {
-  R1: 'a legal push returns saved with its key and the consumer owner as evidence owner',
-  R2: 'a push of the same key and content recalls the original receipt',
-  R3: 'a push of the same key with other content is a conflict that keeps the original',
-  R4: 'the receiver keeps its own copy of the payload',
-  R5: 'a reference of another tenant is denied and saves nothing',
-  R6: 'the tenant of the reference is part of the key',
-  R7: 'a malformed reference is invalid',
-  R8: 'the relation table rejects another revision and another call',
-  R9: 'an aborted signal cancels a new key and still recalls a saved one',
-  R10: 'one tenant at its capacity is backpressured without blocking another',
+  RP1: 'a legal push returns saved with its key and the consumer owner as evidence owner',
+  RP2: 'a push of the same key and content recalls the original receipt',
+  RP3: 'a push of the same key with other content is a conflict that keeps the original',
+  RP4: 'the receiver keeps its own copy of the payload',
+  RP5: 'a reference of another tenant is denied and saves nothing',
+  RP6: 'the tenant of the reference is part of the key',
+  RP7: 'a malformed reference is invalid',
+  RP8: 'the relation table rejects another revision and another call',
+  RP9: 'an aborted signal cancels a new key and still recalls a saved one',
+  RP10: 'one tenant at its capacity is backpressured without blocking another',
 } as const
 
 type Receiver = ToolResultReceiver<string, ContentBlock>
@@ -82,7 +82,7 @@ const fakeReceipt = (delivery: ToolDelivery<ContentBlock>): ToolSavedReceipt => 
 const variants: readonly Variant<Fixture>[] = [
   {
     name: 'the receiver owns the evidence itself',
-    fails: [NAMES.R1],
+    fails: [NAMES.RP1],
     fixture: variant(real => async input => {
       const answer = await real(input)
       if ('failure' in answer) return answer
@@ -91,7 +91,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'every push mints a fresh receipt',
-    fails: [NAMES.R2, NAMES.R3, NAMES.R4, NAMES.R9, NAMES.R10],
+    fails: [NAMES.RP2, NAMES.RP3, NAMES.RP4, NAMES.RP9, NAMES.RP10],
     fixture: variant(real => {
       let pushes = 0
       return async input => {
@@ -107,7 +107,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'other content under a saved key is taken as saved',
-    fails: [NAMES.R3],
+    fails: [NAMES.RP3],
     fixture: variant(real => async input => {
       const answer = await real(input)
       if ('failure' in answer && answer.failure.kind === 'conflict')
@@ -117,7 +117,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'the receiver keeps the object of the caller',
-    fails: [NAMES.R4],
+    fails: [NAMES.RP4],
     fixture: variant(real => {
       const kept = new Map<string, ToolDelivery<ContentBlock>>()
       return async input => {
@@ -132,7 +132,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'the tenant comes from the access, not from the reference',
-    fails: [NAMES.R5],
+    fails: [NAMES.RP5],
     fixture: variant(
       real => input =>
         real({ ...input, delivery: underTenant(input.delivery, input.access.tenant) }),
@@ -140,7 +140,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'the key leaves out the tenant',
-    fails: [NAMES.R5, NAMES.R6, NAMES.R10],
+    fails: [NAMES.RP5, NAMES.RP6, NAMES.RP10],
     fixture: variant(
       (real, fixture) => input =>
         real({
@@ -152,7 +152,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'a malformed reference is denied',
-    fails: [NAMES.R7],
+    fails: [NAMES.RP7],
     fixture: variant(real => async input => {
       const answer = await real(input)
       if (
@@ -166,7 +166,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'the relation table is not checked',
-    fails: [NAMES.R8],
+    fails: [NAMES.RP8],
     fixture: variant(real => async input => {
       const answer = await real(input)
       if (
@@ -180,12 +180,12 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'the signal is ignored',
-    fails: [NAMES.R9],
+    fails: [NAMES.RP9],
     fixture: variant(real => input => real({ ...input, signal: new AbortController().signal })),
   },
   {
     name: 'the capacity is not kept',
-    fails: [NAMES.R10],
+    fails: [NAMES.RP10],
     fixture: () => ({
       ...memoryToolResultReceiverFixture(),
       receiver: createMemoryToolResultReceiver<string>({
@@ -196,7 +196,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'one bucket holds the keys of every tenant',
-    fails: [NAMES.R10],
+    fails: [NAMES.RP10],
     fixture: variant(real => {
       let held = 0
       return async input => {
@@ -241,15 +241,15 @@ describe('ToolResultReceiver conformance suite', () => {
       name: 'one tenant only',
       fixture: oneTenantReceiver,
       notApplicable: {
-        [NAMES.R5]: 'otherAccess',
-        [NAMES.R6]: 'otherAccess',
-        [NAMES.R10]: 'otherAccess',
+        [NAMES.RP5]: 'otherAccess',
+        [NAMES.RP6]: 'otherAccess',
+        [NAMES.RP10]: 'otherAccess',
       },
     },
     {
       name: 'capacity not told',
       fixture: receiverWithoutCapacity,
-      notApplicable: { [NAMES.R10]: 'tenantCapacity' },
+      notApplicable: { [NAMES.RP10]: 'tenantCapacity' },
     },
   ])
 })
