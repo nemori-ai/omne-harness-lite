@@ -1,16 +1,16 @@
-import { runGovernance, type GovernanceInputs } from './governance.ts'
-import { runModel, type ModelInputs } from './model.ts'
-import { runFirstTenantPath, type FirstPathObservation, type PathDependencies } from './path.ts'
-import { aggregatePath, observeHops, type PathReport } from './path-report.ts'
-import { GOVERNANCE_SCENARIOS, type ScenarioResult } from './scenarios.ts'
+import { runGovernance, type GovernanceInputs } from "./governance.ts";
+import { runModel, type ModelInputs } from "./model.ts";
+import { runFirstTenantPath, type FirstPathObservation, type PathDependencies } from "./path.ts";
+import { aggregatePath, observeHops, type PathReport } from "./path-report.ts";
+import { GOVERNANCE_SCENARIOS, type ScenarioResult } from "./scenarios.ts";
 
 export type ContractSkeletonInputs<P> = Readonly<{
   /** The ports and doubles of the connected first tenant path. */
-  path: PathDependencies
+  path: PathDependencies;
   /** The subject of the public Model obligation suite. */
-  model: ModelInputs<P>
-  governance?: GovernanceInputs
-}>
+  model: ModelInputs<P>;
+  governance?: GovernanceInputs;
+}>;
 
 /**
  * Runs the connected first tenant path, the governance protocol scenarios and the public Model
@@ -20,31 +20,31 @@ export type ContractSkeletonInputs<P> = Readonly<{
 export async function runContractSkeleton<P>(
   inputs: ContractSkeletonInputs<P>,
 ): Promise<PathReport> {
-  let governance: readonly ScenarioResult[]
+  let governance: readonly ScenarioResult[];
   try {
-    governance = runGovernance(inputs.governance)
+    governance = runGovernance(inputs.governance);
   } catch {
-    governance = GOVERNANCE_SCENARIOS.map(scenarioId => ({
+    governance = GOVERNANCE_SCENARIOS.map((scenarioId) => ({
       scenarioId,
-      status: 'exception',
+      status: "exception",
       matchesExpected: false,
-      evidence: 'governance-input-unavailable',
-    }))
+      evidence: "governance-input-unavailable",
+    }));
   }
-  const structureErrors: string[] = []
-  let path: FirstPathObservation | null
+  const structureErrors: string[] = [];
+  let path: FirstPathObservation | null;
   try {
-    path = await runFirstTenantPath(inputs.path)
+    path = await runFirstTenantPath(inputs.path);
   } catch (error) {
-    path = null
+    path = null;
     structureErrors.push(
-      `first-path-threw:${error instanceof Error ? error.message.slice(0, 120) : 'unknown'}`,
-    )
+      `first-path-threw:${error instanceof Error ? error.message.slice(0, 120) : "unknown"}`,
+    );
   }
-  const model = await runModel(inputs.model)
+  const model = await runModel(inputs.model);
   return aggregatePath({
     hops: observeHops(path, governance, model.fragments),
     scenarios: [...governance, model.scenario],
     structureErrors: [...structureErrors, ...model.structureErrors],
-  })
+  });
 }
