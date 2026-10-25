@@ -16,10 +16,10 @@ describe('public Model conformance consumer', () => {
     expect(fragments.every(fragment => fragment.status === 'pass')).toBe(true)
     expect(report.checksPassed).toBe(true)
     expect(report.hops.find(hop => hop.hopId === 'H06')).toMatchObject({
-      state: 'gap',
-      blockedBy: ['GAP-RECEIVE-SURFACE'],
+      state: 'verified',
+      blockedBy: [],
     })
-    expect(report.fullPath).toBe('incomplete')
+    expect(report.fullPath).toBe('complete')
   })
 
   it('rejects not-applicable even when the public suite reports ok', async () => {

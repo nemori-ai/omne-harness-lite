@@ -6,7 +6,7 @@
 
 `@omne-harness/m2-contract-skeleton` is the private verification application (CS) of the M1 joint acceptance (G1). It connects the M2 first tenant path in one process: create a tenant, log in, create a session, send the first request, let Session hand it to Agent, let Agent assemble through Request Context and call Model, record the reply in the Session journal, and read the reply from history. It uses only the public exports of contract members and their `./testing` doubles.
 
-The path report gives each hop H01 through H08 as `verified`, `failed`, or `gap`. `fullPath` is `complete` only when all eight hops are verified. In this edition seven hops are verified with the doubles. H06 is a gap, because the Agent runtime does not use the receive surface that #684 names for that hop. `fullPath` is `incomplete`. The report also lists the residual gaps below. The application has no production command or deployment role. [SPEC.md](SPEC.md) owns the report behavior and the detailed gap inventory.
+The path report gives each hop H01 through H08 as `verified`, `failed`, or `gap`. `fullPath` is `complete` only when all eight hops are verified. In this edition all eight hops are verified with the doubles, and `fullPath` is `complete`. The report also lists the five non-blocking residual gaps below. The application has no production command or deployment role. [SPEC.md](SPEC.md) owns the report behavior and the detailed gap inventory.
 
 ## Usage
 
@@ -40,7 +40,7 @@ Residual gaps name what the connected path does not include. Only a blocking gap
 | [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | no | [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536), [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | No Session faces, drive adapter, or Session-side hand-over. This application orders the calls. |
 | [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | no | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | Session cannot form a completed Run terminal on this path. |
 | [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | no | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542), [#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) | No Agent-side Context adapter. The bridge fixes the request after the Request Context lease. |
-| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | H06 | [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672), [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) | The Agent runtime does not use the receive surface. No account hand-over occurs. |
+| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | no | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502), [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) | The Agent runtime does not yet consume the #672 receive surface and account outlet. H06 evidence comes from the runtime's own Model call consumption and journal. |
 
 ## Configuration and operation
 

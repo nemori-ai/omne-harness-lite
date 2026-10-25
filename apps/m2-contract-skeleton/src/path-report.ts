@@ -133,8 +133,8 @@ export const RESIDUAL_GAPS = [
   {
     gapId: 'GAP-RECEIVE-SURFACE',
     hops: ['H06'],
-    owners: [card(672), card(502)],
-    blocking: true,
+    owners: [card(502), card(673)],
+    blocking: false,
     reason: 'SPEC.md#gap-receive-surface',
   },
 ] as const satisfies readonly ResidualGap[]

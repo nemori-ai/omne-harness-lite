@@ -131,11 +131,11 @@ describe('connected first tenant path', () => {
     expect(observed.H08.connected).toBe(false)
   })
 
-  it('keeps the path incomplete on the blocking H06 gap and reports no message body', async () => {
+  it('reports a complete path without message bodies or credentials', async () => {
     const report = await runContractSkeleton(skeletonInputs())
     expect(report.checksPassed).toBe(true)
-    expect(report.gaps).toEqual(['H06'])
-    expect(report.fullPath).toBe('incomplete')
+    expect(report.gaps).toEqual([])
+    expect(report.fullPath).toBe('complete')
     const text = JSON.stringify(report)
     expect(text).not.toContain(REPLY_TEXT)
     expect(text).not.toContain('hello, first request')

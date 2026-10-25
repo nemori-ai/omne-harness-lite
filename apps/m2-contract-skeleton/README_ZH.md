@@ -6,7 +6,7 @@
 
 `@omne-harness/m2-contract-skeleton` 是 M1 首次联合验收（G1）的私有验证应用（CS）。它在一个进程内连通 M2 首条租户路径：创建租户、登录、创建会话、提交第一次请求、Session 把请求交给 Agent、Agent 经 Request Context 组装并调用 Model、回复写入 Session 日志、从历史读到回复。它只使用契约成员的公开导出及其 `./testing` 替身。
 
-路径报告把 H01 至 H08 每一跳给成 `verified`、`failed` 或 `gap`。只有八跳全部 `verified` 时，`fullPath` 才是 `complete`。本版在替身上七跳 `verified`。H06 是 `gap`，因为 Agent 运行时不使用 #684 为这一跳指定的接收面，所以 `fullPath` 为 `incomplete`。报告另列下文的残余缺口。应用没有生产命令或部署角色。[SPEC.md](SPEC.md) 拥有报告行为与详细缺口清单。
+路径报告把 H01 至 H08 每一跳给成 `verified`、`failed` 或 `gap`。只有八跳全部 `verified` 时，`fullPath` 才是 `complete`。本版在替身上八跳全部 `verified`，`fullPath` 为 `complete`。报告另列下文五个非阻断的残余缺口。应用没有生产命令或部署角色。[SPEC.md](SPEC.md) 拥有报告行为与详细缺口清单。
 
 ## 使用
 
@@ -40,7 +40,7 @@
 | [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | 否 | [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536)、[#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。 |
 | [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | 否 | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | 本路径上 Session 不能形成 completed 的 Run 终态。 |
 | [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | 否 | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542)、[#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) | 没有 Agent 一侧的 Context 适配；Request Context 取得租约后，由本应用的桥固定请求。 |
-| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | H06 | [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672)、[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) | Agent 运行时不使用接收面，路径上没有账目交接。 |
+| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | 否 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)、[#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) | Agent 运行时尚未消费 #672 接收面与账目出口；H06 的连通证据来自 Agent 运行时自身的 Model 调用消费与 journal。 |
 
 ## 配置与运行
 

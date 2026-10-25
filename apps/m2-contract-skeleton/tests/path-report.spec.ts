@@ -6,19 +6,16 @@ import { REQUIRED_SCENARIOS } from '../src/scenarios.ts'
 import { modelFragments, pathDependencies, skeletonInputs } from './first-path-doubles.ts'
 
 describe('M2 path observations', () => {
-  it('reports seven verified hops, the blocking H06 gap and the residual gaps of SPEC and README', async () => {
+  it('reports eight verified hops, a complete path and the non-blocking residual gaps of SPEC and README', async () => {
     const report = await runContractSkeleton(skeletonInputs())
     expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
     expect(report.scenarios.map(result => result.scenarioId)).toEqual([...REQUIRED_SCENARIOS])
     expect(report.checksPassed).toBe(true)
-    expect(report.hops.map(hop => hop.state)).toEqual(
-      HOP_IDS.map(hopId => (hopId === 'H06' ? 'gap' : 'verified')),
-    )
-    expect(report.fullPath).toBe('incomplete')
-    expect(report.gaps).toEqual(['H06'])
-    expect(report.residualGaps.filter(gap => gap.blocking).map(gap => gap.gapId)).toEqual([
-      'GAP-RECEIVE-SURFACE',
-    ])
+    expect(report.hops.map(hop => hop.state)).toEqual(HOP_IDS.map(() => 'verified'))
+    expect(report.fullPath).toBe('complete')
+    expect(report.gaps).toEqual([])
+    expect(report.residualGaps).toHaveLength(5)
+    expect(report.residualGaps.filter(gap => gap.blocking)).toEqual([])
     const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
     for (const document of ['../README.md', '../README_ZH.md']) {
       const text = readFileSync(new URL(document, import.meta.url), 'utf8')
@@ -83,12 +80,15 @@ describe('M2 path observations', () => {
               },
             ],
     }))
-    // A supplied observation cannot claim H06 verified while its blocking gap stands.
-    const claimed = aggregatePath({ ...report, hops })
-    expect(claimed.fullPath).toBe('incomplete')
-    expect(claimed.gaps).toEqual(['H06'])
     const unblocked = report.residualGaps.map(gap => ({ ...gap, blocking: false }))
     expect(aggregatePath({ ...report, hops, residualGaps: unblocked }).fullPath).toBe('complete')
+    // A supplied observation cannot claim a hop verified while a blocking gap names it.
+    const reblocked = report.residualGaps.map(gap =>
+      gap.gapId === 'GAP-RECEIVE-SURFACE' ? { ...gap, blocking: true } : gap,
+    )
+    const claimed = aggregatePath({ ...report, hops, residualGaps: reblocked })
+    expect(claimed.fullPath).toBe('incomplete')
+    expect(claimed.gaps).toEqual(['H06'])
     const missing = aggregatePath({
       ...report,
       hops: hops.filter(hop => hop.hopId !== 'H04'),
