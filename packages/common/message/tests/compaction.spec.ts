@@ -56,14 +56,20 @@ const call = (callId: string): Message =>
 const answer = (callId: string): Message =>
   plain('tool', [{ kind: 'tool_result', id: 'r1', visibility, callId }])
 
+type Entries = readonly (readonly [string, Message | null])[]
+const entriesOf = (entries: Entries) => entries.map(([at, message]) => ({ ref: ref(at), message }))
+
+/** A first-compaction window: the origin is the first covered entry. */
 function history(
-  entries: readonly (readonly [string, Message | null])[],
-  after: readonly Message[] = [],
+  entries: Entries,
+  after: Entries = [],
   open: readonly string[] = [],
 ): CompactionContext {
   return {
-    covered: entries.map(([at, message]) => ({ ref: ref(at), message })),
-    after,
+    origin: ref(entries[0]?.[0] ?? 'e1'),
+    base: { kind: 'initial' },
+    covered: entriesOf(entries),
+    after: entriesOf(after),
     open: open.map(ref),
   }
 }
@@ -334,7 +340,7 @@ describe('judgeCompaction', () => {
   })
 
   it('does not pair an answer with a call that comes after it', () => {
-    const context = history([['e1', answer('k')]], [call('k')])
+    const context = history([['e1', answer('k')]], [['e2', call('k')]])
     expect(judgeCompaction(compaction(), context)).toHaveProperty('ok')
   })
 

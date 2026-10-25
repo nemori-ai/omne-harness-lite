@@ -5,7 +5,9 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责与现状
-- [index.ts](index.ts)：根入口，将导出工厂与默认策略，现在为空
+- [index.ts](index.ts)：根入口，导出两个工厂
+- [registry.ts](registry.ts)：来源登记表
+- [accounting.ts](accounting.ts)：账目投影与恢复
 
 ## 阅读路径
 

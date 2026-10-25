@@ -4,7 +4,7 @@ import {
   RequestContextService,
   requestContextKey,
 } from '@omne-harness/request-context-cordis-contract/cordis'
-import { createAssemblyInput } from '@omne-harness/request-context-contract/testing'
+import { createAssemblyFixture } from '@omne-harness/request-context-contract/testing'
 import type { ScopeRef, ContributionResult } from '@omne-harness/request-context-contract'
 import { ProbeProvider } from './provider.js'
 const source = { owner: 'test', name: 'prompt', revision: '1', digest: 'd' }
@@ -36,7 +36,7 @@ it('subclass loads under the unique key and unregisters on provider unload', asy
 it('object inject passes each caller scope and registrations belong to contributor fibers', async () => {
   const ctx = new Context()
   const provider = await ctx.plugin(ProbeProvider)
-  const one = createAssemblyInput().history.scope
+  const one = createAssemblyFixture().target.scope
   const two = { ...one, ref: one.ref } // a scope is compared by its opaque ref, not object identity
   const a = await ctx.plugin({
     inject: { [requestContextKey]: { scope: one } },
@@ -64,7 +64,7 @@ it('object inject passes each caller scope and registrations belong to contribut
 it('missing scope refuses registration; explicit null means global; ancestor scope is inherited', async () => {
   const ctx = new Context()
   const provider = await ctx.plugin(ProbeProvider)
-  const scope = createAssemblyInput().history.scope
+  const scope = createAssemblyFixture().target.scope
   let missing: ContributionResult | undefined
   const noScope = await ctx.plugin({
     inject: [requestContextKey],
@@ -99,7 +99,7 @@ it('missing scope refuses registration; explicit null means global; ancestor sco
 it('scope shadows global; duplicate names and per-request variables are rejected without replacement', async () => {
   const ctx = new Context()
   const provider = await ctx.plugin(ProbeProvider)
-  const scope = createAssemblyInput().history.scope
+  const scope = createAssemblyFixture().target.scope
   const global = await ctx.plugin({
     inject: { [requestContextKey]: { scope: null } },
     apply(c) {
@@ -129,7 +129,7 @@ it('scope shadows global; duplicate names and per-request variables are rejected
 it('changed event uses positional arguments, layer revisions, generation, and no content', async () => {
   const ctx = new Context()
   const provider = await ctx.plugin(ProbeProvider)
-  const scope = createAssemblyInput().history.scope
+  const scope = createAssemblyFixture().target.scope
   const received: unknown[][] = []
   ctx.on('request-context-cordis-contract/changed', (changed, revision, generation) => {
     received.push([changed, revision, generation])

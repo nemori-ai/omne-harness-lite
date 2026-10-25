@@ -131,6 +131,11 @@
               "pending": false
             },
             {
+              "name": "windowRatio",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "compactionSettingsSchema",
               "kind": "value",
               "pending": false
@@ -234,6 +239,51 @@
               "pending": false
             },
             {
+              "name": "RegistrationRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceGeneration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "GroupToken",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommitOrder",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingGeneration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryGrantRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PrincipalKey",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistorySequence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextTarget",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "RefKind",
               "kind": "type",
               "pending": false
@@ -279,8 +329,48 @@
               "pending": false
             },
             {
-              "name": "AssemblyPorts",
-              "kind": "type",
+              "name": "decodeRegistrationRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeSourceGeneration",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeGroupToken",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeCommitOrder",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeAccountingGeneration",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeRecoveryGrantRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodePrincipalKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeHistorySequence",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compareHistorySequence",
+              "kind": "value",
               "pending": false
             },
             {
@@ -299,8 +389,158 @@
               "pending": false
             },
             {
-              "name": "assemble",
+              "name": "AssemblyOperationsInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createAssemblyOperations",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "SourceRead",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceGroupValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "GroupSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextGroupSources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRead",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRequestSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceDecision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextReadEligibility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PrincipalBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextSources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceRegistrationAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceSettlement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextRegistration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RegistrationResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextSourceRegistry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextRegistryOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingOrigin",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReceivedAccountFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextAccountingInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextAccountingInbox",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SystemRecoveryAccess",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountReplay",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextRecovery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingSourceAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingLimits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingOptions",
+              "kind": "type",
               "pending": false
             },
             {
@@ -369,7 +609,7 @@
               "pending": false
             },
             {
-              "name": "RequestSerializer",
+              "name": "RetentionMeasurement",
               "kind": "type",
               "pending": false
             },
@@ -405,6 +645,56 @@
             },
             {
               "name": "RequestPurpose",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InputGroups",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "GroupName",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryUpper",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryCursor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TenantModelCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourcedMessage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContinuationBasis",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRequestFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionBasis",
               "kind": "type",
               "pending": false
             },
@@ -485,11 +775,6 @@
             },
             {
               "name": "PreviousPreparation",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AssemblyInput",
               "kind": "type",
               "pending": false
             },
@@ -642,21 +927,6 @@
               "name": "DeriveInput",
               "kind": "type",
               "pending": false
-            },
-            {
-              "name": "planCompaction",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "deriveStep",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "resume",
-              "kind": "value",
-              "pending": false
             }
           ]
         }
@@ -683,7 +953,17 @@
               "pending": false
             },
             {
+              "name": "HistoryFixtureRow",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "createScriptedInputMeter",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedPreparationResources",
               "kind": "value",
               "pending": false
             },
@@ -728,17 +1008,97 @@
               "pending": false
             },
             {
-              "name": "AssemblyInputFixtureOptions",
+              "name": "PreparationCall",
               "kind": "type",
               "pending": false
             },
             {
-              "name": "createAssemblyInput",
+              "name": "PreparationScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedPreparationResources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createMemoryContextSources",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createMemoryAdoptedSource",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createMemoryReadEligibility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createTestingPrincipalBinding",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "AssemblyGroupValues",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryContextSources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryContextSourcesInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryAdoptedSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryReadEligibility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyFixtureOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createAssemblyFixture",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createAssemblyGroups",
               "kind": "value",
               "pending": false
             },
             {
               "name": "testingAccess",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "countingBasis",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "fixtureBudget",
               "kind": "value",
               "pending": false
             },
@@ -851,7 +1211,10 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": ["context.compaction-settings", "context.window-usage"],
+      "members": [
+        "context.compaction-settings",
+        "context.window-usage"
+      ],
       "pending": false
     }
   ]

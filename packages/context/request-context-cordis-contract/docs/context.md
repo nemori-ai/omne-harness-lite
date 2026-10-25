@@ -22,17 +22,17 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 ### 读取贡献集合的调用方
 
-协调者一侧的适配器要组装一次请求。它用数组形式 `inject`，按作用域取操作组，并逐次交入历史源读口、计量端口、转换件结果端口与请求序列化端口。操作组每次调用时从登记面现取该作用域的贡献集合，适配器只给组装上下文，不传入贡献。这是托管路径的组装入口；不装配 Cordis 的调用方用 [request-context](../../request-context/docs/context.md) 的机制工厂：
+来源适配者为某个目标登记来源集合：七组读口、窄采用来源、历史源读口、转换件结果读口、读取资格与 Model 准备资源。协调者一侧的适配器要组装一次请求时，用数组形式 `inject`，按目标取操作组。操作组每次调用时借用该目标当前登记的来源集合，并从登记面现取该作用域的贡献集合，替换第四组读口给出的贡献。这是托管路径的组装入口；不装配 Cordis 的调用方用契约根入口的 `createAssemblyOperations` 或 [request-context](../../request-context/docs/context.md) 的工厂：
 
 ```text
 inject: ['requestContext']
-操作组 = ctx.requestContext.assembly(作用域引用, { 历史源读口, 计量端口, 转换件结果端口 })
-组装输入的系统提示词一组 = 组装上下文（贡献集合由操作组现取）
-结局 = 操作组.assemble(组装输入)
+登记：句柄 = ctx.requestContext.register({ 访问身份, 目标, 拥有者, 来源集合 })   // 挂在本 fiber 上
+操作组 = ctx.requestContext.assembly(目标)
+结局 = 操作组.assemble({ 访问身份, 用途, 消费位置, 候选身份 })
 要查看当前贡献集合时：贡献集合 = ctx.requestContext.contributions(作用域引用)
 ```
 
-作用域层的贡献遮蔽全局层的同名贡献。`assembly(scope, ports)` 返回的操作组已按该 isolate 的配置绑定选定的策略，只用这次交入的端口，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次。提供者不 `inject` 作用域持有者或模型侧的服务。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。组装本身仍是纯函数，类型归 [request-context-contract](../../request-context-contract/docs/context.md)。
+作用域层的贡献遮蔽全局层的同名贡献。`assembly(target)` 返回的操作组已按该 isolate 的配置绑定选定的策略，只用该目标当前登记的来源集合；目标没有登记时返回不可用（来源登记）。第四组的令牌同时覆盖登记面实例的代次与全局层、本作用域层的修订。提供者不 `inject` 作用域持有者或模型侧的服务。目标的作用域与组装上下文、历史依据的作用域引用不一致时返回无效。`target.tenant` 显式传入并由登记授权核验，intercept 作用域只是装配事实。组装本身仍是纯函数，类型归 [request-context-contract](../../request-context-contract/docs/context.md)。
 
 ### 只监听变化事件的一方
 

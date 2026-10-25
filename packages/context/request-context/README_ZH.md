@@ -7,37 +7,35 @@ Request Context 的机制实现成员，`module` 变体。
 
 ## 职责与状态
 
-本成员用缓存、预计算派生物与默认策略实现 Request Context 的纯操作。它导出一个不依赖 Cordis 的工厂，输出实现契约纯操作的实例。默认压缩策略、默认表示策略与修剪器也在本成员实现。公开行为归 [request-context-contract](../request-context-contract/README.md)，提示词贡献的登记面归 [request-context-cordis-contract](../request-context-cordis-contract/README_ZH.md)，Cordis 绑定与按配置选择策略归 [request-context-cordis](../request-context-cordis/README_ZH.md)。本成员不持有任何耐久状态，缓存与派生物都是进程内副本，从输入重建不改变任何结果。
+本成员实现 Request Context 的两个有状态机制：来源登记表与账目投影。它导出两个不依赖 Cordis 的工厂。候选缓存、预计算派生物、默认压缩策略、默认表示策略与修剪器也归本成员，尚未实现。公开行为归 [request-context-contract](../request-context-contract/README.md)，提示词贡献的登记面归 [request-context-cordis-contract](../request-context-cordis-contract/README_ZH.md)，Cordis 绑定与按配置选择策略归 [request-context-cordis](../request-context-cordis/README_ZH.md)。本成员不持有任何耐久状态：登记表、账目索引与缓存都是进程内状态，账目索引从结果接收方的日志授权重建。
 
 状态：机制实现成员，`draft`。采用依据是组的[成员分解](../docs/architecture.md#成员分解)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
-- 已实现：没有。`src/index.ts` 只有模板标记，根入口没有导出。
-- 未实现：工厂、候选缓存、派生物、默认策略、修剪器与关闭。
-- 未验证：SPEC 列出的十个持续验证场景都没有测试。默认策略的数值来自同类系统的取证，按本项目的计量口径重核之后才作为初值生效。
-- 实例经 `notify(change)` 只接收贡献登记面的变化通知，其余各组靠输入携带的修订比较。缓存不存结局。修剪步之后必有摘要步。实例只从输入「已采用」得知候选已经固定。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
+- 已实现：`createContextSourceRegistry`（登记、替换、撤除与结算、借用、发布核对、关闭）与 `createContextAccounting`（收件口的固定核验顺序、幂等与容量、窗口占用四种状态、系统恢复的暂存重建）。
+- 已验证：登记表与账目投影的进程内测试，以及登记表的 `assembly(target)` 跑契约操作组的全部一致性用例，见 [tests/](tests/README.md)。
+- 未实现：候选缓存与 `notify`、预计算派生物、默认策略与修剪器。
+- 未验证：SPEC 中缓存、派生物、默认策略与复杂度的持续验证场景随实现进入。默认策略的数值来自同类系统的取证，按本项目的计量口径重核之后才作为初值生效。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
 
-现在没有包依赖本成员。
+现在没有包依赖本成员；request-context-cordis 的 Service 迁移由其拥有者完成。
 
 ## 使用
 
-本成员只有根入口 `@omne-harness/request-context`。装配 Cordis 的系统不直接导入它，由 request-context-cordis 按配置选定策略并调用工厂，四项端口由组装请求的调用方经 `assembly(scope, ports)` 逐次交入。不装配 Cordis 的调用方直接调用本成员的工厂，在构造时给出四项端口与两个策略，自己收集提示词贡献、保存计划进度与最近一次完整读取的块材料，见[使用与定位](docs/context.md#独立使用)。
+本成员只有根入口 `@omne-harness/request-context`。装配 Cordis 的系统不直接导入它，由 request-context-cordis 按配置选定策略并调用工厂。来源适配者以 `register` 登记某个目标的来源集合（七组读口、窄采用来源、历史源、转换件结果、读取资格与 Model 准备资源），调用方经 `assembly(target)` 取操作组。不装配 Cordis 又要托管登记的调用方直接调用本成员的工厂，见[使用与定位](docs/context.md#独立使用)。
 
-只需要纯操作、不需要缓存的调用方使用 request-context-contract，不需要本成员。
-
-工厂的名称与签名随实现确定，现在没有可运行的示例。
+只需要独立操作组的调用方使用 request-context-contract 根入口的 `createAssemblyOperations`，不需要本成员。现在没有可运行的示例，用法见 [tests/](tests/README.md)。
 
 ## 契约
 
-- 公开形状归 `src/`，现在为空。导出索引归[公开接口页](docs/public-api.md)。
-- 本成员的本地行为归 [SPEC](SPEC.md)：候选缓存、预计算的派生物、默认策略与修剪器、本地行为与关闭。
-- 纯操作的输入、结果与失败归 [request-context-contract SPEC](../request-context-contract/SPEC.md)，条款 RQ-01 至 RQ-11。
+- 公开形状归 `src/`，导出两个工厂；参数与返回值的类型归 request-context-contract。导出索引归[公开接口页](docs/public-api.md)。
+- 本成员的本地行为归 [SPEC](SPEC.md)：来源登记表、账目投影、候选缓存、预计算的派生物、默认策略与修剪器、本地行为与关闭。
+- 操作组、来源集合、账目协议、结果与失败归 [request-context-contract SPEC](../request-context-contract/SPEC.md)，条款 RQ-01 至 RQ-15。
 - 内部对象的身份与生灭归[对象模型](docs/object-model.md)。
 
-调用工厂的一方拥有实例，负责关闭它。关闭后新的组装返回不可用，关闭先取消在途组装，再释放缓存。关闭不撤回已交出的候选、计划或转换。任一依赖端口缺席或不可用时，相关操作返回不可用，带诊断。
+调用工厂的一方拥有实例。登记表的 `close()` 拒绝新登记与新借用，等待全部代际结算；关闭不取消在途操作，也不撤回已交出的候选、计划或转换。账目投影实例丢弃时不清理原日志。任一依赖端口缺席或不可用时，相关操作返回不可用，带诊断。
 
 ## 设计
 
-工厂内部分为候选缓存、派生物、组装、计划与步、默认压缩策略、默认表示策略、修剪器与生命周期八个模块。包外依赖只有 request-context-contract。关键机制是：七组修订摘要做缓存键；按组失效，只重算受影响的层；失效来自变化通知，不来自时间或内容重哈希；派生物在输入变化时预计算；前缀比较只在锚点处做；默认策略只是配置初值；修剪器不改原记录与模型视图；计划进度不在本成员保存。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
+已实现的模块是来源登记表与账目投影；计划中的模块是候选缓存、派生物、默认压缩策略、默认表示策略与修剪器。包外运行依赖是 request-context-contract、model-contract（类型）、call-account 与 legal-identity。关键机制是：缓存键与 `PreparedInputKey`（RQ-13）相同，即来源代际、组一身份、六组令牌与派生规则的采用；按组失效，只重算受影响的层；失效来自变化通知，不来自时间或内容重哈希；派生物在输入变化时预计算；前缀比较只在锚点处做；默认策略只是配置初值；修剪器不改原记录与模型视图；计划进度不在本成员保存。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -51,7 +49,7 @@ Request Context 的机制实现成员，`module` 变体。
 pnpm turbo run test --filter=@omne-harness/request-context
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有导出，见 [tests/](tests/README.md)。SPEC 的[持续验证场景](SPEC.md#组合与验证)随实现进入，其中复杂度场景需要测量，不只是断言。持久化、共同提交、模型发送，以及与真实协调者和持有者的端到端组合不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试覆盖根入口、登记表与账目投影，见 [tests/](tests/README.md)。SPEC 其余的[持续验证场景](SPEC.md#组合与验证)随实现进入，其中复杂度场景需要测量，不只是断言。持久化、共同提交、模型发送，以及与真实协调者和持有者的端到端组合不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -74,8 +72,8 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         导出入口与定义索引
 ├── context.md            经 Cordis 使用、独立使用与定位
 └── cordis.md             不适用 Cordis 集成的理由
-src/                      只有 index.ts，现在只有模板标记
-tests/                    入口测试，fixtures/ 现在为空
+src/                      index.ts、registry.ts 与 accounting.ts
+tests/                    入口、登记表与账目投影测试，fixtures/ 现在为空
 schema/                   现在为空，本成员不发布 Schema
 verification/             models/ 与 proofs/，现在为空
 adr/                      现在为空

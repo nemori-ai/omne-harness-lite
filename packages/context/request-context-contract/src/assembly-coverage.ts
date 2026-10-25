@@ -22,6 +22,25 @@ export function prefix(
   return 'unchanged'
 }
 
+function historyAnchors(
+  prepared: StablePreparation,
+  anchor: Coverage['snapshot']['anchor'],
+): Coverage['history']['anchors'] {
+  const last = prepared.rows.at(-1)
+  if (last === undefined) return []
+  const head: Coverage['history']['anchors'] =
+    anchor.position.kind === 'entry'
+      ? [
+          {
+            layer: 'history-head',
+            seq: anchor.position.seq,
+            prefixDigest: anchor.prefixDigest ?? '',
+          },
+        ]
+      : []
+  return [...head, { layer: 'history-body', seq: last.seq, prefixDigest: last.prefixDigest }]
+}
+
 export function assemblyCoverage(
   input: AssemblyInput<unknown>,
   prepared: StablePreparation,
@@ -32,22 +51,9 @@ export function assemblyCoverage(
   const snapshot = dynamic.layers.snapshotReminder
   const base: Omit<Coverage, 'prefixBreak'> = {
     history: {
-      epoch: prepared.history.evidence.epoch,
-      upper: prepared.history.evidence.upper,
-      anchors: prepared.history.rows.length
-        ? [
-            {
-              layer: 'history-head',
-              seq: snapshot.anchor.seq,
-              prefixDigest: snapshot.anchor.prefixDigest ?? '',
-            },
-            {
-              layer: 'history-body',
-              seq: prepared.history.rows.at(-1)?.seq ?? -1,
-              prefixDigest: prepared.history.rows.at(-1)?.prefixDigest ?? '',
-            },
-          ]
-        : [],
+      epoch: input.history.epoch,
+      upper: input.history.upper,
+      anchors: historyAnchors(prepared, snapshot.anchor),
     },
     compactions: { record: prepared.view.compaction?.entry ?? null, derivation: null },
     inputs: { batch: input.inputs.batch, saved: input.inputs.saved },
@@ -87,6 +93,9 @@ export function assemblyCoverage(
         .map(c => c.metric),
     },
   }
-  const coverage: Coverage = { ...base, prefixBreak: prefix(base, input.adopted, input) }
+  const coverage: Coverage = {
+    ...base,
+    prefixBreak: prefix(base, input.adopted?.coverage ?? null, input),
+  }
   return coverage
 }

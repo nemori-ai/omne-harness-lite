@@ -1,11 +1,12 @@
 import { expectTypeOf } from 'vitest'
 import type {
-  AssemblyPorts,
+  AssemblyOperations,
+  ContextSourceRegistry,
+  ContextTarget,
   PromptContributionRegistry,
   ScopeRef,
 } from '@omne-harness/request-context-contract'
 import type {
-  AssemblyAccess,
   RequestContextService,
   RequestContextIntercept,
   RequestContextPolicySelection,
@@ -13,8 +14,15 @@ import type {
 expectTypeOf<RequestContextService<unknown>['contributeVariable']>().toEqualTypeOf<
   PromptContributionRegistry['contributeVariable']
 >()
+// The service projects the registry signatures one to one; the scope is no access grant.
 expectTypeOf<RequestContextService<unknown>['assembly']>().toEqualTypeOf<
-  (scope: ScopeRef, ports: AssemblyPorts<unknown>) => AssemblyAccess<unknown>
+  (target: ContextTarget) => AssemblyOperations<unknown>
+>()
+expectTypeOf<RequestContextService<unknown>['register']>().toEqualTypeOf<
+  ContextSourceRegistry<unknown>['register']
+>()
+expectTypeOf<RequestContextService<unknown>['replace']>().toEqualTypeOf<
+  ContextSourceRegistry<unknown>['replace']
 >()
 expectTypeOf<RequestContextIntercept['scope']>().toEqualTypeOf<ScopeRef | null>()
 expectTypeOf<

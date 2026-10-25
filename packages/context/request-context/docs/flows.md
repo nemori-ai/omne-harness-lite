@@ -2,7 +2,7 @@
 
 本页给出本成员的三条机制级流程。每条有一张时序图和一张「失败与责任交接」表。行为以 [SPEC](../SPEC.md) 为准，图只投影条款，不表示运行实现已经存在。
 
-协议级流程归 [request-context-contract 的协议流程](../../request-context-contract/docs/flows.md)，本页的流程是它们在实现内部的展开。贡献登记、变化事件与 Cordis 装卸归 [request-context-cordis-contract 的流程](../../request-context-cordis-contract/docs/flows.md)与 [request-context-cordis 的流程](../../request-context-cordis/docs/flows.md)。图中的「实例」是工厂的输出，内部模块见[内部架构](architecture.md#模块与依赖)。
+协议级流程归 [request-context-contract 的协议流程](../../request-context-contract/docs/flows.md)，本页的流程是它们在实现内部的展开。贡献登记、变化事件与 Cordis 装卸归 [request-context-cordis-contract 的流程](../../request-context-cordis-contract/docs/flows.md)与 [request-context-cordis 的流程](../../request-context-cordis/docs/flows.md)。图中的「实例」是 `createContextSourceRegistry` 返回的登记表实例；三条流程描述的候选缓存与派生物尚未实现。内部模块见[内部架构](architecture.md#模块与依赖)。
 
 ## 流程
 
@@ -55,7 +55,7 @@ sequenceDiagram
 
 条款：[预计算的派生物](../SPEC.md#预计算的派生物)、[候选缓存](../SPEC.md#候选缓存)、[RQ-02](../../request-context-contract/SPEC.md#rq-02-组装的前置输入)。
 
-前提：一个贡献者在登记面登记或撤销了一条贡献，该层的修订前进。登记面归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#登记与撤除协议)。实例在构造时取得登记面的读口；提供者在登记或撤除之后调用实例的 `notify('contributions', …)`，带作用域引用（全局层为 `null`）与该层的修订（[候选缓存](../SPEC.md#候选缓存)）。
+前提：一个贡献者在登记面登记或撤销了一条贡献，该层的修订前进。登记面归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#登记与撤除协议)。缓存实现时，实例在构造时取得登记面的读口；提供者在登记或撤除之后调用实例的 `notify('contributions', …)`，带作用域引用（全局层为 `null`）与该层的修订（[候选缓存](../SPEC.md#候选缓存)）。
 
 ```mermaid
 sequenceDiagram
@@ -70,7 +70,7 @@ sequenceDiagram
   I->>D: 渲染新段，丢弃已撤除的段
   I->>I: 更新受影响作用域的段列表摘要
   Note over K: 本作用域的段列表摘要变了，下一次比较时 ① 失效；别的作用域不受影响
-  C->>I: assemble（经 assembly(scope, ports) 的操作组）
+  C->>I: assemble（经 assembly(target) 的操作组）
   I->>D: 取本作用域适用的段
   I->>I: 按变量求值拼接，段文本不重渲染
   I-->>C: 候选，前缀变化原因记「系统提示词变了」
@@ -132,10 +132,10 @@ sequenceDiagram
 
 | 情形 | 结果 | 责任方 | 依据 |
 | --- | --- | --- | --- |
-| 依赖端口缺席或不可用 | 相关操作返回不可用，带诊断 | 独立路径由工厂调用方补齐；Cordis 路径由经 `assembly(scope, ports)` 交入端口的调用方补齐 | [本地行为](../SPEC.md#本地行为) |
+| 来源集合的读口失败或不可用 | 相关操作按类别返回失败，带诊断 | 登记该来源集合的来源适配者修复后经 `replace` 换新来源集合 | [本地行为](../SPEC.md#本地行为) |
 | 缓存项修订落后 | 作废，重算 | 本成员 | [候选缓存](../SPEC.md#候选缓存) |
 | 读口返回 epoch 已变 | 丢弃已读页，重取重算 | 本成员 | [H2](../../request-context-contract/SPEC.md#历史源读口与-epoch-视图) |
-| 计划身份、进度或策略对不上 | 返回无效 | 调用方按保存的进度重新调用；策略已换时重新准备 | [本地行为](../SPEC.md#本地行为) |
+| 计划身份、步序号、压缩依据或策略对不上 | 返回无效 | 调用方按保存的进度重新调用；策略已换时重新准备 | [本地行为](../SPEC.md#本地行为) |
 | 实例关闭 | 新的组装返回不可用（实例已关闭），取消在途组装，释放缓存 | 关闭方 | [SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期) |
 | 关闭之后 | 不撤回已交出的候选、计划或转换 | 协调者与历史持有者 | 同上 |
 | 进程失败 | 缓存与派生物丢失，从输入重建 | 本成员，结果不变 | 同上 |

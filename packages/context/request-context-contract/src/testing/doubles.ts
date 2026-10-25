@@ -9,6 +9,7 @@ import type {
   RepresentationPolicyConfig,
 } from '../ports.js'
 import type { SummaryMaterial } from '../values.js'
+import type { RecordEntryRef } from '@omne-harness/message'
 import { canonical, digest, textBlock } from '../internal.js'
 export type MeterScript = (
   input: Parameters<M.ModelInputMeter['measure']>[0],
@@ -32,6 +33,83 @@ export function createScriptedInputMeter(
     },
   }
 }
+/** What one acquire saw; tests read it to check the lineage and the access of each candidate. */
+export type PreparationCall = Readonly<{
+  principal: unknown
+  lineage: M.PreparationLineage | undefined
+  assembled: readonly M.AssembledModelInput[]
+}>
+export type PreparationScript = Readonly<{
+  meter: M.ModelInputMeter
+  /** The representation each supplier plans; defaults to a materialized one with the given bytes. */
+  plan?: (
+    input: Parameters<M.ModelRequestRules['plan']>[0],
+  ) => ReturnType<M.ModelRequestRules['plan']>
+  acquire?: () => M.ModelFailure | null
+  release?: () => Readonly<{ failure?: Extract<M.ModelFailure, { kind: 'unavailable' }> }>
+}>
+export interface ScriptedPreparationResources<P> extends M.ModelPreparationResources<P> {
+  readonly durability: 'none'
+  calls(): readonly PreparationCall[]
+  outstanding(): number
+}
+/** Leases with one binding per profile supplier; release and acquire failures are scriptable. */
+export function createScriptedPreparationResources<P>(
+  script: PreparationScript,
+): ScriptedPreparationResources<P> {
+  const calls: PreparationCall[] = []
+  let open = 0
+  return {
+    durability: 'none',
+    calls: () => calls,
+    outstanding: () => open,
+    async acquire(input) {
+      const refused = script.acquire?.() ?? null
+      if (refused !== null) return { failure: refused }
+      const seen: M.AssembledModelInput[] = []
+      calls.push({ principal: input.principal, lineage: input.lineage, assembled: seen })
+      open++
+      const plan =
+        script.plan ??
+        ((value: Parameters<M.ModelRequestRules['plan']>[0]) => ({
+          ok: {
+            parameters: [],
+            representation: {
+              kind: 'materialized' as const,
+              adoption: value.assembled.representation,
+              tokenInput: { kind: 'string' as const, value: canonical(value.assembled.messages) },
+              media: [],
+              requestBytes: String(Buffer.byteLength(canonical(value.assembled))),
+            },
+          },
+        }))
+      const bindings = input.profile.definition.suppliers.map(supplier => ({
+        supplier: { ...supplier, credential: { kind: 'factory' as const } },
+        rules: {
+          plan(value: Parameters<M.ModelRequestRules['plan']>[0]) {
+            seen.push(value.assembled)
+            return plan(value)
+          },
+        },
+        meter: script.meter,
+      }))
+      const [first, ...rest] = bindings
+      if (first === undefined)
+        return {
+          failure: { kind: 'unavailable', dependency: 'profile', diagnostic: 'No supplier' },
+        }
+      return {
+        ok: {
+          bindings: [first, ...rest],
+          async release() {
+            open--
+            return script.release?.() ?? {}
+          },
+        },
+      }
+    },
+  }
+}
 export interface MemoryConversionResults<P> extends ConversionResultSource<P> {
   readonly durability: 'none'
   set(block: BlockId, result: M.ConversionResult): void
@@ -45,7 +123,7 @@ export function createMemoryConversionResults<P>(
     set: (k, v) => {
       entries.set(k, v)
     },
-    async read(_access, blocks) {
+    async read({ blocks }) {
       return {
         kind: 'index',
         entries: new Map(
@@ -88,7 +166,7 @@ export function createScriptedCompactionPolicy(
     identity,
     config,
     configDigest: () => digest(config),
-    plan({ context, measure, windowTokens }) {
+    async plan({ context, measure, windowTokens }) {
       const last = context.covered.at(-1)
       if (last === undefined) throw new Error('Fixture needs covered entries')
       const floor = context.open.filter(ref => context.covered.some(x => x.ref === ref))
@@ -96,7 +174,11 @@ export function createScriptedCompactionPolicy(
         config.retainBudget.kind === 'tokens'
           ? Number(config.retainBudget.retainTokens)
           : Number(windowTokens) * Number(config.retainBudget.retainRatio)
-      if (Number(measure(floor)) > limit)
+      const tokens = async (refs: readonly RecordEntryRef[]) => {
+        const measured = await measure(refs)
+        return measured.kind === 'measured' ? Number(measured.tokens) : Number.POSITIVE_INFINITY
+      }
+      if ((await tokens(floor)) > limit)
         return { kind: 'floor-exceeds-budget', floor, budget: String(Math.floor(limit)) }
       const retained = new Set(floor)
       const ranked =
@@ -104,7 +186,7 @@ export function createScriptedCompactionPolicy(
           ? [...context.covered].reverse()
           : [...context.covered]
       for (const item of ranked) {
-        if (item.message !== null && Number(measure([...retained, item.ref])) <= limit)
+        if (item.message !== null && (await tokens([...retained, item.ref])) <= limit)
           retained.add(item.ref)
       }
       return {
@@ -112,7 +194,7 @@ export function createScriptedCompactionPolicy(
         coverTo: last.ref,
         retained: context.covered.filter(x => retained.has(x.ref)).map(x => x.ref),
         bound: config.stepBound,
-        shape: config.trimFirst ? 'trim-then-summarize' : 'summarize',
+        shape: { kind: 'summarize', trimFirst: config.trimFirst },
       }
     },
     trim: (material: SummaryMaterial) => material,

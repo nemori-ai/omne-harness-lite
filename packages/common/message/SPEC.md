@@ -10,7 +10,7 @@
 
 本文件还定义 assistant 消息里的推理续接状态部件和消息上的回放描述 `replay`，见[推理续接状态](#推理续接状态)。它不定义哪个模型能消费哪段状态、怎样把状态写进请求体，这些归 [Model 契约](../../model/model-contract/SPEC.md#推理回放)。
 
-状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；公开形状以 [src/](src) 为准。推理续接状态已实现，设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
+状态：压缩变体已实现，设计待接受，接受由[任务卡 #581](https://github.com/nemori-ai/omne-harness-lite/issues/581) 的 D-02 决定；CM-02 的增量窗口、CM-03 的配对见证与拒绝值 `source-evidence` 依据[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676) 的 J15 与 [RQ-D02](https://github.com/nemori-ai/omne-harness-lite/issues/676#issuecomment-6371278636) 写入，已通过独立表达评审（记录在[任务卡 #676](https://github.com/nemori-ai/omne-harness-lite/issues/676)），评审裁定已写入；公开形状以 [src/](src) 为准。推理续接状态已实现，设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受；公开形状以 [src/](src) 为准，规则与判定顺序归本文件「推理续接状态」一节。
 
 依据如下。
 
@@ -80,9 +80,13 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 **CM-02 多次压缩。**新一次压缩的覆盖范围从历史起点开始，到压缩点之前结束，并且必须包含上一条压缩记录；因为范围从起点开始，上一条记录的保留项也都在新范围内。范围在上一条压缩记录之前结束时，`judgeCompaction` 判 `range`，见下文第 2 步。新记录可以把它们再次列入 `retained`；没有列入的，进入新摘要。保留名单在压缩时固定，之后不变。
 
+再次压缩时，判断只需要增量窗口，不需要上一条压缩记录 C 已经摘要掉的原条目。窗口不含已被 C 摘要且未保留的条目。窗口按原历史顺序由下列条目组成：C 的保留项、旧 `C.covers.to` 之后全部未被 C 覆盖的尾项、C 本身，以及 C 之后的条目。「C 之后」按 C 形成的有效视图解释，不按 C 的插入位置截断。反例：历史是 e1、e2、e3、C1，C1 覆盖 e1 至 e2、保留 e2；下一次的窗口必须含 e2、e3、C1，只取 e2、C1 与 C1 之后的条目会丢掉 e3。已被 C 摘要且未保留的条目不能回到窗口，也不能被新记录保留。判断的代价取决于上次保留项与未覆盖尾项，不取决于已被摘要的总前缀。首次压缩没有隐藏前缀，窗口就是从历史起点到 `covers.to` 的完整序列。
+
 <a id="cm-03"></a>
 
 **CM-03 调用与结果同进同出。**配对按 `callId` 在历史内就近确定：一条 `tool` 消息 T 与位置在 T 之前、离 T 最近、带同一 `callId` 的 `tool_call` 或 `tool_call_unparsed` 的 `assistant` 消息 A 配成一对。同一个调用被几条 `tool` 消息回答时，每条各与 A 配成一对。找不到这样的 A（`callId` 只出现在 `tool_call_incomplete` 上，或根本没出现）的 T 不参与配对。设 V 为 `retained` 引用的消息加上覆盖范围之后的消息。每一对里，A 在 V 里当且仅当 T 在 V 里。
+
+再次压缩时，A 可能已被上一条压缩记录摘要、不在窗口里，而 T 后来才写入。窗口里重新找调用会以为 T 没有配对，进而错误地允许只保留 T。所以再次压缩时，历史持有者为窗口里每条 `tool` 消息给出配对见证：原历史里离 T 最近、更早、可回答的调用条目引用，没有原配对时为 `null`。见证来自消息接纳时保存的关联或等价的可证明查询，不读取已摘要的正文。见证指向窗口外的条目时，该调用按未保留处理：T 不能在 V 里。
 
 <a id="cm-04"></a>
 
@@ -121,13 +125,13 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 
 ### `judgeCompaction`
 
-下图把历史切成三段，并标出每段对应的 `context` 字段，以及 CM-03 用来配对的集合 V。
+下图把历史切成三段，并标出每段对应的 `context` 字段，以及 CM-03 用来配对的集合 V。再次压缩时，`covered` 只含增量窗口里落在覆盖范围内的条目（CM-02）。
 
 ```mermaid
 flowchart LR
   subgraph history[历史，按写入顺序]
     direction LR
-    covered["covered<br/>历史起点到 covers.to"] --> after["after<br/>covers.to 之后，压缩点之前"] --> point["压缩点<br/>追加 C"]
+    covered["covered<br/>窗口内、到 covers.to 为止"] --> after["after<br/>covers.to 之后，压缩点之前"] --> point["压缩点<br/>追加 C"]
   end
   covered -->|只取 retained 引用的消息| view["V<br/>retained 引用的消息和 after"]
   after --> view
@@ -135,32 +139,44 @@ flowchart LR
   open -.->|可落在| after
 ```
 
-`covered` 与 `after` 由历史持有者按顺序给出，`covered` 的首项是历史的第一条，本函数不核对这一点。`open` 里落在 `covered` 的条目必须在 `retained` 里（CM-04），落在 `after` 的条目不受影响。
-
 `judgeCompaction(message, context)` 判相对历史的规则。`context` 由历史持有者给出：
 
 | 字段 | 含义 |
 | --- | --- |
-| `covered` | 覆盖范围内的全部条目，按历史顺序。每项是 `{ ref, message }`，不带消息的条目 `message` 为 `null`。首项是历史的第一条，这一点由持有者保证，本函数无法核对 |
-| `after` | 覆盖范围之后、压缩点之前的全部消息，按历史顺序 |
+| `origin` | 历史第一条条目的引用。本函数只读这个引用，不读原点的正文 |
+| `base` | 首次压缩为 `{ kind: 'initial' }`。再次压缩为 `{ kind: 'previous', record, pairings }`：`record` 是 `covered` 里最近一条已提交的压缩记录 C 的条目引用；`pairings` 为窗口里每条 `tool` 消息给出配对见证 `{ result, call }`，`call` 是原历史里离它最近、更早、可回答的调用条目引用，没有原配对时为 `null` |
+| `covered` | 窗口内落在覆盖范围里的条目，按历史顺序，到 `covers.to` 为止。每项是 `{ ref, message }`，不带消息的条目 `message` 为 `null`。首次压缩时是从历史第一条开始的完整序列 |
+| `after` | 覆盖范围之后、压缩点之前的全部条目，形状同 `covered`，按历史顺序 |
 | `open` | CM-04 的未结工作条目引用 |
 
 `covered` 与 `after` 里的消息是已经写入历史的消息，持有者保证它们曾通过 `judgeMessage`。本函数不重判它们。
 
-按下面的顺序检查，返回第一个失败。`ref` 指出违规的条目，没有条目可指时为 `null`。第 2～5 步和成功值都使用第 1 步 `judgeMessage` 的成功值 M，不再读原始输入。
+按下面的顺序检查，返回第一个失败。`ref` 指出违规的条目，没有条目可指时为 `null`。第 2～6 步和成功值都使用第 1 步 `judgeMessage` 的成功值 M，不再读原始输入。
 
 1. **消息本身。**`message` 通不过 `judgeMessage`，或它的成功值 M 的 `role` 不是 `compaction`：`message`，`ref` 为 `null`。形状失败的具体拒绝值不随 `message` 返回。
 2. **范围。**下列任一情形：`range`，`ref` 为 `null`。
    - `covered` 为空；
-   - 首项的 `ref` 不等于 `covers.from`，或末项的 `ref` 不等于 `covers.to`；
-   - `covered` 里有重复的 `ref`；
-   - `after` 里有 `compaction` 角色的消息（上一条压缩记录落在了范围之后，违反 CM-02）。
-3. **保留名单。**按 `retained` 的顺序逐项检查，`ref` 是当前这一项：
+   - `covers.from` 不等于 `origin`，或 `covered` 末项的 `ref` 不等于 `covers.to`；
+   - `after` 里有 `compaction` 角色的消息（上一条压缩记录落在了范围之后，违反 CM-02）；
+   - 首次压缩时，`covered` 首项的 `ref` 不等于 `origin`；
+   - 再次压缩时，`base.record` 不在 `covered` 里（新终点早于 C）。
+3. **来源证据。**窗口本身违反下列来源关系：`source-evidence`，`ref` 指出出问题的条目，没有可指的条目时为 `null`。
+   - `covered` 与 `after` 合起来有重复的 `ref`；
+   - 首次压缩时，`covered` 里有 `compaction` 角色的消息；
+   - 再次压缩时，`base.record` 的条目不是 `compaction` 角色的消息；
+   - 再次压缩时，C 的 `covers.from` 不等于 `origin`，或 `covered` 里 C 之后还有 `compaction` 角色的消息；
+   - 再次压缩时，C 的保留项没有恰好一次、按原顺序出现在 C 之前；
+   - 再次压缩时，C 之前出现了已被 C 摘要且未保留的条目：引用等于 `C.covers.to` 而不在 `C.retained` 里，或位置早于某个保留项而不在 `C.retained` 里；
+   - 再次压缩时，窗口里的某条 `tool` 消息没有恰好一条见证；某条见证的 `result` 不是窗口里的 `tool` 消息；某条见证的 `call` 落在窗口里，但那条消息不在 T 之前，或不是带同一 `callId` 的可回答调用；
+   - `open` 里有不在 `covered` 与 `after` 里的引用（含已被摘要的旧条目重新报为未结）。
+4. **保留名单。**按 `retained` 的顺序逐项检查，`ref` 是当前这一项：
    - 引用不在 `covered` 里：`retained-outside`；
    - 在 `covered` 里的位置不晚于前一项：`retained-order`；
    - 对应条目的 `message` 为 `null`，或不是模型可读消息：`retained-not-model`。
-4. **配对。**按 CM-03 找出 `covered` 与 `after` 里的全部配对，按 T 在历史中的位置从早到晚逐对检查。第一对 A、T 不同时在 V 里时返回 `pairing`。`ref` 取这一对里位于 `covered` 中的那一条；两条都在 `covered` 中时，取已保留的那一条。
-5. **未结工作。**按 `covered` 的顺序，找第一条引用在 `open` 里、却不在 `retained` 里的条目：`open-work`，`ref` 是这条的引用。
+5. **配对。**首次压缩按 CM-03 在 `covered` 与 `after` 里就近找出全部配对；再次压缩按见证配对，见证的 `call` 落在窗口外时，该调用按不在 V 里处理，`call` 为 `null` 的 T 不参与配对。按 T 在历史中的位置从早到晚逐对检查，第一对 A、T 不同时在 V 里时返回 `pairing`。`ref` 取这一对里位于 `covered` 中的那一条；两条都在 `covered` 中时，取已保留的那一条；调用在窗口外时取 T。
+6. **未结工作。**按 `covered` 的顺序，找第一条引用在 `open` 里、却不在 `retained` 里的条目：`open-work`，`ref` 是这条的引用。
+
+`source-evidence` 只表示判断依据本身不满足来源关系，不表示新摘要写错了；消费方据此不推进压缩进度。窗口完整由持有者负责：C 是最新的合法压缩，旧保留项与未覆盖尾项齐全，`open` 覆盖同一范围，见证就近且真实。本函数无法凭几个引用证明源头没有省略条目。
 
 全部通过时返回 `{ ok: M }`。函数不读取任何外部状态，相同输入返回相同结论。
 
@@ -255,9 +271,9 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 在前置条件成立时，判定失败是返回值，不抛异常。`context` 里的消息违反前置条件（没有通过 `judgeMessage`）时，`judgeCompaction` 的结果未定义。形状失败与历史规则失败分开报告，调用者能区分「这条消息写错了」与「它和这段历史对不上」。
 
-本成员不保存历史，不提交压缩，也不铸造记录条目引用或派生证据。`covered`、`after`、`open` 的真实与完整由历史持有者负责，包括 `covered` 从历史第一条开始；把不完整的范围交给 `judgeCompaction`，得到的通过结论只对交来的输入成立。
+本成员不保存历史，不提交压缩，也不铸造记录条目引用或派生证据。`origin`、`base`、`covered`、`after`、`open` 的真实与完整由历史持有者负责，包括首次压缩的 `covered` 从历史第一条开始、再次压缩的窗口齐全与见证真实；把不完整的窗口交给 `judgeCompaction`，得到的通过结论只对交来的输入成立。
 
-`judgeCompaction` 的代价与 `covered`、`after` 的条目数和块数之和成线性，范围总从历史起点开始，所以随历史长度增长。它在每次提交压缩记录时运行一次。压缩何时发生归压缩策略的拥有者，见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#模态表示与完整输入限制)。
+`judgeCompaction` 的代价与 `covered`、`after` 与见证的条目数和块数之和成线性。首次压缩时窗口从历史起点开始；再次压缩时窗口只含上次保留项、未覆盖尾项、上一条压缩记录与其后条目，代价不随已被摘要的总前缀增长。它在每次提交压缩记录时运行一次。压缩何时发生归压缩策略的拥有者，见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#模态表示与完整输入限制)。
 
 压缩记录写入历史之后不变。之后的压缩不修改它，只能在新的覆盖范围里保留它或摘要它。
 

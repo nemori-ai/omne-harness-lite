@@ -42,9 +42,9 @@ inject: { requestContext: { scope: <scope reference> } }
 plugin body: dispose = ctx.requestContext.contributeSection(section)
 ```
 
-Cordis removes the registration when the contributor plugin unloads. A caller that assembles a request uses `inject: ['requestContext']`. It calls `assembly(scope, ports)` with the four ports to get the pure operations that are bound to the configured strategies. At each call, those operations read the contributions of that scope from the registration surface. The caller does not pass the contributions. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
+Cordis removes the registration when the contributor plugin unloads. A source adapter registers the source set of one target with `register` or `replace`. The registration lives on the fiber of the adapter. A caller that assembles a request uses `inject: ['requestContext']`. It calls `assembly(target)` to get the operations that are bound to the configured strategies and to the source set registered for that target. At each call, those operations read the contributions of that scope from the registration surface. They replace the contributions that the fourth group reader gives. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
 
-Independent use does not need this package. A caller without Cordis collects prompt contributions itself and uses the root entries of request-context-contract and request-context.
+Independent use does not need this package. A caller without Cordis binds its own source set with `createAssemblyOperations` from the root entry of request-context-contract, or uses the factories of request-context.
 
 ## Contracts
 

@@ -6,19 +6,19 @@ import type { Message } from '@omne-harness/message'
 import type { AssemblyInput, RequestLayers } from './values.js'
 import type { AssemblyPolicies } from './ports.js'
 import { digest } from './internal.js'
+import { buildModelInput } from './model-input.js'
+import { compareHistorySequence } from './refs.js'
 export function assembledInput<P>(
   input: AssemblyInput<P>,
   policies: AssemblyPolicies,
   layers: RequestLayers,
   messages: readonly Message[],
 ): M.AssembledModelInput {
-  return {
+  return buildModelInput(input.selection, {
     system: layers.systemPrompt,
     messages,
     tools: layers.toolDeclarations.direct,
     toolChoice: 'auto',
-    parameters: input.selection.parameters.map(p => p.applied),
-    ...(input.selection.replay === 'off' ? { replay: 'off' as const } : {}),
     representation: policies.representation.identity,
     source: {
       owner: 'request-context-contract',
@@ -26,7 +26,7 @@ export function assembledInput<P>(
       revision: '1',
       digest: digest(input.identity.candidate),
     },
-  }
+  })
 }
 
 export type LayeredRequest = Readonly<{
@@ -42,7 +42,7 @@ export function placeLayers<P>(
   const placement = placeContext({
     candidate: input.identity.candidate,
     contextRead: input.contextRead,
-    adopted: input.adopted,
+    adopted: input.adopted?.coverage ?? null,
     transition: input.transition,
     view: prepared.view,
     newInputs: input.inputs,
@@ -50,15 +50,21 @@ export function placeLayers<P>(
   if ('kind' in placement) return placement
   const anchor = placement.snapshot.anchor
   // The history owner supplies the chained digest; never manufacture it from content.
-  const anchorRow = prepared.history.rows.find(r => r.seq === anchor.seq)
+  const position = anchor.position
+  const anchorRow =
+    position.kind === 'entry' ? prepared.rows.find(r => r.seq === position.seq) : undefined
   const actualAnchor = { ...anchor, prefixDigest: anchorRow?.prefixDigest ?? null }
   const snapshot = { ...placement.snapshot, anchor: actualAnchor }
   const layers: RequestLayers = {
     systemPrompt: prepared.prompt.blocks,
     toolDeclarations: prepared.declarations,
-    historyHead: prepared.view.messages.filter(r => r.seq <= anchor.seq).map(r => r.message),
+    historyHead: prepared.view.messages
+      .filter(r => position.kind === 'entry' && compareHistorySequence(r.seq, position.seq) <= 0)
+      .map(r => r.message),
     snapshotReminder: snapshot,
-    historyBody: prepared.view.messages.filter(r => r.seq > anchor.seq).map(r => r.message),
+    historyBody: prepared.view.messages
+      .filter(r => position.kind === 'empty' || compareHistorySequence(r.seq, position.seq) > 0)
+      .map(r => r.message),
     tailFacts: placement.tail,
   }
   const messages = [

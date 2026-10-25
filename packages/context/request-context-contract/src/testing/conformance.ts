@@ -1,46 +1,33 @@
 import assert from 'node:assert/strict'
 import { type TenantId } from '@omne-harness/legal-identity'
+import type * as M from '@omne-harness/model-contract'
 import type { HistorySource, CompactionPolicyPort, RepresentationPolicyPort } from '../ports.js'
+import type { AssemblyOperations } from '../ports.js'
 import type { Access } from '../refs.js'
 import { decodePlanId } from '../refs.js'
-import type { AssemblyPorts, AssemblyPolicies } from '../ports.js'
-import type {
-  AssemblyInput,
-  AssemblyResult,
-  PlanResult,
-  StepResult,
-  TransitionEvidence,
-} from '../values.js'
-import type { DeriveInput } from '../values.js'
+import type { HistoryCursor, HistoryEvidence } from '../values.js'
 import type { ConformanceCase } from './case.js'
 import type { HistoryFixture } from './history-source.js'
-import { text, row, entry, evidence } from './fixtures.js'
-export type ConformanceSubject<P> = Readonly<{
-  operations: {
-    assemble(
-      input: AssemblyInput<P>,
-      ports: AssemblyPorts<P>,
-      policies: AssemblyPolicies,
-    ): Promise<AssemblyResult>
-    planCompaction(
-      input: AssemblyInput<P>,
-      ports: AssemblyPorts<P>,
-      policies: AssemblyPolicies,
-    ): Promise<PlanResult>
-    deriveStep(
-      input: DeriveInput,
-      ports: AssemblyPorts<P>,
-      policies: AssemblyPolicies,
-    ): Promise<StepResult>
-    resume(
-      input: AssemblyInput<P> & { transition: TransitionEvidence },
-      ports: AssemblyPorts<P>,
-      policies: AssemblyPolicies,
-    ): Promise<AssemblyResult>
-  }
-  input: AssemblyInput<P>
-  ports: AssemblyPorts<P>
-  policies: AssemblyPolicies
+import {
+  createAssemblyFixture,
+  text,
+  row,
+  entry,
+  evidence,
+  fixtureBudget,
+  type AssemblyFixture,
+  type AssemblyFixtureOptions,
+} from './fixtures.js'
+import { createScriptedCompactionPolicy, createScriptedInputMeter } from './doubles.js'
+import { countingBasis } from './fixtures.js'
+/**
+ * An operation group implementation under test: it binds the fixture's target, sources and
+ * policies, as `createAssemblyOperations` or a registry's `assembly(target)` does.
+ */
+export type ConformanceSubject = Readonly<{
+  operations(
+    fixture: AssemblyFixture,
+  ): AssemblyOperations<string> | Promise<AssemblyOperations<string>>
 }>
 type BoundCase = Readonly<{ id: string; obligation: string; run(): Promise<void> }>
 const caseOf = (id: string, obligation: string, run: () => Promise<void>): BoundCase => ({
@@ -48,306 +35,219 @@ const caseOf = (id: string, obligation: string, run: () => Promise<void>): Bound
   obligation,
   run,
 })
-function requestContextCases<P>(subject: ConformanceSubject<P>): readonly BoundCase[] {
-  const { operations: o, input, ports, policies } = subject
+function scripted(
+  amount: (input: Parameters<M.ModelInputMeter['measure']>[0], n: number) => M.RequestBudget,
+) {
+  let n = 0
+  return { meter: createScriptedInputMeter(countingBasis, input => ({ ok: amount(input, ++n) })) }
+}
+function overLimit(): M.RequestBudget {
+  const budget = fixtureBudget()
+  return {
+    ...budget,
+    checks: budget.checks.map(c => ({
+      ...c,
+      measurement: {
+        kind: 'exact' as const,
+        amount: (BigInt(c.limit) + 1n).toString(),
+        method: c.measurement.method,
+      },
+    })),
+  }
+}
+function isCandidate(kind: string): boolean {
+  return kind === 'candidate-before-extension' || kind === 'candidate-fixable'
+}
+function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] {
+  const make = async (options: AssemblyFixtureOptions = {}) => {
+    const fixture = createAssemblyFixture(options)
+    return { fixture, o: await subject.operations(fixture) }
+  }
   return [
     caseOf('new-inputs-must-be-saved', 'RQ11-1', async () => {
-      assert.equal(
-        (await o.assemble({ ...input, inputs: { ...input.inputs, saved: null } }, ports, policies))
-          .kind,
-        'invalid',
-      )
+      const { fixture, o } = await make()
+      const history = fixture.sources.values().history
+      fixture.sources.update('history', { ...history, inputs: { ...history.inputs, saved: null } })
+      assert.equal((await o.assemble(fixture.call)).kind, 'invalid')
     }),
     caseOf('same-input-is-deterministic', 'RQ11-2', async () => {
-      assert.deepEqual(
-        await o.assemble(input, ports, policies),
-        await o.assemble(input, ports, policies),
-      )
+      const { fixture, o } = await make()
+      assert.deepEqual(await o.assemble(fixture.call), await o.assemble(fixture.call))
     }),
     caseOf('fixed-overflow-is-outcome', 'RQ11-4', async () => {
-      const meter = {
-        ...ports.meter,
-        measure: (value: Parameters<typeof ports.meter.measure>[0]) => {
-          const result = ports.meter.measure(value)
-          if ('failure' in result) return result
-          return {
-            ok: {
-              ...result.ok,
-              checks: result.ok.checks.map(c => ({
-                ...c,
-                measurement: {
-                  kind: 'exact' as const,
-                  amount: (BigInt(c.limit) + 1n).toString(),
-                  method: c.measurement.method,
-                },
-              })),
-            },
-          }
-        },
-      }
-      const result = await o.assemble(input, { ...ports, meter }, policies)
-      assert.equal(result.kind, 'cannot-fit')
+      const { fixture, o } = await make({ preparation: scripted(() => overLimit()) })
+      assert.equal((await o.assemble(fixture.call)).kind, 'cannot-fit')
     }),
     caseOf('unknown-limits-remain-candidates', 'RQ11-9', async () => {
-      const meter = {
-        ...ports.meter,
-        measure: (value: Parameters<typeof ports.meter.measure>[0]) => {
-          const result = ports.meter.measure(value)
-          if ('failure' in result) return result
+      const { fixture, o } = await make({
+        preparation: scripted(() => {
+          const budget = fixtureBudget()
           return {
-            ok: {
-              ...result.ok,
-              checks: result.ok.checks.map(c => ({
-                ...c,
-                constraint: { ...c.constraint, upstream: { kind: 'unknown' as const } },
-              })),
-            },
+            ...budget,
+            checks: budget.checks.map(c => ({
+              ...c,
+              constraint: { ...c.constraint, upstream: { kind: 'unknown' as const } },
+            })),
           }
-        },
-      }
-      const result = await o.assemble(input, { ...ports, meter }, policies)
-      assert.ok(result.kind === 'candidate-before-extension' || result.kind === 'candidate-fixable')
+        }),
+      })
+      assert.ok(isCandidate((await o.assemble(fixture.call)).kind))
     }),
     caseOf('resume-full-snapshot-required', 'RQ11-15', async () => {
+      const { fixture, o } = await make()
       const plan = decodePlanId('plan:conformance')
       if ('failure' in plan) throw new Error('Fixture plan')
-      const result = await o.resume(
-        {
-          ...input,
-          transition: {
-            planId: plan.ok,
-            candidate: input.identity.candidate,
-            committed: evidence,
-            epoch: input.history.epoch,
-          },
-          contextRead: { ...input.contextRead, read: { kind: 'cursor-invalidated' } },
-        },
-        ports,
-        policies,
-      )
-      assert.equal(result.kind, 'invalid')
-    }),
-    caseOf('incremental-material-required', 'RQ11-19', async () => {
-      const result = await o.assemble(
-        { ...input, contextRead: { ...input.contextRead, snapshot: null } },
-        ports,
-        policies,
-      )
-      assert.equal(result.kind, 'invalid')
-    }),
-    caseOf('carried-content-reuses-history', 'RQ11-2', async () => {
-      let reads = 0
-      const history = {
-        ...ports.history,
-        read: async (...args: Parameters<typeof ports.history.read>) => {
-          reads++
-          return ports.history.read(...args)
-        },
-      }
-      const supplied = { ...ports, history }
-      const first = await o.assemble(input, supplied, policies)
-      assert.ok(first.kind === 'candidate-before-extension' || first.kind === 'candidate-fixable')
-      const before = reads
-      await o.assemble(
-        {
-          ...input,
-          previous: {
-            candidate: input.identity.candidate,
-            enteredCompaction: null,
-            carried: first.candidate,
-          },
-        },
-        supplied,
-        policies,
-      )
-      assert.equal(reads, before)
-    }),
-    caseOf('floor-cannot-be-dropped', 'RQ11-11', async () => {
-      const policy = {
-        ...policies.compaction,
-        config: {
-          ...policies.compaction.config,
-          retainBudget: { kind: 'tokens' as const, retainTokens: '0' },
-        },
-        plan: () => ({
-          kind: 'draft' as const,
-          coverTo: entry('entry:0'),
-          retained: [],
-          bound: '2',
-          shape: 'summarize' as const,
-        }),
-      }
-      const history = {
-        ...ports.history,
-        compactionContext: async () => ({
-          kind: 'context' as const,
-          epoch: input.history.epoch,
-          value: {
-            covered: [{ ref: entry('entry:0'), message: row().message }],
-            after: [],
-            open: [entry('entry:0')],
-          },
-        }),
-      }
-      const result = await o.planCompaction(
-        input,
-        { ...ports, history },
-        { ...policies, compaction: policy },
-      )
-      assert.equal(result.kind, 'cannot-fit')
-    }),
-    caseOf('floor-after-cover-cannot-evade-budget', 'RQ06/RQ11-11', async () => {
-      const first = row(0),
-        last = row(1)
-      const history: HistorySource<P> = {
-        async read() {
-          return { kind: 'page', page: { rows: [first, last], next: null } }
-        },
-        async compactionContext() {
-          return {
-            kind: 'context',
-            epoch: input.history.epoch,
-            value: {
-              covered: [
-                { ref: first.entry, message: first.message },
-                { ref: last.entry, message: last.message },
-              ],
-              after: [],
-              open: [last.entry],
-            },
-          }
-        },
-      }
-      const policy: CompactionPolicyPort = {
-        ...policies.compaction,
-        config: {
-          ...policies.compaction.config,
-          retainBudget: { kind: 'tokens', retainTokens: '100' },
-        },
-        plan: () => ({
-          kind: 'draft',
-          coverTo: first.entry,
-          retained: [],
-          bound: policies.compaction.config.stepBound,
-          shape: 'summarize',
-        }),
-      }
-      const measured = (amount: string): typeof ports.meter => ({
-        ...ports.meter,
-        measure(value) {
-          const result = ports.meter.measure(value)
-          if ('failure' in result) return result
-          return {
-            ok: {
-              ...result.ok,
-              checks: result.ok.checks.map(check =>
-                check.metric === 'input-tokens'
-                  ? {
-                      ...check,
-                      measurement: {
-                        kind: 'exact' as const,
-                        amount,
-                        method: check.measurement.method,
-                      },
-                    }
-                  : check,
-              ),
-            },
-          }
+      const context = fixture.sources.values().context
+      fixture.sources.update('context', {
+        contextRead: { ...context.contextRead, read: { kind: 'cursor-invalidated' } },
+        transition: {
+          planId: plan.ok,
+          candidate: fixture.call.candidate,
+          committed: evidence,
+          epoch: fixture.sources.values().history.evidence.epoch,
         },
       })
-      const current = { ...input, history: { ...input.history, upper: 1 } }
-      const failed = await o.planCompaction(
-        current,
-        { ...ports, history, meter: measured('150') },
-        { ...policies, compaction: policy },
-      )
-      assert.equal(failed.kind, 'cannot-fit')
-      if (failed.kind === 'cannot-fit') {
-        assert.equal(failed.reason, 'floor-exceeds-budget')
-        assert.deepEqual(failed.floor, [last.entry])
+      assert.equal((await o.resume(fixture.call)).kind, 'invalid')
+    }),
+    caseOf('incremental-material-required', 'RQ11-19', async () => {
+      const { fixture, o } = await make()
+      const context = fixture.sources.values().context
+      fixture.sources.update('context', {
+        ...context,
+        contextRead: { ...context.contextRead, snapshot: null },
+      })
+      assert.equal((await o.assemble(fixture.call)).kind, 'invalid')
+    }),
+    caseOf('carried-content-reuses-history', 'RQ11-2', async () => {
+      const { fixture, o } = await make()
+      const first = await o.assemble(fixture.call)
+      assert.ok(first.kind === 'candidate-before-extension' || first.kind === 'candidate-fixable')
+      const control = fixture.sources.values().control
+      fixture.sources.update('control', {
+        ...control,
+        previous: {
+          candidate: fixture.call.candidate,
+          enteredCompaction: null,
+          carried: first.candidate,
+        },
+      })
+      const before = fixture.history.readCount()
+      await o.assemble(fixture.call)
+      assert.equal(fixture.history.readCount(), before)
+    }),
+    caseOf('floor-cannot-be-dropped', 'RQ11-11', async () => {
+      const base = createAssemblyFixture()
+      const policy: CompactionPolicyPort = {
+        ...base.policies.compaction,
+        config: {
+          ...base.policies.compaction.config,
+          retainBudget: { kind: 'tokens', retainTokens: '0' },
+        },
       }
-      const legal = await o.planCompaction(
-        current,
-        { ...ports, history, meter: measured('50') },
-        { ...policies, compaction: policy },
-      )
-      assert.equal(legal.kind, 'planned')
-      if (legal.kind === 'planned') {
-        assert.deepEqual(legal.plan.floor, [])
-        assert.deepEqual(legal.plan.after, [last.message])
-      }
+      const { fixture, o } = await make({
+        policies: { ...base.policies, compaction: policy },
+        open: [entry('entry:0')],
+      })
+      assert.equal((await o.planCompaction(fixture.call)).kind, 'cannot-fit')
+    }),
+    caseOf('retention-measures-the-whole-set', 'RQ11/J14', async () => {
+      // One message measures 10, two measure 15: summing single entries would give 20.
+      const base = createAssemblyFixture()
+      const policy = createScriptedCompactionPolicy({
+        retainBudget: { kind: 'tokens', retainTokens: '16' },
+        retainPreference: 'newest-first',
+        triggerPercent: null,
+        headroomTokens: null,
+        trimFirst: false,
+        stepBound: '2',
+      })
+      const { fixture, o } = await make({
+        rows: [row(0), row(1)],
+        policies: { ...base.policies, compaction: policy },
+        preparation: scripted(input =>
+          fixtureBudget(['0', '10', '15'][input.assembled.messages.length] ?? '1000'),
+        ),
+      })
+      const planned = await o.planCompaction(fixture.call)
+      assert.equal(planned.kind, 'planned')
+      if (planned.kind === 'planned') assert.equal(planned.plan.retained.length, 2)
     }),
     caseOf('plan-progress-and-policy-checked', 'RQ11-17', async () => {
-      const planned = await o.planCompaction(input, ports, policies)
+      const { fixture, o } = await make()
+      const planned = await o.planCompaction(fixture.call)
       assert.equal(planned.kind, 'planned')
       if (planned.kind !== 'planned') return
-      const result = await o.deriveStep(
-        {
-          plan: planned.plan,
-          progress: planned.progress,
-          selection: input.selection,
-          material: planned.first.material,
-          step: { kind: 'vetoed', reason: 'test', evidence },
+      const changed = await subject.operations({
+        ...fixture,
+        policies: {
+          ...fixture.policies,
+          compaction: { ...fixture.policies.compaction, configDigest: () => 'changed' },
         },
-        ports,
-        { ...policies, compaction: { ...policies.compaction, configDigest: () => 'changed' } },
-      )
+      })
+      const result = await changed.deriveStep({
+        call: fixture.call,
+        plan: planned.plan,
+        progress: planned.progress,
+        material: planned.first.material,
+        step: { kind: 'vetoed', index: '0', reason: 'test', evidence },
+      })
       assert.equal(result.kind, 'invalid')
     }),
-    caseOf('entered-plan-changes-outcome', 'RQ11-20', async () => {
-      let n = 0
-      const meter = {
-        ...ports.meter,
-        measure: (value: Parameters<typeof ports.meter.measure>[0]) => {
-          const result = ports.meter.measure(value)
-          if ('failure' in result) return result
-          n++
-          return {
-            ok: {
-              ...result.ok,
-              checks: result.ok.checks.map(c => ({
-                ...c,
-                measurement: {
-                  kind: 'exact' as const,
-                  amount: c.metric === 'input-tokens' && n % 2 === 1 ? '900' : '1',
-                  method: c.measurement.method,
-                },
-                limit: '1000',
-              })),
-            },
-          }
-        },
+    caseOf('trim-is-not-a-step', 'RQ11/J12', async () => {
+      const base = createAssemblyFixture()
+      const policy: CompactionPolicyPort = {
+        ...base.policies.compaction,
+        config: { ...base.policies.compaction.config, trimFirst: true, stepBound: '1' },
+        plan: async ({ context }) => ({
+          kind: 'draft',
+          coverTo: context.covered.at(-1)?.ref ?? entry('entry:0'),
+          retained: [],
+          bound: '1',
+          shape: { kind: 'summarize', trimFirst: true },
+        }),
       }
+      const { fixture, o } = await make({ policies: { ...base.policies, compaction: policy } })
+      const planned = await o.planCompaction(fixture.call)
+      assert.equal(planned.kind, 'planned')
+      if (planned.kind !== 'planned') return
+      assert.equal(planned.first.kind, 'summarize')
+      assert.equal(planned.first.index, '0')
+      assert.equal(planned.progress.completed, '0')
+    }),
+    caseOf('entered-plan-changes-outcome', 'RQ11-20', async () => {
+      const { fixture, o } = await make({
+        preparation: scripted((_input, n) =>
+          n % 2 === 1 ? fixtureBudget('900') : fixtureBudget('1'),
+        ),
+      })
       const plan = decodePlanId('plan:previous')
       assert.ok('ok' in plan)
-      const result = await o.assemble(
-        { ...input, previous: { candidate: input.identity.candidate, enteredCompaction: plan.ok } },
-        { ...ports, meter },
-        policies,
-      )
-      assert.equal(result.kind, 'cannot-fit')
+      const control = fixture.sources.values().control
+      fixture.sources.update('control', {
+        ...control,
+        previous: { candidate: fixture.call.candidate, enteredCompaction: plan.ok },
+      })
+      assert.equal((await o.assemble(fixture.call)).kind, 'cannot-fit')
     }),
     caseOf('tail-facts-never-enter-snapshot', 'RQ11-24', async () => {
-      const result = await o.assemble(
-        {
-          ...input,
-          contextRead: {
-            ...input.contextRead,
-            perRequest: [
-              {
-                key: 'test.tail',
-                revision: 1,
-                value: 'live',
-                previous: null,
-                volatility: 'per-request',
-              },
-            ],
-          },
+      const { fixture, o } = await make()
+      const context = fixture.sources.values().context
+      fixture.sources.update('context', {
+        ...context,
+        contextRead: {
+          ...context.contextRead,
+          perRequest: [
+            {
+              key: 'test.tail',
+              revision: 1,
+              value: 'live',
+              previous: null,
+              volatility: 'per-request',
+            },
+          ],
         },
-        ports,
-        policies,
-      )
+      })
+      const result = await o.assemble(fixture.call)
       assert.ok(result.kind === 'candidate-before-extension' || result.kind === 'candidate-fixable')
       assert.equal(result.candidate.layers.tailFacts.blocks.length, 1)
       assert.ok(
@@ -359,33 +259,59 @@ function requestContextCases<P>(subject: ConformanceSubject<P>): readonly BoundC
       )
     }),
     caseOf('pages-share-evidence', 'RQ11-26', async () => {
-      const seen: unknown[] = []
-      const history = {
-        ...ports.history,
-        read: async (e: typeof input.history, _access: unknown, after: number | null) => {
-          seen.push(e)
-          return {
-            kind: 'page' as const,
-            page: { rows: [row(after === null ? 0 : 1)], next: after === null ? 0 : null },
-          }
+      const { fixture, o } = await make({ rows: [row(0), row(1)] })
+      const seen: HistoryEvidence[] = []
+      const read = fixture.history.read.bind(fixture.history)
+      const spy: AssemblyFixture = {
+        ...fixture,
+        sources: {
+          ...fixture.sources,
+          history: {
+            ...fixture.history,
+            read: async input => {
+              seen.push(input.evidence)
+              return read({ ...input, budgetBytes: 5 })
+            },
+          },
         },
       }
-      const result = await o.assemble(
-        { ...input, history: { ...input.history, upper: 1 } },
-        { ...ports, history },
-        policies,
-      )
-      assert.ok(result.kind === 'candidate-before-extension' || result.kind === 'candidate-fixable')
+      const operations = await subject.operations(spy)
+      const result = await operations.assemble(fixture.call)
+      assert.ok(isCandidate(result.kind))
       assert.equal(seen.length, 2)
-      assert.equal(seen[0], seen[1])
+      assert.deepEqual(seen[0], seen[1])
+      void o
     }),
     caseOf('unknown-source-not-empty', 'RQ11-34', async () => {
-      const result = await o.assemble(
-        input,
-        { ...ports, history: { ...ports.history, read: async () => ({ kind: 'unknown' }) } },
-        policies,
-      )
+      const { fixture } = await make()
+      const spy: AssemblyFixture = {
+        ...fixture,
+        sources: {
+          ...fixture.sources,
+          history: { ...fixture.history, read: async () => ({ kind: 'unknown' }) },
+        },
+      }
+      const result = await (await subject.operations(spy)).assemble(fixture.call)
       assert.equal(result.kind, 'unknown')
+    }),
+    caseOf('unstable-group-is-unavailable', 'RQ11/J14', async () => {
+      const { fixture, o } = await make()
+      fixture.sources.churn('prompt', true)
+      const result = await o.assemble(fixture.call)
+      assert.equal(result.kind, 'unavailable')
+      if (result.kind === 'unavailable') assert.equal(result.diagnostic, 'unstable-input:prompt')
+    }),
+    caseOf('lease-is-given-back', 'RQ11/RQ-05', async () => {
+      const { fixture, o } = await make({
+        preparation: {
+          release: () => ({
+            failure: { kind: 'unavailable', dependency: 'lease', diagnostic: 'stuck' },
+          }),
+        },
+      })
+      const result = await o.assemble(fixture.call)
+      assert.equal(result.kind, 'unavailable')
+      assert.equal(fixture.preparation.outstanding(), 0)
     }),
   ]
 }
@@ -401,51 +327,46 @@ function historySourceCases<P>(
 ): readonly BoundCase[] {
   const first = subject.fixture.epochs[0]
   if (first === undefined) return []
-  const evidence = {
-    scope: subject.fixture.scope,
+  const last = first.rows.at(-1)
+  const evidence: HistoryEvidence = {
+    target: { tenant: subject.fixture.tenant, scope: subject.fixture.scope },
     epoch: first.epoch,
-    upper: first.rows.at(-1)?.seq ?? -1,
+    upper: last === undefined ? { kind: 'empty' } : { kind: 'entry', seq: last.seq },
   }
+  const read = (
+    access: Access<P> | null,
+    cursor: HistoryCursor | null,
+    budgetBytes: number,
+    e = evidence,
+  ) => subject.source.read({ access: access as Access<P>, evidence: e, cursor, budgetBytes })
   return [
     caseOf('read-requires-access', 'RQ11-29', async () => {
-      assert.equal((await subject.source.read(evidence, null, null, 65536)).kind, 'invalid')
+      assert.equal((await read(null, null, 65536)).kind, 'invalid')
     }),
     caseOf('tenant-isolation', 'RQ11-29', async () => {
       assert.equal(
-        (
-          await subject.source.read(
-            evidence,
-            { ...subject.access, tenant: subject.otherTenant },
-            null,
-            65536,
-          )
-        ).kind,
+        (await read({ ...subject.access, tenant: subject.otherTenant }, null, 65536)).kind,
         'denied',
       )
     }),
     caseOf('page-size-retains-order', 'RQ11-28', async () => {
-      const r = await subject.source.read(evidence, subject.access, null, 65536)
+      const r = await read(subject.access, null, 65536)
       assert.equal(r.kind, 'page')
-      if (r.kind === 'page')
-        assert.ok(r.page.rows.every((r, i, a) => i === 0 || r.seq > (a[i - 1]?.seq ?? -1)))
+      if (r.kind === 'page') assert.ok(r.page.rows.every((r, i) => r.seq === String(i)))
     }),
-    caseOf('missing-scope-is-invalid', 'RQ11-29', async () => {
-      const { scope: _scope, ...missing } = evidence
-      const result = await subject.source.read(
-        missing as typeof evidence,
-        subject.access,
-        null,
-        65536,
-      )
+    caseOf('foreign-cursor-is-invalid', 'RQ11/十进制序位', async () => {
+      const head = first.rows[0]
+      assert.ok(head, 'History conformance needs a row')
+      const other: HistoryEvidence = { ...evidence, upper: { kind: 'entry', seq: head.seq } }
+      const result = await read(subject.access, { evidence: other, after: head.seq }, 65536)
       assert.equal(result.kind, 'invalid')
-      if (result.kind === 'invalid') assert.equal(result.reason, 'missing-scope')
     }),
     caseOf('page-respects-byte-budget', 'RQ11-28/H5', async () => {
       const [head, next] = first.rows
       assert.ok(head && next, 'History conformance needs at least two rows')
       const bytes = Number(head.bytes)
       assert.ok(Number.isSafeInteger(bytes) && bytes > 0 && BigInt(next.bytes) > 0n)
-      const page = await subject.source.read(evidence, subject.access, null, bytes)
+      const page = await read(subject.access, null, bytes)
       assert.equal(page.kind, 'page')
       if (page.kind !== 'page') return
       assert.deepEqual(
@@ -453,13 +374,8 @@ function historySourceCases<P>(
         [head.seq],
       )
       assert.ok(page.page.rows.reduce((sum, row) => sum + BigInt(row.bytes), 0n) <= BigInt(bytes))
-      assert.equal(page.page.next, head.seq)
-      const following = await subject.source.read(
-        evidence,
-        subject.access,
-        page.page.next,
-        Number(next.bytes),
-      )
+      assert.equal(page.page.next?.after, head.seq)
+      const following = await read(subject.access, page.page.next, Number(next.bytes))
       assert.equal(following.kind, 'page')
       if (following.kind === 'page') {
         assert.equal(following.page.rows[0]?.seq, next.seq)
@@ -476,16 +392,21 @@ function historySourceCases<P>(
       assert.ok(bytes > 0n && bytes <= BigInt(Number.MAX_SAFE_INTEGER))
       const readDigests = async (source: HistorySource<P>) => {
         const rows: import('../values.js').HistoryRow[] = []
-        let after: number | null = null
-        const cursors = new Set<number>()
+        let after: HistoryCursor | null = null
+        const cursors = new Set<string>()
         while (true) {
-          const result = await source.read(evidence, subject.access, after, Number(bytes))
+          const result = await source.read({
+            access: subject.access,
+            evidence,
+            cursor: after,
+            budgetBytes: Number(bytes),
+          })
           assert.equal(result.kind, 'page')
           if (result.kind !== 'page') throw new Error('Expected fixture history page')
           rows.push(...result.page.rows)
           if (result.page.next === null) break
-          assert.ok(!cursors.has(result.page.next), 'History pages must advance')
-          cursors.add(result.page.next)
+          assert.ok(!cursors.has(result.page.next.after), 'History pages must advance')
+          cursors.add(result.page.next.after)
           after = result.page.next
         }
         assert.deepEqual(
@@ -511,7 +432,14 @@ function historySourceCases<P>(
           {
             ...first,
             rows: first.rows.map((value, index) =>
-              index === 0 ? { ...value, message: changedMessage } : value,
+              index === 0
+                ? {
+                    seq: value.seq,
+                    entry: value.entry,
+                    bytes: value.bytes,
+                    message: changedMessage,
+                  }
+                : value,
             ),
             entries: first.entries.map(value =>
               value.ref === head.entry ? { ...value, message: changedMessage } : value,
@@ -529,7 +457,7 @@ function historySourceCases<P>(
         ),
       )
       // Page boundaries cannot restart the chain.
-      const page = await subject.source.read(evidence, subject.access, head.seq, Number(next.bytes))
+      const page = await read(subject.access, { evidence, after: head.seq }, Number(next.bytes))
       assert.equal(page.kind, 'page')
       if (page.kind === 'page') assert.equal(page.page.rows[0]?.prefixDigest, original[1])
     }),
@@ -597,19 +525,22 @@ export const REQUEST_CONTEXT_OBLIGATIONS = [
   'incremental-material-required',
   'carried-content-reuses-history',
   'floor-cannot-be-dropped',
-  'floor-after-cover-cannot-evade-budget',
+  'retention-measures-the-whole-set',
   'plan-progress-and-policy-checked',
+  'trim-is-not-a-step',
   'entered-plan-changes-outcome',
   'tail-facts-never-enter-snapshot',
   'pages-share-evidence',
   'unknown-source-not-empty',
+  'unstable-group-is-unavailable',
+  'lease-is-given-back',
 ] as const
 export type RequestContextObligation = (typeof REQUEST_CONTEXT_OBLIGATIONS)[number]
 export const HISTORY_SOURCE_OBLIGATIONS = [
   'read-requires-access',
   'tenant-isolation',
   'page-size-retains-order',
-  'missing-scope-is-invalid',
+  'foreign-cursor-is-invalid',
   'page-respects-byte-budget',
   'prefix-digest-is-chained',
 ] as const
@@ -624,8 +555,8 @@ export const REPRESENTATION_POLICY_OBLIGATIONS = [
   'unsupported-without-conversion',
 ] as const
 export type RepresentationPolicyObligation = (typeof REPRESENTATION_POLICY_OBLIGATIONS)[number]
-export function requestContextConformance<P>(): readonly ConformanceCase<ConformanceSubject<P>>[] {
-  return suite(REQUEST_CONTEXT_OBLIGATIONS, requestContextCases<P>)
+export function requestContextConformance(): readonly ConformanceCase<ConformanceSubject>[] {
+  return suite(REQUEST_CONTEXT_OBLIGATIONS, requestContextCases)
 }
 export type HistorySourceFixture<P> = Parameters<typeof historySourceCases<P>>[0]
 export function historySourceConformance<P>(): readonly ConformanceCase<HistorySourceFixture<P>>[] {
