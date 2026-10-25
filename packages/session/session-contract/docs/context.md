@@ -1,5 +1,8 @@
 # Session 消费与系统定位
 
+> 本页带「（已被替代）」标记的名字是历史叙述：替代拥有者与现状见 [SPEC 被替代的协议](../SPEC.md#被替代的协议)。
+
+
 本页说明谁消费本成员、按什么顺序消费，以及在故障与竞争下必须得到什么结果。图表投影 [SPEC](../SPEC.md) 的现有条款，不改变采用范围，也不表示运行实现或真实提供者验证已完成。
 
 ## 系统位置与消费入口
@@ -44,7 +47,7 @@ Tool 宿主的协调者不导入本成员。它调用 Tool 契约定义的两个
 
 独立消费使用显式的 `SessionFaces` 及其注入的端口，不要求 Cordis。候选形状见 [public-api](public-api.md)，装配依赖与资源撤除见 [Cordis 定义](../../session-cordis-contract/docs/cordis.md)。可靠状态由相应的提供者兑现。
 
-Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort` 调用 `invalidate`。Session 不参加 Model 的受理点守卫。
+Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除（两者已被替代：整条机制撤回，围栏归 Agent 日志 `start-fence` 条目，交付责任解除归 Agent 宿主的结果接收面）。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort`（已被替代） 调用 `invalidate`。Session 不参加 Model 的受理点守卫。
 
 ## 原消费场景的前提
 
@@ -87,7 +90,7 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与�
 
 | 入口 | 终态 | 怎样成立 |
 | --- | --- | --- |
-| 读到执行结束 | completed、failed 或 cancelled | Session 读到 Agent 的结束事件或执行记录的结束状态后，以 `receive` 按 Agent 的结论写 SE26 与 SE16（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
+| 读到执行结束 | completed、failed 或 cancelled | Session 读到 Agent 的结束事件或执行记录的结束状态后（已被替代：事件副本协议撤回，到达机制归 #756；首条路径上 Run 终态只经 `finishRun`），以 `receive` 按 Agent 的结论写 SE26 与 SE16（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
 | 取消 | cancelled | `control(cancel-run)`、`control(archive)` 或到期的 `considerAutoArchive` 在提交时同批写 SE26 cancelled，不等传播 |
 | 有界收束 | failed | Session 以 `finishRun` 提交。只有两种依据：Agent 记录不可解释（P-5），或首条输入在 `invoke` 被消息准入拒收（[PM-02](../SPEC.md#pm-02)） |
 
@@ -127,7 +130,7 @@ sequenceDiagram
 | 取消先于条件终结 | 参加者响应「冲突」。Agent 以已保存的取消依据再次终结。之后读到的结束事件只认回 | Session 与 Agent 的裁定顺序（[PA-08](../SPEC.md#pa-08)） |
 | 归档之前收到普通输入，回执晚到 | 原受理与后续取消都可查，不能声称未曾受理 | Session 提交与控制 |
 | Agent 退出，Model 或 Tool 仍在运行 | 恢复原等待。旧 Agent 卸载不停止生产者 | 独立宿主与 Session 关联 |
-| 执行已结束，Session 尚未读到结束事件 | Run 仍为 active，不声称空闲或完成。读到后按 Agent 的结论写终态 | Session 事件消费（[EC-03](../SPEC.md#ec-03)） |
+| 执行已结束，Session 尚未读到结束事件 | Run 仍为 active，不声称空闲或完成。读到后按 Agent 的结论写终态 | Session 事件消费（[EC-03](../SPEC.md#ec-03)）（已被替代：Agent 事件副本协议撤回，Run 终态在首条路径只经 `finishRun`，Agent 结论的终态等 #756） |
 | Run 已终态，原结果迟到 | 合格保管者经 Agent 的 `recordResult` 保管，Session 参加。Agent 记录已删除时由 Session 单方保管。迟到结果不取得旧推进权。是否形成新工作，由仍有效的原投递资格决定 | Session 与原消费者（[EC-07](../SPEC.md#ec-07)、[EC-08](../SPEC.md#ec-08)） |
 | 归档后撤销归档，旧结果迟到 | 已取消的旧业务不重新入队，原事实保留 | Session 原取消事实 |
 | 保管成功，生产者确认未知 | 保管责任继续。按原操作查询 ACK 或交付释放，不重新领取已清理的 Model 全文 | 双方原操作协议（[EC-05](../SPEC.md#ec-05)） |
@@ -144,9 +147,9 @@ sequenceDiagram
 
 主体、租户、Session、Run、attempt、原操作与当前动作的参数都显式传入。固定定义归装配，固定请求归生产者与 Agent 的执行记录。Session 只保存指向它们的耐久证据。Session 不保存接续值，只保存指向 Agent 权威记录的 `ExecutionRef`（[值与结果项的约束](../SPEC.md#值与结果项的约束)）。当前权限由参加者在提交时或实际发起点核对。
 
-本成员声明七个构造依赖端口与四个出站端口。`SessionTransactionPort` 与应用装配交付的内部主体 `SessionInternalPrincipals` 是装配的必需依赖。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`（[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)）。调度策略是 `session` 工厂的配置，不进本成员。Context 与 Fiber 不进入这份业务数据契约。
+本成员声明七个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`；`ToolStartFencePort` 与 `DeliveryReleasePort` 已被替代，见 SPEC「被替代的协议」）。`SessionTransactionPort` 与应用装配交付的内部主体 `SessionInternalPrincipals` 是装配的必需依赖。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`（[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)）。调度策略是 `session` 工厂的配置，不进本成员。Context 与 Fiber 不进入这份业务数据契约。
 
-本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。`receive` 交来的 Agent 事件须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
+本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。`receive` 交来的 Agent 事件（已被替代：`receive` 现只有 `input-handover` 与其余生产者事实，事件副本协议归 #756）须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
 
 类型消费只核对参数与返回形状。唯一推进、输入批界、原操作未知、终态竞争、实际外部动作与跨进程提交，都需要另外的模型与提供者证据。状态图、静态类型与文档链接不证明断电耐久或授权源已经实现。
 

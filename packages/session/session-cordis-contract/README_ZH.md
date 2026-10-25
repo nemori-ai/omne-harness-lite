@@ -1,6 +1,5 @@
 # @omne-harness/session-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Session 的 Cordis 定义成员，`service-contract` 变体。
@@ -13,8 +12,13 @@ Session 的 Cordis 定义成员，`service-contract` 变体。
 
 状态：Cordis 定义成员，`draft`。[SPEC](SPEC.md) 写明各项性质，是候选设计，尚未技术接受。采用依据是 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。
 
-- 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
-- 未实现：抽象类、键常量、intercept 配置类型、`Context` 与 `Events` 增补，以及根入口的类型重导出。
+| 导出 | 支持 | 位置 |
+| --- | --- | --- |
+| 带四个面的 `SessionService` 与 `sessionKey` | 已导出 | `src/cordis.ts` |
+| 十个端口 Service 与键：`sessionTransactions`、`sessionPrincipals`、`sessionIdentity`、`sessionEvidence`、`sessionClock`、`sessionIdleInput`、`sessionContextInput`、`sessionNotifier`、`sessionAgentDrive`、`sessionScopeRelease` | 已导出 | `src/cordis.ts` |
+| `SessionIntercept`、`Context` 与 `Events` 增补、事件 `session-cordis-contract/committed` | 已导出 | `src/cordis.ts` |
+| 根入口的类型重导出 | 已导出，没有运行值 | `src/index.ts` |
+| `sessionToolStartFence`、`sessionDeliveryRelease` | 已被替代，不定义 | [session-contract SPEC](../session-contract/SPEC.md#被替代的协议) |
 - 未验证：intercept 配置的 Cordis 机制读数只有源码读数，所以 SPEC 的性质 4 是假设，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 使用
@@ -40,7 +44,7 @@ export const inject = {
 
 ## 契约
 
-- 公开形状归 `src/`，现在为空。
+- 服务定义归 `src/`。
 - 性质与生命周期表归 [SPEC](SPEC.md)。
 - 服务定义、端口服务键、事件、依赖分类与 IC 符合性映射归 [Cordis 说明](docs/cordis.md)。
 - 导出索引归[公开接口页](docs/public-api.md)。
@@ -88,8 +92,8 @@ docs/                     内部设计、公开使用与集成说明
 ├── flows.md              本成员没有自己的流程的理由
 ├── object-model.md       本成员没有领域对象的理由
 └── public-api.md         导出入口与定义索引
-src/                      index.ts 与 cordis.ts，现在只有模板标记
-tests/                    两个入口测试，fixtures/ 现在为空
+src/                      index.ts（类型重导出）与 cordis.ts（定义）
+tests/                    入口测试：导出集合、键、真实 Context 装载
 schema/                   模板占位
 verification/             models/ 与 proofs/，模板占位
 adr/                      模板占位

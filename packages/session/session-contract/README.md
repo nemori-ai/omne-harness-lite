@@ -1,6 +1,5 @@
 # @omne-harness/session-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The pure contract member of Session. It has no Cordis dependency.
@@ -11,19 +10,27 @@ This package owns the public contract of Session governance. It defines four cal
 
 The package does not own execution. Agent, Model, and Tool own their own execution lives. The package does not name a neighbor contract. It does not own storage, scheduling, or the plugin that binds a service to Cordis. A Session is a governance service. A Run and an attempt are governed objects, not running instances.
 
-Status: contract member, `draft`. The [SPEC](SPEC.md) states which earlier parts come from technical acceptance. The section [runtime contract candidate](SPEC.md#运行契约候选) is a candidate design. Technical acceptance has not happened for it.
+Status: contract member. The [SPEC](SPEC.md) states which parts come from technical acceptance and, in its status line, what the source supports. Card #536 revision 5 limits this delivery to the M2 first tenant path; the rest is card #756.
 
-- Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
-- Not implemented: the types, the four faces, the port interfaces, the domain services, `decide`, `reduce`, and `sessionModesBlock`.
-- Not verified: every behavior clause in the SPEC. The only test checks that the root entry exports nothing. The package makes no claim about durability, concurrency, recovery, tenant isolation, or performance.
+| Area | Support | Where |
+| --- | --- | --- |
+| Types of the [API page](docs/public-api.md): values, identities, fixed inputs, results, the four faces, the ports, the signatures of the services, `decide` and `reduce` | Exported | `src/` |
+| `create`, `completeInitialization`, `accept` (ordinary input), `startRun`, `recordMessage`, `receive` (input hand-over), `finishRun` | Decided to the SPEC by `decide` and `reduce` | `src/decide.ts`, `src/reduce.ts` |
+| `accept` (card decision, business input), `claim`, `reload`, `preserveResult`, `completeConsumption`, `completeExternalConsumption`, `bindExternalCall`, `commitDerived`, `release`, `control`, `change`, `setRelation`, `configureAutoArchive`, `considerAutoArchive`, `recordIdle`, `interrupt`, `freeze`; `receive` of every fact other than the hand-over | Not supported: `decide` answers `rejected` with `unavailable` naming #756 | `src/decide.ts` |
+| `judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`, `resolveOperation` | Implemented | `src/judgments.ts` |
+| `resolveControlScope`, `judgeIdle`, `resolveCascade` | Not supported: `invalid` or `unavailable` naming #756; `resolveCascade` throws | `src/judgments.ts` |
+| `./testing`: the `SessionTransactionPort` suite, its non-durable double, the doubles of the identity bridge, evidence bridge, Context input and clock | Exported; the double passes the suite | `src/testing*.ts` |
+| `ToolStartFencePort`, `DeliveryReleasePort`, `ControlProgress.startFence`, the `start-fence` and `agent-event` facts | Superseded, not declared | [SPEC, superseded protocols](SPEC.md#被替代的协议) |
 
-Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. They use no export yet, because the entry is empty.
+Not verified: durability, concurrency across processes, recovery against a real store, the real identity source and clock. The double proves the judgments in memory only.
+
+Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` consume the root types and the runtime functions; `session-cordis-contract` re-exports the types under its Cordis service definitions.
 
 ## Usage
 
-The package has one entry: `@omne-harness/session-contract`. It has no `./cordis` entry. A caller that needs only the types and the pure functions installs this package alone. It needs no Cordis and no host.
+The package has two entries: `@omne-harness/session-contract` and `@omne-harness/session-contract/testing` (tests only). It has no `./cordis` entry. A caller that needs only the types and the pure functions installs this package alone. It needs no Cordis and no host.
 
-After the implementation arrives, a caller takes the faces that match its caller class. The candidate shape is below. It is not a runnable example, and the package does not export it today.
+A caller takes the faces that match its caller class:
 
 ```ts
 import type { SessionFaces } from '@omne-harness/session-contract'
@@ -32,13 +39,13 @@ declare function drive<P>(session: SessionFaces<P>): void
 // session.work, session.management, session.reconciliation, session.history
 ```
 
-The [API page](docs/public-api.md) gives the full candidate definitions. The [usage page](docs/context.md) shows who consumes each face and in which order. A caller that works inside Cordis uses the service definition in [session-cordis-contract](../session-cordis-contract/README.md). See the [Cordis page](docs/cordis.md).
+The [API page](docs/public-api.md) navigates the exports by source file. The [usage page](docs/context.md) shows who consumes each face and in which order. A caller that works inside Cordis uses the service definition in [session-cordis-contract](../session-cordis-contract/README.md). See the [Cordis page](docs/cordis.md).
 
 ## Contracts
 
-- `src/` owns the public shapes. It is empty now.
+- `src/` owns the public shapes, the pure judgments, `decide`, `reduce` and the entry codec.
 - The [SPEC](SPEC.md) owns behavior beyond the types. It owns the operation tables, the joint commit table, and the Agent participation clauses. It owns the advance and reload clauses, the event consumption clauses, and the two-layer Run state machine.
-- The [API page](docs/public-api.md) indexes the candidate definitions. It lists the current exports and the candidate exports separately.
+- The [API page](docs/public-api.md) navigates the exports; the API snapshot is `api/session-contract.api.md`.
 - The [object model](docs/object-model/README.md) owns the log events, the state transitions, and the identity and lifecycle of each object.
 - The [flows](docs/flows/README.md) show the cross-member sequences and the failure branches.
 
@@ -60,7 +67,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The current test checks only that the root entry exports nothing. See [tests/](tests/README.md). No test covers the verification obligations of the SPEC yet. These are the [continuing obligations](SPEC.md#持续验证义务与未覆盖) and the [candidate obligations](SPEC.md#候选的持续验证义务). A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The tests cover the export sets, `decide`/`reduce` on the first-path kinds, the pure judgments at their edges, the self-proof of the transaction suite with violating variants, and the dependency direction of the built entries. See [tests/](tests/README.md). The verification obligations of the SPEC beyond the first path are not covered yet. These are the [continuing obligations](SPEC.md#持续验证义务与未覆盖) and the [candidate obligations](SPEC.md#候选的持续验证义务). A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -83,8 +90,8 @@ docs/                     Internal design, public use, and integration
 ├── public-api.md         Candidate definitions and the export index
 ├── flows/                Cross-member flows and failure branches
 └── object-model/         Log events and state transitions
-src/                      Public types, only index.ts now
-tests/                    Entry test, fixtures/ is empty now
+src/                      Public types, judgments, decide, reduce, testing doubles
+tests/                    Export sets, decide/reduce, suite self-proof, dependency walk
 schema/                   Template placeholder
 verification/             models/ and proofs/, template placeholders
 adr/                      Template placeholder
