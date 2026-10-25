@@ -213,7 +213,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 | 换代协调者归属 | `docs/domains/assembly-and-handoff/README.md`、`docs/domains/tool-execution/README.md` | 已写回（2026-10-21，#618 分支） | 已切换；PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
 | 对象链、R1–R5、G7、协调者、P16 补充 | `packages/tool/tool-contract/SPEC.md`、`docs/object-model.md`、`docs/public-api.md` | 已写回（2026-10-21，#618 分支）；源码迁移归 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) | 正文已切换；源码未切换 |
 | 登记输入、新键、事件 | `packages/tool/tool-cordis-contract/docs/cordis.md` | 已写回（2026-10-21，#618 分支）；键与事件的源码归 #626 | 正文已切换；源码未切换 |
-| 第 8 项 helper 的形状、生命周期与失败边界 | `packages/assembly/kernel-basis/SPEC.md` | 已写回（2026-10-25，#626 分支），依据 [helper 采用](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)；源码与 Model 调用点归 #626 | 正文已切换；源码未切换 |
+| 第 8 项 helper 的形状、生命周期与失败边界 | `packages/assembly/kernel-basis/SPEC.md` | 已写回（2026-10-25，#626 分支），依据 [helper 采用](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)；源码与 Model 调用点归 #626 | 正文已切换，确认者为 M1 串行接任会话代 PanQiWei（[#626 revision 4 修订决定](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809)）；源码由 #626 revision 4 的阶段 2 切换 |
 | 作者插件、协调者、保留义务 | `packages/tool/tool-host-local/docs/cordis.md` | 已写回（2026-10-21，#618 分支）；实现归 2.4、2.4.1 | 正文已切换；实现未交付 |
 | 跟随规则例外；tool body 字段 | `packages/assets/assets/SPEC.md` | 已写回（2026-10-21，#618 分支） | 已切换；assets 拥有者 PanQiWei 接受（[6335123860](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)） |
 | 动态装载探针 | `.meta_harness/design/basis/cordis/` | 已写回：条目 `late-plugin-load-unload-does-not-rerun-others` 与 `kernel-basis` 探针，4.0.4 通过 | 已切换 |

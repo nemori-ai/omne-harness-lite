@@ -1,6 +1,6 @@
 # tool/tool-contract 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码实现资产正文端口和契约函数。根入口导出全部公开契约类型、品牌身份解码函数、默认结果政策，以及定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数。根入口导出全部公开契约类型、品牌身份解码函数、默认结果政策，以及定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
@@ -36,12 +36,13 @@
 
 分组规则：
 
-1. 一个名字留在根入口，当且仅当 Tool 组外的成员（`packages/tool` 之外的包与应用，含它们的测试）实际导入它，或者它被这样的名字在声明里直接引用。契约函数、品牌身份解码函数、默认结果政策、`toolBodyContract` 与 `describedAdoption` 按同一规则判定。
-2. 只被 Tool 组实现成员（`tool`、`tool-host-local`、`tool-cordis-contract`）使用的提供者协议名字移到 `./provider`：由外部提供者实现的端口、提供者之间的协议记录、保管与账目的读写端口、装载与绑定登记表、执行者绑定与启动记录，以及只有这些类型引用的值类型。
-3. 分组依据是导入扫描：对工作区内每个非 Tool 组成员的源码、测试与示例列出它从 `@omne-harness/tool-contract` 导入的名字。扫描表随切换提交进入 PR，不进入本页。
-4. 根入口不能为空；一个组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，停止切换并交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。
-5. 一个 `./provider` 的名字后来有了组外消费者时，把它移回根入口；根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。
-6. `./binding` 与 `./testing` 的导出不变；`./provider` 不导出 `./binding` 的读取器，也不导出任何 `./testing` 的名字。
+1. 根入口 = 有 Tool 组外导入者的名字 ∪ 这些名字的声明直接或间接引用到的名字。Tool 组外是 `packages/tool` 之外的包与应用，含它们的测试与示例。引用取传递闭包：根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。契约函数、品牌身份解码函数、默认结果政策、`toolBodyContract` 与 `describedAdoption` 按同一规则判定。
+2. 不在上述集合里、只被 Tool 组实现成员（`tool`、`tool-host-local`、`tool-cordis-contract`）使用的提供者协议名字移到 `./provider`：由外部提供者实现的端口、提供者之间的协议记录、保管与账目的读写端口、装载与绑定登记表、执行者绑定与启动记录，以及只有这些类型引用的值类型。
+3. 兜底：既没有组外导入者、又不被根入口声明引用的名字，属于提供者协议（作者装载、登记表、加载器、动态性纯函数）的进 `./provider`，其余进根入口。[公共流协议上的观察](#公共流协议上的观察)的新名字（`ToolStreamSnapshot`、`ToolStreamDelta`、`ToolStreamEnd`、`ToolStreamSelection`、`ToolStreamReferences`、`ToolStreamObservation`）经 `ToolRuntime` 的传递闭包进根入口；producer `tool` 适配器 `toolStreamCallCodec` 不是提供者协议，按兜底规则进根入口。
+4. 分组依据是导入扫描：对工作区内每个非 Tool 组成员的源码、测试与示例列出它从 `@omne-harness/tool-contract` 导入的名字（含 `import * as` 命名空间导入经属性访问用到的名字），再对根入口候选集合求声明引用的传递闭包。扫描表随切换提交进入 PR，不进入本页。
+5. 根入口不能为空；一个组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，停止切换并交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。
+6. 一个 `./provider` 的名字后来有了组外消费者时，把它移回根入口；根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。
+7. `./binding` 与 `./testing` 的导出不变；`./provider` 不导出 `./binding` 的读取器，也不导出任何 `./testing` 的名字。
 
 `./provider` 与根入口共享同一份源码定义，不复制类型；一个名字只从一个入口导出。导入 `./provider` 的成员仍然可以导入根入口。
 
@@ -395,7 +396,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
 | G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local` 根入口 |
 | G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool` 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖 | `tool-contract` 与 `tool` 的 `./testing` |
-| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。`wsId` 的拥有者定义之前，Tool 在边界用不透明品牌文本。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
+| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。`wsId` 的拥有者定义之前，Tool 在边界用不透明品牌文本。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。比较两个来源层是否同一层（登记键比较、`sameBindingKey`）用 `sameSourceLayer` 的文本比较，不用 `tenantEquals`：`judgeFixedToolRequest` 复制出的 `layer.tenant` 是封闭形状核过的文本，未经 `tenantCodec` 铸造。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
 | G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool` 根入口 |
 | G9 | 单机宿主命名为 `packages/tool/tool-host-local` | `tool-host-local` |
 
@@ -568,33 +569,44 @@ Tool 提供三样：
 
 | 提供物 | 形状 | 责任 |
 | --- | --- | --- |
-| 引用读面 | `ToolStreamReferences<P>.current({ access, reference })` 返回 `Reply<ToolStreamSelection>`；`ToolStreamSelection` 是 `{ state: ToolState; current: { ref: StreamRef; instance: ToolInstanceId; generation: string; projection: 'tool-process-v1' } \| null }` | 按原调用引用给出当前过程流的公共引用。没有活体路由时 `current` 为 null，`state` 仍是当前权威状态；目录缺席时整次回复 `unavailable`，`dependency` 为 `toolInstances`。它是 [P16](#p16-目录与发现的故障隔离) 表中 `instances.connect` 一行的后继 |
+| 引用读面 | `ToolStreamReferences<P>.current({ access, reference })` 返回 `Reply<ToolStreamSelection>`；`ToolStreamSelection` 是 `{ state: ToolState; current: { ref: StreamRef; instance: ToolInstanceId; generation: string; projection: 'tool-process-v1' } \| null }` | 按原调用引用给出当前发布代次的公共引用与当前权威状态。全部回复见下文「`current` 的回复」。它是 [P16](#p16-目录与发现的故障隔离) 表中观察入口一行的后继 |
 | 观察面 | `ToolStreamObservation<P>` 是 `StreamObserver<P, ToolStreamSnapshot, ToolStreamDelta, ToolStreamEnd>`。`ToolStreamSnapshot` 是 `{ state: ToolState; process: readonly ProcessBlock[]; foreground: ForegroundReturn \| null }`；`ToolStreamDelta` 是 `{ state: ToolState; blocks: readonly ProcessBlock[] }`；`ToolStreamEnd` 是 `{ reason: 'closed' \| 'stale-instance' }` | 首帧是一致快照 C 或明确结束；之后每个 delta 从该观察者上一次交付的游标开始。快照与订阅在同一临界区取得。`observe` 的输入没有 `after` |
-| producer `tool` 适配器 | `StreamCallCodec`，`producer` 为 `tool`，`resolve({ text, tenant })` 以 `resolveToolInvocationRef` 解析，再以 `encodeToolInvocationRef` 写出规范调用文本 | `malformed` 的详细拒绝映射为公共 `malformed`；`foreign-tenant` 原样保留；公共层的租户核验先于本适配器，所以 Tool 内部把未铸造租户当作外租户的处理不改变公共结果。它是公共 `judgeStreamRef` 与 `encodeStreamRef` 的原调用 codec |
+| producer `tool` 适配器 | `toolStreamCallCodec: StreamCallCodec`，`producer` 为 `tool`，`resolve({ text, tenant })` 以 `resolveToolInvocationRef` 解析，再以 `encodeToolInvocationRef` 写出规范调用文本 | `malformed` 的详细拒绝映射为公共 `malformed`；`foreign-tenant` 原样保留；公共层的租户核验先于本适配器，所以 Tool 内部把未铸造租户当作外租户的处理不改变公共结果。它是公共 `judgeStreamRef` 与 `encodeStreamRef` 的原调用 codec |
 
-引用与代次：一条过程流绑定原调用、原实例与发布代次。每个发布代次（`ToolExecutionRef` 的 `instance` 与 `generation`）使用新的 `StreamId`；旧引用保持原身份，不接到后继。原实例或贡献被替换后，旧引用的观察以 `producer-ended` 携带 `stale-instance` 结束，新引用由 `current` 重新取得。
+发布代次与引用：发布代次只有一个含义，就是 `(instance, generation)`，即 `ToolExecutionRef` 的 `instance` 与 `generation`；一次 `ToolInstanceHost.publish` 发布一个代次。一条过程流绑定原调用与一个发布代次，每个发布代次使用新的 `StreamId`；旧引用保持原身份，不接到后继。当前代次是实例目录此刻为该调用保存的那个发布；被替换或执行已收场的代次不再是当前代次。
+
+`current` 的回复，按先后只有下列几种，门面不再有别的：
+
+| 情形 | 回复 |
+| --- | --- |
+| 调用引用不可读、跨租户或伪造租户 | `denied`，与其他引用访问相同，不进入目录 |
+| 实例目录缺席 | 整次回复 `unavailable`，`dependency` 为 `toolInstances`；不回复 `current: null` |
+| 目录提供者尚未实现路由查找（当前 `ToolInstancesService.connect`） | 原样透传目录的 `unsupported` |
+| 目录可用，核权后确无原路由（没有当前代次） | `current: null`，`state` 是当前权威状态（来自原调用的 lookup，不来自目录）。它不证明未执行、执行结束或丢失 |
+| 目录可用并交回当前代次的 handle | `current` 为该代次的 `{ ref, instance, generation, projection: 'tool-process-v1' }`，`ref` 由 `encodeStreamRef({ tenant, producer: 'tool', call, stream: handle.stream }, toolStreamCallCodec)` 得出，`call` 是原调用引用的规范文本；`state` 是当前权威状态 |
+| 当前权威状态不可读 | 整次回复 lookup 的失败，不以目录答案代替状态 |
 
 游标：观察游标是公共 `StreamCursor`，位置是该过程流内发布者为每次已确认投影变化推进的单调位置，含没有新块的状态变化。`ToolCursor` 另有托管与执行用途（`readProcess` 的 `at`、`ProcessSnapshot` 与保管记录的已保存版本），保留，不与 `StreamCursor` 互换。
 
-原因映射：
+公共原因与 Tool 自有原因：标准结束原因、gap 原因、它们的先后顺序与迭代器完成规则归 [stream-arrival README 的失败顺序](../../common/stream-arrival/README.md#failure-order-and-iterator-completion)，本页不复制那张表。Tool 的情形进入该顺序的方式：未铸造租户、外租户与当前资格不允许是公共 `denied`；实例目录、资格来源或目标源不可读是公共 `unavailable`，目录提供者回复 `unsupported` 也算目标源不可读；引用语法失败、producer 不是 `tool`、同租户映射不存在与代次已退役是公共 `stale-stream`；该观察者上一次交付的游标之后的历史不可取得是 gap `source-history`，缓冲超限是 gap `buffer`；`signal` 中止或迭代器 return 是公共 `observer-closed`；快照或自有结束值超限是公共 `capacity`。Tool 自有的结束值只有两个，经 `producer-ended` 携带：
 
-| Tool 原因 | 公共帧 | 含义 |
-| --- | --- | --- |
-| `denied` | `ended`，`reason: 'denied'` | 未铸造租户、外租户或当前资格不允许，按公共失败顺序 |
-| `unavailable` | `ended`，`reason: 'unavailable'` | 目录、资格来源或目标源不可读 |
-| 过程历史不可重放 | `gap`，`reason: 'source-history'` | 该观察者上一次交付的游标之后的历史已不可取得 |
-| 缓冲超限 | `gap`，`reason: 'buffer'` | 先移除订阅并丢弃待发数据，再发一个终止 gap |
-| `closed` | `ended`，`reason: 'producer-ended'`，`value: { reason: 'closed' }` | 原执行已收场且发布源关闭。它是 Tool 自有原因，不改写成公共 `source-closed`，公共消费者不从中推断业务终局 |
-| `stale-instance` | `ended`，`reason: 'producer-ended'`，`value: { reason: 'stale-instance' }` | 原实例或贡献被替换，旧引用不再服务 |
-| 观察者中止 | `ended`，`reason: 'observer-closed'` | `signal` 中止或迭代器 return，只结束这次观察 |
-| 引用不可读或已退役 | `ended`，`reason: 'stale-stream'` | 公共语法失败或同租户映射不存在 |
-| 快照或自有结束值超限 | `ended`，`reason: 'capacity'` | 容量上限也覆盖 `ToolStreamEnd` |
+| `ToolStreamEnd` | 含义 |
+| --- | --- |
+| `{ reason: 'closed' }` | 原执行已收场且发布源关闭。不改写成公共 `source-closed`，公共消费者不从中推断业务终局 |
+| `{ reason: 'stale-instance' }` | 已建立的观察所在的代次被替换，旧引用不再服务 |
+
+旧代次的终止帧，按观察是否已经建立来分：
+
+1. 已建立的观察，其代次被替换：由生产者结束，帧为 `producer-ended`，值为 `{ reason: 'stale-instance' }`。
+2. 已建立的观察，其执行收场且发布源关闭：由生产者结束，帧为 `producer-ended`，值为 `{ reason: 'closed' }`。
+3. 新的观察请求，引用指向的代次已不是当前发布（被替换或已收场）：按公共失败顺序算「已退役」，结束于 `stale-stream`，不联系任何 handle。门面只把引用解析到当前代次的 handle：引用的 `stream` 与当前 handle 的 `stream` 不同，或目录答 `no-live-route`，门面层直接结束于 `stale-stream`。
+4. handle 的观察源收到不属于自己 `stream` 的引用：结束于 `stale-stream`（防御，不信任路由）。
 
 无 `after` 续读：公共协议不提供 `after`。断开或 gap 之后，消费者经 `current` 重新取得当前引用，再从新快照接增量，与 [CAP-TL08](../../../.meta_harness/design/product/tool-execution/design.md#cap-tl08)「重连先取当前快照再接增量」一致。已交付的快照仍保留原版本意义，在途读取不跨代拼接。
 
-`ToolHandle` 与 `ToolDirectory.connect` 的去留：两者保留，用途收窄为实例绑定与发布代次。`ToolHandle<P>` 不再有 `observe`；它绑定原实例 `instance`、本次发布的 `stream: StreamId`，并携带只服务这一个引用的 `ToolStreamObservation<P>` 源。`ToolInstanceHost.publish(execution, handle)` 继续以它为发布对象，实例目录的登记语义（同 fiber、同原实例、同一 handle 对象认回）不变，登记套件里的 handle 替身不再有 `observe` 可以计数，改为计数 `observation.observe`。受信的 `ToolDirectory.connect(CallAccess)` 继续回答 `live` 与 `no-live-route`，`live` 交回当前代次的 handle；运行时门面用它实现 `current`，并把公共 `observe({ ref })` 路由到引用所指代次的 handle。普通消费者经门面的 `instances.current` 与 `observation.observe` 观察，不取得 handle。`ToolObservation` 与 `ToolHandle.observe` 删除，不保留别名。
+`ToolHandle` 与 `ToolDirectory.connect` 的去留：两者保留，用途收窄为实例绑定与发布代次。`ToolHandle<P>` 是 `{ instance: ToolInstanceId; generation: string; stream: StreamId; observation: ToolStreamObservation<P> }`：`instance` 与 `generation` 是它绑定的发布代次，`stream` 是该代次的过程流身份，`observation` 是只服务这一个引用的观察源。`ToolHandle` 不再有 `observe`。`ToolInstanceHost.publish(execution, handle)` 继续以它为发布对象，handle 的 `instance` 与 `generation` 须等于 `execution` 的对应字段；实例目录的登记语义（同 fiber、同原实例、同一 handle 对象认回）不变，登记套件里的 handle 替身不再有 `observe` 可以计数，改为计数 `observation.observe`。受信的 `ToolDirectory.connect(CallAccess)` 只服务实例绑定：它继续回答 `live` 与 `no-live-route`，`live` 交回当前代次的 handle，不是普通消费者的观察入口。运行时门面用它实现 `current`，并把公共 `observe({ ref })` 路由到当前代次的 handle。普通消费者经门面的 `instances.current` 与 `observation.observe` 观察，不取得 handle。`ToolObservation` 与 `ToolHandle.observe` 删除，不保留别名。
 
-观察面的验证义务（随源码切换交付）：原因映射表每一行；快照优先于订阅；gap 后终止且不续读；`signal` 中止后以 `observer-closed` 结束且不取消执行；旧代次引用在替换后以 `producer-ended`/`stale-instance` 结束；`current` 在目录缺席、无活体与有活体三种情形的答复。真实 Tool 观察提供者的原子订阅边界不在 #626。
+观察面的验证义务（随源码切换交付）：Tool 的每种情形进入公共顺序的结果（`denied`、`unavailable`、`stale-stream`、`observer-closed`、gap `source-history`、gap `buffer`、`capacity`）与两个 `ToolStreamEnd` 值各一条；快照优先于订阅；gap 后终止且不续读；`signal` 中止后以 `observer-closed` 结束且不取消执行；旧代次终止帧的四种情形各一条：已建立的观察在代次替换后得到 `producer-ended`/`stale-instance`，已建立的观察在收场后得到 `producer-ended`/`closed`，对非当前代次的新观察请求在门面层得到 `stale-stream` 且不联系 handle，handle 观察源对不属于自己 `stream` 的引用得到 `stale-stream`；`current` 表中每一行。真实 Tool 观察提供者的原子订阅边界不在 #626。
 
 ### 执行账与真实成本
 
@@ -1004,15 +1016,15 @@ ToolRuntime 的持久操作不以前置 connect 成功为条件。目录或发�
 
 | 情况 | 返回与责任 |
 | --- | --- |
-| 目录缺席 | instances.connect 返回 unavailable，dependency=toolInstances；不返回 no-live-route |
-| 目录可用，核权后确无原路由 | 返回 no-live-route；不证明未执行、执行结束或丢失 |
+| 目录缺席 | `instances.current` 整次回复 unavailable，dependency=toolInstances；不回复 `current: null` |
+| 目录可用，核权后确无原路由 | `instances.current` 回复 `current: null`，`state` 仍是当前权威状态；不证明未执行、执行结束或丢失。受信的 `ToolDirectory.connect` 在这一情形答 `no-live-route`，它只服务实例绑定，不是观察入口 |
 | 目录撤除 | lookup、queryOperation、control、readProcess/readWait/readDiagnostics/readResult、account、releaseDelivery 继续走 Commands/Reads；控制派发和恢复不依赖观察路由 |
 | Catalog 缺席 | inspect、catalog.inspect/search/usage 返回 unavailable，dependency=toolCatalog；新准入不能相信缓存或客户端传入的 available，也不伪造 dummy |
 | 已受理调用遇到 Catalog 撤除 | 原执行、结果交接和恢复按固定采用继续，当前动作资格仍须核验；不重新发现最新定义 |
 | 同一 admit 重试遇到 Catalog 缺席 | 先核当前读取资格并认回原受理；已提交不能改成未受理。未知继续原操作查询，不创建新调用 |
 | Catalog/目录恢复或换代 | 新操作使用当前合法提供者，不重放真实工具动作 |
 
-ToolHandle 绑定原实例及发布代次（`instance` 与 `stream`），不再提供 `observe`（[公共流协议上的观察](#公共流协议上的观察)）。目录提供者撤除使原观察以 `ended`/`unavailable` 结束，原实例或贡献被替换以 `producer-ended`/`stale-instance` 结束；旧代次的引用之后也不能读取或静默切到新代。connect 取得句柄到交回之间须核代次未失效。已交快照仍保留原版本意义，在途读取不得跨代拼接。这里需要提供者显式活性守卫，Cordis 不自动吊销任意 JS 引用。
+ToolHandle 绑定发布代次 `(instance, generation)` 与该代次的过程流 `stream`，不再提供 `observe`；普通消费者的观察入口是 `instances.current` 与 `observation.observe`（[公共流协议上的观察](#公共流协议上的观察)），`current` 的全部回复列在那一节。目录提供者撤除使已建立的观察以 `ended`/`unavailable` 结束，代次被替换使已建立的观察以 `producer-ended`/`stale-instance` 结束；旧代次的引用之后的新观察请求得到 `stale-stream`，不能读取或静默切到新代。`current` 取得句柄到交回之间须核代次未失效。已交快照仍保留原版本意义，在途读取不得跨代拼接。这里需要提供者显式活性守卫，Cordis 不自动吊销任意 JS 引用。
 
 目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 Cordis 装配（`tool-host-local/docs/cordis.md#阶段装配与换代`）。
 
