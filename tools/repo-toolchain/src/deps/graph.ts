@@ -73,7 +73,10 @@ export interface DependencyFinding<Kind extends string = DependencyFindingKind> 
 
 export interface DependencyGraph {
   readonly members: readonly Member[]
-  /** 成员目录里 dependency-cruiser 走到的模块（仓库相对路径，含测试）；方向规则据此判源角色与目标角色有没有文件。 */
+  /**
+   * 成员目录里 dependency-cruiser 走到或解析到的文件（仓库相对路径，含测试）；方向规则据此判源角色与目标角色有没有文件。
+   * 解析失败的导入与内建模块的节点不是文件，不在这里。
+   */
   readonly modules: readonly string[]
   readonly edges: readonly MemberEdge[]
   /** 跨成员的文件级依赖事实；`edges` 是其中产品源码部分按成员对的归并。 */
@@ -155,6 +158,11 @@ export interface CruiseDependency {
 export interface CruiseModule {
   readonly source: string
   readonly dependencies: readonly CruiseDependency[]
+  /**
+   * 与依赖上的同名字段同义：解析失败。解析失败的导入也留成节点，`source` 是说明符原文，不是文件。dependency-cruiser
+   * 只给依赖到的节点写这个字段，走到的文件没有它，所以可以缺省（与它自己的类型声明一致）。
+   */
+  readonly couldNotResolve?: boolean
 }
 export interface CruiseViolation {
   readonly from: string
@@ -281,8 +289,11 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
     return member
   }
 
-  // 成员里的模块本身留下，方向规则据此判源角色与目标角色有没有文件。
+  // 成员里的文件留下，方向规则据此判源角色与目标角色有没有文件。dependency-cruiser 把解析失败的导入也留成节点，
+  // `source` 是说明符原文：写成成员路径的裸说明符（`packages/x/y/src/z.ts`）会让不存在的目标角色显得有文件。
+  // 内建模块的节点（`fs`、`node:fs`）不像成员路径，下面的 `memberOf` 就把它们去掉了。
   const modules = output.modules
+    .filter(module => !module.couldNotResolve)
     .map(module => module.source)
     .filter(path => memberOf(path) !== undefined)
     .sort()
@@ -403,8 +414,8 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
   return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
-/** 缓存的图的格式版本；`DependencyGraph` 的形状变了就加一。 */
-const GRAPH_FORMAT = 'v3'
+/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v4：`modules` 不再含解析失败的节点）。 */
+const GRAPH_FORMAT = 'v4'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
