@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings and the tenant standing read port",
+  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings, the tenant standing read port, and the register, login issue and login recognition operations with a ./testing reference double",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -26,7 +31,8 @@
   },
   "dependencies": {
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/operation-result": "workspace:*"
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
