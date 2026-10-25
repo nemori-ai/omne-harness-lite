@@ -694,14 +694,14 @@ export function createMemoryAgentJournal<P>(
   }
 
   /** The rest of a write after `enter`, under the fault that `enter` took. */
-  async function run<R>(
+  function run<R>(
     method: JournalWrite,
     fault: WriteFault | undefined,
     input: ExecutionMutation<P>,
     key: string,
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
-  ): Promise<Outcome<R, Failure>> {
+  ): Outcome<R, Failure> {
     const at = operationKey(input.tenant, input.execution, input.operation)
     if (at === undefined) return fail(denied(method))
     const commitUnknown = fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
