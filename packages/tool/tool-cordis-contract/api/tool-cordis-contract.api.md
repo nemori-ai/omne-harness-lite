@@ -71,26 +71,26 @@
 - `AnswerRow` · 包 `@omne-harness/tool-contract`
 - `CaseVerdict` · 包 `@omne-harness/tool-contract`
 - `ConformanceCase` · 包 `@omne-harness/tool-contract`
-- `MemoryToolBindingRegistry` · `testing-bindings.d.ts`
+- `MemoryToolBindingRegistry` · `testing.d.ts`
 - `MemoryToolRegistrations` · `testing.d.ts`
 - `NotApplicable` · 包 `@omne-harness/tool-contract`
-- `TOOL_DYNAMICS_CRITERIA` · `testing-bindings.d.ts`
-- `ToolBindingGrant` · `testing-bindings.d.ts`
-- `ToolBindingRegistryFixture` · `testing-bindings.d.ts`
-- `ToolBindingRegistryService` · `testing-bindings.d.ts`
-- `ToolDynamicsFixture` · `testing-bindings.d.ts`
+- `TOOL_DYNAMICS_CRITERIA` · `testing.d.ts`
+- `ToolBindingGrant` · `testing.d.ts`
+- `ToolBindingRegistryFixture` · `testing.d.ts`
+- `ToolBindingRegistryService` · `testing.d.ts`
+- `ToolDynamicsFixture` · `testing.d.ts`
 - `ToolRegistrationFixture` · `testing.d.ts`
 - `ToolRegistrationGrant` · `testing.d.ts`
 - `ToolRegistrationService` · `testing.d.ts`
-- `createMemoryToolBindingRegistry` · `testing-bindings.d.ts`
+- `createMemoryToolBindingRegistry` · `testing.d.ts`
 - `createMemoryToolRegistrations` · `testing.d.ts`
 - `isNotApplicable` · 包 `@omne-harness/tool-contract`
-- `memoryToolBindingRegistryFixture` · `testing-bindings.d.ts`
+- `memoryToolBindingRegistryFixture` · `testing.d.ts`
 - `memoryToolRegistrationFixture` · `testing.d.ts`
 - `registrationAnswers` · `testing.d.ts`
 - `runConformanceCase` · 包 `@omne-harness/tool-contract`
-- `runToolDynamicsSuite` · `testing-bindings.d.ts`
-- `toolBindingRegistryConformance` · `testing-bindings.d.ts`
+- `runToolDynamicsSuite` · `testing.d.ts`
+- `toolBindingRegistryConformance` · `testing.d.ts`
 - `toolRegistrationConformance` · `testing.d.ts`
 
 ## 声明文件 `cordis.d.ts`
@@ -450,15 +450,59 @@ export {};
 export {};
 ```
 
-## 声明文件 `testing-bindings.d.ts`
+## 声明文件 `testing.d.ts`
 
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
-import { type Access } from '@omne-harness/tool-contract';
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type Access, type DurableEvidence } from '@omne-harness/tool-contract';
 import { type ToolAuthority, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
-import type { ToolAuthorityFailure, VerifiedAuthority } from './cordis.ts';
+import type { ToolAuthorityFailure, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
+export type { AnswerModel, AnswerRow, ConformanceCase } from '@omne-harness/tool-contract/testing';
+export { NotApplicable, isNotApplicable, runConformanceCase, type CaseVerdict, } from '@omne-harness/tool-contract/testing';
+export interface ToolRegistrationService<P> {
+    register(input: ToolRegistrationInput<P>): Promise<Outcome<ToolRegistration, ToolRegistrationFailure>>;
+}
+export interface ToolRegistrationFixture<P> {
+    readonly service: ToolRegistrationService<P>;
+    readonly tenant: TenantId;
+    readonly authority: DurableEvidence;
+    readonly renewedAuthority?: DurableEvidence;
+    readonly otherTenant?: TenantId;
+    readonly otherAuthority?: DurableEvidence;
+    readonly quietMs?: number;
+    asFiber?<T>(fiber: string, work: () => Promise<T>): Promise<T>;
+    endFiber?(fiber: string): Promise<void>;
+    refuseCheck?(failure: ToolRegistrationFailure | null): void;
+    listing?(): readonly string[];
+    checkedAgainst?(): readonly (readonly string[])[];
+}
+export declare const registrationAnswers: {
+    readonly register: {
+        readonly clause: 'IC-3';
+        readonly progress: readonly [
+        ];
+    };
+};
+export declare function toolRegistrationConformance<P>(): readonly ConformanceCase<ToolRegistrationFixture<P>>[];
+export interface MemoryToolRegistrations<P> extends ToolRegistrationService<P> {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        asFiber<T>(fiber: string, work: () => Promise<T>): Promise<T>;
+        endFiber(fiber: string): Promise<void>;
+        refuseCheck(failure: ToolRegistrationFailure | null): void;
+        listing(): readonly string[];
+        checkedAgainst(): readonly (readonly string[])[];
+    }>;
+}
+export type ToolRegistrationGrant = Readonly<{
+    authority: DurableEvidence;
+    tenant: TenantId;
+}>;
+export declare function createMemoryToolRegistrations<P>(grants?: readonly ToolRegistrationGrant[]): MemoryToolRegistrations<P>;
+export declare function memoryToolRegistrationFixture(): ToolRegistrationFixture<string>;
 export type ToolBindingRegistryService<P> = ToolBindingRegistry<P, unknown, ContentBlock>;
 export interface ToolBindingRegistryFixture<P> {
     readonly registry: ToolBindingRegistryService<P>;
@@ -503,58 +547,4 @@ export declare const TOOL_DYNAMICS_CRITERIA: readonly [
     'unrelated capabilities see zero failures throughout; P16 directory and Catalog absence semantics are unchanged'
 ];
 export declare function runToolDynamicsSuite(): readonly ConformanceCase<ToolDynamicsFixture>[];
-```
-
-## 声明文件 `testing.d.ts`
-
-```ts
-import { type Outcome } from '@omne-harness/operation-result';
-import type { TenantId } from '@omne-harness/legal-identity';
-import { type DurableEvidence } from '@omne-harness/tool-contract';
-import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
-import type { ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput } from './cordis.ts';
-export type { AnswerModel, AnswerRow, ConformanceCase } from '@omne-harness/tool-contract/testing';
-export { NotApplicable, isNotApplicable, runConformanceCase, type CaseVerdict, } from '@omne-harness/tool-contract/testing';
-export { TOOL_DYNAMICS_CRITERIA, createMemoryToolBindingRegistry, memoryToolBindingRegistryFixture, runToolDynamicsSuite, toolBindingRegistryConformance, type MemoryToolBindingRegistry, type ToolBindingGrant, type ToolBindingRegistryFixture, type ToolBindingRegistryService, type ToolDynamicsFixture, } from './testing-bindings.ts';
-export interface ToolRegistrationService<P> {
-    register(input: ToolRegistrationInput<P>): Promise<Outcome<ToolRegistration, ToolRegistrationFailure>>;
-}
-export interface ToolRegistrationFixture<P> {
-    readonly service: ToolRegistrationService<P>;
-    readonly tenant: TenantId;
-    readonly authority: DurableEvidence;
-    readonly renewedAuthority?: DurableEvidence;
-    readonly otherTenant?: TenantId;
-    readonly otherAuthority?: DurableEvidence;
-    readonly quietMs?: number;
-    asFiber?<T>(fiber: string, work: () => Promise<T>): Promise<T>;
-    endFiber?(fiber: string): Promise<void>;
-    refuseCheck?(failure: ToolRegistrationFailure | null): void;
-    listing?(): readonly string[];
-    checkedAgainst?(): readonly (readonly string[])[];
-}
-export declare const registrationAnswers: {
-    readonly register: {
-        readonly clause: 'IC-3';
-        readonly progress: readonly [
-        ];
-    };
-};
-export declare function toolRegistrationConformance<P>(): readonly ConformanceCase<ToolRegistrationFixture<P>>[];
-export interface MemoryToolRegistrations<P> extends ToolRegistrationService<P> {
-    readonly durability: 'none';
-    readonly controls: Readonly<{
-        asFiber<T>(fiber: string, work: () => Promise<T>): Promise<T>;
-        endFiber(fiber: string): Promise<void>;
-        refuseCheck(failure: ToolRegistrationFailure | null): void;
-        listing(): readonly string[];
-        checkedAgainst(): readonly (readonly string[])[];
-    }>;
-}
-export type ToolRegistrationGrant = Readonly<{
-    authority: DurableEvidence;
-    tenant: TenantId;
-}>;
-export declare function createMemoryToolRegistrations<P>(grants?: readonly ToolRegistrationGrant[]): MemoryToolRegistrations<P>;
-export declare function memoryToolRegistrationFixture(): ToolRegistrationFixture<string>;
 ```
