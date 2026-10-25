@@ -2,8 +2,10 @@
 // real requests for every transport obligation of the conformance suite.
 import {
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceSubject,
+} from '@omne-harness/model-contract/conformance'
+import {
+  createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import { afterAll, beforeAll, expect, it } from 'vitest'

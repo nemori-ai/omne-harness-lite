@@ -1,8 +1,10 @@
 import {
   CONFORMANCE_OBLIGATIONS,
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceHooks,
+} from '@omne-harness/model-contract/conformance'
+import {
+  createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import { fail } from '@omne-harness/operation-result'

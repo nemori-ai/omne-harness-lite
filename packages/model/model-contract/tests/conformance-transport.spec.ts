@@ -5,10 +5,8 @@ import type {
 } from '@omne-harness/model-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
-import {
-  checkModelProviderConformance,
-  createScriptedConformanceSubject,
-} from '@omne-harness/model-contract/testing'
+import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
+import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import { failingObligations, failures, type Subject } from './conformance-support.ts'
 
 const ENDED: TransportFact = { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } }

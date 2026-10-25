@@ -1,4 +1,4 @@
-import { invocationReference } from './reference-input.ts'
+import { invocationReference } from '../testing/reference-input.ts'
 // The checks of who may reach a call and where it is served: other tenants and revoked principals
 // are refused without a sign of whether the call exists, a lost or replaced instance ends only the
 // observation, and a quiescing provider takes no new call.

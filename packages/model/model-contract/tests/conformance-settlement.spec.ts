@@ -17,8 +17,8 @@ import type {
   ReadState,
   ResultPart,
 } from '@omne-harness/model-contract'
+import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
 import {
-  checkModelProviderConformance,
   createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'

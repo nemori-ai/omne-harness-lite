@@ -1,15 +1,15 @@
 // An author of a provider: the transport, the tokenizer and the meter are written against the
-// contract alone, and the conformance suite of `./testing` decides whether an assembler may adopt
+// contract alone, and the conformance suite of `./conformance` decides whether an assembler may adopt
 // the transport. The rest of the provider is the scripted one, which stands in for what this author
 // did not write. The transport measures nothing; the meter is for the request assembler, which
 // calls it before it asks for a preparation.
 import type { ModelInputMeter } from '@omne-harness/model-contract'
 import {
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceObligation,
   type ConformanceReport,
-} from '@omne-harness/model-contract/testing'
+} from '@omne-harness/model-contract/conformance'
+import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import { createProfileMaintenance } from './author-profile.ts'
 import { createAuthorTransport, type TransportDefects } from './author-transport.ts'
 import type { SupplierRefusal } from './author-response.ts'

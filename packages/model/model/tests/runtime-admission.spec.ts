@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
-import { checkModelProviderConformance } from '@omne-harness/model-contract/testing'
+import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
 import { fixture, identity, instance, op, proof, unbox, callId } from './memory-fixture.ts'
 
 import { runtimeConformanceSubject } from './runtime-conformance-fixture.ts'

@@ -12,10 +12,12 @@ import type {
 } from '@omne-harness/model-contract'
 import {
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceHooks,
   type ConformanceObligation,
   type ConformanceSubject,
+} from '@omne-harness/model-contract/conformance'
+import {
+  createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import { succeed } from '@omne-harness/operation-result'
@@ -24,8 +26,8 @@ import {
   DEFAULT_CAPACITY,
   DEFAULT_CONSUMER,
   DEFAULT_REQUEST,
-} from '../src/testing/conformance-defaults.ts'
-import type { Scene } from '../src/testing/conformance-types.ts'
+} from '../src/conformance/conformance-defaults.ts'
+import type { Scene } from '../src/conformance/conformance-types.ts'
 
 export type Subject = ConformanceSubject<ScriptedPrincipal>
 

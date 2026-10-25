@@ -1,4 +1,4 @@
-import { invocationReference } from './reference-input.ts'
+import { invocationReference } from '../testing/reference-input.ts'
 import { encodeModelInvocationRef } from '../reference.ts'
 // The helpers that the checks share: the verdict primitives, the identities the suite makes, and the
 // small scenes (a call that was accepted, runs, has ended) that most checks start from.
