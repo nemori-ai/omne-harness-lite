@@ -154,7 +154,7 @@ Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态�
 
 | 分类 | 内容 | 决定时点 | 能否序列化 | 与授权的关系 |
 | --- | --- | --- | --- | --- |
-| 单次操作参数 | `Access` 的主体、租户与会话，`SessionOperationId`，`advance` 与 `expected`，参加材料，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
+| 单次操作参数 | `SessionAccess`（`Access` 加会话）的主体、租户与会话，`SessionOperationId`，`advance` 与 `expected`，参加材料，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
 | 构造依赖端口 | `SessionTransactionPort`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`，可选 `SessionNotifier` | 构造时交入；除事务端口外按调用现取 | 不能，是能力对象 | 身份桥提供资格材料。其他端口的使用同样受每次操作的资格约束 |
 | 出站端口 | `AgentDrivePort`、`ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）、`ScopeReleasePort` | 按调用现取 | 不能 | 参数只含 Session 自己的值与不透明证据。作用域释放使用装配层维护者签发的恢复授权，不使用会话用户的访问身份 |
 | 可序列化配置 | `SchedulingPolicy` 等调度策略 | 工厂创建时校验 | 能，不含业务身份、权限或秘密 | 无。配置归 `session` 工厂，不进本成员 |

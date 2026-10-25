@@ -24,7 +24,7 @@ Status: contract member. The [SPEC](SPEC.md) states which parts come from techni
 
 Not verified: durability, concurrency across processes, recovery against a real store, the real identity source and clock. The double proves the judgments in memory only.
 
-Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. They use no export yet, because the entry is empty.
+Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` consume the root types and the runtime functions; `session-cordis-contract` re-exports the types under its Cordis service definitions.
 
 ## Usage
 

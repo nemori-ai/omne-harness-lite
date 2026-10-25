@@ -205,8 +205,9 @@ export declare const PATH_MUTATIONS: readonly [
 export declare function runIdOf(session: SessionId, first: InputId, predecessor: RunId | null): RunId;
 export declare function attemptIdOf(run: RunId, ordinal: string): AttemptId;
 export declare function executionIdOf(run: RunId): string;
+export declare const LOGIN_ENTRY_OWNER = "login-entry";
 export declare function commandDigest(command: SessionCommand): string;
-export declare function decide(previous: WorkSnapshot | null, command: SessionCommand, _guards: readonly GuardCommand[], record: OperationRecord | null, _reads: DecideReads): Decision;
+export declare function decide(previous: WorkSnapshot | null, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null, _reads: DecideReads): Decision;
 ```
 
 ## 声明文件 `entries.d.ts`
@@ -1283,9 +1284,12 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
     readonly durability: 'none';
     readonly controls: Readonly<{
         unavailable(down: boolean): void;
+        loginEntry(included: boolean): void;
     }>;
 }
-export declare function createMemorySessionEvidenceBridge(): MemorySessionEvidenceBridge;
+export declare function createMemorySessionEvidenceBridge(options?: Readonly<{
+    loginEntry?: boolean;
+}>): MemorySessionEvidenceBridge;
 export interface MemorySessionContextInput<P> extends SessionContextInput<P> {
     readonly durability: 'none';
     readonly controls: Readonly<{

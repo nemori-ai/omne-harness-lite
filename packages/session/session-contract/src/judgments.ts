@@ -5,9 +5,10 @@
 // Support in this member (card #536 revision 5): the services that the first tenant path calls
 // (`judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`,
 // `resolveOperation`) are implemented to the SPEC. `resolveControlScope`, `resolveCascade` and
-// `judgeIdle` serve only off-path commands and answer with the `unavailable` or `invalid` outcome
-// that names #756; `resolveCascade` has neither outcome and throws, so a caller cannot mistake
-// an empty cascade for a judged one.
+// `judgeIdle` serve only off-path commands: `judgeIdle` answers `unavailable` naming #756;
+// `resolveControlScope` and `resolveCascade` throw an Error naming #756 (`invalid` would read as
+// a judged refusal, an empty cascade as a judged one). `decide` rejects the commands that call
+// them before calling them.
 import type { CompactionContext } from '@omne-harness/message'
 import type {
   AdvanceRef,
@@ -181,8 +182,9 @@ export function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJud
 
 /**
  * Whether a new Run may start (ST06, I-R1, I-F2). The first eligible input is the earliest
- * pending one. `login-required` is the verdict of the evidence bridge's login confirmation; the
- * snapshot holds no login state, so this function never returns it (see the SPEC status line).
+ * pending one. `login-required` is decided by `decide` from the presence of the login-entry
+ * guard material (ruling R2); the snapshot holds no login state, so this function never returns
+ * it.
  */
 export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
@@ -237,7 +239,7 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
 }
 
 export function resolveControlScope(_snapshot: WorkSnapshot, _intent: ControlIntent): ControlScope {
-  return { kind: 'invalid', reason: OFF_PATH_DIAGNOSTIC }
+  throw new Error(`resolveControlScope: ${OFF_PATH_DIAGNOSTIC}`)
 }
 
 export function resolveCascade(
