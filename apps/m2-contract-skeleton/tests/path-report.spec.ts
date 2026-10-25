@@ -3,16 +3,27 @@ import { readFileSync } from 'node:fs'
 import { runContractSkeleton } from '../src/index.ts'
 import { aggregatePath, HOP_IDS } from '../src/path-report.ts'
 import { REQUIRED_SCENARIOS } from '../src/scenarios.ts'
+import { modelFragments, pathDependencies, skeletonInputs } from './first-path-doubles.ts'
 
 describe('M2 path observations', () => {
-  it('reports eight unique hops while fragment checks pass and the full path stays incomplete', async () => {
-    const report = await runContractSkeleton()
+  it('reports eight verified hops, a complete path and the residual gaps of SPEC and README', async () => {
+    const report = await runContractSkeleton(skeletonInputs())
     expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
     expect(report.scenarios.map(result => result.scenarioId)).toEqual([...REQUIRED_SCENARIOS])
     expect(report.checksPassed).toBe(true)
-    expect(report.fullPath).toBe('incomplete')
-    expect(report.gaps).toEqual([...HOP_IDS])
+    expect(report.hops.map(hop => hop.state)).toEqual(HOP_IDS.map(() => 'verified'))
+    expect(report.fullPath).toBe('complete')
+    expect(report.gaps).toEqual([])
     const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
+    for (const document of ['../README.md', '../README_ZH.md']) {
+      const text = readFileSync(new URL(document, import.meta.url), 'utf8')
+      for (const gap of report.residualGaps) expect(text).toContain(gap.gapId)
+    }
+    for (const gap of report.residualGaps) {
+      expect(gap.owners.length).toBeGreaterThan(0)
+      expect(spec).toContain(`## ${gap.gapId}`)
+      expect(gap.reason).toBe(`SPEC.md#${gap.gapId.toLowerCase()}`)
+    }
     for (const hop of report.hops) {
       expect(hop.ownerCards.length).toBeGreaterThan(0)
       expect(hop.publicEntry.length).toBeGreaterThan(0)
@@ -20,12 +31,19 @@ describe('M2 path observations', () => {
       expect(spec).toContain(`## ${hop.hopId}`)
     }
     const text = JSON.stringify(report)
-    for (const secret of ['fixed-test-credential', 'fixed-test-proof', 'fixed-response-proof'])
+    const { login } = pathDependencies()
+    for (const secret of [
+      'fixed-test-credential',
+      'fixed-test-proof',
+      'fixed-response-proof',
+      login.credential,
+      login.loginIdentifier,
+    ])
       expect(text).not.toContain(secret)
   })
 
   it('makes a missing hop explicit and retains duplicate diagnostics', async () => {
-    const report = await runContractSkeleton()
+    const report = await runContractSkeleton(skeletonInputs())
     const missing = aggregatePath({
       ...report,
       hops: report.hops.filter(hop => hop.hopId !== 'H04'),
@@ -45,7 +63,7 @@ describe('M2 path observations', () => {
   })
 
   it('checks structure even when every supplied observation claims verified', async () => {
-    const report = await runContractSkeleton()
+    const report = await runContractSkeleton(skeletonInputs())
     const hops = report.hops.map(hop => ({
       ...hop,
       state: 'verified' as const,
@@ -75,7 +93,7 @@ describe('M2 path observations', () => {
   })
 
   it('rejects missing, repeated and unexecuted fixed scenarios', async () => {
-    const report = await runContractSkeleton()
+    const report = await runContractSkeleton(skeletonInputs())
     const first = report.scenarios[0]
     if (first === undefined) throw new Error('No scenarios')
     for (const scenarios of [
@@ -90,7 +108,7 @@ describe('M2 path observations', () => {
   })
 
   it('does not let Model passes cover failed or uncovered required fragments', async () => {
-    const report = await runContractSkeleton()
+    const report = await runContractSkeleton(skeletonInputs())
     for (const status of ['fail', 'not-applicable'] as const) {
       const hops = report.hops.map(hop => ({
         ...hop,
@@ -113,15 +131,13 @@ describe('M2 path observations', () => {
   })
 
   it('keeps independent Model evidence when a governance call fails', async () => {
-    const report = await runContractSkeleton({
-      governance: { registrationResponseBytes: new TextEncoder().encode('{') },
-    })
+    const report = await runContractSkeleton(
+      skeletonInputs({ governance: { registrationResponseBytes: new TextEncoder().encode('{') } }),
+    )
     expect(report.checksPassed).toBe(false)
     expect(report.hops.find(hop => hop.hopId === 'H01')?.state).toBe('failed')
     expect(
-      report.hops
-        .find(hop => hop.hopId === 'H06')
-        ?.fragments.every(fragment => fragment.status === 'pass'),
+      modelFragments(report).every(fragment => fragment.status === 'pass'),
     ).toBe(true)
     expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
     expect(report.fullPath).toBe('incomplete')

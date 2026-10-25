@@ -2,20 +2,21 @@ import { describe, expect, it } from 'vitest'
 import {
   CONFORMANCE_OBLIGATIONS,
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
-} from '@omne-harness/model-contract/testing'
+} from '@omne-harness/model-contract/conformance'
+import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
+import { modelFragments, skeletonInputs } from './first-path-doubles.ts'
 import { inspectModelReport } from '../src/model.ts'
 import { runContractSkeleton } from '../src/index.ts'
 
 describe('public Model conformance consumer', () => {
   it('executes every public obligation once and retains its result', async () => {
-    const report = await runContractSkeleton()
-    const fragments = report.hops.find(hop => hop.hopId === 'H06')?.fragments
-    expect(fragments?.map(fragment => fragment.fragmentId)).toEqual([...CONFORMANCE_OBLIGATIONS])
-    expect(fragments?.every(fragment => fragment.status === 'pass')).toBe(true)
+    const report = await runContractSkeleton(skeletonInputs())
+    const fragments = modelFragments(report)
+    expect(fragments.map(fragment => fragment.fragmentId)).toEqual([...CONFORMANCE_OBLIGATIONS])
+    expect(fragments.every(fragment => fragment.status === 'pass')).toBe(true)
     expect(report.checksPassed).toBe(true)
-    expect(report.hops.find(hop => hop.hopId === 'H06')?.state).toBe('gap')
-    expect(report.fullPath).toBe('incomplete')
+    expect(report.hops.find(hop => hop.hopId === 'H06')?.state).toBe('verified')
+    expect(report.fullPath).toBe('complete')
   })
 
   it('rejects not-applicable even when the public suite reports ok', async () => {
@@ -29,12 +30,10 @@ describe('public Model conformance consumer', () => {
     expect(publicReport.ok).toBe(true)
     expect(publicReport.results.some(result => result.status === 'not-applicable')).toBe(true)
     expect(inspectModelReport(publicReport).scenario.matchesExpected).toBe(false)
-    const report = await runContractSkeleton({ model: { subject, waitMs: 500 } })
+    const report = await runContractSkeleton(skeletonInputs({ model: { subject, waitMs: 500 } }))
     expect(report.checksPassed).toBe(false)
     expect(
-      report.hops
-        .find(hop => hop.hopId === 'H06')
-        ?.fragments.some(fragment => fragment.status === 'not-applicable'),
+      modelFragments(report).some(fragment => fragment.status === 'not-applicable'),
     ).toBe(true)
     expect(report.fullPath).toBe('incomplete')
   })
@@ -61,7 +60,7 @@ describe('public Model conformance consumer', () => {
     { tags: ['slow'] },
     async () => {
       let calls = 0
-      const thrown = await runContractSkeleton({
+      const thrown = await runContractSkeleton(skeletonInputs({
         model: {
           subject: () => {
             calls++
@@ -70,18 +69,17 @@ describe('public Model conformance consumer', () => {
           },
           waitMs: 500,
         },
-      })
+      }))
       expect(thrown.checksPassed).toBe(false)
       expect(calls).toBe(CONFORMANCE_OBLIGATIONS.length)
       expect(
-        thrown.hops
-          .find(hop => hop.hopId === 'H06')
-          ?.fragments.slice(1)
+        modelFragments(thrown)
+          .slice(1)
           .every(fragment => fragment.status === 'pass'),
       ).toBe(true)
       expect(JSON.stringify(thrown)).not.toContain('private-provider-text')
       let waits = 0
-      const timedOut = await runContractSkeleton({
+      const timedOut = await runContractSkeleton(skeletonInputs({
         model: {
           subject: () => {
             waits++
@@ -91,17 +89,17 @@ describe('public Model conformance consumer', () => {
           },
           waitMs: 20,
         },
-      })
+      }))
       expect(timedOut.checksPassed).toBe(false)
       expect(waits).toBe(CONFORMANCE_OBLIGATIONS.length)
-      expect(timedOut.hops.find(hop => hop.hopId === 'H06')?.fragments[0]?.status).toBe('fail')
+      expect(modelFragments(timedOut)[0]?.status).toBe('fail')
     },
   )
 
   it('makes disposal failure fail the consumer and attempts every release', async () => {
     let created = 0
     let released = 0
-    const report = await runContractSkeleton({
+    const report = await runContractSkeleton(skeletonInputs({
       model: {
         subject: () => {
           created++
@@ -117,27 +115,23 @@ describe('public Model conformance consumer', () => {
         },
         waitMs: 500,
       },
-    })
+    }))
     expect(created).toBe(CONFORMANCE_OBLIGATIONS.length)
     expect(released).toBe(created)
     expect(report.checksPassed).toBe(false)
     expect(
-      report.hops
-        .find(hop => hop.hopId === 'H06')
-        ?.fragments.every(fragment => fragment.status === 'fail'),
+      modelFragments(report).every(fragment => fragment.status === 'fail'),
     ).toBe(true)
     expect(JSON.stringify(report)).not.toContain('private-cleanup-detail')
   })
 
   it('keeps an unavailable conformance report attached to its hop', async () => {
-    const report = await runContractSkeleton({
-      model: { subject: createScriptedConformanceSubject, waitMs: 0 },
-    })
+    const report = await runContractSkeleton(
+      skeletonInputs({ model: { subject: createScriptedConformanceSubject, waitMs: 0 } }),
+    )
     expect(report.checksPassed).toBe(false)
-    expect(report.hops.find(hop => hop.hopId === 'H06')).toMatchObject({
-      state: 'failed',
-      fragments: [{ status: 'fail' }],
-    })
+    expect(report.hops.find(hop => hop.hopId === 'H06')?.state).toBe('failed')
+    expect(modelFragments(report)).toMatchObject([{ status: 'fail' }])
     expect(
       report.scenarios
         .filter(scenario => scenario.scenarioId.startsWith('G'))

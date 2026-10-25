@@ -1,15 +1,18 @@
 import {
   CONFORMANCE_OBLIGATIONS,
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceOptions,
   type ConformanceReport,
-  type ScriptedPrincipal,
-} from '@omne-harness/model-contract/testing'
+} from '@omne-harness/model-contract/conformance'
 import type { FragmentObservation } from './path-report.ts'
 import type { ScenarioResult } from './scenarios.ts'
 
-export type ModelInputs = Pick<ConformanceOptions<ScriptedPrincipal>, 'subject' | 'waitMs'>
+/**
+ * The subject factory and the wait bound of the public Model obligation suite. The caller supplies
+ * the subject, such as the scripted subject of `@omne-harness/model-contract/testing`; this module
+ * imports only the `./conformance` entry.
+ */
+export type ModelInputs<P> = Pick<ConformanceOptions<P>, 'subject' | 'waitMs'>
 export type ModelObservation = Readonly<{
   scenario: ScenarioResult
   fragments: readonly FragmentObservation[]
@@ -31,7 +34,7 @@ export function inspectModelReport(report: ConformanceReport): ModelObservation 
     return {
       fragmentId: result.obligation,
       status: result.status,
-      evidence: `model-contract/testing:${result.obligation}:${result.status}`,
+      evidence: `model-contract/conformance:${result.obligation}:${result.status}`,
     }
   })
   const matchesExpected =
@@ -52,9 +55,7 @@ export function inspectModelReport(report: ConformanceReport): ModelObservation 
   }
 }
 
-export async function runModel(
-  inputs: ModelInputs = { subject: createScriptedConformanceSubject, waitMs: 500 },
-): Promise<ModelObservation> {
+export async function runModel<P>(inputs: ModelInputs<P>): Promise<ModelObservation> {
   try {
     return inspectModelReport(await checkModelProviderConformance(inputs))
   } catch {
