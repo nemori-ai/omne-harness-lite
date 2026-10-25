@@ -215,6 +215,56 @@ describe('dropEffect belongs to this call and withdraws once', () => {
     expect(directory.withdrawals).toHaveLength(1)
   })
 
+  it('requests only its own remover when an early drop and the caller unload start together inside admit on an active fiber', async () => {
+    const { root, directory } = await world()
+    let callerCtx: Context | undefined
+    const fiber = await caller(root, ctx => {
+      callerCtx = ctx
+    })
+    expect(fiber.state as number).toBe(FIBER_STATE.ACTIVE)
+    let unloading: Promise<void> | undefined
+    let drop: (() => void) | undefined
+    directory.decide = (_key, dropEffect) => {
+      drop = dropEffect
+      // The unload starts now and takes the fiber's effects, this one included, before the
+      // remover of this call exists; the early drop is only recorded.
+      unloading = fiber.dispose()
+      expect(fiber.state as number).toBe(FIBER_STATE.UNLOADING)
+      dropEffect()
+      return null
+    }
+    const outcome = dir(callerCtx as Context).register('a')
+    expect('ok' in outcome && outcome.ok).toEqual({ token: 'a' })
+    // The function requested its own remover once; the started unload completes after it returned.
+    expect(directory.withdrawals).toHaveLength(1)
+    await unloading
+    expect(fiber.state as number).toBe(FIBER_STATE.DISPOSED)
+    expect(directory.withdrawals).toHaveLength(1)
+    drop?.()
+    expect(directory.withdrawals).toHaveLength(1)
+    expect(directory.entries.size).toBe(0)
+  })
+
+  it('withdraws once when an early drop and a caller unload requested during its load meet inside admit', async () => {
+    const { root, directory } = await world()
+    let unloading: Promise<void> | undefined
+    let outcome: ReturnType<ProbeDirectory['register']> | undefined
+    const fiber = await caller(root, ctx => {
+      directory.decide = (_key, dropEffect) => {
+        // The fiber is still loading: Cordis defers the unload until the load step ends.
+        unloading = ctx.fiber.dispose()
+        dropEffect()
+        return null
+      }
+      outcome = dir(ctx).register('a')
+    })
+    expect(outcome && 'ok' in outcome && outcome.ok).toEqual({ token: 'a' })
+    await unloading
+    expect(fiber.state as number).toBe(FIBER_STATE.DISPOSED)
+    expect(directory.withdrawals).toHaveLength(1)
+    expect(directory.entries.size).toBe(0)
+  })
+
   it('keeps the number of retained effects bounded when a fiber registers and drops again and again', async () => {
     const { root, directory } = await world()
     const drops: (() => void)[] = []
