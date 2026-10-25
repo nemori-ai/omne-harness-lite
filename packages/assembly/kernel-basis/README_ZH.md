@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-Cordis 插件辅助，以及只给测试用的 Context 装配。行为契约在 [SPEC.md](SPEC.md)。[#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)已经接受该契约。根入口为空导出。`./cordis` 导出 `definePlugin`、`resolveOptional`，以及调用方 fiber 登记辅助 `registerInCallerFiber` 与它的 `Admission` 类型（[#626 helper 采用](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)）。`./testing` 导出 `startTestAssembly`。操作结果在 [`@omne-harness/operation-result`](../../common/operation-result/README_ZH.md)。
+Cordis 插件辅助，以及只给测试用的 Context 装配。行为契约在 [SPEC.md](SPEC.md)。[#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)已经接受该契约。根入口为空导出。`./cordis` 导出 `definePlugin`、`resolveOptional`，以及调用方 fiber 登记辅助 `registerInCallerFiber` 与它的 `Admission` 类型（[#626 helper 采用](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)）。SPEC 中该辅助的一节是 #626 revision 4 的写回，它的接受在该卡交付时记录。`./testing` 导出 `startTestAssembly`。操作结果在 [`@omne-harness/operation-result`](../../common/operation-result/README_ZH.md)。
 
 ## 职责与状态
 

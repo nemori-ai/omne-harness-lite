@@ -11,7 +11,7 @@
 | 档 | 本包的状态 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
 | 公开类型已导出 | 已导出：全部公开契约类型、品牌身份解码函数、默认结果政策与资产正文端口 `toolBodyContract` | 根入口与 `./provider`，按[公开入口的分组](SPEC.md#公开入口的分组) | `tests/public-entry.spec.ts` 核对导出名与导入方向。`*.spec-d.ts` 以正负编译用例核对类型 |
-| 纯契约函数已实现 | 已实现：定义、请求、交付解除与状态的判定函数，可用性判定与呈现（可用结果带来源层），作者注册（只收实现侧字段），定义派生 `deriveDefinition` 与常驻规则纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident`，等待契约，默认参数 codec，结果渲染与投影，以及 `./binding` 的作者读取函数 | 根入口。`./binding` 只给受信的执行绑定提供者 | 单元测试覆盖这些函数。函数不做 I/O。没有包外消费者验证 |
+| 纯契约函数已实现 | 已实现：定义、请求、交付解除与状态的判定函数，可用性判定与呈现（可用结果带来源层），作者注册（只收实现侧字段），定义派生 `deriveDefinition` 与常驻规则纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident`，等待契约，默认参数 codec，结果渲染与投影，以及 `./binding` 的作者读取函数 | `./provider`，按[公开入口的分组](SPEC.md#公开入口的分组)。`./binding` 只给受信的执行绑定提供者 | 单元测试覆盖这些函数。函数不做 I/O。没有包外消费者验证 |
 | 独立执行已实现 | 本包没有。`executeTool` 与 `createIndependentToolScope` 在 `tool`，该包的范围见[组的支持范围](../README.md#支持范围) | 无 | 无 |
 | runtime 已实现的路径 | 本包没有。runtime 在 `tool`，该包的范围见[组的支持范围](../README.md#支持范围)。本包只定义它的契约 | 无 | 无 |
 | 尚未交付的宿主与提供者 | 本包只定义端口。真实的环境、执行者绑定、输出保管、时钟、决策桥与资源应答提供者都尚未交付。启动围栏的本地提供者已在 `tool-host-local` 中实现，范围见该包 README 的支持范围一节（`tool-host-local/README_ZH.md#支持范围`） | 无 | 无 |

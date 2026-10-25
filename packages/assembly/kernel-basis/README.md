@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-Cordis plugin helpers and test-only context assembly. The behavior contract is [SPEC.md](SPEC.md). The [#248 contract](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) is accepted. The root export is empty. `./cordis` exports `definePlugin`, `resolveOptional`, and the caller-fiber registration helper `registerInCallerFiber` with its `Admission` type ([#626 helper adoption](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)). `./testing` exports `startTestAssembly`. Operation results are in [`@omne-harness/operation-result`](../../common/operation-result/README.md).
+Cordis plugin helpers and test-only context assembly. The behavior contract is [SPEC.md](SPEC.md). The [#248 contract](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) is accepted. The root export is empty. `./cordis` exports `definePlugin`, `resolveOptional`, and the caller-fiber registration helper `registerInCallerFiber` with its `Admission` type ([#626 helper adoption](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)). The SPEC section for this helper is written back by #626 revision 4. Its acceptance is recorded when that card is delivered. `./testing` exports `startTestAssembly`. Operation results are in [`@omne-harness/operation-result`](../../common/operation-result/README.md).
 
 ## Responsibility and status
 

@@ -30,6 +30,8 @@
 - [包索引](../index.md)。
 
 - [普通调用与引用行为](invocation-runtime.spec.ts)。
+- [公共流协议上的观察门面](stream-observation.spec.ts)。
+- [受控的进程内过程流发布者](stream-source.ts)。
 - [来源绑定与篡改拒绝](invocation-source.spec.ts)。
 
 - [公开原意图恢复组合](invoke-recovery.spec.ts)。

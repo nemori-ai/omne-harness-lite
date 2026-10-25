@@ -13,7 +13,7 @@
 
 `./testing` 入口由 [src/testing.ts](../src/testing.ts) 定义：`createMemoryToolLedgerStore` 是声明 `durability: 'none'` 的非耐久记录仓，带读取与提交的故障注入（含在途后落盘的 `unknown-delayed` 与 `landDelayed`），只供测试。故障种类见 [SPEC 第 18 条](../SPEC.md#18-非耐久记录仓testing)。`createTestToolDependencies` 与其输入、返回和手柄类型由 [testing.ts](../src/testing.ts) 拥有。工厂只组装既有七个契约替身与账本，显式调用方输入和固定块、环境类型见 [testing 使用说明](../README_ZH.md#testing-入口)。公开类型归契约包的 [author-context.ts](../../tool-contract/src/author-context.ts)、[execution.ts](../../tool-contract/src/execution.ts) 与 [ports.ts](../../tool-contract/src/ports.ts)。目录职责见 [README](README.md)。
 
-普通 runtime 只以 invoke 发起，以 queries、commands、instances 和 content 持有窄操作。调用引用和操作引用的 codec 在[契约 reference.ts](../../tool-contract/src/reference.ts)。每次引用访问先核结构和租户，再进入原端口核当前主体。没有公开 admit 兼容入口。普通命令不含 acceptDecision/acceptResource。
+普通 runtime 只以 invoke 发起，以 queries、commands、instances、observation 和 content 持有窄操作。`instances.current` 与 `observation.observe` 由 [stream-facade.ts](../src/stream-facade.ts) 实现，行为见 [SPEC 的运行时观察门面](../SPEC.md#运行时观察门面)。调用引用和操作引用的 codec 在[契约 reference.ts](../../tool-contract/src/reference.ts)。每次引用访问先核结构和租户，再进入原端口核当前主体。没有公开 admit 兼容入口。普通命令不含 acceptDecision/acceptResource。
 
 `./testing` 的 createTestInvocationSource 提供配对 issuer 与 guard，保存完整绑定并拒绝主体、租户、身份、目标、consumer、scope、payload 或来源变更。createTestToolIdentities 只提供操作与实例的测试计数身份。二者只供非耐久测试，不能装配成生产签发器或宿主。
 
