@@ -4,39 +4,39 @@
 
 ## 使用方式
 
-本成员的根入口已实现下面的纯操作，见[公开接口页](public-api.md#现有根导出)。运行场景见 tests，示例目录没有独立应用，调用顺序的职责伪代码见对象模型的[调用方怎样使用](object-model.md#调用方怎样使用)。
+本成员的根入口导出操作组构造器 `createAssemblyOperations`、来源集合与账目协议的类型，以及已检数据上的纯函数，见[公开接口页](public-api.md#现有根导出)。运行场景见 tests，示例目录没有独立应用，调用顺序的职责伪代码见对象模型的[调用方怎样使用](object-model.md#调用方怎样使用)。
 
 ### 独立消费
 
-独立调用方不建协调者或历史持有者，也不装配 Cordis。它只安装本成员，自己给出七组输入与构造依赖（[RQ-01](../SPEC.md#rq-01-调用方与计算边界)）。步骤如下：
+独立调用方不建协调者或历史持有者，也不装配 Cordis。它只安装本成员，自己给出来源集合与策略（[RQ-12](../SPEC.md#rq-12-来源集合与登记面)）。步骤如下：
 
-1. 准备构造依赖：一个 `HistorySource` 实现、Model 的计量端口、本成员的 `ConversionResultSource` 读口（结果类型使用 Model 的 `ConversionResult`）及适配器序列化端口、压缩策略与表示策略的实现。
-2. 准备七组输入，见 [RQ-02](../SPEC.md#rq-02-组装的前置输入) 的表。只处理自己给出的数据时，可以没有访问身份。
-3. 调用 `assemble`，按四种结局处置：
-   - 候选成立：自己交 Model 准备并固定。覆盖证据由自己保存，下一次组装作为「已采用」传回。
-   - 需要压缩：调用 `planCompaction`，再逐步调用 `deriveStep`。摘要步的模型调用由自己发起，进度由自己保存。
+1. 准备来源集合 `ContextSources`：第二组至第七组的组读口（各带 `readCount` 与 `readSource`）、窄采用来源、`HistorySource`、`ConversionResultSource`、读取资格桥，以及 Model 的 `ModelPreparationResources`。再准备主体绑定与压缩、表示两个策略。
+2. 调用 `createAssemblyOperations({ target, sources, principalBinding, policies })` 取得操作组。
+3. 以 `AssemblyCall`（访问身份、候选身份、消费位置、用途）调用 `assemble`，按四种结局处置：
+   - 候选成立：自己交 Model 准备并固定。覆盖证据与固定调用关联由自己保存，经窄采用来源在下一次组装作为「已采用」读回。
+   - 需要压缩：调用 `planCompaction`，再逐步调用 `deriveStep`。摘要步的模型调用由自己发起，计划、进度与首步材料由自己保存。
    - 装不下：失败回到自己，本成员不造任何上层对象。
-4. 得到压缩转换后，自己作为合法历史拥有者保存压缩记录，再调用 `resume` 重算。
+4. 得到压缩转换后，自己作为合法历史拥有者保存压缩记录，重签读取资格，再调用 `resume` 重算。
 5. 只需要人侧投影时，单独调用 `projectForHuman`。
 
 没有协调者就没有共同提交。读取系统托管的历史、档案或其他资源时，仍适用原来源契约的身份、资格及保留责任，不因未运行 Cordis 而绕过。
 
 ### 托管消费
 
-协调者不直接调用本成员。它经适配器调用：适配器实现协调者自己定义的请求准备端口，把端口的输入翻译成本成员的输入，把本成员的结果翻译回端口的结果。字段级对应见下文[字段对应](#字段对应)，适配器的位置与职责见[适配方案](#适配方案)。
+协调者不直接调用本成员。它经适配器调用：适配器实现协调者自己定义的请求准备端口，把端口的输入翻译成本成员的调用身份，把本成员的结果翻译回端口的结果。来源适配者按目标登记来源集合。字段级对应见下文[字段对应](#字段对应)，适配器的位置与职责见[适配方案](#适配方案)。
 
 ### 两条组装入口
 
-| 入口 | 适用场景 | 端口与策略怎样到达 |
+| 入口 | 适用场景 | 来源与策略怎样到达 |
 | --- | --- | --- |
-| 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `assembly(scope, ports)` | 装配了 Cordis 的系统，协调者一侧的适配器组装请求。贡献从登记面现取，策略按提供者的配置选定，缓存在提供者的机制实例里 | 历史源读口、计量端口、转换件结果端口与请求序列化端口由适配器在每次 `assembly(scope, ports)` 时交入。提供者不 `inject` 持有者或模型侧的服务 |
-| 独立入口：[request-context](../../request-context/SPEC.md) 的机制工厂 | 不装配 Cordis、又要缓存与默认策略的调用方 | 四项端口与两个策略在工厂构造时给出，贡献集合由调用方随第四组传入 |
+| 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `register` 与 `assembly(target)` | 装配了 Cordis 的系统。贡献从登记面现取，策略按提供者的配置选定 | 来源适配者以 `register` 按目标登记来源集合，登记挂在它的 fiber 上。调用方每次只交 `AssemblyCall` |
+| 独立入口：本成员的 `createAssemblyOperations`，或 [request-context](../../request-context/SPEC.md) 的 `createContextSourceRegistry` | 不装配 Cordis 的调用方 | 来源集合与两个策略在构造或登记时给出，贡献集合由第四组读口给出 |
 
-只要纯操作、不要缓存的独立调用方，按上一节直接用本成员的根入口。托管路径不把「适配器直接调用纯操作」当作组装入口。
+窗口占用的账目投影由 [request-context](../../request-context/SPEC.md) 的 `createContextAccounting` 提供，结果接收方经 `receive` 交已提交的原账目，供块方经 `usage` 读取（[RQ-14](../SPEC.md#rq-14-窗口占用与账目收到)）。
 
 ### 初始化与释放
 
-本成员没有初始化步骤，不持有资源，也没有需要释放的对象。构造依赖由调用方作为值传入。任一依赖缺席时，相关操作返回不可用，不伪装成功。缓存、默认策略与修剪器由 [request-context](../../request-context/README.md) 提供，提示词贡献的登记面由 [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 提供，它们的寿命归各自成员。
+操作组本身不持有资源。每次操作在取得 Model 准备租约后，任何路径都交还租约（[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)）。来源读口的资源归来源适配者；托管路径上它们等登记句柄的 `settled` 之后才可关闭。任一依赖缺席时，相关操作返回不可用，不伪装成功。登记表、账目投影、缓存与默认策略由 [request-context](../../request-context/README.md) 提供，提示词贡献的登记面由 [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 提供，它们的寿命归各自成员。
 
 ## 消费者与定位
 
@@ -53,7 +53,7 @@ flowchart LR
   RQI[request-context] --> RQC
   RQP[request-context-cordis] --> RQD
   RQP --> RQI
-  Coord[协调者一侧的适配器] -->|assembly，端口逐次交入| RQD
+  Coord[协调者一侧的适配器] -->|register、assembly(target)| RQD
   Coord -->|类型| RQC
   Holder[历史持有者与交付面] -->|projectForHuman，实现 HistorySource| RQC
 ```
@@ -65,7 +65,7 @@ flowchart LR
 | 协调者 | 发起方。固定最终请求，执行压缩步，保存计划进度 | 经适配器调用 `assemble`、`planCompaction`、`deriveStep`、`resume` | 给四种结局、覆盖证据、计划与步请求、压缩转换。要七组输入与步结果 |
 | 历史持有者 | 历史、压缩记录与未结工作的拥有者 | 实现 `HistorySource`。与协调者一起提交压缩转换。调用 `projectForHuman` | 给人侧投影与压缩转换的材料。要 epoch 视图、前缀摘要与未结工作集合 |
 | Runtime Context | 模型侧读取结果的来源 | 协调者以模型类资格读取后作为第三组传入。本成员不读 Runtime Context | 要读取结果、块材料与块的 `volatility`，见 [runtime-context-contract](../../runtime-context-contract/docs/context.md) |
-| Model | 档案、限制、计量与转换件结果的提供方，请求准备与发出的拥有者 | 选定模型由协调者传入。计量端口与转换件结果端口在独立入口由工厂构造时注入，在托管入口由适配器经 `assembly(scope, ports)` 逐次交入 | 给 Model 的工具声明与历史模态约束。候选交 Model 准备成固定请求的一步归协调者 |
+| Model | 档案、限制、计量与转换件结果的提供方，请求准备与发出的拥有者 | 选定模型由协调者传入。Model 准备资源与转换件结果读口随来源集合登记或绑定（[RQ-12](../SPEC.md#rq-12-来源集合与登记面)），每份候选经租约按供应商计量（[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)） | 给 Model 的工具声明与历史模态约束。候选交 Model 准备成固定请求的一步归协调者 |
 | Tool | 工具定义、绑定与可编程许可的拥有者 | 协调者经装配求值后作为第六组传入 | 给直接集合与脚本可调用集合。声明投影不是执行授权 |
 | 贡献者 | 提示词贡献的拥有者 | 在 [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的登记面登记 | 要有序段与变量两类贡献 |
 | 扩展位置 | 调模型之前位置的经过与改写 | 协调者把改写依据与经过作为第七组传入 | 重组装并复核，前缀变化原因可见 |
@@ -78,7 +78,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 #### `RequestPreparation.prepare` 的输入
 
-| Agent 字段 | 进入 `AssemblyInput` 的位置 | 适配器做什么 |
+| Agent 字段 | 进入的组或 `AssemblyCall` 的位置 | 适配器做什么 |
 | --- | --- | --- |
 | `principal`、`tenant` | 组一：访问身份。托管读取带租户 | 原样传入 |
 | `advance` | 不进入 | 适配器核对执行挂接仍有效。已被取代时直接返回 `stale-advance`，不调用本成员 |
@@ -102,7 +102,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 | Agent 字段 | 对应 | 适配器做什么 |
 | --- | --- | --- |
 | `principal`、`tenant`、`advance` | 同 `prepare` | 同 `prepare` |
-| `original` | 计划的来源 | 由 `original.input` 重新得到触发压缩的那份 `AssemblyInput`。`planCompaction` 是纯函数，同一输入得同一计划 |
+| `original` | 计划的来源 | 由 `original.input` 重新得到触发压缩的那次调用身份。完整的计划依据随计划的压缩依据保存，`deriveStep` 不重新读取一份未绑定计划的历史 |
 | `progress` | `PlanProgress` | `plan` 译为计划身份，`bound` 译为步数上界，`completed` 译为已完成步数 |
 | `action` | 不进入本成员 | 这一步模型调用的身份归协调者 |
 | `selection` | 不进入 `deriveStep` | 适配器用它把摘要步请求交 Model 准备成固定请求 |
@@ -113,7 +113,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 | Agent 字段 | 对应 | 适配器做什么 |
 | --- | --- | --- |
 | `principal`、`tenant`、`advance` | 同 `prepare` | 同 `prepare` |
-| `original` | 原 `AssemblyInput` | 由 `original.input` 重新得到原输入。改写依据与调模型之前位置的经过沿用 `original` 里的记录 |
+| `original` | 原调用身份 | 由 `original.input` 重新得到原调用身份。改写依据与调模型之前位置的经过沿用 `original` 里的记录 |
 | `transition` | 组三：压缩转换依据 | 核对提交来源与原准备一致。不一致时返回 `changed`，不调用本成员 |
 | `selection` | 组五：模型侧 | 同 `prepare` |
 | `context` | 组三：读取结果 | 压缩提交之后的读取结果，同 `prepare` |
@@ -122,7 +122,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 这个端口读的是 Runtime Context，不调用本成员。本成员不读 Runtime Context（[RQ-02](../SPEC.md#rq-02-组装的前置输入)）。适配器经 Runtime Context 的读者面按模型类资格读取，再把结果留给紧接着的 `prepare` 或 `resume`。
 
-| Agent 字段 | 进入 `AssemblyInput` 的位置 | 说明 |
+| Agent 字段 | 进入的组或 `AssemblyCall` 的位置 | 说明 |
 | --- | --- | --- |
 | `principal`、`tenant` | 不进入本成员 | 用于 Runtime Context 的读取资格 |
 | `advance` | 不进入 | 同 `prepare` |
@@ -157,7 +157,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 | --- | --- | --- |
 | 无权：身份或资格不足，含历史源读口按访问身份核对后返回无资格 | `denied` | `action` 写被拒绝的操作 |
 | 无效：缺必要输入，或输入不合形状、越出范围。含[组装的结果](../SPEC.md#组装的结果)表「无效」行列出的全部情形，以及计划身份或已完成步数核对失败 | `invalid` | `field` 指出越界的输入，`reason` 写原因 |
-| 不可用：没有可用表示；来源不可用，含历史源、计量端口、转换件结果端口不可读或缺席，以及 runtime context 读取结果为缺项；实例已关闭或服务已卸载 | `unavailable` | `owner` 写不可读的来源拥有者，`diagnostic` 写原因。表示不可用属于这一类，带原结果转交 |
+| 不可用：没有可用表示；来源不可用，含组读口、历史源、Model 准备资源、转换件结果读口不可读或缺席；某组两次读取仍不稳定；登记代际已撤除或替换，以及 runtime context 读取结果为缺项；实例已关闭或服务已卸载 | `unavailable` | `owner` 写不可读的来源拥有者，`diagnostic` 写原因。表示不可用属于这一类，带原结果转交 |
 
 下列结果由适配器自己产生，不来自本成员：
 
@@ -173,7 +173,6 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 | 字段 | 情况 | 现在的处理 |
 | --- | --- | --- |
-| 本成员的修剪步 | Agent 契约把压缩的每一步当作一次模型调用，`CompactionAdvance` 没有不调模型的步。本成员的修剪步不调模型，计划进度也要加一（[RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界)） | 两边的步数与已完成步数怎样对应，现在没有契约规定。由两个契约的拥有者裁定 |
 | 组三的块材料 | `ModelContextRead` 只带证据，不带块的值。本成员每次组装都需要 ④ 的块材料来渲染快照提醒，增量读取时要的是最近一次完整读取的材料（[RQ-02](../SPEC.md#rq-02-组装的前置输入)），本成员不保存它 | 适配器跨请求保存最近一次完整读取的块材料（按资格过滤后的值）。完整读取时用本次的材料替换它；增量读取时把保存的材料随第三组交入。`prepare` 或 `resume` 按 `source` 与 `coverage` 取回 |
 | 组三的「已采用」与转换依据 | `prepare` 与 `resume` 没有 `adopted` 字段。`prepare` 也没有 `transition` 字段 | 适配器沿用它服务的那次 `read` 的输入 |
 | 组四 | Agent 端口没有提示词贡献与组装上下文的字段 | 贡献从登记面取得。组装上下文的作用域引用、定义采用与工作区选择从哪里取得，现在没有契约规定 |
@@ -190,9 +189,9 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 **在哪一侧实现。**适配器不在本成员里，也不在本组任何成员里，因为本组成员都不导入协调者的契约（[组架构](../../docs/architecture.md#安装与源码依赖)）。它是一个单独的集成包，属于 Context 一侧，依赖下列入口：
 
 - 协调者的服务定义，用来提供 `agentModelContext` 与 `agentRequests`。
-- [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的服务定义，用 `assembly(scope, ports)` 取得已配置的操作组，并逐次交入历史源读口、计量端口与转换件结果端口。
+- [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的服务定义，用 `register` 按目标登记来源集合，用 `assembly(target)` 取得已配置的操作组。
 - Runtime Context 读者面的服务定义 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/README.md)。
-- Model 的请求准备与计量端口。
+- Model 的请求准备资源（随来源集合登记）。
 
 这个包现在没有建立，由哪张卡建立、谁维护尚未指定，已登记在 Context 运行时实现卡 [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542)。跨请求保存 ④ 层块材料（见[对不上的字段](#对不上的字段)）由这个包承担。
 
