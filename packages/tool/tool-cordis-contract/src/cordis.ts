@@ -1,16 +1,21 @@
 // The Cordis service definitions of Tool: abstract Services, the service keys, the
-// `tool-cordis-contract/call-changed` event and the instance directory. Provider plugins live in
-// `@omne-harness/tool-host-local/cordis`. This entry does not import a Tool implementation.
+// `tool-cordis-contract/call-changed` and `binding-changed` events and the instance directory.
+// Provider plugins live in `@omne-harness/tool-host-local/cordis`. This entry does not import a
+// Tool implementation.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import {
   describedAdoption,
   type DurableEvidence,
   type ResultPolicy,
+  type SourceLayer,
   type ToolAccounts,
+  type ToolAuthority,
+  type ToolBindingKey,
   type ToolBindingRegistry,
+  type ToolBindingScope,
   type ToolBindings,
   type ToolCallId,
   type ToolCatalog,
@@ -21,6 +26,7 @@ import {
   type ToolDirectory,
   type ToolEnvironment,
   type ToolInstanceHost,
+  type ToolLoader,
   type ToolOffloader,
   type ToolOutputCustody,
   type ToolReads,
@@ -109,8 +115,106 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E>
   abstract readonly resolve: ToolBindings<P, B, E>['resolve']
   abstract readonly recover: ToolBindings<P, B, E>['recover']
   abstract readonly register: ToolBindingRegistry<P, E, B>['register']
+  abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot']
+  abstract readonly pins: ToolBindingRegistry<P, E, B>['pins']
+  abstract readonly close: ToolBindingRegistry<P, E, B>['close']
+  abstract readonly reopen: ToolBindingRegistry<P, E, B>['reopen']
+  abstract readonly drain: ToolBindingRegistry<P, E, B>['drain']
 }
 export const toolBindingsKey = ToolBindingsService.provide
+
+/** The authority after the origin check: the same four fields, now trusted for the layer (G7). */
+export type VerifiedAuthority = ToolAuthority
+export type ToolAuthorityFailure =
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+/**
+ * The synchronous origin check of a contribution (G7). `verify` gives the source layer from the
+ * authority, never from the registrant; `admits` checks that the registrant may register at that
+ * layer. Both are consulted inside the registering effect, so neither yields.
+ */
+export interface ToolContributionAuthority<P> {
+  verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
+  admits(
+    access: Access<P>,
+    layer: SourceLayer,
+  ): Outcome<void, Exclude<ToolAuthorityFailure, { kind: 'invalid' }>>
+}
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolContributionAuthorityService<P>
+  extends Service
+  implements ToolContributionAuthority<P>
+{
+  static readonly provide = 'toolContributionAuthority'
+  constructor(ctx: Context) {
+    super(ctx, ToolContributionAuthorityService.provide)
+  }
+  abstract readonly verify: ToolContributionAuthority<P>['verify']
+  abstract readonly admits: ToolContributionAuthority<P>['admits']
+}
+export const toolContributionAuthorityKey = ToolContributionAuthorityService.provide
+
+/**
+ * Why `ensureLoaded` did not load. `missing` and `rejected` are durable failures and carry the
+ * evidence the coordinator minted for the adoption-point judgment; `unavailable` is temporary;
+ * `denied` and `invalid` come from the origin check; `conflict` says another contribution holds
+ * the key; `draining` says the same key is draining and is not recognised.
+ */
+export type ToolLoadFailure =
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+  | Readonly<{ kind: 'missing'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'rejected'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'conflict' }>
+  | Readonly<{ kind: 'draining' }>
+export type ToolLoadState = Readonly<{ key: ToolBindingKey; state: 'loaded' | 'recognized' }>
+/** Where `unload` stands: kept for referencing sessions, still draining, or released. */
+export type ToolUnloadState = Readonly<{ state: 'retained' | 'draining' | 'released' }>
+export type ToolSweepReport = Readonly<{
+  reloaded: readonly ToolBindingKey[]
+  unloaded: readonly ToolBindingKey[]
+}>
+export type ToolGenerationsFailure =
+  | Readonly<{ kind: 'unknown-key' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+/**
+ * The generation coordinator (G7): the only holder of the `ctx.plugin` handles of author plugins.
+ * Each verb converges on its target state and may be repeated. `ensureLoaded` is called by the
+ * assembly coordinator with the tenant's access, or by `sweep` with the system scope; `unload` and
+ * `sweep` are system-scope operations. `loaderFor` gives the author plugin the trusted loader of
+ * its authority. The contract is in docs/cordis.md「换代协调者契约」.
+ */
+export interface ToolGenerations<P, E, B extends ContentBlock> {
+  ensureLoaded(
+    input: Readonly<{ authority: ToolAuthority; access: ToolBindingScope<P> }>,
+  ): Promise<Outcome<ToolLoadState, ToolLoadFailure>>
+  unload(
+    input: Readonly<{ key: ToolBindingKey }>,
+  ): Promise<Outcome<ToolUnloadState, ToolGenerationsFailure>>
+  sweep(): Promise<
+    Outcome<ToolSweepReport, Extract<ToolGenerationsFailure, { kind: 'unavailable' }>>
+  >
+  loaderFor(authority: ToolAuthority): ToolLoader<P, E, B>
+}
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolGenerationsService<P, E, B extends ContentBlock>
+  extends Service
+  implements ToolGenerations<P, E, B>
+{
+  static readonly provide = 'toolGenerations'
+  constructor(ctx: Context) {
+    super(ctx, ToolGenerationsService.provide)
+  }
+  abstract readonly ensureLoaded: ToolGenerations<P, E, B>['ensureLoaded']
+  abstract readonly unload: ToolGenerations<P, E, B>['unload']
+  abstract readonly sweep: ToolGenerations<P, E, B>['sweep']
+  abstract readonly loaderFor: ToolGenerations<P, E, B>['loaderFor']
+}
+export const toolGenerationsKey = ToolGenerationsService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolEnvironmentService<P, E>
@@ -378,6 +482,8 @@ declare module '@deepseek-ai/cordis' {
     toolRuntime: ToolRuntimeService<unknown, ContentBlock>
     toolCommands: ToolCommandsService<unknown, ContentBlock>
     toolBindings: ToolBindingsService<unknown, ContentBlock, unknown>
+    toolContributionAuthority: ToolContributionAuthorityService<unknown>
+    toolGenerations: ToolGenerationsService<unknown, unknown, ContentBlock>
     toolEnvironments: ToolEnvironmentService<unknown, unknown>
     toolDecisions: ToolDecisionBridgeService<unknown>
     toolInstances: ToolInstancesService<unknown>
@@ -409,6 +515,20 @@ declare module '@deepseek-ai/cordis' {
       tenant: TenantId,
       call: ToolCallId,
       revision: ToolRevision,
+    ): void
+    /**
+     * A committed change of one binding-registry entry (G7). The payload is the binding key and
+     * the kind of change. It has no body, credentials or module path. The sender catches listener
+     * failures and keeps the registration result. A missed notification is recovered at the next
+     * adoption point by reading `snapshot(scope)` with the tenant's access.
+     *
+     * @mode parallel
+     * @param key - the binding key: source layer, capability identity and asset version.
+     * @param change - `registered`, `draining` or `released`.
+     */
+    'tool-cordis-contract/binding-changed'(
+      key: ToolBindingKey,
+      change: 'registered' | 'draining' | 'released',
     ): void
   }
 }

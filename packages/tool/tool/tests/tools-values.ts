@@ -95,7 +95,7 @@ export async function authorRun(
   args: string | ToolArguments,
   access: Access<Principal> = { principal: principalA, tenant: tenantA },
 ) {
-  const registered = readToolRegistration(tools.author)
+  const registered = readToolRegistration(tools.implementation)
   if (registered?.kind !== 'commands') throw new Error('not a real command registration')
   const entry = registered.operations.find(([name]) => name === command)
   if (entry === undefined) return fail({ kind: 'invalid', reason: 'unknown-command' } as const)
@@ -221,7 +221,7 @@ export function registeredFixture(tools: Tools<Principal>, replyOptions: ToolsOp
         const value = ok(
           await authorRun(tools, input.request.command ?? '', input.request.arguments),
         )
-        const registered = readToolRegistration(tools.author)
+        const registered = readToolRegistration(tools.implementation)
         if (registered?.kind !== 'commands') throw new Error('not commands')
         const operation = registered.operations.find(([name]) => name === input.request.command)
         if (operation === undefined) throw new Error('not a command')
@@ -256,8 +256,9 @@ export function registeredFixture(tools: Tools<Principal>, replyOptions: ToolsOp
       const payload = request({
         availability: {
           kind: 'available',
-          definition: tools.author.definition,
+          definition: tools.definition,
           executor: adoption('Tools-executor'),
+          layer: { kind: 'official' },
         },
         command,
         arguments: {

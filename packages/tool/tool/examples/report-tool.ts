@@ -6,6 +6,7 @@ import {
   defaultResultPolicy,
   defineFunctionTool,
   defineToolOperation,
+  deriveDefinition,
   type Access,
   type Adoption,
   type DurableEvidence,
@@ -117,13 +118,11 @@ export function createReportTool() {
       },
     }),
   )
-  const author = valueOf(
+  // The implementation side only: the name, the version and the governance come from the asset.
+  const implementation = valueOf(
     defineFunctionTool({
-      metadata: {
-        adoption: adoption('report'),
-        name: 'report',
+      implementation: {
         description: 'Generate a read-only report about Tool result delivery.',
-        requiredCapabilities: [],
         backgroundAllowed: false,
         declarations: {
           adoption: adoption('report-declarations'),
@@ -137,5 +136,10 @@ export function createReportTool() {
       operation,
     }),
   )
-  return { author, executions: () => executions }
+  // The tutorial plays the asset: this is what a loader derives from the governance and the facts.
+  const definition = deriveDefinition(
+    { asset: { name: 'report', adoption: adoption('report') }, requiredCapabilities: [] },
+    implementation.facts,
+  )
+  return { implementation, definition, executions: () => executions }
 }

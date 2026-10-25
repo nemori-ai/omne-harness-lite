@@ -85,6 +85,7 @@ export async function settlementFixture(
               kind: 'available',
               definition: functionDefinition({ backgroundAllowed: true }),
               executor: adoption('exec'),
+              layer: { kind: 'official' },
             },
           }
         : {},

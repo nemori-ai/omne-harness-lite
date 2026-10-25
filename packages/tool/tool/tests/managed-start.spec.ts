@@ -239,6 +239,7 @@ describe('20 preparation and queue (P02, P03)', () => {
         kind: 'available' as const,
         definition: functionDefinition({ backgroundAllowed: true }),
         executor: adoption('exec'),
+        layer: { kind: 'official' as const },
       },
     }
     await admitCall(harness, 'c1', background)

@@ -7,7 +7,25 @@ export {
   defaultResultPolicyAdoption,
   defaultResultPolicyRules,
 } from './result-policy.ts'
-export { judgeToolDefinition } from './judge-definition.ts'
+export { judgeImplementationFacts, judgeToolDefinition } from './judge-definition.ts'
+export {
+  deriveDefinition,
+  foldResident,
+  planAdoption,
+  refreshAvailability,
+  sameBindingKey,
+  sameShape,
+  sameSourceLayer,
+  shapeOf,
+  type AdoptionFacts,
+  type AdoptionPlan,
+  type FreezeVerdict,
+  type RefreshFacts,
+  type RefreshOutcome,
+  type ResidentFoldFailure,
+  type ResidentTool,
+  type ToolReloadResult,
+} from './dynamics.ts'
 export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'

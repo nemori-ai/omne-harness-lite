@@ -67,6 +67,7 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
   return {
     availability: {
       kind: 'available',
+      layer: { kind: 'official' },
       definition: {
         adoption: adoption('read_file'),
         name: 'read_file',

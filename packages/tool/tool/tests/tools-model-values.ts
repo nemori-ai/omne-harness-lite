@@ -242,7 +242,7 @@ export async function modelHost(
           const value = ok(
             await authorRun(tools, start.request.command ?? '', start.request.arguments, start),
           )
-          const registration = readToolRegistration(tools.author)
+          const registration = readToolRegistration(tools.implementation)
           if (registration?.kind !== 'commands') throw new Error('Not registered')
           const operation = registration.operations.find(([name]) => name === start.request.command)
           if (operation === undefined) throw new Error('Not a registered command')
@@ -337,8 +337,9 @@ export async function modelHost(
       request: request({
         availability: {
           kind: 'available',
-          definition: command === null ? sourceDefinition : tools.author.definition,
+          definition: command === null ? sourceDefinition : tools.definition,
           executor: adoption(command === null ? 'source-executor' : 'Tools-executor'),
+          layer: { kind: 'official' },
         },
         command,
         consumer: { ...request().consumer, position },
@@ -400,8 +401,8 @@ export async function modelHost(
     failSourceRead: () => {
       failNextSourceRead = true
     },
-    definition: tools.author.definition,
-    registration: readToolRegistration(tools.author),
+    definition: tools.definition,
+    registration: readToolRegistration(tools.implementation),
     present: async (access: Access<Principal> = source) =>
       projectForModel(await tools.present({ ...source, ...access }), 'initial'),
     rebuild: () => {

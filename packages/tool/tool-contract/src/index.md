@@ -19,6 +19,7 @@
 - [默认结果政策](result-policy.ts)。
 - [可复算的采用摘要](adoption.ts)。
 - [定义判定](judge-definition.ts)。
+- [定义派生与常驻规则的纯函数](dynamics.ts)。
 - [固定请求判定](judge-request.ts)。
 - [交付解除输入判定](judge-release.ts)。
 - [状态判定](judge-state.ts)。

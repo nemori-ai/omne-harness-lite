@@ -12,7 +12,8 @@ import type {
   ToolAuthor,
   ToolDeclarations,
   ToolDefinition,
-  ToolDefinitionMetadata,
+  ToolGovernance,
+  ToolImplementationDeclaration,
   ToolMessageContentBlock,
   ToolResult,
   ToolReturnDeclaration,
@@ -62,7 +63,23 @@ export function declarations(): ToolDeclarations {
   }
 }
 
-export function metadata(): ToolDefinitionMetadata {
+/** The asset side of `read_file`: identity, version and governance. */
+export function governance(name = 'read_file'): ToolGovernance {
+  return { asset: { name, adoption: adoption(name) }, requiredCapabilities: ['file-system'] }
+}
+
+/** The implementation side an author declares: description, background permission, declarations. */
+export function declaration(): ToolImplementationDeclaration {
+  return { description: 'Reads one file.', backgroundAllowed: false, declarations: declarations() }
+}
+
+type DefinitionMetadata = Omit<
+  Extract<ToolDefinition, { kind: 'function' }>,
+  'kind' | 'parameters' | 'returns'
+>
+
+/** The shared fields of a definition, as `deriveDefinition(governance(), …)` writes them. */
+export function metadata(): DefinitionMetadata {
   return {
     adoption: adoption('read_file'),
     name: 'read_file',

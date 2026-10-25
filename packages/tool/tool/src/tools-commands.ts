@@ -28,7 +28,7 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract'
 export function createToolsAuthor<P>(
   options: ToolsOptions,
   read: (argumentsValue: ReadArguments, access: Access<P>) => Promise<MessageResult>,
-): Tools<P>['author'] {
+): Tools<P>['implementation'] {
   const codecs = parameterCodecs(options.arguments)
   const finish = (value: MessageResult) => bounded(value, options)
   const error = (failure: Parameters<typeof failureResult>[0]) => finish(failureResult(failure))
@@ -107,13 +107,9 @@ export function createToolsAuthor<P>(
   // The complete implementation must live in a separate source package.
   // Migrate this definition and its supporting implementation there when that version is delivered.
   const registration = defineCommandTool({
-    metadata: {
-      adoption: toolsAdoption,
-      name: 'Tools',
+    implementation: {
       description: 'Read fixed tool results and attachment bytes. Use help for parameters.',
-      requiredCapabilities: [],
       backgroundAllowed: false,
-      programmable: false,
       declarations: {
         adoption: toolsAdoption,
         environment: null,

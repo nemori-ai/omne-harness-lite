@@ -217,8 +217,8 @@ export declare const agentInstancesPlugin: {
             version: 1;
             vendor: string;
             validate(value: unknown): {
-                value: {};
                 issues?: never;
+                value: {};
             } | {
                 value?: {};
                 issues: {

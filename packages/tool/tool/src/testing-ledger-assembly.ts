@@ -57,6 +57,7 @@ function invokeRequest(): ToolInvokeRequest {
     availability: {
       kind: 'available',
       executor: adoption('executor'),
+      layer: { kind: 'official' },
       definition: {
         kind: 'function',
         adoption: adoption('definition'),

@@ -237,7 +237,7 @@ The ledger checks all five attachment fields for association, then checks the st
 
 ## Model result retrieval
 
-`createTools` adds a real command author named `Tools`. Register `tools.author` through the assembly's binding provider. The commands are `help` and `read_result`. They accept text parameters and can preserve all four direct output modalities. Both return structured results with no program data. The author is not programmable.
+`createTools` adds a real command author named `Tools`. Register `tools.implementation` through the assembly's binding provider; `tools.definition` is the definition derived from the meta tool's official governance. The commands are `help` and `read_result`. They accept text parameters and can preserve all four direct output modalities. Both return structured results with no program data. The author is not programmable.
 
 Pass only `runtime.queries.readResult` and `runtime.content.read` to the factory. Fix `arguments`, `resultPageBytes`, `replyMaxBytes` and `contentPageBytes` at construction. Use the runtime's actual resultPageBytes value. Invalid configuration throws TypeError.
 

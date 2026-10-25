@@ -25,8 +25,17 @@ import {
   defineFunctionTool,
   defineToolOperation,
   defineToolWaitContract,
+  deriveDefinition,
   evaluateToolAvailability,
+  foldResident,
   judgeConsumerRef,
+  judgeImplementationFacts,
+  planAdoption,
+  refreshAvailability,
+  sameBindingKey,
+  sameShape,
+  sameSourceLayer,
+  shapeOf,
   judgeFixedToolRequest,
   judgeHandoff,
   judgeToolArguments,
@@ -68,8 +77,14 @@ export type {
   ToolValueSchema,
   ToolProgramDeclaration,
   ToolReturnDeclaration,
-  ToolDefinitionMetadata,
+  ToolAssetVersion,
+  ToolGovernance,
+  ToolCommandDeclaration,
+  ToolImplementationShape,
+  ToolImplementationFacts,
   ToolDefinition,
+  WorkspaceId,
+  SourceLayer,
   ToolAvailability,
   ToolArguments,
   ResourceScope,
@@ -157,10 +172,30 @@ export type {
   ToolOperationParameters,
   ToolOperation,
   ToolOperationSpec,
-  ToolAuthorRegistration,
+  ToolImplementation,
+  ToolImplementationDeclaration,
+  ToolImplementationModule,
+  ToolBindingKey,
+  ToolShapeParameters,
+  ToolShape,
   ToolLoadedRegistration,
   ToolLoader,
+  ToolAuthority,
+  ToolContribution,
+  ToolContributionFailure,
+  ToolBindingEntry,
+  ToolBindingScope,
+  ToolBindingKeyFailure,
+  ToolBindingDrain,
   ToolBindingRegistry,
+  AdoptionFacts,
+  AdoptionPlan,
+  FreezeVerdict,
+  RefreshFacts,
+  RefreshOutcome,
+  ResidentFoldFailure,
+  ResidentTool,
+  ToolReloadResult,
   TextResultFactory,
   AvailabilityFacts,
   PhysicalExecution,
@@ -252,7 +287,10 @@ import type {
   ParameterCodec,
   ToolOperationParameters,
   ToolOperation,
-  ToolAuthorRegistration,
+  ToolImplementation,
+  ToolImplementationFacts,
+  ToolGovernance,
+  ToolShape,
   AvailabilityFacts,
   ParsedToolArguments,
   ToolArgumentsRejection,
@@ -346,11 +384,24 @@ it('resolves every implemented contract function from the package root with its 
     Outcome<ToolOperation<unknown, ContentBlock, ToolOperationParameters>, Rejection>
   >()
   expectTypeOf(defineFunctionTool<string, ToolMessageContentBlock>).returns.toEqualTypeOf<
-    Outcome<ToolAuthorRegistration<string, ToolMessageContentBlock>, Rejection>
+    Outcome<ToolImplementation<string, ToolMessageContentBlock>, Rejection>
   >()
   expectTypeOf(defineCommandTool<string, ToolMessageContentBlock>).returns.toEqualTypeOf<
-    Outcome<ToolAuthorRegistration<string, ToolMessageContentBlock>, Rejection>
+    Outcome<ToolImplementation<string, ToolMessageContentBlock>, Rejection>
   >()
+  expectTypeOf(judgeImplementationFacts).toEqualTypeOf<
+    (value: unknown) => Outcome<ToolImplementationFacts, Rejection>
+  >()
+  expectTypeOf(deriveDefinition).toEqualTypeOf<
+    (governance: ToolGovernance, facts: ToolImplementationFacts) => ToolDefinition
+  >()
+  expectTypeOf(shapeOf).toEqualTypeOf<(definition: ToolDefinition) => ToolShape>()
+  expectTypeOf(sameShape).toEqualTypeOf<(left: ToolShape, right: ToolShape) => boolean>()
+  expectTypeOf(sameSourceLayer).returns.toEqualTypeOf<boolean>()
+  expectTypeOf(sameBindingKey).returns.toEqualTypeOf<boolean>()
+  expectTypeOf(planAdoption).toBeFunction()
+  expectTypeOf(refreshAvailability).toBeFunction()
+  expectTypeOf(foldResident).toBeFunction()
   expectTypeOf(renderToolResult).toBeFunction()
   expectTypeOf(createDefaultParameterCodec).returns.toEqualTypeOf<
     Outcome<ParameterCodec<JsonValue>, Rejection>

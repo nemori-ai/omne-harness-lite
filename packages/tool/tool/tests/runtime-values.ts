@@ -23,7 +23,6 @@ import {
   type TextResultFactory,
   type ToolCallId,
   type ToolDefinition,
-  type ToolDefinitionMetadata,
   type ToolDriver,
   type ToolInstanceHost,
   type ToolInstanceId,
@@ -121,7 +120,12 @@ function parameters(): ParameterContract {
   }
 }
 
-function metadata(name: string): ToolDefinitionMetadata {
+type DefinitionMetadata = Omit<
+  Extract<ToolDefinition, { kind: 'function' }>,
+  'kind' | 'parameters' | 'returns'
+>
+
+function metadata(name: string): DefinitionMetadata {
   return {
     adoption: adoption(name),
     name,
@@ -139,9 +143,7 @@ function metadata(name: string): ToolDefinitionMetadata {
   }
 }
 
-export function functionDefinition(
-  overrides: Partial<ToolDefinitionMetadata> = {},
-): ToolDefinition {
+export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}): ToolDefinition {
   return {
     ...metadata('read_file'),
     ...overrides,
@@ -157,6 +159,7 @@ export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeR
       kind: 'available',
       definition: functionDefinition(),
       executor: adoption('exec'),
+      layer: { kind: 'official' },
     },
     command: null,
     arguments: { original: '{"path":"a.txt"}', effective: '{"path":"a.txt"}', complete: true },

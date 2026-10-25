@@ -13,6 +13,7 @@ function request(): FixedToolRequest {
       kind: 'available',
       definition: functionDefinition(),
       executor: adoption('exec'),
+      layer: { kind: 'official' },
     },
     invocation: { kind: 'direct', source: evidence('source') },
     command: null,
@@ -73,6 +74,7 @@ describe('ordinary invoke request judgment', () => {
       kind: 'available',
       definition: commandsDefinition(),
       executor: adoption('exec'),
+      layer: { kind: 'official' },
     },
   }
   it.each([
@@ -148,6 +150,7 @@ describe('request judgment', () => {
         kind: 'available',
         definition: commandsDefinition(),
         executor: adoption('e'),
+        layer: { kind: 'official' },
       },
     }
     expect(rejection({ ...commands, command: null })).toEqual({
@@ -187,11 +190,56 @@ describe('request judgment', () => {
       reason: 'type',
     })
     const definition = { ...functionDefinition(), description: '   ' }
-    const availability = { kind: 'available', definition, executor: adoption('e') }
+    const availability = {
+      kind: 'available',
+      definition,
+      executor: adoption('e'),
+      layer: { kind: 'official' },
+    }
     expect(rejection({ ...request(), availability })).toEqual({
       field: 'availability.definition.description',
       reason: 'blank',
     })
+  })
+
+  it('request judgment: an available result names its source layer, and the layer is a closed shape', () => {
+    const { availability } = request()
+    if (availability.kind !== 'available') throw new Error('available')
+    const { layer: _layer, ...withoutLayer } = availability
+    expect(rejection({ ...request(), availability: withoutLayer })).toEqual({
+      field: 'availability.layer',
+      reason: 'missing',
+    })
+    expect(
+      rejection({ ...request(), availability: { ...availability, layer: { kind: 'session' } } }),
+    ).toEqual({ field: 'availability.layer.kind', reason: 'value' })
+    const tenant = {
+      name: 'TenantId',
+      organization: { name: 'OrganizationId', text: 'org_a' },
+      account: { name: 'AccountId', text: 'acc_a' },
+    }
+    const layered = {
+      ...request(),
+      availability: { ...availability, layer: { kind: 'tenant', tenant } },
+    }
+    const judged = judgeFixedToolRequest(layered)
+    if (!('ok' in judged)) throw new Error(judged.failure.field)
+    expect(judged.ok.availability).toMatchObject({ layer: { kind: 'tenant', tenant } })
+    expect(
+      rejection({
+        ...request(),
+        availability: {
+          ...availability,
+          layer: { kind: 'tenant', tenant: { ...tenant, extra: 1 } },
+        },
+      }),
+    ).toEqual({ field: 'availability.layer.tenant.extra', reason: 'unknown-field' })
+    expect(
+      rejection({
+        ...request(),
+        availability: { ...availability, layer: { kind: 'workspace', workspace: '' } },
+      }),
+    ).toEqual({ field: 'availability.layer.workspace', reason: 'empty' })
   })
 
   it('request judgment: a scope is an owner, a key and the evidence of the grant', () => {

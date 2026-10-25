@@ -246,7 +246,9 @@ export function createDemo() {
             const live = await executor.start(input, _environment)
             if ('failure' in live) return live
             const registration = readToolRegistration(
-              input.request.command === null ? report.author : registeredTools?.author,
+              input.request.command === null
+                ? report.implementation
+                : registeredTools?.implementation,
             )
             if (registration === undefined) throw new Error('Missing registered author')
             const operation =
@@ -370,8 +372,9 @@ export function createDemo() {
   ): ToolInvokeRequest => ({
     availability: {
       kind: 'available',
-      definition: command === null ? report.author.definition : tools.author.definition,
+      definition: command === null ? report.definition : tools.definition,
       executor: adoption(command === null ? 'report-executor' : 'Tools-executor'),
+      layer: { kind: 'official' },
     },
     command,
     arguments: { original: argumentsText, effective: argumentsText, complete: true },
