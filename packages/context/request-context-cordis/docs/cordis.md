@@ -14,14 +14,14 @@
 
 | 方法 | 本插件加的责任 | 交给谁 |
 | --- | --- | --- |
-| `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，调用 `notify('contributions', …)`，派发变化事件。关闭后拒绝 | 机制实例从登记面读口读段并渲染，渲染结果只归它 |
+| `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，调用 `notify('contributions', …)`，派发变化事件。关闭后拒绝 | 来源登记表实例从登记面读口读段并渲染，渲染结果只归它 |
 | `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方查看。`assembly(target)` 的操作组自己现取贡献，不经调用方转交 |
 
 本成员不导出第二个服务键，不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
 
 经 Cordis 的调用方用服务的 `assembly(target)` 取得已按配置绑定策略与登记面的一组操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。这组操作只借用来源适配者经 `register` 或 `replace` 为该目标登记的来源集合；目标没有登记时返回不可用（性质 6）。性质 5 取消的在途组装就是经这组操作发起的组装。这组操作每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次；操作组的作用域与组装上下文、历史依据的作用域引用不一致时返回无效（性质 9）。
 
-本插件只把登记与撤除经 `notify('contributions', …)` 交给机制实例（性质 8）。它不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更：订阅前两者要导入对方的服务定义或做全局监听，而正确性本来只靠每次调用时比较输入携带的修订（[request-context 候选缓存](../../request-context/SPEC.md#候选缓存)）。
+本插件只把登记与撤除经 `notify('contributions', …)` 交给来源登记表实例（性质 8）。它不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更：订阅前两者要导入对方的服务定义或做全局监听，而正确性本来只靠每次调用时比较输入携带的修订（[request-context 候选缓存](../../request-context/SPEC.md#候选缓存)）。
 
 ## 配置与策略选择
 
@@ -60,10 +60,10 @@
 1. 用 `this[Service.resolveConfig]()` 取调用方 fiber 的 intercept 配置里的作用域引用。取不到即拒绝，不默认为任何一层。经 `ctx.get` 现取服务的调用方没有这份配置，所以会被拒绝。
 2. 同一层已有同名登记时拒绝，不覆盖。段带逐请求变化的变量时拒绝。
 3. 在方法里用 `this.ctx.effect` 登记。`this.ctx` 是调用方的上下文，效应落在贡献者插件的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。
-4. 这一层的登记修订前进，调用机制实例的 `notify('contributions', …)`，再派发变化事件，见[变化事件派发](#变化事件派发)。
+4. 这一层的登记修订前进，调用来源登记表实例的 `notify('contributions', …)`，再派发变化事件，见[变化事件派发](#变化事件派发)。
 5. 返回 effect 的撤除函数。
 
-撤除函数移除登记，调用 `notify('contributions', …)`，再派发变化事件（性质 2）。机制实例收到通知后重读该层，丢弃已撤除段的渲染结果；本插件不持有渲染结果。显式调用撤除函数与贡献者 fiber 卸载走同一个函数。一条登记的移除与通知写在同一个撤除函数里，因为不同 effect 之间的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
+撤除函数移除登记，调用 `notify('contributions', …)`，再派发变化事件（性质 2）。来源登记表实例收到通知后重读该层，丢弃已撤除段的渲染结果；本插件不持有渲染结果。显式调用撤除函数与贡献者 fiber 卸载走同一个函数。一条登记的移除与通知写在同一个撤除函数里，因为不同 effect 之间的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
 
 `contributions(scope)` 按作用域引用解析：作用域层的贡献遮蔽全局层的同名贡献。登记表只在本插件的进程内，不耐久。进程失败后由贡献者重新登记来重建（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)）。
 
@@ -77,7 +77,7 @@
 2. 派发放在 `try` 中。监听者同步执行，不得返回 Promise。监听者抛出时只记录诊断，已成立的登记不变（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。Cordis 4.0.4 的 `emit` 不捕获监听者的异常，排在抛出者后面的监听者这一轮不被调用（[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)）。错过事件不改变组装结果，因为缓存按修订比较。
 3. 每次派发不建 fiber，不建 isolate（性质 6、[IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。
 
-过滤由监听者按载荷完成，派发方不用 `Context.filter`（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。全局层的贡献变化时，载荷的作用域引用为 `null`；监听作用域 X 的一方也接收 `null` 载荷。修订按层计，别的作用域的变化不影响作用域 X 的提示词键。机制实例不靠本事件得知变化，本插件经 `notify` 直接交给它。
+过滤由监听者按载荷完成，派发方不用 `Context.filter`（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。全局层的贡献变化时，载荷的作用域引用为 `null`；监听作用域 X 的一方也接收 `null` 载荷。修订按层计，别的作用域的变化不影响作用域 X 的提示词键。来源登记表实例不靠本事件得知变化，本插件经 `notify` 直接交给它。
 
 ## 撤除顺序
 
@@ -85,7 +85,7 @@
 
 1. 拒绝新的登记；新的组装返回不可用（服务已卸载）。
 2. 取消在途组装（[RQ-09](../../request-context-contract/SPEC.md#rq-09-取消恢复与迟到) 允许取消组装）。被取消的组装返回不可用（服务已卸载）。撤除不等待被取消的组装里尚未返回的端口调用，不无限等待。
-3. 丢弃登记表与缓存，关闭机制实例。
+3. 丢弃登记表与缓存，关闭来源登记表实例。
 
 三步写在同一个 effect 里，不分成几个 effect 再指望它们按逆序完成（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。撤除函数里的一步抛出时，Cordis 只记日志，不上抛，所以撤除函数要自己捕获每一步，并保证后续步骤仍然执行。
 
@@ -105,7 +105,7 @@
 | Runtime Context 换代或撤除 | 子 fiber 卸载，本代登记撤除；换代后子 fiber 重跑，以同一生产者身份重新登记，得到新代际 |
 | 本插件卸载 | 子 fiber 随之卸载，登记撤除 |
 
-`context.window-usage` 的按作用域供值回调取机制实例记下的该作用域最近一次固定请求的占用比例；进程重启后到下一次固定请求之前，回调取不到值，这一块读到缺项。`context.compaction-settings` 的回调取当前选定压缩策略的保留预算与保留偏好。
+`context.window-usage` 的按作用域供值回调取来源登记表实例记下的该作用域最近一次固定请求的占用比例；进程重启后到下一次固定请求之前，回调取不到值，这一块读到缺项。`context.compaction-settings` 的回调取当前选定压缩策略的保留预算与保留偏好。
 
 ## IC 符合性映射
 
@@ -116,7 +116,7 @@
 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 重复装载在 `provide` 时失败 | 源码读数。测试随实现进入 |
 | [IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12) 通知的失败处理 | `emit` 放在 `try` 中，监听者失败只记录诊断 | 机制有 basis。测试随实现进入 |
 | [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8) 必需依赖与子 fiber | Runtime Context 不在 `inject` 里；只有登记两块的那段工作经 `ctx.inject(['runtimeContext'], …)` 放进子 fiber | 没有源码 |
-| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 登记方法在调用方 fiber 上登记，撤除函数移除登记并通知机制实例。不采用目录写法 | 效应归属有 basis。贡献者卸载后撤除的测试随实现进入 |
+| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 登记方法在调用方 fiber 上登记，撤除函数移除登记并通知来源登记表实例。不采用目录写法 | 效应归属有 basis。贡献者卸载后撤除的测试随实现进入 |
 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 配置校验 | 静态 `Config` 用 Standard Schema。指向不存在的策略或参数不合 Schema 即 `FAILED`，不回退 | Service 子类路径没有 basis，测试随实现进入 |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是不透明键。不为每次请求开 fiber，不用 `inject` 表达输入，不建 isolate | 没有源码 |
 | [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户是参数 | 租户、作用域与资格随操作参数进入。intercept 配置与 isolate 都不授予资格 | 没有源码 |
@@ -139,13 +139,13 @@
 
 本成员的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的各项：
 
-1. 贡献者插件卸载后，登记已撤除，机制实例收到通知后不再有它的渲染结果。
+1. 贡献者插件卸载后，登记已撤除，来源登记表实例收到通知后不再有它的渲染结果。
 2. 同一层同名登记被拒绝。
 3. 带逐请求变化变量的段被拒绝。
 4. 变化事件带该层修订与实例代次。
 5. 配置指向不存在的策略时 fiber 进入 `FAILED`。
 6. 插件卸载时在途组装被取消并返回不可用，撤除不无限等待；关闭后的组装返回不可用。
-7. 登记与撤除都经 `notify('contributions', …)` 到达机制实例（性质 8）。
+7. 登记与撤除都经 `notify('contributions', …)` 到达来源登记表实例（性质 8）。
 8. `assembly(target)` 只借用该目标已登记的来源集合，目标没有登记时返回不可用。
 9. Runtime Context 不在场时本插件照常可用、两块读到缺项；Runtime Context 到场后两块有值。
 10. 同一 isolate 标签下重复装载失败。

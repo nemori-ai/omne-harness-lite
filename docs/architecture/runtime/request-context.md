@@ -22,7 +22,7 @@ Request Context 是一次模型请求输入的派生计算与装入保证。一�
 | 组装 `assemble` | 按六层布局拼装成请求候选，附覆盖证据 | 不固定、不记录 |
 | 压缩计划 `planCompaction`、`deriveStep`、`resume` | 出计划、逐步推导、转换提交后重算 | 不发模型调用 |
 
-十一个纯操作（八个单项操作加三个压缩计划操作）都是纯计算或计划。贡献登记面是唯一带寿命的部分，见[提示词贡献登记面](#提示词贡献登记面)。
+操作分两类（[RQ-01](../../../packages/context/request-context-contract/SPEC.md#rq-01-调用方与计算边界)）：已检数据上的派生计算是纯函数；组装入口是操作组 `AssemblyOperations`，它从来源集合稳定读取材料，是效果操作。带寿命的部分是来源登记表与贡献登记面，见[提示词贡献登记面](#提示词贡献登记面)。
 
 ## 输入来源与组装
 
@@ -51,7 +51,7 @@ flowchart TD
 | 组 | 谁给 | 要点 |
 |---|---|---|
 | 调用身份与用途 | 调用方 | 访问身份、用途、消费位置、候选身份；压缩步请求不经组装 |
-| 历史与新输入 | 持有者的读取适配器与调用方 | 历史依据经历史源读口分页读，不遍历全历史；读口是来源集合 `ContextSources` 的一部分，按目标（租户与作用域）登记，组装时由操作组稳定读取，不由调用方逐次交入（[RQ-12](../../../packages/context/request-context-contract/SPEC.md#rq-12-来源集合与登记面)）；新输入先可靠保存再进组装；有效压缩记录从历史派生 |
+| 历史与新输入 | 持有者的读取适配器与调用方 | 历史依据经历史源读口分页读，不遍历全历史；读口是来源集合 `ContextSources` 的一部分，按目标（租户与作用域）登记，组装时由操作组稳定读取（[RQ-12](../../../packages/context/request-context-contract/SPEC.md#rq-12-来源集合与登记面)）；新输入先可靠保存再进组装；有效压缩记录从历史派生 |
 | Runtime Context 读取结果 | 调用方以模型资格读得 | 完整或增量、覆盖证据、快照提醒的块材料（增量时由调用方交入它保存的最近一次完整读取的材料）；组装不读 Runtime Context，也不保存块材料；私有块永远不在其中 |
 | 系统提示词 | 贡献登记面与调用方 | 有序段与变量两类贡献，加解析贡献用的组装上下文 |
 | 模型侧 | 调用方经模型选择端口 | 实际收件模型、已解析档案、参数；组装不解析档案、不选模型 |
@@ -159,7 +159,7 @@ assistant 消息里的推理续接状态部件与其他块一样进入会话历�
 
 | 成员 | 变体 | 责任 |
 |---|---|---|
-| [request-context-contract](../../../packages/context/request-context-contract/SPEC.md) | module | 组装输入七组、候选与装入裁定、三类失败、覆盖证据、十一个纯操作（八个单项操作加三个压缩计划操作）、六层布局与锚点规则常量、历史源与策略端口类型、解码与判定 |
+| [request-context-contract](../../../packages/context/request-context-contract/SPEC.md) | module | 组装输入七组、候选与装入裁定、三类失败、覆盖证据、操作组 `AssemblyOperations` 与已检数据上的纯函数、来源集合与 `createAssemblyOperations`、六层布局与锚点规则常量、历史源与策略端口类型、解码与判定 |
 | [request-context-cordis-contract](../../../packages/context/request-context-cordis-contract/SPEC.md) | service-contract | 唯一服务定义 `requestContext`：贡献登记面、策略提供者选择，来源登记表的 `register` 与 `replace`，以及组装入口 `assembly(target)`（返回已按配置绑定策略、借用该目标当前登记的来源集合的一组操作；目标没有登记时返回不可用；每次调用时从登记面现取该作用域的贡献） |
 | [request-context](../../../packages/context/request-context/SPEC.md) | module | 索引、候选缓存、默认压缩策略与表示策略、修剪器 |
 | [request-context-cordis](../../../packages/context/request-context-cordis/SPEC.md) | service-provider | Service 实现：贡献登记表、作用域遮蔽、策略实现选择与配置校验 |

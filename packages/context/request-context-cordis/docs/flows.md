@@ -15,7 +15,7 @@ sequenceDiagram
   participant A as 装配者
   participant F as 插件 fiber
   participant S as 服务实例
-  participant M as 机制实例
+  participant M as 来源登记表实例
   A->>F: 在某个 isolate 标签下装载插件与配置
   F->>F: 静态 Config 校验配置
   alt 同一标签下已有提供者
@@ -32,14 +32,14 @@ sequenceDiagram
   S->>S: 拒绝新的登记；新的组装返回不可用
   S->>M: 取消在途组装，不等待尚未返回的端口调用
   S->>S: 丢弃登记表
-  S->>M: 丢弃缓存，关闭机制实例
+  S->>M: 丢弃缓存，关闭来源登记表实例
 ```
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
 | 配置校验 | 配置合法才继续 | 配置不合法见 F-RQP03 |
 | 登记服务 | 一个标签下一份 | 重复装载失败。要两份实现时由装配者分到不同标签 |
-| 构造机制实例 | 选定的策略、登记面读口与配置传给工厂；来源集合由来源适配者经 `register` 按目标登记，`assembly(target)` 只借用已登记的来源集合 | 目标没有登记时，组装返回不可用，不伪装成功 |
+| 构造来源登记表 | 主体绑定、登记授权判定者与选定的两个策略传给 `createContextSourceRegistry`；来源集合由来源适配者经 `register` 按目标登记，`assembly(target)` 只借用已登记的来源集合 | 目标没有登记时，组装返回不可用，不伪装成功 |
 | 两块的生产者 | Runtime Context 在场时子 fiber 登记两块 | Runtime Context 不在场时子 fiber 停在 `PENDING`，本插件照常可用，两块读到缺项；到场后子 fiber 登记 |
 | 卸载 | 三步写在一个 effect 里 | 某一步抛出时 Cordis 只记日志，撤除函数要自己捕获并继续后续步骤 |
 | 卸载时在途组装 | 被取消，返回不可用（服务已卸载） | 撤除不无限等待。撤除开始后到达的登记被拒绝，组装返回不可用（服务已卸载） |
@@ -54,7 +54,7 @@ sequenceDiagram
   participant CF as 贡献者插件 fiber
   participant S as 服务实例
   participant T as 贡献登记表
-  participant M as 机制实例
+  participant M as 来源登记表实例
   participant C as 组装请求的调用方
   CF->>S: contributeSection(段)
   S->>S: resolveConfig() 取作用域引用
@@ -70,7 +70,7 @@ sequenceDiagram
   S->>M: notify('contributions', 作用域引用, 该层修订)
   M->>T: 重读该层，丢弃已撤除段的渲染结果
   S->>S: try：emit changed(作用域引用, 该层修订, 实例代次)
-  C->>S: assembly(作用域, ports) 交出的操作组发起组装
+  C->>S: assembly(target) 交出的操作组发起组装
   S->>T: 现取该作用域适用的贡献集合
   S-->>C: 结果不含已卸载贡献者的贡献；覆盖证据记段列表摘要与实例代次
 ```
@@ -79,7 +79,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 取作用域 | 来自调用方 fiber 的 intercept 配置 | 取不到时拒绝。贡献者改用对象形式 `inject` |
 | 登记 | 效应落在贡献者插件的 fiber 上 | 贡献者 fiber 已在卸载时，`effect` 抛 `INACTIVE_EFFECT`，登记不成立 |
-| 预计算 | 本插件调用 `notify('contributions', …)`，机制实例从登记面读口读段并渲染 | 渲染结果只归机制实例，本插件不持有，见 [SPEC 性质 8](../SPEC.md#结果与不变量) |
+| 预计算 | 本插件调用 `notify('contributions', …)`，来源登记表实例从登记面读口读段并渲染 | 渲染结果只归来源登记表实例，本插件不持有，见 [SPEC 性质 8](../SPEC.md#结果与不变量) |
 | 撤除 | 移除登记与调用 `notify` 在同一个撤除函数里 | 不依赖两个 effect 的释放次序 |
 | 撤除之后 | 后续组装不含这条贡献 | 已经交出的候选不撤回 |
 | 本插件已先关闭 | 贡献者的撤除函数在登记表丢弃后运行 | 撤除函数要安全返回，不抛出 |

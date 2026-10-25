@@ -14,7 +14,7 @@ Status: Service implementation member, `draft`. The adoption basis is the [membe
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the concrete subclass, the plugin, the configuration schema, and the contribution registry. The root entry stays empty.
 - Not verified: the definition member tests the intercept mechanism on Cordis 4.0.4. The reading is not registered in the shared basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
-- A Cordis caller reaches the configured operations through `assembly(target)`. The operations borrow the source set that a source adapter registered for that target through `register`, and they read the contributions of that scope at each call. A target with no registered source set gets unavailable. The plugin gives only contribution-registry changes to the mechanism instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
+- A Cordis caller reaches the configured operations through `assembly(target)`. The operations borrow the source set that a source adapter registered for that target through `register`, and they read the contributions of that scope at each call. A target with no registered source set gets unavailable. The plugin gives only contribution-registry changes to the source registry instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
 
 No application loads this plugin now, and no package depends on this package.
 
@@ -34,17 +34,17 @@ Contributors and callers that assemble requests do not import this package. They
 - The [Cordis page](docs/cordis.md) owns the plugin, the configuration and strategy selection, the isolate binding, the contribution registry, the change event dispatch, and the removal order.
 - [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md) owns the service key, the abstract class, the intercept configuration, the event, and the strategy selection shape.
 
-The fiber of this plugin owns the service instance, the mechanism instance, and the strategy instances. When the plugin unloads, removal runs in a fixed order:
+The fiber of this plugin owns the service instance, the source registry instance, and the strategy instances. When the plugin unloads, removal runs in a fixed order:
 
 1. Refuse new registrations and assemblies.
 2. Cancel in-flight assemblies. Removal does not wait without limit.
 3. Discard the registry and the cache.
 
-The fiber of the contributor plugin owns a contribution registration. Only the mechanism instance holds the section rendering. Removal does not take back candidates, plans, or transitions that it gave out.
+The fiber of the contributor plugin owns a contribution registration. Only the source registry instance holds the section rendering. Removal does not take back candidates, plans, or transitions that it gave out.
 
 ## Design
 
-`./cordis` has five parts: configuration and strategy selection, service subclass, contribution registry, event dispatch, and removal. The outside dependencies are request-context-contract, request-context-cordis-contract, request-context, and `@deepseek-ai/cordis`. Removal runs in one effect. The service reads the scope on each call. A strategy selection failure fails the load and does not fall back. Registration and removal both notify the mechanism instance. Source sets are registered per target. Runtime Context is an optional dependency. The package opens no fiber per request. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the objects.
+`./cordis` has five parts: configuration and strategy selection, service subclass, contribution registry, event dispatch, and removal. The outside dependencies are request-context-contract, request-context-cordis-contract, request-context, and `@deepseek-ai/cordis`. Removal runs in one effect. The service reads the scope on each call. A strategy selection failure fails the load and does not fall back. Registration and removal both notify the source registry instance. Source sets are registered per target. Runtime Context is an optional dependency. The package opens no fiber per request. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 

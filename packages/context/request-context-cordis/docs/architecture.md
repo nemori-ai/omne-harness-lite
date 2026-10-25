@@ -8,7 +8,7 @@
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/request-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径从 request-context 取机制工厂 | 模板标记 |
+| `@omne-harness/request-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径用 request-context-contract 的 `createAssemblyOperations` | 模板标记 |
 | `@omne-harness/request-context-cordis/cordis` | `src/cordis.ts` | `RequestContextService` 的具体子类、插件与配置 Schema | 模板标记 |
 
 `./cordis` 内部按 Cordis 责任分成六块：
@@ -16,9 +16,9 @@
 | 模块 | 职责 | 依据 |
 | --- | --- | --- |
 | 配置与策略选择 | 静态 `Config` 的 Standard Schema，按配置构造两个策略实例，指向不存在的策略即加载失败 | [配置与策略选择](cordis.md#配置与策略选择) |
-| 服务子类 | 持有机制实例与贡献登记表，实现登记面三项方法、来源登记表的 `register` 与 `replace`，以及 `assembly(target)` | 性质 2、6、9 |
-| 贡献登记表 | 按作用域与层保存登记，核重名，按作用域解析遮蔽，按层维护登记修订与实例代次，给机制实例一个读口 | 性质 2、3、8 |
-| 通知与事件派发 | 贡献变化后先 `notify('contributions', …)` 机制实例，再派发带该层修订与实例代次的事件，捕获监听者失败 | 性质 3、8 |
+| 服务子类 | 持有来源登记表实例与贡献登记表，实现登记面三项方法、来源登记表的 `register` 与 `replace`，以及 `assembly(target)` | 性质 2、6、9 |
+| 贡献登记表 | 按作用域与层保存登记，核重名，按作用域解析遮蔽，按层维护登记修订与实例代次，给来源登记表实例一个读口 | 性质 2、3、8 |
+| 通知与事件派发 | 贡献变化后先 `notify('contributions', …)` 来源登记表实例，再派发带该层修订与实例代次的事件，捕获监听者失败 | 性质 3、8 |
 | 两块的生产者 | 在 `ctx.inject(['runtimeContext'], …)` 的子 fiber 里登记两块的生产者 | 性质 10 |
 | 撤除 | 一个 effect 内完成拒绝新请求、取消在途组装、丢弃登记表与缓存 | 性质 5 |
 
@@ -42,7 +42,7 @@ flowchart LR
 - `@omne-harness/runtime-context-cordis-contract`：可选依赖，只用于在子 fiber 里登记两块的生产者。Runtime Context 不在场时本插件照常可用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
 
-现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余四项随实现进入。本插件不 `inject` 作用域持有者或模型侧的服务，四项端口由调用方逐次交入。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余四项随实现进入。本插件不 `inject` 作用域持有者或模型侧的服务，来源集合由来源适配者按目标登记。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 根入口不导出任何东西。独立路径的组装入口只有一个公开名字，就是 request-context-contract 根入口的 `createAssemblyOperations`；来源登记表的工厂是 request-context 根入口的 `createContextSourceRegistry`。
 
@@ -62,13 +62,13 @@ flowchart LR
 
 配置指向不存在的策略，或策略参数不合 Schema，插件加载失败，fiber 进入 `FAILED`（性质 4）。理由：静默回退到默认策略会让装配者以为自己选的策略在用。错误不能静默变成成功。代价是一个配置错误会使整个服务不可用，装配者必须修正配置才能继续。
 
-### 渲染结果只归机制实例
+### 渲染结果只归来源登记表实例
 
-撤除函数移除登记，再调用机制实例的 `notify('contributions', …)`；机制实例重读该层，丢弃已撤除段的渲染结果（性质 2、8）。本插件不持有渲染结果。理由：渲染结果如果同时归登记表与机制实例，两处的寿命与丢弃时点会不一致，后续组装可能用到另一处留下的旧渲染。只有机制实例持有，提供者撤除时释放机制实例就释放了全部渲染结果。移除与通知写在同一个撤除函数里，不依赖两个 effect 的释放次序。
+撤除函数移除登记，再调用来源登记表实例的 `notify('contributions', …)`；来源登记表实例重读该层，丢弃已撤除段的渲染结果（性质 2、8）。本插件不持有渲染结果。理由：渲染结果如果同时归贡献登记表与来源登记表实例，两处的寿命与丢弃时点会不一致，后续组装可能用到另一处留下的旧渲染。只有来源登记表实例持有，提供者撤除时释放来源登记表实例就释放了全部渲染结果。移除与通知写在同一个撤除函数里，不依赖两个 effect 的释放次序。
 
 ### 只通知贡献变化，不订阅别的变化
 
-本插件只把贡献登记的变化交给机制实例。它不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更（性质 8）。理由：订阅持有者与模型选择要导入对方的服务定义；订阅 Runtime Context 的事件只能全局监听，而那是约定禁止的；正确性本来只靠每次调用时比较输入携带的修订，订阅不增加正确性。
+本插件只把贡献登记的变化交给来源登记表实例。它不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更（性质 8）。理由：订阅持有者与模型选择要导入对方的服务定义；订阅 Runtime Context 的事件只能全局监听，而那是约定禁止的；正确性本来只靠每次调用时比较输入携带的修订，订阅不增加正确性。
 
 ### 来源集合按目标登记，Runtime Context 是可选依赖
 
