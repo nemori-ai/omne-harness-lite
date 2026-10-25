@@ -62,7 +62,7 @@
 - AD-15：执行环境的作用域释放。
 - AD-08：受理拓展点，待 NP-07；本部署 `admission: 'none'`。
 
-AD-16 与 AD-17 对应的两个出站端口已被替代，不装载，见 [被替代的协议](../../../packages/session/session-contract/SPEC.md#被替代的协议)。启动资格由工具线承接，启动围栏是 Agent 日志的 `start-fence` 条目。交付责任解除经 Agent 宿主的结果接收方发出，不经 Session 的出站端口。
+AD-16 与 AD-17 对应的两个出站端口已被替代，不装载，见 [被替代的协议](../../../packages/session/session-contract/SPEC.md#被替代的协议)。启动围栏是 Agent 日志的 `start-fence` 条目。交付责任解除经 Agent 宿主的结果接收方发出，不经 Session 的出站端口。
 
 对应端口按 [Session 的端口表](../../../packages/session/session-contract/SPEC.md#构造依赖端口与出站端口)处理：空闲维护与自动归档返回 `unavailable`；作用域释放的任务保留。本部署也不提供 `sessionNotifier`：每次提交后它缺席，提交不回滚；观察推送随 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。
 
@@ -126,6 +126,7 @@ flowchart LR
 | `session-storage` 的组合登记时机：成员 Cordis 页的[加载次序](../../../packages/session/session-storage-sql/docs/cordis.md#加载与组合登记)第 3 步在插件加载时登记一次，与每租户一个事务域不符 | Session 实现：改为由 `tenant-domains` 在租户首次解析时用本成员给出的登记材料登记，与成员[装配须知](../../../packages/session/session-storage-sql/docs/context.md)第 2 条一致 |
 | 登记表重建的两个前提：存储提供者文件名与事务域标识的对应、推导规则可逆 | 存储提供者（[#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)、[#540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）与应用装配实现；前提不成立时登记表丢失只能人工恢复 |
 | `session-handoff` 行：Session 一侧的 `MessageHandoff` 没有提供者；[Agent 的 Cordis 页](../../../packages/agent/agent-cordis-contract/docs/cordis.md)写「由装配者选择」 | Session 拥有者认领实现成员；认领前 `agent-host` 停在 `PENDING`，首条路径不能开始接收消息 |
+| Session 一侧 `release` 的记账：`ProducerFact.release` 没有写入者，`receive(release)` 与 SE19 不发生，交付责任在 Session 日志里保持 pending | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) |
 | `session-ad10` 行：所 `inject` 的装配采用与保管来源服务的键未定 | Session 实现 |
 | `agent-journal` 行：Journal 入口与 Session 提交参加者 | Agent 自身的 Journal 入口归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；Session 参加者与原 J 查询的桥接归 Session 实现 |
 | `agent-host` 行：宿主插件 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |

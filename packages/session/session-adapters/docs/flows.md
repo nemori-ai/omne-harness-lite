@@ -58,7 +58,7 @@ flowchart LR
 2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料：全部注册提交的耐久顺序、每个 `checkpointed` 块的步提交全值、已经确认的作用域结束。然后重签资格。创建作用域时材料为空。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
-5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件把作用域结束交给 `applyCommit`，并撤销该作用域的全部资格。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
+5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实的产生时点归 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
 
 ### FA-04 历史源读取与未结工作下界
 
