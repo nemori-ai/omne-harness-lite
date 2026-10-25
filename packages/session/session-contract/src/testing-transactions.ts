@@ -32,7 +32,8 @@ import type {
   SessionCommand,
   SessionTransactionPort,
 } from './ports.ts'
-import { decide, commandDigest } from './decide.ts'
+import { decide, commandDigest, LOGIN_ENTRY_OWNER } from './decide.ts'
+import { judgeCompletion } from './judgments.ts'
 import { SESSION_INTERPRETER } from './entries.ts'
 import { OFF_PATH_FAILURE, type OperationRecord } from './judgments.ts'
 import { canonicalText, digestOf } from './operations.ts'
@@ -51,6 +52,7 @@ import {
   assistantMessage,
   creation as legalCreation,
   evidence,
+  guard,
   memoryAccess,
   memoryOtherAccess,
   operationId,
@@ -485,7 +487,11 @@ function scene<P>(fixture: SessionTransactionsFixture<P>) {
   const base = { tenant: access.tenant, session: access.session }
   const commit = <K extends MutationName>(
     command: Extract<SessionCommand, { kind: K }>,
-  ): Promise<Commit<K>> => port.commit<K>({ command, guards: [] }) as Promise<Commit<K>>
+    guards: readonly GuardCommand[] = [],
+  ): Promise<Commit<K>> => port.commit<K>({ command, guards }) as Promise<Commit<K>>
+  /** The login confirmation the assembly's evidence bridge takes from the first input's origin. */
+  const loginEntry = (name: string) =>
+    guard('evidence-bridge', LOGIN_ENTRY_OWNER, { session: access.session, operation: name })
   const create = (name = 'create', creation = fixture.creation) =>
     commit<'create'>({
       kind: 'create',
@@ -496,17 +502,20 @@ function scene<P>(fixture: SessionTransactionsFixture<P>) {
       kind: 'accept',
       input: { ...base, operation: fixture.operation(name), value: ordinaryInput(input) },
     })
-  const startRun = (name = 'start-run') =>
-    commit<'startRun'>({
-      kind: 'startRun',
-      input: {
-        ...base,
-        operation: fixture.operation(name),
-        entry: 'interactive',
-        candidate: fixture.creation.definition.candidate,
-        instance: { owner: 'agent', id: 'instance-1' },
+  const startRun = (name = 'start-run', login = true) =>
+    commit<'startRun'>(
+      {
+        kind: 'startRun',
+        input: {
+          ...base,
+          operation: fixture.operation(name),
+          entry: 'interactive',
+          candidate: fixture.creation.definition.candidate,
+          instance: { owner: 'agent', id: 'instance-1' },
+        },
       },
-    })
+      login ? [loginEntry(name)] : [],
+    )
   const handover = (execution: string, input: string, name = `handover-${input}`) =>
     commit<'receive'>({
       kind: 'receive',
@@ -692,6 +701,97 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
           { real: await commitAs(real), ghost: await commitAs(ghost) },
           'commit',
         )
+        succeeded(await s.accept('input-1'), 'accept')
+        assertIndistinguishable(
+          {
+            real: await s.port.readInput({ ...real, input: 'input-1' as InputId }),
+            ghost: await s.port.readInput({ ...ghost, input: 'input-1' as InputId }),
+          },
+          'readInput',
+        )
+        const own = succeeded(
+          await s.port.history.begin({
+            ...fixture.access,
+            kinds: [],
+            from: null,
+            direction: 'forward',
+            pageBytes: 1,
+          }),
+          'history.begin of the owner',
+        )
+        assert.notEqual(own.next, null, 'a one-byte page leaves a cursor')
+        const cursor = own.next as string
+        assertIndistinguishable(
+          {
+            real: await s.port.history.next({ ...real, cursor }),
+            ghost: await s.port.history.next({ ...ghost, cursor }),
+          },
+          "history.next with the owner's cursor",
+        )
+        const after = own.entries[0]?.id as EntryId
+        assertIndistinguishable(
+          {
+            real: await s.port.history.since({ ...real, after, kinds: [], pageBytes: 1024 }),
+            ghost: await s.port.history.since({ ...ghost, after, kinds: [], pageBytes: 1024 }),
+          },
+          'history.since',
+        )
+        const listed = succeeded(
+          await s.port.pending({
+            principal: other.principal,
+            tenant: other.tenant,
+            after: null,
+            limit: 10,
+          }),
+          'pending of the other tenant',
+        )
+        assert.deepEqual(listed.sessions, [], 'pending lists no session of another tenant')
+      },
+    ),
+
+    conformanceCase(
+      'R2',
+      'startRun of an interactive entry needs the login-entry confirmation among the guards',
+      async fixture => {
+        const s = scene(fixture)
+        succeeded(await s.create(), 'create')
+        succeeded(await s.accept('input-1'), 'accept')
+        const refusal = refused(
+          await s.startRun('start-without-login', false),
+          'startRun without login',
+        )
+        expectKind(refusal, 'login-required', 'startRun without login')
+        assert.equal((await s.readWork()).run.kind, 'none', 'the refusal opens no Run')
+        succeeded(await s.startRun('start-with-login'), 'startRun with login')
+      },
+    ),
+
+    conformanceCase(
+      'PA-08',
+      'after a bounded terminal the successor Run re-hands the same input, and judgeCompletion follows',
+      async fixture => {
+        const s = scene(fixture)
+        const first = await s.openRun()
+        succeeded(await s.handover(first, 'input-1', 'handover-1-first'), 'first hand-over')
+        assert.equal(judgeCompletion(await s.readWork(), first).kind, 'allowed')
+        succeeded(await s.finish('finish-first'), 'finishRun')
+        const between = await s.readWork()
+        assert.deepEqual(
+          between.pending,
+          ['input-1'],
+          'an uninterpretable close keeps the eligibility',
+        )
+        assert.deepEqual(between.handed, [], 'the terminal releases the hand-over state')
+        const second = succeeded(await s.startRun('start-second'), 'second startRun').execution
+        assert.notEqual(second, first)
+        assert.deepEqual(judgeCompletion(await s.readWork(), second), {
+          kind: 'blocked',
+          pendingInputs: ['input-1'],
+        })
+        succeeded(await s.handover(second, 'input-1', 'handover-1-second'), 'second hand-over')
+        const after = await s.readWork()
+        assert.deepEqual(after.handed, ['input-1'])
+        assert.equal(judgeCompletion(after, second).kind, 'allowed')
       },
     ),
 
@@ -1026,6 +1126,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
+        const before = await s.readWork()
         const failure = refused(
           await s.commit<'control'>({
             kind: 'control',
@@ -1039,11 +1140,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         )
         const off = expectKind(failure, 'unavailable', 'control')
         assert.match(off.diagnostic, /#756/u)
-        assert.deepEqual(
-          await s.readWork(),
-          succeeded(await s.port.readWork(fixture.access), 'readWork'),
-          'a refusal writes nothing',
-        )
+        assert.deepEqual(await s.readWork(), before, 'a refusal writes nothing')
       },
     ),
   ]

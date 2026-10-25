@@ -24,7 +24,7 @@ Session 的纯契约成员，不依赖 Cordis。
 
 未验证：耐久、跨进程并发、对真实存储的恢复、真实身份源与时钟。替身只在内存里证明判定。
 
-组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。入口为空，它们现在不使用任何导出。
+组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。`session` 与 `session-cordis` 消费根入口的类型与运行时函数；`session-cordis-contract` 在其 Cordis 服务定义下转出这些类型。
 
 ## 使用
 
@@ -67,7 +67,7 @@ declare function drive<P>(session: SessionFaces<P>): void
 pnpm turbo run test --filter=@omne-harness/session-contract
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有导出，见 [tests/](tests/README.md)。SPEC 的验证义务都还没有测试覆盖，包括[持续验证义务](SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](SPEC.md#候选的持续验证义务)。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。测试覆盖导出集合、首条路径种类的 `decide`/`reduce`、边界上的纯判定、事务端口套件的自证与依赖方向，见 [tests/](tests/README.md)。SPEC 其余验证义务还没有测试覆盖，包括[持续验证义务](SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](SPEC.md#候选的持续验证义务)。结构检查通过不表示行为已验证。
 
 ## 维护
 

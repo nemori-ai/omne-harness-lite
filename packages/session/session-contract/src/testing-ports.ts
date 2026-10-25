@@ -76,32 +76,55 @@ export function createScriptedSessionIdentityBridge<P>(
 
 export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
   readonly durability: 'none'
-  readonly controls: Readonly<{ unavailable(down: boolean): void }>
+  readonly controls: Readonly<{
+    unavailable(down: boolean): void
+    /** Whether `prepare` of a `startRun` includes the login-entry confirmation (default: yes). */
+    loginEntry(included: boolean): void
+  }>
 }
 
-/** An evidence bridge that hands over one material per command, naming the command kind. */
-export function createMemorySessionEvidenceBridge(): MemorySessionEvidenceBridge {
+/**
+ * An evidence bridge that hands over one material per command, naming the command kind. For a
+ * `startRun` it also hands over the login-entry confirmation (owner `login-entry`), as the
+ * assembly's bridge takes it from the first input's origin, unless scripted to omit it.
+ */
+export function createMemorySessionEvidenceBridge(
+  options: Readonly<{ loginEntry?: boolean }> = {},
+): MemorySessionEvidenceBridge {
   let down = false
+  let loginEntry = options.loginEntry ?? true
   return Object.freeze({
     durability: 'none' as const,
-    prepare: (command: SessionCommand) =>
-      Promise.resolve(
-        down
-          ? fail({
-              kind: 'unavailable' as const,
-              owner: 'evidence',
-              diagnostic: 'the evidence source is scripted down',
-            })
-          : succeed<readonly GuardCommand[]>([
-              guard('evidence-bridge', 'evidence', {
-                kind: command.kind,
-                operation: command.input.operation,
-              }),
-            ]),
-      ),
+    prepare: (command: SessionCommand) => {
+      if (down)
+        return Promise.resolve(
+          fail({
+            kind: 'unavailable' as const,
+            owner: 'evidence',
+            diagnostic: 'the evidence source is scripted down',
+          }),
+        )
+      const materials: GuardCommand[] = [
+        guard('evidence-bridge', 'evidence', {
+          kind: command.kind,
+          operation: command.input.operation,
+        }),
+      ]
+      if (command.kind === 'startRun' && loginEntry)
+        materials.push(
+          guard('evidence-bridge', 'login-entry', {
+            session: command.input.session,
+            operation: command.input.operation,
+          }),
+        )
+      return Promise.resolve(succeed<readonly GuardCommand[]>(materials))
+    },
     controls: Object.freeze({
       unavailable: (next: boolean) => {
         down = next
+      },
+      loginEntry: (included: boolean) => {
+        loginEntry = included
       },
     }),
   })

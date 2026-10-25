@@ -133,7 +133,10 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
       if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
         return 'a terminal outside the active Run'
       if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
+      // The hand-over state belongs to the execution of the Run: a successor Run re-hands every
+      // input that kept its eligibility (PA-08 item 2), so the terminal releases `handed`.
       draft.run = { kind: 'terminal', terminal: entry.terminal }
+      draft.handed = []
       return null
     }
   }

@@ -27,6 +27,7 @@ import {
   memoryAccess,
   memoryOtherAccess,
   operationId,
+  guard,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
 
@@ -35,7 +36,9 @@ const base = { tenant: access.tenant, session: access.session }
 
 /** Commits `command` on `previous` through decide and reduce, as a storage participant would. */
 function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot {
-  const decision = decide(previous, command, [], null, { compaction: null })
+  const guards =
+    command.kind === 'startRun' ? [guard('evidence-bridge', 'login-entry', 'login')] : []
+  const decision = decide(previous, command, guards, null, { compaction: null })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
     previous === null ? 1 : Number(previous.revision) + 1,
@@ -399,12 +402,11 @@ describe('the pure judgments at their edges', () => {
     expect(judgeCompletion(dormant(), 'none')).toEqual({ kind: 'allowed' })
   })
 
-  it('the off-path services answer with #756 and resolveCascade throws', () => {
+  it('judgeIdle answers unavailable naming #756; resolveControlScope and resolveCascade throw naming it', () => {
     const snapshot = dormant()
-    expect(resolveControlScope(snapshot, { kind: 'control', value: { kind: 'archive' } })).toEqual({
-      kind: 'invalid',
-      reason: expect.stringContaining('#756'),
-    })
+    expect(() =>
+      resolveControlScope(snapshot, { kind: 'control', value: { kind: 'archive' } }),
+    ).toThrow(/#756/u)
     expect(
       judgeIdle(snapshot, {
         observation: {

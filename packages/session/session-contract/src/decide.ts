@@ -1,6 +1,7 @@
 // `decide` turns one command into the content of one commit (SPEC「领域服务与归约」): it recalls the
-// operation, runs the domain services and the guards of the command table, and produces the entry
-// batch or the refusal. `reduce(decide(...))` round-trips under one interpreter.
+// operation, runs the domain services of the command table, and produces the entry batch or the
+// refusal. The guard materials ride along opaque: `decide` reads only their presence (the login
+// gate of `startRun`), never their `facts`. `reduce(decide(...))` round-trips under one interpreter.
 //
 // Support in this member (card #536 revision 5): the kinds of the M2 first tenant path are decided
 // to the SPEC (`create`, `completeInitialization`, `accept` of an ordinary input, `startRun`,
@@ -219,15 +220,26 @@ function decideAccept(
   }
 }
 
+/** The owner of the guard material that confirms the login of an ordinary-input entry (#318 design, 「普通输入的来源与登录门」). */
+export const LOGIN_ENTRY_OWNER = 'login-entry'
+
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
+  guards: readonly GuardCommand[],
 ): Decision {
   const judgment = judgeRunStart(snapshot, command.input.entry)
   if (judgment.kind !== 'eligible') {
     if (judgment.kind === 'frozen') return rejected({ kind: 'frozen', verdict: null })
     return rejected({ kind: judgment.kind })
   }
+  // The login gate (ruling R2): an interactive entry needs the login confirmation that the
+  // evidence bridge takes from the first input's origin. Presence only; `facts` stays opaque.
+  if (
+    command.input.entry === 'interactive' &&
+    !guards.some(guard => guard.owner === LOGIN_ENTRY_OWNER)
+  )
+    return rejected({ kind: 'login-required' })
   const { candidate, instance } = command.input
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
   if (instance.owner !== 'agent' || instance.id.length === 0)
@@ -408,7 +420,7 @@ export function commandDigest(command: SessionCommand): string {
 export function decide(
   previous: WorkSnapshot | null,
   command: SessionCommand,
-  _guards: readonly GuardCommand[],
+  guards: readonly GuardCommand[],
   record: OperationRecord | null,
   _reads: DecideReads,
 ): Decision {
@@ -428,7 +440,7 @@ export function decide(
     case 'accept':
       return decideAccept(previous, command)
     case 'startRun':
-      return decideStartRun(previous, command)
+      return decideStartRun(previous, command, guards)
     case 'recordMessage':
       return decideRecordMessage(previous, command)
     case 'receive':

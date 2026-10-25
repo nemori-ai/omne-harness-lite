@@ -3,9 +3,12 @@
 // each case fails under a violating variant that breaks the rule of that case.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
-import type { SessionTransactionPort } from '@omne-harness/session-contract'
+import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
 import {
+  adoption,
   memorySessionTransactionsFixture,
+  operationId,
+  ordinaryInput,
   sessionTransactionsConformance,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
@@ -25,6 +28,9 @@ const NAMES = {
   recall: 'the same operation with the same input recalls the original receipt',
   conflict: 'the same operation with another input is a conflict',
   tenant: 'another tenant reads denied, the same as for a session that never was',
+  login: 'startRun of an interactive entry needs the login-entry confirmation among the guards',
+  rehand:
+    'after a bounded terminal the successor Run re-hands the same input, and judgeCompletion follows',
   accept: 'accept queues an ordinary input and readInput returns it',
   start: 'startRun fixes the first input, opens the Run and keeps the inputs pending',
   runActive: 'a second startRun on an unfinished Run is run-active, and without input no-input',
@@ -245,6 +251,75 @@ const variants: readonly Variant<Fixture>[] = [
             },
             terminal: answer.failure.terminal,
           })
+        return answer
+      }) as Port['commit'],
+    })),
+  },
+  {
+    name: 'startRun opens the Run without the login-entry confirmation',
+    fails: [NAMES.login],
+    fixture: variant(real => ({
+      commit: (async input =>
+        real.commit(
+          input.command.kind === 'startRun' && input.guards.length === 0
+            ? {
+                ...input,
+                guards: [
+                  {
+                    owner: 'login-entry',
+                    participant: 'variant',
+                    protocol: adoption('variant-material'),
+                    facts: { kind: 'string', value: 'forged' },
+                  },
+                ],
+              }
+            : input,
+        )) as Port['commit'],
+    })),
+  },
+  {
+    name: 'a hand-over of an input handed to an earlier Run is refused',
+    fails: [NAMES.rehand],
+    fixture: variant(real => {
+      const handed = new Set<string>()
+      return {
+        commit: (async input => {
+          const command = input.command as SessionCommand
+          if (command.kind === 'receive' && command.input.fact.kind === 'input-handover') {
+            if (handed.has(command.input.fact.input))
+              return fail({
+                kind: 'invalid' as const,
+                field: 'fact.input',
+                reason: 'variant: handed to an earlier Run',
+              })
+            handed.add(command.input.fact.input)
+          }
+          return real.commit(input)
+        }) as Port['commit'],
+      }
+    }),
+  },
+  {
+    name: 'an off-path kind writes before refusing',
+    fails: [NAMES.offPath],
+    fixture: variant(real => ({
+      commit: (async input => {
+        const answer = await real.commit(input)
+        if ('failure' in answer && answer.failure.kind === 'unavailable') {
+          const { tenant, session } = input.command.input
+          await real.commit({
+            command: {
+              kind: 'accept',
+              input: {
+                tenant,
+                session,
+                operation: operationId('variant-write'),
+                value: ordinaryInput('variant'),
+              },
+            },
+            guards: [],
+          })
+        }
         return answer
       }) as Port['commit'],
     })),
