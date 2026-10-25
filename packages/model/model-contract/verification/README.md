@@ -216,7 +216,7 @@ public-api 有 22 个二级章节。清单列出其中 15 章：根入口 13 章
 
 ### 未覆盖
 
-- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 179 个已落地的类型名，不覆盖 `./testing` 与 `./conformance` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；31 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts`、`tests/replay.spec.ts` 等运行测试。
+- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 179 个已落地的类型名，不覆盖 `./testing` 与 `./conformance` 的类型。这两个入口的类型只由导出清单比对核对名字与种类：`./testing` 的类型由 `tests/testing-*.spec.ts` 的运行测试间接使用，`./conformance` 的类型由 `tests/conformance-*.spec.ts` 的运行测试间接使用；31 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts`、`tests/replay.spec.ts` 等运行测试。
 - 清单比对不检查声明的形状。形状只由类型探针负责。页面不再保存第二份声明，所以没有页面与源码的形状比较。
 - 类型探针以赋值为主：探针不拦多出的可选成员、变宽的联合和丢失的 `readonly`，这些现在没有机器检查。覆盖下限只要求每个已落地类型在某个探针里被使用，不要求使用得充分。
 - 类型断言检查只扫描 `src/` 与 `tests/fixtures/`，探针 `tests/*.spec-d.ts` 不在其中，探针靠 `tests/values.ts` 只声明不构造品牌值。
