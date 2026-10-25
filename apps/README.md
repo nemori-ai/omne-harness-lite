@@ -34,11 +34,11 @@ flowchart TD
 <!-- documentation:placeholder -->
 最小 CLI 的成员已经存在。个人设备常驻 Harness Server、云节点与集群两个装配角色的成员名、提供包及装配规格仍待设计；没有成员名时不伪造文件目标。
 
-## 临时契约消费者
+## 临时验证应用
 
-[`m2-contract-skeleton`](m2-contract-skeleton/README.md) 是 M1 联合验收的临时私有消费者。它通过公开入口运行治理消息编解码和 Model scripted conformance，逐跳报告 M2 路径尚未连接的部分。片段检查通过不表示完整路径通过，也不提供生产服务或部署入口。
+[`m2-contract-skeleton`](m2-contract-skeleton/README.md) 是 M1 首次联合验收（G1）的私有验证应用（CS）。它在一个进程内，只用契约成员的公开导出与 `./testing` 替身，连通 M2 首条租户路径，并逐跳报告 `verified` 或具名缺口。替身上的通过不证明持久性、跨进程主体来源、共同提交或真实供应商行为。它不提供生产服务或部署入口。
 
-应用的报告规则与缺口清单归其 [SPEC](m2-contract-skeleton/SPEC.md)。B3 负责随实际入轨契约串行同步；N-1 确定永久归属后，迁移时一并更新消费者、测试和本页导航，再删除临时成员。
+报告规则与缺口清单归其 [SPEC](m2-contract-skeleton/SPEC.md)。integration 交付线在它退出前维护它；首条租户路径的应用成员经插件树通过同样的验收后，按[应用装配页](../docs/architecture/runtime/application-assembly.md#cs-的终位)删除本成员与本节导航。
 
 ## 旧应用
 
