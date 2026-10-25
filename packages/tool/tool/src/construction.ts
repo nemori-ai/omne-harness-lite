@@ -3,7 +3,6 @@
 // and configuration.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
-  CallAccess,
   FixedToolRequest,
   DurableEvidence,
   Reply,
@@ -11,6 +10,7 @@ import type {
   ToolCatalog,
   ToolState,
 } from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   Mutation,
   ResultPolicy,

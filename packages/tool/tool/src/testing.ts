@@ -3,12 +3,12 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Attachment,
-  CallAccess,
   ContentPage,
   RawOutput,
   ToolFailure,
   ToolCatalog,
 } from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   ToolContentReader,
   ToolBindings,

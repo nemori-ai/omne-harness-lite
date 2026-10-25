@@ -18,9 +18,9 @@ import {
   type Access,
   type ToolCallId,
   type ToolExecutionRef,
-  type ToolHandle,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { type ToolHandle } from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
   type ToolDriver,

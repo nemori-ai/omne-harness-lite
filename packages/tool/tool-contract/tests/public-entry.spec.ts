@@ -69,6 +69,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'sameSourceLayer',
     'shapeOf',
     'toolBodyContract',
+    'toolStreamCallCodec',
   ])
   for (const name of Object.keys(provider)) expect(Object.keys(tool)).not.toContain(name)
 })

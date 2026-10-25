@@ -1,11 +1,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
-import type {
-  CallAccess,
-  DurableEvidence,
-  ToolFailure,
-  ToolState,
-} from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolFailure, ToolState } from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type { ToolRecovery, ToolTask } from '@omne-harness/tool-contract/provider'
 import type { ToolDependencies } from './construction.ts'
 

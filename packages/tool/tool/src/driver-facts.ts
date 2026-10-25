@@ -1,12 +1,12 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
-  type CallAccess,
   type ToolFailure,
   type ToolInstanceId,
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
+import { type CallAccess } from '@omne-harness/tool-contract/provider'
 import {
   type FactBatch,
   type ToolLiveExecution,

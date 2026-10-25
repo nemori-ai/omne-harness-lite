@@ -1,0 +1,189 @@
+// The ordinary observation face of the runtime on the public stream protocol (tool-contract SPEC
+// 「公共流协议上的观察」): `instances.current` answers the public reference of the current
+// publication generation, and `observation.observe` routes a reference to the handle of that
+// generation. The facade holds no process data: the handle's observation source produces every
+// frame after the route is established.
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  encodeStreamRef,
+  judgeStreamRef,
+  readStreamRef,
+  type StreamFrame,
+} from '@omne-harness/stream-arrival'
+import {
+  encodeToolInvocationRef,
+  resolveToolInvocationRef,
+  type Access,
+  type ToolFailure,
+  type ToolState,
+  type ToolStreamDelta,
+  type ToolStreamEnd,
+  type ToolStreamObservation,
+  type ToolStreamReferences,
+  type ToolStreamSnapshot,
+} from '@omne-harness/tool-contract'
+import {
+  toolStreamCallCodec,
+  type ToolDirectory,
+  type ToolHandle,
+} from '@omne-harness/tool-contract/provider'
+import type { ToolReads } from '@omne-harness/tool-contract/provider'
+import type { ContentBlock } from '@omne-harness/content-block'
+import { invocationInput, type ResolvedAccess } from './invocation-access.ts'
+
+const DIRECTORY = 'toolInstances'
+
+function isObject(value: unknown): value is object {
+  return typeof value === 'object' && value !== null
+}
+
+type Frame = StreamFrame<ToolStreamSnapshot, ToolStreamDelta, ToolStreamEnd>
+type Ended = Extract<Frame, { kind: 'ended'; reason: string }>['reason']
+
+const ended = (reason: Exclude<Ended, 'producer-ended'>): Frame => ({ kind: 'ended', reason })
+
+/** The current authoritative state of the call, or the failure of reading it. */
+async function stateOf<P, B extends ContentBlock>(
+  reads: ToolReads<P, B>,
+  resolved: ResolvedAccess<P>,
+): Promise<Outcome<ToolState, ToolFailure>> {
+  const looked = await reads.lookup(resolved)
+  if ('failure' in looked) return looked
+  if (looked.ok.kind !== 'found')
+    return fail({
+      kind: 'invalid',
+      field: 'reference',
+      reason: 'the admission of the reference was not accepted; the call has no state',
+    })
+  return succeed(looked.ok.state)
+}
+
+/** The route of a call through the trusted directory, with its failure or exception kept apart. */
+async function routeOf<P>(
+  directory: ToolDirectory<P>,
+  resolved: ResolvedAccess<P>,
+): Promise<Outcome<ToolHandle<P> | null, ToolFailure>> {
+  let route: Awaited<ReturnType<ToolDirectory<P>['connect']>>
+  try {
+    route = await directory.connect(resolved)
+  } catch {
+    return fail({
+      kind: 'unavailable',
+      dependency: DIRECTORY,
+      diagnostic: `${DIRECTORY} threw an exception; its message is not reported`,
+    })
+  }
+  if ('failure' in route) return route
+  return succeed(route.ok.kind === 'live' ? route.ok.handle : null)
+}
+
+export function createStreamFacade<P, B extends ContentBlock>(input: {
+  directory: ToolDirectory<P>
+  reads: ToolReads<P, B>
+}): Readonly<{ instances: ToolStreamReferences<P>; observation: ToolStreamObservation<P> }> {
+  const { directory, reads } = input
+
+  const current: ToolStreamReferences<P>['current'] = async input => {
+    // The boundary reads an untrusted value: a missing or non-object `access` is denied like
+    // every other reference access, before any port is consulted.
+    const access = isObject(input) ? Reflect.get(input, 'access') : undefined
+    const resolved = invocationInput<P>(
+      isObject(access) ? { ...access, reference: Reflect.get(input, 'reference') } : null,
+      'connect',
+    )
+    if ('failure' in resolved) return resolved
+    const route = await routeOf(directory, resolved.ok)
+    if ('failure' in route) return route
+    const state = await stateOf(reads, resolved.ok)
+    if ('failure' in state) return state
+    const handle = route.ok
+    if (handle === null) return succeed({ state: state.ok, current: null })
+    const call = encodeToolInvocationRef({
+      tenant: resolved.ok.tenant,
+      call: resolved.ok.call,
+      admission: resolved.ok.admission,
+    })
+    const ref =
+      'failure' in call
+        ? call
+        : encodeStreamRef(
+            {
+              tenant: resolved.ok.tenant,
+              producer: 'tool',
+              call: call.ok,
+              stream: handle.stream,
+            },
+            toolStreamCallCodec,
+          )
+    if ('failure' in ref)
+      return fail({
+        kind: 'unavailable',
+        dependency: DIRECTORY,
+        diagnostic: 'the published stream identity does not encode as a public reference',
+      })
+    return succeed({
+      state: state.ok,
+      current: {
+        ref: ref.ok,
+        instance: handle.instance,
+        generation: handle.generation,
+        projection: 'tool-process-v1',
+      },
+    })
+  }
+
+  /**
+   * The failure order of the public contract, with Tool's situations in it: an unminted or
+   * foreign tenant is `denied`; unreadable syntax, a wrong producer or a malformed call is
+   * `stale-stream`; the directory's refusal is `denied`, its absence or exception is
+   * `unavailable`; a reference whose stream is not the current generation is `stale-stream`
+   * before any handle is contacted (SPEC「旧代次的终止帧」case 3).
+   */
+  async function* observe(
+    request: Readonly<{ ref: unknown; access: Access<P>; signal: AbortSignal }>,
+  ): AsyncGenerator<Frame> {
+    const { access, signal } = request
+    const judged = judgeStreamRef(
+      { value: request.ref, tenant: access.tenant },
+      toolStreamCallCodec,
+    )
+    if ('failure' in judged) {
+      const kind = judged.failure.kind
+      yield ended(
+        kind === 'invalid-tenant' || kind === 'foreign-tenant' ? 'denied' : 'stale-stream',
+      )
+      return
+    }
+    const envelope = readStreamRef(judged.ok)
+    const parts = resolveToolInvocationRef(envelope.call, access.tenant)
+    if ('failure' in parts) {
+      yield ended('stale-stream')
+      return
+    }
+    const route = await routeOf(directory, {
+      principal: access.principal,
+      tenant: access.tenant,
+      call: parts.ok.call,
+      admission: parts.ok.admission,
+    })
+    if ('failure' in route) {
+      yield ended(route.failure.kind === 'denied' ? 'denied' : 'unavailable')
+      return
+    }
+    const handle = route.ok
+    if (handle === null || handle.stream !== envelope.stream) {
+      yield ended('stale-stream')
+      return
+    }
+    if (signal.aborted) {
+      yield ended('observer-closed')
+      return
+    }
+    yield* handle.observation.observe({ ref: judged.ok, access, signal })
+  }
+
+  return Object.freeze({
+    instances: Object.freeze<ToolStreamReferences<P>>({ current }),
+    observation: Object.freeze<ToolStreamObservation<P>>({ observe }),
+  })
+}

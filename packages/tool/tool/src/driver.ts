@@ -2,7 +2,6 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
-  type CallAccess,
   type DurableEvidence,
   type FixedToolRequest,
   type ToolCallId,
@@ -12,6 +11,7 @@ import {
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
+import { type CallAccess } from '@omne-harness/tool-contract/provider'
 import {
   type PreparationProgress,
   type PreparationRecord,

@@ -3,10 +3,10 @@ import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-bloc
 import { succeed } from '@omne-harness/operation-result'
 import {
   type Adoption,
-  type CallAccess,
   type FixedToolRequest,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { type CallAccess } from '@omne-harness/tool-contract/provider'
 import { defaultResultPolicy, decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import type { createToolLedger } from './ledger.ts'
 import type { LedgerDomain } from './ledger-store.ts'

@@ -7,12 +7,10 @@ import {
   encodeToolOperationRef,
   type Adoption,
   type ToolCallId,
-  type CallAccess,
   type ToolDefiniteFailure,
   type ToolFailure,
   type ToolInvocationCommands,
   type ToolInvocationContentReader,
-  type ToolInvocationDirectory,
   type ToolInvocationQueries,
   type ToolInvokeOutcome,
   type ToolInvocationParts,
@@ -20,6 +18,7 @@ import {
   type ToolOperationRef,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import { type CallAccess } from '@omne-harness/tool-contract/provider'
 import {
   describedAdoption,
   judgeToolInvokeRequest,
@@ -32,6 +31,7 @@ import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { createToolDriver } from './driver.ts'
 import { controlIntent } from './control-intent.ts'
 import { invocationInput, operationInput } from './invocation-access.ts'
+import { createStreamFacade } from './stream-facade.ts'
 
 /** The identity of this runtime implementation, named in its `unsupported` answers. */
 export const toolRuntimeAdoption: Adoption = describedAdoption({
@@ -171,6 +171,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
   })
   // The release of the installation belongs to the drain (`quiesce` and `handover`).
   instances.install(driver)
+  const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
   const invoke: ToolRuntime<P, B>['invoke'] = async input => {
     if (typeof input !== 'object' || input === null || !('principal' in input))
@@ -329,14 +330,8 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
         return { kind: 'released', receipt: released.ok }
       },
     }),
-    instances: Object.freeze<ToolInvocationDirectory<P>>({
-      connect: input => {
-        const resolved = invocationInput<P>(input, 'connect')
-        return 'failure' in resolved
-          ? Promise.resolve(resolved)
-          : instances.directory.connect(resolved.ok)
-      },
-    }),
+    instances: stream.instances,
+    observation: stream.observation,
     content: Object.freeze<ToolInvocationContentReader<P>>({
       read: async input => {
         const resolved = invocationInput<P>(input, 'read-content')

@@ -42,7 +42,7 @@
 
 [行为与约束](../SPEC.md#342-普通操作与实例目录)。
 
-- [operations.ts](../src/operations.ts)：控制意图（`stop`、带必填 `reach` 的 `withdraw`、`background`）与回执、前台返回及后台占位的来源 `BackgroundSource`、过程块、观察、实例句柄、实例目录、交付证据与 `ToolRuntime`。普通入口为 invoke，查询、命令、实例连接和内容读取分别经 queries、commands、instances 与 content。内部 admission 与受信回应不暴露在普通接口。
+- [operations.ts](../src/operations.ts)：控制意图（`stop`、带必填 `reach` 的 `withdraw`、`background`）与回执、前台返回及后台占位的来源 `BackgroundSource`、过程块、公共流协议上的观察（`ToolStreamSnapshot`、`ToolStreamDelta`、`ToolStreamEnd`、`ToolStreamObservation`、`ToolStreamSelection`、`ToolStreamReferences`）、实例句柄 `ToolHandle`（绑定发布代次与过程流，`./provider`）、实例目录、交付证据与 `ToolRuntime`（`instances.current` 与 `observation.observe` 是普通观察入口）。producer `tool` 的引用 codec 适配器 `toolStreamCallCodec` 在 [reference.ts](../src/reference.ts)。普通入口为 invoke，查询、命令、实例连接和内容读取分别经 queries、commands、instances 与 content。内部 admission 与受信回应不暴露在普通接口。
 
 - [ports.ts](../src/ports.ts)：`ToolInvocationSourceIssuer.resolve` 与 `ToolInvocationSourceOutcome`，由来源拥有 tenant/完整 consumer 的原子关联。公开结果区分 accepted/recovered、带引用的 commit-unknown、无引用的 association-unknown 和当前尝试的 rejected。完整恢复规则见上面的行为与约束。
 

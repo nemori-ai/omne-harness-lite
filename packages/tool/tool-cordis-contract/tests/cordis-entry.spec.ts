@@ -3,6 +3,7 @@ import { Service } from '@deepseek-ai/cordis'
 import { resolveOptional } from '@omne-harness/kernel-basis/cordis'
 import { startTestAssembly } from '@omne-harness/kernel-basis/testing'
 import { describe, expect, it } from 'vitest'
+import { decodeStreamId } from '@omne-harness/stream-arrival'
 import * as cordis from '@omne-harness/tool-cordis-contract/cordis'
 import {
   ToolClockService,
@@ -155,7 +156,12 @@ describe('under Cordis 4.0.4', () => {
       const registered = await directory?.register({
         publication: [
           { tenant: owner, call, instance, generation: '1' },
-          { instance, observe: async function* () {} },
+          {
+            instance,
+            generation: '1',
+            stream: decoded(decodeStreamId('str_entry')),
+            observation: { observe: async function* () {} },
+          },
         ],
         authority: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
       })

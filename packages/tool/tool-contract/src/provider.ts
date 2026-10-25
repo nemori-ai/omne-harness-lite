@@ -16,7 +16,7 @@ export {
   decodeToolRevision,
   decodeToolWaitId,
 } from './identity.ts'
-export type { Mutation } from './identity.ts'
+export type { CallAccess, Mutation } from './identity.ts'
 export {
   defaultResultPolicy,
   defaultResultPolicyAdoption,
@@ -52,6 +52,7 @@ export {
   decodeToolInvocationRef,
   decodeToolOperationRef,
   readToolInvocationRef,
+  toolStreamCallCodec,
 } from './reference.ts'
 export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts'
 export { defineToolWaitContract } from './wait-contract.ts'
@@ -66,6 +67,7 @@ export type {
   ToolValueSchema,
 } from './definitions.ts'
 export type { ToolMessageContentBlock } from './results.ts'
+export type { ToolDirectory, ToolHandle } from './operations.ts'
 export type {
   IndependentToolScopeInput,
   ToolAskRequest,

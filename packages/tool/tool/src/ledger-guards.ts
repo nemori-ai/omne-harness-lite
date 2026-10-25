@@ -4,7 +4,6 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   Access,
-  CallAccess,
   DurableEvidence,
   ToolStartRecord,
   ConsumerRef,
@@ -12,6 +11,7 @@ import type {
   ResourceScope,
   ToolCallId,
 } from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   FactReceipt,
   Mutation,

@@ -39,6 +39,7 @@
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*"
   },
   "devDependencies": {

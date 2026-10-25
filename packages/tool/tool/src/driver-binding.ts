@@ -1,6 +1,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { CallAccess, ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
+import type { ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   PreparationRecord,
   ToolLiveExecution,

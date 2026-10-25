@@ -11,10 +11,10 @@ import {
   type SourceLayer,
   type ToolCallId,
   type ToolCatalog,
-  type ToolDirectory,
   type ToolRevision,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import { type ToolDirectory } from '@omne-harness/tool-contract/provider'
 import {
   describedAdoption,
   type ResultPolicy,
@@ -52,6 +52,7 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock>
   abstract readonly queries: ToolRuntime<P, B>['queries']
   abstract readonly commands: ToolRuntime<P, B>['commands']
   abstract readonly instances: ToolRuntime<P, B>['instances']
+  abstract readonly observation: ToolRuntime<P, B>['observation']
   abstract readonly content: ToolRuntime<P, B>['content']
   abstract readonly catalog: ToolRuntime<P, B>['catalog']
 }

@@ -1,4 +1,5 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { StreamCallCodec } from '@omne-harness/stream-arrival'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeToolCallId,
@@ -239,3 +240,22 @@ export function resolveToolOperationRef(
 ): Outcome<ToolOperationParts, ToolReferenceFailure> {
   return resolve(reference, tenant, decodeToolOperationRef, readToolOperationRef)
 }
+
+/**
+ * The producer `tool` adapter of the public stream reference (SPEC「公共流协议上的观察」): the
+ * original call text of a Tool stream reference is a canonical invocation reference. The detailed
+ * rejection of a malformed reference becomes the public `malformed`; `foreign-tenant` keeps its
+ * kind. The public layer checks the minted tenant before this adapter runs.
+ */
+export const toolStreamCallCodec: StreamCallCodec = Object.freeze({
+  producer: 'tool',
+  resolve: ({ text, tenant }) => {
+    const resolved = resolveToolInvocationRef(text, tenant)
+    if ('failure' in resolved)
+      return fail(
+        resolved.failure.kind === 'malformed' ? { kind: 'malformed' } : { kind: 'foreign-tenant' },
+      )
+    const canonical = encodeToolInvocationRef(resolved.ok)
+    return 'failure' in canonical ? fail({ kind: 'malformed' }) : succeed(canonical.ok)
+  },
+})

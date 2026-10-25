@@ -6,7 +6,6 @@ export { decodeToolCallId, decodeToolOperationId } from './identity.ts'
 export type {
   Access,
   Adoption,
-  CallAccess,
   ConsumerRef,
   DurableEvidence,
   ToolCallId,
@@ -80,17 +79,19 @@ export type {
   ToolCommandOutcome,
   ToolControl,
   ToolDefiniteFailure,
-  ToolDirectory,
-  ToolHandle,
   ToolInvocationCommands,
   ToolInvocationContentReader,
-  ToolInvocationDirectory,
   ToolInvocationQueries,
   ToolInvokeOutcome,
   ToolInvokeRequest,
-  ToolObservation,
   ToolReleaseDeliveryOutcome,
   ToolRuntime,
+  ToolStreamDelta,
+  ToolStreamEnd,
+  ToolStreamObservation,
+  ToolStreamReferences,
+  ToolStreamSelection,
+  ToolStreamSnapshot,
 } from './operations.ts'
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts'
 export type { ToolExecutionRef } from './execution.ts'

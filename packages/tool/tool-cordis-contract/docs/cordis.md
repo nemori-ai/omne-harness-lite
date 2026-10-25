@@ -21,6 +21,7 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock> extends Serv
   abstract readonly queries: ToolRuntime<P, B>['queries']
   abstract readonly commands: ToolRuntime<P, B>['commands']
   abstract readonly instances: ToolRuntime<P, B>['instances']
+  abstract readonly observation: ToolRuntime<P, B>['observation']
   abstract readonly content: ToolRuntime<P, B>['content']
   abstract readonly catalog: ToolRuntime<P, B>['catalog']
 }

@@ -7,15 +7,15 @@
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { decodeStreamId } from '@omne-harness/stream-arrival'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   decodeToolCallId,
   type DurableEvidence,
   type ToolCallId,
   type ToolExecutionRef,
-  type ToolHandle,
-  type ToolObservation,
 } from '@omne-harness/tool-contract'
+import { type ToolHandle } from '@omne-harness/tool-contract/provider'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import {
   finalAnswer,
@@ -114,14 +114,18 @@ function minted<T>(decoded: { ok: T } | { failure: unknown }, text: string): T {
   return decoded.ok
 }
 
-/** A handle that the directory must never use to stop the work: it counts every call. */
+/** A handle that the directory must never use to stop the work: it counts every observation. */
 function spyHandle<P>(instance: string): Readonly<{ handle: ToolHandle<P>; observed(): number }> {
   let observed = 0
   const handle: ToolHandle<P> = {
     instance: minted(decodeToolInstanceId(instance), instance),
-    observe: () => {
-      observed += 1
-      return (async function* (): AsyncGenerator<ToolObservation> {})()
+    generation: '1',
+    stream: minted(decodeStreamId(`str_${instance}`), instance),
+    observation: {
+      observe: () => {
+        observed += 1
+        return (async function* (): AsyncGenerator<never> {})()
+      },
     },
   }
   return { handle, observed: () => observed }
