@@ -6,11 +6,13 @@ This package holds the contract of the Agent capability: domain values, operatio
 
 The package exports these items:
 
-- All contract types, for definitions, extensions, identities, evaluation, requests, passages, execution, and the Journal.
+- All contract types, for definitions, extensions, identities, evaluation, requests, passages, execution, the Journal, and the producer receiving surface.
 - Five constants: `ATTRIBUTE_ITEMS`, `POSITIONS`, `POWERS`, `POSITION_OUTPUTS`, and `AGENT_IDENTITY_MAX_LENGTH`.
 - Three judgment functions: `judgeAgentDefinition`, `judgeLoopExtensions`, and `judgeExtensionOutput`.
 - The asset body contract `agentBodyContract`.
 - Fourteen identity decoders, named `decode*`, and four structure judgments: `judgeAdoption`, `judgeEvidence`, `judgeAccess`, and `judgeAuthority`.
+
+The `./testing` entry exports the conformance suites and the non-durable doubles of the two receiving ports, `AgentJournalEntries` and `AgentAccountOutlet`. The doubles declare `durability: 'none'`. Do not assemble them into production. The root entry does not load `./testing`.
 
 The package does not implement the progression Loop, the evaluator, the runtime, the Journal provider, or the host plugin. The interfaces of these parts exist as types only. No provider implements them. Providers and the host plugin belong to [agent](../agent/README.md), [agent-host-local](../agent-host-local/README.md), and the provider packages.
 
@@ -48,7 +50,7 @@ Pass business identities as operation inputs. The package does not install Cordi
 
 ## Verification
 
-Run `pnpm turbo run test --filter=@omne-harness/agent-contract` from the repository root, and `pnpm typecheck` in this directory. turbo builds this package and its dependencies first. `pnpm test` in this directory runs Vitest only and does not build. The tests cover the declaration judgments, the output judgment, the identity decoders and structure judgments, the body contract, the export set, and the dependency direction. The [test page](tests/README.md) lists the files. These tests do not prove the runtime, a provider, the assembly, or the Cordis integration.
+Run `pnpm turbo run test --filter=@omne-harness/agent-contract` from the repository root, and `pnpm typecheck` in this directory. turbo builds this package and its dependencies first. `pnpm test` in this directory runs Vitest only and does not build. The tests cover the declaration judgments, the output judgment, the identity decoders and structure judgments, the body contract, the export set, the dependency direction, and the receiving suites with their doubles. The [test page](tests/README.md) lists the files. These tests do not prove the runtime, a provider, the assembly, or the Cordis integration.
 
 ## Maintenance
 

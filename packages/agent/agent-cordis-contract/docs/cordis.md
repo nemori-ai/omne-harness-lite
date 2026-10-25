@@ -10,12 +10,12 @@
 
 `./cordis` 导出下列内容，根入口 `.` 只导出类型 `AgentLocalRoute`、`AgentRegistrationInput` 与 `AgentWithdrawalInput`。三个类型的定义在 [src/index.ts](../src/index.ts)，`./cordis` 再导出它们。
 
-- 17 个抽象 Service 类，每个 `extends Service`，在 `static readonly provide` 写键一次。除 `AgentPublicationAuthorityService` 外，每个都 `implements` 同名的契约端口。另有这些类的键常量，命名是服务键加 `Key`，例如 `agentAccessCheckKey`。
+- 20 个抽象 Service 类，每个 `extends Service`，在 `static readonly provide` 写键一次。除 `AgentPublicationAuthorityService` 外，每个都 `implements` 同名的契约端口。另有这些类的键常量，命名是服务键加 `Key`，例如 `agentAccessCheckKey`。
 - 具体类 `AgentInstancesService` 与键常量 `agentInstancesKey`。它是实例目录，含 `register`、`withdraw`、`resolve` 与 `connect`，登记状态放在构造函数的闭包里。`register` 与 `withdraw` 是普通函数，使 Cordis 把 `this.ctx` 绑到调用方，登记随调用方 fiber 撤除。
 - `AgentInstanceHostService` 另有进程内的 `route(tenant, instance)`。目录用它向宿主取已发布实例的 `AgentLocalRoute`。它不是契约操作。
 - 接口 `AgentPublicationAuthority`：宿主对一次登记或撤除的同步最终核验，`check` 收调用方的 Cordis `Context`。它带 Cordis 类型，所以只从 `./cordis` 导出，根入口不导出它。
 - 目录插件 `agentInstancesPlugin`，静态 `inject` 是 `agentPublicationAuthority` 与 `agentAccessCheck`。
-- `Context` 对 18 个键的增补，以及 `Events` 对 `agent-cordis-contract/instance-retired` 的增补。
+- `Context` 对 21 个键的增补，以及 `Events` 对 `agent-cordis-contract/instance-retired` 的增补。
 
 每个抽象 Service 按同一写法声明，键、类名和契约类型见下表。抽象 Service 把每个操作声明为 `readonly` 函数属性，所以提供者用箭头函数属性实现操作。提供者写成类方法时，TypeScript 报 TS2425。表中的服务类有两个例外，其余每个都 `implements` 根契约的同名端口，方法类型取自该端口。第一个例外是 `AgentPublicationAuthorityService`：它实现本页定义的 Cordis 接口 `AgentPublicationAuthority`，不是根契约的端口，因为它的 `check` 要接收调用方的 Cordis `Context`。第二个例外是 `AgentInstancesService`：它实现根契约的 `AgentDirectory`，是含登记逻辑的具体注册表，不是抽象类。定义入口把 Context 的各个键增补为对应的服务类。主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次 ctx.provide 这些键。消费者导入定义入口的键常量，提供者选择归应用装配。
 
@@ -44,9 +44,12 @@
 | agentInstanceHost | AgentInstanceHostService | AgentInstanceHost | 宿主：agent-host-local |
 | agentPublicationAuthority | AgentPublicationAuthorityService | AgentPublicationAuthority（本页定义的 Cordis 接口） | 宿主：agent-host-local。目录据此核验登记与撤除 |
 | agentExecutionRecovery | AgentExecutionRecoveryService | AgentExecutionRecovery | 宿主：agent-host-local |
+| agentJournalEntries | AgentJournalEntriesService | AgentJournalEntries | 与 agentJournal 相同的 Journal 提供者，两者在同一权威排序中兑现。两个排序域分别提供时不具备接收面保证，见 [SPEC](../SPEC.md#生产者接收面的服务)。提供者尚未建立 |
+| agentAccountOutlet | AgentAccountOutletService | AgentAccountOutlet | 外域适配器：Request Context 一侧的账目收件适配器。Agent 拥有端口与键。尚无提供者 |
+| agentExecutionControl | AgentExecutionControlService | AgentExecutionControl | 宿主的长期执行记录适配器，受理经恢复入口发生的 control，不需要活体 runtime。实现归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
 | agentInstances | AgentInstancesService（具体） | AgentDirectory | 目录插件 `agentInstancesPlugin`，由本成员的 `./cordis` 导出，候选发行行是 `agent-instances` |
 
-另有两个键属于外域定义，本成员只引用，不再声明：`modelRuntime` 归 [Model 的 Cordis 定义](../../../model/model-cordis-contract/docs/cordis.md)，`toolRuntime` 归 [Tool 的 Cordis 定义](../../../tool/tool-cordis-contract/docs/cordis.md)。
+另有三个键属于外域定义，本成员只引用，不再声明：`modelRuntime` 归 [Model 的 Cordis 定义](../../../model/model-cordis-contract/docs/cordis.md)，`toolRuntime` 与 `toolStartFence` 归 [Tool 的 Cordis 定义](../../../tool/tool-cordis-contract/docs/cordis.md)。Agent 宿主以静态依赖取得 `toolStartFence`，不取得 `toolStartAuthority`，规则见 [SPEC](../SPEC.md#生产者接收面的服务)。
 
 下列契约类型没有服务键，使用方按下表取得。
 
@@ -225,7 +228,8 @@ sequenceDiagram
 | runtime 的公开操作 | invoke、resume、takeover、submit、control、read、events、acknowledge、observe、quiesce。takeover 在 resume 之内，只在快照显示旧挂接仍 active 时另核 |
 | 宿主 `agentInstanceHost` | reserve、publish、withdraw，包括登记句柄的 withdraw |
 | 目录 `agentInstances` | resolve、connect |
-| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation，以及经恢复入口发生的 read、events、acknowledge、submit、control |
+| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验 |
+| 宿主的结果接收方 | receive-result。在写 `received` 条目之前核验推送主体，见 SPEC 的“[结果接收](../../agent-contract/SPEC.md#结果接收)” |
 
 runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体。宿主恢复入口和长期保管者直接调用执行记录操作时，由宿主的长期执行记录适配器核验。适配器和宿主以静态 inject 取得 `agentAccessCheck`，不从其他位置传入。授权领域没有提供者时，这些操作都得不到 allowed，系统组合不具备资格核验，该外域依赖登记在[开放问题](../../agent/docs/architecture/open-questions.md#外域依赖)。
 
@@ -259,7 +263,7 @@ Cordis 撤除的是登记、监听和具名可释放资源。execution 的状态
 
 | IC | Agent 的处置 | 位置 | 性质 |
 | --- | --- | --- | --- |
-| [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1) | 每个 Agent 接缝只有一个服务定义，由本成员拥有。`modelRuntime` 与 `toolRuntime` 引用 Model 与 Tool 的定义，本成员不再声明同键 | [服务键与提供者](#服务键与提供者) | 业务协议前提。定义已实现：`cordis-entry.spec.ts` 逐对核对 18 个键与类的 `provide`，类集合恰为 18 个。提供者尚未实现 |
+| [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1) | 每个 Agent 接缝只有一个服务定义，由本成员拥有。`modelRuntime` 引用 Model 的定义，`toolRuntime` 与 `toolStartFence` 引用 Tool 的定义，本成员不再声明同键 | [服务键与提供者](#服务键与提供者) | 业务协议前提。定义已实现：`cordis-entry.spec.ts` 逐对核对 21 个键与类的 `provide`，类集合恰为 21 个。`tool-start-fence.spec.ts` 核对本成员不重新声明 `toolStartFence`。提供者尚未实现 |
 | [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) | 键只在定义类的 `static readonly provide` 写一次，键常量取自它。宿主插件在一个插件体内逐个 new 各键的子类，登记落在同一条 fiber 上，子类不另写键 | [服务定义与入口](#服务定义与入口)；[插件与入口](../../agent-host-local/docs/cordis.md#插件与入口) | 机制事实：[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md) |
 | [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) | 抽象 Service `implements` 根契约的端口，不复制签名。`agentInstances` 是含登记逻辑的具体注册表。JSDoc 写 `@owner`，没有已登记的契约 ID，所以不写 `@contract` | [服务定义与入口](#服务定义与入口) | 业务协议前提 |
 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) | 四个成员的根入口都不导入 Cordis。Cordis 值只从 agent-cordis-contract 与 agent-host-local 的 `./cordis` 导出。agent-contract 的 `src` 没有 Cordis 引用。agent-cordis-contract 的根入口在值与声明两层都没有到 Cordis 的边，因为带 Cordis `Context` 的 `AgentPublicationAuthority` 只从 `./cordis` 导出 | [包入口与依赖对照](#包入口与依赖对照) | 业务协议前提。已验证：`agent-cordis-contract/tests/public-entry.spec.ts`（根入口无值导出，`dist/index.js` 没有导入，`dist/index.d.ts` 及其传递的声明到 Cordis 没有边，到别的包的 `/cordis` 入口、`agent` 与 `agent-host-local` 也没有边）；`agent-contract/tests/dependency-direction.spec.ts`（`dist/index.js` 与 `dist/index.d.ts` 的导入图不含 Cordis）。源码图没有单独遍历，遍历器只读构建产物：未验证。`agent` 与 `agent-host-local` 的根入口仍是空导出，没有可测对象 |

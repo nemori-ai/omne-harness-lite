@@ -60,7 +60,7 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | AgentDefinition | 定义身份，含 owner、name、revision 与 digest | 资产拥有者发布，装配选入，Agent 校验专有声明 | 不可变值，没有状态。新版本是新身份 | 资产拥有者持有版本，Agent 契约解释专有声明 | Agent 不销毁定义。采用它的 execution 保留其精确身份与摘要 |
 | 采用结果 | 精确的 Adoption | AgentAdoptions.resolve 按精确采用解析出 definition、evaluator 与扩展声明，不取最新版本 | 值，没有状态 | 装配提供采用依据，Agent 使用解析结果 | execution 只保存 Adoption 引用，不保存解析出的运行对象。解析缓存可以丢弃并重建 |
 | AgentRuntime | AgentInstanceId | 装配者调用工厂创建，固定租户、安全作用域、定义采用、配置和依赖，初始为 idle，由宿主发布 | idle、occupied、draining、disposed。转换见下文状态图 | 装配者创建，宿主发布与撤登记 | draining 交清本实例责任并撤登记后进入 disposed。已 disposed 的实例身份不再用于新实例。失联后重新启动的进程也使用新的实例身份 |
-| AgentExecution | AgentExecutionId，由调用方在受理前分配 | invoke 被 Journal 受理时创建 | reconciling、advancing、waiting、settling、suspended、ended。转换见下文状态图 | Journal 保存权威记录，内存对象只是当前投影 | ended 不复活。记录、事件和结果按 Journal 的保留政策保留，有未交清责任时不得删除 |
+| AgentExecution | AgentExecutionId，由调用方在受理前分配，只在租户内唯一。Journal 以（租户，execution）为键，见 SPEC 的“[执行身份的范围](../SPEC.md#执行身份的范围)” | invoke 被 Journal 受理时创建 | reconciling、advancing、waiting、settling、suspended、ended。转换见下文状态图 | Journal 保存权威记录，内存对象只是当前投影 | ended 不复活。记录、事件和结果按 Journal 的保留政策保留，有未交清责任时不得删除 |
 | ExecutionAttachment | ExecutionAttachmentId，加 runtime 实例、execution 与围栏代次 | open 或 attach 被 Journal 提供者授予。授予依据是调用方的推进资格依据，该依据为空时由提供者单独授予 | active、superseded、detached。转换见下文状态图 | Journal 提供者保存围栏 | 状态终止后作为围栏记录保留，直到所属 execution 的保留期结束，用于归属晚到回执与事件因果 |
 | AgentExecutionHandle | 没有独立身份，绑定原 execution | invoke、resume 或宿主的恢复入口返回 | 没有状态 | 调用方持有 | 调用方丢弃句柄不影响 execution。句柄不指向 runtime 后来承接的其他 execution |
 | AgentHandle | 没有独立身份，绑定 AgentInstanceId | 宿主发布时提供受限观察 | 没有状态 | 宿主 | 登记撤除或被拒绝时观察以 ended 结束 |
@@ -409,7 +409,7 @@ AdvancementFact 的四个取值不是独立状态。它们是 Evaluator 对执�
 | 构造身份绑定 | instance、tenant、安全作用域 scope、精确的定义采用 | 创建时。改变其中任何一项都必须换实例 | 是，但它们是身份，不是可调整的配置 | 身份参数不是授权证明 |
 | 可序列化配置 | observerBufferBytes、reconciliationDelayMs、denialBackoffMs 及其他取值项 | 创建时校验。默认值只是配置初值 | 是，不含业务身份、权限、秘密或运行对象 | 无。不新增否决次数上限 |
 | 单次操作参数 | Access 的 principal 与 tenant、操作身份、目标 execution、输入（内容为 Message）或控制命令、推进资格依据 grant、恢复依据、观察 signal 与订阅 | 每次操作 | 除 signal 与订阅外是 | 每次操作核对租户，并以 AgentAccessCheck 核验主体资格。裸文本不冒充已受理的输入 |
-| 注入依赖 | Journal、主体资格核验 AgentAccessCheck、当前条件、请求准备、模型选择、模型可读上下文读取、Model、Tool、扩展实现 ExtensionImplementations、卡片端口 DecisionCards、动作准入 ActionAdmission、消息准入 MessageHandoff、材料、具名读取、采用解析、本实例的登记句柄、时钟 | 构造注入，能力对象 | 否 | AgentAccessCheck 本身是资格的来源。其他依赖的使用同样受每次操作的资格约束 |
+| 注入依赖 | Journal、接收面条目端口 AgentJournalEntries、账目出站端口 AgentAccountOutlet、主体资格核验 AgentAccessCheck、当前条件、请求准备、模型选择、模型可读上下文读取、Model、Tool、扩展实现 ExtensionImplementations、卡片端口 DecisionCards、动作准入 ActionAdmission、消息准入 MessageHandoff、材料、具名读取、采用解析、本实例的登记句柄、时钟 | 构造注入，能力对象 | 否 | AgentAccessCheck 本身是资格的来源。其他依赖的使用同样受每次操作的资格约束 |
 
 租户核对的规则见 SPEC 的“[租户与作用域绑定](../SPEC.md#租户与作用域绑定)”。接口不隐式读取全局当前的外部关联。操作期间的临时资源，如观察 signal、订阅和单次发出凭据，属于单次操作，不进入配置、依赖或持久记录。观察取消不传播业务取消。
 
@@ -431,6 +431,7 @@ AgentDependencies 是具名能力的只读记录，不是服务容器，也不�
 | TerminalObservation | 待观察，已观察 | SPEC 的“托管协调与运行实例”的“终态后与 ended” |
 | 条件终结 | tryFinish 返回 ended、changed 或 blocked | SPEC 的“托管协调与运行实例”的“条件终结” |
 | ControlRecord | 各阶段 reached 或 unresolved | SPEC 的“取消、退出与结构变更” |
+| 接收面条目 AgentJournalEntry | 一经提交不可变。种类有 start-fence、received、stream-reference，联合事先声明开放 | SPEC 的“生产者接收面”的“日志条目” |
 
 生产者结果确认的条件归 SPEC 的“持久性与交付责任”和“事件交付的四个层次”，本页不重复。
 

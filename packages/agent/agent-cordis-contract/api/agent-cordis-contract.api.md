@@ -14,11 +14,14 @@
 
 - `ActionAdmissionService` · `cordis.d.ts`
 - `AgentAccessCheckService` · `cordis.d.ts`
+- `AgentAccountOutletService` · `cordis.d.ts`
 - `AgentAdoptionsService` · `cordis.d.ts`
 - `AgentClockService` · `cordis.d.ts`
+- `AgentExecutionControlService` · `cordis.d.ts`
 - `AgentExecutionRecoveryService` · `cordis.d.ts`
 - `AgentInstanceHostService` · `cordis.d.ts`
 - `AgentInstancesService` · `cordis.d.ts`
+- `AgentJournalEntriesService` · `cordis.d.ts`
 - `AgentJournalService` · `cordis.d.ts`
 - `AgentLocalRoute` · `index.d.ts`
 - `AgentMaterialsService` · `cordis.d.ts`
@@ -35,16 +38,19 @@
 - `RegisteredReadsService` · `cordis.d.ts`
 - `RequestPreparationService` · `cordis.d.ts`
 - `agentAccessCheckKey` · `cordis.d.ts`
+- `agentAccountOutletKey` · `cordis.d.ts`
 - `agentActionAdmissionKey` · `cordis.d.ts`
 - `agentAdoptionsKey` · `cordis.d.ts`
 - `agentClockKey` · `cordis.d.ts`
 - `agentConditionsKey` · `cordis.d.ts`
 - `agentDecisionCardsKey` · `cordis.d.ts`
+- `agentExecutionControlKey` · `cordis.d.ts`
 - `agentExecutionRecoveryKey` · `cordis.d.ts`
 - `agentExtensionsKey` · `cordis.d.ts`
 - `agentInstanceHostKey` · `cordis.d.ts`
 - `agentInstancesKey` · `cordis.d.ts`
 - `agentInstancesPlugin` · `cordis.d.ts`
+- `agentJournalEntriesKey` · `cordis.d.ts`
 - `agentJournalKey` · `cordis.d.ts`
 - `agentMaterialsKey` · `cordis.d.ts`
 - `agentMessageHandoffKey` · `cordis.d.ts`
@@ -58,7 +64,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentMaterials, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -201,6 +207,24 @@ export declare abstract class AgentExecutionRecoveryService<P> extends Service i
     abstract readonly detach: AgentExecutionRecovery<P>['detach'];
 }
 export declare const agentExecutionRecoveryKey = "agentExecutionRecovery";
+export declare abstract class AgentJournalEntriesService<P> extends Service implements AgentJournalEntries<P> {
+    static readonly provide = "agentJournalEntries";
+    constructor(ctx: Context);
+    abstract readonly record: AgentJournalEntries<P>['record'];
+}
+export declare const agentJournalEntriesKey = "agentJournalEntries";
+export declare abstract class AgentAccountOutletService<P> extends Service implements AgentAccountOutlet<P> {
+    static readonly provide = "agentAccountOutlet";
+    constructor(ctx: Context);
+    abstract readonly deliver: AgentAccountOutlet<P>['deliver'];
+}
+export declare const agentAccountOutletKey = "agentAccountOutlet";
+export declare abstract class AgentExecutionControlService<P> extends Service implements AgentExecutionControl<P> {
+    static readonly provide = "agentExecutionControl";
+    constructor(ctx: Context);
+    abstract readonly control: AgentExecutionControl<P>['control'];
+}
+export declare const agentExecutionControlKey = "agentExecutionControl";
 export declare class AgentInstancesService<P> extends Service implements AgentDirectory<P> {
     static readonly provide = "agentInstances";
     readonly resolve: AgentDirectory<P>['resolve'];
@@ -217,8 +241,8 @@ export declare const agentInstancesPlugin: {
             version: 1;
             vendor: string;
             validate(value: unknown): {
-                issues?: never;
                 value: {};
+                issues?: never;
             } | {
                 value?: {};
                 issues: {
@@ -249,6 +273,9 @@ declare module '@deepseek-ai/cordis' {
         agentInstanceHost: AgentInstanceHostService<unknown>;
         agentPublicationAuthority: AgentPublicationAuthorityService<unknown>;
         agentExecutionRecovery: AgentExecutionRecoveryService<unknown>;
+        agentJournalEntries: AgentJournalEntriesService<unknown>;
+        agentAccountOutlet: AgentAccountOutletService<unknown>;
+        agentExecutionControl: AgentExecutionControlService<unknown>;
         agentInstances: AgentInstancesService<unknown>;
     }
     interface Events {
