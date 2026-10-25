@@ -1366,11 +1366,12 @@ Session 作为作用域持有者，向 Runtime Context 声明并供给一个块�
 
 模式的产品规则与系统层说明见[会话模式](../../../docs/architecture/runtime/session-and-run.md#会话模式)。
 
-Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[RC-07](../../context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）：
+Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复本会话：
 
-1. 按会话日志的提交顺序重放本会话全部注册提交（SE07）。
-2. 对每个 `checkpointed` 状态块，经 `applyCommit` 交回最近一次步提交的全值。全值从 `change(context-step-commit)` 的条目归约得出，带原提交身份。
-3. 重签读取资格。
+1. 先开始恢复会话，输入作用域、租户、检查点与被取代的恢复引用。
+2. 再用一份完整恢复材料结束恢复会话。材料有三部分：本会话全部注册提交（含移除意图，SE07）的耐久顺序；每个 `checkpointed` 状态块最近一次步提交的全值，更新清单为空，全值从 `change(context-step-commit)` 的条目归约得出；已经确认的作用域结束。
+3. 恢复完成后重签读取资格。旧资格与旧读者在开始恢复时已经失效。
+4. 首次正常创建作用域也先用空材料完成一次恢复，围栏打开之后才接受普通的注册与步提交。
 
 保留上一份快照与补拉上界的规则归 [session-adapters](../session-adapters/SPEC.md)。
 

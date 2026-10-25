@@ -18,7 +18,7 @@
 | --- | --- | --- | --- |
 | AD-01 Agent 提交参加者 | `session: { caller: 'coordinator' }` | 无 | 向执行记录提供者登记 Session 参加者，形状待 P-1 |
 | AD-02 Agent 事件消费 | `session: { caller: 'coordinator' }`；`agentExecutionRecovery` | 无 | 事件订阅，落在本插件 fiber 上 |
-| AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记 |
+| AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记，每个租户一份 |
 | AD-03 回放子插件 | `session: { caller: 'reader' }` | 无 | 无 |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
 | AD-04 历史源 | `session: { caller: 'reader' }`，读 `readModelView`；下界子插件 `session: { caller: 'coordinator' }` | 无；取得方式待 NP-02 | 不登记 |
@@ -51,7 +51,7 @@
 | 登记 | 怎样登记 | 撤除时 |
 | --- | --- | --- |
 | 端口服务提供 | 提供者子类随插件装载登记在本插件 fiber 上 | Session 一侧只有需要该端口的操作返回 `unavailable` 或保留任务。`sessionDeliveryRelease` 缺席时 `release` 保持 pending。事务端口不在本成员 |
-| `session.modes` 生产者 | `registerProducer` 在 Runtime Context 服务方法里以 `this.ctx.effect` 登记，效应落在 AD-03 的 fiber | 读取按缺项返回。重跑时新一代先登记，旧一代后撤除 |
+| `session.modes` 生产者 | `registerProducer` 在 Runtime Context 服务方法里以 `this.ctx.effect` 登记，效应落在 AD-03 的 fiber。登记带调用方可信主体与租户，生产者槽是租户加块键，为每个租户分别登记 | 每个租户的句柄分别撤除。读取按缺项返回。重跑时新一代先登记，旧一代后撤除 |
 | 模型类绑定读者 | `bind`，随变化提醒子插件 | 读者结束。下一次绑定取完整快照 |
 | Session 参加者 | 向执行记录提供者的组合登记，形状待 P-1 | 执行记录提供者对未登记参加者的共同提交返回 `unsupported`，不保存任何一半 |
 | 事件订阅、执行句柄 | 随 AD-02 与 AD-14 的 fiber | 订阅结束。事件留在 Agent 的执行记录里，之后从 `readThrough` 续读 |
@@ -63,7 +63,7 @@
 | 依赖 | 换代时 |
 | --- | --- |
 | `session` 服务 | 插件体卸载再重跑。在途调用按原操作身份认回 |
-| `runtimeContext` | AD-03 重跑，之后按 [1a](../SPEC.md#ad-03-1a) 在每个作用域第一次签发资格之前重放 |
+| `runtimeContext` | AD-03 重跑，之后按 [1a](../SPEC.md#ad-03-1a) 在每个作用域第一次签发资格之前完成一次 RC-09 恢复会话 |
 | `agentInstances`、`agentExecutionRecovery` | AD-14 丢弃旧句柄。之后的 `submit` 与 `control` 在句柄重建前返回 `unavailable` |
 | `executionEnvironment` | AD-15 与它的重新释放子插件重跑。子插件经 `releasedScopes` 按页取得已归档会话的作用域，按原任务身份重新释放（[AD-15](../SPEC.md#ad-15)）。事务域目录缺席时报告不可用，下一轮重试 |
 | `modelRuntime`、`toolRuntime`、`toolStartAuthority`、`modelProfiles` | 对应插件重跑。AD-17 换代期间端口缺席，`release` 保持 pending，由恢复协调按 `pending(release)` 找回后重发。AD-17 进程内的 Tool 释放操作引用随旧一代丢弃。失效任务留在会话日志里，由重放发现 |
