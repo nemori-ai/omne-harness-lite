@@ -170,7 +170,10 @@ export declare abstract class ToolBindingsService<P, B extends ContentBlock, E> 
     abstract readonly drain: ToolBindingRegistry<P, E, B>['drain'];
 }
 export declare const toolBindingsKey = "toolBindings";
-export type VerifiedAuthority = ToolAuthority;
+declare const verifiedAuthority: unique symbol;
+export type VerifiedAuthority = ToolAuthority & {
+    readonly [verifiedAuthority]: true;
+};
 export type ToolAuthorityFailure = Readonly<{
     kind: 'denied';
 }> | Readonly<{
@@ -438,6 +441,7 @@ declare module '@deepseek-ai/cordis' {
         'tool-cordis-contract/binding-changed'(key: ToolBindingKey, change: 'registered' | 'draining' | 'released'): void;
     }
 }
+export {};
 ```
 
 ## 声明文件 `index.d.ts`
@@ -454,7 +458,7 @@ import { type Outcome } from '@omne-harness/operation-result';
 import { type Access } from '@omne-harness/tool-contract';
 import { type ToolAuthority, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
-import type { ToolAuthorityFailure } from './cordis.ts';
+import type { ToolAuthorityFailure, VerifiedAuthority } from './cordis.ts';
 export type ToolBindingRegistryService<P> = ToolBindingRegistry<P, unknown, ContentBlock>;
 export interface ToolBindingRegistryFixture<P> {
     readonly registry: ToolBindingRegistryService<P>;
@@ -472,7 +476,7 @@ export interface MemoryToolBindingRegistry<P> extends ToolBindingRegistryService
     readonly controls: Readonly<{
         asFiber<T>(fiber: string, work: () => T): T;
         endFiber(fiber: string): Promise<void>;
-        verify(authority: ToolAuthority): Outcome<ToolAuthority, ToolAuthorityFailure>;
+        verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>;
     }>;
 }
 export type ToolBindingGrant = Readonly<{
