@@ -324,7 +324,7 @@ sequenceDiagram
     J-->>E: 一页事件，序号连续
     loop 每个事件按序号
         alt input-taken、producer、waiting、control 或 ended
-            E->>S: receive(agent-event，execution，sequence，body)
+            E->>S: receive(agent-event，execution，sequence，body)（已被替代，归 #756）
             S->>S: OP-00 从执行与序号派生身份，resolveOperation 去重
             S->>S: 守卫核对执行等于 run.active.execution
             S->>D: 写对应条目，同一提交把 readThrough 设为本序号
@@ -383,7 +383,7 @@ sequenceDiagram
         S-->>J: 参加，不写条目
         J->>D: 提交 ended 与最后事件
         J-->>E: ended 事件
-        E->>S: receive(agent-event ended)
+        E->>S: receive(agent-event ended)（已被替代，归 #756）
         S->>D: 写 SE26 completed 或 failed，与 SE16。冻结的会话另写余下待处理输入的 SE38
     else blocked，有待交输入
         S-->>J: 冲突，依据为这些 InputId
@@ -397,7 +397,7 @@ sequenceDiagram
         S->>S: 核对结论为 cancelled 且控制等于 SE26 引用的控制
         S-->>J: 参加
         J-->>E: ended 事件，结论 cancelled
-        E->>S: receive(agent-event ended)，只认回，不新增 SE26
+        E->>S: receive(agent-event ended)，只认回，不新增 SE26（已被替代，归 #756）
     else terminal，其他终态已成立
         S-->>J: 冲突，依据为既有终态
     end

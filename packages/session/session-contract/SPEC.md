@@ -452,7 +452,7 @@ Agent 对外有两条通道：提交参加与事件流。本节按下面的分�
 3. 输入承接（SE14）、调用登记（SE18）、等待与出卡（SE22）、控制阶段（SE25）、执行结束（SE26）由 Agent 拥有。Session 从 Agent 的事件流读到这些事实后，按事件身份以 `receive` 写入，重放时认回。Session 的这些条目是可以从 Agent 记录重建的派生事实。
 4. 推进资格的交还（SE16）由 Session 提交。依据是 Agent `detach` 返回的交接依据，或读执行记录得到的挂接状态。
 5. 交入哪些输入、按什么顺序交入，由 Session 按业务规则调度（[批次](#批次run与attempt)）。`startRun` 不扣除一批输入。`invoke` 只带首条输入，其余待处理输入按到达顺序经 `submit` 交入同一执行。Agent 每一步取当时已交入的全部输入，这一步的批界就是 Agent 的输入水位线。待处理资格在 Session 读到 Agent 的承接事件时解除。
-6. 已发生但尚未读到的 Agent 事件计入未结工作。Run 未终结时，Session 不声称空闲，也不声称完成。按 Agent 结论成立的终态只在读到 Agent 的结束事件或结束状态之后成立。取消终态在 Session 的控制提交时成立（[RS-10](#rs-10)），有界收束的失败终态在 `finishRun` 提交时成立（[RS-09](#rs-09)）。
+6. 已发生但尚未读到的 Agent 事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）计入未结工作。Run 未终结时，Session 不声称空闲，也不声称完成。按 Agent 结论成立的终态只在读到 Agent 的结束事件或结束状态之后成立。取消终态在 Session 的控制提交时成立（[RS-10](#rs-10)），有界收束的失败终态在 `finishRun` 提交时成立（[RS-09](#rs-09)）。
 
 下图对照两条通道。上半是参加：Agent 的一次提交只带一种调用方交接，Session 参加者在同一事务里写条目，或只读核对。下半是事件流：Agent 自己提交，Session 事后读事件并以 `receive` 写派生事实。
 
@@ -755,7 +755,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 结果：
   - 待交输入非空时响应「冲突」，依据为这些 `InputId`。执行记录提供者返回 `changed`，Session 不写条目。推进协调按 [PA-06](#pa-06) 第 3 项补交，Agent 重新求值。
   - Run 已是 cancelled 终态时响应「冲突」，依据为 SE26 cancelled。Agent 以已保存的取消依据再次条件终结，参加者核对结论为 cancelled、取消控制等于 SE26 引用的控制，然后响应「参加」（[PA-08](#pa-08) 第 3 项）。
-  - 其他情形响应「参加」，不写 Session 条目。Run 终态在 Session 读到结束事件时成立（[EC-01](#ec-01)、[RS-08](#rs-08)）。
+  - 其他情形响应「参加」，不写 Session 条目。Run 终态在 Session 读到结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）时成立（[EC-01](#ec-01)、[RS-08](#rs-08)）。
 - 失败：参加者读权威状态失败时响应「失败」，两侧都不保存。
 - 未知与认回：按 [PA-05](#pa-05)。
 - 责任：待交输入的可见性归 Session 参加者。已交入输入的边界与重新求值归 Agent。
@@ -828,7 +828,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   1. 取消先于 `accept`：Run 已是 cancelled 终态。会话未归档时，输入照 [PA-03](#pa-03) 取得待处理资格，去处为下一个 Run。归档先成立时，`accept` 被拒绝。
   2. `accept` 先于取消：输入保留待处理资格与原归属。Run 取消不撤销待处理资格，由新 Run 承接。归档在同批撤销待处理资格并记录取消范围（SE27）。已交入执行而未承接的输入，在 Agent 一侧保留原归属与处置依据；Session 一侧仍没有 SE14，待处理资格保留，由后继 Run 以同一 `InputId` 重新交入，并在 SE13 记录前继 Run。这不是静默转入。
   3. 取消先于条件终结：条件终结带推进授权（complete 或 fail）到达时，参加者响应「冲突」，依据为 SE26 cancelled（[PA-02](#pa-02)）。Agent 重读事实，以已保存的取消依据再次条件终结。之后读到的结束事件按 [RS-10](#rs-10) 认回，不新增 SE26。
-  4. 条件终结先于取消：Agent 执行已结束。Session 读到结束事件后 Run 为 completed 或 failed，`control(cancel-run)` 返回 `terminal`，带回既有终态。Session 尚未读到结束事件时，`control(cancel-run)` 照常提交 SE26 cancelled；之后读到的结束事件按 [RS-08](#rs-08) 认回，Agent 的结论作为引用保留，终态不改。
+  4. 条件终结先于取消：Agent 执行已结束。Session 读到结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）后 Run 为 completed 或 failed，`control(cancel-run)` 返回 `terminal`，带回既有终态。Session 尚未读到结束事件时，`control(cancel-run)` 照常提交 SE26 cancelled；之后读到的结束事件按 [RS-08](#rs-08) 认回，Agent 的结论作为引用保留，终态不改。
   5. 取消已提交而没有活体挂接：按 [PM-13](#pm-13)。
 - 失败：参加者读权威状态失败时响应「失败」。
 - 未知与认回：`control` 未知时 `queryOperation`。参加提交未知按 [PA-05](#pa-05)。
@@ -1030,7 +1030,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 | `run.active`，`advance` 非空，执行记录显示该 attempt 的挂接 active | 无 | 等 Agent 自行推进；读事件，补交待交输入 | 不 `claim` |
 | `run.active`，`advance` 非空，执行记录显示挂接已交还或已被取代 | `release` 的身份 | 认回或提交 `release`（SE16），进入下一行 | 不重发原调用 |
 | `run.active`，`advance` 为空 | 读执行记录 | 执行挂起：`claim` 后 `resume`。挂接仍 active、本主体有接管资格、有宿主的失联判断作证据：`claim`（接管）后 `resume`。没有失联依据时等 Agent。没有资格时报告并保留 | 不以宿主失联判断代替资格 |
-| `run.active`，执行记录显示执行已结束 | 事件流至结束事件，或快照的结束状态 | 以 `receive` 提交结束事实，按 Agent 的结论写 SE26 与 SE16（[RS-08](#rs-08) 至 [RS-10](#rs-10)） | 不复活执行；不把 Agent 的结论改写为失败 |
+| `run.active`，执行记录显示执行已结束 | 事件流至结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留），或快照的结束状态 | 以 `receive` 提交结束事实，按 Agent 的结论写 SE26 与 SE16（[RS-08](#rs-08) 至 [RS-10](#rs-10)） | 不复活执行；不把 Agent 的结论改写为失败 |
 | `run.active`，读执行记录或接续持续返回原记录不可读或精确采用不可读 | 按策略重试 | 超过上限后按 [P-5](#具名前提与明确缺项) 提交有界收束，终态为 failed，依据为不可解释记录，写明未收尾效果 | 不猜默认下一步 |
 | `consumptions` 中结果已报告，而保管与完成都为空 | 生产者原调用 | 以合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20，再发交付责任解除（[EC-04](#ec-04)）。Agent 记录已删除时由 Session 提交 `preserveResult` | 不重发原调用 |
 | `release` 为 pending，保管或完成非空 | 生产者确认状态 | 重发交付责任解除，`receive(release)` | 不写 confirmed 以外的值 |
@@ -1048,7 +1048,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### EC-01 两条通道各写什么
 
 - 前提：Agent 对外有事件流与提交参加两条通道（[Session 与 Agent 的两条通道](#session-与-agent-的两条通道)）。
-- 动作：事件消费者按序读取 Agent 事件，按下表处理。每个产生条目的事件以 `receive` 写入，身份为执行与序号。
+- 动作：事件消费者按序读取 Agent 事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留），按下表处理。每个产生条目的事件以 `receive` 写入，身份为执行与序号。
 - 结果：
 
   | Agent 事件 | Session 的动作 | 条目 |
@@ -1081,7 +1081,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：Run 未终结。Agent 可能已经提交了 Session 尚未读到的事件。
 - 动作：`openWork` 把每个未终结 Run 的执行与 `readThrough` 列为 `unreadEvents`：该序号之后的事件，不论是否已经发生，都计入未结工作。
-- 结果：Run 未终结时 `judgeIdle` 不得出 `due`。Run 终态只在读到结束事件或结束状态后成立，所以 Session 不在未读时声称完成。未结工作下界交给 Request Context 时带上这一项。
+- 结果：Run 未终结时 `judgeIdle` 不得出 `due`。Run 终态只在读到结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）或结束状态后成立，所以 Session 不在未读时声称完成。未结工作下界交给 Request Context 时带上这一项。
 - 失败：不适用。
 - 责任：未结工作的派生归本成员。事件的产生归 Agent。
 
@@ -1181,9 +1181,9 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | <a id="rs-05"></a>RS-05 | advancing 或 waiting → released | `release` | `judgeAdvance` 为 `ok`；交接依据指向该 attempt 的挂接 | SE16 | 已被取代的 attempt 得到 `stale-advance`，认回既有 SE16 |
 | <a id="rs-06"></a>RS-06 | released → granted | `claim`、`reload` | `judgeAdvance`：`advance` 为空，或旧 attempt 可信排除 | SE15，`reload` 另有 SE08 | 两个恢复者一个成立，另一个得到 `stale-advance` |
 | <a id="rs-07"></a>RS-07 | advancing 或 waiting → superseded → granted（同批） | `claim`（接管）、`reload`（旧 runtime 失联） | 接管资格；`judgeAdvance` | 旧 attempt 的 SE16 与新 attempt 的 SE15 同批；`tasks.start-fence`（已被替代） | 旧 runtime 的后续提交得到 `stale-advance`。窗口内参加者响应「冲突」（[PM-05](#pm-05)） |
-| <a id="rs-08"></a>RS-08 | active → completed | `receive` 读到结论为 complete 的结束事件或结束状态 | Run 未终态；事件属于 `run.active.execution` | SE26 completed、SE16 | 取消先成立时只认回：Agent 的结论作为 SE26 cancelled 的引用保留，终态不改。条件终结之前的待交输入由 [PA-02](#pa-02) 挡住 |
-| <a id="rs-09"></a>RS-09 | active → failed | `receive` 读到结论为 fail 的结束事件或结束状态；有界收束（[P-5](#具名前提与明确缺项)，或 [PM-02](#pm-02) 的准入拒绝）时由 Session 提交 `finishRun` | 读结束事实时同 RS-08；有界收束时核对收束依据 | SE26 failed、SE16；准入拒绝另有 SE35 | 取消先成立时只认回。完成先成立时 `finishRun` 返回 `terminal` |
-| <a id="rs-10"></a>RS-10 | active → cancelled | `control(cancel-run)`、`control(archive)`、到期的 `considerAutoArchive`；`receive` 读到结论为 cancelled 的结束事件 | `resolveControlScope`：Run 未终态；读结束事实时 Run 未终态 | SE24、SE25、SE26 cancelled、SE16；归档另有 SE27 | 完成或失败先成立时 `control` 返回 `terminal` 并带回既有终态。SE26 cancelled 已成立时，结束事件只认回。优雅或强制不改变终态时点 |
+| <a id="rs-08"></a>RS-08 | active → completed | `receive` 读到结论为 complete 的结束事件或结束状态（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留） | Run 未终态；事件属于 `run.active.execution` | SE26 completed、SE16 | 取消先成立时只认回：Agent 的结论作为 SE26 cancelled 的引用保留，终态不改。条件终结之前的待交输入由 [PA-02](#pa-02) 挡住 |
+| <a id="rs-09"></a>RS-09 | active → failed | `receive` 读到结论为 fail 的结束事件或结束状态（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）；有界收束（[P-5](#具名前提与明确缺项)，或 [PM-02](#pm-02) 的准入拒绝）时由 Session 提交 `finishRun` | 读结束事实时同 RS-08；有界收束时核对收束依据 | SE26 failed、SE16；准入拒绝另有 SE35 | 取消先成立时只认回。完成先成立时 `finishRun` 返回 `terminal` |
+| <a id="rs-10"></a>RS-10 | active → cancelled | `control(cancel-run)`、`control(archive)`、到期的 `considerAutoArchive`；`receive`（已被替代，见 RS-08） 读到结论为 cancelled 的结束事件 | `resolveControlScope`：Run 未终态；读结束事实时 Run 未终态 | SE24、SE25、SE26 cancelled、SE16；归档另有 SE27 | 完成或失败先成立时 `control` 返回 `terminal` 并带回既有终态。SE26 cancelled 已成立时，结束事件只认回。优雅或强制不改变终态时点 |
 
 | 编号 | 不变量 | 守卫 | 违反时怎样被拒 |
 | --- | --- | --- | --- |
