@@ -100,7 +100,9 @@ import { type Context, Service } from '@deepseek-ai/cordis';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
-import { type DurableEvidence, type ResultPolicy, type SourceLayer, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolCallId, type ToolCatalog, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolRevision, type ToolRuntime, type ToolStartAuthority } from '@omne-harness/tool-contract';
+import { type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolRuntime } from '@omne-harness/tool-contract';
+import { type ToolDirectory } from '@omne-harness/tool-contract/provider';
+import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     constructor(ctx: Context);
@@ -109,6 +111,7 @@ export declare abstract class ToolRuntimeService<P, B extends ContentBlock> exte
     abstract readonly queries: ToolRuntime<P, B>['queries'];
     abstract readonly commands: ToolRuntime<P, B>['commands'];
     abstract readonly instances: ToolRuntime<P, B>['instances'];
+    abstract readonly observation: ToolRuntime<P, B>['observation'];
     abstract readonly content: ToolRuntime<P, B>['content'];
     abstract readonly catalog: ToolRuntime<P, B>['catalog'];
 }
@@ -448,7 +451,8 @@ export {};
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
-import { type Access, type ToolAuthority, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract';
+import { type Access } from '@omne-harness/tool-contract';
+import { type ToolAuthority, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
 import type { ToolAuthorityFailure } from './cordis.ts';
 export type ToolBindingRegistryService<P> = ToolBindingRegistry<P, unknown, ContentBlock>;

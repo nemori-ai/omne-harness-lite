@@ -10,11 +10,13 @@
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
+- `Admission` · `caller-fiber.d.ts`
 - `DefinedPlugin` · `cordis.d.ts`
 - `SchemaFailure` · `cordis.d.ts`
 - `SchemaSuccess` · `cordis.d.ts`
 - `StandardSchema` · `cordis.d.ts`
 - `definePlugin` · `cordis.d.ts`
+- `registerInCallerFiber` · `caller-fiber.d.ts`
 - `resolveOptional` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -24,6 +26,28 @@
 - `TestAssemblyStartFailed` · `testing.d.ts`
 - `TestPlugin` · `testing.d.ts`
 - `startTestAssembly` · `testing.d.ts`
+
+## 声明文件 `caller-fiber.d.ts`
+
+```ts
+import type { Context } from '@deepseek-ai/cordis';
+import { type Outcome } from '@omne-harness/operation-result';
+export type Admission<Entry extends {
+    readonly registration: unknown;
+}, Failure> = Readonly<{
+    kind: 'entered';
+    entry: Entry;
+}> | Readonly<{
+    kind: 'recognised';
+    registration: Entry['registration'];
+}> | Readonly<{
+    kind: 'refused';
+    failure: Failure;
+}>;
+export declare function registerInCallerFiber<Entry extends {
+    readonly registration: unknown;
+}, Failure>(ctx: Context, admit: (dropEffect: () => void) => Admission<Entry, Failure>, withdrawal: (entry: Entry) => void): Outcome<Entry['registration'], Failure>;
+```
 
 ## 声明文件 `cordis.d.ts`
 
@@ -52,6 +76,7 @@ export type DefinedPlugin<Output> = {
 };
 export declare function definePlugin<Output>(input: DefinedPlugin<Output>): DefinedPlugin<Output>;
 export declare function resolveOptional<T>(ctx: Context, name: string): T | undefined;
+export { registerInCallerFiber, type Admission } from './caller-fiber.ts';
 ```
 
 ## 声明文件 `index.d.ts`
