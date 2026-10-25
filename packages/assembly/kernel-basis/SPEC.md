@@ -1,6 +1,6 @@
 # kernel-basis 行为规格
 
-本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。根入口为空导出。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。`./testing` 导出 `startTestAssembly`。操作结果归 `@omne-harness/operation-result`，依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851)，契约见该成员的 [SPEC.md](../../common/operation-result/SPEC.md)。
+本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。根入口为空导出。`./cordis` 导出 `definePlugin`、`resolveOptional`，以及[调用方 fiber 登记辅助](#调用方-fiber-登记辅助)的 `registerInCallerFiber` 与 `Admission`。`./testing` 导出 `startTestAssembly`。操作结果归 `@omne-harness/operation-result`，依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851)，契约见该成员的 [SPEC.md](../../common/operation-result/SPEC.md)。
 
 本成员只服务 Cordis 集成与测试。根入口为空，并且不导入 `@deepseek-ai/cordis`。插件辅助从 `./cordis` 导出。测试装配从 `./testing` 导出。本包不声明服务键，不收回其他能力的 Service 定义。
 
@@ -64,6 +64,44 @@ Cordis 已经接受一个插件对象。`definePlugin` 多做的是强制 `Confi
 
 `FIBER_STATE` 和 `fiberIsActive` 不是公开辅助。Fiber 状态留在 Cordis。`ACTIVE` 不等于存储可写、远端可达或工作已恢复。
 
+## 调用方 fiber 登记辅助
+
+本节由 [RFC-0012 第 8 项](../../../docs/rfcs/RFC-0012-tool-dynamics.md#验证与消费者切换)提升，公开形状、生命周期与失败边界按 [#626 的 helper 采用](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540)写回。状态：条款已写回，源码尚未切换；`./cordis` 导出、Model 两个调用点的迁移与下列验证义务由 #626 的后续阶段交付。
+
+一个目录型 Service 在调用方 fiber 的 effect 里登记一份贡献，并在该 fiber 撤除时撤回它。Model 的实例目录与转换目录都这样做，Tool 的绑定登记表也这样做。本辅助把这一步固定为一个函数，使各目录的准入、effect 配对与结果映射只写一次。领域资格决定仍归各目录。
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import type { Outcome } from '@omne-harness/operation-result'
+
+type Admission<Entry extends { readonly registration: unknown }, Failure> =
+  | Readonly<{ kind: 'entered'; entry: Entry }>
+  | Readonly<{ kind: 'recognised'; registration: Entry['registration'] }>
+  | Readonly<{ kind: 'refused'; failure: Failure }>
+
+function registerInCallerFiber<Entry extends { readonly registration: unknown }, Failure>(
+  ctx: Context,
+  admit: (dropEffect: () => void) => Admission<Entry, Failure>,
+  withdrawal: (entry: Entry) => void,
+): Outcome<Entry['registration'], Failure>
+```
+
+`ctx` 是实际调用方的 Context（Service 方法里的 `this.ctx`），effect 归调用方 fiber。`admit` 是目录的同步准入：它在 effect 内运行，读写目录状态，返回三态之一。`entered` 表示本次新建了一份贡献，`entry` 是目录记下的条目，`entry.registration` 是交回调用方的回执；`recognised` 表示认回已有贡献，交回原回执；`refused` 表示拒绝，交回原失败。`withdrawal` 是 `entered` 条目的撤回动作，由 effect 的 disposer 调用。两个泛型分别是条目类型与失败类型，成功类型由 `Entry['registration']` 给出，不另设第三个泛型。
+
+生命周期与失败边界：
+
+1. effect 创建成功后，`admit` 在函数返回前同步执行恰一次；Cordis 拒绝创建 effect（例如 fiber 已 `UNLOADING`）时执行零次。函数不选择替代 fiber，不重试，不做领域资格决定。
+2. `entered` 返回原 registration，并保留恰一次 `withdrawal`；`recognised` 返回原 registration，`refused` 返回原 failure。后两者只请求移除本次新建的 effect，不调用 `withdrawal`。正常的同步移除在返回前完成；Cordis 已在卸载时，完成时间遵从其在途清理。
+3. `dropEffect` 只属于本次调用。重复或重入调用不重复 `withdrawal`。`admit` 内提前调用 `dropEffect` 时，函数记录该请求，取得本次 remover 后、返回前执行它。返回 `entered` 是已发生的受理结果，不保证登记持续存活，可能已被撤除。
+4. 提前 drop 与调用方卸载同时发生时，函数只请求本次 remover；已启动的 Cordis 卸载可以在函数返回后完成。`entered` 的 disposer 由该卸载持有，调用方不能因为观察到卸载再自行撤除第二次。不同 effect 之间不承诺完成顺序。
+5. `admit` 与 `withdrawal` 都必须同步。`void` 返回类型挡不住 async `withdrawal`，真实调用点与验证须守住这一限制。函数不等待任何 hook，不充当 drain 协议。
+6. `admit` 抛错前的部分领域副作用、它独立创建的嵌套 effect 及其回滚归调用方。没有返回 `entered` 时，函数不猜一个条目去撤除。
+7. 函数不把异常翻译成 `refused` 或成功。它传播在 `ctx.effect` 或显式 remover 边界实际观察到的异常；不承诺原 `admit` 错误在 Cordis 二次清理出错时仍保持身份。fiber 卸载中的 disposer 错误走 Cordis 的实际日志与完成通道。不新增 AggregateError，不 catch 后重装 effect，不提供通用事务回滚。effect setup 没有同步执行时函数明确失败，不制造成功。
+
+调用方的剩余责任：显式正常释放先完成本域的 retirement 再 drop；旧条目不撤掉后继的身份比较归目录；返回 `entered` 之后的持续存活由目录状态回答，不由返回值回答。
+
+本辅助的验证义务（随源码切换交付）：三态下原对象身份不变；`admit` 同步执行一次；提前、重复、重入 drop 与卸载的组合各撤除一次；重复登记再释放不累积 effect；异常走实际通道；真实 caller fiber 与 provider fiber 可区分；类型正反例；声明与私有路径、空根入口检查；packed 安装闭包；Model 两个调用点回归。全部在 `@deepseek-ai/cordis@4.0.4` 上运行。
+
 ## 测试装配
 
 `./testing` 导出 `startTestAssembly`。标识符变化不得改变下面的形状。
@@ -110,15 +148,16 @@ Cordis 负责运行中的依赖换代和 `fiber.restart`。测试装配不做这
 | --- | --- | --- | --- | --- | --- |
 | `definePlugin` | `./cordis` | [IC-14](../../../docs/architecture/cordis-integration-conventions.md) | IC-14 的函数插件 | 无 | Cordis 接受的插件对象可以省略 `Config` |
 | `resolveOptional` | `./cordis` | [IC-9](../../../docs/architecture/cordis-integration-conventions.md) | IC-9 的可选依赖读取 | 无 | `ctx.get` 已经够用。辅助只固定缺席和类型断言 |
+| `registerInCallerFiber`、`Admission` | `./cordis` | [RFC-0012 第 8 项](../../../docs/rfcs/RFC-0012-tool-dynamics.md#验证与消费者切换)与 [helper 采用](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6369465540) | `model-cordis-contract` 的实例目录 `ModelInstancesService.register` 与转换目录 `ModelConvertersService.register`；Tool 绑定登记表的作者插件登记（[G7](../../tool/tool-contract/SPEC.md#342-契约缺口决定)） | 尚无：Model 仍用自带副本 `caller-fiber.ts`，#626 阶段 2 删副本改消费 | Cordis 的 `ctx.effect` 不区分新建、认回与拒绝，也不把准入结果映射为 `Outcome`；提前 drop 的一次性处理是本辅助新增的承诺 |
 | 测试装配 | `./testing` | 包组织页登记了入口。PanQiWei 在 #270 把本次范围扩到这个入口。导出名是 `startTestAssembly` | 本包 `./testing` 测试 | 无业务成员调用点 | Cordis 的 `await plugin()` 返回不等于 `apply` 已运行，也不收集多次撤除失败 |
 
 测试装配已由 PanQiWei 纳入 #270 本次范围。公开入口由本包测试消费。没有业务成员里的生产调用点。旧包 import 次数只是线索。服务键留在各能力的定义拥有者。
 
 ## 入口闭包
 
-安装本包就会安装 Cordis。`package.json` 把 `@deepseek-ai/cordis` 放在 `dependencies` 里。本包只服务 Cordis 集成与测试。根入口为空导出，源码和生成的声明都不引用 Cordis。需要操作结果的调用方安装 `@omne-harness/operation-result`，那个成员的 `dependencies` 为空。
+安装本包就会安装 Cordis。`package.json` 把 `@deepseek-ai/cordis` 放在 `dependencies` 里。本包只服务 Cordis 集成与测试。根入口为空导出，源码和生成的声明都不引用 Cordis。调用方可以单独安装 `@omne-harness/operation-result`，那个成员的 `dependencies` 为空。
 
-`./cordis` 和 `./testing` 的源码与声明可以引用 Cordis。
+`./cordis` 和 `./testing` 的源码与声明可以引用 Cordis。`registerInCallerFiber` 进入 `./cordis` 时，本包把 `@omne-harness/operation-result` 加进 `dependencies`，因为 `./cordis` 的声明与产物引用 `Outcome`；它不引入 Model 或 Tool 的类型，也不复制 `Outcome`。内部文件不增加公开子路径。
 
 ## Cordis 证据
 
