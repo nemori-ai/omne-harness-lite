@@ -61,8 +61,8 @@ export type RecognizeLoginInput = Readonly<{ loginProof: string }>
 /**
  * `recognized`: the login is valid now. `account` is its subject and `tenant` its current
  * selection; neither is a membership fact nor an authorization. `invalid` covers an empty, foreign
- * or unissued proof and an ended login alike. `basis-unavailable`: the validity of an issued login
- * cannot be judged now.
+ * or unissued proof and an ended login alike. `basis-unavailable`: the login store or the clock
+ * cannot answer, so the proof cannot be judged now. SPEC ID-17 fixes the order of the checks.
  */
 export type LoginRecognition =
   | Readonly<{ kind: 'recognized'; account: AccountId; login: LoginStateId; tenant: TenantId }>
