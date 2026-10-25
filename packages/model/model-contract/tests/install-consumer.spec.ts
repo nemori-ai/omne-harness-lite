@@ -73,6 +73,7 @@ it('installs only the packed closure and every entry resolves inside the consume
   expect(report.typeCheck.files).toBeGreaterThan(0)
   expect(report.probe.map(entry => entry.specifier)).toEqual([
     '@omne-harness/model-contract',
+    '@omne-harness/model-contract/conformance',
     '@omne-harness/model-contract/testing',
   ])
   expect(report.forbidden).toEqual([])

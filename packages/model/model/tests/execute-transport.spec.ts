@@ -1,7 +1,5 @@
-import {
-  checkModelProviderConformance,
-  createScriptedConformanceSubject,
-} from '@omne-harness/model-contract/testing'
+import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
+import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import { expect, it } from 'vitest'
 
 it('the scripted provider transport passes each of the six transport obligations directly', async () => {

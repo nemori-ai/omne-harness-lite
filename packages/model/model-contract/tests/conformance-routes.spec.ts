@@ -1,8 +1,8 @@
 import { invocationReference, referenceParts } from './reference-input.ts'
 import { decodeModelInstanceId } from '@omne-harness/model-contract'
 import type { CallState, ModelHandle, Snapshot } from '@omne-harness/model-contract'
+import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
 import {
-  checkModelProviderConformance,
   createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'

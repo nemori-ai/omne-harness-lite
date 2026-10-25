@@ -3,9 +3,9 @@
 // real provider the same way.
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import type { ModelCallId } from '../index.ts'
-import { DEFAULT_REQUEST, DEFAULT_SUPPLIER } from './conformance-defaults.ts'
-import { instanceId, operationId, versionId } from './conformance-kit.ts'
-import type { ConformanceHooks, ConformanceSubject } from './conformance-types.ts'
+import { DEFAULT_REQUEST, DEFAULT_SUPPLIER } from '../conformance/conformance-defaults.ts'
+import { instanceId, operationId, versionId } from '../conformance/conformance-kit.ts'
+import type { ConformanceHooks, ConformanceSubject } from '../conformance/conformance-types.ts'
 import { createScriptedModelProvider } from './provider.ts'
 import { createScriptedTransport } from './transport.ts'
 

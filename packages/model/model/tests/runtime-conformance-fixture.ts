@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import {
-  createScriptedTransport,
   type ConformanceAction,
   type ConformanceHooks,
   type ConformanceSubject,
-} from '@omne-harness/model-contract/testing'
+} from '@omne-harness/model-contract/conformance'
+import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import type { Mutation } from '@omne-harness/model-contract'
 import type { MemoryAction } from '@omne-harness/model/testing'
 import { runtimeFixture, eventually } from './runtime-fixture.ts'

@@ -234,18 +234,22 @@
 - `resolveModelOperationRef` · `reference.d.ts`
 - `sameCredentialHolder` · `credential-values.d.ts`
 
+## 入口 `./conformance` · `conformance/index.d.ts`
+
+- `CONFORMANCE_OBLIGATIONS` · `conformance/conformance-types.d.ts`
+- `ConformanceAction` · `conformance/conformance-types.d.ts`
+- `ConformanceCall` · `conformance/conformance-types.d.ts`
+- `ConformanceHooks` · `conformance/conformance-types.d.ts`
+- `ConformanceObligation` · `conformance/conformance-types.d.ts`
+- `ConformanceOptions` · `conformance/conformance-types.d.ts`
+- `ConformanceReport` · `conformance/conformance-types.d.ts`
+- `ConformanceSubject` · `conformance/conformance-types.d.ts`
+- `ConformanceTransport` · `conformance/conformance-types.d.ts`
+- `ObligationResult` · `conformance/conformance-types.d.ts`
+- `checkModelProviderConformance` · `conformance/conformance.d.ts`
+
 ## 入口 `./testing` · `testing/index.d.ts`
 
-- `CONFORMANCE_OBLIGATIONS` · `testing/conformance-types.d.ts`
-- `ConformanceAction` · `testing/conformance-types.d.ts`
-- `ConformanceCall` · `testing/conformance-types.d.ts`
-- `ConformanceHooks` · `testing/conformance-types.d.ts`
-- `ConformanceObligation` · `testing/conformance-types.d.ts`
-- `ConformanceOptions` · `testing/conformance-types.d.ts`
-- `ConformanceReport` · `testing/conformance-types.d.ts`
-- `ConformanceSubject` · `testing/conformance-types.d.ts`
-- `ConformanceTransport` · `testing/conformance-types.d.ts`
-- `ObligationResult` · `testing/conformance-types.d.ts`
 - `ScriptController` · `testing/controller.d.ts`
 - `ScriptedAction` · `testing/core.d.ts`
 - `ScriptedCall` · `testing/controller.d.ts`
@@ -259,7 +263,6 @@
 - `ScriptedTransportEnding` · `testing/transport.d.ts`
 - `ScriptedTransportScript` · `testing/transport.d.ts`
 - `ScriptedWriteAction` = `WriteAction` · `testing/writes.d.ts`
-- `checkModelProviderConformance` · `testing/conformance.d.ts`
 - `createScriptedConformanceSubject` · `testing/conformance-scripted.d.ts`
 - `createScriptedModelProvider` · `testing/provider.d.ts`
 - `createScriptedTransport` · `testing/transport.d.ts`
@@ -391,6 +394,358 @@ export interface ModelRuntime<P> {
     readonly consumption: ModelConsumption<P>;
     readonly instances: ModelDirectory<P>;
 }
+```
+
+## 声明文件 `conformance/conformance-admission.d.ts`
+
+```ts
+import type { Check } from './conformance-types.ts';
+export declare function admissionChecks<P>(): readonly Check<P>[];
+```
+
+## 声明文件 `conformance/conformance-bounded.d.ts`
+
+```ts
+import type { ConformanceSubject } from './conformance-types.ts';
+export declare function boundedSubject<P>(subject: ConformanceSubject<P>, waitMs: number): ConformanceSubject<P>;
+```
+
+## 声明文件 `conformance/conformance-control.d.ts`
+
+```ts
+import type { Check } from './conformance-types.ts';
+export declare function controlChecks<P>(): readonly Check<P>[];
+```
+
+## 声明文件 `conformance/conformance-defaults.d.ts`
+
+```ts
+import type { ConsumerRef, FixedModelRequest, ResultCapacity, Supplier } from '../index.ts';
+export declare const DEFAULT_SUPPLIER: Supplier;
+export declare const DEFAULT_REQUEST: FixedModelRequest;
+export declare const DEFAULT_CONSUMER: ConsumerRef;
+export declare const DEFAULT_CAPACITY: ResultCapacity;
+export declare function variantOf(request: FixedModelRequest): FixedModelRequest;
+```
+
+## 声明文件 `conformance/conformance-kit.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { Admit, AckReceipt, CallState, ControlState, CustodyState, DispatchRecord, DurableEvidence, GrowingContentKind, Handoff, Lookup, ModelBlock, ResultPart, ModelCallId, ModelFailure, ModelHandle, ModelInstanceId, ModelOperationId, ModelRuntime, Observation, ReadId, ReadState, ResultPage, ResultVersion, Snapshot, Termination, TransportFact, VisibleBlock } from '../index.ts';
+import { type ConformanceCall, type ConformanceHooks, type ConformanceTransport, type HookName, type Scene } from './conformance-types.ts';
+export declare function expect(condition: boolean, detail: string): asserts condition;
+export declare function show(value: unknown): string;
+export declare function same(left: unknown, right: unknown): boolean;
+export declare function succeeded<T>(outcome: Outcome<T, unknown>, what: string): T;
+export declare function refused<F>(outcome: Outcome<unknown, F>, what: string): F;
+export declare function refusedAs<K extends ModelFailure['kind']>(outcome: Outcome<unknown, ModelFailure>, kind: K, what: string): Extract<ModelFailure, {
+    kind: K;
+}>;
+export declare const callId: (label: string) => ModelCallId;
+export declare const operationId: (label: string) => ModelOperationId;
+export declare const reservedOperationId: (label: string) => ModelOperationId;
+export declare const instanceId: (label: string) => ModelInstanceId;
+export declare const versionId: (label: string) => ResultVersion;
+export declare const readId: (label: string) => ReadId;
+export declare const dispatchId: (label: string) => import("../root.ts").DispatchId;
+export declare function textBlock(id: string, text: string): ModelBlock;
+export declare function hookOf<P, K extends HookName>(scene: Scene<P>, name: K): NonNullable<ConformanceHooks<P>[K]>;
+export declare function transportOf<P>(scene: Scene<P>): ConformanceTransport;
+export declare function runtimeOf<P>(scene: Scene<P>): ModelRuntime<P>;
+export declare function targetOf<P>(scene: Scene<P>, call: ModelCallId): ConformanceCall;
+export declare function accessOf<P>(scene: Scene<P>, call: ModelCallId, tenant?: TenantId): {
+    principal: P;
+    tenant: TenantId;
+    call: ModelCallId;
+    reference: import("../reference.ts").ModelInvocationRef;
+};
+export declare function mutationOf<P>(scene: Scene<P>, call: ModelCallId, operation: ModelOperationId, tenant?: TenantId): {
+    principal: P;
+    tenant: TenantId;
+    call: ModelCallId;
+    reference: import("../reference.ts").ModelInvocationRef;
+    operation: ModelOperationId;
+};
+export declare function admitInput<P>(scene: Scene<P>, label: string, over?: Partial<Admit<P>>): Admit<P>;
+export declare function copyOfAdmit<P>(input: Admit<P>): Admit<P>;
+export type Placed<P> = Readonly<{
+    input: Admit<P>;
+    call: ModelCallId;
+    operation: ModelOperationId;
+}>;
+export declare function placed<P>(scene: Scene<P>, label: string): Promise<Placed<P>>;
+export declare function running<P>(scene: Scene<P>, label: string): Promise<Placed<P>>;
+export declare function lookup<P>(scene: Scene<P>, call: Placed<P>): Promise<Lookup>;
+export declare function stateOf<P>(scene: Scene<P>, call: Placed<P>): Promise<CallState>;
+export type Settled = Extract<CallState, {
+    phase: 'settled';
+}>;
+export type Ended<P> = Placed<P> & Readonly<{
+    version: ResultVersion;
+    state: Settled;
+}>;
+export type EndOptions = Readonly<{
+    termination?: Termination;
+    parts?: readonly ResultPart[];
+    pageSize?: number;
+    pageTargetBytes?: number;
+}>;
+export declare const COMPLETED: Termination;
+export declare function resultBlocks(): readonly ModelBlock[];
+export declare function ending<P>(scene: Scene<P>, call: Placed<P>, options?: EndOptions): Promise<Ended<P>>;
+export declare function ended<P>(scene: Scene<P>, label: string, options?: EndOptions): Promise<Ended<P>>;
+export declare const processed: (completion: DurableEvidence) => Handoff;
+export declare function evidenceFor<P>(scene: Scene<P>, call: Placed<P>, label: string): Promise<DurableEvidence>;
+export declare function ackInput<P>(scene: Scene<P>, call: Ended<P>, operation: ModelOperationId, evidence: DurableEvidence): {
+    principal: P;
+    tenant: TenantId;
+    call: ModelCallId;
+    reference: import("../reference.ts").ModelInvocationRef;
+    operation: ModelOperationId;
+    result: ResultVersion;
+    evidence: Handoff;
+};
+export declare function acknowledged<P>(scene: Scene<P>, call: Ended<P>, label?: string): Promise<Readonly<{
+    operation: ModelOperationId;
+    receipt: AckReceipt;
+    evidence: DurableEvidence;
+}>>;
+export type OpenRead = Readonly<{
+    read: ReadId;
+    page: ResultPage;
+}>;
+export declare function readOf<P>(scene: Scene<P>, call: Ended<P>, label?: string): Promise<OpenRead>;
+export declare function pageOf(state: ReadState, what: string): ResultPage;
+export declare function startedCount(records: readonly DispatchRecord[]): number;
+export declare function dispatchesOf<P>(scene: Scene<P>, call: ModelCallId): Promise<readonly DispatchRecord[]>;
+export declare function within<T>(waitMs: number, promise: Promise<T>, what: string): Promise<T>;
+export declare function releaseIterator(iterator: AsyncIterator<unknown>, waitMs: number, what: string): Promise<void>;
+export type Watch = Readonly<{
+    next(): Promise<Observation | 'finished'>;
+    abort(): void;
+}>;
+export declare function observing<P, T>(scene: Scene<P>, handle: ModelHandle<P>, body: (watch: Watch) => Promise<T>): Promise<T>;
+export declare function liveHandle<P>(scene: Scene<P>, call: Placed<P>): Promise<ModelHandle<P>>;
+export declare function snapshotOf(item: Observation | 'finished', what: string): Snapshot;
+export declare function endReason(item: Observation | 'finished', what: string): string;
+export declare function blockAt(snapshot: Snapshot, index: string): VisibleBlock | undefined;
+export declare function requestedOperation(control: ControlState): ModelOperationId | null;
+export declare function acknowledgedOperation(custody: CustodyState): ModelOperationId | null;
+export declare function countOf(text: string): number | null;
+export declare function kindOf(item: Observation | 'finished'): string;
+export declare function growingState(block: VisibleBlock | undefined): Readonly<{
+    content: GrowingContentKind;
+    mode: 'append' | 'replace';
+    value: string;
+}> | null;
+export declare function isSealedToolCall(block: VisibleBlock | undefined): boolean;
+export declare function firstSnapshot<P>(scene: Scene<P>, handle: ModelHandle<P>, what: string): Promise<Snapshot>;
+export declare function untilEnd(watch: Watch, what: string): Promise<string>;
+export declare function toolCallBlock(id: string, args: JsonValue): ModelBlock;
+export declare function openFact(index: string, content: GrowingContentKind, mode?: 'append' | 'replace'): TransportFact;
+export declare function deltaFact(index: string, delta: string): TransportFact;
+export declare function replaceFact(index: string, value: string): TransportFact;
+export declare function sealFact(index: string, block: ModelBlock): TransportFact;
+```
+
+## 声明文件 `conformance/conformance-observation.d.ts`
+
+```ts
+import type { Check } from './conformance-types.ts';
+export declare function observationChecks<P>(): readonly Check<P>[];
+```
+
+## 声明文件 `conformance/conformance-routes.d.ts`
+
+```ts
+import type { Check } from './conformance-types.ts';
+export declare function routeChecks<P>(): readonly Check<P>[];
+```
+
+## 声明文件 `conformance/conformance-settlement.d.ts`
+
+```ts
+import { type Check } from './conformance-types.ts';
+export declare function settlementChecks<P>(): readonly Check<P>[];
+```
+
+## 声明文件 `conformance/conformance-transport.d.ts`
+
+```ts
+import type { Check } from './conformance-types.ts';
+export declare function transportChecks<P>(): readonly Check<P>[];
+```
+
+## 声明文件 `conformance/conformance-types.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, ModelProvider, ModelTransport, ResultCapacity, Supplier, Termination, TransportFact } from '../index.ts';
+export type ConformanceCall = Readonly<{
+    tenant: TenantId;
+    call: ModelCallId;
+}>;
+export type ConformanceAction = 'inspect' | 'dispatches' | 'cancel' | 'connect' | 'observe' | 'read' | 'acknowledge';
+export interface ConformanceHooks<P> {
+    startRun?(input: ConformanceCall & Readonly<{
+        dispatch: DispatchId;
+    }>): Promise<void>;
+    showFacts?(input: ConformanceCall & Readonly<{
+        facts: readonly TransportFact[];
+    }>): Promise<void>;
+    settleCall?(input: ConformanceCall & Readonly<{
+        termination: Termination;
+        parts: readonly ResultPart[];
+        pageSize: number;
+        pageTargetBytes: number;
+    }>): Promise<void>;
+    provideEvidence?(input: ConformanceCall & Readonly<{
+        label: string;
+    }>): Promise<DurableEvidence>;
+    failNextWrite?(input: Readonly<{
+        tenant: TenantId;
+        action: 'admit' | 'cancel' | 'acknowledge';
+        operation: ModelOperationId;
+        effect: 'applied' | 'dropped';
+    }>): Promise<void>;
+    advanceCleanup?(input: ConformanceCall): Promise<void>;
+    blockCleanup?(input: ConformanceCall): Promise<void>;
+    withdrawInstance?(input: ConformanceCall): Promise<void>;
+    replaceInstance?(input: ConformanceCall & Readonly<{
+        instance: ModelInstanceId;
+    }>): Promise<void>;
+    disconnectObservers?(input: ConformanceCall): Promise<void>;
+    revokeAccess?(input: ConformanceCall & Readonly<{
+        principal: P;
+        action: 'all' | ConformanceAction;
+    }>): Promise<void>;
+    failDirectory?(): Promise<void>;
+}
+export type HookName = keyof ConformanceHooks<unknown>;
+export type ConformanceTransport = Readonly<{
+    transport: ModelTransport;
+    sends(): number;
+    request?: FixedModelRequest;
+    supplier?: Supplier;
+}>;
+export type ConformanceSubject<P> = Readonly<{
+    provider: ModelProvider<P>;
+    principal: P;
+    tenant: TenantId;
+    otherTenant: TenantId;
+    request?: FixedModelRequest;
+    consumer?: ConsumerRef;
+    capacity?: ResultCapacity;
+    hooks?: ConformanceHooks<P>;
+    transport?: ConformanceTransport;
+    dispose?(): Promise<void>;
+}>;
+export declare const CONFORMANCE_OBLIGATIONS: readonly [
+    'admission-repeat-recognised',
+    'admission-conflict-on-different-input',
+    'operation-not-reused-across-methods',
+    'admission-is-not-a-send',
+    'reserved-operation-refused',
+    'refused-admission-forms-no-call',
+    'commit-unknown-keeps-operation',
+    'commit-unknown-not-reported-as-refusal',
+    'commit-unknown-cancel-recovers-original',
+    'commit-unknown-acknowledge-recovers-original',
+    'mixed-partial-result-readable',
+    'settled-call-keeps-termination',
+    'read-before-settle-refused',
+    'acknowledge-refused-before-settle',
+    'forged-evidence-refused',
+    'acknowledge-records-custody',
+    'duplicate-acknowledge-returns-original',
+    'acknowledge-conflict-on-different-input',
+    'acknowledged-result-not-read-again',
+    'acknowledge-and-read-serialised',
+    'read-page-stable-for-same-after',
+    'close-read-idempotent',
+    'acknowledge-keeps-open-read-readable',
+    'revoked-reader-gets-no-page',
+    'cleanup-failure-keeps-acknowledgement',
+    'repeat-cancel-returns-original-control',
+    'cancel-does-not-claim-stop',
+    'cancelled-call-ends-interrupted-unacknowledged',
+    'cancel-confined-to-target-call',
+    'unauthorised-cancel-denied',
+    'cancel-sends-nothing-more',
+    'observation-opens-with-snapshot',
+    'stopping-observation-keeps-call-running',
+    'disconnect-ends-observation-as-unavailable',
+    'new-observer-starts-from-snapshot',
+    'growing-block-holds-accumulated-value',
+    'sealed-block-takes-no-more-fill',
+    'unsealed-tool-arguments-not-executable',
+    'cross-tenant-access-refused',
+    'refusal-hides-existence',
+    'revoked-principal-gets-denied',
+    'revoked-principal-observation-ends-denied',
+    'withdrawn-instance-has-no-live-route',
+    'directory-failure-is-unavailable',
+    'replaced-instance-ends-observation-as-stale',
+    'quiesce-refuses-new-admissions',
+    'quiesce-reports-pending-and-running',
+    'transport-sends-only-at-start',
+    'repeated-transport-step-sends-nothing',
+    'materialization-receipt-matches-request',
+    'fact-stream-ends-once',
+    'interruption-is-confirmed',
+    'transport-close-is-idempotent'
+];
+export type ConformanceObligation = (typeof CONFORMANCE_OBLIGATIONS)[number];
+export type ObligationResult = Readonly<{
+    obligation: ConformanceObligation;
+    status: 'pass' | 'fail' | 'not-applicable';
+    detail: string;
+}>;
+export type ConformanceReport = Readonly<{
+    ok: boolean;
+    results: readonly ObligationResult[];
+}>;
+export type ConformanceOptions<P> = Readonly<{
+    subject: () => ConformanceSubject<P> | Promise<ConformanceSubject<P>>;
+    waitMs?: number;
+}>;
+export type Scene<P> = Readonly<{
+    subject: ConformanceSubject<P>;
+    request: FixedModelRequest;
+    consumer: ConsumerRef;
+    capacity: ResultCapacity;
+    waitMs: number;
+}>;
+export type Requirement = HookName | 'transport';
+export type Check<P> = Readonly<{
+    name: ConformanceObligation;
+    requires: readonly Requirement[];
+    run(scene: Scene<P>): Promise<void>;
+}>;
+export declare class ConformanceFailure extends Error {
+    constructor(message: string);
+}
+export declare class ConformanceSkip extends Error {
+    constructor(message: string);
+}
+```
+
+## 声明文件 `conformance/conformance.d.ts`
+
+```ts
+import { type ConformanceOptions, type ConformanceReport } from './conformance-types.ts';
+export declare function checkModelProviderConformance<P>(options: ConformanceOptions<P>): Promise<ConformanceReport>;
+```
+
+## 声明文件 `conformance/index.d.ts`
+
+```ts
+export { checkModelProviderConformance } from './conformance.ts';
+export { CONFORMANCE_OBLIGATIONS } from './conformance-types.ts';
+export type { ConformanceAction, ConformanceCall, ConformanceHooks, ConformanceObligation, ConformanceOptions, ConformanceReport, ConformanceSubject, ConformanceTransport, ObligationResult, } from './conformance-types.ts';
 ```
 
 ## 声明文件 `consumer-owner.d.ts`
@@ -2101,358 +2456,14 @@ import { type Core } from './core.ts';
 export declare function createCalls<P>(core: Core<P>): ModelCalls<P>;
 ```
 
-## 声明文件 `testing/conformance-admission.d.ts`
-
-```ts
-import type { Check } from './conformance-types.ts';
-export declare function admissionChecks<P>(): readonly Check<P>[];
-```
-
-## 声明文件 `testing/conformance-bounded.d.ts`
-
-```ts
-import type { ConformanceSubject } from './conformance-types.ts';
-export declare function boundedSubject<P>(subject: ConformanceSubject<P>, waitMs: number): ConformanceSubject<P>;
-```
-
-## 声明文件 `testing/conformance-control.d.ts`
-
-```ts
-import type { Check } from './conformance-types.ts';
-export declare function controlChecks<P>(): readonly Check<P>[];
-```
-
-## 声明文件 `testing/conformance-defaults.d.ts`
-
-```ts
-import type { ConsumerRef, FixedModelRequest, ResultCapacity, Supplier } from '../index.ts';
-export declare const DEFAULT_SUPPLIER: Supplier;
-export declare const DEFAULT_REQUEST: FixedModelRequest;
-export declare const DEFAULT_CONSUMER: ConsumerRef;
-export declare const DEFAULT_CAPACITY: ResultCapacity;
-export declare function variantOf(request: FixedModelRequest): FixedModelRequest;
-```
-
-## 声明文件 `testing/conformance-kit.d.ts`
-
-```ts
-import type { JsonValue } from '@omne-harness/json-text';
-import type { TenantId } from '@omne-harness/legal-identity';
-import type { Outcome } from '@omne-harness/operation-result';
-import type { Admit, AckReceipt, CallState, ControlState, CustodyState, DispatchRecord, DurableEvidence, GrowingContentKind, Handoff, Lookup, ModelBlock, ResultPart, ModelCallId, ModelFailure, ModelHandle, ModelInstanceId, ModelOperationId, ModelRuntime, Observation, ReadId, ReadState, ResultPage, ResultVersion, Snapshot, Termination, TransportFact, VisibleBlock } from '../index.ts';
-import { type ConformanceCall, type ConformanceHooks, type ConformanceTransport, type HookName, type Scene } from './conformance-types.ts';
-export declare function expect(condition: boolean, detail: string): asserts condition;
-export declare function show(value: unknown): string;
-export declare function same(left: unknown, right: unknown): boolean;
-export declare function succeeded<T>(outcome: Outcome<T, unknown>, what: string): T;
-export declare function refused<F>(outcome: Outcome<unknown, F>, what: string): F;
-export declare function refusedAs<K extends ModelFailure['kind']>(outcome: Outcome<unknown, ModelFailure>, kind: K, what: string): Extract<ModelFailure, {
-    kind: K;
-}>;
-export declare const callId: (label: string) => ModelCallId;
-export declare const operationId: (label: string) => ModelOperationId;
-export declare const reservedOperationId: (label: string) => ModelOperationId;
-export declare const instanceId: (label: string) => ModelInstanceId;
-export declare const versionId: (label: string) => ResultVersion;
-export declare const readId: (label: string) => ReadId;
-export declare const dispatchId: (label: string) => import("../root.ts").DispatchId;
-export declare function textBlock(id: string, text: string): ModelBlock;
-export declare function hookOf<P, K extends HookName>(scene: Scene<P>, name: K): NonNullable<ConformanceHooks<P>[K]>;
-export declare function transportOf<P>(scene: Scene<P>): ConformanceTransport;
-export declare function runtimeOf<P>(scene: Scene<P>): ModelRuntime<P>;
-export declare function targetOf<P>(scene: Scene<P>, call: ModelCallId): ConformanceCall;
-export declare function accessOf<P>(scene: Scene<P>, call: ModelCallId, tenant?: TenantId): {
-    principal: P;
-    tenant: TenantId;
-    call: ModelCallId;
-    reference: import("../reference.ts").ModelInvocationRef;
-};
-export declare function mutationOf<P>(scene: Scene<P>, call: ModelCallId, operation: ModelOperationId, tenant?: TenantId): {
-    principal: P;
-    tenant: TenantId;
-    call: ModelCallId;
-    reference: import("../reference.ts").ModelInvocationRef;
-    operation: ModelOperationId;
-};
-export declare function admitInput<P>(scene: Scene<P>, label: string, over?: Partial<Admit<P>>): Admit<P>;
-export declare function copyOfAdmit<P>(input: Admit<P>): Admit<P>;
-export type Placed<P> = Readonly<{
-    input: Admit<P>;
-    call: ModelCallId;
-    operation: ModelOperationId;
-}>;
-export declare function placed<P>(scene: Scene<P>, label: string): Promise<Placed<P>>;
-export declare function running<P>(scene: Scene<P>, label: string): Promise<Placed<P>>;
-export declare function lookup<P>(scene: Scene<P>, call: Placed<P>): Promise<Lookup>;
-export declare function stateOf<P>(scene: Scene<P>, call: Placed<P>): Promise<CallState>;
-export type Settled = Extract<CallState, {
-    phase: 'settled';
-}>;
-export type Ended<P> = Placed<P> & Readonly<{
-    version: ResultVersion;
-    state: Settled;
-}>;
-export type EndOptions = Readonly<{
-    termination?: Termination;
-    parts?: readonly ResultPart[];
-    pageSize?: number;
-    pageTargetBytes?: number;
-}>;
-export declare const COMPLETED: Termination;
-export declare function resultBlocks(): readonly ModelBlock[];
-export declare function ending<P>(scene: Scene<P>, call: Placed<P>, options?: EndOptions): Promise<Ended<P>>;
-export declare function ended<P>(scene: Scene<P>, label: string, options?: EndOptions): Promise<Ended<P>>;
-export declare const processed: (completion: DurableEvidence) => Handoff;
-export declare function evidenceFor<P>(scene: Scene<P>, call: Placed<P>, label: string): Promise<DurableEvidence>;
-export declare function ackInput<P>(scene: Scene<P>, call: Ended<P>, operation: ModelOperationId, evidence: DurableEvidence): {
-    principal: P;
-    tenant: TenantId;
-    call: ModelCallId;
-    reference: import("../reference.ts").ModelInvocationRef;
-    operation: ModelOperationId;
-    result: ResultVersion;
-    evidence: Handoff;
-};
-export declare function acknowledged<P>(scene: Scene<P>, call: Ended<P>, label?: string): Promise<Readonly<{
-    operation: ModelOperationId;
-    receipt: AckReceipt;
-    evidence: DurableEvidence;
-}>>;
-export type OpenRead = Readonly<{
-    read: ReadId;
-    page: ResultPage;
-}>;
-export declare function readOf<P>(scene: Scene<P>, call: Ended<P>, label?: string): Promise<OpenRead>;
-export declare function pageOf(state: ReadState, what: string): ResultPage;
-export declare function startedCount(records: readonly DispatchRecord[]): number;
-export declare function dispatchesOf<P>(scene: Scene<P>, call: ModelCallId): Promise<readonly DispatchRecord[]>;
-export declare function within<T>(waitMs: number, promise: Promise<T>, what: string): Promise<T>;
-export declare function releaseIterator(iterator: AsyncIterator<unknown>, waitMs: number, what: string): Promise<void>;
-export type Watch = Readonly<{
-    next(): Promise<Observation | 'finished'>;
-    abort(): void;
-}>;
-export declare function observing<P, T>(scene: Scene<P>, handle: ModelHandle<P>, body: (watch: Watch) => Promise<T>): Promise<T>;
-export declare function liveHandle<P>(scene: Scene<P>, call: Placed<P>): Promise<ModelHandle<P>>;
-export declare function snapshotOf(item: Observation | 'finished', what: string): Snapshot;
-export declare function endReason(item: Observation | 'finished', what: string): string;
-export declare function blockAt(snapshot: Snapshot, index: string): VisibleBlock | undefined;
-export declare function requestedOperation(control: ControlState): ModelOperationId | null;
-export declare function acknowledgedOperation(custody: CustodyState): ModelOperationId | null;
-export declare function countOf(text: string): number | null;
-export declare function kindOf(item: Observation | 'finished'): string;
-export declare function growingState(block: VisibleBlock | undefined): Readonly<{
-    content: GrowingContentKind;
-    mode: 'append' | 'replace';
-    value: string;
-}> | null;
-export declare function isSealedToolCall(block: VisibleBlock | undefined): boolean;
-export declare function firstSnapshot<P>(scene: Scene<P>, handle: ModelHandle<P>, what: string): Promise<Snapshot>;
-export declare function untilEnd(watch: Watch, what: string): Promise<string>;
-export declare function toolCallBlock(id: string, args: JsonValue): ModelBlock;
-export declare function openFact(index: string, content: GrowingContentKind, mode?: 'append' | 'replace'): TransportFact;
-export declare function deltaFact(index: string, delta: string): TransportFact;
-export declare function replaceFact(index: string, value: string): TransportFact;
-export declare function sealFact(index: string, block: ModelBlock): TransportFact;
-```
-
-## 声明文件 `testing/conformance-observation.d.ts`
-
-```ts
-import type { Check } from './conformance-types.ts';
-export declare function observationChecks<P>(): readonly Check<P>[];
-```
-
-## 声明文件 `testing/conformance-routes.d.ts`
-
-```ts
-import type { Check } from './conformance-types.ts';
-export declare function routeChecks<P>(): readonly Check<P>[];
-```
-
 ## 声明文件 `testing/conformance-scripted.d.ts`
 
 ```ts
-import type { ConformanceSubject } from './conformance-types.ts';
+import type { ConformanceSubject } from '../conformance/conformance-types.ts';
 export type ScriptedPrincipal = Readonly<{
     name: string;
 }>;
 export declare function createScriptedConformanceSubject(): ConformanceSubject<ScriptedPrincipal>;
-```
-
-## 声明文件 `testing/conformance-settlement.d.ts`
-
-```ts
-import { type Check } from './conformance-types.ts';
-export declare function settlementChecks<P>(): readonly Check<P>[];
-```
-
-## 声明文件 `testing/conformance-transport.d.ts`
-
-```ts
-import type { Check } from './conformance-types.ts';
-export declare function transportChecks<P>(): readonly Check<P>[];
-```
-
-## 声明文件 `testing/conformance-types.d.ts`
-
-```ts
-import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, ModelProvider, ModelTransport, ResultCapacity, Supplier, Termination, TransportFact } from '../index.ts';
-export type ConformanceCall = Readonly<{
-    tenant: TenantId;
-    call: ModelCallId;
-}>;
-export type ConformanceAction = 'inspect' | 'dispatches' | 'cancel' | 'connect' | 'observe' | 'read' | 'acknowledge';
-export interface ConformanceHooks<P> {
-    startRun?(input: ConformanceCall & Readonly<{
-        dispatch: DispatchId;
-    }>): Promise<void>;
-    showFacts?(input: ConformanceCall & Readonly<{
-        facts: readonly TransportFact[];
-    }>): Promise<void>;
-    settleCall?(input: ConformanceCall & Readonly<{
-        termination: Termination;
-        parts: readonly ResultPart[];
-        pageSize: number;
-        pageTargetBytes: number;
-    }>): Promise<void>;
-    provideEvidence?(input: ConformanceCall & Readonly<{
-        label: string;
-    }>): Promise<DurableEvidence>;
-    failNextWrite?(input: Readonly<{
-        tenant: TenantId;
-        action: 'admit' | 'cancel' | 'acknowledge';
-        operation: ModelOperationId;
-        effect: 'applied' | 'dropped';
-    }>): Promise<void>;
-    advanceCleanup?(input: ConformanceCall): Promise<void>;
-    blockCleanup?(input: ConformanceCall): Promise<void>;
-    withdrawInstance?(input: ConformanceCall): Promise<void>;
-    replaceInstance?(input: ConformanceCall & Readonly<{
-        instance: ModelInstanceId;
-    }>): Promise<void>;
-    disconnectObservers?(input: ConformanceCall): Promise<void>;
-    revokeAccess?(input: ConformanceCall & Readonly<{
-        principal: P;
-        action: 'all' | ConformanceAction;
-    }>): Promise<void>;
-    failDirectory?(): Promise<void>;
-}
-export type HookName = keyof ConformanceHooks<unknown>;
-export type ConformanceTransport = Readonly<{
-    transport: ModelTransport;
-    sends(): number;
-    request?: FixedModelRequest;
-    supplier?: Supplier;
-}>;
-export type ConformanceSubject<P> = Readonly<{
-    provider: ModelProvider<P>;
-    principal: P;
-    tenant: TenantId;
-    otherTenant: TenantId;
-    request?: FixedModelRequest;
-    consumer?: ConsumerRef;
-    capacity?: ResultCapacity;
-    hooks?: ConformanceHooks<P>;
-    transport?: ConformanceTransport;
-    dispose?(): Promise<void>;
-}>;
-export declare const CONFORMANCE_OBLIGATIONS: readonly [
-    'admission-repeat-recognised',
-    'admission-conflict-on-different-input',
-    'operation-not-reused-across-methods',
-    'admission-is-not-a-send',
-    'reserved-operation-refused',
-    'refused-admission-forms-no-call',
-    'commit-unknown-keeps-operation',
-    'commit-unknown-not-reported-as-refusal',
-    'commit-unknown-cancel-recovers-original',
-    'commit-unknown-acknowledge-recovers-original',
-    'mixed-partial-result-readable',
-    'settled-call-keeps-termination',
-    'read-before-settle-refused',
-    'acknowledge-refused-before-settle',
-    'forged-evidence-refused',
-    'acknowledge-records-custody',
-    'duplicate-acknowledge-returns-original',
-    'acknowledge-conflict-on-different-input',
-    'acknowledged-result-not-read-again',
-    'acknowledge-and-read-serialised',
-    'read-page-stable-for-same-after',
-    'close-read-idempotent',
-    'acknowledge-keeps-open-read-readable',
-    'revoked-reader-gets-no-page',
-    'cleanup-failure-keeps-acknowledgement',
-    'repeat-cancel-returns-original-control',
-    'cancel-does-not-claim-stop',
-    'cancelled-call-ends-interrupted-unacknowledged',
-    'cancel-confined-to-target-call',
-    'unauthorised-cancel-denied',
-    'cancel-sends-nothing-more',
-    'observation-opens-with-snapshot',
-    'stopping-observation-keeps-call-running',
-    'disconnect-ends-observation-as-unavailable',
-    'new-observer-starts-from-snapshot',
-    'growing-block-holds-accumulated-value',
-    'sealed-block-takes-no-more-fill',
-    'unsealed-tool-arguments-not-executable',
-    'cross-tenant-access-refused',
-    'refusal-hides-existence',
-    'revoked-principal-gets-denied',
-    'revoked-principal-observation-ends-denied',
-    'withdrawn-instance-has-no-live-route',
-    'directory-failure-is-unavailable',
-    'replaced-instance-ends-observation-as-stale',
-    'quiesce-refuses-new-admissions',
-    'quiesce-reports-pending-and-running',
-    'transport-sends-only-at-start',
-    'repeated-transport-step-sends-nothing',
-    'materialization-receipt-matches-request',
-    'fact-stream-ends-once',
-    'interruption-is-confirmed',
-    'transport-close-is-idempotent'
-];
-export type ConformanceObligation = (typeof CONFORMANCE_OBLIGATIONS)[number];
-export type ObligationResult = Readonly<{
-    obligation: ConformanceObligation;
-    status: 'pass' | 'fail' | 'not-applicable';
-    detail: string;
-}>;
-export type ConformanceReport = Readonly<{
-    ok: boolean;
-    results: readonly ObligationResult[];
-}>;
-export type ConformanceOptions<P> = Readonly<{
-    subject: () => ConformanceSubject<P> | Promise<ConformanceSubject<P>>;
-    waitMs?: number;
-}>;
-export type Scene<P> = Readonly<{
-    subject: ConformanceSubject<P>;
-    request: FixedModelRequest;
-    consumer: ConsumerRef;
-    capacity: ResultCapacity;
-    waitMs: number;
-}>;
-export type Requirement = HookName | 'transport';
-export type Check<P> = Readonly<{
-    name: ConformanceObligation;
-    requires: readonly Requirement[];
-    run(scene: Scene<P>): Promise<void>;
-}>;
-export declare class ConformanceFailure extends Error {
-    constructor(message: string);
-}
-export declare class ConformanceSkip extends Error {
-    constructor(message: string);
-}
-```
-
-## 声明文件 `testing/conformance.d.ts`
-
-```ts
-import { type ConformanceOptions, type ConformanceReport } from './conformance-types.ts';
-export declare function checkModelProviderConformance<P>(options: ConformanceOptions<P>): Promise<ConformanceReport>;
 ```
 
 ## 声明文件 `testing/consumption.d.ts`
@@ -2698,9 +2709,6 @@ export { createScriptedTransport } from './transport.ts';
 export type { ScriptedTransport, ScriptedTransportCounts, ScriptedTransportEnding, ScriptedTransportScript, } from './transport.ts';
 export { ScriptedModelError } from './error.ts';
 export type { ScriptedModelErrorReason } from './error.ts';
-export { checkModelProviderConformance } from './conformance.ts';
-export { CONFORMANCE_OBLIGATIONS } from './conformance-types.ts';
-export type { ConformanceAction, ConformanceCall, ConformanceHooks, ConformanceObligation, ConformanceOptions, ConformanceReport, ConformanceSubject, ConformanceTransport, ObligationResult, } from './conformance-types.ts';
 export { createScriptedConformanceSubject } from './conformance-scripted.ts';
 export type { ScriptedPrincipal } from './conformance-scripted.ts';
 ```

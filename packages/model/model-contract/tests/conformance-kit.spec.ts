@@ -8,7 +8,7 @@ import {
   DEFAULT_CONSUMER,
   DEFAULT_REQUEST,
   variantOf,
-} from '../src/testing/conformance-defaults.ts'
+} from '../src/conformance/conformance-defaults.ts'
 import {
   ackInput,
   accessOf,
@@ -63,12 +63,12 @@ import {
   within,
   expect as verdict,
   type Watch,
-} from '../src/testing/conformance-kit.ts'
+} from '../src/conformance/conformance-kit.ts'
 import {
   ConformanceFailure,
   ConformanceSkip,
   type Scene,
-} from '../src/testing/conformance-types.ts'
+} from '../src/conformance/conformance-types.ts'
 import { sceneOf } from './conformance-support.ts'
 
 function thrownBy(step: () => unknown): unknown {

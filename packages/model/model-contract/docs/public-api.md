@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 193 个类型和 34 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 193 个类型和 34 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 14 个名字，以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 16 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出三个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -283,7 +283,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - `ScriptedWriteAction` 是 `src/testing/writes.ts` 里 `WriteAction` 的导出别名，由 [`src/testing/index.ts`](../src/testing/index.ts) 声明。
 - 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
 
-`@omne-harness/model-contract/testing` 入口给领域外的协调者和契约符合性测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。同一入口还有[符合性断言](#符合性断言)，任何提供者都可以用它检查自己。
+`@omne-harness/model-contract/testing` 入口给领域外的协调者测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。符合性断言在另一个入口 `./conformance`（见[符合性断言](#符合性断言)），任何提供者都可以用它检查自己；本入口只带一个把替代提供者接成被测方的函数。
 
 `controller.settle` 显式接收 parts、pageSize 和 pageTargetBytes，不从 play 自动结算。它校验最终项、真实 trim 的形状和原受理容量，在发布结算前按固定页源深复制。首项总能入页，超目标单项独页；后项按规范 parts 数组字节及项数贪心组页。整个 ResultPage（含 Settlement、next 和包装）不得超过原 C。超额或非法输入抛 ScriptedModelError，保留原生命周期。配置或返回对象的后续修改不改变原结果。具体领取与 partial 资格见 [普通调用面](#普通调用面与实例观察)。
 
@@ -299,10 +299,10 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 ## 符合性断言
 
-本章给提供者作者：符合性检查的入口、被测方的形状、义务名单与报告。
+本章给提供者作者：符合性检查的入口、被测方的形状、义务名单与报告。义务套件由 `@omne-harness/model-contract/conformance` 入口导出，它不导出替身，检查真实提供者的依赖里不会有脚本化的替身。把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal` 是替身，留在 `./testing`。
 
-- 声明：[`src/testing/conformance.ts`](../src/testing/conformance.ts)、[`src/testing/conformance-types.ts`](../src/testing/conformance-types.ts)、[`src/testing/conformance-scripted.ts`](../src/testing/conformance-scripted.ts)。
-- 行为测试：[`tests/conformance-entry.spec.ts`](../tests/conformance-entry.spec.ts)。义务表与套件的一致检查：[`tests/conformance-docs.spec.ts`](../tests/conformance-docs.spec.ts)。
+- 声明：[`src/conformance/conformance.ts`](../src/conformance/conformance.ts)、[`src/conformance/conformance-types.ts`](../src/conformance/conformance-types.ts)、[`src/testing/conformance-scripted.ts`](../src/testing/conformance-scripted.ts)。入口文件：[`src/conformance/index.ts`](../src/conformance/index.ts)。
+- 行为测试：[`tests/conformance-entry.spec.ts`](../tests/conformance-entry.spec.ts)、[`tests/conformance-exports.spec.ts`](../tests/conformance-exports.spec.ts)。义务表与套件的一致检查：[`tests/conformance-docs.spec.ts`](../tests/conformance-docs.spec.ts)。
 
 `checkModelProviderConformance` 对一个被测方逐条检查契约在公开面上可观察的义务，返回报告。它只经公开面驱动：`ModelProvider.runtime` 的 `calls`、`consumption`、`instances`，`quiesce`，以及可选的 `ModelTransport` 的 `prepare`、`materialize`、`start`。它不读系统时钟，不导入具体提供者，也不拿 `ModelCommands` 这条深接缝。
 

@@ -3,9 +3,11 @@ import { fileURLToPath } from 'node:url'
 import {
   CONFORMANCE_OBLIGATIONS,
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
   type ConformanceHooks,
   type ConformanceSubject,
+} from '@omne-harness/model-contract/conformance'
+import {
+  createScriptedConformanceSubject,
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import { describe, expect, it } from 'vitest'

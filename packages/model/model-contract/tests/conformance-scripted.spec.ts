@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   CONFORMANCE_OBLIGATIONS,
   checkModelProviderConformance,
-  createScriptedConformanceSubject,
-} from '@omne-harness/model-contract/testing'
+} from '@omne-harness/model-contract/conformance'
+import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import {
   acknowledged,
   ackInput,
@@ -19,7 +19,7 @@ import {
   targetOf,
   textBlock,
   versionId,
-} from '../src/testing/conformance-kit.ts'
+} from '../src/conformance/conformance-kit.ts'
 import { sceneOf } from './conformance-support.ts'
 
 describe('the scripted provider and transport under the conformance suite', () => {
