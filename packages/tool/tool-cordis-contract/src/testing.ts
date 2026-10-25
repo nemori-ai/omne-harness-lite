@@ -21,6 +21,7 @@ import {
   finalAnswer,
   NotApplicable,
   resendRecalls,
+  testingTenant,
   type AnswerModel,
   type ConformanceCase,
 } from '@omne-harness/tool-contract/testing'
@@ -591,16 +592,14 @@ function tenantKey(tenant: TenantId): string {
 const sameEvidence = (left: DurableEvidence, right: DurableEvidence): boolean =>
   left.owner === right.owner && left.record === right.record && left.digest === right.digest
 
-const MEMORY_TENANT: TenantId = {
-  name: 'TenantId',
-  organization: { name: 'OrganizationId', text: 'org_conformance' },
-  account: { name: 'AccountId', text: 'acc_conformance' },
-}
-const MEMORY_OTHER_TENANT: TenantId = {
-  name: 'TenantId',
-  organization: { name: 'OrganizationId', text: 'org_conformance_other' },
-  account: { name: 'AccountId', text: 'acc_conformance_other' },
-}
+const MEMORY_TENANT = testingTenant(
+  'org_c0nf0rmance000000000000000',
+  'acc_c0nf0rmance000000000000000',
+)
+const MEMORY_OTHER_TENANT = testingTenant(
+  'org_c0nf0rmance0ther0000000000',
+  'acc_c0nf0rmance0ther0000000000',
+)
 const evidenceOf = (record: string): DurableEvidence => ({
   owner: 'conformance',
   record,

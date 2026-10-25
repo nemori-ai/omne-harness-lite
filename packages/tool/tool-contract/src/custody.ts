@@ -1,7 +1,7 @@
 // Output custody, durable reads, content pages and accounts.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   CallAccess,
@@ -94,7 +94,7 @@ export interface ToolReads<P, B extends ContentBlock> {
 }
 export type AccountScope =
   | Readonly<{ kind: 'tenant'; tenant: TenantId }>
-  | Readonly<{ kind: 'organization'; organization: string }>
+  | Readonly<{ kind: 'organization'; organization: OrganizationId }>
 export interface ToolAccounts<P> {
   list(
     input: Readonly<{ principal: P; scope: AccountScope; after: string | null; limit: number }>,

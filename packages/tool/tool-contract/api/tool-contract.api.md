@@ -302,7 +302,7 @@
 - `resourceResponsesAnswers` · `testing-resource-responses.d.ts`
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
-- `testingTenant` · `testing.d.ts`
+- `testingTenant` · `testing-values.d.ts`
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolDecisionBridgeConformance` · `testing-decision-bridge.d.ts`
 - `toolEnvironmentConformance` · `testing-environment.d.ts`
@@ -725,7 +725,7 @@ export declare function toolBodyContract(): BodyContract;
 ```ts
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ContentBlock } from '@omne-harness/content-block';
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
 import type { Adoption, CallAccess, DurableEvidence, Mutation, ToolCallId, ToolCursor, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
 import type { ProcessBlock } from './operations.ts';
 import type { WaitRecord } from './records.ts';
@@ -815,7 +815,7 @@ export type AccountScope = Readonly<{
     tenant: TenantId;
 }> | Readonly<{
     kind: 'organization';
-    organization: string;
+    organization: OrganizationId;
 }>;
 export interface ToolAccounts<P> {
     list(input: Readonly<{
@@ -3438,7 +3438,7 @@ export {};
 
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
-import type { TenantId } from '@omne-harness/legal-identity';
+import { type TenantId } from '@omne-harness/legal-identity';
 import type { FixedToolRequest } from './definitions.ts';
 import { type Access, type Adoption, type DurableEvidence, type ToolCallId, type ToolInstanceId, type ToolOperationId, type ToolWaitId } from './identity.ts';
 import type { ToolStartRecord } from './ports.ts';
@@ -3451,6 +3451,7 @@ export declare function digestOf(value: unknown): string;
 export declare function mintEvidence(record: string, content: unknown): DurableEvidence;
 export declare function tenantKey(tenant: TenantId): string;
 export declare function identifyingValues(tenant: TenantId, ...evidences: readonly DurableEvidence[]): readonly unknown[];
+export declare function testingTenant(organization: string, account: string): TenantId;
 export declare function memoryAccess<P>(principal: P): Access<P>;
 export declare function memoryOtherAccess<P>(principal: P): Access<P>;
 export declare const callId: (text: string) => ToolCallId;
@@ -3479,7 +3480,6 @@ export declare function resourceWait(wait: string, options?: Readonly<{
 ## 声明文件 `testing.d.ts`
 
 ```ts
-import { type TenantId } from '@omne-harness/legal-identity';
 export { NotApplicable, completionOf, crossTenantAnswers, finalAnswer, isNotApplicable, isProgress, resendRecalls, runConformanceCase, type AnswerModel, type AnswerRow, type CaseVerdict, type Completion, type ConformanceCase, type CrossTenantAnswers, } from './testing-case.ts';
 export { createMemoryToolStartAuthority, memoryToolStartAuthorityFixture, startAuthorityAnswers, toolStartAuthorityConformance, type MemoryToolStartAuthority, type ToolStartAuthorityFixture, } from './testing-start-authority.ts';
 export { createMemoryToolEnvironment, environmentAnswers, memoryToolEnvironmentFixture, toolEnvironmentConformance, type MemoryEnvironment, type MemoryToolEnvironment, type ToolEnvironmentFixture, } from './testing-environment.ts';
@@ -3488,7 +3488,7 @@ export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCu
 export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockConformance, type MemoryToolClock, type ToolClockFixture, } from './testing-clock.ts';
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
-export declare function testingTenant(organization: string, account: string): TenantId;
+export { testingTenant } from './testing-values.ts';
 ```
 
 ## 声明文件 `value-shapes.d.ts`

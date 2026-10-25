@@ -2,7 +2,7 @@
 // AssembledModelInput, ModelRequestPreparation and ModelInputMeter carry Message, which the shared
 // message package already exports, so they are declared here.
 import type { Outcome } from '@omne-harness/operation-result'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import type { Modality } from '@omne-harness/modality'
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
 import type { Message, MessageId } from '@omne-harness/message'
@@ -25,7 +25,7 @@ import type { ModelCountingBasis } from './tokenizer.ts'
 export type ModelModality = Extract<Modality, 'text' | 'image' | 'voice'>
 export type ProfileScope =
   | Readonly<{ kind: 'factory' }>
-  | Readonly<{ kind: 'organization'; organization: string }>
+  | Readonly<{ kind: 'organization'; organization: OrganizationId }>
   | Readonly<{ kind: 'tenant'; tenant: TenantId }>
 export type ProfileIdentity = Readonly<{ scope: ProfileScope; route: string }>
 export type LimitMetric =
