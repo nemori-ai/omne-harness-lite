@@ -15,10 +15,10 @@
 
 | 读者 | 起点 | 接着读 | 读到这里就够 |
 | --- | --- | --- | --- |
-| 集成方：工具宿主或独立调用者 | [execution-environment-contract 消费说明](../execution-environment-contract/docs/context.md) | [契约 SPEC](../execution-environment-contract/SPEC.md)、[公开定义](../execution-environment-contract/docs/public-api.md) | 知道要翻译成什么要求、要实现哪三个端口（资源账本、设施守卫、恢复授权）、拿回什么 |
+| 集成方：工具宿主或独立调用者 | [execution-environment-contract 消费说明](../execution-environment-contract/docs/context.md) | [契约 SPEC](../execution-environment-contract/SPEC.md)、[公开定义](../execution-environment-contract/docs/public-api.md) | 知道要翻译成什么要求、要实现哪四个端口（资源账本、设施守卫、恢复授权、环境授权）并提供可信绑定来源、拿回什么 |
 | 工具作者：声明工具需要的环境 | [execution-environment-contract 公开定义](../execution-environment-contract/docs/public-api.md) | [契约 SPEC](../execution-environment-contract/SPEC.md) | 知道声明的形状、采用身份与规范实例 |
 | 提供者作者：宿主或沙箱 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) | [execution-environment-host-local 架构](../execution-environment-host-local/docs/architecture.md) | 知道登记条件、租约原件与撤除协议 |
-| 维护者：恢复与结算作用域资源 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) | [成员流程](../execution-environment-contract/docs/flows.md) | 知道恢复两操作做什么、不做什么 |
+| 维护者：恢复与结算作用域资源 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) | [成员流程](../execution-environment-contract/docs/flows.md) | 知道恢复入口（`recoverOwned`、`releaseScope`、恢复查询）做什么、不做什么 |
 | 实现者 | [execution-environment 架构](../execution-environment/docs/architecture.md) | [execution-environment SPEC](../execution-environment/SPEC.md)、[成员流程](../execution-environment/docs/flows.md) | 知道表、匹配顺序、幂等键与状态转移 |
 | 装配者 | [execution-environment-cordis-contract Cordis 说明](../execution-environment-cordis-contract/docs/cordis.md)、[execution-environment-host-local Cordis 说明](../execution-environment-host-local/docs/cordis.md) | [IC 约定](../../../docs/architecture/cordis-integration-conventions.md) | 知道服务键、调用方类、依赖与撤除方式 |
 | 图像消费者 | [image 阅读入口](../image/README.md) | [image SPEC](../image/SPEC.md) | 知道预算怎样传入、句柄怎样关闭 |

@@ -41,7 +41,7 @@ Tool 宿主依赖契约成员与 Cordis 定义成员。Tool 契约不依赖本�
 | 访问身份、绑定层、连续性、环境要求、落点 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) |
 | 获取、采用记录、租约、受管资源，以及获取状态的语义 | [execution-environment-contract 对象模型](../execution-environment-contract/docs/object-model.md) |
 | 设施协议、`files`、`command`、`terminal` 的规则 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md#设施协议)；逐设施的展开与理由在[契约内部架构](../execution-environment-contract/docs/architecture.md#设施协议) |
-| 三个需要端口与许可先于效果 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) |
+| 需要端口（资源账本、设施守卫、恢复授权、环境授权）、可信绑定来源与许可先于效果 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) |
 | 工具环境声明的 schema 与采用身份 | [execution-environment-contract 公开定义](../execution-environment-contract/docs/public-api.md) |
 | 两条块声明 | [execution-environment-contract 公开定义](../execution-environment-contract/docs/public-api.md) |
 | 服务键、intercept 配置、调用方类 | [execution-environment-cordis-contract Cordis 说明](../execution-environment-cordis-contract/docs/cordis.md) |
