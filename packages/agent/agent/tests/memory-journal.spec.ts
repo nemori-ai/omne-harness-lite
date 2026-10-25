@@ -1650,6 +1650,27 @@ describe('fact 14: denied', () => {
     ok(await journal.port.commit(commit))
     expect((await load(journal.port, opened.execution)).unresolved).toEqual([])
   })
+
+  it('fact 14: open with a tenant that legal-identity did not mint is denied and opens nothing', async () => {
+    const { port: journal } = memory()
+    const input = {
+      ...access,
+      execution: execution(),
+      operation: operation('open'),
+      instance: instance(),
+      grant: null,
+      initial: acceptedInput('input-1'),
+      checkpoint: checkpoint(),
+    }
+    expect(failure(await journal.open({ ...input, tenant: { ...access.tenant } }))).toEqual({
+      kind: 'denied',
+      action: 'open',
+    })
+    // The minted tenant opens the same identity as a first open, not as a recognition or conflict.
+    const opened = ok(await journal.open(input))
+    expect(opened.authority.generation).toBe('1')
+    expect((await load(journal, input.execution)).revision).toBe(opened.receipt.revision)
+  })
 })
 
 describe('fact 15: terminal', () => {

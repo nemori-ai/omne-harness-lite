@@ -501,6 +501,19 @@ function attachToolOperation(
     : fail(conflict(recording))
 }
 
+/** The control record that a recording writes, and whether it adds an operation reference. */
+function attachedRecord(
+  record: ControlRecord,
+  attached: Attached,
+): Readonly<{ updated: ControlRecord; referenceAdded: boolean }> {
+  switch (attached.kind) {
+    case 'unchanged':
+      return { updated: record, referenceAdded: false }
+    case 'attached':
+      return { updated: attached.record, referenceAdded: true }
+  }
+}
+
 function sameEvidence(left: Evidence | null, right: Evidence | null): boolean {
   if (left === null || right === null) return left === right
   return (
@@ -1452,8 +1465,7 @@ export function createMemoryAgentJournal<P>(
           return answer(fail(invalid('target', 'not a control of this execution')))
         const attached = attachToolOperation(record, input.tenant, input.operation, attachment)
         if ('failure' in attached) return answer(attached)
-        const referenceAdded = attached.ok.kind === 'attached'
-        const updated = attached.ok.kind === 'attached' ? attached.ok.record : record
+        const { updated, referenceAdded } = attachedRecord(record, attached.ok)
         if (!STAGES[record.command.kind].has(input.stage)) {
           return answer(fail(invalid('stage', `not a stage of ${record.command.kind}`)))
         }
