@@ -29,9 +29,9 @@ flowchart LR
 | --- | --- | --- |
 | `@omne-harness/tool-contract` 根入口 | 全部公开契约类型（定义与请求、作者与执行、端口、结果、操作、记录、保管、程序），品牌身份解码函数，资产正文端口 `toolBodyContract`，契约函数，默认结果政策 | [public-api](public-api.md) 总入口，按模块分节导航 |
 | `@omne-harness/tool-contract/binding` | 读取句柄内作者的函数与操作槽、登记槽类型（`ToolOperationSlot`、`ToolRegistrationSlot`），只供受信的执行绑定提供者 | [定义、作者适配与独立消费](public-api.md#定义作者适配与独立消费) |
-| `@omne-harness/tool-contract/testing` | 七个端口的一致性套件、回答表、三个读取原语（`finalAnswer`、`resendRecalls`、`crossTenantAnswers`）与完成手柄 `completionOf`、用例运行入口 `runConformanceCase` 与 `NotApplicable`，以及守约的非耐久替身 | [端口一致性套件](public-api.md#端口一致性套件testing) |
+| `@omne-harness/tool-contract/testing` | 十个一致性套件（含结果接收端口、外层调用方的启动围栏与授权消费点）、回答表、三个读取原语（`finalAnswer`、`resendRecalls`、`crossTenantAnswers`）与完成手柄 `completionOf`、用例运行入口 `runConformanceCase` 与 `NotApplicable`，以及守约的非耐久替身 | [端口一致性套件](public-api.md#端口一致性套件testing) |
 | `@omne-harness/tool-cordis-contract` 根入口 | 不导出值 | [公开接口](../../tool-cordis-contract/docs/public-api.md) |
-| `@omne-harness/tool-cordis-contract/cordis` | 18 个 Service 类、18 个服务键、`Context` 增补、事件增补与实例目录的登记类型（`ToolPublication`、`ToolRegistrationInput`、`ToolRegistrationFailure`、`ToolRegistration`、`ToolPublicationAuthority`） | [公开接口](../../tool-cordis-contract/docs/public-api.md)与 [Cordis 定义与装配规则](../../tool-cordis-contract/docs/cordis.md) |
+| `@omne-harness/tool-cordis-contract/cordis` | 21 个 Service 类、21 个服务键、`Context` 增补、事件增补与实例目录的登记类型（`ToolPublication`、`ToolRegistrationInput`、`ToolRegistrationFailure`、`ToolRegistration`、`ToolPublicationAuthority`） | [公开接口](../../tool-cordis-contract/docs/public-api.md)与 [Cordis 定义与装配规则](../../tool-cordis-contract/docs/cordis.md) |
 | `@omne-harness/tool-cordis-contract/testing` | `ToolInstancesService.register` 的登记语义套件，和守约的非耐久登记服务 | [公开接口](../../tool-cordis-contract/docs/public-api.md) |
 
 ### 符合端口的证明入口

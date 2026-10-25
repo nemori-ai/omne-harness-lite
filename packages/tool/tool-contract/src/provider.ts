@@ -169,6 +169,12 @@ export type {
   ToolTask,
 } from './records.ts'
 export type {
+  ToolPermitConsumption,
+  ToolPermitRef,
+  ToolStartAcceptance,
+  ToolStartFence,
+} from './records.ts'
+export type {
   AccountScope,
   ToolAccounts,
   ToolContentReader,

@@ -4,7 +4,7 @@
 - [根入口](index.ts)。
 - [提供者协议入口](provider.ts)。
 - [绑定提供者入口](binding.ts)。
-- [一致性套件入口](testing.ts)：[用例类型](testing-case.ts)、[启动围栏](testing-start-authority.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)、两者共有的[外部关联用例](testing-external.ts)和[合法值](testing-values.ts)。
+- [一致性套件入口](testing.ts)：[用例类型](testing-case.ts)、[启动排序域与授权替身](testing-start-authority.ts)、[外层调用方的启动围栏](testing-start-fence.ts)、[授权消费点](testing-start-authorization.ts)、[结果接收端口](testing-result-receiver.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)、两者共有的[外部关联用例](testing-external.ts)和[合法值](testing-values.ts)。
 - [资产正文端口](contract.ts)。
 - [品牌身份与解码函数](identity.ts)。
 - [定义与固定请求](definitions.ts)。
@@ -23,6 +23,7 @@
 - [定义派生与常驻规则的纯函数](dynamics.ts)。
 - [固定请求判定](judge-request.ts)。
 - [交付解除输入判定](judge-release.ts)。
+- [结果推送、saved 回执与纯关系判定](result-delivery.ts)。
 - [状态判定](judge-state.ts)。
 - [呈现与可用性判定](catalog.ts)。
 - [操作与作者注册](registration.ts)。

@@ -27,6 +27,29 @@ export {
   type ToolStartAuthorityFixture,
 } from './testing-start-authority.ts'
 export {
+  createMemoryAuthorizedToolStartAuthority,
+  type MemoryAuthorizedToolStartAuthority,
+  type ToolPermitReading,
+  type ToolStartAuthorizationHandles,
+} from './testing-start-authority.ts'
+export {
+  memoryToolStartFenceFixture,
+  toolStartFenceConformance,
+  type ToolStartFenceFixture,
+} from './testing-start-fence.ts'
+export {
+  memoryToolStartAuthorizationFixture,
+  toolStartAuthorizationConformance,
+  type ToolStartAuthorizationFixture,
+} from './testing-start-authorization.ts'
+export {
+  createMemoryToolResultReceiver,
+  memoryToolResultReceiverFixture,
+  toolResultReceiverConformance,
+  type MemoryToolResultReceiver,
+  type ToolResultReceiverFixture,
+} from './testing-result-receiver.ts'
+export {
   createMemoryToolEnvironment,
   environmentAnswers,
   memoryToolEnvironmentFixture,
