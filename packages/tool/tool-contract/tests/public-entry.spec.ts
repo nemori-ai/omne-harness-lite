@@ -10,17 +10,31 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-it('exports the body port, the identity decoders, the default result policy and the contract functions', () => {
+it('exports on the root only the names members outside the Tool group import, and their closure', () => {
+  // SPEC「公开入口的分组」rule 1: the root runtime names are the reference codecs and the two
+  // identity decoders that members outside `packages/tool` import. The grouping table of the
+  // switch is in the PR (tmp/issue-626/provider-split.md).
   expect(Object.keys(tool).sort()).toEqual([
+    'decodeToolCallId',
+    'decodeToolOperationId',
+    'encodeToolInvocationRef',
+    'encodeToolOperationRef',
+    'readToolOperationRef',
+    'resolveToolInvocationRef',
+    'resolveToolOperationRef',
+  ])
+})
+
+it('exports the provider protocol on the provider entry, and no name on both entries', async () => {
+  const provider = await import('@omne-harness/tool-contract/provider')
+  expect(Object.keys(provider).sort()).toEqual([
     'TOOL_IDENTITY_MAX_LENGTH',
     'TOOL_REFERENCE_MAX_LENGTH',
     'createDefaultParameterCodec',
-    'decodeToolCallId',
     'decodeToolCursor',
     'decodeToolDeliveryId',
     'decodeToolInstanceId',
     'decodeToolInvocationRef',
-    'decodeToolOperationId',
     'decodeToolOperationRef',
     'decodeToolResultVersion',
     'decodeToolRevision',
@@ -34,8 +48,6 @@ it('exports the body port, the identity decoders, the default result policy and 
     'defineToolWaitContract',
     'deriveDefinition',
     'describedAdoption',
-    'encodeToolInvocationRef',
-    'encodeToolOperationRef',
     'evaluateToolAvailability',
     'foldResident',
     'judgeConsumerRef',
@@ -50,17 +62,31 @@ it('exports the body port, the identity decoders, the default result policy and 
     'presentTool',
     'projectToolResult',
     'readToolInvocationRef',
-    'readToolOperationRef',
     'refreshAvailability',
     'renderToolResult',
-    'resolveToolInvocationRef',
-    'resolveToolOperationRef',
     'sameBindingKey',
     'sameShape',
     'sameSourceLayer',
     'shapeOf',
     'toolBodyContract',
   ])
+  for (const name of Object.keys(provider)) expect(Object.keys(tool)).not.toContain(name)
+})
+
+it('exports every type name from exactly one of the root and provider entries', () => {
+  // The source entries are explicit export lists; a name listed in both would be two entries for
+  // one name, which the SPEC forbids.
+  const names = (entry: string) =>
+    [...readFileSync(memberPath(entry), 'utf8').matchAll(/export (?:type )?\{([^}]*)\}/gu)]
+      .flatMap(match => (match[1] as string).split(','))
+      .map(name => name.trim())
+      .filter(name => name.length > 0)
+  const rootNames = names('src/index.ts')
+  const providerNames = names('src/provider.ts')
+  expect(rootNames.length).toBeGreaterThan(0)
+  expect(new Set(rootNames).size).toBe(rootNames.length)
+  expect(new Set(providerNames).size).toBe(providerNames.length)
+  expect(rootNames.filter(name => providerNames.includes(name))).toEqual([])
 })
 
 it('keeps the readers of the author off the root and on the binding entry', async () => {
@@ -68,6 +94,9 @@ it('keeps the readers of the author off the root and on the binding entry', asyn
   // imports the `./binding` entry that reads it.
   expect(Object.keys(tool)).not.toContain('readToolOperation')
   expect(Object.keys(tool)).not.toContain('readToolRegistration')
+  const provider = await import('@omne-harness/tool-contract/provider')
+  expect(Object.keys(provider)).not.toContain('readToolOperation')
+  expect(Object.keys(provider)).not.toContain('readToolRegistration')
   const binding = await import('@omne-harness/tool-contract/binding')
   expect(Object.keys(binding).sort()).toEqual([
     'readOwnSlot',
@@ -141,7 +170,11 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'toolResourceResponsesConformance',
     'toolStartAuthorityConformance',
   ])
-  for (const name of Object.keys(testing)) expect(Object.keys(tool)).not.toContain(name)
+  const provider = await import('@omne-harness/tool-contract/provider')
+  for (const name of Object.keys(testing)) {
+    expect(Object.keys(tool)).not.toContain(name)
+    expect(Object.keys(provider)).not.toContain(name)
+  }
 })
 
 it('declares every non-durable double as durability none', async () => {
@@ -158,11 +191,13 @@ it('declares every non-durable double as durability none', async () => {
   for (const double of doubles) expect(double.durability).toBe('none')
 })
 
-it.each(['src/index.ts', 'dist/index.d.ts'])(
-  'names neither reader nor slot type in the root entry %s',
+it.each(['src/index.ts', 'dist/index.d.ts', 'src/provider.ts', 'dist/provider.d.ts'])(
+  'names neither reader nor slot type in the entry %s',
   entry => {
     const root = readFileSync(memberPath(entry), 'utf8')
-    expect(root).not.toMatch(/readTool(Operation|Registration)|Tool(Operation|Registration)Slot/u)
+    expect(root).not.toMatch(
+      /\breadTool(Operation|Registration)\b|\bTool(Operation|Registration)Slot\b/u,
+    )
   },
 )
 
@@ -214,11 +249,14 @@ function routesToCordis(directory: string, route: readonly string[]): string[][]
   })
 }
 
-describe('root, binding and testing entries have no Cordis', () => {
+describe('root, provider, binding and testing entries have no Cordis', () => {
   const entries: readonly (readonly [ModuleKind, string])[] = [
     ['source', 'src/index.ts'],
     ['javascript', 'dist/index.js'],
     ['declaration', 'dist/index.d.ts'],
+    ['source', 'src/provider.ts'],
+    ['javascript', 'dist/provider.js'],
+    ['declaration', 'dist/provider.d.ts'],
     ['source', 'src/binding.ts'],
     ['javascript', 'dist/binding.js'],
     ['declaration', 'dist/binding.d.ts'],

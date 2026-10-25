@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolRuntime, type ToolLedgerAction } from '@omne-harness/tool'
 import {
-  decodeToolCursor,
-  decodeToolInstanceId,
-  readToolInvocationRef,
   readToolOperationRef,
   type ToolHandle,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolCursor,
+  decodeToolInstanceId,
+  readToolInvocationRef,
+} from '@omne-harness/tool-contract/provider'
 import { testAssembly } from './testing-values.ts'
 import { admitCall, startHarness } from './start-values.ts'
 import {

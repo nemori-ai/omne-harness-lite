@@ -12,7 +12,7 @@ import {
   type ToolOperation,
   type ToolOperationParameters,
   type ToolWaitProtocolDefinition,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { readToolOperation, readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
   adoption,

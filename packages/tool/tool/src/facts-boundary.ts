@@ -2,22 +2,24 @@
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  decodeToolInstanceId,
   decodeToolOperationId,
-  decodeToolWaitId,
   type Adoption,
   type Effect,
-  type FactBatch,
-  type FactReceipt,
   type DurableEvidence,
   type ProcessBlock,
   type RawOutput,
-  type ResultPolicy,
-  type ToolExecutionFact,
   type ToolFailure,
   type ToolStartRecord,
   type ToolTerminal,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolInstanceId,
+  decodeToolWaitId,
+  type FactBatch,
+  type FactReceipt,
+  type ResultPolicy,
+  type ToolExecutionFact,
+} from '@omne-harness/tool-contract/provider'
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
 import {
   invalid,

@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
 import {
   TOOL_IDENTITY_MAX_LENGTH,
-  decodeToolCallId,
   decodeToolCursor,
   decodeToolDeliveryId,
   decodeToolInstanceId,
-  decodeToolOperationId,
   decodeToolResultVersion,
   decodeToolRevision,
   decodeToolWaitId,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 
 const decoders = [
   ['ToolCallId', decodeToolCallId],

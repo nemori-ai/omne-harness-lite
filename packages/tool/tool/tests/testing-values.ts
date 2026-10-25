@@ -4,7 +4,7 @@ import {
   createTestToolIdentities,
   type TestToolDependenciesInput,
 } from '@omne-harness/tool/testing'
-import { defaultResultPolicy } from '@omne-harness/tool-contract'
+import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
 import {
   configuration,
   guards,

@@ -15,12 +15,14 @@ import {
 import {
   decodeToolOperationId,
   type DurableEvidence,
+  type ToolCallId,
+} from '@omne-harness/tool-contract'
+import {
   type PreparationProgress,
   type PreparationRecord,
   type ReleaseProgress,
-  type ToolCallId,
   type ToolEnvironment,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectWellFormed,

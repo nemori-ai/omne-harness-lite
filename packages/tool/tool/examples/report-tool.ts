@@ -2,17 +2,19 @@ import { createHash } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  type Access,
+  type Adoption,
+  type DurableEvidence,
+  type ToolResult,
+} from '@omne-harness/tool-contract'
+import {
   createDefaultParameterCodec,
   defaultResultPolicy,
   defineFunctionTool,
   defineToolOperation,
   deriveDefinition,
-  type Access,
-  type Adoption,
-  type DurableEvidence,
   type ToolMessageContentBlock,
-  type ToolResult,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 
 export function valueOf<T>(answer: Outcome<T, unknown>): T {
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))

@@ -9,22 +9,24 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  sameBindingKey,
-  sameSourceLayer,
-  shapeOf,
   type Access,
   type Adoption,
   type DurableEvidence,
   type SourceLayer,
+  type ToolDefinition,
+} from '@omne-harness/tool-contract'
+import {
+  sameBindingKey,
+  sameSourceLayer,
+  shapeOf,
   type ToolAuthority,
   type ToolBindingEntry,
   type ToolBindingKey,
   type ToolBindingRegistry,
   type ToolContribution,
   type ToolContributionFailure,
-  type ToolDefinition,
   type ToolLoadedRegistration,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   NotApplicable,
   testingTenant,

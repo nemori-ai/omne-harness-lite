@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readToolInvocationRef, readToolOperationRef } from '@omne-harness/tool-contract'
+import { readToolOperationRef } from '@omne-harness/tool-contract'
+import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import type {
   Handoff,
   ToolReleaseDeliveryOutcome,

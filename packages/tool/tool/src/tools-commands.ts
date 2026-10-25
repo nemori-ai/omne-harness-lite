@@ -1,9 +1,9 @@
+import { type Access } from '@omne-harness/tool-contract'
 import {
   defineCommandTool,
   defineToolOperation,
-  type Access,
   type ToolOperation,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { formatCommandList, formatSuccess, formatUsage } from '@omne-harness/unix-format'
 import type { Tools, ToolsOptions } from './tools.ts'
 import {
@@ -23,7 +23,7 @@ import {
   section,
   type MessageResult,
 } from './tools-results.ts'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
 export function createToolsAuthor<P>(
   options: ToolsOptions,

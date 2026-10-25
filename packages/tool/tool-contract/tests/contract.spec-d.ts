@@ -6,31 +6,33 @@ import { organizationCodec } from '@omne-harness/legal-identity'
 import { expectTypeOf, it } from 'vitest'
 import {
   decodeToolCallId,
-  type AccountScope,
-  type ControlDispatch,
-  type IndependentToolScopeInput,
-  type ToolAskRequest,
   type ToolCallId,
-  type ToolExecutionContext,
-  type ToolExecutorBinding,
   type ToolInstanceId,
   type ToolInvocationRef,
   type ToolInvokeRequest,
   type ToolOperationId,
   type ToolOperationRef,
-  type ToolProcessUpdate,
   type ToolResultData,
   type ToolReleaseDeliveryOutcome,
   type ReleasedDelivery,
   type ToolReturnDeclaration,
   type ToolRuntime,
   type ToolState,
-  type ToolTask,
   type ToolTerminal,
-  type ToolWaitProtocolDefinition,
-  type ToolWaitResponseValidator,
   type WaitState,
 } from '@omne-harness/tool-contract'
+import {
+  type AccountScope,
+  type ControlDispatch,
+  type IndependentToolScopeInput,
+  type ToolAskRequest,
+  type ToolExecutionContext,
+  type ToolExecutorBinding,
+  type ToolProcessUpdate,
+  type ToolTask,
+  type ToolWaitProtocolDefinition,
+  type ToolWaitResponseValidator,
+} from '@omne-harness/tool-contract/provider'
 
 type Principal = Readonly<{ user: string }>
 declare const base: ToolState

@@ -1,12 +1,8 @@
 // Source verification happens outside the transaction. These decisions preserve the original duty.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  DurableEvidence,
-  FactProgress,
-  FactReceipt,
-  ToolFailure,
-} from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
+import type { FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
 import { invalid, type MutationInput } from './boundary.ts'
 import { factTaskOperation, mintEvidence } from './evidence.ts'
 import {

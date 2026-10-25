@@ -4,7 +4,7 @@ import {
   defaultResultPolicy,
   defaultResultPolicyAdoption,
   defaultResultPolicyRules,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { reference, result, text } from './tool-values.ts'
 
 it('names the default result policy with a digest that a reader can recompute', () => {

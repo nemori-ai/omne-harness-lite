@@ -1,16 +1,18 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  decodeToolResultVersion,
   type Adoption,
   type Attachment,
   type ContentPage,
   type RawOutput,
   type Reply,
-  type ToolContentReader,
   type ToolFailure,
   type ToolResultVersion,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolResultVersion,
+  type ToolContentReader,
+} from '@omne-harness/tool-contract/provider'
 import { invalid, judgeCallInput, type CallInput } from './boundary.ts'
 import type { ToolLedgerAction } from './ledger-guards.ts'
 import type { Snapshot } from './ledger-decider.ts'

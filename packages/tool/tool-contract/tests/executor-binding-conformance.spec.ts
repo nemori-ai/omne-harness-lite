@@ -11,11 +11,8 @@ import {
   memoryToolExecutorBindingFixture,
   toolExecutorBindingConformance,
 } from '@omne-harness/tool-contract/testing'
-import {
-  decodeToolOperationId,
-  type ControlProgress,
-  type ToolStartLookup,
-} from '@omne-harness/tool-contract'
+import { decodeToolOperationId, type ControlProgress } from '@omne-harness/tool-contract'
+import { type ToolStartLookup } from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectWellFormed,

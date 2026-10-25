@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { ReleaseProgress, ToolEnvironment } from '@omne-harness/tool-contract'
+import type { ReleaseProgress, ToolEnvironment } from '@omne-harness/tool-contract/provider'
 import type { ToolAccessGuard } from '@omne-harness/tool'
 import { text } from './runtime-values.ts'
 import type { ProcessBlock } from '@omne-harness/tool-contract'

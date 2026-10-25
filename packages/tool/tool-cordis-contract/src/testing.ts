@@ -10,13 +10,13 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   decodeToolCallId,
-  decodeToolInstanceId,
   type DurableEvidence,
   type ToolCallId,
   type ToolExecutionRef,
   type ToolHandle,
   type ToolObservation,
 } from '@omne-harness/tool-contract'
+import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import {
   finalAnswer,
   NotApplicable,

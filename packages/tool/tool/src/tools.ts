@@ -1,16 +1,18 @@
 import type { JsonLimits } from '@omne-harness/json-text'
 import {
-  deriveDefinition,
   type Access,
   type InvocationAccess,
   type Reply,
   type ToolDefinition,
-  type ToolImplementation,
-  type ToolMessageContentBlock,
   type ToolResult,
   type ToolResultVersion,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import {
+  deriveDefinition,
+  type ToolImplementation,
+  type ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 import { fits, failureResult, budgetFailure } from './tools-results.ts'
 import { createToolsPresenter } from './tools-present.ts'
 import { createToolsAuthor } from './tools-commands.ts'

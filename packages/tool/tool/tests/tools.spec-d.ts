@@ -11,12 +11,14 @@ import type {
   InvocationAccess,
   Reply,
   ToolDefinition,
-  ToolImplementation,
-  ToolMessageContentBlock,
   ToolResult,
   ToolResultVersion,
   ToolRuntime,
 } from '@omne-harness/tool-contract'
+import type {
+  ToolImplementation,
+  ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 
 it('createTools consumes only the public result and content read ports', () => {
   type P = { subject: string }

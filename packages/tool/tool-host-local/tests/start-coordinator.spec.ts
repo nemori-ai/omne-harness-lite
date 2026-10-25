@@ -3,7 +3,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import type { StartGuard, StartPermit } from '@omne-harness/tool-contract'
+import type { StartGuard, StartPermit } from '@omne-harness/tool-contract/provider'
 import { createLocalStartCoordinator } from '@omne-harness/tool-host-local'
 import {
   access,

@@ -13,18 +13,20 @@ import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import {
-  defaultResultPolicy,
-  decodeToolDeliveryId,
-  decodeToolResultVersion,
-  readToolInvocationRef,
   type Access,
   type Attachment,
   type ResultPage,
   type ToolArguments,
-  type ToolMessageContentBlock,
   type ToolResult,
   type RawOutput,
 } from '@omne-harness/tool-contract'
+import {
+  defaultResultPolicy,
+  decodeToolDeliveryId,
+  decodeToolResultVersion,
+  readToolInvocationRef,
+  type ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 import { checkMessage } from '../src/tools-results.ts'
 import { settlementFixture } from './settlement-values.ts'
 import { startHarness } from './start-values.ts'

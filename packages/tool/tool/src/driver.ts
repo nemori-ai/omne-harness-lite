@@ -5,20 +5,22 @@ import {
   type CallAccess,
   type DurableEvidence,
   type FixedToolRequest,
-  type PreparationProgress,
-  type PreparationRecord,
-  type StartProgress,
   type ToolCallId,
-  type ToolDriver,
   type ToolExecutionRef,
   type ToolFailure,
   type ToolInstanceId,
   type ToolOperationId,
-  type ToolRecovery,
   type ToolStartRecord,
+} from '@omne-harness/tool-contract'
+import {
+  type PreparationProgress,
+  type PreparationRecord,
+  type StartProgress,
+  type ToolDriver,
+  type ToolRecovery,
   type ToolTask,
   type WriteContext,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import { createFactDriver } from './driver-facts.ts'

@@ -2,12 +2,11 @@
 // external-association-legal.ts, and how a provider of the shared calls becomes a fixture of this
 // port. Each is built at the port boundary and never calls a control of a double.
 import { succeed, type Outcome } from '@omne-harness/operation-result'
+import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
 import type {
-  DurableEvidence,
   ExternalOperationResolution,
   ToolDecisionBridge,
-  ToolFailure,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   decisionBridgeAnswers,
   memoryToolDecisionBridgeFixture,

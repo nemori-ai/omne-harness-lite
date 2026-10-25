@@ -9,7 +9,7 @@ import {
   toolClockConformance,
   type ToolClockFixture,
 } from '@omne-harness/tool-contract/testing'
-import type { ToolClock } from '@omne-harness/tool-contract'
+import type { ToolClock } from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectWellFormed,

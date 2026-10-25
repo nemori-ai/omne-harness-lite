@@ -3,13 +3,10 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
-  describedAdoption,
   encodeToolInvocationRef,
   encodeToolOperationRef,
-  judgeToolInvokeRequest,
   type Adoption,
   type ToolCallId,
-  type ToolInstanceHost,
   type CallAccess,
   type ToolDefiniteFailure,
   type ToolFailure,
@@ -18,13 +15,18 @@ import {
   type ToolInvocationDirectory,
   type ToolInvocationQueries,
   type ToolInvokeOutcome,
-  type ToolProvider,
-  type ToolOperationIdentities,
   type ToolInvocationParts,
   type ToolOperationId,
   type ToolOperationRef,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import {
+  describedAdoption,
+  judgeToolInvokeRequest,
+  type ToolInstanceHost,
+  type ToolProvider,
+  type ToolOperationIdentities,
+} from '@omne-harness/tool-contract/provider'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { createToolDriver } from './driver.ts'

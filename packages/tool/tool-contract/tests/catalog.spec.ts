@@ -3,7 +3,7 @@ import {
   evaluateToolAvailability,
   presentTool,
   type AvailabilityFacts,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { adoption, commandsDefinition, functionDefinition } from './tool-values.ts'
 
 function facts(): AvailabilityFacts {

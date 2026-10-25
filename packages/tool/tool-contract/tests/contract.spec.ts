@@ -8,7 +8,7 @@ import {
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/assets'
-import { toolBodyContract } from '@omne-harness/tool-contract'
+import { toolBodyContract } from '@omne-harness/tool-contract/provider'
 
 const limits: JsonLimits = {
   maxBytes: 1_000,

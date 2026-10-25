@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { LedgerRecord, ResultRecord } from '@omne-harness/tool'
+import { type Handoff } from '@omne-harness/tool-contract'
 import {
   decodeToolDeliveryId,
   decodeToolResultVersion,
   decodeToolRevision,
   judgeConsumerRef,
-  type Handoff,
   type ToolTask,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   adoption,
   evidence,

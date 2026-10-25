@@ -4,9 +4,7 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
-  decodeToolInstanceId,
   decodeToolOperationId,
-  decodeToolRevision,
   type Adoption,
   type DurableEvidence,
   type ToolCallId,
@@ -15,6 +13,7 @@ import {
   type ToolOperationId,
   type ToolRevision,
 } from '@omne-harness/tool-contract'
+import { decodeToolInstanceId, decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
 import type { ToolLedgerAction } from './ledger-guards.ts'
 import type { TenantId } from './ledger-store.ts'

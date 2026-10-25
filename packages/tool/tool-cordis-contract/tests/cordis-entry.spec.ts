@@ -11,7 +11,8 @@ import {
   toolInstancesKey,
   type ToolPublicationAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import { decodeToolCallId, decodeToolInstanceId, type ToolClock } from '@omne-harness/tool-contract'
+import { decodeToolCallId } from '@omne-harness/tool-contract'
+import { decodeToolInstanceId, type ToolClock } from '@omne-harness/tool-contract/provider'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 

@@ -1,5 +1,6 @@
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ReleaseProgress, ToolFailure } from '@omne-harness/tool-contract'
+import type { ToolFailure } from '@omne-harness/tool-contract'
+import type { ReleaseProgress } from '@omne-harness/tool-contract/provider'
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
 import { invalid, judgeEvidenceField } from './boundary.ts'
 import { copyData } from './facts-boundary.ts'

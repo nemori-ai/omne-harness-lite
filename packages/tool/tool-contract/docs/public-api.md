@@ -1,6 +1,6 @@
 # Tool 公开入口与设计定义
 
-根入口 `@omne-harness/tool-contract` 导出全部公开契约类型、品牌身份的解码函数、默认结果政策、资产正文端口 `toolBodyContract` 和契约函数。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。根入口不导入 Cordis，也不导入提供者成员。
+公开名字分两个入口，规则见 [SPEC「公开入口的分组」](../SPEC.md#公开入口的分组)。根入口 `@omne-harness/tool-contract` 导出 Tool 组外成员实际导入的名字及其声明的传递闭包：调用与操作引用的 codec（`encodeToolInvocationRef`、`encodeToolOperationRef`、`readToolOperationRef`、`resolveToolInvocationRef`、`resolveToolOperationRef`）、`decodeToolCallId`、`decodeToolOperationId`，以及 `ToolRuntime`、`ToolDefinition`、`ToolAvailability`、`ToolFailure`、`ResultPage` 等类型和它们到达的类型。子路径入口 `@omne-harness/tool-contract/provider` 导出只被 Tool 组实现成员使用的提供者协议：资产正文端口 `toolBodyContract`、`describedAdoption`、其余品牌身份解码函数、默认结果政策、契约函数（定义、请求、交付解除与状态的判定，呈现与可用性，作者注册，定义派生与常驻规则纯函数，等待契约，默认参数 codec，结果渲染与投影）、由外部提供者实现的端口、协议记录、保管与账目读写端口、装载与绑定登记表。一个名字只从一个入口导出；下文各节按主题导航源码模块，不再逐名标注入口，精确归属以 [src/index.ts](../src/index.ts) 与 [src/provider.ts](../src/provider.ts) 为准。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。两个入口都不导入 Cordis，也不导入提供者成员。
 
 公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。`createToolRuntime`、`createToolLedger`、`executeTool` 与 `createIndependentToolScope` 在 `@omne-harness/tool`，导航见该包的 public-api（`tool/docs/public-api.md`）。其中 `executeTool` 与 `createIndependentToolScope` 已实现。`createToolLedger` 与 `createToolRuntime` 只实现了一部分路径，其余操作回复具名的 `unsupported`。宿主在 `@omne-harness/tool-host-local`：G5 的 `createLocalStartCoordinator` 已实现，G4 的宿主时钟与 G7 的绑定登记表尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。
 

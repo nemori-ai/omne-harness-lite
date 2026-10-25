@@ -2,13 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolRuntime } from '@omne-harness/tool'
 import {
-  decodeToolDeliveryId,
-  decodeToolResultVersion,
   type ToolDefiniteFailure,
   type ToolFailure,
   type ToolInvocationCommands,
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
+import { decodeToolDeliveryId, decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { testAssembly } from './testing-values.ts'
 import {
   dummyRequest,

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  judgeFixedToolRequest,
-  judgeToolInvokeRequest,
-  type FixedToolRequest,
-  type ToolInvokeRequest,
-} from '@omne-harness/tool-contract'
+import { type FixedToolRequest, type ToolInvokeRequest } from '@omne-harness/tool-contract'
+import { judgeFixedToolRequest, judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
 
 function request(): FixedToolRequest {

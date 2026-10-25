@@ -10,21 +10,23 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   type DurableEvidence,
   type FixedToolRequest,
+  type ToolCallId,
+  type ToolFailure,
+  type ToolStartRecord,
+  type ToolState,
+} from '@omne-harness/tool-contract'
+import {
   type StartPermit,
   type StartProgress,
   type ToolBindings,
-  type ToolCallId,
   type ToolClock,
   type ToolEnvironment,
   type ToolExecutorBinding,
-  type ToolFailure,
   type ToolLiveExecution,
-  type ToolStartRecord,
   type ToolExecutionFact,
   type ToolOutputCustody,
   type ToolStartAuthority,
-  type ToolState,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   createToolLedger,
   createToolFactAcknowledgementGuard,

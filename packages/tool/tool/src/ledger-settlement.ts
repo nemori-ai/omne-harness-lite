@@ -2,13 +2,12 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   DurableEvidence,
-  ToolExecutionFact,
   ToolExecutionRef,
   ToolFailure,
   ToolOperationId,
   ToolState,
-  ToolTask,
 } from '@omne-harness/tool-contract'
+import type { ToolExecutionFact, ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { mintEvidence, resultVersion } from './evidence.ts'
 import {

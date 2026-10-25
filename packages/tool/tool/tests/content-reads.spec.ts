@@ -9,12 +9,12 @@ import {
 import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import {
-  decodeToolResultVersion,
   type Attachment,
   type ContentPage,
   type RawOutput,
   type ToolResult,
 } from '@omne-harness/tool-contract'
+import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { settlementFixture } from './settlement-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {

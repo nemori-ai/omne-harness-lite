@@ -6,17 +6,19 @@ import type {
   Access,
   CallAccess,
   DurableEvidence,
-  FactReceipt,
   ToolStartRecord,
   ConsumerRef,
   FixedToolRequest,
-  Mutation,
   ResourceScope,
+  ToolCallId,
+} from '@omne-harness/tool-contract'
+import type {
+  FactReceipt,
+  Mutation,
   ResultPolicy,
   TextResultFactory,
-  ToolCallId,
   judgeToolArguments,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import type { TenantId } from './ledger-store.ts'
 
 /** The json-text budgets as the contract's arguments judgment takes them. */

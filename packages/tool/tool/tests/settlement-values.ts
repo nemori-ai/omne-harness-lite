@@ -1,14 +1,11 @@
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { ProcessBlock, RawOutput, ToolTerminal, ToolResult } from '@omne-harness/tool-contract'
 import type {
-  ProcessBlock,
-  RawOutput,
   ToolExecutionFact,
   ToolOutputCustody,
-  ToolTerminal,
-  ToolResult,
   ToolEnvironment,
-} from '@omne-harness/tool-contract'
-import { readToolInvocationRef } from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
+import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolClock,
   type MemoryToolOutputCustody,

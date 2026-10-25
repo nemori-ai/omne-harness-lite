@@ -2,15 +2,17 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   type CallAccess,
-  type FactBatch,
   type ToolFailure,
   type ToolInstanceId,
-  type ToolLiveExecution,
   type ToolOperationId,
-  type ToolRecovery,
   type ToolStartRecord,
-  type ToolTask,
 } from '@omne-harness/tool-contract'
+import {
+  type FactBatch,
+  type ToolLiveExecution,
+  type ToolRecovery,
+  type ToolTask,
+} from '@omne-harness/tool-contract/provider'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import type { createBindingInvoker } from './driver-binding.ts'

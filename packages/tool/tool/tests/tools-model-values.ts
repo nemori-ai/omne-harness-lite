@@ -10,18 +10,20 @@ import {
 } from '@omne-harness/tool'
 import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import {
-  defaultResultPolicy,
-  projectToolResult,
-  readToolInvocationRef,
   type Access,
   type Attachment,
   type RawOutput,
   type ToolDefinition,
   type ToolInvocationRef,
-  type ToolMessageContentBlock,
   type ToolResult,
   type ToolTerminal,
 } from '@omne-harness/tool-contract'
+import {
+  defaultResultPolicy,
+  projectToolResult,
+  readToolInvocationRef,
+  type ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { authorRun, options, result, visible } from './tools-values.ts'

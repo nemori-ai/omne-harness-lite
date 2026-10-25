@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
-import {
-  decodeToolCallId,
-  decodeToolOperationId,
-  decodeToolRevision,
-} from '@omne-harness/tool-contract'
+import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   recordKey,

@@ -3,14 +3,13 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolRuntime, type ToolInvokeAuthority, type AccessVerdict } from '@omne-harness/tool'
 import { createTestInvocationSource } from '@omne-harness/tool/testing'
 import {
-  readToolInvocationRef,
   readToolOperationRef,
-  decodeToolRevision,
   type ToolInvokeOutcome,
   type ToolInvokeRequest,
   type OperationResolution,
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
+import { readToolInvocationRef, decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { testAssembly } from './testing-values.ts'
 import { startHarness } from './start-values.ts'
 import {

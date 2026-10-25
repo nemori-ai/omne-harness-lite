@@ -2,6 +2,7 @@
 // catch a wrong implementation of (SPEC「定义完整性与呈现」「会话常驻规则（R1–R5）」「采用点判定」
 // 「刷新点允许的变化」, G7 binding keys).
 import { describe, expect, it } from 'vitest'
+import { type SourceLayer, type ToolDefinition } from '@omne-harness/tool-contract'
 import {
   deriveDefinition,
   foldResident,
@@ -13,11 +14,9 @@ import {
   shapeOf,
   type AdoptionFacts,
   type AdoptionPlan,
-  type SourceLayer,
   type ToolBindingKey,
-  type ToolDefinition,
   type ToolReloadResult,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
   adoption,

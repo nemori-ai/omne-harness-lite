@@ -5,7 +5,7 @@ import type {
   ToolLedgerAdmissions,
   ToolLedgerQueues,
 } from '@omne-harness/tool'
-import type { ToolAuthorLimits, ToolClock } from '@omne-harness/tool-contract'
+import type { ToolAuthorLimits, ToolClock } from '@omne-harness/tool-contract/provider'
 
 it('configuration extends the author limits with the runtime budgets', () => {
   expectTypeOf<ToolConfiguration>().toExtend<ToolAuthorLimits>()

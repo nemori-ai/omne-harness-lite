@@ -5,7 +5,7 @@ import type {
   FactReceipt,
   ToolLiveExecution,
   ToolRecoveryBinding,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   createToolFactAcknowledgementGuard,
   createToolLedger,

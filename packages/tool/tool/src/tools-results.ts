@@ -1,14 +1,12 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { readJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { type Attachment, type ToolFailure, type ToolResult } from '@omne-harness/tool-contract'
 import {
   defaultResultPolicy,
-  type Attachment,
   type OutputCodec,
-  type ToolFailure,
   type ToolMessageContentBlock,
-  type ToolResult,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { formatError, formatSection } from '@omne-harness/unix-format'
 import { toolsAdoption } from './tools-protocol.ts'
 

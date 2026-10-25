@@ -7,23 +7,27 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import {
-  describedAdoption,
   type DurableEvidence,
-  type ResultPolicy,
   type SourceLayer,
+  type ToolCallId,
+  type ToolCatalog,
+  type ToolDirectory,
+  type ToolRevision,
+  type ToolRuntime,
+} from '@omne-harness/tool-contract'
+import {
+  describedAdoption,
+  type ResultPolicy,
   type ToolAccounts,
   type ToolAuthority,
   type ToolBindingKey,
   type ToolBindingRegistry,
   type ToolBindingScope,
   type ToolBindings,
-  type ToolCallId,
-  type ToolCatalog,
   type ToolChildren,
   type ToolClock,
   type ToolCommands,
   type ToolDecisionBridge,
-  type ToolDirectory,
   type ToolEnvironment,
   type ToolInstanceHost,
   type ToolLoader,
@@ -31,10 +35,8 @@ import {
   type ToolOutputCustody,
   type ToolReads,
   type ToolResourceResponses,
-  type ToolRevision,
-  type ToolRuntime,
   type ToolStartAuthority,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolRuntimeService<P, B extends ContentBlock>

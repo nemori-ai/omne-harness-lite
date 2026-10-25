@@ -8,17 +8,19 @@ import type {
   Adoption,
   DurableEvidence,
   ParameterContract,
-  TextResultFactory,
-  ToolAuthor,
   ToolDeclarations,
   ToolDefinition,
+  ToolResult,
+  ToolReturnDeclaration,
+} from '@omne-harness/tool-contract'
+import type {
+  TextResultFactory,
+  ToolAuthor,
   ToolGovernance,
   ToolImplementationDeclaration,
   ToolMessageContentBlock,
-  ToolResult,
-  ToolReturnDeclaration,
   ToolValueSchema,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 
 export const limits = {
   maxBytes: 4_096,

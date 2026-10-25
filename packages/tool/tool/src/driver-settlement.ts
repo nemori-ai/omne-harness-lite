@@ -4,10 +4,9 @@ import type {
   CallAccess,
   DurableEvidence,
   ToolFailure,
-  ToolRecovery,
   ToolState,
-  ToolTask,
 } from '@omne-harness/tool-contract'
+import type { ToolRecovery, ToolTask } from '@omne-harness/tool-contract/provider'
 import type { ToolDependencies } from './construction.ts'
 
 /** Replays the saved final under the original task identity, including its queue tail. */

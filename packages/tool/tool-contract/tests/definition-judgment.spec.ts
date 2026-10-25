@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { judgeToolDefinition, type ToolDefinition } from '@omne-harness/tool-contract'
+import { type ToolDefinition } from '@omne-harness/tool-contract'
+import { judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { commandsDefinition, functionDefinition, json, parameters } from './tool-values.ts'
 
 function rejection(value: unknown) {

@@ -15,15 +15,17 @@ import {
   type TestToolDependencies,
 } from '@omne-harness/tool/testing'
 import {
-  defaultResultPolicy,
   type Access,
   type ToolCallId,
-  type ToolDriver,
   type ToolExecutionRef,
   type ToolHandle,
-  type ToolInstanceHost,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import {
+  defaultResultPolicy,
+  type ToolDriver,
+  type ToolInstanceHost,
+} from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {

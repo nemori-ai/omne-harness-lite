@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { createToolRuntime } from '@omne-harness/tool'
 import { createTestToolDependencies } from '@omne-harness/tool/testing'
-import {
-  decodeToolResultVersion,
-  type ToolInvokeOutcome,
-  type ToolStartRecord,
-} from '@omne-harness/tool-contract'
+import { type ToolInvokeOutcome, type ToolStartRecord } from '@omne-harness/tool-contract'
+import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { completedFinal } from '@omne-harness/tool-contract/testing'
 import { testAssembly } from './testing-values.ts'
 import {

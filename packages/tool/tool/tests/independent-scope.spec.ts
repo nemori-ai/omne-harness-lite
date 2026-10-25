@@ -5,7 +5,7 @@ import type {
   ToolAuthorLimits,
   ToolExecutionScope,
   ToolProcessUpdate,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import {
   answer,
