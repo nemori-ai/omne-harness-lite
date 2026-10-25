@@ -63,7 +63,7 @@ export const HOP_DEFINITIONS = [
     hopId: 'H06',
     publicEntry: '@omne-harness/model-contract; @omne-harness/agent',
     responsibility: 'Model result reaches the Agent receiver and journal',
-    ownerCards: [502, 672],
+    ownerCards: [502, 673],
     reason: 'SPEC.md#h06',
   },
   {

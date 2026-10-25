@@ -1,11 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { runContractSkeleton } from '../src/index.ts'
-import { aggregatePath, HOP_IDS } from '../src/path-report.ts'
+import { aggregatePath, HOP_IDS, RESIDUAL_GAPS } from '../src/path-report.ts'
 import { REQUIRED_SCENARIOS } from '../src/scenarios.ts'
 import { modelFragments, pathDependencies, skeletonInputs } from './first-path-doubles.ts'
 
+type GapRow = Readonly<{ gapId: string; blocking: boolean; owners: readonly number[] }>
+
+/** The rows of the residual gap table of a README: gap id, blocking column, owner cards. */
+function gapTable(text: string): readonly GapRow[] {
+  return text
+    .split('\n')
+    .filter(line => /^\| \[GAP-[A-Z-]+\]/.test(line))
+    .map(line => {
+      const cells = line.split('|').map(cell => cell.trim())
+      const gapId = /GAP-[A-Z-]+/.exec(cells[1] ?? '')?.[0] ?? ''
+      const blocking = cells[2] ?? ''
+      if (!['no', '否', 'yes', '是'].includes(blocking))
+        throw new Error(`blocking cell ${blocking}`)
+      const owners = [...(cells[3] ?? '').matchAll(/\[#(\d+)\]/g)].map(match => Number(match[1]))
+      return { gapId, blocking: blocking === 'yes' || blocking === '是', owners }
+    })
+}
+
+const cardOf = (url: string) => Number(/\/issues\/(\d+)$/.exec(url)?.[1])
+
 describe('M2 path observations', () => {
+  it('keeps the gap tables of README and README_ZH equal to RESIDUAL_GAPS', () => {
+    const expected = RESIDUAL_GAPS.map(gap => ({
+      gapId: gap.gapId,
+      blocking: gap.blocking,
+      owners: gap.owners.map(cardOf),
+    }))
+    for (const document of ['../README.md', '../README_ZH.md'])
+      expect(gapTable(readFileSync(new URL(document, import.meta.url), 'utf8'))).toEqual(expected)
+  })
+
   it('reports eight verified hops, a complete path and the non-blocking residual gaps of SPEC and README', async () => {
     const report = await runContractSkeleton(skeletonInputs())
     expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])

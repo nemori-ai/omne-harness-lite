@@ -121,13 +121,38 @@ export type FirstPathObservation = Readonly<Record<FirstPathHop, ConnectedObserv
 
 const none = (reason: string): ConnectedObservation => ({ connected: false, evidence: [reason] })
 
+/**
+ * A refusal inside a path step. It carries only the step name that this application mints and the
+ * `kind` of the failure, never free text of a supplier or a port.
+ */
+export class PathStepError extends Error {
+  readonly step: string
+  readonly kind: string
+  constructor(step: string, kind: string) {
+    super(`${step}:${kind}`)
+    this.name = 'PathStepError'
+    this.step = step
+    this.kind = kind
+  }
+}
+
+/** The `kind` of a failure value, or `unknown` when it has no string `kind`. */
+export function kindOf(failure: unknown): string {
+  return typeof failure === 'object' &&
+    failure !== null &&
+    'kind' in failure &&
+    typeof failure.kind === 'string'
+    ? failure.kind
+    : 'unknown'
+}
+
 function encoded(result: GovernanceEncodeResult): Uint8Array {
-  if (result.kind !== 'encoded') throw new Error(`governance encode refused: ${result.kind}`)
+  if (result.kind !== 'encoded') throw new PathStepError('governance-encode', result.kind)
   return result.bytes
 }
 
 function okOf<T>(outcome: { ok: T } | { failure: unknown }, what: string): T {
-  if ('failure' in outcome) throw new Error(`${what}: ${JSON.stringify(outcome.failure)}`)
+  if ('failure' in outcome) throw new PathStepError(what, kindOf(outcome.failure))
   return outcome.ok
 }
 
@@ -623,7 +648,7 @@ export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstP
     grant: null,
   })
   if ('failure' in invoked) {
-    result.H04 = none(`agent-invoke:${JSON.stringify(invoked.failure).slice(0, 80)}`)
+    result.H04 = none(`agent-invoke:${kindOf(invoked.failure)}`)
     return result
   }
   const turns = deps.replyTurns ?? 2000
@@ -663,9 +688,9 @@ export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstP
       modelResult !== null,
     evidence: [
       `request-context-contract:assemble produced the Agent request from ${log.historyMessages} Session history message(s)`,
-      leased
-        ? 'model-contract:Request Context acquired and released a Model preparation lease and planned the assembled input'
-        : `model-contract:preparation lease not observed (${JSON.stringify(log.lease)})`,
+      log.lease === null
+        ? 'caller-reported: no Request Context lease counts'
+        : `caller-reported: Request Context lease counts acquired=${log.lease.acquired}, planned=${log.lease.planned}, outstanding=${log.lease.outstanding}`,
       `agent:prepare fixed the request with ${log.fixedMessages} assembled message(s)`,
       modelResult === null
         ? 'agent:journal has no Model call'

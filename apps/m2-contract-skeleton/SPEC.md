@@ -70,13 +70,13 @@ The application owns two bridges in [path.ts](src/path.ts). The message bridge i
 
 ## Resource lifetime and failure
 
-Failure evidence of an exception or of an Agent invoke refusal holds at most 120 or 80 characters of the failure text. The happy-path tests check that the report holds no credential or message body. The failure text of a supplier can still enter these truncated labels.
+The report holds no free text of a supplier or a port. A failure label holds only the step name that this application mints and the `kind` of the failure. An exception that is not a refusal of a path step becomes `first-path-threw:unknown`. Tests check this on the happy path, on the login-gate refusal, and on a supplier that throws.
 
 The path does not call `quiesce` on the Agent runtime. On the happy path the Agent execution has ended when the path returns. The runtime and the memory doubles stay reachable only from the caller, and the process releases them. When the Model does not settle, the admitted call stays open in the scripted provider until the process exits. The Model obligation suite owns its subject disposal and its bounded waits. The default wait bound is 500 ms for each suite operation. Tests use a 15 second outer limit.
 
 The path waits for the Agent reply for at most `replyTurns` event-loop turns. The default is 2000. When the Model does not settle, H05 through H08 fail and the report says which call did not occur.
 
-A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop as a gap. Evidence holds fixed labels and counts. Credentials, login proofs, message bodies, and raw provider errors do not enter the report.
+A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop as a gap. Evidence holds fixed labels, failure kinds, and counts. The report holds no free text of a supplier or a port, and no credential, login proof, or message body.
 
 ## H01
 
@@ -97,6 +97,8 @@ The path commits `accept` for an ordinary first request. The request origin has 
 ## H05
 
 The Agent calls its request preparation. The context bridge reads the Session history and runs Request Context `assemble` over it. During the assembly Request Context acquires a Model preparation lease from its sources, plans the assembled input with the lease, and releases it. The first preparation returns the assembled input. The second preparation fixes the request with the assembled messages. The hop is connected when Request Context assembled at least one history message, at least one lease was acquired and planned an input, no lease is still open, the fixed request carries the assembled messages, and the Agent journal binds an admitted Model call.
+
+The lease counts are caller-reported. `src/` does not import `./testing`, so it cannot read the lease counter itself. The assembler that the caller passes reports the counts, and the evidence label says `caller-reported`. In the tests of this application the assembler reads the counts from the scripted preparation resources of the Request Context `./testing` fixture, which count every real `acquire`, plan, and `release`. A test checks that the counts come from that counter, and that H05 fails when the assembler reports no lease.
 
 ## H06
 

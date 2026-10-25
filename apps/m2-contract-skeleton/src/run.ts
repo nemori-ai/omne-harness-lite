@@ -1,6 +1,11 @@
 import { runGovernance, type GovernanceInputs } from './governance.ts'
 import { runModel, type ModelInputs } from './model.ts'
-import { runFirstTenantPath, type FirstPathObservation, type PathDependencies } from './path.ts'
+import {
+  PathStepError,
+  runFirstTenantPath,
+  type FirstPathObservation,
+  type PathDependencies,
+} from './path.ts'
 import { aggregatePath, observeHops, type PathReport } from './path-report.ts'
 import { GOVERNANCE_SCENARIOS, type ScenarioResult } from './scenarios.ts'
 
@@ -38,7 +43,9 @@ export async function runContractSkeleton<P>(
   } catch (error) {
     path = null
     structureErrors.push(
-      `first-path-threw:${error instanceof Error ? error.message.slice(0, 120) : 'unknown'}`,
+      error instanceof PathStepError
+        ? `first-path-threw:${error.step}:${error.kind}`
+        : 'first-path-threw:unknown',
     )
   }
   const model = await runModel(inputs.model)

@@ -11,6 +11,8 @@ import { runFirstTenantPath, messageOf, type PathPrincipal } from '../src/path.t
 import { runContractSkeleton } from '../src/index.ts'
 import {
   agentDouble,
+  assembleWithMemorySources,
+  firstRequest,
   identityDouble,
   pathDependencies,
   REPLY_TEXT,
@@ -139,5 +141,64 @@ describe('connected first tenant path', () => {
     const text = JSON.stringify(report)
     expect(text).not.toContain(REPLY_TEXT)
     expect(text).not.toContain('hello, first request')
+  })
+
+  it('takes the lease counts from the Request Context testing counter, and fails H05 without a lease', async () => {
+    const assembled = await assembleWithMemorySources({
+      tenant: memoryOtherAccess<PathPrincipal>('p').tenant,
+      history: [{ entry: 'entry:1' as never, message: firstRequest() }],
+    })
+    expect(['candidate-fixable', 'candidate-before-extension']).toContain(assembled.result.kind)
+    expect(assembled.lease.acquired).toBeGreaterThan(0)
+    expect(assembled.lease.planned).toBeGreaterThan(0)
+    expect(assembled.lease.outstanding).toBe(0)
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        assemble: async input => {
+          const real = await assembleWithMemorySources(input)
+          return { ...real, lease: { acquired: 0, planned: 0, outstanding: 0 } }
+        },
+      }),
+    )
+    expect(observed.H05.connected).toBe(false)
+    expect(observed.H05.evidence).toContain(
+      'caller-reported: Request Context lease counts acquired=0, planned=0, outstanding=0',
+    )
+  })
+
+  it('keeps supplier and port free text out of a failing report', async () => {
+    const secret = 'private supplier diagnostic text'
+    const evidence = createMemorySessionEvidenceBridge()
+    evidence.controls.loginEntry(false)
+    const identity = identityDouble()
+    const refused = await runContractSkeleton(
+      skeletonInputs({ path: pathDependencies({ evidence }) }),
+    )
+    expect(refused.hops.find(hop => hop.hopId === 'H04')?.state).toBe('failed')
+    const thrown = await runContractSkeleton(
+      skeletonInputs({
+        path: pathDependencies({
+          identity: {
+            ...identity,
+            issueLogin: async () => {
+              throw new Error(secret)
+            },
+          },
+        }),
+      }),
+    )
+    expect(thrown.structureErrors).toContain('first-path-threw:unknown')
+    const { login } = pathDependencies()
+    for (const report of [refused, thrown]) {
+      expect(report.fullPath).toBe('incomplete')
+      const text = JSON.stringify(report)
+      for (const forbidden of [
+        secret,
+        login.credential,
+        login.loginIdentifier,
+        'hello, first request',
+      ])
+        expect(text).not.toContain(forbidden)
+    }
   })
 })
