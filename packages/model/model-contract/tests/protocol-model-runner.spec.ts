@@ -235,11 +235,14 @@ function createSource(source: string, program: string): void {
   for (const file of scripts) copyFileSync(join(sourceDirectory, file), join(source, file))
   writeFileSync(join(source, 'run.mjs'), program)
 }
-function hanging(pidFile = 'grandchild.pid'): string {
+// The descendant announces itself in grandchild.pid only when `announce` is set. It always writes
+// descendant.pid last, so once descendant.pid exists the announcement either exists or never will.
+function hanging(announce = true): string {
+  const announcement = announce ? "fs.writeFileSync('grandchild.pid',String(process.pid));" : ''
   return `import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 writeFileSync('root.pid', String(process.pid));
-spawn(process.execPath, ['-e', ${JSON.stringify(`require('node:fs').writeFileSync('${pidFile}',String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`)}], {stdio:'ignore'});
+spawn(process.execPath, ['-e', ${JSON.stringify(`const fs=require('node:fs');${announcement}fs.writeFileSync('descendant.pid',String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`)}], {stdio:'ignore'});
 process.on('SIGTERM',()=>{});
 setInterval(()=>{},1000);
 `
@@ -252,7 +255,12 @@ const controllerProgram =
     '',
     'const limits = Object.freeze({',
     '  pollMs: 20,',
-    '  readyMs: 2000,',
+    '  // Fixture start (supervisor, root and descendant all running) and the grandchild announcement',
+    '  // are separate deadlines. The descendant writes grandchild.pid before descendant.pid, so readyMs',
+    '  // is only a polling margin. Worst case before the watchdog: startMs + readyMs + gracefulCleanupMs',
+    '  // + forcedCleanupMs = 4800 < controllerHardMs.',
+    '  startMs: 2500,',
+    '  readyMs: 300,',
     '  supervisorMs: 8000,',
     '  gracefulCleanupMs: 1000,',
     '  forcedCleanupMs: 1000,',
@@ -361,7 +369,7 @@ const controllerProgram =
     '  report.supervisorPid = supervisor.pid',
     '  output()',
     "  event({ event: 'supervisor-started', pid: supervisor.pid })",
-    '  const ready = await until(() => {',
+    '  const running = (...pids) => {',
     '    const supervisorReport = readJson(`${target}.supervisor.json`)',
     '    if (state.error) throw new Error(`supervisor-spawn-error: ${state.error}`)',
     '    if (state.exit || state.close || supervisorReport) {',
@@ -369,13 +377,21 @@ const controllerProgram =
     '      report.supervisorReport = supervisorReport',
     "      throw new Error('supervisor-exited-before-ready')",
     '    }',
-    "    const rootPid = readPid(join(target, 'root.pid'))",
-    "    const grandchildPid = readPid(join(target, 'grandchild.pid'))",
-    '    if (!rootPid || !grandchildPid) return false',
-    '    if (!alive(supervisor.pid) || !alive(rootPid) || !alive(grandchildPid)) {',
+    '    if (pids.includes(undefined)) return false',
+    '    if (![supervisor.pid, ...pids].every(pid => alive(pid))) {',
     "      throw new Error('fixture-exited-before-ready')",
     '    }',
-    '    return { rootPid, grandchildPid }',
+    '    return true',
+    '  }',
+    '  const started = await until(() => {',
+    "    const rootPid = readPid(join(target, 'root.pid'))",
+    "    const descendantPid = readPid(join(target, 'descendant.pid'))",
+    '    return running(rootPid, descendantPid) && { rootPid, descendantPid }',
+    "  }, limits.startMs, 'fixture-start-deadline')",
+    '  const ready = await until(() => {',
+    "    const grandchildPid = readPid(join(target, 'grandchild.pid'))",
+    '    const { rootPid, descendantPid } = started',
+    '    return running(rootPid, descendantPid, grandchildPid) && { rootPid, grandchildPid }',
     "  }, limits.readyMs, 'fixture-ready-deadline')",
     "  Object.assign(report, ready, { status: 'ready-to-kill' })",
     '  output()',
@@ -441,7 +457,7 @@ async function runParentDeathCase(input: {
       const program =
         scenario === 'supervisor-early-exit'
           ? "import {writeFileSync} from 'node:fs';writeFileSync('root.pid',String(process.pid));process.exit(42)"
-          : hanging(scenario === 'no-pid' ? 'descendant.pid' : 'grandchild.pid')
+          : hanging(scenario !== 'no-pid')
       createSource(source, program)
     }
     const fixture = join(caseDirectory, 'controller.mjs')
