@@ -94,7 +94,8 @@ const noRoute: Route = succeed({ kind: 'no-live-route' })
  */
 function world(initial: readonly Route[] = [noRoute]) {
   const base = testAssembly()
-  const routes: Route[] = [...initial]
+  /** `'throw'` makes the directory reject, as a provider exception does. */
+  const routes: (Route | 'throw')[] = [...initial]
   const connects: unknown[] = []
   let controls = 0
   const runtime = createToolRuntime(
@@ -114,6 +115,7 @@ function world(initial: readonly Route[] = [noRoute]) {
             connects.push(input)
             const answer = routes.at(-1)
             if (answer === undefined) throw new Error('no route scripted')
+            if (answer === 'throw') return Promise.reject(new Error('directory exploded'))
             return Promise.resolve(answer)
           },
         },
@@ -537,5 +539,175 @@ describe('observation.observe: frames through the facade', () => {
     expect(
       await drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
     ).toEqual(endedWith('capacity'))
+  })
+})
+
+describe('observation.observe: eligibility before every frame (stream-arrival「Disclosure, capacity, and close」)', () => {
+  const blockDelta = (state: ToolState, n: number) => ({
+    state,
+    blocks: [
+      {
+        index: String(n),
+        mode: 'append' as const,
+        state: 'open' as const,
+        sequence: String(n),
+        content: text(`b${n}`, 'x'),
+        trim: null,
+      },
+    ],
+  })
+
+  async function established() {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    w.routes.push(live(g1.handle))
+    const iterator = w.runtime.observation
+      .observe({ ref: g1.ref, access, signal: signal() })
+      [Symbol.asyncIterator]()
+    const first = await iterator.next()
+    if (first.done || first.value.kind !== 'snapshot') throw new Error('no snapshot first')
+    return { w, call, g1, iterator, snapshot: first.value.value }
+  }
+
+  it('ends with denied before the next delta when the access is revoked after the snapshot, removing the subscription and its queue', async () => {
+    const { w, call, g1, iterator, snapshot } = await established()
+    w.routes.push(fail({ kind: 'denied', action: 'connect' }))
+    g1.source.confirm(blockDelta(call.state, 1), snapshot)
+    g1.source.confirm(blockDelta(call.state, 2), snapshot)
+    expect(await iterator.next()).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'denied' },
+    })
+    expect(g1.source.subscribers()).toBe(0)
+    expect(await iterator.next()).toEqual({ done: true, value: undefined })
+  })
+
+  it('ends with denied instead of the producer end when the access is revoked before it', async () => {
+    const { w, g1, iterator } = await established()
+    w.routes.push(fail({ kind: 'denied', action: 'connect' }))
+    g1.source.end('closed')
+    expect(await iterator.next()).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'denied' },
+    })
+  })
+
+  it.each([
+    [
+      'answers unavailable',
+      fail({ kind: 'unavailable' as const, dependency: 'toolInstances', diagnostic: 'x' }),
+    ],
+    ['throws', 'throw' as const],
+  ])('ends with unavailable when the eligibility source %s mid-stream', async (_name, answer) => {
+    const { w, call, g1, iterator, snapshot } = await established()
+    w.routes.push(answer as Route | 'throw')
+    g1.source.confirm(blockDelta(call.state, 1), snapshot)
+    expect(await iterator.next()).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'unavailable' },
+    })
+    expect(g1.source.subscribers()).toBe(0)
+  })
+
+  it('keeps handing on frames while the eligibility holds, whatever generation the directory now serves', async () => {
+    const { w, call, g1, iterator, snapshot } = await established()
+    w.routes.push(noRoute)
+    g1.source.confirm(blockDelta(call.state, 1), snapshot)
+    expect((await iterator.next()).value).toMatchObject({ kind: 'delta' })
+  })
+})
+
+describe('observation.observe: an untrusted request', () => {
+  it.each([
+    ['no request', undefined],
+    ['a null request', null],
+    ['a number', 42],
+    ['a null access', { ref: 'x', access: null, signal: new AbortController().signal }],
+    [
+      'an access without principal',
+      { ref: 'x', access: { tenant: tenantA }, signal: new AbortController().signal },
+    ],
+    [
+      'an access without tenant',
+      { ref: 'x', access: { principal: principalA }, signal: new AbortController().signal },
+    ],
+    ['a signal that is not an AbortSignal', { ref: 'x', access, signal: 'abort' }],
+  ])('ends with denied for %s, without a TypeError or a directory call', async (_name, request) => {
+    const w = world()
+    expect(await drain(w.runtime.observation.observe(request as never))).toEqual(
+      endedWith('denied'),
+    )
+    expect(w.connects).toEqual([])
+  })
+
+  it('lets an exception of the handle source through as a connection failure, not an end frame', async () => {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    const broken: ToolHandle<Principal> = {
+      ...g1.handle,
+      observation: {
+        observe: () => {
+          throw new Error('source exploded')
+        },
+      },
+    }
+    w.routes.push(live(broken))
+    await expect(
+      drain(w.runtime.observation.observe({ ref: g1.ref, access, signal: signal() })),
+    ).rejects.toThrow('source exploded')
+  })
+})
+
+describe('observation.observe: abort around routing', () => {
+  it('ends with observer-closed without routing when the signal is already aborted', async () => {
+    const w = world()
+    const call = await w.invoke()
+    const g1 = generation(call.reference, 'g1', call.state)
+    w.routes.push(live(g1.handle))
+    expect(
+      await drain(
+        w.runtime.observation.observe({ ref: g1.ref, access, signal: AbortSignal.abort() }),
+      ),
+    ).toEqual(endedWith('observer-closed'))
+    expect(w.connects).toEqual([])
+    expect(g1.source.observed).toEqual([])
+  })
+
+  it('ends with observer-closed when the signal aborts while the route is pending, contacting no handle', async () => {
+    const base = testAssembly()
+    let answer: (route: Route) => void = () => undefined
+    const runtime = createToolRuntime(
+      {
+        ...base.dependencies,
+        instances: {
+          ...base.dependencies.instances,
+          directory: {
+            connect: () =>
+              new Promise<Route>(resolve => {
+                answer = resolve
+              }),
+          },
+        },
+      },
+      base.configuration,
+    ).runtime
+    const call = accepted(await runtime.invoke({ ...access, request: dummyRequest() }))
+    const g1 = generation(call.reference, 'g1', call.state)
+    const controller = new AbortController()
+    const pending = runtime.observation
+      .observe({ ref: g1.ref, access, signal: controller.signal })
+      [Symbol.asyncIterator]()
+      .next()
+    await new Promise(resolve => setImmediate(resolve))
+    controller.abort()
+    expect(await pending).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'observer-closed' },
+    })
+    answer(live(g1.handle))
+    await new Promise(resolve => setImmediate(resolve))
+    expect(g1.source.observed).toEqual([])
   })
 })
