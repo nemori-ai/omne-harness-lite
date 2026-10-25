@@ -186,8 +186,9 @@ describe('crossTenantAnswers', () => {
   const unknown = (extra: object): Answer => ({ ok: { kind: 'unknown', ...extra } })
   const ACCOUNT = 'acc_c0nf0rmance000000000000000'
   const OTHER_ORGANIZATION = 'org_c0nf0rmance0ther0000000000'
-  const TENANT = testingTenant('org_c0nf0rmance000000000000000', ACCOUNT)
-  const OTHER_TENANT = testingTenant(OTHER_ORGANIZATION, 'acc_c0nf0rmance0ther0000000000')
+  // Minted inside a case, not when the file is collected.
+  const ownTenant = () => testingTenant('org_c0nf0rmance000000000000000', ACCOUNT)
+  const otherTenant = () => testingTenant(OTHER_ORGANIZATION, 'acc_c0nf0rmance0ther0000000000')
 
   it('fails when a text of the answer, at any depth, contains a long identifying value', async () => {
     const read = check(unknown({ notes: [{ diagnostic: 'seen as record-7 of another tenant' }] }), [
@@ -259,7 +260,7 @@ describe('crossTenantAnswers', () => {
     // The other tenant's own organization text holds a long identifying value inside it.
     const echo = unknown({ diagnostic: `held by ${OTHER_ORGANIZATION}` })
     await expect(check(echo, ['c0nf0rmance0ther'])).rejects.toThrow(/carries "c0nf0rmance0ther"/u)
-    await expect(check(echo, ['c0nf0rmance0ther'], [OTHER_TENANT])).resolves.toBeDefined()
+    await expect(check(echo, ['c0nf0rmance0ther'], [otherTenant()])).resolves.toBeDefined()
     // An identifying value anywhere inside an echo, not only at its start, tells nothing.
     const inside = unknown({ diagnostic: 'seen: x-registration/77' })
     await expect(check(inside, ['registration/77'], ['x-registration/77'])).resolves.toBeDefined()
@@ -306,6 +307,8 @@ describe('crossTenantAnswers', () => {
   })
 
   it('finds a structured identifying value, unless the other tenant sent it', async () => {
+    const TENANT = ownTenant()
+    const OTHER_TENANT = otherTenant()
     await expect(check(unknown({ owner: { ...TENANT } }), [TENANT])).rejects.toThrow(
       /carries \{"name":"TenantId"/u,
     )
