@@ -10,14 +10,17 @@ import {
   judgeEvidence,
   type ActionAdmission,
   type AgentAccessCheck,
+  type AgentAccountOutlet,
   type AgentAccessOperation,
   type AgentAdoptions,
   type AgentClock,
   type AgentDirectory,
+  type AgentExecutionControl,
   type AgentExecutionRecovery,
   type AgentInstanceHost,
   type AgentInstanceId,
   type AgentJournal,
+  type AgentJournalEntries,
   type AgentMaterials,
   type AgentRegistrationId,
   type CurrentConditions,
@@ -272,6 +275,49 @@ export abstract class AgentExecutionRecoveryService<P>
   abstract readonly detach: AgentExecutionRecovery<P>['detach']
 }
 export const agentExecutionRecoveryKey = AgentExecutionRecoveryService.provide
+
+// The receiving entries port. The provider of `agentJournal` serves it in the same ordering.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentJournalEntriesService<P>
+  extends Service
+  implements AgentJournalEntries<P>
+{
+  static readonly provide = 'agentJournalEntries'
+  constructor(ctx: Context) {
+    super(ctx, AgentJournalEntriesService.provide)
+  }
+  abstract readonly record: AgentJournalEntries<P>['record']
+}
+export const agentJournalEntriesKey = AgentJournalEntriesService.provide
+
+// The account outlet of Agent. The adapter on the side of Request Context provides it.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentAccountOutletService<P>
+  extends Service
+  implements AgentAccountOutlet<P>
+{
+  static readonly provide = 'agentAccountOutlet'
+  constructor(ctx: Context) {
+    super(ctx, AgentAccountOutletService.provide)
+  }
+  abstract readonly deliver: AgentAccountOutlet<P>['deliver']
+}
+export const agentAccountOutletKey = AgentAccountOutletService.provide
+
+// The control entry that needs no live runtime. The long-lived Journal adapter of the host
+// provides it.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentExecutionControlService<P>
+  extends Service
+  implements AgentExecutionControl<P>
+{
+  static readonly provide = 'agentExecutionControl'
+  constructor(ctx: Context) {
+    super(ctx, AgentExecutionControlService.provide)
+  }
+  abstract readonly control: AgentExecutionControl<P>['control']
+}
+export const agentExecutionControlKey = AgentExecutionControlService.provide
 
 type RetirementReason = 'withdrawn' | 'contributor-removed' | 'superseded'
 
@@ -772,6 +818,9 @@ declare module '@deepseek-ai/cordis' {
     agentInstanceHost: AgentInstanceHostService<unknown>
     agentPublicationAuthority: AgentPublicationAuthorityService<unknown>
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
+    agentJournalEntries: AgentJournalEntriesService<unknown>
+    agentAccountOutlet: AgentAccountOutletService<unknown>
+    agentExecutionControl: AgentExecutionControlService<unknown>
     agentInstances: AgentInstancesService<unknown>
   }
   interface Events {

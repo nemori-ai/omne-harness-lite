@@ -189,6 +189,17 @@ open 与 attach 返回新授予的 Authority，runtime 用它向 Model、Tool、
 
 commit、open、attach、load、recordResult、recordControl、tryFinish、recordTerminalObservation、detach 与 reconcile 的行为，包括条件提交、未知结果的查询、终结的排序、终态后观察、ended 之后的保留与释放，唯一行为源是 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”。共同提交与提交参加者的四种响应见“[提交参加者协议](../../SPEC.md#提交参加者协议)”。本页不重复这些行为。
 
+## 生产者接收面
+
+[行为与约束](../../SPEC.md#生产者接收面)。
+
+- [receiving.ts](../../src/receiving.ts)：三类接收面条目 `StartFenceEntry`、`ReceivedEntry` 与 `StreamReferenceEntry`，它们的开放联合 `AgentJournalEntry`，`received` 条目的交付 `ReceivedDelivery`，记录输入 `JournalEntryRecord` 与记录端口 `AgentJournalEntries`，账目出站的交接元组 `AgentAccountHandoff`、结果 `AgentAccountOutcome` 与端口 `AgentAccountOutlet`。
+- [execution.ts](../../src/execution.ts)：`ExecutionSnapshot.entries` 是可选字段，提供者支持接收面条目时按提交顺序列出全部已提交条目。
+
+接收面类型直接引用原拥有者的定义，不另定回执类型：`ReceivedDelivery` 的键是 `M.ModelDeliveryKey` 与 `T.ToolDeliveryKey`，Model 的账目快照是 `M.ModelAccountSnapshot`，账目是 call-account 的 `CallAccount`，流引用是 stream-arrival 的 `StreamRef` 与 `StreamProducer`，围栏操作号是 Tool 根入口的 `T.ToolOperationId`。Tool 的 `StartGuard` 与 `ToolStartFence` 在 Tool 的 `./provider` 入口，本包不导入，`StartFenceEntry.guard` 只记 Agent 自己拥有的守卫字段。
+
+`./testing` 入口由 [testing.ts](../../src/testing.ts) 定义：`agentJournalEntriesConformance` 与 `agentAccountOutletConformance` 两个一致性套件，非耐久替身 `createMemoryAgentJournalEntries` 与 `createMemoryAgentAccountOutlet`，各自的夹具工厂，以及套件用的样例值。套件返回用例列表，不依赖测试框架，用例以 `node:assert` 的 AssertionError 失败。替身声明 `durability: 'none'`，不证明耐久、跨进程行为或真实 runtime。
+
 ## 逐操作及输入分类
 
 [行为与约束](../../SPEC.md#逐操作及输入分类)。

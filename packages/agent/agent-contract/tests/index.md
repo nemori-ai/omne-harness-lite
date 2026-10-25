@@ -12,5 +12,7 @@
 - [公开名称与判别字面量（类型测试）](public-api-names.spec-d.ts)
 - [入口导出集合](export-set.spec.ts)
 - [依赖方向](dependency-direction.spec.ts)
+- [生产者接收面的套件与替身](receiving.spec.ts)
+- [生产者接收面的类型（类型测试）](receiving.spec-d.ts)
 - [导入图遍历](module-graph.ts)
 - [导入与缓存资源](import-cache.spec.ts)

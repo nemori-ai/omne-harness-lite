@@ -39,6 +39,7 @@ import type {
   PassageId,
 } from './identity.ts'
 import type { EffectIntent } from './journal.ts'
+import type { AgentJournalEntry } from './receiving.ts'
 
 export type ExecutionState =
   | Readonly<{ kind: 'reconciling' | 'advancing' }>
@@ -61,6 +62,11 @@ export type ExecutionSnapshot = Readonly<{
   effects: readonly EffectIntent[]
   terminalObservations: readonly TerminalObservation[]
   output: Readonly<{ emittedThrough: string | null; acknowledgedThrough: string | null }>
+  /**
+   * The committed receiving entries in commit order, when the provider serves
+   * `AgentJournalEntries`. Absent means the provider does not serve them, not that there are none.
+   */
+  entries?: readonly AgentJournalEntry[]
 }>
 export type AgentState =
   | Readonly<{ kind: 'idle'; instance: AgentInstanceId }>

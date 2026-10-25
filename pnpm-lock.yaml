@@ -267,6 +267,9 @@ importers:
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
@@ -302,6 +305,9 @@ importers:
         specifier: workspace:*
         version: link:../../common/operation-result
     devDependencies:
+      '@omne-harness/tool-cordis-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-cordis-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

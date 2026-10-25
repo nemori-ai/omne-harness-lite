@@ -7,5 +7,6 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 定义入口的测试
 - [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts)：Cordis 定义入口的类型测试
 - [registration.spec.ts](registration.spec.ts)：实例目录的登记、撤除与路由规则
+- [tool-start-fence.spec.ts](tool-start-fence.spec.ts)：Tool 启动围栏键的引用
 - [module-graph.ts](module-graph.ts)：导入图遍历
 - [fixtures/](fixtures/index.md)：测试固定输入
