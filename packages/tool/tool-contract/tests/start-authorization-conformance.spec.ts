@@ -1,6 +1,7 @@
 // Self-proof of the authorization consumption suite of P04: it passes on the conforming double, and
 // each case fails under a violating variant. The variants wrap the authority or the authorization
 // handles of the double at the port boundary; they live here and are not exported.
+import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import {
@@ -27,6 +28,8 @@ import {
   type Variant,
 } from './conformance-harness.ts'
 import {
+  authorizationOneTenant,
+  authorizationWithoutOutage,
   authorizationWithoutSettle,
   withoutAuthorization,
   type Fixture,
@@ -39,6 +42,11 @@ const NAMES = {
   A3: 'a revocation before the consume refuses the start and spends no permit',
   A4: 'a revocation after the acceptance leaves the start accepted',
   A5: 'a start answered not-started keeps the permit for its call',
+  A6: 'an unreadable permit ledger leaves the start undecided and keeps its task',
+  A7: 'an unavailable admission verdict leaves the start undecided and keeps its task',
+  A8: 'a permit of another tenant is never consumed',
+  A9: 'a resume of the call consumes nothing more at the same position',
+  A10: 'a start refused by a moved guard spends no permit',
 } as const
 
 type Handles = ToolStartAuthorizationHandles<string>
@@ -73,7 +81,7 @@ const consumedBy = (permit: ToolPermitRef, mark: string): ToolPermitReading => (
 const variants: readonly Variant<Fixture>[] = [
   {
     name: 'consume ignores the bound permit',
-    fails: [NAMES.A1, NAMES.A2, NAMES.A5],
+    fails: [NAMES.A1, NAMES.A2, NAMES.A5, NAMES.A6, NAMES.A7, NAMES.A8, NAMES.A9],
     fixture: variant(({ authorization }) => ({
       authorization: {
         ...authorization,
@@ -95,8 +103,8 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    name: 'a refused start spends the permit before the recheck refuses it',
-    fails: [NAMES.A2, NAMES.A3],
+    name: 'a refused start spends the permit',
+    fails: [NAMES.A2, NAMES.A3, NAMES.A8, NAMES.A10],
     fixture: variant(({ authority, authorization }) => {
       const bound = new Map<string, ToolPermitRef>()
       const spent = new Set<string>()
@@ -156,7 +164,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'every consume records a new consumption',
-    fails: [NAMES.A1, NAMES.A2],
+    fails: [NAMES.A1, NAMES.A2, NAMES.A9],
     fixture: variant(({ authority, authorization }) => {
       let consumes = 0
       return {
@@ -209,6 +217,83 @@ const variants: readonly Variant<Fixture>[] = [
       }
     }),
   },
+  {
+    name: 'an unreadable dependency is refused for good',
+    fails: [NAMES.A6, NAMES.A7],
+    fixture: variant(({ authority }) => ({
+      authority: {
+        ...authority,
+        consume: async input => {
+          const answer = await authority.consume(input)
+          if ('failure' in answer || answer.ok.kind !== 'unknown') return answer
+          return succeed<StartProgress>({
+            kind: 'rejected',
+            reason: 'unreadable',
+            exclusion: evidence('unreadable'),
+          })
+        },
+      },
+    })),
+  },
+  {
+    name: 'an unreadable dependency is taken as readable',
+    fails: [NAMES.A6, NAMES.A7],
+    fixture: variant(({ authorization }) => ({
+      authorization: {
+        ...authorization,
+        outage: () => Promise.resolve(),
+        restore: () => Promise.resolve(),
+      },
+    })),
+  },
+  {
+    name: 'a permit of another tenant is consumed',
+    fails: [NAMES.A8],
+    fixture: variant(({ authorization }) => {
+      const substitutes = new Map<string, ToolPermitRef>()
+      return {
+        authorization: {
+          ...authorization,
+          bind: async input => {
+            const presented = input.permit
+            if (presented === undefined || isDeepStrictEqual(presented.tenant, input.access.tenant))
+              return authorization.bind(input)
+            // The foreign permit is swapped for one of the call's tenant, which the start consumes.
+            const own = await authorization.bind({ access: input.access, call: input.call })
+            substitutes.set(key(presented), own)
+            return presented
+          },
+          read: permit => authorization.read(substitutes.get(key(permit)) ?? permit),
+        },
+      }
+    }),
+  },
+  {
+    name: 'a resume consumes the permit again',
+    fails: [NAMES.A9],
+    fixture: variant(({ authority, authorization }) => {
+      let resumes = 0
+      return {
+        authority: {
+          ...authority,
+          consume: async input => {
+            const answer = await authority.consume(input)
+            if (input.permit.start.kind === 'resume' && 'ok' in answer) resumes += 1
+            return answer
+          },
+        },
+        authorization: {
+          ...authorization,
+          read: async permit => {
+            const reading = await authorization.read(permit)
+            return reading.kind === 'consumed' && resumes > 0
+              ? consumedBy(permit, `resume-${resumes}`)
+              : reading
+          },
+        },
+      }
+    }),
+  },
 ]
 
 describe('authorization consumption conformance suite', () => {
@@ -237,6 +322,16 @@ describe('authorization consumption conformance suite', () => {
       name: 'no authorization permit is bound',
       fixture: withoutAuthorization,
       notApplicable: Object.fromEntries(Object.values(NAMES).map(name => [name, 'authorization'])),
+    },
+    {
+      name: 'no outage handles',
+      fixture: authorizationWithoutOutage,
+      notApplicable: { [NAMES.A6]: 'outage', [NAMES.A7]: 'outage' },
+    },
+    {
+      name: 'one tenant only',
+      fixture: authorizationOneTenant,
+      notApplicable: { [NAMES.A8]: 'otherAccess' },
     },
     { name: 'no settle', fixture: authorizationWithoutSettle },
   ])

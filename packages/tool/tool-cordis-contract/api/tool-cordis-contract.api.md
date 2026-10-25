@@ -103,9 +103,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import { type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolRuntime } from '@omne-harness/tool-contract';
-import { type ToolDirectory } from '@omne-harness/tool-contract/provider';
-import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority } from '@omne-harness/tool-contract/provider';
-import { type ToolStartFence } from '@omne-harness/tool-contract/provider';
+import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     constructor(ctx: Context);

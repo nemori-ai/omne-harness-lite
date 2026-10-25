@@ -22,11 +22,11 @@
 | [result-projection.spec.ts](result-projection.spec.ts) | `projectToolResult`：附件身份数量不等、重复或与已有块冲突时拒绝。地址文本使用固定前缀和 JSON 定位 |
 | [start-authority-conformance.spec.ts](start-authority-conformance.spec.ts) | 启动围栏套件（P04）的自证：对守约替身全过且无不适用用例；每个违约变体让列明的用例失败；每条用例至少被一个变体命中 |
 | [start-fence-conformance.spec.ts](start-fence-conformance.spec.ts) | 外层调用方的启动围栏套件（P04）的自证：对守约替身全过且无不适用用例；违约变体包括只回证据不失效、围栏与启动排序域分属两个排序域、失效追溯已受理的启动、失效后拒绝一切启动、重送当作新操作、一个租户的围栏移动所有租户的守卫、不核失效资格、拒绝时区分真守卫与不存在的守卫，每个变体让列明的用例失败；围栏视图只有 `invalidate` |
-| [start-authorization-conformance.spec.ts](start-authorization-conformance.spec.ts) | 授权消费点套件（P04）的自证，形式同上：变体包括忽略绑定的许可、忽略撤权、先消费再再核、撤权追溯已受理的启动、每次 consume 都记新消费、not-started 也消费许可；另验授权替身的受理记录冻结 permit 的守卫并带所消费的许可引用 |
-| [result-receiver-conformance.spec.ts](result-receiver-conformance.spec.ts) | 结果接收端口套件（结果推送与保存）的自证，形式同上：变体包括证据不归冻结的消费拥有者、每次推送都给新回执、异内容当作已保存、保留调用方的原对象、租户取自 access 而不取自引用、认回键不含租户、非法引用答 `denied`、不核纯关系表、忽略 `signal`、不守租户容量、所有租户共用一个容量桶、任何位置都当作有原消费关联、调用不绑定原位置 |
+| [start-authorization-conformance.spec.ts](start-authorization-conformance.spec.ts) | 授权消费点套件（P04）的自证，形式同上：变体包括忽略绑定的许可、忽略撤权、被拒的启动也消费许可、撤权追溯已受理的启动、每次 consume 都记新消费、not-started 也消费许可、不可读时写成 rejected、不可读当作可读、消费他租户的许可、接续再次消费；另验授权替身的受理记录冻结 permit 的守卫并带所消费的许可引用 |
+| [result-receiver-conformance.spec.ts](result-receiver-conformance.spec.ts) | 结果接收端口套件（结果推送与保存）的自证，形式同上：变体包括证据不归冻结的消费拥有者、每次推送都给新回执、异内容当作已保存、保留调用方的原对象、租户取自 access 而不取自引用、认回键不含租户、非法引用答 `denied`、不核纯关系表、忽略 `signal`、不守租户容量、所有租户共用一个容量桶、任何位置都当作有原消费关联、调用不绑定原位置、不核接收资格 |
 | [result-delivery.spec.ts](result-delivery.spec.ts) | `judgeToolDelivery` 按纯关系表的顺序返回第一个失败：未铸造的租户、非法引用、其他租户的引用、account 键与修订不符、账目 subject 不是原调用；合法输入原样返回 |
 | [result-delivery.spec-d.ts](result-delivery.spec-d.ts) | 结果推送、启动围栏视图与受理记录的正负编译用例：push 的输入与回执形状，两种认回键，载荷不另带租户，键与载荷分支不能交叉，生产者种类只能是 `tool`，背压资源是封闭集合，围栏只有 `invalidate` 且启动排序域可以充当围栏，authorization 形状的许可引用与消费事实可以直接赋给 Tool 的许可类型 |
-| [start-fence-legal.ts](start-fence-legal.ts)、[start-authorization-legal.ts](start-authorization-legal.ts)、[result-receiver-legal.ts](result-receiver-legal.ts) | 三个新套件的合法提供者：只有一个租户、不给 `settle`、没有无资格主体 `strangerAccess`、不绑定授权许可（全部用例不适用）、只登记一个消费位置、不告知租户容量。只从替身夹具去掉手柄，不调替身的控制手柄。不是测试文件 |
+| [start-fence-legal.ts](start-fence-legal.ts)、[start-authorization-legal.ts](start-authorization-legal.ts)、[result-receiver-legal.ts](result-receiver-legal.ts) | 三个新套件的合法提供者：只有一个租户、不给 `settle`、没有无资格主体 `strangerAccess`（围栏与接收端口）、不绑定授权许可（全部用例不适用）、没有 `outage` 与 `restore`、只登记一个消费位置、不告知租户容量。只从替身夹具去掉手柄，不调替身的控制手柄。不是测试文件 |
 | [environment-conformance.spec.ts](environment-conformance.spec.ts) | 环境套件（P03）的自证，形式同上。另验：没有控制手柄的夹具把需要手柄的用例报告为不适用并指明手柄，其余用例仍通过 |
 | [executor-binding-conformance.spec.ts](executor-binding-conformance.spec.ts) | live-only 执行者绑定套件（P05、P07）的自证，形式同上，含不适用报告 |
 | [output-custody-conformance.spec.ts](output-custody-conformance.spec.ts) | 输出保管套件（P05）的自证，形式同上，含不适用报告；替身复制进出的字节 |

@@ -24,3 +24,9 @@ export function oneConsumerReceiver(): Fixture {
   const { otherConsumer: _dropped, ...rest } = memoryToolResultReceiverFixture()
   return rest
 }
+
+/** The double without a stranger: the case of the unqualified principal is not applicable. */
+export function receiverWithoutStranger(): Fixture {
+  const { strangerAccess: _dropped, ...rest } = memoryToolResultReceiverFixture()
+  return rest
+}

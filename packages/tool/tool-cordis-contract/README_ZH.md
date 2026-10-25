@@ -18,7 +18,7 @@ Tool 的 Cordis 服务定义包。`./cordis` 导出 20 个抽象 Service 类和�
 | 纯契约函数已实现 | 无。本包没有契约函数 | 无 | 无 |
 | 独立执行已实现 | 无 | 无 | 无 |
 | runtime 已实现的路径 | 无。本包没有 runtime。唯一的具体服务 `ToolInstancesService` 回复上述具名失败 | 无 | 只测了 `ToolInstancesService` 的具名失败 |
-| 尚未交付的宿主与提供者 | 动态性套件 `runToolDynamicsSuite` 的用例体（骨架把十条判据报告为不适用）。`toolContributionAuthority` 与 `toolGenerations` 的提供者。`ToolInstancesService` 背后的实例目录。Tool 自有的提供者插件在 `tool-host-local` 的 `./cordis`，跨领域提供者由其拥有者交付。真实 Cordis 下的登记语义 | 无 | 无 |
+| 尚未交付的宿主与提供者 | 动态性套件 `runToolDynamicsSuite` 的用例体（骨架把十条判据报告为不适用）。`toolContributionAuthority`、`toolGenerations`、`toolStartFence` 的提供者。`ToolInstancesService` 背后的实例目录。Tool 自有的提供者插件在 `tool-host-local` 的 `./cordis`，跨领域提供者由其拥有者交付。真实 Cordis 下的登记语义 | 无 | 无 |
 
 `./testing` 入口交付登记语义套件和一个非耐久登记服务、绑定登记表的 G7 套件和一个非耐久登记表，以及动态性套件骨架。套件只对各自的替身运行（登记语义套件另对违约变体运行）。真实实现的对照尚未进行：它需要实例目录、本地绑定登记表（2.4）和真实的 Cordis 装配。
 

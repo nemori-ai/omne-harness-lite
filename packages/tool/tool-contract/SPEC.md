@@ -804,7 +804,7 @@ push 的 `access` 是代原租户行事的主体。双方诊断分别记录该�
 
 接收方在首次异步或排队前取得完整合法载荷的自有副本，之后调用方改变原对象，不能改变已入队的 key 或内容。同内容指完整值树结构相等：对象键次序不参与比较，数组次序、变体和字段存在性参与比较，缺字段与值为 undefined 的字段不同，不以版本号或摘要代替。
 
-一致性套件 `toolResultReceiverConformance` 与内存替身 `createMemoryToolResultReceiver` 在 `./testing`。替身声明 `durability: 'none'`，只证明套件所列的认回、冲突、关联、租户与背压行为，不证明耐久保存。
+一致性套件 `toolResultReceiverConformance` 与内存替身 `createMemoryToolResultReceiver` 在 `./testing`。替身声明 `durability: 'none'`，只证明套件所列的认回、冲突、关联、接收资格、租户与背压行为，不证明耐久保存。
 
 ## 等待、控制与恢复
 
@@ -957,15 +957,36 @@ consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `st
 
 #### 授权消费点与撤权再核
 
-本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用是 `ToolPermitRef`，消费事实是 `ToolPermitConsumption`。两者对 Tool 不透明，字段与 `@omne-harness/authorization` 的 `PermitRef`、`ConsumptionFact` 同形，授权侧的值可以直接赋给它们。authorization 的测试以开发依赖导入本包，本包若导入 authorization 会形成成员依赖环，所以暂用 Tool 自有的引用类型。#659 入轨、依赖环解除后，这两个类型换成 authorization 的类型，跟踪见 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659)。许可的授予、撤回与解释归授权拥有者。
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用是 `ToolPermitRef`，消费事实是 `ToolPermitConsumption`。两者对 Tool 不透明，字段与 authorization 的 `PermitRef`、`ConsumptionFact` 对应（`permit` 放宽为文本，`evidence` 放宽为 `DurableEvidence`），授权侧的值可以直接赋给它们，反向不成立。authorization 的测试以开发依赖导入本包，本包若导入 authorization 会形成成员依赖环，所以暂用 Tool 自有的引用类型；#659 入轨、依赖环解除后替换，跟踪见 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659)。许可的授予、撤回与解释归授权拥有者。
 
 1. 绑定。一次调用需要消费哪些授权许可，由启动排序域的提供者按受信配置解析。当前公开请求没有出示许可的字段。
 2. 消费。consume 依次核对守卫、做第 4 项的撤权再核，然后在 consume 的同一排序内（线性化点之前）、形成受理记录之前，向授权拥有者的许可台账（authorization 的 `PermitLedger.consume`）消费每个绑定许可。消费位置标识原调用：`owner` 是启动排序域提供者的拥有者名，`work` 是原调用身份 `ToolCallId` 的文本，`position` 固定为 `start`；租户由许可引用携带。同一调用的每次启动与接续因此使用同一位置，其他调用使用不同位置。每个许可都答 `consumed`，或答 `already-consumed` 且事实中的位置是本调用时，consume 才能受理。受理记录的 `authorizations` 带全部消费事实，每个事实含许可引用。
-3. 不复活已消费授权。许可答 `already-consumed` 且位置属于另一调用，或答 `unknown` 时，consume 回复 `rejected`，本调用不启动。台账回复 `unavailable` 时 consume 不受理，回复 `unknown` 并保留原任务。同一启动重送时认回原受理，不再次消费。恢复读取原受理记录，不重新消费许可。许可后来再被允许，也不能使已消费的许可供另一调用使用。
+3. 不复活已消费授权。许可答 `already-consumed` 且位置属于另一调用，或答 `unknown` 时，consume 回复 `rejected`，本调用不启动。许可引用的租户与调用的租户不同时，该许可永不消费：consume 回复 `rejected`，受理记录不记下它。一次调用绑定的许可全部消费或全部不消费，其中一个被拒，其余保持开放。台账回复 `unavailable` 时 consume 不受理，回复 `unknown` 并保留原任务。同一启动重送时认回原受理，不再次消费。恢复读取原受理记录，不重新消费许可。许可后来再被允许，也不能使已消费的许可供另一调用使用。
 4. 撤权再核。身份与权限的撤权不经 invalidate 进入排序域。Tool 在 consume 的同一排序内（线性化点之前）重读授权拥有者对本次动作的当前准入裁定。裁定为 `denied` 时回复 `rejected`。裁定为 `unavailable` 时不受理，回复 `unknown` 并保留原任务（同第 3 项）。不能用缓存或先前的 `allowed` 放行。
 5. 残余窗口。受理之后发生的撤权不撤销受理，也不停止在途执行。远端效果可能在撤权之后才实际发生，Tool 不承诺撤权回滚或阻止已受理的外发。这个窗口从 consume 的再核开始，到外部效果实际完成为止。需要停止时按在途控制处理。
 
-一致性套件 `toolStartAuthorizationConformance` 在 `./testing`，经 fixture 绑定许可、撤回准入并读取许可台账，只经 consume 与 inspect 观察上述结果。没有提供绑定能力的提供者，这些用例报告不适用。内存替身 `createMemoryAuthorizedToolStartAuthority` 声明 `durability: 'none'`。
+下图示意 consume 内的次序，以及撤权可能落在哪里。
+
+```mermaid
+sequenceDiagram
+    participant X as 受信执行边界
+    participant D as 启动排序域（consume）
+    participant A as 授权拥有者
+    participant B as 受信外发桥
+    participant R as 远端
+    X->>D: consume(permit, executorReceipt)
+    D->>D: 核守卫修订号
+    D->>A: 再读准入裁定
+    Note over D,A: 此前落地的撤权：rejected，不消费许可
+    D->>A: 消费绑定许可
+    D->>D: 写受理记录（冻结守卫，带消费事实）
+    D-->>X: started
+    X->>B: 交受信外发桥（启动线性化点）
+    Note over D,B: 再读之后落地的撤权：残余窗口，受理不撤销
+    B->>R: 远端效果
+```
+
+一致性套件 `toolStartAuthorizationConformance` 在 `./testing`，经 fixture 绑定许可、撤回准入、读取许可台账，并以 `outage` 与 `restore` 让许可台账或准入裁定暂时不可读，只经 consume 与 inspect 观察上述结果：撤权后拒绝且不消费，不可读时回复 `unknown`、恢复后同一 permit 照常受理，他租户的许可不消费，接续不再消费，守卫拒绝时不消费。没有提供绑定能力的提供者，这些用例报告不适用；没有 `outage` 与 `restore` 的，不可读的两条用例报告不适用。内存替身 `createMemoryAuthorizedToolStartAuthority` 声明 `durability: 'none'`。
 
 ### P05 执行事实与原输出
 

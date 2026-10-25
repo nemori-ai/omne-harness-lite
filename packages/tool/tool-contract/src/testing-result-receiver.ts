@@ -42,6 +42,8 @@ import {
  * association when nothing else is wrong; the suite takes a position that differs from it only in
  * `position` as one the receiver never registered. `otherConsumer` is a second registered
  * position: the case that pushes one call to two positions is reported not applicable without it.
+ * `strangerAccess` is an access of the tenant of `access` whose principal holds no receiving
+ * qualification: the case that needs it is reported not applicable without it.
  * The receiver answers each push definitely in this suite: no fault is injected. `tenantCapacity`
  * is how many new keys one tenant may hold before a further new key is backpressured; the capacity
  * case is reported not applicable without it, and the cases that need a second tenant without
@@ -53,6 +55,7 @@ export interface ToolResultReceiverFixture<P> {
   readonly otherAccess?: Access<P>
   readonly consumer: ConsumerRef
   readonly otherConsumer?: ConsumerRef
+  readonly strangerAccess?: Access<P>
   readonly tenantCapacity?: number
 }
 
@@ -206,10 +209,14 @@ async function foreignReference<P>(fixture: Fixture<P>): Promise<void> {
   const other = scene(fixture, otherAccessOf(fixture))
   // The push names a reference of the other tenant under the own access: the tenant comes from the
   // reference, never from the destination, so the push is denied and saves nothing.
-  const foreign = other.result('call-1')
+  const foreign = other.result('call-1', 'result-1', 'one')
   const denied = failureOf(await own.push(foreign), 'push of a reference of another tenant')
   assert.equal(denied.kind, 'denied')
-  await other.saved(foreign, 'push of the same delivery by its tenant')
+  // Had the denied push saved anything under that key, other content would now be a conflict.
+  await other.saved(
+    other.result('call-1', 'result-1', 'two'),
+    'push of other content under the same key by its tenant',
+  )
 }
 
 async function tenantInKey<P>(fixture: Fixture<P>): Promise<void> {
@@ -257,7 +264,21 @@ async function relationTable<P>(fixture: Fixture<P>): Promise<void> {
     'push of a result whose account belongs to another call',
   )
   assert.deepEqual(subject, { kind: 'invalid', field: 'account.subject', reason: 'call-mismatch' })
-  await s.saved(account, 'push of the legal account')
+  // The refusals saved nothing: the legal result is still a new key. The suite pins no order of
+  // result and account at the receiver.
+  await s.saved(result, 'push of the legal result')
+}
+
+async function unqualifiedReceiver<P>(fixture: Fixture<P>): Promise<void> {
+  const stranger = handle(fixture.strangerAccess, 'strangerAccess')
+  const own = scene(fixture)
+  const denied = failureOf(
+    await scene(fixture, stranger).push(own.result('call-1', 'result-1', 'one')),
+    'push by a principal of the tenant without receiving qualification',
+  )
+  assert.equal(denied.kind, 'denied')
+  // The denied push saved nothing: other content under the same key is still a new key.
+  await own.saved(own.result('call-1', 'result-1', 'two'), 'push by the qualified principal')
 }
 
 async function cancelledBeforeAccept<P>(fixture: Fixture<P>): Promise<void> {
@@ -339,6 +360,10 @@ export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fix
     named('one tenant at its capacity is backpressured without blocking another', tenantCapacity),
     named('a push to a position without the original association is invalid', notAccepted),
     named('a push of a call to another position than its original is invalid', notOriginal),
+    named(
+      'a principal without receiving qualification is denied and saves nothing',
+      unqualifiedReceiver,
+    ),
   ]
 }
 
@@ -358,10 +383,15 @@ type Stored = Readonly<{ delivery: ToolDelivery<ContentBlock>; receipt: ToolSave
  * registered has none, and the first saved push of a call binds the call to its position, so a
  * later push of the call to another position is not original. Each tenant holds at most
  * `tenantCapacity` keys; a resend takes no new share. Every push runs to its end before the next
- * one, and the receiver copies the payload before it looks at it.
+ * one, and the receiver copies the payload before it looks at it. `qualifies` is the current
+ * receiving qualification of a principal for its tenant; it is asked after the tenant check.
  */
 export function createMemoryToolResultReceiver<P>(
-  input: Readonly<{ consumers: readonly ConsumerRef[]; tenantCapacity: number }>,
+  input: Readonly<{
+    consumers: readonly ConsumerRef[]
+    tenantCapacity: number
+    qualifies: (access: Access<P>) => boolean
+  }>,
 ): MemoryToolResultReceiver<P> {
   const records = new Map<string, Stored>()
   const held = new Map<string, number>()
@@ -378,6 +408,7 @@ export function createMemoryToolResultReceiver<P>(
           ? fail({ kind: 'invalid', field: 'key.reference', reason: 'reference-malformed' })
           : fail({ kind: 'denied' }),
       )
+    if (!input.qualifies(request.access)) return answer(fail({ kind: 'denied' }))
     if (!input.consumers.some(consumer => isDeepStrictEqual(consumer, delivery.consumer)))
       return answer(fail({ kind: 'invalid', field: 'key.reference', reason: 'not-accepted' }))
     const tenant = tenantKey(request.access.tenant)
@@ -432,20 +463,31 @@ export function createMemoryToolResultReceiver<P>(
 }
 
 /**
- * A fresh fixture over a fresh in-memory receiver with two registered positions and a capacity of
- * two keys per tenant.
+ * A fresh fixture over a fresh in-memory receiver with two registered positions, a capacity of two
+ * keys per tenant, and a stranger of the own tenant without receiving qualification.
  */
 export function memoryToolResultReceiverFixture(): ToolResultReceiverFixture<string> {
   const owner = 'conformance-receiver'
   const consumer = { owner, work: 'work-1', position: 'position-1', purpose: 'result' }
   const otherConsumer = { ...consumer, position: 'position-2' }
+  const access = memoryAccess('tester')
+  const otherAccess = memoryOtherAccess('tester-other')
+  // The receiving qualification of the double: each fixture principal in its own tenant.
+  const grants = new Set(
+    [access, otherAccess].map(granted =>
+      JSON.stringify([granted.principal, tenantKey(granted.tenant)]),
+    ),
+  )
   return {
     receiver: createMemoryToolResultReceiver<string>({
       consumers: [consumer, otherConsumer],
       tenantCapacity: 2,
+      qualifies: presented =>
+        grants.has(JSON.stringify([presented.principal, tenantKey(presented.tenant)])),
     }),
-    access: memoryAccess('tester'),
-    otherAccess: memoryOtherAccess('tester-other'),
+    access,
+    otherAccess,
+    strangerAccess: memoryAccess('tester-stranger'),
     consumer,
     otherConsumer,
     tenantCapacity: 2,

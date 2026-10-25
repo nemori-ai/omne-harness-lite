@@ -41,7 +41,7 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 
 1. 表达验证。提取唯一公开声明并使用实际基础包类型编译；非法等待/关系和错误身份类型必须被拒绝；Cordis定义继承覆盖全部门面方法；本地链接、文档登记和Mermaid解析通过。
 2. 协议验证。模型至少包含两个调用、同队列名额、两代协调者、撤权/启动、取消/答复、迟到结果和消费者交接。每个外域操作注入发送前、效果后回包前、本域确认前及恢复查询不可用四个断点。错误变体须命中对应不变量。
-3. 提供者验证。真实环境分配、原执行查询和控制、检查点排除、事实源ACK、内容与附件保管、计时连续性、权限变更和跨域启动围栏。内存fake不能代这些证明。
+3. 提供者验证。真实环境分配、原执行查询和控制、检查点排除、事实源ACK、内容与附件保管、计时连续性、权限变更和跨域启动排序域。内存fake不能代这些证明。
 4. 部署验证。声明部署条件下的进程崩溃、OS崩溃、断电和重启；跨进程/异构只有实际采用且证据覆盖时才能声明。介质物理损毁后的新恢复资格不在现行已定政策内。
 5. 独立评审与接受。choice评审责任和机制，expression评审精确表达；两者无阻断仍不授予负责人技术接受，测试通过也不授予发布支持。
 
@@ -73,7 +73,7 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 
 ### 端口一致性套件
 
-`./testing` 的十个套件（见 [public-api](../docs/public-api.md#端口一致性套件testing)）把提供者验证的一部分变成提供者自己可运行的用例。它们覆盖单个端口的可观察承诺，不覆盖耐久、崩溃和跨端口组合。用例名、条款与违约变体的对应在 [tests/README](../tests/README.md#一致性套件的自证)。下表把用例对回产品能力与场景。用例编号 SA、E、B、C、K、S、D、RX 分别属于启动围栏、环境、执行者绑定、输出保管、时钟、决策桥与资源应答共有的 P06 用例、决策桥专有用例和资源应答专有用例；F、A、RP 分别属于外层调用方的启动围栏、授权消费点和结果接收端口（编号见各自 spec 的 `NAMES`）。登记语义套件在 `tool-cordis-contract`，用例编号 R，对应见 [tests/README](../../tool-cordis-contract/tests/README.md#登记套件的自证)。
+`./testing` 的十个套件（见 [public-api](../docs/public-api.md#端口一致性套件testing)）把提供者验证的一部分变成提供者自己可运行的用例。它们覆盖单个端口的可观察承诺，不覆盖耐久、崩溃和跨端口组合。用例名、条款与违约变体的对应在 [tests/README](../tests/README.md#一致性套件的自证)。下表把用例对回产品能力与场景。用例编号 SA、E、B、C、K、S、D、RX 分别属于启动排序域、环境、执行者绑定、输出保管、时钟、决策桥与资源应答共有的 P06 用例、决策桥专有用例和资源应答专有用例；F、A、RP 分别属于外层调用方的启动围栏、授权消费点和结果接收端口（编号见各自 spec 的 `NAMES`）。登记语义套件在 `tool-cordis-contract`，用例编号 R，对应见 [tests/README](../../tool-cordis-contract/tests/README.md#登记套件的自证)。
 
 | 用例 | 产品能力 | 场景 | 兑现的承诺 |
 | --- | --- | --- | --- |
@@ -83,8 +83,8 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 | SA13、SA14 | CAP-TL03 | TL-V02 | 同一操作号用于另一个守卫或另一个原因，是 conflict 且没有效果（P01） |
 | SA15–SA19 | CAP-TL03 | TL-V02 | 另一租户读不到、受理不了、失效不了、排除不了、准备不了启动，得到的答复与不存在的记录相同 |
 | F1–F8 | CAP-TL03、CAP-TL10 | TL-V02、[TL-V07](#tl-v07) | 围栏证据返回后旧修订号的 permit 不再受理，已受理的启动不受影响，之后的 permit 照常受理；重送认回首次证据，同一操作号配另一守卫输入是 conflict；另一租户的围栏不影响本租户；另一租户的主体与无资格主体的失效回复 denied，守卫不变，不披露守卫是否存在。围栏与启动排序域共用一个排序域 |
-| A1–A5 | CAP-TL03 | TL-V02 | consume 消费绑定的许可一次，重送认回；另一调用出示已消费的许可不启动；受理前撤权拒绝且不消费许可；受理后撤权不撤销受理（残余窗口）；not-started 不消费许可 |
-| RP1–RP12 | CAP-TL07、CAP-TL09 | [TL-V05](#tl-v05)、[TL-V06](#tl-v06) | saved 回执带原 key，证据归冻结的消费拥有者；同 key 同内容认回，异内容 conflict；接收方保留自己的副本；租户取自调用引用并进入认回键；非法引用与纯关系表的失败；已中止的 signal 只取消新 key；一个租户占满份额不阻塞另一租户；没有原消费关联是 invalid not-accepted，同一调用推向另一位置是 consumer not-original |
+| A1–A10 | CAP-TL03 | TL-V02 | consume 消费绑定的许可一次，重送认回；另一调用出示已消费的许可不启动；受理前撤权回复 rejected 且不消费许可；受理后撤权不撤销受理（残余窗口）；not-started 不消费许可；许可台账或准入裁定不可读时回复 unknown，恢复后同一 permit 照常受理；他租户的许可永不消费；接续不再消费；守卫拒绝时不消费 |
+| RP1–RP13 | CAP-TL07、CAP-TL09 | [TL-V05](#tl-v05)、[TL-V06](#tl-v06) | saved 回执带原 key，证据归冻结的消费拥有者；同 key 同内容认回，异内容 conflict；接收方保留自己的副本；租户取自调用引用并进入认回键；非法引用与纯关系表的失败；已中止的 signal 只取消新 key；一个租户占满份额不阻塞另一租户；没有原消费关联是 invalid not-accepted，同一调用推向另一位置是 consumer not-original；同租户无接收资格的主体被拒且不保存 |
 | E1–E6 | CAP-TL04、CAP-TL11 | [TL-V07](#tl-v07) | 按准备操作去重（含并发与 pending 时的重送），inspectPreparation 认回，不给另一调用 |
 | E7–E10 | CAP-TL11 | TL-V07 | pending 保留原分配，excluded 排除延迟分配，rejected 不降级也不改写原因 |
 | E11–E13 | CAP-TL11 | TL-V07 | release 去重，inspectRelease 认回且不冒充已释放 |
@@ -119,7 +119,7 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 
 承载独立规则的断言都有违约变体：删掉或削弱该断言，自证就变红。类型收窄的断言由编译器守护。证明方式是断言删除变异，逐条结果和前后哈希不随仓库保存。每个套件有一张回答表，由条款推出，经 `finalAnswer` 与 `resendRecalls` 读取答复，跨租户的比较经 `crossTenantAnswers`：两个答复同类，对真实记录的答复里任何一层的值和键都不带出该记录的识别值（先去掉外租户自己提交的值，再做等值检查，长度不小于 8 的识别文本另做子串检查），首答是进度时在完成手柄之后再查一次；自证为每张表生成端口边界上的合法提供者（遮住新操作每个方法的首答，在手柄 resolve 时揭开），它必须全过，没有手柄时需要手柄的用例恰好是不适用的那些。守约但不同的提供者（首答进度的环境与绑定、真正延迟的环境与外部对端、合并事实的执行者、先预核验再最后核验的登记服务、围栏式的 `excluded` 等）必须全过，各 spec 的 `legal` 表只引用 `*-legal.ts` 里的提供者。手柄在延迟工作落地前就 resolve 的夹具，每个落地手柄至少让一条用例失败。
 
-条款没有写到能判定通过与否的方法，不写用例，待设计拥有者补足条款后再加。时钟：`elapsed` 的入参证据与 `begin` 回的标记是什么关系（套件取为标记本身）；“已用时间只累计已提交的计时段”在时钟端口上没有提交这个输入，累计归 `ToolCommands`；不可比较的 epoch 在 `Reply` 里没有 unknown 值（套件要求失败，不指定哪一种）；`waitUntil` 的时刻格式、已过去的时刻和信号同时中止的先后；`now()` 与 `waitUntil` 的时刻是否同一格式。决策桥与资源应答：`ensure` 与 `invalidate` 回包丢失时的失败种类（套件用 `hold` 手柄表达“未应用且回包丢失”，不判回包种类）；`resolve` 对不是原决定的证据回哪一种失败；`expire` 对未到期与有更早回应的失败种类；资源应答的 `ensure` 是否也按 call 与 wait 认回而不管操作号。登记：每次 `register` 是否都核验（套件取为是，包括认回）、已退出 fiber 的失败种类、token“不可猜测”在端口上无法判定（套件只查非空且互不相同）、“不取消原工作”只能以“目录从不调用该 handle”作观察代理。时钟的租户隔离经 `elapsed(evidence)` 不可观察（入参只有证据，没有 access），所以时钟套件没有跨租户用例；时钟替身信任标记里的文本，伪造的标记照常被计时，这取决于 `elapsed` 取哪种证据，同属上述第一项。登记与资源应答各有一条条款读法未经契约拥有者确认，套件保持现行读法。登记：`release` 若打开并中止该 handle 上的观察，是否违反[登记协议](../../tool-cordis-contract/docs/cordis.md#登记输入与撤除协议)的“不取消原工作”；R10（registering and releasing never touch the original work）取严格读法，要求目录从不调用该 handle 的 `observe`。资源应答：到期是否必须在 `inspect` 上可见；RX6（expire at the deadline gives an expiry that resolves as expired）要求 `inspect` 显示到期事实。同样待契约拥有者补足的还有：同一操作异输入是否返回 conflict（P01 对外部对端；决策桥与资源应答的操作账已按 P06“回执逐项绑定动作种类、原 wait、采用和输入摘要”判定并回 conflict，其余对端沿用此处所列），对从未准备的资源 release，过期游标与未知批次确认的失败语义，`lost` 的“可信连续性排除”怎样在端口上判定。下列两项待裁定。停止重送的读法：套件取“重送可报告当前进度，进度单调，终局逐字节认回”，严格读法是“相同提交身份一律返回原 accepted 受理”，若取严格读法，`resendRecalls` 只加一条。启动围栏的 `inspect` 是否允许改变状态（替身在 inspect 里撤销 permit 并造排除），P04 对此没有写，套件的 SA8 两种都容忍。启动围栏套件对本地协调器（`tool-host-local`）的运行结果见 [public-api 的 `./testing` 一节](../docs/public-api.md#端口一致性套件testing)。
+条款没有写到能判定通过与否的方法，不写用例，待设计拥有者补足条款后再加。时钟：`elapsed` 的入参证据与 `begin` 回的标记是什么关系（套件取为标记本身）；“已用时间只累计已提交的计时段”在时钟端口上没有提交这个输入，累计归 `ToolCommands`；不可比较的 epoch 在 `Reply` 里没有 unknown 值（套件要求失败，不指定哪一种）；`waitUntil` 的时刻格式、已过去的时刻和信号同时中止的先后；`now()` 与 `waitUntil` 的时刻是否同一格式。决策桥与资源应答：`ensure` 与 `invalidate` 回包丢失时的失败种类（套件用 `hold` 手柄表达“未应用且回包丢失”，不判回包种类）；`resolve` 对不是原决定的证据回哪一种失败；`expire` 对未到期与有更早回应的失败种类；资源应答的 `ensure` 是否也按 call 与 wait 认回而不管操作号。登记：每次 `register` 是否都核验（套件取为是，包括认回）、已退出 fiber 的失败种类、token“不可猜测”在端口上无法判定（套件只查非空且互不相同）、“不取消原工作”只能以“目录从不调用该 handle”作观察代理。时钟的租户隔离经 `elapsed(evidence)` 不可观察（入参只有证据，没有 access），所以时钟套件没有跨租户用例；时钟替身信任标记里的文本，伪造的标记照常被计时，这取决于 `elapsed` 取哪种证据，同属上述第一项。登记与资源应答各有一条条款读法未经契约拥有者确认，套件保持现行读法。登记：`release` 若打开并中止该 handle 上的观察，是否违反[登记协议](../../tool-cordis-contract/docs/cordis.md#登记输入与撤除协议)的“不取消原工作”；R10（registering and releasing never touch the original work）取严格读法，要求目录从不调用该 handle 的 `observe`。资源应答：到期是否必须在 `inspect` 上可见；RX6（expire at the deadline gives an expiry that resolves as expired）要求 `inspect` 显示到期事实。同样待契约拥有者补足的还有：同一操作异输入是否返回 conflict（P01 对外部对端；决策桥与资源应答的操作账已按 P06“回执逐项绑定动作种类、原 wait、采用和输入摘要”判定并回 conflict，其余对端沿用此处所列），对从未准备的资源 release，过期游标与未知批次确认的失败语义，`lost` 的“可信连续性排除”怎样在端口上判定。下列两项待裁定。停止重送的读法：套件取“重送可报告当前进度，进度单调，终局逐字节认回”，严格读法是“相同提交身份一律返回原 accepted 受理”，若取严格读法，`resendRecalls` 只加一条。启动排序域的 `inspect` 是否允许改变状态（替身在 inspect 里撤销 permit 并造排除），P04 对此没有写，套件的 SA8 两种都容忍。启动排序域套件对本地协调器（`tool-host-local`）的运行结果见 [public-api 的 `./testing` 一节](../docs/public-api.md#端口一致性套件testing)。
 
 ### 必须区分的失败
 

@@ -14,7 +14,6 @@ import {
   type ToolRevision,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
-import { type ToolDirectory } from '@omne-harness/tool-contract/provider'
 import {
   describedAdoption,
   type ResultPolicy,
@@ -28,6 +27,7 @@ import {
   type ToolClock,
   type ToolCommands,
   type ToolDecisionBridge,
+  type ToolDirectory,
   type ToolEnvironment,
   type ToolInstanceHost,
   type ToolLoader,
@@ -36,8 +36,8 @@ import {
   type ToolReads,
   type ToolResourceResponses,
   type ToolStartAuthority,
+  type ToolStartFence,
 } from '@omne-harness/tool-contract/provider'
-import { type ToolStartFence } from '@omne-harness/tool-contract/provider'
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolRuntimeService<P, B extends ContentBlock>

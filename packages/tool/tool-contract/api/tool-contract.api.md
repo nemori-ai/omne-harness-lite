@@ -3843,6 +3843,7 @@ export interface ToolResultReceiverFixture<P> {
     readonly otherAccess?: Access<P>;
     readonly consumer: ConsumerRef;
     readonly otherConsumer?: ConsumerRef;
+    readonly strangerAccess?: Access<P>;
     readonly tenantCapacity?: number;
 }
 type Fixture<P> = ToolResultReceiverFixture<P>;
@@ -3853,6 +3854,7 @@ export interface MemoryToolResultReceiver<P> extends ToolResultReceiver<P, Conte
 export declare function createMemoryToolResultReceiver<P>(input: Readonly<{
     consumers: readonly ConsumerRef[];
     tenantCapacity: number;
+    qualifies: (access: Access<P>) => boolean;
 }>): MemoryToolResultReceiver<P>;
 export declare function memoryToolResultReceiverFixture(): ToolResultReceiverFixture<string>;
 export {};
@@ -3918,6 +3920,8 @@ export type ToolPermitReading = Readonly<{
     fact: ToolPermitConsumption;
 }> | Readonly<{
     kind: 'unknown';
+}> | Readonly<{
+    kind: 'unavailable';
 }>;
 export interface ToolStartAuthorizationHandles<P> {
     bind(input: Readonly<{
@@ -3930,6 +3934,16 @@ export interface ToolStartAuthorizationHandles<P> {
         call: ToolCallId;
     }>): Promise<void>;
     read(permit: ToolPermitRef): Promise<ToolPermitReading>;
+    outage?(input: Readonly<{
+        access: Access<P>;
+        call: ToolCallId;
+        dependency: 'ledger' | 'admission';
+    }>): Promise<void>;
+    restore?(input: Readonly<{
+        access: Access<P>;
+        call: ToolCallId;
+        dependency: 'ledger' | 'admission';
+    }>): Promise<void>;
 }
 export interface MemoryAuthorizedToolStartAuthority<P> extends MemoryToolStartAuthority<P> {
     readonly authorization: ToolStartAuthorizationHandles<P>;

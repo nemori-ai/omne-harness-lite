@@ -32,6 +32,7 @@ import {
   oneConsumerReceiver,
   oneTenantReceiver,
   receiverWithoutCapacity,
+  receiverWithoutStranger,
   type Fixture,
 } from './result-receiver-legal.ts'
 import { evidence } from './tool-values.ts'
@@ -49,6 +50,7 @@ const NAMES = {
   RP10: 'one tenant at its capacity is backpressured without blocking another',
   RP11: 'a push to a position without the original association is invalid',
   RP12: 'a push of a call to another position than its original is invalid',
+  RP13: 'a principal without receiving qualification is denied and saves nothing',
 } as const
 
 type Receiver = ToolResultReceiver<string, ContentBlock>
@@ -145,7 +147,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'the key leaves out the tenant',
-    fails: [NAMES.RP5, NAMES.RP6, NAMES.RP10],
+    fails: [NAMES.RP5, NAMES.RP6, NAMES.RP10, NAMES.RP13],
     fixture: variant(
       (real, fixture) => input =>
         real({
@@ -199,6 +201,8 @@ const variants: readonly Variant<Fixture>[] = [
           memoryToolResultReceiverFixture().otherConsumer as ConsumerRef,
         ],
         tenantCapacity: 100,
+        // The stranger of the fixture keeps its missing qualification; only the capacity is lost.
+        qualifies: presented => presented.principal !== 'tester-stranger',
       }),
     }),
   },
@@ -249,6 +253,21 @@ const variants: readonly Variant<Fixture>[] = [
       return answer
     }),
   },
+  {
+    name: 'the receiving qualification is not checked',
+    fails: [NAMES.RP13],
+    fixture: () => {
+      const base = memoryToolResultReceiverFixture()
+      return {
+        ...base,
+        receiver: createMemoryToolResultReceiver<string>({
+          consumers: [base.consumer, base.otherConsumer as ConsumerRef],
+          tenantCapacity: 2,
+          qualifies: () => true,
+        }),
+      }
+    },
+  },
 ]
 
 describe('ToolResultReceiver conformance suite', () => {
@@ -286,6 +305,11 @@ describe('ToolResultReceiver conformance suite', () => {
       name: 'one registered position only',
       fixture: oneConsumerReceiver,
       notApplicable: { [NAMES.RP12]: 'otherConsumer' },
+    },
+    {
+      name: 'no stranger to deny',
+      fixture: receiverWithoutStranger,
+      notApplicable: { [NAMES.RP13]: 'strangerAccess' },
     },
     {
       name: 'capacity not told',
