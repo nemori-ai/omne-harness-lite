@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/modality": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",

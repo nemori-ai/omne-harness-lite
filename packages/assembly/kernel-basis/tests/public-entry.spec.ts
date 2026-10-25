@@ -9,7 +9,10 @@ it('has no runtime exports at the root and keeps cordis helpers on their own ent
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   )
   expect(parsed).toMatchObject({
-    dependencies: { '@deepseek-ai/cordis': 'catalog:' },
+    dependencies: {
+      '@deepseek-ai/cordis': 'catalog:',
+      '@omne-harness/operation-result': 'workspace:*',
+    },
     engines: { node: '>=24' },
   })
 
@@ -19,5 +22,8 @@ it('has no runtime exports at the root and keeps cordis helpers on their own ent
     expect(source.includes('@deepseek-ai/cordis')).toBe(false)
     expect(source.includes('definePlugin')).toBe(false)
     expect(source.includes('resolveOptional')).toBe(false)
+    expect(source.includes('registerInCallerFiber')).toBe(false)
+    expect(source.includes('Admission')).toBe(false)
+    expect(source.includes('operation-result')).toBe(false)
   }
 })
