@@ -301,35 +301,35 @@
 - **宿主**：发布它的那种设施的拥有者；登记到撤除
 - **身份**：设施键，全系统唯一
 - **生灭**：拥有者登记 → 在场，提供者据此声明支持 → 撤除；撤除后该键取不到设施
-- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
 
 ### UL-environment-acquisition · 获取
 
 - **宿主**：发起它的集成方的耐久账本；账本关闭它不再推进
 - **身份**：集成方给的幂等键
 - **生灭**：落点成立 → 获取中 → 临时回执 → 核验通过签发采用记录（或核验失败释放／待处置）→ 已获取 → 失效或释放中 → 已释放，或待处置并可同一操作重试
-- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
 
 ### UL-environment-lease · 租约
 
 - **宿主**：它所属的[获取](#ul-environment-acquisition--获取)；提供者退役、作用域释放、执行环境关闭、寿命到期回收、实例丢失或换代使它失效
 - **身份**：获取加实例代
 - **生灭**：核验通过交付 → 使用（每操作过守卫）→ 失效可观察 → 释放，结果已释放或待处置；共享环境不随一次释放销毁
-- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
 
 ### UL-managed-resource · 受管资源
 
 - **宿主**：造出它的[环境提供者](#ul-environment-provider--环境提供者)；耐久部分在集成方账本
 - **身份**：键加提供者加 JSON 引用
 - **生灭**：计划 → 许可 →（接续）→ 运行 → 已停（确认）或已停（未确认）；未确认保留处置责任与查询入口
-- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
 
 ### UL-environment-provider · 环境提供者
 
 - **宿主**：登记它的插件；卸载即撤除
 - **身份**：名加代
 - **生灭**：登记 → 在场，被匹配、获取、恢复 → 退役：先拒新租约，再排空，结果排空完成或待处置
-- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
 - **并入**：[沙箱实现](#ul-sandbox-implementation--沙箱实现)是它的一种——正文把沙箱实现当可装配的提供者用；宿主机提供者是另一种
 
 ### UL-file-batch · 文件批次
@@ -337,7 +337,7 @@
 - **宿主**：造出它的[环境提供者](#ul-environment-provider--环境提供者)的文件设施；清单在集成方账本
 - **身份**：批次编号加代
 - **生灭**：全批预检 → 清单计划并取得许可 → 暂存 → 逐路径发布 → 已提交，或未知；恢复只识别完整、部分、中断、冲突、待确认，不续发布不回滚
-- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **依据**：[执行环境：环境、落点与资源的概念](../product/execution-environments/design.md#环境落点与资源的概念)（rev 3）
 
 ### UL-session-base · 会话据点
 
