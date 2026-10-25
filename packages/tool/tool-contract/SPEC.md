@@ -166,7 +166,7 @@
 
 最终结果的文本、内容 ref 与附件地址分流归 [P14](#p14-附件引用与消费方交付)。共享值迁移和提供者验证由共享内容块拥有者继续跟踪，不再把这两种路径记为产品来源缺证。任意嵌套容器未获准。过程在途内容的故障保留仍需技术兑现。
 
-[RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的对象链、会话常驻规则、G7 与换代协调者已写入本页。源码的类型迁移与纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 尚未交付。迁移之前，源码仍是旧形状，例如 `ToolAuthorRegistration` 与不带 `layer` 的可用结果。[公开入口的分组](#公开入口的分组)与[公共流协议上的观察](#公共流协议上的观察)同样是已写回、源码未切换的条款，各自标注了切换前的源码形状。按键排空与交接依赖 [P09](#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，协调者在有在途调用时停在 `draining`。
+[RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的对象链、会话常驻规则、G7 与换代协调者已写入本页。类型变更清单第 1–7 项与纯函数 `deriveDefinition`、`shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 已由 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) 落源码：源码导出 `ToolGovernance`、`ToolImplementation`、`ToolAuthority` 与带 `layer` 的可用结果，旧形 `ToolAuthorRegistration`、`ToolDefinitionMetadata` 已删除。登记表与协调者的本地实现归 2.4，动态性套件的用例体归 2.5。[公开入口的分组](#公开入口的分组)与[公共流协议上的观察](#公共流协议上的观察)是已写回、源码未切换的条款，各自标注了切换前的源码形状。按键排空与交接依赖 [P09](#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，协调者在有在途调用时停在 `draining`。
 
 修改定义、调用匹配、结果保管或控制协议时同步所有消费方、环境、决策方、程序消费方、动作桥接方、Context 和相应验证。提供者补自己真实承担的机制与限制，不另写一份更弱的公共保证。独立执行与 runtime 的部分路径已在 `@omne-harness/tool` 实现，范围见[组的支持范围](../README.md#支持范围)。耐久存储与故障测试尚无。本规格不授予实施或符合性接受。
 

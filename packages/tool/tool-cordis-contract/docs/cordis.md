@@ -59,6 +59,11 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E> extends 
   abstract readonly resolve: ToolBindings<P, B, E>['resolve']
   abstract readonly recover: ToolBindings<P, B, E>['recover']
   abstract readonly register: ToolBindingRegistry<P, E, B>['register']
+  abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot']
+  abstract readonly pins: ToolBindingRegistry<P, E, B>['pins']
+  abstract readonly close: ToolBindingRegistry<P, E, B>['close']
+  abstract readonly reopen: ToolBindingRegistry<P, E, B>['reopen']
+  abstract readonly drain: ToolBindingRegistry<P, E, B>['drain']
 }
 export const toolBindingsKey = ToolBindingsService.provide
 ```
