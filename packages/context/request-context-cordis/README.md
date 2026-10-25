@@ -37,8 +37,8 @@ Contributors and callers that assemble requests do not import this package. They
 The fiber of this plugin owns the service instance, the source registry instance, and the strategy instances. When the plugin unloads, removal runs in a fixed order:
 
 1. Refuse new registrations and assemblies.
-2. Cancel in-flight assemblies. Removal does not wait without limit.
-3. Discard the registry and the cache.
+2. Cancel in-flight assemblies.
+3. Discard the contribution registry and the cache, then call `close()` on the source registry and wait until every source set settles.
 
 The fiber of the contributor plugin owns a contribution registration. Only the source registry instance holds the section rendering. Removal does not take back candidates, plans, or transitions that it gave out.
 

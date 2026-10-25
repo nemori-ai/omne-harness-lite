@@ -23,7 +23,7 @@ sequenceDiagram
   else 正常
     F->>F: 按配置构造两个策略实例
     F->>S: 构造子类，以 requestContext 登记
-    S->>M: 调用 request-context 的工厂，交入两个策略与登记面读口，不交端口
+    S->>M: 调用 createContextSourceRegistry，交入主体绑定、登记授权判定者与两个策略
     F->>F: ctx.inject(['runtimeContext'], 登记两块的生产者)
     F-->>A: 服务可用
   end
@@ -32,7 +32,7 @@ sequenceDiagram
   S->>S: 拒绝新的登记；新的组装返回不可用
   S->>M: 取消在途组装，不等待尚未返回的端口调用
   S->>S: 丢弃登记表
-  S->>M: 丢弃缓存，关闭来源登记表实例
+  S->>M: 丢弃缓存，调用 close() 并等待全部来源集合结算
 ```
 
 | 环节 | 结果 | 失败与责任交接 |

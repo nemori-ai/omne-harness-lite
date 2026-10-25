@@ -34,7 +34,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 - 插件、配置与策略选择、isolate 绑定、贡献登记表、变化事件派发与撤除顺序归 [Cordis 说明](docs/cordis.md)。
 - 服务键、抽象类、intercept 配置、事件与策略选择的配置形状归 [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md)。
 
-服务实例、来源登记表实例与策略实例归本插件的 fiber。插件卸载时按固定顺序撤除：拒绝新的登记，新的组装返回不可用，取消在途组装，丢弃登记表与缓存。一条贡献的登记归贡献者插件的 fiber，段渲染结果只归来源登记表实例。撤除不撤回已交出的候选、计划或转换。
+服务实例、来源登记表实例与策略实例归本插件的 fiber。插件卸载时按固定顺序撤除：拒绝新的登记，新的组装返回不可用，取消在途组装，丢弃贡献登记表与缓存，再调用来源登记表的 `close()` 并等待全部来源集合结算。一条贡献的登记归贡献者插件的 fiber，段渲染结果只归来源登记表实例。撤除不撤回已交出的候选、计划或转换。
 
 ## 设计
 

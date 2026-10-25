@@ -84,8 +84,8 @@
 插件卸载时，本插件按下列顺序撤除（性质 5）：
 
 1. 拒绝新的登记；新的组装返回不可用（服务已卸载）。
-2. 取消在途组装（[RQ-09](../../request-context-contract/SPEC.md#rq-09-取消恢复与迟到) 允许取消组装）。被取消的组装返回不可用（服务已卸载）。撤除不等待被取消的组装里尚未返回的端口调用，不无限等待。
-3. 丢弃登记表与缓存，关闭来源登记表实例。
+2. 取消在途组装（[RQ-09](../../request-context-contract/SPEC.md#rq-09-取消恢复与迟到) 允许取消组装）。被取消的组装返回不可用（服务已卸载）。
+3. 丢弃贡献登记表与缓存，调用来源登记表的 `close()`，等待全部来源集合结算（[request-context-cordis-contract 性质 11](../../request-context-cordis-contract/SPEC.md#结果与不变量)）；disposer 被调用不代替异步结算。
 
 三步写在同一个 effect 里，不分成几个 effect 再指望它们按逆序完成（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。撤除函数里的一步抛出时，Cordis 只记日志，不上抛，所以撤除函数要自己捕获每一步，并保证后续步骤仍然执行。
 
