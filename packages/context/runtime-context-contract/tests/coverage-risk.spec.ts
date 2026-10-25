@@ -125,7 +125,14 @@ async function reader(memory: RuntimeContextOperations<string>, target: ScopeRef
 }
 it('inherits the parent value and its evidence when the child registration has no local value', async () => {
   const { memory, ports } = fresh()
-  const parent = await setup(memory, ports, owner, 'principal', declaration(), scope('inherit-parent'))
+  const parent = await setup(
+    memory,
+    ports,
+    owner,
+    'principal',
+    declaration(),
+    scope('inherit-parent'),
+  )
   await parent.handle.publish({ scope: parent.scope, tenant: owner, value: 73 })
   const child = scope('inherit-child', parent.scope)
   await add(memory, ports, child)

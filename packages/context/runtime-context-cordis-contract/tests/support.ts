@@ -65,7 +65,12 @@ export class Probe extends RuntimeContextService {
   /** Fixture only: binds and opens the scope and registers one optional block in it. */
   async prepare(target: ScopeRef, tenant: TenantId, key: ContextBlockKey): Promise<void> {
     this.ports.bind(target, tenant)
-    const begun = await this.memory.beginReplay('probe', { scope: target, tenant, through: null, supersedes: null })
+    const begun = await this.memory.beginReplay('probe', {
+      scope: target,
+      tenant,
+      through: null,
+      supersedes: null,
+    })
     if (begun.kind !== 'replaying') throw new Error('Replay refused')
     const empty = { registrations: [], checkpoints: [], end: null }
     const ready = await this.memory.finishReplay('probe', { replay: begun.replay, material: empty })
@@ -73,7 +78,17 @@ export class Probe extends RuntimeContextService {
     const applied = await this.memory.applyCommit('probe', {
       kind: 'registration',
       commit: { commit: target.ref },
-      change: { kind: 'add', creating: true, scope: target, tenant, key, basedOn: 0, required: false, bindings: [], parameters: undefined },
+      change: {
+        kind: 'add',
+        creating: true,
+        scope: target,
+        tenant,
+        key,
+        basedOn: 0,
+        required: false,
+        bindings: [],
+        parameters: undefined,
+      },
     })
     if (applied.kind !== 'applied') throw new Error('Registration refused')
   }

@@ -854,10 +854,13 @@ importers:
       '@omne-harness/execution-environment-cordis-contract':
         specifier: workspace:*
         version: link:../execution-environment-cordis-contract
-    devDependencies:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

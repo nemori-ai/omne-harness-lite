@@ -148,7 +148,11 @@ function environmentCase<P>(
 function fixtureCase<P>(
   options: EnvironmentConformanceOptions<P>,
   name: string,
-  run: (s: EnvironmentConformanceSubject<P>, f: EnvironmentFixture<P>, ports: Ports<P>) => Promise<void>,
+  run: (
+    s: EnvironmentConformanceSubject<P>,
+    f: EnvironmentFixture<P>,
+    ports: Ports<P>,
+  ) => Promise<void>,
 ): ConformanceCase {
   return environmentCase(options, name, async (s, ports) =>
     run(s, await setupEnvironmentFixture(s), ports),
@@ -247,7 +251,8 @@ async function checkFailedAdoptionKeepsReasonAndSlot<P>(
   assert.equal(seen.kind, 'known')
   if (seen.kind === 'known') {
     assert.equal(seen.state.kind, 'allocationFailed')
-    if (seen.state.kind === 'allocationFailed') assert.equal(seen.state.reason, 'unsupportedFacility')
+    if (seen.state.kind === 'allocationFailed')
+      assert.equal(seen.state.reason, 'unsupportedFacility')
   }
 }
 
@@ -279,7 +284,10 @@ async function checkDifferentFingerprintSameKeyIsConflict<P>(
 ): Promise<void> {
   await f.acquired()
   for (const changed of [
-    { ...f.input, placement: { ...f.placement, binding: { kind: 'session_sandbox', scope: s.scope } } },
+    {
+      ...f.input,
+      placement: { ...f.placement, binding: { kind: 'session_sandbox', scope: s.scope } },
+    },
     { ...f.input, origin: originRef('suite-other-origin') },
     { ...f.input, placement: { ...f.placement, quotaDomain: 'suite-other-domain' } },
     { ...f.input, ledger: createMemoryResourceLedger().ledger },
@@ -469,8 +477,24 @@ async function checkOriginalQueryNeverAdopts<P>(
   if (answer.kind !== 'original') return
   assert.equal(answer.status, 'allocated')
   assert.equal('lease' in answer, false)
-  if (answer.status === 'allocated') assert.ok(answer.adoption === null || answer.adoption === a.adoption)
+  if (answer.status === 'allocated')
+    assert.ok(answer.adoption === null || answer.adoption === a.adoption)
   assert.equal(f.provider.calls.acquire, 1)
+}
+
+async function checkOriginalOfOtherTenantIsNotAuthorized<P>(
+  s: EnvironmentConformanceSubject<P>,
+  f: EnvironmentFixture<P>,
+): Promise<void> {
+  const other = s.otherAccess
+  if (!other) throw new NotApplicable('requires another tenant')
+  await f.acquired()
+  const asked = f.provider.calls.inspect
+  assert.deepEqual(
+    await s.environment.inspectAcquisition(other, { kind: 'original', original: f.original }),
+    { kind: 'refused', reason: 'notAuthorized' },
+  )
+  assert.equal(f.provider.calls.inspect, asked)
 }
 
 async function checkRecoveryQueryAnswersOriginal<P>(
@@ -749,7 +773,11 @@ export function executionEnvironmentConformance<P>(
       'V-EE24.failed-adoption-keeps-reason-and-slot',
       checkFailedAdoptionKeepsReasonAndSlot,
     ),
-    environmentCase(options, 'V-EE24.revoked-access-fails-adoption', checkRevokedAccessFailsAdoption),
+    environmentCase(
+      options,
+      'V-EE24.revoked-access-fails-adoption',
+      checkRevokedAccessFailsAdoption,
+    ),
     fixtureCase(
       options,
       'V-EE19.repeat-key-returns-same-acquisition',
@@ -789,6 +817,11 @@ export function executionEnvironmentConformance<P>(
       checkLostResponseIsQueriedNotResent,
     ),
     fixtureCase(options, 'V-EE23.original-query-never-adopts', checkOriginalQueryNeverAdopts),
+    fixtureCase(
+      options,
+      'V-EE04.original-of-other-tenant-is-not-authorized',
+      checkOriginalOfOtherTenantIsNotAuthorized,
+    ),
     fixtureCase(
       options,
       'V-EE23.recovery-query-answers-original',

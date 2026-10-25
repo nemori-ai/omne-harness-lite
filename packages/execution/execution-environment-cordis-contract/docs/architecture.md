@@ -11,7 +11,7 @@
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
 | `@omne-harness/execution-environment-cordis-contract` | `src/index.ts` | 空导出，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现 |
-| `@omne-harness/execution-environment-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `ExecutionEnvironmentService<P>`、键常量 `executionEnvironmentKey`、恢复授权的抽象类 `ExecutionRecoveryAuthorityService` 与键常量 `executionRecoveryAuthorityKey`、intercept 配置类型 `ExecutionEnvironmentIntercept`、`Context` 增补 | 已实现，八个模板方法核对调用方类后委托钩子 |
+| `@omne-harness/execution-environment-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `ExecutionEnvironmentService<P>`、键常量 `executionEnvironmentKey`、恢复授权、环境授权与可信绑定三个端口服务的抽象类与键常量、intercept 配置类型 `ExecutionEnvironmentIntercept`、`Context` 增补 | 已实现，九个模板方法核对调用方类后委托钩子 |
 
 ```mermaid
 flowchart LR
@@ -37,7 +37,7 @@ flowchart LR
 
 ### 签名从契约类型推出
 
-八个公开模板方法与受保护抽象钩子的参数与结果用 `Parameters` 与 `ReturnType` 从 `ExecutionEnvironment<P>` 与 `ProviderRegistrations` 推出。契约改一个方法的签名，抽象类随之改变，不需要手动同步第二份签名（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。
+九个公开模板方法与受保护抽象钩子的参数与结果用 `Parameters` 与 `ReturnType` 从 `ExecutionEnvironment<P>` 与 `ProviderRegistrations` 推出。契约改一个方法的签名，抽象类随之改变，不需要手动同步第二份签名（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。
 
 代价：抽象类的方法名仍要手写。契约新增或删除一个方法时，类型检查会报错，维护者要补上或删去对应的抽象方法。
 
@@ -63,7 +63,7 @@ flowchart LR
 
 边界：调用方类由插件自己写，所以它是装配声明的一致性检查，不是访问控制。它能发现装配写错，不能拦住有意冒充的插件。登记环境提供者与设施声明的权限归装配，见 Cordis 说明的 [intercept 配置与调用方类](cordis.md#intercept-配置与调用方类)。
 
-八个模板方法已执行核对，登记面严格要求 `provider`；环境与恢复面未声明放行。模板方法不改变调用接收者，钩子中的 `this.ctx.effect` 仍归调用方。机制读数与验证边界见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
+九个模板方法已执行核对，登记面严格要求 `provider`；环境与恢复面未声明放行。模板方法不改变调用接收者，钩子中的 `this.ctx.effect` 仍归调用方。机制读数与验证边界见 Cordis 说明的[机制读数与假设](cordis.md#机制读数与假设)。
 
 ### 不声明事件
 
@@ -87,7 +87,7 @@ flowchart LR
 | `./cordis` 只有定义 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对导出集合与键常量 | 新增导出时同步测试 |
 | 子类在键上提供服务并随插件卸载撤除 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 用一个探针子类装载与卸载 | 无 |
 | 不导入实现成员（性质 8） | 没有逐文件检查 | 核对源码、生成声明与产物的导入 |
-| 调用方类核对（性质 4） | 八方法、三类、缺省、非法与祖先声明真实装载测试 | 候选读数的 basis 登记留拥有者 |
+| 调用方类核对（性质 4） | 九方法、三类、缺省、非法与祖先声明真实装载测试 | 候选读数的 basis 登记留拥有者 |
 
 维护规则：
 

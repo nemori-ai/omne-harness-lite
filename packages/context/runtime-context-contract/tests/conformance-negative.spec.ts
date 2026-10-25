@@ -151,7 +151,11 @@ for (const test of runtimeContextConformance<string>()) {
         retention: 64,
         replayCapacity: 8,
         async subject(ports) {
-          const memory = createMemoryRuntimeContext<string>({ ...ports, retention: 64, replayCapacity: 8 })
+          const memory = createMemoryRuntimeContext<string>({
+            ...ports,
+            retention: 64,
+            replayCapacity: 8,
+          })
           const subject = observe(memory, record)
           closers.set(subject, () => memory.close())
           return subject

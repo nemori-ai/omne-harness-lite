@@ -18,9 +18,9 @@
 4. `registerProducer` 登记即效应（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）：在方法里用 `this.ctx.effect` 登记，登记落在生产者插件的 fiber 上，生产者卸载即撤。登记带调用方主体、租户与生产者身份，生产者槽是租户加块键。生产者句柄的代际由机制在每次登记时新取，单调递增，不取 fiber `uid`（[RC-07](../runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。撤除函数只移除本代登记；本代已被新一代替换时不改动。一个插件为几个租户供值时，为每个租户分别登记，撤除各自的句柄。提供者须验证生产者卸载后登记已撤除，并验证插件体重跑时新旧两代的登记与撤除交错不删掉新一代的登记。
 5. 事件只有一个：`runtime-context-cordis-contract/changed`，载荷是作用域引用与视图修订，模式 `emit`。载荷不带块键，不带值。它只是唤醒提示，不是事实源；读者按读取取得变化。派发方按作用域过滤：监听者在扩展 ctx 上以属性键 `scope` 标出作用域引用，派发对象带 `Context.filter`，只到达标记相同的监听者。属性键 `scope` 由本成员定义。监听本事件不得用全局监听。这是约定，Cordis 不阻止全局监听；执行点是载荷：载荷只含作用域引用与修订，不含受存在性披露约束的信息。丢失事件不影响正确性，下一次读取承接。作用域过滤与禁止全局监听不是安全隔离。本事件只供受信装配使用，不开放给不受信的插件。本成员不在载荷里增加租户字段来伪造通知授权。
 6. 一个 isolate 标签下一个提供者（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。作用域是操作参数 `ScopeRef`，不是 Cordis Context，也不是 isolate（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。租户随读取资格、注册材料、生产者登记与发布输入作为参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
-9. 契约的两个权威端口（可信绑定来源与权威端口，见[通用权威端口](../runtime-context-contract/SPEC.md#通用权威端口)）是装配入口交给 Service 实现的运行时对象，不进插件树，也不由消费者插件提供。本成员不为它们定义服务键。Service 实现取不到端口时，对应操作按「不可用」收场，不放行。
 7. 块是数据不是服务。没有任何一方 `inject` 一个块。必需块缺席是读取时的缺项（[RC-03](../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)），不让消费者 fiber 进入 PENDING。
 8. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/runtime-context` 或 `@omne-harness/runtime-context-cordis`。
+9. 契约的两个权威端口（可信绑定来源与权威端口，见[通用权威端口](../runtime-context-contract/SPEC.md#通用权威端口)）是装配入口交给 Service 实现的运行时对象，不进插件树，也不由消费者插件提供。本成员不为它们定义服务键。Service 实现取不到端口时，对应操作按「不可用」收场，不放行。
 
 ## 所有权、失败与生命周期
 

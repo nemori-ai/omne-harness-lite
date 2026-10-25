@@ -15,10 +15,12 @@
 | 需要与绑定 | `ContextNeed`、`NeedBinding` | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) | 已实现 |
 | 注册与资格 | `Registration`、`Eligibility` | [RC-02](../SPEC.md#rc-02-块声明注册与参数)、[RC-03](../SPEC.md#rc-03-当前读取资格与缺项) | 已实现 |
 | 读者与观察 | `ContextReader`、`Snapshot`、`Changes`、读取的四种结果与游标作废、`ChangeMaterial` | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项)、[RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) | 已实现 |
-| 更新与提交 | 供给块一侧的 `ProducerHandle`，状态块一侧的 `ContextUpdate` 与 `StepCommit` | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交)、[RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) | 已实现 |
+| 更新与提交 | 供给块一侧的 `ProducerHandle`（带租户），状态块一侧的 `ContextUpdate` 与 `StepCommit` | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交)、[RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) | 已实现 |
+| 权威端口 | `ScopeBindingSource`、`RuntimeContextAuthority<P>`、`AuthorityDecision`、三面动作的封闭联合与核对失败原因（`authority.ts`） | [通用权威端口](../SPEC.md#通用权威端口)、[当前授权前提](../SPEC.md#当前授权前提) | 已实现 |
+| 恢复会话 | `ReplayRef`、`beginReplay` 与 `finishReplay` 的输入、恢复材料与结果（`replay.ts`） | [RC-09](../SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) | 已实现 |
 | 纯函数 | `judgeNeed`、`judgeBinding`、`judgeRegistration`、`reduceStep`、`diffForReminder` | RC-02、RC-04、RC-05、RC-06 | 已实现 |
 
-| 操作面 | 三面六操作及其输入结果，见 [operations.ts](../src/operations.ts) | RC-02、RC-03、RC-07 | 已实现 |
+| 操作面 | 三面八操作及其输入结果，见 [operations.ts](../src/operations.ts) | RC-02、RC-03、RC-07、RC-09 | 已实现 |
 
 模块之间只有单向依赖。方向沿对象模型的[对象与关系](object-model.md#对象与关系)：绑定引用需要与块声明，注册聚合绑定，资格引用注册修订，读者按资格建立。纯函数模块读取类型模块，类型模块不导入纯函数模块。
 
@@ -30,6 +32,11 @@ flowchart LR
   Reg[注册与资格] --> Need
   Read[读者与观察] --> Reg
   Write[更新与提交] --> Desc
+  Auth[权威端口] --> Shared
+  Replay[恢复会话] --> Write
+  Replay --> Reg
+  Ops[操作面] --> Auth
+  Ops --> Replay
   Fn[纯函数] --> Reg
   Fn --> Read
   Fn --> Write
@@ -38,7 +45,7 @@ flowchart LR
 包外依赖有三项：
 
 - `@standard-schema/spec`：用 `StandardSchemaV1` 表达块的值、参数与需要的形状。现在已在 `package.json` 里，源码只做类型导入。
-- `@omne-harness/legal-identity`：用 `TenantId` 表达读取资格里的租户。已在 `package.json` 登记。
+- `@omne-harness/legal-identity`：用 `TenantId` 表达读取资格、生产者槽、可信绑定与权威判定里的租户。已在 `package.json` 登记。
 
 - `@omne-harness/operation-result`：解码与定义核对返回 `Outcome`。
 
@@ -93,7 +100,19 @@ flowchart LR
 
 注册、块内容与步提交是三笔分开的提交，都不在本成员内发生（[RC-02](../SPEC.md#rc-02-块声明注册与参数)、[RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交)）。本成员给的是核对结果与合并材料：`judgeRegistration` 核对注册材料，`reduceStep` 合并更新，`diffForReminder` 算出变化材料。这样纯函数不需要存储端口，独立调用方不建持有者也能使用它们。
 
-注册修订的唯一权威是持有者的耐久提交。机制的注册表只是按提交顺序应用的投影：`applyCommit` 带提交身份与依据的注册修订，机制按提交身份幂等应用，顺序不符时返回无效，持有者按耐久顺序重放（[注册修订与提交顺序](../SPEC.md#注册修订与提交顺序)）。理由：权威只有一处，回执丢失、乱序到达与机制重建都靠同一条重放路径收口。如果机制的修订也算权威，两处修订分叉时没有一方能裁定。
+注册修订的唯一权威是持有者的耐久提交。机制的注册表只是按提交顺序应用的投影：`applyCommit` 带提交身份与依据的注册修订，机制按提交身份幂等应用，顺序不符时返回无效（[注册修订与提交顺序](../SPEC.md#注册修订与提交顺序)）。机制重建或顺序不符之后，持有者经恢复会话用一份完整恢复材料原子安装投影，再用原提交的完整输入重试（[RC-09](../SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)）。理由：权威只有一处；如果机制的修订也算权威，两处修订分叉时没有一方能裁定。
+
+### 访问经两个端口核对
+
+本成员不签发身份，也不保存许可。每个带目标的入口先问权威端口 `RuntimeContextAuthority<P>`，再问可信绑定来源 `ScopeBindingSource`，然后才看作用域状态、注册、代际与恢复围栏。未绑定、错租户与拒绝对外同为无权（[通用权威端口](../SPEC.md#通用权威端口)）。授权判定带同步的 `current()`，在每次 `await` 之后与最终提交或披露之前再核。理由：租户的权威在绑定来源与调用方访问身份，不在作用域文本；先核权再看状态，作用域是否存在、是否结束都不会泄露给无权的调用方。代价是每个入口多两次端口调用，独立调用方也要给出两个端口的适配器。
+
+### 生产者槽按租户
+
+生产者槽的身份是租户加块键。同一身份再次登记取新代际；另一身份的登记被拒绝；另一租户同一块键独立登记，但声明摘要与目录相同（[RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。句柄带租户，发布与失效先核句柄租户等于输入租户。理由：一个块键只允许一个全局生产者时，租户的增删要动全局登记；按租户分槽后租户的生灭各自登记与撤除，跨租户的值不会经一个句柄写入。
+
+### 恢复会话代替逐条重放
+
+作用域在本实例上有一个恢复披露围栏，首次观察与进程重建时关闭。`beginReplay` 关闭围栏并使旧资格、读者与游标失效；`finishReplay` 用完整恢复材料原子安装投影，开放时打开围栏，并为供给块建立待刷新标记。作用域结束永远不回到开放（[RC-09](../SPEC.md#rc-09-作用域结束恢复会话与恢复后供值)）。理由：逐条重放会在中途披露半个投影，并让较旧的恢复覆盖较新的结束；一次原子安装加最终版本核对把两者都排除。代价是持有者要从耐久事实构造完整材料，提供者要有可配置的容量上限。
 
 ## SOLID 与扩展边界
 
@@ -105,7 +124,7 @@ flowchart LR
 | 开闭 | 新块只在语义拥有者的包里增补 `ContextBlocks`。新导出只加到对应模块，再由 `index.ts` 再导出 | 本成员出现具体块键，或为某个上层领域加特例分支 |
 | 里氏替换 | 供给块与状态块以 `kind` 区分，接收 `ContextBlockDescriptor` 的函数按 `kind` 穷举两种 | 用 `writers` 字段是否存在来判断类别。对状态块套用供给块的恢复方式 |
 | 接口隔离 | 生产者用的类型、持有者用的类型、读者用的类型分在不同模块，消费方只导入自己那一面 | 一个聚合类型同时暴露注册写入与读取 |
-| 依赖倒置 | 本成员只依赖 `@standard-schema/spec`、legal-identity 与 operation-result。翻译函数与 `reduce` 由集成方和声明者作为值传入 | 导入 Cordis 或上层领域契约。纯函数调用存储端口或服务 |
+| 依赖倒置 | 本成员只依赖 `@standard-schema/spec`、legal-identity 与 operation-result。翻译函数、`reduce` 与两个权威端口由集成方和声明者作为值传入 | 导入 Cordis 或上层领域契约。纯函数调用存储端口或服务 |
 
 ## 测试场景与替身职责
 
@@ -120,6 +139,7 @@ flowchart LR
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 根入口运行值仅为八个纯操作 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 核对八个纯操作的运行导出 | 持续核对导出清单 |
+| 权威端口的核对顺序、生产者槽、作用域结束与恢复会话 | `./testing` 的权威与恢复两个套件，经非耐久替身在 `tests/` 自测 | 机制成员与真实适配器的组合验证 |
 | 公开类型可以被语义拥有者增补和使用 | 依赖方 execution-environment-contract 的类型检查 | 无 |
 | SPEC 的进程内行为条款 | `tests/` 的纯函数与套件自测 | SPEC 的[持续验证义务](../SPEC.md#持续验证义务)，随纯函数和机制成员的实现进入 |
 

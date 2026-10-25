@@ -15,7 +15,16 @@ import type {
 } from '../index.js'
 import { judgeRegistration } from '../index.js'
 import { validate } from '../validation.js'
-import { digest, isFailure, ownData, ownScope, type ReplaySession, type ScopeState, type Stored, type World } from './memory-world.js'
+import {
+  digest,
+  isFailure,
+  ownData,
+  ownScope,
+  type ReplaySession,
+  type ScopeState,
+  type Stored,
+  type World,
+} from './memory-world.js'
 import { ownChange } from './memory-holder.js'
 
 type Staged = {
@@ -34,7 +43,8 @@ function previousOf(s: ScopeState | undefined): ReplayPrevious {
 }
 
 function materialSize(material: ReplayMaterial): number | undefined {
-  if (!Array.isArray(material.registrations) || !Array.isArray(material.checkpoints)) return undefined
+  if (!Array.isArray(material.registrations) || !Array.isArray(material.checkpoints))
+    return undefined
   let size = material.registrations.length + 1
   for (const group of material.checkpoints) {
     if (!Array.isArray(group.blocks)) return undefined
@@ -58,7 +68,11 @@ function ownMaterial(material: ReplayMaterial): ReplayMaterial | undefined {
       if (!value || !Array.isArray(block.updates) || block.updates.length !== 0) return undefined
       blocks.push({ key: block.key, value: value.value, updates: [] })
     }
-    checkpoints.push({ commit: { commit: group.commit.commit }, step: { step: group.step.step }, blocks })
+    checkpoints.push({
+      commit: { commit: group.commit.commit },
+      step: { step: group.step.step },
+      blocks,
+    })
   }
   return {
     registrations,
@@ -71,7 +85,8 @@ export function createReplay<P>(world: World<P>) {
   function appliedCommits(scopeRef: string): AppliedCommit[] {
     const out: AppliedCommit[] = []
     for (const [key, entry] of world.commits)
-      if (key.startsWith(scopeRef + '\0')) out.push({ commit: entry.input.commit, digest: entry.digest })
+      if (key.startsWith(scopeRef + '\0'))
+        out.push({ commit: entry.input.commit, digest: entry.digest })
     return out
   }
 
@@ -132,7 +147,8 @@ export function createReplay<P>(world: World<P>) {
     if (unbound) return unbound
     if (!decided.current()) return { kind: 'refused', reason: 'unauthorized' }
     const existing = world.state(scope)
-    if (existing && !tenantEquals(existing.tenant, input.tenant)) return { kind: 'refused', reason: 'unauthorized' }
+    if (existing && !tenantEquals(existing.tenant, input.tenant))
+      return { kind: 'refused', reason: 'unauthorized' }
     const s = existing ?? world.newScope(scope, input.tenant)
     const session = s.replay
     const sameAsLatest =
@@ -141,7 +157,9 @@ export function createReplay<P>(world: World<P>) {
       isDeepStrictEqual(session.supersedes, input.supersedes)
     if (sameAsLatest) return { kind: 'replaying', replay: session.ref }
     if (input.supersedes === null)
-      return session === null ? { kind: 'replaying', replay: newSession(s, input) } : { kind: 'invalid', reason: 'replay-conflict' }
+      return session === null
+        ? { kind: 'replaying', replay: newSession(s, input) }
+        : { kind: 'invalid', reason: 'replay-conflict' }
     if (session !== null && session.ref.replay === input.supersedes.replay)
       return { kind: 'replaying', replay: newSession(s, input) }
     const old = world.sessions.get(input.supersedes.replay)
@@ -151,11 +169,17 @@ export function createReplay<P>(world: World<P>) {
   }
 
   function stage(s: ScopeState, material: ReplayMaterial): Staged | FinishReplayResult {
-    const staged: Staged = { revision: 0, registrations: new Map(), values: new Map(), ended: material.end }
+    const staged: Staged = {
+      revision: 0,
+      registrations: new Map(),
+      values: new Map(),
+      ended: material.end,
+    }
     for (const { change } of material.registrations) {
       if (change.scope.ref !== s.scope.ref || !tenantEquals(change.tenant, s.tenant))
         return { kind: 'invalid', reason: 'malformed-input' }
-      if (change.basedOn !== staged.revision) return { kind: 'invalid', reason: 'replay-incomplete' }
+      if (change.basedOn !== staged.revision)
+        return { kind: 'invalid', reason: 'replay-incomplete' }
       if (change.kind === 'add' && change.declaration) {
         const known = world.descriptors.get(change.key)
         if (!known) world.descriptors.set(change.key, change.declaration)
@@ -166,7 +190,8 @@ export function createReplay<P>(world: World<P>) {
         existing: staged.registrations.get(change.key) ?? null,
         creating: change.creating,
       })
-      if ('failure' in judged) return { kind: 'invalid', reason: 'registration', rejections: judged.failure }
+      if ('failure' in judged)
+        return { kind: 'invalid', reason: 'registration', rejections: judged.failure }
       staged.revision++
       if (change.kind === 'remove') staged.registrations.delete(change.key)
       else
@@ -176,18 +201,26 @@ export function createReplay<P>(world: World<P>) {
           key: change.key,
           bindings: change.bindings,
           parameters: change.parameters,
-          required: change.kind === 'add' ? change.required : (staged.registrations.get(change.key)?.required ?? false),
+          required:
+            change.kind === 'add'
+              ? change.required
+              : (staged.registrations.get(change.key)?.required ?? false),
           revision: staged.revision,
         })
     }
     return stageCheckpoints(s, material, staged)
   }
 
-  function stageCheckpoints(s: ScopeState, material: ReplayMaterial, staged: Staged): Staged | FinishReplayResult {
+  function stageCheckpoints(
+    s: ScopeState,
+    material: ReplayMaterial,
+    staged: Staged,
+  ): Staged | FinishReplayResult {
     const steps = new Map<string, string>()
     for (const group of material.checkpoints) {
       const step = steps.get(group.commit.commit)
-      if (step !== undefined && step !== group.step.step) return { kind: 'invalid', reason: 'malformed-input' }
+      if (step !== undefined && step !== group.step.step)
+        return { kind: 'invalid', reason: 'malformed-input' }
       steps.set(group.commit.commit, group.step.step)
       for (const block of group.blocks) {
         const d = world.descriptors.get(block.key)
@@ -198,7 +231,8 @@ export function createReplay<P>(world: World<P>) {
           d.persistence !== 'checkpointed'
         )
           return { kind: 'invalid', reason: 'malformed-input' }
-        if (validate(d.schema, block.value).length) return { kind: 'invalid', reason: 'rejected-update' }
+        if (validate(d.schema, block.value).length)
+          return { kind: 'invalid', reason: 'rejected-update' }
         staged.values.set(block.key, {
           value: block.value,
           revision: (s.values.get(block.key)?.revision ?? 0) + 1,
@@ -212,15 +246,26 @@ export function createReplay<P>(world: World<P>) {
     return staged
   }
 
-  function signature(registrations: Map<ContextBlockKey, Registration>, values: Map<ContextBlockKey, Stored>) {
+  function signature(
+    registrations: Map<ContextBlockKey, Registration>,
+    values: Map<ContextBlockKey, Stored>,
+  ) {
     return digest({
-      registrations: [...registrations.values()].map(r => [r.key, r.required, r.parameters, r.revision]).sort(),
+      registrations: [...registrations.values()]
+        .map(r => [r.key, r.required, r.parameters, r.revision])
+        .sort(),
       values: [...values.entries()].map(([key, v]) => [key, v.present, v.value]).sort(),
     })
   }
 
-  function install(s: ScopeState, session: ReplaySession, staged: Staged, fingerprint: string): FinishReplayResult {
-    const changed = signature(s.registrations, s.values) !== signature(staged.registrations, staged.values)
+  function install(
+    s: ScopeState,
+    session: ReplaySession,
+    staged: Staged,
+    fingerprint: string,
+  ): FinishReplayResult {
+    const changed =
+      signature(s.registrations, s.values) !== signature(staged.registrations, staged.values)
     s.registrations = staged.registrations
     s.values = staged.values
     s.revision = staged.revision
@@ -282,13 +327,16 @@ export function createReplay<P>(world: World<P>) {
     const fingerprint = digest(material)
     if (session.finished) {
       if (!decided.current()) return { kind: 'refused', reason: 'unauthorized' }
-      return session.finished.fingerprint === fingerprint ? session.finished.result : { kind: 'invalid', reason: 'replay-conflict' }
+      return session.finished.fingerprint === fingerprint
+        ? session.finished.result
+        : { kind: 'invalid', reason: 'replay-conflict' }
     }
     const staged = stage(s, material)
     if (!('registrations' in staged)) return staged
     if (!decided.current()) return { kind: 'refused', reason: 'unauthorized' }
     if (world.closed) return { kind: 'refused', reason: 'closed' }
-    if (s.replay !== session || session.finished) return { kind: 'invalid', reason: 'replay-conflict' }
+    if (s.replay !== session || session.finished)
+      return { kind: 'invalid', reason: 'replay-conflict' }
     if (s.ended !== endedBefore || s.commitsVersion !== versionBefore)
       return { kind: 'invalid', reason: 'checkpoint-conflict' }
     return install(s, session, staged, fingerprint)

@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { NotApplicable, type ConformanceCase } from './case.js'
-import { declaration, numberSchema, scope, setup, openScope, snapshotValue, type Setup } from './fixtures.js'
+import {
+  declaration,
+  numberSchema,
+  scope,
+  setup,
+  openScope,
+  snapshotValue,
+  type Setup,
+} from './fixtures.js'
 import { start, started, type RuntimeContextFixture } from './suite.js'
 import { reduceStep } from '../index.js'
 import type { StatefulBlockDescriptor, ContextUpdate, ScopeRef, CommitInput } from '../index.js'
@@ -82,7 +90,11 @@ async function addRequired<P>(s: Setup<P>, target: ScopeRef, commit: string) {
   assert.equal(added.kind, 'applied')
 }
 
-async function bindReader<P>(s: Setup<P> | Fresh<P>, target: ScopeRef, keys: readonly ('suite.value' | 'suite.state')[]) {
+async function bindReader<P>(
+  s: Setup<P> | Fresh<P>,
+  target: ScopeRef,
+  keys: readonly ('suite.value' | 'suite.state')[],
+) {
   const issued = await s.subject.issueEligibility(s.principal, {
     scope: target,
     tenant: s.tenant,
@@ -124,7 +136,10 @@ async function reissueCannotChangeReaderScope<P>(fixture: RuntimeContextFixture<
   assert.equal(s.reader.scope.ref, s.scope.ref)
   assert.deepEqual(await s.reader.read([]), { kind: 'refused', reason: 'unauthorized' })
   assert.deepEqual(await s.reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
-  assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'refused', reason: 'unauthorized' })
+  assert.deepEqual(await s.reader.changes(before.value.cursor), {
+    kind: 'refused',
+    reason: 'unauthorized',
+  })
 }
 
 async function reissueCannotChangeReaderConsumer<P>(fixture: RuntimeContextFixture<P>) {
@@ -171,10 +186,15 @@ async function reissueCannotChangeReaderConsumer<P>(fixture: RuntimeContextFixtu
   assert.equal(s.reader.consumer, 'model')
   assert.deepEqual(await s.reader.read([]), { kind: 'refused', reason: 'unauthorized' })
   assert.deepEqual(await s.reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
-  assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'refused', reason: 'unauthorized' })
+  assert.deepEqual(await s.reader.changes(before.value.cursor), {
+    kind: 'refused',
+    reason: 'unauthorized',
+  })
 }
 
-async function registerBeforeProducerThenIncompatibleReadsMissing<P>(fixture: RuntimeContextFixture<P>) {
+async function registerBeforeProducerThenIncompatibleReadsMissing<P>(
+  fixture: RuntimeContextFixture<P>,
+) {
   const f = await fresh(fixture)
   const target = scope('early')
   await openScope(f.subject, f.ports, f.principal, target, f.tenant)
@@ -297,7 +317,8 @@ async function cursorInvalidatedBelowRetention<P>(fixture: RuntimeContextFixture
   const before = await s.reader.snapshot()
   assert.ok(before.kind === 'success')
   if (fixture.retention === undefined) throw new NotApplicable('retention')
-  for (let n = 0; n <= fixture.retention; n++) await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: n })
+  for (let n = 0; n <= fixture.retention; n++)
+    await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: n })
   assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'cursor-invalidated' })
 }
 
@@ -358,7 +379,9 @@ async function removedPlainRegistrationRefused<P>(fixture: RuntimeContextFixture
   await removedRegistration(fixture, 'plain')
 }
 
-async function removedEligibilityCheckedRegistrationConcealed<P>(fixture: RuntimeContextFixture<P>) {
+async function removedEligibilityCheckedRegistrationConcealed<P>(
+  fixture: RuntimeContextFixture<P>,
+) {
   await removedRegistration(fixture, 'eligibility-checked')
 }
 
@@ -374,7 +397,9 @@ async function singleWriterPerStepRejectsSecond<P>(fixture: RuntimeContextFixtur
   assert.equal(reduced.committed[0]?.value, 1)
   assert.equal(reduced.rejected[0]?.rejection.kind, 'unauthorized')
   assert.equal(
-    reduced.rejected[0]?.rejection.kind === 'unauthorized' ? reduced.rejected[0].rejection.cause : undefined,
+    reduced.rejected[0]?.rejection.kind === 'unauthorized'
+      ? reduced.rejected[0].rejection.cause
+      : undefined,
     'single-writer',
   )
   const committed = await f.subject.applyCommit(f.principal, {
@@ -417,27 +442,41 @@ async function stepCommitIdempotent<P>(fixture: RuntimeContextFixture<P>) {
 
 async function unauthorizedUpdateRejectedAndCommitInvalid<P>(fixture: RuntimeContextFixture<P>) {
   const context = await statefulCase(fixture)
-  const result = await context.f.subject.applyCommit(context.f.principal, statefulCommit(context, 'model', false))
+  const result = await context.f.subject.applyCommit(
+    context.f.principal,
+    statefulCommit(context, 'model', false),
+  )
   assert.ok(result.kind === 'invalid')
   assert.equal(result.reason, 'rejected-update')
 }
 
 async function untrackedBlockEndsWithExecution<P>(fixture: RuntimeContextFixture<P>) {
   const context = await statefulCase(fixture, 'untracked')
-  const result = await context.f.subject.applyCommit(context.f.principal, statefulCommit(context, 'tool', true))
+  const result = await context.f.subject.applyCommit(
+    context.f.principal,
+    statefulCommit(context, 'tool', true),
+  )
   assert.equal(result.kind, 'applied')
   await assertStatefulMissing(context)
 }
 
 async function optionalNeedReadsNone<P>(fixture: RuntimeContextFixture<P>) {
-  const { b } = await translatedCase(fixture, { necessity: 'optional', listed: true, translate: value => value })
+  const { b } = await translatedCase(fixture, {
+    necessity: 'optional',
+    listed: true,
+    translate: value => value,
+  })
   const r = await b.reader.read([{ key: 'suite.value', need: 'value' }])
   assert.ok(r.kind === 'success')
   assert.equal(r.value[0]?.kind, 'none')
 }
 
 async function translatedBlockNotReadableRaw<P>(fixture: RuntimeContextFixture<P>) {
-  const { s, b } = await translatedCase(fixture, { necessity: 'required', listed: true, translate: value => value })
+  const { s, b } = await translatedCase(fixture, {
+    necessity: 'required',
+    listed: true,
+    translate: value => value,
+  })
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
   const r = await b.reader.snapshot()
   assert.ok(r.kind === 'success')
@@ -445,9 +484,16 @@ async function translatedBlockNotReadableRaw<P>(fixture: RuntimeContextFixture<P
 }
 
 async function unlistedBindingRefused<P>(fixture: RuntimeContextFixture<P>) {
-  const { s, b } = await translatedCase(fixture, { necessity: 'required', listed: false, translate: value => value })
+  const { s, b } = await translatedCase(fixture, {
+    necessity: 'required',
+    listed: false,
+    translate: value => value,
+  })
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
-  assert.deepEqual(await b.reader.read([{ key: 'suite.value', need: 'value' }]), { kind: 'refused', reason: 'unauthorized' })
+  assert.deepEqual(await b.reader.read([{ key: 'suite.value', need: 'value' }]), {
+    kind: 'refused',
+    reason: 'unauthorized',
+  })
 }
 
 async function translationThrowReadsMissing<P>(fixture: RuntimeContextFixture<P>) {
@@ -465,14 +511,21 @@ async function translationThrowReadsMissing<P>(fixture: RuntimeContextFixture<P>
 }
 
 async function translatedBindingGivesConsumerShape<P>(fixture: RuntimeContextFixture<P>) {
-  const { s, b } = await translatedCase(fixture, { necessity: 'required', listed: true, translate: value => value })
+  const { s, b } = await translatedCase(fixture, {
+    necessity: 'required',
+    listed: true,
+    translate: value => value,
+  })
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 12 })
   const r = await b.reader.read([{ key: 'suite.value', need: 'value' }])
   assert.ok(r.kind === 'success')
   assert.equal(r.value[0]?.kind === 'value' ? r.value[0].value : undefined, 12)
 }
 
-async function removedRegistration<P>(fixture: RuntimeContextFixture<P>, disclosure: 'plain' | 'eligibility-checked') {
+async function removedRegistration<P>(
+  fixture: RuntimeContextFixture<P>,
+  disclosure: 'plain' | 'eligibility-checked',
+) {
   const f = await fresh(fixture)
   const target = scope('removal')
   await openScope(f.subject, f.ports, f.principal, target, f.tenant)
@@ -499,7 +552,13 @@ async function removedRegistration<P>(fixture: RuntimeContextFixture<P>, disclos
       bindings: [
         {
           key: 'suite.value',
-          need: { name: 'value', shape: numberSchema, consumer: 'model', purpose: 'removal', necessity: 'optional' },
+          need: {
+            name: 'value',
+            shape: numberSchema,
+            consumer: 'model',
+            purpose: 'removal',
+            necessity: 'optional',
+          },
         },
       ],
     },
@@ -512,15 +571,28 @@ async function removedRegistration<P>(fixture: RuntimeContextFixture<P>, disclos
   const removed = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'remove' },
-    change: { kind: 'remove', scope: target, tenant: f.tenant, key: 'suite.value', basedOn: 1, creating: false },
+    change: {
+      kind: 'remove',
+      scope: target,
+      tenant: f.tenant,
+      key: 'suite.value',
+      basedOn: 1,
+      creating: false,
+    },
   })
   assert.equal(removed.kind, 'applied')
-  const expected = { kind: 'refused', reason: disclosure === 'plain' ? 'no-registration' : 'unauthorized' }
+  const expected = {
+    kind: 'refused',
+    reason: disclosure === 'plain' ? 'no-registration' : 'unauthorized',
+  }
   assert.deepEqual(await reader.read([{ key: 'suite.value', need: 'value' }]), expected)
   assert.deepEqual(await reader.snapshot(), expected)
 }
 
-async function statefulCase<P>(fixture: RuntimeContextFixture<P>, persistence: 'untracked' | 'checkpointed' = 'checkpointed') {
+async function statefulCase<P>(
+  fixture: RuntimeContextFixture<P>,
+  persistence: 'untracked' | 'checkpointed' = 'checkpointed',
+) {
   const f = await fresh(fixture)
   const target = scope('stateful'),
     key = 'suite.state'
@@ -598,7 +670,11 @@ async function assertStatefulMissing<P>(context: Awaited<ReturnType<typeof state
 
 async function translatedCase<P>(
   fixture: RuntimeContextFixture<P>,
-  options: { necessity: 'optional' | 'required'; listed: boolean; translate: (value: unknown) => unknown },
+  options: {
+    necessity: 'optional' | 'required'
+    listed: boolean
+    translate: (value: unknown) => unknown
+  },
 ) {
   const { subject, ports } = await start(fixture)
   const s = await setup(subject, ports, fixture.tenant, fixture.principal)
@@ -616,7 +692,13 @@ async function translatedCase<P>(
       bindings: [
         {
           key: 'suite.value',
-          need: { name: 'value', shape: numberSchema, consumer: 'model', purpose: 'test', necessity: options.necessity },
+          need: {
+            name: 'value',
+            shape: numberSchema,
+            consumer: 'model',
+            purpose: 'test',
+            necessity: options.necessity,
+          },
           translate: options.translate,
           integrator: 'tool',
         },

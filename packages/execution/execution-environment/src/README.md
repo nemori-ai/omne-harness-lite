@@ -16,6 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明，本成
 
 ## 本包事实
 
-`index.ts` 从 `registry.ts` 重导出 `createEnvironmentRegistry`、`RetirementPending` 与两个类型。`registry.ts` 是登记表，`lease-view.ts` 是租约视图与逐操作门，`recovery.ts` 是逐提供者的恢复编排，`compare.ts` 是登记表与租约视图共用的比较函数。`index.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明受管设施操作对账本的使用、Runtime Context 块的生产与契约验证套件还没有接受。
+`index.ts` 从 `registry.ts` 重导出 `createEnvironmentRegistry`、`RetirementPending` 与三个类型。`registry.ts` 是登记表，`access.ts` 是普通操作的访问核验，`original.ts` 是按配额域的原记录路由、查询与结清，`lease-view.ts` 是租约视图与逐操作门，`recovery.ts` 是资源路径与获取路径的恢复编排，`compare.ts` 是复制、指纹与比较函数。`index.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明受管设施操作对账本的使用、Runtime Context 块的生产与契约验证套件还没有接受。
 
 当前缺口：SPEC [明确缺项](../SPEC.md#明确缺项)。具名维护者由负责人指定。

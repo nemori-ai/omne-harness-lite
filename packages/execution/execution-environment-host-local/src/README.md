@@ -8,7 +8,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。`index.ts`、`host-files.ts` 与 `host-provider.ts` 不导入 `@deepseek-ai/cordis`，也不导入 `./cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。Cordis 绑定只从 `cordis.ts` 导出。非类型行为写在包根 [SPEC.md](../SPEC.md)，不写在源码注释里代替规格。
+源码只用可擦除的 TypeScript 语法。`index.ts`、`host-files.ts`、`host-domain.ts` 与 `host-provider.ts` 不导入 `@deepseek-ai/cordis`，也不导入 `./cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。Cordis 绑定只从 `cordis.ts` 导出。非类型行为写在包根 [SPEC.md](../SPEC.md)，不写在源码注释里代替规格。
 
 ## 维护
 
@@ -16,9 +16,10 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-- `host-files.ts`：宿主文件设施 `createHostFiles` 与 `hostObjectToken`，另有一个标为 `@internal` 的测试辅助函数，根入口不导出它。
-- `host-provider.ts`：宿主文件提供者 `createHostFilesProvider`、它的选项与诊断类型，以及记录在途文件操作、退役后拒新操作的一层。
-- `cordis.ts`：`ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`hostFilesPlugin`、空配置 Schema 与 `hostFilesPlugin` 的配置 Schema。
-- `index.ts`：重导出根入口的三个函数。
+- `host-files.ts`：宿主文件设施 `createHostFiles` 与 `hostObjectToken`；共用文件引擎 `createHostFilesEngine`，它给每个句柄与关闭失败的描述符记所有者，句柄代际在引擎内唯一；另有一个标为 `@internal` 的测试辅助函数。根入口不导出引擎与测试辅助函数。
+- `host-domain.ts`：宿主文件责任域 `createHostFilesDomain`：获取记录、每份获取的门面（准入与在途操作）、配额核对与排空；它的内部面只供本包的提供者使用。
+- `host-provider.ts`：宿主文件提供者 `createHostFilesProvider`、它的选项与诊断类型，以及配额、原获取查询、获取枚举、结清与空资源恢复枚举。
+- `cordis.ts`：`ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`createHostFilesPlugin`、空配置 Schema 与宿主文件插件的配置 Schema。
+- `index.ts`：重导出根入口的四个函数与类型。
 
 `index.ts` 与 `cordis.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明还没有接受的部分：`files` 的其余操作、`command` 与 `terminal` 提供者、平台前提探测、Runtime Context 生产者插件、调用方类核对。具名维护者由负责人指定。

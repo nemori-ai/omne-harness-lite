@@ -97,7 +97,13 @@ export type CommitInput =
       scopeEnded?: true
     }>
   /** Ends the scope only; makes no empty registration and no false step (RC-09). */
-  | Readonly<{ kind: 'scope'; commit: CommitRef; scope: ScopeRef; tenant: TenantId; scopeEnded: true }>
+  | Readonly<{
+      kind: 'scope'
+      commit: CommitRef
+      scope: ScopeRef
+      tenant: TenantId
+      scopeEnded: true
+    }>
 
 export type ApplyCommitResult =
   | Readonly<{
@@ -127,7 +133,10 @@ export type ApplyCommitResult =
 
 export interface HolderOperations<P = unknown> {
   prepareRegistration(principal: P, change: RegistrationChange): Promise<PrepareRegistrationResult>
-  issueEligibility(principal: P, material: EligibilityMaterial<P>): Promise<IssueEligibilityResult<P>>
+  issueEligibility(
+    principal: P,
+    material: EligibilityMaterial<P>,
+  ): Promise<IssueEligibilityResult<P>>
   revokeEligibility(principal: P, id: EligibilityId): Promise<RevokeEligibilityResult>
   applyCommit(principal: P, input: CommitInput): Promise<ApplyCommitResult>
   beginReplay(principal: P, input: BeginReplayInput): Promise<BeginReplayResult>

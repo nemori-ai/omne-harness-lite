@@ -22,12 +22,21 @@ import {
   ExecutionRecoveryAuthorityService,
   executionEnvironmentKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
-import { hostObjectToken } from '@omne-harness/execution-environment-host-local'
+import {
+  createHostFilesDomain,
+  hostObjectToken,
+} from '@omne-harness/execution-environment-host-local'
 import {
   ExecutionEnvironmentRegistry,
+  createHostFilesPlugin,
   filesFacilityPlugin,
-  hostFilesPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
+import { testPorts } from './ports.ts'
+
+/** A host files plugin over a fresh domain, as an assembly root would create once. */
+function hostPlugin() {
+  return createHostFilesPlugin(createHostFilesDomain())
+}
 
 const roots: string[] = []
 
@@ -93,7 +102,7 @@ async function namedFile(contents: string) {
 async function hostLease(ctx: Context, key = 'acq-1') {
   const service = serviceOf(ctx)
   const placement = await service.resolvePlacement(access, filesPlacement)
-  if (placement.kind !== 'placement') throw new Error(`no placement: ${placement.reason}`)
+  if (placement.kind !== 'placement') throw new Error(`no placement: ${JSON.stringify(placement)}`)
   const acquired = await service.acquire(access, {
     acquisition: acquisitionRef(key),
     origin: originRef('call-1'),
@@ -124,6 +133,19 @@ function pendingProvider(retired: { count: number }): EnvironmentProvider {
     name: 'pending',
     generation: '1',
     version: 'test-version',
+    quotaDomain: 'pending',
+    async quota() {
+      return { kind: 'unknown' }
+    },
+    async inspectAcquisition() {
+      return { kind: 'unknown' }
+    },
+    async listAcquisitions() {
+      return { kind: 'unknown' }
+    },
+    async settleAcquisition() {
+      return { kind: 'unknown' }
+    },
     bindingKinds: ['session_sandbox'],
     continuity: { kind: 'not_guaranteed' },
     facilities: [],
@@ -152,9 +174,10 @@ function pendingProvider(retired: { count: number }): EnvironmentProvider {
 it('reads through a lease once the declaration and the host provider are loaded, and drops the provider on unload', async () => {
   const { path, named } = await namedFile('leased-bytes')
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
   await ctx.plugin(filesFacilityPlugin)
-  const hostFiles = await ctx.plugin(hostFilesPlugin)
+  const hostFiles = await ctx.plugin(hostPlugin())
   const service = serviceOf(ctx)
   const { acquired, files } = await hostLease(ctx)
   expect(acquired.lease.placement.binding).toEqual({ kind: 'host_machine' })
@@ -198,8 +221,9 @@ it('reads through a lease once the declaration and the host provider are loaded,
 it('keeps the files declaration apart from the provider: without it there is no placement, and removing it refuses operations', async () => {
   const { path, named } = await namedFile('kept-bytes')
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
-  await ctx.plugin(hostFilesPlugin)
+  await ctx.plugin(hostPlugin())
   const service = serviceOf(ctx)
   expect(await service.resolvePlacement(access, filesPlacement)).toEqual({
     kind: 'rejected',
@@ -221,17 +245,20 @@ it('keeps the files declaration apart from the provider: without it there is no 
     }),
   ).toEqual({ kind: 'rejected', requestId: 'after-removal', reason: 'unsupported' })
   expect(await readFile(path, 'utf8')).toBe('kept-bytes')
-  expect(await service.inspectAcquisition(access, acquisitionRef('acq-1'))).toMatchObject({
-    kind: 'acquired',
-    adoption: acquired.adoption,
-  })
+  expect(
+    await service.inspectAcquisition(access, {
+      kind: 'local',
+      acquisition: acquisitionRef('acq-1'),
+    }),
+  ).toEqual({ kind: 'known', state: { kind: 'acquired', adoption: acquired.adoption } })
 })
 
 it('refuses new acquisitions and invalidates leases once the Service unloads', async () => {
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   const registry = await ctx.plugin(ExecutionEnvironmentRegistry)
   await ctx.plugin(filesFacilityPlugin)
-  await ctx.plugin(hostFilesPlugin)
+  await ctx.plugin(hostPlugin())
   const service = serviceOf(ctx)
   const { acquired } = await hostLease(ctx)
 
@@ -265,8 +292,9 @@ it('reads the recovery authority service on each recovery, and answers unavailab
     }
   }
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
-  await ctx.plugin(hostFilesPlugin)
+  await ctx.plugin(hostPlugin())
   const service = serviceOf(ctx)
   const recoveryAccess = createRecoveryAccess()
   const unavailable = { kind: 'rejected', reason: 'unavailable' }
@@ -274,12 +302,16 @@ it('reads the recovery authority service on each recovery, and answers unavailab
   expect(await service.releaseScope(scope('scope-1'), recoveryAccess)).toEqual(unavailable)
 
   const authority = await ctx.plugin(Authority)
+  // The files profile lists a complete empty resource set; nothing is unsupported or unavailable.
   expect(await service.recoverOwned(scope('scope-1'), recoveryAccess)).toMatchObject({
     kind: 'recovered',
     stopped: [],
     pending: [],
-    unsupported: [{ kind: 'provider', provider: { name: 'host-files' } }],
+    unsupported: [],
     unavailable: [],
+    settledAcquisitions: [],
+    pendingAcquisitions: [],
+    unsupportedAcquisitions: [],
   })
   expect(asked).toEqual([recoveryAccess])
 
@@ -295,10 +327,11 @@ it('invalidates the host lease of a released scope and refuses that scope afterw
     }
   }
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
   await ctx.plugin(Authority)
   await ctx.plugin(filesFacilityPlugin)
-  await ctx.plugin(hostFilesPlugin)
+  await ctx.plugin(hostPlugin())
   const service = serviceOf(ctx)
   const { acquired } = await hostLease(ctx)
   expect(await service.releaseScope(scope('scope-1'), createRecoveryAccess())).toMatchObject({
@@ -327,6 +360,7 @@ it('invalidates the host lease of a released scope and refuses that scope afterw
 it('retries a pending retirement each time the returned removal is called through the Service', async () => {
   const retired = { count: 0 }
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
   let remove: () => Promise<void> = async () => undefined
   await ctx.plugin({
@@ -348,6 +382,7 @@ it('completes the unload when a retirement or the close is pending, and logs Ret
   const retired = { count: 0 }
   const ctx = new Context()
   const errors = recordErrors(ctx)
+  await testPorts(tenant).load(ctx)
   const registry = await ctx.plugin(ExecutionEnvironmentRegistry)
   const provider = await ctx.plugin({
     name: 'pendingProvider',
@@ -370,7 +405,7 @@ it('completes the unload when a retirement or the close is pending, and logs Ret
 })
 
 it('accepts only drainBoundMs, a finite number zero or more, on the host files plugin', async () => {
-  const validate = hostFilesPlugin.Config['~standard'].validate
+  const validate = hostPlugin().Config['~standard'].validate
   for (const accepted of [undefined, null, {}]) expect(validate(accepted)).toEqual({ value: {} })
   expect(validate({ drainBoundMs: 0 })).toEqual({ value: { drainBoundMs: 0 } })
   expect(validate({ drainBoundMs: 250 })).toEqual({ value: { drainBoundMs: 250 } })
@@ -385,8 +420,9 @@ it('accepts only drainBoundMs, a finite number zero or more, on the host files p
   ])
     expect(validate(refused)).toMatchObject({ issues: [{ message: expect.any(String) }] })
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
-  const loading: unknown = Reflect.apply(ctx.plugin, ctx, [hostFilesPlugin, { drainBoundMs: -1 }])
+  const loading: unknown = Reflect.apply(ctx.plugin, ctx, [hostPlugin(), { drainBoundMs: -1 }])
   await expect(Promise.resolve(loading)).rejects.toBeDefined()
 })
 
@@ -400,6 +436,7 @@ it('accepts only an absent, null or empty configuration on the Service and the d
       })
   }
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
   // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
   const loading: unknown = Reflect.apply(ctx.plugin, ctx, [filesFacilityPlugin, { extra: true }])
@@ -411,8 +448,9 @@ it('accepts only an absent, null or empty configuration on the Service and the d
 
 it('forwards state and description to the registry, and removes a declaration through the returned removal', async () => {
   const ctx = new Context()
+  await testPorts(tenant).load(ctx)
   await ctx.plugin(ExecutionEnvironmentRegistry)
-  await ctx.plugin(hostFilesPlugin)
+  await ctx.plugin(hostPlugin())
   let removeDeclaration: () => Promise<void> = async () => undefined
   await ctx.plugin({
     name: 'declaration',
@@ -423,10 +461,12 @@ it('forwards state and description to the registry, and removes a declaration th
   })
   const service = serviceOf(ctx)
   const { acquired } = await hostLease(ctx)
-  expect(await service.inspectAcquisition(access, acquisitionRef('acq-1'))).toEqual({
-    kind: 'acquired',
-    adoption: acquired.adoption,
-  })
+  expect(
+    await service.inspectAcquisition(access, {
+      kind: 'local',
+      acquisition: acquisitionRef('acq-1'),
+    }),
+  ).toEqual({ kind: 'known', state: { kind: 'acquired', adoption: acquired.adoption } })
   expect(await service.describe(access, scope('scope-1'))).toMatchObject([
     { acquisition: 'acq-1', binding: host, provider: { name: 'host-files' }, state: 'acquired' },
   ])
@@ -441,9 +481,53 @@ it('forwards state and description to the registry, and removes a declaration th
 it('logs nothing when the unload drains', async () => {
   const ctx = new Context()
   const errors = recordErrors(ctx)
+  await testPorts(tenant).load(ctx)
   const registry = await ctx.plugin(ExecutionEnvironmentRegistry)
-  const hostFiles = await ctx.plugin(hostFilesPlugin)
+  const hostFiles = await ctx.plugin(hostPlugin())
   await hostFiles.dispose()
   await registry.dispose()
   expect(errors).toEqual([])
+})
+
+it('answers unavailable for ordinary access while the two access port services are absent', async () => {
+  const ctx = new Context()
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  await ctx.plugin(filesFacilityPlugin)
+  await ctx.plugin(hostPlugin())
+  const service = serviceOf(ctx)
+  const unavailable = { kind: 'rejected', reason: 'unavailable' }
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual(unavailable)
+  expect(await service.describe(access, scope('scope-1'))).toEqual(unavailable)
+  const ports = testPorts(tenant)
+  const authority = await ctx.plugin(ports.Authority)
+  // The authority alone is not enough: the trusted binding source is still absent.
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual(unavailable)
+  await ctx.plugin(ports.Bindings)
+  expect(await service.resolvePlacement(access, filesPlacement)).toMatchObject({
+    kind: 'placement',
+    quotaDomain: 'host-files',
+  })
+  await authority.dispose()
+  expect(await service.resolvePlacement(access, filesPlacement)).toEqual(unavailable)
+})
+
+it('refuses a scope the trusted binding source binds to another tenant, before any provider call', async () => {
+  const other = tenantCodec.parse(
+    JSON.stringify({
+      organization: 'org_0123456789abcdefghjkmnpqrt',
+      account: 'acc_0123456789abcdefghjkmnpqrt',
+    }),
+  )
+  if (!other.ok) throw new Error('tenant fixture did not parse')
+  const ctx = new Context()
+  const ports = testPorts(tenant)
+  ports.bind(scope('scope-1'), other.value)
+  await ports.load(ctx)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  await ctx.plugin(filesFacilityPlugin)
+  await ctx.plugin(hostPlugin())
+  expect(await serviceOf(ctx).resolvePlacement(access, filesPlacement)).toEqual({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
 })

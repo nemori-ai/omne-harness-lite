@@ -90,24 +90,24 @@ const placement = record({
   quotaDomain: decodeNonEmpty,
 })
 const rejectReason = decodeLiteral([
-    'notAuthorized',
-    'noMatchingEnvironment',
-    'missingFacility',
-    'unsupportedFacility',
-    'isolationUnconfirmed',
-    'referenceExpired',
-    'providerUnavailable',
-    'ownerStopped',
-    'invalidInput',
-    'unavailable',
-    'ambiguousEnvironment',
-    'callerMismatch',
-    'quotaExceeded',
-    'globalCapacityExceeded',
-    'recoveryUnready',
-    'acquisitionConflict',
-    'allocationNotPerformed',
-  ])
+  'notAuthorized',
+  'noMatchingEnvironment',
+  'missingFacility',
+  'unsupportedFacility',
+  'isolationUnconfirmed',
+  'referenceExpired',
+  'providerUnavailable',
+  'ownerStopped',
+  'invalidInput',
+  'unavailable',
+  'ambiguousEnvironment',
+  'callerMismatch',
+  'quotaExceeded',
+  'globalCapacityExceeded',
+  'recoveryUnready',
+  'acquisitionConflict',
+  'allocationNotPerformed',
+])
 const rejected = record({ kind: literal('rejected'), reason: rejectReason })
 const resource = record({ key: decodeString, provider: decodeString, reference: decodeJsonValue })
 const resources = decodeArray(resource)
@@ -194,7 +194,10 @@ const originalInspection = variants('status', {
 })
 const recoveryInspectionVariants = {
   invalidInput: record({ kind: literal('invalidInput') }),
-  refused: record({ kind: literal('refused'), reason: decodeLiteral(['notAuthorized', 'callerMismatch']) }),
+  refused: record({
+    kind: literal('refused'),
+    reason: decodeLiteral(['notAuthorized', 'callerMismatch']),
+  }),
   queryUnavailable: record({ kind: literal('queryUnavailable'), cause: queryCause }),
   queryUnknown: record({ kind: literal('queryUnknown'), cause: queryCause }),
   original: originalInspection,
@@ -490,7 +493,8 @@ export const releaseScopeResultSchema: OperationSchema<
 export const providerFactsSchema = standardSchema(decodeFacts)
 export const managedResourceSchema = standardSchema(resource)
 /** The description a caller keeps before the provider is called; recovery uses it to find the original. */
-export const originalAcquisitionSchema: OperationSchema<OriginalAcquisition> = standardSchema(original)
+export const originalAcquisitionSchema: OperationSchema<OriginalAcquisition> =
+  standardSchema(original)
 type EnvironmentSchemas = {
   readonly [K in keyof ExecutionEnvironment<unknown>]: Readonly<{
     params: OperationSchema<Parameters<ExecutionEnvironment<unknown>[K]>>

@@ -66,7 +66,9 @@ export function createSupplier<P>(world: World<P>) {
     return id === undefined ? undefined : world.producers.get(id)
   }
   function isCurrent(producer: Producer<P>): boolean {
-    return producer.active && world.producers.get(producer.tenantText + '\0' + producer.key) === producer
+    return (
+      producer.active && world.producers.get(producer.tenantText + '\0' + producer.key) === producer
+    )
   }
   async function producerGate(
     producer: Producer<P>,
@@ -126,10 +128,12 @@ export function createSupplier<P>(world: World<P>) {
     // A per-request read keeps no stored value, so concurrent reads do not supersede each other.
     const seq = store ? world.nextSeq(s, producer.key) : (s.supplySeq.get(producer.key) ?? 0)
     const before = await producerGate(producer, 'supply', s.scope)
-    if ('kind' in before) return before.kind === 'refused' ? { kind: 'refused' } : { kind: before.kind }
+    if ('kind' in before)
+      return before.kind === 'refused' ? { kind: 'refused' } : { kind: before.kind }
     const answer = await callSource(producer, { ...s.scope }, before.principal)
     const after = await producerGate(producer, 'supply', s.scope)
-    if ('kind' in after) return after.kind === 'refused' ? { kind: 'refused' } : { kind: after.kind }
+    if ('kind' in after)
+      return after.kind === 'refused' ? { kind: 'refused' } : { kind: after.kind }
     const fresh =
       before.current() &&
       after.current() &&
@@ -146,7 +150,10 @@ export function createSupplier<P>(world: World<P>) {
     return outcome
   }
 
-  function classify(producer: Producer<P>, answer: SupplyAnswer<unknown> | typeof TIMEOUT): SupplyOutcome {
+  function classify(
+    producer: Producer<P>,
+    answer: SupplyAnswer<unknown> | typeof TIMEOUT,
+  ): SupplyOutcome {
     if (answer === TIMEOUT) return { kind: 'unknown' }
     switch (answer.kind) {
       case 'value': {
@@ -253,7 +260,8 @@ export function createSupplier<P>(world: World<P>) {
         { descriptors: world.catalog, scopeTenant: s.tenant, existing: r, creating: false },
       )
       if ('failure' in checked) world.incompatible.add(s.scope.ref + '\0' + producer.key)
-      else if (drivesSupply(producer) && s.fence === 'open' && !s.ended) await supplyOnce(producer, s, true)
+      else if (drivesSupply(producer) && s.fence === 'open' && !s.ended)
+        await supplyOnce(producer, s, true)
     }
   }
 
@@ -313,8 +321,11 @@ export function createSupplier<P>(world: World<P>) {
         ? 'stale-generation'
         : 'withdrawn'
     }
-    function targetState(s: ScopeState | undefined): 'scope-unregistered' | 'scope-ended' | 'replay-incomplete' | undefined {
-      if (!s || !s.registrations.has(producer.key)) return s?.ended ? 'scope-ended' : 'scope-unregistered'
+    function targetState(
+      s: ScopeState | undefined,
+    ): 'scope-unregistered' | 'scope-ended' | 'replay-incomplete' | undefined {
+      if (!s || !s.registrations.has(producer.key))
+        return s?.ended ? 'scope-ended' : 'scope-unregistered'
       if (s.ended) return 'scope-ended'
       return s.fence === 'open' ? undefined : 'replay-incomplete'
     }
@@ -328,7 +339,11 @@ export function createSupplier<P>(world: World<P>) {
       const gate = await producerGate(producer, 'publish', scope)
       if ('kind' in gate) return gate
       if (!owned)
-        return { kind: 'rejected', reason: 'shape', issues: [{ message: 'The value cannot be captured' }] }
+        return {
+          kind: 'rejected',
+          reason: 'shape',
+          issues: [{ message: 'The value cannot be captured' }],
+        }
       const issues = validate(input.declaration.schema, owned.value)
       if (issues.length) return { kind: 'rejected', reason: 'shape', issues }
       const s = world.state(scope)
@@ -381,7 +396,8 @@ export function createSupplier<P>(world: World<P>) {
     async function invalidate(target: InvalidateTarget): Promise<InvalidateResult> {
       const early = refusal()
       if (early) return { kind: 'rejected', reason: early }
-      if (!tenantEquals(target.tenant, producer.tenant)) return { kind: 'refused', reason: 'unauthorized' }
+      if (!tenantEquals(target.tenant, producer.tenant))
+        return { kind: 'refused', reason: 'unauthorized' }
       if (target.kind === 'scope') {
         const scope = ownScope(target.scope)
         return scope ? invalidateScope(scope) : { kind: 'refused', reason: 'unauthorized' }
@@ -407,7 +423,7 @@ export function createSupplier<P>(world: World<P>) {
       if (producer.inFlight.size) {
         let timer: ReturnType<typeof setTimeout> | undefined
         await Promise.race([
-          Promise.allSettled([...producer.inFlight]),
+          Promise.allSettled(producer.inFlight),
           new Promise<void>(resolve => {
             timer = setTimeout(resolve, world.options.settleBoundMs)
           }),

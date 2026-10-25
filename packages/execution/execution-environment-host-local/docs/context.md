@@ -6,24 +6,28 @@
 
 ### 装配
 
-应用装配者在进程里装载服务、`files` 声明插件与宿主文件插件：
+应用装配者在进程宿主里创建一次宿主文件责任域，再装载三个端口服务、服务、`files` 声明插件与宿主文件插件：
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
+import { createHostFilesDomain } from '@omne-harness/execution-environment-host-local'
 import {
   ExecutionEnvironmentRegistry,
+  createHostFilesPlugin,
   filesFacilityPlugin,
-  hostFilesPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
 
+const domain = createHostFilesDomain({ quota: tenant => ({ perTenant: 8, global: 256 }) })
 const ctx = new Context()
-await ctx.plugin(ExecutionEnvironmentRegistry)
+await ctx.plugin(MyEnvironmentAuthority)
+await ctx.plugin(MyScopeBinding)
 await ctx.plugin(MyRecoveryAuthority)
+await ctx.plugin(ExecutionEnvironmentRegistry)
 await ctx.plugin(filesFacilityPlugin)
-await ctx.plugin(hostFilesPlugin)
+await ctx.plugin(createHostFilesPlugin(domain))
 ```
 
-`MyRecoveryAuthority` 是 `ExecutionRecoveryAuthorityService` 的子类，由集成方维护拥有者实现。服务每次恢复操作现取它。不需要恢复时不装它，恢复两操作随之一律返回 `unavailable`。Service 与 `filesFacilityPlugin` 不接受配置字段。`hostFilesPlugin` 只接受 `drainBoundMs`，例如 `ctx.plugin(hostFilesPlugin, { drainBoundMs: 5000 })`；它是宿主提供者退役等在途文件操作的上界，缺省为初值 10000 毫秒。
+三个端口服务分别是 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService` 与 `ExecutionRecoveryAuthorityService` 的子类，由集成方实现。服务每次使用时从自己装载时的上下文现取它们；取不到时，环境面与恢复面答不可用，不放行。例子里的配额数值只是配置，不是本成员的默认值。Service 与 `filesFacilityPlugin` 不接受配置字段。宿主文件插件只接受 `drainBoundMs`，例如 `ctx.plugin(createHostFilesPlugin(domain), { drainBoundMs: 5000 })`；它是释放、结清与退役等在途文件操作的上界，缺省为初值 10000 毫秒。重载宿主文件插件时交同一个 `domain`，新的一代看到原占用与原获取。
 
 装载之后，集成方、维护者、提供者与设施拥有者的插件经服务定义使用服务，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md#使用方式)。它们不导入本成员。
 
@@ -45,11 +49,11 @@ close = files.close({ requestId: 新的请求身份, access, origin, binding, pa
 
 ### 独立使用
 
-不装配 Cordis 的调用方可以把 `createHostFilesProvider()` 登记到 [execution-environment](../../execution-environment/docs/context.md#独立使用) 的登记表上，经租约使用，得到租户核对与守卫。直接调用 `createHostFiles()` 得到的设施不核对租户，也不问守卫，只适合测试或调用方自己承担这两项核对的组合。
+不装配 Cordis 的调用方自己保管一个 `createHostFilesDomain()`，把 `createHostFilesProvider({ domain })` 登记到 [execution-environment](../../execution-environment/docs/context.md#独立使用) 的登记表上，经租约使用，得到租户核对与守卫。直接调用 `createHostFiles()` 得到的设施不核对租户，也不问守卫，只适合测试或调用方自己承担这两项核对的组合。
 
 ### 初始化与释放
 
-宿主文件设施没有初始化步骤。读取、查看与写入在返回前关闭自己打开的描述符。关闭失败的描述符留在设施实例里，下一次公开操作前重试关闭。服务卸载时关闭登记表，`hostFilesPlugin` 卸载时宿主文件提供者退役。退役不再接纳新的文件操作，并等在途操作结束，最多 `drainBoundMs`；超界为待处置，诊断写入 `ctx.logger`。
+宿主文件设施没有初始化步骤。读取、查看与写入在返回前关闭自己打开的描述符。关闭失败的描述符归所属获取，留在共用文件引擎里；这份获取的下一次操作、释放、结清与责任域的 `maintain()` 重试关闭。服务卸载时关闭登记表，宿主文件插件卸载时这一代宿主文件提供者退役：封住这一代获取的门面，逐份排空，最多 `drainBoundMs`；没有全部结清时为待处置，诊断写入 `ctx.logger`。原记录留在责任域，由新的一代或责任域的拥有者继续结清。
 
 ## 消费者与定位
 
@@ -69,9 +73,9 @@ flowchart LR
 
 | 使用方 | 怎样使用 | 用什么 |
 | --- | --- | --- |
-| 应用装配者 | 装载 `./cordis` 的插件与恢复授权服务 | `ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`hostFilesPlugin`；`ExecutionRecoveryAuthorityService` 的子类 |
+| 应用装配者 | 创建并保管责任域，装载 `./cordis` 的插件与三个端口服务 | 根入口的 `createHostFilesDomain`；`ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`createHostFilesPlugin`；三个端口抽象类的子类 |
 | 执行适配 | 点名对象 | 根入口的 `hostObjectToken` |
-| 独立调用方 | 登记到不含 Cordis 的登记表 | 根入口的 `createHostFilesProvider` |
+| 独立调用方 | 登记到不含 Cordis 的登记表 | 根入口的 `createHostFilesDomain` 与 `createHostFilesProvider` |
 
 ### 现在的真实消费者
 

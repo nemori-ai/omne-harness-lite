@@ -27,7 +27,11 @@ const fixture = {
   retention: 64,
   replayCapacity: 8,
   subject: async (ports: RuntimeContextPorts<string>) => {
-    const subject = createMemoryRuntimeContext<string>({ ...ports, retention: 64, replayCapacity: 8 })
+    const subject = createMemoryRuntimeContext<string>({
+      ...ports,
+      retention: 64,
+      replayCapacity: 8,
+    })
     closers.set(subject, () => subject.close())
     return subject
   },

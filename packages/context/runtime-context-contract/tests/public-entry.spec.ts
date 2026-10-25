@@ -28,5 +28,7 @@ it('testing entry exposes the suite and explicitly non-durable stand-in', async 
   const ports = testing.createTestAuthorityPorts()
   expect(testing.createMemoryRuntimeContext(ports).durability).toBe('none')
   // A recovery capacity bound is required configuration, never an unbounded default.
-  expect(() => testing.createMemoryRuntimeContext({ ...ports, replayCapacity: -1 })).toThrow(RangeError)
+  expect(() => testing.createMemoryRuntimeContext({ ...ports, replayCapacity: -1 })).toThrow(
+    RangeError,
+  )
 })

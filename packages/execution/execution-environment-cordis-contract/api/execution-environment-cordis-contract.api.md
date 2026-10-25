@@ -12,13 +12,17 @@
 
 - `CallerClass` · `cordis.d.ts`
 - `CallerClassMismatch` · `cordis.d.ts`
+- `ExecutionEnvironmentAuthorityService` · `cordis.d.ts`
 - `ExecutionEnvironmentIntercept` · `cordis.d.ts`
 - `ExecutionEnvironmentService` · `cordis.d.ts`
 - `ExecutionRecoveryAuthorityService` · `cordis.d.ts`
+- `ExecutionScopeBindingService` · `cordis.d.ts`
 - `ServiceFace` · `cordis.d.ts`
 - `ServiceOperation` · `cordis.d.ts`
+- `executionEnvironmentAuthorityKey` · `cordis.d.ts`
 - `executionEnvironmentKey` · `cordis.d.ts`
 - `executionRecoveryAuthorityKey` · `cordis.d.ts`
+- `executionScopeBindingKey` · `cordis.d.ts`
 - `faceCallers` · `cordis.d.ts`
 - `operationFaces` · `cordis.d.ts`
 
@@ -26,7 +30,8 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import type { ExecutionEnvironment, FacilityDescriptor, FacilityKey, ProviderRegistrations, RecoveryAuthority } from '@omne-harness/execution-environment-contract';
+import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract';
+import type { EnvironmentAuthority, ExecutionEnvironment, FacilityDescriptor, FacilityKey, ProviderRegistrations, RecoveryAuthority } from '@omne-harness/execution-environment-contract';
 type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
     args: Parameters<ExecutionEnvironment<P>[O]>;
     result: ReturnType<ExecutionEnvironment<P>[O]>;
@@ -55,6 +60,8 @@ export declare abstract class ExecutionEnvironmentService<P> extends Service<Exe
     protected abstract onAcquire(...args: Operation<P, 'acquire'>['args']): Operation<P, 'acquire'>['result'];
     inspectAcquisition(...args: Operation<P, 'inspectAcquisition'>['args']): Operation<P, 'inspectAcquisition'>['result'];
     protected abstract onInspectAcquisition(...args: Operation<P, 'inspectAcquisition'>['args']): Operation<P, 'inspectAcquisition'>['result'];
+    inspectRecoveryAcquisition(...args: Operation<P, 'inspectRecoveryAcquisition'>['args']): Operation<P, 'inspectRecoveryAcquisition'>['result'];
+    protected abstract onInspectRecoveryAcquisition(...args: Operation<P, 'inspectRecoveryAcquisition'>['args']): Operation<P, 'inspectRecoveryAcquisition'>['result'];
     describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'];
     protected abstract onDescribe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'];
     recoverOwned(...args: Operation<P, 'recoverOwned'>['args']): Operation<P, 'recoverOwned'>['result'];
@@ -73,10 +80,24 @@ export declare abstract class ExecutionRecoveryAuthorityService extends Service 
     abstract authorizeRecovery(...args: Parameters<RecoveryAuthority['authorizeRecovery']>): ReturnType<RecoveryAuthority['authorizeRecovery']>;
 }
 export declare const executionRecoveryAuthorityKey = "executionRecoveryAuthority";
+export declare abstract class ExecutionEnvironmentAuthorityService<P = unknown> extends Service implements EnvironmentAuthority<P> {
+    static readonly provide = "executionEnvironmentAuthority";
+    constructor(ctx: Context);
+    abstract authorize(...args: Parameters<EnvironmentAuthority<P>['authorize']>): ReturnType<EnvironmentAuthority<P>['authorize']>;
+}
+export declare const executionEnvironmentAuthorityKey = "executionEnvironmentAuthority";
+export declare abstract class ExecutionScopeBindingService extends Service implements ScopeBindingSource {
+    static readonly provide = "executionScopeBinding";
+    constructor(ctx: Context);
+    abstract lookup(...args: Parameters<ScopeBindingSource['lookup']>): ReturnType<ScopeBindingSource['lookup']>;
+}
+export declare const executionScopeBindingKey = "executionScopeBinding";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         executionEnvironment: ExecutionEnvironmentService<unknown>;
         executionRecoveryAuthority: ExecutionRecoveryAuthorityService;
+        executionEnvironmentAuthority: ExecutionEnvironmentAuthorityService<unknown>;
+        executionScopeBinding: ExecutionScopeBindingService;
     }
 }
 export {};

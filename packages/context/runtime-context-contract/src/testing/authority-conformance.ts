@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import type { ConformanceCase } from './case.js'
 import { declaration, scope, openScope, snapshotValue, requiredBinding } from './fixtures.js'
 import { start, started, addScope, type RuntimeContextFixture } from './suite.js'
@@ -6,6 +7,7 @@ import type { ScopeRef, SupplyAnswer } from '../index.js'
 
 export const AUTHORITY_OBLIGATIONS = [
   'forged-first-binding-refused',
+  'principal-tenant-mismatch-refused',
   'authority-unavailable-and-unknown',
   'stale-current-refused',
   'revocation-during-supply-discarded',
@@ -19,6 +21,7 @@ export const AUTHORITY_OBLIGATIONS = [
 type AuthorityCase = (typeof AUTHORITY_OBLIGATIONS)[number]
 const authorityCases = {
   'forged-first-binding-refused': forgedFirstBindingRefused,
+  'principal-tenant-mismatch-refused': principalTenantMismatchRefused,
   'authority-unavailable-and-unknown': authorityUnavailableAndUnknown,
   'stale-current-refused': staleCurrentRefused,
   'revocation-during-supply-discarded': revocationDuringSupplyDiscarded,
@@ -30,7 +33,11 @@ const authorityCases = {
   'supply-answer-mapping': supplyAnswerMapping,
 } satisfies Record<AuthorityCase, <P>(fixture: RuntimeContextFixture<P>) => Promise<void>>
 export function authorityConformance<P>(): readonly ConformanceCase<RuntimeContextFixture<P>>[] {
-  return AUTHORITY_OBLIGATIONS.map(name => ({ name, clause: 'RC-01/RC-07', run: authorityCases[name] }))
+  return AUTHORITY_OBLIGATIONS.map(name => ({
+    name,
+    clause: 'RC-01/RC-07',
+    run: authorityCases[name],
+  }))
 }
 
 /** A scope bound to the other tenant cannot be claimed, registered into or published to (J18, J41). */
@@ -40,12 +47,22 @@ async function forgedFirstBindingRefused<P>(fixture: RuntimeContextFixture<P>) {
   ports.bind(foreign, fixture.otherTenant)
   const unauthorized = { kind: 'refused', reason: 'unauthorized' }
   assert.deepEqual(
-    await subject.beginReplay(fixture.principal, { scope: foreign, tenant: fixture.tenant, through: null, supersedes: null }),
+    await subject.beginReplay(fixture.principal, {
+      scope: foreign,
+      tenant: fixture.tenant,
+      through: null,
+      supersedes: null,
+    }),
     unauthorized,
   )
   const unboundScope = scope('unbound')
   assert.deepEqual(
-    await subject.beginReplay(fixture.principal, { scope: unboundScope, tenant: fixture.tenant, through: null, supersedes: null }),
+    await subject.beginReplay(fixture.principal, {
+      scope: unboundScope,
+      tenant: fixture.tenant,
+      through: null,
+      supersedes: null,
+    }),
     unauthorized,
   )
   let calls = 0
@@ -58,8 +75,52 @@ async function forgedFirstBindingRefused<P>(fixture: RuntimeContextFixture<P>) {
     supply: async () => ({ kind: 'value', value: ++calls }),
   })
   assert.ok(p.kind === 'registered')
-  assert.deepEqual(await p.handle.publish({ scope: foreign, tenant: fixture.tenant, value: 1 }), unauthorized)
-  assert.deepEqual(await p.handle.invalidate({ kind: 'scope', scope: foreign, tenant: fixture.tenant }), unauthorized)
+  assert.deepEqual(
+    await p.handle.publish({ scope: foreign, tenant: fixture.tenant, value: 1 }),
+    unauthorized,
+  )
+  assert.deepEqual(
+    await p.handle.invalidate({ kind: 'scope', scope: foreign, tenant: fixture.tenant }),
+    unauthorized,
+  )
+  assert.equal(calls, 0)
+}
+
+/**
+ * The principal belongs to the fixture tenant; the input names the other tenant, and the binding of
+ * the scope agrees with the input. Only the authority port can refuse: it answers for the principal.
+ */
+async function principalTenantMismatchRefused<P>(fixture: RuntimeContextFixture<P>) {
+  const { subject, ports } = await start(fixture)
+  const theirs = scope('theirs')
+  ports.bind(theirs, fixture.otherTenant)
+  ports.script(call =>
+    'action' in call &&
+    'tenant' in call.action &&
+    tenantEquals(call.action.tenant, fixture.otherTenant)
+      ? { kind: 'refused' }
+      : undefined,
+  )
+  const unauthorized = { kind: 'refused', reason: 'unauthorized' }
+  assert.deepEqual(
+    await subject.beginReplay(fixture.principal, {
+      scope: theirs,
+      tenant: fixture.otherTenant,
+      through: null,
+      supersedes: null,
+    }),
+    unauthorized,
+  )
+  let calls = 0
+  const registered = await subject.registerProducer(fixture.principal, {
+    key: 'suite.value',
+    tenant: fixture.otherTenant,
+    producer: { producer: 'suite' },
+    declaration: declaration(),
+    scoped: true,
+    supply: async () => ({ kind: 'value', value: ++calls }),
+  })
+  assert.deepEqual(registered, unauthorized)
   assert.equal(calls, 0)
 }
 
@@ -76,27 +137,52 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     parameters: undefined,
   } as const
   s.ports.script(call => (call.face === 'holder' ? { kind: 'unavailable' } : undefined))
-  assert.deepEqual(await s.subject.applyCommit(s.principal, { kind: 'registration', commit: { commit: 'u' }, change }), {
-    kind: 'unavailable',
-    cause: 'authority',
-  })
+  assert.deepEqual(
+    await s.subject.applyCommit(s.principal, {
+      kind: 'registration',
+      commit: { commit: 'u' },
+      change,
+    }),
+    {
+      kind: 'unavailable',
+      cause: 'authority',
+    },
+  )
   s.ports.script(call => (call.face === 'holder' ? { kind: 'unknown' } : undefined))
-  assert.deepEqual(await s.subject.applyCommit(s.principal, { kind: 'registration', commit: { commit: 'x' }, change }), {
-    kind: 'unknown',
-    cause: 'authority',
-  })
+  assert.deepEqual(
+    await s.subject.applyCommit(s.principal, {
+      kind: 'registration',
+      commit: { commit: 'x' },
+      change,
+    }),
+    {
+      kind: 'unknown',
+      cause: 'authority',
+    },
+  )
   s.ports.script(undefined)
   s.ports.answerBinding(s.scope, { kind: 'unavailable' })
-  assert.deepEqual(await s.subject.applyCommit(s.principal, { kind: 'registration', commit: { commit: 'b' }, change }), {
-    kind: 'unavailable',
-    cause: 'scope-binding',
-  })
+  assert.deepEqual(
+    await s.subject.applyCommit(s.principal, {
+      kind: 'registration',
+      commit: { commit: 'b' },
+      change,
+    }),
+    {
+      kind: 'unavailable',
+      cause: 'scope-binding',
+    },
+  )
   assert.deepEqual(await s.reader.snapshot(), { kind: 'unknown', cause: 'scope-binding-unknown' })
   s.ports.answerBinding(s.scope, { kind: 'bound', tenant: s.tenant })
   s.ports.script(call => (call.face === 'reader' ? { kind: 'unknown' } : undefined))
   assert.deepEqual(await s.reader.snapshot(), { kind: 'unknown', cause: 'eligibility-unknown' })
   s.ports.script(undefined)
-  const applied = await s.subject.applyCommit(s.principal, { kind: 'registration', commit: { commit: 'ok' }, change })
+  const applied = await s.subject.applyCommit(s.principal, {
+    kind: 'registration',
+    commit: { commit: 'ok' },
+    change,
+  })
   assert.equal(applied.kind, 'applied')
 }
 
@@ -105,7 +191,9 @@ async function staleCurrentRefused<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })
   s.ports.script(call =>
-    call.face === 'producer' ? { kind: 'authorized', principal: call.principal, current: () => false } : undefined,
+    call.face === 'producer'
+      ? { kind: 'authorized', principal: call.principal, current: () => false }
+      : undefined,
   )
   assert.deepEqual(await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 2 }), {
     kind: 'refused',
@@ -214,10 +302,13 @@ async function producerSlotPerTenant<P>(fixture: RuntimeContextFixture<P>) {
 
 async function publishTenantMismatchRefused<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
-  assert.deepEqual(await s.handle.publish({ scope: s.scope, tenant: fixture.otherTenant, value: 1 }), {
-    kind: 'refused',
-    reason: 'unauthorized',
-  })
+  assert.deepEqual(
+    await s.handle.publish({ scope: s.scope, tenant: fixture.otherTenant, value: 1 }),
+    {
+      kind: 'refused',
+      reason: 'unauthorized',
+    },
+  )
   const missing = await s.reader.snapshot()
   assert.ok(missing.kind === 'success')
   assert.equal(missing.value.missing.length, 1)
@@ -246,7 +337,10 @@ async function tenantInvalidateScopedToTenant<P>(fixture: RuntimeContextFixture<
   assert.equal(added.kind, 'applied')
   const result = await s.handle.invalidate({ kind: 'tenant', tenant: s.tenant })
   assert.ok(result.kind === 'invalidated')
-  assert.deepEqual(result.scopes.map(target => target.ref), [s.scope.ref])
+  assert.deepEqual(
+    result.scopes.map(target => target.ref),
+    [s.scope.ref],
+  )
   assert.deepEqual(await s.handle.invalidate({ kind: 'tenant', tenant: fixture.otherTenant }), {
     kind: 'refused',
     reason: 'unauthorized',
@@ -260,7 +354,9 @@ async function tenantInvalidateBatchAtomic<P>(fixture: RuntimeContextFixture<P>)
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })
   await s.handle.publish({ scope: second, tenant: s.tenant, value: 2 })
   s.ports.script(call =>
-    call.face === 'producer' && call.action.kind === 'invalidate' && call.action.scope.ref === second.ref
+    call.face === 'producer' &&
+    call.action.kind === 'invalidate' &&
+    call.action.scope.ref === second.ref
       ? { kind: 'refused' }
       : undefined,
   )
@@ -330,7 +426,10 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
     ],
     [nonsense, { kind: 'unknown', cause: 'source-unknown' }],
     [async () => ({ kind: 'unavailable' }), { kind: 'missing', cause: 'source-unavailable' }],
-    [async () => ({ kind: 'value', value: 'not a number' }), { kind: 'missing', cause: 'uninterpretable' }],
+    [
+      async () => ({ kind: 'value', value: 'not a number' }),
+      { kind: 'missing', cause: 'uninterpretable' },
+    ],
     [async () => ({ kind: 'none' }), { kind: 'missing', cause: 'no-value' }],
   ]
   for (const [answer, expected] of cases) {

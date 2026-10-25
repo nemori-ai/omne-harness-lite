@@ -23,6 +23,8 @@ classDiagram
     issueEligibility()
     revokeEligibility()
     applyCommit()
+    beginReplay()
+    finishReplay()
     bind()
   }
   class RuntimeContextIntercept {

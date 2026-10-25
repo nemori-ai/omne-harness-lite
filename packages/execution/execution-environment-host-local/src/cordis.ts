@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/execution-environment'
 import {
   filesFacility,
+  type EnvironmentAuthority,
   type EnvironmentProvider,
   type ExecutionEnvironment,
   type FacilityDescriptor,
@@ -14,11 +15,15 @@ import {
   type ProviderRegistrations,
   type RecoveryAuthority,
 } from '@omne-harness/execution-environment-contract'
+import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import {
   ExecutionEnvironmentService,
+  executionEnvironmentAuthorityKey,
   executionEnvironmentKey,
   executionRecoveryAuthorityKey,
+  executionScopeBindingKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
+import type { HostFilesDomain } from './host-domain.ts'
 import { createHostFilesProvider, type HostFilesProviderOptions } from './host-provider.ts'
 
 /** A Standard Schema that accepts only an absent or empty configuration. */
@@ -45,7 +50,7 @@ const emptyConfig: EmptyConfig = {
   },
 }
 
-/** Configuration of `hostFilesPlugin`. An absent field takes the provider's initial value. */
+/** Configuration of the host files plugin. An absent field takes the provider's initial value. */
 export type HostFilesConfig = Readonly<{ drainBoundMs?: number }>
 
 type ConfigResult<T> =
@@ -91,8 +96,9 @@ type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
 
 /**
  * The `executionEnvironment` Service backed by the Cordis-free registry. Recovery asks the
- * `executionRecoveryAuthority` service read at the time of each recovery operation; without one,
- * recovery is `unavailable`. On unload it closes the registry: new leases are refused first, then
+ * `executionRecoveryAuthority` service, and ordinary access asks the `executionEnvironmentAuthority`
+ * and `executionScopeBinding` services, each read from this Service's own load context at the time
+ * of each use; without one, the answer is `unavailable`, never a pass. On unload it closes the registry: new leases are refused first, then
  * every provider retires. The unload itself always completes. When the close is pending, the
  * removal throws `RetirementPending` with the resources not yet stopped, and Cordis writes that
  * error to `ctx.logger`; the unload does not fail.
@@ -111,7 +117,26 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
         return authority.authorizeRecovery(access, scope, resources)
       },
     }
-    const registry = createEnvironmentRegistry<P>({ recovery })
+    const authority: EnvironmentAuthority<P> = {
+      async authorize(access, action) {
+        const port = ctx.get(executionEnvironmentAuthorityKey)
+        if (port === undefined) return { kind: 'unavailable' }
+        const decision = await port.authorize(access, action)
+        // The Context property carries an unknown principal; the registry reads only the kind and
+        // the current() premise, so the principal is restated as the caller's.
+        return decision.kind === 'authorized'
+          ? { kind: 'authorized', principal: access.principal, current: () => decision.current() }
+          : decision
+      },
+    }
+    const bindings: ScopeBindingSource = {
+      async lookup(scope) {
+        const source = ctx.get(executionScopeBindingKey)
+        if (source === undefined) return { kind: 'unavailable' }
+        return source.lookup(scope)
+      },
+    }
+    const registry = createEnvironmentRegistry<P>({ recovery, authority, bindings })
     this.registry = registry
     ctx.effect(
       () => async () => {
@@ -135,6 +160,11 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
     ...args: Operation<P, 'inspectAcquisition'>['args']
   ): Operation<P, 'inspectAcquisition'>['result'] {
     return this.registry.inspectAcquisition(...args)
+  }
+  protected onInspectRecoveryAcquisition(
+    ...args: Operation<P, 'inspectRecoveryAcquisition'>['args']
+  ): Operation<P, 'inspectRecoveryAcquisition'>['result'] {
+    return this.registry.inspectRecoveryAcquisition(...args)
   }
   protected onDescribe(
     ...args: Operation<P, 'describe'>['args']
@@ -191,21 +221,26 @@ export const filesFacilityPlugin = {
 }
 
 /**
- * Registers one host files provider on the loading fiber. The `files` declaration comes from
- * `filesFacilityPlugin`; without it, acquisitions that need `files` are refused. `drainBoundMs`
- * bounds how long the provider's retirement waits for file operations in flight; a retirement past
- * the bound is pending and writes one error with the count still in flight to `ctx.logger`.
+ * Makes the plugin that registers one host files provider of `domain` on the loading fiber. The
+ * process host creates the domain once and keeps it; unloading the plugin retires the provider
+ * generation, not the domain, so a reloaded plugin sees the original quota use and acquisitions.
+ * The `files` declaration comes from `filesFacilityPlugin`; without it, acquisitions that need
+ * `files` are refused. `drainBoundMs` bounds how long a release, a settlement or the retirement
+ * waits for file operations in flight; a pending result writes one error to `ctx.logger`.
  */
-export const hostFilesPlugin = {
-  name: 'hostFiles',
-  Config: hostFilesConfig,
-  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
-  apply(ctx: Context, config: HostFilesConfig = {}) {
-    const logger = ctx.logger('executionEnvironment.hostFiles')
-    const options: HostFilesProviderOptions = {
-      ...config,
-      diagnose: diagnostic => logger.error(diagnostic),
-    }
-    ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
-  },
+export function createHostFilesPlugin(domain: HostFilesDomain) {
+  return {
+    name: 'hostFiles',
+    Config: hostFilesConfig,
+    inject: { [executionEnvironmentKey]: { caller: 'provider' } },
+    apply(ctx: Context, config: HostFilesConfig = {}) {
+      const logger = ctx.logger('executionEnvironment.hostFiles')
+      const options: HostFilesProviderOptions = {
+        ...config,
+        domain,
+        diagnose: diagnostic => logger.error(diagnostic),
+      }
+      ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
+    },
+  }
 }

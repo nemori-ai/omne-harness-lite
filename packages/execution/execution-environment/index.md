@@ -5,7 +5,7 @@
 ## 包根
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
-- [SPEC.md](SPEC.md)：表与视图、获取、逐操作门、释放、退役、恢复、关闭与明确缺项
+- [SPEC.md](SPEC.md)：表与视图、访问核验、获取、查询、逐操作门、释放、退役、恢复、关闭与明确缺项
 - `documentation.json`：本成员的文档登记
 - `package.json`：根入口、脚本与依赖
 - `vitest.config.ts`、`tsconfig.build.json`、`tsconfig.test.json`：测试与构建配置
@@ -13,7 +13,7 @@
 ## 目录
 
 - [docs/](docs/index.md)：架构、流程、对象模型、公开接口、使用与定位，以及 Cordis 不适用的理由
-- [src/](src/index.md)：工厂与三个模块
+- [src/](src/index.md)：工厂与六个模块
 - [tests/](tests/index.md)：入口测试、登记表测试与固定输入
 - [schema/](schema/index.md)：现在为空，本成员不发布 Schema
 - [verification/](verification/index.md)：模型与证明，现在为空

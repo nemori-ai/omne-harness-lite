@@ -1,7 +1,14 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { RejectedUpdate } from './reduce.js'
 import type { RegistrationRejection } from './judge.js'
-import type { ScopeRef, ContextBlockKey, CommitRef, StepRef, RegistrationRevision, ViewRevision } from './shared.js'
+import type {
+  ScopeRef,
+  ContextBlockKey,
+  CommitRef,
+  StepRef,
+  RegistrationRevision,
+  ViewRevision,
+} from './shared.js'
 import type { RegistrationChange } from './registration.js'
 import type { CheckUnavailable, CheckUnknown } from './authority.js'
 
@@ -28,7 +35,11 @@ export type ReplayMaterial = Readonly<{
   /** Every registration commit of the scope in durable order, removals included. */
   registrations: readonly Readonly<{ commit: CommitRef; change: RegistrationChange }>[]
   /** Each checkpointed block of the final registration exactly once, grouped by original commit and step. */
-  checkpoints: readonly Readonly<{ commit: CommitRef; step: StepRef; blocks: readonly ReplayBlock[] }>[]
+  checkpoints: readonly Readonly<{
+    commit: CommitRef
+    step: StepRef
+    blocks: readonly ReplayBlock[]
+  }>[]
   /** The confirmed scope end up to the checkpoint, or null. */
   end: Readonly<{ commit: CommitRef }> | null
 }>
@@ -47,7 +58,10 @@ export type AppliedCommit = Readonly<{ commit: CommitRef; digest: string }>
 
 export type BeginReplayResult =
   | Readonly<{ kind: 'replaying'; replay: ReplayRef }>
-  | Readonly<{ kind: 'invalid'; reason: 'checkpoint-conflict' | 'replay-conflict' | 'malformed-input' }>
+  | Readonly<{
+      kind: 'invalid'
+      reason: 'checkpoint-conflict' | 'replay-conflict' | 'malformed-input'
+    }>
   | Readonly<{ kind: 'refused'; reason: 'unauthorized' | 'closed' | 'callerMismatch' }>
   | CheckUnavailable
   | CheckUnknown

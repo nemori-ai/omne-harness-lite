@@ -65,4 +65,3 @@ export async function addScope<P>(s: Setup<P>, ref: string, required = false): P
   assert.equal(added.kind, 'applied')
   return other
 }
-

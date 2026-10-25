@@ -82,12 +82,20 @@ export function ownCommit(input: CommitInput): CommitInput | undefined {
   if (input.kind === 'scope') {
     const scope = ownScope(input.scope)
     return scope && input.scopeEnded === true
-      ? { kind: 'scope', commit: { commit: input.commit.commit }, scope, tenant: input.tenant, scopeEnded: true }
+      ? {
+          kind: 'scope',
+          commit: { commit: input.commit.commit },
+          scope,
+          tenant: input.tenant,
+          scopeEnded: true,
+        }
       : undefined
   }
   if (input.kind === 'registration') {
     const change = ownChange(input.change)
-    return change ? { kind: 'registration', commit: { commit: input.commit.commit }, change, ...end } : undefined
+    return change
+      ? { kind: 'registration', commit: { commit: input.commit.commit }, change, ...end }
+      : undefined
   }
   const scope = ownScope(input.stepCommit.scope)
   const committed = ownData(input.stepCommit.committed)
@@ -113,7 +121,8 @@ export function ownCommit(input: CommitInput): CommitInput | undefined {
 }
 
 function commitTarget(input: CommitInput): { scope: ScopeRef; tenant: TenantId } {
-  if (input.kind === 'registration') return { scope: input.change.scope, tenant: input.change.tenant }
+  if (input.kind === 'registration')
+    return { scope: input.change.scope, tenant: input.change.tenant }
   if (input.kind === 'step') return { scope: input.stepCommit.scope, tenant: input.tenant }
   return { scope: input.scope, tenant: input.tenant }
 }
@@ -126,7 +135,13 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     if (world.closed) return { kind: 'refused', reason: 'closed' }
     const change = ownChange(raw)
     if (!change) return { kind: 'refused', reason: 'unauthorized' }
-    const gate = await holderGate(world, principal, { kind: 'prepare', change }, change.scope, change.tenant)
+    const gate = await holderGate(
+      world,
+      principal,
+      { kind: 'prepare', change },
+      change.scope,
+      change.tenant,
+    )
     if (isGateFailure(gate)) return gate
     const s = world.state(change.scope)
     if (s?.ended) return { kind: 'refused', reason: 'scope-ended' }
@@ -173,7 +188,13 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
       bindings: raw.bindings.map(binding => ({ key: binding.key, need: binding.need })),
       registrationRevision: raw.registrationRevision,
     }
-    const gate = await holderGate(world, principal, { kind: 'issue', material }, scope, material.tenant)
+    const gate = await holderGate(
+      world,
+      principal,
+      { kind: 'issue', material },
+      scope,
+      material.tenant,
+    )
     if (isGateFailure(gate)) return gate
     const s = world.state(scope)
     if (s?.ended) return { kind: 'refused', reason: 'scope-ended' }
@@ -188,12 +209,18 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     if (material.supersedes) {
       const old = world.eligibilities.get(material.supersedes.eligibility)
       if (old)
-        world.eligibilities.set(old.id.eligibility, { ...old, state: { kind: 'superseded', by: id } })
+        world.eligibilities.set(old.id.eligibility, {
+          ...old,
+          state: { kind: 'superseded', by: id },
+        })
     }
     return { kind: 'issued', eligibility }
   }
 
-  async function revokeEligibility(principal: P, raw: EligibilityId): Promise<RevokeEligibilityResult> {
+  async function revokeEligibility(
+    principal: P,
+    raw: EligibilityId,
+  ): Promise<RevokeEligibilityResult> {
     if (world.closed) return { kind: 'refused', reason: 'closed' }
     const id = { eligibility: raw.eligibility }
     const decided = await world.decide(() =>
@@ -245,7 +272,9 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     if (s.ended) return { kind: 'refused', reason: 'scope-ended' }
     const target = s
     const prepared =
-      input.kind === 'registration' ? prepareRegistrationCommit(input.change, target) : prepareStep(input, target)
+      input.kind === 'registration'
+        ? prepareRegistrationCommit(input.change, target)
+        : prepareStep(input, target)
     if ('kind' in prepared) return prepared
     if (!gate.current()) return { kind: 'refused', reason: 'unauthorized' }
     if (world.state(scope) !== target || target.fence !== 'open' || target.ended)
@@ -284,7 +313,9 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     if ('failure' in judged)
       return {
         kind: 'invalid',
-        reason: judged.failure.some(r => r.reason === 'tenant-mismatch') ? 'tenant-mismatch' : 'registration',
+        reason: judged.failure.some(r => r.reason === 'tenant-mismatch')
+          ? 'tenant-mismatch'
+          : 'registration',
         current: s.revision,
         rejections: judged.failure,
       }
@@ -308,10 +339,18 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
       current: key => s.values.get(key)?.value,
     })
     if (reduced.rejected.length)
-      return { kind: 'invalid', reason: 'rejected-update', current: s.revision, rejected: reduced.rejected }
+      return {
+        kind: 'invalid',
+        reason: 'rejected-update',
+        current: s.revision,
+        rejected: reduced.rejected,
+      }
     for (const block of input.stepCommit.committed) {
       const material = reduced.committed.find(item => item.key === block.key)
-      if (block.updates.length > 0 && (!material || !isDeepStrictEqual(material.value, block.value)))
+      if (
+        block.updates.length > 0 &&
+        (!material || !isDeepStrictEqual(material.value, block.value))
+      )
         return { kind: 'invalid', reason: 'rejected-update', current: s.revision }
       const d = world.descriptors.get(block.key)
       if (d?.kind !== 'stateful' || validate(d.schema, block.value).length)
@@ -319,7 +358,8 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     }
     return {
       apply: () => {
-        for (const block of input.stepCommit.committed) world.put(s, block.key, block.value, null, true)
+        for (const block of input.stepCommit.committed)
+          world.put(s, block.key, block.value, null, true)
         if (input.executionEnded)
           for (const [key, d] of world.descriptors)
             if (d.kind === 'stateful' && d.persistence === 'untracked' && s.registrations.has(key))
@@ -332,7 +372,8 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
 }
 
 export function storeRegistration<P>(world: World<P>, change: RegistrationChange, s: ScopeState) {
-  if (change.kind === 'add' && change.declaration) world.descriptors.set(change.key, change.declaration)
+  if (change.kind === 'add' && change.declaration)
+    world.descriptors.set(change.key, change.declaration)
   s.revision++
   s.epoch++
   world.targetsVersion++
@@ -350,7 +391,10 @@ export function storeRegistration<P>(world: World<P>, change: RegistrationChange
     key: change.key,
     bindings: change.bindings,
     parameters: change.parameters,
-    required: change.kind === 'add' ? change.required : (s.registrations.get(change.key)?.required ?? false),
+    required:
+      change.kind === 'add'
+        ? change.required
+        : (s.registrations.get(change.key)?.required ?? false),
     revision: s.revision,
   })
 }

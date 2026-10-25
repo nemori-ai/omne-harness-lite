@@ -131,7 +131,12 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
     }
     const key = recordKey(original)
     if (key === undefined) return
-    records.set(key, { original, lease: receipt.lease, evidence: receipt.evidence, state: 'acquired' })
+    records.set(key, {
+      original,
+      lease: receipt.lease,
+      evidence: receipt.evidence,
+      state: 'acquired',
+    })
   }
   function lookup(original: OriginalAcquisition): HeldRecord | 'conflict' | undefined {
     const key = recordKey(original)
@@ -415,6 +420,8 @@ export function createScriptedScopeBindings(): ScriptedScopeBindings {
 }
 
 export type ScriptedFacilityGuard<P> = ReturnType<typeof createScriptedFacilityGuard<P>>
-export type ScriptedEnvironmentAuthority<P> = ReturnType<typeof createScriptedEnvironmentAuthority<P>>
+export type ScriptedEnvironmentAuthority<P> = ReturnType<
+  typeof createScriptedEnvironmentAuthority<P>
+>
 
 export type ScriptedRecoveryAuthority = ReturnType<typeof createScriptedRecoveryAuthority>

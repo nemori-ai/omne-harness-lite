@@ -1,6 +1,11 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef, ContextBlockKey, CommitRef, ProducerRef } from './shared.js'
-import type { RegistrationChange, EligibilityId, Eligibility, EligibilityMaterial } from './registration.js'
+import type {
+  RegistrationChange,
+  EligibilityId,
+  Eligibility,
+  EligibilityMaterial,
+} from './registration.js'
 import type { CommitInput } from './operations.js'
 import type { ReplayRef, ReplayMaterial, ReplayPrevious, AppliedCommit } from './replay.js'
 
@@ -56,7 +61,10 @@ export type FinishReplayAction = Readonly<{
   appliedCommits: readonly AppliedCommit[]
 }>
 
-export type HolderAction<P = unknown> = OrdinaryHolderAction<P> | BeginReplayAction | FinishReplayAction
+export type HolderAction<P = unknown> =
+  | OrdinaryHolderAction<P>
+  | BeginReplayAction
+  | FinishReplayAction
 
 /**
  * `invalid` is valid only for the two replay actions, after the target authorization is confirmed.

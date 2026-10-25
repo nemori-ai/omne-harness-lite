@@ -9,13 +9,21 @@
 - `Access` · 包 `@omne-harness/legal-identity`
 - `AcquireInput` · `environment.d.ts`
 - `Acquired` · `lease.d.ts`
+- `AcquisitionInspection` · `lease.d.ts`
+- `AcquisitionListing` · `environment.d.ts`
+- `AcquisitionQuery` · `lease.d.ts`
 - `AcquisitionRef` · `identity.d.ts`
+- `AcquisitionSettlement` · `environment.d.ts`
 - `AcquisitionState` · `lease.d.ts`
+- `AllocationCleanup` · `lease.d.ts`
+- `AllocationFailed` · `lease.d.ts`
 - `BindingKind` · `binding.d.ts`
 - `CommandFacility` · `facilities/command.d.ts`
 - `CommandOutcome` · `facilities/command.d.ts`
 - `DecodeIssue` = `Issue` · `decode.d.ts`
+- `EnvironmentAction` · `environment.d.ts`
 - `EnvironmentAdoption` · `lease.d.ts`
+- `EnvironmentAuthority` · `environment.d.ts`
 - `EnvironmentBinding` · `binding.d.ts`
 - `EnvironmentContinuity` · `binding.d.ts`
 - `EnvironmentDescription` · `environment.d.ts`
@@ -52,11 +60,14 @@
 - `IsolationClaims` · `requirement.d.ts`
 - `LeaseInvalidation` · `lease.d.ts`
 - `LeaseRelease` · `lease.d.ts`
+- `LookupUnknown` · `lease.d.ts`
 - `ManagedResource` · `ports.d.ts`
 - `ObjectToken` · `facilities/files.d.ts`
 - `OperationName` · `operation-schemas.d.ts`
 - `OperationSchema` · `operation-schemas.d.ts`
 - `OriginRef` · `identity.d.ts`
+- `OriginalAcquisition` · `lease.d.ts`
+- `OriginalInspection` · `lease.d.ts`
 - `OutputChunk` · `facilities/command.d.ts`
 - `OutputCount` · `facilities/command.d.ts`
 - `OutputPolicy` · `facilities/command.d.ts`
@@ -69,13 +80,17 @@
 - `ProcessHandle` · `facilities/command.d.ts`
 - `ProviderAcquireInput` · `environment.d.ts`
 - `ProviderAcquisition` · `environment.d.ts`
+- `ProviderAcquisitionStatus` · `environment.d.ts`
 - `ProviderCapabilities` · `judge.d.ts`
 - `ProviderFacts` · `environment.d.ts`
 - `ProviderIdentity` · `lease.d.ts`
 - `ProviderMatch` · `judge.d.ts`
+- `ProviderQuota` · `environment.d.ts`
 - `ProviderRegistrations` · `environment.d.ts`
+- `QuotaAnswer` · `environment.d.ts`
 - `RecoveryAccess` · `ports.d.ts`
 - `RecoveryAuthority` · `ports.d.ts`
+- `RecoveryInspection` · `lease.d.ts`
 - `RecoveryListing` · `environment.d.ts`
 - `RegistryInvalidationReason` · `lease.d.ts`
 - `RejectReason` · `lease.d.ts`
@@ -87,6 +102,7 @@
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
+- `UnknownAcquisition` · `lease.d.ts`
 - `UnsupportedRecovery` · `environment.d.ts`
 - `acquireParamsSchema` · `operation-schemas.d.ts`
 - `acquireResultSchema` · `operation-schemas.d.ts`
@@ -105,11 +121,14 @@
 - `filesFacility` · `facilities/files.d.ts`
 - `inspectAcquisitionParamsSchema` · `operation-schemas.d.ts`
 - `inspectAcquisitionResultSchema` · `operation-schemas.d.ts`
+- `inspectRecoveryAcquisitionParamsSchema` · `operation-schemas.d.ts`
+- `inspectRecoveryAcquisitionResultSchema` · `operation-schemas.d.ts`
 - `judgeRequirement` · `judge.d.ts`
 - `managedResourceSchema` · `operation-schemas.d.ts`
 - `matchProviders` · `judge.d.ts`
 - `operationSchemas` · `operation-schemas.d.ts`
 - `originRef` · `identity.d.ts`
+- `originalAcquisitionSchema` · `operation-schemas.d.ts`
 - `providerFactsSchema` · `operation-schemas.d.ts`
 - `recoverOwnedParamsSchema` · `operation-schemas.d.ts`
 - `recoverOwnedResultSchema` · `operation-schemas.d.ts`
@@ -125,20 +144,26 @@
 
 - `CaseVerdict` · `testing/case.d.ts`
 - `ConformanceCase` · `testing/case.d.ts`
+- `EnvironmentAuthorityScript` · `testing/doubles.d.ts`
 - `EnvironmentConformanceOptions` · `testing/environment-conformance.d.ts`
+- `EnvironmentConformancePorts` · `testing/environment-conformance.d.ts`
 - `EnvironmentConformanceSubject` · `testing/environment-conformance.d.ts`
 - `MemoryResourceLedger` · `testing/doubles.d.ts`
 - `NotApplicable` · `testing/case.d.ts`
 - `ProviderConformanceOptions` · `testing/provider-conformance.d.ts`
 - `ProviderConformanceSubject` · `testing/provider-conformance.d.ts`
 - `ProviderScript` · `testing/doubles.d.ts`
+- `ScriptedEnvironmentAuthority` · `testing/doubles.d.ts`
 - `ScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `ScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
+- `ScriptedScopeBindings` · `testing/doubles.d.ts`
 - `createMemoryResourceLedger` · `testing/doubles.d.ts`
+- `createScriptedEnvironmentAuthority` · `testing/doubles.d.ts`
 - `createScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `createScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
+- `createScriptedScopeBindings` · `testing/doubles.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
 - `executionEnvironmentConformance` · `testing/environment-conformance.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
@@ -270,11 +295,11 @@ export declare function standardSchema<T>(decode: Decoder<T>): StandardSchemaV1<
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ScopeRef } from '@omne-harness/runtime-context-contract';
+import type { AuthorityDecision, ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
 import type { FacilityDescriptor, FacilityKey } from './facility.ts';
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts';
-import type { AcquisitionState, Acquired, EnvironmentLease, InstanceIdentity, Pending, Placement, ProviderIdentity, Rejected } from './lease.ts';
+import type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationFailed, EnvironmentLease, InstanceIdentity, LookupUnknown, OriginalAcquisition, Pending, Placement, ProviderIdentity, RecoveryInspection, Rejected, UnknownAcquisition } from './lease.ts';
 import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger } from './ports.ts';
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts';
 export type PlatformFacts = Readonly<{
@@ -302,7 +327,10 @@ export type ProviderAcquisition = Readonly<{
     kind: 'acquired';
     lease: EnvironmentLease;
     evidence: JsonValue;
-}> | Rejected;
+}> | Rejected | Readonly<{
+    kind: 'unknown';
+    acquisition: AcquisitionRef;
+}>;
 export type RecoveryListing = Readonly<{
     kind: 'listed';
     resources: readonly ManagedResource[];
@@ -319,16 +347,77 @@ export type Retirement = Readonly<{
     kind: 'pending';
     resources: readonly ManagedResource[];
 }>;
+export type ProviderQuota = Readonly<{
+    unit: 'unsettled-acquisition';
+    perTenant: number;
+    global: number | null;
+}>;
+export type QuotaAnswer = Readonly<{
+    kind: 'declared';
+    quota: ProviderQuota;
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
+export type ProviderAcquisitionStatus = Readonly<{
+    kind: 'acquired';
+    lease: EnvironmentLease;
+    evidence: JsonValue;
+}> | Readonly<{
+    kind: 'pending';
+    phase: 'acquiring' | 'provisional' | 'releasing';
+    resources: readonly ManagedResource[];
+}> | Readonly<{
+    kind: 'notAllocated';
+}> | Readonly<{
+    kind: 'settled';
+}> | Readonly<{
+    kind: 'conflict';
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
+export type AcquisitionListing = Readonly<{
+    kind: 'listed';
+    acquisitions: readonly OriginalAcquisition[];
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
+export type AcquisitionSettlement = Readonly<{
+    kind: 'settled';
+}> | Readonly<{
+    kind: 'notAllocated';
+}> | Readonly<{
+    kind: 'pending';
+    resources: readonly ManagedResource[];
+}> | Readonly<{
+    kind: 'unsupported';
+}> | Readonly<{
+    kind: 'conflict';
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
 export interface EnvironmentProvider {
     readonly name: string;
     readonly generation: string;
     readonly version: string;
+    readonly quotaDomain: string;
     readonly bindingKinds: readonly BindingKind[];
     readonly continuity: EnvironmentContinuity;
     readonly facilities: readonly FacilityKey[];
     readonly isolation: readonly IsolationClaim[];
     describe(): Promise<ProviderFacts>;
+    quota(tenant: TenantId): Promise<QuotaAnswer>;
     acquire(input: ProviderAcquireInput): Promise<ProviderAcquisition>;
+    inspectAcquisition(original: OriginalAcquisition): Promise<ProviderAcquisitionStatus>;
+    listAcquisitions(scope: ScopeRef): Promise<AcquisitionListing>;
+    settleAcquisition(original: OriginalAcquisition): Promise<AcquisitionSettlement>;
     listRecoveryResources?(scope: ScopeRef): Promise<RecoveryListing>;
     recover?(resource: ManagedResource): Promise<ResourceRecovery>;
     retire(): Promise<Retirement>;
@@ -341,7 +430,7 @@ export type EnvironmentDescription = Readonly<{
     instance: InstanceIdentity;
     continuity: EnvironmentContinuity;
     facilities: readonly FacilityKey[];
-    state: Exclude<AcquisitionState['kind'], 'invalidInput'>;
+    state: AcquisitionState['kind'];
 }>;
 export type UnsupportedRecovery = Readonly<{
     kind: 'provider';
@@ -357,6 +446,16 @@ export type OwnedRecovery = Readonly<{
     pending: readonly ManagedResource[];
     unsupported: readonly UnsupportedRecovery[];
     unavailable: readonly ProviderIdentity[];
+    settledAcquisitions: readonly Readonly<{
+        original: OriginalAcquisition;
+        outcome: 'settled' | 'notAllocated';
+    }>[];
+    pendingAcquisitions: readonly Readonly<{
+        original: OriginalAcquisition;
+        reason: 'pending' | 'unknown';
+        resources: readonly ManagedResource[];
+    }>[];
+    unsupportedAcquisitions: readonly OriginalAcquisition[];
 }>;
 export type PlacementInput = Readonly<{
     scope: ScopeRef;
@@ -370,13 +469,34 @@ export type AcquireInput<P> = Readonly<{
     ledger: ResourceLedger;
     guard: FacilityGuard<P>;
 }>;
+export type EnvironmentAction = Readonly<{
+    kind: 'resolve';
+    scope: ScopeRef;
+}> | Readonly<{
+    kind: 'acquire';
+    original: OriginalAcquisition;
+}> | Readonly<{
+    kind: 'inspect';
+    tenant: TenantId;
+    acquisition: AcquisitionRef;
+}> | Readonly<{
+    kind: 'inspect-original';
+    original: OriginalAcquisition;
+}> | Readonly<{
+    kind: 'describe';
+    scope: ScopeRef;
+}>;
+export interface EnvironmentAuthority<P> {
+    authorize(access: Access<P>, action: EnvironmentAction): Promise<AuthorityDecision<P>>;
+}
 export interface ExecutionEnvironment<P> {
-    resolvePlacement(access: Access<P>, input: PlacementInput): Promise<Placement | Rejected>;
-    acquire(access: Access<P>, input: AcquireInput<P>): Promise<Acquired | Pending | Rejected>;
-    inspectAcquisition(access: Access<P>, acquisition: AcquisitionRef): Promise<AcquisitionState>;
-    describe(access: Access<P>, scope: ScopeRef): Promise<readonly EnvironmentDescription[] | Rejected>;
-    recoverOwned(scope: ScopeRef, access: RecoveryAccess): Promise<OwnedRecovery | Rejected>;
-    releaseScope(scope: ScopeRef, access: RecoveryAccess): Promise<OwnedRecovery | Rejected>;
+    resolvePlacement(access: Access<P>, input: PlacementInput): Promise<Placement | Rejected | LookupUnknown>;
+    acquire(access: Access<P>, input: AcquireInput<P>): Promise<Acquired | Pending | Rejected | AllocationFailed | UnknownAcquisition>;
+    inspectAcquisition(access: Access<P>, query: AcquisitionQuery): Promise<AcquisitionInspection>;
+    inspectRecoveryAcquisition(access: RecoveryAccess, original: OriginalAcquisition): Promise<RecoveryInspection>;
+    describe(access: Access<P>, scope: ScopeRef): Promise<readonly EnvironmentDescription[] | Rejected | LookupUnknown>;
+    recoverOwned(scope: ScopeRef, access: RecoveryAccess, known?: readonly OriginalAcquisition[]): Promise<OwnedRecovery | Rejected | LookupUnknown>;
+    releaseScope(scope: ScopeRef, access: RecoveryAccess, known?: readonly OriginalAcquisition[]): Promise<OwnedRecovery | Rejected | LookupUnknown>;
 }
 export interface ProviderRegistrations {
     registerFacility<K extends FacilityKey>(descriptor: FacilityDescriptor<K>): () => Promise<void>;
@@ -721,8 +841,8 @@ export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
 export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, } from './ports.ts';
-export type { AcquisitionState, Acquired, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
-export type { AcquireInput, EnvironmentDescription, EnvironmentProvider, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
+export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
+export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
 export type { EnvironmentNeedDeclaration } from './need-declaration.ts';
 export { executionHostFactsBlock, executionPlacementBlock } from './blocks.ts';
@@ -730,7 +850,7 @@ export type { ExecutionHostFactsValue, ExecutionPlacementEntry, ExecutionPlaceme
 export { judgeRequirement, matchProviders } from './judge.ts';
 export type { ProviderCapabilities, ProviderMatch, RequirementRefusal } from './judge.ts';
 export type { Issue as DecodeIssue } from './decode.ts';
-export { resolvePlacementParamsSchema, acquireParamsSchema, inspectAcquisitionParamsSchema, describeParamsSchema, recoverOwnedParamsSchema, releaseScopeParamsSchema, registerFacilityParamsSchema, registerProviderParamsSchema, resolvePlacementResultSchema, acquireResultSchema, inspectAcquisitionResultSchema, describeResultSchema, recoverOwnedResultSchema, releaseScopeResultSchema, operationSchemas, providerFactsSchema, managedResourceSchema, } from './operation-schemas.ts';
+export { resolvePlacementParamsSchema, acquireParamsSchema, inspectAcquisitionParamsSchema, inspectRecoveryAcquisitionParamsSchema, describeParamsSchema, recoverOwnedParamsSchema, releaseScopeParamsSchema, registerFacilityParamsSchema, registerProviderParamsSchema, resolvePlacementResultSchema, acquireResultSchema, inspectAcquisitionResultSchema, inspectRecoveryAcquisitionResultSchema, describeResultSchema, recoverOwnedResultSchema, releaseScopeResultSchema, operationSchemas, providerFactsSchema, managedResourceSchema, originalAcquisitionSchema, } from './operation-schemas.ts';
 export type { OperationSchema, OperationName } from './operation-schemas.ts';
 export type { HostDate } from './blocks.ts';
 ```
@@ -764,6 +884,8 @@ export declare function judgeRequirement(value: unknown): Outcome<EnvironmentReq
 import type { JsonValue } from '@omne-harness/json-text';
 import type { EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
 import type { EnvironmentFacilities, FacilityKey } from './facility.ts';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { AcquisitionRef, OriginRef } from './identity.ts';
 import type { ManagedResource } from './ports.ts';
 import type { EnvironmentRequirement } from './requirement.ts';
@@ -776,7 +898,7 @@ export type InstanceIdentity = Readonly<{
     id: string;
     generation: string;
 }>;
-export type RejectReason = 'notAuthorized' | 'noMatchingEnvironment' | 'missingFacility' | 'unsupportedFacility' | 'isolationUnconfirmed' | 'referenceExpired' | 'providerUnavailable' | 'ownerStopped' | 'invalidInput' | 'unavailable' | 'ambiguousEnvironment' | 'callerMismatch';
+export type RejectReason = 'notAuthorized' | 'noMatchingEnvironment' | 'missingFacility' | 'unsupportedFacility' | 'isolationUnconfirmed' | 'referenceExpired' | 'providerUnavailable' | 'ownerStopped' | 'invalidInput' | 'unavailable' | 'ambiguousEnvironment' | 'callerMismatch' | 'quotaExceeded' | 'globalCapacityExceeded' | 'recoveryUnready' | 'acquisitionConflict' | 'allocationNotPerformed';
 export type Rejected = Readonly<{
     kind: 'rejected';
     reason: RejectReason;
@@ -787,6 +909,7 @@ export type Placement = Readonly<{
     binding: EnvironmentBinding;
     provider: ProviderIdentity;
     continuity: EnvironmentContinuity;
+    quotaDomain: string;
 }>;
 export type RegistryInvalidationReason = 'providerRetired' | 'scopeReleased' | 'registryClosed' | 'released' | 'providerInvalidated';
 export type LeaseInvalidation = {
@@ -820,11 +943,14 @@ export type EnvironmentAdoption = Readonly<{
     continuity: EnvironmentContinuity;
     evidence: JsonValue;
 }>;
+export type AllocationCleanup = Readonly<{
+    kind: 'settled';
+}> | Readonly<{
+    kind: 'pending';
+}> | Readonly<{
+    kind: 'unknown';
+}>;
 export type AcquisitionState = {
-    readonly kind: 'unrecorded';
-} | {
-    readonly kind: 'invalidInput';
-} | {
     readonly kind: 'acquiring';
 } | {
     readonly kind: 'provisional';
@@ -834,6 +960,10 @@ export type AcquisitionState = {
 } | {
     readonly kind: 'rejected';
     readonly reason: RejectReason;
+} | {
+    readonly kind: 'allocationFailed';
+    readonly reason: RejectReason;
+    readonly cleanup: AllocationCleanup;
 } | {
     readonly kind: 'invalidated';
     readonly adoption: EnvironmentAdoption;
@@ -848,6 +978,11 @@ export type AcquisitionState = {
 } | {
     readonly kind: 'released';
     readonly adoption: EnvironmentAdoption;
+} | {
+    readonly kind: 'allocationUnknown';
+    readonly acquisition: AcquisitionRef;
+} | {
+    readonly kind: 'settled';
 };
 export type Acquired = Readonly<{
     kind: 'acquired';
@@ -856,10 +991,84 @@ export type Acquired = Readonly<{
 }>;
 export type Pending = Readonly<{
     kind: 'pending';
-    state: Exclude<AcquisitionState, {
-        readonly kind: 'unrecorded' | 'invalidInput' | 'acquired' | 'rejected';
+    state: Extract<AcquisitionState, {
+        readonly kind: 'acquiring' | 'provisional' | 'invalidated' | 'releasing' | 'pendingRelease' | 'released' | 'settled';
     }>;
 }>;
+export type AllocationFailed = Readonly<{
+    kind: 'allocationFailed';
+    acquisition: AcquisitionRef;
+    reason: RejectReason;
+    cleanup: AllocationCleanup;
+}>;
+export type UnknownAcquisition = Readonly<{
+    kind: 'unknown';
+    acquisition: AcquisitionRef;
+    phase: 'preflight' | 'allocation';
+}>;
+export type LookupUnknown = Readonly<{
+    kind: 'unknown';
+    cause: 'authority' | 'scope-binding' | 'provider' | 'quota';
+}>;
+export type OriginalAcquisition = Readonly<{
+    tenant: TenantId;
+    acquisition: AcquisitionRef;
+    origin: OriginRef;
+    scope: ScopeRef;
+    placement: Placement;
+}>;
+export type AcquisitionQuery = Readonly<{
+    kind: 'local';
+    acquisition: AcquisitionRef;
+}> | Readonly<{
+    kind: 'original';
+    original: OriginalAcquisition;
+}>;
+type QueryCause = 'authority' | 'scope-binding' | 'provider';
+export type OriginalInspection = Readonly<{
+    kind: 'original';
+    status: 'allocated';
+    original: OriginalAcquisition;
+    adoption: EnvironmentAdoption | null;
+}> | Readonly<{
+    kind: 'original';
+    status: 'pending';
+    original: OriginalAcquisition;
+    adoption: EnvironmentAdoption | null;
+    phase: 'acquiring' | 'provisional' | 'releasing';
+    resources: readonly ManagedResource[];
+}> | Readonly<{
+    kind: 'original';
+    status: 'notAllocated' | 'settled' | 'conflict';
+    original: OriginalAcquisition;
+}> | Readonly<{
+    kind: 'original';
+    status: 'allocationFailed';
+    original: OriginalAcquisition;
+    reason: RejectReason;
+    cleanup: AllocationCleanup;
+}>;
+export type AcquisitionInspection = Readonly<{
+    kind: 'known';
+    state: AcquisitionState;
+}> | Readonly<{
+    kind: 'unrecorded';
+}> | Readonly<{
+    kind: 'invalidInput';
+}> | Readonly<{
+    kind: 'refused';
+    reason: 'notAuthorized' | 'callerMismatch';
+}> | Readonly<{
+    kind: 'queryUnavailable';
+    cause: QueryCause;
+}> | Readonly<{
+    kind: 'queryUnknown';
+    cause: QueryCause;
+}> | OriginalInspection;
+export type RecoveryInspection = Exclude<AcquisitionInspection, Readonly<{
+    kind: 'known' | 'unrecorded';
+}>>;
+export {};
 ```
 
 ## 声明文件 `need-declaration.d.ts`
@@ -890,11 +1099,13 @@ export declare const environmentNeedAdoption: Readonly<{
 import type { StandardTyped } from '@omne-harness/schema-provider';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { ExecutionEnvironment, EnvironmentProvider } from './environment.ts';
+import type { OriginalAcquisition } from './lease.ts';
 export type OperationSchema<T> = StandardSchemaV1<unknown, T> & StandardTyped<T>;
 export type OperationName = keyof ExecutionEnvironment<unknown> | 'registerFacility' | 'registerProvider';
 export declare const resolvePlacementParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['resolvePlacement']>>;
 export declare const acquireParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['acquire']>>;
 export declare const inspectAcquisitionParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['inspectAcquisition']>>;
+export declare const inspectRecoveryAcquisitionParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['inspectRecoveryAcquisition']>>;
 export declare const describeParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['describe']>>;
 export declare const recoverOwnedParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['recoverOwned']>>;
 export declare const releaseScopeParamsSchema: OperationSchema<Parameters<ExecutionEnvironment<unknown>['releaseScope']>>;
@@ -911,6 +1122,7 @@ export declare const registerProviderParamsSchema: OperationSchema<[
 export declare const resolvePlacementResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['resolvePlacement']>>>;
 export declare const acquireResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['acquire']>>>;
 export declare const inspectAcquisitionResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['inspectAcquisition']>>>;
+export declare const inspectRecoveryAcquisitionResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['inspectRecoveryAcquisition']>>>;
 export declare const describeResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['describe']>>>;
 export declare const recoverOwnedResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverOwned']>>>;
 export declare const releaseScopeResultSchema: OperationSchema<Awaited<ReturnType<ExecutionEnvironment<unknown>['releaseScope']>>>;
@@ -940,6 +1152,7 @@ export declare const managedResourceSchema: StandardSchemaV1<unknown, {
     readonly provider: string;
     readonly reference: import("@omne-harness/json-text").JsonValue;
 }>;
+export declare const originalAcquisitionSchema: OperationSchema<OriginalAcquisition>;
 type EnvironmentSchemas = {
     readonly [K in keyof ExecutionEnvironment<unknown>]: Readonly<{
         params: OperationSchema<Parameters<ExecutionEnvironment<unknown>[K]>>;
@@ -1030,17 +1243,26 @@ export declare function bounded<T>(promise: Promise<T>, ms: number): Promise<T>;
 ## 声明文件 `testing/doubles.d.ts`
 
 ```ts
-import type { EnvironmentProvider, EnvironmentFacilities, EnvironmentBinding, EnvironmentContinuity, FacilityGuard, FacilityKey, LeaseInvalidation, LeaseRelease, ManagedResource, ProviderAcquireInput, ProviderAcquisition, RecoveryAuthority, RecoveryListing, ResourceLedger, ResourceRecovery, Retirement } from '../index.ts';
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { AuthorityDecision, ScopeBinding, ScopeBindingSource, ScopeRef } from '@omne-harness/runtime-context-contract';
+import type { Access, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, OriginalAcquisition, ProviderAcquisitionStatus, QuotaAnswer, EnvironmentProvider, EnvironmentFacilities, EnvironmentBinding, EnvironmentContinuity, FacilityGuard, FacilityKey, LeaseInvalidation, LeaseRelease, ManagedResource, ProviderAcquireInput, ProviderAcquisition, RecoveryAuthority, RecoveryListing, ResourceLedger, ResourceRecovery, Retirement } from '../index.ts';
 export type ProviderScript = Readonly<{
     name?: string;
     generation?: string;
     version?: string;
+    quotaDomain?: string;
+    quota?: (tenant: TenantId) => Promise<QuotaAnswer>;
+    inspect?: (original: OriginalAcquisition) => Promise<ProviderAcquisitionStatus>;
+    list?: (scope: ScopeRef) => Promise<AcquisitionListing>;
+    settle?: (original: OriginalAcquisition) => Promise<AcquisitionSettlement>;
     bindingKinds?: EnvironmentProvider['bindingKinds'];
     continuity?: EnvironmentContinuity;
     facilities?: readonly FacilityKey[];
     isolation?: EnvironmentProvider['isolation'];
     lease?: Partial<EnvironmentFacilities>;
     acquire?: (input: ProviderAcquireInput) => Promise<ProviderAcquisition>;
+    beforeAcquire?: (input: ProviderAcquireInput) => void | Promise<void>;
+    afterAcquire?: (input: ProviderAcquireInput, receipt: ProviderAcquisition) => Promise<ProviderAcquisition>;
     receiptBinding?: EnvironmentBinding;
     extraReceiptFields?: Readonly<Record<string, unknown>>;
     release?: () => Promise<LeaseRelease>;
@@ -1059,6 +1281,10 @@ export declare function createScriptedEnvironmentProvider(script?: ProviderScrip
         start: number;
         list: number;
         recover: number;
+        quota: number;
+        inspect: number;
+        listAcquisitions: number;
+        settle: number;
     };
     invalidateLeases(value: LeaseInvalidation): void;
 };
@@ -1088,27 +1314,51 @@ export declare function createScriptedFacilityGuard<P>(answer?: 'authorized' | '
 export declare function createScriptedRecoveryAuthority(answer?: 'authorized' | 'notAuthorized' | 'unavailable'): RecoveryAuthority & {
     readonly durability: 'none';
 };
+export type EnvironmentAuthorityScript<P> = (access: Access<P>, action: EnvironmentAction) => AuthorityDecision<P> | undefined;
+export declare function createScriptedEnvironmentAuthority<P>(): EnvironmentAuthority<P> & {
+    durability: 'none';
+    calls: {
+        access: Access<P>;
+        action: EnvironmentAction;
+    }[];
+    script(next: EnvironmentAuthorityScript<P> | undefined): void;
+    revokeAll(): void;
+};
+export type ScriptedScopeBindings = ScopeBindingSource & Readonly<{
+    durability: 'none';
+    calls: readonly ScopeRef[];
+    bind(scope: ScopeRef, tenant: TenantId): void;
+    answer(scope: ScopeRef, binding: ScopeBinding): void;
+}>;
+export declare function createScriptedScopeBindings(): ScriptedScopeBindings;
 export type ScriptedFacilityGuard<P> = ReturnType<typeof createScriptedFacilityGuard<P>>;
+export type ScriptedEnvironmentAuthority<P> = ReturnType<typeof createScriptedEnvironmentAuthority<P>>;
 export type ScriptedRecoveryAuthority = ReturnType<typeof createScriptedRecoveryAuthority>;
 ```
 
 ## 声明文件 `testing/environment-conformance.d.ts`
 
 ```ts
-import { type Access, type ExecutionEnvironment, type ProviderRegistrations, type ProviderAcquireInput } from '../index.ts';
+import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract';
+import { type Access, type EnvironmentAuthority, type ExecutionEnvironment, type ProviderRegistrations, type ProviderAcquireInput, type RecoveryAccess } from '../index.ts';
 import { type ConformanceCase } from './case.ts';
+export type EnvironmentConformancePorts<P> = Readonly<{
+    authority: EnvironmentAuthority<P>;
+    bindings: ScopeBindingSource;
+}>;
 export type EnvironmentConformanceSubject<P> = Readonly<{
     environment: ExecutionEnvironment<P> & ProviderRegistrations;
     access: Access<P>;
     otherAccess?: Access<P>;
     scope: ProviderAcquireInput['scope'];
+    recoveryAccess?: RecoveryAccess;
     hooks?: {
         close?(): Promise<void>;
     };
     dispose?(): Promise<void>;
 }>;
 export type EnvironmentConformanceOptions<P> = Readonly<{
-    subject(): EnvironmentConformanceSubject<P> | Promise<EnvironmentConformanceSubject<P>>;
+    subject(ports: EnvironmentConformancePorts<P>): EnvironmentConformanceSubject<P> | Promise<EnvironmentConformanceSubject<P>>;
     waitMs?: number;
 }>;
 export declare function executionEnvironmentConformance<P>(options: EnvironmentConformanceOptions<P>): readonly ConformanceCase[];
@@ -1119,8 +1369,8 @@ export declare function executionEnvironmentConformance<P>(options: EnvironmentC
 ```ts
 export { NotApplicable, runConformanceCase, type ConformanceCase, type CaseVerdict, } from './case.ts';
 export { environmentProviderConformance, type ProviderConformanceOptions, type ProviderConformanceSubject, } from './provider-conformance.ts';
-export { executionEnvironmentConformance, type EnvironmentConformanceOptions, type EnvironmentConformanceSubject, } from './environment-conformance.ts';
-export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
+export { executionEnvironmentConformance, type EnvironmentConformanceOptions, type EnvironmentConformanceSubject, type EnvironmentConformancePorts, } from './environment-conformance.ts';
+export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, createScriptedEnvironmentAuthority, createScriptedScopeBindings, type EnvironmentAuthorityScript, type ScriptedEnvironmentAuthority, type ScriptedScopeBindings, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
 ```
 
 ## 声明文件 `testing/provider-conformance.d.ts`

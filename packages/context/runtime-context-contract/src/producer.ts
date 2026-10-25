@@ -23,7 +23,10 @@ export type SupplyInput<P = unknown> = Readonly<{ scope: ScopeRef; tenant: Tenan
 export type SupplyCallback<V, P = unknown> = (input: SupplyInput<P>) => Promise<SupplyAnswer<V>>
 
 /** One tenant's registration of one supplied block. The producer slot is tenant plus key (RC-07). */
-export type ProducerRegistration<K extends ContextBlockKey = ContextBlockKey, P = unknown> = Readonly<{
+export type ProducerRegistration<
+  K extends ContextBlockKey = ContextBlockKey,
+  P = unknown,
+> = Readonly<{
   key: K
   tenant: TenantId
   producer: ProducerRef

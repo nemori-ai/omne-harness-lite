@@ -85,7 +85,10 @@ export function runtimeContextConformance<P>(): readonly ConformanceCase<
 async function scopeIsolatedPublication<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const other = await addScope(s, 'other')
-  assert.equal((await s.handle.publish({ scope: other, tenant: s.tenant, value: 42 })).kind, 'published')
+  assert.equal(
+    (await s.handle.publish({ scope: other, tenant: s.tenant, value: 42 })).kind,
+    'published',
+  )
   const r = await s.reader.snapshot()
   assert.ok(r.kind === 'success')
   assert.equal(r.value.missing.length, 1)
@@ -93,10 +96,13 @@ async function scopeIsolatedPublication<P>(fixture: RuntimeContextFixture<P>) {
 
 async function crossTenantRefused<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
-  assert.deepEqual(await s.subject.issueEligibility(s.principal, { ...s.material, tenant: fixture.otherTenant }), {
-    kind: 'refused',
-    reason: 'unauthorized',
-  })
+  assert.deepEqual(
+    await s.subject.issueEligibility(s.principal, { ...s.material, tenant: fixture.otherTenant }),
+    {
+      kind: 'refused',
+      reason: 'unauthorized',
+    },
+  )
 }
 
 async function missingRequiredBlock<P>(fixture: RuntimeContextFixture<P>) {
@@ -109,7 +115,10 @@ async function missingRequiredBlock<P>(fixture: RuntimeContextFixture<P>) {
 async function publicationShape<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })
-  assert.equal((await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 'bad' })).kind, 'rejected')
+  assert.equal(
+    (await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 'bad' })).kind,
+    'rejected',
+  )
   const r = await s.reader.read([{ key: 'suite.value', need: 'value' }])
   assert.ok(r.kind === 'success')
   assert.deepEqual(r.value[0]?.kind === 'value' ? r.value[0].value : undefined, 1)
@@ -119,7 +128,10 @@ async function oldGenerationPublication<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const { p } = await replaceProducer(s)
   await p.handle.publish({ scope: s.scope, tenant: s.tenant, value: 2 })
-  assert.equal((await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })).kind, 'rejected')
+  assert.equal(
+    (await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })).kind,
+    'rejected',
+  )
   await s.handle.dispose()
   assert.equal(await snapshotValue(s.reader), 2)
 }
@@ -238,7 +250,11 @@ async function eligibilitySuperseded<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const before = await s.reader.snapshot()
   assert.ok(before.kind === 'success')
-  await s.subject.issueEligibility(s.principal, { ...s.material, supersedes: s.eligibility.id, keys: [] })
+  await s.subject.issueEligibility(s.principal, {
+    ...s.material,
+    supersedes: s.eligibility.id,
+    keys: [],
+  })
   assert.deepEqual(await s.reader.changes(before.value.cursor), { kind: 'cursor-invalidated' })
   const after = await s.reader.snapshot()
   assert.ok(after.kind === 'success')
@@ -262,7 +278,13 @@ async function cursorGenerationInvalidated<P>(fixture: RuntimeContextFixture<P>)
 
 async function optionalBlockNone<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
-  const s = await setup(subject, ports, fixture.tenant, fixture.principal, declaration({ required: false }))
+  const s = await setup(
+    subject,
+    ports,
+    fixture.tenant,
+    fixture.principal,
+    declaration({ required: false }),
+  )
   const r = await s.reader.snapshot()
   assert.ok(r.kind === 'success')
   assert.equal(r.value.blocks[0]?.state.kind, 'none')

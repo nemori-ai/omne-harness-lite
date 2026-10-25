@@ -70,7 +70,8 @@ sequenceDiagram
 | --- | --- | --- |
 | 声明调用方类 | 调用方类随调用方 fiber 存在，运行时不能改 | 对象形式仍是必需依赖，服务不在场时插件停在 `PENDING` |
 | 读取调用方类 | 每次调用从调用方 fiber 及祖先 intercept 读取 | 未声明时环境与恢复面放行；登记面必须明确为 provider。读数及边界见 [Cordis 说明](cordis.md#机制读数与假设) |
-| 核对恢复授权 | 每次恢复调用都核对 | 调用方类不代替恢复授权。端口失败按不可用拒绝 |
+| 核对恢复授权 | 每次恢复调用都核对 | 调用方类不代替恢复授权。端口抛出时恢复答 `LookupUnknown(authority)`；端口服务不在场时按不可用拒绝 |
+| 环境面的访问 | 每次普通调用从 Service 实现自己装载时的上下文现取环境授权与可信绑定两个端口服务 | 调用方类不代替访问核验；任一端口服务不在场时按不可用收场，不放行（性质 10） |
 
 ## 失败与生命周期
 
@@ -80,5 +81,6 @@ sequenceDiagram
 | 设施拥有者插件卸载 | 它的设施声明被撤除，新获取取不到这个键 | 服务实现验证 | [契约的设施协议](../../execution-environment-contract/SPEC.md#设施协议) |
 | 服务实现不在场 | `inject` 了本服务的插件停在 `PENDING` | 装配者 | [inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md) |
 | 服务实现换代 | `inject` 了本服务的插件体重跑，重新登记 | 各依赖方的插件体可重复执行 | [plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md) |
+| 端口服务卸载或换代 | 下一次调用现取到新提供方，或取不到而答不可用 | 装配入口 | [性质 9、10](../SPEC.md#结果与不变量) |
 | 服务撤除 | 关闭顺序与退役待处置的报告 | 服务实现 | [execution-environment-host-local SPEC](../../execution-environment-host-local/SPEC.md#所有权失败与生命周期) |
 | 运行 disposer | 不撤回外部效果，不丢弃受管资源的处置责任 | 受管资源的提供者与集成方账本 | [INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任) |

@@ -32,7 +32,7 @@ SPEC 点名由本目录承载三项内容：
 | [flows.md](flows.md) | F-EEC01 至 F-EEC09 九条协议级流程，以及共用的失败与生命周期规则 |
 | [object-model.md](object-model.md) | 角色、对象的身份与关系、获取、受管资源与设施请求的状态 |
 | [public-api.md](public-api.md) | 全部导出的索引，工具环境声明的 schema 与采用身份，两条块声明 |
-| [context.md](context.md) | 独立消费与经集成方消费、提供者与设施拥有者的做法、三个端口、邻域交接与 Tool 契约的适配映射 |
+| [context.md](context.md) | 独立消费与经集成方消费、提供者与设施拥有者的做法、五个端口、邻域交接与 Tool 契约的适配映射 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
 三面八操作 schema 与 `./testing` 套件已实现。设施自身逐操作 schema、块发布与生产者读口仍留后续，见 SPEC 的[明确缺项](../SPEC.md#明确缺项)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

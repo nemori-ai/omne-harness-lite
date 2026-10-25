@@ -34,7 +34,7 @@
 | --- | --- | --- | --- |
 | `Access` | 类型 | 访问身份：主体加租户。主体类型由集成方给出，执行环境只传递主体，租约只比较租户 | [INV-EE04](../SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[对象模型 身份](object-model.md#身份) |
 | `OriginRef` | 类型 | 不透明的原调用引用，资源与采用记录挂在它上面 | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
-| `AcquisitionRef` | 类型 | 集成方给一次获取的幂等键 | [获取与租约](../SPEC.md#获取与租约) |
+| `AcquisitionRef` | 类型 | 集成方给一次获取的获取键；登记表的槽是租户加获取键 | [获取与租约](../SPEC.md#获取与租约) |
 | `originRef` | 函数 | 把非空字符串接受为原调用引用。空串抛出 `TypeError` | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认) |
 | `acquisitionRef` | 函数 | 把非空字符串接受为获取键。空串抛出 `TypeError` | [获取与租约](../SPEC.md#获取与租约) |
 | `EnvironmentBinding` | 类型 | 四种绑定层：`host_machine`、`stateless_sandbox`（作用域加原调用）、`session_sandbox`（作用域）、`tenant_sandbox`（租户） | [INV-EE01](../SPEC.md#inv-ee01-身份和事实拥有者分别可辨认)、产品正文[绑定层说寿命，连续性说此刻](../../../../.meta_harness/design/product/execution-environments/design.md#绑定层说寿命连续性说此刻) |

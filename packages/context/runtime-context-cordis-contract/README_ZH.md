@@ -40,7 +40,7 @@ export const inject = {
 ## 契约
 
 - 公开形状归 `src/`，现在为空。
-- 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 8。
+- 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 9。
 - 服务定义、事件、依赖分类、登记与撤除协议、IC 符合性映射归 [Cordis 说明](docs/cordis.md)。
 - 导出索引归[公开接口页](docs/public-api.md)。
 - 三面操作的输入、结果与失败归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。
@@ -77,7 +77,7 @@ pnpm turbo run test --filter=@omne-harness/runtime-context-cordis-contract
 ```text
 README.md、README_ZH.md   入口：用途、状态与本结构图
 index.md                  全包的阅读路径
-SPEC.md                   类型以外的行为，性质 1 至 8
+SPEC.md                   类型以外的行为，性质 1 至 9
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       两个入口、依赖、关键机制与理由

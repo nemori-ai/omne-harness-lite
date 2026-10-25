@@ -1,13 +1,13 @@
 # @omne-harness/execution-environment-host-local 行为规格
 
-状态：Service 实现与宿主提供者成员，`draft`。本成员做两件事：把 [execution-environment](../execution-environment/SPEC.md) 的登记表装进 [execution-environment-cordis-contract](../execution-environment-cordis-contract/SPEC.md) 定义的服务 `executionEnvironment`，并在宿主机上提供 `files` 设施。领域行为归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)，登记表行为归 execution-environment，都不在本页。本页的[宿主文件使用](#宿主文件使用)一节已被接受，其余是草案。
+状态：Service 实现与宿主提供者成员，`draft`。本成员做两件事：把 [execution-environment](../execution-environment/SPEC.md) 的登记表装进 [execution-environment-cordis-contract](../execution-environment-cordis-contract/SPEC.md) 定义的服务 `executionEnvironment`，并在宿主机上提供 `files` 设施。领域行为归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)，登记表行为归 execution-environment，都不在本页。本页的[宿主文件使用](#宿主文件使用)一节已被接受，其余是草案。[宿主文件责任域](#宿主文件责任域)与提供者的获取路径依据[本域目标协议](https://github.com/nemori-ai/omne-harness-lite/issues/678#issuecomment-6371505744)的 host-files 迁移语义写入，由 [#678 修订决定](https://github.com/nemori-ai/omne-harness-lite/issues/678#issuecomment-6398383578)具名采用，未经独立技术接受；责任域在真实装配中的保管点、跨进程退出证据与冷恢复结清不在本页兑现（[明确缺项](#明确缺项)）。
 
 ## 范围与依据
 
 本成员有两个入口：
 
-- 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken` 与 `createHostFilesProvider`，以及类型 `HostFilesProviderOptions` 与 `HostFilesDiagnostic`。
-- `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、登记 `files` 设施声明的插件 `filesFacilityPlugin` 与登记宿主文件提供者的插件 `hostFilesPlugin`。
+- 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken`、`createHostFilesDomain` 与 `createHostFilesProvider`，以及类型 `HostFilesDomain`、`HostFilesDomainOptions`、`HostFilesQuotaPolicy`、`HostFilesProviderOptions` 与 `HostFilesDiagnostic`。
+- `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、登记 `files` 设施声明的插件 `filesFacilityPlugin` 与插件工厂 `createHostFilesPlugin(domain)`：它返回登记一代宿主文件提供者的插件。
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
@@ -17,27 +17,48 @@
 
 ### 宿主提供者的事实
 
-`createHostFilesProvider(options)` 每次调用造一个提供者，它声明下列事实：
+`createHostFilesProvider(options)` 每次调用造一个提供者，也就是一代。`options.domain` 必填，是本包 `createHostFilesDomain` 创建的责任域；缺少或不是本包的责任域时抛出 `TypeError`。提供者声明下列事实：
 
 | 事实 | 值 |
 | --- | --- |
 | 名称 | `host-files` |
-| 代 | 每次创建时生成的随机 UUID。一个提供者对象只登记一次，所以每次登记都是新的代（一次登记化身） |
+| 代 | 每次创建时生成的随机 UUID。一个提供者对象只登记一次，所以每次登记都是新的代（一次登记化身）。创建时把代登记进责任域 |
 | 版本 | 本包 `package.json` 的 `version`，运行时从包根读取 |
+| 配额域 | 责任域的配额域，缺省 `host-files` |
 | 绑定层 | 只有 `host_machine` |
 | 连续性 | `not_guaranteed` |
 | 设施键 | 只有 `files` |
 | 隔离断言 | 空。本提供者不确认任何隔离 |
 | 宿主事实（`describe`） | 名称、代、版本、平台（`process.platform` 加 `os.release()`）、设施键、空隔离断言，前提为 `unknown` |
 
-- `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交回一个租约原件：实例身份是 `host` 加提供者的代，`facility('files')` 返回文件设施，释放总是已释放。证据记录提供者名称、代与版本。`acquire` 不分配外部资源，立即返回，所以它没有自己的上界（契约的进展上界见 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
-- 一个提供者只有一个宿主文件设施实例，外面包一层在途计数，各次获取交出的是同一个设施。本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。本提供者没有在门之外自己发起的效果。直接调用 `createHostFilesProvider` 得到的租约原件不经过门，不查账本。
-- 本提供者的文件操作不留下受管资源。它不调用账本的方法，也没有 `listRecoveryResources` 与 `recover`。恢复编排把它记为不支持。请求方作用域随 `ProviderAcquireInput.scope` 到达，本提供者不用它，因为没有受管资源要登记。
-- 租约原件释放时，提供者删除这份租约的失效通知，之后退役不再通知它。
-- `retire()` 先把提供者标为已退役并停止接纳新的文件操作：之后到达的文件操作返回 `rejected`，原因 `closed`，不触碰文件系统。然后它使交出的、尚未释放的租约原件以来源 `provider`、原因 `providerRetired` 失效。最后它等待已接纳、尚未结束的文件操作，最多等 `drainBoundMs` 毫秒。都结束时返回已排空。超过上界时返回待处置，受管资源为空，并给 `diagnose` 一条诊断 `{ kind: 'drainBoundExceeded', provider, generation, inFlight, boundMs }`，`inFlight` 是那时仍未结束的文件操作数。待处置之后再调用 `retire()` 会再等一次。
-- `drainBoundMs` 的初值是 10000。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
+- `quota(租户)` 读责任域的配额策略，答已声明（单位是一个未结清的获取）；策略抛出或给出的上界不是非负安全整数（全局上界可以为空）时答未知。它不保留名额。
+- `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交给责任域接纳（见[宿主文件责任域](#宿主文件责任域)）：新接纳的获取交回一个租约原件，实例身份是 `host` 加提供者的代，`facility('files')` 返回这份获取的门面；证据记录提供者名称、代与版本。同一租户、同一获取键、相同指纹的重复由原记录认回：原租约仍打开时交回同一租约，否则答未知并带原获取键，不造第二个门面。指纹不同为 `acquisitionConflict`。超过按租户上界为 `quotaExceeded`，超过全局上界为 `globalCapacityExceeded`，两者都不留下记录。`acquire` 不分配外部资源，立即返回。
+- 租约原件的释放：先撤掉这份租约的失效通知，再排空这份获取（封门面，最多等 `drainBoundMs`，重试失败的关闭）。什么都不剩时答已释放，名额只返还一次；否则答待处置，资源清单为空，名额仍占用。待处置之后可以重试释放。
+- `inspectAcquisition(原描述)` 读责任域的原记录：打开的答已获取（带原租约与证据），释放中的答待定（阶段 `releasing`，资源为空），已结清的答已结清，指纹不同的答冲突。没有记录时，原描述的提供者代是本责任域签发过的代则答未分配，否则答未知：新进程的责任域没有证据说明旧容量已经结清。配额域与本责任域不同的原描述按没有记录处理。
+- `listAcquisitions(作用域)` 列出请求方作用域是该作用域、尚未结清的全部获取的原描述，包括没有受管资源的获取。
+- `settleAcquisition(原描述)` 与查询做同样的定位，然后排空这份获取：封门面、使原租约以来源 `provider`、原因 `released` 失效、等在途操作、重试失败的关闭。什么都不剩时答已结清，否则答待处置（资源为空）。结清不重做文件写入，也不回滚已写入的字节。重复结清答已结清，不再返还名额。
+- 本提供者的文件操作不留下受管资源。`listRecoveryResources` 答完整的空列表；`recover` 对任何资源答不支持，证据为空。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
+- 本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。直接调用 `createHostFilesProvider` 得到的租约原件不经过门，不查账本。请求方作用域随 `ProviderAcquireInput.scope` 到达，进入原描述与获取枚举。
+- `retire()` 先把提供者标为已退役，之后新的获取返回 `providerUnavailable`。然后它封住这一代全部尚未结清的获取的门面，使它们的租约原件以来源 `provider`、原因 `providerRetired` 失效，再逐份排空。每份都结清时返回已排空，否则返回待处置，资源为空，并给 `diagnose` 一条诊断。原记录与仍打开的描述符留在责任域，新的代经同一责任域查询与结清它们。待处置之后再调用 `retire()` 会再排空一次。
+- `drainBoundMs` 的初值是 10000，用于释放、结清与退役。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
+- 诊断 `HostFilesDiagnostic` 在结果为待处置时给出：仍有在途操作时 `kind` 为 `drainBoundExceeded`，只剩关闭失败的描述符时为 `closePending`；带提供者名与代、在途操作数、打开的描述符数与上界，释放或结清时另带获取键。`diagnose` 抛出不改变结果。
 
 前提报 `unknown`，因为平台前提的探测还没有接受。提供者事实不携带日期（日期由后续宿主事实块生产者在块级提供，见[契约 INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
+
+### 宿主文件责任域
+
+`createHostFilesDomain(options)` 创建一个责任域。进程宿主的单一拥有者创建并保管它，把同一个责任域交给每一代提供者；它比提供者与登记表的重载活得更久。共享同一宿主容量的两个登记必须共享同一个责任域对象。依据：[契约的提供者的进程内证据边界](../execution-environment-contract/SPEC.md#提供者的进程内证据边界)。
+
+- 责任域带配额域（缺省 `host-files`，空串抛出 `RangeError`）、进程实例身份（创建时的随机 UUID）与 `durability: 'process'`。它的记录只在本进程内。
+- 配额策略 `quota(租户)` 在每次接纳时读取，给出按租户上界与全局上界；缺省是每租户 64 个、没有全局上界。策略可替换，数值只是配置初值。
+- 接纳在一个没有 `await` 的同步段里完成：先核按租户上界，再核全局上界，再写入记录并占一个名额。所以同一配额域里抢最后一个名额的两次获取只有一次得到。占用按记录计数：尚未结清的记录各占一个名额，不论属于哪一代。降低上界不抹去已有占用，只停止新的接纳，直到占用低于新上界。
+- 每份获取有一个门面：自己的准入开关与在途操作集合。每个已准入的操作在第一次 `await` 之前登记到这份获取。门面封住之后，新操作答 `closed`，不触碰文件系统。
+- 责任域持有一个共用的文件引擎。引擎给每个签发的句柄与每个关闭失败的描述符记上这份获取的所有者标签，请求不能改写它。句柄代际在引擎内唯一，所以同一文件对象上两份获取的句柄不碰撞。一份获取的门面关闭不了另一份获取持有的句柄，答未知。这条边界不限制两份合法获取分别访问同一个已授权的文件对象。
+- 排空一份获取：封门面，标为释放中，最多等 `drainBoundMs` 让在途操作结束，然后重试这份获取的全部失败关闭。在途操作已结束且没有打开的描述符时，记录结清，名额恰好返还一次；否则保持释放中，名额仍占用。
+- `maintain()` 对全部释放中的获取重试关闭（不再等在途操作），答还剩几份未结清。提供者卸载之后，责任域的拥有者用它继续驱动原记录；结清入口也经同一排空。
+- 已结束的操作答未知、但描述符已经关闭且没有在途操作时，容量可以结清；未知的文件结果仍属于原请求，不改写成未写入，不重做写入，也不删除文件。
+
+已发出的未知文件效果、文件字节的保存不占名额，也不由本节定义它们的数据寿命。冷恢复不在本节：新进程创建新的责任域，它不认识旧进程的代，对旧原描述答未知，不答未分配，也不声称旧责任已经结清。
 
 ### 宿主文件使用
 
@@ -59,6 +80,8 @@
 
 下列句子是接受之后补写的现状，不在上面的接受范围内：
 
+- 上面接受段落里的 `hostFilesPlugin` 指插件工厂 `createHostFilesPlugin(domain)` 返回的插件；本设施的已接受行为不变。依据：[#678](https://github.com/nemori-ai/omne-harness-lite/issues/678)。
+- 每份获取经自己的门面使用共用的文件引擎；句柄代际的代次在责任域内唯一。直接调用 `createHostFiles` 得到的设施仍从 1 开始。
 - 跨租户拒绝由登记表的租约视图在调用本设施之前执行，测试在 [execution-environment](../execution-environment/tests/registry.spec.ts)。直接调用 `createHostFiles` 得到的设施不核对租户。
 - PanQiWei 接受时，本成员的包测试只在 Node v26.0.0、darwin 上运行过。
 
@@ -80,15 +103,15 @@
 
 ### Service 实现
 
-- `ExecutionEnvironmentRegistry<P>` `extends ExecutionEnvironmentService<P>`，不另写键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。构造时调用 `createEnvironmentRegistry`，把环境面与恢复面六个方法原样转给登记表。
-- 恢复授权端口不经构造参数进入。登记表的恢复授权每次被调用时，用 `ctx.get(executionRecoveryAuthorityKey)` 现取 `executionRecoveryAuthority` 服务并转交（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)、[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。取不到时答不可用，所以没有装载恢复授权服务时，`recoverOwned` 与 `releaseScope` 一律以 `unavailable` 拒绝。
+- `ExecutionEnvironmentRegistry<P>` `extends ExecutionEnvironmentService<P>`，不另写键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。构造时调用 `createEnvironmentRegistry`，把环境面与恢复面七个方法原样转给登记表。
+- 三个端口都不经构造参数进入。登记表的恢复授权、环境授权与可信绑定每次被调用时，Service 用自己装载时的上下文 `ctx.get` 现取 `executionRecoveryAuthority`、`executionEnvironmentAuthority` 与 `executionScopeBinding` 服务并转交（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)、[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。取不到时答不可用：没有装载恢复授权服务时，`recoverOwned` 与 `releaseScope` 以 `unavailable` 拒绝；没有装载环境授权或可信绑定服务时，环境面以 `unavailable` 拒绝，查询答查询不可用，不放行。服务方法里的 `this.ctx` 是调用方的上下文，不从那里取端口。
 - `registerFacility` 与 `registerProvider` 在方法里用 `this.ctx.effect` 调用登记表的同名方法。登记落在调用方插件的 fiber 上，调用方卸载即撤除（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。`registerFacility` 返回的撤除函数调用同一个效应撤除。`registerProvider` 返回的撤除函数直接调用登记表的撤除函数：它可以重试，并发调用共用一次退役；效应只在调用方 fiber 卸载时调用一次登记表的撤除函数。
 - Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象，其余值以「configuration accepts no fields」校验失败（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
-- `hostFilesPlugin` 的配置 `HostFilesConfig` 接受缺省、`null`、空对象，或只带 `drainBoundMs` 的对象。`drainBoundMs` 必须是有限的非负数；其他字段或其他值校验失败，插件不装载。缺省时取提供者的初值。
-- `filesFacilityPlugin` 与 `hostFilesPlugin` 的 `inject` 都是服务键常量。`filesFacilityPlugin` 装载时经 `ctx.executionEnvironment` 登记 `files` 设施声明，不登记提供者。`hostFilesPlugin` 装载时用配置的 `drainBoundMs` 登记一个新的宿主文件提供者，不登记声明。提供者的退役超过上界时，诊断经 `ctx.logger('executionEnvironment.hostFiles')` 以错误级写出。声明的生灭与宿主提供者的生灭分开：只装 `hostFilesPlugin` 时，需要 `files` 的落点解析返回 `missingFacility`。
+- 宿主文件插件的配置 `HostFilesConfig` 接受缺省、`null`、空对象，或只带 `drainBoundMs` 的对象。`drainBoundMs` 必须是有限的非负数；其他字段或其他值校验失败，插件不装载。缺省时取提供者的初值。
+- `filesFacilityPlugin` 与 `createHostFilesPlugin(domain)` 返回的插件，`inject` 都是服务键常量并声明 `caller: provider`。`filesFacilityPlugin` 装载时经 `ctx.executionEnvironment` 登记 `files` 设施声明，不登记提供者。宿主文件插件装载时用工厂收到的责任域与配置的 `drainBoundMs` 登记一代新的宿主文件提供者，不登记声明。待处置的诊断经 `ctx.logger('executionEnvironment.hostFiles')` 以错误级写出。声明的生灭与宿主提供者的生灭分开：只装宿主文件插件时，需要 `files` 的落点解析返回 `missingFacility`。责任域是运行时对象，不进 JSON 配置。
 - 本成员不读取调用方类的 intercept 配置，不按调用方类拒绝调用。
 - 本成员不登记 Runtime Context 的生产者，不发布 `execution.placement` 与 `execution.host-facts` 两条块。
-- 装配规则：宿主提供者插件 `hostFilesPlugin` 与 Service `ExecutionEnvironmentRegistry` 在同一插件树里一起装载，不单独卸载。这条规则现在没有强制执行点，见[明确缺项](#明确缺项)。
+- 装配规则：Service `ExecutionEnvironmentRegistry` 与宿主文件插件在同一插件树里装载。宿主文件插件可以重载：卸载只退役这一代，责任域由进程宿主保管，新的一代加入同一个责任域，看到原占用与原记录。这条规则现在没有强制执行点，见[明确缺项](#明确缺项)。
 
 ### 宿主命令与终端（未实现）
 
@@ -103,7 +126,7 @@
 
 ### 撤除顺序
 
-- `hostFilesPlugin` 卸载时，宿主文件提供者开始退役。退役使它交出的租约以 `providerRetired` 失效，之后 `files` 不再有提供者，宿主层的落点解析返回 `noMatchingEnvironment`。`files` 设施声明不受影响。退役等待在途文件操作，最多 `drainBoundMs`；超过上界时 `ctx.logger` 先收到诊断，再收到 `RetirementPending`。
+- 宿主文件插件卸载时，这一代宿主文件提供者开始退役。退役使它交出的租约以 `providerRetired` 失效，之后 `files` 不再有提供者，宿主层的落点解析返回 `noMatchingEnvironment`。`files` 设施声明与责任域不受影响。退役逐份排空这一代的获取，最多等 `drainBoundMs`；待处置时 `ctx.logger` 先收到诊断，再收到 `RetirementPending`。原记录与仍打开的描述符留在责任域，由新的一代或责任域的维护入口继续结清。
 - `filesFacilityPlugin` 卸载时，`files` 设施声明从登记表移除。之后需要 `files` 的落点解析返回 `missingFacility`，已取到的 `files` 设施对象上的操作返回 `unsupported`。宿主文件提供者仍在场。
 - `ExecutionEnvironmentRegistry` 卸载时，它在构造时登记的效应调用登记表的 `close()`。关闭顺序归 [execution-environment SPEC 的关闭](../execution-environment/SPEC.md#关闭)。关闭结果是待处置时，这个效应的撤除函数抛出 `RetirementPending`，带未停的受管资源。
 - fiber 卸载本身总是完成。退役或关闭待处置时，撤除函数抛出的 `RetirementPending` 由 Cordis 写入 `ctx.logger` 的错误，卸载不失败，`fiber.dispose()` 正常返回（Cordis 4.0.4 读数，见 [Cordis 说明](docs/cordis.md#机制读数与假设)）。未停的资源经这条错误与登记表的退役、关闭结果可见。只有调用方直接调用 `registerProvider` 返回的撤除函数时，待处置才以抛出报告。
@@ -116,13 +139,15 @@
 | --- | --- | --- | --- |
 | 服务实例与登记表实例 | `ExecutionEnvironmentRegistry` 插件的 fiber | 关闭待处置时撤除函数抛出 `RetirementPending`，Cordis 记入 `ctx.logger`，卸载照常完成 | 插件卸载 |
 | `files` 设施声明的登记 | `filesFacilityPlugin` 的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED` | 插件卸载，或服务撤除 |
-| 宿主文件提供者的登记 | `hostFilesPlugin` 的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED`；在途文件操作超过 `drainBoundMs` 未结束时退役待处置，撤除函数抛出 `RetirementPending` | 插件卸载，或服务撤除 |
-| 在途文件操作 | 宿主文件提供者 | 退役超过上界仍未结束时，诊断写明它们的数目；它们仍在运行，结果仍交回原请求 | 操作返回 |
-| 宿主文件设施实例 | 宿主文件提供者 | 关闭失败的描述符留在设施实例里，每次公开操作前重试关闭 | 随提供者实例被丢弃，由运行时回收 |
-| 已发出的句柄代际 | 宿主文件设施实例 | 关闭没有成功回执时为未知 | 关闭成功回执 |
+| 宿主文件提供者的登记（一代） | 宿主文件插件的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED`；这一代的获取没有全部结清时退役待处置，撤除函数抛出 `RetirementPending` | 插件卸载，或服务撤除 |
+| 宿主文件责任域 | 进程宿主的单一拥有者 | 不随插件或服务卸载；记录只在本进程内，进程结束后没有证据说明旧容量已经结清 | 拥有者丢弃它，或进程结束 |
+| 获取记录、名额与门面 | 宿主文件责任域 | 排空待处置时名额仍占用，记录仍可查询与结清；`maintain()` 与结清继续驱动 | 排空确认什么都不剩，名额恰好返还一次 |
+| 在途文件操作 | 所属获取的门面 | 超过上界仍未结束时，诊断写明它们的数目；它们仍在运行，结果仍交回原请求 | 操作返回 |
+| 关闭失败的描述符 | 所属获取（引擎里的所有者标签） | 留在共用文件引擎里，这份获取的操作、排空、结清与 `maintain()` 重试关闭；别的获取关不了它 | 关闭成功 |
+| 已发出的句柄代际 | 共用文件引擎，带所属获取 | 关闭没有成功回执时为未知 | 关闭成功回执 |
 | 写入宿主文件的字节 | 宿主文件系统 | 截断后没写完时为未知 | 不随撤除撤回 |
 
-进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
+进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源，责任域的记录随进程结束。新进程的责任域对旧进程的原描述答未知，不答未分配；需要域外可信进程退出证据的冷恢复结清交 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 组合与验证
 
@@ -132,7 +157,7 @@
 | 登记表的匹配、获取、门、退役、恢复与关闭 | [execution-environment SPEC](../execution-environment/SPEC.md) |
 | 设施协议、结果四态、文件使用的最小调用事实 | [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md#设施协议) |
 
-持续验证在 `tests/`，文件字节、符号链接与对象替换都用真实文件系统：
+持续验证在 `tests/`，文件字节、符号链接、对象替换与描述符都用真实文件系统：
 
 | 测试文件 | 覆盖 |
 | --- | --- |
@@ -140,20 +165,26 @@
 | [host-files.spec.ts](tests/host-files.spec.ts) | 读工作区目录之外的点名文件、字节范围、查看、新建与拒绝覆盖、父目录不符拒绝、预期版本不符拒绝；相对路径在读取、查看、两种写入与关闭上返回 `invalidInput` 且不触碰文件 |
 | [host-files-unsupported.spec.ts](tests/host-files-unsupported.spec.ts) | 八项未实现操作返回 `unsupported` 且不触碰文件系统 |
 | [host-file-edges.spec.ts](tests/host-file-edges.spec.ts) | 查看、写入与关闭不点名时的拒绝；新建前的各项拒绝与父目录缺失；宿主拒绝访问为 `notAuthorized`；未映射的打开错误为未知；关闭的绑定层与对象核对；多段读取、上限与文件末尾；同一文件状态的版本在写入、读取、查看与新建之间一致 |
-| [host-provider.spec.ts](tests/host-provider.spec.ts) | 宿主提供者声明的事实（版本等于 `package.json`、平台带 `os.release()`、前提 `unknown`）；租约的身份、证据（带版本）与只有 `files`；沙箱落点与退役后的拒绝；经登记表的门，账本关闭后写入返回 `closed` 且文件不变，另一份获取的账本不受影响；没有在途操作时退役立即已排空，之后新操作 `closed`；界值非法抛 `RangeError`；退役只通知尚未释放的租约 |
+| [host-provider.spec.ts](tests/host-provider.spec.ts) | 宿主提供者声明的事实（版本等于 `package.json`、平台带 `os.release()`、前提 `unknown`、配额域、完整空资源枚举与对意外资源答不支持）；租约的身份、证据（带版本）与只有 `files`；沙箱落点与退役后的拒绝；经登记表的门，账本关闭后写入返回 `closed` 且文件不变，另一份获取的账本不受影响；没有在途操作时退役立即已排空，之后新操作 `closed`；界值非法抛 `RangeError`；退役只通知尚未释放的租约 |
 | [host-provider-drain.spec.ts](tests/host-provider-drain.spec.ts) | 用 `vi.mock` 让带标记路径的 `open` 停住，其余是真实文件系统：在途写入未结束时退役不返回、期间新操作 `closed`，写入结束后已排空；超过上界时待处置、受管资源为空、诊断 `inFlight` 为 1，放行后再退役已排空；经 Cordis 以 `{ drainBoundMs: 20 }` 装载后卸载，`ctx.logger` 先后收到诊断与 `RetirementPending`，卸载完成 |
-| [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 装载服务、`filesFacilityPlugin` 与 `hostFilesPlugin` 后经租约读文件；沙箱层没有提供者；`hostFilesPlugin` 卸载后租约以 `providerRetired` 失效、宿主层没有匹配；只装提供者时落点为 `missingFacility`，卸载声明插件后已取到的设施返回 `unsupported`；服务卸载后键上没有服务、租约以 `registryClosed` 失效、新获取返回 `ownerStopped`；恢复授权服务缺席时恢复两操作返回 `unavailable`，装载后被现取、宿主提供者记为不支持，卸载后又返回 `unavailable`；授权后释放作用域使宿主租约以 `scopeReleased` 失效，该作用域的再获取与落点解析为 `referenceExpired`；`describe` 列出该作用域的宿主落点；经服务登记的提供者退役待处置时，返回的撤除函数每次调用都再退役并抛出 `RetirementPending`；退役与关闭待处置时 fiber 卸载照常完成，`ctx.logger` 收到 `RetirementPending`；`hostFilesPlugin` 只接受合法的 `drainBoundMs`，Service 与声明插件只接受空配置 |
-| [public-entry.spec.ts](tests/public-entry.spec.ts) | 根入口只导出三个函数；根入口可达的模块不导入 Cordis 或 `./cordis` |
+| [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 装载两个访问端口服务、服务、`filesFacilityPlugin` 与宿主文件插件后经租约读文件；访问端口服务缺席或只装一个时落点解析为 `unavailable`，可信绑定把作用域绑到别的租户时为 `notAuthorized`；沙箱层没有提供者；宿主文件插件卸载后租约以 `providerRetired` 失效、宿主层没有匹配；只装提供者时落点为 `missingFacility`，卸载声明插件后已取到的设施返回 `unsupported`；服务卸载后键上没有服务、租约以 `registryClosed` 失效、新获取返回 `ownerStopped`；恢复授权服务缺席时恢复两操作返回 `unavailable`，装载后被现取、宿主提供者的资源枚举为完整空列表（不记为不支持），卸载后又返回 `unavailable`；授权后释放作用域使宿主租约以 `scopeReleased` 失效，该作用域的再获取与落点解析为 `referenceExpired`；`describe` 列出该作用域的宿主落点；经服务登记的提供者退役待处置时，返回的撤除函数每次调用都再退役并抛出 `RetirementPending`；退役与关闭待处置时 fiber 卸载照常完成，`ctx.logger` 收到 `RetirementPending`；宿主文件插件只接受合法的 `drainBoundMs`，Service 与声明插件只接受空配置 |
+| [host-domain.spec.ts](tests/host-domain.spec.ts) | 用 `vi.mock` 让带标记路径的 `open` 停住，并让活描述符上的 `close` 按计数失败，其余是真实文件系统与真实描述符：一份获取释放时在途写入未结束为待处置、资源为空、名额仍占用，另一份获取照常写入，被释放的门面拒新操作，放行后结果回原请求，再释放才返还名额且只返还一次；读取后关闭失败的活描述符归原获取，退役不报已排空，租约失效后 `maintain()` 关闭它并结清；错误路径的描述符使结清先待处置、关闭后结清；同一文件的两份获取代际不同，一份获取关不了另一份的句柄；同一责任域里提供者重载后新代看到原占用、列出并查询旧获取为释放中、结清它，旧租约不复活；登记表重建后经恢复查询看到已分配、经 `recoverOwned` 的已知列表结清；降低上界不抹旧占用，并发抢最后一个名额只一个得到，全局上界单独报告；新进程的责任域对旧代答未知，自己签发的代答未分配，指纹不同答冲突；未知文件结果下结清不改字节；缺责任域或配额域为空时抛出 |
+| [contract-conformance.spec.ts](tests/contract-conformance.spec.ts) | 登记表经两个端口替身通过契约的环境套件，宿主提供者通过提供者套件（在途排空一项不适用）；五种故障的登记表被套件拒绝 |
+| [public-entry.spec.ts](tests/public-entry.spec.ts) | 根入口只导出四个函数；根入口可达的模块不导入 Cordis 或 `./cordis` |
 
 运行记录：
 
 - PanQiWei 接受时，包测试只在 Node v26.0.0、darwin 上运行过。
-- 2026-10-21 在 Node v24.18.0、linux 上，`pnpm --filter @omne-harness/execution-environment-host-local test` 的 8 个测试文件、79 个测试全部通过，退出码 0。本成员 `package.json` 声明的引擎是 `>=24`。
+- 2026-10-25 在 Node v26.12.0、linux 上，本成员目录的 `vitest run` 的 10 个测试文件、146 个测试全部通过，退出码 0。本成员 `package.json` 声明的引擎是 `>=24`。
 
-本成员不覆盖：授予根限制、平台前提的探测、`command` 与 `terminal` 提供者、Runtime Context 块的发布、调用方类核对、同一 isolate 标签下重复装载的失败，以及配置校验失败时 fiber 进入 `FAILED`。持久化与真实集成方的端到端组合也不在本成员。
+本成员不覆盖：授予根限制、平台前提的探测、`command` 与 `terminal` 提供者、Runtime Context 块的发布、调用方类核对、同一 isolate 标签下重复装载的失败、配置校验失败时 fiber 进入 `FAILED`，以及真实进程退出之后的冷恢复结清。持久化、真实端口适配与真实集成方的端到端组合也不在本成员。独立验收场景尚未形成。
 
 ### 明确缺项
 
-- 长期运行的保留与淘汰策略待定（应可配置）：宿主文件设施的已签发句柄表只增不减，当前随进程结束释放。
-- 宿主提供者插件与 Service 一起装载、不单独卸载的装配规则，现在没有强制执行点：`hostFilesPlugin` 可以单独卸载。这条规则与产品正文第 2 版「宿主机提供者随执行环境一起在场，不单独装卸」的关系，以及与 #278 已接受的插件形状谁先谁后，待产品负责人与契约拥有者确认。
-- 两个插件仍是手写的插件对象，没有经过 kernel-basis 的 `definePlugin`，空配置 Schema 与 `hostFilesPlugin` 的配置 Schema 仍在本成员（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。加依赖需要更新工作区锁文件，待派发者裁定。
+- 长期运行的保留与淘汰策略待定（应可配置）：共用文件引擎的已签发句柄表与责任域的已结清记录只增不减，当前随进程结束释放。
+- 宿主文件插件可以重载而责任域保留，这一点依据本域目标协议；它与产品正文第 2 版「宿主机提供者随执行环境一起在场，不单独装卸」的关系，以及与 #278 已接受的插件形状谁先谁后，待产品负责人与契约拥有者确认。装配规则现在没有强制执行点。
+- 责任域在真实装配中的保管点与唯一分发没有采用：本成员只给出工厂 `createHostFilesDomain` 与插件工厂，进程宿主怎样保管并唯一分发它归应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)）。本成员不新增服务或包。
+- 维护驱动的调度没有实现：`maintain()` 与结清是入口，谁在提供者卸载之后定时调用它们归责任域的拥有者与应用装配。
+- 冷恢复结清需要域外可信的进程退出证据，以及原提供者代到进程实例的可核验关联；本成员没有，具名剩余责任交 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)。在它兑现之前，新进程对旧原描述只答未知。
+- 配额、查询、迟到与结清协议的行为模型没有进入本成员的 `verification/models/`，相应机制路径保持未验证。
+- 两个插件仍是手写的插件对象，没有经过 kernel-basis 的 `definePlugin`，空配置 Schema 与宿主文件插件的配置 Schema 仍在本成员（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。加依赖需要更新工作区锁文件，待派发者裁定。

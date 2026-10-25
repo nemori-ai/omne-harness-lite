@@ -21,18 +21,33 @@ import type {
   UnknownCause,
 } from '../index.js'
 import { validate } from '../validation.js'
-import { isFailure, type Authorized, type Descriptor, type ScopeState, type Stored, type World } from './memory-world.js'
+import {
+  isFailure,
+  type Authorized,
+  type Descriptor,
+  type ScopeState,
+  type Stored,
+  type World,
+} from './memory-world.js'
 import type { Supplier, SupplyOutcome } from './memory-producer.js'
 
 type Found = { s: ScopeState; r: Registration }
 type Refusal = Readonly<{ kind: 'refused'; reason: ReadRefusalReason }>
-type CheckRefusal = Readonly<{ kind: 'refused'; reason: 'unauthorized' | 'scope-ended' | 'replay-incomplete' }>
+type CheckRefusal = Readonly<{
+  kind: 'refused'
+  reason: 'unauthorized' | 'scope-ended' | 'replay-incomplete'
+}>
 type CheckUnknownRead = Readonly<{
   kind: 'unknown'
   cause: 'eligibility-unknown' | 'scope-binding-unknown'
 }>
 type Unknown = Readonly<{ kind: 'unknown'; cause: UnknownCause }>
-type Checked<P> = Readonly<{ kind: 'checked'; e: Eligibility<P>; s: ScopeState; gate: Authorized<P> }>
+type Checked<P> = Readonly<{
+  kind: 'checked'
+  e: Eligibility<P>
+  s: ScopeState
+  gate: Authorized<P>
+}>
 
 export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   function allowed(e: Eligibility<P>, key: ContextBlockKey) {
@@ -66,7 +81,12 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   }
 
   /** Walks the parent chain; every hop checks its own binding and tenant (RC-03). */
-  async function inheritedValue(found: Found, key: ContextBlockKey, d: Descriptor, e: Eligibility<P>) {
+  async function inheritedValue(
+    found: Found,
+    key: ContextBlockKey,
+    d: Descriptor,
+    e: Eligibility<P>,
+  ) {
     let stored = found.s.values.get(key)
     if (d.volatility === 'per-request') return { found, stored }
     let parent = found.s.scope.parent
@@ -81,7 +101,11 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return { found, stored }
   }
 
-  function fromOutcome(key: ContextBlockKey, d: Descriptor, outcome: SupplyOutcome): PerRequestEntry | Refusal | null {
+  function fromOutcome(
+    key: ContextBlockKey,
+    d: Descriptor,
+    outcome: SupplyOutcome,
+  ): PerRequestEntry | Refusal | null {
     switch (outcome.kind) {
       case 'refused':
         return { kind: 'refused', reason: 'unauthorized' }
@@ -105,7 +129,11 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   ): Promise<{ entry: PerRequestEntry | Refusal } | { stored: Stored }> {
     const producer = supplier.producerFor(source, key)
     if (!producer || !supplier.isCurrent(producer) || !producer.supply)
-      return { entry: d.required ? { key, kind: 'missing', cause: 'producer-withdrawn' } : { key, kind: 'none' } }
+      return {
+        entry: d.required
+          ? { key, kind: 'missing', cause: 'producer-withdrawn' }
+          : { key, kind: 'none' },
+      }
     const outcome = await supplier.supplyOnce(producer, source, false)
     if (outcome.kind === 'value')
       return {
@@ -116,12 +144,19 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
           present: true,
         },
       }
-    if (outcome.kind === 'stale') return { entry: { key, kind: 'missing', cause: 'producer-withdrawn' } }
-    return { entry: fromOutcome(key, d, outcome) ?? { key, kind: 'unknown', cause: 'source-unknown' } }
+    if (outcome.kind === 'stale')
+      return { entry: { key, kind: 'missing', cause: 'producer-withdrawn' } }
+    return {
+      entry: fromOutcome(key, d, outcome) ?? { key, kind: 'unknown', cause: 'source-unknown' },
+    }
   }
 
   /** The fourth supply time point: an ordinary read finds a refresh mark left by a finished replay (RC-09). */
-  async function refresh(found: Found, key: ContextBlockKey, d: Descriptor): Promise<PerRequestEntry | Refusal | null> {
+  async function refresh(
+    found: Found,
+    key: ContextBlockKey,
+    d: Descriptor,
+  ): Promise<PerRequestEntry | Refusal | null> {
     const s = found.s
     if (s.needsSupply.get(key) !== s.replayEpoch) return null
     const producer = supplier.producerFor(s, key)
@@ -131,7 +166,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return fromOutcome(key, d, outcome)
   }
 
-  async function readBlock(e: Eligibility<P>, key: ContextBlockKey): Promise<PerRequestEntry | Refusal> {
+  async function readBlock(
+    e: Eligibility<P>,
+    key: ContextBlockKey,
+  ): Promise<PerRequestEntry | Refusal> {
     let found = world.registration(e.scope, key)
     const d = world.descriptors.get(key)
     if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key))
@@ -152,8 +190,15 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
       stored = supplied.stored
     }
     if (!stored?.present)
-      return d.required ? { key, kind: 'missing', cause: stored?.cause ?? 'no-value' } : { key, kind: 'none' }
-    const evidence: SourceEvidence = { key, revision: stored.revision, scope: found.s.scope, generation: stored.generation }
+      return d.required
+        ? { key, kind: 'missing', cause: stored?.cause ?? 'no-value' }
+        : { key, kind: 'none' }
+    const evidence: SourceEvidence = {
+      key,
+      revision: stored.revision,
+      scope: found.s.scope,
+      generation: stored.generation,
+    }
     return { key, kind: 'value', value: stored.value, evidence }
   }
 
@@ -172,7 +217,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     const boundScope = initial.scope
     const boundConsumer = initial.consumer
     let ended = false
-    const cursors = new Map<string, { view: number; epoch: number; eligibility: string; snapshot: Snapshot }>()
+    const cursors = new Map<
+      string,
+      { view: number; epoch: number; eligibility: string; snapshot: Snapshot }
+    >()
 
     async function eligible(): Promise<Checked<P> | Refusal | Unknown> {
       if (world.closed || ended) return { kind: 'refused', reason: 'closed' }
@@ -184,7 +232,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     /** Final synchronous check before disclosure: authority still current, scope still readable. */
     function disclose<T>(checked: Checked<P>, value: T): T | Refusal {
       if (world.closed || ended) return { kind: 'refused', reason: 'closed' }
-      if (!checked.gate.current() || world.currentEligibility(id)?.id.eligibility !== checked.e.id.eligibility)
+      if (
+        !checked.gate.current() ||
+        world.currentEligibility(id)?.id.eligibility !== checked.e.id.eligibility
+      )
         return { kind: 'refused', reason: 'unauthorized' }
       return scopeRefusal(world.state(checked.e.scope)) ?? value
     }
@@ -201,7 +252,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         if (!world.registration(e.scope, key))
           return {
             kind: 'refused',
-            reason: world.descriptors.get(key)?.disclosure === 'plain' ? 'no-registration' : 'unauthorized',
+            reason:
+              world.descriptors.get(key)?.disclosure === 'plain'
+                ? 'no-registration'
+                : 'unauthorized',
           }
         const item = await readBlock(e, key),
           d = world.descriptors.get(key)
@@ -212,39 +266,75 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         }
         if (item.kind === 'unknown') return { kind: 'unknown', cause: item.cause }
         if (item.kind === 'missing') {
-          missing.push({ key, cause: item.cause, revision: world.registration(e.scope, key)?.s.values.get(key)?.revision ?? null })
+          missing.push({
+            key,
+            cause: item.cause,
+            revision: world.registration(e.scope, key)?.s.values.get(key)?.revision ?? null,
+          })
           continue
         }
         if (!d) continue
         const found = world.registration(e.scope, key),
-          revision = item.kind === 'value' ? item.evidence.revision : (found?.s.values.get(key)?.revision ?? 0)
+          revision =
+            item.kind === 'value'
+              ? item.evidence.revision
+              : (found?.s.values.get(key)?.revision ?? 0)
         blocks.push({
           key,
           revision,
           state: item.kind === 'value' ? { kind: 'value', value: item.value } : { kind: 'none' },
           volatility: d.volatility,
-          evidence: item.kind === 'value' ? item.evidence : { key, revision, scope: found?.s.scope ?? e.scope, generation: null },
+          evidence:
+            item.kind === 'value'
+              ? item.evidence
+              : { key, revision, scope: found?.s.scope ?? e.scope, generation: null },
         })
       }
       const cursor = { cursor: 'cursor-' + ++world.serial }
-      const value: Snapshot = { scope: e.scope, viewRevision: s.view, cursor, blocks, missing, perRequest: perRequestEntries }
+      const value: Snapshot = {
+        scope: e.scope,
+        viewRevision: s.view,
+        cursor,
+        blocks,
+        missing,
+        perRequest: perRequestEntries,
+      }
       const result = disclose(checked, value)
       if ('kind' in result) return result
-      cursors.set(cursor.cursor, { view: s.view, epoch: s.epoch, eligibility: e.id.eligibility, snapshot: value })
-      return { kind: 'success', value, registration: { issued: e.registrationRevision, current: s.revision } }
+      cursors.set(cursor.cursor, {
+        view: s.view,
+        epoch: s.epoch,
+        eligibility: e.id.eligibility,
+        snapshot: value,
+      })
+      return {
+        kind: 'success',
+        value,
+        registration: { issued: e.registrationRevision, current: s.revision },
+      }
     }
 
-    function authorizeNeed(e: Eligibility<P>, ref: NeedRequest): { found: Found; binding: NeedBinding } | Refusal {
-      if (!e.keys.includes(ref.key) && !e.bindings.some(b => b.key === ref.key && b.need === ref.need))
+    function authorizeNeed(
+      e: Eligibility<P>,
+      ref: NeedRequest,
+    ): { found: Found; binding: NeedBinding } | Refusal {
+      if (
+        !e.keys.includes(ref.key) &&
+        !e.bindings.some(b => b.key === ref.key && b.need === ref.need)
+      )
         return { kind: 'refused', reason: 'unauthorized' }
       const found = world.registration(e.scope, ref.key)
       if (!found)
         return {
           kind: 'refused',
-          reason: world.descriptors.get(ref.key)?.disclosure === 'plain' ? 'no-registration' : 'unauthorized',
+          reason:
+            world.descriptors.get(ref.key)?.disclosure === 'plain'
+              ? 'no-registration'
+              : 'unauthorized',
         }
       const binding = found.r.bindings.find(b => b.need.name === ref.need)
-      if (!binding || binding.need.consumer !== e.consumer) return { kind: 'refused', reason: 'unauthorized' }
+      if (!binding || binding.need.consumer !== e.consumer)
+        return { kind: 'refused', reason: 'unauthorized' }
       if (binding.translate) {
         if (
           !e.bindings.some(b => b.key === ref.key && b.need === ref.need) ||
@@ -283,12 +373,20 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
           if (validate(binding.need.shape, value).length) throw new Error('translation shape')
           values.push({ kind: 'value', need: ref.need, value, evidence: item.evidence })
         } catch {
-          missing.push({ key: ref.key, cause: 'translation-failed', revision: item.evidence.revision })
+          missing.push({
+            key: ref.key,
+            cause: 'translation-failed',
+            revision: item.evidence.revision,
+          })
         }
       }
       const outcome: ReadResult = missing.length
         ? { kind: 'missing', items: missing }
-        : { kind: 'success', value: values, registration: { issued: e.registrationRevision, current: s.revision } }
+        : {
+            kind: 'success',
+            value: values,
+            registration: { issued: e.registrationRevision, current: s.revision },
+          }
       return disclose(checked, outcome)
     }
 

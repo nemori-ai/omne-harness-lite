@@ -4,7 +4,7 @@
 
 - [index.ts](index.ts)：公开再导出。
 - [case.ts](case.ts)：断言与不适用结果。
-- [doubles.ts](doubles.ts)：提供者、账本、守卫与恢复授权替身。
+- [doubles.ts](doubles.ts)：提供者、账本、守卫、恢复授权、环境授权与作用域绑定替身。
 - [provider-conformance.ts](provider-conformance.ts)：提供者套件。
 - [environment-conformance.ts](environment-conformance.ts)：执行环境套件。
 

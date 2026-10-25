@@ -42,7 +42,7 @@ Independent use does not need this package. A caller without Cordis uses the roo
 ## Contracts
 
 - `src/` owns the public shapes. It is empty now.
-- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 8.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 9.
 - The [Cordis page](docs/cordis.md) owns the service definition, the event, the dependency classes, the registration and removal protocol, and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
 - The [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md) owns the inputs, results, and failures of the three faces.
@@ -79,7 +79,7 @@ In this directory, run `pnpm typecheck` for the type check. Tests check entries,
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the types, properties 1 to 8
+SPEC.md                   Behavior beyond the types, properties 1 to 9
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Two entries, dependencies, mechanisms and reasons

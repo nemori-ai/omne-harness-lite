@@ -65,6 +65,8 @@ export declare abstract class RuntimeContextService<P = unknown> extends Service
     abstract issueEligibility(...args: Operation<P, 'issueEligibility'>['args']): Operation<P, 'issueEligibility'>['result'];
     abstract revokeEligibility(...args: Operation<P, 'revokeEligibility'>['args']): Operation<P, 'revokeEligibility'>['result'];
     abstract applyCommit(...args: Operation<P, 'applyCommit'>['args']): Operation<P, 'applyCommit'>['result'];
+    abstract beginReplay(...args: Operation<P, 'beginReplay'>['args']): Operation<P, 'beginReplay'>['result'];
+    abstract finishReplay(...args: Operation<P, 'finishReplay'>['args']): Operation<P, 'finishReplay'>['result'];
     abstract bind(...args: Operation<P, 'bind'>['args']): Operation<P, 'bind'>['result'];
 }
 export declare const runtimeContextKey = "runtimeContext";

@@ -4,16 +4,21 @@ import { expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   acquisitionRef,
+  commandFacility,
   type Access,
   createRecoveryAccess,
   judgeRequirement,
   originRef,
   type EnvironmentBinding,
+  type LeaseRelease,
   type Placement,
   type ProviderAcquisition,
   type RecoveryAuthority,
 } from '@omne-harness/execution-environment-contract'
-import type { EnvironmentRegistry } from '@omne-harness/execution-environment'
+import {
+  createEnvironmentRegistry,
+  type EnvironmentRegistry,
+} from '@omne-harness/execution-environment'
 import {
   accessA,
   accessB,
@@ -21,7 +26,10 @@ import {
   deferred,
   host,
   leased,
+  local,
+  openAuthority,
   placed,
+  recovery,
   registryWith,
   requirement,
   resource,
@@ -32,24 +40,48 @@ import {
   tenantB,
   tenantFrom,
   want,
+  openPorts,
+  stateOf,
 } from './doubles.ts'
 
-it('rejects with providerUnavailable when the provider acquire throws, and repeats that answer', async () => {
+it('keeps the slot as an unknown allocation when the provider acquire throws, and never re-sends', async () => {
   const provider = scriptedProvider({
     acquire: async () => {
       throw new Error('provider crashed')
     },
+    inspect: async () => ({ kind: 'unknown' }),
   })
   const registry = registryWith([provider])
   const placement = await placed(registry, requirement([host]))
-  const refused = { kind: 'rejected', reason: 'providerUnavailable' }
-  expect(await registry.acquire(accessA, acquireInput(placement))).toEqual(refused)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
-    kind: 'rejected',
-    reason: 'providerUnavailable',
+  const unknown = { kind: 'unknown', acquisition: 'acq-1', phase: 'allocation' }
+  expect(await registry.acquire(accessA, acquireInput(placement))).toEqual(unknown)
+  expect(await registry.inspectAcquisition(accessA, local('acq-1'))).toEqual({
+    kind: 'queryUnknown',
+    cause: 'provider',
   })
-  expect(await registry.acquire(accessA, acquireInput(placement))).toEqual(refused)
+  expect(await registry.acquire(accessA, acquireInput(placement))).toEqual(unknown)
   expect(provider.calls.acquire).toBe(1)
+})
+
+it('records a receipt for another key as an unknown allocation of the original key', async () => {
+  const seen: string[] = []
+  const provider = scriptedProvider({
+    acquire: async () => ({ kind: 'unknown', acquisition: acquisitionRef('other-key') }),
+  })
+  const registry = createEnvironmentRegistry<string>({
+    ...openPorts(),
+    recovery,
+    diagnose: diagnostic => seen.push(diagnostic.event),
+  })
+  registry.registerFacility(commandFacility)
+  registry.registerProvider(provider)
+  const placement = await placed(registry, requirement([host]))
+  expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
+    kind: 'unknown',
+    acquisition: 'acq-1',
+    phase: 'allocation',
+  })
+  expect(seen).toContain('receiptForOtherKey')
 })
 
 it('passes a provider refusal on with its own reason', async () => {
@@ -61,7 +93,7 @@ it('passes a provider refusal on with its own reason', async () => {
     kind: 'rejected',
     reason: 'unavailable',
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'rejected',
     reason: 'unavailable',
   })
@@ -83,33 +115,87 @@ it('issues the adoption record from the verified receipt', async () => {
   })
 })
 
-it('releases a receipt whose binding differs from the placement and rejects with unavailable', async () => {
+it('releases a receipt whose binding differs from the placement: the adoption fails with unavailable', async () => {
   const provider = scriptedProvider({ receiptBinding: session })
   const registry = registryWith([provider])
   const placement = await placed(registry, requirement([host]))
   expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
-    kind: 'rejected',
+    kind: 'allocationFailed',
+    acquisition: 'acq-1',
     reason: 'unavailable',
+    cleanup: { kind: 'settled' },
   })
   expect(provider.calls.release).toBe(1)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
-    kind: 'rejected',
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
+    kind: 'allocationFailed',
+    reason: 'unavailable',
+    cleanup: { kind: 'settled' },
+  })
+  expect(await registry.acquire(accessA, acquireInput(placement))).toMatchObject({
+    kind: 'allocationFailed',
     reason: 'unavailable',
   })
+  expect(provider.calls.acquire).toBe(1)
 })
 
-it('releases a receipt that lacks a required facility and rejects with unsupportedFacility', async () => {
+it('releases a receipt that lacks a required facility: the adoption fails with unsupportedFacility', async () => {
   const provider = scriptedProvider({ facilities: {} })
   const registry = registryWith([provider])
   const placement = await placed(registry, requirement([host]))
   expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
-    kind: 'rejected',
+    kind: 'allocationFailed',
+    acquisition: 'acq-1',
     reason: 'unsupportedFacility',
+    cleanup: { kind: 'settled' },
   })
   expect(provider.calls.release).toBe(1)
 })
 
-it('keeps a failed receipt as pending release when its release is pending, and offers it to recovery', async () => {
+it('fails the adoption with notAuthorized when the access is revoked before the receipt is checked', async () => {
+  const authority = openAuthority()
+  const provider = scriptedProvider({
+    acquire: async input => {
+      authority.revokeAll()
+      return scriptedProvider().acquire(input)
+    },
+  })
+  const registry = registryWith([provider], recovery, { authority })
+  const placement = await placed(registry, requirement([host]))
+  expect(await registry.acquire(accessA, acquireInput(placement))).toMatchObject({
+    kind: 'allocationFailed',
+    reason: 'notAuthorized',
+  })
+})
+
+it('reports cleanup unknown past the wait bound, and keeps the reason when the late cleanup settles', async () => {
+  const release = deferred<LeaseRelease>()
+  const provider = scriptedProvider({ receiptBinding: session, release: () => release.promise })
+  const registry = createEnvironmentRegistry<string>({ ...openPorts(), recovery, cleanupWaitMs: 0 })
+  registry.registerFacility(commandFacility)
+  registry.registerProvider(provider)
+  const placement = await placed(registry, requirement([host]))
+  expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
+    kind: 'allocationFailed',
+    acquisition: 'acq-1',
+    reason: 'unavailable',
+    cleanup: { kind: 'unknown' },
+  })
+  release.resolve({ kind: 'released' })
+  await new Promise(resolve => setImmediate(resolve))
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
+    kind: 'allocationFailed',
+    reason: 'unavailable',
+    cleanup: { kind: 'settled' },
+  })
+})
+
+it('refuses a negative cleanup wait bound', () => {
+  expect(() =>
+    createEnvironmentRegistry<string>({ ...openPorts(), recovery, cleanupWaitMs: -1 }),
+  ).toThrow(RangeError)
+})
+
+it('keeps a failed adoption with cleanup pending when the receipt release is pending', async () => {
   const provider = scriptedProvider({
     bindingKinds: ['session_sandbox'],
     receiptBinding: host,
@@ -124,12 +210,13 @@ it('keeps a failed receipt as pending release when its release is pending, and o
   }
   const registry = registryWith([provider], authority)
   const placement = await placed(registry, requirement([session]))
-  const state = { kind: 'pendingRelease', adoption: null, resources: [resource('r1')] }
+  const state = { kind: 'allocationFailed', reason: 'unavailable', cleanup: { kind: 'pending' } }
   expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
-    kind: 'pending',
-    state,
+    acquisition: 'acq-1',
+    ...state,
   })
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual(state)
+  // The cleanup is not settled, so a local query asks the original record again.
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual(state)
   expect(await registry.describe(accessA, scope('scope-1'))).toEqual([])
   expect(await registry.recoverOwned(scope('scope-1'), createRecoveryAccess())).toEqual({
     kind: 'rejected',
@@ -138,10 +225,10 @@ it('keeps a failed receipt as pending release when its release is pending, and o
   expect(await registry.recoverOwned(scope('scope-2'), createRecoveryAccess())).toMatchObject({
     reason: 'notAuthorized',
   })
-  expect(offered).toEqual([[resource('r1')], []])
+  expect(offered).toEqual([[], []])
 })
 
-it('keeps a failed receipt as pending release with no resources when its release throws', async () => {
+it('keeps a failed adoption with cleanup unknown when the receipt release throws', async () => {
   const provider = scriptedProvider({
     receiptBinding: session,
     release: async () => {
@@ -151,8 +238,10 @@ it('keeps a failed receipt as pending release with no resources when its release
   const registry = registryWith([provider])
   const placement = await placed(registry, requirement([host]))
   expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
-    kind: 'pending',
-    state: { kind: 'pendingRelease', adoption: null, resources: [] },
+    kind: 'allocationFailed',
+    acquisition: 'acq-1',
+    reason: 'unavailable',
+    cleanup: { kind: 'unknown' },
   })
 })
 
@@ -187,13 +276,13 @@ async function heldAcquire(
 
 it('rejects an acquisition whose registry closed while the provider was working', async () => {
   const { result, released } = await heldAcquire(host, registry => registry.close())
-  expect(result).toEqual({ kind: 'rejected', reason: 'ownerStopped' })
+  expect(result).toMatchObject({ kind: 'allocationFailed', reason: 'ownerStopped' })
   expect(released).toBe(1)
 })
 
 it('rejects an acquisition whose provider was removed while it was working', async () => {
   const { result, released } = await heldAcquire(host, (_registry, remove) => remove())
-  expect(result).toEqual({ kind: 'rejected', reason: 'providerUnavailable' })
+  expect(result).toMatchObject({ kind: 'allocationFailed', reason: 'providerUnavailable' })
   expect(released).toBe(1)
 })
 
@@ -216,7 +305,7 @@ it('rejects an acquisition whose provider began a retirement that is still pendi
   await entered.promise
   await expect(remove()).rejects.toMatchObject({ name: 'RetirementPending' })
   gate.resolve(undefined)
-  expect(await result).toEqual({ kind: 'rejected', reason: 'providerUnavailable' })
+  expect(await result).toMatchObject({ kind: 'allocationFailed', reason: 'providerUnavailable' })
   expect(healthy.calls.release).toBe(1)
 })
 
@@ -224,7 +313,7 @@ it('rejects an acquisition whose scope was released while the provider was worki
   const { registry, result, released } = await heldAcquire(session, held =>
     held.releaseScope(scope('scope-1'), createRecoveryAccess()),
   )
-  expect(result).toEqual({ kind: 'rejected', reason: 'referenceExpired' })
+  expect(result).toMatchObject({ kind: 'allocationFailed', reason: 'referenceExpired' })
   expect(released).toBe(1)
   expect(await registry.resolvePlacement(accessA, want(requirement([session])))).toEqual({
     kind: 'rejected',
@@ -278,12 +367,12 @@ it('rechecks the placement: the layer must still be listed and declared, and iso
   expect(provider.calls.acquire).toBe(0)
 })
 
-it('compares a repeated key by binding, provider and requirement sets', async () => {
+it('compares a repeated key by its fingerprint: binding, provider and requirement sets', async () => {
   const provider = scriptedProvider({ bindingKinds: ['host_machine', 'session_sandbox'] })
   const registry = registryWith([provider])
   const onHost = await placed(registry, requirement([host]))
   const first = await leased(registry, onHost)
-  const conflict = { kind: 'rejected', reason: 'invalidInput' }
+  const conflict = { kind: 'rejected', reason: 'acquisitionConflict' }
 
   const repeated: Placement = {
     ...onHost,
@@ -340,7 +429,7 @@ it('compares isolation claims as a set, whatever the order', async () => {
 it('treats sandbox bindings of another scope or origin as a different placement under the same key', async () => {
   const provider = scriptedProvider({ bindingKinds: ['session_sandbox', 'stateless_sandbox'] })
   const registry = registryWith([provider])
-  const conflict = { kind: 'rejected', reason: 'invalidInput' }
+  const conflict = { kind: 'rejected', reason: 'acquisitionConflict' }
   const inScope1 = await placed(registry, requirement([session]))
   await leased(registry, inScope1, 'session-key')
   const scope2: EnvironmentBinding = { kind: 'session_sandbox', scope: scope('scope-2') }
@@ -396,7 +485,7 @@ it('places a tenant sandbox requirement that crossed JSON as tenant text, and re
     kind: 'rejected',
     reason: 'notAuthorized',
   })
-  expect(await registry.inspectAcquisition(accessB, acquisitionRef('acq-b'))).toEqual({
+  expect(await stateOf(registry, accessB, 'acq-b')).toEqual({
     kind: 'unrecorded',
   })
   const other: Placement = {
@@ -406,7 +495,7 @@ it('places a tenant sandbox requirement that crossed JSON as tenant text, and re
   }
   expect(await registry.acquire(accessA, acquireInput(other))).toEqual({
     kind: 'rejected',
-    reason: 'invalidInput',
+    reason: 'acquisitionConflict',
   })
   expect(provider.calls.acquire).toBe(1)
 })
@@ -445,11 +534,11 @@ it('refuses an acquisition for an unminted access tenant, every time, without a 
   expect(await registry.acquire(unminted, acquireInput(placement))).toEqual(invalidInput)
   expect(await registry.acquire(unminted, acquireInput(placement))).toEqual(invalidInput)
   expect(provider.calls.acquire).toBe(0)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, accessA, 'acq-1')).toEqual({
     kind: 'unrecorded',
   })
   await leased(registry, placement)
-  expect(await registry.inspectAcquisition(accessA, acquisitionRef('acq-1'))).toMatchObject({
+  expect(await stateOf(registry, accessA, 'acq-1')).toMatchObject({
     kind: 'acquired',
   })
 })
@@ -457,7 +546,7 @@ it('refuses an acquisition for an unminted access tenant, every time, without a 
 it('answers invalidInput to an unminted access tenant even for a key with a record', async () => {
   const registry = registryWith([scriptedProvider()])
   await leased(registry, await placed(registry, requirement([host])))
-  expect(await registry.inspectAcquisition(unminted, acquisitionRef('acq-1'))).toEqual({
+  expect(await stateOf(registry, unminted, 'acq-1')).toEqual({
     kind: 'invalidInput',
   })
 })

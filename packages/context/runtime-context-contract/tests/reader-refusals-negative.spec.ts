@@ -35,7 +35,8 @@ function fixture(
     tenant,
     otherTenant,
     principal: 'negative',
-    subject: async (ports: RuntimeContextPorts<string>) => wrap(createMemoryRuntimeContext<string>(ports)),
+    subject: async (ports: RuntimeContextPorts<string>) =>
+      wrap(createMemoryRuntimeContext<string>(ports)),
   }
 }
 function obligation(name: string) {

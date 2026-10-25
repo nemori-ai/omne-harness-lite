@@ -33,8 +33,8 @@
 
 | 角色 | 在本成员里做什么 | 对应的输入 |
 | --- | --- | --- |
-| 集成方 | 交环境要求、幂等键与访问身份，接收租约；实现资源账本、设施守卫与恢复授权三个端口 | `EnvironmentRequirement`、`ResourceLedger`、`FacilityGuard`、`RecoveryAuthority` |
-| 提供者 | 登记事实，造实例，交回临时回执，结清在途操作 | `EnvironmentProvider` |
+| 集成方 | 交环境要求、获取键与访问身份，接收租约，保存原获取描述；实现资源账本、设施守卫、恢复授权、环境授权与作用域绑定五个端口 | `EnvironmentRequirement`、`OriginalAcquisition`、`ResourceLedger`、`FacilityGuard`、`RecoveryAuthority`、`EnvironmentAuthority`、`ScopeBindingSource` |
+| 提供者 | 登记事实与配额域，声明配额，原子接纳获取，交回临时回执，答原获取查询，按作用域列出获取，结清获取与在途操作 | `EnvironmentProvider` |
 | 设施拥有者 | 发布设施声明 | `describeFacility`、`EnvironmentFacilities` 增补 |
 | 维护者 | 凭恢复授权收场，包括发起作用域释放。本版由应用装配层的协调者担任 | `RecoveryAccess` |
 | 观察者 | 读两条块 | `execution.placement`、`execution.host-facts` |
@@ -45,17 +45,20 @@
 集成方（工具宿主，或独立调用者）
     把域外求出的执行环境权限设置的有效值与工具环境声明翻译成环境要求
     resolvePlacement(访问身份, { 请求方作用域, 环境要求 }) 得到落点或拒绝
-    在自己的耐久账本里记下获取键与落点
+    在自己的耐久账本里记下原获取描述：租户、获取键、原调用、请求方作用域与落点（带配额域）
     acquire(访问身份, { 获取键, 原调用, 请求方作用域, 落点, 资源账本, 设施守卫 })
         已获取：随自己的准备记录保存采用记录，按设施键从租约取设施
-        待定或答复丢失：inspectAcquisition(访问身份, 获取键)
+        待定或获取未知：inspectAcquisition(访问身份, { local, 获取键 })，原获取已分配时用同一输入再 acquire
+        登记表重启后：inspectAcquisition(访问身份, { original, 原获取描述 })，只得原状态，交给维护者结清
+        采用失败：按原因处理；清理状态为待定或未知时名额仍占用
         拒绝：按原因处理，不换落点
     每次设施操作带设施请求：新的请求身份、访问身份、原调用、绑定层
     原调用结束后 lease.release()；待处置时重试同一个释放
 
 维护者
-    recoverOwned(作用域, 恢复授权)：停止、认回、结算这个作用域的受管资源
-    releaseScope(作用域, 恢复授权)：停止这个作用域的新获取，使它的租约失效，再做同样的恢复
+    inspectRecoveryAcquisition(恢复授权, 原获取描述)：查原获取的状态，不认领租约
+    recoverOwned(作用域, 恢复授权, 已知原获取描述)：停止这个作用域的受管资源，结清它的获取
+    releaseScope(作用域, 恢复授权, 已知原获取描述)：停止这个作用域的新获取，使它的租约失效，再做同样的恢复
 
 提供者
     registerProvider(提供者)，保存返回的撤除函数；调用撤除函数即退役开始
@@ -73,16 +76,16 @@
 
 | 外域概念 | 进入方式 | 本成员里的形态 | 不进入的部分 |
 | --- | --- | --- | --- |
-| 作用域（上层的会话、运行或其他持有者） | 有类型的引用 | Runtime Context 契约的 `ScopeRef`，不透明，可带父引用。用于请求方作用域、带作用域的绑定层、描述与恢复 | 它是什么、它的状态机、它何时结束 |
+| 作用域（上层的会话、运行或其他持有者） | 有类型的引用 | Runtime Context 契约的 `ScopeRef`，不透明，可带父引用。用于请求方作用域、带作用域的绑定层、描述与恢复。它绑定到哪个租户由 Runtime Context 的 `ScopeBindingSource` 回答，执行环境只读这个答复 | 它是什么、它的状态机、它何时结束、绑定由谁写入 |
 | 租户 | 复用公共值 | legal-identity 的 `TenantId`，在访问身份、租户级沙箱与提供者获取输入里。线上形式是租户文本，由 `tenantCodec` 解码并铸造 | 租户的生命周期与成员资格 |
 | 主体 | 有类型的引用 | 访问身份 `Access<P>` 里的主体，类型 `P` 由集成方给出 | 主体的含义与授权依据；由设施守卫判断 |
 | JSON 值 | 复用公共值 | json-text 的 `JsonValue`，用于提供者证据、受管资源的恢复引用与块值 | 无 |
 | Tool 的准备记录 | 放到外部协调者 | 不进入。集成方随准备记录保存采用记录，获取键可以取自准备记录的操作身份 | 准备记录、释放记录的形状与存储 |
 | Runtime Context 块 | 消费公开契约 | 两条供给块声明 `SuppliedBlockDescriptor` 与 `ContextBlocks` 增补；块的注册与读取按 [RC-02](../../../context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数) | 块的注册表、读取资格、提醒与快照 |
-| 策略与授权 | 放到外部协调者 | 策略求值的结果是允许清单；逐操作授权经集成方实现的 `FacilityGuard` | 策略词、授权依据 |
+| 策略与授权 | 放到外部协调者 | 策略求值的结果是允许清单；普通操作的访问经集成方实现的 `EnvironmentAuthority`，判定形状同 Runtime Context 的授权判定；逐操作授权经集成方实现的 `FacilityGuard` | 策略词、授权依据 |
 | 耐久存储 | 放到外部协调者 | 集成方实现的 `ResourceLedger` 与恢复授权端口 | 存储形状、事务 |
 
-本成员内部可见的只有：身份与绑定层、环境要求、设施声明与设施请求、落点、采用记录、租约、获取状态、受管资源、三个端口与恢复授权。它们都是类型或纯函数。登记表、获取记录与恢复编排的机制归 [execution-environment](../../execution-environment/SPEC.md)。
+本成员内部可见的只有：身份与绑定层、环境要求、设施声明与设施请求、落点、原获取描述、采用记录、租约、获取状态、配额声明、受管资源、五个端口与恢复授权。它们都是类型或纯函数。登记表、获取记录与恢复编排的机制归 [execution-environment](../../execution-environment/SPEC.md)。
 
 ## 对象与关系
 
@@ -95,8 +98,10 @@
 | 原调用引用 `OriginRef` | 不透明字符串 | 集成方 |
 | 设施声明 `FacilityDescriptor` | 设施键 | 设施拥有者 |
 | 提供者 | 名称加代加版本 `ProviderIdentity`。代是一次登记化身，每次登记新取；版本是提供者代码的版本 | 提供者 |
-| 落点 `Placement` | 绑定层加提供者身份 | `resolvePlacement` 算出 |
-| 获取 | 集成方给的幂等键 `AcquisitionRef` | 集成方 |
+| 落点 `Placement` | 绑定层加提供者身份，带所选提供者的配额域 | `resolvePlacement` 算出 |
+| 配额域 | 受信提供者家族声明的字符串，跨同一后端的登记代际稳定 | 提供者 |
+| 获取 | 获取方租户加集成方给的获取键 `AcquisitionRef`；跨租户的同一键互相独立 | 集成方给键，租户取自访问身份 |
+| 原获取描述 `OriginalAcquisition` | 提供者一侧的路由身份是配额域、租户与获取键；同一身份的不同描述以指纹区分为冲突 | 执行环境在调用提供者之前形成，集成方保存 |
 | 采用记录 `EnvironmentAdoption` | 所属获取加实例身份与代 | 执行环境签发 |
 | 实例 `InstanceIdentity` | 实例身份加代 | 提供者 |
 | 租约 `EnvironmentLease` | 所属获取加实例代 | 执行环境交付 |
@@ -118,12 +123,24 @@ classDiagram
     provider
   }
   class EnvironmentProvider {
+    quotaDomain
     bindingKinds
     facilities
     isolation
+    quota()
     acquire()
+    inspectAcquisition()
+    listAcquisitions()
+    settleAcquisition()
     describe()
     recover()
+  }
+  class OriginalAcquisition {
+    tenant
+    acquisition
+    origin
+    scope
+    placement
   }
   class ProviderFacts {
     provider
@@ -172,10 +189,17 @@ classDiagram
   class RecoveryAuthority {
     authorizeRecovery()
   }
+  class EnvironmentAuthority {
+    authorize()
+  }
+  class ScopeBindingSource {
+    lookup()
+  }
   class ExecutionEnvironment {
     resolvePlacement()
     acquire()
     inspectAcquisition()
+    inspectRecoveryAcquisition()
     describe()
     recoverOwned()
     releaseScope()
@@ -190,8 +214,12 @@ classDiagram
   EnvironmentLease --> FacilityGuard : 每次须授权操作
   EnvironmentLease --> ManagedResource : 操作可能造出
   ManagedResource --> ResourceLedger : 先计划许可
-  ExecutionEnvironment --> RecoveryAuthority : recoverOwned 与 releaseScope 先核
+  ExecutionEnvironment --> RecoveryAuthority : 恢复两操作与恢复查询先核
   ExecutionEnvironment --> ResourceLedger : 由集成方注入
+  ExecutionEnvironment --> EnvironmentAuthority : 普通操作先核
+  ExecutionEnvironment --> ScopeBindingSource : 再核目标作用域的租户
+  ExecutionEnvironment --> OriginalAcquisition : 调用提供者之前形成
+  OriginalAcquisition --> EnvironmentProvider : 按配额域路由查询与结清
 ```
 
 几条关系的含义：
@@ -201,8 +229,16 @@ classDiagram
 - 落点是算出来的值，不是租约。落点只说明选中了哪里；从落点到租约要经过获取。
 - 采用记录与租约同属一次获取。采用记录是耐久事实，由集成方保存；租约是进程内的使用入口，随执行环境的登记表存在。
 - 受管资源不属于租约，属于造出它的提供者；账本里的记录是它的耐久一半。租约失效不使受管资源消失。
-- 恢复授权与访问身份互不替代。访问身份走获取与设施操作，恢复授权只走 `recoverOwned` 与 `releaseScope`。
-- 作用域引用由作用域持有者铸造，持有者保证它跨租户唯一。执行环境不核对作用域的租户归属（[SPEC 恢复](../SPEC.md#恢复)）。
+- 恢复授权与访问身份互不替代。访问身份走普通操作与设施操作，恢复授权只走 `recoverOwned`、`releaseScope` 与 `inspectRecoveryAcquisition`。
+- 作用域引用由作用域持有者铸造。普通操作的目标作用域必须由可信绑定来源确认绑定到访问租户；未绑定与绑定到另一租户对外同为 `notAuthorized`（[SPEC 访问核验](../SPEC.md#访问核验)）。恢复入口不做这项核对，只核恢复授权。
+
+### 原获取描述
+
+原获取描述 `OriginalAcquisition` 是租户、获取键、原调用、请求方作用域与落点。执行环境在第一次调用提供者之前形成它，租户取自访问身份。集成方把它保存进原工作的可恢复记录；登记表丢失之后，只有它能定位原获取，获取键本身不能。
+
+- 它的指纹涵盖配额域、原调用、作用域引用与完整父级链、绑定层、提供者名代版本、连续性、规范化之后的设施键与隔离断言集合，以及有序的允许绑定层清单。同一租户、同一获取键、指纹不同的描述是冲突，不是另一份获取。
+- 提供者一侧按配额域、租户与获取键定位原记录。同一配额域的多份登记看到同一份记录；另一配额域的同号记录与它无关。
+- 查询原获取与恢复查询按它问原记录，只返回原状态，永远不交出租约。结清按它进行，结清之后名额由提供者恰好返还一次。
 
 ### 两条块声明
 
@@ -215,25 +251,31 @@ classDiagram
 ```mermaid
 stateDiagram-v2
   [*] --> unrecorded
-  unrecorded --> acquiring : acquire(key)
-  acquiring --> rejected : 落点核对失败 / 无匹配
+  unrecorded --> acquiring : acquire(key)，访问核验与配额预查通过
+  acquiring --> rejected : 落点核对失败 / 提供者拒绝（含 quotaExceeded、globalCapacityExceeded）
+  acquiring --> allocationUnknown : 提供者抛出、超时或答复丢失
+  allocationUnknown --> provisional : 原获取查询答已获取
+  allocationUnknown --> rejected : 原获取查询答未分配（allocationNotPerformed）
   acquiring --> provisional : 提供者交回临时回执
   provisional --> acquired : 执行环境核验通过，签发采用记录
-  provisional --> rejected : 核验失败，释放成功
-  provisional --> pendingRelease : 核验失败，释放待处置
+  provisional --> allocationFailed : 核验失败，或尚未采用时关闭、退役、作用域释放
+  allocationFailed --> allocationFailed : 清理状态在 pending、unknown、settled 之间更新，原因不变
   acquired --> invalidated : 提供者退役 / 作用域释放 / 执行环境关闭 / 寿命到期回收 / 实例丢失或换代
   acquired --> releasing : release()
   invalidated --> releasing : release()
   releasing --> released : 释放确认
   releasing --> pendingRelease : 未停的受管资源
   pendingRelease --> releasing : 同一释放重试
+  allocationUnknown --> settled : 结清答已结清
+  provisional --> settled : 结清答已结清
   released --> [*]
   rejected --> [*]
+  settled --> [*]
 ```
 
 失效原因是 `LeaseInvalidation`：来源 `registry` 的原因取自封闭集合（`providerRetired`、`scopeReleased`、`registryClosed`、`released`、`providerInvalidated`），来源 `provider` 的原因是提供者自报的文本。`invalidated` 状态带这个原因。
 
-同一幂等键的重复请求返回当前状态，不改变状态。`unrecorded` 是执行环境对不认识的键的答复：从未见过，或执行环境的实现重启之后。集成方据自己的账本判断是哪一种。状态名与 `AcquisitionState` 一致。`invalidInput` 是未铸造租户的查询答复，不是获取记录的状态，不进入状态图。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
+同一租户、同一获取键、相同指纹的重复请求返回当前状态，不改变状态，也不再调用提供者的获取。`unrecorded` 是执行环境对不认识的键的答复：从未见过，或执行环境的实现重启之后。集成方据自己的账本判断是哪一种，并可以用原获取描述查询原获取。采用失败带清理状态：`settled` 只在全部实际责任确认结清时成立，`pending` 与 `unknown` 都保留名额。状态名与 `AcquisitionState` 一致。`invalidInput` 是未铸造租户的查询答复，不是获取记录的状态，不进入状态图。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
 
 ### 受管资源
 
@@ -306,7 +348,7 @@ stateDiagram-v2
 | 领域对象 | 本成员的承载 |
 | --- | --- |
 | 设施声明 | `FacilityDescriptor`，由 `describeFacility` 构造 |
-| 获取 | `AcquisitionRef` 加 `AcquisitionState`，经 `acquire`、`inspectAcquisition` |
+| 获取 | 租户加 `AcquisitionRef`、`AcquisitionState` 与原获取描述 `OriginalAcquisition`，经 `acquire`、`inspectAcquisition`、`inspectRecoveryAcquisition` |
 | 租约 | `EnvironmentLease` |
 | 受管资源 | `ManagedResource` 与 `ResourceLedger` 的记录 |
 | 环境提供者 | `EnvironmentProvider` 与 `ProviderFacts` |
@@ -319,19 +361,20 @@ stateDiagram-v2
 本成员与执行环境都不提交任何耐久事实（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)）。本成员给的是结果值与核对结果：
 
 - 落点解析给 `Placement` 或 `Rejected`。落点是算出来的值，不是许可。
-- 获取给 `Acquired`（租约与采用记录）、`Pending` 或 `Rejected`。采用记录由集成方随准备记录保存。
+- 获取给 `Acquired`（租约与采用记录）、`Pending`、`Rejected`、`AllocationFailed`（原因与清理状态）或 `UnknownAcquisition`（阶段 `preflight` 或 `allocation`）。采用记录由集成方随准备记录保存，原获取描述随原工作的可恢复记录保存。
 - 设施操作给设施结果四态：完成、未找到对象、拒绝（带原因）、未知。一个请求身份只有一种确认。
 - 释放给 `LeaseRelease`：已释放，或待处置并列出未停的受管资源。
 - 退役给 `Retirement`：已排空，或待处置并列出未停的受管资源。
-- 恢复给 `OwnedRecovery`：已停、待处置、不支持，以及枚举不可用的提供者。不可用不是空集。
+- 恢复给 `OwnedRecovery`：资源的已停、待处置、不支持，获取的已结清、待处置、不支持，以及枚举不可用的提供者。不可用不是空集。
+- 查询给 `AcquisitionInspection` 或 `RecoveryInspection`：已知状态、原获取状态、拒绝、查询不可用或查询未知，各带原因。
 
 未知与待处置是一等结果，不是失败的另一种写法。资源许可与原调用的终局写在集成方账本的同一耐久顺序里（[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。
 
 ## 集成方关联与独立消费
 
-集成方知道执行环境，执行环境不知道集成方。在工具调用路径上，集成方是工具宿主：它把工具环境声明与域外求出的执行环境权限设置翻译成环境要求，实现三个端口，并保存采用记录。作用域释放由维护者凭恢复授权发起，维护者在本版由应用装配层的协调者担任。执行环境不从任何逻辑状态推断作用域已结束（[INV-EE06](../SPEC.md#inv-ee06-逻辑工作实例资源和数据不共用寿命)）。
+集成方知道执行环境，执行环境不知道集成方。在工具调用路径上，集成方是工具宿主：它把工具环境声明与域外求出的执行环境权限设置翻译成环境要求，实现五个端口，并保存采用记录与原获取描述。作用域释放由维护者凭恢复授权发起，维护者在本版由应用装配层的协调者担任。执行环境不从任何逻辑状态推断作用域已结束（[INV-EE06](../SPEC.md#inv-ee06-逻辑工作实例资源和数据不共用寿命)）。
 
-独立调用者不建作用域持有者，也不装配 Cordis。它自己给出访问身份、作用域引用与原调用引用，自己翻译允许清单，自己实现资源账本、设施守卫与恢复授权三个端口。账本不耐久时，重启后认不回来的资源由它自己承担。独立消费路径见 [context.md](context.md#独立消费)。
+独立调用者不建作用域持有者，也不装配 Cordis。它自己给出访问身份、作用域引用与原调用引用，自己翻译允许清单，自己实现资源账本、设施守卫、恢复授权、环境授权与作用域绑定五个端口。账本不耐久时，重启后认不回来的资源由它自己承担。独立消费路径见 [context.md](context.md#独立消费)。
 
 ## SOLID 与扩展边界
 
@@ -341,7 +384,7 @@ stateDiagram-v2
 | --- | --- | --- |
 | 单一职责 | 落点匹配、获取核验、租约与逐操作门、资源账本协议、恢复编排与各个设施各是一件事，相互只传递值。策略、授权与持久化都不在本域 | 把策略词写进环境要求；把授权依据写进租约；执行环境自己保存获取的耐久状态 |
 | 开闭 | 新设施等于新设施声明，加契约验证套件与提供者实现，本成员不改。新沙箱是新的提供者，登记到同一个登记表。新隔离种类增补 `IsolationClaims` | 本成员出现具体沙箱或上层工作流的分支 |
-| 里氏替换 | 所有提供者实现同一个 `EnvironmentProvider`，登记表不按名字特判宿主机。三个端口的替身与耐久实现可以互换，调用方只感知后果 | 提供者以统一形状虚构不支持的设施或隔离断言；按提供者名字判断能力 |
+| 里氏替换 | 所有提供者实现同一个 `EnvironmentProvider`，登记表不按名字特判宿主机。五个端口的替身与耐久实现可以互换，调用方只感知后果 | 提供者以统一形状虚构不支持的设施或隔离断言；按提供者名字判断能力 |
 | 接口隔离 | 工具宿主拿 `ExecutionEnvironment`，提供者与设施拥有者拿 `ProviderRegistrations`，维护者只用恢复两操作，观察者经 Runtime Context 读块 | 一个万能环境对象同时交给所有角色 |
 | 依赖倒置 | 本成员依赖 Runtime Context 契约（`ScopeRef`、块声明类型）与 legal-identity、operation-result、json-text、schema-provider 等基础包。Tool、Session 与授权的契约依赖本成员，反方向不成立 | 本成员导入某个上层领域的类型 |
 
@@ -362,4 +405,4 @@ stateDiagram-v2
 | CAP-EE11 落点与痕迹可观察 | 两条块声明、`EnvironmentDescription` | 块的发布与读取 |
 | CAP-EE12 提供者替换与计算回收 | 提供者身份的代与版本、`Retirement` | 装配与插件的换代 |
 
-能力名与范围以产品正文[能力定义与实现状态记录表](../../../../.meta_harness/design/product/execution-environments/design.md#能力定义与实现状态记录表)为准，它们都是候选能力。验收以 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)为准。本页不写实现已完成。
+能力名与范围以产品正文[能力定义与实现状态记录表](../../../../.meta_harness/design/product/execution-environments/design.md#能力定义与实现状态记录表)为准。支持承诺以产品正文的[阶段与版本支持承诺](../../../../.meta_harness/design/product/execution-environments/design.md#阶段与版本支持承诺)为准：0.0.0 → 0.1.0 阶段完整支持全部十二项；其中 M1 交付 CAP-EE01、CAP-EE02、CAP-EE03、CAP-EE04、CAP-EE07、CAP-EE09 与 CAP-EE11，M2 交付 CAP-EE08 与 CAP-EE10，CAP-EE05、CAP-EE06 与 CAP-EE12 在阶段内的后续里程碑交付。验收以 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)为准。本页不写实现已完成。

@@ -326,7 +326,10 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     ['acquire', [access, { ...input, ledger: { ...ledger, plan: 0 } }], [1, 'ledger', 'plan']],
     [
       'inspectAcquisition',
-      [{ principal: 'p', tenant: { ...tenant } }, { kind: 'local', acquisition: 'acq' }],
+      [
+        { principal: 'p', tenant: { ...tenant } },
+        { kind: 'local', acquisition: 'acq' },
+      ],
       [0, 'tenant'],
     ],
     ['inspectAcquisition', [access, { kind: 'local', acquisition: '' }], [1, 'acquisition']],
@@ -417,7 +420,10 @@ it('refuses malformed nested input and result fields at the boundary', async () 
     ],
     [
       'inspectAcquisition',
-      { kind: 'known', state: { kind: 'released', adoption: { ...adoption, evidence: { raw: 'object' } } } },
+      {
+        kind: 'known',
+        state: { kind: 'released', adoption: { ...adoption, evidence: { raw: 'object' } } },
+      },
       ['state', 'adoption', 'evidence', 'kind'],
     ],
     [
