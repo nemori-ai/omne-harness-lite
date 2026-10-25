@@ -1,6 +1,6 @@
 # tool/tool-contract 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数，按[公开入口的分组](#公开入口的分组)分在两个入口。根入口的运行时导出只有调用与操作引用的编解码函数和两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），类型导出是组外成员实际导入的类型及其声明的传递闭包。其余契约函数（定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影）、其余身份解码函数、默认结果政策与 `toolBodyContract` 在 `./provider`。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。[结果推送与保存](#结果推送与保存)、P04 的[外层调用方的启动围栏](#外层调用方的启动围栏)与[授权消费点与撤权再核](#授权消费点与撤权再核)属 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674#issuecomment-6395429174) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数，按[公开入口的分组](#公开入口的分组)分在两个入口。根入口的运行时导出只有调用与操作引用的编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`）和结果交付的纯关系判定 `judgeToolDelivery`，类型导出是组外成员实际导入的类型及其声明的传递闭包。其余契约函数（定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影）、其余身份解码函数、默认结果政策与 `toolBodyContract` 在 `./provider`。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
@@ -32,7 +32,7 @@
 
 本节依据 [CP-15c 契约稳定审计 D-03](https://github.com/nemori-ai/omne-harness-lite/issues/732)（选项 A），由 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) 写回。源码按本节规则分组：`./provider` 子入口导出提供者协议，Tool 组成员从它导入这些名字。导入扫描表列在交付 PR 的说明中，不进入本页。`tests/public-entry.spec.ts` 核对两个入口的运行时导出与「一名一入口」。
 
-本成员有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./binding` 是受信绑定读取器入口，`./testing` 是一致性套件入口。根入口的运行时导出只有组外成员实际导入的调用与操作引用编解码函数和两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），其余契约函数、默认结果政策与 `toolBodyContract` 在 `./provider`；规则 6 规定了日后有组外消费者时怎样移回。四个入口都不导入 Cordis 或其他 Tool 成员。分组只改导出位置与导入路径，不改任何类型或函数的形状。
+本成员有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./binding` 是受信绑定读取器入口，`./testing` 是一致性套件入口。根入口的运行时导出只有组外成员实际导入的调用与操作引用编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），以及按规则 3 进入根入口的 `judgeToolDelivery`，其余契约函数、默认结果政策与 `toolBodyContract` 在 `./provider`；规则 6 规定了日后有组外消费者时怎样移回。四个入口都不导入 Cordis 或其他 Tool 成员。分组只改导出位置与导入路径，不改任何类型或函数的形状。
 
 分组规则：
 
@@ -45,6 +45,12 @@
 7. `./binding` 与 `./testing` 的导出不变；`./provider` 不导出 `./binding` 的读取器，也不导出任何 `./testing` 的名字。
 
 `./provider` 与根入口共享同一份源码定义，不复制类型；一个名字只从一个入口导出。导入 `./provider` 的成员仍然可以导入根入口。
+
+新增名字按同一规则归入口：
+
+- [结果推送与保存](#结果推送与保存)的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）当前没有组外导入者，也不被根入口声明引用。它们由 Tool 组外的消费拥有者实现或调用，不是提供者协议，按规则 3 进根入口。
+- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录。两者的声明引用 `./provider` 的名字，按规则 2、3 进 `./provider`。外层调用方成为组外导入者时，按规则 6 移回根入口。
+- 这些新面的一致性套件与内存替身在 `./testing`。
 
 下列详细行为章节与本页操作协议共同构成本规格。
 
@@ -158,6 +164,8 @@
 | 失联与效果 | 查询不可用、仅调用方丢失、Tool 自身确认丢失、外部提交未知。不得从查不到推断未执行或自动重放。 |
 | 账目与观测 | 重复通知不重计；新调用真实计量；费用迟到、未知；账目读取与正文权限分别核对。 |
 | 耐久与安全 | 进程崩溃、OS 崩溃、断电、附件唯一副本、恶意代码和外传。证据覆盖声明的故障与隔离，不能只靠 mock。 |
+| 结果推送 | saved 未知、同 key 异内容、引用属于其他租户、一个租户占满接收份额、account 早于 result 的 saved。不得以普通失败盖过未知，不得从去处取租户，不得在释放前删除冻结载荷。 |
+| 启动围栏与授权消费 | 围栏证据之前与之后的 consume、失效前已受理的调用、另一调用出示已消费的许可、受理前撤权与受理后撤权。不得在取得证据前声称已阻止，不得复活已消费许可，不得声称撤权停止了已受理的外发。 |
 
 真实外部效果、控制和隔离缺环境时报告无法验证。长期查询、结果分页、重连快照和排队须有资源边界；具体规模、时间和成本目标仍由相关契约与性能设计明确，不能以“点查询”声称任意全文常数成本。
 
@@ -709,6 +717,92 @@ Tool 先可靠保管真实原结果、归属和原消费位置，直到合法消
 
 消费方的历史与原工具结果不是同一个权威源。历史是否采用不改变真实执行是否发生；转换或扩展失败也不自动回滚工具操作。执行后位置没有否决真实动作的能力，只能处理已经存在的结果和允许的后续候选。
 
+### 结果推送与保存
+
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J02。Tool 把一个结果版本推送到受理时冻结的 `ConsumerRef` 去处。接收方保存后返回 saved 回执。Tool 取得回执后，才按 [P08](#p08-过程分页与全文交接) 释放该版本的 delivery。saved 是接收方自己的保管事实，Tool 不为它另建第二份保管账本。接收方是谁不进入本契约：Tool 只认冻结的 consumer，重投和恢复不重新选择去处。本协议走[可靠交接](#可靠交接与处理的两条路径)的先保管后处理路径，消费者经 releaseDelivery 解除的现行路径保持。
+
+#### 接收端口与回执
+
+`ToolResultReceiver<P, B>.push` 接收一个只读对象，字段为 `access`（`Access<P>`）、`delivery`（`ToolDelivery<B>`）和 `signal`（`AbortSignal`）。返回值为 `Promise<Outcome<ToolSavedReceipt, ToolDeliveryFailure>>`。`ToolSavedReceipt` 只有 `key` 与 `evidence`（`DurableEvidence`）。成功值就是 saved 回执，不再包一层判别。成功的 `key` 与输入的 `key` 相同。回执只表达下文 saved 的合取事实，不授予清理权或当前资格。
+
+接收端口由消费拥有者实现。本端口不加入 `ToolRuntime`。Tool 宿主按冻结的 `consumer.owner` 取得接收端口的方式由装配提供，本契约不点名接收方。
+
+#### 交付身份与冻结载荷
+
+| 交付 | 认回键 | 冻结载荷 |
+| --- | --- | --- |
+| result | `kind` 为 `result`，`producer` 为 `tool`，加规范 `ToolInvocationRef` 与 `ToolResultVersion` | 完整 `ConsumerRef`、该版本的 `ToolDeliveryId`、`relation`（`original` 或 `late`）、`terminal`、`actualTerminal`、`effect`、原结果来源 `source`、完整 `ToolResult<B>`，以及运行时在冻结时补全的 `account` |
+| account | `kind` 为 `account`，`producer` 为 `tool`，加原 `ToolInvocationRef`、账目来源事件 `event` 与 `CallAccount.revision` | 完整原 `ConsumerRef` 与该修订的 `CallAccount` |
+
+结果的认回键即（租户，生产者种类，调用，结果版本）：调用引用编入租户与调用，`producer` 是生产者种类。账目的认回键即（调用，账目事件，修订），租户同样来自调用引用。键不含随机交付号，载荷也不另复制租户或调用身份。
+
+1. 载荷带编入租户的调用引用。接收方据此核对租户：引用的租户须与 `access.tenant` 相等。接收方不从去处、地址或宿主取得租户。
+2. 一次 push 只交付一个载荷，不分块、不分页。超出单页的原文按 [P08](#p08-过程分页与全文交接) 卸载为内容引用，载荷带引用而不带字节。
+3. 过程帧不进入载荷。过程只在[公共流协议上的观察](#公共流协议上的观察)中按 D-10 的公共流形状观察，本协议不另造帧。
+4. `account` 是冻结时该调用的完整 `CallAccount` 修订。尚无报告时为 null，不能填零。账目 subject 为 `tool_execution` 加原调用身份。冻结之后到达的修订是独立的 account 交付，不修改已冻结的 result 载荷。每个调用先取得 result 的 saved，再推送其后的 account。同一事件的同一修订配上不同内容是冲突。修订按 [P09](#p09-账目恢复与退出) 替换旧修订，不累加金额。
+5. 晚到结果版本有自己的 delivery，按自己的 result 键推送，`relation` 为 `late`。旧版本的 saved 或释放不覆盖新版本。
+6. 释放成立之前，Tool 保留原键与完整冻结载荷，使提交或回包未知时能按原输入重投。saved 本身不授权 Tool 先删除这些输入。
+
+#### saved 的合取事实与释放
+
+接收方只有同时证实下列事实才可以返回 saved：
+
+1. 完整冻结载荷已经独立、可靠保存，或者有不依赖 Tool 待释放副本的可恢复引用。
+2. 原消费关联及消费责任已经成立，指向原位置、用途和合法承接者。
+3. 原 key、完整 consumer 与载荷内容一致，去重事实已经成立。
+4. 必要保留条件与待交付责任继续有效。
+
+`evidence` 的 owner 是冻结的 `consumer.owner`，它定位上述合取事实。普通提交成功、临时地址或旧读取句柄都不能改名成为这个证据。
+
+Tool 核对 saved 的 key 与原冻结键相同后，以 `retained` 证据（`custody` 为 saved 的 `evidence`）沿 releaseDelivery 释放该版本的 delivery。释放使用 Tool 自己的 operation，不复用接收方的 operation。account 的 saved 只确认该账目修订，不能成为 result 释放的证据。释放回包未知时沿原 operation 认回，未知期间不释放、不清理。推送由现有的 `deliver` 与 `account` 待办驱动：`deliver` 在释放成立后完成，`account` 在该修订的 saved 成立后完成。释放不影响 Tool 全文的保留。
+
+接收方返回 saved 后不能立即删除材料。原业务、保管及待交付责任继续有效。释放未知、查询失权或等待超时都不是删除许可。
+
+#### 失败、取消与资格
+
+`ToolDeliveryFailure` 有七个分支。`denied`、`conflict`、`cancelled-before-accept` 与 `outcome-unknown` 只有 `kind`。`invalid` 另带字符串 `field` 与 `reason`。`backpressured` 另带 `resource`，值为 `records`、`bytes`、`attachments` 或 `in-flight`。`unavailable` 另带字符串 `dependency`。
+
+- `backpressured` 表示本次没有取得所需的新增资源，不撤销早先的保存。
+- `unavailable` 表示本次不能形成 saved 的全部合取事实，不表示零副作用。材料已确认保存而责任确定未提交时，`dependency` 为 `responsibility`。
+- 实际写入或响应是否成立未知时，返回 `outcome-unknown`。不能以普通失败盖过未知。
+- `signal` 只停止本次等待。只有确定接管前尚未提交时，才返回 `cancelled-before-accept`。仍在途的写不能因 `signal` 被推定为未提交。
+- 同 key 同内容重投时，接收方核当前资格后认回原 saved，不重复责任或额度。同 key 异内容返回 `conflict`，原事实保持。
+- 一次新的 `denied`、`unavailable` 或取消不清除早先的未知，也不证明接收方从未保存。
+
+接收方按下列顺序处理。同一 key 曾可能提交时，后面的新回复不清除原未知记录。
+
+1. 核租户与调用引用。租户未铸造或引用属于其他租户时返回 `denied`，不查 key、consumer 或原调用。引用文本非法时返回 `invalid`，`field` 为 `key.reference`，`reason` 为 `reference-malformed`。
+2. 核本主体的当前接收资格。拒绝返回 `denied`，资格依赖故障返回 `unavailable`。此时不披露原 key 是否保存或冲突。
+3. 核原消费关联与完整冻结 consumer，再按下文纯关系表核修订与 subject。consumer 不是原值时返回 `invalid`，`field` 为 `consumer`，`reason` 为 `not-original`。
+4. 在原 key 记录上认回：同内容返回原回执，异内容返回 `conflict`，部分或未知沿原身份认回。
+5. 只对确认尚无接管的新 key，已取消的 `signal` 返回 `cancelled-before-accept`。
+6. 一起预留本次材料、责任、去重与在途资源。额度不足返回 `backpressured`。
+7. 完成保存及关联。saved 的全部合取事实成立才返回成功。
+
+#### 租户、容量与背压
+
+接收入口按租户分开容量与背压。每个租户有自己的份额预留：一个租户占满份额，不能阻止另一个租户的接管，也不能只靠可能被单个租户耗尽的共享桶。Tool 侧同样按租户限制未释放的结果数、账目修订数与字节，以及同时进行的 push 数。容量满时拒绝新的接管，不删除旧责任腾出空间。
+
+push 的 `access` 是代原租户行事的主体。双方诊断分别记录该主体、key、冻结的 consumer 与尝试关联。诊断不记录正文、秘密或凭据，也不从无响应推断未保存。
+
+#### 纯关系判定
+
+`judgeToolDelivery({ tenant, delivery })` 消费已合法构造的 `ToolDelivery<B>` 与真实 `TenantId`，返回 `Outcome<ToolDelivery<B>, ToolDeliveryRejection>`。成功值是原输入引用，不复制、不冻结。它不查存储、当前资格或原 consumer，也不产生证据。它按下表顺序返回第一个失败，`ToolDeliveryRejection` 是表中 field 与 reason 对的有限联合。
+
+| 顺序 | 条件 | field | reason |
+| --- | --- | --- | --- |
+| 1 | tenant 未铸造 | `tenant` | `identity` |
+| 2 | 调用引用文本非法 | `key.reference` | `reference-malformed` |
+| 3 | 调用引用属于其他租户 | `key.reference` | `foreign-tenant` |
+| 4 | account 交付的 `key.revision` 与 `account.revision` 不同 | `key.revision` | `revision-mismatch` |
+| 5 | 非 null 的 `account.subject` 不是 `tool_execution` 加原调用身份 | `account.subject` | `call-mismatch` |
+
+第 4 项只用于 account 交付。第 5 项用于 account 交付与 `account` 不为 null 的 result 交付。
+
+接收方在首次异步或排队前取得完整合法载荷的自有副本，之后调用方改变原对象，不能改变已入队的 key 或内容。同内容指完整值树结构相等：对象键次序不参与比较，数组次序、变体和字段存在性参与比较，不以版本号或摘要代替。
+
+一致性套件 `toolResultReceiverConformance` 与内存替身 `createMemoryToolResultReceiver` 在 `./testing`。替身声明 `durability: 'none'`，只证明套件所列的认回、冲突、租户与背压行为，不证明耐久保存。
+
 ## 等待、控制与恢复
 
 本节维护等待、控制和恢复行为，不规定线程、进程或传输协议。
@@ -831,7 +925,7 @@ release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证�
 
 Tool 的事务只决定本域是否预留启动。受信执行边界再使用 ToolStartAuthority，核当前身份/授权、工作资格、推进代次、批决定、调用方式许可、固定定义和执行绑定、实际环境代次，以及 programmatic 子调用的原父程序推进屏障。prepare 生成包含各拥有者版本的 permit，permit 本身不授权执行。
 
-Tool 实现必须提供启动排序域。第一版单机做法采用同机的启动协调器和耐久受理台账，归 tool-host-local 的 SPEC（`tool-host-local/SPEC.md`）。相关拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效。围栏失效未成立前，不能对外声称新发起已经被阻止。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
+Tool 实现必须提供启动排序域。第一版单机做法采用同机的启动协调器和耐久受理台账，归 tool-host-local 的 SPEC（`tool-host-local/SPEC.md`）。工作资格与推进资格的拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效；外层调用方经[启动围栏窄服务](#外层调用方的启动围栏)做这件事。身份与权限的撤权不进入这一排序域，由 Tool 在启动线性化点再核，见[授权消费点与撤权再核](#授权消费点与撤权再核)。围栏失效未成立前，不能对外声称新发起已经被阻止。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
 
 executor 先以原 start operation 保存不可执行的待发胶囊，取得 executorReceipt。consume 只能由这个受信执行边界调用。它核票据与当前 guard，在同一排序内将原胶囊从待发变为唯一可执行受理记录，形成 acceptance。胶囊在 consume 前不能运行，consume 后只由原执行桥按同一 startId 推进。外部工具受理或请求交给受信外发桥的这一点是启动线性化点；不是远端效果已完成。绑定的 start/resume 封装这一过程，不能把 consume 与任意函数调用自由拼接。
 
@@ -842,6 +936,32 @@ recordStart 显式绑定原 invocation。unknown 查 authority 和原 binding.in
 父程序的关闭屏障也是 StartGuard，scope 必须保留真实原因和适用对象 `applies`。适用对象取自关闭它的控制：`stop` 使用 all-children，`withdraw` 取其 `reach`，reach 不及父调用当时的关系时控制结果为 rejected（out-of-reach），不形成关闭意图（见[撤回的后果](#撤回的后果)）；程序异常、资源耗尽和连续性丢失同样使用 all-children。all-children 排除尚未 consume 的子启动和后继 resume。`foreground-and-unadmitted` 只使原前台范围及未受理预留失效；cutoff 之前已合法受理的后台子调用仍可按自身规则首次启动或安全 resume，不能因父 closed 被拒绝。cutoff 引用原控制事实与已受理/关系排序依据，不能只看调用方传来的后台标记。子受理或关系归属未知时先查询，不能直接永久 rejected。父仍开放时使用 gate=open 的程序guard，不伪造尚不存在的closure操作；关闭意图后才携原closure、scope及cutoff。工作/推进资格同样按动作范围核验，既有后台接续使用Tool自己的当前受权协调者，不能附加调用方或消费方仍存活的条件绕过上述保留。
 
 关闭先写关闭意图和具名 scope 的 program-fence 任务，再由 authority.invalidate 使相应守卫失效，确认后由 Children.confirmBarrier 保存 closed。该回执确认的是适用范围的屏障，不是全体子调用永久失权。已 consume 子调用按真实原因控制及保管。正常 returned 只关闭新 reserve，不使原预留的启动资格失效。不能用父是否 closed 一个布尔值决定全部子 start/resume。
+
+consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ConsumptionFact` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
+
+#### 外层调用方的启动围栏
+
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J03。`toolStartFence` 是 `ToolStartAuthority` 的接口隔离视图。类型 `ToolStartFence<P>` 只取 `invalidate`，供外层调用方使它负责的启动失效。外层调用方取不到 prepare、consume、inspect 或 exclude。`toolStartFence` 与 `toolStartAuthority` 由同一提供者兑现同一排序域。装配若用两个排序域分别提供这两个键，该组合不具备本节保证。本节的围栏与程序调用的关闭屏障是同一机制的两种使用者，关闭屏障的规则保持。
+
+1. 守卫。外层调用方在 `guard` 中给出它拥有的守卫资源：`owner` 是外层调用方的拥有者名，`resource` 是该拥有者内的资源名，`scope` 为 `resource`。`revision` 与 `evidence` 指向外层调用方自己保存的失效依据，例如它要退役的代次和原因记录。它们进入失效操作的输入摘要，排序域不拿它们与当前修订比较。一次调用适用哪些守卫资源，由启动排序域的提供者按受信配置从固定请求解析，不由请求自报。
+2. 冻结。prepare 把每个适用守卫的当前修订号写入 permit。consume 只在这些修订号都未变时受理，并在受理记录中冻结所核的修订号。之后的失效不改写已形成的受理记录。
+3. 失效生效。`invalidate` 在守卫的新修订与失效操作记录共同提交之后，才返回失效证据。外层调用方把这个证据写成自己的独立条目 `start-fence`，与业务取消分别保存。取得证据之前，外层调用方不能声称新的发起已被阻止。回执未知时，用原 operation 与原 guard 重送：排序域认回首次证据，守卫只前进一次。同一 operation 配上另一个 guard 时返回 `conflict`，任何守卫都不变。
+4. 尚未受理的启动。证据返回之后，带旧修订号的 permit 不能被 consume 受理。consume 回复 `rejected`，宿主按本协议的 recordStart(rejected) 收场。失效之后 prepare 的 permit 带新修订号，按其自身的当前资格受理。
+5. 进行中的调用。失效之前已受理的启动是在途执行。围栏不停止它们，也不声称它们已停止。外层调用方对每个仍需停止的调用分别经 `commands.control` 提交 `stop`，每次有自己的操作号；stop 受理不等于物理停止。围栏不提供批量停止。
+
+一致性套件 `toolStartFenceConformance` 在 `./testing`，它用 `ToolStartAuthority` 的 prepare 与 consume 观察围栏证据的效果，因而同时检查两者共用排序域。内存替身用 `createMemoryToolStartAuthority` 的同一实例提供启动排序域与围栏视图，声明 `durability: 'none'`。
+
+#### 授权消费点与撤权再核
+
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用采用 `@omne-harness/authorization` 的 `PermitRef`，消费事实采用其 `ConsumptionFact`，Tool 不另造同义类型。许可的授予、撤回与解释归授权拥有者。
+
+1. 绑定。一次调用需要消费哪些授权许可，由启动排序域的提供者按受信配置解析。当前公开请求没有出示许可的字段。
+2. 消费。consume 依次核对守卫、做第 4 项的撤权再核，然后在形成受理记录之前、在同一排序内向授权拥有者的 `PermitLedger.consume` 消费每个绑定许可。消费位置 `ConsumerPosition` 标识原调用：同一调用的每次启动与接续使用同一位置，其他调用使用不同位置。每个许可都答 `consumed`，或答 `already-consumed` 且事实中的位置是本调用时，consume 才能受理。受理记录的 `authorizations` 带全部消费事实，每个事实含许可引用。
+3. 不复活已消费授权。许可答 `already-consumed` 且位置属于另一调用，或答 `unknown` 时，consume 回复 `rejected`，本调用不启动。台账回复 `unavailable` 时 consume 不受理，回复 `unknown` 并保留原任务。同一启动重送时认回原受理，不再次消费。恢复读取原受理记录，不重新消费许可。许可后来再被允许，也不能使已消费的许可供另一调用使用。
+4. 撤权再核。身份与权限的撤权不经 invalidate 进入排序域。Tool 在启动线性化点，即 consume 的同一排序内，重读授权拥有者对本次动作的当前准入裁定。裁定为 `denied` 时回复 `rejected`。裁定为 `unavailable` 时不受理。不能用缓存或先前的 `allowed` 放行。
+5. 残余窗口。受理之后发生的撤权不撤销受理，也不停止在途执行。远端效果可能在撤权之后才实际发生，Tool 不承诺撤权回滚或阻止已受理的外发。这个窗口从 consume 的再核开始，到外部效果实际完成为止。需要停止时按在途控制处理。
+
+一致性套件 `toolStartAuthorizationConformance` 在 `./testing`，经 fixture 绑定许可、撤回准入并读取许可台账，只经 consume 与 inspect 观察上述结果。没有提供绑定能力的提供者，这些用例报告不适用。内存替身 `createMemoryAuthorizedToolStartAuthority` 声明 `durability: 'none'`。
 
 ### P05 执行事实与原输出
 
