@@ -290,7 +290,10 @@ async function tenantCapacity<P>(fixture: Fixture<P>): Promise<void> {
 
 async function notAccepted<P>(fixture: Fixture<P>): Promise<void> {
   const s = scene(fixture)
-  const stranger = { ...fixture.consumer, position: `${fixture.consumer.position}-never-registered` }
+  const stranger = {
+    ...fixture.consumer,
+    position: `${fixture.consumer.position}-never-registered`,
+  }
   const invalid = failureOf(
     await s.push({ ...s.result('call-1'), consumer: stranger }),
     'push to a position without the original association',

@@ -197,7 +197,11 @@ async function crossTenantPrincipal<P>(fixture: Fixture<P>): Promise<void> {
   // The principal of another tenant presents the tenant of the fixture: it holds no qualification.
   const mixed = { ...fixture.access, principal: otherAccessOf(fixture).principal }
   const denied = refused(
-    await fixture.fence.invalidate({ ...mixed, operation: operationId('fence-9'), guard: own.guard() }),
+    await fixture.fence.invalidate({
+      ...mixed,
+      operation: operationId('fence-9'),
+      guard: own.guard(),
+    }),
     'fence by a principal of another tenant',
   )
   assert.equal(denied.kind, 'denied')
@@ -250,10 +254,7 @@ export function toolStartFenceConformance<P>(): readonly ConformanceCase<Fixture
       fenceConflict,
     ),
     named('the fence of another tenant does not refuse the starts of a tenant', foreignFence),
-    named(
-      'a principal of another tenant cannot fence the guard of a tenant',
-      crossTenantPrincipal,
-    ),
+    named('a principal of another tenant cannot fence the guard of a tenant', crossTenantPrincipal),
     named(
       'an unqualified principal cannot fence a guard and learns nothing of whether it exists',
       unqualifiedPrincipal,

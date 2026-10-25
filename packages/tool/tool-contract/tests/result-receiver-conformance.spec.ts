@@ -226,7 +226,11 @@ const variants: readonly Variant<Fixture>[] = [
     fails: [NAMES.RP11],
     fixture: variant(real => async input => {
       const answer = await real(input)
-      if ('failure' in answer && answer.failure.kind === 'invalid' && answer.failure.reason === 'not-accepted')
+      if (
+        'failure' in answer &&
+        answer.failure.kind === 'invalid' &&
+        answer.failure.reason === 'not-accepted'
+      )
         return succeed(fakeReceipt(input.delivery))
       return answer
     }),
@@ -236,7 +240,11 @@ const variants: readonly Variant<Fixture>[] = [
     fails: [NAMES.RP12],
     fixture: variant(real => async input => {
       const answer = await real(input)
-      if ('failure' in answer && answer.failure.kind === 'invalid' && answer.failure.reason === 'not-original')
+      if (
+        'failure' in answer &&
+        answer.failure.kind === 'invalid' &&
+        answer.failure.reason === 'not-original'
+      )
         return succeed(fakeReceipt(input.delivery))
       return answer
     }),
