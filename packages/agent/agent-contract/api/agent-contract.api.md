@@ -404,21 +404,28 @@ export type Failure = Readonly<{
 }>;
 export type Reply<A> = Promise<Outcome<A, Failure>>;
 export type ModelPurpose = 'main' | 'compaction' | 'extension';
-export type PendingCall = Readonly<{
+type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
     position: ConsumerRef;
     fixed: Evidence;
-}> & (Readonly<{
+}>;
+export type PendingCall = PendingCommon & (Readonly<{
     kind: 'model';
     reference: M.ModelInvocationRef;
     purpose: ModelPurpose;
-}> | Readonly<{
+}> | (Readonly<{
     kind: 'tool';
-    call: T.ToolCallId;
-    admission: T.ToolOperationId;
     purpose: 'action';
-}>);
+    call?: never;
+    admission?: never;
+}> & (Readonly<{
+    association: 'intent';
+    reference?: never;
+}> | Readonly<{
+    association: 'associated';
+    reference: T.ToolInvocationRef;
+}>)));
 export type ActionJudgment = Readonly<{
     kind: 'pending';
     passage: PassageId;
@@ -432,7 +439,7 @@ export type ActionJudgment = Readonly<{
 }> | Readonly<{
     kind: 'allowed';
     evidence: Evidence;
-    request: T.FixedToolRequest;
+    request: T.ToolInvokeRequest;
 }>;
 export type Action = Readonly<{
     id: ActionId;
@@ -572,6 +579,7 @@ export type ProducerDecisionView = Readonly<{
     kind: 'tool-active';
     pending: Extract<PendingCall, {
         kind: 'tool';
+        association: 'associated';
     }>;
     source: Evidence;
     waiting: 'none' | 'external' | 'human';
@@ -580,6 +588,7 @@ export type ProducerDecisionView = Readonly<{
     kind: 'tool-result';
     pending: Extract<PendingCall, {
         kind: 'tool';
+        association: 'associated';
     }>;
     result: ProducedResult;
     source: Evidence;
@@ -587,6 +596,7 @@ export type ProducerDecisionView = Readonly<{
     kind: 'tool-background';
     pending: Extract<PendingCall, {
         kind: 'tool';
+        association: 'associated';
     }>;
     placeholder: ProducedResult;
     confirmation: Evidence;
@@ -675,6 +685,7 @@ export interface AgentEvaluator {
     encode(value: AgentCheckpoint): Continuation;
     decode(value: Continuation): Outcome<AgentCheckpoint, Failure>;
 }
+export {};
 ```
 
 ## 声明文件 `execution.d.ts`
@@ -799,13 +810,23 @@ export type ControlStageFact = Readonly<{
     state: 'reached' | 'unresolved';
     source: Evidence;
 }>;
+type ToolControl = Extract<ExecutionControl, {
+    kind: 'interrupt-tool' | 'background-tool';
+}>;
 export type ControlRecord = Readonly<{
     operation: AgentOperationId;
-    command: ExecutionControl;
     stages: Readonly<{
         accepted: ControlStageFact;
     } & Partial<Record<Exclude<ControlStage, 'accepted'>, ControlStageFact>>>;
-}>;
+}> & (Readonly<{
+    command: ToolControl;
+    toolInvocation: T.ToolInvocationRef;
+    toolOperation: T.ToolOperationRef | null;
+}> | Readonly<{
+    command: Exclude<ExecutionControl, ToolControl>;
+    toolInvocation?: never;
+    toolOperation?: never;
+}>);
 export type ResultResponsibility = Readonly<{
     result: ProducedResult;
     consumption: ConsumptionId;
@@ -1069,6 +1090,7 @@ export interface AgentClock {
     now(): Reply<AgentInstant>;
     waitUntil(instant: AgentInstant, signal: AbortSignal): Reply<'elapsed' | 'cancelled'>;
 }
+export {};
 ```
 
 ## 声明文件 `extensions.d.ts`
@@ -1407,6 +1429,7 @@ export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from
 ## 声明文件 `journal.d.ts`
 
 ```ts
+import type { ToolOperationRef } from '@omne-harness/tool-contract';
 import type { Message } from '@omne-harness/message';
 import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, PreparedContextTransition, ProducedResult, Reply, ReplyAdmissionPage } from './evaluation.ts';
 import type { AcceptedInput, AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
@@ -1495,6 +1518,7 @@ export interface AgentJournalRecording<P> {
     }>): Reply<CommandReceipt>;
     recordControl(input: ExecutionMutation<P> & Readonly<{
         target: AgentOperationId;
+        toolOperation?: ToolOperationRef;
         stage: Exclude<ControlStage, 'accepted'>;
         state: 'reached' | 'unresolved';
         source: Evidence;
