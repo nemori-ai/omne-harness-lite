@@ -14,8 +14,8 @@ import {
   decodeToolCallId,
   decodeToolOperationId,
   type RawOutput,
-  type ToolOutputCustody,
 } from '@omne-harness/tool-contract'
+import { type ToolOutputCustody } from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectWellFormed,

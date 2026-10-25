@@ -49,7 +49,7 @@ flowchart LR
 
 设计归 [public-api](public-api.md#定义作者适配与独立消费)、[P02](../SPEC.md#p02-定义准入与队列)、[P05](../SPEC.md#p05-执行事实与原输出)。定义了定义与声明、名称/参数校验、Catalog、纯可用性判定、普通/结构化作者适配、固定 codec/renderer 和独立执行边界。OOP 与参数/DI 分类归 [object-model](object-model.md)。
 
-已实现：根入口导出的公开类型，`judgeToolDefinition` 与其余判定函数，纯可用性判定 `evaluateToolAvailability` 与 `presentTool`，普通与结构化作者适配，默认参数 codec 与结果渲染，以及 `tool` 的独立执行 `createIndependentToolScope` 与 `executeTool`。它们都有单元测试。尚未交付：Catalog 提供者，资产正文到完整 ToolDefinition 的解析适配，[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 的类型迁移（定义派生、`ToolImplementation`、可用结果的 `layer`）与纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident`，独立消费者的使用示例，完整托管适配的验证。当前 `toolBodyContract` 只做最低校验，不能被当作完整新定义校验。变更后的公开声明同步真实消费者，不保留第二套手写类型源。
+已实现：根入口导出的公开类型，`judgeToolDefinition` 与其余判定函数，纯可用性判定 `evaluateToolAvailability` 与 `presentTool`，普通与结构化作者适配，默认参数 codec 与结果渲染，以及 `tool` 的独立执行 `createIndependentToolScope` 与 `executeTool`。它们都有单元测试。已实现 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 的类型迁移（定义派生 `deriveDefinition`、`ToolImplementation`、`ToolAuthority`、可用结果的 `layer`）与纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident`，表驱动测试覆盖采用点判定表每一行。尚未交付：Catalog 提供者，资产正文到完整 ToolDefinition 的解析适配（装载器），独立消费者的使用示例，完整托管适配的验证。当前 `toolBodyContract` 只做最低校验，不能被当作完整新定义校验。变更后的公开声明同步真实消费者，不保留第二套手写类型源。
 
 <a id="tool-m02"></a>
 ### TOOL-M02 发起、队列、等待与控制

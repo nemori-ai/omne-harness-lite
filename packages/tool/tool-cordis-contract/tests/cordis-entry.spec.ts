@@ -3,6 +3,7 @@ import { Service } from '@deepseek-ai/cordis'
 import { resolveOptional } from '@omne-harness/kernel-basis/cordis'
 import { startTestAssembly } from '@omne-harness/kernel-basis/testing'
 import { describe, expect, it } from 'vitest'
+import { decodeStreamId } from '@omne-harness/stream-arrival'
 import * as cordis from '@omne-harness/tool-cordis-contract/cordis'
 import {
   ToolClockService,
@@ -11,7 +12,8 @@ import {
   toolInstancesKey,
   type ToolPublicationAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import { decodeToolCallId, decodeToolInstanceId, type ToolClock } from '@omne-harness/tool-contract'
+import { decodeToolCallId } from '@omne-harness/tool-contract'
+import { decodeToolInstanceId, type ToolClock } from '@omne-harness/tool-contract/provider'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 
@@ -20,6 +22,8 @@ const documentedPairs = {
   toolRuntimeKey: 'ToolRuntimeService',
   toolCommandsKey: 'ToolCommandsService',
   toolBindingsKey: 'ToolBindingsService',
+  toolContributionAuthorityKey: 'ToolContributionAuthorityService',
+  toolGenerationsKey: 'ToolGenerationsService',
   toolEnvironmentsKey: 'ToolEnvironmentService',
   toolDecisionsKey: 'ToolDecisionBridgeService',
   toolInstancesKey: 'ToolInstancesService',
@@ -48,10 +52,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 18 unique keys, one per documented pair', () => {
+  it('exports 20 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(18)
-    expect(new Set(keys).size).toBe(18)
+    expect(keys).toHaveLength(20)
+    expect(new Set(keys).size).toBe(20)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -66,8 +70,13 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more', () => {
-    expect(serviceClasses).toHaveLength(18)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(18)
+    expect(serviceClasses).toHaveLength(20)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(20)
+  })
+
+  it('names the two G7 keys of RFC-0012 as the docs/cordis.md table does', () => {
+    expect(cordis.toolContributionAuthorityKey).toBe('toolContributionAuthority')
+    expect(cordis.toolGenerationsKey).toBe('toolGenerations')
   })
 
   it('names each service class after its port, with the Service suffix', () => {
@@ -147,7 +156,12 @@ describe('under Cordis 4.0.4', () => {
       const registered = await directory?.register({
         publication: [
           { tenant: owner, call, instance, generation: '1' },
-          { instance, observe: async function* () {} },
+          {
+            instance,
+            generation: '1',
+            stream: decoded(decodeStreamId('str_entry')),
+            observation: { observe: async function* () {} },
+          },
         ],
         authority: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
       })

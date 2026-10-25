@@ -118,6 +118,7 @@ export function fixedRequest(): FixedToolRequest {
   return {
     availability: {
       kind: 'available',
+      layer: { kind: 'official' },
       definition: {
         adoption: adoption('read_file'),
         name: 'read_file',

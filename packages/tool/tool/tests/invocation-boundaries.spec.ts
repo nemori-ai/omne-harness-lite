@@ -96,11 +96,23 @@ const entries: readonly Entry[] = [
     run: (r, input) => untrusted(r.commands.control, input),
   },
   {
-    name: 'connect',
+    name: 'instances.current',
     action: 'connect',
     field: 'reference',
     command: false,
-    run: (r, input) => untrusted(r.instances.connect, input),
+    // `current` takes `{ access, reference }`: the flat boundary input is folded into that shape.
+    run: (r, input) =>
+      untrusted(
+        r.instances.current,
+        typeof input === 'object' && input !== null
+          ? {
+              access: Object.fromEntries(
+                Object.entries(input).filter(([key]) => key === 'principal' || key === 'tenant'),
+              ),
+              reference: Reflect.get(input, 'reference'),
+            }
+          : input,
+      ),
   },
   {
     name: 'content.read',

@@ -1,6 +1,6 @@
 # Tool 公开入口与设计定义
 
-根入口 `@omne-harness/tool-contract` 导出全部公开契约类型、品牌身份的解码函数、默认结果政策、资产正文端口 `toolBodyContract` 和契约函数。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。根入口不导入 Cordis，也不导入提供者成员。
+公开名字分两个入口，规则见 [SPEC「公开入口的分组」](../SPEC.md#公开入口的分组)。根入口 `@omne-harness/tool-contract` 导出 Tool 组外成员实际导入的名字及其声明的传递闭包：调用与操作引用的 codec（`encodeToolInvocationRef`、`encodeToolOperationRef`、`readToolOperationRef`、`resolveToolInvocationRef`、`resolveToolOperationRef`）、`decodeToolCallId`、`decodeToolOperationId`，以及 `ToolRuntime`、`ToolDefinition`、`ToolAvailability`、`ToolFailure`、`ResultPage` 等类型和它们到达的类型。子路径入口 `@omne-harness/tool-contract/provider` 导出只被 Tool 组实现成员使用的提供者协议：资产正文端口 `toolBodyContract`、`describedAdoption`、其余品牌身份解码函数、默认结果政策、契约函数（定义、请求、交付解除与状态的判定，呈现与可用性，作者注册，定义派生与常驻规则纯函数，等待契约，默认参数 codec，结果渲染与投影）、由外部提供者实现的端口、协议记录、保管与账目读写端口、装载与绑定登记表。一个名字只从一个入口导出；下文各节按主题导航源码模块，不再逐名标注入口，精确归属以 [src/index.ts](../src/index.ts) 与 [src/provider.ts](../src/provider.ts) 为准。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。两个入口都不导入 Cordis，也不导入提供者成员。
 
 公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。`createToolRuntime`、`createToolLedger`、`executeTool` 与 `createIndependentToolScope` 在 `@omne-harness/tool`，导航见该包的 public-api（`tool/docs/public-api.md`）。其中 `executeTool` 与 `createIndependentToolScope` 已实现。`createToolLedger` 与 `createToolRuntime` 只实现了一部分路径，其余操作回复具名的 `unsupported`。宿主在 `@omne-harness/tool-host-local`：G5 的 `createLocalStartCoordinator` 已实现，G4 的宿主时钟与 G7 的绑定登记表尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。
 
@@ -12,8 +12,9 @@
 
 - [reference.ts](../src/reference.ts)：调用与操作引用、encode/decode 及租户解析。引用是定位文本，每次访问仍核当前资格。
 - [identity.ts](../src/identity.ts)：品牌身份、访问输入，以及每个品牌身份的解码函数。`Adoption`、`ConsumerRef`、`DurableEvidence` 再导出 [exchange-refs](../../../common/exchange-refs/SPEC.md) 的唯一定义，`Access` 再导出 legal-identity 的唯一定义。结构判定留在 `value-shapes.ts` 与 `judge-release.ts`。
-- [definitions.ts](../src/definitions.ts)：参数契约、返回声明、工具定义、可用性、调用参数、资源 scope（owner、key 与授予证据 grant）与固定请求。
-- [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查。
+- [definitions.ts](../src/definitions.ts)：参数契约、返回声明、资产版本 `ToolAssetVersion`、资产侧 `ToolGovernance`、实现侧 `ToolImplementationFacts` 与形状 `ToolImplementationShape`、工具定义、来源层 `SourceLayer` 与 `WorkspaceId`、可用性、调用参数、资源 scope（owner、key 与授予证据 grant）与固定请求。
+- [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查；`judgeImplementationFacts` 对实现侧事实 `ToolImplementationFacts` 做同一封闭检查。
+- [dynamics.ts](../src/dynamics.ts)：[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 的纯函数。`deriveDefinition(governance, facts)` 由资产治理 `ToolGovernance { asset, requiredCapabilities, programmable }` 与实现事实合成形状不变的 `ToolDefinition`（[定义完整性与呈现](../SPEC.md#定义完整性与呈现)）。`shapeOf` 与 `sameShape` 是同形判据：只看 name、kind、参数契约（schema 的规范 JSON 与 vocabulary 的 owner、name、digest）和按名排序的命令表。`planAdoption` 是[采用点判定表](../SPEC.md#采用点判定)：输入记下的键是否可用、可访问的同形贡献（回退顺序）、合法胜出者与协调者的重装结果，输出前进、保持、回退、请求重装、同形替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。`refreshAvailability` 是 Run 中提供者变化的规则，返回类型只有可用、路由与不可用，不含加入、前进与冻结。`foldResident` 把一次 `tool-resident-admitted` 折进只增不减的常驻集合（R1、R4）。`sameSourceLayer` 与 `sameBindingKey` 比较来源层与登记键（G7）。函数不读登记表、时钟或存储；事实由调用方收集。
 - [judge-request.ts](../src/judge-request.ts)：`judgeFixedToolRequest` 与普通 payload 的 `judgeToolInvokeRequest`，对未知输入做固定请求的封闭检查：每个字段的形状、定义经 `judgeToolDefinition`、并发上限是正整数或 null、时限是非负整数或 null、`command` 选中定义声明的操作（函数工具只接受 null，多命令工具要求具名且存在）。它不读存储，不授予资格；来源、当前资格与可用性事实由受理提供者核验。
 
 契约函数的失败值用 `field` 给出被拒绝的字段路径，例如 `commands[1].name`。根值本身被拒绝时，`field` 是所求类型名，例如 `ToolDefinition`。`reason` 是 `missing`、`type`、`empty`、`blank`、`duplicate`、`unknown-field`、`accessor` 等具名原因。判定只读取数据属性，不调用 getter 或输入中的函数。访问器属性以 `accessor` 被拒绝。值字段只读取自身属性。作者能力（例如 executor 与 codec）可以是类实例，所以它的方法与 `adoption` 可以来自原型链。读取输入时抛出的异常（例如 Proxy 的 trap）不传出，整个值以 `unreadable` 被拒绝。json-text 树可以共享子树，但不能成环（`cycle`）。共享子树每到达一次就计数一次，一次判定最多访问 1 000 000 个节点（`budget`，落在会超出上限的 `items` 或 `entries` 列表字段上）。json-text 树内的读取异常以该树的字段名报 `unreadable`。成功值是冻结的副本。省略的可选字段在副本中仍然省略。
@@ -41,7 +42,7 @@
 
 [行为与约束](../SPEC.md#342-普通操作与实例目录)。
 
-- [operations.ts](../src/operations.ts)：控制意图（`stop`、带必填 `reach` 的 `withdraw`、`background`）与回执、前台返回及后台占位的来源 `BackgroundSource`、过程块、观察、实例句柄、实例目录、交付证据与 `ToolRuntime`。普通入口为 invoke，查询、命令、实例连接和内容读取分别经 queries、commands、instances 与 content。内部 admission 与受信回应不暴露在普通接口。
+- [operations.ts](../src/operations.ts)：控制意图（`stop`、带必填 `reach` 的 `withdraw`、`background`）与回执、前台返回及后台占位的来源 `BackgroundSource`、过程块、公共流协议上的观察（`ToolStreamSnapshot`、`ToolStreamDelta`、`ToolStreamEnd`、`ToolStreamObservation`、`ToolStreamSelection`、`ToolStreamReferences`）、实例句柄 `ToolHandle`（绑定发布代次与过程流，`./provider`）、实例目录、交付证据与 `ToolRuntime`（`instances.current` 与 `observation.observe` 是普通观察入口）。producer `tool` 的引用 codec 适配器 `toolStreamCallCodec` 在 [reference.ts](../src/reference.ts)。内部 admission 与受信回应不暴露在普通接口。
 
 - [ports.ts](../src/ports.ts)：`ToolInvocationSourceIssuer.resolve` 与 `ToolInvocationSourceOutcome`，由来源拥有 tenant/完整 consumer 的原子关联。公开结果区分 accepted/recovered、带引用的 commit-unknown、无引用的 association-unknown 和当前尝试的 rejected。完整恢复规则见上面的行为与约束。
 
@@ -90,13 +91,13 @@
 
 下列声明补齐可独立消费的定义、参数和结果适配。不要求 Cordis 或任何外部工作对象。托管路径还必须走前述准入。具体操作协议归 [protocols](../SPEC.md#tool-操作协议)，输入与依赖归 [object-model](object-model.md)。
 
-ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，生成实现侧的 ToolImplementation。装载时 `deriveDefinition` 把它与资产治理声明派生为唯一 ToolDefinition，见[定义完整性与呈现](../SPEC.md#定义完整性与呈现)。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。RFC-0012 的类型迁移尚未交付：源码仍导出 `ToolDefinitionMetadata` 与 `ToolAuthorRegistration`，还没有 `ToolGovernance`、`ToolImplementationFacts`、`ToolImplementation`、`ToolImplementationModule`、`ToolAuthority` 与可用结果的 `layer`。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
+ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，只接收实现侧字段 `implementation: ToolImplementationDeclaration { description, backgroundAllowed, declarations }`，生成实现侧的 `ToolImplementation { facts }`。`facts` 是 `ToolImplementationFacts { implements, description, backgroundAllowed, declarations }`，其中 `implements` 是投影的形状（单函数的参数契约与返回声明，或命令表）。装载时 `deriveDefinition` 把它与资产治理声明派生为唯一 ToolDefinition，见[定义完整性与呈现](../SPEC.md#定义完整性与呈现)。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。实现包另导出 `ToolImplementationModule { executor, createAuthor(construction) }`，装载器以 `{ asset, settings, module, services }` 调用 `load`，得到带登记键、派生 definition 与 shape 的 `ToolLoadedRegistration`；绑定登记表以 `ToolAuthority { layer, asset, holding, publication }` 登记，返回 `Outcome<ToolContribution, ToolContributionFailure>`，并提供 `snapshot(scope)`、`pins`、`close`、`reopen`、`drain`（类型已迁移，本地实现归 2.4）。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
 
-- [authoring.ts](../src/authoring.ts)：声明与设置、消费方档案 `ToolConsumerProfile`、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、作者注册、装载器、绑定登记表、文本结果工厂与可用性事实。
+- [authoring.ts](../src/authoring.ts)：声明与设置、消费方档案 `ToolConsumerProfile`、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、实现 `ToolImplementation` 与实现模块、登记键与同形投影 `ToolShape`、装载器与已装载登记、`ToolAuthority`、贡献与登记表 `ToolBindingRegistry`、文本结果工厂与可用性事实（含来源层 `layer`）。
 - [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。句柄与注册是当前执行域的能力，不交给脚本。
 - [binding.ts](../src/binding.ts)：子路径入口 `@omne-harness/tool-contract/binding`，只供受信的执行绑定提供者（G7）导入。`readToolOperation` 与 `readToolRegistration` 读取句柄内的作者与注册内的操作表（`ToolOperationSlot`、`ToolRegistrationSlot`）；不是 registration.ts 构造的值读作 `undefined`。根入口不导出它们，所以只持有句柄或注册的代码取不到 executor。`readOwnSlot(value, key)` 按自有属性读取不可信的值，答 `OwnSlot`：属性不存在（`absent`）、是访问器（`accessor`）或带值（`value`）；各实现用它以同一方式读取外来值，不触发 getter。这个入口与根入口一样不依赖 Cordis。
 - [judge-release.ts](../src/judge-release.ts)：`judgeConsumerRef` 与 `judgeHandoff`，即 releaseDelivery（P08）的消费位置与交接证据的封闭检查。多出的字段是 `unknown-field`，非文本值是 `type`，返回冻结副本。它们不核证据归属，提供者再比对证据的 `owner` 与消费者。
-- [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。按 [P02](../SPEC.md#p02-定义准入与队列)，可用结果带来源层 `layer`；源码尚未迁移。
+- [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。可用结果带事实中的来源层 `layer`（`SourceLayer`：`official`、`organization`、`tenant` 或 `workspace`），`judgeFixedToolRequest` 以封闭形状核它。
 - [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键、半截 JSON 与不是对象的输入返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。`judgeToolArguments(input, limits)` 是受理时的判定：原参数与生效参数都完整解析（`ParsedToolArguments`），`complete=false` 返回 `incomplete`，任一文本失败返回 `invalid` 并指明 `original` 或 `effective`，输入或预算形状不对返回 `shape`（`ToolArgumentsRejection`）。它不替代作者 codec 在执行时的解析。
 
 ## 持久状态与协议记录

@@ -1,7 +1,7 @@
 // The providers of the resource response suite that the contract allows, beyond the shared ones of
 // external-association-legal.ts, and how a provider of the shared calls becomes a fixture of this
 // port. Each is built at the port boundary and never calls a control of a double.
-import type { ToolResourceResponses } from '@omne-harness/tool-contract'
+import type { ToolResourceResponses } from '@omne-harness/tool-contract/provider'
 import {
   memoryToolResourceResponsesFixture,
   resourceResponsesAnswers,

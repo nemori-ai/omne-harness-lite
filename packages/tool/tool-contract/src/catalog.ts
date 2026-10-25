@@ -55,6 +55,7 @@ export function evaluateToolAvailability(facts: AvailabilityFacts): ToolAvailabi
       kind: 'available',
       definition: facts.definition,
       executor: facts.executor,
+      layer: facts.layer,
     })
   return Object.freeze({
     kind: 'known-unavailable',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { defaultResultPolicy, renderToolResult, type ToolResult } from '@omne-harness/tool-contract'
+import { type ToolResult } from '@omne-harness/tool-contract'
+import { defaultResultPolicy, renderToolResult } from '@omne-harness/tool-contract/provider'
 import {
   adoption,
   json,

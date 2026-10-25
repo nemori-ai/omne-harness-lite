@@ -9,7 +9,11 @@ import {
   startAuthorityAnswers,
   toolStartAuthorityConformance,
 } from '@omne-harness/tool-contract/testing'
-import type { StartPermit, StartProgress, ToolStartAuthority } from '@omne-harness/tool-contract'
+import type {
+  StartPermit,
+  StartProgress,
+  ToolStartAuthority,
+} from '@omne-harness/tool-contract/provider'
 import {
   expectEveryCaseIsCaught,
   expectVariantVerdict,

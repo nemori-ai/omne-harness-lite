@@ -2,6 +2,7 @@
 
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
+- [提供者协议入口](provider.ts)。
 - [绑定提供者入口](binding.ts)。
 - [一致性套件入口](testing.ts)：[用例类型](testing-case.ts)、[启动围栏](testing-start-authority.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)、两者共有的[外部关联用例](testing-external.ts)和[合法值](testing-values.ts)。
 - [资产正文端口](contract.ts)。
@@ -19,6 +20,7 @@
 - [默认结果政策](result-policy.ts)。
 - [可复算的采用摘要](adoption.ts)。
 - [定义判定](judge-definition.ts)。
+- [定义派生与常驻规则的纯函数](dynamics.ts)。
 - [固定请求判定](judge-request.ts)。
 - [交付解除输入判定](judge-release.ts)。
 - [状态判定](judge-state.ts)。

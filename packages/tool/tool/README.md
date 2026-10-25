@@ -216,7 +216,7 @@ An ordinary caller saves the complete consumer and fixed request before calling 
 
 An unknown answer does not imply a pending delivery. If the commit took effect, the original operation resolves as committed and lookup shows released. For an unreleased delivery, a dropped first attempt leaves the pending delivery and task intact after a reliable negative answer. Unknown or unreadable delivery answers must not trigger automatic release resubmission. Preserve the original operation reference and the consumer's custody or completion responsibility until the producer's confirmation is recognised.
 
-Release does not delete the full result, original attachments, or necessary process records. Fixed-version reads remain available. Persistent reads and delivery do not require `instances.connect`. Every access checks the current principal and tenant. A reference grants no authority.
+Release does not delete the full result, original attachments, or necessary process records. Fixed-version reads remain available. Persistent reads and delivery do not require `instances.current` or a live observation. Every access checks the current principal and tenant. A reference grants no authority.
 
 The assembly supplies the trusted identity and source ports. No production source issuer is supplied here. For tests, `createTestInvocationSource` pairs a non-durable source binding with its guard. `createTestToolIdentities` supplies operation and instance counters. The host passes its instance identity to `driver.run` and reuses it for the lifetime of that instance. These fixtures prove no production host, claim, takeover or durability.
 
@@ -237,7 +237,7 @@ The ledger checks all five attachment fields for association, then checks the st
 
 ## Model result retrieval
 
-`createTools` adds a real command author named `Tools`. Register `tools.author` through the assembly's binding provider. The commands are `help` and `read_result`. They accept text parameters and can preserve all four direct output modalities. Both return structured results with no program data. The author is not programmable.
+`createTools` adds a real command author named `Tools`. Register `tools.implementation` through the assembly's binding provider; `tools.definition` is the definition derived from the meta tool's official governance. The commands are `help` and `read_result`. They accept text parameters and can preserve all four direct output modalities. Both return structured results with no program data. The author is not programmable.
 
 Pass only `runtime.queries.readResult` and `runtime.content.read` to the factory. Fix `arguments`, `resultPageBytes`, `replyMaxBytes` and `contentPageBytes` at construction. Use the runtime's actual resultPageBytes value. Invalid configuration throws TypeError.
 

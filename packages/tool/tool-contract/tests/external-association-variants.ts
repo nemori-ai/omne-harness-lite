@@ -6,14 +6,16 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
-  decodeToolWaitId,
   type DurableEvidence,
-  type ExternalOperationResolution,
-  type Mutation,
   type ToolFailure,
   type ToolOperationId,
   type ToolWaitId,
 } from '@omne-harness/tool-contract'
+import {
+  decodeToolWaitId,
+  type ExternalOperationResolution,
+  type Mutation,
+} from '@omne-harness/tool-contract/provider'
 import type { Access } from '@omne-harness/tool-contract'
 import { decisionBridgeAnswers } from '@omne-harness/tool-contract/testing'
 import type { Variant } from './conformance-harness.ts'

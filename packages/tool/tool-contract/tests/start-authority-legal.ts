@@ -3,7 +3,11 @@
 // the methods of the authority of a double and the handles that it defines itself, and it never
 // calls a control of a double to make the double behave.
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { StartPermit, StartProgress, ToolStartAuthority } from '@omne-harness/tool-contract'
+import type {
+  StartPermit,
+  StartProgress,
+  ToolStartAuthority,
+} from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolStartAuthority,
   memoryToolStartAuthorityFixture,

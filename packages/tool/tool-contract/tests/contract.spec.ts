@@ -8,7 +8,7 @@ import {
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/assets'
-import { toolBodyContract } from '@omne-harness/tool-contract'
+import { toolBodyContract } from '@omne-harness/tool-contract/provider'
 
 const limits: JsonLimits = {
   maxBytes: 1_000,
@@ -142,6 +142,45 @@ it('keeps a pinned skill reference after the read document changes', () => {
   expect(port.references(pinned.body)).toEqual([{ category: 'skill', name: 'review' }])
   expect(pinned.version).toBe('v3')
   expect(pinned.source).toBe('workspace-w')
+})
+
+it('accepts the governance and implementation fields of RFC-0012 and refuses malformed ones', () => {
+  const port = toolBodyContract()
+  const context = { capabilityName: 'read_file' }
+  const complete = document(
+    '{"name":"read_file","requiredCapabilities":["file-system"],"implementation":{"executor":"exec-1","module":"@acme/read-file","construction":{"root":"/srv"}}}',
+  )
+  expect(port.judge(complete, context)).toEqual({ ok: true })
+  expect(port.deriveDeclarations(complete, context)).toEqual({ entries: [] })
+  // construction is any JSON and may be omitted; executor and module must be non-empty texts.
+  const noConstruction = document(
+    '{"name":"read_file","implementation":{"executor":"exec-1","module":"@acme/read-file"}}',
+  )
+  expect(port.judge(noConstruction, context)).toEqual({ ok: true })
+  for (const text of [
+    '{"name":"read_file","requiredCapabilities":"file-system"}',
+    '{"name":"read_file","requiredCapabilities":[""]}',
+    '{"name":"read_file","requiredCapabilities":[1]}',
+  ])
+    expect(port.judge(document(text), context)).toEqual({
+      ok: false,
+      rejected: 'invalid-required-capabilities',
+    })
+  for (const text of [
+    '{"name":"read_file","implementation":"exec-1"}',
+    '{"name":"read_file","implementation":{"module":"@acme/read-file"}}',
+    '{"name":"read_file","implementation":{"executor":"","module":"@acme/read-file"}}',
+    '{"name":"read_file","implementation":{"executor":"exec-1","module":7}}',
+  ])
+    expect(port.judge(document(text), context)).toEqual({
+      ok: false,
+      rejected: 'invalid-implementation',
+    })
+  expect(() =>
+    port.references(document('{"name":"read_file","implementation":1}'), context),
+  ).toThrow(/failed judgment: invalid-implementation/)
+  expect(JSON.stringify(port.schema)).toContain('"key":"requiredCapabilities"')
+  expect(JSON.stringify(port.schema)).toContain('"key":"implementation"')
 })
 
 it('rejects a tool body whose name is not the capability name', () => {

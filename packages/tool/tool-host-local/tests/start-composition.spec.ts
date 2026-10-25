@@ -14,16 +14,15 @@ import {
   createTestToolIdentities,
   createMemoryToolLedgerStore,
 } from '@omne-harness/tool/testing'
+import { type ToolInvocationRef, type ToolState } from '@omne-harness/tool-contract'
 import {
   defaultResultPolicy,
   readToolInvocationRef,
-  type ToolInvocationRef,
   type ToolDriver,
   type ToolExecutorBinding,
   type ToolLiveExecution,
   type ToolMessageContentBlock,
-  type ToolState,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   access,
   coordinator,

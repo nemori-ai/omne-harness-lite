@@ -2,16 +2,19 @@ import { createHash } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  type Access,
+  type Adoption,
+  type DurableEvidence,
+  type ToolResult,
+} from '@omne-harness/tool-contract'
+import {
   createDefaultParameterCodec,
   defaultResultPolicy,
   defineFunctionTool,
   defineToolOperation,
-  type Access,
-  type Adoption,
-  type DurableEvidence,
+  deriveDefinition,
   type ToolMessageContentBlock,
-  type ToolResult,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 
 export function valueOf<T>(answer: Outcome<T, unknown>): T {
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
@@ -117,13 +120,11 @@ export function createReportTool() {
       },
     }),
   )
-  const author = valueOf(
+  // The implementation side only: the name, the version and the governance come from the asset.
+  const implementation = valueOf(
     defineFunctionTool({
-      metadata: {
-        adoption: adoption('report'),
-        name: 'report',
+      implementation: {
         description: 'Generate a read-only report about Tool result delivery.',
-        requiredCapabilities: [],
         backgroundAllowed: false,
         declarations: {
           adoption: adoption('report-declarations'),
@@ -137,5 +138,10 @@ export function createReportTool() {
       operation,
     }),
   )
-  return { author, executions: () => executions }
+  // The tutorial plays the asset: this is what a loader derives from the governance and the facts.
+  const definition = deriveDefinition(
+    { asset: { name: 'report', adoption: adoption('report') }, requiredCapabilities: [] },
+    implementation.facts,
+  )
+  return { implementation, definition, executions: () => executions }
 }

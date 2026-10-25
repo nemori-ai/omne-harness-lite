@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readBodyText, type JsonValue } from '@omne-harness/assets'
-import { toolBodyContract } from '@omne-harness/tool-contract'
+import { toolBodyContract } from '@omne-harness/tool-contract/provider'
 import { limits } from './tool-values.ts'
 
 function body(text: string): JsonValue {

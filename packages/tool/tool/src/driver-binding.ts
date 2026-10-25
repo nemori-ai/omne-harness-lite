@@ -1,14 +1,13 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
+import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
-  CallAccess,
   PreparationRecord,
-  ToolFailure,
   ToolLiveExecution,
   ToolRecovery,
   ToolStartLookup,
-  ToolStartRecord,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import type { ToolDependencies } from './construction.ts'
 import { tenantKey } from './boundary.ts'
 

@@ -21,7 +21,7 @@
 | CAP-TL05 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | [P07](../SPEC.md#p07-计时控制与检查点) | 未许可、Ask和resource转换拒绝、完成与后台化竞争、重复只一个占位、不回前台 |
 | CAP-TL06 等待答复 | WaitIntent/WaitRecord、ResponseRecord、DecisionBridge/ResourceResponses | [P06](../SPEC.md#p06-内部等待与答复) | 登记确认丢失、取消后登记迟到、answer确认丢失、答复与取消、资源超时不能用于Ask、普通消息不答原请求 |
 | CAP-TL07 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | [P05](../SPEC.md#p05-执行事实与原输出) | 普通对象content字段不改变分支、renderer抛错原件仍在、codec失败不假报耐久、policy拒绝不重跑；内容 ref 无需附件登记，附件仅文本且零媒体读取 |
-| CAP-TL08 过程观察 | ProcessBlock、ToolObservation、ProcessSnapshot | [P08](../SPEC.md#p08-过程分页与全文交接) | 保存前不得展示、快照/增量缝隙、慢观察gap、封块后写、无活体读已展示内容、人用内容不入消费方的请求 |
+| CAP-TL08 过程观察 | ProcessBlock、公共 `StreamFrame` 上的 ToolStreamSnapshot / ToolStreamDelta / ToolStreamEnd、ProcessSnapshot | [P08](../SPEC.md#p08-过程分页与全文交接) | 保存前不得展示、快照/增量缝隙、慢观察gap、封块后写、无活体读已展示内容、人用内容不入消费方的请求 |
 | CAP-TL09 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | P05、P08 | 保存成功本域回执丢失、retained/processed两路径、旧release不解除晚到版本、附件换引用、单块超页、消费方归档后仍可依法读 |
 | CAP-TL10 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | P07 | stop已接受仍在跑、拒绝/未知不假报停止、withdraw先逻辑终局且名额保持、reach缺失或未知被拒、reach为foreground-and-unadmitted与all的范围分别验证；目标是后台关系（已转后台或发起即后台，不论是否已启动）时 foreground-and-unadmitted 回 rejected（out-of-reach）且调用不变；前台范围的撤回不阻已受理后台子安全resume |
 | CAP-TL11 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | P01、P03、P04、P07、[P09](../SPEC.md#p09-账目恢复与退出) | prepare/release/suspend响应丢失、查询未知、旧协调者被围栏但物理执行继续、resume拒绝保留旧效果、交接清单变化 |

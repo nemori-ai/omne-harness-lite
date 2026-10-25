@@ -10,4 +10,4 @@ model-host-local 的具体插件继承唯一定义，应用装载所需目录。
 
 ## 依赖与生命周期
 
-框架契约消费 Cordis 和领域契约，领域契约不反向依赖框架。目录撤除只结束装配贡献，不撤回已发送请求，也不删除原调用及结果。服务依赖失去的业务后果沿领域协议，宿主组合见 [model 装配设计](../../model/docs/cordis.md)。
+框架契约消费 Cordis 和领域契约，领域契约不反向依赖框架。实例目录与转换目录的 `register` 在运行时调用 `@omne-harness/kernel-basis/cordis` 的 `registerInCallerFiber`，所以 `@omne-harness/kernel-basis` 是本包的运行时依赖，列在 `dependencies`。目录撤除只结束装配贡献，不撤回已发送请求，也不删除原调用及结果。服务依赖失去的业务后果沿领域协议，宿主组合见 [model 装配设计](../../model/docs/cordis.md)。

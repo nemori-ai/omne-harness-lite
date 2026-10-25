@@ -1,9 +1,35 @@
 // Closed shapes of the reference values that definitions, states and results share.
 import { judgeContentBlock, type ContentReference } from '@omne-harness/content-block'
+import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
-import type { ToolSchemaIdentity } from './definitions.ts'
+import type { SourceLayer, ToolSchemaIdentity, WorkspaceId } from './definitions.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
-import { filled, record, reject, type Check } from './shape.ts'
+import { filled, literal, record, reject, variant, type Check } from './shape.ts'
+
+/** The minted identity shapes of legal-identity, read as data: the brand is the `name` tag. */
+const organizationId: Check<OrganizationId> = record({
+  name: literal('OrganizationId'),
+  text: filled,
+})
+const tenantId: Check<TenantId> = record({
+  name: literal('TenantId'),
+  organization: organizationId,
+  account: record({ name: literal('AccountId'), text: filled }),
+})
+/** The opaque workspace brand is text here; the workspace owner defines it later (G7). */
+const workspaceId: Check<WorkspaceId> = (value, at) => {
+  const text = filled(value, at)
+  // The brand has no run-time value; a filled text is all Tool reads at its boundary.
+  return 'failure' in text ? text : succeed(text.ok as WorkspaceId)
+}
+
+/** The source layer of a contribution (G7): the position and the identity that holds it. */
+export const sourceLayer: Check<SourceLayer> = variant('kind', {
+  official: record({ kind: literal('official') }),
+  organization: record({ kind: literal('organization'), organization: organizationId }),
+  tenant: record({ kind: literal('tenant'), tenant: tenantId }),
+  workspace: record({ kind: literal('workspace'), workspace: workspaceId }),
+})
 
 export const adoption: Check<Adoption> = record({
   owner: filled,

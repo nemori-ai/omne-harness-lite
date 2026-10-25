@@ -3,13 +3,14 @@ import {
   evaluateToolAvailability,
   presentTool,
   type AvailabilityFacts,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { adoption, commandsDefinition, functionDefinition } from './tool-values.ts'
 
 function facts(): AvailabilityFacts {
   return {
     definition: { ...functionDefinition(), requiredCapabilities: ['file-system', 'network'] },
     executor: adoption('executor'),
+    layer: { kind: 'official' },
     qualification: 'allowed',
     dependencies: [
       { name: 'file-system', available: true },
@@ -43,12 +44,13 @@ describe('tool presentation', () => {
 })
 
 describe('tool availability', () => {
-  it('is available when every verified fact holds', () => {
+  it('is available when every verified fact holds, and names the source layer of the contribution', () => {
     const input = facts()
     expect(evaluateToolAvailability(input)).toEqual({
       kind: 'available',
       definition: input.definition,
       executor: input.executor,
+      layer: { kind: 'official' },
     })
   })
 

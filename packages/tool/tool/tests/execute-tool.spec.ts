@@ -3,7 +3,7 @@ import type {
   ToolExecutionContext,
   ToolExecutionScope,
   ToolExecutor,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { executeTool } from '@omne-harness/tool'
 import {
   append,

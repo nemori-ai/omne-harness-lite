@@ -4,7 +4,7 @@
 
 ## 服务定义与入口
 
-`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、18 个键常量和事件增补。[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的两个键 `toolContributionAuthority`、`toolGenerations` 与事件 `binding-changed` 尚未进入源码。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
+`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、20 个键常量和事件增补。[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的两个键 `toolContributionAuthority`、`toolGenerations` 与事件 `binding-changed` 已进入源码；它们的提供者尚未交付。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -21,6 +21,7 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock> extends Serv
   abstract readonly queries: ToolRuntime<P, B>['queries']
   abstract readonly commands: ToolRuntime<P, B>['commands']
   abstract readonly instances: ToolRuntime<P, B>['instances']
+  abstract readonly observation: ToolRuntime<P, B>['observation']
   abstract readonly content: ToolRuntime<P, B>['content']
   abstract readonly catalog: ToolRuntime<P, B>['catalog']
 }
@@ -59,6 +60,11 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E> extends 
   abstract readonly resolve: ToolBindings<P, B, E>['resolve']
   abstract readonly recover: ToolBindings<P, B, E>['recover']
   abstract readonly register: ToolBindingRegistry<P, E, B>['register']
+  abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot']
+  abstract readonly pins: ToolBindingRegistry<P, E, B>['pins']
+  abstract readonly close: ToolBindingRegistry<P, E, B>['close']
+  abstract readonly reopen: ToolBindingRegistry<P, E, B>['reopen']
+  abstract readonly drain: ToolBindingRegistry<P, E, B>['drain']
 }
 export const toolBindingsKey = ToolBindingsService.provide
 ```

@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { type ToolArguments } from '@omne-harness/tool-contract'
 import {
   createDefaultParameterCodec,
   judgeToolArguments,
-  type ToolArguments,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { json, limits } from './tool-values.ts'
 
 function codec(budgets = limits) {

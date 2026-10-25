@@ -60,29 +60,6 @@
 - `modelRuntimeKey` · `cordis.d.ts`
 - `modelSendBoundaryKey` · `cordis.d.ts`
 
-## 声明文件 `caller-fiber.d.ts`
-
-```ts
-import type { Context as CordisContext } from '@deepseek-ai/cordis';
-import { type Outcome } from '@omne-harness/operation-result';
-import type { ModelRegistrationFailure } from './registration.ts';
-export type Admission<Registration, Entered extends {
-    readonly registration: Registration;
-}> = Readonly<{
-    kind: 'refused';
-    failure: ModelRegistrationFailure;
-}> | Readonly<{
-    kind: 'recognised';
-    registration: Registration;
-}> | Readonly<{
-    kind: 'entered';
-    entry: Entered;
-}>;
-export declare function registerInCallerFiber<Registration, Entered extends {
-    readonly registration: Registration;
-}>(ctx: CordisContext, admit: (dropEffect: () => void) => Admission<Registration, Entered>, withdrawal: (entry: Entered) => () => void): Outcome<Registration, ModelRegistrationFailure>;
-```
-
 ## 声明文件 `converters.d.ts`
 
 ```ts

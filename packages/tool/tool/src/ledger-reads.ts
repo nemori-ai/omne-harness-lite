@@ -11,9 +11,9 @@ import type {
   ToolFailure,
   ToolLookup,
   ToolOperationId,
-  ToolRecovery,
   ToolResultVersion,
 } from '@omne-harness/tool-contract'
+import type { ToolRecovery } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
 import { factProgress } from './ledger-facts.ts'
 import { mintEvidence } from './evidence.ts'

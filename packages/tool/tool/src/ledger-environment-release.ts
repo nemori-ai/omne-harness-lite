@@ -2,15 +2,17 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   DurableEvidence,
-  PreparationRecord,
   RawOutput,
-  ReleaseRecord,
-  ReleaseProgress,
-  ToolTask,
   ToolOperationId,
   ToolFailure,
   ToolResult,
 } from '@omne-harness/tool-contract'
+import type {
+  PreparationRecord,
+  ReleaseRecord,
+  ReleaseProgress,
+  ToolTask,
+} from '@omne-harness/tool-contract/provider'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import { invalid, type MutationInput } from './boundary.ts'
 import { digestOf, mintEvidence } from './evidence.ts'

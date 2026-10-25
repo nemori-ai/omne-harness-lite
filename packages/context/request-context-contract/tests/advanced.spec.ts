@@ -42,7 +42,12 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   }
   const available: ToolAdoption = {
     resident: true,
-    availability: { kind: 'available', definition, executor: adoption },
+    availability: {
+      kind: 'available',
+      definition,
+      executor: adoption,
+      layer: { kind: 'official' },
+    },
     binding: adoption,
   }
   const unavailable: ToolAdoption = {

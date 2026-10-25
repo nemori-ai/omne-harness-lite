@@ -1,5 +1,6 @@
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { StreamId, StreamObserver, StreamRef } from '@omne-harness/stream-arrival'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
 import type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
@@ -70,29 +71,57 @@ export type ProcessBlock = Readonly<{
   content: ContentBlock
   trim: Readonly<{ removed: string; reason: string }> | null
 }>
-export type ToolObservation =
-  | Readonly<{
-      kind: 'snapshot'
-      cursor: ToolCursor
-      state: ToolState
-      process: readonly ProcessBlock[]
-      foreground: ForegroundReturn | null
-    }>
-  | Readonly<{
-      kind: 'delta'
-      from: ToolCursor
-      cursor: ToolCursor
-      state: ToolState
-      blocks: readonly ProcessBlock[]
-    }>
-  | Readonly<{ kind: 'gap'; after: ToolCursor; reason: 'buffer' | 'history' }>
-  | Readonly<{ kind: 'ended'; reason: 'closed' | 'denied' | 'unavailable' | 'stale-instance' }>
+/**
+ * The Tool projection on the public stream protocol (SPEC「公共流协议上的观察」, D-10). The frame
+ * vocabulary, cursors, the snapshot-then-subscription boundary and the failure order belong to
+ * `@omne-harness/stream-arrival`; Tool owns only these values. A snapshot is the confirmed view of
+ * one process stream; a delta carries the blocks confirmed since the cursor last delivered to that
+ * observer; the end value names the two Tool-owned reasons, carried by `producer-ended`.
+ */
+export type ToolStreamSnapshot = Readonly<{
+  state: ToolState
+  process: readonly ProcessBlock[]
+  foreground: ForegroundReturn | null
+}>
+export type ToolStreamDelta = Readonly<{ state: ToolState; blocks: readonly ProcessBlock[] }>
+export type ToolStreamEnd = Readonly<{ reason: 'closed' | 'stale-instance' }>
+export type ToolStreamObservation<P> = StreamObserver<
+  P,
+  ToolStreamSnapshot,
+  ToolStreamDelta,
+  ToolStreamEnd
+>
+/**
+ * The current process stream of an invocation: the public reference of the current publication
+ * generation `(instance, generation)`, or null when the directory holds no live route for the
+ * call. `state` is the current authoritative state of the call in both cases.
+ */
+export type ToolStreamSelection = Readonly<{
+  state: ToolState
+  current: Readonly<{
+    ref: StreamRef
+    instance: ToolInstanceId
+    generation: string
+    projection: 'tool-process-v1'
+  }> | null
+}>
+export interface ToolStreamReferences<P> {
+  current(
+    input: Readonly<{ access: Access<P>; reference: ToolInvocationRef }>,
+  ): Reply<ToolStreamSelection>
+}
+/**
+ * What a host publishes for one publication generation: the generation it binds, the identity of
+ * that generation's process stream, and the observation source that serves only that stream. The
+ * source ends an observation whose `ref` names another stream with `stale-stream`.
+ */
 export interface ToolHandle<P> {
   readonly instance: ToolInstanceId
-  observe(
-    input: Access<P> & Readonly<{ after: ToolCursor | null; signal: AbortSignal }>,
-  ): AsyncIterable<ToolObservation>
+  readonly generation: string
+  readonly stream: StreamId
+  readonly observation: ToolStreamObservation<P>
 }
+/** The trusted route lookup of the instance directory. It serves instance binding, not observers. */
 export interface ToolDirectory<P> {
   connect(
     input: CallAccess<P>,
@@ -198,11 +227,6 @@ export interface ToolInvocationCommands<P> {
   ): Promise<ToolReleaseDeliveryOutcome>
 }
 
-/** The ordinary access to the current instance directory: connect by the invocation reference. */
-export interface ToolInvocationDirectory<P> {
-  connect(input: InvocationAccess<P>): ReturnType<ToolDirectory<P>['connect']>
-}
-
 /** The ordinary content reads of an invocation, by its reference. */
 export interface ToolInvocationContentReader<P> {
   read(
@@ -220,14 +244,17 @@ export interface ToolInvocationContentReader<P> {
 /**
  * The ordinary runtime. `invoke` resolves the tenant and complete consumer to its original call.
  * The caller saves the fixed request and consumer before invoking; repeats recover that call. The other members
- * locate by the reference. Dropping a reference or stopping an observation undoes nothing.
+ * locate by the reference. `instances.current` gives the public reference of the current process
+ * stream, `observation.observe` observes it by that reference; neither hands out a handle.
+ * Dropping a reference or stopping an observation undoes nothing.
  */
 export interface ToolRuntime<P, B extends ContentBlock> {
   invoke(input: Access<P> & Readonly<{ request: ToolInvokeRequest }>): Promise<ToolInvokeOutcome>
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
   readonly queries: ToolInvocationQueries<P, B>
   readonly commands: ToolInvocationCommands<P>
-  readonly instances: ToolInvocationDirectory<P>
+  readonly instances: ToolStreamReferences<P>
+  readonly observation: ToolStreamObservation<P>
   readonly content: ToolInvocationContentReader<P>
   readonly catalog: ToolCatalog<P>
 }

@@ -10,12 +10,15 @@ import type {
   Access,
   InvocationAccess,
   Reply,
-  ToolAuthorRegistration,
-  ToolMessageContentBlock,
+  ToolDefinition,
   ToolResult,
   ToolResultVersion,
   ToolRuntime,
 } from '@omne-harness/tool-contract'
+import type {
+  ToolImplementation,
+  ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 
 it('createTools consumes only the public result and content read ports', () => {
   type P = { subject: string }
@@ -30,9 +33,12 @@ it('createTools consumes only the public result and content read ports', () => {
       content: Pick<ToolRuntime<P, ToolMessageContentBlock>['content'], 'read'>
     }>
   >()
-  expectTypeOf<Tools<P>['author']>().toEqualTypeOf<
-    ToolAuthorRegistration<Access<P>, ToolMessageContentBlock>
+  expectTypeOf<Tools<P>['implementation']>().toEqualTypeOf<
+    ToolImplementation<Access<P>, ToolMessageContentBlock>
   >()
+  expectTypeOf<Tools<P>['definition']>().toEqualTypeOf<ToolDefinition>()
+  // The implementation carries no definition: the asset side of the meta tool is derived once.
+  expectTypeOf<Tools<P>['implementation']>().not.toHaveProperty('definition')
   expectTypeOf<Tools<P>['present']>().toEqualTypeOf<
     (input: ToolsAccess<P>) => Promise<ToolResult<ToolMessageContentBlock>>
   >()

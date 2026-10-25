@@ -5,9 +5,11 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDefiniteFailure, ToolFailure, ToolRuntime } from '@omne-harness/tool-contract'
-import { scriptedMethod, type In, type Out, type ScriptOf } from './script.ts'
+import { scriptedMethod, type In, type Out, type Script, type ScriptOf } from './script.ts'
 
 type Runtime<P> = ToolRuntime<P, ContentBlock>
+type Observe<P> = Runtime<P>['observation']['observe']
+type FrameOf<P> = ReturnType<Observe<P>> extends AsyncIterable<infer F> ? F : never
 
 export type ScriptedToolRuntime<P> = Readonly<{
   port: Runtime<P>
@@ -15,7 +17,9 @@ export type ScriptedToolRuntime<P> = Readonly<{
   inspect: ScriptOf<Runtime<P>['inspect']>
   queries: Readonly<{ [K in keyof Runtime<P>['queries']]: ScriptOf<Runtime<P>['queries'][K]> }>
   commands: Readonly<{ [K in keyof Runtime<P>['commands']]: ScriptOf<Runtime<P>['commands'][K]> }>
-  instances: Readonly<{ connect: ScriptOf<Runtime<P>['instances']['connect']> }>
+  instances: Readonly<{ current: ScriptOf<Runtime<P>['instances']['current']> }>
+  /** The observation face answers frames; the script answers the whole iterable of one call. */
+  observation: Readonly<{ observe: Script<In<Observe<P>>, AsyncIterable<FrameOf<P>>> }>
   content: Readonly<{ [K in keyof Runtime<P>['content']]: ScriptOf<Runtime<P>['content'][K]> }>
   catalog: Readonly<{ [K in keyof Runtime<P>['catalog']]: ScriptOf<Runtime<P>['catalog'][K]> }>
 }>
@@ -29,6 +33,15 @@ function unscripted(): ToolDefiniteFailure {
 /** The default of a method that returns a `Reply`. */
 function failing(): () => Outcome<never, ToolFailure> {
   return () => fail(unscripted())
+}
+
+/** An iterable that a scripted answer resolves to, exposed before the answer settles. */
+function deferred<T>(answer: Promise<AsyncIterable<T>>): AsyncIterable<T> {
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield* await answer
+    },
+  }
 }
 
 /** The default of a method that returns a command outcome: a definite rejection. */
@@ -70,8 +83,14 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     In<R['commands']['releaseDelivery']>,
     Out<R['commands']['releaseDelivery']>
   >(rejecting())
-  const connect = scriptedMethod<In<R['instances']['connect']>, Out<R['instances']['connect']>>(
+  const current = scriptedMethod<In<R['instances']['current']>, Out<R['instances']['current']>>(
     failing(),
+  )
+  // Until scripted, an observation ends at once with the public `unavailable`.
+  const observe = scriptedMethod<In<Observe<P>>, AsyncIterable<FrameOf<P>>>(() =>
+    (async function* (): AsyncGenerator<FrameOf<P>> {
+      yield { kind: 'ended', reason: 'unavailable' }
+    })(),
   )
   const read = scriptedMethod<In<R['content']['read']>, Out<R['content']['read']>>(failing())
   const raw = scriptedMethod<In<R['content']['raw']>, Out<R['content']['raw']>>(failing())
@@ -95,7 +114,8 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
         account: account.call,
       },
       commands: { control: control.call, releaseDelivery: releaseDelivery.call },
-      instances: { connect: connect.call },
+      instances: { current: current.call },
+      observation: { observe: input => deferred(observe.call(input)) },
       content: { read: read.call, raw: raw.call },
       catalog: { inspect: catalogInspect.call, usage: usage.call, search: search.call },
     },
@@ -111,7 +131,8 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       account: account.script,
     },
     commands: { control: control.script, releaseDelivery: releaseDelivery.script },
-    instances: { connect: connect.script },
+    instances: { current: current.script },
+    observation: { observe: observe.script },
     content: { read: read.script, raw: raw.script },
     catalog: { inspect: catalogInspect.script, usage: usage.script, search: search.script },
   }

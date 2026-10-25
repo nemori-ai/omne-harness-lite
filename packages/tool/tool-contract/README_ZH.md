@@ -1,6 +1,6 @@
 # @omne-harness/tool-contract
 
-与 [README.md](README.md) 是同一成员。设计已接受。根入口导出全部公开类型、品牌身份解码函数、默认结果政策和契约函数。子路径入口 `./binding` 只供受信的执行绑定提供者读取句柄内的作者。子路径入口 `./testing` 给外部提供者七个端口（环境、启动围栏、执行者绑定、输出保管、ToolClock、决策桥、资源应答）的一致性套件和守约的非耐久替身；登记语义套件在 `tool-cordis-contract` 的 `./testing`，用法见 [README](README.md#一致性套件)。夹具可另给第二个租户的 `otherAccess`，跨租户用例以它判定；缺失时不适用。每个端口有一张回答表，套件经 `finalAnswer` 与 `resendRecalls` 读取答复，不轮询；夹具的完成手柄只在延迟工作落地后才 resolve，缺手柄的用例报告不适用，不是通过。服务定义与服务键在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README_ZH.md)。本包不含 runtime 与提供者的实现。独立执行函数和 runtime 在 `@omne-harness/tool`。支持范围见[支持范围](#支持范围)。
+与 [README.md](README.md) 是同一成员。设计已接受。SPEC 的[公开入口的分组](SPEC.md#公开入口的分组)（D-03）与[公共流协议上的观察](SPEC.md#公共流协议上的观察)（D-10）两节是 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，它们的接受在该卡交付时记录。公开名字分两个入口（[SPEC「公开入口的分组」](SPEC.md#公开入口的分组)）：根入口导出 Tool 组外成员实际导入的名字及其声明的传递闭包，子路径入口 `./provider` 导出只被 Tool 组实现成员使用的提供者协议（含 `toolBodyContract`、其余身份解码函数、默认结果政策与契约函数）。子路径入口 `./binding` 只供受信的执行绑定提供者读取句柄内的作者。子路径入口 `./testing` 给外部提供者七个端口（环境、启动围栏、执行者绑定、输出保管、ToolClock、决策桥、资源应答）的一致性套件和守约的非耐久替身；登记语义套件在 `tool-cordis-contract` 的 `./testing`，用法见 [README](README.md#一致性套件)。夹具可另给第二个租户的 `otherAccess`，跨租户用例以它判定；缺失时不适用。每个端口有一张回答表，套件经 `finalAnswer` 与 `resendRecalls` 读取答复，不轮询；夹具的完成手柄只在延迟工作落地后才 resolve，缺手柄的用例报告不适用，不是通过。服务定义与服务键在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README_ZH.md)。本包不含 runtime 与提供者的实现。独立执行函数和 runtime 在 `@omne-harness/tool`。支持范围见[支持范围](#支持范围)。
 
 ## 支持范围
 
@@ -8,8 +8,8 @@
 
 | 档 | 本包的状态 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
-| 公开类型已导出 | 已导出：全部公开契约类型、品牌身份解码函数、默认结果政策与资产正文端口 `toolBodyContract` | 根入口 | `tests/public-entry.spec.ts` 核对导出名与导入方向。`*.spec-d.ts` 以正负编译用例核对类型 |
-| 纯契约函数已实现 | 已实现：定义、请求、交付解除与状态的判定函数，可用性判定与呈现，作者注册，等待契约，默认参数 codec，结果渲染与投影，以及 `./binding` 的作者读取函数 | 根入口。`./binding` 只给受信的执行绑定提供者 | 单元测试覆盖这些函数。函数不做 I/O。没有包外消费者验证 |
+| 公开类型已导出 | 已导出：全部公开契约类型、品牌身份解码函数、默认结果政策与资产正文端口 `toolBodyContract` | 根入口与 `./provider`，按[公开入口的分组](SPEC.md#公开入口的分组) | `tests/public-entry.spec.ts` 核对导出名与导入方向。`*.spec-d.ts` 以正负编译用例核对类型 |
+| 纯契约函数已实现 | 已实现：定义、请求、交付解除与状态的判定函数，可用性判定与呈现（可用结果带来源层），作者注册（只收实现侧字段），定义派生 `deriveDefinition` 与常驻规则纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident`，等待契约，默认参数 codec，结果渲染与投影，以及 `./binding` 的作者读取函数 | `./provider`，按[公开入口的分组](SPEC.md#公开入口的分组)。`./binding` 只给受信的执行绑定提供者 | 单元测试覆盖这些函数。函数不做 I/O。没有包外消费者验证 |
 | 独立执行已实现 | 本包没有。`executeTool` 与 `createIndependentToolScope` 在 `tool`，该包的范围见[组的支持范围](../README.md#支持范围) | 无 | 无 |
 | runtime 已实现的路径 | 本包没有。runtime 在 `tool`，该包的范围见[组的支持范围](../README.md#支持范围)。本包只定义它的契约 | 无 | 无 |
 | 尚未交付的宿主与提供者 | 本包只定义端口。真实的环境、执行者绑定、输出保管、时钟、决策桥与资源应答提供者都尚未交付。启动围栏的本地提供者已在 `tool-host-local` 中实现，范围见该包 README 的支持范围一节（`tool-host-local/README_ZH.md#支持范围`） | 无 | 无 |
@@ -54,4 +54,4 @@ tool-contract/
 
 树中列出 docs 的全部主题；验证资源见 [verification](verification/index.md)。设计阅读路径见[文档索引](docs/index.md)。六主题的职责见[文档说明](docs/README.md)。标为占位的目录只有职责说明，不表示已有 Schema、模型、证明、决策、示例、运行资源或验收能力。文件导航见 [index](index.md)，完整目录要求见[成员文档规范](../../../docs/member-documentation.md)。
 
-普通 ToolRuntime 以 invoke 提交 payload，返回可保存的调用引用。queries、commands、instances 与 content 分别提供查询、命令、实例连接和内容读取。引用 codec 从根入口导出，每次使用仍核当前主体和合法租户。受信内部 admission 与回应不进入普通接口，精确协议见 [SPEC](SPEC.md#342-普通操作与实例目录)。
+普通 ToolRuntime 以 invoke 提交 payload，返回可保存的调用引用。queries、commands、instances.current、observation.observe 与 content 分别提供查询、命令、当前过程流引用、公共流观察和内容读取。引用 codec 从根入口导出，每次使用仍核当前主体和合法租户。受信内部 admission 与回应不进入普通接口，精确协议见 [SPEC](SPEC.md#342-普通操作与实例目录)。

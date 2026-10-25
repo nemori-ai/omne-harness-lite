@@ -5,15 +5,19 @@ import {
   defineFunctionTool,
   defineToolOperation,
   defineToolWaitContract,
+  deriveDefinition,
+  judgeImplementationFacts,
   judgeToolDefinition,
   type ToolMessageContentBlock,
   type ToolOperation,
   type ToolOperationParameters,
   type ToolWaitProtocolDefinition,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { readToolOperation, readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
   adoption,
+  declaration,
+  governance,
   metadata,
   ordinaryAuthor,
   ordinaryReturns,
@@ -53,7 +57,7 @@ function shellOperation(): Operation {
 }
 
 describe('author registration', () => {
-  it('author registration: a function tool projects its one operation into a judged definition', () => {
+  it('author registration: a function tool projects its one operation into judged implementation facts', () => {
     let runs = 0
     const author = ordinaryAuthor()
     const defined = defineToolOperation({
@@ -63,32 +67,56 @@ describe('author registration', () => {
     })
     if (!('ok' in defined)) throw new Error(defined.failure.field)
     expect(Object.keys(defined.ok).sort()).toEqual(['parameters', 'returns'])
-    const registered = defineFunctionTool({ metadata: metadata(), operation: defined.ok })
-    if (!('ok' in registered)) throw new Error(registered.failure.field)
+    const implemented = defineFunctionTool({ implementation: declaration(), operation: defined.ok })
+    if (!('ok' in implemented)) throw new Error(implemented.failure.field)
+    const facts = {
+      ...declaration(),
+      implements: { kind: 'function', parameters: parameters(), returns: ordinaryReturns },
+    }
+    expect(implemented.ok.facts).toEqual(facts)
+    expect(judgeImplementationFacts(implemented.ok.facts)).toEqual({ ok: facts })
+    // The implementation carries no name, adoption or governance: the asset supplies them.
+    expect(Object.keys(implemented.ok)).toEqual(['facts'])
+    expect(runs).toBe(0)
+  })
+
+  it('author registration: the loader derives the definition from the asset governance and the facts', () => {
+    const implemented = defineFunctionTool({
+      implementation: declaration(),
+      operation: readOperation(),
+    })
+    if (!('ok' in implemented)) throw new Error(implemented.failure.field)
     const expected = {
       ...metadata(),
       kind: 'function',
       parameters: parameters(),
       returns: ordinaryReturns,
     }
-    expect(registered.ok.definition).toEqual(expected)
-    expect(judgeToolDefinition(registered.ok.definition)).toEqual({ ok: expected })
-    expect(Object.keys(registered.ok)).toEqual(['definition'])
-    expect(runs).toBe(0)
+    const derived = deriveDefinition(governance(), implemented.ok.facts)
+    expect(derived).toEqual(expected)
+    expect(judgeToolDefinition(derived)).toEqual({ ok: expected })
+    // `programmable` stays omitted when the asset omits it, and comes from the asset otherwise.
+    expect('programmable' in derived).toBe(false)
+    expect(deriveDefinition({ ...governance(), programmable: true }, implemented.ok.facts)).toEqual(
+      {
+        ...expected,
+        programmable: true,
+      },
+    )
   })
 
   it('author registration: a command tool keeps each command with its own return mode', () => {
-    const registered = defineCommandTool({
-      metadata: { ...metadata(), name: 'files' },
+    const implemented = defineCommandTool({
+      implementation: declaration(),
       commands: {
         read: { summary: 'Read a file.', operation: readOperation() },
         shell: { summary: 'Run a command.', operation: shellOperation() },
       },
     })
-    if (!('ok' in registered)) throw new Error(registered.failure.field)
-    const { definition } = registered.ok
-    if (definition.kind !== 'commands') throw new Error('commands')
-    expect(definition.commands).toEqual([
+    if (!('ok' in implemented)) throw new Error(implemented.failure.field)
+    const shape = implemented.ok.facts.implements
+    if (shape.kind !== 'commands') throw new Error('commands')
+    expect(shape.commands).toEqual([
       {
         name: 'read',
         summary: 'Read a file.',
@@ -109,34 +137,42 @@ describe('author registration', () => {
     const table = Object.assign(Object.create(inherited) as Record<string, unknown>, {
       read: { summary: 'Read a file.', operation: readOperation() },
     })
-    const registered = defineCommandTool({
-      metadata: metadata(),
+    const implemented = defineCommandTool({
+      implementation: declaration(),
       commands: table as Record<string, { summary: string; operation: Operation }>,
     })
-    if (!('ok' in registered)) throw new Error(registered.failure.field)
-    const { definition } = registered.ok
-    if (definition.kind !== 'commands') throw new Error('commands')
-    expect(definition.commands.map(command => command.name)).toEqual(['read'])
+    if (!('ok' in implemented)) throw new Error(implemented.failure.field)
+    const shape = implemented.ok.facts.implements
+    if (shape.kind !== 'commands') throw new Error('commands')
+    expect(shape.commands.map(command => command.name)).toEqual(['read'])
   })
 
   it('author registration: rejects an empty command table at construction', () => {
-    expect(defineCommandTool({ metadata: metadata(), commands: {} })).toEqual({
+    expect(defineCommandTool({ implementation: declaration(), commands: {} })).toEqual({
       failure: { field: 'commands', reason: 'empty' },
     })
   })
 
-  it('author registration: rejects an illegal command name and an illegal tool name at construction', () => {
+  it('author registration: rejects an illegal command name and an asset-side field at construction', () => {
     expect(
       defineCommandTool({
-        metadata: metadata(),
+        implementation: declaration(),
         commands: { '': { summary: 'Nameless.', operation: readOperation() } },
       }),
     ).toEqual({ failure: { field: 'commands[""]', reason: 'empty' } })
-    expect(
-      defineFunctionTool({ metadata: { ...metadata(), name: '' }, operation: readOperation() }),
-    ).toEqual({
-      failure: { field: 'metadata.name', reason: 'incomplete-reference' },
+    // The name and the adoption belong to the asset: an implementation that carries them is rejected.
+    const named = { ...declaration(), name: 'read_file' } as unknown as ReturnType<
+      typeof declaration
+    >
+    expect(defineFunctionTool({ implementation: named, operation: readOperation() })).toEqual({
+      failure: { field: 'implementation.name', reason: 'unknown-field' },
     })
+    expect(
+      defineFunctionTool({
+        implementation: { ...declaration(), description: ' ' },
+        operation: readOperation(),
+      }),
+    ).toEqual({ failure: { field: 'implementation.description', reason: 'blank' } })
   })
 
   it('author registration: rejects an ordinary declaration paired with a structured author', () => {
@@ -198,12 +234,12 @@ describe('author registration', () => {
     }
     expect(
       defineFunctionTool({
-        metadata: metadata(),
+        implementation: declaration(),
         operation: forged as unknown as ReturnType<typeof readOperation>,
       }),
     ).toEqual({ failure: { field: 'operation', reason: 'type' } })
     const shell = shellOperation() as unknown as ReturnType<typeof readOperation>
-    expect(defineFunctionTool({ metadata: metadata(), operation: shell })).toEqual({
+    expect(defineFunctionTool({ implementation: declaration(), operation: shell })).toEqual({
       failure: { field: 'operation.parameters.kind', reason: 'executor-owned' },
     })
   })
@@ -252,7 +288,7 @@ describe('author registration', () => {
         },
       },
     )
-    expect(defineCommandTool({ metadata: metadata(), commands: hostile })).toEqual({
+    expect(defineCommandTool({ implementation: declaration(), commands: hostile })).toEqual({
       failure: { field: 'input', reason: 'unreadable' },
     })
   })
@@ -324,19 +360,19 @@ describe('wait contract', () => {
     const slot = readToolOperation(defined.ok)
     expect(slot?.author.executor).toBe(author.executor)
     expect(slot?.returns).toEqual(ordinaryReturns)
-    const registered = defineCommandTool({
-      metadata: { ...metadata(), name: 'files' },
+    const implemented = defineCommandTool({
+      implementation: declaration(),
       commands: { read: { summary: 'Read a file.', operation: defined.ok } },
     })
-    if (!('ok' in registered)) throw new Error(registered.failure.field)
-    const table = readToolRegistration(registered.ok)
+    if (!('ok' in implemented)) throw new Error(implemented.failure.field)
+    const table = readToolRegistration(implemented.ok)
     expect(table?.kind).toBe('commands')
     if (table?.kind === 'commands') expect(table.operations.map(([name]) => name)).toEqual(['read'])
     // A value that this module did not mark has no slot, so a forged handle cannot carry an author.
     expect(readToolOperation({ parameters: defined.ok.parameters, returns: ordinaryReturns })).toBe(
       undefined,
     )
-    expect(readToolRegistration({ definition: registered.ok.definition })).toBe(undefined)
+    expect(readToolRegistration({ facts: implemented.ok.facts })).toBe(undefined)
   })
 
   it('author registration: an author accepts only fixed wait contracts', () => {

@@ -3,13 +3,11 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Adoption,
-  FactBatch,
-  FactProgress,
-  FactReceipt,
   ProcessBlock,
   ToolFailure,
   ToolStartRecord,
 } from '@omne-harness/tool-contract'
+import type { FactBatch, FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
 import { canonicalJson, factTaskOperation, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'

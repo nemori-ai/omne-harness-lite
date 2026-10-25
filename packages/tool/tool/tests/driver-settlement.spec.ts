@@ -1,14 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { type ToolStartRecord, type ToolTerminal } from '@omne-harness/tool-contract'
 import {
   readToolInvocationRef,
   decodeToolRevision,
   type FactBatch,
   type ToolExecutionFact,
   type ToolLiveExecution,
-  type ToolStartRecord,
-  type ToolTerminal,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { completedFinal } from '@omne-harness/tool-contract/testing'
 import { startHarness, losingCommits, type StartOptions } from './start-values.ts'
 import {

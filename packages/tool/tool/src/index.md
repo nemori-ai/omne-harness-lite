@@ -21,6 +21,7 @@
 - [排除规则](ledger-exclusion.ts)：同提交全部 operation 的排除围栏。
 - [账本工厂](ledger.ts)。
 - [runtime 工厂](runtime.ts)。
+- [公共流协议上的观察门面](stream-facade.ts)。
 - [测试入口与依赖装配](testing.ts)。
 - [非耐久记录仓](testing-store.ts)。
 - [公开接口](../docs/public-api.md)。

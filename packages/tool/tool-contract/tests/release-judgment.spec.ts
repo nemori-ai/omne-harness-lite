@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { judgeConsumerRef, judgeHandoff } from '@omne-harness/tool-contract'
+import { judgeConsumerRef, judgeHandoff } from '@omne-harness/tool-contract/provider'
 import { evidence } from './tool-values.ts'
 
 const consumer = {

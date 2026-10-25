@@ -6,12 +6,8 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import {
-  TOOL_REFERENCE_MAX_LENGTH,
-  decodeToolInvocationRef,
-  decodeToolOperationRef,
   encodeToolInvocationRef,
   encodeToolOperationRef,
-  readToolInvocationRef,
   readToolOperationRef,
   resolveToolInvocationRef,
   resolveToolOperationRef,
@@ -20,6 +16,12 @@ import {
   type ToolOperationId,
   type ToolOperationRef,
 } from '@omne-harness/tool-contract'
+import {
+  TOOL_REFERENCE_MAX_LENGTH,
+  decodeToolInvocationRef,
+  decodeToolOperationRef,
+  readToolInvocationRef,
+} from '@omne-harness/tool-contract/provider'
 
 function parsed<T>(result: { ok: true; value: T } | { ok: false }): T {
   if (!result.ok) throw new Error('fixture identity text does not parse')

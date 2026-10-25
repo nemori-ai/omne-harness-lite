@@ -15,15 +15,17 @@ import {
   type TestToolDependencies,
 } from '@omne-harness/tool/testing'
 import {
-  defaultResultPolicy,
   type Access,
   type ToolCallId,
-  type ToolDriver,
   type ToolExecutionRef,
-  type ToolHandle,
-  type ToolInstanceHost,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { type ToolHandle } from '@omne-harness/tool-contract/provider'
+import {
+  defaultResultPolicy,
+  type ToolDriver,
+  type ToolInstanceHost,
+} from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import {
@@ -246,7 +248,9 @@ export function createDemo() {
             const live = await executor.start(input, _environment)
             if ('failure' in live) return live
             const registration = readToolRegistration(
-              input.request.command === null ? report.author : registeredTools?.author,
+              input.request.command === null
+                ? report.implementation
+                : registeredTools?.implementation,
             )
             if (registration === undefined) throw new Error('Missing registered author')
             const operation =
@@ -370,8 +374,9 @@ export function createDemo() {
   ): ToolInvokeRequest => ({
     availability: {
       kind: 'available',
-      definition: command === null ? report.author.definition : tools.author.definition,
+      definition: command === null ? report.definition : tools.definition,
       executor: adoption(command === null ? 'report-executor' : 'Tools-executor'),
+      layer: { kind: 'official' },
     },
     command,
     arguments: { original: argumentsText, effective: argumentsText, complete: true },

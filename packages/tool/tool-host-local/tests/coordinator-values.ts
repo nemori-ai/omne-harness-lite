@@ -6,7 +6,6 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
-  decodeToolInstanceId,
   decodeToolOperationId,
   type Adoption,
   type DurableEvidence,
@@ -16,6 +15,7 @@ import {
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
+import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import {
   createLocalStartCoordinator,
@@ -67,6 +67,7 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
   return {
     availability: {
       kind: 'available',
+      layer: { kind: 'official' },
       definition: {
         adoption: adoption('read_file'),
         name: 'read_file',

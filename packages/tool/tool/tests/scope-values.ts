@@ -2,12 +2,11 @@
 // value, so a test can change one field and keep the rest legal.
 import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { type Adoption, type ToolDecision } from '@omne-harness/tool-contract'
 import {
   defineToolWaitContract,
-  type Adoption,
   type ToolAskRequest,
   type ToolAuthorLimits,
-  type ToolDecision,
   type ToolExecutionScope,
   type ToolPrimitiveFailure,
   type ToolProcessReceiver,
@@ -17,7 +16,7 @@ import {
   type ToolValueSchema,
   type ToolWaitContract,
   type ToolWaiter,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { createIndependentToolScope } from '@omne-harness/tool'
 
 export type Failure = ToolPrimitiveFailure

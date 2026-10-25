@@ -10,7 +10,7 @@ import type {
   PreparationRecord,
   ReleaseProgress,
   ToolEnvironment,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import {
   environmentAnswers,
   memoryToolEnvironmentFixture,

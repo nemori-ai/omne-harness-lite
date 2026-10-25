@@ -9,27 +9,29 @@ import type {
   DurableEvidence,
   Effect,
   RawOutput,
-  ReleaseRecord,
-  ReleaseProgress,
   FixedToolRequest,
-  FactReceipt,
-  FactProgress,
   ProcessBlock,
-  ToolExecutionFact,
-  PreparationRecord,
   ToolCallId,
-  ToolCommands,
   ToolExecutionRef,
   ToolOperationId,
-  ToolRecovery,
   ToolResult,
   ToolResultVersion,
   ToolRevision,
   ToolStartRecord,
   ToolState,
-  ToolTask,
   ToolTerminal,
 } from '@omne-harness/tool-contract'
+import type {
+  ReleaseRecord,
+  ReleaseProgress,
+  FactReceipt,
+  FactProgress,
+  ToolExecutionFact,
+  PreparationRecord,
+  ToolCommands,
+  ToolRecovery,
+  ToolTask,
+} from '@omne-harness/tool-contract/provider'
 
 /** The tenant identity as the contract types it; the ledger does not import legal-identity. */
 export type TenantId = Access<unknown>['tenant']

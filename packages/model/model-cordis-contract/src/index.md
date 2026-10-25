@@ -6,4 +6,3 @@
 - [cordis.ts](cordis.ts)：`./cordis` 入口，导出抽象 Service 定义、键、Context 与 Events 增补。
 - [converters.ts](converters.ts)：转换目录 `ModelConvertersService`，定义自有的具体 Service。
 - [instances.ts](instances.ts)：实例目录 `ModelInstancesService`，定义自有的具体 Service。
-- [caller-fiber.ts](caller-fiber.ts)：两个目录共用的 `register` 前置：在调用方 fiber 的 effect 里同步准入，并把准入结果转成 `Outcome`。

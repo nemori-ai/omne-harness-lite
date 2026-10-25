@@ -1,6 +1,7 @@
 import { afterEach, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
-import { readToolInvocationRef, type ToolFailure } from '@omne-harness/tool-contract'
+import { type ToolFailure } from '@omne-harness/tool-contract'
+import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import {
   admission,
   ok,

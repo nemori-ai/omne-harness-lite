@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockId, ReferenceContentBlock } from '@omne-harness/content-block'
-import { projectToolResult } from '@omne-harness/tool-contract'
+import { projectToolResult } from '@omne-harness/tool-contract/provider'
 import { reference, result, text } from './tool-values.ts'
 
 const ids = (...values: string[]) => values as BlockId[]

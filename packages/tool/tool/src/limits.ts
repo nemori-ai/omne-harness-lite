@@ -1,7 +1,7 @@
 // The closed check of `ToolAuthorLimits` for an untrusted input. The own-property reader comes
 // from the contract's `./binding` entry, so this package keeps no copy of it.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolAuthorLimits } from '@omne-harness/tool-contract'
+import type { ToolAuthorLimits } from '@omne-harness/tool-contract/provider'
 import { readOwnSlot, type OwnSlot } from '@omne-harness/tool-contract/binding'
 
 export type Rejection = Readonly<{ field: string; reason: string }>

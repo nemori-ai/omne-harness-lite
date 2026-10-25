@@ -282,7 +282,7 @@ describe('tool runtime double', () => {
       tools.port.queries.readDiagnostics(input),
       tools.port.queries.readResult(input),
       tools.port.queries.account(input),
-      tools.port.instances.connect(input),
+      tools.port.instances.current({ access: input, reference: input }),
       tools.port.content.read(input),
       tools.port.content.raw(input),
       tools.port.catalog.inspect(input),
@@ -298,8 +298,19 @@ describe('tool runtime double', () => {
     const reference = stub<never>({ id: 'ref' })
     tools.invoke.once(() => ({ kind: 'commit-unknown', reference }))
     expect(await tools.port.invoke(input)).toEqual({ kind: 'commit-unknown', reference })
-    tools.instances.connect.always(() => succeed({ kind: 'no-live-route' }))
-    expect(ok(await tools.port.instances.connect(input))).toEqual({ kind: 'no-live-route' })
+    const selection = { state: stub<never>({ phase: 'accepted' }), current: null }
+    tools.instances.current.always(() => succeed(selection))
+    expect(ok(await tools.port.instances.current({ access: input, reference: input }))).toEqual(
+      selection,
+    )
+    const frames = []
+    for await (const frame of tools.port.observation.observe({
+      ref: stub<never>({}),
+      access: input,
+      signal: new AbortController().signal,
+    }))
+      frames.push(frame)
+    expect(frames).toEqual([{ kind: 'ended', reason: 'unavailable' }])
   })
 })
 

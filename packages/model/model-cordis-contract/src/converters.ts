@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
+import { registerInCallerFiber, type Admission } from '@omne-harness/kernel-basis/cordis'
 import type {
   Adoption,
   ConversionFailure,
@@ -12,7 +13,6 @@ import type {
 } from '@omne-harness/model-contract'
 import { isCanonicalMediaType, judgeModality } from '@omne-harness/modality'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { registerInCallerFiber, type Admission } from './caller-fiber.ts'
 import type {
   ModelConverterAuthority,
   ModelConverterRegistration,
@@ -187,7 +187,7 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
     fiber: CordisContext['fiber'],
     request: ModelConverterRegistrationInput<P>,
     removeEffect: () => void,
-  ): Admission<ModelConverterRegistration, Entry<P>> {
+  ): Admission<Entry<P>, ModelRegistrationFailure> {
     const checked = authority.check(request)
     if ('failure' in checked) return { kind: 'refused', failure: checked.failure }
     if (!sameAdoption(request.adoption, request.converter.adoption))
@@ -284,7 +284,7 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
       return registerInCallerFiber(
         ctx,
         dropEffect => admit(ctx.fiber, request, dropEffect),
-        entry => () => withdrawSuddenly(entry),
+        entry => withdrawSuddenly(entry),
       )
     },
   }

@@ -3,18 +3,20 @@ import { succeed } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
-  decodeToolInstanceId,
-  judgeToolInvokeRequest,
   type ToolCallId,
   type ToolInvocation,
-  type ToolInvocationSourceIssuer,
   type ToolInvokeRequest,
   type ToolOperationId,
+  type FixedToolRequest,
+} from '@omne-harness/tool-contract'
+import {
+  decodeToolInstanceId,
+  judgeToolInvokeRequest,
+  type ToolInvocationSourceIssuer,
   type ToolOperationIdentities,
   type ToolInstanceIdentities,
-  type FixedToolRequest,
   type Mutation,
-} from '@omne-harness/tool-contract'
+} from '@omne-harness/tool-contract/provider'
 import { canonicalJson, digestOf } from './evidence.ts'
 import { isTenantShape } from './boundary.ts'
 import type { AccessVerdict, ToolInvokeAuthority, ToolSourceGuard } from './ledger-guards.ts'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
   modelField,
   modelHost,
