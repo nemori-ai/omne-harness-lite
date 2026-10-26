@@ -41,7 +41,7 @@
 
 修订由卡owner授权后交正文单写者集成。语义变化升交付revision，保留既有决定范围；分类标签只投影正文。规范变义先由其拥有者接受并写回，卡引用新有效输入；原生边与条件表不一致须对账。改了卡不表示已满足准入。
 
-主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project配置了「交付线」字段时，它也是投影，由正文单写者维护；字段登记归[交付配置](github-delivery.json)，没有登记时不造字段ID。
+主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line字段也是投影：`start` 在开工时按binding写入，调度者可用 `board-cli.ts dispatched` 补写。Line与其他看板字段的字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
 
 当前迭代必须先有负责人采用的节奏与真实Iteration实例；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
 
@@ -57,7 +57,7 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 并行仅在独立写范围和条件允许时展开，共享接口及集成目标有单一责任。其他卡被阻塞不妨碍已获准的独立部分。旧实例失联、调度者交接及过时候选的处置继续按共用协议，不用更新时间或assignee模拟锁。
 
-并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。每条并行交付线的上下文地图与任务信息包按 `claim` 技能的 `references/` 中的模板写，派发前过一次其中的自包含检查。
+并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。调度者为每张并行的卡写上下文地图与任务信息包，按 `claim` 技能 `references/` 中的模板写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
 
 ## 4. 推进和更新状态
 
@@ -67,7 +67,13 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 
 本地会话直接修改 Stage 并运行 `start`，不经过这两个流程。「Stage 只能由有资格的人修改」只在云端路径上由流程强制，本地按本节约定执行；`delivery-stage` 也不核对触发者是不是这张卡的调度者。
 
-本地会话的调度者在执行者交回候选 PR 时运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Status 改为 In review。候选合入轨道后运行同一命令的 `integrating`，把 Status 改为 Integrating。`start` 已在新建 context 时写入 Dispatched at 与 Line，写入失败时调度者用 `board-cli.ts dispatched` 补写。命令只能在本地会话运行；云端会话改 Stage 仍用 `delivery-stage`，日期字段留待本地会话补写。
+`delivery-stage` 现在不接受 Integrating。Integrating 只能在本地路径上写入。让该流程接受 Integrating 归 `github-gate` 分支的拥有者。
+
+看板字段的写入如下。命令都只能在本地会话运行；云端会话改 Stage 仍用 `delivery-stage`，日期字段留待本地会话补写。
+
+- 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。
+- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。一波并行的卡由集成节点运行这一步，见[集成节点的清单](integration.md#集成节点的清单)。gate 失败时，调度者把 Stage 改回 In review。
+- `start` 在新建 context 时写入 Dispatched at 与 Line。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
 
 执行者在开工和成果交回时也更新事实。每次注明当前revision/attempt、发生的变化、成果或证据、尚缺条件及下一责任。正文只保留当前摘要，旧attempt和逐轮过程通过评论或技术回执定位。Project对账注明所核Stage及时点；评论、正文或Project写入失败时分别报告未持久的部分，不声称全部已更新。
 
@@ -83,7 +89,7 @@ RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC
 
 交付卡的有效决定先读回，再由具名角色修关闭和Project视图。只接受子任务或部分结果时父卡继续活动。平台写入不可用时，区分“负责人已在对话作决定”和“远端决定尚未记录”；停止依赖其持久事实的状态切换，不声称Issue已接受。恢复后取回有权者的可核输入，不能凭模糊回忆补造决定。
 
-接受决定读回后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts accepted --issue <卡号>`。命令写 Accepted at，按 Dispatched at 算出 Cycle days，并把 Status 改为 Accepted。命令不判断接受是否有效，只在决定读回之后运行。
+接受决定读回后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts accepted --issue <卡号>`。命令写 Accepted at，按 Dispatched at 算出 Cycle days，并把 Stage 改为 Accepted。命令不判断接受是否有效，只在决定读回之后运行。
 
 ## 6. 暂停、取消和跨会话恢复
 
@@ -107,6 +113,4 @@ binding放在“当前执行与交接”，派发后替换未派发的计划文�
 
 完成 track 后已接受的结果仍可能随所在轨道逐层提升，被后续完整 RI 携带到上游与 main。轨道 owner 在提升 PR 的说明中列出这些卡及其在上一层的条件。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台，唯一的例外是云端会话开工时派发 `delivery-facts`。
-
-自 #768 起，dev-flow 还写看板的日期与交付线字段：`start` 新建 context 后尽力写 Dispatched at 与 Line，其余字段由调度者运行 `board-cli.ts` 写入。见[多层分支规则](integration.md#issue-与-project-的配合)。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；视图不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。dev-flow 对平台的写入范围见[多层分支规则](integration.md#issue-与-project-的配合)。

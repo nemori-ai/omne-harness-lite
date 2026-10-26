@@ -62,6 +62,7 @@ Epic是后续可选聚合能力，首版不创建正式Epic或对它运行本页
 | Ready | 本次范围、接受者及开始条件已核；开始前再读回，不是永久许可 |
 | In progress | 当前attempt已获授权，独立工作可推进；可能仍等待集成条件 |
 | In review | 候选与相称证据已形成，等待适用技术核验；不是每个任务强制独立全审 |
+| Integrating | 候选已通过准入，正在经 gate 进入目标轨道。gate 成功后进入 Awaiting acceptance 或接受流程；gate 失败退回 In review |
 | Awaiting acceptance | 适用证据和条件齐备，等待具名接受者判断 |
 | Accepted | 对精确交付修订与范围作了有效接受，关闭并退出活动 |
 | Cancelled | 有权者明确不再交付，记录残余影响及后继处置，关闭但不记接受 |
@@ -106,7 +107,12 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 
 属性属于交付范围。卡首次登记属性时不升交付修订；登记后改变交付线、性质或契约变更时升交付修订。调度者改里程碑时不升交付修订。属性派生的标签与 Project 字段只作投影，规则见[建卡或修订卡](agent-delivery.md#2-建卡或修订卡)。
 
-Project 的 Line、Dispatched at、Delivered at、Accepted at 与 Cycle days 字段也是投影，由 dev-flow 写入，字段 ID 登记在 `tools/dev-flow/config/project-board.json`。调度者用 `milestone-cli.ts carry` 改卡的里程碑时，binding 中派发时的里程碑不变，属性发现随后报告 `attribute-binding-drift`，卡上的流转评论说明原因。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
+Project 的 Line、Dispatched at、Delivered at、Accepted at 与 Cycle days 字段也是投影，由 dev-flow 写入。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
+
+调度者用 `milestone-cli.ts carry` 改卡的里程碑时，binding 中派发时的里程碑不变，属性发现随后报告 `attribute-binding-drift`。处置如下：
+
+1. carry 在卡上发的流转评论说明原因。
+2. 正文单写者在这张卡的下一次 revision 中，把 binding 的 `milestone` 改为当前里程碑。漂移随之消失。
 
 ## 3. 条件、关系与解锁
 
@@ -189,6 +195,4 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台。
-
-自 #768 起，dev-flow 还写看板的日期与交付线字段，范围见[多层分支规则](integration.md#issue-与-project-的配合)。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；视图不另增 Stage 或可编辑调度队列，Stage 只取 [§2](#2-卡片与阶段) 表中的值。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。dev-flow 对平台的写入范围见[多层分支规则](integration.md#issue-与-project-的配合)。

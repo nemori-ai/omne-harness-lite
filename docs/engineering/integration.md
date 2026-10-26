@@ -239,7 +239,7 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 
 交付身份的密钥只放在 `delivery` environment。该 environment 只接受 `github-gate` 上的运行，所以只有 admin 写入 `github-gate` 的流程能使用这把密钥。该 environment 不设确认者，流程运行时不等人确认。
 
-`github-gate` 上的 `delivery-facts` 与 `delivery-stage` 用交付身份为 Claude Code 云端会话读取开工事实、修改 Project Stage，用法见 `github-gate` 的 `gate/README.md`。本地会话直接读取并修改 Stage，不经过这两个流程。所以「Stage 只能由有资格的人修改」只在云端路径上由流程强制；本地路径与 Project 成员的写权限按现行约定执行。`delivery-stage` 只核对触发者是 `publish` 的 reviewer，不核对他是不是这张卡的调度者，单一调度者在云端同样是约定。两个流程写死了 Project ID 与 Stage 字段 ID；修改[交付配置](github-delivery.json)的 `project` 时，同时修改 `github-gate` 上的这两个流程。
+`github-gate` 上的 `delivery-facts` 与 `delivery-stage` 用交付身份为 Claude Code 云端会话读取开工事实、修改 Project Stage，用法见 `github-gate` 的 `gate/README.md`。本地会话直接读取并修改 Stage，不经过这两个流程。所以「Stage 只能由有资格的人修改」只在云端路径上由流程强制；本地路径与 Project 成员的写权限按现行约定执行。`delivery-stage` 只核对触发者是 `publish` 的 reviewer，不核对他是不是这张卡的调度者，单一调度者在云端同样是约定。两个流程写死了 Project ID 与 Stage 字段 ID；修改[交付配置](github-delivery.json)的 `project` 时，同时修改 `github-gate` 上的这两个流程。交付配置的 `project` 还登记看板字段与选项的 ID。修改 Project ID、Stage 字段 ID 或 Stage 选项时，同步这两个流程；只改其他看板字段时不需要。`delivery-stage` 现在不接受 Integrating，见[交付操作](agent-delivery.md#4-推进和更新状态)。
 
 已知风险：交付身份的密钥外泄时，持有者能修改组织内全部 Project，能编辑或关闭本仓库的 Issue（包括卡正文与 binding），也能发出伪造的开工事实评论，使云端会话的 `start` 接受没有派发资格的作者。这把密钥按与 admin 权限同等的级别保管和轮换。
 
@@ -261,15 +261,43 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 
 ## 集成节点的清单
 
-多条交付线并行推进一波工作时，各线从同一个冻结提交开工，互不通信，交回固定在 taskBase 上的候选 PR 与交接报告。集成节点是一个独立会话。它按本清单把一波候选合入目标轨道。集成节点只读候选、交接报告和派发时的包，不读线的工作过程，也不与线通信。
+几条交付线可以在同一个里程碑内并行推进。本节规定这时候选怎样合入目标轨道。下列术语只在本节使用：
+
+- **交付线**：[线归属表](delivery-lines.json)登记的线，见[交付线](#交付线)。
+- **线的执行者**：在一条交付线上推进一张卡的会话。它只在本卡的写范围内工作，与其他线的执行者不通信。
+- **波**：从同一个提交开工、并行推进的一组卡。同一波内的线互不依赖。
+- **冻结头**：一波的共同 taskBase。同一波的每张卡都从它开工，波内不前进。冻结头不是 stable 上的 checkpoint。
+- **集成节点**：调度者为一波具名的集成负责人。它有权把本波的候选合入目标轨道、退回候选，并确定波的收口提交。它无权修改候选的代码，也不与线的执行者通信。它只读候选、交接报告和调度者给的任务信息包。
+
+```mermaid
+flowchart TD
+  D["调度者"] -->|"派发：上下文地图与任务信息包"| F["冻结头"]
+  F --> L1["线的执行者 1"]
+  F --> L2["线的执行者 2"]
+  F --> LN["线的执行者 N"]
+  L1 -->|"交回：候选 PR 与交接报告"| N["集成节点"]
+  L2 -->|"交回"| N
+  LN -->|"交回"| N
+  N --> S1["逐线：写范围核对"]
+  S1 --> S2["同步目标轨道"]
+  S2 --> S3["准入"]
+  S3 --> S4["gate-publish"]
+  S4 -->|"下一条线"| S1
+  S4 --> J["联调"]
+  J --> R["波的收口提交 = 下一波的冻结头"]
+  R -.->|"不是"| C["stable 上的 checkpoint"]
+```
+
+图中有两个同步点：调度者派发的时刻，线的执行者交回的时刻。两者之间，线的执行者与集成节点都不与其他会话通信。
 
 ### 合并顺序
 
-1. 先合依赖少的线。一条线需要另一条线的交付结果时，后者先合。
-2. 依赖相同时，先合写范围小的线。
-3. 关键路径上的线最后合。它合入时，其他线已经在轨道上。
+同一波内的线互不依赖，所以合并顺序只看两条规则：
 
-集成节点在开始合并前写下这个顺序，合并中不改顺序。
+1. 一条线的交付物被另一条线以冻结路径引用时，被引用的线先合。例如定向页先于引用它的技能。
+2. 其余的线按影响面从小到大合。
+
+集成节点在开始合并前定下顺序，合并中不改顺序。顺序写进集成节点在父卡上的交回评论。
 
 ### 每一步的命令
 
@@ -279,28 +307,38 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号>...
 ```
 
-退出 0 表示没有交集。退出 1 表示有交集，标准错误逐行列出冲突的两张卡与路径。有交集时不开始合并，把冲突交派发者重新分解。
+退出 0 表示没有交集。退出 1 表示有交集，标准错误逐行列出冲突的两张卡与路径。有交集时不开始合并，把冲突交调度者重新分解。
 
 然后按合并顺序，对每条线做下列步骤：
 
-1. 读该线的候选 PR 与交接报告。报告写明未达到的验收项时，该线不合入，进入下一波的包。
+1. 读该线的候选 PR 与交接报告。报告写明未达到的验收项时，该线不合入，进入下一波的任务信息包。
 2. 核对候选改动的文件都在 binding 的写范围内：`git diff --name-only <taskBase>...<候选 head>`。有越界文件时整个候选不合入，退回该线。
-3. 在该候选的任务工作树中，按[两条基线](#两条基线)同步轨道的当前头：先 `git merge`，再运行 `task-sync`。合并出现冲突时立即停止，见下一节。
-4. 在同一个工作树中运行准入检查 `OMNE_ADMISSION=1 pnpm run check`。检查不通过时停止，不在集成侧修改该线的代码，退回该线。
-5. 按[现行准入](#现行准入)派发 `gate-publish`，由 admin 确认。
-6. 合入后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <卡号>`，把看板的 Status 改为 Integrating。
+3. 调度者为该卡登记同一 revision 的新 attempt，binding 沿用候选分支与 taskBase，并把它派发给集成节点。集成节点在自己的检出里把候选分支检出到一棵新工作树，用新 attempt 运行 `start` 取得 task context。然后按[两条基线](#两条基线)先 `git merge` 目标分支的当前头，再运行 `task-sync`。合并出现冲突时立即停止，见[冲突即退回分解](#冲突即退回分解)。
+4. 在同一棵工作树中运行准入检查 `OMNE_ADMISSION=1 pnpm run check`。检查不通过时停止，不在集成侧修改该线的代码，退回该线。同一台机器上的准入一次只跑一个，几棵工作树排队运行。
+5. 运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <卡号>`，把 Stage 改为 Integrating。然后按[现行准入](#现行准入)派发 `gate-publish`，由 admin 确认。
+
+[两条基线](#两条基线)规定工作分支上的同步合并由执行者完成。线的执行者交回候选之后，由集成节点接手这项同步。
 
 ### 冲突即退回分解
 
-合并出现冲突，说明派发时的写范围算错了。集成节点不在集成侧解决冲突。它记录冲突的两条线和文件，把后合的那条线退回下一波，并把这条记录交派发者，用来改下一波的线划分。
+合并出现冲突，说明派发时的写范围算错了。集成节点不在集成侧解决冲突。它记录冲突的两条线和文件，把后合的那条线退回下一波，并把这条记录交调度者，用来改下一波的分解。
+
+### 失败处理
+
+| 情形 | 处理 |
+| --- | --- |
+| 一条线的执行者失联，没有交回候选 | 本波不等它。它的工作项进入下一波，基线换成新的冻结头 |
+| 线的执行者报告共享的东西需要修改 | 当前波继续。这项修改排进下一波派发前的冻结 |
+| 准入不通过或候选越界 | 该候选不合入，退回该线，见上一节的第 2、第 4 步 |
+| 联调失败 | 按失败的那一步找到负责它的线，问题进入下一波的任务信息包。集成节点不修复 |
 
 ### 联调入口
 
-全部候选合入后，集成节点运行派发者在包中具名的联调命令。联调用各线的替身走完整路径，不用真实的外部服务。M1.5 的联调入口是 `apps/m2-contract-skeleton`。包中没有具名联调命令时，本波不跑联调，集成报告写明这一点。联调失败时，按失败的那一步找到拥有该步的线，问题进入下一波的包，不在集成侧修复。
+全部候选合入后，集成节点运行本波任务信息包给出的联调命令。联调用各线的替身走完整路径，不用真实的外部服务。任务信息包没有给出联调命令时，本波不跑联调，集成报告写明这一点。
 
-### 稳定点
+### 波的收口提交
 
-联调通过后，集成节点在轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check`。通过时，该提交是本波的冻结头，下一波各线以它为 taskBase。集成报告写明合入顺序、每一步的结果、退回的线和分解错误清单。冻结头不是 stable 上的 checkpoint，进入 stable 仍按[稳定点与轨道演进](#稳定点与轨道演进)执行。
+联调通过后，集成节点在轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check`。通过时，这个提交是波的收口提交，也是下一波的冻结头。集成报告写明合入顺序、每一步的结果、退回的线和分解错误清单。进入 stable 仍按[稳定点与轨道演进](#稳定点与轨道演进)执行。
 
 ## Issue 与 Project 的配合
 
@@ -308,9 +346,16 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 
 完成 track 即可接受的卡，后续仍可能随完整 prefix 进入 main/stable。卡的历史 revision 与 attempt 保留在 Issue 记录中，后续运输由确认者核对当前输入与适用条件。接受或关闭既不拒绝、也不自动许可未来的运输。
 
-Project 可由原单投影写者维护可选 Integration target 与 Integration progress 视图，来源为 Issue 的声明和实际 Git unit/checkpoint。视图只报告 declared/observed 及 unknown/inconsistent，不能作第二可编辑队列、改变 Stage 或产生 Accepted/Closes。未配置真实字段时不造字段 ID。本工具不写平台，唯一的例外是云端会话开工时派发 `delivery-facts`。
+Project 可由原单投影写者维护可选 Integration target 与 Integration progress 视图，来源为 Issue 的声明和实际 Git unit/checkpoint。视图只报告 declared/observed 及 unknown/inconsistent，不能作第二可编辑队列、改变 Stage 或产生 Accepted/Closes。未配置真实字段时不造字段 ID。
 
-看板日期与交付线字段另由 dev-flow 写入（#768）。`start` 新建 task context 后，尽力在本卡的 Project 条目上写 Dispatched at 与 Line。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at、Cycle days 与对应的 Status 由调度者运行 `board-cli.ts` 写入。字段 ID 登记在 `tools/dev-flow/config/project-board.json`。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
+dev-flow 对平台的写入限于下面四项：
+
+- 标签同步：只增删一张卡的 `line:`、`nature:`、`contract:` 三族标签。
+- 看板日期与 Line 字段：`start` 新建 task context 后尽力写 Dispatched at 与 Line。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
+- Stage：`board-cli.ts` 的 `delivered`、`integrating`、`accepted` 按本地路径把 Stage 改为 In review、Integrating、Accepted。运行者见[交付操作](agent-delivery.md#4-推进和更新状态)。
+- 里程碑流转：`milestone-cli.ts` 建里程碑，改卡的里程碑并发流转评论。
+
+此外，云端会话开工时，`start` 派发 `delivery-facts`。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
 
 ## 清理与 policy registry
 
