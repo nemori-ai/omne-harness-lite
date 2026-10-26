@@ -17,9 +17,17 @@ import {
   type AcceptanceLockConfig,
 } from '../src/acceptance/lock.ts'
 import {
+  inspectAgainst,
   inspectHistoricalApproval,
   matchHistoricalApproval,
+  observeHistoricalChange,
 } from '../src/acceptance/historical-approvals.ts'
+import {
+  HISTORICAL_APPROVALS,
+  NULL_OBJECT_ID,
+  assertUniqueApprovals,
+  type HistoricalApproval,
+} from '../src/acceptance/historical-approvals.data.ts'
 import type { CommitRecord } from '../src/commits.ts'
 
 const config: AcceptanceLockConfig = {
@@ -362,6 +370,181 @@ describe('historical fingerprint rejection', () => {
   })
 })
 
+describe('#769 historical approvals against real Git objects', () => {
+  const root = fileURLToPath(new URL('../../../', import.meta.url))
+  const decision =
+    'https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205'
+  const issue769 = HISTORICAL_APPROVALS.filter(item => item.decisionUrl === decision)
+  const commits = [...new Set(issue769.map(item => item.commit))]
+  const pathsOf = (commit: string) =>
+    HISTORICAL_APPROVALS.filter(item => item.commit === commit).map(item => item.path)
+  const flip = (hex: string) => `${hex.slice(0, -1)}${hex.endsWith('0') ? '1' : '0'}`
+
+  it('registers the six decided commits, one entry for each protected path', () => {
+    expect(commits.map(commit => commit.slice(0, 9))).toEqual([
+      '19f457a15',
+      '9f3967cc5',
+      '69bdedfab',
+      '837d333fd',
+      '14b0fcfcb',
+      '06acd53ca',
+    ])
+    expect(issue769).toHaveLength(27)
+  })
+
+  it.each(commits)('recognizes every registered path of %s from the repository', commit => {
+    const paths = pathsOf(commit)
+    expect(inspectHistoricalApproval(root, commit, paths)).toEqual(
+      HISTORICAL_APPROVALS.filter(item => item.commit === commit),
+    )
+  })
+
+  it.each(commits)('rejects %s when one byte of its fingerprint changes', commit => {
+    const paths = pathsOf(commit)
+    for (const approval of HISTORICAL_APPROVALS.filter(item => item.commit === commit)) {
+      expect(matchHistoricalApproval(approval, paths)).toBe(approval)
+      for (const field of ['oldBlob', 'newBlob', 'diffSha256'] as const)
+        expect(
+          matchHistoricalApproval({ ...approval, [field]: flip(approval[field]) }, paths),
+        ).toBeUndefined()
+    }
+  })
+
+  it.each(commits)('rejects %s against a parent other than the registered one', commit => {
+    const approval = HISTORICAL_APPROVALS.find(item => item.commit === commit)!
+    const parents = execFileSync('git', ['show', '-s', '--format=%P', commit], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .trim()
+      .split(' ')
+    const other =
+      parents.find(parent => parent !== approval.parent) ??
+      execFileSync('git', ['rev-parse', `${approval.parent}^`], {
+        cwd: root,
+        encoding: 'utf8',
+      }).trim()
+    const observed = observeHistoricalChange(root, commit, other, approval.path)
+    expect(
+      matchHistoricalApproval({ ...approval, ...observed, parent: other }, pathsOf(commit)),
+    ).toBeUndefined()
+    expect(matchHistoricalApproval({ ...approval, parent: other }, pathsOf(commit))).toBeUndefined()
+  })
+
+  it('recomputes an added path as the null object on the parent side, and nothing else matches', () => {
+    const added = issue769.filter(item => item.oldBlob === NULL_OBJECT_ID)
+    expect(added).toHaveLength(8)
+    for (const approval of added) {
+      const { commit, parent, path } = approval
+      expect(observeHistoricalChange(root, commit, parent, path).oldBlob).toBe(NULL_OBJECT_ID)
+      const realBlob = execFileSync('git', ['rev-parse', `${commit}:${path}`], {
+        cwd: root,
+        encoding: 'utf8',
+      }).trim()
+      expect(
+        matchHistoricalApproval({ ...approval, oldBlob: realBlob }, pathsOf(commit)),
+      ).toBeUndefined()
+    }
+  })
+
+  it('approves a commit only when its protected paths are exactly the registered ones', () => {
+    const commit = '69bdedfabc097585cea516ccec8a6ba1d58003ae'
+    const paths = pathsOf(commit)
+    expect(paths).toHaveLength(8)
+    expect(inspectHistoricalApproval(root, commit, paths.slice(1))).toEqual([])
+    expect(inspectHistoricalApproval(root, commit, [...paths, SPEC])).toEqual([])
+    expect(inspectHistoricalApproval(root, commit, [...paths, paths[0]!])).toEqual([])
+    const approval = HISTORICAL_APPROVALS.find(item => item.commit === commit)!
+    expect(matchHistoricalApproval(approval, paths.slice(1))).toBeUndefined()
+  })
+
+  it('keeps one decision per commit: D010 is not approved by the #769 entry for the same change', () => {
+    const d010 = HISTORICAL_APPROVALS.find(item => item.commit === historical.commit)!
+    const sameChange = issue769.find(item => item.diffSha256 === d010.diffSha256)!
+    expect(sameChange.commit).not.toBe(d010.commit)
+    expect(
+      matchHistoricalApproval({ ...sameChange, commit: d010.commit }, [d010.path]),
+    ).toBeUndefined()
+    expect(
+      matchHistoricalApproval({ ...d010, commit: sameChange.commit }, [d010.path]),
+    ).toBeUndefined()
+  })
+
+  it('compiles the list read-only', () => {
+    expect(Object.isFrozen(HISTORICAL_APPROVALS)).toBe(true)
+    expect(HISTORICAL_APPROVALS.every(item => Object.isFrozen(item))).toBe(true)
+  })
+
+  it('refuses a list with a duplicate (commit, path) instead of taking the first entry', () => {
+    expect(() => assertUniqueApprovals(HISTORICAL_APPROVALS)).not.toThrow()
+    const [first] = HISTORICAL_APPROVALS
+    const duplicate = { ...first!, diffSha256: flip(first!.diffSha256) }
+    expect(() => assertUniqueApprovals([first!, duplicate])).toThrow('duplicate (commit, path)')
+    expect(() => inspectAgainst([first!, duplicate], root, first!.commit, [first!.path])).toThrow(
+      'duplicate (commit, path)',
+    )
+  })
+})
+
+// Fast tier: a small local repository. The registered parent goes straight into the candidate, so
+// only the two parent guards in inspectAgainst can reject a wrong parent.
+describe('historical approval parent guards', () => {
+  const made: string[] = []
+  afterEach(() => {
+    for (const directory of made.splice(0)) rmSync(directory, { recursive: true, force: true })
+  })
+  const git = (root: string, ...args: string[]) =>
+    execFileSync(
+      'git',
+      ['-c', 'user.name=someone', '-c', 'user.email=someone@example.com', ...args],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    ).trim()
+  const path = 'packages/x/acceptance/README.md'
+  const decisionUrl = 'https://example.com/decision'
+
+  /** Three commits in a line: grandparent, parent, commit, each with different content at `path`. */
+  function history() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'historical-parent-')))
+    made.push(root)
+    git(root, 'init', '-q')
+    mkdirSync(join(root, dirname(path)), { recursive: true })
+    const commits = ['first\n', 'second\n', 'third\n'].map(content => {
+      writeFileSync(join(root, path), content)
+      git(root, 'add', path)
+      git(root, 'commit', '-qm', content.trim())
+      return git(root, 'rev-parse', 'HEAD')
+    })
+    const [grandparent, parent, commit] = commits as [string, string, string]
+    return { root, grandparent, parent, commit }
+  }
+  const entry = (root: string, commit: string, parent: string): HistoricalApproval => ({
+    commit,
+    parent,
+    path,
+    ...observeHistoricalChange(root, commit, parent, path),
+    decisionUrl,
+  })
+
+  it('approves an entry whose parent is the real parent', () => {
+    const { root, parent, commit } = history()
+    const approval = entry(root, commit, parent)
+    expect(inspectAgainst([approval], root, commit, [path])).toEqual([approval])
+  })
+
+  it('rejects an entry that names the grandparent, even with fingerprints observed against it', () => {
+    const { root, grandparent, commit } = history()
+    expect(inspectAgainst([entry(root, commit, grandparent)], root, commit, [path])).toEqual([])
+  })
+
+  it('rejects a real parent whose object a Git replacement has changed', () => {
+    const { root, parent, commit } = history()
+    const approval = entry(root, commit, parent)
+    const replacement = git(root, 'commit-tree', `${parent}^{tree}`, '-m', 'replacement')
+    git(root, 'replace', parent, replacement)
+    expect(inspectAgainst([approval], root, commit, [path])).toEqual([])
+  })
+})
+
 // Slow tier: clones historical Git objects and runs the real CLI in child processes.
 describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () => {
   const made: string[] = []
@@ -425,6 +608,29 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     expect(report.violations).toHaveLength(2)
     expect(report.approvedExceptions).toEqual([historical])
     expect(report.unresolvedViolations).toHaveLength(1)
+  })
+
+  it('passes the M1 freeze head against origin/main of that time only through the seven named decisions', () => {
+    const root = repository()
+    git(root, 'checkout', '--quiet', '--detach', '115bd78ba68ff95a644f6575d38749ae834203a7')
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        cli,
+        '--root',
+        root,
+        '--base',
+        '93b6235ef319938235648724ef959ff53884d2eb',
+      ],
+      { encoding: 'utf8' },
+    )
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('原始违规（锁被破 7 处）')
+    expect(result.stdout).toContain('已批准历史例外 28 处')
+    expect(result.stdout).toContain('未解决违规 0 处')
+    for (const commit of new Set(HISTORICAL_APPROVALS.map(item => item.commit)))
+      expect(result.stdout).toContain(commit)
   })
 
   it('still approves the exact history when repository configuration changes diff output', () => {
