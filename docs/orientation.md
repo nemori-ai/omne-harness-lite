@@ -1,12 +1,18 @@
 # 开工定向
 
-人和 agent 开工前先读本页。本页给所有人和所有 agent 一个相同的开工起点，回答三个问题。系统有哪些责任？核心四项与执行环境之间允许哪些方向？服务端怎样分层，又怎样装进一个单机进程？
+本页给相关的人和 agent 一个相同的开工起点，回答三个问题。系统有哪些责任？核心四项与执行环境之间允许哪些方向？服务端怎样分层，又怎样装进一个单机进程？
 
-本页只做导航和画图，不拥有任何结论。每张图的事实归图下列出的出处。本页与出处不一致时，以出处为准，并把差异交给出处的拥有者。读完本页后，按角色进入[读者入口](README.md#选择阅读路径)，或按任务进入[任务地图](context-map.md)。
+## 本页是什么、谁来读
+
+本页是所列出处的解释投影，不是任何事实的唯一源。图画的是已接受正文，即系统应当怎样。每张图下的状态表转述实际情况：首条路径已装载、已知冲突待裁、已裁定待写回。图与出处不一致时，以出处为准，并把差异交给出处的拥有者。
+
+做架构、领域建模、契约、装配、实现切片或设计评审的人和 agent，开工前读一次本页。局部修复、工具链、取证和验收不要求先读本页，按根 [AGENTS.md](../AGENTS.md)「按任务展开」表进入各自的入口。
+
+到达本页的入口有四个：根 AGENTS.md 的「按任务展开」表、[docs/README.md](README.md#顶层入口分工) 的入口分工表、专责角色的[项目框架](../.meta_harness/agents/roles/project-frame.md)，以及 `claim` 给出的开工地图第一项。读完本页后，按角色进入[读者入口](README.md#选择阅读路径)，或按任务进入[任务地图](context-map.md)。
 
 ## 状态怎样读
 
-每张图下有一张状态表和一份出处清单。状态只取下面四种值。整张图默认是「已接受正文」，与默认不同的元素在状态表里逐个列出。
+每张图下有一张状态表和一份出处清单。状态取下面四种值。整张图默认是「已接受正文」，与默认不同的元素在状态表里逐个列出。出处所列章节有改动、本页还没有核对时，状态表另加一行「待核对」，写明哪一节变了，见[维护](#维护)。
 
 | 状态 | 含义 |
 | --- | --- |
@@ -90,6 +96,7 @@ flowchart TB
 - 共享成员：[产品包组织](package-organization.md#目标目录)「目标目录」中 `schema` 只放 Schema 提供者、不是 `util` 或 `common` 的一段，以及同段对 `common`、`util` 的说明。
 - Cordis 内核：[总体结构与责任](architecture/structure.md#cordis-集成与作用域)「Cordis 集成与作用域」。
 - 装载状态：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
+- 核对于 `115bd78b`（integration/legacy-refactor）。
 
 ## 协作
 
@@ -142,7 +149,7 @@ Session 与 Model、Tool 之间只画了禁止线。[会话与工作](domains/se
 | 已知冲突待裁 | Session 一侧作 Model 消费者拥有者（K-05） |
 | 已裁定待写回 | Session 契约里按被替代端口写的步骤（K-04）；三条流表中 Agent `stream` 事件一行 |
 
-冲突在本页状态表登记，承接卡见各条。本页只标出，不替拥有者裁定。
+冲突的家是承接卡与拥有者正文。本页只转述，并给出承接卡，不替拥有者裁定。
 
 - K-04，已裁定待写回。[Session 契约](../packages/session/session-contract/SPEC.md)仍在操作步骤里按 `ToolStartFencePort` 与 `DeliveryReleasePort` 两个被替代的端口写，只加了「已被替代」标记。同页[被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)给出替代拥有者：Tool 启动围栏是 Agent 日志的 `start-fence` 条目，交付责任解除经 Agent 宿主的结果接收方发出。具名承接 [#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)、[#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。
 - 三条流表中 Agent `stream` 事件一行，已裁定待写回。[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)表中这一行写 Agent 的 `stream` 事件转发生产者已保管的批次，给观察者统一入口。[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)的 J04 写观察者经观察端口直接观察生产者，Agent 只写 `stream-reference` 条目，收窄 `stream` 分支归 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)。
@@ -159,6 +166,7 @@ Session 与 Model、Tool 之间只画了禁止线。[会话与工作](domains/se
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - 三条流表一行：[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)「三条流不逐块进会话日志」；[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)「流引用与自身事件」。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
+- 核对于 `115bd78b`（integration/legacy-refactor）。
 
 ## 顶层架构
 
@@ -209,6 +217,7 @@ SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装
 - 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」。
 - 成员标注与禁止边：[产品包组织](package-organization.md#sdk与系统接入)「SDK与系统接入」「[最小 CLI 的接入边界](package-organization.md#最小-cli-的接入边界)」。
 - 已装载的成员：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
+- 核对于 `115bd78b`（integration/legacy-refactor）。
 
 ### 单机进程
 
@@ -278,11 +287,10 @@ flowchart TB
 - 部署范围与进程组织：[部署与运行拓扑](architecture/deployment/README.md#部署环境与进程组织)「部署环境与进程组织」。
 - HTTP JSON 与 fetch SSE：[系统技术基础](architecture/technical-foundations.md#共同技术选择)「共同技术选择」。
 - 装配入口、插件树行与供应商适配：[应用装配](architecture/runtime/application-assembly.md#进程与装配入口)「进程与装配入口」「[插件树](architecture/runtime/application-assembly.md#插件树)」。
+- 核对于 `115bd78b`（integration/legacy-refactor）。
 
-## 维护本页
+## 维护
 
-本页的拥有者是 docs 读者入口与知识地图的拥有者。下列事件发生时，更新对应的图和状态表。
+本页的拥有者是 docs 集成线。出处清单所列章节有改动时，改动所在的卡同步本页对应的图与状态表。来不及同步时，在对应状态表加一行「待核对」，写明哪一节变了。核对完成后，把该图出处清单末尾「核对于」的提交号改为核对时的提交号。
 
-1. 出处正文改变了图中的责任、关系或标签。
-2. 首条路径的插件树增加、删除或替换了行。
-3. 拥有者裁定了一项冲突，或承接卡写回了已裁定的正文。这时更新或删除对应的状态标注。
+`pnpm run check:docs` 只检查链接与锚点，不检查图与出处的内容是否一致。内容漂移靠上面的规则发现，本页不承诺机器检查。
