@@ -199,11 +199,21 @@ node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.
 - `--repo` 缺省取 `git remote get-url origin`。
 - 接收器只绑定 127.0.0.1，只接受 POST。给出 `--secret` 时校验 `X-Hub-Signature-256`，并以 `-S` 传给转发器。
 - 接收器自己拉起并持有 `gh webhook forward`，转发 `issues`、`pull_request`、`issue_comment`。
-- 启动后在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。停止时删除它。要核对本机有没有接收器在跑，读这个文件并用 `kill -0 <进程号>` 核对进程还在。
-- 启动时不删除任何 hook。接收器先记下仓库里已有的转发 hook，拉起转发器后轮询到新出现的那一个，把它记为自己的。
-- 按 Ctrl-C 或发 SIGTERM 停止。接收器先停转发器，再只删除自己的 hook。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那个 hook，或运行 `clean`。
-- 同时新出现多个 hook 时，接收器认不出哪个是自己的。它一个都不删，退出1，标准错误写出这些 hook 号。
-- 一个事件文件只开一个接收器。并发的接收器可以开在同一仓库，各自持有各自的 hook。
+- 启动后在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。正常停止、转发器退出和停止时读不到 hook 列表，都删除它。要核对本机有没有接收器在跑，读这个文件并用 `kill -0 <进程号>` 核对进程还在。
+- 同一事件文件只允许一个接收器，第二个启动会被拒绝：`receiver.pid` 已存在且其中的进程还在时，接收器退出2并说明。进程已不在时（例如上一个接收器被 SIGKILL），接收器覆盖这个文件。
+- 启动时不删除任何 hook。接收器先记下仓库里已有的转发 hook，拉起转发器后在30秒内读 hook 列表找新出现的 hook。30秒内没找到时，标准错误写一行说明，停止时再找。
+- 按 Ctrl-C、发 SIGTERM 或 SIGHUP 停止。接收器先停转发器，再只删除自己的 hook。自己的 hook 是启动后找到的新 hook 与停止时新出现的 hook 合起来、仍在仓库里的那一个。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那些 hook，或运行 `clean`。
+- 新出现多个 hook 时，接收器认不出哪个是自己的。启动后一看到多个，标准错误立即写一行 `Multiple forwarder hooks appeared: …`，接收器继续运行。停止时它一个都不删，退出1，标准错误写出这些 hook 号。
+- 停止时读不到 hook 列表，接收器仍删除启动后找到的那一个 hook，标准错误写出残留的 hook 号，退出1。
+- 启动失败退出2，标准错误写一行 `{"kind":"receiver-error",…}`，错误带系统错误码时多一个 `code` 字段。
+- 接收器因未捕获的异常退出时也结束转发器。被 SIGKILL 时转发器、hook 与 `receiver.pid` 都会残留。
+
+同一仓库上的多个接收器：两个接收器启动时间相差小于30秒时，接收器可能把对方的 hook 认作自己的，停止时可能删错。操作规则：
+
+- 一台机器只开一个接收器。
+- 不同机器上的接收器错开启动，间隔超过30秒。
+- 启动后用 `gh api repos/<owner>/<name>/hooks` 核对转发 hook 恰好多了一个。
+- 较早启动的接收器在较晚的仍在运行时停止，会看到两个新 hook，一个都不删，退出1。这时等较晚的也停止后运行 `clean`。
 
 接收器被 SIGKILL 后 hook 会残留。用 `clean` 清理。
 
@@ -215,7 +225,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.
 - `clean` 会影响所有正在运行的接收器。先停掉其他接收器再运行它。
 - 标准输出一行 `{"kind":"hooks-cleaned","deleted":[…],"failed":[…]}`。有删不掉的退出1。
 
-再用四条命令等待。命令一直阻塞到匹配事件出现，打印匹配的那一行 JSON，退出0。
+再用四条命令等待。命令一直阻塞到匹配事件出现，打印匹配的那一行 JSON，退出0。输入、对账或读文件出错时退出2，标准错误写一行 `{"kind":"wait-error",…}`，错误带系统错误码时多一个 `code` 字段。
 
 ```sh
 node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts issue-closed --issue <号> [公共参数]
@@ -231,14 +241,14 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 - 输出多一个 `source` 字段。`event` 表示事件文件里的行，`reconcile` 表示启动对账命中。
 - `comment` 的标记名是评论第一行 `<!-- 标记名 -->` 里的词。`<!-- line-delta -->` 的标记名是 `line-delta`。
 - `pr-ready` 认非草稿 PR 的 `ready_for_review`、`opened` 与 `synchronize`。`synchronize` 表示 head 变了。
-- `--ignore <pr>@<head>` 可重复。号与 head 都相同的 PR 被跳过，事件与对账都一样。head 前进后同一个 PR 会再次命中。head 写完整的 sha，大小写不分。
+- `--ignore <pr>@<head>` 可重复。号与 head 都相同的 PR 被跳过，事件与对账都一样。head 前进后同一个 PR 会再次命中。head 写完整的 sha（40 或 64 位十六进制），大小写不分。短 sha 退出2。
 - 集成节点处理完一个批次后，再等时带上 `--ignore <pr>@<它处理时的 head>`，就不会立刻拿到同一个 PR。
 - `pr-ready` 的输出带 `number` 与 `head`。
 - `any` 接受可重复的 `--issue-closed` 与 `--comment`，任一命中就返回那一行。输出多一个 `matched` 字段，值是 `issue-closed` 或 `comment`。三个单项命令的输出不带 `matched`。
-- 线会话用 `any --issue-closed <收口卡> --comment <线父卡>:line-return`，收口和批次被退回都能唤醒它。
-- 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。
+- 线会话用 `any --issue-closed <收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>`，收口和批次被退回都能唤醒它。
+- 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
 
-接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。之后不再调用 GitHub API。
+接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。之后不再调用 GitHub API。
 
 依赖：
 

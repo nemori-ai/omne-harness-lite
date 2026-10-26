@@ -1,11 +1,22 @@
 // @module-tag slow
 // Slow: every case runs wait-cli as a child process with a `gh` stand-in on PATH.
-import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const homes: string[] = []
 afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
@@ -19,7 +30,7 @@ const HEAD_A = 'a'.repeat(40),
  * `api` with `comments` pages. It fails every other call.
  */
 function setup(state: string, pulls?: unknown[], comments: unknown[] = [[]]) {
-  const home = mkdtempSync(join(tmpdir(), 'wait-cli-'))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'wait-cli-')))
   homes.push(home)
   const bin = join(home, 'bin')
   mkdirSync(bin)
@@ -229,6 +240,43 @@ describe('wait-cli', () => {
       expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'wait-error' })
     }
   })
+
+  it('exits 2 for a short head sha and says that the full sha is needed', () => {
+    const { home, env } = setup('OPEN', [])
+    const result = run(
+      [
+        'pr-ready',
+        '--file',
+        join(home, 'events.jsonl'),
+        '--base',
+        'main',
+        '--ignore',
+        '2@abcdef1',
+        '--repo',
+        'owner/repo',
+        '--timeout',
+        '1',
+      ],
+      env,
+    )
+    expect(result.status).toBe(2)
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      kind: 'wait-error',
+      message: expect.stringContaining('full commit sha'),
+    })
+  })
+
+  it('exits 2 with the error code when the event file cannot be read', () => {
+    const { home, env } = setup('OPEN')
+    const file = join(home, 'events.jsonl')
+    symlinkSync(file, file)
+    const result = run(
+      ['issue-closed', '--issue', '5', '--file', file, '--repo', 'owner/repo'],
+      env,
+    )
+    expect(result.status).toBe(2)
+    expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'wait-error', code: 'ELOOP' })
+  })
 })
 
 describe('events-receiver-cli clean', () => {
@@ -237,7 +285,7 @@ describe('events-receiver-cli clean', () => {
   )
   /** A `gh` over three hooks that refuses to delete hook 3 when `refuse3` is set. */
   function hookEnv(refuse3: boolean) {
-    const home = mkdtempSync(join(tmpdir(), 'receiver-cli-'))
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-cli-')))
     homes.push(home)
     const bin = join(home, 'bin')
     mkdirSync(bin)
@@ -287,4 +335,101 @@ if (args.includes('DELETE')) {
       expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'receiver-error' })
     }
   })
+
+  it('exits 2 with the error code when the event file directory cannot be made', () => {
+    const env = hookEnv(false)
+    const blocker = join(homes.at(-1) ?? '', 'blocker')
+    writeFileSync(blocker, '')
+    const result = runReceiver(
+      ['serve', '--port', '1', '--file', join(blocker, 'events.jsonl'), '--repo', 'owner/repo'],
+      env,
+    )
+    expect(result.status).toBe(2)
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      kind: 'receiver-error',
+      code: expect.stringMatching(/^E[A-Z]+$/),
+    })
+  })
+})
+
+describe('events-receiver-cli serve', () => {
+  const receiverCli = fileURLToPath(
+    new URL('../src/delivery/events-receiver-cli.ts', import.meta.url),
+  )
+  const freePort = () =>
+    new Promise<number>((resolve, reject) => {
+      const probe = createServer()
+      probe.once('error', reject)
+      probe.listen(0, '127.0.0.1', () => {
+        const address = probe.address()
+        const port = typeof address === 'object' && address !== null ? address.port : 0
+        probe.close(() => resolve(port))
+      })
+    })
+
+  it('stops on SIGHUP like on SIGTERM: forwarder stopped, own hook deleted, receiver.pid removed', async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-serve-')))
+    homes.push(home)
+    const bin = join(home, 'bin'),
+      state = join(home, 'hooks.json'),
+      deletions = join(home, 'deleted.log'),
+      file = join(home, 'events', 'events.jsonl')
+    mkdirSync(bin)
+    writeFileSync(state, '[1]')
+    writeFileSync(
+      join(bin, 'gh'),
+      `#!/usr/bin/env node
+const fs = require('node:fs')
+const state = ${JSON.stringify(state)}
+const read = () => JSON.parse(fs.readFileSync(state, 'utf8'))
+const args = process.argv.slice(2)
+if (args[0] === 'webhook') {
+  fs.writeFileSync(state, JSON.stringify([...read(), 7]))
+  process.on('SIGTERM', () => process.exit(0))
+  setInterval(() => undefined, 1000)
+} else if (args.includes('DELETE')) {
+  const id = Number(args.at(-1).split('/').at(-1))
+  fs.appendFileSync(${JSON.stringify(deletions)}, id + '\\n')
+  fs.writeFileSync(state, JSON.stringify(read().filter(hook => hook !== id)))
+} else {
+  const url = 'https://webhook-forwarder.github.com/hook'
+  process.stdout.write(JSON.stringify([read().map(id => ({ id, name: 'cli', config: { url } }))]))
+}
+`,
+    )
+    chmodSync(join(bin, 'gh'), 0o755)
+    const port = await freePort()
+    const child = spawn(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        receiverCli,
+        'serve',
+        '--port',
+        String(port),
+        '--file',
+        file,
+        '--repo',
+        'owner/repo',
+      ],
+      { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, stdio: 'ignore' },
+    )
+    const exited = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)))
+    try {
+      await vi.waitFor(
+        () => {
+          expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(true)
+          expect(readFileSync(state, 'utf8')).toBe('[1,7]')
+        },
+        { timeout: 10_000, interval: 50 },
+      )
+      child.kill('SIGHUP')
+      expect(await exited).toBe(0)
+      expect(readFileSync(deletions, 'utf8')).toBe('7\n')
+      expect(readFileSync(state, 'utf8')).toBe('[1]')
+      expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(false)
+    } finally {
+      child.kill('SIGKILL')
+    }
+  }, 20_000)
 })

@@ -24,7 +24,7 @@ description: >
 线、线父卡、线包、批次、批次 PR、波、收口点、`line-delta` 都按 `integration.md`「集成节点的清单」的定义。本技能另外固定四个说法：
 
 - 波 w 从收口点 F(w-1) 开工，结束于集成节点建立的收口点 F(w)。首波的 F(0) 写在线包里，之后每个 F(w) 由 `line-delta` 给出。integration.md 的图把一波的输入写作 `F_w`、输出写作 `F_w+1`。本技能按波号计，波 w 的输入是 F(w-1)，输出是 F(w)。
-- 波 w 的收口卡代表 F(w)。它关闭，就是波 w+1 开工的事件。所以你在波 w 末等的是本波的收口卡。
+- 波 w 的收口卡代表 F(w)。它关闭，就是波 w+1 开工的事件。所以你在波 w 末等的是本波的收口卡。本线在波 w+1 没有卡时不开那一波，也不等它的收口卡：等的是本线下一张卡所在波的前一波收口卡，线包第 1 节按波列出要等的那几张。跳过的几波的 `line-delta` 在那次读取时一起读，按序号顺序应用。
 - `<线>` 是线包第 1 节给出的线短名（例如 `LA`），用在批次分支名和 `tmp/line-<线>/`。`<用户名>` 是线包写明的 GitHub 用户名。任务 `tmp/` 不计入写范围，本技能要求写的 `tmp/line-<线>/` 与各卡的 `tmp/issue-<号>/` 都可以写。
 - 事件文件是每台机器一个的 `<主检出>/tmp/github-events/events.jsonl`。主检出指 `.worktrees/` 的上一级目录。线包第 7 节写明它的绝对路径。接收器与每一条 `wait-cli.ts` 命令都显式传 `--file <事件文件>`。
 
@@ -79,7 +79,7 @@ description: >
    ```
 
    在 Claude Code 里用 Bash 工具的后台运行（`run_in_background`）跑这条命令，命令退出时会话才被唤醒。本技能说的「不轮询」指不轮询 GitHub、不唤醒模型。本机文件的等待在后台 shell 里做。
-4. 卡的 PR 以批次分支为 base。核对卡的 integration 阶段条件，自己合入，把 Stage 改为 delivered（`board-cli.ts delivered`）。卡的 PR 与交接报告保留。
+4. 卡的 PR 以批次分支为 base。核对卡的 integration 阶段条件，自己合入，把 Stage 改为 delivered（`board-cli.ts delivered`）。卡的 PR 与交接报告保留。不写仓库的卡（产出只在卡评论里的设计或裁定卡）没有 PR：交接报告发出后即改为 delivered，不进批次 PR，批次报告把它单列为「无仓库改动」。
 5. 每张卡交回后，以及任何一次压缩上下文之前，在线父卡发一条线状态注（模板在 `.meta_harness/human/map-reduce-delivery/templates/line-state.md`）。压缩后从状态注重建，不从记忆重建。
 6. 同一波里后一张卡从前一张合入后的批次头开工。跨波的同线依赖经收口点带入：前一张进了批次，它的结果就在下一波的 F 里。前一张没进批次，`line-delta` 会给出两张卡的新位置。所以同线依赖不写成开工条件，队列顺序就是保证。
 
@@ -95,10 +95,10 @@ description: >
 
 ## 5 等收口
 
-批次交出后，同时等两种事件：本波收口卡关闭（GitHub `issues` 事件的 `closed`），或线父卡上一条以 `<!-- line-return -->` 开头的评论。收口卡的编号在线包第 1 节。等待阻塞在本机事件文件上，不轮询 GitHub：
+批次交出后，同时等两种事件：收口卡关闭（GitHub `issues` 事件的 `closed`），或线父卡上一条以 `<!-- line-return -->` 开头的评论。等哪张收口卡按线包第 1 节「各波的收口卡」：本线下一波有卡时是本波收口卡，下一波没有卡时是下一张卡所在波的前一波收口卡。等待阻塞在本机事件文件上，不轮询 GitHub：
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --issue-closed <本波收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --issue-closed <要等的收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>
 ```
 
 - `--since` 一律带上，值是 ISO 时间（例如 `2026-10-26T18:00:00Z`）。首波取起点评论时间。之后取上一条已读 `line-delta` 的时间。处理过一条 `line-return` 后，取这条 `line-return` 的时间，否则会再次命中它。`line-return` 总在本波的 `line-delta` 之前发出，所以这样取不会漏读 `line-delta`。

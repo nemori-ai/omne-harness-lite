@@ -1,6 +1,7 @@
-import { closeSync, mkdirSync, openSync, readSync, statSync, watch } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readSync, statSync, watch, type Stats } from 'node:fs'
 import { basename, dirname } from 'node:path'
 import {
+  errorCode,
   matchedMember,
   parseEventLine,
   type AtomicPredicate,
@@ -33,6 +34,9 @@ export type WaitOptions = {
   signal?: AbortSignal
 }
 
+/** Interval of the local re-read of the event file, in case a watch event is lost. */
+const LOCAL_RECHECK_MS = 5000
+
 type Since = { kind: 'time'; ms: number; iso: string } | { kind: 'delivery'; id: string }
 
 function parseSince(value: string | undefined): Since | undefined {
@@ -46,10 +50,11 @@ function parseSince(value: string | undefined): Since | undefined {
 
 /**
  * Blocks until a record that satisfies the predicate is in the event file. It reads the lines
- * that exist, then watches the directory of the file and reads each appended range once. A line
- * is parsed only when its newline has arrived. A delivery id counts once. The reconcile runs
- * once after the first read, once per member for an `any` predicate. The wait never calls
- * GitHub again.
+ * that exist, then watches the directory of the file and reads each appended range once. It also
+ * re-reads the file every 5 s in case a watch event is lost. A line is parsed only when its
+ * newline has arrived. A delivery id counts once. The reconcile runs once after the first read,
+ * once per member for an `any` predicate, and stops at the first member that holds or when an
+ * event has already matched. The wait never calls GitHub again.
  *
  * Rejects with `WaitTimeout` at the timeout, `InputError` when a delivery id in `since` is not
  * in the file, and the reconcile error when the reconcile fails.
@@ -63,21 +68,29 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
       partial: Buffer = Buffer.alloc(0),
       gateOpen = since?.kind !== 'delivery',
       reconcileSince = since?.kind === 'time' ? since.iso : undefined,
-      finished = false
+      finished = false,
+      inode: number | undefined
     const seen = new Set<string>()
 
-    /** Reads the bytes appended since the last read; returns the first matching record. */
+    /**
+     * Reads the bytes appended since the last read; returns the first matching record. A file
+     * that is shorter than the last read, or is another file (another inode), is read from the
+     * start. A missing file is no error; every other stat error is thrown.
+     */
     function drain(): WaitResult | undefined {
-      let size: number
+      let stat: Stats
       try {
-        size = statSync(file).size
-      } catch {
-        return undefined
+        stat = statSync(file)
+      } catch (error) {
+        if (errorCode(error) === 'ENOENT') return undefined
+        throw error
       }
-      if (size < offset) {
+      const size = stat.size
+      if (size < offset || (inode !== undefined && stat.ino !== inode)) {
         offset = 0
         partial = Buffer.alloc(0)
       }
+      inode = stat.ino
       if (size === offset) return undefined
       const data = Buffer.alloc(size - offset)
       const fd = openSync(file, 'r')
@@ -130,11 +143,14 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
             () => settle(() => reject(new WaitTimeout(`No matching event within ${timeoutMs} ms`))),
             timeoutMs,
           )
+    /** A local fallback for a lost watch event: it reads only the event file, never GitHub. */
+    const fallback = setInterval(check, LOCAL_RECHECK_MS)
     const onAbort = () => settle(() => reject(signal?.reason ?? new Error('aborted')))
     function settle(finish: () => void): void {
       if (finished) return
       finished = true
       watcher.close()
+      clearInterval(fallback)
       if (timer !== undefined) clearTimeout(timer)
       signal?.removeEventListener('abort', onAbort)
       finish()
@@ -163,6 +179,7 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
     if (reconcile === undefined) return
     void (async () => {
       for (const member of predicate.kind === 'any' ? predicate.of : [predicate]) {
+        if (finished) return undefined
         const hit = await reconcile(member, reconcileSince)
         if (hit !== undefined)
           return {

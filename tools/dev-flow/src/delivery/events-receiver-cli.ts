@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { errorCode } from './events.ts'
 import { cleanForwarderHooks, originRepository, runGhText, spawnGhForward } from './events-gh.ts'
 import { serveReceiver } from './events-receiver.ts'
 import { InputError } from './protocol.ts'
@@ -45,10 +46,13 @@ try {
   } else await serve(repository, values)
 } catch (error) {
   const message =
-    error instanceof InputError
-      ? error.message
-      : 'Cannot start the receiver or read the forwarder hooks. API output omitted.'
-  process.stderr.write(`${JSON.stringify({ kind: 'receiver-error', message })}\n`)
+      error instanceof InputError
+        ? error.message
+        : 'Cannot start the receiver or read the forwarder hooks. API output omitted.',
+    code = error instanceof InputError ? undefined : errorCode(error)
+  process.stderr.write(
+    `${JSON.stringify({ kind: 'receiver-error', message, ...(code === undefined ? {} : { code }) })}\n`,
+  )
   process.exitCode = 2
 }
 
@@ -57,8 +61,8 @@ async function serve(repository: string, values: Map<string, string>): Promise<v
     secret = values.get('--secret')
   if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new InputError(usage)
   const stopped = new Promise<void>(resolve => {
-    process.once('SIGINT', () => resolve())
-    process.once('SIGTERM', () => resolve())
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const)
+      process.once(signal, () => resolve())
   })
   process.exitCode = await serveReceiver({
     port,

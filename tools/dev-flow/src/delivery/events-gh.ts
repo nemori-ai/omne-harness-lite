@@ -23,6 +23,8 @@ export const runGhText: GhText = (argv, timeoutMs) =>
 
 const GH_TIMEOUT_MS = 15_000
 const FORWARDER_URL_PREFIX = 'https://webhook-forwarder.github.com/'
+/** The `pr-ready` reconcile reads only this many open pull requests of the base branch. */
+const PR_LIST_LIMIT = 200
 
 /** `owner/name` of the `origin` remote of the current checkout. */
 export function originRepository(): string {
@@ -102,6 +104,8 @@ export function githubReconcile(repository: string, call: GhCommand): Reconcile 
               predicate.base,
               '--state',
               'open',
+              '--limit',
+              String(PR_LIST_LIMIT),
               '--json',
               'number,isDraft,headRefOid',
             ],
@@ -254,19 +258,23 @@ export function forwardArgv(args: {
 
 const STOP_GRACE_MS = 5000
 
-/** Starts `gh webhook forward` as a child that the caller owns. Its output goes to stderr. */
+/**
+ * Starts `gh webhook forward` as a child that the caller owns. Its output goes to stderr. When
+ * this process exits first, for example on an uncaught exception, the child is killed with it.
+ */
 export const spawnGhForward: SpawnForward = args => {
   const child = spawn('gh', forwardArgv(args), { stdio: ['ignore', 2, 2], shell: false })
+  const killChild = () => child.kill()
+  process.once('exit', killChild)
   let done = false
   const exited = new Promise<number | null>(resolve => {
-    child.once('error', () => {
+    const finish = (code: number | null) => {
       done = true
-      resolve(null)
-    })
-    child.once('exit', code => {
-      done = true
+      process.removeListener('exit', killChild)
       resolve(code)
-    })
+    }
+    child.once('error', () => finish(null))
+    child.once('exit', code => finish(code))
   })
   return {
     exited,

@@ -171,15 +171,10 @@ function matchAtomic(record: EventRecord, predicate: AtomicPredicate): boolean {
   }
 }
 
-/** Keeps the first record of every delivery id. Records without a delivery id all stay. */
-export function dedupeEvents(records: readonly EventRecord[]): EventRecord[] {
-  const seen = new Set<string>()
-  return records.filter(record => {
-    if (record.delivery === null) return true
-    if (seen.has(record.delivery)) return false
-    seen.add(record.delivery)
-    return true
-  })
+/** The `code` of a Node.js system error, such as `ENOENT`; undefined when there is none. */
+export function errorCode(error: unknown): string | undefined {
+  const code = object(error)?.code
+  return typeof code === 'string' ? code : undefined
 }
 
 /** Reads one JSONL line as an `EventRecord`; undefined for a line that is not one. */

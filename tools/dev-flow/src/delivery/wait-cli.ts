@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import type { AtomicPredicate, EventPredicate, PullKey } from './events.ts'
+import { errorCode, type AtomicPredicate, type EventPredicate, type PullKey } from './events.ts'
 import { githubReconcile, originRepository } from './events-gh.ts'
 import { WaitTimeout, waitForEvent } from './events-wait.ts'
 import { runGhCommand } from './github-read.ts'
@@ -51,10 +51,16 @@ function issueOf(value: string | undefined): number {
   if (issue === undefined) throw new InputError(usage)
   return issue
 }
+/** `<pr>@<head>` with the full head sha: 40 hexadecimal digits, or 64 for SHA-256. */
 function ignoreOf(value: string): PullKey {
-  const match = /^([1-9]\d*)@([0-9a-fA-F]{7,64})$/.exec(value)
+  const match = /^([1-9]\d*)@([0-9a-fA-F]+)$/.exec(value)
   if (match === null) throw new InputError(usage)
-  return { number: Number(match[1]), head: (match[2] ?? '').toLowerCase() }
+  const head = match[2] ?? ''
+  if (head.length !== 40 && head.length !== 64)
+    throw new InputError(
+      `--ignore ${value}: the head must be the full commit sha, 40 or 64 hexadecimal digits. A short sha never matches.`,
+    )
+  return { number: Number(match[1]), head: head.toLowerCase() }
 }
 function commentOf(issue: number, marker: string | undefined): AtomicPredicate {
   if (marker === undefined || marker === '') throw new InputError(usage)
@@ -109,10 +115,13 @@ try {
     process.exitCode = 3
   } else {
     const message =
-      error instanceof InputError
-        ? error.message
-        : 'Cannot read the event file or reconcile with GitHub. API output omitted.'
-    process.stderr.write(`${JSON.stringify({ kind: 'wait-error', message })}\n`)
+        error instanceof InputError
+          ? error.message
+          : 'Cannot read the event file or reconcile with GitHub. API output omitted.',
+      code = error instanceof InputError ? undefined : errorCode(error)
+    process.stderr.write(
+      `${JSON.stringify({ kind: 'wait-error', message, ...(code === undefined ? {} : { code }) })}\n`,
+    )
     process.exitCode = 2
   }
 }

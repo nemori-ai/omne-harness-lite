@@ -1,12 +1,22 @@
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { createHmac } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   commentMarker,
-  dedupeEvents,
   matchedMember,
   matchEvent,
   normalizeGithubEvent,
@@ -28,7 +38,7 @@ import { InputError } from '../src/delivery/protocol.ts'
 const dirs: string[] = []
 afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })))
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'delivery-events-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-events-')))
   dirs.push(dir)
   return dir
 }
@@ -237,18 +247,7 @@ describe('matchEvent', () => {
   })
 })
 
-describe('dedupeEvents and parseEventLine', () => {
-  it('keeps the first record of a delivery id and every record without one', () => {
-    const first = record('issues', issuePayload('closed', 1, 'closed'), 'same')
-    const again = { ...first, receivedAt: '2026-10-26T19:00:00.000Z' }
-    const anonymous = { ...first, delivery: null }
-    expect(dedupeEvents([first, again, anonymous, anonymous])).toEqual([
-      first,
-      anonymous,
-      anonymous,
-    ])
-  })
-
+describe('parseEventLine', () => {
   it('reads back what the receiver writes and skips lines that are not events', () => {
     const value = record('pull_request', pullPayload('opened', false, 'main'), 'x')
     expect(parseEventLine(JSON.stringify(value))).toEqual(value)
@@ -390,6 +389,40 @@ describe('waitForEvent', () => {
     ).rejects.toBeInstanceOf(WaitTimeout)
   })
 
+  it('does not deduplicate lines without a delivery id', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const anonymous = { ...closed('x'), delivery: null }
+    const mark = record('issues', issuePayload('labeled', 5), 'mark')
+    writeFileSync(file, line(anonymous) + line(mark) + line(anonymous))
+    expect(await waitForEvent({ file, predicate, since: 'mark', timeoutMs: 2000 })).toMatchObject({
+      delivery: null,
+      number: 5,
+      source: 'event',
+    })
+  })
+
+  it('fails on a stat error other than a missing file', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'events.jsonl')
+    symlinkSync(file, file)
+    await expect(waitForEvent({ file, predicate, timeoutMs: 2000 })).rejects.toMatchObject({
+      code: 'ELOOP',
+    })
+  })
+
+  it('reads a replaced event file from its start', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'events.jsonl')
+    const labeled = line(record('issues', issuePayload('labeled', 5), 'a'))
+    writeFileSync(file, labeled)
+    const pending = waitForEvent({ file, predicate, timeoutMs: 5000 })
+    await sleep(100)
+    const next = join(dir, 'next.tmp')
+    writeFileSync(next, line(closed('b')) + labeled)
+    renameSync(next, file)
+    expect(await pending).toMatchObject({ delivery: 'b', source: 'event' })
+  })
+
   describe('with an any predicate', () => {
     const anyPredicate = {
       kind: 'any',
@@ -446,6 +479,20 @@ describe('waitForEvent', () => {
         }),
       ).rejects.toBeInstanceOf(WaitTimeout)
       expect(reconcile).toHaveBeenCalledTimes(2)
+    })
+
+    it('reads no further member once an event has matched', async () => {
+      const file = join(tempDir(), 'events.jsonl')
+      const reconcile = vi.fn<Reconcile>(async member => {
+        if (member.kind === 'issue-closed') await sleep(300)
+        return undefined
+      })
+      const pending = waitForEvent({ file, predicate: anyPredicate, reconcile, timeoutMs: 5000 })
+      await sleep(100)
+      appendFileSync(file, line(returned('r')))
+      expect(await pending).toMatchObject({ delivery: 'r', source: 'event', matched: 'comment' })
+      await sleep(400)
+      expect(reconcile.mock.calls.map(call => call[0].kind)).toEqual(['issue-closed'])
     })
 
     it('fails when the read of one member fails', async () => {
@@ -512,6 +559,8 @@ describe('githubReconcile', () => {
       'main',
       '--state',
       'open',
+      '--limit',
+      '200',
       '--json',
       'number,isDraft,headRefOid',
     ])
@@ -621,6 +670,27 @@ describe('createReceiverServer', () => {
     }
   })
 
+  it('answers 500 and logs one line when the event file cannot be written', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    mkdirSync(file)
+    const messages: string[] = []
+    const server = createReceiverServer({ file, now: () => T0, log: m => messages.push(m) })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${typeof address === 'object' && address !== null ? address.port : 0}`,
+        { method: 'POST', headers: { 'x-github-event': 'issues' }, body },
+      )
+      expect(response.status).toBe(500)
+      expect(messages).toEqual([expect.stringContaining('Cannot write the event file')])
+      expect(messages[0]).toContain('EISDIR')
+    } finally {
+      server.close()
+      server.closeAllConnections()
+    }
+  })
+
   it('checks X-Hub-Signature-256 when a secret is given', async () => {
     const receiver = await started('s3cret')
     const sign = (text: string, secret: string) =>
@@ -653,7 +723,13 @@ describe('serveReceiver', () => {
    * receiver. The forwarder creates the hooks in `created`, at spawn or after `createAfterMs`.
    */
   function harness(
-    options: { failDelete?: number; created?: number[]; createAfterMs?: number } = {},
+    options: {
+      failDelete?: number
+      created?: number[]
+      createAfterMs?: number
+      /** `list` fails at the start, or every read after the forwarder stopped. */
+      failList?: 'start' | 'after-stop'
+    } = {},
   ) {
     const actions: string[] = []
     const hooks = [
@@ -668,6 +744,11 @@ describe('serveReceiver', () => {
         hooks.splice(0, hooks.length, ...hooks.filter(hook => hook.id !== id))
         return ''
       }
+      if (
+        options.failList === 'start' ||
+        (options.failList === 'after-stop' && actions.includes('stop'))
+      )
+        throw new Error('list failed')
       return JSON.stringify([hooks])
     }
     const create = () =>
@@ -697,11 +778,16 @@ describe('serveReceiver', () => {
   const run = (
     h: ReturnType<typeof harness>,
     stopped: Promise<void>,
-    extra: { secret?: string; log?: (message: string) => void } = {},
+    extra: {
+      secret?: string
+      log?: (message: string) => void
+      file?: string
+      discoveryMs?: number
+    } = {},
   ) =>
     serveReceiver({
       port: 0,
-      file: join(tempDir(), 'events.jsonl'),
+      file: extra.file ?? join(tempDir(), 'events.jsonl'),
       repository: 'owner/repo',
       ...(extra.secret === undefined ? {} : { secret: extra.secret }),
       gh: h.gh,
@@ -709,7 +795,7 @@ describe('serveReceiver', () => {
       stopped,
       log: extra.log ?? (() => undefined),
       hookPollMs: 10,
-      hookDiscoveryMs: 1000,
+      hookDiscoveryMs: extra.discoveryMs ?? 1000,
     })
 
   it('starts without deleting any hook, stops the forwarder, then deletes only its own hook', async () => {
@@ -776,12 +862,115 @@ describe('serveReceiver', () => {
     const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
       log: message => messages.push(message),
     })
-    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
-    await sleep(50)
+    await vi.waitFor(() =>
+      expect(messages).toContain(
+        'Multiple forwarder hooks appeared: 3, 4; none will be deleted on stop',
+      ),
+    )
     stop()
     expect(await exit).toBe(1)
     expect(h.actions).toEqual(['spawn', 'stop'])
     expect(messages.join('\n')).toContain('Cannot tell which of the hooks 3, 4')
+  })
+
+  it('deletes none when discovery found one hook and another new one is there at shutdown', async () => {
+    const h = harness()
+    const messages: string[] = []
+    let stop: () => void = () => undefined
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
+      log: message => messages.push(message),
+    })
+    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
+    await sleep(50)
+    h.hooks.push({ id: 5, name: 'cli', config: { url: FORWARDER } })
+    stop()
+    expect(await exit).toBe(1)
+    expect(h.actions).toEqual(['spawn', 'stop'])
+    expect(messages.join('\n')).toContain('Cannot tell which of the hooks 3, 5')
+  })
+
+  it('logs when no new hook appears in time, then takes the new hook of the shutdown list', async () => {
+    const h = harness({ createAfterMs: 300 })
+    const messages: string[] = []
+    let stop: () => void = () => undefined
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
+      log: message => messages.push(message),
+      discoveryMs: 100,
+    })
+    await vi.waitFor(() =>
+      expect(messages.join('\n')).toContain('No new forwarder hook appeared within 100 ms'),
+    )
+    await vi.waitFor(() => expect(h.hooks.map(hook => hook.id)).toContain(3))
+    stop()
+    expect(await exit).toBe(0)
+    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
+  })
+
+  it('still deletes the hook it found when the shutdown list fails, names the leftovers and exits 1', async () => {
+    const h = harness({ failList: 'after-stop' })
+    const messages: string[] = []
+    let stop: () => void = () => undefined
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
+      log: message => messages.push(message),
+    })
+    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
+    await sleep(50)
+    stop()
+    expect(await exit).toBe(1)
+    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
+    expect(messages.join('\n')).toContain('Forwarder hooks left behind: none known')
+    const failing = harness({ failList: 'after-stop', failDelete: 3 })
+    const lines: string[] = []
+    let stopFailing: () => void = () => undefined
+    const failed = run(failing, new Promise<void>(resolve => (stopFailing = resolve)), {
+      log: message => lines.push(message),
+    })
+    await vi.waitFor(() => expect(failing.spawnForward).toHaveBeenCalled())
+    await sleep(50)
+    stopFailing()
+    expect(await failed).toBe(1)
+    expect(lines.join('\n')).toContain('Forwarder hooks left behind: 3.')
+  })
+
+  it('writes receiver.pid while it runs and removes it on every exit path', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'events.jsonl'),
+      pidFile = join(dir, 'receiver.pid')
+    const h = harness()
+    let stop: () => void = () => undefined
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), { file })
+    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
+    expect(readFileSync(pidFile, 'utf8')).toBe(`${process.pid}\n`)
+    stop()
+    expect(await exit).toBe(0)
+    expect(existsSync(pidFile)).toBe(false)
+    const refused = harness({ failList: 'start' })
+    await expect(run(refused, new Promise<void>(() => undefined), { file })).rejects.toThrow(
+      'list failed',
+    )
+    expect(refused.spawnForward).not.toHaveBeenCalled()
+    expect(existsSync(pidFile)).toBe(false)
+  })
+
+  it('refuses to start while receiver.pid names a running process, and replaces a stale one', async () => {
+    const dir = tempDir()
+    const file = join(dir, 'events.jsonl'),
+      pidFile = join(dir, 'receiver.pid')
+    writeFileSync(pidFile, `${process.pid}\n`)
+    const h = harness()
+    await expect(run(h, Promise.resolve(), { file })).rejects.toBeInstanceOf(InputError)
+    expect(h.spawnForward).not.toHaveBeenCalled()
+    expect(readFileSync(pidFile, 'utf8')).toBe(`${process.pid}\n`)
+    const gone = spawnSync(process.execPath, ['-e', '']).pid
+    writeFileSync(pidFile, `${gone}\n`)
+    const stale = harness()
+    let stop: () => void = () => undefined
+    const exit = run(stale, new Promise<void>(resolve => (stop = resolve)), { file })
+    await vi.waitFor(() => expect(stale.spawnForward).toHaveBeenCalled())
+    expect(readFileSync(pidFile, 'utf8')).toBe(`${process.pid}\n`)
+    stop()
+    expect(await exit).toBe(0)
+    expect(existsSync(pidFile)).toBe(false)
   })
 })
 
