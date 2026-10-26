@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "app:m2-contract-skeleton",
+    "kind": "member",
+    "source": {
+      "path": "apps/README.md",
+      "anchor": "建立与维护"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "apps/m2-contract-skeleton/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "apps/README.md",
+        "anchor": "建立与维护"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "responsibility-and-status"
+        },
+        {
+          "id": "section-2",
+          "anchor": "usage"
+        },
+        {
+          "id": "section-3",
+          "anchor": "contracts"
+        },
+        {
+          "id": "section-4",
+          "anchor": "design"
+        },
+        {
+          "id": "section-5",
+          "anchor": "configuration-and-operation"
+        },
+        {
+          "id": "section-6",
+          "anchor": "verification"
+        },
+        {
+          "id": "section-7",
+          "anchor": "maintenance"
+        }
+      ]
+    },
+    {
+      "id": "overview-zh",
+      "path": "apps/m2-contract-skeleton/README_ZH.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "apps/README.md",
+        "anchor": "建立与维护"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "职责与状态"
+        },
+        {
+          "id": "section-2",
+          "anchor": "使用"
+        },
+        {
+          "id": "section-3",
+          "anchor": "契约"
+        },
+        {
+          "id": "section-4",
+          "anchor": "设计"
+        },
+        {
+          "id": "section-5",
+          "anchor": "配置与运行"
+        },
+        {
+          "id": "section-6",
+          "anchor": "验证"
+        },
+        {
+          "id": "section-7",
+          "anchor": "维护"
+        }
+      ]
+    }
+  ]
+}

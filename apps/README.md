@@ -34,6 +34,12 @@ flowchart TD
 <!-- documentation:placeholder -->
 最小 CLI 的成员已经存在。个人设备常驻 Harness Server、云节点与集群两个装配角色的成员名、提供包及装配规格仍待设计；没有成员名时不伪造文件目标。
 
+## 临时验证应用
+
+[`m2-contract-skeleton`](m2-contract-skeleton/README.md) 是 M1 首次联合验收（G1）的私有验证应用（CS）。它在一个进程内，只用契约成员的公开导出与 `./testing` 替身，连通 M2 首条租户路径，并逐跳报告 `verified` 或具名缺口。替身上的通过不证明持久性、跨进程主体来源、共同提交或真实供应商行为。它不提供生产服务或部署入口。
+
+报告规则与缺口清单归其 [SPEC](m2-contract-skeleton/SPEC.md)。integration 交付线在它退出前维护它；首条租户路径的应用成员经插件树通过同样的验收后，按[应用装配页](../docs/architecture/runtime/application-assembly.md#cs-的终位)删除本成员与本节导航。
+
 ## 旧应用
 
 已有CLI与宿主实现保持于[apps.0.0.1.legacy](../apps.0.0.1.legacy/README.md)。它们是封存实现和现有工具依赖，不属于新树的已完成能力。
