@@ -29,7 +29,7 @@
 | `identity` | `@omne-harness/identity` 的提供者插件 | 注册激活、签发登录、识别登录；`TenantStandingSource` | `storage` | 无 | 登录期限与空闲期限 |
 | `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck` | `identity` | 无 | 角色映射的选择 |
 | `session-storage` | `@omne-harness/session-storage-sql` 的提供者插件 | `sessionTransactions` | `storage`、`tenantDomains` | 游标签名密钥的取用入口 | 介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；快照重建方式。其余字段取[成员配置](../../../packages/session/session-storage-sql/docs/cordis.md#配置)的初值 |
-| `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionTransactions`、`sessionPrincipals` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionAgentDrive`、`sessionClock`、`sessionNotifier`、`sessionDeliveryRelease` | `admission: 'none'`（本部署没有命令域与 hooks） |
+| `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionTransactions`、`sessionPrincipals` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionAgentDrive`、`sessionClock`、`sessionNotifier` | `admission: 'none'`（本部署没有命令域与 hooks） |
 | `session-ad01` | session-adapters 的 AD-01 Agent 提交参加者 | 无（向执行记录提供者登记 Session 参加者） | `session`（`caller: 'coordinator'`） | 无 | 无 |
 | `session-ad02` | AD-02 Agent 事件消费 | 无 | `session`（`'coordinator'`）、`agentExecutionRecovery` | 无 | 无 |
 | `session-ad03` | AD-03 持有者与生产者，含回放与变化提醒两个子插件 | 无 | `runtimeContext`、`session`（`'coordinator'`、`'reader'`） | 无 | 无 |
@@ -57,12 +57,14 @@
 
 发行层不含 `tool-host`、`tool-instances` 与执行环境的行，首条路径的 Agent 定义不选入工具与扩展。下列 session-adapters 插件不装载：
 
-- AD-06、AD-11、AD-17：它们 `inject` 了 `toolRuntime`。
+- AD-06、AD-11：它们 `inject` 了 `toolRuntime`。
 - AD-13：工具驻留，待 P-8。
-- AD-15、AD-16：执行环境的作用域释放与工具启动资格。
+- AD-15：执行环境的作用域释放。
 - AD-08：受理拓展点，待 NP-07；本部署 `admission: 'none'`。
 
-对应端口按 [Session 的端口表](../../../packages/session/session-contract/SPEC.md#构造依赖端口与出站端口)处理：空闲维护与自动归档返回 `unavailable`；作用域释放与启动资格失效的任务保留；结果的交付责任解除保持 pending，Model 的 ACK 不发出。本部署也不提供 `sessionNotifier`：每次提交后它缺席，提交不回滚；观察推送随 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。
+AD-16 与 AD-17 对应的两个出站端口已被替代，不装载，见 [被替代的协议](../../../packages/session/session-contract/SPEC.md#被替代的协议)。启动围栏是 Agent 日志的 `start-fence` 条目。交付责任解除经 Agent 宿主的结果接收方发出，不经 Session 的出站端口。
+
+对应端口按 [Session 的端口表](../../../packages/session/session-contract/SPEC.md#构造依赖端口与出站端口)处理：空闲维护与自动归档返回 `unavailable`；作用域释放的任务保留。本部署也不提供 `sessionNotifier`：每次提交后它缺席，提交不回滚；观察推送随 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。
 
 ```mermaid
 flowchart LR
@@ -124,6 +126,7 @@ flowchart LR
 | `session-storage` 的组合登记时机：成员 Cordis 页的[加载次序](../../../packages/session/session-storage-sql/docs/cordis.md#加载与组合登记)第 3 步在插件加载时登记一次，与每租户一个事务域不符 | Session 实现：改为由 `tenant-domains` 在租户首次解析时用本成员给出的登记材料登记，与成员[装配须知](../../../packages/session/session-storage-sql/docs/context.md)第 2 条一致 |
 | 登记表重建的两个前提：存储提供者文件名与事务域标识的对应、推导规则可逆 | 存储提供者（[#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)、[#540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）与应用装配实现；前提不成立时登记表丢失只能人工恢复 |
 | `session-handoff` 行：Session 一侧的 `MessageHandoff` 没有提供者；[Agent 的 Cordis 页](../../../packages/agent/agent-cordis-contract/docs/cordis.md)写「由装配者选择」 | Session 拥有者认领实现成员；认领前 `agent-host` 停在 `PENDING`，首条路径不能开始接收消息 |
+| Session 一侧 `release` 的记账：`ProducerFact.release` 没有写入者，`receive(release)` 与 SE19 不发生，交付责任在 Session 日志里保持 pending | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) |
 | `session-ad10` 行：所 `inject` 的装配采用与保管来源服务的键未定 | Session 实现 |
 | `agent-journal` 行：Journal 入口与 Session 提交参加者 | Agent 自身的 Journal 入口归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；Session 参加者与原 J 查询的桥接归 Session 实现 |
 | `agent-host` 行：宿主插件 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
@@ -131,7 +134,6 @@ flowchart LR
 | `agent-context` 行：Context 一侧的 Agent 适配集成包 | 已登记在 Context 运行时实现卡 [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) |
 | `model-host` 行：`modelRuntime`、`modelProfiles` 与宿主 | Model 后继实现，待建卡 |
 | `server-entry` 行：接入实现与会话编解码 | 会话编解码归 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)；接入实现待建卡 |
-| AD-17 与 `toolRuntime` 的耦合：没有工具宿主时 Model 的交付责任解除不发出 | Session 实现：AD-17 对 `toolRuntime` 改为按调用现取后，首条路径可以装载它 |
 | AD-09 身份桥对 ID-11 与 AU-09 的前提 | identity 与 authorization 后继 |
 
 ## 运行时对象
