@@ -6,7 +6,7 @@
 - 本地开工新建 context 后，本工具尽力写看板的 Dispatched at、Line、Kind 与 Wave，见[看板字段](#看板字段)。
 - 集成节点用 `gate-cli.ts wait` 批准指定环境的待确认部署，见[等待 gate 并代为确认](#等待-gate-并代为确认)。
 
-集成节点准备工作树的命令只操作本机检出，见[准备任务工作树](#准备任务工作树)。
+准备工作树的命令除其中运行的 `start` 外只操作本机检出，见[准备任务工作树](#准备任务工作树)。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 

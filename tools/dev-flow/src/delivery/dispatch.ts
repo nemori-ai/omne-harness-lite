@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs'
 import { conditionDigest, type Confirmation, type Decision } from '../integration/authority.ts'
 import { blob, maybeBlob } from '../integration/git.ts'
 import {
@@ -311,6 +312,27 @@ export function dispatchComment(prose: string, decision: Decision): string {
 
 /** The formal dispatch once its comment holds the authority block. */
 export type PostedDispatch = { dispatch: string; binding: TaskBindingV2 }
+/**
+ * Reports a posted dispatch: first one `dispatch-posted` line to `report`, then the binding
+ * into `out` when given. The URL is reported before the file write, so a failed write still
+ * leaves it with the caller, and the error names it.
+ */
+export function recordPosted(
+  posted: PostedDispatch,
+  out: string | undefined,
+  report: (line: string) => void,
+): void {
+  report(`${JSON.stringify({ kind: 'dispatch-posted', dispatch: posted.dispatch })}\n`)
+  if (out === undefined) return
+  try {
+    writeFileSync(out, `${JSON.stringify(posted.binding, null, 2)}\n`)
+  } catch {
+    throw new IntegrationError(
+      'unknown',
+      `The dispatch ${posted.dispatch} was posted, but writing the binding to ${out} failed. Do not dispatch again; write the binding from the comment.`,
+    )
+  }
+}
 /**
  * Posts the dispatch comment for a checked plan: a placeholder comment first, then one edit
  * that makes it the formal dispatch whose binding names the comment's own URL. `onPosted`

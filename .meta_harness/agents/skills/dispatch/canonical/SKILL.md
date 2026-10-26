@@ -81,7 +81,9 @@ Wave 字段记录卡所属的波。在 Project 的 Wave 字段中为本波建一
 `start` 新建 context 后写 Dispatched at、Line、Kind 与 Wave。读 `start` 写到标准错误的报告行：
 
 - 有 `board-skipped` 或 `board-write-failed` 时，修好原因后补写：`node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts dispatched --issue <N>`。
-- Wave 被跳过，表示 Wave 字段里没有包含今天的迭代。按第 4 步建好本波的迭代，再补写。
+- Wave 被跳过，按原因处置：
+  - 原因是 `Wave is already …`：卡已经有 Wave，按规则不覆盖，不处理。
+  - 原因是 `Wave has no iteration on <date>`：Project 的 Wave 字段里没有包含开工日的迭代。按第 4 步建好本波迭代后补写。不要为已有 Wave 的卡新建重叠迭代，因为重叠时取配置顺序第一个，会让别的卡写错。
 - Status 改为 In progress 由调度者在 Project 中设置。云端会话用 `delivery-stage`。
 
 ## 8. 交出派发包

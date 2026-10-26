@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { IntegrationError, json } from '../integration/parse.ts'
 import { parseTaskBinding } from './binding.ts'
@@ -12,6 +12,7 @@ import {
   parseDispatchSpec,
   planDispatch,
   postDispatch,
+  recordPosted,
   taskBaseInputs,
 } from './dispatch.ts'
 import { runGhCommand } from './github-read.ts'
@@ -96,12 +97,7 @@ function post(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): 
     prose,
     call: runGhCommand,
     // Keep the dispatch before the readback: a failed readback must not lose the URL.
-    onPosted: posted => {
-      if (out !== undefined) writeFileSync(out, `${JSON.stringify(posted.binding, null, 2)}\n`)
-      process.stderr.write(
-        `${JSON.stringify({ kind: 'dispatch-posted', dispatch: posted.dispatch })}\n`,
-      )
-    },
+    onPosted: posted => recordPosted(posted, out, line => process.stderr.write(line)),
   })
   process.stdout.write(`${JSON.stringify({ applied: true, ...result }, null, 2)}\n`)
   return result.verified ? 0 : 1

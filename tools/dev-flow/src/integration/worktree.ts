@@ -300,7 +300,11 @@ export function swapWorktree({
       'refused',
       `${old} has commits that ${remote}/${branch} lacks; push them first`,
     )
-  const warnings = untrackedEntries(old, taskDirectory(binding), run)
+  // Real git reports an ignored directory as `!! tmp/` or `!! node_modules/`. The task
+  // directory is copied and node_modules is rebuilt, so neither is lost by the swap.
+  const warnings = untrackedEntries(old, taskDirectory(binding), run).filter(
+    path => path !== 'tmp/' && path !== 'node_modules/',
+  )
   const source = join(old, taskDirectory(binding))
   let evidence: string | undefined
   if (existsSync(source)) {

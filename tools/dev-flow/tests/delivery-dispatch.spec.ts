@@ -13,6 +13,7 @@ import {
   parseDispatchSpec,
   planDispatch,
   postDispatch,
+  recordPosted,
   taskBaseInputs,
   type DispatchSpec,
 } from '../src/delivery/dispatch.ts'
@@ -335,6 +336,24 @@ describe('posting and binding', () => {
       }),
     ).toThrow(`${url}#issuecomment-55 was posted, but reading it back failed`)
     expect(posted).toEqual([`${url}#issuecomment-55`])
+  })
+
+  it('reports the posted URL before a failed binding write and names it in the error', () => {
+    const lines: string[] = []
+    const out = join(tmpdir(), 'omne-missing-directory', 'binding.json')
+    expect(() =>
+      postDispatch({
+        repository: 'owner/repo',
+        plan: plan(),
+        basis: spec.basis,
+        prose: 'x',
+        call: github().call,
+        onPosted: result => recordPosted(result, out, line => lines.push(line)),
+      }),
+    ).toThrow(`${url}#issuecomment-55 was posted, but writing the binding`)
+    expect(lines).toEqual([
+      `${JSON.stringify({ kind: 'dispatch-posted', dispatch: `${url}#issuecomment-55` })}\n`,
+    ])
   })
 
   it('names the placeholder when the edit fails', () => {

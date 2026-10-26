@@ -222,7 +222,7 @@ describe('worktree swap', () => {
     'git status --porcelain --untracked-files=no': { status: 0, stdout: '' },
     'git status --porcelain --ignored': {
       status: 0,
-      stdout: '?? tmp/issue-7/\n?? notes.md\n!! node_modules/\n M ignored-by-filter\n',
+      stdout: '!! tmp/\n!! node_modules/\n?? notes.md\n!! dist/\n M ignored-by-filter\n',
     },
     'git branch --show-current': { status: 0, stdout: `${binding.branch}\n` },
     [`git merge-base --is-ancestor HEAD ${upstream}`]: { status: 0 },
@@ -247,7 +247,7 @@ describe('worktree swap', () => {
     expect(existsSync(join(oldTree, 'tmp/issue-7/handoff.md'))).toBe(true)
     expect(readFileSync(join(root, 'new/tmp/issue-7/handoff.md'), 'utf8')).toBe('evidence')
     expect(existsSync(join(root, 'new/tmp/issue-7/agents-stage'))).toBe(false)
-    expect(result.warnings).toEqual(['notes.md', 'node_modules/'])
+    expect(result.warnings).toEqual(['notes.md', 'dist/'])
     // The old tree is detached before the local branch moves.
     const detach = r.steps.findIndex(s => s.args[0] === 'checkout'),
       move = r.steps.findIndex(s => s.args[0] === 'branch' && s.args[1] === '--force')

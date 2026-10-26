@@ -98,6 +98,7 @@ Status 按事件由下列角色写入，操作顺序见[推进和更新状态](a
 - Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。
 - In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。
 - Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。一波并行的卡由集成节点运行。
+- Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
 - Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。
 
 标签是正文的投影，不是第二个源。下表列出调度用的标签族：
