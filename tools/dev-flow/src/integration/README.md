@@ -1,6 +1,12 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow。本地开工新建 context 后，本工具尽力写看板的 Dispatched at、Line、Kind 与 Wave，见[看板字段](#看板字段)。集成节点用的两个命令另见[准备任务工作树](#准备任务工作树)与[等待 gate 并代为确认](#等待-gate-并代为确认)。此外不写平台。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。写平台的只有下面三处，此外不写平台：
+
+- 云端开工时，本工具派发 `delivery-facts` workflow。
+- 本地开工新建 context 后，本工具尽力写看板的 Dispatched at、Line、Kind 与 Wave，见[看板字段](#看板字段)。
+- 集成节点用 `gate-cli.ts wait` 批准指定环境的待确认部署，见[等待 gate 并代为确认](#等待-gate-并代为确认)。
+
+集成节点准备工作树的命令只操作本机检出，见[准备任务工作树](#准备任务工作树)。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -102,11 +108,11 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 ### 看板字段
 
-`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 `board.events.dispatched` 启用的字段：Dispatched at（开工当天在 `board.timeZone` 时区中的日期）、Line、Kind（取唯一的 `kind:` 标签）与 Wave（取包含开工日的迭代）。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
+`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 `board.events.dispatched` 启用的字段：Dispatched at（开工当天在 `board.timeZone` 时区中的日期）、Line、Kind（取唯一的 `kind:` 标签）与 Wave（卡还没有 Wave 时，取包含开工日的迭代）。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
 
 - 交付配置没有 `board` 项、或 `board.events.dispatched` 为空时，不写也不报告。
 - `board` 项的形状不合格（例如 `timeZone` 不是字符串）时，整个交付配置不合格，`start` 拒绝开工，与交付配置的其他字段相同。
-- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。Wave 没有包含开工日的迭代时跳过，报告一行 `board-skipped`。
+- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。Wave 已有值时同样不覆盖，同一张卡的新 attempt 不改 Wave。没有包含开工日的迭代时跳过，报告一行 `board-skipped`。
 - 写入失败、事件启用了不属于它的写入、缺字段 ID 或时区无效、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
 - 云端会话不发 GraphQL 请求，只报告一行 `board-skipped`。之后在本地会话用 `board-cli.ts dispatched` 补写。
 
@@ -118,30 +124,33 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare --issue <N> --tree <目录> [--evidence <目录>] [--root <主检出>] [--remote <名称>]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts swap --issue <N> --old <旧目录> --tree <新目录> [--root <主检出>] [--remote <名称>]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections [--tree <目录>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts remove --tree <目录> [--root <主检出>] [--force]
 ```
 
-三个命令都从卡上的 binding 取分支、派发评论、revision 与 attempt，不另给输入文件。`--root` 缺省为当前目录所属的主检出，`--remote` 缺省为 `origin`。失败时命令停在失败的一步，报告步骤名与最后几行输出，不删除已建的目录。
+`prepare` 与 `swap` 从卡上的 binding 取分支、派发评论、revision 与 attempt，不另给输入文件。`--root` 缺省为当前目录所属的主检出，`--remote` 缺省为 `origin`。失败时命令停在失败的一步，报告步骤名与最后几行输出，不删除已建的目录。
 
 `prepare` 为一张已派发的卡建新工作树并在其中开工：
 
 1. 目录已存在时拒绝。
-2. fetch binding 的分支。本地没有这个分支时，新工作树建本地分支并跟踪远端分支。
+2. fetch binding 的分支。本地没有这个分支时，新工作树建本地分支并跟踪远端分支。本地分支落后于远端时先快进到远端尖端；本地分支领先于远端或与远端分叉时拒绝。
 3. 用锁文件安装依赖：`pnpm install --frozen-lockfile --ignore-scripts`。
 4. 把 `--evidence` 目录复制进 `tmp/issue-<N>/`。
 5. 按 `projections` 的步骤重生成 agent 投影。
 6. 把 `start` 命令写进 `tmp/issue-<N>/start.json`，用新工作树自己的 dev-flow 运行 `start`。输出 context 与 `start` 写到标准错误的报告行。
 
-`swap` 在同一分支上换一棵树给新 attempt。旧树有未提交的已跟踪改动、不在 binding 的分支上、或有远端分支没有的提交时拒绝，先推送。然后命令把旧树的 `tmp/issue-<N>/`（不含 `agents-stage` 开头的目录）复制到系统临时目录，`git worktree remove --force` 旧树，再按 `prepare` 建新树并恢复这份副本。
+`swap` 在同一分支上换一棵树给新 attempt，不删除旧树。旧树有未提交的已跟踪改动、不在 binding 的分支上、或有远端分支没有的提交时拒绝；命令不代为推送。然后命令把旧树的 `tmp/issue-<N>/`（不含 `agents-stage` 开头的目录）复制到系统临时目录，让旧树 `git checkout --detach` 释放分支，再按 `prepare` 从远端尖端建新树并恢复这份副本。旧树中 `tmp/issue-<N>/` 以外的未跟踪与被忽略路径列在输出的 `warnings` 中，原样保留。
 
-`projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并改变了 agent 源，或候选自己改了 agent 源时，准入前都要运行它。需要 `uv`、`rsync` 与 `pnpm`。
+`remove` 删除一棵工作树。旧树有未提交的已跟踪改动时总是拒绝。不加 `--force` 时只列出删除会丢掉的未跟踪与被忽略路径，退出1，不删除。加 `--force` 时运行 `git worktree remove --force`。删除前按[工作约定](../../../../docs/engineering/workflow.md)确认清理条件与授权。
+
+`projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并之后、准入之前一律运行它：候选自己没改 agent 源时，合并进来的轨道头也可能带别的卡的改动。需要 `uv`、`rsync` 与 `pnpm`。
 
 ## 等待 gate 并代为确认
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/integration/gate-cli.ts wait --run <运行号> --note <说明文件> [--interval <秒>] [--timeout <分钟>]
+node --experimental-strip-types tools/dev-flow/src/integration/gate-cli.ts wait --run <运行号> --note <说明文件> [--environments <名称,...>] [--interval <秒>] [--timeout <分钟>]
 ```
 
-命令轮询一次 workflow 运行，缺省每 10 秒一次、最多 90 分钟。运行有当前身份可以批准的待确认部署时，命令用说明文件的内容批准它们，每个环境只批准一次。运行结束时输出结论：`success` 退出0，其他结论退出1。超时、读取失败或批准失败时退出2。
+命令轮询一次 workflow 运行，缺省每 10 秒一次、最多 90 分钟。每一轮，命令把当前待确认、环境名在 `--environments` 中、且当前身份可以批准的部署用说明文件的内容一次批准；下一轮再批准那时仍待确认的部署，不因某个环境批准过就跳过。`--environments` 缺省为 `publish`。工具链变更闸门等其他审批环境须显式列出，例如 `--environments repo-toolchain-review,publish`。运行结束时输出结论：`success` 退出0，其他结论退出1。超时、读取失败或批准失败时退出2。
 
 说明去掉首尾空白后不能为空，最多 1024 个字符，这是 GitHub 保留的上限。超过时命令在发出任何请求之前退出2。详细说明写进卡上的评论，说明里给出评论链接。命令不判断当前身份是否获授权代为确认：只在该 admin 授权本次确认之后运行，说明中写明代为确认的人。
 
@@ -247,6 +256,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream` 与 `integration-worktree` 十四个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections` 的步骤顺序与拒绝，用记录调用的 GitHub 替身覆盖 `gate-cli wait` 的批准、说明长度与超时。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十六个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

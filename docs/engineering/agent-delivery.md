@@ -33,7 +33,7 @@
 
 按[七个信息模块](delivery.md#长期正文与一次交付)填写两种模板，删除占位和填写提示，保留可见的“接手本卡”说明。依据集中记录精确输入，验收通过输入ID引用；实际证据交回执行区。不把前置条件混入结果判据。测试按[包级测试责任与边界](../verification.md#包级测试责任与边界)填写。单元和契约默认由本包承担。集成只由实现具体存储或应用服务的包承担。端到端只由关键旅程的拥有者承担。非代码任务选择适用检查，说明未覆盖和环境缺口。
 
-建卡时按[卡属性与合法组合](delivery.md#卡属性与合法组合)登记交付线、性质与契约变更；调度者在 Issue 上设置里程碑，并打唯一的 `kind:` 与 `line:` 标签，缺任一项时 `start` 拒绝开工。调度者的建卡与派发步骤由 `dispatch` 技能给出，集成节点的步骤由 `integrate` 技能给出；两个技能都只调用本页与 dev-flow 的命令，不另立规则。建卡时尚未派发，在执行区写计划路线、最终终点和待定输入，不填占位binding或虚构工作树、开工HEAD及context。接手者须能取得必要输入；仅给另一台机器的tmp路径不足以完成交接。
+建卡时按[卡属性与合法组合](delivery.md#卡属性与合法组合)登记交付线、性质与契约变更；调度者在 Issue 上设置里程碑，并打唯一的 `kind:` 与 `line:` 标签，缺任一项时 `start` 拒绝开工。调度者的建卡与派发步骤由 `dispatch` 技能给出，集成节点的步骤由 `integrate` 技能给出；两个技能只引用本页的规则与 dev-flow 的命令，不另立规则。建卡时尚未派发，在执行区写计划路线、最终终点和待定输入，不填占位binding或虚构工作树、开工HEAD及context。接手者须能取得必要输入；仅给另一台机器的tmp路径不足以完成交接。
 
 调度者用 `milestone-cli.ts create <名称> --due <日期>` 建里程碑，用 `milestone-cli.ts carry --from <A> --to <B> --reason <原因> <卡号>...` 把卡移到另一个里程碑。carry 在每张卡上发一条固定格式的流转评论，不改 binding。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#里程碑命令)。
 
@@ -43,7 +43,7 @@
 
 主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line与Kind字段也是投影：`start` 在开工时按binding与 `kind:` 标签写入，调度者可用 `board-cli.ts dispatched` 补写。各字段的唯一源与写者见[字段总表](delivery.md#字段总表)，字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
 
-当前波必须先有负责人采用的节奏与Wave字段中真实的迭代；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
+当前波视图要求负责人已采用波的节奏，调度者已在Wave字段中为本波建好迭代；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
 
 ## 3. 取任务和派发
 
@@ -73,7 +73,7 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 
 - 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。
 - 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。一波并行的卡由集成节点运行这一步，见[集成节点的清单](integration.md#集成节点的清单)。gate 失败时，调度者把 Stage 改回 In review。
-- `start` 在新建 context 时写入 Dispatched at、Line、Kind 与 Wave。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
+- `start` 在新建 context 时写入 Dispatched at、Line、Kind 与 Wave。Dispatched at 与 Wave 已有值时不覆盖，同一张卡的新 attempt 不改它们。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
 - Needs decision 由调度者在 Project 中设置，工具不写。需要人拍板时置 `yes`，决定读回后置 `no`，规则见[契约变更与里程碑类型](delivery.md#契约变更与里程碑类型)。
 
 执行者在开工和成果交回时也更新事实。每次注明当前revision/attempt、发生的变化、成果或证据、尚缺条件及下一责任。正文只保留当前摘要，旧attempt和逐轮过程通过评论或技术回执定位。Project对账注明所核Stage及时点；评论、正文或Project写入失败时分别报告未持久的部分，不声称全部已更新。
