@@ -93,6 +93,21 @@ describe('write scope overlap', () => {
     })
   })
 
+  it('leaves closed cards out by default and lists them as excluded', () => {
+    const cards = [
+      { ...card('#1', '.meta_harness/AGENTS.md'), closed: true },
+      { ...card('#2', '.meta_harness/AGENTS.md'), closed: false },
+      card('b.json', 'docs'),
+    ]
+    const result = scopeOverlap(cards, table())
+    expect(result.excluded).toEqual(['#1'])
+    expect(result.conflicts).toEqual([])
+    expect(result.cards.map(entry => entry.source)).toEqual(['#2', 'b.json'])
+    const all = scopeOverlap(cards, table(), { includeClosed: true })
+    expect(all.excluded).toEqual([])
+    expect(all.conflicts).toHaveLength(1)
+  })
+
   it('refuses a source given twice', () => {
     expect(() => scopeOverlap([card('#1', 'a'), card('#1', 'b')], table())).toThrow(
       'more than once',
@@ -102,10 +117,13 @@ describe('write scope overlap', () => {
 
 describe('reading write scopes', () => {
   it('reads the binding of an Issue', () => {
-    expect(issueScope('owner/repo', 7, github({ 7: body(binding(7, ['tools'])) }))).toEqual({
-      source: '#7',
-      writeScope: ['tools'],
-    })
+    expect(
+      issueScope('owner/repo', 7, github({ 7: body(binding(7, ['tools'])) }, { state: 'open' })),
+    ).toEqual({ source: '#7', writeScope: ['tools'], closed: false })
+    expect(
+      issueScope('owner/repo', 7, github({ 7: body(binding(7, ['tools'])) }, { state: 'closed' }))
+        .closed,
+    ).toBe(true)
   })
 
   it('refuses an Issue without a binding and a pull request', () => {

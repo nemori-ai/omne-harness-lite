@@ -9,6 +9,7 @@ import {
   daysBetween,
   InputError,
   record,
+  singleLabel,
   text,
   type DeliveryConfig,
 } from './protocol.ts'
@@ -23,12 +24,14 @@ const writeNames = [
   'acceptedAt',
   'cycleDays',
   'line',
+  'kind',
+  'wave',
   'status',
 ] as const
 export type WriteName = (typeof writeNames)[number]
 /** The writes each event may enable. The delivery config lists the enabled subset. */
 const EVENT_WRITES = {
-  dispatched: ['dispatchedAt', 'line'],
+  dispatched: ['dispatchedAt', 'line', 'kind', 'wave'],
   delivered: ['deliveredAt', 'status'],
   integrating: ['status'],
   accepted: ['acceptedAt', 'cycleDays', 'status'],
@@ -48,7 +51,9 @@ const EVENT_STATUS = {
 export type EnabledWrite =
   | { name: 'dispatchedAt' | 'deliveredAt' | 'acceptedAt'; field: string }
   | { name: 'cycleDays'; field: string; dispatchedField: string }
-  | { name: 'line'; field: string; options: ReadonlyMap<string, string> }
+  | { name: 'line' | 'kind'; field: string; options: ReadonlyMap<string, string> }
+  /** Wave is the Project iteration field, `fields.iteration` in the delivery config. */
+  | { name: 'wave'; field: string }
   | { name: 'status'; field: string; option: string; status: string }
 /** The board writes of one event. */
 export type BoardEventConfig = {
@@ -86,6 +91,14 @@ function parseWrite(config: DeliveryConfig, event: BoardEvent, name: WriteName):
         field: requireField(fields.line, event, name),
         options: new Map(Object.entries(options.line)),
       }
+    case 'kind':
+      return {
+        name,
+        field: requireField(fields.kind, event, name),
+        options: new Map(Object.entries(options.kind)),
+      }
+    case 'wave':
+      return { name, field: requireField(fields.iteration, event, name) }
     case 'status': {
       const status = EVENT_STATUS[event]
       const option =
@@ -153,28 +166,55 @@ export function cardLine(
   const values = attributes.fields.line
   return values.length === 1 ? values[0] : undefined
 }
+/** The work kind of a card's single `kind:` label; undefined without exactly one. */
+export function cardKind(labels: readonly string[]): string | undefined {
+  return singleLabel(labels, 'kind:')
+}
+
+/** One iteration of the Wave field: its first day and length in days. */
+export type Iteration = { id: string; title: string; startDate: string; duration: number }
+/**
+ * The iteration whose days hold `date`: from `startDate` up to `duration` days later. When
+ * iterations overlap, the first one in the Project's configuration order is taken.
+ */
+export function currentIteration(
+  iterations: readonly Iteration[],
+  date: string,
+): Iteration | undefined {
+  return iterations.find(iteration => {
+    const offset = daysBetween(iteration.startDate, date)
+    return offset >= 0 && offset < iteration.duration
+  })
+}
 
 export type FieldValue =
   | { kind: 'date'; date: string }
   | { kind: 'number'; number: number }
   | { kind: 'option'; option: string; name: string }
+  | { kind: 'iteration'; iteration: string; name: string }
 export type FieldWrite = { name: WriteName; field: string; value: FieldValue }
 export type SkippedWrite = { name: WriteName; reason: string }
 /**
  * Plans the writes of one event. `date` stamps the event's date field. `current` is the item's
  * field values read before the writes: Dispatched at is written only while it is empty, and
- * Cycle days counts from it. A write whose input is missing or invalid is skipped with its
- * reason instead of guessed.
+ * Cycle days counts from it. `kind` is the card's work kind from its `kind:` label, and
+ * `iterations` the Wave iterations read before planning. Wave, like Dispatched at, is written
+ * only while it is empty, with the iteration that holds `date`. A write whose input is missing or invalid is skipped with its reason instead of
+ * guessed.
  */
 export function planBoardWrites({
   config,
   date,
   line,
+  kind,
+  iterations = [],
   current,
 }: {
   config: BoardEventConfig
   date: string
   line?: string | undefined
+  kind?: string | undefined
+  iterations?: readonly Iteration[]
   current: ReadonlyMap<string, string | number>
 }): { writes: FieldWrite[]; skipped: SkippedWrite[] } {
   const writes: FieldWrite[] = [],
@@ -233,6 +273,35 @@ export function planBoardWrites({
           })
         break
       }
+      case 'kind': {
+        const option = kind === undefined ? undefined : write.options.get(kind)
+        if (kind === undefined)
+          skipped.push({ name: write.name, reason: 'The card has no single kind: label' })
+        else if (option === undefined)
+          skipped.push({ name: write.name, reason: `Kind has no option ${kind}` })
+        else
+          writes.push({
+            name: write.name,
+            field: write.field,
+            value: { kind: 'option', option, name: kind },
+          })
+        break
+      }
+      case 'wave': {
+        const existing = current.get(write.field),
+          iteration = currentIteration(iterations, date)
+        if (existing !== undefined)
+          skipped.push({ name: write.name, reason: `Wave is already ${String(existing)}` })
+        else if (iteration === undefined)
+          skipped.push({ name: write.name, reason: `Wave has no iteration on ${date}` })
+        else
+          writes.push({
+            name: write.name,
+            field: write.field,
+            value: { kind: 'iteration', iteration: iteration.id, name: iteration.title },
+          })
+        break
+      }
       case 'status':
         writes.push({
           name: write.name,
@@ -252,7 +321,9 @@ export function planBoardWrites({
 const ITEMS =
   'query($id:ID!){node(id:$id){... on Issue{id url projectItems(first:100,includeArchived:true){pageInfo{hasNextPage} nodes{id project{id}}}}}}'
 const VALUES =
-  'query($id:ID!){node(id:$id){... on ProjectV2Item{id project{id} fieldValues(first:100){pageInfo{hasNextPage} nodes{__typename ... on ProjectV2ItemFieldDateValue{date field{... on ProjectV2Field{id}}} ... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2Field{id}}} ... on ProjectV2ItemFieldSingleSelectValue{optionId field{... on ProjectV2SingleSelectField{id}}}}}}}}'
+  'query($id:ID!){node(id:$id){... on ProjectV2Item{id project{id} fieldValues(first:100){pageInfo{hasNextPage} nodes{__typename ... on ProjectV2ItemFieldDateValue{date field{... on ProjectV2Field{id}}} ... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2Field{id}}} ... on ProjectV2ItemFieldSingleSelectValue{optionId field{... on ProjectV2SingleSelectField{id}}} ... on ProjectV2ItemFieldIterationValue{iterationId field{... on ProjectV2IterationField{id}}}}}}}}'
+const ITERATIONS =
+  'query($id:ID!){node(id:$id){... on ProjectV2IterationField{id configuration{iterations{id title startDate duration}}}}}'
 export const UPDATE_FIELD =
   'mutation($project:ID!,$item:ID!,$field:ID!,$value:ProjectV2FieldValue!){updateProjectV2ItemFieldValue(input:{projectId:$project,itemId:$item,fieldId:$field,value:$value}){projectV2Item{id}}}'
 
@@ -315,17 +386,31 @@ function itemValues(
       result.set(id, value.number)
     else if (value.__typename === 'ProjectV2ItemFieldSingleSelectValue')
       result.set(id, text(value.optionId, 'optionId'))
+    else if (value.__typename === 'ProjectV2ItemFieldIterationValue')
+      result.set(id, text(value.iterationId, 'iterationId'))
   }
   return result
 }
+/** The active iterations of the Wave field, as the Project configures them. */
+function waveIterations(field: string, call: GhCommand): Iteration[] {
+  const node = record(graphql(call, ITERATIONS, ['-f', `id=${field}`]).node, 'Wave field node')
+  if (node.id !== field) throw new InputError('Wave field identity mismatch')
+  const configuration = record(node.configuration, 'Wave configuration')
+  return array(configuration.iterations, 'Wave iterations').map(raw => {
+    const iteration = record(raw, 'Wave iteration')
+    const duration = iteration.duration
+    if (typeof duration !== 'number' || !Number.isSafeInteger(duration) || duration < 1)
+      throw new InputError('Wave iteration duration must be a positive whole number of days')
+    return {
+      id: text(iteration.id, 'iteration.id'),
+      title: text(iteration.title, 'iteration.title'),
+      startDate: calendarDate(text(iteration.startDate, 'iteration.startDate'), 'startDate'),
+      duration,
+    }
+  })
+}
 /** The GraphQL variables of one field write, as `gh api graphql` field arguments. */
 function updateVariables(projectId: string, item: string, write: FieldWrite): string[] {
-  const value =
-    write.value.kind === 'date'
-      ? ['-f', `value[date]=${write.value.date}`]
-      : write.value.kind === 'number'
-        ? ['-F', `value[number]=${write.value.number}`]
-        : ['-f', `value[singleSelectOptionId]=${write.value.option}`]
   return [
     '-f',
     `project=${projectId}`,
@@ -333,15 +418,32 @@ function updateVariables(projectId: string, item: string, write: FieldWrite): st
     `item=${item}`,
     '-f',
     `field=${write.field}`,
-    ...value,
+    ...valueVariables(write.value),
   ]
 }
+function valueVariables(value: FieldValue): string[] {
+  switch (value.kind) {
+    case 'date':
+      return ['-f', `value[date]=${value.date}`]
+    case 'number':
+      return ['-F', `value[number]=${value.number}`]
+    case 'option':
+      return ['-f', `value[singleSelectOptionId]=${value.option}`]
+    case 'iteration':
+      return ['-f', `value[iterationId]=${value.iteration}`]
+  }
+}
 function expected(write: FieldWrite): string | number {
-  return write.value.kind === 'date'
-    ? write.value.date
-    : write.value.kind === 'number'
-      ? write.value.number
-      : write.value.option
+  switch (write.value.kind) {
+    case 'date':
+      return write.value.date
+    case 'number':
+      return write.value.number
+    case 'option':
+      return write.value.option
+    case 'iteration':
+      return write.value.iteration
+  }
 }
 
 type BoardPlan = {
@@ -375,15 +477,16 @@ export class BoardWriteError extends InputError {
 }
 /**
  * Writes the planned fields of one event on the card's Project item, then reads them back.
- * The item's field values are read once before planning. Each field is one
- * `updateProjectV2ItemFieldValue` request; a failed write stops the run with a
- * `BoardWriteError`. `dryRun` reads and plans only.
+ * The item's field values are read once before planning, and the Wave iterations once when
+ * the event writes Wave. Each field is one `updateProjectV2ItemFieldValue` request; a failed
+ * write stops the run with a `BoardWriteError`. `dryRun` reads and plans only.
  */
 export function recordBoardEvent({
   config,
   issue,
   date,
   line,
+  kind,
   dryRun,
   call,
 }: {
@@ -391,16 +494,19 @@ export function recordBoardEvent({
   issue: { id: string; url: string }
   date: string
   line?: string | undefined
+  kind?: string | undefined
   dryRun: boolean
   call: GhCommand
 }): BoardResult {
   calendarDate(date, 'date')
   const item = projectItem(config.projectId, issue.id, issue.url, call)
   const reads = config.writes.some(
-    write => write.name === 'dispatchedAt' || write.name === 'cycleDays',
+    write => write.name === 'dispatchedAt' || write.name === 'cycleDays' || write.name === 'wave',
   )
   const current = reads ? itemValues(config.projectId, item, call) : new Map<string, string>()
-  const { writes, skipped } = planBoardWrites({ config, date, line, current })
+  const wave = config.writes.find(write => write.name === 'wave')
+  const iterations = wave === undefined ? [] : waveIterations(wave.field, call)
+  const { writes, skipped } = planBoardWrites({ config, date, line, kind, iterations, current })
   const plan: BoardPlan = { issue: issue.url, event: config.event, date, item, writes, skipped }
   if (dryRun) return { ...plan, applied: false }
   writes.forEach((write, index) => {
@@ -437,16 +543,17 @@ export type BoardReport = {
 const skipLines = (skipped: readonly SkippedWrite[]): BoardReport[] =>
   skipped.map(skip => ({ code: 'board-skipped', message: `${skip.name}: ${skip.reason}` }))
 /**
- * The best-effort board write after a new task context: Dispatched at and Line. It never
- * throws. When the delivery config has no `board` entry or `dispatched` enables nothing,
- * nothing is written or reported. A cloud session cannot reach GraphQL, so it reports one skip
- * line and sends nothing.
+ * The best-effort board write after a new task context: the writes `dispatched` enables,
+ * Dispatched at, Line, Kind and Wave in the committed config. It never throws. When the
+ * delivery config has no `board` entry or `dispatched` enables nothing, nothing is written or
+ * reported. A cloud session cannot reach GraphQL, so it reports one skip line and sends nothing.
  */
 export function recordDispatch({
   config,
   cloud,
   issue,
   line,
+  kind,
   now,
   call,
 }: {
@@ -454,6 +561,7 @@ export function recordDispatch({
   cloud: boolean
   issue: { id: string; url: string }
   line: string | undefined
+  kind: string | undefined
   now: Date
   call: GhCommand
 }): BoardReport[] {
@@ -473,6 +581,7 @@ export function recordDispatch({
       issue,
       date: calendarDay(board.timeZone, now),
       line,
+      kind,
       dryRun: false,
       call,
     })

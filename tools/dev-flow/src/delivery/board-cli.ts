@@ -6,6 +6,7 @@ import {
   boardEvent,
   boardEvents,
   BoardWriteError,
+  cardKind,
   cardLine,
   recordBoardEvent,
   type BoardEvent,
@@ -91,11 +92,13 @@ try {
           card.attributes,
         )
       : undefined
+  const kind = args.event === 'dispatched' ? cardKind(card.attributes.labels) : undefined
   const result = recordBoardEvent({
     config: board,
     issue: { id, url: card.url },
     date: args.date ?? calendarDay(board.timeZone, new Date()),
     line,
+    kind,
     dryRun: args.dryRun,
     call: runGhCommand,
   })
