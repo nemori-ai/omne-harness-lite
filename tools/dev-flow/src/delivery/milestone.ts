@@ -125,14 +125,15 @@ export function createMilestone({
 
 /**
  * The carry comment of one card. The first line is the machine-readable marker. `moved` is
- * false when the card was already in `to` and this run did not move it.
+ * false when the card was already in `to` and this run did not move it, for example when a
+ * rerun finishes a run whose PATCH succeeded and whose comment failed.
  */
 export function carryComment(from: string, to: string, reason: string, moved = true): string {
   return [
     `<!-- ${CARRY_MARKER} ${JSON.stringify({ from, to })} -->`,
     moved
       ? `里程碑流转：\`${from}\` → \`${to}\`。`
-      : `里程碑流转：本卡已在 \`${to}\`，本次未移动（流转记录 \`${from}\` → \`${to}\`）。`,
+      : `里程碑流转：本卡已在 \`${to}\`，本次运行未移动（流转记录 \`${from}\` → \`${to}\`）。`,
     '',
     `- 原因：${reason}`,
     '- binding 不变：本卡的 binding 与 attempt 保持原值。binding 中的里程碑是派发时的值，与 Issue 不一致时只作报告（`attribute-binding-drift`）。',

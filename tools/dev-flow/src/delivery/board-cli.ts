@@ -11,7 +11,14 @@ import {
   type BoardEvent,
 } from './board.ts'
 import { readIssueCard, REST_HEADERS, runGhCommand } from './github-read.ts'
-import { calendarDate, calendarDay, InputError, parseConfig, text } from './protocol.ts'
+import {
+  calendarDate,
+  calendarDay,
+  InputError,
+  issueNumberArgument,
+  parseConfig,
+  text,
+} from './protocol.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
 
 const usage = `Usage: board-cli.ts <${boardEvents.join('|')}> --issue <number> [--date <YYYY-MM-DD>] [--dry-run] [--config <file>]`
@@ -46,12 +53,12 @@ function options(args: string[]): {
     values.set(flag, value)
     index += 1
   }
-  const issue = values.get('--issue') ?? '',
+  const issue = issueNumberArgument(values.get('--issue') ?? ''),
     date = values.get('--date')
-  if (!/^#?[1-9]\d*$/.test(issue)) throw new InputError(usage)
+  if (issue === undefined) throw new InputError(usage)
   return {
     event,
-    issue: Number(issue.replace('#', '')),
+    issue,
     date: date === undefined ? undefined : calendarDate(date, '--date'),
     dryRun,
     config: values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json'),

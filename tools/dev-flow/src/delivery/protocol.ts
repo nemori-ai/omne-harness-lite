@@ -537,3 +537,9 @@ export function calendarDay(zone: string, now: Date): string {
 export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 }
+/** An Issue number argument, `N` or `#N`; undefined when it is not a safe positive integer. */
+export function issueNumberArgument(value: string): number | undefined {
+  if (!/^#?[1-9]\d*$/.test(value)) return undefined
+  const number = Number(value.replace('#', ''))
+  return Number.isSafeInteger(number) ? number : undefined
+}

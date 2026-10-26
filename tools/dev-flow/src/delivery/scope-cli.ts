@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { IntegrationError } from '../integration/parse.ts'
 import { runGhCommand } from './github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from './lines.ts'
-import { InputError, parseConfig } from './protocol.ts'
+import { InputError, issueNumberArgument, parseConfig } from './protocol.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
 import { fileScope, issueScope, scopeOverlap } from './scope-overlap.ts'
 
@@ -23,9 +23,11 @@ function options(args: string[]): { inputs: Input[]; config: string; lines: stri
       values.set(arg, value)
       index += 1
     } else if (arg.startsWith('--') || arg === '') throw new InputError(usage)
-    else if (/^#?[1-9]\d*$/.test(arg))
-      inputs.push({ kind: 'issue', number: Number(arg.replace('#', '')) })
-    else inputs.push({ kind: 'file', path: arg })
+    else if (/^#?[1-9]\d*$/.test(arg)) {
+      const number = issueNumberArgument(arg)
+      if (number === undefined) throw new InputError(usage)
+      inputs.push({ kind: 'issue', number })
+    } else inputs.push({ kind: 'file', path: arg })
   }
   if (inputs.length === 0) throw new InputError(usage)
   return {

@@ -197,7 +197,7 @@ describe('milestone carry', () => {
     expect(gh.writes()).toEqual(['POST'])
     // Card 8 was already in M1.5, so its comment does not claim a move.
     expect(s.issues[8]?.comments).toEqual([carryComment('M1', 'M1.5', '契约先对齐', false)])
-    expect(s.issues[8]?.comments[0]).toContain('本卡已在 `M1.5`，本次未移动')
+    expect(s.issues[8]?.comments[0]).toContain('本卡已在 `M1.5`，本次运行未移动')
   })
 
   it('checks every card before the first write', () => {

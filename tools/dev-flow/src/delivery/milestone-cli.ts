@@ -2,7 +2,7 @@
 import { IntegrationError } from '../integration/parse.ts'
 import { runGhCommand } from './github-read.ts'
 import { carryMilestone, createMilestone, MILESTONE_VIEW_MANUAL_STEPS } from './milestone.ts'
-import { InputError, parseConfig } from './protocol.ts'
+import { InputError, issueNumberArgument, parseConfig } from './protocol.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
 
 const usage = [
@@ -62,8 +62,9 @@ function carry(args: string[]): { output: unknown; ok: boolean } {
   if (from === undefined || to === undefined || reason === undefined || positional.length === 0)
     throw new InputError(usage)
   const issues = positional.map(value => {
-    if (!/^#?[1-9]\d*$/.test(value)) throw new InputError(usage)
-    return Number(value.replace('#', ''))
+    const issue = issueNumberArgument(value)
+    if (issue === undefined) throw new InputError(usage)
+    return issue
   })
   const cards = carryMilestone({
     repository: repositoryOf(values),
