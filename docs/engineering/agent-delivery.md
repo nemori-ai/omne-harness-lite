@@ -57,7 +57,18 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 并行仅在独立写范围和条件允许时展开，共享接口及集成目标有单一责任。其他卡被阻塞不妨碍已获准的独立部分。旧实例失联、调度者交接及过时候选的处置继续按共用协议，不用更新时间或assignee模拟锁。
 
-并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。调度者为每张并行的卡写上下文地图与任务信息包，按 `claim` 技能 `references/` 中的模板写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
+并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。调度者为每条线写线包。线内的卡由线会话按 `claim` 技能 `references/` 中的模板写上下文地图本卡附录与任务信息包。不在线内的卡由调度者写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
+
+### 按角色的流程
+
+几条线并行推进一个里程碑时，两个长期角色各有一份可复用的流程，规则仍归本页、[交付协议](delivery.md)与[多层分支集成](integration.md)：
+
+| 角色 | 阶段 | 可执行流程 |
+| --- | --- | --- |
+| 线会话（推进一条线的会话，跨波不换） | 线级准备一次 → 每波从收口点切批次分支 → 波内逐卡（卡级增量准备、按计划推进、合入批次分支）→ 波末开批次 PR → 后台等本波收口卡关闭或 `line-return` 退回 → 读 `line-delta` 进下一波 → 里程碑收尾 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md) 技能。单张卡的准备与推进归 [`claim`](../../.meta_harness/agents/skills/claim/canonical/SKILL.md) 技能 |
+| 集成节点（兼调度者） | 里程碑开工（冻结共享物、基线、波计划、线父卡与收口卡）→ 首波波准入并发线包 → 等批次 PR → 逐批次合入，有缺陷时以 `line-return` 退回 → 建收口点 → 逐卡接受 → 收口卡接受评论 → 下一波波准入 → 发 `line-delta` → 关闭收口卡 → 里程碑收尾时接受线父卡 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md) 技能（建卡、波准入、首波线包、派发）与 [`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) 技能（收批次到关收口卡） |
+
+线会话在波内收不到任何人或别的 agent 的消息，所以它不提问。拿不准的事按线包的停止条件写到线父卡上，调度者在下一波的 `line-delta` 里答复。线会话与集成节点的等待一律阻塞在本机的 GitHub 事件文件上，不轮询 GitHub，命令归 `tools/dev-flow/src/delivery/README.md`「事件等待」。
 
 ## 4. 推进和更新状态
 
@@ -71,8 +82,8 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 
 看板字段的写入如下。命令都只能在本地会话运行；云端会话改 Stage 仍用 `delivery-stage`，日期字段留待本地会话补写。
 
-- 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。
-- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。一波并行的卡由集成节点运行这一步，见[集成节点的清单](integration.md#集成节点的清单)。gate 失败时，调度者把 Stage 改回 In review。
+- 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。线内的卡由线会话在卡的 PR 合入批次分支时运行。
+- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。批次进入联调轨道时，集成节点对线父卡运行这一步，见[集成节点的清单](integration.md#集成节点的清单)。gate 失败时，调度者把 Stage 改回 In review。
 - `start` 在新建 context 时写入 Dispatched at、Line、Kind 与 Wave。Dispatched at 与 Wave 已有值时不覆盖，同一张卡的新 attempt 不改它们。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
 - Needs decision 由调度者在 Project 中设置，工具不写。需要人拍板时置 `yes`，决定读回后置 `no`，规则见[契约变更与里程碑类型](delivery.md#契约变更与里程碑类型)。
 

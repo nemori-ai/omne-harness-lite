@@ -51,17 +51,17 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 
 报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。属性发现只报告，不计入 `deviation`，不阻止开工。`stock.attribute` 是这一类的数量。
 
-| 代码 | 意义 |
-| --- | --- |
-| `attribute-missing` | 「身份与责任」缺少交付线、性质或契约变更，或仍是占位。Issue 没有 milestone 时条款为 `milestone` |
-| `attribute-invalid` | 属性取值不在允许值中，字段重复，组合不合法（条款以「合法组合:」开头），或 binding 的交付线不在线归属表中 |
-| `attribute-binding-drift` | 版本2 binding 的属性与正文不同，或 binding 记录的里程碑与 Issue 现在的 milestone 不同 |
-| `nature-route-mismatch` | route 的轨道不是本卡应进入的轨道，或 `integration` 卡的 route 不符合跨线写入的规则 |
-| `scope-outside-line` | 线内的卡写其他线的路径，`contract` 卡写契约成员以外的路径，或 `baseline` 卡有仓库写范围 |
-| `scope-integration-path` | 线内的卡写联调轨道拥有的路径，包括表中没有列出的路径 |
-| `condition-cross-line` | 线内的卡的交付条件引用其他线的卡，或 `baseline` 卡的「交付条件」不是「无」 |
-| `label-drift` | `line:`、`nature:` 或 `contract:` 标签与正文属性不同 |
-| `binding-v1` | binding 为版本1，不含属性 |
+| 代码                      | 意义                                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `attribute-missing`       | 「身份与责任」缺少交付线、性质或契约变更，或仍是占位。Issue 没有 milestone 时条款为 `milestone`          |
+| `attribute-invalid`       | 属性取值不在允许值中，字段重复，组合不合法（条款以「合法组合:」开头），或 binding 的交付线不在线归属表中 |
+| `attribute-binding-drift` | 版本2 binding 的属性与正文不同，或 binding 记录的里程碑与 Issue 现在的 milestone 不同                    |
+| `nature-route-mismatch`   | route 的轨道不是本卡应进入的轨道，或 `integration` 卡的 route 不符合跨线写入的规则                       |
+| `scope-outside-line`      | 线内的卡写其他线的路径，`contract` 卡写契约成员以外的路径，或 `baseline` 卡有仓库写范围                  |
+| `scope-integration-path`  | 线内的卡写联调轨道拥有的路径，包括表中没有列出的路径                                                     |
+| `condition-cross-line`    | 线内的卡的交付条件引用其他线的卡，或 `baseline` 卡的「交付条件」不是「无」                               |
+| `label-drift`             | `line:`、`nature:` 或 `contract:` 标签与正文属性不同                                                     |
+| `binding-v1`              | binding 为版本1，不含属性                                                                                |
 
 正文的属性是判断的依据。route 与写范围的发现需要 binding。写范围中的 `tmp` 与线归属表的 `shared` 路径不计入归属。`integration` 卡不检查写范围归属。
 
@@ -129,12 +129,12 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 
 命令在一张卡的 Project 条目上写一个事件的字段，再读回核对。字段 ID、选项 ID 与看板设置都只登记在[交付配置](../../../../docs/engineering/github-delivery.json)：`project.fields` 的看板字段、`project.options` 的 Stage 与 Line 选项，以及 `board` 项的时区与各事件启用的写入。代码只读键名。
 
-| 事件 | 写入的字段 | 谁在何时运行 |
-| --- | --- | --- |
-| `dispatched` | Dispatched at、Line、Kind、Wave | `start` 新建 context 后自动写入。自动写入失败时调度者补写 |
-| `delivered` | Delivered at，Status 改为 In review | 调度者在执行者交回候选 PR 时 |
-| `integrating` | Status 改为 Integrating | 候选通过准入、经 gate 进入轨道时，在合入之前。一波并行的卡由集成节点运行 |
-| `accepted` | Accepted at、Cycle days，Status 改为 Accepted | 调度者在接受决定读回后 |
+| 事件          | 写入的字段                                    | 谁在何时运行                                                             |
+| ------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
+| `dispatched`  | Dispatched at、Line、Kind、Wave               | `start` 新建 context 后自动写入。自动写入失败时调度者补写                |
+| `delivered`   | Delivered at，Status 改为 In review           | 调度者在执行者交回候选 PR 时                                             |
+| `integrating` | Status 改为 Integrating                       | 候选通过准入、经 gate 进入轨道时，在合入之前。一波并行的卡由集成节点运行 |
+| `accepted`    | Accepted at、Cycle days，Status 改为 Accepted | 调度者在接受决定读回后                                                   |
 
 - 日期缺省为运行时刻在 `board.timeZone` 时区中的日期，现为 UTC。`--date` 用于补写。
 - Line 取版本2 binding 的交付线，没有时取正文「身份与责任」的交付线。Line 没有对应的选项时跳过这一项，写在 `skipped` 中。
@@ -162,12 +162,12 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 `spec.json` 只写调度者的决定，字段全部必填，多余字段拒绝：
 
-| 字段 | 内容 |
-| --- | --- |
-| `issue` | 卡号 |
-| `attempt`、`responsible`、`branch`、`taskBase`、`writeScope`、`route`、`completionTarget` | binding 的同名字段 |
-| `basis` | 授权依据 URL，写进评论的 `basis` 与 binding 的 `authorization` |
-| `confirmations` | 每个 start 条件一项：`{"condition": "<条件ID>", "evidence": "<确认依据>"}` |
+| 字段                                                                                      | 内容                                                                       |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `issue`                                                                                   | 卡号                                                                       |
+| `attempt`、`responsible`、`branch`、`taskBase`、`writeScope`、`route`、`completionTarget` | binding 的同名字段                                                         |
+| `basis`                                                                                   | 授权依据 URL，写进评论的 `basis` 与 binding 的 `authorization`             |
+| `confirmations`                                                                           | 每个 start 条件一项：`{"condition": "<条件ID>", "evidence": "<确认依据>"}` |
 
 交付修订、交付线、性质、契约变更、里程碑与条件 ID 由命令从卡上读取，不由 spec 给出。每个 start 条件的摘要由命令按卡上现行的条件行计算。所以条件行改过之后重跑 `post`，摘要随之更新。
 
@@ -185,6 +185,81 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 `bind` 读卡，把「分支、基线与task context」小节整体换成一行派发说明与 binding 区块。说明中的 revision、attempt 与 taskBase 取自 binding，不手写。只在「认领与派发」小节内，「派发情况」一行改为指向派发评论，给出 `--worktree` 时「工作树」一行改为该路径；其他位置的同名行不改。binding 的 `dispatch` 仍是占位 URL、正文没有唯一的这一小节、或新正文的唯一 binding 读回与输入不同时退出2，不写入。写入后命令再读一次卡核对 binding，结果写在 `verified` 中，不符时退出1。`--dry-run` 输出新正文，不写入。`bind` 只写版本2 binding。
 
+## 事件等待
+
+线会话与集成节点用这组命令阻塞在 GitHub 事件上。命令不轮询 API。
+
+先启动接收器。它在本机监听，把 GitHub 事件追加到事件文件。
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --port <端口> [--file <事件文件>] [--repo <owner/name>] [--secret <s>]
+```
+
+- `--file` 缺省为工作树根下的 `tmp/github-events/events.jsonl`。目录不存在时建立。
+- `--repo` 缺省取 `git remote get-url origin`。
+- 接收器只绑定 127.0.0.1，只接受 POST。给出 `--secret` 时校验 `X-Hub-Signature-256`，并以 `-S` 传给转发器。
+- 接收器自己拉起并持有 `gh webhook forward`，转发 `issues`、`pull_request`、`issue_comment`。
+- 启动后在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。正常停止、转发器退出和停止时读不到 hook 列表，都删除它。要核对本机有没有接收器在跑，读这个文件并用 `kill -0 <进程号>` 核对进程还在。
+- 同一事件文件只允许一个接收器，第二个启动会被拒绝：`receiver.pid` 已存在且其中的进程还在时，接收器退出2并说明。进程已不在时（例如上一个接收器被 SIGKILL），接收器覆盖这个文件。
+- 启动时不删除任何 hook。接收器先记下仓库里已有的转发 hook，拉起转发器后在30秒内读 hook 列表找新出现的 hook。30秒内没找到时，标准错误写一行说明，停止时再找。
+- 按 Ctrl-C、发 SIGTERM 或 SIGHUP 停止。接收器先停转发器，再只删除自己的 hook。自己的 hook 是启动后找到的新 hook 与停止时新出现的 hook 合起来、仍在仓库里的那一个。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那些 hook，或运行 `clean`。
+- 新出现多个 hook 时，接收器认不出哪个是自己的。启动后一看到多个，标准错误立即写一行 `Multiple forwarder hooks appeared: …`，接收器继续运行。停止时它一个都不删，退出1，标准错误写出这些 hook 号。
+- 停止时读不到 hook 列表，接收器仍删除启动后找到的那一个 hook，标准错误写出残留的 hook 号，退出1。
+- 启动失败退出2，标准错误写一行 `{"kind":"receiver-error",…}`，错误带系统错误码时多一个 `code` 字段。
+- 接收器因未捕获的异常退出时也结束转发器。被 SIGKILL 时转发器、hook 与 `receiver.pid` 都会残留。
+
+同一仓库上的多个接收器：两个接收器启动时间相差小于30秒时，接收器可能把对方的 hook 认作自己的，停止时可能删错。操作规则：
+
+- 一台机器只开一个接收器。
+- 不同机器上的接收器错开启动，间隔超过30秒。
+- 启动后用 `gh api repos/<owner>/<name>/hooks` 核对转发 hook 恰好多了一个。
+- 较早启动的接收器在较晚的仍在运行时停止，会看到两个新 hook，一个都不删，退出1。这时等较晚的也停止后运行 `clean`。
+
+接收器被 SIGKILL 后 hook 会残留。用 `clean` 清理。
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts clean [--repo <owner/name>]
+```
+
+- `clean` 删除仓库里全部指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook，不问是谁建的。
+- `clean` 会影响所有正在运行的接收器。先停掉其他接收器再运行它。
+- 标准输出一行 `{"kind":"hooks-cleaned","deleted":[…],"failed":[…]}`。有删不掉的退出1。
+
+再用四条命令等待。命令一直阻塞到匹配事件出现，打印匹配的那一行 JSON，退出0。输入、对账或读文件出错时退出2，标准错误写一行 `{"kind":"wait-error",…}`，错误带系统错误码时多一个 `code` 字段。
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts issue-closed --issue <号> [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts pr-ready --base <分支> [--ignore <pr>@<head> ...] [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <号> --marker <标记名> [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--issue-closed <号> ...] [--comment <issue>:<标记名> ...] [公共参数]
+```
+
+- `--file <事件文件>`，缺省同接收器。
+- `--timeout <秒>`，缺省不超时。超时退出3，标准错误写说明。超时不表示条件不成立。
+- `--since <ISO 时间或 delivery id>`，只认之后的事件。缺省认文件里已有的全部行。
+- `--repo <owner/name>`，对账用，缺省取 `origin`。
+- 输出多一个 `source` 字段。`event` 表示事件文件里的行，`reconcile` 表示启动对账命中。
+- `comment` 的标记名是评论第一行 `<!-- 标记名 -->` 里的词。`<!-- line-delta -->` 的标记名是 `line-delta`。
+- `pr-ready` 认非草稿 PR 的 `ready_for_review`、`opened` 与 `synchronize`。`synchronize` 表示 head 变了。
+- `--ignore <pr>@<head>` 可重复。号与 head 都相同的 PR 被跳过，事件与对账都一样。head 前进后同一个 PR 会再次命中。head 写完整的 sha（40 或 64 位十六进制），大小写不分。短 sha 退出2。
+- 集成节点处理完一个批次后，再等时带上 `--ignore <pr>@<它处理时的 head>`，就不会立刻拿到同一个 PR。
+- `pr-ready` 的输出带 `number` 与 `head`。
+- `any` 接受可重复的 `--issue-closed` 与 `--comment`，任一命中就返回那一行。输出多一个 `matched` 字段，值是 `issue-closed` 或 `comment`。三个单项命令的输出不带 `matched`。
+- 线会话用 `any --issue-closed <收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>`，收口和批次被退回都能唤醒它。
+- 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
+
+接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。之后不再调用 GitHub API。
+
+依赖：
+
+- `gh` 2.x。
+- 扩展 `cli/gh-webhook`，用 `gh extension install cli/gh-webhook` 安装。探路用的是 v0.2.0。
+- 对仓库的 admin 权限，因为转发器要建立和删除 hook。
+
+延迟：探路实测通常1至3秒，出现过一次26秒。条件刚满足就等不到事件时，用 `--timeout` 设上限。
+
+当前没有验证的情况：私有仓库、同一仓库上并发的转发器、真实的 `pull_request` 事件、转发器建立 hook 的真实耗时对发现新 hook 的影响。条款见[SPEC](SPEC.md#事件等待)。
+
 ## 运行模块检查
 
 ```sh
@@ -192,7 +267,8 @@ pnpm --filter @omne-harness/dev-flow exec vitest run \
   tests/delivery-observe.spec.ts tests/delivery-github-read.spec.ts \
   tests/delivery-attributes.spec.ts tests/delivery-binding.spec.ts tests/delivery-lines.spec.ts \
   tests/delivery-labels.spec.ts tests/delivery-scope-overlap.spec.ts tests/delivery-milestone.spec.ts \
-  tests/delivery-board.spec.ts tests/delivery-dispatch.spec.ts
+  tests/delivery-board.spec.ts tests/delivery-dispatch.spec.ts \
+  tests/delivery-events.spec.ts tests/delivery-events-cli.spec.ts
 pnpm --filter @omne-harness/dev-flow typecheck
 ```
 

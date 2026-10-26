@@ -1,26 +1,88 @@
 ---
 name: claim
 description: >
-  认领用户给出的 Issue，先在远端从卡上 binding 的 taskBase 创建工作分支，再在本地开工作树并切过去，运行 start 写入任务上下文，用 bro 介绍完整交付，再按任务选 pstack 技能和项目角色，把开工上下文地图写入工作树 tmp。
-  用户要求认领任务、开工建工作树，或点名 /claim 时加载。调度者给自己开的卡开工，或卡上登记了新 attempt 时，也加载。
-  地图落盘后停下。不开始实现，不提交，不开 PR。
+  执行者把一张交付卡从认领做到交回：先分清一条线开工时一次做好的线级准备，与每张卡开工前只增量做的卡级准备。卡级准备以 start 读回、上下文地图本卡附录、spec.md 与 plan.md 落盘为门槛。然后按 plan.md 的切片有序推进，按风险裁剪评审与验收，在最终 head 上准入一次，开 PR 并交回交接报告。
+  用户要求认领任务、开工建工作树，线会话按线包推进一张卡，或点名 /claim 时加载。调度者给自己开的卡开工，或卡上登记了新 attempt 时，也加载。
+  线会话的跨波流程用 line，建卡与派发用 dispatch，合入批次用 integrate。
 ---
 
-# 认领
+# 认领与推进一张卡
 
-Issue 编号来自本次输入。没有编号时问一次，然后停下。本技能是执行者的认领；调度者建卡与派发用 dispatch 技能，集成节点合入候选用 integrate 技能。
+Issue 编号来自本次输入。没有编号时问一次，然后停下。线会话不适用这一条：线会话的编号来自线包的队列。
 
-1. 按 `docs/engineering/agent-delivery.md` 认领。认卡评论写明负责人、宿主、会话、当前修订、授权依据和已有执行核对。已有派发就引用该决定。评论本身不授予执行权。卡还没有派发、执行区还没有 binding 时，认卡后停下，请调度者派发，不建分支。
-2. 基线取卡上 binding 的 `taskBase`，分支名取 binding 的 `branch`。派发时这枚提交已经固定。目标分支之后前进了，也不要改用它现在的最新提交。直接目标分支按 `docs/engineering/integration.md` 和 binding 的 route 核对。
-3. 先在远端创建工作分支，指向这枚基线提交。本地还没有这根分支时，用 `git push origin <基线提交>:refs/heads/<工作分支>`。远端已经有同名分支时，核对其尖端就是这枚基线。不是这枚基线就停下并报告，不要覆盖远端。
-4. 远端分支就位后，再在本地为它开工作树，并让本地分支跟踪这根远端分支。按 `docs/engineering/workflow.md` 把工作放进这棵独立工作树，一张卡一棵。然后把当前会话的工作根切到这棵工作树。切换发生在远端分支已经存在之后。
-5. 在这棵工作树里运行 `start`，写入任务上下文。输入和准入见 `tools/dev-flow/src/integration/README.md`：`authority` 是派发评论的 URL，`issue`、`revision` 和 `attempt` 取 binding。用 `status` 读回 context，核对分支、issue、revision、attempt 和 taskBase 与 binding 一致，targetBase 是开工时远端目标分支的提交。`start` 拒绝时停下并报告原因，不手写 context。在 Claude Code 云端会话里，`start` 会自动派发 `delivery-facts` 读取派发资格与 Project 事实，最多等 3 分钟；卡上随之出现一条交付身份发的开工事实评论，这是预期结果。
-6. 读取并遵循 `pstack:bro`。用白话介绍这个任务要完整交付的成果。依据是该 Issue 的现行正文和验收条件。不把实现计划说成已经交付。
-7. 介绍之后，不等下一条指令，自己准备开工上下文。从仓库根的 `AGENTS.md` 和 `docs/context-map.md` 选这次要读的入口，读到能确定拥有者、写范围和停止点为止。
-8. 按 `docs/engineering/skills.md` 的采用表，只加载和这次任务匹配的 pstack 技能，并读它们的正文。主工作类型对应一个 playbook：feature、bug、refactor、performance、investigation、maintenance 分别对上 feature、bug-fix、refactoring、perf-issue、investigation，以及文档或工具维护所用的实际 playbook。改现有代码或要判断落点时加载 `pstack:how`。要查已有决定的理由时加载 `pstack:why`。写范围含 `.ts` 或 `.tsx` 时加载 `pstack:typescript-best-practices`。交付主要是文档时加载 `pstack:technical-writing` 和 `pstack:unslop`。没有贴合的 playbook 时才加载 `pstack:figure-it-out`。不要在认领时加载实施、Babysit、Shipping 或 Orchestrate，也不要开始执行 playbook 的实现步骤。
-9. 选一个做这张卡的角色，不选评审角色来开工。读者入口从 `docs/README.md` 选，角色 id 以 `docs/documentation.json` 的登记为准，再运行 `uv run --locked omne-documentation context --root . --role <id>`。执行角色从 `.meta_harness/agents/roles/README.md` 选。实现类任务选 `developer`，并写明 `implementation_kind` 是 `product`、`terminal` 还是 `verification`。产品设计起草选 `product-design-drafter`。不要把 `qa`、`implementation-reviewer` 或 `design-reviewer` 写成开工执行者。
-10. 把地图写到本工作树的 `tmp/issue-<编号>/context-map.md`，按[上下文地图模板](references/context-map.md)出。查询 JSON 放在同一目录。不提交 `tmp/`。按下面三种情形之一处理：
-    1. 调度者已在这个位置放了地图：保留主体与本线附录，把附录「绑定」中的 context 读回改为实际结果，再补「认领时补写」一节：选中的读者角色、执行角色、实际读过的 pstack 技能和仍未知的点。
-    2. 没有调度者地图：按模板写全部各节。Issue、修订、attempt、route、taskBase、分支、写范围和 context 读回写进本线附录「绑定」。「先读什么」的第一项固定是 `docs/orientation.md`。写不出的项写「未知」，不猜。
-    3. 调度者给了任务信息包 `task-pack.md`：只读，不改。它的格式见[任务信息包模板](references/task-pack.md)。调度者写包时按[自包含检查](references/self-contained-check.md)核对，认领会话不做这项检查。
-11. 报告 Issue、基线提交、远端分支、工作树路径、会话是否已切过去、`start` 是否成功，以及地图路径。然后停下，等下一条指令。不开始实现，不提交，不开 PR。
+本技能是执行者的流程。规则归下列拥有者：`docs/engineering/agent-delivery.md`（认领、派发、看板），`docs/engineering/delivery.md`（卡、修订、条件、接受），`docs/engineering/integration.md`（路线、双基线、准入、批次），`docs/engineering/quality.md`（风险级别与升级阶梯）。本技能只给顺序、产物与门槛，不另立规则。
+
+准备分两层。线级准备在一条线开工时做一次，由 line 技能调用。卡级准备每张卡做，只做差额。没有线（单独派给你一张卡）时，两层都在这张卡上做一次。
+
+## 线级一次性准备
+
+一条线开工时做一次，产物放 `tmp/line-<线>/`。之后每张卡不重做。
+
+1. 环境：`pnpm install --frozen-lockfile --prefer-offline`。生成 agent 投影。`pnpm run check:agents` 退出 0。记录实际的 Node、pnpm、git 版本。
+2. 线级上下文地图主体，按[上下文地图模板](references/context-map.md)的主体部分写到 `tmp/line-<线>/context-map.md`：本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、本线最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。调度者已给地图主体时只核对，不重写。
+3. 线级工程约束 `tmp/line-<线>/constraints.md`：按下表逐项写本线适用的具体条目，不适用的写「不适用，因为……」。每张卡的 `spec.md` 引用它，只补本卡特有的条目。
+
+   | 小节 | 拥有者 |
+   | --- | --- |
+   | 研发品味 | `.meta_harness/agents/roles/engineering-taste.md` |
+   | 演进政策与提交 | `docs/engineering/publication.md`「当前演进与消费者」、`CONTRIBUTING.md`「提交与 PR 表达」 |
+   | 领域边界与依赖方向 | `docs/architecture/layers-and-dependencies.md`「依赖关系与禁止方向」「领域语义依赖与模型边界」 |
+   | SOLID 与 TypeScript 实践 | `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」。写范围含 `.ts` 时加载 `pstack:typescript-best-practices` |
+   | 防御指导 | `docs/defensive-patterns.md`「当前指导」 |
+   | 验证级别 | `docs/engineering/quality.md`「按风险选择接受实现的看法」 |
+
+4. 方法与角色：按 `docs/engineering/skills.md` 的采用表选本线共用的技能，读它们的正文。
+   - playbook 按主工作类型选：feature 对 feature，bug 对 bug-fix，refactor 对 refactoring，performance 对 perf-issue，investigation 对 investigation，maintenance 对文档或工具维护所用的实际 playbook。没有贴合的 playbook 时才用 `pstack:figure-it-out`。
+   - 其他 pstack 技能：改现有代码或要判断落点时加载 `pstack:how`。要查已有决定的理由时加载 `pstack:why`。交付主要是文档时加载 `pstack:technical-writing` 与 `pstack:unslop`。
+   - 认领时不加载实施类 playbook，也不加载 Babysit、Shipping 与 Orchestrate。
+   - Matt 补充（`to-spec`、`to-tickets`、`code-review`、`codebase-design`）设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 补充与候选」钉住的 SKILL.md 文件。
+   - 读者角色：从 `docs/README.md` 选，角色 id 以 `docs/documentation.json` 为准，然后运行 `uv run --locked omne-documentation context --root . --role <id>`。结果写进线级地图主体。
+   - 执行角色从 `.meta_harness/agents/roles/README.md` 选。实现类选 `developer` 并定 `implementation_kind`。产品设计起草选 `product-design-drafter`。不把 `qa`、`implementation-reviewer`、`design-reviewer` 当开工执行者。
+5. 出口：自包含检查四问能答（从哪个提交开工、能改哪些文件、做到什么程度算完成、每条事实出处在哪）。
+
+## 卡级增量准备
+
+每张卡做。只做本卡与线级产物的差额。
+
+1. 认卡：按 `agent-delivery.md` 在本卡评论声明认卡：负责的人、宿主与会话、当前修订与 attempt、授权依据（派发评论或线包的登记授权）、现存执行核对。卡还没有派发、执行区没有 binding 时，线内的卡由线会话按 dispatch 技能第 5 至 8 节登记。不在线内的卡停下，请调度者派发。
+2. 写范围：以 binding 为准。登记 attempt 时，新建成员的卡写范围要加锁文件、所属组的组页、组 `documentation.json`、组 docs 与包组织页。
+3. 分支：基线取 binding 的 `taskBase`，分支名取 binding 的 `branch`。远端还没有这根分支时 `git push origin <taskBase>:refs/heads/<分支>`。已有同名分支时核对尖端等于 taskBase，不等就停下报告，不覆盖。线内的卡从批次分支头切出，taskBase 就是批次分支头。
+4. 工作树：一次 attempt 一棵，放主检出的 `.worktrees/issue-<号>-r<修订>a<序号>`，跟踪远端同名分支，然后把会话的工作根切过去。调度者已用 `worktree-cli.ts prepare` 建好时直接用。
+5. `start` 与读回：在工作树里按 `tools/dev-flow/src/integration/README.md` 运行 `start`（`authority` 是派发评论 URL，`issue`、`revision`、`attempt` 取 binding），再用 `status` 读回：`bound=true`，issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。拒绝时停下，按错误码处理，不手写 context。线内的卡 targetBase 与批次分支分叉是预期结果。云端会话的 `start` 成功后，交付身份会在卡上发一条「开工事实」评论，这是预期结果。
+6. 看板与正文：Stage 改为 In progress。线内的卡由线会话改。不在线内的卡由调度者改，执行者在认卡评论里请求。云端会话用 `delivery-stage`，以 `gh run view` 读到 `Stage: In progress` 才算完成。然后回填卡正文的开工读回表与当前进展。
+7. 本卡附录：在 `tmp/issue-<号>/context-map.md` 按[上下文地图模板](references/context-map.md)只写本卡附录（绑定、本卡依据、缺口、受影响成员），主体引用线级地图。调度者给了任务信息包 `task-pack.md` 时只读不改。
+8. `spec.md`：按 Matt `to-spec` 写本卡实施规格，放 `tmp/issue-<号>/spec.md`。至少含：问题、方案、用户故事、实施决定、工程约束（引用线级 `constraints.md`，只写本卡新增条目）、测试决定与测试接缝、范围外事项、依据与已定事项（每条带链接与精确修订）。测试接缝：线内的卡由线会话定并写进 spec。不在线内的卡须经卡负责人确认。接续已有 attempt 的卡只写已采用规格之外的差额。
+9. `plan.md`：按 Matt `to-tickets` 的切片法写交付计划，放 `tmp/issue-<号>/plan.md`。开头放进度总览。每个切片写：端到端行为与阻塞关系、对应的卡判据与验收勾选项、文件、命令、实施者档位、[七步待办](references/card-loop.md#切片的七步)。每条卡判据都要有切片和验收命令。
+10. 待决事项：先按「过度设计 → 自己能定 → 必须上报」筛一遍。只有产品规则、范围变化、新的破坏性契约改动、须接受者本人做的动作才上报。不在线内的卡上报写进卡评论。线内的卡上报写进线父卡的线状态注。上报后不等回复，暂停依赖它的切片。其余自己具名裁定，写进 `spec.md`「已定事项」。
+11. 核对 `plan.md` 里的依据链接：每个相对链接与锚点都能解析，「第 N 行」的引用指向正确的范围，引号中的节名能在对应文件的标题中找到。`check:docs` 不检查 `tmp/`，这一步要自己做。
+12. 用 `pstack:bro` 的方式在卡评论或线状态注里用白话写一遍这张卡要交付的成果，依据是卡的现行正文与验收条件。不把计划说成已交付。
+
+**出口门槛：**`status` 读回一致。Stage 为 In progress。`context-map.md`（主体加本卡附录）、`spec.md`、`plan.md` 齐全。待决事项已裁定或已写出上报。链接核对无误。卡上要求逐步确认、或你不在线内且负责人要求先看计划时，到此停下报告。否则直接进入推进。
+
+## 按计划推进
+
+按 `plan.md` 逐个切片做，直到全部卡判据都有证据。每个切片的七步、功能门禁、评审力度、集中修复、升级阶梯、准入与评审的节奏归[卡的推进循环](references/card-loop.md)。要点：
+
+- 一次只有一个写者在本工作树里写。实施与评审派新上下文的子代理，简报只给指针。
+- 每个切片后复跑功能门禁（至少类型检查与 lint）。评审只在高风险切片做，常规评审集中到实施完成后一次。阻断合成一轮集中修复。结构度量与差分变异若干切片后集中跑一次。
+- 评审与验收按 `quality.md` 的风险级别裁剪：L0、L1 不派实现评审。纯文档的卡仍跑 `review-docs` 与 `review-delivery`。L3 逐行读热点并派独立评审。
+- 准入 `OMNE_ADMISSION=1 pnpm run check` 只在最终 head 上跑一次，按准入锁排队。准入期间不提交、不做占 CPU 的事。
+- 修复轮：线内的卡两轮未闭合即停，按 line 技能处理。不在线内的卡按 card-loop 的升级阶梯进第 3 轮。
+
+## 交回
+
+1. 推送候选，开 PR：线内的卡 base 是批次分支。不在线内的卡 base 按 binding 的 route。正文按 `integration.md`「进轨道 PR 的说明」写「所含的卡」与「契约变化」，署名与 trailer 按 `CONTRIBUTING.md`。
+2. 在卡评论发交接报告（线内的卡模板在 `.meta_harness/human/map-reduce-delivery/templates/handoff-report.md`）：固定 head、逐项卡判据的证据与未覆盖、准入日志位置、评审结论与处置、剩余责任。
+3. 回填卡正文「成果交回」，Stage 改为 delivered。线内由线会话运行 `board-cli.ts delivered`。不在线内的卡由调度者改，执行者在交回评论里请求。
+4. 不自己接受，不自己合入批次分支以外的分支。接受归有权者。线内的卡合入批次归 line 技能，批次合入轨道归 integrate 技能。不在线内的卡进轨道由调度者按 `branch-integration` 技能处理。
+
+## 收尾
+
+卡接受后：
+
+- 契约基线登记只在 `integration.md`「里程碑内的规则」规定的两种情形下做，其他卡跳过。
+- tmp 清理：被引用的材料保留，其余归档或删除。工作树的清理条件见 `docs/engineering/workflow.md`「工作树清理条件」。
+
+## 已知的坑
+
+见[已知问题与常用命令](references/known-issues.md)。
