@@ -71,7 +71,7 @@ description: >
 每张卡按 claim 技能走：卡级增量准备 → 按 `plan.md` 推进 → 交回。本技能只定线内的几件事：
 
 1. 登记 attempt 由你以受托调度写者身份做：按 dispatch 技能第 5 至 8 节写 spec、`post`、`bind`、建分支、写本卡的任务信息包。分支从批次分支头切出，taskBase 取批次分支头。登记评论引用线包的授权。
-2. 实施与评审各派新上下文的子代理。修复第 1 轮续用实施子代理，第 2 轮换新的。两轮未闭合就停下：这张卡不进批次，批次报告写明，卡进入下一波队列。
+2. 实施与评审各派新上下文的子代理。修复第 1 轮续用实施子代理，第 2 轮换新的。两轮未闭合就停下：这张卡不进批次，批次报告写明，卡进入下一波队列。本线之后没有波时，卡列进线交接报告的「未进批次的卡」，去向由调度者定。
 3. 每个切片后跑线包第 7 节的自测命令。最后一次改动后自准入：`OMNE_ADMISSION=1 pnpm run check`。测试与准入都经线包第 7 节的测试名额。准入另按准入锁排队，用后台 shell 等锁，会话不被唤醒：
 
    ```sh
@@ -101,20 +101,20 @@ description: >
 node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --issue-closed <本波收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>
 ```
 
-- `--since` 一律带上。首波取起点评论时间。之后取上一条已读 `line-delta` 的时间。处理过一条 `line-return` 后，取这条 `line-return` 的时间，否则会再次命中它。
+- `--since` 一律带上，值是 ISO 时间（例如 `2026-10-26T18:00:00Z`）。首波取起点评论时间。之后取上一条已读 `line-delta` 的时间。处理过一条 `line-return` 后，取这条 `line-return` 的时间，否则会再次命中它。`line-return` 总在本波的 `line-delta` 之前发出，所以这样取不会漏读 `line-delta`。
 - 在 Claude Code 里用 Bash 工具的后台运行（`run_in_background`）跑这条命令。命令退出前会话不被唤醒（Claude Code 后台运行的行为）。不用 `Monitor`：它每 30 分钟到期，要重新启动。
 - Codex 与 Cursor 未覆盖：用各自的后台运行与完成通知机制。没有这种机制的宿主，在线状态注写明怎样等。
-- 命令的输出与退出码见 `tools/dev-flow/src/delivery/README.md`「事件等待」。
+- 命中时命令打印一行 JSON 并退出 0，`matched` 字段是 `issue-closed` 或 `comment`，据它判断是收口还是退回。启动对账读不到 GitHub 时退出 2，不继续等。其余细节见 `tools/dev-flow/src/delivery/README.md`「事件等待」。
 
 命中 `line-return` 时，批次被退回。集成节点已把批次 PR 转回草稿，评论写明批次、原因与要改什么：
 
-1. 在本波内修复，推送批次分支，让 head 前进。
+1. 在本波内修复，重跑自准入，推送批次分支，让 head 前进。
 2. 把原 PR 重新转为 ready：`gh pr ready <PR>`。不新开 PR，沿用线父卡本波的同一个 attempt。
 3. 写一条线状态注，然后回到本阶段的等待。
 
 命中收口卡关闭时，读 `line-delta`：
 
-1. 用 `gh api --paginate repos/<仓库>/issues/<线父卡>/comments` 取创建时间晚于 `--since` 时间的评论。
+1. 用 `gh api --paginate repos/<仓库>/issues/<线父卡>/comments` 取创建时间晚于 `--since` 时间的评论。`<仓库>` 是线父卡链接里的 `owner/name`。
 2. 只认正文以 `<!-- line-delta -->` 开头的评论，按序号去重。
 3. 从中取新收口点 F(w)、本线下一波队列与写范围、退回的批次与原因、对停下事项的答复、共享冻结物的变化、影响本线的裁定。
 
@@ -126,7 +126,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --is
 node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <线父卡> --marker line-delta --since <时间> --file <事件文件>
 ```
 
-本线在后续波还有卡时回到[2 开波](#2-开波)。本线最后一张卡所在波的收口卡关闭后，进入[6 里程碑收尾](#6-里程碑收尾)。之后的波本线没有卡，不再等。
+本线在后续波还有卡时回到[2 开波](#2-开波)。本线最后一张卡所在波的收口卡关闭后，同样先读一次 `line-delta`（它可能含对停下事项的答复与裁定），再进入[6 里程碑收尾](#6-里程碑收尾)。之后的波本线没有卡，不再等。线收尾不关闭事件接收器，它由本机里程碑结束时的调度者停止。
 
 ## 6 里程碑收尾
 
