@@ -137,12 +137,14 @@ pnpm run acceptance:lock --base <任务基线提交或分支>
 Loop 的 `auditRanges[].acceptance` 保留完整报告，`hardLines.acceptanceLock.violations` 只列未解决项。
 Loop 的 Markdown 同时显示原始违规和批准决定；其他硬线照常判断。
 
-当前制品只包含 [D010 的固定决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)。
-它只批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
-工具读取真实 Git 对象，核对完整提交、唯一父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`。
+固定决定编进 `src/acceptance/historical-approvals.ts` 的只读列表，每条对应一个提交里的一个受保护路径；一个提交改了几个受保护路径，就登记几条。
+[D010 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
+[#769 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205)批准提交 `19f457a15`、`9f3967cc5`、`69bdedfab`、`837d333fd`、`14b0fcfcb`、`06acd53ca` 中的 27 个路径改动。
+合并提交的条目写的是验收锁看到该路径有变化的那一个父提交。
+工具读取真实 Git 对象，核对完整提交、所写父提交确是该提交的父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。某一侧没有这个路径时，blob 记为 Git 的空对象号（40 个 0，与 `git diff --raw` 的写法相同），工具核对该侧的树里确实没有这个路径。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`。
 调用固定 `core.abbrev=8`、`diff.noprefix=false`、`diff.mnemonicPrefix=false`、`diff.algorithm=myers`、`diff.indentHeuristic=true`、`diff.context=3`、`diff.interHunkContext=0`、`diff.suppressBlankEmpty=false`、`diff.srcPrefix=a/`、`diff.dstPrefix=b/`、`core.attributesFile=/dev/null` 与 `attr.tree`（空树），从环境中去掉 `GIT_DIFF_OPTS` 与 `GIT_ATTR_SOURCE`，并设 `GIT_ATTR_NOSYSTEM=1`。仓库大小与这些配置不会改变字节。
-已知限制：`info/attributes` 中的 funcname、xfuncname 或 `binary` 属性，Git 2.43 以前版本下工作树里的 `.gitattributes`，以及对象前缀碰撞，会改变字节，D010 因此不获批准。这些情况的失败方向是拒绝，不会误批准。
-其他普通文档可以在原提交中一起修改；多一个受保护验收路径不能命中例外。
+已知限制：`info/attributes` 中的 funcname、xfuncname 或 `binary` 属性，Git 2.43 以前版本下工作树里的 `.gitattributes`，以及对象前缀碰撞，会改变字节，该条因此不获批准。这些情况的失败方向是拒绝，不会误批准。
+其他普通文档可以在原提交中一起修改。验收锁为一个提交列出的受保护路径必须恰好等于为它登记的路径，多一个或少一个，这个提交一条都不批准。
 未提交改动、未来 developer 提交和任一指纹或决定不匹配仍失败。Git 读取失败退出 2。
 仓库配置、环境变量、CLI 参数和外部 URL 都不能新增批准；运行时不访问 GitHub。
 批准记录随受审查的工具制品发布，安装版本与 npm integrity 是采用边界，源码测试通过不代表已安装修复。

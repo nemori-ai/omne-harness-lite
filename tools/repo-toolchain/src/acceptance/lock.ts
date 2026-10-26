@@ -274,11 +274,9 @@ export function inspect(
   const uncommitted = head === 'HEAD' ? uncommittedPaths(root, config) : []
   const touches = touchesSince(root, mergeBase, config, head, integration)
   const original = judge(touches, uncommitted, config)
-  const approvedExceptions = original.commits.flatMap(commit => {
-    if (commit.allowed) return []
-    const approval = inspectHistoricalApproval(root, commit.sha, commit.files)
-    return approval === undefined ? [] : [approval]
-  })
+  const approvedExceptions = original.commits.flatMap(commit =>
+    commit.allowed ? [] : inspectHistoricalApproval(root, commit.sha, commit.files),
+  )
   const unresolvedTouches = touches.flatMap(touch => {
     const files = touch.files.filter(
       path =>
