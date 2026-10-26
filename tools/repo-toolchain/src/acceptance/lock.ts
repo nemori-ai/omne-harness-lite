@@ -3,7 +3,8 @@
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
 // 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
-import { inspectHistoricalApproval, type HistoricalApproval } from './historical-approvals.ts'
+import { inspectHistoricalApproval } from './historical-approvals.ts'
+import type { HistoricalApproval } from './historical-approvals.data.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { repositoryEnv } from '../core/git-environment.ts'
@@ -274,11 +275,9 @@ export function inspect(
   const uncommitted = head === 'HEAD' ? uncommittedPaths(root, config) : []
   const touches = touchesSince(root, mergeBase, config, head, integration)
   const original = judge(touches, uncommitted, config)
-  const approvedExceptions = original.commits.flatMap(commit => {
-    if (commit.allowed) return []
-    const approval = inspectHistoricalApproval(root, commit.sha, commit.files)
-    return approval === undefined ? [] : [approval]
-  })
+  const approvedExceptions = original.commits.flatMap(commit =>
+    commit.allowed ? [] : inspectHistoricalApproval(root, commit.sha, commit.files),
+  )
   const unresolvedTouches = touches.flatMap(touch => {
     const files = touch.files.filter(
       path =>

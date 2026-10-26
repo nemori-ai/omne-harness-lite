@@ -1,27 +1,12 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { repositoryEnv } from '../core/git-environment.ts'
-
-export interface HistoricalApproval {
-  readonly commit: string
-  readonly parent: string
-  readonly path: string
-  readonly oldBlob: string
-  readonly newBlob: string
-  readonly diffSha256: string
-  readonly decisionUrl: string
-}
-
-// The reviewed tool artifact owns this decision. Repository inputs cannot add approvals.
-const D010: HistoricalApproval = Object.freeze({
-  commit: '48ad37d292796326d65055a75e8a1fde44fe4233',
-  parent: 'e7aab8ec73002713d2ef6486401816850c984fb1',
-  path: 'packages/agent/agent/acceptance/README.md',
-  oldBlob: 'f7fac2fc21bfceb51c3dd84542b866eb7bb12c89',
-  newBlob: 'fbf0d08732f5d2004c3d63cff6c8be11442da99b',
-  diffSha256: 'eee5be00ebfdf300db6978cb2981a1b989dcd977846fc3de2669bb835edf3a2c',
-  decisionUrl: 'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357',
-})
+import {
+  HISTORICAL_APPROVALS,
+  NULL_OBJECT_ID,
+  assertUniqueApprovals,
+  type HistoricalApproval,
+} from './historical-approvals.data.ts'
 
 // Fixed diff settings: the same Git objects must give the same bytes under any user or repository
 // configuration that these settings cover. core.abbrev=8 matches the abbreviation length at
@@ -80,64 +65,155 @@ function fingerprintEnv(base: Readonly<NodeJS.ProcessEnv>): NodeJS.ProcessEnv {
   return { ...env, GIT_ATTR_NOSYSTEM: '1' }
 }
 
-/** Internal matcher: it can recognize the compiled decision, never authorize a new one. */
+type ApprovalList = readonly HistoricalApproval[]
+
+/** The protected paths of the commit are exactly the registered ones: one more or one less fails. */
+function coversExactly(
+  list: ApprovalList,
+  commit: string,
+  protectedPaths: readonly string[],
+): boolean {
+  const registered = new Set(list.filter(item => item.commit === commit).map(item => item.path))
+  const listed = new Set(protectedPaths)
+  return (
+    registered.size > 0 &&
+    listed.size === protectedPaths.length &&
+    listed.size === registered.size &&
+    protectedPaths.every(path => registered.has(path))
+  )
+}
+
+function matchAgainst(
+  list: ApprovalList,
+  candidate: Partial<HistoricalApproval>,
+  protectedPaths: readonly string[],
+): HistoricalApproval | undefined {
+  const approval = list.find(
+    item => item.commit === candidate.commit && item.path === candidate.path,
+  )
+  return approval !== undefined &&
+    coversExactly(list, approval.commit, protectedPaths) &&
+    candidate.parent === approval.parent &&
+    candidate.oldBlob === approval.oldBlob &&
+    candidate.newBlob === approval.newBlob &&
+    candidate.diffSha256 === approval.diffSha256 &&
+    candidate.decisionUrl === approval.decisionUrl
+    ? approval
+    : undefined
+}
+
+/** Internal matcher: it can recognize a compiled decision, never authorize a new one. */
 export function matchHistoricalApproval(
   candidate: Partial<HistoricalApproval>,
   protectedPaths: readonly string[],
 ): HistoricalApproval | undefined {
-  return protectedPaths.length === 1 &&
-    protectedPaths[0] === D010.path &&
-    candidate.commit === D010.commit &&
-    candidate.parent === D010.parent &&
-    candidate.path === D010.path &&
-    candidate.oldBlob === D010.oldBlob &&
-    candidate.newBlob === D010.newBlob &&
-    candidate.diffSha256 === D010.diffSha256 &&
-    candidate.decisionUrl === D010.decisionUrl
-    ? D010
-    : undefined
+  return matchAgainst(HISTORICAL_APPROVALS, candidate, protectedPaths)
 }
 
-/** Read immutable Git objects; errors propagate to the caller as tool failures. */
-export function inspectHistoricalApproval(
-  root: string,
-  commit: string,
-  protectedPaths: readonly string[],
-): HistoricalApproval | undefined {
-  if (commit !== D010.commit || protectedPaths.length !== 1 || protectedPaths[0] !== D010.path)
-    return undefined
-  const git = (args: readonly string[], env: NodeJS.ProcessEnv = repositoryEnv(process.env)) =>
+type Git = (args: readonly string[], env?: NodeJS.ProcessEnv) => Buffer
+
+function gitIn(root: string): Git {
+  return (args, env = repositoryEnv(process.env)) =>
     execFileSync('git', args, {
       cwd: root,
       env,
       maxBuffer: 256 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-  const objectId = (type: 'commit' | 'blob', revision: string) => {
-    const bytes = git(['cat-file', type, revision])
-    return createHash('sha1').update(`${type} ${bytes.length}\0`).update(bytes).digest('hex')
+}
+
+function hashObject(type: 'commit' | 'blob', bytes: Buffer): string {
+  return createHash('sha1').update(`${type} ${bytes.length}\0`).update(bytes).digest('hex')
+}
+
+/** Hash the object bytes again, so a Git replacement object cannot pass as the original. */
+function objectId(git: Git, type: 'commit' | 'blob', revision: string): string {
+  return hashObject(type, git(['cat-file', type, revision]))
+}
+
+/** The parents written in the commit object itself, read from bytes whose hash was checked. */
+function verifiedParents(git: Git, commit: string): readonly string[] | undefined {
+  const bytes = git(['cat-file', 'commit', commit])
+  if (hashObject('commit', bytes) !== commit) return undefined
+  const header = bytes.toString('utf8').split('\n\n', 1)[0] ?? ''
+  return header.split('\n').flatMap(line => {
+    const parent = /^parent ([0-9a-f]{40})$/u.exec(line)?.[1]
+    return parent === undefined ? [] : [parent]
+  })
+}
+
+/** The blob at `revision:path`, or NULL_OBJECT_ID when the tree has no such path. */
+function blobAt(git: Git, revision: string, path: string): string {
+  if (git(['ls-tree', revision, '--', path]).length === 0) return NULL_OBJECT_ID
+  return objectId(git, 'blob', `${revision}:${path}`)
+}
+
+/**
+ * Read the change of one path between a parent and a commit from immutable Git objects. The
+ * compiled constants come from this same function; errors propagate as tool failures.
+ */
+export function observeHistoricalChange(
+  root: string,
+  commit: string,
+  parent: string,
+  path: string,
+): Pick<HistoricalApproval, 'oldBlob' | 'newBlob' | 'diffSha256'> {
+  const git = gitIn(root)
+  return {
+    oldBlob: blobAt(git, parent, path),
+    newBlob: blobAt(git, commit, path),
+    diffSha256: createHash('sha256')
+      .update(
+        git([...FINGERPRINT_DIFF_ARGS, parent, commit, '--', path], fingerprintEnv(process.env)),
+      )
+      .digest('hex'),
   }
-  if (objectId('commit', commit) !== D010.commit || objectId('commit', D010.parent) !== D010.parent)
-    return undefined
-  const identity = git(['show', '-s', '--format=%H %P', commit]).toString('utf8').trim()
-  if (identity !== `${D010.commit} ${D010.parent}`) return undefined
-  return matchHistoricalApproval(
-    {
-      commit,
-      parent: D010.parent,
-      path: D010.path,
-      oldBlob: objectId('blob', `${D010.parent}:${D010.path}`),
-      newBlob: objectId('blob', `${commit}:${D010.path}`),
-      diffSha256: createHash('sha256')
-        .update(
-          git(
-            [...FINGERPRINT_DIFF_ARGS, D010.parent, commit, '--', D010.path],
-            fingerprintEnv(process.env),
-          ),
-        )
-        .digest('hex'),
-      decisionUrl: D010.decisionUrl,
-    },
-    protectedPaths,
-  )
+}
+
+/**
+ * Test seam only: the same check over a given list. Production code calls
+ * inspectHistoricalApproval, which always passes the compiled list; no repository input reaches here.
+ */
+export function inspectAgainst(
+  list: ApprovalList,
+  root: string,
+  commit: string,
+  protectedPaths: readonly string[],
+): readonly HistoricalApproval[] {
+  assertUniqueApprovals(list)
+  if (!coversExactly(list, commit, protectedPaths)) return []
+  const git = gitIn(root)
+  const parents = verifiedParents(git, commit)
+  if (parents === undefined) return []
+  return list
+    .filter(item => item.commit === commit)
+    .flatMap(approval => {
+      // The candidate takes the registered parent, so these two checks are the only parent guards.
+      if (!parents.includes(approval.parent)) return []
+      if (objectId(git, 'commit', approval.parent) !== approval.parent) return []
+      const matched = matchAgainst(
+        list,
+        {
+          commit,
+          parent: approval.parent,
+          path: approval.path,
+          ...observeHistoricalChange(root, commit, approval.parent, approval.path),
+          decisionUrl: approval.decisionUrl,
+        },
+        protectedPaths,
+      )
+      return matched === undefined ? [] : [matched]
+    })
+}
+
+/**
+ * The compiled approvals that match this commit's protected paths exactly, one for each path.
+ * Read immutable Git objects; errors propagate to the caller as tool failures.
+ */
+export function inspectHistoricalApproval(
+  root: string,
+  commit: string,
+  protectedPaths: readonly string[],
+): readonly HistoricalApproval[] {
+  return inspectAgainst(HISTORICAL_APPROVALS, root, commit, protectedPaths)
 }
