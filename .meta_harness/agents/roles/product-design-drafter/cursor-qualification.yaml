@@ -38,5 +38,5 @@ missing: []
 adoption:
   owner: PanQiWei
   reference: https://github.com/nemori-ai/omne-harness-lite/issues/766#issuecomment-6410887561
-  subject_sha256: f0f1b1178de3092724ba3a99d25f635aaf7683890b85cd69e06d4b7dcbc7be69
-reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after a shared inlined page changed; role duty, tools and permissions are unchanged, and the role was not re-qualified.
+  subject_sha256: 1d3bd98b5125d5ccb4373f52534a065ec3fc26b0fbd2d57690bbaf2ee19fe8f8
+reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after the inlined shared page project-frame.md changed. The role body, duty, tools, permissions and cursor.yaml did not change. The role was not re-qualified.

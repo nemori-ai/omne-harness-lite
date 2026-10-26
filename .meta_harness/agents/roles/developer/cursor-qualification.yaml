@@ -2,7 +2,7 @@ version: 1
 role: developer
 binding:
   native_sha256: c337eb6769f9e2c7bab6651157956d97cf16a02ed138c2c43c05d4bd157da5e4
-  prompt_sha256: 3def9fd3d0fb8bb5f8eb8deaa1596ea359570591469c7ee8db60862ee38ca7e6
+  prompt_sha256: 5414780050c058f3b2ad3b53de74be04a71c4bb53110793aae3c8f4f7330c649
 host_versions:
   cli:
   - 2026.08.04-aaa8809
@@ -38,5 +38,5 @@ missing: []
 adoption:
   owner: PanQiWei
   reference: https://github.com/nemori-ai/omne-harness-lite/issues/766#issuecomment-6410887561
-  subject_sha256: 4f523572d3408ea8c1f553c20f5c94c725e95b1b10f5c1999c2c798814992500
-reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after a shared inlined page changed; role duty, tools and permissions are unchanged, and the role was not re-qualified.
+  subject_sha256: 3173f0c3dc6460a470bae792f2b53c3654463e0adf551975809b6402db976911
+reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after the inlined shared pages project-frame.md and engineering-taste.md changed. The role body, duty, tools, permissions and cursor.yaml did not change. The role was not re-qualified.

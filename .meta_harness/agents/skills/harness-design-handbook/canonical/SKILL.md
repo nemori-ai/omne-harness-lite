@@ -13,7 +13,7 @@ description: "为新的能力或责任边界核对已有覆盖、性质保护责
 
 ## 选页之前：命名轴与拥有者
 
-先做下面三步，再找现有正文或方法页。思考方法见执行仓库 `.meta_harness/agents/roles/engineering-taste.md` 的「维度分解与正交」。
+先做下面三步，再找现有正文或方法页。方法归执行仓库采用的研发品味页（本仓库为 `.meta_harness/agents/roles/engineering-taste.md#维度分解与正交`；其他执行仓库由派发者给出对应规则）。
 
 1. 列出本次问题触碰的事实与决定。列事实，不列模块或机制名。
 2. 为每条事实命名轴，从 `docs/domains/README.md` 与 `docs/architecture/README.md` 找到该轴的拥有者，再读拥有者的现行正文。
