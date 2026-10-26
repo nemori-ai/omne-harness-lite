@@ -5,7 +5,7 @@ description: 在本项目把成果送入轨道、main 或 stable，做 FI/RI、�
 
 # 分支集成
 
-先进入任务明确的执行仓库/worktree，核 cwd、branch、HEAD 和已有写者。读取执行仓库 `docs/engineering/integration.md`，它拥有路线、节奏、双基线及权限；实际命令和精确输入归 `tools/dev-flow/src/integration/README.md` 与相邻 SPEC。不要从 skill 安装路径推断目标仓库。
+先进入任务明确的执行仓库/worktree，核 cwd、branch、HEAD 和已有写者。读取执行仓库 `docs/engineering/integration.md`，它拥有路线、节奏、双基线及权限；实际命令和精确输入归 `tools/dev-flow/src/integration/README.md` 与相邻 SPEC。不要从 skill 安装路径推断目标仓库。作为一波的集成节点合入多条线的候选时，按 integrate 技能逐步执行。
 
 任务开工和状态读取用该 CLI 的 start 与 status。start 核对派发评论作者是 `publish` environment 的 reviewer；没有派发就不运行 start，也不手造 context。没有 context 时本地检查以 `origin/main` 为基线。工具不提交或丢弃现有修改。
 

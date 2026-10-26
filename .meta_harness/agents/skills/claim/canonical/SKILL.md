@@ -8,7 +8,7 @@ description: >
 
 # 认领
 
-Issue 编号来自本次输入。没有编号时问一次，然后停下。
+Issue 编号来自本次输入。没有编号时问一次，然后停下。本技能是执行者的认领；调度者建卡与派发用 dispatch 技能，集成节点合入候选用 integrate 技能。
 
 1. 按 `docs/engineering/agent-delivery.md` 认领。认卡评论写明负责人、宿主、会话、当前修订、授权依据和已有执行核对。已有派发就引用该决定。评论本身不授予执行权。卡还没有派发、执行区还没有 binding 时，认卡后停下，请调度者派发，不建分支。
 2. 基线取卡上 binding 的 `taskBase`，分支名取 binding 的 `branch`。派发时这枚提交已经固定。目标分支之后前进了，也不要改用它现在的最新提交。直接目标分支按 `docs/engineering/integration.md` 和 binding 的 route 核对。
