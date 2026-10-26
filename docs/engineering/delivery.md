@@ -44,7 +44,7 @@
 
 首版一个主Project，仓库Issue作为正式卡源，不依赖组织特有Issue type。正文明确工作类型和交付层级，分类标签只是派生筛选；主Project不另维护可独立修改的第二个工作类型。标签不能授予ready、规范或接受权。Issue assignee表示负责的人，执行attempt标识区分其名下的agent实例。
 
-Project字段仅建议Stage、Priority、Iteration，以及从正文投影的「交付线」。阶段由指定调度者维护；阻塞从条件观察，不作为抹去真实进展的独立Stage。首版不强制自动化：人工调度按同一协议复核，之后加只读检查及获准投影；不是从第一天开发新调度服务。
+主Project使用的字段、各自的唯一源与写者见[字段总表](#字段总表)。阶段由指定调度者维护；阻塞从条件观察，不作为抹去真实进展的独立Stage。首版不强制自动化：人工调度按同一协议复核，之后加只读检查及获准投影；不是从第一天开发新调度服务。
 
 ## 2. 卡片与阶段
 
@@ -72,6 +72,64 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 启用该协议的主Project须禁用Issue／PR关闭→Done、PR合并→Done和Stage→自动关闭；仓库禁用关联PR合并自动关闭，PR正文用普通引用。官方说明默认自动化：[Project工作流](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations)、[仓库自动关闭](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-auto-closing-issues)。技术接受可以根据合并后的真实证据作出，但平台事件不代替决定。
 
 ### 卡属性与合法组合
+
+本节先列主Project的字段与视图，再规定交付卡的三个属性及其合法组合。
+
+#### 字段总表
+
+下表列出主Project的调度字段。字段 ID 与选项 ID 只登记在[交付配置](github-delivery.json)。配置的 `iteration` 键登记 Wave 字段，它在 Project 中是迭代类型的字段。dev-flow 的写入命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。标题、负责人、父卡与子项进度是 GitHub 从 Issue 直接显示的内容，不在表中。
+
+| 字段 | 含义 | 唯一源 | 谁写 | 何时写 | 用在哪些视图 |
+| --- | --- | --- | --- | --- | --- |
+| Status | 卡的调度阶段，取 [§2](#2-卡片与阶段) 表中的值，含 Integrating | Project 字段本身。任务事实仍归 Issue 正文，接受与取消归决定记录 | 按事件写，见本表下方的列表 | 阶段变化时 | 各里程碑看板与当前波的列、Active work 与周期的过滤、Awaiting acceptance |
+| Line | 卡的交付线 | 正文「交付线」。`line:` 标签与本字段都是投影。派发后取 binding 的 `line` | `start` 新建 context 后写入。失败时调度者用 `board-cli.ts dispatched` 补写 | 开工时 | 各里程碑看板与当前波的泳道、Active work 的排序、周期 |
+| Kind | 卡的主工作类型 | 正文「主工作类型」。本字段取卡上唯一的 `kind:` 标签 | 同 Line | 开工时 | 按 kind 分组 |
+| Wave | 卡所属的波 | 调度者在 Project 中为本波建的迭代，起止日覆盖本波的派发时间。`start` 取包含开工日的那个迭代 | 同 Line | 卡第一次开工时。卡已有 Wave 时不覆盖，同一张卡的新 attempt 不改 Wave | 当前波、路线图 |
+| Needs decision | `yes` 表示卡在等人拍板，`no` 或空表示不等 | Project 字段本身。要裁定的问题和决定写在卡的评论中 | 本卡调度者。工具不写 | 发现需要人裁定时置 `yes`，包括破坏性契约改动的申请。决定读回后置 `no` | 待裁 |
+| Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |
+| Milestone | 卡所属的里程碑 | Issue 的 milestone 字段 | 调度者。建里程碑与流转用 `milestone-cli.ts` | 建卡时设置。改里程碑用 `carry` | 各里程碑看板的过滤、Active work 与顶层交付卡的分组、路线图、周期 |
+| Dispatched at | 卡第一次开工的日期 | dev-flow 写入的日期。已有值时不覆盖 | 同 Line | 开工时 | 周期 |
+| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered` | 交回候选时 | 现有视图不显示 |
+| Accepted at | 接受决定读回的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts accepted` | 接受决定读回后 | 周期 |
+| Cycle days | Accepted at 与 Dispatched at 相差的天数 | 由两个日期算出 | 同 Accepted at | 同 Accepted at | 周期 |
+
+Status 按事件由下列角色写入，操作顺序见[推进和更新状态](agent-delivery.md#4-推进和更新状态)：
+
+- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。
+- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。一波并行的卡由集成节点运行。
+- Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
+- Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。
+
+标签是正文的投影，不是第二个源。下表列出调度用的标签族：
+
+| 标签族 | 含义 | 唯一源 | 谁写 | 何时写 | 用在哪里 |
+| --- | --- | --- | --- | --- | --- |
+| `kind:<主工作类型>` | 卡的主工作类型 | 正文「主工作类型」 | 调度者 | 建卡时；主工作类型改变时同步 | Kind 字段的来源。`start` 要求恰有一个 |
+| `level:delivery`、`level:subtask` | 交付层级 | 正文「交付层级」 | 调度者 | 建卡时 | 顶层交付卡视图的过滤 |
+| `line:<交付线>` | 交付线 | 正文「交付线」 | 调度者运行[标签同步命令](../../tools/dev-flow/src/delivery/README.md#标签同步) | 建卡后；交付线改变时 | `start` 要求恰有一个 |
+| `nature:<性质>` | 性质 | 正文「性质」 | 同 `line:` | 建卡后；性质改变时 | 属性发现核对 |
+| `contract:<契约变更>` | 契约变更为 `additive` 或 `breaking`；为 `none` 时不打 | 正文「契约变更」 | 同 `line:` | 建卡后；契约变更改变时 | 属性发现核对 |
+
+建卡时，卡必须有唯一的 `kind:` 标签、唯一的 `line:` 标签与里程碑，`start` 缺任一项时拒绝开工。调度者在派发一波之前，在 Wave 字段中为本波建好迭代，起止日覆盖本波的派发时间。
+
+#### 视图
+
+视图的过滤、分组、泳道与排序保存在 Project 中，是这些设置的唯一源。本表只记录每个视图回答的问题。新建里程碑时，按 `milestone-cli.ts create` 输出的步骤为它建看板视图。
+
+| 视图 | 回答的问题 |
+| --- | --- |
+| Active work | 还有哪些活动的卡，各在哪个里程碑与哪条线 |
+| 当前波 | 本波每条线的卡分别在排队、推进、评审、集成还是待接受 |
+| 每个里程碑一个看板 | 这个里程碑中每条线在各阶段各有几张卡 |
+| 顶层交付卡 | 每个里程碑的顶层结果拆到了什么程度 |
+| 周期 | 已接受的卡从开工到接受用了几天 |
+| Awaiting acceptance | 哪些卡在等具名接受者判断 |
+| 待裁 | 哪些卡在等人拍板 |
+| 按 kind 分组 | 每种工作类型各有多少卡 |
+| 路线图 | 每个波的起止日，以及卡排在哪个波 |
+
+#### 卡属性
 
 交付卡在「身份与责任」中登记交付线、性质与契约变更三个属性。调度者在 Issue 的 milestone 字段设置卡所属的里程碑。属性与主工作类型、交付层级相互独立。交付线的划分与路线规则归[多层分支集成](integration.md#交付线)，里程碑、契约基线与可加改动归[多层分支集成的同名一节](integration.md#里程碑与契约基线)。
 
@@ -107,7 +165,16 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 
 属性属于交付范围。卡首次登记属性时不升交付修订；登记后改变交付线、性质或契约变更时升交付修订。调度者改里程碑时不升交付修订。属性派生的标签与 Project 字段只作投影，规则见[建卡或修订卡](agent-delivery.md#2-建卡或修订卡)。
 
-Project 的 Line、Dispatched at、Delivered at、Accepted at 与 Cycle days 字段也是投影，由 dev-flow 写入。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
+Project 字段的唯一源与写者见[字段总表](#字段总表)。
+
+#### 契约变更与里程碑类型
+
+里程碑的契约基线、可加改动的判断，以及破坏性改动的允许时机，归[多层分支集成](integration.md#里程碑与契约基线)。卡属性上的规则如下：
+
+1. 线内的卡的契约变更只取 `none` 或 `additive`，见上面的合法组合表。
+2. 线内的卡在开发中发现必须对契约成员做破坏性改动时，执行者停止依赖这项改动的工作，在交接报告中写明改动与受影响的契约成员。调度者把卡的 Needs decision 置为 `yes`，在卡的评论中写明要裁定的问题，由人拍板。
+3. 人同意后，破坏性改动由性质为 `integration` 的卡完成，见[里程碑内的规则](integration.md#里程碑内的规则)。原来的线内卡不改为 `breaking`。决定读回后，调度者把 Needs decision 置为 `no`。
+4. 负责人建 Milestone 时，在描述中写明里程碑类型：普通或重构型。Milestone 描述是里程碑类型的唯一源。
 
 调度者用 `milestone-cli.ts carry` 改卡的里程碑时，binding 中派发时的里程碑不变，属性发现随后报告 `attribute-binding-drift`。处置如下：
 

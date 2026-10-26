@@ -23,6 +23,9 @@
     "scope-overlap": "node --experimental-strip-types src/delivery/scope-cli.ts",
     "milestone": "node --experimental-strip-types src/delivery/milestone-cli.ts",
     "board": "node --experimental-strip-types src/delivery/board-cli.ts",
+    "dispatch": "node --experimental-strip-types src/delivery/dispatch-cli.ts",
+    "worktree": "node --experimental-strip-types src/integration/worktree-cli.ts",
+    "gate": "node --experimental-strip-types src/integration/gate-cli.ts",
     "package:exports": "node --experimental-strip-types src/package-exports/cli.ts"
   },
   "devDependencies": {

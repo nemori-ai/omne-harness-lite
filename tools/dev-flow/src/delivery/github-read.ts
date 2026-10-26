@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { readCardAttributes, type CardAttributes } from './attributes.ts'
 import { array, InputError, milestoneOf, parseCapture, record, text } from './protocol.ts'
-import type { CapturedIssue, DeliveryCapture, DeliveryConfig } from './protocol.ts'
+import type { CapturedIssue, DeliveryCapture, DeliveryConfig, IssueIdentity } from './protocol.ts'
 
 /**
  * A `gh api` read that exited non-zero after GitHub answered. `gh api` writes the error
@@ -48,6 +48,28 @@ export function readIssueCard(
       ),
       ...milestoneOf(issue),
     }),
+  }
+}
+/**
+ * Reads `repository#number` with one REST GET and returns the card with its Issue identity,
+ * the input `readTaskBinding` takes.
+ */
+export function fetchIssueCard(
+  repository: string,
+  number: number,
+  call: GhCommand,
+): ReturnType<typeof readIssueCard> & { identity: IssueIdentity } {
+  const card = readIssueCard(
+    call(
+      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/${number}`],
+      15_000,
+    ),
+    repository,
+    number,
+  )
+  return {
+    ...card,
+    identity: { repository, number, url: card.url, id: text(card.issue.node_id, 'Issue.node_id') },
   }
 }
 /** Runs one `gh` command and returns its parsed JSON stdout. */

@@ -21,10 +21,10 @@ about: 一次可以独立接受的结果
 ## 身份与责任
 
 - 交付层级：delivery
-- 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation}}
-- 交付线：{{docs/engineering/delivery-lines.json 中的线ID，或integration；里程碑在Issue的milestone字段设置}}
+- 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation；建卡时打同值的唯一kind:标签}}
+- 交付线：{{docs/engineering/delivery-lines.json 中的线ID，或integration；建卡时打同值的唯一line:标签，并在Issue的milestone字段设置里程碑；缺任一项时start拒绝开工}}
 - 性质：{{design／contract／impl／integration／baseline}}
-- 契约变更：{{none／additive／breaking}}
+- 契约变更：{{none／additive／breaking；线内的卡只取none或additive，破坏性改动先经Needs decision由人拍板}}
 - 交付修订：1
 - 创建操作标识：{{创建前登记并读回的稳定标识，后续修订保持}}
 - 责任范围：{{领域、实际成员或工程机制}}
@@ -108,7 +108,7 @@ about: 一次可以独立接受的结果
 - 已完成事实与保存位置：{{关键结果、最后成功远端提交或报告评论}}
 - 阻塞与范围变化：{{条件ID、影响、确认责任；无则写无}}
 - 下一步及责任：{{具体接续动作和谁负责}}
-- Project对账：{{链接、所核Stage和时点；待更新或失败须明说}}
+- Project对账：{{链接、所核Stage、Needs decision和时点；Line、Kind、Wave与日期字段由dev-flow写入，见交付协议的字段总表；待更新或失败须明说}}
 
 ### 成果交回
 

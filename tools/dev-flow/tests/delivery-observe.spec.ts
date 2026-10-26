@@ -52,12 +52,13 @@ export function config(): DeliveryConfig {
         priority: 'priority-field',
         iteration: 'iteration-field',
         line: null,
+        kind: null,
         dispatchedAt: null,
         deliveredAt: null,
         acceptedAt: null,
         cycleDays: null,
       },
-      options: { stage: {}, line: {} },
+      options: { stage: {}, line: {}, kind: {} },
     },
     creationHandoffIssue: null,
     writers: { stage: null, body: null },
@@ -161,11 +162,13 @@ function codes(issues: CapturedIssue[], patch: Partial<DeliveryCapture> = {}): s
 const templateValues: Record<string, string> = {
   一次可独立接受的结果: '统一交付卡的输入与执行信息',
   父交付卡中的一次可验证结果: '统一子任务的输入与执行信息',
-  'feature／bug／refactor／performance／maintenance／investigation': 'maintenance',
-  'docs/engineering/delivery-lines.json 中的线ID，或integration；里程碑在Issue的milestone字段设置':
+  'feature／bug／refactor／performance／maintenance／investigation；建卡时打同值的唯一kind:标签':
+    'maintenance',
+  'docs/engineering/delivery-lines.json 中的线ID，或integration；建卡时打同值的唯一line:标签，并在Issue的milestone字段设置里程碑；缺任一项时start拒绝开工':
     'engineering-toolchain',
   'design／contract／impl／integration／baseline': 'impl',
-  'none／additive／breaking': 'none',
+  'none／additive／breaking；线内的卡只取none或additive，破坏性改动先经Needs decision由人拍板':
+    'none',
   '创建前登记并读回的稳定标识，后续修订保持': 'template-maintenance-2',
   '真实父Issue URL，并核对平台父关系': 'https://github.com/owner/repo/issues/1',
   '领域、实际成员或工程机制': '交付卡模板及只读观察工具',
@@ -224,7 +227,8 @@ const templateValues: Record<string, string> = {
   '关键结果、最后成功远端提交或报告评论': '尚无实施成果',
   '条件ID、影响、确认责任；无则写无': '无',
   具体接续动作和谁负责: 'Human 核准执行实例并派发',
-  '链接、所核Stage和时点；待更新或失败须明说': 'https://github.com/orgs/owner/projects/4，待更新',
+  '链接、所核Stage、Needs decision和时点；Line、Kind、Wave与日期字段由dev-flow写入，见交付协议的字段总表；待更新或失败须明说':
+    'https://github.com/orgs/owner/projects/4，待更新',
   'PR/提交/报告及修订；未交付时写未交付': '未交付',
   '逐项C-ID实际结果、证据和未覆盖': 'C1 尚未执行',
   '实际所在分支/提交；无Git交付写不适用': '尚未集成',

@@ -8,15 +8,22 @@ import { readJson, repositoryFile } from './repository-files.ts'
 import { fileScope, issueScope, scopeOverlap } from './scope-overlap.ts'
 
 const usage =
-  'Usage: scope-cli.ts <Issue number | binding file>... [--config <file>] [--lines <file>]'
+  'Usage: scope-cli.ts <Issue number | binding file>... [--include-closed] [--config <file>] [--lines <file>]'
 
 type Input = { kind: 'issue'; number: number } | { kind: 'file'; path: string }
-function options(args: string[]): { inputs: Input[]; config: string; lines: string } {
+function options(args: string[]): {
+  inputs: Input[]
+  config: string
+  lines: string
+  includeClosed: boolean
+} {
   const values = new Map<string, string>(),
     inputs: Input[] = []
+  let includeClosed = false
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] ?? ''
-    if (arg === '--config' || arg === '--lines') {
+    if (arg === '--include-closed' && !includeClosed) includeClosed = true
+    else if (arg === '--config' || arg === '--lines') {
       const value = args[index + 1]
       if (value === undefined || value.startsWith('--') || values.has(arg))
         throw new InputError(usage)
@@ -34,6 +41,7 @@ function options(args: string[]): { inputs: Input[]; config: string; lines: stri
     inputs,
     config: values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json'),
     lines: values.get('--lines') ?? repositoryFile(LINES_PATH),
+    includeClosed,
   }
 }
 try {
@@ -45,7 +53,7 @@ try {
       ? issueScope(repository, input.number, runGhCommand)
       : fileScope(input.path, readFileSync(input.path, 'utf8')),
   )
-  const result = scopeOverlap(cards, table)
+  const result = scopeOverlap(cards, table, { includeClosed: args.includeClosed })
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
   for (const conflict of result.conflicts)
     process.stderr.write(

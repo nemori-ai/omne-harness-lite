@@ -1,0 +1,4 @@
+version: 1
+host: cursor
+skill: dispatch
+mode: copy

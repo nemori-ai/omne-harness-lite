@@ -174,11 +174,16 @@ export function readTaskBinding(body: string, issue: IssueIdentity): TaskBinding
       `${BINDING_MARKERS[block.version]} block must carry schemaVersion ${block.version}`,
     )
   same(binding.issue, issue, 'Binding identity does not match captured Issue')
-  const revisions = [...body.matchAll(/^\s*-\s+交付修订[：:]\s*([1-9]\d*)\s*$/gm)]
-  if (revisions.length !== 1 || Number(revisions[0]?.[1]) !== binding.revision)
+  if (deliveryRevision(body) !== binding.revision)
     throw new IntegrationError(
       'input-error',
       'Binding revision must match the unique delivery revision',
     )
   return binding
+}
+/** The body's unique「交付修订」value; undefined without exactly one such line. */
+export function deliveryRevision(body: string): number | undefined {
+  const revisions = [...body.matchAll(/^\s*-\s+交付修订[：:]\s*([1-9]\d*)\s*$/gm)]
+  const revision = Number(revisions[0]?.[1])
+  return revisions.length === 1 && Number.isSafeInteger(revision) ? revision : undefined
 }
