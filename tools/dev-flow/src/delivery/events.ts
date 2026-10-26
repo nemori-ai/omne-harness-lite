@@ -14,6 +14,8 @@ export type EventRecord = {
   draft: boolean | null
   /** Base branch of a pull request. */
   base: string | null
+  /** Head commit of a pull request, lower case. */
+  head: string | null
   /** The name inside the `<!-- ... -->` on the first line of a comment, e.g. `line-delta`. */
   marker: string | null
   html_url: string | null
@@ -21,10 +23,28 @@ export type EventRecord = {
   receivedAt: string
 }
 
-export type EventPredicate =
+/** One pull request at one head commit. */
+export type PullKey = { number: number; head: string }
+
+export type AtomicPredicate =
   | { kind: 'issue-closed'; issue: number }
-  | { kind: 'pr-ready'; base: string }
+  /** `ignore` skips a pull request whose number and head are both listed. */
+  | { kind: 'pr-ready'; base: string; ignore?: readonly PullKey[] }
   | { kind: 'comment'; issue: number; marker: string }
+export type EventPredicate = AtomicPredicate | { kind: 'any'; of: readonly AtomicPredicate[] }
+
+/** True when `ignore` lists the pull request `number` at `head`. Heads compare in lower case. */
+export function pullIgnored(
+  ignore: readonly PullKey[] | undefined,
+  number: number | null,
+  head: string | null,
+): boolean {
+  return (
+    number !== null &&
+    head !== null &&
+    (ignore ?? []).some(key => key.number === number && key.head.toLowerCase() === head)
+  )
+}
 
 type Headers = Record<string, string | string[] | undefined>
 
@@ -83,6 +103,7 @@ export function normalizeGithubEvent(
     state: null,
     draft: null,
     base: null,
+    head: null,
     marker: null,
     html_url: null,
     receivedAt,
@@ -92,6 +113,7 @@ export function normalizeGithubEvent(
     record.state = text(pull.state)
     record.draft = typeof pull.draft === 'boolean' ? pull.draft : null
     record.base = text(object(pull.base)?.ref)
+    record.head = text(object(pull.head)?.sha)?.toLowerCase() ?? null
     record.html_url = text(pull.html_url)
   } else if (issue !== undefined) {
     record.number = integer(issue.number)
@@ -108,9 +130,23 @@ export function normalizeGithubEvent(
 
 /**
  * True when `record` satisfies `predicate`. Only the first delivery of an event can satisfy a
- * comment predicate: `created` counts, `edited` does not.
+ * comment predicate: `created` counts, `edited` does not. A pull request is ready when it is
+ * not a draft and was opened, made ready or got a new head, unless `ignore` lists its head.
  */
 export function matchEvent(record: EventRecord, predicate: EventPredicate): boolean {
+  return matchedMember(record, predicate) !== undefined
+}
+
+/** The atomic predicate that `record` satisfies: `predicate` itself, or the first member of `any`. */
+export function matchedMember(
+  record: EventRecord,
+  predicate: EventPredicate,
+): AtomicPredicate | undefined {
+  if (predicate.kind === 'any') return predicate.of.find(member => matchAtomic(record, member))
+  return matchAtomic(record, predicate) ? predicate : undefined
+}
+
+function matchAtomic(record: EventRecord, predicate: AtomicPredicate): boolean {
   switch (predicate.kind) {
     case 'issue-closed':
       return (
@@ -120,8 +156,10 @@ export function matchEvent(record: EventRecord, predicate: EventPredicate): bool
       return (
         record.event === 'pull_request' &&
         (record.action === 'ready_for_review' ||
-          (record.action === 'opened' && record.draft === false)) &&
-        record.base === predicate.base
+          ((record.action === 'opened' || record.action === 'synchronize') &&
+            record.draft === false)) &&
+        record.base === predicate.base &&
+        !pullIgnored(predicate.ignore, record.number, record.head)
       )
     case 'comment':
       return (
@@ -163,6 +201,7 @@ export function parseEventLine(line: string): EventRecord | undefined {
     state: text(body.state),
     draft: typeof body.draft === 'boolean' ? body.draft : null,
     base: text(body.base),
+    head: text(body.head),
     marker: text(body.marker),
     html_url: text(body.html_url),
     receivedAt: body.receivedAt,

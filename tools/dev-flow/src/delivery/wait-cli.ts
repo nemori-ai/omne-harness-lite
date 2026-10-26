@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import type { EventPredicate } from './events.ts'
+import type { AtomicPredicate, EventPredicate, PullKey } from './events.ts'
 import { githubReconcile, originRepository } from './events-gh.ts'
 import { WaitTimeout, waitForEvent } from './events-wait.ts'
 import { runGhCommand } from './github-read.ts'
@@ -8,23 +8,27 @@ import { repositoryFile } from './repository-files.ts'
 
 const usage = [
   'Usage: wait-cli.ts issue-closed --issue <number> [common]',
-  '       wait-cli.ts pr-ready --base <branch> [common]',
+  '       wait-cli.ts pr-ready --base <branch> [--ignore <pr>@<head> ...] [common]',
   '       wait-cli.ts comment --issue <number> --marker <name> [common]',
+  '       wait-cli.ts any [--issue-closed <number> ...] [--comment <issue>:<marker> ...] [common]',
   'common: [--file <event file>] [--timeout <seconds>] [--since <ISO time or delivery id>] [--repo <owner/name>]',
 ].join('\n')
 
 const common = ['--file', '--timeout', '--since', '--repo']
 const perCommand: Record<string, readonly string[]> = {
   'issue-closed': ['--issue', ...common],
-  'pr-ready': ['--base', ...common],
+  'pr-ready': ['--base', '--ignore', ...common],
   comment: ['--issue', '--marker', ...common],
+  any: ['--issue-closed', '--comment', ...common],
 }
+/** The flags that may appear more than once. */
+const repeatable = new Set(['--ignore', '--issue-closed', '--comment'])
 
-function options(args: string[]): { command: string; values: Map<string, string> } {
+function options(args: string[]): { command: string; values: Map<string, string[]> } {
   const [command = '', ...rest] = args
   const allowed = perCommand[command]
   if (allowed === undefined) throw new InputError(usage)
-  const values = new Map<string, string>()
+  const values = new Map<string, string[]>()
   for (let index = 0; index < rest.length; index += 2) {
     const flag = rest[index] ?? '',
       value = rest[index + 1]
@@ -32,41 +36,65 @@ function options(args: string[]): { command: string; values: Map<string, string>
       !allowed.includes(flag) ||
       value === undefined ||
       value.startsWith('--') ||
-      values.has(flag)
+      (values.has(flag) && !repeatable.has(flag))
     )
       throw new InputError(usage)
-    values.set(flag, value)
+    values.set(flag, [...(values.get(flag) ?? []), value])
   }
   return { command, values }
 }
-function issueOf(values: Map<string, string>): number {
-  const issue = issueNumberArgument(values.get('--issue') ?? '')
+function single(values: Map<string, string[]>, flag: string): string | undefined {
+  return values.get(flag)?.[0]
+}
+function issueOf(value: string | undefined): number {
+  const issue = issueNumberArgument(value ?? '')
   if (issue === undefined) throw new InputError(usage)
   return issue
 }
-function predicateOf(command: string, values: Map<string, string>): EventPredicate {
-  if (command === 'issue-closed') return { kind: 'issue-closed', issue: issueOf(values) }
-  const marker = values.get('--marker'),
-    base = values.get('--base')
-  if (command === 'comment') {
-    if (marker === undefined || marker === '') throw new InputError(usage)
-    return { kind: 'comment', issue: issueOf(values), marker }
+function ignoreOf(value: string): PullKey {
+  const match = /^([1-9]\d*)@([0-9a-fA-F]{7,64})$/.exec(value)
+  if (match === null) throw new InputError(usage)
+  return { number: Number(match[1]), head: (match[2] ?? '').toLowerCase() }
+}
+function commentOf(issue: number, marker: string | undefined): AtomicPredicate {
+  if (marker === undefined || marker === '') throw new InputError(usage)
+  return { kind: 'comment', issue, marker }
+}
+function predicateOf(command: string, values: Map<string, string[]>): EventPredicate {
+  if (command === 'issue-closed')
+    return { kind: 'issue-closed', issue: issueOf(single(values, '--issue')) }
+  if (command === 'comment')
+    return commentOf(issueOf(single(values, '--issue')), single(values, '--marker'))
+  if (command === 'any') {
+    const of: AtomicPredicate[] = [
+      ...(values.get('--issue-closed') ?? []).map((issue): AtomicPredicate => ({
+        kind: 'issue-closed',
+        issue: issueOf(issue),
+      })),
+      ...(values.get('--comment') ?? []).map(value => {
+        const split = value.indexOf(':')
+        return commentOf(issueOf(value.slice(0, Math.max(split, 0))), value.slice(split + 1))
+      }),
+    ]
+    if (of.length === 0) throw new InputError(usage)
+    return { kind: 'any', of }
   }
+  const base = single(values, '--base')
   if (base === undefined || base === '') throw new InputError(usage)
-  return { kind: 'pr-ready', base }
+  return { kind: 'pr-ready', base, ignore: (values.get('--ignore') ?? []).map(ignoreOf) }
 }
 
 try {
   const { command, values } = options(process.argv.slice(2))
   const predicate = predicateOf(command, values),
-    timeout = values.get('--timeout'),
-    since = values.get('--since')
+    timeout = single(values, '--timeout'),
+    since = single(values, '--since')
   const seconds = timeout === undefined ? undefined : Number(timeout)
   if (seconds !== undefined && !(Number.isFinite(seconds) && seconds > 0))
     throw new InputError(usage)
-  const repository = values.get('--repo') ?? originRepository()
+  const repository = single(values, '--repo') ?? originRepository()
   const result = await waitForEvent({
-    file: values.get('--file') ?? repositoryFile('tmp/github-events/events.jsonl'),
+    file: single(values, '--file') ?? repositoryFile('tmp/github-events/events.jsonl'),
     predicate,
     ...(since === undefined ? {} : { since }),
     ...(seconds === undefined ? {} : { timeoutMs: Math.round(seconds * 1000) }),

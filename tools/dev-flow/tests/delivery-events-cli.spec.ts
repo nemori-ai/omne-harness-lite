@@ -11,8 +11,14 @@ const homes: string[] = []
 afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
 const cli = fileURLToPath(new URL('../src/delivery/wait-cli.ts', import.meta.url))
 
-/** A `gh` that answers `issue view` with the given state and fails every other call. */
-function setup(state: string) {
+const HEAD_A = 'a'.repeat(40),
+  HEAD_B = 'b'.repeat(40)
+
+/**
+ * A `gh` that answers `issue view` with the given state, `pr list` with `pulls` when given, and the comment
+ * `api` with `comments` pages. It fails every other call.
+ */
+function setup(state: string, pulls?: unknown[], comments: unknown[] = [[]]) {
   const home = mkdtempSync(join(tmpdir(), 'wait-cli-'))
   homes.push(home)
   const bin = join(home, 'bin')
@@ -22,6 +28,10 @@ function setup(state: string) {
     `#!/usr/bin/env node
 if (process.argv[2] === 'issue' && process.argv[3] === 'view') {
   process.stdout.write(JSON.stringify({ state: ${JSON.stringify(state)} }))
+} else if (process.argv[2] === 'pr' && process.argv[3] === 'list' && ${pulls !== undefined}) {
+  process.stdout.write(JSON.stringify(${JSON.stringify(pulls ?? [])}))
+} else if (process.argv[2] === 'api') {
+  process.stdout.write(JSON.stringify(${JSON.stringify(comments)}))
 } else process.exit(94)
 `,
   )
@@ -125,5 +135,156 @@ describe('wait-cli', () => {
     )
     expect(result.status).toBe(2)
     expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'wait-error' })
+  })
+
+  it('hands back a pull request at a new head and skips it at an ignored head', () => {
+    const { home, env } = setup('OPEN', [{ number: 2, isDraft: false, headRefOid: HEAD_B }])
+    const base = ['pr-ready', '--base', 'main', '--file', join(home, 'events.jsonl')]
+    const tail = ['--repo', 'owner/repo']
+    const fresh = run([...base, '--ignore', `2@${HEAD_A}`, ...tail], env)
+    expect(fresh.status).toBe(0)
+    expect(JSON.parse(fresh.stdout)).toMatchObject({ number: 2, head: HEAD_B, source: 'reconcile' })
+    const skipped = run(
+      [...base, '--ignore', `9@${HEAD_A}`, '--ignore', `2@${HEAD_B}`, ...tail, '--timeout', '0.3'],
+      env,
+    )
+    expect(skipped.status).toBe(3)
+  })
+
+  it('answers any with the member that holds and exits 3 when none does', () => {
+    const closed = setup('CLOSED')
+    const hit = run(
+      [
+        'any',
+        '--issue-closed',
+        '5',
+        '--comment',
+        '5:line-return',
+        '--file',
+        join(closed.home, 'events.jsonl'),
+        '--repo',
+        'owner/repo',
+      ],
+      closed.env,
+    )
+    expect(hit.status).toBe(0)
+    expect(JSON.parse(hit.stdout)).toMatchObject({
+      number: 5,
+      source: 'reconcile',
+      matched: 'issue-closed',
+    })
+    const comment = setup(
+      'OPEN',
+      [],
+      [[{ body: '<!-- line-return -->\nx', created_at: '2026-10-26T12:00:00Z', html_url: 'u1' }]],
+    )
+    const returned = run(
+      [
+        'any',
+        '--issue-closed',
+        '5',
+        '--comment',
+        '5:line-return',
+        '--file',
+        join(comment.home, 'events.jsonl'),
+        '--repo',
+        'owner/repo',
+      ],
+      comment.env,
+    )
+    expect(returned.status).toBe(0)
+    expect(JSON.parse(returned.stdout)).toMatchObject({ matched: 'comment', html_url: 'u1' })
+    const open = setup('OPEN')
+    const none = run(
+      [
+        'any',
+        '--issue-closed',
+        '5',
+        '--comment',
+        '5:line-return',
+        '--file',
+        join(open.home, 'events.jsonl'),
+        '--repo',
+        'owner/repo',
+        '--timeout',
+        '0.3',
+      ],
+      open.env,
+    )
+    expect(none.status).toBe(3)
+  })
+
+  it('exits 2 with the usage for bad any and ignore arguments', () => {
+    const { env } = setup('OPEN')
+    for (const args of [
+      ['any', '--repo', 'owner/repo'],
+      ['any', '--comment', 'line-return', '--repo', 'owner/repo'],
+      ['any', '--comment', '5:', '--repo', 'owner/repo'],
+      ['any', '--issue', '5', '--repo', 'owner/repo'],
+      ['pr-ready', '--base', 'main', '--ignore', '2', '--repo', 'owner/repo'],
+      ['issue-closed', '--issue', '5', '--ignore', `2@${HEAD_A}`, '--repo', 'owner/repo'],
+    ]) {
+      const result = run(args, env)
+      expect(result.status).toBe(2)
+      expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'wait-error' })
+    }
+  })
+})
+
+describe('events-receiver-cli clean', () => {
+  const receiverCli = fileURLToPath(
+    new URL('../src/delivery/events-receiver-cli.ts', import.meta.url),
+  )
+  /** A `gh` over three hooks that refuses to delete hook 3 when `refuse3` is set. */
+  function hookEnv(refuse3: boolean) {
+    const home = mkdtempSync(join(tmpdir(), 'receiver-cli-'))
+    homes.push(home)
+    const bin = join(home, 'bin')
+    mkdirSync(bin)
+    const url = 'https://webhook-forwarder.github.com/hook'
+    writeFileSync(
+      join(bin, 'gh'),
+      `#!/usr/bin/env node
+const args = process.argv.slice(2)
+if (args.includes('DELETE')) {
+  if (${refuse3} && args.at(-1).endsWith('/3')) process.exit(1)
+} else process.stdout.write(JSON.stringify([[
+  { id: 1, name: 'cli', config: { url: ${JSON.stringify(url)} } },
+  { id: 2, name: 'web', config: { url: 'https://example.com/x' } },
+  { id: 3, name: 'cli', config: { url: ${JSON.stringify(url)} } },
+]]))
+`,
+    )
+    chmodSync(join(bin, 'gh'), 0o755)
+    return { ...process.env, PATH: `${bin}:${process.env.PATH}` }
+  }
+  const runReceiver = (args: string[], env: NodeJS.ProcessEnv) => {
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', receiverCli, ...args],
+      {
+        encoding: 'utf8',
+        env,
+      },
+    )
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr }
+  }
+
+  it('deletes every forwarder hook, and exits 1 naming the ones it could not delete', () => {
+    const ok = runReceiver(['clean', '--repo', 'owner/repo'], hookEnv(false))
+    expect(ok.status).toBe(0)
+    expect(JSON.parse(ok.stdout)).toEqual({ kind: 'hooks-cleaned', deleted: [1, 3], failed: [] })
+    const partial = runReceiver(['clean', '--repo', 'owner/repo'], hookEnv(true))
+    expect(partial.status).toBe(1)
+    expect(JSON.parse(partial.stdout)).toMatchObject({ deleted: [1], failed: [3] })
+  })
+
+  it('exits 2 with the usage for unknown commands and flags', () => {
+    const env = hookEnv(false)
+    for (const args of [['serve-all'], ['clean', '--port', '1', '--repo', 'owner/repo'], []]) {
+      const result = runReceiver(args, env)
+      expect(result.status).toBe(2)
+      expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'receiver-error' })
+    }
   })
 })

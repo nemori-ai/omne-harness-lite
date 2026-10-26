@@ -150,36 +150,41 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 `bindBody(body, binding, worktree?)` 是纯函数。正文须恰有一个「### 分支、基线与task context」小节，小节到下一个二级或三级标题为止。整节换成一行派发说明与版本2 binding 区块，说明的 revision、attempt、taskBase 取自 binding。只在「### 认领与派发」小节内，「- 派发情况：」行以及给出 `worktree` 时的「- 工作树：」行被改写。binding 的 `dispatch` 是占位 URL 时拒绝。结果的唯一 binding 须按 `readTaskBinding` 读回与输入相同，否则拒绝。`bindCard` 读卡，核对 binding 的仓库与 Issue 节点，写入新正文后再读一次。结果是判别联合：`applied: false` 是只读不写的 `dryRun`；`applied: true` 带 `verified`，表示读回的 binding 与输入相同。读卡由 [github-read.ts](github-read.ts) 的 `fetchIssueCard` 完成，求交与工作树命令共用它。
 
-
 ## 事件等待
 
 线会话与集成节点阻塞在 GitHub 事件上，不轮询 API。接收器把 webhook 事件追加到本机的事件文件，`wait-cli.ts` 读这个文件。`wait-cli.ts` 不写平台。接收器只通过 `gh webhook forward` 建立仓库 hook，并只删除 `cli` 类型的转发 hook，不写其他平台对象。
 
 `events.ts` 的 `normalizeGithubEvent` 把一次投递归一成 `EventRecord`：`delivery`、`event`、`action`、`number`、`state`、`draft`、`base`、`marker`、`html_url`、`receivedAt`。缺少 `X-GitHub-Event` 头或 payload 不是对象时抛出 `DeliveryInputError`。投递不带的字段为 null。评论的 `marker` 取正文第一行 `<!-- ... -->` 里的第一个词，第一行没有这样的注释时为 null。
 
-`matchEvent` 判断三种谓词，规则只有这些：
+`head` 是 PR 的 head commit，小写，只有 `pull_request` 事件带。
+
+`matchEvent` 判断三种原子谓词和 `any`，规则只有这些：
 
 - `issue-closed`：事件是 `issues`，action 为 `closed`，号相同。`labeled`、`reopened` 等其他 action 不算。
-- `pr-ready`：事件是 `pull_request`，action 为 `ready_for_review`，或 action 为 `opened` 且 `draft` 为 false，并且 `base` 等于给定分支。
+- `pr-ready`：事件是 `pull_request`，`base` 等于给定分支。action 为 `ready_for_review`，或 action 为 `opened` 或 `synchronize` 且 `draft` 为 false。号与 `head` 都在 `ignore` 列表里的 PR 不算。`head` 比较不分大小写。`head` 为 null 的行不会被忽略。
+- `any`：由若干原子谓词组成，任一成员满足即满足。命中的成员取列表里第一个满足的。
 - `comment`：事件是 `issue_comment`，action 为 `created`，号相同，`marker` 相同。`edited` 不算。
 
 去重按 `delivery`。同一个 delivery id 只算第一次，之后的行被忽略，包括 `--since` 之前读到的行。`delivery` 为 null 的行不去重。
 
-接收器只绑定 127.0.0.1，只接受 POST。给出 secret 时，`X-Hub-Signature-256` 与请求体的 HMAC-SHA256 不符或缺失，返回 401，不写文件。不是投递的请求体返回 400。每个合格投递写完一行 JSON 后才返回 204。接收器拉起并持有 `gh webhook forward` 子进程。启动时先删除仓库里指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook。有一个删不掉时启动失败，不拉起子进程。收到 SIGINT 或 SIGTERM 时，先停子进程，再列出并删除 `cli` 类型 hook，最后关闭服务。子进程自行退出时同样收尾，退出码为1。hook 列表读不到或有 hook 删不掉时退出码为1，并在标准错误写出残留的 hook 号。正常停止退出0，启动失败退出2。
+接收器只绑定 127.0.0.1，只接受 POST。给出 secret 时，`X-Hub-Signature-256` 与请求体的 HMAC-SHA256 不符或缺失，返回 401，不写文件。不是投递的请求体返回 400。每个合格投递写完一行 JSON 后才返回 204。接收器拉起并持有 `gh webhook forward` 子进程。启动时不删除任何 hook。启动时先列出仓库里指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook 作为基线，读不到时启动失败。拉起子进程后，接收器每隔一段时间再列一次，直到出现基线里没有的 hook，或超过发现时限。只出现一个新 hook 时，它就是本次创建的。同时出现多个新 hook 时，接收器认不出哪个是自己的，一个都不删，退出码为1，并在标准错误写出这些 hook 号。收到 SIGINT 或 SIGTERM 时，先停子进程，再列一次，只删除本次创建的那个 hook，最后关闭服务。停止时发现阶段还没找到新 hook，就用这次列表与基线的差。子进程自行退出时同样收尾，退出码为1。hook 列表读不到或自己的 hook 删不掉时退出码为1，并在标准错误写出残留的 hook 号。正常停止退出0，启动失败退出2。
+
+并发的接收器各自持有各自的 hook，一个接收器不删另一个的 hook。`events-receiver-cli.ts clean` 是显式命令，删除仓库里全部指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook，不问是谁创建的，用于 SIGKILL 后清理残留。`clean` 会影响所有正在运行的接收器。它输出 `{"kind":"hooks-cleaned","deleted":[…],"failed":[…]}`，有删不掉的退出1，参数错误或读不到列表退出2。
 
 `waitForEvent` 的语义：
 
 - 阻塞。到匹配事件出现才返回，事件文件不存在时等它出现。
 - 先读文件里已有的行，再监听目录，每次只读新增的字节范围。一行只在换行符到达后解析。不是事件的行被跳过。
 - 文件里已有匹配行时直接返回，不读 GitHub。
-- 对账一次。已有内容没有匹配时，调用一次注入的对账函数，之后不再调用 GitHub API。对账命中时立即返回，输出标 `source: "reconcile"`。事件命中标 `source: "event"`。
+- 对账一次。已有内容没有匹配时，调用一次注入的对账函数，之后不再调用 GitHub API。`any` 对每个成员各调用一次，第一个命中的成员结束对账。对账命中时立即返回，输出标 `source: "reconcile"`。事件命中标 `source: "event"`。
+- `any` 的输出多一个 `matched`，值是命中成员的种类，`issue-closed` 或 `comment`。原子谓词的输出没有 `matched`。
 - 对账失败时等待失败并退出2，不继续等。对账读不到就不能证明没有错过事件。
-- 对账读平台当前状态，不是事件。`issue-closed` 看卡现在是否已关闭，`pr-ready` 看目标分支上是否有开放且非草稿的 PR，`comment` 看 `--since` 之后创建的评论里是否有标记。前两者不受 `--since` 限制。
+- 对账读平台当前状态，不是事件。`issue-closed` 看卡现在是否已关闭，`pr-ready` 看目标分支上是否有开放、非草稿且不在 `ignore` 里的 PR，输出带它的号与 `head`，`comment` 看 `--since` 之后创建的评论里是否有标记。前两者不受 `--since` 限制。
 - `--since` 是 ISO 时间时，只认 `receivedAt` 晚于它的行。是 delivery id 时，只认文件里在该行之后的行。这个 id 不在已有内容里时，等待失败并退出2。
 - 超时退出3，标准错误写说明，标准输出为空。超时不表示条件不成立。没有 `--timeout` 时不超时。
 
 退出码：命中 0，输入、对账或文件错误 2，超时 3。
 
-事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件，所以启动对账是唯一的补救。同一个事件文件由一个接收器写。
+事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件，所以启动对账是唯一的补救。同一个事件文件由一个接收器写。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
-验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、去重、等待的各条语义、对账读取、接收器与生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖 `wait-cli.ts` 的退出码。两者都不联网，`gh` 用替身。真实的 `gh webhook forward`、hook 清理与 `pull_request` 事件没有自动化验证。
+验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、去重、等待的各条语义、对账读取、接收器与生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖 `wait-cli.ts` 的退出码、`--ignore`、`any` 与 `events-receiver-cli.ts clean`。两者都不联网，`gh` 用替身。真实的 `gh webhook forward`、hook 清理与 `pull_request` 事件没有自动化验证。

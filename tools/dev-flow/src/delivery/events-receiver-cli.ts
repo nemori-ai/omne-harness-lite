@@ -1,17 +1,24 @@
 #!/usr/bin/env node
-import { originRepository, runGhText, spawnGhForward } from './events-gh.ts'
+import { cleanForwarderHooks, originRepository, runGhText, spawnGhForward } from './events-gh.ts'
 import { serveReceiver } from './events-receiver.ts'
 import { InputError } from './protocol.ts'
 import { repositoryFile } from './repository-files.ts'
 
-const usage =
-  'Usage: events-receiver-cli.ts serve --port <port> [--file <event file>] [--repo <owner/name>] [--secret <secret>]'
+const usage = [
+  'Usage: events-receiver-cli.ts serve --port <port> [--file <event file>] [--repo <owner/name>] [--secret <secret>]',
+  '       events-receiver-cli.ts clean [--repo <owner/name>]',
+].join('\n')
 
-function options(args: string[]): Map<string, string> {
-  const [first, ...rest] = args
-  if (first !== 'serve') throw new InputError(usage)
-  const allowed = ['--port', '--file', '--repo', '--secret'],
-    values = new Map<string, string>()
+const allowedFlags: Record<string, readonly string[]> = {
+  serve: ['--port', '--file', '--repo', '--secret'],
+  clean: ['--repo'],
+}
+
+function options(args: string[]): { command: string; values: Map<string, string> } {
+  const [command = '', ...rest] = args
+  const allowed = allowedFlags[command]
+  if (allowed === undefined) throw new InputError(usage)
+  const values = new Map<string, string>()
   for (let index = 0; index < rest.length; index += 2) {
     const flag = rest[index] ?? '',
       value = rest[index + 1]
@@ -24,16 +31,31 @@ function options(args: string[]): Map<string, string> {
       throw new InputError(usage)
     values.set(flag, value)
   }
-  return values
+  return { command, values }
 }
 
 try {
-  const values = options(process.argv.slice(2))
-  const port = Number(values.get('--port'))
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new InputError(usage)
-  const repository = values.get('--repo') ?? originRepository(),
-    secret = values.get('--secret')
+  const { command, values } = options(process.argv.slice(2))
+  const repository = values.get('--repo') ?? originRepository()
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new InputError(usage)
+  if (command === 'clean') {
+    const { deleted, failed } = cleanForwarderHooks(repository, runGhText)
+    process.stdout.write(`${JSON.stringify({ kind: 'hooks-cleaned', deleted, failed })}\n`)
+    process.exitCode = failed.length > 0 ? 1 : 0
+  } else await serve(repository, values)
+} catch (error) {
+  const message =
+    error instanceof InputError
+      ? error.message
+      : 'Cannot start the receiver or read the forwarder hooks. API output omitted.'
+  process.stderr.write(`${JSON.stringify({ kind: 'receiver-error', message })}\n`)
+  process.exitCode = 2
+}
+
+async function serve(repository: string, values: Map<string, string>): Promise<void> {
+  const port = Number(values.get('--port')),
+    secret = values.get('--secret')
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new InputError(usage)
   const stopped = new Promise<void>(resolve => {
     process.once('SIGINT', () => resolve())
     process.once('SIGTERM', () => resolve())
@@ -48,11 +70,4 @@ try {
     stopped,
     log: message => process.stderr.write(`${message}\n`),
   })
-} catch (error) {
-  const message =
-    error instanceof InputError
-      ? error.message
-      : 'Cannot start the receiver or read the forwarder hooks. API output omitted.'
-  process.stderr.write(`${JSON.stringify({ kind: 'receiver-error', message })}\n`)
-  process.exitCode = 2
 }

@@ -4,7 +4,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 import { dirname } from 'node:path'
 import { normalizeGithubEvent } from './events.ts'
-import { deleteHooks, listForwarderHooks, type GhText, type SpawnForward } from './events-gh.ts'
+import {
+  deleteHooks,
+  listForwarderHooks,
+  newHooks,
+  type GhText,
+  type SpawnForward,
+} from './events-gh.ts'
 import { InputError } from './protocol.ts'
 
 const MAX_BODY_BYTES = 26 * 1024 * 1024
@@ -85,16 +91,27 @@ export type ServeArgs = {
   /** Resolves when the operator asks to stop (SIGINT or SIGTERM). */
   stopped: Promise<void>
   log: (message: string) => void
+  /** Time between two reads of the hook list while the new hook is not yet there. Default 500. */
+  hookPollMs?: number
+  /** Longest time to look for the new hook after the forwarder started. Default 30000. */
+  hookDiscoveryMs?: number
 }
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
 /**
  * Runs the receiver until `stopped` resolves or the forwarder exits. Returns the exit code:
- * 0 after a requested stop with its hooks removed, 1 when the forwarder died or a hook could not
- * be removed. Startup deletes the forwarder hooks that earlier runs left. Shutdown stops the
- * forwarder first, then deletes the hooks it created, then closes the server.
+ * 0 after a requested stop with its hook removed, 1 when the forwarder died or its hook could not
+ * be removed or identified. Startup deletes nothing. It lists the forwarder hooks, starts the
+ * forwarder, and waits for exactly one hook to appear that was not in the first list. That hook
+ * is the one this receiver created. Shutdown stops the forwarder first, then deletes only that
+ * hook, then closes the server. Hooks of other receivers stay. When several new hooks appear
+ * together, the receiver cannot tell which one is its own and deletes none of them.
  */
 export async function serveReceiver(args: ServeArgs): Promise<number> {
   const { repository, gh, log } = args
+  const pollMs = args.hookPollMs ?? 500,
+    discoveryMs = args.hookDiscoveryMs ?? 30_000
   const server = createReceiverServer({
     file: args.file,
     ...(args.secret === undefined ? {} : { secret: args.secret }),
@@ -109,12 +126,9 @@ export async function serveReceiver(args: ServeArgs): Promise<number> {
       server.close(() => resolve())
       server.closeAllConnections()
     })
+  let before: number[]
   try {
-    const stale = listForwarderHooks(repository, gh)
-    const failed = deleteHooks(repository, stale, gh)
-    if (failed.length > 0)
-      throw new InputError(`Cannot delete the stale forwarder hooks ${failed.join(', ')}`)
-    if (stale.length > 0) log(`Deleted stale forwarder hooks: ${stale.join(', ')}`)
+    before = listForwarderHooks(repository, gh)
   } catch (error) {
     await closeServer()
     throw error
@@ -125,28 +139,56 @@ export async function serveReceiver(args: ServeArgs): Promise<number> {
     secret: args.secret,
   })
   log(`Receiving on 127.0.0.1:${port}, appending to ${args.file}`)
+  let ended = false
+  /** The hooks that appeared since the start, once at least one has. */
+  const discovery = (async () => {
+    const deadline = Date.now() + discoveryMs
+    while (!ended && Date.now() < deadline) {
+      try {
+        const fresh = newHooks(listForwarderHooks(repository, gh), before)
+        if (fresh.length > 0) return fresh
+      } catch {
+        // The next read tries again. The shutdown read reports a failure.
+      }
+      await sleep(pollMs)
+    }
+    return undefined
+  })()
   const reason = await Promise.race([
     args.stopped.then(() => 'stop' as const),
     forward.exited.then(code => ({ exited: code })),
   ])
+  ended = true
   let code = 0
   if (reason !== 'stop') {
     log(`The forwarder exited unexpectedly with code ${reason.exited}`)
     code = 1
   }
   await forward.stop()
-  let leftover: number[]
+  const found = await discovery
   try {
-    leftover = deleteHooks(repository, listForwarderHooks(repository, gh), gh)
+    const current = listForwarderHooks(repository, gh)
+    const fresh = found ?? newHooks(current, before)
+    if (fresh.length > 1) {
+      log(
+        `Cannot tell which of the hooks ${fresh.join(', ')} this receiver created. None deleted. Stop the other receivers, then run the clean command.`,
+      )
+      code = 1
+    } else {
+      const leftover = deleteHooks(
+        repository,
+        fresh.filter(id => current.includes(id)),
+        gh,
+      )
+      if (leftover.length > 0) {
+        log(`Forwarder hooks left behind: ${leftover.join(', ')}. Delete them by hand.`)
+        code = 1
+      }
+    }
   } catch {
     log(
       'Cannot list the forwarder hooks to delete. Delete the cli hooks of the repository by hand.',
     )
-    leftover = []
-    code = 1
-  }
-  if (leftover.length > 0) {
-    log(`Forwarder hooks left behind: ${leftover.join(', ')}. Delete them by hand.`)
     code = 1
   }
   await closeServer()

@@ -2,8 +2,9 @@ import { execFileSync, spawn } from 'node:child_process'
 import {
   commentMarker,
   FORWARDED_EVENTS,
+  pullIgnored,
   repositoryFromRemote,
-  type EventPredicate,
+  type AtomicPredicate,
   type EventRecord,
 } from './events.ts'
 import { REST_HEADERS, type GhCommand } from './github-read.ts'
@@ -42,12 +43,12 @@ export function originRepository(): string {
 }
 
 /**
- * A one-time read of GitHub that tells whether the predicate already holds. It returns a
+ * A one-time read of GitHub that tells whether the atomic predicate already holds. It returns a
  * record that describes the satisfied state, or undefined when the state does not hold.
  * `since` is an ISO time that limits comments.
  */
 export type Reconcile = (
-  predicate: EventPredicate,
+  predicate: AtomicPredicate,
   since: string | undefined,
 ) => EventRecord | undefined | Promise<EventRecord | undefined>
 
@@ -59,6 +60,7 @@ function synthetic(fields: Partial<EventRecord> & { event: string }): EventRecor
     state: null,
     draft: null,
     base: null,
+    head: null,
     marker: null,
     html_url: null,
     receivedAt: new Date().toISOString(),
@@ -101,13 +103,20 @@ export function githubReconcile(repository: string, call: GhCommand): Reconcile 
               '--state',
               'open',
               '--json',
-              'number,isDraft',
+              'number,isDraft,headRefOid',
             ],
             GH_TIMEOUT_MS,
           ),
           'pr list',
         ).map(item => record(item, 'pull request'))
-        const ready = pulls.find(pull => pull.isDraft === false)
+        const ready = pulls.find(pull => {
+          const head = typeof pull.headRefOid === 'string' ? pull.headRefOid.toLowerCase() : null
+          return (
+            pull.isDraft === false &&
+            typeof pull.number === 'number' &&
+            !pullIgnored(predicate.ignore, pull.number, head)
+          )
+        })
         return ready === undefined || typeof ready.number !== 'number'
           ? undefined
           : synthetic({
@@ -117,6 +126,7 @@ export function githubReconcile(repository: string, call: GhCommand): Reconcile 
               state: 'open',
               draft: false,
               base: predicate.base,
+              head: typeof ready.headRefOid === 'string' ? ready.headRefOid.toLowerCase() : null,
               html_url: `https://github.com/${repository}/pull/${ready.number}`,
             })
       }
@@ -185,6 +195,11 @@ export function listForwarderHooks(repository: string, gh: GhText): number[] {
     .flatMap(hook => (typeof hook.id === 'number' ? [hook.id] : []))
 }
 
+/** Ids in `current` that are not in `before`. */
+export function newHooks(current: readonly number[], before: readonly number[]): number[] {
+  return current.filter(id => !before.includes(id))
+}
+
 /** Deletes the hooks one by one and returns the ids whose deletion failed. */
 export function deleteHooks(repository: string, ids: readonly number[], gh: GhText): number[] {
   return ids.filter(id => {
@@ -195,6 +210,19 @@ export function deleteHooks(repository: string, ids: readonly number[], gh: GhTe
       return true
     }
   })
+}
+
+/**
+ * Deletes every forwarder hook of the repository, whoever created it, and returns the ids
+ * deleted and the ids that could not be deleted. It stops the forwarders of other receivers.
+ */
+export function cleanForwarderHooks(
+  repository: string,
+  gh: GhText,
+): { deleted: number[]; failed: number[] } {
+  const ids = listForwarderHooks(repository, gh)
+  const failed = deleteHooks(repository, ids, gh)
+  return { deleted: ids.filter(id => !failed.includes(id)), failed }
 }
 
 /** A running forwarder: `exited` resolves with its exit code, `stop` ends it and waits. */

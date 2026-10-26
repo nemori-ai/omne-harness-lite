@@ -1,6 +1,12 @@
 import { closeSync, mkdirSync, openSync, readSync, statSync, watch } from 'node:fs'
 import { basename, dirname } from 'node:path'
-import { matchEvent, parseEventLine, type EventPredicate, type EventRecord } from './events.ts'
+import {
+  matchedMember,
+  parseEventLine,
+  type AtomicPredicate,
+  type EventPredicate,
+  type EventRecord,
+} from './events.ts'
 import type { Reconcile } from './events-gh.ts'
 import { InputError } from './protocol.ts'
 
@@ -9,7 +15,11 @@ export class WaitTimeout extends Error {
   override name = 'WaitTimeout'
 }
 
-export type WaitResult = EventRecord & { source: 'event' | 'reconcile' }
+/** `matched` is the kind of the satisfied member and is present only for an `any` predicate. */
+export type WaitResult = EventRecord & {
+  source: 'event' | 'reconcile'
+  matched?: AtomicPredicate['kind']
+}
 
 export type WaitOptions = {
   /** JSONL event file written by the receiver. It need not exist yet. */
@@ -38,7 +48,8 @@ function parseSince(value: string | undefined): Since | undefined {
  * Blocks until a record that satisfies the predicate is in the event file. It reads the lines
  * that exist, then watches the directory of the file and reads each appended range once. A line
  * is parsed only when its newline has arrived. A delivery id counts once. The reconcile runs
- * once after the first read. The wait never calls GitHub again.
+ * once after the first read, once per member for an `any` predicate. The wait never calls
+ * GitHub again.
  *
  * Rejects with `WaitTimeout` at the timeout, `InputError` when a delivery id in `since` is not
  * in the file, and the reconcile error when the reconcile fails.
@@ -98,7 +109,13 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
           continue
         }
         if (since?.kind === 'time' && Date.parse(record.receivedAt) <= since.ms) continue
-        if (matchEvent(record, predicate)) return { ...record, source: 'event' }
+        const member = matchedMember(record, predicate)
+        if (member !== undefined)
+          return {
+            ...record,
+            source: 'event',
+            ...(predicate.kind === 'any' ? { matched: member.kind } : {}),
+          }
       }
       return undefined
     }
@@ -144,9 +161,20 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
       return
     }
     if (reconcile === undefined) return
-    void (async () => reconcile(predicate, reconcileSince))().then(
+    void (async () => {
+      for (const member of predicate.kind === 'any' ? predicate.of : [predicate]) {
+        const hit = await reconcile(member, reconcileSince)
+        if (hit !== undefined)
+          return {
+            ...hit,
+            source: 'reconcile' as const,
+            ...(predicate.kind === 'any' ? { matched: member.kind } : {}),
+          }
+      }
+      return undefined
+    })().then(
       hit => {
-        if (hit !== undefined) settle(() => resolve({ ...hit, source: 'reconcile' }))
+        if (hit !== undefined) settle(() => resolve(hit))
       },
       (error: unknown) => settle(() => reject(error)),
     )

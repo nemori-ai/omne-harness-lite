@@ -7,13 +7,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   commentMarker,
   dedupeEvents,
+  matchedMember,
   matchEvent,
   normalizeGithubEvent,
   parseEventLine,
   repositoryFromRemote,
   type EventRecord,
 } from '../src/delivery/events.ts'
-import { forwardArgv, githubReconcile, type Reconcile } from '../src/delivery/events-gh.ts'
+import {
+  cleanForwarderHooks,
+  forwardArgv,
+  githubReconcile,
+  type Reconcile,
+} from '../src/delivery/events-gh.ts'
 import { createReceiverServer, serveReceiver } from '../src/delivery/events-receiver.ts'
 import { waitForEvent, WaitTimeout } from '../src/delivery/events-wait.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
@@ -33,14 +39,17 @@ const issuePayload = (action: string, number: number, state = 'open') => ({
   action,
   issue: { number, state, html_url: `${REPO_URL}/issues/${number}` },
 })
-const pullPayload = (action: string, draft: boolean, base: string) => ({
+const HEAD_A = 'a'.repeat(40),
+  HEAD_B = 'b'.repeat(40)
+const pullPayload = (action: string, draft: boolean, base: string, head = HEAD_A, number = 41) => ({
   action,
-  number: 41,
+  number,
   pull_request: {
-    number: 41,
+    number,
     state: 'open',
     draft,
     base: { ref: base },
+    head: { sha: head.toUpperCase() },
     html_url: `${REPO_URL}/pull/41`,
   },
 })
@@ -69,6 +78,7 @@ describe('normalizeGithubEvent', () => {
       state: 'closed',
       draft: null,
       base: null,
+      head: null,
       marker: null,
       html_url: `${REPO_URL}/issues/812`,
       receivedAt: T0,
@@ -83,6 +93,7 @@ describe('normalizeGithubEvent', () => {
       state: 'open',
       draft: false,
       base: 'main',
+      head: HEAD_A,
       html_url: `${REPO_URL}/pull/41`,
     })
   })
@@ -164,8 +175,49 @@ describe('matchEvent', () => {
       ),
     ).toBe(false)
     expect(
-      matchEvent(record('pull_request', pullPayload('synchronize', false, 'main'), 'e'), predicate),
+      matchEvent(record('pull_request', pullPayload('synchronize', true, 'main'), 'e'), predicate),
     ).toBe(false)
+    expect(
+      matchEvent(record('pull_request', pullPayload('closed', false, 'main'), 'f'), predicate),
+    ).toBe(false)
+  })
+
+  it('counts a new head of a ready pull request, unless the number and head are ignored', () => {
+    const pushed = record('pull_request', pullPayload('synchronize', false, 'main', HEAD_B), 'a')
+    const ignoring = (...ignore: { number: number; head: string }[]) =>
+      ({ kind: 'pr-ready', base: 'main', ignore }) as const
+    expect(matchEvent(pushed, { kind: 'pr-ready', base: 'main' })).toBe(true)
+    expect(matchEvent(pushed, ignoring({ number: 41, head: HEAD_A }))).toBe(true)
+    expect(matchEvent(pushed, ignoring({ number: 41, head: HEAD_B }))).toBe(false)
+    expect(matchEvent(pushed, ignoring({ number: 41, head: HEAD_B.toUpperCase() }))).toBe(false)
+    expect(matchEvent(pushed, ignoring({ number: 42, head: HEAD_B }))).toBe(true)
+    const ready = record('pull_request', pullPayload('ready_for_review', false, 'main'), 'b')
+    expect(matchEvent(ready, ignoring({ number: 41, head: HEAD_A }))).toBe(false)
+  })
+
+  it('matches an any predicate through its first satisfied member', () => {
+    const predicate = {
+      kind: 'any',
+      of: [
+        { kind: 'issue-closed', issue: 5 },
+        { kind: 'comment', issue: 7, marker: 'line-return' },
+      ],
+    } as const
+    expect(
+      matchedMember(record('issues', issuePayload('closed', 5, 'closed'), 'a'), predicate),
+    ).toMatchObject({ kind: 'issue-closed' })
+    expect(
+      matchedMember(
+        record('issue_comment', commentPayload(7, '<!-- line-return -->'), 'b'),
+        predicate,
+      ),
+    ).toMatchObject({ kind: 'comment' })
+    expect(
+      matchEvent(record('issue_comment', commentPayload(7, '<!-- line-delta -->'), 'c'), predicate),
+    ).toBe(false)
+    expect(matchEvent(record('issues', issuePayload('closed', 6, 'closed'), 'd'), predicate)).toBe(
+      false,
+    )
   })
 
   it('matches a new comment with the marker on the named issue only', () => {
@@ -337,6 +389,96 @@ describe('waitForEvent', () => {
       waitForEvent({ file, predicate, since: 'mark', timeoutMs: 150 }),
     ).rejects.toBeInstanceOf(WaitTimeout)
   })
+
+  describe('with an any predicate', () => {
+    const anyPredicate = {
+      kind: 'any',
+      of: [
+        { kind: 'issue-closed', issue: 5 },
+        { kind: 'comment', issue: 7, marker: 'line-return' },
+      ],
+    } as const
+    const returned = (delivery: string) =>
+      record('issue_comment', commentPayload(7, '<!-- line-return -->'), delivery)
+
+    it('returns the line of whichever member comes first and names it', async () => {
+      const file = join(tempDir(), 'events.jsonl')
+      const pending = waitForEvent({ file, predicate: anyPredicate, timeoutMs: 5000 })
+      await sleep(100)
+      appendFileSync(file, line(returned('r')))
+      expect(await pending).toMatchObject({ delivery: 'r', source: 'event', matched: 'comment' })
+      const closedFile = join(tempDir(), 'events.jsonl')
+      writeFileSync(closedFile, line(closed('c')))
+      expect(await waitForEvent({ file: closedFile, predicate: anyPredicate })).toMatchObject({
+        delivery: 'c',
+        matched: 'issue-closed',
+      })
+    })
+
+    it('reads GitHub once for each member and names the member that holds', async () => {
+      const file = join(tempDir(), 'events.jsonl')
+      const reconcile = vi.fn<Reconcile>(member =>
+        member.kind === 'comment' ? returned('x') : undefined,
+      )
+      const result = await waitForEvent({
+        file,
+        predicate: anyPredicate,
+        since: '2026-10-26T17:00:00Z',
+        reconcile,
+        timeoutMs: 2000,
+      })
+      expect(result).toMatchObject({ source: 'reconcile', matched: 'comment' })
+      expect(reconcile.mock.calls.map(call => call[0].kind)).toEqual(['issue-closed', 'comment'])
+      expect(reconcile.mock.calls[1]?.[1]).toBe('2026-10-26T17:00:00.000Z')
+    })
+
+    it('does not add matched to an atomic predicate and waits on when no member holds', async () => {
+      const file = join(tempDir(), 'events.jsonl')
+      writeFileSync(file, line(closed('c')))
+      expect(await waitForEvent({ file, predicate })).not.toHaveProperty('matched')
+      const reconcile = vi.fn<Reconcile>(() => undefined)
+      await expect(
+        waitForEvent({
+          file: join(tempDir(), 'none.jsonl'),
+          predicate: anyPredicate,
+          reconcile,
+          timeoutMs: 200,
+        }),
+      ).rejects.toBeInstanceOf(WaitTimeout)
+      expect(reconcile).toHaveBeenCalledTimes(2)
+    })
+
+    it('fails when the read of one member fails', async () => {
+      await expect(
+        waitForEvent({
+          file: join(tempDir(), 'events.jsonl'),
+          predicate: anyPredicate,
+          reconcile: member => {
+            if (member.kind === 'comment') throw new Error('gh failed')
+            return undefined
+          },
+          timeoutMs: 2000,
+        }),
+      ).rejects.toThrow('gh failed')
+    })
+  })
+
+  it('does not hand back an ignored pull request, and hands back the same one at a new head', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const ready = (head: string, delivery: string) =>
+      record('pull_request', pullPayload('synchronize', false, 'main', head), delivery)
+    writeFileSync(file, line(ready(HEAD_A, 'a')))
+    const ignoring = (head: string) =>
+      ({
+        kind: 'pr-ready',
+        base: 'main',
+        ignore: [{ number: 41, head }],
+      }) as const
+    const pending = waitForEvent({ file, predicate: ignoring(HEAD_A), timeoutMs: 5000 })
+    await sleep(100)
+    appendFileSync(file, line(ready(HEAD_B, 'b')))
+    expect(await pending).toMatchObject({ delivery: 'b', number: 41, head: HEAD_B })
+  })
 })
 
 describe('githubReconcile', () => {
@@ -359,7 +501,7 @@ describe('githubReconcile', () => {
   })
 
   it('finds an open pull request that is not a draft on the base branch', () => {
-    const drafts = reconcileWith([{ number: 1, isDraft: true }])
+    const drafts = reconcileWith([{ number: 1, isDraft: true, headRefOid: HEAD_A }])
     expect(drafts.reconcile({ kind: 'pr-ready', base: 'main' }, undefined)).toBeUndefined()
     expect(drafts.calls[0]).toEqual([
       'pr',
@@ -371,14 +513,35 @@ describe('githubReconcile', () => {
       '--state',
       'open',
       '--json',
-      'number,isDraft',
+      'number,isDraft,headRefOid',
     ])
     expect(
       reconcileWith([
-        { number: 1, isDraft: true },
-        { number: 2, isDraft: false },
+        { number: 1, isDraft: true, headRefOid: HEAD_A },
+        { number: 2, isDraft: false, headRefOid: HEAD_B },
       ]).reconcile({ kind: 'pr-ready', base: 'main' }, undefined),
-    ).toMatchObject({ event: 'pull_request', number: 2, draft: false, base: 'main' })
+    ).toMatchObject({ event: 'pull_request', number: 2, draft: false, base: 'main', head: HEAD_B })
+  })
+
+  it('skips the pull requests at an ignored head and finds the same one at a new head', () => {
+    const pulls = [
+      { number: 2, isDraft: false, headRefOid: HEAD_A },
+      { number: 3, isDraft: true, headRefOid: HEAD_A },
+    ]
+    const ignoring = (...ignore: { number: number; head: string }[]) =>
+      ({ kind: 'pr-ready', base: 'main', ignore }) as const
+    const { reconcile } = reconcileWith(pulls)
+    expect(reconcile(ignoring({ number: 2, head: HEAD_A }), undefined)).toBeUndefined()
+    expect(reconcile(ignoring({ number: 2, head: HEAD_B }), undefined)).toMatchObject({
+      number: 2,
+      head: HEAD_A,
+    })
+    expect(reconcile(ignoring({ number: 9, head: HEAD_A }), undefined)).toMatchObject({ number: 2 })
+    const next = reconcileWith([{ number: 2, isDraft: false, headRefOid: HEAD_B }])
+    expect(next.reconcile(ignoring({ number: 2, head: HEAD_A }), undefined)).toMatchObject({
+      number: 2,
+      head: HEAD_B,
+    })
   })
 
   it('finds a comment with the marker created after since, on every page', () => {
@@ -485,8 +648,13 @@ describe('createReceiverServer', () => {
 
 describe('serveReceiver', () => {
   const FORWARDER = 'https://webhook-forwarder.github.com/hook'
-  /** `gh` over a hook list that records the order of every action. */
-  function harness(options: { failDelete?: number } = {}) {
+  /**
+   * `gh` over a hook list that records the order of every action. Hook 1 belongs to another
+   * receiver. The forwarder creates the hooks in `created`, at spawn or after `createAfterMs`.
+   */
+  function harness(
+    options: { failDelete?: number; created?: number[]; createAfterMs?: number } = {},
+  ) {
     const actions: string[] = []
     const hooks = [
       { id: 1, name: 'cli', config: { url: FORWARDER } },
@@ -502,11 +670,16 @@ describe('serveReceiver', () => {
       }
       return JSON.stringify([hooks])
     }
+    const create = () =>
+      (options.created ?? [3]).forEach(id =>
+        hooks.push({ id, name: 'cli', config: { url: FORWARDER } }),
+      )
     let resolveExit: (code: number | null) => void = () => undefined
     const spawnForward = vi.fn(
       (_args: { repository: string; port: number; secret: string | undefined }) => {
         actions.push('spawn')
-        hooks.push({ id: 3, name: 'cli', config: { url: FORWARDER } })
+        if (options.createAfterMs === undefined) create()
+        else setTimeout(create, options.createAfterMs)
         return {
           exited: new Promise<number | null>(resolve => {
             resolveExit = resolve
@@ -521,22 +694,28 @@ describe('serveReceiver', () => {
     )
     return { actions, hooks, gh, spawnForward, crash: () => resolveExit(1) }
   }
-  const run = (h: ReturnType<typeof harness>, stopped: Promise<void>, secret?: string) =>
+  const run = (
+    h: ReturnType<typeof harness>,
+    stopped: Promise<void>,
+    extra: { secret?: string; log?: (message: string) => void } = {},
+  ) =>
     serveReceiver({
       port: 0,
       file: join(tempDir(), 'events.jsonl'),
       repository: 'owner/repo',
-      ...(secret === undefined ? {} : { secret }),
+      ...(extra.secret === undefined ? {} : { secret: extra.secret }),
       gh: h.gh,
       spawnForward: h.spawnForward,
       stopped,
-      log: () => undefined,
+      log: extra.log ?? (() => undefined),
+      hookPollMs: 10,
+      hookDiscoveryMs: 1000,
     })
 
-  it('deletes stale hooks first, stops the forwarder, then deletes the hook it created', async () => {
+  it('starts without deleting any hook, stops the forwarder, then deletes only its own hook', async () => {
     const h = harness()
     let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), 's')
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), { secret: 's' })
     await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
     expect(h.spawnForward.mock.calls[0]?.[0]).toMatchObject({
       repository: 'owner/repo',
@@ -544,30 +723,44 @@ describe('serveReceiver', () => {
     })
     stop()
     expect(await exit).toBe(0)
-    expect(h.actions).toEqual(['delete 1', 'spawn', 'stop', 'delete 3'])
-    expect(h.hooks.map(hook => hook.id)).toEqual([2])
+    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
+    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
   })
 
-  it('exits 1 and still cleans up when the forwarder dies', async () => {
+  it('finds its hook when the forwarder creates it some time after the start', async () => {
+    const h = harness({ createAfterMs: 100 })
+    let stop: () => void = () => undefined
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)))
+    await vi.waitFor(() => expect(h.hooks.map(hook => hook.id)).toContain(3))
+    await sleep(50)
+    stop()
+    expect(await exit).toBe(0)
+    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
+    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
+  })
+
+  it('deletes its hook when the stop comes right after the start', async () => {
+    const h = harness()
+    const exit = run(h, Promise.resolve())
+    expect(await exit).toBe(0)
+    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
+  })
+
+  it('exits 1 and still cleans up its own hook when the forwarder dies', async () => {
     const h = harness()
     const exit = run(h, new Promise<void>(() => undefined))
     await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
     h.crash()
     expect(await exit).toBe(1)
     expect(h.actions.slice(-2)).toEqual(['stop', 'delete 3'])
+    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
   })
 
-  it('exits 1 and names the leftover when a hook cannot be deleted at shutdown', async () => {
+  it('exits 1 and names the leftover when its hook cannot be deleted at shutdown', async () => {
     const h = harness({ failDelete: 3 })
     const messages: string[] = []
     let stop: () => void = () => undefined
-    const exit = serveReceiver({
-      port: 0,
-      file: join(tempDir(), 'events.jsonl'),
-      repository: 'owner/repo',
-      gh: h.gh,
-      spawnForward: h.spawnForward,
-      stopped: new Promise<void>(resolve => (stop = resolve)),
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
       log: message => messages.push(message),
     })
     await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
@@ -576,10 +769,41 @@ describe('serveReceiver', () => {
     expect(messages.join('\n')).toContain('Forwarder hooks left behind: 3')
   })
 
-  it('does not start the forwarder when a stale hook cannot be deleted', async () => {
-    const h = harness({ failDelete: 1 })
-    await expect(run(h, new Promise<void>(() => undefined))).rejects.toBeInstanceOf(InputError)
-    expect(h.spawnForward).not.toHaveBeenCalled()
+  it('deletes none and exits 1 when it cannot tell which of several new hooks is its own', async () => {
+    const h = harness({ created: [3, 4] })
+    const messages: string[] = []
+    let stop: () => void = () => undefined
+    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
+      log: message => messages.push(message),
+    })
+    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
+    await sleep(50)
+    stop()
+    expect(await exit).toBe(1)
+    expect(h.actions).toEqual(['spawn', 'stop'])
+    expect(messages.join('\n')).toContain('Cannot tell which of the hooks 3, 4')
+  })
+})
+
+describe('cleanForwarderHooks', () => {
+  it('deletes every forwarder hook of the repository and reports the ones it could not delete', () => {
+    const FORWARDER = 'https://webhook-forwarder.github.com/hook'
+    const hooks = [
+      { id: 1, name: 'cli', config: { url: FORWARDER } },
+      { id: 2, name: 'web', config: { url: 'https://example.com/github' } },
+      { id: 3, name: 'cli', config: { url: FORWARDER } },
+      { id: 4, name: 'cli', config: { url: FORWARDER } },
+    ]
+    const deleted: number[] = []
+    const gh = (argv: readonly string[]): string => {
+      if (!argv.includes('DELETE')) return JSON.stringify([hooks])
+      const id = Number(argv.at(-1)?.split('/').at(-1))
+      if (id === 3) throw new Error('forbidden')
+      deleted.push(id)
+      return ''
+    }
+    expect(cleanForwarderHooks('owner/repo', gh)).toEqual({ deleted: [1, 4], failed: [3] })
+    expect(deleted).toEqual([1, 4])
   })
 })
 
