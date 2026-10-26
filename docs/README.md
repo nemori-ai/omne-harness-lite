@@ -97,6 +97,7 @@
 docs/
 ├── README.md                  十类读者的起点与首轮路径
 ├── context-map.md             按任务展开与停止的上下文地图
+├── orientation.md             开工定向：领域地图、核心方向与顶层架构三类图
 ├── knowledge-map.md           人类图文知识全景
 ├── knowledge-map-agent.md     Agent一次加载的体系上下文
 ├── assets/knowledge-map.svg   知识地图的静态图，正文有文字替代
@@ -128,6 +129,7 @@ docs/
 | [项目 README](../README.md) | 项目目标、阶段与开始入口 |
 | 本页 | 十类读者的起点、前提及首轮路径 |
 | [任务地图](context-map.md) | 共享任务的上下文、展开和停止条件 |
+| [开工定向](orientation.md) | 人和 agent 开工前先读的领域地图、核心四项方向与顶层架构图；图的事实归所列出处，不另立正文 |
 | [知识地图](knowledge-map.md)、[体系上下文](knowledge-map-agent.md) | 同一知识体系的人类图文说明与agent整体上下文；不另立规范或任务流程 |
 | [文档维护指南](maintenance.md) | 选择信息粒度及新增、拆页、整合、登记和检查的维护步骤 |
 | [产品包组织](package-organization.md) | 目标能力组、公共SDK落点、包边界与扩展规则，区分目标和工具现状 |
