@@ -47,10 +47,21 @@ export function config(): DeliveryConfig {
       number: 4,
       id: 'project-4',
       url: 'https://github.com/orgs/owner/projects/4',
-      fields: { stage: 'stage-field', priority: 'priority-field', iteration: 'iteration-field' },
+      fields: {
+        stage: 'stage-field',
+        priority: 'priority-field',
+        iteration: 'iteration-field',
+        line: null,
+        dispatchedAt: null,
+        deliveredAt: null,
+        acceptedAt: null,
+        cycleDays: null,
+      },
+      options: { stage: {}, line: {} },
     },
     creationHandoffIssue: null,
     writers: { stage: null, body: null },
+    board: null,
   }
 }
 export function body(
