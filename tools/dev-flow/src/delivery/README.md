@@ -109,7 +109,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/milestone-cli.ts car
 
 `create` 不建 Project 视图。输出的 `manualSteps` 列出在网页上为新里程碑建 Board 视图的步骤：过滤为 `milestone:"<名称>"`，列字段选 Status，泳道选 Line。
 
-`carry` 把每张卡从里程碑 A 移到 B，并在每张卡上发一条流转评论。评论第一行是 `<!-- omne-milestone-carry:v1 {"from":"A","to":"B"} -->`，然后写流转的两个里程碑、`--reason` 的原因，以及 binding 不变的说明。命令不改 binding，也不升交付修订。
+`carry` 把每张卡从里程碑 A 移到 B，并在每张卡上发一条流转评论。评论第一行是 `<!-- omne-milestone-carry:v1 {"from":"A","to":"B"} -->`，然后写流转的两个里程碑、`--reason` 的原因，以及 binding 不变的说明。卡本来就在 B 时，评论写明本卡已在 B、本次未移动。只有第一行是这个标记的评论才算流转评论。选项的值不能以 `--` 开头。命令不改 binding，也不升交付修订。
 
 - 第一次写入前读全部卡。有卡不在 A 也不在 B、是 PR、或 A 与 B 有一个不存在时退出2，不写入。
 - 卡已在 B 时不再改里程碑。卡上已有同一 A 到 B 的流转评论时不再发。所以写入中途失败后，原样重跑同一命令即可补完。
@@ -130,17 +130,18 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 | --- | --- | --- |
 | `dispatched` | Dispatched at、Line | `start` 新建 context 后自动写入。自动写入失败时调度者补写 |
 | `delivered` | Delivered at，Status 改为 In review | 调度者在执行者交回候选 PR 时 |
-| `integrating` | Status 改为 Integrating | 调度者在候选合入轨道后 |
+| `integrating` | Status 改为 Integrating | 候选通过准入、经 gate 进入轨道时，在合入之前。一波并行的卡由集成节点运行 |
 | `accepted` | Accepted at、Cycle days，Status 改为 Accepted | 调度者在接受决定读回后 |
 
 - 日期缺省为运行时刻在 `board.timeZone` 时区中的日期，现为 UTC。`--date` 用于补写。
 - Line 取版本2 binding 的交付线，没有时取正文「身份与责任」的交付线。Line 没有对应的选项时跳过这一项，写在 `skipped` 中。
-- Cycle days 是 Accepted at 减 Dispatched at 的天数。Dispatched at 为空或晚于接受日时跳过。
+- Dispatched at 已有值时不覆盖，这一项写在 `skipped` 中。同一 attempt 在新工作树重跑 `start` 不改开工日期。
+- Cycle days 是 Accepted at 减 Dispatched at 的天数。Dispatched at 为空、不是合法日期或晚于接受日时跳过。
 - `board.events` 列出每个事件启用的写入。从列表删掉一项即关闭它。删掉整个 `board` 项即关闭全部看板写入，`start` 也不再写。
-- 每个字段一次 `updateProjectV2ItemFieldValue` 请求。某次写入失败时退出2，消息给出失败的序号，之前的写入保留。读回与写入值不同时退出1。
-- `--dry-run` 读条目并输出计划写入，不写。
+- 每个字段一次 `updateProjectV2ItemFieldValue` 请求。某次写入失败时退出2，消息给出失败的序号，标准错误的 JSON 同时带 `skipped`，之前的写入保留。读回与写入值不同时退出1。
+- `--dry-run` 读条目并输出计划写入，不写。输出的 `applied` 为 false，没有 `verified`，退出0。
 - 卡不在配置的 Project 中时退出2。命令不把卡加入 Project。
-- 云端会话的代理拦截 GraphQL，命令在云端直接退出2。云端改 Stage 用 `delivery-stage`，日期字段留待本地会话补写。
+- 云端会话的代理拦截 GraphQL，命令在云端直接退出2。云端的判断与 `start` 相同：`OMNE_DELIVERY_FACTS=workflow`，或没有设置它而 `CCR_AGENT_PROXY_ENABLED=1`。云端改 Stage 用 `delivery-stage`，日期字段留待本地会话补写。
 
 `gh` 需要 Projects 的读写权限（`gh auth refresh -s project`）。Status 是 Stage 字段，只由本卡的调度者写入，规则见[交付操作](../../../../docs/engineering/agent-delivery.md#4-推进和更新状态)。命令不判断接受是否有效。
 

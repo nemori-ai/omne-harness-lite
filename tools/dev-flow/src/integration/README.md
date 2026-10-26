@@ -106,7 +106,7 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 - 交付配置没有 `board` 项、或 `board.events.dispatched` 为空时，不写也不报告。
 - `board` 项的形状不合格（例如 `timeZone` 不是字符串）时，整个交付配置不合格，`start` 拒绝开工，与交付配置的其他字段相同。
-- 已有同绑定的 context 时不写，所以重跑 `start` 不改 Dispatched at。
+- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。
 - 写入失败、事件启用了不属于它的写入、缺字段 ID 或时区无效、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
 - 云端会话不发 GraphQL 请求，只报告一行 `board-skipped`。之后在本地会话用 `board-cli.ts dispatched` 补写。
 

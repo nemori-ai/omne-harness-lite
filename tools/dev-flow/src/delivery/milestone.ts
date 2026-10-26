@@ -1,5 +1,5 @@
 import { readIssueCard, REST_HEADERS, type GhCommand } from './github-read.ts'
-import { array, InputError, record, text } from './protocol.ts'
+import { array, calendarDate, InputError, record, text } from './protocol.ts'
 
 const TIMEOUT_MS = 15_000
 /** The HTML comment that opens every carry comment; the JSON after it names the two titles. */
@@ -16,14 +16,6 @@ export const MILESTONE_VIEW_MANUAL_STEPS = [
 
 export type Milestone = { number: number; title: string; state: string; dueOn: string | null }
 
-/** A calendar date `YYYY-MM-DD` that exists. */
-export function calendarDate(value: string, path: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  const date = match === null ? null : new Date(`${value}T00:00:00Z`)
-  if (date === null || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value)
-    throw new InputError(`${path} must be a calendar date YYYY-MM-DD`)
-  return value
-}
 /** A milestone title the carry comment can hold: nonempty, one line, no HTML comment end. */
 function milestoneTitle(value: string, path: string): string {
   if (value.trim() === '' || /[\r\n]/.test(value) || value.includes('-->'))
@@ -131,19 +123,25 @@ export function createMilestone({
   return { milestone, created: true, verified: milestone.dueOn?.slice(0, 10) === due }
 }
 
-/** The carry comment of one card. The first line is the machine-readable marker. */
-export function carryComment(from: string, to: string, reason: string): string {
+/**
+ * The carry comment of one card. The first line is the machine-readable marker. `moved` is
+ * false when the card was already in `to` and this run did not move it.
+ */
+export function carryComment(from: string, to: string, reason: string, moved = true): string {
   return [
     `<!-- ${CARRY_MARKER} ${JSON.stringify({ from, to })} -->`,
-    `里程碑流转：\`${from}\` → \`${to}\`。`,
+    moved
+      ? `里程碑流转：\`${from}\` → \`${to}\`。`
+      : `里程碑流转：本卡已在 \`${to}\`，本次未移动（流转记录 \`${from}\` → \`${to}\`）。`,
     '',
     `- 原因：${reason}`,
     '- binding 不变：本卡的 binding 与 attempt 保持原值。binding 中的里程碑是派发时的值，与 Issue 不一致时只作报告（`attribute-binding-drift`）。',
   ].join('\n')
 }
-/** True when `body` is a carry comment for exactly `from` to `to`. */
+/** True when the first line of `body` is the carry marker for exactly `from` to `to`. */
 export function isCarryComment(body: string, from: string, to: string): boolean {
-  const match = new RegExp(`^<!-- ${CARRY_MARKER} (\\{.*\\}) -->$`, 'm').exec(body)
+  const first = body.split('\n', 1)[0] ?? ''
+  const match = new RegExp(`^<!-- ${CARRY_MARKER} (\\{.*\\}) -->\\r?$`).exec(first)
   if (match?.[1] === undefined) return false
   try {
     const value = record(JSON.parse(match[1]), 'carry marker')
@@ -240,7 +238,7 @@ export function carryMilestone({
             ...REST_HEADERS,
             `repos/${repository}/issues/${card.number}/comments`,
             '-f',
-            `body=${carryComment(from, to, reason)}`,
+            `body=${carryComment(from, to, reason, card.move)}`,
           ],
         ]
       : []),

@@ -509,3 +509,31 @@ export function parseBaseline(value: unknown): DeliveryReport {
     },
   }
 }
+
+/** A calendar date `YYYY-MM-DD` that exists. */
+export function calendarDate(value: string, path: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  const date = match === null ? null : new Date(`${value}T00:00:00Z`)
+  if (date === null || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value)
+    throw new InputError(`${path} must be a calendar date YYYY-MM-DD`)
+  return value
+}
+/** The calendar date of `now` in the IANA time zone `zone`, as `YYYY-MM-DD`. */
+export function calendarDay(zone: string, now: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const part = (type: 'year' | 'month' | 'day') => {
+    const found = parts.find(item => item.type === type)
+    if (found === undefined) throw new InputError(`Cannot format the ${type} in ${zone}`)
+    return found.value
+  }
+  return calendarDate(`${part('year')}-${part('month')}-${part('day')}`, 'calendar day')
+}
+/** Whole days from `from` to `to`, both calendar dates. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}

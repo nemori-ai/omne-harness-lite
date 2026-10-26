@@ -122,17 +122,17 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 `createMilestone` 先分页读仓库全部里程碑，按标题精确匹配。同名多于一个时拒绝。同名且截止日的日期部分等于请求日期时返回已有里程碑，不写。同名而日期不同时拒绝。否则以 POST 建里程碑，`due_on` 为请求日期的 `12:00:00Z`，再以响应中的 `due_on` 判断 `verified`。标题须为一行且不含 `-->`。日期须为真实存在的 `YYYY-MM-DD`。
 
-`carryMilestone` 在第一次写入前完成全部读取与核对：两个里程碑都存在且不同，原因为一行非空文字，卡号不重复，每张卡的里程碑是 A 或 B。任何一项不满足都不写入。每张卡最多两次写入：卡不在 B 时 PATCH 里程碑，卡上没有同一 A 到 B 的流转评论时 POST 评论。流转评论由 `carryComment` 生成，`isCarryComment` 只认第一行标记中 `from` 与 `to` 都相同的评论。写入按卡号顺序串行执行。某次写入失败时报告序号并停止，不回滚。写入后逐卡再读，`verified` 为读回的里程碑等于 B。命令不读或修改 binding。
+`carryMilestone` 在第一次写入前完成全部读取与核对：两个里程碑都存在且不同，原因为一行非空文字，卡号不重复，每张卡的里程碑是 A 或 B。任何一项不满足都不写入。每张卡最多两次写入：卡不在 B 时 PATCH 里程碑，卡上没有同一 A 到 B 的流转评论时 POST 评论。流转评论由 `carryComment` 生成。卡已在 B、本次不移动时，评论写明本卡已在 B、本次未移动，不写成 A 到 B 的流转。`isCarryComment` 只看评论的第一行，第一行是 `from` 与 `to` 都相同的标记时才认。写入按命令给出卡的顺序串行执行。某次写入失败时报告序号并停止，不回滚。写入后逐卡再读，`verified` 为读回的里程碑等于 B。命令不读或修改 binding。
 
 `milestone create` 不建 Project 视图。它输出 `MILESTONE_VIEW_MANUAL_STEPS`，即在网页上为新里程碑建 Board 视图的步骤。
 
 ## 看板字段写入
 
-字段 ID、选项 ID 与看板设置只登记在[交付配置](../../../../docs/engineering/github-delivery.json)。`parseConfig` 读 `project.fields` 的五个看板字段（`line`、`dispatchedAt`、`deliveredAt`、`acceptedAt`、`cycleDays`，缺省为 null）、`project.options` 的 `stage` 与 `line` 选项表（缺省为空）和 `board` 项（缺省为 null），只核对形状，所以没有这些键的旧配置照常可读。`boardConfig` 判断语义：没有 `board` 项时没有看板写入；未知事件拒绝；四个事件各自只能启用表中属于自己的写入，同一写入不能列两次，缺席的事件不启用写入；每个启用的写入须有字段 ID（Status 用 Stage 字段，Cycle days 还须有 Dispatched at 字段）；启用 Status 写入的事件，其目标选项（In review、Integrating、Accepted）须在 `options.stage` 中；`timeZone` 须是运行环境认可的 IANA 时区。
+字段 ID、选项 ID 与看板设置只登记在[交付配置](../../../../docs/engineering/github-delivery.json)。`parseConfig` 读 `project.fields` 的五个看板字段（`line`、`dispatchedAt`、`deliveredAt`、`acceptedAt`、`cycleDays`，缺省为 null）、`project.options` 的 `stage` 与 `line` 选项表（缺省为空）和 `board` 项（缺省为 null），只核对形状，所以没有这些键的旧配置照常可读。`boardEvent(config, event)` 在一个事件运行时判断语义，并把该事件启用的每个写入解析成带字段 ID 与选项的 `EnabledWrite`。没有 `board` 项、或该事件没有启用写入时返回 null，不判断 `board` 项的其余部分。否则：Project ID 须存在；`timeZone` 须是运行环境认可的 IANA 时区；未知事件拒绝；该事件只能启用表中属于自己的写入，同一写入不能列两次；每个启用的写入须有字段 ID（Status 用 Stage 字段，Cycle days 还须有 Dispatched at 字段）；启用 Status 写入时，目标选项（In review、Integrating、Accepted）须在 `options.stage` 中。选项表按自有键查找，`constructor` 一类原型上的名字不算选项。
 
-`planBoardWrites` 只规划事件启用的写入：本事件的日期字段写 `date`，Line 写交付线对应的选项，Status 写本事件的目标选项，Cycle days 写 `date` 与 Dispatched at 相差的整天数。缺少交付线、交付线没有选项、Dispatched at 为空或晚于 `date` 时，该项进入 `skipped` 并写明原因，不猜测取值。
+`planBoardWrites` 只规划已解析的写入，输入还有写入前读到的条目字段值：本事件的日期字段写 `date`，但 Dispatched at 已有值时不覆盖；Line 写交付线对应的选项；Status 写本事件的目标选项；Cycle days 写 `date` 与 Dispatched at 相差的整天数。Dispatched at 已有值、缺少交付线、交付线没有选项、Dispatched at 为空、不是合法日期或晚于 `date` 时，该项进入 `skipped` 并写明原因，不猜测取值。
 
-`recordBoardEvent` 先读卡在配置 Project 中唯一的条目（Issue 节点的 `projectItems`，含已归档条目），没有或多于一个时拒绝。启用 Cycle days 时再读条目的字段值取得 Dispatched at。每项写入是一次 `updateProjectV2ItemFieldValue`，查询文本固定，Project、条目、字段与值作为 GraphQL 变量传入：日期为 `value[date]`，数字以 `-F value[number]` 按数值传入，单选为 `value[singleSelectOptionId]`。写入串行执行，失败时报告序号与写入名并停止，不回滚。写完后读回各字段，`verified` 表示每个字段等于写入值。`dryRun` 只读取与规划。错误消息不含 API 原文。
+`recordBoardEvent` 先读卡在配置 Project 中唯一的条目（Issue 节点的 `projectItems`，含已归档条目），没有或多于一个时拒绝。事件写 Dispatched at 或 Cycle days 时，在规划之前读一次条目的字段值。每项写入是一次 `updateProjectV2ItemFieldValue`，查询文本固定，Project、条目、字段与值作为 GraphQL 变量传入：日期为 `value[date]`，数字以 `-F value[number]` 按数值传入，单选为 `value[singleSelectOptionId]`。写入串行执行。某次写入失败时抛出 `BoardWriteError`，带序号、写入名与已规划的 `skipped`，不回滚。写完后读回各字段。结果是判别联合：`applied: false` 是只读取与规划的 `dryRun`，没有读回；`applied: true` 带 `readback` 与 `verified`，`verified` 表示每个字段等于写入值。错误消息不含 API 原文。
 
-`recordDispatch` 是 `start` 使用的入口，不抛出。交付配置没有 `board` 项或 `dispatched` 没有启用写入时返回空，不报告。云端会话、`boardConfig` 拒绝、读写失败、跳过的写入与读回不符各返回报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。日期是调用时刻在配置时区中的日期。
+`recordDispatch` 是 `start` 使用的入口，不抛出。`boardEvent(config, 'dispatched')` 为 null 时返回空，不报告。云端会话、`boardEvent` 拒绝、读写失败、跳过的写入与读回不符各返回报告行；写入失败时，已规划的跳过项也各返回一行。代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。日期是调用时刻在配置时区中的日期。
 

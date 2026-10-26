@@ -1,18 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  boardConfig,
-  calendarDay,
+  boardEvent,
   cardLine,
   planBoardWrites,
   recordBoardEvent,
   recordDispatch,
   UPDATE_FIELD,
-  type BoardConfig,
+  type BoardEvent,
+  type BoardEventConfig,
 } from '../src/delivery/board.ts'
 import type { TaskBindingV2 } from '../src/delivery/binding.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
-import { parseConfig, type DeliveryConfig } from '../src/delivery/protocol.ts'
+import { calendarDay, parseConfig, type DeliveryConfig } from '../src/delivery/protocol.ts'
 
 const committed: unknown = JSON.parse(
   readFileSync(new URL('../../../docs/engineering/github-delivery.json', import.meta.url), 'utf8'),
@@ -70,9 +70,9 @@ function raw(patch: (value: RawConfig) => void = () => {}): RawConfig {
   return value
 }
 const delivery = (patch?: (value: RawConfig) => void): DeliveryConfig => parseConfig(raw(patch))
-function config(patch?: (value: RawConfig) => void): BoardConfig {
-  const board = boardConfig(delivery(patch))
-  if (board === null) throw new Error('fixture has no board entry')
+function config(event: BoardEvent, patch?: (value: RawConfig) => void): BoardEventConfig {
+  const board = boardEvent(delivery(patch), event)
+  if (board === null) throw new Error('fixture enables no writes for the event')
   return board
 }
 const events = (value: RawConfig) => {
@@ -156,14 +156,38 @@ function project({
 
 describe('board config', () => {
   it('reads the committed delivery config', () => {
-    const parsed = boardConfig(parseConfig(committed))
-    expect(parsed?.projectId).toBe('PVT_kwDODPptlM4BmeFE')
-    expect(parsed?.fields.status.options.Integrating).toBe('c185bad3')
-    expect(parsed?.events.accepted).toEqual(['acceptedAt', 'cycleDays', 'status'])
+    const accepted = boardEvent(parseConfig(committed), 'accepted')
+    expect(accepted?.projectId).toBe('PVT_kwDODPptlM4BmeFE')
+    expect(accepted?.writes.map(write => write.name)).toEqual(['acceptedAt', 'cycleDays', 'status'])
+    expect(accepted?.writes.at(-1)).toMatchObject({ option: 'd78eae76', status: 'Accepted' })
   })
 
-  it('has no board writes without a board entry and keeps old configs readable', () => {
-    expect(boardConfig(delivery(v => delete v.board))).toBeNull()
+  it('has no writes without a board entry or for an event that enables nothing', () => {
+    expect(
+      boardEvent(
+        delivery(v => delete v.board),
+        'dispatched',
+      ),
+    ).toBeNull()
+    expect(
+      boardEvent(
+        delivery(v => delete events(v).integrating),
+        'integrating',
+      ),
+    ).toBeNull()
+    // An event that enables nothing does not judge the rest of the entry.
+    expect(
+      boardEvent(
+        delivery(v => {
+          events(v).dispatched = []
+          events(v).later = ['x']
+        }),
+        'dispatched',
+      ),
+    ).toBeNull()
+  })
+
+  it('keeps old configs readable and refuses a malformed board entry', () => {
     const old = delivery(v => {
       delete v.board
       v.project.fields = { stage: 'F_status', priority: null, iteration: null }
@@ -171,35 +195,52 @@ describe('board config', () => {
     })
     expect(old.project.fields.line).toBeNull()
     expect(old.project.options).toEqual({ stage: {}, line: {} })
+    expect(() => delivery(v => Object.assign(events(v), { dispatched: 'x' }))).toThrow(
+      'config.board.events.dispatched must be an array',
+    )
   })
 
   it('refuses unknown events, foreign or repeated writes, missing IDs and bad time zones', () => {
-    expect(() => config(v => (events(v).later = []))).toThrow('unknown events later')
-    expect(() => config(v => (events(v).integrating = ['acceptedAt']))).toThrow(
+    expect(() => config('delivered', v => (events(v).later = []))).toThrow('unknown events later')
+    expect(() => config('integrating', v => (events(v).integrating = ['acceptedAt']))).toThrow(
       'cannot enable acceptedAt',
     )
-    expect(() => config(v => (events(v).delivered = ['status', 'status']))).toThrow(
+    expect(() => config('delivered', v => (events(v).delivered = ['status', 'status']))).toThrow(
       'names a write twice',
     )
-    expect(() => config(v => (v.project.fields.line = null))).toThrow('without its field ID')
-    expect(() => config(v => (v.project.fields.dispatchedAt = null))).toThrow(
-      'without its field ID',
+    expect(() => config('dispatched', v => (v.project.fields.line = null))).toThrow(
+      'enables line without its field ID',
     )
-    expect(() => config(v => delete v.project.options.stage.Integrating)).toThrow(
+    expect(() => config('accepted', v => (v.project.fields.dispatchedAt = null))).toThrow(
+      'enables cycleDays without its field ID',
+    )
+    expect(() => config('integrating', v => delete v.project.options.stage.Integrating)).toThrow(
       'lacks Integrating',
     )
-    expect(() => config(v => (v.board = { timeZone: 'Mars/Base', events: {} }))).toThrow('IANA')
+    expect(() =>
+      config('dispatched', v => {
+        if (v.board) v.board.timeZone = 'Mars/Base'
+      }),
+    ).toThrow('IANA')
   })
 
-  it('treats an absent event as enabling nothing', () => {
-    expect(config(v => delete events(v).integrating).events.integrating).toEqual([])
+  it('judges only the event that runs', () => {
+    expect(() =>
+      config('dispatched', v => delete v.project.options.stage.Integrating),
+    ).not.toThrow()
   })
 })
 
 describe('planning board writes', () => {
-  it('plans the dispatch date and line', () => {
+  const none = new Map<string, string | number>()
+  it('plans the dispatch date and line while Dispatched at is empty', () => {
     expect(
-      planBoardWrites({ config: config(), event: 'dispatched', date: '2026-10-26', line: 'model' }),
+      planBoardWrites({
+        config: config('dispatched'),
+        date: '2026-10-26',
+        line: 'model',
+        current: none,
+      }),
     ).toEqual({
       writes: [
         { name: 'dispatchedAt', field: 'F_disp', value: { kind: 'date', date: '2026-10-26' } },
@@ -213,40 +254,55 @@ describe('planning board writes', () => {
     })
   })
 
-  it('skips a line without input or option instead of guessing', () => {
-    expect(
-      planBoardWrites({ config: config(), event: 'dispatched', date: '2026-10-26' }).skipped,
-    ).toEqual([{ name: 'line', reason: 'The card has no delivery line' }])
-    expect(
-      planBoardWrites({
-        config: config(),
-        event: 'dispatched',
-        date: '2026-10-26',
-        line: 'platform',
-      }).skipped,
-    ).toEqual([{ name: 'line', reason: 'Line has no option platform' }])
+  it('keeps an existing Dispatched at', () => {
+    const plan = planBoardWrites({
+      config: config('dispatched'),
+      date: '2026-10-28',
+      line: 'model',
+      current: new Map([['F_disp', '2026-10-26']]),
+    })
+    expect(plan.writes.map(write => write.name)).toEqual(['line'])
+    expect(plan.skipped).toEqual([
+      { name: 'dispatchedAt', reason: 'Dispatched at is already 2026-10-26' },
+    ])
   })
 
-  it('computes cycle days from Dispatched at and skips an empty or later dispatch date', () => {
-    const plan = (dispatchedAt: string | null) =>
-      planBoardWrites({ config: config(), event: 'accepted', date: '2026-11-02', dispatchedAt })
+  it('skips a line without input or own option instead of guessing', () => {
+    const skipped = (line: string | undefined) =>
+      planBoardWrites({ config: config('dispatched'), date: '2026-10-26', line, current: none })
+        .skipped
+    expect(skipped(undefined)).toEqual([{ name: 'line', reason: 'The card has no delivery line' }])
+    expect(skipped('platform')).toEqual([{ name: 'line', reason: 'Line has no option platform' }])
+    expect(skipped('constructor')).toEqual([
+      { name: 'line', reason: 'Line has no option constructor' },
+    ])
+  })
+
+  it('computes cycle days and skips an empty, invalid or later dispatch date', () => {
+    const plan = (dispatched?: string) =>
+      planBoardWrites({
+        config: config('accepted'),
+        date: '2026-11-02',
+        current: dispatched === undefined ? none : new Map([['F_disp', dispatched]]),
+      })
     expect(plan('2026-10-26').writes.map(write => write.value)).toEqual([
       { kind: 'date', date: '2026-11-02' },
       { kind: 'number', number: 7 },
       { kind: 'option', option: 'o_acc', name: 'Accepted' },
     ])
-    expect(plan(null).skipped).toEqual([{ name: 'cycleDays', reason: 'Dispatched at is empty' }])
+    expect(plan().skipped).toEqual([{ name: 'cycleDays', reason: 'Dispatched at is empty' }])
+    expect(plan('soon').skipped).toEqual([
+      { name: 'cycleDays', reason: 'Dispatched at soon is not a calendar date' },
+    ])
     expect(plan('2026-11-03').skipped).toEqual([
       { name: 'cycleDays', reason: 'Dispatched at 2026-11-03 is after 2026-11-02' },
     ])
   })
 
   it('writes nothing an event does not enable', () => {
-    const quiet = config(v => (events(v).delivered = ['deliveredAt']))
+    const quiet = config('delivered', v => (events(v).delivered = ['deliveredAt']))
     expect(
-      planBoardWrites({ config: quiet, event: 'delivered', date: '2026-10-26' }).writes.map(
-        w => w.name,
-      ),
+      planBoardWrites({ config: quiet, date: '2026-10-26', current: none }).writes.map(w => w.name),
     ).toEqual(['deliveredAt'])
   })
 })
@@ -255,9 +311,8 @@ describe('recording a board event', () => {
   it('sends one update per field with the exact GraphQL payload and verifies the readback', () => {
     const p = project()
     const result = recordBoardEvent({
-      config: config(),
+      config: config('delivered'),
       issue,
-      event: 'delivered',
       date: '2026-10-28',
       dryRun: false,
       call: p.call,
@@ -300,12 +355,30 @@ describe('recording a board event', () => {
     ])
   })
 
+  it('reads the item before writing and keeps an existing Dispatched at', () => {
+    const p = project({ values: { F_disp: '2026-10-20' } })
+    const result = recordBoardEvent({
+      config: config('dispatched'),
+      issue,
+      date: '2026-10-27',
+      line: 'model',
+      dryRun: false,
+      call: p.call,
+    })
+    expect(result.skipped).toEqual([
+      { name: 'dispatchedAt', reason: 'Dispatched at is already 2026-10-20' },
+    ])
+    expect(p.state.get('F_disp')).toBe('2026-10-20')
+    expect(p.mutations().map(call => call.find(arg => arg.startsWith('field=')))).toEqual([
+      'field=F_line',
+    ])
+  })
+
   it('reads Dispatched at for cycle days and sends the number as a typed field', () => {
     const p = project({ values: { F_disp: '2026-10-20' } })
     recordBoardEvent({
-      config: config(),
+      config: config('accepted'),
       issue,
-      event: 'accepted',
       date: '2026-10-27',
       dryRun: false,
       call: p.call,
@@ -314,18 +387,17 @@ describe('recording a board event', () => {
     expect(p.state.get('F_cycle')).toBe(7)
   })
 
-  it('plans without writing on a dry run', () => {
+  it('plans without writing on a dry run and reports no readback', () => {
     const p = project()
-    expect(
-      recordBoardEvent({
-        config: config(),
-        issue,
-        event: 'integrating',
-        date: '2026-10-27',
-        dryRun: true,
-        call: p.call,
-      }),
-    ).toMatchObject({ applied: false, writes: [{ name: 'status' }] })
+    const result = recordBoardEvent({
+      config: config('integrating'),
+      issue,
+      date: '2026-10-27',
+      dryRun: true,
+      call: p.call,
+    })
+    expect(result).toMatchObject({ applied: false, writes: [{ name: 'status' }] })
+    expect('verified' in result).toBe(false)
     expect(p.mutations()).toEqual([])
   })
 
@@ -333,9 +405,8 @@ describe('recording a board event', () => {
     const p = project({ onBoard: false })
     expect(() =>
       recordBoardEvent({
-        config: config(),
+        config: config('integrating'),
         issue,
-        event: 'integrating',
         date: '2026-10-27',
         dryRun: false,
         call: p.call,
@@ -343,20 +414,25 @@ describe('recording a board event', () => {
     ).toThrow('not on the configured Project')
   })
 
-  it('names a failed write and keeps API output out of the message', () => {
-    const p = project({ fail: 1 })
-    expect(() =>
+  it('names a failed write, keeps the skipped writes and keeps API output out of the message', () => {
+    const p = project({ fail: 0 })
+    let caught: unknown
+    try {
       recordBoardEvent({
-        config: config(),
+        config: config('dispatched'),
         issue,
-        event: 'delivered',
         date: '2026-10-27',
         dryRun: false,
         call: p.call,
-      }),
-    ).toThrow(
-      /^Board write 2 of 2 \(status\) failed\. Earlier writes stay applied\. API output omitted\.$/,
-    )
+      })
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toMatchObject({
+      message:
+        'Board write 1 of 1 (dispatchedAt) failed. Earlier writes stay applied. API output omitted.',
+      skipped: [{ name: 'line', reason: 'The card has no delivery line' }],
+    })
   })
 
   it('reports a readback that differs from the written value', () => {
@@ -367,14 +443,13 @@ describe('recording a board event', () => {
         : p.call(argv, timeout)
     expect(
       recordBoardEvent({
-        config: config(),
+        config: config('integrating'),
         issue,
-        event: 'integrating',
         date: '2026-10-27',
         dryRun: false,
         call,
       }),
-    ).toMatchObject({ verified: false, readback: { F_status: null } })
+    ).toMatchObject({ applied: true, verified: false, readback: { F_status: null } })
   })
 })
 
@@ -402,9 +477,15 @@ describe('the start-time board write', () => {
   it('does nothing without a board entry or with dispatch writes disabled', () => {
     const p = project()
     expect(dispatch({ config: delivery(v => delete v.board), call: p.call })).toEqual([])
-    expect(dispatch({ config: delivery(v => (events(v).dispatched = [])), call: p.call })).toEqual(
-      [],
-    )
+    expect(
+      dispatch({
+        config: delivery(v => {
+          events(v).dispatched = []
+          events(v).later = ['x']
+        }),
+        call: p.call,
+      }),
+    ).toEqual([])
     expect(p.calls).toEqual([])
   })
 
@@ -416,17 +497,18 @@ describe('the start-time board write', () => {
     expect(p.calls).toEqual([])
   })
 
-  it('turns every failure into report lines and never throws', () => {
+  it('turns every failure into report lines, keeps skip lines and never throws', () => {
     expect(dispatch({ config: delivery(v => (v.project.fields.line = null)) })).toEqual([
       {
         code: 'board-write-failed',
         message: 'config.board.events.dispatched enables line without its field ID',
       },
     ])
-    expect(dispatch({ call: project({ fail: 0 }).call })).toEqual([
+    expect(dispatch({ line: undefined, call: project({ fail: 0 }).call })).toEqual([
+      { code: 'board-skipped', message: 'line: The card has no delivery line' },
       {
         code: 'board-write-failed',
-        message: expect.stringMatching(/^Board write 1 of 2 \(dispatchedAt\) failed/),
+        message: expect.stringMatching(/^Board write 1 of 1 \(dispatchedAt\) failed/),
       },
     ])
     expect(dispatch({ line: undefined })).toEqual([
@@ -446,6 +528,7 @@ describe('dates and lines', () => {
     const now = new Date('2026-10-26T20:00:00Z')
     expect(calendarDay('UTC', now)).toBe('2026-10-26')
     expect(calendarDay('Asia/Shanghai', now)).toBe('2026-10-27')
+    expect(calendarDay('America/Los_Angeles', new Date('2026-01-01T03:00:00Z'))).toBe('2025-12-31')
   })
 
   it('takes the line from a v2 binding, else from one body attribute', () => {

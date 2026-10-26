@@ -1,17 +1,17 @@
 #!/usr/bin/env node
+import { factsSource } from '../integration/delivery-facts.ts'
 import { IntegrationError } from '../integration/parse.ts'
 import { readTaskBinding } from './binding.ts'
 import {
-  boardConfig,
+  boardEvent,
   boardEvents,
-  calendarDay,
+  BoardWriteError,
   cardLine,
   recordBoardEvent,
   type BoardEvent,
 } from './board.ts'
 import { readIssueCard, REST_HEADERS, runGhCommand } from './github-read.ts'
-import { calendarDate } from './milestone.ts'
-import { InputError, parseConfig, text } from './protocol.ts'
+import { calendarDate, calendarDay, InputError, parseConfig, text } from './protocol.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
 
 const usage = `Usage: board-cli.ts <${boardEvents.join('|')}> --issue <number> [--date <YYYY-MM-DD>] [--dry-run] [--config <file>]`
@@ -46,12 +46,12 @@ function options(args: string[]): {
     values.set(flag, value)
     index += 1
   }
-  const issue = Number(values.get('--issue')),
+  const issue = values.get('--issue') ?? '',
     date = values.get('--date')
-  if (!Number.isSafeInteger(issue) || issue < 1) throw new InputError(usage)
+  if (!/^#?[1-9]\d*$/.test(issue)) throw new InputError(usage)
   return {
     event,
-    issue,
+    issue: Number(issue.replace('#', '')),
     date: date === undefined ? undefined : calendarDate(date, '--date'),
     dryRun,
     config: values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json'),
@@ -59,13 +59,14 @@ function options(args: string[]): {
 }
 try {
   const args = options(process.argv.slice(2))
-  if (process.env.CCR_AGENT_PROXY_ENABLED === '1' || process.env.OMNE_DELIVERY_FACTS === 'workflow')
+  if (factsSource(process.env) === 'workflow')
     throw new InputError(
       'A cloud session cannot reach GraphQL. Run this command from a local session; for Stage alone use the delivery-stage workflow.',
     )
   const delivery = parseConfig(readJson(args.config)),
-    board = boardConfig(delivery)
-  if (board === null) throw new InputError('The delivery config has no board entry')
+    board = boardEvent(delivery, args.event)
+  if (board === null)
+    throw new InputError(`The delivery config enables no board writes for ${args.event}`)
   const repository = delivery.repository
   const card = readIssueCard(
     runGhCommand(
@@ -86,19 +87,19 @@ try {
   const result = recordBoardEvent({
     config: board,
     issue: { id, url: card.url },
-    event: args.event,
     date: args.date ?? calendarDay(board.timeZone, new Date()),
     line,
     dryRun: args.dryRun,
     call: runGhCommand,
   })
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
-  if (result.verified === false) process.exitCode = 1
+  if (result.applied && !result.verified) process.exitCode = 1
 } catch (error) {
   const message =
     error instanceof InputError || error instanceof IntegrationError
       ? error.message
       : 'Cannot read the configuration, the card or the Project. API output omitted.'
-  process.stderr.write(`${JSON.stringify({ kind: 'board-error', message })}\n`)
+  const skipped = error instanceof BoardWriteError ? { skipped: error.skipped } : {}
+  process.stderr.write(`${JSON.stringify({ kind: 'board-error', message, ...skipped })}\n`)
   process.exitCode = 2
 }

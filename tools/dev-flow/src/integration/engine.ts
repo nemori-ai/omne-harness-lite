@@ -15,7 +15,7 @@ import type { Policy } from './policy.ts'
 import { observeAdmission, type AdmissionCapture } from '../delivery/admission.ts'
 import { attributeFindings, readCardAttributes } from '../delivery/attributes.ts'
 import { cardLine, recordDispatch } from '../delivery/board.ts'
-import { runGhCommand } from '../delivery/github-read.ts'
+import { runGhCommand, type GhCommand } from '../delivery/github-read.ts'
 import type { TaskBinding } from '../delivery/binding.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { conditionCardsOf } from '../delivery/observe.ts'
@@ -45,12 +45,17 @@ export type ReportSink = (line: string) => void
 const stderrSink: ReportSink = line => {
   process.stderr.write(`${line}\n`)
 }
+/** The Project write and clock that `start` uses for the board fields; tests replace them. */
+export type BoardEffects = { call: GhCommand; now: () => Date }
+const realBoard: BoardEffects = { call: runGhCommand, now: () => new Date() }
 export async function openIntegration({
   root,
   report = stderrSink,
+  board = realBoard,
 }: {
   root: string
   report?: ReportSink
+  board?: BoardEffects
 }): Promise<IntegrationEngine> {
   const actual = repository(root).root
   return {
@@ -66,7 +71,7 @@ export async function openIntegration({
       switch (command.kind) {
         case 'register':
         case 'start':
-          return start(actual, command, report)
+          return start(actual, command, report, board)
         case 'task-sync':
           return taskSync(actual, command.target)
       }
@@ -77,6 +82,7 @@ async function start(
   root: string,
   command: Extract<Command, { kind: 'register' | 'start' }>,
   report: ReportSink,
+  board: BoardEffects,
 ): Promise<Context> {
   const source = factsSource(process.env),
     state = taskWorkspace(root),
@@ -124,7 +130,7 @@ async function start(
     report,
   })
   // Only a new binding stamps Dispatched at; rerunning start on a bound tree keeps the first date.
-  if (created) reportBoard({ config, cloud: source === 'workflow', task, report })
+  if (created) reportBoard({ config, cloud: source === 'workflow', task, report, board })
   return context
 }
 /** The context of an admitted task: the existing one for the same task, or a new one. */
@@ -222,11 +228,13 @@ function reportBoard({
   cloud,
   task,
   report,
+  board,
 }: {
   config: DeliveryConfig
   cloud: boolean
   task: { binding: TaskBinding; issue: CapturedIssue }
   report: ReportSink
+  board: BoardEffects
 }): void {
   const line = (finding: { code: string; message: string }) => {
     try {
@@ -241,8 +249,8 @@ function reportBoard({
       cloud,
       issue: { id: task.binding.issue.id, url: task.binding.issue.url },
       line: cardLine(task.binding, readCardAttributes(task.issue.body, task.issue)),
-      now: new Date(),
-      call: runGhCommand,
+      now: board.now(),
+      call: board.call,
     }))
       line(finding)
   } catch (error) {

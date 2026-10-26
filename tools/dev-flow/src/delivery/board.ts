@@ -2,8 +2,16 @@ import { IntegrationError } from '../integration/parse.ts'
 import type { TaskBinding } from './binding.ts'
 import type { CardAttributes } from './attributes.ts'
 import type { GhCommand } from './github-read.ts'
-import { calendarDate } from './milestone.ts'
-import { array, InputError, record, text, type DeliveryConfig } from './protocol.ts'
+import {
+  array,
+  calendarDate,
+  calendarDay,
+  daysBetween,
+  InputError,
+  record,
+  text,
+  type DeliveryConfig,
+} from './protocol.ts'
 
 const TIMEOUT_MS = 15_000
 
@@ -32,123 +40,110 @@ const EVENT_STATUS = {
   integrating: 'Integrating',
   accepted: 'Accepted',
 } as const satisfies Record<BoardEvent, string | undefined>
-/** The date field each event stamps. */
-const EVENT_DATE = {
-  dispatched: 'dispatchedAt',
-  delivered: 'deliveredAt',
-  integrating: undefined,
-  accepted: 'acceptedAt',
-} as const satisfies Record<BoardEvent, WriteName | undefined>
 
-type SelectField = { id: string | null; options: Record<string, string> }
-/** The board writes of the delivery config with the field and option IDs they use. */
-export type BoardConfig = {
+/**
+ * One enabled write with everything it needs, parsed from the delivery config: the field ID
+ * and, for a single select, its option. A date write stamps the event's date field.
+ */
+export type EnabledWrite =
+  | { name: 'dispatchedAt' | 'deliveredAt' | 'acceptedAt'; field: string }
+  | { name: 'cycleDays'; field: string; dispatchedField: string }
+  | { name: 'line'; field: string; options: ReadonlyMap<string, string> }
+  | { name: 'status'; field: string; option: string; status: string }
+/** The board writes of one event. */
+export type BoardEventConfig = {
   projectId: string
   /** The IANA time zone that turns the run instant into the calendar date of a date field. */
   timeZone: string
-  fields: {
-    status: SelectField
-    line: SelectField
-    dispatchedAt: string | null
-    deliveredAt: string | null
-    acceptedAt: string | null
-    cycleDays: string | null
-  }
-  events: Record<BoardEvent, WriteName[]>
+  event: BoardEvent
+  writes: EnabledWrite[]
 }
 
-/** The field ID each write needs; status writes need the Stage field. */
-function fieldOf(config: DeliveryConfig, name: WriteName): string | null {
-  return name === 'status' ? config.project.fields.stage : config.project.fields[name]
+function requireField(id: string | null, event: BoardEvent, name: WriteName): string {
+  if (id === null)
+    throw new IntegrationError(
+      'input-error',
+      `config.board.events.${event} enables ${name} without its field ID`,
+    )
+  return id
+}
+function parseWrite(config: DeliveryConfig, event: BoardEvent, name: WriteName): EnabledWrite {
+  const { fields, options } = config.project
+  switch (name) {
+    case 'dispatchedAt':
+    case 'deliveredAt':
+    case 'acceptedAt':
+      return { name, field: requireField(fields[name], event, name) }
+    case 'cycleDays':
+      return {
+        name,
+        field: requireField(fields.cycleDays, event, name),
+        dispatchedField: requireField(fields.dispatchedAt, event, name),
+      }
+    case 'line':
+      return {
+        name,
+        field: requireField(fields.line, event, name),
+        options: new Map(Object.entries(options.line)),
+      }
+    case 'status': {
+      const status = EVENT_STATUS[event]
+      const option =
+        status !== undefined && Object.hasOwn(options.stage, status)
+          ? options.stage[status]
+          : undefined
+      if (status === undefined || option === undefined)
+        throw new IntegrationError(
+          'input-error',
+          `config.project.options.stage lacks ${status ?? 'a Stage for ' + event}`,
+        )
+      return { name, field: requireField(fields.stage, event, name), option, status }
+    }
+    default: {
+      const exhaustive: never = name
+      throw new IntegrationError('invariant', `Unknown board write ${String(exhaustive)}`)
+    }
+  }
 }
 /**
- * Reads the board writes of the delivery config; null when the config has no `board` entry.
- * Each event may enable only its own writes, each once, and an absent event enables nothing.
- * Every enabled write needs its field ID, and a Stage write needs its target option.
+ * Reads the board writes of one event from the delivery config. Returns null when the config
+ * has no `board` entry or the event enables nothing, without judging the rest of the entry.
+ * Otherwise the Project ID, time zone and event names must be valid, the event may enable only
+ * its own writes, each once, and each enabled write must have its field ID and option.
  */
-export function boardConfig(config: DeliveryConfig): BoardConfig | null {
+export function boardEvent(config: DeliveryConfig, event: BoardEvent): BoardEventConfig | null {
   const board = config.board
-  if (board === null) return null
+  const names = board === null ? [] : (board.events[event] ?? [])
+  if (board === null || names.length === 0) return null
   const projectId = config.project.id
   if (projectId === null)
     throw new IntegrationError('input-error', 'config.project.id is required for board writes')
   try {
-    new Intl.DateTimeFormat('en-CA', { timeZone: board.timeZone })
+    new Intl.DateTimeFormat('en-US', { timeZone: board.timeZone })
   } catch {
     throw new IntegrationError('input-error', 'config.board.timeZone must be an IANA time zone')
   }
-  const unknown = Object.keys(board.events).filter(
-    event => !boardEvents.some(item => item === event),
-  )
+  const unknown = Object.keys(board.events).filter(name => !boardEvents.some(item => item === name))
   if (unknown.length > 0)
     throw new IntegrationError(
       'input-error',
       `config.board.events: unknown events ${unknown.join(', ')}`,
     )
-  const enabled = (event: BoardEvent): WriteName[] => {
-    const allowed: readonly WriteName[] = EVENT_WRITES[event]
-    const names = (board.events[event] ?? []).map(name => {
-      const found = allowed.find(item => item === name)
-      if (found === undefined)
-        throw new IntegrationError(
-          'input-error',
-          `config.board.events.${event} cannot enable ${name}`,
-        )
-      if (
-        fieldOf(config, found) === null ||
-        (found === 'cycleDays' && config.project.fields.dispatchedAt === null)
+  const allowed: readonly WriteName[] = EVENT_WRITES[event]
+  const writes = names.map(name => {
+    const found = allowed.find(item => item === name)
+    if (found === undefined)
+      throw new IntegrationError(
+        'input-error',
+        `config.board.events.${event} cannot enable ${name}`,
       )
-        throw new IntegrationError(
-          'input-error',
-          `config.board.events.${event} enables ${name} without its field ID`,
-        )
-      return found
-    })
-    if (new Set(names).size !== names.length)
-      throw new IntegrationError('input-error', `config.board.events.${event} names a write twice`)
-    const status = EVENT_STATUS[event]
-    if (
-      status !== undefined &&
-      names.includes('status') &&
-      !(status in config.project.options.stage)
-    )
-      throw new IntegrationError('input-error', `config.project.options.stage lacks ${status}`)
-    return names
-  }
-  const { fields, options } = config.project
-  return {
-    projectId,
-    timeZone: board.timeZone,
-    fields: {
-      status: { id: fields.stage, options: options.stage },
-      line: { id: fields.line, options: options.line },
-      dispatchedAt: fields.dispatchedAt,
-      deliveredAt: fields.deliveredAt,
-      acceptedAt: fields.acceptedAt,
-      cycleDays: fields.cycleDays,
-    },
-    events: {
-      dispatched: enabled('dispatched'),
-      delivered: enabled('delivered'),
-      integrating: enabled('integrating'),
-      accepted: enabled('accepted'),
-    },
-  }
+    return parseWrite(config, event, found)
+  })
+  if (new Set(names).size !== names.length)
+    throw new IntegrationError('input-error', `config.board.events.${event} names a write twice`)
+  return { projectId, timeZone: board.timeZone, event, writes }
 }
 
-/** The calendar date of `now` in `zone`, as `YYYY-MM-DD`. */
-export function calendarDay(zone: string, now: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now)
-}
-/** Whole days from `from` to `to`, both `YYYY-MM-DD`. */
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
-}
 /** The line a card was dispatched to: the v2 binding's, else the body attribute. */
 export function cardLine(
   binding: TaskBinding | undefined,
@@ -166,64 +161,87 @@ export type FieldValue =
 export type FieldWrite = { name: WriteName; field: string; value: FieldValue }
 export type SkippedWrite = { name: WriteName; reason: string }
 /**
- * Plans the enabled writes of one event. `date` stamps the event's date field. `line` feeds
- * the Line field and `dispatchedAt` the Cycle days. A write whose input is missing or has no
- * configured option is skipped with its reason instead of guessed.
+ * Plans the writes of one event. `date` stamps the event's date field. `current` is the item's
+ * field values read before the writes: Dispatched at is written only while it is empty, and
+ * Cycle days counts from it. A write whose input is missing or invalid is skipped with its
+ * reason instead of guessed.
  */
 export function planBoardWrites({
   config,
-  event,
   date,
   line,
-  dispatchedAt,
+  current,
 }: {
-  config: BoardConfig
-  event: BoardEvent
+  config: BoardEventConfig
   date: string
   line?: string | undefined
-  dispatchedAt?: string | null | undefined
+  current: ReadonlyMap<string, string | number>
 }): { writes: FieldWrite[]; skipped: SkippedWrite[] } {
   const writes: FieldWrite[] = [],
     skipped: SkippedWrite[] = []
-  // boardConfig already refuses an enabled write without its field ID; null is still total here.
-  const push = (name: WriteName, field: string | null, value: FieldValue) => {
-    if (field === null) skipped.push({ name, reason: `The ${name} field ID is not registered` })
-    else writes.push({ name, field, value })
-  }
-  for (const name of config.events[event]) {
-    switch (name) {
-      case 'dispatchedAt':
+  for (const write of config.writes) {
+    switch (write.name) {
+      case 'dispatchedAt': {
+        const existing = current.get(write.field)
+        if (existing !== undefined)
+          skipped.push({ name: write.name, reason: `Dispatched at is already ${String(existing)}` })
+        else writes.push({ name: write.name, field: write.field, value: { kind: 'date', date } })
+        break
+      }
       case 'deliveredAt':
       case 'acceptedAt':
-        if (EVENT_DATE[event] === name) push(name, config.fields[name], { kind: 'date', date })
+        writes.push({ name: write.name, field: write.field, value: { kind: 'date', date } })
         break
       case 'cycleDays': {
-        if (dispatchedAt === undefined || dispatchedAt === null) {
-          skipped.push({ name, reason: 'Dispatched at is empty' })
+        const dispatched = current.get(write.dispatchedField)
+        if (dispatched === undefined) {
+          skipped.push({ name: write.name, reason: 'Dispatched at is empty' })
           break
         }
-        const days = daysBetween(dispatchedAt, date)
+        let from: string
+        try {
+          from = calendarDate(String(dispatched), 'Dispatched at')
+        } catch {
+          skipped.push({
+            name: write.name,
+            reason: `Dispatched at ${String(dispatched)} is not a calendar date`,
+          })
+          break
+        }
+        const days = daysBetween(from, date)
         if (days < 0)
-          skipped.push({ name, reason: `Dispatched at ${dispatchedAt} is after ${date}` })
-        else push(name, config.fields.cycleDays, { kind: 'number', number: days })
+          skipped.push({ name: write.name, reason: `Dispatched at ${from} is after ${date}` })
+        else
+          writes.push({
+            name: write.name,
+            field: write.field,
+            value: { kind: 'number', number: days },
+          })
         break
       }
       case 'line': {
-        const option = line === undefined ? undefined : config.fields.line.options[line]
-        if (line === undefined) skipped.push({ name, reason: 'The card has no delivery line' })
-        else if (option === undefined) skipped.push({ name, reason: `Line has no option ${line}` })
-        else push(name, config.fields.line.id, { kind: 'option', option, name: line })
+        const option = line === undefined ? undefined : write.options.get(line)
+        if (line === undefined)
+          skipped.push({ name: write.name, reason: 'The card has no delivery line' })
+        else if (option === undefined)
+          skipped.push({ name: write.name, reason: `Line has no option ${line}` })
+        else
+          writes.push({
+            name: write.name,
+            field: write.field,
+            value: { kind: 'option', option, name: line },
+          })
         break
       }
-      case 'status': {
-        const status = EVENT_STATUS[event],
-          option = status === undefined ? undefined : config.fields.status.options[status]
-        if (status !== undefined && option !== undefined)
-          push(name, config.fields.status.id, { kind: 'option', option, name: status })
+      case 'status':
+        writes.push({
+          name: write.name,
+          field: write.field,
+          value: { kind: 'option', option: write.option, name: write.status },
+        })
         break
-      }
       default: {
-        const exhaustive: never = name
+        const exhaustive: never = write
         throw new IntegrationError('invariant', `Unknown board write ${String(exhaustive)}`)
       }
     }
@@ -252,7 +270,7 @@ function graphql(
 }
 /** The card's unique item in the configured Project; a card off the board is an input error. */
 function projectItem(
-  config: BoardConfig,
+  projectId: string,
   issueId: string,
   issueUrl: string,
   call: GhCommand,
@@ -265,7 +283,7 @@ function projectItem(
     throw new InputError('The card has more than 100 Project items')
   const matching = array(items.nodes, 'projectItems.nodes')
     .map(item => record(item, 'Project item'))
-    .filter(item => record(item.project, 'item.project').id === config.projectId)
+    .filter(item => record(item.project, 'item.project').id === projectId)
   const item = matching[0]
   if (matching.length !== 1 || item === undefined)
     throw new InputError('The card is not on the configured Project, or is on it twice')
@@ -273,12 +291,12 @@ function projectItem(
 }
 /** Field ID to its current value: a date, a number or a single select option ID. */
 function itemValues(
-  config: BoardConfig,
+  projectId: string,
   item: string,
   call: GhCommand,
 ): Map<string, string | number> {
   const node = record(graphql(call, VALUES, ['-f', `id=${item}`]).node, 'Project item node')
-  if (node.id !== item || record(node.project, 'item.project').id !== config.projectId)
+  if (node.id !== item || record(node.project, 'item.project').id !== projectId)
     throw new InputError('Project item identity mismatch')
   const values = record(node.fieldValues, 'fieldValues')
   if (record(values.pageInfo, 'fieldValues.pageInfo').hasNextPage !== false)
@@ -301,7 +319,7 @@ function itemValues(
   return result
 }
 /** The GraphQL variables of one field write, as `gh api graphql` field arguments. */
-function updateVariables(config: BoardConfig, item: string, write: FieldWrite): string[] {
+function updateVariables(projectId: string, item: string, write: FieldWrite): string[] {
   const value =
     write.value.kind === 'date'
       ? ['-f', `value[date]=${write.value.date}`]
@@ -310,7 +328,7 @@ function updateVariables(config: BoardConfig, item: string, write: FieldWrite): 
         : ['-f', `value[singleSelectOptionId]=${write.value.option}`]
   return [
     '-f',
-    `project=${config.projectId}`,
+    `project=${projectId}`,
     '-f',
     `item=${item}`,
     '-f',
@@ -326,73 +344,85 @@ function expected(write: FieldWrite): string | number {
       : write.value.option
 }
 
-export type BoardResult = {
+type BoardPlan = {
   issue: string
   event: BoardEvent
   date: string
   item: string
   writes: FieldWrite[]
   skipped: SkippedWrite[]
-  applied: boolean
-  /** Field ID to the value read back after the writes; absent on a dry run. */
-  readback?: Record<string, string | number | null>
-  verified?: boolean
+}
+/** A dry run plans only; an applied run carries the readback of every written field. */
+export type BoardResult =
+  | (BoardPlan & { applied: false })
+  | (BoardPlan & {
+      applied: true
+      /** Field ID to the value read back after the writes. */
+      readback: Record<string, string | number | null>
+      verified: boolean
+    })
+/**
+ * A write that failed after planning. It keeps the skipped writes and names the failed one;
+ * the earlier writes stay applied.
+ */
+export class BoardWriteError extends InputError {
+  readonly skipped: SkippedWrite[]
+  constructor(message: string, skipped: SkippedWrite[]) {
+    super(message)
+    this.name = 'BoardWriteError'
+    this.skipped = skipped
+  }
 }
 /**
- * Writes the enabled fields of one event on the card's Project item, then reads them back.
- * Each field is one `updateProjectV2ItemFieldValue` request; a failed write stops the run and
- * names its position, and the earlier writes stay. `dryRun` reads the item and plans only.
+ * Writes the planned fields of one event on the card's Project item, then reads them back.
+ * The item's field values are read once before planning. Each field is one
+ * `updateProjectV2ItemFieldValue` request; a failed write stops the run with a
+ * `BoardWriteError`. `dryRun` reads and plans only.
  */
 export function recordBoardEvent({
   config,
   issue,
-  event,
   date,
   line,
   dryRun,
   call,
 }: {
-  config: BoardConfig
+  config: BoardEventConfig
   issue: { id: string; url: string }
-  event: BoardEvent
   date: string
   line?: string | undefined
   dryRun: boolean
   call: GhCommand
 }): BoardResult {
   calendarDate(date, 'date')
-  const item = projectItem(config, issue.id, issue.url, call)
-  const dispatchedField = config.fields.dispatchedAt
-  const dispatchedAt =
-    config.events[event].includes('cycleDays') && dispatchedField !== null
-      ? itemValues(config, item, call).get(dispatchedField)
-      : undefined
-  const { writes, skipped } = planBoardWrites({
-    config,
-    event,
-    date,
-    line,
-    dispatchedAt: typeof dispatchedAt === 'string' ? dispatchedAt : null,
-  })
-  const result = { issue: issue.url, event, date, item, writes, skipped }
-  if (dryRun) return { ...result, applied: false }
+  const item = projectItem(config.projectId, issue.id, issue.url, call)
+  const reads = config.writes.some(
+    write => write.name === 'dispatchedAt' || write.name === 'cycleDays',
+  )
+  const current = reads ? itemValues(config.projectId, item, call) : new Map<string, string>()
+  const { writes, skipped } = planBoardWrites({ config, date, line, current })
+  const plan: BoardPlan = { issue: issue.url, event: config.event, date, item, writes, skipped }
+  if (dryRun) return { ...plan, applied: false }
   writes.forEach((write, index) => {
     try {
-      const data = graphql(call, UPDATE_FIELD, updateVariables(config, item, write))
+      const data = graphql(call, UPDATE_FIELD, updateVariables(config.projectId, item, write))
       record(data.updateProjectV2ItemFieldValue, 'updateProjectV2ItemFieldValue')
     } catch {
-      throw new InputError(
+      throw new BoardWriteError(
         `Board write ${index + 1} of ${writes.length} (${write.name}) failed. Earlier writes stay applied. API output omitted.`,
+        skipped,
       )
     }
   })
   const values =
-    writes.length === 0 ? new Map<string, string | number>() : itemValues(config, item, call)
+    writes.length === 0
+      ? new Map<string, string | number>()
+      : itemValues(config.projectId, item, call)
   const readback = Object.fromEntries(
     writes.map(write => [write.field, values.get(write.field) ?? null]),
   )
   return {
-    ...result,
+    ...plan,
     applied: true,
     readback,
     verified: writes.every(write => readback[write.field] === expected(write)),
@@ -404,9 +434,11 @@ export type BoardReport = {
   code: 'board-skipped' | 'board-write-failed' | 'board-unverified'
   message: string
 }
+const skipLines = (skipped: readonly SkippedWrite[]): BoardReport[] =>
+  skipped.map(skip => ({ code: 'board-skipped', message: `${skip.name}: ${skip.reason}` }))
 /**
  * The best-effort board write after a new task context: Dispatched at and Line. It never
- * throws. A delivery config without a `board` entry means the board is not configured, and
+ * throws. When the delivery config has no `board` entry or `dispatched` enables nothing,
  * nothing is written or reported. A cloud session cannot reach GraphQL, so it reports one skip
  * line and sends nothing.
  */
@@ -426,8 +458,8 @@ export function recordDispatch({
   call: GhCommand
 }): BoardReport[] {
   try {
-    const board = boardConfig(config)
-    if (board === null || board.events.dispatched.length === 0) return []
+    const board = boardEvent(config, 'dispatched')
+    if (board === null) return []
     if (cloud)
       return [
         {
@@ -439,18 +471,14 @@ export function recordDispatch({
     const result = recordBoardEvent({
       config: board,
       issue,
-      event: 'dispatched',
       date: calendarDay(board.timeZone, now),
       line,
       dryRun: false,
       call,
     })
     return [
-      ...result.skipped.map(skip => ({
-        code: 'board-skipped' as const,
-        message: `${skip.name}: ${skip.reason}`,
-      })),
-      ...(result.verified === false
+      ...skipLines(result.skipped),
+      ...(result.applied && !result.verified
         ? [
             {
               code: 'board-unverified' as const,
@@ -461,6 +489,7 @@ export function recordDispatch({
     ]
   } catch (error) {
     return [
+      ...(error instanceof BoardWriteError ? skipLines(error.skipped) : []),
       {
         code: 'board-write-failed',
         message:

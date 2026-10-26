@@ -18,7 +18,12 @@ function parse(args: string[], allowed: readonly string[]): Parsed {
     const arg = args[index] ?? ''
     if (arg.startsWith('--')) {
       const value = args[index + 1]
-      if (!allowed.includes(arg) || value === undefined || values.has(arg))
+      if (
+        !allowed.includes(arg) ||
+        value === undefined ||
+        value.startsWith('--') ||
+        values.has(arg)
+      )
         throw new InputError(usage)
       values.set(arg, value)
       index += 1
