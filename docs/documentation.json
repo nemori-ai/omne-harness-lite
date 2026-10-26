@@ -4492,6 +4492,34 @@
       ]
     },
     {
+      "id": "docs#orientation",
+      "path": "docs/orientation.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "domain-map",
+          "anchor": "领域地图"
+        },
+        {
+          "id": "collaboration",
+          "anchor": "协作"
+        },
+        {
+          "id": "top-level-architecture",
+          "anchor": "顶层架构"
+        }
+      ]
+    },
+    {
       "id": "docs#rfcs#RFC-0001",
       "path": "docs/rfcs/RFC-0001-technical-foundations.md",
       "kind": "architecture",

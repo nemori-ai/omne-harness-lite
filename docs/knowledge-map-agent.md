@@ -24,6 +24,7 @@
 | 项目目标、阶段及全局要求 | [docs/requirements.md](requirements.md) | 旧要求不能补入新条款；有效未决验收条件保持缺项 |
 | 独立设计目标及本项目要求的meta导航 | [.meta_harness/design/foundation/](../.meta_harness/design/foundation/README.md) | 本项目现行要求仍只归docs/requirements.md，迁出工作区不能自动给其他项目授予本项目目标 |
 | 产品需求/旅程、能力及实现状态、版本承诺、未决 | [.meta_harness/design/product/](../.meta_harness/design/product/README.md) | 模块聚焦业务，框架允许配置与扩展；能力支持来自绑定版本及覆盖的证据，不能从目标目录推定 |
+| 开工前的领域地图、核心四项方向及顶层分层与单机进程图 | [docs/orientation.md](orientation.md) | 解释投影，每图带状态（已接受正文、首条路径已装载、已知冲突待裁、已裁定待写回）与出处；不拥有结论，冲突交出处拥有者 |
 | 全系统分解、分层、生命周期、数据、安全、部署及集成保证 | [docs/architecture/](architecture/README.md) | 描述应然；系统未决集中由该区README导航。Cordis是装配与生命周期内核，领域独立建模 |
 | 领域责任、逻辑模块、事实拥有者、允许协作、组合验证 | [docs/domains/](domains/README.md) | 不复制成员字段、状态协议、算法或完整SPEC；精确技术未决链接实际拥有者 |
 | 目标能力组、包边界、SDK及新增扩展 | [docs/package-organization.md](package-organization.md)、[docs/workspace.md](workspace.md) | 前者维护目标组织，后者维护源码归属与实际工具边界；新目录不批准实施 |
