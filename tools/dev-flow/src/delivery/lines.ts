@@ -243,8 +243,12 @@ export function scopeOwners(table: DeliveryLines, path: string): Set<string> {
       .map(entry => entry.owner),
   ])
 }
-export function isShared(table: DeliveryLines, path: string): boolean {
+function isShared(table: DeliveryLines, path: string): boolean {
   return table.shared.some(shared => under(path, shared))
+}
+/** True for a write scope entry that does not count for ownership: task tmp or a shared path. */
+export function isOpenScope(table: DeliveryLines, path: string): boolean {
+  return under(path, 'tmp') || isShared(table, path)
 }
 export function findLine(table: DeliveryLines, id: string): DeliveryLine | undefined {
   return table.lines.find(line => line.id === id)

@@ -4,7 +4,7 @@ import { bodyFields, bodySections } from './body.ts'
 import {
   findLine,
   INTEGRATION_LINE,
-  isShared,
+  isOpenScope,
   scopeOwners,
   targetTrack,
   under,
@@ -228,7 +228,7 @@ function bindingFindings(
 
 /** Write scope entries that count for ownership: task tmp is ignored by Git, shared is open. */
 function ownedScope(binding: TaskBinding, lines: DeliveryLines): string[] {
-  return binding.writeScope.filter(path => !under(path, 'tmp') && !isShared(lines, path))
+  return binding.writeScope.filter(path => !isOpenScope(lines, path))
 }
 function routeFindings(
   binding: TaskBinding,

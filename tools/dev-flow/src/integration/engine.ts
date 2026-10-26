@@ -14,6 +14,8 @@ import { json, same, IntegrationError } from './parse.ts'
 import type { Policy } from './policy.ts'
 import { observeAdmission, type AdmissionCapture } from '../delivery/admission.ts'
 import { attributeFindings, readCardAttributes } from '../delivery/attributes.ts'
+import { BOARD_CONFIG_PATH, cardLine, recordDispatch } from '../delivery/board.ts'
+import { runGhCommand } from '../delivery/github-read.ts'
 import type { TaskBinding } from '../delivery/binding.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { conditionCardsOf } from '../delivery/observe.ts'
@@ -105,7 +107,7 @@ async function start(
   requireAncestor(root, task.binding.taskBase, info.head)
   const { ref: target, head: targetBase } = checkUpstream(root, state.policy, task.binding.route)
   confirmConditions(config, capture, task.binding, target, decision.confirmations, state.policy)
-  const context = bind(root, state.context, task.binding, info, targetBase, () =>
+  const { context, created } = bind(root, state.context, task.binding, info, targetBase, () =>
     same(
       admissionDigest(currentAdmission(config, scope, facts?.project)),
       admissionDigest(capture),
@@ -121,6 +123,16 @@ async function start(
     task,
     report,
   })
+  // Only a new binding stamps Dispatched at; rerunning start on a bound tree keeps the first date.
+  if (created)
+    reportBoard({
+      root,
+      commit: state.source.commit,
+      config,
+      cloud: source === 'workflow',
+      task,
+      report,
+    })
   return context
 }
 /** The context of an admitted task: the existing one for the same task, or a new one. */
@@ -131,14 +143,14 @@ function bind(
   info: ReturnType<typeof repository>,
   targetBase: string,
   readback: () => void,
-): Context {
+): { context: Context; created: boolean } {
   if (existing !== null) {
     same(
       existing.ownerTask,
       binding,
       'Worktree is already bound to another task; explicit new tree required',
     )
-    return existing
+    return { context: existing, created: false }
   }
   readback()
   const context: Context = {
@@ -152,7 +164,7 @@ function bind(
     operation: null,
   }
   writeContext(root, context)
-  return context
+  return { context, created: true }
 }
 /**
  * Writes the attribute findings of an admitted task, one JSON line each with severity
@@ -204,6 +216,53 @@ function reportAttributes({
     line({
       code: 'attribute-rules-unavailable',
       message: error instanceof Error ? error.message : 'Attribute findings failed',
+    })
+  }
+}
+/**
+ * Writes Dispatched at and Line on the task's Project item after a new context, best effort.
+ * The board config comes from the same commit as the policy; a commit without it means the
+ * board is not configured and nothing is written or reported. Every failure becomes a report
+ * line: a board write never refuses a start or changes its result.
+ */
+function reportBoard({
+  root,
+  commit,
+  config,
+  cloud,
+  task,
+  report,
+}: {
+  root: string
+  commit: string
+  config: DeliveryConfig
+  cloud: boolean
+  task: { binding: TaskBinding; issue: CapturedIssue }
+  report: ReportSink
+}): void {
+  const line = (finding: { code: string; message: string }) => {
+    try {
+      report(JSON.stringify({ severity: 'report', issue: task.issue.url, ...finding }))
+    } catch {
+      // A failing report sink loses the report; it must not change the start result.
+    }
+  }
+  try {
+    const file = maybeBlob(root, commit, BOARD_CONFIG_PATH)
+    for (const finding of recordDispatch({
+      configText: file === null ? null : file.text,
+      projectId: config.project.id ?? '',
+      cloud,
+      issue: { id: task.binding.issue.id, url: task.binding.issue.url },
+      line: cardLine(task.binding, readCardAttributes(task.issue.body, task.issue)),
+      now: new Date(),
+      call: runGhCommand,
+    }))
+      line(finding)
+  } catch (error) {
+    line({
+      code: 'board-write-failed',
+      message: error instanceof Error ? error.message : 'Board write failed',
     })
   }
 }

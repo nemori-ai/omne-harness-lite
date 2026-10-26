@@ -1,6 +1,6 @@
 # 只读交付观察规格
 
-本模块观察 GitHub 交付协议的结构和已读事实。它不修改平台，不接受成果，不派发任务，长期产品与持续场景由[产品契约](../../../repo-toolchain/src/product/SPEC.md)独立发现。
+本模块观察 GitHub 交付协议的结构和已读事实。观察不修改平台。只有标签同步、里程碑命令与看板字段写入三组命令写平台，各自的范围见下文。本模块不接受成果，不派发任务，长期产品与持续场景由[产品契约](../../../repo-toolchain/src/product/SPEC.md)独立发现。
 
 ## 输入与绑定
 
@@ -66,7 +66,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 持续验证与限制
 
-`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改三族、读回核对、拒绝与写入失败。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
+`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改三族、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、重复来源与 binding 读取。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败与配置校验。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
 
 真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
 
@@ -111,3 +111,28 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 调用方提供已采用的 Project 事实（`AdmissionProject`：Project ID、item 与 Stage）时，采集跳过上述 Project 读取，不发 GraphQL 请求。采集只核对事实的 Project ID 等于配置的 Project ID，并且 item 非空，然后把事实中的 Stage 记为任务 Stage。事实的来源负责确认 membership 与 Stage 字段。integration 在云端开工时提供这份事实，采用条件归[云端事实来源](../integration/SPEC.md#云端事实来源)。
 
 准入观察仅返回目标卡及其 findings。内部投影使用 `issues:partial`、`project:unknown`，保留配置绑定、目标偏离和原生关系对账。该投影不接受 baseline，也不输出全库报告。全库重复创建标识及循环覆盖仍归 `observeDelivery` 的全仓观察。
+
+## 写范围求交
+
+`scopeOverlap(cards, lines)` 是纯函数。每张卡的写范围先去掉不计入的路径：`tmp` 及其下的路径，以及线归属表 `shared` 中的路径及其下的路径，规则与属性发现的写范围归属相同。剩下的路径在不同卡之间两两比较。两条路径相同，或一条是另一条下面的路径（按 `/` 分段的目录前缀），即为一个冲突对。同一张卡内的路径不互相比较。同一来源出现两次是输入错误。
+
+`issueScope` 以固定 argv 经 `gh api` GET 读一张卡，复用 `readIssueCard` 与 `readTaskBinding`：卡身份不符、是 PR、没有 binding 或 binding 不合格时拒绝。`fileScope` 读 binding JSON 对象，或只含一个 binding 区块的文本，按 `parseTaskBinding` 校验。命令只读，有冲突对时退出1，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
+
+## 里程碑命令
+
+`createMilestone` 先分页读仓库全部里程碑，按标题精确匹配。同名多于一个时拒绝。同名且截止日的日期部分等于请求日期时返回已有里程碑，不写。同名而日期不同时拒绝。否则以 POST 建里程碑，`due_on` 为请求日期的 `12:00:00Z`，再以响应中的 `due_on` 判断 `verified`。标题须为一行且不含 `-->`。日期须为真实存在的 `YYYY-MM-DD`。
+
+`carryMilestone` 在第一次写入前完成全部读取与核对：两个里程碑都存在且不同，原因为一行非空文字，卡号不重复，每张卡的里程碑是 A 或 B。任何一项不满足都不写入。每张卡最多两次写入：卡不在 B 时 PATCH 里程碑，卡上没有同一 A 到 B 的流转评论时 POST 评论。流转评论由 `carryComment` 生成，`isCarryComment` 只认第一行标记中 `from` 与 `to` 都相同的评论。写入按卡号顺序串行执行。某次写入失败时报告序号并停止，不回滚。写入后逐卡再读，`verified` 为读回的里程碑等于 B。命令不读或修改 binding。
+
+`createMilestoneView` 读 Project 的视图列表。同名视图存在时返回它，不写。否则用 `createProjectV2View` 建 `BOARD_LAYOUT` 视图，再用 `updateProjectV2View` 设过滤。Projects API 不能设置分组、泳道、排序与列字段，这些步骤由 `MILESTONE_VIEW_MANUAL_STEPS` 输出。
+
+## 看板字段写入
+
+`parseBoardConfig` 拒绝未知键。四个事件各自只能启用表中属于自己的写入，同一写入不能列两次。启用了 Status 写入的事件，其目标选项（In review、Integrating、Accepted）必须在 `fields.status.options` 中。`timeZone` 必须是运行环境认可的 IANA 时区。
+
+`planBoardWrites` 只规划事件启用的写入：本事件的日期字段写 `date`，Line 写交付线对应的选项，Status 写本事件的目标选项，Cycle days 写 `date` 与 Dispatched at 相差的整天数。缺少交付线、交付线没有选项、Dispatched at 为空或晚于 `date` 时，该项进入 `skipped` 并写明原因，不猜测取值。
+
+`recordBoardEvent` 先读卡在配置 Project 中唯一的条目（Issue 节点的 `projectItems`，含已归档条目），没有或多于一个时拒绝。启用 Cycle days 时再读条目的字段值取得 Dispatched at。每项写入是一次 `updateProjectV2ItemFieldValue`，查询文本固定，Project、条目、字段与值作为 GraphQL 变量传入：日期为 `value[date]`，数字以 `-F value[number]` 按数值传入，单选为 `value[singleSelectOptionId]`。写入串行执行，失败时报告序号与写入名并停止，不回滚。写完后读回各字段，`verified` 表示每个字段等于写入值。`dryRun` 只读取与规划。错误消息不含 API 原文。
+
+`recordDispatch` 是 `start` 使用的入口，不抛出。提交中没有看板配置时返回空，不报告。配置关闭全部写入或 `dispatched` 没有启用写入时返回空。配置的 Project 与交付配置不同、云端会话、配置不合格、读写失败、跳过的写入与读回不符各返回报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。日期是调用时刻在配置时区中的日期。
+

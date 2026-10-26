@@ -110,6 +110,8 @@ export function integrationFixture(
     admissionOnly?: boolean
     /** Commits this value as docs/engineering/delivery-lines.json with the fixture policy. */
     lines?: unknown
+    /** Commits this value as tools/dev-flow/config/project-board.json with the fixture policy. */
+    board?: unknown
   } = {},
 ) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-integration-engine-'))),
@@ -145,6 +147,13 @@ export function integrationFixture(
   )
   if (options.lines !== undefined)
     writeFileSync(join(root, 'docs/engineering/delivery-lines.json'), JSON.stringify(options.lines))
+  if (options.board !== undefined) {
+    mkdirSync(join(root, 'tools/dev-flow/config'), { recursive: true })
+    writeFileSync(
+      join(root, 'tools/dev-flow/config/project-board.json'),
+      JSON.stringify(options.board),
+    )
+  }
   git(root, ['add', '.'])
   git(root, ['commit', '-m', 'Committed fixture policy'])
   const main = git(root, ['rev-parse', 'HEAD'])
