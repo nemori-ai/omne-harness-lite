@@ -2,7 +2,7 @@ version: 1
 role: diagnostician
 binding:
   native_sha256: 0663d41b5faa6c7e709d46de81575fee14a27a8e2003b22d96b2264552c406d7
-  prompt_sha256: 46f25771b4ac1439236a5c38a79c0cb1090367fd22ae4a1a05c6cf03dbfbc564
+  prompt_sha256: baebedfc54664a9e242d016af131f9146cff26b5195601a6ffd67b30cffa1255
 host_versions:
   cli:
   - 2026.08.04-aaa8809
@@ -37,6 +37,6 @@ evidence: []
 missing: []
 adoption:
   owner: PanQiWei
-  reference: https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019
-  subject_sha256: ecd48b3e0520cc078cfd274ff1e61ac5edd1c8f3c2b8fd5fd44bbdc38e386ddd
-reason: PanQiWei accepted formal Cursor use for this role.
+  reference: https://github.com/nemori-ai/omne-harness-lite/issues/766#issuecomment-6410887561
+  subject_sha256: 184e8669f4ebe43b3d99732ffee6290bc71c7b5e3f6e8f55123be7be14fa0a22
+reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after a shared inlined page changed; role duty, tools and permissions are unchanged, and the role was not re-qualified.

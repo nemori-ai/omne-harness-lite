@@ -2,7 +2,7 @@ version: 1
 role: product-design-drafter
 binding:
   native_sha256: e0d5fbe78f6694c76933200356a061496fef2f3b2fff8ff7e3b9af4165736256
-  prompt_sha256: e1db58adbc170dc790ff5db4af616b062a0dc5cfeecb90ccb9352e483e6bc41d
+  prompt_sha256: b2359c24b8ec4251a4ad15af47eb3803d5078cfda2d0f282d49d61a124c08255
 host_versions:
   cli:
   - 2026.08.04-aaa8809
@@ -37,6 +37,6 @@ evidence: []
 missing: []
 adoption:
   owner: PanQiWei
-  reference: https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019
-  subject_sha256: 728b24335638d746d34480005609a93f59385598c1e3d18e7bf35f65b83bc015
-reason: PanQiWei accepted formal Cursor use for this role.
+  reference: https://github.com/nemori-ai/omne-harness-lite/issues/766#issuecomment-6410887561
+  subject_sha256: f0f1b1178de3092724ba3a99d25f635aaf7683890b85cd69e06d4b7dcbc7be69
+reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after a shared inlined page changed; role duty, tools and permissions are unchanged, and the role was not re-qualified.
