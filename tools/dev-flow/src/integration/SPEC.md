@@ -1,6 +1,6 @@
 # 分支集成工具行为契约
 
-本工具承担任务工作树的开工准入、状态读取、基线与 task-sync，并为提升 PR 生成说明（`ri-notes`，只读、只报告）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。采用、本机发布与旧建轨道命令及其条款已按 [RFC-0009](../../../../docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md) 删除，原 I01、I02、I04、I05、I07、I09、I10、I11 随之删除。保留条款沿用原编号。
+本工具承担任务工作树的开工准入、状态读取、基线与 task-sync，为提升 PR 生成说明（`ri-notes`，只读、只报告），并为集成节点准备任务工作树（I20）和等待 gate 运行（I21）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。采用、本机发布与旧建轨道命令及其条款已按 [RFC-0009](../../../../docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md) 删除，原 I01、I02、I04、I05、I07、I09、I10、I11 随之删除。保留条款沿用原编号。
 
 本模块兑现[多层分支规则](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 
@@ -60,7 +60,9 @@ I16。准入成功之后，`start` 与 `register` 报告本卡的属性发现，
 
 每条发现向标准错误写一行 JSON：`{"severity":"report","issue":卡URL,"code":…,"clause":…,"message":…}`。线归属表缺失、不合格或计算失败时只写一行 `attribute-rules-unavailable`。报告不改变标准输出、context 与退出码。报告写入失败时报告丢失，命令结果不变。
 
-I18。`start` 与 `register` 新建 context 之后，按 [delivery/board.ts](../delivery/board.ts) 的 `recordDispatch` 在本卡的 Project 条目上写 Dispatched at 与 Line。看板设置取本次开工已读的交付配置（policy 的 `deliveryConfig`）中的 `board` 项与字段 ID；没有 `board` 项时不写、不报告。`board` 项的形状不合格时整个交付配置不合格，`start` 按既有规则拒绝；事件、字段 ID 与时区的语义问题只报告。已有同绑定的 context 时不写；条目的 Dispatched at 已有值时不覆盖。Line 取版本 2 binding 的 `line`，版本 1 取正文「身份与责任」的交付线。使用 workflow 事实时不发 GraphQL 请求，只报告 `board-skipped`。失败、跳过与读回不符按 I16 的行格式写到标准错误，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。写入在 context 写好与属性报告之后进行，任何结果都不改变标准输出、context 与退出码。本条只写 Dispatched at 与 Line，不写 Stage。Project 写入与时钟经 `openIntegration` 的 `board` 参数注入，缺省为 `gh` 与当前时间。
+I18。`start` 与 `register` 新建 context 之后，按 [delivery/board.ts](../delivery/board.ts) 的 `recordDispatch` 在本卡的 Project 条目上写 `board.events.dispatched` 启用的 Dispatched at、Line、Kind 与 Wave。看板设置取本次开工已读的交付配置（policy 的 `deliveryConfig`）中的 `board` 项与字段 ID；没有 `board` 项时不写、不报告。`board` 项的形状不合格时整个交付配置不合格，`start` 按既有规则拒绝；事件、字段 ID 与时区的语义问题只报告。已有同绑定的 context 时不写；条目的 Dispatched at 已有值时不覆盖。Line 取版本 2 binding 的 `line`，版本 1 取正文「身份与责任」的交付线。Kind 取本次采集中卡的唯一 `kind:` 标签。Wave 取 Wave 迭代字段中包含开工日的迭代，没有时跳过。使用 workflow 事实时不发 GraphQL 请求，只报告 `board-skipped`。失败、跳过与读回不符按 I16 的行格式写到标准错误，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。写入在 context 写好与属性报告之后进行，任何结果都不改变标准输出、context 与退出码。本条只写这四个字段，不写 Stage。Project 写入与时钟经 `openIntegration` 的 `board` 参数注入，缺省为 `gh` 与当前时间。
+
+I19。准入核对之后、写 context 之前，`start` 与 `register` 用 [delivery/dispatch.ts](../delivery/dispatch.ts) 的 `dispatchFieldGaps` 判断本次采集中的卡：`kind:` 标签数须为一，`line:` 标签数须为一，milestone 不能为 null。任一项不满足时以 `refused` 拒绝，消息逐项列出缺项，不写 context，不报告属性发现，不写看板。已有同绑定 context 时同样先判断。本条只看标签与 milestone 是否存在，标签与正文属性是否一致仍归 I16 报告。
 
 准入的双读摘要含 Issue 的 milestone 与 updatedAt。GitHub 修改 milestone 时同时更新 Issue 的 updatedAt，所以两次采集之间修改 milestone 拒绝写入，与修改其他 Issue 字段相同。
 
@@ -126,6 +128,16 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 - workflow 失败时不发评论。工具不能区分 workflow 失败与尚未完成，只能在 180 秒后按超时拒绝。
 - nonce 作为 workflow 输入，出现在 Actions 运行记录中。别人发出含同一 nonce 的评论会让本次开工以 unknown 失败，但不能让工具采用伪造的事实。
 - 候选评论按正文包含 nonce 原文筛选。这依赖 nonce 为 32 位小写十六进制：JSON 不转义这些字符。改变 nonce 格式时须同时修订筛选。
+
+## 任务工作树与 gate 等待
+
+I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机检出，不写平台，只经 `gh api GET` 读卡的 binding。程序以固定 argv 运行，不经 shell，步骤经 [worktree.ts](worktree.ts) 的 `Runner` 注入。任一步骤非零退出时命令停止，报告步骤名与最后五行标准错误，不删除已建的目录或分支。
+
+- `prepare` 在目标目录已存在时拒绝。它 fetch binding 的分支；本地没有该分支时以跟踪远端分支的方式新建。它用冻结锁文件安装依赖，把 `evidence` 复制进 `tmp/issue-<N>/`，执行 `projections`，再把 `startInput(binding)` 写进 `tmp/issue-<N>/start.json`，用新工作树中的 `cli.ts execute` 运行 `start`。`start` 失败时命令失败，带上 `start` 的标准错误行。
+- `swap` 依次拒绝：旧树有未提交的已跟踪改动；旧树的当前分支不是 binding 的分支；旧树 HEAD 不是远端分支的祖先。命令不推送。之后它把旧树的 `tmp/issue-<N>/` 复制到新的系统临时目录（不含名称以 `agents-stage` 开头的目录），`git worktree remove --force` 旧树，再以这份副本为 `evidence` 执行 `prepare`。
+- `projections` 把本树 `.meta_harness/agents` 编译到新的临时目录，`rsync -rlpc` 进 `.meta_harness/`，运行 `link_agents.py`，去掉 `.meta_harness/.cursor` 下 `Dockerfile`、`environment.json`、`install.sh` 的组写权限，再运行 `pnpm run check:agents`。`check:agents` 失败时命令失败。
+
+I21。`gate-cli.ts wait` 等待一次 workflow 运行。说明去掉首尾空白后按字符计须在 1 到 1024 之间，否则在任何请求之前拒绝。每轮先读运行，`status` 为 `completed` 时返回 `conclusion`；否则读 `pending_deployments`，把 `current_user_can_approve` 为 true 且本命令尚未批准过的环境在一次 POST 中批准，评论为说明。然后等待一个间隔。到达时限时以 `unknown` 失败。CLI 在结论为 `success` 时退出0，其他结论退出1，失败退出2。命令不判断当前身份是否获授权代为确认，也不派发 gate。
 
 ## 状态与同步
 
@@ -218,6 +230,6 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 
 ## 验证义务与限制
 
-持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；I15 的来源识别与非法覆盖值、事实齐备时写出 context、两次采集都不发 GraphQL 与 environment 读取，以及每一项评论、区块、运行与授权核对的反例，每个反例都不写 context；I15 的等待与超时用注入的时钟、睡眠与随机数在单元层验证；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。I16 的测试覆盖 v2 卡无发现与有发现、v1 卡、线归属表缺失和报告写入失败，每种情况下 context、标准输出与退出码都不变，报告只进标准错误。两次采集之间 milestone 与 updatedAt 一起变化时拒绝写入。I18 的测试经 CLI 子进程覆盖看板写入失败、`board` 项语义无效与 dispatch 写入关闭三种情况下标准输出与退出码不变；用注入的 Project 覆盖新 context 写入两个字段、已有 Dispatched at 不覆盖、重复开工不再写入，以及 workflow 事实下不发请求只报告 `board-skipped`；`board` 项形状不合格时 `start` 拒绝且不写 context。I17 的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行、同卡取最新修订与 attempt、同步与提升 PR 的分类、子轨道的卡不报跨线、契约变化的合并与「待确认」、子轨道输出贴进上一层后仍为未知、有列表样式的行时不判「无」，以及未声明两节、unit 缺失、别的线的卡、下限不在历史上与上游漂移各报一条可定位的发现。真实 Git 测试覆盖范围（含上次提升之后的同步合并）、起点标签与切换点给出的上游与下限、起点标签指向另一条轨道作为上游及该分支不存在时拒绝、unit 读取（轻量标签为 invalid，Git 读取失败照常抛出），CLI 有发现时退出码为 0，Markdown 模式把发现写到标准错误。快照差异与声明的比较用注入的差异测试。命令行的差异提供者在临时真实 Git 检出里运行安装的 `omne-contract-api`，覆盖逐成员的 none、additive 与 review，HEAD 不是范围头、工作树有未提交改动（快照文件或成员的 `package.json`）或未跟踪文件、合并点没有快照、两侧都没有快照、工作树缺快照、快照读不回、配置被拒绝（退出 2）、超时与检出不是 Git 仓库，各为 `unavailable` 并写明原因。进程起不来用一个不可执行的文件代替 CLI 测试。输出形状不符只在边界解析上测试。提供者与 `riInput`、`riNotes` 组合的测试在同一个真实检出里用安装的 CLI 产生差异，GitHub 读取用进程内的替身，覆盖声明与快照一致和不一致两种情况；命令行用例核对 `contractCheck` 的原因来自这个提供者。GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限、云端代理、`delivery-facts` workflow 与宿主加载不由本模块的测试证明。
+持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；I15 的来源识别与非法覆盖值、事实齐备时写出 context、两次采集都不发 GraphQL 与 environment 读取，以及每一项评论、区块、运行与授权核对的反例，每个反例都不写 context；I15 的等待与超时用注入的时钟、睡眠与随机数在单元层验证；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。I16 的测试覆盖 v2 卡无发现与有发现、v1 卡、线归属表缺失和报告写入失败，每种情况下 context、标准输出与退出码都不变，报告只进标准错误。两次采集之间 milestone 与 updatedAt 一起变化时拒绝写入。I19 的测试覆盖缺 `kind:` 标签、两个 `kind:` 标签、缺 `line:` 标签与 milestone 为 null 时拒绝且不写 context。I20 的测试用记录步骤的 `Runner` 覆盖 `prepare` 的步骤顺序、跟踪远端与已有本地分支两种建法、证据恢复、已存在目录与失败步骤的拒绝、`start` 失败的报告、`projections` 在 `check:agents` 失败时失败，以及 `swap` 的证据复制与三种拒绝时不移除旧树。I21 的测试用记录调用的 GitHub 替身覆盖每个环境只批准一次、不可批准的环境不批准、超长说明在任何请求之前拒绝与超时。I18 的测试经 CLI 子进程覆盖看板写入失败、`board` 项语义无效与 dispatch 写入关闭三种情况下标准输出与退出码不变；用注入的 Project 覆盖新 context 写入两个字段、已有 Dispatched at 不覆盖、重复开工不再写入，以及 workflow 事实下不发请求只报告 `board-skipped`；`board` 项形状不合格时 `start` 拒绝且不写 context。I17 的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行、同卡取最新修订与 attempt、同步与提升 PR 的分类、子轨道的卡不报跨线、契约变化的合并与「待确认」、子轨道输出贴进上一层后仍为未知、有列表样式的行时不判「无」，以及未声明两节、unit 缺失、别的线的卡、下限不在历史上与上游漂移各报一条可定位的发现。真实 Git 测试覆盖范围（含上次提升之后的同步合并）、起点标签与切换点给出的上游与下限、起点标签指向另一条轨道作为上游及该分支不存在时拒绝、unit 读取（轻量标签为 invalid，Git 读取失败照常抛出），CLI 有发现时退出码为 0，Markdown 模式把发现写到标准错误。快照差异与声明的比较用注入的差异测试。命令行的差异提供者在临时真实 Git 检出里运行安装的 `omne-contract-api`，覆盖逐成员的 none、additive 与 review，HEAD 不是范围头、工作树有未提交改动（快照文件或成员的 `package.json`）或未跟踪文件、合并点没有快照、两侧都没有快照、工作树缺快照、快照读不回、配置被拒绝（退出 2）、超时与检出不是 Git 仓库，各为 `unavailable` 并写明原因。进程起不来用一个不可执行的文件代替 CLI 测试。输出形状不符只在边界解析上测试。提供者与 `riInput`、`riNotes` 组合的测试在同一个真实检出里用安装的 CLI 产生差异，GitHub 读取用进程内的替身，覆盖声明与快照一致和不一致两种情况；命令行用例核对 `contractCheck` 的原因来自这个提供者。GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限、云端代理、`delivery-facts` workflow 与宿主加载不由本模块的测试证明。
 
 Git 网络读取使用 policy 的 `timeouts.networkMs`，fetch 仅在本地缺对象时执行。超时或读取失败为 unknown。平台读取沿[Get an issue comment](https://docs.github.com/en/rest/issues/comments#get-an-issue-comment)。这些来源不代替实际运行证据。

@@ -1,6 +1,6 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow。本地开工新建 context 后，本工具尽力写看板的 Dispatched at 与 Line，见[看板字段](#看板字段)。此外不写平台。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow。本地开工新建 context 后，本工具尽力写看板的 Dispatched at、Line、Kind 与 Wave，见[看板字段](#看板字段)。集成节点用的两个命令另见[准备任务工作树](#准备任务工作树)与[等待 gate 并代为确认](#等待-gate-并代为确认)。此外不写平台。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -80,7 +80,7 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 `register` 与 `start` 同一准入。两者只读取目标任务闭包、授权卡完整评论和目标任务 Project 状态，不枚举仓库历史或全 Project items。闭包最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需页、条件解析或配置字段不完整时拒绝。Stage 已确认且完整读取后未设值时，`null` 合法。
 
-准入核对卡的 revision、attempt、分支、taskBase 是 HEAD 的祖先、写范围与开工条件，拒绝已关闭的卡。route 的轨道必须在 registry 中为 active，并且通过上游链核对。上游链从这条轨道开始，沿 registry 的 `parent` 到 `main` 为止。链上的轨道必须满足下列条件：
+准入核对卡的 revision、attempt、分支、taskBase 是 HEAD 的祖先、写范围与开工条件，拒绝已关闭的卡。卡缺唯一的 `kind:` 标签、唯一的 `line:` 标签或里程碑时以 `refused` 拒绝，消息逐项列出缺项，不写 context。调度者补齐后重跑即可。route 的轨道必须在 registry 中为 active，并且通过上游链核对。上游链从这条轨道开始，沿 registry 的 `parent` 到 `main` 为止。链上的轨道必须满足下列条件：
 
 - 已在 registry 中登记，状态为 active 或 paused。
 - 分支存在于远端。
@@ -102,15 +102,48 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 ### 看板字段
 
-`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 Dispatched at（开工当天在 `board.timeZone` 时区中的日期）与 Line。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
+`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 `board.events.dispatched` 启用的字段：Dispatched at（开工当天在 `board.timeZone` 时区中的日期）、Line、Kind（取唯一的 `kind:` 标签）与 Wave（取包含开工日的迭代）。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
 
 - 交付配置没有 `board` 项、或 `board.events.dispatched` 为空时，不写也不报告。
 - `board` 项的形状不合格（例如 `timeZone` 不是字符串）时，整个交付配置不合格，`start` 拒绝开工，与交付配置的其他字段相同。
-- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。
+- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。Wave 没有包含开工日的迭代时跳过，报告一行 `board-skipped`。
 - 写入失败、事件启用了不属于它的写入、缺字段 ID 或时区无效、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
 - 云端会话不发 GraphQL 请求，只报告一行 `board-skipped`。之后在本地会话用 `board-cli.ts dispatched` 补写。
 
 写入只是尽力而为。任何结果都不改变 `start` 的标准输出、context 与退出码。命令与其他事件见[交付观察说明](../delivery/README.md#看板字段写入)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I18。
+
+## 准备任务工作树
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare --issue <N> --tree <目录> [--evidence <目录>] [--root <主检出>] [--remote <名称>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts swap --issue <N> --old <旧目录> --tree <新目录> [--root <主检出>] [--remote <名称>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections [--tree <目录>]
+```
+
+三个命令都从卡上的 binding 取分支、派发评论、revision 与 attempt，不另给输入文件。`--root` 缺省为当前目录所属的主检出，`--remote` 缺省为 `origin`。失败时命令停在失败的一步，报告步骤名与最后几行输出，不删除已建的目录。
+
+`prepare` 为一张已派发的卡建新工作树并在其中开工：
+
+1. 目录已存在时拒绝。
+2. fetch binding 的分支。本地没有这个分支时，新工作树建本地分支并跟踪远端分支。
+3. 用锁文件安装依赖：`pnpm install --frozen-lockfile --ignore-scripts`。
+4. 把 `--evidence` 目录复制进 `tmp/issue-<N>/`。
+5. 按 `projections` 的步骤重生成 agent 投影。
+6. 把 `start` 命令写进 `tmp/issue-<N>/start.json`，用新工作树自己的 dev-flow 运行 `start`。输出 context 与 `start` 写到标准错误的报告行。
+
+`swap` 在同一分支上换一棵树给新 attempt。旧树有未提交的已跟踪改动、不在 binding 的分支上、或有远端分支没有的提交时拒绝，先推送。然后命令把旧树的 `tmp/issue-<N>/`（不含 `agents-stage` 开头的目录）复制到系统临时目录，`git worktree remove --force` 旧树，再按 `prepare` 建新树并恢复这份副本。
+
+`projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并改变了 agent 源，或候选自己改了 agent 源时，准入前都要运行它。需要 `uv`、`rsync` 与 `pnpm`。
+
+## 等待 gate 并代为确认
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/gate-cli.ts wait --run <运行号> --note <说明文件> [--interval <秒>] [--timeout <分钟>]
+```
+
+命令轮询一次 workflow 运行，缺省每 10 秒一次、最多 90 分钟。运行有当前身份可以批准的待确认部署时，命令用说明文件的内容批准它们，每个环境只批准一次。运行结束时输出结论：`success` 退出0，其他结论退出1。超时、读取失败或批准失败时退出2。
+
+说明去掉首尾空白后不能为空，最多 1024 个字符，这是 GitHub 保留的上限。超过时命令在发出任何请求之前退出2。详细说明写进卡上的评论，说明里给出评论链接。命令不判断当前身份是否获授权代为确认：只在该 admin 授权本次确认之后运行，说明中写明代为确认的人。
 
 ## 同步目标分支
 
@@ -214,6 +247,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport` 与 `integration-upstream` 十三个 `.spec.ts`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream` 与 `integration-worktree` 十四个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections` 的步骤顺序与拒绝，用记录调用的 GitHub 替身覆盖 `gate-cli wait` 的批准、说明长度与超时。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

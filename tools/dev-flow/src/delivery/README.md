@@ -35,6 +35,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts \
 
 integration 的 `start`、`register` 使用专用准入采集。它只读取任务依赖闭包、授权卡完整评论及目标任务的 Project 状态。最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需读取不完整时拒绝准入。Stage 字段已确认且完整读取后未设值时，Stage 为 `null`。
 
+`start` 与 `register` 另要求卡有唯一的 `kind:` 标签、唯一的 `line:` 标签与里程碑，缺任一项时拒绝并逐项列出缺项。判断由 [dispatch.ts](dispatch.ts) 的 `dispatchFieldGaps` 给出，派发命令用同一判断。属性发现仍只报告，见下文。
+
 上述 `--live` 全库观察命令及报告范围不变。专用采集不用于离线报告、baseline 或发布检查。详细边界归 [SPEC](SPEC.md#任务准入采集)。
 
 ## 阅读结果
@@ -93,7 +95,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 
 - 两项写范围相同，或一项是另一项下面的路径，即为交集。`tools/dev` 与 `tools/dev-flow` 不相交。
 - `tmp` 下的路径与线归属表 `shared` 中的路径不计入，规则与属性发现相同。
-- 标准输出是 JSON：每张卡计入与不计入的路径，以及冲突对 `conflicts`。每个冲突对另向标准错误写一行。
+- 已关闭的卡不再写入，默认不参与求交，卡号列在 `excluded`。加 `--include-closed` 时关闭的卡也参与。文件参数没有 Issue 状态，总是参与。
+- 标准输出是 JSON：每张卡计入与不计入的路径、`excluded`，以及冲突对 `conflicts`。每个冲突对另向标准错误写一行。
 - 没有交集退出0，有交集退出1。卡没有 binding、文件不合格、同一张卡给了两次、读不到 GitHub 时退出2。
 
 `--config` 与 `--lines` 指定交付配置与线归属表，缺省为本检出中的文件。经 `pnpm --filter @omne-harness/dev-flow run scope-overlap` 运行时，文件参数相对 `tools/dev-flow` 解析。
@@ -128,13 +131,15 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 
 | 事件 | 写入的字段 | 谁在何时运行 |
 | --- | --- | --- |
-| `dispatched` | Dispatched at、Line | `start` 新建 context 后自动写入。自动写入失败时调度者补写 |
+| `dispatched` | Dispatched at、Line、Kind、Wave | `start` 新建 context 后自动写入。自动写入失败时调度者补写 |
 | `delivered` | Delivered at，Status 改为 In review | 调度者在执行者交回候选 PR 时 |
 | `integrating` | Status 改为 Integrating | 候选通过准入、经 gate 进入轨道时，在合入之前。一波并行的卡由集成节点运行 |
 | `accepted` | Accepted at、Cycle days，Status 改为 Accepted | 调度者在接受决定读回后 |
 
 - 日期缺省为运行时刻在 `board.timeZone` 时区中的日期，现为 UTC。`--date` 用于补写。
 - Line 取版本2 binding 的交付线，没有时取正文「身份与责任」的交付线。Line 没有对应的选项时跳过这一项，写在 `skipped` 中。
+- Kind 取卡上唯一的 `kind:` 标签。卡没有或有多个 `kind:` 标签、或 Kind 没有对应的选项时跳过。
+- Wave 是交付配置 `fields.iteration` 登记的迭代字段。命令先读该字段的迭代表，取起止范围包含写入日期的迭代。没有这样的迭代时跳过，不猜测。Wave 每次派发都写当前迭代，所以新 attempt 在新的波开工时，Wave 随之更新。
 - Dispatched at 已有值时不覆盖，这一项写在 `skipped` 中。同一 attempt 在新工作树重跑 `start` 不改开工日期。
 - Cycle days 是 Accepted at 减 Dispatched at 的天数。Dispatched at 为空、不是合法日期或晚于接受日时跳过。
 - `board.events` 列出每个事件启用的写入。从列表删掉一项即关闭它。删掉整个 `board` 项即关闭全部看板写入，`start` 也不再写。
@@ -146,6 +151,39 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 
 `gh` 需要 Projects 的读写权限（`gh auth refresh -s project`）。Status 是 Stage 字段，只由本卡的调度者写入，规则见[交付操作](../../../../docs/engineering/agent-delivery.md#4-推进和更新状态)。命令不判断接受是否有效。
 
+## 派发命令
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post --spec <spec.json> --text <prose.md> [--out <binding.json>] [--root <检出>] [--dry-run]
+node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> [--worktree <路径>] [--dry-run]
+```
+
+调度者用这两个命令派发一张卡的一个 attempt。`post` 发派发评论，`bind` 把 binding 写进卡的正文。两步之间不改卡。
+
+`spec.json` 只写调度者的决定，字段全部必填，多余字段拒绝：
+
+| 字段 | 内容 |
+| --- | --- |
+| `issue` | 卡号 |
+| `attempt`、`responsible`、`branch`、`taskBase`、`writeScope`、`route`、`completionTarget` | binding 的同名字段 |
+| `basis` | 授权依据 URL，写进评论的 `basis` 与 binding 的 `authorization` |
+| `confirmations` | 每个 start 条件一项：`{"condition": "<条件ID>", "evidence": "<确认依据>"}` |
+
+交付修订、交付线、性质、契约变更、里程碑与条件 ID 由命令从卡上读取，不由 spec 给出。每个 start 条件的摘要由命令按卡上现行的条件行计算。所以条件行改过之后重跑 `post`，摘要随之更新。
+
+`post` 在写平台之前完成下列核对，任一不满足时退出2，不写入：
+
+1. 在 `--root` 检出（缺省为当前目录）中读 taskBase 提交里的 policy、交付配置与线归属表。这些就是 `start` 将读的文件。taskBase 须已在本地，否则先 fetch。taskBase 的 dev-flow 不能读版本2 binding 时拒绝。
+2. `gh api user` 的登录名须等于 `responsible`，因为 `start` 要求派发评论的作者等于 `responsible`。
+3. 卡须开放，有唯一的 `kind:` 标签、唯一的 `line:` 标签与里程碑，与 `start` 的拒绝条件相同。
+4. 卡的准入采集没有协议偏离。采集与 `start` 相同，也确认卡在配置的 Project 中。
+5. 正文属性合格。每个 start 条件都有 `confirmations` 一项，`confirmations` 不引用卡上没有的条件。
+6. 拟写的 binding 没有属性发现：路线、写范围归属、跨线条件与 `line:`、`nature:`、`contract:` 标签都与正文一致。标签不一致时先用标签同步命令改正。
+
+核对通过后，`post` 先发一条占位评论，再把它改成正式派发评论。正式评论是 `--text` 的文字加上 `omne-integration-authority:v1` 区块，区块中 binding 的 `dispatch` 是这条评论自己的 URL。然后命令读回评论。读回与写入不同时退出1。`--out` 把 binding 写进文件，供 `bind` 使用。改写占位评论失败时，错误消息给出占位评论的 URL。调度者改写或删除它，再重新派发，命令不重试。`--dry-run` 完成全部核对，输出拟写的 binding 与评论正文，`dispatch` 为占位 URL，不写平台。
+
+`bind` 读卡，把「分支、基线与task context」小节整体换成一行派发说明与 binding 区块。说明中的 revision、attempt 与 taskBase 取自 binding，不手写。「认领与派发」中的「派发情况」一行改为指向派发评论，给出 `--worktree` 时「工作树」一行改为该路径。正文没有唯一的这一小节、或新正文的唯一 binding 读回与输入不同时退出2，不写入。写入后命令再读一次卡核对 binding，结果写在 `verified` 中，不符时退出1。`--dry-run` 输出新正文，不写入。`bind` 只写版本2 binding。
+
 ## 运行模块检查
 
 ```sh
@@ -153,7 +191,7 @@ pnpm --filter @omne-harness/dev-flow exec vitest run \
   tests/delivery-observe.spec.ts tests/delivery-github-read.spec.ts \
   tests/delivery-attributes.spec.ts tests/delivery-binding.spec.ts tests/delivery-lines.spec.ts \
   tests/delivery-labels.spec.ts tests/delivery-scope-overlap.spec.ts tests/delivery-milestone.spec.ts \
-  tests/delivery-board.spec.ts
+  tests/delivery-board.spec.ts tests/delivery-dispatch.spec.ts
 pnpm --filter @omne-harness/dev-flow typecheck
 ```
 
