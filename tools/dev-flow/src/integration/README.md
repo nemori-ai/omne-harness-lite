@@ -1,6 +1,6 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow，此外不写平台。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow。本地开工新建 context 后，本工具尽力写看板的 Dispatched at 与 Line，见[看板字段](#看板字段)。此外不写平台。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -99,6 +99,18 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 ```
 
 发现只报告，不拒绝开工，不改变标准输出、context 与退出码。版本 1 的 binding 报告 `binding-v1`。线归属表读不到时只报告一行 `attribute-rules-unavailable`。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
+
+### 看板字段
+
+`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 Dispatched at（开工当天在 `board.timeZone` 时区中的日期）与 Line。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
+
+- 交付配置没有 `board` 项、或 `board.events.dispatched` 为空时，不写也不报告。
+- `board` 项的形状不合格（例如 `timeZone` 不是字符串）时，整个交付配置不合格，`start` 拒绝开工，与交付配置的其他字段相同。
+- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。
+- 写入失败、事件启用了不属于它的写入、缺字段 ID 或时区无效、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
+- 云端会话不发 GraphQL 请求，只报告一行 `board-skipped`。之后在本地会话用 `board-cli.ts dispatched` 补写。
+
+写入只是尽力而为。任何结果都不改变 `start` 的标准输出、context 与退出码。命令与其他事件见[交付观察说明](../delivery/README.md#看板字段写入)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I18。
 
 ## 同步目标分支
 
@@ -202,6 +214,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport` 与 `integration-upstream` 十二个 `.spec.ts`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport` 与 `integration-upstream` 十三个 `.spec.ts`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

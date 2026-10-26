@@ -19,5 +19,8 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。
 7. 介绍之后，不等下一条指令，自己准备开工上下文。从仓库根的 `AGENTS.md` 和 `docs/context-map.md` 选这次要读的入口，读到能确定拥有者、写范围和停止点为止。
 8. 按 `docs/engineering/skills.md` 的采用表，只加载和这次任务匹配的 pstack 技能，并读它们的正文。主工作类型对应一个 playbook：feature、bug、refactor、performance、investigation、maintenance 分别对上 feature、bug-fix、refactoring、perf-issue、investigation，以及文档或工具维护所用的实际 playbook。改现有代码或要判断落点时加载 `pstack:how`。要查已有决定的理由时加载 `pstack:why`。写范围含 `.ts` 或 `.tsx` 时加载 `pstack:typescript-best-practices`。交付主要是文档时加载 `pstack:technical-writing` 和 `pstack:unslop`。没有贴合的 playbook 时才加载 `pstack:figure-it-out`。不要在认领时加载实施、Babysit、Shipping 或 Orchestrate，也不要开始执行 playbook 的实现步骤。
 9. 选一个做这张卡的角色，不选评审角色来开工。读者入口从 `docs/README.md` 选，角色 id 以 `docs/documentation.json` 的登记为准，再运行 `uv run --locked omne-documentation context --root . --role <id>`。执行角色从 `.meta_harness/agents/roles/README.md` 选。实现类任务选 `developer`，并写明 `implementation_kind` 是 `product`、`terminal` 还是 `verification`。产品设计起草选 `product-design-drafter`。不要把 `qa`、`implementation-reviewer` 或 `design-reviewer` 写成开工执行者。
-10. 把地图写到本工作树的 `tmp/issue-<编号>/context-map.md`。写入 Issue、修订、attempt、route、taskBase、分支、写范围、context 读回结果、选中的读者角色和执行角色、实际读过的 pstack 技能、下一步要读的路径，以及仍未知的点。查询 JSON 放在同一目录。不提交 `tmp/`。
+10. 把地图写到本工作树的 `tmp/issue-<编号>/context-map.md`，按[上下文地图模板](references/context-map.md)出。查询 JSON 放在同一目录。不提交 `tmp/`。按下面三种情形之一处理：
+    1. 调度者已在这个位置放了地图：保留主体与本线附录，把附录「绑定」中的 context 读回改为实际结果，再补「认领时补写」一节：选中的读者角色、执行角色、实际读过的 pstack 技能和仍未知的点。
+    2. 没有调度者地图：按模板写全部各节。Issue、修订、attempt、route、taskBase、分支、写范围和 context 读回写进本线附录「绑定」。「先读什么」的第一项固定是 `docs/orientation.md`。写不出的项写「未知」，不猜。
+    3. 调度者给了任务信息包 `task-pack.md`：只读，不改。它的格式见[任务信息包模板](references/task-pack.md)。调度者写包时按[自包含检查](references/self-contained-check.md)核对，认领会话不做这项检查。
 11. 报告 Issue、基线提交、远端分支、工作树路径、会话是否已切过去、`start` 是否成功，以及地图路径。然后停下，等下一条指令。不开始实现，不提交，不开 PR。

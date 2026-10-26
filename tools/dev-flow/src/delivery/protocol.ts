@@ -29,10 +29,30 @@ export type DeliveryConfig = {
     number: number | null
     id: string | null
     url: string | null
-    fields: { stage: string | null; priority: string | null; iteration: string | null }
+    /**
+     * Project field IDs. Stage is the built-in Status field. The five board fields are optional
+     * in the file and null when absent.
+     */
+    fields: {
+      stage: string | null
+      priority: string | null
+      iteration: string | null
+      line: string | null
+      dispatchedAt: string | null
+      deliveredAt: string | null
+      acceptedAt: string | null
+      cycleDays: string | null
+    }
+    /** Single select option IDs by option name; an absent map is empty. */
+    options: { stage: Record<string, string>; line: Record<string, string> }
   }
   creationHandoffIssue: string | null
   writers: { stage: string | null; body: string | null }
+  /**
+   * The board writes of dev-flow, or null when the file has no `board` entry. Only the shape is
+   * parsed here; delivery/board.ts judges which writes an event may enable.
+   */
+  board: { timeZone: string; events: Record<string, string[]> } | null
 }
 export type CapturedIssue = {
   number: number
@@ -215,10 +235,39 @@ function date(value: unknown, path: string): string {
 function strings(value: unknown, path: string): string[] {
   return array(value, path).map((item, index) => text(item, `${path}[${index}]`))
 }
+/** An optional field ID: absent and null both read as null. */
+function optionalField(f: Record<string, unknown>, key: string): string | null {
+  return f[key] === undefined ? null : nullable(f[key], `fields.${key}`)
+}
+/** An optional map from option name to option ID; absent reads as empty. */
+function optionMap(value: unknown, path: string): Record<string, string> {
+  if (value === undefined) return {}
+  return Object.fromEntries(
+    Object.entries(record(value, path)).map(([name, id]) => [
+      name,
+      nonempty(id, `${path}.${name}`),
+    ]),
+  )
+}
+function boardEntry(value: unknown): DeliveryConfig['board'] {
+  if (value === undefined || value === null) return null
+  const b = record(value, 'config.board'),
+    events = record(b.events, 'config.board.events')
+  return {
+    timeZone: nonempty(b.timeZone, 'config.board.timeZone'),
+    events: Object.fromEntries(
+      Object.entries(events).map(([event, names]) => [
+        event,
+        strings(names, `config.board.events.${event}`),
+      ]),
+    ),
+  }
+}
 export function parseConfig(value: unknown): DeliveryConfig {
   const v = record(value, 'config'),
     p = record(v.project, 'config.project'),
     f = record(p.fields, 'config.project.fields'),
+    o = p.options === undefined ? undefined : record(p.options, 'config.project.options'),
     w = record(v.writers, 'config.writers')
   const repository = nonempty(v.repository, 'config.repository')
   if (
@@ -246,10 +295,20 @@ export function parseConfig(value: unknown): DeliveryConfig {
         stage: nullable(f.stage, 'fields.stage'),
         priority: nullable(f.priority, 'fields.priority'),
         iteration: nullable(f.iteration, 'fields.iteration'),
+        line: optionalField(f, 'line'),
+        dispatchedAt: optionalField(f, 'dispatchedAt'),
+        deliveredAt: optionalField(f, 'deliveredAt'),
+        acceptedAt: optionalField(f, 'acceptedAt'),
+        cycleDays: optionalField(f, 'cycleDays'),
+      },
+      options: {
+        stage: optionMap(o?.stage, 'config.project.options.stage'),
+        line: optionMap(o?.line, 'config.project.options.line'),
       },
     },
     creationHandoffIssue: nullable(v.creationHandoffIssue, 'creationHandoffIssue'),
     writers: { stage: nullable(w.stage, 'writers.stage'), body: nullable(w.body, 'writers.body') },
+    board: boardEntry(v.board),
   }
 }
 export function parseCapture(value: unknown): DeliveryCapture {
@@ -449,4 +508,38 @@ export function parseBaseline(value: unknown): DeliveryReport {
       notComparable: strings(d.notComparable, 'delta.notComparable'),
     },
   }
+}
+
+/** A calendar date `YYYY-MM-DD` that exists. */
+export function calendarDate(value: string, path: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  const date = match === null ? null : new Date(`${value}T00:00:00Z`)
+  if (date === null || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value)
+    throw new InputError(`${path} must be a calendar date YYYY-MM-DD`)
+  return value
+}
+/** The calendar date of `now` in the IANA time zone `zone`, as `YYYY-MM-DD`. */
+export function calendarDay(zone: string, now: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const part = (type: 'year' | 'month' | 'day') => {
+    const found = parts.find(item => item.type === type)
+    if (found === undefined) throw new InputError(`Cannot format the ${type} in ${zone}`)
+    return found.value
+  }
+  return calendarDate(`${part('year')}-${part('month')}-${part('day')}`, 'calendar day')
+}
+/** Whole days from `from` to `to`, both calendar dates. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+/** An Issue number argument, `N` or `#N`; undefined when it is not a safe positive integer. */
+export function issueNumberArgument(value: string): number | undefined {
+  if (!/^#?[1-9]\d*$/.test(value)) return undefined
+  const number = Number(value.replace('#', ''))
+  return Number.isSafeInteger(number) ? number : undefined
 }
