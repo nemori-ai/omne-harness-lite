@@ -185,6 +185,53 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 `bind` 读卡，把「分支、基线与task context」小节整体换成一行派发说明与 binding 区块。说明中的 revision、attempt 与 taskBase 取自 binding，不手写。只在「认领与派发」小节内，「派发情况」一行改为指向派发评论，给出 `--worktree` 时「工作树」一行改为该路径；其他位置的同名行不改。binding 的 `dispatch` 仍是占位 URL、正文没有唯一的这一小节、或新正文的唯一 binding 读回与输入不同时退出2，不写入。写入后命令再读一次卡核对 binding，结果写在 `verified` 中，不符时退出1。`--dry-run` 输出新正文，不写入。`bind` 只写版本2 binding。
 
+## 事件等待
+
+线会话与集成节点用这组命令阻塞在 GitHub 事件上。命令不轮询 API。
+
+先启动接收器。它在本机监听，把 GitHub 事件追加到事件文件。
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --port <端口> [--file <事件文件>] [--repo <owner/name>] [--secret <s>]
+```
+
+- `--file` 缺省为工作树根下的 `tmp/github-events/events.jsonl`。目录不存在时建立。
+- `--repo` 缺省取 `git remote get-url origin`。
+- 接收器只绑定 127.0.0.1，只接受 POST。给出 `--secret` 时校验 `X-Hub-Signature-256`，并以 `-S` 传给转发器。
+- 接收器自己拉起并持有 `gh webhook forward`，转发 `issues`、`pull_request`、`issue_comment`。
+- 启动时先删除仓库里本工具以前留下的 `cli` 类型 hook。
+- 按 Ctrl-C 或发 SIGTERM 停止。接收器先停转发器，再删除这次创建的 hook。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那个 hook。
+- 一个事件文件只开一个接收器。
+
+再用三条命令等待。命令一直阻塞到匹配事件出现，打印匹配的那一行 JSON，退出0。
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts issue-closed --issue <号> [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts pr-ready --base <分支> [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <号> --marker <标记名> [公共参数]
+```
+
+- `--file <事件文件>`，缺省同接收器。
+- `--timeout <秒>`，缺省不超时。超时退出3，标准错误写说明。超时不表示条件不成立。
+- `--since <ISO 时间或 delivery id>`，只认之后的事件。缺省认文件里已有的全部行。
+- `--repo <owner/name>`，对账用，缺省取 `origin`。
+- 输出多一个 `source` 字段。`event` 表示事件文件里的行，`reconcile` 表示启动对账命中。
+- `comment` 的标记名是评论第一行 `<!-- 标记名 -->` 里的词。`<!-- line-delta -->` 的标记名是 `line-delta`。
+- `pr-ready` 认 `ready_for_review`，或 `opened` 且非草稿。
+- 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。
+
+接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list` 看目标分支上是否已有开放且非草稿的 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。之后不再调用 GitHub API。
+
+依赖：
+
+- `gh` 2.x。
+- 扩展 `cli/gh-webhook`，用 `gh extension install cli/gh-webhook` 安装。探路用的是 v0.2.0。
+- 对仓库的 admin 权限，因为转发器要建立和删除 hook。
+
+延迟：探路实测通常1至3秒，出现过一次26秒。条件刚满足就等不到事件时，用 `--timeout` 设上限。
+
+当前没有验证的情况：私有仓库、同一仓库上并发的转发器、接收器被 SIGKILL 后残留的 hook（下次启动会删除）、真实的 `pull_request` 事件。条款见[SPEC](SPEC.md#事件等待)。
+
 ## 运行模块检查
 
 ```sh
@@ -192,7 +239,8 @@ pnpm --filter @omne-harness/dev-flow exec vitest run \
   tests/delivery-observe.spec.ts tests/delivery-github-read.spec.ts \
   tests/delivery-attributes.spec.ts tests/delivery-binding.spec.ts tests/delivery-lines.spec.ts \
   tests/delivery-labels.spec.ts tests/delivery-scope-overlap.spec.ts tests/delivery-milestone.spec.ts \
-  tests/delivery-board.spec.ts tests/delivery-dispatch.spec.ts
+  tests/delivery-board.spec.ts tests/delivery-dispatch.spec.ts \
+  tests/delivery-events.spec.ts tests/delivery-events-cli.spec.ts
 pnpm --filter @omne-harness/dev-flow typecheck
 ```
 
