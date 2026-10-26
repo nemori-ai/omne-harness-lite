@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="930" viewBox="0 0 1280 930" role="img" aria-labelledby="map-title map-desc">
   <title id="map-title">项目知识归属地图</title>
-  <desc id="map-desc">地图分为阅读入口、遵循方向和维护位置。阅读从十类读者或任务入口开始。项目要求、已接受系统架构与有效产品规则共同约束领域和成员细化，适用工程约定横跨各层。成员维护精确承诺，实现与验证报告兑现情况。项目根、docs、meta、能力组、实际成员、工具和任务临时目录分别维护不同知识。位置不表示软件拓扑或完成度。</desc>
+  <desc id="map-desc">地图分为阅读入口、遵循方向和维护位置。阅读从十类读者或任务入口开始，设计类任务先读开工定向。项目要求、已接受系统架构与有效产品规则共同约束领域和成员细化，适用工程约定横跨各层。成员维护精确承诺，实现与验证报告兑现情况。项目根、docs、meta、能力组、实际成员、工具和任务临时目录分别维护不同知识。位置不表示软件拓扑或完成度。</desc>
   <style>
     text { font-family: 'WenQuanYi Zen Hei', 'Noto Sans CJK SC', sans-serif; fill: #142534; }
     .head { font-size: 28px; font-weight: 700; }
@@ -29,7 +29,7 @@
   <rect x="611" y="118" width="608" height="99" rx="8" fill="#fff" stroke="#8ca7b5"/>
   <text class="label" x="630" y="151">按任务</text>
   <text class="body" x="630" y="179">docs/context-map.md：必要上下文与停止点</text>
-  <text class="note" x="630" y="202">局部修复先看局部承诺；新边界再展开上层</text>
+  <text class="note" x="630" y="202">设计类任务先读 docs/orientation.md 开工定向；局部修复先看局部承诺</text>
 
   <rect x="32" y="254" width="1216" height="259" rx="10" fill="#f6f8f5" stroke="#ccd8cb"/>
   <text class="section" x="51" y="286">② 遵循关系</text>
