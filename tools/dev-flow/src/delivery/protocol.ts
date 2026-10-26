@@ -160,6 +160,26 @@ export function record(value: unknown, path: string): Record<string, unknown> {
   if (!isRecord(value)) throw new InputError(`${path} must be an object`)
   return value
 }
+/** The value of the card's single label with `prefix`; undefined without exactly one. */
+export function singleLabel(labels: readonly string[], prefix: string): string | undefined {
+  const values = labels.filter(label => label.startsWith(prefix))
+  return values.length === 1 ? values[0]?.slice(prefix.length) : undefined
+}
+/**
+ * The dispatch fields a card must carry before `start` admits it and before a dispatch is
+ * posted: exactly one `kind:` label, exactly one `line:` label and a milestone. Returns one
+ * entry per gap; an empty list means the card is complete. A milestone the capture did not
+ * read (`undefined`) is not judged.
+ */
+export function dispatchFieldGaps(issue: Pick<CapturedIssue, 'labels' | 'milestone'>): string[] {
+  const gaps: string[] = []
+  for (const prefix of ['kind:', 'line:']) {
+    const count = issue.labels.filter(label => label.startsWith(prefix)).length
+    if (count !== 1) gaps.push(`exactly one ${prefix} label (found ${count})`)
+  }
+  if (issue.milestone === null) gaps.push('a milestone')
+  return gaps
+}
 /**
  * The `milestone` entry of a captured Issue from a raw GitHub Issue: the title, null when the
  * Issue has none, and no entry when the response does not carry the field.

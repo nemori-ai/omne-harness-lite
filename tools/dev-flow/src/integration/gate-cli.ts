@@ -8,12 +8,12 @@ import { waitGate } from './gate.ts'
 import { IntegrationError } from './parse.ts'
 
 const usage =
-  'Usage: gate-cli.ts wait --run <run id> --note <file> [--interval <seconds>] [--timeout <minutes>] [--config <file>]'
+  'Usage: gate-cli.ts wait --run <run id> --note <file> [--environments <name,...>] [--interval <seconds>] [--timeout <minutes>] [--config <file>]'
 
 function options(args: string[]): Map<string, string> {
   const [first, ...rest] = args
   if (first !== 'wait') throw new InputError(usage)
-  const allowed = ['--run', '--note', '--interval', '--timeout', '--config'],
+  const allowed = ['--run', '--note', '--environments', '--interval', '--timeout', '--config'],
     values = new Map<string, string>()
   for (let index = 0; index < rest.length; index += 2) {
     const flag = rest[index] ?? '',
@@ -49,6 +49,11 @@ try {
     repository: config.repository,
     run,
     note: readFileSync(notePath, 'utf8'),
+    // Only the publish confirmation by default; other approval environments are named explicitly.
+    environments: (values.get('--environments') ?? 'publish')
+      .split(',')
+      .map(name => name.trim())
+      .filter(name => name !== ''),
     call: runGhCommand,
     sleep: ms => delay(ms),
     now: () => Date.now(),

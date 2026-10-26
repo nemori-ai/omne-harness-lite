@@ -9,6 +9,7 @@ import {
   daysBetween,
   InputError,
   record,
+  singleLabel,
   text,
   type DeliveryConfig,
 } from './protocol.ts'
@@ -167,13 +168,15 @@ export function cardLine(
 }
 /** The work kind of a card's single `kind:` label; undefined without exactly one. */
 export function cardKind(labels: readonly string[]): string | undefined {
-  const kinds = labels.filter(label => label.startsWith('kind:'))
-  return kinds.length === 1 ? kinds[0]?.slice('kind:'.length) : undefined
+  return singleLabel(labels, 'kind:')
 }
 
 /** One iteration of the Wave field: its first day and length in days. */
 export type Iteration = { id: string; title: string; startDate: string; duration: number }
-/** The iteration whose days hold `date`: from `startDate` up to `duration` days later. */
+/**
+ * The iteration whose days hold `date`: from `startDate` up to `duration` days later. When
+ * iterations overlap, the first one in the Project's configuration order is taken.
+ */
 export function currentIteration(
   iterations: readonly Iteration[],
   date: string,
@@ -195,8 +198,8 @@ export type SkippedWrite = { name: WriteName; reason: string }
  * Plans the writes of one event. `date` stamps the event's date field. `current` is the item's
  * field values read before the writes: Dispatched at is written only while it is empty, and
  * Cycle days counts from it. `kind` is the card's work kind from its `kind:` label, and
- * `iterations` the Wave iterations read before planning; Wave takes the iteration that holds
- * `date`. A write whose input is missing or invalid is skipped with its reason instead of
+ * `iterations` the Wave iterations read before planning. Wave, like Dispatched at, is written
+ * only while it is empty, with the iteration that holds `date`. A write whose input is missing or invalid is skipped with its reason instead of
  * guessed.
  */
 export function planBoardWrites({
@@ -285,8 +288,11 @@ export function planBoardWrites({
         break
       }
       case 'wave': {
-        const iteration = currentIteration(iterations, date)
-        if (iteration === undefined)
+        const existing = current.get(write.field),
+          iteration = currentIteration(iterations, date)
+        if (existing !== undefined)
+          skipped.push({ name: write.name, reason: `Wave is already ${String(existing)}` })
+        else if (iteration === undefined)
           skipped.push({ name: write.name, reason: `Wave has no iteration on ${date}` })
         else
           writes.push({
@@ -495,7 +501,7 @@ export function recordBoardEvent({
   calendarDate(date, 'date')
   const item = projectItem(config.projectId, issue.id, issue.url, call)
   const reads = config.writes.some(
-    write => write.name === 'dispatchedAt' || write.name === 'cycleDays',
+    write => write.name === 'dispatchedAt' || write.name === 'cycleDays' || write.name === 'wave',
   )
   const current = reads ? itemValues(config.projectId, item, call) : new Map<string, string>()
   const wave = config.writes.find(write => write.name === 'wave')

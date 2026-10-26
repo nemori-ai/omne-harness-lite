@@ -1,8 +1,8 @@
 import { IntegrationError, json, section } from '../integration/parse.ts'
 import { BINDING_MARKERS, parseTaskBinding, readTaskBinding } from './binding.ts'
-import { readIssueCard, REST_HEADERS, type GhCommand } from './github-read.ts'
+import { fetchIssueCard, type GhCommand } from './github-read.ts'
 import { isOpenScope, under, type DeliveryLines } from './lines.ts'
-import { InputError, text } from './protocol.ts'
+import { InputError } from './protocol.ts'
 
 /**
  * One card's write scope, named by where it came from: `#<Issue number>` or a file path.
@@ -61,20 +61,8 @@ export function scopeOverlap(
 
 /** Reads the unique binding of one Issue in `repository`; an Issue without one is an input error. */
 export function issueScope(repository: string, number: number, call: GhCommand): ScopeCard {
-  const card = readIssueCard(
-    call(
-      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/${number}`],
-      15_000,
-    ),
-    repository,
-    number,
-  )
-  const binding = readTaskBinding(card.body, {
-    repository,
-    number,
-    url: card.url,
-    id: text(card.issue.node_id, 'Issue.node_id'),
-  })
+  const card = fetchIssueCard(repository, number, call)
+  const binding = readTaskBinding(card.body, card.identity)
   if (binding === undefined) throw new InputError(`Issue #${number} has no binding`)
   return {
     source: `#${number}`,

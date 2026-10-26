@@ -12,11 +12,11 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { TaskBindingV2 } from '../src/delivery/binding.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
-import { confirmationNote, NOTE_LIMIT, waitGate } from '../src/integration/gate.ts'
 import {
   issueBinding,
   prepareWorktree,
   regenerateProjections,
+  removeWorktree,
   startInput,
   swapWorktree,
   type Runner,
@@ -51,27 +51,38 @@ const binding: TaskBindingV2 = {
   contractChange: 'none',
   milestone: 'M1',
 }
-type Step = { program: string; args: readonly string[]; cwd: string }
+const local = 'refs/heads/human/issue-7',
+  upstream = 'refs/remotes/origin/human/issue-7'
+type Answer = { status: number; stdout?: string; stderr?: string }
 /**
- * Records every step. `answers` gives the result of a step by its first words; `git worktree
- * add` creates the directory like the real command, and start prints a context.
+ * Records every step. `answers` gives the result of a step by its full argument list joined
+ * with spaces, or by its first three words. `git worktree add` creates the directory like the
+ * real command, and start prints a context.
  */
-function runner(
-  answers: Record<string, { status: number; stdout?: string; stderr?: string }> = {},
-) {
-  const steps: Step[] = []
+function runner(answers: Record<string, Answer> = {}) {
+  const steps: { program: string; args: readonly string[]; cwd: string }[] = []
   const run: Runner = (program, args, { cwd }) => {
     steps.push({ program, args, cwd })
-    const key = [program, ...args.slice(0, 2)].join(' ')
     if (program === 'git' && args[0] === 'worktree' && args[1] === 'add')
       mkdirSync(args[3] ?? '', { recursive: true })
     const answer =
-      answers[key] ??
-      (program === 'node' ? { status: 0, stdout: '{"bound":true}', stderr: '' } : { status: 0 })
+      answers[[program, ...args].join(' ')] ??
+      answers[[program, ...args.slice(0, 2)].join(' ')] ??
+      (program === 'node' ? { status: 0, stdout: '{"bound":true}' } : { status: 0 })
     return { status: answer.status, stdout: answer.stdout ?? '', stderr: answer.stderr ?? '' }
   }
   const names = () => steps.map(step => [step.program, ...step.args.slice(0, 2)].join(' '))
-  return { run, steps, names }
+  const ran = (program: string, ...args: string[]) =>
+    steps.some(step => step.program === program && args.every((arg, i) => step.args[i] === arg))
+  return { run, steps, names, ran }
+}
+const ancestor = (older: string, newer: string, status: number): Record<string, Answer> => ({
+  [`git merge-base --is-ancestor ${older} ${newer}`]: { status },
+})
+/** The local branch exists and is behind the remote tip. */
+const behind = {
+  ...ancestor(upstream, local, 1),
+  ...ancestor(local, upstream, 0),
 }
 
 describe('worktree preparation', () => {
@@ -94,10 +105,10 @@ describe('worktree preparation', () => {
     expect(() => issueBinding('owner/repo', 7, answer('no binding'))).toThrow('dispatch it first')
   })
 
-  it('adds the tracking worktree, installs, regenerates projections, then runs its own start', () => {
+  it('adds a tracking worktree, installs, regenerates projections, then runs its own start', () => {
     const root = home(),
       tree = join(root, 'tree'),
-      r = runner({ 'git show-ref --quiet': { status: 1 } })
+      r = runner({ [`git show-ref --quiet --verify ${local}`]: { status: 1 } })
     const result = prepareWorktree({ root, tree, binding, run: r.run })
     expect(r.names()).toEqual([
       'git fetch --quiet',
@@ -105,7 +116,7 @@ describe('worktree preparation', () => {
       'git worktree add',
       'pnpm install --frozen-lockfile',
       'uv run --locked',
-      'rsync -rlpc ' + r.steps[5]?.args[1],
+      expect.stringMatching(/^rsync -rlpc /),
       'uv run --locked',
       'pnpm run check:agents',
       'node --experimental-strip-types tools/dev-flow/src/integration/cli.ts',
@@ -125,16 +136,37 @@ describe('worktree preparation', () => {
     expect(result).toMatchObject({ tree, context: { bound: true } })
   })
 
-  it('uses an existing local branch and restores evidence into the task directory', () => {
+  it('moves a local branch that is behind forward to the remote tip before adding the tree', () => {
     const root = home(),
       evidence = join(root, 'evidence')
     mkdirSync(evidence)
     writeFileSync(join(evidence, 'report.md'), 'kept')
     const tree = join(root, 'tree'),
-      r = runner()
+      r = runner(behind)
     prepareWorktree({ root, tree, binding, evidence, run: r.run })
-    expect(r.steps[2]?.args).toEqual(['worktree', 'add', '--quiet', tree, binding.branch])
+    expect(r.ran('git', 'branch', '--force', binding.branch, upstream)).toBe(true)
+    expect(r.ran('git', 'worktree', 'add', '--quiet', tree, binding.branch)).toBe(true)
     expect(readFileSync(join(tree, 'tmp/issue-7/report.md'), 'utf8')).toBe('kept')
+  })
+
+  it.each([
+    [
+      'ahead of the remote',
+      { ...ancestor(upstream, local, 0), ...ancestor(local, upstream, 1) },
+      'push them first',
+    ],
+    [
+      'diverged from the remote',
+      { ...ancestor(upstream, local, 1), ...ancestor(local, upstream, 1) },
+      'have diverged',
+    ],
+  ])('refuses a local branch %s and adds no tree', (_name, answers, message) => {
+    const root = home(),
+      r = runner(answers)
+    expect(() => prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run })).toThrow(
+      message,
+    )
+    expect(r.ran('git', 'worktree', 'add')).toBe(false)
   })
 
   it('refuses an existing directory and stops at the first failed step', () => {
@@ -162,7 +194,7 @@ describe('worktree preparation', () => {
     )
   })
 
-  it('runs check:agents after the projections are copied and linked', () => {
+  it('runs check:agents after copying and linking, and removes the stage either way', () => {
     const r = runner({ 'pnpm run check:agents': { status: 1, stderr: 'output differs' } })
     expect(() => regenerateProjections(home(), r.run)).toThrow(
       'check:agents failed (exit 1): output differs',
@@ -172,6 +204,9 @@ describe('worktree preparation', () => {
       expect.stringMatching(/^rsync -rlpc /),
       'uv run --locked',
     ])
+    const stage = r.steps[0]?.args.at(-1) ?? ''
+    expect(stage).toMatch(/omne-agents-stage-/)
+    expect(existsSync(stage)).toBe(false)
   })
 })
 
@@ -183,31 +218,49 @@ describe('worktree swap', () => {
     writeFileSync(join(path, 'tmp/issue-7/agents-stage/x'), 'stage')
     return path
   }
-  const clean = {
-    'git status --porcelain': { status: 0, stdout: '' },
+  const clean: Record<string, Answer> = {
+    'git status --porcelain --untracked-files=no': { status: 0, stdout: '' },
+    'git status --porcelain --ignored': {
+      status: 0,
+      stdout: '?? tmp/issue-7/\n?? notes.md\n!! node_modules/\n M ignored-by-filter\n',
+    },
     'git branch --show-current': { status: 0, stdout: `${binding.branch}\n` },
+    [`git merge-base --is-ancestor HEAD ${upstream}`]: { status: 0 },
+    ...behind,
   }
 
-  it('carries the task evidence without stage directories into the new tree', () => {
+  it('detaches the old tree, keeps it, and builds the new tree from the remote tip without pushing', () => {
     const root = home(),
+      oldTree = old(root),
       r = runner(clean)
     const result = swapWorktree({
       root,
-      old: old(root),
+      old: oldTree,
       tree: join(root, 'new'),
       binding,
       run: r.run,
     })
-    expect(r.names()).toContain('git worktree remove')
+    expect(r.ran('git', 'checkout', '--quiet', '--detach')).toBe(true)
+    expect(r.ran('git', 'branch', '--force', binding.branch, upstream)).toBe(true)
+    expect(r.ran('git', 'worktree', 'remove')).toBe(false)
+    expect(r.ran('git', 'push')).toBe(false)
+    expect(existsSync(join(oldTree, 'tmp/issue-7/handoff.md'))).toBe(true)
     expect(readFileSync(join(root, 'new/tmp/issue-7/handoff.md'), 'utf8')).toBe('evidence')
     expect(existsSync(join(root, 'new/tmp/issue-7/agents-stage'))).toBe(false)
-    expect(result.evidence).toBeDefined()
+    expect(result.warnings).toEqual(['notes.md', 'node_modules/'])
+    // The old tree is detached before the local branch moves.
+    const detach = r.steps.findIndex(s => s.args[0] === 'checkout'),
+      move = r.steps.findIndex(s => s.args[0] === 'branch' && s.args[1] === '--force')
+    expect(detach).toBeLessThan(move)
   })
 
   it.each([
     [
       'uncommitted tracked changes',
-      { ...clean, 'git status --porcelain': { status: 0, stdout: ' M a.ts\n' } },
+      {
+        ...clean,
+        'git status --porcelain --untracked-files=no': { status: 0, stdout: ' M a.ts\n' },
+      },
       'uncommitted tracked changes',
     ],
     [
@@ -217,90 +270,52 @@ describe('worktree swap', () => {
     ],
     [
       'unpushed commits',
-      { ...clean, 'git merge-base --is-ancestor': { status: 1 } },
+      { ...clean, [`git merge-base --is-ancestor HEAD ${upstream}`]: { status: 1 } },
       'push them first',
     ],
-  ])('refuses %s and removes nothing', (_name, answers, message) => {
+  ])('refuses %s and leaves the old tree attached', (_name, answers, message) => {
     const root = home(),
       r = runner(answers)
     expect(() =>
       swapWorktree({ root, old: old(root), tree: join(root, 'new'), binding, run: r.run }),
     ).toThrow(message)
-    expect(r.names()).not.toContain('git worktree remove')
+    expect(r.ran('git', 'checkout')).toBe(false)
+    expect(r.ran('git', 'worktree')).toBe(false)
   })
 })
 
-describe('gate wait', () => {
-  function gate(script: { status: string; conclusion?: string; pending?: unknown[] }[]) {
-    const calls: string[][] = []
-    let index = 0
-    const call: GhCommand = argv => {
-      calls.push([...argv])
-      const path = argv.find(item => item.startsWith('repos/')) ?? ''
-      const current = script[Math.min(index, script.length - 1)] ?? { status: 'completed' }
-      if (argv[2] === 'POST') return {}
-      if (path.endsWith('/pending_deployments')) return current.pending ?? []
-      index += 1
-      return { status: current.status, conclusion: current.conclusion ?? null }
-    }
-    return { call, calls }
-  }
-  const pending = (id: number, can = true) => ({
-    environment: { id },
-    current_user_can_approve: can,
-  })
-  const options = {
-    repository: 'owner/repo',
-    run: 42,
-    note: 'admission exit 0; D-I90 checked',
-    sleep: async () => {},
-    now: () => 0,
+describe('worktree removal', () => {
+  const listing: Record<string, Answer> = {
+    'git status --porcelain --untracked-files=no': { status: 0, stdout: '' },
+    'git status --porcelain --ignored': {
+      status: 0,
+      stdout: '?? tmp/issue-7/\n!! node_modules/\n',
+    },
   }
 
-  it('approves each pending environment once with the note and returns the conclusion', async () => {
-    const g = gate([
-      { status: 'waiting', pending: [pending(5), pending(6, false)] },
-      { status: 'waiting', pending: [pending(5)] },
-      { status: 'completed', conclusion: 'success' },
-    ])
-    await expect(waitGate({ ...options, call: g.call })).resolves.toEqual({
-      run: 42,
-      conclusion: 'success',
-      approved: [5],
+  it('lists what removal would delete and removes only with force', () => {
+    const r = runner(listing)
+    expect(removeWorktree({ root: '/r', tree: '/t', force: false, run: r.run })).toEqual({
+      tree: '/t',
+      untracked: ['tmp/issue-7/', 'node_modules/'],
+      removed: false,
     })
-    const posts = g.calls.filter(c => c[2] === 'POST')
-    expect(posts).toHaveLength(1)
-    expect(posts[0]).toEqual(
-      expect.arrayContaining([
-        'environment_ids[]=5',
-        'state=approved',
-        'comment=admission exit 0; D-I90 checked',
-      ]),
+    expect(r.ran('git', 'worktree')).toBe(false)
+    const forced = runner(listing)
+    expect(removeWorktree({ root: '/r', tree: '/t', force: true, run: forced.run }).removed).toBe(
+      true,
     )
+    expect(forced.ran('git', 'worktree', 'remove', '--force', '/t')).toBe(true)
   })
 
-  it('refuses a note over the limit before any request', async () => {
-    const g = gate([{ status: 'completed', conclusion: 'success' }])
-    await expect(
-      waitGate({ ...options, note: 'x'.repeat(NOTE_LIMIT + 1), call: g.call }),
-    ).rejects.toThrow('at most 1024')
-    expect(g.calls).toEqual([])
-    expect(confirmationNote(`${'字'.repeat(NOTE_LIMIT)}\n`)).toHaveLength(NOTE_LIMIT)
-    expect(() => confirmationNote('  ')).toThrow('empty')
-  })
-
-  it('stops with unknown after the wait', async () => {
-    let clock = 0
-    const g = gate([{ status: 'in_progress' }])
-    await expect(
-      waitGate({
-        ...options,
-        call: g.call,
-        now: () => clock,
-        sleep: async ms => void (clock += ms),
-        intervalMs: 10,
-        timeoutMs: 25,
-      }),
-    ).rejects.toThrow('did not complete')
+  it('refuses uncommitted tracked changes even with force', () => {
+    const r = runner({
+      ...listing,
+      'git status --porcelain --untracked-files=no': { status: 0, stdout: ' M a.ts\n' },
+    })
+    expect(() => removeWorktree({ root: '/r', tree: '/t', force: true, run: r.run })).toThrow(
+      'uncommitted tracked changes',
+    )
+    expect(r.ran('git', 'worktree')).toBe(false)
   })
 })

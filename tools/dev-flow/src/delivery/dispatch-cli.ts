@@ -15,32 +15,33 @@ import {
   taskBaseInputs,
 } from './dispatch.ts'
 import { runGhCommand } from './github-read.ts'
-import { InputError, parseConfig, text } from './protocol.ts'
+import { InputError, parseConfig, record, text } from './protocol.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
 
 const usage = `Usage:
-  dispatch-cli.ts post --spec <spec.json> --text <prose.md> [--out <binding.json>] [--root <checkout>] [--dry-run]
+  dispatch-cli.ts post --spec <spec.json> --text <prose.md> [--out <binding.json>] [--root <checkout>] [--dry-run] [--force]
   dispatch-cli.ts bind --binding <binding.json> [--worktree <path>] [--config <file>] [--dry-run]`
 
 const ALLOWED = {
-  post: ['--spec', '--text', '--out', '--root'],
-  bind: ['--binding', '--worktree', '--config'],
+  post: { values: ['--spec', '--text', '--out', '--root'], flags: ['--dry-run', '--force'] },
+  bind: { values: ['--binding', '--worktree', '--config'], flags: ['--dry-run'] },
 } as const
 type Command = keyof typeof ALLOWED
 function options(args: string[]): {
   command: Command
   values: Map<string, string>
-  dryRun: boolean
+  flags: Set<string>
 } {
   const [first, ...rest] = args
   if (first !== 'post' && first !== 'bind') throw new InputError(usage)
-  const allowed: readonly string[] = ALLOWED[first],
-    values = new Map<string, string>()
-  let dryRun = false
+  const allowed: readonly string[] = ALLOWED[first].values,
+    switches: readonly string[] = ALLOWED[first].flags,
+    values = new Map<string, string>(),
+    flags = new Set<string>()
   for (let index = 0; index < rest.length; index += 1) {
     const flag = rest[index] ?? ''
-    if (flag === '--dry-run' && !dryRun) {
-      dryRun = true
+    if (switches.includes(flag) && !flags.has(flag)) {
+      flags.add(flag)
       continue
     }
     const value = rest[index + 1]
@@ -54,7 +55,7 @@ function options(args: string[]): {
     values.set(flag, value)
     index += 1
   }
-  return { command: first, values, dryRun }
+  return { command: first, values, flags }
 }
 function required(values: ReadonlyMap<string, string>, flag: string): string {
   const value = values.get(flag)
@@ -62,13 +63,13 @@ function required(values: ReadonlyMap<string, string>, flag: string): string {
   return value
 }
 
-function post(values: ReadonlyMap<string, string>, dryRun: boolean): number {
+function post(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): number {
   const spec = parseDispatchSpec(readJson(required(values, '--spec'))),
     prose = readFileSync(required(values, '--text'), 'utf8'),
     root = resolve(values.get('--root') ?? process.cwd())
   const { policy, config, lines } = taskBaseInputs(root, spec.taskBase)
   const actor = text(
-    (runGhCommand(['api', '--method', 'GET', 'user'], 15_000) as Record<string, unknown>).login,
+    record(runGhCommand(['api', '--method', 'GET', 'user'], 15_000), 'user').login,
     'user.login',
   )
   const plan = planDispatch({
@@ -78,27 +79,34 @@ function post(values: ReadonlyMap<string, string>, dryRun: boolean): number {
     lines,
     policy,
     actor,
+    force: flags.has('--force'),
   })
-  if (dryRun) {
+  if (flags.has('--dry-run')) {
     const { binding, decision } = dispatchDecision(plan, DISPATCH_PLACEHOLDER, spec.basis)
     process.stdout.write(
       `${JSON.stringify({ applied: false, binding, comment: dispatchComment(prose, decision) }, null, 2)}\n`,
     )
     return 0
   }
+  const out = values.get('--out')
   const result = postDispatch({
     repository: config.repository,
     plan,
     basis: spec.basis,
     prose,
     call: runGhCommand,
+    // Keep the dispatch before the readback: a failed readback must not lose the URL.
+    onPosted: posted => {
+      if (out !== undefined) writeFileSync(out, `${JSON.stringify(posted.binding, null, 2)}\n`)
+      process.stderr.write(
+        `${JSON.stringify({ kind: 'dispatch-posted', dispatch: posted.dispatch })}\n`,
+      )
+    },
   })
-  const out = values.get('--out')
-  if (out !== undefined) writeFileSync(out, `${JSON.stringify(result.binding, null, 2)}\n`)
   process.stdout.write(`${JSON.stringify({ applied: true, ...result }, null, 2)}\n`)
   return result.verified ? 0 : 1
 }
-function bind(values: ReadonlyMap<string, string>, dryRun: boolean): number {
+function bind(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): number {
   const path = required(values, '--binding')
   const binding = parseTaskBinding(json(readFileSync(path, 'utf8'), path))
   if (binding.schemaVersion !== 2)
@@ -110,16 +118,16 @@ function bind(values: ReadonlyMap<string, string>, dryRun: boolean): number {
     repository: config.repository,
     binding,
     worktree: values.get('--worktree'),
-    dryRun,
+    dryRun: flags.has('--dry-run'),
     call: runGhCommand,
   })
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
-  return result.applied && result.verified !== true ? 1 : 0
+  return result.applied && !result.verified ? 1 : 0
 }
 
 try {
-  const { command, values, dryRun } = options(process.argv.slice(2))
-  process.exitCode = command === 'post' ? post(values, dryRun) : bind(values, dryRun)
+  const { command, values, flags } = options(process.argv.slice(2))
+  process.exitCode = command === 'post' ? post(values, flags) : bind(values, flags)
 } catch (error) {
   const message =
     error instanceof InputError || error instanceof IntegrationError

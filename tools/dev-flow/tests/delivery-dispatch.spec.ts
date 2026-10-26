@@ -7,7 +7,8 @@ import { readTaskBinding, type TaskBindingV2 } from '../src/delivery/binding.ts'
 import {
   bindBody,
   bindCard,
-  dispatchFieldGaps,
+  dispatchComment,
+  dispatchDecision,
   DISPATCH_PLACEHOLDER,
   parseDispatchSpec,
   planDispatch,
@@ -16,7 +17,7 @@ import {
   type DispatchSpec,
 } from '../src/delivery/dispatch.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
-import { parseConfig, type CapturedIssue } from '../src/delivery/protocol.ts'
+import { dispatchFieldGaps, parseConfig, type CapturedIssue } from '../src/delivery/protocol.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
 import { git } from '../src/integration/git.ts'
 import { commit, init, policyDocument } from './fixtures/integration.ts'
@@ -121,7 +122,9 @@ const spec: DispatchSpec = parseDispatchSpec({
   basis: ['https://github.com/owner/repo/issues/1#issuecomment-9'],
   confirmations: [{ condition: 'D-S00', evidence: 'dispatcher approved revision 2' }],
 })
-const plan = (patch: { spec?: DispatchSpec; card?: CapturedIssue; actor?: string } = {}) =>
+const plan = (
+  patch: { spec?: DispatchSpec; card?: CapturedIssue; actor?: string; force?: boolean } = {},
+) =>
   planDispatch({
     spec: patch.spec ?? spec,
     config,
@@ -129,6 +132,7 @@ const plan = (patch: { spec?: DispatchSpec; card?: CapturedIssue; actor?: string
     lines: table(),
     policy: registry,
     actor: patch.actor ?? 'human',
+    force: patch.force ?? false,
   })
 
 describe('dispatch fields', () => {
@@ -226,12 +230,32 @@ describe('planning a dispatch', () => {
       'label-drift',
     ],
     [
+      'a body without its three attributes',
+      { card: issue({ body: cardBody().replace('- 性质：impl\n', '') }) },
+      '性质',
+    ],
+    [
       'a route to another track',
       { spec: { ...spec, route: { kind: 'track' as const, track: 'side' } } },
       'nature-route-mismatch',
     ],
   ])('refuses %s before any write', (_name, patch, message) => {
     expect(() => plan(patch)).toThrow(message)
+  })
+
+  it('refuses a second dispatch of the same revision and attempt unless forced', () => {
+    const { decision } = dispatchDecision(plan(), `${url}#issuecomment-40`, spec.basis)
+    const comment = {
+      url: `${url}#issuecomment-40`,
+      author: 'human',
+      body: dispatchComment('earlier', decision),
+      updatedAt: '2026-10-26T00:00:00Z',
+    }
+    const card = issue({ comments: [comment] })
+    expect(() => plan({ card })).toThrow(`already dispatched by ${url}#issuecomment-40`)
+    expect(plan({ card, force: true }).binding.attempt).toBe('7-r2-a1')
+    // Another attempt of the same card is a new dispatch.
+    expect(plan({ card, spec: { ...spec, attempt: '7-r2-a2' } }).binding.attempt).toBe('7-r2-a2')
   })
 
   it('refuses a spec with a missing or unknown field', () => {
@@ -293,6 +317,26 @@ describe('posting and binding', () => {
     expect(gh.state.comment).toContain(`"dispatch": "${url}#issuecomment-55"`)
   })
 
+  it('hands over the posted dispatch before a readback that fails, and names it in the error', () => {
+    const gh = github()
+    const failing: GhCommand = (argv, timeout) => {
+      if (argv[2] === 'GET') throw new Error('secret API body')
+      return gh.call(argv, timeout)
+    }
+    const posted: string[] = []
+    expect(() =>
+      postDispatch({
+        repository: 'owner/repo',
+        plan: plan(),
+        basis: spec.basis,
+        prose: 'x',
+        call: failing,
+        onPosted: result => posted.push(result.binding.dispatch),
+      }),
+    ).toThrow(`${url}#issuecomment-55 was posted, but reading it back failed`)
+    expect(posted).toEqual([`${url}#issuecomment-55`])
+  })
+
   it('names the placeholder when the edit fails', () => {
     const gh = github()
     const failing: GhCommand = (argv, timeout) => {
@@ -322,6 +366,21 @@ describe('posting and binding', () => {
     // A new attempt replaces the previous binding in place.
     const again = bindBody(body, { ...binding, attempt: '7-r2-a2' })
     expect(readTaskBinding(again, binding.issue)?.attempt).toBe('7-r2-a2')
+  })
+
+  it('rewrites the dispatch and worktree lines only inside「认领与派发」', () => {
+    const body = bindBody(cardBody(START_ROW, '- 派发情况：另一处的说明。'), binding, 'w')
+    expect(body).toContain('- 派发情况：另一处的说明。')
+    expect(body.match(/^- 派发情况：已派发/gm)).toHaveLength(1)
+  })
+
+  it('refuses a binding that still carries the placeholder dispatch URL', () => {
+    expect(() => bindBody(cardBody(), posted.binding)).toThrow('placeholder dispatch URL')
+    const gh = github()
+    expect(() =>
+      bindCard({ repository: 'owner/repo', binding: posted.binding, dryRun: false, call: gh.call }),
+    ).toThrow('placeholder dispatch URL')
+    expect(gh.calls.map(c => c[2])).toEqual(['GET'])
   })
 
   it('refuses a body without the subsection or with a second binding elsewhere', () => {

@@ -1,51 +1,45 @@
 import { conditionDigest, type Confirmation, type Decision } from '../integration/authority.ts'
+import { blob, maybeBlob } from '../integration/git.ts'
 import {
   array,
   branch,
+  canonical,
   choice,
   fields,
   integer,
   IntegrationError,
+  json,
   safePath,
+  section,
   sha,
   string,
   strings,
-  canonical,
-  json,
 } from '../integration/parse.ts'
-import { blob, maybeBlob } from '../integration/git.ts'
 import { parsePolicy, type Policy } from '../integration/policy.ts'
 import { collectAdmission, observeAdmission, type AdmissionCapture } from './admission.ts'
 import { attributeFindings, judgeAttributes, readCardAttributes } from './attributes.ts'
 import {
   BINDING_MARKERS,
+  deliveryRevision,
   parseRoute,
   parseTaskBinding,
   readTaskBinding,
   type TaskBindingV2,
 } from './binding.ts'
-import { readIssueCard, REST_HEADERS, type GhCommand } from './github-read.ts'
+import { fetchIssueCard, REST_HEADERS, type GhCommand } from './github-read.ts'
 import { LINES_PATH, parseDeliveryLines, type DeliveryLines } from './lines.ts'
 import { conditionCardsOf } from './observe.ts'
-import { parseConfig, text, type CapturedIssue, type DeliveryConfig } from './protocol.ts'
+import {
+  dispatchFieldGaps,
+  parseConfig,
+  record,
+  text,
+  type CapturedIssue,
+  type DeliveryConfig,
+} from './protocol.ts'
 
 const TIMEOUT_MS = 15_000
-
-/**
- * The dispatch fields a card must carry before `start` admits it and before a dispatch is
- * posted: exactly one `kind:` label, exactly one `line:` label and a milestone. Returns one
- * entry per gap; an empty list means the card is complete. A milestone the capture did not
- * read (`undefined`) is not judged.
- */
-export function dispatchFieldGaps(issue: Pick<CapturedIssue, 'labels' | 'milestone'>): string[] {
-  const gaps: string[] = []
-  for (const prefix of ['kind:', 'line:']) {
-    const count = issue.labels.filter(label => label.startsWith(prefix)).length
-    if (count !== 1) gaps.push(`exactly one ${prefix} label (found ${count})`)
-  }
-  if (issue.milestone === null) gaps.push('a milestone')
-  return gaps
-}
+const AUTHORITY_MARKER = 'omne-integration-authority:v1'
 
 /**
  * What the dispatcher decides for one attempt. Card facts (revision, attributes, milestone,
@@ -160,14 +154,36 @@ export type DispatchPlan = { binding: TaskBindingV2; confirmations: Confirmation
 function refuse(problems: readonly string[]): never {
   throw new IntegrationError('refused', `Dispatch refused: ${problems.join('; ')}`)
 }
+/** The comments of the card that already dispatch `attempt` at `revision`. */
+function earlierDispatches(issue: CapturedIssue, revision: number, attempt: string): string[] {
+  return issue.comments.flatMap(comment => {
+    let raw: unknown
+    try {
+      raw = section(comment.body, AUTHORITY_MARKER)
+    } catch {
+      return []
+    }
+    if (typeof raw !== 'object' || raw === null || !('task' in raw)) return []
+    const task: unknown = raw.task
+    if (typeof task !== 'object' || task === null) return []
+    return 'attempt' in task &&
+      task.attempt === attempt &&
+      'revision' in task &&
+      task.revision === revision
+      ? [comment.url]
+      : []
+  })
+}
 /**
  * Checks one dispatch against the live card and builds its version 2 binding with
  * `DISPATCH_PLACEHOLDER` as the dispatch URL. `capture` is an admission capture of the card;
  * `lines` and `policy` come from the task base, where `start` will read them; `actor` is the
- * login that will post the comment. Refuses, before any write, when the card lacks its
- * dispatch fields or has protocol deviations, when its attributes are not valid, when a start
- * condition has no evidence or evidence names an unknown condition, when the binding would
- * carry attribute findings, or when the actor is not the responsible human.
+ * login that will post the comment. Refuses, before any write, when the card is closed, when
+ * the actor is not the responsible human, when the card lacks its dispatch fields or has
+ * protocol deviations, when its attributes or revision are not valid, when a comment already
+ * dispatches the same revision and attempt (unless `force`), when a start condition has no
+ * evidence or evidence names an unknown condition, or when the binding would carry attribute
+ * findings.
  */
 export function planDispatch({
   spec,
@@ -176,6 +192,7 @@ export function planDispatch({
   lines,
   policy,
   actor,
+  force = false,
 }: {
   spec: DispatchSpec
   config: DeliveryConfig
@@ -183,6 +200,7 @@ export function planDispatch({
   lines: DeliveryLines
   policy: Pick<Policy, 'tracks'>
   actor: string
+  force?: boolean
 }): DispatchPlan {
   const url = `https://github.com/${config.repository}/issues/${spec.issue}`
   const issue = capture.issues.find(item => item.url === url)
@@ -199,9 +217,19 @@ export function planDispatch({
   const card = readCardAttributes(issue.body, issue)
   const judged = judgeAttributes(card, lines)
   const { line, nature, contractChange } = judged.attributes
-  if (judged.findings.length > 0 || line === undefined || nature === undefined)
-    refuse(judged.findings.map(finding => finding.message))
-  if (contractChange === undefined) refuse(['契约变更 is missing'])
+  if (line === undefined || nature === undefined || contractChange === undefined)
+    refuse(
+      judged.findings.length > 0
+        ? judged.findings.map(finding => finding.message)
+        : ['「身份与责任」lacks a valid 交付线, 性质 or 契约变更'],
+    )
+  const revision = deliveryRevision(issue.body)
+  if (revision === undefined) refuse(['the card needs exactly one 交付修订 line'])
+  const earlier = earlierDispatches(issue, revision, spec.attempt)
+  if (earlier.length > 0 && !force)
+    refuse([
+      `revision ${revision} attempt ${spec.attempt} is already dispatched by ${earlier.join(', ')}; pass --force to dispatch it again`,
+    ])
   const conditions = observed.cards[0]?.conditions ?? []
   const known = new Set(conditions.map(condition => condition.id))
   const unknown = spec.confirmations.filter(item => !known.has(item.condition))
@@ -222,7 +250,6 @@ export function planDispatch({
       })
   }
   if (missing.length > 0) refuse(missing)
-  const revision = revisionOf(issue.body)
   const binding = parseTaskBinding({
     schemaVersion: 2,
     issue: { repository: config.repository, id: issue.id, number: spec.issue, url },
@@ -242,7 +269,8 @@ export function planDispatch({
     contractChange,
     milestone: issue.milestone ?? null,
   })
-  if (binding.schemaVersion !== 2) throw new IntegrationError('invariant', 'binding version')
+  if (binding.schemaVersion !== 2)
+    throw new IntegrationError('invariant', 'A dispatch builds a version 2 binding')
   const findings = attributeFindings({
     binding,
     card,
@@ -255,13 +283,6 @@ export function planDispatch({
   })
   if (findings.length > 0) refuse(findings.map(finding => `${finding.code}: ${finding.message}`))
   return { binding, confirmations }
-}
-function revisionOf(body: string): number {
-  const revisions = [...body.matchAll(/^\s*-\s+交付修订[：:]\s*([1-9]\d*)\s*$/gm)]
-  const revision = Number(revisions[0]?.[1])
-  if (revisions.length !== 1 || !Number.isSafeInteger(revision))
-    refuse(['the card needs exactly one 交付修订 line'])
-  return revision
 }
 
 /** The binding with the real dispatch comment URL, and the decision that comment carries. */
@@ -285,14 +306,17 @@ export function dispatchDecision(
 }
 /** The dispatch comment: the dispatcher's text, then the authority block that `start` reads. */
 export function dispatchComment(prose: string, decision: Decision): string {
-  return `${prose.trimEnd()}\n\n\`\`\`json omne-integration-authority:v1\n${JSON.stringify(decision, null, 2)}\n\`\`\`\n`
+  return `${prose.trimEnd()}\n\n\`\`\`json ${AUTHORITY_MARKER}\n${JSON.stringify(decision, null, 2)}\n\`\`\`\n`
 }
 
+/** The formal dispatch once its comment holds the authority block. */
+export type PostedDispatch = { dispatch: string; binding: TaskBindingV2 }
 /**
  * Posts the dispatch comment for a checked plan: a placeholder comment first, then one edit
- * that makes it the formal dispatch whose binding names the comment's own URL. Reads the
- * comment back and compares the decision. A failure after the placeholder exists names the
- * placeholder URL so the dispatcher can edit or delete it; the tool does not retry.
+ * that makes it the formal dispatch whose binding names the comment's own URL. `onPosted`
+ * receives the formal dispatch right after the edit, before the readback, so the caller keeps
+ * the URL and binding even when the readback fails. A failure after the placeholder exists
+ * names its URL; the tool does not retry or delete.
  */
 export function postDispatch({
   repository,
@@ -300,17 +324,19 @@ export function postDispatch({
   basis,
   prose,
   call,
+  onPosted = () => {},
 }: {
   repository: string
   plan: DispatchPlan
   basis: readonly string[]
   prose: string
   call: GhCommand
-}): { dispatch: string; binding: TaskBindingV2; verified: boolean } {
+  onPosted?: (posted: PostedDispatch) => void
+}): PostedDispatch & { verified: boolean } {
   const number = plan.binding.issue.number
-  let posted: Record<string, unknown>
+  let placeholder: Record<string, unknown>
   try {
-    posted = record(
+    placeholder = record(
       call(
         [
           'api',
@@ -323,66 +349,71 @@ export function postDispatch({
         ],
         TIMEOUT_MS,
       ),
+      'placeholder comment',
     )
   } catch {
     throw new IntegrationError(
       'unknown',
-      'Posting the placeholder comment failed. API output omitted.',
+      'Posting the placeholder comment failed. Read the card before retrying. API output omitted.',
     )
   }
-  const dispatch = text(posted.html_url, 'comment.html_url'),
-    id = integer(posted.id, 'comment.id')
+  const dispatch = text(placeholder.html_url, 'comment.html_url'),
+    id = integer(placeholder.id, 'comment.id')
   const { binding, decision } = dispatchDecision(plan, dispatch, basis)
   const body = dispatchComment(prose, decision)
+  const path = `repos/${repository}/issues/comments/${id}`
   try {
-    call(
-      [
-        'api',
-        '--method',
-        'PATCH',
-        ...REST_HEADERS,
-        `repos/${repository}/issues/comments/${id}`,
-        '-f',
-        `body=${body}`,
-      ],
-      TIMEOUT_MS,
-    )
+    call(['api', '--method', 'PATCH', ...REST_HEADERS, path, '-f', `body=${body}`], TIMEOUT_MS)
   } catch {
     throw new IntegrationError(
       'unknown',
       `Editing the placeholder ${dispatch} into the dispatch failed. Edit or delete it before dispatching again. API output omitted.`,
     )
   }
-  const readback = record(
-    call(
-      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/comments/${id}`],
-      TIMEOUT_MS,
-    ),
-  )
+  onPosted({ dispatch, binding })
+  let readback: Record<string, unknown>
+  try {
+    readback = record(
+      call(['api', '--method', 'GET', ...REST_HEADERS, path], TIMEOUT_MS),
+      'dispatch comment',
+    )
+  } catch {
+    throw new IntegrationError(
+      'unknown',
+      `The dispatch ${dispatch} was posted, but reading it back failed. Check the comment; do not dispatch again. API output omitted.`,
+    )
+  }
   return { dispatch, binding, verified: readback.body === body }
-}
-function record(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new IntegrationError('unknown', 'GitHub returned no object')
-  return value as Record<string, unknown>
 }
 
 const EXECUTION_HEADING = '### 分支、基线与task context'
+const CLAIM_HEADING = '### 认领与派发'
+/** The `[start, end)` line range of the unique subsection with `heading`, or undefined. */
+function subsection(lines: readonly string[], heading: string): [number, number] | undefined {
+  const starts = lines.flatMap((line, index) => (line.trim() === heading ? [index] : []))
+  const start = starts[0]
+  if (starts.length !== 1 || start === undefined) return undefined
+  const after = lines.slice(start + 1).findIndex(line => /^#{2,3} /.test(line))
+  return [start, after === -1 ? lines.length : start + 1 + after]
+}
 /**
  * The card body with the binding written into「分支、基线与task context」: one dispatch line
- * derived from the binding and the binding block replace the whole subsection. In「认领与派发」
- * the「派发情况」line, and with `worktree` the「工作树」line, are rewritten when present.
- * Refuses a body without exactly one such subsection, and a result whose unique binding does
- * not read back equal to `binding`.
+ * derived from the binding and the binding block replace the whole subsection. Inside
+ *「认领与派发」the「派发情况」line, and with `worktree` the「工作树」line, are rewritten when
+ * present; lines elsewhere are kept. Refuses a placeholder dispatch URL, a body without exactly
+ * one such subsection, and a result whose unique binding does not read back equal to `binding`.
  */
 export function bindBody(body: string, binding: TaskBindingV2, worktree?: string): string {
+  if (binding.dispatch === DISPATCH_PLACEHOLDER)
+    throw new IntegrationError(
+      'input-error',
+      'The binding still carries the placeholder dispatch URL; bind the binding that post wrote',
+    )
   const lines = body.split('\n')
-  const starts = lines.flatMap((line, index) => (line.trim() === EXECUTION_HEADING ? [index] : []))
-  const start = starts[0]
-  if (starts.length !== 1 || start === undefined)
+  const execution = subsection(lines, EXECUTION_HEADING)
+  if (execution === undefined)
     throw new IntegrationError('input-error', `The body needs exactly one ${EXECUTION_HEADING}`)
-  const after = lines.slice(start + 1).findIndex(line => /^#{2,3} /.test(line))
-  const end = after === -1 ? lines.length : start + 1 + after
+  const [start, end] = execution
   const block = [
     EXECUTION_HEADING,
     '',
@@ -393,19 +424,25 @@ export function bindBody(body: string, binding: TaskBindingV2, worktree?: string
     '```',
     '',
   ]
-  const rewritten = [...lines.slice(0, start), ...block, ...lines.slice(end)].map(line =>
-    /^- 派发情况[：:]/.test(line)
-      ? `- 派发情况：已派发，见 ${binding.dispatch}。`
-      : worktree !== undefined && /^- 工作树[：:]/.test(line)
-        ? `- 工作树：\`${worktree}\`。`
-        : line,
-  )
+  const written = [...lines.slice(0, start), ...block, ...lines.slice(end)]
+  const claim = subsection(written, CLAIM_HEADING)
+  const rewritten = written.map((line, index) => {
+    if (claim === undefined || index <= claim[0] || index >= claim[1]) return line
+    if (/^- 派发情况[：:]/.test(line)) return `- 派发情况：已派发，见 ${binding.dispatch}。`
+    if (worktree !== undefined && /^- 工作树[：:]/.test(line)) return `- 工作树：\`${worktree}\`。`
+    return line
+  })
   const result = rewritten.join('\n')
   const read = readTaskBinding(result, binding.issue)
   if (read === undefined || canonical(read) !== canonical(binding))
     throw new IntegrationError('input-error', 'The written binding does not read back unchanged')
   return result
 }
+/** A dry run returns the new body only; an applied run says whether the binding read back. */
+export type BindResult = { body: string } & (
+  | { applied: false }
+  | { applied: true; verified: boolean }
+)
 /**
  * Writes the binding into the card body and reads it back. `dryRun` returns the new body
  * without writing.
@@ -422,31 +459,36 @@ export function bindCard({
   worktree?: string | undefined
   dryRun: boolean
   call: GhCommand
-}): { body: string; applied: boolean; verified?: boolean } {
-  const number = binding.issue.number,
-    path = `repos/${repository}/issues/${number}`
+}): BindResult {
+  const number = binding.issue.number
   if (binding.issue.repository !== repository)
     throw new IntegrationError('input-error', 'The binding names another repository')
-  const read = () =>
-    readIssueCard(
-      call(['api', '--method', 'GET', ...REST_HEADERS, path], TIMEOUT_MS),
-      repository,
-      number,
-    )
-  const card = read()
-  if (text(card.issue.node_id, 'Issue.node_id') !== binding.issue.id)
+  const card = fetchIssueCard(repository, number, call)
+  if (card.identity.id !== binding.issue.id)
     throw new IntegrationError('input-error', 'The binding names another Issue node')
   const body = bindBody(card.body, binding, worktree)
   if (dryRun) return { body, applied: false }
   try {
-    call(['api', '--method', 'PATCH', ...REST_HEADERS, path, '-f', `body=${body}`], TIMEOUT_MS)
+    call(
+      [
+        'api',
+        '--method',
+        'PATCH',
+        ...REST_HEADERS,
+        `repos/${repository}/issues/${number}`,
+        '-f',
+        `body=${body}`,
+      ],
+      TIMEOUT_MS,
+    )
   } catch {
     throw new IntegrationError('unknown', 'Writing the card body failed. API output omitted.')
   }
-  const after = readTaskBinding(read().body, binding.issue)
+  const after = fetchIssueCard(repository, number, call)
+  const read = readTaskBinding(after.body, after.identity)
   return {
     body,
     applied: true,
-    verified: after !== undefined && canonical(after) === canonical(binding),
+    verified: read !== undefined && canonical(read) === canonical(binding),
   }
 }

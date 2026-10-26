@@ -574,6 +574,33 @@ describe('Kind and Wave at dispatch', () => {
     expect(currentIteration(waves, '2026-10-18')).toBeUndefined()
   })
 
+  it('takes the first of overlapping iterations in configuration order', () => {
+    const overlap = [
+      { id: 'late', title: 'Late', startDate: '2026-10-27', duration: 7 },
+      { id: 'early', title: 'Early', startDate: '2026-10-26', duration: 7 },
+    ]
+    expect(currentIteration(overlap, '2026-10-28')?.id).toBe('late')
+  })
+
+  it('keeps an existing Wave when a new attempt starts in a later iteration', () => {
+    const p = project({ iterations: waves, values: { F_wave: 'w1', F_disp: '2026-10-20' } })
+    const result = recordBoardEvent({
+      config: config('dispatched', withKindWave),
+      issue,
+      date: '2026-10-27',
+      line: 'model',
+      kind: 'feature',
+      dryRun: false,
+      call: p.call,
+    })
+    expect(result.skipped).toEqual([
+      { name: 'dispatchedAt', reason: 'Dispatched at is already 2026-10-20' },
+      { name: 'wave', reason: 'Wave is already w1' },
+    ])
+    expect(p.state.get('F_wave')).toBe('w1')
+    expect(p.mutations().some(c => c.some(arg => arg.startsWith('value[iterationId]')))).toBe(false)
+  })
+
   it('skips Kind and Wave with their reasons instead of guessing', () => {
     const p = project({ iterations: waves })
     const result = recordBoardEvent({

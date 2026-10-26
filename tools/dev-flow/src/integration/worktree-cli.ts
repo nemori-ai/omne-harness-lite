@@ -5,28 +5,51 @@ import { InputError, issueNumberArgument, parseConfig } from '../delivery/protoc
 import { readJson, repositoryFile } from '../delivery/repository-files.ts'
 import { repository } from './git.ts'
 import { IntegrationError } from './parse.ts'
-import { issueBinding, prepareWorktree, regenerateProjections, swapWorktree } from './worktree.ts'
+import {
+  issueBinding,
+  prepareWorktree,
+  regenerateProjections,
+  removeWorktree,
+  swapWorktree,
+} from './worktree.ts'
 
 const usage = `Usage:
   worktree-cli.ts prepare --issue <N> --tree <dir> [--evidence <dir>] [--root <main checkout>] [--remote <name>] [--config <file>]
   worktree-cli.ts swap --issue <N> --old <dir> --tree <dir> [--root <main checkout>] [--remote <name>] [--config <file>]
-  worktree-cli.ts projections [--tree <dir>]`
+  worktree-cli.ts projections [--tree <dir>]
+  worktree-cli.ts remove --tree <dir> [--root <main checkout>] [--force]`
 
 const ALLOWED = {
-  prepare: ['--issue', '--tree', '--evidence', '--root', '--remote', '--config'],
-  swap: ['--issue', '--old', '--tree', '--root', '--remote', '--config'],
-  projections: ['--tree'],
+  prepare: {
+    values: ['--issue', '--tree', '--evidence', '--root', '--remote', '--config'],
+    flags: [],
+  },
+  swap: { values: ['--issue', '--old', '--tree', '--root', '--remote', '--config'], flags: [] },
+  projections: { values: ['--tree'], flags: [] },
+  remove: { values: ['--tree', '--root'], flags: ['--force'] },
 } as const
 type Command = keyof typeof ALLOWED
-function options(args: string[]): { command: Command; values: Map<string, string> } {
+function isCommand(value: string | undefined): value is Command {
+  return value !== undefined && Object.hasOwn(ALLOWED, value)
+}
+function options(args: string[]): {
+  command: Command
+  values: Map<string, string>
+  flags: Set<string>
+} {
   const [first, ...rest] = args
-  if (first !== 'prepare' && first !== 'swap' && first !== 'projections')
-    throw new InputError(usage)
-  const allowed: readonly string[] = ALLOWED[first],
-    values = new Map<string, string>()
-  for (let index = 0; index < rest.length; index += 2) {
-    const flag = rest[index] ?? '',
-      value = rest[index + 1]
+  if (!isCommand(first)) throw new InputError(usage)
+  const allowed: readonly string[] = ALLOWED[first].values,
+    switches: readonly string[] = ALLOWED[first].flags,
+    values = new Map<string, string>(),
+    flags = new Set<string>()
+  for (let index = 0; index < rest.length; index += 1) {
+    const flag = rest[index] ?? ''
+    if (switches.includes(flag) && !flags.has(flag)) {
+      flags.add(flag)
+      continue
+    }
+    const value = rest[index + 1]
     if (
       !allowed.includes(flag) ||
       value === undefined ||
@@ -35,8 +58,9 @@ function options(args: string[]): { command: Command; values: Map<string, string
     )
       throw new InputError(usage)
     values.set(flag, value)
+    index += 1
   }
-  return { command: first, values }
+  return { command: first, values, flags }
 }
 function required(values: ReadonlyMap<string, string>, flag: string): string {
   const value = values.get(flag)
@@ -58,23 +82,45 @@ function cardBinding(values: ReadonlyMap<string, string>) {
   )
   return issueBinding(config.repository, number, runGhCommand)
 }
+function run(command: Command, values: ReadonlyMap<string, string>, flags: ReadonlySet<string>) {
+  const remote = values.get('--remote') ?? 'origin'
+  switch (command) {
+    case 'projections': {
+      const tree = resolve(values.get('--tree') ?? process.cwd())
+      regenerateProjections(tree)
+      return { tree, checkAgents: 'pass' }
+    }
+    case 'remove':
+      return removeWorktree({
+        root: resolve(values.get('--root') ?? mainCheckout()),
+        tree: resolve(required(values, '--tree')),
+        force: flags.has('--force'),
+      })
+    case 'prepare':
+      return prepareWorktree({
+        root: resolve(values.get('--root') ?? mainCheckout()),
+        tree: resolve(required(values, '--tree')),
+        binding: cardBinding(values),
+        remote,
+        evidence: values.get('--evidence'),
+      })
+    case 'swap':
+      return swapWorktree({
+        root: resolve(values.get('--root') ?? mainCheckout()),
+        old: resolve(required(values, '--old')),
+        tree: resolve(required(values, '--tree')),
+        binding: cardBinding(values),
+        remote,
+      })
+  }
+}
 
 try {
-  const { command, values } = options(process.argv.slice(2))
-  const remote = values.get('--remote') ?? 'origin'
-  let result: unknown
-  if (command === 'projections')
-    result = regenerateProjections(resolve(values.get('--tree') ?? process.cwd()))
-  else {
-    const root = resolve(values.get('--root') ?? mainCheckout()),
-      tree = resolve(required(values, '--tree')),
-      binding = cardBinding(values)
-    result =
-      command === 'prepare'
-        ? prepareWorktree({ root, tree, binding, remote, evidence: values.get('--evidence') })
-        : swapWorktree({ root, old: resolve(required(values, '--old')), tree, binding, remote })
-  }
+  const { command, values, flags } = options(process.argv.slice(2))
+  const result = run(command, values, flags)
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+  // Without --force, remove only lists what removal would delete.
+  if ('removed' in result && !result.removed) process.exitCode = 1
 } catch (error) {
   const message =
     error instanceof InputError || error instanceof IntegrationError
