@@ -42,7 +42,9 @@ description: >
 node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...
 ```
 
-退出 1 时不开波，先改分解。已关闭的卡默认不参与，列在 `excluded`。还没写进 Issue 的 binding 用文件传入。同线顺序推进的卡可以重叠，求交时按线分组。
+退出 1 时不开波，先改分解。已关闭的卡默认不参与，列在 `excluded`。还没写进 Issue 的 binding 用文件传入。同线顺序推进的卡可以重叠；命令两两求交，所以把同线重叠的卡的写范围之并作为一张卡用文件传入。
+
+四项都过后开波：第一波给每条线的线父卡发线包，之后各波发 `line-delta`。线内的卡由线会话按第 5 至 8 节登记，授权来自线包，taskBase 取批次分支头。
 
 ## 4. 准备本波的 Wave
 

@@ -10,17 +10,17 @@ description: >
 
 本技能是 `docs/engineering/integration.md`「集成节点的清单」的可执行版。批次、波、收口点、不变量、合并顺序、冲突、失败处理与退回的规则都归那一节，权限与 gate 归同页「现行准入」。命令的精确行为归 `tools/dev-flow/src/delivery/README.md` 与 `tools/dev-flow/src/integration/README.md`，PR 与提交的格式归 `CONTRIBUTING.md`。
 
-开始前确认：调度者已在里程碑卡中把集成节点具名给你；本波的波准入已通过；你有各线父卡的卡号、提升 PR、批次报告与各卡的交接报告；代为确认 gate 时，你有该 admin 对本次确认的授权。缺任一项时停下，交回调度者。
+开始前确认：调度者已在里程碑卡中把集成节点具名给你；本波的波准入已通过；你有各线父卡的卡号、批次 PR、批次报告与各卡的交接报告；代为确认 gate 时，你有该 admin 对本次确认的授权。缺任一项时停下，交回调度者。
 
 ## 1. 收批次
 
-提升 PR 转为 ready 即收到。按到达先后处理。几个批次同时到时，按 integration.md「集成节点怎样工作」第 2 步，影响面大的先合。记下每个批次的到达时刻与实际合入顺序。
+批次 PR 转为 ready 即收到。按到达先后处理。几个批次同时到时，按 integration.md「集成节点怎样工作」第 2 步，影响面大的先合。记下每个批次的到达时刻与实际合入顺序。
 
 ## 2. 逐批次合入
 
 对每个批次做下列步骤。任一步失败时停在这一步，按 integration.md「失败处理」整体退回该线，再处理下一个批次。
 
-1. 读提升 PR、线父卡上的批次报告与各卡的交接报告。报告写明某张卡未进批次时，核对批次分支上没有那张卡的提交。
+1. 读批次 PR、线父卡上的批次报告与各卡的交接报告。报告写明某张卡未进批次时，核对批次分支上没有那张卡的提交。
 2. 核对批次改动的文件都在各卡写范围之并内：`git diff --name-only <收口点>...<批次头>`。有越界文件时整个批次不合入。
 3. 在本机为线父卡的本波 attempt 建工作树并开工。本机还没有这张卡的树时用 `prepare`；本机有旧树时用 `swap`。`swap` 不删除旧树：它让旧树分离分支，从远端尖端建新树，并列出旧树中 `tmp/issue-<N>/` 以外的未跟踪路径。
 
@@ -33,7 +33,7 @@ description: >
 4. 在新树中同步联调轨道，两步：先 `git merge origin/integration/legacy-refactor` 并提交，再运行 task-sync，输入 `{"kind":"task-sync","target":"<合并进来的轨道提交>"}`。合并出现冲突时，按 integration.md「冲突即退回分解」先看冲突落在哪些文件上。只落在线归属表 `shared` 的路径上时，按该节逐类解决（命令在该节），提交到批次分支，继续下一步，记一条共享路径冲突。其余冲突立即停止，不在集成侧解决，退回该线。
 5. 同步合并之后、准入之前，一律重生成投影并跑 `check:agents`：`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections`。批次自己没改 agent 源也要做，因为合并进来的轨道头可能带别的批次的 agent 源改动。
 6. 准入排队。同一台机器上的准入一次只跑一个，按任务信息包写明的准入锁路径排队：锁文件存在时等待，每 60 秒看一次；轮到时建锁文件，跑完删除。准入命令为 `OMNE_ADMISSION=1 pnpm run check`，它包含哪些检查归开发指南与仓库根 `package.json`。记录实际命令与退出码。准入不通过时退回该线，不改批次。
-7. 推送批次分支，让提升 PR 的 head 前进到同步后的提交。把线父卡的 Stage 改为 Integrating：`node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <线父卡>`。
+7. 推送批次分支，让批次 PR 的 head 前进到同步后的提交。把线父卡的 Stage 改为 Integrating：`node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <线父卡>`。
 8. 派发 gate 并等待：
 
    ```sh
@@ -51,7 +51,7 @@ description: >
 
 1. 在联调轨道头运行联调命令。命令由里程碑卡给出。没有给出时写明本波没有联调。
 2. 运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check`。两者都通过时，这个提交是下一个收口点。任一项不通过时，按批次顺序定位负责的线，把修复排进该线下一波的第一张卡；收口点仍取当前头，集成报告标红。
-3. 契约成员破坏性改动的允许时机与申请口子归 integration.md「里程碑内的规则」。各提升 PR 的「契约变化」按各卡的 taskBase 申报。
+3. 契约成员破坏性改动的允许时机与申请口子归 integration.md「里程碑内的规则」。各批次 PR 的「契约变化」按各卡的 taskBase 申报。
 
 ## 4. 接受与看板
 
@@ -62,7 +62,7 @@ description: >
 
 ## 5. 退回
 
-集成节点与线不通信。除只落在共享路径上的合并冲突以外，集成节点不改批次的代码。批次有缺陷时整体退回该线：线修复后重新开提升 PR，沿用线父卡的同一个 attempt，head 前进。修复后的批次按本技能重走一遍。
+集成节点不与线会话对话，退回记录与 `line-delta` 以调度者身份写在线父卡上。除只落在共享路径上的合并冲突以外，集成节点不改批次的代码。批次有缺陷时整体退回该线：线修复后重新开批次 PR，沿用线父卡的同一个 attempt，head 前进。修复后的批次按本技能重走一遍。
 
 ## 已知的坑
 
