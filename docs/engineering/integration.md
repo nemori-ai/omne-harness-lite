@@ -259,6 +259,49 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 
 `gate-publish` 遇到冲突就停止，冲突先在来源分支解决，涉及含义的取舍交相应语义 owner。worker 提供来源和测试，不直接修改共享目标来解决冲突。解决冲突后的合并结果需要实际组合验证；各源单独通过不能代替它。
 
+## 集成节点的清单
+
+多条交付线并行推进一波工作时，各线从同一个冻结提交开工，互不通信，交回固定在 taskBase 上的候选 PR 与交接报告。集成节点是一个独立会话。它按本清单把一波候选合入目标轨道。集成节点只读候选、交接报告和派发时的包，不读线的工作过程，也不与线通信。
+
+### 合并顺序
+
+1. 先合依赖少的线。一条线需要另一条线的交付结果时，后者先合。
+2. 依赖相同时，先合写范围小的线。
+3. 关键路径上的线最后合。它合入时，其他线已经在轨道上。
+
+集成节点在开始合并前写下这个顺序，合并中不改顺序。
+
+### 每一步的命令
+
+开始前，集成节点核对本波各卡的写范围两两不相交。命令从仓库根运行，参数是本波的卡号：
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号>...
+```
+
+退出 0 表示没有交集。退出 1 表示有交集，标准错误逐行列出冲突的两张卡与路径。有交集时不开始合并，把冲突交派发者重新分解。
+
+然后按合并顺序，对每条线做下列步骤：
+
+1. 读该线的候选 PR 与交接报告。报告写明未达到的验收项时，该线不合入，进入下一波的包。
+2. 核对候选改动的文件都在 binding 的写范围内：`git diff --name-only <taskBase>...<候选 head>`。有越界文件时整个候选不合入，退回该线。
+3. 在该候选的任务工作树中，按[两条基线](#两条基线)同步轨道的当前头：先 `git merge`，再运行 `task-sync`。合并出现冲突时立即停止，见下一节。
+4. 在同一个工作树中运行准入检查 `OMNE_ADMISSION=1 pnpm run check`。检查不通过时停止，不在集成侧修改该线的代码，退回该线。
+5. 按[现行准入](#现行准入)派发 `gate-publish`，由 admin 确认。
+6. 合入后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <卡号>`，把看板的 Status 改为 Integrating。
+
+### 冲突即退回分解
+
+合并出现冲突，说明派发时的写范围算错了。集成节点不在集成侧解决冲突。它记录冲突的两条线和文件，把后合的那条线退回下一波，并把这条记录交派发者，用来改下一波的线划分。
+
+### 联调入口
+
+全部候选合入后，集成节点运行派发者在包中具名的联调命令。联调用各线的替身走完整路径，不用真实的外部服务。M1.5 的联调入口是 `apps/m2-contract-skeleton`。包中没有具名联调命令时，本波不跑联调，集成报告写明这一点。联调失败时，按失败的那一步找到拥有该步的线，问题进入下一波的包，不在集成侧修复。
+
+### 稳定点
+
+联调通过后，集成节点在轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check`。通过时，该提交是本波的冻结头，下一波各线以它为 taskBase。集成报告写明合入顺序、每一步的结果、退回的线和分解错误清单。冻结头不是 stable 上的 checkpoint，进入 stable 仍按[稳定点与轨道演进](#稳定点与轨道演进)执行。
+
 ## Issue 与 Project 的配合
 
 每卡声明 completionTarget，并按同一条件表记录 start、integration、acceptance。completionTarget 为 `track` 时，指 route 中的那条轨道；之后随该轨道逐层进入上游与 main 属于运输。integration 可限定目标层或实际 ref；未声明为 all。限定为 track 层的条件，只在进入 route 中的那条轨道时适用；要在上一层轨道或 main 之前满足的条件，写明实际 ref。只要求进入 main 前满足的条件，不阻 work→track。最终“main/stable 已包含本结果”属于 acceptance，不作为自身运输前置。
@@ -266,6 +309,8 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 完成 track 即可接受的卡，后续仍可能随完整 prefix 进入 main/stable。卡的历史 revision 与 attempt 保留在 Issue 记录中，后续运输由确认者核对当前输入与适用条件。接受或关闭既不拒绝、也不自动许可未来的运输。
 
 Project 可由原单投影写者维护可选 Integration target 与 Integration progress 视图，来源为 Issue 的声明和实际 Git unit/checkpoint。视图只报告 declared/observed 及 unknown/inconsistent，不能作第二可编辑队列、改变 Stage 或产生 Accepted/Closes。未配置真实字段时不造字段 ID。本工具不写平台，唯一的例外是云端会话开工时派发 `delivery-facts`。
+
+看板日期与交付线字段另由 dev-flow 写入（#768）。`start` 新建 task context 后，尽力在本卡的 Project 条目上写 Dispatched at 与 Line。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at、Cycle days 与对应的 Status 由调度者运行 `board-cli.ts` 写入。字段 ID 登记在 `tools/dev-flow/config/project-board.json`。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
 
 ## 清理与 policy registry
 
