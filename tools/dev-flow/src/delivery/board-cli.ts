@@ -2,11 +2,10 @@
 import { IntegrationError } from '../integration/parse.ts'
 import { readTaskBinding } from './binding.ts'
 import {
-  BOARD_CONFIG_PATH,
+  boardConfig,
   boardEvents,
   calendarDay,
   cardLine,
-  parseBoardConfig,
   recordBoardEvent,
   type BoardEvent,
 } from './board.ts'
@@ -15,7 +14,7 @@ import { calendarDate } from './milestone.ts'
 import { InputError, parseConfig, text } from './protocol.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
 
-const usage = `Usage: board-cli.ts <${boardEvents.join('|')}> --issue <number> [--date <YYYY-MM-DD>] [--dry-run] [--config <file>] [--board <file>]`
+const usage = `Usage: board-cli.ts <${boardEvents.join('|')}> --issue <number> [--date <YYYY-MM-DD>] [--dry-run] [--config <file>]`
 
 function options(args: string[]): {
   event: BoardEvent
@@ -23,7 +22,6 @@ function options(args: string[]): {
   date: string | undefined
   dryRun: boolean
   config: string
-  board: string
 } {
   const [first, ...rest] = args,
     event = boardEvents.find(item => item === first)
@@ -39,7 +37,7 @@ function options(args: string[]): {
     const value = rest[index + 1]
     if (
       flag === undefined ||
-      !['--issue', '--date', '--config', '--board'].includes(flag) ||
+      !['--issue', '--date', '--config'].includes(flag) ||
       value === undefined ||
       value.startsWith('--') ||
       values.has(flag)
@@ -57,7 +55,6 @@ function options(args: string[]): {
     date: date === undefined ? undefined : calendarDate(date, '--date'),
     dryRun,
     config: values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json'),
-    board: values.get('--board') ?? repositoryFile(BOARD_CONFIG_PATH),
   }
 }
 try {
@@ -67,10 +64,8 @@ try {
       'A cloud session cannot reach GraphQL. Run this command from a local session; for Stage alone use the delivery-stage workflow.',
     )
   const delivery = parseConfig(readJson(args.config)),
-    board = parseBoardConfig(readJson(args.board))
-  if (!board.enabled) throw new InputError('Board writes are disabled in the board config')
-  if (board.projectId !== delivery.project.id)
-    throw new InputError('The board config names another Project than the delivery config')
+    board = boardConfig(delivery)
+  if (board === null) throw new InputError('The delivery config has no board entry')
   const repository = delivery.repository
   const card = readIssueCard(
     runGhCommand(

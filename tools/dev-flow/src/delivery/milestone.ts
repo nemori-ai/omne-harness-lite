@@ -5,6 +5,15 @@ const TIMEOUT_MS = 15_000
 /** The HTML comment that opens every carry comment; the JSON after it names the two titles. */
 const CARRY_MARKER = 'omne-milestone-carry:v1'
 
+/** The view settings to make on the Project page after `milestone create`; no API writes them. */
+export const MILESTONE_VIEW_MANUAL_STEPS = [
+  'On the Project page, create a Board view named after the milestone.',
+  'Set its filter to milestone:"<milestone title>".',
+  'View menu, Column field: Status. Show the Integrating column if it is hidden.',
+  'View menu, Swimlanes: Line.',
+  'Save changes.',
+] as const
+
 export type Milestone = { number: number; title: string; state: string; dueOn: string | null }
 
 /** A calendar date `YYYY-MM-DD` that exists. */

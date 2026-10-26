@@ -110,7 +110,10 @@ export function integrationFixture(
     admissionOnly?: boolean
     /** Commits this value as docs/engineering/delivery-lines.json with the fixture policy. */
     lines?: unknown
-    /** Commits this value as tools/dev-flow/config/project-board.json with the fixture policy. */
+    /**
+     * Adds this value as the delivery config's `board` entry, with the board field and option
+     * IDs the entry needs.
+     */
     board?: unknown
   } = {},
 ) {
@@ -139,21 +142,36 @@ export function integrationFixture(
         number: 1,
         id: 'P_1',
         url: 'https://github.com/orgs/owner/projects/1',
-        fields: { stage: 'F_stage', priority: null, iteration: null },
+        fields: {
+          stage: 'F_stage',
+          priority: null,
+          iteration: null,
+          ...(options.board === undefined
+            ? {}
+            : {
+                line: 'F_line',
+                dispatchedAt: 'F_disp',
+                deliveredAt: 'F_deliv',
+                acceptedAt: 'F_acc',
+                cycleDays: 'F_cycle',
+              }),
+        },
+        ...(options.board === undefined
+          ? {}
+          : {
+              options: {
+                stage: { 'In review': 'a', Integrating: 'b', Accepted: 'c' },
+                line: { integration: 'd' },
+              },
+            }),
       },
       creationHandoffIssue: null,
       writers: { stage: 'human', body: 'human' },
+      ...(options.board === undefined ? {} : { board: options.board }),
     }),
   )
   if (options.lines !== undefined)
     writeFileSync(join(root, 'docs/engineering/delivery-lines.json'), JSON.stringify(options.lines))
-  if (options.board !== undefined) {
-    mkdirSync(join(root, 'tools/dev-flow/config'), { recursive: true })
-    writeFileSync(
-      join(root, 'tools/dev-flow/config/project-board.json'),
-      JSON.stringify(options.board),
-    )
-  }
   git(root, ['add', '.'])
   git(root, ['commit', '-m', 'Committed fixture policy'])
   const main = git(root, ['rev-parse', 'HEAD'])

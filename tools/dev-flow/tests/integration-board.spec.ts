@@ -12,26 +12,14 @@ afterEach(() => {
   vi.unstubAllEnvs()
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
 })
-const board = (enabled = true) => ({
-  schemaVersion: 1,
-  enabled,
-  projectId: 'P_1',
-  timeZone: 'UTC',
-  fields: {
-    status: { id: 'F_status', options: { 'In review': 'a', Integrating: 'b', Accepted: 'c' } },
-    line: { id: 'F_line', options: { integration: 'd' } },
-    dispatchedAt: 'F_disp',
-    deliveredAt: 'F_deliv',
-    acceptedAt: 'F_acc',
-    cycleDays: 'F_cycle',
-  },
+const board = (dispatched: string[] = ['dispatchedAt', 'line'], timeZone = 'UTC') => ({
+  timeZone,
   events: {
-    dispatched: ['dispatchedAt', 'line'],
+    dispatched,
     delivered: ['deliveredAt', 'status'],
     integrating: ['status'],
     accepted: ['acceptedAt', 'cycleDays', 'status'],
   },
-  milestoneView: false,
 })
 function fixture(config: unknown) {
   const f = integrationFixture({ board: config })
@@ -104,14 +92,14 @@ describe('start board write', () => {
     expect(mutations(f)).toHaveLength(1)
   })
 
-  it('stays silent and sends nothing when the board config disables writes', async () => {
-    const f = fixture(board(false))
+  it('stays silent and sends nothing when the board entry disables dispatch writes', async () => {
+    const f = fixture(board([]))
     expect((await start(f)).board).toEqual([])
     expect(mutations(f)).toEqual([])
   })
 
-  it('reports an unreadable board config without refusing the start', async () => {
-    const f = fixture({ schemaVersion: 1 })
+  it('reports an unusable board entry without refusing the start', async () => {
+    const f = fixture(board(undefined, 'Mars/Base'))
     const { context, board: reports } = await start(f)
     expect(context.ownerTask).toEqual(f.binding)
     expect(reports.map(report => report.code)).toEqual(['board-write-failed'])

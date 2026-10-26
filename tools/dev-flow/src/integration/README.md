@@ -102,11 +102,12 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 ### 看板字段
 
-`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 Dispatched at（开工当天在看板配置时区中的日期）与 Line。看板配置读 policy 同一提交中的 `tools/dev-flow/config/project-board.json`，字段 ID 都在这个文件里。
+`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 Dispatched at（开工当天在 `board.timeZone` 时区中的日期）与 Line。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
 
-- 提交中没有这个文件、配置 `enabled` 为 false、或 `dispatched` 事件没有启用写入时，不写也不报告。
+- 交付配置没有 `board` 项、或 `board.events.dispatched` 为空时，不写也不报告。
+- `board` 项的形状不合格（例如 `timeZone` 不是字符串）时，整个交付配置不合格，`start` 拒绝开工，与交付配置的其他字段相同。
 - 已有同绑定的 context 时不写，所以重跑 `start` 不改 Dispatched at。
-- 写入失败、配置不合格、配置的 Project 与交付配置不同、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
+- 写入失败、事件启用了不属于它的写入、缺字段 ID 或时区无效、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
 - 云端会话不发 GraphQL 请求，只报告一行 `board-skipped`。之后在本地会话用 `board-cli.ts dispatched` 补写。
 
 写入只是尽力而为。任何结果都不改变 `start` 的标准输出、context 与退出码。命令与其他事件见[交付观察说明](../delivery/README.md#看板字段写入)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I18。

@@ -107,7 +107,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/milestone-cli.ts car
 
 `create` 经 `gh api` 建一个开放的里程碑。截止日按 UTC 正午提交，所以 UTC-11 到 UTC+11 的时区看到的日期相同。命令读回截止日，与 `--due` 不同时退出1。同名里程碑已存在且截止日相同时直接返回，不写入。同名而截止日不同时退出2，命令不改已有里程碑的截止日。
 
-看板配置的 `enabled` 与 `milestoneView` 都为 true 时，`create` 还在 Project 中建一个以里程碑名称命名的 Board 视图，过滤为 `milestone:"<名称>"`。同名视图已存在时不再建。Projects API 只能设置视图的名称、布局与过滤，所以输出的 `manualSteps` 列出还要在网页上做的设置：列字段选 Status，泳道选 Line。视图没有建成时（云端会话、API 失败）里程碑仍保留，输出写明原因，退出1。
+`create` 不建 Project 视图。输出的 `manualSteps` 列出在网页上为新里程碑建 Board 视图的步骤：过滤为 `milestone:"<名称>"`，列字段选 Status，泳道选 Line。
 
 `carry` 把每张卡从里程碑 A 移到 B，并在每张卡上发一条流转评论。评论第一行是 `<!-- omne-milestone-carry:v1 {"from":"A","to":"B"} -->`，然后写流转的两个里程碑、`--reason` 的原因，以及 binding 不变的说明。命令不改 binding，也不升交付修订。
 
@@ -124,7 +124,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/milestone-cli.ts car
 node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispatched|delivered|integrating|accepted> --issue <N> [--date <YYYY-MM-DD>] [--dry-run]
 ```
 
-命令在一张卡的 Project 条目上写一个事件的字段，再读回核对。字段 ID、选项 ID、Project ID 与时区都在 [`tools/dev-flow/config/project-board.json`](../../config/project-board.json)，代码只读键名。配置的 `projectId` 必须等于[交付配置](../../../../docs/engineering/github-delivery.json)的 Project ID。
+命令在一张卡的 Project 条目上写一个事件的字段，再读回核对。字段 ID、选项 ID 与看板设置都只登记在[交付配置](../../../../docs/engineering/github-delivery.json)：`project.fields` 的看板字段、`project.options` 的 Stage 与 Line 选项，以及 `board` 项的时区与各事件启用的写入。代码只读键名。
 
 | 事件 | 写入的字段 | 谁在何时运行 |
 | --- | --- | --- |
@@ -133,10 +133,10 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 | `integrating` | Status 改为 Integrating | 调度者在候选合入轨道后 |
 | `accepted` | Accepted at、Cycle days，Status 改为 Accepted | 调度者在接受决定读回后 |
 
-- 日期缺省为运行时刻在配置时区中的日期。`--date` 用于补写。
+- 日期缺省为运行时刻在 `board.timeZone` 时区中的日期，现为 UTC。`--date` 用于补写。
 - Line 取版本2 binding 的交付线，没有时取正文「身份与责任」的交付线。Line 没有对应的选项时跳过这一项，写在 `skipped` 中。
 - Cycle days 是 Accepted at 减 Dispatched at 的天数。Dispatched at 为空或晚于接受日时跳过。
-- 配置的 `events` 列出每个事件启用的写入。从列表删掉一项即关闭它。`enabled: false` 关闭全部写入。`milestoneView: false` 关闭 `milestone create` 建视图。
+- `board.events` 列出每个事件启用的写入。从列表删掉一项即关闭它。删掉整个 `board` 项即关闭全部看板写入，`start` 也不再写。
 - 每个字段一次 `updateProjectV2ItemFieldValue` 请求。某次写入失败时退出2，消息给出失败的序号，之前的写入保留。读回与写入值不同时退出1。
 - `--dry-run` 读条目并输出计划写入，不写。
 - 卡不在配置的 Project 中时退出2。命令不把卡加入 Project。

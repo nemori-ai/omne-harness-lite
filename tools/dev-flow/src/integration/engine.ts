@@ -14,7 +14,7 @@ import { json, same, IntegrationError } from './parse.ts'
 import type { Policy } from './policy.ts'
 import { observeAdmission, type AdmissionCapture } from '../delivery/admission.ts'
 import { attributeFindings, readCardAttributes } from '../delivery/attributes.ts'
-import { BOARD_CONFIG_PATH, cardLine, recordDispatch } from '../delivery/board.ts'
+import { cardLine, recordDispatch } from '../delivery/board.ts'
 import { runGhCommand } from '../delivery/github-read.ts'
 import type { TaskBinding } from '../delivery/binding.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
@@ -124,15 +124,7 @@ async function start(
     report,
   })
   // Only a new binding stamps Dispatched at; rerunning start on a bound tree keeps the first date.
-  if (created)
-    reportBoard({
-      root,
-      commit: state.source.commit,
-      config,
-      cloud: source === 'workflow',
-      task,
-      report,
-    })
+  if (created) reportBoard({ config, cloud: source === 'workflow', task, report })
   return context
 }
 /** The context of an admitted task: the existing one for the same task, or a new one. */
@@ -221,20 +213,16 @@ function reportAttributes({
 }
 /**
  * Writes Dispatched at and Line on the task's Project item after a new context, best effort.
- * The board config comes from the same commit as the policy; a commit without it means the
- * board is not configured and nothing is written or reported. Every failure becomes a report
- * line: a board write never refuses a start or changes its result.
+ * The board entry comes from the delivery config this start already read; without it nothing
+ * is written or reported. Every failure becomes a report line: a board write never refuses a
+ * start or changes its result.
  */
 function reportBoard({
-  root,
-  commit,
   config,
   cloud,
   task,
   report,
 }: {
-  root: string
-  commit: string
   config: DeliveryConfig
   cloud: boolean
   task: { binding: TaskBinding; issue: CapturedIssue }
@@ -248,10 +236,8 @@ function reportBoard({
     }
   }
   try {
-    const file = maybeBlob(root, commit, BOARD_CONFIG_PATH)
     for (const finding of recordDispatch({
-      configText: file === null ? null : file.text,
-      projectId: config.project.id ?? '',
+      config,
       cloud,
       issue: { id: task.binding.issue.id, url: task.binding.issue.url },
       line: cardLine(task.binding, readCardAttributes(task.issue.body, task.issue)),
