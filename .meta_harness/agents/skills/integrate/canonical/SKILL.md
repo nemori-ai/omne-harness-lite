@@ -15,7 +15,7 @@ description: >
 ## 1. 开始前
 
 1. 核对本波写范围两两不相交：`node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <本波卡号>...`。退出 1 时不开始合并，把冲突交调度者重新分解。已关闭的卡默认不参与。
-2. 按 integration.md「合并顺序」定下顺序，合并中不改。顺序写进最后的父卡交回评论。
+2. 按 integration.md「合并顺序」合入：候选按交回的先后处理，不等全波交齐，这样 reduce 与各线的推进同时进行。被引用的线先合。几张同时等待时，失败可能性高或影响面大的先合。实际顺序与每张卡的交回时刻写进最后的父卡交回评论。
 
 ## 2. 逐线合入
 
@@ -32,7 +32,7 @@ description: >
    ```
 
    旧树确实不再需要时，按 `docs/engineering/workflow.md` 的清理条件与授权，先运行 `worktree-cli.ts remove --tree <旧树>` 看清单，再加 `--force` 删除。
-5. 在新树中同步目标轨道，两步：先 `git merge origin/integration/<轨道>` 并提交，再运行 task-sync，输入 `{"kind":"task-sync","target":"<合并进来的轨道提交>"}`。合并出现冲突时立即停止，不在集成侧解决，见 integration.md「冲突即退回分解」。
+5. 在新树中同步目标轨道，两步：先 `git merge origin/integration/<轨道>` 并提交，再运行 task-sync，输入 `{"kind":"task-sync","target":"<合并进来的轨道提交>"}`。合并出现冲突时按 integration.md「冲突即退回分解」处理。冲突只落在线归属表 `shared` 的路径上时，生成物从合并后的源重新生成，登记文件保留两边新增的条目，提交后继续下一步，集成报告记一条共享路径冲突。其余冲突立即停止，不在集成侧解决，退回该线。
 6. 同步合并之后、准入之前，一律重生成投影并跑 `check:agents`：`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections`。候选自己没改 agent 源也要做，因为合并进来的轨道头可能带别的卡的 agent 源改动。
 7. 准入排队。同一台机器上的准入一次只跑一个，按任务信息包写明的准入锁路径排队：锁文件存在时等待，每 60 秒看一次；轮到时建锁文件，跑完删除。准入命令为 `OMNE_ADMISSION=1 pnpm run check`，它包含哪些检查归开发指南与仓库根 `package.json`。记录实际命令与退出码。准入不通过时退回该线，不改候选。
 8. 推送新树的分支，让候选 PR 的 head 前进到同步后的提交。把 Stage 改为 Integrating：`node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <N>`。
