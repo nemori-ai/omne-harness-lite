@@ -40,6 +40,7 @@
 ## 开始工作
 
 按[读者入口](docs/README.md)或[任务地图](docs/context-map.md)定位上下文。
+做架构、领域、契约、装配、实现切片或设计评审前，先读一次[开工定向](docs/orientation.md)。
 新技术正文落点和原有效源的交接沿[文档治理](docs/engineering/documentation.md)；正文骨架不表示采用。
 
 读取根 AGENTS.md 和实际修改目录的局部约定，再沿相关入口展开。Codex、Claude Code 与 Cursor
