@@ -12,7 +12,7 @@ description: >
 
 - 对话判断、建卡和派发的顺序：`docs/engineering/agent-delivery.md`。
 - 卡的模块、Stage、字段总表、标签族、合法组合与契约变更：`docs/engineering/delivery.md`。
-- 线、轨道、波、里程碑与集成节点：`docs/engineering/integration.md`。
+- 线、轨道、波、批次、里程碑与集成节点：`docs/engineering/integration.md`。
 - 命令的输入、输出与退出码：`tools/dev-flow/src/delivery/README.md` 与 `tools/dev-flow/src/integration/README.md`。
 
 开始前确认三件事：你是本卡的调度者，或代调度者执行、有明确委派的会话，调度者的资格按 agent-delivery.md「取任务和派发」核对；本次动作有授权依据；当前目录是执行仓库的检出。缺一项时停下，向负责人要。
@@ -21,7 +21,7 @@ description: >
 
 按 agent-delivery.md「整理需求并定位已有卡」做。同一活动结果已有卡时更新那张卡的修订，不另建。缺产品或架构决定时，卡留在 Backlog 并写明具名问题，不编默认答案。
 
-派发前读到的事实一律从冻结头读，不从主检出读：`git show <taskBase>:<路径>`，或在冻结头的工作树里读。主检出可能落后于轨道。
+派发前读到的事实一律从收口点或 taskBase 读，不从主检出读：`git show <taskBase>:<路径>`，或在该提交的工作树里读。主检出可能落后于轨道。
 
 ## 2. 建卡
 
@@ -34,15 +34,17 @@ description: >
 4. 把卡加入主 Project，Status 设为 Backlog。就绪复核通过后设为 Ready。
 5. Needs decision 由调度者置位，工具不写。卡需要人拍板时置 `yes`，包括线内卡申请破坏性契约改动。在卡的评论中写明要裁定的问题，决定读回后置 `no`。规则见 delivery.md「契约变更与里程碑类型」。
 
-## 3. 核对写范围
+## 3. 波准入
 
-并行派发一组卡前，运行求交：
+开波前按 integration.md「集成节点怎样工作」第 1 步做四项核对：开工条件的目标卡已接受且其合入提交是收口点的祖先；不同线的卡写范围两两不相交；每个契约成员的源码至多在一条线的写范围里；破坏性卡改动的契约成员不被其他线的卡的写范围成员依赖。写范围求交的命令：
 
 ```sh
 node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...
 ```
 
-退出 1 时不派发这组卡，先改分解。已关闭的卡默认不参与，列在 `excluded`。还没写进 Issue 的 binding 用文件传入。
+退出 1 时不开波，先改分解。已关闭的卡默认不参与，列在 `excluded`。还没写进 Issue 的 binding 用文件传入。同线顺序推进的卡可以重叠；命令两两求交，所以把同线重叠的卡的写范围之并作为一张卡用文件传入。
+
+四项都过后开波：第一波给每条线的线父卡发线包，之后各波发 `line-delta`。线内的卡由线会话按第 5 至 8 节登记，授权来自线包，taskBase 取批次分支头。
 
 ## 4. 准备本波的 Wave
 
@@ -94,6 +96,6 @@ Wave 字段记录卡所属的波。在 Project 的 Wave 字段中为本波建一
 
 - 扩写范围后重跑求交。写范围变了，binding 就变了，按新 attempt 重新派发。
 - 写范围只以卡上的 binding 为准。计划表与任务信息包从 binding 生成，不手抄。
-- 任务信息包里每条「已知事实」，要么在冻结头上复核过并写明出处，要么标「未核」，让执行者自己核。旧草稿与主检出都不可信。
+- 任务信息包里每条「已知事实」，要么在收口点上复核过并写明出处，要么标「未核」，让执行者自己核。旧草稿与主检出都不可信。
 - 条件行改过后，旧派发评论里的摘要失效，`start` 会拒绝。登记新 attempt 重跑 `post`，命令按现行条件行重算摘要。
 - 改共享提示页（例如 roles 下的页面）的卡，自测要列 Cursor 资格测试，写范围要列资格记录。
