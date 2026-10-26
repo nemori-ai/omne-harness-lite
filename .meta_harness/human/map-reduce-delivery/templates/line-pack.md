@@ -4,7 +4,7 @@
 
 本包不依赖调度者会话的记忆，也不依赖任何一种 agent harness 的私有机制。复制本模板后，删掉尖括号里的说明，按本线的实际情况填写。不适用的项写「不适用」和理由，不要删掉。
 
-本包只写线级内容，在一条线的生命周期内基本不变。每张卡的任务信息包按宿主模板写。在本仓库，按 `claim` 技能的[任务信息包](../../../agents/skills/claim/canonical/references/task-pack.md)与[上下文地图](../../../agents/skills/claim/canonical/references/context-map.md)模板写。本包本身在本仓库还没有对应物，是本包建议。
+本包只写线级内容，在一条线的生命周期内基本不变。每张卡的任务信息包按宿主模板写。在本仓库，按 `claim` 技能的[任务信息包](../../../agents/skills/claim/canonical/references/task-pack.md)与[上下文地图](../../../agents/skills/claim/canonical/references/context-map.md)模板写。在本仓库，线会话按 `line` 技能读本包。
 
 本包不授予执行权。线会话只取调度者已登记当前 attempt 的卡。
 
@@ -18,7 +18,8 @@
 | 线父卡 | <线父卡的链接。`line-delta` 与 `line-state` 都发在它的评论里> |
 | 领域 | <本线所有卡共享的领域。队列跨了领域，就拆成两个线会话> |
 | 队列 | <按顺序列出本线的卡与所在波。标出依赖别的线的卡，以及它等待的产物> |
-| 已登记 attempt 的卡 | <波开始时调度者已为哪些卡登记了当前 attempt。其余卡等调度者登记，经 `line-delta` 告知> |
+| 各波的收口卡 | <每一波对应的收口卡编号。波 w 的下一波工作等波 w 收口卡关闭。在本仓库，收口卡关闭是线会话唯一要等的事件> |
+| 已登记 attempt 的卡 | <波开始时调度者已为哪些卡登记了当前 attempt。其余卡等调度者登记，经 `line-delta` 告知。在本仓库，调度者把登记委托给线会话：写明授权依据，线会话按 dispatch 技能第 5 至 8 节为本线的卡登记> |
 | 机器与重轻 | <本线在哪台机器的哪个座位，是重测试线还是轻线> |
 
 ## 2. 冻结物
@@ -78,7 +79,8 @@
 
 - 每张卡交回后，以及任何一次压缩上下文之前，在线父卡发一条线状态注，格式见[线状态注模板](line-state.md)。
 - 认领线父卡时记下起点评论号。在三个读取时点拉取 `<!-- line-delta -->` 评论，按序号去重，格式见 [line-delta 模板](line-delta.md)。
-- 队列全部被阻塞时定时轮询，周期：<每卡 reduce 服务时间的两倍，初值，按实测调整>。
+- 等待：<本线要等的事件与阻塞命令。在本仓库，事件是上一波收口卡关闭，命令是 `node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts issue-closed --issue <收口卡>`，Claude Code 在 Monitor 下运行。不轮询>。
+- 波内没有人或别的 agent 会给线会话发消息。线会话不提问；拿不准的按第 9 节写到线父卡。
 
 ## 9. 停止条件
 

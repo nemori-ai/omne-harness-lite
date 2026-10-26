@@ -46,6 +46,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 
 四项都过后开波：第一波给每条线的线父卡发线包，之后各波发 `line-delta`。线内的卡由线会话按第 5 至 8 节登记，授权来自线包，taskBase 取批次分支头。
 
+每波一张收口卡（交付线 `integration`，里程碑卡的子卡）。下一波每张卡的开工条件只写一条 `issue-result`，目标是上一波的收口卡，判据写「整项结果已接受：收口点已在联调轨道上」；卡与卡之间不写跨线开工条件，同线先后由线包队列保证。原生 blocked-by 同步为同一条边。收口卡之间按波顺序阻塞。收口卡关闭就是下一波各线开工的事件，由 integrate 技能在建收口点后关闭。
+
 ## 4. 准备本波的 Wave
 
 Wave 字段记录卡所属的波。在 Project 的 Wave 字段中为本波建一个迭代，起止日覆盖本波的派发时间。`start` 只在卡还没有 Wave 时写入包含开工日的那个迭代，同一张卡的新 attempt 不改 Wave。
