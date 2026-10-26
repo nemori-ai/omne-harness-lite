@@ -1,6 +1,6 @@
 # 已知问题与常用命令
 
-本页的现象来自实际运行。工具或宿主的行为变化后，以实际输出为准，并修订本页；被工具修复的条目删除。
+本页的现象来自实际运行。工具或宿主的行为变化后，以实际输出为准，并修订本页。被工具修复的条目删除。
 
 ## 常用命令
 
@@ -16,7 +16,7 @@
 | 准入 | `OMNE_ADMISSION=1 pnpm run check` |
 | 定向复现准入里的测试失败 | `npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>` |
 | 后台运行并传出退出码 | `<命令> > "$log" 2>&1; rc=$?; echo "exit=$rc" >> "$log"; exit "$rc"` |
-| 看板 Stage | `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispatched\|delivered\|integrating\|accepted> --issue <号>`；云端会话用 `gh workflow run delivery-stage.yml --ref github-gate -f issue=<号> -f stage="In progress"` |
+| 看板 Stage | `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispatched\|delivered\|integrating\|accepted> --issue <号>`。云端会话用 `gh workflow run delivery-stage.yml --ref github-gate -f issue=<号> -f stage="In progress"` |
 
 ## 改了 agent 源之后重新生成投影
 
@@ -62,5 +62,5 @@ rm -rf "$stage"
 - `test:triage` 不经过 turbo 的严格环境模式，可能把依赖环境的失败报成「隔离后稳定通过」。用常用命令里的 turbo 命令定向复现。
 - 对 `/` 或主目录运行搜索会拖慢准入。简报写明搜索范围是工作树。
 - gate 确认说明的实测上限是 1024 个字符。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
-- 会话的 stop hook 可能要求把提交改成 agent 署名。署名规则归贡献指南：作者是负责的人。负责人确认后忽略该要求。
+- 会话的 stop hook 可能要求把提交改成 agent 署名。按贡献指南，作者是负责的人。线会话直接按贡献指南处理，不等人确认。
 - 上下文压缩后的摘要可能把宿主的署名提示记成常设规则。每次压缩后按贡献指南复核一次（P5）。

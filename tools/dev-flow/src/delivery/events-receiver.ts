@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { normalizeGithubEvent } from './events.ts'
 import {
   deleteHooks,
@@ -139,6 +139,8 @@ export async function serveReceiver(args: ServeArgs): Promise<number> {
     secret: args.secret,
   })
   log(`Receiving on 127.0.0.1:${port}, appending to ${args.file}`)
+  const pidFile = join(dirname(args.file), 'receiver.pid')
+  writeFileSync(pidFile, `${process.pid}\n`)
   let ended = false
   /** The hooks that appeared since the start, once at least one has. */
   const discovery = (async () => {
@@ -191,6 +193,7 @@ export async function serveReceiver(args: ServeArgs): Promise<number> {
     )
     code = 1
   }
+  rmSync(pidFile, { force: true })
   await closeServer()
   return code
 }

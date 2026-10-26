@@ -60,7 +60,7 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `terminal-acceptance` | qa 在交付面是终端时的验收关口 |
 | `terminal-forensics` | diagnostician 在 `surface=terminal` 时的取证方法 |
 | `verification-facility` | developer 在 `implementation_kind=verification` 时的验证设施实践 |
-| `line` | 线负责人的跨波流程：认领线父卡、线级准备一次、每波切批次分支、波内逐卡、波末开批次 PR、阻塞等收口卡关闭、读 `line-delta` 进下一波。自驱，不提问 |
+| `line` | 线会话的跨波流程：认领线父卡、线级准备一次、每波切批次分支、波内逐卡、波末开批次 PR、阻塞等本波收口卡关闭或线父卡的 `line-return`、读 `line-delta` 进下一波。自驱，不提问 |
 | `claim` | 执行者把一张卡从认领做到交回：线级一次性准备与卡级增量准备分层，卡级以 `spec.md`、`plan.md` 落盘为门槛，按切片推进并按风险裁剪评审，最终 head 上准入一次 |
 | `review-delivery` | 开 PR 后主动按任务卡核对交付边界和验收标准。文档任务和代码任务都走它 |
 | `review-docs` | 开 PR 后主动评审正式文档的落盘遗漏、工作日志式表达、断链、下层违背上层，以及该不该补图 |

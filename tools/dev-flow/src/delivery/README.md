@@ -199,6 +199,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.
 - `--repo` 缺省取 `git remote get-url origin`。
 - 接收器只绑定 127.0.0.1，只接受 POST。给出 `--secret` 时校验 `X-Hub-Signature-256`，并以 `-S` 传给转发器。
 - 接收器自己拉起并持有 `gh webhook forward`，转发 `issues`、`pull_request`、`issue_comment`。
+- 启动后在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。停止时删除它。要核对本机有没有接收器在跑，读这个文件并用 `kill -0 <进程号>` 核对进程还在。
 - 启动时不删除任何 hook。接收器先记下仓库里已有的转发 hook，拉起转发器后轮询到新出现的那一个，把它记为自己的。
 - 按 Ctrl-C 或发 SIGTERM 停止。接收器先停转发器，再只删除自己的 hook。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那个 hook，或运行 `clean`。
 - 同时新出现多个 hook 时，接收器认不出哪个是自己的。它一个都不删，退出1，标准错误写出这些 hook 号。

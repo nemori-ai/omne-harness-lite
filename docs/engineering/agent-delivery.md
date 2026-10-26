@@ -57,18 +57,18 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 并行仅在独立写范围和条件允许时展开，共享接口及集成目标有单一责任。其他卡被阻塞不妨碍已获准的独立部分。旧实例失联、调度者交接及过时候选的处置继续按共用协议，不用更新时间或assignee模拟锁。
 
-并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。调度者为每条线写线包，线内的卡由线会话按 `claim` 技能 `references/` 中的模板写上下文地图附录与任务信息包；不在线内的卡由调度者写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
+并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。调度者为每条线写线包。线内的卡由线会话按 `claim` 技能 `references/` 中的模板写上下文地图本卡附录与任务信息包。不在线内的卡由调度者写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
 
-## 按角色的流程
+### 按角色的流程
 
 几条线并行推进一个里程碑时，两个长期角色各有一份可复用的流程，规则仍归本页、[交付协议](delivery.md)与[多层分支集成](integration.md)：
 
 | 角色 | 阶段 | 可执行流程 |
 | --- | --- | --- |
-| 线负责人（一条线的会话，跨波不换） | 线级准备一次 → 每波从收口点切批次分支 → 波内逐卡（卡级增量准备、按计划推进、合入批次分支）→ 波末开批次 PR → 阻塞等上一波收口卡关闭 → 读 `line-delta` 进下一波 → 里程碑收尾 | `line` 技能；单张卡的准备与推进归 `claim` 技能 |
-| reduce 负责人（集成节点兼调度者） | 里程碑开工（冻结共享物、基线、波计划、线父卡与收口卡、线包）→ 每波波准入 → 发线包或 `line-delta` → 等批次 PR → 逐批次合入 → 收口并关闭收口卡 → 逐卡接受 → 里程碑收尾 | `dispatch` 技能（建卡、波准入、派发）与 `integrate` 技能（收批次到关收口卡） |
+| 线会话（推进一条线的会话，跨波不换） | 线级准备一次 → 每波从收口点切批次分支 → 波内逐卡（卡级增量准备、按计划推进、合入批次分支）→ 波末开批次 PR → 后台等本波收口卡关闭或 `line-return` 退回 → 读 `line-delta` 进下一波 → 里程碑收尾 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md) 技能。单张卡的准备与推进归 [`claim`](../../.meta_harness/agents/skills/claim/canonical/SKILL.md) 技能 |
+| 集成节点（兼调度者） | 里程碑开工（冻结共享物、基线、波计划、线父卡与收口卡）→ 首波波准入并发线包 → 等批次 PR → 逐批次合入，有缺陷时以 `line-return` 退回 → 建收口点 → 逐卡接受 → 收口卡接受评论 → 下一波波准入 → 发 `line-delta` → 关闭收口卡 → 里程碑收尾时接受线父卡 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md) 技能（建卡、波准入、首波线包、派发）与 [`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) 技能（收批次到关收口卡） |
 
-线会话在波内没有任何人或别的 agent 会发消息给它，它不提问；拿不准的事按线包的停止条件写到线父卡上，调度者在下一波的 `line-delta` 里答复。等待一律阻塞在 GitHub 事件上，不轮询，命令归 `tools/dev-flow/src/delivery/README.md`「事件等待」。
+线会话在波内收不到任何人或别的 agent 的消息，所以它不提问。拿不准的事按线包的停止条件写到线父卡上，调度者在下一波的 `line-delta` 里答复。线会话与集成节点的等待一律阻塞在本机的 GitHub 事件文件上，不轮询 GitHub，命令归 `tools/dev-flow/src/delivery/README.md`「事件等待」。
 
 ## 4. 推进和更新状态
 
