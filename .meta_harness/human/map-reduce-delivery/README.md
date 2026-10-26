@@ -327,7 +327,7 @@ Issue 订阅推不到命令行会话，所以订阅的落地是轮询。宿主�
 | 编号 | 做法 | 理由与依据 | 本仓库的现行规则 |
 | --- | --- | --- | --- |
 | B1 | 按交回先后流水合入，不等全波交齐。顺序只受「被引用的先合」约束。几张卡同时就绪时，失败概率高或影响面大的先合 | 按到达先后服务能让 reduce 与 map 重叠。高风险的先合，返工能与其余卡的 reduce 重叠。见 [scheduling-theory](research/scheduling-theory.md) 第 1.3、第 3.2 节 | 已采用，见[合并顺序](../../../docs/engineering/integration.md#合并顺序) |
-| B2 | 冲突按四类记账：基础设施冲突（文本冲突落在共享登记文件上）、build 冲突、test 冲突、语义潜伏。后三类算分解错误，基础设施冲突计入共享名单的缺漏，改用生成器产出。这只是记账视图，不改变处理动作 | 文本冲突对分解错误既不充分也不必要。见 [code-decomposition-theory](research/code-decomposition-theory.md) 第 6 节第 3.1 条 | 记账视图未采用。处理动作见[冲突即退回分解](../../../docs/engineering/integration.md#冲突即退回分解)：只落在共享路径上的冲突，由集成节点重新生成或保留两边新增后跑准入；其余冲突退回 |
+| B2 | 冲突按四类记账：基础设施冲突（文本冲突落在共享登记文件上）、build 冲突、test 冲突、语义潜伏。后三类算分解错误，基础设施冲突计入共享名单的缺漏，改用生成器产出。这只是记账视图，不改变处理动作 | 文本冲突对分解错误既不充分也不必要。见 [code-decomposition-theory](research/code-decomposition-theory.md) 第 6 节第 3.1 条 | 记账视图未采用。处理动作见[冲突即退回分解](../../../docs/engineering/integration.md#冲突即退回分解) |
 | B3 | 批量合并默认关闭。线内准入之后 reduce 侧的准入失败率 `p ≤ 0.05` 时才开启，批大小 2 到 3，整批失败就二分剔除。开启后不再每合入一条准入一次 | 批量只在 `b·p` 远小于 1 时划算。见 [scheduling-theory](research/scheduling-theory.md) 第 5.2 节 | 逐条准入，见[每一步的命令](../../../docs/engineering/integration.md#每一步的命令) |
 | B4 | 准入不通过时，调度者为该卡登记同一修订的新 attempt，把评审报告写进派发记录作输入，派到任一座位，在同一波内处理 | 派发可以至少一次，接受对修订幂等。见 [scheduling-theory](research/scheduling-theory.md) 第 4 节 | [失败处理](../../../docs/engineering/integration.md#失败处理) |
 | B5 | 宿主若要提供失联判定，可参考租约（到期未续即失效）与 fencing token（每次授权带单调递增编号，下游拒绝旧编号）。这两项是研究结论，不是本包的规则 | 见 [scheduling-theory](research/scheduling-theory.md) 第 4 节 | [调度、认领与 cloud 接续](../../../docs/engineering/delivery.md#5-调度认领与cloud接续) |

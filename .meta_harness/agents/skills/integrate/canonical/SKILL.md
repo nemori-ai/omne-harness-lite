@@ -3,7 +3,7 @@ name: integrate
 description: >
   集成节点侧的合入：一波并行的卡交回候选后，逐线核对写范围、用新 attempt 同步目标轨道、重生成投影、排队跑准入、派发并代为确认 gate、读回、写接受评论与看板字段，最后在父卡交回集成报告。
   被调度者指定为一波的集成节点、要把交回的候选合入轨道、或问「候选怎么合」「准入怎么排」「gate 怎么代确认」时加载。点名 /integrate 时加载。
-  单张卡自己的分支同步与 FI/RI 用 branch-integration；建卡与派发用 dispatch。集成节点不改候选的代码，不与线的执行者通信；候选有缺陷时退回重派。
+  单张卡自己的分支同步与 FI/RI 用 branch-integration；建卡与派发用 dispatch。集成节点不改候选的代码（只落在共享路径上的合并冲突除外），不与线的执行者通信；候选有缺陷时退回重派。
 ---
 
 # 集成
@@ -14,12 +14,13 @@ description: >
 
 ## 1. 开始前
 
-1. 核对本波写范围两两不相交：`node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <本波卡号>...`。退出 1 时不开始合并，把冲突交调度者重新分解。已关闭的卡默认不参与。
-2. 按 integration.md「合并顺序」合入：候选按交回的先后处理，不等全波交齐，这样 reduce 与各线的推进同时进行。被引用的线先合。几张同时等待时，失败可能性高或影响面大的先合。实际顺序与每张卡的交回时刻写进最后的父卡交回评论。
+核对本波写范围两两不相交：`node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <本波卡号>...`。退出 1 时不开始合并，把冲突交调度者重新分解。已关闭的卡默认不参与。
 
 ## 2. 逐线合入
 
-按顺序对每条线做下列步骤。任一步失败时停在这一步，按 integration.md「失败处理」退回该线，再处理下一条线。
+候选按 integration.md「合并顺序」处理：按交回的先后合入，不等全波交齐，这样合入与各线的推进同时进行。被引用的线先合。几张同时等待时，失败可能性高或影响面大的先合。记下每张卡的交回时刻与实际合入顺序。
+
+对每条线做下列步骤。任一步失败时停在这一步，按 integration.md「失败处理」退回该线，再处理下一条线。
 
 1. 读候选 PR 与卡上的交接报告。报告写明未达到的验收项时，该线不合入。
 2. 核对改动都在 binding 的写范围内：`git diff --name-only <taskBase>...<候选 head>`。有越界文件时整个候选不合入。
@@ -32,7 +33,7 @@ description: >
    ```
 
    旧树确实不再需要时，按 `docs/engineering/workflow.md` 的清理条件与授权，先运行 `worktree-cli.ts remove --tree <旧树>` 看清单，再加 `--force` 删除。
-5. 在新树中同步目标轨道，两步：先 `git merge origin/integration/<轨道>` 并提交，再运行 task-sync，输入 `{"kind":"task-sync","target":"<合并进来的轨道提交>"}`。合并出现冲突时按 integration.md「冲突即退回分解」处理。冲突只落在线归属表 `shared` 的路径上时，生成物从合并后的源重新生成，登记文件保留两边新增的条目，提交后继续下一步，集成报告记一条共享路径冲突。其余冲突立即停止，不在集成侧解决，退回该线。
+5. 在新树中同步目标轨道，两步：先 `git merge origin/integration/<轨道>` 并提交，再运行 task-sync，输入 `{"kind":"task-sync","target":"<合并进来的轨道提交>"}`。合并出现冲突时，按 integration.md「冲突即退回分解」先看冲突落在哪些文件上。只落在线归属表 `shared` 的路径上时，按该节逐类解决（命令在该节），提交后继续下一步，记一条共享路径冲突。其余冲突立即停止，不在集成侧解决，退回该线。
 6. 同步合并之后、准入之前，一律重生成投影并跑 `check:agents`：`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections`。候选自己没改 agent 源也要做，因为合并进来的轨道头可能带别的卡的 agent 源改动。
 7. 准入排队。同一台机器上的准入一次只跑一个，按任务信息包写明的准入锁路径排队：锁文件存在时等待，每 60 秒看一次；轮到时建锁文件，跑完删除。准入命令为 `OMNE_ADMISSION=1 pnpm run check`，它包含哪些检查归开发指南与仓库根 `package.json`。记录实际命令与退出码。准入不通过时退回该线，不改候选。
 8. 推送新树的分支，让候选 PR 的 head 前进到同步后的提交。把 Stage 改为 Integrating：`node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts integrating --issue <N>`。
@@ -55,7 +56,7 @@ description: >
 
 ## 4. 退回与重派
 
-集成节点与线的执行者不通信，也不改候选的代码。候选有缺陷时退回该线，例外条件归 integration.md「集成节点的清单」：
+集成节点与线的执行者不通信。除只落在共享路径上的合并冲突以外，集成节点不改候选的代码。候选有缺陷时退回该线，按下列情形处理：
 
 - 本波仍开放时，请调度者在同一波为该卡登记新 attempt（a2），派到空出的执行槽位。修复后的候选按本技能重走一遍。
 - 本波已收口时，按 integration.md 把该线的工作项放进下一波的任务信息包。
@@ -65,7 +66,7 @@ description: >
 1. 全部候选合入后，运行任务信息包给出的联调命令。没有给出时写明本波没有联调。
 2. 在轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check`。通过时，这个提交是波的收口提交，也是下一波的冻结头。
 3. 契约成员破坏性改动的允许时机与申请口子归 integration.md「里程碑内的规则」。各 PR 的「契约变化」按各自 taskBase 申报。
-4. 在父卡发交回评论：合并顺序、每条线每一步的结果与命令、退回的线及原因、分解错误清单、收口提交、具名例外与剩余责任。
+4. 在父卡发交回评论：合并顺序、每张卡的交回时刻、每条线每一步的结果与命令、退回的线及原因、共享路径冲突、分解错误清单、收口提交、具名例外与剩余责任。
 
 ## 已知的坑
 
