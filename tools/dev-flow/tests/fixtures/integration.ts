@@ -207,6 +207,9 @@ export function integrationFixture(
     JSON.stringify({
       body: body(binding),
       state: 'open',
+      // The dispatch fields start requires: one kind: label, one line: label and a milestone.
+      labels: ['kind:feature', 'line:integration'],
+      milestone: { title: 'M1' },
       comments: [],
       admissionOnly: options.admissionOnly ?? false,
     }),

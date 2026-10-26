@@ -43,7 +43,10 @@ type Platform = {
 function fixture({
   withLines = true,
   version,
-  platform = { labels: ['line:tools-line', 'nature:impl'], milestone: { title: 'M1' } },
+  platform = {
+    labels: ['kind:feature', 'line:tools-line', 'nature:impl'],
+    milestone: { title: 'M1' },
+  },
 }: {
   withLines?: boolean
   version: 1 | 2
@@ -119,7 +122,10 @@ describe('start attribute reports', () => {
   it('reports v2 findings as report lines and keeps the context the same', async () => {
     const quiet = fixture({ version: 2 })
     const clean = await start(quiet)
-    const f = fixture({ version: 2, platform: { labels: [], milestone: { title: 'M2' } } })
+    const f = fixture({
+      version: 2,
+      platform: { labels: ['kind:feature', 'line:model'], milestone: { title: 'M2' } },
+    })
     const { context, reports } = await start(f)
     expect(reports).toEqual([
       expect.objectContaining({ severity: 'report', code: 'attribute-binding-drift' }),
@@ -154,7 +160,7 @@ describe('start attribute reports', () => {
     const f = fixture({
       version: 2,
       platform: {
-        labels: ['line:tools-line', 'nature:impl'],
+        labels: ['kind:feature', 'line:tools-line', 'nature:impl'],
         milestone: { title: 'M1' },
         readbackChange: { milestone: { title: 'M2' }, updatedAt: '2026-10-12T00:00:00Z' },
       },
@@ -163,8 +169,28 @@ describe('start attribute reports', () => {
     expect(existsSync(contextPath(f.root))).toBe(false)
   })
 
+  it.each([
+    [['line:tools-line'], { title: 'M1' }, 'exactly one kind: label (found 0)'],
+    [['kind:feature', 'kind:bug', 'line:tools-line'], { title: 'M1' }, 'kind: label (found 2)'],
+    [['kind:feature'], { title: 'M1' }, 'exactly one line: label (found 0)'],
+    [['kind:feature', 'line:tools-line'], null, 'a milestone'],
+  ])(
+    'refuses a card without its dispatch fields and writes no context',
+    async (labels, milestone, gap) => {
+      const f = fixture({ version: 2, platform: { labels, milestone } })
+      await expect(start(f)).rejects.toMatchObject({
+        code: 'refused',
+        message: expect.stringContaining(gap),
+      })
+      expect(existsSync(contextPath(f.root))).toBe(false)
+    },
+  )
+
   it('keeps a failing report sink from changing the result', async () => {
-    const f = fixture({ version: 2, platform: { labels: [], milestone: { title: 'M1' } } })
+    const f = fixture({
+      version: 2,
+      platform: { labels: ['kind:feature', 'line:model'], milestone: { title: 'M1' } },
+    })
     const context = await (
       await openIntegration({
         root: f.root,
@@ -177,7 +203,10 @@ describe('start attribute reports', () => {
   })
 
   it('writes reports to stderr only; stdout and exit code are the command result', () => {
-    const f = fixture({ version: 2, platform: { labels: [], milestone: { title: 'M1' } } })
+    const f = fixture({
+      version: 2,
+      platform: { labels: ['kind:feature', 'line:model'], milestone: { title: 'M1' } },
+    })
     const input = join(f.home, 'command.json')
     writeFileSync(input, JSON.stringify(command(f)))
     const result = spawnSync(

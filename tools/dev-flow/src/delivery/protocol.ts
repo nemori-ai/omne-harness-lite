@@ -30,21 +30,26 @@ export type DeliveryConfig = {
     id: string | null
     url: string | null
     /**
-     * Project field IDs. Stage is the built-in Status field. The five board fields are optional
-     * in the file and null when absent.
+     * Project field IDs. Stage is the built-in Status field and `iteration` is the Wave field.
+     * The six board fields are optional in the file and null when absent.
      */
     fields: {
       stage: string | null
       priority: string | null
       iteration: string | null
       line: string | null
+      kind: string | null
       dispatchedAt: string | null
       deliveredAt: string | null
       acceptedAt: string | null
       cycleDays: string | null
     }
     /** Single select option IDs by option name; an absent map is empty. */
-    options: { stage: Record<string, string>; line: Record<string, string> }
+    options: {
+      stage: Record<string, string>
+      line: Record<string, string>
+      kind: Record<string, string>
+    }
   }
   creationHandoffIssue: string | null
   writers: { stage: string | null; body: string | null }
@@ -296,6 +301,7 @@ export function parseConfig(value: unknown): DeliveryConfig {
         priority: nullable(f.priority, 'fields.priority'),
         iteration: nullable(f.iteration, 'fields.iteration'),
         line: optionalField(f, 'line'),
+        kind: optionalField(f, 'kind'),
         dispatchedAt: optionalField(f, 'dispatchedAt'),
         deliveredAt: optionalField(f, 'deliveredAt'),
         acceptedAt: optionalField(f, 'acceptedAt'),
@@ -304,6 +310,7 @@ export function parseConfig(value: unknown): DeliveryConfig {
       options: {
         stage: optionMap(o?.stage, 'config.project.options.stage'),
         line: optionMap(o?.line, 'config.project.options.line'),
+        kind: optionMap(o?.kind, 'config.project.options.kind'),
       },
     },
     creationHandoffIssue: nullable(v.creationHandoffIssue, 'creationHandoffIssue'),

@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   boardEvent,
+  cardKind,
   cardLine,
+  currentIteration,
   planBoardWrites,
   recordBoardEvent,
   recordDispatch,
@@ -86,6 +88,7 @@ function project({
   onBoard = true,
   values = {} as Record<string, string | number>,
   fail = -1,
+  iterations = [] as { id: string; title: string; startDate: string; duration: number }[],
 } = {}) {
   const state = new Map(Object.entries(values)),
     calls: string[][] = []
@@ -102,11 +105,16 @@ function project({
       state.set(
         field,
         number === undefined
-          ? (arg(argv, 'value[date]') ?? arg(argv, 'value[singleSelectOptionId]') ?? '')
+          ? (arg(argv, 'value[date]') ??
+              arg(argv, 'value[singleSelectOptionId]') ??
+              arg(argv, 'value[iterationId]') ??
+              '')
           : Number(number),
       )
       return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: 'ITEM_7' } } } }
     }
+    if (query.includes('... on ProjectV2IterationField{id configuration'))
+      return { data: { node: { id: arg(argv, 'id'), configuration: { iterations } } } }
     if (query.includes('projectItems('))
       return {
         data: {
@@ -136,13 +144,19 @@ function project({
               nodes: [...state].map(([id, value]) =>
                 typeof value === 'number'
                   ? { __typename: 'ProjectV2ItemFieldNumberValue', number: value, field: { id } }
-                  : id.startsWith('F_status') || id === 'F_line'
+                  : id === 'F_wave'
                     ? {
-                        __typename: 'ProjectV2ItemFieldSingleSelectValue',
-                        optionId: value,
+                        __typename: 'ProjectV2ItemFieldIterationValue',
+                        iterationId: value,
                         field: { id },
                       }
-                    : { __typename: 'ProjectV2ItemFieldDateValue', date: value, field: { id } },
+                    : id.startsWith('F_status') || id === 'F_line' || id === 'F_kind'
+                      ? {
+                          __typename: 'ProjectV2ItemFieldSingleSelectValue',
+                          optionId: value,
+                          field: { id },
+                        }
+                      : { __typename: 'ProjectV2ItemFieldDateValue', date: value, field: { id } },
               ),
             },
           },
@@ -194,7 +208,8 @@ describe('board config', () => {
       Object.assign(v.project, { options: undefined })
     })
     expect(old.project.fields.line).toBeNull()
-    expect(old.project.options).toEqual({ stage: {}, line: {} })
+    expect(old.project.options).toEqual({ stage: {}, line: {}, kind: {} })
+    expect(old.project.fields.kind).toBeNull()
     expect(() => delivery(v => Object.assign(events(v), { dispatched: 'x' }))).toThrow(
       'config.board.events.dispatched must be an array',
     )
@@ -460,6 +475,7 @@ describe('the start-time board write', () => {
       cloud: false,
       issue,
       line: 'model',
+      kind: 'feature',
       now: new Date('2026-10-26T20:00:00Z'),
       call: project().call,
       ...overrides,
@@ -519,6 +535,99 @@ describe('the start-time board write', () => {
     }
     expect(dispatch({ call: throwing })).toEqual([
       { code: 'board-write-failed', message: 'Board write failed. API output omitted.' },
+    ])
+  })
+})
+
+describe('Kind and Wave at dispatch', () => {
+  const withKindWave = (value: RawConfig) => {
+    value.project.fields.kind = 'F_kind'
+    value.project.fields.iteration = 'F_wave'
+    Object.assign(value.project.options, { kind: { feature: 'o_feature' } })
+    events(value).dispatched = ['dispatchedAt', 'line', 'kind', 'wave']
+  }
+  const waves = [
+    { id: 'w1', title: 'Wave 1', startDate: '2026-10-19', duration: 7 },
+    { id: 'w2', title: 'Wave 2', startDate: '2026-10-26', duration: 7 },
+  ]
+
+  it('writes the kind: label option and the iteration that holds the dispatch date', () => {
+    const p = project({ iterations: waves })
+    const result = recordBoardEvent({
+      config: config('dispatched', withKindWave),
+      issue,
+      date: '2026-11-01',
+      line: 'model',
+      kind: 'feature',
+      dryRun: false,
+      call: p.call,
+    })
+    expect(result).toMatchObject({ applied: true, verified: true, skipped: [] })
+    expect(Object.fromEntries(p.state)).toMatchObject({ F_kind: 'o_feature', F_wave: 'w2' })
+    expect(p.mutations().some(c => c.includes('value[iterationId]=w2'))).toBe(true)
+  })
+
+  it('takes the first day of an iteration and skips the day after its last', () => {
+    expect(currentIteration(waves, '2026-10-26')?.id).toBe('w2')
+    expect(currentIteration(waves, '2026-10-25')?.id).toBe('w1')
+    expect(currentIteration(waves, '2026-11-02')).toBeUndefined()
+    expect(currentIteration(waves, '2026-10-18')).toBeUndefined()
+  })
+
+  it('skips Kind and Wave with their reasons instead of guessing', () => {
+    const p = project({ iterations: waves })
+    const result = recordBoardEvent({
+      config: config('dispatched', withKindWave),
+      issue,
+      date: '2026-12-01',
+      line: 'model',
+      kind: 'bug',
+      dryRun: true,
+      call: p.call,
+    })
+    expect(result.skipped).toEqual([
+      { name: 'kind', reason: 'Kind has no option bug' },
+      { name: 'wave', reason: 'Wave has no iteration on 2026-12-01' },
+    ])
+    expect(
+      planBoardWrites({
+        config: config('dispatched', withKindWave),
+        date: '2026-10-26',
+        current: new Map(),
+      }).skipped.map(skip => skip.name),
+    ).toEqual(['line', 'kind', 'wave'])
+    expect(p.mutations()).toEqual([])
+  })
+
+  it('reads the kind from exactly one kind: label', () => {
+    expect(cardKind(['level:subtask', 'kind:feature'])).toBe('feature')
+    expect(cardKind(['kind:feature', 'kind:bug'])).toBeUndefined()
+    expect(cardKind([])).toBeUndefined()
+  })
+
+  it('refuses a Wave iteration with no whole positive length', () => {
+    const p = project({
+      iterations: [{ id: 'w', title: 'W', startDate: '2026-10-26', duration: 0 }],
+    })
+    expect(() =>
+      recordBoardEvent({
+        config: config('dispatched', withKindWave),
+        issue,
+        date: '2026-10-26',
+        kind: 'feature',
+        dryRun: true,
+        call: p.call,
+      }),
+    ).toThrow('positive whole number')
+  })
+
+  it('enables Kind and Wave at dispatch in the committed config', () => {
+    const dispatched = boardEvent(parseConfig(committed), 'dispatched')
+    expect(dispatched?.writes.map(write => write.name)).toEqual([
+      'dispatchedAt',
+      'line',
+      'kind',
+      'wave',
     ])
   })
 })

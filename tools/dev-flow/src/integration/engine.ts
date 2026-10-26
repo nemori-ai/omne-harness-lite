@@ -14,7 +14,8 @@ import { json, same, IntegrationError } from './parse.ts'
 import type { Policy } from './policy.ts'
 import { observeAdmission, type AdmissionCapture } from '../delivery/admission.ts'
 import { attributeFindings, readCardAttributes } from '../delivery/attributes.ts'
-import { cardLine, recordDispatch } from '../delivery/board.ts'
+import { cardKind, cardLine, recordDispatch } from '../delivery/board.ts'
+import { dispatchFieldGaps } from '../delivery/dispatch.ts'
 import { runGhCommand, type GhCommand } from '../delivery/github-read.ts'
 import type { TaskBinding } from '../delivery/binding.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
@@ -108,6 +109,8 @@ async function start(
   same(task.binding, decision.task, 'Current task no longer matches dispatch')
   if (task.issue.state !== 'open')
     throw new IntegrationError('refused', 'Cannot dispatch a closed task')
+  const gaps = dispatchFieldGaps(task.issue)
+  if (gaps.length > 0) throw new IntegrationError('refused', `The card lacks ${gaps.join(', ')}`)
   const info = repository(root)
   same(info.branch, task.binding.branch, 'Task branch does not match this worktree')
   requireAncestor(root, task.binding.taskBase, info.head)
@@ -218,7 +221,8 @@ function reportAttributes({
   }
 }
 /**
- * Writes Dispatched at and Line on the task's Project item after a new context, best effort.
+ * Writes the dispatched board fields (Dispatched at, Line, Kind and Wave as the config enables)
+ * on the task's Project item after a new context, best effort.
  * The board entry comes from the delivery config this start already read; without it nothing
  * is written or reported. Every failure becomes a report line: a board write never refuses a
  * start or changes its result.
@@ -249,6 +253,7 @@ function reportBoard({
       cloud,
       issue: { id: task.binding.issue.id, url: task.binding.issue.url },
       line: cardLine(task.binding, readCardAttributes(task.issue.body, task.issue)),
+      kind: cardKind(task.issue.labels),
       now: board.now(),
       call: board.call,
     }))

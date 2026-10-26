@@ -15,6 +15,7 @@
       "priority": "PVTSSF_lADODPptlM4BmeFEzhlHAKo",
       "iteration": "PVTIF_lADODPptlM4BmeFEzhlHAKs",
       "line": "PVTSSF_lADODPptlM4BmeFEzhnOvAE",
+      "kind": "PVTSSF_lADODPptlM4BmeFEzhnO8yM",
       "dispatchedAt": "PVTF_lADODPptlM4BmeFEzhnOvA0",
       "deliveredAt": "PVTF_lADODPptlM4BmeFEzhnOvBU",
       "acceptedAt": "PVTF_lADODPptlM4BmeFEzhnOvB0",
@@ -40,6 +41,14 @@
         "platform": "c3de77c0",
         "time-reach": "b64462fc",
         "engineering-toolchain": "d7c1e6c4"
+      },
+      "kind": {
+        "feature": "0bb3211d",
+        "bug": "12178507",
+        "refactor": "9cca5118",
+        "performance": "0824a6b0",
+        "maintenance": "26b05195",
+        "investigation": "61b88542"
       }
     }
   },
@@ -53,7 +62,9 @@
     "events": {
       "dispatched": [
         "dispatchedAt",
-        "line"
+        "line",
+        "kind",
+        "wave"
       ],
       "delivered": [
         "deliveredAt",
@@ -75,6 +86,7 @@
     "负责人此前已关闭关联PR合并自动关闭；该设置没有官方API读回支持。",
     "每项任务的正文和Stage保持单写者；接受必须来自该项具名决定，不由关闭、合并或绿测代替。",
     "2026-10-15起调度者与正文单写者的资格改为publish environment的reviewer，与派发校验和PR确认一致；每张卡仍只有一个调度者和一个正文单写者。依据见Issue306。",
-    "2026-10-26 起登记看板字段：Line、Dispatched at、Delivered at、Accepted at、Cycle days 的字段ID与Stage、Line的选项ID取自K6读回（#768）；board 列出 dev-flow 每个事件写哪些字段，删去一项即关闭。"
+    "2026-10-26 起登记看板字段：Line、Dispatched at、Delivered at、Accepted at、Cycle days 的字段ID与Stage、Line的选项ID取自K6读回（#768）；board 列出 dev-flow 每个事件写哪些字段，删去一项即关闭。",
+    "2026-10-26 起登记 Kind 字段与六个选项（#774，读回自 Project 4）；fields.iteration 是改名为 Wave 的迭代字段。dispatched 事件另写 Kind 与 Wave。"
   ]
 }
