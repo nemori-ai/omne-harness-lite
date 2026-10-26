@@ -11,7 +11,7 @@
 | 并行 coding agent 的业界实践 | [agent-practice-2026.md](agent-practice-2026.md) | 智能并行，写入单线程。验证左移到每条线，集成节点只做组合与放行 |
 | 度量与跨里程碑对比 | [measurement-and-comparison.md](measurement-and-comparison.md) | 小样本用 XmR 图、效应量、事前假设和对照序列判断改善或回归，不做显著性检验 |
 | 分布式调度理论 | [scheduling-theory.md](scheduling-theory.md) | reduce 串行量随线数线性增长，每波卡数有上限。首要杠杆是降低单卡 reduce 时长和准入失败率。写集不交不等于可串行化，要声明读集 |
-| 综合 | [synthesis.md](synthesis.md) | 十条原则与来源对照、范式 v2 相对 v1 的差异、分解规则、度量账本、跨里程碑对比协议 |
+| 综合 | [synthesis.md](synthesis.md) | 十条原则与来源对照、做法与依据、分解规则、度量账本、跨里程碑对比协议 |
 
 ## 证据等级
 

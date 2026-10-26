@@ -80,7 +80,7 @@
 
 ## 5. 对我们怎么用、量什么
 
-指标尽量映射到看板现有字段（Status/Line/Kind/Wave/日期/Cycle days）。
+指标尽量映射到看板已有的字段。下文的 Status、Line、Kind、Wave、日期与 Cycle days 是例：某看板的字段。
 
 ### 5.1 让风险早暴露
 
