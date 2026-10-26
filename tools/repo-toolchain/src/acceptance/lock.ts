@@ -3,7 +3,8 @@
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
 // 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
-import { inspectHistoricalApproval, type HistoricalApproval } from './historical-approvals.ts'
+import { inspectHistoricalApproval } from './historical-approvals.ts'
+import type { HistoricalApproval } from './historical-approvals.data.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { repositoryEnv } from '../core/git-environment.ts'

@@ -130,16 +130,18 @@ The acceptance lock preserves original role violations in `LockReport.violations
 Loop keeps each full report in `auditRanges[].acceptance`. Its acceptance hard line contains only unresolved findings.
 Both text reports show original violations and approvals. Other Loop hard lines still apply.
 
-The artifact contains a read-only list of fixed decisions in `src/acceptance/historical-approvals.ts`.
+The artifact contains a read-only list of fixed decisions in `src/acceptance/historical-approvals.data.ts`. The checker in `src/acceptance/historical-approvals.ts` reads only this list.
 Each entry covers one commit and one protected path. A commit with more protected paths has one entry for each path.
 The [D010 decision](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357) covers commit `48ad37d292796326d65055a75e8a1fde44fe4233` and `packages/agent/agent/acceptance/README.md`.
 The [#769 decision](https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205) covers 27 paths in commits `19f457a15`, `9f3967cc5`, `69bdedfab`, `837d333fd`, `14b0fcfcb` and `06acd53ca`.
-For a merge commit, the entry names the one parent where the lock finds the path changed.
+Without a task context, the lock compares a merge commit with each parent (`git diff-tree -m`) and lists each path that differs from one parent. With a task context it uses `--cc`, which lists only paths that differ from all parents. A clean merge then lists no paths. The six #769 commits contain four such merges.
+By registration convention, a merge entry names the one parent where the path changed. The tool does not check this convention. It checks only that the named parent is one of the parents of the commit.
 The tool checks real Git objects, that the named parent is a parent of the commit, exact blobs, and all bytes from `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`.
 For a path that does not exist on one side, the blob is the Git null object ID (40 zeros), as `git diff --raw` shows it. The tool then checks that the tree has no such path.
 The call fixes `core.abbrev=8`, `diff.noprefix=false`, `diff.mnemonicPrefix=false`, `diff.algorithm=myers`, `diff.indentHeuristic=true`, `diff.context=3`, `diff.interHunkContext=0`, `diff.suppressBlankEmpty=false`, `diff.srcPrefix=a/`, `diff.dstPrefix=b/`, `core.attributesFile=/dev/null`, and `attr.tree` (the empty tree). It removes `GIT_DIFF_OPTS` and `GIT_ATTR_SOURCE` from its environment and sets `GIT_ATTR_NOSYSTEM=1`. Repository size and these settings do not change the bytes.
 Known limits: a funcname, xfuncname or `binary` attribute in `info/attributes`, a `.gitattributes` file in the worktree on Git older than 2.43, and an object prefix collision change the bytes. The entry then does not receive approval. These cases fail as a rejection, never as a false approval.
 Ordinary documents in a historical commit do not prevent approval. The protected paths that the lock lists for a commit must be exactly the paths registered for that commit. One more or one less path gives no approval for that commit.
+When the path sets are equal but the fingerprint of one entry does not match, only that entry gets no approval. The other entries of the commit are approved. The path of the failed entry stays an unresolved violation, so the CLI still exits 1.
 Uncommitted edits, future developer commits, and fingerprint or decision mismatches still fail.
 Git read failures remain tool errors. Configuration, environment variables, arguments, and supplied URLs cannot authorize changes.
 No runtime GitHub request is required. Adoption trusts the reviewed artifact and its npm integrity.

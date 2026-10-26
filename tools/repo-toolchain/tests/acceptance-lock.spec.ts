@@ -17,12 +17,17 @@ import {
   type AcceptanceLockConfig,
 } from '../src/acceptance/lock.ts'
 import {
-  HISTORICAL_APPROVALS,
-  NULL_OBJECT_ID,
+  inspectAgainst,
   inspectHistoricalApproval,
   matchHistoricalApproval,
   observeHistoricalChange,
 } from '../src/acceptance/historical-approvals.ts'
+import {
+  HISTORICAL_APPROVALS,
+  NULL_OBJECT_ID,
+  assertUniqueApprovals,
+  type HistoricalApproval,
+} from '../src/acceptance/historical-approvals.data.ts'
 import type { CommitRecord } from '../src/commits.ts'
 
 const config: AcceptanceLockConfig = {
@@ -468,6 +473,75 @@ describe('#769 historical approvals against real Git objects', () => {
   it('compiles the list read-only', () => {
     expect(Object.isFrozen(HISTORICAL_APPROVALS)).toBe(true)
     expect(HISTORICAL_APPROVALS.every(item => Object.isFrozen(item))).toBe(true)
+  })
+
+  it('refuses a list with a duplicate (commit, path) instead of taking the first entry', () => {
+    expect(() => assertUniqueApprovals(HISTORICAL_APPROVALS)).not.toThrow()
+    const [first] = HISTORICAL_APPROVALS
+    const duplicate = { ...first!, diffSha256: flip(first!.diffSha256) }
+    expect(() => assertUniqueApprovals([first!, duplicate])).toThrow('duplicate (commit, path)')
+    expect(() => inspectAgainst([first!, duplicate], root, first!.commit, [first!.path])).toThrow(
+      'duplicate (commit, path)',
+    )
+  })
+})
+
+// Fast tier: a small local repository. The registered parent goes straight into the candidate, so
+// only the two parent guards in inspectAgainst can reject a wrong parent.
+describe('historical approval parent guards', () => {
+  const made: string[] = []
+  afterEach(() => {
+    for (const directory of made.splice(0)) rmSync(directory, { recursive: true, force: true })
+  })
+  const git = (root: string, ...args: string[]) =>
+    execFileSync(
+      'git',
+      ['-c', 'user.name=someone', '-c', 'user.email=someone@example.com', ...args],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    ).trim()
+  const path = 'packages/x/acceptance/README.md'
+  const decisionUrl = 'https://example.com/decision'
+
+  /** Three commits in a line: grandparent, parent, commit, each with different content at `path`. */
+  function history() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'historical-parent-')))
+    made.push(root)
+    git(root, 'init', '-q')
+    mkdirSync(join(root, dirname(path)), { recursive: true })
+    const commits = ['first\n', 'second\n', 'third\n'].map(content => {
+      writeFileSync(join(root, path), content)
+      git(root, 'add', path)
+      git(root, 'commit', '-qm', content.trim())
+      return git(root, 'rev-parse', 'HEAD')
+    })
+    const [grandparent, parent, commit] = commits as [string, string, string]
+    return { root, grandparent, parent, commit }
+  }
+  const entry = (root: string, commit: string, parent: string): HistoricalApproval => ({
+    commit,
+    parent,
+    path,
+    ...observeHistoricalChange(root, commit, parent, path),
+    decisionUrl,
+  })
+
+  it('approves an entry whose parent is the real parent', () => {
+    const { root, parent, commit } = history()
+    const approval = entry(root, commit, parent)
+    expect(inspectAgainst([approval], root, commit, [path])).toEqual([approval])
+  })
+
+  it('rejects an entry that names the grandparent, even with fingerprints observed against it', () => {
+    const { root, grandparent, commit } = history()
+    expect(inspectAgainst([entry(root, commit, grandparent)], root, commit, [path])).toEqual([])
+  })
+
+  it('rejects a real parent whose object a Git replacement has changed', () => {
+    const { root, parent, commit } = history()
+    const approval = entry(root, commit, parent)
+    const replacement = git(root, 'commit-tree', `${parent}^{tree}`, '-m', 'replacement')
+    git(root, 'replace', parent, replacement)
+    expect(inspectAgainst([approval], root, commit, [path])).toEqual([])
   })
 })
 
