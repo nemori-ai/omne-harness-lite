@@ -116,7 +116,13 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 `scopeOverlap(cards, lines)` 是纯函数。每张卡的写范围先去掉不计入的路径：`tmp` 及其下的路径，以及线归属表 `shared` 中的路径及其下的路径，规则与属性发现的写范围归属相同。剩下的路径在不同卡之间两两比较。两条路径相同，或一条是另一条下面的路径（按 `/` 分段的目录前缀），即为一个冲突对。同一张卡内的路径不互相比较。同一来源出现两次是输入错误。`closed` 为 true 的卡默认不参与比较，来源列在 `excluded`；`includeClosed` 为 true 时参与。`issueScope` 按 Issue 的 `state` 给出 `closed`，文件来源没有 `closed`。
 
-`issueScope` 以固定 argv 经 `gh api` GET 读一张卡，复用 `readIssueCard` 与 `readTaskBinding`：卡身份不符、是 PR、没有 binding 或 binding 不合格时拒绝。`fileScope` 读 binding JSON 对象，或只含一个 binding 区块的文本，按 `parseTaskBinding` 校验。命令只读，有冲突对时退出1，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
+`issueScope` 以固定 argv 经 `gh api` GET 读一张卡，复用 `readIssueCard` 与 `readTaskBinding`：卡身份不符、是 PR、没有 binding 或 binding 不合格时拒绝。`fileScope` 读 binding JSON 对象，或只含一个 binding 区块的文本，按 `parseTaskBinding` 校验。
+
+读集检查在 `read-set.ts`，都是纯函数，成员清单由调用方传入。`readSets(cards, members)` 给出每张卡的读集：计入的写范围路径各自所在的成员（路径等于成员目录，或在成员目录下面时取最深的成员），按成员声明的 `workspace:` 依赖求传递闭包，再加上读集文件的正文页。路径不在任何成员下时不贡献成员。`readOverlap(entries, readSets)` 对每对不同的卡 a、b，比较 a 计入的写范围路径与 b 的读集路径，比较规则与写范围求交相同，两个方向各算一次。同一张卡的写与读不比较。不计入的写范围路径不参与比较。
+
+`parseReadSetFile` 只认含 `reads` 字段的 JSON 对象，其他内容交给 `fileScope`。字段只能是 `source` 与 `reads`：`source` 为非空字符串，`reads` 为仓库相对路径数组，可以为空，不合格时拒绝。`assignReadSets` 把读集文件挂到卡上：`source` 是 `#` 加数字时按卡号匹配，否则按解析后的绝对路径匹配 binding 文件参数。`source` 不对应任何卡参数，或同一张卡有两份读集文件时拒绝。关闭而不参与求交的卡，其读集文件不参与比较。
+
+命令只读。成员清单读本检出的工作树。有写冲突对或读写交叉时退出1，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
 
 ## 里程碑命令
 
