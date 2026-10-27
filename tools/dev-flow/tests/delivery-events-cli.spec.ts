@@ -283,24 +283,16 @@ describe('events-receiver-cli clean', () => {
   const receiverCli = fileURLToPath(
     new URL('../src/delivery/events-receiver-cli.ts', import.meta.url),
   )
-  /** A `gh` over three hooks that refuses to delete hook 3 when `refuse3` is set. */
-  function hookEnv(refuse3: boolean) {
+  function hookEnv() {
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-cli-')))
     homes.push(home)
     const bin = join(home, 'bin')
     mkdirSync(bin)
-    const url = 'https://webhook-forwarder.github.com/hook'
     writeFileSync(
       join(bin, 'gh'),
       `#!/usr/bin/env node
-const args = process.argv.slice(2)
-if (args.includes('DELETE')) {
-  if (${refuse3} && args.at(-1).endsWith('/3')) process.exit(1)
-} else process.stdout.write(JSON.stringify([[
-  { id: 1, name: 'cli', config: { url: ${JSON.stringify(url)} } },
-  { id: 2, name: 'web', config: { url: 'https://example.com/x' } },
-  { id: 3, name: 'cli', config: { url: ${JSON.stringify(url)} } },
-]]))
+require('node:fs').appendFileSync(${JSON.stringify(join(home, 'gh-calls'))}, JSON.stringify(process.argv) + '\\n')
+process.exit(94)
 `,
     )
     chmodSync(join(bin, 'gh'), 0o755)
@@ -318,17 +310,16 @@ if (args.includes('DELETE')) {
     return { status: result.status, stdout: result.stdout, stderr: result.stderr }
   }
 
-  it('deletes every forwarder hook, and exits 1 naming the ones it could not delete', () => {
-    const ok = runReceiver(['clean', '--repo', 'owner/repo'], hookEnv(false))
-    expect(ok.status).toBe(0)
-    expect(JSON.parse(ok.stdout)).toEqual({ kind: 'hooks-cleaned', deleted: [1, 3], failed: [] })
-    const partial = runReceiver(['clean', '--repo', 'owner/repo'], hookEnv(true))
-    expect(partial.status).toBe(1)
-    expect(JSON.parse(partial.stdout)).toMatchObject({ deleted: [1], failed: [3] })
+  it('refuses cleanup without ownership configuration and makes no GitHub calls', () => {
+    const env = hookEnv()
+    const result = runReceiver(['clean', '--repo', 'owner/repo'], env)
+    expect(result.status).toBe(2)
+    expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'receiver-error' })
+    expect(existsSync(join(homes.at(-1) ?? '', 'gh-calls'))).toBe(false)
   })
 
   it('exits 2 with the usage for unknown commands and flags', () => {
-    const env = hookEnv(false)
+    const env = hookEnv()
     for (const args of [['serve-all'], ['clean', '--port', '1', '--repo', 'owner/repo'], []]) {
       const result = runReceiver(args, env)
       expect(result.status).toBe(2)
@@ -337,11 +328,21 @@ if (args.includes('DELETE')) {
   })
 
   it('exits 2 with the error code when the event file directory cannot be made', () => {
-    const env = hookEnv(false)
+    const env = hookEnv()
     const blocker = join(homes.at(-1) ?? '', 'blocker')
     writeFileSync(blocker, '')
     const result = runReceiver(
-      ['serve', '--port', '1', '--file', join(blocker, 'events.jsonl'), '--repo', 'owner/repo'],
+      [
+        'serve',
+        '--mode',
+        'legacy',
+        '--port',
+        '1',
+        '--file',
+        join(blocker, 'events.jsonl'),
+        '--repo',
+        'owner/repo',
+      ],
       env,
     )
     expect(result.status).toBe(2)
@@ -367,7 +368,7 @@ describe('events-receiver-cli serve', () => {
       })
     })
 
-  it('stops on SIGHUP like on SIGTERM: forwarder stopped, own hook deleted, receiver.pid removed', async () => {
+  it('stops the legacy child on SIGHUP and preserves hooks whose ownership is unproven', async () => {
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-serve-')))
     homes.push(home)
     const bin = join(home, 'bin'),
@@ -405,6 +406,8 @@ if (args[0] === 'webhook') {
         '--experimental-strip-types',
         receiverCli,
         'serve',
+        '--mode',
+        'legacy',
         '--port',
         String(port),
         '--file',
@@ -424,10 +427,16 @@ if (args[0] === 'webhook') {
         { timeout: 10_000, interval: 50 },
       )
       child.kill('SIGHUP')
-      expect(await exited).toBe(0)
-      expect(readFileSync(deletions, 'utf8')).toBe('7\n')
-      expect(readFileSync(state, 'utf8')).toBe('[1]')
+      expect(await exited).toBe(2)
+      expect(existsSync(deletions)).toBe(false)
+      expect(readFileSync(state, 'utf8')).toBe('[1,7]')
       expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(false)
+      expect(
+        JSON.parse(readFileSync(join(home, 'events', 'receiver-state.json'), 'utf8')),
+      ).toMatchObject({
+        state: 'recovery-needed',
+        hookId: null,
+      })
     } finally {
       child.kill('SIGKILL')
     }

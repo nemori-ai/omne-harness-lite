@@ -160,7 +160,7 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 ## 事件等待
 
-线会话与集成节点阻塞在 GitHub 事件上，不轮询 API。接收器把 webhook 事件追加到本机的事件文件，`wait-cli.ts` 读这个文件。`wait-cli.ts` 不写平台。接收器只通过 `gh webhook forward` 建立仓库 hook，并只删除 `cli` 类型的转发 hook，不写其他平台对象。
+线会话与集成节点阻塞在 GitHub 事件上，不轮询 API。接收器把 webhook 事件追加到本机的事件文件，`wait-cli.ts` 读这个文件。`wait-cli.ts` 不写平台。频道接收器只管理归属已证实的精确 hook。legacy 转发器保留单机用途，不自动删除归属未知的 hook。
 
 `events.ts` 的 `normalizeGithubEvent` 把一次投递归一成 `EventRecord`：`delivery`、`event`、`action`、`number`、`state`、`draft`、`base`、`marker`、`html_url`、`receivedAt`。缺少 `X-GitHub-Event` 头或 payload 不是对象时抛出 `DeliveryInputError`。投递不带的字段为 null。评论的 `marker` 取正文第一行 `<!-- ... -->` 里的第一个词，第一行没有这样的注释时为 null。
 
@@ -175,15 +175,19 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 去重按 `delivery`。同一个 delivery id 只算第一次，之后的行被忽略，包括 `--since` 之前读到的行。`delivery` 为 null 的行不去重。
 
-接收器只绑定 127.0.0.1，只接受 POST。给出 secret 时，`X-Hub-Signature-256` 与请求体的 HMAC-SHA256 不符或缺失，返回 401，不写文件。不是投递的请求体返回 400。每个合格投递写完一行 JSON 后才返回 204。写不进事件文件时返回 500，并在标准错误写一行说明。
+频道模式使用独立频道和精确 hook 身份。持久配置包括 schemaVersion、repository、instanceId、ownerHost、频道地址、事件文件、订阅类型与 ownership。ownership 区分 uncreated、creating、owned、borrowed、deleted。创建前先保存 creating；创建响应中的 hookId 保存为 owned。响应丢失时仅以实例标记的完整 URL、事件类型和 hook 属性对账。归属不明不得重建或删除。
 
-监听成功后，接收器在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。这个文件只在不存在时创建。文件已存在且其中的进程号仍在运行时，启动失败，退出2，不删除这个文件。其中的进程号已不在运行时，接收器覆盖它。所以同一事件文件只允许一个接收器，第二个启动会被拒绝。正常停止、子进程自行退出、停止时 hook 列表读不到，这三条路径都删除 `receiver.pid`；`receiver.pid` 写成之后的启动失败也删除它。接收器被 SIGKILL 时 `receiver.pid` 残留，下一个接收器按上面的规则覆盖它。
+频道地址只存权限受限配置。频道事件无法证明原始 GitHub 签名，所有业务提示带 `receiver={instanceId,repository,mode:"channel",requiresReconcile:true}`。可选 subject 保留 runId/runAttempt、workflowJobId、checkRunId/checkSuiteId、deploymentId/deploymentStatusId、reviewId、pullNumber、headSha 与 ref；它们只定位权威查询。无效身份元数据不得降为可信旧事件。连接诊断含 connectionEpoch 和 coverage-gap；连接成功不消除频道无可靠重放的限制。
 
-接收器拉起并持有 `gh webhook forward` 子进程。启动时不删除任何 hook。启动时先列出仓库里指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook 作为基线，读不到时启动失败。拉起子进程后，接收器每隔一段时间再列一次，直到出现基线里没有的 hook，或超过发现时限（30 秒）。这一阶段认出的新 hook 记为发现结果。一次同时出现多个新 hook 时，接收器立即在标准错误写一行 `Multiple forwarder hooks appeared: <号…>; none will be deleted on stop`，然后继续运行。超过发现时限还没有新 hook 时，接收器在标准错误写一行，说明停止时用停止时列表与基线的差。
+接收器处理 SSE 分片、多行、心跳和重复投递。坏帧、非法编码、日志损坏和永久权限错误明确失败。断连从 1 秒开始指数退避并抖动，最长 30 秒。连接或重连写诊断事件，使等待者做一次有界对账。健康的空闲接收不周期读取 GitHub 业务状态。
 
-收到 SIGINT、SIGTERM 或 SIGHUP 时，先停子进程，再列一次，然后删除本次创建的 hook，最后删除 `receiver.pid` 并关闭服务。本次创建的 hook 这样认定：候选是发现结果与停止时列表里基线没有的 hook 的并集，只保留仍在停止时列表里的。候选恰好一个时删除它。候选多于一个时，接收器认不出哪个是自己的，一个都不删，退出码为1，并在标准错误写出这些 hook 号。没有候选时不删。停止时列表读不到时，发现结果恰好一个 hook 就仍然删除它，发现结果多于一个时都不删；标准错误写出残留的 hook 号，即发现结果中没有删掉的号，没有时写 `none known`，退出码为1。子进程自行退出、监听中的服务出错时同样收尾，退出码为1。自己的 hook 删不掉时退出码为1，并在标准错误写出残留的 hook 号。接收器进程因未捕获的异常退出时，也结束 `gh webhook forward` 子进程。除被 SIGKILL 外，任何一条退出路径，包括启动失败，都不留下子进程或监听中的服务。正常停止退出0，启动失败退出2。
+同一事件目录的频道与 legacy 接收器共用原子守卫。receiver.pid 保留进程号，receiver-state.json 保存模式、仓库、实例、主机、进程启动身份、hookId、订阅类型、连接状态和诊断。健康检查默认每 5 秒核对本地进程身份、pid 和事件文件。不能只用 PID 存活断言接收健康。无法确认已停止的旧写者时拒绝争抢。
 
-并发的接收器各自持有各自的 hook，一个接收器不删另一个的 hook，前提是它们的启动时间相差不少于发现时限。两个接收器在同一仓库上启动时间相差小于30秒时，hook 的归属可能认错，停止时可能删除另一个接收器的 hook。较晚启动的接收器的 hook 也是较早那个停止时列表里基线没有的 hook，所以较早启动的接收器在较晚的仍在运行时停止，候选多于一个，一个都不删，退出1。所以操作规则是：一台机器一个接收器；不同机器上的接收器错开启动；启动后用 `gh api repos/<owner>/<name>/hooks` 核对转发 hook 恰好多了一个。`events-receiver-cli.ts clean` 是显式命令，删除仓库里全部指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook，不问是谁创建的，用于 SIGKILL 后清理残留。`clean` 会影响所有正在运行的接收器。它输出 `{"kind":"hooks-cleaned","deleted":[…],"failed":[…]}`，有删不掉的退出1，参数错误或读不到列表退出2。
+自建频道停止时只删除持久 owned hook，删除前验证精确身份。借用实例只退订，不调用 hook 写接口。创建响应丢失、日志失败或归属不明保存 recovery-needed。clean 只允许处理本机已停止且归属已证实的实例；全仓扫删入口退出。
+
+legacy 的 HTTP 接收器只绑定 127.0.0.1、只接受 POST。给出 secret 时校验 X-Hub-Signature-256；签名不符返回 401，非法投递返回 400，落盘完成返回 204，写失败返回 500。停止时结束自己的 forward 子进程并释放本地写者。gh forward 没有可证明所有权的创建回执，因此不得用前后列表差分猜 hook；停止保留 recovery-needed 并退出 2，422 另给 legacy-hook-conflict。SIGKILL 无法执行清理，后续按持久身份恢复。
+
+check 自检分别验证进程、连接、精确 hook 状态、一条真实事件落盘和等待对账立即返回。借用模式由拥有者提供 hook 证据，消费者仍验证端到端。命令退出、输出可取和 agent 续接是三项不同验证。
 
 `waitForEvent` 的语义：
 
@@ -206,4 +210,4 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
-验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、去重、等待的各条语义、对账读取、接收器与生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖 `wait-cli.ts` 的退出码、`--ignore`、`any`、错误码字段，`events-receiver-cli.ts clean`，以及 `serve` 收到 SIGHUP 时的收尾。两者都不联网，`gh` 用替身。真实的 `gh webhook forward`、hook 清理与 `pull_request` 事件没有自动化验证。
+验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。

@@ -207,41 +207,35 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 线会话与集成节点用这组命令阻塞在 GitHub 事件上。命令不轮询 API。
 
-先启动接收器。它在本机监听，把 GitHub 事件追加到事件文件。
+频道模式适用于多机。每台机器使用独立频道与 hook，并显式指定业务仓库和事件文件。先初始化，再将 serve 作为原宿主工具的后台进程运行。
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --port <端口> [--file <事件文件>] [--repo <owner/name>] [--secret <s>]
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts init --repo <owner/name> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --repo <owner/name> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts health --repo <owner/name> --file <事件文件>
 ```
 
-- `--file` 缺省为工作树根下的 `tmp/github-events/events.jsonl`。目录不存在时建立。
-- `--repo` 缺省取 `git remote get-url origin`。
-- 接收器只绑定 127.0.0.1，只接受 POST。给出 `--secret` 时校验 `X-Hub-Signature-256`，并以 `-S` 传给转发器。
-- 接收器自己拉起并持有 `gh webhook forward`，转发 `issues`、`pull_request`、`issue_comment`。
-- 启动后在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。正常停止、转发器退出和停止时读不到 hook 列表，都删除它。要核对本机有没有接收器在跑，读这个文件并用 `kill -0 <进程号>` 核对进程还在。
-- 同一事件文件只允许一个接收器，第二个启动会被拒绝：`receiver.pid` 已存在且其中的进程还在时，接收器退出2并说明。进程已不在时（例如上一个接收器被 SIGKILL），接收器覆盖这个文件。
-- 启动时不删除任何 hook。接收器先记下仓库里已有的转发 hook，拉起转发器后在30秒内读 hook 列表找新出现的 hook。30秒内没找到时，标准错误写一行说明，停止时再找。
-- 按 Ctrl-C、发 SIGTERM 或 SIGHUP 停止。接收器先停转发器，再只删除自己的 hook。自己的 hook 是启动后找到的新 hook 与停止时新出现的 hook 合起来、仍在仓库里的那一个。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那些 hook，或运行 `clean`。
-- 新出现多个 hook 时，接收器认不出哪个是自己的。启动后一看到多个，标准错误立即写一行 `Multiple forwarder hooks appeared: …`，接收器继续运行。停止时它一个都不删，退出1，标准错误写出这些 hook 号。
-- 停止时读不到 hook 列表，接收器仍删除启动后找到的那一个 hook，标准错误写出残留的 hook 号，退出1。
-- 启动失败退出2，标准错误写一行 `{"kind":"receiver-error",…}`，错误带系统错误码时多一个 `code` 字段。
-- 接收器因未捕获的异常退出时也结束转发器。被 SIGKILL 时转发器、hook 与 `receiver.pid` 都会残留。
+init 创建频道并保存本地配置，serve 建立或恢复精确 hook。配置、进程身份和健康记录保存在事件文件同目录。频道地址属于秘密，只保存在权限受限的配置中，不放进卡片、日志或错误文本。一个事件目录只有一个写者，频道与 legacy 共用本地排他守卫。健康检查每 5 秒检查本机进程身份、连接和日志，不扫描 GitHub 业务状态。
 
-同一仓库上的多个接收器：两个接收器启动时间相差小于30秒时，接收器可能把对方的 hook 认作自己的，停止时可能删错。操作规则：
-
-- 一台机器只开一个接收器。
-- 不同机器上的接收器错开启动，间隔超过30秒。
-- 启动后用 `gh api repos/<owner>/<name>/hooks` 核对转发 hook 恰好多了一个。
-- 较早启动的接收器在较晚的仍在运行时停止，会看到两个新 hook，一个都不删，退出1。这时等较晚的也停止后运行 `clean`。
-
-接收器被 SIGKILL 后 hook 会残留。用 `clean` 清理。
+借用已有频道时，由拥有者提供权限受限的频道地址文件及 hook ID。运行 init 时同时传入 `--channel-file <文件> --hook <ID>`。借用实例不创建或删除 hook。受限云端可用这种模式；端到端自检仍须完成。
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts clean [--repo <owner/name>]
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts check --repo <owner/name> --file <事件文件> --delivery <真实投递guid> --issue <已关闭Issue>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts recover --repo <owner/name> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts clean --repo <owner/name> --file <事件文件>
 ```
 
-- `clean` 删除仓库里全部指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook，不问是谁建的。
-- `clean` 会影响所有正在运行的接收器。先停掉其他接收器再运行它。
-- 标准输出一行 `{"kind":"hooks-cleaned","deleted":[…],"failed":[…]}`。有删不掉的退出1。
+check 核对进程、连接、精确 hook、真实事件落盘及等待对账。借用实例用 `--hook-evidence <拥有者证据文件>` 提供 hook 事实；仅有 pid 不算自检通过。创建响应丢失时，recover 只按持久 instance/channel 身份恢复，不重复创建。clean 只处理本机已停止实例持有的精确 hook；归属无法证明就失败，不扫描删除全仓 hook。
+
+SIGINT、SIGTERM 或 SIGHUP 请求停止。自建实例只删除已确认归属的 hook，借用实例只退订。停止、失败及恢复状态写回本地记录。连接恢复触发权威对账；频道没有可靠重放承诺，覆盖缺口不能当成没有业务变化。
+
+legacy 单机选项仍可显式运行：
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --mode legacy --port <端口> --repo <owner/name> --file <事件文件> [--secret <s>]
+```
+
+legacy 只监听 loopback，并持有 `gh webhook forward` 子进程。给出 secret 时校验原始签名。停止时结束自己的子进程、释放本地写者，但不从列表差分猜 hook 归属。无法证明远端清理时保留 `recovery-needed`，退出 2。422 返回 `legacy-hook-conflict`。原来扫删其他接收器 hook 的 clean 行为已退出。
 
 再用四条命令等待。命令一直阻塞到匹配事件出现，打印匹配的那一行 JSON，退出0。输入、对账或读文件出错时退出2，标准错误写一行 `{"kind":"wait-error",…}`，错误带系统错误码时多一个 `code` 字段。
 
@@ -263,22 +257,14 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 - 集成节点处理完一个批次后，再等时带上 `--ignore <pr>@<它处理时的 head>`，就不会立刻拿到同一个 PR。
 - `pr-ready` 的输出带 `number` 与 `head`。
 - `any` 接受可重复的 `--issue-closed` 与 `--comment`，任一命中就返回那一行。输出多一个 `matched` 字段，值是 `issue-closed` 或 `comment`。三个单项命令的输出不带 `matched`。
-- 线会话用 `any --issue-closed <收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>`，收口和批次被退回都能唤醒它。
+- 这些是低层事件谓词。Issue 关闭或普通评论命中不代表整波已接受，不能替代上层 ReleaseRecord 校验。
 - 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
 
 接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件此后不再调用 GitHub API。
 
 带 `receiver.mode=channel` 的事件只作提示。匹配事件和 connected/reconnected 诊断触发有界权威对账，频道提示本身不能放行。库调用必须同时提供明确 repository 与 reconcile，CLI 自动传入所选仓库。不匹配的仓库或缺失对账函数会失败。
 
-依赖：
-
-- `gh` 2.x。
-- 扩展 `cli/gh-webhook`，用 `gh extension install cli/gh-webhook` 安装。探路用的是 v0.2.0。
-- 对仓库的 admin 权限，因为转发器要建立和删除 hook。
-
-延迟：探路实测通常1至3秒，出现过一次26秒。条件刚满足就等不到事件时，用 `--timeout` 设上限。
-
-当前没有验证的情况：私有仓库、同一仓库上并发的转发器、真实的 `pull_request` 事件、转发器建立 hook 的真实耗时对发现新 hook 的影响。条款见[SPEC](SPEC.md#事件等待)。
+频道模式需要可访问频道服务和 GitHub REST。自建 hook 需要相应仓库权限；借用模式不需要消费者管理 hook。legacy 另需 cli/gh-webhook 扩展。真实多机、宿主续接与采用结论按本次候选验收记录，不以单元测试或旧探路延迟代替。条款见 [SPEC](SPEC.md#事件等待)。
 
 ## 运行模块检查
 
