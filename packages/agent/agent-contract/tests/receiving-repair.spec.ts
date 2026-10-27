@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { judgePart } from '@omne-harness/message'
 import {
   decodeModelCallId,
   decodeOutputCursor,
@@ -196,6 +197,33 @@ describe('provider delivery scope', () => {
 })
 
 describe('producer material page validation', () => {
+  it('rejects a valid tool_result MessagePart as a ModelBlock before publication', async () => {
+    const judged = judgePart({
+      kind: 'tool_result',
+      id: 'marker',
+      visibility: { toHuman: true, toModel: true },
+      callId: 'call',
+    })
+    expect(judged).toHaveProperty('ok')
+    if (!('ok' in judged)) throw new Error('expected a valid MessagePart')
+    const { fixture, input } = await fixtureInput('model-tool-result-block')
+    const material = producerMaterial('model')
+    if (material.kind !== 'model') throw new Error('expected Model material')
+    const part = material.pages[0]?.parts[0]
+    if (part?.kind !== 'sealed') throw new Error('expected a sealed ModelBlock')
+    Reflect.set(part, 'block', judged.ok)
+    const malformed = { ...input, material }
+    await fixture.joint.bind(malformed)
+    expect(await fixture.joint.received.commit(malformed)).toMatchObject({
+      failure: { kind: 'invalid', field: 'material.pages.0.parts.0.block' },
+    })
+    expect(await fixture.read(access, input.execution)).toEqual([])
+    expect(await fixture.joint.inspect(access, input.execution)).toEqual({
+      revision: 0,
+      entries: 0,
+      materials: 0,
+    })
+  })
   it.each(['model', 'tool'] as const)('rejects a null %s page before publication', async kind => {
     const { fixture, input } = await fixtureInput(`bad-page-${kind}`, kind)
     const malformed = {
