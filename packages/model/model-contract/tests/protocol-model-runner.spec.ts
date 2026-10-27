@@ -26,7 +26,19 @@ const evidenceRoot = fileURLToPath(
   new URL('../../../../tmp/model-contract-protocol/', import.meta.url),
 )
 const scripts = ['model.mjs', 'self-test.mjs', 'knowledge-test.mjs', 'boundary-test.mjs', 'run.mjs']
-const limits = { pollMs: 20, closeMs: 6500, settleMs: 3500, cleanupMs: 2000, hardMs: 18000 }
+const limits = {
+  pollMs: 20,
+  closeMs: 6500,
+  settleMs: 3500,
+  cleanupMs: 2000,
+  hardMs: 18000,
+  // Budget from supervisor fork until the hanging fixture's root and descendant have written their pids.
+  fixtureStartMs: 2500,
+  // Polling margin for grandchild.pid once the fixture started; the descendant writes it first.
+  fixtureReadyMs: 300,
+  // Extra time the `deadline` supervisor keeps the fixture alive beyond start and ready budgets.
+  deadlineMarginMs: 200,
+}
 type ProcessExit = { code: number | null; signal: string | null }
 type CleanupAction = { pid: number; group: boolean; signal: string; result: string }
 type Scenario = 'success' | 'supervisor-early-exit' | 'missing-fixture' | 'no-pid'
@@ -257,8 +269,11 @@ const controllerProgram =
     '  pollMs: 20,',
     '  // Fixture start (supervisor, root and descendant all running) and the grandchild announcement',
     '  // are separate deadlines. The descendant writes grandchild.pid before descendant.pid, so readyMs',
-    '  // is only a polling margin. Worst case before the watchdog: startMs + readyMs + gracefulCleanupMs',
-    '  // + forcedCleanupMs = 4800 < controllerHardMs.',
+    '  // is only a polling margin. Failure cleanup signals the supervisor and the root group, then',
+    '  // forcedCleanupMs waits only for the supervisor, which this controller reaps itself. The outer',
+    '  // case is the single observer that the root group is gone (failed-parent-death-cleanup-deadline',
+    '  // and groupsAbsent.root): orphans in that group wait for PID 1 to reap them. Worst case before',
+    '  // the watchdog: startMs + readyMs + gracefulCleanupMs + forcedCleanupMs = 4800 < controllerHardMs.',
     '  startMs: 2500,',
     '  readyMs: 300,',
     '  supervisorMs: 8000,',
@@ -409,7 +424,7 @@ const controllerProgram =
     "      try { await until(() => state.close, limits.gracefulCleanupMs, 'supervisor-cleanup-deadline') }",
     '      catch { forceCleanup() }',
     "      signal(knownRoot(), 'SIGKILL', report.cleanup, true)",
-    "      await until(() => !alive(supervisor.pid) && !alive(knownRoot(), true), limits.forcedCleanupMs, 'controller-cleanup-deadline')",
+    "      await until(() => !alive(supervisor.pid), limits.forcedCleanupMs, 'controller-cleanup-deadline')",
     '    }',
     '  } catch (error) { cleanupError = String(error.stack ?? error) }',
     '  clearTimeout(watchdog)',
@@ -643,7 +658,14 @@ const failureCases = [
     duration: 2000,
     reason: /aggregate must exit normally/,
   },
-  { name: 'deadline', program: hanging(), duration: 600, reason: /^deadline$/ },
+  {
+    name: 'deadline',
+    program: hanging(),
+    // The supervisor deadline starts only after it spawns the fixture, so the fixture can become
+    // ready inside fixtureStartMs + fixtureReadyMs before the deadline under test fires.
+    duration: limits.fixtureStartMs + limits.fixtureReadyMs + limits.deadlineMarginMs,
+    reason: /^deadline$/,
+  },
   {
     name: 'output-limit',
     program: "process.stdout.write('x'.repeat(2*1024*1024));setInterval(()=>{},1000)",
@@ -691,10 +713,30 @@ test.each(failureCases)(
       const cleanup: CleanupAction[] = []
       let report: unknown
       try {
+        // Fixture start and readiness have their own deadlines. A supervisor that exits before the
+        // fixture is ready fails with its own reason instead of a later assertion about pid files.
+        const fixture = (...files: string[]) => {
+          if (files.every(file => existsSync(join(target, file)))) return true
+          if (state.error) throw state.error
+          if (state.exit || state.close) throw new Error('supervisor-exited-before-ready')
+          return false
+        }
+        if (name === 'deadline') {
+          await until(
+            () => fixture('root.pid', 'grandchild.pid'),
+            limits.fixtureStartMs,
+            'fixture-start-deadline',
+          )
+        }
         if (name === 'parent-disconnected' || name === 'supervisor-SIGTERM') {
           await until(
-            () => existsSync(join(target, 'grandchild.pid')),
-            2000,
+            () => fixture('root.pid', 'descendant.pid'),
+            limits.fixtureStartMs,
+            'fixture-start-deadline',
+          )
+          await until(
+            () => fixture('grandchild.pid'),
+            limits.fixtureReadyMs,
             'fixture-ready-deadline',
           )
           if (name === 'parent-disconnected') child.disconnect()
