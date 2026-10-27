@@ -2046,6 +2046,46 @@
       ]
     },
     {
+      "id": "docs#domains#core-supply-demand",
+      "path": "docs/domains/core-supply-demand.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "core-chain",
+          "anchor": "核心链路与事实归属"
+        },
+        {
+          "id": "supporting-relations",
+          "anchor": "支撑能力的十二对关系"
+        },
+        {
+          "id": "runtime-context",
+          "anchor": "Runtime Context"
+        },
+        {
+          "id": "request-context",
+          "anchor": "Request Context"
+        },
+        {
+          "id": "execution-environment",
+          "anchor": "Execution Environment"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "约束与维护"
+        }
+      ]
+    },
+    {
       "id": "docs#guides#README",
       "path": "docs/guides/README.md",
       "kind": "entry",
