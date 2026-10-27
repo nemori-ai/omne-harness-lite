@@ -351,7 +351,12 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 九条禁边是：Agent 不依赖 Session，Model 不依赖 Session，Tool 不依赖 Session，Model 不依赖 Agent，Tool 不依赖 Agent，Session 不依赖 Model，Session 不依赖 Tool，public-contract、sdk 与 stream-arrival 不依赖 Model，public-contract、sdk 与 stream-arrival 不依赖 Tool。九条禁边展开为 40 个成员对。
 
-`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL` 的依据是[依赖方向与Cordis集成](#依赖方向与cordis集成)里“Session 组只有 session-adapters 导入邻域契约”一句：from 是 session-contract 与 session-cordis-contract，不含 session-adapters 与 session-cordis。`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 的依据是同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)）、sdk 只依赖 public-contract，以及 stream-arrival 作为 common 成员不依赖领域成员：from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：它按 [server-entry 的观察脱离与重附着](../packages/access/server-entry/SPEC.md#观察脱离与重附着746)只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`，这两条边是允许的，其余依赖按职责逐项评审。检查规则如下。
+九条方向行的依据如下。
+
+- `DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`：[依赖方向与Cordis集成](#依赖方向与cordis集成)里“Session 组只有 session-adapters 导入邻域契约”一句。from 是 session-contract 与 session-cordis-contract，不含 session-adapters 与 session-cordis。
+- `DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`：同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)）、[sdk 的安装闭包](../packages/access/sdk/SPEC.md#安装闭包)只依赖 public-contract，以及 [stream-arrival 不导入任一领域](../packages/common/stream-arrival/README.md#responsibility-and-status)。from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：按同一段与 [server-entry 的观察脱离与重附着](../packages/access/server-entry/SPEC.md#观察脱离与重附着746)，它只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`；其余依赖以三个成员的依赖图为准，没有方向行，仍靠评审。
+
+检查规则如下。
 
 - 检查按解析后的真实目标成员判断。类型导入、重导出、公开子路径和跨成员相对路径都算命中。
 - 未解析的导入不算方向命中。`no-unresolvable` 规则继续单独报告它。

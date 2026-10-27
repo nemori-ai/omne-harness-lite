@@ -168,7 +168,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - 三条流表一行：[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)「三条流不逐块进会话日志」；[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)「流引用与自身事件」。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `3caaf8d51`（integration/legacy-refactor）。
+- 核对于 `115bd78b`（integration/legacy-refactor）；「九条方向约束」一项按 #868 更新，核对于 `3caaf8d51`。
 
 ## 顶层架构
 
