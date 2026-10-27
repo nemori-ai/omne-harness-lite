@@ -381,3 +381,22 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
 验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
+
+## 候选与整波验证报告
+
+`collaboration-verification.ts` 读取具名验证报告。它不执行报告中的命令，不重新判断评审结论，也不授予接受。Reduce 负责人必须先取得实际检查与独立评审证据，再形成报告。报告读取器验证归属、精确受测对象、必需类别、成功结果和引用字节。日志摘要通过不单独代表检查适用。
+
+报告位于当前 reduce 卡的一条未编辑评论。首行是 `<!-- omne-collaboration-verification:v1 -->`，其余正文为单一 JSON。JSON 必须包含 `schemaVersion:1`、`subject`、`writer`、`checks` 和 UTC `recordedAt`。评论作者必须是当前具名 reduce 负责人，writer 的 login、epoch、authorization 必须等于当前有效派发。拒绝改过的评论、未来记录时间、旧 epoch 和读取期间的授权变化。新结论使用新评论及摘要，不修改旧证据。
+
+候选 subject 包含 `kind:candidate`、完整 context、lineParent、requestId、requestHead、candidateHead 和 targetBase。它必须与当前请求及待写状态完全相同。candidateHead 和 targetBase 不得为空。状态的 verification 引用中恰有一份正式报告，其余证据仍逐项核对摘要。报告必须覆盖 impact、tests、review 和 admission 四类。
+
+整波 subject 包含 `kind:wave`、完整 context、finalHead、expectedRequests、results、lines 和 next。报告必须覆盖 whole-wave、reduce-work、integration-defects 和 pending-writes 四类。整波报告由装配提供显式引用，不通过“最新评论”猜测。报告本身不替代 roster、delta、后继输入、接受和关闭读回。
+
+每项 check 有唯一 name，且只允许以下一种形状：
+
+- `kind:command`：area 为 tests、admission 或 whole-wave；command 为实际执行的非空 argv；exitCode 必须为0；log 为可读回的 Evidence。命令结果由执行者记录，工具不执行评论内的 argv。
+- `kind:judgment`：area 为 impact、review、reduce-work、integration-defects 或 pending-writes；conclusion 为 pass，只有 review 可用 not-applicable；reason 必填；evidence 至少一项；remaining 必须为空。review 的不适用理由由负责人按现行风险规则判断，不能用它跳过适用独立评审。pending-writes 的证据须来自实际 journal 与远端恢复核对，不能只根据未报错推断。
+
+所有日志及判断依据使用既有 Evidence 定位与摘要格式。缺类别、重复 name、非零退出、未知结论、残留工作、引用变动或 head/base 不一致均拒绝。完整性与行为覆盖的最终判断仍由 reduce 和独立验收承担，结构化报告不能把窄测试扩称整体通过。
+
+验证资源为 [delivery-collaboration-verification.spec.ts](../../tests/delivery-collaboration-verification.spec.ts)。这些确定性测试覆盖精确 subject、四类覆盖、来源身份、旧证据和失败拒绝，不能代替真实运行与独立判断。

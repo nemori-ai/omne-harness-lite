@@ -31,13 +31,20 @@ export type ReduceWatchPorts = {
   readEvidence: (evidence: Evidence) => string
 }
 
-export function watchAuthority(ports: ReduceWatchPorts, repo: string, issue: number) {
+export function watchAuthority(
+  ports: Pick<ReduceWatchPorts, 'authorityFor' | 'read'>,
+  repo: string,
+  issue: number,
+) {
   const input = ports.authorityFor(issue)
   if (input.policy.repository !== repo) throw new InputError('watch-authority-repository')
   return readCollaborationAuthority({ ...input, reduceIssue: issue, read: ports.read })
 }
 
-export function verifyMaterial(ports: ReduceWatchPorts, evidence: Evidence): void {
+export function verifyMaterial(
+  ports: Pick<ReduceWatchPorts, 'readEvidence'>,
+  evidence: Evidence,
+): void {
   if (digest(ports.readEvidence(evidence)) !== evidence.sha256)
     throw new InputError('watch-material-digest-mismatch')
 }
