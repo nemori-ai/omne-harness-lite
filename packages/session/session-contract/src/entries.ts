@@ -33,12 +33,15 @@ import type {
 import type { EntryClass, HistoryEntry } from './faces.ts'
 import type { EncodedEntry } from './judgments.ts'
 
-/** The interpreter of this member: the adoption that every snapshot and entry schema names. */
+/**
+ * The interpreter of this member: the adoption that every snapshot and entry schema names.
+ * Revision 2: `creation.workspace` is sixth-family text and `creation.workspaceAttachment` is new.
+ */
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
-  revision: '1',
-  digest: 'sha256:session-log-1',
+  revision: '2',
+  digest: 'sha256:session-log-2',
 })
 
 /** The initialization item of one required identity (SE01 → `tasks.initialization`). */
@@ -175,14 +178,26 @@ function workspaceText(workspace: WorkspaceId | null): string | null {
   return encoded.value
 }
 
-/** The creation of a decoded payload with its workspace text parsed back, or undefined. */
-function decodeCreation(creation: unknown): SessionCreation | undefined {
-  if (typeof creation !== 'object' || creation === null) return undefined
-  const text = (creation as Record<string, unknown>)['workspace']
-  if (text === null) return creation as SessionCreation
+/**
+ * The creation of a decoded payload with its workspace text parsed back, or the diagnostic of why
+ * it is malformed. The `workspaceAttachment` key must be present (null or an object), so a row of
+ * revision 1, which has no such key, is refused instead of read in the new shape.
+ */
+function decodeCreation(
+  creation: unknown,
+): Readonly<{ ok: SessionCreation }> | Readonly<{ malformed: string }> {
+  if (typeof creation !== 'object' || creation === null || Array.isArray(creation))
+    return { malformed: 'session.created: the creation is not an object' }
+  const fields = creation as Record<string, unknown>
+  const attachment = fields['workspaceAttachment']
+  if (attachment === undefined || typeof attachment !== 'object' || Array.isArray(attachment))
+    return { malformed: 'session.created: the workspace attachment is missing or not an object' }
+  const text = fields['workspace']
+  if (text === null) return { ok: creation as SessionCreation }
   const parsed = typeof text === 'string' ? workspaceCodec.parse(text) : undefined
-  if (parsed === undefined || !parsed.ok) return undefined
-  return { ...(creation as SessionCreation), workspace: parsed.value }
+  if (parsed === undefined || !parsed.ok)
+    return { malformed: 'session.created: the workspace text does not parse' }
+  return { ok: { ...(creation as SessionCreation), workspace: parsed.value } }
 }
 
 function tenantText(tenant: TenantId): string {
@@ -218,7 +233,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
 /**
  * The decoded entry of one log row. A kind this interpreter does not know is `unknown`, so the
  * reducer quarantines instead of skipping (SL12). A payload that is not an object, or a creation
- * whose tenant or workspace text does not parse, is `malformed`.
+ * whose tenant or workspace text does not parse or that lacks its workspace attachment, is
+ * `malformed`.
  */
 export function decodeEntry(entry: Pick<HistoryEntry, 'kind' | 'payload'>): DecodedEntry {
   if (!KNOWN_KINDS.has(entry.kind)) return { unknown: entry.kind }
@@ -231,14 +247,13 @@ export function decodeEntry(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Deco
     if (parsed === undefined || !parsed.ok)
       return { malformed: 'session.created: the tenant text does not parse' }
     const creation = decodeCreation(payload['creation'])
-    if (creation === undefined)
-      return { malformed: 'session.created: the workspace text does not parse' }
+    if ('malformed' in creation) return creation
     return {
       ok: {
         ...payload,
         kind: entry.kind,
         tenant: parsed.value,
-        creation,
+        creation: creation.ok,
       } as unknown as SessionEntry,
     }
   }

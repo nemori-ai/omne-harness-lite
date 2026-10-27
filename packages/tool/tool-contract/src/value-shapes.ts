@@ -7,7 +7,12 @@ import type { SourceLayer, ToolSchemaIdentity } from './definitions.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
 import { filled, literal, member, record, reject, variant, type Check } from './shape.ts'
 
-/** The minted identity shapes of legal-identity, read as data: the brand is the `name` tag. */
+/**
+ * The organization and tenant shapes of legal-identity, read as data: the brand is the `name` tag
+ * and the text is not checked by a codec, so the result is not a minted value. `workspaceId`
+ * below is checked and minted by its codec instead; moving these two onto their codecs as well is
+ * left to a separate card.
+ */
 const organizationId: Check<OrganizationId> = record({
   name: literal('OrganizationId'),
   text: filled,

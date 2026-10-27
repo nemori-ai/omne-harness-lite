@@ -74,35 +74,40 @@ function emptyEvidence(evidence: DurableEvidence): boolean {
   )
 }
 
-/** True when `value` is a sixth-family `WorkspaceId` that legal-identity minted (its codec encodes it). */
-function legalWorkspace(value: unknown): value is WorkspaceId {
-  if (typeof value !== 'object' || value === null) return false
-  return workspaceCodec.encode(value as WorkspaceId).ok
+/** True when legal-identity minted `workspace`: its codec encodes only the values it minted. */
+function mintedWorkspace(workspace: WorkspaceId): boolean {
+  return workspaceCodec.encode(workspace).ok
 }
 
-function emptyText(value: unknown): boolean {
-  return typeof value !== 'string' || value.length === 0
+/** Why one attachment field is not a non-empty text, or null when it is one. */
+function textRefusal(value: unknown): string | null {
+  if (typeof value !== 'string') return 'type'
+  return value.length === 0 ? 'empty' : null
 }
 
 /**
  * The workspace selection of a creation or a `workspace` change: a `WorkspaceId` with its
- * attachment, or neither. The attachment fields are non-empty text; their format belongs to the
- * workspace domain, so nothing more is read here. `prefix` names the fields in the refusal.
+ * workspace attachment, or neither. The attachment fields are non-empty text; their format belongs
+ * to the workspace domain, so nothing more is read here. `path` names the two fields in the refusal.
+ * An input that crossed an untyped boundary may lack the attachment key, so `undefined` is refused.
  */
 function judgeWorkspace(
   workspace: WorkspaceId | null,
-  attachment: WorkspaceAttachment | null,
-  prefix: Readonly<{ workspace: string; attachment: string }>,
+  attachment: WorkspaceAttachment | null | undefined,
+  path: Readonly<{ workspace: string; attachment: string }>,
 ): Decision | null {
+  if (attachment === undefined) return invalid(path.attachment, 'the field is missing')
   if (workspace === null)
     return attachment === null
       ? null
-      : invalid(prefix.attachment, 'an attachment without a workspace')
-  if (!legalWorkspace(workspace)) return invalid(prefix.workspace, 'not a legal WorkspaceId')
-  if (typeof attachment !== 'object' || attachment === null)
-    return invalid(prefix.attachment, 'a workspace without an attachment')
-  if (emptyText(attachment.instance)) return invalid(`${prefix.attachment}.instance`, 'empty')
-  if (emptyText(attachment.basis)) return invalid(`${prefix.attachment}.basis`, 'empty')
+      : invalid(path.attachment, 'an attachment without a workspace')
+  if (!mintedWorkspace(workspace)) return invalid(path.workspace, 'not a legal WorkspaceId')
+  if (attachment === null || typeof attachment !== 'object')
+    return invalid(path.attachment, 'a workspace without an attachment object')
+  for (const field of ['instance', 'basis'] as const) {
+    const reason = textRefusal(attachment[field])
+    if (reason !== null) return invalid(`${path.attachment}.${field}`, reason)
+  }
   return null
 }
 
@@ -147,9 +152,9 @@ function decideCreate(
   if (emptyAdoption(creation.execution)) return invalid('creation.execution', 'incomplete adoption')
   if (emptyAdoption(creation.entryContract))
     return invalid('creation.entryContract', 'incomplete adoption')
-  const workspace = judgeWorkspace(creation.workspace, creation.attachment, {
+  const workspace = judgeWorkspace(creation.workspace, creation.workspaceAttachment, {
     workspace: 'creation.workspace',
-    attachment: 'creation.attachment',
+    attachment: 'creation.workspaceAttachment',
   })
   if (workspace !== null) return workspace
   if (creation.modes.kind === 'explicit' && emptyAdoption(creation.modes.value.environment))
@@ -445,9 +450,9 @@ function decideHandover(
 function decideChange(command: Extract<SessionCommand, { kind: 'change' }>): Decision {
   const { declaration } = command.input
   if (declaration.kind === 'workspace') {
-    const refused = judgeWorkspace(declaration.value, declaration.attachment, {
+    const refused = judgeWorkspace(declaration.value, declaration.workspaceAttachment, {
       workspace: 'declaration.value',
-      attachment: 'declaration.attachment',
+      attachment: 'declaration.workspaceAttachment',
     })
     if (refused !== null) return refused
   }

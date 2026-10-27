@@ -52,5 +52,6 @@ export {
   ordinaryInput,
   sessionId,
   testingTenant,
+  testingWorkspace,
   userMessage,
 } from './testing-values.ts'

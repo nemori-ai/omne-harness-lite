@@ -124,7 +124,13 @@ export function sameShape(left: ToolShape, right: ToolShape): boolean {
   return shapeText(left) === shapeText(right)
 }
 
-/** Whether two source layers are the same position with the same identity (G7). */
+/**
+ * Whether two source layers are the same position with the same identity (G7). The organization
+ * and tenant branches compare the identity texts. The workspace branch uses `workspaceEquals`, so
+ * it needs minted values (from `workspaceCodec.parse`, as `judgeFixedToolRequest` returns them): a
+ * workspace that was copied through JSON, `structuredClone` or a message is not equal to anything.
+ * The organization and tenant branches are not yet moved onto their codecs (a separate card).
+ */
 export function sameSourceLayer(left: SourceLayer, right: SourceLayer): boolean {
   switch (left.kind) {
     case 'official':

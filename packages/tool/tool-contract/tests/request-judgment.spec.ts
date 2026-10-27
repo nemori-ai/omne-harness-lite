@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { organizationCodec, workspaceCodec, workspaceEquals } from '@omne-harness/legal-identity'
+import { organizationCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import { type FixedToolRequest, type ToolInvokeRequest } from '@omne-harness/tool-contract'
 import { judgeFixedToolRequest, judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
+import { testingWorkspace } from '@omne-harness/tool-contract/testing'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
 
 const WORKSPACE_TEXT = 'wsp_c0nf0rmance000000000000000'
@@ -242,9 +243,7 @@ describe('request judgment', () => {
   })
 
   it('request judgment: a workspace is a legal-identity WorkspaceId or null, nothing else', () => {
-    const parsed = workspaceCodec.parse(WORKSPACE_TEXT)
-    if (!parsed.ok) throw new Error('the workspace text is not legal')
-    const workspace = parsed.value
+    const workspace = testingWorkspace(WORKSPACE_TEXT)
     const layer = (value: unknown) => ({
       ...request().availability,
       layer: { kind: 'workspace', workspace: value },
