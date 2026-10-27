@@ -153,7 +153,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 观测关联原租户、调用、各次真实发出、适用消费者（原 `ConsumerRef`）。模型 TTFT 与入口到首输出分开，真实发出、排队、组装、转换、重试和清理分别定位。不伪造上游用量、不把诊断采样当完整账目。
 
-连接、读写、在途快照、等待、保管和清理都有资源边界，不能因无人读结果或某个清理故障拖垮其他调用。具体限额与调度尚待设计；不得丢掉未承接责任来达成低占用。故障降级仍按原规则报告未知或失败，不换接收方、不改权限、不产生无法说明的额外请求。
+连接、读写、在途快照、等待、保管和清理都有资源边界，不能因无人读结果或某个清理故障拖垮其他调用。限额的份额规则与拒绝分支见[按租户的串行区与公平](#按租户的串行区与公平)，限额数值由实现采用。不得丢掉未承接责任来达成低占用。故障降级仍按原规则报告未知或失败，不换接收方、不改权限、不产生无法说明的额外请求。
 
 持续验证至少覆盖下列反例。相应流程入口见[能力旅程对应表](#能力旅程与持续验证入口)。
 
@@ -180,11 +180,13 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 ### 按租户的串行区与公平
 
-Model runtime 与宿主按租户各保持一个串行区。一个租户的受理、调度、推送与清理在自己的串行区里排队，不占用另一个租户的槽。
+串行区是一条队列：同一租户的受理、调度、推送与清理的决定与提交在这条队列里按序执行。真实发出、等待与读取不在串行区里串行。槽是按租户分配的并发份额。串行区与槽由 Model runtime 和装配它的宿主（应用层）共同承担，传输与家族适配器只看计数，不做租户裁决。每个租户各有一个串行区。一个租户的决定与提交在自己的串行区里排队，不占用另一个租户的槽。
 
-跨租户的公平由 runtime 或应用层按租户做并发与 DRR 配额。传输与家族适配器只看计数，不做租户裁决。全局安全上界可以另设。
+跨租户的公平由 Model runtime 或应用层按租户做并发与 DRR 配额。全局安全上界可以另设。有全局上界时先按租户份额计算，再计算全局。份额内的请求不因别的租户耗尽共享部分而被拒。这与[晚到账目与有界保管](#晚到账目与有界保管)的「租户隔离需要份额预留」是同一条规则，那里的每租户与全局未确认结果数、账目修订数、字节与同时 push 数就是这类份额。
 
-配额数值与调度算法由实现采用并验证。本契约只要求两项：租户之间互不拖累，以及拒绝可观察。拒绝以 `backpressured` 报告。实现归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。
+份额用尽时按本契约已有的分支拒绝，不无限排队，不新增失败成员。受理侧：租户份额或全局上界用尽时，admit 按[调用和各次真实发出](#调用和各次真实发出)的容量不成立分支拒绝。推送侧：接收方的额度拒绝沿[结果推送与保存](#结果推送与保存)已有的 `backpressured`。两者都经各自操作的 Reply 回到调用方。
+
+配额数值与调度算法由实现采用并验证。本契约只要求租户之间互不拖累，以及拒绝按上述分支可观察。实现归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。
 
 ## 当前缺项
 
@@ -769,7 +771,7 @@ current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方�
 
 M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
 
-真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。消费者一侧的消费闭包迁移归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 分两侧退出。消费者一侧停止代发 ACK 归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK 归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。`./testing` 的推送生产者替身按这条交接取 ACK。正文清理不再使晚账退出恢复扫描。Agent 材料、Journal、Session 的稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
+真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者（Agent 宿主的结果接收方）的消费闭包迁移归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 指 Model 侧未改前，由该消费者拥有者代 Model 发出的 ACK。临时 ACK 分两侧退出。代发临时 ACK 的消费者拥有者停止代发，归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。合法独立消费者的 processed ACK 路径不受影响。`./testing` 的推送生产者替身按 retained 交接取 ACK。正文清理不再使晚账退出恢复扫描。Agent 材料、Journal、Session 的稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
 
 公共观察的真实发布、目录/current 查询与显示刷新、Tool 适配及其投影一致性由相应提供者和接入拥有者实现验证。Model 不定义 Tool 的完整 reducer、foreground 规范化或其终止别名。
 
@@ -785,13 +787,13 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier �
 
 ### 公开替身与受控替身
 
-推送生产者替身、`current` 替身与观察替身经 `./testing` 公开，供契约骨架与消费者一侧的契约测试闭合缺口。推送生产者替身包住受控替代提供者，按[结果推送与保存](#结果推送与保存)向使用方注入的接收端口推送交付，saved 之后经 retained 交接取 ACK。接收方由使用方按 `ConsumerRef.owner` 的解析函数注入，替身不导入任何接收方实现。`current` 替身从一个确认记录给出 state 与当前目标，未受理、错误 admission、资格不可用、来源不可用和响应等待可分别调度。观察替身按 `StreamRef` 提供内存中的公共内容观察。同一 `StreamRef` 在观察者脱离又重新接上之后，先给出当时的完整快照，再接着给出后续增量，内容连续。
+推送生产者替身、`current` 替身与观察替身经 `./testing` 公开，供契约骨架与 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787) 的契约测试闭合缺口。受控替身指留在成员 tests/helpers 的 receiver 替身，下文只称 receiver 替身。推送生产者替身包住 `./testing` 的[受控替代提供者](docs/public-api.md#受控替代提供者)，按[结果推送与保存](#结果推送与保存)向使用方注入的接收端口推送交付。接收方由使用方按 `ConsumerRef.owner` 的解析函数注入，替身不导入任何接收方实现。推送生产者替身遵守交付键与冻结载荷、result saved 之后才推 account、回包未知时按原 key 与冻结载荷重投、同 key 认回、saved 后经 retained 交接取 ACK。它不执行每租户与全局限额及背压、正文释放后的晚账恢复扫描、持久交付待办。`current` 替身从一个确认记录给出 state 与当前目标，未受理、错误 admission、资格不可用、来源不可用和响应等待可分别调度。观察替身按 `StreamRef` 提供内存中的公共内容观察。同一 `StreamRef` 在观察者脱离又重新接上之后，先给出当时的完整快照，再接着给出后续增量，内容连续。
 
 公开的理由有两条。M1.5 关闭门 H3 允许保留的替身只有 Model 宿主（[#783](https://github.com/nemori-ai/omne-harness-lite/issues/783)）。契约骨架不得用上游私有导入或本地业务替身闭合缺口（[契约骨架的维护与退出](../../../apps/m2-contract-skeleton/SPEC.md#maintenance-and-exit)）。所以这些替身只能由 Model 契约公开提供。依据：[#783 修订决定第 5 条](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6420748295)。
 
 receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收端口由各消费方拥有者各自实现。receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
 
-公开替身与受控替身共用同一条边界。测试控制面默认拒绝，按真实 tenant、principal identity 与操作分类设置 allow、deny 或 unavailable。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。观察替身以同步确认点取得快照并登记订阅。观察替身与 receiver 夹具的驻留期限由手动 clock 驱动，不使用 sleep。两者的规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。替身不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+推送生产者替身、`current` 替身、观察替身与 receiver 替身共用同一条边界。测试控制面默认拒绝，按真实 tenant、principal identity 与操作分类设置 allow、deny 或 unavailable。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。观察替身以同步确认点取得快照并登记订阅。观察替身与 receiver 夹具的驻留期限由手动 clock 驱动，不使用 sleep。两者的规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。替身不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
 
 ## 档案、模态与转换行为
 
@@ -946,7 +948,7 @@ ACK 前已经开始的真实读取不能被截成半份。读取完成或按既�
 
 租户读取自己成本账目。持有具名资格「组织成本账目读取」的主体读取全组织账目及明细，该资格由身份领域发布。账目可见不授予请求、回复、私人内容或凭据的访问权；模型和账目提供者共同保证原租户归属，而具体查询由身份与接入契约限制字段、用途和范围。
 
-读面照 Tool 的[执行账与真实成本](../../tool/tool-contract/SPEC.md#执行账与真实成本)。Model 是账目写入者。它回答组织范围的账目查询时，先向授权领域取（主体、行事租户、读成本账目、组织）的裁定，再按组织过滤账目。裁定失败按 denied 返回，不先过滤再核权。组织范围含已退出成员的租户，不含下级组织。账目资格不授予正文、原文、附件、凭据或秘密权限。
+组织范围的读面照 Tool 的[执行账与真实成本](../../tool/tool-contract/SPEC.md#执行账与真实成本)：先取裁定再过滤的顺序相同，字段复用 `CallAccount`。范围规则由身份成员的具名资格 [`organization-cost-ledger-read`](../../identity/identity/SPEC.md#具名资格与角色映射) 拥有：含已退出成员的租户，不含下级组织。Model 不新增公开查询操作。组织范围的读取由接入/身份拥有者的范围查询发起（见[展示、诊断与实施证据](#展示诊断与实施证据)）。Model 是账目写入者。它回答该查询时，先向[身份与授权领域](../../../docs/domains/identity-and-authorization/README.md)取（主体、行事租户、读成本账目、组织）的裁定，再按组织过滤账目。裁定为拒绝时按 denied 返回。裁定来源不可用时按 unavailable 返回，dependency 指向授权来源。两种情况都不先过滤。账目资格不授予正文、原文、附件、凭据或秘密权限。实现归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。
 
 ## 数据保护与异常
 
