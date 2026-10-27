@@ -169,7 +169,7 @@ export function dependentMembers(
 }
 
 /** `turbo ls --output=json` 列出的包，换成成员目录；输出读不出或报出清单外的包就报错，不当作空集。 */
-function listedMembers(
+export function listedMembers(
   run: { readonly status: number | null; readonly stdout: string; readonly stderr: string },
   members: readonly WorkspaceMember[],
   what: string,
@@ -187,29 +187,26 @@ function listedMembers(
   )
 }
 
-/** `{ packages: { items: [{ name }] } }` 里的包名；形状不对返回 undefined。 */
-function packageNames(stdout: string): string[] | undefined {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/** `{ packages: { items: [{ name }] } }` 里的包名；不是 JSON 或形状不对返回 undefined。 */
+export function packageNames(stdout: string): string[] | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(stdout)
   } catch {
     return undefined
   }
-  const items: unknown =
-    typeof parsed === 'object' && parsed !== null && 'packages' in parsed
-      ? typeof parsed.packages === 'object' &&
-        parsed.packages !== null &&
-        'items' in parsed.packages
-        ? parsed.packages.items
-        : undefined
-      : undefined
+  if (!isRecord(parsed) || !isRecord(parsed['packages'])) return undefined
+  const items = parsed['packages']['items']
   if (!Array.isArray(items)) return undefined
-  const names = items.map((item: unknown) =>
-    typeof item === 'object' && item !== null && 'name' in item && typeof item.name === 'string'
-      ? item.name
-      : undefined,
-  )
-  return names.every((name): name is string => name !== undefined) ? names : undefined
+  const names: string[] = []
+  for (const item of items as unknown[]) {
+    if (!isRecord(item) || typeof item['name'] !== 'string') return undefined
+    names.push(item['name'])
+  }
+  return names
 }
 
 function buildArgs(names: readonly string[], admission: boolean): string[] {

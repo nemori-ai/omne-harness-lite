@@ -79,22 +79,25 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
    每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
    工程协议及当前产品设计输入 → dev-flow 与 product-checks；
    `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → repo-toolchain 与 test-runner；
-   被成员测试读的成员根目录文档 → 读它的那个成员：`packages/agent/agent-cordis-contract/SPEC.md` → agent-cordis-contract，
-   `packages/common/message/README.md` → message，`apps/m2-contract-skeleton/` 的 `README.md`、`README_ZH.md`、`SPEC.md` → m2-contract-skeleton；
-   模型组的 `packages/model/docs/architecture.md` → pi-ai-transport（`tests/public-entry.spec.ts` 读它）；
+   被成员测试读的成员根目录文档与组目录下的文档 → 读它的那个成员，逐份写在配置的 `readers` 里，这里不另列；
 3. **成员文件**：按最长的成员目录前缀归属。哪些成员进来由 turbo 的 `--affected` 给出：改了文件的成员，与按 `package.json` 声明的依赖
    直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。
-   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动，归「只需常驻检查」。turbo 按包计改动，会选中那个成员与它的全部下游；
-   计划把只改了文档的成员当作没有改动：不进测试、类型检查与验收，也不作下游选择的种子——
-   用 turbo 的依赖图（`turbo ls --filter=...<包>`）求出只改了文档的成员及其下游，从 `--affected` 里拿掉其中不是代码改动成员下游的那些。
-   同一成员既改文档又改代码，照旧选中它与下游；只改了文档的成员是别的代码改动成员的下游时，照旧作为下游选中。
-   被测试读的成员根目录文档由上面的读者规则点名，只选规则点名的成员，不带下游。计划说明里把没有选中的这类成员列在「只改了文档、不选的成员」下。
+   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动，归「只需常驻检查」。
+   turbo 按包计改动，会选中那个成员与它的全部下游。计划这样处理：
+   - 只改了文档的成员当作没有改动：不进测试、类型检查与验收，也不作下游选择的种子。
+   - 计划用 turbo 的依赖图（`turbo ls --filter=...<包>`）求出只改了文档的成员及其下游，从 `--affected` 里拿掉其中不是代码改动成员下游的那些。
+   - 同一成员既改文档又改代码，照旧选中它与下游。只改了文档的成员是别的代码改动成员的下游时，照旧作为下游选中。
+   - 拿掉之前核对：turbo 选中的每个成员都要在代码改动成员或只改了文档的成员的下游里（含它们自己）。
+     有解释不了的成员，说明 turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
+   - 被测试读的成员根目录文档由上面的读者规则点名，只选规则点名的成员，不带下游。
+   - 计划说明把没有选中的这类成员列在「只改了文档、不选的成员」下；`check:plan --json` 的 `plan.documentsOnly` 给出同一份清单。
+
    所以只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md`，计划只跑常驻检查；改被读者规则点名的文档，选中规则点名的成员。
-   测试读了成员根目录文档却没有读者规则，改它时就漏选：新增这样的读取要同时补一条读者规则。`tests/` 等其余目录里的 `.md` 可能是夹具
-   （本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
+   测试读了成员根目录文档却没有读者规则，改它时就漏选：新增这样的读取要同时补一条读者规则。
+   `tests/` 等其余目录里的 `.md` 可能是夹具（本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
 4. **Python 工具**（`pythonPaths`）：跑 pytest；
 5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、给人读的指南 `.meta_harness/human/**`、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
-   `.meta_harness/human/` 下只有 `.md`，规则配置与工具代码都不读它；
+   `.meta_harness/human/` 下只有 `.md`，只有常驻检查 `check:docs` 读它，成员测试、pytest 与影响面规则都不读；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 
 读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被别的成员的测试读），三者都算。

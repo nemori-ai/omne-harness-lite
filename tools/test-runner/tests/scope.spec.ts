@@ -33,7 +33,7 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
 import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
-import { dependentMembers } from '../src/testing/turbo.ts'
+import { dependentMembers, listedMembers, packageNames } from '../src/testing/turbo.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const RULES = readTestRunsConfig().affected
@@ -519,6 +519,66 @@ describe('按测量收窄的规则（#793）', () => {
     )
   })
 
+  it('N2：同一成员既改文档又改代码时没有只改了文档的成员，不要依赖图，照旧选中它与下游', () => {
+    const paths = ['packages/core/base/SPEC.md', 'packages/core/base/src/a.ts']
+    const result = planCheck(paths, MEMBERS, RULES, turboLike(paths, MEMBERS))
+    expect(result.test).toEqual([
+      'packages/core/base',
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+    expect(result.documentsOnly).toEqual([])
+  })
+
+  it('N2：一个成员改了几份文档：计划给出这个成员与全部文档，说明只列前两份并写总数', () => {
+    const result = plan([
+      'packages/core/base/SPEC.md',
+      'packages/core/base/README.md',
+      'packages/core/base/README_ZH.md',
+    ])
+    expect(result.documentsOnly).toEqual([
+      {
+        path: 'packages/core/base',
+        files: [
+          'packages/core/base/README.md',
+          'packages/core/base/README_ZH.md',
+          'packages/core/base/SPEC.md',
+        ],
+      },
+    ])
+    expect(describe_(result)).toContain(
+      '  packages/core/base：只改了 packages/core/base/README.md、packages/core/base/README_ZH.md 等 3 个',
+    )
+  })
+
+  it('N2：turbo 选中了改动解释不了的成员时不拿文档种子的下游，判全量：多改一份文档不会让计划变小', () => {
+    // 模拟 turbo 的种子里有这里没认出的改动（例如根 turbo.json 的 globalDependencies 多了一个成员目录外的文件）：
+    // turbo 选中全部在役成员，而改动只有一份常驻文档。
+    const all = new Set(
+      MEMBERS.filter(entry => !entry.path.includes('.legacy')).map(entry => entry.path),
+    )
+    const graph = (seeds: readonly string[]) => dependentsLike(seeds, MEMBERS)
+    const alone = planCheck(['docs/requirements.md'], MEMBERS, RULES, all, false, graph)
+    expect(alone.mode).toBe('scoped')
+    expect(new Set(alone.test)).toEqual(all)
+    const withDocument = planCheck(
+      ['docs/requirements.md', 'packages/core/base/SPEC.md'],
+      MEMBERS,
+      RULES,
+      all,
+      false,
+      graph,
+    )
+    expect(withDocument.mode).toBe('full')
+    expect(withDocument.reason).toContain(
+      '不在代码改动成员与只改了文档的成员的下游里，影响面未知：packages/common/legal-identity',
+    )
+    expect(withDocument.test).toEqual(alone.test)
+    // 改动能解释 turbo 的选择时照常拿掉：同一份文档单独改，只需常驻检查。
+    expect(plan(['packages/core/base/SPEC.md']).test).toEqual([])
+  })
+
   it('N3b：dev-flow 的 integration 代码是成员文件，选中 dev-flow，不判全量；引擎自身的源码仍判全量', () => {
     const integration = plan(['tools/dev-flow/src/integration/parse.ts'])
     expect(integration.mode).toBe('scoped')
@@ -559,9 +619,17 @@ describe('真实仓库', () => {
     expect(literal.filter(path => !existsSync(join(ROOT, path)))).toEqual([])
   })
 
+  it('turbo 的依赖图：没有成员时不跑 turbo、给空集；清单外的成员在起 turbo 之前报错', () => {
+    const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+    expect(dependentMembers(ROOT, members, [])).toEqual(new Set())
+    expect(() => dependentMembers(ROOT, members, ['packages/no/such-member'])).toThrow(
+      '成员 packages/no/such-member 不在 workspace 成员清单里',
+    )
+  })
+
   it(
-    'turbo 的依赖图：给出成员连同依赖它的成员；没有成员不跑 turbo；清单外的成员报错',
-    // 起 turbo 子进程。
+    'turbo 的依赖图：给出成员连同依赖它的成员，点名几个成员就带上几个成员的下游',
+    // 起 turbo 子进程：真实的 `--filter=...<包>` 只有 turbo 能核对，造出来的依赖图测不到。
     { tags: ['slow'] },
     () => {
       const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
@@ -569,10 +637,12 @@ describe('真实仓库', () => {
       expect(found.has('packages/agent/agent-cordis-contract')).toBe(true)
       expect(found.has('packages/agent/agent-host-local')).toBe(true)
       expect(found.has('tools/test-runner')).toBe(false)
-      expect(dependentMembers(ROOT, members, [])).toEqual(new Set())
-      expect(() => dependentMembers(ROOT, members, ['packages/no/such-member'])).toThrow(
-        '成员 packages/no/such-member 不在 workspace 成员清单里',
-      )
+      const two = dependentMembers(ROOT, members, [
+        'packages/agent/agent-cordis-contract',
+        'packages/common/message',
+      ])
+      expect(two.has('packages/agent/agent-host-local')).toBe(true)
+      expect(two.has('apps/m2-contract-skeleton')).toBe(true)
     },
   )
 
@@ -583,6 +653,47 @@ describe('真实仓库', () => {
 
   it('基线不存在：引擎报错，不改判全量', () => {
     expect(() => computePlan(ROOT, 'no-such-ref-for-affected-spec', false)).toThrow()
+  })
+})
+
+describe('turbo 输出的解析', () => {
+  const members = [member('packages/core/base'), member('packages/core/mid', ['@x/base'])]
+  const listing = (...names: string[]) =>
+    JSON.stringify({ packages: { items: names.map(name => ({ name })) } })
+
+  it('包名：读出 packages.items 里的 name；不是 JSON 或形状不对时给 undefined，不给部分结果', () => {
+    expect(packageNames(listing('@x/base', '@x/mid'))).toEqual(['@x/base', '@x/mid'])
+    expect(packageNames(listing())).toEqual([])
+    for (const stdout of [
+      'not json',
+      'null',
+      '{}',
+      '{"packages":null}',
+      '{"packages":{"items":"x"}}',
+      '{"packages":{"items":{}}}',
+      '{"packages":{"items":null}}',
+      '{"packages":{"items":[{"name":"@x/base"},{}]}}',
+      '{"packages":{"items":[{"name":1}]}}',
+      '{"packages":{"items":[null]}}',
+    ])
+      expect(packageNames(stdout), stdout).toBeUndefined()
+  })
+
+  it('成员：turbo 成功且输出读得出时换成成员目录；退出码非 0、输出读不出或报出清单外的包都报错，不当作空集', () => {
+    const ok = { status: 0, stdout: listing('@x/mid'), stderr: '' }
+    expect(listedMembers(ok, members, '下游')).toEqual(new Set(['packages/core/mid']))
+    expect(() =>
+      listedMembers({ status: 1, stdout: listing('@x/mid'), stderr: 'boom' }, members, '下游'),
+    ).toThrow('turbo 没有给出下游（退出码 1）：boom')
+    expect(() =>
+      listedMembers({ status: 0, stdout: 'not json', stderr: '' }, members, '下游'),
+    ).toThrow('turbo 没有给出下游（退出码 0）')
+    expect(() => listedMembers({ status: 0, stdout: 'null', stderr: '' }, members, '下游')).toThrow(
+      'turbo 没有给出下游（退出码 0）',
+    )
+    expect(() =>
+      listedMembers({ status: 0, stdout: listing('@x/other'), stderr: '' }, members, '下游'),
+    ).toThrow('turbo 报出的包 @x/other 不在 workspace 成员清单里')
   })
 })
 

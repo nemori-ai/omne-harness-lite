@@ -1,5 +1,5 @@
 // 影响面：把「基线以来改了哪些文件」算成 `pnpm run check` 的执行计划——每一步跑还是跳、跑哪些成员、为什么。
-// 纯函数；路径规则只在 `test-runs.config.json` 的 `affected` 里定一次。
+// 除调用方给的 turbo 依赖图（`dependents`）外不读外部状态；路径规则只在 `test-runs.config.json` 的 `affected` 里定一次。
 //
 // 每个改动文件按顺序归到第一类命中的：全局 → 读者 → 成员文件 → Python 工具 → 只需常驻检查 → 其余。
 // 读者、成员文件与 Python 工具三种归属可以同时成立（例如另一个成员的 `schema/` 既是那个成员的文件，
@@ -10,6 +10,8 @@
 // turbo 按包计改动，成员根目录文档（`memberDocuments`）一改就选中那个成员与它的全部下游。这类文件不算成员改动，
 // 也不作下游选择的种子：只改了文档的成员带出的下游，按 turbo 的依赖图（`dependents`）从 `--affected` 里拿掉，
 // 同时是代码改动成员下游的照旧留下。测试读的成员根目录文档由读者规则点名，只选规则点名的成员，不带下游。
+// 拿之前核对 turbo 选中的成员都能由代码改动成员与只改了文档的成员及其下游解释；有解释不了的，
+// turbo 的种子里就有这里没认出的改动，影响面未知，判全量。
 // turbo 不认成员目录以外的读取（2026-10-15 在 turbo 2.11.7 上验证：`--affected` 默认不看任务 inputs），
 // 读者规则仍在这里。
 import { isLegacyDirectory, isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
@@ -99,12 +101,21 @@ export function classify(
  */
 export type Dependents = (members: readonly string[]) => ReadonlySet<string>
 
-/** 只改了文档的成员：成员目录里改的都是 `memberDocuments` 命中的文件；只看给出的成员（调用方给在役的）。 */
+/** 只改了文档的一个成员与它改了的成员根目录文档。 */
+export interface DocumentsOnlyMember {
+  readonly path: string
+  readonly files: readonly string[]
+}
+
+/**
+ * 只改了文档的成员：成员目录里改的都是 `memberDocuments` 命中的文件；只看给出的成员（调用方给在役的）。
+ * `owners` 是有代码改动的成员。
+ */
 function documentsOnlyMembers(
   files: readonly ClassifiedFile[],
   members: readonly { readonly path: string }[],
-): { readonly path: string; readonly files: readonly string[] }[] {
-  const owners = new Set(files.flatMap(file => (file.owner === undefined ? [] : [file.owner])))
+  owners: ReadonlySet<string>,
+): DocumentsOnlyMember[] {
   return members.flatMap(member => {
     if (owners.has(member.path)) return []
     const documents = files.filter(file => file.documentOf === member.path).map(file => file.path)
@@ -112,25 +123,35 @@ function documentsOnlyMembers(
   })
 }
 
+/** 拿掉文档种子的结果：拿掉后的成员，或 turbo 选中却解释不了的成员。 */
+type Narrowed =
+  | { readonly affected: ReadonlySet<string> }
+  | { readonly unexplained: readonly string[] }
+
 /**
  * turbo 的 `--affected` 拿掉只因文档种子带进来的成员：只改了文档的成员及其下游里，不是代码改动成员下游的那些。
  * 没有只改了文档的成员时原样返回，不求依赖图。要拿却没给依赖图就报错：不悄悄照 turbo 多选，也不猜着少选。
+ * 拿之前核对 turbo 选中的每个成员都在代码改动成员或只改了文档的成员的下游里（含它们自己）：
+ * 有不在的，说明 turbo 的种子里有这里没认出的改动，拿掉就可能漏选，返回这些成员，由调用方判全量。
  */
 function withoutDocumentSeeds(
   affected: ReadonlySet<string>,
-  files: readonly ClassifiedFile[],
-  documentsOnly: readonly { readonly path: string }[],
+  owners: ReadonlySet<string>,
+  documentsOnly: readonly DocumentsOnlyMember[],
   dependents: Dependents | undefined,
-): ReadonlySet<string> {
-  if (documentsOnly.length === 0) return affected
+): Narrowed {
+  if (documentsOnly.length === 0) return { affected }
   if (dependents === undefined)
     throw new Error(
       `${sample(documentsOnly.map(member => member.path))} 只改了文档，要拿掉它们带出的下游，但没有给出 turbo 的依赖图`,
     )
-  const owners = [...new Set(files.flatMap(file => (file.owner === undefined ? [] : [file.owner])))]
-  const kept = dependents(owners)
+  const kept = dependents([...owners])
   const dropped = dependents(documentsOnly.map(member => member.path))
-  return new Set([...affected].filter(member => kept.has(member) || !dropped.has(member)))
+  const unexplained = [...affected].filter(member => !kept.has(member) && !dropped.has(member))
+  if (unexplained.length > 0) return { unexplained }
+  return {
+    affected: new Set([...affected].filter(member => kept.has(member) || !dropped.has(member))),
+  }
 }
 
 /** 一个被选中的成员为什么被选中；三项可以同时有。 */
@@ -159,6 +180,11 @@ export interface CheckPlan {
   readonly test: readonly string[]
   readonly acceptance: readonly string[]
   readonly python: { readonly run: boolean; readonly reason: string }
+  /**
+   * 只改了文档、没有选中的成员与它们改了的文档（按范围时由 `planCheck` 给出；全量时为空）。
+   * 可选：手写的计划文件可以不给，读作没有。
+   */
+  readonly documentsOnly?: readonly DocumentsOnlyMember[]
 }
 
 /**
@@ -221,6 +247,7 @@ function fullPlan(
     test: withScript(active, 'test'),
     acceptance: withScript(active, 'acceptance'),
     python: { run: true, reason: '全量' },
+    documentsOnly: [],
   }
 }
 
@@ -305,7 +332,7 @@ function scopedReason(
 /**
  * 由改动过的文件、成员清单、规则、turbo 判为受影响的成员（`--affected`）与 turbo 的依赖图算出执行计划；
  * 除 `dependents` 外不读外部状态。`full` 为真（`FULL=1`）直接给全量计划。规则里点名了不存在的成员就抛错；
- * 有只改了文档的成员而没给 `dependents` 也抛错。
+ * 有只改了文档的成员而没给 `dependents` 也抛错。turbo 选中了改动解释不了的成员时，不拿文档种子的下游，判全量。
  */
 export function planCheck(
   changedPaths: readonly string[],
@@ -338,12 +365,18 @@ export function planCheck(
     )
 
   const active = members.filter(member => !isLegacyDirectory(member.path))
-  const documents = documentsOnlyMembers(files, active)
-  const planned = selectMembers(
-    files,
-    active,
-    withoutDocumentSeeds(affected, files, documents, dependents),
-  )
+  const owners = new Set(files.flatMap(file => (file.owner === undefined ? [] : [file.owner])))
+  const documents = documentsOnlyMembers(files, active, owners)
+  const narrowed = withoutDocumentSeeds(affected, owners, documents, dependents)
+  if ('unexplained' in narrowed)
+    return fullPlan(
+      members,
+      files,
+      `turbo 判为受影响的成员里有 ${narrowed.unexplained.length} 个不在代码改动成员与只改了文档的成员的下游里，` +
+        `影响面未知：${sample(narrowed.unexplained)}`,
+      rules,
+    )
+  const planned = selectMembers(files, active, narrowed.affected)
   const selected = new Set(planned.map(member => member.path))
   const unselected = documents.filter(member => !selected.has(member.path))
   const pythonHits = files.filter(file => file.python !== undefined)
@@ -366,6 +399,7 @@ export function planCheck(
             )} 命中 Python 工具的路径（${pythonHits[0]?.python ?? ''}）`,
           }
         : { run: false, reason: '没有改动命中 Python 工具的路径' },
+    documentsOnly: unselected,
   }
 }
 
@@ -463,14 +497,7 @@ export function describeCheckPlan(
     lines.push('被选中的成员：')
     for (const member of plan.members) lines.push(`  ${member.path}：${whyMember(member)}`)
   }
-  const selected = new Set(plan.members.map(member => member.path))
-  const documents =
-    plan.mode === 'full'
-      ? []
-      : documentsOnlyMembers(
-          plan.files,
-          [...new Set(plan.files.flatMap(file => file.documentOf ?? []))].map(path => ({ path })),
-        ).filter(member => !selected.has(member.path))
+  const documents = plan.documentsOnly ?? []
   if (documents.length > 0) {
     lines.push(
       `只改了文档、不选的成员（成员根目录文档不算成员改动，也不带下游；依据：${configPath} 的 affected.memberDocuments）：`,

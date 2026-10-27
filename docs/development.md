@@ -298,9 +298,9 @@ pnpm run test:affected --base "$TASK_BASE" --tier slow
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
 下面几条规则让计划更小，不改变两条硬线：改代码跑那个成员及其下游的测试，没有规则认得的文件判全量。
-- `.meta_harness/human/**` 是常驻路径。那里只有给人读的 `.md`，规则配置与工具代码都不读它。只改它时只跑常驻检查。
-- 成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动。turbo 按包计改动，会选中那个成员与它的全部下游。计划用 turbo 的依赖图，把只改了文档的成员及其下游中不是代码改动成员下游的那些拿掉：不进测试、类型检查与验收。同一成员既改文档又改代码时，照旧选中它与下游。计划说明把拿掉的成员列在「只改了文档、不选的成员」下。
-- 只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md` 时，计划只跑常驻检查。改被读者规则点名的文档时，计划只选规则点名的成员，不带下游。现在点名的有：`packages/agent/agent-cordis-contract/SPEC.md`，`packages/common/message/README.md`，`apps/m2-contract-skeleton/` 的 `README.md`、`README_ZH.md` 与 `SPEC.md`，各自选读它的那个成员。另有 `packages/model/docs/architecture.md` 选 `packages/model/pi-ai-transport`。测试新读一份成员根目录文档时，同时补一条读者规则，否则改它时漏选。
+- `.meta_harness/human/**` 是常驻路径。那里只有给人读的 `.md`。只有常驻检查 `check:docs` 读它，成员测试、pytest 与影响面规则都不读。只改它时只跑常驻检查。
+- 成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动。turbo 按包计改动，会选中那个成员与它的全部下游。计划用 turbo 的依赖图，把只改了文档的成员及其下游中不是代码改动成员下游的那些拿掉：不进测试、类型检查与验收。同一成员既改文档又改代码时，照旧选中它与下游。计划说明把拿掉的成员列在「只改了文档、不选的成员」下。拿掉之前，计划核对 turbo 选中的每个成员都在代码改动成员或只改了文档的成员的下游里（含它们自己）。有解释不了的成员时，turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
+- 只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md` 时，计划只跑常驻检查。被测试读的文档由 `tools/test-runner/test-runs.config.json` 的读者规则逐份点名。改这样的文档时，计划只选规则点名的成员，不带下游。测试新读一份成员根目录文档或成员目录外的文件时，同时补一条读者规则，否则改它时漏选。
 - `tools/dev-flow/src/integration/**` 是 dev-flow 的成员文件，不是全局路径。改这里跑 dev-flow 的测试。`scripts/check.sh` 用 `tools/test-runner` 的 `baseline` 取基线，不执行这里的代码。`check:lines` 导入其中的 `parse.ts` 与 `policy.ts`，它是常驻检查，每次都跑。
 - 常驻构建（`residentBuild`）包含 `packages/agent/agent`。`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入。没有它，在没有旧构建产物的检出上，只需常驻检查的计划会在 `lint:deps` 失败。
 
