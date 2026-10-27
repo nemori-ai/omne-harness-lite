@@ -82,6 +82,7 @@ const wires = {
     body: { tenant: tenantText, session, cursor: null, direction: 'backward', pageBytes: '65536' },
   },
 } as const
+const operations = Object.keys(wires) as (keyof typeof wires)[]
 const nextPage = {
   ...wires['read-history'],
   body: { tenant: tenantText, session, cursor: 'opaque-cursor' },
@@ -148,17 +149,17 @@ describe('accepted session requests', () => {
     )
   })
 
-  it.each([undefined, ''])(
-    'leaves missing or empty loginProof to identity instead of rejecting it (%j)',
-    proof => {
-      const { loginProof: _, ...rest } = wires['query-send-input']
-      const wire = proof === undefined ? rest : { ...rest, loginProof: proof }
-      const result = read(wire)
-      expect(result.kind).toBe('request')
-      if (result.kind === 'request')
-        expect(result.request.proof).toEqual({ kind: proof === undefined ? 'missing' : 'empty' })
-    },
-  )
+  it.each(
+    operations.flatMap(operation => [
+      [operation, 'missing'] as const,
+      [operation, 'empty'] as const,
+    ]),
+  )('%s keeps a %s loginProof for identity', (operation, proof) => {
+    const wire = omit(wires[operation], 'loginProof')
+    const result = read(proof === 'missing' ? wire : { ...wire, loginProof: '' })
+    expect(result.kind).toBe('request')
+    if (result.kind === 'request') expect(result.request.proof).toEqual({ kind: proof })
+  })
 
   it.each(['1', '9', '10', '1048576'])('accepts pageBytes %s', pageBytes => {
     expect(read(withBody('read-history', { pageBytes })).kind).toBe('request')
@@ -267,14 +268,21 @@ describe('step 1 rejections', () => {
   })
 
   it.each([
-    ['create-session', 'purpose'],
-    ['query-create-session', 'tenant'],
-    ['send-input', 'message'],
-    ['query-send-input', 'session'],
-    ['read-history', 'tenant'],
-  ] as const)('rejects %s without its required body field %s', (operation, field) => {
-    expectRejected(withoutBodyField(operation, field), 'field')
+    ...operations.flatMap(operation =>
+      Object.keys(wires[operation].body).map(field => [operation, field] as const),
+    ),
+    ...Object.keys(nextPage.body).map(field => ['read-history next page', field] as const),
+  ])('rejects %s without its body field %s', (operation, field) => {
+    const wire = operation === 'read-history next page' ? nextPage : wires[operation]
+    expectRejected({ ...wire, body: omit(wire.body, field) }, 'field')
   })
+
+  it.each(operations.filter(operation => operation !== 'create-session'))(
+    'rejects actingTenant on %s',
+    operation => {
+      expectRejected({ ...wires[operation], actingTenant: tenantText }, 'field')
+    },
+  )
 
   it.each([
     'tenant',
@@ -308,6 +316,7 @@ describe('step 1 rejections', () => {
     ['a missing role', { blocks: [] }],
     ['a non-string role', { role: ['user'] }],
     ['an upper-case role', { role: 'User' }],
+    ['user only as the value of another key', { role: 'assistant', content: 'user' }],
     ['an array', [userMessage]],
     ['a string', 'hello'],
     ['null', null],
@@ -441,6 +450,29 @@ describe('session request encoding', () => {
       })
   })
 
+  it.each([
+    [
+      'a numeric pageBytes',
+      { tenant, session, cursor: null, direction: 'forward', pageBytes: 4096 },
+    ],
+    [
+      'a string cursor with first-page fields',
+      { tenant, session, cursor: 'x', direction: 'forward', pageBytes: '10' },
+    ],
+  ])('returns invalid for read-history with %s', (_name, body) => {
+    expect(encode({ ...request, operation: 'read-history', body })).toEqual({
+      kind: 'invalid',
+      diagnostic: { code: 'field' },
+    })
+  })
+
+  it('returns invalid for an operation given as an array', () => {
+    expect(encode({ ...request, operation: ['query-send-input'] })).toEqual({
+      kind: 'invalid',
+      diagnostic: { code: 'field' },
+    })
+  })
+
   it('rejects a message tree whose role is not user, and never calls getters', () => {
     let calls = 0
     const hostile = Object.defineProperty({ kind: 'object' }, 'entries', {
@@ -471,9 +503,10 @@ describe('session request encoding', () => {
       name: 'TypeError',
       message: 'Invalid session codec arguments',
     })
-    expect(() =>
-      encodeSessionRequest({ request, limits: { ...limits, maxDepth: 0 } }),
-    ).toThrowError(error)
+    for (const maxItems of [0, 1.5, Number.NaN])
+      expect(() => encodeSessionRequest({ request, limits: { ...limits, maxItems } })).toThrowError(
+        error,
+      )
     expect(() =>
       readSessionRequest({ bytes: new Uint16Array(4) as unknown as Uint8Array, limits }),
     ).toThrowError(error)

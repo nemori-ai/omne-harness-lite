@@ -1,4 +1,5 @@
 import {
+  encodeGovernanceResponse,
   encodeSessionResponse,
   readGovernanceResponse,
   readSessionResponse,
@@ -380,5 +381,65 @@ describe('reading and encoding boundaries', () => {
         limits,
       }),
     ).toThrowError(TypeError)
+  })
+})
+
+describe('response encoding guards', () => {
+  const encodeHistory = (body: unknown) =>
+    encodeSessionResponse({
+      operation: 'read-history',
+      response: { protocolVersion: version, messageId: 'm', outcome: 'succeeded', body },
+      limits,
+    } as SessionResponseEncodeInput)
+  const entry = (payload: unknown) => ({ entryId: 'e', revision: '1', kind: 'k', payload })
+
+  it('returns invalid for a numeric next instead of encoding null', () => {
+    expect(encodeHistory({ entries: [], next: 5, exhausted: false, scannedThrough: '0' })).toEqual({
+      kind: 'invalid',
+      diagnostic: { code: 'field' },
+    })
+  })
+
+  it('returns invalid for a payload tree whose items array carries an extra named key', () => {
+    const items: unknown[] = [{ kind: 'null' }]
+    Object.assign(items, { extra: 1 })
+    const base = { next: null, exhausted: true, scannedThrough: '1' }
+    expect(encodeHistory({ ...base, entries: [entry({ kind: 'array', items: [] })] }).kind).toBe(
+      'encoded',
+    )
+    expect(encodeHistory({ ...base, entries: [entry({ kind: 'array', items })] })).toEqual({
+      kind: 'invalid',
+      diagnostic: { code: 'field' },
+    })
+  })
+
+  it.each([['public-health'], ['disable-subject'], [['create-session']], [undefined]])(
+    'throws the fixed session TypeError for the local operation %j',
+    operation => {
+      expect(() =>
+        encodeSessionResponse({
+          operation,
+          response: wireOf('protocol-rejected', {}),
+          limits,
+        } as unknown as SessionResponseEncodeInput),
+      ).toThrowError(
+        expect.objectContaining({ name: 'TypeError', message: 'Invalid session codec arguments' }),
+      )
+    },
+  )
+
+  it('returns invalid when a governance stage operation is given a business outcome', () => {
+    expect(
+      encodeGovernanceResponse({
+        operation: 'end-subject',
+        response: {
+          protocolVersion: 'governance-public/1',
+          messageId: 'm',
+          outcome: 'succeeded',
+          body: {},
+        },
+        limits,
+      } as unknown as Parameters<typeof encodeGovernanceResponse>[0]),
+    ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
   })
 })
