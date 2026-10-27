@@ -449,3 +449,12 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：形态由属性改为视图，因此不立对象条目。同一能力身份下各层的定义可以不同形。按旧形态把工具定义当作作者长期持有的数据来设计的下游正文，需要复核。
 - **负责与闭合条件**：tool-execution 产品正文与 Tool 契约写明定义由资产与实现派生后闭合；写回由 #618 承接。
 - **状态**：词表已改，产品正文与 Tool 契约的写回未完成。
+
+### C-72：附着（动作）与工作区附着（值）
+
+- **类型**：同名不同义。2026-10-27 评审 #837 的文档时发现。
+- **来源**：[工作区附着](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment)按 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)指一个引用值：实例标识加装载依据。[工作区产品正文 J-WS01](../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)（rev 4）写「报告附着成功」「不报告已附着」，J-WS06 写「为同一会话附着、更换、解除工作区」。[租户—工作区关系](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界写「不作为该租户的工作区附着或装配来源」，[工作区实例](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)写「不用时可不再附着」。这些地方的「附着」都是把工作区接到会话上的动作或其结果。
+- **差别**：一个是会话里保存的值，一个是会话与工作区之间的动作。下游读到「附着成功」时，可能把它读成「`workspaceAttachment` 已写入」，而产品正文的意思是「选择已正式采用」。
+- **处置**：词条保留引用值的含义，「别混」写明动作用法不是本词。产品正文与其他词条暂不回改。
+- **负责与闭合条件**：工作区契约卡（[#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) 剩余责任）在发布工作区契约成员时收敛两种用法：为动作或值另定说法，或给裸用加限定。产品正文与相关词条按结论回改后闭合。
+- **状态**：待收敛。
