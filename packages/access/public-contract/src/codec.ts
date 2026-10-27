@@ -17,13 +17,14 @@ import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-ins
 import { readRequestDocument } from './correlation.ts'
 import {
   empty,
-  isProvided,
-  isStage,
-  requestRule,
-  responseRule,
+  governanceFamily,
+  type Family,
+  type LeafKind,
+  type RequestRule,
   type Rule,
 } from './operation-rules.ts'
 import type {
+  EmptyBody,
   GovernanceCodecLimits,
   GovernanceDiagnostic,
   GovernanceEncodeResult,
@@ -37,11 +38,48 @@ import type {
   ProofInput,
 } from './messages.ts'
 
-const VERSION = 'governance-public/1'
 const encoder = new TextEncoder()
 type Fields = Readonly<Record<string, unknown>>
 type Converted = { readonly local: unknown; readonly wire: JsonValue }
 type Direction = 'encode' | 'decode'
+type RefusalOutcome = 'protocol-rejected' | 'stage-not-provided'
+type Refusal<V extends string, K extends RefusalOutcome> = {
+  readonly protocolVersion: V
+  readonly messageId?: string
+  readonly outcome: K
+  readonly body: EmptyBody
+}
+type StageRead<V extends string, S extends string> = [S] extends [never]
+  ? never
+  : { readonly kind: 'stage-not-provided'; readonly response: Refusal<V, 'stage-not-provided'> }
+/** Family-neutral read result. Each public wrapper narrows only `request` to its validated model. */
+export type RequestRead<V extends string, S extends string> =
+  | { readonly kind: 'request'; readonly request: unknown }
+  | {
+      readonly kind: 'protocol-rejected'
+      readonly response: Refusal<V, 'protocol-rejected'>
+      readonly diagnostic: GovernanceDiagnostic
+    }
+  | StageRead<V, S>
+/** Family-neutral response read. Each public wrapper narrows only `response` to its operation's model. */
+export type ResponseRead =
+  | { readonly kind: 'response'; readonly response: unknown }
+  | { readonly kind: 'unmatched' }
+  | { readonly kind: 'unreadable'; readonly diagnostic: GovernanceDiagnostic }
+type ResponseHead = { readonly outcome: string; readonly messageId?: string }
+type ResponseModel<V extends string> = {
+  readonly local: {
+    readonly protocolVersion: V
+    readonly messageId?: string
+    readonly outcome: string
+    readonly body: unknown
+  }
+  readonly wire: JsonValue
+}
+type Leaf = (input: unknown, direction: Direction, limits: JsonLimits) => Converted | undefined
+type TreeKind = 'parameters' | 'json' | 'user-message'
+const tenantRule: Rule = { kind: 'tenant' }
+
 function invalid(): GovernanceEncodeResult {
   return { kind: 'invalid', diagnostic: { code: 'field' } }
 }
@@ -96,11 +134,11 @@ function exact(
   )
 }
 
-function programmingError(): never {
-  throw new TypeError('Invalid governance codec arguments')
+function programmingError(message: string): never {
+  throw new TypeError(message)
 }
 
-function limitsOf(value: unknown): JsonLimits {
+function limitsOf(value: unknown, error: string): JsonLimits {
   const data = fields(value)
   const keys = [
     'maxBytes',
@@ -110,43 +148,65 @@ function limitsOf(value: unknown): JsonLimits {
     'maxStringLength',
     'maxNumberLength',
   ] as const
-  if (data === undefined || !exact(data, keys)) return programmingError()
+  if (data === undefined || !exact(data, keys)) return programmingError(error)
   for (const key of keys) {
     const n = data[key]
-    if (typeof n !== 'number' || !Number.isSafeInteger(n) || n < 1) return programmingError()
+    if (typeof n !== 'number' || !Number.isSafeInteger(n) || n < 1) return programmingError(error)
   }
   return Object.freeze(data as JsonLimits)
 }
 
 function argumentsOf(
+  error: string,
   input: unknown,
   required: readonly string[],
   optional: readonly string[] = [],
 ): { data: Fields; limits: JsonLimits } {
   const data = fields(input)
-  if (data === undefined || !exact(data, required, optional)) return programmingError()
-  return { data, limits: limitsOf(data.limits) }
+  if (data === undefined || !exact(data, required, optional)) return programmingError(error)
+  return { data, limits: limitsOf(data.limits, error) }
 }
 
-function bytesOf(value: unknown): Uint8Array {
+function bytesOf(value: unknown, error: string): Uint8Array {
   try {
-    if (!(value instanceof Uint8Array) || !ArrayBuffer.isView(value)) return programmingError()
-    const getter = Object.getOwnPropertyDescriptor(
+    if (!(value instanceof Uint8Array) || !ArrayBuffer.isView(value)) return programmingError(error)
+    const byteLength = Object.getOwnPropertyDescriptor(
       Object.getPrototypeOf(Uint8Array.prototype),
       'byteLength',
     )?.get
-    if (getter === undefined) return programmingError()
-    const bytes = new Uint8Array(getter.call(value))
+    // A missing intrinsic getter makes this call throw TypeError, which the catch reports.
+    const bytes = new Uint8Array(byteLength!.call(value))
     Uint8Array.prototype.set.call(bytes, value)
     return bytes
   } catch {
-    return programmingError()
+    return programmingError(error)
   }
 }
 
-function operationOf(value: unknown): GovernanceOperation {
-  if (isProvided(value) || isStage(value)) return value
-  return programmingError()
+function isStage<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  value: unknown,
+): value is S {
+  return family.stages.some(stage => stage === value)
+}
+
+/** `protocol-rejected` belongs to every family, `stage-not-provided` only to one with stages. */
+function isRefusal<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  outcome: string,
+): boolean {
+  return (
+    outcome === 'protocol-rejected' ||
+    (outcome === 'stage-not-provided' && family.stages.length > 0)
+  )
+}
+
+function operationOf<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  value: unknown,
+): P | S {
+  if (family.isProvided(value) || isStage(family, value)) return value
+  return programmingError(family.error)
 }
 
 function objectWire(value: JsonValue | undefined): Readonly<Record<string, JsonValue>> | undefined {
@@ -256,62 +316,108 @@ function snapshotTree(input: unknown, maxItems: number): unknown {
   return root
 }
 
-function parameters(
-  input: unknown,
-  direction: Direction,
-  limits: JsonLimits,
-): Converted | undefined {
-  const judged = judgeJsonValue(
-    direction === 'encode' ? snapshotTree(input, limits.maxItems) : input,
-    { maxVisits: limits.maxItems },
-  )
-  return 'ok' in judged && judged.ok.kind === 'object'
-    ? { local: judged.ok, wire: judged.ok }
+/** Decoding walks json-text nodes; encoding walks caller values. */
+function nodeOf(input: unknown): JsonValue | undefined {
+  return input as JsonValue | undefined
+}
+
+function primitive(input: unknown, direction: Direction): unknown {
+  if (direction === 'encode') return input
+  const node = nodeOf(input)
+  return node?.kind === 'string' || node?.kind === 'boolean' ? node.value : undefined
+}
+
+/** Both directions check the inner tenant text; when decoding, that text is the input itself. */
+function tenant(input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined {
+  const converted = identity(tenantCodec, input, direction)
+  return converted?.wire.kind === 'string' && tenantText(converted.wire.value, limits)
+    ? converted
     : undefined
 }
 
-function scalar(
-  rule: Rule,
-  input: unknown,
-  direction: Direction,
-  limits: JsonLimits,
-): Converted | undefined {
-  switch (rule.kind) {
-    case 'account':
-      return identity(accountCodec, input, direction)
-    case 'organization':
-      return identity(organizationCodec, input, direction)
-    case 'login':
-      return identity(loginStateCodec, input, direction)
-    case 'instant':
-      return instant(input, direction)
-    case 'tenant': {
-      if (direction === 'decode' && (typeof input !== 'string' || !tenantText(input, limits)))
-        return undefined
-      const converted = identity(tenantCodec, input, direction)
-      if (converted?.wire.kind !== 'string' || !tenantText(converted.wire.value, limits))
-        return undefined
-      return converted
-    }
-    case 'text':
-      return typeof input === 'string' && input !== ''
-        ? { local: input, wire: stringWire(input) }
-        : undefined
-    case 'boolean':
-      return typeof input === 'boolean'
-        ? { local: input, wire: { kind: 'boolean', value: input } }
-        : undefined
-    case 'literal':
-      return (typeof input === 'string' || typeof input === 'boolean') &&
-        rule.values.includes(input)
-        ? {
-            local: input,
-            wire: typeof input === 'string' ? stringWire(input) : { kind: 'boolean', value: input },
-          }
-        : undefined
-    default:
-      return undefined
+function isUserMessage(value: JsonValue): boolean {
+  return (
+    value.kind === 'object' &&
+    value.entries.some(
+      entry =>
+        entry.key === 'role' && entry.value.kind === 'string' && entry.value.value === 'user',
+    )
+  )
+}
+
+function treeAccepts(kind: TreeKind, value: JsonValue): boolean {
+  switch (kind) {
+    case 'json':
+      return true
+    case 'parameters':
+      return value.kind === 'object'
+    case 'user-message':
+      return isUserMessage(value)
   }
+}
+
+function tree(kind: TreeKind): Leaf {
+  return (input, direction, limits) => {
+    const judged = judgeJsonValue(
+      direction === 'encode' ? snapshotTree(input, limits.maxItems) : input,
+      { maxVisits: limits.maxItems },
+    )
+    return 'ok' in judged && treeAccepts(kind, judged.ok)
+      ? { local: judged.ok, wire: judged.ok }
+      : undefined
+  }
+}
+
+function onPrimitive(convert: Leaf): Leaf {
+  return (input, direction, limits) => convert(primitive(input, direction), direction, limits)
+}
+
+function textLeaf(accepts: (value: string) => boolean): Leaf {
+  return onPrimitive(value =>
+    typeof value === 'string' && accepts(value)
+      ? { local: value, wire: stringWire(value) }
+      : undefined,
+  )
+}
+
+function identityLeaf<T>(codec: IdentityTextCodec<T>): Leaf {
+  return onPrimitive((value, direction) => identity(codec, value, direction))
+}
+
+function nullLeaf(input: unknown, direction: Direction): Converted | undefined {
+  const isNull = direction === 'decode' ? nodeOf(input)?.kind === 'null' : input === null
+  return isNull ? { local: null, wire: { kind: 'null' } } : undefined
+}
+
+const leaves: { readonly [K in LeafKind]: Leaf } = {
+  text: textLeaf(value => value !== ''),
+  string: textLeaf(() => true),
+  session: textLeaf(value => /^[0-9a-f]{64}$/.test(value)),
+  'page-bytes': textLeaf(value => /^[1-9][0-9]*$/.test(value)),
+  boolean: onPrimitive(value =>
+    typeof value === 'boolean' ? { local: value, wire: { kind: 'boolean', value } } : undefined,
+  ),
+  null: nullLeaf,
+  account: identityLeaf(accountCodec),
+  organization: identityLeaf(organizationCodec),
+  login: identityLeaf(loginStateCodec),
+  tenant: onPrimitive(tenant),
+  instant: onPrimitive(instant),
+  parameters: tree('parameters'),
+  json: tree('json'),
+  'user-message': tree('user-message'),
+}
+
+function isLeaf(rule: Rule): rule is Extract<Rule, { readonly kind: LeafKind }> {
+  return Object.hasOwn(leaves, rule.kind)
+}
+
+function literal(rule: Extract<Rule, { kind: 'literal' }>, value: unknown): Converted | undefined {
+  if (typeof value === 'string' && rule.values.includes(value))
+    return { local: value, wire: stringWire(value) }
+  if (typeof value === 'boolean' && rule.values.includes(value))
+    return { local: value, wire: { kind: 'boolean', value } }
+  return undefined
 }
 
 function convertObject(
@@ -354,52 +460,86 @@ function convertList(
   }
 }
 
+function firstMatch(
+  rules: readonly Rule[],
+  input: unknown,
+  direction: Direction,
+  limits: JsonLimits,
+): Converted | undefined {
+  for (const option of rules) {
+    const converted = convert(option, input, direction, limits)
+    if (converted !== undefined) return converted
+  }
+  return undefined
+}
+
+function itemsOf(input: unknown, direction: Direction): readonly unknown[] | undefined {
+  if (direction === 'encode') return list(input)
+  const node = nodeOf(input)
+  return node?.kind === 'array' ? node.items : undefined
+}
+
 function convert(
   rule: Rule,
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
 ): Converted | undefined {
-  if (rule.kind === 'parameters') return parameters(input, direction, limits)
-  const node = direction === 'decode' ? (input as JsonValue | undefined) : undefined
-  if (rule.kind === 'object')
-    return convertObject(
-      rule,
-      direction === 'decode' ? objectWire(node) : fields(input),
-      direction,
-      limits,
-    )
-  if (rule.kind === 'array') {
-    const items =
-      direction === 'decode' ? (node?.kind === 'array' ? node.items : undefined) : list(input)
-    return convertList(rule, items, direction, limits)
+  if (isLeaf(rule)) return leaves[rule.kind](input, direction, limits)
+  switch (rule.kind) {
+    case 'literal':
+      return literal(rule, primitive(input, direction))
+    case 'object':
+      return convertObject(
+        rule,
+        direction === 'decode' ? objectWire(nodeOf(input)) : fields(input),
+        direction,
+        limits,
+      )
+    case 'array':
+      return convertList(rule, itemsOf(input, direction), direction, limits)
+    case 'one-of':
+      return firstMatch(rule.rules, input, direction, limits)
+    default: {
+      const unreachable: never = rule
+      return unreachable
+    }
   }
-  const value =
-    direction === 'decode'
-      ? node?.kind === 'string' || node?.kind === 'boolean'
-        ? node.value
-        : undefined
-      : input
-  return scalar(rule, value, direction, limits)
 }
 
-function refusal(
-  outcome: 'protocol-rejected' | 'stage-not-provided',
+function refusal<V extends string, K extends RefusalOutcome>(
+  version: V,
+  outcome: K,
   messageId: string | undefined,
-): GovernanceProtocolResult {
+): Refusal<V, K> {
   return {
-    protocolVersion: VERSION,
+    protocolVersion: version,
     ...(messageId === undefined ? {} : { messageId }),
     outcome,
     body: {},
   }
 }
-function rejected(code: GovernanceDiagnostic['code'], messageId?: string): GovernanceRequestRead {
+function rejected<V extends string, S extends string>(
+  version: V,
+  code: GovernanceDiagnostic['code'],
+  messageId?: string,
+): RequestRead<V, S> {
   return {
     kind: 'protocol-rejected',
-    response: { ...refusal('protocol-rejected', messageId), outcome: 'protocol-rejected' },
+    response: refusal(version, 'protocol-rejected', messageId),
     diagnostic: { code },
   }
+}
+function stageRead<V extends string, S extends string>(
+  version: V,
+  messageId: string | undefined,
+): RequestRead<V, S> {
+  // Callers reach this only after narrowing an operation to S, so S is not `never` here.
+  const read = {
+    kind: 'stage-not-provided',
+    response: refusal(version, 'stage-not-provided', messageId),
+  }
+  return read as StageRead<V, S>
 }
 
 function proofOf(value: unknown): ProofInput | undefined {
@@ -417,65 +557,95 @@ function proofOf(value: unknown): ProofInput | undefined {
   return undefined
 }
 
-function requestFromWire(
-  document: JsonValue,
-  limits: JsonLimits,
-  messageId: string | undefined,
-): GovernanceRequestRead {
-  const data = objectWire(document)
-  if (data === undefined || textWire(data.protocolVersion) !== VERSION)
-    return rejected('version', messageId)
-  const operation = textWire(data.operation)
-  if (isStage(operation))
-    return {
-      kind: 'stage-not-provided',
-      response: { ...refusal('stage-not-provided', messageId), outcome: 'stage-not-provided' },
-    }
-  if (!isProvided(operation)) return rejected('operation', messageId)
-  const rule = requestRule(operation)
-  const required = [
+function proofFromWire(data: Readonly<Record<string, JsonValue>>): ProofInput | undefined {
+  if (!Object.hasOwn(data, 'loginProof')) return { kind: 'missing' }
+  const text = textWire(data.loginProof)
+  if (text === undefined) return undefined
+  return text === '' ? { kind: 'empty' } : { kind: 'present', value: text }
+}
+
+function proofToWire(proof: ProofInput | null): { readonly loginProof?: JsonValue } {
+  if (proof === null || proof.kind === 'missing') return {}
+  return { loginProof: stringWire(proof.kind === 'empty' ? '' : proof.value) }
+}
+
+function envelopeKeys(rule: RequestRule): string[] {
+  return [
     'protocolVersion',
     'messageId',
     'operation',
     'body',
     ...(rule.tenant ? ['actingTenant'] : []),
   ]
-  if (!exact(data, required, rule.proof ? ['loginProof'] : []) || messageId === undefined)
-    return rejected('field', messageId)
+}
+
+/** Converts the closed envelope and body of a provided operation; any failure is a field failure. */
+function requestModelFromWire<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  operation: P,
+  data: Readonly<Record<string, JsonValue>>,
+  messageId: string,
+  limits: JsonLimits,
+): object | undefined {
+  const rule = family.requestRule(operation)
+  const closed = rule.proof
+    ? exact(data, envelopeKeys(rule), ['loginProof'])
+    : exact(data, envelopeKeys(rule))
+  if (!closed) return undefined
   const body = convert(rule.body, data.body, 'decode', limits)
-  const tenant = rule.tenant
-    ? convert({ kind: 'tenant' }, data.actingTenant, 'decode', limits)
-    : undefined
-  if (body === undefined || (rule.tenant && tenant === undefined))
-    return rejected('field', messageId)
-  const loginProof = textWire(data.loginProof)
-  if (rule.proof && Object.hasOwn(data, 'loginProof') && loginProof === undefined)
-    return rejected('field', messageId)
-  const proof: ProofInput =
-    loginProof === undefined
-      ? { kind: 'missing' }
-      : loginProof === ''
-        ? { kind: 'empty' }
-        : { kind: 'present', value: loginProof }
-  const request = {
-    protocolVersion: VERSION,
+  const actingTenant = rule.tenant ? convert(tenantRule, data.actingTenant, 'decode', limits) : null
+  const proof = rule.proof ? proofFromWire(data) : null
+  if (body === undefined || actingTenant === undefined || proof === undefined) return undefined
+  return {
+    protocolVersion: family.version,
     messageId,
     operation,
     body: body.local,
-    ...(rule.proof ? { proof } : {}),
-    ...(rule.tenant ? { actingTenant: tenant?.local } : {}),
+    ...(proof === null ? {} : { proof }),
+    ...(actingTenant === null ? {} : { actingTenant: actingTenant.local }),
   }
-  return { kind: 'request', request: request as GovernanceRequest }
+}
+
+function requestFromWire<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  document: JsonValue,
+  limits: JsonLimits,
+  messageId: string | undefined,
+): RequestRead<V, S> {
+  const { version } = family
+  const data = objectWire(document)
+  if (data === undefined || textWire(data.protocolVersion) !== version)
+    return rejected(version, 'version', messageId)
+  const operation = textWire(data.operation)
+  if (isStage(family, operation)) return stageRead(version, messageId)
+  if (!family.isProvided(operation)) return rejected(version, 'operation', messageId)
+  const request =
+    messageId === undefined
+      ? undefined
+      : requestModelFromWire(family, operation, data, messageId, limits)
+  return request === undefined
+    ? rejected(version, 'field', messageId)
+    : { kind: 'request', request }
+}
+
+export function readRequest<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  input: unknown,
+): RequestRead<V, S> {
+  const { data, limits } = argumentsOf(family.error, input, ['bytes', 'limits'])
+  const { read, messageId } = readRequestDocument(bytesOf(data.bytes, family.error), limits)
+  if (read.kind !== 'ok')
+    return rejected(family.version, read.kind === 'budget' ? 'budget' : 'json', messageId)
+  return requestFromWire(family, read.value, limits, messageId)
 }
 
 export function readGovernanceRequest(input: {
   readonly bytes: Uint8Array
   readonly limits: GovernanceCodecLimits
 }): GovernanceRequestRead {
-  const { data, limits } = argumentsOf(input, ['bytes', 'limits'])
-  const { read, messageId } = readRequestDocument(bytesOf(data.bytes), limits)
-  if (read.kind !== 'ok') return rejected(read.kind === 'budget' ? 'budget' : 'json', messageId)
-  return requestFromWire(read.value, limits, messageId)
+  const read = readRequest(governanceFamily, input)
+  if (read.kind !== 'request') return read
+  return { kind: read.kind, request: read.request as GovernanceRequest }
 }
 
 function write(wire: JsonValue, limits: JsonLimits): GovernanceEncodeResult {
@@ -486,104 +656,142 @@ function write(wire: JsonValue, limits: JsonLimits): GovernanceEncodeResult {
     : { kind: 'invalid', diagnostic: { code: checked.kind === 'budget' ? 'budget' : 'field' } }
 }
 
+/** Converts a local request model of a provided operation; any failure is an invalid model. */
+function requestModelToWire<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  operation: P,
+  messageId: string,
+  model: Fields,
+  limits: JsonLimits,
+): JsonValue | undefined {
+  const rule = family.requestRule(operation)
+  if (!exact(model, [...envelopeKeys(rule), ...(rule.proof ? ['proof'] : [])])) return undefined
+  const body = convert(rule.body, model.body, 'encode', limits)
+  const actingTenant = rule.tenant
+    ? convert(tenantRule, model.actingTenant, 'encode', limits)
+    : null
+  const proof = rule.proof ? proofOf(model.proof) : null
+  if (body === undefined || actingTenant === undefined || proof === undefined) return undefined
+  return wireObject({
+    protocolVersion: stringWire(family.version),
+    messageId: stringWire(messageId),
+    operation: stringWire(operation),
+    body: body.wire,
+    ...(actingTenant === null ? {} : { actingTenant: actingTenant.wire }),
+    ...proofToWire(proof),
+  })
+}
+
+export function encodeRequest<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  input: unknown,
+): GovernanceEncodeResult {
+  const { data, limits } = argumentsOf(family.error, input, ['request', 'limits'])
+  const model = fields(data.request)
+  if (
+    model === undefined ||
+    model.protocolVersion !== family.version ||
+    typeof model.messageId !== 'string' ||
+    !family.isProvided(model.operation)
+  )
+    return invalid()
+  const wire = requestModelToWire(family, model.operation, model.messageId, model, limits)
+  return wire === undefined ? invalid() : write(wire, limits)
+}
+
 export function encodeGovernanceRequest(input: {
   readonly request: GovernanceRequest
   readonly limits: GovernanceCodecLimits
 }): GovernanceEncodeResult {
-  const { data, limits } = argumentsOf(input, ['request', 'limits'])
-  const model = fields(data.request)
-  if (
-    model === undefined ||
-    model.protocolVersion !== VERSION ||
-    typeof model.messageId !== 'string' ||
-    !isProvided(model.operation)
-  )
-    return invalid()
-  const rule = requestRule(model.operation)
-  const keys = [
-    'protocolVersion',
-    'messageId',
-    'operation',
-    'body',
-    ...(rule.proof ? ['proof'] : []),
-    ...(rule.tenant ? ['actingTenant'] : []),
-  ]
-  if (!exact(model, keys)) return invalid()
-  const body = convert(rule.body, model.body, 'encode', limits)
-  const tenant = rule.tenant
-    ? convert({ kind: 'tenant' }, model.actingTenant, 'encode', limits)
-    : undefined
-  const proof = rule.proof ? proofOf(model.proof) : undefined
-  if (
-    body === undefined ||
-    (rule.tenant && tenant === undefined) ||
-    (rule.proof && proof === undefined)
-  )
-    return invalid()
-  const wire: Record<string, JsonValue> = {
-    protocolVersion: stringWire(VERSION),
-    messageId: stringWire(model.messageId),
-    operation: stringWire(model.operation),
-    body: body.wire,
-  }
-  if (tenant !== undefined) wire.actingTenant = tenant.wire
-  if (proof !== undefined && proof.kind !== 'missing')
-    wire.loginProof = stringWire(proof.kind === 'empty' ? '' : proof.value)
-  return write(wireObject(wire), limits)
+  return encodeRequest(governanceFamily, input)
 }
 
-function responseBody(
-  operation: GovernanceOperation | undefined,
+function responseBody<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  operation: P | S | undefined,
   outcome: string,
 ): Rule | undefined {
+  if (!isRefusal(family, outcome))
+    return family.isProvided(operation) ? family.responseRule(operation, outcome) : undefined
   if (outcome === 'protocol-rejected') return empty
-  if (outcome === 'stage-not-provided')
-    return operation === undefined || isStage(operation) ? empty : undefined
-  return operation !== undefined && isProvided(operation)
-    ? responseRule(operation, outcome)
-    : undefined
+  return operation === undefined || isStage(family, operation) ? empty : undefined
 }
 
-function responseModel(
-  input: unknown,
-  operation: GovernanceOperation | undefined,
+/** Reads version, outcome and correlation of a response, closing its top-level fields. */
+function responseHead<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  data: Fields,
   direction: Direction,
-  limits: JsonLimits,
-): Converted | undefined {
-  const data = direction === 'decode' ? objectWire(input as JsonValue) : fields(input)
-  if (data === undefined) return undefined
-  const primitive = (key: string) =>
-    direction === 'decode' ? textWire(data[key] as JsonValue | undefined) : data[key]
-  const outcome = primitive('outcome')
-  const messageId = primitive('messageId')
-  if (primitive('protocolVersion') !== VERSION || typeof outcome !== 'string') return undefined
-  const common = outcome === 'protocol-rejected' || outcome === 'stage-not-provided'
-  if (
-    !exact(
-      data,
-      ['protocolVersion', 'outcome', 'body', ...(common ? [] : ['messageId'])],
-      common ? ['messageId'] : [],
-    )
-  )
-    return undefined
-  if (Object.hasOwn(data, 'messageId') && typeof messageId !== 'string') return undefined
-  const rule = responseBody(operation, outcome)
-  if (rule === undefined) return undefined
-  const body = convert(rule, data.body, direction, limits)
-  if (body === undefined) return undefined
+): ResponseHead | undefined {
+  const value = (key: string) => (direction === 'decode' ? textWire(nodeOf(data[key])) : data[key])
+  const outcome = value('outcome')
+  const messageId = value('messageId')
+  if (value('protocolVersion') !== family.version || typeof outcome !== 'string') return undefined
+  const required = ['protocolVersion', 'outcome', 'body']
+  const closed = isRefusal(family, outcome)
+    ? exact(data, required, ['messageId'])
+    : exact(data, [...required, 'messageId'])
+  if (!closed) return undefined
+  if (!Object.hasOwn(data, 'messageId')) return { outcome }
+  return typeof messageId === 'string' ? { outcome, messageId } : undefined
+}
+
+function responseOutput<V extends string>(
+  version: V,
+  { outcome, messageId }: ResponseHead,
+  body: Converted,
+): ResponseModel<V> {
   const local = {
-    protocolVersion: VERSION,
-    ...(typeof messageId === 'string' ? { messageId } : {}),
+    protocolVersion: version,
+    ...(messageId === undefined ? {} : { messageId }),
     outcome,
     body: body.local,
-  }
+  } as ResponseModel<V>['local']
   const wire: Record<string, JsonValue> = {
-    protocolVersion: stringWire(VERSION),
+    protocolVersion: stringWire(version),
     outcome: stringWire(outcome),
     body: body.wire,
   }
-  if (typeof messageId === 'string') wire.messageId = stringWire(messageId)
+  if (messageId !== undefined) wire.messageId = stringWire(messageId)
   return { local, wire: wireObject(wire) }
+}
+
+function responseModel<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  input: unknown,
+  operation: P | S | undefined,
+  direction: Direction,
+  limits: JsonLimits,
+): ResponseModel<V> | undefined {
+  const data = direction === 'decode' ? objectWire(nodeOf(input)) : fields(input)
+  if (data === undefined) return undefined
+  const head = responseHead(family, data, direction)
+  if (head === undefined) return undefined
+  const rule = responseBody(family, operation, head.outcome)
+  const body = rule === undefined ? undefined : convert(rule, data.body, direction, limits)
+  return body === undefined ? undefined : responseOutput(family.version, head, body)
+}
+
+export function readResponse<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  input: unknown,
+): ResponseRead {
+  const { data, limits } = argumentsOf(family.error, input, [
+    'bytes',
+    'operation',
+    'expectedMessageId',
+    'limits',
+  ])
+  const operation = operationOf(family, data.operation)
+  if (typeof data.expectedMessageId !== 'string') return programmingError(family.error)
+  const read = readJsonBytes(bytesOf(data.bytes, family.error), limits)
+  if (read.kind !== 'ok')
+    return { kind: 'unreadable', diagnostic: { code: read.kind === 'budget' ? 'budget' : 'json' } }
+  const converted = responseModel(family, read.value, operation, 'decode', limits)
+  if (converted === undefined) return { kind: 'unreadable', diagnostic: { code: 'field' } }
+  return converted.local.messageId === data.expectedMessageId
+    ? { kind: 'response', response: converted.local }
+    : { kind: 'unmatched' }
 }
 
 export function readGovernanceResponse<O extends GovernanceOperation>(input: {
@@ -592,18 +800,21 @@ export function readGovernanceResponse<O extends GovernanceOperation>(input: {
   readonly expectedMessageId: string
   readonly limits: GovernanceCodecLimits
 }): GovernanceResponseRead<O> {
-  const { data, limits } = argumentsOf(input, ['bytes', 'operation', 'expectedMessageId', 'limits'])
-  const operation = operationOf(data.operation)
-  if (typeof data.expectedMessageId !== 'string') return programmingError()
-  const read = readJsonBytes(bytesOf(data.bytes), limits)
-  if (read.kind !== 'ok')
-    return { kind: 'unreadable', diagnostic: { code: read.kind === 'budget' ? 'budget' : 'json' } }
-  const converted = responseModel(read.value, operation, 'decode', limits)
-  if (converted === undefined) return { kind: 'unreadable', diagnostic: { code: 'field' } }
-  const response = converted.local as GovernanceResponse<O>
-  return response.messageId === data.expectedMessageId
-    ? { kind: 'response', response }
-    : { kind: 'unmatched' }
+  const read = readResponse(governanceFamily, input)
+  if (read.kind !== 'response') return read
+  return { kind: read.kind, response: read.response as GovernanceResponse<O> }
+}
+
+export function encodeResponse<V extends string, P extends string, S extends string>(
+  family: Family<V, P, S>,
+  input: unknown,
+): GovernanceEncodeResult {
+  const { data, limits } = argumentsOf(family.error, input, ['response', 'limits'], ['operation'])
+  const operation = Object.hasOwn(data, 'operation')
+    ? operationOf(family, data.operation)
+    : undefined
+  const converted = responseModel(family, data.response, operation, 'encode', limits)
+  return converted === undefined ? invalid() : write(converted.wire, limits)
 }
 
 export function encodeGovernanceResponse(input: {
@@ -614,8 +825,5 @@ export function encodeGovernanceResponse<O extends GovernanceOperation>(
   input: GovernanceResponseEncodeInput<O>,
 ): GovernanceEncodeResult
 export function encodeGovernanceResponse(input: unknown): GovernanceEncodeResult {
-  const { data, limits } = argumentsOf(input, ['response', 'limits'], ['operation'])
-  const operation = Object.hasOwn(data, 'operation') ? operationOf(data.operation) : undefined
-  const converted = responseModel(data.response, operation, 'encode', limits)
-  return converted === undefined ? invalid() : write(converted.wire, limits)
+  return encodeResponse(governanceFamily, input)
 }
