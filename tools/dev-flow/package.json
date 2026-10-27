@@ -37,7 +37,8 @@
     "ledger": "node --experimental-strip-types src/ledger/ledger-cli.ts",
     "worktree": "node --experimental-strip-types src/integration/worktree-cli.ts",
     "gate": "node --experimental-strip-types src/integration/gate-cli.ts",
-    "package:exports": "node --experimental-strip-types src/package-exports/cli.ts"
+    "package:exports": "node --experimental-strip-types src/package-exports/cli.ts",
+    "facts:prepare": "node --experimental-strip-types src/delivery/facts-preparation-cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-toolchain": "catalog:",

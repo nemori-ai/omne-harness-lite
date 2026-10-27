@@ -1,8 +1,10 @@
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { digest, object, same, string } from '../integration/parse.ts'
+import { canonical, digest, object, same, string } from '../integration/parse.ts'
 import { parsePolicy } from '../integration/policy.ts'
 import type { PolicySource } from '../integration/context.ts'
+import { repository } from '../integration/git.ts'
+import { createFactsPreparation } from '../integration/prepare-delivery-facts.ts'
 import { readAcceptanceSourcesRest } from './collaboration-acceptance-source.ts'
 import { publishedAuthorityReaders } from './collaboration-facts.ts'
 import { readCollaborationInstallation } from './collaboration-installation.ts'
@@ -77,7 +79,9 @@ export function openCollaborationInstallation(root: string, repo: string, transp
   )
     throw new InputError('collaboration-installation-delivery-config')
   const sources = readAcceptanceSourcesRest(repo, installation.acceptanceSource, read)
-  const readers =
+  const readers: Pick<ReduceWatchPorts, 'authorityFor'> & {
+    taskFactsFor: ReduceWatchPorts['taskFactsFor']
+  } =
     installation.facts.kind === 'published'
       ? publishedAuthorityReaders(
           policy,
@@ -112,7 +116,21 @@ export function openCollaborationInstallation(root: string, repo: string, transp
     installation,
     'collaboration-installation-changed-during-open',
   )
-  return { installation, policy, request, watch, authorityFor: readers.authorityFor }
+  const prepareFacts =
+    installation.facts.kind === 'published'
+      ? createFactsPreparation({
+          deployment: {
+            repository: repo,
+            projectId: config.project.id,
+            workflow: installation.facts.workflow,
+            bot: installation.facts.bot,
+          },
+          installationDigest: digest(canonical(installation)),
+          journalRoot: join(repository(root).gitDir, 'omne-facts-preparation'),
+          call: transport,
+        })
+      : undefined
+  return { installation, policy, request, watch, authorityFor: readers.authorityFor, prepareFacts }
 }
 
 export function deployedCollaboration(repo: string) {

@@ -26,6 +26,14 @@ export type PublishedFacts = {
   observations: { facts: DeliveryFacts; reference: CommentReference }[]
 }
 
+export class PublishedFactsMissing extends IntegrationError {
+  readonly dispatch: Omit<AuthorityFacts, 'reviewer'>
+  constructor(dispatch: Omit<AuthorityFacts, 'reviewer'>) {
+    super('unknown', 'Published facts are missing for this dispatch')
+    this.dispatch = dispatch
+  }
+}
+
 function unknown(message: string): never {
   throw new IntegrationError('unknown', message)
 }
@@ -151,7 +159,15 @@ export function readPublishedDeliveryFacts(
       reference: { issue, commentId: comment.id, sha256: digest(comment.body) },
     })
   }
-  if (observations.length === 0) unknown('Published facts are missing for this dispatch')
+  if (observations.length === 0) {
+    same(commentIdentity(dispatch), actor, 'Published facts dispatch account changed during read')
+    same(
+      readCompleteComments(deployment.repository, issue, read),
+      snapshot,
+      'Published facts collection changed during read',
+    )
+    throw new PublishedFactsMissing(expected)
+  }
   const byNonce = new Set<string>(),
     byRun = new Set<number>()
   for (const { facts } of observations) {

@@ -110,6 +110,28 @@ bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config �
 
 源码入口由仓库根及包内的 `collaboration:install`、`integration:request`、`line`、`reduce:watch` scripts 暴露。安装、来源和装配验证归[安装测试](../../tests/delivery-collaboration-installation.spec.ts)。此测试使用真实临时 Git 和文件系统，远端内容为 REST 替身；不证明真实采用或生产部署。
 
+## 持久 facts 准备
+
+`facts:prepare` 与 `facts-preparation-cli.ts` 提供 reduce 的显式生产入口。普通参数只有 repository、精确 dispatch URL 和 `--retry-failed`。bootstrap 固定 published 安装、workflow、Bot、Project 和私有 Git 目录中的 journal。direct 安装拒绝此生产命令。line/watch 的端口不取得生产能力。
+
+每个调用只观察一次，不等待 Actions 完成。网络观察预算为 30 秒、最多 128 次请求，单次请求最多 15 秒。预算耗尽保留 unknown。结果为 ready、pending、failed 或 unknown，CLI 退出码分别为 0、3、2、2。ready 仍须由完整只读 facts 读取器认证，不能仅凭运行 success。
+
+派发 URL 的 SHA-256 前 128 位经固定 version-8 和 variant 位编码成 journal UUID。键不含调用者 operation ID、安装摘要或派发修订。完整 URL、派发作者账号、正文摘要、更新时间、安装摘要及部署身份保存在每个 intent 中，冲突时拒绝。相同 URL 的编辑或安装变更不能绕过旧操作。
+
+每代保存独占创建的 `intent-N.json`。只有创建者在文件及目录 fsync 全部成功后可以 POST。其他进程即使读到完整 JSON 也只能观察，不能接管 POST 权。部分文件、落盘错误、进程终止和响应丢失均不允许重发。可用的精确响应写入 `run-N.json`；没有回执时按完整运行标题及固定 workflow 身份恢复。零匹配或不完整分页保持 unknown，多匹配拒绝，禁止按最新运行选择。
+
+工作流标题为 `delivery-facts:<nonce>:<issue>:<authority URL>`，预期标题超过 255 个字符时拒绝派发。恢复核对仓库、head repository、workflow ID/path、ref/head、event、完整标题、当前 attempt 1 和 attempts/1。当前运行再次读回改变时拒绝。该标题只证明操作关联，不授予派发资格。
+
+只有公共读取器经完整评论和派发身份读回得到的类型化缺失，才允许初次生产。已存在的有效 facts 可以直接消费。有持久 intent 时，ready 必须包含该代 nonce/run 的认证 observation。负面、冲突、编辑、错误身份和未完成证据不能被解释为缺失。
+
+明确失败的精确运行仍返回 failed，默认不重试。`--retry-failed` 要求 fresh attempt 1 的终止失败及完整 facts 缺失，随后把前代运行证据与新 nonce 保存到唯一后继 intent。并发重试争用同一个后继文件，只允许其持久创建者 POST。它不要求重新发布人的授权。未知派发、rerun、成功但 facts 不可见、资格拒绝及安装变化不能创建后继代。
+
+运行结论只接受 `success`、`failure`、`cancelled`、`timed_out`、`action_required`、`neutral`、`skipped`、`stale`、`startup_failure`。`completed` 的结论不得为 null，未完成运行的结论必须为 null。未知值保持 unknown，不能解释为失败并允许重试。持久前代证据使用同一结论解析。取值依据为 GitHub 的[运行状态说明](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2026-03-10)和[CLI 运行列表](https://cli.github.com/manual/gh_run_list)，本工具不自动采用新增值。
+
+此 journal 是单持久安装的本地互斥事实，不提供独立机器或独立检出间的互斥。删除 journal 会丢失不确定操作的 fence，因此宿主迁移、升级及清理必须先保留并对账旧记录。工具不能从一个空的新目录证明另一宿主没有未决操作。真实断电、网络分区与生产部署需要独立证据。
+
+验证资源为[准备操作测试](../../tests/integration-prepare-delivery-facts.spec.ts)，包含真实子进程争用、intent 字节可见但未刷盘、文件和目录 fsync 错误、创建者被终止及恢复。GitHub 响应在该测试中为替身，不能替代真实工作流和采用验证。
+
 ## 持续验证与限制
 
 `tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。

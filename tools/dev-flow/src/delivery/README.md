@@ -87,6 +87,22 @@ watch 的 parent、operation ID、journal 和事件文件来自本线实际派�
 
 缺少安装、摘要不符、工具检出变脏或提交变化时，停止并核对安装。不要通过更换来源来绕过拒绝。升级前收回旧安装上的未决写操作，并在安全的波段边界切换到新检出；保存原 journal，不给不确定操作生成新 ID。
 
+## 准备下一波的派发事实
+
+使用 published 安装的 reduce 负责人，在发布下一波前准备实际 reduce 和任务派发的 facts。每个命令只观察一次，返回后继续处理其他集成申请。
+
+```sh
+pnpm run facts:prepare --repo owner/name --dispatch https://github.com/owner/name/issues/123#issuecomment-456
+```
+
+`ready` 退出 0，`pending` 退出 3，`failed` 或 `unknown` 退出 2。重复原命令会观察同一持久操作。`unknown` 不表示未派发，不能删除 journal 或更换安装来重发。
+
+只有精确运行的 attempt 1 已明确失败，而且没有该派发的 facts，才可加 `--retry-failed` 创建新的生产代。新代沿用人的派发授权，生成新 nonce 和新运行，不使用 GitHub rerun。资格为负、事实冲突、成功但未读到 facts、运行未知都不能用此选项绕过。
+
+生产 journal 位于工具检出的私有 Git 目录 `omne-facts-preparation`。一个持续 reduce 负责人使用一份持久 journal。移动宿主或升级安装时保留旧 journal，并处理其中未决操作。独立检出之间没有分布式锁；不能让两个安装各自初始化同一派发。安装不匹配的旧操作拒绝继续，不能删除记录来消除冲突。
+
+下一波所需的当前、历史和任务派发集合由 reduce 负责汇总。所有准备结果为 ready 后，发布时仍重新执行资格和接受校验。该命令不接受卡片，也不放行 line。
+
 ## 属性发现
 
 报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。属性发现只报告，不计入 `deviation`，不阻止开工。`stock.attribute` 是这一类的数量。
