@@ -89,14 +89,14 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 `collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符支持版本 1 和 2，共同必需字段如下。未知字段和版本拒绝。
 
-| 字段 | 含义与约束 |
-| --- | --- |
-| `repository` | 唯一的目标 `owner/name` |
-| `toolCommit` | 完整 Git SHA。运行工具的独立检出须固定在此提交，且工作树干净 |
-| `policySource` | `commit/path/blob/digest`。路径固定为 `docs/engineering/integration-policy.json`，提交与 blob 为完整 SHA，摘要为原始 UTF-8 文件字节的 SHA-256 |
-| `acceptanceSource` | 同样的四项定位。路径固定为 `docs/engineering/collaboration-acceptance-sources.json` |
-| `basis` | 非空的既有 `Evidence` 数组，记录本次安装采用的依据 |
-| `facts` | `{kind:"direct"}` 或 `{kind:"published",workflow,bot}`。两种模式不能混用 |
+| 字段               | 含义与约束                                                                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repository`       | 唯一的目标 `owner/name`                                                                                                                       |
+| `toolCommit`       | 完整 Git SHA。运行工具的独立检出须固定在此提交，且工作树干净                                                                                  |
+| `policySource`     | `commit/path/blob/digest`。路径固定为 `docs/engineering/integration-policy.json`，提交与 blob 为完整 SHA，摘要为原始 UTF-8 文件字节的 SHA-256 |
+| `acceptanceSource` | 同样的四项定位。路径固定为 `docs/engineering/collaboration-acceptance-sources.json`                                                           |
+| `basis`            | 非空的既有 `Evidence` 数组，记录本次安装采用的依据                                                                                            |
+| `facts`            | `{kind:"direct"}` 或 `{kind:"published",workflow,bot}`。两种模式不能混用                                                                      |
 
 版本 1 的 published 模式固定 workflow 的 `id/path/ref/head` 及 Bot 的 `login/nodeId`。path 为 `.github/workflows/delivery-facts.yml`，ref 为 `github-gate`，head 为完整 SHA。Project 从 policy 提交中的 delivery config 派生，不由普通命令传入。config 必须启用，仓库、Project 与单写者配置必须有效。
 
@@ -144,7 +144,7 @@ bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config �
 
 每代保存独占创建的 `intent-N.json`。只有创建者在文件及目录 fsync 全部成功后可以 POST。其他进程即使读到完整 JSON 也只能观察，不能接管 POST 权。部分文件、落盘错误、进程终止和响应丢失均不允许重发。可用的精确响应写入 `run-N.json`；没有回执时按完整运行标题及固定 workflow 身份恢复。零匹配或不完整分页保持 unknown，多匹配拒绝，禁止按最新运行选择。
 
-工作流标题为 `delivery-facts:<nonce>:<issue>:<authority URL>`，预期标题超过 255 个字符时拒绝派发。恢复核对仓库、head repository、workflow ID/path、ref/head、event、完整标题、当前 attempt 1 和 attempts/1。当前运行再次读回改变时拒绝。该标题只证明操作关联，不授予派发资格。
+工作流标题为 `delivery-facts:<nonce>:<issue>:<authority URL>`，预期标题超过 255 个字符时拒绝派发。恢复核对仓库、head repository、workflow ID/path、ref/head、event、完整标题、当前 attempt 1 和 attempts/1。两个端点的状态和结论须一致，但 `created_at` 是各端点的元数据，可以不同。每个端点分别解析并再次读回，运行身份、状态、结论或创建时间在同一端点发生变化时拒绝。返回及持久前代证据中的 `createdAt` 取当前 run 端点。该标题只证明操作关联，不授予派发资格。
 
 只有公共读取器经完整评论和派发身份读回得到的类型化缺失，才允许初次生产。已存在的有效 facts 可以直接消费。有持久 intent 时，ready 必须包含该代 nonce/run 的认证 observation。负面、冲突、编辑、错误身份和未完成证据不能被解释为缺失。
 

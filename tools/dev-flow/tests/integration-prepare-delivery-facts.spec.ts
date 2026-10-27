@@ -19,10 +19,10 @@ import {
 } from '../src/integration/prepare-delivery-facts.ts'
 import { InputError } from '../src/delivery/protocol.ts'
 import { runFactsPreparationCli } from '../src/delivery/facts-preparation-cli.ts'
-import { factsRunName } from '../src/integration/prepared-facts-run.ts'
+import { factsRunName, readPreparedFactsRun } from '../src/integration/prepared-facts-run.ts'
 import type { FactsDeployment } from '../src/integration/published-delivery-facts.ts'
 import { FACTS_MARKER } from '../src/integration/delivery-facts-record.ts'
-import { digest, IntegrationError } from '../src/integration/parse.ts'
+import { digest, IntegrationError, object } from '../src/integration/parse.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
 import { backend, block, dispatch, rawComment } from './fixtures/collaboration-authority.ts'
 import { TOOL } from './fixtures/collaboration.ts'
@@ -297,6 +297,47 @@ describe('durable single-dispatch facts preparation', () => {
     })
     expect(prepare(f.current.html_url).status).toBe('ready')
     expect(f.state.posts).toBe(before)
+  })
+
+  it('recovers the same successful operation when attempt creation metadata differs', () => {
+    const f = fixture()
+    expect(f.prepare()).toMatchObject({ status: 'pending', generation: 1, run: { id: 202 } })
+    const journal = () =>
+      readdirSync(f.slot()).map(name => [name, readFileSync(join(f.slot(), name), 'utf8')])
+    const before = journal()
+    f.publish()
+    const transport: GhCommand = (args, timeout) => {
+      const result = f.call(args, timeout)
+      return args.some(arg => arg.endsWith('/actions/runs/202/attempts/1'))
+        ? { ...object(result, 'test run'), created_at: '2026-10-27T10:00:02Z' }
+        : result
+    }
+    expect(readPreparedFactsRun(f.deployment, f.inputs.get(202)!, 202, transport).createdAt).toBe(
+      '2026-10-27T10:00:00Z',
+    )
+    expect(f.prepare(false, transport)).toMatchObject({
+      status: 'ready',
+      facts: { observations: [{ facts: { run: 202 } }] },
+    })
+    expect(f.state.posts).toBe(1)
+    expect(journal()).toEqual(before)
+  })
+
+  it.each(['', '/attempts/1'])('refuses creation metadata drift within endpoint %s', suffix => {
+    const f = fixture()
+    f.prepare()
+    f.publish()
+    let reads = 0
+    const transport: GhCommand = (args, timeout) => {
+      const result = f.call(args, timeout)
+      if (args.includes(`repos/owner/repo/actions/runs/202${suffix}`) && ++reads === 2)
+        return { ...object(result, 'test run'), created_at: '2026-10-27T10:00:02Z' }
+      return result
+    }
+    expect(() => readPreparedFactsRun(f.deployment, f.inputs.get(202)!, 202, transport)).toThrow(
+      suffix === '' ? 'facts-preparation-run-changed' : 'facts-preparation-attempt-changed',
+    )
+    expect(f.state.posts).toBe(1)
   })
 
   it('recovers a lost response from a complete exact-title search without reposting', () => {

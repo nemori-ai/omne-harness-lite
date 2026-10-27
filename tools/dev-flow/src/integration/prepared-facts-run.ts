@@ -73,7 +73,13 @@ export function readPreparedFactsRun(
     }
   }
   const current = parse(get(endpoint))
-  same(parse(get(`${endpoint}/attempts/1`)), current, 'facts-preparation-attempt-changed')
+  const attempt = parse(get(`${endpoint}/attempts/1`))
+  same(
+    { status: attempt.status, conclusion: attempt.conclusion },
+    { status: current.status, conclusion: current.conclusion },
+    'facts-preparation-attempt-changed',
+  )
+  same(parse(get(`${endpoint}/attempts/1`)), attempt, 'facts-preparation-attempt-changed')
   same(parse(get(endpoint)), current, 'facts-preparation-run-changed')
   return current
 }
