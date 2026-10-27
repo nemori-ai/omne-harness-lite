@@ -523,7 +523,6 @@
 
 ### 明确缺项
 
-- 注册、当前读取和恢复的一致协议的精确形状，归产品 [CONTEXT-M01](../../../.meta_harness/design/product/runtime-context/design.md#context-m01)。
 - 需要怎样声明、更新怎样随结果携带，归产品 [CONTEXT-M04](../../../.meta_harness/design/product/runtime-context/design.md#context-m04) 与各消费者契约的拥有者。
 - 工作区指导的首次访问判据，归产品 [CONTEXT-E02](../../../.meta_harness/design/product/runtime-context/design.md#context-e02)。本成员只供给当前值，不拥有加载规则。
 - `current()` 同步前提的真实兑现：撤权、原工作失效与本成员最终提交共用串行边界的权威适配器，以及 Request Context 与 Runtime Context 之间的当前状态同步桥，都不由本成员提供。身份拥有者的首批能力不提供这座桥。它由实际资格与组合拥有者兑现，具名剩余责任交 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677) 登记。在桥兑现之前，依赖它的真实组合路径不开通。
@@ -532,7 +531,7 @@
 - 本成员已实现值类型、读取结果、游标作废、核心纯操作、声明摘要和两个解码函数。精确形状归 [src/index.ts](src/index.ts)，套件与非耐久替身归 `./testing`。这些资源不替代真实机制的并发与恢复验证。
 - 三条 Cordis 机制读数已在采用的 Cordis 4.0.4 上由定义成员本地测试固定；尚未登记共同 basis，不能据此扩大共同采用。证据与剩余责任列在 [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md)。
 - 唤醒载荷是否受对象存在性披露规则约束，待本契约拥有者确认。现在的写法是载荷只带作用域引用与视图修订，不带块键与值（[runtime-context-cordis-contract](../runtime-context-cordis-contract/SPEC.md)），据此认为它不披露块的存在；监听者能否从修订前进推断某块存在，尚未裁定。
-- 唤醒丢失后，持有者最迟何时补拉变化没有上界。[RC-04](#rc-04-读取时点观察与变化材料) 只要求下一次拉取补齐。这个上界与持有者的恢复、保留上一份快照两项义务一起，归作用域持有者的契约（[#580](https://github.com/nemori-ai/omne-harness-lite/issues/580)）。
+- 唤醒丢失后，持有者最迟何时补拉变化没有上界。[RC-04](#rc-04-读取时点观察与变化材料) 只要求下一次拉取补齐。这个上界与持有者的恢复、保留上一份快照两项义务一起，由作用域持有者在自己的契约里给出，本契约不规定它们。
 - 自定义的恢复、代际替换与并发协议需要行为模型与关键性质检查（[验证说明](../../../docs/verification.md)）。正式模型尚未进入本成员的 `verification/models/`，相应机制路径保持未验证。
 
 这些缺项不允许降低已定的访问、历史和恢复责任。纯函数和非耐久替身的测试不证明真实机制的并发、断电耐久或性能。作者自检和结构检查不授予接受。

@@ -119,6 +119,7 @@
 - `StartedRun` · `faces.d.ts`
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
+- `WorkspaceAttachment` · `values.d.ts`
 - `decide` · `decide.d.ts`
 - `deriveDriveOperation` · `operations.d.ts`
 - `deriveSessionOperation` · `operations.d.ts`
@@ -177,6 +178,7 @@
 - `shapeOf` · `testing-case.d.ts`
 - `succeeded` · `testing-case.d.ts`
 - `testingTenant` · `testing-values.d.ts`
+- `testingWorkspace` · `testing-values.d.ts`
 - `userMessage` · `testing-values.d.ts`
 
 ## 声明文件 `block.d.ts`
@@ -742,7 +744,7 @@ export type AdvanceRef = Readonly<{
 
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, } from './identity.ts';
-export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, } from './values.ts';
+export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
 export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionFaces, SessionFailure, SessionHistory, SessionManagement, SessionReconciliation, SessionWork, StartedRun, } from './faces.ts';
 export { deriveDriveOperation, deriveSessionOperation, type DriveOperationElements, type SessionOperationElements, } from './operations.ts';
 export type { AgentDrivePort, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionTransactionPort, } from './ports.ts';
@@ -1339,7 +1341,7 @@ export declare function memorySessionTransactionsFixture(): SessionTransactionsF
 ## 声明文件 `testing-values.d.ts`
 
 ```ts
-import { type TenantId } from '@omne-harness/legal-identity';
+import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, DurableEvidence, InputId, SessionAccess, SessionId, SessionOperationId } from './identity.ts';
 import type { RoutedInput, SessionCreation } from './values.ts';
@@ -1349,6 +1351,7 @@ export declare function adoption(name: string): Adoption;
 export declare function evidence(record: string): DurableEvidence;
 export declare function mintEvidence(record: string, content: unknown): DurableEvidence;
 export declare function testingTenant(organization: string, account: string): TenantId;
+export declare function testingWorkspace(text: string): WorkspaceId;
 export declare const sessionId: (text: string) => SessionId;
 export declare const inputId: (text: string) => InputId;
 export declare const operationId: (text: string) => SessionOperationId;
@@ -1369,7 +1372,7 @@ export declare function guard(participant: string, owner: string, facts: unknown
 export { NotApplicable, assertIndistinguishable, conformanceCase, expectKind, handle, isNotApplicable, refused, runConformanceCase, shapeOf, succeeded, type CaseVerdict, type ConformanceCase, } from './testing-case.ts';
 export { createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
-export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, userMessage, } from './testing-values.ts';
+export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
 ```
 
 ## 声明文件 `values.d.ts`
@@ -1377,7 +1380,7 @@ export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, i
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CompactionMessage, Message } from '@omne-harness/message';
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 export type ResidentTool = Readonly<{
     capability: string;
@@ -1594,6 +1597,10 @@ export type Modes = Readonly<{
     environment: Adoption;
     collaboration: 'co-work' | 'auto-drive';
 }>;
+export type WorkspaceAttachment = Readonly<{
+    instance: string;
+    basis: string;
+}>;
 export type SessionCreation = Readonly<{
     definition: Readonly<{
         name: string;
@@ -1605,7 +1612,8 @@ export type SessionCreation = Readonly<{
         name: string;
     }>[];
     purpose: string;
-    workspace: Adoption | null;
+    workspace: WorkspaceId | null;
+    workspaceAttachment: WorkspaceAttachment | null;
     modes: Readonly<{
         kind: 'explicit';
         value: Modes;
@@ -1649,7 +1657,8 @@ export type DeclarationChange = Readonly<{
     setting: DurableEvidence;
 }> | Readonly<{
     kind: 'workspace';
-    value: Adoption | null;
+    value: WorkspaceId | null;
+    workspaceAttachment: WorkspaceAttachment | null;
     basis: DurableEvidence;
 }> | Readonly<{
     kind: 'model';

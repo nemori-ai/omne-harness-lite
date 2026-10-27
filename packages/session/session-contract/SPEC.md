@@ -1,6 +1,6 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的全部类型，并按本规格判定 M2 首条租户路径经过的提交种类：`create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）与 `finishRun`，以及领域服务 `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` 和 `reduce`。其余提交种类（含 `receive` 的其余生产者事实）的 `decide` 返回 `rejected`，失败种类为 `unavailable`，诊断指向 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)；`judgeIdle` 返回 `unavailable` 指向 #756；`resolveControlScope` 与 `resolveCascade` 在 #756 之前抛出带 #756 的 Error，`decide` 在调用它们之前就拒绝 `control`。历史读取（路径第 7 跳，`SessionHistory` 的 `begin`/`next`/`since`）已支持。`./testing` 的事务替身对 `readModelView`、`references`、`releasedScopes` 返回 `unavailable` 指向 #756。`ProducerFact.release` 的写入者待 #756 指定。`login-required` 由 `decide` 按守卫材料里是否存在 `owner` 为 `login-entry` 的项产出（裁定 R2）；`judgeRunStart` 只看快照，从不产出它。首条路径上没有 completed 的 Run（裁定 R3）；初始化项只来自 `SessionCreation.requiredIdentities`（裁定 R1）。被替代的协议见[被替代的协议](#被替代的协议)。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的全部类型，并按本规格判定 M2 首条租户路径经过的提交种类：`create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）与 `finishRun`，以及领域服务 `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` 和 `reduce`。其余提交种类（含 `receive` 的其余生产者事实）的 `decide` 返回 `rejected`，失败种类为 `unavailable`，诊断指向 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。例外是 `change` 的 workspace 维度：`decide` 先按创建的同一规则核验 `value` 与 `workspaceAttachment`，非法返回 `invalid`；合法后仍返回 `unavailable`，归 #756；`judgeIdle` 返回 `unavailable` 指向 #756；`resolveControlScope` 与 `resolveCascade` 在 #756 之前抛出带 #756 的 Error，`decide` 在调用它们之前就拒绝 `control`。历史读取（路径第 7 跳，`SessionHistory` 的 `begin`/`next`/`since`）已支持。`./testing` 的事务替身对 `readModelView`、`references`、`releasedScopes` 返回 `unavailable` 指向 #756。`ProducerFact.release` 的写入者待 #756 指定。`login-required` 由 `decide` 按守卫材料里是否存在 `owner` 为 `login-entry` 的项产出（裁定 R2）；`judgeRunStart` 只看快照，从不产出它。首条路径上没有 completed 的 Run（裁定 R3）；初始化项只来自 `SessionCreation.requiredIdentities`（裁定 R1）。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`。本规格表达已具依据的必要行为；公开类型、领域服务、`decide`/`reduce` 与 `./testing` 的替身与一致性套件已按状态行所述范围在源码声明（[公开接口页](docs/public-api.md)），不定义存储提供者或认领协议。
 
@@ -58,14 +58,14 @@
 
 治理登录入口显式租户冲突时遵循身份契约拒绝，不能暗中切换。系统后台入口须提供其可信身份和限定操作资格，不伪造人登录。私有查询、控制、消费和历史读取分别检查当前资格。全组织账目经账目拥有者的范围查询读取，Session 的读面只服务单租户。持有「组织成本账目读取」资格的主体不因此获得其他租户的正文或执行控制。
 
-创建要求明确租户、AgentDefinition身份及执行类型。工作区可选，指定后须合法可加载，失败不降为无工作区。初始任务可以没有，专用派发或Job入口条件性必需输入沿其契约。本成员不从磁盘目录、外部消息正文或最近使用值猜身份与工作区。
+创建要求明确租户、AgentDefinition身份及执行类型。工作区可选。指定时，`workspace` 是 legal-identity 第六族 `WorkspaceId`，`workspaceAttachment`（工作区附着）给出实例与装载依据，两者同在或同无。附着的两个字段是非空文本，其格式与含义归[工作区域](../../../docs/domains/workspaces/README.md)；本成员暂时自持 `WorkspaceAttachment` 形状，工作区契约发布后迁到工作区域导入。指定的工作区须按附着合法加载，失败不降为无工作区。初始任务可以没有，专用派发或Job入口条件性必需输入沿其契约。本成员不从磁盘目录、外部消息正文或最近使用值猜身份与工作区。
 
 ## 固定事实及当前状态
 
 | 状态类别 | 必须保留与解释 |
 | --- | --- |
 | 固定身份 | Session、租户、定义身份、创建事实、用途和执行类型及类型必需身份集合 |
-| 会话当前值 | 当前模式、工作区选择、模型选择、允许的覆盖或继承声明、Context注册及自有恢复数据 |
+| 会话当前值 | 当前模式、工作区选择（`WorkspaceId` 与工作区附着 `workspaceAttachment`）、模型选择、允许的覆盖或继承声明、Context注册及自有恢复数据 |
 | 采用依据 | 实际清单、来源及版本、每次调用实际输入及消费者关联 |
 | 工作事实 | Run、承接批次、attempt开始序号、等待、消费进度、取消、终态、结果和原因 |
 | 真实外部关联 | 原调用、实际效果及费用来源、迟到、未结及控制责任 |
@@ -551,7 +551,7 @@ Session 命令：
 | `preserveResult` | `coordinator`、`maintainer`，参加；Agent 记录已删除时由 Session 提交。合格保管者资格，不要求旧 attempt 有效 | 参加时为执行记录提供者的操作身份；Session 提交时为命令种类、consumption 与结果版本 | consumption、`ProducedResult`、保管证据 | 保管证据 |
 | `completeConsumption` | `coordinator`，参加；原消费资格 | 执行记录提供者的操作身份 | `Participation`、`Completion` | 完成证据 |
 | `completeExternalConsumption` | `coordinator`；原投递资格 | 命令种类、consumption 与结果版本 | `expected`、`qualification`、`ExternalCompletion` | 完成证据 |
-| `bindExternalCall` | `coordinator`；消费者拥有者的原资格材料 | 外部关联与固定请求摘要 | `expected`、`qualification`、`initiatingAttempt` 为 null 的 `CallBinding` | 回执与 `ConsumptionId` |
+| `bindExternalCall` | `coordinator`；消费者拥有者的原资格材料 | 外部关联与固定请求摘要 | `expected`、`qualification`、`initiatingAttempt` 为 null 的 `CallBinding`。写入 SE18 时的载荷映射见[稳定调用引用的读取](#稳定调用引用的读取) | 回执与 `ConsumptionId` |
 | `commitDerived` | `coordinator`。压缩分支参加；变化提醒分支由作用域持有者一侧以 Session 提交 | 参加时为执行记录提供者的操作身份；变化提醒为变化材料身份 | `DerivedMessage` 与准入经过 | 回执 |
 | `release` | `coordinator`、`maintainer`；当前推进资格或恢复资格 | run、attempt 与交接依据摘要 | `advance`、`expected`、交接依据 | 回执 |
 | `control` | `intake`、`maintainer`；控制资格（身份桥） | 控制发起者交来的提交身份 | `Control` | 回执与 `ControlProgress` |
@@ -597,9 +597,9 @@ Session 命令：
 | --- | --- | --- | --- | --- |
 | `inspectIdle` | `denied`；`unavailable`（时钟或空闲输入不可用。不用系统时间补） | 只读，没有未知 | 不适用 | 原始事实归各拥有者 |
 | `recordIdle` | `changed`（覆盖已失效）；`invalid`；`unavailable`；`denied` | `commit-unknown` | `queryOperation`；同观察认回 | 覆盖的完整性归空闲输入的提供者 |
-| `create` | `conflict`（同身份异创建输入，不换身份）；`invalid`（缺必填项；会话身份已存在而操作不同；指定工作区加载失败时不降为无工作区）；`denied`；`unavailable`（桥） | `commit-unknown` | `queryOperation` | 固定身份与初值归 Session；执行类型采用归其拥有者 |
+| `create` | `conflict`（同身份异创建输入，不换身份）；`invalid`（缺必填项；`workspace` 不是合法 `WorkspaceId`、与 `workspaceAttachment` 不同在、缺 `workspaceAttachment` 键或附着字段不是非空文本；会话身份已存在而操作不同；指定工作区加载失败时不降为无工作区）；`denied`；`unavailable`（桥） | `commit-unknown` | `queryOperation` | 固定身份与初值归 Session；执行类型采用归其拥有者 |
 | `completeInitialization` | `invalid`（原项或负责方不匹配）；`conflict`（矛盾结果）；`denied` | `commit-unknown` | `queryOperation`；同值认回 | 结果来源归负责方 |
-| `change` | `denied`（资格不足；Agent 发起而没有人的授权证据）；`invalid`（越过上界、移除必需注册；加载失败时保留原值）；`conflict`（同身份异材料）；`changed`（注册的前修订过期）；`archived` | `commit-unknown`。未知期间作用域持有者不先使注册生效 | `queryOperation`；同材料认回 | 本操作是注册决定的唯一提交点；共享源归其拥有者 |
+| `change` | `denied`（资格不足；Agent 发起而没有人的授权证据）；`invalid`（越过上界、移除必需注册；加载失败时保留原值；workspace 维度的 `value` 不是合法 `WorkspaceId`、与 `workspaceAttachment` 不同在或附着字段不是非空文本，本成员先核验此项，合法后仍返回 `unavailable`，归 #756）；`conflict`（同身份异材料）；`changed`（注册的前修订过期）；`archived` | `commit-unknown`。未知期间作用域持有者不先使注册生效 | `queryOperation`；同材料认回 | 本操作是注册决定的唯一提交点；共享源归其拥有者 |
 | `setRelation` | `invalid`（子会话常驻，或 handoff 进入级联）；`denied`；`conflict` | `commit-unknown` | `queryOperation` | 关系后果归 Session |
 | `configureAutoArchive` | `denied`；`invalid`（`idleMs` 不是正十进制毫秒数）；`unavailable`（设置源） | `commit-unknown` | `queryOperation` | 配置源归租户设置拥有者 |
 | `considerAutoArchive` | `unavailable`（来源不可达、观察为 `unknown` 或组合缺席）；`invalid`（`idleEvidence` 不指向已确认的 SE31）；`denied` | `archived` 分支为 `commit-unknown`；其他结果不提交，没有未知 | `queryOperation`；同依据认回 | 归档复用 `control(archive)` 的完整结果。仍有未结工作时返回 `not-due`，不以空集合冒充已覆盖 |
@@ -645,6 +645,24 @@ Session 命令：
 - 同一历史依据下的各页属于同一 epoch，上界固定。依据的 epoch 已不是当前 epoch 时返回 `epoch-changed` 与当前依据，不拼接两个 epoch 的页。
 - 拒绝原因是 `denied`（按这次传入的访问身份核对）、`invalid`（缺访问身份、依据或游标错域、`pageBytes` 不合法）与 `unavailable`（不返回空页）。只读，没有未知，也没有认回：依据仍是当前 epoch 时，同一依据与游标重读得到同一页。
 - 视图在压缩提交时物化，读取不重算模型视图。物化方式归存储提供者。
+
+##### 稳定调用引用的读取
+
+调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)，有下列三个。
+
+- 载荷的 `kind` 是 `model` 或 `tool`，不同于条目的种类短名 `call.bound`。
+- `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
+- `purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。
+
+Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用同一组字段。Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 `kind` 取 `producer.kind`，`reference` 取 `producer.call`。Model 分支的 `purpose` 为 `main`，`producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。Tool 分支的 `purpose` 为 `action`，`producer.call` 必须是 `ToolInvocationRef` 文本。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+
+`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，按载荷的 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
+
+这是外部读者取得稳定调用引用的唯一公开路径。它不新增操作。本版不提供「最新调用」的派生索引。
+
+读取资格、游标与空页规则同 [SL10、SL11](#日志读取投影及恢复)。同一节要求正常推进不全量扫描历史。该要求约束 Session 自己的推进路径，不限制读者的历史读取。
+
+读者遍历到 `exhausted` 为真仍未见所需分支时，按没有稳定引用处理，不推测调用是否存在。`exhausted` 为假的空页不表示没有。
 
 #### 值与结果项的约束
 
@@ -706,7 +724,7 @@ Session 命令：
 | JC-07 | `claim` | Session | 存储参加者；证据桥 | 接管资格、连续性 | SE15，必要时 SE16；`advance` 为新 attempt。执行记录提供者不参加本次提交 |
 | JC-08 | `reload` | Session | 存储参加者；证据桥、Context 输入 | `handover` 证明；新的注册条件 | SE08、SE15、SE16；`run.active.adoption` 为新采用 |
 | JC-09 | `commitDerived(compaction)` | 执行记录提供者（`context-transition` 交接） | Session 参加者；证据桥 | P-2 材料；压缩消息与转换证据 | SE10 压缩记录、SE33 与新的模型视图代 |
-| JC-10 | `bindExternalCall` | Session | 存储参加者；证据桥 | 消费者资格材料 | SE18，`initiatingAttempt` 为 null；`run` 不变 |
+| JC-10 | `bindExternalCall` | Session | 存储参加者；证据桥 | 消费者资格材料 | SE18，`initiatingAttempt` 为 null，载荷按[稳定调用引用的读取](#稳定调用引用的读取)由 `CallBinding` 映射。`run` 不变 |
 | JC-11 | `preserveResult` | 执行记录提供者（`custody` 交接，经 `commit` 或 `recordResult`）；Agent 记录已删除时为 Session | Session 参加者或存储参加者；证据桥 | P-2 材料；保管证据 | SE20；对应 `results` 项的保管非空 |
 | JC-12 | `completeConsumption` | 执行记录提供者（`processed` 交接，经 `commit` 或 `recordResult`） | Session 参加者；证据桥 | P-2 材料；完成依据 | SE21；完成非空；原位置的等待从 `waiting` 移除 |
 | JC-13 | `completeExternalConsumption` | Session | 存储参加者；证据桥 | 外部位置与投递资格 | SE21，必要时 SE10 |

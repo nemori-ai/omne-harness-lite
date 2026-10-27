@@ -9,6 +9,11 @@ import type {
   TerminalFacility,
 } from '@omne-harness/execution-environment-contract'
 import {
+  createMemoryFileSystem,
+  createScriptedCommandFacility,
+  type ProviderScript,
+} from '@omne-harness/execution-environment-contract/testing'
+import {
   shellEnvironmentSlot,
   type ShellEnvironment as ExampleShellEnvironment,
 } from '../examples/shell-needs.ts'
@@ -61,4 +66,12 @@ it('types a lease facility by its key', () => {
   expectTypeOf<ReturnType<EnvironmentLease<'files'>['facility']>>().toEqualTypeOf<
     FileSystemFacility<unknown> | undefined
   >()
+})
+
+it('fits the two facility doubles into a facility set and a scripted lease', () => {
+  const fs = createMemoryFileSystem()
+  const cmd = createScriptedCommandFacility(() => ({ kind: 'unknown' }))
+  const lease = { files: fs.facility, command: cmd.facility }
+  expectTypeOf(lease).toExtend<FacilitySet<'files' | 'command'>>()
+  expectTypeOf(lease).toExtend<NonNullable<ProviderScript['lease']>>()
 })

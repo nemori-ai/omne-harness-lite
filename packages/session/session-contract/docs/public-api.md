@@ -51,7 +51,7 @@
 
 | 导出 | 源文件 |
 | --- | --- |
-| `Modes`、`SessionCreation`、`InitializationResult`、`ContextMaterial`、`DeclarationChange`、`Relation`、`ClockSample`、`IdleCoverage`、`IdleObservation`、`AutoArchivePolicy`、`FreezeVerdict` | [values.ts](../src/values.ts) |
+| `Modes`、`SessionCreation`、`WorkspaceAttachment`、`InitializationResult`、`ContextMaterial`、`DeclarationChange`、`Relation`、`ClockSample`、`IdleCoverage`、`IdleObservation`、`AutoArchivePolicy`、`FreezeVerdict` | [values.ts](../src/values.ts) |
 | `SessionManagement`、`ProducerFact`、`PendingReason`、`ResidentReference`、`ReleasedScope`、`SessionReconciliation`、`HistoryEntry`、`HistoryPage`、`ModelViewBasis`、`ModelViewRow`、`ModelViewRead`、`SessionHistory`、`SessionFaces` | [faces.ts](../src/faces.ts) |
 
 `ProducerFact` 没有 `agent-event` 与 `start-fence` 变体，`AgentEventFact` 不导出，见[被替代的协议](../SPEC.md#被替代的协议)。
@@ -65,7 +65,7 @@
 | `AdvanceJudgment`、`AdvanceClaim`、`RouteJudgment`、`RunStartJudgment`、`OpenWork`、`CompletionJudgment`、`ControlScope`、`IdleJudgment`、`OperationJudgment`、`OperationRecord`、`CommittedBatch`、`ReduceResult`、`EncodedEntry`、`Decision`、`DecideReads` | [judgments.ts](../src/judgments.ts) | 结局集合 |
 | `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` | [judgments.ts](../src/judgments.ts) | 按 SPEC 实现 |
 | `resolveControlScope`、`judgeIdle`、`resolveCascade` | [judgments.ts](../src/judgments.ts) | 指向 #756：前两者返回 `invalid`/`unavailable`，`resolveCascade` 抛错 |
-| `decide` | [decide.ts](../src/decide.ts) | 路径种类按 SPEC 判定，其余返回 `rejected`/`unavailable` 指向 #756。`previous` 对 `create` 为 null |
+| `decide` | [decide.ts](../src/decide.ts) | 路径种类按 SPEC 判定，其余返回 `rejected`/`unavailable` 指向 #756。`change` 的 workspace 维度先核验，非法返回 `invalid`；合法后仍返回 `unavailable`，归 #756。`previous` 对 `create` 为 null |
 | `reduce` | [reduce.ts](../src/reduce.ts) | 纯批次归约；条目编码只在 [entries.ts](../src/entries.ts) 一份 |
 
 ## 出站端口与块声明

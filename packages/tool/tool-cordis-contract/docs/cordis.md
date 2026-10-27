@@ -113,7 +113,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, shape }>, unavailable>`，分页，不返回正文，与 Session 契约的 `references` 形状一致；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
 | toolResidencyActions | `freeze({ session, cause: 'tool-shape-lost', evidence })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`，与 Session 契约的 `freeze` 同形：`session` 是会话引用，租户由 Session 按会话目录取得；幂等，会话已冻结时返回原回执。它代表该会话的租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
 
-协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。
+协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。`toolResidencyReader` 的提供者撤除时尚未返回的读取由它的撤除路径结算为 `unavailable`。协调者按引用不可读处理：`reopen(key)` 并返回 `retained`。协调者重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen`，再按 `unload` 的顺序从 `close(key)` 与引用核对重新开始，不跳过保留义务。
 
 `unload` 与 `sweep` 是系统作用域操作。冻结判定只在采用点由 `planAdoption` 产出，交付路径见契约的[采用点判定](../../tool-contract/SPEC.md#采用点判定)。
 

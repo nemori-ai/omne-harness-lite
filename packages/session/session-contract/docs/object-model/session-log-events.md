@@ -37,6 +37,8 @@
 
 `kind` 用 `<族>.<事实>` 形式的稳定短名，SE 编号只在文档中导航。新字段只增加，不改变旧字段含义，`schema` 升版。新事实使用新种类名，旧种类名永不复用。归约器按批次记录的解释版本解释旧条目。未知种类先隔离，不跳过。
 
+本成员的解释器 `session-log` 现为 revision 2：`session.created` 的 `creation.workspace` 改为 legal-identity 第六族文本，新增 `creation.workspaceAttachment`。这一版改变了旧字段含义；按[当前演进政策](../../../../../docs/engineering/publication.md#当前演进与消费者)不读回 revision 1 的行。缺 `workspaceAttachment` 键的创建行解码为 malformed，归约器隔离它，不按新形状解释。
+
 ## 效力与解释资格
 
 一条事实是否必须记入，见架构[必须进入日志的事实](../../../../../docs/architecture/runtime/session-and-run.md#必须进入日志的事实)。效力沿统一语言的 Deciding、Explaining、Transient。本文用中文「依据」「留痕」表达，不新增英文枚举。只有依据进入其合法消费者的状态转移输入。留痕可以进入历史查询和解释视图，不能改变队列、推进资格、等待或结算责任。瞬态通知、未封口增量及工程采样不能独自支撑恢复路径。
@@ -73,7 +75,7 @@
 | SE02 | `session.initialization-item` | 初始化项处理 | 原初始化项与创建事实；负责方给出取得值、就绪或失败原因、仍缺条件及接续责任 | 依据。更新原项，全体必需项完成才可工作；失败不删除会话或伪装就绪 |
 | SE03 | `session.mode-changed` | 三轴模式变更 | 本会话租户；指定维度、新值及当前上界核对依据，关联原操作 | 依据。仅变该维，其他维保持。Agent 要改模式，必须走 HITL，由人显式授权。不能突破结构化禁止 |
 | SE04 | `session.model-selected` | 模型选择变更 | 合法用户或明确代办者；合法路由名、原指令及模型拥有者校验依据 | 依据。保存选择；不改已固定请求、不建新 attempt，不因后续调用失败回滚 |
-| SE05 | `session.workspace-changed` | 工作区选择变更 | 合法选择者；附着、更换或解除的原目标、合法入口和加载依据 | 依据。更新本会话选择；失败保留原合法状态，不把指定失败改成无工作区 |
+| SE05 | `session.workspace-changed` | 工作区选择变更 | 合法选择者；附着、更换或解除的原目标（`workspace`）、合法入口（`workspaceAttachment.instance`）和加载依据（`workspaceAttachment.basis`）。载荷为 `{ workspace, workspaceAttachment, basis }`，`workspace` 与 `workspaceAttachment` 同在或同无 | 依据。更新本会话选择；失败保留原合法状态，不把指定失败改成无工作区 |
 | SE06 | `session.declaration-adopted` | 会话覆盖或继承声明采用，含自动归档策略的采用 | 设置拥有者校验后的本会话项、覆盖值或继承声明、来源和版本 | 依据。只改本会话声明，不改租户默认、共享设置或资产内容 |
 | SE07 | `session.context-registration-changed` | Context 注册集合变更 | 注册协调者；增加、改变或移除的注册、来源、配置、消费者与必需性依据 | 依据。更新注册关系；必需项不能移除，移除注册不删除共享内容 |
 | SE08 | `session.adoption` | 定义、能力与装配实际采用 | 装配协调者；固定定义标识、实际版本、清单、能力绑定、来源裁定、安全交接和原等待引用，以及这次求值的[输入快照](../../../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)：会话选择与读过的各作用域、各类来源的采用变更计数；本次为常驻工具记下的登记键，按能力身份成对列出 | 依据。保存实际采用；新 Run 采用最新合法版，普通恢复保原版，合法 reload 与新 attempt 共同成立。候选校验失败不覆盖原采用 |
@@ -111,7 +113,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE18 | `call.bound` | 原调用登记与等待依据，Run 内从 Agent 的等待事件派生，Run 外由消费者拥有者登记 | Agent 执行记录提供者或消费者拥有者；稳定调用、用途、固定请求的耐久证据、原动作、原消费位置、发起 attempt 及阻塞范围 | 依据。建立可恢复的消费位置与等待责任，登记不冒称物理已发出；Run 外不补造 Run |
+| SE18 | `call.bound` | 原调用登记与等待依据，Run 内从 Agent 的等待事件派生，Run 外由消费者拥有者登记 | Agent 执行记录提供者或消费者拥有者；稳定调用、用途、固定请求的耐久证据、原动作、原消费位置、发起 attempt 及阻塞范围。载荷公开可读字段沿 Agent 契约的 `PendingCall`，有 `kind`、`reference` 与 `purpose` 三个。载荷的 `kind` 是 `model` 或 `tool`，不同于本行的条目 `kind`。`reference` 在 Model 分支是 `ModelInvocationRef` 文本，在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。`purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。Run 外登记由 `CallBinding` 映射到同一组字段。字段含义与映射见[稳定调用引用的读取](../../SPEC.md#稳定调用引用的读取) | 依据。建立可恢复的消费位置与等待责任，登记不冒称物理已发出；Run 外不补造 Run |
 | SE19 | `call.execution-fact` | 原执行事实承接 | Model 或 Tool 拥有者；原调用的实际发出、真实收场、转换确认、交付责任解除确认或不可确定状态、原事实版本、结果及原因 | 影响对账或等待的部分为依据，纯解释为留痕。保持真实物理事实，不把停止请求当已停止，不把旧状态覆盖新终局 |
 | SE20 | `call.result-preserved` | 结果可靠保管 | 合法消费者；原结果身份、内容或可恢复引用、保管确认、原位置和后续责任 | 依据。确认结果在消费侧可恢复，不表示已处理完；不能只保存临时句柄就解除生产责任 |
 | SE21 | `call.result-processed` | 原位置处理与逻辑结果采用 | 原消费者；原保管、消息、占位或答复，接续 attempt、处理结论、完成进度、判断依据及后续责任 | 依据。按原位置推进处理或拒收，实际处理可终结相关业务等待。后台占位、卸载、不许执行、不可用 dummy 与真实执行结果分别表达 |

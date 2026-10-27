@@ -119,6 +119,7 @@
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
+- `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `deriveDriveOperation` · 包 `@omne-harness/session-contract`
 - `deriveSessionOperation` · 包 `@omne-harness/session-contract`

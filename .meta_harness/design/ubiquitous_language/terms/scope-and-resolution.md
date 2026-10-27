@@ -118,6 +118,16 @@
 - **出处**：[PF-020 工作区实例](../../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）
 - **未定**：实例的精确身份、并发和终止状态由 PF-020 后续修订决定。
 
+### UL-workspace-attachment · 工作区附着 · Workspace Attachment
+
+> **中**：一个工作区在某个部署节点上的一次装载的引用，由两部分组成：工作区实例标识和装载依据（例如 Git commit）。它和 `WorkspaceId` 一起出现，`WorkspaceId` 回答哪个工作区，工作区附着回答在哪个实例上、按什么依据装载。两部分的格式归工作区域。
+
+> **EN**: A reference to one load of a workspace on a deployment node. It has two parts: the workspace instance identifier and the load basis (for example, a Git commit). It occurs together with a `WorkspaceId`: the `WorkspaceId` tells which workspace, and the workspace attachment tells on which instance and from which basis the workspace is loaded. The workspace domain owns the format of both parts.
+
+- **形态**：属性
+- **出处**：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）；当前由 Session 契约的[创建规则](../../../../packages/session/session-contract/SPEC.md)以 `workspaceAttachment` 字段承载
+- **别混**：与[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)不是一回事：实例是被装载出来的工作入口，工作区附着只是指向某个实例的一次装载的引用。与[附件](execution-and-outcome.md#ul-attachment--附件--attachment)、[执行挂接](agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment)无关，字段和类型不许简称 `attachment`（同 [C-64](../conflicts.md#c-64执行挂接的候选类型名)）
+
 ### UL-workspace-address · 工作区地址 · Workspace Address
 
 > **中**：找到或访问工作区或工作区实例的地址，可以是本地文件系统路径、GitHub 地址、Obsidian vault、Office 365 资源地址、云端存储地址或其他未来地址。

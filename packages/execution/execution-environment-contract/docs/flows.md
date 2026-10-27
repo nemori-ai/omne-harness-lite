@@ -1,6 +1,6 @@
 # 执行环境契约的协议流程
 
-本页给出本成员的九条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07 与 F-EEC08 是设计，当前没有提供者实现 `command` 与 `terminal`。
+本页给出本成员的十条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07 与 F-EEC08 是设计，当前没有提供者实现 `command` 与 `terminal`。
 
 图中的「执行环境」是 `ExecutionEnvironment` 的实现。不含 Cordis 的登记表机制归 [execution-environment](../../execution-environment/README.md)，它的机制级流程见该成员的 `docs/flows.md`。跨成员流程 F-EX01 至 F-EX04 归组的[协作入口](../../docs/key-flows.md)。本页各条注明对应的组流程 F-EX。对象的状态与转移见[对象模型](object-model.md#生命周期)。设施协议的规则见 SPEC [设施协议](../SPEC.md#设施协议)，逐设施的展开见[内部架构](architecture.md#设施协议)。
 
@@ -353,6 +353,44 @@ sequenceDiagram
 | 逐条发布 | 每条路径有自己的发布收据。系统不承诺多条路径同时生效 | 某条路径的收据丢失时，后续路径停止发布，结果为 `unknown`，原因取 `effectUnknown`、`conflict`、`closed` 或 `unavailable` |
 | 终态 | 已提交与未知都是批次的终态 | 释放时它们不算未停的受管资源 |
 | 认回 | `recoverBatch` 把这一批认成五种之一。`published` 只含有耐久发布收据的路径 | 认回不续发布，不回滚，不覆盖外部的新写入。当前字节与暂存一致不等于有收据 |
+
+### F-EEC10 调用方组合一次编辑
+
+状态：调用方的流程，不是设施操作。设施只提供读取与替换写入，编辑由调用方组合。
+
+条款：[设施协议](../SPEC.md#设施协议)中 `expectedVersion` 与编辑组合两段、[INV-EE08](../SPEC.md#inv-ee08-租户托管数据不随计算消失)、[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)。它由组的 F-EX02 里的读取与写入两种设施操作组成。逐设施的规则见内部架构的[文件设施](architecture.md#files文件)。
+
+前提：租约暴露 `files`。调用方为每次操作给出新的请求身份与点名对象 `named`。
+
+```mermaid
+sequenceDiagram
+  participant C as 调用方
+  participant P as 提供者的文件设施
+  loop 每一段
+    C->>P: 过守卫之后 read(路径、named、偏移、长度)
+    P-->>C: done：字节、version、nextOffsetBytes、eof
+  end
+  Note over C: 有一段的 version 不同时，从头重读
+  C->>C: 在内存里修改内容
+  C->>P: 过守卫之后 write(mode replace、expectedVersion 取读到的 version)
+  alt 完成
+    P-->>C: done：新的 version
+  else 版本不符
+    P-->>C: rejected/conflict，文件不变
+    Note over C: 重读后再决定
+  else 结果未知
+    P-->>C: unknown，文件可能已部分改变
+    Note over C: 按 INV-EE14 先查看，不自动重放
+  end
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 读取 | 每段都带 `version`。各段的 `version` 相同时，内容来自同一版本 | 有一段不同时，调用方从头重读 |
+| 修改 | 只在调用方内存里进行 | 不经设施，没有外部效果 |
+| 替换写入 | `done` 带新的 `version` | `expectedVersion` 不符时为 `rejected/conflict`，文件不变。调用方重读后再决定 |
+| 未知 | `unknown` 表示文件可能已部分改变 | 调用方先查看，不自动重放写入 |
+| 观察条件 | 同一版本只表示提供者没有观察到变化 | 版本不是外部的比较并交换，不排除与写入同时发生的外部写入 |
 
 ## 失败与生命周期
 

@@ -6,6 +6,7 @@ it('publishes the identity type names and keeps login identifiers out of that li
     'AccountId',
     'OrganizationId',
     'LoginStateId',
+    'WorkspaceId',
     'TenantId',
     'ScopeLayerIdentity',
   ])

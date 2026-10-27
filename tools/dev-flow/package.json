@@ -26,6 +26,7 @@
     "dispatch": "node --experimental-strip-types src/delivery/dispatch-cli.ts",
     "events-receiver": "node --experimental-strip-types src/delivery/events-receiver-cli.ts",
     "events-wait": "node --experimental-strip-types src/delivery/wait-cli.ts",
+    "ledger": "node --experimental-strip-types src/ledger/ledger-cli.ts",
     "worktree": "node --experimental-strip-types src/integration/worktree-cli.ts",
     "gate": "node --experimental-strip-types src/integration/gate-cli.ts",
     "package:exports": "node --experimental-strip-types src/package-exports/cli.ts"

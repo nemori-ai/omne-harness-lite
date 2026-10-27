@@ -306,6 +306,8 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 
 本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
+access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
+
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
 
 领域语义、源码依赖、公开声明、发布产物和运行时授权是不同检查对象。导入检查只报告其已实现并采用的静态范围；没有代码禁边不证明旧行为条款已经迁移。当前静态覆盖继续由本页“现有成员与工具适配”及工具符合性说明维护。共同值仍遵守领域模型边界，不能复制完整 Session 或 Agent 状态后改名 common 来绕过方向。
@@ -355,9 +357,9 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 不覆盖的范围如下。
 
 - session-adapters 到 Model 或 Tool 的全包禁令没有采用。上文“依赖方向与Cordis集成”的表对它的限制仍靠评审。
-- 公共流方向（显示经公共流契约）没有方向行，仍靠评审。
-- 运行时行为条款不在静态依赖检查范围内。
-- [#689 N-PD4](https://github.com/nemori-ai/omne-harness-lite/issues/689#issuecomment-6372915674) 记录的历史条款原文没有恢复，不进入方向行。
+- 公共流方向（显示经公共流契约）尚无精确成员与公开导出的采用依据，没有方向行，仍靠评审。已有共享流词汇不自动构成该方向的静态采用。
+- 运行时行为条款不在静态依赖检查范围内。`rules` 中的四条 H1 不变量只登记正文来源，不增加可执行的方向行，也不证明运行时已兑现。
+- [#689 N-PD4](https://github.com/nemori-ai/omne-harness-lite/issues/689#issuecomment-6372915674) 记录的 PD-29 历史完整条款尚未恢复，未知范围保持未覆盖，不从现有角色或方向行反推原文。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。
 

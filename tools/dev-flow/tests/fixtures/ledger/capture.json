@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "kind": "github-delivery-capture",
+  "repository": "owner/repo",
+  "projectId": null,
+  "protocolVersion": 2,
+  "startedAt": "2026-10-05T00:00:00Z",
+  "finishedAt": "2026-10-05T00:01:00Z",
+  "collection": {
+    "issues": "complete",
+    "project": "unknown",
+    "errors": []
+  },
+  "issues": [
+    {
+      "number": 104,
+      "url": "https://github.com/owner/repo/issues/104",
+      "id": "I_104",
+      "state": "open",
+      "updatedAt": "2026-10-05T00:00:00Z",
+      "commentsComplete": true,
+      "relationsComplete": true,
+      "blockedBy": [],
+      "parentIssue": null,
+      "stage": null,
+      "body": "## 身份与责任\n\n- 交付修订：1\n- 交付线：engineering-toolchain\n- 性质：impl\n- 契约变更：none\n",
+      "labels": [
+        "kind:feature",
+        "level:subtask"
+      ],
+      "milestone": "M1",
+      "comments": [
+        {
+          "url": "https://github.com/owner/repo/issues/104#issuecomment-40",
+          "author": "human",
+          "body": "派发 104-r1-a1。\n\n```json omne-integration-authority:v1\n{\n  \"schemaVersion\": 1,\n  \"responsible\": \"human\",\n  \"basis\": [],\n  \"action\": \"dispatch\",\n  \"task\": {\n    \"attempt\": \"104-r1-a1\",\n    \"revision\": 1,\n    \"issue\": {\n      \"number\": 104\n    }\n  },\n  \"confirmations\": []\n}\n```",
+          "updatedAt": "2026-09-20T08:00:00Z"
+        }
+      ]
+    },
+    {
+      "number": 101,
+      "url": "https://github.com/owner/repo/issues/101",
+      "id": "I_101",
+      "state": "open",
+      "updatedAt": "2026-10-05T00:00:00Z",
+      "commentsComplete": true,
+      "relationsComplete": true,
+      "blockedBy": [],
+      "parentIssue": null,
+      "stage": null,
+      "body": "## 身份与责任\n\n- 交付修订：1\n- 交付线：body-line-not-used\n- 性质：impl\n- 契约变更：none\n\n## 当前执行与交接\n\n```json omne-integration-binding:v2\n{\n  \"schemaVersion\": 2,\n  \"issue\": {\n    \"repository\": \"owner/repo\",\n    \"id\": \"I_101\",\n    \"url\": \"https://github.com/owner/repo/issues/101\",\n    \"number\": 101\n  },\n  \"revision\": 1,\n  \"attempt\": \"101-r1-a2\",\n  \"responsible\": \"human\",\n  \"branch\": \"human/issue-101-ledger\",\n  \"route\": {\n    \"kind\": \"track\",\n    \"track\": \"legacy-refactor\"\n  },\n  \"completionTarget\": \"track\",\n  \"taskBase\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n  \"writeScope\": [\n    \"tools/dev-flow\"\n  ],\n  \"dispatch\": \"https://github.com/owner/repo/issues/101#issuecomment-2\",\n  \"conditions\": [],\n  \"authorization\": [],\n  \"line\": \"engineering-toolchain\",\n  \"nature\": \"impl\",\n  \"contractChange\": \"none\",\n  \"milestone\": \"M1.5\"\n}\n```\n",
+      "labels": [
+        "kind:feature",
+        "level:subtask",
+        "line:engineering-toolchain"
+      ],
+      "milestone": "M1.5",
+      "comments": [
+        {
+          "url": "https://github.com/owner/repo/issues/101#issuecomment-1",
+          "author": "human",
+          "body": "派发 101-r1-a1。\n\n```json omne-integration-authority:v1\n{\n  \"schemaVersion\": 1,\n  \"responsible\": \"human\",\n  \"basis\": [],\n  \"action\": \"dispatch\",\n  \"task\": {\n    \"attempt\": \"101-r1-a1\",\n    \"revision\": 1,\n    \"issue\": {\n      \"number\": 101\n    }\n  },\n  \"confirmations\": []\n}\n```",
+          "updatedAt": "2026-10-01T08:00:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/101#issuecomment-2",
+          "author": "human",
+          "body": "派发 101-r1-a2。\n\n```json omne-integration-authority:v1\n{\n  \"schemaVersion\": 1,\n  \"responsible\": \"human\",\n  \"basis\": [],\n  \"action\": \"dispatch\",\n  \"task\": {\n    \"attempt\": \"101-r1-a2\",\n    \"revision\": 1,\n    \"issue\": {\n      \"number\": 101\n    }\n  },\n  \"confirmations\": []\n}\n```",
+          "updatedAt": "2026-10-02T08:00:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/101#issuecomment-3",
+          "author": "human",
+          "body": "## 交接报告\n\n准入：`OMNE_ADMISSION=1 node scripts/with-test-slot.mjs pnpm run check`，exit=0。\n",
+          "updatedAt": "2026-10-02T14:30:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/101#issuecomment-4",
+          "author": "human",
+          "body": "- 操作标识：accept-101-r1\n- 决定：accept\n- 对象与交付修订：#101 revision 1\n",
+          "updatedAt": "2026-10-03T10:00:00Z"
+        }
+      ]
+    },
+    {
+      "number": 102,
+      "url": "https://github.com/owner/repo/issues/102",
+      "id": "I_102",
+      "state": "open",
+      "updatedAt": "2026-10-05T00:00:00Z",
+      "commentsComplete": true,
+      "relationsComplete": true,
+      "blockedBy": [],
+      "parentIssue": null,
+      "stage": null,
+      "body": "## 身份与责任\n\n- 交付修订：1\n- 交付线：docs-line\n- 性质：impl\n- 契约变更：additive\n",
+      "labels": [
+        "kind:bug",
+        "level:subtask"
+      ],
+      "milestone": "M1.5",
+      "comments": [
+        {
+          "url": "https://github.com/owner/repo/issues/102#issuecomment-10",
+          "author": "human",
+          "body": "派发 102-r1-a1。\n\n```json omne-integration-authority:v1\n{\n  \"schemaVersion\": 1,\n  \"responsible\": \"human\",\n  \"basis\": [],\n  \"action\": \"dispatch\",\n  \"task\": {\n    \"attempt\": \"102-r1-a1\",\n    \"revision\": 1,\n    \"issue\": {\n      \"number\": 102\n    }\n  },\n  \"confirmations\": []\n}\n```",
+          "updatedAt": "2026-10-01T09:00:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/102#issuecomment-11",
+          "author": "human",
+          "body": "交回。\n\n## 交接报告\n\n准入尚未运行。\n",
+          "updatedAt": "2026-10-01T21:00:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/102#issuecomment-12",
+          "author": "human",
+          "body": "- 操作标识：partial-102\n- 决定：partial\n",
+          "updatedAt": "2026-10-02T09:00:00Z"
+        }
+      ]
+    },
+    {
+      "number": 103,
+      "url": "https://github.com/owner/repo/issues/103",
+      "id": "I_103",
+      "state": "open",
+      "updatedAt": "2026-10-05T00:00:00Z",
+      "commentsComplete": true,
+      "relationsComplete": true,
+      "blockedBy": [],
+      "parentIssue": null,
+      "stage": null,
+      "body": "## 身份与责任\n\n- 交付修订：1\n- 交付线：engineering-toolchain\n- 性质：impl\n- 契约变更：none\n",
+      "labels": [
+        "kind:maintenance",
+        "level:delivery"
+      ],
+      "milestone": "M1.5",
+      "comments": [
+        {
+          "url": "https://github.com/owner/repo/issues/103#issuecomment-20",
+          "author": "human",
+          "body": "<!-- line-state -->\n线状态注 1\n",
+          "updatedAt": "2026-10-01T07:00:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/103#issuecomment-21",
+          "author": "human",
+          "body": "<!-- line-state -->\n线状态注 2\n",
+          "updatedAt": "2026-10-02T07:00:00Z"
+        },
+        {
+          "url": "https://github.com/owner/repo/issues/103#issuecomment-22",
+          "author": "human",
+          "body": "<!-- line-state -->\n线状态注 3\n",
+          "updatedAt": "2026-10-03T07:00:00Z"
+        }
+      ]
+    }
+  ]
+}

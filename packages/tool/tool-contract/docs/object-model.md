@@ -69,7 +69,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | --- | --- | --- | --- |
 | ToolDefinition | 不可变值，工具资产身份和精确 adoption | 单函数/多命令、参数、真实依赖、模态、设置与许可 | 随采用保存；合法消费者可读，不含运行能力 |
 | ToolInvocationRef / ToolOperationRef | 不可变定位值，编码原租户、call、admission；操作引用另带 operation | 保存与重建后查询原事实，不含 principal 或实例代次 | 每次使用核当前资格；放弃引用不取消执行 |
-| FixedToolRequest | 不可变值，原调用与输入摘要 | 固定原始/生效参数、来源、消费位置、环境、限额 | 准入后不变；秘密按字段权限读取 |
+| FixedToolRequest | 不可变值，原调用与输入摘要 | 固定原始/生效参数、来源、消费位置、工作区身份、环境、限额 | 准入后不变；秘密按字段权限读取 |
 | ToolCall | 持久聚合根，tenant + call | 原调用阶段、关系、真实执行确定性、效果、等待、控制、结果和责任 | Commands 唯一写；宿主退出后存在；不序列化活体对象 |
 | OperationRecord | 聚合内实体，call + operation | 输入去重、原操作结果及提交未知认回 | 与状态和待办同提交；不能只存 revision |
 | QueueReservation | 本域跨调用实体，tenant + scope（owner、key）+ 工具身份 | 持久 FIFO、并发占位、排除与释放 | 同 queue key 原子裁定；实现版本不是另一队列 |

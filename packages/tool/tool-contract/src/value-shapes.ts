@@ -1,12 +1,18 @@
 // Closed shapes of the reference values that definitions, states and results share.
 import { judgeContentBlock, type ContentReference } from '@omne-harness/content-block'
-import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
+import { workspaceCodec } from '@omne-harness/legal-identity'
+import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
-import type { SourceLayer, ToolSchemaIdentity, WorkspaceId } from './definitions.ts'
+import type { SourceLayer, ToolSchemaIdentity } from './definitions.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
-import { filled, literal, record, reject, variant, type Check } from './shape.ts'
+import { filled, literal, member, record, reject, variant, type Check } from './shape.ts'
 
-/** The minted identity shapes of legal-identity, read as data: the brand is the `name` tag. */
+/**
+ * The organization and tenant shapes of legal-identity, read as data: the brand is the `name` tag
+ * and the text is not checked by a codec, so the result is not a minted value. `workspaceId`
+ * below is checked and minted by its codec instead; moving these two onto their codecs as well is
+ * left to a separate card.
+ */
 const organizationId: Check<OrganizationId> = record({
   name: literal('OrganizationId'),
   text: filled,
@@ -16,11 +22,16 @@ const tenantId: Check<TenantId> = record({
   organization: organizationId,
   account: record({ name: literal('AccountId'), text: filled }),
 })
-/** The opaque workspace brand is text here; the workspace owner defines it later (G7). */
-const workspaceId: Check<WorkspaceId> = (value, at) => {
-  const text = filled(value, at)
-  // The brand has no run-time value; a filled text is all Tool reads at its boundary.
-  return 'failure' in text ? text : succeed(text.ok as WorkspaceId)
+const workspaceShape = record({ name: literal('WorkspaceId'), text: filled })
+/**
+ * The sixth legal-identity family (G7). The text must be accepted by `workspaceCodec`; the
+ * check returns the value that the codec built, so `workspaceEquals` holds for judged values.
+ */
+export const workspaceId: Check<WorkspaceId> = (value, at) => {
+  const shape = workspaceShape(value, at)
+  if ('failure' in shape) return shape
+  const parsed = workspaceCodec.parse(shape.ok.text)
+  return parsed.ok ? succeed(parsed.value) : reject(member(at, 'text'), 'malformed')
 }
 
 /** The source layer of a contribution (G7): the position and the identity that holds it. */

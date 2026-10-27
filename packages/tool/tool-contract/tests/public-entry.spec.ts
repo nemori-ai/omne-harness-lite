@@ -170,6 +170,7 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'runConformanceCase',
     'startAuthorityAnswers',
     'testingTenant',
+    'testingWorkspace',
     'toolClockConformance',
     'toolDecisionBridgeConformance',
     'toolEnvironmentConformance',
