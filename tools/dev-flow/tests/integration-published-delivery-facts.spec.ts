@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { digest } from '../src/integration/parse.ts'
+import { digest, object } from '../src/integration/parse.ts'
 import { FACTS_MARKER } from '../src/integration/delivery-facts-record.ts'
 import {
   readPublishedDeliveryFacts,
@@ -133,7 +133,9 @@ describe('published delivery facts without workflow dispatch', () => {
         const value = f.read(args, timeout)
         const path = args.at(-1) ?? ''
         const endpoint = currentEndpoint ? '/actions/runs/202' : '/actions/runs/202/attempts/1'
-        return path.endsWith(endpoint) ? { ...value, created_at: '2026-10-27T10:00:02Z' } : value
+        return path.endsWith(endpoint)
+          ? { ...object(value, 'fixture workflow run'), created_at: '2026-10-27T10:00:02Z' }
+          : value
       }
       expect(
         readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read).observations.map(
@@ -151,7 +153,9 @@ describe('published delivery facts without workflow dispatch', () => {
         const value = f.read(args, timeout)
         const path = args.at(-1) ?? ''
         const endpoint = currentEndpoint ? '/actions/runs/202' : '/actions/runs/202/attempts/1'
-        return path.endsWith(endpoint) ? { ...value, created_at: '2026-10-27T10:01:01Z' } : value
+        return path.endsWith(endpoint)
+          ? { ...object(value, 'fixture workflow run'), created_at: '2026-10-27T10:01:01Z' }
+          : value
       }
       expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
         'Published facts comment is outside its workflow attempt',
@@ -167,7 +171,9 @@ describe('published delivery facts without workflow dispatch', () => {
         const value = f.read(args, timeout)
         const path = args.at(-1) ?? ''
         const endpoint = currentEndpoint ? '/actions/runs/202' : '/actions/runs/202/attempts/1'
-        return path.endsWith(endpoint) ? { ...value, updated_at: '2026-10-27T10:01:01Z' } : value
+        return path.endsWith(endpoint)
+          ? { ...object(value, 'fixture workflow run'), updated_at: '2026-10-27T10:01:01Z' }
+          : value
       }
       expect(
         readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read).observations.map(
@@ -185,7 +191,9 @@ describe('published delivery facts without workflow dispatch', () => {
         const value = f.read(args, timeout)
         const path = args.at(-1) ?? ''
         const endpoint = currentEndpoint ? '/actions/runs/202' : '/actions/runs/202/attempts/1'
-        return path.endsWith(endpoint) ? { ...value, updated_at: '2026-10-27T10:00:29Z' } : value
+        return path.endsWith(endpoint)
+          ? { ...object(value, 'fixture workflow run'), updated_at: '2026-10-27T10:00:29Z' }
+          : value
       }
       expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
         'Published facts comment is outside its workflow attempt',
