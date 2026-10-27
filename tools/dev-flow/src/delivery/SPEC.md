@@ -200,6 +200,22 @@ recover 模式只读，返回已核对的精确引用或 unknown。完整读取�
 
 返回的 `VerifiedCollaborationAuthority` 只证明上述派发及记录权限。其 `scope.acceptanceResponsibility` 仍是声明，工具只核对它指向正文责任字段的摘要。它不授予接受权，也不证明 ReleaseRecord 已接受；接受授权来源与结果决定须由独立接受读取边界验证。
 
+### 接受来源与决定读回
+
+[collaboration-acceptance-source.ts](collaboration-acceptance-source.ts) 将已明确的人类授权与机器校验分开。`readAcceptanceSources` 只从固定路径 `docs/engineering/collaboration-acceptance-sources.json` 读取调用方已经获准采用的配置提交，并核对 `PolicySource` 的 commit、path、blob 和 digest。它没有 HEAD 默认值，也不从当前工作树读配置。配置只保存 Issue 身份、交付 revision、授权声明的精确评论引用及声明者账号 node ID，不重复定义接受者。初始表为空，不授予任何卡接受权。
+
+调用方选择配置提交的依据必须来自既有人的授权及其采用范围。候选分支新增条目、当前 reviewer 身份或本地文件存在均不构成采用。正式命令必须从已接受的任务／工具采用输入取得固定来源，不提供接受者、任意来源 JSON 或任意配置路径选项。加载器核对来源与字节，不机械证明声明者在业务上有权；这项人类决定继续是显式采用的前提。
+
+授权声明在本卡评论内使用 `json omne-collaboration-responsibility:v1`，包含精确 Issue、revision、正文责任字段摘要、owner 和 acceptor 的 login／nodeId，以及非空授权依据。`readAcceptanceResponsibility` 核对当前正文、正式 scope、已采用引用、原始评论和实际作者。仅具名声明或合法派发不能通过。`json omne-collaboration-responsibility-revocation:v1` 引用原声明并给出依据；有权 owner／acceptor 的撤销阻止继续采用，未知作者、编辑或冲突保留错误。历史决定按其 GitHub 创建时间核对当时已采用的声明，历史来源也必须保留在明确采用的配置中；正常换修订不等同撤销历史。
+
+[collaboration-acceptance.ts](collaboration-acceptance.ts) 定义接受决定与 `readReleaseAcceptance`。接受对象复用 `ReleaseSubject`，即 ReleaseRecord 的 context、finalHead、expectedRequests、results、lines、next，不另建一份清单。决定另含 Issue／revision／attempt、operationId、accept／partial／cancel／revoke、决定账号、授权声明、依据、剩余责任、精确前项及时间。`encodeReleaseAcceptance` 同时生成交付规则的十个人类字段与唯一机器区块；读取要求两者完全一致。未投影或有歧义的自然语言决定保持 unknown，不能从 closed、绿测或正文单词推断接受。
+
+决定链保留跨 revision 前项，逐项核对原文、作者账号及各自已采用授权。新修订撤销可精确引用前一修订并使用其接受授权，即使正文尚未更新也阻止旧接受放行。新接受必须匹配当前 revision、attempt 和责任来源。部分认可、非接受链头、缺失前项、同操作异文、旧引用、编辑过的决定或事后补造授权均拒绝。账号作者可验证，工具不能区分本人键入和使用本人凭证的获授权代笔；代笔依据仍须按交付规则保存。
+
+读取器核对所有参与线，包括 idle；读回结果和 delta 的精确摘要及权限，要求证据先于决定存在。state 须已合入或有明确 superseded 处置，并仍是完整序列的当前结果。delta 须有从首项至被接受项的完整、获授权前序链，且最终 F、continuation 和结果引用与接受对象一致。跨波历史需要相应 reduce 的正式授权；云端已有 adoptedFacts 时，缺少显式 `relatedAuthority` 输入不得回退本地资格查询。读完再次核对来源快照及精确证据，变化即失败；GitHub 多对象读取仍不是事务。
+
+`VerifiedReleaseAcceptance` 证明上述接受决定及所列记录，不证明本波预期请求集合已推导完整、下一波真实卡已经建齐、gate 覆盖当前候选，或本卡已经关闭。reduce 收口入口负责这些装配就绪守卫；等待入口还须核对最终 ReleaseRecord、所有下一步材料与当前卡状态。不得把此读取器单独用作整波放行条件。接受决定单向引用既有成果，最终 ReleaseRecord 再引用接受决定，避免循环引用。
+
 验证入口为 [授权读取测试](../../tests/delivery-collaboration-authority.spec.ts)，使用真实派发校验函数及 REST 替身。覆盖历史资格、云端 facts、停写编辑、计划提前授权、链外写者、卡片变化和撤销；真实 GitHub 采用另行验证。
 
 验证资源为 [schema 测试](../../tests/delivery-collaboration-schema.spec.ts)、[分页与序号测试](../../tests/delivery-collaboration-read.spec.ts)和[信任测试](../../tests/delivery-collaboration-trust.spec.ts)。这些边界函数不自动接受成果、派发任务、创建 PR 或关闭 Issue。

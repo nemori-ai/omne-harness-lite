@@ -170,6 +170,11 @@ export type ReleaseRecord = {
   recordedAt: string
 }
 
+export type ReleaseSubject = Pick<
+  ReleaseRecord,
+  'context' | 'finalHead' | 'expectedRequests' | 'results' | 'lines' | 'next'
+>
+
 export type LineAssignmentRecord = {
   schemaVersion: 1
   kind: 'assignment'

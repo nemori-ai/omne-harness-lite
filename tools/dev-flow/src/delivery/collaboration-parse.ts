@@ -17,6 +17,7 @@ import type {
   LineConsumptionRecord,
   LineDeltaRecord,
   ReleaseRecord,
+  ReleaseSubject,
   RequestInput,
   RequestRecord,
   RequestStateRecord,
@@ -287,11 +288,11 @@ function parseConsumption(value: unknown): LineConsumptionRecord {
   return result
 }
 
-function parseRelease(value: unknown): ReleaseRecord {
+export function parseReleaseSubject(value: unknown): ReleaseSubject {
   const v = fields(
     value,
-    [...WRITTEN, 'finalHead', 'expectedRequests', 'results', 'acceptance', 'lines', 'next'],
-    'release',
+    ['context', 'finalHead', 'expectedRequests', 'results', 'lines', 'next'],
+    'release subject',
   )
   const context = parseWave(v.context),
     finalHead = fullSha(v.finalHead, 'finalHead')
@@ -329,18 +330,29 @@ function parseRelease(value: unknown): ReleaseRecord {
     results.some(result => result.issue !== context.reduceIssue)
   )
     throw new InputError('release: incomplete result references')
+  return { context, finalHead, expectedRequests, results, lines, next }
+}
+
+function parseRelease(value: unknown): ReleaseRecord {
+  const v = fields(
+    value,
+    [...WRITTEN, 'finalHead', 'expectedRequests', 'results', 'acceptance', 'lines', 'next'],
+    'release',
+  )
   return {
+    ...parseReleaseSubject({
+      context: v.context,
+      finalHead: v.finalHead,
+      expectedRequests: v.expectedRequests,
+      results: v.results,
+      lines: v.lines,
+      next: v.next,
+    }),
     schemaVersion: 1,
     kind: 'release',
-    context,
     operationId: uuid(v.operationId, 'operationId'),
     writer: parseWriter(v.writer),
-    finalHead,
-    expectedRequests,
-    results,
     acceptance: parseEvidence(v.acceptance),
-    lines,
-    next,
     recordedAt: utcTime(v.recordedAt, 'recordedAt'),
   }
 }
