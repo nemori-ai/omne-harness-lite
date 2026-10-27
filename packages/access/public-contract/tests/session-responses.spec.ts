@@ -4,6 +4,7 @@ import {
   readGovernanceResponse,
   readSessionResponse,
   type SessionOperation,
+  type SessionHistoryPage,
   type SessionResponse,
   type SessionResponseEncodeInput,
 } from '@omne-harness/public-contract'
@@ -274,6 +275,19 @@ describe('history page', () => {
   ])('accepts a page with %s, because those fields are plain text', (_name, body) => {
     expect(history(body).kind).toBe('response')
   })
+
+  it('reads empty revision, kind and scannedThrough back as empty text', () => {
+    const read = history({
+      ...page,
+      entries: [{ entryId: 'e', revision: '', kind: '', payload: 1 }],
+      scannedThrough: '',
+    })
+    if (read.kind !== 'response' || read.response.outcome !== 'succeeded')
+      throw new Error('expected a history page')
+    const body = read.response.body as SessionHistoryPage
+    expect(body.scannedThrough).toBe('')
+    expect(body.entries[0]).toMatchObject({ revision: '', kind: '' })
+  })
 })
 
 describe('reading and encoding boundaries', () => {
@@ -393,6 +407,43 @@ describe('response encoding guards', () => {
     } as SessionResponseEncodeInput)
   const entry = (payload: unknown) => ({ entryId: 'e', revision: '1', kind: 'k', payload })
 
+  const nothing = entry({ kind: 'null' })
+
+  it.each([
+    ['an empty revision', { ...nothing, revision: '' }, '1'],
+    ['an empty kind', { ...nothing, kind: '' }, '1'],
+    ['an empty scannedThrough', nothing, ''],
+  ])('encodes a page with %s, because those fields are plain text', (_name, item, through) => {
+    const encoded = encodeHistory({
+      entries: [item],
+      next: null,
+      exhausted: true,
+      scannedThrough: through,
+    })
+    if (encoded.kind !== 'encoded') throw new Error('expected an encoded page')
+    expect(decode(encoded.bytes)).toEqual({
+      protocolVersion: version,
+      outcome: 'succeeded',
+      body: {
+        entries: [{ entryId: 'e', revision: item.revision, kind: item.kind, payload: null }],
+        next: null,
+        exhausted: true,
+        scannedThrough: through,
+      },
+      messageId: 'm',
+    })
+  })
+
+  it.each([
+    ['an empty entryId', { entries: [{ ...nothing, entryId: '' }], next: null }],
+    ['an empty next', { entries: [nothing], next: '' }],
+  ])('returns invalid when encoding a page with %s', (_name, part) => {
+    expect(encodeHistory({ exhausted: true, scannedThrough: '1', ...part })).toEqual({
+      kind: 'invalid',
+      diagnostic: { code: 'field' },
+    })
+  })
+
   it('returns invalid for a numeric next instead of encoding null', () => {
     expect(encodeHistory({ entries: [], next: 5, exhausted: false, scannedThrough: '0' })).toEqual({
       kind: 'invalid',
@@ -441,6 +492,39 @@ describe('response encoding guards', () => {
         limits,
       } as unknown as Parameters<typeof encodeGovernanceResponse>[0]),
     ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+  })
+})
+
+describe('local response key order', () => {
+  const governance = () =>
+    readGovernanceResponse({
+      bytes: bytes({
+        protocolVersion: 'governance-public/1',
+        messageId: 'm',
+        outcome: 'protocol-rejected',
+        body: {},
+      }),
+      operation: 'public-health',
+      expectedMessageId: 'm',
+      limits,
+    })
+
+  it.each([
+    ['governance protocol-rejected', governance],
+    ['session protocol-rejected', () => readWire('send-input', wireOf('protocol-rejected', {}))],
+    [
+      'session business outcome',
+      () => readWire('send-input', wireOf('succeeded', { recovered: true })),
+    ],
+  ])('places messageId second on the local %s response', (_name, read) => {
+    const result = read()
+    if (result.kind !== 'response') throw new Error('expected a response')
+    expect(Object.keys(result.response)).toEqual([
+      'protocolVersion',
+      'messageId',
+      'outcome',
+      'body',
+    ])
   })
 })
 
