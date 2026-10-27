@@ -1403,6 +1403,71 @@
               "name": "ScriptedTransportScript",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "createScriptedResultPusher",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedResultPusher",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedResultPusherOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PushRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PushFailure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AckRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedStreamReferences",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedStreamReferences",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedEvent",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedStreamObservation",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedStreamObservation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedStreamObservationOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedAccessDecision",
+              "kind": "type",
+              "pending": false
             }
           ]
         },

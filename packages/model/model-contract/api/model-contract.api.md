@@ -253,14 +253,24 @@
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
+- `AckRecord` · `testing/pusher.d.ts`
+- `PushFailure` · `testing/pusher.d.ts`
+- `PushRecord` · `testing/pusher.d.ts`
 - `ScriptController` · `testing/controller.d.ts`
+- `ScriptedAccessDecision` · `testing/access.d.ts`
 - `ScriptedAction` · `testing/core.d.ts`
 - `ScriptedCall` · `testing/controller.d.ts`
+- `ScriptedEvent` · `testing/stream-references.d.ts`
 - `ScriptedModelError` · `testing/error.d.ts`
 - `ScriptedModelErrorReason` · `testing/error.d.ts`
 - `ScriptedModelProvider` · `testing/provider.d.ts`
 - `ScriptedModelProviderOptions` · `testing/provider.d.ts`
 - `ScriptedPrincipal` · `testing/conformance-scripted.d.ts`
+- `ScriptedResultPusher` · `testing/pusher.d.ts`
+- `ScriptedResultPusherOptions` · `testing/pusher.d.ts`
+- `ScriptedStreamObservation` · `testing/stream-observation.d.ts`
+- `ScriptedStreamObservationOptions` · `testing/stream-observation.d.ts`
+- `ScriptedStreamReferences` · `testing/stream-references.d.ts`
 - `ScriptedTransport` · `testing/transport.d.ts`
 - `ScriptedTransportCounts` · `testing/transport.d.ts`
 - `ScriptedTransportEnding` · `testing/transport.d.ts`
@@ -268,6 +278,9 @@
 - `ScriptedWriteAction` = `WriteAction` · `testing/writes.d.ts`
 - `createScriptedConformanceSubject` · `testing/conformance-scripted.d.ts`
 - `createScriptedModelProvider` · `testing/provider.d.ts`
+- `createScriptedResultPusher` · `testing/pusher.d.ts`
+- `createScriptedStreamObservation` · `testing/stream-observation.d.ts`
+- `createScriptedStreamReferences` · `testing/stream-references.d.ts`
 - `createScriptedTransport` · `testing/transport.d.ts`
 
 ## 声明文件 `call-surface.d.ts`
@@ -2469,6 +2482,18 @@ export type Admit<P> = Mutation<P> & Readonly<{
 }>;
 ```
 
+## 声明文件 `testing/access.d.ts`
+
+```ts
+import { type Access } from '@omne-harness/legal-identity';
+export type ScriptedAccessDecision = 'allow' | 'deny' | 'unavailable';
+export type AccessRules<P> = Readonly<{
+    set(access: Access<P>, decision: ScriptedAccessDecision): void;
+    decide(access: Access<P>): ScriptedAccessDecision;
+}>;
+export declare function createAccessRules<P>(samePrincipal?: (left: P, right: P) => boolean): AccessRules<P>;
+```
+
 ## 声明文件 `testing/calls.d.ts`
 
 ```ts
@@ -2733,6 +2758,13 @@ export { ScriptedModelError } from './error.ts';
 export type { ScriptedModelErrorReason } from './error.ts';
 export { createScriptedConformanceSubject } from './conformance-scripted.ts';
 export type { ScriptedPrincipal } from './conformance-scripted.ts';
+export { createScriptedResultPusher } from './pusher.ts';
+export type { AckRecord, PushFailure, PushRecord, ScriptedResultPusher, ScriptedResultPusherOptions, } from './pusher.ts';
+export { createScriptedStreamReferences } from './stream-references.ts';
+export type { ScriptedEvent, ScriptedStreamReferences } from './stream-references.ts';
+export { createScriptedStreamObservation } from './stream-observation.ts';
+export type { ScriptedStreamObservation, ScriptedStreamObservationOptions, } from './stream-observation.ts';
+export type { ScriptedAccessDecision } from './access.ts';
 ```
 
 ## 声明文件 `testing/mint.d.ts`
@@ -2769,6 +2801,71 @@ export type ScriptedModelProvider<P> = Readonly<{
     controller: ScriptController<P>;
 }>;
 export declare function createScriptedModelProvider<P>(options: ScriptedModelProviderOptions<P>): ScriptedModelProvider<P>;
+```
+
+## 声明文件 `testing/pusher.d.ts`
+
+```ts
+import type { Outcome } from '@omne-harness/operation-result';
+import type { AckReceipt, ConsumerRef, ModelDelivery, ModelDeliveryFailure, ModelDeliveryKey, ModelFailure, ModelOperationId, ModelResultReceiver, ModelSavedReceipt, ResultVersion } from '../index.ts';
+import type { ModelProvider } from '../provider/index.ts';
+import type { ScriptController, ScriptedCall } from './controller.ts';
+import type { ScriptedModelProvider } from './provider.ts';
+export type ScriptedResultPusherOptions<P> = Readonly<{
+    scripted: ScriptedModelProvider<P>;
+    principal: P;
+    resolveReceiver: (owner: ConsumerRef['owner']) => ModelResultReceiver<P> | null;
+    maxRedeliveries?: number;
+}>;
+export type PushFailure = Readonly<{
+    kind: 'no-receiver';
+}> | Readonly<{
+    kind: 'receipt-key-mismatch';
+    receipt: ModelSavedReceipt;
+}> | Readonly<{
+    kind: 'rejected';
+    failure: Exclude<ModelDeliveryFailure, {
+        kind: 'outcome-unknown';
+    }>;
+}> | Readonly<{
+    kind: 'not-frozen';
+    step: 'inspect' | 'dispatches' | 'read';
+    reason: string;
+}> | Readonly<{
+    kind: 'threw';
+    error: unknown;
+}>;
+export type PushRecord = Readonly<{
+    key: ModelDeliveryKey;
+    delivery: ModelDelivery | null;
+    attempts: number;
+}> & (Readonly<{
+    status: 'pending';
+}> | Readonly<{
+    status: 'saved';
+    receipt: ModelSavedReceipt;
+}> | Readonly<{
+    status: 'failed';
+    failure: PushFailure;
+}> | Readonly<{
+    status: 'unknown';
+}>);
+export type AckRecord = Readonly<{
+    call: ScriptedCall;
+    operation: ModelOperationId;
+    result: ResultVersion;
+    attempt: number;
+    reply: Outcome<AckReceipt, ModelFailure>;
+}>;
+export type ScriptedResultPusher<P> = Readonly<{
+    provider: ModelProvider<P>;
+    controller: ScriptController<P>;
+    deliveries(): readonly PushRecord[];
+    settled(call: ScriptedCall): Promise<PushRecord>;
+    redeliver(key: ModelDeliveryKey): Promise<PushRecord>;
+    acknowledgements(): readonly AckRecord[];
+}>;
+export declare function createScriptedResultPusher<P>(options: ScriptedResultPusherOptions<P>): ScriptedResultPusher<P>;
 ```
 
 ## 声明文件 `testing/reduce.d.ts`
@@ -2819,6 +2916,75 @@ export declare function resultPage(parts: readonly ResultPart[], offset: number,
 export declare function validateParts(parts: readonly ResultPart[]): void;
 ```
 
+## 声明文件 `testing/stream-codec.d.ts`
+
+```ts
+import type { StreamCallCodec } from '@omne-harness/stream-arrival';
+export declare const modelStreamCodec: StreamCallCodec;
+```
+
+## 声明文件 `testing/stream-observation.d.ts`
+
+```ts
+import type { Access, TenantId } from '@omne-harness/legal-identity';
+import { type StreamCursor, type StreamRef } from '@omne-harness/stream-arrival';
+import type { ModelStreamObservation, ModelStreamSnapshot } from '../index.ts';
+import { type ScriptedAccessDecision } from './access.ts';
+export type ScriptedStreamObservationOptions = Readonly<{
+    capacity?: number;
+}>;
+export type ScriptedStreamObservation<P> = Readonly<{
+    observation: ModelStreamObservation<P>;
+    publish(input: Readonly<{
+        tenant: TenantId;
+        snapshot: ModelStreamSnapshot;
+    }>): StreamCursor;
+    advance(input: Readonly<{
+        tenant: TenantId;
+        snapshot: ModelStreamSnapshot;
+    }>): StreamCursor;
+    end(input: Readonly<{
+        ref: StreamRef;
+        reason: 'source-closed' | 'stale-stream';
+    }>): void;
+    setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
+    openObservations(ref: StreamRef): number;
+}>;
+export declare function createScriptedStreamObservation<P>(options?: ScriptedStreamObservationOptions): ScriptedStreamObservation<P>;
+```
+
+## 声明文件 `testing/stream-references.d.ts`
+
+```ts
+import { type Access } from '@omne-harness/legal-identity';
+import type { CallState, ModelInvocationRef, ModelStreamReferences, ModelStreamSelection } from '../index.ts';
+import { type ScriptedAccessDecision } from './access.ts';
+export type ScriptedEvent = Readonly<{
+    sequence: number;
+    action: 'owner-read';
+    key: string;
+}>;
+export type ScriptedStreamReferences<P> = Readonly<{
+    references: ModelStreamReferences<P>;
+    confirmSelection(input: Readonly<{
+        reference: ModelInvocationRef;
+        selection: ModelStreamSelection;
+    }>): void;
+    establishWithoutTarget(input: Readonly<{
+        reference: ModelInvocationRef;
+        state: CallState;
+    }>): void;
+    withdrawTarget(reference: ModelInvocationRef): void;
+    setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
+    setSource(state: 'available' | 'unavailable'): void;
+    holdResponse(requestId: number): void;
+    reached(requestId: number): Promise<void>;
+    releaseResponse(requestId: number): void;
+    events(): readonly ScriptedEvent[];
+}>;
+export declare function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>;
+```
+
 ## 声明文件 `testing/transport.d.ts`
 
 ```ts
@@ -2856,6 +3022,14 @@ export type ScriptedTransport = Readonly<{
     counts(): ScriptedTransportCounts;
 }>;
 export declare function createScriptedTransport(script: ScriptedTransportScript): ScriptedTransport;
+```
+
+## 声明文件 `testing/values.d.ts`
+
+```ts
+export declare function frozenCopy<T>(value: T): T;
+export declare function sameValue(left: unknown, right: unknown): boolean;
+export declare function laterDecimal(left: string, right: string): boolean;
 ```
 
 ## 声明文件 `testing/writes.d.ts`

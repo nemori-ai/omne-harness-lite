@@ -7,13 +7,13 @@
 本成员拥有公共领域值、操作接口、可替换提供者端口及共同协议。设计已按 [SPEC](SPEC.md) 接受。状态分四类，各类只说明自己的范围。
 
 1. 已有：凭据的纯契约，即引用、查询、存在性与解析结果、`CredentialPort`、`decodeCredentialId` 与 `sameCredentialHolder`。声明在 [`src/credential.ts`](src/credential.ts) 与 [`src/credential-values.ts`](src/credential-values.ts)。保管与判定不在本包：本地保管归 [model-host-local](../model-host-local/README_ZH.md)，判定归 [model](../model/README_ZH.md)，Cordis 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。
-2. 本包已实现：根入口导出 121 个类型和 20 个运行时值，是消费者面。`./provider` 入口导出提供者协议，72 个类型和 14 个运行时值；分组规则见[公开接口](docs/public-api.md#提供者协议入口)。`./testing` 入口导出受控替代提供者、替代传输和把它们接成被测方的 `createScriptedConformanceSubject`，共 16 个名字。替代提供者与替代传输的结果由测试脚本给出，不证明真实提供者的行为。`./conformance` 入口导出提供者符合性断言 `checkModelProviderConformance`，共 11 个名字，不导出任何替身。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
+2. 本包已实现：根入口导出 121 个类型和 20 个运行时值，是消费者面。`./provider` 入口导出提供者协议，72 个类型和 14 个运行时值；分组规则见[公开接口](docs/public-api.md#提供者协议入口)。`./testing` 入口导出受控替代提供者、替代传输、结果推送与公共观察协议的三个公开替身（推送生产者、`current` 查询与流观察），以及把替代件接成被测方的 `createScriptedConformanceSubject`，共 29 个名字。替代提供者、替代传输与替身的结果由测试脚本给出，不证明真实提供者的行为。`./conformance` 入口导出提供者符合性断言 `checkModelProviderConformance`，共 11 个名字，不导出任何替身。符合性断言按契约在公开面上可观察的义务逐条检查一个提供者。局限：这些检查证明契约面，不证明任何运行实现。
 3. 尚未实现或验证：本包不含执行实现。`executeModel`、`createModelRuntime`、完整宿主与其他提供者不在本包。
 4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。SPEC 的[推理回放](SPEC.md#推理回放)设计已接受。第 2 类计入它的三个函数；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。
 
 ## 使用
 
-从[消费指南](docs/context.md)进入。根入口导出[公开接口](docs/public-api.md)声明的消费侧类型和少量运行时值，`./provider` 入口导出只有提供者作者与 Model 实现使用的端口和契约函数，`./testing` 入口导出受控替代提供者与替代传输，`./conformance` 入口导出提供者符合性断言。本包不含执行实现，需要执行能力时由应用选择实现。
+从[消费指南](docs/context.md)进入。根入口导出[公开接口](docs/public-api.md)声明的消费侧类型和少量运行时值，`./provider` 入口导出只有提供者作者与 Model 实现使用的端口和契约函数，`./testing` 入口导出受控替代提供者、替代传输与三个公开替身，`./conformance` 入口导出提供者符合性断言。本包不含执行实现，需要执行能力时由应用选择实现。
 
 最终页按原序交付 sealed 或 partial 及真实 trims。消费者分别处理完整块和未封值，再提供原 ACK 证据。目标字节只用于完整项组页，超目标大项独页，整个页受原容量 C 约束。消费者须能接收接近 C 的页。见[最终结果指导](docs/public-api.md#最终结果项与页预算)。
 
@@ -49,9 +49,9 @@ pnpm run check:docs
 
 Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model-contract test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
 
-当前测试覆盖根入口的 121 个类型声明与 20 个运行时值（身份解码、`compareOutputCursors` 与常量、调用引用 codec、`deriveGuardControlOperation`、`judgeModelDelivery` 与投影函数）和 `./provider` 入口的 72 个类型声明与 14 个运行时值（操作引用 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`，以及回放函数 `judgeReplayDeclaration`、`projectReplay`、`continuedMessages`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./conformance` 的符合性断言（`./testing` 的替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
+当前测试覆盖根入口的 121 个类型声明与 20 个运行时值（身份解码、`compareOutputCursors` 与常量、调用引用 codec、`deriveGuardControlOperation`、`judgeModelDelivery` 与投影函数）和 `./provider` 入口的 72 个类型声明与 14 个运行时值（操作引用 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`，以及回放函数 `judgeReplayDeclaration`、`projectReplay`、`continuedMessages`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者、替代传输与三个公开替身，以及 `./conformance` 的符合性断言（`./testing` 的替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
 
-当前目标声明和 Model 观察别名见[公开接口](docs/public-api.md#model-当前目标与公共观察)。[类型探针](tests/model-stream-selection.spec-d.ts)核对公开形状，[私有替身场景](tests/model-stream-selection.spec.ts)核对查询顺序和资格；这些检查不验证真实提供者。
+当前目标声明和 Model 观察别名见[公开接口](docs/public-api.md#model-当前目标与公共观察)。[类型探针](tests/model-stream-selection.spec-d.ts)核对公开形状，[`current` 替身场景](tests/testing-stream-references.spec.ts)核对查询顺序和资格；这些检查不验证真实提供者。
 
 [交付协议模型](tests/protocol-model/README.md)说明结果保存、ACK、清理与晚账的有界探索，以及具名负控和运行监督。正式入口归慢层；模型和测试替身均不证明生产持久性或真实提供者符合性。
 
