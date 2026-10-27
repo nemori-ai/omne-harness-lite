@@ -1,4 +1,5 @@
 name: delivery-facts
+run-name: delivery-facts:${{ inputs.nonce }}:${{ inputs.issue }}:${{ inputs.authority }}
 
 # 交付身份（#546、#554）：为 Claude Code 云端会话的 start 读取开工事实，并以机读评论发回卡上。
 # 只读：派发评论作者、publish environment 的 required reviewers、卡在 Project 中的 item 与 Stage。
