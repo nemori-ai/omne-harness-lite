@@ -14,6 +14,15 @@ export default defineConfig(({ mode }) => {
           ),
         },
         {
+          find: /^@omne-harness\/model-contract\/provider$/,
+          replacement: fileURLToPath(
+            new URL(
+              '../../../packages/model/model-contract/src/provider/index.ts',
+              import.meta.url,
+            ),
+          ),
+        },
+        {
           find: /^@omne-harness\/model-contract\/testing$/,
           replacement: fileURLToPath(
             new URL('../../../packages/model/model-contract/src/testing/index.ts', import.meta.url),

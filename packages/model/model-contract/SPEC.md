@@ -794,7 +794,7 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier �
 
 推送生产者替身、`current` 替身与观察替身经 `./testing` 公开，供契约骨架与消费方的契约测试使用。受控替身指留在成员 tests/helpers 的 receiver 替身，下文只称 receiver 替身。推送生产者替身包住 `./testing` 的[受控替代提供者](docs/public-api.md#受控替代提供者)，按[结果推送与保存](#结果推送与保存)向使用方注入的接收端口推送交付。接收方由使用方按 `ConsumerRef.owner` 的解析函数注入，替身不导入任何接收方实现。推送生产者替身遵守交付键与冻结载荷、result saved 之后才推 account、回包未知时按原 key 与冻结载荷重投、同 key 认回、saved 后经 retained 交接取 ACK。它不执行每租户与全局限额及背压、正文释放后的晚账恢复扫描、持久交付待办。`current` 替身从一个确认记录给出 state 与当前目标，未受理、错误 admission、资格不可用、来源不可用和响应等待可分别调度。观察替身按 `StreamRef` 提供内存中的公共内容观察。同一 `StreamRef` 在观察者脱离又重新接上之后，先给出当时的完整快照，再接着给出后续增量，内容连续。
 
-公开的理由有两条。第一，这三个替身扮演 Model 宿主一侧：结果推送的生产者、`current` 的来源与内容观察的来源。消费方的契约测试要用它们对接自己的接收方或显示，而这一侧的行为归 Model 契约。第二，契约骨架不得用上游私有导入或本地业务替身闭合缺口（[契约骨架的维护与退出](../../../apps/m2-contract-skeleton/SPEC.md#maintenance-and-exit)）。所以这些替身只能由 Model 契约公开提供。依据：[#783 修订决定第 5 条](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6420748295)。
+公开的理由有两条。第一，这三个替身扮演 Model 宿主一侧：结果推送的生产者、`current` 的来源与内容观察的来源。消费方的契约测试要用它们对接自己的接收方或显示，而这一侧的行为归 Model 契约。第二，契约骨架不得用上游私有导入或本地业务替身闭合缺口（[契约骨架的维护与退出](../../../apps/m2-contract-skeleton/SPEC.md#maintenance-and-exit)）。所以这些替身只能由 Model 契约公开提供。依据：[#783 修订决定第 5 条](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6420748295)；M1.5 关闭门 H3 允许保留的替身只有 Model 宿主一侧（[#783](https://github.com/nemori-ai/omne-harness-lite/issues/783)）。
 
 receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收端口由各消费方拥有者各自实现。receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
 
