@@ -741,21 +741,18 @@ function responseOutput<V extends string>(
   { outcome, messageId }: ResponseHead,
   body: Converted,
 ): ResponseModel<V> {
-  const local: { -readonly [K in keyof ResponseModel<V>['local']]: ResponseModel<V>['local'][K] } =
-    {
-      protocolVersion: version,
-      outcome,
-      body: body.local,
-    }
+  const local = {
+    protocolVersion: version,
+    ...(messageId === undefined ? {} : { messageId }),
+    outcome,
+    body: body.local,
+  } as ResponseModel<V>['local']
   const wire: Record<string, JsonValue> = {
     protocolVersion: stringWire(version),
     outcome: stringWire(outcome),
     body: body.wire,
   }
-  if (messageId !== undefined) {
-    local.messageId = messageId
-    wire.messageId = stringWire(messageId)
-  }
+  if (messageId !== undefined) wire.messageId = stringWire(messageId)
   return { local, wire: wireObject(wire) }
 }
 
