@@ -252,8 +252,9 @@ export function createScriptedStreamObservation<P>(
             queue: [],
             lastDelivered: null,
             pending: [],
+            // Registered while the observation is open; `close` removes it, so it never runs
+            // on a closed observation.
             onAbort() {
-              if (observer.phase.kind === 'closed') return
               terminate(observer, ended('observer-closed'))
               flush(observer)
             },

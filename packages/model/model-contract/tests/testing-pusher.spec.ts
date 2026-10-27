@@ -658,7 +658,7 @@ describe('what the push-producer double does with an operation it reserves', () 
         h.pusher.provider.runtime.calls.admit(admission('a', { operation: operation('ack-a') })),
         'admit',
       ),
-    ).rejects.toThrow(ScriptedModelError)
+    ).rejects.toThrow('uses a prefix the pusher reserves')
     expect(h.pusher.deliveries()).toEqual([])
     const accepted = must(
       await within(h.pusher.provider.runtime.calls.admit(admission('a')), 'admit'),
@@ -680,6 +680,16 @@ describe('what the push-producer double does with an operation it reserves', () 
       await within(h.pusher.provider.runtime.calls.admit(admission('a')), 'admit'),
     )
     expect(accepted).toMatchObject({ call: call('a'), recovered: false })
+  })
+
+  it('forwards an admission whose operation is not text, and the provider refuses it', async () => {
+    const h = harness()
+    const reply = await within(
+      // @ts-expect-error an operation that is not text exercises the provider's own input judge
+      h.pusher.provider.runtime.calls.admit({ ...admission('a'), operation: 7 }),
+      'admit',
+    )
+    expect(reply).toMatchObject({ failure: { kind: 'invalid' } })
   })
 
   it('admits an operation that only contains a reserved prefix later in its body', async () => {
@@ -904,5 +914,21 @@ describe('what the push-producer double does when its own work fails', () => {
     ])
     expect(() => h.pusher.redeliver(resultKey('a'))).toThrow('the delivery was never frozen')
     expect((await within(h.pusher.settled(callRef('a')), 'settled')).status).toBe('saved')
+  })
+})
+
+describe('late accounts of a result that was not saved', () => {
+  it('does not push a late account while the result delivery has failed', async () => {
+    const h = harness()
+    await admitted(h, 'a', [dispatch('first')])
+    h.answer({ kind: 'denied' })
+    settle(h, 'a')
+    expect((await within(h.pusher.settled(callRef('a')), 'settled')).status).toBe('failed')
+    h.pusher.controller.recordDispatch({
+      ...callRef('a'),
+      record: { ...startedDispatch, account: account('a', '1') },
+    })
+    expect((await within(h.pusher.settled(callRef('a')), 'settled')).status).toBe('failed')
+    expect(h.pusher.deliveries().map(item => item.key)).toEqual([resultKey('a')])
   })
 })

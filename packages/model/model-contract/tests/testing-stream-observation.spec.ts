@@ -385,6 +385,35 @@ describe('an observation of a published Model stream', () => {
     expect(await within(iterator.next(), 'next')).toEqual({ done: true, value: undefined })
   })
 
+  it('gives a waiting reader observer-closed as soon as the signal aborts', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    const waiting = reader.next()
+    reader.abort()
+    expect(await waiting).toEqual({ kind: 'ended', reason: 'observer-closed' })
+    expect(source.openObservations(stream())).toBe(0)
+  })
+
+  it('gives a waiting reader denied as soon as the access is withdrawn', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    const waiting = reader.next()
+    source.setAccess(access(), 'deny')
+    expect(await waiting).toEqual({ kind: 'ended', reason: 'denied' })
+  })
+
+  it('keeps an open observer open when the access of another principal changes', async () => {
+    const { source, published } = opened()
+    const reader = watch(source)
+    await reader.next()
+    source.setAccess({ tenant: tenant(), principal: { subject: 'other' } }, 'allow')
+    expect(source.openObservations(stream())).toBe(1)
+    const c2 = source.advance({ tenant: tenant(), snapshot: second() })
+    expect(await reader.next()).toMatchObject({ kind: 'delta', from: published, cursor: c2 })
+  })
+
   it('hands out frozen copies and is not changed by later changes to the inputs', async () => {
     const source = createScriptedStreamObservation<Principal>()
     source.setAccess(access(), 'allow')
