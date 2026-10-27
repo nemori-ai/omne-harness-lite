@@ -124,7 +124,7 @@ export function readPublishedDeliveryFacts(
         Date.parse(comment.createdAt) > Date.parse(ended)
       )
         unknown('Published facts comment is outside its workflow attempt')
-      return { created, started, ended, workflow: { ...workflow } }
+      return { created, started, workflow: { ...workflow } }
     }
     same(check(current), check(attempt), 'Published facts workflow attempt changed')
     return { current, attempt }
