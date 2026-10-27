@@ -22,6 +22,7 @@ import {
   existingRequest,
   readRequestHistory,
   requireRequestSlot,
+  verifyRedispatchReferences,
 } from './integration-request-read.ts'
 import { findRequestRuns, readRequestRun, requireRunActors } from './integration-request-runs.ts'
 import type { RequestBootstrap } from './integration-request.ts'
@@ -63,7 +64,8 @@ export function registerIntegrationRequest(options: {
     throw new InputError('integration-request-action-run-not-running')
   const history = readRequestHistory(authority, options.call),
     existing = existingRequest(input, history)
-  if (existing !== undefined)
+  if (existing !== undefined) {
+    verifyRequestEvidence(input, options.evidenceReader ?? githubRequestEvidence(options.call))
     return {
       status: 'reused',
       receipt: {
@@ -72,6 +74,7 @@ export function registerIntegrationRequest(options: {
         sha256: commentDigest(existing.receipt.body),
       },
     }
+  }
   const prior = findRequestRuns(input, workflow, options.call)
   if (
     workflow.runAttempt !== 1 ||
@@ -83,6 +86,13 @@ export function registerIntegrationRequest(options: {
   )
     return { status: 'unknown', errorCode: 'integration-request-registration-needs-recovery' }
   requireRequestSlot(input, history)
+  verifyRedispatchReferences(
+    input,
+    history,
+    authority,
+    options.call,
+    options.evidenceReader ?? githubRequestEvidence(options.call),
+  )
   validateRequestBindings({
     request: input,
     authority,

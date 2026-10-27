@@ -6,11 +6,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { canonical, digest } from '../src/integration/parse.ts'
 import { BINDING_MARKERS, type TaskBindingV2 } from '../src/delivery/binding.ts'
 import { encodeRecordComment } from '../src/delivery/collaboration-comments.ts'
-import type { RequestInput } from '../src/delivery/collaboration-records.ts'
+import type { ActiveAssignment, RequestInput } from '../src/delivery/collaboration-records.ts'
 import { requestRunName } from '../src/delivery/collaboration-trust.ts'
 import { dispatchComment } from '../src/delivery/dispatch.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
 import { registerIntegrationRequest } from '../src/delivery/integration-request-action.ts'
+import { runIntegrationRequestAction } from '../src/delivery/integration-request-action-cli.ts'
 import { runIntegrationRequestCli } from '../src/delivery/integration-request-cli.ts'
 import {
   githubRequestEvidence,
@@ -31,6 +32,9 @@ import {
   NEXT_UUID,
   request,
   requestInput,
+  state,
+  delta,
+  assignment,
   TIME,
   TOOL,
   UUID,
@@ -141,6 +145,7 @@ function fixture() {
       conclusion: null as string | null,
     }
   }
+  let nextRunId = 30
   const posts: string[][] = []
   let lostDispatch = false,
     lostComment = false,
@@ -157,12 +162,13 @@ function fixture() {
         if (json === undefined) throw new Error('Missing dispatch request')
         const value: unknown = JSON.parse(json)
         expect(value).toEqual(input)
-        if (!dropDispatch) runs.push(runValue(input))
+        const runId = nextRunId++
+        if (!dropDispatch) runs.push(runValue(input, runId))
         if (lostDispatch) throw new Error('Lost dispatch response')
         return {
-          workflow_run_id: 30,
-          run_url: 'https://api.github.com/repos/owner/repo/actions/runs/30',
-          html_url: 'https://github.com/owner/repo/actions/runs/30',
+          workflow_run_id: runId,
+          run_url: `https://api.github.com/repos/owner/repo/actions/runs/${runId}`,
+          html_url: `https://github.com/owner/repo/actions/runs/${runId}`,
         }
       }
       if (path.endsWith('/issues/100/comments')) {
@@ -516,5 +522,215 @@ describe('integration request command to trusted Action receipt', () => {
     expect(workflow).toContain('queue: max')
     expect(workflow).not.toContain('pull_request_target')
     expect(workflow).not.toContain('ref: ${{ fromJSON(inputs.request).pull.head }}')
+  })
+  it('can recover after a dead submitter leaves its lock behind', () => {
+    const f = fixture()
+    submitIntegrationRequest(f.options)
+    f.action()
+    f.runs[0]!.status = 'completed'
+    f.runs[0]!.conclusion = 'success'
+    const journal = new RequestJournal(f.options.journalRoot, f.input)
+    writeFileSync(join(journal.directory, 'lock'), '{"pid":99999999}')
+    expect(() => submitIntegrationRequest(f.options)).toThrow('journal-locked')
+    expect(submitIntegrationRequest({ ...f.options, mode: 'recover' }).status).toBe('registered')
+    expect(readFileSync(join(journal.directory, 'lock'), 'utf8')).toBe('{"pid":99999999}')
+    expect(f.posts).toHaveLength(2)
+  })
+
+  it('keeps network readback failures unknown after persisting dispatch intent', () => {
+    const f = fixture()
+    submitIntegrationRequest(f.options)
+    const result = submitIntegrationRequest({
+      ...f.options,
+      mode: 'recover',
+      call: () => {
+        throw new Error('offline')
+      },
+    })
+    expect(result).toMatchObject({
+      status: 'unknown',
+      errorCode: 'integration-request-readback-unavailable',
+    })
+    expect(f.posts).toHaveLength(1)
+  })
+
+  it('does not publish from recover even if the crash occurred before the dispatch checkpoint', () => {
+    const f = fixture(),
+      journal = new RequestJournal(f.options.journalRoot, f.input)
+    journal.prepare({
+      schemaVersion: 1,
+      operationId: NEXT_UUID,
+      input: f.input,
+      workflow: {
+        path: '.github/workflows/integration-request.yml',
+        ref: 'github-gate',
+        head: TOOL,
+        inputDigest: digest(canonical(f.input)),
+      },
+      preparedAt: TIME,
+    })
+    expect(submitIntegrationRequest({ ...f.options, mode: 'recover' }).status).toBe('unknown')
+    expect(f.posts).toHaveLength(0)
+    expect(journal.attempted).toBe(false)
+  })
+
+  it('refuses corrupt durable bytes and does not replace the request', () => {
+    const f = fixture()
+    submitIntegrationRequest(f.options)
+    const journal = new RequestJournal(f.options.journalRoot, f.input)
+    writeFileSync(join(journal.directory, 'intent.json'), '{"schemaVersion":1,')
+    expect(() => submitIntegrationRequest({ ...f.options, mode: 'recover' })).toThrow(
+      'json-invalid',
+    )
+    expect(f.posts).toHaveLength(1)
+  })
+
+  it('requires the supplied stop declaration and immutable evidence to exist before dispatch', () => {
+    const f = fixture()
+    f.api.comments.splice(
+      f.api.comments.findIndex(item => item.id === 10),
+      1,
+    )
+    expect(() => submitIntegrationRequest(f.options)).toThrow()
+    expect(f.posts).toHaveLength(0)
+    const other = fixture()
+    Object.assign(other.input.stopped, { confirmed: false })
+    expect(() => submitIntegrationRequest(other.options)).toThrow()
+    expect(other.posts).toHaveLength(0)
+  })
+  it.each([false, true])(
+    'requires matching redispatch delta and stop evidence before the same-wave next attempt (tampered=%s)',
+    tampered => {
+      const f = fixture()
+      submitIntegrationRequest(f.options)
+      f.action()
+      f.runs[0]!.status = 'completed'
+      f.runs[0]!.conclusion = 'success'
+      const nextTask = { ...f.input.tasks[0], attempt: '11-r1-a2' }
+      const nextAssignment: ActiveAssignment = {
+        ...assignment(),
+        context: f.input.context,
+        tasks: [nextTask],
+        inputs: [f.input.report],
+        acceptance: [f.input.report],
+      }
+      const nextDelta = {
+        ...delta(),
+        context: f.input.context,
+        purpose: 'redispatch' as const,
+        newRequestId: NEXT_UUID,
+        writer: { ...state().writer, authorization: taskBinding().dispatch },
+        continuation: { kind: 'active' as const, assignment: nextAssignment },
+        integrationResults: [],
+      }
+      const deltaBody = encodeRecordComment(nextDelta)
+      const deltaComment = {
+        ...rawComment(50, deltaBody, TIME),
+        html_url: 'https://github.com/owner/repo/issues/10#issuecomment-50',
+        issue_url: 'https://api.github.com/repos/owner/repo/issues/10',
+      }
+      const oldState = {
+        ...state(),
+        state: 'superseded' as const,
+        writer: { ...state().writer, authorization: taskBinding().dispatch },
+        disposition: {
+          action: 'redispatch' as const,
+          remainingOwner: 'line-owner',
+          newRequestId: NEXT_UUID,
+          assignment: nextAssignment,
+          delta: { issue: 10, commentId: 50, sha256: digest(deltaBody) },
+          oldWritersStopped: f.input.stopped.evidence,
+          reduceWriteReleased: f.input.report,
+          authorization: f.input.report,
+        },
+      }
+      f.api.comments.push(rawComment(41, encodeRecordComment(oldState), TIME))
+      f.binding.attempt = nextTask.attempt
+      f.card.body = `- 交付修订：1\n${block(BINDING_MARKERS[2], f.binding)}`
+      f.decision.body = dispatchComment('', {
+        schemaVersion: 1,
+        responsible: 'owner',
+        basis: ['Fixture authority'],
+        action: 'dispatch',
+        task: f.binding,
+        confirmations: [],
+      })
+      f.input.previousRequestId = f.input.requestId
+      f.input.requestId = NEXT_UUID
+      f.input.tasks = [nextTask]
+      const original = f.call
+      const read: GhCommand = (argv, timeout) =>
+        argv.at(-1) === 'repos/owner/repo/issues/comments/50'
+          ? { ...deltaComment, body: deltaBody + (tampered ? 'changed' : '') }
+          : original(argv, timeout)
+      const operation = () => submitIntegrationRequest({ ...f.options, call: read })
+      if (tampered) {
+        expect(operation).toThrow('digest-mismatch')
+        expect(f.posts).toHaveLength(2)
+      } else {
+        expect(operation().status).toBe('unknown')
+        expect(f.posts).toHaveLength(3)
+        expect(f.api.data.state).toBe('open')
+      }
+    },
+  )
+
+  it.each([false, true])(
+    'Action environment driver binds exact dispatch inputs before registration (tampered=%s)',
+    tampered => {
+      const f = fixture()
+      submitIntegrationRequest(f.options)
+      const dir = temporary(),
+        eventPath = join(dir, 'event.json'),
+        json = canonical(f.input),
+        hash = digest(json)
+      writeFileSync(
+        eventPath,
+        JSON.stringify({
+          inputs: { request: json, 'input-digest': tampered ? 'f'.repeat(64) : hash },
+        }),
+      )
+      const stdout: string[] = [],
+        stderr: string[] = []
+      const result = runIntegrationRequestAction(
+        {
+          GITHUB_EVENT_NAME: 'workflow_dispatch',
+          GITHUB_REF_TYPE: 'branch',
+          OMNE_REQUEST: json,
+          OMNE_INPUT_DIGEST: hash,
+          GITHUB_REPOSITORY: 'owner/repo',
+          GITHUB_EVENT_PATH: eventPath,
+          GITHUB_REF_NAME: 'github-gate',
+          GITHUB_WORKFLOW_REF:
+            'owner/repo/.github/workflows/integration-request.yml@refs/heads/github-gate',
+          GITHUB_RUN_ID: '30',
+          GITHUB_RUN_ATTEMPT: '1',
+          GITHUB_SHA: TOOL,
+          RUNNER_TEMP: dir,
+        },
+        {
+          call: f.call,
+          bootstrap: () => ({ policy }),
+          stdout: text => stdout.push(text),
+          stderr: text => stderr.push(text),
+        },
+      )
+      expect(result).toBe(tampered ? 2 : 0)
+      expect(stdout).toHaveLength(1)
+      expect(JSON.parse(stdout[0]!).status).toBe(tampered ? 'error' : 'recorded')
+      expect(f.posts).toHaveLength(tampered ? 1 : 2)
+    },
+  )
+  it('refuses recovery when the frozen report evidence was edited after registration', () => {
+    const f = fixture()
+    submitIntegrationRequest(f.options)
+    f.action()
+    f.runs[0]!.status = 'completed'
+    f.runs[0]!.conclusion = 'success'
+    f.api.comments.find(comment => comment.id === 9)!.body += ' edited'
+    expect(() => submitIntegrationRequest({ ...f.options, mode: 'recover' })).toThrow(
+      'evidence-digest-mismatch',
+    )
+    expect(f.posts).toHaveLength(2)
   })
 })

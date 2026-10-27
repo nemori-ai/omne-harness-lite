@@ -3,7 +3,14 @@ import {
   recordAuthorityFor,
   type VerifiedCollaborationAuthority,
 } from './collaboration-authority.ts'
-import { readCompleteComments, recordComments, type RecordComment } from './collaboration-read.ts'
+import {
+  readCompleteComments,
+  readReferencedComment,
+  recordComments,
+  type RecordComment,
+} from './collaboration-read.ts'
+import { decodeRecordComment } from './collaboration-comments.ts'
+import { verifyEvidence, type RequestEvidenceReader } from './integration-request-evidence.ts'
 import type { RequestInput, RequestStateRecord } from './collaboration-records.ts'
 import { registeredRequests, type RegisteredRequest } from './collaboration-requests.ts'
 import { orderedRecords, type SequencedComment } from './collaboration-sequence.ts'
@@ -117,4 +124,43 @@ export function requireRequestSlot(input: RequestInput, history: RequestHistory)
     )
   )
     throw new InputError('integration-request-redispatch-not-authorized')
+}
+
+export function verifyRedispatchReferences(
+  input: RequestInput,
+  history: RequestHistory,
+  authority: VerifiedCollaborationAuthority,
+  read: GhRead,
+  evidence: RequestEvidenceReader,
+): void {
+  if (input.previousRequestId === null) return
+  const state = orderedRecords(
+    history.states.filter(item => item.record.requestId === input.previousRequestId),
+  ).at(-1)?.record
+  if (state?.disposition?.action !== 'redispatch')
+    throw new InputError('integration-request-redispatch-not-authorized')
+  const disposition = state.disposition
+  const comment = readReferencedComment(input.context.repo, disposition.delta, read)
+  const record = decodeRecordComment(comment.body)
+  if (
+    record?.kind !== 'delta' ||
+    record.purpose !== 'redispatch' ||
+    record.newRequestId !== input.requestId ||
+    record.continuation.kind !== 'active' ||
+    canonical(record.continuation.assignment) !== canonical(disposition.assignment)
+  )
+    throw new InputError('integration-request-redispatch-delta-mismatch')
+  validateRecordAuthority(
+    { ...comment, record },
+    recordAuthorityFor(authority, record.context),
+    read,
+  )
+  for (const item of [
+    disposition.oldWritersStopped,
+    disposition.reduceWriteReleased,
+    disposition.authorization,
+    ...disposition.assignment.inputs,
+    ...disposition.assignment.acceptance,
+  ])
+    verifyEvidence(input.context.repo, item, evidence)
 }

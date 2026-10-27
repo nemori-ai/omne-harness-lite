@@ -2,7 +2,15 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { canonical, digest, integer, object, same, string } from '../integration/parse.ts'
+import {
+  canonical,
+  digest,
+  integer,
+  object,
+  same,
+  string,
+  IntegrationError,
+} from '../integration/parse.ts'
 import { collaborationJson } from './collaboration-json.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import { fullSha } from './collaboration-values.ts'
@@ -64,7 +72,22 @@ export function runIntegrationRequestAction(
     })
     driver.stdout(JSON.stringify(result) + '\n')
     return result.status === 'unknown' ? 2 : 0
-  } catch {
+  } catch (error) {
+    const errorCode =
+      error instanceof InputError || error instanceof IntegrationError
+        ? error.message
+        : 'integration-request-registration-unavailable'
+    driver.stdout(
+      JSON.stringify({
+        schemaVersion: 1,
+        operation: 'register',
+        status: 'error',
+        errorCode,
+        retryable: false,
+        sideEffects: 'inspect-run-receipt',
+        recovery: 'recover-same-request',
+      }) + '\n',
+    )
     driver.stderr('Integration request registration failed. No registration success is asserted.\n')
     return 2
   }

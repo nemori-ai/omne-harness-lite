@@ -1,4 +1,12 @@
-import { canonical, digest, integer, object, same, string } from '../integration/parse.ts'
+import {
+  canonical,
+  digest,
+  integer,
+  object,
+  same,
+  string,
+  IntegrationError,
+} from '../integration/parse.ts'
 import {
   readCollaborationAuthority,
   recordAuthorityFor,
@@ -23,6 +31,7 @@ import {
   existingRequest,
   readRequestHistory,
   requireRequestSlot,
+  verifyRedispatchReferences,
 } from './integration-request-read.ts'
 import {
   findRequestRuns,
@@ -101,7 +110,32 @@ export function submitIntegrationRequest(options: SubmitRequestOptions): Integra
   if (options.bootstrap.policy.repository !== input.context.repo)
     throw new InputError('integration-request-repository-mismatch')
   const journal = new RequestJournal(options.journalRoot, input)
-  return journal.lock(() => submitLocked({ ...options, input, operationId }, journal))
+  const run = (): IntegrationRequestResult => {
+    try {
+      return submitLocked({ ...options, input, operationId }, journal)
+    } catch (error) {
+      if (error instanceof InputError || error instanceof IntegrationError || !journal.attempted)
+        throw error
+      return {
+        schemaVersion: 1,
+        operation: 'submit',
+        operationId,
+        repo: input.context.repo,
+        requestId: input.requestId,
+        outcome: input.outcome,
+        status: 'unknown',
+        errorCode: 'integration-request-readback-unavailable',
+        retryable: false,
+        sideEffects: 'dispatch-may-have-started',
+        recovery: 'recover-same-request',
+        evidence: { journal: journal.directory, receipt: null, runs: [] },
+        diagnostics: [
+          'The dispatch intent is durable. Keep the candidate frozen and recover the same request.',
+        ],
+      }
+    }
+  }
+  return options.mode === 'recover' ? run() : journal.lock(run)
 }
 
 function submitLocked(
@@ -140,7 +174,8 @@ function submitLocked(
   }
   const history = readRequestHistory(authority, call),
     existing = existingRequest(input, history)
-  if (existing !== undefined)
+  if (existing !== undefined) {
+    verifyRequestEvidence(input, options.evidenceReader ?? githubRequestEvidence(call))
     return {
       ...common,
       status: 'registered',
@@ -153,12 +188,20 @@ function submitLocked(
           commentId: existing.receipt.id,
           sha256: commentDigest(existing.receipt.body),
         },
-        runs: [],
+        runs: [readRequestRun(input, existing.receipt.record.workflow, call)],
       },
       diagnostics: [],
     }
+  }
   if (options.mode === 'submit' && !journal.attempted) {
     requireRequestSlot(input, history)
+    verifyRedispatchReferences(
+      input,
+      history,
+      authority,
+      call,
+      options.evidenceReader ?? githubRequestEvidence(call),
+    )
     const prior = findRequestRuns(input, intent.workflow, call)
     if (prior.length === 0) {
       const actor = object(
@@ -207,7 +250,8 @@ function submitLocked(
       : [readRequestRun(input, { ...intent.workflow, runId: id, runAttempt: 1 }, call)]
   for (const run of runs) requireRunActors(run, input, grant)
   const refreshed = existingRequest(input, readRequestHistory(authority, call))
-  if (refreshed !== undefined)
+  if (refreshed !== undefined) {
+    verifyRequestEvidence(input, options.evidenceReader ?? githubRequestEvidence(call))
     return {
       ...common,
       status: 'registered',
@@ -224,6 +268,7 @@ function submitLocked(
       },
       diagnostics: [],
     }
+  }
   const failed =
     runs.length > 0 && runs.every(run => run.status === 'completed' && run.conclusion !== 'success')
   return {

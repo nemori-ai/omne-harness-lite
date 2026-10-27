@@ -49,11 +49,19 @@ export function githubRequestEvidence(read: GhRead): RequestEvidenceReader {
   }
 }
 
+export function verifyEvidence(
+  repo: string,
+  evidence: Evidence,
+  read: RequestEvidenceReader,
+): void {
+  const bytes = read(repo, evidence)
+  if (bytes.trim() === '' || digest(bytes) !== evidence.sha256)
+    throw new InputError('integration-request-evidence-digest-mismatch')
+}
+
 export function verifyRequestEvidence(input: RequestInput, read: RequestEvidenceReader): void {
   for (const evidence of [input.report, ...input.verification, input.stopped.evidence]) {
-    const bytes = read(input.context.repo, evidence)
-    if (bytes.trim() === '' || digest(bytes) !== evidence.sha256)
-      throw new InputError('integration-request-evidence-digest-mismatch')
+    verifyEvidence(input.context.repo, evidence, read)
   }
   if (new Set(input.stopped.writers).size !== input.stopped.writers.length)
     throw new InputError('integration-request-stopped-writers-duplicate')

@@ -8,7 +8,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { canonical, digest, fields, integer, literal } from '../integration/parse.ts'
 import { collaborationJson } from './collaboration-json.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
@@ -80,7 +80,14 @@ export class RequestJournal {
         ]),
       ),
     )
-    mkdirSync(this.directory, { recursive: true, mode: 0o700 })
+    const first = mkdirSync(this.directory, { recursive: true, mode: 0o700 })
+    if (first !== undefined) {
+      for (let directory = resolve(this.directory); ; directory = dirname(directory)) {
+        syncDirectory(directory)
+        syncDirectory(dirname(directory))
+        if (directory === resolve(first)) break
+      }
+    }
     syncDirectory(root)
   }
   lock<T>(run: () => T): T {
