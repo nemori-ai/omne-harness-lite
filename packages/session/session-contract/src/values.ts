@@ -2,7 +2,7 @@
 // Session keeps no continuation value: `ExecutionRef` points at the Agent's authoritative record.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   AdvanceRef,
@@ -206,12 +206,18 @@ export type Modes = Readonly<{
   environment: Adoption
   collaboration: 'co-work' | 'auto-drive'
 }>
+/**
+ * 工作区附着：实例轴与版本轴。形状的语义拥有者是工作区域（docs/domains/workspaces）；两个字段都是非空
+ * 文本，格式归工作区域。工作区契约成员发布后改为从那里导入。
+ */
+export type WorkspaceAttachment = Readonly<{ instance: string; basis: string }>
 export type SessionCreation = Readonly<{
   definition: Readonly<{ name: string; candidate: Adoption }>
   execution: Adoption
   requiredIdentities: readonly Readonly<{ capability: string; name: string }>[]
   purpose: string
-  workspace: Adoption | null
+  workspace: WorkspaceId | null
+  attachment: WorkspaceAttachment | null
   modes:
     | Readonly<{ kind: 'explicit'; value: Modes }>
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
@@ -243,7 +249,12 @@ export type DeclarationChange =
       authorization: DurableEvidence
       setting: DurableEvidence
     }>
-  | Readonly<{ kind: 'workspace'; value: Adoption | null; basis: DurableEvidence }>
+  | Readonly<{
+      kind: 'workspace'
+      value: WorkspaceId | null
+      attachment: WorkspaceAttachment | null
+      basis: DurableEvidence
+    }>
   | Readonly<{ kind: 'model'; name: string; basis: DurableEvidence }>
   | Readonly<{ kind: 'declaration'; item: string; value: JsonValue | null; basis: DurableEvidence }>
   | Readonly<{
