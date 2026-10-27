@@ -1,0 +1,48 @@
+name: integration-request
+run-name: integration-request:${{ fromJSON(inputs.request).requestId }}:${{ fromJSON(inputs.request).pull.head || 'none' }}:${{ inputs.input-digest }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: Canonical RequestInput v1 JSON
+        required: true
+        type: string
+      input-digest:
+        description: SHA-256 of the canonical request JSON
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: integration-request-${{ github.repository }}-${{ fromJSON(inputs.request).context.milestone }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  register:
+    if: github.ref_type == 'branch' && github.ref_name == 'github-gate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install the trusted tool's locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @omne-harness/dev-flow
+      - name: Validate and register the frozen handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OMNE_REQUEST: ${{ inputs.request }}
+          OMNE_INPUT_DIGEST: ${{ inputs.input-digest }}
+        run: node --experimental-strip-types tools/dev-flow/src/delivery/integration-request-action-cli.ts
