@@ -71,9 +71,10 @@
 ### UL-workspace · 工作区
 
 - **宿主**：寿命宿主正文未述。Omne Host 托管工作区的治理所有者为一个[租户](#ul-tenant--租户)，登记外部仓库的工作区则无 Omne 治理所有者、各接入租户均为参与者；治理归属及参与关系不据此成为寿命宿主
-- **身份**：工作区自身的持久逻辑身份；legal-identity 第六族 `WorkspaceId`，前缀 `wsp_`（[#679](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)）。工作区地址不是身份，工作区实例是它在部署节点上的装载对象
+- **身份**：工作区自身的持久逻辑身份。工作区地址不是身份，工作区实例是它在部署节点上的装载对象
 - **生灭**：跨会话和实例持续存在；Omne Host 托管工作区仅可由创建者或其明确授予工作区超管权限的租户销毁；确认销毁后全部租户关系删除，本地实例内容保留。登记外部仓库的首次参与者不取得销毁外部资源的特权，外部工作区的终结规则正文未述。一次实例卸载或地址不可达不等于工作区消失；组织限制启用时，受限租户装配不认定外部仓库为工作区、不加载其来源，但不因此销毁全局工作区身份、租户关系或本地实例，不热重判正在运行的会话，普通目录访问仍沿原权限
 - **依据**：[PF-020 工作区](../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）；[PF-020 工作区实例](../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）；[PF-020 工作区地址](../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）；[PF-002 工作区资产层](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 32）
+- **补充依据**：身份的含义归工作区域，文本形式是 legal-identity 第六族 `WorkspaceId`（前缀 `wsp_`），见 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)
 
 ### UL-workspace-instance · 工作区实例
 

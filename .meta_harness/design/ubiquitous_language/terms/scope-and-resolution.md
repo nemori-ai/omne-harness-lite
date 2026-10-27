@@ -125,8 +125,8 @@
 > **EN**: A reference to one load of a workspace on a deployment node. It has two parts: the workspace instance identifier and the load basis (for example, a Git commit). It occurs together with a `WorkspaceId`: the `WorkspaceId` tells which workspace, and the workspace attachment tells on which instance and from which basis the workspace is loaded. The workspace domain owns the format of both parts.
 
 - **形态**：属性
-- **出处**：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）；当前由 Session 契约的[创建规则](../../../../packages/session/session-contract/SPEC.md)以 `workspaceAttachment` 字段承载
-- **别混**：与[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)不是一回事：实例是被装载出来的工作入口，工作区附着只是指向某个实例的一次装载的引用。与[附件](execution-and-outcome.md#ul-attachment--附件--attachment)、[执行挂接](agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment)无关，字段和类型不许简称 `attachment`（同 [C-64](../conflicts.md#c-64执行挂接的候选类型名)）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 4）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/session-contract/SPEC.md#消费者资格与输入)以 `workspaceAttachment` 字段承载
+- **别混**：与[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)不是一回事：实例是被装载出来的工作入口，工作区附着只是指向某个实例的一次装载的引用。与[附件](execution-and-outcome.md#ul-attachment--附件--attachment)、[执行挂接](agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment)无关，字段和类型不许简称 `attachment`（同 [C-64](../conflicts.md#c-64执行挂接的候选类型名)）。产品正文（如[J-WS01](../../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)「报告附着成功」）、[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界与本卷[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)「不再附着」里的「附着」是动作：把工作区接到会话上，或这一动作的结果。它不是本词，本词是一个引用值。两种用法待收敛，见 [C-72](../conflicts.md#c-72附着动作与工作区附着值)
 
 ### UL-workspace-address · 工作区地址 · Workspace Address
 

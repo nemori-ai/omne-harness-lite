@@ -101,7 +101,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 
 一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。下文的"作者插件 fiber"都指它。它不 provide 服务键。它的 `inject` 是实现包里的静态字面量，含 `toolBindings` 与实现需要的服务。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，`ToolLoader.load`，`toolBindings.register`。登记以 `ctx.effect` 配对在该 fiber 上。
 
-登记键 = (来源层, 能力身份, 资产版本)。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`；`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则取合法胜出者序中最先的同形贡献；没有同形者返回 unavailable。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。更正标注（2026-10-22，同上决定）：原文为「`resolve` 按固定采用查键」。
+登记键 = (来源层, 能力身份, 资产版本)。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(wsId)`。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`；`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则取合法胜出者序中最先的同形贡献；没有同形者返回 unavailable。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。不做层序选择。更正标注（2026-10-22，同上决定）：原文为「`resolve` 按固定采用查键」。更正标注（2026-10-27，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)）：原文 `workspace(wsId)` 的 `wsId` 按此理解：它是 `WorkspaceId`，含义归工作区域，文本形式归 legal-identity 第六族。实例与版本不在来源层，归执行环境的放置（[#675](https://github.com/nemori-ai/omne-harness-lite/issues/675) J17）。
 
 同一个键的第二次登记按三种情形处理。同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 conflict，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 conflict，由本地排序域决定。
 
@@ -199,7 +199,7 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 - 决定日期及对应revision：2026-10-21，revision 1。
 - 采用范围：「建议与改变范围」全部条款：对象链、会话常驻规则 R1–R5 与同形判据、采用点判定表与刷新点表、绑定登记表的键与 conflict 政策、换代协调者的三个动词与保留义务、SYS-DYNAMIC 对 Tool 的十条验收判据，以及「受影响拥有者」表所列改变。采用不表示规范已切换或实现完成。
 - 不采用范围及必要理由：层序求值算法、变体、Profile 对象、MCP 动态规则、远端加载提供者、协调者 GC 策略。它们各有接缝，由后续提案承接。
-- 未决与依赖停止点：协调者系统主体的授予写法（IC 评审），不阻塞本提案采用。`WorkspaceId` 的拥有者已由 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（迁移见 #837）关闭：它是 legal-identity 第六族，Tool 来源层与固定请求直接使用，实例与版本不在来源层。
+- 未决与依赖停止点：`WorkspaceId` 的拥有者（归 workspaces 域或 identity 域；Tool 在边界用不透明品牌文本，拥有者定义后替换）；协调者系统主体的授予写法（IC 评审）。两者不阻塞本提案采用。更正标注（2026-10-27，[决定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)）：原文第一项「`WorkspaceId` 的拥有者」已关闭，按此理解：`WorkspaceId` 含义归工作区域，文本形式归 legal-identity 第六族；Tool 来源层与固定请求直接使用；固定请求的实例与版本归 `environment` 所指执行环境的放置（[#675](https://github.com/nemori-ai/omne-harness-lite/issues/675) J17）。迁移见 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837)。
 
 ## 写回现行正文
 
