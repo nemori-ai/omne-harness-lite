@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "script": "test",
+    "tier": "fast",
+    "head": "abc1234abc1234abc1234abc1234abc1234abc12",
+    "branch": "human/issue-102-docs",
+    "dirty": true,
+    "base": { "ref": "origin/main", "mergeBase": "abc1234abc1234abc1234abc1234abc1234abc12" },
+    "startedAt": "2026-10-02T12:00:00.000Z",
+    "parallel": { "memberConcurrency": 2, "vitestMaxWorkers": 4 },
+    "cores": 8,
+    "plan": { "mode": "scoped", "reason": "tools/dev-flow changed" },
+    "members": ["tools/dev-flow"],
+    "wallSeconds": 90
+  },
+  "members": [],
+  "files": [],
+  "nearTimeout": [],
+  "fastOverBudget": [],
+  "failures": [{ "member": "tools/dev-flow", "file": "tools/dev-flow/tests/ledger-derive.spec.ts", "test": "derives", "message": "expected 1 to be 2" }]
+}

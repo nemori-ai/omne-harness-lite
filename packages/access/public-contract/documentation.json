@@ -39,6 +39,30 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
+    },
+    {
+      "id": "topic-public-api",
+      "path": "packages/access/public-contract/docs/public-api.md",
+      "kind": "reference",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "专题职责"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "exports",
+          "anchor": "导出入口"
+        },
+        {
+          "id": "definitions",
+          "anchor": "定义索引"
+        }
+      ]
     }
   ]
 }

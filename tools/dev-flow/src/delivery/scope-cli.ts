@@ -1,14 +1,22 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
+import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { IntegrationError } from '../integration/parse.ts'
 import { runGhCommand } from './github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from './lines.ts'
 import { InputError, issueNumberArgument, parseConfig } from './protocol.ts'
+import {
+  assignReadSets,
+  parseReadSetFile,
+  readOverlap,
+  readSets,
+  type ReadSetFile,
+} from './read-set.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
-import { fileScope, issueScope, scopeOverlap } from './scope-overlap.ts'
+import { fileScope, issueScope, scopeOverlap, type ScopeCard } from './scope-overlap.ts'
 
 const usage =
-  'Usage: scope-cli.ts <Issue number | binding file>... [--include-closed] [--config <file>] [--lines <file>]'
+  'Usage: scope-cli.ts <Issue number | binding file | read-set file>... [--include-closed] [--config <file>] [--lines <file>]'
 
 type Input = { kind: 'issue'; number: number } | { kind: 'file'; path: string }
 function options(args: string[]): {
@@ -48,23 +56,46 @@ try {
   const args = options(process.argv.slice(2)),
     repository = parseConfig(readJson(args.config)).repository,
     table = parseDeliveryLines(readJson(args.lines))
-  const cards = args.inputs.map(input =>
-    input.kind === 'issue'
-      ? issueScope(repository, input.number, runGhCommand)
-      : fileScope(input.path, readFileSync(input.path, 'utf8')),
+  const cards: ScopeCard[] = [],
+    files: ReadSetFile[] = []
+  for (const input of args.inputs) {
+    if (input.kind === 'issue') {
+      cards.push(issueScope(repository, input.number, runGhCommand))
+      continue
+    }
+    const content = readFileSync(input.path, 'utf8'),
+      file = parseReadSetFile(input.path, content)
+    if (file === undefined) cards.push(fileScope(input.path, content))
+    else files.push(file)
+  }
+  const pages = assignReadSets(
+    cards.map(card => card.source),
+    files,
+    process.cwd(),
   )
-  const result = scopeOverlap(cards, table, { includeClosed: args.includeClosed })
+  const overlap = scopeOverlap(cards, table, { includeClosed: args.includeClosed }),
+    members = listWorkspaceMembers(fileTree(repositoryFile('')), []),
+    sets = readSets(
+      overlap.cards.map(card => ({ ...card, pages: pages.get(card.source) ?? [] })),
+      members,
+    ),
+    readConflicts = readOverlap(overlap.cards, sets)
+  const result = { ...overlap, readSets: sets, readConflicts }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
   for (const conflict of result.conflicts)
     process.stderr.write(
       `scope-overlap: ${conflict.first} ${conflict.firstPath} <-> ${conflict.second} ${conflict.secondPath}\n`,
     )
-  if (result.conflicts.length > 0) process.exitCode = 1
+  for (const conflict of readConflicts)
+    process.stderr.write(
+      `read-overlap: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
+    )
+  if (result.conflicts.length > 0 || readConflicts.length > 0) process.exitCode = 1
 } catch (error) {
   const message =
     error instanceof InputError || error instanceof IntegrationError
       ? error.message
-      : 'Cannot read a card, a binding file, the line table or GitHub. API output omitted.'
+      : 'Cannot read a card, a binding or read-set file, the line table, the workspace members or GitHub. API output omitted.'
   process.stderr.write(`${JSON.stringify({ kind: 'scope-error', message })}\n`)
   process.exitCode = 2
 }

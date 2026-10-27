@@ -12,6 +12,17 @@ domains 和 roles/rules 的身份分别唯一。入口路径为仓库相对路�
 
 schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史schemaVersion 1保留具名根前缀与同目录相对形式；不通过搜索哪个文件存在来选择基准。有效source的文件及锚点都从输入相同版本读取，坏引用拒绝。工作树中的符号链接不能让读取越出检出；历史版只读取该commit中的普通文件。
 
+`rules` 接受以下四个精确 H1 身份，来源仍须通过同版本文件与锚点校验。
+
+- `H1-SESSION-FACTS`
+- `H1-AGENT-REASSEMBLY`
+- `H1-MODEL-LIFETIME`
+- `H1-OBSERVATION-CONTINUITY`
+
+报告在 `coverage` 中将每个 H1 身份列为 `behavior`，明确标注本报告未执行。
+实际契约、探针或测试负责提供 H1 行为证据。报告不为 H1 生成符合性行，也不据此声称静态收敛。
+登记身份与来源不表示 H1 已采用或运行时符合。未知身份和近似拼写仍然拒绝。
+
 ## 方向行
 
 表示（schemaVersion 3）：

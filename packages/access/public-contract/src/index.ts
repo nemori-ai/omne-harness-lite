@@ -4,6 +4,12 @@ export {
   encodeGovernanceRequest,
   encodeGovernanceResponse,
 } from './codec.ts'
+export {
+  readSessionRequest,
+  readSessionResponse,
+  encodeSessionRequest,
+  encodeSessionResponse,
+} from './session-codec.ts'
 export type {
   GovernanceProvidedOperation,
   GovernanceStageOperation,
@@ -21,3 +27,20 @@ export type {
   GovernanceEncodeResult,
   GovernanceResponseEncodeInput,
 } from './messages.ts'
+export type {
+  SessionOperation,
+  SessionRequestBodies,
+  SessionRequest,
+  SessionOutcomes,
+  SessionSuccessBodies,
+  SessionResponse,
+  SessionProtocolRejected,
+  SessionHistoryEntry,
+  SessionHistoryPage,
+  SessionCodecLimits,
+  SessionDiagnostic,
+  SessionRequestRead,
+  SessionResponseRead,
+  SessionEncodeResult,
+  SessionResponseEncodeInput,
+} from './session-messages.ts'

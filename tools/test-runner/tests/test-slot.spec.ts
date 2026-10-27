@@ -3,6 +3,7 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -11,7 +12,7 @@ import {
   realpathSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -53,6 +54,8 @@ function slotEnv(env: Record<string, string>): NodeJS.ProcessEnv {
 interface LedgerLine {
   readonly event: 'ran' | 'gave-up'
   readonly command: string
+  readonly issue: number | null
+  readonly attempt: string | null
   readonly cwd: string
   readonly cores: number
   readonly slots: number
@@ -78,8 +81,36 @@ function ledger(): LedgerLine[] {
     .map(line => JSON.parse(line) as LedgerLine)
 }
 
-function slot(args: readonly string[], env: Record<string, string> = {}) {
-  return spawnSync(SCRIPT, args, { encoding: 'utf8', env: slotEnv(env) })
+function slot(args: readonly string[], env: Record<string, string> = {}, cwd?: string) {
+  return spawnSync(SCRIPT, args, { encoding: 'utf8', env: slotEnv(env), cwd })
+}
+
+/**
+ * 在 `cwd` 起 git 子进程用的环境：git 只认 `cwd` 本身。外面环境里的 `GIT_DIR`、`GIT_WORK_TREE`、
+ * `GIT_COMMON_DIR` 不漏进来，`GIT_CEILING_DIRECTORIES` 让 git 不向上找到临时目录之外的仓库。
+ */
+function gitEnv(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const result: NodeJS.ProcessEnv = { ...env, GIT_CEILING_DIRECTORIES: dirname(cwd) }
+  for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR']) delete result[name]
+  return result
+}
+
+/** 在 `cwd` 经名额执行命令，git 环境见 `gitEnv`。 */
+function slotIn(cwd: string, args: readonly string[]) {
+  return spawnSync(SCRIPT, args, { encoding: 'utf8', env: gitEnv(cwd, slotEnv({})), cwd })
+}
+
+/** 在 `name` 下建一个 git 仓库，git 目录里写入 `context`（task context 文件的原文）。 */
+function repository(name: string, context: string): string {
+  const root = join(dir, name)
+  mkdirSync(root)
+  const init = spawnSync('git', ['init', '-q', root], {
+    encoding: 'utf8',
+    env: gitEnv(root, process.env),
+  })
+  expect(init.status, init.stderr).toBe(0)
+  writeFileSync(join(root, '.git', 'omne-integration-context.json'), context)
+  return root
 }
 
 interface Queued {
@@ -229,6 +260,43 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       expect(load).toHaveLength(3)
       expect(load?.every(value => typeof value === 'number' && value >= 0)).toBe(true)
     }
+  })
+
+  it('运行账本：工作树有 task context 时记下最后一项任务的卡号与 attempt', () => {
+    const task = (number: number, attempt: string) => ({
+      binding: { issue: { number }, attempt },
+      taskSource: 'b'.repeat(40),
+    })
+    const root = repository(
+      'bound',
+      JSON.stringify({ schemaVersion: 1, tasks: [task(700, '700-r1-a1'), task(794, '794-r2-a1')] }),
+    )
+    const result = slotIn(root, ['bash', '-c', 'exit 4'])
+    expect(result.status).toBe(4)
+    expect(result.stderr).toBe('')
+    expect(ledger()).toMatchObject([{ event: 'ran', cwd: root, issue: 794, attempt: '794-r2-a1' }])
+  })
+
+  it('运行账本：不是 git 仓库或 context 不合格时卡号与 attempt 为 null，不提醒，退出码照旧', () => {
+    const plain = join(dir, 'plain')
+    mkdirSync(plain)
+    const broken = repository('broken', '{ not json')
+    const untyped = repository('untyped', JSON.stringify({ tasks: [{ binding: { issue: {} } }] }))
+    const zero = repository(
+      'zero',
+      JSON.stringify({ tasks: [{ binding: { issue: { number: 0 }, attempt: '0-r1-a1' } }] }),
+    )
+    for (const cwd of [plain, broken, untyped, zero]) {
+      const result = slotIn(cwd, ['bash', '-c', 'exit 5'])
+      expect(result.status).toBe(5)
+      expect(result.stderr).toBe('')
+    }
+    expect(ledger().map(line => [line.cwd, line.issue, line.attempt])).toEqual([
+      [plain, null, null],
+      [broken, null, null],
+      [untyped, null, null],
+      [zero, null, null],
+    ])
   })
 
   it('运行账本写不进去：只提醒，不改命令的退出码', () => {
