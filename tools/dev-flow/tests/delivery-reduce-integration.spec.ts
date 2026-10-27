@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -30,6 +30,7 @@ import {
   taskBinding,
 } from './fixtures/collaboration-authority.ts'
 import { BASE, FINAL, HEAD, TOOL, TIME, context, request, state } from './fixtures/collaboration.ts'
+import { reduceMain } from '../src/delivery/reduce-cli.ts'
 
 const directories: string[] = []
 beforeEach(() => {
@@ -209,6 +210,51 @@ function fixture(twoLines = false) {
 }
 
 describe('reduce authoritative queue and exclusive ownership', () => {
+  it.each([false, true])(
+    'CLI reads, claims and resumes the same operation; unknown=%s',
+    unknown => {
+      const f = fixture()
+      const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+      const bootstrap = () => ({
+        ...f.ports,
+        verifyWaveEvidence: () => {
+          throw new Error('No wave report in this request-only scenario')
+        },
+      })
+      const file = join(f.root, 'command.json')
+      try {
+        writeFileSync(file, JSON.stringify({ schemaVersion: 1, context, owner: 'owner' }))
+        expect(reduceMain(['next', '--input', file], bootstrap)).toBe(0)
+        expect(f.writes).toHaveLength(0)
+        const input = { schemaVersion: 1, ...f.input(f.claimed()) }
+        writeFileSync(file, JSON.stringify(input))
+        if (unknown) f.drop()
+        expect(reduceMain(['claim', '--input', file], bootstrap)).toBe(unknown ? 1 : 0)
+        expect(reduceMain(['claim', '--input', file], bootstrap)).toBe(unknown ? 1 : 0)
+        expect(f.writes).toHaveLength(1)
+        expect(String(stdout.mock.calls.at(-1)?.[0])).toContain(unknown ? 'unknown' : 'confirmed')
+      } finally {
+        stdout.mockRestore()
+      }
+    },
+  )
+
+  it('refuses unsupported or duplicate CLI inputs before any authority read or write', () => {
+    const f = fixture()
+    const bootstrap = vi.fn(() => ({ ...f.ports, verifyWaveEvidence: () => {} }))
+    const file = join(f.root, 'command.json')
+    const input = { schemaVersion: 1, context, owner: 'owner' }
+    writeFileSync(file, JSON.stringify({ ...input, adoptedWorkflowHead: TOOL }))
+    expect(() => reduceMain(['next', '--input', file], bootstrap)).toThrow('unknown fields')
+    writeFileSync(file, JSON.stringify(input))
+    expect(() => reduceMain(['next', '--input', file, '--input', file], bootstrap)).toThrow(
+      'reduce-one-input-required',
+    )
+    writeFileSync(file, '{"schemaVersion":1,"schemaVersion":1}')
+    expect(() => reduceMain(['next', '--input', file], bootstrap)).toThrow()
+    expect(bootstrap).not.toHaveBeenCalled()
+    expect(f.writes).toEqual([])
+  })
   it('finds the next arrival after more than 200 comments without consuming the first request', () => {
     const f = fixture(true)
     for (let i = 0; i < 205; i++) f.source.comments.push(rawComment(1000 + i, 'ordinary comment'))
@@ -770,7 +816,6 @@ import {
   reduceSupervisionSources,
 } from '../src/delivery/reduce-supervise-sources.ts'
 import type { SuperviseInput } from '../src/delivery/reduce-supervise.ts'
-import { appendFileSync, writeFileSync } from 'node:fs'
 
 describe('supervision production readers over simulated REST', () => {
   function setup(f: ReturnType<typeof fixture>) {
@@ -857,6 +902,42 @@ describe('supervision production readers over simulated REST', () => {
     await sources.pollActiveRuns()
     expect(f.source.calls.length).toBe(before)
     expect(calls.every(args => args[2] === 'GET')).toBe(true)
+  })
+  it('reconciles a receipt that arrived after the active request run was first observed', async () => {
+    const f = fixture(),
+      { file, input } = setup(f),
+      receipt = f.requests[0]!
+    const comment = f.source.comments.pop()!
+    let completed = false
+    const read: GhCommand = (args, timeout) => {
+      const result = f.ports.read(args, timeout)
+      if (
+        args.at(-1)?.includes(`/runs/${receipt.workflow.runId}/`) &&
+        typeof result === 'object' &&
+        result !== null
+      )
+        return {
+          ...result,
+          status: completed ? 'completed' : 'in_progress',
+          conclusion: completed ? 'success' : null,
+        }
+      return result
+    }
+    const sources = reduceSupervisionSources(
+      input,
+      { ...f.ports, read },
+      {
+        file,
+        runs: [{ kind: 'request-run', input: receipt.input, workflow: receipt.workflow }],
+        candidates: [],
+        local: [],
+        release: async () => [],
+      },
+    )
+    expect(await sources.pollActiveRuns()).toEqual([])
+    f.source.comments.push(comment)
+    completed = true
+    expect((await sources.pollActiveRuns())[0]?.reasonCode).toBe('request-registered')
   })
   it('reports a foreign candidate head, current-head failing checks and applicable change requests', async () => {
     const f = fixture(),

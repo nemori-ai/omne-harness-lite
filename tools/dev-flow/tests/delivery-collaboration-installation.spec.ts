@@ -31,6 +31,7 @@ import type { GhRead } from '../src/delivery/github-read.ts'
 import { backend, block, dispatch, policy, rawComment } from './fixtures/collaboration-authority.ts'
 import { FACTS_MARKER } from '../src/integration/delivery-facts-record.ts'
 import { evidence } from './fixtures/collaboration.ts'
+import { openReduceInstallation } from '../src/delivery/reduce-bootstrap.ts'
 
 const roots: string[] = []
 afterEach(() => {
@@ -114,6 +115,37 @@ function fixture() {
 }
 
 describe('explicit collaboration installation', () => {
+  it('refuses reduce execution with an installation that did not adopt the gate revision', () => {
+    const f = fixture()
+    f.adopt()
+    expect(() => openReduceInstallation(f.root, policy.repository, f.read)).toThrow(
+      'reduce-gate-installation-v3-required',
+    )
+    expect(f.trace).toEqual([])
+  })
+
+  it('assembles reduce ports using only the adopted gate revision and shared report readers', () => {
+    const f = fixture()
+    const installation = {
+      ...f.installation,
+      schemaVersion: 3,
+      gateWorkflow: {
+        path: '.github/workflows/gate-publish.yml',
+        ref: 'github-gate',
+        head: 'a'.repeat(40),
+      },
+    }
+    const text = JSON.stringify(installation)
+    installCollaboration(f.root, text, digest(text))
+    const ports = openReduceInstallation(f.root, policy.repository, f.read)
+    expect(ports.gateWorkflowHead).toBe('a'.repeat(40))
+    expect(ports.verifyCandidateEvidence).toBeTypeOf('function')
+    expect(ports.verifyWaveEvidence).toBeTypeOf('function')
+    expect(f.trace.every(args => args[2] === 'GET')).toBe(true)
+    expect(() => ports.read(['api', '--method', 'POST', 'anything'], 1)).toThrow(
+      'collaboration-installation-read-only',
+    )
+  })
   function historicalInstallation() {
     const f = fixture()
     const workflow = {
@@ -146,6 +178,53 @@ describe('explicit collaboration installation', () => {
     expect(assembly.request.factsFor).toBeDefined()
     expect(assembly.prepareFacts).toBeUndefined()
     expect(f.trace.every(args => args[2] === 'GET')).toBe(true)
+  })
+
+  it.each(['direct', 'published'])(
+    'pins the publishing workflow independently in a v3 %s installation',
+    kind => {
+      const { f, input: historical } = historicalInstallation()
+      const input = {
+        ...(kind === 'direct' ? f.installation : historical),
+        schemaVersion: 3,
+        gateWorkflow: {
+          path: '.github/workflows/gate-publish.yml',
+          ref: 'github-gate',
+          head: '8'.repeat(40),
+        },
+      }
+      const text = JSON.stringify(input)
+      expect(installCollaboration(f.root, text, digest(text))).toEqual(input)
+      expect(openCollaborationInstallation(f.root, policy.repository, f.read).installation).toEqual(
+        input,
+      )
+    },
+  )
+
+  it.each([
+    undefined,
+    { path: '.github/workflows/other.yml', ref: 'github-gate', head: '8'.repeat(40) },
+    { path: '.github/workflows/gate-publish.yml', ref: 'main', head: '8'.repeat(40) },
+    { path: '.github/workflows/gate-publish.yml', ref: 'github-gate', head: 'HEAD' },
+  ])('rejects missing or unpinned gate identity in v3: %j', gateWorkflow => {
+    const f = fixture()
+    expect(() =>
+      parseCollaborationInstallation({ ...f.installation, schemaVersion: 3, gateWorkflow }),
+    ).toThrow()
+  })
+
+  it('does not reinterpret a legacy descriptor as an adopted publish workflow', () => {
+    const f = fixture()
+    expect(() =>
+      parseCollaborationInstallation({
+        ...f.installation,
+        gateWorkflow: {
+          path: '.github/workflows/gate-publish.yml',
+          ref: 'github-gate',
+          head: f.head,
+        },
+      }),
+    ).toThrow('unknown fields gateWorkflow')
   })
 
   it('supplies adopted history through the installed request and watch readers', () => {

@@ -153,7 +153,7 @@ export function adoptCollaborationProducer(
   const { record, installation } = readCollaborationInstallationRecord(root)
   const current = proof(record, read)
   const historicalWorkflows =
-    installation.schemaVersion === 2 && installation.facts.kind === 'published'
+    installation.schemaVersion !== 1 && installation.facts.kind === 'published'
       ? installation.facts.historicalWorkflows
       : []
   const ports = producerPorts(root, current, historicalWorkflows, read)
@@ -203,7 +203,7 @@ export function openCollaborationInstallation(root: string, repo: string, transp
             projectId,
             workflows: [
               installation.facts.workflow,
-              ...(installation.schemaVersion === 2 ? installation.facts.historicalWorkflows : []),
+              ...(installation.schemaVersion !== 1 ? installation.facts.historicalWorkflows : []),
             ],
             bot: installation.facts.bot,
           },
@@ -245,7 +245,7 @@ export function openCollaborationInstallation(root: string, repo: string, transp
       },
     }
     const historicalWorkflows =
-      installation.schemaVersion === 2 ? installation.facts.historicalWorkflows : []
+      installation.schemaVersion !== 1 ? installation.facts.historicalWorkflows : []
     const state = readProducerState(producerPorts(root, current, historicalWorkflows, read))
     if (state !== undefined)
       prepareFacts = createFactsPreparation({

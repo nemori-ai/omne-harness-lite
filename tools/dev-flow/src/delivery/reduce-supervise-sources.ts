@@ -37,6 +37,15 @@ export type ReduceSupervisionTargets = {
   /** Root's accepted release/next-material readers return facts only. No publication or approval. */
   release: () => Promise<ReduceSignal[]>
 }
+type LocalSupervisionTargets = Pick<ReduceSupervisionTargets, 'file' | 'candidates' | 'local'> & {
+  runs: (
+    | { kind: 'request-run'; workflow: WorkflowEvidence }
+    | {
+        kind: 'gate'
+        correlation: Pick<GateCorrelation, 'workflow'>
+      }
+  )[]
+}
 
 function reduceSignalFactory(input: SuperviseInput) {
   return (
@@ -59,7 +68,7 @@ function reduceSignalFactory(input: SuperviseInput) {
 /** Uses only local files and process identity; safe before remote bootstrap completes. */
 export function reduceLocalSupervisionSources(
   input: SuperviseInput,
-  targets: Omit<ReduceSupervisionTargets, 'release'>,
+  targets: LocalSupervisionTargets,
 ): Pick<SupervisePorts, 'subscribe' | 'health'> {
   const signal = reduceSignalFactory(input)
   return {
@@ -184,7 +193,11 @@ export function reduceSupervisionSources(
         if (reason !== null)
           signals.push(signal('candidate', request.requestId, canonical(facts), reason, [facts]))
       }
-      if (input.phase === 'RELEASE_WAVE' || input.phase === 'FINALIZE')
+      if (
+        input.phase === 'VERIFY_WAVE' ||
+        input.phase === 'RELEASE_WAVE' ||
+        input.phase === 'FINALIZE'
+      )
         signals.push(...(await targets.release()))
       return signals
     },
@@ -228,8 +241,9 @@ export function reduceSupervisionSources(
             )
             active.splice(active.indexOf(target), 1)
           } else if (run.status === 'completed') {
+            const completedQueue = authority()
             active.splice(active.indexOf(target), 1)
-            const registered = queue.requests.some(
+            const registered = completedQueue.requests.some(
               item => item.input.requestId === target.input.requestId,
             )
             signals.push(
@@ -255,6 +269,7 @@ export function reduceSupervisionSources(
           )
           const run = readGateRun(ports.read, target.correlation)
           if (run.status === 'completed') {
+            authority()
             active.splice(active.indexOf(target), 1)
             signals.push(
               signal('gate', String(run.runId), canonical(run), `gate-${run.conclusion}`, [run]),
@@ -330,7 +345,7 @@ export function reduceSupervisionSources(
 }
 
 function subscribeReduceEvents(
-  targets: Omit<ReduceSupervisionTargets, 'release'>,
+  targets: LocalSupervisionTargets,
   context: WaveIdentity,
   notify: (cursor: string | null) => void,
   fail: (error: unknown) => void,

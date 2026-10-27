@@ -87,7 +87,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 协作工具安装与固定来源
 
-`collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符支持版本 1 和 2，共同必需字段如下。未知字段和版本拒绝。
+`collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符支持版本 1、2 和 3，共同必需字段如下。未知字段和版本拒绝。
 
 | 字段               | 含义与约束                                                                                                                                    |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -101,6 +101,8 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 版本 1 的 published 模式固定 workflow 的 `id/path/ref/head` 及 Bot 的 `login/nodeId`。path 为 `.github/workflows/delivery-facts.yml`，ref 为 `github-gate`，head 为完整 SHA。Project 从 policy 提交中的 delivery config 派生，不由普通命令传入。config 必须启用，仓库、Project 与单写者配置必须有效。
 
 版本 2 的 published 模式还必须提供 `historicalWorkflows` 数组，可为空。每项使用同样的 `id/path/ref/head` 约束。当前 workflow 与历史项不得重复，历史项之间也不得重复。全部项共用固定仓库、Bot 和 Project。历史项只授予事实读取资格，不授予向旧 workflow 派发的能力。历史事实可以早于安装描述符机制，不要求为其编造旧安装摘要。版本 1 不接受这个字段，也不会自动采用历史版本。
+
+版本 3 保留版本 2 的 facts 语义，并增加必填 `gateWorkflow`。其中 path 固定为 `.github/workflows/gate-publish.yml`，ref 固定为 `github-gate`，head 是已采用 workflow 的完整 SHA。reduce 操作入口要求版本 3；版本 1、2 不能通过普通输入补充这个授权来源。旧安装仍可用于其已支持的读取和恢复。普通安装不自动取得 facts 生产权，既有激活和交接协议同样约束版本 3。
 
 `FactsReadDeployment` 与单个生产 `FactsDeployment` 分开。读取器在一次完整评论快照内逐项匹配唯一采用的 workflow，再对合并后的事实检查负面资格、矛盾、重复、编辑和精确 attempt。同一 run 的当前读取与 attempt 1 必须匹配同一个精确 workflow 身份。未知来源不能忽略，也不能变成 facts 缺失。全部读取保持 GET-only。版本 1 和 2 均须显式激活生产者，不能借新空目录绕过旧未决操作。
 
@@ -410,3 +412,20 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN、FORWARDED_REPORTED 或 CLAIMED_READBACK。正式消息不改变 binding 的写范围或已有唯一执行。
 
 验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更及五事实不混同。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。
+
+
+## Reduce 装配与监督边界
+
+`reduce-command.ts` 解析 next、claim、record、prepare、check-release 和 release。严格拒绝未知字段、错误记录种类及重复 CLI 选项。`reduce-cli.ts` 另外提供 supervise 和 ack；所有输入先通过共享 JSON 解析，再加载固定安装。CLI 不接收任意 bootstrap 模块、来源文件或 workflow HEAD。根与成员的 `reduce` script 使用同一源入口。
+
+`reduce-bootstrap.ts` 从版本 3 安装取得 gate workflow SHA，并复用当前 authority、接受来源和验证报告 reader。整波报告检查前后均从受信派发 route 和 policy 派生目标轨道，读回精确 ref、commit 类型及 finalHead。报告期间授权变化或轨道移动均拒绝。此检查不授予写权、接受或部署审批。
+
+`reduce-supervision-input.ts` 将活动对象解析为已有 RequestInput、RequestStateRecord、WorkflowEvidence 和 ReleaseRecord。输入不接受轮询周期或采用 gate SHA 覆盖。阶段 VERIFY_WAVE、RELEASE_WAVE 和 FINALIZE 必须提供显式收口目标。未知后继不能从缺省 release 推断为终态。
+
+`reduce-supervision.ts` 在主进程安装文件订阅及本地健康检查。每种远端 probe 使用一个持久 worker；同步 REST 和安装来源读取仅在该 worker 中执行。reconcile、runs、deadline 三种 probe 互不串行等待。worker 只能使用 REST GET，不能调用 GraphQL、审批或任何写操作；模块路径由装配固定。IPC 结果重新解析为 ReduceSignal。协议错误、退出或 120 秒 probe 超时使该 worker 失效，不自动重启或把未知当空集合。
+
+活动 run 完成后撤出该 worker 的轮询集合，并重新读取实际回执与当前 owner/epoch。运行未完成时不周期扫描 Issue/PR。新事件、启动恢复与截止重新对账。收口监督只返回已核验的就绪或已放行事实，不创建接受、delta 或后继卡。phase 与业务状态独立，ack 只写本地信号处置回执。
+
+监督结束会停止子进程并释放订阅和计时器。POSIX worker 使用自有进程组，停止和超时终止整组，避免同步 gh 子进程遗留。Windows 目前只终止直接 worker，命令自身仍受读取超时约束；该平台的子进程树清理不在现有验证结论内。
+
+新增验证资源为 delivery-reduce-assembly、delivery-read-worker、delivery-reduce-integration、delivery-reduce-supervise、delivery-collaboration-installation 和 delivery-collaboration-verification 测试。它们区分真实本机进程/文件/CLI 与 REST 替身；不将替身结果声明为真实工作流部署或 W4 宿主接受。

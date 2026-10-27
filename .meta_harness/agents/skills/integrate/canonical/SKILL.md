@@ -65,4 +65,4 @@ blocked/failed 立即核对停写、成果与剩余责任。发布并读回有�
 
 RC01–RC09 和全局 G00–G06 优先于正常阶段。未知副作用、写权冲突、基础设施故障进入 RECOVER，保留 pendingOps、接收游标、处置位置和 resumePoint。先读回外部实际事实再恢复阶段，旧执行未终止不得切新 epoch。STOPPED 与 DONE 分开；明确恢复授权后才能重启。重复 operation 返回原结果，同键异文拒绝。
 
-精确 next/claim/record/release/supervise 命令从固定工具 `tools/dev-flow/src/delivery/README.md` 和已采用版本帮助取得，由本波运行绑定提供。该输入必须包含 repo、owner/epoch、operation/journal、活动对象、期限、事件文件及原 shell 续接方式；缺入口就是开工缺口，不能发明旗标。申请与 watch/inbox 的既有入口见 line 的 `references/runtime.md`。每次状态推进保存命令、退出码和读回，未执行范围明确报告。
+固定工具使用 `pnpm run reduce next|claim|record|prepare|check-release|release|supervise|ack --input /absolute/input.json`，每次只选择一个操作。版本 3 安装、输入字段与退出码从 `tools/dev-flow/src/delivery/README.md` 和已采用版本帮助取得，由本波运行绑定提供。supervise 返回后先处置信号，再用 ack 记录处置证据并恢复原监督；返回不自动消费或放行。该输入必须包含 repo、owner/epoch、operation/journal、活动对象、期限、事件文件及原 shell 续接方式；缺入口就是开工缺口，不能发明旗标。申请与 watch/inbox 的既有入口见 line 的 `references/runtime.md`。每次状态推进保存命令、退出码和读回，未执行范围明确报告。

@@ -39,7 +39,8 @@
     "gate": "node --experimental-strip-types src/integration/gate-cli.ts",
     "package:exports": "node --experimental-strip-types src/package-exports/cli.ts",
     "facts:prepare": "node --experimental-strip-types src/delivery/facts-preparation-cli.ts",
-    "initial-dispatch": "node --experimental-strip-types src/delivery/line-initial-dispatch-cli.ts"
+    "initial-dispatch": "node --experimental-strip-types src/delivery/line-initial-dispatch-cli.ts",
+    "reduce": "node --experimental-strip-types src/delivery/reduce-cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-toolchain": "catalog:",

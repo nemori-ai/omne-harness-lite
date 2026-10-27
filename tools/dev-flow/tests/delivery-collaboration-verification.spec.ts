@@ -8,6 +8,8 @@ import {
 import { githubRequestEvidence } from '../src/delivery/integration-request-evidence.ts'
 import { backend, policy, rawComment, taskBinding } from './fixtures/collaboration-authority.ts'
 import { context, request, state, release, TIME, UUID } from './fixtures/collaboration.ts'
+import { verifyReduceWaveEvidence } from '../src/delivery/reduce-bootstrap.ts'
+import { routeTarget } from '../src/integration/sync.ts'
 
 function fixture(wave = false) {
   const b = backend()
@@ -85,6 +87,45 @@ function fixture(wave = false) {
 }
 
 describe('owner-attributed verification reports', () => {
+  it.each(['valid', 'head', 'ref', 'type', 'moves', 'authority'] as const)(
+    'checks the actual bound track around wave verification: %s',
+    change => {
+      const f = fixture(true)
+      const target = routeTarget(policy, taskBinding().route)
+      let reads = 0
+      const read: typeof f.read = (args, timeout) => {
+        if (args.at(-1) === `repos/${context.repo}/git/ref/${target.slice(5)}`) {
+          reads += 1
+          if (change === 'authority') f.data.state = 'closed'
+          return {
+            ref: change === 'ref' ? 'refs/heads/main' : target,
+            object: {
+              type: change === 'type' ? 'tag' : 'commit',
+              sha:
+                change === 'head' || (change === 'moves' && reads === 2)
+                  ? 'f'.repeat(40)
+                  : f.released.finalHead,
+            },
+          }
+        }
+        return f.read(args, timeout)
+      }
+      const verify = () => verifyReduceWaveEvidence({ ...f.ports, read }, f.released, f.source)
+      if (change === 'valid') {
+        expect(verify).not.toThrow()
+        expect(reads).toBe(2)
+      } else {
+        const errors = {
+          head: 'reduce-wave-target-head-changed',
+          ref: 'reduce-wave-target-ref-mismatch',
+          type: 'reduce-wave-target-not-commit',
+          moves: 'reduce-wave-target-head-changed',
+          authority: 'reduce-wave-authority-changed',
+        }
+        expect(verify).toThrow(errors[change])
+      }
+    },
+  )
   it.each([false, true])('reads exact %s subjects and all required evidence twice', wave => {
     const f = fixture(wave)
     expect(f.verify).not.toThrow()

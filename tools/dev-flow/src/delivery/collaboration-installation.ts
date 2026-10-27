@@ -37,6 +37,14 @@ type PublishedInstallationFacts = {
   workflow: FactsDeployment['workflow']
   bot: FactsDeployment['bot']
 }
+export type InstalledGateWorkflow = {
+  path: '.github/workflows/gate-publish.yml'
+  ref: 'github-gate'
+  head: string
+}
+type HistoricalInstallationFacts = PublishedInstallationFacts & {
+  historicalWorkflows: FactsDeployment['workflow'][]
+}
 export type CollaborationInstallation = {
   repository: string
   toolCommit: string
@@ -48,9 +56,23 @@ export type CollaborationInstallation = {
   | { schemaVersion: 1; facts: PublishedInstallationFacts }
   | {
       schemaVersion: 2
-      facts: PublishedInstallationFacts & { historicalWorkflows: FactsDeployment['workflow'][] }
+      facts: HistoricalInstallationFacts
+    }
+  | {
+      schemaVersion: 3
+      gateWorkflow: InstalledGateWorkflow
+      facts: { kind: 'direct' } | HistoricalInstallationFacts
     }
 )
+
+function parseGateWorkflow(value: unknown): InstalledGateWorkflow {
+  const v = fields(value, ['path', 'ref', 'head'], 'installation.gateWorkflow')
+  return {
+    path: literal(v.path, '.github/workflows/gate-publish.yml', 'installation.gateWorkflow.path'),
+    ref: literal(v.ref, 'github-gate', 'installation.gateWorkflow.ref'),
+    head: fullSha(v.head, 'installation.gateWorkflow.head'),
+  }
+}
 
 function parseWorkflow(value: unknown): FactsDeployment['workflow'] {
   const v = fields(value, ['id', 'path', 'ref', 'head'], 'facts.workflow')
@@ -83,6 +105,7 @@ export function parseCollaborationInstallation(value: unknown): CollaborationIns
       'acceptanceSource',
       'basis',
       'facts',
+      ...(object(value, 'installation').schemaVersion === 3 ? ['gateWorkflow'] : []),
     ],
     'installation',
   )
@@ -90,7 +113,11 @@ export function parseCollaborationInstallation(value: unknown): CollaborationIns
   if (!/^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/.test(repo))
     throw new InputError('collaboration-installation-repository')
   const schemaVersion =
-    v.schemaVersion === 2 ? 2 : literal(v.schemaVersion, 1, 'installation.schemaVersion')
+    v.schemaVersion === 3
+      ? 3
+      : v.schemaVersion === 2
+        ? 2
+        : literal(v.schemaVersion, 1, 'installation.schemaVersion')
   const common = {
     repository: repo,
     toolCommit: fullSha(v.toolCommit, 'installation.toolCommit'),
@@ -101,6 +128,13 @@ export function parseCollaborationInstallation(value: unknown): CollaborationIns
   const mode = object(v.facts, 'installation.facts')
   if (mode.kind === 'direct') {
     fields(mode, ['kind'], 'installation.facts')
+    if (schemaVersion === 3)
+      return {
+        ...common,
+        schemaVersion,
+        gateWorkflow: parseGateWorkflow(v.gateWorkflow),
+        facts: { kind: 'direct' },
+      }
     return { ...common, schemaVersion, facts: { kind: 'direct' } }
   }
   fields(
@@ -122,6 +156,13 @@ export function parseCollaborationInstallation(value: unknown): CollaborationIns
   const keys = [facts.workflow, ...historicalWorkflows].map(canonical)
   if (new Set(keys).size !== keys.length)
     throw new InputError('collaboration-installation-workflow-duplicated')
+  if (schemaVersion === 3)
+    return {
+      ...common,
+      schemaVersion,
+      gateWorkflow: parseGateWorkflow(v.gateWorkflow),
+      facts: { ...facts, historicalWorkflows },
+    }
   return { ...common, schemaVersion, facts: { ...facts, historicalWorkflows } }
 }
 

@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -20,7 +20,7 @@ afterEach(() => {
   for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true })
 })
 function fixture() {
-  const dir = mkdtempSync(join(tmpdir(), 'dispatch-message-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'dispatch-message-')))
   directories.push(dir)
   const fields = Object.fromEntries(
     initialDispatchFields(template).map(name => [name, `Fixture ${name}`]),

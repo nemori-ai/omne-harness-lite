@@ -73,7 +73,7 @@ pnpm run collaboration:install --descriptor /absolute/adopted-installation.json 
 
 命令只写本地采用记录，不派发 workflow，也不接受卡片。相同描述符可重复安装。不同描述符须使用新的固定检出，不能覆盖现有采用。
 
-升级 workflow 后需要读取旧 facts 时，使用版本 2 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。版本 1 和 2 的普通安装均不取得生产权；未激活时，`facts:prepare` 返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或从空目录推断可以重新生产。
+升级 workflow 后需要读取旧 facts 时，使用版本 2 或 3 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。所有版本的普通安装均不取得生产权；未激活时，`facts:prepare` 返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或从空目录推断可以重新生产。
 
 只有负责 facts 生产的 reduce 工具检出需要下列一种显式采用方式。Line 和其他只读消费者不加这些选项。
 
@@ -97,6 +97,7 @@ pnpm run collaboration:install --descriptor /absolute/adopted-installation.json 
 pnpm run integration:request --help
 pnpm run line --help
 pnpm run reduce:watch --help
+pnpm run reduce --help
 ```
 
 watch 的 parent、operation ID、journal 和事件文件来自本线实际派发。request 的 JSON 只携带任务输入。line 和 watch 从已采用来源取得资格与接受责任。普通命令没有 policy、facts JSON 或接受者覆盖选项。
@@ -378,3 +379,44 @@ pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --root <
 消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。同修订相同内容复用，不同内容拒绝覆盖。修改输出文件后 validate 拒绝。工具不会执行填写的命令、开窗口、转发消息或认领任务。
 
 GENERATED 仅证明文件已生成。STRUCTURE_CHECKED 仅证明字段、修订、常见敏感模式及字节检查通过。Reduce 按返回的 remainingGuards 逐项读回授权、固定输入、目标机实际命令和当前收口链，并检查秘密及矛盾后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+
+
+## Reduce 操作与后台监督
+
+reduce 负责人使用版本 3 固定安装。描述符中的 `gateWorkflow` 采用精确的发布工作流提交。部署该工作流时，运行标题必须是 `gate-publish:${pr}:${head}:${checkpoint}`。普通输入不能覆盖它。源码或帮助存在不代表安装和工作流已部署。
+
+```sh
+pnpm run reduce next --input /absolute/next.json
+pnpm run reduce claim --input /absolute/claim.json
+pnpm run reduce prepare --input /absolute/pre-push.json
+pnpm run reduce record --input /absolute/state.json
+pnpm run reduce check-release --input /absolute/readiness.json
+pnpm run reduce release --input /absolute/release.json
+pnpm run reduce supervise --input /absolute/supervision.json
+pnpm run reduce ack --input /absolute/handled.json
+```
+
+所有输入含 `schemaVersion:1`。`next` 另外含完整 `context`、`owner` 和可选 `since` 评论 ID。它读取完整当前队列，不因 cursor 跳过更早的未决请求。返回 `idle` 只表示当前没有未决申请，不表示波已完成。
+
+`claim`、`prepare` 和 `record` 输入含 canonical `record`、稳定 `journalRoot` 和 `checkpoint` 字符串。没有命名 checkpoint 时显式传空字符串。claim 只接受 claimed 状态；prepare 只保存 integrating 的推送前意图，不执行 Git。冲突修复由 reduce 完成，更新候选后重新取得影响、测试、适用评审与准入证据，再记录精确 gate。合入不能只凭 Action success 判断。
+
+`check-release` 输入含 release `record` 与 `readinessEvidence`。它检查完整请求、所有线、delta、后继输入、具名整波报告及实际轨道 HEAD，不产生接受或发布。`release` 再加 `journalRoot`，要求已有精确接受决定，按发布读回、关闭、终态读回的顺序推进。unknown 必须沿用原输入、operation ID 和 journal 恢复，不能用新 ID 重发。
+
+supervise 的输入字段为：
+
+| 字段 | 内容 |
+| --- | --- |
+| context、owner、epoch | 当前波及当前 reduce 执行身份 |
+| operationId、journalRoot | 原操作 UUID 与绝对日志目录 |
+| phase、deadline、timeoutMs | 当前负责人阶段、UTC 截止时间、可选本次等待毫秒数 |
+| file | 接收器事件文件的绝对路径 |
+| runs | 活动 `request-run` 的 input/workflow，或 `gate` 的 correlation；后者含 repo/pull/candidateHead/checkpoint/workflow，不含 adoptedWorkflowHead |
+| candidates | 每项含登记申请的 request 与当前 state record |
+| local | 每项含 id/pid/processStartedAt/resultFile/deadline。结果文件用绝对路径，进程身份用实际 `processIdentity` 读数 |
+| release | 普通阶段可为 null；VERIFY_WAVE、RELEASE_WAVE、FINALIZE 须提供 record/readinessEvidence |
+
+事件、启动和截止触发权威对账。每 10 秒只观察仍活动的 run/审批；运行结束时重新读回资格与申请回执。每 5 秒检查本机接收器及自有进程。远端 bootstrap 和 REST 在分别持久的只读子进程中执行，不阻塞本机健康检查。不审批、不发布、不代替负责人处理返回信号。
+
+原 shell tool call 返回 actionable、timeout 或 cancelled。信号先入持久队列，返回不等于消费。处理后执行 ack，其输入含 `schemaVersion:1`、`supervision` 原输入、信号 `id` 和处置 `evidence` 字符串。然后恢复原监督操作；变化的阶段或活动对象须来自当前实际交接。未知远端操作另按其原 journal 恢复。
+
+退出码为 0 已取得结果，1 写结果未知，2 输入冲突或证据不可用，124 等待超时，130 取消。停止监督会终止自有读取进程；POSIX 宿主同时终止这些进程组中的命令子进程。父 tool-session 仍须观察监督器自身的退出和 stderr。这里的自动检查不证明人类转发、宿主续接或完整双机行为。
