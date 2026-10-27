@@ -458,6 +458,18 @@
       "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
       "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-SESSION-MODEL",
+      "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-SESSION-TOOL",
+      "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
     }
   ]
 }
