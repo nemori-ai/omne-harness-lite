@@ -1,0 +1,5 @@
+{
+  "101": { "wave": "W1", "dispatchedAt": "2026-10-01", "acceptedAt": "2026-10-03" },
+  "102": { "wave": "W1", "dispatchedAt": "2026-10-01" },
+  "103": { "wave": "W2", "cycleDays": 7 }
+}

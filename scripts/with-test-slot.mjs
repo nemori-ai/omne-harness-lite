@@ -12,7 +12,7 @@
 //   OMNE_TEST_SLOT_MAX_WAIT_SECONDS  最多等多久，超过即以 75 退出、命令不执行（7200）
 //   OMNE_TEST_SLOT_LEDGER            运行账本（${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl）
 //
-// 运行账本：每次用完名额、或等到超时放弃，都追加一行 JSON：命令、目录、等了多久、占了多久、
+// 运行账本：每次用完名额、或等到超时放弃，都追加一行 JSON：命令、所属卡号与 attempt、目录、等了多久、占了多久、
 // 命令用掉的 CPU 时间、起止时的机器负载、退出码。它给「按任务大小分配名额」（#57 第二步）校准用，
 // 所以跟名额同一个范围（同一用户的全部检出与克隆），放在重启也不清的用户状态目录；写不进去只提醒，不改退出码。
 //
@@ -38,7 +38,7 @@ import {
   writeSync,
 } from 'node:fs'
 import os from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.length === 0) {
@@ -214,6 +214,35 @@ function jsonTime(seconds) {
 
 const load = () => os.loadavg().map(value => Math.round(value * 100) / 100)
 
+/**
+ * 当前目录所在工作树的 task context（git 目录下的 omne-integration-context.json，由 dev-flow 的 start 写入）
+ * 里最后一项任务的卡号与 attempt。账本只借它归卡：任何一步不成立都记 null，不报错、不改退出码。
+ */
+function currentTask() {
+  const none = { issue: null, attempt: null }
+  try {
+    const git = spawnSync('git', ['rev-parse', '--git-dir'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 10_000,
+    })
+    if (git.status !== 0 || typeof git.stdout !== 'string') return none
+    const gitDir = resolve(process.cwd(), git.stdout.trim())
+    const tasks = JSON.parse(
+      readFileSync(join(gitDir, 'omne-integration-context.json'), 'utf8'),
+    )?.tasks
+    const binding = Array.isArray(tasks) ? tasks.at(-1)?.binding : undefined
+    const issue = binding?.issue?.number
+    const attempt = binding?.attempt
+    if (!Number.isSafeInteger(issue) || issue < 1 || typeof attempt !== 'string' || attempt === '')
+      return none
+    return { issue, attempt }
+  } catch {
+    return none
+  }
+}
+const task = currentTask()
+
 let ticket
 let ticketNumber = 0
 let acquired = 0
@@ -276,6 +305,8 @@ function record(event, run) {
   const line = {
     event,
     command: commandLine.slice(0, 500),
+    issue: task.issue,
+    attempt: task.attempt,
     cwd: process.cwd(),
     pid: process.pid,
     cores: os.availableParallelism?.() ?? os.cpus().length,
