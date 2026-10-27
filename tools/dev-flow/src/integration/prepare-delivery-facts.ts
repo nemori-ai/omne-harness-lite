@@ -1,9 +1,19 @@
 import { randomBytes } from 'node:crypto'
+import { readdirSync } from 'node:fs'
 import { operationJournal } from '../delivery/line-state-journal.ts'
 import { REST_HEADERS, type GhCommand } from '../delivery/github-read.ts'
 import { InputError } from '../delivery/protocol.ts'
 import { hash256, utcTime } from '../delivery/collaboration-values.ts'
-import { digest, fields, integer, object, same, string, IntegrationError } from './parse.ts'
+import {
+  canonical,
+  digest,
+  fields,
+  integer,
+  object,
+  same,
+  string,
+  IntegrationError,
+} from './parse.ts'
 import {
   PublishedFactsMissing,
   readPublishedDeliveryFacts,
@@ -49,9 +59,12 @@ type Intent = {
   input: FactsRunInput
   predecessor: { generation: number; nonce: string; run: PreparedFactsRun } | null
 }
-type PreparationPorts = {
+export type PreparationPorts = {
   deployment: FactsDeployment
   installationDigest: string
+  historicalWorkflows: readonly FactsDeployment['workflow'][]
+  priorInstallations: readonly { installationDigest: string; deployment: FactsDeployment }[]
+  assertActive: () => void
   journalRoot: string
   call: GhCommand
   now?: () => number
@@ -66,7 +79,8 @@ function slotId(dispatch: string): string {
 function parseIntent(
   value: unknown,
   generation: number,
-  binding: Binding,
+  dispatch: Binding['dispatch'],
+  installations: ReadonlyMap<string, FactsDeployment>,
   previous: Intent | null,
 ): Intent {
   const v = fields(
@@ -76,7 +90,16 @@ function parseIntent(
   )
   if (v.schemaVersion !== 1 || v.generation !== generation)
     throw new InputError('facts-preparation-intent-version')
-  same(v.binding, binding, 'facts-preparation-operation-conflict')
+  const savedBinding = fields(
+    v.binding,
+    ['installationDigest', 'deployment', 'dispatch'],
+    'facts binding',
+  )
+  const installationDigest = hash256(savedBinding.installationDigest, 'installationDigest')
+  const deployment = installations.get(installationDigest)
+  if (deployment === undefined) throw new InputError('facts-preparation-operation-conflict')
+  const binding: Binding = { installationDigest, deployment, dispatch }
+  same(savedBinding, binding, 'facts-preparation-operation-conflict')
   const input = fields(v.input, ['issue', 'authority', 'nonce'], 'facts inputs')
   const nonce = string(input.nonce, 'nonce')
   if (!/^[0-9a-f]{32}$/.test(nonce)) throw new InputError('facts-preparation-nonce')
@@ -130,12 +153,73 @@ function parseIntent(
   return parsed
 }
 
+function adoptedInstallations(ports: PreparationPorts) {
+  const workflows = new Set<string>()
+  for (const workflow of [ports.deployment.workflow, ...ports.historicalWorkflows]) {
+    const key = canonical(workflow)
+    if (workflows.has(key)) throw new InputError('facts-preparation-workflow-duplicated')
+    workflows.add(key)
+  }
+  const installations = new Map<string, FactsDeployment>()
+  for (const installation of [ports, ...ports.priorInstallations]) {
+    const { installationDigest, deployment } = installation
+    hash256(installationDigest, 'installationDigest')
+    const { workflow, ...identity } = deployment
+    const { workflow: _currentWorkflow, ...currentIdentity } = ports.deployment
+    same(identity, currentIdentity, 'facts-preparation-installation-identity-conflict')
+    if (!workflows.has(canonical(workflow)))
+      throw new InputError('facts-preparation-installation-workflow-unreadable')
+    const existing = installations.get(installationDigest)
+    if (existing !== undefined)
+      same(existing, deployment, 'facts-preparation-installation-digest-conflict')
+    installations.set(installationDigest, deployment)
+  }
+  return installations
+}
+
+function journalGenerations(directory: string): number[] {
+  const intents = new Set<number>(),
+    runs = new Set<number>()
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const match = /^(intent|run)-([1-9]\d*)\.json$/.exec(entry.name)
+    if (!entry.isFile() || match === null) throw new InputError('facts-preparation-journal-entry')
+    const generation = Number(match[2])
+    if (!Number.isSafeInteger(generation) || generation > 1000)
+      throw new InputError('facts-preparation-generation-limit')
+    const records = match[1] === 'intent' ? intents : runs
+    records.add(generation)
+  }
+  const generations = [...intents].sort((a, b) => a - b)
+  if (generations.some((generation, index) => generation !== index + 1))
+    throw new InputError('facts-preparation-generation-gap')
+  if ([...runs].some(generation => !intents.has(generation)))
+    throw new InputError('facts-preparation-orphan-run')
+  return generations
+}
+
+function readRunReceipt(journal: ReturnType<typeof operationJournal>, intent: Intent) {
+  const saved = journal.read(`run-${intent.generation}.json`)
+  if (saved === undefined) return undefined
+  const record = fields(saved, ['input', 'runId'], 'facts run receipt')
+  same(record.input, intent.input, 'facts-preparation-receipt-conflict')
+  return integer(record.runId, 'runId')
+}
+
 /** Bootstrap fixes installation and storage. Callers supply only the dispatch and explicit retry choice. */
 export function createFactsPreparation(ports: PreparationPorts) {
-  hash256(ports.installationDigest, 'installationDigest')
+  const installations = adoptedInstallations(ports)
   const readerDeployment: FactsReadDeployment = {
     ...ports.deployment,
-    workflows: [ports.deployment.workflow],
+    workflows: [ports.deployment.workflow, ...ports.historicalWorkflows],
+  }
+  const assertActive = () => {
+    try {
+      ports.assertActive()
+    } catch (error) {
+      throw new InputError(
+        error instanceof Error ? error.message : 'facts-preparation-producer-inactive',
+      )
+    }
   }
   return (dispatch: string, options: { retryFailed?: boolean } = {}): FactsPreparationResult => {
     let generation: number | null = null,
@@ -156,6 +240,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
     }
     const get = (path: string) => call(['api', '--method', 'GET', ...REST_HEADERS, path], 15_000)
     try {
+      assertActive()
       let published: PublishedFacts | null = null
       let snapshot: PublishedFactsMissing['dispatch']
       try {
@@ -171,32 +256,28 @@ export function createFactsPreparation(ports: PreparationPorts) {
         deployment: ports.deployment,
         dispatch: snapshot,
       }
+      assertActive()
       const journal = operationJournal(ports.journalRoot, slotId(dispatch))
       let intent: Intent | null = null
+      let previousRunId: number | undefined
       const nonces = new Set<string>()
-      for (let next = 1; ; next++) {
-        if (next > 1000) throw new InputError('facts-preparation-generation-limit')
+      for (const next of journalGenerations(journal.directory)) {
         const saved = journal.read(`intent-${next}.json`)
-        if (saved === undefined) break
-        intent = parseIntent(saved, next, binding, intent)
+        intent = parseIntent(saved, next, snapshot, installations, intent)
+        if (previousRunId !== undefined && intent.predecessor?.run.id !== previousRunId)
+          throw new InputError('facts-preparation-predecessor-receipt-conflict')
+        previousRunId = readRunReceipt(journal, intent)
         if (nonces.has(intent.input.nonce)) throw new InputError('facts-preparation-nonce-reused')
         nonces.add(intent.input.nonce)
       }
       if (intent === null && published !== null) return { status: 'ready', facts: published }
 
       const observe = (item: Intent): PreparedFactsRun | null => {
-        const saved = journal.read(`run-${item.generation}.json`)
-        if (saved !== undefined) {
-          const record = fields(saved, ['input', 'runId'], 'facts run receipt')
-          same(record.input, item.input, 'facts-preparation-receipt-conflict')
-          return readPreparedFactsRun(
-            ports.deployment,
-            item.input,
-            integer(record.runId, 'runId'),
-            call,
-          )
+        const runId = readRunReceipt(journal, item)
+        if (runId !== undefined) {
+          return readPreparedFactsRun(item.binding.deployment, item.input, runId, call)
         }
-        return findPreparedFactsRun(ports.deployment, item.input, call)
+        return findPreparedFactsRun(item.binding.deployment, item.input, call)
       }
       if (intent !== null) {
         generation = intent.generation
@@ -252,6 +333,8 @@ export function createFactsPreparation(ports: PreparationPorts) {
         same(fresh, observed, 'facts-preparation-predecessor-changed')
       }
       const issue = /\/issues\/([1-9]\d*)#/.exec(dispatch)?.[1]
+      if ((previous?.generation ?? 0) >= 1000)
+        throw new InputError('facts-preparation-generation-limit')
       const nonce = (ports.nonce ?? (() => randomBytes(16).toString('hex')))()
       if (nonces.has(nonce)) throw new InputError('facts-preparation-nonce-reused')
       intent = parseIntent(
@@ -266,11 +349,14 @@ export function createFactsPreparation(ports: PreparationPorts) {
               : { generation: previous.generation, nonce: previous.input.nonce, run: observed },
         },
         (previous?.generation ?? 0) + 1,
-        binding,
+        snapshot,
+        installations,
         previous,
       )
       generation = intent.generation
+      assertActive()
       journal.save(`intent-${generation}.json`, intent)
+      assertActive()
       let receipt: ReturnType<typeof dispatchReceipt>
       try {
         receipt = dispatchReceipt(
@@ -295,6 +381,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
       } catch {
         return unknown('facts-preparation-dispatch-response-unknown-no-repost')
       }
+      assertActive()
       journal.save(`run-${generation}.json`, {
         input: intent.input,
         runId: receipt.workflow_run_id,

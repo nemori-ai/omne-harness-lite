@@ -55,7 +55,15 @@ const call = args => {
     fs.appendFileSync(join(directory, 'posts.jsonl'), JSON.stringify(input) + '\n')
     const id =
       201 + fs.readFileSync(join(directory, 'posts.jsonl'), 'utf8').trim().split('\n').length
-    const run = { ...data.run, id, display_title: factsRunName(input) }
+    const run = {
+      ...data.run,
+      id,
+      workflow_id: data.deployment.workflow.id,
+      path: data.deployment.workflow.path,
+      head_branch: data.deployment.workflow.ref,
+      head_sha: data.deployment.workflow.head,
+      display_title: factsRunName(input),
+    }
     fs.writeFileSync(join(directory, `remote-run-${id}.json`), JSON.stringify(run))
     return {
       workflow_run_id: id,
@@ -66,11 +74,13 @@ const call = args => {
   const runPath = /\/actions\/runs\/(\d+)(?:\/attempts\/1)?$/.exec(path)
   if (runPath !== null)
     return JSON.parse(fs.readFileSync(join(directory, `remote-run-${runPath[1]}.json`), 'utf8'))
-  if (path.includes('/actions/workflows/12/runs?')) {
+  const workflow = /\/actions\/workflows\/(\d+)\/runs\?/.exec(path)
+  if (workflow !== null) {
     const runs = fs
       .readdirSync(directory)
       .filter(name => /^remote-run-\d+\.json$/.test(name))
       .map(name => JSON.parse(fs.readFileSync(join(directory, name), 'utf8')))
+      .filter(run => run.workflow_id === Number(workflow[1]))
     return { total_count: runs.length, workflow_runs: runs }
   }
   if (!(path in data.responses)) throw new Error('Unexpected fixture endpoint: ' + path)
@@ -79,6 +89,9 @@ const call = args => {
 const prepare = createFactsPreparation({
   deployment: data.deployment,
   installationDigest: data.installation,
+  historicalWorkflows: data.historicalWorkflows ?? [],
+  priorInstallations: data.priorInstallations ?? [],
+  assertActive: () => {},
   journalRoot: join(directory, 'journal'),
   call,
 })
