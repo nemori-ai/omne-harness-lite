@@ -551,6 +551,30 @@ describe('a saved result behind the push-producer double stays saved', () => {
     expect(h.pusher.acknowledgements()).toHaveLength(1)
   })
 
+  it('keeps the first receipt when a later redelivery is saved with another receipt', async () => {
+    let pushes = 0
+    const receiver: ModelResultReceiver<Principal> = {
+      push: async input => {
+        pushes += 1
+        return succeed({ key: input.delivery.key, evidence: evidence(`receipt-${pushes}`) })
+      },
+    }
+    const h = harness({ resolveReceiver: () => receiver })
+    await admitted(h, 'a')
+    settle(h, 'a')
+    const first = await within(h.pusher.settled(callRef('a')), 'settled')
+    expect(first).toMatchObject({ status: 'saved', receipt: { evidence: evidence('receipt-1') } })
+    expect(await within(h.pusher.redeliver(resultKey('a')), 'redeliver')).toMatchObject({
+      status: 'saved',
+      receipt: { evidence: evidence('receipt-2') },
+    })
+    expect(await within(h.pusher.settled(callRef('a')), 'settled')).toMatchObject({
+      status: 'saved',
+      attempts: 2,
+      receipt: { evidence: evidence('receipt-1') },
+    })
+  })
+
   it('keeps saved when a later redelivery is backpressured, and still pushes a late account', async () => {
     const h = harness()
     await started(h, 'a')

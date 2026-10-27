@@ -110,15 +110,9 @@ type StandingCell = Readonly<{
 
 /** Whether `attempt` may replace `standing` as the fact of the delivery. */
 function replaces(standing: Standing, attempt: Standing): boolean {
-  switch (standing.status) {
-    case 'saved':
-      return false
-    case 'unknown':
-      return attempt.status === 'saved'
-    case 'pending':
-    case 'failed':
-      return true
-  }
+  if (standing.status === 'saved') return false
+  if (standing.status === 'unknown') return attempt.status === 'saved'
+  return true
 }
 
 function standingCell(): StandingCell {
