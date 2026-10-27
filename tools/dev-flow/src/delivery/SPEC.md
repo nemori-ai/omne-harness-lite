@@ -192,8 +192,10 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 - 监听之外，每5秒再读一次本地事件文件，补上丢失的监听通知。这次读取只读本地文件，不调用 GitHub API。
 - 事件文件变短，或 inode 变了（文件被换成另一个），从头重读。重读到的已计过的 delivery 仍按去重忽略。
 - 事件文件不存在不算错误。读事件文件状态的其他错误使等待失败并退出2。
-- 文件里已有匹配行时直接返回，不读 GitHub。
-- 对账一次。已有内容没有匹配时，调用一次注入的对账函数，之后不再调用 GitHub API。`any` 对每个成员各调用一次，第一个命中的成员结束对账。事件在对账期间已经命中时，不再对后面的成员调用对账函数。对账命中时立即返回，输出标 `source: "reconcile"`。事件命中标 `source: "event"`。
+- 旧格式事件行在文件中已有匹配时直接返回，不读 GitHub。带频道身份的行只触发权威对账，不能直接放行。
+- 启动对账。已有内容没有可信匹配时，调用注入的对账函数。旧格式事件此后不再调用 GitHub API。`any` 对每个成员各调用一次，第一个命中的成员结束对账。事件在对账期间已经命中时，不再对后面的成员调用对账函数。对账命中时立即返回，输出标 `source: "reconcile"`。可信事件命中标 `source: "event"`。
+- 频道行的可选 `receiver` 包含非空 instanceId、repository、mode=channel、requiresReconcile=true。解析保留该信任标记；标记非法时整行无效，不降级成旧格式。频道行的 repository 必须等于调用者明确传入的 repository，且调用者必须提供 reconcile，否则等待失败。CLI 将已解析的 `--repo` 或 origin 仓库传入。
+- 频道业务行匹配谓词，或 receiver 的 connected/reconnected 诊断到达时，执行一次有界权威对账。仅权威结果能返回 `source: reconcile`。诊断可附 reasonCode、非负整数 connectionEpoch 和 coverage=coverage-gap；它不证明历史事件已完整重放。对账串行执行，对账期间收到的新触发保留到下一次读取；本地5秒检查不会自行触发平台轮询。
 - `any` 的输出多一个 `matched`，值是命中成员的谓词名。库层的 `any` 的成员可以是 `issue-closed`、`pr-ready` 与 `comment`，`wait-cli.ts any` 只组合 `issue-closed` 与 `comment`，所以命令输出的 `matched` 只会是这两个值。原子谓词的输出没有 `matched`。
 - 对账失败时等待失败并退出2，不继续等。对账读不到就不能证明没有错过事件。
 - 对账读平台当前状态，不是事件。`issue-closed` 看卡现在是否已关闭，`pr-ready` 看目标分支上是否有开放、非草稿且不在 `ignore` 里的 PR，只看 `gh pr list` 返回的前200个开放 PR，输出带它的号与 `head`，`comment` 看 `--since` 之后创建的评论里是否有标记。前两者不受 `--since` 限制。
@@ -202,6 +204,6 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 退出码：命中 0，输入、对账或文件错误 2，超时 3。`wait-cli.ts` 与 `events-receiver-cli.ts` 以2退出时，标准错误的 JSON 在错误带有系统错误码时多一个 `code` 字段，例如 `ELOOP`；输入错误不带 `code`。
 
-事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件，所以启动对账是唯一的补救。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
+事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
 验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、去重、等待的各条语义、对账读取、接收器与生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖 `wait-cli.ts` 的退出码、`--ignore`、`any`、错误码字段，`events-receiver-cli.ts clean`，以及 `serve` 收到 SIGHUP 时的收尾。两者都不联网，`gh` 用替身。真实的 `gh webhook forward`、hook 清理与 `pull_request` 事件没有自动化验证。

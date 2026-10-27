@@ -25,11 +25,12 @@ export type WaitResult = EventRecord & {
 export type WaitOptions = {
   /** JSONL event file written by the receiver. It need not exist yet. */
   file: string
+  repository?: string
   predicate: EventPredicate
   /** An ISO time or a delivery id. Only events after it count. Absent: every line counts. */
   since?: string
   timeoutMs?: number
-  /** One read of GitHub at the start. Not called again. */
+  /** Reads authoritative state at startup and on channel events or reconnection. */
   reconcile?: Reconcile
   signal?: AbortSignal
 }
@@ -54,7 +55,9 @@ function parseSince(value: string | undefined): Since | undefined {
  * re-reads the file every 5 s in case a watch event is lost. A line is parsed only when its
  * newline has arrived. A delivery id counts once. The reconcile runs once after the first read,
  * once per member for an `any` predicate, and stops at the first member that holds or when an
- * event has already matched. The wait never calls GitHub again.
+ * event has already matched. Channel events are hints and require authoritative reconciliation.
+ * Connected and reconnected diagnostics request one bounded reconciliation. Local file checks
+ * do not poll GitHub. Reconciliation calls run serially; hints received during a read are retained.
  *
  * Rejects with `WaitTimeout` at the timeout, `InputError` when a delivery id in `since` is not
  * in the file, and the reconcile error when the reconcile fails.
@@ -69,6 +72,8 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
       gateOpen = since?.kind !== 'delivery',
       reconcileSince = since?.kind === 'time' ? since.iso : undefined,
       finished = false,
+      reconcilePending = false,
+      reconciling = false,
       inode: number | undefined
     const seen = new Set<string>()
 
@@ -122,6 +127,19 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
           continue
         }
         if (since?.kind === 'time' && Date.parse(record.receivedAt) <= since.ms) continue
+        if (record.receiver !== undefined) {
+          if (options.repository !== record.receiver.repository)
+            throw new InputError(
+              'Channel event repository does not match the explicit wait repository',
+            )
+          if (reconcile === undefined)
+            throw new InputError('Channel events require authoritative reconciliation')
+          const reconnect =
+            record.event === 'receiver' &&
+            (record.action === 'connected' || record.action === 'reconnected')
+          if (reconnect || matchedMember(record, predicate) !== undefined) reconcilePending = true
+          continue
+        }
         const member = matchedMember(record, predicate)
         if (member !== undefined)
           return {
@@ -160,6 +178,7 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
       try {
         const hit = drain()
         if (hit !== undefined) settle(() => resolve(hit))
+        else if (reconcilePending && gateOpen) runReconcile()
       } catch (error) {
         settle(() => reject(error))
       }
@@ -168,6 +187,37 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
     if (signal?.aborted === true) return onAbort()
     signal?.addEventListener('abort', onAbort, { once: true })
 
+    function runReconcile(): void {
+      if (finished || reconciling || reconcile === undefined) return
+      const read = reconcile
+      reconciling = true
+      void (async () => {
+        while (reconcilePending && !finished) {
+          reconcilePending = false
+          for (const member of predicate.kind === 'any' ? predicate.of : [predicate]) {
+            if (finished) return
+            const hit = await read(member, reconcileSince)
+            if (hit !== undefined) {
+              settle(() =>
+                resolve({
+                  ...hit,
+                  source: 'reconcile',
+                  ...(predicate.kind === 'any' ? { matched: member.kind } : {}),
+                }),
+              )
+              return
+            }
+          }
+        }
+      })()
+        .catch((error: unknown) => settle(() => reject(error)))
+        .finally(() => {
+          reconciling = false
+          if (reconcilePending && !finished) runReconcile()
+        })
+    }
+
+    reconcilePending = reconcile !== undefined
     check()
     if (finished) return
     if (!gateOpen) {
@@ -176,24 +226,5 @@ export function waitForEvent(options: WaitOptions): Promise<WaitResult> {
       )
       return
     }
-    if (reconcile === undefined) return
-    void (async () => {
-      for (const member of predicate.kind === 'any' ? predicate.of : [predicate]) {
-        if (finished) return undefined
-        const hit = await reconcile(member, reconcileSince)
-        if (hit !== undefined)
-          return {
-            ...hit,
-            source: 'reconcile' as const,
-            ...(predicate.kind === 'any' ? { matched: member.kind } : {}),
-          }
-      }
-      return undefined
-    })().then(
-      hit => {
-        if (hit !== undefined) settle(() => resolve(hit))
-      },
-      (error: unknown) => settle(() => reject(error)),
-    )
   })
 }
