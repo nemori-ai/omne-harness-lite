@@ -35,6 +35,7 @@ function source(
         html_url: 'https://github.com/owner/repo/issues/10',
         body: '',
         state: 'open',
+        milestone: null,
         updated_at: issueReads++ > 0 && changes.changed ? '2026-10-27T10:01:00Z' : TIME,
         comments: changes.total ?? comments.length,
       }

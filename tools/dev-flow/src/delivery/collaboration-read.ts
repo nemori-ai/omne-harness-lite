@@ -26,6 +26,7 @@ export type CommentSnapshot = {
   body: string
   state: 'open' | 'closed'
   updatedAt: string
+  milestone: number | null
   comments: CollaborationComment[]
 }
 
@@ -38,6 +39,7 @@ function issueIdentity(
   state: 'open' | 'closed'
   updatedAt: string
   count: number
+  milestone: number | null
 } {
   const v = object(value, 'Issue')
   if (
@@ -55,6 +57,10 @@ function issueIdentity(
     state: v.state,
     updatedAt: utcTime(v.updated_at, 'Issue.updated_at'),
     count: v.comments,
+    milestone:
+      v.milestone === null
+        ? null
+        : integer(object(v.milestone, 'Issue.milestone').number, 'Issue.milestone.number'),
   }
 }
 
@@ -110,7 +116,15 @@ export function readCompleteComments(repo: string, issue: number, read: GhRead):
   if (canonical(before) !== canonical(after))
     throw new InputError('collaboration-comments-snapshot-changed')
   if (comments.length !== after.count) throw new InputError('collaboration-comments-incomplete')
-  return { repo, issue, body: after.body, state: after.state, updatedAt: after.updatedAt, comments }
+  return {
+    repo,
+    issue,
+    body: after.body,
+    state: after.state,
+    updatedAt: after.updatedAt,
+    milestone: after.milestone,
+    comments,
+  }
 }
 
 export function recordComments(snapshot: CommentSnapshot): RecordComment[] {

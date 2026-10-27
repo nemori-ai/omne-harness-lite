@@ -180,6 +180,22 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 [collaboration-requests.ts](collaboration-requests.ts) 只接收已通过权限校验的记录。业务身份为仓库、里程碑、波、线父卡和 requestId；同一身份的规范输入必须相同。Action 重跑或新运行产生的相同申请合并为一项，保留每个评论和运行定位。不同输入复用同一身份时失败。新 requestId 是新申请，不能被传输去重吞掉。待完成和失败的 workflow 回执不进入有效登记集合，由调用方保留诊断并恢复读取。
 
+### 派发授权读回
+
+[collaboration-authority.ts](collaboration-authority.ts) 的 `readCollaborationAuthority` 从实际 reduce 卡的唯一 binding 定位正式派发，复用现有 `readAuthority` 验证资格、精确评论与撤销情况，并要求派发 task 等于当前 binding。完整评论快照同时保存并核对 milestone。读取期间正文、状态、milestone、评论或更新时间变化均失败，不返回部分权限。
+
+正式派发评论中的唯一 `json omne-collaboration-scope:v1` 区块由 [collaboration-scope.ts](collaboration-scope.ts) 解析。它包含 context、epoch、全体参与线与负责人、采用的申请 workflow、前一派发与停写评论的精确引用，以及可空的接受责任声明。未知版本、重复字段或参与线、缺失字段均拒绝。该区块附在既有派发决定内，不从本地 JSON 或任意 marker 取得权限。
+
+每个 epoch 的开始取正式派发评论的 GitHub 更新时间。换 epoch 必须引用前一派发及 `json omne-collaboration-stop:v1` 评论，停写声明绑定旧 context、epoch、写者和非空证据。停止声明须由旧或新执行负责人写入，且不可编辑；结束时间取其 GitHub 创建时间，必须晚于旧派发、不得晚于新派发。它保存责任人的停写声明，不宣称工具已终止远端进程。
+
+历史派发逐条读回摘要，并独立复用派发资格检查，不因当前派发引用就自动可信。循环、重复 epoch、缺失前项、撤销争议、未链接的另一有效派发、时段重叠或相同计划修订的参与线/workflow 冲突均失败。无资格的普通 scope marker 不成为另一有效写者。`recordAuthorityFor` 只返回读回链已覆盖的计划修订；较早计划的 epoch 不能提前授权后来修订。
+
+本地路径按现有 `readAuthority` 查询当前 reviewer 资格，不声称证明该用户在过去某时刻的资格。云端或需要既有资格事实的路径，只接收已经由 `fetchDeliveryFacts` 等可信读取链采用的、精确绑定该评论的 facts；CLI 不接受用户提供的 JSON 作为资格证明。当前路径采用 facts 而缺历史 URL 的对应 facts 时，明确失败，不回退到环境或 GraphQL 查询。
+
+返回的 `VerifiedCollaborationAuthority` 只证明上述派发及记录权限。其 `scope.acceptanceResponsibility` 仍是声明，工具只核对它指向正文责任字段的摘要。它不授予接受权，也不证明 ReleaseRecord 已接受；接受授权来源与结果决定须由独立接受读取边界验证。
+
+验证入口为 [授权读取测试](../../tests/delivery-collaboration-authority.spec.ts)，使用真实派发校验函数及 REST 替身。覆盖历史资格、云端 facts、停写编辑、计划提前授权、链外写者、卡片变化和撤销；真实 GitHub 采用另行验证。
+
 验证资源为 [schema 测试](../../tests/delivery-collaboration-schema.spec.ts)、[分页与序号测试](../../tests/delivery-collaboration-read.spec.ts)和[信任测试](../../tests/delivery-collaboration-trust.spec.ts)。这些边界函数不自动接受成果、派发任务、创建 PR 或关闭 Issue。
 
 ## 事件等待
