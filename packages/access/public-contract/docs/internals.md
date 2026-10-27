@@ -8,13 +8,28 @@
 
 | 文件 | 唯一责任 |
 | --- | --- |
-| src/index.ts | 仅四个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
-| src/messages.ts | 正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
-| src/operation-rules.ts | 完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
-| src/codec.ts | 四函数实现、公开参数防护、模型与wire转换、响应验证后匹配 |
+| src/index.ts | 仅治理与会话两组共八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
+| src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
+| src/session-messages.ts | 会话的5个操作、请求、按操作/结果关联响应、历史页与codec结果类型 |
+| src/operation-rules.ts | 规则种类、协议族描述，以及完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
+| src/session-rules.ts | 会话协议族：5个操作的封闭规则、信封/body字段和outcome映射 |
+| src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
+| src/session-codec.ts | 会话四函数，各是核心对会话协议族的一次实例化 |
 | src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |
 
 直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
+
+核心不写死版本或操作表。协议族描述给出版本文本、编程错误文本、封闭操作表和阶段操作清单。共同拒绝集合由阶段操作清单推出：每个协议族都有 `protocol-rejected`，只有阶段操作清单非空的协议族才有 `stage-not-provided`。治理协议族有4项阶段操作。会话协议族的清单为空，所以会话一组既不读出也不编码 `stage-not-provided`，读取结果的类型里也没有这一项。
+
+```mermaid
+flowchart LR
+  G[治理协议族<br/>阶段操作 4 项<br/>共同拒绝 2 种] --> C[参数化核心<br/>codec.ts]
+  S[会话协议族<br/>阶段操作 0 项<br/>共同拒绝 1 种] --> C
+  C --> GF[治理四函数<br/>codec.ts]
+  C --> SF[会话四函数<br/>session-codec.ts]
+```
+
+规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。
 
 ## 关联读取
 
@@ -26,7 +41,7 @@ recoverCorrelation使用jsonc-parser扫描token与显式对象/数组frame栈，
 
 两个pass使用同一冻结预算。补扫再次检查完整输入，不因第一处duplicate提前停止而遗漏后缀错误。maxMembers按出现次数可比严格读取更早发现拒绝，不能将补扫更宽松地变成允许。整输入字节上限限制token分配，但不是进程RSS保证。没有隐藏第七深度上限，不捕获RangeError后把有效输入悄悄降成无关联。意外内部编程故障不转换成成功、可信关联或预期拒绝。
 
-响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。共同拒绝的无operation编码重载只允许两种共同outcome，带operation重载仍受38项映射约束。
+响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。治理一组的共同拒绝重载在没有operation时只允许两种共同outcome，带operation的重载仍受38项映射约束。会话一组的共同拒绝重载只允许 `protocol-rejected`，带operation的重载受5项映射约束。
 
 ## 字段和对象检查
 
@@ -36,7 +51,7 @@ proof的missing/empty/present是本地协议表示，业务身份由后续拥有
 
 ## 持续验证与责任
 
-测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider，不新增./testing。
+测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/session-protocol.spec.ts、tests/session-responses.spec.ts与tests/session-consumption.spec-d.ts核会话一组，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider。本成员没有 `./testing` 导出。
 
 关联向量必须包括ID在duplicate前后、转义等值ID重复、嵌套键、坏后缀、字符串/数字scanner边角、六预算等界/越界，以及超过原生递归容量但在显式预算内的深度。差分向量比较严格成功与补扫语法的适用一致性，duplicate输入永远仍为拒绝。测试只能证明覆盖范围，不能声称真实权限或持久业务验证。
 

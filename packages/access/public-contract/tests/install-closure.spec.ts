@@ -104,7 +104,30 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       copyFileSync(new URL(`./fixtures/${name}.ts`, import.meta.url), join(consumer, `${name}.ts`))
     writeFileSync(
       join(consumer, 'main.ts'),
-      `import { healthRequest, healthResponse } from './client.js'\nimport { receive } from './server.js'\nconst limits = { maxBytes: 4096, maxDepth: 16, maxItems: 128, maxMembers: 32, maxStringLength: 1024, maxNumberLength: 64 }\nconst request = healthRequest('installed', limits)\nif (request.kind !== 'encoded') throw new Error('request')\nconst response = receive(request.bytes, limits)\nif (response.kind !== 'encoded') throw new Error('response')\nconst read = healthResponse(response.bytes, 'installed', limits)\nif (read.kind !== 'response' || read.response.outcome !== 'succeeded') throw new Error('correlation')\nconsole.log(JSON.stringify({ kind: read.kind, outcome: read.response.outcome }))\n`,
+      [
+        `import { tenantCodec } from '@omne-harness/legal-identity'`,
+        `import { createSessionRequest, createSessionResponse, healthRequest, healthResponse } from './client.js'`,
+        `import { receive, receiveSession } from './server.js'`,
+        `const limits = { maxBytes: 4096, maxDepth: 16, maxItems: 128, maxMembers: 32, maxStringLength: 1024, maxNumberLength: 64 }`,
+        `const request = healthRequest('installed', limits)`,
+        `if (request.kind !== 'encoded') throw new Error('request')`,
+        `const response = receive(request.bytes, limits)`,
+        `if (response.kind !== 'encoded') throw new Error('response')`,
+        `const read = healthResponse(response.bytes, 'installed', limits)`,
+        `if (read.kind !== 'response' || read.response.outcome !== 'succeeded') throw new Error('correlation')`,
+        `const tenant = tenantCodec.parse(JSON.stringify({ organization: 'org_00000000000000000000000000', account: 'acc_00000000000000000000000000' }))`,
+        `if (!tenant.ok) throw new Error('tenant')`,
+        `const create = createSessionRequest('installed-session', tenant.value, limits)`,
+        `if (create.kind !== 'encoded') throw new Error('session request')`,
+        `const accepted = receiveSession(create.bytes, limits)`,
+        `if (accepted.kind !== 'requires-business-owner') throw new Error('session read')`,
+        `const refusal = receiveSession(new TextEncoder().encode(JSON.stringify({ protocolVersion: 'governance-public/1', messageId: 'installed-session' })), limits)`,
+        `if (refusal.kind !== 'encoded') throw new Error('session refusal')`,
+        `const refused = createSessionResponse(refusal.bytes, 'installed-session', limits)`,
+        `if (refused.kind !== 'response') throw new Error('session correlation')`,
+        `console.log(JSON.stringify({ kind: read.kind, outcome: read.response.outcome, session: { accepted: accepted.request.operation, refused: refused.response.outcome } }))`,
+        ``,
+      ].join('\n'),
     )
     const tsc = resolve(root, 'packages/access/public-contract/node_modules/typescript/bin/tsc')
     writeFileSync(
@@ -125,9 +148,11 @@ it('installs only the pure tarball closure and consumes both ends through dist e
     const execution = JSON.parse(run(process.execPath, ['out/main.js'], consumer)) as {
       kind: string
       outcome: string
+      session: { accepted: string; refused: string }
     }
     expect(execution.kind).toBe('response')
     expect(execution.outcome).toBe('succeeded')
+    expect(execution.session).toEqual({ accepted: 'create-session', refused: 'protocol-rejected' })
     const resolved = run(
       process.execPath,
       [
