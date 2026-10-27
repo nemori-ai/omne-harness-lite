@@ -46,7 +46,7 @@ Remote probes run in separate read-only processes. Local health runs every 5s, a
 ack: {supervision:originalInput,id:signalId,evidence:handlingEvidence}; acknowledges only the local signal.
 Returning a signal never acknowledges it or changes business state. Resume with the original input and journal.
 Exit 0: observed result; 1: unknown outcome; 2: invalid input, conflict or unavailable evidence;
-124: supervision timed out; 130: supervision cancelled. No automatic workflow approval.`
+3: supervision timed out; 130: supervision cancelled. No automatic workflow approval.`
 
 function readInput(rest: string[]): unknown {
   const { values, tokens } = parseArgs({
@@ -129,7 +129,7 @@ export async function reduceCli(args: string[]): Promise<number> {
             }),
       }) + '\n',
     )
-    return result.status === 'timeout' ? 124 : result.status === 'cancelled' ? 130 : 0
+    return result.status === 'timeout' ? 3 : result.status === 'cancelled' ? 130 : 0
   } finally {
     process.removeListener('SIGINT', cancel)
     process.removeListener('SIGTERM', cancel)

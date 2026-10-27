@@ -8,6 +8,8 @@ import { parseReduceCommand } from '../src/delivery/reduce-command.ts'
 import { reduceCli } from '../src/delivery/reduce-cli.ts'
 import { parseReduceSupervision } from '../src/delivery/reduce-supervision-input.ts'
 import { runInstalledSupervision } from '../src/delivery/reduce-supervision.ts'
+import { claimReceiver } from '../src/delivery/events-receiver-state.ts'
+import { receiverPaths, writePrivateJson } from '../src/delivery/events-channel-config.ts'
 import { context, state, release, UUID, evidence } from './fixtures/collaboration.ts'
 
 const roots: string[] = []
@@ -65,6 +67,57 @@ describe('installed reduce command boundaries', () => {
       evidence: [],
     })
     expect(result.stderr.trim()).not.toBe('')
+  })
+  it('exits 3 on explicit supervision timeout and resumes the same operation', () => {
+    const f = fixture()
+    const input = { ...f.input, timeoutMs: 1 }
+    const inputFile = join(f.root, 'timeout.json')
+    writeFileSync(inputFile, JSON.stringify(input))
+    // This local health fixture does not claim a real channel connection.
+    const receiver = claimReceiver({
+      instanceId: UUID,
+      repository: context.repo,
+      eventFile: input.file,
+      mode: 'legacy',
+      managed: false,
+      hookId: null,
+      events: ['issues'],
+    })
+    writePrivateJson(receiverPaths(input.file).state, {
+      ...receiver.state,
+      state: 'connected',
+      connectionEpoch: 1,
+    })
+    const cli = fileURLToPath(new URL('../src/delivery/reduce-cli.ts', import.meta.url))
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const result = spawnSync(
+          process.execPath,
+          ['--experimental-strip-types', cli, 'supervise', '--input', inputFile],
+          { encoding: 'utf8', timeout: 10_000 },
+        )
+        expect(result.error).toBeUndefined()
+        expect(result.status).toBe(3)
+        expect(JSON.parse(result.stdout)).toMatchObject({
+          schemaVersion: 1,
+          operation: 'supervise',
+          status: 'timeout',
+          operationId: input.operationId,
+          pending: [],
+          errorCode: 'reduce-supervision-timeout',
+          retryable: true,
+          sideEffects: 'local-journal-only',
+          recovery: {
+            operationId: input.operationId,
+            context,
+            owner: input.owner,
+            epoch: input.epoch,
+          },
+        })
+      }
+    } finally {
+      receiver.release()
+    }
   })
   it('reads its actual CLI help without contacting GitHub or requiring an installation', () => {
     const cli = fileURLToPath(new URL('../src/delivery/reduce-cli.ts', import.meta.url))

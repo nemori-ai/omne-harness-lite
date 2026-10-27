@@ -428,6 +428,8 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 活动 run 完成后撤出该 worker 的轮询集合，并重新读取实际回执与当前 owner/epoch。运行未完成时不周期扫描 Issue/PR。新事件、启动恢复与截止重新对账。收口监督只返回已核验的就绪或已放行事实，不创建接受、delta 或后继卡。phase 与业务状态独立，ack 只写本地信号处置回执。
 
+监督返回可处置信号时退出 0，显式超时退出 3，取消退出 130，输入或监督故障退出 2。超时结果保留原 operationId 和 recovery，不表示波已完成。恢复时使用原输入和 journal。
+
 监督结束会停止子进程并释放订阅和计时器。POSIX worker 使用自有进程组，停止和超时终止整组，避免同步 gh 子进程遗留。Windows 目前只终止直接 worker，命令自身仍受读取超时约束；该平台的子进程树清理不在现有验证结论内。
 
 新增验证资源为 delivery-reduce-assembly、delivery-read-worker、delivery-reduce-integration、delivery-reduce-supervise、delivery-collaboration-installation 和 delivery-collaboration-verification 测试。它们区分真实本机进程/文件/CLI 与 REST 替身；不将替身结果声明为真实工作流部署或 W4 宿主接受。
