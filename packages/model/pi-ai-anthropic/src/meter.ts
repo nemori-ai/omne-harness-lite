@@ -6,11 +6,8 @@
 // output tokens of the call that produced it when a preparation lease hands that count over, else
 // the request has no estimate.
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type {
-  MediaMeasurementFact,
-  ModelTextTokenizer,
-  TransportFailure,
-} from '@omne-harness/model-contract'
+import type { MediaMeasurementFact, TransportFailure } from '@omne-harness/model-contract'
+import type { ModelTextTokenizer } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import {

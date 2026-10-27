@@ -3,19 +3,21 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
   decodeOutputCursor,
+  type ModelFailure,
+  type Termination,
+  type Reply,
+} from '@omne-harness/model-contract'
+import {
   type ModelCommands,
   type ModelDriver,
   type ModelDriveInput,
-  type ModelFailure,
   type ModelInstanceHost,
   type ModelClock,
   type ModelSendBoundary,
   type SendDemand,
   type Publication,
   type ExecutionRef,
-  type Termination,
-  type Reply,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { createObservation } from './observation.ts'
 import { createReceiver, newOperation, type TerminalCompetition } from './receive.ts'
 

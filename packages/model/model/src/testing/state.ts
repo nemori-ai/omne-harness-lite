@@ -1,33 +1,29 @@
 import type { CredentialSelection, SendCoordinator, SendStart } from '../send.ts'
 import type { MemorySendSource } from './types.ts'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeModelCallId,
   decodeModelOperationId,
   decodeModelInstanceId,
   decodeRevision,
-  decodeCredentialId,
 } from '@omne-harness/model-contract'
+import { decodeCredentialId } from '@omne-harness/model-contract/provider'
 import type {
   Access,
-  ActorRef,
   Admission,
   CallState,
   ConsumerRef,
   DispatchRecord,
   DurableEvidence,
-  ExecutionRef,
   FixedModelRequest,
   ModelCallId,
-  ModelConsumerOwnerDeclaration,
   ModelFailure,
   ModelOperationId,
   OutputCursor,
   ReadId,
   ReadState,
   ResultCapacity,
-  ProviderDiagnostic,
   ResultTrim,
   RetryDecision,
   RetryPosition,
@@ -35,10 +31,16 @@ import type {
   Settlement,
   Snapshot,
   VisibleBlock,
-  SendDemand,
   MaterializationReceipt,
   Termination,
 } from '@omne-harness/model-contract'
+import type {
+  ActorRef,
+  ExecutionRef,
+  ModelConsumerOwnerDeclaration,
+  ProviderDiagnostic,
+  SendDemand,
+} from '@omne-harness/model-contract/provider'
 import { resultParts, makePage, pageEnd, materialBytes, encodedBytes } from './pages.ts'
 import type { StreamAssembly } from '@omne-harness/stream-arrival'
 import { MEMORY_WRITE_METHODS } from './types.ts'

@@ -1,6 +1,7 @@
 // How one started send ends: a pure mapping from what the exchange and the decoder gave to the
 // termination of the fact stream. No response header and no error body enters a termination.
-import type { ModelFault, TransportTermination } from '@omne-harness/model-contract'
+import type { ModelFault } from '@omne-harness/model-contract'
+import type { TransportTermination } from '@omne-harness/model-contract/provider'
 import type { FrameFailure } from './frames.ts'
 import type { SseFailureReason } from './sse.ts'
 

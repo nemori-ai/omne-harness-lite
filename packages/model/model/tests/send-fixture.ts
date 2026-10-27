@@ -10,7 +10,7 @@ import {
   type SendDemand,
   type MaterializedTransport,
   type TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fixture, identity, instance, op, proof, unbox } from './memory-fixture.ts'
 
 export const factoryId = unbox(decodeCredentialId('official-query'))

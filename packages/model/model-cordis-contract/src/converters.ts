@@ -1,16 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
 import { registerInCallerFiber, type Admission } from '@omne-harness/kernel-basis/cordis'
+import type { Adoption, ConvertedContent, Reply } from '@omne-harness/model-contract'
 import type {
-  Adoption,
   ConversionFailure,
-  ConvertedContent,
   ConverterKey,
   ConverterLookup,
   ModelConverter,
   ModelConverterCatalog,
-  Reply,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { isCanonicalMediaType, judgeModality } from '@omne-harness/modality'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {

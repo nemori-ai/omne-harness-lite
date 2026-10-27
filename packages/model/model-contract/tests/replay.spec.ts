@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { REPLAY_TAG_MAX_LENGTH, judgeMessage, type Message } from '@omne-harness/message'
 import {
-  continuedMessages,
-  judgeReplayDeclaration,
-  projectReplay,
   type ForeignThinking,
   type ProfileSupplier,
   type ReplayDeclaration,
-  type ReplayProjectionInput,
 } from '@omne-harness/model-contract'
+import {
+  continuedMessages,
+  judgeReplayDeclaration,
+  projectReplay,
+  type ReplayProjectionInput,
+} from '@omne-harness/model-contract/provider'
 
 // The test names are literals: the mutation runner finds a test by its static name.
 const SECRET = 'PAYLOAD-THAT-MUST-NOT-LEAK'

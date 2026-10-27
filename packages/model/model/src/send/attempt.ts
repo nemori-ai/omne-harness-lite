@@ -1,16 +1,18 @@
 import { randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import {
-  MODEL_SEND,
   decodeModelOperationId,
   type MaterializationReceipt,
-  type MaterializedTransport,
-  type ModelCommands,
   type ModelFailure,
   type ModelOperationId,
+} from '@omne-harness/model-contract'
+import {
+  MODEL_SEND,
+  type MaterializedTransport,
+  type ModelCommands,
   type SendDemand,
   type SendResult,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
 import type { CredentialSelection, ModelSendBoundaryOptions, SendStart } from './types.ts'

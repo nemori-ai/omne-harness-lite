@@ -3,8 +3,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
   type Adoption,
   type AssembledModelInput,
   type FixedModelRequest,
@@ -13,10 +11,14 @@ import {
   type Parameter,
   type ProfileReplay,
   type ReplayDeclaration,
-  type ReplayTreatment,
   type Supplier,
   type TransportFailure,
 } from '@omne-harness/model-contract'
+import {
+  judgeFixedModelRequest,
+  judgeReplayDeclaration,
+  type ReplayTreatment,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   ChatCompletionsLimits,

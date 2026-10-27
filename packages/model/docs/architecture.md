@@ -215,11 +215,13 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
 import type {
-  Adoption, Supplier, FixedModelRequest, ModelRequestRules, CalibratedInputMeter,
-  ModelCountingBasis, ModelToolPayloadAdapter, TransportFact, TransportFailure, ModelFault,
-  MeterRepresentation, MediaMeasurementFact, ReplayDeclaration, TransportDispatch,
-  ProviderDiagnostic,
+  Adoption, Supplier, FixedModelRequest, ModelRequestRules, ModelCountingBasis,
+  TransportFailure, ModelFault, MeterRepresentation, MediaMeasurementFact, ReplayDeclaration,
 } from '@omne-harness/model-contract'
+import type {
+  CalibratedInputMeter, ModelToolPayloadAdapter, TransportFact, TransportDispatch,
+  ProviderDiagnostic,
+} from '@omne-harness/model-contract/provider'
 
 export type PiProtocolFrame = Readonly<{ kind: 'data'; value: JsonValue }>
   | Readonly<{ kind: 'end-marker' }>

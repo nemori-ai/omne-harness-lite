@@ -2,12 +2,8 @@ import { invocationReference } from './reference-input.ts'
 import { judgePart } from '@omne-harness/message'
 import { expect, it, vi } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
-import type {
-  ModelCommands,
-  Snapshot,
-  Termination,
-  TransportFact,
-} from '@omne-harness/model-contract'
+import type { Snapshot, Termination } from '@omne-harness/model-contract'
+import type { ModelCommands, TransportFact } from '@omne-harness/model-contract/provider'
 import { configuration, eventually, runtimeFixture } from './runtime-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
 

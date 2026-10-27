@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { judgeAdmit, type ModelCommands } from '@omne-harness/model-contract'
+import { judgeAdmit, type ModelCommands } from '@omne-harness/model-contract/provider'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import { callId, fixture, op, unbox } from './memory-fixture.ts'

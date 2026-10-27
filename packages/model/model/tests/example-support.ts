@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
 import {
-  decodeCredentialId,
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
@@ -10,10 +9,13 @@ import {
   type DurableEvidence,
   type ResultVersion,
   type FixedModelRequest,
+} from '@omne-harness/model-contract'
+import {
+  decodeCredentialId,
   type Publication,
   type TransportFact,
   type TransportTermination,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import type { ModelConfiguration, SendResources } from '@omne-harness/model'
@@ -201,7 +203,7 @@ export function createExampleAssembly(script: {
   })
   const resources: SendResources<typeof principal> = {
     async acquire() {
-      let owned: import('@omne-harness/model-contract').MaterializedTransport | undefined
+      let owned: import('@omne-harness/model-contract/provider').MaterializedTransport | undefined
       return {
         ok: {
           transport: {

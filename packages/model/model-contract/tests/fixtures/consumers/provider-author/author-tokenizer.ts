@@ -1,7 +1,7 @@
 // A text tokenizer as an author writes it against the contract: it counts the words of the text
 // segments and one token for each special token it knows, and names the special token it does not.
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { ModelTextTokenizer, TokenizationSegment } from '@omne-harness/model-contract'
+import type { ModelTextTokenizer, TokenizationSegment } from '@omne-harness/model-contract/provider'
 import { adoption } from './values.ts'
 
 const KNOWN_SPECIAL_TOKENS: readonly string[] = ['<bos>', '<eos>']

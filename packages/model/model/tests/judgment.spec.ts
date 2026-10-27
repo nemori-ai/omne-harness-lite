@@ -14,7 +14,7 @@ import {
   type CredentialResolution,
   type CredentialPort,
   type SendFace,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { expect, it, vi } from 'vitest'
 
 function identity(account: string, organization: string) {

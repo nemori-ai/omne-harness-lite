@@ -1,11 +1,15 @@
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
-  CredentialPort,
   ModelCallId,
+  ModelDiagnostics,
+  ModelRuntime,
+  Revision,
+} from '@omne-harness/model-contract'
+import type {
+  CredentialPort,
   ModelClock,
   ModelCommands,
-  ModelDiagnostics,
   ModelHostAuthority,
   ModelInstanceHost,
   ModelMessageConversion,
@@ -13,10 +17,8 @@ import type {
   ModelProfiles,
   ModelRequestPreparation,
   ModelRetryPolicy,
-  ModelRuntime,
   ModelSendBoundary,
-  Revision,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { ModelConvertersService } from './converters.ts'
 import type { ModelInstancesService } from './instances.ts'
 import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts'

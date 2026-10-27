@@ -34,9 +34,9 @@ import type {
   ResultVersion,
   Snapshot,
   Termination,
-  TransportFact,
   VisibleBlock,
 } from '../index.ts'
+import type { TransportFact } from '../provider/index.ts'
 import {
   decodeDispatchId,
   decodeModelCallId,

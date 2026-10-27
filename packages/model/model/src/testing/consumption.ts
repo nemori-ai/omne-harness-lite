@@ -1,11 +1,8 @@
 import { checkedEvidence } from './value.ts'
-import type {
-  AckReceipt,
-  CustodyState,
-  ModelCommands,
-  ReadStart,
-} from '@omne-harness/model-contract'
-import { decodeReadId, decodeResultVersion } from '@omne-harness/model-contract'
+import type { AckReceipt, CustodyState, ReadStart } from '@omne-harness/model-contract'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
+import { decodeResultVersion } from '@omne-harness/model-contract'
+import { decodeReadId } from '@omne-harness/model-contract/provider'
 import {
   MemoryState,
   authFailure,

@@ -3,13 +3,12 @@ import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model
 import { createTestModelDependencies, type TestModelSendPlan } from '@omne-harness/model/testing'
 import {
   decodeDispatchId,
-  decodeCredentialId,
   decodeResultVersion,
   type ModelHandle,
   type FixedModelRequest,
   type Parameter,
-  type ModelRetryPolicy,
 } from '@omne-harness/model-contract'
+import { decodeCredentialId, type ModelRetryPolicy } from '@omne-harness/model-contract/provider'
 import { fixture, instance, op, proof, unbox, identity, callId } from './memory-fixture.ts'
 
 const configuration: ModelConfiguration = {
@@ -475,7 +474,7 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
   )
   const facts = [
     { kind: 'ended', termination: { kind: 'failed', fault } },
-  ] satisfies import('@omne-harness/model-contract').TransportFact[]
+  ] satisfies import('@omne-harness/model-contract/provider').TransportFact[]
   const hash = await import('../src/testing/value.ts')
   f.completeWindows.add(`${f.admit.call}/retry-failure/${hash.digest(facts)}`)
   unbox(

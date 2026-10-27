@@ -7,11 +7,11 @@ import type {
   ModelDelivery,
   ModelDeliveryKey,
   ModelInvocationRef,
-  ModelOperationRef,
   ResultPart,
   ResultVersion,
   Settlement,
 } from '@omne-harness/model-contract'
+import type { ModelOperationRef } from '@omne-harness/model-contract/provider'
 import { account, call, consumer, cursor, dispatch, evidence, result, revision } from './values.ts'
 
 declare const reference: ModelInvocationRef

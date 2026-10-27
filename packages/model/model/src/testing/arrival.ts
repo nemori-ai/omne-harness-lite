@@ -4,14 +4,16 @@ import { assembleStream } from '@omne-harness/stream-arrival'
 import { admitRevision, judgeCallAccount } from '@omne-harness/call-account'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type {
-  CallAccountReport,
   ModelBlock,
   ModelFailure,
-  ProviderDiagnostic,
-  TransportFact,
   Termination,
   VisibleBlock,
 } from '@omne-harness/model-contract'
+import type {
+  CallAccountReport,
+  ProviderDiagnostic,
+  TransportFact,
+} from '@omne-harness/model-contract/provider'
 import type { MemoryCall, MemoryDispatch } from './state.ts'
 import { encodedBytes, MAX_TERMINATION_BYTES } from './pages.ts'
 import { decimal, digest, invalid } from './value.ts'

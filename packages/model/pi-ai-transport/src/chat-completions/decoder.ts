@@ -8,14 +8,13 @@
 // after its finish still gives the account of the usage it received, from `end()`.
 import { judgeBlockIdentity, type BlockId } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
+import type { ModelBlock, ModelFault } from '@omne-harness/model-contract'
 import type {
   CallAccountReport,
-  ModelBlock,
-  ModelFault,
   ProviderDiagnostic,
   TransportFact,
   TransportTermination,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiProtocolFrame, PiResponseDecoder } from '../family.ts'
 import { causeOfStatus } from '../termination.ts'

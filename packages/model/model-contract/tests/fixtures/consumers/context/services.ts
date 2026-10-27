@@ -5,23 +5,25 @@
 // answers each call with a scripted ending, and a conversion that decides by the kind of block.
 // They exercise the contract shapes; they are not the Model.
 import { succeed } from '@omne-harness/operation-result'
-import { judgeReplayDeclaration } from '@omne-harness/model-contract'
+import { judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import type {
   ConversionResult,
   FixedModelRequest,
   ModelCountingBasis,
   ModelInputMeter,
-  ModelMessageConversion,
-  ModelProfiles,
-  ModelRequestPreparation,
   ModelCallId,
-  ModelTransport,
   ProfileResolution,
   ReplayDeclaration,
   RequestBudget,
   Supplier,
   Termination,
 } from '@omne-harness/model-contract'
+import type {
+  ModelMessageConversion,
+  ModelProfiles,
+  ModelRequestPreparation,
+  ModelTransport,
+} from '@omne-harness/model-contract/provider'
 import { blocksOf, inputBound, referencesOf, type MeterInput } from './meter-input.ts'
 import { adoption, evidence, profile, textBlock, type Principal } from './values.ts'
 

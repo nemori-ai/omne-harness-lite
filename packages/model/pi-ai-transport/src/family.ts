@@ -8,18 +8,20 @@ import type {
   Supplier,
   FixedModelRequest,
   ModelRequestRules,
-  CalibratedInputMeter,
   ModelCountingBasis,
-  ModelToolPayloadAdapter,
-  TransportFact,
   TransportFailure,
   ModelFault,
   MeterRepresentation,
   MediaMeasurementFact,
   ReplayDeclaration,
+} from '@omne-harness/model-contract'
+import type {
+  CalibratedInputMeter,
+  ModelToolPayloadAdapter,
+  TransportFact,
   TransportDispatch,
   ProviderDiagnostic,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 export type PiProtocolFrame =
   | Readonly<{ kind: 'data'; value: JsonValue }>

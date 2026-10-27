@@ -21,7 +21,7 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract 的[公开接口页](public-api.md)导航根入口、`./testing` 与 `./conformance` 的声明，实际名字见[导出清单](../tests/fixtures/exports.json)。根入口包含引用共享 `ToolCallPart` 的声明。`./testing` 提供受控替代提供者与替代传输，给领域外的协调者练习失败路径，不是生产提供者。提供者作者可用 `./conformance` 入口的 `checkModelProviderConformance` 检查自己的提供者是否守住公开面上可观察的契约义务。
+model-contract 的[公开接口页](public-api.md)导航根入口、`./provider`、`./testing` 与 `./conformance` 的声明，实际名字见[导出清单](../tests/fixtures/exports.json)。根入口是消费者面，`./provider` 是提供者协议，分组规则见[提供者协议入口](public-api.md#提供者协议入口)。根入口包含引用共享 `ToolCallPart` 的声明。`./testing` 提供受控替代提供者与替代传输，给领域外的协调者练习失败路径，不是生产提供者。提供者作者可用 `./conformance` 入口的 `checkModelProviderConformance` 检查自己的提供者是否守住公开面上可观察的契约义务。
 
 model-cordis-contract 的抽象 Service、凭据服务、实例目录与转换目录见其[公开接口页](../../model-cordis-contract/docs/public-api.md)。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现。本地凭据保管及其插件在 model-host-local。下表描述托管运行接口的消费路径，现有凭据入口见 model 的公开文档。
 
@@ -30,7 +30,7 @@ model-cordis-contract 的抽象 Service、凭据服务、实例目录与转换�
 | 使用任务 | 安装与导入 |
 | --- | --- |
 | 查询档案、准备请求、调用、观察或消费结果 | 从 model-contract 取得类型及必要纯函数，实际能力由宿主注入 |
-| 编写传输、计量、tokenizer 或持久化提供者 | 从同一 model-contract 取得对应端口，不安装默认 Model 实现 |
+| 编写传输、计量、tokenizer 或持久化提供者 | 从 `@omne-harness/model-contract/provider` 取得对应端口与提供者侧契约函数，从根入口取值类型，不安装默认 Model 实现 |
 | 编写 Cordis 消费插件 | 从 model-cordis-contract/cordis 取得唯一键、类和增补，不从运行提供者取定义 |
 | 选择可复用运行或独立 executeModel 实现 | 从 model 取得工厂或执行函数，另装选中的 adapter |
 | 装配单机 Cordis 宿主 | 从 model-host-local/cordis 取得具体插件 |

@@ -1,14 +1,13 @@
-import { judgeFixedModelRequest } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import type {
   Admit,
   ConsumerRef,
   FixedModelRequest,
-  ModelTransport,
   ResultCapacity,
   Supplier,
   Termination,
-  TransportFact,
 } from '@omne-harness/model-contract'
+import type { ModelTransport, TransportFact } from '@omne-harness/model-contract/provider'
 import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
 import {
   createScriptedConformanceSubject,

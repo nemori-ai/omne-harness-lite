@@ -1,7 +1,11 @@
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
-import { MODEL_SEND, decodeCredentialId, sameCredentialHolder } from '../src/index.ts'
-import type { CredentialId } from '../src/index.ts'
+import {
+  MODEL_SEND,
+  decodeCredentialId,
+  sameCredentialHolder,
+} from '@omne-harness/model-contract/provider'
+import type { CredentialId } from '@omne-harness/model-contract'
 
 function identity(accountText: string, organizationText: string) {
   const account = accountCodec.parse(accountText)

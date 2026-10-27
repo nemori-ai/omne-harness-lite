@@ -3,13 +3,15 @@
 // module owns the outer lifecycle and the prepared transports; materialized.ts owns one send.
 import type {
   FixedModelRequest,
-  ModelTransport,
-  PreparedTransport,
   ReplayDeclaration,
   Supplier,
-  TransportDispatch,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type {
+  ModelTransport,
+  PreparedTransport,
+  TransportDispatch,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { checkConfig, type CheckedConfig, type PiTransportConfig } from './config.ts'
 import type { PiFamilyBinding } from './family.ts'

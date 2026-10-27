@@ -1,13 +1,8 @@
 // The Anthropic family: the records, the rules and the meter become one `PiFamily`. `acquire`
 // initializes the tokenizer once per family, checks it against the record, and binds through the
 // gateway engine. Nothing here reads the environment, a file or the network.
-import type {
-  Adoption,
-  ModelTextTokenizer,
-  TokenizationFailure,
-  TokenizerDefinition,
-  TransportFailure,
-} from '@omne-harness/model-contract'
+import type { Adoption, TokenizerDefinition, TransportFailure } from '@omne-harness/model-contract'
+import type { ModelTextTokenizer, TokenizationFailure } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { defineFamily, type PiFamily, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import {

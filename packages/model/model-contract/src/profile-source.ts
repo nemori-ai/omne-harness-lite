@@ -13,7 +13,7 @@ import type {
   ParameterAdoption,
   ProfileScope,
 } from './profile.ts'
-import type { TransportFailure } from './provider.ts'
+import type { TransportFailure } from './provider-protocol.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
 export type ModelProfileSnapshot = Readonly<{

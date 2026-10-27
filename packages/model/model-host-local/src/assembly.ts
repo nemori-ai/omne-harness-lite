@@ -8,13 +8,12 @@ import {
   type SendCoordinator,
   type SupplierPort,
 } from '@omne-harness/model'
+import type { ModelFailure, ModelPreparationResources } from '@omne-harness/model-contract'
 import type {
   CredentialPort,
   ModelCommands,
-  ModelFailure,
-  ModelPreparationResources,
   ModelSendBoundary,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import {
   createNetworkResources,
   type NetworkConfig,

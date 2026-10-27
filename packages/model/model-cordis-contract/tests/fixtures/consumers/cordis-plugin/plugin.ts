@@ -5,11 +5,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
-  compareRevisions,
   type ModelCallId,
   type ModelInvocationRef,
   type Revision,
 } from '@omne-harness/model-contract'
+import { compareRevisions } from '@omne-harness/model-contract/provider'
 import { ModelRuntimeService, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import type { Principal } from './values.ts'
 

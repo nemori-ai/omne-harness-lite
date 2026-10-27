@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  Adoption,
-  MaterializationReceipt,
-  MaterializedTransport,
-  TransportFact,
-} from '@omne-harness/model-contract'
+import type { Adoption, MaterializationReceipt } from '@omne-harness/model-contract'
+import type { MaterializedTransport, TransportFact } from '@omne-harness/model-contract/provider'
 import {
   createScriptedTransport,
   type ScriptedTransportScript,

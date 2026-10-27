@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import { runtimeFixture, eventually } from './runtime-fixture.ts'
 import { op, unbox } from './memory-fixture.ts'
-import type { ModelCommands, ModelOperationId, TransportFact } from '@omne-harness/model-contract'
+import type { ModelOperationId } from '@omne-harness/model-contract'
+import type { ModelCommands, TransportFact } from '@omne-harness/model-contract/provider'
 
 const open: TransportFact = { kind: 'block-open', index: '0', mode: 'append', content: 'text' }
 const delta = (text: string): TransportFact => ({ kind: 'block-delta', index: '0', delta: text })

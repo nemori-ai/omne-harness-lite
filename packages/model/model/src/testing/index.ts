@@ -9,7 +9,7 @@ import { memoryAssembly } from './memory.ts'
 import { createMemoryRetryPolicy } from './retry.ts'
 import { scriptedSendResources, type TestSendPlan } from './send.ts'
 import { createModelSendBoundary, type ModelSendBoundaryOptions } from '../send.ts'
-import type { CredentialPort } from '@omne-harness/model-contract'
+import type { CredentialPort } from '@omne-harness/model-contract/provider'
 import type { MemoryModelCommandsOptions, MemorySendSource } from './types.ts'
 
 export { createMemoryModelCommands } from './memory.ts'

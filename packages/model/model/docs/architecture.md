@@ -382,7 +382,7 @@ classDiagram
 
 ## ModelCommands 的持久化与一致性边界
 
-本节依据[提供者接口](../../model-contract/src/provider.ts)和[独立执行与提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)分析持久边界，服务于[内存 Commands #450](https://github.com/nemori-ai/omne-harness-lite/issues/450)及[运行实施 #446 的阶段 7.2](https://github.com/nemori-ai/omne-harness-lite/issues/446)。已有逻辑记录和内部角色分别沿用[持久提供者的记录与提交](#持久提供者的记录与提交)和[调用执行对象与所有权](#调用执行对象与所有权)。本节不增加接口、表结构或跨域协调者决定。
+本节依据[提供者接口](../../model-contract/src/provider-protocol.ts)和[独立执行与提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)分析持久边界，服务于[内存 Commands #450](https://github.com/nemori-ai/omne-harness-lite/issues/450)及[运行实施 #446 的阶段 7.2](https://github.com/nemori-ai/omne-harness-lite/issues/446)。已有逻辑记录和内部角色分别沿用[持久提供者的记录与提交](#持久提供者的记录与提交)和[调用执行对象与所有权](#调用执行对象与所有权)。本节不增加接口、表结构或跨域协调者决定。
 
 ### 方法归组与每次提交
 
@@ -406,7 +406,7 @@ classDiagram
 | `preserve` | 接收/读窗口与承接 | 状态变更 | 原实例/dispatch/window、完整有序批次、可恢复内容、首内容、账目（账目报告补上 subject 与 receipt received）、随发出保存的诊断事实、游标和窗口关闭 | Model 按 window/序号去重及 revision 提交；提交后发布快照 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[接收窗口](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `acquireRead` | 接收/读窗口与承接 | 状态变更 | 当前读取资格、实际终局、原 result version、首页及真实读取登记；与 ACK 排序 | Model 的 operation 先认回原 read；新 operation 在 ACK 后不能取得全文 | [读准入与分页](../../model-contract/SPEC.md#342-普通调用面与实例观察)、[逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `nextRead` | 接收/读窗口与承接 | 查询 | 当前读取资格、原 read、同一 result version 和原 after 对应页 | Model 的稳定页身份；同 after 返回同页，不消费或暗移游标 | [读准入与分页](../../model-contract/SPEC.md#342-普通调用面与实例观察) |
-| `endRead` | 接收/读窗口与承接 | 状态变更 | 当前读取资格、原 read 的实际资源结束及保护关系解除，保留结束原因 | Model 的 read 身份和幂等结束；公开输入没有 operation，内部适配见下文假设 | [提供者接口](../../model-contract/src/provider.ts)、[逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
+| `endRead` | 接收/读窗口与承接 | 状态变更 | 当前读取资格、原 read 的实际资源结束及保护关系解除，保留结束原因 | Model 的 read 身份和幂等结束；公开输入没有 operation，内部适配见下文假设 | [提供者接口](../../model-contract/src/provider-protocol.ts)、[逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `handoff` | 接收/读窗口与承接 | 状态变更 | 当前承接资格和关系、实际终局、原版本、有效证据、ACK 与清理责任 | Model 的 operation/result version 和 owner 证据适配；ACK 不回滚，活动读仍受保护 | [ACK 前提](../../model-contract/SPEC.md#ack-的前提与效果)、[提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作) |
 | `advanceCleanup` | 清理义务 | 状态变更 | 有效代次、原 ACK、真实读结束、在途/未知写核实及每步清理进度 | Model 的 generation、operation 和资源责任；外部释放不因数据库回滚而撤回 | [清理范围](../../model-contract/SPEC.md#清理范围与读写保护)、[恢复](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `scanPending` | 恢复认领 | 查询 | 当前恢复主体、显式租户授权、原耐久待办与稳定分页 | Model 的原身份排序、正整数 limit 和公开上界、after/next；查询失败保留游标 | [恢复扫描](../../model-contract/SPEC.md#342-独立执行与提供者操作) |

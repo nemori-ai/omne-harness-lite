@@ -14,12 +14,12 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   decodeModelCallId,
-  judgeFixedModelRequest,
   type FixedModelRequest,
   type ModelBlock,
   type PreparationLineage,
   type ResultPart,
 } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'

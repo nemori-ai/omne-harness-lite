@@ -1,9 +1,9 @@
+import type { ModelOperationId } from '@omne-harness/model-contract'
 import type {
   ExecutionRef,
-  ModelOperationId,
   ModelTransport,
   SendDemand,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { SendResources } from '../send.ts'
 import { digest, invalid, tenantKey, unavailable } from './value.ts'
 
@@ -60,7 +60,7 @@ export function scriptedSendResources<P, Script>(
         return { failure: invalid('admission', 'send-plan-binding') }
       const source = makeTransport(plan.script)
       counts.set(id, [...(counts.get(id) ?? []), source.counts])
-      let owned: import('@omne-harness/model-contract').MaterializedTransport | undefined
+      let owned: import('@omne-harness/model-contract/provider').MaterializedTransport | undefined
       let secret: string | undefined
       return {
         ok: {

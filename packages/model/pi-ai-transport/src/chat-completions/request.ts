@@ -6,7 +6,6 @@
 // one body writer, so the representation of the plan is the one that encode produces.
 import type { JsonValue } from '@omne-harness/json-text'
 import {
-  judgeReplayDeclaration,
   type Adoption,
   type AssembledModelInput,
   type FixedModelRequest,
@@ -14,12 +13,15 @@ import {
   type ModelProfile,
   type Parameter,
   type ParameterAdoption,
-  type ProviderDiagnostic,
   type ReplayDeclaration,
   type Supplier,
-  type TransportDispatch,
   type TransportFailure,
 } from '@omne-harness/model-contract'
+import {
+  judgeReplayDeclaration,
+  type ProviderDiagnostic,
+  type TransportDispatch,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiMaterializedMedia } from '../family.ts'
 import { serializeBody } from '../payload.ts'

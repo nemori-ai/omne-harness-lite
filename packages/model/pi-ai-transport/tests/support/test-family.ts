@@ -15,11 +15,10 @@ import type {
   FixedModelRequest,
   ModelCountingBasis,
   ModelFault,
-  ProviderDiagnostic,
   Supplier,
-  TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   PiFamilyBinding,
