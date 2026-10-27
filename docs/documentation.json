@@ -3528,6 +3528,21 @@
       "requiredSections": []
     },
     {
+      "id": "engineering-ledger-m1.5",
+      "path": "docs/engineering/ledger/m1.5/README.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "四类长期成果与普通任务"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
       "id": "placed-.meta_harness#design#product#identity-and-authorization#README",
       "path": ".meta_harness/design/product/identity-and-authorization/README.md",
       "kind": "entry",
