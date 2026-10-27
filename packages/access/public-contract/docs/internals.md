@@ -8,13 +8,18 @@
 
 | 文件 | 唯一责任 |
 | --- | --- |
-| src/index.ts | 仅四个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
-| src/messages.ts | 正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
-| src/operation-rules.ts | 完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
-| src/codec.ts | 四函数实现、公开参数防护、模型与wire转换、响应验证后匹配 |
+| src/index.ts | 仅治理与会话两组共八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
+| src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
+| src/session-messages.ts | 会话的5个操作、请求、按操作/结果关联响应、历史页与codec结果类型 |
+| src/operation-rules.ts | 规则种类、协议族描述，以及完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
+| src/session-rules.ts | 会话协议族：5个操作的封闭规则、信封/body字段和outcome映射 |
+| src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
+| src/session-codec.ts | 会话四函数，各是核心对会话协议族的一次实例化 |
 | src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |
 
 直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
+
+核心不写死版本或操作表。协议族描述给出版本文本、封闭操作表、可省略messageId的共同拒绝集合和编程错误文本。治理协议族的共同拒绝是 `protocol-rejected` 与 `stage-not-provided`，会话协议族只有 `protocol-rejected`，所以会话一组既不读出也不编码 `stage-not-provided`。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。
 
 ## 关联读取
 
@@ -36,7 +41,7 @@ proof的missing/empty/present是本地协议表示，业务身份由后续拥有
 
 ## 持续验证与责任
 
-测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider，不新增./testing。
+测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/session-protocol.spec.ts、tests/session-responses.spec.ts与tests/session-consumption.spec-d.ts核会话一组，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider，不新增./testing。
 
 关联向量必须包括ID在duplicate前后、转义等值ID重复、嵌套键、坏后缀、字符串/数字scanner边角、六预算等界/越界，以及超过原生递归容量但在显式预算内的深度。差分向量比较严格成功与补扫语法的适用一致性，duplicate输入永远仍为拒绝。测试只能证明覆盖范围，不能声称真实权限或持久业务验证。
 

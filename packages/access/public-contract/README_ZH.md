@@ -2,13 +2,13 @@
 
 [English](README.md)
 
-本成员提供 `governance-public/1` 的纯编解码函数。客户端和服务端适配共同消费请求、响应与拒绝规则。
+本成员提供 `governance-public/1` 与 `session-public/1` 的纯编解码函数。客户端和服务端适配共同消费请求、响应与拒绝规则。
 
 ## 职责与状态
 
-本成员实现34项治理请求操作，并识别4项本阶段不提供的操作。[行为规格](SPEC.md)拥有规则。[主入口](src/index.ts)导出四个函数及其输入、结果类型。[消息类型](src/messages.ts)把操作与允许的结果和正文关联。
+本成员实现34项治理请求操作，并识别4项本阶段不提供的操作。本成员另实现5项会话操作。[行为规格](SPEC.md)拥有规则。[主入口](src/index.ts)导出八个函数及其输入、结果类型，两种协议各四个。[治理消息类型](src/messages.ts)与[会话消息类型](src/session-messages.ts)把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md)索引全部导出。
 
-本成员不核验身份、不判断授权、不执行业务，也不选择传输。identity和authorization继续拥有业务责任。SDK和server-entry仍是独立消费者，各自承担后续交付义务。
+本成员不核验身份、不判断授权、不执行业务，也不选择传输。identity和authorization继续拥有业务责任。Session继续拥有会话业务规则。SDK和server-entry仍是独立消费者，各自承担后续交付义务。
 
 ## 使用
 
@@ -44,7 +44,7 @@ if (encoded.kind === 'encoded') {
 
 ## 契约
 
-[公开编解码条款](SPEC.md#公开编解码入口与实现细化)定义检查顺序、封闭字段、预算、关联与诊断。四个函数同步执行，没有外部副作用。无效编程参数抛固定`TypeError`，无效请求或响应模型返回`invalid`。诊断只有有限code，不含凭据、证明、输入路径或原始字节。
+[公开编解码条款](SPEC.md#公开编解码入口与实现细化)定义检查顺序、封闭字段、预算、关联与诊断。[会话编解码条款](SPEC.md#会话编解码函数)把同一组规则用于会话一组，并写明第1步中哪些检查归服务端接入。八个函数同步执行，没有外部副作用。无效编程参数抛固定`TypeError`，无效请求或响应模型返回`invalid`。诊断只有有限code，不含凭据、证明、输入路径或原始字节。
 
 读出请求只证明协议合规。读出响应只证明该操作的结果形状与关联合规。它们不证明业务授权或耐久提交。
 
@@ -70,9 +70,11 @@ pnpm --filter @omne-harness/public-contract typecheck
 
 测试消费主exports。protocol.spec.ts验证共同边界与两端演示。correlation.spec.ts覆盖后缀语法、六预算和深层输入。operations.spec.ts与responses.spec.ts覆盖所有操作、封闭正文、终结、名单和秘密排除。public-consumption.spec-d.ts验证操作关联类型。
 
-fixtures/client.ts与fixtures/server.ts各自只从包名消费。install-closure.spec.ts打包本包及三个workspace纯依赖，建立干净安装，编译两端并通过Node运行dist。安装测试需要pnpm，以及可用的jsonc-parser注册表或缓存。测试清理临时安装，把闭包记录写入任务tmp证据目录。fixtures/profile.mjs从dist入口观察有界负载。
+session-protocol.spec.ts用正反向量覆盖会话判断次序第1步的每条规则，并覆盖两个位置上的跨版本拒绝。session-responses.spec.ts覆盖每个会话操作的每个结果、封闭正文、历史页、unmatched、unreadable与共同拒绝重载。session-consumption.spec-d.ts验证会话操作、正文与结果的类型。
 
-这些检查覆盖纯协议与独立制品消费。真实传输、登录、授权、存储和完整治理旅程仍由各自拥有者验证。
+fixtures/client.ts与fixtures/server.ts各自只从包名消费。两个fixture各有一次治理往返和一次会话往返。install-closure.spec.ts打包本包及三个workspace纯依赖，建立干净安装，编译两端，并通过Node在dist上运行两次往返。安装测试需要pnpm，以及可用的jsonc-parser注册表或缓存。测试清理临时安装，把闭包记录写入任务tmp证据目录。fixtures/profile.mjs从dist入口观察有界负载。
+
+这些检查覆盖纯协议与独立制品消费。真实传输、登录、授权、存储、Session调用，以及完整治理与会话旅程仍由各自拥有者验证。
 
 ## 维护
 

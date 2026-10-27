@@ -16,10 +16,10 @@
 | `GovernanceProvidedOperation`、`GovernanceStageOperation`、`GovernanceOperation`、`GovernanceRequest`、`GovernanceResponse`、`ProofInput` | 类型 | [src/messages.ts](../src/messages.ts) |
 | `GovernanceProtocolRejected`、`GovernanceStageNotProvided`、`GovernanceProtocolResult` | 类型 | [src/messages.ts](../src/messages.ts) |
 | `GovernanceCodecLimits`、`GovernanceDiagnostic`、`GovernanceRequestRead`、`GovernanceResponseRead`、`GovernanceEncodeResult`、`GovernanceResponseEncodeInput` | 类型 | [src/messages.ts](../src/messages.ts) |
-| `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest`、`encodeSessionResponse` | 函数 | `src/session-codec.ts` |
-| `SessionOperation`、`SessionRequestBodies`、`SessionRequest`、`SessionOutcomes`、`SessionSuccessBodies`、`SessionResponse` | 类型 | `src/session-messages.ts` |
-| `SessionProtocolRejected`、`SessionHistoryEntry`、`SessionHistoryPage` | 类型 | `src/session-messages.ts` |
-| `SessionCodecLimits`、`SessionDiagnostic`、`SessionRequestRead`、`SessionResponseRead`、`SessionEncodeResult`、`SessionResponseEncodeInput` | 类型 | `src/session-messages.ts` |
+| `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest`、`encodeSessionResponse` | 函数 | [src/session-codec.ts](../src/session-codec.ts) |
+| `SessionOperation`、`SessionRequestBodies`、`SessionRequest`、`SessionOutcomes`、`SessionSuccessBodies`、`SessionResponse` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
+| `SessionProtocolRejected`、`SessionHistoryEntry`、`SessionHistoryPage` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
+| `SessionCodecLimits`、`SessionDiagnostic`、`SessionRequestRead`、`SessionResponseRead`、`SessionEncodeResult`、`SessionResponseEncodeInput` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 
 `SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是治理一组同名类型的别名。两组共用 `ProofInput`。
 

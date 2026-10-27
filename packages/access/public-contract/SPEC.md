@@ -579,7 +579,7 @@ const encoded = encodeGovernanceRequest({
 
 ## 公开编解码入口与实现细化
 
-本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的[治理消息定义](src/messages.ts)与会话消息定义（`src/session-messages.ts`）拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
+本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的[治理消息定义](src/messages.ts)与[会话消息定义](src/session-messages.ts)拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
 
 ### 操作集合与函数
 
