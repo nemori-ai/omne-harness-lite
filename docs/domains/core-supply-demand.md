@@ -23,6 +23,8 @@ Model、Tool 的内部不用认识 Agent 或 Session 的治理模型。它们以
 
 ### Runtime Context
 
+本表给出领域目标关系。M1.5 的工具不读取 Runtime Context，阶段约束见 [#675 的 J17 范围](https://github.com/nemori-ai/omne-harness-lite/issues/675)。工具类目标读面不表示本阶段已接线。
+
 块值归生产者，注册决定及提交归作用域持有者。Runtime Context 是供给中介，提供登记、资格、快照与变化材料，不取得原业务事实的治理权，见[事实拥有者与派生范围](runtime-context/architecture.md#2-事实拥有者与派生范围)。
 
 | 关系与供需 | 契约成员及公开入口 | 谁协调 | 失败、未知与未完成责任 |
