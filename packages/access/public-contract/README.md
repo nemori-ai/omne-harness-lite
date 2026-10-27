@@ -6,7 +6,7 @@ Pure codecs for the `governance-public/1` and `session-public/1` protocols. Clie
 
 ## Responsibility and status
 
-This package implements 34 governance request operations and recognizes four operations that this stage does not provide. It also implements five session operations. [SPEC.md](SPEC.md) owns their behavior. [The public exports](src/index.ts) expose eight functions, four for each protocol, and their input and result types. [Governance messages](src/messages.ts) and [session messages](src/session-messages.ts) associate each operation with its permitted outcomes and bodies. [The public API navigation](docs/public-api.md) indexes every export.
+This package implements 34 governance request operations and five session operations. It recognizes four governance operations that this stage does not provide. [SPEC.md](SPEC.md) owns their behavior. [The public exports](src/index.ts) expose eight functions, four for each protocol, and their input and result types. [Governance messages](src/messages.ts) and [session messages](src/session-messages.ts) associate each operation with its permitted outcomes and bodies. [The public API navigation](docs/public-api.md) indexes every export.
 
 The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport. Identity and authorization retain responsibility for authentication, authorization, and business operations. Session retains the session business rules. SDK and server-entry remain separate consumers with their own delivery obligations.
 
@@ -46,7 +46,7 @@ Required login proof becomes local `ProofInput`. Missing and empty proof remain 
 
 [SPEC.md](SPEC.md#公开编解码入口与实现细化) defines validation order, closed fields, budgets, correlation, and diagnostics. [The session codec clauses](SPEC.md#会话编解码函数) apply the same rules to the session group and state which step-1 checks stay with the server adapter. The eight functions are synchronous and have no external effects. Invalid programming arguments throw a fixed `TypeError`. Invalid request or response models return `invalid`. Diagnostics contain only a finite code, with no credentials, proofs, input paths, or raw bytes.
 
-A decoded request proves protocol validity only. A decoded response proves its operation-specific shape and correlation only. Neither result proves a business authorization or durable commit.
+A decoded request proves protocol validity only. For a session request, this covers only the step-1 checks that this package owns: the `message` check stops at a JSON object whose `role` is `user`, and the server adapter completes the full message decoding. A decoded response proves its operation-specific shape and correlation only. Neither result proves a business authorization or durable commit.
 
 ## Design
 
@@ -70,7 +70,7 @@ pnpm --filter @omne-harness/public-contract typecheck
 
 The tests exercise the public exports. `protocol.spec.ts` covers common boundaries and the two-end demonstration. `correlation.spec.ts` covers strict suffix grammar, all six budgets, and deep inputs. `operations.spec.ts` and `responses.spec.ts` cover every operation, closed bodies, terminal states, lists, and secret exclusions. `public-consumption.spec-d.ts` checks operation-associated types.
 
-`session-protocol.spec.ts` covers each step-1 rule of the session order with accepted and rejected vectors. It also covers the cross-version rejection in both positions. `session-responses.spec.ts` covers every outcome of every session operation, closed bodies, history pages, `unmatched`, `unreadable`, and the common refusal overload. `session-consumption.spec-d.ts` checks the session operation, body, and outcome types.
+`session-protocol.spec.ts` covers, with accepted and rejected vectors, each step-1 rule that `readSessionRequest` owns. For `message`, this is the object and `role` check, not the full message decoding. It also covers the cross-version rejection in both positions. `session-responses.spec.ts` covers every outcome of every session operation, closed bodies, history pages, `unmatched`, `unreadable`, and the common refusal overload. `session-consumption.spec-d.ts` checks the session operation, body, and outcome types.
 
 `fixtures/client.ts` and `fixtures/server.ts` independently consume the package name. Each fixture has one governance exchange and one session exchange. `install-closure.spec.ts` packs this package and its three workspace dependencies, installs them in a fresh directory, compiles both fixtures, and runs both exchanges with Node against `dist`. That test needs pnpm and access to its configured package registry or cache for jsonc-parser. It removes its temporary installation and records the closure in the task's temporary evidence directory. `fixtures/profile.mjs` observes bounded codec workloads through `dist`.
 

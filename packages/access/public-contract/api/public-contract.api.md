@@ -57,17 +57,22 @@ type Refusal<V extends string, K extends RefusalOutcome> = {
     readonly outcome: K;
     readonly body: EmptyBody;
 };
-export type RequestRead<V extends string> = {
+type StageRead<V extends string, S extends string> = [
+    S
+] extends [
+    never
+] ? never : {
+    readonly kind: 'stage-not-provided';
+    readonly response: Refusal<V, 'stage-not-provided'>;
+};
+export type RequestRead<V extends string, S extends string> = {
     readonly kind: 'request';
     readonly request: unknown;
 } | {
     readonly kind: 'protocol-rejected';
     readonly response: Refusal<V, 'protocol-rejected'>;
     readonly diagnostic: GovernanceDiagnostic;
-} | {
-    readonly kind: 'stage-not-provided';
-    readonly response: Refusal<V, 'stage-not-provided'>;
-};
+} | StageRead<V, S>;
 export type ResponseRead = {
     readonly kind: 'response';
     readonly response: unknown;
@@ -77,7 +82,7 @@ export type ResponseRead = {
     readonly kind: 'unreadable';
     readonly diagnostic: GovernanceDiagnostic;
 };
-export declare function readRequest<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): RequestRead<V>;
+export declare function readRequest<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): RequestRead<V, S>;
 export declare function readGovernanceRequest(input: {
     readonly bytes: Uint8Array;
     readonly limits: GovernanceCodecLimits;
@@ -555,8 +560,9 @@ export type GovernanceResponseEncodeInput<O extends GovernanceOperation = Govern
 
 ```ts
 import type { GovernanceProvidedOperation, GovernanceStageOperation } from './messages.ts';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
-    readonly kind: 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'parameters' | 'json' | 'user-message';
+    readonly kind: LeafKind;
 } | {
     readonly kind: 'literal';
     readonly values: readonly (string | boolean)[];
@@ -582,9 +588,8 @@ export type RequestRule = {
 export type Family<V extends string, P extends string, S extends string> = {
     readonly version: V;
     readonly error: string;
-    readonly refusals: readonly ('protocol-rejected' | 'stage-not-provided')[];
+    readonly stages: readonly S[];
     readonly isProvided: (value: unknown) => value is P;
-    readonly isStage: (value: unknown) => value is S;
     readonly requestRule: (operation: P) => RequestRule;
     readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
 };
@@ -596,7 +601,6 @@ export declare const stages: readonly [
     "reopen-after-media-loss"
 ];
 export declare function isProvided(value: unknown): value is GovernanceProvidedOperation;
-export declare function isStage(value: unknown): value is GovernanceStageOperation;
 export declare function requestRule(operation: GovernanceProvidedOperation): RequestRule;
 export declare function responseRule(operation: GovernanceProvidedOperation, outcome: string): Rule | undefined;
 export declare const governanceFamily: Family<'governance-public/1', GovernanceProvidedOperation, GovernanceStageOperation>;
@@ -760,6 +764,51 @@ export type SessionResponseEncodeInput<O extends SessionOperation = SessionOpera
 
 ```ts
 import { type Family } from './operation-rules.ts';
-import type { SessionOperation } from './session-messages.ts';
+import type { SessionOperation, SessionOutcomes } from './session-messages.ts';
+declare const outcomes: {
+    readonly 'create-session': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "conflict",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'query-create-session': readonly [
+        "succeeded",
+        "denied",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'send-input': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "archived",
+        "frozen",
+        "conflict",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'query-send-input': readonly [
+        "succeeded",
+        "not-committed",
+        "denied",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'read-history': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "basis-unavailable"
+    ];
+};
+type MissingOutcomes = {
+    readonly [O in SessionOperation]: Exclude<SessionOutcomes[O], (typeof outcomes)[O][number]>;
+}[SessionOperation];
+type OutcomesComplete<Missing extends never> = Missing;
+export type SessionOutcomeTableComplete = OutcomesComplete<MissingOutcomes>;
 export declare const sessionFamily: Family<'session-public/1', SessionOperation, never>;
+export {};
 ```

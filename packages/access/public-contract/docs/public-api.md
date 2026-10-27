@@ -37,11 +37,13 @@
 | 响应 body 闭合、`messageId` 关联与重复键补扫 | [SPEC.md 结果闭合与关联](../SPEC.md#结果闭合与关联) |
 | 内部模块、规则表与关联读取的实现 | [内部设计](internals.md) |
 
-八个函数都同步执行，没有外部副作用。可见失败分三类：
+八个函数都同步执行，没有外部副作用。下面是非规范的摘要，规则以 [治理函数表](../SPEC.md#操作集合与函数)与[会话函数表](../SPEC.md#会话编解码函数)为准：
 
-1. 编程错误，例如无效参数容器、非 `Uint8Array` 字节或无效预算。函数抛出固定 `TypeError`，错误不含输入值。
-2. 本地模型无效。编码函数返回 `invalid` 和有限诊断 code。
-3. 线上消息不合规。请求读取返回 `protocol-rejected`，响应读取返回 `unreadable`。
+- 编程错误抛出固定 `TypeError`，错误不含输入值。
+- 本地模型无效时，编码函数返回 `invalid` 和有限诊断 code。
+- 请求读取在消息不合规时返回 `protocol-rejected`。只有治理一组在阶段操作上返回 `stage-not-provided`。
+- 响应读取在消息不合规时返回 `unreadable`，在合法响应的关联值不同或没有关联值时返回 `unmatched`。
+- `readSessionRequest` 对 `message` 只核对 JSON 对象与 `role` 为 `user`。完整的消息解码归服务端接入。
 
 ## 验证
 

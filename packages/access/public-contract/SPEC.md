@@ -439,7 +439,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 会话消息的协议版本是 `session-public/1`，与 `governance-public/1` 分开计版本。严格 JSON 读取、重复 `protocolVersion`、可信 `messageId` 与协议拒绝的规则同[共同消息](#共同消息)与[重复的 protocolVersion](#重复的-protocolversion)，其中的版本文本换成 `session-public/1`；会话入口的 `protocol-rejected` 响应写 `session-public/1`。
 
-会话消息与治理消息使用两组编解码函数和两个承载位置。会话一组是 `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest` 与 `encodeSessionResponse`，参数与可见结果的约定同[操作集合与函数](#操作集合与函数)中的治理四函数。承载适配为两组消息分设位置，例如 HTTP 的两个路径。服务端按位置选择读取函数，不按消息里的版本文本分派。会话位置收到 `governance-public/1` 的消息，或治理位置收到 `session-public/1` 的消息，都是 `protocol-rejected`。
+会话消息与治理消息使用两组编解码函数和两个承载位置。会话一组是 `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest` 与 `encodeSessionResponse`，参数与可见结果见[会话编解码函数](#会话编解码函数)。承载适配为两组消息分设位置，例如 HTTP 的两个路径。服务端按位置选择读取函数，不按消息里的版本文本分派。会话位置收到 `governance-public/1` 的消息，或治理位置收到 `session-public/1` 的消息，都是 `protocol-rejected`。
 
 `loginProof` 与 `actingTenant` 的字段要求同共同消息。信封按操作闭合：
 
@@ -607,12 +607,23 @@ const encoded = encodeGovernanceRequest({
 | `encodeSessionRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节。模型字段或值不符得到 `invalid` 和结构诊断。 |
 | `encodeSessionResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。共同拒绝重载只需 `response` 与 `limits`，只能编码 `protocol-rejected`。 |
 
-预算、编程错误、`invalid`、诊断 code、本地证明、`messageId` 与输入反射的规则同治理一组，见上一节、[本地值与线上表示](#本地值与线上表示)与[结果闭合与关联](#结果闭合与关联)的前两段。`SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是 `GovernanceCodecLimits`、`GovernanceDiagnostic` 与 `GovernanceEncodeResult` 的别名。每个会话操作的线上业务 outcome 与 body 见[结果](#结果)的两张表。所有未列字段拒绝。
+会话一组沿用治理一组的下列规则：
+
+- 预算、编程错误与 `invalid`：[操作集合与函数](#操作集合与函数)中治理函数表后的一段。
+- 本地证明、输入反射与诊断 code：[本地值与线上表示](#本地值与线上表示)。
+- body 必须显式出现。`protocol-rejected` 的 `messageId` 可以省略，其他结果必须有字符串 `messageId`：[结果闭合与关联](#结果闭合与关联)的第一段。
+- 重复键补扫：`readSessionRequest` 与 `readGovernanceRequest` 使用同一个请求读取门。所以[结果闭合与关联](#结果闭合与关联)最后一段的 duplicate-key 补扫也适用于 `readSessionRequest`。`readSessionResponse` 不补扫。
+
+`SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是 `GovernanceCodecLimits`、`GovernanceDiagnostic` 与 `GovernanceEncodeResult` 的别名。每个会话操作允许的线上业务 outcome 见[结果](#结果)一节的「operation／线上业务 outcome」表。各结果的 body 见同一节的「结果／body」表与[历史页](#历史页)。
+
+信封表、[会话 body 字段](#会话-body-字段)表、上述两张结果表与历史页没有列出的字段都被拒绝。`readSessionRequest` 返回 `protocol-rejected`，`readSessionResponse` 返回 `unreadable`，`encodeSessionRequest` 与 `encodeSessionResponse` 返回 `invalid`。
 
 `readSessionRequest` 执行[会话判断次序](#会话判断次序)第 1 步的检查。下面两项的责任在本成员与服务端接入之间划分：
 
 - `message`：本成员只核对它是 JSON 对象，并且 `role` 恰为 `user`。本地值保留该对象的 json-text 值树。服务端接入在同一个第 1 步按 message 包完整解码该对象。解码不合规仍是 `protocol-rejected`，Session 不被调用。本成员不依赖 message 包。
 - `session`：本成员只核对文本是 64 个小写十六进制字符。本地值是普通字符串，不加品牌。线上 `session` 文本到 Session `SessionId` 品牌值的转换由服务端接入完成，不在本成员。
+
+编码方向的检查范围相同：`encodeSessionRequest` 对 `message` 只核对上面两项，`encodeSessionRequest` 与 `encodeSessionResponse` 对 `session` 只核对同一文本格式。
 
 其他会话字段的本地值如下：
 
