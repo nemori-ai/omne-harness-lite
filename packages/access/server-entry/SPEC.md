@@ -101,7 +101,7 @@ ObservationRefreshPolicy {
 - 策略对象由部署装配提供，接入不写死数值。没有配置时，接入使用默认初值。
 - 配置值越出下限或上限时，接入把它钳到边界内，并记诊断 `observation.policy-clamped`。
 - `interval` 的下限有一条不可配置的底线 100 ms。部署配置的下限与 `interval` 初值都不能低于这条底线，低于时接入同样钳制并记诊断。
-- `deadline` 只累计刷新等待的时长。观察期间（有目标且流未结束）不计入。取得新目标时，尝试计数与 `deadline` 计时都归零。
+- `deadline` 只累计刷新等待的时长。观察期间（有目标且流未结束）不计入。尝试计数只计连续没有取得新内容的尝试：取得新目标，或重新观察后收到新的快照或增量时，尝试计数与 `deadline` 计时都归零。
 - `maxAttempts` 与 `deadline` 两条上界先到者为准。默认初值下，间隔在第 10 次尝试前后到达上限 30 s，60 次尝试的等待共约 27 分钟，与 `deadline` 初值 30 分钟相近，两条上界大致同时到达。
 - 工具可能运行很久，期间没有模型流。上界耗尽后，调用者重新建立观察即可，已落盘的内容不丢失。
 
@@ -110,7 +110,7 @@ ObservationRefreshPolicy {
 1. 定位没有得到用途为 `main` 的 Model 调用登记。翻页预算耗尽、Session 读取 `unavailable` 与接入自己的游标 `invalid` 也属于这一种。生产者观察的迭代器抛出，或没有交来 `ended` 就结束时，接入视为目标不可用，也按这一种处理。
 2. `current` 没有给出新目标：返回 null、`unavailable` 或 `invalid(reference, not-accepted)`，或返回同一个已关闭的流引用。
 3. 目标流结束：生产者交来 `ended(source-closed)`、`ended(stale-stream)`、`ended(producer-ended)`、stream-arrival 以后新增的结束原因，或 `buffer` 以外的 `gap`。
-4. 生产者观察中断，但目标仍有效：生产者交来 `ended(capacity)`、`ended(unavailable)` 或 `gap(buffer)`。这一种不重新定位，只重新观察同一流引用并取新快照。它计为一次尝试，先按同一退避间隔等待，再重新观察。接入不做无等待的循环。
+4. 生产者观察中断，但目标仍有效：生产者交来 `ended(capacity)`、`ended(unavailable)` 或 `gap(buffer)`。这一种不重新定位，只重新观察同一流引用并取新快照。它计为一次尝试，先按同一退避间隔等待，再重新观察。重新观察后收到新的快照或增量时，尝试计数归零，所以一条仍在交付的长流不会因多次中断而耗尽上界。接入不做无等待的循环。
 
 - 第 1 至 3 种的每轮刷新包括重新定位稳定调用引用与查询 `current`。
 - 新目标按流引用判定。重新定位得到同一个已关闭的流引用时，接入把它当作空结果，按退避继续，不发 `snapshot`，也不将尝试计数归零。
