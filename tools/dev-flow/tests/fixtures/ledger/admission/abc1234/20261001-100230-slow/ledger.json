@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "script": "test",
+    "tier": "slow",
+    "head": "abc1234abc1234abc1234abc1234abc1234abc12",
+    "branch": "human/issue-101-ledger",
+    "dirty": false,
+    "base": { "ref": "origin/main", "mergeBase": "abc1234abc1234abc1234abc1234abc1234abc12" },
+    "startedAt": "2026-10-01T10:02:30.000Z",
+    "parallel": { "memberConcurrency": 2, "vitestMaxWorkers": 4 },
+    "cores": 8,
+    "plan": { "mode": "scoped", "reason": "tools/dev-flow changed" },
+    "members": ["tools/dev-flow"],
+    "wallSeconds": 180
+  },
+  "members": [],
+  "files": [],
+  "nearTimeout": [],
+  "fastOverBudget": [],
+  "failures": []
+}
