@@ -38,6 +38,21 @@ const ui = 'apps/ui',
   storage = 'packages/core/storage',
   sql = 'packages/infra/sql',
   policy = 'packages/domain/policy'
+const existingRuleIds = [
+  'LAYER-ENTRY',
+  'LAYER-DIP',
+  'IC-1',
+  'IC-2',
+  'IC-3',
+  'IC-4',
+  'IC-5',
+] as const
+const h1RuleIds = [
+  'H1-SESSION-FACTS',
+  'H1-AGENT-REASSEMBLY',
+  'H1-MODEL-LIFETIME',
+  'H1-OBSERVATION-CONTINUITY',
+] as const
 function setup(): { root: string; intent: ArchitectureConstraints; base: string } {
   const root = repository()
   write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n  - apps/*\n')
@@ -108,7 +123,7 @@ function setup(): { root: string; intent: ArchitectureConstraints; base: string 
         source: 'accepted.md#policy',
       },
     ],
-    rules: RULE_IDS.map(id => ({ id, source: 'accepted.md#rules' })),
+    rules: existingRuleIds.map(id => ({ id, source: 'accepted.md#rules' })),
   }
   write(
     root,
@@ -119,6 +134,103 @@ function setup(): { root: string; intent: ArchitectureConstraints; base: string 
   write(root, CONSTRAINT_PATH, JSON.stringify(intent))
   return { root, intent, base: commit(root, 'accepted expectations') }
 }
+describe('H1 constraint registration', () => {
+  const sourcePath = 'docs/architecture/h1.md'
+  const sourceText = '# H1\n\n' + h1RuleIds.map(id => `## ${id}\n`).join('\n')
+  const declaration = (id: string) => ({ id, source: `${sourcePath}#${id.toLowerCase()}` })
+  const intentFor = (ids: readonly string[]) => ({
+    schemaVersion: 3,
+    domains: [],
+    roles: [],
+    rules: ids.map(declaration),
+  })
+
+  it('keeps the exact closed rule tuple and its existing order', () => {
+    expect(RULE_IDS).toEqual([...existingRuleIds, ...h1RuleIds])
+  })
+  it.each(existingRuleIds)('still parses existing rule %s', id => {
+    expect(parseConstraints(JSON.stringify(intentFor([id]))).rules).toEqual([declaration(id)])
+  })
+  it.each(h1RuleIds)('parses and resolves %s with its source dependency', id => {
+    const intent = intentFor([id])
+    expect(parseConstraints(JSON.stringify(intent)).rules).toEqual([declaration(id)])
+    const root = repository()
+    write(root, 'pnpm-workspace.yaml', 'packages:\n  - apps/*\n')
+    write(root, sourcePath, sourceText)
+    write(root, CONSTRAINT_PATH, JSON.stringify(intent))
+    const checked = readConstraints(root, readArchitectureSource(root).source)
+    expect(checked.value?.rules).toEqual([declaration(id)])
+    expect(checked.sources).toEqual([
+      { path: sourcePath, digest: expect.stringMatching(/^[a-f0-9]{64}$/u) },
+    ])
+    expect(constraintDependencies(root)).toEqual([CONSTRAINT_PATH, sourcePath])
+  })
+  it.each(['H1-INVENTED', 'H1-SESSION-FACT'])('rejects unregistered rule %s', id => {
+    expect(() => parseConstraints(JSON.stringify(intentFor([id])))).toThrow(
+      `Unknown architecture rule ${id}`,
+    )
+  })
+  it.each(h1RuleIds)('rejects duplicate registration of %s', id => {
+    expect(() => parseConstraints(JSON.stringify(intentFor([id, id])))).toThrow(
+      'Architecture constraints contain duplicate identities',
+    )
+  })
+  it.each(h1RuleIds)('requires version-local source files and anchors for %s', id => {
+    const root = repository()
+    write(root, 'pnpm-workspace.yaml', 'packages:\n  - apps/*\n')
+    write(root, CONSTRAINT_PATH, JSON.stringify(intentFor([id])))
+    for (const failure of ['missing source', 'missing source anchor']) {
+      if (failure === 'missing source') rmSync(join(root, sourcePath), { force: true })
+      else write(root, sourcePath, '# Unrelated heading\n')
+      expect(() => readConstraints(root, readArchitectureSource(root).source)).toThrow(failure)
+      expect(() => readConformance({ root })).toThrow(failure)
+      const revision = commit(root, failure)
+      write(root, sourcePath, sourceText)
+      expect(readConstraints(root, readArchitectureSource(root).source).value?.rules).toEqual([
+        declaration(id),
+      ])
+      expect(() => readConstraints(root, readArchitectureSource(root, revision).source)).toThrow(
+        failure,
+      )
+      expect(() => readConformance({ root, revision })).toThrow(failure)
+    }
+  })
+  it('reports each H1 obligation once as unexecuted behavior without conformance rows', () => {
+    const { root, intent } = setup()
+    write(root, sourcePath, sourceText)
+    write(
+      root,
+      CONSTRAINT_PATH,
+      JSON.stringify({
+        ...intent,
+        rules: [
+          ...intent.rules,
+          ...h1RuleIds.map(id => ({ id, source: `h1.md#${id.toLowerCase()}` })),
+        ],
+      }),
+    )
+    const report = readConformance({ root })
+    expect(report.current.value?.rules.map(rule => rule.id)).toEqual([
+      ...existingRuleIds,
+      ...h1RuleIds,
+    ])
+    for (const id of h1RuleIds) {
+      const entries = report.coverage.filter(entry => entry.id === id)
+      expect(entries).toHaveLength(1)
+      expect(entries[0]).toMatchObject({
+        evidence: 'behavior',
+        scope: expect.stringContaining('本报告未执行'),
+      })
+      expect(entries[0]?.scope).toContain('登记来源不证明运行时符合')
+      expect(report.rows.filter(row => row.rule === id)).toEqual([])
+    }
+    for (const id of existingRuleIds)
+      expect(report.coverage.filter(entry => entry.id === id)).toEqual([
+        { id, evidence: 'static-subset', scope: '仅已解析声明/入口；converged 不表示整体符合' },
+      ])
+    expect(report.rows.length).toBeGreaterThan(0)
+  })
+})
 describe('global architecture conformance', () => {
   it('separates interaction bypass, DIP, legitimate assembly and unmapped entrances inside one member', () => {
     const { root, base } = setup()
