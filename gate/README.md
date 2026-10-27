@@ -73,8 +73,12 @@
 - 确认在 Actions 运行页面完成，environment 为 `npm-release`，必须填写说明。`npm-release` 的确认者与 `publish` 相同，关闭 admin 跳过，只接受本分支上的运行，不存放密钥。调整 `publish` 的确认者时同步调整它。
 - 发布用 npm 可信发布：job 申请 GitHub OIDC token，npm CLI 换取短期发布凭据，不存长期 token，附来源证明。两个包都要在 npmjs.com 的包设置里登记 Trusted Publisher：仓库 `nemori-ai/omne-harness-lite`，工作流 `gate-release.yml`，environment `npm-release`。
 - pnpm 打包（把 `catalog:` 换成精确版本、应用 `publishConfig`），npm 发布这个 tarball。
+- 稳定版本使用 npm 默认的 `latest` 频道，预发布版本显式使用 `next`。dry-run 使用相同的频道选择。
+- 决定评论读取发布步骤的实际 outcome。该步骤失败或未执行时写 `NOT CONFIRMED`，不声明 dry-run 成功或已经发布。
 - 发布后读回 integrity 与来源证明，往指定 Issue 写决定评论。发包流程拿不到发布身份 App 的私钥，所以不写 `omne/gate/*` 记录标签；可追溯性由来源证明指向的运行与决定评论承担。npm 上的版本发出后撤不回，读回失败时评论写明“NOT CONFIRMED”，流程失败。
 
+
+本地回归检查需要 Python 3 与 PyYAML，运行 `python3 -m unittest discover -s gate/tests -v`。检查直接执行工作流内的 shell，替换外部 npm 和 GitHub 命令，不作真实发布。
 
 ## 交付身份
 
