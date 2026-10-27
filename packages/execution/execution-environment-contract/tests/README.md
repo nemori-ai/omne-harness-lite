@@ -8,7 +8,7 @@
 
 ## 边界
 
-本成员没有提供者与运行实现。测试不需要真实存储、服务、宿主资源或 Cordis，也不使用替身。测试只覆盖本成员自己的纯函数、声明与类型，不代替组合验证、规格或验收。
+本成员没有生产提供者与运行实现。测试不需要真实存储、服务、宿主资源或 Cordis。测试覆盖本成员自己的纯函数、声明与类型，也检验 `./testing` 公开的替身与套件。替身上的测试只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。测试不代替组合验证、规格或验收。
 
 ## 维护
 
@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-现在有八个运行测试文件与一个类型测试文件。表里列出其中六个，`operation-schemas.spec.ts` 与 `exports-inventory.spec.ts` 见本节末尾：
+现在有十一个运行测试文件与一个类型测试文件。表里列出其中九个，`operation-schemas.spec.ts` 与 `exports-inventory.spec.ts` 见本节末尾：
 
 | 文件                                                   | 覆盖什么                                                                                                                                                                                                                                                                                                  | 条款                                                                                                                                                                              |
 | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -26,7 +26,10 @@
 | [decode.spec.ts](decode.spec.ts)                       | 租户文本经 `tenantCodec` 解码后与原租户相等；本进程已铸造的租户原样保留；手造租户、JSON 往返后的对象形与不合法的租户文本被拒；各绑定层、落点块与宿主事实块的每个字段在自己的路径上拒绝；块声明的读者与稳定性；最接近的未命中原因；`bindingScope`、`originRef`、`acquisitionRef` 与 `createRecoveryAccess` | [获取与租约](../SPEC.md#获取与租约)、[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、[工具环境声明](../SPEC.md#工具环境声明)                                  |
 | [need-declaration.spec.ts](need-declaration.spec.ts)   | 接受未登记的设施键；拒绝未知字段、非字符串元素与不存在的绑定层；`digest` 等于 schema 文件字节的摘要                                                                                                                                                                                                       | [工具环境声明](../SPEC.md#工具环境声明)                                                                                                                                           |
 | [provider-conformance.spec.ts](provider-conformance.spec.ts) | 用脚本替身逐项运行提供者套件的十六项义务，并用坏提供者逐项否定：配额声明不合界、查询编造分配、不同描述不答冲突、列出漏掉打开的获取、重复结清改写分配等；执行环境套件的用例数为三十五 | [原获取的查询与结清](../SPEC.md#原获取的查询与结清)、[配额与安全上界](../SPEC.md#配额与安全上界)、[持续验证义务](../SPEC.md#持续验证义务) |
-| [facility-set.spec-d.ts](facility-set.spec-d.ts)       | 示例按公开入口编译；`FacilitySet` 只给出声明点名的设施；三个核心设施键已登记且键集开放；声明不能写不存在的绑定层；租约按键给出设施类型                                                                                                                                                                    | [工具环境声明](../SPEC.md#工具环境声明)、[设施协议](../SPEC.md#设施协议)                                                                                                          |
+| [memory-file-system.spec.ts](memory-file-system.spec.ts) | 内存文件替身：新建后读回字节与版本；按读到的版本替换写入，版本前进；旧版本为 `rejected/conflict` 且内容不变；越过授予根为 `rejected/notAuthorized`；绝对路径与空字节为 `rejected/invalidInput`；`named` 为空或不符；新建模式的四种拒绝；分段读取各段版本相同；`stat` 与 `list` 的排序和分页；句柄代际的关闭；七项未实现操作为 `unsupported`；`close()` 后为 `closed`；字节副本 | [设施协议](../SPEC.md#设施协议)、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供) |
+| [scripted-command-facility.spec.ts](scripted-command-facility.spec.ts) | 脚本命令替身：启动成功给出进程身份、按路累计的 `observedOffset` 与默认终局；`rejected/unavailable`；`unknown`；终端模式；输出块与输出模式不符时抛出 `TypeError`；`untilStop` 下确认的停止结束输出与终局，未确认的停止不结束；单一读者；`return()` 不影响终局；`close()` 后为 `closed` 且不调用脚本 | [设施协议](../SPEC.md#设施协议)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) |
+| [facility-doubles.spec.ts](facility-doubles.spec.ts) | 两个替身装进脚本提供者的租约：写文件、读回、旧版本被拒、越根被拒，再启动命令并读到输出与终局；退役后两个设施答 `closed`；以内存文件替身作已持设施运行提供者套件，退役用例通过，只有在途排空用例不适用；不关闭替身的提供者使退役用例失败 | [设施协议](../SPEC.md#设施协议)、[持续验证义务](../SPEC.md#持续验证义务) |
+| [facility-set.spec-d.ts](facility-set.spec-d.ts)       | 示例按公开入口编译；`FacilitySet` 只给出声明点名的设施；三个核心设施键已登记且键集开放；声明不能写不存在的绑定层；租约按键给出设施类型；两个替身的设施满足 `files` 与 `command` 两键的 `FacilitySet`，并可作脚本提供者的 `lease`                                                                                                                                                                    | [工具环境声明](../SPEC.md#工具环境声明)、[设施协议](../SPEC.md#设施协议)                                                                                                          |
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/execution-environment-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。`vitest.config.ts` 为 `*.spec-d.ts` 打开了类型检查。
 

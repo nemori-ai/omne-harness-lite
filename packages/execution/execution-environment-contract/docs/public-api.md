@@ -260,8 +260,15 @@ schema 的规则：
 
 ### 测试入口
 
-`@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts) 与 [doubles.ts](../src/testing/doubles.ts)。
+`@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts)、[doubles.ts](../src/testing/doubles.ts)、[memory-files.ts](../src/testing/memory-files.ts) 与 [scripted-command.ts](../src/testing/scripted-command.ts)。
 
 `environmentProviderConformance` 与 `executionEnvironmentConformance` 返回独立用例列表，每条用例新建主体并在结束时清理。`runConformanceCase` 只把 `NotApplicable` 转成不适用，其余断言和清理失败照常抛出。未提供在途操作控制钩子时，对应排空用例记为不适用，不能算通过。`executionEnvironmentConformance` 的 `subject` 收到套件给的环境授权端口与可信绑定来源，套件把主体的作用域绑定到 `access` 的租户，并保留脚本控制。恢复相关用例需要主体给出它的恢复授权接受的 `recoveryAccess`；缺少时记为不适用。替身 `createScriptedEnvironmentAuthority` 默认对每个动作答已授权，`revokeAll` 之后此前答复的 `current()` 都为假；`createScriptedScopeBindings` 只信任测试绑定的作用域。脚本提供者的原获取记录只在替身对象内，不代表真实提供者的保管。替身 `durability` 为 `none`，只用于进程内验证。套件不证明耐久账本、真实隔离或设施外部效果。
 
 提供者套件的 `prepareHeldOperation` 钩子在退役前取得已持设施上的合法操作与效果观察；退役后必须返回 `rejected/closed`，且观察结果不变。缺钩子时该用例明确不适用，不算通过。这项义务不读取或要求提供者自行触发租约 `invalidated`。脚本替身的默认设施遵守这项关闭规则，自定义脚本可用于构造反例。
+
+两个设施替身各在自己的源文件里，经脚本提供者的 `lease` 接入，不改变脚本提供者的默认设施：
+
+- `createMemoryFileSystem` 给出内存文件设施 `facility`。替身建立时自己建立授予根，整棵内存树都在根内。文件请求与租约都不带根。路径只能是相对路径：绝对路径答 `rejected/invalidInput`，越过根的 `..` 答 `rejected/notAuthorized`。它实现读取、查看、写入、关闭与列表。替换写入的 `expectedVersion` 不符时答 `rejected/conflict`，内容不变。其余七项操作答 `rejected/unsupported`。`objectToken` 给出路径现在所指对象的令牌，供调用方填 `named`；`''` 指授予根。`peek` 读出文件字节的副本，它不是设施调用。版本是每个对象的修订号，每次写入都变。这比宿主文件的版本强，所以替身上的测试不证明真实提供者的版本粒度。
+- `createScriptedCommandFacility` 给出命令设施 `facility`。脚本对每次受理的 `start` 答复启动成功、`rejected` 或 `unknown`。启动成功时，替身按脚本交出输出块，`observedOffset` 按每一路累计，再给出终局。`runs: 'untilStop'` 的进程在确认的停止之前不结束输出与终局。`stop` 按脚本答 `confirmed` 或 `unconfirmed`，记入 `stops`。替身不启动真实进程，也不读取宿主环境。
+
+两个替身的 `close()` 之后，新操作答 `rejected/closed` 且不改动任何内容。命令替身已交出的进程不受 `close()` 影响。脚本提供者的 `retire` 脚本调用它们，提供者套件的退役用例因此可以检验已持设施。两个替身的 `durability` 为 `none`。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。

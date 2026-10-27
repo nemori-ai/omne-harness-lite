@@ -143,22 +143,29 @@
 ## 入口 `./testing` · `testing/index.d.ts`
 
 - `CaseVerdict` · `testing/case.d.ts`
+- `CommandScript` · `testing/scripted-command.d.ts`
 - `ConformanceCase` · `testing/case.d.ts`
 - `EnvironmentAuthorityScript` · `testing/doubles.d.ts`
 - `EnvironmentConformanceOptions` · `testing/environment-conformance.d.ts`
 - `EnvironmentConformancePorts` · `testing/environment-conformance.d.ts`
 - `EnvironmentConformanceSubject` · `testing/environment-conformance.d.ts`
+- `MemoryFileSystem` · `testing/memory-files.d.ts`
+- `MemoryFileSystemOptions` · `testing/memory-files.d.ts`
 - `MemoryResourceLedger` · `testing/doubles.d.ts`
 - `NotApplicable` · `testing/case.d.ts`
 - `ProviderConformanceOptions` · `testing/provider-conformance.d.ts`
 - `ProviderConformanceSubject` · `testing/provider-conformance.d.ts`
 - `ProviderScript` · `testing/doubles.d.ts`
+- `ScriptedCommandAnswer` · `testing/scripted-command.d.ts`
+- `ScriptedCommandFacility` · `testing/scripted-command.d.ts`
 - `ScriptedEnvironmentAuthority` · `testing/doubles.d.ts`
 - `ScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `ScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
+- `createMemoryFileSystem` · `testing/memory-files.d.ts`
 - `createMemoryResourceLedger` · `testing/doubles.d.ts`
+- `createScriptedCommandFacility` · `testing/scripted-command.d.ts`
 - `createScriptedEnvironmentAuthority` · `testing/doubles.d.ts`
 - `createScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `createScriptedFacilityGuard` · `testing/doubles.d.ts`
@@ -1371,6 +1378,30 @@ export { NotApplicable, runConformanceCase, type ConformanceCase, type CaseVerdi
 export { environmentProviderConformance, type ProviderConformanceOptions, type ProviderConformanceSubject, } from './provider-conformance.ts';
 export { executionEnvironmentConformance, type EnvironmentConformanceOptions, type EnvironmentConformanceSubject, type EnvironmentConformancePorts, } from './environment-conformance.ts';
 export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, createScriptedEnvironmentAuthority, createScriptedScopeBindings, type EnvironmentAuthorityScript, type ScriptedEnvironmentAuthority, type ScriptedScopeBindings, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
+export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOptions, } from './memory-files.ts';
+export { createScriptedCommandFacility, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, } from './scripted-command.ts';
+```
+
+## 声明文件 `testing/memory-files.d.ts`
+
+```ts
+import type { FacilityOperation, FileSystemFacility, ObjectToken } from '../index.ts';
+export type MemoryFileSystemOptions = Readonly<{
+    files?: Readonly<Record<string, string | Uint8Array>>;
+    directories?: readonly string[];
+}>;
+export type MemoryFileSystem<P = unknown> = Readonly<{
+    durability: 'none';
+    facility: FileSystemFacility<P>;
+    objectToken(path: string): ObjectToken | undefined;
+    peek(path: string): Uint8Array | undefined;
+    calls: readonly Readonly<{
+        operation: FacilityOperation<'files'>;
+        path: string;
+    }>[];
+    close(): void;
+}>;
+export declare function createMemoryFileSystem<P = unknown>(options?: MemoryFileSystemOptions): MemoryFileSystem<P>;
 ```
 
 ## 声明文件 `testing/provider-conformance.d.ts`
@@ -1405,4 +1436,40 @@ export type ProviderConformanceOptions = Readonly<{
     waitMs?: number;
 }>;
 export declare function environmentProviderConformance(options: ProviderConformanceOptions): readonly ConformanceCase[];
+```
+
+## 声明文件 `testing/scripted-command.d.ts`
+
+```ts
+import type { CommandFacility, CommandOutcome, FacilityReason, OutputChunk, ProcessHandle } from '../index.ts';
+export type ScriptedCommandAnswer = Readonly<{
+    kind: 'started';
+    output?: readonly Readonly<{
+        stream: OutputChunk['stream'];
+        data: string | Uint8Array;
+    }>[];
+    outcome?: CommandOutcome;
+    runs?: 'exit' | 'untilStop';
+    stop?: 'confirmed' | 'unconfirmed';
+}> | Readonly<{
+    kind: 'rejected';
+    reason: FacilityReason;
+}> | Readonly<{
+    kind: 'unknown';
+}>;
+type StartRequest<P> = Parameters<CommandFacility<P>['start']>[0];
+export type CommandScript<P = unknown> = (request: StartRequest<P>) => ScriptedCommandAnswer | Promise<ScriptedCommandAnswer>;
+export type ScriptedCommandFacility<P = unknown> = Readonly<{
+    durability: 'none';
+    facility: CommandFacility<P>;
+    calls: readonly StartRequest<P>[];
+    stops: readonly Readonly<{
+        process: ProcessHandle['process'];
+        mode: 'graceful' | 'forced';
+        answer: 'confirmed' | 'unconfirmed';
+    }>[];
+    close(): void;
+}>;
+export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>): ScriptedCommandFacility<P>;
+export {};
 ```

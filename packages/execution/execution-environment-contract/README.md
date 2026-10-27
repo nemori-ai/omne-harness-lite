@@ -17,9 +17,11 @@ Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come fr
 - Implemented: the two block declarations, the two pure functions, `describeFacility`, and `createRecoveryAccess`.
 - Tested: the export surface, the facility descriptors, the block declarations, and the absence of Cordis imports.
 - Tested: requirement decoding, provider matching, the need schema and its digest. Type tests cover `FacilitySet` and the example.
-- No provider: the package implements no facility and no environment. The host provider is in [execution-environment-host-local](../execution-environment-host-local/README.md).
+- Tested: the two facility doubles, alone and in a scripted provider lease. The provider suite runs with the in-memory file system as the held facility.
+- No production facility: the package implements no production facility and no environment. The host provider is in [execution-environment-host-local](../execution-environment-host-local/README.md). `./testing` has two facility doubles: an in-memory file system and a scripted command facility.
 - Implemented: parameter schemas for nine environment, recovery, and registration operations, seven data result schemas, and `operationSchemas`. Registration results are removal functions. Facility operation schemas remain follow-up work.
-- Implemented: `./testing` conformance cases and non-durable doubles, including scripted environment authority and scope bindings. The registry runs the environment suite; host-local runs both suites.
+- Implemented: `./testing` conformance cases and non-durable doubles, including scripted environment authority and scope bindings. The registry runs the environment suite. Host-local runs both suites.
+- Implemented: two `./testing` facility doubles. `createMemoryFileSystem` gives an in-memory `files` facility with read, stat, write, close, and list. `createScriptedCommandFacility` gives a scripted `command` facility with output chunks, outcomes, and stops. The doubles prove the contract shape only. They do not prove real processes, a real file system, a grant-root check, or isolation.
 - Not verified: most behavior clauses in the SPEC need the mechanism member, providers, and a real integrator together. The package makes no claim about tenant isolation, resource close, durability, or recovery.
 
 The current consumers are the group members execution-environment-cordis-contract, execution-environment, and execution-environment-host-local.
@@ -101,7 +103,7 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Independent use, integrators, neighbor handoff, position
 └── cordis.md             Why Cordis integration does not apply
 src/                      Public definitions, facilities/ holds the three core facilities
-tests/                    Runtime and type tests, fixtures/ is empty now
+tests/                    Runtime and type tests, fixtures/ holds the export inventory
 schema/                   JSON Schema of the tool environment declaration
 verification/             models/ and proofs/, empty now
 adr/                      Empty now
