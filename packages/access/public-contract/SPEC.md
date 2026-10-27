@@ -616,12 +616,21 @@ const encoded = encodeGovernanceRequest({
 
 `SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是 `GovernanceCodecLimits`、`GovernanceDiagnostic` 与 `GovernanceEncodeResult` 的别名。每个会话操作允许的线上业务 outcome 见[结果](#结果)一节的「operation／线上业务 outcome」表。各结果的 body 见同一节的「结果／body」表与[历史页](#历史页)。
 
-信封表、[会话 body 字段](#会话-body-字段)表、上述两张结果表与历史页没有列出的字段都被拒绝。`readSessionRequest` 返回 `protocol-rejected`，`readSessionResponse` 返回 `unreadable`，`encodeSessionRequest` 与 `encodeSessionResponse` 返回 `invalid`。
+下列来源没有列出的字段都被拒绝：
+
+- [共同消息](#共同消息)的请求字段：`protocolVersion`、`messageId`、`operation`。
+- 共同消息的响应头字段：`protocolVersion`、`messageId`、`outcome`、`body`。
+- 信封表。
+- [会话 body 字段](#会话-body-字段)表。
+- [结果](#结果)一节的两张表：「operation／线上业务 outcome」表与「结果／body」表。
+- [历史页](#历史页)。
+
+拒绝的方式如下：`readSessionRequest` 返回 `protocol-rejected`，`readSessionResponse` 返回 `unreadable`，`encodeSessionRequest` 与 `encodeSessionResponse` 返回 `invalid`。
 
 `readSessionRequest` 执行[会话判断次序](#会话判断次序)第 1 步的检查。下面两项的责任在本成员与服务端接入之间划分：
 
 - `message`：本成员只核对它是 JSON 对象，并且 `role` 恰为 `user`。本地值保留该对象的 json-text 值树。服务端接入在同一个第 1 步按 message 包完整解码该对象。解码不合规仍是 `protocol-rejected`，Session 不被调用。本成员不依赖 message 包。
-- `session`：本成员只核对文本是 64 个小写十六进制字符。本地值是普通字符串，不加品牌。线上 `session` 文本到 Session `SessionId` 品牌值的转换由服务端接入完成，不在本成员。
+- `session`：本成员只核对文本是 64 个小写十六进制字符。这条对整个成员成立：请求里的 `session`，以及 `readSessionResponse` 读取 `create-session` 与 `query-create-session` 成功 body 里的 `session`，都按它核对。本地值是普通字符串，不加品牌。线上 `session` 文本到 Session `SessionId` 品牌值的转换由服务端接入完成，不在本成员。
 
 编码方向的检查范围相同：`encodeSessionRequest` 对 `message` 只核对上面两项，`encodeSessionRequest` 与 `encodeSessionResponse` 对 `session` 只核对同一文本格式。
 
