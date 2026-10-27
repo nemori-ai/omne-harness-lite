@@ -932,3 +932,58 @@ describe('late accounts of a result that was not saved', () => {
     expect(h.pusher.deliveries().map(item => item.key)).toEqual([resultKey('a')])
   })
 })
+
+describe('an unknown result behind the push-producer double stays unknown', () => {
+  it('keeps unknown when a later redelivery is denied, and the attempt result is returned', async () => {
+    const h = harness({ maxRedeliveries: 1 })
+    await admitted(h, 'a')
+    h.answer({ kind: 'outcome-unknown' }, { kind: 'outcome-unknown' })
+    settle(h, 'a')
+    expect(await within(h.pusher.settled(callRef('a')), 'settled')).toMatchObject({
+      status: 'unknown',
+      attempts: 2,
+    })
+    h.store.setAccess({ tenant: tenantA, principal: alice }, 'deny')
+    expect(await within(h.pusher.redeliver(resultKey('a')), 'redeliver')).toMatchObject({
+      status: 'failed',
+      attempts: 3,
+      failure: { kind: 'rejected', failure: { kind: 'denied' } },
+    })
+    expect(await within(h.pusher.settled(callRef('a')), 'settled')).toMatchObject({
+      status: 'unknown',
+      attempts: 3,
+    })
+    expect(h.pusher.deliveries().map(item => item.status)).toEqual(['unknown'])
+    h.store.setAccess({ tenant: tenantA, principal: alice }, 'allow')
+    expect(await within(h.pusher.redeliver(resultKey('a')), 'redeliver')).toMatchObject({
+      status: 'saved',
+      attempts: 4,
+    })
+    expect((await within(h.pusher.settled(callRef('a')), 'settled')).status).toBe('saved')
+    expect(h.pusher.acknowledgements()).toHaveLength(1)
+  })
+
+  it('keeps unknown when a later redelivery is backpressured or unavailable', async () => {
+    const h = harness({ maxRedeliveries: 0 })
+    await admitted(h, 'a')
+    h.answer(
+      { kind: 'outcome-unknown' },
+      { kind: 'backpressured', resource: 'in-flight' },
+      { kind: 'unavailable', dependency: 'material' },
+    )
+    settle(h, 'a')
+    expect((await within(h.pusher.settled(callRef('a')), 'settled')).status).toBe('unknown')
+    expect(await within(h.pusher.redeliver(resultKey('a')), 'redeliver')).toMatchObject({
+      status: 'failed',
+      failure: { kind: 'rejected', failure: { kind: 'backpressured' } },
+    })
+    expect(await within(h.pusher.redeliver(resultKey('a')), 'redeliver')).toMatchObject({
+      status: 'failed',
+      failure: { kind: 'rejected', failure: { kind: 'unavailable' } },
+    })
+    expect(h.pusher.deliveries().map(item => [item.status, item.attempts])).toEqual([
+      ['unknown', 3],
+    ])
+    expect(h.pusher.acknowledgements()).toEqual([])
+  })
+})

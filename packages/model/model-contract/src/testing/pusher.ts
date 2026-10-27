@@ -98,21 +98,35 @@ type Standing =
 type Saved = Extract<Standing, { status: 'saved' }>
 
 /**
- * The standing of one delivery. Nothing can replace a `saved` standing: `conclude` is the only
- * writer, and once the delivery is saved it keeps the first receipt and only hands back the
- * standing of the later attempt.
+ * The standing of one delivery; `conclude` is the only writer. `saved` and `unknown` are
+ * established facts. Nothing replaces `saved`, which keeps its first receipt. Only a later
+ * `saved` replaces `unknown`: a later denied, unavailable or backpressured answer cannot show
+ * that the receiver never saved. A kept standing only hands back the standing of the attempt.
  */
 type StandingCell = Readonly<{
   current(): Standing
   conclude(attempt: Standing): Standing
 }>
 
+/** Whether `attempt` may replace `standing` as the fact of the delivery. */
+function replaces(standing: Standing, attempt: Standing): boolean {
+  switch (standing.status) {
+    case 'saved':
+      return false
+    case 'unknown':
+      return attempt.status === 'saved'
+    case 'pending':
+    case 'failed':
+      return true
+  }
+}
+
 function standingCell(): StandingCell {
   let standing: Standing = { status: 'pending' }
   return {
     current: () => standing,
     conclude(attempt) {
-      if (standing.status !== 'saved') standing = attempt
+      if (replaces(standing, attempt)) standing = attempt
       return attempt
     },
   }
