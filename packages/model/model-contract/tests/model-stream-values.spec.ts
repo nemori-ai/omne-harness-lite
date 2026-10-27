@@ -47,15 +47,17 @@ function minted(account: string): TenantId {
   if (!result.ok) throw new Error('Invalid tenant fixture')
   return result.value
 }
+// Decoded fixtures are built inside each test, so a decoder fault fails that test rather than
+// the module load or the collection.
 const tenant = minted('0')
 const foreign = minted('1')
-const call = must(decodeModelCallId('mcall_a'))
-const dispatch = must(decodeDispatchId('mdisp_a'))
-const otherCall = must(decodeModelCallId('mcall_b'))
-const otherDispatch = must(decodeDispatchId('mdisp_b'))
+const callId = () => must(decodeModelCallId('mcall_a'))
+const dispatchId = () => must(decodeDispatchId('mdisp_a'))
+const otherCallId = () => must(decodeModelCallId('mcall_b'))
+const otherDispatchId = () => must(decodeDispatchId('mdisp_b'))
 const revision = (text: string) => must(decodeRevision(text))
 const cursor = (text: string) => must(decodeOutputCursor(text))
-const operation = must(decodeModelOperationId('mop_a'))
+const operationId = () => must(decodeModelOperationId('mop_a'))
 const codec: StreamCallCodec = {
   producer: 'model',
   resolve({ text, tenant: target }) {
@@ -64,14 +66,14 @@ const codec: StreamCallCodec = {
     return { ok: must(encodeModelInvocationRef(decoded.ok)) }
   },
 }
-function reference(stream = 'str_a', target = tenant, modelCall = call): StreamRef {
+function reference(stream = 'str_a', target = tenant, modelCall = callId()): StreamRef {
   return must(
     encodeStreamRef(
       {
         tenant: target,
         producer: 'model',
         call: must(
-          encodeModelInvocationRef({ tenant: target, call: modelCall, admission: operation }),
+          encodeModelInvocationRef({ tenant: target, call: modelCall, admission: operationId() }),
         ),
         stream: must(decodeStreamId(stream)),
       },
@@ -79,10 +81,10 @@ function reference(stream = 'str_a', target = tenant, modelCall = call): StreamR
     ),
   )
 }
-const ref = reference()
+const defaultRef = () => reference()
 function state(phase: CallState['phase'] = 'running', rev = '1'): CallState {
   const common = {
-    call,
+    call: callId(),
     revision: revision(rev),
     consumer: { owner: 'agent', work: 'work', position: 'position', purpose: 'reply' },
     control: { kind: 'none' } as const,
@@ -92,9 +94,9 @@ function state(phase: CallState['phase'] = 'running', rev = '1'): CallState {
     case 'accepted':
       return { ...common, phase }
     case 'running':
-      return { ...common, phase, dispatch, firstContent: 'none-proven' }
+      return { ...common, phase, dispatch: dispatchId(), firstContent: 'none-proven' }
     case 'retry-decision':
-      return { ...common, phase, dispatch }
+      return { ...common, phase, dispatch: dispatchId() }
     case 'settled':
       return {
         ...common,
@@ -133,7 +135,11 @@ function snapshot(
   callState = state(),
   output = '1',
 ): ModelStreamSnapshot {
-  return { ref, dispatch, value: { call, cursor: cursor(output), state: callState, blocks } }
+  return {
+    ref: defaultRef(),
+    dispatch: dispatchId(),
+    value: { call: callId(), cursor: cursor(output), state: callState, blocks },
+  }
 }
 function advance(before: ModelStreamSnapshot, blocks = before.value.blocks): ModelStreamSnapshot {
   return {
@@ -179,14 +185,14 @@ describe('Model stream changes', () => {
       ...state(),
       revision: revision('2'),
       phase: 'running',
-      dispatch,
+      dispatch: dispatchId(),
       firstContent: 'observed',
     }
     const s1 = snapshot([growing()], observed)
     const change = roundTrip(s0, s1)
     expect(change).toEqual({
-      ref,
-      dispatch,
+      ref: defaultRef(),
+      dispatch: dispatchId(),
       from: { outputCursor: '0', revision: '1' },
       outputCursor: '1',
       state: observed,
@@ -195,7 +201,12 @@ describe('Model stream changes', () => {
     const requested: CallState = {
       ...observed,
       revision: revision('3'),
-      control: { kind: 'requested', operation, propagation: 'pending', upstream: 'unknown' },
+      control: {
+        kind: 'requested',
+        operation: operationId(),
+        propagation: 'pending',
+        upstream: 'unknown',
+      },
     }
     const s2 = snapshot(s1.value.blocks, requested)
     expect(roundTrip(s1, s2).blocks).toEqual([])
@@ -253,10 +264,10 @@ describe('Model stream changes', () => {
 
   it('normalizes references through the original Model codec before comparing them', () => {
     const before = snapshot()
-    const after = { ...advance(before), ref: (' ' + ref + ' ') as StreamRef }
+    const after = { ...advance(before), ref: (' ' + defaultRef() + ' ') as StreamRef }
     const change = must(diff(before, after))
-    expect(change.ref).toBe(ref)
-    expect(must(apply(before, change)).ref).toBe(ref)
+    expect(change.ref).toBe(defaultRef())
+    expect(must(apply(before, change)).ref).toBe(defaultRef())
   })
 })
 
@@ -308,7 +319,7 @@ describe('reference, identity and source checks', () => {
     expect(apply(before, delta(snapshot(), after))).toMatchObject({
       failure: { kind: 'reference', side: 'delta' },
     })
-    const mismatched = { ...snapshot(), value: { ...snapshot().value, call: otherCall } }
+    const mismatched = { ...snapshot(), value: { ...snapshot().value, call: otherCallId() } }
     expect(diff(mismatched, after)).toMatchObject({ failure: { kind: 'reference', side: 'after' } })
   })
 
@@ -405,7 +416,7 @@ describe('reference, identity and source checks', () => {
     expect(diff(before, badCall)).toEqual({
       failure: { kind: 'identity', side: 'after', field: 'call' },
     })
-    const mismatch = { ...before, value: { ...before.value, call: otherCall } }
+    const mismatch = { ...before, value: { ...before.value, call: otherCallId() } }
     expect(diff(mismatch, { ...after, dispatch: 'bad' as DispatchId })).toEqual({
       failure: { kind: 'identity', side: 'after', field: 'dispatch' },
     })
@@ -430,10 +441,10 @@ describe('reference, identity and source checks', () => {
     const after = advance(before)
     pairFailure(
       before,
-      { ...after, value: { ...after.value, state: { ...after.value.state, call: otherCall } } },
+      { ...after, value: { ...after.value, state: { ...after.value.state, call: otherCallId() } } },
       'call-mismatch',
     )
-    expect(diff(before, { ...after, value: { ...after.value, call: otherCall } })).toEqual({
+    expect(diff(before, { ...after, value: { ...after.value, call: otherCallId() } })).toEqual({
       failure: { kind: 'call-mismatch' },
     })
     const mismatch: ModelStreamSnapshot = {
@@ -444,7 +455,7 @@ describe('reference, identity and source checks', () => {
         state: {
           ...state('running', '2'),
           phase: 'running',
-          dispatch: otherDispatch,
+          dispatch: otherDispatchId(),
           firstContent: 'observed',
         },
       },
@@ -456,7 +467,7 @@ describe('reference, identity and source checks', () => {
     const before = snapshot()
     const pending = state('retry-decision', '2')
     if (pending.phase !== 'retry-decision') throw new Error('retry-decision fixture')
-    const after = snapshot([growing()], { ...pending, dispatch: otherDispatch }, '2')
+    const after = snapshot([growing()], { ...pending, dispatch: otherDispatchId() }, '2')
     pairFailure(before, after, 'dispatch-mismatch')
     roundTrip(before, snapshot([growing()], pending, '2'))
   })
@@ -478,7 +489,7 @@ describe('reference, identity and source checks', () => {
 
   it('rejects different streams before different outer dispatches, including settled states', () => {
     const before = snapshot([], state('settled'))
-    const after = { ...advance(before), dispatch: otherDispatch }
+    const after = { ...advance(before), dispatch: otherDispatchId() }
     pairFailure(before, { ...after, ref: reference('str_b') }, 'stream-mismatch')
     pairFailure(before, after, 'dispatch-mismatch')
   })
@@ -488,8 +499,12 @@ describe('reference, identity and source checks', () => {
     const after = advance(before)
     const another = {
       ...after,
-      ref: reference('str_a', tenant, otherCall),
-      value: { ...after.value, call: otherCall, state: { ...after.value.state, call: otherCall } },
+      ref: reference('str_a', tenant, otherCallId()),
+      value: {
+        ...after.value,
+        call: otherCallId(),
+        state: { ...after.value.state, call: otherCallId() },
+      },
     }
     pairFailure(before, another, 'stream-mismatch')
   })
@@ -536,7 +551,12 @@ describe('projection progress and state', () => {
           state: {
             ...after.value.state,
             revision: revision('1'),
-            control: { kind: 'requested', operation, propagation: 'pending', upstream: 'unknown' },
+            control: {
+              kind: 'requested',
+              operation: operationId(),
+              propagation: 'pending',
+              upstream: 'unknown',
+            },
           },
         },
       },
@@ -552,7 +572,12 @@ describe('projection progress and state', () => {
           state: {
             ...after.value.state,
             revision: revision('1'),
-            control: { kind: 'requested', operation, propagation: 'pending', upstream: 'unknown' },
+            control: {
+              kind: 'requested',
+              operation: operationId(),
+              propagation: 'pending',
+              upstream: 'unknown',
+            },
           },
         },
       },

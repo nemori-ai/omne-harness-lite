@@ -30,23 +30,29 @@ function minted(account: string): TenantId {
   if (!value.ok) throw new Error('Invalid fixture tenant')
   return value.value
 }
+// Decoded fixtures are built inside each test, so a decoder fault fails that test rather than
+// the module load or the collection. Test tables hold plain text for the same reason.
 const tenant = minted('0')
 const foreign = minted('1')
-const call = must(decodeModelCallId('mcall_a'))
-const otherCall = must(decodeModelCallId('mcall_b'))
-const admission = must(decodeModelOperationId('mop_a'))
-const otherAdmission = must(decodeModelOperationId('mop_b'))
-const dispatch = must(decodeDispatchId('mdisp_a'))
-const otherDispatch = must(decodeDispatchId('mdisp_b'))
-const thirdDispatch = must(decodeDispatchId('mdisp_c'))
+const callId = () => must(decodeModelCallId('mcall_a'))
+const otherCallId = () => must(decodeModelCallId('mcall_b'))
+const admissionId = () => must(decodeModelOperationId('mop_a'))
+const otherAdmissionId = () => must(decodeModelOperationId('mop_b'))
+const dispatchId = () => must(decodeDispatchId('mdisp_a'))
+const otherDispatchId = () => must(decodeDispatchId('mdisp_b'))
+const thirdDispatchId = () => must(decodeDispatchId('mdisp_c'))
 const consumer = { owner: 'owner', work: 'w', position: 'p', purpose: 'u' }
 const evidence = { owner: 'source', record: 'r', revision: '1', digest: 'source-only' }
-function reference(target = tenant, targetCall = call, operation = admission): ModelInvocationRef {
+function reference(
+  target = tenant,
+  targetCall = callId(),
+  operation = admissionId(),
+): ModelInvocationRef {
   return must(encodeModelInvocationRef({ tenant: target, call: targetCall, admission: operation }))
 }
 function account(): CallAccount {
   return {
-    subject: { kind: 'model_call', id: call },
+    subject: { kind: 'model_call', id: callId() },
     usage: [],
     cost: [],
     trimmed: { state: 'unknown', unit: 'token' },
@@ -73,15 +79,15 @@ function resultDelivery(
     },
     parts: [{ kind: 'partial', content: 'text', value: 'answer', trims: [] }],
     accounts: [
-      { dispatch, account: account() },
-      { dispatch: otherDispatch, account: null },
+      { dispatch: dispatchId(), account: account() },
+      { dispatch: otherDispatchId(), account: null },
     ],
   }
 }
 function accountDelivery(): Extract<ModelDelivery, { kind: 'account' }> {
   return {
     kind: 'account',
-    key: { kind: 'account', reference: reference(), dispatch, revision: '1' },
+    key: { kind: 'account', reference: reference(), dispatch: dispatchId(), revision: '1' },
     consumer: { ...consumer },
     account: account(),
   }
@@ -125,9 +131,10 @@ describe('typed delivery relations through the public entry', () => {
     })
   })
   it.each([
-    { kind: 'tool_execution', id: call },
-    { kind: 'model_call', id: otherCall },
-  ] satisfies CallAccount['subject'][])('R04 rejects a foreign account subject %j', subject => {
+    { kind: 'tool_execution', id: 'mcall_a' },
+    { kind: 'model_call', id: 'mcall_b' },
+  ] satisfies CallAccount['subject'][])('R04 rejects a foreign account subject %j', row => {
+    const subject = { ...row, id: must(decodeModelCallId(row.id)) }
     const delivery = accountDelivery()
     expect(judge({ ...delivery, account: { ...delivery.account, subject } })).toEqual({
       failure: { field: 'account.subject', reason: 'call-mismatch' },
@@ -137,34 +144,32 @@ describe('typed delivery relations through the public entry', () => {
     const delivery = resultDelivery()
     const bad = {
       ...account(),
-      subject: { kind: 'model_call', id: otherCall },
+      subject: { kind: 'model_call', id: otherCallId() },
     } satisfies CallAccount
     expect(
       judge({
         ...delivery,
         accounts: [
-          { dispatch, account: bad },
-          { dispatch, account: null },
+          { dispatch: dispatchId(), account: bad },
+          { dispatch: dispatchId(), account: null },
         ],
       }),
     ).toEqual({ failure: { field: 'accounts', reason: 'duplicate-dispatch' } })
-    expect(judge({ ...delivery, accounts: [{ dispatch, account: bad }] })).toEqual({
+    expect(judge({ ...delivery, accounts: [{ dispatch: dispatchId(), account: bad }] })).toEqual({
       failure: { field: 'accounts', reason: 'call-mismatch' },
     })
   })
   it.each([
-    { kind: 'tool_execution', id: call },
-    { kind: 'model_call', id: otherCall },
-  ] satisfies CallAccount['subject'][])(
-    'R05 rejects a foreign result account subject %j',
-    subject => {
-      const delivery = resultDelivery()
-      const accounts = [{ dispatch, account: { ...account(), subject } }]
-      expect(judge({ ...delivery, accounts })).toEqual({
-        failure: { field: 'accounts', reason: 'call-mismatch' },
-      })
-    },
-  )
+    { kind: 'tool_execution', id: 'mcall_a' },
+    { kind: 'model_call', id: 'mcall_b' },
+  ] satisfies CallAccount['subject'][])('R05 rejects a foreign result account subject %j', row => {
+    const subject = { ...row, id: must(decodeModelCallId(row.id)) }
+    const delivery = resultDelivery()
+    const accounts = [{ dispatch: dispatchId(), account: { ...account(), subject } }]
+    expect(judge({ ...delivery, accounts })).toEqual({
+      failure: { field: 'accounts', reason: 'call-mismatch' },
+    })
+  })
   it('R06 returns each original reference without freezing or creating evidence', () => {
     for (const delivery of [resultDelivery(), accountDelivery()]) {
       expect(must(judge(delivery))).toBe(delivery)
@@ -204,7 +209,7 @@ function fixture(budget: Budget = limits) {
   store.establishOriginalCall({
     reference: reference(),
     consumer,
-    dispatches: [dispatch, otherDispatch],
+    dispatches: [dispatchId(), otherDispatchId()],
   })
   store.setAccess(access, 'allow')
   return store
@@ -283,7 +288,7 @@ describe('receiver qualification and original ownership', () => {
     other.establishOriginalCall({
       reference: reference(),
       consumer,
-      dispatches: [dispatch, otherDispatch],
+      dispatches: [dispatchId(), otherDispatchId()],
     })
     other.setAccess({ tenant, principal: opaque }, 'allow')
     expect(
@@ -310,7 +315,7 @@ describe('receiver qualification and original ownership', () => {
         delivery,
         {
           ...delivery,
-          key: { ...delivery.key, reference: reference(tenant, call, otherAdmission) },
+          key: { ...delivery.key, reference: reference(tenant, callId(), otherAdmissionId()) },
         },
         { ...delivery, parts: [] },
       ]) {
@@ -325,13 +330,13 @@ describe('receiver qualification and original ownership', () => {
     expect(
       await push(store, {
         ...delivery,
-        key: { ...delivery.key, reference: reference(tenant, otherCall) },
+        key: { ...delivery.key, reference: reference(tenant, otherCallId()) },
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'key.reference', reason: 'not-accepted' } })
     expect(
       await push(store, {
         ...delivery,
-        key: { ...delivery.key, reference: reference(tenant, call, otherAdmission) },
+        key: { ...delivery.key, reference: reference(tenant, callId(), otherAdmissionId()) },
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'key.reference', reason: 'not-original' } })
     for (const field of ['owner', 'work', 'position', 'purpose']) {
@@ -348,7 +353,10 @@ describe('receiver qualification and original ownership', () => {
   it('R09 checks complete result dispatches, with duplicates before set membership', async () => {
     const store = fixture()
     const delivery = resultDelivery()
-    for (const dispatches of [[dispatch], [dispatch, otherDispatch, thirdDispatch]]) {
+    for (const dispatches of [
+      [dispatchId()],
+      [dispatchId(), otherDispatchId(), thirdDispatchId()],
+    ]) {
       expect(
         await push(store, {
           ...delivery,
@@ -362,8 +370,8 @@ describe('receiver qualification and original ownership', () => {
       await push(store, {
         ...delivery,
         accounts: [
-          { dispatch, account: null },
-          { dispatch, account: null },
+          { dispatch: dispatchId(), account: null },
+          { dispatch: dispatchId(), account: null },
         ],
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'accounts', reason: 'duplicate-dispatch' } })
@@ -372,12 +380,12 @@ describe('receiver qualification and original ownership', () => {
   it('R09a/R09b account subject alone cannot authorize another call dispatch', async () => {
     const store = fixture()
     store.establishOriginalCall({
-      reference: reference(tenant, otherCall),
+      reference: reference(tenant, otherCallId()),
       consumer,
-      dispatches: [thirdDispatch],
+      dispatches: [thirdDispatchId()],
     })
     const delivery = accountDelivery()
-    const foreignDispatch = { ...delivery, key: { ...delivery.key, dispatch: thirdDispatch } }
+    const foreignDispatch = { ...delivery, key: { ...delivery.key, dispatch: thirdDispatchId() } }
     expect(must(judge(foreignDispatch))).toBe(foreignDispatch)
     expect(await push(store, foreignDispatch)).toEqual({
       failure: { kind: 'invalid', field: 'key.dispatch', reason: 'not-original' },
@@ -387,7 +395,7 @@ describe('receiver qualification and original ownership', () => {
     expect(
       await push(store, {
         ...foreignDispatch,
-        key: { ...foreignDispatch.key, reference: reference(tenant, call, otherAdmission) },
+        key: { ...foreignDispatch.key, reference: reference(tenant, callId(), otherAdmissionId()) },
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'key.reference', reason: 'not-original' } })
     store.setAccess(access, 'deny')
@@ -456,13 +464,13 @@ describe('receiver independent custody and retry facts', () => {
         ...delivery,
         accounts: [
           {
-            dispatch,
+            dispatch: dispatchId(),
             account: {
               ...account(),
               cost: [{ state: 'known', lexeme: '1.00', source: 'billable', unit: 'USD' }],
             },
           },
-          { dispatch: otherDispatch, account: null },
+          { dispatch: otherDispatchId(), account: null },
         ],
       },
       {
@@ -775,7 +783,7 @@ describe('bounded custody resources', () => {
       store.establishOriginalCall({
         reference: reference(target),
         consumer,
-        dispatches: [dispatch, otherDispatch],
+        dispatches: [dispatchId(), otherDispatchId()],
       })
       store.setAccess({ tenant: target, principal }, 'allow')
     }
@@ -879,7 +887,7 @@ describe('bounded custody resources', () => {
       store.establishOriginalCall({
         reference: reference(),
         consumer: { ...consumer, purpose: 'other' },
-        dispatches: [dispatch],
+        dispatches: [dispatchId()],
       }),
     ).toThrow('Conflicting')
     const delivery = resultDelivery()
@@ -1026,7 +1034,7 @@ it('R02/R07 rejects malformed text before qualification while wrong admission re
   expect(
     await push(store, {
       ...wrongAdmission,
-      key: { ...wrongAdmission.key, reference: reference(tenant, call, otherAdmission) },
+      key: { ...wrongAdmission.key, reference: reference(tenant, callId(), otherAdmissionId()) },
     }),
   ).toEqual({ failure: { kind: 'denied' } })
   expect(queries(store)).toEqual([])
