@@ -2,31 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { BINDING_MARKERS, type TaskBinding } from '../src/delivery/binding.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
 import { fileScope, issueScope, scopeOverlap } from '../src/delivery/scope-overlap.ts'
+import { binding } from './fixtures/binding.ts'
 import { table } from './fixtures/lines.ts'
 
 const card = (source: string, ...writeScope: string[]) => ({ source, writeScope })
-function binding(number: number, writeScope: string[]): TaskBinding {
-  return {
-    schemaVersion: 1,
-    issue: {
-      repository: 'owner/repo',
-      id: `I_${number}`,
-      number,
-      url: `https://github.com/owner/repo/issues/${number}`,
-    },
-    revision: 1,
-    attempt: `${number}-r1-a1`,
-    responsible: 'human',
-    branch: `human/issue-${number}`,
-    route: { kind: 'track', track: 'legacy-refactor' },
-    completionTarget: 'track',
-    taskBase: 'a'.repeat(40),
-    writeScope,
-    dispatch: `https://github.com/owner/repo/issues/${number}#issuecomment-1`,
-    conditions: [],
-    authorization: [],
-  }
-}
 const body = (task: TaskBinding) =>
   `## 身份与责任\n\n- 交付修订：1\n\n## 当前执行与交接\n\n\`\`\`json ${BINDING_MARKERS[1]}\n${JSON.stringify(task)}\n\`\`\`\n`
 /** A GitHub stand-in that answers one Issue read per number from `bodies`. */

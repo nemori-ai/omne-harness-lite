@@ -88,7 +88,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/labels-cli.ts --issu
 ## 写范围求交
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...
+node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号、binding 文件或读集文件>...
 ```
 
 命令读取每张卡的 binding 的 `writeScope`，两两求交，只读，不写平台。参数是纯数字或 `#` 加数字时按卡号经 `gh api` 读 Issue 正文中唯一的 binding 区块，其他参数按文件读。文件可以是一个 binding JSON 对象，也可以是只含一个 binding 区块的文本，例如保存下来的 Issue 正文。派发前还没有写进 Issue 的 binding 用文件传入。
@@ -98,6 +98,24 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 - 已关闭的卡不再写入，默认不参与求交，卡号列在 `excluded`。加 `--include-closed` 时关闭的卡也参与。文件参数没有 Issue 状态，总是参与。
 - 标准输出是 JSON：每张卡计入与不计入的路径、`excluded`，以及冲突对 `conflicts`。每个冲突对另向标准错误写一行。
 - 没有交集退出0，有交集退出1。卡没有 binding、文件不合格、同一张卡给了两次、读不到 GitHub 时退出2。
+
+命令同时检查读写交叉：一张卡要写的路径落在另一张卡的读集里。卡的读集是它计入的写范围所在的 workspace 成员，加上这些成员按 `package.json` 声明的 `workspace:` 依赖传递到的成员，再加上读集文件列出的正文页。写范围路径不在任何成员下时不贡献成员。读集文件与 binding 文件一样按位置参数传入：
+
+```json
+{ "source": "#794", "reads": ["docs/engineering/integration.md"] }
+```
+
+- 含 `reads` 字段的 JSON 对象按读集文件读，其他文件按 binding 文件读。`source` 是同一次参数里的卡号（`#` 加数字）或 binding 文件路径，路径按当前目录解析后比较。`reads` 是仓库相对路径，可以为空。
+- 每对不同的卡两个方向各比较一次，路径比较规则与写范围求交相同。同一张卡的写与读不比较。
+- 标准输出的 JSON 另有 `readSets`（每张卡的 `members` 与 `pages`）与 `readConflicts`。每个读写交叉另向标准错误写一行 `read-overlap: <写方> <写路径> -> <读方> <读路径>`。
+- 写交集或读写交叉任一存在时退出1。读集文件的 `source` 不对应任何卡参数、同一张卡给了两份读集文件时退出2。
+
+调度者在登记 attempt 前运行这个检查：
+
+- 调度者从任务信息包引用的正文页整理每张卡的读集文件，与卡号或 binding 文件一起传入。读集用独立的 JSON 文件，不写进 binding，因为 binding 的字段集是严格的，增加字段要改 `parseTaskBinding` 与 `start`。
+- 命令读运行它的检出的工作树来取成员清单与依赖。所以要在冻结头（收口点或批次分支头）的检出上运行。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
+- 同一条线顺序推进的几张卡，把写范围之并与读集之并作为一张卡传入，与写范围求交的做法相同。
+- 两条线写同一成员中不同的文件时，双方都读这个成员，所以总是报读写交叉。按 `WS(a) ∩ RS(b) = ∅`，这两张卡不能在同一波；调度者改分解。
 
 `--config` 与 `--lines` 指定交付配置与线归属表，缺省为本检出中的文件。经 `pnpm --filter @omne-harness/dev-flow run scope-overlap` 运行时，文件参数相对 `tools/dev-flow` 解析。
 
