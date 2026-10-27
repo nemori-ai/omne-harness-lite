@@ -48,7 +48,6 @@ export type {
   ToolProgramDeclaration,
   ToolReturnDeclaration,
   ToolSchemaIdentity,
-  WorkspaceId,
 } from './definitions.ts'
 export type {
   ActiveRelation,

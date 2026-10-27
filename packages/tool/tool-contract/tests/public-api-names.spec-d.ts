@@ -77,7 +77,6 @@ export type {
   ToolCommandDeclaration,
   ToolImplementationShape,
   ToolDefinition,
-  WorkspaceId,
   SourceLayer,
   ToolAvailability,
   ToolArguments,
