@@ -114,6 +114,8 @@ bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config �
 
 源码入口由仓库根及包内的 `collaboration:install`、`integration:request`、`line`、`reduce:watch` scripts 暴露。安装、来源和装配验证归[安装测试](../../tests/delivery-collaboration-installation.spec.ts)。此测试使用真实临时 Git 和文件系统，远端内容为 REST 替身；不证明真实采用或生产部署。
 
+申请 Action 的部署次序为受审工具与来源提交、实际 workflow 提交、环境中的安装描述符。默认分支须先有同名的手动触发入口；实际登记仅在 `github-gate` 执行。`delivery` environment 的描述符原始字节及 SHA-256 在运行开始时各读取一次；检出前核对摘要、仓库、工具完整 SHA、published 模式及采用的 workflow head 等于 `GITHUB_SHA`。后续检出、只读安装与登记使用同一快照。描述符与摘要缺失或冲突时拒绝；环境采用不替代请求的具名授权和证据校验。
+
 ## 生产者接管与转移
 
 `collaboration-producer-state.ts` 拥有私有 Git 目录内的生产者状态。`collaboration:install` 默认只采用读取配置。`--initial-producer` 与 `--producer-from OLD_TOOL_ROOT` 互斥。前者明确声明首次接管，要求 journal 没有旧 slot；后者要求旧写者及其启动器已停止，旧固定检出在本机可访问。此命令仅写本地文件，不调用远端写 API。

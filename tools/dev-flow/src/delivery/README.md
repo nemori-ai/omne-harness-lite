@@ -105,6 +105,14 @@ watch 的 parent、operation ID、journal 和事件文件来自本线实际派�
 
 缺少安装、摘要不符、工具检出变脏或提交变化时，停止并核对安装。不要通过更换来源来绕过拒绝。升级前收回旧安装上的未决写操作，并在安全的波段边界切换到新检出；保存原 journal，不给不确定操作生成新 ID。
 
+## 部署申请 workflow
+
+默认分支须先存在 `.github/workflows/integration-request.yml`，GitHub 才能登记手动触发入口。只更新 `github-gate` 不足以完成首次安装。默认分支的占位入口不登记申请；实际执行使用 `--ref github-gate`。默认分支和轨道的运输继续遵守[分支准入](../../../../docs/engineering/integration.md#现行准入)。
+
+在 `github-gate` 部署的申请 workflow 使用 `delivery` environment 的 `OMNE_COLLABORATION_DESCRIPTOR` 和 `OMNE_COLLABORATION_SHA256`。先发布受审工具提交 T 及固定来源 S，再发布 workflow 提交 W，最后采用固定 T、S、W 的描述符。环境变量不是接受决定，不替代逐卡授权。
+
+每次运行只取得一份描述符快照及摘要。检出前核对原始字节摘要、仓库、完整工具 SHA、published 模式和当前 workflow HEAD。随后检出该工具 SHA，安装锁定依赖，以默认只读模式采用描述符，再执行申请校验和登记。缺失或不匹配时在检出前失败。所有步骤消费同一份快照，不能各自重读可变配置。
+
 ## 准备下一波的派发事实
 
 使用 published 安装的 reduce 负责人，在发布下一波前准备实际 reduce 和任务派发的 facts。每个命令只观察一次，返回后继续处理其他集成申请。

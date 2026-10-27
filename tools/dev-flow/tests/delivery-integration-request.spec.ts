@@ -518,7 +518,7 @@ describe('integration request command to trusted Action receipt', () => {
       resolve('../../.github/workflows/integration-request.yml'),
       'utf8',
     )
-    expect(workflow).toContain('ref: ${{ github.sha }}')
+    expect(workflow).toContain('ref: ${{ steps.installation.outputs.tool-commit }}')
     expect(workflow).toContain('queue: max')
     expect(workflow).not.toContain('pull_request_target')
     expect(workflow).not.toContain('ref: ${{ fromJSON(inputs.request).pull.head }}')

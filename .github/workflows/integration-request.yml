@@ -28,19 +28,56 @@ jobs:
   register:
     if: github.ref_type == 'branch' && github.ref_name == 'github-gate'
     runs-on: ubuntu-latest
+    environment: delivery
     timeout-minutes: 10
     steps:
+      - name: Snapshot the adopted installation
+        id: installation
+        env:
+          INSTALLATION_DESCRIPTOR: ${{ vars.OMNE_COLLABORATION_DESCRIPTOR }}
+          INSTALLATION_SHA256: ${{ vars.OMNE_COLLABORATION_SHA256 }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'
+          import { appendFileSync, writeFileSync } from 'node:fs'
+          import { join } from 'node:path'
+          const text = process.env.INSTALLATION_DESCRIPTOR
+          const sha256 = process.env.INSTALLATION_SHA256
+          if (!text || !/^[0-9a-f]{64}$/.test(sha256 ?? '') ||
+              createHash('sha256').update(text).digest('hex') !== sha256) {
+            throw new Error('Adopted installation bytes are missing or mismatched')
+          }
+          const installation = JSON.parse(text)
+          if (installation.repository !== process.env.GITHUB_REPOSITORY ||
+              !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(installation.toolCommit ?? '') ||
+              installation.facts?.kind !== 'published' ||
+              installation.facts.workflow.head !== process.env.GITHUB_SHA) {
+            throw new Error('Installation does not adopt this repository and workflow revision')
+          }
+          writeFileSync(join(process.env.RUNNER_TEMP, 'omne-installation.json'), text, { flag: 'wx', mode: 0o600 })
+          appendFileSync(process.env.GITHUB_OUTPUT, `tool-commit=${installation.toolCommit}\nsha256=${sha256}\n`)
+          NODE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ steps.installation.outputs.tool-commit }}
+          path: tool
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          package_json_file: tool/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
       - name: Install the trusted tool's locked dependencies
+        working-directory: tool
         run: pnpm install --frozen-lockfile --ignore-scripts --filter @omne-harness/dev-flow
+      - name: Adopt the fixed installation in the clean tool checkout
+        working-directory: tool
+        env:
+          INSTALLATION_SHA256: ${{ steps.installation.outputs.sha256 }}
+        run: node --experimental-strip-types tools/dev-flow/src/delivery/collaboration-install-cli.ts --descriptor "$RUNNER_TEMP/omne-installation.json" --sha256 "$INSTALLATION_SHA256"
       - name: Validate and register the frozen handoff
+        working-directory: tool
         env:
           GH_TOKEN: ${{ github.token }}
           OMNE_REQUEST: ${{ inputs.request }}
