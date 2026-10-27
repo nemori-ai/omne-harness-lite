@@ -1,11 +1,13 @@
 const ACCOUNT_SPEC = { name: 'AccountId', prefix: 'acc_' } as const
 const ORGANIZATION_SPEC = { name: 'OrganizationId', prefix: 'org_' } as const
 const LOGIN_STATE_SPEC = { name: 'LoginStateId', prefix: 'lgn_' } as const
+const WORKSPACE_SPEC = { name: 'WorkspaceId', prefix: 'wsp_' } as const
 
 const IDENTITY_SPECS = [
   ACCOUNT_SPEC,
   ORGANIZATION_SPEC,
   LOGIN_STATE_SPEC,
+  WORKSPACE_SPEC,
   { name: 'TenantId' },
   { name: 'ScopeLayerIdentity' },
 ] as const
@@ -26,6 +28,7 @@ interface AtomicIdentity<N extends AtomicName> {
 export type AccountId = AtomicIdentity<'AccountId'>
 export type OrganizationId = AtomicIdentity<'OrganizationId'>
 export type LoginStateId = AtomicIdentity<'LoginStateId'>
+export type WorkspaceId = AtomicIdentity<'WorkspaceId'>
 
 export interface TenantId {
   readonly name: 'TenantId'
@@ -156,6 +159,8 @@ export const organizationCodec: IdentityTextCodec<OrganizationId> = atomicCodec(
 
 export const loginStateCodec: IdentityTextCodec<LoginStateId> = atomicCodec(LOGIN_STATE_SPEC)
 
+export const workspaceCodec: IdentityTextCodec<WorkspaceId> = atomicCodec(WORKSPACE_SPEC)
+
 /** False unless both values came from parse. */
 export function accountEquals(left: AccountId, right: AccountId): boolean {
   return atomicEquals(left, right, 'AccountId')
@@ -169,6 +174,11 @@ export function organizationEquals(left: OrganizationId, right: OrganizationId):
 /** False unless both values came from parse. */
 export function loginStateEquals(left: LoginStateId, right: LoginStateId): boolean {
   return atomicEquals(left, right, 'LoginStateId')
+}
+
+/** False unless both values came from parse. */
+export function workspaceEquals(left: WorkspaceId, right: WorkspaceId): boolean {
+  return atomicEquals(left, right, 'WorkspaceId')
 }
 
 function mintTenant(organization: OrganizationId, account: AccountId): TenantId {
