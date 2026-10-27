@@ -128,20 +128,25 @@ type Record = {
   inFlight: boolean
 }
 
+/** The result delivery of a call, with the two operations the double minted for it. */
+type ResultRecord = Record &
+  Readonly<{
+    key: Extract<ModelDeliveryKey, { kind: 'result' }>
+    operations: Readonly<{ read: ModelOperationId; ack: ModelOperationId }>
+  }>
+
 type Slot = {
   readonly tenant: TenantId
   readonly call: ModelCallId
   admission: Readonly<{ operation: ModelOperationId; reference: ModelInvocationRef }> | null
-  operations: Readonly<{ read: ModelOperationId; ack: ModelOperationId }> | null
-  result: Record | null
-  consumer: ConsumerRef | null
+  result: ResultRecord | null
   /** The account revision frozen or pushed for each dispatch; null for a dispatch without one. */
   readonly accounted: Map<DispatchId, string | null>
   readonly lateAccounts: Readonly<{ dispatch: DispatchId; account: CallAccount }>[]
   acknowledged: boolean
   ackAttempts: number
-  /** Resolves when the result delivery first reaches a terminal state. */
-  readonly terminal: PromiseWithResolvers<void>
+  /** Resolves with the result delivery when it first reaches a terminal state. */
+  readonly terminal: PromiseWithResolvers<ResultRecord>
   /** The delivery work of the call, one task after the other; it never rejects. */
   chain: Promise<void>
   error: unknown
@@ -204,14 +209,12 @@ export function createScriptedResultPusher<P>(
       tenant,
       call,
       admission: null,
-      operations: null,
       result: null,
-      consumer: null,
       accounted: new Map(),
       lateAccounts: [],
       acknowledged: false,
       ackAttempts: 0,
-      terminal: Promise.withResolvers<void>(),
+      terminal: Promise.withResolvers<ResultRecord>(),
       chain: Promise.resolve(),
       error: null,
       failed: false,
@@ -269,15 +272,13 @@ export function createScriptedResultPusher<P>(
     return { ok: parts }
   }
 
-  /** Composes and freezes the result delivery through the public face; false when it cannot. */
-  async function freeze(slot: Slot, record: Record): Promise<boolean> {
-    if (slot.admission === null || slot.operations === null || record.key.kind !== 'result')
-      throw new Error('a result record of a call without admission')
-    const { reference } = slot.admission
+  /** Composes and freezes the result delivery through the public face; null when it cannot. */
+  async function freeze(slot: Slot, record: ResultRecord): Promise<ModelDelivery | null> {
+    const { reference } = record.key
     const access = accessOf(slot)
-    const notFrozen = (step: 'inspect' | 'dispatches' | 'read', reason: string): false => {
+    const notFrozen = (step: 'inspect' | 'dispatches' | 'read', reason: string): null => {
       record.standing.conclude({ status: 'failed', failure: { kind: 'not-frozen', step, reason } })
-      return false
+      return null
     }
     const lookup = await calls.inspect({ ...access, reference })
     if ('failure' in lookup) return notFrozen('inspect', JSON.stringify(lookup.failure))
@@ -286,7 +287,7 @@ export function createScriptedResultPusher<P>(
     const state = lookup.ok.state
     const dispatches = await calls.dispatches({ ...access, call: slot.call })
     if ('failure' in dispatches) return notFrozen('dispatches', JSON.stringify(dispatches.failure))
-    const parts = await readParts(slot, reference, slot.operations.read, record.key.result)
+    const parts = await readParts(slot, reference, record.operations.read, record.key.result)
     if ('failure' in parts) return notFrozen('read', parts.failure)
     const delivery = frozenCopy<ModelDelivery>({
       kind: 'result',
@@ -298,21 +299,19 @@ export function createScriptedResultPusher<P>(
     })
     for (const item of dispatches.ok)
       slot.accounted.set(item.dispatch, item.account?.revision ?? null)
-    slot.consumer = delivery.consumer
     record.delivery = delivery
-    return true
+    return delivery
   }
 
   /**
    * Pushes the frozen delivery until it is saved, fails, or stays unknown after the
    * redeliveries, and gives what this push came to. A saved delivery keeps its saved standing.
    */
-  async function deliver(record: Record): Promise<Standing> {
-    if (record.delivery === null) throw new Error('a delivery is pushed before it was frozen')
+  async function deliver(record: Record, delivery: ModelDelivery): Promise<Standing> {
     record.inFlight = true
     record.standing.conclude({ status: 'pending' })
     try {
-      return record.standing.conclude(await push(record, record.delivery))
+      return record.standing.conclude(await push(record, delivery))
     } finally {
       record.inFlight = false
     }
@@ -352,11 +351,9 @@ export function createScriptedResultPusher<P>(
   }
 
   /** Takes the ACK of a saved result through the retained handoff, resending on `commit-unknown`. */
-  async function acknowledge(slot: Slot, record: Record): Promise<void> {
-    const saved = savedOf(record)
-    if (slot.acknowledged || saved === null || record.key.kind !== 'result') return
-    if (slot.operations === null) throw new Error('a saved result of a call without operations')
-    const operation = slot.operations.ack
+  async function acknowledge(slot: Slot, record: ResultRecord, saved: Saved): Promise<void> {
+    if (slot.acknowledged) return
+    const operation = record.operations.ack
     const result = record.key.result
     for (let resends = 0; ; resends += 1) {
       const reply = await consumption.acknowledge({
@@ -385,10 +382,10 @@ export function createScriptedResultPusher<P>(
   }
 
   /** Pushes the queued late accounts of a call whose result is saved, in arrival order. */
-  async function flushAccounts(slot: Slot): Promise<void> {
-    if (slot.result === null || savedOf(slot.result) === null) return
-    if (slot.admission === null || slot.consumer === null) return
-    const { reference } = slot.admission
+  async function flushAccounts(slot: Slot, result: ResultRecord): Promise<void> {
+    const frozen = result.delivery
+    if (savedOf(result) === null || frozen === null) return
+    const { reference } = result.key
     for (;;) {
       const late = slot.lateAccounts.shift()
       if (late === undefined) return
@@ -402,29 +399,31 @@ export function createScriptedResultPusher<P>(
         dispatch: late.dispatch,
         revision: late.account.revision,
       }
+      const delivery = frozenCopy<ModelDelivery>({
+        kind: 'account',
+        key,
+        consumer: frozen.consumer,
+        account: late.account,
+      })
       const record: Record = {
         slot,
         key,
-        delivery: frozenCopy<ModelDelivery>({
-          kind: 'account',
-          key,
-          consumer: slot.consumer,
-          account: late.account,
-        }),
+        delivery,
         attempts: 0,
         standing: standingCell(),
         inFlight: false,
       }
       records.push(record)
-      await deliver(record)
+      await deliver(record, delivery)
     }
   }
 
   /** After a push of a result: the ACK when it is saved, then the accounts that waited for it. */
-  async function afterResult(slot: Slot, record: Record): Promise<void> {
-    if (savedOf(record) === null) return
-    await acknowledge(slot, record)
-    await flushAccounts(slot)
+  async function afterResult(slot: Slot, record: ResultRecord): Promise<void> {
+    const saved = savedOf(record)
+    if (saved === null) return
+    await acknowledge(slot, record, saved)
+    await flushAccounts(slot, record)
   }
 
   const controller: ScriptController<P> = {
@@ -434,14 +433,15 @@ export function createScriptedResultPusher<P>(
       const slot = slotOf(input)
       if (slot.admission === null)
         throw misuse(`the call ${input.call} was not admitted through the pusher`)
-      slot.operations ??= {
+      const operations = {
         read: mintOperation('push-read', input.call),
         ack: mintOperation('ack', input.call),
       }
       inner.settle(input)
-      const record: Record = {
+      const record: ResultRecord = {
         slot,
         key: { kind: 'result', reference: slot.admission.reference, result: input.version },
+        operations,
         delivery: null,
         attempts: 0,
         standing: standingCell(),
@@ -451,12 +451,13 @@ export function createScriptedResultPusher<P>(
       records.push(record)
       void run(slot, async () => {
         try {
-          if (await freeze(slot, record)) {
-            await deliver(record)
+          const delivery = await freeze(slot, record)
+          if (delivery !== null) {
+            await deliver(record, delivery)
             await afterResult(slot, record)
           }
         } finally {
-          slot.terminal.resolve()
+          slot.terminal.resolve(record)
         }
       }).catch(() => undefined)
     },
@@ -469,7 +470,8 @@ export function createScriptedResultPusher<P>(
       if (account === null) return
       const slot = slotOf(input)
       slot.lateAccounts.push({ dispatch: input.record.dispatch, account: frozenCopy(account) })
-      if (slot.result !== null) void run(slot, () => flushAccounts(slot)).catch(() => undefined)
+      const result = slot.result
+      if (result !== null) void run(slot, () => flushAccounts(slot, result)).catch(() => undefined)
     },
     advanceControl: input => inner.advanceControl(input),
     setCleanup: input => inner.setCleanup(input),
@@ -519,20 +521,21 @@ export function createScriptedResultPusher<P>(
     },
     async settled(call) {
       const slot = slotOf(call)
-      await slot.terminal.promise
+      const record = await slot.terminal.promise
       await slot.chain
       if (slot.failed) throw slot.error
-      if (slot.result === null) throw new Error('a terminal call has no result record')
-      return snapshotOf(slot.result)
+      return snapshotOf(record)
     },
     redeliver(key) {
       const record = records.find(item => sameValue(item.key, key))
       if (record === undefined) throw misuse('no delivery has this key')
-      if (record.delivery === null) throw misuse('the delivery was never frozen')
+      const { delivery } = record
+      if (delivery === null) throw misuse('the delivery was never frozen')
       if (record.inFlight) throw misuse('the delivery is in flight')
       return run(record.slot, async () => {
-        const attempt = await deliver(record)
-        if (record.key.kind === 'result') await afterResult(record.slot, record)
+        const attempt = await deliver(record, delivery)
+        const result = record.slot.result
+        if (record === result) await afterResult(record.slot, result)
         return snapshotOf(record, attempt)
       })
     },

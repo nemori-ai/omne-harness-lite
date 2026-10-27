@@ -59,16 +59,22 @@ type Stream<P> = {
   readonly observers: Set<Observer<P>>
 }
 
-/** One observation. `status` is its life: not begun, subscribed, holding its terminal, or closed. */
+/** The life of one observation: not begun, subscribed, holding its terminal frame, or closed. */
+type Phase =
+  | Readonly<{ kind: 'new' }>
+  | Readonly<{ kind: 'open' }>
+  | Readonly<{ kind: 'terminal'; frame: Terminal }>
+  | Readonly<{ kind: 'closed' }>
+
+/** One observation. */
 type Observer<P> = {
   readonly request: Request<P>
   /** The stream the request names, once a qualification found it. */
   stream: Stream<P> | null
-  status: 'new' | 'open' | 'terminal' | 'closed'
+  phase: Phase
   queue: Body[]
   /** The cursor of the last snapshot or delta handed to this observer. */
   lastDelivered: StreamCursor | null
-  terminal: Terminal | null
   readonly pending: ((result: IteratorResult<Frame>) => void)[]
   readonly onAbort: () => void
 }
@@ -163,32 +169,30 @@ export function createScriptedStreamObservation<P>(
     observer.stream?.observers.delete(observer)
   }
 
-  function terminate(observer: Observer<P>, terminal: Terminal): void {
-    if (observer.status === 'closed' || observer.status === 'terminal') return
+  /** Ends the subscription and holds `frame`; the callers hold an observer that is not closed. */
+  function terminate(observer: Observer<P>, frame: Terminal): void {
     detach(observer)
-    observer.status = 'terminal'
-    observer.terminal = terminal
+    observer.phase = { kind: 'terminal', frame }
   }
 
   function close(observer: Observer<P>): void {
     detach(observer)
-    observer.status = 'closed'
-    observer.terminal = null
+    observer.phase = { kind: 'closed' }
     observer.request.signal.removeEventListener('abort', observer.onAbort)
     for (const resolve of observer.pending.splice(0)) resolve({ done: true, value: undefined })
   }
 
-  /** Hands queued frames to waiting readers; every actual output repeats the checks. */
+  /**
+   * Hands queued frames to waiting readers. The checks of an open observer change only through
+   * `setAccess` and `end`, and both re-check every open observer at once, so a queued frame
+   * never goes out after its checks failed. A held terminal frame is re-checked here.
+   */
   function flush(observer: Observer<P>): void {
-    while (observer.pending.length > 0 && observer.status !== 'closed') {
-      if (observer.status === 'open') {
-        const failure = qualify(observer)
-        if (failure !== null) terminate(observer, failure)
-      }
-      if (observer.status === 'terminal') {
-        const terminal = observer.terminal
-        if (terminal === null) throw new Error('a terminal observer holds no terminal frame')
-        observer.pending.shift()?.({ done: false, value: frozenCopy(disclose(observer, terminal)) })
+    while (observer.pending.length > 0) {
+      const { phase } = observer
+      if (phase.kind === 'terminal') {
+        const frame = disclose(observer, phase.frame)
+        observer.pending.shift()?.({ done: false, value: frozenCopy(frame) })
         close(observer)
         return
       }
@@ -207,7 +211,10 @@ export function createScriptedStreamObservation<P>(
     observer.queue.push(frame)
   }
 
-  /** Takes the confirmed snapshot and registers the subscription in one synchronous section. */
+  /**
+   * Takes the confirmed snapshot and registers the subscription in one synchronous section. The
+   * snapshot is the first frame of an empty queue, so it never exceeds the capacity.
+   */
   function begin(observer: Observer<P>): void {
     const failure = qualify(observer)
     if (failure !== null) {
@@ -217,10 +224,8 @@ export function createScriptedStreamObservation<P>(
     const stream = observer.stream
     if (stream === null) throw new Error('a qualified observer has no stream')
     enqueue(observer, { kind: 'snapshot', cursor: stream.cursor, value: stream.snapshot })
-    if (observer.terminal === null) {
-      observer.status = 'open'
-      stream.observers.add(observer)
-    }
+    observer.phase = { kind: 'open' }
+    stream.observers.add(observer)
   }
 
   function refresh(): void {
@@ -243,27 +248,24 @@ export function createScriptedStreamObservation<P>(
               signal: request.signal,
             },
             stream: null,
-            status: 'new',
+            phase: { kind: 'new' },
             queue: [],
             lastDelivered: null,
-            terminal: null,
             pending: [],
             onAbort() {
-              if (observer.status === 'closed') return
+              if (observer.phase.kind === 'closed') return
               terminate(observer, ended('observer-closed'))
               flush(observer)
             },
           }
           return {
             next() {
-              if (observer.status === 'closed')
+              if (observer.phase.kind === 'closed')
                 return Promise.resolve({ done: true, value: undefined } as const)
               return new Promise<IteratorResult<Frame>>(resolve => {
                 observer.pending.push(resolve)
-                if (observer.status === 'new') {
-                  observer.request.signal.addEventListener('abort', observer.onAbort, {
-                    once: true,
-                  })
+                if (observer.phase.kind === 'new') {
+                  observer.request.signal.addEventListener('abort', observer.onAbort)
                   if (observer.request.signal.aborted) observer.onAbort()
                   else begin(observer)
                 }

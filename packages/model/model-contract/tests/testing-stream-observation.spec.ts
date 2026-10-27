@@ -30,6 +30,7 @@ import {
   type StreamFrame,
   type StreamRef,
 } from '@omne-harness/stream-arrival'
+import { within } from './helpers/within.ts'
 
 // Every product value is decoded inside a helper that the test calls, so none is built at
 // module load.
@@ -139,7 +140,7 @@ function watch(
     [Symbol.asyncIterator]()
   return {
     async next() {
-      const step = await iterator.next()
+      const step = await within(iterator.next(), 'next')
       return step.done === true ? 'finished' : step.value
     },
     abort: () => controller.abort(),
@@ -248,7 +249,11 @@ describe('an observation of a published Model stream', () => {
     const reader = watch(source)
     const pending = reader.next()
     const c2 = source.advance({ tenant: tenant(), snapshot: second() })
-    expect(await pending).toEqual({ kind: 'snapshot', cursor: published, value: first() })
+    expect(await within(pending, 'pending')).toEqual({
+      kind: 'snapshot',
+      cursor: published,
+      value: first(),
+    })
     expect(await reader.next()).toMatchObject({ kind: 'delta', from: published, cursor: c2 })
   })
 
@@ -308,13 +313,76 @@ describe('an observation of a published Model stream', () => {
     const iterator = source.observation
       .observe({ access: access(), ref: stream(), signal: new AbortController().signal })
       [Symbol.asyncIterator]()
-    expect(await iterator.next()).toMatchObject({ done: false, value: { kind: 'snapshot' } })
+    expect(await within(iterator.next(), 'next')).toMatchObject({
+      done: false,
+      value: { kind: 'snapshot' },
+    })
     const waiting = iterator.next()
-    expect(await iterator.return?.()).toEqual({ done: true, value: undefined })
-    expect(await waiting).toEqual({ done: true, value: undefined })
+    const stopped = iterator.return?.()
+    if (stopped === undefined) throw new Error('the iterator has no return')
+    expect(await within(stopped, 'return')).toEqual({ done: true, value: undefined })
+    expect(await within(waiting, 'waiting')).toEqual({ done: true, value: undefined })
     source.advance({ tenant: tenant(), snapshot: second() })
-    expect(await iterator.next()).toEqual({ done: true, value: undefined })
+    expect(await within(iterator.next(), 'next')).toEqual({ done: true, value: undefined })
     expect(source.openObservations(stream())).toBe(0)
+  })
+
+  it('gives a waiting reader the delta as soon as the source advances', async () => {
+    const { source, published } = opened()
+    const reader = watch(source)
+    await reader.next()
+    const waiting = reader.next()
+    const c2 = source.advance({ tenant: tenant(), snapshot: second() })
+    expect(await waiting).toMatchObject({ kind: 'delta', from: published, cursor: c2 })
+  })
+
+  it('gives a waiting reader the end as soon as the source ends', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    const waiting = reader.next()
+    source.end({ ref: stream(), reason: 'source-closed' })
+    expect(await waiting).toEqual({ kind: 'ended', reason: 'source-closed' })
+    expect(source.openObservations(stream())).toBe(0)
+  })
+
+  it('ends at once as observer-closed when the signal was aborted before the first read', async () => {
+    const { source } = opened()
+    const controller = new AbortController()
+    controller.abort()
+    const iterator = source.observation
+      .observe({ access: access(), ref: stream(), signal: controller.signal })
+      [Symbol.asyncIterator]()
+    expect(await within(iterator.next(), 'next')).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'observer-closed' },
+    })
+    expect(await within(iterator.next(), 'next')).toEqual({ done: true, value: undefined })
+    expect(source.openObservations(stream())).toBe(0)
+  })
+
+  it('ends as observer-closed when the reader aborts after the source ended but before it took the end', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    source.end({ ref: stream(), reason: 'source-closed' })
+    reader.abort()
+    expect(await reader.next()).toEqual({ kind: 'ended', reason: 'observer-closed' })
+    expect(await reader.next()).toBe('finished')
+  })
+
+  it('stays done when the signal aborts after the iterator returned', async () => {
+    const { source } = opened()
+    const controller = new AbortController()
+    const iterator = source.observation
+      .observe({ access: access(), ref: stream(), signal: controller.signal })
+      [Symbol.asyncIterator]()
+    await within(iterator.next(), 'next')
+    const stopped = iterator.return?.()
+    if (stopped === undefined) throw new Error('the iterator has no return')
+    await within(stopped, 'return')
+    controller.abort()
+    expect(await within(iterator.next(), 'next')).toEqual({ done: true, value: undefined })
   })
 
   it('hands out frozen copies and is not changed by later changes to the inputs', async () => {

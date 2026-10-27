@@ -28,6 +28,7 @@ import {
   type StreamCallCodec,
   type StreamRef,
 } from '@omne-harness/stream-arrival'
+import { within } from './helpers/within.ts'
 
 // Every product value is decoded inside a helper that the test calls, so none is built at
 // module load.
@@ -111,54 +112,77 @@ describe('Model current public protocol through the scripted stream references',
     const f = fixture()
     const first = state()
     f.establishWithoutTarget({ reference: reference(), state: first })
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual({
+    expect(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual({
       ok: { state: first, current: null },
     })
     f.confirmSelection({ reference: reference(), selection: selection('2') })
     f.withdrawTarget(reference())
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual({
+    expect(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual({
       ok: { state: state('2'), current: null },
     })
   })
   it('C02 keeps not-accepted, wrong admission and an unavailable source separate from null', async () => {
     const f = fixture()
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual({
+    expect(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual({
       failure: { kind: 'invalid', field: 'reference', reason: 'not-accepted' },
     })
     f.establishWithoutTarget({ reference: reference(), state: state() })
-    expect(await f.references.current({ access: access(), reference: wrongAdmission() })).toEqual({
+    expect(
+      await within(
+        f.references.current({ access: access(), reference: wrongAdmission() }),
+        'current',
+      ),
+    ).toEqual({
       failure: { kind: 'invalid', field: 'admission', reason: 'not-original' },
     })
     f.setSource('unavailable')
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual(
-      unavailable,
-    )
-    expect(await f.references.current({ access: access(), reference: wrongAdmission() })).toEqual(
-      unavailable,
-    )
+    expect(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual(unavailable)
+    expect(
+      await within(
+        f.references.current({ access: access(), reference: wrongAdmission() }),
+        'current',
+      ),
+    ).toEqual(unavailable)
   })
   it('C03 checks the real tenant and invocation codec before reading the owner', async () => {
     const f = fixture()
     f.confirmSelection({ reference: reference(), selection: selection() })
     expect(
-      await f.references.current({
-        // @ts-expect-error an unminted tenant exercises the runtime identity guard
-        access: { principal, tenant: {} },
-        reference: reference(),
-      }),
+      await within(
+        f.references.current({
+          // @ts-expect-error an unminted tenant exercises the runtime identity guard
+          access: { principal, tenant: {} },
+          reference: reference(),
+        }),
+        'current',
+      ),
     ).toEqual({ failure: { kind: 'denied', action: 'tenant' } })
     expect(
-      await f.references.current({
-        access: { principal, tenant: foreign() },
-        reference: reference(),
-      }),
+      await within(
+        f.references.current({
+          access: { principal, tenant: foreign() },
+          reference: reference(),
+        }),
+        'current',
+      ),
     ).toEqual(denied)
     expect(
-      await f.references.current({
-        access: access(),
-        // @ts-expect-error a malformed reference exercises the runtime codec guard
-        reference: 'broken',
-      }),
+      await within(
+        f.references.current({
+          access: access(),
+          // @ts-expect-error a malformed reference exercises the runtime codec guard
+          reference: 'broken',
+        }),
+        'current',
+      ),
     ).toEqual({ failure: { kind: 'invalid', field: 'reference', reason: 'reference-syntax' } })
     expect(f.events()).toEqual([])
   })
@@ -166,17 +190,24 @@ describe('Model current public protocol through the scripted stream references',
     const f = createScriptedStreamReferences<typeof principal>()
     f.confirmSelection({ reference: reference(), selection: selection() })
     for (const target of [reference(), wrongAdmission()])
-      expect(await f.references.current({ access: access(), reference: target })).toEqual(denied)
+      expect(
+        await within(f.references.current({ access: access(), reference: target }), 'current'),
+      ).toEqual(denied)
     f.setAccess(access(), 'allow')
     expect(
-      await f.references.current({
-        access: { tenant: tenant(), principal: { ...principal } },
-        reference: reference(),
-      }),
+      await within(
+        f.references.current({
+          access: { tenant: tenant(), principal: { ...principal } },
+          reference: reference(),
+        }),
+        'current',
+      ),
     ).toEqual(denied)
     f.setAccess({ principal, tenant: foreign() }, 'allow')
     f.setAccess(access(), 'deny')
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual(denied)
+    expect(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual(denied)
     expect(f.events()).toEqual([])
   })
   it('C04 isolates identical call ids by minted tenant while recognizing an equivalent tenant value', async () => {
@@ -190,30 +221,43 @@ describe('Model current public protocol through the scripted stream references',
     f.setAccess(foreignAccess, 'allow')
     expect(
       must(
-        await f.references.current({
-          access: { principal, tenant: minted() },
-          reference: reference(),
-        }),
+        await within(
+          f.references.current({
+            access: { principal, tenant: minted() },
+            reference: reference(),
+          }),
+          'current',
+        ),
       ).state.revision,
     ).toBe(must(decodeRevision('1')))
     expect(
-      must(await f.references.current({ access: foreignAccess, reference: foreignReference })).state
-        .revision,
+      must(
+        await within(
+          f.references.current({ access: foreignAccess, reference: foreignReference }),
+          'current',
+        ),
+      ).state.revision,
     ).toBe(must(decodeRevision('2')))
     f.setAccess(access(), 'deny')
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual(denied)
     expect(
-      must(await f.references.current({ access: foreignAccess, reference: foreignReference })).state
-        .revision,
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual(denied)
+    expect(
+      must(
+        await within(
+          f.references.current({ access: foreignAccess, reference: foreignReference }),
+          'current',
+        ),
+      ).state.revision,
     ).toBe(must(decodeRevision('2')))
   })
   it('C04 checks unavailable qualification before a missing call or wrong admission', async () => {
     const f = fixture()
     f.setAccess(access(), 'unavailable')
     for (const target of [reference(), wrongAdmission()])
-      expect(await f.references.current({ access: access(), reference: target })).toEqual(
-        unavailable,
-      )
+      expect(
+        await within(f.references.current({ access: access(), reference: target }), 'current'),
+      ).toEqual(unavailable)
     expect(f.events()).toEqual([])
   })
   it('C05 re-reads one immutable confirmation after a held response', async () => {
@@ -221,11 +265,11 @@ describe('Model current public protocol through the scripted stream references',
     f.confirmSelection({ reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
-    await f.reached(1)
+    await within(f.reached(1), 'reached')
     const replacement = selection('2', stream('str_next'))
     f.confirmSelection({ reference: reference(), selection: replacement })
     f.releaseResponse(1)
-    const result = must(await pending)
+    const result = must(await within(pending, 'pending'))
     expect(result).toEqual(replacement)
     expect(result).not.toBe(replacement)
     expect(Object.isFrozen(result.state.consumer)).toBe(true)
@@ -242,10 +286,10 @@ describe('Model current public protocol through the scripted stream references',
     f.confirmSelection({ reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
-    await f.reached(1)
+    await within(f.reached(1), 'reached')
     f.setAccess(access(), 'deny')
     f.releaseResponse(1)
-    expect(await pending).toEqual(denied)
+    expect(await within(pending, 'pending')).toEqual(denied)
     expect(f.events()).toEqual([])
   })
   it('C06 rechecks unavailable qualification before releasing a response', async () => {
@@ -253,10 +297,10 @@ describe('Model current public protocol through the scripted stream references',
     f.confirmSelection({ reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
-    await f.reached(1)
+    await within(f.reached(1), 'reached')
     f.setAccess(access(), 'unavailable')
     f.releaseResponse(1)
-    expect(await pending).toEqual(unavailable)
+    expect(await within(pending, 'pending')).toEqual(unavailable)
     expect(f.events()).toEqual([])
   })
   it('C05 rechecks source availability and does not reuse an old confirmed response', async () => {
@@ -264,10 +308,10 @@ describe('Model current public protocol through the scripted stream references',
     f.confirmSelection({ reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
-    await f.reached(1)
+    await within(f.reached(1), 'reached')
     f.setSource('unavailable')
     f.releaseResponse(1)
-    expect(await pending).toEqual(unavailable)
+    expect(await within(pending, 'pending')).toEqual(unavailable)
   })
   it('C07 retains the confirmed projection after business settlement', async () => {
     const f = fixture()
@@ -283,7 +327,9 @@ describe('Model current public protocol through the scripted stream references',
     }
     const current = selection().current
     f.confirmSelection({ reference: reference(), selection: { state: settled, current } })
-    expect(await f.references.current({ access: access(), reference: reference() })).toEqual({
+    expect(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).toEqual({
       ok: { state: settled, current },
     })
     expect(current).not.toBeNull()
@@ -298,7 +344,7 @@ describe('Model current public protocol through the scripted stream references',
       response: f.references.current({ access: access(), reference: reference() }),
     })
     const apply = async (request: ReturnType<typeof issue>) => {
-      const result = await request.response
+      const result = await within(request.response, 'response')
       if (request.id === latestIssued && 'ok' in result) displayed = result.ok
     }
     const old = issue()
@@ -309,7 +355,7 @@ describe('Model current public protocol through the scripted stream references',
     expect(displayed).toEqual(newSelection)
     await apply(old)
     expect(displayed).toEqual(newSelection)
-    expect(must(await old.response)).toEqual(selection())
+    expect(must(await within(old.response, 'response'))).toEqual(selection())
   })
   it('rejects control-plane source mismatches instead of manufacturing a confirmed target', () => {
     const f = fixture()
@@ -364,25 +410,34 @@ it('C08 keeps publication, retirement and observer cancellation separate across 
   const iterator = observation
     .observe({ access: access(), ref: oldRef, signal: controller.signal })
     [Symbol.asyncIterator]()
-  expect((await iterator.next()).value).toEqual({
+  expect((await within(iterator.next(), 'next')).value).toEqual({
     kind: 'snapshot',
     cursor: oldCursor,
     value: snapshot(oldRef),
   })
   f.withdrawTarget(reference())
   expect(
-    must(await f.references.current({ access: access(), reference: reference() })).current,
+    must(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).current,
   ).toBeNull()
   expect(source.openObservations(oldRef)).toBe(1)
   source.end({ ref: oldRef, reason: 'stale-stream' })
-  expect((await iterator.next()).value).toEqual({ kind: 'ended', reason: 'stale-stream' })
-  expect((await iterator.next()).done).toBe(true)
+  expect((await within(iterator.next(), 'next')).value).toEqual({
+    kind: 'ended',
+    reason: 'stale-stream',
+  })
+  expect((await within(iterator.next(), 'next')).done).toBe(true)
   expect(
-    must(await f.references.current({ access: access(), reference: reference() })).current,
+    must(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ).current,
   ).toBeNull()
   expect(source.publish({ tenant: tenant(), snapshot: snapshot(newRef) })).toBe(newCursor)
   f.confirmSelection({ reference: reference(), selection: selection('2', newRef) })
-  const selected = must(await f.references.current({ access: access(), reference: reference() }))
+  const selected = must(
+    await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+  )
   expect(selected.current?.ref).toBe(newRef)
   expect(judgeStreamCursor({ value: oldCursor, ref: newRef })).toEqual({
     failure: { kind: 'foreign-stream' },
@@ -390,16 +445,21 @@ it('C08 keeps publication, retirement and observer cancellation separate across 
   const next = source.observation
     .observe({ access: access(), ref: newRef, signal: controller.signal })
     [Symbol.asyncIterator]()
-  expect((await next.next()).value).toEqual({
+  expect((await within(next.next(), 'next')).value).toEqual({
     kind: 'snapshot',
     cursor: newCursor,
     value: snapshot(newRef),
   })
   controller.abort()
-  expect((await next.next()).value).toEqual({ kind: 'ended', reason: 'observer-closed' })
-  expect((await next.next()).done).toBe(true)
-  expect(must(await f.references.current({ access: access(), reference: reference() }))).toEqual(
-    selected,
-  )
+  expect((await within(next.next(), 'next')).value).toEqual({
+    kind: 'ended',
+    reason: 'observer-closed',
+  })
+  expect((await within(next.next(), 'next')).done).toBe(true)
+  expect(
+    must(
+      await within(f.references.current({ access: access(), reference: reference() }), 'current'),
+    ),
+  ).toEqual(selected)
   expect(source.openObservations(oldRef) + source.openObservations(newRef)).toBe(0)
 })
