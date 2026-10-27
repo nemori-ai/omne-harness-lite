@@ -21,34 +21,91 @@
 - `GovernanceStageNotProvided` · `messages.d.ts`
 - `GovernanceStageOperation` · `messages.d.ts`
 - `ProofInput` · `messages.d.ts`
+- `SessionCodecLimits` · `session-messages.d.ts`
+- `SessionDiagnostic` · `session-messages.d.ts`
+- `SessionEncodeResult` · `session-messages.d.ts`
+- `SessionHistoryEntry` · `session-messages.d.ts`
+- `SessionHistoryPage` · `session-messages.d.ts`
+- `SessionOperation` · `session-messages.d.ts`
+- `SessionOutcomes` · `session-messages.d.ts`
+- `SessionProtocolRejected` · `session-messages.d.ts`
+- `SessionRequest` · `session-messages.d.ts`
+- `SessionRequestBodies` · `session-messages.d.ts`
+- `SessionRequestRead` · `session-messages.d.ts`
+- `SessionResponse` · `session-messages.d.ts`
+- `SessionResponseEncodeInput` · `session-messages.d.ts`
+- `SessionResponseRead` · `session-messages.d.ts`
+- `SessionSuccessBodies` · `session-messages.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
 - `encodeGovernanceResponse` · `codec.d.ts`
+- `encodeSessionRequest` · `session-codec.d.ts`
+- `encodeSessionResponse` · `session-codec.d.ts`
 - `readGovernanceRequest` · `codec.d.ts`
 - `readGovernanceResponse` · `codec.d.ts`
+- `readSessionRequest` · `session-codec.d.ts`
+- `readSessionResponse` · `session-codec.d.ts`
 
 ## 声明文件 `codec.d.ts`
 
 ```ts
-import type { GovernanceCodecLimits, GovernanceEncodeResult, GovernanceOperation, GovernanceProtocolResult, GovernanceRequest, GovernanceRequestRead, GovernanceResponseEncodeInput, GovernanceResponseRead } from './messages.ts';
+import { type Family } from './operation-rules.ts';
+import type { EmptyBody, GovernanceCodecLimits, GovernanceDiagnostic, GovernanceEncodeResult, GovernanceOperation, GovernanceProtocolResult, GovernanceRequest, GovernanceRequestRead, GovernanceResponseEncodeInput, GovernanceResponseRead } from './messages.ts';
+type RefusalOutcome = 'protocol-rejected' | 'stage-not-provided';
+type Refusal<V extends string, K extends RefusalOutcome> = {
+    readonly protocolVersion: V;
+    readonly messageId?: string;
+    readonly outcome: K;
+    readonly body: EmptyBody;
+};
+type StageRead<V extends string, S extends string> = [
+    S
+] extends [
+    never
+] ? never : {
+    readonly kind: 'stage-not-provided';
+    readonly response: Refusal<V, 'stage-not-provided'>;
+};
+export type RequestRead<V extends string, S extends string> = {
+    readonly kind: 'request';
+    readonly request: unknown;
+} | {
+    readonly kind: 'protocol-rejected';
+    readonly response: Refusal<V, 'protocol-rejected'>;
+    readonly diagnostic: GovernanceDiagnostic;
+} | StageRead<V, S>;
+export type ResponseRead = {
+    readonly kind: 'response';
+    readonly response: unknown;
+} | {
+    readonly kind: 'unmatched';
+} | {
+    readonly kind: 'unreadable';
+    readonly diagnostic: GovernanceDiagnostic;
+};
+export declare function readRequest<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): RequestRead<V, S>;
 export declare function readGovernanceRequest(input: {
     readonly bytes: Uint8Array;
     readonly limits: GovernanceCodecLimits;
 }): GovernanceRequestRead;
+export declare function encodeRequest<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): GovernanceEncodeResult;
 export declare function encodeGovernanceRequest(input: {
     readonly request: GovernanceRequest;
     readonly limits: GovernanceCodecLimits;
 }): GovernanceEncodeResult;
+export declare function readResponse<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): ResponseRead;
 export declare function readGovernanceResponse<O extends GovernanceOperation>(input: {
     readonly bytes: Uint8Array;
     readonly operation: O;
     readonly expectedMessageId: string;
     readonly limits: GovernanceCodecLimits;
 }): GovernanceResponseRead<O>;
+export declare function encodeResponse<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): GovernanceEncodeResult;
 export declare function encodeGovernanceResponse(input: {
     readonly response: GovernanceProtocolResult;
     readonly limits: GovernanceCodecLimits;
 }): GovernanceEncodeResult;
 export declare function encodeGovernanceResponse<O extends GovernanceOperation>(input: GovernanceResponseEncodeInput<O>): GovernanceEncodeResult;
+export {};
 ```
 
 ## 声明文件 `correlation.d.ts`
@@ -65,7 +122,9 @@ export declare function readRequestDocument(bytes: Uint8Array, limits: JsonLimit
 
 ```ts
 export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest, encodeGovernanceResponse, } from './codec.ts';
+export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
 export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, } from './messages.ts';
+export type { SessionOperation, SessionRequestBodies, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
 ```
 
 ## 声明文件 `messages.d.ts`
@@ -501,8 +560,9 @@ export type GovernanceResponseEncodeInput<O extends GovernanceOperation = Govern
 
 ```ts
 import type { GovernanceProvidedOperation, GovernanceStageOperation } from './messages.ts';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
-    readonly kind: 'text' | 'boolean' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'parameters';
+    readonly kind: LeafKind;
 } | {
     readonly kind: 'literal';
     readonly values: readonly (string | boolean)[];
@@ -516,6 +576,22 @@ export type Rule = {
     readonly kind: 'array';
     readonly item: Rule;
     readonly nonempty?: true;
+} | {
+    readonly kind: 'one-of';
+    readonly rules: readonly Rule[];
+};
+export type RequestRule = {
+    readonly body: Rule;
+    readonly proof: boolean;
+    readonly tenant: boolean;
+};
+export type Family<V extends string, P extends string, S extends string> = {
+    readonly version: V;
+    readonly error: string;
+    readonly stages: readonly S[];
+    readonly isProvided: (value: unknown) => value is P;
+    readonly requestRule: (operation: P) => RequestRule;
+    readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
 };
 export declare const empty: Rule;
 export declare const stages: readonly [
@@ -525,397 +601,214 @@ export declare const stages: readonly [
     "reopen-after-media-loss"
 ];
 export declare function isProvided(value: unknown): value is GovernanceProvidedOperation;
-export declare function isStage(value: unknown): value is GovernanceStageOperation;
-export declare function requestRule(operation: GovernanceProvidedOperation): {
-    body: {
-        readonly kind: 'object';
-        readonly fields: Readonly<Record<string, {
-            readonly rule: Rule;
-            readonly optional?: true;
-        }>>;
-    } | {
-        kind: "object";
-        fields: {
-            loginIdentifier: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            credential: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            loginIdentifier: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            credential: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            targetLoginId: {
-                rule: {
-                    kind: "login";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            currentCredential: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            newCredential: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            targetCreateCallId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            name: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            governanceModelId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            invitedLoginIdentifier: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            duration: {
-                rule: {
-                    kind: "text";
-                };
-                optional: true;
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            superiorOrganizationId: {
-                rule: {
-                    kind: "organization";
-                };
-            };
-            subordinateOrganizationId: {
-                rule: {
-                    kind: "organization";
-                };
-            };
-            duration: {
-                rule: {
-                    kind: "text";
-                };
-                optional: true;
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            organizationId: {
-                rule: {
-                    kind: "organization";
-                };
-            };
-            includeRemoved: {
-                rule: {
-                    kind: "boolean";
-                };
-                optional: true;
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            invitationId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            invitationId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            invitationId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            invitationId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            createCallId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            name: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            governanceModelId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            organizationId: {
-                rule: {
-                    kind: "organization";
-                };
-            };
-            accountId: {
-                rule: {
-                    kind: "account";
-                };
-            };
-            expectedRole: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            organizationId: {
-                rule: {
-                    kind: "organization";
-                };
-            };
-            accountId: {
-                rule: {
-                    kind: "account";
-                };
-            };
-            expectedRole: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            targetRole: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            tenantId: {
-                rule: {
-                    kind: "tenant";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            organizationId: {
-                rule: {
-                    kind: "organization";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            requestId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            requestId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            requestId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            affiliationId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            expectedState: {
-                rule: {
-                    kind: "literal";
-                    values: string[];
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            requestId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            resource: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            action: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            parameters: {
-                rule: {
-                    kind: "parameters";
-                };
-            };
-            scopeId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            expression: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            action: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            object: {
-                rule: {
-                    kind: "text";
-                };
-            };
-            parameters: {
-                rule: {
-                    kind: "parameters";
-                };
-            };
-        };
-    } | {
-        kind: "object";
-        fields: {
-            expressionId: {
-                rule: {
-                    kind: "text";
-                };
-            };
-        };
-    };
-    proof: boolean;
-    tenant: boolean;
-};
+export declare function requestRule(operation: GovernanceProvidedOperation): RequestRule;
 export declare function responseRule(operation: GovernanceProvidedOperation, outcome: string): Rule | undefined;
+export declare const governanceFamily: Family<'governance-public/1', GovernanceProvidedOperation, GovernanceStageOperation>;
+```
+
+## 声明文件 `session-codec.d.ts`
+
+```ts
+import type { SessionCodecLimits, SessionEncodeResult, SessionOperation, SessionProtocolRejected, SessionRequest, SessionRequestRead, SessionResponseEncodeInput, SessionResponseRead } from './session-messages.ts';
+export declare function readSessionRequest(input: {
+    readonly bytes: Uint8Array;
+    readonly limits: SessionCodecLimits;
+}): SessionRequestRead;
+export declare function readSessionResponse<O extends SessionOperation>(input: {
+    readonly bytes: Uint8Array;
+    readonly operation: O;
+    readonly expectedMessageId: string;
+    readonly limits: SessionCodecLimits;
+}): SessionResponseRead<O>;
+export declare function encodeSessionRequest(input: {
+    readonly request: SessionRequest;
+    readonly limits: SessionCodecLimits;
+}): SessionEncodeResult;
+export declare function encodeSessionResponse(input: {
+    readonly response: SessionProtocolRejected;
+    readonly limits: SessionCodecLimits;
+}): SessionEncodeResult;
+export declare function encodeSessionResponse<O extends SessionOperation>(input: SessionResponseEncodeInput<O>): SessionEncodeResult;
+```
+
+## 声明文件 `session-messages.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { EmptyBody, GovernanceCodecLimits, GovernanceDiagnostic, GovernanceEncodeResult, JsonObject, ProofInput } from './messages.ts';
+export type SessionCodecLimits = GovernanceCodecLimits;
+export type SessionDiagnostic = GovernanceDiagnostic;
+export type SessionEncodeResult = GovernanceEncodeResult;
+export type SessionTarget = {
+    readonly tenant: TenantId;
+    readonly session: string;
+};
+export type SessionRequestBodies = {
+    'create-session': {
+        readonly createCallId: string;
+        readonly definition: string;
+        readonly purpose: string;
+    };
+    'query-create-session': {
+        readonly tenant: TenantId;
+        readonly createCallId: string;
+    };
+    'send-input': SessionTarget & {
+        readonly acceptId: string;
+        readonly inputId: string;
+        readonly message: JsonObject;
+    };
+    'query-send-input': SessionTarget & {
+        readonly acceptId: string;
+    };
+    'read-history': (SessionTarget & {
+        readonly cursor: null;
+        readonly direction: 'forward' | 'backward';
+        readonly pageBytes: string;
+    }) | (SessionTarget & {
+        readonly cursor: string;
+    });
+};
+export type SessionOperation = keyof SessionRequestBodies;
+export type SessionRequestByOperation = {
+    readonly [O in SessionOperation]: {
+        readonly protocolVersion: 'session-public/1';
+        readonly messageId: string;
+        readonly operation: O;
+        readonly proof: ProofInput;
+        readonly body: SessionRequestBodies[O];
+    } & (O extends 'create-session' ? {
+        readonly actingTenant: TenantId;
+    } : {});
+};
+export type SessionRequest<O extends SessionOperation = SessionOperation> = SessionRequestByOperation[O];
+export type SessionHistoryEntry = {
+    readonly entryId: string;
+    readonly revision: string;
+    readonly kind: string;
+    readonly payload: JsonValue;
+};
+export type SessionHistoryPage = {
+    readonly entries: readonly SessionHistoryEntry[];
+    readonly next: string | null;
+    readonly exhausted: boolean;
+    readonly scannedThrough: string;
+};
+export type SessionSuccessBodies = {
+    'create-session': {
+        readonly session: string;
+        readonly recovered: boolean;
+    };
+    'query-create-session': {
+        readonly session: string;
+    };
+    'send-input': {
+        readonly recovered: boolean;
+    };
+    'query-send-input': EmptyBody;
+    'read-history': SessionHistoryPage;
+};
+export type SessionOutcomes = {
+    'create-session': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'query-create-session': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
+    'send-input': 'succeeded' | 'denied' | 'invalid' | 'archived' | 'frozen' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'query-send-input': 'succeeded' | 'not-committed' | 'denied' | 'basis-unavailable' | 'unknown';
+    'read-history': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable';
+};
+export type SessionProtocolRejected = {
+    readonly protocolVersion: 'session-public/1';
+    readonly messageId?: string;
+    readonly outcome: 'protocol-rejected';
+    readonly body: EmptyBody;
+};
+export type SessionBusinessResponse<O extends SessionOperation> = {
+    readonly [K in SessionOutcomes[O]]: {
+        readonly protocolVersion: 'session-public/1';
+        readonly messageId: string;
+        readonly outcome: K;
+        readonly body: K extends 'succeeded' ? SessionSuccessBodies[O] : EmptyBody;
+    };
+}[SessionOutcomes[O]];
+export type SessionResponseByOperation = {
+    readonly [O in SessionOperation]: SessionProtocolRejected | SessionBusinessResponse<O>;
+};
+export type SessionResponse<O extends SessionOperation = SessionOperation> = SessionResponseByOperation[O];
+export type SessionRequestRead = {
+    readonly kind: 'request';
+    readonly request: SessionRequest;
+} | {
+    readonly kind: 'protocol-rejected';
+    readonly response: SessionProtocolRejected;
+    readonly diagnostic: SessionDiagnostic;
+};
+export type SessionResponseRead<O extends SessionOperation> = {
+    readonly kind: 'response';
+    readonly response: SessionResponse<O>;
+} | {
+    readonly kind: 'unmatched';
+} | {
+    readonly kind: 'unreadable';
+    readonly diagnostic: SessionDiagnostic;
+};
+export type SessionResponseEncodeInput<O extends SessionOperation = SessionOperation> = {
+    readonly [K in O]: {
+        readonly operation: K;
+        readonly response: SessionResponse<K>;
+        readonly limits: SessionCodecLimits;
+    };
+}[O];
+```
+
+## 声明文件 `session-rules.d.ts`
+
+```ts
+import { type Family } from './operation-rules.ts';
+import type { SessionOperation, SessionOutcomes } from './session-messages.ts';
+declare const outcomes: {
+    readonly 'create-session': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "conflict",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'query-create-session': readonly [
+        "succeeded",
+        "denied",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'send-input': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "archived",
+        "frozen",
+        "conflict",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'query-send-input': readonly [
+        "succeeded",
+        "not-committed",
+        "denied",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'read-history': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "basis-unavailable"
+    ];
+};
+type MissingOutcomes = {
+    readonly [O in SessionOperation]: Exclude<SessionOutcomes[O], (typeof outcomes)[O][number]>;
+}[SessionOperation];
+type OutcomesComplete<Missing extends never> = Missing;
+export type SessionOutcomeTableComplete = OutcomesComplete<MissingOutcomes>;
+export declare const sessionFamily: Family<'session-public/1', SessionOperation, never>;
+export {};
 ```
