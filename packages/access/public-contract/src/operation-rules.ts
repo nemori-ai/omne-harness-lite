@@ -8,13 +8,19 @@ export type Rule =
   | {
       readonly kind:
         | 'text'
+        | 'string'
         | 'boolean'
+        | 'null'
         | 'account'
         | 'organization'
         | 'login'
         | 'tenant'
         | 'instant'
+        | 'session'
+        | 'page-bytes'
         | 'parameters'
+        | 'json'
+        | 'user-message'
     }
   | { readonly kind: 'literal'; readonly values: readonly (string | boolean)[] }
   | {
@@ -22,6 +28,18 @@ export type Rule =
       readonly fields: Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
     }
   | { readonly kind: 'array'; readonly item: Rule; readonly nonempty?: true }
+  | { readonly kind: 'one-of'; readonly rules: readonly Rule[] }
+export type RequestRule = { readonly body: Rule; readonly proof: boolean; readonly tenant: boolean }
+/** One protocol version with its closed operation table, read and written by the shared codec core. */
+export type Family<V extends string, P extends string, S extends string> = {
+  readonly version: V
+  readonly error: string
+  readonly refusals: readonly ('protocol-rejected' | 'stage-not-provided')[]
+  readonly isProvided: (value: unknown) => value is P
+  readonly isStage: (value: unknown) => value is S
+  readonly requestRule: (operation: P) => RequestRule
+  readonly responseRule: (operation: P, outcome: string) => Rule | undefined
+}
 export const empty: Rule = { kind: 'object', fields: {} }
 function complete(key: string, item: Rule): Rule {
   return {
@@ -606,7 +624,7 @@ const tenantOperations: ReadonlySet<string> = new Set([
   'withdraw-authorization-expression',
 ])
 
-export function requestRule(operation: GovernanceProvidedOperation) {
+export function requestRule(operation: GovernanceProvidedOperation): RequestRule {
   return {
     body: requests[operation],
     proof: proofOperations.has(operation),
@@ -626,4 +644,18 @@ export function responseRule(
   if (outcome === 'no-change' && Object.hasOwn(noChanges, operation))
     return noChanges[operation as keyof typeof noChanges]
   return empty
+}
+
+export const governanceFamily: Family<
+  'governance-public/1',
+  GovernanceProvidedOperation,
+  GovernanceStageOperation
+> = {
+  version: 'governance-public/1',
+  error: 'Invalid governance codec arguments',
+  refusals: ['protocol-rejected', 'stage-not-provided'],
+  isProvided,
+  isStage,
+  requestRule,
+  responseRule,
 }
