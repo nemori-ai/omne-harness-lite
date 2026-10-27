@@ -3,10 +3,13 @@
 // separately, so each failure of the `current` protocol can be driven on its own.
 import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { judgeStreamRef, readStreamRef } from '@omne-harness/stream-arrival'
+import type { Outcome } from '@omne-harness/operation-result'
 import type {
   CallState,
   ModelFailure,
+  ModelInvocationParts,
   ModelInvocationRef,
+  ModelReferenceFailure,
   ModelStreamReferences,
   ModelStreamSelection,
 } from '../index.ts'
@@ -16,9 +19,9 @@ import {
   resolveModelInvocationRef,
 } from '../reference.ts'
 import { createAccessRules, type ScriptedAccessDecision } from './access.ts'
-import { ScriptedModelError } from './error.ts'
+import { misuse } from './error.ts'
 import { modelStreamCodec } from './stream-codec.ts'
-import { frozenCopy } from './values.ts'
+import { frozenCopy, tenantText } from './values.ts'
 
 /** One read of the confirmation records by `current`, after every check that precedes it passed. */
 export type ScriptedEvent = Readonly<{ sequence: number; action: 'owner-read'; key: string }>
@@ -52,16 +55,6 @@ type Barrier = Readonly<{
   released: PromiseWithResolvers<void>
 }>
 
-function misuse(message: string): ScriptedModelError {
-  return new ScriptedModelError('invalid-script', message)
-}
-
-function tenantText(tenant: TenantId): string {
-  const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw misuse('the tenant is not a legal identity')
-  return encoded.value
-}
-
 /** The parts of a canonical reference; the tenant is read back from the reference text. */
 function original(reference: ModelInvocationRef) {
   const decoded = decodeModelInvocationRef(reference)
@@ -83,6 +76,22 @@ function key(tenant: TenantId, call: string): string {
 
 function unavailable(): ModelFailure {
   return { kind: 'unavailable', dependency: 'stream-references', diagnostic: 'scripted-source' }
+}
+
+/** Step 1 of the read order: the tenant and the reference, before anything is looked up. */
+function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
+  switch (failure.kind) {
+    case 'invalid-tenant':
+      return { kind: 'denied', action: 'tenant' }
+    case 'foreign-tenant':
+      return { kind: 'denied', action: 'current' }
+    case 'malformed':
+      return {
+        kind: 'invalid',
+        field: 'reference',
+        reason: `reference-${failure.rejection.reason}`,
+      }
+  }
 }
 
 export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P> {
@@ -125,50 +134,51 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
     return barrier
   }
 
+  /** Step 4: a held response waits here, then checks qualification again before any read. */
+  async function waitHeld(
+    id: number,
+    barrier: Barrier,
+    access: Access<P>,
+  ): Promise<ModelFailure | null> {
+    barrier.arrived.resolve()
+    await barrier.released.promise
+    barriers.delete(id)
+    return qualify(access)
+  }
+
+  /** Steps 3 and 5: one read of the confirmation source for the resolved invocation. */
+  function readConfirmed(
+    access: Access<P>,
+    parts: ModelInvocationParts,
+  ): Outcome<ModelStreamSelection, ModelFailure> {
+    const identity = key(access.tenant, parts.call)
+    events.push(Object.freeze({ sequence: events.length + 1, action: 'owner-read', key: identity }))
+    if (source === 'unavailable') return { failure: unavailable() }
+    const confirmed = records.get(identity)
+    if (confirmed === undefined)
+      return { failure: { kind: 'invalid', field: 'reference', reason: 'not-accepted' } }
+    const canonical = encodeModelInvocationRef(parts)
+    if ('failure' in canonical) throw new TypeError('a resolved invocation could not be encoded')
+    if (canonical.ok !== confirmed.reference)
+      return { failure: { kind: 'invalid', field: 'admission', reason: 'not-original' } }
+    return { ok: confirmed.selection }
+  }
+
   const references: ModelStreamReferences<P> = {
     async current(input) {
       const id = ++requestId
       const access = { tenant: input.access.tenant, principal: input.access.principal }
       const resolved = resolveModelInvocationRef(input.reference, access.tenant)
-      if ('failure' in resolved) {
-        switch (resolved.failure.kind) {
-          case 'invalid-tenant':
-            return { failure: { kind: 'denied', action: 'tenant' } }
-          case 'foreign-tenant':
-            return { failure: { kind: 'denied', action: 'current' } }
-          case 'malformed':
-            return {
-              failure: {
-                kind: 'invalid',
-                field: 'reference',
-                reason: `reference-${resolved.failure.rejection.reason}`,
-              },
-            }
-        }
-      }
+      if ('failure' in resolved) return { failure: referenceFailure(resolved.failure) }
       const denied = qualify(access)
       if (denied !== null) return { failure: denied }
+      // A response that is not held reads the source in this same turn: no await precedes it.
       const barrier = barriers.get(id)
       if (barrier !== undefined) {
-        barrier.arrived.resolve()
-        await barrier.released.promise
-        barriers.delete(id)
-        const rechecked = qualify(access)
+        const rechecked = await waitHeld(id, barrier, access)
         if (rechecked !== null) return { failure: rechecked }
       }
-      const identity = key(access.tenant, resolved.ok.call)
-      events.push(
-        Object.freeze({ sequence: events.length + 1, action: 'owner-read', key: identity }),
-      )
-      if (source === 'unavailable') return { failure: unavailable() }
-      const confirmed = records.get(identity)
-      if (confirmed === undefined)
-        return { failure: { kind: 'invalid', field: 'reference', reason: 'not-accepted' } }
-      const canonical = encodeModelInvocationRef(resolved.ok)
-      if ('failure' in canonical) throw new TypeError('a resolved invocation could not be encoded')
-      if (canonical.ok !== confirmed.reference)
-        return { failure: { kind: 'invalid', field: 'admission', reason: 'not-original' } }
-      return { ok: confirmed.selection }
+      return readConfirmed(access, resolved.ok)
     },
   }
 

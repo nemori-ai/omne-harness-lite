@@ -2742,6 +2742,7 @@ export declare class ScriptedModelError extends Error {
     readonly reason: ScriptedModelErrorReason;
     constructor(reason: ScriptedModelErrorReason, message: string);
 }
+export declare function misuse(message: string): ScriptedModelError;
 ```
 
 ## 声明文件 `testing/index.d.ts`
@@ -3027,6 +3028,8 @@ export declare function createScriptedTransport(script: ScriptedTransportScript)
 ## 声明文件 `testing/values.d.ts`
 
 ```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+export declare function tenantText(tenant: TenantId): string;
 export declare function frozenCopy<T>(value: T): T;
 export declare function sameValue(left: unknown, right: unknown): boolean;
 export declare function laterDecimal(left: string, right: string): boolean;

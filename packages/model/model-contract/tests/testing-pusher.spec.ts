@@ -53,8 +53,13 @@ function harness(over: Partial<ScriptedResultPusherOptions<Principal>> = {}) {
 type Harness = ReturnType<typeof harness>
 
 /** Admits the call through the pusher and tells the receiver about the original call. */
-async function admitted(h: Harness, name: string, dispatches: readonly DispatchId[] = []) {
-  const accepted = must(await h.pusher.provider.runtime.calls.admit(admission(name)))
+async function admitted(
+  h: Harness,
+  name: string,
+  dispatches: readonly DispatchId[] = [],
+  over: Parameters<typeof admission>[1] = {},
+) {
+  const accepted = must(await h.pusher.provider.runtime.calls.admit(admission(name, over)))
   h.store.establishOriginalCall({ reference: accepted.reference, consumer, dispatches })
   return accepted
 }
@@ -381,6 +386,24 @@ describe('what the push-producer double records instead of a save', () => {
       state: { phase: 'accepted' },
     })
     expect(h.pusher.deliveries()).toEqual([])
+  })
+
+  it('refuses to settle a call whose body is longer than 242 characters, before forwarding', async () => {
+    const h = harness()
+    const long = 'x'.repeat(243)
+    await admitted(h, long)
+    expect(() => settle(h, long)).toThrow(ScriptedModelError)
+    expect(() => settle(h, long)).toThrow('push-read')
+    expect(must(await h.scripted.provider.runtime.calls.inspect(access(long)))).toMatchObject({
+      state: { phase: 'accepted' },
+    })
+    expect(h.pusher.deliveries()).toEqual([])
+    const longest = 'y'.repeat(242)
+    await admitted(h, longest, [], {
+      capacity: { bytes: '4000', blocks: '10', attachmentBytes: '0' },
+    })
+    settle(h, longest)
+    expect((await h.pusher.settled(callRef(longest))).status).toBe('saved')
   })
 
   it('refuses to redeliver an unknown key or a delivery that is in flight', async () => {

@@ -1,4 +1,13 @@
-// Pure value helpers that the public doubles share. Nothing here is exported from the entry.
+// Value helpers that the public doubles share. Nothing here is exported from the entry.
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { misuse } from './error.ts'
+
+/** The tenant as its minted text; a tenant that is not a legal identity is a misuse. */
+export function tenantText(tenant: TenantId): string {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw misuse('the tenant is not a legal identity')
+  return encoded.value
+}
 
 /** A deep copy of `value` with every object in the copied tree frozen. */
 export function frozenCopy<T>(value: T): T {

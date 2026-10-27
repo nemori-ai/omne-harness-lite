@@ -3,7 +3,7 @@
 // resolves for the consumer owner. It keeps the delivery keys and the frozen payload, redelivers
 // on an unknown outcome, takes the ACK through the retained handoff after `saved`, and pushes
 // late accounts only after the result is saved. It reads no internal state of the provider.
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
@@ -25,9 +25,9 @@ import type {
 import type { ModelProvider } from '../provider/index.ts'
 import { decodeModelOperationId, MODEL_IDENTITY_PREFIXES } from '../identity-values.ts'
 import type { ScriptController, ScriptedCall } from './controller.ts'
-import { ScriptedModelError } from './error.ts'
+import { misuse } from './error.ts'
 import type { ScriptedModelProvider } from './provider.ts'
-import { frozenCopy, laterDecimal, sameValue } from './values.ts'
+import { frozenCopy, laterDecimal, sameValue, tenantText } from './values.ts'
 
 export type ScriptedResultPusherOptions<P> = Readonly<{
   /** The scripted provider the double wraps. */
@@ -114,16 +114,6 @@ type Slot = {
   chain: Promise<void>
   error: unknown
   failed: boolean
-}
-
-function misuse(message: string): ScriptedModelError {
-  return new ScriptedModelError('invalid-script', message)
-}
-
-function tenantText(tenant: TenantId): string {
-  const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw misuse('the tenant is not a legal identity')
-  return encoded.value
 }
 
 /** The operation `mop_<kind>-<call body>`: the same call always gets the same operation. */

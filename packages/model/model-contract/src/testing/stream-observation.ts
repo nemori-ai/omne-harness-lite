@@ -11,11 +11,12 @@ import {
   type StreamCursor,
   type StreamFrame,
   type StreamRef,
+  type StreamReferenceFailure,
 } from '@omne-harness/stream-arrival'
 import type { ModelStreamDelta, ModelStreamObservation, ModelStreamSnapshot } from '../index.ts'
 import { diffModelStream } from '../model-stream-values.ts'
 import { createAccessRules, type ScriptedAccessDecision } from './access.ts'
-import { ScriptedModelError } from './error.ts'
+import { misuse } from './error.ts'
 import { modelStreamCodec } from './stream-codec.ts'
 import { frozenCopy } from './values.ts'
 
@@ -65,12 +66,26 @@ type Observer<P> = {
   readonly onAbort: () => void
 }
 
-function misuse(message: string): ScriptedModelError {
-  return new ScriptedModelError('invalid-script', message)
-}
-
 function ended(reason: EndReason): Terminal {
   return { kind: 'ended', reason }
+}
+
+/**
+ * The end that a reference failure gives before the control plane is asked: an unminted or
+ * foreign tenant is denied, an unreadable envelope is stale. The other kinds wait for the control
+ * plane, so they do not tell a denied observer anything.
+ */
+function endBeforeControl(failure: StreamReferenceFailure): Terminal | null {
+  switch (failure.kind) {
+    case 'invalid-tenant':
+    case 'foreign-tenant':
+      return ended('denied')
+    case 'invalid-envelope':
+      return ended('stale-stream')
+    case 'wrong-producer':
+    case 'malformed':
+      return null
+  }
 }
 
 function cursorOf(ref: StreamRef, position: number): StreamCursor {
@@ -108,21 +123,17 @@ export function createScriptedStreamObservation<P>(
       modelStreamCodec,
     )
     if ('failure' in judged) {
-      switch (judged.failure.kind) {
-        case 'invalid-tenant':
-        case 'foreign-tenant':
-          return ended('denied')
-        case 'invalid-envelope':
-          return ended('stale-stream')
-        case 'wrong-producer':
-        case 'malformed':
-          break
-      }
+      const early = endBeforeControl(judged.failure)
+      if (early !== null) return early
     }
     const decision = rules.decide(observer.request.access)
     if (decision !== 'allow') return ended(decision === 'deny' ? 'denied' : 'unavailable')
-    if ('failure' in judged) return ended('stale-stream')
-    const stream = streams.get(judged.ok)
+    return 'failure' in judged ? ended('stale-stream') : endOfStream(observer, judged.ok)
+  }
+
+  /** The last check: the stream the reference names must be published and not ended. */
+  function endOfStream(observer: Observer<P>, ref: StreamRef): Terminal | null {
+    const stream = streams.get(ref)
     if (stream === undefined) return ended('stale-stream')
     if (stream.ended !== null) return ended(stream.ended)
     observer.stream = stream

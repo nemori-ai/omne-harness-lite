@@ -1,7 +1,7 @@
 // The test control plane that the public doubles share: a rule table keyed by the minted tenant
 // text and the principal. It is not a production access check; it answers only what the test set.
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
-import { ScriptedModelError } from './error.ts'
+import { tenantText } from './values.ts'
 
 /** What the control plane says about one access: the default for an unlisted access is `deny`. */
 export type ScriptedAccessDecision = 'allow' | 'deny' | 'unavailable'
@@ -22,12 +22,10 @@ export function createAccessRules<P>(
   }
   return {
     set(access, decision) {
-      const encoded = tenantCodec.encode(access.tenant)
-      if (!encoded.ok)
-        throw new ScriptedModelError('invalid-script', 'the access tenant is not a legal identity')
-      const found = find(encoded.value, access.principal)
+      const tenant = tenantText(access.tenant)
+      const found = find(tenant, access.principal)
       if (found !== undefined) found.decision = decision
-      else rules.push({ tenant: encoded.value, principal: access.principal, decision })
+      else rules.push({ tenant, principal: access.principal, decision })
     },
     decide(access) {
       const encoded = tenantCodec.encode(access.tenant)
