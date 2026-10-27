@@ -12,7 +12,7 @@ export type SequencedComment<T extends SequencedRecord = SequencedRecord> = Coll
   record: T
 }
 
-function stream(record: SequencedRecord): string {
+export function recordStream(record: SequencedRecord): string {
   const common = [record.kind, record.context.repo, record.context.milestone, record.lineParent]
   return JSON.stringify(record.kind === 'state' ? [...common, record.requestId] : common)
 }
@@ -24,7 +24,7 @@ export function orderedRecords<T extends SequencedRecord>(
   const sorted = [...items].sort((a, b) => a.record.revision - b.record.revision || a.id - b.id)
   const first = sorted[0]
   if (first === undefined) return []
-  const key = stream(first.record),
+  const key = recordStream(first.record),
     result: SequencedComment<T>[] = []
   const operations = new Map<string, string>(),
     ids = new Set<number>()
@@ -32,7 +32,7 @@ export function orderedRecords<T extends SequencedRecord>(
   for (const item of sorted) {
     const record = item.record,
       bytes = canonical(record)
-    if (stream(record) !== key) throw new InputError('collaboration-record-stream-mismatch')
+    if (recordStream(record) !== key) throw new InputError('collaboration-record-stream-mismatch')
     if (ids.has(item.id)) throw new InputError('collaboration-record-duplicate-comment-id')
     ids.add(item.id)
     const previousOperation = operations.get(record.operationId)
