@@ -1,1 +1,1 @@
-{ "roles": ["context", "independent-caller", "provider-author", "result-consumer", "session-coordinator"] }
+{ "roles": ["context", "independent-caller", "orchestration-coordinator", "provider-author", "result-consumer"] }
