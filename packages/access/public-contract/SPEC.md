@@ -533,14 +533,15 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依赖 server-entry。它不依赖服务器存储包。安装闭包以 SDK 发布产物的依赖清单为准。源码能编译不能代替该清单。
 
-服务端接入依赖公开契约，并把已经通过协议检查的请求交给 identity 与 authorization 的公开入口。会话消息另交给 Session 的公开入口，映射见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。它不改写允许和拒绝。它不把存储对象放到公开响应里。
+服务端接入依赖公开契约，并把已经通过协议检查的请求交给 identity 与 authorization 的公开入口。会话消息另交给 Session 的公开入口，映射见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。服务端接入按 message 包完整解码 `message`，见[会话编解码函数](#会话编解码函数)。它不改写允许和拒绝。它不把存储对象放到公开响应里。
 
 ```text
 client application -> sdk -> public-contract
 server-entry -> public-contract
 server-entry -> identity and authorization public entries
 server-entry -> session public entries
-public-contract -> message
+server-entry -> message
+public-contract does not import message or session-contract
 public-contract does not import sdk or server-entry
 sdk does not import server-entry
 ```
@@ -712,4 +713,4 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 ### 持续验证与替身
 
-所有测试从包主exports消费。纯codec、持续公开向量及客户端/服务端fixture承担协议层替身责任。本成员不提供业务provider替身，不新增 `./testing` 导出。SDK/server、真实持久化及CS完整旅程另由各自拥有者验证。
+所有测试从包主exports消费。纯codec、持续公开向量及客户端/服务端fixture承担协议层替身责任。本成员不提供业务 provider 替身，也没有 `./testing` 导出。SDK/server、真实持久化及CS完整旅程另由各自拥有者验证。
