@@ -22,7 +22,22 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 ```
 
 **分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
-以及把 vitest 的 mode（`fast`／`slow`，不给为两层）翻成 `tagsFilter`、`passWithNoTests` 与 `experimental.preParse`。
+以及把 vitest 的 mode（`fast`／`slow`，不给为两层）翻成 `tagsFilter`。给了 mode 时，`passWithNoTests` 与 `experimental.preParse`
+还取决于命令行的过滤（`-t` 给的用例名，或位置参数给的文件）：
+
+- 不带过滤：两项都开。一层里一个测试都不剩（成员没有慢测试，或全是慢测试）不算失败。
+- 带过滤：关 `passWithNoTests`，过滤后一个文件都不剩时 vitest 非零退出。
+- 带 `-t`：还关 `preParse`。preParse 只认字面量的用例名，`test.each` 生成的名字与变量给的名字它匹配不到，会把整个文件滤掉。
+
+不论给不给 mode，带过滤时 `testTiers` 还挂上过滤守卫（`src/testing/filter-guard.ts`，vitest 报告器）：过滤后一条用例都没有真跑
+（用例全被跳过，或一个文件都没剩），这次运行就退出 1，并在标准错误里写出过滤条件。watch 模式、运行被打断、有文件失败（含加载失败）
+或有未处理的错误时，守卫不出声，失败原因由 vitest 自己报。命令行给了 `--reporter` 时，vitest 用它替换配置里的全部报告器，守卫不在：
+一个文件都不剩仍由 `passWithNoTests` 判失败，用例全被跳过则不再判失败。运行器自己起的 vitest 都传 `--reporter`：
+`run.ts` 的逐成员运行不带过滤；`triage.ts` 的单独重跑只按 JSON 报告归类，没选中的用例记为「未能单独重跑」。
+过滤由 `cliFilters` 照 vitest 自己的命令行解析读出。只认经 vitest 的入口 `vitest.mjs` 起的进程，`--` 之后的词不算。
+`VITEST_BOOLEAN_OPTIONS` 里的布尔选项不把后面的词当值（那个词不是 `true`、`false` 时算文件过滤），其余选项都吞下后面一个词，
+包括命令行没定义的配置键（如 `--typecheck.include`）。经 API 起 vitest 时（如 Stryker）读不到过滤，按不带过滤算。
+
 每个成员的 vitest 配置写成 `defineConfig(({ mode }) => …)`，在 `test` 里先展开 `testTiers(mode)`，在 `typecheck` 里先展开它的 `typecheck`。
 展开的部分还排除嵌套归档目录（`**/*.legacy/**`），并在设了 `OMNE_TEST_REPORT_DIR` 时挂上 JSON 报告与计时报告。这个变量在测试进程里置空，测试起的夹具 vitest 不往运行目录写报告。
 成员有三个测试脚本：`test:fast` 是 `vitest run --mode fast`，`test:slow` 是 `vitest run --mode slow --typecheck.enabled=false`（`*.spec-d.ts` 都归快层），`test` 是 `vitest run`。
@@ -31,9 +46,16 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 运行器的 `--tier fast|slow|all` 选 turbo 任务 `test:fast`、`test:slow` 或 `test`。层只经脚本里的 mode 传递，外面环境里的变量改不了层。
 `--base` 缺省 `fast`，`--all` 缺省 `all`，验收不分层、不接受 `--tier`。层记在账本的 `meta.tier`，
 慢层与快层运行的目录名带 `-slow`／`-fast` 后缀。被滤掉的用例在报告里是跳过，账本把它们计进「没跑」，不计进「用例」。
-整个文件都被滤掉时 vitest 不导入它；用例名或标签不是字面量时静态解析看不出，照常导入、导入后再过滤。
+开着 preParse 时（给了 mode、不带 `-t`），整个文件都被滤掉时 vitest 不导入它；用例名或标签不是字面量时静态解析看不出，照常导入、导入后再过滤。
 自测：`tests/test-tiers.spec.ts` 真起 vitest 核对三种层各跑了什么、整文件归慢的在快层下不被导入、没有慢测试的项目在慢层下退出 0、标签写错会报错，
 并核对交给 turbo 的命令与 `turbo.json` 里三个测试任务的 `env`、`passThroughEnv`。
+同一文件还真起 vitest 核对带过滤的运行：快层、慢层与「文件加用例名」三种写法都选中 `test.each` 生成的用例；
+用例名或文件过滤后选不中时非零退出并写出过滤条件；布尔选项后面紧跟的文件过滤同样认得；带点的带值选项吞下它的值，不当成文件过滤；
+过滤到的文件加载失败时非零退出，只报加载错误；失败归因的单独重跑选不中时归为「未能单独重跑」。
+两条对账测试把 `VITEST_BOOLEAN_OPTIONS` 与安装的 vitest 命令行定义双向比对，把 `cliFilters` 的读数与 vitest 的 `parseCLI` 逐选项比对：
+vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败。
+`tests/filter-guard.spec.ts` 直接核对守卫：一条用例都没跑或一个文件都没剩时判失败；有用例真跑了、运行被打断、watch 模式、
+文件失败或有未处理的错误时不出声。
 
 **验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样排除 `affected.excludeRoots` 和 `.legacy` 目录），
 逐个跑 `pnpm run acceptance`，并行度、vitest 的 JSON 报告、账本格式都与测试相同。计时报告器的输出路径只能写在配置里，所以验收的账本没有导入耗时，贴线按 vitest 默认时限判；账本根另放在主检出的 `tmp/acceptance-ledger/`
@@ -49,23 +71,40 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh` 与入口脚本 `check-design.sh`、`metrics.sh`、`slot-unless-plan-only.sh`、`test-tier.sh`、本配置文件、
    测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`typecheck-scope.ts`／`member-turbo.ts`／`scope.ts`／`turbo.ts`，以及任何位置的 `turbo.json`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
-   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量；
+   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量。
+   `tools/dev-flow/src/integration/**` 不是全局路径，按 dev-flow 的成员文件算，改它跑 dev-flow 的测试：
+   `scripts/check.sh` 用本包的 `baseline` 取基线，不执行这里的代码；`check:lines` 导入其中的 `parse.ts`、`policy.ts`，它是常驻检查，每次都跑；
+   其他工具成员不导入 dev-flow；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
    每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
    工程协议及当前产品设计输入 → dev-flow 与 product-checks；
    `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → repo-toolchain 与 test-runner；
+   被成员测试读的成员根目录文档与组目录下的文档 → 读它的那个成员，逐份写在配置的 `readers` 里，这里不另列；
 3. **成员文件**：按最长的成员目录前缀归属。哪些成员进来由 turbo 的 `--affected` 给出：改了文件的成员，与按 `package.json` 声明的依赖
-   直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。turbo 按包计改动：
-   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）在这里归「只需常驻检查」，但 turbo 仍选中那个成员，计划里标「只改了文档」；
-   这比原先「成员文档不算改动」多跑，不少跑。`tests/` 等其余目录里的 `.md` 可能是夹具
-   （本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
+   直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。
+   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动，归「只需常驻检查」。
+   turbo 按包计改动，会选中那个成员与它的全部下游。计划这样处理：
+   - 只改了文档的成员当作没有改动：不进测试、类型检查与验收，也不作下游选择的种子。
+   - 计划用 turbo 的依赖图（`turbo ls --filter=...<包>`）求出只改了文档的成员及其下游，从 `--affected` 里拿掉其中不是代码改动成员下游的那些。
+   - 同一成员既改文档又改代码，照旧选中它与下游。只改了文档的成员是别的代码改动成员的下游时，照旧作为下游选中。
+   - 拿掉之前核对：turbo 选中的每个成员都要在代码改动成员或只改了文档的成员的下游里（含它们自己）。
+     有解释不了的成员，说明 turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
+   - 被测试读的成员根目录文档由上面的读者规则点名，只选规则点名的成员，不带下游。
+   - 计划说明把没有选中的这类成员列在「只改了文档、不选的成员」下；`check:plan --json` 的 `plan.documentsOnly` 给出同一份清单。
+
+   所以只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md`，计划只跑常驻检查；改被读者规则点名的文档，选中规则点名的成员。
+   测试读了成员根目录文档却没有读者规则，改它时就漏选：新增这样的读取要同时补一条读者规则。
+   `tests/` 等其余目录里的 `.md` 可能是夹具（本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
 4. **Python 工具**（`pythonPaths`）：跑 pytest；
-5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
+5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、给人读的指南 `.meta_harness/human/**`、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
+   `.meta_harness/human/` 下只有 `.md`，只有常驻检查 `check:docs` 读它，成员测试、pytest 与影响面规则都不读；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 
 读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被别的成员的测试读），三者都算。
 被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取其中有 `build` 脚本的，
-另加 `residentBuild` 列的成员（`lint:rules` 导入它的 `dist`），纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
+另加 `residentBuild` 列的成员，纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
+`residentBuild` 现在是 legal-identity（`lint:rules` 导入它的 `dist`）、repo-toolchain（工具 CLI 经包入口导入它）与 `packages/agent/agent`
+（`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入，没有构建产物的检出上「只需常驻检查」的计划会在 `lint:deps` 失败）。
 类型检查由 `turbo run typecheck` 对被选中的成员运行它们自己的 `typecheck` 脚本：不先构建，同时 4 个成员。任务按输入缓存：根 `turbo.json` 让它依赖上游成员的 `typecheck`，上游源码一改，下游的任务哈希随之改变；成员目录以外、又不经 `workspace:` 依赖读到的文件列在 `globalDependencies` 里：仓库根的 `vitest.tiers.mts`（tools 成员的 vitest 配置），以及 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`（`tools/dev-flow`、`tools/test-runner` 的测试经相对路径导入）。单独运行读写本地缓存，准入模式只写不读，与构建相同。
 嵌套归档目录（名字以 `.legacy` 结尾）的排除写在成员的 `tsconfig.test.json`（模板给 `"exclude": ["**/*.legacy/**"]`）。
 运行前 `src/testing/typecheck-scope.ts` 只解析配置、不跑 tsc，核对编译根里没有归档文件：成员自己的 `exclude` 盖掉了模板那条，
@@ -77,12 +116,12 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 计划与不经计划的测试运行（`run --all`）都做这项核对。
 turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与升级提示）在 `src/testing/turbo.ts`。
 
-`cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似），
+`cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似，现在已不存在的成员没有下游），
 改规则前后用它看「判全量的有几个、该不该全量」。
 
 **不能声称**：没被选中的成员通过；测试读了某个路径却没写进读者规则，改它时就漏选——规则是查出来的现状，不是机器推导的，
 新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
-自测：`tests/affected.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法，另在临时仓库核对改名与非 ASCII 文件名。
+自测：`tests/scope.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法（含上面几条收窄的正例与反例），另在临时仓库核对改名与非 ASCII 文件名，在本仓库核对 turbo 的依赖图与读者规则里的路径都存在。
 
 **怎么跑。**`pnpm run test:affected` 先用 turbo 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
 `pnpm run check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
@@ -159,9 +198,10 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   成员的配置不动；变异体本身的超时由 Stryker 另判。初跑仍超时，说明有用例插桩后超过这个时限：比如 content-blocks
   解码 4 MiB 的那条，点名整个成员时插桩了它碰到的全部文件，60 秒跑不完；只变异改动行时，只要改动不在它经过的文件里就不受影响。
   调大时限的代价是碰到它的每个变异体都要跑那么久，这类成员只用差分范围。
-  这份配置还关掉快层的 `experimental.preParse`。Stryker 为每个变异体按用例名过滤测试，preParse 只认字面量的用例名，
-  `it.each`、`describe.each` 等生成名字的用例所在文件会被整份滤掉；快层的 `passWithNoTests` 又让这次运行算作成功，
-  变异体就被误记为存活（#405）。关掉后，层仍由 `tagsFilter` 在运行时区分：整文件归慢的测试会被导入，但用例全部跳过。
+  这份配置还关掉快层的 `experimental.preParse`。Stryker 为每个变异体按用例名过滤测试，但它经 API 起 vitest，
+  `testTiers` 从命令行读不到这个过滤，按不带过滤展开：快层开着 preParse 与 `passWithNoTests`，也不挂过滤守卫（见上文「分层」）。
+  preParse 只认字面量的用例名，`it.each`、`describe.each` 等生成名字的用例所在文件会被整份滤掉；`passWithNoTests` 又让这次运行算作成功，
+  变异体就被误记为存活（#405）。所以这份配置自己关掉 preParse。关掉后，层仍由 `tagsFilter` 在运行时区分：整文件归慢的测试会被导入，但用例全部跳过。
   **sandbox 预检**（#481）：`src/mutation/sandbox-build.ts` 构建完成员后，用这份配置在 sandbox 里跑一遍快层。
   有测试文件只在 sandbox 里加载失败时（比如相对路径越出成员，在副本里指到不存在的目录），Stryker 的 vitest runner
   仍判初跑成功：它只看用例结果与 vitest 的全局错误，不看文件级结果。只由这份文件守着的变异体就全被记为存活。
@@ -176,6 +216,20 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   报成存活、有用例覆盖、却一条用例都没跑完的记「没跑测试」，这是运行器没跑测试，不是测试没测出来；
   只因时限到了而超时、又没有得到单独复核的判定的记「超时未复核」，规则见下文「超时的计分」。
   有不能计分的变异体，或原始报告有 RuntimeError 时，成员的测量无效：成员照样写进读数（`valid` 为 false），不给分数。
+  **未覆盖的改动段**：要变异的一段改动行上，没有一个可计分状态（被杀、超时、存活、无覆盖）的变异体时，这一段记为未覆盖。
+  常见原因是 Stryker 不为类型位置生成变异体，`x as T`（含 `as const`）里的字面量也在内；只有编译错误、忽略等不计分状态的变异体碰到的段同样算。
+  分数量不到这些段：它们既不算测出来，也不算没测出来。粒度是改动段（diff 的 hunk），不是逐行。
+  成员读数的 `unmutated` 逐段给出 `{ file, start, end }`（`file` 是仓库相对路径；整份变异的文件 `end` 为 null）。
+  `summary.json` 里的 `score` 仍是只按可计分变异体算的数，读它时要同时看 `unmutated`。
+  `summary.md` 的标题行按下面的写法给分数，详细列表逐段写「没有变异体 文件:起-止」（整份变异的文件只写路径），入口的进度行写「没有变异体的改动 N 段」：
+
+  | 情形 | 分数的写法 |
+  | --- | --- |
+  | 没有未覆盖的段 | `N%`；没有可计分的变异体时写 `—` |
+  | 有未覆盖的段、有可计分的变异体 | `N%（只算有变异体的改动段；未覆盖 M 段：改动上没有变异体）` |
+  | 有未覆盖的段、没有可计分的变异体 | `—（未覆盖 M 段：改动上没有变异体）` |
+  | 测量无效 | `—（测量无效）`；有未覆盖的段时写 `—（测量无效；未覆盖 M 段：改动上没有变异体）` |
+
   原件、`summary.md`、`summary.json`、各成员日志、每次运行的类型测试记录（`<成员>.runs.jsonl`）与预检没通过的成员的 `<成员>.preflight-failed` 标记写进
   主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
 
@@ -280,7 +334,7 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
 `--out` 目录里留着上一次的预检标记时，这一次照常出读数；快层没有用例时预检通过、由 Stryker 报错；
 一个工作进程时 static 变异体的运行没有类型测试，读数写明缺席；可控的耗时注入使 static 运行超过时限时，
 复核把它判回存活，入口退出 0，非 static 变异体照常计分；复核上限为 0 时同一超时记「超时未复核」，入口退出 1；
-static 变异体使测试里的循环停不下来时，复核仍超时，算测出来。
+static 变异体使测试里的循环停不下来时，复核仍超时，算测出来；只改 `as const` 声明时 Stryker 不生成变异体，读数报未覆盖。
 
 公开委托、第一次拒绝、生命周期失败、RuntimeError 使成员无效、命中次数超限原因与钉住版本一致、`RunReporter` 出错不让运行失败的快层验证见 `tests/mutation-guard.spec.ts`。复核上限的配置与环境变量见 `tests/test-runs.spec.ts`。
-超时复核的分类、上限与配置、类型测试读数（含没测到）、静态部分收集错误、复核、真的挂起、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation.spec.ts`。
+超时复核的分类、上限与配置、类型测试读数（含没测到）、未覆盖的改动段与分数的写法、静态部分收集错误、复核、真的挂起、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation.spec.ts`。
