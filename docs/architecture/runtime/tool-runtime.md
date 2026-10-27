@@ -32,11 +32,11 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 冻结判定只有一条到达路径：采用点的候选采用材料。新 Run 开始与显式 reload 都按下列顺序处理。
 
-1. [装配协调者](assembly-and-change.md#比对代替求值)为本会话收集采用点事实，调用 Tool 的纯函数 `planAdoption`。判定为冻结时，输出是 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。
+1. [装配协调者](../../domains/assembly-and-handoff/README.md#模块角色与事实归属)（领域角色「采用协调」）为本会话收集采用点事实，调用 Tool 的纯函数 `planAdoption`。判定为冻结时，输出是 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。
 2. 装配协调者把判定放进本次候选采用材料。
-3. Agent 的[推进协调](../../domains/agent-progression/architecture.md)取得这份材料，以该会话的访问依据调用 Session 的 `startRun` 或 `reload`。
+3. Session 的[推进触发](../../../packages/session/session-contract/SPEC.md#推进映射claim-与-reload)取得这份材料，以该会话的访问依据（`SessionAccess`）调用 Session 的 `startRun` 或 `reload`。推进触发是 `session-provider` 行里的协调器与调度器（[插件树](application-assembly.md#插件树)），它们以 `SessionInternalPrincipals` 提交命令。
 4. 材料带冻结判定时，命令返回 `frozen`，不提交。
-5. 同一推进协调收到 `frozen` 后，以同一判定与同一访问依据调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
+5. 同一推进触发收到 `frozen` 后，以同一判定与同一 `SessionAccess` 调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
 
 会话初始化不判冻结。`create` 的候选采用材料只列出新纳入的常驻工具，不带冻结判定。Tool 不定义向会话交付冻结判定的端口。换代协调者也不判冻结：`sweep` 只记录重装失败，由下一个采用点判定。Tool 只给判定与原因 `tool-shape-lost`，冻结的状态转换由会话执行。
 
@@ -51,14 +51,14 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 精确形状与服务键 `toolResidencyReader` 归 [tool-cordis-contract](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
 
-Tool 契约不导入 Session 契约（[依赖方向与 Cordis 集成](../../package-organization.md#依赖方向与cordis集成)的 `DIR-TOOL-SESSION`），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行与它使用的运行时对象归[应用装配](application-assembly.md#插件树)。
+Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../../package-organization.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)，它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)。
 
 两种情形下协调者都不撤除贡献：
 
 - 桥接插件缺席或尚未就绪：`toolResidencyReader` 是协调者的必需依赖，协调者停在 `PENDING`，不提供 `toolGenerations`，不执行撤除。
 - 读取返回 `unavailable`：`unload` 与 `sweep` 返回 `retained`。
 
-运行中桥接插件换代时，协调者的插件体卸载并重跑。之后再调用 `unload`，它从未完成的那一步继续，见[换代协调者契约](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
+运行中桥接插件换代时，协调者的插件体卸载并重跑。桥接插件撤除时尚未返回的读取按「读取返回 `unavailable`」处理，`unload` 与 `sweep` 返回 `retained`；协调者重跑后再次调用 `unload` 从未完成的那一步继续，见[换代协调者契约](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
 
 ```mermaid
 flowchart LR
@@ -66,8 +66,8 @@ flowchart LR
     B -->|"references：maintainer 与系统主体"| S["Session"]
     S -->|"引用会话页"| B
     B -->|"持有者引用页：holder、tenant、shape"| G
-    B -.->|"桥接插件缺席或未就绪"| P["协调者停在 PENDING<br/>不撤除"]
-    B -.->|"读取返回 unavailable"| R["unload 与 sweep<br/>返回 retained"]
+    G -.->|"桥接插件缺席或未就绪"| P["协调者停在 PENDING<br/>不撤除"]
+    G -.->|"读取返回 unavailable"| R["unload 与 sweep<br/>返回 retained"]
 ```
 
 Tool 与 Session 之间没有箭头：两者只经应用装配的桥接插件连接。
@@ -77,7 +77,7 @@ Tool 与 Session 之间没有箭头：两者只经应用装配的桥接插件连
 | 路径 | 租户来源 |
 | --- | --- |
 | 采用点判定（`startRun`、`reload`） | 会话自己的租户，由命令的 `SessionAccess` 显式携带。Session 在自己的边界核对它。装配协调者按这个租户收集采用点事实 |
-| `freeze` | 推进协调以同一会话与同一 `SessionAccess` 调用，不另取租户。`freeze` 代表该会话的租户，不属于系统作用域例外 |
+| `freeze` | 推进触发以同一会话与同一 `SessionAccess` 调用，不另取租户。`freeze` 代表该会话的租户，不属于系统作用域例外 |
 | `ToolResidencyReader` | `references` 逐条返回每个引用会话的租户。桥接插件把它原样放进持有者引用的 `tenant` |
 
 三条路径都不按会话身份经会话目录反查租户。不同租户可以有同名会话，反查会把冻结或可访问性核对落到错误的租户（[同名会话反例](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6368233555)）。
