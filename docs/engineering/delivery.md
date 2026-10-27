@@ -263,3 +263,9 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
 Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；视图不另增 Stage 或可编辑调度队列，Stage 只取 [§2](#2-卡片与阶段) 表中的值。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。dev-flow 对平台的写入范围见[多层分支规则](integration.md#issue-与-project-的配合)。
+
+## Map-Reduce 交接与整波放行
+
+常驻 Line 与唯一 reduce 的责任、两个协调边界、三问、八类监督及接受顺序归[集成清单](integration.md#集成节点的清单)，完整状态和恢复归[负责人状态](map-reduce-states.md)。本协议的具名接受权限保持；Project、单卡接受、PR 合入或 Issue closed 均不能单独放行下一波。
+
+整波接受前必须读回下一波任务和真实 reduce，以及包括 idle 在内的全部存续线 delta。随后有权接受读回、最终 ReleaseRecord 读回、关闭读回依次执行。非成功交接保持 blocked/failed，处置发布不等于问题已解决。只有显式终态结束 Line；轮空逐收口续接。
