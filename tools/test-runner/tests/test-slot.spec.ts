@@ -13,7 +13,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const SCRIPT = resolve(
@@ -235,7 +235,14 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       'while (process.cpuUsage().user < 600000) {} process.exit(3)',
       'a"b\\c\tz',
     ]
-    const result = slot(args)
+    const clock = join(dir, 'ledger-clock.mjs')
+    // Keep wall-clock seconds fixed; process.cpuUsage still measures the real command.
+    writeFileSync(clock, `Date.now = () => ${Date.now()}\n`)
+    const result = slot(args, {
+      NODE_OPTIONS: [process.env['NODE_OPTIONS'], `--import=${pathToFileURL(clock).href}`]
+        .filter(Boolean)
+        .join(' '),
+    })
     expect(result.status).toBe(3)
     const [line, ...rest] = ledger()
     expect(rest).toEqual([])

@@ -6,7 +6,10 @@ import { parseEventLine, type EventRecord } from '../src/delivery/events.ts'
 import { waitForEvent } from '../src/delivery/events-wait.ts'
 
 const dirs: string[] = []
-afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })))
+afterEach(() => {
+  vi.useRealTimers()
+  dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true }))
+})
 const receiver = {
   instanceId: 'receiver-one',
   repository: 'owner/repo',
@@ -159,6 +162,7 @@ describe('channel evidence', () => {
   })
 
   it('retains a channel hint received during a pending read', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     const file = eventFile()
     let release: (() => void) | undefined
     const first = new Promise<void>(resolve => {
@@ -179,7 +183,8 @@ describe('channel evidence', () => {
       timeoutMs: 2000,
     })
     appendFileSync(file, line({ ...closed, receiver }))
-    await new Promise(resolve => setTimeout(resolve, 30))
+    // Read the appended hint while the first reconciliation is still pending.
+    vi.advanceTimersByTime(5000)
     expect(reconcile).toHaveBeenCalledTimes(1)
     release?.()
     expect((await waiting).source).toBe('reconcile')
