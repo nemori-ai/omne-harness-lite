@@ -129,6 +129,20 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 - nonce 作为 workflow 输入，出现在 Actions 运行记录中。别人发出含同一 nonce 的评论会让本次开工以 unknown 失败，但不能让工具采用伪造的事实。
 - 候选评论按正文包含 nonce 原文筛选。这依赖 nonce 为 32 位小写十六进制：JSON 不转义这些字符。改变 nonce 格式时须同时修订筛选。
 
+## 协作等待中的只读事实
+
+[published-delivery-facts.ts](published-delivery-facts.ts) 的 `readPublishedDeliveryFacts` 读取 reduce 已预先发布的 facts。调用方提供已采用安装中的 repository、Project ID、workflow 的 ID/path/ref/head 及 Bot login/node ID。普通命令参数不得替换这些采用值。该入口只发 REST GET，不派发 workflow，不读 GraphQL、environment 或组织成员，也不回退直接资格查询。它与现有 `fetchDeliveryFacts` 共用 [delivery-facts-record.ts](delivery-facts-record.ts) 的 v1 数据形状；现有主动派发入口保持其独立行为。
+
+读取器完整捕捉当前卡评论，再逐条核对固定 Bot 的事实。Bot 名称、原生账号 ID 和类型必须一致。先拒绝该 Bot 的已编辑评论，再按 facts 标记识别区块，不能用编辑或删除标记来隐藏已有负面事实。未编辑且不含 facts 标记的其他 Bot 评论不作为资格依据。区块须唯一且严格解析，未知字段、重复字段及未知版本均拒绝。匹配同一 dispatch URL 的事实必须同时匹配其实际作者、作者 node ID、正文摘要和更新时间，以及请求卡号与固定 Project。事实评论不得早于其所声明的派发修订。其他正常派发的事实不授予本次权限。
+
+每项事实都必须来自固定仓库和 workflow 的成功运行。当前 run 及精确 `attempts/1` 都必须报告 attempt 1、同一 workflow ID/path、ref、完整 head SHA、仓库与 head 仓库，以及 `workflow_dispatch` 事件。评论创建时间须位于该次运行的开始和结束时间内。运行重试、失败、未完成、来源或时间不匹配均拒绝。返回前再次核对参与评论、Bot 账号、派发账号、run/attempt 与完整评论集合；读取期间变化不返回部分权限。多对象 REST 读取仍不是事务。
+
+每个 nonce 和 run 只对应一个事实回执。多份独立正面观察可同时成立，返回其精确评论引用。同一派发存在可信负面资格时拒绝；正负观察并存时报告冲突，必须有新的派发才能继续，不按发布时间选择较新的事实。可信候选损坏、被编辑或关联运行失败时，不能退回较早的正面观察。没有对应事实时明确失败，不临时调用权限更大的路径。
+
+这里核对的是可信 App 发布的观察，不是对 App 被攻陷后的密码学证明，也不保证发布后 environment 成员没有变化。派发本身的撤销仍由既有 `readAuthority` 独立核对。Stage 与 Project membership 仍是事实记录中的快照。固定安装采用、reduce 发布准备及正式 CLI 装配属于调用方责任；模块测试不代表这些入口已部署。
+
+验证资源为 [只读 facts 测试](../../tests/integration-published-delivery-facts.spec.ts)、[既有 facts 回归](../../tests/integration-delivery-facts.spec.ts)和[协作等待测试](../../tests/delivery-reduce-watch.spec.ts)。替身验证覆盖当前、历史与任务派发，及等待期间出现的未来卡；真实 App/Action 和云端宿主须另行验证。
+
 ## 任务工作树与 gate 等待
 
 I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机检出，不写平台，只经 `gh api GET` 读卡的 binding。程序以固定 argv 运行，不经 shell，步骤经 [worktree.ts](worktree.ts) 的 `Runner` 注入。任一步骤非零退出时命令停止，报告步骤名与最后五行标准错误，不删除已建的目录或分支。

@@ -168,16 +168,22 @@ function recordAuthorities(epochs: EpochSource[]): RecordAuthority[] {
 export type CollaborationAuthorityInput = {
   policy: Policy
   reduceIssue: number
-  adoptedFacts?: AuthorityFacts
-  historicalFacts?: readonly AuthorityFacts[]
+  factsFor?: (dispatch: string) => AuthorityFacts
   read: GhRead
+}
+
+function factsForDispatch(input: CollaborationAuthorityInput, dispatch: string) {
+  const facts = input.factsFor?.(dispatch)
+  if (input.factsFor !== undefined && facts === undefined)
+    throw new InputError('collaboration-adopted-facts-missing')
+  return facts
 }
 
 /** Reads current dispatch authority and its carried history. Acceptance responsibility remains a declaration. */
 export function readCollaborationAuthority(
   input: CollaborationAuthorityInput,
 ): VerifiedCollaborationAuthority {
-  const { policy, reduceIssue, adoptedFacts, read } = input
+  const { policy, reduceIssue, read } = input
   const card = fetchIssueCard(policy.repository, reduceIssue, read)
   const snapshot = readCompleteComments(policy.repository, reduceIssue, read)
   same(card.body, snapshot.body, 'Collaboration card changed during capture')
@@ -188,7 +194,7 @@ export function readCollaborationAuthority(
     policy,
     binding.dispatch,
     { issues: [{ number: reduceIssue, comments: snapshot.comments, commentsComplete: true }] },
-    adoptedFacts,
+    factsForDispatch(input, binding.dispatch),
     read,
   )
   same(decision.task, binding, 'Collaboration dispatch differs from current binding')
@@ -228,17 +234,11 @@ function readEpochHistory(
   snapshot: CommentSnapshot,
   current: EpochSource,
 ): EpochSource[] {
-  const { policy, reduceIssue, adoptedFacts, read } = input
+  const { policy, reduceIssue, read } = input
   const epochs = [current],
     ids = new Set([current.comment.id]),
     epochIds = new Set([current.scope.epoch])
   let next = previousSource(current, snapshot, read)
-  const factsFor = (url: string): AuthorityFacts | undefined => {
-    const facts = input.historicalFacts?.find(item => item.url === url)
-    if (adoptedFacts !== undefined && facts === undefined)
-      throw new InputError('collaboration-history-adopted-facts-missing')
-    return facts
-  }
   while (next !== null) {
     if (ids.has(next.comment.id) || epochIds.has(next.scope.epoch))
       throw new InputError('collaboration-authority-history-cycle')
@@ -248,7 +248,7 @@ function readEpochHistory(
       policy,
       next.comment.url,
       { issues: [{ number: reduceIssue, comments: snapshot.comments, commentsComplete: true }] },
-      factsFor(next.comment.url),
+      factsForDispatch(input, next.comment.url),
       read,
     )
     same(historical.task, next.binding, 'Historical collaboration dispatch changed')
@@ -273,7 +273,7 @@ function readEpochHistory(
                 { number: reduceIssue, comments: snapshot.comments, commentsComplete: true },
               ],
             },
-            factsFor(item.url),
+            factsForDispatch(input, item.url),
             read,
           )
         } catch (error) {

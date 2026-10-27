@@ -66,7 +66,7 @@ describe('production collaboration authority reads', () => {
       bodySha256: digest(comment.body),
       updatedAt: comment.updated_at,
     }
-    readCollaborationAuthority({ policy, reduceIssue: 100, adoptedFacts: facts, read: api.read })
+    readCollaborationAuthority({ policy, reduceIssue: 100, factsFor: () => facts, read: api.read })
     expect(api.calls.some(path => path.includes('/environments/') || path === 'graphql')).toBe(
       false,
     )
@@ -74,7 +74,7 @@ describe('production collaboration authority reads', () => {
       readCollaborationAuthority({
         policy,
         reduceIssue: 100,
-        adoptedFacts: { ...facts, bodySha256: 'f'.repeat(64) },
+        factsFor: () => ({ ...facts, bodySha256: 'f'.repeat(64) }),
         read: api.read,
       }),
     ).toThrow('body digest mismatch')
@@ -218,11 +218,22 @@ describe('production collaboration authority reads', () => {
       bodySha256: digest(api.old.body),
       updatedAt: api.old.updated_at,
     }
+    const currentFacts = {
+      ...oldFacts,
+      url: api.current.html_url,
+      author: 'owner',
+      authorNodeId: 'U_owner',
+      bodySha256: digest(api.current.body),
+      updatedAt: api.current.updated_at,
+    }
     expect(
       readCollaborationAuthority({
         policy,
         reduceIssue: 100,
-        historicalFacts: [oldFacts],
+        factsFor: url => {
+          expect([oldFacts.url, currentFacts.url]).toContain(url)
+          return url === oldFacts.url ? oldFacts : currentFacts
+        },
         read: api.read,
       }).records[0]?.reduce[0]?.writer.login,
     ).toBe('stranger')
@@ -230,7 +241,10 @@ describe('production collaboration authority reads', () => {
       readCollaborationAuthority({
         policy,
         reduceIssue: 100,
-        historicalFacts: [{ ...oldFacts, reviewer: false }],
+        factsFor: url => {
+          expect([oldFacts.url, currentFacts.url]).toContain(url)
+          return url === oldFacts.url ? { ...oldFacts, reviewer: false } : currentFacts
+        },
         read: api.read,
       }),
     ).toThrow('do not show the author')
@@ -247,8 +261,16 @@ describe('production collaboration authority reads', () => {
       updatedAt: api.current.updated_at,
     }
     expect(() =>
-      readCollaborationAuthority({ policy, reduceIssue: 100, adoptedFacts: facts, read: api.read }),
-    ).toThrow('history-adopted-facts-missing')
+      readCollaborationAuthority({
+        policy,
+        reduceIssue: 100,
+        factsFor: url => {
+          if (url !== facts.url) throw new Error('Historical facts are missing')
+          return facts
+        },
+        read: api.read,
+      }),
+    ).toThrow('Historical facts are missing')
     expect(api.calls.some(path => path.includes('/environments/'))).toBe(false)
   })
 

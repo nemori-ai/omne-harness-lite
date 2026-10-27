@@ -219,7 +219,9 @@ recover 模式只读，返回已核对的精确引用或 unknown。完整读取�
 
 历史派发逐条读回摘要，并独立复用派发资格检查，不因当前派发引用就自动可信。循环、重复 epoch、缺失前项、撤销争议、未链接的另一有效派发、时段重叠或相同计划修订的参与线/workflow 冲突均失败。无资格的普通 scope marker 不成为另一有效写者。`recordAuthorityFor` 只返回读回链已覆盖的计划修订；较早计划的 epoch 不能提前授权后来修订。
 
-本地路径按现有 `readAuthority` 查询当前 reviewer 资格，不声称证明该用户在过去某时刻的资格。云端或需要既有资格事实的路径，只接收已经由 `fetchDeliveryFacts` 等可信读取链采用的、精确绑定该评论的 facts；CLI 不接受用户提供的 JSON 作为资格证明。当前路径采用 facts 而缺历史 URL 的对应 facts 时，明确失败，不回退到环境或 GraphQL 查询。
+本地路径按现有 `readAuthority` 查询当前 reviewer 资格，不声称证明该用户在过去某时刻的资格。云端路径通过 `factsFor` 按当前及历史派发 URL 读取可信 facts；CLI 不接受用户提供的 JSON 作为资格证明。当前 facts 的解析发生在外层授权快照捕捉之后，历史 facts 也按实际前序链接惰性读取，不使用提前捕捉的当前值或启动时的任务表。缺少任一对应事实时明确失败，不回退到环境或 GraphQL 查询。
+
+[collaboration-facts.ts](collaboration-facts.ts) 的 `publishedAuthorityReaders` 为已采用的 policy/deployment 提供当前 reduce 的 `authorityFor` 与任务派发的 `taskFactsFor`。每次读取从真实卡的当前 binding 取得派发，历史回调交给既有授权链读取器逐项调用。等待进程因此能识别后来创建的卡及历史链接。此桥接不选择安装来源，不发布 facts，也不把 facts 当作结果接受或整波放行。
 
 返回的 `VerifiedCollaborationAuthority` 只证明上述派发及记录权限。其 `scope.acceptanceResponsibility` 仍是声明，工具只核对它指向正文责任字段的摘要。它不授予接受权，也不证明 ReleaseRecord 已接受；接受授权来源与结果决定须由独立接受读取边界验证。
 
@@ -241,7 +243,7 @@ recover 模式只读，返回已核对的精确引用或 unknown。完整读取�
 
 决定链保留跨 revision 前项，逐项核对原文、作者账号及各自已采用授权。新修订撤销可精确引用前一修订并使用其接受授权，即使正文尚未更新也阻止旧接受放行。新接受必须匹配当前 revision、attempt 和责任来源。所有决定及成果读回后，读取器再次核对当前责任及其授权来源；不能用历史截止时间忽略读取期间发生的当前撤销。部分认可、非接受链头、缺失前项、同操作异文、旧引用、编辑过的决定或事后补造授权均拒绝。账号作者可验证，工具不能区分本人键入和使用本人凭证的获授权代笔；代笔依据仍须按交付规则保存。
 
-读取器核对所有参与线，包括 idle；读回结果和 delta 的精确摘要及权限，要求证据先于决定存在。state 须已合入或有明确 superseded 处置，并仍是完整序列的当前结果。delta 须有从首项至被接受项的完整、获授权前序链，且最终 F、continuation 和结果引用与接受对象一致。跨波历史需要相应 reduce 的正式授权；云端已有 adoptedFacts 时，缺少显式 `relatedAuthority` 输入不得回退本地资格查询。读完再次核对来源快照及精确证据，变化即失败；GitHub 多对象读取仍不是事务。
+读取器核对所有参与线，包括 idle；读回结果和 delta 的精确摘要及权限，要求证据先于决定存在。state 须已合入或有明确 superseded 处置，并仍是完整序列的当前结果。delta 须有从首项至被接受项的完整、获授权前序链，且最终 F、continuation 和结果引用与接受对象一致。跨波历史需要相应 reduce 的正式授权；云端使用 factsFor 时，缺少显式 `relatedAuthority` 输入不得回退本地资格查询。读完再次核对来源快照及精确证据，变化即失败；GitHub 多对象读取仍不是事务。
 
 `VerifiedReleaseAcceptance` 证明上述接受决定及所列记录，不证明本波预期请求集合已推导完整、下一波真实卡已经建齐、gate 覆盖当前候选，或本卡已经关闭。reduce 收口入口负责这些装配就绪守卫；等待入口还须核对最终 ReleaseRecord、所有下一步材料与当前卡状态。不得把此读取器单独用作整波放行条件。接受决定单向引用既有成果，最终 ReleaseRecord 再引用接受决定，避免循环引用。
 

@@ -209,7 +209,7 @@ function readSubjectReferences(
     if (known === undefined) {
       let config = input.relatedAuthority?.(context)
       if (config === undefined) {
-        if (input.adoptedFacts !== undefined)
+        if (input.factsFor !== undefined)
           throw new InputError('collaboration-related-authority-facts-missing')
         config = { policy: input.policy }
       }

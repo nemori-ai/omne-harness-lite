@@ -51,6 +51,9 @@ import {
 } from './fixtures/collaboration-authority.ts'
 import { BASE, FINAL, TOOL, UUID, NEXT_UUID, request, state } from './fixtures/collaboration.ts'
 import { requestRunName } from '../src/delivery/collaboration-trust.ts'
+import { publishedAuthorityReaders } from '../src/delivery/collaboration-facts.ts'
+import { FACTS_MARKER } from '../src/integration/delivery-facts-record.ts'
+import type { FactsDeployment } from '../src/integration/published-delivery-facts.ts'
 
 const directories: string[] = []
 afterEach(() => {
@@ -475,6 +478,80 @@ function fixture(
   }
 }
 
+function usePublishedFacts(f: ReturnType<typeof fixture>) {
+  const deployment: FactsDeployment = {
+    repository: 'owner/repo',
+    projectId: 'P_1',
+    workflow: {
+      id: 12,
+      path: '.github/workflows/delivery-facts.yml',
+      ref: 'github-gate',
+      head: TOOL,
+    },
+    bot: { login: 'delivery[bot]', nodeId: 'BOT_1' },
+  }
+  const runs = new Map<number, Record<string, unknown>>()
+  for (const card of f.cards.values()) {
+    const dispatches = card.comments.filter(comment =>
+      comment.body.includes('```json omne-integration-authority:v1'),
+    )
+    for (const dispatch of dispatches) {
+      const id = dispatch.id + 9000
+      const after = (seconds: number) =>
+        new Date(Date.parse(dispatch.updated_at) + seconds * 1000).toISOString()
+      const comment = f.add(
+        card.number,
+        id,
+        block(FACTS_MARKER, {
+          schemaVersion: 1,
+          nonce: id.toString(16).padStart(32, '0'),
+          run: id,
+          issue: card.number,
+          authority: {
+            url: dispatch.html_url,
+            author: dispatch.user.login,
+            authorNodeId: dispatch.user.node_id,
+            bodySha256: digest(dispatch.body),
+            updatedAt: dispatch.updated_at,
+            reviewer: true,
+          },
+          project: { id: 'P_1', item: `ITEM_${card.number}`, stage: 'Ready' },
+        }),
+        after(30),
+        deployment.bot.login,
+      )
+      comment.user.type = 'Bot'
+      comment.user.node_id = deployment.bot.nodeId
+      runs.set(id, {
+        id,
+        workflow_id: 12,
+        path: deployment.workflow.path,
+        head_branch: 'github-gate',
+        head_sha: TOOL,
+        event: 'workflow_dispatch',
+        run_attempt: 1,
+        status: 'completed',
+        conclusion: 'success',
+        created_at: after(0),
+        run_started_at: after(1),
+        updated_at: after(60),
+        repository: { full_name: deployment.repository },
+        head_repository: { full_name: deployment.repository },
+      })
+    }
+  }
+  const original = f.ports.read
+  f.ports.read = (args, timeout) => {
+    expect(args.slice(0, 3)).toEqual(['api', '--method', 'GET'])
+    const path = args.at(-1) ?? ''
+    expect(path).not.toContain('graphql')
+    expect(path).not.toContain('/environments/')
+    const run = /^repos\/owner\/repo\/actions\/runs\/(\d+)(?:\/attempts\/1)?$/.exec(path)
+    return run === null ? original(args, timeout) : structuredClone(runs.get(Number(run[1])))
+  }
+  Object.assign(f.ports, publishedAuthorityReaders(policy, deployment, f.ports.read))
+}
+
 async function cli(
   f: ReturnType<typeof fixture>,
   extra: string[] = [],
@@ -508,54 +585,58 @@ async function cli(
 }
 
 describe('one actual reduce per original wait result', () => {
-  it('uses the original mandate after future cards appear during the same pending wait', async () => {
-    const f = fixture(['idle', 'active', 'terminal'], true)
-    const sources = f.ports.sources
-    const future = [200, 300, 301].map(number => f.card(number))
-    for (const card of future) f.cards.delete(card.number)
-    f.card(100).state = 'open'
-    const pending = cli(f)
-    await new Promise(resolve => setTimeout(resolve, 15))
-    expect(f.calls.some(path => path === 'repos/owner/repo/issues/200')).toBe(false)
-    for (const card of future) f.cards.set(card.number, card)
-    f.card(100).state = 'closed'
-    appendFileSync(
-      f.input().file,
-      JSON.stringify({
-        delivery: randomUUID(),
-        event: 'issues',
-        action: 'closed',
-        number: 100,
-        state: 'closed',
-        draft: null,
-        base: null,
-        head: null,
-        marker: null,
-        html_url: null,
-        receivedAt: new Date().toISOString(),
-      }) + '\n',
-    )
-    const first = await pending
-    expect(first.code).toBe(0)
-    expect(first.result).toMatchObject({
-      reduceIssue: 100,
-      currentAction: 'rearm',
-      next: { reduceIssue: 200 },
-    })
-    expect((await cli(f)).result).toMatchObject({
-      reduceIssue: 200,
-      currentAction: 'prepare',
-      next: { reduceIssue: 300 },
-    })
-    expect((await cli(f)).result).toMatchObject({
-      reduceIssue: 300,
-      status: 'terminal',
-      next: null,
-    })
-    expect(f.ports.sources).toBe(sources)
-    expect(sources.entries).toEqual([])
-    expect(sources.mandates).toHaveLength(1)
-  })
+  it.each([false, true])(
+    'uses the original mandate after future cards appear during the same pending wait, published=%s',
+    async published => {
+      const f = fixture(['idle', 'active', 'terminal'], true)
+      if (published) usePublishedFacts(f)
+      const sources = f.ports.sources
+      const future = [200, 300, 301].map(number => f.card(number))
+      for (const card of future) f.cards.delete(card.number)
+      f.card(100).state = 'open'
+      const pending = cli(f)
+      await new Promise(resolve => setTimeout(resolve, 15))
+      expect(f.calls.some(path => path === 'repos/owner/repo/issues/200')).toBe(false)
+      for (const card of future) f.cards.set(card.number, card)
+      f.card(100).state = 'closed'
+      appendFileSync(
+        f.input().file,
+        JSON.stringify({
+          delivery: randomUUID(),
+          event: 'issues',
+          action: 'closed',
+          number: 100,
+          state: 'closed',
+          draft: null,
+          base: null,
+          head: null,
+          marker: null,
+          html_url: null,
+          receivedAt: new Date().toISOString(),
+        }) + '\n',
+      )
+      const first = await pending
+      expect(first.code).toBe(0)
+      expect(first.result).toMatchObject({
+        reduceIssue: 100,
+        currentAction: 'rearm',
+        next: { reduceIssue: 200 },
+      })
+      expect((await cli(f)).result).toMatchObject({
+        reduceIssue: 200,
+        currentAction: 'prepare',
+        next: { reduceIssue: 300 },
+      })
+      expect((await cli(f)).result).toMatchObject({
+        reduceIssue: 300,
+        status: 'terminal',
+        next: null,
+      })
+      expect(f.ports.sources).toBe(sources)
+      expect(sources.entries).toEqual([])
+      expect(sources.mandates).toHaveLength(1)
+    },
+  )
   it('refuses an otherwise valid task dispatched to another line writer', async () => {
     const f = fixture(['active', 'terminal']),
       task = f.card(201)

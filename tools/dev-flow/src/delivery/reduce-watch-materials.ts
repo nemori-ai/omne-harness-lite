@@ -111,7 +111,7 @@ export function verifyActiveAssignment(
       throw new InputError('watch-task-milestone-mismatch')
     const config = ports.authorityFor(context.reduceIssue)
     const facts = ports.taskFactsFor?.(task.dispatch)
-    if (config.adoptedFacts !== undefined && facts === undefined)
+    if (config.factsFor !== undefined && facts === undefined)
       throw new InputError('watch-task-adopted-facts-missing')
     const decision = readAuthority(
       config.policy,
