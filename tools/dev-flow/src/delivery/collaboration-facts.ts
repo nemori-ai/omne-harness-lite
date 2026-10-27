@@ -2,14 +2,14 @@ import type { Policy } from '../integration/policy.ts'
 import { same } from '../integration/parse.ts'
 import {
   readPublishedDeliveryFacts,
-  type FactsDeployment,
+  type FactsReadDeployment,
 } from '../integration/published-delivery-facts.ts'
 import type { CollaborationAuthorityInput } from './collaboration-authority.ts'
 import type { GhRead } from './github-read.ts'
 
 export function publishedAuthorityReaders(
   policy: Policy,
-  deployment: FactsDeployment,
+  deployment: FactsReadDeployment,
   read: GhRead,
 ) {
   same(

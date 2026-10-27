@@ -21,6 +21,9 @@ export type FactsDeployment = {
   workflow: { id: number; path: string; ref: string; head: string }
   bot: { login: string; nodeId: string }
 }
+export type FactsReadDeployment = Omit<FactsDeployment, 'workflow'> & {
+  workflows: readonly [FactsDeployment['workflow'], ...FactsDeployment['workflow'][]]
+}
 export type PublishedFacts = {
   authority: AuthorityFacts
   observations: { facts: DeliveryFacts; reference: CommentReference }[]
@@ -40,7 +43,7 @@ function unknown(message: string): never {
 
 /** The deployment comes from the adopted installation, never from ordinary command options. */
 export function readPublishedDeliveryFacts(
-  deployment: FactsDeployment,
+  deployment: FactsReadDeployment,
   dispatchUrl: string,
   read: GhRead,
 ): PublishedFacts {
@@ -92,12 +95,17 @@ export function readPublishedDeliveryFacts(
     function check(value: Record<string, unknown>) {
       const repository = object(value.repository, 'run.repository')
       const headRepository = object(value.head_repository, 'run.head_repository')
+      const [workflow, ...ambiguous] = deployment.workflows.filter(
+        candidate =>
+          value.workflow_id === candidate.id &&
+          value.path === candidate.path &&
+          value.head_branch === candidate.ref &&
+          value.head_sha === candidate.head,
+      )
       if (
         value.id !== runId ||
-        value.workflow_id !== deployment.workflow.id ||
-        value.path !== deployment.workflow.path ||
-        value.head_branch !== deployment.workflow.ref ||
-        value.head_sha !== deployment.workflow.head ||
+        workflow === undefined ||
+        ambiguous.length !== 0 ||
         value.event !== 'workflow_dispatch' ||
         value.run_attempt !== 1 ||
         repository.full_name !== deployment.repository ||
@@ -116,7 +124,7 @@ export function readPublishedDeliveryFacts(
         Date.parse(comment.createdAt) > Date.parse(ended)
       )
         unknown('Published facts comment is outside its workflow attempt')
-      return { created, started, ended }
+      return { created, started, ended, workflow: { ...workflow } }
     }
     same(check(current), check(attempt), 'Published facts workflow attempt changed')
     return { current, attempt }

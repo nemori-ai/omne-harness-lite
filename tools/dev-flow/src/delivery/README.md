@@ -73,6 +73,8 @@ pnpm run collaboration:install --descriptor /absolute/adopted-installation.json 
 
 命令只写本地采用记录，不派发 workflow，也不接受卡片。相同描述符可重复安装。不同描述符须使用新的固定检出，不能覆盖现有采用。
 
+升级 workflow 后需要读取旧 facts 时，使用版本 2 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。当前版本 2 只提供读取能力；生产日志的转移与激活尚未完成，`facts:prepare` 会返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或启动新的独立生产者来绕过此限制。
+
 安装后，使用这个源工具检出的命令。参数帮助分别为：
 
 ```sh

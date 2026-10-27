@@ -8,6 +8,7 @@ import {
   PublishedFactsMissing,
   readPublishedDeliveryFacts,
   type FactsDeployment,
+  type FactsReadDeployment,
   type PublishedFacts,
 } from './published-delivery-facts.ts'
 import {
@@ -132,6 +133,10 @@ function parseIntent(
 /** Bootstrap fixes installation and storage. Callers supply only the dispatch and explicit retry choice. */
 export function createFactsPreparation(ports: PreparationPorts) {
   hash256(ports.installationDigest, 'installationDigest')
+  const readerDeployment: FactsReadDeployment = {
+    ...ports.deployment,
+    workflows: [ports.deployment.workflow],
+  }
   return (dispatch: string, options: { retryFailed?: boolean } = {}): FactsPreparationResult => {
     let generation: number | null = null,
       observed: PreparedFactsRun | null = null
@@ -154,7 +159,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
       let published: PublishedFacts | null = null
       let snapshot: PublishedFactsMissing['dispatch']
       try {
-        published = readPublishedDeliveryFacts(ports.deployment, dispatch, call)
+        published = readPublishedDeliveryFacts(readerDeployment, dispatch, call)
         const { reviewer: _reviewer, ...identity } = published.authority
         snapshot = identity
       } catch (error) {
@@ -199,7 +204,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
         if (observed === null) return unknown('facts-preparation-dispatch-unresolved-no-repost')
         if (observed.status !== 'completed') return { status: 'pending', generation, run: observed }
         if (observed.conclusion === 'success') {
-          const facts = readPublishedDeliveryFacts(ports.deployment, dispatch, call)
+          const facts = readPublishedDeliveryFacts(readerDeployment, dispatch, call)
           if (
             !facts.observations.some(
               o => o.facts.run === observed?.id && o.facts.nonce === intent?.input.nonce,
@@ -236,7 +241,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
       )
         throw new InputError('facts-preparation-deployment-changed')
       try {
-        readPublishedDeliveryFacts(ports.deployment, dispatch, call)
+        readPublishedDeliveryFacts(readerDeployment, dispatch, call)
         return unknown('facts-preparation-facts-appeared-before-dispatch')
       } catch (error) {
         if (!(error instanceof PublishedFactsMissing)) throw error
@@ -304,7 +309,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
           run: observed,
           diagnostic: 'facts-preparation-run-failed',
         }
-      const facts = readPublishedDeliveryFacts(ports.deployment, dispatch, call)
+      const facts = readPublishedDeliveryFacts(readerDeployment, dispatch, call)
       if (
         !facts.observations.some(
           o => o.facts.run === observed?.id && o.facts.nonce === intent?.input.nonce,

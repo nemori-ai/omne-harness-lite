@@ -12,7 +12,17 @@ import {
 import { dirname, join } from 'node:path'
 import type { PolicySource } from '../integration/context.ts'
 import { clean, repository } from '../integration/git.ts'
-import { digest, fields, integer, literal, object, same, string } from '../integration/parse.ts'
+import {
+  array,
+  canonical,
+  digest,
+  fields,
+  integer,
+  literal,
+  object,
+  same,
+  string,
+} from '../integration/parse.ts'
 import { POLICY_PATH } from '../integration/policy.ts'
 import type { FactsDeployment } from '../integration/published-delivery-facts.ts'
 import { ACCEPTANCE_SOURCES_PATH, parseAccountIdentity } from './collaboration-acceptance-source.ts'
@@ -22,16 +32,34 @@ import { evidenceList, fullSha, hash256, nonempty } from './collaboration-values
 import { InputError } from './protocol.ts'
 
 const INSTALLATION_FILE = 'omne-collaboration-installation.json'
+type PublishedInstallationFacts = {
+  kind: 'published'
+  workflow: FactsDeployment['workflow']
+  bot: FactsDeployment['bot']
+}
 export type CollaborationInstallation = {
-  schemaVersion: 1
   repository: string
   toolCommit: string
   policySource: PolicySource
   acceptanceSource: PolicySource
   basis: [Evidence, ...Evidence[]]
-  facts:
-    | { kind: 'direct' }
-    | { kind: 'published'; workflow: FactsDeployment['workflow']; bot: FactsDeployment['bot'] }
+} & (
+  | { schemaVersion: 1 | 2; facts: { kind: 'direct' } }
+  | { schemaVersion: 1; facts: PublishedInstallationFacts }
+  | {
+      schemaVersion: 2
+      facts: PublishedInstallationFacts & { historicalWorkflows: FactsDeployment['workflow'][] }
+    }
+)
+
+function parseWorkflow(value: unknown): FactsDeployment['workflow'] {
+  const v = fields(value, ['id', 'path', 'ref', 'head'], 'facts.workflow')
+  return {
+    id: integer(v.id, 'facts.workflow.id'),
+    path: literal(v.path, '.github/workflows/delivery-facts.yml', 'facts.workflow.path'),
+    ref: literal(v.ref, 'github-gate', 'facts.workflow.ref'),
+    head: fullSha(v.head, 'facts.workflow.head'),
+  }
 }
 
 function source(value: unknown, path: string): PolicySource {
@@ -61,35 +89,40 @@ export function parseCollaborationInstallation(value: unknown): CollaborationIns
   const repo = string(v.repository, 'installation.repository')
   if (!/^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/.test(repo))
     throw new InputError('collaboration-installation-repository')
-  const mode = object(v.facts, 'installation.facts')
-  let facts: CollaborationInstallation['facts']
-  if (mode.kind === 'direct') {
-    fields(mode, ['kind'], 'installation.facts')
-    facts = { kind: 'direct' }
-  } else {
-    fields(mode, ['kind', 'workflow', 'bot'], 'installation.facts')
-    literal(mode.kind, 'published', 'installation.facts.kind')
-    const workflow = fields(mode.workflow, ['id', 'path', 'ref', 'head'], 'facts.workflow')
-    facts = {
-      kind: 'published',
-      workflow: {
-        id: integer(workflow.id, 'facts.workflow.id'),
-        path: literal(workflow.path, '.github/workflows/delivery-facts.yml', 'facts.workflow.path'),
-        ref: literal(workflow.ref, 'github-gate', 'facts.workflow.ref'),
-        head: fullSha(workflow.head, 'facts.workflow.head'),
-      },
-      bot: parseAccountIdentity(mode.bot),
-    }
-  }
-  return {
-    schemaVersion: literal(v.schemaVersion, 1, 'installation.schemaVersion'),
+  const schemaVersion =
+    v.schemaVersion === 2 ? 2 : literal(v.schemaVersion, 1, 'installation.schemaVersion')
+  const common = {
     repository: repo,
     toolCommit: fullSha(v.toolCommit, 'installation.toolCommit'),
     policySource: source(v.policySource, POLICY_PATH),
     acceptanceSource: source(v.acceptanceSource, ACCEPTANCE_SOURCES_PATH),
     basis: nonempty(evidenceList(v.basis), 'installation.basis'),
-    facts,
   }
+  const mode = object(v.facts, 'installation.facts')
+  if (mode.kind === 'direct') {
+    fields(mode, ['kind'], 'installation.facts')
+    return { ...common, schemaVersion, facts: { kind: 'direct' } }
+  }
+  fields(
+    mode,
+    schemaVersion === 1
+      ? ['kind', 'workflow', 'bot']
+      : ['kind', 'workflow', 'bot', 'historicalWorkflows'],
+    'installation.facts',
+  )
+  const facts: PublishedInstallationFacts = {
+    kind: literal(mode.kind, 'published', 'installation.facts.kind'),
+    workflow: parseWorkflow(mode.workflow),
+    bot: parseAccountIdentity(mode.bot),
+  }
+  if (schemaVersion === 1) return { ...common, schemaVersion, facts }
+  const historicalWorkflows = array(mode.historicalWorkflows, 'facts.historicalWorkflows').map(
+    parseWorkflow,
+  )
+  const keys = [facts.workflow, ...historicalWorkflows].map(canonical)
+  if (new Set(keys).size !== keys.length)
+    throw new InputError('collaboration-installation-workflow-duplicated')
+  return { ...common, schemaVersion, facts: { ...facts, historicalWorkflows } }
 }
 
 function descriptor(text: string, expectedDigest: string): CollaborationInstallation {

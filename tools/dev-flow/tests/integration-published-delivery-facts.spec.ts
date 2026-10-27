@@ -4,6 +4,7 @@ import { FACTS_MARKER } from '../src/integration/delivery-facts-record.ts'
 import {
   readPublishedDeliveryFacts,
   type FactsDeployment,
+  type FactsReadDeployment,
 } from '../src/integration/published-delivery-facts.ts'
 import { readAuthority } from '../src/integration/authority.ts'
 import { readCollaborationAuthority } from '../src/delivery/collaboration-authority.ts'
@@ -33,6 +34,7 @@ function fixture() {
     },
     bot: { login: 'delivery[bot]', nodeId: 'BOT_1' },
   }
+  const readDeployment: FactsReadDeployment = { ...deployment, workflows: [deployment.workflow] }
   const facts = {
     schemaVersion: 1,
     nonce: '0'.repeat(32),
@@ -109,6 +111,7 @@ function fixture() {
     published,
     facts,
     deployment,
+    readDeployment,
     run,
     runs,
     calls,
@@ -117,11 +120,108 @@ function fixture() {
     rewrite: () => {
       published.body = block(FACTS_MARKER, facts)
     },
-    fetch: () => readPublishedDeliveryFacts(deployment, current.html_url, read),
+    fetch: () => readPublishedDeliveryFacts(readDeployment, current.html_url, read),
   }
 }
 
 describe('published delivery facts without workflow dispatch', () => {
+  it.each([
+    ['head', false],
+    ['head', true],
+    ['id', false],
+    ['id', true],
+  ] as const)(
+    'rejects split adopted %s between current run and attempt, reversed: %s',
+    (field, reversed) => {
+      const f = fixture()
+      const other = { ...f.deployment.workflow }
+      if (field === 'head') other.head = '9'.repeat(40)
+      else other.id++
+      f.readDeployment.workflows = [f.deployment.workflow, other]
+      const read: GhRead = (args, timeout) => {
+        const result = f.read(args, timeout)
+        const path = args.at(-1) ?? ''
+        const attempt = path.endsWith('/actions/runs/202/attempts/1')
+        const current = path.endsWith('/actions/runs/202')
+        if ((reversed ? current : attempt) && typeof result === 'object' && result !== null) {
+          return { ...result, workflow_id: other.id, head_sha: other.head }
+        }
+        return result
+      }
+      expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
+        'workflow attempt changed',
+      )
+    },
+  )
+
+  it('reads pre-installation facts and current facts together after explicit workflow adoption', () => {
+    const f = fixture()
+    const next = f.addObservation(true)
+    next.run.head_sha = '9'.repeat(40)
+    f.readDeployment.workflows = [
+      { ...f.deployment.workflow, head: next.run.head_sha },
+      f.deployment.workflow,
+    ]
+    expect(f.fetch().observations.map(item => item.facts.run)).toEqual([202, 203])
+    f.readDeployment.workflows = [f.readDeployment.workflows[0]]
+    expect(f.fetch).toThrow('workflow provenance mismatch')
+  })
+
+  it.each([true, false])(
+    'retains historical negative evidence, current positive first: %s',
+    currentFirst => {
+      const f = fixture()
+      f.facts.authority.reviewer = false
+      f.rewrite()
+      const next = f.addObservation(true)
+      next.run.head_sha = '9'.repeat(40)
+      f.readDeployment.workflows = [
+        { ...f.deployment.workflow, head: next.run.head_sha },
+        f.deployment.workflow,
+      ]
+      if (currentFirst) f.comments.reverse()
+      expect(f.fetch).toThrow('qualification conflicts')
+    },
+  )
+
+  it('does not hide unrecognized provenance behind adopted current or historical positives', () => {
+    const f = fixture()
+    const next = f.addObservation(true)
+    next.run.head_sha = '9'.repeat(40)
+    f.readDeployment.workflows = [
+      f.deployment.workflow,
+      { ...f.deployment.workflow, head: '8'.repeat(40) },
+    ]
+    expect(f.fetch).toThrow('workflow provenance mismatch')
+  })
+
+  it.each(['nonce', 'edited', 'rerun', 'repository', 'workflow', 'bot', 'project'])(
+    'retains %s rejection across historical and current facts',
+    defect => {
+      const f = fixture()
+      const next = f.addObservation(true)
+      next.run.head_sha = '9'.repeat(40)
+      f.readDeployment.workflows = [
+        { ...f.deployment.workflow, head: next.run.head_sha },
+        f.deployment.workflow,
+      ]
+      if (defect === 'nonce') {
+        next.facts.nonce = f.facts.nonce
+        next.comment.body = block(FACTS_MARKER, next.facts)
+      }
+      if (defect === 'edited') f.published.updated_at = '2026-10-27T10:00:31Z'
+      if (defect === 'rerun') f.run.run_attempt = 2
+      if (defect === 'repository') f.run.head_repository.full_name = 'other/repo'
+      if (defect === 'workflow') f.run.workflow_id++
+      if (defect === 'bot') f.published.user.node_id = 'BOT_other'
+      if (defect === 'project') {
+        f.facts.project.id = 'P_other'
+        f.rewrite()
+      }
+      expect(f.fetch).toThrow()
+    },
+  )
+
   it('reads complete published facts using GETs and supplies the existing authority verifier', () => {
     const f = fixture(),
       result = f.fetch()
@@ -140,7 +240,7 @@ describe('published delivery facts without workflow dispatch', () => {
       ).task.issue.number,
     ).toBe(100)
     expect(f.calls.some(args => args.at(-1)?.endsWith('/attempts/1'))).toBe(true)
-    const readers = publishedAuthorityReaders(policy, f.deployment, f.read)
+    const readers = publishedAuthorityReaders(policy, f.readDeployment, f.read)
     expect(
       readCollaborationAuthority({ ...readers.authorityFor(100), reduceIssue: 100, read: f.read })
         .binding.issue.number,
@@ -168,7 +268,7 @@ describe('published delivery facts without workflow dispatch', () => {
         run_started_at: '2026-10-27T12:00:01Z',
         updated_at: '2026-10-27T12:01:00Z',
       })
-    const readers = publishedAuthorityReaders(policy, f.deployment, f.read)
+    const readers = publishedAuthorityReaders(policy, f.readDeployment, f.read)
     const current = () =>
       readCollaborationAuthority({ ...readers.authorityFor(100), reduceIssue: 100, read: f.read })
     expect(current().sources.map(source => source.commentId)).toEqual([1, 3])
@@ -196,7 +296,7 @@ describe('published delivery facts without workflow dispatch', () => {
     const observation = f.addObservation(true)
     observation.facts.authority.url = next.html_url
     observation.comment.body = block(FACTS_MARKER, observation.facts)
-    expect(readPublishedDeliveryFacts(f.deployment, next.html_url, f.read).authority.url).toBe(
+    expect(readPublishedDeliveryFacts(f.readDeployment, next.html_url, f.read).authority.url).toBe(
       next.html_url,
     )
   })
@@ -209,7 +309,7 @@ describe('published delivery facts without workflow dispatch', () => {
 
   it('does not reuse current facts captured before the outer authority snapshot', () => {
     const f = fixture(),
-      readers = publishedAuthorityReaders(policy, f.deployment, f.read)
+      readers = publishedAuthorityReaders(policy, f.readDeployment, f.read)
     const input = readers.authorityFor(100)
     f.addObservation(false)
     expect(() => readCollaborationAuthority({ ...input, reduceIssue: 100, read: f.read })).toThrow(
@@ -287,7 +387,7 @@ describe('published delivery facts without workflow dispatch', () => {
       args.at(-1)?.endsWith('/attempts/1')
         ? { ...f.run, conclusion: 'failure' }
         : f.read(args, timeout)
-    expect(() => readPublishedDeliveryFacts(f.deployment, f.current.html_url, read)).toThrow(
+    expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
       'workflow is not successful',
     )
   })
@@ -393,7 +493,7 @@ describe('published delivery facts without workflow dispatch', () => {
         f.run.run_attempt = 2
       return f.read(args, timeout)
     }
-    expect(() => readPublishedDeliveryFacts(f.deployment, f.current.html_url, read)).toThrow(
+    expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
       'provenance mismatch',
     )
   })
@@ -408,7 +508,7 @@ describe('published delivery facts without workflow dispatch', () => {
       }
       return f.read(args, timeout)
     }
-    expect(() => readPublishedDeliveryFacts(f.deployment, f.current.html_url, read)).toThrow(
+    expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
       'changed during read',
     )
   })
@@ -423,7 +523,7 @@ describe('published delivery facts without workflow dispatch', () => {
       }
       return f.read(args, timeout)
     }
-    expect(() => readPublishedDeliveryFacts(f.deployment, f.current.html_url, read)).toThrow(
+    expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
       'collection changed during read',
     )
     expect(f.fetch).toThrow('qualification conflicts')
@@ -436,7 +536,7 @@ describe('published delivery facts without workflow dispatch', () => {
     expect(f.calls.some(args => args.at(-1)?.endsWith('page=2'))).toBe(true)
     const read: GhRead = (args, timeout) =>
       args.at(-1)?.endsWith('page=2') ? [] : f.read(args, timeout)
-    expect(() => readPublishedDeliveryFacts(f.deployment, f.current.html_url, read)).toThrow(
+    expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
       'comments-incomplete',
     )
   })

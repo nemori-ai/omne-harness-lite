@@ -88,7 +88,10 @@ export function openCollaborationInstallation(root: string, repo: string, transp
           {
             repository: repo,
             projectId: config.project.id,
-            workflow: installation.facts.workflow,
+            workflows: [
+              installation.facts.workflow,
+              ...(installation.schemaVersion === 2 ? installation.facts.historicalWorkflows : []),
+            ],
             bot: installation.facts.bot,
           },
           read,
@@ -117,7 +120,7 @@ export function openCollaborationInstallation(root: string, repo: string, transp
     'collaboration-installation-changed-during-open',
   )
   const prepareFacts =
-    installation.facts.kind === 'published'
+    installation.facts.kind === 'published' && installation.schemaVersion === 1
       ? createFactsPreparation({
           deployment: {
             repository: repo,

@@ -37,7 +37,7 @@ export function runFactsPreparationCli(
     throw new InputError('facts-preparation-options')
   const prepare = bootstrap(repo).prepareFacts
   if (prepare === undefined)
-    throw new InputError('facts-preparation-published-installation-required')
+    throw new InputError('facts-preparation-producer-installation-required')
   const result = prepare(dispatch, { retryFailed: values.flags.has('--retry-failed') })
   return {
     code: result.status === 'ready' ? 0 : result.status === 'pending' ? 3 : 2,

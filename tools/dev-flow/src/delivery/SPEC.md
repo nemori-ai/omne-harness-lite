@@ -87,7 +87,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 协作工具安装与固定来源
 
-`collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符版本为 1，必需字段如下。未知字段拒绝。
+`collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符支持版本 1 和 2，共同必需字段如下。未知字段和版本拒绝。
 
 | 字段 | 含义与约束 |
 | --- | --- |
@@ -98,7 +98,11 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 | `basis` | 非空的既有 `Evidence` 数组，记录本次安装采用的依据 |
 | `facts` | `{kind:"direct"}` 或 `{kind:"published",workflow,bot}`。两种模式不能混用 |
 
-published 模式固定 workflow 的 `id/path/ref/head` 及 Bot 的 `login/nodeId`。path 为 `.github/workflows/delivery-facts.yml`，ref 为 `github-gate`，head 为完整 SHA。Project 从 policy 提交中的 delivery config 派生，不由普通命令传入。config 必须启用，仓库、Project 与单写者配置必须有效。
+版本 1 的 published 模式固定 workflow 的 `id/path/ref/head` 及 Bot 的 `login/nodeId`。path 为 `.github/workflows/delivery-facts.yml`，ref 为 `github-gate`，head 为完整 SHA。Project 从 policy 提交中的 delivery config 派生，不由普通命令传入。config 必须启用，仓库、Project 与单写者配置必须有效。
+
+版本 2 的 published 模式还必须提供 `historicalWorkflows` 数组，可为空。每项使用同样的 `id/path/ref/head` 约束。当前 workflow 与历史项不得重复，历史项之间也不得重复。全部项共用固定仓库、Bot 和 Project。历史项只授予事实读取资格，不授予向旧 workflow 派发的能力。历史事实可以早于安装描述符机制，不要求为其编造旧安装摘要。版本 1 不接受这个字段，也不会自动采用历史版本。
+
+`FactsReadDeployment` 与单个生产 `FactsDeployment` 分开。读取器在一次完整评论快照内逐项匹配唯一采用的 workflow，再对合并后的事实检查负面资格、矛盾、重复、编辑和精确 attempt。同一 run 的当前读取与 attempt 1 必须匹配同一个精确 workflow 身份。未知来源不能忽略，也不能变成 facts 缺失。全部读取保持 GET-only。当前版本 2 安装只开放读取，生产接续尚需持久日志转移与生产者激活，不能借新空目录绕过旧未决操作。
 
 `collaboration-install-cli.ts` 是显式操作员采用边界。它接收描述符文件及已核对的 SHA-256，校验后在工具检出的私有 Git 目录原子创建 `omne-collaboration-installation.json`。文件保存原始描述符字节和摘要。临时文件先 fsync，再用不可覆盖的 hard link 发布并 fsync 目录。相同采用可重复；不同采用不能覆盖。未完成或冲突的写入不能返回成功。已有记录损坏、工具提交变化或工作树不干净均拒绝。
 

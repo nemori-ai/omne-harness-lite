@@ -23,7 +23,8 @@ import {
 import { openCollaborationInstallation } from '../src/delivery/collaboration-bootstrap.ts'
 import { installCollaborationCli } from '../src/delivery/collaboration-install-cli.ts'
 import type { GhRead } from '../src/delivery/github-read.ts'
-import { policy } from './fixtures/collaboration-authority.ts'
+import { backend, block, dispatch, policy, rawComment } from './fixtures/collaboration-authority.ts'
+import { FACTS_MARKER } from '../src/integration/delivery-facts-record.ts'
 import { evidence } from './fixtures/collaboration.ts'
 
 const roots: string[] = []
@@ -108,6 +109,134 @@ function fixture() {
 }
 
 describe('explicit collaboration installation', () => {
+  function historicalInstallation() {
+    const f = fixture()
+    const workflow = {
+      id: 9,
+      path: '.github/workflows/delivery-facts.yml',
+      ref: 'github-gate',
+      head: f.head,
+    }
+    return {
+      f,
+      input: {
+        ...f.installation,
+        schemaVersion: 2,
+        facts: {
+          kind: 'published',
+          workflow,
+          bot: { login: 'fixed[bot]', nodeId: 'BOT_fixed' },
+          historicalWorkflows: [{ ...workflow, head: '9'.repeat(40) }],
+        },
+      },
+    }
+  }
+
+  it('adopts explicit v2 historical workflows without a fictitious prior descriptor', () => {
+    const { f, input } = historicalInstallation()
+    const text = JSON.stringify(input)
+    expect(installCollaboration(f.root, text, digest(text))).toEqual(input)
+    const assembly = openCollaborationInstallation(f.root, policy.repository, f.read)
+    expect(assembly.installation).toEqual(input)
+    expect(assembly.request.factsFor).toBeDefined()
+    expect(assembly.prepareFacts).toBeUndefined()
+    expect(f.trace.every(args => args[2] === 'GET')).toBe(true)
+  })
+
+  it('supplies adopted history through the installed request and watch readers', () => {
+    const { f, input } = historicalInstallation()
+    const declaration = dispatch()
+    const historical = input.facts.historicalWorkflows[0]!
+    const facts = {
+      schemaVersion: 1,
+      nonce: '0'.repeat(32),
+      run: 202,
+      issue: 100,
+      authority: {
+        url: declaration.html_url,
+        author: declaration.user.login,
+        authorNodeId: declaration.user.node_id,
+        bodySha256: digest(declaration.body),
+        updatedAt: declaration.updated_at,
+        reviewer: true,
+      },
+      project: {
+        id: JSON.parse(f.files.get(policy.deliveryConfig)!).project.id,
+        item: 'ITEM_1',
+        stage: 'Ready',
+      },
+    }
+    const comment = rawComment(
+      20,
+      block(FACTS_MARKER, facts),
+      '2026-10-27T10:00:30Z',
+      input.facts.bot.login,
+    )
+    comment.user = { ...input.facts.bot, node_id: input.facts.bot.nodeId, type: 'Bot' }
+    const api = backend(undefined, [declaration, comment])
+    const run = {
+      id: 202,
+      workflow_id: historical.id,
+      path: historical.path,
+      head_branch: historical.ref,
+      head_sha: historical.head,
+      event: 'workflow_dispatch',
+      run_attempt: 1,
+      status: 'completed',
+      conclusion: 'success',
+      created_at: '2026-10-27T10:00:00Z',
+      run_started_at: '2026-10-27T10:00:01Z',
+      updated_at: '2026-10-27T10:01:00Z',
+      repository: { full_name: policy.repository },
+      head_repository: { full_name: policy.repository },
+    }
+    const read: GhRead = (args, timeout) => {
+      expect(args[2]).toBe('GET')
+      const path = args.at(-1) ?? ''
+      if (path.includes('/contents/')) return f.read(args, timeout)
+      if (/\/actions\/runs\/202(?:\/attempts\/1)?$/.test(path)) return structuredClone(run)
+      return structuredClone(api.read(args, timeout))
+    }
+    const text = JSON.stringify(input)
+    installCollaboration(f.root, text, digest(text))
+    const assembly = openCollaborationInstallation(f.root, policy.repository, read)
+    expect(assembly.request.factsFor?.(declaration.html_url)).toEqual(facts.authority)
+    expect(assembly.watch.taskFactsFor?.(declaration.html_url)).toEqual(facts.authority)
+    expect(assembly.authorityFor(100).factsFor?.(declaration.html_url)).toEqual(facts.authority)
+    run.head_sha = '8'.repeat(40)
+    expect(() => assembly.request.factsFor?.(declaration.html_url)).toThrow(
+      'workflow provenance mismatch',
+    )
+  })
+
+  it.each([
+    'missing',
+    'current-repeated',
+    'history-repeated',
+    'wrong-path',
+    'wrong-ref',
+    'wrong-head',
+    'extra-field',
+    'v1-history',
+    'unknown-version',
+  ])('rejects invalid history adoption: %s', defect => {
+    const { input } = historicalInstallation()
+    const value: Record<string, unknown> = structuredClone(input)
+    const history = input.facts.historicalWorkflows[0]!
+    if (defect === 'missing')
+      value.facts = { kind: 'published', workflow: input.facts.workflow, bot: input.facts.bot }
+    if (defect === 'current-repeated') input.facts.historicalWorkflows = [input.facts.workflow]
+    if (defect === 'history-repeated') input.facts.historicalWorkflows.push(history)
+    if (defect === 'wrong-path') history.path = '.github/workflows/other.yml'
+    if (defect === 'wrong-ref') history.ref = 'main'
+    if (defect === 'wrong-head') history.head = 'HEAD'
+    if (defect === 'extra-field') value.facts = { ...input.facts, acceptor: 'caller' }
+    if (defect === 'v1-history') value.schemaVersion = 1
+    if (defect === 'unknown-version') value.schemaVersion = 3
+    if (!['missing', 'extra-field'].includes(defect)) value.facts = input.facts
+    expect(() => parseCollaborationInstallation(value)).toThrow()
+  })
+
   it('does not report adoption on retry while directory persistence still fails', () => {
     const f = fixture()
     const script = `

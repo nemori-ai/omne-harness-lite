@@ -549,7 +549,14 @@ function usePublishedFacts(f: ReturnType<typeof fixture>) {
     const run = /^repos\/owner\/repo\/actions\/runs\/(\d+)(?:\/attempts\/1)?$/.exec(path)
     return run === null ? original(args, timeout) : structuredClone(runs.get(Number(run[1])))
   }
-  Object.assign(f.ports, publishedAuthorityReaders(policy, deployment, f.ports.read))
+  Object.assign(
+    f.ports,
+    publishedAuthorityReaders(
+      policy,
+      { ...deployment, workflows: [deployment.workflow] },
+      f.ports.read,
+    ),
+  )
 }
 
 async function cli(

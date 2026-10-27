@@ -215,7 +215,7 @@ describe('durable single-dispatch facts preparation', () => {
       runFactsPreparationCli(['--repo', 'owner/repo', '--dispatch', 'url'], () => ({
         prepareFacts: undefined,
       })),
-    ).toThrow('published-installation-required')
+    ).toThrow('producer-installation-required')
   })
   it('returns pending without sleeping and resumes to authenticated ready', () => {
     const f = fixture()
