@@ -451,7 +451,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `query-send-input` | 必填 | 禁止 | `tenant`、`session`、`acceptId` |
 | `read-history` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `direction`、`pageBytes` |
 
-任何其他操作名在会话位置都是 `protocol-rejected`。
+[会话观察](#会话观察)另有两个操作名。除本表与该节的操作外，任何其他操作名在会话位置都是 `protocol-rejected`。
 
 ### 会话 body 字段
 
@@ -527,6 +527,94 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 会话操作不刷新登录的空闲计时，直到 identity 定义成功业务访问报告的形状。
 
+## 会话观察
+
+状态：协议已采用，依据为 PanQiWei 于 2026-10-27 认可的 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746) 方案 A 及其后继设计。运行证据待 #790 H3。
+
+本节拥有会话观察消息的操作名、信封、帧、取消与连接生命周期。会话观察是只读视图，它不提交会话事实，也不控制业务工作。服务端接入的组合步骤见[接入行为规格](../server-entry/SPEC.md#重附着与脱离)，刷新与资源策略见[刷新策略与资源](../server-entry/SPEC.md#刷新策略与资源)。
+
+### 观察对象
+
+一次会话观察的对象是该会话最新登记的 Model 调用。观察随新登记切换目标。
+
+接入按 Session 的[稳定调用引用的读取](../../session/session-contract/SPEC.md#稳定调用引用的读取)定位最新的 Model 调用登记，再向 Model 查询 `current`。有目标时，接入接上该目标。该目标的流结束（`source-closed`）、`current` 变为 null 或旧引用失效时，接入按刷新策略重新定位。重新定位可能得到新登记的调用，新目标从新快照开始。
+
+观察不限定于一次调用。一次调用的边界由 `snapshot` 帧标出：每次目标切换发一次 `snapshot`。
+
+### 操作与信封
+
+两个操作使用 `session-public/1`，与[会话公开操作](#会话公开操作)使用同一承载位置。`loginProof` 与 `actingTenant` 的字段要求同[共同消息](#共同消息)。`tenant` 与 `session` 的要求同[会话 body 字段](#会话-body-字段)。
+
+| 操作 | `loginProof` | `actingTenant` | body 字段（全部必填） |
+| --- | --- | --- | --- |
+| `observe-session` | 必填 | 禁止 | `tenant`、`session`、`observationId` |
+| `cancel-observation` | 必填 | 禁止 | `tenant`、`session`、`observationId` |
+
+- `observationId` 是非空字符串，调用者在首次发送前生成。唯一范围是同一登录下的同一会话。观察记录绑定建立它的登录。`cancel-observation` 只能取消同一登录建立的观察，其他登录的同一 `observationId` 视为不存在。
+- 观察请求不带调用引用，接入按[观察对象](#观察对象)定位。公开契约不引入 Model 的身份文本规则。
+- 判断次序沿[会话判断次序](#会话判断次序)第 1 至 5 步。部署的观察并发上界已满时是 `basis-unavailable`，表示现在不能得出允许，稍后可再试。它不是 `invalid`，`invalid` 只用于静态不合规的内容。
+
+### 响应与帧
+
+`observe-session` 的终端响应只有一条，`outcome` 为 `succeeded`、`denied`、`invalid`、`basis-unavailable` 之一。另有判断次序第 1 步的 `protocol-rejected`。`succeeded` 的 body 是 `{ observationId }`，其他结果的 body 是空对象。
+
+在 SSE 承载上，这条确认是响应的第一条事件。之后同一响应上出现零条或多条帧消息。帧消息的协议版本仍是 `session-public/1`，`operation` 固定为 `observation-frame`，`messageId` 是原请求的 `messageId`。帧消息的 body：
+
+| 字段 | 含义 |
+| --- | --- |
+| `observationId` | 原值 |
+| `seq` | 本次观察内单调递增的十进制文本，从 `1` 起。同一 `observationId` 再次建立时从 `1` 重新计数 |
+| `frame` | 下表之一 |
+
+| `frame.kind` | 其余字段 | 含义 |
+| --- | --- | --- |
+| `state` | `phase`（调用阶段名文本，值集归 Model `CallState.kind`）；`target`（`null` 或 `{ projection: 'model-output-v1' }`） | 接入查到的权威调用阶段，以及是否有可观察目标。它不披露调用身份、消费者或保管字段。`target` 为 null 不表示未执行或终局 |
+| `snapshot` | `projection: 'model-output-v1'`；`value`（json-text 值树，原样为 Model 观察端口的快照） | 一个目标的首个快照。每次目标切换发一次 |
+| `delta` | `projection`；`value`（原样为 Model 的增量） | 同一目标的增量 |
+| `gap` | `reason`：`buffer` 或 `source-history` | 生产者报告的缺口，沿 stream-arrival 的 `gap` 原义。接入不认识的新原因映射为 `source-history` |
+| `refreshing` | 无 | 接入正在按刷新策略重新定位或重新查询 `current`。触发情况是目标为空、流已结束、引用失效，或日志里还没有登记 |
+| `ended` | `reason`：`observer-cancelled`、`observer-replaced`、`refresh-exhausted`、`denied`、`unavailable`、`capacity` | 本次观察结束。`observer-replaced` 表示同一登录用同一 `observationId` 重新建立，旧观察被替换。撤权与登录失效都是 `denied`，沿公开契约统一的 `denied` 政策，不单列登录撤销。stream-arrival 的 `source-closed` 与 `stale-stream` 不是结束原因，它们触发 `refreshing` |
+
+`value` 的内部形状归 Model 契约的 `model-output-v1` 投影，`phase` 的值集归 Model 的 `CallState.kind`，见 Model 的[current 的权威含义](../../model/model-contract/SPEC.md#current-的权威含义)。公开契约只固定信封、`frame.kind` 与字段名。它在本地保留 json-text 值树，不解码，也不依赖 model-contract。这与 `read-history` 的 `payload` 处理一致。
+
+### 观察的取消
+
+- `cancel-observation` 是幂等操作。`succeeded` 的 body 是 `{ observationId, state }`，`state` 为 `ended` 或 `not-found`。其他结果由判断次序给出，body 是空对象。
+- `not-found` 表示本实例在该登录下没有这个观察的记录。它不表示观察已结束，见[协议给与装配给](#协议给与装配给)。
+- 观察的取消只结束观察。它不是业务控制，不取消 Model 或 Tool 调用，也不触发 Session 推进。
+- 承载连接关闭等价于取消。接入释放本地资源，此时发不出 `ended` 帧。调用者不能据此推断调用结局。
+
+### 连接生命周期与传输恢复
+
+- 一次观察绑定一个承载响应。在 SSE 上，一个响应就是一次观察。响应断开后，观察结束。
+- 调用者重新连接时，用同一 `observationId` 重新发送 `observe-session`。接入替换同一登录下仍存在的同一 `observationId` 的旧观察：旧观察收到 `ended(observer-replaced)`，旧连接已断开时直接释放。然后接入重新定位，重新查询 `current`，从新快照开始，`seq` 从 `1` 重新计数。
+- 没有跨连接的续接游标。这是接入规格「不能沿用旧 cursor」的公开表达。
+- 调用者在收到 `ended` 之前把观察保持为在途。连接断开、超时与帧丢失使调用者本地保持未知。未知不表示调用已结束，也不表示调用没有发生。
+- 重新连接是新的建立，不是[未知与再送](#未知与再送)中的再送。再送得到原回执，重新连接得到新快照。
+- 帧的到达顺序由 `seq` 保证单调。接入串行发送帧。
+
+### 协议给与装配给
+
+协议给出下列保证：
+
+- 观察建立成功只表示接入取得了有权读取的快照或权威调用阶段。
+- 每帧发出前，接入已按原端口重新核对资格。
+- 连接关闭即取消。
+- 同一登录用同一 `observationId` 再次建立即替换旧观察。
+
+装配给出下列保证。它们在单实例或粘性路由下成立；多实例非粘性路由下由部署另行给出：
+
+- `cancel-observation` 能到达建立该观察的实例。
+- 每个登录的观察并发上界是全局计数。
+
+部署不能给出这两条时，协议只保证连接关闭即取消，`not-found` 不表示观察已结束。
+
+### 观察的依赖边
+
+服务端接入另有两条经契约的依赖：`server-entry -> model-contract`（`ModelStreamReferences.current`）与 `server-entry -> stream-arrival`（`StreamObserver.observe`）。两条边登记在[三个成员](#三个成员)的依赖图与[系统分层](../../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)中。公开契约不依赖 model-contract 或 stream-arrival。
+
+本节的编解码函数、`api/` 快照与测试由 M2 接入实现卡提供，运行证据归 #790。
+
 ## 三个成员
 
 公开契约拥有本文件中的字段、`outcome`、操作名和重复时的可见后果。它可以引用 identity 已公开的标识纯值。它不引用服务端存储类型、Cordis 类型或 server-entry 的类型。
@@ -541,6 +629,8 @@ server-entry -> public-contract
 server-entry -> identity and authorization public entries
 server-entry -> session public entries
 server-entry -> message
+server-entry -> model-contract (current)
+server-entry -> stream-arrival (observe)
 public-contract does not import message or session-contract
 public-contract does not import sdk or server-entry
 sdk does not import server-entry
@@ -575,7 +665,7 @@ const encoded = encodeGovernanceRequest({
 
 - 成功业务访问如何报告。identity ID-11 继续拥有该公开形状。这些治理操作不代替那份报告。
 - 人工决定的答复消息。需要决定时只返回原请求标识。
-- 传输协议、登录证明的密码学形式、存储和治理名单的页大小。
+- 传输协议、登录证明的密码学形式、存储和治理名单的页大小。[会话观察](#会话观察)只固定 SSE 承载上确认与帧的先后，不选定其他传输。
 - 资产确认时刻。它归资产读面，不是这些治理消息。
 
 ## 公开编解码入口与实现细化

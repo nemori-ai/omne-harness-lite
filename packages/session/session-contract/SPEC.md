@@ -646,6 +646,18 @@ Session 命令：
 - 拒绝原因是 `denied`（按这次传入的访问身份核对）、`invalid`（缺访问身份、依据或游标错域、`pageBytes` 不合法）与 `unavailable`（不返回空页）。只读，没有未知，也没有认回：依据仍是当前 epoch 时，同一依据与游标重读得到同一页。
 - 视图在压缩提交时物化，读取不重算模型视图。物化方式归存储提供者。
 
+##### 稳定调用引用的读取
+
+调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。分支与引用的字段名沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)：`kind` 为 `model` 时，`reference` 是稳定 `ModelInvocationRef` 文本；`kind` 为 `tool` 时，`reference` 是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有 `reference`。Run 外登记（`bindExternalCall`）与 Run 内登记同种类，读者按载荷字段区分。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+
+`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，取第一条 Model 分支的 `reference`。Tool 分支与读者不需要的分支按载荷字段跳过。
+
+这是观察重附着取得调用引用的唯一公开路径，组合步骤见[接入行为规格](../../access/server-entry/SPEC.md#重附着与脱离)。它不新增操作，也不提供「当前在途调用」的派生索引。调用是否在途由 Model `current` 回答。
+
+读取资格、游标与空页规则同 SL10、SL11。[日志读取、投影及恢复](#日志读取投影及恢复)要求正常推进不全量扫描历史。该要求约束 Session 自己的推进路径，不限制读者的历史读取。
+
+SE18 尚未由任何路径写入时，反向读返回 `exhausted` 为真的空页。读者按「没有稳定引用」处理，不推测调用是否存在。
+
 #### 值与结果项的约束
 
 - 品牌身份与修订只防误用。服务端仍核对来源、租户、对象关系与当前资格。

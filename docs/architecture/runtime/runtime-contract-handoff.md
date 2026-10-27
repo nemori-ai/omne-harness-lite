@@ -94,7 +94,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 候选由公开接入 `server-entry` 承担观察组合，须 PanQiWei 本人接受固定修订。完整边界归[接入行为规格](../../../packages/access/server-entry/SPEC.md#观察脱离与重附着候选746)，取舍归[接入内部设计](../../../packages/access/server-entry/docs/internals.md#观察接入的责任选择候选)。本节不增加公开接口，也不声明已有运行实现。
 
-接入在当前身份与租户边界下，从 Session 的公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。Agent 不在重附着链路，`stream-reference` 仅作首次挂接缓存。Session 只供日志事实，Model 只供权威调用状态与当前目标，各受保护端口分别核权。
+接入在当前身份与租户边界下，从 Session 的公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。Agent 不在重附着链路，会话日志不保存瞬时流引用。Session 只供日志事实，Model 只供权威调用状态与当前目标，各受保护端口分别核权。
 
 `current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理；策略参数待后继明确。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。接入串行查询或只应用最新已发请求的响应，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
 
