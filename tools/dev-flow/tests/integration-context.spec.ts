@@ -48,6 +48,7 @@ describe('policy registry', () => {
       ['legacy-refactor', 'main'],
       ['engineering-toolchain', 'main'],
       ['issue-820-bootstrap', 'main'],
+      ['issue-820-validation', 'main'],
     ])
     expect(policy.tracks.every(track => track.owner !== '')).toBe(true)
   })
