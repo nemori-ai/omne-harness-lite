@@ -160,7 +160,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会
 出处如下。
 
 - 来源职责与禁止的反向耦合：[产品包组织](package-organization.md#依赖方向与cordis集成)「依赖方向与Cordis集成」。
-- 七条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`，范围与未覆盖见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。
+- 九条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`，范围与未覆盖见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。本图只画核心四项之间的七条；access 组与公共流契约到 Model、Tool 的两条（`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`）不在本图。
 - 集成方认识被集成方：[系统分层](architecture/layers-and-dependencies.md#领域语义依赖与模型边界)「领域语义依赖与模型边界」。
 - Session 与 Model、Tool 的关系：[会话与工作](domains/sessions-and-work/README.md#协作与依赖)「协作与依赖」。
 - 服务键名与 Agent 到 Session 的运行时关系：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」；`toolEnvironments` 见 [Tool 的 Cordis 说明](../packages/tool/tool-cordis-contract/docs/cordis.md)。
