@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "6",
+  "revision": "7",
   "repository": "nemori-ai/omne-harness-lite",
   "deliveryConfig": "docs/engineering/github-delivery.json",
   "tracks": [
@@ -30,6 +30,15 @@
       "status": "active",
       "parent": "main",
       "initialBase": "93b6235ef319938235648724ef959ff53884d2eb"
+    },
+    {
+      "id": "issue-820-validation",
+      "branch": "integration/issue-820-validation",
+      "owner": "PanQiWei",
+      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/820#issuecomment-6451772593",
+      "status": "active",
+      "parent": "main",
+      "initialBase": "8e642bd6f0ca16958176861fe2161ae66e38da4c"
     }
   ],
   "transport": {
