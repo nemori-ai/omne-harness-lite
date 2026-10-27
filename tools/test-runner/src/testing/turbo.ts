@@ -137,13 +137,46 @@ export function affectedMembers(
     }),
   })
   if (run.error !== undefined) throw run.error
-  let names: string[]
-  try {
-    const parsed = JSON.parse(run.stdout) as { packages: { items: { name: string }[] } }
-    names = parsed.packages.items.map(item => item.name)
-  } catch {
-    throw new Error(`turbo 没有给出受影响的成员（退出码 ${run.status}）：${run.stderr.trim()}`)
-  }
+  return listedMembers(run, members, '受影响的成员')
+}
+
+/**
+ * 这些成员连同直接、间接依赖它们的全部成员，按 turbo 的包依赖图（`turbo ls --filter=...<包>`），不看改动。
+ * 影响面用它把只改了文档的成员带出的下游从 `--affected` 里拿掉（scope.ts）。没有成员时不跑 turbo；
+ * 点名的成员不在成员清单里就报错，不当作没有下游。
+ */
+export function dependentMembers(
+  root: string,
+  members: readonly WorkspaceMember[],
+  paths: readonly string[],
+): Set<string> {
+  if (paths.length === 0) return new Set()
+  const byPath = new Map(members.map(member => [member.path, member.name]))
+  const filters = paths.map(path => {
+    const name = byPath.get(path)
+    if (name === undefined)
+      throw new Error(`成员 ${path} 不在 workspace 成员清单里，求不出它的下游`)
+    return `--filter=...${name}`
+  })
+  const run = spawnSync(TURBO_BIN, ['ls', ...filters, '--output=json'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    env: turboEnv({}),
+  })
+  if (run.error !== undefined) throw run.error
+  return listedMembers(run, members, `${paths.join('、')} 的下游`)
+}
+
+/** `turbo ls --output=json` 列出的包，换成成员目录；输出读不出或报出清单外的包就报错，不当作空集。 */
+function listedMembers(
+  run: { readonly status: number | null; readonly stdout: string; readonly stderr: string },
+  members: readonly WorkspaceMember[],
+  what: string,
+): Set<string> {
+  const names = run.status === 0 ? packageNames(run.stdout) : undefined
+  if (names === undefined)
+    throw new Error(`turbo 没有给出${what}（退出码 ${run.status}）：${run.stderr.trim()}`)
   const byName = new Map(members.map(member => [member.name, member.path]))
   return new Set(
     names.map(name => {
@@ -152,6 +185,31 @@ export function affectedMembers(
       return path
     }),
   )
+}
+
+/** `{ packages: { items: [{ name }] } }` 里的包名；形状不对返回 undefined。 */
+function packageNames(stdout: string): string[] | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout)
+  } catch {
+    return undefined
+  }
+  const items: unknown =
+    typeof parsed === 'object' && parsed !== null && 'packages' in parsed
+      ? typeof parsed.packages === 'object' &&
+        parsed.packages !== null &&
+        'items' in parsed.packages
+        ? parsed.packages.items
+        : undefined
+      : undefined
+  if (!Array.isArray(items)) return undefined
+  const names = items.map((item: unknown) =>
+    typeof item === 'object' && item !== null && 'name' in item && typeof item.name === 'string'
+      ? item.name
+      : undefined,
+  )
+  return names.every((name): name is string => name !== undefined) ? names : undefined
 }
 
 function buildArgs(names: readonly string[], admission: boolean): string[] {

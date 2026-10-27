@@ -27,7 +27,6 @@
       "tools/test-runner/src/testing/timing-reporter.ts",
       "tools/test-runner/src/testing/typecheck-scope.ts",
       "tools/test-runner/src/testing/member-turbo.ts",
-      "tools/dev-flow/src/integration/**",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"
@@ -87,6 +86,30 @@
         ],
         "members": ["tools/dev-flow", "tools/product-checks"],
         "why": "dev-flow 的 delivery 读取普通任务协议；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
+      },
+      {
+        "paths": ["packages/agent/agent-cordis-contract/SPEC.md"],
+        "members": ["packages/agent/agent-cordis-contract"],
+        "why": "agent-cordis-contract 的 tests/tool-start-fence.spec.ts 读本成员的 SPEC.md，核对其中写着 Tool 实际导出的启动围栏键；成员根目录文档不算成员改动，没有这条就漏选"
+      },
+      {
+        "paths": ["packages/common/message/README.md"],
+        "members": ["packages/common/message"],
+        "why": "message 的 tests/message.spec.ts 读本成员的 README.md，用其中的 JSON 示例核对 judgeMessage；成员根目录文档不算成员改动，没有这条就漏选"
+      },
+      {
+        "paths": [
+          "apps/m2-contract-skeleton/README.md",
+          "apps/m2-contract-skeleton/README_ZH.md",
+          "apps/m2-contract-skeleton/SPEC.md"
+        ],
+        "members": ["apps/m2-contract-skeleton"],
+        "why": "m2-contract-skeleton 的 tests/path-report.spec.ts 读本成员的 README.md、README_ZH.md 与 SPEC.md，核对缺口表与残余缺口；成员根目录文档不算成员改动，没有这条就漏选"
+      },
+      {
+        "paths": ["packages/model/docs/architecture.md"],
+        "members": ["packages/model/pi-ai-transport"],
+        "why": "pi-ai-transport 的 tests/public-entry.spec.ts 读模型组的 packages/model/docs/architecture.md，核对其中接受的代码块与 src/family.ts 一致；这份文档在成员目录外，归常驻路径，没有这条就漏选"
       }
     ],
     "memberDocuments": [
@@ -119,6 +142,7 @@
       "docs/**",
       ".meta_harness/design/**",
       ".meta_harness/research/**",
+      ".meta_harness/human/**",
       "examples/**",
       ".github/**",
       ".vscode/**",
@@ -149,6 +173,10 @@
       {
         "member": "tools/repo-toolchain",
         "why": "product-checks、dev-flow 与 test-runner 的 CLI 经包入口导入它，入口指向 dist"
+      },
+      {
+        "member": "packages/agent/agent",
+        "why": "lint:deps 解析它的验收夹具 acceptance/fixtures/executor.mjs 对 ../../dist/index.js 的导入，没有 dist 就失败"
       }
     ]
   },

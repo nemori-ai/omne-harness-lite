@@ -49,23 +49,38 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh` 与入口脚本 `check-design.sh`、`metrics.sh`、`slot-unless-plan-only.sh`、`test-tier.sh`、本配置文件、
    测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`typecheck-scope.ts`／`member-turbo.ts`／`scope.ts`／`turbo.ts`，以及任何位置的 `turbo.json`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
-   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量；
+   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量。
+   `tools/dev-flow/src/integration/**` 不再是全局路径，按 dev-flow 的成员文件算，改它照旧跑 dev-flow 的测试。
+   这条全局规则引入时（`481f9f45f`，那时代码在 `tools/ts-checks/src/integration/`），`scripts/check.sh` 用其中的 `cli.ts baselines` 取基线，
+   并转去执行 `scripts/integration-check.sh`，改它就改了检查本身。现在 `check.sh` 用本包的 `baseline` 取基线，`scripts/integration-check.sh` 已删除；
+   `check:lines` 导入的 `integration/parse.ts`、`policy.ts` 属于常驻检查，每次都跑；其他工具成员不导入 dev-flow。这条依据已失效；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
    每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
    工程协议及当前产品设计输入 → dev-flow 与 product-checks；
    `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → repo-toolchain 与 test-runner；
+   被成员测试读的成员根目录文档 → 读它的那个成员：`packages/agent/agent-cordis-contract/SPEC.md` → agent-cordis-contract，
+   `packages/common/message/README.md` → message，`apps/m2-contract-skeleton/` 的 `README.md`、`README_ZH.md`、`SPEC.md` → m2-contract-skeleton；
+   模型组的 `packages/model/docs/architecture.md` → pi-ai-transport（`tests/public-entry.spec.ts` 读它）；
 3. **成员文件**：按最长的成员目录前缀归属。哪些成员进来由 turbo 的 `--affected` 给出：改了文件的成员，与按 `package.json` 声明的依赖
-   直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。turbo 按包计改动：
-   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）在这里归「只需常驻检查」，但 turbo 仍选中那个成员，计划里标「只改了文档」；
-   这比原先「成员文档不算改动」多跑，不少跑。`tests/` 等其余目录里的 `.md` 可能是夹具
+   直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。
+   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动，归「只需常驻检查」。turbo 按包计改动，会选中那个成员与它的全部下游；
+   计划把只改了文档的成员当作没有改动：不进测试、类型检查与验收，也不作下游选择的种子——
+   用 turbo 的依赖图（`turbo ls --filter=...<包>`）求出只改了文档的成员及其下游，从 `--affected` 里拿掉其中不是代码改动成员下游的那些。
+   同一成员既改文档又改代码，照旧选中它与下游；只改了文档的成员是别的代码改动成员的下游时，照旧作为下游选中。
+   被测试读的成员根目录文档由上面的读者规则点名，只选规则点名的成员，不带下游。计划说明里把没有选中的这类成员列在「只改了文档、不选的成员」下。
+   所以只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md`，计划只跑常驻检查；改被读者规则点名的文档，选中规则点名的成员。
+   测试读了成员根目录文档却没有读者规则，改它时就漏选：新增这样的读取要同时补一条读者规则。`tests/` 等其余目录里的 `.md` 可能是夹具
    （本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
 4. **Python 工具**（`pythonPaths`）：跑 pytest；
-5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
+5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、给人读的指南 `.meta_harness/human/**`、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
+   `.meta_harness/human/` 下只有 `.md`，规则配置与工具代码都不读它；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 
 读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被别的成员的测试读），三者都算。
 被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取其中有 `build` 脚本的，
-另加 `residentBuild` 列的成员（`lint:rules` 导入它的 `dist`），纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
+另加 `residentBuild` 列的成员，纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
+`residentBuild` 现在是 legal-identity（`lint:rules` 导入它的 `dist`）、repo-toolchain（工具 CLI 经包入口导入它）与 `packages/agent/agent`
+（`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入，没有构建产物的检出上「只需常驻检查」的计划会在 `lint:deps` 失败）。
 类型检查由 `turbo run typecheck` 对被选中的成员运行它们自己的 `typecheck` 脚本：不先构建，同时 4 个成员。任务按输入缓存：根 `turbo.json` 让它依赖上游成员的 `typecheck`，上游源码一改，下游的任务哈希随之改变；成员目录以外、又不经 `workspace:` 依赖读到的文件列在 `globalDependencies` 里：仓库根的 `vitest.tiers.mts`（tools 成员的 vitest 配置），以及 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`（`tools/dev-flow`、`tools/test-runner` 的测试经相对路径导入）。单独运行读写本地缓存，准入模式只写不读，与构建相同。
 嵌套归档目录（名字以 `.legacy` 结尾）的排除写在成员的 `tsconfig.test.json`（模板给 `"exclude": ["**/*.legacy/**"]`）。
 运行前 `src/testing/typecheck-scope.ts` 只解析配置、不跑 tsc，核对编译根里没有归档文件：成员自己的 `exclude` 盖掉了模板那条，
@@ -77,12 +92,12 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 计划与不经计划的测试运行（`run --all`）都做这项核对。
 turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与升级提示）在 `src/testing/turbo.ts`。
 
-`cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似），
+`cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似，现在已不存在的成员没有下游），
 改规则前后用它看「判全量的有几个、该不该全量」。
 
 **不能声称**：没被选中的成员通过；测试读了某个路径却没写进读者规则，改它时就漏选——规则是查出来的现状，不是机器推导的，
 新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
-自测：`tests/affected.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法，另在临时仓库核对改名与非 ASCII 文件名。
+自测：`tests/scope.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法（含上面几条收窄的正例与反例），另在临时仓库核对改名与非 ASCII 文件名，在本仓库核对 turbo 的依赖图与读者规则里的路径都存在。
 
 **怎么跑。**`pnpm run test:affected` 先用 turbo 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
 `pnpm run check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
