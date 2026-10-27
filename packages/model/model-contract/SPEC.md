@@ -178,6 +178,14 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 档案、转换、输入边界、交接、清理、账目和外传的持续验证义务见[验证场景](verification/README.md#model-持续验证场景)。验证声明须绑定具体提供者、存储条件、事实范围及故障前提；mock、静态类型和文档检查不证明这些行为。
 
+### 按租户的串行区与公平
+
+Model runtime 与宿主按租户各保持一个串行区。一个租户的受理、调度、推送与清理在自己的串行区里排队，不占用另一个租户的槽。
+
+跨租户的公平由 runtime 或应用层按租户做并发与 DRR 配额。传输与家族适配器只看计数，不做租户裁决。全局安全上界可以另设。
+
+配额数值与调度算法由实现采用并验证。本契约只要求两项：租户之间互不拖累，以及拒绝可观察。拒绝以 `backpressured` 报告。实现归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。
+
 ## 当前缺项
 
 受理、提交未知、首内容窗口、稳定重试位置、结果承接及清理已有下文已接受协议。仍须完成实际提供者实现及故障验证，不能把这些状态统称未设计。具体厂商绑定与计量依据、宿主和持久提供者设计、诊断及跨领域前置由[实现架构](../model/docs/architecture.md#技术缺项与采用边界)逐项定位。共享 ref 规则和延迟读取设计不表示实际媒体传输已验证。
@@ -761,11 +769,11 @@ current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方�
 
 M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
 
-M-5 负责真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord、宿主和 Agent 消费闭包迁移。正文清理不再使晚账退出恢复扫描。Agent 材料、Journal、Session 的稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
+真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。消费者一侧的消费闭包迁移归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 分两侧退出。消费者一侧停止代发 ACK 归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK 归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。`./testing` 的推送生产者替身按这条交接取 ACK。正文清理不再使晚账退出恢复扫描。Agent 材料、Journal、Session 的稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
 
 公共观察的真实发布、目录/current 查询与显示刷新、Tool 适配及其投影一致性由相应提供者和接入拥有者实现验证。Model 不定义 Tool 的完整 reducer、foreground 规范化或其终止别名。
 
-凭据继续演化同一个 CredentialPort。M-5 同步强制 access、删除旧 SendFace、迁移 Supplier/失败联合和全部真实消费者，并兑现当前资格与实际秘密绑定。真实 provider/assembly 将资格变化、原工作失效、换代与发送 S 共同排序，在围栏内最后重核、解析相符秘密并同步 start，中间不插入 await。异步预核或纯事实裁定不能替代最后围栏。Settings 承担其实际秘密及绑定事实，Model 核本次发送匹配。组织来源新政策未在本协议采用，不新增组织共用秘密权利。
+凭据继续演化同一个 CredentialPort。强制 access、删除旧 SendFace、迁移 Supplier/失败联合和全部真实消费者，并兑现当前资格与实际秘密绑定，归 M2 里程碑（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)）。`CredentialPort` 调用方自报资格的缺口登记在该卡。真实 provider/assembly 将资格变化、原工作失效、换代与发送 S 共同排序，在围栏内最后重核、解析相符秘密并同步 start，中间不插入 await。异步预核或纯事实裁定不能替代最后围栏。Settings 承担其实际秘密及绑定事实，Model 核本次发送匹配。组织来源新政策未在本协议采用，不新增组织共用秘密权利。
 
 ### 持续验证义务
 
@@ -775,15 +783,15 @@ M-5 负责真实 runtime、driver、provider 的推送、retained、证据适配
 
 纯值、类型探针、离线替身与有限模型只能证明各自范围。真实合取保存、原操作认回、持久晚账恢复、生产者临界区、每帧披露及真实发送围栏仍需对应提供者及完整组合验证。当前 testing evidence 不成为生产 Evidence adapter，内存替身不证明磁盘耐久、跨进程互斥或无界最终完成。
 
-### 受控替身的声明边界
+### 公开替身与受控替身
 
-本次 receiver、公共 observer 与 current 的有状态替身放在成员 tests/helpers。它们通过公开端口接受测试调用，不增加 ./testing 出口。测试控制面默认拒绝，按真实 tenant、principal identity 与操作分类设置 allow、deny 或 unavailable。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。
+推送生产者替身、`current` 替身与观察替身经 `./testing` 公开，供契约骨架与消费者一侧的契约测试闭合缺口。推送生产者替身包住受控替代提供者，按[结果推送与保存](#结果推送与保存)向使用方注入的接收端口推送交付，saved 之后经 retained 交接取 ACK。接收方由使用方按 `ConsumerRef.owner` 的解析函数注入，替身不导入任何接收方实现。`current` 替身从一个确认记录给出 state 与当前目标，未受理、错误 admission、资格不可用、来源不可用和响应等待可分别调度。观察替身按 `StreamRef` 提供内存中的公共内容观察。同一 `StreamRef` 在观察者脱离又重新接上之后，先给出当时的完整快照，再接着给出后续增量，内容连续。
 
-receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
+公开的理由有两条。M1.5 关闭门 H3 允许保留的替身只有 Model 宿主（[#783](https://github.com/nemori-ai/omne-harness-lite/issues/783)）。契约骨架不得用上游私有导入或本地业务替身闭合缺口（[契约骨架的维护与退出](../../../apps/m2-contract-skeleton/SPEC.md#maintenance-and-exit)）。所以这些替身只能由 Model 契约公开提供。依据：[#783 修订决定第 5 条](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6420748295)。
 
-observer 替身以同步确认点取得快照并登记订阅。手动 clock 驱动驻留期限，不使用 sleep。规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。
+receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收端口由各消费方拥有者各自实现。receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
 
-current 替身从一个确认记录取得 state/target。未受理、错误 admission、资格不可用、来源不可用和响应等待可分别调度。测试替身不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+公开替身与受控替身共用同一条边界。测试控制面默认拒绝，按真实 tenant、principal identity 与操作分类设置 allow、deny 或 unavailable。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。观察替身以同步确认点取得快照并登记订阅。观察替身与 receiver 夹具的驻留期限由手动 clock 驱动，不使用 sleep。两者的规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。替身不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
 
 ## 档案、模态与转换行为
 
@@ -937,6 +945,8 @@ ACK 前已经开始的真实读取不能被截成半份。读取完成或按既�
 确认及清理不得改变完成、失败、中断、已发出或未发出事实。费用尚未知时保留正确结算必需的信息；可以独立延续费用责任后，清理无关完整输入和输出。若特定内容仍为准确结算必需，保留相应部分并说明，不能声称已全释放。
 
 租户读取自己成本账目。持有具名资格「组织成本账目读取」的主体读取全组织账目及明细，该资格由身份领域发布。账目可见不授予请求、回复、私人内容或凭据的访问权；模型和账目提供者共同保证原租户归属，而具体查询由身份与接入契约限制字段、用途和范围。
+
+读面照 Tool 的[执行账与真实成本](../../tool/tool-contract/SPEC.md#执行账与真实成本)。Model 是账目写入者。它回答组织范围的账目查询时，先向授权领域取（主体、行事租户、读成本账目、组织）的裁定，再按组织过滤账目。裁定失败按 denied 返回，不先过滤再核权。组织范围含已退出成员的租户，不含下级组织。账目资格不授予正文、原文、附件、凭据或秘密权限。
 
 ## 数据保护与异常
 
