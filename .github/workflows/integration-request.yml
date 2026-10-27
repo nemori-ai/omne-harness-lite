@@ -1,0 +1,21 @@
+name: integration-request
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: Canonical RequestInput v1 JSON
+        required: true
+        type: string
+      input-digest:
+        description: SHA-256 of the canonical request JSON
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Dispatch this workflow with --ref github-gate." && exit 1
