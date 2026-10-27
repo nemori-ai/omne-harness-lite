@@ -173,7 +173,7 @@ Project 字段的唯一源与写者见[字段总表](#字段总表)。
 
 1. 线内的卡的契约变更只取 `none` 或 `additive`，见上面的合法组合表。
 2. 线内的卡在开发中发现必须对契约成员做破坏性改动时，执行者停止依赖这项改动的工作，在交接报告中写明改动与受影响的契约成员。调度者把卡的 Needs decision 置为 `yes`，在卡的评论中写明要裁定的问题，由人拍板。
-3. 人同意后，破坏性改动由性质为 `integration` 的卡完成，见[里程碑内的规则](integration.md#里程碑内的规则)。原来的线内卡不改为 `breaking`。决定读回后，调度者把 Needs decision 置为 `no`。
+3. 人同意后，破坏性改动由性质为 `integration` 的卡完成，见[里程碑内的规则](integration.md#里程碑内的规则)。裁定同意后，原线内卡只按兼容形状继续开发，仍不申报 `breaking`；破坏性切换由承接的 `integration` 卡按里程碑规则完成。决定读回后，调度者把 Needs decision 置为 `no`。
 4. 负责人建 Milestone 时，在描述中写明里程碑类型：普通或重构型。Milestone 描述是里程碑类型的唯一源。
 
 调度者用 `milestone-cli.ts carry` 改卡的里程碑时，binding 中派发时的里程碑不变，属性发现随后报告 `attribute-binding-drift`。处置如下：
