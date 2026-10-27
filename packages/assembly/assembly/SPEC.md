@@ -132,13 +132,15 @@
 
 <a id="adoption"></a>
 
-状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受，是该节的现行行为。从「一组租约」到「就绪、撤除和远端中断」的已接受句子保持原样。关闭协议的报告种类不在本节改写。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受，是该节的现行行为。从「一组租约」到「就绪、撤除和远端中断」的已接受句子保持原样。关闭协议的报告种类不在本节改写。选版承诺按 PanQiWei 的 [K-08 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/805#issuecomment-6445267480) 修订。
 
 ### 记录
 
 一次求值被采用时，持久记录是本次执行的采用依据。它包含资产与定义版本、装配清单、固定的请求输入、适用执行条件。装配清单保存这次求值和采用依据。清单不是可持久化的活体句柄。装配提供者说明求值来源、锁定规则、版本和失败原因。失败记录不是采用依据，也不是关闭报告。
 
-未写明版本的新求值采用当时的合法胜出者。写明版本则固定为该版本。固定版本不豁免合法性、资格、锁定或撤权。同一次执行从采用依据读取已记下的正文，不改写该正文。尚未发出的 Tool 或 MCP 调用仍可按合法刷新看到新的定义和可用性。Skill 已记录的正文保持不变。尚未取用的 Skill 正文，后续取用读取当时的合法版本。
+求值输入里的能力身份不带版本（能力身份是类别加 name）。带 version 的求值输入在求值之前被拒绝（`malformed`），不形成失败记录。下文失败记录的五种种类不变。版本由来源层的层值决定：资产的「持有固定版本」与「跟随当前版」是层值，不是求值输入（[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)、[产品正文](../../../.meta_harness/design/product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)）。新的求值采用当时的合法胜出者。层值固定的版本不豁免合法性、资格、锁定或撤权。对 AgentDefinition，层值总是解析为该身份最新合法发布版本，不持有固定版本。同一次执行从采用依据读取已记下的正文，不改写该正文。尚未发出的 Tool 或 MCP 调用仍可按合法刷新看到新的定义和可用性。Skill 已记录的正文保持不变。尚未取用的 Skill 正文，后续取用读取当时的合法版本。
+
+规范偏离：本节「求值输入不带版本」先于实现。现行实现与测试仍接受带 version 的求值输入并记为 `pinned`（`tests/definition-entry.spec.ts:8`、`:25`）。Agent 契约三处正文仍写「写明版本的结果是 `pinned`」（`packages/agent/agent-contract/SPEC.md:319`、`docs/public-api/definition.md:52`、`verification/scenarios.md:138`，归 #673）。修复责任：assembly 成员拥有者 PanQiWei，实现卡在 M1.5 波 1 集成报告第 4 节第 8 条登记。依据：PanQiWei 的 [K-08 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/805#issuecomment-6445267480)。
 
 候选失败时不发布新的采用依据。调用方得到失败记录。旧的合法采用保持不变。
 
@@ -203,13 +205,13 @@ runtime 启动前取得已校验的装配依据。同一位置的扩展按装配
 
 本走查是现行行为。它不改写本节上文的句子。
 
-给定一次求值的主体、行事租户、范围、定义版本、扩展顺序和必需能力。下面用这些输入走一遍成功路径，以及缺依赖和选择漂移。依赖的身份和版本记在装配清单里。这份记录就是本次可追溯的依赖选择。它不是 Schema 编译提供者的依赖快照，也不是另一份持久对象。
+给定一次求值的主体、行事租户、范围、扩展顺序和必需能力。下面用这些输入走一遍成功路径，以及缺依赖和选择漂移。依赖的身份和版本记在装配清单里。这份记录就是本次可追溯的依赖选择。它不是 Schema 编译提供者的依赖快照，也不是另一份持久对象。
 
-成功。主体是账号 `account-a`，行事租户是 `tenant-a`，范围含工作区 `workspace-w`。AgentDefinition 的身份是 `AgentDefinition/coding`，写明版本 `v2`。定义按声明顺序要求两个扩展，`loop-ext/format` 在前，`loop-ext/policy` 在后。必需能力是 `Tool/read_file` 和 `Skill/review`，这两项没有写明版本。
+成功。主体是账号 `account-a`，行事租户是 `tenant-a`，范围含工作区 `workspace-w`。AgentDefinition 的身份是 `AgentDefinition/coding`。求值输入不写版本。定义按声明顺序要求两个扩展，`loop-ext/format` 在前，`loop-ext/policy` 在后。必需能力是 `Tool/read_file` 和 `Skill/review`，这两项同样不写版本。
 
-求值先固定主体、行事租户和范围，再按定义声明选出必需身份。每个身份在该作用域里解析成当时的合法胜出者。`Tool/read_file` 解析为 `v3`，`Skill/review` 解析为 `v1`。定义本身固定为写明的 `v2`。
+求值先固定主体、行事租户和范围，再按定义声明选出必需身份。每个身份在该作用域里解析成当时的合法胜出者。`Tool/read_file` 解析为 `v3`，`Skill/review` 解析为 `v1`。定义本身的层值为跟随当前版，最新合法发布为 `v2`，所以定义解析为 `v2`。
 
-这些结果进入本次执行的采用依据。固定的请求输入记下主体 `account-a`、行事租户 `tenant-a`、范围 `workspace-w` 和定义版本 `v2`。装配清单记下求值来源、锁定的依赖身份与版本，以及扩展顺序 `loop-ext/format`、`loop-ext/policy`。runtime 启动前取得这份已校验的采用依据。它按清单里的扩展顺序执行。它不另向提供方重取已记下的 `v2`、`v3`、`v1` 正文。
+这些结果进入本次执行的采用依据。固定的请求输入记下主体 `account-a`、行事租户 `tenant-a` 和范围 `workspace-w`。采用依据另记下解析出的定义版本 `v2`。装配清单记下求值来源、锁定的依赖身份与版本，以及扩展顺序 `loop-ext/format`、`loop-ext/policy`。runtime 启动前取得这份已校验的采用依据。它按清单里的扩展顺序执行。它不另向提供方重取已记下的 `v2`、`v3`、`v1` 正文。
 
 缺依赖。其他输入相同，`Skill/review` 在该作用域没有合法定义。调用方得到失败记录。种类是缺合法定义。身份是 `Skill/review`。不形成新的采用依据。已有旧采用时保持旧采用。runtime 不取得新的依据。
 

@@ -10,7 +10,7 @@ M-2 保持旧插件、现有 Runtime、凭据服务及观察消费的必需形�
 
 真实装配安装唯一选定的接收、证据或观察提供者，并显式传递主体、租户和冻结关联。目录命中、Service 注入及解析成功都不授予保存、观察、交接或发送权限。依赖撤除只能撤登记和停止相应新取得，原保存、未知提交、结果保管、晚账及清理责任继续由其拥有者接续，不能用 disposer 声称完成业务交接。
 
-真实 runtime/provider 与宿主的安装，以及当前目标发布、每帧核权、原 operation 恢复及实际 ACK 的验证，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者（Agent 宿主的结果接收方）的消费迁移与停止代发[临时 ACK](../model-contract/SPEC.md#推送与公共观察的交付边界)归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。合法独立消费者的 processed ACK 路径不受影响。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。现有 call-changed 事件不成为逐次内容流目标切换保证，也不新增第二条目标通知流。Tool 的目录、投影和终止适配由 Tool 拥有，本包不替其定义。
+真实 runtime/provider 与宿主的安装，以及当前目标发布、每帧核权、原 operation 恢复及实际 ACK 的验证，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者的消费迁移与停止代发[临时 ACK](../model-contract/SPEC.md#推送与公共观察的交付边界)归承接卡 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。合法独立消费者的 processed ACK 路径不受影响。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。现有 call-changed 事件不成为逐次内容流目标切换保证，也不新增第二条目标通知流。Tool 的目录、投影和终止适配由 Tool 拥有，本包不替其定义。
 
 ## 登记输入与撤除协议
 
