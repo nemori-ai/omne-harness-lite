@@ -56,7 +56,17 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 首次使用 `.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md`，从有效 binding、线包、计划、宿主策略和本机配置具体化。实例写到 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`，字段和权限引用不得另造第二份事实。readiness 包含目标机器可访问的精确版本、当前真实 R、合法 active/idle 入口、完整运行 recipe、无占位和秘密。
 
-生成、校验、打开、人声明已转发、机器 claim 读回是五种事实。使用固定工具提供的 render/validate 实际帮助；打开用宿主侧边栏或 IDE 的公开操作。queued 只算待展示。人原样转发，reduce 不自动发送或创建外部会话，也不让人补设计。新修订须重新校验；已认领后不得用重复消息绕过取消/写权交接。
+先用固定工具列出模板字段，再从有效来源写输入 JSON。输入含 schemaVersion=1、milestone 数字、line 短名、revision 数字和 fields 字符串映射。fields 必须包含全部列出字段，dispatch_revision 与 revision 一致。命令中的 input 是 reduce 已具体化的输入文件，不由转发者补填。
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts fields
+node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts render --input <具体化输入.json> --root <目标检出>
+node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts validate --input <具体化输入.json> --root <目标检出>
+```
+
+render 只产生 GENERATED，validate 只产生 STRUCTURE_CHECKED。根据返回的 remainingGuards，实际读回 binding/owner/attempt、目标机上的固定材料、当前入口与收口链，核对工具 recipe、宿主策略及权限，并检查秘密和矛盾副本。保存逐项证据后才记录 VALIDATED。常见密钥扫描不能证明没有未知格式的秘密。同修订相同字节复用；不同字节拒绝，改内容使用新修订。
+
+生成、完整校验、打开、人声明已转发、机器 claim 读回是五种事实。校验完成后，用宿主侧边栏或 IDE 的公开操作打开返回的绝对 path；queued 只算待展示。人原样转发，reduce 不自动发送或创建外部会话，也不让人补设计。新修订须重新校验；已认领后不得用重复消息绕过取消/写权交接。
 
 包必须包含开工与结束两个边界、本域裁量、停止条件、ready/blocked/failed 同一交接入口、处置等待及正常逐 R 等待。后续波使用 delta，保留同一 Line 会话，不再“首次派发”。内部单节点 map brief 与外部常驻线模板分开。
 

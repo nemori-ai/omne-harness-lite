@@ -400,3 +400,13 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 所有日志及判断依据使用既有 Evidence 定位与摘要格式。缺类别、重复 name、非零退出、未知结论、残留工作、引用变动或 head/base 不一致均拒绝。完整性与行为覆盖的最终判断仍由 reduce 和独立验收承担，结构化报告不能把窄测试扩称整体通过。
 
 验证资源为 [delivery-collaboration-verification.spec.ts](../../tests/delivery-collaboration-verification.spec.ts)。这些确定性测试覆盖精确 subject、四类覆盖、来源身份、旧证据和失败拒绝，不能代替真实运行与独立判断。
+
+## 首次派发消息具体化
+
+`line-initial-dispatch-cli.ts` 提供 fields、render 和 validate。模板来自工具源码检出的固定模板路径，不从输入 JSON 选择代码或模板。fields 返回模板占位名。输入只含 schemaVersion、milestone、line、revision、fields，未知顶层字段拒绝；字段集合必须与模板完全相同。line 是受限短名，milestone/revision 为正整数，dispatch_revision 必须相同。只输出模板的消息正文，不把填写说明交给 Line。
+
+生成使用独占创建。同修订、同内容重放复用文件；已有不同内容或损坏文件明确拒绝，不能静默覆盖。validate 重新渲染并核对实际文件字节。空字段、残留占位、重复 CLI 选项、常见 token/private key 和 smee 频道地址拒绝。该扫描不是通用秘密证明。输入中的命令始终是消息文本，工具不执行它们。
+
+工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN、FORWARDED_REPORTED 或 CLAIMED_READBACK。正式消息不改变 binding 的写范围或已有唯一执行。
+
+验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更及五事实不混同。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。

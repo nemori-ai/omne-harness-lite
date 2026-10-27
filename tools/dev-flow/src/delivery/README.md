@@ -365,3 +365,16 @@ pnpm --filter @omne-harness/dev-flow typecheck
 平台边界依据 GitHub 官方的[Issue依赖API](https://docs.github.com/en/rest/issues/issue-dependencies)、[Issue API](https://docs.github.com/en/rest/issues/issues)及[GraphQL对象](https://docs.github.com/en/graphql/reference/objects)。实际远端读回仍以采集结果为准。
 
 可选任务绑定和条件目标 scope 由 [binding.ts](binding.ts) 解析，供[集成工具](../integration/README.md)消费。旧六列表 scope 为 all；七列表最后一列是适用目标。阶段等待图尚未完整验证目标层细化，报告保留 uncovered。观察不检查 Git 是否真的达到 completionTarget，也不授发布权限。
+
+## 首次派发临时消息
+
+Reduce 从有效 binding、线包、计划、宿主策略和目标机配置填写输入。使用 `pnpm initial-dispatch fields` 取得固定模板的完整字段名。JSON 包含 schemaVersion=1、milestone、line、revision 和 fields；line 只允许小写字母、数字及连字符，fields 是全部字段的非空字符串映射。
+
+```sh
+pnpm initial-dispatch render --input tmp/<task>/initial-dispatch.json --root <目标检出>
+pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --root <目标检出>
+```
+
+消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。同修订相同内容复用，不同内容拒绝覆盖。修改输出文件后 validate 拒绝。工具不会执行填写的命令、开窗口、转发消息或认领任务。
+
+GENERATED 仅证明文件已生成。STRUCTURE_CHECKED 仅证明字段、修订、常见敏感模式及字节检查通过。Reduce 按返回的 remainingGuards 逐项读回授权、固定输入、目标机实际命令和当前收口链，并检查秘密及矛盾后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。

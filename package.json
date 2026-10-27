@@ -50,7 +50,8 @@
     "docs:inventory": "uv run --locked omne-documentation inventory --summary --out tmp/documentation-inventory",
     "role-eval": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.meta_harness/agents/evaluation/harness uv run --locked python -m roleeval",
     "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts",
-    "facts:prepare": "pnpm --filter @omne-harness/dev-flow facts:prepare"
+    "facts:prepare": "pnpm --filter @omne-harness/dev-flow facts:prepare",
+    "initial-dispatch": "node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-config": "catalog:",

@@ -3528,6 +3528,21 @@
       "requiredSections": []
     },
     {
+      "id": "engineering-map-reduce-states",
+      "path": "docs/engineering/map-reduce-states.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/integration.md",
+        "anchor": "集成节点的清单"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
       "id": "engineering-ledger-m1.5",
       "path": "docs/engineering/ledger/m1.5/README.md",
       "kind": "standard",
