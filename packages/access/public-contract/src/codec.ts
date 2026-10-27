@@ -712,9 +712,7 @@ function responseBody<V extends string, P extends string, S extends string>(
   outcome: string,
 ): Rule | undefined {
   if (!isRefusal(family, outcome))
-    return operation !== undefined && family.isProvided(operation)
-      ? family.responseRule(operation, outcome)
-      : undefined
+    return family.isProvided(operation) ? family.responseRule(operation, outcome) : undefined
   if (outcome === 'protocol-rejected') return empty
   return operation === undefined || isStage(family, operation) ? empty : undefined
 }
