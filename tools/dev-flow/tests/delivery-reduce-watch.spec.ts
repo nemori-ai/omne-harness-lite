@@ -156,7 +156,11 @@ function fixture(kinds: ('active' | 'idle' | 'terminal')[] = ['idle', 'active', 
       `- 交付修订：1\n- 卡负责人、主结果接受者及授权依据：${responsibility}\n\n${block(BINDING_MARKERS[2], b)}`
   }
   function active(wave: number): ActiveAssignment {
-    const task = binding(wave * 100 + 1, wave * 100 + 90)
+    const task = {
+      ...binding(wave * 100 + 1, wave * 100 + 90),
+      responsible: 'line-owner',
+      branch: 'line-owner/collaboration',
+    }
     setBinding(task)
     add(
       task.issue.number,
@@ -371,6 +375,8 @@ function fixture(kinds: ('active' | 'idle' | 'terminal')[] = ['idle', 'active', 
         }
         throw new Error('404 comment')
       }
+      if (/^repos\/owner\/repo\/issues\/\d+\/parent$/.test(path))
+        return { number: 10, html_url: 'https://github.com/owner/repo/issues/10' }
       const match =
         /^repos\/owner\/repo\/issues\/(\d+)(?:\/(comments|events)\?per_page=100&page=(\d+))?$/.exec(
           path,
@@ -468,6 +474,38 @@ async function cli(
 }
 
 describe('one actual reduce per original wait result', () => {
+  it('refuses an otherwise valid task dispatched to another line writer', async () => {
+    const f = fixture(['active', 'terminal']),
+      task = f.card(201)
+    task.body = task.body
+      .replaceAll('"responsible":"line-owner"', '"responsible":"other"')
+      .replaceAll('line-owner/collaboration', 'other/collaboration')
+    for (const comment of task.comments)
+      comment.body = comment.body
+        .replaceAll('"responsible":"line-owner"', '"responsible":"other"')
+        .replaceAll('line-owner/collaboration', 'other/collaboration')
+    const result = await cli(f)
+    expect(result.code).toBe(2)
+    expect(result.result.errorCode).toBe('watch-task-line-owner-mismatch')
+  })
+  it('refuses an otherwise valid task attached to a different native parent', async () => {
+    const f = fixture(['active', 'terminal']),
+      read = f.ports.read
+    f.ports.read = (args, timeout) =>
+      args.at(-1)?.endsWith('/parent')
+        ? { number: 20, html_url: 'https://github.com/owner/repo/issues/20' }
+        : read(args, timeout)
+    const result = await cli(f)
+    expect(result.code).toBe(2)
+    expect(result.result.errorCode).toBe('watch-task-line-parent-mismatch')
+  })
+  it('refuses an initial parent assignment from a different milestone', async () => {
+    const f = fixture()
+    f.card(10).milestone = { number: 999, title: 'Different milestone' }
+    const result = await cli(f)
+    expect(result.code).toBe(2)
+    expect(result.result.errorCode).toBe('watch-parent-milestone-mismatch')
+  })
   it('advances idle -> active -> terminal and never skips an already closed successor', async () => {
     const f = fixture()
     const a = await cli(f)
@@ -476,7 +514,10 @@ describe('one actual reduce per original wait result', () => {
       reduceIssue: 100,
       currentAction: 'rearm',
       next: { reduceIssue: 200 },
+      source: 'github-rest',
+      diagnostics: [],
     })
+    expect(a.result.evidence).toHaveLength(3)
     const b = await cli(f)
     expect(b.result).toMatchObject({
       reduceIssue: 200,
@@ -760,6 +801,42 @@ function blockedFixture(action: 'takeover' | 'redispatch' | 'rescope') {
 }
 
 describe('non-success disposition while the current reduce stays open', () => {
+  it('does not grant an old redispatch after the new attempt has handed off', async () => {
+    const f = blockedFixture('redispatch'),
+      input = f.inputDisposition()
+    const first = await runReduceWatch(input, f.ports)
+    if (first.status !== 'disposition' || first.facts.disposition.action !== 'redispatch')
+      throw new Error('Expected redispatch fixture')
+    const receipt = structuredClone(f.r)
+    receipt.input.requestId = first.facts.disposition.newRequestId
+    receipt.input.tasks = first.facts.disposition.assignment.tasks
+    receipt.workflow.runId += 1
+    receipt.workflow.inputDigest = digest(canonical(receipt.input))
+    const posted = f.add(100, 126, encodeRecordComment(receipt), at(1, 20), 'github-actions[bot]')
+    posted.user.type = 'Bot'
+    const read = f.ports.read
+    f.ports.read = (args, timeout) =>
+      args.at(-1)?.includes(`/actions/runs/${receipt.workflow.runId}/`)
+        ? {
+            repository: { full_name: 'owner/repo' },
+            id: receipt.workflow.runId,
+            run_attempt: 1,
+            path: receipt.workflow.path,
+            head_branch: receipt.workflow.ref,
+            head_sha: receipt.workflow.head,
+            event: 'workflow_dispatch',
+            display_title: requestRunName(receipt.input, receipt.workflow.inputDigest),
+            actor: { login: 'line-owner' },
+            triggering_actor: { login: 'line-owner' },
+            created_at: at(1, 20),
+            status: 'completed',
+            conclusion: 'success',
+          }
+        : read(args, timeout)
+    const saved = readFileSync(input.journal, 'utf8')
+    await expect(runReduceWatch(input, f.ports)).rejects.toThrow('watch-task-already-handed-off')
+    expect(readFileSync(input.journal, 'utf8')).toBe(saved)
+  })
   it.each(['takeover', 'rescope'] as const)(
     '%s returns current wave rearm without treating disposition as release',
     async action => {

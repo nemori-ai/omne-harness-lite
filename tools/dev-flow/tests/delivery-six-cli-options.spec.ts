@@ -1,12 +1,20 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  realpathSync,
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 
-const home = mkdtempSync(join(tmpdir(), 'six-cli-options-')),
+const home = realpathSync(mkdtempSync(join(tmpdir(), 'six-cli-options-'))),
   missing = join(home, 'absent.json'),
   calls = join(home, 'unexpected-gh'),
   bin = join(home, 'bin')

@@ -129,7 +129,9 @@ export function readReleasedWave(
         } catch (error) {
           if (
             !(error instanceof Error) ||
-            !/watch-task-(no-longer-active|binding-stale|dispatch-stale)/.test(error.message)
+            !/watch-task-(no-longer-active|binding-stale|dispatch-stale|already-handed-off)/.test(
+              error.message,
+            )
           )
             throw error
           if (next === null || readReleasedWave(ports, next, line.lineParent, true) === undefined)

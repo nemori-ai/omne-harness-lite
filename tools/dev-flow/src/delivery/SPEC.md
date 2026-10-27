@@ -228,6 +228,12 @@ recover 模式只读，返回已核对的精确引用或 unknown。完整读取�
 
 ## 事件等待
 
+`runReduceWatch` 每次消费一张实际 reduce 的完整 release，或一个非成功申请的处置。放行前核对接受决定、全部 delta、下一波实际卡、最终记录及关闭事件；重开、撤销和未知记录不能授予开工。active 任务必须仍归该线负责人及原生线父卡，属于当前里程碑并匹配正式派发与基线。已经登记交接的任务不能通过重放旧 release 或 redispatch 再次取得写权。
+
+历史 active 任务已过期时，只有直接后继也有有效最终 release 与关闭证据，才返回 `recover-next`。返回仍只消费当前这一个节点，不重新开旧任务。重复 operationId 从原目标重新核对权威事实，持久结果本身不授予当前权限。
+
+等待游标保存在本机 JSON journal。获取、残锁恢复和释放共用 Node `node:sqlite` 的本机进程互斥，进程退出释放该互斥；恢复仍须显式指定 `--recover-lock` 并确认旧 marker 属于已停止的本机 PID。释放时只删除本操作的 marker。journal 必须是普通单链接文件，拒绝文件本身为符号链接或硬链接；父目录路径别名不另开并发写权。该保证适用于本机文件系统，不声明网络文件系统上的分布式锁。跨机器业务恢复仍以 GitHub 记录为准。Node 24 的 [DatabaseSync 文档](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html) 是所用运行时接口的依据。
+
 线会话与集成节点阻塞在 GitHub 事件上，不轮询 API。接收器把 webhook 事件追加到本机的事件文件，`wait-cli.ts` 读这个文件。`wait-cli.ts` 不写平台。频道接收器只管理归属已证实的精确 hook。legacy 转发器保留单机用途，不自动删除归属未知的 hook。
 
 `events.ts` 的 `normalizeGithubEvent` 把一次投递归一成 `EventRecord`：`delivery`、`event`、`action`、`number`、`state`、`draft`、`base`、`marker`、`html_url`、`receivedAt`。缺少 `X-GitHub-Event` 头或 payload 不是对象时抛出 `DeliveryInputError`。投递不带的字段为 null。评论的 `marker` 取正文第一行 `<!-- ... -->` 里的第一个词，第一行没有这样的注释时为 null。

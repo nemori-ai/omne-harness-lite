@@ -8,7 +8,12 @@ import {
   uuid,
 } from './collaboration-values.ts'
 import { successor } from './collaboration-state-values.ts'
-import type { Assignment, Continuation, WaveIdentity } from './collaboration-records.ts'
+import type {
+  Assignment,
+  CommentReference,
+  Continuation,
+  WaveIdentity,
+} from './collaboration-records.ts'
 import type { EventRecord } from './events.ts'
 import { waitForEvent } from './events-wait.ts'
 import { InputError } from './protocol.ts'
@@ -64,6 +69,9 @@ export type ReduceWatchResult = (WaveResult | DispositionResult) & {
   finalHead: string | null
   next: WaveIdentity | null
   instructions: string
+  evidence: CommentReference[]
+  diagnostics: string[]
+  source: 'github-rest'
 }
 
 type Operation = {
@@ -174,6 +182,9 @@ function outcome(
       ...common,
       status: 'disposition',
       facts,
+      evidence: [facts.reference],
+      diagnostics: [],
+      source: 'github-rest',
       currentAction: redispatch ? 'prepare' : 'rearm',
       taskAuthorization: redispatch ? 'current' : 'not-applicable',
       finalHead:
@@ -192,6 +203,9 @@ function outcome(
     status: continuation.kind === 'terminal' ? 'terminal' : 'released',
     facts,
     continuation,
+    evidence: [facts.releaseReference, facts.delta, facts.evidence.acceptance],
+    diagnostics: [],
+    source: 'github-rest',
     currentAction: facts.historical
       ? 'recover-next'
       : continuation.kind === 'active'

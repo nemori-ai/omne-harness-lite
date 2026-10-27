@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { realpathSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { git, blob } from '../src/integration/git.ts'
@@ -166,7 +166,7 @@ function fixture() {
 let root: string
 let pinned: PolicySource
 beforeAll(() => {
-  root = mkdtempSync(join(tmpdir(), 'omne-acceptance-'))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-acceptance-')))
   git(root, ['init', '--quiet'])
   git(root, ['config', 'user.name', 'Fixture'])
   git(root, ['config', 'user.email', 'fixture@example.invalid'])

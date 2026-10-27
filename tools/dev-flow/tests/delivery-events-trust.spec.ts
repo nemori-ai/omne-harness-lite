@@ -1,4 +1,4 @@
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { realpathSync, appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -27,7 +27,7 @@ const closed: EventRecord = {
   receivedAt: '2026-10-27T10:00:00Z',
 }
 function eventFile(content = ''): string {
-  const dir = mkdtempSync(join(tmpdir(), 'events-trust-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'events-trust-')))
   dirs.push(dir)
   const file = join(dir, 'events.jsonl')
   writeFileSync(file, content)
