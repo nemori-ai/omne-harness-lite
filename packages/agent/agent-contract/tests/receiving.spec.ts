@@ -2,6 +2,7 @@
 // conformance suite, and a provider that breaks one named rule fails the case of that rule. The
 // second part keeps the suites honest: a suite that passes a broken provider would prove nothing.
 import { describe, expect, it } from 'vitest'
+import type { ContentBlock } from '@omne-harness/content-block'
 import {
   accountCodec,
   organizationCodec,
@@ -10,15 +11,21 @@ import {
 } from '@omne-harness/legal-identity'
 import {
   decodeExecutionRevision,
+  decodeAgentExecutionId,
+  decodeAgentOperationId,
   type AgentAccountOutlet,
   type AgentJournalEntries,
   type Authority,
+  type ReceivedCommitInput,
 } from '@omne-harness/agent-contract'
 import {
   agentAccountOutletConformance,
   agentJournalEntriesConformance,
   memoryAgentAccountOutletFixture,
   memoryAgentJournalEntriesFixture,
+  memoryReceivedCommitFixture,
+  sampleReceivedModelResult,
+  type ReceivedCommitFixture,
   type ConformanceCase,
 } from '@omne-harness/agent-contract/testing'
 
@@ -155,5 +162,163 @@ describe('the outlet suite fails a provider that breaks a rule', () => {
     await expect(caseNamed(cases, 'arrives late').run()).rejects.toThrow(
       /should not replace the higher one/u,
     )
+  })
+})
+
+describe('joint received custody through the original conformance entry', () => {
+  it('runs the required profile and all original entry cases against one shared provider', async () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    const cases = agentJournalEntriesConformance(fixture, {
+      received: 'required',
+      joint: fixture.joint,
+    })
+    expect(cases.filter(test => test.name.startsWith('received ')).length).toBeGreaterThanOrEqual(
+      11,
+    )
+    await runAll(cases)
+  })
+
+  it('requires the explicitly selected fixture immediately', () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    expect(() =>
+      Reflect.apply(agentJournalEntriesConformance, undefined, [fixture, { received: 'required' }]),
+    ).toThrow(/needs a joint fixture/u)
+    expect(() =>
+      agentJournalEntriesConformance(fixture, {
+        received: 'required',
+        joint: { ...fixture.joint, received: {} } as unknown as ReceivedCommitFixture<
+          string,
+          ContentBlock
+        >,
+      }),
+    ).toThrow(/lacks commit/u)
+    expect(() =>
+      agentJournalEntriesConformance(fixture, {
+        received: 'required',
+        joint: { ...fixture.joint, entries: { record: fixture.entries.record } },
+      }),
+    ).toThrow(/share the entries port/u)
+  })
+
+  it('detects material exposed before joint publication through the public read', async () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    const joint = {
+      ...fixture.joint,
+      materials: {
+        ...fixture.joint.materials,
+        read: async () => ({ ok: fixture.joint.material('visibility') }),
+      },
+    }
+    const cases = agentJournalEntriesConformance(fixture, { received: 'required', joint })
+    await expect(caseNamed(cases, 'joint publication').run()).rejects.toThrow(
+      /material must not be visible before publication/u,
+    )
+  })
+
+  it('detects rewriting the original receipt operation on a duplicate', async () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    const joint = {
+      ...fixture.joint,
+      received: {
+        ...fixture.joint.received,
+        async commit(input: ReceivedCommitInput<string, ContentBlock>) {
+          const reply = await fixture.joint.received.commit(input)
+          if ('failure' in reply || reply.ok.kind !== 'committed') return reply
+          return {
+            ok: {
+              ...reply.ok,
+              value: {
+                ...reply.ok.value,
+                receipt: { ...reply.ok.value.receipt, operation: input.operation },
+              },
+            },
+          }
+        },
+      },
+    }
+    const cases = agentJournalEntriesConformance(fixture, { received: 'required', joint })
+    await expect(caseNamed(cases, 'concurrent and cross-operation').run()).rejects.toThrow(
+      /concurrent retry must recall the complete original receipt/u,
+    )
+  })
+
+  it('detects minting a new revision for retry', async () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    let replies = 0
+    const joint = {
+      ...fixture.joint,
+      received: {
+        ...fixture.joint.received,
+        async commit(input: ReceivedCommitInput<string, ContentBlock>) {
+          const reply = await fixture.joint.received.commit(input)
+          if ('failure' in reply || reply.ok.kind !== 'committed') return reply
+          replies += 1
+          const revision = decodeExecutionRevision(`bad-${replies}`)
+          if (!('ok' in revision)) throw new Error('invalid negative control revision')
+          return {
+            ok: {
+              ...reply.ok,
+              value: {
+                ...reply.ok.value,
+                receipt: { ...reply.ok.value.receipt, revision: revision.ok },
+              },
+            },
+          }
+        },
+      },
+    }
+    const cases = agentJournalEntriesConformance(fixture, { received: 'required', joint })
+    await expect(caseNamed(cases, 'concurrent and cross-operation').run()).rejects.toThrow(
+      /concurrent retry must recall the complete original receipt/u,
+    )
+  })
+})
+
+describe('reference material custody', () => {
+  it('checks the current principal for both joint and independently preserved materials', async () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    const execution = decodeAgentExecutionId('material-custody')
+    const operation = decodeAgentOperationId('material-custody')
+    if (!('ok' in execution) || !('ok' in operation)) throw new Error('invalid fixture identity')
+    await fixture.open(access, execution.ok)
+    const { material: _source, ...entry } = sampleReceivedModelResult(access.tenant, 'custody')
+    const input = {
+      ...access,
+      execution: execution.ok,
+      operation: operation.ok,
+      entry,
+      material: fixture.joint.material('custody'),
+    }
+    await fixture.joint.bind(input)
+    const committed = await fixture.joint.received.commit(input)
+    if (!('ok' in committed) || committed.ok.kind !== 'committed')
+      throw new Error('fixture commit failed')
+    const value = committed.ok.value
+    const legacy = await fixture.joint.materials.preserve({
+      ...access,
+      identity: 'legacy-custody',
+      consumer: entry.consumer,
+      value: input.material,
+    })
+    if (!('ok' in legacy)) throw new Error('fixture preserve failed')
+    const stranger = { tenant: access.tenant, principal: 'unqualified-principal' }
+    for (const source of [value.entry.material, legacy.ok]) {
+      expect(await fixture.joint.materials.read({ ...stranger, source })).toMatchObject({
+        failure: { kind: 'denied' },
+      })
+      expect(await fixture.joint.materials.read({ ...access, source })).toEqual({
+        ok: input.material,
+      })
+      fixture.joint.qualify(access, input.execution, 'denied')
+      expect(await fixture.joint.materials.read({ ...access, source })).toMatchObject({
+        failure: { kind: 'denied' },
+      })
+      fixture.joint.qualify(access, input.execution, 'allowed')
+    }
+    expect(value.saved.owner).toBe(entry.consumer.owner)
+    expect(
+      new Set([value.saved.record, value.receipt.evidence.record, value.entry.material.record])
+        .size,
+    ).toBe(3)
   })
 })

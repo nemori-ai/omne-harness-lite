@@ -194,6 +194,7 @@ commit、open、attach、load、recordResult、recordControl、tryFinish、recor
 [行为与约束](../../SPEC.md#生产者接收面)。
 
 - [receiving.ts](../../src/receiving.ts)：三类接收面条目 `StartFenceEntry`、`ReceivedEntry` 与 `StreamReferenceEntry`，它们的开放联合 `AgentJournalEntry`，`received` 条目的交付 `ReceivedDelivery`（按交付键的 kind 分支，账目交付必带该修订的 `CallAccount`），记录输入 `JournalEntryRecord` 与记录端口 `AgentJournalEntries`，账目出站的交接元组 `AgentAccountHandoff`、结果 `AgentAccountOutcome` 与端口 `AgentAccountOutlet`。
+- [receiving.ts](../../src/receiving.ts) 还导出独立的 `AgentReceivedCommits`。`ReceivedCommitInput` 携带条目草稿与完整材料。`ReceivedCommitValue` 保留原命令回执、完整条目与原 saved 依据。`ReceivedCommitResult` 区分 committed 与 excluded，`ReceivedCommitQuery` 另含 unknown。`AgentReceivedProvider` 描述同一提供者的 journal、entries、materials 与固定 received 能力。类型没有增加旧端口的必需成员。
 - [execution.ts](../../src/execution.ts)：`ExecutionSnapshot.entries` 是可选字段，提供者支持接收面条目时按提交顺序列出全部已提交条目。
 
 接收面类型直接引用原拥有者的定义，不另定回执类型：`ReceivedDelivery` 的键是 `M.ModelDeliveryKey` 与 `T.ToolDeliveryKey`，Model 的账目快照是 `M.ModelAccountSnapshot`，账目是 call-account 的 `CallAccount`，流引用是 stream-arrival 的 `StreamRef` 与 `StreamProducer`，围栏操作号是 Tool 根入口的 `T.ToolOperationId`。Tool 的 `StartGuard` 与 `ToolStartFence` 在 Tool 的 `./provider` 入口，本包不导入，`StartFenceEntry.guard` 只记 Agent 自己拥有的守卫字段。
@@ -201,6 +202,34 @@ commit、open、attach、load、recordResult、recordControl、tryFinish、recor
 `AgentAccessOperation` 增加 `receive-result`，供结果接收方在写 `received` 条目之前核验推送主体。这是给闭合联合加成员，属破坏性改动，规则见 SPEC 的“[结果接收](../../SPEC.md#结果接收)”。
 
 `./testing` 入口由 [testing.ts](../../src/testing.ts) 定义：`agentJournalEntriesConformance` 与 `agentAccountOutletConformance` 两个一致性套件，非耐久替身 `createMemoryAgentJournalEntries` 与 `createMemoryAgentAccountOutlet`，各自的夹具工厂，以及套件用的样例值。套件返回用例列表，不依赖测试框架，用例以 `node:assert` 的 AssertionError 失败。替身声明 `durability: 'none'`，不证明耐久、跨进程行为或真实 runtime。
+
+### 接收共同提交的使用与验证
+
+结果接收方先检查 `provider.received` 非空，再调用 `commit`。调用方提供不含材料证据的条目草稿和完整 `Material`。committed 后使用 `value.saved` 返回生产者保存回执。`value.receipt.evidence`、`value.entry.material` 和 `value.saved` 分别是命令、材料和保存依据，不互相替换。响应未知时按原 operation 调用 `query`。unknown 或查询失败不表示未提交。详细规则归 [接收共同提交](../../SPEC.md#接收共同提交)。
+
+原 `agentJournalEntriesConformance(fixture)` 继续验证旧条目端口。验证共同提交时，第二参数必须显式给出 `{ received: 'required', joint }`。缺少 joint、必需方法或共享 entries 引用时，套件立即失败。新用例与旧用例由同一入口返回，不自动探测或跳过共同提交能力。
+
+```ts
+import {
+  agentJournalEntriesConformance,
+  memoryReceivedCommitFixture,
+} from '@omne-harness/agent-contract/testing'
+
+const fixture = memoryReceivedCommitFixture(access, otherAccess)
+const cases = agentJournalEntriesConformance(fixture, {
+  received: 'required',
+  joint: fixture.joint,
+})
+for (const testCase of cases) await testCase.run()
+```
+
+[`ReceivedCommitFixture`](../../src/testing-received-fixture.ts) 定义提供者适配的测试边界。entries、received、materials、窄 Journal.query 与原 fixture.read 必须对应同一公开状态。`bind` 显式设置原冻结消费、材料保管归属与完整载荷，`qualify` 设置当前测试资格。这些设置不证明真实装配已能解析主体或消费绑定。pause、fault、exclude、retainSaved 和 loseMaterial 只控制测试中的交错、故障和既有事实，不进入生产端口。inspect 补充读取该 execution 的 revision、条目数和保管材料数。套件同时经原 read、materials.read 与 Journal.query 检查公开结果。
+
+[`memoryReceivedCommitFixture`](../../src/testing-received-memory.ts) 提供 `durability: 'none'` 的最小共享状态参考设施。它没有伪造完整 AgentJournal。新 commit 与旧 record 共用 operation、delivery 和材料状态。暂停的准备不公开材料，发布段一次建立所有事实。原 saved 缺失时不伪造证据，材料缺失时不补写历史。旧的两个替身工厂仍保留各自原有范围。
+
+[`共同提交用例`](../../src/testing-received-conformance.ts) 覆盖共同可见、确定失败、同操作和跨操作重试、并发、响应未知、权威排除与迟到提交、租户与当前资格、冻结绑定、ended 后保管和旧入口共存。[接收面测试](../../tests/receiving.spec.ts) 用材料提前可见、重复修订、回执 operation 被改写及 required 配置缺失核对套件能否检出错误。[类型测试](../../tests/receiving.spec-d.ts) 保留旧形状并核对新导出。运行入口仍为 `pnpm --filter @omne-harness/agent-contract test` 与 `typecheck`，仓库运行时经测试名额包装器调用。
+
+这些证据只覆盖参考设施的内存行为与公开类型。Session 的真实保存、跨进程认回和生产者完整交付链须由实际提供者与消费者验证。
 
 ## 逐操作及输入分类
 
