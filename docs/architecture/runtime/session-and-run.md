@@ -340,9 +340,9 @@ Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义�
 flowchart TD
   start[候选事实] --> happened{已经发生}
   happened -->|否| out[不进入会话日志]
-  happened -->|是| recover{缺了它就不能恢复身份、队列、Run、推进者、等待、消费位置、取消或终态}
+  happened -->|是| recover{缺了它就不能恢复身份、队列、Run、推进者、等待、消费位置、取消、终态或 Agent 执行接续}
   recover -->|是| basis[依据]
-  recover -->|否| other{当前值、内部步骤或 Cordis 通知}
+  recover -->|否| other{能重新读取的外部当前值、可丢弃的局部计算或 Cordis 通知}
   other -->|是| out
   other -->|否| trace[留痕。可以保存。不改变治理]
 ```
