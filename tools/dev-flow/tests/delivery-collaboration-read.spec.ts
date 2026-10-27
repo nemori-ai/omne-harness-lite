@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { encodeRecordComment } from '../src/delivery/collaboration-comments.ts'
+import { commentDigest, encodeRecordComment } from '../src/delivery/collaboration-comments.ts'
 import {
   readCompleteComments,
+  readReferencedComment,
   recordComments,
   type CollaborationComment,
 } from '../src/delivery/collaboration-read.ts'
@@ -88,6 +89,48 @@ describe('complete collaboration comment reads', () => {
     const selected = recordComments(readCompleteComments('owner/repo', 10, source([comment])))
     expect(selected).toHaveLength(1)
     expect(selected[0]?.author).toBe('unauthorized-user')
+  })
+})
+
+describe('referenced comment reads', () => {
+  const body = encodeRecordComment(delta())
+  const reference = { issue: 10, commentId: 24, sha256: commentDigest(body) }
+
+  it('reads the exact comment and preserves its author for a separate permission check', () => {
+    const raw = rawComment(24, body)
+    raw.user.login = 'untrusted'
+    const read = vi.fn<GhRead>(() => raw)
+    expect(readReferencedComment('owner/repo', reference, read)).toMatchObject({
+      id: 24,
+      body,
+      author: 'untrusted',
+    })
+    expect(read.mock.calls[0]?.[0].at(-1)).toBe('repos/owner/repo/issues/comments/24')
+  })
+
+  it('rejects edits including whitespace-only changes after a digest was published', () => {
+    expect(() =>
+      readReferencedComment('owner/repo', reference, () => rawComment(24, body + '\n')),
+    ).toThrow('digest-mismatch')
+  })
+
+  it('rejects another comment, card or repository even with identical bytes', () => {
+    expect(() =>
+      readReferencedComment('owner/repo', reference, () => rawComment(25, body)),
+    ).toThrow('reference-mismatch')
+    expect(() =>
+      readReferencedComment('owner/repo', { ...reference, issue: 20 }, () => rawComment(24, body)),
+    ).toThrow('identity-mismatch')
+    expect(() =>
+      readReferencedComment('other/repo', reference, () => rawComment(24, body)),
+    ).toThrow('identity-mismatch')
+  })
+
+  it('propagates missing or unreadable evidence without replacing it with current state', () => {
+    const missing: GhRead = () => {
+      throw new Error('404 fixture')
+    }
+    expect(() => readReferencedComment('owner/repo', reference, missing)).toThrow('404 fixture')
   })
 })
 

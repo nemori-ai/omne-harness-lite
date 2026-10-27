@@ -170,6 +170,8 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 [collaboration-read.ts](collaboration-read.ts) 按每页 100 条读取全部评论，读前和读后核对 Issue 身份、正文、更新时间及评论总数。重复页、数量不足或读取期间变化均失败，不返回 empty。这个检查不提供 GitHub 跨请求事务保证。写入、放行或接受前，调用方仍须重新核对所引用的精确记录、摘要和权限。
 
+`readReferencedComment` 按仓库、Issue、评论 ID 和 SHA-256 读取精确引用。返回另一评论、另一卡片或正文摘要变化均失败，空白编辑也不能通过旧摘要。删除和权限错误向调用方传播，不用当前状态替代证据。返回作者供后续权限检查，摘要匹配本身不授予信任。
+
 [collaboration-sequence.ts](collaboration-sequence.ts) 对一个完整记录流排序。revision 从 1 开始，每次增加 1，并引用上一记录 ID。同内容重试可去重，下一项可引用任一相同重试的 ID。同 revision 异文、同 operationId 异文、缺号、错误前项和混入其他流均失败。事件游标不表示业务记录已消费。
 
 [collaboration-trust.ts](collaboration-trust.ts) 根据调用方已从有效派发决定读回的权限快照校验记录。快照分开保存本波参与线、reduce epoch 历史、线负责人授权时段和采用的 workflow。配置对象存在不代表其权限已验证。重叠 reduce 写者、过期写者、撤销后的编辑、错误卡片或上下文均拒绝。ReleaseRecord 必须包含所有参与线，包括 idle。

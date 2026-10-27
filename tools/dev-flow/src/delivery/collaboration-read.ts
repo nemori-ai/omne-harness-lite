@@ -1,9 +1,13 @@
 import { array, canonical, integer, object, string } from '../integration/parse.ts'
 import { REST_HEADERS, type GhRead } from './github-read.ts'
 import { InputError } from './protocol.ts'
-import { decodeRecordComment } from './collaboration-comments.ts'
-import type { CollaborationRecord, WaveIdentity } from './collaboration-records.ts'
-import { utcTime } from './collaboration-values.ts'
+import { commentDigest, decodeRecordComment } from './collaboration-comments.ts'
+import type {
+  CollaborationRecord,
+  CommentReference,
+  WaveIdentity,
+} from './collaboration-records.ts'
+import { parseReference, utcTime } from './collaboration-values.ts'
 
 export type CollaborationComment = {
   id: number
@@ -114,6 +118,29 @@ export function recordComments(snapshot: CommentSnapshot): RecordComment[] {
     const record = decodeRecordComment(comment.body)
     return record === undefined ? [] : [{ ...comment, record }]
   })
+}
+
+/** Reads exact referenced bytes. Matching a digest does not establish the author's authority. */
+export function readReferencedComment(
+  repo: string,
+  reference: CommentReference,
+  read: GhRead,
+): CollaborationComment {
+  if (!/^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/.test(repo))
+    throw new InputError('collaboration-repo-invalid')
+  const ref = parseReference(reference)
+  const comment = parseCollaborationComment(
+    read(
+      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repo}/issues/comments/${ref.commentId}`],
+      15_000,
+    ),
+    repo,
+    ref.issue,
+  )
+  if (comment.id !== ref.commentId) throw new InputError('collaboration-comment-reference-mismatch')
+  if (commentDigest(comment.body) !== ref.sha256)
+    throw new InputError('collaboration-comment-digest-mismatch')
+  return comment
 }
 
 export function recordContext(record: CollaborationRecord): WaveIdentity {
