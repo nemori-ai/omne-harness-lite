@@ -70,7 +70,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 持续验证与限制
 
-`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改三族、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
+`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
 
 真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
 
@@ -86,7 +86,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 `attributeFindings({ binding, card, conditionCards, lines, registry })` 是纯函数，判据归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)与[多层分支集成](../../../../docs/engineering/integration.md#交付线)：
 
-1. `readCardAttributes` 从「身份与责任」读交付线、性质与契约变更，并带上 Issue 的 milestone、标签与「交付条件」章节的文本。缺失或占位为 `attribute-missing`。重复、取值不在允许值中或组合不合法为 `attribute-invalid`。Issue 读到的 milestone 为 null 时为 `attribute-missing`，条款为 `milestone`。
+1. `readCardAttributes` 从「身份与责任」读交付线、性质与契约变更，并带上 Issue 的 milestone、标签与「交付条件」章节的文本。`workKind` 独立读取正文中唯一且属于六类采用范围的「主工作类型」，缺失、重复或未知值为 undefined；它不属于 binding 的三个属性。缺失或占位为 `attribute-missing`。重复、取值不在允许值中或组合不合法为 `attribute-invalid`。Issue 读到的 milestone 为 null 时为 `attribute-missing`，条款为 `milestone`。
 2. 正文的属性是判断依据。只有合格的属性参与下面各步。
 3. binding 为版本1时报告 `binding-v1`。版本2的交付线不在表中为 `attribute-invalid`。版本2的三个属性与正文不同、或里程碑与 Issue 现在的 milestone 不同为 `attribute-binding-drift`。
 4. 有 binding 时核对路线。交付线为 `integration`、或性质为 `integration` 或 `baseline` 的卡进入联调轨道。其余卡进入本线的线轨道，线的 `track` 为 null 时进入联调轨道。route 的轨道不同、或目标轨道未在 registry 登记为 `nature-route-mismatch`。交付线为 `integration` 的卡写线内路径时 route 须为 `cross-track`，且 owners 含受影响线的 owner。只写联调轨道路径时 route 须为 `track`。
@@ -98,7 +98,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 标签同步
 
-`labels.ts` 的 `syncLabels` 只读写一张卡的标签。它用固定 argv 调用 `gh api`：GET 读卡，POST 加标签，DELETE 删标签，不读 Project。卡身份不符或是 PR 时拒绝。目标集合是正文属性的投影，三个属性任一缺失或不合格时拒绝，不写入。写入只涉及 `line:`、`nature:`、`contract:` 三族中当前与目标的差异。写入后再读一次卡，`verified` 表示三族标签等于目标集合。某次写入失败时报告失败的序号，不回滚之前的写入。标签只是投影，正文仍是属性的唯一源。
+`labels.ts` 的 `syncLabels` 只读写一张卡的标签。它用固定 argv 调用 `gh api`：GET 读卡，POST 加标签，DELETE 删标签，不读 Project。卡身份不符或是 PR 时拒绝。目标集合由正文主工作类型和三个属性推导。主工作类型须唯一且属于 `protocol.ts` 的六类采用范围；三个属性任一缺失或不合格时也拒绝，不写入。写入只涉及 `kind:`、`line:`、`nature:`、`contract:` 四族中当前与目标的差异。写入后再读一次卡，`verified` 要求四族标签等于目标集合，且读回正文仍推导出同一目标集合。某次写入失败时报告失败的序号，不回滚之前的写入。标签只是投影，正文仍是属性的唯一源。
 
 ## 任务准入采集
 
@@ -142,7 +142,7 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 字段 ID、选项 ID 与看板设置只登记在[交付配置](../../../../docs/engineering/github-delivery.json)。`parseConfig` 读 `project.fields` 的六个看板字段（`line`、`kind`、`dispatchedAt`、`deliveredAt`、`acceptedAt`、`cycleDays`，缺省为 null），Wave 用已有的 `iteration` 字段，`project.options` 的 `stage`、`line` 与 `kind` 选项表（缺省为空）和 `board` 项（缺省为 null），只核对形状，所以没有这些键的旧配置照常可读。`boardEvent(config, event)` 在一个事件运行时判断语义，并把该事件启用的每个写入解析成带字段 ID 与选项的 `EnabledWrite`。没有 `board` 项、或该事件没有启用写入时返回 null，不判断 `board` 项的其余部分。否则：Project ID 须存在；`timeZone` 须是运行环境认可的 IANA 时区；未知事件拒绝；该事件只能启用表中属于自己的写入，同一写入不能列两次；每个启用的写入须有字段 ID（Status 用 Stage 字段，Wave 用 `iteration` 字段，Cycle days 还须有 Dispatched at 字段）；启用 Status 写入时，目标选项（In review、Integrating、Accepted）须在 `options.stage` 中。选项表按自有键查找，`constructor` 一类原型上的名字不算选项。
 
-`planBoardWrites` 只规划已解析的写入，输入还有写入前读到的条目字段值：本事件的日期字段写 `date`，但 Dispatched at 已有值时不覆盖；Wave 已有值时同样不覆盖；Line 写交付线对应的选项；Kind 写唯一 `kind:` 标签对应的选项；Wave 写起止范围包含 `date` 的迭代，即 `startDate` 不晚于 `date` 且相差少于 `duration` 天，几个迭代都包含 `date` 时取配置顺序中的第一个；Status 写本事件的目标选项；Cycle days 写 `date` 与 Dispatched at 相差的整天数。Dispatched at 或 Wave 已有值、缺少交付线、交付线没有选项、没有唯一 `kind:` 标签、Kind 没有选项、没有包含 `date` 的迭代、Dispatched at 为空、不是合法日期或晚于 `date` 时，该项进入 `skipped` 并写明原因，不猜测取值。
+`planBoardWrites` 只规划已解析的写入，输入还有写入前读到的条目字段值：本事件的日期字段写 `date`，但 Dispatched at 已有值时不覆盖；Wave 已有值时同样不覆盖；Line 写交付线对应的选项；Kind 写已通过 `cardKind` 核对的选项；该函数要求正文主工作类型唯一且有效，并与唯一 `kind:` 标签一致；Wave 写起止范围包含 `date` 的迭代，即 `startDate` 不晚于 `date` 且相差少于 `duration` 天，几个迭代都包含 `date` 时取配置顺序中的第一个；Status 写本事件的目标选项；Cycle days 写 `date` 与 Dispatched at 相差的整天数。Dispatched at 或 Wave 已有值、缺少交付线、交付线没有选项、正文主工作类型缺失、重复、无效或与唯一 `kind:` 标签不一致、Kind 没有选项、没有包含 `date` 的迭代、Dispatched at 为空、不是合法日期或晚于 `date` 时，该项进入 `skipped` 并写明原因，不猜测取值。
 
 `recordBoardEvent` 先读卡在配置 Project 中唯一的条目（Issue 节点的 `projectItems`，含已归档条目），没有或多于一个时拒绝。事件写 Dispatched at、Cycle days 或 Wave 时，在规划之前读一次条目的字段值。事件写 Wave 时，在规划之前读一次该迭代字段的 `configuration.iterations`，迭代长度不是正整数天时拒绝。每项写入是一次 `updateProjectV2ItemFieldValue`，查询文本固定，Project、条目、字段与值作为 GraphQL 变量传入：日期为 `value[date]`，数字以 `-F value[number]` 按数值传入，单选为 `value[singleSelectOptionId]`，迭代为 `value[iterationId]`。写入串行执行。某次写入失败时抛出 `BoardWriteError`，带序号、写入名与已规划的 `skipped`，不回滚。写完后读回各字段。结果是判别联合：`applied: false` 是只读取与规划的 `dryRun`，没有读回；`applied: true` 带 `readback` 与 `verified`，`verified` 表示每个字段等于写入值。错误消息不含 API 原文。
 

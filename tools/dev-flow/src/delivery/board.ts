@@ -166,9 +166,11 @@ export function cardLine(
   const values = attributes.fields.line
   return values.length === 1 ? values[0] : undefined
 }
-/** The work kind of a card's single `kind:` label; undefined without exactly one. */
-export function cardKind(labels: readonly string[]): string | undefined {
-  return singleLabel(labels, 'kind:')
+/** Projects Kind only when the unique label agrees with the valid body value. */
+export function cardKind(card: Pick<CardAttributes, 'workKind' | 'labels'>): string | undefined {
+  return card.workKind !== undefined && singleLabel(card.labels, 'kind:') === card.workKind
+    ? card.workKind
+    : undefined
 }
 
 /** One iteration of the Wave field: its first day and length in days. */
@@ -276,7 +278,10 @@ export function planBoardWrites({
       case 'kind': {
         const option = kind === undefined ? undefined : write.options.get(kind)
         if (kind === undefined)
-          skipped.push({ name: write.name, reason: 'The card has no single kind: label' })
+          skipped.push({
+            name: write.name,
+            reason: 'The card needs one valid body work kind and a matching kind: label',
+          })
         else if (option === undefined)
           skipped.push({ name: write.name, reason: `Kind has no option ${kind}` })
         else

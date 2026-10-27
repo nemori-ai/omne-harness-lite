@@ -83,7 +83,7 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 | --- | --- | --- | --- | --- | --- |
 | Status | 卡的调度阶段，取 [§2](#2-卡片与阶段) 表中的值，含 Integrating | Project 字段本身。任务事实仍归 Issue 正文，接受与取消归决定记录 | 按事件写，见本表下方的列表 | 阶段变化时 | 各里程碑看板与当前波的列、Active work 与周期的过滤、Awaiting acceptance |
 | Line | 卡的交付线 | 正文「交付线」。`line:` 标签与本字段都是投影。派发后取 binding 的 `line` | `start` 新建 context 后写入。失败时调度者用 `board-cli.ts dispatched` 补写 | 开工时 | 各里程碑看板与当前波的泳道、Active work 的排序、周期 |
-| Kind | 卡的主工作类型 | 正文「主工作类型」。本字段取卡上唯一的 `kind:` 标签 | 同 Line | 开工时 | 按 kind 分组 |
+| Kind | 卡的主工作类型 | 正文「主工作类型」。写入前核对唯一的 `kind:` 标签与正文一致 | 同 Line | 开工时 | 按 kind 分组 |
 | Wave | 卡所属的波 | 调度者在 Project 中为本波建的迭代，起止日覆盖本波的派发时间。`start` 取包含开工日的那个迭代 | 同 Line | 卡第一次开工时。卡已有 Wave 时不覆盖，同一张卡的新 attempt 不改 Wave | 当前波、路线图 |
 | Needs decision | `yes` 表示卡在等人拍板，`no` 或空表示不等 | Project 字段本身。要裁定的问题和决定写在卡的评论中 | 本卡调度者。工具不写 | 发现需要人裁定时置 `yes`，包括破坏性契约改动的申请。决定读回后置 `no` | 待裁 |
 | Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |

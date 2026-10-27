@@ -626,10 +626,14 @@ describe('Kind and Wave at dispatch', () => {
     expect(p.mutations()).toEqual([])
   })
 
-  it('reads the kind from exactly one kind: label', () => {
-    expect(cardKind(['level:subtask', 'kind:feature'])).toBe('feature')
-    expect(cardKind(['kind:feature', 'kind:bug'])).toBeUndefined()
-    expect(cardKind([])).toBeUndefined()
+  it('requires the unique kind label to agree with the valid body kind', () => {
+    expect(cardKind({ workKind: 'feature', labels: ['level:subtask', 'kind:feature'] })).toBe(
+      'feature',
+    )
+    expect(cardKind({ workKind: 'feature', labels: ['kind:feature', 'kind:bug'] })).toBeUndefined()
+    expect(cardKind({ workKind: 'feature', labels: [] })).toBeUndefined()
+    expect(cardKind({ workKind: 'bug', labels: ['kind:feature'] })).toBeUndefined()
+    expect(cardKind({ workKind: undefined, labels: ['kind:feature'] })).toBeUndefined()
   })
 
   it('refuses a Wave iteration with no whole positive length', () => {

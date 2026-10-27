@@ -1,12 +1,6 @@
 import { parseTaskBinding, parseConditionScope, type TaskBinding } from './binding.ts'
-export const workKinds = [
-  'feature',
-  'bug',
-  'refactor',
-  'performance',
-  'maintenance',
-  'investigation',
-] as const
+import { workKinds } from './work-kind.ts'
+export { workKinds } from './work-kind.ts'
 export const phases = ['start', 'integration', 'acceptance'] as const
 export const conditionKinds = ['issue-result', 'adopted-source', 'decision', 'capability'] as const
 export type Phase = (typeof phases)[number]

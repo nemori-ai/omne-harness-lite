@@ -75,11 +75,11 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 node --experimental-strip-types tools/dev-flow/src/delivery/labels-cli.ts --issue <N> [--apply]
 ```
 
-命令经 `gh api` 读一张卡，按正文属性算出 `line:`、`nature:`、`contract:` 三族标签的目标集合，向标准输出写增删差异。契约变更为 `none` 时目标中没有 `contract:` 标签。不读 Project。
+命令经 `gh api` 读一张卡，从正文的主工作类型及三个属性计算 `kind:`、`line:`、`nature:`、`contract:` 四族标签，向标准输出写增删差异。主工作类型须唯一且属于六类采用范围。契约变更为 `none` 时目标中没有 `contract:` 标签。不读 Project。
 
-加 `--apply` 时只增删这三族标签，其他标签不变。然后命令再读一次卡，核对三族标签等于目标集合，结果写在 `readback` 与 `verified` 中。
+加 `--apply` 时只增删这四族标签，其他标签不变。然后命令再读一次卡，核对标签和正文推导出的目标集合均未漂移，结果写在 `readback` 与 `verified` 中。
 
-- 正文属性缺失或不合格时退出2，不改标签。
+- 正文主工作类型或属性缺失、重复或不合格时退出2，不改标签。
 - 某次写入失败时退出2，消息给出失败的是第几次写入。之前的写入已生效，重试前先再读一次卡。
 - 读回与目标不同时退出1。
 

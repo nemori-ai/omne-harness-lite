@@ -78,7 +78,7 @@ try {
           card.attributes,
         )
       : undefined
-  const kind = args.event === 'dispatched' ? cardKind(card.attributes.labels) : undefined
+  const kind = args.event === 'dispatched' ? cardKind(card.attributes) : undefined
   const result = recordBoardEvent({
     config: board,
     issue: { id, url: card.url },

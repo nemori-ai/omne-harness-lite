@@ -41,7 +41,7 @@
 
 修订由卡owner授权后交正文单写者集成。语义变化升交付revision，保留既有决定范围；分类标签只投影正文。规范变义先由其拥有者接受并写回，卡引用新有效输入；原生边与条件表不一致须对账。改了卡不表示已满足准入。
 
-主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line与Kind字段也是投影：`start` 在开工时按binding与 `kind:` 标签写入，调度者可用 `board-cli.ts dispatched` 补写。各字段的唯一源与写者见[字段总表](delivery.md#字段总表)，字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
+主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line与Kind字段也是投影：`start` 在开工时按binding写 Line，核对正文主工作类型与唯一 `kind:` 标签一致后写 Kind，调度者可用 `board-cli.ts dispatched` 补写。各字段的唯一源与写者见[字段总表](delivery.md#字段总表)，字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
 
 当前波视图要求负责人已采用波的节奏，调度者已在Wave字段中为本波建好迭代；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
 
