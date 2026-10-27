@@ -69,6 +69,10 @@ describe('scope layer codec', () => {
   it.each([
     ['a session layer', '{"layer":"session","session":"lgn_abcdefghjkmnpqrstvwxyz2345"}'],
     ['a workspace layer', '{"layer":"workspace","workspace":"abcdefghjkmnpqrstvwxyz2345"}'],
+    [
+      'a workspace layer with a legal workspace text',
+      '{"layer":"workspace","workspace":"wsp_abcdefghjkmnpqrstvwxyz2345"}',
+    ],
     ['an account layer', '{"layer":"account","account":"acc_abcdefghjkmnpqrstvwxyz2345"}'],
     ['a factory default layer', '{"layer":"factoryDefault"}'],
   ])('rejects %s with family', (_case, text) => {
