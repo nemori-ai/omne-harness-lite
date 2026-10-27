@@ -22,6 +22,9 @@ it('publishes the adopted exports and the acting scope and access additions, not
       'actingScopeEquals',
       'systemScope',
       'tenantScope',
+      // Addition for the workspace identity family.
+      'workspaceCodec',
+      'workspaceEquals',
     ].sort(),
   )
 })
