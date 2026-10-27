@@ -2,7 +2,7 @@
 
 本页为维护者汇总核心链路及 Runtime Context、Request Context、Execution Environment 与 Session、Agent、Model、Tool 的交接。每行给出事实拥有者、消费者、公开入口、协调者和失败出处。精确行为继续归链接的领域、契约或协调者正文。
 
-状态：本页是 [#802](https://github.com/nemori-ai/omne-harness-lite/issues/802) 的关系导航候选，尚待本人接受。引用不扩大来源的采用范围，也不表示提供者、适配器或组合路径已实现。领域责任的接受范围见[领域入口](README.md#维护与状态)，系统采用范围见[架构入口](../architecture/README.md#采用状态与当前有效源)。
+状态：本页是 [#802](https://github.com/nemori-ai/omne-harness-lite/issues/802) 的关系导航候选，尚待 PanQiWei 或其授权的 M1.5 reduce 会话接受，见[接受权限](https://github.com/nemori-ai/omne-harness-lite/issues/802#issuecomment-6450209047)。引用不扩大来源的采用范围，也不表示提供者、适配器或组合路径已实现。领域责任的接受范围见[领域入口](README.md#维护与状态)，系统采用范围见[架构入口](../architecture/README.md#采用状态与当前有效源)。
 
 ## 核心链路与事实归属
 

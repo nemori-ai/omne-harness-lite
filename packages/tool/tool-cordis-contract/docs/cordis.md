@@ -156,7 +156,7 @@ Tool 门面只把 Commands/Reads 作为持久操作的静态必需依赖。Catal
 
 ## 两个动态服务键的 IC-6 映射
 
-本节是 [#802](https://github.com/nemori-ai/omne-harness-lite/issues/802) 的规则映射候选，待本卡独立评审与 PanQiWei 接受。它只说明既有服务职责怎样受 [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 约束，不选择具体提供者或 isolate 拓扑。[#618 的接受](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)明确不含这两个新服务键的 IC-6 评审，本节不改变该历史接受范围。
+本节是 [#802](https://github.com/nemori-ai/omne-harness-lite/issues/802) 的规则映射候选，尚待 PanQiWei 或其授权的 M1.5 reduce 会话接受，见[接受权限](https://github.com/nemori-ai/omne-harness-lite/issues/802#issuecomment-6450209047)。它只说明既有服务职责怎样受 [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 约束，不选择具体提供者或 isolate 拓扑。[#618 的接受](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)明确不含这两个新服务键的 IC-6 评审，本节不改变该历史接受范围。
 
 两个服务定义均由本成员 `./cordis` 唯一维护，具体提供者由应用装配选择。它们按各自承担的操作形成两个接缝，不能只因键名不同就推定责任独立。
 
