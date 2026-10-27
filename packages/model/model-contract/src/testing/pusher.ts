@@ -81,19 +81,51 @@ export type ScriptedResultPusher<P> = Readonly<{
   deliveries(): readonly PushRecord[]
   /** Resolves with the result delivery of the call once it, its ACK and its queued accounts are done. */
   settled(call: ScriptedCall): Promise<PushRecord>
-  /** Pushes the delivery with this key again, with the original key and frozen payload. */
+  /**
+   * Pushes the delivery with this key again, with the original key and frozen payload, and
+   * resolves with the result of this attempt. A saved delivery stays saved whatever it gets.
+   */
   redeliver(key: ModelDeliveryKey): Promise<PushRecord>
   acknowledgements(): readonly AckRecord[]
 }>
+
+/** What one attempt or a whole delivery came to; `saved` always carries its receipt. */
+type Standing =
+  | Readonly<{ status: 'pending' }>
+  | Readonly<{ status: 'saved'; receipt: ModelSavedReceipt }>
+  | Readonly<{ status: 'failed'; failure: PushFailure }>
+  | Readonly<{ status: 'unknown' }>
+type Saved = Extract<Standing, { status: 'saved' }>
+
+/**
+ * The standing of one delivery. Nothing can replace a `saved` standing: `conclude` is the only
+ * writer, and once the delivery is saved it keeps the first receipt and only hands back the
+ * standing of the later attempt.
+ */
+type StandingCell = Readonly<{
+  current(): Standing
+  conclude(attempt: Standing): Standing
+}>
+
+function standingCell(): StandingCell {
+  let standing: Standing = { status: 'pending' }
+  return {
+    current: () => standing,
+    conclude(attempt) {
+      if (standing.status !== 'saved') standing = attempt
+      return attempt
+    },
+  }
+}
 
 type Record = {
   readonly slot: Slot
   readonly key: ModelDeliveryKey
   delivery: ModelDelivery | null
   attempts: number
-  status: PushRecord['status']
-  receipt: ModelSavedReceipt | null
-  failure: PushFailure | null
+  readonly standing: StandingCell
+  /** Whether a push of this delivery is under way. */
+  inFlight: boolean
 }
 
 type Slot = {
@@ -127,20 +159,29 @@ function mintOperation(kind: 'ack' | 'push-read', call: ModelCallId): ModelOpera
   return decoded.ok
 }
 
-function snapshotOf(record: Record): PushRecord {
-  const base = { key: record.key, delivery: record.delivery, attempts: record.attempts }
-  switch (record.status) {
-    case 'pending':
-    case 'unknown':
-      return frozenCopy({ ...base, status: record.status })
-    case 'saved':
-      if (record.receipt === null) throw new Error('a saved delivery has no receipt')
-      return frozenCopy({ ...base, status: 'saved', receipt: record.receipt })
-    case 'failed':
-      if (record.failure === null) throw new Error('a failed delivery has no failure')
-      return frozenCopy({ ...base, status: 'failed', failure: record.failure })
+/**
+ * A frozen copy of `record` with `standing`. A thrown value stays the value the receiver threw:
+ * it is neither copied nor frozen, so its class and fields survive and it need not be cloneable.
+ */
+function snapshotOf(record: Record, standing: Standing = record.standing.current()): PushRecord {
+  const base = frozenCopy({ key: record.key, delivery: record.delivery, attempts: record.attempts })
+  if (standing.status === 'failed' && standing.failure.kind === 'threw') {
+    const failure: PushFailure = Object.freeze({ kind: 'threw', error: standing.failure.error })
+    return Object.freeze({ ...base, status: 'failed', failure })
   }
+  return Object.freeze({ ...base, ...frozenCopy(standing) })
 }
+
+/** The saved standing of a delivery, or null while it is not saved. */
+function savedOf(record: Record): Saved | null {
+  const standing = record.standing.current()
+  return standing.status === 'saved' ? standing : null
+}
+
+/** The operation prefixes that the double mints for itself; a caller may not use them. */
+const RESERVED_OPERATION_PREFIXES = ['ack', 'push-read'].map(
+  kind => `${MODEL_IDENTITY_PREFIXES.ModelOperationId}${kind}-`,
+)
 
 export function createScriptedResultPusher<P>(
   options: ScriptedResultPusherOptions<P>,
@@ -192,12 +233,6 @@ export function createScriptedResultPusher<P>(
     return result
   }
 
-  function fail(record: Record, failure: PushFailure): void {
-    record.status = 'failed'
-    record.failure = failure
-    record.receipt = null
-  }
-
   function accessOf(slot: Slot) {
     return { tenant: slot.tenant, principal }
   }
@@ -240,30 +275,19 @@ export function createScriptedResultPusher<P>(
       throw new Error('a result record of a call without admission')
     const { reference } = slot.admission
     const access = accessOf(slot)
+    const notFrozen = (step: 'inspect' | 'dispatches' | 'read', reason: string): false => {
+      record.standing.conclude({ status: 'failed', failure: { kind: 'not-frozen', step, reason } })
+      return false
+    }
     const lookup = await calls.inspect({ ...access, reference })
-    if ('failure' in lookup) {
-      fail(record, { kind: 'not-frozen', step: 'inspect', reason: JSON.stringify(lookup.failure) })
-      return false
-    }
-    if (lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled') {
-      fail(record, { kind: 'not-frozen', step: 'inspect', reason: 'the call is not settled' })
-      return false
-    }
+    if ('failure' in lookup) return notFrozen('inspect', JSON.stringify(lookup.failure))
+    if (lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled')
+      return notFrozen('inspect', 'the call is not settled')
     const state = lookup.ok.state
     const dispatches = await calls.dispatches({ ...access, call: slot.call })
-    if ('failure' in dispatches) {
-      fail(record, {
-        kind: 'not-frozen',
-        step: 'dispatches',
-        reason: JSON.stringify(dispatches.failure),
-      })
-      return false
-    }
+    if ('failure' in dispatches) return notFrozen('dispatches', JSON.stringify(dispatches.failure))
     const parts = await readParts(slot, reference, slot.operations.read, record.key.result)
-    if ('failure' in parts) {
-      fail(record, { kind: 'not-frozen', step: 'read', reason: parts.failure })
-      return false
-    }
+    if ('failure' in parts) return notFrozen('read', parts.failure)
     const delivery = frozenCopy<ModelDelivery>({
       kind: 'result',
       key: record.key,
@@ -279,61 +303,58 @@ export function createScriptedResultPusher<P>(
     return true
   }
 
-  /** Pushes the frozen delivery until it is saved, fails, or stays unknown after the redeliveries. */
-  async function deliver(record: Record): Promise<void> {
-    const { slot } = record
-    const delivery = record.delivery
-    if (delivery === null) throw new Error('a delivery is pushed before it was frozen')
-    record.status = 'pending'
+  /**
+   * Pushes the frozen delivery until it is saved, fails, or stays unknown after the
+   * redeliveries, and gives what this push came to. A saved delivery keeps its saved standing.
+   */
+  async function deliver(record: Record): Promise<Standing> {
+    if (record.delivery === null) throw new Error('a delivery is pushed before it was frozen')
+    record.inFlight = true
+    record.standing.conclude({ status: 'pending' })
+    try {
+      return record.standing.conclude(await push(record, record.delivery))
+    } finally {
+      record.inFlight = false
+    }
+  }
+
+  /** The pushes of one delivery, with the redeliveries on `outcome-unknown`. */
+  async function push(record: Record, delivery: ModelDelivery): Promise<Standing> {
     let receiver: ModelResultReceiver<P> | null
     try {
       receiver = resolveReceiver(delivery.consumer.owner)
     } catch (error) {
-      fail(record, { kind: 'threw', error })
-      return
+      return { status: 'failed', failure: { kind: 'threw', error } }
     }
-    if (receiver === null) {
-      fail(record, { kind: 'no-receiver' })
-      return
-    }
+    if (receiver === null) return { status: 'failed', failure: { kind: 'no-receiver' } }
     for (let redeliveries = 0; ; redeliveries += 1) {
       record.attempts += 1
       let outcome: Outcome<ModelSavedReceipt, ModelDeliveryFailure>
       try {
         outcome = await receiver.push({
-          access: accessOf(slot),
+          access: accessOf(record.slot),
           delivery,
           signal: new AbortController().signal,
         })
       } catch (error) {
-        fail(record, { kind: 'threw', error })
-        return
+        return { status: 'failed', failure: { kind: 'threw', error } }
       }
       if ('ok' in outcome) {
         const receipt = frozenCopy(outcome.ok)
-        if (sameValue(receipt.key, record.key)) {
-          record.status = 'saved'
-          record.receipt = receipt
-          record.failure = null
-        } else fail(record, { kind: 'receipt-key-mismatch', receipt })
-        return
+        return sameValue(receipt.key, record.key)
+          ? { status: 'saved', receipt }
+          : { status: 'failed', failure: { kind: 'receipt-key-mismatch', receipt } }
       }
-      if (outcome.failure.kind !== 'outcome-unknown') {
-        fail(record, { kind: 'rejected', failure: outcome.failure })
-        return
-      }
-      if (redeliveries >= maxRedeliveries) {
-        record.status = 'unknown'
-        record.receipt = null
-        record.failure = null
-        return
-      }
+      if (outcome.failure.kind !== 'outcome-unknown')
+        return { status: 'failed', failure: { kind: 'rejected', failure: outcome.failure } }
+      if (redeliveries >= maxRedeliveries) return { status: 'unknown' }
     }
   }
 
   /** Takes the ACK of a saved result through the retained handoff, resending on `commit-unknown`. */
   async function acknowledge(slot: Slot, record: Record): Promise<void> {
-    if (slot.acknowledged || record.receipt === null || record.key.kind !== 'result') return
+    const saved = savedOf(record)
+    if (slot.acknowledged || saved === null || record.key.kind !== 'result') return
     if (slot.operations === null) throw new Error('a saved result of a call without operations')
     const operation = slot.operations.ack
     const result = record.key.result
@@ -343,7 +364,7 @@ export function createScriptedResultPusher<P>(
         call: slot.call,
         operation,
         result,
-        evidence: { kind: 'retained', custody: record.receipt.evidence },
+        evidence: { kind: 'retained', custody: saved.receipt.evidence },
       })
       slot.ackAttempts += 1
       acks.push(
@@ -365,7 +386,8 @@ export function createScriptedResultPusher<P>(
 
   /** Pushes the queued late accounts of a call whose result is saved, in arrival order. */
   async function flushAccounts(slot: Slot): Promise<void> {
-    if (slot.result?.status !== 'saved' || slot.admission === null || slot.consumer === null) return
+    if (slot.result === null || savedOf(slot.result) === null) return
+    if (slot.admission === null || slot.consumer === null) return
     const { reference } = slot.admission
     for (;;) {
       const late = slot.lateAccounts.shift()
@@ -390,9 +412,8 @@ export function createScriptedResultPusher<P>(
           account: late.account,
         }),
         attempts: 0,
-        status: 'pending',
-        receipt: null,
-        failure: null,
+        standing: standingCell(),
+        inFlight: false,
       }
       records.push(record)
       await deliver(record)
@@ -401,7 +422,7 @@ export function createScriptedResultPusher<P>(
 
   /** After a push of a result: the ACK when it is saved, then the accounts that waited for it. */
   async function afterResult(slot: Slot, record: Record): Promise<void> {
-    if (record.status !== 'saved') return
+    if (savedOf(record) === null) return
     await acknowledge(slot, record)
     await flushAccounts(slot)
   }
@@ -423,9 +444,8 @@ export function createScriptedResultPusher<P>(
         key: { kind: 'result', reference: slot.admission.reference, result: input.version },
         delivery: null,
         attempts: 0,
-        status: 'pending',
-        receipt: null,
-        failure: null,
+        standing: standingCell(),
+        inFlight: false,
       }
       slot.result = record
       records.push(record)
@@ -466,6 +486,12 @@ export function createScriptedResultPusher<P>(
     runtime: {
       calls: {
         async admit(input) {
+          const operation: unknown = input.operation
+          if (
+            typeof operation === 'string' &&
+            RESERVED_OPERATION_PREFIXES.some(prefix => operation.startsWith(prefix))
+          )
+            throw misuse(`the operation ${operation} uses a prefix the pusher reserves`)
           const reply = await calls.admit(input)
           if ('ok' in reply)
             slotOf({ tenant: input.tenant, call: reply.ok.call }).admission = {
@@ -489,7 +515,7 @@ export function createScriptedResultPusher<P>(
     provider,
     controller,
     deliveries() {
-      return Object.freeze(records.map(snapshotOf))
+      return Object.freeze(records.map(record => snapshotOf(record)))
     },
     async settled(call) {
       const slot = slotOf(call)
@@ -503,11 +529,11 @@ export function createScriptedResultPusher<P>(
       const record = records.find(item => sameValue(item.key, key))
       if (record === undefined) throw misuse('no delivery has this key')
       if (record.delivery === null) throw misuse('the delivery was never frozen')
-      if (record.status === 'pending') throw misuse('the delivery is in flight')
+      if (record.inFlight) throw misuse('the delivery is in flight')
       return run(record.slot, async () => {
-        await deliver(record)
+        const attempt = await deliver(record)
         if (record.key.kind === 'result') await afterResult(record.slot, record)
-        return snapshotOf(record)
+        return snapshotOf(record, attempt)
       })
     },
     acknowledgements() {

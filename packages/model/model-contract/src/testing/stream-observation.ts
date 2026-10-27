@@ -2,7 +2,8 @@
 // and advances by hand. Each stream is keyed by its `StreamRef`; the public position advances on
 // every confirmed snapshot, state-only changes included. Frames follow the common observation
 // contract of stream-arrival: a snapshot first, then one delta per confirmed change, then one
-// terminal frame. Nothing here is persistent and nothing proves a real producer.
+// terminal frame, an end or a buffer gap. Nothing here is persistent and nothing proves a real
+// producer.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import {
   decodeStreamPosition,
@@ -21,7 +22,10 @@ import { modelStreamCodec } from './stream-codec.ts'
 import { frozenCopy } from './values.ts'
 
 export type ScriptedStreamObservationOptions = Readonly<{
-  /** How many frames one observer may leave untaken; beyond it the observer ends as `capacity`. */
+  /**
+   * How many frames one observer may leave untaken. A frame beyond it removes the subscription,
+   * drops the untaken frames and ends the observer with a buffer gap after its last taken frame.
+   */
   capacity?: number
 }>
 
@@ -41,8 +45,9 @@ export type ScriptedStreamObservation<P> = Readonly<{
 
 type Frame = StreamFrame<ModelStreamSnapshot, ModelStreamDelta>
 type Body = Extract<Frame, { kind: 'snapshot' | 'delta' }>
-type Terminal = Exclude<Extract<Frame, { kind: 'ended' }>, { reason: 'producer-ended' }>
-type EndReason = Terminal['reason']
+type Ended = Exclude<Extract<Frame, { kind: 'ended' }>, { reason: 'producer-ended' }>
+type EndReason = Ended['reason']
+type Terminal = Ended | Readonly<{ kind: 'gap'; after: StreamCursor | null; reason: 'buffer' }>
 type Request<P> = Parameters<ModelStreamObservation<P>['observe']>[0]
 
 type Stream<P> = {
@@ -61,12 +66,14 @@ type Observer<P> = {
   stream: Stream<P> | null
   status: 'new' | 'open' | 'terminal' | 'closed'
   queue: Body[]
+  /** The cursor of the last snapshot or delta handed to this observer. */
+  lastDelivered: StreamCursor | null
   terminal: Terminal | null
   readonly pending: ((result: IteratorResult<Frame>) => void)[]
   readonly onAbort: () => void
 }
 
-function ended(reason: EndReason): Terminal {
+function ended(reason: EndReason): Ended {
   return { kind: 'ended', reason }
 }
 
@@ -75,7 +82,7 @@ function ended(reason: EndReason): Terminal {
  * foreign tenant is denied, an unreadable envelope is stale. The other kinds wait for the control
  * plane, so they do not tell a denied observer anything.
  */
-function endBeforeControl(failure: StreamReferenceFailure): Terminal | null {
+function endBeforeControl(failure: StreamReferenceFailure): Ended | null {
   switch (failure.kind) {
     case 'invalid-tenant':
     case 'foreign-tenant':
@@ -117,7 +124,7 @@ export function createScriptedStreamObservation<P>(
    * The checks before any frame goes out, in the order of the common contract: tenant and
    * reference first, then the control plane, then the stream. Null means the frame may go.
    */
-  function qualify(observer: Observer<P>): Terminal | null {
+  function qualify(observer: Observer<P>): Ended | null {
     const judged = judgeStreamRef(
       { value: observer.request.ref, tenant: observer.request.access.tenant },
       modelStreamCodec,
@@ -131,8 +138,19 @@ export function createScriptedStreamObservation<P>(
     return 'failure' in judged ? ended('stale-stream') : endOfStream(observer, judged.ok)
   }
 
+  /**
+   * The disclosure check of a terminal frame the observer holds: denied and unavailable take its
+   * place, any other end keeps it, so a later end of the stream cannot replace a held gap.
+   */
+  function disclose(observer: Observer<P>, terminal: Terminal): Terminal {
+    const failure = qualify(observer)
+    if (failure !== null && (failure.reason === 'denied' || failure.reason === 'unavailable'))
+      return failure
+    return terminal
+  }
+
   /** The last check: the stream the reference names must be published and not ended. */
-  function endOfStream(observer: Observer<P>, ref: StreamRef): Terminal | null {
+  function endOfStream(observer: Observer<P>, ref: StreamRef): Ended | null {
     const stream = streams.get(ref)
     if (stream === undefined) return ended('stale-stream')
     if (stream.ended !== null) return ended(stream.ended)
@@ -170,19 +188,20 @@ export function createScriptedStreamObservation<P>(
       if (observer.status === 'terminal') {
         const terminal = observer.terminal
         if (terminal === null) throw new Error('a terminal observer holds no terminal frame')
-        observer.pending.shift()?.({ done: false, value: frozenCopy(terminal) })
+        observer.pending.shift()?.({ done: false, value: frozenCopy(disclose(observer, terminal)) })
         close(observer)
         return
       }
       const frame = observer.queue.shift()
       if (frame === undefined) return
+      observer.lastDelivered = frame.cursor
       observer.pending.shift()?.({ done: false, value: frozenCopy(frame) })
     }
   }
 
   function enqueue(observer: Observer<P>, frame: Body): void {
     if (capacity !== null && observer.queue.length + 1 > capacity) {
-      terminate(observer, ended('capacity'))
+      terminate(observer, { kind: 'gap', after: observer.lastDelivered, reason: 'buffer' })
       return
     }
     observer.queue.push(frame)
@@ -226,6 +245,7 @@ export function createScriptedStreamObservation<P>(
             stream: null,
             status: 'new',
             queue: [],
+            lastDelivered: null,
             terminal: null,
             pending: [],
             onAbort() {

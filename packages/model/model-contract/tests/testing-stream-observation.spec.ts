@@ -263,8 +263,8 @@ describe('an observation of a published Model stream', () => {
     expect(source.openObservations(stream())).toBe(0)
   })
 
-  it('ends a slow observer as capacity once its untaken frames exceed the limit', async () => {
-    const { source } = opened({ capacity: 2 })
+  it('ends a slow observer with a buffer gap after the last frame it took once its untaken frames exceed the limit', async () => {
+    const { source, published } = opened({ capacity: 2 })
     const reader = watch(source)
     await reader.next()
     source.advance({ tenant: tenant(), snapshot: second() })
@@ -279,8 +279,42 @@ describe('an observation of a published Model stream', () => {
       }),
     })
     expect(source.openObservations(stream())).toBe(0)
-    expect(await reader.next()).toEqual({ kind: 'ended', reason: 'capacity' })
+    expect(await reader.next()).toEqual({ kind: 'gap', reason: 'buffer', after: published })
     expect(await reader.next()).toBe('finished')
+  })
+
+  it('gives the buffer gap the cursor of the last delta the observer took, not the last one queued', async () => {
+    const { source } = opened({ capacity: 1 })
+    const reader = watch(source)
+    await reader.next()
+    const c2 = source.advance({ tenant: tenant(), snapshot: second() })
+    expect(await reader.next()).toMatchObject({ kind: 'delta', cursor: c2 })
+    source.advance({ tenant: tenant(), snapshot: third() })
+    source.advance({
+      tenant: tenant(),
+      snapshot: snapshot({
+        revision: '4',
+        outputCursor: '4',
+        blocks: [growing('0', 'abcd'), growing('1', 'x')],
+      }),
+    })
+    source.end({ ref: stream(), reason: 'source-closed' })
+    expect(await reader.next()).toEqual({ kind: 'gap', reason: 'buffer', after: c2 })
+    expect(await reader.next()).toBe('finished')
+  })
+
+  it('resolves a waiting next and every later next as done once the iterator returns', async () => {
+    const { source } = opened()
+    const iterator = source.observation
+      .observe({ access: access(), ref: stream(), signal: new AbortController().signal })
+      [Symbol.asyncIterator]()
+    expect(await iterator.next()).toMatchObject({ done: false, value: { kind: 'snapshot' } })
+    const waiting = iterator.next()
+    expect(await iterator.return?.()).toEqual({ done: true, value: undefined })
+    expect(await waiting).toEqual({ done: true, value: undefined })
+    source.advance({ tenant: tenant(), snapshot: second() })
+    expect(await iterator.next()).toEqual({ done: true, value: undefined })
+    expect(source.openObservations(stream())).toBe(0)
   })
 
   it('hands out frozen copies and is not changed by later changes to the inputs', async () => {
@@ -354,6 +388,46 @@ describe('what an observation request is refused with', () => {
     expect(await reader.next()).toEqual({ kind: 'ended', reason: 'denied' })
     expect(await reader.next()).toBe('finished')
     expect(source.openObservations(stream())).toBe(0)
+  })
+
+  it('ends as denied when the access is withdrawn after the source ended but before the reader took the end', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    source.end({ ref: stream(), reason: 'source-closed' })
+    source.setAccess(access(), 'deny')
+    expect(await reader.next()).toEqual({ kind: 'ended', reason: 'denied' })
+    expect(await reader.next()).toBe('finished')
+  })
+
+  it('ends as unavailable when the control plane goes away after the source ended but before the reader took the end', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    source.end({ ref: stream(), reason: 'source-closed' })
+    source.setAccess(access(), 'unavailable')
+    expect(await reader.next()).toEqual({ kind: 'ended', reason: 'unavailable' })
+  })
+
+  it('ends as denied when the access is withdrawn after a buffer overflow but before the reader took the gap', async () => {
+    const { source } = opened({ capacity: 1 })
+    const reader = watch(source)
+    await reader.next()
+    source.advance({ tenant: tenant(), snapshot: second() })
+    source.advance({ tenant: tenant(), snapshot: third() })
+    source.setAccess(access(), 'deny')
+    expect(await reader.next()).toEqual({ kind: 'ended', reason: 'denied' })
+    expect(await reader.next()).toBe('finished')
+  })
+
+  it('ends as denied when the access is withdrawn after an abort but before the reader took the end', async () => {
+    const { source } = opened()
+    const reader = watch(source)
+    await reader.next()
+    reader.abort()
+    source.setAccess(access(), 'deny')
+    expect(await reader.next()).toEqual({ kind: 'ended', reason: 'denied' })
+    expect(await reader.next()).toBe('finished')
   })
 })
 

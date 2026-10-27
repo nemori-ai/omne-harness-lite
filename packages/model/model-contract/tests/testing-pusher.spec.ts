@@ -3,6 +3,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import { succeed } from '@omne-harness/operation-result'
 import type {
   DispatchId,
+  ModelDeliveryFailure,
   ModelDeliveryKey,
   ModelResultReceiver,
   ResultVersion,
@@ -34,7 +35,22 @@ import {
 
 const limits: Budget = { records: 20, bytes: 100000, attachments: 10000, inFlight: 10 }
 
-/** A scripted provider behind the pusher, and the receiver fixture as the consumer owner `test`. */
+/** The receiver fixture behind a queue of scripted failures that answer the next pushes first. */
+function scriptedReplies(inner: ModelResultReceiver<Principal>) {
+  const replies: ModelDeliveryFailure[] = []
+  const receiver: ModelResultReceiver<Principal> = {
+    push: input => {
+      const failure = replies.shift()
+      return failure === undefined ? inner.push(input) : Promise.resolve({ failure })
+    },
+  }
+  return { receiver, answer: (...failures: ModelDeliveryFailure[]) => replies.push(...failures) }
+}
+
+/**
+ * A scripted provider behind the pusher, and the receiver fixture as the consumer owner `test`.
+ * `answer` queues failures that the next pushes get before they reach the fixture.
+ */
 function harness(over: Partial<ScriptedResultPusherOptions<Principal>> = {}) {
   const scripted = scriptedProvider()
   const store = createDeliveryFixture<Principal>({
@@ -42,13 +58,14 @@ function harness(over: Partial<ScriptedResultPusherOptions<Principal>> = {}) {
     tenants: [{ tenant: tenantA, reserved: limits }],
   })
   store.setAccess({ tenant: tenantA, principal: alice }, 'allow')
+  const replies = scriptedReplies(store.receiver)
   const pusher = createScriptedResultPusher<Principal>({
     scripted,
     principal: alice,
-    resolveReceiver: owner => (owner === consumer.owner ? store.receiver : null),
+    resolveReceiver: owner => (owner === consumer.owner ? replies.receiver : null),
     ...over,
   })
-  return { scripted, store, pusher }
+  return { scripted, store, pusher, answer: replies.answer }
 }
 type Harness = ReturnType<typeof harness>
 
@@ -229,23 +246,25 @@ describe('a settled call behind the push-producer double', () => {
   })
 })
 
-describe('late accounts behind the push-producer double', () => {
-  async function started(h: Harness, name: string) {
-    await admitted(h, name, [dispatch('first')])
-    h.pusher.controller.start({
-      ...callRef(name),
-      dispatch: dispatch('first'),
-      firstContent: 'observed',
-    })
-    h.pusher.controller.recordDispatch({ ...callRef(name), record: startedDispatch })
-  }
-  const accountKey = (name: string, revision: string): ModelDeliveryKey => ({
-    kind: 'account',
-    reference: access(name).reference,
+/** Admits the call with one started dispatch that has no account yet. */
+async function started(h: Harness, name: string) {
+  await admitted(h, name, [dispatch('first')])
+  h.pusher.controller.start({
+    ...callRef(name),
     dispatch: dispatch('first'),
-    revision,
+    firstContent: 'observed',
   })
+  h.pusher.controller.recordDispatch({ ...callRef(name), record: startedDispatch })
+}
 
+const accountKey = (name: string, revision: string): ModelDeliveryKey => ({
+  kind: 'account',
+  reference: access(name).reference,
+  dispatch: dispatch('first'),
+  revision,
+})
+
+describe('late accounts behind the push-producer double', () => {
   it('queues accounts that arrive before the result is saved and pushes them after it, in order', async () => {
     const h = harness()
     await started(h, 'a')
@@ -378,6 +397,26 @@ describe('what the push-producer double records instead of a save', () => {
     expect(h.pusher.acknowledgements()).toEqual([])
   })
 
+  it('records not-frozen when the pusher may not inspect the settled call, and pushes nothing', async () => {
+    const h = harness()
+    await admitted(h, 'a')
+    h.scripted.controller.revokeAccess({ ...callRef('a'), principal: alice, actions: ['inspect'] })
+    settle(h, 'a')
+    expect(await h.pusher.settled(callRef('a'))).toEqual({
+      key: resultKey('a'),
+      delivery: null,
+      attempts: 0,
+      status: 'failed',
+      failure: {
+        kind: 'not-frozen',
+        step: 'inspect',
+        reason: JSON.stringify({ kind: 'denied', action: 'inspect' }),
+      },
+    })
+    expect(h.pusher.acknowledgements()).toEqual([])
+    expect(h.store.events()).toEqual([])
+  })
+
   it('refuses to settle a call that was not admitted through the pusher, and leaves the call open', async () => {
     const h = harness()
     must(await h.scripted.provider.runtime.calls.admit(admission('a')))
@@ -415,6 +454,180 @@ describe('what the push-producer double records instead of a save', () => {
     await h.store.reached(resultKey('a'), 'material')
     expect(() => h.pusher.redeliver(resultKey('a'))).toThrow('in flight')
     h.store.resume(resultKey('a'), 'material', { actual: 'committed', observed: 'known' })
+    expect((await h.pusher.settled(callRef('a'))).status).toBe('saved')
+  })
+  it('shows a failed delivery as pending while a redelivery is in flight, and refuses a second one', async () => {
+    const h = harness()
+    await admitted(h, 'a')
+    h.answer({ kind: 'unavailable', dependency: 'material' })
+    settle(h, 'a')
+    expect(await h.pusher.settled(callRef('a'))).toMatchObject({ status: 'failed', attempts: 1 })
+    h.store.pauseAt(resultKey('a'), 'material')
+    const again = h.pusher.redeliver(resultKey('a'))
+    await h.store.reached(resultKey('a'), 'material')
+    expect(h.pusher.deliveries().map(item => item.status)).toEqual(['pending'])
+    expect(() => h.pusher.redeliver(resultKey('a'))).toThrow('in flight')
+    h.store.resume(resultKey('a'), 'material', { actual: 'committed', observed: 'known' })
+    expect(await again).toMatchObject({ status: 'saved', attempts: 2 })
+    expect(h.pusher.acknowledgements()).toHaveLength(1)
+  })
+})
+
+describe('a saved result behind the push-producer double stays saved', () => {
+  it('keeps saved and the original receipt when a later redelivery is denied, and still pushes a late account', async () => {
+    const h = harness()
+    await started(h, 'a')
+    settle(h, 'a')
+    const first = await h.pusher.settled(callRef('a'))
+    if (first.status !== 'saved') throw new Error('expected saved')
+    h.store.setAccess({ tenant: tenantA, principal: alice }, 'deny')
+    const attempt = await h.pusher.redeliver(resultKey('a'))
+    expect(attempt).toMatchObject({
+      key: resultKey('a'),
+      status: 'failed',
+      attempts: 2,
+      failure: { kind: 'rejected', failure: { kind: 'denied' } },
+    })
+    expect(attempt.delivery).toEqual(first.delivery)
+    h.store.setAccess({ tenant: tenantA, principal: alice }, 'allow')
+    h.pusher.controller.recordDispatch({
+      ...callRef('a'),
+      record: { ...startedDispatch, account: account('a', '1') },
+    })
+    const record = await h.pusher.settled(callRef('a'))
+    expect(record).toMatchObject({ status: 'saved', attempts: 2, receipt: first.receipt })
+    expect(h.pusher.deliveries().map(item => [item.key, item.status])).toEqual([
+      [resultKey('a'), 'saved'],
+      [accountKey('a', '1'), 'saved'],
+    ])
+    expect(h.pusher.acknowledgements()).toHaveLength(1)
+  })
+
+  it('keeps saved when a later redelivery is backpressured, and still pushes a late account', async () => {
+    const h = harness()
+    await started(h, 'a')
+    settle(h, 'a')
+    const first = await h.pusher.settled(callRef('a'))
+    if (first.status !== 'saved') throw new Error('expected saved')
+    h.answer({ kind: 'backpressured', resource: 'in-flight' })
+    expect(await h.pusher.redeliver(resultKey('a'))).toMatchObject({
+      status: 'failed',
+      attempts: 2,
+      failure: { kind: 'rejected', failure: { kind: 'backpressured', resource: 'in-flight' } },
+    })
+    h.pusher.controller.recordDispatch({
+      ...callRef('a'),
+      record: { ...startedDispatch, account: account('a', '1') },
+    })
+    expect(await h.pusher.settled(callRef('a'))).toMatchObject({
+      status: 'saved',
+      attempts: 2,
+      receipt: first.receipt,
+    })
+    expect(h.pusher.deliveries().map(item => [item.key, item.status])).toEqual([
+      [resultKey('a'), 'saved'],
+      [accountKey('a', '1'), 'saved'],
+    ])
+  })
+
+  it('keeps saved when a later redelivery stays unknown past the bound, and still pushes a late account', async () => {
+    const h = harness({ maxRedeliveries: 1 })
+    await started(h, 'a')
+    settle(h, 'a')
+    const first = await h.pusher.settled(callRef('a'))
+    if (first.status !== 'saved') throw new Error('expected saved')
+    h.answer({ kind: 'outcome-unknown' }, { kind: 'outcome-unknown' })
+    expect(await h.pusher.redeliver(resultKey('a'))).toMatchObject({
+      status: 'unknown',
+      attempts: 3,
+    })
+    h.pusher.controller.recordDispatch({
+      ...callRef('a'),
+      record: { ...startedDispatch, account: account('a', '1') },
+    })
+    expect(await h.pusher.settled(callRef('a'))).toMatchObject({
+      status: 'saved',
+      attempts: 3,
+      receipt: first.receipt,
+    })
+    expect(h.pusher.deliveries().map(item => [item.key, item.status])).toEqual([
+      [resultKey('a'), 'saved'],
+      [accountKey('a', '1'), 'saved'],
+    ])
+    expect(h.pusher.acknowledgements()).toHaveLength(1)
+  })
+})
+
+describe('what the push-producer double keeps of a receiver that throws', () => {
+  it('keeps the thrown error itself, with its class and fields', async () => {
+    class ReceiverError extends Error {
+      readonly code = 'E42'
+    }
+    const thrown = new ReceiverError('the receiver broke')
+    const h = harness({
+      resolveReceiver: () => ({
+        push: () => Promise.reject(thrown),
+      }),
+    })
+    await admitted(h, 'a')
+    settle(h, 'a')
+    const record = await h.pusher.settled(callRef('a'))
+    if (record.status !== 'failed' || record.failure.kind !== 'threw')
+      throw new Error('expected a threw failure')
+    expect(record.attempts).toBe(1)
+    expect(record.failure.error).toBe(thrown)
+    expect(record.failure.error).toBeInstanceOf(ReceiverError)
+    expect(thrown.code).toBe('E42')
+    expect(Object.isFrozen(thrown)).toBe(false)
+    expect(h.pusher.acknowledgements()).toEqual([])
+  })
+
+  it('still lists every delivery when the resolver throws a value that cannot be cloned', async () => {
+    const thrown = { detail: 'no receiver today', retry() {} }
+    const h = harness({
+      resolveReceiver: () => {
+        throw thrown
+      },
+    })
+    await admitted(h, 'a')
+    settle(h, 'a')
+    const record = await h.pusher.settled(callRef('a'))
+    expect(record).toMatchObject({ status: 'failed', attempts: 0, failure: { kind: 'threw' } })
+    const listed = h.pusher.deliveries()
+    expect(listed).toHaveLength(1)
+    const only = listed[0]
+    if (only?.status !== 'failed' || only.failure.kind !== 'threw')
+      throw new Error('expected a threw failure')
+    expect(only.failure.error).toBe(thrown)
+  })
+})
+
+describe('what the push-producer double does with an operation it reserves', () => {
+  it('refuses an admission whose operation starts with mop_ack- and does not forward it', async () => {
+    const h = harness()
+    await expect(
+      h.pusher.provider.runtime.calls.admit(admission('a', { operation: operation('ack-a') })),
+    ).rejects.toThrow(ScriptedModelError)
+    expect(h.pusher.deliveries()).toEqual([])
+    const accepted = must(await h.pusher.provider.runtime.calls.admit(admission('a')))
+    expect(accepted).toMatchObject({ call: call('a'), recovered: false })
+  })
+
+  it('refuses an admission whose operation starts with mop_push-read- and does not forward it', async () => {
+    const h = harness()
+    await expect(
+      h.pusher.provider.runtime.calls.admit(
+        admission('a', { operation: operation('push-read-b') }),
+      ),
+    ).rejects.toMatchObject({ reason: 'invalid-script' })
+    const accepted = must(await h.pusher.provider.runtime.calls.admit(admission('a')))
+    expect(accepted).toMatchObject({ call: call('a'), recovered: false })
+  })
+
+  it('admits an operation that only contains a reserved prefix later in its body', async () => {
+    const h = harness()
+    await admitted(h, 'a', [], { operation: operation('x-ack-a') })
+    settle(h, 'a')
     expect((await h.pusher.settled(callRef('a'))).status).toBe('saved')
   })
 })
