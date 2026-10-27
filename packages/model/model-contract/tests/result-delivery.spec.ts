@@ -30,10 +30,11 @@ function minted(account: string): TenantId {
   if (!value.ok) throw new Error('Invalid fixture tenant')
   return value.value
 }
-// Decoded fixtures are built inside each test, so a decoder fault fails that test rather than
-// the module load or the collection. Test tables hold plain text for the same reason.
-const tenant = minted('0')
-const foreign = minted('1')
+// Decoded fixtures, minted tenants included, are built inside each test, so a decoder fault
+// fails that test rather than the module load or the collection. Test tables hold plain text for
+// the same reason.
+const tenant = () => minted('0')
+const foreign = () => minted('1')
 const callId = () => must(decodeModelCallId('mcall_a'))
 const otherCallId = () => must(decodeModelCallId('mcall_b'))
 const admissionId = () => must(decodeModelOperationId('mop_a'))
@@ -44,7 +45,7 @@ const thirdDispatchId = () => must(decodeDispatchId('mdisp_c'))
 const consumer = { owner: 'owner', work: 'w', position: 'p', purpose: 'u' }
 const evidence = { owner: 'source', record: 'r', revision: '1', digest: 'source-only' }
 function reference(
-  target = tenant,
+  target = tenant(),
   targetCall = callId(),
   operation = admissionId(),
 ): ModelInvocationRef {
@@ -63,7 +64,7 @@ function account(): CallAccount {
   }
 }
 function resultDelivery(
-  target = tenant,
+  target = tenant(),
   revision = '1',
 ): Extract<ModelDelivery, { kind: 'result' }> {
   const result = must(decodeResultVersion('mrver_' + revision))
@@ -93,7 +94,7 @@ function accountDelivery(): Extract<ModelDelivery, { kind: 'account' }> {
   }
 }
 function judge(delivery: ModelDelivery) {
-  return judgeModelDelivery({ tenant, delivery })
+  return judgeModelDelivery({ tenant: tenant(), delivery })
 }
 
 describe('typed delivery relations through the public entry', () => {
@@ -102,7 +103,7 @@ describe('typed delivery relations through the public entry', () => {
     expect(judgeModelDelivery({ tenant: {}, delivery: resultDelivery() })).toEqual({
       failure: { field: 'tenant', reason: 'identity' },
     })
-    expect(judge(resultDelivery(foreign))).toEqual({
+    expect(judge(resultDelivery(foreign()))).toEqual({
       failure: { field: 'key.reference', reason: 'foreign-tenant' },
     })
   })
@@ -197,21 +198,21 @@ import {
 } from './helpers/result-delivery-fixture.ts'
 import { deliveryBytes } from './helpers/result-delivery-values.ts'
 const principal = Object.freeze({ subject: 'receiver' })
-const access = { tenant, principal }
+const access = () => ({ tenant: tenant(), principal })
 const limits: Budget = { records: 20, bytes: 100000, attachments: 10000, inFlight: 10 }
 const committed: StepFact = { actual: 'committed', observed: 'known' }
 const absent: StepFact = { actual: 'absent', observed: 'known' }
 function fixture(budget: Budget = limits) {
   const store = createDeliveryFixture<typeof principal>({
     limits: budget,
-    tenants: [{ tenant, reserved: budget }],
+    tenants: [{ tenant: tenant(), reserved: budget }],
   })
   store.establishOriginalCall({
     reference: reference(),
     consumer,
     dispatches: [dispatchId(), otherDispatchId()],
   })
-  store.setAccess(access, 'allow')
+  store.setAccess(access(), 'allow')
   return store
 }
 function push(
@@ -219,7 +220,7 @@ function push(
   delivery: ModelDelivery = resultDelivery(),
   signal = new AbortController().signal,
 ) {
-  return store.receiver.push({ access, delivery, signal })
+  return store.receiver.push({ access: access(), delivery, signal })
 }
 function commits(store: DeliveryFixture<typeof principal>, stage: 'material' | 'responsibility') {
   return store.events().filter(item => item.action === stage + '.commit').length
@@ -265,7 +266,7 @@ describe('receiver qualification and original ownership', () => {
         signal: aborted(),
       }),
     ).toEqual({ failure: { kind: 'denied' } })
-    expect(await push(store, resultDelivery(foreign))).toEqual({ failure: { kind: 'denied' } })
+    expect(await push(store, resultDelivery(foreign()))).toEqual({ failure: { kind: 'denied' } })
     expect(queries(store)).toEqual([])
   })
   it('R07 defaults to deny and keys permission by tenant and principal identity without traversing principal', async () => {
@@ -273,7 +274,7 @@ describe('receiver qualification and original ownership', () => {
     const copy = { subject: principal.subject }
     expect(
       await store.receiver.push({
-        access: { tenant, principal: copy },
+        access: { tenant: tenant(), principal: copy },
         delivery: resultDelivery(),
         signal: aborted(),
       }),
@@ -284,16 +285,19 @@ describe('receiver qualification and original ownership', () => {
         throw new Error('Principal was traversed')
       },
     })
-    const other = createDeliveryFixture<object>({ limits, tenants: [{ tenant, reserved: limits }] })
+    const other = createDeliveryFixture<object>({
+      limits,
+      tenants: [{ tenant: tenant(), reserved: limits }],
+    })
     other.establishOriginalCall({
       reference: reference(),
       consumer,
       dispatches: [dispatchId(), otherDispatchId()],
     })
-    other.setAccess({ tenant, principal: opaque }, 'allow')
+    other.setAccess({ tenant: tenant(), principal: opaque }, 'allow')
     expect(
       await other.receiver.push({
-        access: { tenant, principal: opaque },
+        access: { tenant: tenant(), principal: opaque },
         delivery: resultDelivery(),
         signal: new AbortController().signal,
       }),
@@ -306,7 +310,7 @@ describe('receiver qualification and original ownership', () => {
       const delivery = resultDelivery()
       await push(store, delivery)
       const before = queries(store).length
-      store.setAccess(access, decision)
+      store.setAccess(access(), decision)
       const expected =
         decision === 'deny'
           ? { kind: 'denied' }
@@ -315,7 +319,7 @@ describe('receiver qualification and original ownership', () => {
         delivery,
         {
           ...delivery,
-          key: { ...delivery.key, reference: reference(tenant, callId(), otherAdmissionId()) },
+          key: { ...delivery.key, reference: reference(tenant(), callId(), otherAdmissionId()) },
         },
         { ...delivery, parts: [] },
       ]) {
@@ -330,13 +334,13 @@ describe('receiver qualification and original ownership', () => {
     expect(
       await push(store, {
         ...delivery,
-        key: { ...delivery.key, reference: reference(tenant, otherCallId()) },
+        key: { ...delivery.key, reference: reference(tenant(), otherCallId()) },
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'key.reference', reason: 'not-accepted' } })
     expect(
       await push(store, {
         ...delivery,
-        key: { ...delivery.key, reference: reference(tenant, callId(), otherAdmissionId()) },
+        key: { ...delivery.key, reference: reference(tenant(), callId(), otherAdmissionId()) },
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'key.reference', reason: 'not-original' } })
     for (const field of ['owner', 'work', 'position', 'purpose']) {
@@ -380,7 +384,7 @@ describe('receiver qualification and original ownership', () => {
   it('R09a/R09b account subject alone cannot authorize another call dispatch', async () => {
     const store = fixture()
     store.establishOriginalCall({
-      reference: reference(tenant, otherCallId()),
+      reference: reference(tenant(), otherCallId()),
       consumer,
       dispatches: [thirdDispatchId()],
     })
@@ -395,10 +399,13 @@ describe('receiver qualification and original ownership', () => {
     expect(
       await push(store, {
         ...foreignDispatch,
-        key: { ...foreignDispatch.key, reference: reference(tenant, callId(), otherAdmissionId()) },
+        key: {
+          ...foreignDispatch.key,
+          reference: reference(tenant(), callId(), otherAdmissionId()),
+        },
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'key.reference', reason: 'not-original' } })
-    store.setAccess(access, 'deny')
+    store.setAccess(access(), 'deny')
     expect(await push(store, foreignDispatch)).toEqual({ failure: { kind: 'denied' } })
     expect(store.events().filter(item => item.action === 'dispatches.read')).toHaveLength(before)
   })
@@ -433,7 +440,7 @@ describe('receiver independent custody and retry facts', () => {
     const store = fixture()
     const delivery = resultDelivery()
     const receipt = must(await push(store, delivery))
-    const resources = store.resources(tenant)
+    const resources = store.resources(tenant())
     expect(
       await push(store, {
         ...delivery,
@@ -441,7 +448,7 @@ describe('receiver independent custody and retry facts', () => {
       }),
     ).toEqual({ ok: receipt })
     expect(receipt.evidence.owner).toBe(consumer.owner)
-    expect(store.resources(tenant)).toEqual(resources)
+    expect(store.resources(tenant())).toEqual(resources)
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
     expect(store.readRecord(delivery.key)).toMatchObject({
@@ -514,7 +521,7 @@ describe('receiver independent custody and retry facts', () => {
     const store = fixture()
     const delivery = resultDelivery()
     await partial(store, delivery)
-    const resources = store.resources(tenant)
+    const resources = store.resources(tenant())
     expect(resources).toMatchObject({ records: 1, inFlight: 0 })
     expect(store.readRecord(delivery.key)).toMatchObject({
       material: committed,
@@ -525,7 +532,7 @@ describe('receiver independent custody and retry facts', () => {
     })
     const receipt = must(await push(store, delivery))
     expect(receipt.evidence.record).toBe('1')
-    expect(store.resources(tenant)).toEqual(resources)
+    expect(store.resources(tenant())).toEqual(resources)
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
     expect(store.readRecord(delivery.key)?.attempts).toBe(2)
@@ -538,20 +545,20 @@ describe('receiver independent custody and retry facts', () => {
     await store.reached(delivery.key, 'material')
     store.resume(delivery.key, 'material', absent)
     expect(await response).toEqual({ failure: { kind: 'unavailable', dependency: 'material' } })
-    expect(store.resources(tenant)).toMatchObject({
+    expect(store.resources(tenant())).toMatchObject({
       records: 1,
       bytes: deliveryBytes(delivery),
       inFlight: 0,
     })
     expect(await push(store, { ...delivery, parts: [] })).toEqual({ failure: { kind: 'conflict' } })
     store.setDependency('material', 'unavailable')
-    expect(await push(store, resultDelivery(tenant, '2'))).toEqual({
+    expect(await push(store, resultDelivery(tenant(), '2'))).toEqual({
       failure: { kind: 'unavailable', dependency: 'material' },
     })
-    expect(await push(store, resultDelivery(tenant, '3'))).toEqual({
+    expect(await push(store, resultDelivery(tenant(), '3'))).toEqual({
       failure: { kind: 'backpressured', resource: 'records' },
     })
-    expect(store.resources(tenant).records).toBe(2)
+    expect(store.resources(tenant()).records).toBe(2)
     store.setDependency('material', 'available')
     expect(await push(store, delivery)).toHaveProperty('ok')
     expect(commits(store, 'material')).toBe(1)
@@ -566,7 +573,7 @@ describe('receiver independent custody and retry facts', () => {
     const delivery = resultDelivery()
     await unknown(store, delivery, stage, actual)
     const before = store.readRecord(delivery.key)
-    const resources = store.resources(tenant)
+    const resources = store.resources(tenant())
     expect(await push(store, delivery)).toEqual({ failure: { kind: 'outcome-unknown' } })
     expect(store.readRecord(delivery.key)).toEqual(before)
     expect(() =>
@@ -576,7 +583,7 @@ describe('receiver independent custody and retry facts', () => {
     expect(await push(store, delivery)).toHaveProperty('ok')
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
-    expect(store.resources(tenant)).toEqual(resources)
+    expect(store.resources(tenant())).toEqual(resources)
   })
   it('R17 preserves original receipt and responsibility after losing a saved response', async () => {
     const store = fixture()
@@ -609,13 +616,13 @@ describe('receiver independent custody and retry facts', () => {
     })
     const receipt = must(await push(store, delivery))
     expect(await push(store, delivery, aborted())).toEqual({ ok: receipt })
-    const second = resultDelivery(tenant, '2')
+    const second = resultDelivery(tenant(), '2')
     await unknown(store, second)
     const before = store.readRecord(second.key)
     expect(await push(store, second, aborted())).toEqual({ failure: { kind: 'outcome-unknown' } })
-    store.setAccess(access, 'deny')
+    store.setAccess(access(), 'deny')
     expect(await push(store, second)).toEqual({ failure: { kind: 'denied' } })
-    store.setAccess(access, 'unavailable')
+    store.setAccess(access(), 'unavailable')
     expect(await push(store, second)).toEqual({
       failure: { kind: 'unavailable', dependency: 'qualification' },
     })
@@ -630,14 +637,14 @@ describe('receiver independent custody and retry facts', () => {
     await store.reached(delivery.key, 'material')
     controller.abort()
     expect(await response).toEqual({ failure: { kind: 'outcome-unknown' } })
-    expect(store.resources(tenant).inFlight).toBe(1)
+    expect(store.resources(tenant()).inFlight).toBe(1)
     const recoveryWait = push(store, delivery)
     expect(await push(store, delivery)).toEqual({
       failure: { kind: 'backpressured', resource: 'in-flight' },
     })
     store.resume(delivery.key, 'material', committed)
     expect(await recoveryWait).toEqual({ failure: { kind: 'outcome-unknown' } })
-    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.resources(tenant()).inFlight).toBe(0)
     expect(store.readRecord(delivery.key)?.material).toEqual({
       actual: 'committed',
       observed: 'unknown',
@@ -653,12 +660,12 @@ describe('receiver independent custody and retry facts', () => {
     const first = push(store, delivery)
     await store.reached(delivery.key, 'responsibility')
     const second = push(store, delivery)
-    expect(store.resources(tenant)).toMatchObject({ records: 1, inFlight: 2 })
+    expect(store.resources(tenant())).toMatchObject({ records: 1, inFlight: 2 })
     expect(await push(store, { ...delivery, parts: [] })).toEqual({ failure: { kind: 'conflict' } })
     store.resume(delivery.key, 'responsibility', committed)
     expect(await second).toEqual(await first)
     expect(commits(store, 'responsibility')).toBe(1)
-    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.resources(tenant()).inFlight).toBe(0)
   })
   it('R23 keeps account receipts separate from result receipts', async () => {
     const store = fixture()
@@ -731,7 +738,7 @@ describe('bounded custody resources', () => {
       const response = await push(store, delivery)
       if (remaining < 0) {
         expect(response).toEqual({ failure: { kind: 'backpressured', resource: 'bytes' } })
-        expect(store.resources(tenant)).toEqual({
+        expect(store.resources(tenant())).toEqual({
           records: 0,
           bytes: 0,
           attachments: 0,
@@ -739,7 +746,7 @@ describe('bounded custody resources', () => {
         })
       } else {
         expect(response).toHaveProperty('ok')
-        expect(store.resources(tenant).bytes).toBe(bytes)
+        expect(store.resources(tenant()).bytes).toBe(bytes)
         expect(await push(store, delivery)).toEqual(response)
       }
     }
@@ -747,39 +754,39 @@ describe('bounded custody resources', () => {
   it('R19 returns record backpressure without evicting the existing saved key', async () => {
     const store = fixture({ ...limits, records: 1 })
     const response = await push(store)
-    expect(await push(store, resultDelivery(tenant, '2'))).toEqual({
+    expect(await push(store, resultDelivery(tenant(), '2'))).toEqual({
       failure: { kind: 'backpressured', resource: 'records' },
     })
     expect(await push(store)).toEqual(response)
-    expect(store.resources(tenant).records).toBe(1)
+    expect(store.resources(tenant()).records).toBe(1)
   })
   it('R19 bounds actual in-flight work even for a saved key and releases every slot', async () => {
     const store = fixture({ ...limits, inFlight: 1 })
     const first = resultDelivery()
     const saved = await push(store, first)
-    const second = resultDelivery(tenant, '2')
+    const second = resultDelivery(tenant(), '2')
     store.pauseAt(second.key, 'material')
     const pending = push(store, second)
     await store.reached(second.key, 'material')
     expect(await push(store, first)).toEqual({
       failure: { kind: 'backpressured', resource: 'in-flight' },
     })
-    expect(store.resources(tenant).inFlight).toBe(1)
+    expect(store.resources(tenant()).inFlight).toBe(1)
     store.resume(second.key, 'material', committed)
     await pending
     expect(await push(store, first)).toEqual(saved)
-    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.resources(tenant()).inFlight).toBe(0)
   })
   it('R20 tenant reservations cannot be consumed by another tenant', async () => {
     const reserved = { records: 1, bytes: 3000, attachments: 10, inFlight: 1 }
     const store = createDeliveryFixture<typeof principal>({
       limits: { records: 2, bytes: 6000, attachments: 20, inFlight: 2 },
       tenants: [
-        { tenant, reserved },
-        { tenant: foreign, reserved },
+        { tenant: tenant(), reserved },
+        { tenant: foreign(), reserved },
       ],
     })
-    for (const target of [tenant, foreign]) {
+    for (const target of [tenant(), foreign()]) {
       store.establishOriginalCall({
         reference: reference(target),
         consumer,
@@ -788,24 +795,26 @@ describe('bounded custody resources', () => {
       store.setAccess({ tenant: target, principal }, 'allow')
     }
     expect(await push(store)).toHaveProperty('ok')
-    expect(await push(store, resultDelivery(tenant, '2'))).toEqual({
+    expect(await push(store, resultDelivery(tenant(), '2'))).toEqual({
       failure: { kind: 'backpressured', resource: 'records' },
     })
     expect(
       await store.receiver.push({
-        access: { tenant: foreign, principal },
-        delivery: resultDelivery(foreign),
+        access: { tenant: foreign(), principal },
+        delivery: resultDelivery(foreign()),
         signal: new AbortController().signal,
       }),
     ).toHaveProperty('ok')
-    for (const target of [tenant, foreign])
+    for (const target of [tenant(), foreign()])
       expect(store.resources(target)).toMatchObject({ records: 1, inFlight: 0 })
-    expect(store.resources(tenant).bytes + store.resources(foreign).bytes).toBeLessThanOrEqual(6000)
-    store.setAccess({ tenant, principal }, 'deny')
+    expect(store.resources(tenant()).bytes + store.resources(foreign()).bytes).toBeLessThanOrEqual(
+      6000,
+    )
+    store.setAccess({ tenant: tenant(), principal }, 'deny')
     expect(
       await store.receiver.push({
-        access: { tenant: foreign, principal },
-        delivery: resultDelivery(foreign),
+        access: { tenant: foreign(), principal },
+        delivery: resultDelivery(foreign()),
         signal: aborted(),
       }),
     ).toHaveProperty('ok')
@@ -818,13 +827,13 @@ describe('bounded custody resources', () => {
       expect(await push(store, delivery)).toEqual({
         failure: { kind: 'unavailable', dependency: 'material' },
       })
-      expect(store.resources(tenant).records).toBe(0)
+      expect(store.resources(tenant()).records).toBe(0)
       const bytes = new Uint8Array([1, 2, 3, 4])
       store.registerAttachment({ storage: 'store', key: 'blob' }, bytes)
       structuredClone(bytes, { transfer: [bytes.buffer] })
       expect(bytes.byteLength).toBe(0)
       expect(await push(store, delivery)).toHaveProperty('ok')
-      expect(store.resources(tenant).attachments).toBe(4)
+      expect(store.resources(tenant()).attachments).toBe(4)
       for (const allowance of [3, 4, 5]) {
         const limited = fixture({ ...limits, attachments: allowance })
         limited.registerAttachment({ storage: 'store', key: 'blob' }, new Uint8Array(4))
@@ -841,9 +850,9 @@ describe('bounded custody resources', () => {
     store.registerAttachment({ storage: 'store', key: 'blob' }, new Uint8Array(7))
     const duplicate = { ...external, parts: [...external.parts, ...external.parts] }
     await push(store, duplicate)
-    expect(store.resources(tenant).attachments).toBe(7)
+    expect(store.resources(tenant()).attachments).toBe(7)
     const inline = {
-      ...resultDelivery(tenant, '2'),
+      ...resultDelivery(tenant(), '2'),
       parts: [
         {
           kind: 'sealed',
@@ -859,8 +868,8 @@ describe('bounded custody resources', () => {
       ],
     } satisfies ModelDelivery
     await push(store, inline)
-    expect(store.resources(tenant).attachments).toBe(7)
-    expect(store.resources(tenant).bytes).toBe(
+    expect(store.resources(tenant()).attachments).toBe(7)
+    expect(store.resources(tenant()).bytes).toBe(
       independentBytes(duplicate) + independentBytes(inline),
     )
   })
@@ -877,8 +886,8 @@ describe('bounded custody resources', () => {
       createDeliveryFixture({
         limits,
         tenants: [
-          { tenant, reserved: limits },
-          { tenant: foreign, reserved: limits },
+          { tenant: tenant(), reserved: limits },
+          { tenant: foreign(), reserved: limits },
         ],
       }),
     ).toThrow('Reservations')
@@ -959,11 +968,11 @@ it('R18 keeps a lost response unknown on abort, then a new authorized request re
   store.pauseAt(delivery.key, 'reply')
   const original = push(store, delivery, controller.signal)
   await store.reached(delivery.key, 'reply')
-  const resources = store.resources(tenant)
+  const resources = store.resources(tenant())
   const receipt = store.readRecord(delivery.key)?.evidence
   controller.abort()
   expect(await original).toEqual({ failure: { kind: 'outcome-unknown' } })
-  expect(store.resources(tenant)).toEqual(resources)
+  expect(store.resources(tenant())).toEqual(resources)
   expect(store.readRecord(delivery.key)).toMatchObject({
     receiptObserved: false,
     evidence: receipt,
@@ -973,7 +982,7 @@ it('R18 keeps a lost response unknown on abort, then a new authorized request re
   const waiting = push(store, delivery)
   store.resume(delivery.key, 'reply')
   expect(await waiting).toEqual({ failure: { kind: 'outcome-unknown' } })
-  expect(store.resources(tenant).inFlight).toBe(0)
+  expect(store.resources(tenant()).inFlight).toBe(0)
   const before = store.events().length
   expect(await push(store, delivery, aborted())).toEqual({
     ok: { key: delivery.key, evidence: receipt },
@@ -994,7 +1003,7 @@ it('R18 keeps a lost response unknown on abort, then a new authorized request re
   ])
   expect(commits(store, 'material')).toBe(1)
   expect(commits(store, 'responsibility')).toBe(1)
-  expect(store.resources(tenant)).toEqual({ ...resources, inFlight: 0 })
+  expect(store.resources(tenant())).toEqual({ ...resources, inFlight: 0 })
 })
 
 it('R24 gives unminted tenant priority in a composite malformed reference and version failure', async () => {
@@ -1023,7 +1032,7 @@ it('R24 gives unminted tenant priority in a composite malformed reference and ve
 
 it('R02/R07 rejects malformed text before qualification while wrong admission remains hidden', async () => {
   const store = fixture()
-  store.setAccess(access, 'deny')
+  store.setAccess(access(), 'deny')
   const malformed = resultDelivery()
   // @ts-expect-error exercise the public invocation codec with malformed typed text
   malformed.key.reference = 'broken'
@@ -1034,7 +1043,7 @@ it('R02/R07 rejects malformed text before qualification while wrong admission re
   expect(
     await push(store, {
       ...wrongAdmission,
-      key: { ...wrongAdmission.key, reference: reference(tenant, callId(), otherAdmissionId()) },
+      key: { ...wrongAdmission.key, reference: reference(tenant(), callId(), otherAdmissionId()) },
     }),
   ).toEqual({ failure: { kind: 'denied' } })
   expect(queries(store)).toEqual([])
@@ -1060,12 +1069,12 @@ it('R15 reports known responsibility dependency failure and resumes only that op
     material: committed,
     responsibility: absent,
   })
-  const resources = store.resources(tenant)
+  const resources = store.resources(tenant())
   store.setDependency('responsibility', 'available')
   expect(await push(store, delivery)).toHaveProperty('ok')
   expect(commits(store, 'material')).toBe(1)
   expect(commits(store, 'responsibility')).toBe(1)
-  expect(store.resources(tenant)).toEqual(resources)
+  expect(store.resources(tenant())).toEqual(resources)
 })
 
 it('R18 late responsibility completion remains unknown after abort until its original operation is queried', async () => {
@@ -1077,11 +1086,11 @@ it('R18 late responsibility completion remains unknown after abort until its ori
   await store.reached(delivery.key, 'responsibility')
   controller.abort()
   expect(await response).toEqual({ failure: { kind: 'outcome-unknown' } })
-  expect(store.resources(tenant).inFlight).toBe(1)
+  expect(store.resources(tenant()).inFlight).toBe(1)
   const waiting = push(store, delivery)
   store.resume(delivery.key, 'responsibility', committed)
   expect(await waiting).toEqual({ failure: { kind: 'outcome-unknown' } })
-  expect(store.resources(tenant).inFlight).toBe(0)
+  expect(store.resources(tenant()).inFlight).toBe(0)
   expect(store.readRecord(delivery.key)).toMatchObject({
     material: committed,
     responsibility: { actual: 'committed', observed: 'unknown' },
@@ -1104,11 +1113,11 @@ it('R18 a fully confirmed receipt remains saved when abort interrupts only its o
   const receipt = must(await response)
   expect(receipt.key).toEqual(delivery.key)
   expect(store.readRecord(delivery.key)?.receiptObserved).toBe(true)
-  expect(store.resources(tenant).inFlight).toBe(1)
+  expect(store.resources(tenant()).inFlight).toBe(1)
   const waiting = push(store, delivery)
   store.resume(delivery.key, 'reply')
   expect(await waiting).toEqual({ ok: receipt })
-  expect(store.resources(tenant).inFlight).toBe(0)
+  expect(store.resources(tenant()).inFlight).toBe(0)
 })
 
 describe('R18 reply loss and waiter lifetime regressions', () => {
@@ -1144,7 +1153,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     })
     expect(store.events().filter(event => event.action === 'reply.saved')).toHaveLength(0)
     expect(store.events().some(event => /ack|cleanup/.test(event.action))).toBe(false)
-    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.resources(tenant()).inFlight).toBe(0)
   })
 
   it.each([
@@ -1156,7 +1165,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     const store = fixture({ ...limits, inFlight: 1 })
     const delivery = resultDelivery()
     const receipt = must(await push(store, delivery))
-    const resources = store.resources(tenant)
+    const resources = store.resources(tenant())
     const attempts = store.readRecord(delivery.key)?.attempts
     const controller = new AbortController()
     if (preabort) controller.abort()
@@ -1171,7 +1180,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     controller.abort()
     for (let turn = 0; turn < 10; turn++) await Promise.resolve()
     const settledOnAbort = settled
-    const resourcesOnAbort = store.resources(tenant)
+    const resourcesOnAbort = store.resources(tenant())
     const observationsOnAbort = store.events().filter(event => event.action === 'reply.saved')
     store.resume(delivery.key, 'reply')
     const actual = await response
@@ -1185,7 +1194,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
       observationsOnAbort,
     )
     expect(store.readRecord(delivery.key)).toMatchObject({ receiptObserved: true, attempts })
-    expect(store.resources(tenant)).toEqual(resources)
+    expect(store.resources(tenant())).toEqual(resources)
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
   })
@@ -1197,14 +1206,14 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     store.pauseAt(delivery.key, 'reply')
     const original = push(store, delivery)
     await store.reached(delivery.key, 'reply')
-    const resources = store.resources(tenant)
+    const resources = store.resources(tenant())
     const cancelled = push(store, delivery, controller.signal)
     const waiting = push(store, delivery)
     const blocked = await push(store, delivery)
     store.dropReplyOnce(delivery.key)
     controller.abort()
     const cancelledReply = await cancelled
-    const resourcesOnAbort = store.resources(tenant)
+    const resourcesOnAbort = store.resources(tenant())
     store.resume(delivery.key, 'reply')
     const [originalReply, waitingReply] = await Promise.all([original, waiting])
     const beforeRecovery = store.readRecord(delivery.key)
@@ -1221,7 +1230,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     expect(beforeRecovery).toMatchObject({ receiptObserved: false, attempts: 1 })
     expect(observationsBeforeRecovery).toHaveLength(0)
     expect(recovered).toEqual({ ok: { key: delivery.key, evidence: beforeRecovery?.evidence } })
-    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.resources(tenant()).inFlight).toBe(0)
     expect(store.events().filter(event => event.action === 'reply.lost')).toHaveLength(1)
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
@@ -1237,7 +1246,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     controller.abort()
     const actual = await response
     const observationsOnAbort = store.events().filter(event => event.action === 'reply.saved')
-    const flightOnAbort = store.resources(tenant).inFlight
+    const flightOnAbort = store.resources(tenant()).inFlight
     const blocked = await push(store, delivery)
     store.resume(delivery.key, 'reply')
     for (let turn = 0; turn < 10; turn++) await Promise.resolve()
@@ -1251,7 +1260,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     )
     expect(flightOnAbort).toBe(1)
     expect(blocked).toEqual({ failure: { kind: 'backpressured', resource: 'in-flight' } })
-    expect(store.resources(tenant).inFlight).toBe(0)
+    expect(store.resources(tenant()).inFlight).toBe(0)
     expect(store.events().some(event => /ack|cleanup/.test(event.action))).toBe(false)
   })
 
@@ -1265,7 +1274,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     const joined = push(store, delivery, controller.signal)
     controller.abort()
     const cancelledReply = await joined
-    const resourcesOnAbort = store.resources(tenant)
+    const resourcesOnAbort = store.resources(tenant())
     const recordOnAbort = store.readRecord(delivery.key)
     store.resume(delivery.key, 'responsibility', committed)
     const actual = await original
@@ -1278,7 +1287,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
       ok: { key: delivery.key, evidence: store.readRecord(delivery.key)?.evidence },
     })
     expect(store.events().filter(event => event.action === 'reply.saved')).toHaveLength(1)
-    expect(store.resources(tenant)).toEqual({ ...resourcesOnAbort, inFlight: 0 })
+    expect(store.resources(tenant())).toEqual({ ...resourcesOnAbort, inFlight: 0 })
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
   })
@@ -1287,7 +1296,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     const store = fixture()
     const delivery = resultDelivery()
     const receipt = must(await push(store, delivery))
-    const resources = store.resources(tenant)
+    const resources = store.resources(tenant())
     store.dropReplyOnce(delivery.key)
     const lost = await push(store, delivery)
     const observedAfterLoss = store.readRecord(delivery.key)?.receiptObserved
@@ -1297,7 +1306,7 @@ describe('R18 reply loss and waiter lifetime regressions', () => {
     expect(observedAfterLoss).toBe(true)
     expect(recovered).toEqual({ ok: receipt })
     expect(store.events().filter(event => event.action === 'reply.lost')).toHaveLength(1)
-    expect(store.resources(tenant)).toEqual(resources)
+    expect(store.resources(tenant())).toEqual(resources)
     expect(commits(store, 'material')).toBe(1)
     expect(commits(store, 'responsibility')).toBe(1)
   })

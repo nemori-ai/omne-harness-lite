@@ -47,10 +47,10 @@ function minted(account: string): TenantId {
   if (!result.ok) throw new Error('Invalid tenant fixture')
   return result.value
 }
-// Decoded fixtures are built inside each test, so a decoder fault fails that test rather than
-// the module load or the collection.
-const tenant = minted('0')
-const foreign = minted('1')
+// Decoded fixtures, minted tenants included, are built inside each test, so a decoder fault
+// fails that test rather than the module load or the collection.
+const tenant = () => minted('0')
+const foreign = () => minted('1')
 const callId = () => must(decodeModelCallId('mcall_a'))
 const dispatchId = () => must(decodeDispatchId('mdisp_a'))
 const otherCallId = () => must(decodeModelCallId('mcall_b'))
@@ -66,7 +66,7 @@ const codec: StreamCallCodec = {
     return { ok: must(encodeModelInvocationRef(decoded.ok)) }
   },
 }
-function reference(stream = 'str_a', target = tenant, modelCall = callId()): StreamRef {
+function reference(stream = 'str_a', target = tenant(), modelCall = callId()): StreamRef {
   return must(
     encodeStreamRef(
       {
@@ -163,10 +163,10 @@ function delta(before: ModelStreamSnapshot, after: ModelStreamSnapshot): ModelSt
   }
 }
 function diff(before: ModelStreamSnapshot, after: ModelStreamSnapshot) {
-  return diffModelStream({ tenant, before, after })
+  return diffModelStream({ tenant: tenant(), before, after })
 }
 function apply(before: ModelStreamSnapshot, value: ModelStreamDelta) {
-  return applyModelStreamDelta({ tenant, before, delta: value })
+  return applyModelStreamDelta({ tenant: tenant(), before, delta: value })
 }
 function roundTrip(before: ModelStreamSnapshot, after: ModelStreamSnapshot): ModelStreamDelta {
   const change = must(diff(before, after))
@@ -275,11 +275,11 @@ describe('reference, identity and source checks', () => {
   it('checks a minted tenant before either reference', () => {
     const before = { ...snapshot(), ref: 'invalid' as StreamRef }
     const after = advance(before)
-    expect(diffModelStream({ tenant: { ...tenant }, before, after })).toEqual({
+    expect(diffModelStream({ tenant: { ...tenant() }, before, after })).toEqual({
       failure: { kind: 'invalid-tenant' },
     })
     expect(
-      applyModelStreamDelta({ tenant: { ...tenant }, before, delta: delta(before, after) }),
+      applyModelStreamDelta({ tenant: { ...tenant() }, before, delta: delta(before, after) }),
     ).toEqual({ failure: { kind: 'invalid-tenant' } })
   })
 
@@ -288,7 +288,7 @@ describe('reference, identity and source checks', () => {
     side => {
       const before = snapshot()
       const after = advance(before)
-      const bad = { ...(side === 'before' ? before : after), ref: reference('str_a', foreign) }
+      const bad = { ...(side === 'before' ? before : after), ref: reference('str_a', foreign()) }
       expect(diff(side === 'before' ? bad : before, side === 'after' ? bad : after)).toEqual({
         failure: { kind: 'reference', side, failure: { kind: 'foreign-tenant' } },
       })
@@ -499,7 +499,7 @@ describe('reference, identity and source checks', () => {
     const after = advance(before)
     const another = {
       ...after,
-      ref: reference('str_a', tenant, otherCallId()),
+      ref: reference('str_a', tenant(), otherCallId()),
       value: {
         ...after.value,
         call: otherCallId(),
