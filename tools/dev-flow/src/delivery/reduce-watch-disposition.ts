@@ -9,7 +9,7 @@ import {
 import { registeredRequests } from './collaboration-requests.ts'
 import { orderedRecords } from './collaboration-sequence.ts'
 import { validateRecordAuthority } from './collaboration-trust.ts'
-import type { TaskReference, WaveIdentity } from './collaboration-records.ts'
+import type { RequestStateRecord, TaskReference, WaveIdentity } from './collaboration-records.ts'
 import { InputError } from './protocol.ts'
 import {
   referenceOf,
@@ -56,20 +56,41 @@ export function readDisposition(
   if (last === undefined || disposition === null || disposition === undefined) return undefined
   if (last.record.requestHead !== (request.input.pull?.head ?? null))
     throw new InputError('watch-disposition-request-head')
+  verifyDisposition(ports, context, parent, target, last.record)
+  same(
+    authority.snapshot,
+    readCompleteComments(context.repo, context.reduceIssue, ports.read),
+    'watch-disposition-changed',
+  )
+  return { disposition, reference: referenceOf(last), revision: last.record.revision }
+}
+
+export function verifyDisposition(
+  ports: ReduceWatchPorts,
+  context: WaveIdentity,
+  parent: number,
+  target: DispositionTarget,
+  record: RequestStateRecord,
+): void {
+  same(record.context, context, 'watch-disposition-context-stale')
+  if (record.lineParent !== parent || record.requestId !== target.requestId)
+    throw new InputError('watch-disposition-target-mismatch')
+  const disposition = record.disposition
+  if (disposition === null) throw new InputError('watch-disposition-missing')
   if (disposition.action === 'takeover') {
     if (
       disposition.waitReduceIssue !== context.reduceIssue ||
-      !['claimed', 'integrating', 'blocked'].includes(last.record.state)
+      !['claimed', 'integrating', 'blocked'].includes(record.state)
     )
       throw new InputError('watch-takeover-current-reduce-required')
     if (disposition.evidence.length === 0) throw new InputError('watch-takeover-evidence-missing')
     for (const evidence of disposition.evidence) verifyMaterial(ports, evidence)
   } else if (disposition.action === 'rescope') {
-    if (last.record.state !== 'superseded') throw new InputError('watch-rescope-not-superseded')
+    if (record.state !== 'superseded') throw new InputError('watch-rescope-not-superseded')
     verifyMaterial(ports, disposition.authorization)
     for (const evidence of disposition.consumerImpact) verifyMaterial(ports, evidence)
   } else {
-    if (last.record.state !== 'superseded') throw new InputError('watch-redispatch-not-superseded')
+    if (record.state !== 'superseded') throw new InputError('watch-redispatch-not-superseded')
     for (const evidence of [
       disposition.oldWritersStopped,
       disposition.reduceWriteReleased,
@@ -124,10 +145,4 @@ export function readDisposition(
       'watch-redispatch-history-changed',
     )
   }
-  same(
-    authority.snapshot,
-    readCompleteComments(context.repo, context.reduceIssue, ports.read),
-    'watch-disposition-changed',
-  )
-  return { disposition, reference: referenceOf(last), revision: last.record.revision }
 }

@@ -39,6 +39,7 @@ import type {
 } from '../src/delivery/collaboration-records.ts'
 import { runReduceWatch, type ReduceWatchInput } from '../src/delivery/reduce-watch.ts'
 import { runReduceWatchCli, parseReduceWatchArgs } from '../src/delivery/reduce-watch-cli.ts'
+import { verifyDisposition } from '../src/delivery/reduce-watch-disposition.ts'
 import type { ReduceWatchPorts } from '../src/delivery/reduce-watch-materials.ts'
 import {
   block,
@@ -971,6 +972,26 @@ function blockedFixture(action: 'takeover' | 'redispatch' | 'rescope') {
 }
 
 describe('non-success disposition while the current reduce stays open', () => {
+  it.each(['takeover', 'rescope', 'redispatch'] as const)(
+    'validates unpublished %s material before the state write',
+    action => {
+      const f = blockedFixture(action)
+      f.card(100).comments = f.card(100).comments.filter(c => c.id !== f.sc.id)
+      const verify = () =>
+        verifyDisposition(f.ports, f.context(1), 10, f.r.input, f.dispositionState)
+      expect(verify).not.toThrow()
+      f.ports.readEvidence = () => 'changed material'
+      expect(verify).toThrow('watch-material-digest-mismatch')
+      expect(f.card(100).comments.some(c => c.id === f.sc.id)).toBe(false)
+    },
+  )
+  it('rejects another request target before publishing disposition', () => {
+    const f = blockedFixture('takeover')
+    expect(() =>
+      verifyDisposition(f.ports, f.context(1), 99, f.r.input, f.dispositionState),
+    ).toThrow('watch-disposition-target-mismatch')
+  })
+
   it('does not grant an old redispatch after the new attempt has handed off', async () => {
     const f = blockedFixture('redispatch'),
       input = f.inputDisposition()
