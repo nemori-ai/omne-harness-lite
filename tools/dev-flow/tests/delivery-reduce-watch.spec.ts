@@ -24,6 +24,7 @@ import {
 } from '../src/delivery/collaboration-acceptance.ts'
 import {
   ACCEPTANCE_SOURCES_PATH,
+  MILESTONE_MANDATE_MARKER,
   RESPONSIBILITY_MARKER,
   readAcceptanceSources,
   type AcceptanceSourceAdoption,
@@ -83,7 +84,10 @@ function at(wave: number, minute: number) {
   return `2026-10-27T${String(8 + wave).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`
 }
 
-function fixture(kinds: ('active' | 'idle' | 'terminal')[] = ['idle', 'active', 'terminal']) {
+function fixture(
+  kinds: ('active' | 'idle' | 'terminal')[] = ['idle', 'active', 'terminal'],
+  milestoneMandate = false,
+) {
   const root = temporary(),
     cards = new Map<number, Card>(),
     calls: string[] = []
@@ -338,9 +342,39 @@ function fixture(kinds: ('active' | 'idle' | 'terminal')[] = ['idle', 'active', 
   git(root, ['config', 'user.email', 'fixture@example.invalid'])
   git(root, ['config', 'core.hooksPath', '/dev/null'])
   mkdirSync(join(root, 'docs/engineering'), { recursive: true })
+  const grant = milestoneMandate
+    ? add(
+        90,
+        90,
+        block(MILESTONE_MANDATE_MARKER, {
+          schemaVersion: 1,
+          repository: 'owner/repo',
+          milestone: 1,
+          owner: { login: 'owner', nodeId: 'U_owner' },
+          acceptor: { login: 'acceptor', nodeId: 'U_acceptor' },
+          declarationAuthor: { login: 'owner', nodeId: 'U_owner' },
+          basis: [evidence],
+        }),
+        '2026-10-27T07:00:00Z',
+      )
+    : undefined
   writeFileSync(
     join(root, ACCEPTANCE_SOURCES_PATH),
-    JSON.stringify({ schemaVersion: 1, entries: adoptions }),
+    JSON.stringify(
+      grant === undefined
+        ? { schemaVersion: 1, entries: adoptions }
+        : {
+            schemaVersion: 2,
+            entries: [],
+            mandates: [
+              {
+                issue: { repository: 'owner/repo', number: 90, id: 'I_90', url: card(90).html_url },
+                authorization: ref(grant),
+                authorNodeId: 'U_owner',
+              },
+            ],
+          },
+    ),
   )
   git(root, ['add', '.'])
   git(root, ['commit', '--quiet', '-m', 'Adopt isolated fixture sources'])
@@ -474,6 +508,54 @@ async function cli(
 }
 
 describe('one actual reduce per original wait result', () => {
+  it('uses the original mandate after future cards appear during the same pending wait', async () => {
+    const f = fixture(['idle', 'active', 'terminal'], true)
+    const sources = f.ports.sources
+    const future = [200, 300, 301].map(number => f.card(number))
+    for (const card of future) f.cards.delete(card.number)
+    f.card(100).state = 'open'
+    const pending = cli(f)
+    await new Promise(resolve => setTimeout(resolve, 15))
+    expect(f.calls.some(path => path === 'repos/owner/repo/issues/200')).toBe(false)
+    for (const card of future) f.cards.set(card.number, card)
+    f.card(100).state = 'closed'
+    appendFileSync(
+      f.input().file,
+      JSON.stringify({
+        delivery: randomUUID(),
+        event: 'issues',
+        action: 'closed',
+        number: 100,
+        state: 'closed',
+        draft: null,
+        base: null,
+        head: null,
+        marker: null,
+        html_url: null,
+        receivedAt: new Date().toISOString(),
+      }) + '\n',
+    )
+    const first = await pending
+    expect(first.code).toBe(0)
+    expect(first.result).toMatchObject({
+      reduceIssue: 100,
+      currentAction: 'rearm',
+      next: { reduceIssue: 200 },
+    })
+    expect((await cli(f)).result).toMatchObject({
+      reduceIssue: 200,
+      currentAction: 'prepare',
+      next: { reduceIssue: 300 },
+    })
+    expect((await cli(f)).result).toMatchObject({
+      reduceIssue: 300,
+      status: 'terminal',
+      next: null,
+    })
+    expect(f.ports.sources).toBe(sources)
+    expect(sources.entries).toEqual([])
+    expect(sources.mandates).toHaveLength(1)
+  })
   it('refuses an otherwise valid task dispatched to another line writer', async () => {
     const f = fixture(['active', 'terminal']),
       task = f.card(201)

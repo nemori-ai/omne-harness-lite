@@ -16,9 +16,11 @@ import {
 } from '../src/delivery/collaboration-acceptance.ts'
 import {
   ACCEPTANCE_SOURCES_PATH,
+  MILESTONE_MANDATE_MARKER,
   RESPONSIBILITY_MARKER,
   RESPONSIBILITY_REVOCATION,
   readAcceptanceSources,
+  readAcceptanceSourcesRest,
   readAcceptanceResponsibility,
   type AcceptanceResponsibility,
 } from '../src/delivery/collaboration-acceptance-source.ts'
@@ -196,6 +198,96 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 describe('adopted acceptance sources', () => {
+  it('refuses a mandate revoked after current authorization but before the decision read completes', () => {
+    const f = fixture()
+    const onSource = (comment: ReturnType<typeof rawComment>) => ({
+      ...comment,
+      html_url: `https://github.com/owner/repo/issues/90#issuecomment-${comment.id}`,
+      issue_url: 'https://api.github.com/repos/owner/repo/issues/90',
+    })
+    const grant = onSource(
+      rawComment(
+        90,
+        block(MILESTONE_MANDATE_MARKER, {
+          schemaVersion: 1,
+          repository: 'owner/repo',
+          milestone: 1,
+          owner: f.declaration.owner,
+          acceptor: f.declaration.acceptor,
+          declarationAuthor: { login: 'owner', nodeId: 'U_owner' },
+          basis: [evidence],
+        }),
+        '2026-10-27T08:00:00Z',
+      ),
+    )
+    const authorization = { issue: 90, commentId: 90, sha256: digest(grant.body) }
+    const text = JSON.stringify({
+      schemaVersion: 2,
+      entries: [],
+      mandates: [
+        {
+          issue: {
+            repository: 'owner/repo',
+            number: 90,
+            id: 'I_90',
+            url: 'https://github.com/owner/repo/issues/90',
+          },
+          authorization,
+          authorNodeId: 'U_owner',
+        },
+      ],
+    })
+    const source = { ...pinned, digest: digest(text) }
+    const sources = readAcceptanceSourcesRest('owner/repo', source, () => ({
+      type: 'file',
+      path: source.path,
+      sha: source.blob,
+      encoding: 'base64',
+      content: Buffer.from(text).toString('base64'),
+    }))
+    const comments = [grant]
+    let revoked = false
+    const read: GhRead = (args, timeout) => {
+      const path = args.at(-1)
+      if (!revoked && path === `repos/owner/repo/issues/comments/${f.accepted.id}`) {
+        revoked = true
+        comments.push(
+          onSource(
+            rawComment(
+              92,
+              block(RESPONSIBILITY_REVOCATION, {
+                schemaVersion: 1,
+                authorization,
+                basis: [evidence],
+              }),
+              '2026-10-27T11:00:00Z',
+              'acceptor',
+            ),
+          ),
+        )
+      }
+      if (path === 'repos/owner/repo/issues/90')
+        return {
+          number: 90,
+          node_id: 'I_90',
+          html_url: 'https://github.com/owner/repo/issues/90',
+          body: '',
+          state: 'open',
+          labels: [],
+          milestone: { number: 1, title: 'Fixture milestone' },
+          updated_at: '2026-10-27T12:00:00Z',
+          comments: comments.length,
+        }
+      if (path?.startsWith('repos/owner/repo/issues/90/comments?')) return comments
+      const single = comments.find(
+        comment => path === `repos/owner/repo/issues/comments/${comment.id}`,
+      )
+      return single ?? f.read(args, timeout)
+    }
+    expect(() => readReleaseAcceptance({ ...f.input(), sources, read })).toThrow('mandate-revoked')
+    expect(revoked).toBe(true)
+  })
+
   it('loads the explicitly pinned source, independently of dirty files or candidate HEAD', () => {
     writeFileSync(
       join(root, ACCEPTANCE_SOURCES_PATH),

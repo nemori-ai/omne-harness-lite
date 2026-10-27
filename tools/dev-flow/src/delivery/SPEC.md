@@ -225,15 +225,21 @@ recover 模式只读，返回已核对的精确引用或 unknown。完整读取�
 
 ### 接受来源与决定读回
 
-[collaboration-acceptance-source.ts](collaboration-acceptance-source.ts) 将已明确的人类授权与机器校验分开。`readAcceptanceSources` 只从固定路径 `docs/engineering/collaboration-acceptance-sources.json` 读取调用方已经获准采用的配置提交，并核对 `PolicySource` 的 commit、path、blob 和 digest。它没有 HEAD 默认值，也不从当前工作树读配置。配置只保存 Issue 身份、交付 revision、授权声明的精确评论引用及声明者账号 node ID，不重复定义接受者。初始表为空，不授予任何卡接受权。
+[collaboration-acceptance-source.ts](collaboration-acceptance-source.ts) 将已明确的人类授权与机器校验分开。`readAcceptanceSources` 只从固定路径 `docs/engineering/collaboration-acceptance-sources.json` 读取调用方已经获准采用的配置提交，并核对 `PolicySource` 的 commit、path、blob 和 digest。它没有 HEAD 默认值，也不从当前工作树读配置。`readAcceptanceSourcesRest` 从同一固定路径及完整提交 SHA 读取 GitHub Contents API，核对文件类型、路径、blob 和解码后字节摘要，再调用相同解析器。REST 读取只使用 GET，供没有本地 Git 对象的宿主使用。
+
+来源 v1 的 `entries` 保持精确逐卡含义，每项保存 Issue 身份、交付 revision、授权声明的精确评论引用及声明者账号 node ID。来源 v2 保留 `entries`，另含显式 `mandates`。每项 mandate 只保存授权源 Issue 身份、精确评论引用和声明者账号 node ID。两个版本均不在配置中重复定义接受者。重复来源、未知字段和版本均拒绝。初始表为空，不授予任何卡接受权。
 
 调用方选择配置提交的依据必须来自既有人的授权及其采用范围。候选分支新增条目、当前 reviewer 身份或本地文件存在均不构成采用。正式命令必须从已接受的任务／工具采用输入取得固定来源，不提供接受者、任意来源 JSON 或任意配置路径选项。加载器核对来源与字节，不机械证明声明者在业务上有权；这项人类决定继续是显式采用的前提。
 
 授权声明在本卡评论内使用 `json omne-collaboration-responsibility:v1`，包含精确 Issue、revision、正文责任字段摘要、owner 和 acceptor 的 login／nodeId，以及非空授权依据。`readAcceptanceResponsibility` 核对当前正文、正式 scope、已采用引用、原始评论和实际作者。仅具名声明或合法派发不能通过。`json omne-collaboration-responsibility-revocation:v1` 引用原声明并给出依据；有权 owner／acceptor 的撤销阻止继续采用，未知作者、编辑或冲突保留错误。历史决定按其 GitHub 创建时间核对当时已采用的声明，历史来源也必须保留在明确采用的配置中；正常换修订不等同撤销历史。
 
+里程碑授权评论使用 `json omne-collaboration-milestone-mandate:v1`，固定 repository、原生 milestone 编号，以及 owner、acceptor、declarationAuthor 的 login／nodeId，并包含非空依据。读取器要求源评论未编辑、字节摘要及作者账号匹配、源 Issue 身份匹配，且源卡和实际 reduce 卡仍属于该原生里程碑。同一里程碑存在多个有效 mandate 时拒绝，不按评论先后选择。有效 mandate 只让匹配的逐卡责任声明取得采用依据，不授予派发权、结果接受或整波放行。逐卡声明仍须存在并通过身份、修订和责任字段校验。当前派发人的账号还必须等于固定 owner。
+
+里程碑授权可以覆盖后来创建的 reduce 卡，等待进程使用同一份已采用来源即可读取它们。账号或里程碑改变时不能沿用这份授权。授权源 Issue 上的精确引用撤销使用既有 `responsibility-revocation` 格式，只接受固定 owner／acceptor。当前读取拒绝已撤销授权；历史读取只使用截止时间前已存在、当时尚未撤销的授权。精确逐卡来源不能绕过同时适用的 mandate 冲突或撤销；mandate 也不能覆盖已明确采用的同卡同 revision 的不同逐卡引用。返回前重新读取各授权源 Issue 的完整快照，期间新增撤销、编辑或移出里程碑均拒绝。该读回不能使 GitHub 多对象读取成为事务。新增能力的替身验证归[里程碑授权测试](../../tests/delivery-collaboration-mandate.spec.ts)及[等待续接测试](../../tests/delivery-reduce-watch.spec.ts)；真实部署采用仍须单独验证。
+
 [collaboration-acceptance.ts](collaboration-acceptance.ts) 定义接受决定与 `readReleaseAcceptance`。接受对象复用 `ReleaseSubject`，即 ReleaseRecord 的 context、finalHead、expectedRequests、results、lines、next，不另建一份清单。决定另含 Issue／revision／attempt、operationId、accept／partial／cancel／revoke、决定账号、授权声明、依据、剩余责任、精确前项及时间。`encodeReleaseAcceptance` 同时生成交付规则的十个人类字段与唯一机器区块；读取要求两者完全一致。未投影或有歧义的自然语言决定保持 unknown，不能从 closed、绿测或正文单词推断接受。
 
-决定链保留跨 revision 前项，逐项核对原文、作者账号及各自已采用授权。新修订撤销可精确引用前一修订并使用其接受授权，即使正文尚未更新也阻止旧接受放行。新接受必须匹配当前 revision、attempt 和责任来源。部分认可、非接受链头、缺失前项、同操作异文、旧引用、编辑过的决定或事后补造授权均拒绝。账号作者可验证，工具不能区分本人键入和使用本人凭证的获授权代笔；代笔依据仍须按交付规则保存。
+决定链保留跨 revision 前项，逐项核对原文、作者账号及各自已采用授权。新修订撤销可精确引用前一修订并使用其接受授权，即使正文尚未更新也阻止旧接受放行。新接受必须匹配当前 revision、attempt 和责任来源。所有决定及成果读回后，读取器再次核对当前责任及其授权来源；不能用历史截止时间忽略读取期间发生的当前撤销。部分认可、非接受链头、缺失前项、同操作异文、旧引用、编辑过的决定或事后补造授权均拒绝。账号作者可验证，工具不能区分本人键入和使用本人凭证的获授权代笔；代笔依据仍须按交付规则保存。
 
 读取器核对所有参与线，包括 idle；读回结果和 delta 的精确摘要及权限，要求证据先于决定存在。state 须已合入或有明确 superseded 处置，并仍是完整序列的当前结果。delta 须有从首项至被接受项的完整、获授权前序链，且最终 F、continuation 和结果引用与接受对象一致。跨波历史需要相应 reduce 的正式授权；云端已有 adoptedFacts 时，缺少显式 `relatedAuthority` 输入不得回退本地资格查询。读完再次核对来源快照及精确证据，变化即失败；GitHub 多对象读取仍不是事务。
 

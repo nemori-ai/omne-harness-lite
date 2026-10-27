@@ -392,6 +392,11 @@ export function readReleaseAcceptance(
   same(last.decision.subject, subject, 'Accepted release subject differs from requested release')
   readSubjectReferences(subject, authority, last.comment.createdAt, input)
   same(
+    responsibility,
+    readAcceptanceResponsibility(authority, input.sources, input.read),
+    'Current acceptance responsibility changed during read',
+  )
+  same(
     authority.snapshot,
     readCompleteComments(subject.context.repo, input.reduceIssue, input.read),
     'Acceptance changed during read',
