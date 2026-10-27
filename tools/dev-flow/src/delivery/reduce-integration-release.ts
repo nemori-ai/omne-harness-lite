@@ -152,6 +152,13 @@ export function releaseReduceWave(
     const intent = { release, readinessEvidence: input.readinessEvidence }
     if (saved === undefined) journal.save('release.json', intent)
     else same(saved, intent, 'reduce-release-operation-conflict')
+    const first = release.lines[0]
+    if (first === undefined) throw new InputError('reduce-release-lines-empty')
+    const completed = readReleasedWave(ports, release.context, first.lineParent)
+    if (completed !== undefined) {
+      same(completed.release, release, 'reduce-release-conflict')
+      return { kind: 'confirmed' as const, release: completed.releaseReference }
+    }
     const authority = checkReduceRelease(ports, release, input.readinessEvidence)
     const { context, finalHead, expectedRequests, results, lines, next } = release
     const accepted = readReleaseAcceptance({
@@ -230,8 +237,6 @@ export function releaseReduceWave(
         )
       } catch {}
     }
-    const first = release.lines[0]
-    if (first === undefined) throw new InputError('reduce-release-lines-empty')
     const readback = readReleasedWave(ports, context, first.lineParent)
     return readback === undefined
       ? { kind: 'unknown' as const, phase: 'close', reason: 'closure-not-observed' }

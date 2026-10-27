@@ -420,6 +420,8 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 `reduce-bootstrap.ts` 从版本 3 安装取得 gate workflow SHA，并复用当前 authority、接受来源和验证报告 reader。整波报告检查前后均从受信派发 route 和 policy 派生目标轨道，读回精确 ref、commit 类型及 finalHead。报告期间授权变化或轨道移动均拒绝。此检查不授予写权、接受或部署审批。
 
+恢复已接受且已关闭的原 release 时，先通过共享 reader 核对原接受、完整 release、delta 和关闭事实，并确认原操作字节相同，然后返回原回执。后续波推进轨道不使旧完成结果失效。该恢复不重做发布前就绪检查，不重发或重新关闭。未发布、未关闭、记录冲突或重开的波不走此完成路径。
+
 `reduce-supervision-input.ts` 将活动对象解析为已有 RequestInput、RequestStateRecord、WorkflowEvidence 和 ReleaseRecord。输入不接受轮询周期或采用 gate SHA 覆盖。阶段 VERIFY_WAVE、RELEASE_WAVE 和 FINALIZE 必须提供显式收口目标。未知后继不能从缺省 release 推断为终态。
 
 `reduce-supervision.ts` 在主进程安装文件订阅及本地健康检查。每种远端 probe 使用一个持久 worker；同步 REST 和安装来源读取仅在该 worker 中执行。reconcile、runs、deadline 三种 probe 互不串行等待。worker 只能使用 REST GET，不能调用 GraphQL、审批或任何写操作；模块路径由装配固定。IPC 结果重新解析为 ReduceSignal。协议错误、退出或 120 秒 probe 超时使该 worker 失效，不自动重启或把未知当空集合。

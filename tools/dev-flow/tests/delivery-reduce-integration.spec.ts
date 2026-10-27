@@ -749,6 +749,23 @@ describe('release material guards and ordered durable side effects', () => {
     expect(releaseReduceWave(f.ports, f.input).kind).toBe('confirmed')
     expect(f.writes).toEqual(['publish', 'close'])
   })
+  it('recovers an already accepted and closed release after later work moves the target track', () => {
+    const f = releaseFixture()
+    const first = releaseReduceWave(f.ports, f.input)
+    expect(first.kind).toBe('confirmed')
+    f.ports.verifyWaveEvidence = () => {
+      throw new Error('reduce-wave-target-head-changed')
+    }
+    expect(releaseReduceWave(f.ports, f.input)).toEqual(first)
+    expect(f.writes).toEqual(['publish', 'close'])
+  })
+  it('still rejects altered acceptance while recovering a completed release', () => {
+    const f = releaseFixture()
+    expect(releaseReduceWave(f.ports, f.input).kind).toBe('confirmed')
+    f.accepted.body += '\nchanged after acceptance'
+    expect(() => releaseReduceWave(f.ports, f.input)).toThrow()
+    expect(f.writes).toEqual(['publish', 'close'])
+  })
   it('keeps an absent attempted publication unknown instead of posting another release', () => {
     const f = releaseFixture()
     f.losePublication(true)
