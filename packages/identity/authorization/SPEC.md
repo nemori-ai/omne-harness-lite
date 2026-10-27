@@ -219,7 +219,7 @@
 
 ### 消费端口的适配
 
-消费端口由授权一侧的适配器接入。适配器把端口的输入映射为 `AdmissionInput`，把结论映射回端口的结论：Agent 的 `AgentAccessCheck` 与 `ActionAdmission`、Tool 的 `access.qualify`。`allowed` 映射为端口的允许并带证据，`denied` 映射为端口的拒绝，`unavailable` 映射为端口的不可用。适配器不产生端口有而本节没有的结论，例如 `need-decision`。实际适配器归应用装配或消费方的适配器成员，不在本成员。
+消费端口经适配器接入授权。适配器把消费端口的输入映射为 `AdmissionInput`，把结论映射回该端口的结论。各消费端口与本节的逐项映射写在接入它的适配器成员里。`allowed` 映射为端口的允许并带证据，`denied` 映射为端口的拒绝，`unavailable` 映射为端口的不可用。适配器不产生端口有而本节没有的结论，例如 `need-decision`。实际适配器归应用装配或消费方的适配器成员，不在本成员。
 
 首批 `ActionAdmission` 示例仅在 `permissions` 与 `decision` 都为 null 时使用上述映射。非 null 而必要解释端口未安装时返回 `unavailable`，不得忽略输入后允许。该示例不实现结构化权限、人工答复解释或完整 `invalid` 分类。正式适配器须接续 Agent 契约要求的错动作、错卡片答复校验，并满足实际工作资格守卫等消费前提。
 
