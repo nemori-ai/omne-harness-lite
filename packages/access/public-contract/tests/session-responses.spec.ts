@@ -443,3 +443,41 @@ describe('response encoding guards', () => {
     ).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
   })
 })
+
+describe('response head', () => {
+  const refuse = (response: unknown) =>
+    encodeSessionResponse({ response, limits } as Parameters<typeof encodeSessionResponse>[0])
+
+  it.each([
+    ['a numeric messageId on protocol-rejected', wireOf('protocol-rejected', {}, null), 1],
+    ['a numeric messageId on a business outcome', wireOf('denied', {}, null), 1],
+    ['a null messageId on protocol-rejected', wireOf('protocol-rejected', {}, null), null],
+  ])('reads %s as unreadable', (_name, wire, messageId) => {
+    expect(readWire('create-session', { ...wire, messageId })).toEqual({
+      kind: 'unreadable',
+      diagnostic: { code: 'field' },
+    })
+  })
+
+  it.each(['[1]', '"text"', 'null'])('reads the non-object response %s as unreadable', text => {
+    expect(
+      readSessionResponse({
+        bytes: new TextEncoder().encode(text),
+        operation: 'create-session',
+        expectedMessageId: 'm',
+        limits,
+      }),
+    ).toEqual({ kind: 'unreadable', diagnostic: { code: 'field' } })
+  })
+
+  it.each([
+    ['a null response', null],
+    ['a numeric messageId', { ...wireOf('protocol-rejected', {}, null), messageId: 1 }],
+    [
+      'an undefined messageId key',
+      { ...wireOf('protocol-rejected', {}, null), messageId: undefined },
+    ],
+  ])('returns invalid when encoding %s', (_name, response) => {
+    expect(refuse(response)).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+  })
+})
