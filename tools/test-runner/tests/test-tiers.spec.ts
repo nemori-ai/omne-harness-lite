@@ -9,17 +9,20 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { configDefaults } from 'vitest/config'
+import { parseCLI } from 'vitest/node'
 import {
   ARCHIVE_EXCLUDE,
   SLOW_TEST_TIMEOUT_MS,
   TEST_REPORT_DIR_ENV as ROOT_REPORT_DIR_ENV,
   TEST_TIERS,
   VITEST_DEFAULT_EXCLUDE,
+  VITEST_BOOLEAN_OPTIONS,
   cliFilters,
   reportSlug,
   testTiers,
@@ -40,6 +43,60 @@ const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url))
 const VITEST = fileURLToPath(new URL('../node_modules/.bin/vitest', import.meta.url))
 const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 
+/** vitest 命令行定义里的一个选项（cac 的 Option）：这里用到的字段。带值的选项没有 `isBoolean`。 */
+interface VitestCliOption {
+  readonly names: readonly string[]
+  readonly isBoolean?: boolean
+  readonly negated: boolean
+}
+
+function isVitestCliOption(value: unknown): value is VitestCliOption {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'names' in value &&
+    Array.isArray(value.names) &&
+    value.names.every((name: unknown) => typeof name === 'string') &&
+    (!('isBoolean' in value) || typeof value.isBoolean === 'boolean') &&
+    'negated' in value &&
+    typeof value.negated === 'boolean'
+  )
+}
+
+/**
+ * 安装的 vitest 的命令行选项：`createCLI().globalCommand.options`。`createCLI` 不在公开导出里，
+ * 从 `vitest/node` 导出 `parseCLI` 的那个 chunk 里按函数名取；取不到就报错，不猜。
+ */
+async function vitestCliOptions(): Promise<readonly VitestCliOption[]> {
+  const dist = join(dirname(createRequire(import.meta.url).resolve('vitest/package.json')), 'dist')
+  const entry = readFileSync(join(dist, 'node.js'), 'utf8')
+  const chunk = /export \{[^}]*\bparseCLI\b[^}]*\} from '(\.\/chunks\/[^']+\.js)'/u.exec(entry)?.[1]
+  if (chunk === undefined)
+    throw new Error('vitest/node 里找不到导出 parseCLI 的 chunk，读不到命令行定义')
+  const loaded: unknown = await import(pathToFileURL(join(dist, chunk)).href)
+  const createCLI =
+    typeof loaded === 'object' && loaded !== null
+      ? Object.values(loaded).find(
+          (value: unknown): value is () => unknown =>
+            typeof value === 'function' && value.name === 'createCLI',
+        )
+      : undefined
+  if (createCLI === undefined)
+    throw new Error(`vitest 的 ${chunk} 里没有 createCLI，读不到命令行定义`)
+  const cli: unknown = createCLI()
+  const command: unknown =
+    typeof cli === 'object' && cli !== null && 'globalCommand' in cli
+      ? cli.globalCommand
+      : undefined
+  const options: unknown =
+    typeof command === 'object' && command !== null && 'options' in command
+      ? command.options
+      : undefined
+  if (!Array.isArray(options) || options.length === 0 || !options.every(isVitestCliOption))
+    throw new Error('vitest 的 createCLI().globalCommand.options 形状认不出，读不到命令行定义')
+  return options
+}
+
 describe('根上的分层定义', () => {
   it('运行器重抄的报告目录变量名与层名与根定义一致', () => {
     expect(TEST_REPORT_DIR_ENV).toBe(ROOT_REPORT_DIR_ENV)
@@ -49,6 +106,76 @@ describe('根上的分层定义', () => {
   it('重抄的 vitest 缺省 exclude 与 vitest 自己的一致', () => {
     expect([...VITEST_DEFAULT_EXCLUDE]).toEqual(configDefaults.exclude)
     expect([...VITEST_DEFAULT_EXCLUDE]).toEqual(configDefaults.typecheck.exclude)
+  })
+
+  it('重抄的布尔选项表与安装的 vitest 命令行定义一致：布尔的都在表里，表里的都是布尔', async () => {
+    const options = await vitestCliOptions()
+    const booleans = new Set(
+      options
+        .filter(option => option.isBoolean === true)
+        .flatMap(option => option.names.map(name => (name.length === 1 ? `-${name}` : name))),
+    )
+    const table = new Set<string>(VITEST_BOOLEAN_OPTIONS)
+    const missing = [...booleans].filter(name => !table.has(name))
+    const extra = [...table].filter(name => !booleans.has(name))
+    expect(
+      { missing, extra },
+      `vitest.tiers.mts 的 VITEST_BOOLEAN_OPTIONS 与安装的 vitest 不一致：表里缺 ${missing.join(' ') || '（无）'}；表里多 ${extra.join(' ') || '（无）'}`,
+    ).toEqual({ missing: [], extra: [] })
+  })
+
+  it('每个定义了的选项（长名、短名、取反）与没定义的配置键、连写短选项、`=` 写法后面跟一个词：认出的过滤与 vitest 自己的解析一致', async () => {
+    const options = await vitestCliOptions()
+    const lines: string[][] = [
+      ['--typecheck.include', 'x'],
+      ['--typecheck.exclude', 'x'],
+      ['--outputFile.json', 'x'],
+      ['--foo.bar', 'x'],
+      ['--fooBar', 'x'],
+      ['--no-isolate', 'x'],
+      ['--no-isolate', 'false', 'x'],
+      ['--no-foo', 'x'],
+      ['--file-parallelism', 'x'],
+      ['--test-name-pattern', 'y', 'x'],
+      ['--isolate=x'],
+      ['--isolate=true', 'x'],
+      ['--sequence.shuffle=x'],
+      ['--typecheck.enabled=false'],
+      ['--isolate', '-t', 'y', 'x'],
+      ['-tw', 'y'],
+      ['-wt', 'y'],
+      ['-tw=y', 'x'],
+      ['--mode', 'slow', 'run', 'x'],
+      ['--isolate', 'run', 'x'],
+    ]
+    for (const option of options) {
+      // `--help`、`--version` 只打印、不跑测试，解析时还会往输出里打印帮助。
+      if (option.names.includes('help') || option.names.includes('version')) continue
+      for (const name of option.names)
+        lines.push([name.length === 1 ? `-${name}` : `--${name}`, 'probe'])
+      lines.push([`--no-${option.names.at(-1) ?? ''}`, 'probe'])
+    }
+    const disagreements: string[] = []
+    for (const words of lines) {
+      let parsed: ReturnType<typeof parseCLI>
+      try {
+        parsed = parseCLI(['vitest', 'run', ...words])
+      } catch {
+        // vitest 拒绝这条命令行（比如 `--silent probe`）：不会跑起来，没有过滤可言。
+        continue
+      }
+      const pattern: unknown = parsed.options.testNamePattern
+      const expected = {
+        testNames: [pattern].flat().filter(name => typeof name === 'string'),
+        files: parsed.filter.map(String),
+      }
+      const actual = cliFilters(['node', '/r/node_modules/vitest/vitest.mjs', 'run', ...words])
+      if (JSON.stringify(actual) !== JSON.stringify(expected))
+        disagreements.push(
+          `${words.join(' ')}：vitest 读出 ${JSON.stringify(expected)}，认出 ${JSON.stringify(actual)}`,
+        )
+    }
+    expect(disagreements, disagreements.join('\n')).toEqual([])
   })
 
   /** 不带过滤的 vitest 命令行：单测不随运行它的那条命令变。 */
@@ -99,7 +226,7 @@ describe('根上的分层定义', () => {
     })
   })
 
-  it('只有带值的选项吞下后面的词：布尔选项后面的词仍是文件过滤，布尔值 true、false 除外', () => {
+  it('布尔选项后面的词仍是文件过滤（布尔值 true、false 除外），其余选项吞下后面的词', () => {
     const vitest = (...words: string[]) => ['node', '/r/node_modules/vitest/vitest.mjs', ...words]
     const files = (...words: string[]) => cliFilters(vitest('run', ...words)).files
     expect(files('--no-isolate', 'tests/x')).toEqual(['tests/x'])
@@ -107,8 +234,14 @@ describe('根上的分层定义', () => {
     expect(files('--coverage.enabled', 'false', '--isolate', 'true')).toEqual([])
     // 运行器逐成员运行的写法：`--exclude` 带值，它的 glob 不是过滤。
     expect(files('--exclude', '**/*.legacy/**', '--reporter=json')).toEqual([])
-    // 短横线写法与驼峰同一个选项；带点的选项按带值算。
-    expect(files('--max-workers', '2', '--typecheck.include', 'tests/**/*.spec-d.ts')).toEqual([])
+    // 带点的选项同样照布尔表分。
+    expect(files('--max-workers', '2', '--coverage.reportsDirectory', 'out/cov')).toEqual([])
+    expect(files('--sequence.shuffle', 'tests/x')).toEqual(['tests/x'])
+    expect(files('--typecheck.only', 'true', '--coverage.thresholds.100', 'tests/y')).toEqual([
+      'tests/y',
+    ])
+    // 表外的选项（vitest 命令行没定义的配置键）与 vitest 一样按带值算。
+    expect(files('--typecheck.include', 'tests/**/*.spec-d.ts')).toEqual([])
     expect(cliFilters(vitest('run', '--test-name-pattern', 'y', 'tests/a')).testNames).toEqual([
       'y',
     ])
@@ -441,12 +574,25 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
   })
 
   it('布尔选项后面紧跟的文件过滤也认得：选不中时非零退出', () => {
-    for (const flag of ['--no-isolate', '--typecheck']) {
+    for (const flag of ['--no-isolate', '--typecheck', '--sequence.shuffle']) {
       const result = vitestWith(root, ['--mode', 'slow', flag, 'tests/quick.spec.ts'])
       expect(result.status, result.output).not.toBe(0)
       expect(result.ran).toEqual([])
       expect(result.output).toContain('没有选中任何用例')
     }
+  })
+
+  it('只跑类型测试时，布尔选项后面的文件过滤选不中：非零退出', () => {
+    const result = vitestWith(root, ['--mode', 'slow', '--typecheck.only', 'tests/quick.spec.ts'])
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.ran).toEqual([])
+  })
+
+  it('带点的带值选项吞下它的值：不当成文件过滤，没有慢用例的项目在慢层仍退出 0', () => {
+    const quickOnly = project({ 'only.spec.ts': [RAN, "test('快', () => ran('快'))"].join('\n') })
+    const result = vitestWith(quickOnly, ['--mode', 'slow', '--coverage.reportsDirectory', 'cov'])
+    expect(result.status, result.output).toBe(0)
+    expect(result.ran).toEqual([])
   })
 
   it('过滤到的文件加载失败：非零退出，只报加载错误，不说没有选中用例', () => {

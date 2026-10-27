@@ -51,104 +51,148 @@ export interface CliFilters {
 const SUBCOMMANDS = new Set(['run', 'watch', 'dev', 'related', 'bench', 'list'])
 
 /**
- * vitest 4.1.11 命令行里带值的选项（`<值>` 与 `[值]` 两种），不带点的那些，名字按驼峰写；核对自它的 `createCLI`。
- * 带点的选项（`--coverage.include x`）一律按带值算。
+ * vitest 命令行里的布尔选项：短选项写成 `-w`，长选项写名字，带点的照写（`sequence.shuffle`）。
+ * 来源：vitest 4.1.11 的 `createCLI().globalCommand.options` 里 `isBoolean` 为真的那些，取各自的 `names`；
+ * 仓库根不依赖 vitest，这里不导入它，test-runner 的测试与安装的 vitest 对账。
+ * 表外的选项（带值的、命令行没定义的配置键如 `--typecheck.include`）与 vitest 一样按带值算。
+ * vitest 升级新增布尔选项而表没跟上时，它后面的文件过滤会被当成它的值而漏认；对账测试在升级时就失败，挡住这种情形。
  */
-const VALUED_OPTIONS = new Set([
-  '-r',
-  '-c',
-  '-u',
-  '-t',
-  'root',
-  'config',
-  'update',
-  'testNamePattern',
-  'dir',
-  'api',
-  'silent',
-  'reporter',
-  'outputFile',
-  'mode',
-  'browser',
-  'pool',
-  'execArgv',
-  'vmMemoryLimit',
-  'maxWorkers',
-  'environment',
-  'shard',
-  'changed',
-  'sequence',
-  'inspect',
-  'inspectBrk',
-  'testTimeout',
-  'hookTimeout',
-  'bail',
-  'retry',
-  'diff',
-  'exclude',
-  'project',
-  'slowTestThreshold',
-  'teardownTimeout',
-  'maxConcurrency',
-  'attachmentsDir',
-  'configLoader',
-  'mergeReports',
-  'listTags',
-  'tagsFilter',
-  'experimental',
-])
-const TEST_NAME_OPTIONS = new Set(['-t', 'testNamePattern'])
+export const VITEST_BOOLEAN_OPTIONS = [
+  '-v',
+  'version',
+  '-w',
+  'watch',
+  'ui',
+  'open',
+  'hideSkippedTests',
+  'coverage',
+  'isolate',
+  'globals',
+  'dom',
+  'fileParallelism',
+  'passWithNoTests',
+  'logHeapUsage',
+  'detectAsyncLeaks',
+  'allowOnly',
+  'dangerouslyIgnoreUnhandledErrors',
+  'expandSnapshotDiff',
+  'disableConsoleIntercept',
+  'typecheck',
+  'cache',
+  'expect',
+  'printConsoleTrace',
+  'includeTaskLocation',
+  'run',
+  'color',
+  'clearScreen',
+  'standalone',
+  'clearCache',
+  'strictTags',
+  '-h',
+  'help',
+  'api.strictPort',
+  'api.allowExec',
+  'api.allowWrite',
+  'coverage.enabled',
+  'coverage.clean',
+  'coverage.cleanOnRerun',
+  'coverage.reportOnFailure',
+  'coverage.allowExternal',
+  'coverage.skipFull',
+  'coverage.thresholds.100',
+  'coverage.thresholds.perFile',
+  'coverage.excludeAfterRemap',
+  'browser.enabled',
+  'browser.headless',
+  'browser.api.strictPort',
+  'browser.api.allowExec',
+  'browser.api.allowWrite',
+  'browser.isolate',
+  'browser.ui',
+  'browser.fileParallelism',
+  'browser.trackUnhandledErrors',
+  'browser.locators.exact',
+  'sequence.shuffle',
+  'sequence.shuffle.files',
+  'sequence.shuffle.tests',
+  'sequence.concurrent',
+  'diff.expand',
+  'diff.includeChangeCounts',
+  'diff.omitAnnotationLines',
+  'diff.printBasicPrototype',
+  'typecheck.enabled',
+  'typecheck.only',
+  'typecheck.allowJs',
+  'typecheck.ignoreSourceErrors',
+  'expect.requireAssertions',
+  'expect.poll',
+  'experimental.fsModuleCache',
+  'experimental.importDurations',
+  'experimental.importDurations.failOnDanger',
+  'experimental.importDurations.thresholds',
+  'experimental.viteModuleRunner',
+  'experimental.nodeLoader',
+  'experimental.preParse',
+] as const
+const BOOLEAN_OPTIONS: ReadonlySet<string> = new Set(VITEST_BOOLEAN_OPTIONS)
 
-/** 选项名：长选项去掉 `--` 并把短横线写法换成驼峰（`--max-workers` → `maxWorkers`），短选项原样。 */
-function optionName(flag: string): string {
-  if (!flag.startsWith('--')) return flag
-  return flag.slice(2).replaceAll(/-([a-z])/gu, (_, letter: string) => letter.toUpperCase())
-}
+/** 用例名过滤的选项；长选项按 vitest 的写法先把短横线换成驼峰（`--test-name-pattern` 也是它）。 */
+const TEST_NAME_OPTIONS = new Set(['-t', 'testNamePattern'])
 
 /**
  * 交给 vitest 解析的词：只认 vitest 自己的入口（`vitest.mjs`），Stryker 等经 API 起 vitest 时命令行不是 vitest 的，
- * 按没有词算；去掉子命令，`--` 之后的不算。
+ * 按没有词算；`--` 之后的不算。
  */
 function vitestWords(argv: readonly string[]): readonly string[] {
   const entry = argv[1]
   if (entry === undefined || basename(entry) !== 'vitest.mjs') return []
-  const rest = argv.slice(2)
-  const words = rest[0] !== undefined && SUBCOMMANDS.has(rest[0]) ? rest.slice(1) : rest
+  const words = argv.slice(2)
   const end = words.indexOf('--')
   return end === -1 ? words : words.slice(0, end)
 }
 
+/** 一个选项词读出的结果：它给出的值落在哪里。 */
 interface Option {
-  readonly name: string
+  /** 取值的键：长选项是名字原样（vitest 用的 mri 按原样查布尔，不转驼峰）；短选项连写时取最后一个字母，写成 `-x`。 */
+  readonly key: string
+  /** `=` 后面或吞下的那个词；没有值时为 undefined。 */
   readonly value: string | undefined
   /** 值是不是取自下一个词。 */
   readonly consumed: boolean
 }
 
 /**
- * 读一个选项与它的值：`--x=值`；带值的选项吞下后面的一个词；布尔选项与 vitest 一样只吞 `true`、`false`。
- * 其余后面的词留给调用方当文件过滤：认错了只会多判成有过滤，不会把没选中的运行放过去。
+ * 照 vitest 用的 mri 读一个选项词：`--no-x` 不取值；`=` 后面非空时取它；否则后面一个不以 `-` 开头的词就是它的值，
+ * 布尔选项也一样先吞下，值不是 `true`、`false` 时再由调用方当成文件过滤。
  */
 function readOption(word: string, next: string | undefined): Option {
-  const equals = word.indexOf('=')
-  if (equals !== -1)
-    return {
-      name: optionName(word.slice(0, equals)),
-      value: word.slice(equals + 1),
-      consumed: false,
-    }
-  const name = optionName(word)
-  const consumes =
-    next !== undefined &&
-    !next.startsWith('-') &&
-    (name.includes('.') || VALUED_OPTIONS.has(name) || next === 'true' || next === 'false')
-  return { name, value: consumes ? next : undefined, consumed: consumes }
+  const dashes = word.length - word.replace(/^-+/u, '').length
+  const equals = word.indexOf('=', dashes + 1)
+  const name = word.slice(dashes, equals === -1 ? undefined : equals)
+  const key = dashes === 2 ? name : `-${name.slice(-1)}`
+  const inline = equals === -1 ? '' : word.slice(equals + 1)
+  if (/^-+no-/u.test(word)) return { key, value: undefined, consumed: false }
+  if (inline !== '') return { key, value: inline, consumed: false }
+  const consumed = next !== undefined && !next.startsWith('-')
+  return { key, value: consumed ? next : undefined, consumed }
+}
+
+/** 选项的值算什么：布尔选项的值不是 `true`、`false` 时是文件过滤；用例名选项的值是用例名过滤。 */
+function filterOf(option: Option): { readonly file?: string; readonly testName?: string } {
+  const { key, value } = option
+  if (value === undefined) return {}
+  if (BOOLEAN_OPTIONS.has(key)) return value === 'true' || value === 'false' ? {} : { file: value }
+  const name = key.replaceAll(
+    /([a-z])-([a-z])/gu,
+    (_, before: string, after: string) => before + after.toUpperCase(),
+  )
+  return TEST_NAME_OPTIONS.has(name) ? { testName: value } : {}
 }
 
 /**
- * 从启动 vitest 的命令行读出过滤（vitest 的配置函数拿不到它们）：`-t` 的值是用例名过滤，
- * 不是选项、也不是选项的值的词是文件过滤。带点的布尔选项用空格接文件过滤（`--typecheck.enabled tests/x`）时，
- * 文件过滤会被当成它的值而认不出；写成 `--typecheck.enabled=true` 就认得出。
+ * 从启动 vitest 的命令行读出过滤（vitest 的配置函数拿不到它们），读法与 vitest 自己的命令行解析一致：
+ * `-t` 的值是用例名过滤；不是选项、也不是带值选项的值的词是文件过滤，第一个这样的词是子命令时去掉它。
+ * 只有 `VITEST_BOOLEAN_OPTIONS` 里的选项不把后面的词当值，其余选项都吞下后面一个词。
  */
 export function cliFilters(argv: readonly string[]): CliFilters {
   const words = vitestWords(argv)
@@ -162,10 +206,12 @@ export function cliFilters(argv: readonly string[]): CliFilters {
     }
     const option = readOption(word, words[index + 1])
     if (option.consumed) index += 1
-    if (TEST_NAME_OPTIONS.has(option.name) && option.value !== undefined)
-      testNames.push(option.value)
+    const { file, testName } = filterOf(option)
+    if (file !== undefined) files.push(file)
+    if (testName !== undefined) testNames.push(testName)
   }
-  return { testNames, files }
+  const [first, ...rest] = files
+  return { testNames, files: first !== undefined && SUBCOMMANDS.has(first) ? rest : files }
 }
 
 /** 成员在报告目录里的文件名前缀：成员相对仓库根的路径，`/` 换成 `__`。 */
@@ -175,13 +221,13 @@ export function reportSlug(memberDirectory: string): string {
     .replaceAll('/', '__')
 }
 
-/** 设了报告目录时挂上的报告器、报告路径与测试进程的环境。 */
 /** 挂报告器时给的选项：计时报告器要输出路径，过滤守卫要过滤条件。 */
 type ReporterEntry =
   | string
   | [string, { outputFile: string }]
   | [string, { testNames: string[]; files: string[] }]
 
+/** 设了报告目录时挂上的报告器、报告路径与测试进程的环境。 */
 interface Reporting {
   readonly reporters?: ReporterEntry[]
   readonly outputFile?: { readonly json: string }
