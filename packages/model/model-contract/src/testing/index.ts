@@ -19,3 +19,21 @@ export { ScriptedModelError } from './error.ts'
 export type { ScriptedModelErrorReason } from './error.ts'
 export { createScriptedConformanceSubject } from './conformance-scripted.ts'
 export type { ScriptedPrincipal } from './conformance-scripted.ts'
+// The three public doubles of the result push and public observation protocols. They prove
+// what a consumer sees on the contract face; none of them is durable or a production capability.
+export { createScriptedResultPusher } from './pusher.ts'
+export type {
+  AckRecord,
+  PushFailure,
+  PushRecord,
+  ScriptedResultPusher,
+  ScriptedResultPusherOptions,
+} from './pusher.ts'
+export { createScriptedStreamReferences } from './stream-references.ts'
+export type { ScriptedEvent, ScriptedStreamReferences } from './stream-references.ts'
+export { createScriptedStreamObservation } from './stream-observation.ts'
+export type {
+  ScriptedStreamObservation,
+  ScriptedStreamObservationOptions,
+} from './stream-observation.ts'
+export type { ScriptedAccessDecision } from './access.ts'

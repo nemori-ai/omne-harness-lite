@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-公开名字分根入口与 `./provider` 两个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出 121 个类型和 20 个运行值：身份解码函数与常量、`compareOutputCursors`、调用引用的 codec、`deriveGuardControlOperation`、`judgeModelDelivery`，以及投影纯值 `diffModelStream` 与 `applyModelStreamDelta`。`./provider` 入口导出 72 个类型和 14 个运行值：操作引用的 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 14 个名字，以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 16 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
+公开名字分根入口与 `./provider` 两个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出 121 个类型和 20 个运行值：身份解码函数与常量、`compareOutputCursors`、调用引用的 codec、`deriveGuardControlOperation`、`judgeModelDelivery`，以及投影纯值 `diffModelStream` 与 `applyModelStreamDelta`。`./provider` 入口导出 72 个类型和 14 个运行值：操作引用的 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 27 个名字（替代提供者、替代传输与三个公开替身），以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 29 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -94,9 +94,9 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 ## Model 当前目标与公共观察
 
 - 声明：[`src/model-stream.ts`](../src/model-stream.ts)。
-- 公共入口类型探针：[`tests/model-stream-selection.spec-d.ts`](../tests/model-stream-selection.spec-d.ts)。受控查询行为：[`tests/model-stream-selection.spec.ts`](../tests/model-stream-selection.spec.ts)。
+- 公共入口类型探针：[`tests/model-stream-selection.spec-d.ts`](../tests/model-stream-selection.spec-d.ts)。受控查询行为：[`tests/testing-stream-references.spec.ts`](../tests/testing-stream-references.spec.ts)，经 `./testing` 的 `current` 替身。
 
-`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和私有测试替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
+`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和 `./testing` 的替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
 
 ## 普通调用面与实例观察
 
@@ -300,9 +300,9 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 本章给领域外协调者的测试作者。名字由 `./testing` 入口导出。
 
-- 声明：[`src/testing/provider.ts`](../src/testing/provider.ts)、[`src/testing/controller.ts`](../src/testing/controller.ts)、[`src/testing/core.ts`](../src/testing/core.ts)、[`src/testing/transport.ts`](../src/testing/transport.ts)、[`src/testing/error.ts`](../src/testing/error.ts)。
+- 声明：[`src/testing/provider.ts`](../src/testing/provider.ts)、[`src/testing/controller.ts`](../src/testing/controller.ts)、[`src/testing/core.ts`](../src/testing/core.ts)、[`src/testing/transport.ts`](../src/testing/transport.ts)、[`src/testing/error.ts`](../src/testing/error.ts)；三个公开替身：[`src/testing/pusher.ts`](../src/testing/pusher.ts)、[`src/testing/stream-references.ts`](../src/testing/stream-references.ts)、[`src/testing/stream-observation.ts`](../src/testing/stream-observation.ts)，共用的控制面决策 [`src/testing/access.ts`](../src/testing/access.ts)。
 - `ScriptedWriteAction` 是 `src/testing/writes.ts` 里 `WriteAction` 的导出别名，由 [`src/testing/index.ts`](../src/testing/index.ts) 声明。
-- 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
+- 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)；三个替身：[`tests/testing-pusher.spec.ts`](../tests/testing-pusher.spec.ts)、[`tests/testing-stream-references.spec.ts`](../tests/testing-stream-references.spec.ts)、[`tests/testing-stream-observation.spec.ts`](../tests/testing-stream-observation.spec.ts)。
 
 `@omne-harness/model-contract/testing` 入口给领域外的协调者测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。符合性断言在另一个入口 `./conformance`（见[符合性断言](#符合性断言)），任何提供者都可以用它检查自己；本入口只带一个把替代提供者接成被测方的函数。
 
@@ -317,6 +317,18 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 `commitUnknown` 让下一次同租户、同动作、同 operation 的写操作回答 `commit-unknown`。`applied` 使写操作实际生效，`dropped` 不留下任何东西；之后同 operation 重发，前者认回原结果，后者成为首次受理。`stays-unknown` 使 `queryCommit` 在那次重发之前一直回答 `unknown`。那次重发指发出该 operation 的调用再发这个 operation：该调用以这个 operation 发出的写，无论认回还是 `conflict`，都解除保持，因为 `conflict` 本身已表明该 operation 生效，之后答 `committed` 是真话，不造成重复执行。同租户另一个调用用同名 operation 的写得到 `conflict`，不解除保持。脚本属于它所指名的租户：别的租户用同名 operation 发写操作，既不消耗这条脚本，也不解除保持。替代件不区分更细的未知种类。
 
 `queryCommit` 把 operation 当作发出它的那个调用的东西：别的租户来问、同租户用别的调用或不存在的调用来问，得到的回答与问一个从未发出过的 operation 深相等。失权按所问的调用判断，换一个调用名不能绕过 `denied`。`not-started`、物化提交未知与实例代次的写入失败属于真实提供者的深接缝（`ModelCommands`），替代件不实现它。
+
+### 三个公开替身
+
+本入口另有[结果推送与保存](../SPEC.md#结果推送与保存)和[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)两个协议的三个公开替身，供契约骨架与消费方的契约测试闭合缺口；公开的理由与边界归 [SPEC](../SPEC.md#公开替身与受控替身)。三个替身状态都在闭包里，不读系统时钟，不导入任何接收方实现。`current` 替身与观察替身带测试控制面 `setAccess`：按真实租户与主体身份（`Object.is`）设 `ScriptedAccessDecision` 的 `allow`、`deny` 或 `unavailable`，没有设过的访问一律 `deny`；它不是生产 AccessCheck。推送生产者替身没有自己的控制面，它以构造时给出的 `principal` 行事，资格由被包的提供者与使用方注入的接收端口各自核验。
+
+`createScriptedResultPusher` 包住一个替代提供者。使用方经它返回的 `provider` 受理调用（替身在 `admit` 处记下调用的受理 operation 与引用），经它返回的 `controller` 驱动脚本；`controller` 的其余方法原样转发。`settle` 先转发给内层控制器，然后只经公开面（`inspect`、`dispatches`、`beginRead`/`readNext`/`closeRead`）读出 `CallState`、每个 dispatch 的账目快照（没有报告的写 null）与全部有序 `ResultPart`，组成 result 交付并深复制、深冻结；之后改脚本输入不改变载荷。它按 `resolveReceiver(consumer.owner)` 取接收端口推送：null 记 `no-receiver`；saved 时核回执 key 与原 key 结构相等，不等记 `receipt-key-mismatch`；`outcome-unknown` 按原 key 与同一冻结载荷立即重投，最多 `maxRedeliveries`（默认 3）次，之后记 `unknown` 并保留载荷；其余失败记 `rejected` 带接收方的失败值，不自动重投，`backpressured`、`unavailable` 由测试经 `redeliver` 驱动。`deliveries()` 按 key 给出 `pending`、`saved`、`failed`、`unknown` 与尝试次数；`settled(call)` 在该调用的 result 交付、它的 ACK 与排在它之前的账目交付都到终态后兑现。
+
+saved 之后替身自己取 ACK：固定专用 operation `mop_ack-` 加调用去掉 `mcall_` 前缀后的主体（同一调用重投得到同一 operation，可认回；主体不以 `--` 开头，与 `deriveGuardControlOperation` 的保留规则不冲突；读取结果的 operation 同法用 `mop_push-read-`），以 `{kind:'retained', custody: receipt.evidence}` 调用内层 `acknowledge`；`commit-unknown` 时同 operation 重发，上限同 `maxRedeliveries`，其余失败只记进 `acknowledgements()`，不改 result 的 saved 事实。调用主体过长使 operation 超出身份长度时，`settle` 抛 `ScriptedModelError`。晚账：`recordDispatch` 转发后，带非 null 账目的记录按到达顺序排队；result saved 之后，revision 比冻结快照里该 dispatch 新（或快照为 null）的账目组成 account 交付推送，同 dispatch 同 revision 不重复推送。替身不执行每租户与全局限额及背压、正文释放后的晚账恢复扫描、持久交付待办；它不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+
+`createScriptedStreamReferences` 从一个确认记录给出 `ModelStreamSelection`：`confirmSelection` 登记 state 与当前目标，`establishWithoutTarget` 登记没有目标的确认，`withdrawTarget` 退役无后继；`setSource('unavailable')` 使读取返回 `unavailable(stream-references)`；`holdResponse`/`reached`/`releaseResponse` 让一次响应等待，等待后重核资格并重读来源。失败顺序按 [current 的失败与读取顺序](../SPEC.md#current-的失败与读取顺序)；`events()` 记录每次通过前置检查的来源读取。登记的记录与返回的 selection 都是深复制、深冻结的纯值。
+
+`createScriptedStreamObservation` 按 `StreamRef` 提供内存中的 `ModelStreamObservation`。`publish` 登记一条新流的首个已确认快照，`advance` 登记同一 ref 的下一个快照并用 `diffModelStream` 得出 delta（失败抛 `ScriptedModelError`）；两者都推进该流的公共位置（从 1 起每次加 1，state-only 变化也推进），返回 `encodeStreamCursor` 的游标。`observe` 按 [stream-arrival 的失败顺序](../../../common/stream-arrival/README.md#failure-order-and-iterator-completion)检查：未铸造或他租户以 `denied` 结束，引用文本不可读以 `stale-stream` 结束，然后查控制面（`deny`→`denied`，`unavailable`→`unavailable`），然后流不存在以 `stale-stream` 结束、已 `end` 的流以 `end` 给出的 reason 结束。通过后先给当前快照，之后每个 `advance` 给一帧 delta，`from` 是该观察者上一帧的游标；取得快照与登记订阅在同一同步临界区完成。signal 中止以 `observer-closed` 结束并退订；同一 ref 再次观察先给当时的完整快照，再给后续 delta，不重放旧 delta。每帧实际交出前重核控制面，撤权后的下一帧是 `denied`。`capacity` 设定时，某观察者待取帧超过上限以 `capacity` 结束。输出帧是深复制、深冻结的纯值；替身不发布真实来源，不持久化。
 
 ## 符合性断言
 
