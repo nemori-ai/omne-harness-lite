@@ -5,7 +5,7 @@
 ## 内容
 
 - [architecture.md](architecture.md)：模块与依赖、关键机制与理由、设施协议、SOLID 与扩展边界、技术后续设计与来源缺项、验证与维护
-- [flows.md](flows.md)：F-EEC01 至 F-EEC09 协议流程，失败与生命周期
+- [flows.md](flows.md)：F-EEC01 至 F-EEC10 协议流程，失败与生命周期
 - [object-model.md](object-model.md)：角色、对象与关系、生命周期
 - [public-api.md](public-api.md)：导出入口与定义索引，需要声明的 schema 与两条块声明
 - [context.md](context.md)：独立消费、经集成方消费、邻域交接与系统定位

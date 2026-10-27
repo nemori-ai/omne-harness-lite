@@ -17,6 +17,7 @@
 - `OrganizationId` · `index.d.ts`
 - `ScopeLayerIdentity` · `index.d.ts`
 - `TenantId` · `index.d.ts`
+- `WorkspaceId` · `index.d.ts`
 - `access` · `index.d.ts`
 - `accountCodec` · `index.d.ts`
 - `accountEquals` · `index.d.ts`
@@ -33,6 +34,8 @@
 - `tenantCodec` · `index.d.ts`
 - `tenantEquals` · `index.d.ts`
 - `tenantScope` · `index.d.ts`
+- `workspaceCodec` · `index.d.ts`
+- `workspaceEquals` · `index.d.ts`
 
 ## 声明文件 `index.d.ts`
 
@@ -51,6 +54,10 @@ declare const IDENTITY_SPECS: readonly [
         readonly prefix: 'lgn_';
     },
     {
+        readonly name: 'WorkspaceId';
+        readonly prefix: 'wsp_';
+    },
+    {
         readonly name: 'TenantId';
     },
     {
@@ -62,7 +69,7 @@ type AtomicSpec = Extract<IdentitySpec, {
     readonly prefix: string;
 }>;
 type AtomicName = AtomicSpec['name'];
-export declare const IDENTITY_TYPE_NAMES: readonly ("AccountId" | "LoginStateId" | "OrganizationId" | "ScopeLayerIdentity" | "TenantId")[];
+export declare const IDENTITY_TYPE_NAMES: readonly ("AccountId" | "LoginStateId" | "OrganizationId" | "ScopeLayerIdentity" | "TenantId" | "WorkspaceId")[];
 interface AtomicIdentity<N extends AtomicName> {
     readonly name: N;
     readonly text: string;
@@ -70,6 +77,7 @@ interface AtomicIdentity<N extends AtomicName> {
 export type AccountId = AtomicIdentity<'AccountId'>;
 export type OrganizationId = AtomicIdentity<'OrganizationId'>;
 export type LoginStateId = AtomicIdentity<'LoginStateId'>;
+export type WorkspaceId = AtomicIdentity<'WorkspaceId'>;
 export interface TenantId {
     readonly name: 'TenantId';
     readonly organization: OrganizationId;
@@ -102,9 +110,11 @@ export interface IdentityTextCodec<T> {
 export declare const accountCodec: IdentityTextCodec<AccountId>;
 export declare const organizationCodec: IdentityTextCodec<OrganizationId>;
 export declare const loginStateCodec: IdentityTextCodec<LoginStateId>;
+export declare const workspaceCodec: IdentityTextCodec<WorkspaceId>;
 export declare function accountEquals(left: AccountId, right: AccountId): boolean;
 export declare function organizationEquals(left: OrganizationId, right: OrganizationId): boolean;
 export declare function loginStateEquals(left: LoginStateId, right: LoginStateId): boolean;
+export declare function workspaceEquals(left: WorkspaceId, right: WorkspaceId): boolean;
 export declare function tenant(organization: OrganizationId, account: AccountId): TenantId;
 export declare const tenantCodec: IdentityTextCodec<TenantId>;
 export declare function tenantEquals(left: TenantId, right: TenantId): boolean;

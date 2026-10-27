@@ -134,6 +134,22 @@
 
 文件设施：`unresolved` 用于路径上没有对象的读取、查看、列表，以及替换模式的写入。其他操作不返回 `unresolved`。依据：[#278 技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)的「路径上没有对象时结果是未解析」与「最小调用事实」文件一行的「使用对象及其代际，或未解析」。
 
+文件设施的 `expectedVersion`：替换模式的写入带 `expectedVersion`，而使用对象的当前版本与 `expectedVersion` 不同时，结果是 `rejected`，原因 `conflict`，对象不变。删除、移动与复制带 `expectedVersion` 时，规则与结果相同。移动与复制的 `expectedVersion` 与请求的 `path` 并列，所以比较的是 `path` 上的源对象，不是 `target` 上的对象。新建模式的写入带 `expectedVersion` 时，结果是 `rejected`，原因 `invalidInput`。版本由提供者给出，是观察条件，不是外部的比较并交换。两次观察到同一版本，只表示提供者没有观察到变化。同一版本不排除与这次请求同时发生的外部写入。依据：[INV-EE08](#inv-ee08-租户托管数据不随计算消失) 的「返回真实冲突」。替换写入的 `conflict` 与新建模式的 `invalidInput` 与 host-local 的[宿主文件设施](../execution-environment-host-local/SPEC.md#宿主文件设施的其余现行行为)一致。删除、移动与复制的 `conflict` 规则是新定的协议细节，未经技术接受。
+
+编辑不是设施操作。调用方按下列步骤组合一次编辑，时序见 [F-EEC10](docs/flows.md#f-eec10-调用方组合一次编辑)：
+
+1. 读取文件，得到 `version`。分段读取时，每段的 `version` 都必须相同。有一段不同时，从头重读。
+2. 在调用方内存里修改内容。
+3. 以替换模式写入。`expectedVersion` 取第 1 步读到的 `version`。
+4. 结果为 `conflict` 时，调用方重读后再决定。结果为 `unknown` 时，文件可能已部分改变。调用方按 [INV-EE14](#inv-ee14-未知保持原身份不盲目重放效果) 先查看，不自动重放。
+
+授予根：授予根是声称文件限制（隔离断言 `filesystem-root`）的落点自身的属性。提供者在建立落点时确定授予根，例如取沙箱自己的根或提供者的配置。`FileRequest`、`EnvironmentRequirement`、`Placement` 与 `EnvironmentLease` 都没有授予根字段。集成方只用隔离断言要求文件限制。[执行隔离](../../../docs/architecture/security/execution-isolation.md)所说「声称文件限制的 profile」，在本成员里对应声称隔离断言 `filesystem-root` 的提供者及其配置。`FileRequest` 没有工作目录字段，所以在这样的落点上，文件请求的相对路径从授予根起算：
+
+- 路径是绝对路径时，结果是 `rejected`，原因 `invalidInput`。
+- 路径越出授予根，或提供者确认不了使用对象仍在授予根内时，结果是 `rejected`，原因 `notAuthorized`（[INV-EE09](#inv-ee09-资源和秘密以最小必要条件提供)）。
+
+理由：调用方只需要相对路径。把根的路径交给调用方，会诱导按路径前缀放行，而 INV-EE09 要求在使用时点核对对象。绝对路径为 `invalidInput`、越出授予根为 `notAuthorized` 这两个拒绝原因是新定的协议细节，未经技术接受。宿主机落点按什么确定授予根（例如按工作区）未定，见[明确缺项](#明确缺项)。
+
 命令设施：`start` 的 `done` 表示进程实际已启动，结果带进程身份。提供者接纳了请求，但进程映像没有启动时，结果是 `rejected`，原因 `unavailable`，不是 `done`。启动与否不可确认时，结果是 `unknown`。`CommandOutcome` 的 `failed` 只用于已启动的进程之后失联或效果未知，与启动失败分开。依据：「最小调用事实」进程一行的「实际启动的进程身份，或启动失败」与它的调用例。
 
 设施协议的规则以本节为唯一源。[docs/architecture.md](docs/architecture.md#设施协议) 的设施协议节逐个设施展开本节的规则并说明理由，流程归 [docs/flows.md](docs/flows.md)。
@@ -443,7 +459,7 @@
 | V-EE26 | 获取路已结清而资源路缺方法、失败或未就绪时记已释放；完整空资源枚举被当作没有获取或文件描述符；同一资源被两路重复停止；获取枚举失败被当空表 |
 | V-EE27 | 没有域外退出证据时新进程对旧容量答未分配或已结清；热重载被当作进程退出；未知的文件效果因容量结清被改写、重写或回滚 |
 
-`./testing` 的两个套件把部分义务写成可运行用例，用例名以义务编号为前缀。V-EE23 至 V-EE26 的用例如下；其余反例仍需机制成员、提供者与真实集成方的组合证据。套件用替身端口，不证明真实授权、真实绑定来源或耐久。
+`./testing` 的两个套件把部分义务写成可运行用例，用例名以义务编号为前缀。V-EE23 至 V-EE26 的用例如下；其余反例仍需机制成员、提供者与真实集成方的组合证据。套件用替身端口，不证明真实授权、真实绑定来源或耐久。`./testing` 另有内存文件设施与脚本命令设施两个替身。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。
 
 | 义务 | 公开执行环境套件 `executionEnvironmentConformance` | 提供者套件 |
 | --- | --- | --- |
@@ -459,6 +475,8 @@
 
 - 技术后续设计与来源缺项 Q-EE02 至 Q-EE06 归 [docs/architecture.md](docs/architecture.md)。Q-EE04 的托管数据写者、数据键、备份与迁移和数据寿命保持排除，不进入任何配额清理方案。
 - 沙箱提供者与受限执行域不在本成员；隔离断言集合为它们留位。
+- 宿主机落点按什么确定授予根，以及授予根限制的实现，现在没有拥有者。host-local 现在不声明 `filesystem-root`。上层的相对路径起点缺省是工作目录，而 `FileRequest` 不带工作目录，声称 `filesystem-root` 的落点上相对路径从授予根起算。工具怎样把相对工作目录的路径换成相对授予根的路径，也没有拥有者。
+- `list` 的条目是 `FileInformation`，不带名字，所以列表工具读不出条目名。以后给条目加名字字段时，字段须是可选的，才是可加改动。拥有者是本成员的拥有者。
 - 真实的命令与终端提供者归 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)：以获取与对象代际为索引，阻止同租户、同作用域的其他获取列出、执行、关闭或停止原对象；停止需要真实进程或伪终端以及平台证据。文件设施的真实证据不证明命令与终端的隔离。
 - 当前没有成员发布这两条块。host-local 的 Service 实现现在不登记 Runtime Context 的生产者。
 - 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出。
