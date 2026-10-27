@@ -121,6 +121,7 @@ export function creation(overrides: Partial<SessionCreation> = {}): SessionCreat
     requiredIdentities: [],
     purpose: 'conformance',
     workspace: null,
+    attachment: null,
     modes: { kind: 'tenant-default', source: adoption('tenant-defaults') },
     initial: null,
     entryContract: adoption('entry-contract'),

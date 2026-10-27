@@ -56,6 +56,7 @@ export type {
   SessionFrozen,
   Waiting,
   WorkSnapshot,
+  WorkspaceAttachment,
 } from './values.ts'
 export type {
   AdmittedMessage,
