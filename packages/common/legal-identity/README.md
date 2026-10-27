@@ -57,6 +57,8 @@ An atomic identity is a family prefix plus 26 characters from `0123456789abcdefg
 | `LoginStateId` | `lgn_` |
 | `WorkspaceId` | `wsp_` |
 
+Example texts: `acc_abcdefghjkmnpqrstvwxyz2345`, `org_abcdefghjkmnpqrstvwxyz2345`, `lgn_abcdefghjkmnpqrstvwxyz2345`, `wsp_abcdefghjkmnpqrstvwxyz2345`. Each is the prefix followed by 26 characters of the alphabet.
+
 Atomic parse applies these checks in order. The first failed check gives the code.
 
 1. A value that is not a string is `type`.

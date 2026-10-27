@@ -57,6 +57,8 @@ tenantCodec.encode(pair)
 | `LoginStateId` | `lgn_` |
 | `WorkspaceId` | `wsp_` |
 
+示例文本：`acc_abcdefghjkmnpqrstvwxyz2345`、`org_abcdefghjkmnpqrstvwxyz2345`、`lgn_abcdefghjkmnpqrstvwxyz2345`、`wsp_abcdefghjkmnpqrstvwxyz2345`。每个都是前缀加 26 位字母表字符。
+
 原子解析按下面的顺序检查。第一个不通过的检查决定失败码。
 
 1. 不是字符串的值得到 `type`。
