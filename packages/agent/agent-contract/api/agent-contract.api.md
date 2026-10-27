@@ -2476,6 +2476,13 @@ export type RequiredReceivedCommits<P, B extends ContentBlock> = Readonly<{
 }>;
 ```
 
+## 声明文件 `testing-received-material.d.ts`
+
+```ts
+import { z } from 'zod';
+export declare const materialShape: z.ZodType<unknown>;
+```
+
 ## 声明文件 `testing-received-memory.d.ts`
 
 ```ts
@@ -2524,8 +2531,6 @@ export type MemoryExecution = {
     revision: number;
     entries: AgentJournalEntry[];
     operations: Map<string, KeptOperation>;
-    deliveries: Map<string, KeptDelivery>;
-    bindings: Map<string, string>;
     qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>;
 };
 export type KeptMaterial<B extends ContentBlock> = {

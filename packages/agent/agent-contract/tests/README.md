@@ -39,3 +39,5 @@
 ## 边界
 
 这些测试只覆盖纯判断、解码、正文契约、导出面、依赖方向和接收面替身，不证明 AgentRuntime、Journal 提供者、外部协调者协作或动态插件已经实现。装配成员拥有通过本包调用声明判断的消费者测试。资产成员不依赖本包，它的测试不导入本包。
+
+[receiving-repair.spec.ts](receiving-repair.spec.ts) 检查参考设施在同租户跨 execution 的共同提交、旧 record 先写和仅绑定三种路径下拒绝矛盾消费；检查 Model、Tool 的完整材料可读，以及空页、非法内容、终态和附件的精确拒绝路径与零发布。required 套件还覆盖四种交付变体的同操作和跨操作认回、旧 record 同操作异 consumer 冲突、暂停期间撤销资格后返回 denied 且不留下材料、条目或 revision。

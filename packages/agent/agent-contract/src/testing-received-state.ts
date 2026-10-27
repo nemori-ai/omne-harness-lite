@@ -1,4 +1,3 @@
-import { judgeJsonValue } from '@omne-harness/json-text'
 import { judgeCallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -6,6 +5,7 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
+import { materialShape } from './testing-received-material.ts'
 import type { Failure } from './evaluation.ts'
 import type { CommandReceipt, ExecutionMutation } from './execution.ts'
 import {
@@ -41,8 +41,6 @@ export type MemoryExecution = {
   revision: number
   entries: AgentJournalEntry[]
   operations: Map<string, KeptOperation>
-  deliveries: Map<string, KeptDelivery>
-  bindings: Map<string, string>
   qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>
 }
 export type KeptMaterial<B extends ContentBlock> = {
@@ -108,23 +106,6 @@ export function mutationFailure<P>(input: ExecutionMutation<P>): Failure | null 
   return null
 }
 const text = z.string().min(1)
-const adoption = z.object({ owner: text, name: text, revision: text, digest: text })
-const evidenceShape = z.object({ owner: text, record: text, revision: text, digest: text })
-const produced = z.object({
-  producer: z.object({ kind: z.enum(['model', 'tool']), call: text }),
-  version: text,
-  delivery: text.nullable(),
-  source: evidenceShape,
-})
-const materialShape = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('facts'),
-    schema: adoption,
-    value: z.unknown().refine(value => 'ok' in judgeJsonValue(value), 'invalid JsonValue'),
-  }),
-  z.object({ kind: z.literal('model'), result: produced, pages: z.array(z.unknown()) }),
-  z.object({ kind: z.literal('tool'), result: produced, pages: z.array(z.unknown()) }),
-])
 const accountShape = z.unknown().refine(value => 'ok' in judgeCallAccount(value), 'invalid account')
 const resultKey = z.object({ kind: z.literal('result'), reference: text, result: text })
 const modelAccountKey = z.object({

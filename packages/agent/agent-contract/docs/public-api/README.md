@@ -225,9 +225,9 @@ for (const testCase of cases) await testCase.run()
 
 [`ReceivedCommitFixture`](../../src/testing-received-fixture.ts) 定义提供者适配的测试边界。entries、received、materials、窄 Journal.query 与原 fixture.read 必须对应同一公开状态。`bind` 显式设置原冻结消费、材料保管归属与完整载荷，`qualify` 设置当前测试资格。这些设置不证明真实装配已能解析主体或消费绑定。pause、fault、exclude、retainSaved 和 loseMaterial 只控制测试中的交错、故障和既有事实，不进入生产端口。inspect 补充读取该 execution 的 revision、条目数和保管材料数。套件同时经原 read、materials.read 与 Journal.query 检查公开结果。
 
-[`memoryReceivedCommitFixture`](../../src/testing-received-memory.ts) 提供 `durability: 'none'` 的最小共享状态参考设施。它没有伪造完整 AgentJournal。新 commit 与旧 record 共用 operation、delivery 和材料状态。暂停的准备不公开材料，发布段一次建立所有事实。原 saved 缺失时不伪造证据，材料缺失时不补写历史。旧的两个替身工厂仍保留各自原有范围。
+[`memoryReceivedCommitFixture`](../../src/testing-received-memory.ts) 提供 `durability: 'none'` 的最小共享状态参考设施。它没有伪造完整 AgentJournal。新 commit 与旧 record 共用 operation、delivery 和材料状态。delivery 的冻结消费归属在提供者内按租户共享，跨 execution 的矛盾绑定不能建立第二份接收。材料页按 Model、Tool 的公开形状和内容判定器校验，校验不证明生产者已经保存这些材料。暂停的准备不公开材料，发布段一次建立所有事实。原 saved 缺失时不伪造证据，材料缺失时不补写历史。旧的两个替身工厂仍保留各自原有范围。
 
-[`共同提交用例`](../../src/testing-received-conformance.ts) 覆盖共同可见、确定失败、同操作和跨操作重试、并发、响应未知、权威排除与迟到提交、租户与当前资格、冻结绑定、ended 后保管和旧入口共存。[接收面测试](../../tests/receiving.spec.ts) 用材料提前可见、重复修订、回执 operation 被改写及 required 配置缺失核对套件能否检出错误。[类型测试](../../tests/receiving.spec-d.ts) 保留旧形状并核对新导出。运行入口仍为 `pnpm --filter @omne-harness/agent-contract test` 与 `typecheck`，仓库运行时经测试名额包装器调用。
+[`共同提交用例`](../../src/testing-received-conformance.ts) 覆盖 Model result、Model account、Tool result、Tool account 的保管与原回执认回，以及共同可见、确定失败、同操作和跨操作重试、并发、响应未知、权威排除与迟到提交、租户与当前资格、冻结绑定、暂停时资格撤销、ended 后保管和旧入口共存。[接收面测试](../../tests/receiving.spec.ts) 用材料提前可见、重复修订、回执 operation 被改写及 required 配置缺失核对套件能否检出错误。[类型测试](../../tests/receiving.spec-d.ts) 保留旧形状并核对新导出。运行入口仍为 `pnpm --filter @omne-harness/agent-contract test` 与 `typecheck`，仓库运行时经测试名额包装器调用。
 
 这些证据只覆盖参考设施的内存行为与公开类型。Session 的真实保存、跨进程认回和生产者完整交付链须由实际提供者与消费者验证。
 

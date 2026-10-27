@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Failure, Reply } from './evaluation.ts'
@@ -11,7 +12,12 @@ import {
 } from './identity.ts'
 import type { ReceivedCommitInput, ReceivedCommitResult, ReceivedCommitValue } from './receiving.ts'
 import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts'
-import { sampleReceivedModelResult, sampleStartFence } from './testing-journal-samples.ts'
+import {
+  sampleReceivedModelResult,
+  sampleReceivedModelAccount,
+  sampleReceivedToolAccount,
+  sampleStartFence,
+} from './testing-journal-samples.ts'
 import type { RequiredReceivedCommits } from './testing-received-fixture.ts'
 import { doubleEvidence, type ConformanceCase } from './testing-case.ts'
 
@@ -108,7 +114,119 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       'Journal query must return the same original receipt',
     )
   }
+  const variants = [
+    { name: 'Model account', sample: sampleReceivedModelAccount },
+    { name: 'Tool account', sample: sampleReceivedToolAccount },
+    {
+      name: 'Tool result',
+      sample: (tenant: Access<P>['tenant'], name: string) => {
+        const entry = sampleReceivedToolAccount(tenant, name)
+        assert.equal(entry.delivery.producer, 'tool')
+        assert.ok(entry.delivery.producer === 'tool')
+        return {
+          ...entry,
+          delivery: {
+            producer: 'tool' as const,
+            key: {
+              kind: 'result' as const,
+              producer: 'tool' as const,
+              reference: entry.delivery.key.reference,
+              result: decoded(decodeToolResultVersion(`result-${name}`)),
+            },
+            account: null,
+          },
+        }
+      },
+    },
+  ]
   return [
+    ...variants.map(({ name, sample }): ConformanceCase => ({
+      name: `received ${name} commits and recalls the original custody`,
+      async run() {
+        const execution = decoded(decodeAgentExecutionId(`variant-${name.replaceAll(' ', '-')}`))
+        await fixture.open(access, execution)
+        const { material: _source, ...entry } = sample(
+          access.tenant,
+          `variant-${name.replaceAll(' ', '-')}`,
+        )
+        const input = {
+          ...access,
+          execution,
+          operation: operation(name.replaceAll(' ', '-')),
+          entry,
+          material: joint.material(name),
+        }
+        await joint.bind(input)
+        const value = await committed(joint.received.commit(input))
+        assert.deepEqual(
+          await committed(joint.received.commit(input)),
+          value,
+          `${name} same operation must retain original custody`,
+        )
+        assert.deepEqual(
+          await committed(
+            joint.received.commit({
+              ...input,
+              operation: operation(`${name.replaceAll(' ', '-')}-retry`),
+            }),
+          ),
+          value,
+          `${name} another operation must retain original custody`,
+        )
+        await assertVisible(input, value)
+        assert.deepEqual(await stats(input), { revision: 1, entries: 1, materials: 1 })
+      },
+    })),
+    {
+      name: 'received legacy same operation rejects a changed consumer',
+      async run() {
+        const input = await prepare('legacy-changed-consumer')
+        const value = await committed(joint.received.commit(input))
+        await refused(
+          joint.entries.record({
+            ...input,
+            authority: null,
+            entry: {
+              ...value.entry,
+              consumer: { ...value.entry.consumer, work: 'different-work' },
+            },
+          }),
+          'conflict',
+          'legacy same operation must reject a changed consumer',
+        )
+        await assertVisible(input, value)
+        assert.deepEqual(await stats(input), { revision: 1, entries: 1, materials: 1 })
+      },
+    },
+    {
+      name: 'received paused publication rechecks revoked qualification',
+      async run() {
+        const input = await prepare('revoked-during-pause')
+        const pause = joint.pause(input)
+        const pending = joint.received.commit(input)
+        const source = await pause.reached
+        joint.qualify(input, input.execution, 'denied')
+        pause.release()
+        await assert.doesNotReject(async () => {
+          await refused(pending, 'denied', 'revoked qualification must deny publication')
+        }, 'revoked qualification must return denied instead of throwing')
+        joint.qualify(input, input.execution, 'allowed')
+        assert.deepEqual(
+          await fixture.read(input, input.execution),
+          [],
+          'revoked publication must leave no entry',
+        )
+        assert.ok(
+          'failure' in (await joint.materials.read({ ...input, source })),
+          'revoked publication must leave no material',
+        )
+        assert.deepEqual(
+          await stats(input),
+          { revision: 0, entries: 0, materials: 0 },
+          'revoked publication must leave no revision or half',
+        )
+      },
+    },
     {
       name: 'received joint publication keeps both halves invisible until one publication',
       async run() {

@@ -19,6 +19,7 @@ import type {
   ReceivedCommitQuery,
   ReceivedCommitResult,
   ReceivedCommitValue,
+  ReceivedEntry,
 } from './receiving.ts'
 import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts'
 import type { ReceivedCommitFixture } from './testing-received-fixture.ts'
@@ -54,6 +55,10 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     joint: ReceivedCommitFixture<P, B>
   }> {
   const executions = new Map<string, MemoryExecution>()
+  const deliveries = new Map<string, KeptDelivery>()
+  const bindings = new Map<string, { execution: AgentExecutionId; text: string; entry: string }>()
+  const scopedDelivery = (input: Access<P>, entry: Omit<ReceivedEntry, 'material'>) =>
+    canonicalText([tenantText(input.tenant), deliveryKey(entry)])
   const materials = new Map<string, KeptMaterial<B>>()
   const custody = new Map<string, AgentExecutionId>()
   const pauses = new Map<string, Pause>()
@@ -123,8 +128,9 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     ) {
       return fail(conflict(input))
     }
-    const delivery = state.deliveries.get(deliveryKey(input.entry))
+    const delivery = deliveries.get(scopedDelivery(input, input.entry))
     if (!delivery) return previous ? fail(conflict(input)) : null
+    if (delivery.receipt.execution !== input.execution) return fail(conflict(input))
     if (
       canonicalText({ ...input.entry, material: delivery.entry.material }) !==
       canonicalText(delivery.entry)
@@ -144,9 +150,10 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     if ('failure' in allowed) return allowed
     const invalid = receivedFailure(input)
     if (invalid) return fail(invalid)
-    const binding = allowed.ok.bindings.get(deliveryKey(input.entry))
+    const binding = bindings.get(scopedDelivery(input, input.entry))
     if (binding === undefined) return fail(denied())
-    if (binding !== semanticText(input)) return fail(conflict(input))
+    if (binding.execution !== input.execution || binding.text !== semanticText(input))
+      return fail(conflict(input))
     return allowed
   }
   const commit = async (
@@ -192,7 +199,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     })
     state.entries.push(entry)
     state.revision += 1
-    state.deliveries.set(deliveryKey(entry), { entry, receipt, saved })
+    deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved })
     state.operations.set(input.operation, { kind: 'received', text: semanticText(input), value })
     if (fault === 'after-publish')
       return fail({ kind: 'commit-unknown', operation: input.operation })
@@ -213,7 +220,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       return succeed(structuredClone({ kind: 'committed', value: operation.value }))
     }
     if (operation.entry.kind !== 'received') return fail({ kind: 'unsupported' })
-    const delivery = allowed.ok.deliveries.get(deliveryKey(operation.entry))
+    const delivery = deliveries.get(scopedDelivery(input, operation.entry))
     if (!delivery?.saved) return fail({ kind: 'unsupported' })
     const value = richValue(input, delivery)
     return 'failure' in value
@@ -248,8 +255,16 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
         : fail(conflict(input))
     if (prior) return fail(conflict(input))
     if (input.entry.kind === 'received') {
-      const found = state.deliveries.get(deliveryKey(input.entry))
+      const found = deliveries.get(scopedDelivery(input, input.entry))
+      const binding = bindings.get(scopedDelivery(input, input.entry))
+      const { material: _source, ...draft } = input.entry
+      if (
+        binding &&
+        (binding.execution !== input.execution || binding.entry !== canonicalText(draft))
+      )
+        return fail(conflict(input))
       if (found) {
+        if (found.receipt.execution !== input.execution) return fail(conflict(input))
         if (canonicalText(found.entry) !== canonicalText(input.entry)) return fail(conflict(input))
         state.operations.set(input.operation, {
           kind: 'record',
@@ -274,7 +289,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     state.revision += 1
     state.operations.set(input.operation, { kind: 'record', text, entry, receipt })
     if (entry.kind === 'received')
-      state.deliveries.set(deliveryKey(entry), { entry, receipt, saved: null })
+      deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved: null })
     return succeed(structuredClone(receipt))
   }
   const entries: AgentJournalEntries<P> = { record }
@@ -326,16 +341,25 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       },
     },
     async bind(input) {
-      const state = requireState(input)
-      const key = deliveryKey(input.entry)
+      requireState(input)
+      const key = scopedDelivery(input, input.entry)
       const text = semanticText(input)
-      const prior = state.bindings.get(key)
-      if (prior !== undefined && prior !== text) throw new TypeError('frozen binding cannot change')
+      const prior = bindings.get(key)
+      if (prior && (prior.execution !== input.execution || prior.text !== text))
+        throw new TypeError('frozen binding cannot change')
+      const delivered = deliveries.get(key)
+      if (
+        delivered &&
+        (delivered.receipt.execution !== input.execution ||
+          canonicalText({ ...input.entry, material: delivered.entry.material }) !==
+            canonicalText(delivered.entry))
+      )
+        throw new TypeError('established delivery binding cannot change')
       const consumerKey = canonicalText([tenantText(input.tenant), input.entry.consumer])
       const owner = custody.get(consumerKey)
       if (owner !== undefined && owner !== input.execution)
         throw new TypeError('frozen consumer execution cannot change')
-      state.bindings.set(key, text)
+      bindings.set(key, { execution: input.execution, text, entry: canonicalText(input.entry) })
       custody.set(consumerKey, input.execution)
     },
     material: name => ({
@@ -382,7 +406,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       const operation = state.operations.get(input.operation)
       if (operation?.kind !== 'record' || operation.entry.kind !== 'received')
         throw new TypeError('legacy received operation required')
-      const delivery = state.deliveries.get(deliveryKey(operation.entry))
+      const delivery = deliveries.get(scopedDelivery(input, operation.entry))
       if (!delivery || saved.owner !== delivery.entry.consumer.owner)
         throw new TypeError('original consumer saved evidence required')
       delivery.saved = structuredClone(saved)
@@ -417,8 +441,6 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
         revision: 0,
         entries: [],
         operations: new Map(),
-        deliveries: new Map(),
-        bindings: new Map(),
         qualifications: new Map([[who.principal, 'allowed']]),
       })
       return grant
