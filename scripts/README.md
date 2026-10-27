@@ -109,6 +109,8 @@
 |---|---|
 | `event` | `ran`：用了名额；`gave-up`：等到超时放弃（这时 `slot`、`acquiredAt`、`heldSeconds`、`cpuSeconds`、`loadAtAcquire` 为 `null`） |
 | `command`、`cwd`、`pid` | 经名额执行的命令（截到 500 字符）、从哪个目录、包装进程号 |
+| `issue` | 当前目录所在工作树的 task context（git 目录下的 `omne-integration-context.json`）里最后一项任务的卡号；不是 git 仓库、没有 context 或字段不合格时为 `null` |
+| `attempt` | 同一项任务的 attempt，取不到时为 `null`。两项取不到都不提醒、不改退出码 |
 | `cores`、`slots`、`slot` | 机器核数、名额总数、用的是第几个 |
 | `aheadOnArrival` | 进队时前面有几张活票 |
 | `arrivedAt`、`acquiredAt`、`endedAt` | 进队、拿到名额、结束（或放弃）的时刻，RFC 3339 |
