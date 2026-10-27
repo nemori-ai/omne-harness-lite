@@ -9,17 +9,19 @@ import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   BudgetCheck,
-  CalibratedInputMeter,
   MediaMeasurementFact,
-  MeterCalibration,
   ModelCountingBasis,
   ModelInputMeter,
   ModelLimit,
-  ModelTextTokenizer,
   RequestBudget,
   TransportFailure,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
+import type {
+  CalibratedInputMeter,
+  MeterCalibration,
+  ModelTextTokenizer,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   calibratedAmount,

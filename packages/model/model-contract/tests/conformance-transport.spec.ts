@@ -2,7 +2,7 @@ import type {
   MaterializedTransport,
   PreparedTransport,
   TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'

@@ -6,9 +6,9 @@ import type {
   Access,
   DispatchRecord,
   ModelCallId,
-  ModelCommands,
   ModelFailure,
 } from '@omne-harness/model-contract'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 
 /** The one door to call facts. `ModelCommands` satisfies it; nothing else of it is read. */

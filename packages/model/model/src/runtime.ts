@@ -1,7 +1,8 @@
-import { judgeAdmit } from '@omne-harness/model-contract'
+import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { referenceFailure } from './reference.ts'
 import { createModelDriver } from './driver.ts'
+import type { Reply } from '@omne-harness/model-contract'
 import type {
   ModelCommands,
   ModelSendBoundary,
@@ -10,8 +11,7 @@ import type {
   ModelClock,
   ModelProvider,
   ModelDriver,
-  Reply,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 export type ModelConfiguration = Readonly<{
   outputBatchBytes: number

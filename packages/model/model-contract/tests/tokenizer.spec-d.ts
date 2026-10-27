@@ -1,11 +1,10 @@
 import { expectTypeOf, it } from 'vitest'
+import type { ModelCountingBasis, TokenizerDefinition } from '@omne-harness/model-contract'
 import type {
-  ModelCountingBasis,
   ModelTextTokenizer,
   TokenizationFailure,
   TokenizationSegment,
-  TokenizerDefinition,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { adoption, counting, profileSupplier } from './values.ts'
 
 const definition: TokenizerDefinition = {

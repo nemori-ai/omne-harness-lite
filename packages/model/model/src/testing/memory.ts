@@ -1,4 +1,4 @@
-import type { ModelCommands } from '@omne-harness/model-contract'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { callCommands, recoveryCommands } from './calls.ts'
 import { consumptionCommands } from './consumption.ts'
 import { dispatchCommands } from './dispatch.ts'

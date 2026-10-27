@@ -1,5 +1,6 @@
 import { executeModel } from '@omne-harness/model'
-import type { Adoption, ModelTransport, TransportFailure } from '@omne-harness/model-contract'
+import type { Adoption, TransportFailure } from '@omne-harness/model-contract'
+import type { ModelTransport } from '@omne-harness/model-contract/provider'
 import { succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {

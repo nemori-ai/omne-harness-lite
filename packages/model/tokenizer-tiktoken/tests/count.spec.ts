@@ -1,5 +1,5 @@
 import { getEncoding } from 'js-tiktoken'
-import type { ModelTextTokenizer, TokenizationSegment } from '@omne-harness/model-contract'
+import type { ModelTextTokenizer, TokenizationSegment } from '@omne-harness/model-contract/provider'
 import { createTiktokenTokenizer, type TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 import { describe, expect, it } from 'vitest'
 import { DIGESTS, o200kResources, syntheticResources } from './support/resources.ts'

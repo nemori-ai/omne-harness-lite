@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { deliver, type CallRecord } from '@omne-harness/model'
-import type { SendFace } from '@omne-harness/model-contract'
+import type { SendFace } from '@omne-harness/model-contract/provider'
 import {
   ModelCredentialService,
   modelCredentialKey,

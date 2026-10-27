@@ -6,7 +6,6 @@
 // lease is unavailable, and the lease drops its view of the facts.
 import type {
   Access,
-  CalibratedInputMeter,
   ModelFailure,
   ModelInputMeter,
   ModelPreparationLease,
@@ -17,6 +16,7 @@ import type {
   Supplier,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { CalibratedInputMeter } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from '../adoption.ts'
 import { readCallFacts, type CallFactsReader, type CallFactsView } from './facts.ts'

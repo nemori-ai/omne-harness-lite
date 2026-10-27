@@ -26,7 +26,23 @@ const evidenceRoot = fileURLToPath(
   new URL('../../../../tmp/model-contract-protocol/', import.meta.url),
 )
 const scripts = ['model.mjs', 'self-test.mjs', 'knowledge-test.mjs', 'boundary-test.mjs', 'run.mjs']
-const limits = { pollMs: 20, closeMs: 6500, settleMs: 3500, cleanupMs: 2000, hardMs: 18000 }
+const limits = {
+  pollMs: 20,
+  closeMs: 6500,
+  settleMs: 3500,
+  cleanupMs: 2000,
+  hardMs: 18000,
+  // Budget from supervisor fork until the hanging fixture has written its start pids: root and
+  // descendant for the parent-death and signal cases, root and grandchild for `deadline`. The
+  // controller program uses the same value as its startMs.
+  fixtureStartMs: 2500,
+  // Polling margin for grandchild.pid once the fixture started; the descendant writes it first. The
+  // controller program uses the same value as its readyMs. `deadline` has no separate ready wait.
+  fixtureReadyMs: 300,
+  // Added to the `deadline` supervisor duration. The main safety margin is that the supervisor timer
+  // starts only after the supervisor spawns the fixture; see the `deadline` case.
+  deadlineMarginMs: 200,
+}
 type ProcessExit = { code: number | null; signal: string | null }
 type CleanupAction = { pid: number; group: boolean; signal: string; result: string }
 type Scenario = 'success' | 'supervisor-early-exit' | 'missing-fixture' | 'no-pid'
@@ -235,14 +251,22 @@ function createSource(source: string, program: string): void {
   for (const file of scripts) copyFileSync(join(sourceDirectory, file), join(source, file))
   writeFileSync(join(source, 'run.mjs'), program)
 }
+// Fixture code that writes its own pid file through a binding named `fs`. writeFileSync creates the
+// file before it writes the content, so a reader that polls for the file can see it empty. The pid
+// goes to a temporary name in the same directory and is renamed into place, so an existing pid file
+// always holds the whole pid.
+function writePidFile(name: string): string {
+  const temporary = JSON.stringify(`${name}.tmp`)
+  return `fs.writeFileSync(${temporary},String(process.pid));fs.renameSync(${temporary},${JSON.stringify(name)});`
+}
 // The descendant announces itself in grandchild.pid only when `announce` is set. It always writes
 // descendant.pid last, so once descendant.pid exists the announcement either exists or never will.
 function hanging(announce = true): string {
-  const announcement = announce ? "fs.writeFileSync('grandchild.pid',String(process.pid));" : ''
+  const announcement = announce ? writePidFile('grandchild.pid') : ''
   return `import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
-writeFileSync('root.pid', String(process.pid));
-spawn(process.execPath, ['-e', ${JSON.stringify(`const fs=require('node:fs');${announcement}fs.writeFileSync('descendant.pid',String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`)}], {stdio:'ignore'});
+import * as fs from 'node:fs';
+${writePidFile('root.pid')}
+spawn(process.execPath, ['-e', ${JSON.stringify(`const fs=require('node:fs');${announcement}${writePidFile('descendant.pid')}process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`)}], {stdio:'ignore'});
 process.on('SIGTERM',()=>{});
 setInterval(()=>{},1000);
 `
@@ -257,10 +281,13 @@ const controllerProgram =
     '  pollMs: 20,',
     '  // Fixture start (supervisor, root and descendant all running) and the grandchild announcement',
     '  // are separate deadlines. The descendant writes grandchild.pid before descendant.pid, so readyMs',
-    '  // is only a polling margin. Worst case before the watchdog: startMs + readyMs + gracefulCleanupMs',
-    '  // + forcedCleanupMs = 4800 < controllerHardMs.',
-    '  startMs: 2500,',
-    '  readyMs: 300,',
+    '  // is only a polling margin. Failure cleanup signals the supervisor and the root group, then',
+    '  // forcedCleanupMs waits only for the supervisor, which this controller reaps itself. The outer',
+    '  // case is the single observer that the root group is gone (failed-parent-death-cleanup-deadline',
+    '  // and groupsAbsent.root): orphans in that group wait for PID 1 to reap them. Worst case before',
+    '  // the watchdog: startMs + readyMs + gracefulCleanupMs + forcedCleanupMs = 4800 < controllerHardMs.',
+    `  startMs: ${limits.fixtureStartMs},`,
+    `  readyMs: ${limits.fixtureReadyMs},`,
     '  supervisorMs: 8000,',
     '  gracefulCleanupMs: 1000,',
     '  forcedCleanupMs: 1000,',
@@ -333,7 +360,7 @@ const controllerProgram =
     '}',
     '',
     "import { fork } from 'node:child_process'",
-    "import { writeFileSync } from 'node:fs'",
+    "import { renameSync, writeFileSync } from 'node:fs'",
     "import { join, resolve } from 'node:path'",
     '',
     'const [supervisorArgument, sourceArgument, targetArgument] = process.argv.slice(2)',
@@ -343,7 +370,12 @@ const controllerProgram =
     'let state',
     'let watchdog',
     'let cleanupError',
-    'const output = () => writeFileSync(`${target}.controller.json`, JSON.stringify(report, null, 2))',
+    '// The outer case reads this report, including supervisorPid, while the controller may still run.',
+    '// Write it under a temporary name and rename it into place so no reader sees a partial report.',
+    'const output = () => {',
+    '  writeFileSync(`${target}.controller.json.tmp`, JSON.stringify(report, null, 2))',
+    '  renameSync(`${target}.controller.json.tmp`, `${target}.controller.json`)',
+    '}',
     'const event = value => process.stdout.write(`${JSON.stringify(value)}\\n`)',
     'function knownRoot() {',
     "  return readPid(join(target, 'root.pid')) ?? readJson(`${target}.supervisor.json`)?.pid",
@@ -409,7 +441,7 @@ const controllerProgram =
     "      try { await until(() => state.close, limits.gracefulCleanupMs, 'supervisor-cleanup-deadline') }",
     '      catch { forceCleanup() }',
     "      signal(knownRoot(), 'SIGKILL', report.cleanup, true)",
-    "      await until(() => !alive(supervisor.pid) && !alive(knownRoot(), true), limits.forcedCleanupMs, 'controller-cleanup-deadline')",
+    "      await until(() => !alive(supervisor.pid), limits.forcedCleanupMs, 'controller-cleanup-deadline')",
     '    }',
     '  } catch (error) { cleanupError = String(error.stack ?? error) }',
     '  clearTimeout(watchdog)',
@@ -456,7 +488,7 @@ async function runParentDeathCase(input: {
     if (scenario !== 'missing-fixture') {
       const program =
         scenario === 'supervisor-early-exit'
-          ? "import {writeFileSync} from 'node:fs';writeFileSync('root.pid',String(process.pid));process.exit(42)"
+          ? `import * as fs from 'node:fs';${writePidFile('root.pid')}process.exit(42)`
           : hanging(scenario !== 'no-pid')
       createSource(source, program)
     }
@@ -643,7 +675,15 @@ const failureCases = [
     duration: 2000,
     reason: /aggregate must exit normally/,
   },
-  { name: 'deadline', program: hanging(), duration: 600, reason: /^deadline$/ },
+  {
+    name: 'deadline',
+    program: hanging(),
+    // The case waits up to fixtureStartMs from supervisor fork for root.pid and grandchild.pid. The
+    // supervisor timer starts only after the supervisor has started and spawned the fixture, so it
+    // fires later than that wait would expire; this, not deadlineMarginMs, is the main safety margin.
+    duration: limits.fixtureStartMs + limits.fixtureReadyMs + limits.deadlineMarginMs,
+    reason: /^deadline$/,
+  },
   {
     name: 'output-limit',
     program: "process.stdout.write('x'.repeat(2*1024*1024));setInterval(()=>{},1000)",
@@ -691,10 +731,30 @@ test.each(failureCases)(
       const cleanup: CleanupAction[] = []
       let report: unknown
       try {
+        // Fixture start and readiness have their own deadlines. A supervisor that exits before the
+        // fixture is ready fails with its own reason instead of a later assertion about pid files.
+        const pidFilesWritten = (...files: [string, ...string[]]) => {
+          if (files.every(file => existsSync(join(target, file)))) return true
+          if (state.error) throw state.error
+          if (state.exit || state.close) throw new Error('supervisor-exited-before-ready')
+          return false
+        }
+        if (name === 'deadline') {
+          await until(
+            () => pidFilesWritten('root.pid', 'grandchild.pid'),
+            limits.fixtureStartMs,
+            'fixture-start-deadline',
+          )
+        }
         if (name === 'parent-disconnected' || name === 'supervisor-SIGTERM') {
           await until(
-            () => existsSync(join(target, 'grandchild.pid')),
-            2000,
+            () => pidFilesWritten('root.pid', 'descendant.pid'),
+            limits.fixtureStartMs,
+            'fixture-start-deadline',
+          )
+          await until(
+            () => pidFilesWritten('grandchild.pid'),
+            limits.fixtureReadyMs,
             'fixture-ready-deadline',
           )
           if (name === 'parent-disconnected') child.disconnect()

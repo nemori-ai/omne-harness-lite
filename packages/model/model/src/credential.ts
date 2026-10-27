@@ -1,14 +1,14 @@
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { type CredentialId } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
   sameCredentialHolder,
-  type CredentialId,
   type CredentialPresence,
   type CredentialPurpose,
   type CredentialQuery,
   type CredentialResolution,
   type SendFace,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 export type BindingLife = 'active' | 'revoked' | 'unreadable'
 

@@ -175,7 +175,7 @@ async function lostRouteIsFollowedByInspectNotByAReplacement(): Promise<void> {
 }
 
 export const fixture = {
-  role: 'session-coordinator',
+  role: 'orchestration-coordinator',
   paths: [
     {
       name: 'cancels a call with the principal, tenant, call and operation spelled out',

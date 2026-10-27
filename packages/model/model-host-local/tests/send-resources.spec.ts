@@ -9,11 +9,13 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   type FixedModelRequest,
+  type TransportFailure,
+} from '@omne-harness/model-contract'
+import {
   type MaterializedTransport,
   type SendDemand,
   type TransportFact,
-  type TransportFailure,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import {
   composeFamilies,
   createNetworkResources,

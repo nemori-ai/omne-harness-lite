@@ -1,10 +1,6 @@
-import { judgeFixedModelRequest } from '@omne-harness/model-contract'
-import type {
-  ModelRetryPolicy,
-  RetryResolution,
-  RetryPosition,
-  CallAccess,
-} from '@omne-harness/model-contract'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import type { RetryResolution, RetryPosition, CallAccess } from '@omne-harness/model-contract'
+import type { ModelRetryPolicy } from '@omne-harness/model-contract/provider'
 import { MemoryState } from './state.ts'
 import { digest, invalid, tenantKey, unavailable } from './value.ts'
 

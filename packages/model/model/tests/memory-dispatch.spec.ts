@@ -1,11 +1,11 @@
 import { expect, it } from 'vitest'
+import { decodeDispatchId } from '@omne-harness/model-contract'
 import {
-  decodeDispatchId,
   type CallAccountReport,
   type ProviderDiagnostic,
   type TransportFact,
   type WriteContext,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { judgePart } from '@omne-harness/message'

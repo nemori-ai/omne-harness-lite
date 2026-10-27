@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { type FixedModelRequest } from '@omne-harness/model-contract'
 import {
   judgeAdmit,
   judgeFixedModelRequest,
   MODEL_INPUT_LIMITS,
   decodeCredentialId,
-  type FixedModelRequest,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { JsonValue } from '@omne-harness/json-text'
 import { admission, must, request, scriptedProvider } from './scripted-support.ts'
 

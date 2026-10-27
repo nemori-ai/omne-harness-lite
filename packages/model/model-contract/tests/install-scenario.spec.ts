@@ -73,7 +73,7 @@ it('lets a scenario import a closure member that is not the target', () => {
     script,
     [
       "import { tenant, accountCodec } from '@omne-harness/legal-identity'",
-      "import { MODEL_SEND } from '@omne-harness/model-contract'",
+      "import { MODEL_SEND } from '@omne-harness/model-contract/provider'",
       'console.log(`imported ${typeof tenant} ${typeof accountCodec.parse} ${MODEL_SEND}`)',
       '',
     ].join('\n'),

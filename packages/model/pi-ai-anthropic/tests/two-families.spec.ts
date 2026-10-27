@@ -12,11 +12,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  judgeFixedModelRequest,
-  type FixedModelRequest,
-  type TransportFact,
-} from '@omne-harness/model-contract'
+import { type FixedModelRequest } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import {
   checkModelProviderConformance,
   type ConformanceSubject,

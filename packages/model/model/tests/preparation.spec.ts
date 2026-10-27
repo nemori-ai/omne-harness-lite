@@ -9,19 +9,15 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
   decodeRevision,
-  judgeFixedModelRequest,
   type Access,
   type AssembledModelInput,
   type CallAccess,
-  type CalibratedInputMeter,
   type ContextLimits,
   type DispatchRecord,
   type FixedModelRequest,
   type MaterializationReceipt,
-  type MeterCalibration,
   type MeterRepresentation,
   type ModelCallId,
-  type ModelCommands,
   type ModelCountingBasis,
   type ModelFailure,
   type ModelInputMeter,
@@ -30,8 +26,14 @@ import {
   type PreparationLineage,
   type RequestBudget,
   type Supplier,
-  type TransportFact,
 } from '@omne-harness/model-contract'
+import {
+  judgeFixedModelRequest,
+  type CalibratedInputMeter,
+  type MeterCalibration,
+  type ModelCommands,
+  type TransportFact,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   createModelPreparationResources,

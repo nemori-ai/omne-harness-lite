@@ -7,7 +7,7 @@ import {
   MODEL_SEND,
   decodeCredentialId,
   type CredentialReference,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
 import { expect, it } from 'vitest'
 import { LocalCredentialPlugin } from '../src/cordis.ts'

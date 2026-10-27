@@ -3,7 +3,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CallAccess, ModelCallId, ModelInstanceId, ModelOperationId } from './root.ts'
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts'
-import type { ModelInstanceHost } from './provider.ts'
+import type { ModelInstanceHost } from './provider-protocol.ts'
 
 export type ModelDriveInput<P> = CallAccess<P> &
   Readonly<{

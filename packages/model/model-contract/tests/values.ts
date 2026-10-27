@@ -15,7 +15,6 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { CallAccount } from '@omne-harness/call-account'
 import type {
   Adoption,
-  CallAccountReport,
   ConsumerRef,
   ContextLimits,
   CredentialId,
@@ -41,6 +40,7 @@ import type {
   TokenLimit,
   ToolDeclaration,
 } from '@omne-harness/model-contract'
+import type { CallAccountReport } from '@omne-harness/model-contract/provider'
 
 export declare const tenant: TenantId
 export declare const block: ContentBlock

@@ -5,10 +5,10 @@ import type {
   ConsumerRef,
   ModelCalls,
   ModelCallId,
-  ModelConsumerOwnerDeclaration,
   ModelOperationId,
   Mutation,
 } from '@omne-harness/model-contract'
+import type { ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract/provider'
 import { adoption, call, tenant } from './values.ts'
 
 it('an exempt owner declares its evidence adapter', () => {

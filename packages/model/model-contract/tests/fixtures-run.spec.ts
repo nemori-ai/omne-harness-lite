@@ -24,9 +24,9 @@ const workDirectory = join(
 const ROLES = [
   'context',
   'independent-caller',
+  'orchestration-coordinator',
   'provider-author',
   'result-consumer',
-  'session-coordinator',
 ]
 afterAll(() => rmSync(workDirectory, { recursive: true, force: true }))
 

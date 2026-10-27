@@ -4,7 +4,7 @@
 // deterministic stand-in (the text length), so every expected number is computed in the test.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { MeterCalibration, OutputWithheld } from '@omne-harness/model-contract'
+import type { MeterCalibration, OutputWithheld } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { TransportFailure } from '@omne-harness/model-contract'
 import {

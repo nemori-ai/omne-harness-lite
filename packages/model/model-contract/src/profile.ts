@@ -18,7 +18,7 @@ import type {
   ToolDeclaration,
 } from './root.ts'
 import type { DurableEvidence, Reply } from './result.ts'
-import type { CommitQuery, TransportFailure } from './provider.ts'
+import type { CommitQuery, TransportFailure } from './provider-protocol.ts'
 import type { ModelCountingBasis } from './tokenizer.ts'
 
 /** The modalities of the shared vocabulary that this phase of Model supports. */

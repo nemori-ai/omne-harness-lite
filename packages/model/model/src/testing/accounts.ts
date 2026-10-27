@@ -14,21 +14,23 @@ import {
   type Access,
   type Admit,
   type CallAccess,
-  type CallAccountReport,
   type CustodyState,
   type DispatchId,
   type DispatchRecord,
   type DurableEvidence,
   type ModelBlock,
   type ModelCallId,
-  type ModelCommands,
   type ModelInstanceId,
   type ModelOperationId,
   type ResultVersion,
   type Termination,
+} from '@omne-harness/model-contract'
+import {
+  type CallAccountReport,
+  type ModelCommands,
   type TransportFact,
   type WriteContext,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 /** What the party that assembled the ModelCommands gives the suite. */
 export type CommandsAccountsSubject<P> = Readonly<{

@@ -4,7 +4,6 @@ import {
   MODEL_IDENTITY_MAX_LENGTH,
   MODEL_IDENTITY_PREFIXES,
   compareOutputCursors,
-  compareRevisions,
   decodeDispatchId,
   decodeModelCallId,
   decodeModelDiagnosticCursor,
@@ -12,11 +11,11 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   decodeOutputCursor,
-  decodeReadId,
   decodeResultVersion,
   decodeRevision,
   deriveGuardControlOperation,
-} from '../src/index.ts'
+} from '@omne-harness/model-contract'
+import { compareRevisions, decodeReadId } from '@omne-harness/model-contract/provider'
 
 describe('identity constants', () => {
   it('limits every identity text to 256 UTF-16 code units', () => {

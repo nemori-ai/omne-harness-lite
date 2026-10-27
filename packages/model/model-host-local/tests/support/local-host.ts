@@ -7,16 +7,18 @@ import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-har
 import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import {
-  decodeCredentialId,
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
   type Adoption,
   type FixedModelRequest,
   type ModelFailure,
+} from '@omne-harness/model-contract'
+import {
+  decodeCredentialId,
   type ModelSendBoundary,
   type TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'

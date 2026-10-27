@@ -1,7 +1,8 @@
 // The stream decoder of the gateway engine, one block per row of the stream interpretation table,
 // through a binding and the same body decoding that a send uses.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { ModelBlock, ModelFault, TransportFact } from '@omne-harness/model-contract'
+import type { ModelBlock, ModelFault } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,

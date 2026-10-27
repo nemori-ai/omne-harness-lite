@@ -103,12 +103,12 @@ Model 对外提供两个契约包，实现分为可复用 model 与单机 model-
 | 消费者 | 消费入口 | 不应被要求安装 |
 | --- | --- | --- |
 | 调用方、请求组装者、消费者拥有者、托管调用者 | model-contract 根入口，取得注入的操作对象 | Model 运行提供者、Cordis、pi、词表和存储引擎 |
-| pi、家族、tokenizer、持久化及替代运行提供者作者 | 同一 model-contract 根入口中的窄端口 | 默认运行提供者及不相关 adapter |
+| pi、家族、tokenizer、持久化及替代运行提供者作者 | model-contract 的 `./provider` 入口中的窄端口，以及根入口的共享值 | 默认运行提供者及不相关 adapter |
 | Cordis 插件消费者 | model-cordis-contract/cordis 的键、类及增补 | Model 运行提供者与厂商实现 |
 | 独立程序及宿主实现者 | model 的工厂或 executeModel、选中的 adapter | Cordis 或默认单机宿主 |
 | 单机应用装配者 | model-host-local/cordis 及选中的 adapter | 不承诺不安装已明确选择的宿主和框架 |
 
-纯契约根拥有领域品牌、数据、调用/档案/准备/转换操作、ModelProvider 管理接口，以及 ModelCommands、ModelTransport、ModelInputMeter、ModelTextTokenizer、ModelMediaReader、ModelInstanceHost 等可替换端口。端口用于不同消费者，不要求普通调用者学习或取得所有能力。包或 TypeScript 类型不授予写入、恢复或发布资格。
+纯契约包拥有领域品牌、数据、调用/档案/准备/转换操作、ModelProvider 管理接口与可替换端口，按消费者分两个入口导出。根入口给调用方与消费者拥有者：领域品牌、数据、调用操作、`ModelRuntime` 与 ModelInputMeter 等消费侧名字。`./provider` 入口给提供者作者：档案、准备与转换操作，ModelProvider 管理接口，以及 ModelCommands、ModelTransport、ModelTextTokenizer、ModelMediaReader、ModelInstanceHost 等可替换端口。两个入口共享同一份定义，一个名字只从一个入口导出，分组规则见 [model-contract 的提供者协议入口](../model-contract/docs/public-api.md#提供者协议入口)。端口用于不同消费者，不要求普通调用者学习或取得所有能力。包或 TypeScript 类型不授予写入、恢复或发布资格。
 
 正确消费领域值必需的校验、编解码和比较函数随契约发布。它们不得创建 runtime、加载词表、读环境或启动 I/O。createModelRuntime、executeModel 是实际执行函数，归 model；其 ModelDependencies 和 ModelConfiguration 是该实现工厂的构造形状，也归该成员。model 内允许有状态协调和异步执行，但必须通过时钟、宿主、存储及传输端口取得外部能力，不读取全局容器或固定单机设施。model-host-local 的限定名表达具体宿主，model 是供不同宿主复用的领域算法成员。契约不转导工厂、不隐式选择默认实现。其他提供者实现公共操作和行为协议，不必复刻model 工厂或配置。
 
@@ -215,11 +215,13 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
 import type {
-  Adoption, Supplier, FixedModelRequest, ModelRequestRules, CalibratedInputMeter,
-  ModelCountingBasis, ModelToolPayloadAdapter, TransportFact, TransportFailure, ModelFault,
-  MeterRepresentation, MediaMeasurementFact, ReplayDeclaration, TransportDispatch,
-  ProviderDiagnostic,
+  Adoption, Supplier, FixedModelRequest, ModelRequestRules, ModelCountingBasis,
+  TransportFailure, ModelFault, MeterRepresentation, MediaMeasurementFact, ReplayDeclaration,
 } from '@omne-harness/model-contract'
+import type {
+  CalibratedInputMeter, ModelToolPayloadAdapter, TransportFact, TransportDispatch,
+  ProviderDiagnostic,
+} from '@omne-harness/model-contract/provider'
 
 export type PiProtocolFrame = Readonly<{ kind: 'data'; value: JsonValue }>
   | Readonly<{ kind: 'end-marker' }>

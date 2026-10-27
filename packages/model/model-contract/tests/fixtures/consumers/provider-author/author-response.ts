@@ -3,7 +3,8 @@
 // and does not decide: a 400 with another code is not an over-limit refusal. The report holds what
 // the supplier gave and nothing else, so a figure that it left out stays null and is never
 // filled in from a local count.
-import type { ModelFault, TransportTermination } from '@omne-harness/model-contract'
+import type { ModelFault } from '@omne-harness/model-contract'
+import type { TransportTermination } from '@omne-harness/model-contract/provider'
 
 export type SupplierRefusal = Readonly<{
   status: number

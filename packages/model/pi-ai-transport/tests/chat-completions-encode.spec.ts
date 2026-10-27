@@ -1,10 +1,7 @@
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type {
-  FixedModelRequest,
-  ReplayDeclaration,
-  TransportDispatch,
-} from '@omne-harness/model-contract'
+import type { FixedModelRequest, ReplayDeclaration } from '@omne-harness/model-contract'
+import type { TransportDispatch } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,

@@ -1,8 +1,8 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import {
-  encodeModelInvocationRef,
   encodeModelOperationRef,
   resolveModelOperationRef,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { createModelRuntime } from '@omne-harness/model'
 import { judgePart } from '@omne-harness/message'
 import type { AckInput, AckReceipt, ModelFailure } from '@omne-harness/model-contract'
