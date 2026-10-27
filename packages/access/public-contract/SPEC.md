@@ -619,7 +619,9 @@ const encoded = encodeGovernanceRequest({
 - `tenant` 与 `create-session` 的 `actingTenant` 本地为完整 `TenantId`，读取规则同 `tenantId`。
 - `pageBytes` 本地保留原文本。它是否超出部署上界，由服务端接入在第 5 步判断。
 - `read-history` 的本地 body 按 `cursor` 分两种形状。`cursor` 为 null 时，必须带 `direction` 与 `pageBytes`。`cursor` 为非空字符串时，不能带这两个字段。
-- 历史页每项的 `payload` 本地为 json-text 值树，原样保留。`entryId`、`revision`、`kind` 与 `scannedThrough` 是非空字符串。`next` 是 null 或非空字符串。
+- 历史页每项的 `payload` 本地为 json-text 值树，原样保留。`revision`、`kind` 与 `scannedThrough` 是字符串，可以为空。
+- `entryId` 是非空字符串，因为[历史页](#历史页)规定它的规则同 message 包的 `RecordEntryRef`，而 `RecordEntryRef` 非空。
+- `next` 是 null 或非空字符串，因为它原样作为下一次的 `cursor`，而 `cursor` 只能是 null 或非空字符串（见[会话 body 字段](#会话-body-字段)）。
 
 ### 本地值与线上表示
 

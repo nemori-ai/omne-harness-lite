@@ -237,7 +237,7 @@ describe('history page', () => {
   it.each([
     ['an empty next', { ...page, next: '' }],
     ['a numeric next', { ...page, next: 2 }],
-    ['an empty scannedThrough', { ...page, scannedThrough: '' }],
+    ['a numeric scannedThrough', { ...page, scannedThrough: 8 }],
     ['a non-boolean exhausted', { ...page, exhausted: 'false' }],
     ['entries that are not an array', { ...page, entries: {} }],
     [
@@ -253,11 +253,25 @@ describe('history page', () => {
       { ...page, entries: [{ entryId: '', revision: '1', kind: 'k', payload: 1 }] },
     ],
     [
-      'an entry with an empty kind',
-      { ...page, entries: [{ entryId: 'e', revision: '1', kind: '', payload: 1 }] },
+      'an entry with a numeric revision',
+      { ...page, entries: [{ entryId: 'e', revision: 1, kind: 'k', payload: 1 }] },
     ],
   ])('rejects a page with %s', (_name, body) => {
     expect(history(body)).toEqual({ kind: 'unreadable', diagnostic: { code: 'field' } })
+  })
+
+  it.each([
+    [
+      'an empty revision',
+      { ...page, entries: [{ entryId: 'e', revision: '', kind: 'k', payload: 1 }] },
+    ],
+    [
+      'an empty kind',
+      { ...page, entries: [{ entryId: 'e', revision: '1', kind: '', payload: 1 }] },
+    ],
+    ['an empty scannedThrough', { ...page, scannedThrough: '' }],
+  ])('accepts a page with %s, because those fields are plain text', (_name, body) => {
+    expect(history(body).kind).toBe('response')
   })
 })
 

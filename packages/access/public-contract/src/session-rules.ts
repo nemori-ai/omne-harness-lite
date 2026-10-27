@@ -54,12 +54,14 @@ const requests = {
   },
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
+const anyText: Rule = { kind: 'string' }
+// entryId follows message's RecordEntryRef, which is non-empty. revision and kind are plain text.
 const historyEntry: Rule = {
   kind: 'object',
   fields: {
     entryId: { rule: text },
-    revision: { rule: text },
-    kind: { rule: text },
+    revision: { rule: anyText },
+    kind: { rule: anyText },
     payload: { rule: { kind: 'json' } },
   },
 }
@@ -76,9 +78,10 @@ const successes = {
     kind: 'object',
     fields: {
       entries: { rule: { kind: 'array', item: historyEntry } },
+      // next is sent back as cursor, which is null or non-empty.
       next: { rule: { kind: 'one-of', rules: [text, { kind: 'null' }] } },
       exhausted: { rule: { kind: 'boolean' } },
-      scannedThrough: { rule: text },
+      scannedThrough: { rule: anyText },
     },
   },
 } satisfies Readonly<Record<SessionOperation, Rule>>
