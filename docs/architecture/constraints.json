@@ -410,6 +410,22 @@
     {
       "id": "IC-5",
       "source": "docs/architecture/cordis-integration-conventions.md"
+    },
+    {
+      "id": "H1-SESSION-FACTS",
+      "source": "docs/architecture/runtime/session-and-run.md#h1-session-facts"
+    },
+    {
+      "id": "H1-AGENT-REASSEMBLY",
+      "source": "docs/architecture/runtime/agent-runtime.md#h1-agent-reassembly"
+    },
+    {
+      "id": "H1-MODEL-LIFETIME",
+      "source": "docs/architecture/runtime/model-runtime.md#h1-model-lifetime"
+    },
+    {
+      "id": "H1-OBSERVATION-CONTINUITY",
+      "source": "docs/architecture/runtime/streaming-and-consumption.md#h1-observation-continuity"
     }
   ],
   "directions": [
