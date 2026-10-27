@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -97,7 +98,7 @@ const CURSOR_RUNTIME = ['Dockerfile', 'environment.json', 'install.sh']
  * `check:agents`. A failed step stops the run. The stage directory is removed in every case.
  */
 export function regenerateProjections(tree: string, run: Runner = runProgram): void {
-  const stage = mkdtempSync(join(tmpdir(), 'omne-agents-stage-'))
+  const stage = mkdtempSync(join(realpathSync(tmpdir()), 'omne-agents-stage-'))
   const python = { PYTHONDONTWRITEBYTECODE: '1' }
   try {
     step(
