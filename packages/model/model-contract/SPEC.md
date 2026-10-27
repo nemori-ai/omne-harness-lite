@@ -574,7 +574,7 @@ stateDiagram-v2
 
 结果冻结时，每个 dispatch 都有账目快照项。尚无报告明确为 null，不能填零。后到更新不修改原 result envelope，而是独立 account 交付。每个调用先确认 result saved，再交付其后的 account。生产者直到有效交接 ACK 成立都保留原键及完整冻结载荷，使接收提交或回包未知时能够按原输入重投；saved 本身不授权先删除这些输入。
 
-接收边界核原调用、引用租户与本次访问租户相等、完整冻结 consumer，以及 key 与正文版本一致。所有引用、结果项、账目和证据复用各自唯一公开定义，不导入 Agent 内部类型。一次 push 只交付一个 envelope，本协议不增加 chunk、manifest 或分页 push。
+接收边界核原调用、引用租户与本次访问租户相等、完整冻结 consumer，以及 key 与正文版本一致。所有引用、结果项、账目和证据复用各自唯一公开定义，不导入任何消费者 owner 的内部类型。一次 push 只交付一个 envelope，本协议不增加 chunk、manifest 或分页 push。
 
 账目 subject 仍为 `model_call` 加原 call。上游可信事件的去重仍按原 supplier adoption、dispatch 和 event；输出 account 的 dispatch/revision 键不替代上游事件身份。同一 dispatch 的相同 revision 异内容是冲突，接收方核一致后才采用修订。更新替换该 dispatch 的旧修订，不能累计修订金额；不同 dispatch 分别保留真实费用。更正沿账目拥有者协议使用新事件和更大 revision，不在这里另定更正关系。
 
@@ -589,7 +589,7 @@ stateDiagram-v2
 
 saved 回执绑定输入 key，并携带一个 `DurableEvidence`。证据 owner 必须是冻结的 `consumer.owner`，定位上述合取事实。可信证据适配器核原租户、调用、结果版本或账目键、完整 consumer 和位置、载荷一致性、期限、当前责任及真实耐久状态。单独材料回执、普通提交成功、临时 URL 或旧读取句柄都不能通过改名或强制转换成为该证据。证据摘要算法继续由原 owner 的 evidence 采用规定；本协议不另规定 payload commitment 编码。
 
-Agent 接收路径复用其材料与原消费责任，其他消费者拥有自己的事实。跨存储时先保管材料，再在责任拥有者的共同提交边界建立原关联与责任，不声称跨 owner 一次原子提交。稳定材料身份、原 operation 及其映射由接收 owner 维护，不能仅留在易失 runtime 或可替换 checkpoint 中。
+每个接收 owner 复用自己的材料与原消费责任，并拥有自己的事实。跨存储时先保管材料，再在责任拥有者的共同提交边界建立原关联与责任，不声称跨 owner 一次原子提交。稳定材料身份、原 operation 及其映射由接收 owner 维护，不能仅留在易失 runtime 或可替换 checkpoint 中。
 
 ### 未知保存的认回
 
@@ -601,7 +601,7 @@ Agent 接收路径复用其材料与原消费责任，其他消费者拥有自�
 | 同 key 同内容重投 | 每次核当前资格后认回原事实，不重复责任、计费或逻辑额度 |
 | 同 key 异内容 | 返回 conflict，原保存事实与责任保持 |
 
-只有权威排除旧写与延迟提交，才可沿原输入重试确定未提交部分。一次新的 denied、unavailable 或取消不能消除早先提交 unknown，也不能证明对方从未保存。旧 execution 已 ended、detached 或 superseded 时，由当前合法保管后继接续原位置和责任，不要求旧推进资格，不重开业务。
+只有权威排除旧写与延迟提交，才可沿原输入重试确定未提交部分。一次新的 denied、unavailable 或取消不能消除早先提交 unknown，也不能证明对方从未保存。原消费者的推进方已经结束、脱离或被取代时，由当前合法保管后继接续原位置和责任，不要求旧推进资格，不重开业务。
 
 ### saved 到 ACK 及清理
 
@@ -776,7 +776,7 @@ current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方�
 
 M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
 
-真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者（Agent 宿主的结果接收方）的消费闭包迁移归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 指消费者拥有者代 Model 发出的 ACK，它代替的是 Model 在 saved 之后经 retained 交接自己取得的 ACK。合法独立消费者为自己处理完的结果发出的 processed ACK 不是临时 ACK。临时 ACK 分两侧退出。代发临时 ACK 的消费者拥有者停止代发，归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。合法独立消费者的 processed ACK 路径不受影响。`./testing` 的推送生产者替身按 retained 交接取 ACK。正文清理不再使晚账退出恢复扫描。Agent 材料、Journal、Session 的稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
+真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者的消费闭包迁移归其承接卡（当前为 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)）。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 指消费者拥有者代 Model 发出的 ACK，它代替的是 Model 在 saved 之后经 retained 交接自己取得的 ACK。合法独立消费者为自己处理完的结果发出的 processed ACK 不是临时 ACK。临时 ACK 分两侧退出。代发临时 ACK 的消费者拥有者停止代发，归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。合法独立消费者的 processed ACK 路径不受影响。`./testing` 的推送生产者替身按 retained 交接取 ACK。正文清理不再使晚账退出恢复扫描。接收 owner 的材料、日志与稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
 
 公共观察的真实发布、目录/current 查询与显示刷新、Tool 适配及其投影一致性由相应提供者和接入拥有者实现验证。Model 不定义 Tool 的完整 reducer、foreground 规范化或其终止别名。
 
@@ -786,7 +786,7 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier �
 
 结果协议须覆盖保存后丢回包、材料与责任提交之间崩溃、同 key 重投及异内容、account/result 回执分离、取消与撤权、ACK 未知、清理失败、正文释放后晚账、容量及租户份额。状态探索至少区分源仍保管、材料已存、原责任与去重成立、saved 已观察、ACK 未知或成立、清理及 late-account pending。检查唯一副本不先释放、saved 合取不缺项、同 key 不增加第二责任、正文清理不消晚账待办。模型须说明有限范围、不可达与公平前提，并以故意破坏上述规则的反例核验检测能力。
 
-观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 和 Agent wait 的消费闭包。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
+观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 及其现有消费者的消费闭包。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
 
 纯值、类型探针、离线替身与有限模型只能证明各自范围。真实合取保存、原操作认回、持久晚账恢复、生产者临界区、每帧披露及真实发送围栏仍需对应提供者及完整组合验证。当前 testing evidence 不成为生产 Evidence adapter，内存替身不证明磁盘耐久、跨进程互斥或无界最终完成。
 
@@ -798,7 +798,7 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier �
 
 receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收端口由各消费方拥有者各自实现。receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
 
-`current` 替身、观察替身与 receiver 替身各带一个测试控制面。测试控制面默认拒绝，按真实 tenant、principal identity 与操作分类设置 allow、deny 或 unavailable。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。推送生产者替身没有自己的控制面：它只以构造时给定的主体行事，资格由被包的受控替代提供者与使用方注入的接收方各自核对。观察替身以同步确认点取得快照并登记订阅，可按待取帧数限制每个观察者。receiver 替身的驻留期限由手动 clock 驱动，不使用 sleep。它的规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。四个替身都不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+`current` 替身、观察替身与 receiver 替身各带一个测试控制面。测试控制面默认拒绝。替身的访问控制只按真实 tenant 与 principal identity 设置 allow、deny 或 unavailable；操作分类归真实装配里的授权能力，替身不建模它。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。推送生产者替身没有自己的控制面：它只以构造时给定的主体行事，资格由被包的受控替代提供者与使用方注入的接收方各自核对。观察替身以同步确认点取得快照并登记订阅，可按待取帧数限制每个观察者。receiver 替身的驻留期限由手动 clock 驱动，不使用 sleep。它的规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。四个替身都不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
 
 ## 档案、模态与转换行为
 
@@ -1015,7 +1015,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 ## 推理回放
 
-本节设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受。本节的「回放」都指[推理回放](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)，不是 Agent 接续时的回放；「回放范围」即推理回放范围。回放声明、`ModelBlock`、`replay-rejected`、关闭回放与回放投影已实现于本包；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。推理续接状态部件与回放描述 `replay` 的形状归 [message 成员](../../common/message/SPEC.md#推理续接状态)，本节规定谁产出它们、每次发出带不带它们、上游拒绝时怎样处理，以及怎样计量。产品规则见[模型调用：推理状态的续接](../../../.meta_harness/design/product/model-invocation/design.md#推理状态的续接)。回放声明与外来可见推理只在本域使用，定义在本节，不另立词条。
+本节设计已由[任务卡 #605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的 D-03 接受。本节的「回放」都指[推理回放](../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)，不是调用方恢复接续时的回放；「回放范围」即推理回放范围。回放声明、`ModelBlock`、`replay-rejected`、关闭回放与回放投影已实现于本包；适配器映射、再发执行与计量方法归 Model 运行时，尚未实现。推理续接状态部件与回放描述 `replay` 的形状归 [message 成员](../../common/message/SPEC.md#推理续接状态)，本节规定谁产出它们、每次发出带不带它们、上游拒绝时怎样处理，以及怎样计量。产品规则见[模型调用：推理状态的续接](../../../.meta_harness/design/product/model-invocation/design.md#推理状态的续接)。回放声明与外来可见推理只在本域使用，定义在本节，不另立词条。
 
 回放投影是 Model 在每次发出时做的表示选择，是「请求表示选择与组装在本域之外」的一项例外。理由是一次调用可能按策略回退到另一个供应商，只有每次发出才知道实际供应商；计量器与编码器对同一供应商使用同一投影，计量组合固定所用的声明，所以计量与实际发送一致。其余表示选择仍归请求组装。
 
@@ -1063,7 +1063,7 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 再发略去哪些状态，属于这次再发的持久重试决定和该 dispatch 的表示采用；恢复时按它重新编码，不带回已略去的状态。执行方经 `ModelTransport.prepare` 的第三个参数 `TransportDispatch.resent` 把这次再发须视为不可续接的消息交给传输。首次发出的 `resent` 为空。策略替换不得让再发带回被拒发出中的推理状态，也不得超过配置的次数。上游通常不指明哪个范围被拒，所以再发略去被拒发出中带上的全部推理状态，代价是可能连同仍然有效的状态一起略去一次。
 
-**持续拒绝与关闭回放。**同一段历史可能对同一供应商反复被拒，例如凭据换到另一个账户后，旧状态不能再被解密。默认策略下，这样的每次调用多一次被拒发出，直到压缩把这些消息整条摘要；这是默认路径的代价。Model 不记住某段历史被拒过，也不改历史。为保证会话在持续拒绝下仍能前进，组装输入可以声明本次请求关闭回放：全部消息对全部供应商都不可续接，按回放投影第 2、3 项处理。失败交接用 `ModelFault.replayCarried` 写明这次发出带有推理状态。以 `replay-rejected` 失败时，它恒为 true。以上游不接受内容等其他原因失败、而这次发出带有推理状态时，它也为 true。未带推理状态时没有这个键。原消费者按自己的规则决定是否以新调用关闭回放再试。
+**持续拒绝与关闭回放。**同一段历史可能对同一供应商反复被拒，例如凭据换到另一个账户后，旧状态不能再被解密。默认策略下，这样的每次调用多一次被拒发出，直到压缩把这些消息整条摘要；这是默认路径的代价。Model 不记住某段历史被拒过，也不改历史。为保证调用方的工作在持续拒绝下仍能前进，组装输入可以声明本次请求关闭回放：全部消息对全部供应商都不可续接，按回放投影第 2、3 项处理。失败交接用 `ModelFault.replayCarried` 写明这次发出带有推理状态。以 `replay-rejected` 失败时，它恒为 true。以上游不接受内容等其他原因失败、而这次发出带有推理状态时，它也为 true。未带推理状态时没有这个键。原消费者按自己的规则决定是否以新调用关闭回放再试。
 
 **计量。**ModelInputMeter 对每个供应商使用同一投影。被略去的部件不计入。带上的部件不按密文长度做文本分词，使用计量采用为该供应商写明的不透明回放估算方法，估算带余量。没有这种方法时返回具名不可用，不按零计。
 
