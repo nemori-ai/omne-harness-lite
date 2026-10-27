@@ -58,6 +58,10 @@ REST 分页读取目标仓库 Issues、评论和原生 blockedBy，排除 PR。R
 
 ## CLI与退出
 
+board、dispatch、labels、milestone、worktree、gate 共用 `parseCliOptions`。带值选项使用 `--name value`，布尔开关按是否出现取值，不接受 `--name=false` 或 `--name false`。未知选项、重复选项和缺值在读取输入文件或调用 GitHub 前失败，沿各 CLI 现有错误格式退出 2。命令仍分别校验日期、Issue、子命令、必填项和权限。
+
+`--` 结束选项解析，其后均为位置参数。只有 milestone 的既有命令接收位置参数，其他五个 CLI 拒绝非空位置参数；末尾单独的 `--` 可省略。带值选项后直接跟 `--` 仍属于缺值。既有 `--name value` 调用保持可用，不新增短选项或 `--name=value` 语法。六 CLI 子进程参数矩阵只证明解析及副作用前拒绝，命令业务行为继续由各自验证资源覆盖。
+
 CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture` 只适用于 live。`--baseline`接收同版本报告，`--report` 指定报告文件，否则输出 stdout。`--lines` 与 `--registry` 指定属性发现用的线归属表与 policy registry，缺省为本检出的 `docs/engineering/delivery-lines.json` 与 `docs/engineering/integration-policy.json`。两者读不到或不合格时退出2。
 
 输出不得覆盖输入或互相覆盖。现存文件按设备与inode识别；未创建的目标按真实父目录与最终符号链接目标识别。解析保留相对目标中的实际目录语义，悬空链接链仍须对账。循环或过长链接链在读取平台及写入前拒绝。输入与输出须为常规文件，父目录须存在。该预检查不提供对并发文件系统变更的原子锁。

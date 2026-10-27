@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseCliOptions } from './cli-options.ts'
 import { factsSource } from '../integration/delivery-facts.ts'
 import { IntegrationError } from '../integration/parse.ts'
 import { readTaskBinding } from './binding.ts'
@@ -34,26 +35,11 @@ function options(args: string[]): {
   const [first, ...rest] = args,
     event = boardEvents.find(item => item === first)
   if (event === undefined) throw new InputError(usage)
-  const values = new Map<string, string>()
-  let dryRun = false
-  for (let index = 0; index < rest.length; index += 1) {
-    const flag = rest[index]
-    if (flag === '--dry-run' && !dryRun) {
-      dryRun = true
-      continue
-    }
-    const value = rest[index + 1]
-    if (
-      flag === undefined ||
-      !['--issue', '--date', '--config'].includes(flag) ||
-      value === undefined ||
-      value.startsWith('--') ||
-      values.has(flag)
-    )
-      throw new InputError(usage)
-    values.set(flag, value)
-    index += 1
-  }
+  const { values, flags } = parseCliOptions(
+    rest,
+    { values: ['--issue', '--date', '--config'], flags: ['--dry-run'] },
+    usage,
+  )
   const issue = issueNumberArgument(values.get('--issue') ?? ''),
     date = values.get('--date')
   if (issue === undefined) throw new InputError(usage)
@@ -61,7 +47,7 @@ function options(args: string[]): {
     event,
     issue,
     date: date === undefined ? undefined : calendarDate(date, '--date'),
-    dryRun,
+    dryRun: flags.has('--dry-run'),
     config: values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json'),
   }
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseCliOptions } from '../delivery/cli-options.ts'
 import { basename, dirname, resolve } from 'node:path'
 import { runGhCommand } from '../delivery/github-read.ts'
 import { InputError, issueNumberArgument, parseConfig } from '../delivery/protocol.ts'
@@ -39,27 +40,7 @@ function options(args: string[]): {
 } {
   const [first, ...rest] = args
   if (!isCommand(first)) throw new InputError(usage)
-  const allowed: readonly string[] = ALLOWED[first].values,
-    switches: readonly string[] = ALLOWED[first].flags,
-    values = new Map<string, string>(),
-    flags = new Set<string>()
-  for (let index = 0; index < rest.length; index += 1) {
-    const flag = rest[index] ?? ''
-    if (switches.includes(flag) && !flags.has(flag)) {
-      flags.add(flag)
-      continue
-    }
-    const value = rest[index + 1]
-    if (
-      !allowed.includes(flag) ||
-      value === undefined ||
-      value.startsWith('--') ||
-      values.has(flag)
-    )
-      throw new InputError(usage)
-    values.set(flag, value)
-    index += 1
-  }
+  const { values, flags } = parseCliOptions(rest, ALLOWED[first], usage)
   return { command: first, values, flags }
 }
 function required(values: ReadonlyMap<string, string>, flag: string): string {
