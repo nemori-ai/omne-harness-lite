@@ -17,7 +17,7 @@ import {
   type CredentialPort,
   type CredentialReference,
   type CredentialResolution,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { isIntegerAtLeast, isRecord } from './fields.ts'
 import { loadState, storeState } from './records.ts'
 

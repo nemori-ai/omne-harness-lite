@@ -1,4 +1,5 @@
-import type { ModelFault, TransportTermination } from '@omne-harness/model-contract'
+import type { ModelFault } from '@omne-harness/model-contract'
+import type { TransportTermination } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
 import { terminationOf, type SendEnd } from '../src/termination.ts'
 

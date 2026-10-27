@@ -5,8 +5,8 @@ import {
   type GrowingContentKind,
   type ResultPart,
   type Termination,
-  type TransportFact,
 } from '@omne-harness/model-contract'
+import { type TransportFact } from '@omne-harness/model-contract/provider'
 import { judgePart } from '@omne-harness/message'
 import type { MemoryModelLimits } from '@omne-harness/model/testing'
 import { digest } from '../src/testing/value.ts'

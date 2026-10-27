@@ -7,11 +7,10 @@ import type {
   Adoption,
   AnchorMiss,
   DispatchRecord,
-  MeterCalibration,
   MeterRepresentation,
   ModelCallId,
-  OutputWithheld,
 } from '@omne-harness/model-contract'
+import type { MeterCalibration, OutputWithheld } from '@omne-harness/model-contract/provider'
 import { sameAdoption } from '../adoption.ts'
 import type { CallFactsLookup, CallFactsView } from './facts.ts'
 

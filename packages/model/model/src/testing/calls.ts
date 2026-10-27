@@ -3,19 +3,19 @@ import { checkedEvidence } from './value.ts'
 import { randomUUID } from 'node:crypto'
 import { tenantKey } from './value.ts'
 import {
-  judgeAdmit,
   encodeModelInvocationRef,
   decodeModelOperationId,
   decodeModelInstanceId,
 } from '@omne-harness/model-contract'
+import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import type {
-  ModelCommands,
   ModelCallId,
   ModelFailure,
   Termination,
   Settlement,
   Lookup,
 } from '@omne-harness/model-contract'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
   MemoryState,
   authFailure,

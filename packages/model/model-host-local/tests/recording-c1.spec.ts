@@ -21,7 +21,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { payableAmount, type Amount } from '@omne-harness/call-account'
-import type { FixedModelRequest, TransportFact } from '@omne-harness/model-contract'
+import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import {
   checkModelProviderConformance,
   type ConformanceSubject,

@@ -6,7 +6,8 @@
 // the note pass the key pattern check; any finding, or any condition below, writes nothing.
 import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { FixedModelRequest, ModelFailure, TransportFact } from '@omne-harness/model-contract'
+import type { FixedModelRequest, ModelFailure } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { tapResponseBodies } from './body-tap.ts'
 import { assembleLocalHost, decoded, ROUTE_PATH, type Gateway } from './local-host.ts'
 import { RECORDING_FILES, type RecordingNote } from './recording-cases.ts'

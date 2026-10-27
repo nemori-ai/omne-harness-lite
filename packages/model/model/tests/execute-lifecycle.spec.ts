@@ -1,5 +1,5 @@
 import { executeModel } from '@omne-harness/model'
-import type { TransportFact } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { expect, it } from 'vitest'
 import {
   collect,

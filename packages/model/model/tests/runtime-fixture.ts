@@ -5,14 +5,13 @@ import {
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
+import { type ModelCallId, type ModelInstanceId } from '@omne-harness/model-contract'
 import {
   decodeCredentialId,
   type ModelCommands,
-  type ModelCallId,
   type Publication,
   type TransportFact,
-  type ModelInstanceId,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
 
 export const configuration: ModelConfiguration = {

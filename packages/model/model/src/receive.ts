@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import {
   decodeModelOperationId,
-  type ModelCommands,
-  type ModelClock,
   type ModelOperationId,
   type Reply,
-  type SendDemand,
   type Snapshot,
-  type TransportFact,
   type ModelFailure,
   type Termination,
 } from '@omne-harness/model-contract'
+import {
+  type ModelCommands,
+  type ModelClock,
+  type SendDemand,
+  type TransportFact,
+} from '@omne-harness/model-contract/provider'
 
 type Open = Parameters<ModelCommands<unknown>['openReceiveWindow']>[0]
 type Preserve = Parameters<ModelCommands<unknown>['preserve']>[0]

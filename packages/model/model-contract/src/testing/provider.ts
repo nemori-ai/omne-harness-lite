@@ -1,5 +1,6 @@
 import { succeed } from '@omne-harness/operation-result'
-import type { ModelProvider, Reply } from '../index.ts'
+import type { Reply } from '../index.ts'
+import type { ModelProvider } from '../provider/index.ts'
 import type { Access, ModelInstanceId } from '../root.ts'
 import { createCalls } from './calls.ts'
 import { createConsumption } from './consumption.ts'

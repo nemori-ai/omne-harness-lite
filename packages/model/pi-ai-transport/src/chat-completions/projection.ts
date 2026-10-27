@@ -9,16 +9,18 @@ import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
-  judgeReplayDeclaration,
-  projectReplay,
   type Adoption,
   type FixedModelRequest,
   type ReplayDeclaration,
-  type ReplayDiagnostic,
-  type ReplayTreatment,
   type ToolDeclaration,
   type TransportFailure,
 } from '@omne-harness/model-contract'
+import {
+  judgeReplayDeclaration,
+  projectReplay,
+  type ReplayDiagnostic,
+  type ReplayTreatment,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { list, object, sorted, text } from './json.ts'
 import type {

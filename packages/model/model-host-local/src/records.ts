@@ -4,7 +4,7 @@ import {
   MODEL_SEND,
   decodeCredentialId,
   type CredentialPurpose,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fieldOf } from './fields.ts'
 
 export type StoredTenant = {

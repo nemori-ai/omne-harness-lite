@@ -1,10 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
-import {
-  compareRevisions,
-  type Observation,
-  type TransportFact,
-} from '@omne-harness/model-contract'
+import { type Observation } from '@omne-harness/model-contract'
+import { compareRevisions, type TransportFact } from '@omne-harness/model-contract/provider'
 import { runtimeFixture, configuration, eventually } from './runtime-fixture.ts'
 import { unbox, op, instance, proof } from './memory-fixture.ts'
 

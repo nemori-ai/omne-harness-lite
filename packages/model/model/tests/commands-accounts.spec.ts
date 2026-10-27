@@ -1,12 +1,12 @@
 // The accounts conformance suite against the in-memory ModelCommands, and against altered copies of
 // it that each break one account rule, so every failure the suite reports is shown to be reachable.
 import { describe, expect, it } from 'vitest'
+import { type ModelCallId } from '@omne-harness/model-contract'
 import {
   judgeFixedModelRequest,
   type CallAccountReport,
-  type ModelCallId,
   type ModelCommands,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import {
   ACCOUNT_OBLIGATIONS,
   checkCommandsAccounts,

@@ -7,18 +7,20 @@
 // enough for the whole seconds and milliseconds written here.
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
-  compareRevisions,
   decodeRevision,
   type ModelOperationId,
   type ModelProfile,
   type ModelProfileDefinition,
-  type ModelProfileMaintenance,
   type ModelFailure,
-  type ProfileChange,
   type ProfileIdentity,
   type Revision,
   type TokenLimit,
 } from '@omne-harness/model-contract'
+import {
+  compareRevisions,
+  type ModelProfileMaintenance,
+  type ProfileChange,
+} from '@omne-harness/model-contract/provider'
 import type { ScriptedPrincipal } from '@omne-harness/model-contract/testing'
 import { adoption } from './values.ts'
 

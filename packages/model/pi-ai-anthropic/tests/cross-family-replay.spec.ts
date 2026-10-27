@@ -6,7 +6,8 @@
 // OpenAI family is not imported.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import { judgeReplayDeclaration, projectReplay, type Parameter } from '@omne-harness/model-contract'
+import { type Parameter } from '@omne-harness/model-contract'
+import { judgeReplayDeclaration, projectReplay } from '@omne-harness/model-contract/provider'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import { ANTHROPIC_OWNER, type AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
 import {

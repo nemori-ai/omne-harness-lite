@@ -1,13 +1,8 @@
 // The checks of a transport: nothing leaves it before `start`, a step runs once, the receipt
 // grants nothing, the fact stream ends once, and closing is safe to repeat.
 import { isReplayTag } from '@omne-harness/message'
-import type {
-  MaterializedTransport,
-  PreparedTransport,
-  Supplier,
-  FixedModelRequest,
-  TransportFact,
-} from '../index.ts'
+import type { Supplier, FixedModelRequest } from '../index.ts'
+import type { MaterializedTransport, PreparedTransport, TransportFact } from '../provider/index.ts'
 import { DEFAULT_SUPPLIER } from './conformance-defaults.ts'
 import {
   expect,

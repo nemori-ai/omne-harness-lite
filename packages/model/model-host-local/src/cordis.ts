@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
-import type { CredentialPort } from '@omne-harness/model-contract'
+import type { CredentialPort } from '@omne-harness/model-contract/provider'
 import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
 import { fieldOf, isIntegerAtLeast, isRecord } from './fields.ts'
 import {

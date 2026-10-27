@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./provider": {
+      "source": "./src/provider/index.ts",
+      "types": "./dist/provider/index.d.ts",
+      "import": "./dist/provider/index.js"
+    },
     "./conformance": {
       "source": "./src/conformance/index.ts",
       "types": "./dist/conformance/index.d.ts",

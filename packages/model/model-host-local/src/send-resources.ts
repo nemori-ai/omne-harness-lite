@@ -2,12 +2,12 @@
 // credential slot that only that resource can fill. The network resources and the family
 // contributions are shared and injected; this module never closes the network.
 import type { SendResource, SendResources } from '@omne-harness/model'
+import type { ModelFailure } from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
-  ModelFailure,
   ModelTransport,
   PreparedTransport,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import {
   createPiTransport,
   type NetworkResources,

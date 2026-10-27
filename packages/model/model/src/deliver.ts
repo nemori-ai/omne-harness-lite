@@ -3,7 +3,7 @@ import type {
   CredentialReference,
   CredentialResolution,
   SendFace,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 export type CallRecord = {
   readonly reference: CredentialReference

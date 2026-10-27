@@ -1,7 +1,6 @@
 import { succeed } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
-  CommitQuery,
   ControlState,
   CustodyState,
   DispatchRecord,
@@ -9,9 +8,9 @@ import type {
   ResultPart,
   Reply,
   Termination,
-  TransportFact,
   VisibleBlock,
 } from '../index.ts'
+import type { CommitQuery, TransportFact } from '../provider/index.ts'
 import type {
   CallAccess,
   DispatchId,

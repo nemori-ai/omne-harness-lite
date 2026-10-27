@@ -2,15 +2,17 @@ import { describe, expect, it } from 'vitest'
 import {
   MODEL_REFERENCE_MAX_LENGTH,
   decodeModelInvocationRef,
-  decodeModelOperationRef,
   encodeModelInvocationRef,
-  encodeModelOperationRef,
   resolveModelInvocationRef,
-  resolveModelOperationRef,
   decodeModelCallId,
   decodeModelOperationId,
   type ModelInvocationParts,
 } from '@omne-harness/model-contract'
+import {
+  decodeModelOperationRef,
+  encodeModelOperationRef,
+  resolveModelOperationRef,
+} from '@omne-harness/model-contract/provider'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { tenantA, tenantB, call, operation, must } from './scripted-support.ts'
 

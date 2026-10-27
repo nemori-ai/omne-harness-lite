@@ -5,18 +5,20 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
-  CalibratedInputMeter,
   FixedModelRequest,
   MeterRepresentation,
   ModelFault,
   Parameter,
   ProfileReplay,
-  ProviderDiagnostic,
-  ReplayTreatment,
   ToolDeclaration,
-  TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type {
+  CalibratedInputMeter,
+  ProviderDiagnostic,
+  ReplayTreatment,
+  TransportFact,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiModelRecordHead } from '../family-table.ts'
 

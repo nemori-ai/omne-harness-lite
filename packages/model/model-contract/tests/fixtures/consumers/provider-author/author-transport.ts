@@ -10,7 +10,7 @@ import type {
   ModelTransport,
   PreparedTransport,
   TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { terminationOfRefusal, type SupplierRefusal } from './author-response.ts'
 
 export type TransportDefects = Readonly<{

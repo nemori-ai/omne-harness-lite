@@ -5,12 +5,12 @@ import { Context } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   DurableEvidence,
-  ExecutionRef,
   LiveRoute,
   ModelCallId,
   ModelHandle,
   ModelInstanceId,
 } from '@omne-harness/model-contract'
+import type { ExecutionRef } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   ModelPublicationAuthority,

@@ -8,7 +8,7 @@
 // the facts, the dispatch with its receipt and the account that reached ModelCommands.
 import { describe, expect, it } from 'vitest'
 import { payableAmount } from '@omne-harness/call-account'
-import type { TransportFact } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { PLACEHOLDER } from './support/local-host.ts'
 import { RECORD_CASE_NAMES, RECORD_CASES } from './support/recording-cases.ts'
 import type { FamilyName } from './support/records.ts'

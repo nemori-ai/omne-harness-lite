@@ -68,14 +68,14 @@ vi.mock('node:fs', async importOriginal => {
   }
 })
 import { Context } from '@deepseek-ai/cordis'
+import { type CredentialId } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
   decodeCredentialId,
-  type CredentialId,
   type CredentialQuery,
   type CredentialReference,
   type SendFace,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { deliver } from '@omne-harness/model'
 import { LocalCredentialPlugin, deliverInjected } from '../src/cordis.ts'
 import { createLocalCustodian, openLocalCustodian } from '../src/index.ts'
@@ -310,7 +310,7 @@ it('a restarted process reads the current secret from the same store', () => {
       '--input-type=module',
       '-e',
       `import { openLocalCustodian } from './dist/index.js'
-       import { decodeCredentialId } from '@omne-harness/model-contract'
+       import { decodeCredentialId } from '@omne-harness/model-contract/provider'
        function credentialId(text) {
          const decoded = decodeCredentialId(text)
          if (!('ok' in decoded)) throw new Error('fixture credential id')
@@ -713,7 +713,7 @@ it(
         '--input-type=module',
         '-e',
         `import { openLocalCustodian } from './dist/index.js'
-       import { decodeCredentialId } from '@omne-harness/model-contract'
+       import { decodeCredentialId } from '@omne-harness/model-contract/provider'
        function credentialId(text) {
          const decoded = decodeCredentialId(text)
          if (!('ok' in decoded)) throw new Error('fixture credential id')
@@ -935,7 +935,7 @@ it('concurrent writers in separate processes do not lose updates', () => {
       '--input-type=module',
       '-e',
       `import { openLocalCustodian } from './dist/index.js'
-       import { decodeCredentialId } from '@omne-harness/model-contract'
+       import { decodeCredentialId } from '@omne-harness/model-contract/provider'
        function credentialId(text) {
          const decoded = decodeCredentialId(text)
          if (!('ok' in decoded)) throw new Error('fixture credential id')

@@ -4,7 +4,8 @@
 // does not match what it holds.
 import { isDeepStrictEqual } from 'node:util'
 import { readJsonText, type JsonLimits } from '@omne-harness/json-text'
-import type { GrowingContentKind, ModelBlock, TransportFact, VisibleBlock } from '../index.ts'
+import type { GrowingContentKind, ModelBlock, VisibleBlock } from '../index.ts'
+import type { TransportFact } from '../provider/index.ts'
 
 export type FillEntry =
   | {

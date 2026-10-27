@@ -7,9 +7,9 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   ModelCountingBasis,
   ModelInputMeter,
-  ModelTextTokenizer,
   RequestBudget,
 } from '@omne-harness/model-contract'
+import type { ModelTextTokenizer } from '@omne-harness/model-contract/provider'
 
 export type MeterInput = Parameters<ModelInputMeter['measure']>[0]
 type Tokens = MeterInput['representation']['tokenInput']

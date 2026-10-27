@@ -27,7 +27,7 @@ import type {
   Termination,
   CallState,
 } from './result.ts'
-import type { MaterializationReceipt } from './provider.ts'
+import type { MaterializationReceipt } from './provider-protocol.ts'
 import type { DurableEvidence } from './result.ts'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { MessageId } from '@omne-harness/message'

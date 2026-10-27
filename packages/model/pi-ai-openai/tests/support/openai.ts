@@ -4,16 +4,18 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
   type Adoption,
   type AssembledModelInput,
   type FixedModelRequest,
   type ModelProfile,
   type ReplayDeclaration,
   type Supplier,
-  type TransportDispatch,
 } from '@omne-harness/model-contract'
+import {
+  judgeFixedModelRequest,
+  judgeReplayDeclaration,
+  type TransportDispatch,
+} from '@omne-harness/model-contract/provider'
 import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import {

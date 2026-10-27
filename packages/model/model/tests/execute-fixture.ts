@@ -2,12 +2,14 @@ import type {
   Adoption,
   FixedModelRequest,
   MaterializationReceipt,
+  TransportFailure,
+} from '@omne-harness/model-contract'
+import type {
   MaterializedTransport,
   ModelTransport,
   PreparedTransport,
   TransportFact,
-  TransportFailure,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 

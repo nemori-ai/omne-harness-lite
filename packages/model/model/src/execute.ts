@@ -1,14 +1,16 @@
 import type {
   Adoption,
   FixedModelRequest,
-  IndependentModelFact,
   MaterializationReceipt,
+  TransportFailure,
+} from '@omne-harness/model-contract'
+import type {
+  IndependentModelFact,
   MaterializedTransport,
   ModelTransport,
   PreparedTransport,
   TransportFact,
-  TransportFailure,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from './adoption.ts'
 

@@ -13,8 +13,8 @@ import {
   type Adoption,
   type DurableEvidence,
   type FixedModelRequest,
-  type ModelConsumerOwnerDeclaration,
 } from '@omne-harness/model-contract'
+import { type ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract/provider'
 import type {
   MemoryModelAuthority,
   MemoryModelCommandsOptions,

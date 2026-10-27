@@ -82,7 +82,9 @@ it('the root import graph never reaches testing, host, Cordis or private contrac
     for (const match of source.matchAll(/(?:from\s+|import\s*)['"]([^'"]+)['"]/gu)) {
       const specifier = match[1]
       if (specifier === undefined) throw new Error('import match')
-      expect(specifier).not.toMatch(/cordis|host-local|session|legacy|\/testing|model-contract\//u)
+      expect(specifier).not.toMatch(
+        /cordis|host-local|session|legacy|\/testing|model-contract\/(?!provider$)/u,
+      )
       if (specifier.startsWith('.')) walk(new URL(specifier, url))
     }
   }

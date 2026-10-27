@@ -17,7 +17,7 @@
 | [model-stream-values.ts](model-stream-values.ts) | [Model 显示投影纯值](../docs/public-api.md#model-显示投影纯值)；diff/apply |
 | [model-stream.ts](model-stream.ts) | [Model 当前目标与公共观察](../docs/public-api.md#model-当前目标与公共观察)；Model 观察与 current 端口 |
 | [call-surface.ts](call-surface.ts) | 普通调用面与实例观察 |
-| [provider.ts](provider.ts) | 独立执行与提供者操作 |
+| [provider-protocol.ts](provider-protocol.ts) | 独立执行与提供者操作 |
 | [consumer-owner.ts](consumer-owner.ts)、[guard-control.ts](guard-control.ts) | 消费者 owner 的装配声明；守卫派生的控制 operation |
 | [profile.ts](profile.ts)、[profile-source.ts](profile-source.ts) | 档案与请求准备；档案来源与准备资源 |
 | [conversion.ts](conversion.ts) | 消息转换 |

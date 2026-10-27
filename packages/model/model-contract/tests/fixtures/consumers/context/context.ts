@@ -10,19 +10,21 @@ import { judgeMessage, type Message, type MessagePart } from '@omne-harness/mess
 import type {
   AssembledModelInput,
   BudgetCheck,
-  ConversionFailure,
   FixedModelRequest,
   ModelFailure,
   ModelCallId,
   ModelInputMeter,
-  ModelMessageConversion,
   ModelProfile,
-  ModelProfiles,
-  ModelRequestPreparation,
   RequestBudget,
   Termination,
   ToolDeclaration,
 } from '@omne-harness/model-contract'
+import type {
+  ConversionFailure,
+  ModelMessageConversion,
+  ModelProfiles,
+  ModelRequestPreparation,
+} from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { isContentBlock, meterInput, triggerLine } from './meter-input.ts'
 import type { Sender } from './services.ts'

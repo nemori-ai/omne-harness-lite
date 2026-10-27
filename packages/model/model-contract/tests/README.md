@@ -17,7 +17,7 @@
 | `public-api-types.spec.ts` | `docs/public-api.md` 是源码导航：清单的每一章链接声明其名字的源码文件，页面链接的源码与测试文件都存在，页面不重复声明（核对函数及其负例在 `exports-inventory.ts` 与 `exports-inventory.spec.ts`） |
 | `*.spec-d.ts`、`values.ts`、`type-coverage.spec.ts`                                   | 类型消费的正例与负例；探针的类型化输入；每个已落地类型至少在一个探针里被使用（导入列表里的名字不算）                                                                                |
 | `fixture-runner.ts`、`fixture-runner.spec.ts` | 角色夹具的声明规则：要求每个夹具声明正常路径与失败路径、失败路径写明改变的协调决策、路径名不重复、必需角色有夹具。设施用同一份规则判定夹具进程写出的报告 |
-| `public-entry.spec.ts`、`identity.spec.ts`、`credential.spec.ts`                     | 根入口的 31 个运行时键；身份与序列解码函数的成功与每个拒绝原因、比较函数、守卫派生函数；凭据解码函数的成功与每个拒绝原因，以及持有者比较函数                                         |
+| `public-entry.spec.ts`、`identity.spec.ts`、`credential.spec.ts`                     | 根入口的 20 个运行时键、`./provider` 的 14 个运行时键，以及两个入口的全部名字（类型与值）「一名一入口」；身份与序列解码函数的成功与每个拒绝原因、比较函数、守卫派生函数；凭据解码函数的成功与每个拒绝原因，以及持有者比较函数                                         |
 | `replay.spec.ts` | 回放声明（经 `judgeReplayDeclaration`）的展开默认值、存储形状与每个校验失败；回放投影对每个可续接条件、只含 `thinking` 的消息、无 `replay` 的消息、三种 `foreignThinking`、A→B→A 历史和诊断键集合的结论；`continuedMessages` 与再发 |
 | `testing-entry.spec.ts`、`testing-provider.spec.ts`、`testing-failures.spec.ts`、`testing-access.spec.ts`、`testing-observation.spec.ts`、`testing-control.spec.ts`、`testing-transport.spec.ts`、`scripted-support.ts` | `./testing` 的受控替代提供者与替代传输，经包名入口导入：运行时键（只有替身与替代被测方）、普通路径、认回与冲突、六种失败路径、逐动作撤权与跨租户拒绝、等待中的观察被唤醒与释放、取消的三态、多调用、对脚本误用的拒绝、传输的终止、耗尽、抛错与调用计数。`scripted-support.ts` 是它们共用的输入构造 |
 | `testing-reduction.spec.ts` | 替代提供者喂入上游事实时的块表（追加与替换、禁止的转换、封口与累计值、截断的工具参数）、证据登记与目录故障 |

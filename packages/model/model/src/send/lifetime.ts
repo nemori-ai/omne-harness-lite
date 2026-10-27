@@ -2,7 +2,7 @@ import type {
   MaterializedTransport,
   PreparedTransport,
   TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { SendResource } from './types.ts'
 
 export class SendLifetime {

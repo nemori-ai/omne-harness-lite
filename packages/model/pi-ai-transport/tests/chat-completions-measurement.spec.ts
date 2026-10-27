@@ -6,12 +6,11 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
-  MeterCalibration,
   ModelCountingBasis,
   ModelInputMeter,
-  ModelTextTokenizer,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { MeterCalibration, ModelTextTokenizer } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   ANCHORED_METHOD,

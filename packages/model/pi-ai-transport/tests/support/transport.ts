@@ -4,7 +4,7 @@ import type {
   MaterializedTransport,
   PreparedTransport,
   TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { PiCredentialSlot, PiTransportLimits } from '../../src/index.ts'
 import type { NetworkInternals } from '../../src/network.ts'
 import { createPiTransport, type PiTransport } from '../../src/transport.ts'
