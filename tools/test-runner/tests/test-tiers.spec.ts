@@ -99,6 +99,21 @@ describe('根上的分层定义', () => {
     })
   })
 
+  it('只有带值的选项吞下后面的词：布尔选项后面的词仍是文件过滤，布尔值 true、false 除外', () => {
+    const vitest = (...words: string[]) => ['node', '/r/node_modules/vitest/vitest.mjs', ...words]
+    const files = (...words: string[]) => cliFilters(vitest('run', ...words)).files
+    expect(files('--no-isolate', 'tests/x')).toEqual(['tests/x'])
+    expect(files('--typecheck', 'tests/x')).toEqual(['tests/x'])
+    expect(files('--coverage.enabled', 'false', '--isolate', 'true')).toEqual([])
+    // 运行器逐成员运行的写法：`--exclude` 带值，它的 glob 不是过滤。
+    expect(files('--exclude', '**/*.legacy/**', '--reporter=json')).toEqual([])
+    // 短横线写法与驼峰同一个选项；带点的选项按带值算。
+    expect(files('--max-workers', '2', '--typecheck.include', 'tests/**/*.spec-d.ts')).toEqual([])
+    expect(cliFilters(vitest('run', '--test-name-pattern', 'y', 'tests/a')).testNames).toEqual([
+      'y',
+    ])
+  })
+
   it('带过滤：不让一个文件都不剩算通过、挂过滤守卫；带用例名时关 preParse', () => {
     const named = ['node', '/r/vitest.mjs', 'run', '--mode', 'slow', '-t', '名']
     expect(testTiers('slow', {}, REPOSITORY, named)).toMatchObject({
@@ -425,6 +440,27 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
     expect(result.ran).toEqual([])
   })
 
+  it('布尔选项后面紧跟的文件过滤也认得：选不中时非零退出', () => {
+    for (const flag of ['--no-isolate', '--typecheck']) {
+      const result = vitestWith(root, ['--mode', 'slow', flag, 'tests/quick.spec.ts'])
+      expect(result.status, result.output).not.toBe(0)
+      expect(result.ran).toEqual([])
+      expect(result.output).toContain('没有选中任何用例')
+    }
+  })
+
+  it('过滤到的文件加载失败：非零退出，只报加载错误，不说没有选中用例', () => {
+    const broken = project({
+      'broken.spec.ts': ["import '../nope.ts'", "test('坏的', { tags: ['slow'] }, () => {})"].join(
+        '\n',
+      ),
+    })
+    const result = vitestWith(broken, ['--mode', 'slow', 'tests/broken.spec.ts'])
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.output).toContain('nope.ts')
+    expect(result.output).not.toContain('没有选中任何用例')
+  })
+
   it('不带过滤：慢层照常只跑慢的，没有慢用例的项目仍退出 0', () => {
     const slow = vitestWith(root, ['--mode', 'slow'])
     expect(slow.status, slow.output).toBe(0)
@@ -436,7 +472,9 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
   })
 
   it(
-    '失败归因经成员脚本与同一配置重跑：生成的用例名选得中，选不中的报未能单独重跑、不报隔离稳定通过',
+    '现状：失败归因经成员脚本与同一配置重跑时，选中生成的用例名，选不中的归为未能单独重跑',
+    // 刻画现状，不是回归：triage 走成员脚本 `test`（不给 mode，不开 preParse），#682 的现象没有经过这条路。
+    // 它传 `--reporter`，过滤守卫不在场，归类只靠 JSON 报告。
     // 归慢层：经 pnpm 起成员脚本、每处再起一次 vitest，约数秒。
     { tags: ['slow'] },
     async () => {

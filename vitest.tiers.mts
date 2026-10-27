@@ -48,40 +48,122 @@ export interface CliFilters {
   readonly files: readonly string[]
 }
 
-const NO_FILTERS: CliFilters = { testNames: [], files: [] }
 const SUBCOMMANDS = new Set(['run', 'watch', 'dev', 'related', 'bench', 'list'])
-const TEST_NAME_FLAGS = new Set(['-t', '--testNamePattern', '--test-name-pattern'])
 
 /**
- * 从启动 vitest 的命令行读出过滤（vitest 的配置函数拿不到它们）。只认 vitest 自己的入口（`vitest.mjs`）：
- * Stryker 等经 API 起 vitest 时命令行不是 vitest 的，按没有过滤算。
- * 不带 `=` 的选项后面紧跟的词按这个选项的值算，所以写在布尔选项后面的文件过滤（如 `--typecheck tests/x`）认不出；
- * `--` 之后的不算过滤。
+ * vitest 4.1.11 命令行里带值的选项（`<值>` 与 `[值]` 两种），不带点的那些，名字按驼峰写；核对自它的 `createCLI`。
+ * 带点的选项（`--coverage.include x`）一律按带值算。
+ */
+const VALUED_OPTIONS = new Set([
+  '-r',
+  '-c',
+  '-u',
+  '-t',
+  'root',
+  'config',
+  'update',
+  'testNamePattern',
+  'dir',
+  'api',
+  'silent',
+  'reporter',
+  'outputFile',
+  'mode',
+  'browser',
+  'pool',
+  'execArgv',
+  'vmMemoryLimit',
+  'maxWorkers',
+  'environment',
+  'shard',
+  'changed',
+  'sequence',
+  'inspect',
+  'inspectBrk',
+  'testTimeout',
+  'hookTimeout',
+  'bail',
+  'retry',
+  'diff',
+  'exclude',
+  'project',
+  'slowTestThreshold',
+  'teardownTimeout',
+  'maxConcurrency',
+  'attachmentsDir',
+  'configLoader',
+  'mergeReports',
+  'listTags',
+  'tagsFilter',
+  'experimental',
+])
+const TEST_NAME_OPTIONS = new Set(['-t', 'testNamePattern'])
+
+/** 选项名：长选项去掉 `--` 并把短横线写法换成驼峰（`--max-workers` → `maxWorkers`），短选项原样。 */
+function optionName(flag: string): string {
+  if (!flag.startsWith('--')) return flag
+  return flag.slice(2).replaceAll(/-([a-z])/gu, (_, letter: string) => letter.toUpperCase())
+}
+
+/**
+ * 交给 vitest 解析的词：只认 vitest 自己的入口（`vitest.mjs`），Stryker 等经 API 起 vitest 时命令行不是 vitest 的，
+ * 按没有词算；去掉子命令，`--` 之后的不算。
+ */
+function vitestWords(argv: readonly string[]): readonly string[] {
+  const entry = argv[1]
+  if (entry === undefined || basename(entry) !== 'vitest.mjs') return []
+  const rest = argv.slice(2)
+  const words = rest[0] !== undefined && SUBCOMMANDS.has(rest[0]) ? rest.slice(1) : rest
+  const end = words.indexOf('--')
+  return end === -1 ? words : words.slice(0, end)
+}
+
+interface Option {
+  readonly name: string
+  readonly value: string | undefined
+  /** 值是不是取自下一个词。 */
+  readonly consumed: boolean
+}
+
+/**
+ * 读一个选项与它的值：`--x=值`；带值的选项吞下后面的一个词；布尔选项与 vitest 一样只吞 `true`、`false`。
+ * 其余后面的词留给调用方当文件过滤：认错了只会多判成有过滤，不会把没选中的运行放过去。
+ */
+function readOption(word: string, next: string | undefined): Option {
+  const equals = word.indexOf('=')
+  if (equals !== -1)
+    return {
+      name: optionName(word.slice(0, equals)),
+      value: word.slice(equals + 1),
+      consumed: false,
+    }
+  const name = optionName(word)
+  const consumes =
+    next !== undefined &&
+    !next.startsWith('-') &&
+    (name.includes('.') || VALUED_OPTIONS.has(name) || next === 'true' || next === 'false')
+  return { name, value: consumes ? next : undefined, consumed: consumes }
+}
+
+/**
+ * 从启动 vitest 的命令行读出过滤（vitest 的配置函数拿不到它们）：`-t` 的值是用例名过滤，
+ * 不是选项、也不是选项的值的词是文件过滤。带点的布尔选项用空格接文件过滤（`--typecheck.enabled tests/x`）时，
+ * 文件过滤会被当成它的值而认不出；写成 `--typecheck.enabled=true` 就认得出。
  */
 export function cliFilters(argv: readonly string[]): CliFilters {
-  const entry = argv[1]
-  if (entry === undefined || basename(entry) !== 'vitest.mjs') return NO_FILTERS
-  const words = argv.slice(2)
-  if (words[0] !== undefined && SUBCOMMANDS.has(words[0])) words.shift()
+  const words = vitestWords(argv)
   const testNames: string[] = []
   const files: string[] = []
   for (let index = 0; index < words.length; index += 1) {
     const word = words[index] ?? ''
-    if (word === '--') break
     if (!word.startsWith('-')) {
       files.push(word)
       continue
     }
-    const equals = word.indexOf('=')
-    const flag = equals === -1 ? word : word.slice(0, equals)
-    const next = words[index + 1]
-    let value: string | undefined
-    if (equals !== -1) value = word.slice(equals + 1)
-    else if (next !== undefined && !next.startsWith('-')) {
-      value = next
-      index += 1
-    }
-    if (TEST_NAME_FLAGS.has(flag) && value !== undefined) testNames.push(value)
+    const option = readOption(word, words[index + 1])
+    if (option.consumed) index += 1
+    if (TEST_NAME_OPTIONS.has(option.name) && option.value !== undefined)
+      testNames.push(option.value)
   }
   return { testNames, files }
 }
@@ -94,8 +176,14 @@ export function reportSlug(memberDirectory: string): string {
 }
 
 /** 设了报告目录时挂上的报告器、报告路径与测试进程的环境。 */
+/** 挂报告器时给的选项：计时报告器要输出路径，过滤守卫要过滤条件。 */
+type ReporterEntry =
+  | string
+  | [string, { outputFile: string }]
+  | [string, { testNames: string[]; files: string[] }]
+
 interface Reporting {
-  readonly reporters?: (string | [string, Readonly<Record<string, unknown>>])[]
+  readonly reporters?: ReporterEntry[]
   readonly outputFile?: { readonly json: string }
   readonly env?: Readonly<Record<string, string>>
 }
@@ -119,6 +207,8 @@ export interface TestTiers extends Reporting {
  * 只在有过滤时挂：设了 `reporters` 就不再由 vitest 自己挑缺省报告器，所以这时显式带上 `default`。
  * 命令行给了 `--reporter` 时 vitest 用它替换配置里的全部报告器，守卫随之不在；
  * 这时有过滤、文件全被滤掉的情形仍由 `passWithNoTests: false` 判失败，用例全被跳过的情形不再判失败。
+ * test-runner 自己起的 vitest（`run.ts` 的逐成员运行、`triage.ts` 的单独重跑）每次都传 `--reporter`，守卫不在场；
+ * 这些路径读 JSON 报告归类，没选中的记为没跑到。
  */
 function guarded(base: Reporting, filters: CliFilters): Reporting {
   if (filters.testNames.length === 0 && filters.files.length === 0) return base

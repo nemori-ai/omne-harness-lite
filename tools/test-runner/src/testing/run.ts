@@ -108,6 +108,7 @@ async function runMember(
   const slug = slugOf(member.path)
   // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
   // 计时报告器的输出路径只能写在配置里（命令行给不了报告器选项），验收的账本因此没有导入耗时，贴线按缺省时限判。
+  // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫因此不在场；这里不带过滤，也用不到它。
   const args = /\bvitest\b/u.test(member.script)
     ? [
         '--exclude',

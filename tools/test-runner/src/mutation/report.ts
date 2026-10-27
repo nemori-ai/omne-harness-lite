@@ -108,8 +108,9 @@ export interface Finding {
 }
 
 /**
- * 要变异的一段改动行，报告里一个变异体都没有落在上面（#737）。分数量不到它：既不算测出来，也不算没测出来。
- * 常见原因是 Stryker 不为类型位置生成变异体，`x as T`（含 `as const`）里的字面量也在内。
+ * 要变异的一段改动行，报告里没有一个可计分状态（被杀、超时、存活、无覆盖）的变异体落在上面（#737）。
+ * 分数量不到它：既不算测出来，也不算没测出来。常见原因是 Stryker 不为类型位置生成变异体，
+ * `x as T`（含 `as const`）里的字面量也在内；只有编译错误、忽略等不计分状态的变异体碰到它时同样算。
  */
 export interface UnmutatedRange {
   /** 仓库相对路径。 */
@@ -402,11 +403,16 @@ export interface SummaryInputs {
   readonly recheckReading?: RecheckReading
 }
 
-/** 要变异的各段改动里，报告中一个变异体（任何状态）都没有碰到的段。 */
+/** 能计分的状态：被杀与超时算测出来，存活与无覆盖算没测出来。 */
+const SCORABLE: ReadonlySet<MutantStatus> = new Set(['Killed', 'Timeout', 'Survived', 'NoCoverage'])
+
+/** 要变异的各段改动里，没有一个可计分状态的变异体碰到的段，按文件、起始行排序。 */
 function unmutatedRanges(target: MutationTarget, report: MutationReport): UnmutatedRange[] {
   return [...target.lines]
     .flatMap(([path, ranges]) => {
-      const mutants = report.files[path.slice(target.member.path.length + 1)]?.mutants ?? []
+      const mutants = (
+        report.files[path.slice(target.member.path.length + 1)]?.mutants ?? []
+      ).filter(mutant => SCORABLE.has(mutant.status))
       return ranges
         .filter(
           range =>
@@ -522,8 +528,11 @@ const describeRange = (range: UnmutatedRange) =>
  * 不让「全杀」读成「改动全量到了」；一个可计分的变异体都没有时不给分数，只报未覆盖。
  */
 function scoreText(result: MemberMutation): string {
-  if (!result.valid) return '—（测量无效）'
   const uncovered = result.unmutated.length
+  if (!result.valid)
+    return uncovered === 0
+      ? '—（测量无效）'
+      : `—（测量无效；未覆盖 ${uncovered} 段：改动上没有变异体）`
   if (uncovered === 0) return result.score === null ? '—' : `${result.score}%`
   return result.score === null
     ? `—（未覆盖 ${uncovered} 段：改动上没有变异体）`

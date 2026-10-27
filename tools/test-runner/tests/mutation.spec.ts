@@ -299,7 +299,6 @@ describe('报告汇总', () => {
     ])
     expect(memberErrors(summarizeMember(TARGET, report), paths)).toEqual([])
   })
-  // #649：只因时限到了而超时（没有原因）的，第一遍分不出是负载还是真的挂起，以单独复核的判定为准。
   describe('改动段上没有变异体（#737）', () => {
     // Stryker 把 `x as T` 整个当类型位置跳过：`as const` 里的字面量不生成变异体。
     const constSource = [
@@ -361,8 +360,75 @@ describe('报告汇总', () => {
       expect(result.unmutated).toEqual([])
       expect(memberLines(result, false)[0]).toMatch(/分数 100%$/u)
     })
+
+    it('只被不计分的变异体（编译错误、忽略）碰到的改动段也算没有变异体', () => {
+      const unscored: MutationReport = {
+        files: {
+          'src/a.ts': {
+            source: constSource,
+            mutants: [
+              killed('1'),
+              { ...killed('2'), status: 'CompileError', location: at(3, 22, 3, 37) },
+              { ...killed('3'), status: 'Ignored', location: at(3, 23, 3, 29) },
+            ],
+          },
+        },
+      }
+      const result = summarizeMember(targetOf([1, 1], [3, 3]), unscored)
+      expect(result.unmutated).toEqual([{ file: 'packages/core/alpha/src/a.ts', start: 3, end: 3 }])
+    })
+
+    it('跨行的变异体起点在段前、终点落进段里：这一段有变异体', () => {
+      const spanning: MutationReport = {
+        files: {
+          'src/a.ts': {
+            source: constSource,
+            mutants: [{ ...killed('1'), location: at(1, 1, 3, 10) }],
+          },
+        },
+      }
+      expect(summarizeMember(targetOf([3, 3]), spanning).unmutated).toEqual([])
+    })
+
+    it('没有变异体的段按文件、起始行排序', () => {
+      const unordered: MutationTarget = {
+        member: member('packages/core/alpha'),
+        lines: new Map<string, readonly (readonly [number, number])[]>([
+          [
+            'packages/core/alpha/src/b.ts',
+            [
+              [9, 9],
+              [2, 4],
+            ],
+          ],
+          ['packages/core/alpha/src/a.ts', [[3, 3]]],
+        ]),
+      }
+      expect(summarizeMember(unordered, withMutants).unmutated).toEqual([
+        { file: 'packages/core/alpha/src/a.ts', start: 3, end: 3 },
+        { file: 'packages/core/alpha/src/b.ts', start: 2, end: 4 },
+        { file: 'packages/core/alpha/src/b.ts', start: 9, end: 9 },
+      ])
+    })
+
+    it('测量无效时标题也写出未覆盖几段', () => {
+      const broken: MutationReport = {
+        files: {
+          'src/a.ts': {
+            source: constSource,
+            mutants: [killed('1'), { ...killed('2'), status: 'RuntimeError' }],
+          },
+        },
+      }
+      const result = summarizeMember(targetOf([1, 1], [3, 3]), broken)
+      expect(result.valid).toBe(false)
+      expect(memberLines(result, false)[0]).toContain(
+        '分数 —（测量无效；未覆盖 1 段：改动上没有变异体）',
+      )
+    })
   })
 
+  // #649：只因时限到了而超时（没有原因）的，第一遍分不出是负载还是真的挂起，以单独复核的判定为准。
   describe('超时的复核', () => {
     const mutant = (
       id: string,
@@ -993,6 +1059,8 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     expect(summary).toContain('分数 —（未覆盖 1 段：改动上没有变异体）')
     expect(summary).toContain('  没有变异体 packages/core/sign/src/sign.ts:2')
     expect(summary).not.toContain('100%')
+    // 逐成员的进度行同样报出段数。
+    expect(result.ran.stdout).toMatch(/\[1\/1\] packages\/core\/sign .*、没有变异体的改动 1 段/u)
   })
 
   it('没断言的测试留下存活变异体，补上断言后被杀；只变异改动行，跑完不留 sandbox', () => {
