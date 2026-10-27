@@ -6,7 +6,8 @@
 // Support in this member (card #536 revision 5): the kinds of the M2 first tenant path are decided
 // to the SPEC (`create`, `completeInitialization`, `accept` of an ordinary input, `startRun`,
 // `recordMessage`, `receive` of a hand-over, and `finishRun`). Every other kind is refused with
-// `unavailable` naming #756 (S-1b). The Agent-event copy branch of `receive` is superseded (P1
+// `unavailable` naming #756 (S-1b); the `workspace` dimension of `change` is judged before that
+// refusal, so an illegal selection is `invalid`. The Agent-event copy branch of `receive` is superseded (P1
 // decision item 1): the facts it carried (taken batches, the Run's completed terminal) reach
 // Session by a replacement that #756 designs.
 import type {
@@ -18,8 +19,8 @@ import type {
   SessionOperationId,
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
-import { tenantEquals } from '@omne-harness/legal-identity'
-import type { RunTerminal, WorkSnapshot } from './values.ts'
+import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
+import type { RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
 import type { HistoryEntry, ProducerFact, SessionFailure } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry, toJsonValue, type InitializationItem } from './entries.ts'
@@ -73,6 +74,38 @@ function emptyEvidence(evidence: DurableEvidence): boolean {
   )
 }
 
+/** True when `value` is a sixth-family `WorkspaceId` that legal-identity minted (its codec encodes it). */
+function legalWorkspace(value: unknown): value is WorkspaceId {
+  if (typeof value !== 'object' || value === null) return false
+  return workspaceCodec.encode(value as WorkspaceId).ok
+}
+
+function emptyText(value: unknown): boolean {
+  return typeof value !== 'string' || value.length === 0
+}
+
+/**
+ * The workspace selection of a creation or a `workspace` change: a `WorkspaceId` with its
+ * attachment, or neither. The attachment fields are non-empty text; their format belongs to the
+ * workspace domain, so nothing more is read here. `prefix` names the fields in the refusal.
+ */
+function judgeWorkspace(
+  workspace: WorkspaceId | null,
+  attachment: WorkspaceAttachment | null,
+  prefix: Readonly<{ workspace: string; attachment: string }>,
+): Decision | null {
+  if (workspace === null)
+    return attachment === null
+      ? null
+      : invalid(prefix.attachment, 'an attachment without a workspace')
+  if (!legalWorkspace(workspace)) return invalid(prefix.workspace, 'not a legal WorkspaceId')
+  if (typeof attachment !== 'object' || attachment === null)
+    return invalid(prefix.attachment, 'a workspace without an attachment')
+  if (emptyText(attachment.instance)) return invalid(`${prefix.attachment}.instance`, 'empty')
+  if (emptyText(attachment.basis)) return invalid(`${prefix.attachment}.basis`, 'empty')
+  return null
+}
+
 /** The deterministic Run identity of (session, first input, predecessor): the OP-00 elements of `startRun`. */
 export function runIdOf(session: SessionId, first: InputId, predecessor: RunId | null): RunId {
   return `run_${digestOf({ session, first, predecessor })}` as RunId
@@ -114,8 +147,11 @@ function decideCreate(
   if (emptyAdoption(creation.execution)) return invalid('creation.execution', 'incomplete adoption')
   if (emptyAdoption(creation.entryContract))
     return invalid('creation.entryContract', 'incomplete adoption')
-  if (creation.workspace !== null && emptyAdoption(creation.workspace))
-    return invalid('creation.workspace', 'incomplete adoption')
+  const workspace = judgeWorkspace(creation.workspace, creation.attachment, {
+    workspace: 'creation.workspace',
+    attachment: 'creation.attachment',
+  })
+  if (workspace !== null) return workspace
   if (creation.modes.kind === 'explicit' && emptyAdoption(creation.modes.value.environment))
     return invalid('creation.modes.value.environment', 'incomplete adoption')
   if (creation.modes.kind === 'tenant-default' && emptyAdoption(creation.modes.source))
@@ -403,6 +439,22 @@ function decideHandover(
 }
 
 /**
+ * `change` is decided by #756. Its `workspace` dimension is still judged here, so an illegal
+ * selection is `invalid` rather than `unavailable`.
+ */
+function decideChange(command: Extract<SessionCommand, { kind: 'change' }>): Decision {
+  const { declaration } = command.input
+  if (declaration.kind === 'workspace') {
+    const refused = judgeWorkspace(declaration.value, declaration.attachment, {
+      workspace: 'declaration.value',
+      attachment: 'declaration.attachment',
+    })
+    if (refused !== null) return refused
+  }
+  return rejected(OFF_PATH_FAILURE)
+}
+
+/**
  * The normalized parameter digest of one command: the command without its operation identity,
  * so the same intent under the same identity recalls and another intent conflicts (SL07).
  */
@@ -447,6 +499,8 @@ export function decide(
       return decideReceive(previous, command)
     case 'finishRun':
       return decideFinishRun(previous, command)
+    case 'change':
+      return decideChange(command)
     default:
       return rejected(OFF_PATH_FAILURE)
   }

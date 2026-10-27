@@ -2,6 +2,7 @@
 // identities, the initialization items, the recall and the conflict of one operation, the
 // tenant check, the quarantine of an unknown entry kind, and the pure judgments at their edges.
 import { describe, expect, it } from 'vitest'
+import { accountCodec, workspaceCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import {
   decide,
   deriveDriveOperation,
@@ -22,6 +23,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
+  adoption,
   creation,
   evidence,
   memoryAccess,
@@ -170,6 +172,121 @@ describe('create and completeInitialization', () => {
       kind: 'rejected',
       failure: { kind: 'denied', action: 'accept' },
     })
+  })
+})
+
+const WORKSPACE_TEXT = 'wsp_abcdefghjkmnpqrstvwxyz2345'
+
+function legalWorkspace() {
+  const parsed = workspaceCodec.parse(WORKSPACE_TEXT)
+  if (!parsed.ok) throw new Error('the workspace sample does not parse')
+  return parsed.value
+}
+
+const attachment = { instance: 'host-1:/srv/work', basis: 'git:4f2a9c1' }
+
+function refusalOf(command: SessionCommand, previous: WorkSnapshot | null = null) {
+  return decide(previous, command, [], null, { compaction: null })
+}
+
+const changeWorkspace = (value: unknown, attached: unknown): SessionCommand =>
+  ({
+    kind: 'change',
+    input: {
+      ...base,
+      operation: operationId('change-workspace'),
+      declaration: { kind: 'workspace', value, attachment: attached, basis: evidence('select') },
+    },
+  }) as SessionCommand
+
+describe('the workspace selection: a sixth-family WorkspaceId with its attachment, or neither', () => {
+  it('a creation with a legal workspace and a full attachment keeps both through the log', () => {
+    const command = createCommand({ workspace: legalWorkspace(), attachment })
+    const decision = refusalOf(command)
+    if (decision.kind !== 'entries') throw new Error(JSON.stringify(decision))
+    const payload = JSON.stringify(decision.entries[0]?.payload)
+    expect(payload).toContain(`"value":"${WORKSPACE_TEXT}"`)
+    const created = commit(null, command)
+    expect(created.creation.attachment).toEqual(attachment)
+    const kept = created.creation.workspace
+    expect(kept !== null && workspaceEquals(kept, legalWorkspace())).toBe(true)
+  })
+
+  it('a creation log whose workspace text does not parse is quarantined', () => {
+    const decision = refusalOf(createCommand({ workspace: legalWorkspace(), attachment }))
+    if (decision.kind !== 'entries') throw new Error(JSON.stringify(decision))
+    const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+      ...entry,
+      payload: JSON.parse(
+        JSON.stringify(entry.payload).replace(WORKSPACE_TEXT, 'wsp_not-legal'),
+      ) as HistoryEntry['payload'],
+      id: String(index + 1) as HistoryEntry['id'],
+      revision: '1' as HistoryEntry['revision'],
+    }))
+    expect(reduce(null, { revision: '1' as never, entries })).toEqual({
+      kind: 'quarantined',
+      diagnostic: expect.stringContaining('workspace'),
+    })
+  })
+
+  const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
+  if (!account.ok) throw new Error('the account sample does not parse')
+  it.each([
+    ['its wire text', WORKSPACE_TEXT],
+    ['an identity of another family', account.value],
+    [
+      'a forged shape that legal-identity did not mint',
+      { name: 'WorkspaceId', text: WORKSPACE_TEXT },
+    ],
+    ['an adoption', adoption('workspace')],
+  ])('a creation whose workspace is %s is invalid', (_case, workspace) => {
+    expect(refusalOf(createCommand({ workspace: workspace as never, attachment }))).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'creation.workspace', reason: expect.any(String) },
+    })
+  })
+
+  it.each([
+    ['no attachment', null, 'creation.attachment'],
+    ['an empty instance', { ...attachment, instance: '' }, 'creation.attachment.instance'],
+    ['an empty basis', { ...attachment, basis: '' }, 'creation.attachment.basis'],
+  ])('a creation with a workspace and %s is invalid', (_case, attached, field) => {
+    expect(
+      refusalOf(createCommand({ workspace: legalWorkspace(), attachment: attached as never })),
+    ).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field, reason: expect.any(String) },
+    })
+  })
+
+  it('a creation with an attachment and no workspace is invalid', () => {
+    expect(refusalOf(createCommand({ workspace: null, attachment }))).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'creation.attachment', reason: expect.any(String) },
+    })
+  })
+
+  it('the workspace dimension of change is judged the same way before change is refused naming #756', () => {
+    const created = commit(null, createCommand())
+    expect(refusalOf(changeWorkspace(WORKSPACE_TEXT, attachment), created)).toMatchObject({
+      failure: { kind: 'invalid', field: 'declaration.value' },
+    })
+    expect(refusalOf(changeWorkspace(legalWorkspace(), null), created)).toMatchObject({
+      failure: { kind: 'invalid', field: 'declaration.attachment' },
+    })
+    expect(
+      refusalOf(changeWorkspace(legalWorkspace(), { ...attachment, basis: '' }), created),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'declaration.attachment.basis' } })
+    expect(refusalOf(changeWorkspace(null, attachment), created)).toMatchObject({
+      failure: { kind: 'invalid', field: 'declaration.attachment' },
+    })
+    for (const legal of [
+      changeWorkspace(legalWorkspace(), attachment),
+      changeWorkspace(null, null),
+    ])
+      expect(refusalOf(legal, created)).toMatchObject({
+        failure: { kind: 'unavailable', diagnostic: expect.stringContaining('#756') },
+      })
   })
 })
 

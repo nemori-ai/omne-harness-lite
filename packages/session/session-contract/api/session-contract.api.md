@@ -119,6 +119,7 @@
 - `StartedRun` · `faces.d.ts`
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
+- `WorkspaceAttachment` · `values.d.ts`
 - `decide` · `decide.d.ts`
 - `deriveDriveOperation` · `operations.d.ts`
 - `deriveSessionOperation` · `operations.d.ts`
@@ -742,7 +743,7 @@ export type AdvanceRef = Readonly<{
 
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, } from './identity.ts';
-export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, } from './values.ts';
+export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
 export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionFaces, SessionFailure, SessionHistory, SessionManagement, SessionReconciliation, SessionWork, StartedRun, } from './faces.ts';
 export { deriveDriveOperation, deriveSessionOperation, type DriveOperationElements, type SessionOperationElements, } from './operations.ts';
 export type { AgentDrivePort, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionTransactionPort, } from './ports.ts';
@@ -1377,7 +1378,7 @@ export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, i
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CompactionMessage, Message } from '@omne-harness/message';
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 export type ResidentTool = Readonly<{
     capability: string;
@@ -1594,6 +1595,10 @@ export type Modes = Readonly<{
     environment: Adoption;
     collaboration: 'co-work' | 'auto-drive';
 }>;
+export type WorkspaceAttachment = Readonly<{
+    instance: string;
+    basis: string;
+}>;
 export type SessionCreation = Readonly<{
     definition: Readonly<{
         name: string;
@@ -1605,7 +1610,8 @@ export type SessionCreation = Readonly<{
         name: string;
     }>[];
     purpose: string;
-    workspace: Adoption | null;
+    workspace: WorkspaceId | null;
+    attachment: WorkspaceAttachment | null;
     modes: Readonly<{
         kind: 'explicit';
         value: Modes;
@@ -1649,7 +1655,8 @@ export type DeclarationChange = Readonly<{
     setting: DurableEvidence;
 }> | Readonly<{
     kind: 'workspace';
-    value: Adoption | null;
+    value: WorkspaceId | null;
+    attachment: WorkspaceAttachment | null;
     basis: DurableEvidence;
 }> | Readonly<{
     kind: 'model';
