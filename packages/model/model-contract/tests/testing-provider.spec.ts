@@ -1,11 +1,7 @@
 import { invocationReference, reservedReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
-import {
-  decodeReadId,
-  deriveGuardControlOperation,
-  type ModelBlock,
-  type TransportFact,
-} from '@omne-harness/model-contract'
+import { deriveGuardControlOperation, type ModelBlock } from '@omne-harness/model-contract'
+import { decodeReadId, type TransportFact } from '@omne-harness/model-contract/provider'
 import {
   access,
   ackInput,

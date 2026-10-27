@@ -17,7 +17,7 @@ import {
   decodeCredentialId,
   type CredentialReference,
   type SendFace,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { lockSync } from 'proper-lockfile'
 import { expect, it } from 'vitest'
 import {

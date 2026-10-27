@@ -6,8 +6,8 @@ import {
   decodeDispatchId,
   type FixedModelRequest,
   type MaterializationReceipt,
-  type TransportFact,
 } from '@omne-harness/model-contract'
+import { type TransportFact } from '@omne-harness/model-contract/provider'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgePart } from '@omne-harness/message'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'

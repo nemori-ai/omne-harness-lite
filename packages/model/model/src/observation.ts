@@ -1,14 +1,13 @@
-import { compareRevisions } from '@omne-harness/model-contract'
+import { compareRevisions } from '@omne-harness/model-contract/provider'
 import type {
   CallAccess,
   CallState,
-  ModelClock,
-  ModelInstanceDirectory,
   ModelHandle,
   ModelInstanceId,
   Observation,
   Snapshot,
 } from '@omne-harness/model-contract'
+import type { ModelClock, ModelInstanceDirectory } from '@omne-harness/model-contract/provider'
 
 type End = Extract<Observation, { kind: 'ended' }>['reason']
 type Watcher = { lag: number; wake: () => void; end: (reason: End) => void }

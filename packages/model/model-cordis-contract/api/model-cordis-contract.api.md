@@ -64,7 +64,7 @@
 
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
-import type { ModelConverterCatalog } from '@omne-harness/model-contract';
+import type { ModelConverterCatalog } from '@omne-harness/model-contract/provider';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelRegistrationFailure } from './registration.ts';
 export declare class ModelConvertersService<P> extends Service implements ModelConverterCatalog<P> {
@@ -81,7 +81,8 @@ export declare const modelConvertersKey = "modelConverters";
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { CredentialPort, ModelCallId, ModelClock, ModelCommands, ModelDiagnostics, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelRuntime, ModelSendBoundary, Revision } from '@omne-harness/model-contract';
+import type { ModelCallId, ModelDiagnostics, ModelRuntime, Revision } from '@omne-harness/model-contract';
+import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelConvertersService } from './converters.ts';
 import type { ModelInstancesService } from './instances.ts';
 import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts';
@@ -245,7 +246,7 @@ export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverte
 
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
-import type { ModelInstanceDirectory } from '@omne-harness/model-contract';
+import type { ModelInstanceDirectory } from '@omne-harness/model-contract/provider';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput } from './registration.ts';
 export declare class ModelInstancesService<P> extends Service implements ModelInstanceDirectory<P> {
@@ -260,7 +261,8 @@ export declare const modelInstancesKey = "modelInstances";
 ## 声明文件 `registration.d.ts`
 
 ```ts
-import type { Adoption, ConverterKey, DurableEvidence, ModelConverter, ModelInstanceHost } from '@omne-harness/model-contract';
+import type { Adoption, DurableEvidence } from '@omne-harness/model-contract';
+import type { ConverterKey, ModelConverter, ModelInstanceHost } from '@omne-harness/model-contract/provider';
 import type { Outcome } from '@omne-harness/operation-result';
 export type ModelRegistrationFailure = Readonly<{
     kind: 'denied' | 'stale-publication' | 'conflict';

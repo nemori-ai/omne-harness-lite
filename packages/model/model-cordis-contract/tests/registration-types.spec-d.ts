@@ -1,13 +1,11 @@
 // Compile-time checks of the registration types. The root entry declares them and `./cordis`
 // re-exports the same declarations, so a consumer that imports from either entry gets one type.
+import type { Adoption, DurableEvidence, ModelHandle } from '@omne-harness/model-contract'
 import type {
-  Adoption,
   ConverterKey,
-  DurableEvidence,
   ExecutionRef,
   ModelConverter,
-  ModelHandle,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   ModelConverterAuthority,

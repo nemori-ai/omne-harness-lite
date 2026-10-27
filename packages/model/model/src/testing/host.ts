@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import type { ModelInstanceHost, ModelHandle, Publication } from '@omne-harness/model-contract'
+import type { ModelHandle } from '@omne-harness/model-contract'
+import type { ModelInstanceHost, Publication } from '@omne-harness/model-contract/provider'
 import { MemoryState } from './state.ts'
 import { positiveLimit, tenantKey, unavailable } from './value.ts'
 

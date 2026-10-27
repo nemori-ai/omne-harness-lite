@@ -4,7 +4,7 @@
 // replay projection names it; the OpenAI message of the same history carries its state. The Anthropic family is not imported.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
-import { projectReplay, judgeReplayDeclaration } from '@omne-harness/model-contract'
+import { projectReplay, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import {
   bindingOf,
   declarationOf,

@@ -4,11 +4,8 @@ import { invocationReference, reservedReference } from './values.ts'
 // plugin in plugin.ts depends on the service through the definition entry, asks the runtime for the
 // authoritative revision and keeps the newest one. Everything runs in a real Cordis Context.
 import { Context, Service } from '@deepseek-ai/cordis'
-import {
-  compareRevisions,
-  type ModelOperationId,
-  type ModelRuntime,
-} from '@omne-harness/model-contract'
+import { type ModelOperationId, type ModelRuntime } from '@omne-harness/model-contract'
+import { compareRevisions } from '@omne-harness/model-contract/provider'
 import { ModelRuntimeService, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { startAssembly } from './host.ts'
 import { followerPlugin, newFollowed } from './plugin.ts'

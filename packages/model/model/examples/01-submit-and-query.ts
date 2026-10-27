@@ -1,4 +1,5 @@
-import { encodeModelInvocationRef, judgeAdmit } from '@omne-harness/model-contract'
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
+import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import { createModelRuntime } from '@omne-harness/model'
 import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 

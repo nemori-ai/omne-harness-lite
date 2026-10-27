@@ -7,8 +7,8 @@ import {
   decodeDispatchId,
   type MaterializationReceipt,
   type ModelBlock,
-  type TransportFact,
 } from '@omne-harness/model-contract'
+import { type TransportFact } from '@omne-harness/model-contract/provider'
 import { judgePart } from '@omne-harness/message'
 import { createMemoryModelCommands } from '../src/testing/index.ts'
 import { digest } from '../src/testing/value.ts'

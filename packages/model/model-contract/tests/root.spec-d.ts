@@ -6,7 +6,6 @@ import {
   MODEL_IDENTITY_MAX_LENGTH,
   MODEL_IDENTITY_PREFIXES,
   compareOutputCursors,
-  compareRevisions,
   decodeDispatchId,
   decodeModelCallId,
   decodeModelDiagnosticCursor,
@@ -14,13 +13,12 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   decodeOutputCursor,
-  decodeReadId,
   decodeResultVersion,
   decodeRevision,
 } from '@omne-harness/model-contract'
+import { compareRevisions, decodeReadId } from '@omne-harness/model-contract/provider'
 import type {
   Access,
-  ActorRef,
   Adoption,
   Admit,
   AssembledModelInput,
@@ -46,6 +44,7 @@ import type {
   Supplier,
   ToolDeclaration,
 } from '@omne-harness/model-contract'
+import type { ActorRef } from '@omne-harness/model-contract/provider'
 import {
   call,
   capacity,

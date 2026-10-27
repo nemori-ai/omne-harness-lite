@@ -2,7 +2,8 @@ import { invocationReference } from './reference-input.ts'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgePart } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { ModelBlock, TransportFact, VisibleBlock } from '@omne-harness/model-contract'
+import type { ModelBlock, VisibleBlock } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
   access,

@@ -5,7 +5,7 @@ import {
   type CredentialResolution,
   type ModelCommands,
   type TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import {
   credentialPort,
   sendFixture,

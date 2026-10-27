@@ -4,13 +4,12 @@ import { registerInCallerFiber, type Admission } from '@omne-harness/kernel-basi
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
   DurableEvidence,
-  ExecutionRef,
   LiveRoute,
   ModelCallId,
-  ModelInstanceDirectory,
   ModelHandle,
   Reply,
 } from '@omne-harness/model-contract'
+import type { ExecutionRef, ModelInstanceDirectory } from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ModelPublicationAuthority,

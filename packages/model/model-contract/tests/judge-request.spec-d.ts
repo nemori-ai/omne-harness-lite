@@ -1,15 +1,13 @@
 import { expectTypeOf, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
+import { type Access, type Admit, type FixedModelRequest } from '@omne-harness/model-contract'
 import {
   judgeAdmit,
   judgeFixedModelRequest,
   MODEL_INPUT_LIMITS,
-  type Access,
-  type Admit,
-  type FixedModelRequest,
   type ModelAdmitCandidate,
   type ModelInputRejection,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { admission } from './scripted-support.ts'
 
 it('keeps Access authority typed while accepting unknown payload', () => {

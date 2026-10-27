@@ -1,5 +1,5 @@
 {
-  "role": "session-coordinator",
+  "role": "orchestration-coordinator",
   "description": "A coordinator that controls calls with an explicit identity and carries a call across a lost route",
   "dependencies": [
     "@omne-harness/legal-identity",

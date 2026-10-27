@@ -19,7 +19,8 @@
 // Run from the package directory after building:
 // node --experimental-strip-types examples/cross-family-history.ts
 // HTTPS_PROXY must point to the proxy that adds the OpenRouter credential.
-import { projectReplay, type ModelProfile, type Parameter } from '@omne-harness/model-contract'
+import { type ModelProfile, type Parameter } from '@omne-harness/model-contract'
+import { projectReplay } from '@omne-harness/model-contract/provider'
 import {
   anthropicTokenizerResources,
   createAnthropicFamily,

@@ -1,14 +1,16 @@
 import { expectTypeOf, it } from 'vitest'
 import type {
-  ModelContentAuthority,
   ModelPreparationLease,
   ModelPreparationResources,
   ModelProfile,
-  ModelProfileSnapshot,
-  ModelProfileSource,
   ModelRequestRules,
   PreparationLineage,
 } from '@omne-harness/model-contract'
+import type {
+  ModelContentAuthority,
+  ModelProfileSnapshot,
+  ModelProfileSource,
+} from '@omne-harness/model-contract/provider'
 import {
   adoption,
   budget,

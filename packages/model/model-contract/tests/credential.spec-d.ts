@@ -2,18 +2,24 @@ import { expectTypeOf, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   CredentialId,
+  Identity,
+  ModelCallId,
+  ModelIdentityRejection,
+} from '@omne-harness/model-contract'
+import type {
   CredentialPort,
   CredentialPresence,
   CredentialPurpose,
   CredentialQuery,
   CredentialReference,
   CredentialResolution,
-  Identity,
-  ModelCallId,
-  ModelIdentityRejection,
   SendFace,
-} from '@omne-harness/model-contract'
-import { MODEL_SEND, decodeCredentialId, sameCredentialHolder } from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
+import {
+  MODEL_SEND,
+  decodeCredentialId,
+  sameCredentialHolder,
+} from '@omne-harness/model-contract/provider'
 import { call, credential, tenant } from './values.ts'
 
 it('CredentialId is a branded string of its own key and no other brand is accepted for it', () => {

@@ -1,9 +1,9 @@
 import { executeModel } from '@omne-harness/model'
+import type { TransportFailure } from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
   PreparedTransport,
-  TransportFailure,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import { controlled, delta, ended, receipt, request, SECRET, signal } from './execute-fixture.ts'

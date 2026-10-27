@@ -4,7 +4,7 @@
 
 本页拥有 Model 契约的公开对象、职责与不变量。类型归 [public-api](public-api.md)，行为归 [SPEC](../SPEC.md)，构造、算法与资源组合归[实现对象模型](../../model/docs/object-model.md)。本页不复述 SPEC 的规则。形状全称（可对 public-api 类型核对的，如「没有 cancelled 相位」）可直接写；行为句只带 SPEC 自己的量词，并在同一句链接该条款，或把主语缩到具名对象或字段。本页自己归纳的对应关系标「本页的对象层对应」。
 
-图中的逻辑对象不要求实现为 class，也不新增同名源码导出。设计已接受，不等于生产实现或运行验证已经完成。model-contract 的根入口已导出全部类型声明与运行值；model-cordis-contract 的 `./cordis` 已导出抽象 Service、实例目录与转换目录。
+图中的逻辑对象不要求实现为 class，也不新增同名源码导出。设计已接受，不等于生产实现或运行验证已经完成。model-contract 的根入口与 `./provider` 入口合起来导出全部类型声明与运行值，一个名字只从其中一个入口导出；model-cordis-contract 的 `./cordis` 已导出抽象 Service、实例目录与转换目录。
 
 Model 的对象分三组。长期配置与请求值描述档案、固定请求和计量报告。逻辑调用与执行对象描述原调用、各次真实发出、结果与保管。提供者端口描述传输、计量、转换目录、持久提交和实例宿主。Cordis 登记另见 [Cordis 对象关系](../../model-cordis-contract/docs/object-model.md)。
 

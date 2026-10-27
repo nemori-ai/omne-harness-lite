@@ -19,3 +19,8 @@ export class ScriptedModelError extends Error {
     this.reason = reason
   }
 }
+
+/** The error that every double throws when the script asks for something it cannot do. */
+export function misuse(message: string): ScriptedModelError {
+  return new ScriptedModelError('invalid-script', message)
+}

@@ -1,5 +1,5 @@
 import { invocationReference } from './values.ts'
-import { judgeAdmit, judgeFixedModelRequest } from '@omne-harness/model-contract'
+import { judgeAdmit, judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 // A caller that has no Session, Run or Agent: it fixes a request, admits it under its own call and
 // operation, then looks it up, observes it, cancels it, reads its result and acknowledges it. It
 // imports only the public contract and the scripted provider that stands for whatever serves it.

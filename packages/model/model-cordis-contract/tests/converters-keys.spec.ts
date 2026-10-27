@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ConverterKey } from '@omne-harness/model-contract'
+import type { ConverterKey } from '@omne-harness/model-contract/provider'
 import {
   converter,
   input,

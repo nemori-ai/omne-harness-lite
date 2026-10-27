@@ -9,78 +9,47 @@
 - `Access` · 包 `@omne-harness/legal-identity`
 - `AckInput` · `result.d.ts`
 - `AckReceipt` · `result.d.ts`
-- `ActorRef` · `root.d.ts`
 - `Admission` · `result.d.ts`
 - `Admit` · `root.d.ts`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AnchorMiss` · `profile.d.ts`
 - `AssembledModelInput` · `profile.d.ts`
 - `BudgetCheck` · `profile.d.ts`
-- `CalibratedInputMeter` · `profile.d.ts`
 - `CalibrationReport` · `profile.d.ts`
 - `CallAccess` · `root.d.ts`
-- `CallAccountReport` · `provider.d.ts`
 - `CallState` · `result.d.ts`
-- `CommitQuery` · `provider.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
 - `ControlState` · `result.d.ts`
-- `ConversionFailure` · `conversion.d.ts`
-- `ConversionReply` · `conversion.d.ts`
 - `ConversionResult` · `conversion.d.ts`
 - `ConvertedContent` · `conversion.d.ts`
-- `ConverterKey` · `conversion.d.ts`
-- `ConverterLookup` · `conversion.d.ts`
 - `CredentialId` · `credential.d.ts`
-- `CredentialPort` · `credential.d.ts`
-- `CredentialPresence` · `credential.d.ts`
-- `CredentialPurpose` · `credential.d.ts`
-- `CredentialQuery` · `credential.d.ts`
-- `CredentialReference` · `credential.d.ts`
-- `CredentialResolution` · `credential.d.ts`
 - `CustodyState` · `result.d.ts`
 - `DispatchId` · `root.d.ts`
-- `DispatchPlan` · `provider.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
-- `ExecutionRef` · `provider.d.ts`
 - `FixedModelRequest` · `root.d.ts`
 - `ForeignThinking` · `profile.d.ts`
 - `GrowingContentKind` · `call-surface.d.ts`
 - `Handoff` · `result.d.ts`
 - `Identity` · `root.d.ts`
-- `IndependentModelFact` · `provider.d.ts`
-- `LateDispatchFact` · `provider.d.ts`
 - `LimitMetric` · `profile.d.ts`
 - `LiveRoute` · `call-surface.d.ts`
 - `Lookup` · `result.d.ts`
 - `MODEL_IDENTITY_MAX_LENGTH` · `identity-values.d.ts`
 - `MODEL_IDENTITY_PREFIXES` · `identity-values.d.ts`
-- `MODEL_INPUT_LIMITS` · `input-tree.d.ts`
 - `MODEL_REFERENCE_MAX_LENGTH` · `reference.d.ts`
-- `MODEL_SEND` · `credential.d.ts`
-- `MaterializationReceipt` · `provider.d.ts`
-- `MaterializedTransport` · `provider.d.ts`
+- `MaterializationReceipt` · `provider-protocol.d.ts`
 - `Measurement` · `profile.d.ts`
 - `MediaMeasurementFact` · `profile.d.ts`
-- `MeterCalibration` · `profile.d.ts`
 - `MeterRepresentation` · `profile.d.ts`
 - `ModalityRequirement` · `profile.d.ts`
 - `ModelAccountSnapshot` · `result-delivery-values.d.ts`
-- `ModelAdmitCandidate` · `judge-request.d.ts`
 - `ModelAttemptDiagnostic` · `diagnostics.d.ts`
-- `ModelBindingFailure` · `driver.d.ts`
 - `ModelBlock` · `result.d.ts`
 - `ModelCallId` · `root.d.ts`
 - `ModelCalls` · `call-surface.d.ts`
-- `ModelChoices` · `profile.d.ts`
-- `ModelClock` · `provider.d.ts`
-- `ModelCommands` · `provider.d.ts`
-- `ModelConsumerOwnerDeclaration` · `consumer-owner.d.ts`
 - `ModelConsumption` · `call-surface.d.ts`
-- `ModelContentAuthority` · `profile-source.d.ts`
-- `ModelConverter` · `conversion.d.ts`
-- `ModelConverterCatalog` · `conversion.d.ts`
 - `ModelCountingBasis` · `tokenizer.d.ts`
 - `ModelDelivery` · `result-delivery-values.d.ts`
 - `ModelDeliveryFailure` · `result-delivery.d.ts`
@@ -91,52 +60,31 @@
 - `ModelDiagnostics` · `diagnostics.d.ts`
 - `ModelDiagnosticsPage` · `diagnostics.d.ts`
 - `ModelDirectory` · `call-surface.d.ts`
-- `ModelDriveInput` · `driver.d.ts`
-- `ModelDriver` · `driver.d.ts`
-- `ModelDriverBinding` · `driver.d.ts`
-- `ModelDriverHost` · `driver.d.ts`
 - `ModelDuration` · `diagnostics.d.ts`
 - `ModelFailure` · `result.d.ts`
 - `ModelFault` · `result.d.ts`
 - `ModelFaultCause` · `result.d.ts`
 - `ModelHandle` · `call-surface.d.ts`
-- `ModelHostAuthority` · `driver.d.ts`
 - `ModelIdentityKey` · `root.d.ts`
 - `ModelIdentityRejection` · `root.d.ts`
 - `ModelInputMeter` · `profile.d.ts`
-- `ModelInputRejection` · `judge-request.d.ts`
-- `ModelInstanceDirectory` · `provider.d.ts`
-- `ModelInstanceHost` · `provider.d.ts`
 - `ModelInstanceId` · `root.d.ts`
 - `ModelInvocationParts` · `reference.d.ts`
 - `ModelInvocationRef` · `reference.d.ts`
 - `ModelLimit` · `profile.d.ts`
-- `ModelMediaLease` · `provider.d.ts`
-- `ModelMediaReader` · `provider.d.ts`
-- `ModelMessageConversion` · `conversion.d.ts`
 - `ModelModality` · `profile.d.ts`
 - `ModelOperationId` · `root.d.ts`
-- `ModelOperationParts` · `reference.d.ts`
-- `ModelOperationRef` · `reference.d.ts`
 - `ModelPreparationLease` · `profile-source.d.ts`
 - `ModelPreparationResources` · `profile-source.d.ts`
 - `ModelProfile` · `profile.d.ts`
 - `ModelProfileDefinition` · `profile.d.ts`
-- `ModelProfileMaintenance` · `profile.d.ts`
-- `ModelProfileSnapshot` · `profile-source.d.ts`
-- `ModelProfileSource` · `profile-source.d.ts`
-- `ModelProfiles` · `profile.d.ts`
-- `ModelProvider` · `provider.d.ts`
 - `ModelReferenceAccess` · `root.d.ts`
 - `ModelReferenceFailure` · `reference.d.ts`
 - `ModelReferenceRejection` · `reference.d.ts`
-- `ModelRequestPreparation` · `profile.d.ts`
 - `ModelRequestRules` · `profile-source.d.ts`
 - `ModelResultReceiver` · `result-delivery.d.ts`
-- `ModelRetryPolicy` · `provider.d.ts`
 - `ModelRuntime` · `call-surface.d.ts`
 - `ModelSavedReceipt` · `result-delivery.d.ts`
-- `ModelSendBoundary` · `provider.d.ts`
 - `ModelStreamBase` · `model-stream-values.d.ts`
 - `ModelStreamDelta` · `model-stream-values.d.ts`
 - `ModelStreamObservation` · `model-stream.d.ts`
@@ -144,35 +92,22 @@
 - `ModelStreamReferences` · `model-stream.d.ts`
 - `ModelStreamSelection` · `model-stream.d.ts`
 - `ModelStreamSnapshot` · `model-stream-values.d.ts`
-- `ModelTextTokenizer` · `tokenizer.d.ts`
-- `ModelToolPayloadAdapter` · `provider.d.ts`
-- `ModelTransport` · `provider.d.ts`
 - `Mutation` · `root.d.ts`
 - `Observation` · `call-surface.d.ts`
 - `OutputCursor` · `root.d.ts`
-- `OutputWithheld` · `profile.d.ts`
 - `OverLimitMetric` · `result.d.ts`
 - `Parameter` · `root.d.ts`
 - `ParameterAdoption` · `profile.d.ts`
 - `PreparationLineage` · `profile-source.d.ts`
-- `PreparedTransport` · `provider.d.ts`
-- `ProfileChange` · `profile.d.ts`
 - `ProfileIdentity` · `profile.d.ts`
 - `ProfileReplay` · `profile.d.ts`
 - `ProfileResolution` · `profile.d.ts`
 - `ProfileScope` · `profile.d.ts`
 - `ProfileSupplier` · `profile.d.ts`
-- `ProviderDiagnostic` · `provider.d.ts`
-- `Publication` · `provider.d.ts`
 - `ReadId` · `root.d.ts`
 - `ReadStart` · `call-surface.d.ts`
 - `ReadState` · `call-surface.d.ts`
-- `RecoveryRecord` · `provider.d.ts`
 - `ReplayDeclaration` · `profile.d.ts`
-- `ReplayDiagnostic` · `profile.d.ts`
-- `ReplayProjection` · `profile.d.ts`
-- `ReplayProjectionInput` · `profile.d.ts`
-- `ReplayTreatment` · `profile.d.ts`
 - `Reply` · `result.d.ts`
 - `RequestBudget` · `profile.d.ts`
 - `ResultCapacity` · `root.d.ts`
@@ -180,35 +115,23 @@
 - `ResultPart` · `call-surface.d.ts`
 - `ResultTrim` · `call-surface.d.ts`
 - `ResultVersion` · `root.d.ts`
-- `RetryDecision` · `provider.d.ts`
-- `RetryPosition` · `provider.d.ts`
-- `RetryResolution` · `provider.d.ts`
+- `RetryDecision` · `provider-protocol.d.ts`
+- `RetryPosition` · `provider-protocol.d.ts`
+- `RetryResolution` · `provider-protocol.d.ts`
 - `Revision` · `root.d.ts`
-- `SendDemand` · `provider.d.ts`
-- `SendFace` · `credential.d.ts`
-- `SendResult` · `provider.d.ts`
 - `Settlement` · `result.d.ts`
 - `Snapshot` · `call-surface.d.ts`
 - `Supplier` · `root.d.ts`
 - `Termination` · `result.d.ts`
 - `TokenLimit` · `profile.d.ts`
-- `TokenizationFailure` · `tokenizer.d.ts`
-- `TokenizationSegment` · `tokenizer.d.ts`
 - `TokenizerDefinition` · `tokenizer.d.ts`
 - `ToolDeclaration` · `root.d.ts`
 - `ToolSuggestion` · `result.d.ts`
-- `TransportDispatch` · `provider.d.ts`
-- `TransportFact` · `provider.d.ts`
-- `TransportFailure` · `provider.d.ts`
-- `TransportTermination` · `provider.d.ts`
+- `TransportFailure` · `provider-protocol.d.ts`
 - `UpstreamLimit` · `profile.d.ts`
 - `VisibleBlock` · `call-surface.d.ts`
-- `WriteContext` · `provider.d.ts`
 - `applyModelStreamDelta` · `model-stream-values.d.ts`
 - `compareOutputCursors` · `identity-values.d.ts`
-- `compareRevisions` · `identity-values.d.ts`
-- `continuedMessages` · `replay-values.d.ts`
-- `decodeCredentialId` · `credential-values.d.ts`
 - `decodeDispatchId` · `identity-values.d.ts`
 - `decodeModelCallId` · `identity-values.d.ts`
 - `decodeModelDiagnosticCursor` · `identity-values.d.ts`
@@ -216,23 +139,14 @@
 - `decodeModelInstanceId` · `identity-values.d.ts`
 - `decodeModelInvocationRef` · `reference.d.ts`
 - `decodeModelOperationId` · `identity-values.d.ts`
-- `decodeModelOperationRef` · `reference.d.ts`
 - `decodeOutputCursor` · `identity-values.d.ts`
-- `decodeReadId` · `identity-values.d.ts`
 - `decodeResultVersion` · `identity-values.d.ts`
 - `decodeRevision` · `identity-values.d.ts`
 - `deriveGuardControlOperation` · `guard-control.d.ts`
 - `diffModelStream` · `model-stream-values.d.ts`
 - `encodeModelInvocationRef` · `reference.d.ts`
-- `encodeModelOperationRef` · `reference.d.ts`
-- `judgeAdmit` · `judge-request.d.ts`
-- `judgeFixedModelRequest` · `judge-request.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
-- `judgeReplayDeclaration` · `replay-values.d.ts`
-- `projectReplay` · `replay-values.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
-- `resolveModelOperationRef` · `reference.d.ts`
-- `sameCredentialHolder` · `credential-values.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
 
@@ -248,16 +162,115 @@
 - `ObligationResult` · `conformance/conformance-types.d.ts`
 - `checkModelProviderConformance` · `conformance/conformance.d.ts`
 
+## 入口 `./provider` · `provider/index.d.ts`
+
+- `ActorRef` · `root.d.ts`
+- `CalibratedInputMeter` · `profile.d.ts`
+- `CallAccountReport` · `provider-protocol.d.ts`
+- `CommitQuery` · `provider-protocol.d.ts`
+- `ConversionFailure` · `conversion.d.ts`
+- `ConversionReply` · `conversion.d.ts`
+- `ConverterKey` · `conversion.d.ts`
+- `ConverterLookup` · `conversion.d.ts`
+- `CredentialPort` · `credential.d.ts`
+- `CredentialPresence` · `credential.d.ts`
+- `CredentialPurpose` · `credential.d.ts`
+- `CredentialQuery` · `credential.d.ts`
+- `CredentialReference` · `credential.d.ts`
+- `CredentialResolution` · `credential.d.ts`
+- `DispatchPlan` · `provider-protocol.d.ts`
+- `ExecutionRef` · `provider-protocol.d.ts`
+- `IndependentModelFact` · `provider-protocol.d.ts`
+- `LateDispatchFact` · `provider-protocol.d.ts`
+- `MODEL_INPUT_LIMITS` · `input-tree.d.ts`
+- `MODEL_SEND` · `credential.d.ts`
+- `MaterializedTransport` · `provider-protocol.d.ts`
+- `MeterCalibration` · `profile.d.ts`
+- `ModelAdmitCandidate` · `judge-request.d.ts`
+- `ModelBindingFailure` · `driver.d.ts`
+- `ModelChoices` · `profile.d.ts`
+- `ModelClock` · `provider-protocol.d.ts`
+- `ModelCommands` · `provider-protocol.d.ts`
+- `ModelConsumerOwnerDeclaration` · `consumer-owner.d.ts`
+- `ModelContentAuthority` · `profile-source.d.ts`
+- `ModelConverter` · `conversion.d.ts`
+- `ModelConverterCatalog` · `conversion.d.ts`
+- `ModelDriveInput` · `driver.d.ts`
+- `ModelDriver` · `driver.d.ts`
+- `ModelDriverBinding` · `driver.d.ts`
+- `ModelDriverHost` · `driver.d.ts`
+- `ModelHostAuthority` · `driver.d.ts`
+- `ModelInputRejection` · `judge-request.d.ts`
+- `ModelInstanceDirectory` · `provider-protocol.d.ts`
+- `ModelInstanceHost` · `provider-protocol.d.ts`
+- `ModelMediaLease` · `provider-protocol.d.ts`
+- `ModelMediaReader` · `provider-protocol.d.ts`
+- `ModelMessageConversion` · `conversion.d.ts`
+- `ModelOperationParts` · `reference.d.ts`
+- `ModelOperationRef` · `reference.d.ts`
+- `ModelProfileMaintenance` · `profile.d.ts`
+- `ModelProfileSnapshot` · `profile-source.d.ts`
+- `ModelProfileSource` · `profile-source.d.ts`
+- `ModelProfiles` · `profile.d.ts`
+- `ModelProvider` · `provider-protocol.d.ts`
+- `ModelRequestPreparation` · `profile.d.ts`
+- `ModelRetryPolicy` · `provider-protocol.d.ts`
+- `ModelSendBoundary` · `provider-protocol.d.ts`
+- `ModelTextTokenizer` · `tokenizer.d.ts`
+- `ModelToolPayloadAdapter` · `provider-protocol.d.ts`
+- `ModelTransport` · `provider-protocol.d.ts`
+- `OutputWithheld` · `profile.d.ts`
+- `PreparedTransport` · `provider-protocol.d.ts`
+- `ProfileChange` · `profile.d.ts`
+- `ProviderDiagnostic` · `provider-protocol.d.ts`
+- `Publication` · `provider-protocol.d.ts`
+- `RecoveryRecord` · `provider-protocol.d.ts`
+- `ReplayDiagnostic` · `profile.d.ts`
+- `ReplayProjection` · `profile.d.ts`
+- `ReplayProjectionInput` · `profile.d.ts`
+- `ReplayTreatment` · `profile.d.ts`
+- `SendDemand` · `provider-protocol.d.ts`
+- `SendFace` · `credential.d.ts`
+- `SendResult` · `provider-protocol.d.ts`
+- `TokenizationFailure` · `tokenizer.d.ts`
+- `TokenizationSegment` · `tokenizer.d.ts`
+- `TransportDispatch` · `provider-protocol.d.ts`
+- `TransportFact` · `provider-protocol.d.ts`
+- `TransportTermination` · `provider-protocol.d.ts`
+- `WriteContext` · `provider-protocol.d.ts`
+- `compareRevisions` · `identity-values.d.ts`
+- `continuedMessages` · `replay-values.d.ts`
+- `decodeCredentialId` · `credential-values.d.ts`
+- `decodeModelOperationRef` · `reference.d.ts`
+- `decodeReadId` · `identity-values.d.ts`
+- `encodeModelOperationRef` · `reference.d.ts`
+- `judgeAdmit` · `judge-request.d.ts`
+- `judgeFixedModelRequest` · `judge-request.d.ts`
+- `judgeReplayDeclaration` · `replay-values.d.ts`
+- `projectReplay` · `replay-values.d.ts`
+- `resolveModelOperationRef` · `reference.d.ts`
+- `sameCredentialHolder` · `credential-values.d.ts`
+
 ## 入口 `./testing` · `testing/index.d.ts`
 
+- `AckRecord` · `testing/pusher.d.ts`
+- `PushFailure` · `testing/pusher.d.ts`
+- `PushRecord` · `testing/pusher.d.ts`
 - `ScriptController` · `testing/controller.d.ts`
+- `ScriptedAccessDecision` · `testing/access.d.ts`
 - `ScriptedAction` · `testing/core.d.ts`
 - `ScriptedCall` · `testing/controller.d.ts`
+- `ScriptedEvent` · `testing/stream-references.d.ts`
 - `ScriptedModelError` · `testing/error.d.ts`
 - `ScriptedModelErrorReason` · `testing/error.d.ts`
 - `ScriptedModelProvider` · `testing/provider.d.ts`
 - `ScriptedModelProviderOptions` · `testing/provider.d.ts`
 - `ScriptedPrincipal` · `testing/conformance-scripted.d.ts`
+- `ScriptedResultPusher` · `testing/pusher.d.ts`
+- `ScriptedResultPusherOptions` · `testing/pusher.d.ts`
+- `ScriptedStreamObservation` · `testing/stream-observation.d.ts`
+- `ScriptedStreamObservationOptions` · `testing/stream-observation.d.ts`
+- `ScriptedStreamReferences` · `testing/stream-references.d.ts`
 - `ScriptedTransport` · `testing/transport.d.ts`
 - `ScriptedTransportCounts` · `testing/transport.d.ts`
 - `ScriptedTransportEnding` · `testing/transport.d.ts`
@@ -265,6 +278,9 @@
 - `ScriptedWriteAction` = `WriteAction` · `testing/writes.d.ts`
 - `createScriptedConformanceSubject` · `testing/conformance-scripted.d.ts`
 - `createScriptedModelProvider` · `testing/provider.d.ts`
+- `createScriptedResultPusher` · `testing/pusher.d.ts`
+- `createScriptedStreamObservation` · `testing/stream-observation.d.ts`
+- `createScriptedStreamReferences` · `testing/stream-references.d.ts`
 - `createScriptedTransport` · `testing/transport.d.ts`
 
 ## 声明文件 `call-surface.d.ts`
@@ -272,7 +288,7 @@
 ```ts
 import type { Access, ModelReferenceAccess, CallAccess, Mutation, Admit, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, OutputCursor, ReadId, ResultVersion, Supplier } from './root.ts';
 import type { AckInput, AckReceipt, Admission, ControlState, CustodyState, Lookup, ModelBlock, Reply, Settlement, Termination, CallState } from './result.ts';
-import type { MaterializationReceipt } from './provider.ts';
+import type { MaterializationReceipt } from './provider-protocol.ts';
 import type { DurableEvidence } from './result.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { MessageId } from '@omne-harness/message';
@@ -434,7 +450,8 @@ export declare function variantOf(request: FixedModelRequest): FixedModelRequest
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
-import type { Admit, AckReceipt, CallState, ControlState, CustodyState, DispatchRecord, DurableEvidence, GrowingContentKind, Handoff, Lookup, ModelBlock, ResultPart, ModelCallId, ModelFailure, ModelHandle, ModelInstanceId, ModelOperationId, ModelRuntime, Observation, ReadId, ReadState, ResultPage, ResultVersion, Snapshot, Termination, TransportFact, VisibleBlock } from '../index.ts';
+import type { Admit, AckReceipt, CallState, ControlState, CustodyState, DispatchRecord, DurableEvidence, GrowingContentKind, Handoff, Lookup, ModelBlock, ResultPart, ModelCallId, ModelFailure, ModelHandle, ModelInstanceId, ModelOperationId, ModelRuntime, Observation, ReadId, ReadState, ResultPage, ResultVersion, Snapshot, Termination, VisibleBlock } from '../index.ts';
+import type { TransportFact } from '../provider/index.ts';
 import { type ConformanceCall, type ConformanceHooks, type ConformanceTransport, type HookName, type Scene } from './conformance-types.ts';
 export declare function expect(condition: boolean, detail: string): asserts condition;
 export declare function show(value: unknown): string;
@@ -583,7 +600,8 @@ export declare function transportChecks<P>(): readonly Check<P>[];
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, ModelProvider, ModelTransport, ResultCapacity, Supplier, Termination, TransportFact } from '../index.ts';
+import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, ResultCapacity, Supplier, Termination } from '../index.ts';
+import type { ModelProvider, ModelTransport, TransportFact } from '../provider/index.ts';
 export type ConformanceCall = Readonly<{
     tenant: TenantId;
     call: ModelCallId;
@@ -959,7 +977,7 @@ import type { Outcome } from '@omne-harness/operation-result';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { CallAccess, ModelCallId, ModelInstanceId, ModelOperationId } from './root.ts';
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts';
-import type { ModelInstanceHost } from './provider.ts';
+import type { ModelInstanceHost } from './provider-protocol.ts';
 export type ModelDriveInput<P> = CallAccess<P> & Readonly<{
     instance: ModelInstanceId;
     operation: ModelOperationId;
@@ -1028,7 +1046,7 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type * from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, ReadId, ResultCapacity, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
@@ -1038,23 +1056,17 @@ export type * from './model-stream-values.ts';
 export type * from './model-stream.ts';
 export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts';
 export type * from './call-surface.ts';
-export type * from './provider.ts';
-export type * from './profile.ts';
-export type * from './conversion.ts';
-export type * from './tokenizer.ts';
-export type * from './driver.ts';
-export type * from './profile-source.ts';
+export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
+export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
+export type { ConversionResult, ConvertedContent } from './conversion.ts';
+export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
+export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
-export type * from './consumer-owner.ts';
-export * from './credential.ts';
-export { decodeCredentialId, sameCredentialHolder } from './credential-values.ts';
-export { MODEL_IDENTITY_MAX_LENGTH, MODEL_IDENTITY_PREFIXES, compareOutputCursors, compareRevisions, decodeDispatchId, decodeModelCallId, decodeModelDiagnosticCursor, decodeModelDiagnosticId, decodeModelInstanceId, decodeModelOperationId, decodeOutputCursor, decodeReadId, decodeResultVersion, decodeRevision, } from './identity-values.ts';
+export type { CredentialId } from './credential.ts';
+export { MODEL_IDENTITY_MAX_LENGTH, MODEL_IDENTITY_PREFIXES, compareOutputCursors, decodeDispatchId, decodeModelCallId, decodeModelDiagnosticCursor, decodeModelDiagnosticId, decodeModelInstanceId, decodeModelOperationId, decodeOutputCursor, decodeResultVersion, decodeRevision, } from './identity-values.ts';
 export { deriveGuardControlOperation } from './guard-control.ts';
-export type * from './reference.ts';
-export { MODEL_REFERENCE_MAX_LENGTH, encodeModelInvocationRef, encodeModelOperationRef, decodeModelInvocationRef, decodeModelOperationRef, resolveModelInvocationRef, resolveModelOperationRef, } from './reference.ts';
-export type { ModelAdmitCandidate, ModelInputRejection } from './judge-request.ts';
-export { judgeFixedModelRequest, judgeAdmit, MODEL_INPUT_LIMITS } from './judge-request.ts';
-export { continuedMessages, judgeReplayDeclaration, projectReplay } from './replay-values.ts';
+export type { ModelInvocationParts, ModelInvocationRef, ModelReferenceFailure, ModelReferenceRejection, } from './reference.ts';
+export { MODEL_REFERENCE_MAX_LENGTH, encodeModelInvocationRef, decodeModelInvocationRef, resolveModelInvocationRef, } from './reference.ts';
 ```
 
 ## 声明文件 `input-tree.d.ts`
@@ -1248,7 +1260,7 @@ import type { DurableEvidence, ModelFailure, Reply } from './result.ts';
 import type { Supplier } from './root.ts';
 import type { ConversionReply, ModelMessageConversion } from './conversion.ts';
 import type { AssembledModelInput, MeterRepresentation, ModelInputMeter, ModelProfile, ParameterAdoption, ProfileScope } from './profile.ts';
-import type { TransportFailure } from './provider.ts';
+import type { TransportFailure } from './provider-protocol.ts';
 import type { Outcome } from '@omne-harness/operation-result';
 export type ModelProfileSnapshot = Readonly<{
     precedence: readonly ProfileScope[];
@@ -1323,7 +1335,7 @@ import type { Message, MessageId } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Access, Adoption, FixedModelRequest, ModelOperationId, Parameter, Revision, Supplier, ToolDeclaration } from './root.ts';
 import type { DurableEvidence, Reply } from './result.ts';
-import type { CommitQuery, TransportFailure } from './provider.ts';
+import type { CommitQuery, TransportFailure } from './provider-protocol.ts';
 import type { ModelCountingBasis } from './tokenizer.ts';
 export type ModelModality = Extract<Modality, 'text' | 'image' | 'voice'>;
 export type ProfileScope = Readonly<{
@@ -1638,7 +1650,7 @@ export type ReplayProjection = Readonly<{
 }>;
 ```
 
-## 声明文件 `provider.d.ts`
+## 声明文件 `provider-protocol.d.ts`
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result';
@@ -1981,6 +1993,28 @@ export interface ModelProvider<P> {
         running: string;
     }>>;
 }
+```
+
+## 声明文件 `provider/index.d.ts`
+
+```ts
+export type { ActorRef } from '../root.ts';
+export type { CallAccountReport, CommitQuery, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, ModelMediaLease, ModelMediaReader, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
+export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayDiagnostic, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
+export type { ConversionFailure, ConversionReply, ConverterKey, ConverterLookup, ModelConverter, ModelConverterCatalog, ModelMessageConversion, } from '../conversion.ts';
+export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
+export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
+export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';
+export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts';
+export type { CredentialPort, CredentialPresence, CredentialPurpose, CredentialQuery, CredentialReference, CredentialResolution, SendFace, } from '../credential.ts';
+export { MODEL_SEND } from '../credential.ts';
+export { decodeCredentialId, sameCredentialHolder } from '../credential-values.ts';
+export { compareRevisions, decodeReadId } from '../identity-values.ts';
+export type { ModelOperationParts, ModelOperationRef } from '../reference.ts';
+export { decodeModelOperationRef, encodeModelOperationRef, resolveModelOperationRef, } from '../reference.ts';
+export type { ModelAdmitCandidate, ModelInputRejection } from '../judge-request.ts';
+export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest } from '../judge-request.ts';
+export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts';
 ```
 
 ## 声明文件 `reference.d.ts`
@@ -2448,6 +2482,18 @@ export type Admit<P> = Mutation<P> & Readonly<{
 }>;
 ```
 
+## 声明文件 `testing/access.d.ts`
+
+```ts
+import { type Access } from '@omne-harness/legal-identity';
+export type ScriptedAccessDecision = 'allow' | 'deny' | 'unavailable';
+export type AccessRules<P> = Readonly<{
+    set(access: Access<P>, decision: ScriptedAccessDecision): void;
+    decide(access: Access<P>): ScriptedAccessDecision;
+}>;
+export declare function createAccessRules<P>(samePrincipal?: (left: P, right: P) => boolean): AccessRules<P>;
+```
+
 ## 声明文件 `testing/calls.d.ts`
 
 ```ts
@@ -2478,7 +2524,8 @@ export declare function createConsumption<P>(core: Core<P>): ModelConsumption<P>
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { CommitQuery, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Termination, TransportFact, VisibleBlock } from '../index.ts';
+import type { ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Termination, VisibleBlock } from '../index.ts';
+import type { CommitQuery, TransportFact } from '../provider/index.ts';
 import type { CallAccess, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, ResultVersion, Revision } from '../root.ts';
 import { type Core, type ScriptedAction } from './core.ts';
 import { type WriteAction } from './writes.ts';
@@ -2695,6 +2742,7 @@ export declare class ScriptedModelError extends Error {
     readonly reason: ScriptedModelErrorReason;
     constructor(reason: ScriptedModelErrorReason, message: string);
 }
+export declare function misuse(message: string): ScriptedModelError;
 ```
 
 ## 声明文件 `testing/index.d.ts`
@@ -2711,6 +2759,13 @@ export { ScriptedModelError } from './error.ts';
 export type { ScriptedModelErrorReason } from './error.ts';
 export { createScriptedConformanceSubject } from './conformance-scripted.ts';
 export type { ScriptedPrincipal } from './conformance-scripted.ts';
+export { createScriptedResultPusher } from './pusher.ts';
+export type { AckRecord, PushFailure, PushRecord, ScriptedResultPusher, ScriptedResultPusherOptions, } from './pusher.ts';
+export { createScriptedStreamReferences } from './stream-references.ts';
+export type { ScriptedEvent, ScriptedStreamReferences } from './stream-references.ts';
+export { createScriptedStreamObservation } from './stream-observation.ts';
+export type { ScriptedStreamObservation, ScriptedStreamObservationOptions, } from './stream-observation.ts';
+export type { ScriptedAccessDecision } from './access.ts';
 ```
 
 ## 声明文件 `testing/mint.d.ts`
@@ -2735,7 +2790,7 @@ export declare function endObservations<P>(record: CallRecord<P>, reason: Observ
 ## 声明文件 `testing/provider.d.ts`
 
 ```ts
-import type { ModelProvider } from '../index.ts';
+import type { ModelProvider } from '../provider/index.ts';
 import type { ModelInstanceId } from '../root.ts';
 import { type ScriptController } from './controller.ts';
 export type ScriptedModelProviderOptions<P> = Readonly<{
@@ -2749,10 +2804,76 @@ export type ScriptedModelProvider<P> = Readonly<{
 export declare function createScriptedModelProvider<P>(options: ScriptedModelProviderOptions<P>): ScriptedModelProvider<P>;
 ```
 
+## 声明文件 `testing/pusher.d.ts`
+
+```ts
+import type { Outcome } from '@omne-harness/operation-result';
+import type { AckReceipt, ConsumerRef, ModelDelivery, ModelDeliveryFailure, ModelDeliveryKey, ModelFailure, ModelOperationId, ModelResultReceiver, ModelSavedReceipt, ResultVersion } from '../index.ts';
+import type { ModelProvider } from '../provider/index.ts';
+import type { ScriptController, ScriptedCall } from './controller.ts';
+import type { ScriptedModelProvider } from './provider.ts';
+export type ScriptedResultPusherOptions<P> = Readonly<{
+    scripted: ScriptedModelProvider<P>;
+    principal: P;
+    resolveReceiver: (owner: ConsumerRef['owner']) => ModelResultReceiver<P> | null;
+    maxRedeliveries?: number;
+}>;
+export type PushFailure = Readonly<{
+    kind: 'no-receiver';
+}> | Readonly<{
+    kind: 'receipt-key-mismatch';
+    receipt: ModelSavedReceipt;
+}> | Readonly<{
+    kind: 'rejected';
+    failure: Exclude<ModelDeliveryFailure, {
+        kind: 'outcome-unknown';
+    }>;
+}> | Readonly<{
+    kind: 'not-frozen';
+    step: 'inspect' | 'dispatches' | 'read';
+    reason: string;
+}> | Readonly<{
+    kind: 'threw';
+    error: unknown;
+}>;
+export type PushRecord = Readonly<{
+    key: ModelDeliveryKey;
+    delivery: ModelDelivery | null;
+    attempts: number;
+}> & (Readonly<{
+    status: 'pending';
+}> | Readonly<{
+    status: 'saved';
+    receipt: ModelSavedReceipt;
+}> | Readonly<{
+    status: 'failed';
+    failure: PushFailure;
+}> | Readonly<{
+    status: 'unknown';
+}>);
+export type AckRecord = Readonly<{
+    call: ScriptedCall;
+    operation: ModelOperationId;
+    result: ResultVersion;
+    attempt: number;
+    reply: Outcome<AckReceipt, ModelFailure>;
+}>;
+export type ScriptedResultPusher<P> = Readonly<{
+    provider: ModelProvider<P>;
+    controller: ScriptController<P>;
+    deliveries(): readonly PushRecord[];
+    settled(call: ScriptedCall): Promise<PushRecord>;
+    redeliver(key: ModelDeliveryKey): Promise<PushRecord>;
+    acknowledgements(): readonly AckRecord[];
+}>;
+export declare function createScriptedResultPusher<P>(options: ScriptedResultPusherOptions<P>): ScriptedResultPusher<P>;
+```
+
 ## 声明文件 `testing/reduce.d.ts`
 
 ```ts
-import type { GrowingContentKind, ModelBlock, TransportFact, VisibleBlock } from '../index.ts';
+import type { GrowingContentKind, ModelBlock, VisibleBlock } from '../index.ts';
+import type { TransportFact } from '../provider/index.ts';
 export type FillEntry = {
     readonly state: 'open';
     readonly mode: 'append' | 'replace';
@@ -2796,10 +2917,80 @@ export declare function resultPage(parts: readonly ResultPart[], offset: number,
 export declare function validateParts(parts: readonly ResultPart[]): void;
 ```
 
+## 声明文件 `testing/stream-codec.d.ts`
+
+```ts
+import type { StreamCallCodec } from '@omne-harness/stream-arrival';
+export declare const modelStreamCodec: StreamCallCodec;
+```
+
+## 声明文件 `testing/stream-observation.d.ts`
+
+```ts
+import type { Access, TenantId } from '@omne-harness/legal-identity';
+import { type StreamCursor, type StreamRef } from '@omne-harness/stream-arrival';
+import type { ModelStreamObservation, ModelStreamSnapshot } from '../index.ts';
+import { type ScriptedAccessDecision } from './access.ts';
+export type ScriptedStreamObservationOptions = Readonly<{
+    capacity?: number;
+}>;
+export type ScriptedStreamObservation<P> = Readonly<{
+    observation: ModelStreamObservation<P>;
+    publish(input: Readonly<{
+        tenant: TenantId;
+        snapshot: ModelStreamSnapshot;
+    }>): StreamCursor;
+    advance(input: Readonly<{
+        tenant: TenantId;
+        snapshot: ModelStreamSnapshot;
+    }>): StreamCursor;
+    end(input: Readonly<{
+        ref: StreamRef;
+        reason: 'source-closed' | 'stale-stream';
+    }>): void;
+    setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
+    openObservations(ref: StreamRef): number;
+}>;
+export declare function createScriptedStreamObservation<P>(options?: ScriptedStreamObservationOptions): ScriptedStreamObservation<P>;
+```
+
+## 声明文件 `testing/stream-references.d.ts`
+
+```ts
+import { type Access } from '@omne-harness/legal-identity';
+import type { CallState, ModelInvocationRef, ModelStreamReferences, ModelStreamSelection } from '../index.ts';
+import { type ScriptedAccessDecision } from './access.ts';
+export type ScriptedEvent = Readonly<{
+    sequence: number;
+    action: 'owner-read';
+    key: string;
+}>;
+export type ScriptedStreamReferences<P> = Readonly<{
+    references: ModelStreamReferences<P>;
+    confirmSelection(input: Readonly<{
+        reference: ModelInvocationRef;
+        selection: ModelStreamSelection;
+    }>): void;
+    establishWithoutTarget(input: Readonly<{
+        reference: ModelInvocationRef;
+        state: CallState;
+    }>): void;
+    withdrawTarget(reference: ModelInvocationRef): void;
+    setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
+    setSource(state: 'available' | 'unavailable'): void;
+    holdResponse(requestId: number): void;
+    reached(requestId: number): Promise<void>;
+    releaseResponse(requestId: number): void;
+    events(): readonly ScriptedEvent[];
+}>;
+export declare function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>;
+```
+
 ## 声明文件 `testing/transport.d.ts`
 
 ```ts
-import type { MaterializationReceipt, ModelTransport, TransportFact, TransportFailure, TransportTermination } from '../index.ts';
+import type { MaterializationReceipt, TransportFailure } from '../index.ts';
+import type { ModelTransport, TransportFact, TransportTermination } from '../provider/index.ts';
 export type ScriptedTransportEnding = Readonly<{
     kind: 'terminated';
     termination: TransportTermination;
@@ -2832,6 +3023,16 @@ export type ScriptedTransport = Readonly<{
     counts(): ScriptedTransportCounts;
 }>;
 export declare function createScriptedTransport(script: ScriptedTransportScript): ScriptedTransport;
+```
+
+## 声明文件 `testing/values.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+export declare function tenantText(tenant: TenantId): string;
+export declare function frozenCopy<T>(value: T): T;
+export declare function sameValue(left: unknown, right: unknown): boolean;
+export declare function laterDecimal(left: string, right: string): boolean;
 ```
 
 ## 声明文件 `testing/writes.d.ts`

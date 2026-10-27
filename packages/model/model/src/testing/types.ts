@@ -1,18 +1,13 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   Access,
-  ActorRef,
   Adoption,
   ConsumerRef,
   DurableEvidence,
-  ExecutionRef,
   FixedModelRequest,
   Handoff,
-  LateDispatchFact,
   MaterializationReceipt,
   ModelCallId,
-  ModelClock,
-  ModelConsumerOwnerDeclaration,
   ModelFailure,
   ModelOperationId,
   ResultCapacity,
@@ -20,8 +15,15 @@ import type {
   RetryDecision,
   RetryPosition,
   Supplier,
-  TransportFact,
 } from '@omne-harness/model-contract'
+import type {
+  ActorRef,
+  ExecutionRef,
+  LateDispatchFact,
+  ModelClock,
+  ModelConsumerOwnerDeclaration,
+  TransportFact,
+} from '@omne-harness/model-contract/provider'
 
 export type MemoryAction =
   | 'admit'
@@ -153,7 +155,7 @@ export type MemorySendSource<P> = Readonly<{
         official: true
         queryId: import('@omne-harness/model-contract').CredentialId
       }>
-  current(input: import('@omne-harness/model-contract').SendDemand<P>): Outcome<
+  current(input: import('@omne-harness/model-contract/provider').SendDemand<P>): Outcome<
     Readonly<{
       authorized: boolean
       noTenantBinding: boolean

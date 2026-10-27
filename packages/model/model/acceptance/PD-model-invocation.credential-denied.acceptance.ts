@@ -1,7 +1,8 @@
 // covers: PD-model-invocation S3
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
-import { encodeModelInvocationRef, type CredentialPort } from '@omne-harness/model-contract'
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
+import { type CredentialPort } from '@omne-harness/model-contract/provider'
 import { configuration, createAcceptanceAssembly, operation } from './fixtures/runtime.ts'
 
 it('keeps a real driver credential refusal local and not sent', async () => {

@@ -1,4 +1,4 @@
-import type { PreparedTransport } from '@omne-harness/model-contract'
+import type { PreparedTransport } from '@omne-harness/model-contract/provider'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import { succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'

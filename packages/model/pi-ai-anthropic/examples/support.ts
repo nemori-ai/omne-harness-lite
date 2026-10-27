@@ -15,19 +15,21 @@
 import { createHash } from 'node:crypto'
 import {
   decodeRevision,
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
   type Adoption,
   type FixedModelRequest,
-  type IndependentModelFact,
   type ModelBlock,
   type ModelProfile,
   type ModelProfileDefinition,
   type Parameter,
   type ReplayDeclaration,
   type Supplier,
-  type TransportFact,
 } from '@omne-harness/model-contract'
+import {
+  judgeFixedModelRequest,
+  judgeReplayDeclaration,
+  type IndependentModelFact,
+  type TransportFact,
+} from '@omne-harness/model-contract/provider'
 import { parseMessageId, type Message } from '@omne-harness/message'
 import { executeModel } from '@omne-harness/model'
 import {

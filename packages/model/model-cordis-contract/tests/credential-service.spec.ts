@@ -7,7 +7,7 @@ import {
   type CredentialQuery,
   type CredentialResolution,
   type SendFace,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { expect, it } from 'vitest'
 import { ModelCredentialService, modelCredentialKey } from '../src/cordis.ts'
 

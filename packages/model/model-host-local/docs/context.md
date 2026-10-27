@@ -11,7 +11,7 @@
 
 ```ts
 import { createLocalCustodian, openLocalCustodian } from '@omne-harness/model-host-local'
-import { MODEL_SEND, decodeCredentialId } from '@omne-harness/model-contract'
+import { MODEL_SEND, decodeCredentialId } from '@omne-harness/model-contract/provider'
 import { tenant } from '@omne-harness/legal-identity'
 
 const decoded = decodeCredentialId('my-key')

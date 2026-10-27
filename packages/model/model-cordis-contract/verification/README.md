@@ -52,7 +52,7 @@
 
 - `tests/install-closure.spec.ts` 在清单的临时副本里注入默认 Model、本地宿主、pi、厂商 SDK、分词引擎、存储引擎各一个，断言退出码为 1、报告点名被注入的包、没有打包。同一文件另证：`--work-dir` 护栏（成员目录、允许范围之外的目录、无标记的非空目录）退出码为 2 且内容保留，这几条都对测试自己在临时目录里造的成员运行，不指向任何仓库路径；空 pnpm 存储使 `--offline` 失败时退出码为 1、`install.mode` 为 `offline`。
 - `tests/install-probe.spec.ts` 在手工搭的消费目录里证明祖先 `node_modules` 的 CJS、ESM 与类型依赖、解析到 `src/` 都使对应检查失败。
-- `tests/install-consumer.spec.ts` 对未修改成员做真实打包与安装，断言报告的检查项 id 与预期的完整集合相等、`typeCheck.files` 大于 0、探针入口列表等于两个入口，并在 `afterAll` 里删除它创建的 `tmp/install-closure/` 目录。预期集合里每个被打包的闭包成员各有 `pack`、`tarball-no-source`、`tarball-no-workspace-protocol` 三项，成员列表写在测试里，现为 10 个：本成员、`legal-identity`、`modality`、`model-contract`、`operation-result`，以及 `model-contract` 闭包里的 `call-account`、`content-block`、`json-text`、`message`、`utc-instant`。生产依赖变化时这个列表同步改。model-contract 的同名测试用同一方法，但该成员只有一个入口、没有传递依赖负例，所以两份 `install-consumer.spec.ts` 不相同。
+- `tests/install-consumer.spec.ts` 对未修改成员做真实打包与安装，断言报告的检查项 id 与预期的完整集合相等、`typeCheck.files` 大于 0、探针入口列表等于两个入口，并在 `afterAll` 里删除它创建的 `tmp/install-closure/` 目录。预期集合里每个被打包的闭包成员各有 `pack`、`tarball-no-source`、`tarball-no-workspace-protocol` 三项，成员列表写在测试里，现为 10 个：本成员、`legal-identity`、`modality`、`model-contract`、`operation-result`，以及 `model-contract` 闭包里的 `call-account`、`content-block`、`json-text`、`message`、`utc-instant`。生产依赖变化时这个列表同步改。model-contract 的同名测试用同一方法，但它探测本成员的四个入口（根入口、`./provider`、`./conformance`、`./testing`），也没有传递依赖负例，所以两份 `install-consumer.spec.ts` 不相同。
 
 纯判断（`inside`、制品源码、锁文件残留、空类型文件列表、护栏、联网回退决策、必需检查项清单）在快层的 `tests/install-judgment.spec.ts`。`finish()` 在所有检查通过但缺少必需检查项时使报告 `ok` 为 false，所以漏接一个判断会使对真实成员的正例变红。
 

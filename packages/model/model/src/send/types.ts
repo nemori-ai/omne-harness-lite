@@ -1,15 +1,17 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   CredentialId,
-  CredentialPort,
   MaterializationReceipt,
+  ModelFailure,
+} from '@omne-harness/model-contract'
+import type {
+  CredentialPort,
   MaterializedTransport,
   ModelCommands,
-  ModelFailure,
   ModelTransport,
   SendDemand,
   TransportFact,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 export type CredentialSelection = Readonly<{
   id: CredentialId

@@ -15,9 +15,9 @@ import type {
   Adoption,
   FixedModelRequest,
   Supplier,
-  TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { TransportFact } from '@omne-harness/model-contract/provider'
 import {
   createNetworkResources,
   createPiTransport,
