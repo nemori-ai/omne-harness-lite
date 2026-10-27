@@ -7,6 +7,7 @@ import { LINES_PATH, parseDeliveryLines } from './lines.ts'
 import { InputError, issueNumberArgument, parseConfig } from './protocol.ts'
 import {
   assignReadSets,
+  classifyReadConflicts,
   parseReadSetFile,
   readOverlap,
   readSets,
@@ -79,17 +80,23 @@ try {
       overlap.cards.map(card => ({ ...card, pages: pages.get(card.source) ?? [] })),
       members,
     ),
-    readConflicts = readOverlap(overlap.cards, sets)
-  const result = { ...overlap, readSets: sets, readConflicts }
+    { stopping: readConflicts, frozen: frozenReadConflicts } = classifyReadConflicts(
+      readOverlap(overlap.cards, sets),
+    )
+  const result = { ...overlap, readSets: sets, readConflicts, frozenReadConflicts }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
   for (const conflict of result.conflicts)
     process.stderr.write(
       `scope-overlap: ${conflict.first} ${conflict.firstPath} <-> ${conflict.second} ${conflict.secondPath}\n`,
     )
-  for (const conflict of readConflicts)
-    process.stderr.write(
-      `read-overlap: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
-    )
+  for (const [label, list] of [
+    ['read-overlap', readConflicts],
+    ['read-overlap-frozen', frozenReadConflicts],
+  ] as const)
+    for (const conflict of list)
+      process.stderr.write(
+        `${label}: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
+      )
   if (result.conflicts.length > 0 || readConflicts.length > 0) process.exitCode = 1
 } catch (error) {
   const message =
