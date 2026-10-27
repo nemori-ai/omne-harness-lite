@@ -3,6 +3,7 @@
 // the same-shape projection; `planAdoption` is the adoption-point table; `refreshAvailability` is
 // the mid-Run rule; `foldResident` keeps the resident set that only grows. None of them reads a
 // registry, a clock or a store: the caller gathers the facts and the functions judge them.
+import { workspaceEquals } from '@omne-harness/legal-identity'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolBindingKey, ToolShape, ToolShapeParameters } from './authoring.ts'
@@ -137,7 +138,7 @@ export function sameSourceLayer(left: SourceLayer, right: SourceLayer): boolean 
         left.tenant.account.text === right.tenant.account.text
       )
     case 'workspace':
-      return right.kind === 'workspace' && left.workspace === right.workspace
+      return right.kind === 'workspace' && workspaceEquals(left.workspace, right.workspace)
     default: {
       const unreachable: never = left
       return unreachable

@@ -58,14 +58,14 @@
 
 治理登录入口显式租户冲突时遵循身份契约拒绝，不能暗中切换。系统后台入口须提供其可信身份和限定操作资格，不伪造人登录。私有查询、控制、消费和历史读取分别检查当前资格。全组织账目经账目拥有者的范围查询读取，Session 的读面只服务单租户。持有「组织成本账目读取」资格的主体不因此获得其他租户的正文或执行控制。
 
-创建要求明确租户、AgentDefinition身份及执行类型。工作区可选，指定后须合法可加载，失败不降为无工作区。初始任务可以没有，专用派发或Job入口条件性必需输入沿其契约。本成员不从磁盘目录、外部消息正文或最近使用值猜身份与工作区。
+创建要求明确租户、AgentDefinition身份及执行类型。工作区可选。指定时，`workspace` 是 legal-identity 第六族 `WorkspaceId`，`attachment` 给出实例与装载依据，两者同在或同无。附着的两个字段是非空文本，其格式与含义归[工作区域](../../../docs/domains/workspaces/README.md)。指定的工作区须按附着合法加载，失败不降为无工作区。初始任务可以没有，专用派发或Job入口条件性必需输入沿其契约。本成员不从磁盘目录、外部消息正文或最近使用值猜身份与工作区。
 
 ## 固定事实及当前状态
 
 | 状态类别 | 必须保留与解释 |
 | --- | --- |
 | 固定身份 | Session、租户、定义身份、创建事实、用途和执行类型及类型必需身份集合 |
-| 会话当前值 | 当前模式、工作区选择、模型选择、允许的覆盖或继承声明、Context注册及自有恢复数据 |
+| 会话当前值 | 当前模式、工作区选择（`WorkspaceId` 与附着）、模型选择、允许的覆盖或继承声明、Context注册及自有恢复数据 |
 | 采用依据 | 实际清单、来源及版本、每次调用实际输入及消费者关联 |
 | 工作事实 | Run、承接批次、attempt开始序号、等待、消费进度、取消、终态、结果和原因 |
 | 真实外部关联 | 原调用、实际效果及费用来源、迟到、未结及控制责任 |
@@ -597,7 +597,7 @@ Session 命令：
 | --- | --- | --- | --- | --- |
 | `inspectIdle` | `denied`；`unavailable`（时钟或空闲输入不可用。不用系统时间补） | 只读，没有未知 | 不适用 | 原始事实归各拥有者 |
 | `recordIdle` | `changed`（覆盖已失效）；`invalid`；`unavailable`；`denied` | `commit-unknown` | `queryOperation`；同观察认回 | 覆盖的完整性归空闲输入的提供者 |
-| `create` | `conflict`（同身份异创建输入，不换身份）；`invalid`（缺必填项；会话身份已存在而操作不同；指定工作区加载失败时不降为无工作区）；`denied`；`unavailable`（桥） | `commit-unknown` | `queryOperation` | 固定身份与初值归 Session；执行类型采用归其拥有者 |
+| `create` | `conflict`（同身份异创建输入，不换身份）；`invalid`（缺必填项；`workspace` 不是合法 `WorkspaceId`、与 `attachment` 不同在或附着字段为空；会话身份已存在而操作不同；指定工作区加载失败时不降为无工作区）；`denied`；`unavailable`（桥） | `commit-unknown` | `queryOperation` | 固定身份与初值归 Session；执行类型采用归其拥有者 |
 | `completeInitialization` | `invalid`（原项或负责方不匹配）；`conflict`（矛盾结果）；`denied` | `commit-unknown` | `queryOperation`；同值认回 | 结果来源归负责方 |
 | `change` | `denied`（资格不足；Agent 发起而没有人的授权证据）；`invalid`（越过上界、移除必需注册；加载失败时保留原值）；`conflict`（同身份异材料）；`changed`（注册的前修订过期）；`archived` | `commit-unknown`。未知期间作用域持有者不先使注册生效 | `queryOperation`；同材料认回 | 本操作是注册决定的唯一提交点；共享源归其拥有者 |
 | `setRelation` | `invalid`（子会话常驻，或 handoff 进入级联）；`denied`；`conflict` | `commit-unknown` | `queryOperation` | 关系后果归 Session |

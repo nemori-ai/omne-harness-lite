@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { organizationCodec, workspaceCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import { type FixedToolRequest, type ToolInvokeRequest } from '@omne-harness/tool-contract'
 import { judgeFixedToolRequest, judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
+
+const WORKSPACE_TEXT = 'wsp_c0nf0rmance000000000000000'
 
 function request(): FixedToolRequest {
   return {
@@ -235,7 +238,64 @@ describe('request judgment', () => {
         ...request(),
         availability: { ...availability, layer: { kind: 'workspace', workspace: '' } },
       }),
-    ).toEqual({ field: 'availability.layer.workspace', reason: 'empty' })
+    ).toEqual({ field: 'availability.layer.workspace', reason: 'type' })
+  })
+
+  it('request judgment: a workspace is a legal-identity WorkspaceId or null, nothing else', () => {
+    const parsed = workspaceCodec.parse(WORKSPACE_TEXT)
+    if (!parsed.ok) throw new Error('the workspace text is not legal')
+    const workspace = parsed.value
+    const layer = (value: unknown) => ({
+      ...request().availability,
+      layer: { kind: 'workspace', workspace: value },
+    })
+    for (const accepted of [{ ...request(), workspace }, request()]) {
+      expect('ok' in judgeFixedToolRequest(accepted)).toBe(true)
+      const { invocation: _invocation, ...payload } = accepted
+      expect('ok' in judgeToolInvokeRequest(payload)).toBe(true)
+    }
+    const judged = judgeFixedToolRequest({
+      ...request(),
+      availability: layer({ name: 'WorkspaceId', text: WORKSPACE_TEXT }),
+    })
+    if ('failure' in judged) throw new Error('a layer built from legal workspace data was rejected')
+    const rebuilt = judged.ok.availability
+    if (rebuilt.kind !== 'available' || rebuilt.layer.kind !== 'workspace')
+      throw new Error('the layer changed shape')
+    expect(workspaceEquals(rebuilt.layer.workspace, workspace)).toBe(true)
+
+    const wrongFamily = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
+    if (!wrongFamily.ok) throw new Error('the organization text is not legal')
+    const bad: [string, unknown, { field: string; reason: string }][] = [
+      ['a string', WORKSPACE_TEXT, { field: 'workspace', reason: 'type' }],
+      [
+        'an object of another family',
+        wrongFamily.value,
+        { field: 'workspace.name', reason: 'value' },
+      ],
+      [
+        'text that is no workspace text',
+        { name: 'WorkspaceId', text: 'wsp_nope' },
+        { field: 'workspace.text', reason: 'malformed' },
+      ],
+      [
+        'another family text under the workspace name',
+        { name: 'WorkspaceId', text: 'org_abcdefghjkmnpqrstvwxyz2345' },
+        { field: 'workspace.text', reason: 'malformed' },
+      ],
+      ['an Adoption shape', adoption('workspace'), { field: 'workspace.name', reason: 'value' }],
+    ]
+    for (const [label, value, expected] of bad) {
+      expect(rejection({ ...request(), workspace: value }), label).toEqual(expected)
+      const { invocation: _invocation, ...payload } = { ...request(), workspace: value }
+      const invoke = judgeToolInvokeRequest(payload)
+      if ('ok' in invoke) throw new Error(`${label} was accepted`)
+      expect(invoke.failure, label).toEqual(expected)
+    }
+    expect(rejection({ ...request(), availability: layer(wrongFamily.value) })).toEqual({
+      field: 'availability.layer.workspace.name',
+      reason: 'value',
+    })
   })
 
   it('request judgment: a scope is an owner, a key and the evidence of the grant', () => {

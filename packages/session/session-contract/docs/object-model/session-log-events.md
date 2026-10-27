@@ -73,7 +73,7 @@
 | SE02 | `session.initialization-item` | 初始化项处理 | 原初始化项与创建事实；负责方给出取得值、就绪或失败原因、仍缺条件及接续责任 | 依据。更新原项，全体必需项完成才可工作；失败不删除会话或伪装就绪 |
 | SE03 | `session.mode-changed` | 三轴模式变更 | 本会话租户；指定维度、新值及当前上界核对依据，关联原操作 | 依据。仅变该维，其他维保持。Agent 要改模式，必须走 HITL，由人显式授权。不能突破结构化禁止 |
 | SE04 | `session.model-selected` | 模型选择变更 | 合法用户或明确代办者；合法路由名、原指令及模型拥有者校验依据 | 依据。保存选择；不改已固定请求、不建新 attempt，不因后续调用失败回滚 |
-| SE05 | `session.workspace-changed` | 工作区选择变更 | 合法选择者；附着、更换或解除的原目标、合法入口和加载依据 | 依据。更新本会话选择；失败保留原合法状态，不把指定失败改成无工作区 |
+| SE05 | `session.workspace-changed` | 工作区选择变更 | 合法选择者；附着、更换或解除的原目标（`workspace`）、合法入口（`attachment.instance`）和加载依据（`attachment.basis`）。载荷为 `{ workspace, attachment, basis }`，`workspace` 与 `attachment` 同在或同无 | 依据。更新本会话选择；失败保留原合法状态，不把指定失败改成无工作区 |
 | SE06 | `session.declaration-adopted` | 会话覆盖或继承声明采用，含自动归档策略的采用 | 设置拥有者校验后的本会话项、覆盖值或继承声明、来源和版本 | 依据。只改本会话声明，不改租户默认、共享设置或资产内容 |
 | SE07 | `session.context-registration-changed` | Context 注册集合变更 | 注册协调者；增加、改变或移除的注册、来源、配置、消费者与必需性依据 | 依据。更新注册关系；必需项不能移除，移除注册不删除共享内容 |
 | SE08 | `session.adoption` | 定义、能力与装配实际采用 | 装配协调者；固定定义标识、实际版本、清单、能力绑定、来源裁定、安全交接和原等待引用，以及这次求值的[输入快照](../../../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)：会话选择与读过的各作用域、各类来源的采用变更计数；本次为常驻工具记下的登记键，按能力身份成对列出 | 依据。保存实际采用；新 Run 采用最新合法版，普通恢复保原版，合法 reload 与新 attempt 共同成立。候选校验失败不覆盖原采用 |

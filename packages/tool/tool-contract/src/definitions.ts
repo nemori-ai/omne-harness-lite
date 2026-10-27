@@ -1,6 +1,6 @@
 // Tool definitions, availability, arguments, resource scope and the fixed request.
 import type { JsonValue } from '@omne-harness/json-text'
-import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
+import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
@@ -79,9 +79,6 @@ export type ToolDefinition = Readonly<{
   declarations: ToolDeclarations
 }> &
   ToolImplementationShape
-/** An opaque workspace identity. Tool uses branded text until the workspace owner defines it (G7). */
-declare const workspaceIdBrand: unique symbol
-export type WorkspaceId = string & { readonly [workspaceIdBrand]: true }
 /**
  * The source layer of a contribution: one position on the asset ownership order (G7). It comes
  * from the verified authority, never from the registrant's `Access.tenant`.
@@ -120,7 +117,7 @@ export type FixedToolRequest = Readonly<{
   arguments: ToolArguments
   settings: Adoption
   context: Adoption
-  workspace: Adoption | null
+  workspace: WorkspaceId | null
   environment: Adoption
   resources: readonly Adoption[]
   scope: ResourceScope

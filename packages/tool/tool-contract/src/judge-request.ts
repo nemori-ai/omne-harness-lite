@@ -26,7 +26,7 @@ import {
   type Check,
   type ShapeRejection,
 } from './shape.ts'
-import { adoption, consumerRef, durableEvidence, sourceLayer } from './value-shapes.ts'
+import { adoption, consumerRef, durableEvidence, sourceLayer, workspaceId } from './value-shapes.ts'
 
 /** A time limit is a non-negative finite integer of milliseconds (342 values). */
 const nonNegativeSafeInteger: Check<number> = (value, at) => {
@@ -67,7 +67,7 @@ const callerFields = {
   arguments: toolArguments,
   settings: adoption,
   context: adoption,
-  workspace: nullable(adoption),
+  workspace: nullable(workspaceId),
   environment: adoption,
   resources: list(adoption),
   scope,
