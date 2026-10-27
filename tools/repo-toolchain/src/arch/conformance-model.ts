@@ -9,6 +9,10 @@ export const RULE_IDS = [
   'IC-3',
   'IC-4',
   'IC-5',
+  'H1-SESSION-FACTS',
+  'H1-AGENT-REASSEMBLY',
+  'H1-MODEL-LIFETIME',
+  'H1-OBSERVATION-CONTINUITY',
 ] as const
 export type RuleId = (typeof RULE_IDS)[number]
 export type Layer =

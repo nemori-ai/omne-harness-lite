@@ -33,6 +33,16 @@ const coverage: Conformance['coverage'] = [
     evidence: 'behavior' as const,
     scope: '须在实际契约/探针/测试提供行为证据；本报告未执行，类型同形不证明行为替换',
   })),
+  ...[
+    'H1-SESSION-FACTS',
+    'H1-AGENT-REASSEMBLY',
+    'H1-MODEL-LIFETIME',
+    'H1-OBSERVATION-CONTINUITY',
+  ].map(id => ({
+    id,
+    evidence: 'behavior' as const,
+    scope: '须由实际契约/探针/测试提供 H1 行为证据；本报告未执行，登记来源不证明运行时符合',
+  })),
   ...['IC-7', 'SRP', 'OCP', 'ISP'].map(id => ({
     id,
     evidence: 'human' as const,
