@@ -263,11 +263,7 @@ function parseDelta(value: unknown): LineDeltaRecord {
 }
 
 function parseConsumption(value: unknown): LineConsumptionRecord {
-  const v = fields(
-    value,
-    [...SEQUENCED, 'task', 'consumedDelta', 'consumedRevision'],
-    'consumption',
-  )
+  const v = fields(value, [...SEQUENCED, 'consumedDelta', 'consumedRevision'], 'consumption')
   const result: LineConsumptionRecord = {
     schemaVersion: 1,
     kind: 'consumption',
@@ -277,7 +273,6 @@ function parseConsumption(value: unknown): LineConsumptionRecord {
     revision: integer(v.revision, 'revision'),
     previousRecordId: nullableId(v.previousRecordId, 'previousRecordId'),
     writer: string(v.writer, 'writer'),
-    task: parseTask(v.task),
     consumedDelta: parseReference(v.consumedDelta),
     consumedRevision: integer(v.consumedRevision, 'consumedRevision'),
     recordedAt: utcTime(v.recordedAt, 'recordedAt'),

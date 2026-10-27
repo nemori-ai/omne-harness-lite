@@ -178,6 +178,8 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 [collaboration-sequence.ts](collaboration-sequence.ts) 对一个完整记录流排序。revision 从 1 开始，每次增加 1，并引用上一记录 ID。同内容重试可去重，下一项可引用任一相同重试的 ID。同 revision 异文、同 operationId 异文、缺号、错误前项和混入其他流均失败。事件游标不表示业务记录已消费。
 
+line-state 记录具名线负责人已消费的 delta 引用和序号。它不携带任务卡，也不授予任务写权，因此 active、idle 和 terminal 的输入都可记账。任务授权在 active 开工和申请入口核对，轮空线不为消费记录创建虚假任务。
+
 [collaboration-write.ts](collaboration-write.ts) 的 `writeSequencedRecord` 发布 state、delta 或 consumption。调用方固定 operationId、revision、前项和 recordedAt，并提供每个波段的已采用派发输入。工具通过生产授权读取器核对完整记录流，检查当前账号及尚未结束的写者时段，再判断新记录是否恰为下一序号。发布时在授权读取完成后采样本机时间；已结束的历史授权即使仍覆盖偏慢的本机时间也不能写入新记录。历史时段仅用于已发布记录的核对与恢复。已有相同操作只返回精确评论引用，不再次写入；同操作异文或未经授权的同文记录均拒绝。
 
 publish 模式在 POST 前调用必需的同步 checkpoint，交出仓库、卡号、operationId、完整正文和摘要。checkpoint 必须持久保存该操作已经进入尝试状态；失败则不 POST。正式命令须把这个端口接到自己的操作日志，内存回调不满足持久化要求。POST 只执行一次，返回内容不作为成功依据。工具随后完整读取记录流，并再次核对序号和权限。响应丢失但记录已经写入时可通过读回确认；读回不可用或记录仍未出现时返回 unknown。结构、权限或并发冲突保留明确错误，调用方仍须依据已经保存的操作意图恢复。

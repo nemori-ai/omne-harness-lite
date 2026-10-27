@@ -149,7 +149,6 @@ export type LineConsumptionRecord = {
   revision: number
   previousRecordId: number | null
   writer: string
-  task: TaskReference
   consumedDelta: CommentReference
   consumedRevision: number
   recordedAt: string

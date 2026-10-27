@@ -48,7 +48,6 @@ describe('collaboration record boundary', () => {
         revision: 1,
         previousRecordId: null,
         writer: 'line-owner',
-        task,
         consumedDelta: {
           issue: 10,
           commentId: 24,
@@ -60,6 +59,26 @@ describe('collaboration record boundary', () => {
     ]
     for (const record of records)
       expect(decodeRecordComment(encodeRecordComment(record))).toEqual(record)
+  })
+
+  it('records consumption for an idle line without a fabricated task', () => {
+    const idle = delta()
+    idle.continuation = { kind: 'idle', next: assignment().context, reason: 'No work this wave' }
+    const value = {
+      schemaVersion: 1,
+      kind: 'consumption',
+      context,
+      lineParent: 10,
+      operationId: UUID,
+      revision: 1,
+      previousRecordId: null,
+      writer: 'line-owner',
+      consumedDelta: { issue: 10, commentId: 24, sha256: commentDigest(encodeRecordComment(idle)) },
+      consumedRevision: 1,
+      recordedAt: TIME,
+    }
+    expect(parseCollaborationRecord(value)).toEqual(value)
+    expect(() => parseCollaborationRecord({ ...value, task })).toThrow()
   })
 
   it.each(['blocked', 'failed'] as const)(
