@@ -1,4 +1,20 @@
 {
-  "schemaVersion": 1,
-  "entries": []
+  "schemaVersion": 2,
+  "entries": [],
+  "mandates": [
+    {
+      "issue": {
+        "repository": "nemori-ai/omne-harness-lite",
+        "id": "I_kwDOUjjhy88AAAABaZa_yg",
+        "number": 863,
+        "url": "https://github.com/nemori-ai/omne-harness-lite/issues/863"
+      },
+      "authorization": {
+        "issue": 863,
+        "commentId": 6451932434,
+        "sha256": "b868f91339b9a5635360b800b8686d0255312ed56f3a377381041b8bad13bd97"
+      },
+      "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+    }
+  ]
 }
