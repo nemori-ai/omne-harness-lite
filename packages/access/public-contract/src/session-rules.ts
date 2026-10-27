@@ -98,7 +98,14 @@ const outcomes = {
   ],
   'query-send-input': ['succeeded', 'not-committed', 'denied', 'basis-unavailable', 'unknown'],
   'read-history': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
-} satisfies { readonly [O in SessionOperation]: readonly SessionOutcomes[O][] }
+} as const satisfies { readonly [O in SessionOperation]: readonly SessionOutcomes[O][] }
+
+/** Fails to compile when an outcome of `SessionOutcomes` is missing from the table above. */
+type MissingOutcomes = {
+  readonly [O in SessionOperation]: Exclude<SessionOutcomes[O], (typeof outcomes)[O][number]>
+}[SessionOperation]
+type OutcomesComplete<Missing extends never> = Missing
+export type SessionOutcomeTableComplete = OutcomesComplete<MissingOutcomes>
 
 function isSessionOperation(value: unknown): value is SessionOperation {
   return typeof value === 'string' && Object.hasOwn(requests, value)
@@ -107,9 +114,8 @@ function isSessionOperation(value: unknown): value is SessionOperation {
 export const sessionFamily: Family<'session-public/1', SessionOperation, never> = {
   version: 'session-public/1',
   error: 'Invalid session codec arguments',
-  refusals: ['protocol-rejected'],
+  stages: [],
   isProvided: isSessionOperation,
-  isStage: (_value: unknown): _value is never => false,
   requestRule: operation => ({
     body: requests[operation],
     proof: true,

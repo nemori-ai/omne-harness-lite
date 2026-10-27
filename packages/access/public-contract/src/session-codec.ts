@@ -7,6 +7,7 @@ import type {
   SessionProtocolRejected,
   SessionRequest,
   SessionRequestRead,
+  SessionResponse,
   SessionResponseEncodeInput,
   SessionResponseRead,
 } from './session-messages.ts'
@@ -15,9 +16,10 @@ export function readSessionRequest(input: {
   readonly bytes: Uint8Array
   readonly limits: SessionCodecLimits
 }): SessionRequestRead {
-  // The session family has no stage operations, and the core validated the request against
-  // the session rule table of its operation.
-  return readRequest(sessionFamily, input) as SessionRequestRead
+  const read = readRequest(sessionFamily, input)
+  return read.kind === 'request'
+    ? { kind: 'request', request: read.request as SessionRequest }
+    : read
 }
 
 export function readSessionResponse<O extends SessionOperation>(input: {
@@ -26,8 +28,10 @@ export function readSessionResponse<O extends SessionOperation>(input: {
   readonly expectedMessageId: string
   readonly limits: SessionCodecLimits
 }): SessionResponseRead<O> {
-  // The core validated the response against the rule table of `input.operation`.
-  return readResponse(sessionFamily, input) as SessionResponseRead<O>
+  const read = readResponse(sessionFamily, input)
+  return read.kind === 'response'
+    ? { kind: 'response', response: read.response as SessionResponse<O> }
+    : read
 }
 
 export function encodeSessionRequest(input: {

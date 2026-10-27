@@ -4,39 +4,45 @@ import type {
   GovernanceStageOperation,
 } from './messages.ts'
 
+/** Rule kinds that convert one value without nested rules. */
+export type LeafKind =
+  | 'text'
+  | 'string'
+  | 'boolean'
+  | 'null'
+  | 'account'
+  | 'organization'
+  | 'login'
+  | 'tenant'
+  | 'instant'
+  | 'session'
+  | 'page-bytes'
+  | 'parameters'
+  | 'json'
+  | 'user-message'
 export type Rule =
-  | {
-      readonly kind:
-        | 'text'
-        | 'string'
-        | 'boolean'
-        | 'null'
-        | 'account'
-        | 'organization'
-        | 'login'
-        | 'tenant'
-        | 'instant'
-        | 'session'
-        | 'page-bytes'
-        | 'parameters'
-        | 'json'
-        | 'user-message'
-    }
+  | { readonly kind: LeafKind }
   | { readonly kind: 'literal'; readonly values: readonly (string | boolean)[] }
   | {
       readonly kind: 'object'
       readonly fields: Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
     }
   | { readonly kind: 'array'; readonly item: Rule; readonly nonempty?: true }
+  /**
+   * The options must be disjoint: the first option that converts wins, and the local value does
+   * not record which option matched.
+   */
   | { readonly kind: 'one-of'; readonly rules: readonly Rule[] }
 export type RequestRule = { readonly body: Rule; readonly proof: boolean; readonly tenant: boolean }
-/** One protocol version with its closed operation table, read and written by the shared codec core. */
+/**
+ * One protocol version with its closed operation table, read and written by the shared codec core.
+ * A family without stage operations has no `stage-not-provided` outcome.
+ */
 export type Family<V extends string, P extends string, S extends string> = {
   readonly version: V
   readonly error: string
-  readonly refusals: readonly ('protocol-rejected' | 'stage-not-provided')[]
+  readonly stages: readonly S[]
   readonly isProvided: (value: unknown) => value is P
-  readonly isStage: (value: unknown) => value is S
   readonly requestRule: (operation: P) => RequestRule
   readonly responseRule: (operation: P, outcome: string) => Rule | undefined
 }
@@ -559,9 +565,6 @@ export const stages = [
 export function isProvided(value: unknown): value is GovernanceProvidedOperation {
   return typeof value === 'string' && Object.hasOwn(requests, value)
 }
-export function isStage(value: unknown): value is GovernanceStageOperation {
-  return stages.some(stage => stage === value)
-}
 
 const proofOperations: ReadonlySet<string> = new Set([
   'revoke-login',
@@ -653,9 +656,8 @@ export const governanceFamily: Family<
 > = {
   version: 'governance-public/1',
   error: 'Invalid governance codec arguments',
-  refusals: ['protocol-rejected', 'stage-not-provided'],
+  stages,
   isProvided,
-  isStage,
   requestRule,
   responseRule,
 }
