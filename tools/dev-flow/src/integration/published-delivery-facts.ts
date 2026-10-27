@@ -118,13 +118,13 @@ export function readPublishedDeliveryFacts(
       const started = utcTime(value.run_started_at, 'run.run_started_at')
       const ended = utcTime(value.updated_at, 'run.updated_at')
       if (
-        Date.parse(created) > Date.parse(started) ||
+        Date.parse(created) > Date.parse(ended) ||
         Date.parse(started) > Date.parse(ended) ||
         Date.parse(comment.createdAt) < Date.parse(started) ||
         Date.parse(comment.createdAt) > Date.parse(ended)
       )
         unknown('Published facts comment is outside its workflow attempt')
-      return { created, started, workflow: { ...workflow } }
+      return { started, workflow: { ...workflow } }
     }
     same(check(current), check(attempt), 'Published facts workflow attempt changed')
     return { current, attempt }

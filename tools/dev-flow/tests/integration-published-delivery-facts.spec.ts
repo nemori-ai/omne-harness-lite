@@ -126,6 +126,40 @@ function fixture() {
 
 describe('published delivery facts without workflow dispatch', () => {
   it.each([false, true])(
+    'accepts endpoint creation metadata recorded after the run started, current endpoint: %s',
+    currentEndpoint => {
+      const f = fixture()
+      const read: GhRead = (args, timeout) => {
+        const value = f.read(args, timeout)
+        const path = args.at(-1) ?? ''
+        const endpoint = currentEndpoint ? '/actions/runs/202' : '/actions/runs/202/attempts/1'
+        return path.endsWith(endpoint) ? { ...value, created_at: '2026-10-27T10:00:02Z' } : value
+      }
+      expect(
+        readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read).observations.map(
+          item => item.facts.run,
+        ),
+      ).toEqual([202])
+    },
+  )
+
+  it.each([false, true])(
+    'refuses creation metadata after the last update, current endpoint: %s',
+    currentEndpoint => {
+      const f = fixture()
+      const read: GhRead = (args, timeout) => {
+        const value = f.read(args, timeout)
+        const path = args.at(-1) ?? ''
+        const endpoint = currentEndpoint ? '/actions/runs/202' : '/actions/runs/202/attempts/1'
+        return path.endsWith(endpoint) ? { ...value, created_at: '2026-10-27T10:01:01Z' } : value
+      }
+      expect(() => readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read)).toThrow(
+        'Published facts comment is outside its workflow attempt',
+      )
+    },
+  )
+
+  it.each([false, true])(
     'accepts different update times for the same successful attempt, current endpoint: %s',
     currentEndpoint => {
       const f = fixture()
