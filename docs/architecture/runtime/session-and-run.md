@@ -384,7 +384,7 @@ flowchart TD
 | Agent 受理后续输入与 Session 已受理的事实 | Agent | Session 参加者只读核对来源依据与待处理资格，不写 Session 事件。其余待处理输入按到达顺序逐条交入同一执行，批界由 Agent 的输入水位线决定。 |
 | 消息进历史 | Agent（消息交接） | Session 参加者在同一事务域里写历史消息。 |
 | 压缩转换 | Agent（压缩转换交接）在协调者的权威提交里 | Session 作为历史持有者参加，写压缩记录与标注。 |
-| 结果保管与处理完成 | 模型结果由 Agent 外侧的结果承接方保存，Agent 经 Journal 记录处理完成；工具结果按原交接协议承接 | 模型结果和迟到账目经会话日志到达 Agent。Model 的 ACK 由 Agent 外侧的当前合法消费者依据保管或处理完成的事实发起，Agent 不承担 ACK 协议。Tool 的交付责任解除仍按工具契约使用对应回执。 |
+| 结果保管与处理完成 | 模型结果由 Agent 外侧的结果承接方保存，Agent 经 Journal 记录处理完成；工具结果按原交接协议承接 | 模型结果和迟到账目经会话日志到达 Agent。Model 依据结果接收方的 saved 证据自己取得 ACK，Agent 不承担 ACK 协议。Tool 的交付责任解除仍按工具契约使用对应回执。 |
 | Agent 条件终结 | Agent | Session 参加者只读核对：有尚未交入的输入或 Run 已被取消时以冲突响应，不写 Run 终态。 |
 | 承接、调用登记、等待、控制阶段与执行结束 | Agent 经 Journal 提交执行记录 | 会话路径上记录直接进入会话日志，不另存 Agent 权威记录。Session 按已提交记录派生治理事实，Run 的完成与失败按 Agent 的结束结论成立。治理投影不能成为第二份 Agent 工作状态。 |
 | Tool 启动资格失效 | Session 先提交撤销资格，Tool 再在自己的启动排序域里使资格失效 | Session 作为 ToolStartAuthority 的资格版本拥有者调用 `invalidate`，等到 Tool 确认失效已生效。这是两次提交，顺序固定。失效生效之前，不能声称 Tool 的新发起已被阻止。 |
