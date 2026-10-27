@@ -309,7 +309,7 @@ it('moves the modified time and the directory version when a create adds an entr
   })
   expect(created.kind).toBe('done')
   const after = await stat()
-  expect(after.version).not.toBe(before.version)
+  expect([before.version, after.version]).toEqual(['v1', 'v2'])
   expect(after.modifiedMs).toBeGreaterThan(before.modifiedMs)
 })
 
@@ -641,4 +641,136 @@ it('moves the version, the modified time and the handle generation forward on ev
     times.push(stat.kind === 'done' ? stat.value.modifiedMs : Number.NaN)
   }
   expect(times[1]).toBeGreaterThan(times[0] ?? Number.POSITIVE_INFINITY)
+})
+
+it('refuses a read or list with a bad window as invalidInput before it looks at the path or the named object', async () => {
+  const fs = createMemoryFileSystem({ files: { 'a.txt': 'a', 'b.txt': 'b' }, directories: ['d'] })
+  const root = fs.objectToken('') ?? null
+  const targets = [
+    { why: 'a directory', path: 'd', named: fs.objectToken('d') ?? null },
+    { why: 'a missing path', path: 'none', named: root },
+    { why: 'a named mismatch', path: 'a.txt', named: fs.objectToken('b.txt') ?? null },
+  ]
+  for (const { why, path, named } of targets) {
+    for (const window of [{ offsetBytes: -1 }, { limitBytes: 1.5 }]) {
+      expect(
+        await fs.facility.read({ ...request(), path, named, ...window }),
+        `read ${why} ${JSON.stringify(window)}`,
+      ).toMatchObject({ kind: 'rejected', reason: 'invalidInput' })
+    }
+    for (const window of [{ offset: -1 }, { limit: 0 }]) {
+      expect(
+        await fs.facility.list({ ...request(), path, named, ...window }),
+        `list ${why} ${JSON.stringify(window)}`,
+      ).toMatchObject({ kind: 'rejected', reason: 'invalidInput' })
+    }
+  }
+})
+
+it('refuses a create with a null named object as notAuthorized and creates nothing', async () => {
+  const fs = createMemoryFileSystem()
+  const write = await fs.facility.write({
+    ...request(),
+    path: 'new.txt',
+    named: null,
+    bytes: bytes('x'),
+    mode: 'create',
+  })
+  expect(write).toMatchObject({ kind: 'rejected', reason: 'notAuthorized' })
+  expect(fs.objectToken('new.txt')).toBeUndefined()
+})
+
+it('backs out of nested directories with .. and resolves the same objects as the direct path', async () => {
+  const fs = createMemoryFileSystem({
+    files: { 'notes.txt': 'hello' },
+    directories: ['e/g', 'e/h'],
+  })
+  expect(fs.objectToken('e/g/../../notes.txt')).toEqual(fs.objectToken('notes.txt'))
+  expect(fs.objectToken('e/g/../h')).toEqual(fs.objectToken('e/h'))
+  expect(fs.objectToken('e/g/../../notes.txt')).toBeDefined()
+  expect(fs.objectToken('e/g/../h')).toBeDefined()
+  const created = await fs.facility.write({
+    ...request(),
+    path: 'e/g/../new.txt',
+    named: fs.objectToken('e') ?? null,
+    bytes: bytes('x'),
+    mode: 'create',
+  })
+  expect(created.kind).toBe('done')
+  expect(fs.peek('e/new.txt')).toEqual(bytes('x'))
+})
+
+it('gives every object its own token and later-made objects a later modified time', async () => {
+  const fs = createMemoryFileSystem({ files: { 'a.txt': 'a' }, directories: ['d1', 'd2'] })
+  const paths = ['', 'd1', 'd2', 'a.txt']
+  const tokens = paths.map(path => fs.objectToken(path)?.token)
+  expect(tokens.every(token => token !== undefined)).toBe(true)
+  expect(new Set(tokens).size).toBe(paths.length)
+  const times: number[] = []
+  for (const path of paths) {
+    const stat = await fs.facility.stat({
+      ...request(),
+      path,
+      named: fs.objectToken(path) ?? null,
+    })
+    if (stat.kind !== 'done') throw new Error(`${path}: ${stat.kind}`)
+    times.push(stat.value.modifiedMs)
+  }
+  expect(times).toEqual([...times].sort((x, y) => x - y))
+  expect(new Set(times).size).toBe(paths.length)
+})
+
+it('records the operation name of every operation it accepts, implemented or not', async () => {
+  const fs = createMemoryFileSystem({ files: { 'a.txt': 'a' }, directories: ['d'] })
+  const root = fs.objectToken('') ?? null
+  const a = fs.objectToken('a.txt') ?? null
+  const target = { path: 'b.txt', named: root }
+  await fs.facility.write({
+    ...request(),
+    path: 'n.txt',
+    named: root,
+    bytes: bytes('x'),
+    mode: 'create',
+  })
+  const read = await fs.facility.read({ ...request(), path: 'a.txt', named: a })
+  if (read.kind !== 'done') throw new Error(read.kind)
+  await fs.facility.close({ ...request(), path: 'a.txt', named: a, handle: read.value.handle })
+  await fs.facility.list({ ...request(), path: 'd', named: fs.objectToken('d') ?? null })
+  await fs.facility.search({
+    ...request(),
+    path: 's',
+    named: root,
+    pattern: bytes('a'),
+    match: 'content',
+    recursive: true,
+  })
+  await fs.facility.mkdir({ ...request(), path: 'm', named: root, parents: false })
+  await fs.facility.remove({ ...request(), path: 'r', named: a, recursive: false })
+  await fs.facility.move({ ...request(), path: 'mv', named: a, target, replace: false })
+  await fs.facility.copy({ ...request(), path: 'cp', named: a, target, replace: false })
+  await fs.facility.commitBatch({ ...request(), entries: [] })
+  await fs.facility.recoverBatch({ ...request(), batch: { id: 'b', generation: '1' } })
+  expect(fs.calls).toEqual([
+    { operation: 'write', path: 'n.txt' },
+    { operation: 'read', path: 'a.txt' },
+    { operation: 'close', path: 'a.txt' },
+    { operation: 'list', path: 'd' },
+    { operation: 'search', path: 's' },
+    { operation: 'mkdir', path: 'm' },
+    { operation: 'remove', path: 'r' },
+    { operation: 'move', path: 'mv' },
+    { operation: 'copy', path: 'cp' },
+    { operation: 'commitBatch', path: '' },
+    { operation: 'recoverBatch', path: '' },
+  ])
+})
+
+it('starts with an empty grant root when it is given no files and no directories', async () => {
+  const fs = createMemoryFileSystem()
+  const listing = await fs.facility.list({
+    ...request(),
+    path: '',
+    named: fs.objectToken('') ?? null,
+  })
+  expect(listing).toMatchObject({ kind: 'done', value: { entries: [] } })
 })

@@ -252,12 +252,12 @@ export function createMemoryFileSystem<P = unknown>(
     async read(request) {
       const refused = enter('read', request.requestId, request.path)
       if (refused) return refused
+      if (!isOptionalCount(request.offsetBytes) || !isOptionalCount(request.limitBytes))
+        return refuse(request.requestId, 'invalidInput')
       const found = useObject(request)
       if (found.kind !== 'object') return found
       const { entry } = found
       if (entry.type !== 'file') return unsupported(request.requestId)
-      if (!isOptionalCount(request.offsetBytes) || !isOptionalCount(request.limitBytes))
-        return refuse(request.requestId, 'invalidInput')
       const offset = Math.min(request.offsetBytes ?? 0, entry.bytes.length)
       const bytes = entry.bytes.subarray(offset).slice(0, request.limitBytes)
       const next = offset + bytes.length
@@ -295,12 +295,12 @@ export function createMemoryFileSystem<P = unknown>(
     async list(request) {
       const refused = enter('list', request.requestId, request.path)
       if (refused) return refused
+      if (!isOptionalCount(request.offset) || !isOptionalLimit(request.limit))
+        return refuse(request.requestId, 'invalidInput')
       const found = useObject(request)
       if (found.kind !== 'object') return found
       const { entry } = found
       if (entry.type !== 'directory') return unsupported(request.requestId)
-      if (!isOptionalCount(request.offset) || !isOptionalLimit(request.limit))
-        return refuse(request.requestId, 'invalidInput')
       const children = [...entry.entries].sort(byName)
       const offset = request.offset ?? 0
       const end = Math.min(children.length, offset + (request.limit ?? children.length))
