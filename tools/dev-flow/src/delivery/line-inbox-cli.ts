@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { integer, literal } from '../integration/parse.ts'
-import { parsePolicy, POLICY_PATH } from '../integration/policy.ts'
+import { deployedCollaboration } from './collaboration-bootstrap.ts'
 import { collaborationJson } from './collaboration-json.ts'
 import { parseCollaborationRecord } from './collaboration-parse.ts'
 import type { RecordWriteInput } from './collaboration-write.ts'
@@ -13,7 +13,6 @@ import { lineInbox } from './line-inbox.ts'
 import { publishLineDelta } from './line-delta.ts'
 import { publishLineState } from './line-state.ts'
 import { InputError } from './protocol.ts'
-import { repositoryFile } from './repository-files.ts'
 
 export const lineCommandUsage = `Usage:
   line-inbox-cli.ts inbox --repo owner/name --parent N --milestone N [--since comment-id] [--protocol-version 1]
@@ -98,12 +97,6 @@ export function lineCommandMain(
   const repo = values.repo
   if (repo === undefined) throw new InputError('line-repo-required')
   const parent = integer(Number(values.parent), 'parent')
-  const deps = dependencies ?? {
-    call: runGhCommand,
-    authority: () => ({
-      policy: parsePolicy(collaborationJson(readFileSync(repositoryFile(POLICY_PATH), 'utf8'))),
-    }),
-  }
   let command: LineCommand
   if (kind === 'inbox') {
     if (values.input !== undefined || values.journal !== undefined)
@@ -129,6 +122,14 @@ export function lineCommandMain(
       parent,
       record: collaborationJson(readFileSync(values.input, 'utf8')),
       journalRoot: values.journal,
+    }
+  }
+  let deps = dependencies
+  if (deps === undefined) {
+    const assembly = deployedCollaboration(repo)
+    deps = {
+      call: runGhCommand,
+      authority: context => assembly.authorityFor(context.reduceIssue),
     }
   }
   const result = executeLineCommand(command, deps)

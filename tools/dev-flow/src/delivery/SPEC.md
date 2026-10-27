@@ -85,6 +85,31 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 验证由 [delivery-pre-admission.spec.ts](../../tests/delivery-pre-admission.spec.ts) 覆盖完整顺序、绑定分支、失败传播、日志隔离和真实子进程退出码。
 
+## 协作工具安装与固定来源
+
+`collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符版本为 1，必需字段如下。未知字段拒绝。
+
+| 字段 | 含义与约束 |
+| --- | --- |
+| `repository` | 唯一的目标 `owner/name` |
+| `toolCommit` | 完整 Git SHA。运行工具的独立检出须固定在此提交，且工作树干净 |
+| `policySource` | `commit/path/blob/digest`。路径固定为 `docs/engineering/integration-policy.json`，提交与 blob 为完整 SHA，摘要为原始 UTF-8 文件字节的 SHA-256 |
+| `acceptanceSource` | 同样的四项定位。路径固定为 `docs/engineering/collaboration-acceptance-sources.json` |
+| `basis` | 非空的既有 `Evidence` 数组，记录本次安装采用的依据 |
+| `facts` | `{kind:"direct"}` 或 `{kind:"published",workflow,bot}`。两种模式不能混用 |
+
+published 模式固定 workflow 的 `id/path/ref/head` 及 Bot 的 `login/nodeId`。path 为 `.github/workflows/delivery-facts.yml`，ref 为 `github-gate`，head 为完整 SHA。Project 从 policy 提交中的 delivery config 派生，不由普通命令传入。config 必须启用，仓库、Project 与单写者配置必须有效。
+
+`collaboration-install-cli.ts` 是显式操作员采用边界。它接收描述符文件及已核对的 SHA-256，校验后在工具检出的私有 Git 目录原子创建 `omne-collaboration-installation.json`。文件保存原始描述符字节和摘要。临时文件先 fsync，再用不可覆盖的 hard link 发布并 fsync 目录。相同采用可重复；不同采用不能覆盖。未完成或冲突的写入不能返回成功。已有记录损坏、工具提交变化或工作树不干净均拒绝。
+
+本地安装命令记录操作员已经作出的采用，不验证或生成新的外部人类授权。`basis` 的存在不证明依据有效。操作员须按原有具名权限采用配置。接受来源仍须通过后续逐卡责任、账号、里程碑及撤销校验，安装本身不接受成果。拥有本机文件写权限的攻击者、修改过的执行器和依赖供应链不在此安装记录的防篡改保证内。
+
+`collaboration-bootstrap.ts` 从执行模块所在的源工具检出寻找唯一安装记录，与调用者 cwd 无关。当前只支持干净 Git 源检出的 Node 源执行；`dist` 入口拒绝，不能以已生成目录冒充固定源提交。已有 pre-admission 和 release-run 构建入口不受此限制影响。普通 request、Action、line、watch 命令不接受安装路径、policy 路径、来源提交或接受者选项。
+
+bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config 和 acceptance source。来源 blob 和原文摘要必须一致。加载前后均核对安装与工具状态。加载结果为同一套 request、line 和 watch 端口；published 模式惰性读取精确的当前、历史和任务派发事实，缺失时不回退到 direct。watch 仅持有该安装快照，后续实际卡仍按现有读回协议动态发现。安装更新须在安全操作边界切换到新检出，不能改写运行中会话的安装记录。
+
+源码入口由仓库根及包内的 `collaboration:install`、`integration:request`、`line`、`reduce:watch` scripts 暴露。安装、来源和装配验证归[安装测试](../../tests/delivery-collaboration-installation.spec.ts)。此测试使用真实临时 Git 和文件系统，远端内容为 REST 替身；不证明真实采用或生产部署。
+
 ## 持续验证与限制
 
 `tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。

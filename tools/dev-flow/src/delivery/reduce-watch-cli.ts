@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { collaborationJson } from './collaboration-json.ts'
+import { deployedCollaboration } from './collaboration-bootstrap.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import { WaitTimeout } from './events-wait.ts'
 import { InputError } from './protocol.ts'
@@ -97,6 +98,10 @@ export async function runReduceWatchCli(
   bootstrap: ReduceWatchBootstrap,
   io: ReduceWatchIO,
 ): Promise<number> {
+  if (argv.length === 1 && argv[0] === '--help') {
+    io.stdout(reduceWatchUsage + '\n')
+    return 0
+  }
   let input: ReduceWatchInput | undefined
   try {
     input = parseReduceWatchArgs(argv)
@@ -148,11 +153,7 @@ if (
   process.once('SIGTERM', cancel)
   process.exitCode = await runReduceWatchCli(
     process.argv.slice(2),
-    () => {
-      throw new InputError(
-        'watch-adopted-bootstrap-required: invoke through the adopted root assembly',
-      )
-    },
+    input => deployedCollaboration(input.repo).watch,
     {
       stdout: text => process.stdout.write(text),
       stderr: text => process.stderr.write(text),

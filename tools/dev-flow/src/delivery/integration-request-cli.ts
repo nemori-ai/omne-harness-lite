@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { blob, git } from '../integration/git.ts'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { IntegrationError } from '../integration/parse.ts'
-import { parsePolicy, POLICY_PATH } from '../integration/policy.ts'
+import { deployedCollaboration } from './collaboration-bootstrap.ts'
 import { collaborationJson } from './collaboration-json.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import { runGhCommand, type GhCommand } from './github-read.ts'
@@ -18,7 +17,7 @@ Input is canonical RequestInput v1. Prepare and freeze the report, verification 
 writer/process stop declaration before submit. registered confirms the receipt, not integration.
 unknown keeps the candidate frozen; recover reads the same request without another dispatch.
 Evidence accepts same-repository Issue comments and immutable GitHub blob URLs.
-The deployed tool checkout supplies authority policy; request JSON cannot override authority.`
+The installed descriptor supplies authority; request JSON cannot override it.`
 
 export type IntegrationRequestDriver = {
   call: GhCommand
@@ -28,12 +27,7 @@ export type IntegrationRequestDriver = {
 }
 
 export function deployedRequestBootstrap(repo: string): RequestBootstrap {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
-  const commit = git(root, ['rev-parse', 'HEAD'])
-  const policy = parsePolicy(collaborationJson(blob(root, commit, POLICY_PATH).text))
-  if (policy.repository !== repo)
-    throw new InputError('integration-request-deployed-repository-mismatch')
-  return { policy }
+  return deployedCollaboration(repo).request
 }
 
 export function runIntegrationRequestCli(

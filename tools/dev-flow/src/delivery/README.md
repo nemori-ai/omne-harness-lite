@@ -59,6 +59,34 @@ pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pr
 
 命令依次执行接受锁、affected build、declarations、contract-api、lines、docs、design、deps、rules、oxlint 和 format。任一步失败即停止并返回该步退出码。标准输出包含已执行步骤、各步日志路径和失败日志末 20 行。详细顺序与绑定分支行为见 [SPEC](SPEC.md#预准入执行)。
 
+## 安装协作命令
+
+reduce 负责人准备并按具名权限采用安装描述符。完整字段归[SPEC](SPEC.md#协作工具安装与固定来源)。同一里程碑各负责人复用这一份已采用描述符，不能从候选 HEAD 推断采用。
+
+1. 为工具准备独立的干净源检出，固定在描述符的 `toolCommit`，并按锁文件准备依赖。产品工作树可以继续开发。
+2. 核对描述符及其来自采用决定的 SHA-256。文件留在工具工作树之外，或私有 Git 目录内。
+3. 在工具检出运行安装命令。将下列路径和摘要替换为已经核对的值。
+
+```sh
+pnpm run collaboration:install --descriptor /absolute/adopted-installation.json --sha256 <reviewed-sha256>
+```
+
+命令只写本地采用记录，不派发 workflow，也不接受卡片。相同描述符可重复安装。不同描述符须使用新的固定检出，不能覆盖现有采用。
+
+安装后，使用这个源工具检出的命令。参数帮助分别为：
+
+```sh
+pnpm run integration:request --help
+pnpm run line --help
+pnpm run reduce:watch --help
+```
+
+watch 的 parent、operation ID、journal 和事件文件来自本线实际派发。request 的 JSON 只携带任务输入。line 和 watch 从已采用来源取得资格与接受责任。普通命令没有 policy、facts JSON 或接受者覆盖选项。
+
+在其他工作目录调用时，使用工具源脚本的绝对路径或 `pnpm --dir /absolute/tool-checkout run ...`。来源由工具安装决定，与当前工作目录无关。当前安装合同只支持 Node 源执行，构建后的 `dist` 协作入口拒绝。
+
+缺少安装、摘要不符、工具检出变脏或提交变化时，停止并核对安装。不要通过更换来源来绕过拒绝。升级前收回旧安装上的未决写操作，并在安全的波段边界切换到新检出；保存原 journal，不给不确定操作生成新 ID。
+
 ## 属性发现
 
 报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。属性发现只报告，不计入 `deviation`，不阻止开工。`stock.attribute` 是这一类的数量。
