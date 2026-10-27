@@ -111,7 +111,7 @@ SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE18 | `call.bound` | 原调用登记与等待依据，Run 内从 Agent 的等待事件派生，Run 外由消费者拥有者登记 | Agent 执行记录提供者或消费者拥有者；稳定调用、用途、固定请求的耐久证据、原动作、原消费位置、发起 attempt 及阻塞范围。载荷公开可读字段沿 Agent 契约的 `PendingCall`，有 `kind`、`reference` 与 `purpose` 三个。`kind` 是 `model` 或 `tool`。`reference` 在 Model 分支是 `ModelInvocationRef` 文本，在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。`purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。Run 外登记由 `CallBinding` 映射到同一组字段。字段含义与映射见[稳定调用引用的读取](../../SPEC.md#稳定调用引用的读取) | 依据。建立可恢复的消费位置与等待责任，登记不冒称物理已发出；Run 外不补造 Run |
+| SE18 | `call.bound` | 原调用登记与等待依据，Run 内从 Agent 的等待事件派生，Run 外由消费者拥有者登记 | Agent 执行记录提供者或消费者拥有者；稳定调用、用途、固定请求的耐久证据、原动作、原消费位置、发起 attempt 及阻塞范围。载荷公开可读字段沿 Agent 契约的 `PendingCall`，有 `kind`、`reference` 与 `purpose` 三个。载荷的 `kind` 是 `model` 或 `tool`，不同于本行的条目 `kind`。`reference` 在 Model 分支是 `ModelInvocationRef` 文本，在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。`purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。Run 外登记由 `CallBinding` 映射到同一组字段。字段含义与映射见[稳定调用引用的读取](../../SPEC.md#稳定调用引用的读取) | 依据。建立可恢复的消费位置与等待责任，登记不冒称物理已发出；Run 外不补造 Run |
 | SE19 | `call.execution-fact` | 原执行事实承接 | Model 或 Tool 拥有者；原调用的实际发出、真实收场、转换确认、交付责任解除确认或不可确定状态、原事实版本、结果及原因 | 影响对账或等待的部分为依据，纯解释为留痕。保持真实物理事实，不把停止请求当已停止，不把旧状态覆盖新终局 |
 | SE20 | `call.result-preserved` | 结果可靠保管 | 合法消费者；原结果身份、内容或可恢复引用、保管确认、原位置和后续责任 | 依据。确认结果在消费侧可恢复，不表示已处理完；不能只保存临时句柄就解除生产责任 |
 | SE21 | `call.result-processed` | 原位置处理与逻辑结果采用 | 原消费者；原保管、消息、占位或答复，接续 attempt、处理结论、完成进度、判断依据及后续责任 | 依据。按原位置推进处理或拒收，实际处理可终结相关业务等待。后台占位、卸载、不许执行、不可用 dummy 与真实执行结果分别表达 |

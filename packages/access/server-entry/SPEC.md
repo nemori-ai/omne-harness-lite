@@ -1,6 +1,6 @@
 # 服务端接入行为规格
 
-本页拥有治理协议的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)，已由 PanQiWei [接受](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)。
+本页拥有治理协议的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
 
 ## 入口职责
 
@@ -16,12 +16,7 @@
 
 ## 依赖
 
-服务端接入的依赖边以公开契约的[三个成员](../public-contract/SPEC.md#三个成员)为唯一来源。除公开契约、身份与授权的公开入口外，另有四条边：
-
-- Session 的公开入口。
-- message 包。
-- model-contract 的 `ModelStreamReferences.current`。
-- stream-arrival 的 `StreamObserver.observe`。
+服务端接入的依赖边以公开契约的[三个成员](../public-contract/SPEC.md#三个成员)为唯一来源。
 
 公开契约不依赖服务端接入。SDK 不依赖服务端接入。
 
@@ -61,13 +56,13 @@ function receiveRevoke(
 
 ## 观察脱离与重附着（#746）
 
-本节是 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 的技术设计，已由 PanQiWei [接受](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)。本节不增加导出接口或运行实现。观察的公开操作、帧与连接生命周期归公开契约的[会话观察](../public-contract/SPEC.md#会话观察)。
+本节的「组合责任与输入边界」「重附着与脱离」「失败交接与未覆盖」三个小节是 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 的技术设计，已由 PanQiWei [接受](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)。「[刷新策略与资源](#刷新策略与资源)」小节的依据见该小节开头。本节不增加导出接口或运行实现。观察的公开操作、帧与连接生命周期归公开契约的[会话观察](../public-contract/SPEC.md#会话观察)。
 
 ### 组合责任与输入边界
 
 服务端接入承担观察的脱离与重附着组合。它消费 Session 的公开日志读面、Model 的 `current` 与内容观察端口，不读取它们的内部状态。Session 拥有已提交日志事实，Model 拥有调用状态与当前观察目标。Agent 不参与这条重附着路径，也不签发观察资格。调用、结果保管与业务控制仍由原拥有者承担。
 
-接入从已授权读取的会话日志取得稳定 `ModelInvocationRef`。日志中的稳定调用引用是重附着的事实依据。会话日志不保存瞬时流引用。首次挂接与重附着都经稳定调用引用查询 `current`。读取路径见 Session 的[稳定调用引用的读取](../../session/session-contract/SPEC.md#稳定调用引用的读取)。公开日志读面若不能提供所需稳定调用引用，接入停止该组合并交接 Session 拥有者，不从 Agent 实例、私有存储或旧流目录补造引用。
+接入从已授权读取的会话日志取得稳定 `ModelInvocationRef`。日志中的稳定调用引用是重附着的事实依据。会话日志不保存瞬时流引用。首次挂接与重附着都经稳定调用引用查询 `current`。读取路径见 Session 的[稳定调用引用的读取](../../session/session-contract/SPEC.md#稳定调用引用的读取)。公开日志读面在能力上不提供这条读取路径时，接入停止该组合并交接 Session 拥有者，不从 Agent 实例、私有存储或旧流目录补造引用。读面提供这条路径、但运行时暂时没有所需登记时，接入按[刷新策略](#刷新策略)第 1 种触发刷新，不停止该组合。
 
 登录识别、主体签发与目标租户的关系沿[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。接入只在登录识别与账号关系核对成功后取得代租户行事主体，不接受请求体自报主体。接入为每个参与边界提供该观察者自己的显式 `Access`，不借用 Agent 或生产者的主体。会话归属、调用引用和流引用的租户须一致。持有任一种引用都不授予权限。
 
@@ -87,7 +82,7 @@ Session 日志读路径核其读取资格。Model `current` 核当前 facts/read
 
 ### 刷新策略与资源
 
-本小节是接入的策略与资源规则，不是公开协议规则。帧、取消与连接生命周期归公开契约的[会话观察](../public-contract/SPEC.md#会话观察)，各来源结果的对外表示见公开契约的[来源与对外表示](../public-contract/SPEC.md#来源与对外表示)。
+本小节由 [#839](https://github.com/nemori-ai/omne-harness-lite/issues/839#issuecomment-6444555742) 按 [#746 接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)的委托由 reduce 拍定，待 PanQiWei 复核。本小节是接入的策略与资源规则，不是公开协议规则。帧、取消与连接生命周期归公开契约的[会话观察](../public-contract/SPEC.md#会话观察)，各来源结果的对外表示见公开契约的[来源与对外表示](../public-contract/SPEC.md#来源与对外表示)。
 
 #### 刷新策略
 
@@ -95,29 +90,34 @@ Session 日志读路径核其读取资格。Model `current` 核当前 facts/read
 
 ```text
 ObservationRefreshPolicy {
-  interval:    等待多久再定位或再查询一次（默认初值 1000 ms，下限初值 100 ms）
-  backoff:     每次空结果后间隔的放大系数（默认初值 1.5，间隔上限初值为 interval 的 30 倍）
-  maxAttempts: 连续空结果后最多再试几次（默认初值 30。null 表示不设次数上界，只受 deadline 约束）
-  deadline:    连续没有新目标的刷新总时长上界（默认初值 30 分钟）
+  interval:       等待多久再定位或再查询一次（默认初值 1000 ms，下限初值 100 ms。下限不能低于不可配置的底线 100 ms）
+  backoff:        每次空结果后间隔的放大系数（默认初值 1.5，间隔上限初值为 interval 的 30 倍）
+  maxAttempts:    没有取得新目标时最多刷新几次（默认初值 60。null 表示不设次数上界，只受 deadline 约束）
+  deadline:       刷新等待的累计时长上界，观察期间不计（默认初值 30 分钟）
+  currentTimeout: 每次 current 读取的本地等待上界（默认初值 5 s）
 }
 ```
 
 - 策略对象由部署装配提供，接入不写死数值。没有配置时，接入使用默认初值。
 - 配置值越出下限或上限时，接入把它钳到边界内，并记诊断 `observation.policy-clamped`。
-- `deadline` 只计连续没有新目标的时长，取得新目标时清零。工具可能运行很久，期间没有模型流。耗尽后，调用者重新建立观察即可，已落盘的内容不丢失。
+- `interval` 的下限有一条不可配置的底线 100 ms。部署配置的下限与 `interval` 初值都不能低于这条底线，低于时接入同样钳制并记诊断。
+- `deadline` 只累计刷新等待的时长。观察期间（有目标且流未结束）不计入。取得新目标时，尝试计数与 `deadline` 计时都归零。
+- `maxAttempts` 与 `deadline` 两条上界先到者为准。默认初值下，间隔在第 10 次尝试前后到达上限 30 s，60 次尝试的等待共约 27 分钟，与 `deadline` 初值 30 分钟相近，两条上界大致同时到达。
+- 工具可能运行很久，期间没有模型流。上界耗尽后，调用者重新建立观察即可，已落盘的内容不丢失。
 
 刷新在下列四种情况下触发：
 
-1. 定位没有得到用途为 `main` 的 Model 调用登记。翻页预算耗尽、Session 读取 `unavailable` 与接入自己的游标 `invalid` 也属于这一种。
+1. 定位没有得到用途为 `main` 的 Model 调用登记。翻页预算耗尽、Session 读取 `unavailable` 与接入自己的游标 `invalid` 也属于这一种。生产者观察的迭代器抛出，或没有交来 `ended` 就结束时，接入视为目标不可用，也按这一种处理。
 2. `current` 没有给出新目标：返回 null、`unavailable` 或 `invalid(reference, not-accepted)`，或返回同一个已关闭的流引用。
 3. 目标流结束：生产者交来 `ended(source-closed)`、`ended(stale-stream)`、`ended(producer-ended)`、stream-arrival 以后新增的结束原因，或 `buffer` 以外的 `gap`。
-4. 生产者观察中断，但目标仍有效：生产者交来 `ended(capacity)`、`ended(unavailable)` 或 `gap(buffer)`。这一种不重新定位，只重新观察同一流引用并取新快照。
+4. 生产者观察中断，但目标仍有效：生产者交来 `ended(capacity)`、`ended(unavailable)` 或 `gap(buffer)`。这一种不重新定位，只重新观察同一流引用并取新快照。它计为一次尝试，先按同一退避间隔等待，再重新观察。接入不做无等待的循环。
 
 - 第 1 至 3 种的每轮刷新包括重新定位稳定调用引用与查询 `current`。
-- 新目标按流引用判定。重新定位得到同一个已关闭的流引用时，接入把它当作空结果，按退避继续，不发 `snapshot`，也不清零连续空结果计数。
-- 目标有效且生产者仍在交付帧时，接入不刷新。取得新目标时，连续空结果计数与 `deadline` 计时都清零。
+- 新目标按流引用判定。重新定位得到同一个已关闭的流引用时，接入把它当作空结果，按退避继续，不发 `snapshot`，也不将尝试计数归零。
+- 目标有效且生产者仍在交付帧时，接入不刷新。
 - 每轮刷新前，接入向调用者发一次 `refreshing` 帧。上界耗尽时，接入发 `ended(refresh-exhausted)`，明确交回尚未建立或维持观察的事实，不改写调用结局。
-- 建立成功后，接入的第一帧是 `state`。之后只在调用阶段变化或目标有无变化时发 `state` 帧。
+- 建立成功后的第一条帧是 `state` 或 `ended`。`state` 先于一切 `snapshot`、`delta`、`gap`、`refreshing`。首次查询被拒、建立后立即取消或替换、撤权时，第一条帧也可以是 `ended`。连接在首帧之前关闭时，可以没有帧。
+- 首帧之后，接入只在调用阶段变化或目标有无变化时发 `state` 帧。
 
 每个观察的状态与转换如下。转换上标出接入发出的帧。
 
@@ -132,13 +132,14 @@ stateDiagram-v2
   [*] --> locate: 建立成功
   locate --> query: 得到 main 登记
   locate --> waiting: 没有登记，首轮发 state，之后发 refreshing
-  query --> observing: 新目标，发 state 与 snapshot，计数与 deadline 清零
-  query --> waiting: 没有新目标，阶段有变化时发 state，再发 refreshing
+  query --> observing: 新目标：目标有无或阶段变化时发 state，再发 snapshot，计数与 deadline 归零
+  query --> waiting: 没有新目标，阶段或目标有无变化时发 state，再发 refreshing
   query --> ended: current 拒绝或其他 invalid，发 ended
   observing --> observing: 生产者 delta，发 delta
   observing --> waiting: 目标流结束，发 refreshing
   observing --> reobserve: 生产者观察中断，发 refreshing
-  reobserve --> observing: 同一目标的新快照，发 snapshot
+  reobserve --> observing: 间隔到期，取得同一目标的新快照，发 snapshot
+  reobserve --> ended: 次数或 deadline 耗尽，发 ended(refresh-exhausted)
   waiting --> locate: 间隔到期
   waiting --> ended: 次数或 deadline 耗尽，发 ended(refresh-exhausted)
   observing --> ended: 撤权、取消、替换或帧队列超界，发对应的 ended
@@ -149,7 +150,7 @@ stateDiagram-v2
 
 #### 在途读取的取消与迟到隔离
 
-- `current` 没有 signal。接入对每次 `current` 读取设本地等待上界 `currentTimeout`，默认初值 5 秒，部署可配。超时只放弃等待，不证明底层读取已停止。接入记诊断 `observation.current-timeout`，并把这次超时计为一次空结果。它不向调用者声称成功或失败。
+- `current` 没有 signal。接入对每次 `current` 读取设本地等待上界 `currentTimeout`，它是[刷新策略](#刷新策略)对象的一个字段。超时只放弃等待，不证明底层读取已停止。接入记诊断 `observation.current-timeout`，并把这次超时计为一次空结果。它不向调用者声称成功或失败。
 - 观察路径采用串行，不采用「只应用最新已发查询的响应」。接入对同一观察的定位与 `current` 读取串行执行。上一轮未返回时不发下一轮，超时视为已返回。
 - 切换目标或观察结束后到达的旧快照与旧增量，接入丢弃它们，并记诊断 `observation.late-discarded`。
 - 生产者观察使用 `StreamObserver.observe({ ref, access, signal })`。`signal` 是接入的本地取消。观察结束或目标切换时，接入中止该 signal 并释放迭代器。中止不取消原调用。
@@ -168,7 +169,7 @@ ObservationResourceLimits {
 }
 ```
 
-- 达到 `perLogin` 或 `perInstance` 时，`observe-session` 返回 `basis-unavailable`。计数时，同一登录下同一 `observationId` 的旧观察不计入，建立成功时它被替换。
+- 达到 `perLogin` 或 `perInstance` 时，`observe-session` 返回 `basis-unavailable`。计数时，同一登录下同一会话中同一 `observationId` 的旧观察不计入，建立成功时它被替换。
 - 调用者消费过慢而超出 `frameQueueBytes` 时，接入发 `ended(capacity)`。接入不丢弃中间帧冒充连续。
 - 定位读满 `locatePages` 页仍未见用途为 `main` 的 Model 登记时，按没有稳定引用处理。本版不建索引。
 - 观察结束后，接入在 `cancelRetention` 内保留观察记录，供 `cancel-observation` 重放得到 `ended`。保留期过后得到 `not-found`。

@@ -64,7 +64,7 @@ Session 只建模会话治理所需的外域事实。外域对象以引用或耐
 | `ExecutionRef` | 值，指向 Agent 权威 | `{ execution, revision, evidence, readThrough }` | Session 保存引用；记录归 Agent 的执行记录提供者 | 随 Run 开始分配执行身份；每次参加提交或读到事件时更新 | 不含接续值、检查点或 Agent 工作状态 |
 | `RoutedInput` | 实体 | `InputId` 或原来源 | Session | 受理（SE11）；普通输入经交入（SE35）到被承接（SE14）、拒收（SE35）或取消 | 一个输入至多一次有效承接；承接只从 Agent 事件派生；卡片决定与业务输入不进普通队列 |
 | `InputBatch` | 值，派生 | `BatchId`（Agent 批次身份的编码）加水位线 | Agent 决定；Session 保存派生副本（SE14） | 一次承接 | Agent 当时已交入输入的精确集合；Session 不重选批界或顺序 |
-| `CallBinding` | 值 | 随 `Consumption` | Agent 的等待事件给出；Session 登记派生副本（SE18）；Run 外调用由 Session 登记 | 登记（SE18） | 登记不表示已发出；Run 外调用的发起 attempt 为空。SE18 载荷使用 `kind`、`reference` 与 `purpose`，`producer` 到这组字段的映射见[稳定调用引用的读取](../../SPEC.md#稳定调用引用的读取) |
+| `CallBinding` | 值 | 随 `Consumption` | Agent 的等待事件给出；Session 登记派生副本（SE18）；Run 外调用由 Session 登记 | 登记（SE18） | 登记不表示已发出；Run 外调用的发起 attempt 为空。SE18 载荷的公开可读字段是 `kind`、`reference`、`purpose`，`producer` 到这组字段的映射见[稳定调用引用的读取](../../SPEC.md#稳定调用引用的读取) |
 | `Consumption` | 实体 | `ConsumptionId`（Agent 消费身份的编码） | Session | 登记到交付责任解除确认 | 每个结果版本按生产者、版本和交付唯一 |
 | `ProducedResult`、`ResultConsumption` | 值 | 随结果版本 | 结果归生产者；保管与处理事实归 Session | 保管（SE20）、处理（SE21）、解除确认 | 保管、处理与解除分别认回；保管不表示已处理 |
 | `Waiting` | 值，派生 | 随原位置 | Agent 的等待事件给出；Session 保存副本（SE18、SE22）；卡片归 HITL | 等待出现在 Agent 事件到原位置处理、控制或新的等待集合 | 阻塞只针对原位置；没有等待结束事件 |

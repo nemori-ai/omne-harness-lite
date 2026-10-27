@@ -650,13 +650,13 @@ Session 命令：
 
 调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)，有下列三个。
 
-- `kind` 是 `model` 或 `tool`。
+- 载荷的 `kind` 是 `model` 或 `tool`，不同于条目的种类短名 `call.bound`。
 - `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
 - `purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。
 
-Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用同一组字段。Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：`kind` 取 `producer.kind`，`reference` 取 `producer.call`，Model 分支的 `purpose` 为 `main`。Model 分支的 `producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用同一组字段。Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 `kind` 取 `producer.kind`，`reference` 取 `producer.call`。Model 分支的 `purpose` 为 `main`，`producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。Tool 分支的 `purpose` 为 `action`，`producer.call` 必须是 `ToolInvocationRef` 文本。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
 
-`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，按 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
+`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，按载荷的 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
 
 这是外部读者取得稳定调用引用的唯一公开路径。它不新增操作。本版不提供「最新调用」的派生索引。
 
