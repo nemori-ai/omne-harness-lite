@@ -158,6 +158,28 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 `bindBody(body, binding, worktree?)` 是纯函数。正文须恰有一个「### 分支、基线与task context」小节，小节到下一个二级或三级标题为止。整节换成一行派发说明与版本2 binding 区块，说明的 revision、attempt、taskBase 取自 binding。只在「### 认领与派发」小节内，「- 派发情况：」行以及给出 `worktree` 时的「- 工作树：」行被改写。binding 的 `dispatch` 是占位 URL 时拒绝。结果的唯一 binding 须按 `readTaskBinding` 读回与输入相同，否则拒绝。`bindCard` 读卡，核对 binding 的仓库与 Issue 节点，写入新正文后再读一次。结果是判别联合：`applied: false` 是只读不写的 `dryRun`；`applied: true` 带 `verified`，表示读回的 binding 与输入相同。读卡由 [github-read.ts](github-read.ts) 的 `fetchIssueCard` 完成，求交与工作树命令共用它。
 
+## 协作记录边界
+
+[collaboration-records.ts](collaboration-records.ts) 拥有申请、处置、delta、消费记录、首次 assignment 和 ReleaseRecord 的公开类型及 marker。所有记录使用 schemaVersion 1。首行 marker 区分用途，唯一的 `json omne-collaboration:v1` 围栏保存机器内容。普通评论不进入机器记录集合，marker 本身不授予信任。
+
+[collaboration-comments.ts](collaboration-comments.ts) 编解码评论。[collaboration-json.ts](collaboration-json.ts) 在形状校验前拒绝重复 JSON 键，包括转义后相同的键。单份机器 JSON 上限为 1 MiB，嵌套深度上限为 128。未知版本、未知字段、缺失必需值、无效 UUID、SHA 或 UTC 时间均失败。完整 Git SHA 接受 40 或 64 位十六进制并转为小写。内容摘要使用实际评论 UTF-8 字节的 SHA-256，不先去除空白。
+
+[collaboration-parse.ts](collaboration-parse.ts) 区分形状有效与业务接受。ready 申请必须有 PR、完整 head、验证证据和已停写声明，不能带未完成项。blocked/failed 可没有 PR，但必须列原因和剩余工作。创建 requestId 后，重试保持输入不变。申请回执的 inputDigest 必须等于规范编码后的申请输入摘要。
+
+普通 delta 的 purpose 为 release，active/idle 只能指向同仓库、同里程碑的直接下一波和不同的实际 reduce。terminal 必须带授权依据，不从后继缺失推断。硬阻塞重派的 delta 使用 redispatch，并绑定新的 requestId。它必须保持同一线、同一波及当前 reduce。处置中的 redispatch 还引用该 delta、停写证据、新输入和写权释放证据。记录解析不会自行确认这些证据或执行重派。
+
+[collaboration-read.ts](collaboration-read.ts) 按每页 100 条读取全部评论，读前和读后核对 Issue 身份、正文、更新时间及评论总数。重复页、数量不足或读取期间变化均失败，不返回 empty。这个检查不提供 GitHub 跨请求事务保证。写入、放行或接受前，调用方仍须重新核对所引用的精确记录、摘要和权限。
+
+[collaboration-sequence.ts](collaboration-sequence.ts) 对一个完整记录流排序。revision 从 1 开始，每次增加 1，并引用上一记录 ID。同内容重试可去重，下一项可引用任一相同重试的 ID。同 revision 异文、同 operationId 异文、缺号、错误前项和混入其他流均失败。事件游标不表示业务记录已消费。
+
+[collaboration-trust.ts](collaboration-trust.ts) 根据调用方已从有效派发决定读回的权限快照校验记录。快照分开保存本波参与线、reduce epoch 历史、线负责人授权时段和采用的 workflow。配置对象存在不代表其权限已验证。重叠 reduce 写者、过期写者、撤销后的编辑、错误卡片或上下文均拒绝。ReleaseRecord 必须包含所有参与线，包括 idle。
+
+申请信任检查同时核对 Actions bot 作者、采用的 workflow 路径/ref/提交，以及精确 runId/runAttempt、原始 actor、重跑 actor、事件和 run-name。run-name 绑定 requestId、原始 head 或 none、规范输入摘要。精确 attempt 未完成返回 pending，失败不形成有效登记。权限判断使用 GitHub 评论及运行时间，不能只相信正文中的 recordedAt。端点与字段依据 [GitHub workflow run API](https://docs.github.com/en/rest/actions/workflow-runs#get-a-workflow-run-attempt)；真实 workflow 部署和回执写入另行验证。
+
+[collaboration-requests.ts](collaboration-requests.ts) 只接收已通过权限校验的记录。业务身份为仓库、里程碑、波、线父卡和 requestId；同一身份的规范输入必须相同。Action 重跑或新运行产生的相同申请合并为一项，保留每个评论和运行定位。不同输入复用同一身份时失败。新 requestId 是新申请，不能被传输去重吞掉。待完成和失败的 workflow 回执不进入有效登记集合，由调用方保留诊断并恢复读取。
+
+验证资源为 [schema 测试](../../tests/delivery-collaboration-schema.spec.ts)、[分页与序号测试](../../tests/delivery-collaboration-read.spec.ts)和[信任测试](../../tests/delivery-collaboration-trust.spec.ts)。这些边界函数不自动接受成果、派发任务、创建 PR 或关闭 Issue。
+
 ## 事件等待
 
 线会话与集成节点阻塞在 GitHub 事件上，不轮询 API。接收器把 webhook 事件追加到本机的事件文件，`wait-cli.ts` 读这个文件。`wait-cli.ts` 不写平台。频道接收器只管理归属已证实的精确 hook。legacy 转发器保留单机用途，不自动删除归属未知的 hook。
