@@ -15,23 +15,34 @@ export class GitError extends IntegrationError {
     this.stderr = stderr
   }
 }
-export function git(
+function gitOutput(
   root: string,
   argv: readonly string[],
   input?: string,
   timeoutMs?: number,
-): string {
+): Buffer {
   const result = spawnSync('git', [...argv], {
     cwd: root,
-    encoding: 'utf8',
     input,
     timeout: timeoutMs,
     maxBuffer: 32 * 1024 * 1024,
     env: { ...repositoryEnv(process.env), GIT_TERMINAL_PROMPT: '0' },
   })
   if (result.error !== undefined || result.status !== 0)
-    throw new GitError(argv, result.status, result.error?.message ?? result.stderr ?? '')
-  return result.stdout.trimEnd()
+    throw new GitError(
+      argv,
+      result.status,
+      result.error?.message ?? result.stderr?.toString('utf8') ?? '',
+    )
+  return result.stdout
+}
+export function git(
+  root: string,
+  argv: readonly string[],
+  input?: string,
+  timeoutMs?: number,
+): string {
+  return gitOutput(root, argv, input, timeoutMs).toString('utf8').trimEnd()
 }
 export function maybeRef(root: string, ref: string): string | null {
   const result = spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], {
@@ -83,10 +94,22 @@ export function clean(root: string): { head: string; tree: string } {
     tree: sha(git(root, ['rev-parse', 'HEAD^{tree}'])),
   }
 }
-export function blob(root: string, commit: string, path: string): { text: string; oid: string } {
+function blobId(root: string, commit: string, path: string): string {
   const oid = sha(git(root, ['rev-parse', `${sha(commit)}:${path}`]))
   if (git(root, ['cat-file', '-t', oid]) !== 'blob')
     throw new IntegrationError('unknown', `${path} is not a committed blob`)
+  return oid
+}
+/** Preserves all UTF-8 text bytes for source digests; invalid UTF-8 is refused. */
+export function exactTextBlob(root: string, commit: string, path: string): ReturnType<typeof blob> {
+  const oid = blobId(root, commit, path)
+  const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+    gitOutput(root, ['cat-file', 'blob', oid]),
+  )
+  return { text, oid }
+}
+export function blob(root: string, commit: string, path: string): { text: string; oid: string } {
+  const oid = blobId(root, commit, path)
   return { text: git(root, ['cat-file', 'blob', oid]), oid }
 }
 export function maybeBlob(

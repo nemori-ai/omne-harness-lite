@@ -1,5 +1,5 @@
 import type { PolicySource } from '../integration/context.ts'
-import { blob } from '../integration/git.ts'
+import { exactTextBlob } from '../integration/git.ts'
 import {
   array,
   canonical,
@@ -84,7 +84,7 @@ export function readAcceptanceSources(
 ): AdoptedAcceptanceSources {
   if (source.path !== ACCEPTANCE_SOURCES_PATH)
     throw new InputError('collaboration-acceptance-source-path')
-  const file = blob(root, fullSha(source.commit, 'source.commit'), ACCEPTANCE_SOURCES_PATH)
+  const file = exactTextBlob(root, fullSha(source.commit, 'source.commit'), ACCEPTANCE_SOURCES_PATH)
   if (file.oid !== source.blob || digest(file.text) !== source.digest)
     throw new InputError('collaboration-acceptance-source-changed')
   return parseAcceptanceSources(file.text, source)
