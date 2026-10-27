@@ -1463,12 +1463,13 @@ export type ScriptedCommandFacility<P = unknown> = Readonly<{
     durability: 'none';
     facility: CommandFacility<P>;
     calls: readonly StartRequest<P>[];
-    stops: readonly Readonly<{
-        process: ProcessHandle['process'];
-        mode: 'graceful' | 'forced';
-        answer: 'confirmed' | 'unconfirmed';
-    }>[];
+    stops: readonly StopRecord[];
     close(): void;
+}>;
+type StopRecord = Readonly<{
+    process: ProcessHandle['process'];
+    mode: 'graceful' | 'forced';
+    answer: 'confirmed' | 'unconfirmed';
 }>;
 export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>): ScriptedCommandFacility<P>;
 export {};

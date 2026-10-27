@@ -39,33 +39,52 @@ type Entry = {
 )
 type Directory = Extract<Entry, { type: 'directory' }>
 
-type Resolved =
-  | { readonly kind: 'path'; readonly segments: readonly string[] }
-  | { readonly kind: 'refused'; readonly reason: FacilityReason }
+/** What a path names: the object, its parent directory for a create, or why there is none. */
+type Resolution =
+  | { readonly kind: 'object'; readonly entry: Entry }
+  | { readonly kind: 'parent'; readonly parent: Directory; readonly name: string }
+  | { readonly kind: 'unresolved' }
+  | { readonly kind: 'notFound' }
+  | { readonly kind: 'refused'; readonly reason: 'invalidInput' | 'notAuthorized' }
+type ObjectResolution = Extract<Resolution, { kind: 'object' | 'unresolved' | 'refused' }>
+type ParentResolution = Extract<Resolution, { kind: 'parent' | 'notFound' | 'refused' }>
 
-/** Splits a path relative to the grant root. `..` that climbs above the root is refused. */
-function resolvePath(path: string): Resolved {
-  if (path.startsWith('/') || path.includes('\0'))
-    return { kind: 'refused', reason: 'invalidInput' }
-  const segments: string[] = []
-  for (const part of path.split('/')) {
-    if (part === '' || part === '.') continue
-    if (part !== '..') segments.push(part)
-    else if (segments.pop() === undefined) return { kind: 'refused', reason: 'notAuthorized' }
-  }
-  return { kind: 'path', segments }
-}
+/** Final segments that do not name a new entry. */
+const NOT_A_NAME: ReadonlySet<string> = new Set(['', '.', '..'])
 
 const handleKey = (handle: HandleGeneration) =>
   JSON.stringify([handle.object.token, handle.generation])
 
-/** A byte offset, a byte limit, a list offset or a list limit. */
 const isCount = (value: number) => Number.isSafeInteger(value) && value >= 0
+/** A byte offset, a byte limit or a list offset: absent, or a non-negative safe integer. */
+const isOptionalCount = (value: number | undefined) => value === undefined || isCount(value)
+/** A list limit: absent, or a positive safe integer. */
+const isOptionalLimit = (value: number | undefined) =>
+  value === undefined || (isCount(value) && value > 0)
+
+const byName = ([a]: readonly [string, Entry], [b]: readonly [string, Entry]) => (a < b ? -1 : 1)
+
+/** Script setup only: a seed path is plain segments, no `''`, `.`, `..` or NUL; otherwise it throws. */
+function seedPath(path: string): Readonly<{ parents: readonly string[]; name: string }> {
+  const parents = path.split('/')
+  const name = parents.pop()
+  if (name === undefined || path.includes('\0') || [...parents, name].some(s => NOT_A_NAME.has(s)))
+    throw new TypeError(`memory file system: bad seed path ${JSON.stringify(path)}`)
+  return { parents, name }
+}
 
 /**
- * An in-memory file facility for tests. The whole tree is inside the grant root, which the double
- * makes when it is built; no request or lease carries the root. It has no symbolic links, so it does
- * not prove a real grant-root check. Not durable; never assemble in production.
+ * An in-memory file facility for tests. It plays a placement that claims the isolation
+ * `filesystem-root`: the double makes its grant root when it is built, the whole tree is inside it,
+ * and no request or lease carries the root. Paths are relative to the root and resolve object by
+ * object, as on a real file system: a missing or file segment before `..` leaves the path
+ * unresolved, and `..` above the root is refused. The double has no symbolic links, so it does not
+ * prove a real grant-root check. Not durable; never assemble in production.
+ *
+ * To put it in a lease, give the scripted provider `facilities` that include `'files'`,
+ * `isolation: ['filesystem-root']` and `lease: { files: fs.facility }`. A given `lease` replaces the
+ * whole default facility table. The caller writes the provider's `retire` script and calls
+ * `fs.close()` in it.
  */
 export function createMemoryFileSystem<P = unknown>(
   options: MemoryFileSystemOptions = {},
@@ -94,13 +113,6 @@ export function createMemoryFileSystem<P = unknown>(
   })
   const root = makeDirectory()
 
-  /** Script setup only: a bad path is a test error, so it throws. */
-  function seedPath(path: string): readonly string[] {
-    const resolved = resolvePath(path)
-    if (resolved.kind === 'refused' || resolved.segments.length === 0)
-      throw new TypeError(`memory file system: bad seed path ${JSON.stringify(path)}`)
-    return resolved.segments
-  }
   function seedDirectory(segments: readonly string[]): Directory {
     let current = root
     for (const name of segments) {
@@ -112,29 +124,57 @@ export function createMemoryFileSystem<P = unknown>(
     }
     return current
   }
-  for (const path of options.directories ?? []) seedDirectory(seedPath(path))
+  for (const path of options.directories ?? []) {
+    const { parents, name } = seedPath(path)
+    seedDirectory([...parents, name])
+  }
   for (const [path, content] of Object.entries(options.files ?? {})) {
-    const segments = seedPath(path)
-    const parent = seedDirectory(segments.slice(0, -1))
-    const name = segments[segments.length - 1] ?? ''
+    const { parents, name } = seedPath(path)
+    const parent = seedDirectory(parents)
     if (parent.entries.has(name))
       throw new TypeError(`memory file system: ${JSON.stringify(path)} is given twice`)
-    parent.entries.set(
-      name,
-      makeFile(typeof content === 'string' ? new TextEncoder().encode(content) : content),
-    )
+    const seed = typeof content === 'string' ? new TextEncoder().encode(content) : content
+    parent.entries.set(name, makeFile(seed))
   }
 
-  function find(segments: readonly string[]): Entry | undefined {
-    let entry: Entry = root
-    for (const name of segments) {
-      if (entry.type !== 'directory') return undefined
-      const next = entry.entries.get(name)
-      if (!next) return undefined
-      entry = next
+  /** Walks the tree one segment at a time from the grant root. `..` goes back to the real parent. */
+  function walk(segments: readonly string[]): ObjectResolution {
+    let current: Entry = root
+    const parents: Directory[] = []
+    for (const segment of segments) {
+      if (current.type === 'file') return { kind: 'unresolved' }
+      if (segment === '' || segment === '.') continue
+      if (segment === '..') {
+        const up = parents.pop()
+        if (!up) return { kind: 'refused', reason: 'notAuthorized' }
+        current = up
+        continue
+      }
+      const child = current.entries.get(segment)
+      if (!child) return { kind: 'unresolved' }
+      parents.push(current)
+      current = child
     }
-    return entry
+    return { kind: 'object', entry: current }
   }
+
+  /** The one path resolver. `object` resolves the whole path; `parent` resolves all but the new name. */
+  function resolve(path: string, mode: 'object'): ObjectResolution
+  function resolve(path: string, mode: 'parent'): ParentResolution
+  function resolve(path: string, mode: 'object' | 'parent'): Resolution {
+    if (path.startsWith('/') || path.includes('\0'))
+      return { kind: 'refused', reason: 'invalidInput' }
+    const segments = path.split('/')
+    if (mode === 'object') return walk(segments)
+    const name = segments.pop() ?? ''
+    if (NOT_A_NAME.has(name)) return { kind: 'refused', reason: 'invalidInput' }
+    const parent = walk(segments)
+    if (parent.kind === 'refused') return parent
+    if (parent.kind === 'unresolved' || parent.entry.type !== 'directory')
+      return { kind: 'notFound' }
+    return { kind: 'parent', parent: parent.entry, name }
+  }
+
   /** Every successful result carries a new handle generation of the object. */
   function identity(entry: Entry): FileIdentity {
     entry.generation++
@@ -159,144 +199,115 @@ export function createMemoryFileSystem<P = unknown>(
     calls.push({ operation, path })
     return undefined
   }
-  /** Path and `named` checks shared by every path operation, in the order of the contract table. */
-  function admit(
-    request: Readonly<{ requestId: string; path: string; named: ObjectToken | null }>,
-  ):
-    | {
-        readonly kind: 'admitted'
-        readonly segments: readonly string[]
-        readonly named: ObjectToken
-      }
-    | ReturnType<typeof refuse> {
-    const path = resolvePath(request.path)
-    if (path.kind === 'refused') return refuse(request.requestId, path.reason)
-    if (request.named === null) return refuse(request.requestId, 'notAuthorized')
-    return { kind: 'admitted', segments: path.segments, named: request.named }
-  }
   const isNamed = (entry: Entry, named: ObjectToken) => entry.token.token === named.token
+
+  type Target = Readonly<{ requestId: string; path: string; named: ObjectToken | null }>
+  /** The object a request names, after the path and `named` checks in the order of the contract table. */
+  function useObject(request: Target) {
+    const found = resolve(request.path, 'object')
+    if (found.kind === 'refused') return refuse(request.requestId, found.reason)
+    if (request.named === null) return refuse(request.requestId, 'notAuthorized')
+    if (found.kind === 'unresolved')
+      return { kind: 'unresolved', requestId: request.requestId } as const
+    if (!isNamed(found.entry, request.named)) return refuse(request.requestId, 'conflict')
+    return found
+  }
+  /** The parent directory and new name of a create; `named` is the parent. */
+  function useParent(request: Target) {
+    const found = resolve(request.path, 'parent')
+    if (found.kind === 'refused') return refuse(request.requestId, found.reason)
+    if (request.named === null) return refuse(request.requestId, 'notAuthorized')
+    if (found.kind === 'notFound') return refuse(request.requestId, 'notFound')
+    if (!isNamed(found.parent, request.named)) return refuse(request.requestId, 'conflict')
+    return found
+  }
+
+  type WriteRequest = Parameters<FileSystemFacility<P>['write']>[0]
+  function replaceWrite(request: WriteRequest) {
+    const found = useObject(request)
+    if (found.kind !== 'object') return found
+    const { entry } = found
+    if (entry.type !== 'file') return unsupported(request.requestId)
+    if (request.expectedVersion !== undefined && request.expectedVersion !== `v${entry.revision}`)
+      return refuse(request.requestId, 'conflict')
+    entry.bytes = request.bytes.slice()
+    entry.revision++
+    entry.modifiedMs = ++clock
+    return { kind: 'done', requestId: request.requestId, value: identity(entry) } as const
+  }
+  function createWrite(request: WriteRequest) {
+    if (request.expectedVersion !== undefined) return refuse(request.requestId, 'invalidInput')
+    const found = useParent(request)
+    if (found.kind !== 'parent') return found
+    const { parent, name } = found
+    if (parent.entries.has(name)) return refuse(request.requestId, 'conflict')
+    const file = makeFile(request.bytes)
+    parent.entries.set(name, file)
+    parent.revision++
+    parent.modifiedMs = file.modifiedMs
+    return { kind: 'done', requestId: request.requestId, value: identity(file) } as const
+  }
 
   const facility: FileSystemFacility<P> = {
     async read(request) {
       const refused = enter('read', request.requestId, request.path)
       if (refused) return refused
-      const path = admit(request)
-      if (path.kind !== 'admitted') return path
-      const offset = request.offsetBytes ?? 0
-      const limit = request.limitBytes
-      if (!isCount(offset) || (limit !== undefined && !isCount(limit)))
+      const found = useObject(request)
+      if (found.kind !== 'object') return found
+      const { entry } = found
+      if (entry.type !== 'file') return unsupported(request.requestId)
+      if (!isOptionalCount(request.offsetBytes) || !isOptionalCount(request.limitBytes))
         return refuse(request.requestId, 'invalidInput')
-      const entry = find(path.segments)
-      if (!entry) return { kind: 'unresolved', requestId: request.requestId }
-      if (!isNamed(entry, path.named)) return refuse(request.requestId, 'conflict')
-      if (entry.type !== 'file') return refuse(request.requestId, 'unsupported')
-      const slice = entry.bytes.slice(offset, limit === undefined ? undefined : offset + limit)
-      const next = Math.min(offset, entry.bytes.length) + slice.length
+      const offset = Math.min(request.offsetBytes ?? 0, entry.bytes.length)
+      const bytes = entry.bytes.subarray(offset).slice(0, request.limitBytes)
+      const next = offset + bytes.length
+      const value = { ...identity(entry), bytes, nextOffsetBytes: next }
       return {
         kind: 'done',
         requestId: request.requestId,
-        value: {
-          ...identity(entry),
-          bytes: slice,
-          nextOffsetBytes: next,
-          eof: next >= entry.bytes.length,
-        },
+        value: { ...value, eof: next === entry.bytes.length },
       }
     },
     async stat(request) {
       const refused = enter('stat', request.requestId, request.path)
       if (refused) return refused
-      const path = admit(request)
-      if (path.kind !== 'admitted') return path
-      const entry = find(path.segments)
-      if (!entry) return { kind: 'unresolved', requestId: request.requestId }
-      if (!isNamed(entry, path.named)) return refuse(request.requestId, 'conflict')
-      return { kind: 'done', requestId: request.requestId, value: information(entry) }
+      const found = useObject(request)
+      if (found.kind !== 'object') return found
+      return { kind: 'done', requestId: request.requestId, value: information(found.entry) }
     },
     async write(request) {
       const refused = enter('write', request.requestId, request.path)
       if (refused) return refused
-      const path = admit(request)
-      if (path.kind !== 'admitted') return path
-      if (request.mode === 'replace') {
-        const entry = find(path.segments)
-        if (!entry) return { kind: 'unresolved', requestId: request.requestId }
-        if (!isNamed(entry, path.named)) return refuse(request.requestId, 'conflict')
-        if (entry.type !== 'file') return refuse(request.requestId, 'unsupported')
-        if (
-          request.expectedVersion !== undefined &&
-          request.expectedVersion !== `v${entry.revision}`
-        )
-          return refuse(request.requestId, 'conflict')
-        entry.bytes = request.bytes.slice()
-        entry.revision++
-        entry.modifiedMs = ++clock
-        return { kind: 'done', requestId: request.requestId, value: identity(entry) }
-      }
-      const name = path.segments.at(-1)
-      const last = request.path.split('/').at(-1)
-      if (
-        request.expectedVersion !== undefined ||
-        name === undefined ||
-        last === '' ||
-        last === '.' ||
-        last === '..'
-      )
-        return refuse(request.requestId, 'invalidInput')
-      const parent = find(path.segments.slice(0, -1))
-      if (parent?.type !== 'directory') return refuse(request.requestId, 'notFound')
-      if (!isNamed(parent, path.named) || parent.entries.has(name))
-        return refuse(request.requestId, 'conflict')
-      const file = makeFile(request.bytes)
-      parent.entries.set(name, file)
-      parent.revision++
-      parent.modifiedMs = file.modifiedMs
-      return { kind: 'done', requestId: request.requestId, value: identity(file) }
+      return request.mode === 'replace' ? replaceWrite(request) : createWrite(request)
     },
     async close(request) {
       const refused = enter('close', request.requestId, request.path)
       if (refused) return refused
-      const path = admit(request)
-      if (path.kind !== 'admitted') return path
+      const found = useObject(request)
+      if (found.kind === 'unresolved') return refuse(request.requestId, 'conflict')
+      if (found.kind !== 'object') return found
       const { handle } = request
-      if (handle.object.token !== path.named.token || !issued.has(handleKey(handle)))
+      if (!isNamed(found.entry, handle.object) || !issued.has(handleKey(handle)))
         return refuse(request.requestId, 'invalidInput')
-      return {
-        kind: 'done',
-        requestId: request.requestId,
-        value: {
-          handle: { object: { token: handle.object.token }, generation: handle.generation },
-        },
-      }
+      const closedHandle = { object: { token: handle.object.token }, generation: handle.generation }
+      return { kind: 'done', requestId: request.requestId, value: { handle: closedHandle } }
     },
     async list(request) {
       const refused = enter('list', request.requestId, request.path)
       if (refused) return refused
-      const path = admit(request)
-      if (path.kind !== 'admitted') return path
-      const offset = request.offset ?? 0
-      const limit = request.limit
-      if (!isCount(offset) || (limit !== undefined && !isCount(limit)))
+      const found = useObject(request)
+      if (found.kind !== 'object') return found
+      const { entry } = found
+      if (entry.type !== 'directory') return unsupported(request.requestId)
+      if (!isOptionalCount(request.offset) || !isOptionalLimit(request.limit))
         return refuse(request.requestId, 'invalidInput')
-      const entry = find(path.segments)
-      if (!entry) return { kind: 'unresolved', requestId: request.requestId }
-      if (!isNamed(entry, path.named)) return refuse(request.requestId, 'conflict')
-      if (entry.type !== 'directory') return refuse(request.requestId, 'unsupported')
-      const names = [...entry.entries.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-      const end = limit === undefined ? names.length : Math.min(names.length, offset + limit)
-      const page = names.slice(offset, end).flatMap(name => {
-        const child = entry.entries.get(name)
-        return child ? [information(child)] : []
-      })
-      return {
-        kind: 'done',
-        requestId: request.requestId,
-        value: {
-          directory: identity(entry),
-          entries: page,
-          ...(end < names.length ? { nextOffset: end } : {}),
-        },
-      }
+      const children = [...entry.entries].sort(byName)
+      const offset = request.offset ?? 0
+      const end = Math.min(children.length, offset + (request.limit ?? children.length))
+      const entries = children.slice(offset, end).map(([, child]) => information(child))
+      const more = end < children.length ? { nextOffset: end } : {}
+      const value = { directory: identity(entry), entries, ...more }
+      return { kind: 'done', requestId: request.requestId, value }
     },
     async search(request) {
       return enter('search', request.requestId, request.path) ?? unsupported(request.requestId)
@@ -325,14 +336,14 @@ export function createMemoryFileSystem<P = unknown>(
     durability: 'none',
     facility,
     objectToken(path) {
-      const resolved = resolvePath(path)
-      const entry = resolved.kind === 'path' ? find(resolved.segments) : undefined
-      return entry ? { token: entry.token.token } : undefined
+      const found = resolve(path, 'object')
+      return found.kind === 'object' ? { token: found.entry.token.token } : undefined
     },
     peek(path) {
-      const resolved = resolvePath(path)
-      const entry = resolved.kind === 'path' ? find(resolved.segments) : undefined
-      return entry?.type === 'file' ? entry.bytes.slice() : undefined
+      const found = resolve(path, 'object')
+      return found.kind === 'object' && found.entry.type === 'file'
+        ? found.entry.bytes.slice()
+        : undefined
     },
     calls,
     close() {

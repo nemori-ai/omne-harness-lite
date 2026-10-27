@@ -45,9 +45,34 @@ async function started(script: CommandScript, request: StartRequest = start()) {
   if (answer.kind !== 'done') throw new Error(`start: ${answer.kind}`)
   return answer.value
 }
+const PENDING = Symbol('pending')
+/**
+ * Races a promise against the next macrotask. Every microtask runs first, so a promise that the
+ * double has already settled wins; one that is still open gives `PENDING`. No await can hang.
+ */
+async function settledOrPending<T>(promise: Promise<T>): Promise<T | typeof PENDING> {
+  return Promise.race([
+    promise,
+    new Promise<typeof PENDING>(resolve => setImmediate(resolve, PENDING)),
+  ])
+}
+/** The value of a promise that must be settled by now; an open one fails the test. */
+async function settled<T>(promise: Promise<T>): Promise<T> {
+  const value = await settledOrPending(promise)
+  if (value === PENDING) throw new Error('expected the promise to be settled')
+  return value
+}
+/** Gives up the read right through `return()`, which the one reader must have. */
+function giveUp(reader: AsyncIterator<OutputChunk>) {
+  if (!reader.return) throw new Error('the output reader has no return()')
+  return reader.return()
+}
+/** Reads the whole output; output that stays open fails the test instead of hanging it. */
 async function drain(handle: ProcessHandle): Promise<OutputChunk[]> {
+  const reader = handle.output[Symbol.asyncIterator]()
   const chunks: OutputChunk[] = []
-  for await (const chunk of handle.output) chunks.push(chunk)
+  for (let step = await settled(reader.next()); !step.done; step = await settled(reader.next()))
+    chunks.push(step.value)
   return chunks
 }
 
@@ -71,7 +96,7 @@ it('starts a process that gives its chunks with per-stream offsets and the defau
     { stream: 'stderr', data: bytes('warn'), observedOffset: 0 },
     { stream: 'stdout', data: bytes('done'), observedOffset: 3 },
   ])
-  expect(await handle.result).toEqual({
+  expect(await settled(handle.result)).toEqual({
     kind: 'completed',
     exit: { kind: 'code', code: 0 },
     durationMs: 0,
@@ -111,7 +136,7 @@ it('counts terminal output in terminal mode', async () => {
   expect(await drain(handle)).toEqual([
     { stream: 'terminal', data: bytes('a\r\n'), observedOffset: 0 },
   ])
-  expect(await handle.result).toMatchObject({
+  expect(await settled(handle.result)).toMatchObject({
     output: { mode: 'terminal', terminal: { observedBytes: 3, discardedBytes: 0 } },
   })
 })
@@ -131,14 +156,6 @@ it('throws a TypeError when a scripted chunk does not fit the output mode', asyn
   await expect(terminalInSeparate.facility.start(start())).rejects.toBeInstanceOf(TypeError)
 })
 
-/** Settles on the next macrotask; a promise that is still pending gives `pending`. */
-async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> {
-  return Promise.race([
-    promise,
-    new Promise<'pending'>(resolve => setImmediate(resolve, 'pending')),
-  ])
-}
-
 it('keeps an untilStop process running until a confirmed stop, then ends output and result', async () => {
   const command = createScriptedCommandFacility(() => ({
     kind: 'started',
@@ -149,16 +166,16 @@ it('keeps an untilStop process running until a confirmed stop, then ends output 
   if (answer.kind !== 'done') throw new Error(answer.kind)
   const handle = answer.value
   const reader = handle.output[Symbol.asyncIterator]()
-  expect(await reader.next()).toEqual({
+  expect(await settled(reader.next())).toEqual({
     done: false,
     value: { stream: 'stdout', data: bytes('tick'), observedOffset: 0 },
   })
   const nextChunk = reader.next()
-  expect(await settledOrPending(nextChunk)).toBe('pending')
-  expect(await settledOrPending(handle.result)).toBe('pending')
-  expect(await handle.stop('graceful')).toBe('confirmed')
-  expect(await nextChunk).toMatchObject({ done: true })
-  expect(await handle.result).toEqual({
+  expect(await settledOrPending(nextChunk)).toBe(PENDING)
+  expect(await settledOrPending(handle.result)).toBe(PENDING)
+  expect(await settled(handle.stop('graceful'))).toBe('confirmed')
+  expect(await settled(nextChunk)).toMatchObject({ done: true })
+  expect(await settled(handle.result)).toEqual({
     kind: 'completed',
     exit: { kind: 'signal', signal: 'SIGTERM' },
     durationMs: 0,
@@ -175,8 +192,10 @@ it('keeps an untilStop process running until a confirmed stop, then ends output 
 
 it('ends an untilStop process with SIGKILL after a confirmed forced stop', async () => {
   const handle = await started(() => ({ kind: 'started', runs: 'untilStop' }))
-  expect(await handle.stop('forced')).toBe('confirmed')
-  expect(await handle.result).toMatchObject({ exit: { kind: 'signal', signal: 'SIGKILL' } })
+  expect(await settled(handle.stop('forced'))).toBe('confirmed')
+  expect(await settled(handle.result)).toMatchObject({
+    exit: { kind: 'signal', signal: 'SIGKILL' },
+  })
 })
 
 it('uses the scripted outcome after a confirmed stop when the script gives one', async () => {
@@ -190,8 +209,8 @@ it('uses the scripted outcome after a confirmed stop when the script gives one',
     () => ({ kind: 'started', runs: 'untilStop', outcome }),
     start({ outputMode: 'terminal' }),
   )
-  await handle.stop('graceful')
-  expect(await handle.result).toEqual(outcome)
+  await settled(handle.stop('graceful'))
+  expect(await settled(handle.result)).toEqual(outcome)
 })
 
 it('keeps output and result open after an unconfirmed stop', async () => {
@@ -205,21 +224,21 @@ it('keeps output and result open after an unconfirmed stop', async () => {
   const handle = answer.value
   const reader = handle.output[Symbol.asyncIterator]()
   const next = reader.next()
-  expect(await handle.stop('forced')).toBe('unconfirmed')
-  expect(await settledOrPending(next)).toBe('pending')
-  expect(await settledOrPending(handle.result)).toBe('pending')
+  expect(await settled(handle.stop('forced'))).toBe('unconfirmed')
+  expect(await settledOrPending(next)).toBe(PENDING)
+  expect(await settledOrPending(handle.result)).toBe(PENDING)
   expect(command.stops).toEqual([
     { process: handle.process, mode: 'forced', answer: 'unconfirmed' },
   ])
-  await reader.return?.()
+  await settled(giveUp(reader))
 })
 
 it('records a stop of an exited process and answers what the script says', async () => {
   const command = createScriptedCommandFacility(() => ({ kind: 'started', stop: 'unconfirmed' }))
   const answer = await command.facility.start(start())
   if (answer.kind !== 'done') throw new Error(answer.kind)
-  await answer.value.result
-  expect(await answer.value.stop('graceful')).toBe('unconfirmed')
+  await settled(answer.value.result)
+  expect(await settled(answer.value.stop('graceful'))).toBe('unconfirmed')
   expect(command.stops).toHaveLength(1)
 })
 
@@ -242,12 +261,12 @@ it('lets a reader give up the output without changing the result', async () => {
     ],
   }))
   const reader = handle.output[Symbol.asyncIterator]()
-  await reader.next()
-  expect(await reader.return?.()).toMatchObject({ done: true })
-  expect(await reader.next()).toMatchObject({ done: true })
-  expect(await settledOrPending(handle.result)).toBe('pending')
-  expect(await handle.stop('graceful')).toBe('confirmed')
-  expect(await handle.result).toMatchObject({
+  await settled(reader.next())
+  expect(await settled(giveUp(reader))).toMatchObject({ done: true })
+  expect(await settled(reader.next())).toMatchObject({ done: true })
+  expect(await settledOrPending(handle.result)).toBe(PENDING)
+  expect(await settled(handle.stop('graceful'))).toBe('confirmed')
+  expect(await settled(handle.result)).toMatchObject({
     output: { stdout: { observedBytes: 2, discardedBytes: 0 } },
   })
 })
@@ -269,8 +288,8 @@ it('answers closed after close() without calling the script, and running process
   })
   expect(scripted).toBe(1)
   expect(command.calls).toHaveLength(1)
-  expect(await running.value.stop('graceful')).toBe('confirmed')
-  expect(await running.value.result).toMatchObject({ kind: 'completed' })
+  expect(await settled(running.value.stop('graceful'))).toBe('confirmed')
+  expect(await settled(running.value.result)).toMatchObject({ kind: 'completed' })
 })
 
 it('records each accepted request with its cwd and env, and numbers the processes', async () => {
@@ -284,5 +303,32 @@ it('records each accepted request with its cwd and env, and numbers the processe
   expect([first, second].map(a => (a.kind === 'done' ? a.value.process.id : a.kind))).toEqual([
     'scripted-1',
     'scripted-2',
+  ])
+})
+
+it('throws a TypeError when the scripted outcome does not fit the output mode', async () => {
+  const command = createScriptedCommandFacility(() => ({
+    kind: 'started',
+    outcome: {
+      kind: 'completed',
+      exit: { kind: 'code', code: 0 },
+      durationMs: 0,
+      output: { mode: 'terminal', terminal: { observedBytes: 0, discardedBytes: 0 } },
+    },
+  }))
+  await expect(command.facility.start(start())).rejects.toBeInstanceOf(TypeError)
+})
+
+it('keeps its own copy of scripted output bytes', async () => {
+  const data = bytes('out')
+  const command = createScriptedCommandFacility(() => ({
+    kind: 'started',
+    output: [{ stream: 'stdout', data }],
+  }))
+  const answer = await command.facility.start(start())
+  if (answer.kind !== 'done') throw new Error(answer.kind)
+  data[0] = 0
+  expect(await drain(answer.value)).toEqual([
+    { stream: 'stdout', data: bytes('out'), observedOffset: 0 },
   ])
 })

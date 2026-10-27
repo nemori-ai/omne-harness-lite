@@ -39,6 +39,13 @@ const scope: ProviderAcquireInput['scope'] = { ref: scopeRef }
 const text = new TextEncoder()
 const bytes = (value: string) => text.encode(value)
 let sequence = 0
+/** The value of a promise the doubles must have settled by the next macrotask; never hangs. */
+async function settled<T>(promise: Promise<T>): Promise<T> {
+  const open = Symbol('open')
+  const value = await Promise.race([promise, new Promise<typeof open>(r => setImmediate(r, open))])
+  if (value === open) throw new Error('expected the promise to be settled')
+  return value
+}
 const request = () => ({ requestId: `r${++sequence}`, access, origin, binding })
 
 /** The two doubles in one scripted provider, put together the way #790 does. */
@@ -138,10 +145,12 @@ it('writes a file, reads it back, refuses a stale version and a path outside the
     outputMode: 'separate',
   })
   if (started.kind !== 'done') throw new Error(started.kind)
+  const reader = started.value.output[Symbol.asyncIterator]()
   const chunks: OutputChunk[] = []
-  for await (const chunk of started.value.output) chunks.push(chunk)
+  for (let step = await settled(reader.next()); !step.done; step = await settled(reader.next()))
+    chunks.push(step.value)
   expect(chunks).toEqual([{ stream: 'stdout', data: bytes('ok\n'), observedOffset: 0 }])
-  expect(await started.value.result).toMatchObject({
+  expect(await settled(started.value.result)).toMatchObject({
     kind: 'completed',
     exit: { kind: 'code', code: 0 },
   })

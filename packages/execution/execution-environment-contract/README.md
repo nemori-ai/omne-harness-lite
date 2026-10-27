@@ -21,7 +21,7 @@ Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come fr
 - No production facility: the package implements no production facility and no environment. The host provider is in [execution-environment-host-local](../execution-environment-host-local/README.md). `./testing` has two facility doubles: an in-memory file system and a scripted command facility.
 - Implemented: parameter schemas for nine environment, recovery, and registration operations, seven data result schemas, and `operationSchemas`. Registration results are removal functions. Facility operation schemas remain follow-up work.
 - Implemented: `./testing` conformance cases and non-durable doubles, including scripted environment authority and scope bindings. The registry runs the environment suite. Host-local runs both suites.
-- Implemented: two `./testing` facility doubles. `createMemoryFileSystem` gives an in-memory `files` facility with read, stat, write, close, and list. `createScriptedCommandFacility` gives a scripted `command` facility with output chunks, outcomes, and stops. The doubles prove the contract shape only. They do not prove real processes, a real file system, a grant-root check, or isolation.
+- Implemented: two `./testing` facility doubles. `createMemoryFileSystem` gives an in-memory `files` facility with read, stat, write, close, and list. `createScriptedCommandFacility` gives a scripted `command` facility with output chunks, outcomes, and stops. The doubles prove the contract shape and its criteria only. They do not prove real processes, a real file system, a grant-root check, or isolation.
 - Not verified: most behavior clauses in the SPEC need the mechanism member, providers, and a real integrator together. The package makes no claim about tenant isolation, resource close, durability, or recovery.
 
 The current consumers are the group members execution-environment-cordis-contract, execution-environment, and execution-environment-host-local.
@@ -63,7 +63,7 @@ A facility operation has four results: done, unresolved, rejected, and unknown. 
 
 ## Design
 
-The root entry has one source module for each concern. The [architecture page](docs/architecture.md#模块与依赖) lists them. Dependencies between modules go one way. Outside dependencies are runtime-context-contract, legal-identity, operation-result, json-text, schema-provider, and `@standard-schema/spec`. The runtime value dependencies are operation-result, json-text, and legal-identity. The [architecture page](docs/architecture.md) explains the modules, the reasons for the key mechanisms, and the facility protocol. The [flows page](docs/flows.md) gives the nine protocol flows. The [object model](docs/object-model.md) describes the objects.
+The root entry has one source module for each concern. The [architecture page](docs/architecture.md#模块与依赖) lists them. Dependencies between modules go one way. Outside dependencies are runtime-context-contract, legal-identity, operation-result, json-text, schema-provider, and `@standard-schema/spec`. The runtime value dependencies are operation-result, json-text, and legal-identity. The [architecture page](docs/architecture.md) explains the modules, the reasons for the key mechanisms, and the facility protocol. The [flows page](docs/flows.md) gives the ten protocol flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
@@ -97,7 +97,7 @@ SPEC.md                   Behavior beyond the public types, INV-EE01 to INV-EE18
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, mechanisms, facility protocol, Q-EE02 to Q-EE06
-├── flows.md              Protocol flows F-EEC01 to F-EEC09
+├── flows.md              Protocol flows F-EEC01 to F-EEC10
 ├── object-model.md       Roles, objects, relations, and lifecycle
 ├── public-api.md         Export entry, definition index, schema, and blocks
 ├── context.md            Independent use, integrators, neighbor handoff, position

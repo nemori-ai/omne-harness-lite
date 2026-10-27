@@ -16,7 +16,7 @@ Execution Environment 的纯契约成员，`module` 变体。
 - 已有测试：导出面、设施声明、块声明、不导入 Cordis、环境要求的解码、提供者匹配、需要声明的 schema 与摘要，以及类型测试。两个设施替身有单独的测试，也有装进脚本提供者租约后的往返测试；提供者套件以内存文件替身作已持设施运行。
 - 没有生产设施：本成员不实现任何生产设施或环境。宿主提供者在 [execution-environment-host-local](../execution-environment-host-local/README.md)。`./testing` 有内存文件与脚本命令两个设施替身。
 - 已实现：三面九操作的参数 schema、七个数据结果 schema 与 `operationSchemas`；登记面返回撤除函数，不另做结果 schema。`./testing` 提供用例列表与非耐久替身，含可编排的环境授权与作用域绑定；登记表运行公开执行环境套件，host-local 运行两个套件。设施自身逐操作 schema 留后续。
-- 已实现：`./testing` 的两个设施替身。`createMemoryFileSystem` 给出内存 `files` 设施，实现读取、查看、写入、关闭与列表。`createScriptedCommandFacility` 给出脚本 `command` 设施，有输出块、终局与停止。替身只证明契约形状，不证明真实进程、真实文件系统、授予根核对或隔离。
+- 已实现：`./testing` 的两个设施替身。`createMemoryFileSystem` 给出内存 `files` 设施，实现读取、查看、写入、关闭与列表。`createScriptedCommandFacility` 给出脚本 `command` 设施，有输出块、终局与停止。替身只证明契约形状与判据，不证明真实进程、真实文件系统、授予根核对或隔离。
 - 未验证：SPEC 的大部分行为条款需要机制成员、提供者与真实集成方的组合验证。本成员不宣称租户隔离、资源关闭、耐久或恢复已经通过。
 
 现在的真实消费者是组内的 execution-environment-cordis-contract、execution-environment 与 execution-environment-host-local。
@@ -58,7 +58,7 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 
 ## 设计
 
-根入口按身份、绑定层、要求、设施、三个核心设施、端口、租约、提供者与操作面、需要声明、块声明、纯函数分成源模块，依赖单向。包外依赖是 runtime-context-contract、legal-identity、operation-result、json-text、schema-provider 与 `@standard-schema/spec`，其中operation-result、json-text 与 legal-identity 是运行值依赖。模块切分、关键机制的理由与设施协议见[内部架构](docs/architecture.md)，九条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+根入口按身份、绑定层、要求、设施、三个核心设施、端口、租约、提供者与操作面、需要声明、块声明、纯函数分成源模块，依赖单向。包外依赖是 runtime-context-contract、legal-identity、operation-result、json-text、schema-provider 与 `@standard-schema/spec`，其中operation-result、json-text 与 legal-identity 是运行值依赖。模块切分、关键机制的理由与设施协议见[内部架构](docs/architecture.md)，十条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -92,7 +92,7 @@ SPEC.md                   公开类型以外的行为，INV-EE01 至 INV-EE18
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       模块与依赖、关键机制、设施协议、Q-EE02 至 Q-EE06
-├── flows.md              F-EEC01 至 F-EEC09 协议流程
+├── flows.md              F-EEC01 至 F-EEC10 协议流程
 ├── object-model.md       角色、对象、关系与生命周期
 ├── public-api.md         导出入口、定义索引、schema 与块声明
 ├── context.md            独立消费、集成方、邻域交接与系统定位

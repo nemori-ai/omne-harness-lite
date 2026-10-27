@@ -34,13 +34,15 @@ export type ScriptedCommandFacility<P = unknown> = Readonly<{
   /** The facility to put in a scripted lease: `lease: { command: cmd.facility }`. */
   facility: CommandFacility<P>
   calls: readonly StartRequest<P>[]
-  stops: readonly Readonly<{
-    process: ProcessHandle['process']
-    mode: 'graceful' | 'forced'
-    answer: 'confirmed' | 'unconfirmed'
-  }>[]
+  stops: readonly StopRecord[]
   /** After `close`, `start` answers `rejected/closed` without calling the script. Running processes go on. */
   close(): void
+}>
+
+type StopRecord = Readonly<{
+  process: ProcessHandle['process']
+  mode: 'graceful' | 'forced'
+  answer: 'confirmed' | 'unconfirmed'
 }>
 
 type Started = Extract<ScriptedCommandAnswer, { kind: 'started' }>
@@ -106,6 +108,11 @@ function reader(
 /**
  * A scripted command facility for tests. The script answers each accepted `start`. It starts no real
  * process and reads nothing from the host. Not durable; never assemble in production.
+ *
+ * To put it in a lease, give the scripted provider `facilities` that include `'command'` and
+ * `lease: { command: cmd.facility }`. A given `lease` replaces the whole default facility table, so
+ * the lease has no default `command` and no `terminal`. The caller writes the provider's `retire`
+ * script and calls `cmd.close()` in it.
  */
 export function createScriptedCommandFacility<P = unknown>(
   script: CommandScript<P>,
@@ -113,15 +120,15 @@ export function createScriptedCommandFacility<P = unknown>(
   let processes = 0
   let closed = false
   const calls: StartRequest<P>[] = []
-  const stops: {
-    process: ProcessHandle['process']
-    mode: 'graceful' | 'forced'
-    answer: 'confirmed' | 'unconfirmed'
-  }[] = []
+  const stops: StopRecord[] = []
 
   function processOf(request: StartRequest<P>, answer: Started): ProcessHandle {
     const mode = request.outputMode
     const chunks = chunksOf(answer, mode)
+    if (answer.outcome && answer.outcome.output.mode !== mode)
+      throw new TypeError(
+        `scripted command: a ${answer.outcome.output.mode} outcome in ${mode} output mode`,
+      )
     const identity = { id: `scripted-${++processes}`, generation: '1' }
     const ended = Promise.withResolvers<CommandOutcome>()
     const outcomeAfter = (stop: 'graceful' | 'forced' | null): CommandOutcome =>

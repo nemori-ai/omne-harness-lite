@@ -123,9 +123,13 @@ it('answers unresolved for a replace where no object is, and unsupported for a d
 })
 
 it('refuses a path that climbs above the grant root as notAuthorized, and writes nothing', async () => {
-  const fs = createMemoryFileSystem({ files: { 'notes.txt': 'hello' } })
+  const fs = createMemoryFileSystem({ files: { 'notes.txt': 'hello' }, directories: ['a'] })
   const root = fs.objectToken('') ?? null
-  for (const path of ['../outside.txt', 'a/../../outside.txt', '..']) {
+  expect(await fs.facility.read({ ...request(), path: '..', named: root })).toMatchObject({
+    kind: 'rejected',
+    reason: 'notAuthorized',
+  })
+  for (const path of ['../outside.txt', 'a/../../outside.txt', './../outside.txt']) {
     const write = await fs.facility.write({
       ...request(),
       path,
@@ -460,8 +464,181 @@ it('keeps its own copy of written bytes and hands out copies', async () => {
   expect(fs.peek('a.txt')).toEqual(bytes('hello'))
 })
 
-it('throws a TypeError for a seed path that is absolute, climbs above the root, or clashes', () => {
-  expect(() => createMemoryFileSystem({ files: { '/a.txt': 'a' } })).toThrow(TypeError)
-  expect(() => createMemoryFileSystem({ directories: ['../d'] })).toThrow(TypeError)
+it('throws a TypeError for a seed path that is not a plain relative path, or that clashes', () => {
+  for (const path of ['/a.txt', '', 'a/', 'a//b', './a', 'a/./b', 'a/../b', '../d', 'a\0b']) {
+    expect(() => createMemoryFileSystem({ files: { [path]: 'a' } }), path).toThrow(TypeError)
+    expect(() => createMemoryFileSystem({ directories: [path] }), path).toThrow(TypeError)
+  }
   expect(() => createMemoryFileSystem({ files: { a: 'a', 'a/b': 'b' } })).toThrow(TypeError)
+  expect(() => createMemoryFileSystem({ files: { 'a.txt': 'x' }, directories: ['a.txt'] })).toThrow(
+    TypeError,
+  )
+})
+
+it('resolves a path object by object: a missing or file segment before .. leaves it unresolved', async () => {
+  const fs = createMemoryFileSystem({ files: { 'notes.txt': 'hello', 'f.txt': 'x' } })
+  const notes = fs.objectToken('notes.txt') ?? null
+  for (const path of ['missing/../notes.txt', 'f.txt/../notes.txt', 'notes.txt/']) {
+    expect(await fs.facility.read({ ...request(), path, named: notes }), path).toMatchObject({
+      kind: 'unresolved',
+    })
+    expect(await fs.facility.stat({ ...request(), path, named: notes }), path).toMatchObject({
+      kind: 'unresolved',
+    })
+    expect(
+      await fs.facility.write({
+        ...request(),
+        path,
+        named: notes,
+        bytes: bytes('x'),
+        mode: 'replace',
+      }),
+      path,
+    ).toMatchObject({ kind: 'unresolved' })
+    expect(fs.objectToken(path), path).toBeUndefined()
+    expect(fs.peek(path), path).toBeUndefined()
+  }
+  expect(fs.peek('notes.txt')).toEqual(bytes('hello'))
+})
+
+it('resolves a directory path that ends with a slash', async () => {
+  const fs = createMemoryFileSystem({ directories: ['docs'] })
+  const answer = await fs.facility.stat({
+    ...request(),
+    path: 'docs/',
+    named: fs.objectToken('docs') ?? null,
+  })
+  expect(answer).toMatchObject({ kind: 'done', value: { type: 'directory' } })
+  expect(fs.objectToken('docs/')).toEqual(fs.objectToken('docs'))
+})
+
+it('refuses a create whose parent path does not resolve to a directory as notFound', async () => {
+  const fs = createMemoryFileSystem({ files: { 'f.txt': 'x' } })
+  const root = fs.objectToken('') ?? null
+  for (const path of ['missing/../new.txt', 'f.txt/new.txt', 'f.txt/../new.txt']) {
+    expect(
+      await fs.facility.write({
+        ...request(),
+        path,
+        named: root,
+        bytes: bytes('x'),
+        mode: 'create',
+      }),
+      path,
+    ).toMatchObject({ kind: 'rejected', reason: 'notFound' })
+  }
+  expect(fs.objectToken('new.txt')).toBeUndefined()
+})
+
+it('refuses a create whose final segment is empty, . or .. as invalidInput', async () => {
+  const fs = createMemoryFileSystem({ directories: ['d'] })
+  const d = fs.objectToken('d') ?? null
+  for (const path of ['', 'd/', 'd/.', 'd/..']) {
+    expect(
+      await fs.facility.write({ ...request(), path, named: d, bytes: bytes('x'), mode: 'create' }),
+      path,
+    ).toMatchObject({ kind: 'rejected', reason: 'invalidInput' })
+  }
+})
+
+it('refuses a close whose path does not name the object as conflict', async () => {
+  const fs = createMemoryFileSystem({ files: { 'a.txt': 'a', 'b.txt': 'b' } })
+  const a = fs.objectToken('a.txt') ?? null
+  const read = await fs.facility.read({ ...request(), path: 'a.txt', named: a })
+  if (read.kind !== 'done') throw new Error(read.kind)
+  for (const path of ['b.txt', 'no-such.txt', 'a.txt/']) {
+    expect(
+      await fs.facility.close({ ...request(), path, named: a, handle: read.value.handle }),
+      path,
+    ).toMatchObject({ kind: 'rejected', reason: 'conflict' })
+  }
+})
+
+it('refuses a list limit that is not a positive safe integer, and an offset that is negative', async () => {
+  const fs = createMemoryFileSystem({ files: { 'd/a': 'a' } })
+  const named = fs.objectToken('d') ?? null
+  for (const limit of [0, -1, 1.5]) {
+    expect(
+      await fs.facility.list({ ...request(), path: 'd', named, limit }),
+      String(limit),
+    ).toMatchObject({ kind: 'rejected', reason: 'invalidInput' })
+  }
+  expect(await fs.facility.list({ ...request(), path: 'd', named, offset: -1 })).toMatchObject({
+    kind: 'rejected',
+    reason: 'invalidInput',
+  })
+})
+
+it('lists entries by name whatever order they were created in', async () => {
+  const fs = createMemoryFileSystem({ directories: ['d'] })
+  const d = fs.objectToken('d') ?? null
+  for (const name of ['zeta', 'mu', 'alpha', 'beta'])
+    await fs.facility.write({
+      ...request(),
+      path: `d/${name}`,
+      named: d,
+      bytes: bytes(name),
+      mode: 'create',
+    })
+  const listing = await fs.facility.list({ ...request(), path: 'd', named: d })
+  if (listing.kind !== 'done') throw new Error(listing.kind)
+  expect(listing.value.entries.map(e => e.object)).toEqual(
+    ['alpha', 'beta', 'mu', 'zeta'].map(name => fs.objectToken(`d/${name}`)),
+  )
+})
+
+it('answers undefined from objectToken and peek for a refused path', () => {
+  const fs = createMemoryFileSystem({ files: { 'notes.txt': 'hello' } })
+  for (const path of ['/notes.txt', '../notes.txt', 'notes.txt\0', '..']) {
+    expect(fs.objectToken(path), path).toBeUndefined()
+    expect(fs.peek(path), path).toBeUndefined()
+  }
+  expect(fs.peek('')).toBeUndefined()
+})
+
+it('keeps a copy of seed bytes and of the bytes of a replace write', async () => {
+  const seed = bytes('seed')
+  const fs = createMemoryFileSystem({ files: { 'a.txt': seed } })
+  seed[0] = 0
+  expect(fs.peek('a.txt')).toEqual(bytes('seed'))
+  const source = bytes('next')
+  await fs.facility.write({
+    ...request(),
+    path: 'a.txt',
+    named: fs.objectToken('a.txt') ?? null,
+    bytes: source,
+    mode: 'replace',
+  })
+  source[0] = 0
+  expect(fs.peek('a.txt')).toEqual(bytes('next'))
+})
+
+it('moves the version, the modified time and the handle generation forward on every write', async () => {
+  const fs = createMemoryFileSystem()
+  const created = await fs.facility.write({
+    ...request(),
+    path: 'a.txt',
+    named: fs.objectToken('') ?? null,
+    bytes: bytes('1'),
+    mode: 'create',
+  })
+  const named = fs.objectToken('a.txt') ?? null
+  const replace = (value: string) =>
+    fs.facility.write({ ...request(), path: 'a.txt', named, bytes: bytes(value), mode: 'replace' })
+  const writes = [created, await replace('2'), await replace('3')]
+  expect(writes.map(w => (w.kind === 'done' ? w.value.version : w.kind))).toEqual([
+    'v1',
+    'v2',
+    'v3',
+  ])
+  const generations = writes.map(w => (w.kind === 'done' ? Number(w.value.handle.generation) : 0))
+  expect(generations).toEqual([...generations].sort((x, y) => x - y))
+  expect(new Set(generations).size).toBe(3)
+  const times = []
+  for (const value of ['4', '5']) {
+    await replace(value)
+    const stat = await fs.facility.stat({ ...request(), path: 'a.txt', named })
+    times.push(stat.kind === 'done' ? stat.value.modifiedMs : Number.NaN)
+  }
+  expect(times[1]).toBeGreaterThan(times[0] ?? Number.POSITIVE_INFINITY)
 })
