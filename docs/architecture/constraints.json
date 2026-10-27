@@ -387,7 +387,7 @@
       "layer": "contract",
       "domains": [],
       "status": "adopted",
-      "source": "packages/common/stream-arrival/README_ZH.md#公共观察契约"
+      "source": "packages/common/stream-arrival/README.md"
     },
     {
       "id": "packages/access/public-contract",
@@ -408,7 +408,7 @@
     {
       "id": "packages/access/server-entry",
       "paths": ["packages/access/server-entry/src/**"],
-      "layer": "assembly",
+      "layer": "interaction",
       "domains": [],
       "status": "candidate",
       "source": "packages/access/server-entry/SPEC.md"

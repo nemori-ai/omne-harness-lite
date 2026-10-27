@@ -347,7 +347,11 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 角色标记和方向行已经机读。[`constraints.json`](architecture/constraints.json)的 `roles` 登记成员的角色，`directions` 登记方向行。`pnpm run lint:deps` 从 repo-toolchain 0.0.12 起执行这些方向行。
 
-当前静态覆盖是 Agent、Model、Tool、Session 四个能力各自的契约成员（每个能力有纯契约和 Cordis 契约两个成员，共八个），加上公共流契约 stream-arrival 与 access 组的 public-contract、sdk、server-entry，共十二个登记了角色的成员。检查范围是这些成员的 `src/**`。检查执行九条禁边：Agent 不依赖 Session，Model 不依赖 Session，Tool 不依赖 Session，Model 不依赖 Agent，Tool 不依赖 Agent，Session 不依赖 Model，Session 不依赖 Tool，显示路径与公共流契约不依赖 Model，显示路径与公共流契约不依赖 Tool。九条禁边展开为 40 个成员对。`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL` 是[依赖方向与Cordis集成](#依赖方向与cordis集成)中“Session 组只有 session-adapters 导入邻域契约”一句中 Session 两个契约成员到 Model、Tool 契约成员的部分：from 是 session-contract 与 session-cordis-contract，不含 session-adapters 与 session-cordis。`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 是同表第一行“显示经公共流契约；不直接依赖 Model、Tool 操作契约”能机读的部分：from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员；server-entry 按 [#746 方案 A](https://github.com/nemori-ai/omne-harness-lite/issues/746) 以组合层承担观察重附着，对 Model、Tool 的依赖按其职责逐项评审，不在 from。检查规则如下。
+当前静态覆盖是九条方向行引用的十一个成员：Agent、Model、Tool、Session 四个能力各自的纯契约与 Cordis 契约成员（八个），加上公共流契约 stream-arrival 与 access 组的 public-contract、sdk。检查范围是这些成员的 `src/**`。server-entry 登记了角色，但不在任何方向行里。
+
+九条禁边是：Agent 不依赖 Session，Model 不依赖 Session，Tool 不依赖 Session，Model 不依赖 Agent，Tool 不依赖 Agent，Session 不依赖 Model，Session 不依赖 Tool，public-contract、sdk 与 stream-arrival 不依赖 Model，public-contract、sdk 与 stream-arrival 不依赖 Tool。九条禁边展开为 40 个成员对。
+
+`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL` 的依据是[依赖方向与Cordis集成](#依赖方向与cordis集成)里“Session 组只有 session-adapters 导入邻域契约”一句：from 是 session-contract 与 session-cordis-contract，不含 session-adapters 与 session-cordis。`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 的依据是同节里 access 组依赖边的一段（public-contract 不依赖 model-contract 与 stream-arrival，依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)）、sdk 只依赖 public-contract，以及 stream-arrival 作为 common 成员不依赖领域成员：from 是 public-contract、sdk 与 stream-arrival，to 是 Model、Tool 各自的两个契约成员。stream-arrival 这一半与根依赖规则“common 与 util 不依赖领域成员”重合，这里在角色层重申。server-entry 不在 from：它按 [server-entry 的观察脱离与重附着](../packages/access/server-entry/SPEC.md#观察脱离与重附着746)只调用 model-contract 的 `current` 与 stream-arrival 的 `observe`，这两条边是允许的，其余依赖按职责逐项评审。检查规则如下。
 
 - 检查按解析后的真实目标成员判断。类型导入、重导出、公开子路径和跨成员相对路径都算命中。
 - 未解析的导入不算方向命中。`no-unresolvable` 规则继续单独报告它。
@@ -357,7 +361,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 不覆盖的范围如下。
 
 - session-adapters 到 Model 或 Tool 的全包禁令没有采用。上文“依赖方向与Cordis集成”的表对它的限制仍靠评审。
-- session-cordis 到 Model 或 Tool 的禁边没有方向行（session-cordis 没有登记角色），仍靠评审。Session 的契约成员与 session-cordis 到 Agent 契约成员的禁边同样没有方向行，仍靠评审。
+- session-cordis 到 Model 或 Tool 的禁边没有方向行（它登记了角色，但不在任何方向行的 from 里），仍靠评审。Session 的契约成员与 session-cordis 到 Agent 契约成员的禁边同样没有方向行，仍靠评审。
 - 公共流方向（显示经公共流契约）的精确成员是 `packages/common/stream-arrival`，公开入口是其 [README「公共观察契约」](../packages/common/stream-arrival/README_ZH.md#公共观察契约)的 `StreamObserver.observe`；消费者以各成员 `package.json` 的依赖为准。已机读的只是禁边：public-contract、sdk 与 stream-arrival 不依赖 Model、Tool 的契约成员。“显示必须经公共流契约到达”这条正向要求、server-entry 对 Model 与 Tool 的依赖，以及 access 组到 Agent 契约成员的禁边，都没有方向行，仍靠评审。已有共享流词汇不自动构成该方向的静态采用。
 - 运行时行为条款不在静态依赖检查范围内。`rules` 中的四条 H1 不变量只登记正文来源，不增加可执行的方向行，也不证明运行时已兑现。
 - [#689 N-PD4](https://github.com/nemori-ai/omne-harness-lite/issues/689#issuecomment-6372915674) 记录的 PD-29 历史完整条款尚未恢复，未知范围保持未覆盖，不从现有角色或方向行反推原文。
