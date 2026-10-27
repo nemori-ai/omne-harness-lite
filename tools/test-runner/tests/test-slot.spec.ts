@@ -86,21 +86,28 @@ function slot(args: readonly string[], env: Record<string, string> = {}, cwd?: s
 }
 
 /**
- * 在 `cwd` 经名额执行命令，git 只认 `cwd` 本身：外面环境里的 `GIT_DIR` 等不漏进来，
- * 也不向上找到临时目录之外的仓库。
+ * 在 `cwd` 起 git 子进程用的环境：git 只认 `cwd` 本身。外面环境里的 `GIT_DIR`、`GIT_WORK_TREE`、
+ * `GIT_COMMON_DIR` 不漏进来，`GIT_CEILING_DIRECTORIES` 让 git 不向上找到临时目录之外的仓库。
  */
+function gitEnv(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const result: NodeJS.ProcessEnv = { ...env, GIT_CEILING_DIRECTORIES: dirname(cwd) }
+  for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR']) delete result[name]
+  return result
+}
+
+/** 在 `cwd` 经名额执行命令，git 环境见 `gitEnv`。 */
 function slotIn(cwd: string, args: readonly string[]) {
-  const env = slotEnv({ GIT_CEILING_DIRECTORIES: dirname(cwd) })
-  for (const name of Object.keys(env))
-    if (/^GIT_(DIR|WORK_TREE|COMMON_DIR)$/.test(name)) delete env[name]
-  return spawnSync(SCRIPT, args, { encoding: 'utf8', env, cwd })
+  return spawnSync(SCRIPT, args, { encoding: 'utf8', env: gitEnv(cwd, slotEnv({})), cwd })
 }
 
 /** 在 `name` 下建一个 git 仓库，git 目录里写入 `context`（task context 文件的原文）。 */
 function repository(name: string, context: string): string {
   const root = join(dir, name)
   mkdirSync(root)
-  const init = spawnSync('git', ['init', '-q', root], { encoding: 'utf8' })
+  const init = spawnSync('git', ['init', '-q', root], {
+    encoding: 'utf8',
+    env: gitEnv(root, process.env),
+  })
   expect(init.status, init.stderr).toBe(0)
   writeFileSync(join(root, '.git', 'omne-integration-context.json'), context)
   return root
@@ -275,7 +282,11 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     mkdirSync(plain)
     const broken = repository('broken', '{ not json')
     const untyped = repository('untyped', JSON.stringify({ tasks: [{ binding: { issue: {} } }] }))
-    for (const cwd of [plain, broken, untyped]) {
+    const zero = repository(
+      'zero',
+      JSON.stringify({ tasks: [{ binding: { issue: { number: 0 }, attempt: '0-r1-a1' } }] }),
+    )
+    for (const cwd of [plain, broken, untyped, zero]) {
       const result = slotIn(cwd, ['bash', '-c', 'exit 5'])
       expect(result.status).toBe(5)
       expect(result.stderr).toBe('')
@@ -284,6 +295,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       [plain, null, null],
       [broken, null, null],
       [untyped, null, null],
+      [zero, null, null],
     ])
   })
 

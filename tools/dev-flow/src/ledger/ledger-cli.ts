@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { errorCode } from '../delivery/events.ts'
 import { InputError } from '../delivery/protocol.ts'
 import { toCsv } from './csv.ts'
 import {
   CARD_COLUMNS,
   deriveLedger,
+  LINE_COLUMNS,
   MILESTONE_COLUMNS,
   WAVE_COLUMNS,
   type LedgerInputs,
@@ -38,20 +40,23 @@ function options(args: readonly string[]): Map<Flag, string> {
 function argumentPath(path: string): string {
   return resolve(process.env['INIT_CWD'] ?? process.cwd(), path)
 }
-function hasErrorCode(error: unknown): error is Error & { code: string } {
-  return error instanceof Error && 'code' in error && typeof error.code === 'string'
-}
-/** Writes every file under a temporary name first, then renames them; the meta file is last. */
+const META_FILE = 'ledger-meta.json'
+/**
+ * Writes every file under a temporary name first, removes the old meta file, then renames the
+ * files with the meta file last. A directory with a meta file therefore holds the tables of that
+ * same run; a failed run can leave tables without a meta file.
+ */
 function writeAll(directory: string, files: readonly (readonly [string, string])[]): void {
   const temporary = (name: string) => join(directory, `.${name}.${process.pid}.tmp`)
   try {
     mkdirSync(directory, { recursive: true })
     for (const [name, text] of files) writeFileSync(temporary(name), text)
+    rmSync(join(directory, META_FILE), { force: true })
     for (const [name] of files) renameSync(temporary(name), join(directory, name))
   } catch (error) {
     for (const [name] of files) rmSync(temporary(name), { force: true })
-    if (hasErrorCode(error))
-      throw new InputError(`--out ${directory}: cannot write (${error.code})`)
+    const code = errorCode(error)
+    if (code !== undefined) throw new InputError(`--out ${directory}: cannot write (${code})`)
     throw error
   }
 }
@@ -83,7 +88,8 @@ try {
     ['cards.csv', toCsv(CARD_COLUMNS, ledger.cards)],
     ['waves.csv', toCsv(WAVE_COLUMNS, ledger.waves)],
     ['milestone.csv', toCsv(MILESTONE_COLUMNS, [ledger.milestone])],
-    ['ledger-meta.json', `${JSON.stringify(ledger.meta, null, 2)}\n`],
+    ['lines.csv', toCsv(LINE_COLUMNS, ledger.lines)],
+    [META_FILE, `${JSON.stringify(ledger.meta, null, 2)}\n`],
   ])
   process.stdout.write(
     `${JSON.stringify({
@@ -92,6 +98,7 @@ try {
       out,
       cards: ledger.cards.length,
       waves: ledger.waves.length,
+      lines: ledger.lines.length,
       warnings: ledger.meta.warnings.length,
     })}\n`,
   )

@@ -12,16 +12,15 @@ import {
   record,
   type DeliveryCapture,
 } from '../delivery/protocol.ts'
+import { errorCode } from '../delivery/events.ts'
 import type { AdmissionInput, AdmissionRun, BoardEntry, SlotRow } from './derive.ts'
 
-function hasErrorCode(error: unknown): error is Error & { code: string } {
-  return error instanceof Error && 'code' in error && typeof error.code === 'string'
-}
 function readText(option: string, path: string): string {
   try {
     return readFileSync(path, 'utf8')
   } catch (error) {
-    if (hasErrorCode(error)) throw new InputError(`${option} ${path}: cannot read (${error.code})`)
+    const code = errorCode(error)
+    if (code !== undefined) throw new InputError(`${option} ${path}: cannot read (${code})`)
     throw error
   }
 }
@@ -40,7 +39,8 @@ function listDirectories(option: string, path: string): string[] {
       .map(entry => entry.name)
       .sort()
   } catch (error) {
-    if (hasErrorCode(error)) throw new InputError(`${option} ${path}: cannot read (${error.code})`)
+    const code = errorCode(error)
+    if (code !== undefined) throw new InputError(`${option} ${path}: cannot read (${code})`)
     throw error
   }
 }
@@ -69,6 +69,13 @@ type RunDirectory = {
   wallSeconds: number
   failed: boolean
 }
+/** `meta.branch`: a string, or null when the ledger has none; any other value is an input error. */
+function branchOf(value: unknown, file: string): string | null {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string')
+    throw new InputError(`--admission ${file}: meta.branch must be a string or null`)
+  return value
+}
 function readRunDirectory(file: string, time: string, tier: RunDirectory['tier']): RunDirectory {
   const text = readText('--admission', file)
   const ledger = record(parseJson('--admission', file, text), `--admission ${file}`)
@@ -81,7 +88,7 @@ function readRunDirectory(file: string, time: string, tier: RunDirectory['tier']
   return {
     time,
     tier,
-    branch: typeof meta.branch === 'string' ? meta.branch : null,
+    branch: branchOf(meta.branch, file),
     wallSeconds,
     failed: ledger.failures.length > 0,
   }

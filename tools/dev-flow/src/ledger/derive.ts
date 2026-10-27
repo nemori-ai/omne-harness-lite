@@ -1,6 +1,6 @@
 /**
- * The ledger definitions: one pure derivation from parsed input files to the card, wave and
- * milestone tables of the delivery ledger. Field definitions come from
+ * The ledger definitions: one pure derivation from parsed input files to the card, wave,
+ * milestone and line tables of the delivery ledger. Field definitions come from
  * .meta_harness/human/map-reduce-delivery/research/synthesis.md「度量账本」. A change to any rule
  * here raises LEDGER_VERSION, and earlier milestones are derived again with the new version.
  */
@@ -10,6 +10,27 @@ import { readTaskBinding } from '../delivery/binding.ts'
 import { singleLabel, type CapturedIssue, type DeliveryCapture } from '../delivery/protocol.ts'
 
 export const LEDGER_VERSION = '1'
+
+/** The four roles of session usage (synthesis.md「卡级」: worker, review, coordinator, reduce). */
+type Role = 'worker' | 'review' | 'coordinator' | 'reduce'
+type UsageColumn = `tokens_in_${Role}` | `tokens_out_${Role}` | `cost_usd_${Role}`
+/** The same value in every usage column. */
+function usageCells<T>(value: T): Record<UsageColumn, T> {
+  return {
+    tokens_in_worker: value,
+    tokens_out_worker: value,
+    cost_usd_worker: value,
+    tokens_in_review: value,
+    tokens_out_review: value,
+    cost_usd_review: value,
+    tokens_in_coordinator: value,
+    tokens_out_coordinator: value,
+    cost_usd_coordinator: value,
+    tokens_in_reduce: value,
+    tokens_out_reduce: value,
+    cost_usd_reduce: value,
+  }
+}
 
 export const CARD_COLUMNS = [
   'card',
@@ -35,6 +56,9 @@ export const CARD_COLUMNS = [
   'a',
   'admit_fail',
   'first_pass',
+  'map_a',
+  'map_admit_fail',
+  'map_S_admit_min',
   'map_admission_evidence',
   'map_fix_rounds',
   'reduce_fix_rounds',
@@ -44,15 +68,24 @@ export const CARD_COLUMNS = [
   'decomp_errors',
   'decision_requested_at',
   'decided_at',
-  'tokens_in',
-  'tokens_out',
-  'cost_usd',
+  'tokens_in_worker',
+  'tokens_out_worker',
+  'cost_usd_worker',
+  'tokens_in_review',
+  'tokens_out_review',
+  'cost_usd_review',
+  'tokens_in_coordinator',
+  'tokens_out_coordinator',
+  'cost_usd_coordinator',
+  'tokens_in_reduce',
+  'tokens_out_reduce',
+  'cost_usd_reduce',
   'session_restarts',
   'named_exceptions',
   'contract_change_declared',
   'contract_change_measured',
   'host_checks',
-] as const
+] as const satisfies readonly string[]
 export const WAVE_COLUMNS = [
   'wave',
   'n',
@@ -73,6 +106,7 @@ export const WAVE_COLUMNS = [
   'skeleton_hops_total',
   'decomp_pre',
   'decomp_post',
+  'attempts_extra',
   'redispatches',
   'signals_triggered',
 ] as const
@@ -99,20 +133,23 @@ export const MILESTONE_COLUMNS = [
   'late_integration_defects',
   'forecast_percentile',
   'flaky_rate',
+  'map_flaky_rate',
   'gate_median_min',
 ] as const
+export const LINE_COLUMNS = ['line', 'cards', 'coordinator_tokens'] as const
 export type CardColumn = (typeof CARD_COLUMNS)[number]
 export type WaveColumn = (typeof WAVE_COLUMNS)[number]
 export type MilestoneColumn = (typeof MILESTONE_COLUMNS)[number]
+export type LineColumn = (typeof LINE_COLUMNS)[number]
 /** One table row: every column holds its formatted cell; a missing value is the empty string. */
 export type Row<C extends string> = Record<C, string>
 /** Whether a column carries derived values in this run, or why it stays empty. */
 export type FieldStatus = 'derived' | `missing:${string}`
 
-/** The group of cards without a wave. */
-export const MISSING_WAVE = '(missing)'
+/** The group of cards without a wave, and of cards without a line. */
+export const MISSING_GROUP = '(missing)'
 
-/** One test runner run: the ledgers of one timestamp under one head directory. */
+/** One test runner run: one run directory, or a fast directory with the slow one after it. */
 export type AdmissionRun = {
   /** `<head>[-dirty]/<time>` of the run's first directory. */
   key: string
@@ -137,7 +174,7 @@ export type SlotRow = {
   exitCode: number | null
   endedAt: string
 }
-/** The Project fields of one card, exported from the board by a local session. */
+/** The Project fields of one card, from the board export file. */
 export type BoardEntry = {
   wave?: string
   dispatchedAt?: string
@@ -176,9 +213,9 @@ export type LedgerMeta = {
     cards: number
   }
   timestamps: string
-  /** Which input supplies `a` and `admit_fail`; `--admission` wins when both are given. */
-  admissionSource: 'admission' | 'slots' | null
-  /** Admission runs that map to no card; null without `--admission`. */
+  /** Which input supplies `map_a` and `map_admit_fail`; `--admission` wins when both are given. */
+  mapAdmissionSource: 'admission' | 'slots' | null
+  /** Admission runs whose branch names no card; null without `--admission`. */
   unmappedAdmissionRuns: number | null
   admission: { runs: number; directoriesWithoutLedger: number } | null
   slots: { checkRows: number; unmappedCheckRows: number } | null
@@ -186,6 +223,7 @@ export type LedgerMeta = {
     cards: Record<CardColumn, FieldStatus>
     waves: Record<WaveColumn, FieldStatus>
     milestone: Record<MilestoneColumn, FieldStatus>
+    lines: Record<LineColumn, FieldStatus>
   }
   notes: string[]
   /** Card-level input problems that left cells empty, such as a binding that does not parse. */
@@ -195,15 +233,24 @@ export type Ledger = {
   cards: Row<CardColumn>[]
   waves: Row<WaveColumn>[]
   milestone: Row<MilestoneColumn>
+  lines: Row<LineColumn>[]
   meta: LedgerMeta
 }
 
-/** The comment marker of a dispatch decision (tools/dev-flow/src/delivery/dispatch.ts). */
-export const AUTHORITY_MARKER = 'omne-integration-authority:v1'
+/**
+ * The fence marker of a dispatch decision. The owner of this marker is
+ * tools/dev-flow/src/integration/authority.ts; this is a copy, and a new marker version there
+ * must be copied here.
+ */
+const AUTHORITY_MARKER = 'omne-integration-authority:v1'
 /** A handoff report: a comment with a line that starts with this heading. */
 const HANDOFF = /^## 交接报告/m
-/** An acceptance decision: the decision line of docs/engineering/delivery.md with value accept. */
-const ACCEPT = /^[ \t]*-[ \t]*决定[：:][ \t]*accept[ \t]*$/m
+/**
+ * An acceptance decision: a line that starts with the decision field of
+ * docs/engineering/delivery.md and the value accept, followed by the line end or a character
+ * that is not an ASCII letter, such as `- 决定：accept（完整接受）`.
+ */
+const ACCEPT = /^[ \t]*-[ \t]*决定[：:][ \t]*accept(?![A-Za-z])/m
 const LINE_STATE = '<!-- line-state -->'
 /** A card number in a branch name or a directory path. */
 const ISSUE_IN_PATH = /issue-([1-9]\d*)/
@@ -219,14 +266,19 @@ const MISSING = {
   noReviews: 'missing:review reports and PR diffs are not in the inputs',
   noDecomp: 'missing:decomposition error records are not in the inputs',
   noDecisionMarkers: 'missing:no decision-requested and decision comment markers are adopted',
-  noUsage: 'missing:session usage exports are not in the inputs',
+  noUsage: 'missing:the host does not export session usage',
   noExceptions: 'missing:acceptance records carry no machine-readable named exceptions',
   noSnapshot: 'missing:API snapshot comparisons are not in the inputs',
   noHostChecks: 'missing:host check results are not in the inputs',
+  noReduceAdmission:
+    'missing:reduce-side admission runs per batch; the test ledger and the slot ledger record no card number',
+  noRedispatchReason:
+    'missing:attempt records carry no redispatch reason; lost-session and admission-failure redispatches must be counted apart',
   noBoard: 'missing:no --board input',
   noAdmission: 'missing:no --admission input',
   noAdmissionOrSlots: 'missing:no --admission or --slots input',
-  noMappedRun: 'missing:no admission run maps to a card (no meta.branch contains issue-<N>)',
+  noMappedRun:
+    'missing:no admission run maps to a card of the table (no meta.branch contains issue-<N>)',
   noSlots: 'missing:no --slots input',
   noSeats: 'missing:seat counts are not in the inputs',
   noFreeze: 'missing:freeze start times are not in the inputs',
@@ -234,7 +286,7 @@ const MISSING = {
   noSkeleton: 'missing:skeleton scenario reports are not in the inputs',
   noSignals: 'missing:assumption signals are not in the inputs',
   noForecast: 'missing:no archived forecast in the inputs',
-} as const
+} as const satisfies Record<string, FieldStatus>
 
 /** The value at `percent` by the nearest-rank method; undefined for an empty sample. */
 export function nearestRank(values: readonly number[], percent: number): number | undefined {
@@ -247,6 +299,7 @@ const ratio = (value: number | undefined) => (value === undefined ? '' : value.t
 const days = (value: number | undefined) =>
   value === undefined ? '' : Number.isInteger(value) ? String(value) : value.toFixed(1)
 const flag = (value: boolean | undefined) => (value === undefined ? '' : String(value))
+const count = (value: number | undefined) => (value === undefined ? '' : String(value))
 const hoursBetween = (from: string | undefined, to: string | undefined) =>
   from === undefined || to === undefined
     ? undefined
@@ -254,6 +307,11 @@ const hoursBetween = (from: string | undefined, to: string | undefined) =>
 const daysBetweenDates = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0)
+const defined = <T>(values: readonly (T | undefined)[]): T[] =>
+  values.flatMap(value => (value === undefined ? [] : [value]))
+/** Group names in name order, with the missing group last. */
+const groupOrder = (left: string, right: string) =>
+  left === MISSING_GROUP ? 1 : right === MISSING_GROUP ? -1 : left.localeCompare(right)
 
 /** The earliest `updatedAt` among the comments that match; undefined when none matches. */
 function earliest(issue: CapturedIssue, matches: (body: string) => boolean): string | undefined {
@@ -262,7 +320,12 @@ function earliest(issue: CapturedIssue, matches: (body: string) => boolean): str
     .map(comment => comment.updatedAt)
     .sort((left, right) => Date.parse(left) - Date.parse(right))[0]
 }
-/** The attempt of an authority block in a comment; undefined when the comment carries none. */
+/**
+ * The attempt of an authority block in a comment; undefined when the comment carries none.
+ * It does not use the strict decision parser of integration/authority.ts: the ledger counts
+ * every dispatch that was posted, so a block that `start` would refuse still counts when it
+ * names an attempt, and a block that does not parse is skipped instead of failing the ledger.
+ */
 function authorityAttempt(body: string): string | undefined {
   let raw: unknown
   try {
@@ -273,34 +336,25 @@ function authorityAttempt(body: string): string | undefined {
   }
   if (typeof raw !== 'object' || raw === null || !('task' in raw)) return undefined
   const task: unknown = raw.task
-  return typeof task === 'object' && task !== null && 'attempt' in task
-    ? typeof task.attempt === 'string'
-      ? task.attempt
-      : undefined
+  return typeof task === 'object' &&
+    task !== null &&
+    'attempt' in task &&
+    typeof task.attempt === 'string'
+    ? task.attempt
     : undefined
 }
 
-/** The facts of one card that the card table and the aggregates read. */
-type CardFacts = {
-  number: number
-  attempts: number
-  inLine: number | undefined
-  inReduce: number | undefined
-  cycleDays: number | undefined
-  sAdmit: number | undefined
-  a: number | undefined
-  admitFail: number | undefined
-  firstPass: boolean | undefined
-  wave: string
-}
-type Admission = { a: number; fail: number; minutes: number | undefined }
-
-function admissionByCard(inputs: LedgerInputs): {
-  source: LedgerMeta['admissionSource']
-  byCard: Map<number, Admission>
+/** Line-side admission counts of one card. */
+type MapAdmission = { a: number; fail: number; minutes: number | undefined }
+type MapAdmissions = {
+  source: LedgerMeta['mapAdmissionSource']
+  byCard: Map<number, MapAdmission>
   unmapped: number
-} {
-  const byCard = new Map<number, Admission>()
+}
+
+/** Line-side admission runs by card: `--admission` runs by branch, else `--slots` rows. */
+function mapAdmissions(inputs: LedgerInputs): MapAdmissions {
+  const byCard = new Map<number, MapAdmission>()
   const add = (card: number, failed: boolean, minutes: number | undefined) => {
     const entry = byCard.get(card) ?? { a: 0, fail: 0, minutes: undefined }
     entry.a += 1
@@ -337,70 +391,64 @@ function slotCard(row: SlotRow): number | undefined {
   return match === undefined ? undefined : Number(match)
 }
 
-function cardStatus(
-  inputs: LedgerInputs,
-  source: LedgerMeta['admissionSource'],
-  mapped: boolean,
-): Record<CardColumn, FieldStatus> {
-  const board: FieldStatus = inputs.board === undefined ? MISSING.noBoard : 'derived'
-  const counts: FieldStatus =
-    source === null ? MISSING.noAdmissionOrSlots : mapped ? 'derived' : MISSING.noMappedRun
+/** What the comments of one card show, by the comment rules of SPEC.md. */
+type CommentFacts = {
+  attempts: number
+  dispatched: string | undefined
+  delivered: string | undefined
+  accepted: string | undefined
+  evidence: boolean | undefined
+  restarts: number | undefined
+}
+function commentFacts(issue: CapturedIssue, bindingAttempt: string | undefined): CommentFacts {
+  const attempts = new Set<string>(bindingAttempt === undefined ? [] : [bindingAttempt])
+  for (const comment of issue.comments) {
+    const attempt = authorityAttempt(comment.body)
+    if (attempt !== undefined) attempts.add(attempt)
+  }
+  const handoffs = issue.comments.filter(comment => HANDOFF.test(comment.body))
+  const lineStates = issue.comments.filter(comment => comment.body.includes(LINE_STATE)).length
   return {
-    card: 'derived',
-    attempts: 'derived',
-    line: 'derived',
-    kind: 'derived',
-    wave: board,
-    milestone: 'derived',
-    plan_version: MISSING.noPlanChanges,
-    change_ids: MISSING.noPlanChanges,
-    t_dispatch: 'derived',
-    t_deliver: 'derived',
-    t_integrating: MISSING.noGateRuns,
-    t_accept: 'derived',
-    cycle_days: board,
-    t_in_line_h: 'derived',
-    t_in_reduce_h: 'derived',
-    t_sync: MISSING.noSyncRecord,
-    S_sync_min: MISSING.noSyncRecord,
-    S_admit_min:
-      inputs.admission === undefined
-        ? MISSING.noAdmission
-        : mapped
-          ? 'derived'
-          : MISSING.noMappedRun,
-    S_gate_min: MISSING.noGateRuns,
-    S_accept_min: MISSING.noAcceptMarks,
-    a: counts,
-    admit_fail: counts,
-    first_pass: counts,
-    map_admission_evidence: 'derived',
-    map_fix_rounds: MISSING.noFixRounds,
-    reduce_fix_rounds: MISSING.noFixRounds,
-    rework_cause: MISSING.noFixRounds,
-    findings_by_severity: MISSING.noReviews,
-    review_density: MISSING.noReviews,
-    decomp_errors: MISSING.noDecomp,
-    decision_requested_at: MISSING.noDecisionMarkers,
-    decided_at: MISSING.noDecisionMarkers,
-    tokens_in: MISSING.noUsage,
-    tokens_out: MISSING.noUsage,
-    cost_usd: MISSING.noUsage,
-    session_restarts: 'derived',
-    named_exceptions: MISSING.noExceptions,
-    contract_change_declared: 'derived',
-    contract_change_measured: MISSING.noSnapshot,
-    host_checks: MISSING.noHostChecks,
+    attempts: attempts.size,
+    dispatched: earliest(issue, body => authorityAttempt(body) !== undefined),
+    delivered: earliest(issue, body => HANDOFF.test(body)),
+    accepted: earliest(issue, body => ACCEPT.test(body)),
+    evidence:
+      handoffs.length === 0
+        ? undefined
+        : handoffs.some(
+            comment =>
+              comment.body.includes('准入') &&
+              (comment.body.includes('exit=0') || comment.body.includes('退出 0')),
+          ),
+    restarts:
+      issue.labels.includes('level:delivery') && lineStates > 0 ? lineStates - 1 : undefined,
   }
 }
 
-function deriveCard(
-  issue: CapturedIssue,
-  inputs: LedgerInputs,
-  admission: Map<number, Admission>,
-  source: LedgerMeta['admissionSource'],
-  warnings: string[],
-): { row: Row<CardColumn>; facts: CardFacts } {
+/** The facts of one card that the aggregates read. */
+type CardFacts = {
+  number: number
+  line: string
+  wave: string
+  attempts: number
+  inLine: number | undefined
+  inReduce: number | undefined
+  cycleDays: number | undefined
+  map: MapAdmission | undefined
+}
+
+function deriveCard({
+  issue,
+  inputs,
+  admissions,
+  warnings,
+}: {
+  issue: CapturedIssue
+  inputs: LedgerInputs
+  admissions: MapAdmissions
+  warnings: string[]
+}): { row: Row<CardColumn>; facts: CardFacts } {
   let binding: ReturnType<typeof readTaskBinding>
   try {
     binding = readTaskBinding(issue.body, {
@@ -418,74 +466,44 @@ function deriveCard(
   const single = (values: readonly string[]) =>
     values.length === 1 && values[0] !== '' ? values[0] : undefined
   const line = binding?.schemaVersion === 2 ? binding.line : single(attributes.fields.line)
-  const attempts = new Set<string>()
-  if (binding !== undefined) attempts.add(binding.attempt)
-  for (const comment of issue.comments) {
-    const attempt = authorityAttempt(comment.body)
-    if (attempt !== undefined) attempts.add(attempt)
-  }
-  const dispatched = earliest(issue, body => authorityAttempt(body) !== undefined)
-  const delivered = earliest(issue, body => HANDOFF.test(body))
-  const accepted = earliest(issue, body => ACCEPT.test(body))
-  const handoffs = issue.comments.filter(comment => HANDOFF.test(comment.body))
-  const evidence =
-    handoffs.length === 0
-      ? undefined
-      : handoffs.some(
-          comment =>
-            comment.body.includes('准入') &&
-            (comment.body.includes('exit=0') || comment.body.includes('退出 0')),
-        )
-  const lineStates = issue.comments.filter(comment => comment.body.includes(LINE_STATE)).length
-  const restarts =
-    issue.labels.includes('level:delivery') && lineStates > 0 ? lineStates - 1 : undefined
+  const comments = commentFacts(issue, binding?.attempt)
   const board = inputs.board?.get(issue.number)
   const cycleDays =
     board?.cycleDays ??
     (board?.dispatchedAt !== undefined && board.acceptedAt !== undefined
       ? daysBetweenDates(board.dispatchedAt, board.acceptedAt)
       : undefined)
-  const counts = source === null ? undefined : admission.get(issue.number)
-  const firstPass = counts === undefined ? undefined : counts.a === 1 && counts.fail === 0
-  const inLine = hoursBetween(dispatched, delivered),
-    inReduce = hoursBetween(delivered, accepted)
-  const facts: CardFacts = {
-    number: issue.number,
-    attempts: attempts.size,
-    inLine,
-    inReduce,
-    cycleDays,
-    sAdmit: counts?.minutes,
-    a: counts?.a,
-    admitFail: counts?.fail,
-    firstPass,
-    wave: board?.wave ?? MISSING_WAVE,
-  }
+  const map = admissions.byCard.get(issue.number)
+  const inLine = hoursBetween(comments.dispatched, comments.delivered),
+    inReduce = hoursBetween(comments.delivered, comments.accepted)
   const row: Row<CardColumn> = {
     card: String(issue.number),
-    attempts: String(attempts.size),
+    attempts: String(comments.attempts),
     line: line ?? '',
     kind: singleLabel(issue.labels, 'kind:') ?? '',
     wave: board?.wave ?? '',
     milestone: issue.milestone ?? '',
     plan_version: '',
     change_ids: '',
-    t_dispatch: dispatched ?? '',
-    t_deliver: delivered ?? '',
+    t_dispatch: comments.dispatched ?? '',
+    t_deliver: comments.delivered ?? '',
     t_integrating: '',
-    t_accept: accepted ?? '',
+    t_accept: comments.accepted ?? '',
     cycle_days: days(cycleDays),
     t_in_line_h: fixed1(inLine),
     t_in_reduce_h: fixed1(inReduce),
     t_sync: '',
     S_sync_min: '',
-    S_admit_min: fixed1(counts?.minutes),
+    S_admit_min: '',
     S_gate_min: '',
     S_accept_min: '',
-    a: counts === undefined ? '' : String(counts.a),
-    admit_fail: counts === undefined ? '' : String(counts.fail),
-    first_pass: flag(firstPass),
-    map_admission_evidence: flag(evidence),
+    a: '',
+    admit_fail: '',
+    first_pass: '',
+    map_a: count(map?.a),
+    map_admit_fail: count(map?.fail),
+    map_S_admit_min: fixed1(map?.minutes),
+    map_admission_evidence: flag(comments.evidence),
     map_fix_rounds: '',
     reduce_fix_rounds: '',
     rework_cause: '',
@@ -494,22 +512,31 @@ function deriveCard(
     decomp_errors: '',
     decision_requested_at: '',
     decided_at: '',
-    tokens_in: '',
-    tokens_out: '',
-    cost_usd: '',
-    session_restarts: restarts === undefined ? '' : String(restarts),
+    ...usageCells(''),
+    session_restarts: count(comments.restarts),
     named_exceptions: '',
     contract_change_declared: single(attributes.fields.contractChange) ?? '',
     contract_change_measured: '',
     host_checks: '',
   }
-  return { row, facts }
+  return {
+    row,
+    facts: {
+      number: issue.number,
+      line: line ?? MISSING_GROUP,
+      wave: board?.wave ?? MISSING_GROUP,
+      attempts: comments.attempts,
+      inLine,
+      inReduce,
+      cycleDays,
+      map,
+    },
+  }
 }
 
 function deriveWave(wave: string, cards: readonly CardFacts[]): Row<WaveColumn> {
-  const lines = cards.flatMap(card => (card.inLine === undefined ? [] : [card.inLine]))
+  const lines = defined(cards.map(card => card.inLine))
   const max = lines.length === 0 ? undefined : Math.max(...lines)
-  const admitted = cards.flatMap(card => (card.sAdmit === undefined ? [] : [card.sAdmit]))
   return {
     wave,
     n: String(cards.length),
@@ -519,7 +546,7 @@ function deriveWave(wave: string, cards: readonly CardFacts[]): Row<WaveColumn> 
     L_max_h: fixed1(max),
     L_med_h: fixed1(nearestRank(lines, 50)),
     L_min_h: fixed1(lines.length === 0 ? undefined : Math.min(...lines)),
-    sum_S_min: admitted.length === 0 ? '' : fixed1(sum(admitted)),
+    sum_S_min: '',
     f: '',
     lambda: '',
     W: '',
@@ -530,13 +557,17 @@ function deriveWave(wave: string, cards: readonly CardFacts[]): Row<WaveColumn> 
     skeleton_hops_total: '',
     decomp_pre: '',
     decomp_post: '',
-    redispatches: String(sum(cards.map(card => Math.max(0, card.attempts - 1)))),
+    attempts_extra: String(sum(cards.map(card => Math.max(0, card.attempts - 1)))),
+    redispatches: '',
     signals_triggered: '',
   }
 }
 
-/** Among cards with a failed admission row in the slot ledger, the share that later passed. */
-function flakyRate(rows: readonly SlotRow[], cards: ReadonlySet<number>): number | undefined {
+/**
+ * Among the cards of the table with a failed admission row in the slot ledger, the share whose
+ * rows, in `endedAt` order, show a pass after the first failure.
+ */
+function mapFlakyRate(rows: readonly SlotRow[], cards: ReadonlySet<number>): number | undefined {
   const byCard = new Map<number, SlotRow[]>()
   for (const row of checkRows(rows)) {
     const card = slotCard(row)
@@ -561,21 +592,12 @@ function deriveMilestone(
   issues: readonly CapturedIssue[],
   facts: readonly CardFacts[],
 ): Row<MilestoneColumn> {
-  const values = (pick: (card: CardFacts) => number | undefined) =>
-    facts.flatMap(card => {
-      const value = pick(card)
-      return value === undefined ? [] : [value]
-    })
-  const cycle = values(card => card.cycleDays),
-    inLine = values(card => card.inLine),
-    inReduce = values(card => card.inReduce)
-  const a = sum(values(card => card.a)),
-    fails = sum(values(card => card.admitFail))
-  const known = facts.filter(card => card.firstPass !== undefined)
+  const cycle = defined(facts.map(card => card.cycleDays)),
+    inLine = defined(facts.map(card => card.inLine)),
+    inReduce = defined(facts.map(card => card.inReduce))
   const titles = new Set(issues.map(issue => issue.milestone ?? ''))
-  const title = inputs.milestone ?? (titles.size === 1 ? ([...titles][0] ?? '') : '')
   return {
-    milestone: title,
+    milestone: inputs.milestone ?? (titles.size === 1 ? ([...titles][0] ?? '') : ''),
     plan_version: '',
     co_interventions: '',
     cycle_days_median: days(nearestRank(cycle, 50)),
@@ -584,11 +606,8 @@ function deriveMilestone(
     t_in_line_p85_h: fixed1(nearestRank(inLine, 85)),
     t_in_reduce_median_h: fixed1(nearestRank(inReduce, 50)),
     t_in_reduce_p85_h: fixed1(nearestRank(inReduce, 85)),
-    p: a === 0 ? '' : ratio(fails / a),
-    first_pass_rate:
-      known.length === 0
-        ? ''
-        : ratio(known.filter(card => card.firstPass === true).length / known.length),
+    p: '',
+    first_pass_rate: '',
     fix_rounds_distribution: '',
     rework_cause_shares: '',
     review_density_median: '',
@@ -599,15 +618,81 @@ function deriveMilestone(
     first_e2e_ratio: '',
     late_integration_defects: '',
     forecast_percentile: '',
-    flaky_rate:
+    flaky_rate: '',
+    map_flaky_rate:
       inputs.slots === undefined
         ? ''
-        : ratio(flakyRate(inputs.slots, new Set(facts.map(card => card.number)))),
+        : ratio(mapFlakyRate(inputs.slots, new Set(facts.map(card => card.number)))),
     gate_median_min: '',
   }
 }
 
-function waveStatus(cards: Record<CardColumn, FieldStatus>): Record<WaveColumn, FieldStatus> {
+function deriveLines(facts: readonly CardFacts[]): Row<LineColumn>[] {
+  const counts = new Map<string, number>()
+  for (const card of facts) counts.set(card.line, (counts.get(card.line) ?? 0) + 1)
+  return [...counts.keys()]
+    .sort(groupOrder)
+    .map(line => ({ line, cards: String(counts.get(line) ?? 0), coordinator_tokens: '' }))
+}
+
+function cardStatus(inputs: LedgerInputs, admissions: MapAdmissions, mapped: boolean) {
+  const board: FieldStatus = inputs.board === undefined ? MISSING.noBoard : 'derived'
+  const mapCounts: FieldStatus =
+    admissions.source === null
+      ? MISSING.noAdmissionOrSlots
+      : admissions.source === 'slots' || mapped
+        ? 'derived'
+        : MISSING.noMappedRun
+  return {
+    card: 'derived',
+    attempts: 'derived',
+    line: 'derived',
+    kind: 'derived',
+    wave: board,
+    milestone: 'derived',
+    plan_version: MISSING.noPlanChanges,
+    change_ids: MISSING.noPlanChanges,
+    t_dispatch: 'derived',
+    t_deliver: 'derived',
+    t_integrating: MISSING.noGateRuns,
+    t_accept: 'derived',
+    cycle_days: board,
+    t_in_line_h: 'derived',
+    t_in_reduce_h: 'derived',
+    t_sync: MISSING.noSyncRecord,
+    S_sync_min: MISSING.noSyncRecord,
+    S_admit_min: MISSING.noReduceAdmission,
+    S_gate_min: MISSING.noGateRuns,
+    S_accept_min: MISSING.noAcceptMarks,
+    a: MISSING.noReduceAdmission,
+    admit_fail: MISSING.noReduceAdmission,
+    first_pass: MISSING.noReduceAdmission,
+    map_a: mapCounts,
+    map_admit_fail: mapCounts,
+    map_S_admit_min:
+      inputs.admission === undefined
+        ? MISSING.noAdmission
+        : mapped
+          ? 'derived'
+          : MISSING.noMappedRun,
+    map_admission_evidence: 'derived',
+    map_fix_rounds: MISSING.noFixRounds,
+    reduce_fix_rounds: MISSING.noFixRounds,
+    rework_cause: MISSING.noFixRounds,
+    findings_by_severity: MISSING.noReviews,
+    review_density: MISSING.noReviews,
+    decomp_errors: MISSING.noDecomp,
+    decision_requested_at: MISSING.noDecisionMarkers,
+    decided_at: MISSING.noDecisionMarkers,
+    ...usageCells<FieldStatus>(MISSING.noUsage),
+    session_restarts: 'derived',
+    named_exceptions: MISSING.noExceptions,
+    contract_change_declared: 'derived',
+    contract_change_measured: MISSING.noSnapshot,
+    host_checks: MISSING.noHostChecks,
+  } satisfies Record<CardColumn, FieldStatus>
+}
+function waveStatus(): Record<WaveColumn, FieldStatus> {
   return {
     wave: 'derived',
     n: 'derived',
@@ -617,7 +702,7 @@ function waveStatus(cards: Record<CardColumn, FieldStatus>): Record<WaveColumn, 
     L_max_h: 'derived',
     L_med_h: 'derived',
     L_min_h: 'derived',
-    sum_S_min: cards.S_admit_min,
+    sum_S_min: MISSING.noReduceAdmission,
     f: MISSING.noFreeze,
     lambda: MISSING.noQueue,
     W: MISSING.noQueue,
@@ -628,7 +713,8 @@ function waveStatus(cards: Record<CardColumn, FieldStatus>): Record<WaveColumn, 
     skeleton_hops_total: MISSING.noSkeleton,
     decomp_pre: MISSING.noDecomp,
     decomp_post: MISSING.noDecomp,
-    redispatches: 'derived',
+    attempts_extra: 'derived',
+    redispatches: MISSING.noRedispatchReason,
     signals_triggered: MISSING.noSignals,
   }
 }
@@ -646,8 +732,8 @@ function milestoneStatus(
     t_in_line_p85_h: 'derived',
     t_in_reduce_median_h: 'derived',
     t_in_reduce_p85_h: 'derived',
-    p: cards.a,
-    first_pass_rate: cards.first_pass,
+    p: MISSING.noReduceAdmission,
+    first_pass_rate: MISSING.noReduceAdmission,
     fix_rounds_distribution: MISSING.noFixRounds,
     rework_cause_shares: MISSING.noFixRounds,
     review_density_median: MISSING.noReviews,
@@ -658,31 +744,34 @@ function milestoneStatus(
     first_e2e_ratio: MISSING.noSkeleton,
     late_integration_defects: MISSING.noDecomp,
     forecast_percentile: MISSING.noForecast,
-    flaky_rate: inputs.slots === undefined ? MISSING.noSlots : 'derived',
+    flaky_rate: MISSING.noReduceAdmission,
+    map_flaky_rate: inputs.slots === undefined ? MISSING.noSlots : 'derived',
     gate_median_min: MISSING.noGateRuns,
   }
 }
 
-/** Derives the three tables and their meta from parsed inputs. Pure: it reads no file or clock. */
+/** Derives the four tables and their meta from parsed inputs. Pure: it reads no file or clock. */
 export function deriveLedger(inputs: LedgerInputs): Ledger {
   const issues = inputs.capture.issues
     .filter(issue => inputs.milestone === undefined || issue.milestone === inputs.milestone)
     .sort((left, right) => left.number - right.number)
-  const { source, byCard, unmapped } = admissionByCard(inputs)
+  const admissions = mapAdmissions(inputs)
   const warnings: string[] = []
-  const derived = issues.map(issue => deriveCard(issue, inputs, byCard, source, warnings))
+  const derived = issues.map(issue => deriveCard({ issue, inputs, admissions, warnings }))
   const facts = derived.map(item => item.facts)
-  const groups = new Map<string, CardFacts[]>()
-  for (const card of facts) groups.set(card.wave, [...(groups.get(card.wave) ?? []), card])
-  const waveNames = [...groups.keys()].sort((left, right) =>
-    left === MISSING_WAVE ? 1 : right === MISSING_WAVE ? -1 : left.localeCompare(right),
+  const waves = new Map<string, CardFacts[]>()
+  for (const card of facts) waves.set(card.wave, [...(waves.get(card.wave) ?? []), card])
+  const cardFields = cardStatus(
+    inputs,
+    admissions,
+    facts.some(card => card.map !== undefined),
   )
-  const cardFields = cardStatus(inputs, source, source !== 'admission' || byCard.size > 0)
   const slotChecks = inputs.slots === undefined ? undefined : checkRows(inputs.slots)
   return {
     cards: derived.map(item => item.row),
-    waves: waveNames.map(name => deriveWave(name, groups.get(name) ?? [])),
+    waves: [...waves.keys()].sort(groupOrder).map(name => deriveWave(name, waves.get(name) ?? [])),
     milestone: deriveMilestone(inputs, issues, facts),
+    lines: deriveLines(facts),
     meta: {
       kind: 'delivery-ledger-meta',
       version: LEDGER_VERSION,
@@ -704,8 +793,8 @@ export function deriveLedger(inputs: LedgerInputs): Ledger {
       },
       timestamps:
         'Event times are comment updatedAt values: the capture has no createdAt, so an edited comment reads later than it was posted.',
-      admissionSource: source,
-      unmappedAdmissionRuns: inputs.admission === undefined ? null : unmapped,
+      mapAdmissionSource: admissions.source,
+      unmappedAdmissionRuns: inputs.admission === undefined ? null : admissions.unmapped,
       admission:
         inputs.admission === undefined
           ? null
@@ -722,14 +811,17 @@ export function deriveLedger(inputs: LedgerInputs): Ledger {
             },
       fields: {
         cards: cardFields,
-        waves: waveStatus(cardFields),
+        waves: waveStatus(),
         milestone: milestoneStatus(inputs, cardFields),
+        lines: { line: 'derived', cards: 'derived', coordinator_tokens: MISSING.noUsage },
       },
       notes: [
-        'sum_S_min holds only the admission segment S_admit_min.',
-        'redispatches counts attempts beyond the first; lost-session and admission-failure redispatches are not told apart.',
+        'map_* columns count line-side admission runs, mapped to cards by branch or slot ledger; they are not the reduce-side a, admit_fail and first_pass.',
+        'attempts_extra counts attempts beyond the first, without the redispatch reason.',
         ...(inputs.admission !== undefined && inputs.slots !== undefined
-          ? ['Both --admission and --slots were given: a and admit_fail come from --admission.']
+          ? [
+              'Both --admission and --slots were given: map_a and map_admit_fail come from --admission.',
+            ]
           : []),
       ],
       warnings,

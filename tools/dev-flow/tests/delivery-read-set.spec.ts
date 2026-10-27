@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { listWorkspaceMembers, type Tree } from '@omne-harness/repo-toolchain/core/workspace'
-import type { TaskBinding } from '../src/delivery/binding.ts'
 import {
   assignReadSets,
   parseReadSetFile,
@@ -14,6 +13,7 @@ import {
   type ReadSetCard,
 } from '../src/delivery/read-set.ts'
 import { scopeOverlap } from '../src/delivery/scope-overlap.ts'
+import { binding } from './fixtures/binding.ts'
 import { table } from './fixtures/lines.ts'
 
 /** An in-memory workspace: `packages` maps a member directory to its name and workspace dependencies. */
@@ -89,6 +89,16 @@ describe('read sets', () => {
     ])
   })
 
+  it('reports a written directory that contains a page another card reads', () => {
+    const { conflicts } = check(
+      { '#1': ['packages/d/src/z.ts'], '#2': ['docs'] },
+      { '#1': ['docs/a.md'] },
+    )
+    expect(conflicts).toEqual([
+      { writer: '#2', reader: '#1', writePath: 'docs', readPath: 'docs/a.md' },
+    ])
+  })
+
   it('passes cards whose writes miss every other read set', () => {
     const { conflicts } = check(
       { '#1': ['packages/c/src/y.ts'], '#2': ['packages/d/src/z.ts', 'docs/b.md'] },
@@ -133,39 +143,28 @@ describe('read-set files', () => {
 
   it('attaches a file to the card its source names and refuses a source that names none', () => {
     const file = (source: string, reads: string[] = ['docs']) => ({ path: 'r.json', source, reads })
-    const pages = assignReadSets(['#7', 'b.json'], [file('#7'), file('./b.json', ['x'])])
+    const pages = assignReadSets(['#7', 'b.json'], [file('#7'), file('./b.json', ['x'])], '/base')
     expect(Object.fromEntries(pages)).toEqual({ '#7': ['docs'], 'b.json': ['x'] })
-    expect(() => assignReadSets(['#7'], [file('#8')])).toThrow('names no card')
-    expect(() => assignReadSets(['#7'], [file('7')])).toThrow('names no card')
-    expect(() => assignReadSets(['#7'], [file('#7'), file('#7')])).toThrow('more than one')
+    expect(() => assignReadSets(['#7'], [file('#8')], '/base')).toThrow('names no card')
+    expect(() => assignReadSets(['#7'], [file('7')], '/base')).toThrow('names no card')
+    expect(() => assignReadSets(['#7'], [file('#7'), file('#7')], '/base')).toThrow('more than one')
+  })
+
+  it('resolves file sources against the given base and never reads #<n> as a path', () => {
+    const file = (source: string) => ({ path: 'r.json', source, reads: ['docs'] })
+    expect(() => assignReadSets(['#7'], [file('./#7')], '/base')).toThrow('names no card')
+    expect(Object.fromEntries(assignReadSets(['/base/b.json'], [file('b.json')], '/base'))).toEqual(
+      { '/base/b.json': ['docs'] },
+    )
+    expect(() => assignReadSets(['/other/b.json'], [file('b.json')], '/base')).toThrow(
+      'names no card',
+    )
   })
 })
 
 const cli = fileURLToPath(new URL('../src/delivery/scope-cli.ts', import.meta.url))
 const homes: string[] = []
 afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
-function binding(number: number, writeScope: string[]): TaskBinding {
-  return {
-    schemaVersion: 1,
-    issue: {
-      repository: 'owner/repo',
-      id: `I_${number}`,
-      number,
-      url: `https://github.com/owner/repo/issues/${number}`,
-    },
-    revision: 1,
-    attempt: `${number}-r1-a1`,
-    responsible: 'human',
-    branch: `human/issue-${number}`,
-    route: { kind: 'track', track: 'legacy-refactor' },
-    completionTarget: 'track',
-    taskBase: 'a'.repeat(40),
-    writeScope,
-    dispatch: `https://github.com/owner/repo/issues/${number}#issuecomment-1`,
-    conditions: [],
-    authorization: [],
-  }
-}
 
 describe('scope-cli read sets', () => {
   // Slow: runs scope-cli as a child process, which also lists the real workspace members.

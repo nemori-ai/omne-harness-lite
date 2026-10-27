@@ -38,22 +38,24 @@ export function parseReadSetFile(path: string, content: string): ReadSetFile | u
   }
 }
 
-/** `#<n>` names an Issue; any other source is a file path, compared after resolving it. */
-function sourceKey(source: string): string {
-  return /^#[1-9]\d*$/.test(source) ? source : resolve(source)
+/** `#<n>` names an Issue; any other source is a file path, compared after resolving it on `base`. */
+function sourceKey(source: string, base: string): string {
+  return /^#[1-9]\d*$/.test(source) ? source : resolve(base, source)
 }
 /**
- * Maps each card source to the reads of its read-set file. A file whose source names no card,
- * or a second file for one card, is an input error.
+ * Maps each card source to the reads of its read-set file. File sources resolve against `base`,
+ * the directory the command line paths are relative to. A file whose source names no card, or a
+ * second file for one card, is an input error.
  */
 export function assignReadSets(
   sources: readonly string[],
   files: readonly ReadSetFile[],
+  base: string,
 ): Map<string, string[]> {
-  const byKey = new Map(sources.map(source => [sourceKey(source), source]))
+  const byKey = new Map(sources.map(source => [sourceKey(source, base), source]))
   const pages = new Map<string, string[]>()
   for (const file of files) {
-    const source = byKey.get(sourceKey(file.source))
+    const source = byKey.get(sourceKey(file.source, base))
     if (source === undefined)
       throw new IntegrationError(
         'input-error',

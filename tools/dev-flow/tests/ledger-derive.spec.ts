@@ -1,14 +1,20 @@
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import type { CapturedIssue } from '../src/delivery/protocol.ts'
 import { csvField, toCsv } from '../src/ledger/csv.ts'
 import {
   CARD_COLUMNS,
   deriveLedger,
   LEDGER_VERSION,
+  LINE_COLUMNS,
   MILESTONE_COLUMNS,
   nearestRank,
   WAVE_COLUMNS,
   type LedgerInputs,
+  type SlotRow,
 } from '../src/ledger/derive.ts'
 import { readAdmission, readBoard, readCapture, readSlots } from '../src/ledger/sources.ts'
 
@@ -18,6 +24,8 @@ const capture = readCapture(fixture('capture.json'))
 const slots = readSlots(fixture('slots.jsonl'))
 const board = readBoard(fixture('board.json'))
 const admission = readAdmission(fixture('admission'))
+const REDUCE_MISSING =
+  'missing:reduce-side admission runs per batch; the test ledger and the slot ledger record no card number'
 
 function inputs(overrides: Partial<LedgerInputs> = {}): LedgerInputs {
   return {
@@ -36,6 +44,28 @@ const byCard = (ledger: ReturnType<typeof deriveLedger>, card: number) => {
   if (row === undefined) throw new Error(`no row for #${card}`)
   return row
 }
+/** The fixture capture with one more comment on card `number`. */
+function withComment(number: number, updatedAt: string, body: string) {
+  const issues = capture.issues.map((issue): CapturedIssue =>
+    issue.number === number
+      ? {
+          ...issue,
+          comments: [
+            ...issue.comments,
+            { url: `${issue.url}#issuecomment-99`, author: 'human', body, updatedAt },
+          ],
+        }
+      : issue,
+  )
+  return { ...capture, issues }
+}
+const slot = (row: Partial<SlotRow> & Pick<SlotRow, 'endedAt' | 'exitCode'>): SlotRow => ({
+  event: 'ran',
+  command: 'pnpm run check',
+  cwd: '/r/.worktrees/issue-101-r1a2',
+  issue: 101,
+  ...row,
+})
 
 describe('card table', () => {
   const ledger = deriveLedger(inputs())
@@ -63,9 +93,8 @@ describe('card table', () => {
       cycle_days: '2',
       t_in_line_h: '30.5',
       t_in_reduce_h: '19.5',
-      a: '2',
-      admit_fail: '1',
-      first_pass: 'false',
+      map_a: '2',
+      map_admit_fail: '1',
       map_admission_evidence: 'true',
       contract_change_declared: 'none',
       session_restarts: '',
@@ -83,9 +112,8 @@ describe('card table', () => {
       t_in_line_h: '12.0',
       t_in_reduce_h: '',
       cycle_days: '',
-      a: '1',
-      admit_fail: '0',
-      first_pass: 'true',
+      map_a: '1',
+      map_admit_fail: '0',
       map_admission_evidence: 'false',
       contract_change_declared: 'additive',
     })
@@ -96,23 +124,42 @@ describe('card table', () => {
       attempts: '0',
       session_restarts: '2',
       t_dispatch: '',
-      a: '',
-      first_pass: '',
+      map_a: '',
       map_admission_evidence: '',
       cycle_days: '7',
     })
   })
 
-  it('keeps every column the version does not derive empty and names why in the meta', () => {
+  it('accepts a decision line with a note after accept and refuses a longer word', () => {
+    const noted = deriveLedger(
+      inputs({ capture: withComment(102, '2026-10-02T03:00:00Z', '- 决定：accept（完整接受）\n') }),
+    )
+    expect(byCard(noted, 102).t_accept).toBe('2026-10-02T03:00:00Z')
+    const longer = deriveLedger(
+      inputs({ capture: withComment(102, '2026-10-02T03:00:00Z', '- 决定：acceptx\n') }),
+    )
+    expect(byCard(longer, 102).t_accept).toBe('')
+  })
+
+  it('keeps the reduce-side admission and usage columns empty and names why in the meta', () => {
+    for (const column of ['a', 'admit_fail', 'first_pass', 'S_admit_min'] as const) {
+      expect(ledger.meta.fields.cards[column]).toBe(REDUCE_MISSING)
+      for (const row of ledger.cards) expect(row[column]).toBe('')
+    }
+    for (const role of ['worker', 'review', 'coordinator', 'reduce'])
+      for (const column of [`tokens_in_${role}`, `tokens_out_${role}`, `cost_usd_${role}`])
+        expect(ledger.meta.fields.cards).toHaveProperty(
+          column,
+          'missing:the host does not export session usage',
+        )
     const missing = CARD_COLUMNS.filter(column =>
       ledger.meta.fields.cards[column].startsWith('missing:'),
     )
     expect(missing).toContain('t_integrating')
     expect(missing).toContain('decision_requested_at')
-    expect(missing).toContain('S_admit_min')
     for (const row of ledger.cards) for (const column of missing) expect(row[column]).toBe('')
-    expect(ledger.meta.fields.cards.S_admit_min).toBe('missing:no --admission input')
-    expect(ledger.meta.fields.cards.a).toBe('derived')
+    expect(ledger.meta.fields.cards.map_a).toBe('derived')
+    expect(ledger.meta.fields.cards.map_S_admit_min).toBe('missing:no --admission input')
   })
 
   it('falls back to the body line and warns when the binding does not parse', () => {
@@ -129,7 +176,7 @@ describe('card table', () => {
   })
 })
 
-describe('admission runs', () => {
+describe('line-side admission runs', () => {
   it('pairs a fast directory with the slow directory after it and keeps a lone slow one apart', () => {
     expect(admission.runs).toEqual([
       { key: 'abc1234/20261001-090000', branch: 'main', wallSeconds: 60, failed: false },
@@ -149,51 +196,84 @@ describe('admission runs', () => {
     expect(admission.directoriesWithoutLedger).toBe(1)
   })
 
-  it('maps runs to cards by issue-<N> in the branch and derives the admission columns', () => {
+  it('refuses a ledger whose meta.branch is neither a string nor null', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-ledger-admission-')))
+    try {
+      mkdirSync(join(root, 'abc1234', '20261001-100000-fast'), { recursive: true })
+      writeFileSync(
+        join(root, 'abc1234', '20261001-100000-fast', 'ledger.json'),
+        JSON.stringify({ meta: { branch: 7, wallSeconds: 1 }, failures: [] }),
+      )
+      expect(() => readAdmission(root)).toThrow(/meta\.branch must be a string or null/)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('maps runs to cards by issue-<N> in the branch into the map_* columns', () => {
     const ledger = deriveLedger(inputs({ admission, files: { capture: 'c', admission: 'a' } }))
-    expect(ledger.meta.admissionSource).toBe('admission')
+    expect(ledger.meta.mapAdmissionSource).toBe('admission')
     expect(ledger.meta.unmappedAdmissionRuns).toBe(1)
     expect(byCard(ledger, 101)).toMatchObject({
-      a: '1',
-      admit_fail: '0',
-      first_pass: 'true',
-      S_admit_min: '5.0',
+      map_a: '1',
+      map_admit_fail: '0',
+      map_S_admit_min: '5.0',
+      a: '',
+      first_pass: '',
     })
     expect(byCard(ledger, 102)).toMatchObject({
-      a: '1',
-      admit_fail: '1',
-      first_pass: 'false',
-      S_admit_min: '1.5',
+      map_a: '1',
+      map_admit_fail: '1',
+      map_S_admit_min: '1.5',
     })
-    expect(byCard(ledger, 103)).toMatchObject({ a: '', S_admit_min: '' })
-    expect(ledger.milestone).toMatchObject({ p: '0.500', first_pass_rate: '0.500' })
-    expect(ledger.waves.find(row => row.wave === 'W1')?.sum_S_min).toBe('6.5')
-    for (const column of ['a', 'admit_fail', 'first_pass', 'S_admit_min'] as const)
+    expect(byCard(ledger, 103)).toMatchObject({ map_a: '', map_S_admit_min: '' })
+    for (const column of ['map_a', 'map_admit_fail', 'map_S_admit_min'] as const)
       expect(ledger.meta.fields.cards[column]).toBe('derived')
-    expect(ledger.meta.fields.milestone.p).toBe('derived')
+    expect(ledger.waves.find(row => row.wave === 'W1')?.sum_S_min).toBe('')
     expect(ledger.meta.notes).toContain(
-      'Both --admission and --slots were given: a and admit_fail come from --admission.',
+      'Both --admission and --slots were given: map_a and map_admit_fail come from --admission.',
     )
   })
 
-  it('names the missing reason when no run branch names a card', () => {
+  it('names the missing reason when the only mapped run belongs to a card outside the table', () => {
     const ledger = deriveLedger(
       inputs({
         admission: {
           directoriesWithoutLedger: 0,
-          runs: [{ key: 'h/1', branch: 'main', wallSeconds: 60, failed: false }],
+          runs: [
+            { key: 'h/1', branch: 'human/issue-104-x', wallSeconds: 60, failed: false },
+            { key: 'h/2', branch: 'main', wallSeconds: 60, failed: false },
+          ],
         },
       }),
     )
     expect(ledger.meta.unmappedAdmissionRuns).toBe(1)
-    expect(ledger.meta.fields.cards.a).toBe(
-      'missing:no admission run maps to a card (no meta.branch contains issue-<N>)',
+    expect(ledger.meta.fields.cards.map_a).toBe(
+      'missing:no admission run maps to a card of the table (no meta.branch contains issue-<N>)',
     )
-    expect(byCard(ledger, 101).a).toBe('')
+    expect(ledger.meta.fields.cards.map_S_admit_min).toBe(ledger.meta.fields.cards.map_a)
+    expect(byCard(ledger, 101).map_a).toBe('')
+  })
+
+  it('maps a slot row by its issue field before its directory', () => {
+    const ledger = deriveLedger(
+      inputs({
+        slots: [
+          slot({
+            issue: 101,
+            cwd: '/r/.worktrees/issue-102-r1a1',
+            endedAt: '2026-10-02T10:00:00Z',
+            exitCode: 0,
+          }),
+        ],
+      }),
+    )
+    expect(byCard(ledger, 101).map_a).toBe('1')
+    expect(byCard(ledger, 102).map_a).toBe('')
   })
 })
 
-describe('wave and milestone tables', () => {
+describe('wave, milestone and line tables', () => {
   const ledger = deriveLedger(inputs())
 
   it('derives the wave rows from the card rows', () => {
@@ -204,7 +284,8 @@ describe('wave and milestone tables', () => {
       L_med_h: '12.0',
       L_min_h: '12.0',
       idle_seat_time_h: '18.5',
-      redispatches: '1',
+      attempts_extra: '1',
+      redispatches: '',
       sum_S_min: '',
       P: '',
     })
@@ -212,8 +293,10 @@ describe('wave and milestone tables', () => {
       n: '1',
       L_max_h: '',
       idle_seat_time_h: '',
-      redispatches: '0',
+      attempts_extra: '0',
     })
+    expect(ledger.meta.fields.waves.redispatches).toMatch(/^missing:attempt records carry no/)
+    expect(ledger.meta.fields.waves.sum_S_min).toBe(REDUCE_MISSING)
   })
 
   it('groups cards without a board entry under (missing)', () => {
@@ -230,19 +313,67 @@ describe('wave and milestone tables', () => {
       t_in_line_median_h: '12.0',
       t_in_line_p85_h: '30.5',
       t_in_reduce_median_h: '19.5',
-      t_in_reduce_p85_h: '19.5',
-      p: '0.333',
-      first_pass_rate: '0.500',
-      flaky_rate: '1.000',
+      p: '',
+      first_pass_rate: '',
+      flaky_rate: '',
+      map_flaky_rate: '1.000',
       gate_median_min: '',
     })
+    for (const column of ['p', 'first_pass_rate', 'flaky_rate'] as const)
+      expect(ledger.meta.fields.milestone[column]).toBe(REDUCE_MISSING)
+  })
+
+  it('takes the median and P85 of t_in_reduce from different cards', () => {
+    const result = deriveLedger(
+      inputs({ capture: withComment(102, '2026-10-02T03:00:00Z', '- 决定：accept\n') }),
+    )
+    expect(result.milestone).toMatchObject({
+      t_in_reduce_median_h: '6.0',
+      t_in_reduce_p85_h: '19.5',
+    })
+  })
+
+  it('counts a pass before the first failure as no recovery', () => {
+    const result = deriveLedger(
+      inputs({
+        slots: [
+          slot({ endedAt: '2026-10-02T10:00:00Z', exitCode: 0 }),
+          slot({ endedAt: '2026-10-02T11:00:00Z', exitCode: 1 }),
+        ],
+      }),
+    )
+    expect(result.milestone.map_flaky_rate).toBe('0.000')
+  })
+
+  it('orders slot rows by endedAt, not by file order', () => {
+    const result = deriveLedger(
+      inputs({
+        slots: [
+          slot({ endedAt: '2026-10-02T12:00:00Z', exitCode: 0 }),
+          slot({ endedAt: '2026-10-02T10:00:00Z', exitCode: 1 }),
+        ],
+      }),
+    )
+    expect(result.milestone.map_flaky_rate).toBe('1.000')
   })
 
   it('leaves the slot-based cells empty without slots', () => {
     const result = deriveLedger(inputs({ slots: undefined }))
-    expect(result.milestone).toMatchObject({ p: '', first_pass_rate: '', flaky_rate: '' })
-    expect(result.meta.fields.milestone.flaky_rate).toBe('missing:no --slots input')
-    expect(result.meta.fields.milestone.p).toBe('missing:no --admission or --slots input')
+    expect(result.milestone.map_flaky_rate).toBe('')
+    expect(result.meta.fields.milestone.map_flaky_rate).toBe('missing:no --slots input')
+    expect(result.meta.fields.cards.map_a).toBe('missing:no --admission or --slots input')
+  })
+
+  it('counts the cards of each line and keeps coordinator tokens missing', () => {
+    expect(ledger.lines).toEqual([
+      { line: 'docs-line', cards: '1', coordinator_tokens: '' },
+      { line: 'engineering-toolchain', cards: '2', coordinator_tokens: '' },
+    ])
+    expect(ledger.meta.fields.lines).toEqual({
+      line: 'derived',
+      cards: 'derived',
+      coordinator_tokens: 'missing:the host does not export session usage',
+    })
   })
 
   it('writes the version, inputs and a status for every column into the meta', () => {
@@ -256,6 +387,7 @@ describe('wave and milestone tables', () => {
     expect(Object.keys(ledger.meta.fields.cards)).toEqual([...CARD_COLUMNS])
     expect(Object.keys(ledger.meta.fields.waves)).toEqual([...WAVE_COLUMNS])
     expect(Object.keys(ledger.meta.fields.milestone)).toEqual([...MILESTONE_COLUMNS])
+    expect(Object.keys(ledger.meta.fields.lines)).toEqual([...LINE_COLUMNS])
     expect(LEDGER_VERSION).toBe('1')
   })
 })

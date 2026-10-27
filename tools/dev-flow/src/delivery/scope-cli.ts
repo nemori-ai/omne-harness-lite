@@ -71,6 +71,7 @@ try {
   const pages = assignReadSets(
     cards.map(card => card.source),
     files,
+    process.cwd(),
   )
   const overlap = scopeOverlap(cards, table, { includeClosed: args.includeClosed }),
     members = listWorkspaceMembers(fileTree(repositoryFile('')), []),

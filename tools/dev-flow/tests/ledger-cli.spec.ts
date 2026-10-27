@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   CARD_COLUMNS,
   LEDGER_VERSION,
+  LINE_COLUMNS,
   MILESTONE_COLUMNS,
   WAVE_COLUMNS,
 } from '../src/ledger/derive.ts'
@@ -28,7 +29,7 @@ function run(args: string[]) {
 const header = (text: string) => text.split('\r\n')[0]
 
 describe('ledger-cli derive', () => {
-  it('writes the three tables and the meta file and exits 0', () => {
+  it('writes the four tables and the meta file and exits 0', () => {
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-ledger-cli-')))
     homes.push(home)
     const out = join(home, 'm1.5')
@@ -49,11 +50,17 @@ describe('ledger-cli derive', () => {
     ])
     expect(result.stderr).toBe('')
     expect(result.status).toBe(0)
-    expect(JSON.parse(result.stdout)).toMatchObject({ kind: 'ledger-derived', cards: 3, waves: 2 })
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      kind: 'ledger-derived',
+      cards: 3,
+      waves: 2,
+      lines: 2,
+    })
     const read = (name: string) => readFileSync(join(out, name), 'utf8')
     expect(header(read('cards.csv'))).toBe(CARD_COLUMNS.join(','))
     expect(header(read('waves.csv'))).toBe(WAVE_COLUMNS.join(','))
     expect(header(read('milestone.csv'))).toBe(MILESTONE_COLUMNS.join(','))
+    expect(header(read('lines.csv'))).toBe(LINE_COLUMNS.join(','))
     expect(read('cards.csv').split('\r\n')).toHaveLength(5)
     const meta: unknown = JSON.parse(read('ledger-meta.json'))
     expect(meta).toMatchObject({ version: LEDGER_VERSION, unmappedAdmissionRuns: 1 })
