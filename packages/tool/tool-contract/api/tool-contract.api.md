@@ -368,6 +368,7 @@
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
 - `testingTenant` · `testing-values.d.ts`
+- `testingWorkspace` · `testing-values.d.ts`
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolDecisionBridgeConformance` · `testing-decision-bridge.d.ts`
 - `toolEnvironmentConformance` · `testing-environment.d.ts`
@@ -3987,7 +3988,7 @@ export {};
 
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
-import { type TenantId } from '@omne-harness/legal-identity';
+import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { FixedToolRequest } from './definitions.ts';
 import { type Access, type Adoption, type DurableEvidence, type ToolCallId, type ToolInstanceId, type ToolOperationId, type ToolWaitId } from './identity.ts';
 import type { ToolStartRecord } from './ports.ts';
@@ -4001,6 +4002,7 @@ export declare function mintEvidence(record: string, content: unknown): DurableE
 export declare function tenantKey(tenant: TenantId): string;
 export declare function identifyingValues(tenant: TenantId, ...evidences: readonly DurableEvidence[]): readonly unknown[];
 export declare function testingTenant(organization: string, account: string): TenantId;
+export declare function testingWorkspace(text: string): WorkspaceId;
 export declare function memoryAccess<P>(principal: P): Access<P>;
 export declare function memoryOtherAccess<P>(principal: P): Access<P>;
 export declare const callId: (text: string) => ToolCallId;
@@ -4041,7 +4043,7 @@ export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCu
 export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockConformance, type MemoryToolClock, type ToolClockFixture, } from './testing-clock.ts';
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
-export { testingTenant } from './testing-values.ts';
+export { testingTenant, testingWorkspace } from './testing-values.ts';
 ```
 
 ## 声明文件 `value-shapes.d.ts`

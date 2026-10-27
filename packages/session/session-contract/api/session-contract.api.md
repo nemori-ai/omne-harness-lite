@@ -178,6 +178,7 @@
 - `shapeOf` · `testing-case.d.ts`
 - `succeeded` · `testing-case.d.ts`
 - `testingTenant` · `testing-values.d.ts`
+- `testingWorkspace` · `testing-values.d.ts`
 - `userMessage` · `testing-values.d.ts`
 
 ## 声明文件 `block.d.ts`
@@ -1340,7 +1341,7 @@ export declare function memorySessionTransactionsFixture(): SessionTransactionsF
 ## 声明文件 `testing-values.d.ts`
 
 ```ts
-import { type TenantId } from '@omne-harness/legal-identity';
+import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, DurableEvidence, InputId, SessionAccess, SessionId, SessionOperationId } from './identity.ts';
 import type { RoutedInput, SessionCreation } from './values.ts';
@@ -1350,6 +1351,7 @@ export declare function adoption(name: string): Adoption;
 export declare function evidence(record: string): DurableEvidence;
 export declare function mintEvidence(record: string, content: unknown): DurableEvidence;
 export declare function testingTenant(organization: string, account: string): TenantId;
+export declare function testingWorkspace(text: string): WorkspaceId;
 export declare const sessionId: (text: string) => SessionId;
 export declare const inputId: (text: string) => InputId;
 export declare const operationId: (text: string) => SessionOperationId;
@@ -1370,7 +1372,7 @@ export declare function guard(participant: string, owner: string, facts: unknown
 export { NotApplicable, assertIndistinguishable, conformanceCase, expectKind, handle, isNotApplicable, refused, runConformanceCase, shapeOf, succeeded, type CaseVerdict, type ConformanceCase, } from './testing-case.ts';
 export { createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
-export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, userMessage, } from './testing-values.ts';
+export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
 ```
 
 ## 声明文件 `values.d.ts`
@@ -1611,7 +1613,7 @@ export type SessionCreation = Readonly<{
     }>[];
     purpose: string;
     workspace: WorkspaceId | null;
-    attachment: WorkspaceAttachment | null;
+    workspaceAttachment: WorkspaceAttachment | null;
     modes: Readonly<{
         kind: 'explicit';
         value: Modes;
@@ -1656,7 +1658,7 @@ export type DeclarationChange = Readonly<{
 }> | Readonly<{
     kind: 'workspace';
     value: WorkspaceId | null;
-    attachment: WorkspaceAttachment | null;
+    workspaceAttachment: WorkspaceAttachment | null;
     basis: DurableEvidence;
 }> | Readonly<{
     kind: 'model';

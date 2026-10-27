@@ -2,7 +2,6 @@
 // catch a wrong implementation of (SPEC「定义完整性与呈现」「会话常驻规则（R1–R5）」「采用点判定」
 // 「刷新点允许的变化」, G7 binding keys).
 import { describe, expect, it } from 'vitest'
-import { workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
 import { type SourceLayer, type ToolDefinition } from '@omne-harness/tool-contract'
 import {
   deriveDefinition,
@@ -18,7 +17,7 @@ import {
   type ToolBindingKey,
   type ToolReloadResult,
 } from '@omne-harness/tool-contract/provider'
-import { testingTenant } from '@omne-harness/tool-contract/testing'
+import { testingTenant, testingWorkspace } from '@omne-harness/tool-contract/testing'
 import {
   adoption,
   commandsDefinition,
@@ -35,11 +34,7 @@ const tenantA = () =>
 const tenantB = () =>
   testingTenant('org_c0nf0rmance0ther0000000000', 'acc_c0nf0rmance0ther0000000000')
 
-function workspace(text: string): WorkspaceId {
-  const parsed = workspaceCodec.parse(text)
-  if (!parsed.ok) throw new Error(`not a workspace text: ${text}`)
-  return parsed.value
-}
+const workspace = testingWorkspace
 const WORKSPACE_A = 'wsp_c0nf0rmance000000000000000'
 const WORKSPACE_B = 'wsp_c0nf0rmance0ther0000000000'
 

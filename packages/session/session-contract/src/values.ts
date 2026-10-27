@@ -207,8 +207,10 @@ export type Modes = Readonly<{
   collaboration: 'co-work' | 'auto-drive'
 }>
 /**
- * 工作区附着：实例轴与版本轴。形状的语义拥有者是工作区域（docs/domains/workspaces）；两个字段都是非空
- * 文本，格式归工作区域。工作区契约成员发布后改为从那里导入。
+ * The workspace attachment: the instance axis and the version axis. The semantic owner of this
+ * shape is the workspace domain (docs/domains/workspaces); both fields are non-empty text whose
+ * format belongs to that domain. Once the workspace contract member is published, this type is
+ * imported from there.
  */
 export type WorkspaceAttachment = Readonly<{ instance: string; basis: string }>
 export type SessionCreation = Readonly<{
@@ -217,7 +219,7 @@ export type SessionCreation = Readonly<{
   requiredIdentities: readonly Readonly<{ capability: string; name: string }>[]
   purpose: string
   workspace: WorkspaceId | null
-  attachment: WorkspaceAttachment | null
+  workspaceAttachment: WorkspaceAttachment | null
   modes:
     | Readonly<{ kind: 'explicit'; value: Modes }>
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
@@ -252,7 +254,7 @@ export type DeclarationChange =
   | Readonly<{
       kind: 'workspace'
       value: WorkspaceId | null
-      attachment: WorkspaceAttachment | null
+      workspaceAttachment: WorkspaceAttachment | null
       basis: DurableEvidence
     }>
   | Readonly<{ kind: 'model'; name: string; basis: DurableEvidence }>
