@@ -2,39 +2,39 @@
 
 本文件列出本目录的文件与阅读路径。职责说明见 [README.md](README.md)。
 
-## 根入口
+## 根入口与 `./provider` 入口
 
-[index.ts](index.ts) 是根入口，以 `export type *` 或具名导出公开类型，并导出运行值。凭据章用 `export *`，同时带出 `MODEL_SEND`。完整导出清单见[公开页](../docs/public-api.md)。下表列出公开声明文件及其对应章节：
+[index.ts](index.ts) 是根入口，[provider/index.ts](provider/index.ts) 是 `./provider` 入口。两个入口从同一批源文件按名再导出，一个名字只从一个入口导出，规则见[提供者协议入口](../docs/public-api.md#提供者协议入口)。根入口以 `export type *` 或具名导出公开类型，并导出运行值。凭据章在根入口只导出 `CredentialId` 类型，`MODEL_SEND` 与凭据解码函数在 `./provider`。精确归属以两个入口文件为准，完整导出清单见[公开页](../docs/public-api.md)。下表列出公开声明文件、对应的章和导出它的入口：
 
-| 文件 | 章 |
-| --- | --- |
-| [root.ts](root.ts)、[identity-values.ts](identity-values.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；身份与解码 |
-| [reference.ts](reference.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；可保存引用的编码、解码与解析 |
-| [judge-request.ts](judge-request.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；`judgeFixedModelRequest`、`judgeAdmit`、输入拒绝与限额 |
-| [result.ts](result.ts) | 结果、失败和状态 |
-| [result-delivery-values.ts](result-delivery-values.ts) | 结果交付键与冻结载荷声明 |
-| [result-delivery.ts](result-delivery.ts)、[result-delivery-judge.ts](result-delivery-judge.ts) | [结果、失败和状态](../docs/public-api.md#结果失败和状态)；接收端口、回执与交付载荷核对 |
-| [model-stream-values.ts](model-stream-values.ts) | [Model 显示投影纯值](../docs/public-api.md#model-显示投影纯值)；diff/apply |
-| [model-stream.ts](model-stream.ts) | [Model 当前目标与公共观察](../docs/public-api.md#model-当前目标与公共观察)；Model 观察与 current 端口 |
-| [call-surface.ts](call-surface.ts) | 普通调用面与实例观察 |
-| [provider-protocol.ts](provider-protocol.ts) | 独立执行与提供者操作 |
-| [consumer-owner.ts](consumer-owner.ts)、[guard-control.ts](guard-control.ts) | 消费者 owner 的装配声明；守卫派生的控制 operation |
-| [profile.ts](profile.ts)、[profile-source.ts](profile-source.ts) | 档案与请求准备；档案来源与准备资源 |
-| [conversion.ts](conversion.ts) | 消息转换 |
-| [tokenizer.ts](tokenizer.ts) | 文本分词与完整计量依据 |
-| [driver.ts](driver.ts) | 受信宿主驱动 |
-| [replay-values.ts](replay-values.ts) | 推理回放的声明与投影 |
-| [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 |
-| [diagnostics.ts](diagnostics.ts) | 供应商尝试诊断 |
+| 文件 | 章 | 入口 |
+| --- | --- | --- |
+| [root.ts](root.ts)、[identity-values.ts](identity-values.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；身份与解码 | 根入口；`ActorRef`、`decodeReadId` 与 `compareRevisions` 在 `./provider` |
+| [reference.ts](reference.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；可保存引用的编码、解码与解析 | 调用引用在根入口，操作引用在 `./provider` |
+| [judge-request.ts](judge-request.ts) | [根入口的值与请求](../docs/public-api.md#根入口的值与请求)；`judgeFixedModelRequest`、`judgeAdmit`、输入拒绝与限额 | `./provider` |
+| [result.ts](result.ts) | 结果、失败和状态 | 根入口 |
+| [result-delivery-values.ts](result-delivery-values.ts) | 结果交付键与冻结载荷声明 | 根入口 |
+| [result-delivery.ts](result-delivery.ts)、[result-delivery-judge.ts](result-delivery-judge.ts) | [结果、失败和状态](../docs/public-api.md#结果失败和状态)；接收端口、回执与交付载荷核对 | 根入口 |
+| [model-stream-values.ts](model-stream-values.ts) | [Model 显示投影纯值](../docs/public-api.md#model-显示投影纯值)；diff/apply | 根入口 |
+| [model-stream.ts](model-stream.ts) | [Model 当前目标与公共观察](../docs/public-api.md#model-当前目标与公共观察)；Model 观察与 current 端口 | 根入口 |
+| [call-surface.ts](call-surface.ts) | 普通调用面与实例观察 | 根入口 |
+| [provider-protocol.ts](provider-protocol.ts) | 独立执行与提供者操作 | 两个入口各有一部分 |
+| [consumer-owner.ts](consumer-owner.ts)、[guard-control.ts](guard-control.ts) | 消费者 owner 的装配声明；守卫派生的控制 operation | 装配声明在 `./provider`，守卫派生在根入口 |
+| [profile.ts](profile.ts)、[profile-source.ts](profile-source.ts) | 档案与请求准备；档案来源与准备资源 | 两个入口各有一部分 |
+| [conversion.ts](conversion.ts) | 消息转换 | 两个入口各有一部分 |
+| [tokenizer.ts](tokenizer.ts) | 文本分词与完整计量依据 | 两个入口各有一部分 |
+| [driver.ts](driver.ts) | 受信宿主驱动 | `./provider` |
+| [replay-values.ts](replay-values.ts) | 推理回放的声明与投影 | `./provider` |
+| [credential.ts](credential.ts)、[credential-values.ts](credential-values.ts) | 凭据引用与解析端口 | `CredentialId` 在根入口，其余在 `./provider` |
+| [diagnostics.ts](diagnostics.ts) | 供应商尝试诊断 | 根入口 |
 
-## 根入口的内部实现
+## 两个入口的内部实现
 
-下列文件协作实现根入口的公开能力。公开导出以 [index.ts](index.ts) 为准。
+下列文件协作实现两个入口的公开能力。公开导出以 [index.ts](index.ts) 与 [provider/index.ts](provider/index.ts) 为准。
 
 | 文件 | 内容 |
 | --- | --- |
 | [mint.ts](mint.ts) | 内部品牌铸造点 |
-| [input-tree.ts](input-tree.ts) | 输入树快照、资源限制与拒绝；`MODEL_INPUT_LIMITS` 经 `judge-request.ts` 从根入口导出 |
+| [input-tree.ts](input-tree.ts) | 输入树快照、资源限制与拒绝；`MODEL_INPUT_LIMITS` 经 `judge-request.ts` 从 `./provider` 导出 |
 | [request-shape.ts](request-shape.ts) | 固定请求的内部封闭字段判断 |
 
 ## `./testing` 入口
@@ -54,6 +54,11 @@
 | [testing/error.ts](testing/error.ts) | `ScriptedModelError`：脚本误用 |
 | [testing/conformance-scripted.ts](testing/conformance-scripted.ts) | 接好全部钩子的替代被测方 `createScriptedConformanceSubject` 与 `ScriptedPrincipal` |
 | [testing/reduce.ts](testing/reduce.ts) | 替代件的块表：把上游事实归约为可见块，拒绝契约禁止的转换 |
+| [testing/pusher.ts](testing/pusher.ts) | `createScriptedResultPusher`：推送生产者替身 |
+| [testing/stream-references.ts](testing/stream-references.ts) | `createScriptedStreamReferences`：`current` 替身 |
+| [testing/stream-observation.ts](testing/stream-observation.ts) | `createScriptedStreamObservation`：观察替身 |
+| [testing/access.ts](testing/access.ts) | `current` 替身与观察替身共用的测试控制面 `ScriptedAccessDecision` |
+| [testing/stream-codec.ts](testing/stream-codec.ts)、[testing/values.ts](testing/values.ts) | 替身判断 `StreamRef` 用的 Model 引用 codec；替身共用的值辅助函数，不从入口导出 |
 
 ## `./conformance` 入口
 

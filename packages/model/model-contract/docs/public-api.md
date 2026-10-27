@@ -11,7 +11,7 @@
 
 本包有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./testing` 是受控替身入口，`./conformance` 是符合性套件入口。分组规则沿用 tool-contract 的 [SPEC「公开入口的分组」](../../../tool/tool-contract/SPEC.md#公开入口的分组)规则 1–7。依据是谁消费一个名字，不是它在哪个源码文件。
 
-- 根入口 = 有 Model 组外导入者的名字（`packages/agent`、`packages/context` 与 `apps/m2-contract-skeleton` 实际导入的名字）∪ 这些名字的声明直接或间接引用到的名字 ∪ 按规则 3 判为消费侧的名字：[结果推送与保存](#结果失败和状态)、[显示投影](#model-显示投影纯值)与[当前目标与公共观察](#model-当前目标与公共观察)的名字，身份与调用引用，`ModelRuntime` 的闭包，以及[供应商尝试诊断](#供应商尝试诊断)的读面。根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。
+- 根入口 = 有 Model 组外导入者的名字 ∪ 这些名字的声明直接或间接引用到的名字 ∪ 按规则 3 判为消费侧的名字：[结果推送与保存](#结果失败和状态)、[显示投影](#model-显示投影纯值)与[当前目标与公共观察](#model-当前目标与公共观察)的名字，身份与调用引用，`ModelRuntime` 的闭包，以及[供应商尝试诊断](#供应商尝试诊断)的读面。Model 组外是 `packages/model` 之外的包与应用，含它们的测试与示例。根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。
 - `./provider` = 只被 Model 组实现成员（`model`、`model-host-local`、`pi-ai-*`、`tokenizer-tiktoken`、`model-cordis-contract`，含本包自己的测试）使用的提供者协议：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`，受信宿主驱动，档案维护、请求准备与计量校准，转换件与转换目录，分词接口，档案来源与内容权威，凭据解析端口与 `MODEL_SEND`，消费者 owner 的装配声明，以及只有提供者调用的契约函数：共享输入 judge 与限额常量、操作引用的 codec、`decodeReadId`、`compareRevisions`、回放的声明与投影函数。
 - 一个名字只从一个入口导出，两个入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员，不导出 `./testing` 与 `./conformance` 的名字。
 - 根入口不能为空；组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。`./provider` 的名字后来有了组外消费者时移回根入口：根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。导入扫描与闭包计算表列在改变分组的交付 PR 说明中，不进入本页。
@@ -320,11 +320,26 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 ### 三个公开替身
 
-本入口另有[结果推送与保存](../SPEC.md#结果推送与保存)和[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)两个协议的三个公开替身，供契约骨架与消费方的契约测试闭合缺口；公开的理由与边界归 [SPEC](../SPEC.md#公开替身与受控替身)。三个替身状态都在闭包里，不读系统时钟，不导入任何接收方实现。`current` 替身与观察替身带测试控制面 `setAccess`：按真实租户与主体身份（`Object.is`）设 `ScriptedAccessDecision` 的 `allow`、`deny` 或 `unavailable`，没有设过的访问一律 `deny`；它不是生产 AccessCheck。推送生产者替身没有自己的控制面，它以构造时给出的 `principal` 行事，资格由被包的提供者与使用方注入的接收端口各自核验。
+本入口另有[结果推送与保存](../SPEC.md#结果推送与保存)和[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)两个协议的三个公开替身，供契约骨架与消费方的契约测试使用；公开的理由与边界归 [SPEC](../SPEC.md#公开替身与受控替身)。三个替身状态都在闭包里，不读系统时钟，不导入任何接收方实现。`current` 替身与观察替身带测试控制面 `setAccess`：按真实租户与主体身份（`Object.is`）设 `ScriptedAccessDecision` 的 `allow`、`deny` 或 `unavailable`，没有设过的访问一律 `deny`；它不是生产 AccessCheck。推送生产者替身没有自己的控制面，它以构造时给出的 `principal` 行事，资格由被包的提供者与使用方注入的接收端口各自核验。
 
-`createScriptedResultPusher` 包住一个替代提供者。使用方经它返回的 `provider` 受理调用（替身在 `admit` 处记下调用的受理 operation 与引用），经它返回的 `controller` 驱动脚本；`controller` 的其余方法原样转发。`settle` 先转发给内层控制器，然后只经公开面（`inspect`、`dispatches`、`beginRead`/`readNext`/`closeRead`）读出 `CallState`、每个 dispatch 的账目快照（没有报告的写 null）与全部有序 `ResultPart`，组成 result 交付并深复制、深冻结；之后改脚本输入不改变载荷。它按 `resolveReceiver(consumer.owner)` 取接收端口推送：null 记 `no-receiver`；saved 时核回执 key 与原 key 结构相等，不等记 `receipt-key-mismatch`；`outcome-unknown` 按原 key 与同一冻结载荷立即重投，最多 `maxRedeliveries`（默认 3）次，之后记 `unknown` 并保留载荷；其余失败记 `rejected` 带接收方的失败值，不自动重投，`backpressured`、`unavailable` 由测试经 `redeliver` 驱动。解析函数或接收端口抛出时记 `threw`，`error` 是抛出的那个值本身：替身不复制它，也不冻结它。`deliveries()` 按 key 给出 `pending`、`saved`、`failed`、`unknown` 与尝试次数；`settled(call)` 在该调用的 result 交付、它的 ACK 与排在它之前的账目交付都到终态后兑现。saved 是不可回退的调用级事实。一次交付 saved 之后，`deliveries()` 与 `settled()` 一直给出 saved 和原回执。之后每次 `redeliver` 只把尝试次数加一，并以返回值给出这一次尝试的结果，结果可以是 `failed` 或 `unknown`。它不改写 saved，不清除原回执。ACK 与晚账的放行都以这个 saved 事实为准。尚未 saved 的交付，`redeliver` 的结果就是它新的记录。
+`createScriptedResultPusher` 包住一个替代提供者。下面按交付的先后列出它的行为。
 
-saved 之后替身自己取 ACK：固定专用 operation `mop_ack-` 加调用去掉 `mcall_` 前缀后的主体（同一调用重投得到同一 operation，可认回；主体不以 `--` 开头，与 `deriveGuardControlOperation` 的保留规则不冲突；读取结果的 operation 同法用 `mop_push-read-`），以 `{kind:'retained', custody: receipt.evidence}` 调用内层 `acknowledge`；`commit-unknown` 时同 operation 重发，上限同 `maxRedeliveries`，其余失败只记进 `acknowledgements()`，不改 result 的 saved 事实。两个 operation 在 `settle` 转发之前铸造，先铸读取的 `mop_push-read-`（14 个字符）：调用去掉 `mcall_` 后的主体超过 242 个字符时，它超出身份长度上限 256，`settle` 抛 `ScriptedModelError('invalid-script')`，不转发给内层控制器，调用保持 `accepted`；`mop_ack-` 的上限 248 因此不会先到。`mop_ack-` 与 `mop_push-read-` 是替身保留的两个 operation 前缀，调用方不得用它们铸造自己的 operation。经替身的 `provider` 受理时，受理 operation 以其中一个前缀开头，`admit` 抛 `ScriptedModelError('invalid-script')`，不转发给内层提供者。`settled(call)` 只在该调用的 result 交付到终态后兑现：受理过但从未 `settle` 的调用，它永不兑现。晚账：`recordDispatch` 转发后，带非 null 账目的记录按到达顺序排队；result saved 之后，revision 比冻结快照里该 dispatch 新（或快照为 null）的账目组成 account 交付推送，同 dispatch 同 revision 不重复推送。替身不执行每租户与全局限额及背压、正文释放后的晚账恢复扫描、持久交付待办；它不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+- 受理：使用方经它返回的 `provider` 受理调用，替身在 `admit` 处记下调用的受理 operation 与引用。`mop_ack-` 与 `mop_push-read-` 是替身保留的两个 operation 前缀，调用方不得用它们铸造自己的 operation。受理 operation 以其中一个前缀开头时，`admit` 抛 `ScriptedModelError('invalid-script')`，不转发给内层提供者。
+- 驱动：使用方经它返回的 `controller` 驱动脚本。`settle` 与 `recordDispatch` 的行为见下面各项，`controller` 的其余方法原样转发。
+- operation 铸造：`settle` 在转发之前铸造两个固定专用 operation。读取结果用 `mop_push-read-` 加调用去掉 `mcall_` 前缀后的主体，取 ACK 用 `mop_ack-` 加同一主体。同一调用重投得到同一 operation，可以认回。主体不以 `--` 开头，与 `deriveGuardControlOperation` 的保留规则不冲突。先铸的是 `mop_push-read-`（14 个字符）：主体超过 242 个字符时，它超出身份长度上限 256，`settle` 抛 `ScriptedModelError('invalid-script')`，不转发给内层控制器，调用保持 `accepted`。`mop_ack-` 的上限 248 因此不会先到。
+- 冻结：`settle` 转发给内层控制器后，替身只经公开面（`inspect`、`dispatches`、`beginRead`/`readNext`/`closeRead`）读出 `CallState`、每个 dispatch 的账目快照（没有报告的写 null）与全部有序 `ResultPart`，组成 result 交付并深复制、深冻结。之后改脚本输入不改变载荷。
+- 推送：替身按 `resolveReceiver(consumer.owner)` 取接收端口推送，并按回答记录。
+  - 解析结果为 null：记 `no-receiver`。
+  - saved：核回执 key 与原 key 结构相等，不等记 `receipt-key-mismatch`。
+  - `outcome-unknown`：按原 key 与同一冻结载荷立即重投，最多 `maxRedeliveries`（默认 3）次，之后记 `unknown` 并保留载荷。
+  - 其余失败：记 `rejected`，带接收方的失败值，不自动重投。`backpressured`、`unavailable` 由测试经 `redeliver` 驱动。
+  - 解析函数或接收端口抛出：记 `threw`，`error` 是抛出的那个值本身。替身不复制它，也不冻结它。
+- saved 不可回退：saved 是调用级事实。一次交付 saved 之后，`deliveries()` 与 `settled()` 一直给出 saved 和原回执。之后每次 `redeliver` 只把尝试次数加一，并以返回值给出这一次尝试的结果，结果可以是 `failed` 或 `unknown`。它不改写 saved，不清除原回执。ACK 与晚账的放行都以这个 saved 事实为准。尚未 saved 的交付，`redeliver` 的结果就是它新的记录。
+- ACK：saved 之后替身自己取 ACK，用 `mop_ack-` operation 与 `{kind:'retained', custody: receipt.evidence}` 调用内层 `acknowledge`。`commit-unknown` 时同 operation 重发，上限同 `maxRedeliveries`。其余失败只记进 `acknowledgements()`，不改 result 的 saved 事实。
+- 晚账：`recordDispatch` 转发后，带非 null 账目的记录按到达顺序排队。result saved 之后，revision 比冻结快照里该 dispatch 新（或快照为 null）的账目组成 account 交付推送。同 dispatch 同 revision 不重复推送。
+- 读数：`deliveries()` 按 key 给出 `pending`、`saved`、`failed`、`unknown` 与尝试次数。`settled(call)` 在该调用的 result 交付、它的 ACK 与排在它之前的账目交付都到终态后兑现。受理过但从未 `settle` 的调用，`settled(call)` 永不兑现。
+
+替身不执行每租户与全局限额及背压、正文释放后的晚账恢复扫描、持久交付待办。它不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
 
 `createScriptedStreamReferences` 从一个确认记录给出 `ModelStreamSelection`：`confirmSelection` 登记 state 与当前目标，`establishWithoutTarget` 登记没有目标的确认，`withdrawTarget` 退役无后继；`setSource('unavailable')` 使读取返回 `unavailable(stream-references)`；`holdResponse`/`reached`/`releaseResponse` 让一次响应等待，等待后重核资格并重读来源。失败顺序按 [current 的失败与读取顺序](../SPEC.md#current-的失败与读取顺序)；`events()` 记录每次通过前置检查的来源读取。登记的记录与返回的 selection 都是深复制、深冻结的纯值。
 

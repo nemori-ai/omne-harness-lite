@@ -7,12 +7,15 @@
 
 ```ts
 import type {
-  Access, FixedModelRequest, ModelTransport, IndependentModelFact,
+  Access, FixedModelRequest, ModelPreparationResources,
+} from '@omne-harness/model-contract'
+import type {
+  ModelTransport, IndependentModelFact,
   ModelCommands, ModelSendBoundary, ModelRetryPolicy, ModelInstanceHost,
   ModelClock, ModelProvider, ModelDriver, ModelProfileSource, ModelProfiles,
-  ModelPreparationResources, ModelRequestPreparation, ModelConverterCatalog,
+  ModelRequestPreparation, ModelConverterCatalog,
   ModelContentAuthority, ModelMessageConversion,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 
 import { executeModel, createModelRuntime } from '@omne-harness/model'
 import type { ModelConfiguration, ModelDependencies, ModelRuntimeProvider } from '@omne-harness/model'

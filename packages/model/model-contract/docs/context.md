@@ -21,11 +21,11 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract 的[公开接口页](public-api.md)导航根入口、`./provider`、`./testing` 与 `./conformance` 的声明，实际名字见[导出清单](../tests/fixtures/exports.json)。根入口是消费者面，`./provider` 是提供者协议，分组规则见[提供者协议入口](public-api.md#提供者协议入口)。根入口包含引用共享 `ToolCallPart` 的声明。`./testing` 提供受控替代提供者与替代传输，给领域外的协调者练习失败路径；另有推送生产者替身、`current` 替身与观察替身三个公开替身（[受控替代提供者](public-api.md#三个公开替身)）。它们都不是生产提供者。提供者作者可用 `./conformance` 入口的 `checkModelProviderConformance` 检查自己的提供者是否守住公开面上可观察的契约义务。
+model-contract 的[公开接口页](public-api.md)导航根入口、`./provider`、`./testing` 与 `./conformance` 的声明，实际名字见[导出清单](../tests/fixtures/exports.json)。根入口是消费者面，`./provider` 是提供者协议，分组规则见[提供者协议入口](public-api.md#提供者协议入口)。根入口包含引用共享 `ToolCallPart` 的声明。`./testing` 提供受控替代提供者与替代传输，给领域外的协调者练习失败路径；另有推送生产者替身、`current` 替身与观察替身三个公开替身（[三个公开替身](public-api.md#三个公开替身)）。它们都不是生产提供者。提供者作者可用 `./conformance` 入口的 `checkModelProviderConformance` 检查自己的提供者是否守住公开面上可观察的契约义务。
 
 model-cordis-contract 的抽象 Service、凭据服务、实例目录与转换目录见其[公开接口页](../../model-cordis-contract/docs/public-api.md)。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现。本地凭据保管及其插件在 model-host-local。下表描述托管运行接口的消费路径，现有凭据入口见 model 的公开文档。
 
-新增 producer push/saved 与公共内容观察协议已采用，尚未提供真实接收、observe 或 current 能力。消费者继续使用当前公开入口。[新协议](../SPEC.md#推送与公共观察的交付边界)规定后续纯值、公共身份声明，以及 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795) 的 Model 宿主实现与 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787) 的原消费者拥有者（Agent 宿主的结果接收方）迁移的分界，不把现有 testing evidence 当生产证据。`./testing` 提供推送生产者替身、`current` 替身与观察替身三个公开替身，供契约骨架与 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787) 的契约测试闭合缺口，见[公开替身与受控替身](../SPEC.md#公开替身与受控替身)。它们仍不是生产能力。原 Agent wait 对 changed 完整快照的消费保持，current 的发布和有界刷新须随真实接入另验。
+本契约包含 producer push/saved 与公共内容观察两个协议。本包不提供真实接收、observe 或 current 能力。消费者继续使用当前公开入口。[新协议](../SPEC.md#推送与公共观察的交付边界)规定后续纯值、公共身份声明，以及 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795) 的 Model 宿主实现与 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787) 的原消费者拥有者（Agent 宿主的结果接收方）迁移的分界，不把现有 testing evidence 当生产证据。`./testing` 提供推送生产者替身、`current` 替身与观察替身三个公开替身，供契约骨架与消费方的契约测试使用，见[公开替身与受控替身](../SPEC.md#公开替身与受控替身)。它们仍不是生产能力。原 Agent wait 对 changed 完整快照的消费保持，current 的发布和有界刷新须随真实接入另验。
 
 | 使用任务 | 安装与导入 |
 | --- | --- |
