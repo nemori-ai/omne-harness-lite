@@ -8,9 +8,9 @@
 
 本成员拥有合法身份文本、相等判断、租户组合，以及唯一的 `IDENTITY_TYPE_NAMES`。它也拥有 `ActingScope` 和 `Access<P>`。位置 `packages/common/legal-identity` 是共同组说明里已经采用的目标。
 
-Issue #243 实现了公开入口。入口包含五个 codec、五个相等函数、`tenant()` 和 `IDENTITY_TYPE_NAMES`。Issue #659 新增 `ActingScope` 及其构造函数、codec 和相等函数，以及 `Access<P>` 及其构造函数。依据是 #638 的 2026-10-23 决定记录：两种主体形式、唯一一份 `Access<P>`、空租户不可表达。Issue #679 新增 `WorkspaceId` 家族及其 codec 和相等函数。依据是 #638 的决定 J11：`WorkspaceId` 归工作区领域拥有，是合法身份的第六个家族。共同组说明把本成员记为已实现。精确文本归本页。
+Issue #243 实现了公开入口，当时包含五个 codec、五个相等函数、`tenant()` 和 `IDENTITY_TYPE_NAMES`。Issue #659 新增 `ActingScope` 及其构造函数、codec 和相等函数，以及 `Access<P>` 及其构造函数。依据是 #638 的 2026-10-23 决定记录：两种主体形式、唯一一份 `Access<P>`、空租户不可表达。Issue #679 新增 `WorkspaceId` 家族及其 codec 和相等函数。依据是 #638 的 2026-10-23 决定记录第 J11 项。工作区领域拥有工作区身份的含义。本包拥有它的文本形式，作为合法身份的第六个家族。共同组说明把本成员记为已实现。精确文本归本页。
 
-解析成功不表示对象存在、成员有效或授权允许该操作。账号注册、认证、凭证、成员关系、角色、授权、时钟和 session 行为归各自的拥有者。本包不导入 JSON 读取器、数据库、Cordis、身份服务，也不导入两棵 legacy 树。
+解析成功不表示对象存在、成员有效或授权允许该操作。账号注册、认证、凭证、成员关系、角色、授权、时钟和 session 行为归各自的拥有者。工作区的存在、参与和关联归工作区契约。本包不导入 JSON 读取器、数据库、Cordis、身份服务，也不导入两棵 legacy 树。
 
 ## 使用
 
@@ -44,7 +44,7 @@ tenantCodec.encode(pair)
 
 ## 契约
 
-语义来源是共同组说明和已接受的 #221 设计。本节写下本包实现的精确文本形式和失败码。共同组说明没有写出四个前缀。`acc_`、`org_`、`lgn_` 来自已接受的 #221 草图。`wsp_` 是 #679 的具名决定。
+语义来源是共同组说明和已接受的 #221 设计。本节写下本包实现的精确文本形式和失败码。共同组说明写出了 `acc_`、`org_`、`lgn_`，它们来自已接受的 #221 草图。`wsp_` 来自 #679 的决定，共同组说明还没有写出它。
 
 每个 `parse` 和 `encode` 都返回结果，不抛出。成功是 `{ ok: true, value }`。失败是 `{ ok: false, error: { kind: 'identity-text-error', code } }`。解析不 trim，也不折叠大小写。
 
@@ -147,6 +147,6 @@ tenantCodec.encode(pair)
 
 ## 维护
 
-包清单声明依赖本包的消费者是：agent 组的 `agent-contract`、`agent-cordis-contract`、`agent`；context 组的 `request-context-contract`、`runtime-context-contract`、`runtime-context-cordis-contract`；execution 组的 `execution-environment-contract`、`execution-environment`、`execution-environment-host-local`；model 组的 `model-contract`、`model-cordis-contract`、`model`、`model-host-local`；tool 组的 `tool-contract`、`tool-cordis-contract`；以及 `tools/product-checks` 的 `identity-shapes` 检查。该检查从本包导入 `IDENTITY_TYPE_NAMES`。`packages/identity/identity` 与 `packages/identity/authorization` 自 #659 起声明依赖本包。`packages/session/session` 在设计上点名使用本包，它的包清单没有声明依赖。各自写过 `Access<P>` 的契约成员（`agent-contract`、`tool-contract`、`execution-environment-contract`、`model-contract`、`request-context-contract`）是这份共用定义的消费者；改成再导出归它们各自的交付。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。
+包清单声明依赖本包的消费者是：agent 组的 `agent-contract`、`agent-cordis-contract`、`agent`；context 组的 `request-context-contract`、`runtime-context-contract`、`runtime-context-cordis-contract`；execution 组的 `execution-environment-contract`、`execution-environment`、`execution-environment-host-local`；model 组的 `model-contract`、`model-cordis-contract`、`model`、`model-host-local`；tool 组的 `tool-contract`、`tool-cordis-contract`；以及 `tools/product-checks` 的 `identity-shapes` 检查。该检查从本包导入 `IDENTITY_TYPE_NAMES`。`packages/identity/identity` 与 `packages/identity/authorization` 自 #659 起声明依赖本包。`packages/session/session` 在设计上点名使用本包，它的包清单没有声明依赖。各自写过 `Access<P>` 的契约成员（`agent-contract`、`tool-contract`、`execution-environment-contract`、`model-contract`、`request-context-contract`）是这份共用定义的消费者；改成再导出归它们各自的交付。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。现在没有成员导入 `workspaceCodec`。第一个消费者是 `tool-contract` 的 `SourceLayer.workspace` 分支，该迁移归 #675。
 
 新增原子家族时，先声明它的 spec 常量，把这一行放进 `IDENTITY_SPECS`，再加它的类型、codec、相等函数和测试。这项修改也会改变 `IDENTITY_TYPE_NAMES`，所以要同步 `identity-shapes` 的拥有者。修改前缀、字母表、失败码或检查顺序都会改变公开契约。修改前先同步已点名的消费者和共同组说明。
