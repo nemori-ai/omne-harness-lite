@@ -1,5 +1,5 @@
 name: gate-publish
-run-name: "gate-publish #${{ inputs.pr }}"
+run-name: "gate-publish:${{ inputs.pr }}:${{ inputs.head }}:${{ inputs.checkpoint }}"
 
 # Runs only from the github-gate branch. The file with the same name on main
 # is an empty shell that exists so that workflow_dispatch can find it.

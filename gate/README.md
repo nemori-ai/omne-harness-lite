@@ -100,4 +100,6 @@ Claude Code 云端代理拦截 GraphQL、`orgs/` 与 `environments` 路径（#47
 
 流程在检出代码前只读取一次描述符快照，核对摘要、仓库、完整工具提交、published 模式和当前 workflow 提交。核对失败就停止；通过后才检出固定工具、按锁文件安装依赖、以只读方式采用安装并校验登记申请。默认分支入口只输出从 github-gate 执行的指导并失败，不登记申请。
 
-更新 workflow 时，版本 2 描述符须显式保留仍被 journal 引用的旧 facts workflow 身份。安装描述符不授派发权，不指定新的接受者，也不代表接受卡片。reduce 的 facts 生产权须另行明确激活或从已停止的旧生产者完整转移；普通安装不会取得生产权。未知派发按原 operation 和 journal 恢复，不重建请求或从最新运行猜测归属。
+更新 workflow 时，版本 2 或 3 描述符须显式保留仍被 journal 引用的旧 facts workflow 身份。安装描述符不授派发权，不指定新的接受者，也不代表接受卡片。reduce 的 facts 生产权须另行明确激活或从已停止的旧生产者完整转移；普通安装不会取得生产权。未知派发按原 operation 和 journal 恢复，不重建请求或从最新运行猜测归属。
+
+版本 3 描述符另行固定 `gate-publish.yml` 的路径、`github-gate` ref 和完整 workflow 提交。运行标题为 `gate-publish:<pr>:<head>:<checkpoint>`，普通集成的 checkpoint 为空。reduce 监督器同时核对这些输入、采用的 workflow 提交和运行 attempt，不能只按 PR 号认领最近运行。更新本分支后，采用者须显式更新当前 workflow 身份并保留原 journal 引用的历史身份。
