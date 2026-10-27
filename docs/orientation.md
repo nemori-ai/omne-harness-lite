@@ -106,7 +106,7 @@ flowchart TB
 
 ### 核心四项的方向
 
-这张图只回答一个问题：Session、Agent、Model、Tool 与执行环境之间，源码可以依赖哪个方向，运行时结果送到哪里，哪些反向耦合被禁止。
+这张图只回答一个问题：Session、Agent、Model、Tool 与执行环境之间，源码可以依赖哪个方向，运行时结果送到哪里，哪些源码依赖被禁止。
 
 ```mermaid
 flowchart LR
@@ -140,7 +140,7 @@ flowchart LR
 
 - 实线是允许的源码依赖。外层认识内层，并且只用内层公开的契约。
 - 虚线是运行时交付。Model 和 Tool 按受理时保存的 `ConsumerRef` 交付结果。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存它，不解释它的业务含义。所以运行时有箭头，源码上没有 Model 到 Agent 的依赖。Agent 到 Session 的虚线是 session-adapters 的两个插件在运行时接收 Agent 的事件与提交参加。
-- 末端带叉、标着 `DIR-*` 的线是被禁止的源码依赖。前五条是反向依赖：契约层不得认识外层的状态、生命周期或治理。后两条（`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`）禁止 Session 的两个契约成员跳过 Agent 直接依赖 Model 或 Tool 的契约成员；session-adapters 不在其中。
+- 末端带叉、标着 `DIR-*` 的线是被禁止的源码依赖。前五条是反向依赖：契约层不得认识外层的状态、生命周期或治理。后两条（`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`）禁止 Session 的两个契约成员导入 Model 或 Tool 的契约成员，类型导入也算；session-adapters 与 session-cordis 不在其中。
 
 Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会话与工作](domains/sessions-and-work/README.md#协作与依赖)写两者之间有两种关系：资格的参加，即 Session 是 Tool 启动围栏的资格版本拥有者；以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成。
 

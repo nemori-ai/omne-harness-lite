@@ -9,7 +9,7 @@
 
 Agent 重装配期间，在途输出对观察者连续。观察关联稳定调用与生产者保管的内容，不绑定 Agent 实例。Agent 外侧根据[稳定模型调用引用](model-runtime.md#h1-model-lifetime)解析当前流，Agent 实例的退出或替换不使观察连接依赖旧实例，也不要求重发原调用。
 
-会话日志保存执行与消费事实，显示流交付生产者已保管的内容，会计结算关联原调用。三者分别推进。显示只经公共流契约到达观察者，不经 Model 与 Tool 的操作契约；Session 的两个契约成员不依赖 Model 与 Tool 的契约成员，已由 [constraints.json](../constraints.json) 的 `DIR-SESSION-MODEL`、`DIR-SESSION-TOOL` 两条方向行机读，范围与未覆盖见[现有成员与工具适配](../../package-organization.md#现有成员与工具适配)。连续观察不表示无限重放，也不保证网络故障下没有缺口，快照、续接与未确认尾部按本页既有保管边界处理。
+会话日志保存执行与消费事实，显示流交付生产者已保管的内容，会计结算关联原调用。三者分别推进。显示只经公共流契约到达观察者，不经 Model 与 Tool 的操作契约；这条规则尚无方向行，仍靠评审。与它相邻的一条已机读：Session 的两个契约成员不依赖 Model 与 Tool 的契约成员，见 [constraints.json](../constraints.json) 的 `DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`，范围与未覆盖见[现有成员与工具适配](../../package-organization.md#现有成员与工具适配)。连续观察不表示无限重放，也不保证网络故障下没有缺口，快照、续接与未确认尾部按本页既有保管边界处理。
 
 ## 到达语法与在途观察
 
