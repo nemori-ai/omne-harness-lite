@@ -30,6 +30,23 @@ export function githubRequestEvidence(read: GhRead): RequestEvidenceReader {
     const blob = /^blob\/([0-9a-f]{40}|[0-9a-f]{64})\/(.+)$/.exec(path)
     if (blob === null || url.hash !== '')
       throw new InputError('integration-request-evidence-locator-unsupported')
+    let segments: string[]
+    try {
+      segments = (blob[2] ?? '').split('/').map(segment => decodeURIComponent(segment))
+    } catch {
+      throw new InputError('integration-request-evidence-path-invalid')
+    }
+    if (
+      segments.some(
+        segment =>
+          segment === '' ||
+          segment === '.' ||
+          segment === '..' ||
+          /[\/\\\u0000-\u001f]/.test(segment),
+      )
+    )
+      throw new InputError('integration-request-evidence-path-invalid')
+    const filePath = segments.join('/')
     const result = object(
       read(
         [
@@ -37,15 +54,20 @@ export function githubRequestEvidence(read: GhRead): RequestEvidenceReader {
           '--method',
           'GET',
           ...REST_HEADERS,
-          `repos/${repo}/contents/${blob[2]}?ref=${blob[1]}`,
+          `repos/${repo}/contents/${segments.map(encodeURIComponent).join('/')}?ref=${blob[1]}`,
         ],
         15_000,
       ),
       'evidence blob',
     )
-    if (result.type !== 'file' || result.encoding !== 'base64')
+    if (result.type !== 'file' || result.encoding !== 'base64' || result.path !== filePath)
       throw new InputError('integration-request-evidence-content-unsupported')
-    return Buffer.from(string(result.content, 'evidence.content'), 'base64').toString('utf8')
+    const bytes = Buffer.from(string(result.content, 'evidence.content'), 'base64')
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    } catch {
+      throw new InputError('integration-request-evidence-not-utf8')
+    }
   }
 }
 

@@ -733,4 +733,39 @@ describe('integration request command to trusted Action receipt', () => {
     )
     expect(f.posts).toHaveLength(2)
   })
+  it('reads immutable blob bytes but rejects response path mismatch and encoded traversal', () => {
+    const f = fixture(),
+      body = 'Frozen report bytes',
+      calls: string[][] = []
+    const reference = {
+      url: `https://github.com/owner/repo/blob/${HEAD}/reports/result%20one.txt`,
+      sha256: digest(body),
+      description: 'Frozen blob',
+    }
+    const read = githubRequestEvidence(argv => {
+      calls.push([...argv])
+      return {
+        type: 'file',
+        path: 'reports/result one.txt',
+        encoding: 'base64',
+        content: Buffer.from(body).toString('base64'),
+      }
+    })
+    expect(read('owner/repo', reference)).toBe(body)
+    expect(calls[0]?.at(-1)).toBe(`repos/owner/repo/contents/reports/result%20one.txt?ref=${HEAD}`)
+    expect(() =>
+      githubRequestEvidence(() => ({ type: 'file', path: 'wrong.txt', encoding: 'base64' }))(
+        'owner/repo',
+        reference,
+      ),
+    ).toThrow('content-unsupported')
+    expect(() =>
+      read('owner/repo', {
+        ...reference,
+        url: `https://github.com/owner/repo/blob/${HEAD}/%2e%2e%2fprivate`,
+      }),
+    ).toThrow('path-invalid')
+    expect(calls).toHaveLength(1)
+    expect(f.posts).toHaveLength(0)
+  })
 })
