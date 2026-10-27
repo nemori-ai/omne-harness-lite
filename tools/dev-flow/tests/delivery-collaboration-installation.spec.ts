@@ -146,7 +146,7 @@ describe('explicit collaboration installation', () => {
       'collaboration-installation-read-only',
     )
   })
-  function historicalInstallation() {
+  function historicalInstallation(version: 2 | 3 = 2) {
     const f = fixture()
     const workflow = {
       id: 9,
@@ -158,7 +158,16 @@ describe('explicit collaboration installation', () => {
       f,
       input: {
         ...f.installation,
-        schemaVersion: 2,
+        schemaVersion: version,
+        ...(version === 3
+          ? {
+              gateWorkflow: {
+                path: '.github/workflows/gate-publish.yml',
+                ref: 'github-gate',
+                head: f.head,
+              },
+            }
+          : {}),
         facts: {
           kind: 'published',
           workflow,
@@ -227,71 +236,74 @@ describe('explicit collaboration installation', () => {
     ).toThrow('unknown fields gateWorkflow')
   })
 
-  it('supplies adopted history through the installed request and watch readers', () => {
-    const { f, input } = historicalInstallation()
-    const declaration = dispatch()
-    const historical = input.facts.historicalWorkflows[0]!
-    const facts = {
-      schemaVersion: 1,
-      nonce: '0'.repeat(32),
-      run: 202,
-      issue: 100,
-      authority: {
-        url: declaration.html_url,
-        author: declaration.user.login,
-        authorNodeId: declaration.user.node_id,
-        bodySha256: digest(declaration.body),
-        updatedAt: declaration.updated_at,
-        reviewer: true,
-      },
-      project: {
-        id: JSON.parse(f.files.get(policy.deliveryConfig)!).project.id,
-        item: 'ITEM_1',
-        stage: 'Ready',
-      },
-    }
-    const comment = rawComment(
-      20,
-      block(FACTS_MARKER, facts),
-      '2026-10-27T10:00:30Z',
-      input.facts.bot.login,
-    )
-    comment.user = { ...input.facts.bot, node_id: input.facts.bot.nodeId, type: 'Bot' }
-    const api = backend(undefined, [declaration, comment])
-    const run = {
-      id: 202,
-      workflow_id: historical.id,
-      path: historical.path,
-      head_branch: historical.ref,
-      head_sha: historical.head,
-      event: 'workflow_dispatch',
-      run_attempt: 1,
-      status: 'completed',
-      conclusion: 'success',
-      created_at: '2026-10-27T10:00:00Z',
-      run_started_at: '2026-10-27T10:00:01Z',
-      updated_at: '2026-10-27T10:01:00Z',
-      repository: { full_name: policy.repository },
-      head_repository: { full_name: policy.repository },
-    }
-    const read: GhRead = (args, timeout) => {
-      expect(args[2]).toBe('GET')
-      const path = args.at(-1) ?? ''
-      if (path.includes('/contents/')) return f.read(args, timeout)
-      if (/\/actions\/runs\/202(?:\/attempts\/1)?$/.test(path)) return structuredClone(run)
-      return structuredClone(api.read(args, timeout))
-    }
-    const text = JSON.stringify(input)
-    installCollaboration(f.root, text, digest(text))
-    const assembly = openCollaborationInstallation(f.root, policy.repository, read)
-    expect(assembly.request.factsFor?.(declaration.html_url)).toEqual(facts.authority)
-    expect(assembly.watch.taskFactsFor?.(declaration.html_url)).toEqual(facts.authority)
-    expect(assembly.authorityFor(100).factsFor?.(declaration.html_url)).toEqual(facts.authority)
-    run.head_sha = '8'.repeat(40)
-    expect(() => assembly.request.factsFor?.(declaration.html_url)).toThrow(
-      'workflow provenance mismatch',
-    )
-  })
+  it.each([2, 3] as const)(
+    'supplies adopted history through the installed v%s request and watch readers',
+    version => {
+      const { f, input } = historicalInstallation(version)
+      const declaration = dispatch()
+      const historical = input.facts.historicalWorkflows[0]!
+      const facts = {
+        schemaVersion: 1,
+        nonce: '0'.repeat(32),
+        run: 202,
+        issue: 100,
+        authority: {
+          url: declaration.html_url,
+          author: declaration.user.login,
+          authorNodeId: declaration.user.node_id,
+          bodySha256: digest(declaration.body),
+          updatedAt: declaration.updated_at,
+          reviewer: true,
+        },
+        project: {
+          id: JSON.parse(f.files.get(policy.deliveryConfig)!).project.id,
+          item: 'ITEM_1',
+          stage: 'Ready',
+        },
+      }
+      const comment = rawComment(
+        20,
+        block(FACTS_MARKER, facts),
+        '2026-10-27T10:00:30Z',
+        input.facts.bot.login,
+      )
+      comment.user = { ...input.facts.bot, node_id: input.facts.bot.nodeId, type: 'Bot' }
+      const api = backend(undefined, [declaration, comment])
+      const run = {
+        id: 202,
+        workflow_id: historical.id,
+        path: historical.path,
+        head_branch: historical.ref,
+        head_sha: historical.head,
+        event: 'workflow_dispatch',
+        run_attempt: 1,
+        status: 'completed',
+        conclusion: 'success',
+        created_at: '2026-10-27T10:00:00Z',
+        run_started_at: '2026-10-27T10:00:01Z',
+        updated_at: '2026-10-27T10:01:00Z',
+        repository: { full_name: policy.repository },
+        head_repository: { full_name: policy.repository },
+      }
+      const read: GhRead = (args, timeout) => {
+        expect(args[2]).toBe('GET')
+        const path = args.at(-1) ?? ''
+        if (path.includes('/contents/')) return f.read(args, timeout)
+        if (/\/actions\/runs\/202(?:\/attempts\/1)?$/.test(path)) return structuredClone(run)
+        return structuredClone(api.read(args, timeout))
+      }
+      const text = JSON.stringify(input)
+      installCollaboration(f.root, text, digest(text))
+      const assembly = openCollaborationInstallation(f.root, policy.repository, read)
+      expect(assembly.request.factsFor?.(declaration.html_url)).toEqual(facts.authority)
+      expect(assembly.watch.taskFactsFor?.(declaration.html_url)).toEqual(facts.authority)
+      expect(assembly.authorityFor(100).factsFor?.(declaration.html_url)).toEqual(facts.authority)
+      run.head_sha = '8'.repeat(40)
+      expect(() => assembly.request.factsFor?.(declaration.html_url)).toThrow(
+        'workflow provenance mismatch',
+      )
+    },
+  )
 
   it.each([
     'missing',
@@ -554,10 +566,14 @@ describe('installed producer continuity', () => {
     f: ReturnType<typeof fixture>,
     head: string,
     history: FactsDeployment['workflow'][] = [],
+    version: 2 | 3 = 2,
   ) {
     return {
       ...f.installation,
-      schemaVersion: 2 as const,
+      schemaVersion: version,
+      ...(version === 3
+        ? { gateWorkflow: { path: '.github/workflows/gate-publish.yml', ref: 'github-gate', head } }
+        : {}),
       facts: {
         kind: 'published' as const,
         workflow: { id: 9, path: '.github/workflows/delivery-facts.yml', ref: 'github-gate', head },
@@ -613,14 +629,14 @@ describe('installed producer continuity', () => {
     },
   )
 
-  it(
-    'transfers a real preparation journal through the CLI and resumes only its original run',
+  it.each([2, 3] as const)(
+    'transfers a real v2 preparation journal into v%s through the CLI and resumes only its original run',
     { tags: ['slow'] },
-    () => {
+    version => {
       const old = fixture(),
         next = fixture()
       const initial = published(old, '1'.repeat(40))
-      const replacement = published(next, '2'.repeat(40), [initial.facts.workflow])
+      const replacement = published(next, '2'.repeat(40), [initial.facts.workflow], version)
       const declaration = dispatch(),
         api = backend(undefined, [declaration])
       const runs = new Map<number, Record<string, unknown>>()
@@ -687,6 +703,10 @@ describe('installed producer continuity', () => {
       const journal = join(old.root, '.git', 'omne-facts-preparation')
       const slot = readdirSync(journal)[0]!
       const original = readFileSync(join(journal, slot, 'intent-1.json'))
+      const originalReceipt = readFileSync(join(journal, slot, 'run-1.json'))
+      const originalInstallation = JSON.parse(
+        readFileSync(join(old.root, '.git', 'omne-collaboration-installation.json'), 'utf8'),
+      )
       current = replacement.facts.workflow
       expect(install(next, replacement, ['--producer-from', old.root], read).producer).toBe(
         'transferred',
@@ -721,6 +741,11 @@ describe('installed producer continuity', () => {
       )
       const destination = join(next.root, '.git', 'omne-facts-preparation', slot)
       expect(readFileSync(join(destination, 'intent-1.json'))).toEqual(original)
+      expect(readFileSync(join(destination, 'run-1.json'))).toEqual(originalReceipt)
+      expect(
+        JSON.parse(readFileSync(join(next.root, '.git', 'omne-facts-producer.json'), 'utf8'))
+          .installations,
+      ).toContainEqual(originalInstallation)
       expect(
         JSON.parse(readFileSync(join(destination, 'intent-2.json'), 'utf8')).binding.deployment
           .workflow,
