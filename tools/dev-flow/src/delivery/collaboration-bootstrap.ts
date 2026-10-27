@@ -1,4 +1,4 @@
-import { dirname, join, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { canonical, digest, object, same, string } from '../integration/parse.ts'
 import { parsePolicy } from '../integration/policy.ts'
@@ -7,7 +7,19 @@ import { repository } from '../integration/git.ts'
 import { createFactsPreparation } from '../integration/prepare-delivery-facts.ts'
 import { readAcceptanceSourcesRest } from './collaboration-acceptance-source.ts'
 import { publishedAuthorityReaders } from './collaboration-facts.ts'
-import { readCollaborationInstallation } from './collaboration-installation.ts'
+import {
+  readCollaborationInstallation,
+  readCollaborationInstallationRecord,
+  parseCollaborationInstallationRecord,
+  type CollaborationInstallation,
+} from './collaboration-installation.ts'
+import {
+  initializeProducer,
+  transferProducer,
+  readProducerState,
+  type ProducerInstallation,
+} from './collaboration-producer-state.ts'
+import type { FactsDeployment } from '../integration/published-delivery-facts.ts'
 import { collaborationJson } from './collaboration-json.ts'
 import { REST_HEADERS, runGhRead, type GhRead } from './github-read.ts'
 import { githubRequestEvidence } from './integration-request-evidence.ts'
@@ -52,8 +64,123 @@ function readPolicy(repo: string, source: PolicySource, read: GhRead) {
   return parsePolicy(collaborationJson(file.text))
 }
 
+function configuration(installation: CollaborationInstallation, read: GhRead) {
+  const policy = readPolicy(installation.repository, installation.policySource, read)
+  same(policy.repository, installation.repository, 'collaboration-installation-policy-repository')
+  const config = parseConfig(
+    collaborationJson(
+      readFile(
+        installation.repository,
+        installation.policySource.commit,
+        policy.deliveryConfig,
+        read,
+      ).text,
+    ),
+  )
+  if (
+    !config.enabled ||
+    config.repository !== installation.repository ||
+    config.project.id === null ||
+    config.writers.stage === null ||
+    config.writers.body === null
+  )
+    throw new InputError('collaboration-installation-delivery-config')
+  return { policy, projectId: config.project.id }
+}
+
+function proof(record: ProducerInstallation['record'], read: GhRead): ProducerInstallation {
+  const { installation } = parseCollaborationInstallationRecord(record)
+  if (installation.facts.kind !== 'published')
+    throw new InputError('producer-published-installation-required')
+  const { projectId } = configuration(installation, read)
+  return {
+    record,
+    installationDigest: digest(canonical(installation)),
+    deployment: {
+      repository: installation.repository,
+      projectId,
+      workflow: installation.facts.workflow,
+      bot: installation.facts.bot,
+    },
+  }
+}
+
+function producerPorts(
+  root: string,
+  current: ProducerInstallation,
+  historicalWorkflows: readonly FactsDeployment['workflow'][],
+  read: GhRead,
+) {
+  const allowed = new Set([current.deployment.workflow, ...historicalWorkflows].map(canonical))
+  const cache = new Map([[current.record.sha256, current]])
+  const resolveInstallation = (value: unknown) => {
+    const { record } = parseCollaborationInstallationRecord(value)
+    const resolved = cache.get(record.sha256) ?? proof(record, read)
+    same(resolved.record, record, 'producer-record-conflict')
+    const { repository: repo, projectId, bot, workflow } = resolved.deployment
+    same(
+      { repository: repo, projectId, bot },
+      {
+        repository: current.deployment.repository,
+        projectId: current.deployment.projectId,
+        bot: current.deployment.bot,
+      },
+      'producer-identity-migration-unsupported',
+    )
+    if (!allowed.has(canonical(workflow)))
+      throw new InputError('producer-historical-workflow-not-adopted')
+    cache.set(record.sha256, resolved)
+    return resolved
+  }
+  return {
+    gitDir: repository(root).gitDir,
+    current,
+    resolveInstallation,
+    assertCurrent: () =>
+      same(
+        readCollaborationInstallationRecord(root).record,
+        current.record,
+        'producer-installed-record-changed',
+      ),
+  }
+}
+
+export function adoptCollaborationProducer(
+  root: string,
+  mode: { kind: 'initial' } | { kind: 'transfer'; fromRoot: string },
+  read: GhRead = runGhRead,
+) {
+  const { record, installation } = readCollaborationInstallationRecord(root)
+  const current = proof(record, read)
+  const historicalWorkflows =
+    installation.schemaVersion === 2 && installation.facts.kind === 'published'
+      ? installation.facts.historicalWorkflows
+      : []
+  const ports = producerPorts(root, current, historicalWorkflows, read)
+  if (mode.kind === 'initial') initializeProducer(ports)
+  else {
+    const source = readCollaborationInstallationRecord(mode.fromRoot)
+    const predecessor = ports.resolveInstallation(source.record)
+    transferProducer({
+      ...ports,
+      fromGitDir: repository(mode.fromRoot).gitDir,
+      predecessor,
+      assertSource: () =>
+        same(
+          readCollaborationInstallationRecord(mode.fromRoot).record,
+          source.record,
+          'producer-source-installation-changed',
+        ),
+    })
+  }
+  const state = readProducerState(ports)
+  if (state === undefined) throw new InputError('producer-activation-missing')
+  return { installationDigest: current.installationDigest, journalRoot: state.journalRoot }
+}
+
 export function openCollaborationInstallation(root: string, repo: string, transport: GhRead) {
-  const installation = readCollaborationInstallation(root, repo)
+  const { record, installation } = readCollaborationInstallationRecord(root)
+  same(installation.repository, repo, 'collaboration-installation-repository-mismatch')
   const read: GhRead = (argv, timeout) => {
     if (
       argv[0] !== 'api' ||
@@ -63,21 +190,7 @@ export function openCollaborationInstallation(root: string, repo: string, transp
       throw new InputError('collaboration-installation-read-only')
     return transport(argv, timeout)
   }
-  const policy = readPolicy(repo, installation.policySource, read)
-  same(policy.repository, repo, 'collaboration-installation-policy-repository')
-  const config = parseConfig(
-    collaborationJson(
-      readFile(repo, installation.policySource.commit, policy.deliveryConfig, read).text,
-    ),
-  )
-  if (
-    !config.enabled ||
-    config.repository !== repo ||
-    config.project.id === null ||
-    config.writers.stage === null ||
-    config.writers.body === null
-  )
-    throw new InputError('collaboration-installation-delivery-config')
+  const { policy, projectId } = configuration(installation, read)
   const sources = readAcceptanceSourcesRest(repo, installation.acceptanceSource, read)
   const readers: Pick<ReduceWatchPorts, 'authorityFor'> & {
     taskFactsFor: ReduceWatchPorts['taskFactsFor']
@@ -87,7 +200,7 @@ export function openCollaborationInstallation(root: string, repo: string, transp
           policy,
           {
             repository: repo,
-            projectId: config.project.id,
+            projectId,
             workflows: [
               installation.facts.workflow,
               ...(installation.schemaVersion === 2 ? installation.facts.historicalWorkflows : []),
@@ -119,20 +232,38 @@ export function openCollaborationInstallation(root: string, repo: string, transp
     installation,
     'collaboration-installation-changed-during-open',
   )
-  const prepareFacts =
-    installation.facts.kind === 'published' && installation.schemaVersion === 1
-      ? createFactsPreparation({
-          deployment: {
-            repository: repo,
-            projectId: config.project.id,
-            workflow: installation.facts.workflow,
-            bot: installation.facts.bot,
-          },
-          installationDigest: digest(canonical(installation)),
-          journalRoot: join(repository(root).gitDir, 'omne-facts-preparation'),
-          call: transport,
-        })
-      : undefined
+  let prepareFacts: ReturnType<typeof createFactsPreparation> | undefined
+  if (installation.facts.kind === 'published') {
+    const current: ProducerInstallation = {
+      record,
+      installationDigest: digest(canonical(installation)),
+      deployment: {
+        repository: repo,
+        projectId,
+        workflow: installation.facts.workflow,
+        bot: installation.facts.bot,
+      },
+    }
+    const historicalWorkflows =
+      installation.schemaVersion === 2 ? installation.facts.historicalWorkflows : []
+    const state = readProducerState(producerPorts(root, current, historicalWorkflows, read))
+    if (state !== undefined)
+      prepareFacts = createFactsPreparation({
+        deployment: current.deployment,
+        installationDigest: current.installationDigest,
+        historicalWorkflows,
+        priorInstallations: state.priorInstallations,
+        assertActive: state.assertActive,
+        journalRoot: state.journalRoot,
+        call: transport,
+      })
+  }
+
+  same(
+    readCollaborationInstallationRecord(root).record,
+    record,
+    'collaboration-installation-record-changed-during-open',
+  )
   return { installation, policy, request, watch, authorityFor: readers.authorityFor, prepareFacts }
 }
 

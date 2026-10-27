@@ -20,7 +20,12 @@ import {
   parseCollaborationInstallation,
   readCollaborationInstallation,
 } from '../src/delivery/collaboration-installation.ts'
-import { openCollaborationInstallation } from '../src/delivery/collaboration-bootstrap.ts'
+import {
+  adoptCollaborationProducer,
+  openCollaborationInstallation,
+} from '../src/delivery/collaboration-bootstrap.ts'
+import { factsRunName } from '../src/integration/prepared-facts-run.ts'
+import type { FactsDeployment } from '../src/integration/published-delivery-facts.ts'
 import { installCollaborationCli } from '../src/delivery/collaboration-install-cli.ts'
 import type { GhRead } from '../src/delivery/github-read.ts'
 import { backend, block, dispatch, policy, rawComment } from './fixtures/collaboration-authority.ts'
@@ -44,7 +49,7 @@ function fixture() {
     'commit',
     '--allow-empty',
     '-qm',
-    'Fixture tool',
+    `Fixture tool ${root}`,
   ])
   const head = git(root, ['rev-parse', 'HEAD'])
   const config = JSON.parse(
@@ -462,5 +467,223 @@ describe('installed collaboration assembly', () => {
         return result
       }),
     ).toThrow('not clean')
+  })
+})
+
+describe('installed producer continuity', () => {
+  function published(
+    f: ReturnType<typeof fixture>,
+    head: string,
+    history: FactsDeployment['workflow'][] = [],
+  ) {
+    return {
+      ...f.installation,
+      schemaVersion: 2 as const,
+      facts: {
+        kind: 'published' as const,
+        workflow: { id: 9, path: '.github/workflows/delivery-facts.yml', ref: 'github-gate', head },
+        bot: { login: 'fixed[bot]', nodeId: 'BOT_fixed' },
+        historicalWorkflows: history,
+      },
+    }
+  }
+  function install(
+    f: ReturnType<typeof fixture>,
+    input: ReturnType<typeof published>,
+    flags: string[] = [],
+    read = f.read,
+  ) {
+    const text = JSON.stringify(input)
+    const path = join(f.root, '.git', 'producer-descriptor.json')
+    writeFileSync(path, text)
+    return JSON.parse(
+      installCollaborationCli(
+        ['--descriptor', path, '--sha256', digest(text), ...flags],
+        f.root,
+        read,
+      ),
+    )
+  }
+
+  // These adoption cases repeatedly start real Git processes to validate both tool checkouts.
+  it.each([1, 2])(
+    'requires explicit producer adoption for schema %s',
+    { tags: ['slow'] },
+    version => {
+      const f = fixture()
+      const input = published(f, f.head)
+      const text = JSON.stringify(
+        version === 2
+          ? input
+          : {
+              ...input,
+              schemaVersion: 1,
+              facts: { kind: 'published', workflow: input.facts.workflow, bot: input.facts.bot },
+            },
+      )
+      installCollaboration(f.root, text, digest(text))
+      expect(
+        openCollaborationInstallation(f.root, policy.repository, f.read).prepareFacts,
+      ).toBeUndefined()
+      adoptCollaborationProducer(f.root, { kind: 'initial' }, f.read)
+      expect(
+        openCollaborationInstallation(f.root, policy.repository, f.read).prepareFacts,
+      ).toBeTypeOf('function')
+      adoptCollaborationProducer(f.root, { kind: 'initial' }, f.read)
+      expect(f.trace.every(args => args[2] === 'GET')).toBe(true)
+    },
+  )
+
+  it(
+    'transfers a real preparation journal through the CLI and resumes only its original run',
+    { tags: ['slow'] },
+    () => {
+      const old = fixture(),
+        next = fixture()
+      const initial = published(old, '1'.repeat(40))
+      const replacement = published(next, '2'.repeat(40), [initial.facts.workflow])
+      const declaration = dispatch(),
+        api = backend(undefined, [declaration])
+      const runs = new Map<number, Record<string, unknown>>()
+      const posts: string[][] = []
+      let current = initial.facts.workflow
+      const read: GhRead = (args, timeout) => {
+        const path = args.find(arg => arg.startsWith('repos/')) ?? ''
+        if (path.includes('/contents/')) {
+          return path.endsWith(`?ref=${old.head}`)
+            ? old.read(args, timeout)
+            : next.read(args, timeout)
+        }
+        if (args[2] === 'POST') {
+          posts.push([...args])
+          const fields = Object.fromEntries(
+            args
+              .filter(arg => arg.startsWith('inputs['))
+              .map(arg => {
+                const end = arg.indexOf(']=')
+                return [arg.slice(7, end), arg.slice(end + 2)]
+              }),
+          )
+          const id = 200 + posts.length
+          runs.set(id, {
+            id,
+            workflow_id: current.id,
+            path: current.path,
+            head_branch: current.ref,
+            head_sha: current.head,
+            event: 'workflow_dispatch',
+            run_attempt: 1,
+            display_title: factsRunName({
+              issue: fields.issue!,
+              authority: fields.authority!,
+              nonce: fields.nonce!,
+            }),
+            status: 'queued',
+            conclusion: null,
+            created_at: '2026-10-27T10:00:00Z',
+            repository: { full_name: policy.repository },
+            head_repository: { full_name: policy.repository },
+          })
+          return {
+            workflow_run_id: id,
+            run_url: `https://api.github.com/repos/${policy.repository}/actions/runs/${id}`,
+            html_url: `https://github.com/${policy.repository}/actions/runs/${id}`,
+          }
+        }
+        if (path.endsWith('/actions/workflows/9'))
+          return { id: current.id, path: current.path, state: 'active' }
+        if (path.includes('/git/ref/heads/'))
+          return { ref: `refs/heads/${current.ref}`, object: { sha: current.head } }
+        const match = /\/actions\/runs\/(\d+)(?:\/attempts\/1)?$/.exec(path)
+        if (match !== null) return structuredClone(runs.get(Number(match[1])))
+        return structuredClone(api.read(args, timeout))
+      }
+      expect(install(old, initial, ['--initial-producer'], read).producer).toBe('initialized')
+      const prior = openCollaborationInstallation(old.root, policy.repository, read).prepareFacts!
+      expect(prior(declaration.html_url)).toMatchObject({
+        status: 'pending',
+        generation: 1,
+        run: { id: 201 },
+      })
+      const journal = join(old.root, '.git', 'omne-facts-preparation')
+      const slot = readdirSync(journal)[0]!
+      const original = readFileSync(join(journal, slot, 'intent-1.json'))
+      current = replacement.facts.workflow
+      expect(install(next, replacement, ['--producer-from', old.root], read).producer).toBe(
+        'transferred',
+      )
+      expect(prior(declaration.html_url)).toMatchObject({
+        status: 'unknown',
+        diagnostic: 'producer-retired',
+      })
+      expect(
+        openCollaborationInstallation(old.root, policy.repository, read).prepareFacts,
+      ).toBeUndefined()
+      const prepare = openCollaborationInstallation(
+        next.root,
+        policy.repository,
+        read,
+      ).prepareFacts!
+      expect(prepare(declaration.html_url)).toMatchObject({
+        status: 'pending',
+        generation: 1,
+        run: { id: 201 },
+      })
+      expect(posts).toHaveLength(1)
+      Object.assign(runs.get(201)!, { status: 'completed', conclusion: 'failure' })
+      expect(prepare(declaration.html_url, { retryFailed: true })).toMatchObject({
+        status: 'pending',
+        generation: 2,
+        run: { id: 202 },
+      })
+      expect(runs.get(202)?.head_sha).toBe(current.head)
+      expect(install(next, replacement, ['--producer-from', old.root], read).producer).toBe(
+        'transferred',
+      )
+      const destination = join(next.root, '.git', 'omne-facts-preparation', slot)
+      expect(readFileSync(join(destination, 'intent-1.json'))).toEqual(original)
+      expect(
+        JSON.parse(readFileSync(join(destination, 'intent-2.json'), 'utf8')).binding.deployment
+          .workflow,
+      ).toEqual(current)
+      expect(posts).toHaveLength(2)
+    },
+  )
+
+  it.each(['workflow', 'bot', 'project'] as const)(
+    'does not derive %s trust from a predecessor descriptor',
+    { tags: ['slow'] },
+    mismatch => {
+      const old = fixture(),
+        next = fixture()
+      const initial = published(old, '1'.repeat(40))
+      const replacement = published(
+        next,
+        '2'.repeat(40),
+        mismatch === 'workflow' ? [] : [initial.facts.workflow],
+      )
+      install(old, initial, ['--initial-producer'])
+      if (mismatch === 'bot') replacement.facts.bot.nodeId = 'OTHER_BOT'
+      if (mismatch === 'project') {
+        const config = JSON.parse(next.files.get(policy.deliveryConfig)!)
+        config.project.id = 'OTHER_PROJECT'
+        next.files.set(policy.deliveryConfig, JSON.stringify(config))
+      }
+      const read: GhRead = (args, timeout) =>
+        (args.at(-1)?.endsWith(`?ref=${next.head}`) ? next : old).read(args, timeout)
+      expect(() => install(next, replacement, ['--producer-from', old.root], read)).toThrow(
+        /not-adopted|identity-migration/,
+      )
+      expect(() => readFileSync(join(next.root, '.git', 'omne-facts-producer.json'))).toThrow()
+    },
+  )
+
+  it('rejects conflicting producer CLI modes before recording an installation', () => {
+    const f = fixture(),
+      input = published(f, f.head)
+    expect(() => install(f, input, ['--initial-producer', '--producer-from', f.root])).toThrow(
+      'options',
+    )
+    expect(() => readCollaborationInstallation(f.root, policy.repository)).toThrow('required')
   })
 })

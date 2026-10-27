@@ -73,7 +73,23 @@ pnpm run collaboration:install --descriptor /absolute/adopted-installation.json 
 
 命令只写本地采用记录，不派发 workflow，也不接受卡片。相同描述符可重复安装。不同描述符须使用新的固定检出，不能覆盖现有采用。
 
-升级 workflow 后需要读取旧 facts 时，使用版本 2 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。当前版本 2 只提供读取能力；生产日志的转移与激活尚未完成，`facts:prepare` 会返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或启动新的独立生产者来绕过此限制。
+升级 workflow 后需要读取旧 facts 时，使用版本 2 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。版本 1 和 2 的普通安装均不取得生产权；未激活时，`facts:prepare` 返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或从空目录推断可以重新生产。
+
+只有负责 facts 生产的 reduce 工具检出需要下列一种显式采用方式。Line 和其他只读消费者不加这些选项。
+
+首次生产且从未有旧生产者时，添加 `--initial-producer`。这是操作员对首次接管的明确声明。工具只检查本地没有旧 journal，不能证明其他机器没有生产者。
+
+替换旧生产者时，先停止旧进程并禁用其启动器，再在新工具检出执行：
+
+```sh
+pnpm run collaboration:install --descriptor /absolute/adopted-installation.json --sha256 <reviewed-sha256> --producer-from /absolute/old-tool-checkout
+```
+
+新描述符须显式保留所有旧 journal 所需的 workflow 身份。命令核对旧描述符，完整复制 journal 原字节，持久记录旧端退役，再激活新端。它不终止进程，也不能阻止不认识退役记录的旧二进制或远端写者。保留旧检出和记录。转移中断后重复同一命令；不要改用初始模式、删除部分记录或重启旧生产者。
+
+转移只覆盖 facts 生产 journal。已提交的 request 回执、line 和 wait journal 仍须保留。Line 在波末交接后或下一波开工前切换；已挂 wait 保留原结果，或明确取消后按同一上下文重新挂起。跨机复制和远端进程停止由迁移操作负责人处理，本命令要求旧检出在本机可访问。
+
+新安装产生首个新 generation 前，可停止新写者，核对 journal 未新增，再回旧固定工具进行原 wait 和 request 的读取、恢复演练。保留旧端退役与新端激活记录，不启动旧 facts 生产者。返回新端时重复同一转移命令核对。已有新 generation 后不得恢复旧快照，也不支持不兼容生产者降级。
 
 安装后，使用这个源工具检出的命令。参数帮助分别为：
 
@@ -101,7 +117,7 @@ pnpm run facts:prepare --repo owner/name --dispatch https://github.com/owner/nam
 
 只有精确运行的 attempt 1 已明确失败，而且没有该派发的 facts，才可加 `--retry-failed` 创建新的生产代。新代沿用人的派发授权，生成新 nonce 和新运行，不使用 GitHub rerun。资格为负、事实冲突、成功但未读到 facts、运行未知都不能用此选项绕过。
 
-生产 journal 位于工具检出的私有 Git 目录 `omne-facts-preparation`。一个持续 reduce 负责人使用一份持久 journal。移动宿主或升级安装时保留旧 journal，并处理其中未决操作。独立检出之间没有分布式锁；不能让两个安装各自初始化同一派发。安装不匹配的旧操作拒绝继续，不能删除记录来消除冲突。
+生产 journal 位于工具检出的私有 Git 目录 `omne-facts-preparation`。一个持续 reduce 负责人使用一份持久 journal。移动宿主或升级安装时保留旧 journal，并处理其中未决操作。独立检出之间没有分布式锁；不能让两个安装各自初始化同一派发。已完整转移的旧操作使用其原安装和 workflow 恢复；新 POST 只使用当前 workflow。未显式采用的旧绑定拒绝，不能删除记录来消除冲突。
 
 下一波所需的当前、历史和任务派发集合由 reduce 负责汇总。所有准备结果为 ready 后，发布时仍重新执行资格和接受校验。该命令不接受卡片，也不放行 line。
 
@@ -325,6 +341,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 频道模式需要可访问频道服务和 GitHub REST。自建 hook 需要相应仓库权限；借用模式不需要消费者管理 hook。legacy 另需 cli/gh-webhook 扩展。真实多机、宿主续接与采用结论按本次候选验收记录，不以单元测试或旧探路延迟代替。条款见 [SPEC](SPEC.md#事件等待)。
 
 ## 运行模块检查
+
+生产者转移与持久准备的[有限模型检查](../../verification/producer-continuity/README.md)使用已配置的 Java 与 `TLA2TOOLS_JAR`，将完整证据写入新的任务目录。该入口与下列实现检查各自保留覆盖范围。
 
 ```sh
 pnpm --filter @omne-harness/dev-flow exec vitest run \

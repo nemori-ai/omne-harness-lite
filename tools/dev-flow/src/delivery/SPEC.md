@@ -102,7 +102,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 版本 2 的 published 模式还必须提供 `historicalWorkflows` 数组，可为空。每项使用同样的 `id/path/ref/head` 约束。当前 workflow 与历史项不得重复，历史项之间也不得重复。全部项共用固定仓库、Bot 和 Project。历史项只授予事实读取资格，不授予向旧 workflow 派发的能力。历史事实可以早于安装描述符机制，不要求为其编造旧安装摘要。版本 1 不接受这个字段，也不会自动采用历史版本。
 
-`FactsReadDeployment` 与单个生产 `FactsDeployment` 分开。读取器在一次完整评论快照内逐项匹配唯一采用的 workflow，再对合并后的事实检查负面资格、矛盾、重复、编辑和精确 attempt。同一 run 的当前读取与 attempt 1 必须匹配同一个精确 workflow 身份。未知来源不能忽略，也不能变成 facts 缺失。全部读取保持 GET-only。当前版本 2 安装只开放读取，生产接续尚需持久日志转移与生产者激活，不能借新空目录绕过旧未决操作。
+`FactsReadDeployment` 与单个生产 `FactsDeployment` 分开。读取器在一次完整评论快照内逐项匹配唯一采用的 workflow，再对合并后的事实检查负面资格、矛盾、重复、编辑和精确 attempt。同一 run 的当前读取与 attempt 1 必须匹配同一个精确 workflow 身份。未知来源不能忽略，也不能变成 facts 缺失。全部读取保持 GET-only。版本 1 和 2 均须显式激活生产者，不能借新空目录绕过旧未决操作。
 
 `collaboration-install-cli.ts` 是显式操作员采用边界。它接收描述符文件及已核对的 SHA-256，校验后在工具检出的私有 Git 目录原子创建 `omne-collaboration-installation.json`。文件保存原始描述符字节和摘要。临时文件先 fsync，再用不可覆盖的 hard link 发布并 fsync 目录。相同采用可重复；不同采用不能覆盖。未完成或冲突的写入不能返回成功。已有记录损坏、工具提交变化或工作树不干净均拒绝。
 
@@ -114,6 +114,22 @@ bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config �
 
 源码入口由仓库根及包内的 `collaboration:install`、`integration:request`、`line`、`reduce:watch` scripts 暴露。安装、来源和装配验证归[安装测试](../../tests/delivery-collaboration-installation.spec.ts)。此测试使用真实临时 Git 和文件系统，远端内容为 REST 替身；不证明真实采用或生产部署。
 
+## 生产者接管与转移
+
+`collaboration-producer-state.ts` 拥有私有 Git 目录内的生产者状态。`collaboration:install` 默认只采用读取配置。`--initial-producer` 与 `--producer-from OLD_TOOL_ROOT` 互斥。前者明确声明首次接管，要求 journal 没有旧 slot；后者要求旧写者及其启动器已停止，旧固定检出在本机可访问。此命令仅写本地文件，不调用远端写 API。
+
+`omne-facts-adoption.json` 是不可覆盖的采用预留，固定模式、安装证明、前驱和导入清单。`omne-facts-producer.json` 是完成后的激活记录，必须与预留逐字节相同。`omne-facts-producer-retired.json` 将旧生产者绑定到唯一目标 Git 目录、目标安装与转移摘要。普通生产入口只使用与当前安装匹配、未退役且导入清单完整的激活记录。
+
+转移保留全部 slot、intent 和 receipt 原字节。文件类型、命名、JSON 及每个 intent 的原安装和 deployment 均需校验，不能跳过坏记录。前驱描述符的字节和摘要进入新激活记录。bootstrap 从其固定 policy/config 重建原 deployment，要求相同仓库、Project 和 Bot，并独立核对当前描述符已经允许读取该 workflow。导入描述符不能扩大读取信任。
+
+转移先保存目标预留，再复制并 fsync 全部文件和目录，核对完整源清单及采用记录未变，然后持久记录源退役，最后写目标激活。中断可重复同一转移；已有文件须完全一致，冲突目标拒绝。激活后的重试检查原始导入字节并保留后来追加的 generation，不用旧快照覆盖新 journal。没有激活的部分目标不能 POST。退役检查还在准备入口、journal 修改及 POST 前执行。
+
+这一协议要求物理停止旧写者，不是分布式锁。旧二进制不认识退役记录时仍可能写入，工具不会声称已终止它。不得通过清空 journal、删除退役记录或重启旧生产者恢复。保留 request 回执和 line/wait journal。旧工具回退演练仅限首个新 generation 前的原 wait/request 读取与恢复，源退役和目标激活保持不变，不包含旧 facts 生产者重启。
+
+验证资源为[存储测试](../../tests/delivery-producer-state.spec.ts)和[安装装配测试](../../tests/delivery-collaboration-installation.spec.ts)。前者覆盖真实进程并发、进程终止、完整复制、幂等重试及退役；后者经 CLI 安装和 bootstrap 恢复实际生成的 intent。远端响应使用替身，真实断电与跨机排他不在这些测试的证明范围。
+
+[有限行为模型](../../verification/producer-continuity/README.md)检查两个目标的交接及两个调用者的两代 intent。正向配置核对唯一接管、激活前耐久、增长保留、原 binding 和禁止重复 POST；六个负控须命中各自命名不变量。模型只模拟进程崩溃，不证明断电、legacy 写者撤销、跨机互斥或实现精化。模型检查与上述实现测试分别提供证据。
+
 ## 持久 facts 准备
 
 `facts:prepare` 与 `facts-preparation-cli.ts` 提供 reduce 的显式生产入口。普通参数只有 repository、精确 dispatch URL 和 `--retry-failed`。bootstrap 固定 published 安装、workflow、Bot、Project 和私有 Git 目录中的 journal。direct 安装拒绝此生产命令。line/watch 的端口不取得生产能力。
@@ -122,13 +138,15 @@ bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config �
 
 派发 URL 的 SHA-256 前 128 位经固定 version-8 和 variant 位编码成 journal UUID。键不含调用者 operation ID、安装摘要或派发修订。完整 URL、派发作者账号、正文摘要、更新时间、安装摘要及部署身份保存在每个 intent 中，冲突时拒绝。相同 URL 的编辑或安装变更不能绕过旧操作。
 
+恢复前枚举完整 slot，要求 intent 代号从 1 连续、无孤立 receipt、非法文件或重复 nonce。每代按原始安装摘要和 deployment 校验，观察旧运行及复查失败前驱也使用原部署。其他 ready facts 不能掩盖未决 generation；明确旧失败才可按重试条件创建当前 workflow 的后继。
+
 每代保存独占创建的 `intent-N.json`。只有创建者在文件及目录 fsync 全部成功后可以 POST。其他进程即使读到完整 JSON 也只能观察，不能接管 POST 权。部分文件、落盘错误、进程终止和响应丢失均不允许重发。可用的精确响应写入 `run-N.json`；没有回执时按完整运行标题及固定 workflow 身份恢复。零匹配或不完整分页保持 unknown，多匹配拒绝，禁止按最新运行选择。
 
 工作流标题为 `delivery-facts:<nonce>:<issue>:<authority URL>`，预期标题超过 255 个字符时拒绝派发。恢复核对仓库、head repository、workflow ID/path、ref/head、event、完整标题、当前 attempt 1 和 attempts/1。当前运行再次读回改变时拒绝。该标题只证明操作关联，不授予派发资格。
 
 只有公共读取器经完整评论和派发身份读回得到的类型化缺失，才允许初次生产。已存在的有效 facts 可以直接消费。有持久 intent 时，ready 必须包含该代 nonce/run 的认证 observation。负面、冲突、编辑、错误身份和未完成证据不能被解释为缺失。
 
-明确失败的精确运行仍返回 failed，默认不重试。`--retry-failed` 要求 fresh attempt 1 的终止失败及完整 facts 缺失，随后把前代运行证据与新 nonce 保存到唯一后继 intent。并发重试争用同一个后继文件，只允许其持久创建者 POST。它不要求重新发布人的授权。未知派发、rerun、成功但 facts 不可见、资格拒绝及安装变化不能创建后继代。
+明确失败的精确运行仍返回 failed，默认不重试。`--retry-failed` 要求 fresh attempt 1 的终止失败及完整 facts 缺失，随后把前代运行证据与新 nonce 保存到唯一后继 intent。并发重试争用同一个后继文件，只允许其持久创建者 POST。它不要求重新发布人的授权。未知派发、rerun、成功但 facts 不可见、资格拒绝及未经采用的安装变化不能创建后继代。
 
 运行结论只接受 `success`、`failure`、`cancelled`、`timed_out`、`action_required`、`neutral`、`skipped`、`stale`、`startup_failure`。`completed` 的结论不得为 null，未完成运行的结论必须为 null。未知值保持 unknown，不能解释为失败并允许重试。持久前代证据使用同一结论解析。取值依据为 GitHub 的[运行状态说明](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2026-03-10)和[CLI 运行列表](https://cli.github.com/manual/gh_run_list)，本工具不自动采用新增值。
 

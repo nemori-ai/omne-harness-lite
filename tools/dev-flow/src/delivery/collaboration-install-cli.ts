@@ -3,32 +3,47 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
-import { collaborationToolRoot } from './collaboration-bootstrap.ts'
+import { adoptCollaborationProducer, collaborationToolRoot } from './collaboration-bootstrap.ts'
 import { installCollaboration } from './collaboration-installation.ts'
 import { InputError } from './protocol.ts'
+import { runGhRead, type GhRead } from './github-read.ts'
 
 export const collaborationInstallUsage = `Usage:
-  collaboration-install-cli.ts --descriptor FILE --sha256 DIGEST
+  collaboration-install-cli.ts --descriptor FILE --sha256 DIGEST [--initial-producer | --producer-from OLD_TOOL_ROOT]
 
 Explicitly adopt the reviewed descriptor in this clean, pinned source tool checkout.
 This command records the operator's adoption. It does not grant a task or accept a result.
 The same descriptor is idempotent. A different adoption requires a new tool checkout.
+Without producer flags the installation is read-only for facts production.
+--initial-producer explicitly declares first custody and requires an empty journal.
+--producer-from transfers every journal entry after all old producers have stopped.
+Retain the old checkout. This tool cannot stop legacy or remote writers.
 Ordinary request, line and watch commands cannot select or replace this installation.`
 
-export function installCollaborationCli(args: string[], root: string): string {
+export function installCollaborationCli(
+  args: string[],
+  root: string,
+  read: GhRead = runGhRead,
+): string {
   if (args.length === 1 && args[0] === '--help') return collaborationInstallUsage
   const { values, tokens } = parseArgs({
     args,
     strict: true,
     allowPositionals: false,
     tokens: true,
-    options: { descriptor: { type: 'string' }, sha256: { type: 'string' } },
+    options: {
+      descriptor: { type: 'string' },
+      sha256: { type: 'string' },
+      'initial-producer': { type: 'boolean' },
+      'producer-from': { type: 'string' },
+    },
   })
   const names = tokens.filter(token => token.kind === 'option').map(token => token.name)
   if (
     new Set(names).size !== names.length ||
     values.descriptor === undefined ||
-    values.sha256 === undefined
+    values.sha256 === undefined ||
+    (values['initial-producer'] === true && values['producer-from'] !== undefined)
   )
     throw new InputError('collaboration-installation-options')
   const installation = installCollaboration(
@@ -36,6 +51,14 @@ export function installCollaborationCli(args: string[], root: string): string {
     readFileSync(values.descriptor, 'utf8'),
     values.sha256,
   )
+  let producer: 'reader' | 'initialized' | 'transferred' = 'reader'
+  if (values['initial-producer'] === true) {
+    adoptCollaborationProducer(root, { kind: 'initial' }, read)
+    producer = 'initialized'
+  } else if (values['producer-from'] !== undefined) {
+    adoptCollaborationProducer(root, { kind: 'transfer', fromRoot: values['producer-from'] }, read)
+    producer = 'transferred'
+  }
   return JSON.stringify({
     schemaVersion: 1,
     operation: 'install-collaboration',
@@ -43,7 +66,8 @@ export function installCollaborationCli(args: string[], root: string): string {
     repo: installation.repository,
     toolCommit: installation.toolCommit,
     descriptorSha256: values.sha256,
-    effects: ['local installation only; no remote writes or acceptance'],
+    producer,
+    effects: ['local installation and producer custody only; no remote writes or acceptance'],
   })
 }
 

@@ -186,23 +186,31 @@ export function installCollaboration(
   return readCollaborationInstallation(root, installation.repository)
 }
 
+export function parseCollaborationInstallationRecord(value: unknown) {
+  const raw = fields(value, ['descriptor', 'sha256'], 'installation record')
+  const record = {
+    descriptor: string(raw.descriptor, 'installation.descriptor'),
+    sha256: string(raw.sha256, 'installation.sha256'),
+  }
+  return { record, installation: descriptor(record.descriptor, record.sha256) }
+}
+
+export function readCollaborationInstallationRecord(root: string) {
+  const path = installationPath(root)
+  if (!existsSync(path)) throw new InputError('collaboration-installation-required')
+  const decoded = parseCollaborationInstallationRecord(
+    collaborationJson(readFileSync(path, 'utf8')),
+  )
+  requireToolCommit(root, decoded.installation)
+  return decoded
+}
+
 export function readCollaborationInstallation(
   root: string,
   repo: string,
 ): CollaborationInstallation {
-  const path = installationPath(root)
-  if (!existsSync(path)) throw new InputError('collaboration-installation-required')
-  const record = fields(
-    collaborationJson(readFileSync(path, 'utf8')),
-    ['descriptor', 'sha256'],
-    'installation record',
-  )
-  const installation = descriptor(
-    string(record.descriptor, 'installation.descriptor'),
-    string(record.sha256, 'installation.sha256'),
-  )
+  const { installation } = readCollaborationInstallationRecord(root)
   if (installation.repository !== repo)
     throw new InputError('collaboration-installation-repository-mismatch')
-  requireToolCommit(root, installation)
   return installation
 }
