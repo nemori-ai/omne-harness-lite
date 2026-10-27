@@ -20,6 +20,7 @@ import {
   TEST_REPORT_DIR_ENV as ROOT_REPORT_DIR_ENV,
   TEST_TIERS,
   VITEST_DEFAULT_EXCLUDE,
+  cliFilters,
   reportSlug,
   testTiers,
 } from '../../../vitest.tiers.mts'
@@ -31,6 +32,7 @@ import {
   typecheckArgs,
 } from '../src/testing/turbo.ts'
 import { slugOf } from '../src/testing/run.ts'
+import { triage, triageSummary } from '../src/testing/triage.ts'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 
 const ROOT_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
@@ -49,23 +51,78 @@ describe('根上的分层定义', () => {
     expect([...VITEST_DEFAULT_EXCLUDE]).toEqual(configDefaults.typecheck.exclude)
   })
 
+  /** 不带过滤的 vitest 命令行：单测不随运行它的那条命令变。 */
+  const PLAIN = ['node', '/x/node_modules/vitest/vitest.mjs', 'run', '--mode', 'fast']
+
   it('不给 mode：声明 slow 标签及其时限、排除嵌套归档目录，不过滤', () => {
-    const tiers = testTiers(undefined, {})
+    const tiers = testTiers(undefined, {}, REPOSITORY, PLAIN)
     expect(tiers).toEqual({
       tags: [expect.objectContaining({ name: 'slow', timeout: SLOW_TEST_TIMEOUT_MS })],
       exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
       typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
     })
-    expect(testTiers('test', {})).toEqual(tiers)
+    expect(testTiers('test', {}, REPOSITORY, PLAIN)).toEqual(tiers)
   })
 
   it('快层滤掉 slow，慢层只留 slow；两层都允许一个测试也不剩、都开 preParse', () => {
-    expect(testTiers('fast', {})).toMatchObject({
+    expect(testTiers('fast', {}, REPOSITORY, PLAIN)).toMatchObject({
       tagsFilter: ['!slow'],
       passWithNoTests: true,
       experimental: { preParse: true },
     })
-    expect(testTiers('slow', {})).toMatchObject({ tagsFilter: ['slow'] })
+    expect(testTiers('fast', {}, REPOSITORY, PLAIN)).not.toHaveProperty('reporters')
+    expect(testTiers('slow', {}, REPOSITORY, PLAIN)).toMatchObject({ tagsFilter: ['slow'] })
+  })
+
+  it('从 vitest 命令行读出用例名与文件过滤；选项的值不当成文件过滤，别的入口不算', () => {
+    const vitest = (...words: string[]) => ['node', '/r/node_modules/vitest/vitest.mjs', ...words]
+    expect(cliFilters(vitest('run', '--mode', 'slow', '--typecheck.enabled=false'))).toEqual({
+      testNames: [],
+      files: [],
+    })
+    expect(
+      cliFilters(vitest('run', '--mode', 'slow', 'tests/a.spec.ts', '-t', '名 甲', 'b')),
+    ).toEqual({ testNames: ['名 甲'], files: ['tests/a.spec.ts', 'b'] })
+    expect(cliFilters(vitest('run', '--testNamePattern=x', '--test-name-pattern', 'y'))).toEqual({
+      testNames: ['x', 'y'],
+      files: [],
+    })
+    // 不带子命令时第一个词就是文件过滤；`--` 之后的不算。
+    expect(cliFilters(vitest('tests/a', '--', 'c'))).toEqual({ testNames: [], files: ['tests/a'] })
+    // sandbox 预检的写法：带值的选项用空格分开，没有过滤。
+    expect(
+      cliFilters(vitest('run', '--config', 'c.mts', '--pool', 'threads', '--maxWorkers', '1')),
+    ).toEqual({ testNames: [], files: [] })
+    expect(cliFilters(['node', '/r/stryker/worker.js', 'run', 'x'])).toEqual({
+      testNames: [],
+      files: [],
+    })
+  })
+
+  it('带过滤：不让一个文件都不剩算通过、挂过滤守卫；带用例名时关 preParse', () => {
+    const named = ['node', '/r/vitest.mjs', 'run', '--mode', 'slow', '-t', '名']
+    expect(testTiers('slow', {}, REPOSITORY, named)).toMatchObject({
+      passWithNoTests: false,
+      experimental: { preParse: false },
+      reporters: [
+        'default',
+        [expect.stringMatching(/filter-guard\.ts$/u), { testNames: ['名'], files: [] }],
+      ],
+    })
+    const file = ['node', '/r/vitest.mjs', 'run', '--mode', 'fast', 'tests/a.spec.ts']
+    expect(testTiers('fast', {}, REPOSITORY, file)).toMatchObject({
+      passWithNoTests: false,
+      experimental: { preParse: true },
+    })
+    // 报告目录与守卫同时生效：守卫追加在后面，不替换账本要的报告器。
+    expect(
+      testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '/runs/1' }, REPOSITORY, file).reporters,
+    ).toEqual([
+      'default',
+      'json',
+      [expect.stringMatching(/timing-reporter\.ts$/u), expect.anything()],
+      [expect.stringMatching(/filter-guard\.ts$/u), { testNames: [], files: ['tests/a.spec.ts'] }],
+    ])
   })
 
   it('认不出的 mode 报错，不悄悄全跑', () => {
@@ -75,7 +132,7 @@ describe('根上的分层定义', () => {
   it('设了报告目录：按成员路径写 JSON 报告与计时报告；没设或空串不挂报告器', () => {
     const member = join(REPOSITORY, 'packages/common/json-text')
     expect(reportSlug(member)).toBe('packages__common__json-text')
-    const tiers = testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '/runs/1' }, member)
+    const tiers = testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '/runs/1' }, member, PLAIN)
     expect(tiers).toMatchObject({
       reporters: [
         'default',
@@ -88,7 +145,9 @@ describe('根上的分层定义', () => {
       outputFile: { json: '/runs/1/packages__common__json-text.json' },
       env: { [ROOT_REPORT_DIR_ENV]: '' },
     })
-    expect(testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '' }, member)).not.toHaveProperty('reporters')
+    expect(testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '' }, member, PLAIN)).not.toHaveProperty(
+      'reporters',
+    )
   })
 
   it('成员配置写报告用的文件名与运行器读报告用的一致：每个成员都对得上', () => {
@@ -287,6 +346,126 @@ describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_0
     expect(result.status).not.toBe(0)
     expect(result.report).toContain('slwo')
   })
+})
+
+/** 不带 `--reporter` 起夹具的 vitest（命令行给的报告器会替换配置里的），返回退出码、输出与跑到的用例。 */
+function vitestWith(root: string, args: readonly string[]) {
+  const marker = join(root, `ran-${temporaries.length}-${Date.now()}.txt`)
+  const env: NodeJS.ProcessEnv = { ...process.env, MARKER: marker, NO_COLOR: '1' }
+  delete env[ROOT_REPORT_DIR_ENV]
+  delete env['FORCE_COLOR']
+  const ran = spawnSync(VITEST, ['run', ...args], { cwd: root, encoding: 'utf8', env })
+  return {
+    status: ran.status,
+    output: `${ran.stdout}${ran.stderr}`,
+    ran: existsSync(marker) ? readFileSync(marker, 'utf8').trim().split('\n').sort() : [],
+  }
+}
+
+/** 用例跑起来时往 MARKER 文件里记一行名字。 */
+const RAN = [
+  "import { appendFileSync } from 'node:fs'",
+  "const ran = (name: string) => appendFileSync(process.env['MARKER'] ?? '/dev/null', `${name}\\n`)",
+].join('\n')
+
+describe('真起 vitest：带过滤的运行要么选中要么失败（#737）', { timeout: 60_000 }, () => {
+  const root = project({
+    'each.spec.ts': [
+      RAN,
+      // 用例名由 test.each 生成：preParse 只认字面量名字，静态匹配不到。
+      "test.each(['甲', '乙'])('生成的慢用例 %s', { tags: ['slow'] }, value => ran(`慢 ${value}`))",
+      "test.each(['丙'])('生成的快用例 %s', value => ran(`快 ${value}`))",
+    ].join('\n'),
+    'quick.spec.ts': [RAN, "test('只有快的', () => ran('只有快的'))"].join('\n'),
+  })
+
+  it('慢层按 test.each 生成的用例名过滤：选中并运行它', () => {
+    const result = vitestWith(root, ['--mode', 'slow', '-t', '生成的慢用例 甲'])
+    expect(result.status, result.output).toBe(0)
+    expect(result.ran).toEqual(['慢 甲'])
+    expect(result.output).not.toContain('No test files found')
+  })
+
+  it('慢层同时给文件与 test.each 用例名：选中并运行它', () => {
+    const result = vitestWith(root, [
+      '--mode',
+      'slow',
+      'tests/each.spec.ts',
+      '--testNamePattern=生成的慢用例 乙',
+    ])
+    expect(result.status, result.output).toBe(0)
+    expect(result.ran).toEqual(['慢 乙'])
+  })
+
+  it('快层按 test.each 生成的用例名过滤：同样选中', () => {
+    const result = vitestWith(root, ['--mode', 'fast', '-t', '生成的快用例 丙'])
+    expect(result.status, result.output).toBe(0)
+    expect(result.ran).toEqual(['快 丙'])
+  })
+
+  it('用例名过滤后一条也没选中：非零退出并说明过滤条件', () => {
+    const result = vitestWith(root, ['--mode', 'slow', '-t', '不存在的名字'])
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.ran).toEqual([])
+    expect(result.output).toContain('没有选中任何用例')
+    expect(result.output).toContain('不存在的名字')
+  })
+
+  it('文件过滤后一条也没选中（文件里只有快层用例）：慢层非零退出并说明', () => {
+    const result = vitestWith(root, ['--mode', 'slow', 'tests/quick.spec.ts'])
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.ran).toEqual([])
+    expect(result.output).toContain('没有选中任何用例')
+    expect(result.output).toContain('tests/quick.spec.ts')
+  })
+
+  it('文件过滤认不出任何文件：非零退出', () => {
+    const result = vitestWith(root, ['--mode', 'slow', 'tests/没有这个文件.spec.ts'])
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.ran).toEqual([])
+  })
+
+  it('不带过滤：慢层照常只跑慢的，没有慢用例的项目仍退出 0', () => {
+    const slow = vitestWith(root, ['--mode', 'slow'])
+    expect(slow.status, slow.output).toBe(0)
+    expect(slow.ran).toEqual(['慢 乙', '慢 甲'])
+    const quickOnly = project({ 'only.spec.ts': [RAN, "test('快', () => ran('快'))"].join('\n') })
+    const none = vitestWith(quickOnly, ['--mode', 'slow'])
+    expect(none.status, none.output).toBe(0)
+    expect(none.ran).toEqual([])
+  })
+
+  it(
+    '失败归因经成员脚本与同一配置重跑：生成的用例名选得中，选不中的报未能单独重跑、不报隔离稳定通过',
+    // 归慢层：经 pnpm 起成员脚本、每处再起一次 vitest，约数秒。
+    { tags: ['slow'] },
+    async () => {
+      writeFileSync(
+        join(root, 'package.json'),
+        JSON.stringify({
+          name: 'triage-fixture',
+          private: true,
+          scripts: { test: `${VITEST} run` },
+        }),
+      )
+      const failures = [
+        { member: '.', file: 'tests/each.spec.ts', test: '生成的慢用例 甲', message: '原运行失败' },
+        { member: '.', file: 'tests/each.spec.ts', test: '不存在的名字', message: '原运行失败' },
+      ]
+      const triageDir = join(root, 'triage')
+      const entries = await triage(root, 'test', failures, 1, triageDir, () => {})
+      expect(entries.map(entry => [entry.test, entry.outcomes, entry.class])).toEqual([
+        ['生成的慢用例 甲', ['passed'], 'passes-alone'],
+        ['不存在的名字', ['not-run'], 'not-isolated'],
+      ])
+      const summary = triageSummary(entries, triageDir)
+      const notIsolated = summary.findIndex(line => line.startsWith('未能单独重跑'))
+      expect(summary[notIsolated + 1]).toContain('不存在的名字')
+      const passesAlone = summary.findIndex(line => line.startsWith('隔离稳定通过'))
+      expect(summary[passesAlone + 1]).toContain('生成的慢用例 甲')
+      expect(summary.filter(line => line.includes('不存在的名字'))).toHaveLength(1)
+    },
+  )
 })
 
 describe('入口的层参数', { timeout: 60_000 }, () => {

@@ -300,6 +300,69 @@ describe('报告汇总', () => {
     expect(memberErrors(summarizeMember(TARGET, report), paths)).toEqual([])
   })
   // #649：只因时限到了而超时（没有原因）的，第一遍分不出是负载还是真的挂起，以单独复核的判定为准。
+  describe('改动段上没有变异体（#737）', () => {
+    // Stryker 把 `x as T` 整个当类型位置跳过：`as const` 里的字面量不生成变异体。
+    const constSource = [
+      'export const ok = (n: number) => n > 0',
+      '',
+      "export const TIERS = ['fast', 'slow'] as const",
+      '',
+    ].join('\n')
+    const killed = (id: string) => ({
+      id,
+      mutatorName: 'EqualityOperator',
+      replacement: 'n >= 0',
+      status: 'Killed' as const,
+      location: at(1, 34, 1, 39),
+    })
+    const withMutants: MutationReport = {
+      files: { 'src/a.ts': { source: constSource, mutants: [killed('1'), killed('2')] } },
+    }
+    const targetOf = (...ranges: [number, number][]): MutationTarget => ({
+      member: member('packages/core/alpha'),
+      lines: new Map([['packages/core/alpha/src/a.ts', ranges]]),
+    })
+
+    it('别的改动段有变异体且全杀时：不报光秃秃的 100%，列出没有变异体的改动段', () => {
+      const result = summarizeMember(targetOf([1, 1], [3, 3]), withMutants)
+      expect(result.counts.Killed).toBe(2)
+      expect(result.unmutated).toEqual([{ file: 'packages/core/alpha/src/a.ts', start: 3, end: 3 }])
+      const [headline, ...rest] = memberLines(result, true)
+      expect(headline).not.toMatch(/分数 100%$/u)
+      expect(headline).toContain('未覆盖 1 段')
+      expect(rest).toContain('  没有变异体 packages/core/alpha/src/a.ts:3')
+    })
+
+    it('改动只落在 as const 声明上：没有分数，报未覆盖并列出改动行', () => {
+      const result = summarizeMember(targetOf([3, 3]), withMutants)
+      expect(result).toMatchObject({ valid: true, score: null, outside: 2 })
+      expect(result.unmutated).toEqual([{ file: 'packages/core/alpha/src/a.ts', start: 3, end: 3 }])
+      expect(memberLines(result, false)[0]).toContain('分数 —（未覆盖 1 段：改动上没有变异体）')
+      expect(memberLines(result, true)).toContain('  没有变异体 packages/core/alpha/src/a.ts:3')
+    })
+
+    it('报告里没有这份文件（一个变异体都没生成）、整份变异的文件：同样列出', () => {
+      const whole: MutationTarget = {
+        member: member('packages/core/alpha'),
+        lines: new Map<string, readonly (readonly [number, number])[]>([
+          ['packages/core/alpha/src/a.ts', [[1, 1]]],
+          ['packages/core/alpha/src/types.ts', [[1, Number.POSITIVE_INFINITY]]],
+        ]),
+      }
+      const result = summarizeMember(whole, withMutants)
+      expect(result.unmutated).toEqual([
+        { file: 'packages/core/alpha/src/types.ts', start: 1, end: null },
+      ])
+      expect(memberLines(result, true)).toContain('  没有变异体 packages/core/alpha/src/types.ts')
+    })
+
+    it('每段改动都有变异体时不列、分数照旧', () => {
+      const result = summarizeMember(targetOf([1, 3]), withMutants)
+      expect(result.unmutated).toEqual([])
+      expect(memberLines(result, false)[0]).toMatch(/分数 100%$/u)
+    })
+  })
+
   describe('超时的复核', () => {
     const mutant = (
       id: string,
@@ -893,12 +956,44 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
             typeTests: Record<string, unknown> | null
             recheck: Record<string, unknown> | null
             outside: number
+            unmutated: { file: string; start: number; end: number | null }[]
           }[]
           errors: string[]
         })
       : undefined
     return { ran, summary }
   }
+
+  it('改动只落在 as const 声明上：Stryker 不生成变异体，读数报未覆盖并列出改动行，不报分数（#737）', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      "export const zero = 0\nexport const NAMES = ['a', 'b'] as const\n",
+    )
+    writeFileSync(
+      join(memberDir, 'tests/sign.spec.ts'),
+      [
+        "import { NAMES, zero } from '../src/sign.ts'",
+        "test('zero', () => { expect(zero).toBe(0) })",
+        "test('names', () => { expect(NAMES).toEqual(['a', 'b']) })",
+      ].join('\n'),
+    )
+    const out = join(root, 'out-const')
+    const result = mutate(root, out)
+    const output = `${result.ran.stdout}${result.ran.stderr}`
+    expect(result.ran.status, output).toBe(0)
+    expect(result.summary?.errors).toEqual([])
+    const [only] = result.summary?.members ?? []
+    expect(only).toMatchObject({
+      valid: true,
+      score: null,
+      unmutated: [{ file: 'packages/core/sign/src/sign.ts', start: 2, end: 2 }],
+    })
+    const summary = readFileSync(join(out, 'summary.md'), 'utf8')
+    expect(summary).toContain('分数 —（未覆盖 1 段：改动上没有变异体）')
+    expect(summary).toContain('  没有变异体 packages/core/sign/src/sign.ts:2')
+    expect(summary).not.toContain('100%')
+  })
 
   it('没断言的测试留下存活变异体，补上断言后被杀；只变异改动行，跑完不留 sandbox', () => {
     const { root, memberDir } = fixture()

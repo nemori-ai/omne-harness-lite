@@ -5,9 +5,10 @@
 // 成员脚本 `test:fast` 是 `vitest run --mode fast`，`test:slow` 是 `vitest run --mode slow --typecheck.enabled=false`，
 // `test` 不给 mode，两层都跑。
 // 层只经 mode 传递，不读环境变量：turbo 的 Strict Mode 会滤掉未声明的变量，外面环境里的残留也不会漏进来。
+// 命令行带了过滤（`-t` 用例名或文件）时，这一次运行要么选中用例，要么非零退出（#737），见 `cliFilters`。
 // 归慢层：整个测试文件在开头的注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
 // 并写一句为什么慢（起子进程、真实等待、重 CPU、网络）。怎么划、谁来跑见 docs/verification.md「测试分层」。
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const TEST_TIERS = ['fast', 'slow'] as const
@@ -39,6 +40,51 @@ export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('.', import.meta.url))
 const TIMING_REPORTER = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/timing-reporter.ts')
+const FILTER_GUARD = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/filter-guard.ts')
+
+/** vitest 命令行上的过滤：`-t`（`--testNamePattern`）给的用例名，与位置参数给的文件过滤。 */
+export interface CliFilters {
+  readonly testNames: readonly string[]
+  readonly files: readonly string[]
+}
+
+const NO_FILTERS: CliFilters = { testNames: [], files: [] }
+const SUBCOMMANDS = new Set(['run', 'watch', 'dev', 'related', 'bench', 'list'])
+const TEST_NAME_FLAGS = new Set(['-t', '--testNamePattern', '--test-name-pattern'])
+
+/**
+ * 从启动 vitest 的命令行读出过滤（vitest 的配置函数拿不到它们）。只认 vitest 自己的入口（`vitest.mjs`）：
+ * Stryker 等经 API 起 vitest 时命令行不是 vitest 的，按没有过滤算。
+ * 不带 `=` 的选项后面紧跟的词按这个选项的值算，所以写在布尔选项后面的文件过滤（如 `--typecheck tests/x`）认不出；
+ * `--` 之后的不算过滤。
+ */
+export function cliFilters(argv: readonly string[]): CliFilters {
+  const entry = argv[1]
+  if (entry === undefined || basename(entry) !== 'vitest.mjs') return NO_FILTERS
+  const words = argv.slice(2)
+  if (words[0] !== undefined && SUBCOMMANDS.has(words[0])) words.shift()
+  const testNames: string[] = []
+  const files: string[] = []
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? ''
+    if (word === '--') break
+    if (!word.startsWith('-')) {
+      files.push(word)
+      continue
+    }
+    const equals = word.indexOf('=')
+    const flag = equals === -1 ? word : word.slice(0, equals)
+    const next = words[index + 1]
+    let value: string | undefined
+    if (equals !== -1) value = word.slice(equals + 1)
+    else if (next !== undefined && !next.startsWith('-')) {
+      value = next
+      index += 1
+    }
+    if (TEST_NAME_FLAGS.has(flag) && value !== undefined) testNames.push(value)
+  }
+  return { testNames, files }
+}
 
 /** 成员在报告目录里的文件名前缀：成员相对仓库根的路径，`/` 换成 `__`。 */
 export function reportSlug(memberDirectory: string): string {
@@ -49,7 +95,7 @@ export function reportSlug(memberDirectory: string): string {
 
 /** 设了报告目录时挂上的报告器、报告路径与测试进程的环境。 */
 interface Reporting {
-  readonly reporters?: (string | [string, { outputFile: string }])[]
+  readonly reporters?: (string | [string, Readonly<Record<string, unknown>>])[]
   readonly outputFile?: { readonly json: string }
   readonly env?: Readonly<Record<string, string>>
 }
@@ -68,6 +114,23 @@ export interface TestTiers extends Reporting {
   readonly experimental?: { readonly preParse: boolean }
 }
 
+/**
+ * 有过滤时挂上过滤守卫：过滤后一条用例都没有跑时让这次运行失败，并说明过滤条件。
+ * 只在有过滤时挂：设了 `reporters` 就不再由 vitest 自己挑缺省报告器，所以这时显式带上 `default`。
+ * 命令行给了 `--reporter` 时 vitest 用它替换配置里的全部报告器，守卫随之不在；
+ * 这时有过滤、文件全被滤掉的情形仍由 `passWithNoTests: false` 判失败，用例全被跳过的情形不再判失败。
+ */
+function guarded(base: Reporting, filters: CliFilters): Reporting {
+  if (filters.testNames.length === 0 && filters.files.length === 0) return base
+  return {
+    ...base,
+    reporters: [
+      ...(base.reporters ?? ['default']),
+      [FILTER_GUARD, { testNames: [...filters.testNames], files: [...filters.files] }],
+    ],
+  }
+}
+
 function reporting(reportDirectory: string | undefined, memberDirectory: string): Reporting {
   if (reportDirectory === undefined || reportDirectory === '') return {}
   const prefix = join(reportDirectory, reportSlug(memberDirectory))
@@ -83,9 +146,12 @@ export function testTiers(
   mode: string = DEFAULT_MODE,
   env: Readonly<Record<string, string | undefined>> = process.env,
   memberDirectory: string = process.cwd(),
+  argv: readonly string[] = process.argv,
 ): TestTiers {
   if (mode !== DEFAULT_MODE && !(TEST_TIERS as readonly string[]).includes(mode))
     throw new Error(`vitest 的 mode 只能是 ${TEST_TIERS.join('、')} 或不给，现在是 ${mode}`)
+  const filters = cliFilters(argv)
+  const filtered = filters.testNames.length > 0 || filters.files.length > 0
   return {
     tags: [
       {
@@ -96,15 +162,17 @@ export function testTiers(
     ],
     exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
     typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
-    ...reporting(env[TEST_REPORT_DIR_ENV], memberDirectory),
+    ...guarded(reporting(env[TEST_REPORT_DIR_ENV], memberDirectory), filters),
     ...(mode === DEFAULT_MODE
       ? {}
       : {
           tagsFilter: [mode === 'fast' ? '!slow' : 'slow'],
-          // 一层里可能一个测试都不剩（成员没有慢测试，或全是慢测试）：那不是失败。
-          passWithNoTests: true,
-          // 整个文件都被滤掉时不导入它；要求标签与用例名是字面量，静态看不出的文件照常导入、照常过滤。
-          experimental: { preParse: true },
+          // 不带过滤时，一层里可能一个测试都不剩（成员没有慢测试，或全是慢测试）：那不是失败。
+          // 带了过滤还一个文件都不剩，是过滤没选中：判失败。
+          passWithNoTests: !filtered,
+          // 整个文件都被滤掉时不导入它。它静态地读标签与用例名：标签要写成字面量；按用例名过滤时，
+          // `test.each` 生成的名字与变量给的名字它匹配不到，会把整个文件滤掉（#737），所以带 `-t` 时关掉。
+          experimental: { preParse: filters.testNames.length === 0 },
         }),
   }
 }
