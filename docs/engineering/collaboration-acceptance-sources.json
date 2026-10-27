@@ -15,6 +15,20 @@
         "sha256": "b868f91339b9a5635360b800b8686d0255312ed56f3a377381041b8bad13bd97"
       },
       "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+    },
+    {
+      "issue": {
+        "repository": "nemori-ai/omne-harness-lite",
+        "id": "I_kwDOUjjhy88AAAABacOLgA",
+        "number": 876,
+        "url": "https://github.com/nemori-ai/omne-harness-lite/issues/876"
+      },
+      "authorization": {
+        "issue": 876,
+        "commentId": 6455955213,
+        "sha256": "321571d68dd873bc6a6c903b2f160a48791a8f267e5c180a15393169323eb306"
+      },
+      "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
     }
   ]
 }
