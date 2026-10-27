@@ -39,9 +39,6 @@ import type {
 } from './messages.ts'
 
 const encoder = new TextEncoder()
-const typedArrayByteLength =
-  Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), 'byteLength')?.get ??
-  missingIntrinsic()
 type Fields = Readonly<Record<string, unknown>>
 type Converted = { readonly local: unknown; readonly wire: JsonValue }
 type Direction = 'encode' | 'decode'
@@ -69,7 +66,7 @@ export type ResponseRead =
   | { readonly kind: 'response'; readonly response: unknown }
   | { readonly kind: 'unmatched' }
   | { readonly kind: 'unreadable'; readonly diagnostic: GovernanceDiagnostic }
-type ResponseHead = { readonly outcome: string; readonly messageId: string | undefined }
+type ResponseHead = { readonly outcome: string; readonly messageId?: string }
 type ResponseModel<V extends string> = {
   readonly local: {
     readonly protocolVersion: V
@@ -82,10 +79,6 @@ type ResponseModel<V extends string> = {
 type Leaf = (input: unknown, direction: Direction, limits: JsonLimits) => Converted | undefined
 type TreeKind = 'parameters' | 'json' | 'user-message'
 const tenantRule: Rule = { kind: 'tenant' }
-
-function missingIntrinsic(): never {
-  throw new TypeError('TypedArray byteLength getter is unavailable')
-}
 
 function invalid(): GovernanceEncodeResult {
   return { kind: 'invalid', diagnostic: { code: 'field' } }
@@ -177,7 +170,12 @@ function argumentsOf(
 function bytesOf(value: unknown, error: string): Uint8Array {
   try {
     if (!(value instanceof Uint8Array) || !ArrayBuffer.isView(value)) return programmingError(error)
-    const bytes = new Uint8Array(typedArrayByteLength.call(value))
+    const byteLength = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(Uint8Array.prototype),
+      'byteLength',
+    )?.get
+    // A missing intrinsic getter makes this call throw TypeError, which the catch reports.
+    const bytes = new Uint8Array(byteLength!.call(value))
     Uint8Array.prototype.set.call(bytes, value)
     return bytes
   } catch {
@@ -329,9 +327,8 @@ function primitive(input: unknown, direction: Direction): unknown {
   return node?.kind === 'string' || node?.kind === 'boolean' ? node.value : undefined
 }
 
+/** Both directions check the inner tenant text; when decoding, that text is the input itself. */
 function tenant(input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined {
-  if (direction === 'decode' && (typeof input !== 'string' || !tenantText(input, limits)))
-    return undefined
   const converted = identity(tenantCodec, input, direction)
   return converted?.wire.kind === 'string' && tenantText(converted.wire.value, limits)
     ? converted
@@ -591,7 +588,10 @@ function requestModelFromWire<V extends string, P extends string, S extends stri
   limits: JsonLimits,
 ): object | undefined {
   const rule = family.requestRule(operation)
-  if (!exact(data, envelopeKeys(rule), rule.proof ? ['loginProof'] : [])) return undefined
+  const closed = rule.proof
+    ? exact(data, envelopeKeys(rule), ['loginProof'])
+    : exact(data, envelopeKeys(rule))
+  if (!closed) return undefined
   const body = convert(rule.body, data.body, 'decode', limits)
   const actingTenant = rule.tenant ? convert(tenantRule, data.actingTenant, 'decode', limits) : null
   const proof = rule.proof ? proofFromWire(data) : null
@@ -644,9 +644,8 @@ export function readGovernanceRequest(input: {
   readonly limits: GovernanceCodecLimits
 }): GovernanceRequestRead {
   const read = readRequest(governanceFamily, input)
-  return read.kind === 'request'
-    ? { kind: 'request', request: read.request as GovernanceRequest }
-    : read
+  if (read.kind !== 'request') return read
+  return { kind: read.kind, request: read.request as GovernanceRequest }
 }
 
 function write(wire: JsonValue, limits: JsonLimits): GovernanceEncodeResult {
@@ -730,11 +729,36 @@ function responseHead<V extends string, P extends string, S extends string>(
   const outcome = value('outcome')
   const messageId = value('messageId')
   if (value('protocolVersion') !== family.version || typeof outcome !== 'string') return undefined
-  const common = isRefusal(family, outcome)
-  const required = ['protocolVersion', 'outcome', 'body', ...(common ? [] : ['messageId'])]
-  if (!exact(data, required, common ? ['messageId'] : [])) return undefined
-  if (Object.hasOwn(data, 'messageId') && typeof messageId !== 'string') return undefined
-  return { outcome, messageId: typeof messageId === 'string' ? messageId : undefined }
+  const required = ['protocolVersion', 'outcome', 'body']
+  const closed = isRefusal(family, outcome)
+    ? exact(data, required, ['messageId'])
+    : exact(data, [...required, 'messageId'])
+  if (!closed) return undefined
+  if (!Object.hasOwn(data, 'messageId')) return { outcome }
+  return typeof messageId === 'string' ? { outcome, messageId } : undefined
+}
+
+function responseOutput<V extends string>(
+  version: V,
+  { outcome, messageId }: ResponseHead,
+  body: Converted,
+): ResponseModel<V> {
+  const local: { -readonly [K in keyof ResponseModel<V>['local']]: ResponseModel<V>['local'][K] } =
+    {
+      protocolVersion: version,
+      outcome,
+      body: body.local,
+    }
+  const wire: Record<string, JsonValue> = {
+    protocolVersion: stringWire(version),
+    outcome: stringWire(outcome),
+    body: body.wire,
+  }
+  if (messageId !== undefined) {
+    local.messageId = messageId
+    wire.messageId = stringWire(messageId)
+  }
+  return { local, wire: wireObject(wire) }
 }
 
 function responseModel<V extends string, P extends string, S extends string>(
@@ -745,21 +769,12 @@ function responseModel<V extends string, P extends string, S extends string>(
   limits: JsonLimits,
 ): ResponseModel<V> | undefined {
   const data = direction === 'decode' ? objectWire(nodeOf(input)) : fields(input)
-  const head = data === undefined ? undefined : responseHead(family, data, direction)
-  const rule = head === undefined ? undefined : responseBody(family, operation, head.outcome)
-  const body = rule === undefined ? undefined : convert(rule, data?.body, direction, limits)
-  if (head === undefined || body === undefined) return undefined
-  const { outcome, messageId } = head
-  const correlation = messageId === undefined ? {} : { messageId }
-  return {
-    local: { protocolVersion: family.version, ...correlation, outcome, body: body.local },
-    wire: wireObject({
-      protocolVersion: stringWire(family.version),
-      outcome: stringWire(outcome),
-      body: body.wire,
-      ...(messageId === undefined ? {} : { messageId: stringWire(messageId) }),
-    }),
-  }
+  if (data === undefined) return undefined
+  const head = responseHead(family, data, direction)
+  if (head === undefined) return undefined
+  const rule = responseBody(family, operation, head.outcome)
+  const body = rule === undefined ? undefined : convert(rule, data.body, direction, limits)
+  return body === undefined ? undefined : responseOutput(family.version, head, body)
 }
 
 export function readResponse<V extends string, P extends string, S extends string>(
@@ -791,9 +806,8 @@ export function readGovernanceResponse<O extends GovernanceOperation>(input: {
   readonly limits: GovernanceCodecLimits
 }): GovernanceResponseRead<O> {
   const read = readResponse(governanceFamily, input)
-  return read.kind === 'response'
-    ? { kind: 'response', response: read.response as GovernanceResponse<O> }
-    : read
+  if (read.kind !== 'response') return read
+  return { kind: read.kind, response: read.response as GovernanceResponse<O> }
 }
 
 export function encodeResponse<V extends string, P extends string, S extends string>(

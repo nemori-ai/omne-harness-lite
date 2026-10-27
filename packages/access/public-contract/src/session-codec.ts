@@ -17,9 +17,8 @@ export function readSessionRequest(input: {
   readonly limits: SessionCodecLimits
 }): SessionRequestRead {
   const read = readRequest(sessionFamily, input)
-  return read.kind === 'request'
-    ? { kind: 'request', request: read.request as SessionRequest }
-    : read
+  if (read.kind !== 'request') return read
+  return { kind: read.kind, request: read.request as SessionRequest }
 }
 
 export function readSessionResponse<O extends SessionOperation>(input: {
@@ -29,9 +28,8 @@ export function readSessionResponse<O extends SessionOperation>(input: {
   readonly limits: SessionCodecLimits
 }): SessionResponseRead<O> {
   const read = readResponse(sessionFamily, input)
-  return read.kind === 'response'
-    ? { kind: 'response', response: read.response as SessionResponse<O> }
-    : read
+  if (read.kind !== 'response') return read
+  return { kind: read.kind, response: read.response as SessionResponse<O> }
 }
 
 export function encodeSessionRequest(input: {
