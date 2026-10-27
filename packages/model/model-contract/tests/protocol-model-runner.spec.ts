@@ -247,14 +247,20 @@ function createSource(source: string, program: string): void {
   for (const file of scripts) copyFileSync(join(sourceDirectory, file), join(source, file))
   writeFileSync(join(source, 'run.mjs'), program)
 }
+// Fixture code that writes its own pid file. writeFileSync creates the file before it writes the
+// content, so a reader that polls for the file can see it empty. The pid goes to a temporary name in
+// the same directory and is renamed into place, so an existing pid file always holds the whole pid.
+function writePidFile(fs: string, name: string): string {
+  return `${fs}.writeFileSync('${name}.tmp',String(process.pid));${fs}.renameSync('${name}.tmp','${name}');`
+}
 // The descendant announces itself in grandchild.pid only when `announce` is set. It always writes
 // descendant.pid last, so once descendant.pid exists the announcement either exists or never will.
 function hanging(announce = true): string {
-  const announcement = announce ? "fs.writeFileSync('grandchild.pid',String(process.pid));" : ''
+  const announcement = announce ? writePidFile('fs', 'grandchild.pid') : ''
   return `import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
-writeFileSync('root.pid', String(process.pid));
-spawn(process.execPath, ['-e', ${JSON.stringify(`const fs=require('node:fs');${announcement}fs.writeFileSync('descendant.pid',String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`)}], {stdio:'ignore'});
+import * as fs from 'node:fs';
+${writePidFile('fs', 'root.pid')}
+spawn(process.execPath, ['-e', ${JSON.stringify(`const fs=require('node:fs');${announcement}${writePidFile('fs', 'descendant.pid')}process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`)}], {stdio:'ignore'});
 process.on('SIGTERM',()=>{});
 setInterval(()=>{},1000);
 `
@@ -348,7 +354,7 @@ const controllerProgram =
     '}',
     '',
     "import { fork } from 'node:child_process'",
-    "import { writeFileSync } from 'node:fs'",
+    "import { renameSync, writeFileSync } from 'node:fs'",
     "import { join, resolve } from 'node:path'",
     '',
     'const [supervisorArgument, sourceArgument, targetArgument] = process.argv.slice(2)',
@@ -358,7 +364,12 @@ const controllerProgram =
     'let state',
     'let watchdog',
     'let cleanupError',
-    'const output = () => writeFileSync(`${target}.controller.json`, JSON.stringify(report, null, 2))',
+    '// The outer case reads this report, including supervisorPid, while the controller may still run.',
+    '// Write it under a temporary name and rename it into place so no reader sees a partial report.',
+    'const output = () => {',
+    '  writeFileSync(`${target}.controller.json.tmp`, JSON.stringify(report, null, 2))',
+    '  renameSync(`${target}.controller.json.tmp`, `${target}.controller.json`)',
+    '}',
     'const event = value => process.stdout.write(`${JSON.stringify(value)}\\n`)',
     'function knownRoot() {',
     "  return readPid(join(target, 'root.pid')) ?? readJson(`${target}.supervisor.json`)?.pid",
@@ -471,7 +482,7 @@ async function runParentDeathCase(input: {
     if (scenario !== 'missing-fixture') {
       const program =
         scenario === 'supervisor-early-exit'
-          ? "import {writeFileSync} from 'node:fs';writeFileSync('root.pid',String(process.pid));process.exit(42)"
+          ? `import * as fs from 'node:fs';${writePidFile('fs', 'root.pid')}process.exit(42)`
           : hanging(scenario !== 'no-pid')
       createSource(source, program)
     }
