@@ -862,6 +862,41 @@
               "name": "EnvironmentConformancePorts",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "createMemoryFileSystem",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MemoryFileSystem",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryFileSystemOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedCommandFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedCommandFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommandScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedCommandAnswer",
+              "kind": "type",
+              "pending": false
             }
           ]
         }

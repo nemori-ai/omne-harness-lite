@@ -32,3 +32,14 @@ export {
   type ScriptedFacilityGuard,
   type ScriptedRecoveryAuthority,
 } from './doubles.ts'
+export {
+  createMemoryFileSystem,
+  type MemoryFileSystem,
+  type MemoryFileSystemOptions,
+} from './memory-files.ts'
+export {
+  createScriptedCommandFacility,
+  type CommandScript,
+  type ScriptedCommandAnswer,
+  type ScriptedCommandFacility,
+} from './scripted-command.ts'
