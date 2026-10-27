@@ -68,6 +68,23 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 观察成功退出0，包括有偏离或 unknown 的报告。非法输入、身份冲突、不可读文件或不能写入输出时退出2。错误输出不含原始 API 内容，不产生空成功报告。本模块没有自动交付阻断或 CI 门禁。
 
+## 预准入执行
+
+`pre-admission-cli.ts`、仓库根和包内的 `pre-admission` script、构建后的 `omne-pre-admission` 使用同一执行器。输入为工作树、日志目录及新的 operation ID。未传工作树时使用当前目录；未传 ID 时生成 UUID。执行器解析工作树真实路径，用 Git 定位该工作树的 context，不以调用者当前目录代替。每次执行独占创建操作日志，重复 ID 拒绝。
+
+执行顺序固定如下：
+
+1. `pnpm -s run acceptance:lock`。已有 context 时不加 base；没有 context 时加 `--base origin/integration/legacy-refactor`。
+2. `node scripts/with-test-slot.mjs pnpm turbo run build --affected`。
+3. `pnpm run check:declarations`。
+4. `pnpm run contract:api --check`。
+5. 依次执行 `pnpm run check:lines`、`check:docs`、`check:design`、`lint:deps`、`lint:rules`、`lint:oxlint`。
+6. `./scripts/format.sh check`。
+
+共 11 个步骤，始终在指定工作树执行。每步单独保存 stdout/stderr 和退出结果。失败立即停止，命令返回该步骤的退出码，输出已执行步骤、日志路径和失败日志末 20 行。找不到命令返回 127，命令不可执行返回 126，信号退出映射为 128 加信号值。只有全部步骤成功才返回 passed/0。输入或日志创建错误退出 2。该结果是检查结果，不授予交付接受。
+
+验证由 [delivery-pre-admission.spec.ts](../../tests/delivery-pre-admission.spec.ts) 覆盖完整顺序、绑定分支、失败传播、日志隔离和真实子进程退出码。
+
 ## 持续验证与限制
 
 `tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。

@@ -42,7 +42,9 @@ export function githubRequestEvidence(read: GhRead): RequestEvidenceReader {
           segment === '' ||
           segment === '.' ||
           segment === '..' ||
-          /[\/\\\u0000-\u001f]/.test(segment),
+          segment.includes('/') ||
+          segment.includes('\\') ||
+          [...segment].some(character => character.charCodeAt(0) < 32),
       )
     )
       throw new InputError('integration-request-evidence-path-invalid')

@@ -25,6 +25,8 @@
     "check:docs": "uv run --locked omne-docs-check",
     "check:design": "./scripts/check-design.sh",
     "check:delivery": "node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts",
+    "pre-admission": "node --experimental-strip-types tools/dev-flow/src/delivery/pre-admission-cli.ts",
+    "release-run": "node --experimental-strip-types tools/dev-flow/src/integration/release-run-cli.ts",
     "check:lines": "node --experimental-strip-types tools/dev-flow/src/delivery/lines-cli.ts",
     "ri-notes": "node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes",
     "check:formal-tools": "uv run --locked omne-spec-tools-check",

@@ -733,6 +733,25 @@ describe('integration request command to trusted Action receipt', () => {
     )
     expect(f.posts).toHaveLength(2)
   })
+  it.each(['%00', '%1f', '%2f', '%5c'])(
+    'rejects decoded path byte %s before reading GitHub',
+    encoded => {
+      const calls: string[][] = []
+      const read = githubRequestEvidence(argv => {
+        calls.push([...argv])
+        throw new Error('unexpected remote read')
+      })
+      expect(() =>
+        read('owner/repo', {
+          url: `https://github.com/owner/repo/blob/${HEAD}/reports/a${encoded}b.txt`,
+          sha256: digest('report'),
+          description: 'Frozen blob',
+        }),
+      ).toThrow('integration-request-evidence-path-invalid')
+      expect(calls).toEqual([])
+    },
+  )
+
   it('reads immutable blob bytes but rejects response path mismatch and encoded traversal', () => {
     const f = fixture(),
       body = 'Frozen report bytes',

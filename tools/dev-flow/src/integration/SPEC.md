@@ -30,7 +30,7 @@ I14。`start` 对 route 中的轨道（下称目标轨道）及其上游链做�
    1. 远端有 `refs/tags/omne/gate/track/<ID>` 时，读该附注标签的正文。正文是 `omne-gate-record:v1` JSON，取 `parent` 字段；没有该字段或取值为 null 时为 `main`，与 `github-gate` 流程的读法相同。
    2. 否则读远端 `github-gate` 分支的 `gate/cutover.json`。其中登记了 `integration/<ID>` 时，可信上游为 `main`。
    3. 两者都没有为 refused。
-   
+
    registry 的 `parent` 与可信上游不同为 refused。标签不是附注标签、正文不是合格 JSON、`parent` 的取值不合格，或 `gate/cutover.json` 不是以分支名为键、以提交号为值的 JSON 对象，都为 unknown。远端读不到为 unknown。
 
 `start` 的远端读取只取链上各轨道的分支与起点标签，以及 `github-gate` 分支上的 `gate/cutover.json`，不枚举或拉取其他标签。`start` 不读核对下限。`status` 与 task-sync 不做上游链核对。[I17](#提升-pr-的说明) 的 `ri-notes` 另有读取范围，它按同一顺序确定上游。
@@ -140,6 +140,18 @@ I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机
 
 I21。`gate-cli.ts wait` 等待一次 workflow 运行。说明去掉首尾空白后按字符计须在 1 到 1024 之间，否则在任何请求之前拒绝。`environments` 至少有一个环境名，CLI 缺省为 `publish`。每轮先读运行，`status` 为 `completed` 时返回 `conclusion` 与每轮批准的环境 ID；否则读 `pending_deployments`，把 `current_user_can_approve` 为 true 且环境名在 `environments` 中的部署在一次 POST 中批准，评论为说明。每轮按当时的待确认部署判断，不按此前批准过的环境 ID 跳过。然后等待一个间隔。到达时限时以 `unknown` 失败。CLI 在结论为 `success` 时退出0，其他结论退出1，失败退出2。命令不判断当前身份是否获授权代为确认，也不派发 gate。
 
+## 包发布运行命令
+
+`release-run-cli.ts`、仓库根和包内的 `release-run` script、构建后的 `omne-release-run` 迁移包发布脚本。它固定使用 `gate-release.yml` 与 `github-gate`，不表示整波 reduce release。
+
+输入由 `parseReleaseRunInput` 严格解析，包含版本、仓库、UUID operationId、包名、候选提交、Issue 号、显式 dryRun 与 workflowHead。支持 repo-toolchain 和 repo-config。派发前读取实际 workflow ID 与 ref head，确认与输入一致；在一次 POST 之前持久保存 intent。精确 dispatch receipt 绑定本次输入和 run。没有 receipt 时返回 unknown，恢复不选择最新 run，也不重复 POST。
+
+每次观察核对同仓库、workflow ID/path、ref、head、workflow_dispatch、run ID 和 attempt 1，并读取精确 attempt。重跑、身份变化、失败或取消均不能报告成功。观察超时只停止本地等待，远端运行可能继续。相同输入和操作日志用于恢复；冲突输入拒绝，日志不共用临时文件。
+
+默认只观察。显式 `--approve --note FILE` 才可能批准，且仅处理 `npm-release`，要求平台 `current_user_can_approve` 为真。审批前再次核对精确 run，并先保存审批 intent；不确定结果不重发。其他环境不批准。实际 approvals 另行读回。GitHub 审批接口按 run 定位，没有 compare-and-set attempt 保证，工具不声明消除该平台并发窗口。
+
+成功退出要求精确 run 完成且 conclusion 为 success。其他观察结果退出 1，输入或命令错误退出 2。输出包含操作身份、run/attempt 链接、诊断及恢复状态。持续验证由 [integration-release-run.spec.ts](../../tests/integration-release-run.spec.ts) 维护；替身通过不替代真实受保护环境审批证明。
+
 ## 状态与同步
 
 I12。`status` 不改 context。没有 context 时报告未绑定，不读远端。已绑定时报告绑定的卡、修订、attempt、`taskBase`、`targetBase`、远端目标分支及其当前提交，以及 `targetBase` 与远端目标的关系：相等为 current，是其祖先为 behind，其他为 diverged。远端读不到时为 unknown。
@@ -197,31 +209,31 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 
 发现代码：
 
-| 代码 | 定位 | 含义 |
-| --- | --- | --- |
-| `parent-registry-drift` | 无 | registry 的 `parent` 与可信上游不同 |
-| `lower-bound-unknown` | 无 | 没有切换点，也没有起点标签 |
-| `lower-bound-not-ancestor` | 下限提交 | 下限不是轨道头的祖先 |
-| `unit-missing` | 提交 | 下限之后的提交没有 unit |
-| `unit-invalid` | 提交 | unit 标签或正文不合格，或没有 `pr`。下限之前的提交也报告 |
-| `unit-target-mismatch` | 提交 | unit 的目标不是源轨道，或结果不是该提交。下限之前的提交也报告 |
-| `pr-unreadable` | 提交、PR | PR 读不到 |
-| `pr-base-mismatch` | 提交、PR | PR 的 base 不是源轨道 |
-| `pr-section-missing` | 提交、PR、节 | PR 没有声明一节，或该节没有列表行 |
-| `cards-line-invalid` | 提交、PR、节 | 「所含的卡」的行不符合格式 |
-| `cards-empty` | 节 | 没有可列出的卡 |
-| `contract-line-invalid` | 提交、PR、节 | 「契约变化」的行不符合格式 |
-| `contract-path-unknown` | PR、节、路径 | 路径不是契约成员 |
-| `contract-level-exceeds-card` | PR、节、路径 | 级别高于所含卡的契约变更 |
-| `contract-breaking-off-integration` | PR、节、路径 | 联调轨道之外有 breaking |
-| `contracts-unknown` | 节 | 有提交的契约变化未知 |
-| `contract-diff-stale` | 节 | 快照差异不覆盖本次范围 |
-| `contract-diff-mismatch` | 节、路径 | 快照差异与声明不符 |
-| `card-inferred` | 卡 | 卡按分支名推测 |
-| `card-unresolved` | 提交、PR，可有卡 | 推测不出卡，或推测的卡没有可用的 binding |
-| `card-unreadable` | 卡 | 卡读不到 |
-| `card-line-unknown` | 卡 | 卡没有合法的交付线 |
-| `card-other-line` | 卡 | 卡的线不属于源轨道及其子孙轨道 |
+| 代码                                | 定位             | 含义                                                          |
+| ----------------------------------- | ---------------- | ------------------------------------------------------------- |
+| `parent-registry-drift`             | 无               | registry 的 `parent` 与可信上游不同                           |
+| `lower-bound-unknown`               | 无               | 没有切换点，也没有起点标签                                    |
+| `lower-bound-not-ancestor`          | 下限提交         | 下限不是轨道头的祖先                                          |
+| `unit-missing`                      | 提交             | 下限之后的提交没有 unit                                       |
+| `unit-invalid`                      | 提交             | unit 标签或正文不合格，或没有 `pr`。下限之前的提交也报告      |
+| `unit-target-mismatch`              | 提交             | unit 的目标不是源轨道，或结果不是该提交。下限之前的提交也报告 |
+| `pr-unreadable`                     | 提交、PR         | PR 读不到                                                     |
+| `pr-base-mismatch`                  | 提交、PR         | PR 的 base 不是源轨道                                         |
+| `pr-section-missing`                | 提交、PR、节     | PR 没有声明一节，或该节没有列表行                             |
+| `cards-line-invalid`                | 提交、PR、节     | 「所含的卡」的行不符合格式                                    |
+| `cards-empty`                       | 节               | 没有可列出的卡                                                |
+| `contract-line-invalid`             | 提交、PR、节     | 「契约变化」的行不符合格式                                    |
+| `contract-path-unknown`             | PR、节、路径     | 路径不是契约成员                                              |
+| `contract-level-exceeds-card`       | PR、节、路径     | 级别高于所含卡的契约变更                                      |
+| `contract-breaking-off-integration` | PR、节、路径     | 联调轨道之外有 breaking                                       |
+| `contracts-unknown`                 | 节               | 有提交的契约变化未知                                          |
+| `contract-diff-stale`               | 节               | 快照差异不覆盖本次范围                                        |
+| `contract-diff-mismatch`            | 节、路径         | 快照差异与声明不符                                            |
+| `card-inferred`                     | 卡               | 卡按分支名推测                                                |
+| `card-unresolved`                   | 提交、PR，可有卡 | 推测不出卡，或推测的卡没有可用的 binding                      |
+| `card-unreadable`                   | 卡               | 卡读不到                                                      |
+| `card-line-unknown`                 | 卡               | 卡没有合法的交付线                                            |
+| `card-other-line`                   | 卡               | 卡的线不属于源轨道及其子孙轨道                                |
 
 ### 限制
 

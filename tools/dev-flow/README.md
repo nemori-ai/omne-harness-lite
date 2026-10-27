@@ -7,6 +7,11 @@ Development flow tools. This member is not published.
 - [integration](src/integration/README.md): `start`, the task context, `status`, baselines and `task-sync`, which moves the target baseline forward after you merge the target branch. `@omne-harness/repo-toolchain` owns the read format of the task context in `core/task-context`; this member writes the context and validates all of it. `ri-notes` builds the two sections of a promotion PR from the unit records and PR bodies of one track. It only reads and reports. For the integration node, `worktree-cli.ts` prepares a worktree for a dispatched attempt and regenerates agent projections, and `gate-cli.ts wait` waits for a gate run and approves it with a note of at most 1024 characters.
 - [delivery](src/delivery/README.md): reads Issues and the project board and reports card shape, phase waits, dependency projections and card attribute findings. It also validates the line ownership table (`check:lines`) and syncs the attribute labels of one card. Four commands support cards that run in parallel: `scope-cli.ts` intersects the write scopes of several cards and only reads, `milestone-cli.ts` creates milestones and moves cards between them, `board-cli.ts` writes the Project date, Line, Kind, Wave and Status fields of one card, and `dispatch-cli.ts` posts a dispatch comment and writes the binding back into the card.
 - The package template: see below.
+
+`pnpm run pre-admission --journal PATH` runs the existing pre-admission checks from the repository root. Each operation keeps separate logs and stops at the first failed check. See the [pre-admission command](src/delivery/README.md#预准入命令).
+
+`pnpm run release-run --input FILE --journal PATH` dispatches and follows one package release workflow. It is separate from a milestone wave release. See the [package release command](src/integration/README.md#包发布运行).
+
 - [package-exports](src/package-exports/README.md): compares the built entries of one member with its export inventory and its public-api page. Member tests run the `package-exports` CLI as a child process. Product source does not import it.
 
 ## Ordinary tasks

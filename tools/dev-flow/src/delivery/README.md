@@ -47,6 +47,18 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 
 正常观察退出0。错误输入退出2。偏离不自动阻断交付。`enabled:false` 可以预备读取，但不能派发日常任务。正式配置保持未启用。长期产品与场景由[产品模块](../../../repo-toolchain/src/product/SPEC.md)独立发现；普通任务沿共同交付协议独立维护本次身份、范围和结果。平台启用、默认分支模板和实际宿主执行仍未由离线检查覆盖。
 
+## 预准入命令
+
+在仓库根运行：
+
+```sh
+pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pre-admission
+```
+
+此入口迁移 `pre-admission.sh`。包内同名 script 与构建后的 `omne-pre-admission` 提供同一行为。省略 `--worktree` 时使用当前目录。每次运行生成新的 operation ID，也可用 `--operation-id UUID` 指定未使用的 ID；重复 ID 拒绝，防止覆盖证据。
+
+命令依次执行接受锁、affected build、declarations、contract-api、lines、docs、design、deps、rules、oxlint 和 format。任一步失败即停止并返回该步退出码。标准输出包含已执行步骤、各步日志路径和失败日志末 20 行。详细顺序与绑定分支行为见 [SPEC](SPEC.md#预准入执行)。
+
 ## 属性发现
 
 报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。属性发现只报告，不计入 `deviation`，不阻止开工。`stock.attribute` 是这一类的数量。
