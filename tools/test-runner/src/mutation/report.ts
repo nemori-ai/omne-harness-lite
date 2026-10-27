@@ -1,4 +1,5 @@
 // 读 Stryker 的 JSON 报告（mutation-testing-report-schema 1.x），只留落在要变异的行上的变异体，按成员汇总。
+import { touches } from '@omne-harness/repo-toolchain/core/git'
 import type { RunRecord } from './run-reporter.ts'
 import { withinTarget, type MutationTarget } from './scope.ts'
 
@@ -106,6 +107,19 @@ export interface Finding {
   readonly static: boolean
 }
 
+/**
+ * 要变异的一段改动行，报告里没有一个可计分状态（被杀、超时、存活、无覆盖）的变异体落在上面（#737）。
+ * 分数量不到它：既不算测出来，也不算没测出来。常见原因是 Stryker 不为类型位置生成变异体，
+ * `x as T`（含 `as const`）里的字面量也在内；只有编译错误、忽略等不计分状态的变异体碰到它时同样算。
+ */
+export interface UnmutatedRange {
+  /** 仓库相对路径。 */
+  readonly file: string
+  readonly start: number
+  /** 整份变异的文件为 null。 */
+  readonly end: number | null
+}
+
 /** 不能计分的原因。 */
 export type InvalidReason =
   /** 报成存活、有用例覆盖、却一条用例都没跑完：运行器没跑测试，不是测试没测出来（#405）。 */
@@ -174,6 +188,8 @@ export interface MemberMutation {
   readonly recheck: RecheckReading | null
   /** 报告里有、却不在要变异的行上的变异体（跨行的表达式等）；不计入上面各项。 */
   readonly outside: number
+  /** 没有任何变异体落在上面的改动段：分数不覆盖它们，读数里记为未覆盖。 */
+  readonly unmutated: readonly UnmutatedRange[]
 }
 
 const SHOWN = 80
@@ -387,6 +403,32 @@ export interface SummaryInputs {
   readonly recheckReading?: RecheckReading
 }
 
+/** 能计分的状态：被杀与超时算测出来，存活与无覆盖算没测出来。 */
+const SCORABLE: ReadonlySet<MutantStatus> = new Set(['Killed', 'Timeout', 'Survived', 'NoCoverage'])
+
+/** 要变异的各段改动里，没有一个可计分状态的变异体碰到的段，按文件、起始行排序。 */
+function unmutatedRanges(target: MutationTarget, report: MutationReport): UnmutatedRange[] {
+  return [...target.lines]
+    .flatMap(([path, ranges]) => {
+      const mutants = (
+        report.files[path.slice(target.member.path.length + 1)]?.mutants ?? []
+      ).filter(mutant => SCORABLE.has(mutant.status))
+      return ranges
+        .filter(
+          range =>
+            !mutants.some(mutant =>
+              touches([range], mutant.location.start.line, mutant.location.end.line),
+            ),
+        )
+        .map(([start, end]) => ({
+          file: path,
+          start,
+          end: end === Number.POSITIVE_INFINITY ? null : end,
+        }))
+    })
+    .sort((a, b) => a.file.localeCompare(b.file) || a.start - b.start)
+}
+
 export function summarizeMember(
   target: MutationTarget,
   report: MutationReport,
@@ -450,6 +492,7 @@ export function summarizeMember(
     typeTests: inputs.runs === undefined ? null : typeTestReading(target, report, inputs.runs),
     recheck: inputs.recheckReading ?? null,
     outside,
+    unmutated: unmutatedRanges(target, report),
   }
 }
 
@@ -475,6 +518,27 @@ const INVALID_NAMES: Readonly<Record<InvalidReason, string>> = {
 
 const INVALID_REASONS = Object.keys(INVALID_NAMES) as InvalidReason[]
 
+const describeRange = (range: UnmutatedRange) =>
+  range.end === null
+    ? range.file
+    : `${range.file}:${range.start}${range.end === range.start ? '' : `-${range.end}`}`
+
+/**
+ * 标题行的分数。有改动段没有变异体时，分数只说明有变异体的那些段：写明未覆盖几段，
+ * 不让「全杀」读成「改动全量到了」；一个可计分的变异体都没有时不给分数，只报未覆盖。
+ */
+function scoreText(result: MemberMutation): string {
+  const uncovered = result.unmutated.length
+  if (!result.valid)
+    return uncovered === 0
+      ? '—（测量无效）'
+      : `—（测量无效；未覆盖 ${uncovered} 段：改动上没有变异体）`
+  if (uncovered === 0) return result.score === null ? '—' : `${result.score}%`
+  return result.score === null
+    ? `—（未覆盖 ${uncovered} 段：改动上没有变异体）`
+    : `${result.score}%（只算有变异体的改动段；未覆盖 ${uncovered} 段：改动上没有变异体）`
+}
+
 /** 一个成员的读数；`detail` 为真时逐条列出存活、无覆盖、不计分与复核过的变异体。 */
 export function memberLines(result: MemberMutation, detail: boolean): string[] {
   const { counts } = result
@@ -489,7 +553,7 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
       `编译错误 ${counts.CompileError}、运行错误 ${counts.RuntimeError}` +
       invalidCounts.map(([reason, count]) => `、${INVALID_NAMES[reason]} ${count}`).join('') +
       (result.rechecked.length > 0 ? `，其中复核 ${result.rechecked.length}` : '') +
-      `；分数 ${result.valid ? (result.score === null ? '—' : `${result.score}%`) : '—（测量无效）'}`,
+      `；分数 ${scoreText(result)}`,
   ]
   const { typeTests } = result
   if (typeTests?.status === 'notMeasured')
@@ -504,6 +568,7 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
   if (!detail) return lines
   for (const finding of result.survived) lines.push(`  存活 ${describeFinding(finding)}`)
   for (const finding of result.noCoverage) lines.push(`  无覆盖 ${describeFinding(finding)}`)
+  for (const range of result.unmutated) lines.push(`  没有变异体 ${describeRange(range)}`)
   for (const finding of result.invalid)
     lines.push(`  ${INVALID_NAMES[finding.reason]} ${describeFinding(finding)}`)
   for (const finding of result.rechecked)
