@@ -34,7 +34,7 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 1. [装配协调者](../../domains/assembly-and-handoff/README.md#模块角色与事实归属)（领域角色「采用协调」）为本会话收集采用点事实，调用 Tool 的纯函数 `planAdoption`。判定为冻结时，输出是 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。
 2. 装配协调者把判定放进本次候选采用材料。
-3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/session/SPEC.md#s1-推进触发调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/session/SPEC.md#c2-agent-推进协调器)）提交。`reload` 分支由处理显式 reload 的协调器提交。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。`maintainer` 发起的 `startRun` 返回 `frozen` 的分支待 C7（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。
+3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/session/SPEC.md#s1-推进触发调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/session/SPEC.md#c2-agent-推进协调器)）提交。`reload` 分支也由 C2 提交。C2 的换代顺序产出 `reload`，C2 的冻结判定行同时覆盖 `startRun` 与 `reload` 返回 `frozen` 的情形。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。`maintainer` 发起的 `startRun` 返回 `frozen` 的分支待 C7（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。
 4. 材料带冻结判定时，命令返回 `frozen`，不提交。
 5. 收到 `frozen` 的同一协调器以同一判定、同一 `SessionAccess` 和调用方类 `coordinator` 调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
 
@@ -58,7 +58,7 @@ Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](.
 - 桥接插件缺席或尚未就绪：`toolResidencyReader` 是协调者的必需依赖，协调者停在 `PENDING`，不提供 `toolGenerations`，不执行撤除。
 - 读取返回 `unavailable`：`unload` 与 `sweep` 返回 `retained`。
 
-运行中桥接插件换代时，协调者的插件体卸载并重跑。桥接插件撤除时尚未返回的读取由桥接插件的撤除路径结算为 `unavailable`，协调者按「读取返回 `unavailable`」处理：`reopen(key)` 并返回 `retained`。协调者插件体被卸载重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen` 再从头执行五步。这两句闭合 #753 结论表的 C10，拥有者是[换代协调者契约](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
+运行中桥接插件换代时，协调者的插件体卸载并重跑。桥接插件撤除时尚未返回的读取由桥接插件的撤除路径结算为 `unavailable`，协调者按「读取返回 `unavailable`」处理：`reopen(key)` 并返回 `retained`。协调者插件体被卸载重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen`，再从 `close(key)` 与引用核对重新开始。只有引用核对允许撤除时，协调者才执行五步，不跳过保留义务。这条规则的拥有者是[换代协调者契约](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
 
 ```mermaid
 flowchart LR
