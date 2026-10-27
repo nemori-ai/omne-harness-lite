@@ -1,6 +1,6 @@
 # github-gate
 
-本分支保存 RFC-0011 第一阶段持有发布身份密钥的流程，以及使用交付身份（#546）的两个流程。它不进入任何主干，只有 admin 能更新。
+本分支保存 RFC-0011 第一阶段持有发布身份密钥的流程、使用交付身份（#546）的两个流程，以及协作申请登记流程。它不进入任何主干，只有 admin 能更新。
 
 - `.github/workflows/gate-publish.yml`：确认后发布各层轨道、main 和 stable 的 PR。
 - `.github/workflows/gate-reconcile.yml`：报告核对下限之后没有记录的主干提交，以及上游链上有分支不存在的轨道，不创建标签。
@@ -9,6 +9,7 @@
 - `gate/toolchain-paths.txt`：受仓库工具链变更闸门保护的路径，见下文。
 - `.github/workflows/gate-release.yml`：把 `@omne-harness/repo-toolchain` 或 `@omne-harness/repo-config` 经 npm 可信发布发到 npm，见下文。
 - `.github/workflows/delivery-facts.yml` 与 `delivery-stage.yml`：以交付身份为 Claude Code 云端会话读取开工事实、修改 Project Stage，见下文。
+- `.github/workflows/integration-request.yml`：按固定安装描述符校验并登记协作申请，见下文。
 
 派发方式：`gh workflow run gate-publish.yml --ref github-gate -f pr=<PR 号> -f head=<PR head 提交号>`。合入 stable 时还要传 `-f checkpoint=<名称>`。
 
@@ -79,7 +80,7 @@
 
 交付身份是 GitHub App `omne-harness-lite-delivery`，决定见 [#546](https://github.com/nemori-ai/omne-harness-lite/issues/546)。它只写交付元数据、读权限事实：仓库 Issues 读写、Environments 只读、组织级 Projects 读写，没有 contents、workflows 与 pull requests 权限。私钥与 client ID 只在 `delivery` environment，该 environment 只接受本分支上的运行，不设确认者。会话不持有它的令牌，只能派发下面两个流程。
 
-两个流程只给 Claude Code 云端会话使用。云端代理拦截 GraphQL、`orgs/` 与 `environments` 路径（#476）；本地会话直接读写，不经过这两个流程。两个流程写死了 Project ID 与 Stage 字段 ID，修改仓库 `docs/engineering/github-delivery.json` 的 `project` 时同时修改它们。
+Claude Code 云端代理拦截 GraphQL、`orgs/` 与 `environments` 路径（#476），可通过这两个流程取得所需能力。采用 published 模式的协作工具也使用 `delivery-facts`，由 reduce 负责人准备当前、历史和任务派发事实，再供只读消费者核对。两个流程写死了 Project ID 与 Stage 字段 ID，修改仓库 `docs/engineering/github-delivery.json` 的 `project` 时同时修改它们。
 
 **`delivery-facts`**：`gh workflow run delivery-facts.yml --ref github-gate -f issue=<卡号> -f authority=<派发评论 URL> -f nonce=<32 位小写十六进制>`。云端的 `start` 自动派发它，不需要手动运行。流程读取派发评论的作者、正文摘要与更新时间、`publish` 的 required reviewers，以及卡在 Project 中的 item 和 Stage，在卡上发一条含 `json omne-delivery-facts:v1` 区块的评论。下列情况运行失败，不发评论：派发评论不在 URL 所指的 Issue 上；reviewer 为空或含 Team；Stage 字段不属于该 Project；卡在 Project 中没有唯一的 item；任何读取失败。`start` 采用这条评论的全部条件归 `tools/dev-flow/src/integration/SPEC.md` 的 I15。
 
@@ -87,4 +88,12 @@
 
 已知风险：交付身份的私钥外泄时，持有者能修改组织内全部 Project，能编辑或关闭本仓库的 Issue（包括卡正文与 binding），也能以交付身份发出伪造的开工事实评论，使云端 `start` 接受没有派发资格的作者。私钥按与 admin 权限同等的级别保管和轮换。
 
-`workflow_dispatch` 要求默认分支上存在同名文件，main 上的两个文件是空壳。
+`workflow_dispatch` 要求默认分支上存在同名文件，main 上的对应文件是空壳。
+
+## 协作申请登记
+
+已采用的工具通过 `integration-request.yml` 在本分支登记申请。`delivery` environment 保存 `OMNE_COLLABORATION_DESCRIPTOR` 原始 JSON 与 `OMNE_COLLABORATION_SHA256`。先发布受审工具提交和固定来源，再发布本分支提交，最后采用固定这些身份的描述符。安装与协议归工具提交中的 `tools/dev-flow/src/delivery/README.md` 和 `SPEC.md`。
+
+流程在检出代码前只读取一次描述符快照，核对摘要、仓库、完整工具提交、published 模式和当前 workflow 提交。核对失败就停止；通过后才检出固定工具、按锁文件安装依赖、以只读方式采用安装并校验登记申请。默认分支入口只输出从 github-gate 执行的指导并失败，不登记申请。
+
+更新 workflow 时，版本 2 描述符须显式保留仍被 journal 引用的旧 facts workflow 身份。安装描述符不授派发权，不指定新的接受者，也不代表接受卡片。reduce 的 facts 生产权须另行明确激活或从已停止的旧生产者完整转移；普通安装不会取得生产权。未知派发按原 operation 和 journal 恢复，不重建请求或从最新运行猜测归属。
