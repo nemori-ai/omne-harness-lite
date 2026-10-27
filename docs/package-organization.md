@@ -304,6 +304,8 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 | Model 契约 | 按职责需要的公共值与窄端口 | 不依赖 Session、Agent 领域职责 |
 | Tool 契约 | 按职责需要的公共值与窄端口 | 不依赖 Session、Agent 领域职责 |
 
+access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
+
 本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。

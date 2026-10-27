@@ -551,7 +551,7 @@ Session 命令：
 | `preserveResult` | `coordinator`、`maintainer`，参加；Agent 记录已删除时由 Session 提交。合格保管者资格，不要求旧 attempt 有效 | 参加时为执行记录提供者的操作身份；Session 提交时为命令种类、consumption 与结果版本 | consumption、`ProducedResult`、保管证据 | 保管证据 |
 | `completeConsumption` | `coordinator`，参加；原消费资格 | 执行记录提供者的操作身份 | `Participation`、`Completion` | 完成证据 |
 | `completeExternalConsumption` | `coordinator`；原投递资格 | 命令种类、consumption 与结果版本 | `expected`、`qualification`、`ExternalCompletion` | 完成证据 |
-| `bindExternalCall` | `coordinator`；消费者拥有者的原资格材料 | 外部关联与固定请求摘要 | `expected`、`qualification`、`initiatingAttempt` 为 null 的 `CallBinding` | 回执与 `ConsumptionId` |
+| `bindExternalCall` | `coordinator`；消费者拥有者的原资格材料 | 外部关联与固定请求摘要 | `expected`、`qualification`、`initiatingAttempt` 为 null 的 `CallBinding`。写入 SE18 时的载荷映射见[稳定调用引用的读取](#稳定调用引用的读取) | 回执与 `ConsumptionId` |
 | `commitDerived` | `coordinator`。压缩分支参加；变化提醒分支由作用域持有者一侧以 Session 提交 | 参加时为执行记录提供者的操作身份；变化提醒为变化材料身份 | `DerivedMessage` 与准入经过 | 回执 |
 | `release` | `coordinator`、`maintainer`；当前推进资格或恢复资格 | run、attempt 与交接依据摘要 | `advance`、`expected`、交接依据 | 回执 |
 | `control` | `intake`、`maintainer`；控制资格（身份桥） | 控制发起者交来的提交身份 | `Control` | 回执与 `ControlProgress` |
@@ -648,15 +648,21 @@ Session 命令：
 
 ##### 稳定调用引用的读取
 
-调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。分支与引用的字段名沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)：`kind` 为 `model` 时，`reference` 是稳定 `ModelInvocationRef` 文本；`kind` 为 `tool` 时，`reference` 是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有 `reference`。Run 外登记（`bindExternalCall`）与 Run 内登记同种类，读者按载荷字段区分。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+调用登记（SE18，种类短名 `call.bound`）条目的载荷保存该调用的登记记录。载荷的公开可读字段沿 Agent 契约的 [`PendingCall`](../../agent/agent-contract/SPEC.md#两态登记与完整原请求)，有下列三个。
 
-`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，取第一条 Model 分支的 `reference`。Tool 分支与读者不需要的分支按载荷字段跳过。
+- `kind` 是 `model` 或 `tool`。
+- `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
+- `purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。
 
-这是观察重附着取得调用引用的唯一公开路径，组合步骤见[接入行为规格](../../access/server-entry/SPEC.md#重附着与脱离)。它不新增操作，也不提供「当前在途调用」的派生索引。调用是否在途由 Model `current` 回答。
+Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用同一组字段。Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：`kind` 取 `producer.kind`，`reference` 取 `producer.call`，Model 分支的 `purpose` 为 `main`。Model 分支的 `producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
 
-读取资格、游标与空页规则同 SL10、SL11。[日志读取、投影及恢复](#日志读取投影及恢复)要求正常推进不全量扫描历史。该要求约束 Session 自己的推进路径，不限制读者的历史读取。
+`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，按 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
 
-SE18 尚未由任何路径写入时，反向读返回 `exhausted` 为真的空页。读者按「没有稳定引用」处理，不推测调用是否存在。
+这是外部读者取得稳定调用引用的唯一公开路径。它不新增操作。本版不提供「最新调用」的派生索引。
+
+读取资格、游标与空页规则同 [SL10、SL11](#日志读取投影及恢复)。同一节要求正常推进不全量扫描历史。该要求约束 Session 自己的推进路径，不限制读者的历史读取。
+
+读者遍历到 `exhausted` 为真仍未见所需分支时，按没有稳定引用处理，不推测调用是否存在。`exhausted` 为假的空页不表示没有。
 
 #### 值与结果项的约束
 
@@ -718,7 +724,7 @@ SE18 尚未由任何路径写入时，反向读返回 `exhausted` 为真的空�
 | JC-07 | `claim` | Session | 存储参加者；证据桥 | 接管资格、连续性 | SE15，必要时 SE16；`advance` 为新 attempt。执行记录提供者不参加本次提交 |
 | JC-08 | `reload` | Session | 存储参加者；证据桥、Context 输入 | `handover` 证明；新的注册条件 | SE08、SE15、SE16；`run.active.adoption` 为新采用 |
 | JC-09 | `commitDerived(compaction)` | 执行记录提供者（`context-transition` 交接） | Session 参加者；证据桥 | P-2 材料；压缩消息与转换证据 | SE10 压缩记录、SE33 与新的模型视图代 |
-| JC-10 | `bindExternalCall` | Session | 存储参加者；证据桥 | 消费者资格材料 | SE18，`initiatingAttempt` 为 null；`run` 不变 |
+| JC-10 | `bindExternalCall` | Session | 存储参加者；证据桥 | 消费者资格材料 | SE18，`initiatingAttempt` 为 null，载荷按[稳定调用引用的读取](#稳定调用引用的读取)由 `CallBinding` 映射。`run` 不变 |
 | JC-11 | `preserveResult` | 执行记录提供者（`custody` 交接，经 `commit` 或 `recordResult`）；Agent 记录已删除时为 Session | Session 参加者或存储参加者；证据桥 | P-2 材料；保管证据 | SE20；对应 `results` 项的保管非空 |
 | JC-12 | `completeConsumption` | 执行记录提供者（`processed` 交接，经 `commit` 或 `recordResult`） | Session 参加者；证据桥 | P-2 材料；完成依据 | SE21；完成非空；原位置的等待从 `waiting` 移除 |
 | JC-13 | `completeExternalConsumption` | Session | 存储参加者；证据桥 | 外部位置与投递资格 | SE21，必要时 SE10 |
