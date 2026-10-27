@@ -464,7 +464,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `session` | `create-session` 成功时返回的会话标识文本：64 个小写十六进制字符（`^[0-9a-f]{64}$`），即[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)中的会话标识摘要。 |
 | `acceptId` | 非空字符串，调用者在首次发送前生成的受理标识。唯一范围是同一会话。重试保持同值。 |
 | `inputId` | 非空字符串，调用者在首次发送前生成的输入标识。唯一范围是同一会话。重试保持同值。 |
-| `message` | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。 |
+| `message` | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。本成员的读取范围见[会话编解码函数](#会话编解码函数)。 |
 | `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。 |
 | `direction` | `forward` 或 `backward`。只在 `cursor` 为 null 时出现。 |
 | `pageBytes` | 匹配 `^[1-9][0-9]*$` 的文本，一页的字节上界。只在 `cursor` 为 null 时出现。 |
@@ -579,13 +579,13 @@ const encoded = encodeGovernanceRequest({
 
 ## 公开编解码入口与实现细化
 
-本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的 [消息定义](src/messages.ts) 拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
+本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的[治理消息定义](src/messages.ts)与会话消息定义（`src/session-messages.ts`）拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
 
 ### 操作集合与函数
 
 正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body，正常行没有 `stage-not-provided`，阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
-主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。本表是治理一组；会话一组的约定见[会话公开操作](#会话公开操作)。
+主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 
 | 函数 | 输入与可见结果 |
 | --- | --- |
@@ -595,6 +595,31 @@ const encoded = encodeGovernanceRequest({
 | `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
 
 `GovernanceCodecLimits` 直接别名引用 json-text 的 `JsonLimits`，不添加字段或默认数值。六项预算必须是1至最大安全整数的整数。无效参数容器、非 `Uint8Array` 字节、无效预算、非法本地操作上下文，以及非字符串的 `expectedMessageId` 属于编程错误，抛出固定 `TypeError`，错误不含输入值。参数中的请求或响应模型无效属于 `invalid`，不抛模型内容。messageId只要求字符串，不要求UUID或非空；operation仍必须属于封闭集合。
+
+### 会话编解码函数
+
+会话一组读写 `session-public/1` 的消息。下表与治理表逐行对应。
+
+| 函数 | 输入与可见结果 |
+| --- | --- |
+| `readSessionRequest` | 参数对象包含 `bytes`、`limits`。成功读取得到 `request`。协议不合规得到 `protocol-rejected` 共同响应和结构诊断。会话一组没有阶段操作，所以没有 `stage-not-provided`。 |
+| `readSessionResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`。合法响应的关联值不同，或 `protocol-rejected` 响应没有关联值时，得到 `unmatched`。其他坏消息得到 `unreadable`。 |
+| `encodeSessionRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节。模型字段或值不符得到 `invalid` 和结构诊断。 |
+| `encodeSessionResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。共同拒绝重载只需 `response` 与 `limits`，只能编码 `protocol-rejected`。 |
+
+预算、编程错误、`invalid`、诊断 code、本地证明、`messageId` 与输入反射的规则同治理一组，见上一节、[本地值与线上表示](#本地值与线上表示)与[结果闭合与关联](#结果闭合与关联)的前两段。`SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是 `GovernanceCodecLimits`、`GovernanceDiagnostic` 与 `GovernanceEncodeResult` 的别名。每个会话操作的线上业务 outcome 与 body 见[结果](#结果)的两张表。所有未列字段拒绝。
+
+`readSessionRequest` 执行[会话判断次序](#会话判断次序)第 1 步的检查。下面两项的责任在本成员与服务端接入之间划分：
+
+- `message`：本成员只核对它是 JSON 对象，并且 `role` 恰为 `user`。本地值保留该对象的 json-text 值树。服务端接入在同一个第 1 步按 message 包完整解码该对象。解码不合规仍是 `protocol-rejected`，Session 不被调用。本成员不依赖 message 包。
+- `session`：本成员只核对文本是 64 个小写十六进制字符。本地值是普通字符串，不加品牌。线上 `session` 文本到 Session `SessionId` 品牌值的转换由服务端接入完成，不在本成员。
+
+其他会话字段的本地值如下：
+
+- `tenant` 与 `create-session` 的 `actingTenant` 本地为完整 `TenantId`，读取规则同 `tenantId`。
+- `pageBytes` 本地保留原文本。它是否超出部署上界，由服务端接入在第 5 步判断。
+- `read-history` 的本地 body 按 `cursor` 分两种形状。`cursor` 为 null 时，必须带 `direction` 与 `pageBytes`。`cursor` 为非空字符串时，不能带这两个字段。
+- 历史页每项的 `payload` 本地为 json-text 值树，原样保留。`entryId`、`revision`、`kind` 与 `scannedThrough` 是非空字符串。`next` 是 null 或非空字符串。
 
 ### 本地值与线上表示
 
