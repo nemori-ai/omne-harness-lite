@@ -60,6 +60,8 @@
 - `AgentMaterials` · `passages.d.ts`
 - `AgentObservation` · `execution.d.ts`
 - `AgentOperationId` · `identity.d.ts`
+- `AgentReceivedCommits` · `receiving.d.ts`
+- `AgentReceivedProvider` · `receiving.d.ts`
 - `AgentRegistrationHandle` · `execution.d.ts`
 - `AgentRegistrationId` · `identity.d.ts`
 - `AgentRuntime` · `execution.d.ts`
@@ -165,6 +167,10 @@
 - `ProducerDecisionView` · `evaluation.d.ts`
 - `ProgressionDirective` · `evaluation.d.ts`
 - `QuiesceResult` · `execution.d.ts`
+- `ReceivedCommitInput` · `receiving.d.ts`
+- `ReceivedCommitQuery` · `receiving.d.ts`
+- `ReceivedCommitResult` · `receiving.d.ts`
+- `ReceivedCommitValue` · `receiving.d.ts`
 - `ReceivedDelivery` · `receiving.d.ts`
 - `ReceivedEntry` · `receiving.d.ts`
 - `RefusalReason` · `judgment.d.ts`
@@ -217,18 +223,21 @@
 - `ConformanceCase` · `testing-case.d.ts`
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
+- `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
+- `RequiredReceivedCommits` · `testing-received-fixture.d.ts`
 - `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
 - `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
+- `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
 - `sampleAccountHandoff` · `testing-account-outlet.d.ts`
-- `sampleReceivedModelAccount` · `testing-journal-entries.d.ts`
-- `sampleReceivedModelResult` · `testing-journal-entries.d.ts`
-- `sampleReceivedToolAccount` · `testing-journal-entries.d.ts`
-- `sampleStartFence` · `testing-journal-entries.d.ts`
-- `sampleStreamReference` · `testing-journal-entries.d.ts`
+- `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
+- `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
+- `sampleReceivedToolAccount` · `testing-journal-samples.d.ts`
+- `sampleStartFence` · `testing-journal-samples.d.ts`
+- `sampleStreamReference` · `testing-journal-samples.d.ts`
 
 ## 声明文件 `body-contract.d.ts`
 
@@ -2028,12 +2037,15 @@ export interface RegisteredReads<P> {
 
 ```ts
 import type { CallAccount } from '@omne-harness/call-account';
+import type { ContentBlock } from '@omne-harness/content-block';
 import type * as M from '@omne-harness/model-contract';
 import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival';
 import type * as T from '@omne-harness/tool-contract';
 import type { Reply } from './evaluation.ts';
 import type { CommandReceipt, ExecutionMutation } from './execution.ts';
 import type { Access, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
+import type { AgentJournal } from './journal.ts';
+import type { AgentMaterials, Material } from './passages.ts';
 export type StartFenceEntry = Readonly<{
     kind: 'start-fence';
     operation: T.ToolOperationId;
@@ -2094,6 +2106,35 @@ export type JournalEntryRecord<P> = ExecutionMutation<P> & (Readonly<{
 export interface AgentJournalEntries<P> {
     record(input: JournalEntryRecord<P>): Reply<CommandReceipt>;
 }
+export type ReceivedCommitInput<P, B extends ContentBlock> = ExecutionMutation<P> & Readonly<{
+    entry: Omit<ReceivedEntry, 'material'>;
+    material: Material<B>;
+}>;
+export type ReceivedCommitValue = Readonly<{
+    receipt: CommandReceipt;
+    entry: ReceivedEntry;
+    saved: DurableEvidence;
+}>;
+export type ReceivedCommitResult = Readonly<{
+    kind: 'committed';
+    value: ReceivedCommitValue;
+}> | Readonly<{
+    kind: 'excluded';
+    evidence: DurableEvidence;
+}>;
+export type ReceivedCommitQuery = ReceivedCommitResult | Readonly<{
+    kind: 'unknown';
+}>;
+export interface AgentReceivedCommits<P, B extends ContentBlock> {
+    commit(input: ReceivedCommitInput<P, B>): Reply<ReceivedCommitResult>;
+    query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>;
+}
+export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
+    journal: AgentJournal<P>;
+    entries: AgentJournalEntries<P>;
+    materials: AgentMaterials<P, B>;
+    received: AgentReceivedCommits<P, B> | null;
+}>;
 export type AgentAccountHandoff = Readonly<{
     call: M.ModelInvocationRef;
     dispatch: M.DispatchId;
@@ -2334,10 +2375,13 @@ export declare function doubleEvidence(owner: string, record: string, revision: 
 ## 声明文件 `testing-journal-entries.d.ts`
 
 ```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { RequiredReceivedCommits } from './testing-received-fixture.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
 import { type Access, type AgentExecutionId, type Authority } from './identity.ts';
-import type { AgentJournalEntries, AgentJournalEntry, ReceivedEntry, StartFenceEntry, StreamReferenceEntry } from './receiving.ts';
+import type { AgentJournalEntries, AgentJournalEntry } from './receiving.ts';
 import { type ConformanceCase } from './testing-case.ts';
+export { sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, sampleStreamReference, } from './testing-journal-samples.ts';
 export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
     readonly durability: 'none';
     open(input: Readonly<{
@@ -2367,15 +2411,146 @@ export interface AgentJournalEntriesFixture<P> {
     end(access: Access<P>, execution: AgentExecutionId): Promise<void>;
     read(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentJournalEntry[] | undefined>;
 }
+export declare function agentJournalEntriesConformance<P, B extends ContentBlock = ContentBlock>(fixture: AgentJournalEntriesFixture<P>, profile?: RequiredReceivedCommits<P, B>): readonly ConformanceCase[];
+export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
+    double: MemoryAgentJournalEntries<P>;
+}>;
+```
+
+## 声明文件 `testing-journal-samples.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ReceivedEntry, StartFenceEntry, StreamReferenceEntry } from './receiving.ts';
 export declare function sampleStartFence(name: string): StartFenceEntry;
 export declare function sampleReceivedModelResult(tenant: TenantId, name: string, dispatchRevision?: string): ReceivedEntry;
 export declare function sampleReceivedModelAccount(tenant: TenantId, name: string, revision?: string): ReceivedEntry;
 export declare function sampleReceivedToolAccount(tenant: TenantId, name: string, lexeme?: string): ReceivedEntry;
 export declare function sampleStreamReference(tenant: TenantId, name: string): StreamReferenceEntry;
-export declare function agentJournalEntriesConformance<P>(fixture: AgentJournalEntriesFixture<P>): readonly ConformanceCase[];
-export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
-    double: MemoryAgentJournalEntries<P>;
+```
+
+## 声明文件 `testing-received-conformance.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts';
+import type { RequiredReceivedCommits } from './testing-received-fixture.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export declare function receivedCommitConformance<P, B extends ContentBlock>(fixture: AgentJournalEntriesFixture<P>, profile: RequiredReceivedCommits<P, B>): readonly ConformanceCase[];
+```
+
+## 声明文件 `testing-received-fixture.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { Access, AgentExecutionId, DurableEvidence } from './identity.ts';
+import type { ExecutionMutation } from './execution.ts';
+import type { AgentJournal } from './journal.ts';
+import type { AgentMaterials, Material } from './passages.ts';
+import type { AgentJournalEntries, AgentReceivedCommits, ReceivedCommitInput } from './receiving.ts';
+export interface ReceivedCommitFixture<P, B extends ContentBlock> {
+    readonly entries: AgentJournalEntries<P>;
+    readonly received: AgentReceivedCommits<P, B>;
+    readonly materials: AgentMaterials<P, B>;
+    readonly journal: Pick<AgentJournal<P>, 'query'>;
+    bind(input: ReceivedCommitInput<P, B>): Promise<void>;
+    material(name: string): Material<B>;
+    inspect(access: Access<P>, execution: AgentExecutionId): Promise<Readonly<{
+        revision: number;
+        materials: number;
+        entries: number;
+    }>>;
+    pause(input: ExecutionMutation<P>): Readonly<{
+        reached: Promise<DurableEvidence>;
+        release(): void;
+    }>;
+    fault(input: ExecutionMutation<P>, point: 'before-publish' | 'after-publish'): void;
+    exclude(input: ReceivedCommitInput<P, B>, evidence: DurableEvidence): Promise<void>;
+    qualify(access: Access<P>, execution: AgentExecutionId, status: 'allowed' | 'denied' | 'unavailable'): void;
+    retainSaved(input: ExecutionMutation<P>, saved: DurableEvidence): void;
+    loseMaterial(source: DurableEvidence): void;
+}
+export type RequiredReceivedCommits<P, B extends ContentBlock> = Readonly<{
+    received: 'required';
+    joint: ReceivedCommitFixture<P, B>;
 }>;
+```
+
+## 声明文件 `testing-received-material.d.ts`
+
+```ts
+import { z } from 'zod';
+export declare const materialShape: z.ZodType<unknown>;
+```
+
+## 声明文件 `testing-received-memory.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import { type Access } from './identity.ts';
+import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts';
+import type { ReceivedCommitFixture } from './testing-received-fixture.ts';
+export declare function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentBlock>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
+    durability: 'none';
+    joint: ReceivedCommitFixture<P, B>;
+}>;
+```
+
+## 声明文件 `testing-received-state.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { Failure } from './evaluation.ts';
+import type { CommandReceipt, ExecutionMutation } from './execution.ts';
+import { type Authority, type AgentExecutionId, type DurableEvidence } from './identity.ts';
+import type { Material } from './passages.ts';
+import type { AgentJournalEntry, ReceivedCommitInput, ReceivedCommitValue, ReceivedEntry } from './receiving.ts';
+export type KeptOperation = {
+    kind: 'record';
+    text: string;
+    receipt: CommandReceipt;
+    entry: AgentJournalEntry;
+} | {
+    kind: 'received';
+    text: string;
+    value: ReceivedCommitValue;
+} | {
+    kind: 'excluded';
+    text: string;
+    evidence: DurableEvidence;
+};
+export type KeptDelivery = {
+    entry: ReceivedEntry;
+    receipt: CommandReceipt;
+    saved: DurableEvidence | null;
+};
+export type MemoryExecution = {
+    authority: Authority;
+    ended: boolean;
+    revision: number;
+    entries: AgentJournalEntry[];
+    operations: Map<string, KeptOperation>;
+    qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>;
+};
+export type KeptMaterial<B extends ContentBlock> = {
+    tenant: string;
+    execution: AgentExecutionId;
+    value: Material<B>;
+};
+export declare const executionKey: <P>(input: Pick<ExecutionMutation<P>, 'tenant' | 'execution'>) => string;
+export declare const operationKey: <P>(input: ExecutionMutation<P>) => string;
+export declare const deliveryKey: (entry: Omit<ReceivedEntry, 'material'>) => string;
+export declare const semanticText: <P, B extends ContentBlock>(input: ReceivedCommitInput<P, B>) => string;
+export declare const recordText: (entry: AgentJournalEntry, authority: Authority | null) => string;
+export declare const conflict: <P>(input: ExecutionMutation<P>) => Failure;
+export declare const unavailable: (diagnostic: string) => Failure;
+export declare const denied: () => Failure;
+export declare function identity<T>(result: Outcome<T, unknown>): T;
+export declare function receiptOf<P>(state: MemoryExecution, input: ExecutionMutation<P>): CommandReceipt;
+export declare function sourceOf<P, B extends ContentBlock>(input: ReceivedCommitInput<P, B>): DurableEvidence;
+export declare function mutationFailure<P>(input: ExecutionMutation<P>): Failure | null;
+export declare function receivedFailure<P, B extends ContentBlock>(input: ReceivedCommitInput<P, B>): Failure | null;
 ```
 
 ## 声明文件 `testing.d.ts`
@@ -2384,4 +2559,6 @@ export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, o
 export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, sampleStreamReference, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
+export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
+export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 ```

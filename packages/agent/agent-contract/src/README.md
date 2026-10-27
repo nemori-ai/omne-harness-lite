@@ -13,3 +13,5 @@
 ## 依赖与资源
 
 输入校验使用 json-text、schema-provider 和 zod。导入不创建 schema 缓存；一次判断持有并释放自己的校验执行域。接收面类型引用 model-contract 与 tool-contract 的交付键、call-account 的账目和 stream-arrival 的 `StreamRef`，不复制它们。源码不导入 Cordis、`agent`、`agent-host-local` 或装配实现；[dependency-direction.spec.ts](../tests/dependency-direction.spec.ts) 沿构建后的导入图核对。
+
+共同提交参考设施的状态、发布和认回在 [testing-received-memory.ts](testing-received-memory.ts)，材料公开形状的检查在 [testing-received-material.ts](testing-received-material.ts)。后者消费已有内容与身份判定器，不选择 Tool 的内容策略，也不验证材料所指生产者事实是否成立。
