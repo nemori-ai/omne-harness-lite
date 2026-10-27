@@ -3,7 +3,15 @@
 // 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -25,6 +33,7 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
 import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
+import { dependentMembers } from '../src/testing/turbo.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const RULES = readTestRunsConfig().affected
@@ -43,8 +52,16 @@ const member = (
 })
 
 // base ← mid ← top（top 有验收）；custodian-user 依赖读自己 README 的 credential-custodian-local。
+// 读者规则与常驻构建点名的真实成员也在清单里：agent-host-local 依赖 agent-cordis-contract，
+// m2-contract-skeleton 依赖 message，用来核对「被读的成员根目录文档只选读者、不带下游」。
 const MEMBERS = [
   member('packages/common/legal-identity'),
+  member('packages/agent/agent'),
+  member('packages/agent/agent-cordis-contract'),
+  member('packages/agent/agent-host-local', ['@x/agent-cordis-contract']),
+  member('packages/common/message'),
+  member('packages/model/pi-ai-transport'),
+  member('apps/m2-contract-skeleton', ['@x/message']),
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
   member('packages.0.0.1.legacy/core/stream-assembly'),
@@ -67,39 +84,49 @@ const MEMBERS = [
 ]
 
 /**
- * 模拟 turbo 的 `--affected`：成员目录里有任何文件改动就选中它（按包计，含文档），再加上依赖它的成员。
+ * 模拟 turbo 的依赖图（`--filter=...<包>`）：这些成员连同直接、间接依赖它们的成员。
  * 退役目录不是 workspace 成员，turbo 不认得。
  */
-function turboLike(paths: readonly string[], members: readonly WorkspaceMember[]): Set<string> {
+function dependentsLike(
+  seeds: readonly string[],
+  members: readonly WorkspaceMember[],
+): Set<string> {
   const active = members.filter(entry => !entry.path.includes('.legacy'))
-  const owners = new Set(
-    paths.flatMap(path => {
-      const owner = active
-        .filter(entry => path.startsWith(`${entry.path}/`))
-        .sort((a, b) => b.path.length - a.path.length)[0]
-      return owner === undefined ? [] : [owner.path]
-    }),
-  )
+  const found = new Set(seeds)
   const byName = new Map(active.map(entry => [entry.name, entry.path]))
   for (let grew = true; grew;) {
     grew = false
     for (const entry of active)
       if (
-        !owners.has(entry.path) &&
-        entry.dependencies.some(name => owners.has(byName.get(name) ?? ''))
+        !found.has(entry.path) &&
+        entry.dependencies.some(name => found.has(byName.get(name) ?? ''))
       ) {
-        owners.add(entry.path)
+        found.add(entry.path)
         grew = true
       }
   }
-  return owners
+  return found
+}
+/** 模拟 turbo 的 `--affected`：成员目录里有任何文件改动就选中它（按包计，含文档），再加上依赖它的成员。 */
+function turboLike(paths: readonly string[], members: readonly WorkspaceMember[]): Set<string> {
+  const active = members.filter(entry => !entry.path.includes('.legacy'))
+  const owners = paths.flatMap(path => {
+    const owner = active
+      .filter(entry => path.startsWith(`${entry.path}/`))
+      .sort((a, b) => b.path.length - a.path.length)[0]
+    return owner === undefined ? [] : [owner.path]
+  })
+  return dependentsLike(owners, members)
 }
 const planWith = (paths: string[], members: readonly WorkspaceMember[], full = false) =>
-  planCheck(paths, members, RULES, turboLike(paths, members), full)
+  planCheck(paths, members, RULES, turboLike(paths, members), full, seeds =>
+    dependentsLike(seeds, members),
+  )
 const plan = (paths: string[], full = false) => planWith(paths, MEMBERS, full)
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
 const RESIDENT_BUILD = [
   { path: 'packages/common/legal-identity', reason: 'resident' },
+  { path: 'packages/agent/agent', reason: 'resident' },
   { path: 'tools/repo-toolchain', reason: 'resident' },
 ]
 
@@ -116,7 +143,7 @@ describe('路径模式', () => {
 })
 
 describe('影响面计划（真实规则）', () => {
-  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 legal-identity 与 repo-toolchain，其余全跳并说出依据', () => {
+  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 legal-identity、agent 与 repo-toolchain，其余全跳并说出依据', () => {
     const result = plan(['docs/development.md', 'README.md'])
     expect(result.mode).toBe('scoped')
     expect(result.files.map(file => [file.category, file.rule])).toEqual([
@@ -131,7 +158,7 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('判为只需常驻检查，跳过了类型检查、成员测试、验收、pytest')
     expect(text).toContain(`${CONFIG} 的 affected.residentPaths`)
     expect(text).toContain(
-      '构建：只构建 packages/common/legal-identity、tools/repo-toolchain——常驻检查需要：lint:rules 经',
+      '构建：只构建 packages/common/legal-identity、packages/agent/agent、tools/repo-toolchain——常驻检查需要：lint:rules 经',
     )
     expect(text).toContain('成员测试：没有要跑的成员')
   })
@@ -149,6 +176,7 @@ describe('影响面计划（真实规则）', () => {
     ])
     expect(result.build).toEqual([
       { path: 'packages/common/legal-identity', reason: 'resident' },
+      { path: 'packages/agent/agent', reason: 'resident' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/repo-toolchain', reason: 'resident' },
       { path: 'tools/product-checks', reason: 'selected' },
@@ -170,19 +198,29 @@ describe('影响面计划（真实规则）', () => {
     expect(why['apps/top']?.downstream).toBe(true)
     expect(why['tools/core-verification']).toBeUndefined()
     expect(result.acceptance).toEqual(['apps/top'])
-    expect(describe_(result)).toContain('apps/top：依赖了改动过的成员（turbo --affected）')
+    expect(describe_(result)).toContain('apps/top：依赖了改动过代码的成员（turbo --affected）')
   })
 
-  it('没有测试读它的成员 README：不算成员改动，但 turbo 按包计，仍选中那个成员并说明只改了文档', () => {
+  it('没有测试读它的成员 README：不算成员改动，turbo 按包选中也不选，计划只需常驻检查并说明只改了文档', () => {
     const result = plan(['packages/infra/plain/README.md'])
-    expect(result.files[0]).toMatchObject({ category: 'resident', rule: 'packages/*/*/*.md' })
+    expect(result.files[0]).toMatchObject({
+      category: 'resident',
+      rule: 'packages/*/*/*.md',
+      documentOf: 'packages/infra/plain',
+    })
     expect(result.files[0]?.owner).toBeUndefined()
-    expect(result.test).toEqual(['packages/infra/plain'])
-    expect(result.members).toEqual([
-      { path: 'packages/infra/plain', changed: [], reads: [], documentsOnly: true },
-    ])
-    expect(describe_(result)).toContain('成员目录里只改了文档')
-    expect(result.reason).toContain('依赖方 0 个、只因读者规则 0 个、只改了文档 1 个')
+    expect(result.members).toEqual([])
+    expect([result.test, result.typecheck, result.acceptance]).toEqual([[], [], []])
+    expect(result.build).toEqual(RESIDENT_BUILD)
+    expect(result.reason).toBe(
+      '只需常驻检查：1 个改动文件都只被常驻检查读；只改了文档、不选的成员 1 个',
+    )
+    const text = describe_(result)
+    expect(text).toContain('判为只需常驻检查')
+    expect(text).toContain(
+      '只改了文档、不选的成员（成员根目录文档不算成员改动，也不带下游；依据：tools/test-runner/test-runs.config.json 的 affected.memberDocuments）：',
+    )
+    expect(text).toContain('  packages/infra/plain：只改了 packages/infra/plain/README.md')
   })
 
   it('退役成员的 README 不再触发读者或成员测试', () => {
@@ -318,13 +356,14 @@ describe('影响面计划（真实规则）', () => {
     )
   })
 
-  it('成员根与部署说明的 .md 不算成员改动，但 turbo 按包计仍选中成员；tests/ 下的 .md 是夹具，算成员改动', () => {
-    const docs = plan(['packages/infra/leaf/README.md', 'apps/top/deploy/docker/README.md'])
-    expect(docs.files.map(file => file.category)).toEqual(['resident', 'resident'])
-    expect(docs.members.map(entry => [entry.path, entry.documentsOnly])).toEqual([
-      ['packages/infra/leaf', true],
-      ['apps/top', true],
+  it('成员根与部署说明的 .md 不算成员改动，turbo 按包选中也不选；tests/ 下的 .md 是夹具，算成员改动', () => {
+    const docs = plan(['apps/top/deploy/docker/README.md', 'packages/infra/leaf/README.md'])
+    expect(docs.files.map(file => [file.category, file.documentOf])).toEqual([
+      ['resident', 'apps/top'],
+      ['resident', 'packages/infra/leaf'],
     ])
+    expect(docs.members).toEqual([])
+    expect(docs.test).toEqual([])
     // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
     const fixture = plan([
       'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
@@ -368,7 +407,175 @@ describe('影响面计划（真实规则）', () => {
   })
 })
 
+// #793 按测量收窄的三条规则：每条有正例与反例；硬线（改代码跑影响面测试、未识别文件全量）不变。
+describe('按测量收窄的规则（#793）', () => {
+  it('N1：只改 .meta_harness/human/ 下的文件只需常驻检查；.meta_harness 下别的未登记目录仍判全量', () => {
+    const human = plan([
+      '.meta_harness/human/README.md',
+      '.meta_harness/human/map-reduce-delivery/templates/line-pack.md',
+    ])
+    expect(human.mode).toBe('scoped')
+    expect(human.files.map(file => [file.category, file.rule])).toEqual([
+      ['resident', '.meta_harness/human/**'],
+      ['resident', '.meta_harness/human/**'],
+    ])
+    expect([human.members, human.test, human.python.run]).toEqual([[], [], false])
+    expect(human.build).toEqual(RESIDENT_BUILD)
+    for (const path of ['.meta_harness/humans/x.md', '.meta_harness/new-area/x.md']) {
+      const other = plan([path])
+      expect(other.mode, path).toBe('full')
+      expect(other.files[0]?.category, path).toBe('unclassified')
+    }
+  })
+
+  it('N2：只改一个不被测试读的成员 SPEC，不选这个成员，也不带它的下游', () => {
+    const result = plan(['packages/core/base/SPEC.md'])
+    expect(result.mode).toBe('scoped')
+    expect(result.members).toEqual([])
+    expect([result.test, result.typecheck, result.acceptance]).toEqual([[], [], []])
+    expect(result.build).toEqual(RESIDENT_BUILD)
+    expect(describe_(result)).toContain('  packages/core/base：只改了 packages/core/base/SPEC.md')
+  })
+
+  it('N2：被测试读的成员根目录文档按读者规则选中读它的成员，不带下游', () => {
+    const cases = [
+      ['packages/agent/agent-cordis-contract/SPEC.md', 'packages/agent/agent-cordis-contract'],
+      ['packages/common/message/README.md', 'packages/common/message'],
+      ['apps/m2-contract-skeleton/README.md', 'apps/m2-contract-skeleton'],
+      ['apps/m2-contract-skeleton/README_ZH.md', 'apps/m2-contract-skeleton'],
+      ['apps/m2-contract-skeleton/SPEC.md', 'apps/m2-contract-skeleton'],
+    ] as const
+    for (const [path, reader] of cases) {
+      const result = plan([path])
+      expect(result.files[0], path).toMatchObject({ category: 'reader', documentOf: reader })
+      expect(result.members, path).toEqual([
+        { path: reader, changed: [], reads: [{ path, pattern: path }] },
+      ])
+      expect(result.test, path).toEqual([reader])
+      expect(describe_(result), path).not.toContain('只改了文档、不选的成员')
+    }
+  })
+
+  it('N2：同一成员既改文档又改代码，照旧选中它与它的下游', () => {
+    const result = plan(['packages/core/base/SPEC.md', 'packages/core/base/src/a.ts'])
+    expect(result.test).toEqual([
+      'packages/core/base',
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+    expect(result.members.find(entry => entry.path === 'packages/core/mid')?.downstream).toBe(true)
+    expect(describe_(result)).not.toContain('只改了文档、不选的成员')
+  })
+
+  it('N2：只改了文档的成员同时是代码改动成员的下游，照旧作为下游选中', () => {
+    const result = plan(['packages/core/base/src/a.ts', 'packages/core/mid/README.md'])
+    expect(result.test).toEqual([
+      'packages/core/base',
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+    expect(result.members.find(entry => entry.path === 'packages/core/mid')).toEqual({
+      path: 'packages/core/mid',
+      changed: [],
+      reads: [],
+      downstream: true,
+    })
+  })
+
+  it('N2：文档改在一个成员、代码改在不相干的成员，只选代码这一侧', () => {
+    const result = plan(['packages/core/base/README.md', 'packages/infra/leaf/src/a.ts'])
+    expect(result.test).toEqual(['packages/infra/leaf', 'tools/product-checks'])
+    expect(result.reason).toContain('只改了文档、不选的成员 1 个')
+  })
+
+  it('N2：被读的文档与别处代码一起改：读者只按读者规则选中、不带它的下游；读者是代码下游时两个原因都记', () => {
+    const apart = plan([
+      'packages/agent/agent-cordis-contract/SPEC.md',
+      'packages/common/message/src/a.ts',
+    ])
+    expect(apart.test).toEqual([
+      'packages/agent/agent-cordis-contract',
+      'packages/common/message',
+      'apps/m2-contract-skeleton',
+      'tools/product-checks',
+    ])
+    const both = plan(['apps/m2-contract-skeleton/SPEC.md', 'packages/common/message/src/a.ts'])
+    expect(both.members.find(entry => entry.path === 'apps/m2-contract-skeleton')).toEqual({
+      path: 'apps/m2-contract-skeleton',
+      changed: [],
+      reads: [
+        { path: 'apps/m2-contract-skeleton/SPEC.md', pattern: 'apps/m2-contract-skeleton/SPEC.md' },
+      ],
+      downstream: true,
+    })
+  })
+
+  it('N2：有只改了文档的成员却没给依赖图，算计划报错，不照 turbo 多选也不猜着少选', () => {
+    const paths = ['packages/core/base/SPEC.md']
+    expect(() => planCheck(paths, MEMBERS, RULES, turboLike(paths, MEMBERS))).toThrow(
+      'packages/core/base 只改了文档，要拿掉它们带出的下游，但没有给出 turbo 的依赖图',
+    )
+  })
+
+  it('N3b：dev-flow 的 integration 代码是成员文件，选中 dev-flow，不判全量；引擎自身的源码仍判全量', () => {
+    const integration = plan(['tools/dev-flow/src/integration/parse.ts'])
+    expect(integration.mode).toBe('scoped')
+    expect(integration.files[0]).toMatchObject({ category: 'member', owner: 'tools/dev-flow' })
+    expect(integration.test).toEqual(['tools/dev-flow'])
+    const engine = plan(['tools/test-runner/src/testing/scope.ts'])
+    expect(engine.mode).toBe('full')
+    expect(engine.files[0]).toMatchObject({
+      category: 'global',
+      rule: 'tools/test-runner/src/testing/scope.ts',
+    })
+  })
+
+  it('模型组架构页被 pi-ai-transport 的测试读：只选它；同目录下别的文档只需常驻检查', () => {
+    const read = plan(['packages/model/docs/architecture.md'])
+    expect(read.files[0]).toMatchObject({ category: 'reader' })
+    expect(read.test).toEqual(['packages/model/pi-ai-transport'])
+    const other = plan(['packages/model/docs/other.md'])
+    expect(other.files[0]).toMatchObject({ category: 'resident', rule: 'packages/**/*.md' })
+    expect(other.test).toEqual([])
+  })
+
+  it('新顶层文件仍判全量；改代码仍选中成员与下游', () => {
+    expect(plan(['m793-new.txt']).mode).toBe('full')
+    expect(plan(['packages/core/mid/src/a.ts']).test).toEqual([
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+  })
+})
+
 describe('真实仓库', () => {
+  it('读者规则里不带通配符的路径都在仓库里：文件改名或删掉后规则还指着旧路径，是规则错了', () => {
+    const literal = RULES.readers
+      .flatMap(reader => reader.paths)
+      .filter(path => !path.includes('*'))
+    expect(literal.filter(path => !existsSync(join(ROOT, path)))).toEqual([])
+  })
+
+  it(
+    'turbo 的依赖图：给出成员连同依赖它的成员；没有成员不跑 turbo；清单外的成员报错',
+    // 起 turbo 子进程。
+    { tags: ['slow'] },
+    () => {
+      const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+      const found = dependentMembers(ROOT, members, ['packages/agent/agent-cordis-contract'])
+      expect(found.has('packages/agent/agent-cordis-contract')).toBe(true)
+      expect(found.has('packages/agent/agent-host-local')).toBe(true)
+      expect(found.has('tools/test-runner')).toBe(false)
+      expect(dependentMembers(ROOT, members, [])).toEqual(new Set())
+      expect(() => dependentMembers(ROOT, members, ['packages/no/such-member'])).toThrow(
+        '成员 packages/no/such-member 不在 workspace 成员清单里',
+      )
+    },
+  )
+
   it('规则点名的成员都存在', () => {
     const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
     expect(() => planCheck([], members, RULES, new Set())).not.toThrow()
