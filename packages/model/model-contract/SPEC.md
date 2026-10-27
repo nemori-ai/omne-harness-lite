@@ -776,7 +776,7 @@ current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方�
 
 M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier 或 Observation 增加必需实现成员。原分页读取、processed 与 retained 双路径 ACK、changed 完整快照及合法旧消费者保持原承诺。新增协议不能靠 optional access 加旧逻辑回退冒充权限已经收紧，也不创建平行凭据服务或无消费者类型。
 
-真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者的消费闭包迁移归其承接卡（当前为 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)）。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 指消费者拥有者代 Model 发出的 ACK，它代替的是 Model 在 saved 之后经 retained 交接自己取得的 ACK。合法独立消费者为自己处理完的结果发出的 processed ACK 不是临时 ACK。临时 ACK 分两侧退出。代发临时 ACK 的消费者拥有者停止代发，归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。合法独立消费者的 processed ACK 路径不受影响。`./testing` 的推送生产者替身按 retained 交接取 ACK。正文清理不再使晚账退出恢复扫描。接收 owner 的材料、日志与稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
+真实 runtime、driver、provider 的推送、retained、证据适配、持久交付待办与恢复，及相应 Commands/RecoveryRecord 与宿主安装归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者的消费闭包迁移归承接卡 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。临时 ACK 指消费者拥有者代 Model 发出的 ACK，它代替的是 Model 在 saved 之后经 retained 交接自己取得的 ACK。合法独立消费者为自己处理完的结果发出的 processed ACK 不是临时 ACK。临时 ACK 分两侧退出。代发临时 ACK 的消费者拥有者停止代发，归 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。Model 在 saved 之后经 retained 交接自己取 ACK，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。合法独立消费者的 processed ACK 路径不受影响。`./testing` 的推送生产者替身按 retained 交接取 ACK。正文清理不再使晚账退出恢复扫描。接收 owner 的材料、日志与稳定映射及合取证据由各拥有者落实，不由 Model 规定内部编码。原 processed 路径只有被实际替代的责任才删除，有合法独立消费者的用途不得偷换。
 
 公共观察的真实发布、目录/current 查询与显示刷新、Tool 适配及其投影一致性由相应提供者和接入拥有者实现验证。Model 不定义 Tool 的完整 reducer、foreground 规范化或其终止别名。
 
@@ -786,7 +786,7 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier �
 
 结果协议须覆盖保存后丢回包、材料与责任提交之间崩溃、同 key 重投及异内容、account/result 回执分离、取消与撤权、ACK 未知、清理失败、正文释放后晚账、容量及租户份额。状态探索至少区分源仍保管、材料已存、原责任与去重成立、saved 已观察、ACK 未知或成立、清理及 late-account pending。检查唯一副本不先释放、saved 合取不缺项、同 key 不增加第二责任、正文清理不消晚账待办。模型须说明有限范围、不可达与公平前提，并以故意破坏上述规则的反例核验检测能力。
 
-观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 及其现有消费者的消费闭包。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
+观察验证须覆盖快照与登记间提交、state-only、错租户或调用/producer/ref、旧流 cursor、sealed 修改、同终点不同 from、排队后撤权、慢读超限及无终止 EOF。保持旧 Observation、ModelHandle 已建立的消费闭包。[#787](https://github.com/nemori-ai/omne-harness-lite/issues/787) 完成迁移后本句退出。current 验证包括同边界 state/target、两类 null、终局仍有投影、退役窗口及晚回响应。
 
 纯值、类型探针、离线替身与有限模型只能证明各自范围。真实合取保存、原操作认回、持久晚账恢复、生产者临界区、每帧披露及真实发送围栏仍需对应提供者及完整组合验证。当前 testing evidence 不成为生产 Evidence adapter，内存替身不证明磁盘耐久、跨进程互斥或无界最终完成。
 
