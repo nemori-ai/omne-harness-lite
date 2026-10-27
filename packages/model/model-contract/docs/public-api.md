@@ -334,7 +334,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
   - `outcome-unknown`：按原 key 与同一冻结载荷立即重投，最多 `maxRedeliveries`（默认 3）次，之后记 `unknown` 并保留载荷。
   - 其余失败：记 `rejected`，带接收方的失败值，不自动重投。`backpressured`、`unavailable` 由测试经 `redeliver` 驱动。
   - 解析函数或接收端口抛出：记 `threw`，`error` 是抛出的那个值本身。替身不复制它，也不冻结它。
-- saved 不可回退：saved 是调用级事实。一次交付 saved 之后，`deliveries()` 与 `settled()` 一直给出 saved 和原回执。之后每次 `redeliver` 只把尝试次数加一，并以返回值给出这一次尝试的结果，结果可以是 `failed` 或 `unknown`。它不改写 saved，不清除原回执。ACK 与晚账的放行都以这个 saved 事实为准。尚未 saved 的交付，`redeliver` 的结果就是它新的记录。
+- saved 不可回退：saved 是调用级事实。一次交付 saved 之后，`deliveries()` 与 `settled()` 一直给出 saved 和原回执。之后每次 `redeliver` 照常累计尝试次数（含 `outcome-unknown` 时的立即重投），并以返回值给出这一次 `redeliver` 的结果，结果可以是 `failed` 或 `unknown`。它不改写 saved，不清除原回执。ACK 与晚账的放行都以这个 saved 事实为准。尚未 saved 的交付，`redeliver` 的结果就是它新的记录。
 - ACK：saved 之后替身自己取 ACK，用 `mop_ack-` operation 与 `{kind:'retained', custody: receipt.evidence}` 调用内层 `acknowledge`。`commit-unknown` 时同 operation 重发，上限同 `maxRedeliveries`。其余失败只记进 `acknowledgements()`，不改 result 的 saved 事实。
 - 晚账：`recordDispatch` 转发后，带非 null 账目的记录按到达顺序排队。result saved 之后，revision 比冻结快照里该 dispatch 新（或快照为 null）的账目组成 account 交付推送。同 dispatch 同 revision 不重复推送。
 - 读数：`deliveries()` 按 key 给出 `pending`、`saved`、`failed`、`unknown` 与尝试次数。`settled(call)` 在该调用的 result 交付、它的 ACK 与排在它之前的账目交付都到终态后兑现。受理过但从未 `settle` 的调用，`settled(call)` 永不兑现。
