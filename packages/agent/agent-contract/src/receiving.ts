@@ -3,12 +3,15 @@
 // only; no function runs here. The receipt types of Model and Tool and `StreamRef` keep their one
 // definition in their owners; this file only refers to them.
 import type { CallAccount } from '@omne-harness/call-account'
+import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'
 import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival'
 import type * as T from '@omne-harness/tool-contract'
 import type { Reply } from './evaluation.ts'
 import type { CommandReceipt, ExecutionMutation } from './execution.ts'
 import type { Access, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts'
+import type { AgentJournal } from './journal.ts'
+import type { AgentMaterials, Material } from './passages.ts'
 
 /**
  * The Tool start fence took effect in the Tool ordering domain (J03). `guard` is the resource that
@@ -94,6 +97,37 @@ export type JournalEntryRecord<P> = ExecutionMutation<P> &
 export interface AgentJournalEntries<P> {
   record(input: JournalEntryRecord<P>): Reply<CommandReceipt>
 }
+
+/** One received delivery and its complete material, before the provider creates evidence. */
+export type ReceivedCommitInput<P, B extends ContentBlock> = ExecutionMutation<P> &
+  Readonly<{ entry: Omit<ReceivedEntry, 'material'>; material: Material<B> }>
+
+/** The original command, material reference and producer saved evidence have distinct roles. */
+export type ReceivedCommitValue = Readonly<{
+  receipt: CommandReceipt
+  entry: ReceivedEntry
+  saved: DurableEvidence
+}>
+
+export type ReceivedCommitResult =
+  | Readonly<{ kind: 'committed'; value: ReceivedCommitValue }>
+  | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
+
+export type ReceivedCommitQuery = ReceivedCommitResult | Readonly<{ kind: 'unknown' }>
+
+/** Joint custody in one authoritative sequence; see SPEC "接收共同提交". */
+export interface AgentReceivedCommits<P, B extends ContentBlock> {
+  commit(input: ReceivedCommitInput<P, B>): Reply<ReceivedCommitResult>
+  query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>
+}
+
+/** Views of one provider. A fixed non-null received port declares joint custody support. */
+export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
+  journal: AgentJournal<P>
+  entries: AgentJournalEntries<P>
+  materials: AgentMaterials<P, B>
+  received: AgentReceivedCommits<P, B> | null
+}>
 
 /**
  * The handoff that tells Request Context that the account of one fixed request arrived (J28).

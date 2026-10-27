@@ -25,3 +25,6 @@ export {
   type AgentAccountOutletFixture,
   type MemoryAgentAccountOutlet,
 } from './testing-account-outlet.ts'
+
+export { memoryReceivedCommitFixture } from './testing-received-memory.ts'
+export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts'
