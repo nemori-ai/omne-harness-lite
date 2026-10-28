@@ -290,6 +290,17 @@ describe('W0 local ownership', () => {
       ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
     ).toEqual(before)
     assembly.release.open()
+    await eventually(
+      async () =>
+        ok(
+          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+        ).entries?.some(
+          entry =>
+            entry.kind === 'received' &&
+            entry.delivery.producer === 'model' &&
+            entry.delivery.key.kind === 'result',
+        ) === true,
+    )
     ok(await c.runExecution())
     expect(
       ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
@@ -519,6 +530,17 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
   ).toBe('ready')
   expect(assembly.controls.clock.pending()).toEqual([])
   assembly.release.open()
+  await eventually(
+    async () =>
+      ok(
+        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      ).entries?.some(
+        entry =>
+          entry.kind === 'received' &&
+          entry.delivery.producer === 'model' &&
+          entry.delivery.key.kind === 'result',
+      ) === true,
+  )
   ok(await c.runExecution())
   const after = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
   expect(after.state.kind).toBe('ended')
@@ -612,6 +634,17 @@ it('NA-W0-1: an input racing the waiting commit is reread without abandoning the
   expect(waiting.state.kind).toBe('waiting')
   expect(waiting.checkpoint.calls).toHaveLength(1)
   assembly.release.open()
+  await eventually(
+    async () =>
+      ok(
+        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      ).entries?.some(
+        entry =>
+          entry.kind === 'received' &&
+          entry.delivery.producer === 'model' &&
+          entry.delivery.key.kind === 'result',
+      ) === true,
+  )
   ok(await c.runExecution())
   const finished = ok(
     await assembly.controls.journal.port.load({ ...alice, execution: execution() }),

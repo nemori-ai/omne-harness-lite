@@ -2,10 +2,12 @@
 // clock and `createTestAgentDependencies`, which assembles all 17 dependencies of the factory. They
 // are for tests only. Nothing here is durable, and a double answers what the test scripted; it
 // proves nothing about a real provider.
+import { assembleModelReceiverFixture, type ModelReceiverFixture } from './model-receiver.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { decodeModelInstanceId, type ModelInstanceId } from '@omne-harness/model-contract'
 import {
   createScriptedModelProvider,
+  createScriptedConformanceSubject,
   createScriptedResultPusher,
   type ScriptedResultPusher,
   type ScriptController,
@@ -15,7 +17,10 @@ import {
   createModelReceiverState,
   type AgentModelReceiver,
 } from '../receiving.ts'
-import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
+import {
+  createMemoryAgentAccountOutlet,
+  sampleReceivedModelAccount,
+} from '@omne-harness/agent-contract/testing'
 import type { AgentInstant } from '@omne-harness/agent-contract'
 import type { AgentDependencies } from '../construction.ts'
 import { createManualAgentClock, type ManualAgentClock } from './clock.ts'
@@ -240,4 +245,15 @@ function defaultModelInstance(): ModelInstanceId {
   if ('failure' in decoded)
     throw new Error(`invalid default model instance ${DEFAULT_MODEL_INSTANCE}`)
   return decoded.ok
+}
+
+export type { ModelReceiverFixture } from './model-receiver.ts'
+
+/** A lawful original binding and common memory provider for host receiver tests. */
+export function createModelReceiverFixture(): Promise<ModelReceiverFixture> {
+  const { tenant } = createScriptedConformanceSubject()
+  return assembleModelReceiverFixture(
+    tenant,
+    sampleReceivedModelAccount(tenant, 'receiver-fixture'),
+  )
 }

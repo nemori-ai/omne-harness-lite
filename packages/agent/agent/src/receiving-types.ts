@@ -20,6 +20,12 @@ export type ModelReceptionTarget = Readonly<{
 
 /** Resolves the original committed consumption, independently of a live attachment. */
 export interface ModelReceptionTargets<P> {
+  forExecution(
+    input: Readonly<{
+      access: Access<P>
+      execution: AgentExecutionId
+    }>,
+  ): Reply<readonly ModelReceptionTarget[]>
   resolve(
     input: Readonly<{
       access: Access<P>

@@ -99,7 +99,7 @@ M1 等待同一 Journal 已提交的 received result。M3 读取完整 facts 材
 
 独立的 `createAgentModelReceiver` 显式消费同一 `AgentReceivedProvider`、主体资格核验、原目标查询、Model inspect/dispatches、账目出口、租户容量与宿主持有状态。每次 push 在首次 await 前复制冻结完整 typed delivery，核当前资格与原 Model 事实，再共同提交条目、材料和 saved。未知只查原 operation，排除不换身份复活。材料采用 `agentModelDeliverySchema`，`readModelDeliveryMaterial` 核验编码与原绑定；读取器本身不证明耐久保存。
 
-宿主在重装配时保留 `createModelReceiverState()`。`recover` 读取已保存条目和材料，`retry` 驱动未决提交与账目待办。共同提交之后才把每个非 null dispatch 账目放入出口待办。unknown/unavailable 保留原 handoff 重试；denied/invalid/conflict 保留 blocked 与诊断。saved 不等于生产者 ACK，测试由 Model 公开 pusher 独立取得 ACK。
+宿主在重装配时保留 `createModelReceiverState()`。`recover` 与 `retry` 返回 Agent Reply，先核当前 receive-result 资格，再限制到一次捕获的原绑定集合；无对象或无权统一 denied。`recover` 读取集合内已保存条目和材料，`retry` 驱动未决提交与账目待办。inspect 只供宿主管理。共同提交之后才把每个非 null dispatch 账目放入出口待办。unknown/unavailable 保留原 handoff 重试；denied/invalid/conflict 保留 blocked 与诊断。saved 在共同保存、材料核对及入队后返回，不等待 outlet。宿主保留实际出站任务及驱动代，重装配不双发，旧代不发后继。saved 不等于生产者 ACK，测试由 Model 公开 pusher 独立取得 ACK。
 
 没有扩展时 M4/M5 不另提交。最终失败且无有效回复形成 no-reply；部分输出不启动工具。缺少必要 replay 元数据的 reasoning-state/thinking 仍返回 unsupported，已经接收的材料保持可读。本实现不证明公开 resume 或跨进程耐久。
 
@@ -263,7 +263,7 @@ stateDiagram-v2
 - producer 事件由 M3 读取 received 完整材料后的一次条件提交承载。
 - 按 #558 M04-8，input-taken 只由 I0 的提交承载。
 - 待 #558 M04-7：`open` 不写事件。
-- 待 #558 M04-5：独立装配下 `recordResult.transfer` 取 processed，没有声明参加者。
+- Tool 的既有 M04-5 路径：独立装配下 `recordResult.transfer` 可取 processed，没有声明参加者。Model 路径已使用 received 共同提交。
 - Q2 回执采用 [R0 重试](#r0-重试)中的阶段 1 读法。按 #558 S-13，以同一操作与同一候选再次调用 `accept` 即是查询。
 - E1 发现 Journal 修订号已超过原 open 回执时返回 `found-existing`。转移表正常结束本次协调，避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向。这是阶段 1 的读法。
 - 已 open 而修订号尚未推进的 execution，仍会由新 runtime 使用原 Authority 驱动。两个存活 runtime 因此可能同时驱动它。`attach` 围栏尚未交付。

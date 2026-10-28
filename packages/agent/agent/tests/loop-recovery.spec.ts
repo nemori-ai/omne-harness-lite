@@ -29,6 +29,7 @@ import {
   alice,
   inputBatch,
   eventsOf,
+  eventually,
   invoke,
   loopAssembly,
   pendingCall,
@@ -376,6 +377,17 @@ describe('R0 and W0 coordination', () => {
     expect((await load(assembly)).state.kind).toBe('waiting')
     const call = (await load(assembly)).checkpoint.calls[0]
     assembly.release.open()
+    await eventually(
+      async () =>
+        ok(
+          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+        ).entries?.some(
+          entry =>
+            entry.kind === 'received' &&
+            entry.delivery.producer === 'model' &&
+            entry.delivery.key.kind === 'result',
+        ) === true,
+    )
     ok(await c.runExecution())
     expect(admits).toBe(1)
     expect(assembly.controls.handoff.accept.calls.at(-1)?.source).toMatchObject({

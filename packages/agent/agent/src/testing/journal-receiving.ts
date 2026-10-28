@@ -135,6 +135,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const consumerExecutions = new Map<string, AgentExecutionId>()
   const targets = new Map<string, ModelReceptionTarget>()
   const callTargets = new Map<string, ModelReceptionTarget>()
+  const executionTargets = new Map<string, ModelReceptionTarget[]>()
   const qualifications = new Map<string, Map<P, Qualification>>()
   const pauses = new Map<
     string,
@@ -494,6 +495,12 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     },
   }
   const targetPort: ModelReceptionTargets<P> = {
+    async forExecution(input) {
+      const access = { ...input.access, execution: input.execution }
+      const permission = qualified(access)
+      if ('failure' in permission) return permission
+      return succeed(structuredClone(executionTargets.get(executionText(access)) ?? []))
+    },
     async resolve(input) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
@@ -524,7 +531,17 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           const reference = resolveModelInvocationRef(pending.reference, execution.tenant)
           if ('ok' in reference) {
             const callKey = targetKey(execution, reference.ok.call)
-            if (!callTargets.has(callKey)) callTargets.set(callKey, target)
+            if (!callTargets.has(callKey)) {
+              callTargets.set(callKey, target)
+              const at = executionText({
+                tenant: execution.tenant,
+                principal: null,
+                execution: execution.id,
+              })
+              const originals = executionTargets.get(at) ?? []
+              originals.push(target)
+              executionTargets.set(at, originals)
+            }
           }
         }
         consumerExecutions.set(

@@ -908,6 +908,10 @@ J02 规定结果的去处、常驻的结果接收方、保存回执与账目。�
 11. 完整材料。接收方在首次异步或排队前取得合法 typed delivery 的自有冻结副本，后续调用方修改不得改变已接收输入。Model 交付使用现有 facts 材料分支及具名版本 schema，保存完整 settlement、parts、accounts、consumer 与 key。读取时校验 schema、租户、原 reference、版本及绑定；缺失或不支持的材料显式失败，不把未知 JSON 强转为可信材料。此约定不增加 Material 分支或改变接收共同提交的公开形状。
 12. loop 与接收方分工。正常 loop 对 Model 只调用 admit 与 cancel。受理未知或恢复重新挂接时允许 inspect 对账，但不能由查询返回值写 received 或材料。loop 等待 Journal 条目、现有事件提示和 timer，不连接 Model observer，不轮询 Model 收场。缺少 entries 返回 unavailable；无匹配 received 时继续等待。采用时按原 reference、consumer 与 consumption 选择已提交 result，再从同一提供者读取完整材料。后续恢复仍由原 received 派生结果，业务提交沿原 checkpoint 与幂等交接规则。接收提交增加 revision 时，仍持有效 attachment 的 loop 必须重新 load 并以新修订继续条件提交，不能将该变化误判为另一推进者。真正失去 Authority 时仍停止推进。
 
+维护入口 retry/recover 返回 Agent Reply，先从原绑定提供者取得该 execution 的完整原 Model 绑定集合，再核各原 instance/execution 的当前 receive-result 资格。无对象、无原绑定或无权统一 denied；依赖不可读返回 unavailable，不能返回空成功报告。材料读取、出站、报告与诊断均限定到本次绑定集合，await 期间新增绑定不进入本次维护。每次出站和最终报告之前重核资格；拒绝不改变原 unknown、blocked 或实际在途责任。inspect 仅供宿主管理，可返回全局状态，不可暴露为租户查询。
+
+saved 与 outlet 完成互不等待。宿主状态持有出站任务引用和驱动代。重装配不清理真实在途任务；旧代只结算已开始的交接，不发出后继。维护取消结束等待与后续驱动，不撤销交接；目标或资格检查仍未决时返回无内容 unavailable，owner 为 agent-model-receiver，diagnostic 为 maintenance-cancelled。已判定拒绝时保留 denied。任务引用与驱动代属于同进程控制，不是耐久业务身份。
+
 ##### Model 接收结果与失败映射
 
 结果接收方把共同提交的内部结果转换为 Model 的公开 push 结果，不扩展两侧的公开联合。公开载荷或关系不合法时，先按 Model 原协议返回其规定的 invalid 字段和原因。提供者内部的 invalid 不属于这些生产者输入错误，按下表处理。

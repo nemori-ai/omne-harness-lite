@@ -170,15 +170,15 @@ quiesce 的形状与行为都不在本页：形状见契约包的 AgentRuntimeCo
 
 根入口导出 `createAgentModelReceiver`、`createModelReceiverState`、`agentModelDeliverySchema` 和 `readModelDeliveryMaterial`。类型由 [receiving-types.ts](../src/receiving-types.ts) 与 [receiving.ts](../src/receiving.ts) 拥有。
 
-`ModelReceiverDependencies` 必须传同一提供者的 journal/entries/materials/received，receive-result 的 access check，原目标查询 targets，Model inspect/dispatches 窄面，账目 outlet 与显式租户容量。`ModelReceptionTarget` 带原 execution、instance 和 model PendingCall。targets 由保存原消费绑定的提供者实现，不按 consumer 文本猜身份。received 为 null 时工厂拒绝创建接收方。
+`ModelReceiverDependencies` 必须传同一提供者的 journal/entries/materials/received，receive-result 的 access check，原目标查询 targets，Model inspect/dispatches 窄面，账目 outlet 与显式租户容量。`ModelReceptionTarget` 带原 execution、instance 和 model PendingCall。targets 的 resolve 按调用引用取得原绑定，forExecution 返回同租户 execution 的原 Model 绑定集合。两者由保存原消费绑定的提供者实现，核当前保管资格，不按 consumer 文本或当前 attachment 猜身份。received 为 null 时工厂拒绝创建接收方。
 
-`createModelReceiverState()` 的返回值由宿主持有。重装配继续传同一状态。句柄的 push 遵守 Model 接收顺序；recover 按 execution 读回 received 和材料；retry 继续原未知提交与可重试账目。inspect 返回待办数、blocked 数及诊断的副本。账目 hard failure 保持 blocked，重装配不会自动重发。
+`createModelReceiverState()` 的返回值由宿主持有。重装配继续传同一状态。句柄的 push 遵守 Model 接收顺序，共同提交、材料核对及入队后即可返回 saved，不等待 outlet。recover 与 retry 返回 `Reply<ModelReceiverReport>`：先取得原绑定集合，再核每个原 instance/execution 的 receive-result 资格；不存在、无绑定或无权统一 denied，依赖不可用返回具名 unavailable。recover 只读取该集合所属的 received 与材料；retry 只驱动集合内的未知提交与账目。每次出站前和返回报告前重新核当前资格，报告及诊断只含本次已授权集合，不纳入 await 期间新增绑定。inspect 是宿主管理视图，返回全局待办数、blocked 数及诊断副本，不能作为租户公开查询。账目 hard failure 保持 blocked，重装配不会自动重发。状态持有真实任务引用及当前出站驱动代；旧代只完成已开始的交接，不发出后继，实际在途任务结束前不释放出口占用。维护取消结束本次等待与后续驱动，不取消真实交接。最终资格检查尚未完成时，返回无内容 unavailable，owner 为 agent-model-receiver，diagnostic 为 maintenance-cancelled，不返回 counts 或私有诊断。
 
 facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner=agent、name=received-model-delivery、revision=1、digest=agent:received-model-delivery/1。`readModelDeliveryMaterial(access, material, expected)` 核对 schema、租户与不含材料引用的原 received 草稿；合法时返回完整 delivery，不合法时返回 null。它不读取存储，也不证明资格或耐久。
 
 正常 loop 只 admit/cancel Model；未知或恢复时 inspect 只作受理对账。M1/M3/I3 消费 Journal 的 received 与同提供者材料，不再保留 processed 完成材料或 Model ACK 管线。保留的 Journal recordResult 服务其他既有责任。
 
-测试装配可显式传 receivingPrincipal 启用公开 Model testing pusher。controls.pusher 暴露 deliveries、settled 与 acknowledgements，controls.receiver 是独立接收方。controls.journal.provider 为同源四视图，targets 在原 PendingCall 提交时保留原绑定。该提供者无磁盘耐久。
+测试装配可显式传 receivingPrincipal 启用公开 Model testing pusher。controls.pusher 暴露 deliveries、settled 与 acknowledgements，controls.receiver 是独立接收方。controls.journal.provider 为同源四视图，targets 在原 PendingCall 提交时保留原绑定。该提供者无磁盘耐久。`createModelReceiverFixture()` 提供真实 memory Journal、原 PendingCall 及显式 Model/Access/outlet 替身，供宿主工厂的公共入口测试使用；它不运行真实 Model host。
 
 ## 测试 Journal 的保留引用故障
 
