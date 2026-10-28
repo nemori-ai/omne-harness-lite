@@ -8,10 +8,18 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { TaskBinding } from '../src/delivery/binding.ts'
-import { changeScope } from '../src/delivery/change-scope.ts'
+import { changeScope, contractFindings, touchedContracts } from '../src/delivery/change-scope.ts'
 import { LINES_PATH } from '../src/delivery/lines.ts'
-import { writeContext } from '../src/integration/context.ts'
+import { contextPath, readContextFile, writeContext } from '../src/integration/context.ts'
+import type { DiffRun } from '../src/integration/contract-diff.ts'
 import { git, repository } from '../src/integration/git.ts'
+import {
+  A_ADDITIVE,
+  contracts,
+  MEMBERS,
+  SNAPSHOT_TEMPLATE,
+  writeSnapshots,
+} from './fixtures/contract-api.ts'
 import { init } from './fixtures/integration.ts'
 
 const homes: string[] = []
@@ -108,7 +116,10 @@ function bind(r: Repo, options: { targetBase?: string; binding?: Record<string, 
 const codes = (r: Repo) => {
   const report = changeScope({ root: r.root })
   if (!report.bound) throw new Error('expected a bound tree')
-  return report.findings.map(finding => [finding.code, finding.file])
+  return report.findings.map(finding => [
+    finding.code,
+    'file' in finding ? finding.file : finding.member,
+  ])
 }
 
 describe('the changes of the card', () => {
@@ -326,6 +337,238 @@ describe('change-scope-cli', () => {
   it('exits 2 on an unknown option', () => {
     const r = repo()
     const result = cli(r.root, '--bogus')
+    expect(result.status).toBe(2)
+    expect(result.stdout).toBe('')
+  })
+})
+
+/** One member of an `omne-contract-api --diff --json` run. */
+function compared(
+  directory: string,
+  change: 'none' | 'additive' | 'review',
+): DiffRun['members'][number] {
+  return {
+    status: 'compared',
+    directory,
+    before: undefined,
+    after: undefined,
+    change,
+    differences: [],
+  }
+}
+describe('the contract change of the card against its declaration', () => {
+  const run = (members: DiffRun['members']): DiffRun => ({ commit: 'a'.repeat(40), members })
+  const codesOf = (
+    declared: 'none' | 'additive' | 'breaking',
+    change: 'none' | 'additive' | 'review',
+  ) =>
+    contractFindings(['pkg/a'], run([compared('pkg/a', change)]), declared).map(item => item.code)
+
+  it('passes every change that the declared level covers', () => {
+    expect(codesOf('none', 'none')).toEqual([])
+    expect(codesOf('additive', 'none')).toEqual([])
+    expect(codesOf('additive', 'additive')).toEqual([])
+    expect(codesOf('breaking', 'none')).toEqual([])
+    expect(codesOf('breaking', 'additive')).toEqual([])
+    expect(codesOf('breaking', 'review')).toEqual([])
+  })
+
+  it('refuses an additive change declared none and a review change not declared breaking', () => {
+    expect(codesOf('none', 'additive')).toEqual(['contract-exceeds-declared'])
+    expect(codesOf('none', 'review')).toEqual(['contract-exceeds-declared'])
+    expect(codesOf('additive', 'review')).toEqual(['contract-exceeds-declared'])
+    const [finding] = contractFindings(['pkg/a'], run([compared('pkg/a', 'review')]), 'additive')
+    expect(finding).toMatchObject({ member: 'pkg/a', change: 'review', declared: 'additive' })
+    expect(finding?.message).toContain('pkg/a')
+    expect(finding?.remedy).not.toBe('')
+  })
+
+  it('compares only the members the card changed', () => {
+    const members = [compared('pkg/a', 'none'), compared('pkg/b', 'review')]
+    expect(contractFindings(['pkg/a'], run(members), 'none')).toEqual([])
+  })
+
+  it('refuses a changed member whose difference the CLI cannot read', () => {
+    const invalid = run([{ status: 'invalid', directory: 'pkg/a', message: 'bad snapshot' }])
+    expect(contractFindings(['pkg/a'], invalid, 'breaking')).toEqual([
+      expect.objectContaining({ code: 'contract-change-unknown', member: 'pkg/a', change: null }),
+    ])
+    expect(contractFindings(['pkg/a'], run([]), 'breaking')).toEqual([
+      expect.objectContaining({ code: 'contract-change-unknown', member: 'pkg/a' }),
+    ])
+  })
+
+  it('takes a member as changed only when the card changed a file under its api directory', () => {
+    expect(
+      touchedContracts(
+        ['pkg/a/api/a.api.md', 'pkg/b/src/index.ts', 'pkg/c/apix/x.md', 'pkg/ab/api/ab.api.md'],
+        ['pkg/a', 'pkg/b', 'pkg/c', 'pkg/d'],
+      ),
+    ).toEqual(['pkg/a'])
+  })
+})
+
+/** The members `pkg/a`, `pkg/b` and `pkg/c` belong to `tools-line`, which also owns `tools`. */
+const contractLines = {
+  ...lines,
+  lines: [
+    { ...lines.lines[0], paths: ['tools', 'pkg'], contracts: Object.keys(MEMBERS) },
+    lines.lines[1],
+  ],
+}
+/** A repository whose `main` holds the contract members, their dist and their snapshots. */
+function contractRepo() {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-change-scope-contract-')))
+  homes.push(home)
+  const root = join(home, 'work')
+  init(root)
+  write(root, '.gitignore', 'tmp/\nnode_modules/\n')
+  write(root, 'README.md', 'readme\n')
+  contracts(root, { members: LINES_PATH, snapshot: SNAPSHOT_TEMPLATE }, contractLines)
+  writeSnapshots(root)
+  git(root, ['add', '-A'])
+  git(root, ['commit', '-m', 'contract members'])
+  return { home, root, initial: git(root, ['rev-parse', 'HEAD']) }
+}
+describe('the contract change of the card', () => {
+  it(
+    'does not run the difference when the card changed no api directory',
+    { tags: ['slow'] },
+    () => {
+      const r = contractRepo()
+      const base = bind(r, { binding: { writeScope: ['tools'] } })
+      // Another card of the batch changed the dist and the snapshot of a contract member; the
+      // merge brings it in.
+      git(r.root, ['checkout', '-b', 'other-card', base])
+      write(r.root, 'pkg/b/dist/index.d.ts', 'export {};\n')
+      writeSnapshots(r.root)
+      git(r.root, ['add', '-A'])
+      git(r.root, ['commit', '-m', 'other card breaks pkg/b'])
+      git(r.root, ['checkout', 'a/card'])
+      commitFiles(r.root, { 'tools/a.ts': 'a2\n' })
+      git(r.root, ['merge', '--no-ff', '--no-edit', 'other-card'])
+      let runs = 0
+      const report = changeScope({
+        root: r.root,
+        diffContracts: () => {
+          runs += 1
+          throw new Error('not expected')
+        },
+      })
+      expect(runs).toBe(0)
+      expect(report).toMatchObject({ bound: true, findings: [], contract: { kind: 'not-needed' } })
+    },
+  )
+
+  it('does not compare a member that a merge of another card changed', { tags: ['slow'] }, () => {
+    const r = contractRepo()
+    const base = bind(r, { binding: { writeScope: ['tools', 'pkg/a'] } })
+    git(r.root, ['checkout', '-b', 'other-card', base])
+    write(r.root, 'pkg/b/dist/index.d.ts', 'export {};\n')
+    writeSnapshots(r.root)
+    git(r.root, ['add', '-A'])
+    git(r.root, ['commit', '-m', 'other card breaks pkg/b'])
+    git(r.root, ['checkout', 'a/card'])
+    write(r.root, 'pkg/a/api/notes.md', 'notes\n')
+    git(r.root, ['add', '-A'])
+    git(r.root, ['commit', '-m', 'card touches pkg/a/api'])
+    git(r.root, ['merge', '--no-ff', '--no-edit', 'other-card'])
+    const report = changeScope({ root: r.root })
+    expect(report).toMatchObject({
+      bound: true,
+      findings: [],
+      contract: { kind: 'checked', base, members: [{ path: 'pkg/a', change: 'none' }] },
+    })
+  })
+
+  it('skips the comparison for a version 1 binding, which declares no contract change', () => {
+    const r = contractRepo()
+    bind(r, {
+      binding: {
+        schemaVersion: 1,
+        writeScope: ['pkg/a'],
+        line: undefined,
+        nature: undefined,
+        contractChange: undefined,
+        milestone: undefined,
+      },
+    })
+    commitFiles(r.root, { 'pkg/a/api/notes.md': 'notes\n' })
+    const report = changeScope({
+      root: r.root,
+      diffContracts: () => {
+        throw new Error('not expected')
+      },
+    })
+    expect(report).toMatchObject({
+      findings: [],
+      contract: { kind: 'skipped', members: ['pkg/a'] },
+    })
+  })
+})
+
+describe('change-scope-cli with the installed omne-contract-api', () => {
+  it('passes a card whose api change is none while it declares none', { tags: ['slow'] }, () => {
+    const r = contractRepo()
+    bind(r, { binding: { writeScope: ['tools', 'pkg/a'] } })
+    write(r.root, 'pkg/a/api/notes.md', 'notes\n')
+    const result = cli(r.root)
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout).contract).toMatchObject({
+      kind: 'checked',
+      members: [{ path: 'pkg/a', change: 'none' }],
+    })
+  })
+
+  it(
+    'refuses an additive change declared none and passes it declared additive',
+    { tags: ['slow'] },
+    () => {
+      const r = contractRepo()
+      bind(r, { binding: { writeScope: ['tools', 'pkg/a'] } })
+      write(r.root, 'pkg/a/dist/index.d.ts', A_ADDITIVE)
+      writeSnapshots(r.root)
+      git(r.root, ['add', '-A'])
+      git(r.root, ['commit', '-m', 'add A.b'])
+      const refused = cli(r.root)
+      expect(refused.status, refused.stderr).toBe(1)
+      expect(JSON.parse(refused.stdout).findings).toEqual([
+        expect.objectContaining({
+          code: 'contract-exceeds-declared',
+          member: 'pkg/a',
+          change: 'additive',
+          declared: 'none',
+        }),
+      ])
+      expect(refused.stderr).toContain('contract-exceeds-declared pkg/a')
+
+      const context = readContextFile(r.root).context
+      const declared = { ...context.ownerTask, contractChange: 'additive' } as TaskBinding
+      rmSync(contextPath(r.root))
+      writeContext(r.root, {
+        ...context,
+        tasks: [{ binding: declared, taskSource: context.tasks[0]!.taskSource }],
+        ownerTask: declared,
+      })
+      const passed = cli(r.root)
+      expect(passed.status, passed.stderr).toBe(0)
+    },
+  )
+
+  it('exits 2 when the difference cannot be read', { tags: ['slow'] }, () => {
+    const r = repo()
+    bind(r, { binding: { writeScope: ['tools'] } })
+    // A contract member in the working tree's line table without any contract configuration.
+    write(
+      r.root,
+      LINES_PATH,
+      JSON.stringify({
+        ...lines,
+        lines: [{ ...lines.lines[0], contracts: ['tools'] }, lines.lines[1]],
+      }),
+    )
+    write(r.root, 'tools/api/tools.api.md', 'x\n')
+    const result = cli(r.root)
     expect(result.status).toBe(2)
     expect(result.stdout).toBe('')
   })

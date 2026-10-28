@@ -40,7 +40,7 @@ pnpm --silent run check:docs
 pnpm --silent run check:design
 # 常驻：线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置），失败即失败。
 pnpm --silent run check:lines
-# 常驻：本卡自己的改动（逐提交，合并只取冲突解决，加未提交改动）须在 binding 写范围与本线内；没有 task context 时只报告「未绑定」。
+# 常驻：本卡自己的改动（逐提交，合并只取冲突解决，加未提交改动）须在 binding 写范围与本线内；本卡改了契约成员的 api 目录时，快照差异不超过申报的契约变更。没有 task context 时只报告「未绑定」。
 node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts >/dev/null
 # 按计划：Python 工具测试。
 step python
@@ -50,8 +50,8 @@ pnpm run test:format
 step build
 # 常驻：成员用 TypeScript 7 构建，dist 里的声明要能被 TypeScript 6 读；读的是磁盘上现有的 dist。
 pnpm run check:declarations
-# 常驻：契约成员的 API 快照与现有 dist 核对。不一致只报告，不让检查失败；用法或配置错误才失败。
-pnpm --silent run contract:api --check
+# 常驻：契约成员的 API 快照与现有 dist 核对，经 dev-flow 运行钉住的 omne-contract-api --check。不一致即失败（differs、unreadable、missing、invalid）；没有 dist 的成员只报告；工具缺失或运行失败也失败。
+node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check >/dev/null
 step typecheck
 step test
 # 常驻：结构规则、验收的覆盖声明与提交署名；它导入的成员已在上面构建。

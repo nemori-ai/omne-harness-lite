@@ -125,6 +125,7 @@ node() {
       esac ;;
     */src/cli.ts) record rules "$@" ;;
     */change-scope-cli.ts) record change-scope "$@" ;;
+    */integration/cli.ts) record contract-check "$@" ;;
     *) command node "$@" ;;
   esac
 }
@@ -180,6 +181,10 @@ it('runs the ordinary local check even when a subject root is set', () => {
   expect(trace).toContain(`plan --base ${f.base}`)
   expect(trace).toContain(`loop:status --strict --base ${f.base}`)
   expect(trace).toMatch(/^change-scope\|.*change-scope-cli\.ts$/mu)
+  // The snapshot check runs through dev-flow, after the build, and no longer through pnpm.
+  expect(trace).toMatch(/^contract-check\|.*integration\/cli\.ts contract-check$/mu)
+  expect(trace).not.toContain('contract:api --check')
+  expect(trace.indexOf('contract-check|')).toBeGreaterThan(trace.indexOf('check:declarations'))
   expect(trace).not.toContain('--scope engineering')
 })
 it('reads the hook root and each worktree own immutable task baseline', async () => {

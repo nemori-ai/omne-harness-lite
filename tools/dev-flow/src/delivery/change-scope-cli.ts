@@ -27,9 +27,10 @@ function options(args: readonly string[]): { root: string; lines?: string } {
   }
 }
 /**
- * Checks that the changes of the card bound to this tree stay in its write scope and line.
- * Standard output is the JSON report. Exit 0 without findings or without a task context, 1 with
- * findings, 2 on unusable input or a failed read.
+ * Checks that the changes of the card bound to this tree stay in its write scope and line, and
+ * that its contract snapshot changes stay within its declared contract change. Standard output
+ * is the JSON report. Exit 0 without findings or without a task context, 1 with findings, 2 on
+ * unusable input or a failed read, including a failed `omne-contract-api --diff`.
  */
 function main(args: readonly string[]): number {
   const { root, lines } = options(args)
@@ -41,7 +42,7 @@ function main(args: readonly string[]): number {
   }
   for (const finding of report.findings)
     process.stderr.write(
-      `change-scope: ${finding.code} ${finding.file}: ${finding.message} 改法：${finding.remedy}\n`,
+      `change-scope: ${finding.code} ${'file' in finding ? finding.file : finding.member}: ${finding.message} 改法：${finding.remedy}\n`,
     )
   return report.findings.length > 0 ? 1 : 0
 }

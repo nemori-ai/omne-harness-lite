@@ -149,10 +149,34 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
    - 不在 binding 的 `writeScope` 任一项之下时，为 `change-outside-scope`。
    - binding 为版本2、交付线不是 `integration` 时，文件归属于别的线或联调轨道为 `change-outside-line`。归属按 [lines.ts](lines.ts) 的 `scopeOwners` 判断。交付线为 `integration` 的卡与版本1的 binding 不做这一项：版本1的 binding 没有交付线字段。
 4. 线归属表取 `taskBase` 提交中的 `docs/engineering/delivery-lines.json`，即派发时的表，本卡对表的修改不改变结果。`--lines` 指定另一个表文件。
+5. 契约核对只看本卡改了 `api` 目录的契约成员，契约成员取上一项的表与工作树中的表。没有这样的成员时不运行 `omne-contract-api`。有时运行钉住的 `omne-contract-api --diff <taskBase> --json`，比较 `taskBase` 上的快照与工作树的快照：
+   - 差异为 additive 而 binding 的契约变更为 `none`，或差异为 review 而契约变更不是 `breaking`，为 `contract-exceeds-declared`。改法：撤回改动；或请调度者升卡的修订、改契约变更并重新派发；线内的卡需要破坏性改动时按[交付协议](../../../../docs/engineering/delivery.md#契约变更与里程碑类型)停下交裁定。
+   - 成员的快照差异读不出时为 `contract-change-unknown`。
+   - 合并进来的别的卡对其他成员的快照变化不计入。
+   - 版本1的 binding 没有契约变更字段，只在 `contract` 中列出成员，不核对。
 
-标准输出是 JSON：`issue`、`attempt`、`taskBase`、`head`、本卡改动的文件 `files`，以及 `findings`。每项发现有 `code`、`file`、`message` 与 `remedy`，并向标准错误写一行。没有发现退出0，有发现退出1。参数错误、context 不属于本工作树、`taskBase` 不是 HEAD 的祖先，或读不到线归属表时退出2。
+标准输出是 JSON：`issue`、`attempt`、`taskBase`、`head`、本卡改动的文件 `files`、契约核对 `contract`，以及 `findings`。`contract.kind` 为 `not-needed`、`skipped` 或 `checked`。文件发现有 `code`、`file`、`message` 与 `remedy`，契约发现有 `code`、`member`、`change`、`declared`、`message` 与 `remedy`。每项发现向标准错误写一行。没有发现退出0，有发现退出1。参数错误、context 不属于本工作树、`taskBase` 不是 HEAD 的祖先、读不到线归属表，或 `omne-contract-api` 运行失败时退出2。
 
 同步目标分支时用合并提交。快进同步时，带进来的提交成为第一父提交链的一部分，会算作本卡的改动。
+
+## 契约基线的读取
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/baseline-cli.ts read <baseline 卡号> --out <文件> [--config <文件>]
+```
+
+命令读 baseline 卡的全部评论，找出 `json omne-contract-baseline:v1` 区块，按评论时间合并，把合并后的区块写到 `--out`。`omne-contract-api --baseline <文件>` 读这个文件，核对里程碑内的累计变化。登记规则见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)。命令只发 GET 请求，不写评论。
+
+1. 评论按创建时间从旧到新处理。同一成员取最晚的区块。较晚的区块可以只写受影响的成员，也可以写基线之后加入的成员。
+2. `breakingCards` 取各区块的并集。
+3. 下列情况拒绝，不写文件，退出1。标准错误逐项写代码、评论与说明：
+   - `baseline-missing`：卡的评论里没有区块。
+   - `baseline-duplicate`：一条评论有两个以上区块。
+   - `baseline-invalid`：区块没有结束的围栏、不是 JSON，或键与格式不合格。
+   - `baseline-milestone-mismatch`：区块的 `milestone` 与最早的区块不同。用 `--baseline-write` 加 `--milestone` 重新生成。
+4. 参数、交付配置或 GitHub 读取错误时退出2。
+
+区块格式归 repo-toolchain 的 `omne-contract-api`。钉住的 0.0.15 还没有这个格式的解析，所以本命令按同一个 v1 形状校验，钉子升级后改为导入包的解析。精确条款见 [SPEC](SPEC.md#契约基线的读取)。
 
 ## 里程碑命令
 
@@ -321,7 +345,8 @@ pnpm --filter @omne-harness/dev-flow exec vitest run \
   tests/delivery-attributes.spec.ts tests/delivery-binding.spec.ts tests/delivery-lines.spec.ts \
   tests/delivery-labels.spec.ts tests/delivery-scope-overlap.spec.ts tests/delivery-milestone.spec.ts \
   tests/delivery-board.spec.ts tests/delivery-dispatch.spec.ts \
-  tests/delivery-events.spec.ts tests/delivery-events-cli.spec.ts
+  tests/delivery-events.spec.ts tests/delivery-events-cli.spec.ts \
+  tests/delivery-change-scope.spec.ts tests/delivery-baseline.spec.ts
 pnpm --filter @omne-harness/dev-flow typecheck
 ```
 
