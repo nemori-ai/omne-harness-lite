@@ -474,6 +474,36 @@ describe('durable single-dispatch facts preparation', () => {
     expect(f.state.posts).toBe(1)
   })
 
+  it('keeps the configured timeout from recovery run listing through exact run reads', () => {
+    const f = fixture()
+    f.state.loseResponse = true
+    expect(f.prepare().status).toBe('unknown')
+    const intent = readFileSync(join(f.slot(), 'intent-1.json'), 'utf8')
+    const observed: { path: string; timeout: number }[] = []
+    const result = f.prepare(
+      false,
+      (args, timeout) => {
+        observed.push({ path: args.at(-1)!, timeout })
+        return f.call(args, timeout)
+      },
+      { now: () => 0 },
+      { networkMs: 25_000, totalMs: 60_000 },
+    )
+    expect(result).toMatchObject({ status: 'pending', generation: 1, run: { id: 202 } })
+    expect(
+      observed.filter(call => call.path.includes(`/workflows/${f.deployment.workflow.id}/runs?`)),
+    ).toHaveLength(1)
+    expect(observed.filter(call => call.path === 'repos/owner/repo/actions/runs/202')).toHaveLength(
+      2,
+    )
+    expect(
+      observed.filter(call => call.path === 'repos/owner/repo/actions/runs/202/attempts/1'),
+    ).toHaveLength(2)
+    expect(new Set(observed.map(call => call.timeout))).toEqual(new Set([25_000]))
+    expect(readFileSync(join(f.slot(), 'intent-1.json'), 'utf8')).toBe(intent)
+    expect(f.state.posts).toBe(1)
+  })
+
   it('permits one explicit successor after an exact failure without changing authorization', () => {
     const f = fixture()
     f.prepare()
