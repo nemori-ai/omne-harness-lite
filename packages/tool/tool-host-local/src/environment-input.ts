@@ -26,20 +26,16 @@ export function matchingEnvironment(
   environment: { readonly adoption: Adoption },
   original: Adoption,
 ): boolean {
-  try {
-    const current = environment.adoption
-    return Boolean(
-      original &&
-      current &&
-      typeof original.digest === 'string' &&
-      original.owner === current.owner &&
-      original.name === current.name &&
-      original.revision === current.revision &&
-      original.digest === current.digest,
-    )
-  } catch {
-    return false
-  }
+  const current = environment.adoption
+  return Boolean(
+    original &&
+    current &&
+    typeof original.digest === 'string' &&
+    original.owner === current.owner &&
+    original.name === current.name &&
+    original.revision === current.revision &&
+    original.digest === current.digest,
+  )
 }
 
 function recordAccess<P>(

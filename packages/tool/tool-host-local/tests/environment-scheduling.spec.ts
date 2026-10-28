@@ -85,6 +85,7 @@ function fixture(changes: Partial<ToolEnvironmentSchedulingPolicy<Principal>> = 
         : backing.release(input),
   }
   const environment = createLocalScheduledEnvironment({
+    diagnostics: { record: async () => ({ kind: 'unavailable' }) },
     environment: provider,
     policy: policy(changes),
     qualify: async () => succeed(undefined),
@@ -312,50 +313,61 @@ it('reliable exclusion permits the original operation to make its first allocati
   expect(f.calls).toEqual(['a', 'a'])
 })
 
-it('all four verbs refuse the old adoption after a provider proxy changes its target', async () => {
-  const f = fixture()
-  const a = f.preparation('a')
-  let current = f.provider
-  let calls = 0
-  const proxy: ToolEnvironment<Principal, MemoryEnvironment> = {
-    get adoption() {
-      return current.adoption
-    },
-    prepare: input => {
-      calls += 1
-      return current.prepare(input)
-    },
-    inspectPreparation: input => {
-      calls += 1
-      return current.inspectPreparation(input)
-    },
-    release: input => {
-      calls += 1
-      return current.release(input)
-    },
-    inspectRelease: input => {
-      calls += 1
-      return current.inspectRelease(input)
-    },
-  }
-  const wrapper = createLocalScheduledEnvironment({
-    environment: proxy,
-    policy: policy(),
-    qualify: async () => succeed(undefined),
-  })
-  await wrapper.prepare(a)
-  const release = await f.release(a)
-  current = { ...f.provider, adoption: { ...f.provider.adoption, digest: 'new-provider' } }
-  expect(wrapper.adoption.digest).toBe('new-provider')
-  for (const result of [
-    await wrapper.prepare(a),
-    await wrapper.inspectPreparation(a),
-    await wrapper.release(release),
-    await wrapper.inspectRelease(release),
-  ])
-    expect.soft(result).toMatchObject({ failure: { kind: 'unavailable' } })
-  expect(calls).toBe(1)
-})
+it.each(['owner', 'name', 'revision', 'digest'] as const)(
+  'all four verbs refuse the old adoption after provider %s changes',
+  async field => {
+    const f = fixture()
+    const a = f.preparation('a')
+    let current = f.provider
+    let calls = 0
+    let diagnostics = 0
+    const proxy: ToolEnvironment<Principal, MemoryEnvironment> = {
+      get adoption() {
+        return current.adoption
+      },
+      prepare: input => {
+        calls += 1
+        return current.prepare(input)
+      },
+      inspectPreparation: input => {
+        calls += 1
+        return current.inspectPreparation(input)
+      },
+      release: input => {
+        calls += 1
+        return current.release(input)
+      },
+      inspectRelease: input => {
+        calls += 1
+        return current.inspectRelease(input)
+      },
+    }
+    const wrapper = createLocalScheduledEnvironment({
+      diagnostics: {
+        record: async () => {
+          diagnostics += 1
+          return { kind: 'unavailable' }
+        },
+      },
+      environment: proxy,
+      policy: policy(),
+      qualify: async () => succeed(undefined),
+    })
+    await wrapper.prepare(a)
+    const release = await f.release(a)
+    current = { ...f.provider, adoption: { ...f.provider.adoption, [field]: 'new-provider' } }
+    expect(wrapper.adoption[field]).toBe('new-provider')
+    for (const result of [
+      await wrapper.prepare(a),
+      await wrapper.inspectPreparation(a),
+      await wrapper.release(release),
+      await wrapper.inspectRelease(release),
+    ])
+      expect.soft(result).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(calls).toBe(1)
+    expect(diagnostics).toBe(0)
+  },
+)
 
 it('does not coalesce altered input or an alternate tenant into an existing operation', async () => {
   const f = fixture()
@@ -418,6 +430,7 @@ it('retains allocated-but-not-adopted work when the adapter provides no trustwor
     },
   }
   const wrapper = createLocalScheduledEnvironment({
+    diagnostics: { record: async () => ({ kind: 'unavailable' }) },
     environment: provider,
     policy: policy(),
     qualify: async () => succeed(undefined),
@@ -448,6 +461,7 @@ it('keeps tenant FIFO through slow qualification and freezes each call settings 
     },
   }
   const wrapper = createLocalScheduledEnvironment({
+    diagnostics: { record: async () => ({ kind: 'unavailable' }) },
     environment: provider,
     policy: policy({ tenant: () => ({ weight: 1, inFlight: 4 }) }),
     qualify: async input => {
@@ -569,6 +583,7 @@ it.each([
     },
   }
   const wrapper = createLocalScheduledEnvironment({
+    diagnostics: { record: async () => ({ kind: 'unavailable' }) },
     environment: provider,
     policy: policy({
       release: async () => {
@@ -634,6 +649,7 @@ it.each(['retry', 'inspect'] as const)(
       },
     }
     const wrapper = createLocalScheduledEnvironment({
+      diagnostics: { record: async () => ({ kind: 'unavailable' }) },
       environment: provider,
       policy: policy({
         retry: async () => {
@@ -682,6 +698,7 @@ it.each(['prepared', 'excluded'] as const)(
       },
     }
     const wrapper = createLocalScheduledEnvironment({
+      diagnostics: { record: async () => ({ kind: 'unavailable' }) },
       environment: provider,
       policy: policy(),
       qualify: async () => succeed(undefined),

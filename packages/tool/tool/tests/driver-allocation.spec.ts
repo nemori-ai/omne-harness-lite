@@ -6,7 +6,16 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
-import { admission, callId, operationId, tenantB, ok, type Principal } from './runtime-values.ts'
+import {
+  admission,
+  callId,
+  operationId,
+  principalA,
+  tenantA,
+  tenantB,
+  ok,
+  type Principal,
+} from './runtime-values.ts'
 import {
   admitCall,
   auditQueues,
@@ -21,6 +30,8 @@ function fixture() {
   const backing = createMemoryToolEnvironment<Principal>()
   backing.controls.allocateBeforeAdoption()
   const requests: PreparationRecord[] = []
+  let current = backing.adoption
+  let allocationReply = false
   let queries = 0
   let transform = (progress: PreparationProgress<TestEnvironment>) => progress
   let waitAdoption = false
@@ -39,6 +50,9 @@ function fixture() {
       : progress
   const provider: ToolEnvironment<Principal, TestEnvironment> = {
     ...backing,
+    get adoption() {
+      return current
+    },
     prepare: async input => {
       requests.push(input.preparation)
       if (requests.length > 1 && retryOutcome !== null)
@@ -52,7 +66,11 @@ function fixture() {
       const answer = await (waitAdoption && requests.length > 1
         ? backing.inspectPreparation(input)
         : backing.prepare(input))
-      return 'failure' in answer ? answer : succeed(transform(convert(answer.ok)))
+      const reply =
+        allocationReply && 'ok' in answer && answer.ok.kind === 'unknown'
+          ? await backing.inspectPreparation(input)
+          : answer
+      return 'failure' in reply ? reply : succeed(transform(convert(reply.ok)))
     },
     inspectPreparation: async input => {
       queries += 1
@@ -64,6 +82,12 @@ function fixture() {
   return {
     h,
     backing,
+    replace: (field: 'owner' | 'name' | 'revision' | 'digest') => {
+      current = { ...current, [field]: 'foreign' }
+    },
+    allocationReply: () => {
+      allocationReply = true
+    },
     requests,
     queries: () => queries,
     transform: (change: typeof transform) => {
@@ -179,7 +203,14 @@ describe('driver first adoption from an original allocation fact', () => {
           ? { ...progress, preparation: change(progress.preparation) }
           : progress,
       )
-      await f.h.runOnce('allocated')
+      expect(await advance(f, 'allocated')).toEqual({
+        kind: 'failed',
+        failure: {
+          kind: 'invalid',
+          field: 'preparation',
+          reason: 'original-mismatch',
+        },
+      })
       expect(f.requests).toHaveLength(1)
       await retained(f)
     },
@@ -273,3 +304,112 @@ describe('driver first adoption from an original allocation fact', () => {
     expect(f.backing.controls.leases()).toBe(1)
   })
 })
+
+async function advance(f: ReturnType<typeof fixture>, name: string) {
+  const driver = f.h.host.driver()
+  if (!('advance' in driver) || typeof driver.advance !== 'function')
+    throw new Error('missing driver result')
+  const stopped: unknown = await driver.advance({
+    principal: principalA,
+    tenant: tenantA,
+    call: callId(name),
+    instance: await f.h.host.instanceOf(callId(name)),
+    signal: new AbortController().signal,
+  })
+  return stopped
+}
+
+it.each(['owner', 'name', 'revision', 'digest'] as const)(
+  'refuses replacement environment %s before querying the old operation',
+  async field => {
+    const f = fixture()
+    await pending(f)
+    const original = [...f.requests]
+    f.replace(field)
+    expect(await advance(f, 'allocated')).toEqual({
+      kind: 'failed',
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tool-environment',
+        diagnostic: 'the original environment adapter is unavailable',
+      },
+    })
+    expect(f.requests).toEqual(original)
+    expect(f.queries()).toBe(0)
+    await retained(f)
+  },
+)
+
+it.each(['prepare', 'inspect'] as const)(
+  'returns the complete allocated stop after %s and bounds each later step',
+  async first => {
+    const f = fixture()
+    if (first === 'prepare') {
+      f.allocationReply()
+      await admitCall(f.h, 'allocated')
+    } else await pending(f)
+    f.waitAdoption()
+    const before = f.requests.length
+    const stop = {
+      kind: 'failed',
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tool-environment',
+        diagnostic: 'the original allocation awaits first adoption',
+      },
+    }
+    expect(await advance(f, 'allocated')).toEqual(stop)
+    expect(f.requests).toHaveLength(before + (first === 'prepare' ? 2 : 1))
+    const original = f.requests[0]
+    for (let step = 0; step < 2; step += 1) {
+      const count = f.requests.length
+      expect(await advance(f, 'allocated')).toEqual(stop)
+      expect(f.requests).toHaveLength(count + 1)
+    }
+    expect(f.requests.every(request => JSON.stringify(request) === JSON.stringify(original))).toBe(
+      true,
+    )
+    await retained(f)
+  },
+)
+
+it('keeps each call and preparation operation independent while querying original allocations', async () => {
+  const f = fixture()
+  await pending(f)
+  f.backing.controls.allocateBeforeAdoption()
+  await admitCall(f.h, 'other')
+  await f.h.runOnce('other')
+  expect(f.requests.map(request => request.call)).toEqual(['allocated', 'other'])
+  const [left, right] = f.requests
+  expect(left?.operation).not.toEqual(right?.operation)
+  f.waitAdoption()
+  await Promise.all([advance(f, 'allocated'), advance(f, 'other')])
+  expect(f.requests.filter(request => request.call === 'allocated')).toEqual([left, left])
+  expect(f.requests.filter(request => request.call === 'other')).toEqual([right, right])
+  expect(f.backing.controls.allocations()).toBe(2)
+  expect(f.backing.controls.leases()).toBe(0)
+  expect(f.h.binding.executions).toEqual([])
+})
+
+it.each(['owner', 'name', 'revision', 'digest'] as const)(
+  'rechecks current environment %s after inspection and before first adoption',
+  async field => {
+    const f = fixture()
+    await pending(f)
+    f.transform(progress => {
+      if (progress.kind === 'allocated') f.replace(field)
+      return progress
+    })
+    expect(await advance(f, 'allocated')).toEqual({
+      kind: 'failed',
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tool-environment',
+        diagnostic: 'the original environment adapter is unavailable',
+      },
+    })
+    expect(f.queries()).toBe(1)
+    expect(f.requests).toHaveLength(1)
+    await retained(f)
+  },
+)

@@ -417,3 +417,14 @@ describe('environment declarations and explicit requester scope', () => {
     expect(reads).toBe(0)
   })
 })
+
+it.each(['self', 'ancestor'] as const)(
+  'rejects a %s cycle in the requester scope before decoding',
+  kind => {
+    const parent = { ref: 'parent' }
+    const child = { ref: 'child', parent }
+    Reflect.set(parent, 'parent', kind === 'self' ? parent : child)
+    const judged = judgeFixedToolRequest({ ...request(), requesterScope: child })
+    expect(judged).toHaveProperty('failure.reason', 'cycle')
+  },
+)

@@ -6,7 +6,7 @@
 
 公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。`createToolRuntime`、`createToolLedger`、`executeTool` 与 `createIndependentToolScope` 在 `@omne-harness/tool`，导航见该包的 public-api（`tool/docs/public-api.md`）。其中 `executeTool` 与 `createIndependentToolScope` 已实现。`createToolLedger` 与 `createToolRuntime` 只实现了一部分路径，其余操作回复具名的 `unsupported`。宿主在 `@omne-harness/tool-host-local`：G5 的 `createLocalStartCoordinator` 已实现，G4 的宿主时钟与 G7 的绑定登记表尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。
 
-服务定义、21 个服务键和 `tool-cordis-contract/call-changed` 事件增补由 `@omne-harness/tool-cordis-contract/cordis` 导出，本包不导出它们。源码是 [tool-cordis-contract/src/cordis.ts](../../tool-cordis-contract/src/cordis.ts)，装配规则归 [cordis](../../tool-cordis-contract/docs/cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
+服务定义、服务键和 `tool-cordis-contract/call-changed` 事件增补由 `@omne-harness/tool-cordis-contract/cordis` 导出，本包不导出它们。源码是 [tool-cordis-contract/src/cordis.ts](../../tool-cordis-contract/src/cordis.ts)，装配规则归 [cordis](../../tool-cordis-contract/docs/cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
 
 ## 值、定义和固定请求
 
@@ -153,6 +153,8 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 | 端口 | 套件函数与夹具 | 条款 | 守约的非耐久替身 |
 | --- | --- | --- | --- |
 | `ToolEnvironment` | `toolEnvironmentConformance`，`ToolEnvironmentFixture` | [P03](../SPEC.md#p03-环境准备和释放) | `createMemoryToolEnvironment` |
+| `ToolEnvironment` 的首次采用 | `toolEnvironmentAllocationConformance`，`ToolEnvironmentAllocationFixture` | [P03](../SPEC.md#p03-环境准备和释放) | `createMemoryToolEnvironment` 的分配和采用控制 |
+| `ToolCredentials` | `toolCredentialsConformance`，`ToolCredentialsFixture` | [P15](../SPEC.md#第三方凭据端口) | 调用方提供实际绑定与受保护使用夹具 |
 | `ToolStartAuthority` | `toolStartAuthorityConformance`，`ToolStartAuthorityFixture` | [P04](../SPEC.md#p04-实际发起围栏) | `createMemoryToolStartAuthority` |
 | `ToolExecutorBinding`（`live-only`） | `toolExecutorBindingConformance`，`ToolExecutorBindingFixture` | [P05](../SPEC.md#p05-执行事实与原输出)、[P07](../SPEC.md#p07-计时控制与检查点) | `createMemoryToolExecutorBinding` |
 | `ToolOutputCustody` | `toolOutputCustodyConformance`，`ToolOutputCustodyFixture` | [P05](../SPEC.md#p05-执行事实与原输出) | `createMemoryToolOutputCustody` |

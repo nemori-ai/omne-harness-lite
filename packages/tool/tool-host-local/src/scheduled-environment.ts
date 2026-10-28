@@ -1,7 +1,7 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
-import type { Reply } from '@omne-harness/tool-contract'
+import type { Reply, ToolOperationId } from '@omne-harness/tool-contract'
 import {
   type PreparationProgress,
   type ToolEnvironment,
@@ -23,9 +23,15 @@ import {
   checkedPreparationProgress,
 } from './environment-input.ts'
 
+import {
+  environmentDiagnostic,
+  type ToolEnvironmentDiagnostics,
+} from './environment-diagnostics.ts'
+
 export type LocalScheduledEnvironmentInput<P, E> = Readonly<{
   environment: ToolEnvironment<P, E>
   policy: ToolEnvironmentSchedulingPolicy<P>
+  diagnostics: ToolEnvironmentDiagnostics
   /** Qualify the current principal, tenant, call and original preparation before queueing. */
   qualify(input: EnvironmentPreparationInput<P>): Reply<void>
 }>
@@ -35,6 +41,7 @@ type Entry<E> = {
   readonly preparation: EnvironmentPreparationInput<unknown>['preparation']
   readonly queue: DrrQueue
   occupied: boolean
+  sent: boolean
   retired: boolean
   progress: PreparationProgress<E>
   running: Reply<PreparationProgress<E>> | null
@@ -140,17 +147,34 @@ export function createLocalScheduledEnvironment<P, E>(
 
   const check = async (
     raw: EnvironmentPreparationInput<P>,
+    onFailure: () => void = () => {},
+    operation?: ToolOperationId,
   ): Reply<EnvironmentPreparationInput<P>> => {
-    const fixed = fixedPreparationInput(raw, environment)
-    if ('failure' in fixed) return fixed
     try {
+      const fixed = fixedPreparationInput(raw, environment)
+      if ('failure' in fixed) {
+        onFailure()
+        return fixed
+      }
       const allowed = await input.qualify(fixed.ok)
-      if ('failure' in allowed) return allowed
-      return matches(fixed.ok.preparation.adoption)
-        ? fixed
-        : unavailable('the original environment adapter is unavailable')
-    } catch {
-      return unavailable('preparation qualification unavailable')
+      if ('failure' in allowed) {
+        onFailure()
+        return allowed
+      }
+      if (matches(fixed.ok.preparation.adoption)) return fixed
+      onFailure()
+      return unavailable('the original environment adapter is unavailable')
+    } catch (cause) {
+      onFailure()
+      return unavailable(
+        await environmentDiagnostic(input.diagnostics, {
+          stage: 'qualify',
+          tenant: raw.tenant,
+          call: raw.call,
+          operation: operation ?? raw.preparation.operation,
+          cause,
+        }),
+      )
     }
   }
 
@@ -158,21 +182,33 @@ export function createLocalScheduledEnvironment<P, E>(
     entry: Entry<E>,
     work: () => Reply<PreparationProgress<E>>,
   ): Reply<PreparationProgress<E>> => {
+    const outcome = await work()
+    const checked =
+      'failure' in outcome ? outcome : checkedPreparationProgress(outcome.ok, entry.preparation)
+    if ('ok' in checked) observe(entry, checked.ok)
+    return checked
+  }
+  const sendPreparation = async (
+    entry: Entry<E>,
+    request: EnvironmentPreparationInput<P>,
+  ): Reply<PreparationProgress<E>> => {
+    entry.sent = true
     try {
-      const outcome = await work()
-      const checked =
-        'failure' in outcome ? outcome : checkedPreparationProgress(outcome.ok, entry.preparation)
-      if ('ok' in checked) observe(entry, checked.ok)
-      return checked
-    } catch {
-      const progress = {
-        kind: 'unknown' as const,
-        diagnostic: 'environment operation threw; original preparation retained',
-      }
-      observe(entry, progress)
-      return succeed(progress)
+      return await environment.prepare(request)
+    } catch (cause) {
+      return succeed({
+        kind: 'unknown',
+        diagnostic: await environmentDiagnostic(input.diagnostics, {
+          stage: 'prepare',
+          tenant: request.tenant,
+          call: request.call,
+          operation: request.preparation.operation,
+          cause,
+        }),
+      })
     }
   }
+
   const run = (entry: Entry<E>, work: () => Reply<PreparationProgress<E>>) => {
     const running = attempt(entry, work)
     entry.running = running
@@ -189,10 +225,16 @@ export function createLocalScheduledEnvironment<P, E>(
       return 'failure' in result
         ? result
         : checkedPreparationProgress(result.ok, request.preparation)
-    } catch {
+    } catch (cause) {
       return succeed({
         kind: 'unknown',
-        diagnostic: 'preparation inspection unavailable; original task retained',
+        diagnostic: await environmentDiagnostic(input.diagnostics, {
+          stage: 'inspect-preparation',
+          tenant: request.tenant,
+          call: request.call,
+          operation: request.preparation.operation,
+          cause,
+        }),
       })
     }
   }
@@ -213,7 +255,7 @@ export function createLocalScheduledEnvironment<P, E>(
     const checked = await check(request)
     if ('failure' in checked) return checked
     if (entry.retired) return unavailable('the original preparation was retired')
-    return environment.prepare(checked.ok)
+    return sendPreparation(entry, checked.ok)
   }
   const recall = (
     entry: Entry<E>,
@@ -227,11 +269,37 @@ export function createLocalScheduledEnvironment<P, E>(
       )
     if (entry.running !== null) return entry.running
     return run(entry, async () => {
-      const decision = await policy.retry(request)
+      let decision: Awaited<ReturnType<typeof policy.retry>>
+      try {
+        decision = await policy.retry(request)
+      } catch (cause) {
+        return succeed({
+          kind: 'unknown',
+          diagnostic: await environmentDiagnostic(input.diagnostics, {
+            stage: 'retry',
+            tenant: request.tenant,
+            call: request.call,
+            operation: request.preparation.operation,
+            cause,
+          }),
+        })
+      }
       if (entry.retired) return unavailable('the original preparation was retired')
       if (decision === 'wait') return pending('the original preparation is retained')
-      if (!matches(request.preparation.adoption))
-        return unavailable('the original environment adapter is unavailable')
+      try {
+        if (!matches(request.preparation.adoption))
+          return unavailable('the original environment adapter is unavailable')
+      } catch (cause) {
+        return unavailable(
+          await environmentDiagnostic(input.diagnostics, {
+            stage: 'qualify',
+            tenant: request.tenant,
+            call: request.call,
+            operation: request.preparation.operation,
+            cause,
+          }),
+        )
+      }
       return inspectOrRecognize(entry, request, decision)
     })
   }
@@ -243,16 +311,20 @@ export function createLocalScheduledEnvironment<P, E>(
   ): Reply<PreparationProgress<E>> => {
     if (queued >= policy.capacity)
       return Promise.resolve(unavailable('preparation queue capacity reached'))
+    // Confirmed exclusion permits a new dispatch attempt without retaining the old reservation.
+    if (entry.progress.kind === 'excluded') entry.sent = false
     const waiting: Reply<PreparationProgress<E>> = new Promise(resolve => {
       entry.waiting = {
         key,
         cancel: () => resolve(unavailable('the original preparation was released')),
         dispatch: () => {
           void run(entry, async () => {
-            const checked = await check(request)
+            const checked = await check(request, () => {
+              if (!entry.sent) vacate(entry)
+            })
             if ('failure' in checked) return checked
             if (entry.retired) return unavailable('the original preparation was retired')
-            return environment.prepare(checked.ok)
+            return sendPreparation(entry, checked.ok)
           }).then(resolve)
         },
       }
@@ -280,7 +352,7 @@ export function createLocalScheduledEnvironment<P, E>(
         reply:
           existing.digest === digest
             ? !existing.retired &&
-              existing.progress.kind === 'excluded' &&
+              (!existing.sent || existing.progress.kind === 'excluded') &&
               existing.running === null
               ? enqueue(existing, request, key)
               : recall(existing, request)
@@ -294,6 +366,7 @@ export function createLocalScheduledEnvironment<P, E>(
       preparation,
       queue,
       occupied: false,
+      sent: false,
       retired: false,
       progress: { kind: 'pending', diagnostic: 'preparation queued' },
       running: null,
@@ -341,10 +414,16 @@ export function createLocalScheduledEnvironment<P, E>(
     let result: Awaited<ReturnType<typeof environment.release>>
     try {
       result = await (inspect ? environment.inspectRelease(request) : environment.release(request))
-    } catch {
+    } catch (cause) {
       return succeed({
         kind: 'unknown' as const,
-        diagnostic: 'release outcome unknown; capacity retained',
+        diagnostic: await environmentDiagnostic(input.diagnostics, {
+          stage: inspect ? 'inspect-release' : 'release',
+          tenant: request.tenant,
+          call: request.call,
+          operation: request.release.operation,
+          cause,
+        }),
       })
     }
     if (entry && 'ok' in result && result.ok.kind === 'released') retire(entry)
@@ -355,25 +434,68 @@ export function createLocalScheduledEnvironment<P, E>(
     raw: Parameters<ToolEnvironment<P, E>['release']>[0],
     inspect: boolean,
   ) => {
-    const fixed = fixedReleaseInput(raw, environment)
+    let fixed: ReturnType<typeof fixedReleaseInput<P>>
+    try {
+      fixed = fixedReleaseInput(raw, environment)
+    } catch (cause) {
+      return unavailable(
+        await environmentDiagnostic(input.diagnostics, {
+          stage: 'qualify',
+          tenant: raw.tenant,
+          call: raw.call,
+          operation: raw.release.operation,
+          cause,
+        }),
+      )
+    }
     if ('failure' in fixed) return fixed
     const request = fixed.ok
     const entry = entries.get(
       operationKey(request.tenant, request.call, request.release.preparation),
     )
     if (entry !== undefined) {
-      const checked = await check({
-        principal: request.principal,
-        tenant: request.tenant,
-        call: request.call,
-        preparation: entry.preparation,
-      })
+      const checked = await check(
+        {
+          principal: request.principal,
+          tenant: request.tenant,
+          call: request.call,
+          preparation: entry.preparation,
+        },
+        undefined,
+        request.release.operation,
+      )
       if ('failure' in checked) return checked
     }
-    if (!inspect && (await policy.release(request)) === 'wait')
-      return pending('release deferred by policy')
-    if (!matches(request.release.adoption))
-      return unavailable('the original environment adapter is unavailable')
+    if (!inspect) {
+      try {
+        if ((await policy.release(request)) === 'wait') return pending('release deferred by policy')
+      } catch (cause) {
+        return succeed({
+          kind: 'unknown' as const,
+          diagnostic: await environmentDiagnostic(input.diagnostics, {
+            stage: 'release-policy',
+            tenant: request.tenant,
+            call: request.call,
+            operation: request.release.operation,
+            cause,
+          }),
+        })
+      }
+    }
+    try {
+      if (!matches(request.release.adoption))
+        return unavailable('the original environment adapter is unavailable')
+    } catch (cause) {
+      return unavailable(
+        await environmentDiagnostic(input.diagnostics, {
+          stage: 'qualify',
+          tenant: request.tenant,
+          call: request.call,
+          operation: request.release.operation,
+          cause,
+        }),
+      )
+    }
     return finishRelease(request, inspect, entry)
   }
 

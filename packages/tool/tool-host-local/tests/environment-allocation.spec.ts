@@ -66,6 +66,7 @@ function fixture(decision: 'recognize' | 'inspect' | 'wait' = 'recognize') {
     release: async () => 'release',
   }
   const environment = createLocalScheduledEnvironment({
+    diagnostics: { record: async () => ({ kind: 'unavailable' }) },
     environment: provider,
     policy,
     qualify: async () =>
@@ -148,6 +149,7 @@ describe('scheduled original first adoption', () => {
       },
     }
     const environment = createLocalScheduledEnvironment({
+      diagnostics: { record: async () => ({ kind: 'unavailable' }) },
       environment: provider,
       qualify: async () => succeed(undefined),
       policy: {

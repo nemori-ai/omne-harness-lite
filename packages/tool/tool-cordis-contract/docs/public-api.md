@@ -4,7 +4,7 @@
 
 根入口 `.` 不导出值。`./cordis` 由 [src/cordis.ts](../src/cordis.ts) 定义，源码是唯一定义，本页不手写签名。
 
-- 20 个抽象 Service 类与 1 个具体类 `ToolInstancesService`，共 21 个，另有 21 个键常量。`ToolStartFenceService`（键 `toolStartFence`）只投影 `ToolStartFence` 的 `invalidate`，与 `ToolStartAuthorityService` 由同一提供者兑现同一排序域。其中 `ToolContributionAuthorityService`（`verify`、`admits`）与 `ToolGenerationsService`（`ensureLoaded`、`unload`、`sweep`、`loaderFor`）来自 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)；`ToolBindingsService` 另投影登记表的 `snapshot`、`pins`、`close`、`reopen`、`drain`。`VerifiedAuthority` 是带品牌的 `ToolAuthority`，没有运行时构造器，只由 `ToolContributionAuthority.verify` 的实现产出，普通 `ToolAuthority` 不能代替它。随它们导出的类型是 `VerifiedAuthority`、`ToolAuthorityFailure`、`ToolContributionAuthority`、`ToolLoadFailure`、`ToolLoadState`、`ToolUnloadState`、`ToolSweepReport`、`ToolGenerationsFailure` 与 `ToolGenerations`。
+- 抽象 Service 类与 1 个具体类 `ToolInstancesService`，另有对应的键常量。`ToolStartFenceService`（键 `toolStartFence`）只投影 `ToolStartFence` 的 `invalidate`，与 `ToolStartAuthorityService` 由同一提供者兑现同一排序域。其中 `ToolContributionAuthorityService`（`verify`、`admits`）与 `ToolGenerationsService`（`ensureLoaded`、`unload`、`sweep`、`loaderFor`）来自 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)；`ToolBindingsService` 另投影登记表的 `snapshot`、`pins`、`close`、`reopen`、`drain`。`VerifiedAuthority` 是带品牌的 `ToolAuthority`，没有运行时构造器，只由 `ToolContributionAuthority.verify` 的实现产出，普通 `ToolAuthority` 不能代替它。随它们导出的类型是 `VerifiedAuthority`、`ToolAuthorityFailure`、`ToolContributionAuthority`、`ToolLoadFailure`、`ToolLoadState`、`ToolUnloadState`、`ToolSweepReport`、`ToolGenerationsFailure` 与 `ToolGenerations`。
 - `Context` 增补：每个键对应的服务类型。
 - `Events` 增补：`tool-cordis-contract/call-changed`，参数是 tenant、ToolCallId 与 ToolRevision；`tool-cordis-contract/binding-changed`，参数是登记键 `ToolBindingKey` 与 `change`（`registered`、`draining`、`released`），规则见 [cordis](cordis.md#配置与变更通知)。
 - 实例目录的登记类型：`ToolPublication`、`ToolRegistrationInput`、`ToolRegistrationFailure`、`ToolRegistration` 与 `ToolPublicationAuthority`。RFC-0012 不改变它们。绑定登记表的登记输入 `ToolAuthority` 归 `tool-contract`，见[绑定登记表的登记输入](cordis.md#绑定登记表的登记输入)。
@@ -18,3 +18,5 @@
 - RFC-0012 动态性套件的骨架 `runToolDynamicsSuite`、判据表 `TOOL_DYNAMICS_CRITERIA` 与夹具类型 `ToolDynamicsFixture`。十个用例在 2.5 填入用例体之前报告不适用，不是通过。
 
 类型参数取自 `@omne-harness/tool-contract`。服务行为与依赖分类见 [cordis](cordis.md)。目录职责见 [README](README.md)。
+
+`ToolResidencyReaderService` (`toolResidencyReader`) 提供持有者、租户与 shape 的分页引用查询，见[服务定义](../src/cordis.ts)。

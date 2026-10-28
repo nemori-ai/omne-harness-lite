@@ -9,3 +9,5 @@
 - [后续 Cordis 插件设计](../docs/cordis.md)。
 - [公开接口](../docs/public-api.md)。
 - [包索引](../index.md)。
+
+- [受信环境诊断依赖](environment-diagnostics.ts)。

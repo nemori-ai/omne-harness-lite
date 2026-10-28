@@ -3,7 +3,7 @@
 **查重从这里开始。**加任何一个新词之前，先在这一页搜一遍——
 **连[弃用说法](conventions.md#一个词条长什么样)一起搜**。
 
-> **这一页不是定义。**每行末那句话只是**认出它**用的，
+> **词条索引不是定义。**每行末那句话只是**认出它**用的，
 > **定义在各卷里**，以那里的为准。
 > 加、改、废一个词条时**同步改这一页**——它与分卷是否一致由对账器守着；
 > 怎么加、怎么改，加载 `ubiquitous-language` skill（谁该加载见 [AGENTS.md](AGENTS.md)）。
@@ -433,3 +433,11 @@
 | [UL-model-prefix-cache-policy](terms/capabilities-and-composition.md#ul-model-prefix-cache-policy--模型前缀缓存策略--model-prefix-cache-policy) | 模型前缀缓存策略 | Model Prefix Cache Policy | 绑定内的缓存配置属性，不代表真实缓存命中 |
 
 返回[统一语言入口](README.md)
+
+## 现行词义
+
+本节保存不归单一 topic 的具名词义裁决。词条定义仍在各卷，索引行只供定位。
+
+### UL-D-04 常驻持有者
+
+PanQiWei 的 D-04 裁决（2026-10-24，由获授权的 reduce 会话记录，[裁决输入](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690)）采用跨持有者的 Tool 常驻规则。常驻持有者是已有对象在保存常驻工具首次 shape、提供采用点输入及承担引用保留义务时扮演的角色。会话是其中一种。这个角色不引入新的身份、实例或生命周期。首次 shape 的持久事实及状态转换仍由具体持有者拥有，Tool 只拥有常驻规则、同形判据与纯判定。词条见[常驻持有者](terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder)。

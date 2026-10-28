@@ -32,14 +32,17 @@ export function toolCredentialsConformance<P, C>(): readonly ConformanceCase<
     (fixture: Fixture) => ToolCredentialUsage & { tenant: TenantId },
   ])[] = [
     ['tenant', fixture => ({ ...fixture.request.usage, tenant: fixture.otherTenant })],
-    [
-      'adoption',
-      fixture => ({
-        ...fixture.request.usage,
-        tenant: fixture.request.tenant,
-        adoption: { ...fixture.request.usage.adoption, digest: 'different-secret-binding' },
-      }),
-    ],
+    ...(['owner', 'name', 'revision', 'digest'] as const).map(
+      field =>
+        [
+          `adoption.${field}`,
+          (fixture: Fixture) => ({
+            ...fixture.request.usage,
+            tenant: fixture.request.tenant,
+            adoption: { ...fixture.request.usage.adoption, [field]: 'different-secret-binding' },
+          }),
+        ] as const,
+    ),
     [
       'purpose',
       fixture => ({

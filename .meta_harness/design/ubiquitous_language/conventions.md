@@ -131,10 +131,6 @@
 **指向产品正文的链接，后面要跟着它那个 topic 的 `（rev N）`。**同一个 topic 连着的几条链接可以共用后面那一个；
 换了 topic 就各带各的。[对象条目的「依据」](../domain_objects/conventions.md#一条对象条目长什么样)是同一条规矩，由同一个对账器查。
 
-## 常驻持有者的现行定义
-
-PanQiWei 的 D-04 裁决（2026-10-24，由获授权的 reduce 会话记录，[裁决输入](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690)）采用跨持有者的 Tool 常驻规则。常驻持有者是已有对象在保存常驻工具首次 shape、提供采用点输入及承担引用保留义务时扮演的角色。会话是其中一种。这个角色不引入新的身份、实例或生命周期。首次 shape 的持久事实及状态转换仍由具体持有者拥有，Tool 只拥有常驻规则、同形判据与纯判定。词条见[常驻持有者](terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder)。
-
 ## 对账器替这里守着什么
 
 形态必填且合法、变体的父走得到一个对象；[index.md](index.md) 每一行与分卷标题在 ID、中文名、英文名、锚点上一致；

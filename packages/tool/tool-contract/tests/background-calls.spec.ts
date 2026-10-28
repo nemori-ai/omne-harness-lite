@@ -247,3 +247,48 @@ describe('projection of current authorized original facts', () => {
     },
   )
 })
+
+it.each(['ended', 'not-started'] as const)(
+  'removes discharged %s execution but keeps pending delivery',
+  execution => {
+    const base = settled()
+    const physical = execution === 'ended' ? base.execution : { kind: 'not-started' as const }
+    expect(
+      value(complete([original({ state: { ...base, execution: physical, delivery: released() } })]))
+        .calls,
+    ).toEqual([])
+    const delivery = { ...released(), kind: 'pending' as const }
+    expect(
+      value(complete([original({ state: { ...base, execution: physical, delivery } })])).calls[0]
+        ?.delivery,
+    ).toBe('pending')
+    expect(
+      value(
+        complete([
+          original({
+            state: {
+              ...state(),
+              delivery: null,
+              supplements: [
+                {
+                  result: result('supplement'),
+                  actual: { kind: 'completed' },
+                  delivery: released(),
+                  source: evidence('supplement'),
+                },
+              ],
+            },
+          }),
+        ]),
+      ).calls[0]?.delivery,
+    ).toBe('released')
+  },
+)
+
+it('keeps an unencodable original admission unknown', () => {
+  const invalid = original()
+  Reflect.set(invalid, 'admission', '')
+  expect(projectToolBackgroundCalls({ input, source: complete([invalid]) })).toEqual({
+    kind: 'unknown',
+  })
+})

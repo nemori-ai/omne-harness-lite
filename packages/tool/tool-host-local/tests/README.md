@@ -23,3 +23,5 @@
 在仓库根按教程构建两个成员及其依赖后，执行 `pnpm --filter @omne-harness/tool-host-local run typecheck` 和 `pnpm --filter @omne-harness/tool-host-local run test`。生产宿主、耐久、多进程与断电恢复不在这些命令的证明范围内。
 
 [environment-allocation.spec.ts](environment-allocation.spec.ts) 经公开调度工厂验证 allocated 的只读查询、策略消费、当前资格、并发唯一采用和已释放条目的迟到事实。提供者为非耐久替身。
+
+[environment-boundaries.spec.ts](environment-boundaries.spec.ts) 验证未发送预占返还、诊断阻塞时其他租户推进、各资源异常阶段与释放操作关联，以及诊断失败后保留原责任。夹具见 [environment-boundary-fixture.ts](environment-boundary-fixture.ts)，不消费真实秘密或生产环境。

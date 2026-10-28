@@ -50,3 +50,5 @@
 - [后台块公开类型消费](background-calls.spec-d.ts)，核对 RC ContextBlocks 与 ProducerRegistration。
 
 - [首次采用一致性与非耐久替身](environment-allocation.spec.ts)。
+
+- [凭据一致性套件的独立违约自证](credentials-conformance.spec.ts)。

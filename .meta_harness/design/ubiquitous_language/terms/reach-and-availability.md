@@ -57,7 +57,7 @@
 > **EN**: The role of an existing object that preserves each resident tool's initial shape and supplies it at adoption points. It also carries the corresponding reference-retention duties. A session can hold this role. The role adds no identity or lifecycle.
 
 - **形态**：属性
-- **出处**：[常驻持有者的现行定义](../conventions.md#常驻持有者的现行定义)，PanQiWei 2026-10-24 的 D-04 裁决。
+- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决。
 - **别混**：[常驻工具集合](#ul-resident-tool-set--常驻工具集合--resident-tool-set)是从首次纳入事实得到的视图。常驻持有者是保存这些事实并消费该视图的已有对象所扮演的角色。
 
 ### UL-resident-tool-set · 常驻工具集合 · Resident Tool Set
@@ -77,7 +77,7 @@
 > Registration keys come from adoption evidence and are not separate holder facts.
 
 - **形态**：视图
-- **出处**：[常驻持有者的现行定义](../conventions.md#常驻持有者的现行定义)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
 - **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作不在这些规则的范围内
 - **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆

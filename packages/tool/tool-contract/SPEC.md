@@ -505,7 +505,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 ### 常驻持有者规则（R1–R5）
 
-常驻持有者的词义见[统一语言](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder)。本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。
+常驻持有者的词义见[统一语言](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder)。原会话规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。现行跨持有者范围依据 PanQiWei 的 [D-04 裁决](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690)及 [J20 结论](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6437595717)修订，首次 shape 的持有与 Reader 责任以本节及 P15 为准。后继更正不属于原 RFC 的历史接受范围。
 
 常驻工具是调用方不经 Tools 元工具发现即可调用的工具。本节的常驻集合属于具体持有者，持有者提供自己的采用点；会话路径的采用点如下。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
 

@@ -25,3 +25,8 @@ export type {
   EnvironmentPreparationInput,
   EnvironmentReleaseInput,
 } from './environment-policy.ts'
+export type {
+  ToolEnvironmentDiagnostic,
+  ToolEnvironmentDiagnosticStage,
+  ToolEnvironmentDiagnostics,
+} from './environment-diagnostics.ts'

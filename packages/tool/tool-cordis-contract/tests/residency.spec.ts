@@ -21,7 +21,11 @@ function fixture() {
   const loaded = registry.loaded(registry.authority, 'first-shape')
   const references: readonly ToolResidencyReference[] = [
     { holder: 'opaque-holder', tenant: registry.access.tenant, shape: loaded.shape },
-    { holder: 'opaque-holder', tenant: otherTenant, shape: loaded.shape },
+    {
+      holder: 'opaque-holder',
+      tenant: otherTenant,
+      shape: { ...loaded.shape, name: 'different-first-shape' },
+    },
   ]
   let unavailable = false
   const reader: ToolResidencyReader = {
@@ -45,7 +49,19 @@ function fixture() {
 }
 
 describe('residency reader shared contract', () => {
-  for (const test of toolResidencyReaderConformance()) it(test.name, () => test.run(fixture()))
+  const names = [
+    'all pages preserve every holder tenant and first shape',
+    'a page failure stays unavailable and cannot become an empty terminal page',
+  ]
+  for (const name of names)
+    it(name, async () => {
+      const cases = toolResidencyReaderConformance()
+      expect(cases.map(test => test.name)).toEqual(names)
+      expect(cases.map(test => test.clause)).toEqual(['G7', 'G7'])
+      const scenario = cases.find(test => test.name === name)
+      if (!scenario) throw new Error('missing reader case')
+      await scenario.run(fixture())
+    })
 
   it('does not impose a traversal order on the holder source', async () => {
     const source = fixture()
@@ -94,3 +110,25 @@ it('the public registry test boundary refuses missing, unminted and foreign tena
     registry.snapshot({ ...source.access, tenant: structuredClone(source.access.tenant) }),
   ).toMatchObject({ failure: { kind: 'unavailable' } })
 })
+
+it.each(['shape', 'duplicate', 'cursor'] as const)(
+  'detects reader corruption: %s',
+  async breach => {
+    const source = fixture()
+    const first = source.references[0]
+    if (!first) throw new Error('missing reference')
+    source.reader.referencing = async () =>
+      succeed({
+        items:
+          breach === 'duplicate'
+            ? [...source.references, first]
+            : source.references.map(item =>
+                breach === 'shape' ? { ...item, shape: first.shape } : item,
+              ),
+        next: breach === 'cursor' ? 'same-cursor' : null,
+      })
+    const scenario = toolResidencyReaderConformance()[0]
+    if (!scenario) throw new Error('missing reader case')
+    await expect(scenario.run(source)).rejects.toThrow()
+  },
+)

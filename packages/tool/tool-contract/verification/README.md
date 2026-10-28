@@ -15,7 +15,7 @@
 | 能力 | 公开契约与对象 | 必要协议 | 最低接受反例 |
 | --- | --- | --- | --- |
 | CAP-TL01 定义呈现取用 | ToolDefinition、ToolGovernance、ToolImplementationFacts、ToolCatalog、ParameterCodec、ToolPresentation | [P02](../SPEC.md#p02-定义准入与队列) | 参数缺说明、重复命令、help与采用不同、未声明programmable、包装来源不可洗白、资产 name 与定义 name 不一致须拒绝装载 |
-| CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability、ToolBindingRegistry、换代协调者 | P02、[会话常驻规则](../SPEC.md#会话常驻规则r1r5) | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动；Run 中途加入或前进、不同形候选替换常驻项、暂时缺席判冻结，见[动态性的验证义务](#动态性的验证义务) |
+| CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability、ToolBindingRegistry、换代协调者 | P02、[常驻持有者规则](../SPEC.md#会话常驻规则r1r5) | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动；Run 中途加入或前进、不同形候选替换常驻项、暂时缺席判冻结，见[动态性的验证义务](#动态性的验证义务) |
 | CAP-TL03 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit | [P01](../SPEC.md#p01-操作事实与资格)、[P04](../SPEC.md#p04-实际发起围栏) | 同身份异输入、排队撤权、批决定不齐、失效与consume两种先后、延迟旧请求不能再发 |
 | CAP-TL04 设置限额队列 | QueueReservation、QueuePosition、ResourceScope | P02、[P03](../SPEC.md#p03-环境准备和释放) | 两调用争同名额、同工具换实现、scope的grant缺失或属于他方、不同租户同owner同key不共队列、较早准备未完、取消队首、后台/等待不放名额 |
 | CAP-TL05 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | [P07](../SPEC.md#p07-计时控制与检查点) | 未许可、Ask和resource转换拒绝、完成与后台化竞争、重复只一个占位、不回前台 |
@@ -47,9 +47,9 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 
 ### 动态性的验证义务
 
-[完全动态目标](../../../../docs/requirements.md#完全动态目标sys-dynamic)列出 Tool 的十条验收判据，判据正文归该页。本节规定承载这些判据的验证资源。规则正文归 SPEC 的 [G7](../SPEC.md#342-契约缺口决定) 与[会话常驻规则](../SPEC.md#会话常驻规则r1r5)。
+[完全动态目标](../../../../docs/requirements.md#完全动态目标sys-dynamic)列出 Tool 的十条验收判据，判据正文归该页。本节规定承载这些判据的验证资源。规则正文归 SPEC 的 [G7](../SPEC.md#342-契约缺口决定) 与[常驻持有者规则](../SPEC.md#会话常驻规则r1r5)。
 
-- 会话常驻规则 R1–R5 与采用点判定表由纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 承载，用表驱动测试逐行验证。`refreshAvailability` 的返回类型不含加入、前进与冻结。
+- 常驻持有者规则 R1–R5 与采用点判定表由纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 承载，用表驱动测试逐行验证。`refreshAvailability` 的返回类型不含加入、前进与冻结。
 - 绑定登记表增加 G7 套件，写法同现有登记语义套件。
 - 换代协调者与作者插件在真实 Cordis 4.0.4 `Context` 上用动态性套件 `runToolDynamicsSuite` 验证。fixture 记录稳定提供者的 fiber uid。
 - 根已 ACTIVE 后动态装载并撤除带登记的作者插件，需要 Cordis basis 条目与探针证明。

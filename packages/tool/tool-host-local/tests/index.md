@@ -13,3 +13,5 @@
 - [导入图遍历工具](module-graph.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
+
+- [预占返还与诊断边界](environment-boundaries.spec.ts)及其[夹具](environment-boundary-fixture.ts)。

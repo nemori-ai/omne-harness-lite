@@ -51,7 +51,11 @@ function fixture(
 it.each(['official', 'organization'] as const)(
   'observes %s reads through loaderFor/load and rejects registrant leakage',
   async source => {
-    for (const test of toolLoaderSourceConformance<string, unknown, ContentBlock>()) {
+    const cases = toolLoaderSourceConformance<string, unknown, ContentBlock>()
+    expect(cases.map(test => test.name)).toEqual([
+      'shared loading reads the contribution source, independently of the registrant tenant',
+    ])
+    for (const test of cases) {
       expect(await runConformanceCase(test, fixture(source, false))).toEqual({ kind: 'passed' })
       await expect(runConformanceCase(test, fixture(source, true))).rejects.toThrow()
     }
@@ -66,3 +70,34 @@ it('reports the missing real Loader instead of passing absent reads', async () =
       handle: 'loaderFor',
     })
 })
+
+it.each(['no-read', 'failed-load', 'same-tenant'] as const)(
+  'the source suite detects %s',
+  async breach => {
+    const source = fixture('organization', false)
+    const broken =
+      breach === 'same-tenant'
+        ? { ...source, otherAccess: source.access }
+        : breach === 'no-read'
+          ? { ...source, settingsReads: () => [] }
+          : {
+              ...source,
+              generations: {
+                loaderFor: () => ({
+                  load: async () => ({
+                    failure: {
+                      kind: 'unavailable' as const,
+                      dependency: 'loader',
+                      diagnostic: 'fixture unavailable',
+                    },
+                  }),
+                }),
+              },
+            }
+    const cases = toolLoaderSourceConformance<string, unknown, ContentBlock>()
+    expect(cases).toHaveLength(1)
+    const test = cases[0]
+    if (!test) throw new Error('missing loader source case')
+    await expect(test.run(broken)).rejects.toThrow()
+  },
+)

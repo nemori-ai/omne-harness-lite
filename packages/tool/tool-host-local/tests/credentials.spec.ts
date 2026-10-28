@@ -102,12 +102,34 @@ function fixture() {
 }
 
 describe('ToolCredentials actual binding conformance over a local secret-store double', () => {
-  it.each(toolCredentialsConformance<Principal, ToolCredentialCapability<{ send(): string }>>())(
-    '$name',
-    async test => {
-      expect(await runConformanceCase(test, fixture())).toEqual({ kind: 'passed' })
-    },
-  )
+  const names = [
+    'a matching secret can perform the restricted action',
+    ...[
+      'tenant',
+      'adoption.owner',
+      'adoption.name',
+      'adoption.revision',
+      'adoption.digest',
+      'purpose',
+      'target',
+    ].flatMap(field => [
+      `rejects actual ${field} mismatch at resolution`,
+      `rechecks actual ${field} binding at protected use`,
+    ]),
+    ...['missing', 'denied', 'invalid', 'unavailable'].map(
+      kind => `a selected ${kind} secret terminates without fallback`,
+    ),
+  ]
+  it.each(names)('%s', async name => {
+    const cases = toolCredentialsConformance<
+      Principal,
+      ToolCredentialCapability<{ send(): string }>
+    >()
+    expect(cases.map(test => test.name)).toEqual(names)
+    const test = cases.find(test => test.name === name)
+    if (!test) throw new Error('missing credential case')
+    expect(await runConformanceCase(test, fixture())).toEqual({ kind: 'passed' })
+  })
 })
 
 it.each(['organization', 'official', 'none'])(
@@ -212,3 +234,64 @@ it('missing identity and a different original call are refused before secret loo
   ).toMatchObject({ failure: { kind: 'denied' } })
   expect(f.reads).toEqual([])
 })
+
+it.each(['owner', 'name', 'revision', 'digest'] as const)(
+  'rejects requested adoption %s before lookup even when other adoption fields match',
+  async field => {
+    const f = fixture()
+    expect(
+      await f.credentials.resolve({
+        ...f.request,
+        usage: {
+          ...f.request.usage,
+          adoption: { ...f.request.usage.adoption, [field]: 'foreign' },
+        },
+      }),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'usage.adoption', reason: 'credential binding mismatch' },
+    })
+    expect(f.sourcesRead()).toEqual([])
+    expect(f.reads).toEqual([])
+    expect(f.uses()).toBe(0)
+  },
+)
+
+it.each(['call', 'request', 'purpose', 'target'] as const)(
+  'rejects malformed credential %s before source selection',
+  async field => {
+    const f = fixture()
+    const input = { ...f.request, usage: { ...f.request.usage } }
+    if (field === 'call') Reflect.set(input, 'call', '')
+    else if (field === 'request') Reflect.set(input, 'request', {})
+    else Reflect.set(input.usage, field, '  ')
+    expect(await f.credentials.resolve(input)).toHaveProperty('failure.kind', 'invalid')
+    expect(f.sourcesRead()).toEqual([])
+    expect(f.reads).toEqual([])
+    expect(f.uses()).toBe(0)
+  },
+)
+
+it.each(['', null] as const)(
+  'rejects malformed configured reference %s without trying another source',
+  async reference => {
+    const f = fixture()
+    const sources: string[] = []
+    const credentials = createLocalToolCredentials({
+      ...f.ports,
+      references: {
+        read: async input => {
+          sources.push(input.source.kind)
+          const selected = { kind: 'configured' as const, reference: '' }
+          Reflect.set(selected, 'reference', reference)
+          return succeed(selected)
+        },
+      },
+    })
+    expect(await credentials.resolve(f.request)).toEqual({
+      failure: { kind: 'invalid', field: 'reference', reason: 'credential binding mismatch' },
+    })
+    expect(sources).toEqual(['tenant'])
+    expect(f.reads).toEqual([])
+    expect(f.uses()).toBe(0)
+  },
+)
