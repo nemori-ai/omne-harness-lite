@@ -1,8 +1,7 @@
 # tool-host-local 协议模型索引
 
-<!-- documentation:placeholder -->
-
-- [目录职责与待补内容](README.md)。
+- [环境准备与 driver 的有限边界、前提、性质和执行](README.md)。
+- [环境准备模型](EnvironmentPreparation.tla)。
+- [driver 模型](EnvironmentDriver.tla)。
+- [检查与证据采集入口](check-models.mjs)。
 - [包索引](../../index.md)。
-
-本目录当前没有其他资源。
