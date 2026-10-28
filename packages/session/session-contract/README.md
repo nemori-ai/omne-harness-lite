@@ -15,7 +15,7 @@ Status: contract member. The [SPEC](SPEC.md) states which parts come from techni
 | Area | Support | Where |
 | --- | --- | --- |
 | Types of the [API page](docs/public-api.md): values, identities, fixed inputs, results, the four faces, the ports, the signatures of the services, `decide` and `reduce` | Exported | `src/` |
-| `create`, `completeInitialization`, `accept` (ordinary input), `startRun`, `recordMessage`, `receive` (input hand-over), `finishRun` | Decided to the SPEC by `decide` and `reduce` | `src/decide.ts`, `src/reduce.ts` |
+| `create`, `completeInitialization`, `accept` (ordinary input), `startRun`, `recordMessage`, `receive` (input hand-over), `finishRun` | Implemented by `decide` and `reduce`, except rejected ordinary input has no SE12; see SE12-JC03 in the SPEC | `src/decide.ts`, `src/reduce.ts` |
 | `accept` (card decision, business input), `claim`, `reload`, `preserveResult`, `completeConsumption`, `completeExternalConsumption`, `bindExternalCall`, `commitDerived`, `release`, `control`, `change`, `setRelation`, `configureAutoArchive`, `considerAutoArchive`, `recordIdle`, `interrupt`, `freeze`; `receive` of every fact other than the hand-over | Not supported: `decide` answers `rejected` with `unavailable` naming #756. `decide` checks the workspace dimension of a `change` after reconciliation and tenant checks, before it refuses with #756. An illegal `value` or `workspaceAttachment` gives `invalid` | `src/decide.ts` |
 | `judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`, `resolveOperation` | Implemented | `src/judgments.ts` |
 | `resolveControlScope`, `judgeIdle`, `resolveCascade` | Not supported: `invalid` or `unavailable` naming #756; `resolveCascade` throws | `src/judgments.ts` |
@@ -24,7 +24,7 @@ Status: contract member. The [SPEC](SPEC.md) states which parts come from techni
 
 Not verified: durability, concurrency across processes, recovery against a real store, the real identity source and clock. The double proves the judgments in memory only.
 
-Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` consume the root types and the runtime functions; `session-cordis-contract` re-exports the types under its Cordis service definitions.
+Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` currently declare the dependency but do not import this package. `session-cordis-contract` re-exports the types under its Cordis service definitions.
 
 ## Usage
 

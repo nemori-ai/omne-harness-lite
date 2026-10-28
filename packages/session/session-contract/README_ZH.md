@@ -15,7 +15,7 @@ Session 的纯契约成员，不依赖 Cordis。
 | 范围 | 支持 | 位置 |
 | --- | --- | --- |
 | [公开接口页](docs/public-api.md)的类型：值、身份、固定输入、结果、四个面、端口、领域服务与 `decide`/`reduce` 的签名 | 已导出 | `src/` |
-| `create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）、`finishRun` | `decide` 与 `reduce` 按 SPEC 判定 | `src/decide.ts`、`src/reduce.ts` |
+| `create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）、`finishRun` | `decide` 与 `reduce` 已实现，但普通输入被拒时不写 SE12，见 SPEC 的 SE12-JC03 | `src/decide.ts`、`src/reduce.ts` |
 | `accept`（卡片答复、业务输入）、`claim`、`reload`、`preserveResult`、`completeConsumption`、`completeExternalConsumption`、`bindExternalCall`、`commitDerived`、`release`、`control`、`change`、`setRelation`、`configureAutoArchive`、`considerAutoArchive`、`recordIdle`、`interrupt`、`freeze`；交入回执之外的 `receive` 事实 | 未支持：`decide` 返回 `rejected`，失败为 `unavailable`，诊断指向 #756 | `src/decide.ts` |
 | `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` | 已实现 | `src/judgments.ts` |
 | `resolveControlScope`、`judgeIdle`、`resolveCascade` | 未支持：返回指向 #756 的 `invalid`/`unavailable`；`resolveCascade` 抛错 | `src/judgments.ts` |
@@ -24,7 +24,7 @@ Session 的纯契约成员，不依赖 Cordis。
 
 未验证：耐久、跨进程并发、对真实存储的恢复、真实身份源与时钟。替身只在内存里证明判定。
 
-组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。`session` 与 `session-cordis` 消费根入口的类型与运行时函数；`session-cordis-contract` 在其 Cordis 服务定义下转出这些类型。
+组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。`session` 与 `session-cordis` 当前只声明依赖，尚未导入本成员；`session-cordis-contract` 在其 Cordis 服务定义下转出这些类型。
 
 ## 使用
 

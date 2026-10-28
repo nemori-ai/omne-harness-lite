@@ -1,10 +1,12 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的全部类型，并按本规格判定 M2 首条租户路径经过的提交种类：`create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）与 `finishRun`，以及领域服务 `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` 和 `reduce`。其余提交种类（含 `receive` 的其余生产者事实）的 `decide` 返回 `rejected`，失败种类为 `unavailable`，诊断指向 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。例外是 `change` 的 workspace 维度：`decide` 在认回与租户、会话核对之后，按 `create` 的同一规则核验 `value` 与 `workspaceAttachment`，非法返回 `invalid`，合法后仍返回 `unavailable`（归 #756）。`judgeIdle` 返回 `unavailable` 指向 #756。`resolveControlScope` 与 `resolveCascade` 在 #756 之前抛出带 #756 的 Error，`decide` 在调用它们之前就拒绝 `control`。历史读取（路径第 7 跳，`SessionHistory` 的 `begin`/`next`/`since`）已支持。`./testing` 的事务替身对 `readModelView`、`references`、`releasedScopes` 返回 `unavailable` 指向 #756。`ProducerFact.release` 的写入者待 #756 指定。`login-required` 由 `decide` 按守卫材料里是否存在 `owner` 为 `login-entry` 的项产出（裁定 R2）；`judgeRunStart` 只看快照，从不产出它。首条路径上没有 completed 的 Run（裁定 R3）；初始化项只来自 `SessionCreation.requiredIdentities`（裁定 R1）。被替代的协议见[被替代的协议](#被替代的协议)。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的全部类型，并按本规格判定 M2 首条租户路径经过的提交种类：`create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）与 `finishRun`，以及领域服务 `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` 和 `reduce`。其余提交种类（含 `receive` 的其余生产者事实）的 `decide` 返回 `rejected`，失败种类为 `unavailable`，诊断指向 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。例外是 `change` 的 workspace 维度：`decide` 在认回与租户、会话核对之后，按 `create` 的同一规则核验 `value` 与 `workspaceAttachment`，非法返回 `invalid`，合法后仍返回 `unavailable`（归 #756）。`judgeIdle` 返回 `unavailable` 指向 #756。`resolveControlScope` 与 `resolveCascade` 在 #756 之前抛出带 #756 的 Error，`decide` 在调用它们之前就拒绝 `control`。历史读取（路径第 7 跳，`SessionHistory` 的 `begin`/`next`/`since`）已支持。`./testing` 的事务替身对 `readModelView`、`references`、`releasedScopes` 返回 `unavailable` 指向 #756。`ProducerFact.release` 的候选写入路径见 [JC-Release](#jc-release)，Model ACK 确认路径仍未闭合。`login-required` 由 `decide` 按守卫材料里是否存在 `owner` 为 `login-entry` 的项产出（裁定 R2）；`judgeRunStart` 只看快照，从不产出它。首条路径上没有 completed 的 Run（裁定 R3）；初始化项只来自 `SessionCreation.requiredIdentities`（裁定 R1）。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`。本规格表达已具依据的必要行为；公开类型、领域服务、`decide`/`reduce` 与 `./testing` 的替身与一致性套件已按状态行所述范围在源码声明（[公开接口页](docs/public-api.md)），不定义存储提供者或认领协议。
 
 业务含义归[产品稿](../../../.meta_harness/design/product/sessions-and-work/design.md)，数据结构与算法归[领域架构](../session/docs/architecture/mechanisms.md)。术语以[当前统一语言](../../../.meta_harness/design/ubiquitous_language/index.md)为锚点，系统保证沿[数据与状态](../../../docs/architecture/data-and-state.md)及已接受运行架构。旧输入快照只用于追溯，不授予冲突设计继续采用。
+
+本次修订状态：下文同日志到达替代、C3 四项细化、J04 消费义务、J18 归档结束时点及 JC-Release 是待独立评审和接受的候选。它们消费冻结 Agent 与 Context 契约，不表示这些新条款已经接受或实现。上述源码支持范围仍有效，尤其当前源码不能从 Agent 日志形成 completed。
 
 ## 阶段范围与采用边界
 
@@ -455,42 +457,18 @@ SL 沿前文编号。ST 沿[状态转移页](docs/object-model/session-state-tra
 4. 逻辑收口与物理收场分开。取消、归档、换代和释放只改变资格与责任。
 5. 会话日志是唯一的业务写入口。每个意图经一个具名操作进入。
 
-### Session 与 Agent 的两条通道
+<a id="session-与-agent-的两条通道"></a>
 
-Agent 对外有两条通道：提交参加与事件流。本节按下面的分工使用它们。这是后文全部 PA、EC、RS 条款的共同前提。
+### Session 与 Agent 的同一日志
 
-1. Session 只在 Agent 已有的四种调用方交接上作为提交参加者：消息进历史（`message`，SE10）、压缩转换（`context-transition`，SE10 与 SE33）、结果保管（`custody`，SE20）、处理完成（`processed`，SE21）。Agent 执行记录提供者声明的参加种类见 Agent 契约的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)。
-2. Session 另在 Agent 的两次提交里只读核对，不写条目：打开执行与交入输入时的来源核对（[PA-01](#pa-01)），条件终结时的待交输入核对（[PA-02](#pa-02)）。
-3. 输入承接（SE14）、调用登记（SE18）、等待与出卡（SE22）、控制阶段（SE25）、执行结束（SE26）由 Agent 拥有。Session 从 Agent 的事件流读到这些事实后，按事件身份以 `receive` 写入，重放时认回。Session 的这些条目是可以从 Agent 记录重建的派生事实。
-4. 推进资格的交还（SE16）由 Session 提交。依据是 Agent `detach` 返回的交接依据，或读执行记录得到的挂接状态。
-5. 交入哪些输入、按什么顺序交入，由 Session 按业务规则调度（[批次](#批次run与attempt)）。`startRun` 不扣除一批输入。`invoke` 只带首条输入，其余待处理输入按到达顺序经 `submit` 交入同一执行。Agent 每一步取当时已交入的全部输入，这一步的批界就是 Agent 的输入水位线。待处理资格在 Session 读到 Agent 的承接事件时解除。
-6. 已发生但尚未读到的 Agent 事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）计入未结工作。Run 未终结时，Session 不声称空闲，也不声称完成。按 Agent 结论成立的终态只在读到 Agent 的结束事件或结束状态之后成立。取消终态在 Session 的控制提交时成立（[RS-10](#rs-10)），有界收束的失败终态在 `finishRun` 提交时成立（[RS-09](#rs-09)）。
+Agent 经 `AgentJournal` 与 `AgentJournalEntries` 写执行记录，Session 拥有这份会话日志。端口的提供者与形状翻译在 session-adapters；session-contract 不导入 Agent 类型。它不另建 Agent 事件副本传输协议。
 
-下图对照两条通道。上半是参加：Agent 的一次提交只带一种调用方交接，Session 参加者在同一事务里写条目，或只读核对。下半是事件流：Agent 自己提交，Session 事后读事件并以 `receive` 写派生事实。
-
-```mermaid
-sequenceDiagram
-    participant A as Agent
-    participant J as 执行记录提供者
-    participant S as Session 参加者
-    participant C as Session 事件消费
-    rect rgb(235, 245, 255)
-    Note over A,S: 参加：同一事务
-    A->>J: 提交，带 message、context-transition、custody 或 processed 交接之一
-    J->>S: 参加
-    S-->>J: 写 SE10、SE33、SE20 或 SE21，或以冲突响应
-    A->>J: 打开执行、交入输入、条件终结
-    J->>S: 参加
-    S-->>J: 只读核对（PA-01、PA-02），不写条目
-    end
-    rect rgb(245, 245, 235)
-    Note over A,C: 事件流：先由 Agent 提交，Session 事后读取
-    A->>J: 自己提交承接、调用登记、等待、控制阶段与执行结束
-    C->>A: 按 readThrough 读输出事件
-    C->>C: receive 写 SE14、SE18、SE22、SE25、SE26 与 SE16，同一提交推进 readThrough
-    C->>A: 提交之后确认已读
-    end
-```
+1. Session 在同一日志提交内参加 `message`、`context-transition`、`custody`、`processed` 四种调用方交接，分别生成 SE10、SE10/SE33、SE20、SE21。打开执行、交入输入与条件终结分别按 PA-01、PA-02 做只读核对。核对与发布之间必须复核原修订，不能让提交期间新受理的输入漏出条件终结守卫。
+2. Session 经同一 AgentJournal 提供者的 `output.read` / `output.events` 读取 AgentEvent 正文。`load` 读取 ExecutionSnapshot 的 entries、results 及其他快照字段，不提供 events 字段。entries 保留 start-fence、received 的提交顺序，不能作为事件序号或事件 cursor。Session 自有派生条目只存原来源身份或引用，不复制 Agent 事件正文，也不经 `receive(agent-event)` 传输副本。
+3. 第一个发布点是 Agent 原提交：Agent 事实与适用的四类 CallerCommit 参加事实共同成立。open、submit、tryFinish 的 Session 参加只读核对，不在此写 SE14/18/19/22/25/26。received 与所引用的完整材料、消费绑定、saved 及原操作答案同批可见。首次发布前失败，该批全部不可见；发布后丢答复按 Agent 原操作查询。
+4. 第二个发布点是后续 Session 解释提交：SE14/18/19/22/25/26 等派生后果、解释进度及该次 Session 操作的认回答案同批保存。解释提交失败不撤销 Agent 已提交事实，也不推进持久解释进度；未知先认回该次 Session 操作。两次提交共用会话日志，不共享成一个原子批次。
+5. Agent 的输入水位线决定 SE14 的批界。Session 决定输入交入顺序，`startRun` 不预扣批次。交入受理 SE35 不等于承接 SE14。推进交还 SE16 仍以 detach 依据或同日志挂接状态成立。
+6. 未解释的日志事实计入 EC-03 的未结工作。延迟解释不得造成提前空闲或完成。PA-08 的竞争不变：Agent ended 已发布而 Session 尚未解释时，cancel 可以先提交 cancelled；后续 ended 只保留原 Run 的来源引用，不改既有终态或后继。冻结后的终态提交仍同批解除余下待处理资格。
 
 ### 四个面与公开操作
 
@@ -785,7 +763,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 结果：
   - 待交输入非空时响应「冲突」，依据为这些 `InputId`。执行记录提供者返回 `changed`，Session 不写条目。推进协调按 [PA-06](#pa-06) 第 3 项补交，Agent 重新求值。
   - Run 已是 cancelled 终态时响应「冲突」，依据为 SE26 cancelled。Agent 以已保存的取消依据再次条件终结，参加者核对结论为 cancelled、取消控制等于 SE26 引用的控制，然后响应「参加」（[PA-08](#pa-08) 第 3 项）。
-  - 其他情形响应「参加」，不写 Session 条目。Run 终态在 Session 读到结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）时成立（[EC-01](#ec-01)、[RS-08](#rs-08)）。
+  - 其他情形响应「参加」，不写 Session 条目。Run 终态在 Session 按 EC-01 读取结束事实并完成后续解释提交时成立（[EC-01](#ec-01)、[RS-08](#rs-08)）。
 - 失败：参加者读权威状态失败时响应「失败」，两侧都不保存。
 - 未知与认回：按 [PA-05](#pa-05)。
 - 责任：待交输入的可见性归 Session 参加者。已交入输入的边界与重新求值归 Agent。
@@ -795,7 +773,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### PA-03 终结先于受理
 
 - 前提：Agent 的执行已结束。之后 `accept` 到达，或 Session 对已结束的执行交入输入。
-- 动作：`accept` 经 `routeInput` 裁定。会话未归档且没有未终结的 Run 时，输入取得待处理资格，去处为下一个 Run。Session 尚未读到结束事件、Run 仍为 active 时，输入的去处是本 Run；交入返回 `terminal` 时，Session 不对该执行重试，不改写去处，等读到结束事件后由 `routeInput` 在新 Run 开始时重定去处。
+- 动作：`accept` 经 `routeInput` 裁定。会话未归档且没有未终结的 Run 时，输入取得待处理资格，去处为下一个 Run。Session 尚未完成结束事实的解释提交、Run 仍为 active 时，输入的去处是本 Run；交入返回 `terminal` 时，Session 不对该执行重试，不改写去处，等结束事实的解释提交成立后由 `routeInput` 在新 Run 开始时重定去处。
 - 结果：SE10、SE11 成立。推进触发经 `judgeRunStart` 得到 `eligible` 后开新 Run，首条输入是当时第一个合格输入，其余经 `submit` 交入（[RS-01](#rs-01)）。新 Run 的 SE13 记录前继 Run。
 - 失败：会话已归档时 `accept` 返回 `archived`。
 - 责任：终态后的输入路由归 Session。Agent 对交入输入只回 `terminal`。
@@ -808,7 +786,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：
   1. 参加种类：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种。缺一种就拒绝装配。Session 不声明其他参加种类。
   2. 修订：每次参加提交的材料含本次写入的 revision 与回执。提交成功后，参加者把它记入 `ExecutionRef.revision`，把回执记入 `ExecutionRef.evidence`。事件消费读到更新的事件时同样更新这两项。
-- 结果：`ExecutionRef` 总是指向一次已成立的 Agent 提交。Session 不以 `ExecutionRef.revision` 拒绝 Agent 的提交，因为事件流与参加提交到达的先后不固定。
+- 结果：`ExecutionRef` 总是指向一次已成立的 Agent 提交。Session 不以 `ExecutionRef.revision` 拒绝 Agent 的提交，因为日志解释进度与参加提交的投影进度可能不同；发布前仍复核权威 Session 修订。
 - 失败：参加种类不符时响应「不支持」。材料缺项时响应「不支持」，不保存任何一半。
 - 未知与认回：没有独立提交。
 - 责任：参加种类声明归 Agent。比对归装配。`ExecutionRef` 的维护归 Session。
@@ -858,7 +836,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   1. 取消先于 `accept`：Run 已是 cancelled 终态。会话未归档时，输入照 [PA-03](#pa-03) 取得待处理资格，去处为下一个 Run。归档先成立时，`accept` 被拒绝。
   2. `accept` 先于取消：输入保留待处理资格与原归属。Run 取消不撤销待处理资格，由新 Run 承接。归档在同批撤销待处理资格并记录取消范围（SE27）。已交入执行而未承接的输入，在 Agent 一侧保留原归属与处置依据；Session 一侧仍没有 SE14，待处理资格保留，由后继 Run 以同一 `InputId` 重新交入，并在 SE13 记录前继 Run。这不是静默转入。
   3. 取消先于条件终结：条件终结带推进授权（complete 或 fail）到达时，参加者响应「冲突」，依据为 SE26 cancelled（[PA-02](#pa-02)）。Agent 重读事实，以已保存的取消依据再次条件终结。之后读到的结束事件按 [RS-10](#rs-10) 认回，不新增 SE26。
-  4. 条件终结先于取消：Agent 执行已结束。Session 读到结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）后 Run 为 completed 或 failed，`control(cancel-run)` 返回 `terminal`，带回既有终态。Session 尚未读到结束事件时，`control(cancel-run)` 照常提交 SE26 cancelled；之后读到的结束事件按 [RS-08](#rs-08) 认回，Agent 的结论作为引用保留，终态不改。
+  4. 条件终结先于取消：Agent 执行已结束。Session 按 EC-01 完成结束事实的解释提交后 Run 为 completed 或 failed，`control(cancel-run)` 返回 `terminal`，带回既有终态。Session 尚未完成结束事实的解释提交时，`control(cancel-run)` 照常提交 SE26 cancelled；之后读到的结束事件按 [RS-08](#rs-08) 认回，Agent 的结论作为引用保留，终态不改。
   5. 取消已提交而没有活体挂接：按 [PM-13](#pm-13)。
 - 失败：参加者读权威状态失败时响应「失败」。
 - 未知与认回：`control` 未知时 `queryOperation`。参加提交未知按 [PA-05](#pa-05)。
@@ -1060,7 +1038,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 | `run.active`，`advance` 非空，执行记录显示该 attempt 的挂接 active | 无 | 等 Agent 自行推进；读事件，补交待交输入 | 不 `claim` |
 | `run.active`，`advance` 非空，执行记录显示挂接已交还或已被取代 | `release` 的身份 | 认回或提交 `release`（SE16），进入下一行 | 不重发原调用 |
 | `run.active`，`advance` 为空 | 读执行记录 | 执行挂起：`claim` 后 `resume`。挂接仍 active、本主体有接管资格、有宿主的失联判断作证据：`claim`（接管）后 `resume`。没有失联依据时等 Agent。没有资格时报告并保留 | 不以宿主失联判断代替资格 |
-| `run.active`，执行记录显示执行已结束 | 事件流至结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留），或快照的结束状态 | 以 `receive` 提交结束事实，按 Agent 的结论写 SE26 与 SE16（[RS-08](#rs-08) 至 [RS-10](#rs-10)） | 不复活执行；不把 Agent 的结论改写为失败 |
+| `run.active`，执行记录显示执行已结束 | 同日志的结束事实，或快照的结束状态 | 以 `receive` 提交结束事实，按 Agent 的结论写 SE26 与 SE16（[RS-08](#rs-08) 至 [RS-10](#rs-10)） | 不复活执行；不把 Agent 的结论改写为失败 |
 | `run.active`，读执行记录或接续持续返回原记录不可读或精确采用不可读 | 按策略重试 | 超过上限后按 [P-5](#具名前提与明确缺项) 提交有界收束，终态为 failed，依据为不可解释记录，写明未收尾效果 | 不猜默认下一步 |
 | `consumptions` 中结果已报告，而保管与完成都为空 | 生产者原调用 | 以合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20，再发交付责任解除（[EC-04](#ec-04)）。Agent 记录已删除时由 Session 提交 `preserveResult` | 不重发原调用 |
 | `release` 为 pending，保管或完成非空 | 生产者确认状态 | 重发交付责任解除，`receive(release)` | 不写 confirmed 以外的值 |
@@ -1071,47 +1049,31 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 ### 事件消费与交付责任解除
 
-本节是 SW-M01 C 项（日志、消费责任与恢复投影的集成）的精确适配契约。事件序号、游标与确认的行为沿 Agent 契约的[事件流与读取](../../agent/agent-contract/SPEC.md#事件流与读取)。
+本节规定同日志解释与结果责任恢复。Agent 的事件语义保持其公开契约，Session 不复制一条外部事件流。
 
 <a id="ec-01"></a>
 
-#### EC-01 两条通道各写什么
+#### EC-01 同日志事实及 Session 后果
 
-- 前提：Agent 对外有事件流与提交参加两条通道（[Session 与 Agent 的两条通道](#session-与-agent-的两条通道)）。
-- 动作：事件消费者按序读取 Agent 事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留），按下表处理。每个产生条目的事件以 `receive` 写入，身份为执行与序号。
-- 结果：
+提供者经同一 AgentJournal 的 output.read / output.events 读取事件正文，经 load 读取 entries、results 与其他公开快照字段。每次读取都绑定当前资格、租户及 execution，并核对其历史 Session/Run 关系。事件按 AgentEvent 的事件序号读取，ExecutionRef.readThrough 只记录该事件序号；entries 的提交顺序与 results 快照不是事件 cursor，不能用它们虚构 input-taken 批界或推进事件进度。`input-taken` 产生 SE14；`producer` 产生 SE19，缺调用登记时同批产生 SE18；`waiting` 产生 SE18/SE22；`control` 产生 SE25；`ended` 按 RS-08 至 RS-10 产生 SE26/SE16。`message` 已经通过 AD-01 写 SE10，不重复写；`stream` 不写历史片段。`start-fence` 只保留 Agent 拥有的围栏含义，`received` 的材料和账目按已保存结果解释，不能推导生产者 ACK。
 
-  | Agent 事件（下表各行已被替代：Session 不再经 `receive(agent-event)` 复制这些事件；每行的义务保留，到达机制归 #756） | Session 的动作 | 条目 |
-  | --- | --- | --- |
-  | `input-taken` | 写承接事实，解除批次成员的待处理资格 | SE14 |
-  | `message` | 不写条目。消息已在 `message` 参加时成立；只推进游标 | 无 |
-  | `producer` | 写结果报告；该 consumption 尚无 SE18 时同批写 SE18 | SE19，必要时 SE18 |
-  | `stream` | 不写条目，只推进游标 | 无 |
-  | `waiting` | 新出现的生产者等待写 SE18；人工等待与依赖等待写 SE22；`waiting` 为本次集合 | SE18、SE22 |
-  | `control` | 写控制阶段 | SE25 |
-  | `ended` | 按结论写 Run 终态与资格撤销（[RS-08](#rs-08) 至 [RS-10](#rs-10)） | SE26、SE16 |
-
-- 失败：读取返回缺口时，消费者经恢复入口读完整快照，按 [PM-14](#pm-14) 对账：快照的结束状态按 `ended` 处理，`results` 与 `controls` 按 `producer` 与 `control` 处理，再从缺口之后继续，不跳过。权威日志有缺口时按 [SL14](#日志读取投影及恢复) 隔离该会话。
-- 责任：通道分工归本成员。事件语义归 Agent。
+归一化后果必须核对租户、Session、历史 execution-to-Run 关系、原来源及完整结果版本。没有关系时拒绝推测。权威日志有缺口按 SL14 隔离会话；公开快照只在其字段足以证明具体后果时用于对账，不替代缺失事件的精确批界或事件 cursor。缺失或不可用不能当成不存在。重建不重新调用生产者执行。
 
 <a id="ec-02"></a>
 
-#### EC-02 事件消费游标与确认
+#### EC-02 同日志解释进度与认回
 
-- 前提：事件消费者按执行与序号读取，按事件身份去重。
-- 动作：消费者为每个执行保存消费游标 `ExecutionRef.readThrough`。游标是本成员的派生值，与它所产生的条目在同一次提交中保存。没有产生条目的事件不单独提交：游标只在内存里越过它们，持久的游标随下一次产生条目的 `receive` 一起前进。消费者向 Agent 确认的前缀不超过持久的游标。崩溃后重读这些事件，按事件身份去重，不写条目。
-- 结果：确认只表示消费者已处理，不证明终态，也不确认生产者结果。
-- 失败：读取返回缺口时按 [EC-01](#ec-01)。
-- 未知与认回：游标丢失时从 `"0"` 重读。每个产生条目的事件按 OP-00 从事件身份派生 `receive` 的身份，重放时认回，不重复写入。确认结果未知时以同一前缀重试，确认单调。
-- 责任：游标归 Session，由存储提供者随会话状态保存。事件保留归执行记录提供者。
+`ExecutionRef.readThrough` 是 Session 对 Agent 事实的解释进度。每个派生后果按原 execution 与事实身份唯一认回。这些后果在 Agent 原提交之后的另一笔 Session 提交中成立。进度与派生条目、该次 Session 操作答案同批保存，条目保留原来源身份或引用，不复制事件正文。不能先推进进度再补条目。解释失败保留 Agent 已提交事实与原解释进度。不产生条目的事实可以在内存越过，持久进度随下一次共同提交前进。重读不重复写后果。
+
+同日志解释不向 Agent `output.acknowledge` 确认另一条事件副本流。提交未知时先查原操作，查询仍未知时保持未知。任何读取、重复提交及查询都重新核验当前资格，执行键包含租户与 execution，材料读取不得绕过租户绑定。
 
 <a id="ec-03"></a>
 
-#### EC-03 未读事件计入未结工作
+#### EC-03 未解释日志事实计入未结工作
 
-- 前提：Run 未终结。Agent 可能已经提交了 Session 尚未读到的事件。
+- 前提：Run 未终结。同日志中可能已有 Session 尚未解释的 Agent 事实。
 - 动作：`openWork` 把每个未终结 Run 的执行与 `readThrough` 列为 `unreadEvents`：该序号之后的事件，不论是否已经发生，都计入未结工作。
-- 结果：Run 未终结时 `judgeIdle` 不得出 `due`。Run 终态只在读到结束事件（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）或结束状态后成立，所以 Session 不在未读时声称完成。未结工作下界交给 Request Context 时带上这一项。
+- 结果：Run 未终结时 `judgeIdle` 不得出 `due`。Agent 结论所产生的 completed/failed 只在读取结束事件或结束状态并完成后续 Session 解释提交后成立，所以 Session 不在未解释时声称完成。取消仍可按 PA-08 在解释之前提交 cancelled。未结工作下界交给 Request Context 时带上这一项。
 - 失败：不适用。
 - 责任：未结工作的派生归本成员。事件的产生归 Agent。
 
@@ -1211,19 +1173,19 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | <a id="rs-05"></a>RS-05 | advancing 或 waiting → released | `release` | `judgeAdvance` 为 `ok`；交接依据指向该 attempt 的挂接 | SE16 | 已被取代的 attempt 得到 `stale-advance`，认回既有 SE16 |
 | <a id="rs-06"></a>RS-06 | released → granted | `claim`、`reload` | `judgeAdvance`：`advance` 为空，或旧 attempt 可信排除 | SE15，`reload` 另有 SE08 | 两个恢复者一个成立，另一个得到 `stale-advance` |
 | <a id="rs-07"></a>RS-07 | advancing 或 waiting → superseded → granted（同批） | `claim`（接管）、`reload`（旧 runtime 失联） | 接管资格；`judgeAdvance` | 旧 attempt 的 SE16 与新 attempt 的 SE15 同批；`tasks.start-fence`（已被替代） | 旧 runtime 的后续提交得到 `stale-advance`。窗口内参加者响应「冲突」（[PM-05](#pm-05)） |
-| <a id="rs-08"></a>RS-08 | active → completed | `receive` 读到结论为 complete 的结束事件或结束状态（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留） | Run 未终态；事件属于 `run.active.execution` | SE26 completed、SE16 | 取消先成立时只认回：Agent 的结论作为 SE26 cancelled 的引用保留，终态不改。条件终结之前的待交输入由 [PA-02](#pa-02) 挡住 |
-| <a id="rs-09"></a>RS-09 | active → failed | `receive` 读到结论为 fail 的结束事件或结束状态（已被替代：Session 读取 Agent 事件副本的机制撤回，到达机制的替代表达归 #756，本条义务保留）；有界收束（[P-5](#具名前提与明确缺项)，或 [PM-02](#pm-02) 的准入拒绝）时由 Session 提交 `finishRun` | 读结束事实时同 RS-08；有界收束时核对收束依据 | SE26 failed、SE16；准入拒绝另有 SE35 | 取消先成立时只认回。完成先成立时 `finishRun` 返回 `terminal` |
+| <a id="rs-08"></a>RS-08 | active → completed | `receive` 读到结论为 complete 的结束事件或结束状态（按 EC-01 读取同一会话日志的 Agent 记录） | Run 未终态；事实经历史 execution-to-Run 关系归属该 Run，关系规则见 C3 四项拥有者细化 | SE26 completed、SE16 | 取消先成立时只认回：Agent 的结论作为 SE26 cancelled 的引用保留，终态不改。条件终结之前的待交输入由 [PA-02](#pa-02) 挡住 |
+| <a id="rs-09"></a>RS-09 | active → failed | `receive` 读到结论为 fail 的结束事件或结束状态（按 EC-01 读取同一会话日志的 Agent 记录）；有界收束（[P-5](#具名前提与明确缺项)，或 [PM-02](#pm-02) 的准入拒绝）时由 Session 提交 `finishRun` | 读结束事实时同 RS-08；有界收束时核对收束依据 | SE26 failed、SE16；准入拒绝另有 SE35 | 取消先成立时只认回。完成先成立时 `finishRun` 返回 `terminal` |
 | <a id="rs-10"></a>RS-10 | active → cancelled | `control(cancel-run)`、`control(archive)`、到期的 `considerAutoArchive`；`receive`（已被替代，见 RS-08） 读到结论为 cancelled 的结束事件 | `resolveControlScope`：Run 未终态；读结束事实时 Run 未终态 | SE24、SE25、SE26 cancelled、SE16；归档另有 SE27 | 完成或失败先成立时 `control` 返回 `terminal` 并带回既有终态。SE26 cancelled 已成立时，结束事件只认回。优雅或强制不改变终态时点 |
 
 | 编号 | 不变量 | 守卫 | 违反时怎样被拒 |
 | --- | --- | --- | --- |
 | <a id="i-r1"></a>I-R1 | 同一 Session 至多一个未终结 Run | `judgeRunStart`；`startRun` 的条件提交核对 `run` 为 none | 第二个 `startRun` 返回 `run-active`；同身份认回 |
 | <a id="i-r2"></a>I-R2 | 同一 Run 至多一个非空 `advance`；序号严格递增 | `judgeAdvance`；`claim` 与 `reload` 的条件提交核对 `expected` | 旧 attempt 的写入得到 `stale-advance`；并发的第二个 `claim` 得到 `stale-advance` 或 `changed` |
-| <a id="i-r3"></a>I-R3 | 每个普通输入至多一次有效承接；批界由 Agent 的输入水位线决定，Session 不重选 | 承接只由 Agent 的 `input-taken` 事件派生（已被替代：事件副本协议撤回，承接事实的到达机制归 #756，不变量本身保留；本成员现在只记交入受理 SE35），按事件身份认回；同一 `InputId` 的 `submit` 按输入身份认回，至多一次受理 | 重放的承接事件不重复写 SE14；重复的 `submit` 认回原受理；Session 没有重选批界的命令 |
+| <a id="i-r3"></a>I-R3 | 每个普通输入至多一次有效承接；批界由 Agent 的输入水位线决定，Session 不重选 | 承接只由 Agent 的 `input-taken` 事件派生（按 EC-01 从同日志解释；SE35 不替代 SE14），按事件身份认回；同一 `InputId` 的 `submit` 按输入身份认回，至多一次受理 | 重放的承接事件不重复写 SE14；重复的 `submit` 认回原受理；Session 没有重选批界的命令 |
 | <a id="i-r4"></a>I-R4 | 终态三选一且不可反转；终态后没有新 attempt、承接或发起 | `judgeAdvance` 读到 `run.terminal` 时返回 `terminal`；`judgeRunStart` 不复活 Run；`receive` 读到第二个结束事实时只认回 | 终态后的 `claim`、`reload`、`release`、`finishRun` 返回 `terminal`；终态后的 `submit` 由 Agent 返回 `terminal` |
 | <a id="i-r5"></a>I-R5 | 取消生效即为 cancelled 终态；优雅或强制不改变时点 | `resolveControlScope` 在同批形成 SE26 | 取消之后完成的条件终结得到「冲突」；强制只改变传播的急迫程度 |
 | <a id="i-r6"></a>I-R6 | 等待只针对原位置；结束由处理、控制或 Agent 的新等待集合表达 | `waiting` 事件的集合；`completeConsumption` 核对原位置 | 非原位置的处理返回 `invalid`；不存在结束等待的命令 |
-| <a id="i-r7"></a>I-R7 | 调用登记不冒称已发出；结果版本唯一；保管、处理与释放分别认回 | SE18 只由 Agent 事件（已被替代：到达机制归 #756）或 `bindExternalCall` 写；`preserveResult` 按版本唯一；`receive(release)` 核对生产者确认 | 同版本异摘要返回 `conflict`；没有生产者确认的 `release` 写入被拒 |
+| <a id="i-r7"></a>I-R7 | 调用登记不冒称已发出；结果版本唯一；保管、处理与释放分别认回 | SE18 只由 Agent 事件（按 EC-01 从同日志解释）或 `bindExternalCall` 写；`preserveResult` 按版本唯一；`receive(release)` 核对生产者确认 | 同版本异摘要返回 `conflict`；没有生产者确认的 `release` 写入被拒 |
 | <a id="i-r8"></a>I-R8 | Session 不保存第二份 Agent 工作状态 | 类型层：`ExecutionRef` 没有值字段；推进命令没有接续参数；承接、登记、等待与终态只从 Agent 事件派生 | 携带接续值的命令在类型上不存在；`claim.continuity` 只接受耐久证据 |
 | <a id="i-r9"></a>I-R9 | 后台调用、子会话与 Run 外调用不随 Run 取消 | `resolveControlScope` 的范围表 | Run 取消的待核对生产者集合不含它们；归档另按 SE27 的范围 |
 | <a id="i-r10"></a>I-R10 | Run 未终结时不声称空闲或完成 | `judgeIdle` 读到未终结 Run 时不得出 `due`；`openWork` 列出 `unreadEvents` | 未终结 Run 的会话 `considerAutoArchive` 返回 `not-due` |
@@ -1275,19 +1237,19 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 
 这张表只列不经邻域的六类条目，其余调用方条目的提交路径见[命令表](#命令表)，全部 SE 编号见事件目录的族表。
 
-Agent 来源（标「已被替代」的提交路径是 Agent 事件副本协议：机制已撤回，该行的事实与义务保留，到达机制的替代表达归 #756；见[被替代的协议](#被替代的协议)）：
+Agent 来源按 EC-01 从同一日志解释；以下 Session 提交路径表示归一化后果，不是公开事件副本端口：
 
 | 事实 | 经由 | 条目 | 提交路径 | 效力 |
 | --- | --- | --- | --- | --- |
 | 交入受理或拒收 | 出站回执 | SE35 | `receive(input-handover)` | 依据 |
-| 承接一批输入 | 事件流 | SE14 | `receive(agent-event: input-taken)`（已被替代） | 依据 |
+| 承接一批输入 | 同日志解释 | SE14 | EC-01 的同日志派生 | 依据 |
 | 助手消息、工具消息、系统提醒、后台占位消息（经消息准入） | 参加 | SE10 | `recordMessage` | 依据 |
 | 结果保管、处理完成 | 参加（`custody`、`processed` 交接） | SE20、SE21 | `preserveResult`、`completeConsumption` | 依据 |
-| 调用登记 | 事件流 | SE18 | `receive(agent-event: waiting)`（已被替代），或首次出现该 consumption 的 `producer` 事件 | 依据 |
-| 等待集合、出卡 | 事件流 | SE22 | `receive(agent-event: waiting)`（已被替代） | 依据 |
+| 调用登记 | 同日志解释 | SE18 | EC-01 的同日志派生，或首次出现该 consumption 的 `producer` 事件 | 依据 |
+| 等待集合、出卡 | 同日志解释 | SE22 | EC-01 的同日志派生 | 依据 |
 | 压缩转换 | 参加（`context-transition` 交接） | SE10 压缩消息、SE33 | `commitDerived(compaction)` | 依据 |
-| 控制阶段到达 | 事件流 | SE25 | `receive(agent-event: control)`（已被替代） | 依据 |
-| 执行结束 | 事件流，或快照的结束状态 | SE26、SE16 | `receive(agent-event: ended)`（已被替代） | 依据 |
+| 控制阶段到达 | 同日志解释 | SE25 | EC-01 的同日志派生 | 依据 |
+| 执行结束 | 同日志结束事实，或快照的结束状态 | SE26、SE16 | EC-01 的同日志派生 | 依据 |
 | 挂接交还或被取代 | `detach` 回执，或执行记录 | SE16 | `release`、`claim` | 依据 |
 | 实例退出 | 可信实例适配 | SE17 | `receive(agent-exit)` | 可选留痕 |
 
@@ -1295,7 +1257,7 @@ Model 来源：
 
 | 事实 | 经由 | 条目 | 提交路径 | 效力 |
 | --- | --- | --- | --- | --- |
-| 真实收场 | Agent 的 `producer` 事件；迟到时由消费位置拥有者按原调用读取（[P-3](#具名前提与明确缺项)） | SE19 | `receive(agent-event: producer)`（已被替代），或 `receive(execution)` | 影响对账的部分为依据 |
+| 真实收场 | Agent 的 `producer` 事件；迟到时由消费位置拥有者按原调用读取（[P-3](#具名前提与明确缺项)） | SE19 | EC-01 的同日志派生，或 `receive(execution)` | 影响对账的部分为依据 |
 | 完整回复、中断回复 | Agent 形成消息 | SE10 | `recordMessage` | 依据 |
 | 账目 | Agent 的 `producer` 事件不带账目。在途与迟到的账目都由消费位置拥有者按原调用读取（[P-3](#具名前提与明确缺项)） | SE32 | `receive(account)` | 结算恢复所需为依据 |
 | 交付责任解除的回执 | 消费位置拥有者 | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
@@ -1304,9 +1266,9 @@ Tool 来源：
 
 | 事实 | 经由 | 条目 | 提交路径 | 效力 |
 | --- | --- | --- | --- | --- |
-| 受理回执与固定请求 | Agent 的 `waiting` 事件 | SE18 | `receive(agent-event: waiting)`（已被替代） | 依据 |
-| 真实收场、效果确定性 | Agent 的 `producer` 事件；迟到按 P-3 | SE19 | `receive(agent-event: producer)`（已被替代），或 `receive(execution)` | 影响对账的部分为依据 |
-| 最终结果（Run 仍活） | Agent | SE19，以及 SE20 或 SE21 与 SE10 | `receive(agent-event: producer)`（已被替代）、`preserveResult`、`completeConsumption`、`recordMessage` | 依据 |
+| 受理回执与固定请求 | Agent 的 `waiting` 事件 | SE18 | EC-01 的同日志派生 | 依据 |
+| 真实收场、效果确定性 | Agent 的 `producer` 事件；迟到按 P-3 | SE19 | EC-01 的同日志派生，或 `receive(execution)` | 影响对账的部分为依据 |
+| 最终结果（Run 仍活） | Agent | SE19，以及 SE20 或 SE21 与 SE10 | EC-01 的同日志派生、`preserveResult`、`completeConsumption`、`recordMessage` | 依据 |
 | 转后台确认与占位 | Tool 的转换确认经消费位置拥有者；占位消息由 Agent 提交 | SE19、SE21 占位、SE10 占位消息 | `receive(execution)`、`completeConsumption`、`recordMessage` | 依据 |
 | 后台最终结果（Run 已终态，会话未归档） | 消费位置拥有者 | SE19、SE20，随后 SE11 业务输入 | 先登记结果，再 `accept(business)`（[EC-08](#ec-08)） | 依据 |
 | 迟到版本 | 合格保管者 | SE20 | `recordResult(custody)` 的参加；记录已删除时 `preserveResult` | 依据 |
@@ -1359,9 +1321,9 @@ assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内�
 | --- | --- | --- |
 | `bindExternalCall` | ST14 | Run 外调用不要求推进资格，守卫核对外部关联与当前准入 |
 | `receive(input-handover)` | ST07 | 交入受理写 SE35 结果为 accepted，输入进入 `handed`；拒收写 SE35 结果为 rejected，解除待处理资格 |
-| `receive(agent-event: input-taken)`（已被替代） | ST07 | 承接事实从 Agent 事件派生；按事件身份认回 |
-| `receive(agent-event: waiting)`（已被替代） | ST14、ST17a | 登记与等待从 Agent 事件派生；拓展结论的正文归 Agent |
-| `receive(agent-event: ended)`（已被替代） | ST20 | 按 Agent 的结论写终态；已有终态只认回 |
+| EC-01 的同日志派生 | ST07 | 承接事实从 Agent 事件派生；按事件身份认回 |
+| EC-01 的同日志派生 | ST14、ST17a | 登记与等待从 Agent 事件派生；拓展结论的正文归 Agent |
+| EC-01 的同日志派生 | ST20 | 按 Agent 的结论写终态；已有终态只认回 |
 | `change(context-step-commit)` | ST12 | 步提交材料与注册集合同属会话声明；不改其他维度 |
 | `change(declaration)`、`change(recovery-input)` | ST12 | 分别写 SE06、SE09，对应修订计数加一 |
 | `change(environment-mode)` | ST12 | SE03 与会话层目标环境设置声明（SE06）同批，设置声明修订加一 |
@@ -1399,7 +1361,7 @@ Session 作为作用域持有者，向 Runtime Context 声明并供给一个块�
 Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复本会话：
 
 1. 先开始恢复会话，输入作用域、租户、检查点与被取代的恢复引用。
-2. 再用一份完整恢复材料结束恢复会话。材料有三部分：本会话全部注册提交（含移除意图，SE07）的耐久顺序；每个 `checkpointed` 状态块最近一次步提交的全值，更新清单为空，全值从 `change(context-step-commit)` 的条目归约得出；已经确认的作用域结束。
+2. 再用一份完整恢复材料结束恢复会话。材料有三部分，全部限定于本次恢复的原 scope：该 scope 的全部注册提交（含移除意图，SE07）的耐久顺序；每个 `checkpointed` 状态块最近一次步提交的全值，更新清单为空，全值从该 scope 的 `change(context-step-commit)` 条目归约得出；该 scope 已确认的结束。跨业务代次的保存与初始化边界见 J18。
 3. 恢复完成后重签读取资格。旧资格与旧读者在开始恢复时已经失效。
 4. 首次正常创建作用域也先用空材料完成一次恢复，围栏打开之后才接受普通的注册与步提交。
 
@@ -1442,9 +1404,9 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 | 出站端口 `DeliveryReleasePort`（已被替代）与服务键 `sessionDeliveryRelease`（已被替代） | 本规格 [EC-04](#ec-04)、[EC-05](#ec-05)、出站端口表 | 交付责任解除经 Agent 宿主的结果接收方发出（CA-06，[CP-15c 输入](https://github.com/nemori-ai/omne-harness-lite/issues/536#issuecomment-6392857271)）；Agent 契约的生产者接收面（#672） |
 | 出站端口 `ToolStartFencePort`（已被替代）与服务键 `sessionToolStartFence`（已被替代） | 本规格 [PM-05](#pm-05)、[PM-13](#pm-13)、出站端口表 | Tool 启动围栏是 Agent 日志的 `start-fence` 条目（替代拥有者，不是被替代物）（#672 J03，`agent-contract` 的 `StartFenceEntry`） |
 | `ControlProgress.startFence`（已被替代）、`RecoveryTask` 的 `start-fence`（已被替代）变体、`ProducerFact` 的 `start-fence`（已被替代）变体 | 公开接口页 | 同上 |
-| `ProducerFact` 的 `agent-event` 变体与 `AgentEventFact`（Agent 事件副本协议） | [EC-01](#ec-01)、[EC-02](#ec-02) 的 `receive` 写入 | Agent 事实经 Agent 宿主的接收面到达；承接批次（SE14）、等待（SE18、SE22）、生产者结果（SE19）、控制阶段（SE25）与 Agent 结论的 Run 终态（SE26）的替代表达是 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) 的设计工作 |
+| `ProducerFact` 的 `agent-event` 变体与 `AgentEventFact`（Agent 事件副本协议） | [EC-01](#ec-01)、[EC-02](#ec-02) 的 `receive` 写入 | Agent 经 Journal 写同一日志；Session 按 EC-01 解释承接、等待、结果、控制与结论，不恢复事件副本端口 |
 
-替代表达必须承接原来仍有效的控制、结果、恢复与未知责任，本规格不在此发明它。在替代落地之前：`ControlProgress` 没有围栏字段；`receive` 只有 `input-handover` 与其余生产者事实；Run 的终态只能经 `finishRun` 的有界收束成立；首条路径上没有 completed 的 Run，这是 P1 第 1 项的后果，Agent 结论的终态等 #756（裁定 R3，主线 2026-10-25）。`resolveControlScope` 与 `resolveCascade` 在 #756 之前抛出带 #756 的 Error，不以 `invalid` 或空级联冒充已判定；`decide` 在调用它们之前就拒绝 `control`。
+同日志替代承接原有控制、结果、恢复与未知责任。公开 `receive` 不新增 `agent-event`；Agent 结束经 EC-01 的提供者同日志解释形成 completed/failed。当前实现仍仅支持状态行所列首条路径；这是实现差距，不是撤销 completed 契约。被替代的 ToolStartFencePort 与 DeliveryReleasePort 的旧步骤由各自后继拥有者处理。
 
 ### 构造依赖端口与出站端口
 
@@ -1506,8 +1468,8 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 | `detach` | 经恢复入口交还挂接 | [PM-04](#pm-04) | 交接依据、`stale-advance`、`denied`、`unavailable`、`commit-unknown` |
 | `recordResult` | 合格保管方记录迟到结果，交接为 `custody`、`processed` 或无 | [EC-07](#ec-07)、[EC-08](#ec-08)、[PM-14](#pm-14) | 回执、`conflict`、`denied`、`unavailable`、`commit-unknown` |
 | `query` | 原操作查询 | [PA-05](#pa-05)、[PM-07](#pm-07) | `committed`、`excluded`（排除证明，等于 Session 的 `not-committed`）、`unknown`、`unavailable` |
-| `inspect` | 读执行记录 | [PM-14](#pm-14)、[EC-01](#ec-01) | 执行状态、挂接状态、修订、结束结论与依据；`missing`（记录不存在或已删除）；`unavailable` |
-| `prewarm` | 请 Agent 宿主按新采用预建空闲实例；Agent 一侧尚无对应入口（[P-7](#具名前提与明确缺项)） | 预求值与预热 | 已请求、`unsupported`、`unavailable` |
+| `inspect` | 读执行记录 | [PM-14](#pm-14)、[EC-01](#ec-01) | 执行状态、挂接状态、修订、结束结论与依据；`missing`（成功状态，记录不存在或已删除）；失败仅 `denied`、`unavailable` |
+| `prewarm` | 请 Agent 宿主按新采用预建空闲实例；Agent 一侧尚无对应入口（[P-7](#具名前提与明确缺项)） | 预求值与预热 | 已请求；失败仅 `denied`、`unsupported`、`unavailable` |
 
 - `invoke` 与 `resume` 携带本 attempt 的 SE15 证据作为推进资格依据。`submit` 不要求挂接，带该输入的 SE11 回执作为来源依据。
 - 结果未知时，不换操作身份重发，先 `query`。
@@ -1515,7 +1477,7 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 - `inspect` 返回 `missing` 而 Session 的 `ExecutionRef` 曾记有该执行的修订时，视为记录已按保留政策删除；此后结果保管由 Session 单方提交（[EC-07](#ec-07)）。`ExecutionRef.revision` 为空时的 `missing` 表示 Agent 尚未受理（[PM-14](#pm-14)）。
 - P-7 闭合之前，预求值与预热调度只做预求值，不调用 `prewarm`。闭合之后，`prewarm` 也只是优化：`unsupported` 或 `unavailable` 不阻止任何推进，也不改变采用依据。已校验候选只在新 Run 入口或显式 reload 时成为采用依据。
 
-事件读取与确认不经本端口：session-adapters 的事件消费插件直接读 Agent 的输出，提交 `receive` 后再向 Agent 确认（[EC-02](#ec-02)）。它从 `readWork` 读 `ExecutionRef.readThrough` 作为读取起点。
+同日志读取不经本端口：session-adapters 的解释器经同一 AgentJournal 提供者的 output.read / output.events 读事件正文，经 load 读 entries、results 与其他快照字段。它从 readWork 取 ExecutionRef.readThrough 作为事件读取起点，并按 EC-02 在后续 Session 提交里共同保存后果、进度与认回答案。不执行旧 receive 后确认事件副本的步骤。此约束不改变 Agent.acknowledge 的公共契约。
 
 #### ToolStartFencePort（已被替代）
 
@@ -1608,7 +1570,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | 编号 | 场景 | 必须观察的结果 | 条款 |
 | --- | --- | --- | --- |
 | VC-A01 | 受理已提交、尚未交入时条件终结到达 | 参加者响应「冲突」，不写条目；输入补交后由同一 Run 承接 | [PA-02](#pa-02) |
-| VC-A02 | 执行已结束后新输入到达 | 交入返回 `terminal`，不改写去处；读到结束事件后输入去处为下一个 Run | [PA-03](#pa-03) |
+| VC-A02 | 执行已结束后新输入到达 | 交入返回 `terminal`，不改写去处；结束事实的解释提交成立后输入去处为下一个 Run | [PA-03](#pa-03) |
 | VC-A03 | 参加种类缺一种，或材料缺项 | 装配被拒绝，或参加者响应「不支持」；不保存任何一半 | [PA-04](#pa-04) |
 | VC-A04 | 共同提交的回执丢失，查询暂不可用 | 双方保持未知；认回为 `not-committed` 后以同一身份重试；`attempt-rejected` 保持未知 | [OP-00](#op-00)、[PA-05](#pa-05) |
 | VC-A05 | 受理或 `startRun` 已提交，发起执行或交入之前崩溃，通知丢失 | 恢复扫描找到会话，以同一出站操作身份重发；没有第二个执行或第二份输入 | [PA-06](#pa-06)、[PM-14](#pm-14) |
@@ -1633,7 +1595,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | VC-B15 | 换代撤销旧 attempt 后 Tool 启动资格失效未生效（验证义务保留，机制已被替代：由 Agent 日志 `start-fence` 条目承担，本成员不再验证本项） | `tasks.start-fence`（已被替代） 保留并重放；`resume` 不等生效；生效前不声称新发起已被阻止 | [PM-05](#pm-05)、[ToolStartFencePort（已被替代）](#toolstartfenceport) |
 | VC-C01 | 承接、等待、生产者、控制、结束、消息与流事件到达 | 承接、登记、等待、控制阶段与终态各写一次；消息与流事件不写条目；重放认回 | [EC-01](#ec-01) |
 | VC-C02 | 游标丢失后从 `"0"` 重读 | 重放认回，不重复写入；确认只在游标持久后发出 | [EC-02](#ec-02) |
-| VC-C03 | Run 未终结、事件尚未读到时裁定空闲或完成 | 不得出 `due`；终态只在读到结束事实后成立 | [EC-03](#ec-03)、[I-R10](#i-r10) |
+| VC-C03 | Run 未终结、事件尚未完成解释提交时裁定空闲或完成 | 不得出 `due`；Agent 结论的终态只在结束事实的解释提交成立后成立 | [EC-03](#ec-03)、[I-R10](#i-r10) |
 | VC-C04 | 保管或完成提交之后，交付责任解除的时刻 | 解除只在提交成功之后发出；数据库事务不包含它 | [EC-04](#ec-04) |
 | VC-C05 | 日志提交后交付责任解除的回执丢失 | 以同一操作身份重发；没有重复调用或重复收费 | [EC-05](#ec-05) |
 | VC-C06 | 生产者已确认并清理后恢复 | 从消费侧数据继续；不重新领取全文 | [EC-06](#ec-06) |
@@ -1652,7 +1614,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | VC-O05 | 调用方类不在操作允许的范围内 | 调用被拒绝；调用方类核对不替代资格核对 | [四个面与公开操作](#四个面与公开操作) |
 | VC-O06 | 同一历史依据分页读 epoch 视图，期间提交压缩 | 各页同一 epoch 与上界；压缩之后以旧依据读取返回 `epoch-changed` 与当前依据；视图行与从日志朴素推导的模型视图一致 | [SessionHistory](#sessionhistory) |
 | VC-O07 | 执行环境提供者换代，已归档会话的作用域此前已释放 | 经 `releasedScopes` 取全所有作用域，按原任务身份重新释放，重复释放认回 | [ScopeReleasePort](#scopereleaseport) |
-| VC-O08 | 保管或处理已提交，交付责任解除未确认时进程重启、通知丢失（机制已被替代：交付责任解除归 Agent 宿主的结果接收面，CA-06；`ProducerFact.release` 的写入者待 #756 指定） | 恢复协调经 `pending(release)` 找回并以同一操作身份重发；确认后 `release` 为 confirmed；不重复调用生产者的执行 | [DeliveryReleasePort（已被替代）](#deliveryreleaseport)、[EC-05](#ec-05) |
+| VC-O08 | 保管或处理已提交，交付责任解除未确认时进程重启、通知丢失（机制已被替代：交付责任解除归 Agent 宿主的结果接收面，CA-06；确认投影写入者与 Model 停止点见 JC-Release） | 恢复协调经 `pending(release)` 找回并以同一操作身份重发；确认后 `release` 为 confirmed；不重复调用生产者的执行 | [DeliveryReleasePort（已被替代）](#deliveryreleaseport)、[EC-05](#ec-05) |
 | VC-F01 | 两条路径先后交来同一会话的冻结判定，证据相同或不同 | 只有一条 SE37；第二次返回原回执，`recovered` 为真 | [I-F1](#i-f1) |
 | VC-F02 | 冻结后到达新 Run 触发、`reload` 与 `claim` | `startRun` 与 `reload` 返回 `frozen`；`claim` 照常，原 Run 接续 | [I-F2](#i-f2) |
 | VC-F03 | 冻结时有未终结 Run 与待处理输入 | Run 不被取消；待处理输入交入这个 Run；Run 终态同批以 SE38 解除余下的待处理输入 | [I-F3](#i-f3)、[I-F4](#i-f4) |
@@ -1660,3 +1622,50 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | VC-F05 | 冻结的会话归档后撤销归档；已归档会话收到冻结判定 | 撤销归档后不为 `dormant`；冻结判定照常提交 | [I-F5](#i-f5) |
 | VC-F06 | 采用点纳入常驻工具，随后同一能力身份再次出现在候选采用材料里 | 首次写 SE36；再次出现不写；`residents` 只增不减 | [常驻工具与会话冻结](#常驻工具与会话冻结) |
 | VC-F07 | 引用查询：未归档、冻结未归档、已归档三类会话；索引不可读 | 前两类返回，已归档的不返回；不返回定义正文；索引不可读时返回 `unavailable` | [常驻工具与会话冻结](#常驻工具与会话冻结) |
+
+## 同日志候选细化与具名偏离
+
+本节是本次候选，须独立评审后才可作为依赖实现的已审输入。它不扩大 Agent 公共端口。
+
+### C3 四项拥有者细化
+
+1. SE13 提交时固定 execution 所属 Run，reload 只变 attempt，不把旧 execution 转绑后继。后继开始后首次迟到的 complete、fail 或 cancelled 结论仍定位原 Run。原 Run 已有终态时，追加或引用原来源作为认回证据，不改写历史 SE26，不撤销后继的推进资格。关系缺失、错租户或错会话均不得采用。
+2. freeze 只在初始化完成后成立。没有 active Run 时，SE37 与全部剩余 pending 输入的 SE38 同批提交。有 active Run 时不取消它，其后每条终态路径都在终态批次解除全部剩余待处理资格，包括 handed 但未 taken 的输入。未冻结时，这些输入保留原 InputId、顺序和资格，经 SE13 的 predecessor 关系交给后继，可再次交入，SE14 的有效承接仍至多一次。
+3. create、startRun 与 reload 的采用材料明确携带新增常驻定义和本次完整的能力身份/ResidentKey 对。SE36 对每个首次纳入能力保存资产版本与 shape，已有能力不重复写。SE08 保存当前采用键对。可选新增材料省略只表示没有新声明，不得以空投影清除已有键。references 保留冻结未归档会话，排除归档会话，按系统 maintainer 资格读取提交时维护的索引，目录不可用返回 unavailable。
+4. inspect 失败集合封闭为 denied、unavailable，missing 是成功的执行状态。只有公开读取能证明执行不存在或已删除时才返回 missing，拒绝和不可用均不能映射为 missing。prewarm 失败集合封闭为 denied、unsupported、unavailable。保留现有宽 DriveReply 导出，方法约束是其子集。P-7 未解除前不调用 prewarm，也不引入假定的 commit-unknown 路径。
+
+### J04 流观察消费义务
+
+Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，不把流引用写 Journal。当前 AgentEventBody.stream 联合仍保留。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本候选内。
+
+### J18 作用域引用与结束事实
+
+Session 铸造 Context scope，引用由租户、持有者标识和业务代次保证唯一。权威租户来自可信绑定与 Access，不能解析引用取得授权。旧引用不转绑租户，也不重新开放。
+
+归档成功的同一次会话提交保存该业务代次的已确认 Context scope 结束事实，关联原 scope 和归档提交身份。提交失败或未知未认回时，不向 Runtime Context 应用结束。确认后通过现有 applyCommit 或完整恢复材料应用，较旧恢复不能覆盖已结束。撤销归档恢复业务时铸造新代次，原 scope 永不重开。
+
+Session 在撤销归档的同一次提交中，持久保存新业务代次、可信租户、持有者、所铸 scope 引用及该操作身份的绑定。未知时先认回原操作，不能再铸一个 scope 绕过未知。恢复按这条绑定找回新 scope，不从进程内缓存或旧 scope 推导。注册提交、步提交检查点与已确认结束事实都带其原 scope 归属，并按原 scope 保留和恢复。旧 scope 的注册提交、检查点与结束不得重放到新 scope。新代次绑定本身不迁移旧注册或旧值，也不授予新 scope 读取资格。
+
+新 scope 首次恢复前没有本 scope 的注册或步提交时，只交本 scope 的空材料；后续只恢复本 scope 已提交的记录。若恢复业务需要为新 scope 重新建立注册集合、初始值或签发资格，其精确初始化由 #680 的 AD-03 与 Runtime Context 拥有者补齐。缺该输入时暂停新 scope 的业务恢复，不承诺自动迁移旧材料。本卡只增加上述可持久的代次绑定及按 scope 分隔的记录边界。
+
+逻辑结束与执行环境物理释放是不同事实。归档同批仍保存 scope-release 任务，只有后续 SE25 的完整 released 读回才解除任务。pending、unsupported、unavailable、not-authorized 或 unknown 均保留任务；releasedScopes 保留原作用域和原任务身份，提供者换代沿原身份再释放。不得用归档、Context scope-ended 或撤销资格冒充物理 released。
+
+<a id="jc-release"></a>
+
+### JC-Release 原生产者确认的写入与未决路径
+
+Tool 的合格 Agent 宿主保管/结果协调者取得原生产者确认后，经既有 AgentJournal.recordResult 以 transfer none 和 release.confirmed.receipt 写同一日志。核验原结果版本、消费位置与当前保管资格，不要求旧 attachment 仍有效，ended 不阻止合法保管。Session 适配协调者读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
+
+Model ACK 到达是具名未决义务 MODEL-ACK-ARRIVAL。冻结 Agent SPEC 的 recordResult 路径明确排除 Model 的结果采用与账目接收，AgentReceivedCommits 又明确不执行生产者 ACK。received、材料、消费绑定与 saved 同提交只证明保存，不证明 ACK。不得把 Tool 路径套给 Model，不得新增 release-confirmed JournalEntry、ACK 回调或 Agent 端口。无合法公开确认路径时保持 pending，只停止 Model confirmed 投影，交 Agent 拥有者裁定。control.duty-released 也不是结果交付回执。Session 不直接 inject modelRuntime 来绕过此缺口。
+
+### SE12-JC03 现行未决偏离
+
+JC-03 原文为“SE10、SE11；`pending` 含该输入。拒绝时只有 SE12”。当前 decideAccept 的 rejected 分支实际原文为：
+
+```ts
+if (route.reason === 'archived') return rejected({ kind: 'archived' })
+if (route.reason === 'frozen') return rejected({ kind: 'frozen', verdict: null })
+return invalid('value', 'the input has no identity or no content')
+```
+
+该分支没有生成 SE12。操作表与 JC-03 对拒绝留痕的要求一致，偏离发生在实现。影响是拒绝决定没有对应日志留痕。本候选保留现行拒绝行为，未替负责人裁定补写或撤销 SE12。README 的首条路径支持声明必须带此例外。

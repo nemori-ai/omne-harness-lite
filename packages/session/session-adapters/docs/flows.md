@@ -28,17 +28,15 @@ sequenceDiagram
 
 只读核对走同一条路：`open` 与 `submit` 核来源依据，`tryFinish` 核待交输入与取消。核对不写 Session 条目。
 
-### FA-02 Agent 事件到会话事实
+### FA-02 同日志 Agent 事实解释
 
-对应 [AD-02](../SPEC.md#ad-02)。
+对应 [AD-02](../SPEC.md#ad-02)。本流程为待评审候选。
 
-1. 插件以 `readWork` 取 `readThrough`。
-2. 插件从 `readThrough` 之后订阅 `output.events`，或以 `output.read` 按页读取。
-3. 对每个产生条目的事件，插件以 `receive(agent-event)` 提交，身份为执行与序号。游标随条目同批保存。
-4. 提交成功后，插件以 `output.acknowledge` 确认已持久的前缀。
-5. 读到缺口时，插件以 `agentExecutionRecovery.load` 取快照，按快照对账后从缺口之后继续。
-
-数据去向：承接、登记、等待、控制阶段与终态进会话日志。确认交回 Agent。
+1. Agent 的首次提交共同发布原事实、适用的四类 CallerCommit 参加事实及 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
+2. 解释器经同一 AgentJournal 提供者的 output.read / output.events 读取事件正文，经 load 读取 entries/results 等快照。每次读核对当前资格、租户、execution 与原 Run 绑定。readThrough 是事件序号，entries 提交顺序和 results 快照不能替代它。
+3. 后续另一笔 Session 提交共同保存派生后果、解释进度与该次操作答案。只存原来源身份或引用，不复制事件正文，也不走 receive(agent-event) 副本确认。
+4. 首次发布失败该批全无。后续解释失败不撤销 Agent 已提交事实，不推进解释进度。各批丢答复查询各自原操作。未解释事实计入未结工作。
+5. Agent ended 已发布而 Session 尚未解释时，cancel 可先写 cancelled。后续 ended 只留原 Run 引用，不改终态或后继；冻结后的终态提交仍解除余下待处理资格。
 
 ### FA-03 Runtime Context 的持有、供给与变化提醒
 
@@ -58,7 +56,7 @@ flowchart LR
 2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料：全部注册提交的耐久顺序、每个 `checkpointed` 块的步提交全值、已经确认的作用域结束。然后重签资格。创建作用域时材料为空。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
-5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实的产生时点归 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
+5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实按 Session 契约的 [J18 候选](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 在归档同批产生，物理释放仍等待独立读回。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
 
 ### FA-04 历史源读取与未结工作下界
 
@@ -70,15 +68,14 @@ flowchart LR
 4. 需要压缩时，插件以 `readWork` 与 `openWork` 求出未结工作的条目引用集合，交给压缩计划作为下界。
 5. 压缩转换经 FA-01 的 `context-transition` 提交。提交之后的重签见 FA-03 第 5 步。
 
-### FA-05 Model 的账目与收场
+### FA-05 Model 日志结果与账目
 
-对应 [AD-05](../SPEC.md#ad-05)。
+对应 [AD-05](../SPEC.md#ad-05)。本流程为待评审候选。
 
-1. Agent 不在场时，插件以 `calls.inspect` 与 `calls.dispatches` 读收场与账目。
-2. 插件以 `receive(execution)` 与 `receive(account)` 提交。读不到时保持未知。
-3. Session 单方保管结果时，插件以 `consumption.beginRead`、`readNext`、`closeRead` 读原结果。
-
-ACK 由 FA-14 发出。Session 不参加 Model 的受理点守卫：会话的 owner 声明为免守卫。
+1. Agent 宿主结果接收方将 received、完整材料、消费绑定与 saved 共同提交到 Session 日志。
+2. 本插件经同一 AgentJournal 的 `load().entries` 选取 Model 的 received 条目。结果交付从 `delivery.accounts` 读取冻结账目快照，账目交付从 `delivery.account` 读取该 key 修订的账目；完整材料按条目的 material 引用经同提供者 AgentMaterials.read 读取并按 Agent J02 校验。entries 缺席返回 unavailable，材料不可读显式失败。load.results 不代替这条路径。事件正文另经 output.read / output.events 读。核对当前资格、原租户、执行、consumption 及版本，以原事实身份解释 Session 后果。
+3. 后续 Session 提交共同保存后果、解释进度与该次答案；失败不撤销第 1 步事实，也不推进解释进度。
+4. 读不到时保持未知。received/saved 不作为 ACK 确认，MODEL-ACK-ARRIVAL 未决期间保持 pending。
 
 ### FA-06 Tool 的查询与后台结果
 

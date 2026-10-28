@@ -63,7 +63,7 @@ Run 与 Agent 执行的对应是下文全部场景的前提。系统层说明见
 | 推进实例身份 | Agent runtime 实例 | 只作追溯。`judgeAdvance` 不比较它 |
 | `ExecutionRef` | 执行的权威记录 | Session 只保存执行身份、最后已知修订、耐久证据与事件读取位置，不保存接续值 |
 
-Agent 对 Session 有两条通道：提交参加与事件流。分工见 SPEC 的 [Session 与 Agent 的两条通道](../SPEC.md#session-与-agent-的两条通道)。
+Agent 与 Session 共用会话日志，分为 Agent 原提交和 Session 后续解释两个发布点。边界见 SPEC 的 [Session 与 Agent 的同一日志](../SPEC.md#session-与-agent-的两条通道)。原提交共同保护 Agent 事实、适用的四类 CallerCommit 参加事实与原操作答案；received、完整材料、消费绑定和 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
 
 ## 一轮正常推进
 
@@ -75,7 +75,7 @@ Agent 对 Session 有两条通道：提交参加与事件流。分工见 SPEC �
 6. 受理后，推进协调以 `receive` 提交首条输入的交入回执。随后它按到达顺序对其余待处理输入逐条 `submit`，每条受理后提交交入回执。
 7. Agent 每一步取当时已交入的全部输入。批界由 Agent 的输入水位线决定。Session 读到 Agent 的承接事件时，解除这些输入的待处理资格。
 
-Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与执行结束，都经 Agent 的事件流到达。事件消费适配按序读取，以 `receive` 写入会话事实，并在同一次提交里推进 `ExecutionRef.readThrough`。游标持久之后，它才向 Agent 确认该前缀。
+Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与执行结束，均从同一 AgentJournal 提供者的 output.read / output.events 读取事件正文。load 只读 entries、results 与其他快照字段，不含 events。每次读取核对当前资格、租户及 execution/Run 绑定。ExecutionRef.readThrough 是事件序号，不能以 entries 提交顺序或 results 快照替代。Session 在另一笔提交中共同保存派生后果、解释进度与该次操作答案，只存原来源身份或引用，不复制事件正文。解释失败保留 Agent 原事实和原进度；未知先认回该次操作，不执行旧 receive 后确认副本的步骤。
 
 模型回复与工具消息进历史、压缩转换、结果保管与处理完成这四件事，由 Agent 的执行记录提供者提交。Session 作为参加者，在同一事务里写会话事实。
 
@@ -90,11 +90,11 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与�
 
 | 入口 | 终态 | 怎样成立 |
 | --- | --- | --- |
-| 读到执行结束 | completed、failed 或 cancelled | Session 读到 Agent 的结束事件或执行记录的结束状态后（已被替代：事件副本协议撤回，到达机制归 #756；首条路径上 Run 终态只经 `finishRun`），以 `receive` 按 Agent 的结论写 SE26 与 SE16（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
+| 读到执行结束 | completed、failed 或 cancelled | Session 读到 Agent 的结束事件或执行记录的结束状态后（候选按 EC-01 解释同日志；现行源码仍只经 finishRun），经后续同日志解释提交按 Agent 的结论写 SE26 与 SE16（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
 | 取消 | cancelled | `control(cancel-run)`、`control(archive)` 或到期的 `considerAutoArchive` 在提交时同批写 SE26 cancelled，不等传播 |
 | 有界收束 | failed | Session 以 `finishRun` 提交。只有两种依据：Agent 记录不可解释（P-5），或首条输入在 `invoke` 被消息准入拒收（[PM-02](../SPEC.md#pm-02)） |
 
-执行已结束而 Session 尚未写终态时，不属于有界收束。Session 读结束事实后按 Agent 的结论写终态。终态后置扩展归 Agent，不能反转终态。在已冻结的会话里，Run 终态的提交同批解除其余待处理输入的资格，因为不会再有承接它们的 Run（[I-F4](../SPEC.md#i-f4)）。
+执行已结束而 Session 尚未写终态时，不属于有界收束。Agent ended 已发布而 Session 尚未解释期间，cancel 仍可先提交 cancelled。后续解释只保留原 Run 的来源引用，不改既有终态或后继；Session 尚无终态时，才按 Agent 结论写终态。终态后置扩展归 Agent，不能反转终态。在已冻结的会话里，Run 终态的提交同批解除其余待处理输入的资格，因为不会再有承接它们的 Run（[I-F4](../SPEC.md#i-f4)）。
 
 ## 换代与控制
 
@@ -105,7 +105,7 @@ sequenceDiagram
   participant New as New Agent
   participant M as Model or Tool
   Old->>M: admit original call
-  Old-->>S: waiting event, written by receive
+  Old->>S: Journal commits waiting; Session interprets in a later commit
   S->>S: claim or reload: new attempt, old attempt released
   S->>Old: detach when reachable
   S->>M: Tool invalidate for the old attempt
@@ -130,7 +130,7 @@ sequenceDiagram
 | 取消先于条件终结 | 参加者响应「冲突」。Agent 以已保存的取消依据再次终结。之后读到的结束事件只认回 | Session 与 Agent 的裁定顺序（[PA-08](../SPEC.md#pa-08)） |
 | 归档之前收到普通输入，回执晚到 | 原受理与后续取消都可查，不能声称未曾受理 | Session 提交与控制 |
 | Agent 退出，Model 或 Tool 仍在运行 | 恢复原等待。旧 Agent 卸载不停止生产者 | 独立宿主与 Session 关联 |
-| 执行已结束，Session 尚未读到结束事件 | Run 仍为 active，不声称空闲或完成。读到后按 Agent 的结论写终态 | Session 事件消费（[EC-03](../SPEC.md#ec-03)）（已被替代：Agent 事件副本协议撤回，Run 终态在首条路径只经 `finishRun`，Agent 结论的终态等 #756） |
+| 执行已结束，Session 尚未读到结束事件 | Run 仍为 active，不声称空闲或完成；cancel 可先写 cancelled。后续解释只保留原 Run 引用，已有终态与后继不变 | Session 事件消费（[EC-03](../SPEC.md#ec-03)）（候选按 EC-01 解释同日志；现行源码尚不支持） |
 | Run 已终态，原结果迟到 | 合格保管者经 Agent 的 `recordResult` 保管，Session 参加。Agent 记录已删除时由 Session 单方保管。迟到结果不取得旧推进权。是否形成新工作，由仍有效的原投递资格决定 | Session 与原消费者（[EC-07](../SPEC.md#ec-07)、[EC-08](../SPEC.md#ec-08)） |
 | 归档后撤销归档，旧结果迟到 | 已取消的旧业务不重新入队，原事实保留 | Session 原取消事实 |
 | 保管成功，生产者确认未知 | 保管责任继续。按原操作查询 ACK 或交付释放，不重新领取已清理的 Model 全文 | 双方原操作协议（[EC-05](../SPEC.md#ec-05)） |
@@ -149,7 +149,7 @@ sequenceDiagram
 
 本成员声明七个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`；`ToolStartFencePort` 与 `DeliveryReleasePort` 已被替代，见 SPEC「被替代的协议」）。`SessionTransactionPort` 与应用装配交付的内部主体 `SessionInternalPrincipals` 是装配的必需依赖。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`（[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)）。调度策略是 `session` 工厂的配置，不进本成员。Context 与 Fiber 不进入这份业务数据契约。
 
-本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。`receive` 交来的 Agent 事件（已被替代：`receive` 现只有 `input-handover` 与其余生产者事实，事件副本协议归 #756）须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
+本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。同日志中由 EC-01 解释的 Agent 事实须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
 
 类型消费只核对参数与返回形状。唯一推进、输入批界、原操作未知、终态竞争、实际外部动作与跨进程提交，都需要另外的模型与提供者证据。状态图、静态类型与文档链接不证明断电耐久或授权源已经实现。
 
