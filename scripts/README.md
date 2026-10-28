@@ -35,10 +35,10 @@
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
 （算不出计划就在这里失败，不改判全量；`pnpm run check:plan` 只打印不跑）。之后的顺序是：
 
-1. 常驻：`check:agents`、`check:docs`、`check:design`；
+1. 常驻：`check:agents`、`check:docs`、`check:design`、`check:lines`，然后是写范围与线归属的核对：`node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts`（根 `package.json` 没有对应的脚本）。它读本工作树的 task context，逐提交算出本卡自己改过的文件，再加上未提交的改动。不在 binding 写范围内的文件为 `change-outside-scope`，线内的卡改到别的线或联调轨道的文件为 `change-outside-line`。本卡改了契约成员的 `api` 目录时，它用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异，超过 binding 的契约变更时为 `contract-exceeds-declared`。有任一项时退出 1，检查失败。`omne-contract-api` 运行失败时退出 2，检查也失败。标准错误逐项写文件、代码与改法。没有 task context 时只写「未绑定」，检查继续。算法与退出码见 [dev-flow 交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)；
 2. 按计划：`pnpm run test:python`（pytest）；
 3. 常驻：`pnpm run format:check`、`pnpm run test:format`；
-4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
+4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）。构建之后常驻两项：`check:declarations`，以及契约成员 API 快照与 dist 的核对 `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check`（根 `package.json` 没有对应的脚本）。后者运行钉住的 `omne-contract-api --check --json`。成员为 differs、unreadable、missing 或 invalid 时退出 1，检查失败，标准错误逐个写成员、状态与改法。没有 dist 的成员（unbuilt）只报告：影响面计划没有选中它们，所以没有构建。本卡改了成员的快照或源码时，影响面会选中它。工具缺失、运行失败或输出不合格时退出 2，检查也失败。见 [dev-flow 集成工具说明](../tools/dev-flow/src/integration/README.md#契约快照核对)。然后按计划：类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
 5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；
 6. 按计划：可执行验收——只跑被选中、带 `acceptance` 脚本的成员，驱动上面构建出来的 `dist/`，任何一份不过整套检查就失败；
    耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。
@@ -113,11 +113,19 @@
 | `attempt` | 同一项任务的 attempt，取不到时为 `null`。两项取不到时，脚本都不提醒、不改退出码 |
 | `cores`、`slots`、`slot` | 机器核数、名额总数、用的是第几个 |
 | `aheadOnArrival` | 进队时前面有几张活票 |
-| `arrivedAt`、`acquiredAt`、`endedAt` | 进队、拿到名额、结束（或放弃）的时刻，RFC 3339 |
-| `waitSeconds`、`heldSeconds` | 排了多久、占了多久 |
-| `cpuSeconds` | 命令及其已退出的子孙进程用掉的 CPU（用户态加内核态）；除以 `heldSeconds` 就是这类任务平均占几个核 |
+| `arrivedAt`、`acquiredAt`、`endedAt` | 进队、拿到名额、结束（或放弃）的时刻，RFC 3339，截到秒 |
+| `waitSeconds`、`heldSeconds` | 排了多久、占了多久，毫秒差向下取整到整秒（见下） |
+| `cpuSeconds` | 命令及其已退出的子孙进程用掉的 CPU（用户态加内核态），精确到 0.01 秒 |
 | `loadAtAcquire`、`loadAtEnd` | 拿到名额时与结束时的机器负载（1、5、15 分钟平均）；与测试耗时账本里的超时对时间，看负载到多少开始超时 |
 | `exitCode` | 命令的退出码；放弃时是 75 |
+
+**秒数的取整。**时刻字段与两个秒数字段只记到整秒，没有毫秒字段。`cpuSeconds` 记到 0.01 秒。
+
+- `waitSeconds` 与 `heldSeconds` 各自把毫秒差向下取整。
+- 三个时刻字段各自截到秒。所以 `endedAt` 减 `acquiredAt` 可能比 `heldSeconds` 大 1。`acquiredAt` 减 `arrivedAt` 可能比 `waitSeconds` 大 1 或 2，因为脚本在拿到名额之前量 `waitSeconds`，稍后才取 `acquiredAt`。以 `waitSeconds` 与 `heldSeconds` 为准。
+- 命令不到 1 秒时，`heldSeconds` 为 0，而 `cpuSeconds` 可以大于 0。
+
+**平均核数。**这类任务平均占几个核，等于 `cpuSeconds` 除以命令实际占用名额的时间。实际占用时间在 `heldSeconds` 秒以上、`heldSeconds` + 1 秒以下，所以平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 这个区间里。`heldSeconds` 为 0 时无法相除，只有下界 `cpuSeconds` ÷ 1。命令越短，区间越宽，不要只取上界。
 
 脚本的行为由 `tools/test-runner/tests/test-slot.spec.ts` 核对。
 

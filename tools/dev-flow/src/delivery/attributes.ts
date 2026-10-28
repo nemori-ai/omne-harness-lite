@@ -11,6 +11,7 @@ import {
   type DeliveryLines,
 } from './lines.ts'
 import type { CapturedIssue } from './protocol.ts'
+import { readWorkKind, type WorkKind } from './work-kind.ts'
 
 /** Card attribute values adopted in docs/engineering/delivery.md「卡属性与合法组合」. */
 export const natures = ['design', 'contract', 'impl', 'integration', 'baseline'] as const
@@ -37,6 +38,7 @@ export const attributeNames = [
  */
 export type CardAttributes = {
   issue: string
+  workKind: WorkKind | undefined
   fields: Record<AttributeName, string[]>
   milestone: string | null | undefined
   labels: string[]
@@ -53,6 +55,7 @@ export function readCardAttributes(
   const values = (name: AttributeName) => identity.get(ATTRIBUTE_FIELDS[name]) ?? []
   return {
     issue: issue.url,
+    workKind: readWorkKind(body),
     fields: {
       line: values('line'),
       nature: values('nature'),
@@ -76,8 +79,61 @@ export const attributeCodes = [
   'binding-v1',
 ] as const
 export type AttributeCode = (typeof attributeCodes)[number]
-/** One report-only finding about a card's attributes. `clause` names the field or entry. */
+/** One finding about a card's attributes. `clause` names the field or entry. */
 export type AttributeFinding = { code: AttributeCode; clause: string; message: string }
+/**
+ * The codes that refuse a new context in `start` and a dispatch: every attribute code. The
+ * findings in `REPORT_ONLY_FINDINGS` are reported instead.
+ */
+export const REFUSING_ATTRIBUTE_CODES: readonly AttributeCode[] = attributeCodes
+/**
+ * Findings that never refuse, by code and clause. After `milestone-cli.ts carry` the binding keeps
+ * the dispatch milestone; docs/engineering/delivery.md「契约变更与里程碑类型」 makes this drift an
+ * expected state until the next revision.
+ */
+export const REPORT_ONLY_FINDINGS = [
+  { code: 'attribute-binding-drift', clause: 'binding.milestone' },
+] as const satisfies readonly Pick<AttributeFinding, 'code' | 'clause'>[]
+/** How the dispatcher removes each finding, by code. */
+export const ATTRIBUTE_REMEDIES: Record<AttributeCode, string> = {
+  'attribute-missing': '在「身份与责任」写这个字段，或在 Issue 上设置 milestone，然后重跑 start。',
+  'attribute-invalid':
+    '按 docs/engineering/delivery.md「卡属性与合法组合」改正文的属性值。binding 的交付线不合格时，用 dispatch-cli.ts 重新派发。',
+  'attribute-binding-drift':
+    '属性以正文为准。调度者升交付修订，用 dispatch-cli.ts 重新派发，使 binding 取正文的值。',
+  'nature-route-mismatch':
+    '按交付线与性质改 route，用 dispatch-cli.ts 重新派发。目标轨道未登记时，先在 policy registry 登记。',
+  'scope-outside-line':
+    '从写范围删去这一项，用 dispatch-cli.ts 重新派发。必须写别的线时，拆出那条线的卡。',
+  'scope-integration-path':
+    '从写范围删去这一项，用 dispatch-cli.ts 重新派发。必须写联调轨道的路径时，另开交付线为 integration 的卡。',
+  'condition-cross-line':
+    '依赖别的线的契约时，把这个条件改为 capability 条件。baseline 卡的「交付条件」写「无」。',
+  'label-drift': '运行 labels-cli.ts --issue <卡号> --apply，按正文同步标签。',
+  'binding-v1': '用 dispatch-cli.ts 重新派发，生成版本 2 的 binding。',
+}
+/**
+ * The findings that refuse: codes in `REFUSING_ATTRIBUTE_CODES`, except `REPORT_ONLY_FINDINGS`.
+ * `binding-v1` only reports when `line`, the card's valid delivery line from the body, is
+ * `integration`: a v1 binding has no line field.
+ */
+export function attributeRefusals(
+  findings: readonly AttributeFinding[],
+  line: string | undefined,
+): AttributeFinding[] {
+  return findings.filter(
+    finding =>
+      REFUSING_ATTRIBUTE_CODES.includes(finding.code) &&
+      !REPORT_ONLY_FINDINGS.some(
+        only => only.code === finding.code && only.clause === finding.clause,
+      ) &&
+      !(finding.code === 'binding-v1' && line === INTEGRATION_LINE),
+  )
+}
+/** One refusal line: code, clause, the finding and its remedy. */
+export function refusalLine(finding: AttributeFinding): string {
+  return `- ${finding.code} [${finding.clause}] ${finding.message} 改法：${ATTRIBUTE_REMEDIES[finding.code]}`
+}
 /** A condition of the card whose target is an Issue, with that card's attributes when read. */
 export type ConditionCard = { condition: string; target: string; card: CardAttributes | undefined }
 export type AttributeInput = {
@@ -383,9 +439,9 @@ function labelFindings(card: CardAttributes, body: Attributes): AttributeFinding
 }
 
 /**
- * Report-only findings about a card's attributes against docs/engineering/delivery.md
- * 「卡属性与合法组合」. The body is the attribute source. A binding adds route, scope and drift
- * checks. Callers report the findings and never refuse on them.
+ * Findings about a card's attributes against docs/engineering/delivery.md「卡属性与合法组合」.
+ * The body is the attribute source. A binding adds route, scope and drift checks. Callers pick
+ * the refusing ones with `attributeRefusals`; delivery observation only reports them.
  */
 export function attributeFindings(input: AttributeInput): AttributeFinding[] {
   const { binding, card, conditionCards, lines, registry } = input

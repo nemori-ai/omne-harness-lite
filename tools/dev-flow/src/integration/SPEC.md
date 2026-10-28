@@ -1,6 +1,6 @@
 # 分支集成工具行为契约
 
-本工具承担任务工作树的开工准入、状态读取、基线与 task-sync，为提升 PR 生成说明（`ri-notes`，只读、只报告），并为集成节点准备任务工作树（I20）和等待 gate 运行（I21）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。采用、本机发布与旧建轨道命令及其条款已按 [RFC-0009](../../../../docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md) 删除，原 I01、I02、I04、I05、I07、I09、I10、I11 随之删除。保留条款沿用原编号。
+本工具承担任务工作树的开工准入、状态读取、基线与 task-sync，为提升 PR 生成说明（`ri-notes`，只读；契约的三个代码让它退出 1），为 `pnpm run check` 核对契约快照与 dist（I22），并为集成节点准备任务工作树（I20）和等待 gate 运行（I21）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。采用、本机发布与旧建轨道命令及其条款已按 [RFC-0009](../../../../docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md) 删除，原 I01、I02、I04、I05、I07、I09、I10、I11 随之删除。保留条款沿用原编号。
 
 本模块兑现[多层分支规则](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 
@@ -30,7 +30,7 @@ I14。`start` 对 route 中的轨道（下称目标轨道）及其上游链做�
    1. 远端有 `refs/tags/omne/gate/track/<ID>` 时，读该附注标签的正文。正文是 `omne-gate-record:v1` JSON，取 `parent` 字段；没有该字段或取值为 null 时为 `main`，与 `github-gate` 流程的读法相同。
    2. 否则读远端 `github-gate` 分支的 `gate/cutover.json`。其中登记了 `integration/<ID>` 时，可信上游为 `main`。
    3. 两者都没有为 refused。
-   
+
    registry 的 `parent` 与可信上游不同为 refused。标签不是附注标签、正文不是合格 JSON、`parent` 的取值不合格，或 `gate/cutover.json` 不是以分支名为键、以提交号为值的 JSON 对象，都为 unknown。远端读不到为 unknown。
 
 `start` 的远端读取只取链上各轨道的分支与起点标签，以及 `github-gate` 分支上的 `gate/cutover.json`，不枚举或拉取其他标签。`start` 不读核对下限。`status` 与 task-sync 不做上游链核对。[I17](#提升-pr-的说明) 的 `ri-notes` 另有读取范围，它按同一顺序确定上游。
@@ -56,13 +56,23 @@ I08。生产授权读取真实 Issue comment。固定只读 `gh api GET` 核对 
 
 创建 context 前重新采集同一范围。摘要包括完整闭包内容、独立授权评论和任务 Stage。相关正文、评论、关系、Stage 或闭包变化均拒绝写入。无关 Issue 历史或其他 Project item 不进入读取及摘要。已有同绑定 context 时原样返回；已绑定另一任务时拒绝。context 只新建，不覆盖。
 
-I16。准入成功之后，`start` 与 `register` 报告本卡的属性发现，不拒绝开工。发现由 [delivery/attributes.ts](../delivery/attributes.ts) 的 `attributeFindings` 给出，代码表与判据见[交付观察规格](../delivery/SPEC.md#属性发现)。输入是本次准入采集中的本卡正文、标签、milestone 与条件目标卡，binding，与 policy 同一提交中的 `docs/engineering/delivery-lines.json`，以及 policy registry。版本 1 的 binding 报告 `binding-v1`。
+I16。准入成功之后、写 context 之前，`start` 与 `register` 判断本卡的属性发现。发现由 [delivery/attributes.ts](../delivery/attributes.ts) 的 `attributeFindings` 给出，代码表与判据见[交付观察规格](../delivery/SPEC.md#属性发现)。输入是本次准入采集中的本卡正文、标签、milestone 与条件目标卡，binding，与 policy 同一提交中的 `docs/engineering/delivery-lines.json`，以及 policy registry。
 
-每条发现向标准错误写一行 JSON：`{"severity":"report","issue":卡URL,"code":…,"clause":…,"message":…}`。线归属表缺失、不合格或计算失败时只写一行 `attribute-rules-unavailable`。报告不改变标准输出、context 与退出码。报告写入失败时报告丢失，命令结果不变。
+拒绝的发现由同一文件的 `attributeRefusals` 选出。派发命令用同一个函数。规则如下：
+
+1. `REFUSING_ATTRIBUTE_CODES` 列出拒绝的代码：全部属性代码。
+2. `REPORT_ONLY_FINDINGS` 列出只报告的发现，只有一项：条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后，binding 保留派发时的里程碑，[交付协议](../../../../docs/engineering/delivery.md#契约变更与里程碑类型)把这条漂移写为预期状态。
+3. 版本 1 的 binding 报告 `binding-v1`。正文「身份与责任」的交付线合格且为 `integration` 时，`binding-v1` 只报告。其余情况拒绝。版本 1 的 binding 没有 `line` 字段，所以交付线取正文。
+
+线归属表在 policy 所在的提交（工作树 HEAD）上缺失或不合格，或读卡与计算属性时出现已知的输入错误（`IntegrationError`、`InputError`）时，属性规则不可得。其他异常照常抛出，不当作规则不可得。
+
+新建 context 时，规则不可得以 `refused` 拒绝，消息为一项 `attribute-rules-unavailable` 与原因；有任一项拒绝的发现也以 `refused` 拒绝。不写 context，不写报告行，不写看板。消息第一行写拒绝的项数，然后每项一行：`- 代码 [条款] 说明 改法：…`。改法取 `ATTRIBUTE_REMEDIES`。CLI 把这个错误写到标准错误，退出码为 2。已有同绑定的 context 时不拒绝，全部发现只报告。
+
+开工成功时，每条发现向标准错误写一行 JSON：`{"severity":"report","issue":卡URL,"code":…,"clause":…,"message":…}`。已有同绑定的 context、规则不可得时只写一行 `attribute-rules-unavailable`。报告不改变标准输出、context 与退出码。报告写入失败时报告丢失，命令结果不变。
 
 I18。`start` 与 `register` 新建 context 之后，按 [delivery/board.ts](../delivery/board.ts) 的 `recordDispatch` 在本卡的 Project 条目上写 `board.events.dispatched` 启用的 Dispatched at、Line、Kind 与 Wave。看板设置取本次开工已读的交付配置（policy 的 `deliveryConfig`）中的 `board` 项与字段 ID；没有 `board` 项时不写、不报告。`board` 项的形状不合格时整个交付配置不合格，`start` 按既有规则拒绝；事件、字段 ID 与时区的语义问题只报告。已有同绑定的 context 时不写；条目的 Dispatched at 已有值时不覆盖。Line 取版本 2 binding 的 `line`，版本 1 取正文「身份与责任」的交付线。Kind 取本次采集中卡的唯一 `kind:` 标签。Wave 只在条目还没有 Wave 时写入，取 Wave 迭代字段中包含开工日的迭代，几个迭代都包含这一天时取配置顺序中的第一个，没有时跳过；同一张卡的新 attempt 不改 Wave。使用 workflow 事实时不发 GraphQL 请求，只报告 `board-skipped`。失败、跳过与读回不符按 I16 的行格式写到标准错误，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。写入在 context 写好与属性报告之后进行，任何结果都不改变标准输出、context 与退出码。本条只写这四个字段，不写 Stage。Project 写入与时钟经 `openIntegration` 的 `board` 参数注入，缺省为 `gh` 与当前时间。
 
-I19。准入核对之后、写 context 之前，`start` 与 `register` 用 [delivery/protocol.ts](../delivery/protocol.ts) 的 `dispatchFieldGaps` 判断本次采集中的卡：`kind:` 标签数须为一，`line:` 标签数须为一，milestone 不能为 null。任一项不满足时以 `refused` 拒绝，消息逐项列出缺项，不写 context，不报告属性发现，不写看板。已有同绑定 context 时同样先判断。本条只看标签与 milestone 是否存在，标签与正文属性是否一致仍归 I16 报告。
+I19。准入核对之后、写 context 之前，`start` 与 `register` 用 [delivery/protocol.ts](../delivery/protocol.ts) 的 `dispatchFieldGaps` 判断本次采集中的卡：`kind:` 标签数须为一，`line:` 标签数须为一，milestone 不能为 null。任一项不满足时以 `refused` 拒绝，消息逐项列出缺项，不写 context，不报告属性发现，不写看板。已有同绑定 context 时同样先判断。本条只看标签与 milestone 是否存在，标签与正文属性是否一致归 I16。
 
 准入的双读摘要含 Issue 的 milestone 与 updatedAt。GitHub 修改 milestone 时同时更新 Issue 的 updatedAt，所以两次采集之间修改 milestone 拒绝写入，与修改其他 Issue 字段相同。
 
@@ -129,6 +139,22 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 - nonce 作为 workflow 输入，出现在 Actions 运行记录中。别人发出含同一 nonce 的评论会让本次开工以 unknown 失败，但不能让工具采用伪造的事实。
 - 候选评论按正文包含 nonce 原文筛选。这依赖 nonce 为 32 位小写十六进制：JSON 不转义这些字符。改变 nonce 格式时须同时修订筛选。
 
+## 协作等待中的只读事实
+
+公共评论读取器和 facts 读取器接受末尾的可选读取策略 `ReadPolicy`。`networkMs` 默认 15000，必须是 1 至 2147483647 的整数。读取器在网络 I/O 前校验并复制策略。未知字段、显式 undefined 字段、null 和非法数值拒绝。该时限适用于全部分页、第二次快照以及 run 列表后的精确读取，不限制评论数量或削减事实认证。生产工厂的总预算由[准备事实规格](../delivery/SPEC.md)定义。
+
+[published-delivery-facts.ts](published-delivery-facts.ts) 的 `readPublishedDeliveryFacts` 读取 reduce 已预先发布的 facts。调用方提供已采用安装中的 repository、Project ID、workflow 的 ID/path/ref/head 及 Bot login/node ID。普通命令参数不得替换这些采用值。该入口只发 REST GET，不派发 workflow，不读 GraphQL、environment 或组织成员，也不回退直接资格查询。它与现有 `fetchDeliveryFacts` 共用 [delivery-facts-record.ts](delivery-facts-record.ts) 的 v1 数据形状；现有主动派发入口保持其独立行为。
+
+读取器完整捕捉当前卡评论，再逐条核对固定 Bot 的事实。Bot 名称、原生账号 ID 和类型必须一致。先拒绝该 Bot 的已编辑评论，再按 facts 标记识别区块，不能用编辑或删除标记来隐藏已有负面事实。未编辑且不含 facts 标记的其他 Bot 评论不作为资格依据。区块须唯一且严格解析，未知字段、重复字段及未知版本均拒绝。匹配同一 dispatch URL 的事实必须同时匹配其实际作者、作者 node ID、正文摘要和更新时间，以及请求卡号与固定 Project。事实评论不得早于其所声明的派发修订。其他正常派发的事实不授予本次权限。
+
+每项事实都必须来自固定仓库和 workflow 的成功运行。当前 run 及精确 `attempts/1` 都必须报告 attempt 1、同一 workflow ID/path、ref、完整 head SHA、仓库与 head 仓库，以及 `workflow_dispatch` 事件。评论创建时间须分别位于两个响应的 `run_started_at` 与 `updated_at` 之间。两个端点可以给出不同的 `updated_at`；它不是运行身份，不能仅因该值跨端点不同而拒绝同一次成功运行。两个端点的 `created_at` 也可能不同，且 attempt 元数据创建时间可能晚于运行开始时间；创建元数据不作为运行身份。各响应独立验证创建时间不晚于更新时间、开始时间不晚于更新时间，以及评论在运行窗口内。运行开始时间仍须一致。运行重试、失败、未完成、来源或时间不匹配均拒绝。返回前再次核对参与评论、Bot 账号、派发账号、run/attempt 与完整评论集合；同一端点在读取期间变化不返回部分权限。多对象 REST 读取仍不是事务。
+
+每个 nonce 和 run 只对应一个事实回执。多份独立正面观察可同时成立，返回其精确评论引用。同一派发存在可信负面资格时拒绝；正负观察并存时报告冲突，必须有新的派发才能继续，不按发布时间选择较新的事实。可信候选损坏、被编辑或关联运行失败时，不能退回较早的正面观察。没有对应事实时明确失败，不临时调用权限更大的路径。
+
+这里核对的是可信 App 发布的观察，不是对 App 被攻陷后的密码学证明，也不保证发布后 environment 成员没有变化。派发本身的撤销仍由既有 `readAuthority` 独立核对。Stage 与 Project membership 仍是事实记录中的快照。固定安装采用、reduce 发布准备及正式 CLI 装配属于调用方责任；模块测试不代表这些入口已部署。
+
+验证资源为 [只读 facts 测试](../../tests/integration-published-delivery-facts.spec.ts)、[既有 facts 回归](../../tests/integration-delivery-facts.spec.ts)和[协作等待测试](../../tests/delivery-reduce-watch.spec.ts)。替身验证覆盖当前、历史与任务派发，及等待期间出现的未来卡；真实 App/Action 和云端宿主须另行验证。
+
 ## 任务工作树与 gate 等待
 
 I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机检出，不写平台，只经 `gh api GET` 读卡的 binding。程序以固定 argv 运行，不经 shell，步骤经 [worktree.ts](worktree.ts) 的 `Runner` 注入。任一步骤非零退出时命令停止，报告步骤名与最后五行标准错误，不删除已建的目录或分支。
@@ -139,6 +165,18 @@ I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机
 - `projections` 把本树 `.meta_harness/agents` 编译到新的临时目录，`rsync -rlpc` 进 `.meta_harness/`，运行 `link_agents.py`，去掉 `.meta_harness/.cursor` 下 `Dockerfile`、`environment.json`、`install.sh` 的组写权限，再运行 `pnpm run check:agents`。`check:agents` 失败时命令失败。临时目录无论成败都删除。
 
 I21。`gate-cli.ts wait` 等待一次 workflow 运行。说明去掉首尾空白后按字符计须在 1 到 1024 之间，否则在任何请求之前拒绝。`environments` 至少有一个环境名，CLI 缺省为 `publish`。每轮先读运行，`status` 为 `completed` 时返回 `conclusion` 与每轮批准的环境 ID；否则读 `pending_deployments`，把 `current_user_can_approve` 为 true 且环境名在 `environments` 中的部署在一次 POST 中批准，评论为说明。每轮按当时的待确认部署判断，不按此前批准过的环境 ID 跳过。然后等待一个间隔。到达时限时以 `unknown` 失败。CLI 在结论为 `success` 时退出0，其他结论退出1，失败退出2。命令不判断当前身份是否获授权代为确认，也不派发 gate。
+
+## 包发布运行命令
+
+`release-run-cli.ts`、仓库根和包内的 `release-run` script、构建后的 `omne-release-run` 迁移包发布脚本。它固定使用 `gate-release.yml` 与 `github-gate`，不表示整波 reduce release。
+
+输入由 `parseReleaseRunInput` 严格解析，包含版本、仓库、UUID operationId、包名、候选提交、Issue 号、显式 dryRun 与 workflowHead。支持 repo-toolchain 和 repo-config。派发前读取实际 workflow ID 与 ref head，确认与输入一致；在一次 POST 之前持久保存 intent。精确 dispatch receipt 绑定本次输入和 run。没有 receipt 时返回 unknown，恢复不选择最新 run，也不重复 POST。
+
+每次观察核对同仓库、workflow ID/path、ref、head、workflow_dispatch、run ID 和 attempt 1，并读取精确 attempt。重跑、身份变化、失败或取消均不能报告成功。观察超时只停止本地等待，远端运行可能继续。相同输入和操作日志用于恢复；冲突输入拒绝，日志不共用临时文件。
+
+默认只观察。显式 `--approve --note FILE` 才可能批准，且仅处理 `npm-release`，要求平台 `current_user_can_approve` 为真。审批前再次核对精确 run，并先保存审批 intent；不确定结果不重发。其他环境不批准。实际 approvals 另行读回。GitHub 审批接口按 run 定位，没有 compare-and-set attempt 保证，工具不声明消除该平台并发窗口。
+
+成功退出要求精确 run 完成且 conclusion 为 success。其他观察结果退出 1，输入或命令错误退出 2。输出包含操作身份、run/attempt 链接、诊断及恢复状态。持续验证由 [integration-release-run.spec.ts](../../tests/integration-release-run.spec.ts) 维护；替身通过不替代真实受保护环境审批证明。
 
 ## 状态与同步
 
@@ -191,37 +229,38 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 
 - JSON 输出到标准输出，含源轨道、可信上游、核对下限、逐提交的 unit 与 PR、汇总的卡、契约变化与 `contractGaps`、`contractCheck`、发现与 Markdown。
 - `--format markdown` 只把两节输出到标准输出，供贴进提升 PR。推测的卡的条件与「待确认」行须先按发现改写。发现逐条以 JSON 行写到标准错误，最后一行是汇总：发现总数、各代码的条数与 `contractCheck`。
-- 每条发现带 `severity:"report"`、代码、定位与说明。定位取 `commit`、`pr`、`issue`、`section` 与 `path` 中适用的几项。发现不改变退出码。
+- 每条发现带 `severity:"report"`、代码、定位与说明。定位取 `commit`、`pr`、`issue`、`section` 与 `path` 中适用的几项。
+- 退出码：有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 发现时退出 1（`RI_REFUSING_CODES`，`riNotesExitCode`）。其他发现与 `contractCheck` 为 `unavailable` 只报告，退出 0。两种格式的输出与退出码无关：退出 1 时标准输出与标准错误的内容不变。
 - PR 或卡读取的已知失败（GitHub 带 JSON 正文的错误响应、身份不符、响应字段不合格）报告 `pr-unreadable` 或 `card-unreadable`，其余照常输出。其他错误不转为发现，整次运行按本工具的失败约定退出 2：远端 Git 读不到、`gh` 不能运行、`gh` 的错误响应没有 JSON 正文（例如未认证）、registry 或线归属表缺失或不合格。
 - `ri-notes --help` 输出用法并退出 0。
 
 发现代码：
 
-| 代码 | 定位 | 含义 |
-| --- | --- | --- |
-| `parent-registry-drift` | 无 | registry 的 `parent` 与可信上游不同 |
-| `lower-bound-unknown` | 无 | 没有切换点，也没有起点标签 |
-| `lower-bound-not-ancestor` | 下限提交 | 下限不是轨道头的祖先 |
-| `unit-missing` | 提交 | 下限之后的提交没有 unit |
-| `unit-invalid` | 提交 | unit 标签或正文不合格，或没有 `pr`。下限之前的提交也报告 |
-| `unit-target-mismatch` | 提交 | unit 的目标不是源轨道，或结果不是该提交。下限之前的提交也报告 |
-| `pr-unreadable` | 提交、PR | PR 读不到 |
-| `pr-base-mismatch` | 提交、PR | PR 的 base 不是源轨道 |
-| `pr-section-missing` | 提交、PR、节 | PR 没有声明一节，或该节没有列表行 |
-| `cards-line-invalid` | 提交、PR、节 | 「所含的卡」的行不符合格式 |
-| `cards-empty` | 节 | 没有可列出的卡 |
-| `contract-line-invalid` | 提交、PR、节 | 「契约变化」的行不符合格式 |
-| `contract-path-unknown` | PR、节、路径 | 路径不是契约成员 |
-| `contract-level-exceeds-card` | PR、节、路径 | 级别高于所含卡的契约变更 |
-| `contract-breaking-off-integration` | PR、节、路径 | 联调轨道之外有 breaking |
-| `contracts-unknown` | 节 | 有提交的契约变化未知 |
-| `contract-diff-stale` | 节 | 快照差异不覆盖本次范围 |
-| `contract-diff-mismatch` | 节、路径 | 快照差异与声明不符 |
-| `card-inferred` | 卡 | 卡按分支名推测 |
-| `card-unresolved` | 提交、PR，可有卡 | 推测不出卡，或推测的卡没有可用的 binding |
-| `card-unreadable` | 卡 | 卡读不到 |
-| `card-line-unknown` | 卡 | 卡没有合法的交付线 |
-| `card-other-line` | 卡 | 卡的线不属于源轨道及其子孙轨道 |
+| 代码                                | 定位             | 含义                                                          |
+| ----------------------------------- | ---------------- | ------------------------------------------------------------- |
+| `parent-registry-drift`             | 无               | registry 的 `parent` 与可信上游不同                           |
+| `lower-bound-unknown`               | 无               | 没有切换点，也没有起点标签                                    |
+| `lower-bound-not-ancestor`          | 下限提交         | 下限不是轨道头的祖先                                          |
+| `unit-missing`                      | 提交             | 下限之后的提交没有 unit                                       |
+| `unit-invalid`                      | 提交             | unit 标签或正文不合格，或没有 `pr`。下限之前的提交也报告      |
+| `unit-target-mismatch`              | 提交             | unit 的目标不是源轨道，或结果不是该提交。下限之前的提交也报告 |
+| `pr-unreadable`                     | 提交、PR         | PR 读不到                                                     |
+| `pr-base-mismatch`                  | 提交、PR         | PR 的 base 不是源轨道                                         |
+| `pr-section-missing`                | 提交、PR、节     | PR 没有声明一节，或该节没有列表行                             |
+| `cards-line-invalid`                | 提交、PR、节     | 「所含的卡」的行不符合格式                                    |
+| `cards-empty`                       | 节               | 没有可列出的卡                                                |
+| `contract-line-invalid`             | 提交、PR、节     | 「契约变化」的行不符合格式                                    |
+| `contract-path-unknown`             | PR、节、路径     | 路径不是契约成员                                              |
+| `contract-level-exceeds-card`       | PR、节、路径     | 级别高于所含卡的契约变更                                      |
+| `contract-breaking-off-integration` | PR、节、路径     | 联调轨道之外有 breaking                                       |
+| `contracts-unknown`                 | 节               | 有提交的契约变化未知                                          |
+| `contract-diff-stale`               | 节               | 快照差异不覆盖本次范围                                        |
+| `contract-diff-mismatch`            | 节、路径         | 快照差异与声明不符                                            |
+| `card-inferred`                     | 卡               | 卡按分支名推测                                                |
+| `card-unresolved`                   | 提交、PR，可有卡 | 推测不出卡，或推测的卡没有可用的 binding                      |
+| `card-unreadable`                   | 卡               | 卡读不到                                                      |
+| `card-line-unknown`                 | 卡               | 卡没有合法的交付线                                            |
+| `card-other-line`                   | 卡               | 卡的线不属于源轨道及其子孙轨道                                |
 
 ### 限制
 
@@ -229,8 +268,18 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 - 提升 PR 的识别与子孙轨道按 registry 的 `parent` 判断，不读子轨道的起点标签。
 - 卡的交付线、修订与 binding 取当前正文，不是 PR 合入时的正文。
 
+## 契约快照核对
+
+I22。`contract-check` 让契约快照与 dist 的不一致使 `pnpm run check` 失败。`scripts/check.sh` 在构建之后常驻调用它。
+
+- 它经 `contract-diff.ts` 的 `contractApiCommand` 与 `runContractApi` 运行 dev-flow 依赖解析出的 `omne-contract-api --check --json --root <检出根>`，不运行工作区源码。超时为 `CONTRACT_CHECK_TIMEOUT_MS`（300 秒）。
+- 成员状态取钉住版本的六种：`match`、`differs`、`unreadable`、`missing`、`unbuilt`、`invalid`。`differs`、`unreadable`、`missing`、`invalid` 失败，每个成员一项，带成员、状态、说明与改法。`unbuilt` 只报告：影响面计划没有选中的成员不构建。本卡改了一个成员的快照或源码时，影响面选中它，它被构建并核对。本命令不核对没有 dist 的成员是否真的没有变。`differs` 也可能来自早于合并进来的快照的 dist，所以改法先写重新构建。`match` 通过。
+- 标准输出是 JSON 报告：`typescript`、各状态的成员数 `counts`、`failures` 与 `unbuilt`。标准错误为每个失败的成员写一行 `contract-check: <状态> <成员>: <说明> 改法：<改法>`，最后写一行汇总。
+- 退出码：没有失败的成员为 0，有为 1。找不到 `omne-contract-api`、进程出错或超时、退出码不为 0、输出形状不符时退出 2，错误以一行 JSON `{code, message}` 写到标准错误，标准输出为空。
+- `omne-contract-api --check` 对 `differs` 也退出 0，所以失败判断在本命令。
+
 ## 验证义务与限制
 
-持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；I15 的来源识别与非法覆盖值、事实齐备时写出 context、两次采集都不发 GraphQL 与 environment 读取，以及每一项评论、区块、运行与授权核对的反例，每个反例都不写 context；I15 的等待与超时用注入的时钟、睡眠与随机数在单元层验证；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。I16 的测试覆盖 v2 卡无发现与有发现、v1 卡、线归属表缺失和报告写入失败，每种情况下 context、标准输出与退出码都不变，报告只进标准错误。两次采集之间 milestone 与 updatedAt 一起变化时拒绝写入。I19 的测试覆盖缺 `kind:` 标签、两个 `kind:` 标签、缺 `line:` 标签与 milestone 为 null 时拒绝且不写 context。I20 的测试用记录步骤的 `Runner` 覆盖 `prepare` 的步骤顺序、跟踪远端与落后本地分支快进两种建法、领先与分叉的本地分支拒绝、证据恢复、已存在目录与失败步骤的拒绝、`start` 失败的报告、`projections` 在 `check:agents` 失败时失败且删除临时目录、`swap` 先分离旧树再快进分支、不推送不删除、保留证据并列出警告、三种拒绝时不改动旧树，以及 `remove` 只列清单、强制删除与已跟踪改动时拒绝。I21 的测试用按轮次应答的 GitHub 替身覆盖只批准指定环境、不可批准的部署不批准、每轮重新批准仍待确认的部署、按字符计数的超长说明（含增补平面字符）在任何请求之前拒绝、空环境列表拒绝与超时。`tests/integration-dispatch.spec.ts` 用派发命令生成的评论正文驱动一次真实 `start`，核对 context 的 binding 等于派发的 binding。I18 的测试经 CLI 子进程覆盖看板写入失败、`board` 项语义无效与 dispatch 写入关闭三种情况下标准输出与退出码不变；用注入的 Project 覆盖新 context 写入启用的字段、已有 Dispatched at 不覆盖、重复开工不再写入，以及 workflow 事实下不发请求只报告 `board-skipped`；`board` 项形状不合格时 `start` 拒绝且不写 context。I17 的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行、同卡取最新修订与 attempt、同步与提升 PR 的分类、子轨道的卡不报跨线、契约变化的合并与「待确认」、子轨道输出贴进上一层后仍为未知、有列表样式的行时不判「无」，以及未声明两节、unit 缺失、别的线的卡、下限不在历史上与上游漂移各报一条可定位的发现。真实 Git 测试覆盖范围（含上次提升之后的同步合并）、起点标签与切换点给出的上游与下限、起点标签指向另一条轨道作为上游及该分支不存在时拒绝、unit 读取（轻量标签为 invalid，Git 读取失败照常抛出），CLI 有发现时退出码为 0，Markdown 模式把发现写到标准错误。快照差异与声明的比较用注入的差异测试。命令行的差异提供者在临时真实 Git 检出里运行安装的 `omne-contract-api`，覆盖逐成员的 none、additive 与 review，HEAD 不是范围头、工作树有未提交改动（快照文件或成员的 `package.json`）或未跟踪文件、合并点没有快照、两侧都没有快照、工作树缺快照、快照读不回、配置被拒绝（退出 2）、超时与检出不是 Git 仓库，各为 `unavailable` 并写明原因。进程起不来用一个不可执行的文件代替 CLI 测试。输出形状不符只在边界解析上测试。提供者与 `riInput`、`riNotes` 组合的测试在同一个真实检出里用安装的 CLI 产生差异，GitHub 读取用进程内的替身，覆盖声明与快照一致和不一致两种情况；命令行用例核对 `contractCheck` 的原因来自这个提供者。GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限、云端代理、`delivery-facts` workflow 与宿主加载不由本模块的测试证明。
+持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；I15 的来源识别与非法覆盖值、事实齐备时写出 context、两次采集都不发 GraphQL 与 environment 读取，以及每一项评论、区块、运行与授权核对的反例，每个反例都不写 context；I15 的等待与超时用注入的时钟、睡眠与随机数在单元层验证；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。I16 的测试覆盖 v2 卡无发现；每个拒绝代码各一张只有这一项发现的卡被拒绝，不写 context，不调用看板，CLI 退出 2；几项发现时逐项列出代码、条款与改法；carry 之后的里程碑漂移只报告；交付线为 `integration` 的 v1 卡只报告、正文交付线不合格的 v1 卡拒绝；已有同绑定 context 时重跑只报告，标准输出与退出码不变；线归属表缺失或不合格时拒绝新建 context，已有同绑定的 context 时只报告；报告写入失败时照常开工，报告只进标准错误。两次采集之间 milestone 与 updatedAt 一起变化时拒绝写入。I19 的测试覆盖缺 `kind:` 标签、两个 `kind:` 标签、缺 `line:` 标签与 milestone 为 null 时拒绝且不写 context。I20 的测试用记录步骤的 `Runner` 覆盖 `prepare` 的步骤顺序、跟踪远端与落后本地分支快进两种建法、领先与分叉的本地分支拒绝、证据恢复、已存在目录与失败步骤的拒绝、`start` 失败的报告、`projections` 在 `check:agents` 失败时失败且删除临时目录、`swap` 先分离旧树再快进分支、不推送不删除、保留证据并列出警告、三种拒绝时不改动旧树，以及 `remove` 只列清单、强制删除与已跟踪改动时拒绝。I21 的测试用按轮次应答的 GitHub 替身覆盖只批准指定环境、不可批准的部署不批准、每轮重新批准仍待确认的部署、按字符计数的超长说明（含增补平面字符）在任何请求之前拒绝、空环境列表拒绝与超时。`tests/integration-dispatch.spec.ts` 用派发命令生成的评论正文驱动一次真实 `start`，核对 context 的 binding 等于派发的 binding。I18 的测试经 CLI 子进程覆盖看板写入失败、`board` 项语义无效与 dispatch 写入关闭三种情况下标准输出与退出码不变；用注入的 Project 覆盖新 context 写入启用的字段、已有 Dispatched at 不覆盖、重复开工不再写入，以及 workflow 事实下不发请求只报告 `board-skipped`；`board` 项形状不合格时 `start` 拒绝且不写 context。I17 的测试覆盖 gate 格式的逐行比对、节的切分（围栏代码、子列表、重复的节、没有分隔线的页脚）、宽松计入的行、同卡取最新修订与 attempt、同步与提升 PR 的分类、子轨道的卡不报跨线、契约变化的合并与「待确认」、子轨道输出贴进上一层后仍为未知、有列表样式的行时不判「无」，以及未声明两节、unit 缺失、别的线的卡、下限不在历史上与上游漂移各报一条可定位的发现。真实 Git 测试覆盖范围（含上次提升之后的同步合并）、起点标签与切换点给出的上游与下限、起点标签指向另一条轨道作为上游及该分支不存在时拒绝、unit 读取（轻量标签为 invalid，Git 读取失败照常抛出），CLI 只有只报告的发现时退出码为 0，Markdown 模式把发现写到标准错误。`riNotesExitCode` 的测试覆盖三个拒绝代码各退出 1，差异不可得、没有发现与其他代码退出 0。CLI 用例覆盖 `contract-level-exceeds-card` 时两种格式都退出 1、Markdown 的标准输出与 JSON 的 `markdown` 相同，以及安装的 `omne-contract-api` 给出的差异与声明不符时退出 1、相符时退出 0。快照差异与声明的比较用注入的差异测试。命令行的差异提供者在临时真实 Git 检出里运行安装的 `omne-contract-api`，覆盖逐成员的 none、additive 与 review，HEAD 不是范围头、工作树有未提交改动（快照文件或成员的 `package.json`）或未跟踪文件、合并点没有快照、两侧都没有快照、工作树缺快照、快照读不回、配置被拒绝（退出 2）、超时与检出不是 Git 仓库，各为 `unavailable` 并写明原因。进程起不来用一个不可执行的文件代替 CLI 测试。I22 的测试用注入的 `--check --json` 输出覆盖六种状态各自的退出码、同一次运行的全部失败成员与输出形状不符；进程起不来时抛出并带错误码；经 CLI 在临时真实 Git 检出里运行安装的 `omne-contract-api`：快照与 dist 一致时退出 0，改动一个快照后退出 1，改回后退出 0，没有 dist 的成员只报告，配置被拒绝时退出 2。输出形状不符只在边界解析上测试。提供者与 `riInput`、`riNotes` 组合的测试在同一个真实检出里用安装的 CLI 产生差异，GitHub 读取用进程内的替身，覆盖声明与快照一致和不一致两种情况；命令行用例核对 `contractCheck` 的原因来自这个提供者。GitHub 响应模拟只能证明解析及请求协议。真实 Rulesets、Actions、权限、云端代理、`delivery-facts` workflow 与宿主加载不由本模块的测试证明。
 
 Git 网络读取使用 policy 的 `timeouts.networkMs`，fetch 仅在本地缺对象时执行。超时或读取失败为 unknown。平台读取沿[Get an issue comment](https://docs.github.com/en/rest/issues/comments#get-an-issue-comment)。这些来源不代替实际运行证据。

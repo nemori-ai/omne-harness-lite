@@ -1137,52 +1137,57 @@ describe('retired delivery structures', () => {
     expect(() => parseConfig({ ...config(), schemaVersion: 1 })).toThrow()
     expect(() => parseCapture({ ...capture(), protocolVersion: 1 })).toThrow()
   })
-  it('real CLI rejects old formats and retired structural keys with exit 2', () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
-    const cli = new URL('../src/delivery/cli.ts', import.meta.url).pathname
-    const report = observeDelivery(config(), capture([issue(1)]))
-    const cases = [
-      { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },
-      { config: { ...config(), sourceCutovers: 'old' }, capture: capture(), report },
-      { config: config(), capture: { ...capture(), protocolVersion: 1 }, report },
-      ...[1, 2, 3, 4].map(schemaVersion => ({
-        config: config(),
-        capture: capture(),
-        report: { ...report, schemaVersion },
-      })),
-      ...['aliases', 'scenarios'].map(key => ({
-        config: config(),
-        capture: capture(),
-        report: { ...report, cards: report.cards.map(card => ({ ...card, [key]: [] })) },
-      })),
-    ]
-    try {
-      for (const input of cases) {
-        for (const [name, value] of Object.entries(input))
-          writeFileSync(join(root, `${name}.json`), JSON.stringify(value))
-        const result = spawnSync(
-          process.execPath,
-          [
-            '--experimental-strip-types',
-            cli,
-            '--config',
-            join(root, 'config.json'),
-            '--capture',
-            join(root, 'capture.json'),
-            '--baseline',
-            join(root, 'report.json'),
-            '--report',
-            join(root, 'out.json'),
-          ],
-          { encoding: 'utf8' },
-        )
-        expect(result.status, result.stderr).toBe(2)
-        expect(existsSync(join(root, 'out.json'))).toBe(false)
+  // Slow: starts the delivery CLI as a child process several times. 1.7 s on the full-admission fast-tier ledger, 4.8 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  it(
+    'real CLI rejects old formats and retired structural keys with exit 2',
+    { tags: ['slow'] },
+    () => {
+      const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
+      const cli = new URL('../src/delivery/cli.ts', import.meta.url).pathname
+      const report = observeDelivery(config(), capture([issue(1)]))
+      const cases = [
+        { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },
+        { config: { ...config(), sourceCutovers: 'old' }, capture: capture(), report },
+        { config: config(), capture: { ...capture(), protocolVersion: 1 }, report },
+        ...[1, 2, 3, 4].map(schemaVersion => ({
+          config: config(),
+          capture: capture(),
+          report: { ...report, schemaVersion },
+        })),
+        ...['aliases', 'scenarios'].map(key => ({
+          config: config(),
+          capture: capture(),
+          report: { ...report, cards: report.cards.map(card => ({ ...card, [key]: [] })) },
+        })),
+      ]
+      try {
+        for (const input of cases) {
+          for (const [name, value] of Object.entries(input))
+            writeFileSync(join(root, `${name}.json`), JSON.stringify(value))
+          const result = spawnSync(
+            process.execPath,
+            [
+              '--experimental-strip-types',
+              cli,
+              '--config',
+              join(root, 'config.json'),
+              '--capture',
+              join(root, 'capture.json'),
+              '--baseline',
+              join(root, 'report.json'),
+              '--report',
+              join(root, 'out.json'),
+            ],
+            { encoding: 'utf8' },
+          )
+          expect(result.status, result.stderr).toBe(2)
+          expect(existsSync(join(root, 'out.json'))).toBe(false)
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true })
       }
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
+    },
+  )
   it.each(['旧卡来源别名', '产品关联'])(
     'reports retired field %s without interpreting its value or general prose',
     name => {

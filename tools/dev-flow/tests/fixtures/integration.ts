@@ -108,7 +108,10 @@ export function setStartTag(remote: string, id: string, start: string, message?:
 export function integrationFixture(
   options: {
     admissionOnly?: boolean
-    /** Commits this value as docs/engineering/delivery-lines.json with the fixture policy. */
+    /**
+     * Commits this value as docs/engineering/delivery-lines.json with the fixture policy.
+     * Defaults to `DEFAULT_LINES`; `null` commits no line table.
+     */
     lines?: unknown
     /**
      * Adds this value as the delivery config's `board` entry, with the board field and option
@@ -170,8 +173,9 @@ export function integrationFixture(
       ...(options.board === undefined ? {} : { board: options.board }),
     }),
   )
-  if (options.lines !== undefined)
-    writeFileSync(join(root, 'docs/engineering/delivery-lines.json'), JSON.stringify(options.lines))
+  const lines = options.lines === undefined ? DEFAULT_LINES : options.lines
+  if (lines !== null)
+    writeFileSync(join(root, 'docs/engineering/delivery-lines.json'), JSON.stringify(lines))
   git(root, ['add', '.'])
   git(root, ['commit', '-m', 'Committed fixture policy'])
   const main = git(root, ['rev-parse', 'HEAD'])
@@ -205,10 +209,10 @@ export function integrationFixture(
   writeFileSync(
     platform,
     JSON.stringify({
-      body: body(binding),
+      body: body(binding, [], DEFAULT_CARD),
       state: 'open',
       // The dispatch fields start requires: one kind: label, one line: label and a milestone.
-      labels: ['kind:feature', 'line:integration'],
+      labels: ['kind:feature', 'line:integration', 'nature:integration'],
       milestone: { title: 'M1' },
       comments: [],
       admissionOnly: options.admissionOnly ?? false,
@@ -419,7 +423,7 @@ process.stdout.write(JSON.stringify(result))
     task: TaskBinding,
     conditions: Condition[] = [],
     state = 'open',
-    attributes?: CardAttributeFields,
+    attributes: CardAttributeFields = DEFAULT_CARD,
   ) {
     const p = JSON.parse(readFileSync(platform, 'utf8'))
     p.body = body(task, conditions, attributes)
@@ -455,6 +459,28 @@ process.stdout.write(JSON.stringify(result))
     update,
     authority,
   }
+}
+/**
+ * The line table every fixture commits unless it gives its own: the integration track `runtime`
+ * owns `feature`, the write scope of the fixture binding, so the default card has no attribute
+ * finding that refuses a new context.
+ */
+export const DEFAULT_LINES = {
+  schemaVersion: 1,
+  integration: { track: 'runtime', paths: ['feature', 'apps'] },
+  shared: [],
+  lines: [
+    { id: 'model', title: '模型', owner: 'human', track: null, paths: ['model'], contracts: [] },
+  ],
+}
+/**
+ * The attributes of the default fixture card: an integration card. Its version 1 binding is
+ * then only reported (`binding-v1`), as `start` does for integration cards.
+ */
+export const DEFAULT_CARD: CardAttributeFields = {
+  line: 'integration',
+  nature: 'integration',
+  contractChange: 'none',
 }
 /** The「身份与责任」attribute lines of a fixture card; the section is omitted without them. */
 export type CardAttributeFields = { line: string; nature: string; contractChange: string }

@@ -1,142 +1,50 @@
 ---
 name: line
 description: >
-  线会话的完整流程：认领线父卡，读线包做一次线级准备，然后跨波自驱推进本线的卡。每波从收口点切批次分支，波内按队列逐卡做，波末向联调轨道开批次 PR，再在后台阻塞等两种事件：本波收口卡关闭，或线父卡上的 line-return 退回。收口后读 line-delta 进入下一波，直到本线最后一波收口。
-  被指定为推进一条线的会话、拿到线包、或点名 /line 时加载。单张卡的准备与推进用 claim，建卡与派发用 dispatch，合入批次用 integrate。
-  线会话在波内收不到任何人或别的 agent 的消息，所以它不能提问。拿不准的事按停止条件写到线父卡上，然后继续不受影响的卡。
+  常驻 Line 的开工、波内自主执行、ready/blocked/failed 交接、处置等待及逐 reduce 续接。认领线父卡、跨波继续、轮空或恢复 Line 时加载；单张卡用 claim。
 ---
 
 # 线
 
-本技能是 `docs/engineering/integration.md`「集成节点的清单」里「线怎样工作」一节的可执行版。批次、波、收口点、不变量、失败处理的规则都归那一节。卡、修订、条件与接受归 `docs/engineering/delivery.md`。认领、派发与看板归 `docs/engineering/agent-delivery.md`。本技能只给顺序、产物与停止点，不另立规则。
+首次加载和恢复必须先读 `docs/engineering/integration.md`「集成节点的清单」及 `docs/engineering/map-reduce-states.md` 全部 Line 状态、全局规则和组合不变量。依据持久回执确认 phase/control、当前正式波、attempt、requestId、未完成 operation 和 waitPlan，然后选择下表动作。状态表 L01–L31、LC01–LC04 是完整 guard，不能只走成功路径。
 
 ## 工作前提：自驱，不提问
 
-从认领线父卡到里程碑结束，没有人或别的 agent 会在波内给你发消息。你的全部输入是线包、线父卡上的 `line-delta` 与 `line-return`、各卡正文与评论、仓库里的正文。所以：
+外部 Line 在同一会话跨波持续。协调只有两个边界：开工读取线包/有序 delta；结束本次执行交 PR/结果并移交写权。波中独立实现和验证，不向人提问、不在普通 Issue 评论向 reduce 求方案、不等问答、不读取新设计或别线未集成提交。Reduce 不监听这类讨论。可在本域授权内查证和决定局部细节。
 
-- 不用 AskUserQuestion，不用任何等待回复的方式提问。等不到回复。
-- 写范围之内的实现与设计选择自己定，依据写进本卡的 `spec.md` 和交接报告。
-- 写范围之外、需要人拍板、或与拥有者正文冲突的事，按线包第 9 节的停止条件处理：写进线父卡的线状态注，暂停依赖它的卡，继续不受影响的卡，波末照常交批次。调度者在下一波的 `line-delta` 里答复。
-- 停下时必须在线状态注写明停在哪、缺什么、暂停了哪些卡。
+## 阶段与出口
 
-## 术语
-
-线、线父卡、线包、批次、批次 PR、波、收口点、`line-delta` 都按 `integration.md`「集成节点的清单」的定义。本技能另外固定四个说法：
-
-- 波 w 从收口点 F(w-1) 开工，结束于集成节点建立的收口点 F(w)。首波的 F(0) 写在线包里，之后每个 F(w) 由 `line-delta` 给出。integration.md 的图把一波的输入写作 `F_w`、输出写作 `F_w+1`。本技能按波号计，波 w 的输入是 F(w-1)，输出是 F(w)。
-- 波 w 的收口卡代表 F(w)。它关闭，就是波 w+1 开工的事件。所以你在波 w 末等的是本波的收口卡。本线在波 w+1 没有卡时不开那一波，也不等它的收口卡：等的是本线下一张卡所在波的前一波收口卡，线包第 1 节按波列出要等的那几张。跳过的几波的 `line-delta` 在那次读取时一起读，按序号顺序应用。
-- `<线>` 是线包第 1 节给出的线短名（例如 `LA`），用在批次分支名和 `tmp/line-<线>/`。`<用户名>` 是线包写明的 GitHub 用户名。任务 `tmp/` 不计入写范围，本技能要求写的 `tmp/line-<线>/` 与各卡的 `tmp/issue-<号>/` 都可以写。
-- 事件文件是每台机器一个的 `<主检出>/tmp/github-events/events.jsonl`。主检出指 `.worktrees/` 的上一级目录。线包第 7 节写明它的绝对路径。接收器与每一条 `wait-cli.ts` 命令都显式传 `--file <事件文件>`。
-
-## 流程总览
-
-| 阶段 | 什么时候做 | 产物 | 出口 |
+| 阶段及规则 | 输入与允许动作 | 出口 guard、读回和下一等待 | 失败去向 |
 | --- | --- | --- | --- |
-| [1 线级准备](#1-线级准备) | 里程碑里本线第一次开工，做一次 | 认卡评论、线级上下文地图主体、线级工程约束、环境就绪、接收器在跑 | 自包含检查各问都能答 |
-| [2 开波](#2-开波) | 每波开始 | 批次分支、本波队列 | 批次分支指向本波收口点 |
-| [3 波内逐卡](#3-波内逐卡) | 每张卡 | 卡的 PR 合入批次分支、交接报告、线状态注 | 本波队列做完 |
-| [4 波末](#4-波末) | 本波最后一张卡合入后 | 批次 PR、批次报告、线状态注 | 进入等待 |
-| [5 等收口](#5-等收口) | 批次交出后 | 新收口点，或退回后的修复 | 收口卡关闭 |
-| [6 里程碑收尾](#6-里程碑收尾) | 最后一波收口后 | 线交接报告 | 线父卡可以接受 |
+| RECEIVED，L01–L04/L25 | 核对首次消息、唯一 binding/owner/attempt、有效修订和入口。重复消息接续原执行 | active/NOW 到 PREPARE；WAIT_REDUCE 到 ENTRY_WAIT；idle/NOW 到 IDLE_WAIT | 输入确定失效交 blocked；未知认领或冲突到 RECOVER |
+| ENTRY_WAIT，L02/L05/L30/L31 | 保存已授权加入基线、当前真实入口 R；只挂 watch，不写产品 | 有效 release 及 delta 按序读回，依据 active/idle/terminal 分支；closed 本身不放行 | 超时、取消和故障保留目标/游标并恢复 |
+| PREPARE，L06/L07 | 读线包、任务包、已接受依据、范围和局部裁量；按 claim 准备环境、唯一执行和模型策略；保存当前 R 的等待计划 | StartReady 全部成立，从获准 F 建批次并到 EXECUTE；仅准备不改产品 | 必要输入不可自行补齐则 HANDOFF blocked |
+| EXECUTE，L08–L10 | 按冻结队列自主细化、实现和测试。卡按 claim 增量准备及线内合入，不合联调轨道 | 实现齐备到 VERIFY_LOCAL；硬阻塞且无独立工作或确定失败到 HANDOFF | 先停依赖项，继续可执行部分；达结束条件交 blocked/failed |
+| VERIFY_LOCAL，L11–L13 | 固定验证 head，跑必要自测、独立评审及准入，保留失败 | LocalReady 成立到 HANDOFF ready；可局部修复回 EXECUTE，新 head 重验 | 自主不能解决的全局缺口/环境失败到 HANDOFF blocked/failed |
+| HANDOFF，L14–L16 | 固定 requestId/head 和五节报告；提交开始冻结代码，备齐停写声明，经 submit 登记 | 回执身份/head/outcome 读回后交出写权，到 RELEASE_WAIT。ready 等 wave；blocked/failed 等 disposition | 明确无副作用才同键重试；未知先 recover，不另造 ID、不恢复实现 |
+| RELEASE_WAIT，L17–L19/L23/L24/L26 | 只读回权威 release 或匹配 requestId/旧 attempt 的 disposition | wave 按序消费 delta；active 到 PREPARE，idle 到 IDLE_WAIT，terminal 到 FINAL_HANDOFF。takeover/rescope 保存后改等当前 wave | 仅 redispatch 且 RedispatchReady 全部成立可同波新 attempt 到 PREPARE；其他评论/PR 合入不放行 |
+| IDLE_WAIT，L27–L29 | 保存 idle 原因、F、计划修订、游标和当前真实 R；不建任务分支、不交空 PR | 每个有效 release 消费后 active 准备、idle 立即重挂直接后继、terminal 最终交接 | 后继缺失为发布错误；无未来任务/未知 nextHint 不停止监听 |
+| FINAL_HANDOFF，L20/L21 | 核对明确终态，提交最终五节报告及剩余责任 | 最终报告读回、必要接受齐备到 DONE；区分完成、限定接受、取消 | 写入未知先恢复，接受未齐继续等既定终态事实 |
+| DONE，L22 | 仅对账既有终态和自己的清理责任 | 旧事件不重开，新任务必须新授权 | 不以普通评论重开 |
 
-## 1 线级准备
+## 统一交接与处置
 
-本线第一次开工做一次。之后每张卡只做[卡级增量](#3-波内逐卡)，不重做这里的事。
+硬阻塞也是本次执行的结束交接。报告真实原因、已有成果、剩余项和停写事实。已有差异给 PR/head，可保持草稿；零差异交无 PR 的结果记录。不能把报告写成求方案的普通评论。报告里的验证证据贴摘要与关键行，并写明原件位置与哈希。只写任务 tmp 中的路径时，接受者不据它判断，规则归 `agent-delivery.md`「5. 提交成果供接受」。远端完全不可用时保存完整本机非成功交接文件并打开供人带回 reduce，保持停写，不声称机器登记成功。
 
-1. 认领线父卡：按 `agent-delivery.md` 写认卡评论（负责的人、宿主与会话、授权依据是线包里的登记授权、现存执行核对）。然后记下线父卡当前最新一条评论的创建时间，这是起点评论时间。首波的等待从它开始。
-2. 读线包。从中取得并写进 `tmp/line-<线>/line.md`：本线 ID 与短名、线父卡、队列与每张卡所在的波、每波的收口卡、写范围、收口点 F(0)、线内登记 attempt 的授权依据（它同时覆盖本线的卡与线父卡每波的 attempt）、测试名额与准入锁、事件文件、停止条件的指针。线包里标「未核」的事实，在第一次用到它的卡开工前核。核不了就按停止条件写明。
-3. 准备环境：`pnpm install --frozen-lockfile --prefer-offline`，生成 agent 投影，`pnpm run check:agents` 退出 0，记录 Node、pnpm、git 版本。再核对本机的事件接收器在跑：看 `<主检出>/tmp/github-events/receiver.pid` 或接收器端口。没在跑时，在主检出根后台启动它，并持有到里程碑结束：
+RedispatchReady 要求有效 disposition、旧执行已停止、写权交接读回、阻塞解除或新任务可执行、新 attempt 授权与完整新输入。只有这条路径能在 R(w) 未关闭时重开同波执行，波号和已消费 release 不增加。takeover/rescope 由 reduce 承担后续责任，Line 回等当前 R(w)，不能形成 reduce 等 Line 完成而 Line 只等 reduce 关闭的死循环。
 
-   ```sh
-   node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --port <端口> --file <事件文件>
-   ```
+## 命令与持久等待
 
-   每台机器只有一个接收器，由这台机器上第一个开工的会话启动。命令的行为见 `tools/dev-flow/src/delivery/README.md`「事件等待」。
-4. 按 claim 技能「线级一次性准备」写线级上下文地图主体与线级工程约束：本线各卡共用的拥有者正文、禁止的依赖方向、适用的研发品味与防御指导条目、验证级别、要加载的 pstack 与 Matt 技能、执行角色。每张卡之后只补差额。
-5. 做自包含检查：只看线包与第 2、4 步的产物，答得出下列各问：从哪个提交开工，能改哪些文件，做到什么程度算完成，每条事实出处在哪，等哪张收口卡、怎样等，拿不准时写到哪。答不出的项按停止条件写到线父卡，不猜。
+从固定独立工具检出运行，目标 repo、事件文件和 journal 取本机运行绑定。工具检出的仓库身份不能代替目标 repo。精确字段、帮助与失败码读 `tools/dev-flow/src/delivery/README.md` 及当前入口帮助；具体 recipe 由 reduce 在开工输入中填齐并验证。
 
-### 失联接续
+现有公开入口：`integration-request-cli.ts submit|recover` 交接与恢复，`reduce-watch-cli.ts watch` 等有效收口或 disposition，`line-inbox-cli.ts inbox|delta|state` 读增量、发布增量和保存消费。路径均在固定工具的 `tools/dev-flow/src/delivery/`。执行示例和参数见 [runtime](references/runtime.md)。不得以低层 issue-closed 等待代替 release 校验。
 
-原会话失联后，替换会话只读线包和线父卡上最新一条线状态注，不读原会话的记忆。线状态注必须记录：起点评论时间、已读的最后一条 `line-delta` 的序号与时间、已处理的最后一条 `line-return` 的时间、当前波与批次分支头、每张卡的状态。替换会话按第 1 步认卡，然后从状态注里的时间继续等，不用「当前最新评论」作起点。替换会话只取已登记当前 attempt 的卡。
+watch 只需当前已存在 R(w)。可选 nextHint 未知时省略。ready 挂 wave；非成功挂 disposition，使用同一 shell 结果通路。原 tool call 的 stdout/stderr 是结果；宿主要求 wait/read 时接续原工具，不用 CLI 注入消息。已经存在同 owner/target 的有效等待复用，不起第二进程。
 
-## 2 开波
+## 状态、增量与恢复
 
-1. 取本波收口点：首波来自线包，之后来自 `line-delta`。核对它是联调轨道 `integration/legacy-refactor` 的祖先或等于轨道头。
-2. 从收口点切批次分支 `<用户名>/w<波号>-<线>`，推到远端。它是个人分支，不经 gate。
-3. 本波队列来自线包。`line-delta` 有调整时以 `line-delta` 为准。上一波停下的卡在队列里的位置也由 `line-delta` 给出。
-4. 本波第一张卡从这里进入第 3 阶段。波内不合并联调轨道，规则见 `integration.md`「线轨道的同步与提升」。
+每次交出、停下、压缩前按线状态模板保存完整人读恢复快照，包含已消费 delta 序号和评论游标、attempt/head、pendingOps、purpose、目标及恢复点。该快照不扩展机器 schema。消费 delta 时使用 state 命令写正式 consumption 记录并读回；没有已消费 delta 时不伪造消费记录。波内保存事实不消费新变化；每张卡交回和单卡接受都不触发读取 delta。
 
-## 3 波内逐卡
+LC01–LC04：未知副作用、事件损坏、工具结果丢失或启动恢复进入 RECOVER，冻结受影响写入。先读回原操作、当前授权和 head，再按事实恢复阶段。已登记进入等待；已开始交接但未登记仍在 HANDOFF。STOPPED 不等于 DONE，只有显式恢复/重派授权才恢复。
 
-每张卡按 claim 技能走：卡级增量准备 → 按 `plan.md` 推进 → 交回。本技能只定线内的几件事：
-
-1. 登记 attempt 由你以受托调度写者身份做：按 dispatch 技能第 5 至 8 节写 spec、`post`、`bind`、建分支、写本卡的任务信息包。分支从批次分支头切出，taskBase 取批次分支头。登记评论引用线包的授权。
-2. 实施与评审各派新上下文的子代理。修复第 1 轮续用实施子代理，第 2 轮换新的。两轮未闭合就停下：这张卡不进批次，批次报告写明，卡进入下一波队列。本线之后没有波时，卡列进线交接报告的「未进批次的卡」，去向由调度者定。
-3. 每个切片后跑线包第 7 节的自测命令。最后一次改动后自准入：`OMNE_ADMISSION=1 pnpm run check`。测试与准入都经线包第 7 节的测试名额。准入另按准入锁排队，用后台 shell 等锁，会话不被唤醒：
-
-   ```sh
-   log=<准入日志>; until [ ! -e <准入锁> ]; do sleep 60; done && touch <准入锁> && { OMNE_ADMISSION=1 pnpm run check > "$log" 2>&1; rc=$?; rm -f <准入锁>; echo "exit=$rc" >> "$log"; exit "$rc"; }
-   ```
-
-   在 Claude Code 里用 Bash 工具的后台运行（`run_in_background`）跑这条命令，命令退出时会话才被唤醒。本技能说的「不轮询」指不轮询 GitHub、不唤醒模型。本机文件的等待在后台 shell 里做。
-4. 卡的 PR 以批次分支为 base。核对卡的 integration 阶段条件，自己合入，把 Stage 改为 delivered（`board-cli.ts delivered`）。卡的 PR 与交接报告保留。不写仓库的卡（产出只在卡评论里的设计或裁定卡）没有 PR：交接报告发出后即改为 delivered，不进批次 PR，批次报告把它单列为「无仓库改动」。
-5. 每张卡交回后，以及任何一次压缩上下文之前，在线父卡发一条线状态注（模板在 `.meta_harness/human/map-reduce-delivery/templates/line-state.md`）。压缩后从状态注重建，不从记忆重建。
-6. 同一波里后一张卡从前一张合入后的批次头开工。跨波的同线依赖经收口点带入：前一张进了批次，它的结果就在下一波的 F 里。前一张没进批次，`line-delta` 会给出两张卡的新位置。所以同线依赖不写成开工条件，队列顺序就是保证。
-
-## 4 波末
-
-本波最后一张卡合入批次分支后：
-
-1. 为线父卡登记本波的 attempt（授权同线包），然后开批次 PR：base `integration/legacy-refactor`，head 批次分支，开成非草稿。PR 转为 ready 就是集成节点收到批次的事件。binding 的分支是批次分支，taskBase 是 F(w-1)，写范围是各卡写范围之并。正文按 `integration.md`「进轨道 PR 的说明」写「所含的卡」与「契约变化」。
-2. 在线父卡发批次报告：卡号、每卡的 PR、批次头、每卡的自准入证据、未进批次的卡及原因。
-3. 写一条线状态注，然后进入第 5 阶段。
-
-本技能不用 integration.md 的提前开工：下一波每张卡的开工条件只指向本波收口卡，波末它尚未关闭。
-
-## 5 等收口
-
-批次交出后，同时等两种事件：收口卡关闭（GitHub `issues` 事件的 `closed`），或线父卡上一条以 `<!-- line-return -->` 开头的评论。等哪张收口卡按线包第 1 节「各波的收口卡」：本线下一波有卡时是本波收口卡，下一波没有卡时是下一张卡所在波的前一波收口卡。等待阻塞在本机事件文件上，不轮询 GitHub：
-
-```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --issue-closed <要等的收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>
-```
-
-- `--since` 一律带上，值是 ISO 时间（例如 `2026-10-26T18:00:00Z`）。首波取起点评论时间。之后取上一条已读 `line-delta` 的时间。处理过一条 `line-return` 后，取这条 `line-return` 的时间，否则会再次命中它。`line-return` 总在本波的 `line-delta` 之前发出，所以这样取不会漏读 `line-delta`。
-- 在 Claude Code 里用 Bash 工具的后台运行（`run_in_background`）跑这条命令。命令退出前会话不被唤醒（Claude Code 后台运行的行为）。不用 `Monitor`：它每 30 分钟到期，要重新启动。
-- Codex 与 Cursor 未覆盖：用各自的后台运行与完成通知机制。没有这种机制的宿主，在线状态注写明怎样等。
-- 命中时命令打印一行 JSON 并退出 0，`matched` 字段是 `issue-closed` 或 `comment`，据它判断是收口还是退回。启动对账读不到 GitHub 时退出 2，不继续等。其余细节见 `tools/dev-flow/src/delivery/README.md`「事件等待」。
-
-命中 `line-return` 时，批次被退回。集成节点已把批次 PR 转回草稿，评论写明批次、原因与要改什么：
-
-1. 在本波内修复，重跑自准入，推送批次分支，让 head 前进。
-2. 把原 PR 重新转为 ready：`gh pr ready <PR>`。不新开 PR，沿用线父卡本波的同一个 attempt。
-3. 写一条线状态注，然后回到本阶段的等待。
-
-命中收口卡关闭时，读 `line-delta`：
-
-1. 用 `gh api --paginate repos/<仓库>/issues/<线父卡>/comments` 取创建时间晚于 `--since` 时间的评论。`<仓库>` 是线父卡链接里的 `owner/name`。
-2. 只认正文以 `<!-- line-delta -->` 开头的评论，按序号去重。
-3. 从中取新收口点 F(w)、本线下一波队列与写范围、退回的批次与原因、对停下事项的答复、共享冻结物的变化、影响本线的裁定。
-
-读 `line-delta` 的时点有三个：认领后、每张卡交回后、取下一张卡之前。本阶段的读取属于「取下一张卡之前」。
-
-收口卡关闭了却没有 `line-delta` 时，这是调度者漏发。在线父卡写一条线状态注说明，然后阻塞等线父卡的新评论：
-
-```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <线父卡> --marker line-delta --since <时间> --file <事件文件>
-```
-
-本线在后续波还有卡时回到[2 开波](#2-开波)。本线最后一张卡所在波的收口卡关闭后，同样先读一次 `line-delta`（它可能含对停下事项的答复与裁定），再进入[6 里程碑收尾](#6-里程碑收尾)。之后的波本线没有卡，不再等。线收尾不关闭事件接收器，它由本机里程碑结束时的调度者停止。
-
-## 6 里程碑收尾
-
-本线最后一波收口后，在线父卡发线交接报告（模板在 `.meta_harness/human/map-reduce-delivery/templates/handoff-report.md`）：每波的批次与结果、停下过的事与答复、未进批次的卡、剩余责任。调度者按这份报告接受线父卡，见 integrate 技能「里程碑收尾」。
-
-## 已知的坑
-
-- 批次分支在波内不合并联调轨道。合了就破坏「波内独立」，批次会被退回。
-- `start` 写的 targetBase 是远端联调轨道头，与批次分支分叉是预期结果。影响面以批次分支头为准。
-- 两张卡同时在跑准入会互相拖慢。按准入锁排队。
-- 压缩上下文前没写线状态注，压缩后就找不回进度。
-- 接收器不在时，GitHub 不补发事件。等待命令启动时会对账一次，所以重新启动等待不会漏掉已关闭的收口卡。
-- 残留的 hook 用 `events-receiver-cli.ts clean` 显式清除。清除前确认本机没有别的接收器在跑。
+release 逐条消费，更新 assignment、lastDelta、已消费波号和 waitPlan。active 从最终 F 新建分支；idle 立即续挂；明确 terminal 才停止。后台 wait 即使提前返回，也只保存到本波交接之后处理。采用新工具/技能/策略只在下一开工边界，保留旧 journal 和挂起结果，未验证宿主行为写 unknown。

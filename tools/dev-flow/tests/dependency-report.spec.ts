@@ -123,36 +123,42 @@ describe('dependency rows', () => {
     ])
   })
 
-  it('reports a cycle hidden by a cordis subpath and a resolved relative import', () => {
-    const root = checkout()
-    const sdk = member(root, 'access', 'sdk')
-    const entry = member(root, 'access', 'server-entry', 'service-provider')
-    write(
-      root,
-      `${sdk}/src/index.ts`,
-      "import { route } from '@omne-harness/server-entry/cordis'\nexport const client = route\n",
-    )
-    write(root, `${entry}/src/cordis.ts`, 'export const route = 1\n')
-    write(
-      root,
-      `${entry}/src/internal.ts`,
-      "import { client } from '../../sdk/src/index.ts'\nexport const inbound = client\n",
-    )
-    const cycle = rows(root, sdk).find(row => row.rule === 'member-cycle')
-    expect(cycle).toMatchObject({
-      rule: 'member-cycle',
-      state: 'deviation',
-      member: sdk,
-      targetMember: entry,
-      reason: `成员之间成环：${sdk}、${entry}`,
-    })
-    expect(cycle?.sites).toEqual([
-      { path: `${sdk}/src/index.ts`, line: 1 },
-      { path: `${entry}/src/internal.ts`, line: 1 },
-    ])
-  })
+  // Access-role fixtures run a fresh dependency-cruiser process beyond the fast-tier budget.
+  it(
+    'reports a cycle hidden by a cordis subpath and a resolved relative import',
+    { tags: ['slow'] },
+    () => {
+      const root = checkout()
+      const sdk = member(root, 'access', 'sdk')
+      const entry = member(root, 'access', 'server-entry', 'service-provider')
+      write(
+        root,
+        `${sdk}/src/index.ts`,
+        "import { route } from '@omne-harness/server-entry/cordis'\nexport const client = route\n",
+      )
+      write(root, `${entry}/src/cordis.ts`, 'export const route = 1\n')
+      write(
+        root,
+        `${entry}/src/internal.ts`,
+        "import { client } from '../../sdk/src/index.ts'\nexport const inbound = client\n",
+      )
+      const cycle = rows(root, sdk).find(row => row.rule === 'member-cycle')
+      expect(cycle).toMatchObject({
+        rule: 'member-cycle',
+        state: 'deviation',
+        member: sdk,
+        targetMember: entry,
+        reason: `成员之间成环：${sdk}、${entry}`,
+      })
+      expect(cycle?.sites).toEqual([
+        { path: `${sdk}/src/index.ts`, line: 1 },
+        { path: `${entry}/src/internal.ts`, line: 1 },
+      ])
+    },
+  )
 
-  it('reports a type-only workspace import that has no declaration', () => {
+  // Access-role fixtures run a fresh dependency-cruiser process beyond the fast-tier budget.
+  it('reports a type-only workspace import that has no declaration', { tags: ['slow'] }, () => {
     const root = checkout()
     const sdk = member(root, 'access', 'sdk')
     const contract = member(root, 'access', 'public-contract')

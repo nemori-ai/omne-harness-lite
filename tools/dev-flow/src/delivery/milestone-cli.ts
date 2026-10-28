@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseCliOptions } from './cli-options.ts'
 import { IntegrationError } from '../integration/parse.ts'
 import { runGhCommand } from './github-read.ts'
 import { carryMilestone, createMilestone, MILESTONE_VIEW_MANUAL_STEPS } from './milestone.ts'
@@ -10,34 +11,17 @@ const usage = [
   '       milestone-cli.ts carry --from <title> --to <title> --reason <text> <Issue number>... [--config <file>]',
 ].join('\n')
 
-type Parsed = { positional: string[]; values: Map<string, string> }
-function parse(args: string[], allowed: readonly string[]): Parsed {
-  const values = new Map<string, string>(),
-    positional: string[] = []
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index] ?? ''
-    if (arg.startsWith('--')) {
-      const value = args[index + 1]
-      if (
-        !allowed.includes(arg) ||
-        value === undefined ||
-        value.startsWith('--') ||
-        values.has(arg)
-      )
-        throw new InputError(usage)
-      values.set(arg, value)
-      index += 1
-    } else positional.push(arg)
-  }
-  return { positional, values }
-}
 function repositoryOf(values: Map<string, string>): string {
   return parseConfig(
     readJson(values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json')),
   ).repository
 }
 function create(args: string[]): { output: unknown; ok: boolean } {
-  const { positional, values } = parse(args, ['--due', '--description', '--config'])
+  const { positional, values } = parseCliOptions(
+    args,
+    { values: ['--due', '--description', '--config'], positional: true },
+    usage,
+  )
   const [title, ...extra] = positional,
     due = values.get('--due'),
     description = values.get('--description')
@@ -55,7 +39,11 @@ function create(args: string[]): { output: unknown; ok: boolean } {
   }
 }
 function carry(args: string[]): { output: unknown; ok: boolean } {
-  const { positional, values } = parse(args, ['--from', '--to', '--reason', '--config'])
+  const { positional, values } = parseCliOptions(
+    args,
+    { values: ['--from', '--to', '--reason', '--config'], positional: true },
+    usage,
+  )
   const from = values.get('--from'),
     to = values.get('--to'),
     reason = values.get('--reason')

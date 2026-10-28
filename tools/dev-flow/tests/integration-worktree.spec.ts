@@ -5,11 +5,12 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { TaskBindingV2 } from '../src/delivery/binding.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
 import {
@@ -207,6 +208,28 @@ describe('worktree preparation', () => {
     const stage = r.steps[0]?.args.at(-1) ?? ''
     expect(stage).toMatch(/omne-agents-stage-/)
     expect(existsSync(stage)).toBe(false)
+  })
+
+  it('gives the compiler a physical staging path when the temporary directory is a symlink', () => {
+    const root = home(),
+      physical = join(root, 'physical'),
+      alias = join(root, 'alias'),
+      r = runner()
+    mkdirSync(physical)
+    symlinkSync(physical, alias, 'dir')
+    for (const name of ['TMPDIR', 'TMP', 'TEMP']) vi.stubEnv(name, alias)
+    try {
+      regenerateProjections(root, (program, args, options) => {
+        if (args.includes('.meta_harness/tooling/src/compile_agents.py')) {
+          const stage = args.at(-1) ?? ''
+          expect(stage).toBe(realpathSync(stage))
+        }
+        return r.run(program, args, options)
+      })
+      expect(existsSync(r.steps[0]?.args.at(-1) ?? '')).toBe(false)
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
 

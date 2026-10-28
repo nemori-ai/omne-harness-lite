@@ -29,6 +29,22 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines 
 
 `baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，它为空时不补缺省；缺省基线的统一规则在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`scripts/check.sh` 经测试运行器的 `baseline` 命令使用它，不再调用本命令。输出中的 `state` 来自 `@omne-harness/repo-toolchain` 的读格式：没有 context 时为 `pending`；有 context 时 0.0.4 输出 `adopted`，0.0.5 起输出 `bound`。消费钉住版本的成员只判断它是否为 `pending`，所以两个版本下的结果相同。
 
+## 包发布运行
+
+在仓库根运行：
+
+```sh
+pnpm run release-run --input /absolute/release.json --journal /absolute/task/release
+```
+
+此入口迁移 `release.sh`。包内同名 script 与构建后的 `omne-release-run` 提供同一行为。它启动 `gate-release.yml` 在 `github-gate` 上的一次包发布运行，与整波 reduce release 分开。
+
+输入须包含 `schemaVersion: 1`、`repo`、稳定 UUID `operationId`、`package`、完整 SHA `commit`、正整数 `issue`、布尔 `dryRun` 和完整 SHA `workflowHead`。`package` 只接受 `repo-toolchain` 或 `repo-config`。`workflowHead` 是本次已经核对的实际 `github-gate` 提交；派发前工具再次比对。
+
+默认只观察审批。需要批准时显式加 `--approve --note /absolute/note.txt`，且 GitHub 必须允许当前账户批准 `npm-release`。其他环境不批准。`--timeout SECONDS` 限制观察时间，默认 5400 秒；超时不取消远端运行。
+
+工具保存本次精确 run 与 attempt，成功退出要求该运行完成且 conclusion 为 success。恢复使用相同输入和日志目录。没有精确派发回执时保持 unknown，不根据最新 run 猜测归属，也不重复派发。见 [SPEC](SPEC.md#包发布运行命令)。
+
 ## 执行命令
 
 变更命令统一读取严格 JSON 文件：
@@ -48,12 +64,12 @@ Issue 正文的 `当前执行与交接` 中放唯一一个 binding 围栏区块�
 
 版本 2：schemaVersion=2，含版本 1 的全部字段，另加四个必填字段，记录派发时的卡属性：
 
-| 字段 | 取值 |
-| --- | --- |
-| `line` | 交付线 ID：小写字母开头，只含小写字母、数字与 `-`。线归属表中的线 ID 或 `integration` |
-| `nature` | `design`、`contract`、`impl`、`integration` 或 `baseline` |
-| `contractChange` | `none`、`additive` 或 `breaking` |
-| `milestone` | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null` |
+| 字段             | 取值                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `line`           | 交付线 ID：小写字母开头，只含小写字母、数字与 `-`。线归属表中的线 ID 或 `integration` |
+| `nature`         | `design`、`contract`、`impl`、`integration` 或 `baseline`                             |
+| `contractChange` | `none`、`additive` 或 `breaking`                                                      |
+| `milestone`      | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null`                       |
 
 缺字段、取值不合格或有其他字段时拒绝。`line` 是否登记在线归属表中不由解析判断，由属性发现报告。属性的规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)。已派发的 attempt 在交付前不改 binding 版本。
 
@@ -98,13 +114,27 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 执行失败不创建部分 context。已有同绑定 context 时照原样返回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发资格。
 
-准入成功后，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+准入成功后、写 context 之前，`start` 与 `register` 判断本卡的属性发现。新建 context 时，有拒绝的发现就以 `refused` 拒绝开工，不写 context，不写看板，退出码为 2。消息逐项写代码、条款、说明与改法，例如：
 
-```json
-{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"label-drift","clause":"line:","message":"line: 标签应为 line:model，实为 无。"}
+```text
+Attribute findings refuse a new context (1):
+- label-drift [nature:] nature: 标签应为 nature:impl，实为 无。 改法：运行 labels-cli.ts --issue <卡号> --apply，按正文同步标签。
 ```
 
-发现只报告，不拒绝开工，不改变标准输出、context 与退出码。版本 1 的 binding 报告 `binding-v1`。线归属表读不到时只报告一行 `attribute-rules-unavailable`。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
+拒绝全部属性代码，有两个例外只报告：
+
+- 条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后 binding 保留派发时的里程碑，这是预期状态。
+- 版本 1 的 binding 的 `binding-v1`，只在正文的交付线为 `integration` 时只报告。线内的卡拒绝，改法是重新派发，生成版本 2 的 binding。
+
+已有同绑定的 context 时重跑不拒绝，全部发现只报告。派发命令用同一条拒绝规则。
+
+开工成功时，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+
+```json
+{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"attribute-binding-drift","clause":"binding.milestone","message":"binding 记录派发时的里程碑 M1，Issue 现为 M2。"}
+```
+
+报告不改变标准输出、context 与退出码。线归属表在工作树 HEAD 上缺失或不合格时，新建 context 被拒绝（`attribute-rules-unavailable`）；已有同绑定的 context 时只报告这一行。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
 
 ### 看板字段
 
@@ -195,12 +225,12 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 
 事实来源按环境变量选择：
 
-| 变量 | 取值 | 结果 |
-| --- | --- | --- |
-| `OMNE_DELIVERY_FACTS` | `workflow` 或 `direct` | 按取值选择，覆盖自动识别。供测试与排障使用 |
-| `OMNE_DELIVERY_FACTS` | 其他值，包括空串 | `input-error`，不读平台 |
-| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS` | 使用 workflow 事实 |
-| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取 |
+| 变量                      | 取值                                             | 结果                                       |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| `OMNE_DELIVERY_FACTS`     | `workflow` 或 `direct`                           | 按取值选择，覆盖自动识别。供测试与排障使用 |
+| `OMNE_DELIVERY_FACTS`     | 其他值，包括空串                                 | `input-error`，不读平台                    |
+| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS`            | 使用 workflow 事实                         |
+| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取                                   |
 
 使用 workflow 事实时：
 
@@ -228,7 +258,13 @@ pnpm run ri-notes --track <轨道 ID>
 - `--format markdown` 只把两节写到标准输出，供贴进提升 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总。
 - `ri-notes --help` 输出用法。
 
-命令只读，只报告。发现不改变退出码，也不进入 `pnpm run check`。远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
+命令只读，不进入 `pnpm run check`。退出码如下：
+
+- 有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 时退出 1。先改 PR 的「契约变化」或所含卡的申报，再提出提升 PR。
+- 其他发现只报告，退出 0。`contractCheck` 为 `unavailable` 时也只报告。
+- 远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
+
+退出 1 时输出不变：两节照常写到标准输出。确认者在 gate 说明里贴这次运行的退出码与标准错误最后一行的汇总，见[进轨道 PR 的说明](../../../../docs/engineering/integration.md#进轨道-pr-的说明)。
 
 贴进 PR 之前，先处理发现：
 
@@ -247,6 +283,21 @@ pnpm run ri-notes --track <轨道 ID>
 
 核对完成时，JSON 的 `contractCheck.kind` 为 `checked`，快照差异与声明不符的成员各报一条 `contract-diff-mismatch`。核对没有完成时，`contractCheck.kind` 为 `unavailable`，`reason` 写明原因：HEAD 不对、工作树有改动、Git 读取失败、找不到 `omne-contract-api`、超时、进程出错（附错误码）、退出码与标准错误、输出解析失败、输出的基线不是合并点，或快照差异不可得的成员。成员在合并点或工作树上没有快照、快照读不出时，整个核对为 `unavailable`，不把这些成员当作没有变化。`--format markdown` 模式的 `contractCheck` 在标准错误的汇总行里。超时取 policy 的 `timeouts.networkMs`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
 
+## 契约快照核对
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check [--root PATH]
+```
+
+`pnpm run check` 在构建之后每次都运行它。命令运行钉住的 `omne-contract-api --check --json`，拿成员 dist 现场生成的快照与快照文件比较：
+
+- 成员为 `differs`、`unreadable`、`missing` 或 `invalid` 时退出 1，检查失败。标准错误逐个写成员、状态与改法。公开面的改动是本卡要做的时，运行 `pnpm run contract:api --write`，核对快照改动后提交。不是要做的改动时，改回声明。
+- 没有 dist 的成员（`unbuilt`）只报告。影响面计划没有选中的成员不构建；本卡改了成员的快照或源码时，影响面会选中它。
+- 报 `differs` 时先重新构建这个成员再核对：长期使用的工作树合并了同步之后，dist 可能早于合并进来的快照。仍不一致时才运行 `--write`。
+- 找不到 `omne-contract-api`、运行失败或输出不合格时退出 2，检查也失败。
+
+标准输出是 JSON 报告，标准错误最后一行是汇总。精确条款见 [SPEC](SPEC.md#契约快照核对) 的 I22。
+
 ## 持续验证
 
 在 `tools/dev-flow` 下运行：
@@ -256,6 +307,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十六个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-check`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十七个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 与 `integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

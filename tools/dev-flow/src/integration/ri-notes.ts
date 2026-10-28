@@ -85,31 +85,52 @@ export type DiffContracts = (range: { base: string; head: string }) => ContractD
 /** Builds the snapshot difference for a checkout root, with the policy's timeout. */
 export type ContractDiffProvider = (context: { root: string; timeoutMs: number }) => DiffContracts
 
-export type FindingCode =
-  | 'parent-registry-drift'
-  | 'lower-bound-unknown'
-  | 'lower-bound-not-ancestor'
-  | 'unit-missing'
-  | 'unit-invalid'
-  | 'unit-target-mismatch'
-  | 'pr-unreadable'
-  | 'pr-base-mismatch'
-  | 'pr-section-missing'
-  | 'cards-line-invalid'
-  | 'cards-empty'
-  | 'contract-line-invalid'
-  | 'contract-path-unknown'
-  | 'contract-level-exceeds-card'
-  | 'contract-breaking-off-integration'
-  | 'contracts-unknown'
-  | 'contract-diff-stale'
-  | 'contract-diff-mismatch'
-  | 'card-inferred'
-  | 'card-unresolved'
-  | 'card-unreadable'
-  | 'card-line-unknown'
-  | 'card-other-line'
-/** A report-only finding. `at` locates it: a commit, a PR, a card, a section or a member. */
+/** Every finding code of `ri-notes`. */
+export const findingCodes = [
+  'parent-registry-drift',
+  'lower-bound-unknown',
+  'lower-bound-not-ancestor',
+  'unit-missing',
+  'unit-invalid',
+  'unit-target-mismatch',
+  'pr-unreadable',
+  'pr-base-mismatch',
+  'pr-section-missing',
+  'cards-line-invalid',
+  'cards-empty',
+  'contract-line-invalid',
+  'contract-path-unknown',
+  'contract-level-exceeds-card',
+  'contract-breaking-off-integration',
+  'contracts-unknown',
+  'contract-diff-stale',
+  'contract-diff-mismatch',
+  'card-inferred',
+  'card-unresolved',
+  'card-unreadable',
+  'card-line-unknown',
+  'card-other-line',
+] as const
+export type FindingCode = (typeof findingCodes)[number]
+/**
+ * The codes that make `ri-notes` exit 1: a declared contract change above the cards, a breaking
+ * change off the integration track, and declarations that disagree with the snapshot difference.
+ * The other codes only report. An unavailable snapshot difference gives no code.
+ */
+export const RI_REFUSING_CODES = [
+  'contract-level-exceeds-card',
+  'contract-breaking-off-integration',
+  'contract-diff-mismatch',
+] as const satisfies readonly FindingCode[]
+/** 1 when any finding has a refusing code, otherwise 0. */
+export function riNotesExitCode(notes: Pick<RiNotes, 'findings'>): 0 | 1 {
+  const refusing: readonly FindingCode[] = RI_REFUSING_CODES
+  return notes.findings.some(finding => refusing.includes(finding.code)) ? 1 : 0
+}
+/**
+ * One finding. `at` locates it: a commit, a PR, a card, a section or a member. Its severity is
+ * always `report`; `RI_REFUSING_CODES` decides the exit code of the command.
+ */
 export type RiFinding = {
   severity: 'report'
   code: FindingCode
@@ -758,7 +779,7 @@ function cachedCards(read: (n: number) => CardRead): (n: number) => CardRead {
 
 /**
  * Builds the promotion PR sections for one track from its first-parent commits, their unit
- * records and the PRs they name. It only reports: every defect becomes a finding.
+ * records and the PRs they name. Every defect becomes a finding; `riNotesExitCode` reads them.
  */
 export function riNotes(input: RiInput): RiNotes {
   const readCard = cachedCards(input.readCard)

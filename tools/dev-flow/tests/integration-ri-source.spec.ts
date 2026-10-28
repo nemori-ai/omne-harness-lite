@@ -351,33 +351,68 @@ describe('ri-notes with the snapshot difference of the installed omne-contract-a
       ])
     },
   )
+  it(
+    'exits 1 from the CLI when the declarations disagree with the difference, 0 when they agree',
+    { tags: ['slow'] },
+    () => {
+      const { f, base, head } = contractTrackFixture()
+      const cardFive = reader('')(['repos/owner/repo/issues/5'], 0)
+      const pullTen = (section: string) => ({
+        number: 10,
+        html_url: 'https://github.com/owner/repo/pull/10',
+        head: { ref: 'human/issue-5-x' },
+        base: { ref: 'integration/runtime' },
+        body: `## 所含的卡\n\n- #5 revision 1 attempt \`5-a1\`：无\n\n## 契约变化\n\n${section}\n`,
+      })
+      const omitted = server(f, {
+        'repos/owner/repo/pulls/10': pullTen('无'),
+        'repos/owner/repo/issues/5': cardFive,
+      })('--track', 'runtime', '--root', f.root)
+      expect(omitted.status, omitted.stderr).toBe(1)
+      expect(JSON.parse(omitted.stdout)).toMatchObject({
+        contractCheck: { kind: 'checked', base, head },
+        findings: expect.arrayContaining([
+          expect.objectContaining({ code: 'contract-diff-mismatch' }),
+        ]),
+      })
+      rmSync(join(f.home, 'responses'), { recursive: true })
+      rmSync(join(f.home, 'ri-bin'), { recursive: true })
+      const agreed = server(f, {
+        'repos/owner/repo/pulls/10': pullTen('- pkg/a：additive'),
+        'repos/owner/repo/issues/5': cardFive,
+      })('--track', 'runtime', '--root', f.root)
+      expect(agreed.status, agreed.stderr).toBe(0)
+    },
+  )
 })
 
-describe('ri-notes CLI', () => {
-  const cli = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.url))
-  function server(f: Fixture, responses: Record<string, unknown>) {
-    const dir = join(f.home, 'responses'),
-      bin = join(f.home, 'ri-bin')
-    mkdirSync(dir)
-    mkdirSync(bin)
-    for (const [endpoint, value] of Object.entries(responses))
-      writeFileSync(join(dir, `${endpoint.replaceAll('/', '_')}.json`), JSON.stringify(value))
-    writeFileSync(
-      join(bin, 'gh'),
-      `#!/usr/bin/env node
+const cli = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.url))
+/** Runs the ri-notes CLI with a `gh` stand-in that serves `responses` by endpoint. */
+function server(f: Fixture, responses: Record<string, unknown>) {
+  const dir = join(f.home, 'responses'),
+    bin = join(f.home, 'ri-bin')
+  mkdirSync(dir)
+  mkdirSync(bin)
+  for (const [endpoint, value] of Object.entries(responses))
+    writeFileSync(join(dir, `${endpoint.replaceAll('/', '_')}.json`), JSON.stringify(value))
+  writeFileSync(
+    join(bin, 'gh'),
+    `#!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs'
 const file = ${JSON.stringify(dir)} + '/' + process.argv.at(-1).replaceAll('/', '_') + '.json'
 if (!existsSync(file)) { process.stdout.write('{"message":"Not Found","status":"404"}'); process.exit(1) }
 process.stdout.write(readFileSync(file, 'utf8'))
 `,
-    )
-    chmodSync(join(bin, 'gh'), 0o755)
-    return (...args: string[]) =>
-      spawnSync(process.execPath, ['--experimental-strip-types', cli, 'ri-notes', ...args], {
-        encoding: 'utf8',
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
-      })
-  }
+  )
+  chmodSync(join(bin, 'gh'), 0o755)
+  return (...args: string[]) =>
+    spawnSync(process.execPath, ['--experimental-strip-types', cli, 'ri-notes', ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+    })
+}
+
+describe('ri-notes CLI', () => {
   const pull = (number: number, head: string, body: string) => ({
     number,
     html_url: `https://github.com/owner/repo/pull/${number}`,
@@ -439,6 +474,29 @@ process.stdout.write(readFileSync(file, 'utf8'))
       },
     })
     expect(run(...args, '--format', 'yaml').status).toBe(2)
+  })
+  it('exits 1 with a refusing contract code and keeps the Markdown output', () => {
+    const { f } = trackFixture()
+    const run = server(f, {
+      'repos/owner/repo/pulls/10': pull(
+        10,
+        'human/issue-5-x',
+        '## 所含的卡\n\n- #5 revision 1 attempt `5-a1`：无\n\n## 契约变化\n\n- feature/api：additive\n',
+      ),
+      'repos/owner/repo/issues/5': card(5),
+    })
+    const args = ['--track', 'runtime', '--root', f.root]
+    const json = run(...args)
+    expect(json.status, json.stderr).toBe(1)
+    const notes = JSON.parse(json.stdout)
+    expect(notes.findings.map((item: { code: string }) => item.code)).toContain(
+      'contract-level-exceeds-card',
+    )
+    const markdown = run(...args, '--format', 'markdown')
+    expect(markdown.status, markdown.stderr).toBe(1)
+    expect(markdown.stdout).toBe(notes.markdown)
+    const summary = JSON.parse(markdown.stderr.trim().split('\n').at(-1) ?? '')
+    expect(summary.summary.codes['contract-level-exceeds-card']).toBe(1)
   })
   it('skips the sections of a sync PR after a promotion', () => {
     const { f } = promotedFixture()

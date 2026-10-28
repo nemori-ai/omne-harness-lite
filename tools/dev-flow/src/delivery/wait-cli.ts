@@ -101,6 +101,7 @@ try {
   const repository = single(values, '--repo') ?? originRepository()
   const result = await waitForEvent({
     file: single(values, '--file') ?? repositoryFile('tmp/github-events/events.jsonl'),
+    repository,
     predicate,
     ...(since === undefined ? {} : { since }),
     ...(seconds === undefined ? {} : { timeoutMs: Math.round(seconds * 1000) }),

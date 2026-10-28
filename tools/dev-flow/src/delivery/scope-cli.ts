@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
-import { IntegrationError } from '../integration/parse.ts'
+import { git } from '../integration/git.ts'
+import { IntegrationError, json } from '../integration/parse.ts'
 import { runGhCommand } from './github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from './lines.ts'
 import { InputError, issueNumberArgument, parseConfig } from './protocol.ts'
 import {
   assignReadSets,
+  classifyReadConflicts,
   parseReadSetFile,
   readOverlap,
   readSets,
+  REGISTERED_READ_PATTERNS,
+  registeredReadPatterns,
+  type ReadBasis,
   type ReadSetFile,
 } from './read-set.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
@@ -52,6 +57,36 @@ function options(args: string[]): {
     includeClosed,
   }
 }
+/**
+ * Reads the registered patterns and the tracked files at `HEAD` of this checkout. `commit` names
+ * the commit that `HEAD` resolved to. A failure gives the reason, and every conflict stops.
+ */
+function readBasis(root: string): { basis: ReadBasis; commit?: string } {
+  try {
+    const commit = git(root, ['rev-parse', '--verify', 'HEAD^{commit}'])
+    const config = git(root, ['show', `${commit}:${REGISTERED_READ_PATTERNS.config}`])
+    return {
+      commit,
+      basis: {
+        registered: registeredReadPatterns(
+          json(config, REGISTERED_READ_PATTERNS.config),
+          REGISTERED_READ_PATTERNS.config,
+        ),
+        tracked: git(root, ['ls-tree', '-r', '-z', '--name-only', commit])
+          .split('\0')
+          .filter(file => file !== ''),
+      },
+    }
+  } catch (error) {
+    return {
+      basis: {
+        unknown: `cannot read ${REGISTERED_READ_PATTERNS.config} or the tracked files at HEAD: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      },
+    }
+  }
+}
 try {
   const args = options(process.argv.slice(2)),
     repository = parseConfig(readJson(args.config)).repository,
@@ -79,8 +114,24 @@ try {
       overlap.cards.map(card => ({ ...card, pages: pages.get(card.source) ?? [] })),
       members,
     ),
-    readConflicts = readOverlap(overlap.cards, sets)
-  const result = { ...overlap, readSets: sets, readConflicts }
+    crossings = readOverlap(overlap.cards, sets),
+    read = crossings.length === 0 ? undefined : readBasis(repositoryFile('')),
+    { stopping: readConflicts, frozen: frozenReadConflicts } = classifyReadConflicts(
+      crossings,
+      read?.basis ?? { registered: [], tracked: [] },
+    )
+  const result = {
+    ...overlap,
+    readSets: sets,
+    readBasis:
+      read === undefined
+        ? null
+        : 'unknown' in read.basis
+          ? { unknown: read.basis.unknown }
+          : { commit: read.commit },
+    readConflicts,
+    frozenReadConflicts,
+  }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
   for (const conflict of result.conflicts)
     process.stderr.write(
@@ -88,7 +139,11 @@ try {
     )
   for (const conflict of readConflicts)
     process.stderr.write(
-      `read-overlap: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
+      `read-overlap: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath} (${conflict.reason})\n`,
+    )
+  for (const conflict of frozenReadConflicts)
+    process.stderr.write(
+      `read-overlap-frozen: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
     )
   if (result.conflicts.length > 0 || readConflicts.length > 0) process.exitCode = 1
 } catch (error) {

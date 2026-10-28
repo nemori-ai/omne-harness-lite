@@ -18,7 +18,12 @@ import {
 } from '../integration/parse.ts'
 import { parsePolicy, type Policy } from '../integration/policy.ts'
 import { collectAdmission, observeAdmission, type AdmissionCapture } from './admission.ts'
-import { attributeFindings, judgeAttributes, readCardAttributes } from './attributes.ts'
+import {
+  attributeFindings,
+  attributeRefusals,
+  judgeAttributes,
+  readCardAttributes,
+} from './attributes.ts'
 import {
   BINDING_MARKERS,
   deliveryRevision,
@@ -123,8 +128,8 @@ export function cardAdmission(
 const POLICY_PATH = 'docs/engineering/integration-policy.json'
 const BINDING_SOURCE = 'tools/dev-flow/src/delivery/binding.ts'
 /**
- * The policy, delivery config and line table committed at the task base, where `start` will
- * read them. Refuses a task base whose dev-flow cannot read a version 2 binding. The task base
+ * The policy, delivery config and line table committed at the task base. `start` reads them
+ * again at the HEAD of the task worktree, which starts at the task base. Refuses a task base whose dev-flow cannot read a version 2 binding. The task base
  * must be a local commit of `root`; fetch it first.
  */
 export function taskBaseInputs(
@@ -282,7 +287,10 @@ export function planDispatch({
     lines,
     registry: policy,
   })
-  if (findings.length > 0) refuse(findings.map(finding => `${finding.code}: ${finding.message}`))
+  // The same refusal rule as `start`. A dispatch binding is v2 and takes the current milestone,
+  // so the report-only findings do not occur here.
+  const refusals = attributeRefusals(findings, line)
+  if (refusals.length > 0) refuse(refusals.map(finding => `${finding.code}: ${finding.message}`))
   return { binding, confirmations }
 }
 
