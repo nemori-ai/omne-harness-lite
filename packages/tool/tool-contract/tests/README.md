@@ -500,4 +500,4 @@
 
 [testing-tenant.spec.ts](testing-tenant.spec.ts) 核对 testingTenant 产生可由 tenantCodec.encode 编码的真实租户，并拒绝非法组织或账户文本。
 
-[credentials-conformance.spec.ts](credentials-conformance.spec.ts) 用同成员违约替身核对凭据套件对各绑定维度和选定失败的检出，不证明真实凭据保管或回调逃逸已解决。
+[credentials-conformance.spec.ts](credentials-conformance.spec.ts) 用同成员违约替身核对凭据套件对各绑定维度、选定失败、能力逃逸（返回与抛错两种出口）、撤销失败被报告成功及错误被包装的检出；每条用例至少有一个违约替身，只有套件的 `AssertionError` 算检出，崩溃不算。不证明真实凭据保管。

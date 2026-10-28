@@ -14,6 +14,7 @@ export {
   type ToolCredentialAccess,
   type ToolCredentialCapability,
   type ToolCredentialReferences,
+  type ToolCredentialResolution,
   type ToolCredentialSecrets,
 } from './credentials.ts'
 export {

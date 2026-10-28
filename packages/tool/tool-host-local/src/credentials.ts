@@ -25,16 +25,31 @@ export interface ToolCredentialReferences<P> {
   >
 }
 
+/**
+ * One resolution of a secret: the stored binding, a capability that is valid until `revoke`, and
+ * `revoke` itself. After `revoke` resolved, the capability must no longer perform its action;
+ * `revoke` rejects when the store could not revoke. Error texts must not carry secret values.
+ */
+export type ToolCredentialResolution<C> = Readonly<{
+  binding: ToolCredentialUsage & { tenant: TenantId }
+  capability: C
+  revoke(): Promise<void> | void
+}>
+
 export interface ToolCredentialSecrets<P, C> {
   /** Return the stored binding, independently of the requested usage. No fallback is permitted. */
   resolve(
     input: ToolCredentialRequest<P> & Readonly<{ reference: string }>,
-  ): CredentialReply<
-    Readonly<{ binding: ToolCredentialUsage & { tenant: TenantId }; capability: C }>
-  >
+  ): CredentialReply<ToolCredentialResolution<C>>
 }
 
-/** A local capability rechecks the original reference immediately before each protected use. */
+/**
+ * A local capability rechecks the original reference immediately before each protected use. The
+ * capability it hands to `action` is valid for that use only: when `action` settled, the use
+ * revokes it, then returns the result or rethrows the unknown error of `action` as it was. A
+ * failed revocation after a successful action rejects with the revocation error; after a failed
+ * action, with an `AggregateError` of `[actionError, revocationError]`.
+ */
 export interface ToolCredentialCapability<C> {
   use<T>(action: (capability: C) => Promise<T>): CredentialReply<T>
 }
@@ -138,10 +153,11 @@ export function createLocalToolCredentials<P, C>(
     return fail({ kind: 'missing' })
   }
 
+  /** Qualifies again, resolves the stored binding and checks it. A mismatch revokes at once. */
   const boundCapability = async (
     input: ToolCredentialRequest<P>,
     reference: string,
-  ): CredentialReply<C> => {
+  ): CredentialReply<ToolCredentialResolution<C>> => {
     const allowed = await qualify(input)
     if ('failure' in allowed) return allowed
     if (ports.secrets === null) return unavailable('tool-credential-secrets')
@@ -152,9 +168,38 @@ export function createLocalToolCredentials<P, C>(
       return unavailable('tool-credential-secrets')
     }
     if ('failure' in secret) return secret
-    if (!tenantEquals(secret.ok.binding.tenant, input.tenant)) return invalid('binding.tenant')
-    if (!sameUsage(secret.ok.binding, input.usage)) return invalid('binding.usage')
-    return succeed(secret.ok.capability)
+    if (typeof secret.ok.revoke !== 'function') return unavailable('tool-credential-secrets')
+    const mismatch = !tenantEquals(secret.ok.binding.tenant, input.tenant)
+      ? invalid('binding.tenant')
+      : !sameUsage(secret.ok.binding, input.usage)
+        ? invalid('binding.usage')
+        : null
+    if (mismatch === null) return succeed(secret.ok)
+    await secret.ok.revoke()
+    return mismatch
+  }
+
+  /** Runs `action` on a capability valid for this use only; see `ToolCredentialCapability`. */
+  const restrictedUse = async <T>(
+    resolution: ToolCredentialResolution<C>,
+    action: (capability: C) => Promise<T>,
+  ): Promise<T> => {
+    let result: T
+    try {
+      result = await action(resolution.capability)
+    } catch (actionError) {
+      try {
+        await resolution.revoke()
+      } catch (revocationError) {
+        throw new AggregateError(
+          [actionError, revocationError],
+          'the restricted action failed and its capability could not be revoked',
+        )
+      }
+      throw actionError
+    }
+    await resolution.revoke()
+    return result
   }
 
   const credentials: ToolCredentials<P, ToolCredentialCapability<C>> = {
@@ -165,13 +210,15 @@ export function createLocalToolCredentials<P, C>(
       if ('failure' in allowed) return allowed
       const reference = await selectedReference(input.ok)
       if ('failure' in reference) return reference
+      // Resolution only proves the binding; the capability it obtained is not handed out.
       const initial = await boundCapability(input.ok, reference.ok)
       if ('failure' in initial) return initial
+      await initial.ok.revoke()
       return succeed(
         Object.freeze({
           async use<T>(action: (capability: C) => Promise<T>): CredentialReply<T> {
             const bound = await boundCapability(input.ok, reference.ok)
-            return 'failure' in bound ? bound : succeed(await action(bound.ok))
+            return 'failure' in bound ? bound : succeed(await restrictedUse(bound.ok, action))
           },
         }),
       )

@@ -6,7 +6,7 @@
 
 宿主在排队等待与查询之后、实际转发之前重核资格和原适配器采用。迟到 allocated 不能恢复已确认释放的条目。冷恢复没有原登记的 allocated/adoption:null 不能作为首次采用事实。尚需清理的 rejected 不返额，EE notAllocated 的原键终局不得映射成可同键重排的 excluded。原获取与清理定位继续由适配器保存；本包没有真实 EE 适配器，不声明生产首次采用映射或耐久恢复已完成。
 
-`createLocalToolCredentials` 返回 `ToolCredentials`。构造依赖分别核当前调用资格、读取固定设置采用的分层引用、解析所选引用的实际绑定。成功能力的 `use` 在执行回调前重核资格并重新读取同一引用。引用、用途、目标与原请求在解析时固定，秘密和实际能力不进入记录或日志。工厂见 [credentials.ts](../src/credentials.ts)，端口依据见 [第三方凭据](../../tool-contract/SPEC.md#第三方凭据端口)。真实秘密保管提供者尚未交付。
+`createLocalToolCredentials` 返回 `ToolCredentials`。构造依赖分别核当前调用资格、读取固定设置采用的分层引用、解析所选引用的实际绑定（`ToolCredentialResolution`：绑定、能力与撤销句柄）。成功能力的 `use` 在执行回调前重核资格并重新读取同一引用，回调结束后撤销本次能力，再返回或原样重抛；撤销失败不报告成功。引用、用途、目标与原请求在解析时固定，秘密和实际能力不进入记录或日志。工厂见 [credentials.ts](../src/credentials.ts)，端口依据见 [第三方凭据](../../tool-contract/SPEC.md#第三方凭据端口)。真实秘密保管提供者尚未交付。
 
 根入口 `.` 由 [src/index.ts](../src/index.ts) 定义，源码是唯一定义，本页不手写签名。
 

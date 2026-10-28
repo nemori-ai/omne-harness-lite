@@ -334,6 +334,8 @@
 - `MemoryToolStartAuthority` · `testing-start-authority.d.ts`
 - `NotApplicable` · `testing-case.d.ts`
 - `ToolClockFixture` · `testing-clock.d.ts`
+- `ToolCredentialEscape` · `testing-credentials.d.ts`
+- `ToolCredentialEscapeExit` · `testing-credentials.d.ts`
 - `ToolCredentialsFixture` · `testing-credentials.d.ts`
 - `ToolDecisionBridgeFixture` · `testing-decision-bridge.d.ts`
 - `ToolEnvironmentAllocationFixture` · `testing-environment-allocation.d.ts`
@@ -3529,6 +3531,16 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { ToolCredentialFailure, ToolCredentialRequest, ToolCredentials, ToolCredentialUsage } from './credentials.ts';
 import { type ConformanceCase } from './testing-case.ts';
+export type ToolCredentialEscapeExit = Readonly<{
+    kind: 'return';
+}> | Readonly<{
+    kind: 'throw';
+    error: Error;
+}>;
+export type ToolCredentialEscape = Readonly<{
+    ended: unknown;
+    retry(): Promise<void>;
+}>;
 export interface ToolCredentialsFixture<P, C> {
     credentials: ToolCredentials<P, C>;
     request: ToolCredentialRequest<P>;
@@ -3540,6 +3552,8 @@ export interface ToolCredentialsFixture<P, C> {
     sourcesRead(): readonly string[];
     use(capability: C): Promise<Outcome<unknown, ToolCredentialFailure>>;
     uses(): number;
+    escape(capability: C, exit: ToolCredentialEscapeExit): Promise<ToolCredentialEscape>;
+    failRevocation(): Error;
 }
 export declare function toolCredentialsConformance<P, C>(): readonly ConformanceCase<ToolCredentialsFixture<P, C>>[];
 ```
@@ -4236,7 +4250,7 @@ export { createMemoryAuthorizedToolStartAuthority, type MemoryAuthorizedToolStar
 export { memoryToolStartFenceFixture, toolStartFenceConformance, type ToolStartFenceFixture, } from './testing-start-fence.ts';
 export { memoryToolStartAuthorizationFixture, toolStartAuthorizationConformance, type ToolStartAuthorizationFixture, } from './testing-start-authorization.ts';
 export { createMemoryToolResultReceiver, memoryToolResultReceiverFixture, toolResultReceiverConformance, type MemoryToolResultReceiver, type ToolResultReceiverFixture, } from './testing-result-receiver.ts';
-export { toolCredentialsConformance, type ToolCredentialsFixture } from './testing-credentials.ts';
+export { toolCredentialsConformance, type ToolCredentialEscape, type ToolCredentialEscapeExit, type ToolCredentialsFixture, } from './testing-credentials.ts';
 export { createMemoryToolEnvironment, environmentAnswers, memoryToolEnvironmentFixture, toolEnvironmentConformance, type MemoryEnvironment, type MemoryToolEnvironment, type ToolEnvironmentFixture, } from './testing-environment.ts';
 export { completedFinal, createMemoryToolExecutorBinding, executorBindingAnswers, memoryToolExecutorBindingFixture, toolExecutorBindingConformance, type MemoryToolExecutorBinding, type ToolExecutorBindingFixture, } from './testing-executor-binding.ts';
 export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCustodyAnswers, toolOutputCustodyConformance, type MemoryToolOutputCustody, type ToolOutputCustodyFixture, } from './testing-output-custody.ts';
