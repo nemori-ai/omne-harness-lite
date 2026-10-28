@@ -130,8 +130,19 @@ function fixture(twoLines = false) {
         base: { ref: 'integration/legacy-refactor', repo: { full_name: context.repo } },
         state: candidate.closed ? 'closed' : 'open',
         merged: candidate.merged,
-        merge_commit_sha: candidate.merged ? candidate.merge : null,
       }
+    if (path.endsWith('/issues/12/events?per_page=100&page=1'))
+      return candidate.merged
+        ? [
+            {
+              id: 1001,
+              event: 'merged',
+              url: 'https://api.github.com/repos/owner/repo/issues/events/1001',
+              commit_id: candidate.merge,
+              commit_url: `https://api.github.com/repos/owner/repo/commits/${candidate.merge}`,
+            },
+          ]
+        : []
     if (path.includes('/git/ref/heads/'))
       return { ref: 'refs/heads/integration/legacy-refactor', object: { sha: candidate.target } }
     if (path.includes('/compare/')) return { status: candidate.reachable ? 'ahead' : 'diverged' }

@@ -420,6 +420,8 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 `reduce-bootstrap.ts` 从版本 3 安装取得 gate workflow SHA，并复用当前 authority、接受来源和验证报告 reader。整波报告检查前后均从受信派发 route 和 policy 派生目标轨道，读回精确 ref、commit 类型及 finalHead。报告期间授权变化或轨道移动均拒绝。此检查不授予写权、接受或部署审批。
 
+候选读取采用 REST `2026-03-10`。该版本已删除 PR 响应中的 `merge_commit_sha`。未合入候选的 mergeCommit 为 null，不使用 GitHub 的试合并提交。PR 已合入时，完整读取该 PR 的 Issue events，要求唯一的 `merged` 事件，并核对事件 URL、commit_id 及同仓库 commit_url。缺失、冲突、重复页或读取失败均拒绝。此事件仍须与精确 gate 成功、PR 已合入及提交在目标轨道可达的事实一起核对，不能单独证明交付接受。来源见 [GitHub 版本变更](https://docs.github.com/en/rest/about-the-rest-api/breaking-changes)和[Issue event 类型](https://docs.github.com/en/rest/using-the-rest-api/issue-event-types#merged)。
+
 恢复已接受且已关闭的原 release 时，先通过共享 reader 核对原接受、完整 release、delta 和关闭事实，并确认原操作字节相同，然后返回原回执。后续波推进轨道不使旧完成结果失效。该恢复不重做发布前就绪检查，不重发或重新关闭。未发布、未关闭、记录冲突或重开的波不走此完成路径。
 
 `reduce-supervision-input.ts` 将活动对象解析为已有 RequestInput、RequestStateRecord、WorkflowEvidence 和 ReleaseRecord。输入不接受轮询周期或采用 gate SHA 覆盖。阶段 VERIFY_WAVE、RELEASE_WAVE 和 FINALIZE 必须提供显式收口目标。未知后继不能从缺省 release 推断为终态。

@@ -1,9 +1,37 @@
-import { object, same, string } from '../integration/parse.ts'
+import { array, integer, object, same, string } from '../integration/parse.ts'
 import { readGateRun } from '../integration/gate-correlation.ts'
 import type { RequestInput, RequestStateRecord } from './collaboration-records.ts'
 import { fullSha } from './collaboration-values.ts'
 import { REST_HEADERS, type GhRead } from './github-read.ts'
 import { InputError } from './protocol.ts'
+
+/** API 2026-03-10 omits merge_commit_sha; only a merged event identifies the actual merge. */
+function readMergedCommit(get: (path: string) => unknown, repo: string, pull: number): string {
+  const ids = new Set<number>()
+  let commit: string | undefined
+  for (let page = 1; ; page++) {
+    const events = array(get(`issues/${pull}/events?per_page=100&page=${page}`), 'merge events')
+    if (events.length > 100) throw new InputError('reduce-merge-events-page-invalid')
+    for (const raw of events) {
+      const event = object(raw, 'merge event')
+      const id = integer(event.id, 'event.id')
+      if (ids.has(id)) throw new InputError('reduce-merge-events-duplicate')
+      ids.add(id)
+      if (event.event !== 'merged') continue
+      if (commit !== undefined) throw new InputError('reduce-merge-event-conflict')
+      const sha = fullSha(event.commit_id, 'merged event.commit_id')
+      if (
+        event.url !== `https://api.github.com/repos/${repo}/issues/events/${id}` ||
+        event.commit_url !== `https://api.github.com/repos/${repo}/commits/${sha}`
+      )
+        throw new InputError('reduce-merge-event-identity')
+      commit = sha
+    }
+    if (events.length < 100) break
+  }
+  if (commit === undefined) throw new InputError('reduce-merge-event-missing')
+  return commit
+}
 
 export function readCandidateFacts(read: GhRead, request: RequestInput) {
   if (request.pull === null) throw new InputError('reduce-pull-required')
@@ -34,9 +62,9 @@ export function readCandidateFacts(read: GhRead, request: RequestInput) {
     merged: pull.merged === true,
     state: string(pull.state, 'pull.state'),
     mergeCommit:
-      pull.merge_commit_sha === null
-        ? null
-        : fullSha(pull.merge_commit_sha, 'pull.merge_commit_sha'),
+      pull.merged === true
+        ? readMergedCommit(get, request.context.repo, request.pull.number)
+        : null,
   }
 }
 
