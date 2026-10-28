@@ -19,3 +19,5 @@
 - 取一个面来用：[context.md](context.md)，再读 [public-api.md](public-api.md)。
 - 实现机制或提供者：[../SPEC.md](../SPEC.md)，再读 [object-model/README.md](object-model/README.md) 与 [flows/README.md](flows/README.md)。
 - 修改本成员：[architecture.md](architecture.md)、[public-api.md](public-api.md)，再读 SPEC 的[候选的持续验证义务](../SPEC.md#候选的持续验证义务)。
+
+- [same-log-pure.md](same-log-pure.md)：同日志原历史、登记与控制引用的纯层支持及提供者义务

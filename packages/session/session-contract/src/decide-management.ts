@@ -59,6 +59,7 @@ export function decideControl(
     intent,
     state: unarchive ? 'reconciled' : 'propagating',
     pending: scope.producers,
+    pendingUnassociatedWaiting: scope.unassociatedWaiting ?? [],
   }
   const out: EncodedEntry[] = [
     encodeEntry({ kind: 'control.requested', progress }, originOf(source)),

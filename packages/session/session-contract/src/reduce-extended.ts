@@ -1,9 +1,16 @@
 import type { SessionEntry } from './entries.ts'
 import type { WorkSnapshot } from './values.ts'
 import type { DurableEvidence } from './identity.ts'
-import { digestOf } from './operations.ts'
-import { bindingRun } from './result-state.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
+import { requestControl, validateControlProgress } from './control-state.ts'
+import {
+  decimal,
+  evidenceFields,
+  equalValue,
+  invalidAt,
+  unavailableAt,
+} from './session-validation.ts'
+import { associated, registerCall, registeredWaiting } from './call-state.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 export function applyExtended(
@@ -95,7 +102,23 @@ export function applyExtended(
       const old = draft.executions?.find(item => item.run === entry.run)
       if (old === undefined || old.execution.execution !== entry.execution.execution)
         return 'missing historical execution binding'
-      if (BigInt(entry.execution.readThrough) < BigInt(old.execution.readThrough))
+      evidenceFields(entry.execution.evidence, 'execution.evidence')
+      const revision = decimal(entry.execution.revision, 'execution.revision')
+      if (
+        old.execution.revision !== null &&
+        revision < decimal(old.execution.revision, 'execution.revision')
+      )
+        return 'execution head moved backwards'
+      if (
+        old.execution.revision === entry.execution.revision &&
+        old.execution.evidence !== null &&
+        !equalValue(old.execution.evidence, entry.execution.evidence)
+      )
+        return 'execution head receipt changed'
+      if (
+        decimal(entry.execution.readThrough, 'execution.readThrough') <
+        BigInt(old.execution.readThrough)
+      )
         return 'execution read progress moved backwards'
       draft.executions = (draft.executions ?? []).map(item =>
         item.run === entry.run ? { ...item, execution: entry.execution } : item,
@@ -105,34 +128,24 @@ export function applyExtended(
       return null
     }
     case 'run.batch-taken':
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
-        return 'input batch outside active Run'
-      if (
-        entry.batch.ordered.some(
-          input => !draft.pending.includes(input) || !draft.handed.includes(input),
-        )
-      )
-        return 'taken input was not pending and handed'
+      if (draft.run.kind !== 'active' || draft.run.run !== entry.run) {
+        draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
+        return null
+      }
       draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
       draft.handed = draft.handed.filter(input => !entry.batch.ordered.includes(input))
       draft.taken = [...(draft.taken ?? []), ...entry.batch.ordered]
       return null
     case 'call.bound': {
-      const prior = draft.consumptions.find(item => item.id === entry.consumption)
-      if (prior !== undefined)
-        return digestOf(prior.binding) === digestOf(entry.binding)
-          ? null
-          : 'consumption binding changed'
-      draft.consumptions = [
-        ...draft.consumptions,
-        { id: entry.consumption, binding: entry.binding, results: [] },
-      ]
-      if (
-        entry.binding.producer.kind === 'model' &&
-        draft.run.kind === 'active' &&
-        bindingRun(draft, entry.binding) === draft.run.run
+      if ('binding' in entry && entry.reference !== entry.binding.producer.call)
+        invalidAt('reference', 'does not match original binding')
+      registerCall(
+        draft,
+        entry.consumption,
+        'registration' in entry ? entry.registration : associated(entry.binding, entry.purpose),
+        source,
+        'association' in entry ? entry.association : null,
       )
-        draft.taken = []
       return null
     }
     case 'call.result-preserved':
@@ -142,14 +155,33 @@ export function applyExtended(
     case 'account.linked':
       return applyProducerFact(draft, entry)
     case 'extension.passage':
-      if (draft.run.kind === 'active' && draft.run.run === entry.run) draft.waiting = entry.waiting
+      if ('calls' in entry) registeredWaiting(draft, entry.run, entry.calls, entry.other)
+      else {
+        const calls = entry.waiting.flatMap(wait => {
+          if (wait.kind !== 'producer') return []
+          const record = draft.callRegistrations?.find(
+            item =>
+              item.registration.kind === 'associated' &&
+              equalValue(item.registration.binding, wait.binding),
+          )
+          if (record === undefined) unavailableAt('waiting.registration')
+          return [{ consumption: record.consumption, position: wait.position }]
+        })
+        registeredWaiting(
+          draft,
+          entry.run,
+          calls,
+          entry.waiting.filter(item => item.kind !== 'producer'),
+        )
+      }
       return null
     case 'control.requested':
-      draft.controls = [...draft.controls, entry.progress]
+      requestControl(draft, entry.progress)
       return null
     case 'control.progress': {
       if (entry.progress !== null) {
         const progress = entry.progress
+        validateControlProgress(draft, progress)
         draft.controls = draft.controls.map(item =>
           item.operation === progress.operation ? progress : item,
         )
@@ -192,6 +224,7 @@ export function applyExtended(
       draft.pending = []
       draft.handed = []
       draft.waiting = []
+      draft.callWaits = []
       draft.taken = []
       draft.tasks = [...draft.tasks.filter(task => task.kind !== 'routed-input'), ...entry.tasks]
       const existing = draft.contextScopes ?? []

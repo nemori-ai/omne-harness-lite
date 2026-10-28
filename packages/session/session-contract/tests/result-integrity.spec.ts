@@ -48,7 +48,7 @@ async function callScene(external = false) {
     : id
   if (!external)
     succeeded(
-      await s.port.controls.project(
+      await s.project(
         {
           ...s.base,
           run: run.run,
@@ -57,7 +57,15 @@ async function callScene(external = false) {
           sequence: '1',
           source: evidence('call'),
           consequences: [
-            { kind: 'call', consumption, binding },
+            {
+              kind: 'call-registration',
+              consumption,
+              registration: {
+                kind: 'associated',
+                binding: { ...binding, producer: { kind: 'tool', call: binding.producer.call } },
+                purpose: 'action',
+              },
+            },
             {
               kind: 'waiting',
               waiting: [{ kind: 'producer', binding, position: binding.consumer.position }],
@@ -658,7 +666,7 @@ describe('historical calls and archived context', () => {
       'handover',
     )
     succeeded(
-      await s.port.controls.project(
+      await s.project(
         {
           ...s.base,
           run: run.run,
@@ -684,7 +692,7 @@ describe('historical calls and archived context', () => {
     const successor = (await s.read()).run
     const model: CallBinding = { ...s.binding, producer: { kind: 'model', call: 'old-model' } }
     succeeded(
-      await s.port.controls.project(
+      await s.project(
         {
           ...s.base,
           run: s.run.run,
@@ -693,7 +701,15 @@ describe('historical calls and archived context', () => {
           sequence: '2',
           source: evidence('late-call'),
           consequences: [
-            { kind: 'call', consumption: 'old-model' as ConsumptionId, binding: model },
+            {
+              kind: 'call-registration',
+              consumption: 'old-model' as ConsumptionId,
+              registration: {
+                kind: 'associated',
+                binding: { ...model, producer: { kind: 'model', call: model.producer.call } },
+                purpose: 'main',
+              },
+            },
           ],
         },
         operationId('late-call'),
@@ -703,7 +719,7 @@ describe('historical calls and archived context', () => {
     expect((await s.read()).taken).toEqual([run.first])
     expect((await s.read()).run).toEqual(successor)
     succeeded(
-      await s.port.controls.project(
+      await s.project(
         {
           ...s.base,
           run: run.run,
@@ -713,12 +729,16 @@ describe('historical calls and archived context', () => {
           source: evidence('current-call'),
           consequences: [
             {
-              kind: 'call',
+              kind: 'call-registration',
               consumption: 'current-model' as ConsumptionId,
-              binding: {
-                ...model,
-                producer: { kind: 'model', call: 'current-model' },
-                initiatingAttempt: run.advance?.attempt ?? null,
+              registration: {
+                kind: 'associated',
+                purpose: 'main',
+                binding: {
+                  ...model,
+                  producer: { kind: 'model', call: 'current-model' },
+                  initiatingAttempt: run.advance?.attempt ?? null,
+                },
               },
             },
           ],

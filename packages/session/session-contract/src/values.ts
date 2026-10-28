@@ -1,8 +1,11 @@
+import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 // The values of the work snapshot and the fixed inputs of the commands (SPEC「值与结果项的约束」).
 // Session keeps no continuation value: `ExecutionRef` points at the Agent's authoritative record.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
+import type { SessionHistoryIndex } from './history-values.ts'
+import type { SessionCallRecord, SessionCallWait } from './call-values.ts'
 import type {
   Adoption,
   AdvanceRef,
@@ -154,6 +157,7 @@ export type ControlProgress = Readonly<{
   intent: ControlIntent
   state: 'committed' | 'propagating' | 'reconciled'
   pending: readonly ProducerRef[]
+  pendingUnassociatedWaiting?: readonly SessionCallWait[]
 }>
 export type ScopeReleaseDisposition =
   | 'released'
@@ -335,6 +339,7 @@ export type AutoArchivePolicy =
 export type FreezeVerdict = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence }>
 
 export type WorkSnapshot = Readonly<{
+  workEntryIndex?: SessionWorkEntryIndex
   session: SessionId
   tenant: TenantId
   revision: SessionRevision
@@ -370,6 +375,9 @@ export type WorkSnapshot = Readonly<{
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
   changes?: readonly DeclarationChange[]
   initialization?: InitializationState
+  historyIndex?: SessionHistoryIndex
+  callRegistrations?: readonly SessionCallRecord[]
+  callWaits?: readonly SessionCallWait[]
 }>
 
 /** Optional adoption material: omission preserves the existing resident keys and adds no definitions. */

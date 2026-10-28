@@ -28,6 +28,7 @@ Three members of the group list this package as a dependency: session, session-c
 
 Initialization now supports optional registration, workspace-load and execution-adoption sources, trusted initial adoption guards, atomic result facts and original-receipt recovery. The current interpreter supports its exact revision 3 adoption. See [initialization wiring and release digests](docs/initialization.md). Real adoption providers, loaders and Context replay remain outside this in-memory proof.
 
+The same-log pure layer validates original history, complete release batches, call registration, and control reference retention. Its explicit history fixture is non-durable. See [pure-layer support and provider obligations](docs/same-log-pure.md).
 
 ## Usage
 

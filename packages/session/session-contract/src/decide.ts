@@ -1,3 +1,8 @@
+import { requiredWorkEntries } from './work-entry-state.ts'
+import { decodeEntry } from './entries.ts'
+import { validateFrontierBatch } from './frontier-state.ts'
+import { SessionValidationFailure } from './session-validation.ts'
+import { CallConflict } from './call-state.ts'
 import type {
   AttemptId,
   DurableEvidence,
@@ -656,6 +661,12 @@ function decideDerived(
         owner: 'session-history',
         diagnostic: 'compaction transaction reads are missing',
       })
+    if (
+      requiredWorkEntries(snapshot).some(
+        ref => !reads.compaction?.open.some(entry => String(entry) === ref),
+      )
+    )
+      return invalid('reads.compaction.open', 'missing original unclosed work reference')
     const compact = judgeCompaction(input.value.message, reads.compaction)
     if ('rejected' in compact) return invalid('value.message', compact.rejected)
     return entries([
@@ -731,7 +742,7 @@ export function commandDigest(command: SessionCommand): string {
  * Runs the domain services for one command and encodes the batch. `previous` is null only for
  * `create`. `reads` supplies transaction-bound compaction and management observations.
  */
-export function decide(
+function decideCommand(
   previous: WorkSnapshot | null,
   command: SessionCommand,
   guards: readonly GuardCommand[],
@@ -840,5 +851,31 @@ export function decide(
       const exhaustive: never = command
       return exhaustive
     }
+  }
+}
+
+export function decide(
+  previous: WorkSnapshot | null,
+  command: SessionCommand,
+  guards: readonly GuardCommand[],
+  record: OperationRecord | null,
+  reads: DecideReads,
+): Decision {
+  try {
+    const decision = decideCommand(previous, command, guards, record, reads)
+    if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {
+      const decoded = decision.entries.map(row => {
+        const value = decodeEntry(row)
+        if (!('ok' in value)) throw new Error('invalid locally encoded entry')
+        return value.ok
+      })
+      validateFrontierBatch(previous, decoded, reads.history)
+    }
+    return decision
+  } catch (error) {
+    if (error instanceof SessionValidationFailure) return rejected(error.failure)
+    if (error instanceof CallConflict)
+      return rejected({ kind: 'conflict', operation: command.input.operation })
+    throw error
   }
 }

@@ -1,23 +1,15 @@
-import type { AttemptId, RunId } from './identity.ts'
+import { evidenceFields, nonempty } from './session-validation.ts'
+import type { RunId } from './identity.ts'
 import type { CallBinding, Participation, WorkSnapshot } from './values.ts'
 import { completeEvidence } from './decision-support.ts'
+import { originalAttempt } from './history-validation.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 
-export function attemptBelongsToRun(attempt: AttemptId | null, run: RunId): boolean {
-  if (attempt === null || !attempt.startsWith(`${run}#`)) return false
-  return /^[1-9]\d*$/u.test(attempt.slice(run.length + 1))
-}
-
 export function bindingRun(snapshot: WorkSnapshot, binding: CallBinding): RunId | null {
-  const historical = snapshot.executions?.find(item =>
-    attemptBelongsToRun(binding.initiatingAttempt, item.run),
-  )
-  if (historical !== undefined) return historical.run
-  return snapshot.run.kind === 'active' &&
-    attemptBelongsToRun(binding.initiatingAttempt, snapshot.run.run)
-    ? snapshot.run.run
-    : null
+  return binding.initiatingAttempt === null
+    ? null
+    : originalAttempt(snapshot, binding.initiatingAttempt)
 }
 
 export function resultParticipationError(
@@ -42,7 +34,10 @@ export function resultParticipationError(
 }
 
 export function applyParticipation(draft: Draft, participation: Participation): string | null {
-  if (!/^\d+$/u.test(participation.written)) return 'invalid participation revision'
+  if (typeof participation.written !== 'string' || !/^(0|[1-9]\d*)$/u.test(participation.written))
+    return 'invalid participation revision'
+  nonempty(participation.operation, 'participation.operation')
+  evidenceFields(participation.handover, 'participation.handover')
   const historical = draft.executions?.find(
     item => item.execution.execution === participation.execution,
   )?.execution

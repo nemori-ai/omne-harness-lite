@@ -55,6 +55,7 @@ import type {
   InitializationRegistration,
 } from './values.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
+import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 
 /**
  * The interpreter of this member: the adoption that every snapshot and entry schema names.
@@ -198,6 +199,12 @@ export type SessionEntry =
   | Readonly<{
       kind: 'call.bound'
       consumption: ConsumptionId
+      registration: SessionCallRegistration
+      association: DurableEvidence | null
+    }>
+  | Readonly<{
+      kind: 'call.bound'
+      consumption: ConsumptionId
       binding: CallBinding
       reference: string
       purpose: 'main' | 'action'
@@ -224,6 +231,12 @@ export type SessionEntry =
       position: string | null
     }>
   | Readonly<{ kind: 'extension.passage'; run: RunId; waiting: readonly Waiting[] }>
+  | Readonly<{
+      kind: 'extension.passage'
+      run: RunId
+      calls: readonly SessionCallWait[]
+      other: readonly Exclude<Waiting, { kind: 'producer' }>[]
+    }>
   | Readonly<{ kind: 'control.requested'; progress: ControlProgress }>
   | Readonly<{
       kind: 'control.progress'
@@ -291,7 +304,13 @@ export function encodeEntry(entry: SessionEntry, origin: HistoryEntry['origin'])
     plain['tenant'] = tenantText(entry.tenant)
     plain['creation'] = { ...entry.creation, workspace: workspaceText(entry.creation.workspace) }
   }
-  if (kind === 'call.bound') plain['kind'] = entry.binding.producer.kind
+  if (kind === 'call.bound')
+    plain['kind'] =
+      'registration' in entry
+        ? entry.registration.kind === 'tool-intent'
+          ? 'tool'
+          : entry.registration.binding.producer.kind
+        : entry.binding.producer.kind
   if (kind === 'session.workspace-changed') plain['workspace'] = workspaceText(entry.workspace)
   return { kind, schema: SESSION_INTERPRETER, payload: toJsonValue(plain), origin }
 }

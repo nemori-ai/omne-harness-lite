@@ -33,3 +33,8 @@
 - [providers-conformance.spec.ts](providers-conformance.spec.ts)：八类提供者套件自证与违例控制。
 
 - [result-integrity.spec.ts](result-integrity.spec.ts)：原执行与位置、结果依据不变、迟到保管、后继隔离及归档提醒。
+
+同日志纯层的根、历史承接、完整 SE38、未关联控制与压缩引用用例见 [frontier-behavior.spec.ts](frontier-behavior.spec.ts) 和 [work-entry-behavior.spec.ts](work-entry-behavior.spec.ts)。这些用例使用显式内存原材料，不证明真实 Agent 归一、共同日志 CAS 或完整组合。
+
+- [same-log-integrity.spec.ts](same-log-integrity.spec.ts)：原 Run 与 attempt、完整解释批次、空事件对账及迟到认回。
+- [history-source-isolation.spec.ts](history-source-isolation.spec.ts)：显式租户与 Session 作用域、同文本身份及独立材料根。

@@ -1,3 +1,5 @@
+import { requiredWorkEntries } from './work-entry-state.ts'
+import { SessionValidationFailure } from './session-validation.ts'
 import {
   parseRecordEntryRef,
   type CompactionContext,
@@ -102,11 +104,20 @@ export function compactionReads(
       )
     return [{ result: row.ref, call: before?.ref ?? null }]
   })
+  let required: readonly string[]
+  try {
+    required = requiredWorkEntries(snapshot)
+  } catch (error) {
+    if (error instanceof SessionValidationFailure) return null
+    throw error
+  }
+  if (required.some(ref => !entries.some(entry => entry.id === ref))) return null
   const open = entries.flatMap((entry, index) => {
     const decoded = decodeEntry(entry)
     if (!('ok' in decoded)) return []
     const value = decoded.ok
     const relevant =
+      required.includes(entry.id) ||
       (value.kind === 'intake.routed' &&
         'input' in value &&
         (snapshot.pending.includes(value.input) || (snapshot.taken ?? []).includes(value.input))) ||
@@ -134,6 +145,6 @@ export function compactionReads(
         : { kind: 'previous', record: previous.ref, pairings },
     covered: window,
     after,
-    open,
+    open: [...new Set(open)],
   }
 }

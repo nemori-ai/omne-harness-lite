@@ -105,3 +105,5 @@ acceptance/               模板占位，fixtures/ 同
 ```
 
 每个目录的 README.md 说明职责，index.md 负责导航。除 `docs/` 外，这些文件仍是模板占位，没有写本包事实。阅读路径见 [index.md](index.md)。
+
+同日志纯层已实现原历史、完整解除批次、调用登记和控制引用校验。显式历史夹具不提供耐久保证。覆盖与提供者交接见[同日志纯层](docs/same-log-pure.md)。

@@ -1,3 +1,14 @@
+import { projectWorkEntries, requiredWorkEntries, unsettled } from './work-entry-state.ts'
+import type { SessionHistoryReads } from './history-values.ts'
+import { validateReplayHistory, validateInterpretationEntry } from './frontier-state.ts'
+import {
+  SessionValidationFailure,
+  decimal,
+  nonempty,
+  unique,
+  invalidAt,
+} from './session-validation.ts'
+import { CallConflict } from './call-state.ts'
 // The pure batch reduction (SPEC SL12, SL13, SL18; docs/object-model「纯批次归约算法」). It
 // interprets committed entries only, in batch order, and publishes no partial state: an unknown
 // kind, a missing origin or a contradiction quarantines the session.
@@ -120,7 +131,10 @@ function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): stri
       if (draft.run.kind !== 'active' || draft.run.run !== entry.run)
         return 'an attempt started outside the active Run'
       if (draft.run.advance !== null) return 'an attempt started while one holds the advance'
-      if (Number(entry.ordinal) !== Number(draft.run.ordinal) + 1)
+      if (
+        decimal(entry.ordinal, 'attempt.ordinal') !==
+        decimal(draft.run.ordinal, 'attempt.ordinal') + 1n
+      )
         return `attempt ordinal ${entry.ordinal} does not follow ${draft.run.ordinal}`
       draft.run = {
         ...draft.run,
@@ -150,6 +164,7 @@ function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): stri
       draft.handed = []
       draft.taken = []
       draft.waiting = []
+      draft.callWaits = []
       return null
     }
     default:
@@ -184,6 +199,9 @@ function created(
     handed: [],
     waiting: [],
     consumptions: [],
+    callRegistrations: [],
+    callWaits: [],
+    workEntryIndex: { calls: [], controls: [] },
     controls: [],
     unresolved: [],
     creation: entry.creation,
@@ -220,7 +238,11 @@ function created(
  * batch that does not follow the previous revision, an unknown kind or a contradiction gives
  * `quarantined` and no partial state.
  */
-export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): ReduceResult {
+function reduceBatch(
+  previous: WorkSnapshot | null,
+  batch: CommittedBatch,
+  reads?: SessionHistoryReads,
+): ReduceResult {
   if (batch.entries.length === 0) return quarantined(`batch ${batch.revision} has no entries`)
   try {
     for (const row of batch.entries) adoption(row.schema)
@@ -246,8 +268,37 @@ export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): Re
     return sameInitializationValue(previous.source, batchEvidence(batch, previous.session))
       ? { kind: 'reduced', snapshot: previous }
       : quarantined('the repeated batch contradicts the committed snapshot')
-  if (previous !== null && Number(batch.revision) !== Number(previous.revision) + 1)
+  if (
+    previous !== null &&
+    decimal(batch.revision, 'batch.revision') !==
+      decimal(previous.revision, 'snapshot.revision') + 1n
+  )
     return quarantined(`batch ${batch.revision} does not follow revision ${previous.revision}`)
+  unique(batch.entries, entry => entry.id, 'batch.entries.id')
+  const priorReferences =
+    previous?.workEntryIndex === undefined
+      ? []
+      : [
+          ...previous.workEntryIndex.calls.flatMap(call => [
+            call.registered,
+            ...(call.association === null ? [] : [call.association]),
+            ...call.waits.map(wait => wait.entry),
+          ]),
+          ...previous.workEntryIndex.controls.flatMap(control => [
+            control.intent,
+            ...(control.progress === null ? [] : [control.progress]),
+            ...control.selected.flatMap(item => [
+              item.registered,
+              item.waiting,
+              ...(item.association === null ? [] : [item.association]),
+            ]),
+          ]),
+        ]
+  for (const row of batch.entries) {
+    nonempty(row.id, 'entry.id')
+    if (priorReferences.includes(row.id))
+      invalidAt('entry.id', 'reused an original Session entry identity')
+  }
   if (batch.entries.some(entry => entry.revision !== batch.revision))
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
   let draft: Draft | null = previous === null ? null : { ...previous }
@@ -258,6 +309,10 @@ export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): Re
     if ('malformed' in decoded) return quarantined(decoded.malformed)
     decodedEntries.push(decoded.ok)
   }
+  const interpretationRuns =
+    previous === null
+      ? undefined
+      : validateReplayHistory(previous, decodedEntries, batch.entries, reads)
   const initializationDiagnostic = validateInitializationBatch(previous, batch, decodedEntries)
   if (initializationDiagnostic !== null) return quarantined(initializationDiagnostic)
   for (const [index, row] of batch.entries.entries()) {
@@ -269,14 +324,54 @@ export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): Re
       draft = created(entry, batch, row.origin.source, SESSION_INTERPRETER)
       continue
     }
-    const diagnostic = apply(draft, entry, row.origin.source)
+    const source =
+      entry.kind === 'call.bound'
+        ? {
+            owner: '@omne-harness/session-contract',
+            record: row.id,
+            revision: row.revision,
+            digest: `sha256:${digestOf(row)}`,
+          }
+        : row.origin.source
+    const before = { ...draft }
+    validateInterpretationEntry(draft, entry, interpretationRuns?.get(row.id))
+    const diagnostic = apply(draft, entry, source)
     if (diagnostic !== null) return quarantined(`${row.kind} at ${row.id}: ${diagnostic}`)
+    const workEntryIndex = projectWorkEntries(before, draft, entry, row)
+    if (workEntryIndex !== undefined) draft.workEntryIndex = workEntryIndex
+    requiredWorkEntries(draft)
     const initialization = initializationProjection(draft, entry, row, batch)
     if (initialization !== undefined) draft.initialization = initialization
   }
   if (draft === null) return quarantined('the batch created nothing')
+  if (draft.workEntryIndex !== undefined)
+    draft.workEntryIndex = {
+      ...draft.workEntryIndex,
+      controls: draft.workEntryIndex.controls.filter(item =>
+        draft.controls.some(control => control.operation === item.operation && unsettled(control)),
+      ),
+    }
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)
   return { kind: 'reduced', snapshot: draft }
+}
+
+export function reduce(
+  previous: WorkSnapshot | null,
+  batch: CommittedBatch,
+  reads?: SessionHistoryReads,
+): ReduceResult {
+  try {
+    return reduceBatch(previous, batch, reads)
+  } catch (error) {
+    if (
+      error instanceof SessionValidationFailure ||
+      error instanceof CallConflict ||
+      error instanceof TypeError ||
+      error instanceof RangeError
+    )
+      return quarantined(`malformed or inconsistent Session batch: ${error.message}`)
+    throw error
+  }
 }

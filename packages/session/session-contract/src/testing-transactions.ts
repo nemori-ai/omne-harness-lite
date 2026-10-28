@@ -1,3 +1,8 @@
+import {
+  createMemorySessionHistorySource,
+  type MemorySessionHistorySource,
+} from './testing-history-source.ts'
+import type { SessionInputScope } from './history-values.ts'
 // The SessionTransactionPort conformance suite and a non-durable double that conforms to it. The
 // double commits in memory by running `decide` and `reduce`, assigns entry ids and revisions, and
 // keys every session by (tenant, session), so a foreign tenant reads `denied` and cannot tell a
@@ -275,6 +280,7 @@ function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'o
 
 export type MemorySessionTransactionOptions<P> = Readonly<{
   initialization?: MemoryInitializationSource
+  history?: MemorySessionHistorySource
   /** The fixture supplies authorization; no principal is interpreted as production authority. */
   authorize?: (
     input: SessionAccess<P> | Readonly<{ principal: P; tenant?: TenantId; scope?: 'system' }>,
@@ -334,7 +340,24 @@ export function createMemorySessionTransactions<P>(
                   entry.revision === item.record.receipt.revision,
               ),
           )
-    const decision = decide(store?.snapshot ?? null, command, input.guards, held?.record ?? null, {
+    const selected =
+      command.kind === 'startRun'
+        ? store?.snapshot.pending.slice(0, 1)
+        : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
+          ? [command.input.fact.input]
+          : undefined
+    const scope: SessionInputScope =
+      selected === undefined
+        ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
+        : { kind: 'selected', inputs: selected }
+    const material =
+      store === undefined ? undefined : options.history?.read(store.snapshot, store.entries, scope)
+    const prepared =
+      store === undefined
+        ? null
+        : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
+    const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+      ...(material === undefined ? {} : { history: material.reads }),
       compaction:
         command.kind === 'commitDerived' &&
         command.input.value.kind === 'compaction' &&
@@ -396,9 +419,9 @@ export function createMemorySessionTransactions<P>(
                 }).kind
       return succeed({ result, receipt: null })
     }
-    const previous = store?.snapshot ?? null
+    const previous = prepared
     const revision = String(
-      previous === null ? 1 : Number(previous.revision) + 1,
+      previous === null ? 1n : BigInt(previous.revision) + 1n,
     ) as SessionRevision
     const offset = store?.entries.length ?? 0
     const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
@@ -406,11 +429,22 @@ export function createMemorySessionTransactions<P>(
       id: String(offset + index + 1) as EntryId,
       revision,
     }))
-    const reduced = reduce(previous, { revision, entries })
+    const reduced = reduce(previous, { revision, entries }, material?.reads)
     if (reduced.kind === 'quarantined')
       return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+    const committedEntries = [...(store?.entries ?? []), ...entries]
+    const committedSnapshot =
+      options.history === undefined
+        ? reduced.snapshot
+        : {
+            ...reduced.snapshot,
+            historyIndex: options.history.read(reduced.snapshot, committedEntries, {
+              kind: 'pending',
+              inputs: reduced.snapshot.pending,
+            }).index,
+          }
     const receipt = receiptOf(command.input.session, command.input.operation, revision, entries)
-    const recall = resultOf(command, reduced.snapshot)
+    const recall = resultOf(command, committedSnapshot)
     const operations = new Map(store?.operations)
     operations.set(command.input.operation, {
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
@@ -420,7 +454,7 @@ export function createMemorySessionTransactions<P>(
     const admitted = admittedInput(command)
     if (admitted !== null) inputs.set(admitted.input, admitted)
     const target: Store = {
-      snapshot: reduced.snapshot,
+      snapshot: committedSnapshot,
       modelView: materializeModelView(store?.modelView ?? { epoch: 'epoch:0', rows: [] }, entries, [
         ...(store?.entries ?? []),
         ...entries,
@@ -596,7 +630,15 @@ export function createMemorySessionTransactions<P>(
     commit: (input => commit(input)) as SessionTransactionPort<P>['commit'],
     readWork: async input => {
       const store = storeOf(input, 'readWork')
-      return 'failure' in store ? store : succeed(store.ok.snapshot)
+      if ('failure' in store) return store
+      const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
+        kind: 'pending',
+        inputs: store.ok.snapshot.pending,
+      })
+      return succeed({
+        ...store.ok.snapshot,
+        ...(material === undefined ? {} : { historyIndex: material.index }),
+      })
     },
     readInput: async input => {
       const store = storeOf(input, 'readInput')
@@ -730,7 +772,19 @@ export function createMemorySessionTransactions<P>(
           return held.record.digest === digest
             ? succeed({ ...held.record.receipt, recovered: true })
             : fail({ kind: 'conflict', operation })
-        const decision = projectSessionLog(store.snapshot, observation)
+        const selected = observation.consequences.find(item => item.kind === 'input-taken')
+        const material = options.history?.read(
+          store.snapshot,
+          store.entries,
+          selected?.kind === 'input-taken'
+            ? { kind: 'selected', inputs: selected.batch.ordered }
+            : { kind: 'pending', inputs: store.snapshot.pending },
+        )
+        const prepared = {
+          ...store.snapshot,
+          ...(material === undefined ? {} : { historyIndex: material.index }),
+        }
+        const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
         if (decision.kind === 'rejected') return fail(decision.failure)
         if (decision.kind !== 'entries' || decision.entries.length === 0)
           return fail({
@@ -744,7 +798,7 @@ export function createMemorySessionTransactions<P>(
           id: String(store.entries.length + index + 1) as EntryId,
           revision,
         }))
-        const reduced = reduce(store.snapshot, { revision, entries })
+        const reduced = reduce(prepared, { revision, entries }, material?.reads)
         if (reduced.kind === 'quarantined')
           return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
         const receipt = receiptOf(observation.session, operation, revision, entries)
@@ -795,6 +849,14 @@ export interface SessionTransactionsFixture<P> {
   readonly otherAccess?: SessionAccess<P>
   readonly creation: SessionCreation
   operation(name: string): SessionOperationId
+  prepareInputAdmission?(
+    input: Readonly<{
+      execution: string
+      input: InputId
+      operation: SessionOperationId
+      receipt: DurableEvidence
+    }>,
+  ): Promise<void>
   initializationGuards?(
     command: Extract<SessionCommand, { kind: 'create' }>,
   ): Promise<readonly GuardCommand[]>
@@ -838,20 +900,29 @@ function scene<P>(fixture: SessionTransactionsFixture<P>) {
       },
       login ? [loginEntry(name)] : [],
     )
-  const handover = (execution: string, input: string, name = `handover-${input}`) =>
-    commit<'receive'>({
+  const handover = async (execution: string, input: string, name = `handover-${input}`) => {
+    const operation = fixture.operation(name)
+    const receipt = evidence(`agent/accepted/${input}`)
+    await fixture.prepareInputAdmission?.({
+      execution,
+      input: input as InputId,
+      operation,
+      receipt,
+    })
+    return commit<'receive'>({
       kind: 'receive',
       input: {
         ...base,
-        operation: fixture.operation(name),
+        operation,
         fact: {
           kind: 'input-handover',
           execution,
           input: input as InputId,
-          result: { kind: 'accepted', receipt: evidence(`agent/accepted/${input}`) },
+          result: { kind: 'accepted', receipt },
         },
       },
     })
+  }
   const message = (execution: string, text: string, name = `message-${text}`) =>
     commit<'recordMessage'>({
       kind: 'recordMessage',
@@ -1472,8 +1543,61 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 /** A fresh fixture over a fresh in-memory port, with the second tenant for the cross-tenant case. */
 export function memorySessionTransactionsFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource()
+  const history = createMemorySessionHistorySource()
+  const port = createMemorySessionTransactions<string>({ history, initialization })
+  const access = memoryAccess('tester')
   return {
-    port: createMemorySessionTransactions<string>({ initialization }),
+    port,
+    prepareInputAdmission: async input => {
+      const snapshot = succeeded(await port.readWork(access), 'original admission fixture')
+      if (
+        snapshot.run.kind !== 'active' ||
+        snapshot.run.advance === null ||
+        snapshot.run.execution.execution !== input.execution
+      )
+        return
+      const run = snapshot.run
+      const rows = port.controls.entriesOf(access.tenant, access.session)
+      const index = history.read(snapshot, rows, { kind: 'selected', inputs: [input.input] }).index
+      const attempt = index.attempts.find(item => item.attempt === run.advance?.attempt)
+      const started = rows.find(row => {
+        const value = decodeEntry(row)
+        return 'ok' in value && value.ok.kind === 'run.started' && value.ok.run === run.run
+      })
+      if (attempt === undefined || started === undefined)
+        throw new Error('missing original fixture SE13/SE15')
+      const directory = index.inputs.find(item => item.input === input.input)
+      if (directory?.members.some(item => item.operation === input.operation)) return
+      history.admit(access, input.input, {
+        ordinal: directory?.count ?? '0',
+        run: run.run,
+        execution: input.execution,
+        operation: input.operation,
+        accepted: input.receipt,
+        attempt: attempt.attempt,
+        runStarted: {
+          owner: '@omne-harness/session-contract',
+          record: started.id,
+          revision: started.revision,
+          digest: `sha256:${digestOf(started)}`,
+        },
+        attemptStarted: attempt.started,
+        attachment: 'conformance-original-attachment',
+        grant: evidence('conformance-original-grant'),
+      })
+      if (!index.executions.some(item => item.execution === input.execution))
+        history.observe({
+          tenant: access.tenant,
+          session: access.session,
+          run: run.run,
+          execution: input.execution,
+          revision: '1',
+          sequence: null,
+          source: input.receipt,
+          executionEvidence: input.receipt,
+          consequences: [],
+        })
+    },
     access: memoryAccess('tester'),
     otherAccess: memoryOtherAccess('stranger'),
     creation: legalCreation(),

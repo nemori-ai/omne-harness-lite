@@ -48,6 +48,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'createMemorySessionClock',
     'createMemorySessionContextInput',
     'createMemorySessionEvidenceBridge',
+    'createMemorySessionHistorySource',
     'createMemorySessionIdleInput',
     'createMemorySessionNotifier',
     'createMemorySessionTransactions',

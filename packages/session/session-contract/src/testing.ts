@@ -75,3 +75,8 @@ export {
   scopeReleaseConformance,
   agentDriveConformance,
 } from './testing-provider-conformance.ts'
+
+export {
+  createMemorySessionHistorySource,
+  type MemorySessionHistorySource,
+} from './testing-history-source.ts'

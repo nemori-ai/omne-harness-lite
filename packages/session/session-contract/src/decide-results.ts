@@ -1,3 +1,4 @@
+import { validateBinding, validateResult } from './call-state.ts'
 import type { ConsumptionId } from './identity.ts'
 import type { WorkSnapshot, ProducedResult } from './values.ts'
 import type { SessionCommand } from './ports.ts'
@@ -26,6 +27,7 @@ export function resultRefusal(
   const position = snapshot.consumptions.find(item => item.id === consumption)
   if (position === undefined || digestOf(position.binding.producer) !== digestOf(result.producer))
     return invalid('consumption', 'no matching producer binding')
+  validateResult(position.binding, result)
   if (!result.version || !completeEvidence(result.source))
     return invalid('result', 'incomplete version or source')
   const prior = position.results.find(item => item.result.version === result.version)
@@ -41,6 +43,7 @@ export function decideResults(snapshot: WorkSnapshot, command: SessionCommand): 
     if (command.input.expected !== snapshot.revision)
       return rejected({ kind: 'changed', revision: snapshot.revision })
     const { binding, qualification } = command.input
+    validateBinding(snapshot, binding)
     if (
       !binding.producer.call ||
       !binding.action ||

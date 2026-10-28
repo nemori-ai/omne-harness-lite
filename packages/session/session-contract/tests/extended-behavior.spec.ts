@@ -151,7 +151,7 @@ describe('Session governance beyond the first path', () => {
       ] satisfies readonly SessionLogConsequence[],
     }
     expect((await s.read()).run.kind).toBe('active')
-    succeeded(await s.port.controls.project(observation, operationId('interpret-end')), 'project')
+    succeeded(await s.project(observation, operationId('interpret-end')), 'project')
     expect((await s.read()).run).toMatchObject({
       kind: 'terminal',
       terminal: { outcome: 'completed' },
@@ -159,10 +159,7 @@ describe('Session governance beyond the first path', () => {
     await s.start('successor')
     const successor = (await s.read()).run
     succeeded(
-      await s.port.controls.project(
-        { ...observation, sequence: '2', source: evidence('late-end') },
-        operationId('late-end'),
-      ),
+      await s.project({ ...observation, sequence: null }, operationId('late-end')),
       'late project',
     )
     expect((await s.read()).run).toEqual(successor)
@@ -187,7 +184,7 @@ describe('Session governance beyond the first path', () => {
     await s.start('successor')
     const successor = (await s.read()).run
     succeeded(
-      await s.port.controls.project(
+      await s.project(
         {
           ...s.base,
           run: original.run.run,
@@ -208,7 +205,7 @@ describe('Session governance beyond the first path', () => {
   })
   it('wrong execution and event gaps cannot advance the projection', async () => {
     const s = await open()
-    const { snapshot, run } = await s.active()
+    const { run } = await s.active()
     const observation = {
       ...s.base,
       run: run.run,
@@ -218,13 +215,15 @@ describe('Session governance beyond the first path', () => {
       source: evidence('gap'),
       consequences: [{ kind: 'observed' }] satisfies readonly SessionLogConsequence[],
     }
+    s.history.observe(observation)
+    const snapshot = await s.read()
     expect(projectSessionLog(snapshot, observation)).toMatchObject({
       kind: 'rejected',
       failure: { kind: 'quarantined' },
     })
     expect(projectSessionLog(snapshot, { ...observation, execution: 'foreign' })).toMatchObject({
       kind: 'rejected',
-      failure: { kind: 'invalid' },
+      failure: { kind: 'denied' },
     })
     expect(await s.read()).toEqual(snapshot)
   })
@@ -248,7 +247,7 @@ describe('Session governance beyond the first path', () => {
       'hand',
     )
     succeeded(
-      await s.port.controls.project(
+      await s.project(
         {
           ...s.base,
           run: run.run,

@@ -47,6 +47,14 @@
 - [testing-initialization-source.ts](testing-initialization-source.ts)：显式登记的内存可信来源
 - [testing-initialization.ts](testing-initialization.ts)：显式实际采用测试前提
 
-## 候选导出与实际支持
+## 同日志纯层
 
-[公开接口页的候选增加](../docs/public-api.md#同日志历史材料的候选增加)列出 FR-01/05/06 的新增值与可选材料。它们尚不是本目录的现有导出。当前 projectSessionLog、reduce 可处理已有归一形状，完整 Agent 日志读取、历史目录核验与新 Tool intent 形状仍待对应实施。公开签名、API 快照和导出集合在实施交付时同步，本次文稿不改源码或生成快照。
+- [history-values.ts](history-values.ts)、[history-validation.ts](history-validation.ts)：同根原历史及完整目录校验
+- [call-values.ts](call-values.ts)、[call-state.ts](call-state.ts)：调用登记、真实关联及等待
+- [control-state.ts](control-state.ts)：固定控制范围及未交清责任
+- [frontier-state.ts](frontier-state.ts)、[observation-validation.ts](observation-validation.ts)：最终解除批次及原事件后果
+- [work-entry-values.ts](work-entry-values.ts)、[work-entry-state.ts](work-entry-state.ts)：真实条目引用与压缩下界
+- [session-validation.ts](session-validation.ts)：本域证据、精确十进制及失败值
+- [testing-history-source.ts](testing-history-source.ts)：显式原材料的非耐久夹具
+
+公开形状见[接口导航](../docs/public-api.md#同日志历史材料与控制引用)，验证范围与提供者交接见[同日志纯层](../docs/same-log-pure.md)。完整 Agent 原协议归一、共同根提交和预算接续由适配提供者兑现。

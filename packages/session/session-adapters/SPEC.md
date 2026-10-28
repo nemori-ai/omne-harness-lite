@@ -138,6 +138,8 @@ Agent 原事实先提交。解释进度、后果与该次 Session 操作的认�
 
 在同根 G 捕获 load 与 output 页。observation.revision 取 load(G).revision，executionEvidence 取该 head 的原 CommandReceipt，source 取原事件/事实来源。sequence 取 event.sequence；快照结果对账为 null。不使用 cause.revision、load.history.revision 或材料 revision 代替 execution revision。不同根的 load/output 只能重读或重新核验，不合成为原子快照。
 
+本提供者在准备 Session 解释提交前确定该提交自己的原 operation，并传入 observation.operation。它沿原操作处理未知认回和重试，不从 Agent 操作、事件来源或 evidence.record 推导身份。纯层的冲突、非法及旧省略分支按 [FR-05](../session-contract/SPEC.md#fr-05) 处理。
+
 每项输入、调用、结果、等待和终态后果保留原 Run/attempt。Session 纯层仍按 FR-01/02/05/06 核本域关系。任何外域 decoder、resolver 或原关系核验失败，都不能先发布部分 Session 后果、cursor、操作答案或 alias。
 
 ##### 调用归一的公开来源

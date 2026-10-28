@@ -28,3 +28,5 @@
 | [cordis.md](cordis.md) | 本成员没有 Cordis 入口的理由，以及 Cordis 相关责任所在的成员 |
 
 当前缺口：SPEC 点名的类型、四个面、端口、领域服务与 `reduce` 都不在 `src/` 里，见[公开接口页](public-api.md)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+
+- [same-log-pure.md](same-log-pure.md)：同日志原历史、登记与控制引用的纯层支持及提供者义务

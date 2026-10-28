@@ -163,3 +163,27 @@ export { initializationRegistrationCommit } from './initialization-plan.ts'
 export type { InitializationPlanItem } from './initialization-plan.ts'
 export type { InitializationRegistration } from './initialization-registration.ts'
 export type { InitializationRequirement } from './initialization-requirements.ts'
+export type {
+  SessionLogRoot,
+  SessionHistoryIndex,
+  InputAdmissionBoundary,
+  InputAdmissionMember,
+  ExecutionHistoryBoundary,
+  SessionFactBoundary,
+  SessionBatchRecord,
+  SessionAttemptRecord,
+  SessionTakenRecord,
+  SessionHistoryReads,
+  SessionInputScope,
+  InputAdmissionPage,
+  SessionInputAdmission,
+  SessionExecutionPrefix,
+  SessionPrefixFact,
+} from './history-values.ts'
+export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+
+export type {
+  SessionWorkEntryIndex,
+  SessionCallEntryReferences,
+  SessionControlEntryReferences,
+} from './work-entry-values.ts'

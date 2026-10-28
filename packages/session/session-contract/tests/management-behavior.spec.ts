@@ -62,7 +62,7 @@ async function processed() {
   )
   const consumption = 'model-consumption' as ConsumptionId
   succeeded(
-    await s.port.controls.project(
+    await s.project(
       {
         ...s.base,
         run: run.run,
@@ -80,9 +80,13 @@ async function processed() {
             },
           },
           {
-            kind: 'call',
+            kind: 'call-registration',
             consumption,
-            binding: { ...binding, initiatingAttempt: advance.attempt },
+            registration: {
+              kind: 'associated',
+              purpose: 'main',
+              binding: { ...binding, initiatingAttempt: advance.attempt },
+            },
           },
         ],
       },

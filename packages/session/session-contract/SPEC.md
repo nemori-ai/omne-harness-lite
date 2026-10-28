@@ -1285,15 +1285,15 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 ### 同日志解释的历史材料与发布前缀
 
-本节规定 Session-owned 的候选可加值及行为。源码尚未声明这些新增形状。这里的根、目录和原关系用于判断 Session 后果，不包含 Agent 类型、checkpoint 或运行时对象。Agent 的原事件和输出语义仍由其契约拥有。
+本节规定 Session-owned 的可加值及行为。源码已声明这些公开形状并实现本域纯层校验；真实共同日志提供者的履约范围另按 AD-02 核验。这里的根、目录和原关系用于判断 Session 后果，不包含 Agent 类型、checkpoint 或运行时对象。Agent 的原事件和输出语义仍由其契约拥有。
 
 <a id="fr-01"></a>
 
 #### FR-01 可信根、目录与可选读取材料
 
-`WorkSnapshot` 可增加 `historyIndex: SessionHistoryIndex`，`DecideReads` 可增加 `history: SessionHistoryReads`。`projectSessionLog` 可增加第三个可选参数 `reads: SessionHistoryReads`，`reduce` 可增加第三个同名可选参数。现有参数顺序、必填字段与结果联合保持。下列字段表是拟新增值的完整必要形状，现有公开形状仍以源码为准。
+`WorkSnapshot` 可增加 `historyIndex: SessionHistoryIndex`，`DecideReads` 可增加 `history: SessionHistoryReads`。`projectSessionLog` 可增加第三个可选参数 `reads: SessionHistoryReads`，`reduce` 可增加第三个同名可选参数。现有参数顺序、必填字段与结果联合保持。下列字段表记录值的必要语义，公开形状以源码为准。
 
-| 候选值 | 必要字段及约束 |
+| 公开值 | 必要字段及约束 |
 | --- | --- |
 | `SessionLogRoot` | `tenant`、`session`、`position`、`source`。前两项使用 Session 既有身份。`position` 是该会话共同日志的非负十进制位置，Agent 与 Session 发布均使它前进。它不等于 Session revision、execution revision 或 event sequence。`source` 是提供者对该原根的完整 `DurableEvidence`。 |
 | `SessionHistoryIndex` | `root: SessionLogRoot`、`inputs: readonly InputAdmissionBoundary[]`、`executions: readonly ExecutionHistoryBoundary[]`、`attempts: readonly SessionAttemptRecord[]`、`batches: readonly SessionBatchRecord[]`、`taken: readonly SessionTakenRecord[]`。集合只需覆盖本次决定及其完整批次涉及的关系，不要求枚举无关历史。缺少所需项表示未知。它不是空关系。 |
@@ -1387,6 +1387,8 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 `SessionLogObservation` 可增加 `executionEvidence?: DurableEvidence`。`revision` 固定取本次同根 load 的真实 head revision，executionEvidence 取该 head 的原 CommandReceipt 证据。`source` 始终是被解释事件或事实的原来源。`sequence` 仅为事件序号，快照、entries 或 results 对账为 null。它们不推进事件 readThrough。
 
+`SessionLogObservation` 另增加 `operation?: SessionOperationId`，标识本次拟提交的 Session 解释操作，与原 Agent 操作及事件、结果来源不同。新同日志提供者在准备前确定并传入原 Session 操作身份；未知认回及重试沿其既有幂等规则。pure 不从任何 DurableEvidence 推导此身份。字段存在但不是非空字符串时返回 invalid，field 为 operation。跨租户或错 Session 仍先拒绝，不披露域内冲突。旧调用省略时，仅在本分支无需冲突身份且其它所需材料完整时可沿原结果处理；需要返回 conflict 却没有此身份时返回 unavailable，owner 为 @omne-harness/session-contract，诊断缺本次解释 operation。合法同身份异值的 conflict.operation 原样使用本字段，所有拒绝均不产生部分后果。原操作查询和原答案保存仍由事务提供者负责。
+
 提供者的原提交元数据保存 execution、revision、原 receipt 以及本次 emitted sequences。Session 消费其本域引用，不解析 evidence.record，不将 event.cause.revision、load.history.revision 或材料修订当作 execution revision。S3 新路径必须提供 executionEvidence。旧调用省略该字段时，只有同根可信材料证明 source 正好是该 execution/revision 的原 head 回执才能沿用 source；无法证明返回 unavailable，不能默认两个来源相同。
 
 纯层核对 snapshot 与 reads 的执行 head、观察 revision/evidence 和原 fact.source。二者来源角色分别保存。ExecutionRef 用 head revision/evidence 更新，readThrough 只随成功解释提交前进。不得用低 head 覆盖高 head；过期根在发布前重读。SE19 的 result.source 保留生产者原来源，条目 origin 保留被解释事件来源，不用最新 head 回执覆盖任一项。
@@ -1397,9 +1399,9 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### FR-06 首次登记、Tool 关联与等待
 
-`CallBinding` 继续表示已经关联稳定 invocation reference 的调用。`producer.call` 非空，不能用空字符串或虚构 reference 表示 Tool intent。新增 `SessionCallRegistration` 与既有 CallBinding 分开表示下列候选值。
+`CallBinding` 继续表示已经关联稳定 invocation reference 的调用。`producer.call` 非空，不能用空字符串或虚构 reference 表示 Tool intent。新增 `SessionCallRegistration` 与既有 CallBinding 分开表示下列值。
 
-| 候选值或后果 | 必要字段及含义 |
+| 公开值或后果 | 必要字段及含义 |
 | --- | --- |
 | `SessionCallRegistration` 的 `associated` 分支 | `kind: 'associated'`、`binding: CallBinding`、`purpose`。binding.producer.kind=model 时 purpose 为 main、compaction 或 extension；kind=tool 时为 action。 |
 | `SessionCallRegistration` 的 `tool-intent` 分支 | `kind: 'tool-intent'`、`action: string`、`consumer: ConsumerRef`、`request: DurableEvidence`、`initiatingAttempt: AttemptId | null`、`purpose: 'action'`。该分支没有 producer 或 reference。Run 内 initiatingAttempt 必须有原 SE15，null 只用于原本合法的 Run 外调用。 |
@@ -1429,6 +1431,27 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 unsettledControls 从同一快照的 controls 按原控制操作身份去重求得，不新增权威状态。它保持从原 SE24 到尚未交清责任的定位。初次保存控制时，原 SE24 固定本次选中的未关联 consumption/position，后继 SE25 不改写该原范围。历史持有者以原控制操作身份定位这份原 SE24、仍生效的 SE25、尚未交清项的原 SE18/SE22 及其真实关联条目，全部纳入 AD-04 下界和 compaction.open 的一致核对。取消先解除业务等待、随后 intent 关联时，unassociatedWaiting 可变空且旧 waiting 仍为空，但原控制仍在 unsettledControls，以上引用仍保留。
 
 转换到 pending 中的真实 producer 核对项不解除原责任；只有原控制责任依证据解除后，才能移出相应引用和 unsettledControls。必要原条目不可取得时沿原 unavailable 处理，不能交空下界。该字段同样按上文省略规则处理，judgeIdle 见非空也不得出 due。
+
+
+##### 未结工作原条目引用
+
+`WorkSnapshot.workEntryIndex?: SessionWorkEntryIndex` 是同一 Session、同一修订位置上的原条目引用投影。它由 `reduce` 从真实 `HistoryEntry.id` 与同批前段状态取得；服务可以从同根原日志按同一规则重建。它不是调用者自报的压缩内容或提交资格，不复制条目正文，不产生第二份权威日志。纯函数不证明调用者同时伪造了一份内部一致的完整快照。
+
+| 值 | 完整字段与含义 |
+| --- | --- |
+| `SessionWorkEntryIndex` | `calls: readonly SessionCallEntryReferences[]`、`controls: readonly SessionControlEntryReferences[]`。calls 按 consumption 唯一，controls 按 operation 唯一。 |
+| `SessionCallEntryReferences` | `consumption: ConsumptionId`、`registered: EntryId`、`association: EntryId \| null`、`waits: readonly { position: string; entry: EntryId }[]`。registered 是第一条登记 SE18 的原条目，association 是真实关联条目或 null；waits 只列仍生效的 SE22 位置与原条目，同 position 唯一。 |
+| `SessionControlEntryReferences` | `operation: SessionOperationId`、`intent: EntryId`、`progress: EntryId \| null`、`selected: readonly { consumption: ConsumptionId; position: string; registered: EntryId; waiting: EntryId; association: EntryId \| null }[]`。intent 为原 SE24；progress 为当前生效 SE25，尚无时为 null。selected 固定该 SE24 选中的未关联等待及其原 SE18/SE22，每个 consumption/position 组合唯一。 |
+
+引用必须完整非空且属于同一 Session 日志；归属由原事实核对，不解析身份文本推断。同值登记认回不覆盖 registered。合法真实关联保存原关联条目。SE22 按完整当前等待集合更新 calls.waits；控制解除业务等待时清空相应当前项。SE24 在解除前捕获 selected；其 consumption、position、registered、waiting 不被后续等待或 SE25 改写。SE25 更新 progress 与既有控制投影，未知不删除责任。后续真实关联只补同消费 calls.association 与未结控制 selected.association，不恢复业务等待。
+
+对 openWork.unassociatedWaiting，索引从 calls 或未结控制 selected 定位原登记、等待及已成立的关联。对 openWork.unsettledControls，索引定位原 intent、当前 progress 和原 selected 整组引用。一个控制只有在原责任合法 reconciled 且 pending、pendingUnassociatedWaiting 均空后才退出下界；在此之前保留该控制固定选择的整组引用。它可以比逐项结清更保守，但不枚举该控制原范围外的历史。存储只增加登记与关联身份、当前等待和未结控制固定选择，不增加事件或条目正文。
+
+`compactionReads` 将这些必要引用加入原 open 下界，按原日志顺序排列并去重，保留已有其它合法未结工作引用。进入 Message 的 CompactionContext 时使用既有 `parseRecordEntryRef(entry.id)`，不得使用 Agent 事件序号或 opaque evidence.record 冒充条目引用。直接 `decide` 处理压缩派生提交时，先从可信 snapshot 求必要引用并核对 reads.compaction.open；任一缺失返回 invalid，field=`reads.compaction.open`，不写条目、cursor 或答案。随后仍调用原 judgeCompaction，所有其它判据不变。错租户或错 Session 的 denied 优先。
+
+仅在上述特定责任不存在且原快照事实足以证明时，缺省 workEntryIndex 才可沿旧合法路径使用。需要的映射、索引项或原引用未知时返回 unavailable，owner=`session-history`，诊断具体缺项；服务先尝试从同根原日志重建，不能以缺字段交空下界。其它命令不消费本索引时不增加通用前置门槛。新解释版本的完整批次重放不能建立必要原引用，或索引与原事实矛盾时，按 SL18 quarantined，不发布部分快照。真实材料读取失败在调用 reduce 前按 unavailable 处理；ReduceResult 不增加分支。旧合法历史沿原精确采用规则判断，不把旧字段省略报告为畸形。
+
+Message 的 CM-02、CM-04、CM-05 继续约束范围与 retained。SE18/22/24/25 的非消息引用不能伪装成模型可读消息；未结非消息须留在 after，covers 在最早必要非消息条目前结束。跨过该引用而不能合法 retained 的压缩仍被原 judgeCompaction 拒绝。若上次压缩留下该非消息在 after，后续压缩又须覆盖前次压缩条目，责任未解除期间可能无法再次压缩；本索引不承诺该期间的压缩可用性，也不放宽 Message 规则。
 
 未关联等待的控制只表达[终态与控制](#终态与控制)、[归档与撤销](#归档与撤销)、[PM-13](#pm-13) 及原 SE24/SE25 的已有责任。Agent 对取消的交接、准备阶段插队及责任释放分别按其[取消、退出与结构变更](../../agent/agent-contract/SPEC.md#取消退出与结构变更)、[插队](../../agent/agent-contract/SPEC.md#插队)、[六个阶段](../../agent/agent-contract/SPEC.md#六个阶段)，不在此新增取消政策。
 
@@ -1518,7 +1541,7 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | `resolveOperation` | 操作身份、规范化参数摘要、已提交记录 | `new`、`recovered`（原回执）、`conflict` | 全部变更命令核权后的首个领域步骤；`queryOperation` | [SL07](#日志提交与查询结果) |
 | `reduce` | 前状态、已提交的完整批次 | 新 `WorkSnapshot`、`quarantined` | 全部权威读 | [SL12、SL13](#日志读取投影及恢复)、[SL18](#原生事实与状态转移) |
 
-`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料（`startRun` 的登录门按裁定 R2 只核存在；初始化材料按[初始化守卫编码](#初始化守卫编码)解析，其余 `facts` 沿所属协议解释），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 遇到不晚于 `readThrough` 的事件时认回原回执，不返回 `changed`。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前的消息，`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
+`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料（`startRun` 的登录门按裁定 R2 只核存在；初始化材料按[初始化守卫编码](#初始化守卫编码)解析，其余 `facts` 沿所属协议解释），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 遇到不晚于 `readThrough` 的事件时认回原回执，不返回 `changed`。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前按历史顺序排列的全部条目，形状同 `covered`，每项为 `{ ref, message }`，非消息条目的 `message` 为 `null`；`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
 
 `openWork` 只有一个实现，供三处共用：历史持有者交给 Request Context 的未结工作下界、条件终结只读参加的阻塞依据、空闲裁定的本会话部分。三处读同一结果，所以不会对「还有未结工作」给出不同答案。`judgeIdle` 的跨会话部分（子方与在途调用）不在纯函数里计算，由 `SessionIdleInput.inspect` 收集成 `IdleCoverage` 后传入。`reduce` 的算法见[纯批次归约算法](docs/object-model/session-state-transitions.md#纯批次归约算法)。
 
@@ -1996,7 +2019,9 @@ return invalid('value', 'the input has no identity or no content')
 | VC-FR08a | Tool intent 的 SE18/SE22 已解释且 readThrough 已越过原事件，无 invocation reference。openWork 仍以原 consumption/position 列出未关联等待；AD-04 与 compaction.open 都含原登记及生效等待条目，漏任一引用被拒，judgeIdle 不出 due。真实关联与重复 producer waiting 同时存在时只保留原责任一份。 |
 | VC-FR08b | 对同一 intent 分别执行 Run 取消、插队、归档及具名 stop-call/background-tool。按 FR-06 选原范围，保存 SE24/SE25 未关联责任；无真实 producer 不发虚构请求。未知不清空责任或 reconciled，合法交接才解除，迟到关联只映射原责任，不恢复资格。另保留后台、Run 外与子方范围对照。 |
 | VC-FR08c | cancel 已解除原业务等待，pendingUnassociatedWaiting 仍在，随后原 intent 真实关联。未关联投影移除并转既有 pending producer 核对项，旧 waiting 仍为空。unsettledControls 持续定位原 SE18/SE22/SE24/SE25 及关联条目，AD-04 和 compaction.open 不掉下界；只有原控制责任按证据解除后才退出。 |
+| VC-FR08d | 直接 pure 的 intent登记→等待→cancel解除→真实关联→unknown控制进度对照：下界保持原SE18/SE22/SE24、当前SE25及关联，waiting不恢复。分别删除每个必要open引用均invalid；缺必要索引unavailable；新完整历史矛盾quarantined；旧无相应责任路径保持。多控制共享调用去重，原selected不被新等待覆盖；责任合法reconciled且两种pending均空后退出。合法压缩covers止于最早必要非消息前；跨过非消息、伪造retained均拒绝。 |
 | VC-FR09 | 合法同域输入里替换 reference 为外租户/错 call，或直接 pure 提交 unrelated attempt、空版本、空 request/source、错误 producer、同版本异值。原入口按其职责拒绝，不变根、材料、cursor、答案或 alias。 |
+| VC-FR09a | 直接 pure 提交同 consumption 异绑定或同版本异结果，operation 与历史登记及 Agent 操作不同。合法本次身份返回 conflict 且回显本字段；缺省返回 unavailable；非法 operation 返回 invalid，field 为 operation；错租户先 denied。省略且合法无冲突分支仍按所需材料判定，均不得半写。 |
 | VC-FR10 | 大量无关旧 execution 有迟到保管，只准备少量 Q。读集合限于相关目录和必要后缀，不全历史 load。P-5 缺承接前缀仍不可释放未知输入。 |
 
 恢复排序机制须取得有限行为模型、精确配置和边界、实际结果及具名负控制，再核对模型前提。实现后另交公共入口、同根故障、跨租户、纯层负例及模型动作到真实发布点的对应。模型或轻量文档检查不证明实现接受、真实耐久、跨进程、Model ACK、新 scope 初始化或 SE12 偏离已经闭合。

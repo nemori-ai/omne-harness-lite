@@ -2,6 +2,8 @@
 // (SPEC「领域服务与归约」). Inputs are the work snapshot and command parameters only: no time,
 // random number, connection or outside state. The outcome sets are closed discriminated unions.
 //
+import { originalAttempt } from './history-validation.ts'
+import { waitKey } from './call-state.ts'
 import { digestOf } from './operations.ts'
 import { deriveSessionOperation } from './operations.ts'
 import type { CompactionContext } from '@omne-harness/message'
@@ -30,6 +32,8 @@ import type {
 import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
+import type { SessionHistoryReads } from './history-values.ts'
+import type { SessionCallWait } from './call-values.ts'
 
 export type AdvanceJudgment =
   | Readonly<{ kind: 'ok' }>
@@ -51,8 +55,10 @@ export type RunStartJudgment =
   | Readonly<{
       kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required'
     }>
-/** Seven parts, all derived from the snapshot. taken: inputs the Agent took with no model call registered (SE18) after them, so no model request has read them yet. unreadEvents: Agent events after readThrough count as open work. */
+/** Original work sets and control responsibilities, all derived from the snapshot. taken: inputs the Agent took with no model call registered (SE18) after them, so no model request has read them yet. unreadEvents: Agent events after readThrough count as open work. */
 export type OpenWork = Readonly<{
+  unassociatedWaiting?: readonly SessionCallWait[]
+  unsettledControls?: readonly SessionOperationId[]
   pending: readonly InputId[]
   handed: readonly InputId[]
   taken: readonly InputId[]
@@ -69,6 +75,7 @@ export type CompletionJudgment =
 export type ControlScope =
   | Readonly<{
       kind: 'scope'
+      unassociatedWaiting?: readonly SessionCallWait[]
       producers: readonly ProducerRef[]
       revokes: readonly ('advance' | 'pending' | 'delivery')[]
       cancelsRun: RunId | null
@@ -102,8 +109,9 @@ export type Decision =
   | Readonly<{ kind: 'entries'; entries: readonly EncodedEntry[] }>
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
-/** History the storage participant reads inside the transaction. Only commitDerived(compaction) needs it; null otherwise. open holds the entry references of the open work that openWork names. */
+/** Transaction-bound materials. Each branch requires only its original history, compaction or management inputs. */
 export type DecideReads = Readonly<{
+  history?: SessionHistoryReads
   compaction: CompactionContext | null
   /** Missing material does not assert any external children or idle coverage. */
   children?: readonly SessionId[]
@@ -202,7 +210,33 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
  * The open work of one committed snapshot (EC-03, ST20, ST24b).
  */
 export function openWork(snapshot: WorkSnapshot): OpenWork {
+  const unassociated = (snapshot.callWaits ?? []).filter(wait =>
+    snapshot.callRegistrations?.some(
+      record =>
+        record.consumption === wait.consumption && record.registration.kind === 'tool-intent',
+    ),
+  )
   return {
+    unassociatedWaiting: [
+      ...new Map(
+        [
+          ...unassociated,
+          ...snapshot.controls.flatMap(control => control.pendingUnassociatedWaiting ?? []),
+        ].map(wait => [waitKey(wait), wait]),
+      ).values(),
+    ],
+    unsettledControls: [
+      ...new Set(
+        snapshot.controls
+          .filter(
+            control =>
+              control.state !== 'reconciled' ||
+              control.pending.length > 0 ||
+              (control.pendingUnassociatedWaiting?.length ?? 0) > 0,
+          )
+          .map(control => control.operation),
+      ),
+    ],
     pending: snapshot.pending,
     handed: snapshot.handed,
     taken: snapshot.taken ?? [],
@@ -285,6 +319,21 @@ export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlInten
   const unique = [...new Map(producers.map(producer => [digestOf(producer), producer])).values()]
   return {
     kind: 'scope',
+    unassociatedWaiting:
+      selected !== null
+        ? []
+        : (snapshot.callWaits ?? []).filter(wait => {
+            const registration = snapshot.callRegistrations?.find(
+              record => record.consumption === wait.consumption,
+            )?.registration
+            if (registration?.kind !== 'tool-intent') return false
+            return (
+              archive ||
+              (run !== null &&
+                registration.initiatingAttempt !== null &&
+                originalAttempt(snapshot, registration.initiatingAttempt) === run)
+            )
+          }),
     producers: unique,
     revokes: archive
       ? ['advance', 'pending', 'delivery']
@@ -339,6 +388,11 @@ export function judgeIdle(
   if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return { kind: 'exempt' }
   if (snapshot.lifecycle === 'archived' || snapshot.run.kind === 'active')
     return { kind: 'not-due' }
+  if (
+    snapshot.callRegistrations?.some(record => record.registration.kind === 'tool-intent') &&
+    snapshot.callWaits === undefined
+  )
+    return { kind: 'unavailable', reason: 'original unassociated waiting projection is missing' }
   const work = openWork(snapshot)
   if (
     Object.values(work).some(items => items.length > 0) ||

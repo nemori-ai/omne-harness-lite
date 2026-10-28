@@ -1,3 +1,5 @@
+import { validateResult } from './call-state.ts'
+import { evidenceFields } from './session-validation.ts'
 import type { SessionEntry } from './entries.ts'
 import type { WorkSnapshot, ResultConsumption } from './values.ts'
 import { digestOf } from './operations.ts'
@@ -14,6 +16,7 @@ type ResultEntry = Extract<
 export function applyResult(draft: Draft, entry: ResultEntry): string | null {
   const consumption = draft.consumptions.find(item => item.id === entry.consumption)
   if (consumption === undefined) return 'result without a consumption'
+  validateResult(consumption.binding, entry.result)
   if (
     digestOf(consumption.binding.producer) !== digestOf(entry.result.producer) ||
     !entry.result.version ||
@@ -70,13 +73,19 @@ export function applyResult(draft: Draft, entry: ResultEntry): string | null {
         }
       : item,
   )
-  if (entry.kind === 'call.result-processed')
+  if (entry.kind === 'call.result-processed') {
+    draft.callWaits = (draft.callWaits ?? []).filter(
+      item =>
+        item.consumption !== entry.consumption ||
+        item.position !== consumption.binding.consumer.position,
+    )
     draft.waiting = draft.waiting.filter(
       item =>
         item.kind !== 'producer' ||
         digestOf(item.binding) !== digestOf(consumption.binding) ||
         item.position !== consumption.binding.consumer.position,
     )
+  }
   return null
 }
 
@@ -92,6 +101,7 @@ export function applyProducerFact(
       digestOf(consumption.binding.producer) !== digestOf(result.producer)
     )
       return 'producer result without its original binding'
+    validateResult(consumption.binding, result)
     const existing = consumption.results.find(item => item.result.version === result.version)
     if (existing !== undefined && digestOf(existing.result) !== digestOf(result))
       return 'conflicting producer result version'
@@ -108,6 +118,7 @@ export function applyProducerFact(
           : item,
       )
   }
+  if ('source' in entry.fact) evidenceFields(entry.fact.source, 'fact.source')
   if (entry.fact.kind !== 'release') return null
   const fact = entry.fact
   const consumption = draft.consumptions.find(item => item.id === fact.consumption)

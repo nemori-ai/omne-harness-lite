@@ -1,3 +1,4 @@
+import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
 // `decide` and `reduce` on the first-path kinds, read directly: the creation with required
 // identities, the initialization items, the recall and the conflict of one operation, the
 // tenant check, the quarantine of an unknown entry kind, and the pure judgments at their edges.
@@ -40,6 +41,8 @@ import type { SessionEntry } from '../src/entries.ts'
 import { initializationGuards } from './initialization-fixture.ts'
 
 const access = memoryAccess('tester')
+const history = createMemorySessionHistorySource()
+const historyRows: HistoryEntry[] = []
 const base = { tenant: access.tenant, session: access.session }
 
 /** Commits `command` on `previous` through decide and reduce, as a storage participant would. */
@@ -48,19 +51,44 @@ function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSna
     command.kind === 'startRun'
       ? [guard('evidence-bridge', 'login-entry', 'login')]
       : initializationGuards(command, previous)
-  const decision = decide(previous, command, guards, null, { compaction: null })
+  if (previous === null) historyRows.length = 0
+  const material =
+    previous === null
+      ? undefined
+      : history.read(
+          previous,
+          historyRows,
+          command.kind === 'startRun'
+            ? { kind: 'selected', inputs: previous.pending.slice(0, 1) }
+            : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
+              ? { kind: 'selected', inputs: [command.input.fact.input] }
+              : { kind: 'pending', inputs: previous.pending },
+        )
+  if (previous !== null && material !== undefined)
+    previous = { ...previous, historyIndex: material.index }
+  const decision = decide(previous, command, guards, null, {
+    compaction: null,
+    ...(material === undefined ? {} : { history: material.reads }),
+  })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
     previous === null ? 1 : Number(previous.revision) + 1,
   ) as WorkSnapshot['revision']
   const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
     ...entry,
-    id: String(index + 1) as HistoryEntry['id'],
+    id: String(historyRows.length + index + 1) as HistoryEntry['id'],
     revision,
   }))
-  const reduced = reduce(previous, { revision, entries })
+  const reduced = reduce(previous, { revision, entries }, material?.reads)
+  historyRows.push(...entries)
   if (reduced.kind !== 'reduced') throw new Error(`reduce: ${reduced.diagnostic}`)
-  return reduced.snapshot
+  return {
+    ...reduced.snapshot,
+    historyIndex: history.read(reduced.snapshot, historyRows, {
+      kind: 'pending',
+      inputs: reduced.snapshot.pending,
+    }).index,
+  }
 }
 
 const createCommand = (overrides: Partial<ReturnType<typeof creation>> = {}): SessionCommand => ({
@@ -206,7 +234,7 @@ function createdRows(edit: (payload: JsonValue) => JsonValue): CommittedBatch {
   const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
     ...entry,
     payload: edit(entry.payload),
-    id: String(index + 1) as HistoryEntry['id'],
+    id: String(historyRows.length + index + 1) as HistoryEntry['id'],
     revision: '1' as HistoryEntry['revision'],
   }))
   return { revision: '1' as never, entries }
