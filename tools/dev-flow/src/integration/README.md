@@ -37,7 +37,7 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines 
 pnpm run release-run --input /absolute/release.json --journal /absolute/task/release
 ```
 
-此入口迁移 `release.sh`。包内同名 script 与构建后的 `omne-release-run` 提供同一行为。它启动 `gate-release.yml` 在 `github-gate` 上的一次包发布运行，与整波 reduce release 分开。
+此入口迁移 `release.sh`。包内同名 script 与构建后的 `omne-release-run` 提供同一行为。它启动 `gate-release.yml` 在 `github-gate` 上的一次包发布运行，与整波放行无关。
 
 输入须包含 `schemaVersion: 1`、`repo`、稳定 UUID `operationId`、`package`、完整 SHA `commit`、正整数 `issue`、布尔 `dryRun` 和完整 SHA `workflowHead`。`package` 只接受 `repo-toolchain` 或 `repo-config`。`workflowHead` 是本次已经核对的实际 `github-gate` 提交；派发前工具再次比对。
 
