@@ -736,6 +736,12 @@ describe('one actual reduce per original wait result', () => {
     const saved = JSON.parse(readFileSync(f.input().journal, 'utf8'))
     expect(saved.current).toMatchObject({ terminal: true, consumedWave: 1 })
     expect((await cli(f, ['--next-reduce-issue', '200'], id)).result).toEqual(first.result)
+    const replay = await cli(f, [], id)
+    expect(replay.code).toBe(0)
+    expect(replay.result).toEqual({ ...first.result, diagnostics: [] })
+    const recovered = JSON.parse(readFileSync(f.input().journal, 'utf8'))
+    expect(recovered).toEqual(saved)
+    expect(recovered.operations[0].result.diagnostics).toEqual([])
   })
 
   it('rearms the authoritative successor instead of an existing obsolete hint', async () => {
@@ -746,7 +752,8 @@ describe('one actual reduce per original wait result', () => {
         .replaceAll('I_200', 'I_250'),
     )
     f.cards.set(250, hint)
-    const result = await cli(f, ['--next-reduce-issue', '250'])
+    const id = randomUUID()
+    const result = await cli(f, ['--next-reduce-issue', '250'], id)
     expect(result.code).toBe(0)
     expect(result.result).toMatchObject({
       status: 'released',
@@ -754,6 +761,11 @@ describe('one actual reduce per original wait result', () => {
       currentAction: 'rearm',
       diagnostics: ['watch-next-hint-changed:250->200'],
     })
+    for (const hint of [[], ['--next-reduce-issue', '200']]) {
+      const replay = await cli(f, hint, id)
+      expect(replay.code).toBe(0)
+      expect(replay.result).toEqual({ ...result.result, diagnostics: [] })
+    }
     expect(JSON.parse(readFileSync(f.input().journal, 'utf8')).current.context.reduceIssue).toBe(
       200,
     )

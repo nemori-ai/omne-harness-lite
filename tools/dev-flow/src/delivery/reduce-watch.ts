@@ -330,19 +330,23 @@ export async function runReduceWatch(
       since = hit.delivery ?? hit.receivedAt
     }
     if (input.signal?.aborted === true) throw input.signal.reason
-    if (
-      input.nextReduceIssue !== undefined &&
-      result.status !== 'disposition' &&
-      result.next?.reduceIssue !== input.nextReduceIssue
-    )
-      result.diagnostics.push(
-        `watch-next-hint-changed:${input.nextReduceIssue}->${result.next?.reduceIssue ?? 'terminal'}`,
-      )
     if (op.result !== null) same(op.result, result, 'watch-replayed-result-no-longer-current')
     op.result = result
     if (existing === undefined || canonical(journal.current) === canonical(op.position))
       journal.current = nextPosition(op.position, result)
     saveWatchJournal(input.journal, journal)
+    if (
+      input.nextReduceIssue !== undefined &&
+      result.status !== 'disposition' &&
+      result.next?.reduceIssue !== input.nextReduceIssue
+    )
+      return {
+        ...result,
+        diagnostics: [
+          ...result.diagnostics,
+          `watch-next-hint-changed:${input.nextReduceIssue}->${result.next?.reduceIssue ?? 'terminal'}`,
+        ],
+      }
     return result
   } finally {
     unlock()

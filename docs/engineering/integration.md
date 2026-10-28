@@ -367,6 +367,7 @@ dev-flow 对平台的写入限于下列范围：
 - 协作记录：申请命令触发已采用 workflow，由 workflow 校验并登记可信回执；授权写者发布 delta、state、claim、处置及请求结果记录。每次写入沿[协作记录合同](../../tools/dev-flow/src/delivery/SPEC.md#协作记录边界)核对权限、序号与持久操作身份。
 - 整波放行：Reduce 沿[接受顺序](#接受与逐收口续接)读回有权接受，发布最终 ReleaseRecord 后关闭 reduce 卡并读回。命令不授予接受权。
 - facts 与事件接入：按已采用部署触发 facts workflow；显式管理事件接收所需的仓库 hook。创建、恢复及清理由[工具安装与事件合同](../../tools/dev-flow/src/delivery/SPEC.md)约束，不从普通等待推断管理权。
+- 包发布：`release-run` 按[包发布运行合同](../../tools/dev-flow/src/integration/SPEC.md#包发布运行命令)触发 `gate-release.yml` 的 `github-gate` 运行，写前保存意图并读回精确运行。默认只观察；只有显式 `--approve --note FILE`、平台允许当前账号审批且本次授权有效时，才能批准 `npm-release`，不批准其他环境。包发布不构成整波 reduce 放行。
 - 部署批准：`gate-cli wait` 按运行者已有权限与本次授权批准 gate 的部署，命令不授予确认资格。
 
 此外，云端会话开工时，`start` 派发 `delivery-facts`。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
