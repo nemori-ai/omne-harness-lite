@@ -124,9 +124,9 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | M0 | 主请求：最终请求记录，`adoptedContext`，`effects`。与 I2 的 `calls` 为同一次。最终请求记录在 `JournalCommit` 中没有字段，见 AGENT-M04 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
 | M0 | 压缩步骤：`passages`（调模型之前，用途 compaction） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M0 |
 | M1 | 中断阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
-| M1 | 不投影 Model stream，只读取 Journal received | 无 | 无 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
+| M1 | 无 | 无写入。读取 Journal received，不投影 Model stream | 无 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M2 | `passages`（failure 维度） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M2 |
-| M3 | received result 与完整材料 | `commit` 携带 producer 事件 | 条件提交 | receiver 修订变化时重读；真实撤权停止 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
+| M3 | producer 事件 | `commit`。读取接收方已提交的 received 与完整材料（J02）。receiver 推进 revision 时重读，真实撤权时停止 | 条件提交 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M4 | `passages`（complete_reply 或 failure），循环判断的 `guard` 操作记入 Passage 的 `operations`，效果采纳时写 `guard` | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | Q2 | 接纳回执随 checkpoint，事件 message。主回复带 `replyAdmission`。压缩与其他来源在提供者声明对应种类时带 context-transition 或 message，否则 `caller` 为 none | `commit`。先经 `MessageHandoff.accept` 取得接纳 | 条件提交 | 按 `caller` 的种类 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)、[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素) |
 | Q5 | 拒收事实随来源节点保存：主回复为 rejected 的 `replyAdmission`。压缩不提交转换。工具结果与拒绝消息经 T5 转 H0。外部输入不写入，invoke 或 submit 返回 invalid。系统提醒不写入 Passage | 来源节点的提交 | 随来源节点 | 随来源节点 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
