@@ -52,8 +52,8 @@ flowchart LR
   Modes[SE03 提交] --> Publish[经生产者句柄发布 session.modes]
 ```
 
-1. 注册：`change` 提交注册决定后，插件以 `applyCommit` 交给 Runtime Context。提交未知时，插件先查询原操作，不先应用。
-2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料：全部注册提交的耐久顺序、每个 `checkpointed` 块的步提交全值、已经确认的作用域结束。然后重签资格。创建作用域时材料为空。
+1. 注册：原初始化计划的增加经 create 或 completeInitialization 提交 SE02/SE07，后续变更经 change。插件确认提交后，按 SE07 顺序以每项原 CommitRef、原 basedOn 和完整输入调用 applyCommit。多个注册不共用同一 Context 提交身份。提交未知时先查询原操作，不先应用；失败沿原决定恢复。注册完成不证明生产者已供值。身份与修订映射见 [Session 初始注册](../../session-contract/SPEC.md#初始注册的身份与修订)。
+2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料。三部分全部限定于本次恢复的原 scope：该 scope 全部注册提交的耐久顺序、该 scope 每个 `checkpointed` 块的步提交全值、该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。然后重签资格。首次恢复前，本 scope 的注册、步提交和已确认结束三部分均无时，只交本 scope 空材料。代次绑定和新 scope 初始化的责任边界见 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实)，本流程不补齐 #680 的新 scope 初始化。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
 5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实按 Session 契约的 [J18 候选](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 在归档同批产生，物理释放仍等待独立读回。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
@@ -115,7 +115,7 @@ flowchart LR
 3. Session 把材料放进同一次提交。材料不全时，命令不提交。
 4. 端口不可用时，只有需要它的命令返回 `unavailable`。
 
-`GuardCommand.participant` 填材料的拥有者，不填存储参加者。
+`GuardCommand.participant` 填材料的拥有者，不填存储参加者。初始化沿 [Session 自有编码](../../session-contract/SPEC.md#初始化守卫编码)穷举核对真实初始采用、完整计划、原绑定及成功事实，证据桥复用现有 prepare。SessionContextInput.prepare 的四类命令联合保持，不新增 completeInitialization 分支。
 
 证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
 

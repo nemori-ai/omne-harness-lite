@@ -28,3 +28,7 @@
 | AD-15 的构造入口 | `./cordis` | 装配入口交入恢复授权 | [AD-15](../SPEC.md#ad-15) |
 
 翻译纯函数是根入口的值导出，可以不装 Cordis 单独使用和测试。
+
+## 初始化协议的形状边界
+
+初始化来源、可选 creation.initialization 与 Session 自有守卫编码归 [session-contract](../../session-contract/SPEC.md#初始化来源与提交)。本成员以 AD-10 的既有 SessionEvidenceBridge.prepare 核验完整计划及原项结果，复用 AD-12 注册适配函数。SessionContextInput.prepare 仍只接受 create、change、startRun、reload。原注册键到 Context CommitRef、basedOn/revision 的确定映射在 Session 提交中保存，见 [AD-12](../SPEC.md#ad-12)。实际插件和导出范围仍以本页现状及源码为准，Context、Agent 和 Model 接口保持。

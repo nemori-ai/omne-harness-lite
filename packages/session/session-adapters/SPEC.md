@@ -134,7 +134,7 @@ Agent 原事实先提交。解释进度、后果与该次 Session 操作的认�
 
 1. <a id="ad-03-1a"></a>恢复会话（1a）。本插件用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复一个作用域。本插件在下列时点开始恢复会话：创建一个作用域；本插件体在 Runtime Context 提供者换代后重新运行，之后第一次为该作用域签发资格之前；`applyCommit` 返回「顺序不符」时。步骤：
    1. `beginReplay`：输入作用域、租户、检查点与被取代的恢复引用。旧资格与旧读者在这一步失效。
-   2. 构造完整恢复材料，共三部分：按会话日志的提交顺序，经历史读取取出的本会话全部注册提交（SE07，含移除意图）；每个 `checkpointed` 状态块最近一次步提交的全值，从 `change(context-step-commit)` 的条目归约得出，更新清单为空；已经确认的作用域结束。
+   2. 构造完整恢复材料，共三部分，全部限定于本次恢复的原 scope：按会话日志提交顺序，经历史读取取出的该 scope 全部注册提交（SE07，含移除意图）；该 scope 每个 `checkpointed` 状态块最近一次步提交的全值，从该 scope 的 `change(context-step-commit)` 条目归约得出，更新清单为空；该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。代次绑定与新 scope 初始化的责任边界见 [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)，本条不补齐 #680 的新 scope 初始化。
    3. `finishReplay`：输入恢复引用与恢复材料。
    4. 重签读取资格。
 
@@ -157,10 +157,10 @@ Agent 原事实先提交。解释进度、后果与该次 Session 操作的认�
 
 - 执行开始或建立新的执行挂接时，本插件按读者的消费者类签发资格。资格带块键集合与需要绑定集合。需要绑定来自注册材料（[AD-12](#ad-12)）。
 - 压缩提交之后，本插件对模型类读者重签资格（[RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）。在提交与重签之间崩溃时，恢复先重签，再接续。
-- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在哪个时点产生这一事实，session-contract 尚未规定，归 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
+- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在归档成功的同一次提交保存原 scope 的已确认结束事实；撤销归档另铸新代次，不重新开放旧 scope，精确绑定和提交后应用边界见 [Session 的 J18 条款](../session-contract/SPEC.md#j18-作用域引用与结束事实)。新 scope 的实际初始化仍按该条款保留 #680 与 Context 的责任。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
 - 访问核验：持有者面每个操作的第一个参数是调用方可信主体。每个带目标的入口先问权威端口，再问可信绑定来源。「作用域到租户」的可信绑定来源是调用方提供的端口（RC-01），由装配提供。该装配缺口归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。
 
-`change` 的注册决定由 Session 提交。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
+注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。每份确认的决定沿其原 CommitRef 与完整输入应用，批内多个注册按持久顺序应用。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
 
 <a id="ad-04"></a>
 
@@ -279,12 +279,13 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 ##### AD-10 证据桥
 
-- 提供：`sessionEvidence`，实现 `SessionEvidenceBridge`。
+- 提供：`sessionEvidence`，实现 `SessionEvidenceBridge`。初始化时复用既有 prepare，按 [Session 初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)核初始定义真实采用、完整来源计划、原绑定、结果及必要成功事实。completeInitialization 的注册准备复用 AD-12 的适配函数，不扩 SessionContextInput 的参数联合。编码在可信边界生成，caller JSON 或非空材料不能代替原拥有者证据。
 - 按命令种类取材料：
 
 | 命令 | 材料 |
 | --- | --- |
 | `startRun`、`reload`、`create` | 当前定义采用、候选采用与登录确认。候选采用材料另带 Tool 在采用点给出的三项：新纳入的常驻工具（写 SE36）、为常驻工具记下的登记键（随 SE08）、冻结判定（`FreezeVerdict`） |
+| `completeInitialization` | 按原初始化项核验协议、原绑定、结果及必要成功事实。execution-adoption 纯准备 ready 只写 SE02；确有新增能力实际采用时，材料带完整能力身份/ResidentKey 对和首次纳入的常驻定义，同批写 SE02、SE08 与必要 SE36。沿 [JC-02](../session-contract/SPEC.md#共同提交与共享事务域) 和[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)，不补造初始定义采用，不变更原定义版本 |
 | `preserveResult` | 生产来源与耐久保管 |
 | `completeConsumption`、`completeExternalConsumption` | 原消费位置与投递资格 |
 | `receive` | 原生产记录或 Agent 事件的来源 |
@@ -312,7 +313,11 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 - 提供：`sessionContextInput`，实现 `SessionContextInput.prepare`，用于 `create`、`change`、`startRun`、`reload`。
 - 动作：本插件以 Runtime Context 的 `prepareRegistration` 核对注册材料，再把需要、绑定与参数值编码为带 schema 的 JSON（`ContextMaterial`）。需要绑定带翻译纯函数，翻译见[模式翻译表](#模式翻译表)。
-- 材料是已可靠准备、尚未生效的增加、更新或移除。注册决定的唯一提交点是 Session 的 `change`。拒绝时材料仍只是候选。
+- 材料是已可靠准备、尚未生效的增加、更新或移除。Session 是本会话注册决定的唯一提交拥有者。原初始化计划内的初始增加由 create 或 completeInitialization 提交 SE02/SE07，后续变更由 change 提交。拒绝时材料仍只是候选。
+- 初始注册按原 createOperation、owner、item 固定，既有 creating=true 支持同一 scope 创建过程中的多个提交。原键到 CommitRef 的无碰撞编码、每个 SE07 的 basedOn/revision 链及 same-batch 引用归 [Session 的初始注册条款](../session-contract/SPEC.md#初始注册的身份与修订)。不能将同一 Session operation 直接复用为多个不同注册的 Context 提交身份。
+- prepareRegistration 核对完整输入，prepared 与 currentRevision 只是准备材料。Session 在最终提交的临时注册视图重核整批修订与相容性，原项结果、SE07、结果索引及操作答案同批；确有新增能力采用才另含 SE08、必要 SE36。已存在的同值决定只引用，异材料拒绝。
+- 确认 Session 提交后，按原 SE07 顺序调用现有 applyCommit。未知时先查原操作；失败沿原 CommitRef 和原输入恢复，不改 basedOn、不先应用。注册 ready 不证明块当前有值，生产者内容提交和 Context 首次恢复围栏仍分别受原契约约束。
+- Runtime Context API 保持。生产工作区加载、实际采用的供证能力与首次 scope 恢复分别归原提供者；来源和结果的可核验性须有相应提供者证据。
 - 失败：`prepareRegistration` 拒绝时，本插件交回逐项原因，Session 的命令返回 `invalid`。Runtime Context 不可用时返回不可用。
 
 <a id="ad-13"></a>

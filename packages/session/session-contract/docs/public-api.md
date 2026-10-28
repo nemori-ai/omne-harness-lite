@@ -54,6 +54,8 @@
 | `Modes`、`SessionCreation`、`WorkspaceAttachment`、`InitializationResult`、`ContextMaterial`、`DeclarationChange`、`Relation`、`ClockSample`、`IdleCoverage`、`IdleObservation`、`AutoArchivePolicy`、`FreezeVerdict`                   | [values.ts](../src/values.ts) |
 | `SessionManagement`、`ProducerFact`、`PendingReason`、`ResidentReference`、`ReleasedScope`、`SessionReconciliation`、`HistoryEntry`、`HistoryPage`、`ModelViewBasis`、`ModelViewRow`、`ModelViewRead`、`SessionHistory`、`SessionFaces` | [faces.ts](../src/faces.ts)   |
 
+SessionCreation.initialization 是可选来源包，包含 sources 和 results。sources 的共同头为 item、owner、protocol，种类封闭为 context-registration、workspace-load、execution-adoption；注册分支的 input 复用原 need、binding、parameters 材料。类型的具体名称与导出以源码为准，行为形状由 SPEC 约束。requiredIdentities、InitializationResult、原方法签名与 SessionContextInput.prepare 的命令联合保持。省略语义、完整性、真实初始采用准入与重放范围见 [初始化来源与提交](../SPEC.md#初始化来源与提交)。
+
 `ProducerFact` 没有 `agent-event` 与 `start-fence` 变体，`AgentEventFact` 不导出，见[被替代的协议](../SPEC.md#被替代的协议)。
 
 ## 领域服务与归约

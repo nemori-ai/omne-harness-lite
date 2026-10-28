@@ -39,6 +39,8 @@
 
 偏离「不改变旧字段含义」（依据 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) revision 2，0.x [演进政策](../../../../../docs/engineering/publication.md#当前演进与消费者)）：解释器 `session-log` 的 revision 2 把 `creation.workspace` 改为 legal-identity 第六族文本，并新增 `creation.workspaceAttachment`。识别靠 `session.created` 行是否有 `workspaceAttachment` 键，不靠 `schema`。缺键的创建行解码为 malformed，整条日志在创建行即被隔离，按 [SPEC](../../SPEC.md#固定事实及当前状态) 报告不可恢复。
 
+初始化来源协议使用 `@omne-harness/session-contract` / `session-log` revision `3` 的精确 Adoption，见 [SPEC 的初始化解释版本与重建](../../SPEC.md#初始化解释版本与重建)。条目 schema、批次解释配置和快照 interpreter 一致，先核版本再核载荷。新版本才要求同批初始 SE08，不能用公开 initialization 字段的有无猜版本。revision 2 的合法历史可能没有初始 SE08，新解释器对不支持的旧采用报告版本不兼容，按 SL12、SL14 停止治理投影并隔离；不把它报告为新协议畸形，不补造旧事实。新版本缺必要依据或同批事实才是其畸形历史。上述 #837 的 workspaceAttachment 识别规则不授予初始化协议跨版本解释能力。
+
 ## 效力与解释资格
 
 一条事实是否必须记入，见架构[必须进入日志的事实](../../../../../docs/architecture/runtime/session-and-run.md#必须进入日志的事实)。效力沿统一语言的 Deciding、Explaining、Transient。本文用中文「依据」「留痕」表达，不新增英文枚举。只有依据进入其合法消费者的状态转移输入。留痕可以进入历史查询和解释视图，不能改变队列、推进资格、等待或结算责任。瞬态通知、未封口增量及工程采样不能独自支撑恢复路径。
@@ -71,18 +73,18 @@
 
 | 标识 | `kind` | 事实类别与必须区别的情况 | 必要数据、出处及因果 | 效力与治理后果 |
 | --- | --- | --- | --- | --- |
-| SE01 | `session.created` | 会话创建 | 合法创建者；固定租户、Session、AgentDefinition 标识、用途、执行类型及必需身份，创建输入、确定的初值和采用依据、未完成初始化项及责任 | 依据。从未创建建立身份，单独创建不建立 Run |
-| SE02 | `session.initialization-item` | 初始化项处理 | 原初始化项与创建事实；负责方给出取得值、就绪或失败原因、仍缺条件及接续责任 | 依据。更新原项，全体必需项完成才可工作；失败不删除会话或伪装就绪 |
+| SE01 | `session.created` | 会话创建 | 合法创建者；固定租户、Session、AgentDefinition 标识、用途、执行类型及必需身份；原完整创建输入、真实初始采用依据、归一化来源计划、原 createOperation 及责任。新解释协议保存 initializationProtocol=1 与 initialAdoption | 依据。新协议与初始 SE08、必要 SE36 同批，从未创建建立身份，不建立 Run。缺采用来源或核验不可用时不产生创建事实 |
+| SE02 | `session.initialization-item` | 初始化项处理 | 原 createOperation、owner、item、协议与输入；原结果及提交身份；ready 的成功依据和相应 SE07、SE08、SE36 的原引用或同批引用；failed 的诊断和接续责任 | 依据。由 create 或 completeInitialization 提交，结果索引及操作答案同批。失败仍未完成；同值认回不重复事实，全体原项 ready 才可工作 |
 | SE03 | `session.mode-changed` | 三轴模式变更 | 本会话租户；指定维度、新值及当前上界核对依据，关联原操作 | 依据。仅变该维，其他维保持。Agent 要改模式，必须走 HITL，由人显式授权。不能突破结构化禁止 |
 | SE04 | `session.model-selected` | 模型选择变更 | 合法用户或明确代办者；合法路由名、原指令及模型拥有者校验依据 | 依据。保存选择；不改已固定请求、不建新 attempt，不因后续调用失败回滚 |
 | SE05 | `session.workspace-changed` | 工作区选择变更 | 合法选择者；选定、更换或解除的工作区（`workspace`，legal-identity 文本 `wsp_…`，解码时经 `workspaceCodec.parse` 重铸）、工作区附着（`workspaceAttachment`：实例标识 `instance` 与装载依据 `basis`，或 null）、本次变更的耐久依据（`basis`，`DurableEvidence`）。载荷为 `{ workspace, workspaceAttachment, basis }`。键名 `workspace` 与创建载荷一致，`change` 命令形状里的 `value` 映射到 `workspace`。`workspace` 与 `workspaceAttachment` 只有一方为 null 时无效。嵌套 `basis` 与外层 `basis` 同名异义，改名随工作区契约发布时迁出一并做。编码时 `workspace` 不得走通用 `toJsonValue`，须按 `session.created` 同一路径写文本（[#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)） | 依据。更新本会话选择；失败保留原合法状态，不把指定失败改成无工作区 |
 | SE06 | `session.declaration-adopted` | 会话覆盖或继承声明采用，含自动归档策略的采用 | 设置拥有者校验后的本会话项、覆盖值或继承声明、来源和版本 | 依据。只改本会话声明，不改租户默认、共享设置或资产内容 |
-| SE07 | `session.context-registration-changed` | Context 注册集合变更 | 注册协调者；增加、改变或移除的注册、来源、配置、消费者与必需性依据 | 依据。更新注册关系；必需项不能移除，移除注册不删除共享内容 |
-| SE08 | `session.adoption` | 定义、能力与装配实际采用 | 装配协调者；固定定义标识、实际版本、清单、能力绑定、来源裁定、安全交接和原等待引用，以及这次求值的[输入快照](../../../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)：会话选择与读过的各作用域、各类来源的采用变更计数；本次为常驻工具记下的登记键，按能力身份成对列出 | 依据。保存实际采用；新 Run 采用最新合法版，普通恢复保原版，合法 reload 与新 attempt 共同成立。候选校验失败不覆盖原采用 |
+| SE07 | `session.context-registration-changed` | Context 注册集合变更 | 注册协调者的可靠准备与 Session 的决定；增加、改变或移除的注册、来源、配置、消费者与必需性依据；原 scope、tenant、key、CommitRef、basedOn、revision 及完整规范输入；初始化增加另关联原 createOperation、owner、item 与同批 SE02 | 依据。更新注册关系；必需项不能移除，移除注册不删除共享内容 |
+| SE08 | `session.adoption` | 定义、能力与装配实际采用 | 装配协调者；固定定义标识、实际版本、清单、能力绑定、来源裁定、安全交接和原等待引用，以及这次求值的[输入快照](../../../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)：会话选择与读过的各作用域、各类来源的采用变更计数；本次为常驻工具记下的登记键，按能力身份成对列出 | 依据。新协议创建的初始 SE08 与 SE01 同批；后续纯准备 ready 不写 SE08，确有新增能力实际采用才与 SE02 及必要 SE36 同批。保存实际采用；新 Run 采用最新合法版，普通恢复保原版，合法 reload 与新 attempt 共同成立。候选校验失败不覆盖原采用 |
 | SE09 | `session.recovery-input-adopted` | 会话自有恢复输入采用，含 Context 状态块的步提交 | 数据拥有者；本会话自有值或不可重算输入、内容或可恢复引用、来源位置及采用依据 | 依据。保留恢复所需输入。外部实时数据仍归原源，前值按具体数据契约可选 |
 | SE36 | `session.tool-resident-admitted` | 常驻工具首次纳入常驻集合 | 采用点的候选采用材料；能力身份、资产版本与 shape（name、参数契约、命令表），内容由 Tool 规定；与同批 SE08 关联 | 依据。常驻集合只增不减，同一能力身份只写一次。会话据此恢复常驻工具在会话内不变的 name 与参数形状。当前记下的登记键从 SE08 派生，不另写，规则见 Tool 的 [R4](../../../../tool/tool-contract/SPEC.md#会话常驻规则r1r5) |
 
-SE03 至 SE07 与 SE09 经 `change` 的对应维度提交。Context 状态块的步提交经 `change(context-step-commit)` 写入 SE09。作用域重建后，持有者按日志提交顺序重放 SE07，再从 SE09 归约出每个状态块最近一次步提交的全值。
+SE03 至 SE06 与 SE09 经 `change` 的对应维度提交。SE07 的初始化计划内增加由 `create` 或 `completeInitialization` 提交，之后的变更经 `change`。Session 是注册决定的唯一提交拥有者，Context prepared 不代表决定已提交。一个 Session 批次内的多个 SE07 各有按原初始化键确定的 CommitRef，并按原计划顺序形成 basedOn 到 revision 的连续链；其 SE02 与索引同批。确定编码和完整约束归 [SPEC](../../SPEC.md#初始注册的身份与修订)。Context 状态块的步提交经 `change(context-step-commit)` 写入 SE09。作用域重建后，持有者按日志提交顺序重放 SE07，再从 SE09 归约出每个状态块最近一次步提交的全值。
 
 ### B 历史消息
 

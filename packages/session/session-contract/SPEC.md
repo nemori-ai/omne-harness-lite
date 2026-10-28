@@ -1,6 +1,6 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：普通输入拒绝不写 SE12，见 [SE12-JC03](#se12-jc03-现行未决偏离)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化归 #680。初始化项仍只来自 `SessionCreation.requiredIdentities`（裁定 R1），JC-01/ST01 的其他初始化来源尚未闭合。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 仍由 `decide` 根据 `login-entry` 守卫项产出，`judgeRunStart` 不产出它。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：普通输入拒绝不写 SE12，见 [SE12-JC03](#se12-jc03-现行未决偏离)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化归 #680。当前初始化代码仍只消费 `SessionCreation.requiredIdentities`（裁定 R1）；[初始化来源与提交](#初始化来源与提交)规定的可加来源材料尚未实现，保留 `requiredIdentities` 的原身份映射。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 仍由 `decide` 根据 `login-entry` 守卫项产出，`judgeRunStart` 不产出它。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`。本规格表达已具依据的必要行为；公开类型、领域服务、`decide`/`reduce` 与 `./testing` 的替身与一致性套件已按状态行所述范围在源码声明（[公开接口页](docs/public-api.md)），不定义存储提供者或认领协议。
 
@@ -587,9 +587,9 @@ Session 命令：
 | --- | --- | --- | --- | --- |
 | `inspectIdle` | `denied`；`unavailable`（时钟或空闲输入不可用。不用系统时间补） | 只读，没有未知 | 不适用 | 原始事实归各拥有者 |
 | `recordIdle` | `changed`（覆盖已失效）；`invalid`；`unavailable`；`denied` | `commit-unknown` | `queryOperation`；同观察认回 | 覆盖的完整性归空闲输入的提供者 |
-| `create` | `conflict`（同身份异创建输入，不换身份）；`invalid`（缺必填项；`workspace` 不是 legal-identity 铸出的 `WorkspaceId`（`workspaceCodec.encode` 不接受的值无效，线上适配器须先 parse）、`workspace` 与 `workspaceAttachment` 只有一方为 null、缺 `workspaceAttachment` 键或附着字段不是非空文本；会话身份已存在而操作不同；指定工作区加载失败时不降为无工作区）；`denied`；`unavailable`（桥） | `commit-unknown` | `queryOperation` | 固定身份与初值归 Session；执行类型采用归其拥有者 |
-| `completeInitialization` | `invalid`（原项或负责方不匹配）；`conflict`（矛盾结果）；`denied` | `commit-unknown` | `queryOperation`；同值认回 | 结果来源归负责方 |
-| `change` | `denied`（资格不足；Agent 发起而没有人的授权证据）；`invalid`（越过上界、移除必需注册；加载失败时保留原值；workspace 维度按 `create` 的同一规则核验（含缺 `workspaceAttachment` 键），在认回与租户、会话核对之后进行）；`conflict`（同身份异材料）；`changed`（注册的前修订过期）；`archived` | `commit-unknown`。未知期间作用域持有者不先使注册生效 | `queryOperation`；同材料认回 | 本操作是注册决定的唯一提交点；共享源归其拥有者 |
+| `create` | `conflict`（同身份异创建输入，不换身份）；`invalid`（缺必填项；`workspace` 不是 legal-identity 铸出的 `WorkspaceId`（`workspaceCodec.encode` 不接受的值无效，线上适配器须先 parse）、`workspace` 与 `workspaceAttachment` 只有一方为 null、缺 `workspaceAttachment` 键或附着字段不是非空文本；会话身份已存在而操作不同；省略指定失败而降为无工作区；缺真实初始定义采用来源、缺必要来源、来源重复或结果不符）；`changed`（初始注册前修订过期）；`denied`；`unavailable`（桥或核验来源不可用） | `commit-unknown` | `queryOperation` | 固定身份与初值归 Session；执行类型采用归其拥有者 |
+| `completeInitialization` | `invalid`（原项、协议、输入或负责方不匹配，结果材料不完整）；`conflict`（矛盾结果）；`changed`（注册前修订过期）；`unavailable`（原证据或解释协议不可用）；`denied` | `commit-unknown` | `queryOperation`；同值认回 | 结果来源归负责方 |
+| `change` | `denied`（资格不足；Agent 发起而没有人的授权证据）；`invalid`（越过上界、移除必需注册；加载失败时保留原值；原 workspace-load 项未 ready（含 failed）时拒绝 workspace 维度，其他维度按原规则判定；workspace 维度按 `create` 的同一规则核验（含缺 `workspaceAttachment` 键），在认回与租户、会话核对之后进行）；`conflict`（同身份异材料）；`changed`（注册的前修订过期）；`archived` | `commit-unknown`。未知期间作用域持有者不先使注册生效 | `queryOperation`；同材料认回 | 本操作提交初始化计划之外的注册变更；初始增加见 JC-01、JC-02；共享源归其拥有者 |
 | `setRelation` | `invalid`（子会话常驻，或 handoff 进入级联）；`denied`；`conflict` | `commit-unknown` | `queryOperation` | 关系后果归 Session |
 | `configureAutoArchive` | `denied`；`invalid`（`idleMs` 不是正十进制毫秒数）；`unavailable`（设置源） | `commit-unknown` | `queryOperation` | 配置源归租户设置拥有者 |
 | `considerAutoArchive` | `unavailable`（来源不可达、观察为 `unknown` 或组合缺席）；`invalid`（`idleEvidence` 不指向已确认的 SE31）；`denied` | `archived` 分支为 `commit-unknown`；其他结果不提交，没有未知 | `queryOperation`；同依据认回 | 归档复用 `control(archive)` 的完整结果。仍有未结工作时返回 `not-due`，不以空集合冒充已覆盖 |
@@ -671,7 +671,7 @@ Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用�
 
 ### 命令表
 
-下表列 23 个变更命令。`accept` 是一个命令，按 `RoutedInput` 分三类处理。每个命令的第一步都调用 `resolveOperation`，表中不再列出。事件族与 SE 编号的完整对应归[事件目录](docs/object-model/session-log-events.md#原生事实类别)。「参加者」一列说明提交由谁发起：Session 提交时，桥只提供参加者材料。
+下表列 23 个变更命令。`accept` 是一个命令，按 `RoutedInput` 分三类处理。每个命令先核当前租户、会话和访问资格，再调用 `resolveOperation`，表中不再列出。认回不得先披露私有原答案。事件族与 SE 编号的完整对应归[事件目录](docs/object-model/session-log-events.md#原生事实类别)。「参加者」一列说明提交由谁发起：Session 提交时，桥只提供参加者材料。
 
 | # | 命令 | 面 | 领域服务 | 写入的事件族（SE） | 参加者 |
 | --- | --- | --- | --- | --- | --- |
@@ -688,8 +688,8 @@ Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用�
 | 11 | `release` | `SessionWork` | `judgeAdvance` | Run、批次与 attempt（SE16） | Session 提交 |
 | 12 | `control` | `SessionWork` | `resolveControlScope`；`archive` 另用 `resolveCascade` | 控制与终态（SE24、SE25）；`cancel-run` 与 `archive` 同批有 SE26 与 SE16；`archive` 另有归档、冻结、关系与空闲（SE27）；`unarchive` 另有 SE28、SE31；冻结的会话里 `cancel-run` 另有 SE38 | Session 提交 |
 | 13 | `finishRun` | `SessionWork` | `judgeAdvance`（有界收束分支） | 控制与终态（SE26）；Run、批次与 attempt（SE16）；准入拒绝分支另有受理与分流（SE35）；冻结的会话里另有 SE38 | Session 提交 |
-| 14 | `create` | `SessionManagement` | 无；守卫核对入口契约的必填项 | 会话身份与声明（SE01，必要时 SE07、SE08；初始化确定常驻集合时 SE36）；有初始输入时另有 SE10、SE11 | Session 提交 |
-| 15 | `completeInitialization` | `SessionManagement` | 无；守卫核对原项与负责方 | 会话身份与声明（SE02） | Session 提交 |
+| 14 | `create` | `SessionManagement` | 无；守卫核对真实初始定义采用与完整初始化计划 | SE01、初始 SE08；已有结果写 SE02，注册 ready 同批 SE07，首次常驻定义同批 SE36；有初始输入时另有 SE10、SE11 | Session 提交，按[初始化来源与提交](#初始化来源与提交)形成完整批次 |
+| 15 | `completeInitialization` | `SessionManagement` | 无；守卫核对原绑定、结果与必要成功事实 | SE02；新的注册决定同批 SE07；确有新增能力实际采用才同批 SE08、必要 SE36 | Session 提交；已存在的同值事实只引用，不重复写入 |
 | 16 | `change` | `SessionManagement` | 无；守卫核对维度独立、上界与人的授权 | 会话身份与声明：按维度写 SE03、SE04、SE05、SE06、SE07 或 SE09；执行环境模式同批写 SE03 与 SE06 | Session 提交 |
 | 17 | `setRelation` | `SessionManagement` | 无；守卫核对主子与常驻互斥 | 归档、冻结、关系与空闲（SE29；常驻标记为 SE30） | Session 提交 |
 | 18 | `configureAutoArchive` | `SessionManagement` | 无；守卫核对格式与资格 | 会话身份与声明（SE06） | Session 提交 |
@@ -699,14 +699,130 @@ Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用�
 | 22 | `freeze` | `SessionManagement` | 无；守卫核对原因、证据与初始化已完成 | 归档、冻结、关系与空闲（SE37）；没有未终结 Run 时另有受理与分流（SE38） | Session 提交 |
 | 23 | `receive` | `SessionReconciliation` | 无；守卫核对事实拥有者、版本与原关联 | 按 `ProducerFact` 种类写下列之一：Agent 事件派生的 SE14、SE18、SE22、SE25、SE26 与 SE16（冻结的会话里终态另有 SE38）；交入回执 SE35；生产者事实 SE19、SE32；实例退出 SE17；级联、释放与启动资格失效读回 SE25。交付责任解除、级联、已分流输入、作用域释放与启动资格失效的读回解除对应任务 | Session 提交 |
 
+### 初始化来源与提交
+
+本节规定 `create` 与 `completeInitialization` 的初始化协议。`SessionCreation` 增加可选 `initialization`，原字段、方法签名、`InitializationResult` 和 `requiredIdentities` 保留。公开形状导航见[公开接口页](docs/public-api.md#创建声明与历史)。
+
+#### 创建准入与来源计划
+
+每条成功创建路径都须有已成立且可核实的初始定义实际采用。证据桥核对原租户、Session、定义标识、精确候选版本、来源裁定及其当前有效边界。缺来源或已知尚未实际采用返回 `invalid`；核验来源不可用返回 `unavailable`。两者均不发布 SE01、SE08、快照或任务。非空 candidate、Adoption、ContextMaterial、可注入实例或 prepared 回答均不能证明实际采用。`definition.adopted` 只从已提交的实际采用投影，不从 candidate 或生命周期填充。
+
+`initialization` 包含有序 `sources` 与有序 `results`。来源头为 `item`、`owner` 和 `protocol: Adoption`，三种来源穷举如下。
+
+| `kind` | 来源输入及 ready 的必要事实 |
+| --- | --- |
+| `context-registration` | `input` 复用 `DeclarationChange` 的 context-registration 分支中 need、binding、parameters 三份 `ContextMaterial`，省略 kind 与 registration。已采用翻译协议须能还原作用域、租户、块键、creating、required、前修订和完整绑定。不可序列化的翻译函数、参数 schema 及状态块 declaration 由精确已采用定义引用还原，不把函数写入 JSON；缺对应编码或来源时该项不能 ready。ready 同批形成 SE07 与 SE02；registration 保存可靠准备的依据，Session 提交才是注册决定 |
+| `workspace-load` | 不另收可变输入。从 creation 精确固定 `workspace` 与 `workspaceAttachment` 的 instance、basis。ready 证明同租户、同逻辑工作区、同实例及同加载依据，只写 SE02，不写选择变更 SE05 |
+| `execution-adoption` | 不另收可变输入。从 creation 固定 execution、definition.name、candidate、入口契约及类型要求。只延后类型准备及必需条件。初始定义实际采用必须已经通过创建准入。纯准备 ready 只写 SE02；确有新增能力实际采用时才同批 SE08、必要 SE36，不换初始定义版本 |
+
+旧身份项仍由 `requiredIdentities` 逐项生成：item=name，owner=capability，protocol=entryContract，input 为原 `{ capability, name }`。统一原绑定为 `(tenant, session, createOperation, owner, item, protocol, originalInput)`。工作区经 `workspaceCodec` 编码，不走通用 JSON 转换。RecoveryTask.input 保存上述穷举归一化结果，恢复沿保存的协议解释，不从输入外观猜来源种类。
+
+省略 `initialization` 只表示没有显式追加来源与结果，不免除任何创建前提。合法旧调用通过桥取得真实初始采用及完整条件证据，无需调用方新增必填材料。桥必须从原 entryContract、execution、definition 及指定工作区核对全部要求。已完成要求有可核验的初值或结果；允许延后而未完成的非身份要求必须出现在来源计划。缺必要来源为 `invalid`，核验不可用为 `unavailable`。空来源数组、空结果数组或没有身份项均不能自行产生 dormant。
+
+身份项和新增来源的 `(owner,item)` 联合唯一，不通过去重隐藏冲突。同一原注册身份只能有一项。最多一个 workspace-load 和一个 execution-adoption；无工作区时禁止 workspace-load。workspace 与 attachment 的现行 null 组合、必填键与 ID 校验保持。results 只能指向原清单中的项；缺席为 pending，failed 保留失败与接续责任，核验及提交成立的 ready 才完成原项。来源及结果顺序参加完整创建输入判等，重排不视为同操作重试。
+
+#### 初始化守卫编码
+
+`SessionEvidenceBridge.prepare` 仍接收既有 `SessionCommand`，返回既有 GuardCommand 数组。初始化使用 Session 自有协议 `Adoption.owner=@omne-harness/session-contract`、name=`session-initialization`、revision=`1`。digest 绑定该精确编码的发布内容，不用占位摘要或仅比较版本文本。GuardCommand 的 owner 为 `session-initialization`，participant 为 `session-evidence`。这些值标识协议，不是授权凭据。
+
+facts 是下表定义的封闭对象。不得接受未知字段、未知分支、重复项、隐式类型转换或任意 ready 标记。身份采用各自原 codec 编解码。Adoption、DurableEvidence 和 ContextMaterial 沿已有公开编码，不能把普通 JSON 强制转换成可信证据。
+
+| 字段 | 精确内容与约束 |
+| --- | --- |
+| `version` | 整数 1，与 protocol 的精确采用一致 |
+| `command` | `create` 或 `completeInitialization`，与 SessionCommand.kind 相同 |
+| `binding` | tenant、session、operation、createOperation。operation 是本次提交身份，createOperation 是原创建身份；create 时二者相等 |
+| `input` | 该命令的完整固定输入的规范 JSON 值，身份经原 codec。按字段和值比较，与实际 SessionCommand 完全相同；不以摘要代替原输入 |
+| `initialAdoption` | create 必填，completeInitialization 为 null。含 definitionName、candidate、adopted、source、boundary、inputSnapshot、capabilities、residentBindings、newResidents。candidate/adopted 为 Adoption 且指向同一精确已实际采用定义；source、boundary 为可核验 DurableEvidence；其余保存实际清单、求值输入及[常驻工具条款](#常驻工具与会话冻结)要求的完整材料，空清单也须显式给出 |
+| `requirements` | create 必填有序清单，completeInitialization 为 null。每项含 kind、key、requirement、resolution；kind 仅为 entry-contract、identity、context-registration、workspace-load、execution-preparation。key 来自相应已采用要求协议，requirement 是该要求的耐久来源证据。resolution 仅为 `{kind:satisfied,evidence}` 或 `{kind:planned,owner,item}`，evidence 为成功依据，planned 必须唯一指向下述 plan 的原项 |
+| `plan` | create 为完整归一化项数组，completeInitialization 仅含原项。每项含 kind、owner、item、protocol、originalInput；kind 仅为 identity 及三类新增来源。identity 沿旧映射，其他项从原 creation 生成。不得由结果提交者改写原计划 |
+| `results` | 与命令已有 results 或单个 result 一一对应且顺序相同。每项含原 owner、item、原 InitializationResult 及 consequence。failed 的 consequence 为 null；ready 的 consequence 按下表穷举 |
+
+requirements 不是调用方自报的任务列表。受信适配器按已采用入口及类型协议取得完整要求，由证据桥核对。没有外域可解释的原证据时报告缺项或不可用，不新建外域 API，也不猜负责方。注册要求若在本批完成，resolution 使用 planned 指向原项，结果必须是可靠 ready 并同批生成 SE07；已经提交的同值决定才能以 satisfied.evidence 引用原 SE07。不能把 prepared 包装为已提交成功依据，也不能只有材料非空。
+
+| 原项 kind | ready 的 `consequence` |
+| --- | --- |
+| identity | `{kind:identity,evidence}`，证明原身份要求已满足 |
+| workspace-load | `{kind:workspace-load,evidence}`，证明原工作区组合已合法加载 |
+| context-registration | `{kind:context-registration,prepared,decision}`。prepared 是原注册准备的 DurableEvidence。decision 保存 scope、tenant、key、commit、basedOn、revision、creating、required 及原 need、binding、parameters 的完整规范材料，按下节生成 |
+| execution-adoption | `{kind:execution-ready,evidence,adoption}`。adoption 为 null 时只证明原类型准备；非 null 时含原 definitionName、adopted、source、boundary、inputSnapshot、capabilities、residentBindings、newResidents，格式与 initialAdoption 的对应字段相同，证明真实新增能力采用 |
+
+事实源仍在原拥有者。桥在可信装配边界生成材料，存储参加者只接受已登记的精确协议与受信来源。最终提交重核当前资格、原绑定、完整要求及材料有效边界，随后纯 decide 解析并核对上述关系。调用方可构造相同 JSON 不构成受信来源，digest 也不授予权限。无法在提交边界证明依据仍有效时拒绝或报告 unavailable，不以 Session CAS 成功代替共享依据有效。该编码不增加 GuardCommand 的公开必填字段，也不增加 SessionContextInput 的参数分支。
+
+#### 初始注册的身份与修订
+
+初始注册只允许原创建计划内的 add，creating=true、required=true。Session 从受信翻译协议取得 opaque scope 和 key，按完整值比较，不解析二者取得租户或业务身份。scope 的可信绑定必须等于原 tenant、session 与创建业务代次。初始化结束之后不能再把普通变更声明为 creating。
+
+每个原注册项的 Context CommitRef.commit 使用以下唯一编码。输入是固定七元素字符串数组 `["session-init-registration", "1", tenantText, sessionText, createOperationText, owner, item]`。前三个身份文本 tenantText、sessionText、createOperationText 取各自原 codec 的规范文本；owner 与 item 保留原字符串码元。所有元素不得先拼接、哈希、裁剪、大小写转换或 Unicode normalize，不解析外域 opaque ID。结果提交 operation 不进入这个数组。
+
+编码器必须按以下算法构造相同文本，不能从“标准 JSON”或“无空白”推定输出唯一。
+
+1. 按上列七元素顺序编码。数组首尾分别写 U+005B 和 U+005D，相邻元素间只写 U+002C。数组与元素边界不插入空白、换行或 BOM。字符串中的原数据仍按下列规则编码。每个字符串首尾只写 U+0022。
+2. 每个字符串按原 UTF-16 码元顺序扫描，不改动原码元。使用 Unicode 标量字符串的编码器，须先把大于 U+FFFF 的标量展开为对应 UTF-16 高低代理对；若接口承载未配对代理码元，必须保留该码元参与以下编码，不把它替换为 U+FFFD。上游原 codec 的合法性限制保持。
+3. U+0022 只写两个字符 `\"`，U+005C 只写两个字符 `\\`。U+0008、U+0009、U+000A、U+000C、U+000D 分别只写 `\b`、`\t`、`\n`、`\f`、`\r`。其余 U+0000 至 U+001F 只写六字符 `\u00hh`，其中 hh 是该码元的两位小写十六进制数。
+4. 高代理 U+D800 至 U+DBFF 紧接低代理 U+DC00 至 U+DFFF 时，将这两个码元作为原顺序的一个代理对原样写入，扫描越过两个码元。单独的高代理或低代理只写六字符 `\uhhhh`，hhhh 是原码元的四位小写十六进制数。
+5. 其余码元只写原字符。禁止可选转义，包括实心斜线、字面 a、非 ASCII 字符、U+2028 与 U+2029 的转义。以上规定的转义不得换成长转义、大小写不同的十六进制或其他等价 JSON 拼写。输出如需转成字节，使用无 BOM 的 UTF-8；有效代理对编码为其对应 Unicode 标量的 UTF-8，未配对代理已在第 4 步成为 ASCII 转义。
+
+该算法等价于对这个纯字符串数组执行 ECMAScript 的 well-formed `JSON.stringify`，且不传 replacer 或 space。规范依据是上述完整算法。其他语言或编码器必须重建这些规则，不能把公共 json-text 写出的“无空白”直接视为已满足本规则。
+
+下表固定字符串编码的测试向量。左列按十六进制列出 UTF-16 码元，右列给出字符串编码的精确 UTF-8 字节十六进制，包含两端双引号。空码元序列表示空字符串。向量用于核对算法，不替代上述规则。
+
+| 原码元序列 | 字符串输出 UTF-8 hex |
+| --- | --- |
+| 空 | `2222` |
+| `0061` | `226122` |
+| `0022 005c 002f` | `225c225c5c2f22` |
+| `0000 0008 0009 000a 000b 000c 000d 001f` | `225c75303030305c625c745c6e5c75303030625c665c725c753030316622` |
+| `4e2d 00e9 2028 2029` | `22e4b8adc3a9e280a8e280a922` |
+| `0065 0301` | `2265cc8122` |
+| `d83d de00` | `22f09f988022` |
+| `d800` | `225c756438303022` |
+| `dc00` | `225c756463303022` |
+| `d800 0061 dc00` | `225c7564383030615c756463303022` |
+
+完整数组向量 `["session-init-registration","1","t","s","c","o","i"]` 的输出恰为该行代码字体内的文本，首尾无额外空白或换行。域标识和版本保留为 Session 此用途专有命名空间，其他 Context 提交编码不得使用该域标识。不同原键所得文本不同，重驱动及不同结果提交 operation 所得文本相同。该身份只作为 Context 的 opaque CommitRef，不另造一笔外域工作。完整原输入另存并判等。
+
+同一 Session 批次可以有多个 SE07，每个对应一个原注册键和一个独立 CommitRef。原计划中 ready 的注册按 sources 中的顺序形成子序列。Session 对该 scope 的已提交注册修订 R 维护临时注册视图；第 i 个新决定的 basedOn 为 R+i-1，结果 revision 为 R+i，i 从 1 起。首个注册之前 R=0。修订使用 Context 的 RegistrationRevision 非负安全整数，溢出拒绝。前修订过期返回 changed，不能改序号伪装同输入重试。
+
+桥在调用前确定最终 RegistrationChange，调用既有 prepareRegistration 核对，保存 judged.change、judged.coverage 与 currentRevision 的可靠来源。judged.change 必须等于最终完整变更，不得在 prepared 后替换 basedOn。currentRevision 与本 scope 的已提交起点 R 核对，覆盖范围沿 Context 的 full 或 declaration-independent 含义保留，不把后者报告为完整声明核验。Context 当前投影尚未应用的同批前项不要求先 applyCommit；持有者在提交内按临时视图重核前项及每份最终材料。不得把单个 prepared 的 currentRevision 当成后续所有决定的 basedOn，也不得改写已确认的决定。无法证明临时视图、最终 basedOn 或整批注册相容时不提交 ready，不新增 Context prepare 或批量 API。
+
+SE07 保存原键、CommitRef、完整原材料、basedOn、revision、scope 与租户。SE02 的成功事实引用使用封闭联合 `{kind:batch,ordinal}` 或 `{kind:committed,entry}`。batch.ordinal 是本次最终条目序列中从 0 起计的安全整数，必须指向同批更早的必要 SE07、SE08 或 SE36；committed.entry 为可核验的原条目 DurableEvidence。引用不得跨租户、会话或原项。创建条目固定 SE01 在首位，随后初始 SE08、必要 SE36，各项新增成功事实在对应 SE02 之前。纯身份、工作区或执行准备成功由 SE02 自身保存证据，额外事实引用为空。只有整批提交才可见，重建核对引用及事实完整内容，不只核种类。已存在同值决定只引用原事实，不再增加修订；同一原键或同一注册身份的异材料拒绝，不能后写覆盖。不同注册项的决定及其 SE02、最终注册修订、原结果索引、操作答案与本次其他事实一次原子发布。
+
+提交确认后，按 SE07 的持久顺序以原 CommitRef 和原 RegistrationChange 调用既有 applyCommit，不能把整批 Session operation 用作多个不同注册的相同 CommitRef。Context 可以短暂落后，Session 不把落后投影说成就绪可读。失败沿原提交重放；顺序不符沿既有恢复协议补齐，不能给旧决定改 basedOn。创建同 scope 的多个注册提交使用既有 creating=true 支持，不开放新的必需项窗口。注册 ready 不证明生产者已经供值，供给块暂缺的读取结果仍归 Context。
+
+#### 结果同批与认回顺序
+
+创建先核当前资格、真实初始定义采用及完整计划，同批写 SE01、初始 SE08、首次常驻定义的必要 SE36，以及已取得结果的 SE02 和必要 SE07。纯准备结果不重复初始 SE08。接续 ready 只写 SE02 及新的必要事实；确有新增能力实际采用才追加 SE08 和必要 SE36，固定定义身份及原初始版本不变，完整能力身份与 ResidentKey 成对保存。无真实新增采用材料、声称另一定义版本或与原实际采用矛盾时拒绝，不写成功事实。failed 只写 SE02，保留任务和诊断。
+
+操作顺序如下。
+
+1. 先核本次访问的当前租户、会话和资格。撤权后不披露原操作或原项的私有答案。
+2. 查本次 operation 的原答案并核完整输入。同 operation 异输入为 conflict；已提交同值直接认回，即使原任务已完成或从待办移除。
+3. 未认回时，按原 createOperation、owner、item 查持久计划和结果索引，再核协议、原输入及原事实。不同 operation 的同值结果认回原事实及其回执，不重复写 SE02、SE07、SE08 或 SE36。
+4. 对尚未完成的原项，核新结果并提交完整批次。failed 可以沿原绑定取得 ready；重复同失败认回，新失败诊断可追加。ready 后 failed、矛盾 ready 或原绑定不符均拒绝。原状态查不清为 unavailable，未知提交不能重建任务、重换 item 或发起另一份外部工作。
+
+原结果索引与 SE02、操作答案同提交。pending(reason=initialization) 包含 pending、unknown 和 failed。任一原项未 ready 时保持 initializing，startRun 和 freeze 为 not-ready。原 workspace-load 未 ready 时还拒绝 change 的 workspace 维度，永久 failed 也适用；其他合法维度按原契约判定。不得清空 attachment、删除失败项或换键绕过，没有有限时间恢复或失败后改选工作区的保证。
+
+#### 初始化解释版本与重建
+
+初始化来源协议采用 `SESSION_INTERPRETER` 的新 Adoption：owner=`@omne-harness/session-contract`，name=`session-log`，revision=`3`，digest 对应该解释器的精确发布内容。条目 schema、该批适用的已登记解释配置及 WorkSnapshot.interpreter 必须一致。批次解释配置从整批条目 schema 与已登记解释器确定，不给 CommittedBatch 或公开调用增加必填参数。SE01 的编码额外保存 initializationProtocol=1、已核实 initialAdoption、完整归一化 plan 与原创建输入。是否省略公开 initialization 字段不决定历史协议版本，新 create 都产生同一新解释版本。
+
+解释器先核精确 Adoption 与批次配置，再解码载荷并验证整批。该版本的第一批必须有 SE01 和与 initialAdoption 一致的初始 SE08，必要首次 SE36 同批；SE02 的 ready 必须有对应的已提交或同批成功事实。缺这些依据、错原绑定或矛盾事实是本版本的畸形历史，隔离会话并报告不可恢复，不发布部分状态。
+
+此前 session-log revision 2 使用 workspaceAttachment 键识别工作区载荷的规则保留其原适用范围。revision 2 的合法历史可能没有初始 SE08，不能按本节的新要求认定其畸形，也不能用 candidate 补造旧 SE08。新解释器本次支持范围为上述 revision 3；遇到其他精确解释采用，报告版本不兼容及原采用，按 SL12、SL14 停止治理投影并隔离受影响会话，保留原日志和处置责任。若版本元数据缺失或互相矛盾，报告缺解释依据，不猜版本。
+
+本节不承诺旧存储字节迁移、回填或双解释器兼容。现行实验阶段政策不要求补兼容层。历史日志是否有效按其原适用承诺判断，当前解释器是否支持是另一项判断。旧公开有效调用的含义和字段保持，重新调用通过本节准入后按新版本提交，不要求调用方增加必填参数。不得把旧日志重放改成再次 create 或再次执行外部加载。
+
+重建只使用原 SE01、SE02 和关联 SE07、SE08、SE36，重建原计划、未完成项、已完成结果索引、注册修订与采用。检查点全部失效也不重新选默认、不重新求值或改换原协议；原证据、材料或解释器不可用时报告不可恢复或 unavailable，保留责任。Session 提交与 Context applyCommit 是不同事实，本节不证明真实 Context 首次 finishReplay、生产加载器、采用提供者、Model ACK、耐久或跨进程运行已经闭合。
+
 ### 共同提交与共享事务域
 
 一次共同提交只发生在一条权威提交序列内（[P-1](#具名前提与明确缺项)）。提交方持有存储层的操作身份并调用提交。参加者在同一事务内以版本化材料执行自己的事实语句，不自己提交。下表最后一列是提交成功后任何合格读取者在权威读里必须看到的事实。系统层的提交方与参加者关系见[共同提交与参加关系](../../../docs/architecture/runtime/session-and-run.md#共同提交与参加关系)。
 
 | 编号 | 命令 | 提交方 | 参加者 | 参加者交来的材料 | 提交后可观察的事实 |
 | --- | --- | --- | --- | --- | --- |
-| JC-01 | `create` | Session | 存储参加者；身份桥、Context 输入、证据桥的材料 | 创建资格、必需注册、工作区加载与执行类型采用 | SE01；已取得的初值与采用；未完成项在 `tasks.initialization`。初始化项来自 `SessionCreation.requiredIdentities`：项名为 `name`，拥有者为 `capability`，协议为 `entryContract`；没有必需身份时会话直接 dormant（裁定 R1，主线 2026-10-25）。必需注册、工作区加载与执行类型采用作为初始化项来源归 #756 |
-| JC-02 | `completeInitialization` | Session | 存储参加者；证据桥 | 原项结果的来源 | SE02；全部必需项完成后 `lifecycle` 为 dormant |
+| JC-01 | `create` | Session | 存储参加者；身份桥、Context 输入、证据桥的材料 | 创建资格、真实初始定义采用、完整来源计划及已取得结果 | SE01、初始 SE08 和必要 SE36 同批；已取得结果写 SE02，注册 ready 同批 SE07；原项、结果索引、原操作答案同批。任一未完成项（含 failed）保留 `tasks.initialization` 与 initializing；全部完成且无 Run 才 dormant。详见[初始化来源与提交](#初始化来源与提交) |
+| JC-02 | `completeInitialization` | Session | 存储参加者；证据桥 | 原绑定、结果、前修订及必要成功事实 | SE02 与新的 SE07、确有新增能力实际采用的 SE08、必要 SE36，以及结果索引和原操作答案同批；纯准备 ready 仅 SE02。已存在的同值事实只引用。全部原项 ready 且无 Run 才 dormant，失败保留原项 |
 | JC-03 | `accept`（普通输入） | Session | 存储参加者；身份桥；业务流程拓展点的留痕 | 发送资格；拓展点的结论 | SE10、SE11；`pending` 含该输入。拒绝时只有 SE12 |
 | JC-04 | `accept`（卡片答复、业务输入） | Session | 存储参加者；证据桥 | 卡片或业务来源 | SE11，卡片答复另有 SE23，授权类答复另有 SE34；`tasks.routed-input` 含交回责任 |
 | JC-05 | `startRun` | Session | 存储参加者；Context 输入、证据桥 | 注册集合；候选采用与登录确认（裁定 R2：入口类别为普通输入时，`decide` 核对 `guards` 里是否有 `owner === 'login-entry'` 的 `GuardCommand`，只看存在，`facts` 不解释；缺席返回 `login-required`） | SE13、SE15，采用变化时 SE08；`run.active`，`advance` 为首个 attempt；`pending` 不变。执行记录提供者不参加本次提交 |
@@ -1206,10 +1322,10 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | `resolveControlScope` | 快照、`Control` 或 `ControlIntent` | `scope`（待核对的生产者、撤销的资格、是否同批形成 cancelled 终态、传播责任、级联与作用域释放任务）、`terminal`、`invalid` | `control`、`interrupt`、到期的 `considerAutoArchive` | ST18a、ST18b、ST19a、ST19b、ST21 |
 | `resolveCascade` | 快照中的关系、子会话列表 | 级联任务列表；handoff 不在其中 | `control(archive)`、`considerAutoArchive` | ST21、ST23 |
 | `judgeIdle` | `IdleObservation`、自动归档策略、关系、`openWork`、`IdleCoverage` | `due`、`not-due`、`exempt`、`disabled`、`unavailable` | `considerAutoArchive`；空闲与自动归档调度 | ST24a、ST24b |
-| `resolveOperation` | 操作身份、规范化参数摘要、已提交记录 | `new`、`recovered`（原回执）、`conflict` | 全部变更命令的第一步；`queryOperation` | [SL07](#日志提交与查询结果) |
+| `resolveOperation` | 操作身份、规范化参数摘要、已提交记录 | `new`、`recovered`（原回执）、`conflict` | 全部变更命令核权后的首个领域步骤；`queryOperation` | [SL07](#日志提交与查询结果) |
 | `reduce` | 前状态、已提交的完整批次 | 新 `WorkSnapshot`、`quarantined` | 全部权威读 | [SL12、SL13](#日志读取投影及恢复)、[SL18](#原生事实与状态转移) |
 
-`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料的存在（`startRun` 的登录门，裁定 R2；`facts` 对 `decide` 不透明），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 遇到不晚于 `readThrough` 的事件时认回原回执，不返回 `changed`。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前的消息，`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
+`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料（`startRun` 的登录门按裁定 R2 只核存在；初始化材料按[初始化守卫编码](#初始化守卫编码)解析，其余 `facts` 沿所属协议解释），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 遇到不晚于 `readThrough` 的事件时认回原回执，不返回 `changed`。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前的消息，`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
 
 `openWork` 只有一个实现，供三处共用：历史持有者交给 Request Context 的未结工作下界、条件终结只读参加的阻塞依据、空闲裁定的本会话部分。三处读同一结果，所以不会对「还有未结工作」给出不同答案。`judgeIdle` 的跨会话部分（子方与在途调用）不在纯函数里计算，由 `SessionIdleInput.inspect` 收集成 `IdleCoverage` 后传入。`reduce` 的算法见[纯批次归约算法](docs/object-model/session-state-transitions.md#纯批次归约算法)。
 
@@ -1229,7 +1345,7 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | 事实 | 经由 | 条目 | 提交路径 | 效力 |
 | --- | --- | --- | --- | --- |
 | 会话创建 | 合法创建者 | SE01 | `create` | 依据 |
-| 定义、能力与装配的实际采用 | 装配协调者的候选采用材料 | SE08 | `create`；采用变化时的 `startRun`；`reload` | 依据 |
+| 定义、能力与装配的实际采用 | 装配协调者的候选采用材料 | SE08 | `create`；确有新增能力实际采用的 `completeInitialization`；采用变化时的 `startRun`；`reload`。初始化纯准备 ready 只写 SE02，不写 SE08 | 依据 |
 | Run 开始 | 工作治理 | SE13 | `startRun` | 依据 |
 | attempt 开始 | 治理认领者 | SE15 | `startRun`、`claim`、`reload` | 依据 |
 | 会话归档 | 合法归档者，或到期的自动归档 | SE27 | `control(archive)`、`considerAutoArchive` | 依据 |
@@ -1274,7 +1390,7 @@ Tool 来源：
 | 迟到版本 | 合格保管者 | SE20 | `recordResult(custody)` 的参加；记录已删除时 `preserveResult` | 依据 |
 | 交付责任解除的回执 | 消费位置拥有者 | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
 | 账目 | Agent 的 `producer` 事件不带账目。在途与迟到的账目都由消费位置拥有者按原调用读取（[P-3](#具名前提与明确缺项)） | SE32 | `receive(account)` | 结算恢复所需为依据 |
-| 常驻工具的首次定义 | 采用点的候选采用材料（证据桥） | SE36 | `create`、`startRun`、`reload` | 依据 |
+| 常驻工具的首次定义 | 采用点的候选采用材料（证据桥） | SE36 | `create`、有新增实际采用的 `completeInitialization`、`startRun`、`reload` | 依据 |
 | 冻结判定 | 候选采用材料，或 Tool 宿主的协调者经 `ToolResidencyActions` | SE37；没有未终结 Run 时另有 SE38 | `freeze` | 依据 |
 
 SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类准入由本成员规定：缺了它，会话就不能恢复常驻工具在会话内不变的 name 与参数形状。常驻工具当前记下的登记键从 Run 的采用依据（SE08）派生，不另写条目，规则见 Tool 的[R4](../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
@@ -1285,14 +1401,14 @@ SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类�
 | --- | --- | --- | --- |
 | 受理入口与用户 | 输入受理、拒绝留痕、控制意图、模式与选择、关系 | SE10、SE11、SE12、SE24、SE03 至 SE06、SE29、SE30 | `accept`、`control`、`interrupt`、`change`、`setRelation` |
 | HITL | 原决定交回；授权类答复的授权关联 | SE23；SE34 | `accept(card-decision)` |
-| Runtime Context | 注册决定与步提交的材料、变化材料 | SE07、SE09、SE10 变化提醒 | `change`、`commitDerived(context-reminder)` |
+| Runtime Context | 注册准备与步提交的材料、变化材料；注册决定归 Session | SE07、SE09、SE10 变化提醒 | 初始注册增加由 `create`、`completeInitialization`；后续由 `change`；变化提醒由 `commitDerived(context-reminder)` |
 | Request Context | 压缩记录 | SE10、SE33 | `commitDerived(compaction)`（经 Agent 参加） |
-| 装配 | 定义与装配的实际采用 | SE08 | `startRun`、`reload`、`create` |
+| 装配 | 定义与装配的实际采用 | SE08 | `create`、确有新增能力实际采用的 `completeInitialization`、`startRun`、`reload`；初始化纯准备 ready 不写采用 |
 | 子会话 | 级联回执 | SE25 | `receive(cascade)` |
 | 执行环境 | 作用域释放的读回 | SE25；解除或保留 `tasks.scope-release` | `receive(scope-release)` |
 | Tool 启动围栏 | 启动资格失效已生效 | SE25；解除 `tasks.start-fence`（已被替代），或把 `ControlProgress.startFence` 记为 `effective` | `receive(start-fence)`（已被替代） |
 | 时钟与空闲输入 | 连续空闲依据 | SE31 | `recordIdle` |
-| 初始化项的负责方 | 初始化结果 | SE02 | `completeInitialization` |
+| 初始化项的负责方 | 原项结果及核验依据 | SE02，成功事实按 JC-01、JC-02 | `create`、`completeInitialization` |
 
 下列内容不进日志。它们的可追溯义务由各自拥有者的保管协议承担。
 
@@ -1334,7 +1450,7 @@ assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内�
 | 换代同批产生的启动资格失效任务 | ST09、ST11 | `tasks.start-fence`（已被替代） 与旧 attempt 的 SE16 同批；失效生效时解除 |
 | `receive(scope-release)` | ST26 | 按[作用域释放的处置](#构造依赖端口与出站端口)解除或保留任务 |
 | 消费游标的推进 | ST26 | 游标随产生的条目同批保存；不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进（[EC-02](#ec-02)） |
-| 采用点纳入常驻工具 | ST01、ST06、ST11 | 候选采用材料列出的新常驻工具写 SE36；已纳入的能力身份不再写 |
+| 采用点纳入常驻工具 | ST01、有新增能力实际采用的 ST02、ST06、ST11 | 候选采用材料列出的新常驻工具写 SE36；已纳入的能力身份不再写。ST02 纯准备 ready 只写 SE02 |
 | 冻结的会话收到普通输入 | ST03 | 有未终结 Run 时去处为当前 Run；没有时拒绝，原因 `frozen` |
 | 冻结的会话里 Run 终结 | ST20 | 仍有待处理资格的输入在终态同批以 SE38 解除 |
 | 冻结的会话撤销归档 | ST22 | 回到冻结，不回休眠 |
@@ -1371,9 +1487,9 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 
 常驻工具是 Agent 不经发现即可调用的工具。一个会话的常驻工具构成它的常驻集合。会话常驻规则、同形判据与采用点的判定表归 Tool 契约（[P-8](#具名前提与明确缺项)）。本节只写会话一侧。这里的「常驻工具」与主会话的常驻标记（SE30）是两个概念，正文指工具时写「常驻工具」或「常驻集合」。
 
-采用点是会话初始化、新 Run 开始与显式 reload。Run 进行中没有采用点。
+采用点是会话初始化、新 Run 开始与显式 reload。初始化包括 create 的真实初始采用，以及 completeInitialization 中确有新增能力实际采用的完成；纯准备 ready 不是新增采用。Run 进行中没有采用点。
 
-- 纳入：采用点的候选采用材料列出本次新纳入的常驻工具。`create`、`startRun` 与 `reload` 在同一次提交里为每一项写 SE36，内容是能力身份、资产版本与 shape。已纳入的能力身份不再写。常驻集合只增不减（`WorkSnapshot.residents`）。
+- 纳入：采用点的候选采用材料列出本次新纳入的常驻工具。`create`、确有新增能力实际采用的 `completeInitialization`、`startRun` 与 `reload` 在各自同一次提交里为每一项写 SE36，内容是能力身份、资产版本与 shape。已纳入的能力身份不再写。常驻集合只增不减（`WorkSnapshot.residents`）。
 - 记下：候选采用材料同时按能力身份列出本次采用为常驻工具记下的登记键（能力身份与 `ResidentKey` 成对），随 SE08 保存。会话当前记下的登记键取自最近一条 SE08，不另写条目。
 - 冻结判定：Tool 只在采用点判定冻结，给出原因 `tool-shape-lost` 与耐久证据（`FreezeVerdict`）。常驻工具暂时缺席、状态未知或被撤权时，Tool 以同形的不可用件替代它，不给出冻结判定。
 - 唯一提交点：冻结只经 `freeze` 提交。判定有两条到达路径。第一条，`startRun` 或 `reload` 的候选采用材料带回冻结判定：命令返回 `frozen`，不提交，推进协调随后以该判定调用 `freeze`。第二条，Tool 宿主的协调者经 `ToolResidencyActions` 交来判定，session-adapters 把它翻译为 `freeze`。两条路径对同一会话只成立一次冻结。
@@ -1438,11 +1554,11 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 #### 身份桥、证据桥与 Context 输入
 
 - 身份桥核实主体的可信来源，生成绑定租户、会话、操作与命令的身份材料。材料不能用于另一命令，不序列化主体的秘密。
-- 证据桥按命令种类取材料：`startRun` 与 `reload` 核当前定义采用（`startRun` 另从首条输入的 `origin` 取登录确认，交出 `owner` 为 `login-entry` 的材料；`decide` 只核对它存在），`preserveResult` 核生产来源与耐久保管，`completeConsumption` 核原消费位置，`receive` 核原生产记录或 Agent 事件的来源，`create` 与 `change` 核入口、资产与声明条件。材料准备失败时保留原状态，报告对应的拥有者，不缺一项材料仍提交。
+- 证据桥按命令种类取材料：`startRun` 与 `reload` 核当前定义采用（`startRun` 另从首条输入的 `origin` 取登录确认，交出 `owner` 为 `login-entry` 的材料；`decide` 只核对它存在），`preserveResult` 核生产来源与耐久保管，`completeConsumption` 核原消费位置，`receive` 核原生产记录或 Agent 事件的来源，`create` 核真实初始定义采用、入口、资产、声明条件与完整来源计划，`completeInitialization` 核原绑定、结果与必要成功事实，`change` 核声明条件。材料准备失败时保留原状态，报告对应的拥有者，不缺一项材料仍提交。
 - 预求值与预热调度可以对尚未提交的 `startRun` 命令调用证据桥的 `prepare`，取得当时的候选采用材料。已校验候选按采用变更计数由装配协调者缓存（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。这一调用不提交、不改变任何状态；缓存的材料不是采用依据，只有在新 Run 入口或显式 reload 时经同一桥重新核对后才被采用。本成员不为预求值另设出站端口。
 - `GuardCommand.participant` 标识材料的拥有者（身份桥、证据桥、Context 输入或空闲输入），不是存储参加者的名字。材料随命令交给本组的存储参加者，不各自成为存储参加者。
 - `GuardCommand` 是参加者拥有的版本化材料，不是签名后的允许标记。Session 自己的参数、原操作身份与共同结果封闭在 `SessionCommand` 中。
-- `SessionContextInput.prepare` 按 `create`、`change`、`startRun`、`reload` 生成注册材料。`context-registration` 的材料是已可靠准备、尚未生效的增加、更新或移除，不是 Runtime Context 先提交的注册决定。`change` 是注册决定的唯一提交点：拒绝时材料仍只是候选；未知时按同一操作身份查询，Runtime Context 不先生效。更新核对前状态，不改固定块身份；移除不破坏必需项。
+- `SessionContextInput.prepare` 按 `create`、`change`、`startRun`、`reload` 生成注册材料。`context-registration` 的材料是已可靠准备、尚未生效的增加、更新或移除，不是 Runtime Context 先提交的注册决定。Session 是本会话注册决定的唯一提交拥有者。原初始化计划内的初始增加由 `create` 或 `completeInitialization` 提交，之后的变更由 `change` 提交。拒绝时材料仍只是候选；未知时按同一操作身份查询，Runtime Context 不先生效。`SessionContextInput.prepare` 的命令联合保持不变；初始化接续的注册核验由证据桥复用现有注册适配函数，不新增 Context 操作。更新核对前状态，不改固定块身份；移除不破坏必需项。
 
 #### SessionClock 与 SessionIdleInput
 
@@ -1631,7 +1747,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 
 1. SE13 提交时固定 execution 所属 Run，reload 只变 attempt，不把旧 execution 转绑后继。后继开始后首次迟到的 complete、fail 或 cancelled 结论仍定位原 Run。原 Run 已有终态时，追加或引用原来源作为认回证据，不改写历史 SE26，不撤销后继的推进资格。关系缺失、错租户或错会话均不得采用。
 2. freeze 只在初始化完成后成立。没有 active Run 时，SE37 与全部剩余 pending 输入的 SE38 同批提交。有 active Run 时不取消它，其后每条终态路径都在终态批次解除全部剩余待处理资格，包括 handed 但未 taken 的输入。未冻结时，这些输入保留原 InputId、顺序和资格，经 SE13 的 predecessor 关系交给后继，可再次交入，SE14 的有效承接仍至多一次。
-3. create、startRun 与 reload 的采用材料明确携带新增常驻定义和本次完整的能力身份/ResidentKey 对。SE36 对每个首次纳入能力保存资产版本与 shape，已有能力不重复写。SE08 保存当前采用键对。可选新增材料省略只表示没有新声明，不得以空投影清除已有键。references 保留冻结未归档会话，排除归档会话，按系统 maintainer 资格读取提交时维护的索引，目录不可用返回 unavailable。
+3. create、有新增实际采用的 completeInitialization、startRun 与 reload 的采用材料明确携带新增常驻定义和本次完整的能力身份/ResidentKey 对。SE36 对每个首次纳入能力保存资产版本与 shape，已有能力不重复写。SE08 保存当前采用键对。可选新增材料省略只表示没有新声明，不得以空投影清除已有键。references 保留冻结未归档会话，排除归档会话，按系统 maintainer 资格读取提交时维护的索引，目录不可用返回 unavailable。
 4. inspect 失败集合封闭为 denied、unavailable，missing 是成功的执行状态。只有公开读取能证明执行不存在或已删除时才返回 missing，拒绝和不可用均不能映射为 missing。prewarm 失败集合封闭为 denied、unsupported、unavailable。保留现有宽 DriveReply 导出，方法约束是其子集。P-7 未解除前不调用 prewarm，也不引入假定的 commit-unknown 路径。
 
 ### J04 流观察消费义务
