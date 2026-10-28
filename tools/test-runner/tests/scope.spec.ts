@@ -805,18 +805,34 @@ describe('取改动', () => {
 })
 
 describe('计划打印的常驻清单', () => {
-  /** `scripts/check.sh` 里每次都跑的 `pnpm run <脚本>`，按出现顺序；按计划跑的那些经 `step`，不是 pnpm 调用。 */
+  /** 直接运行 dev-flow 的常驻命令与它在常驻清单里的名字。 */
+  const DEV_FLOW_STEPS = new Map([
+    ['tools/dev-flow/src/delivery/change-scope-cli.ts', 'change-scope'],
+    ['tools/dev-flow/src/integration/cli.ts contract-check', 'contract-check'],
+  ])
+
+  /**
+   * `scripts/check.sh` 里每次都跑的命令，按出现顺序：`pnpm run <脚本>` 取脚本名，`node` 行按上表取名，
+   * 认不出的 `node` 行原样保留，使比对失败并点名。按计划跑的那些经 `step`，不在这里。
+   */
   function residentStepsOfCheckScript(): string[] {
     const script = readFileSync(join(ROOT, 'scripts/check.sh'), 'utf8')
-    return [...script.matchAll(/^pnpm (?:--silent )?run ([\w:]+)/gmu)].flatMap(match =>
-      match[1] === undefined ? [] : [match[1]],
-    )
+    return [
+      ...script.matchAll(
+        /^(?:pnpm (?:--silent )?run ([\w:]+)|node --experimental-strip-types (\S+(?: [\w-]+)?))/gmu,
+      ),
+    ].flatMap(match => {
+      if (match[1] !== undefined) return [match[1]]
+      if (match[2] !== undefined) return [DEV_FLOW_STEPS.get(match[2]) ?? match[2]]
+      return []
+    })
   }
 
-  it('与 scripts/check.sh 的常驻步骤一致，含 check:lines 与 contract:api；打印原样列出', () => {
+  it('与 scripts/check.sh 的常驻步骤一致，含 check:lines、change-scope 与 contract-check；打印原样列出', () => {
     expect([...RESIDENT_STEPS]).toEqual(residentStepsOfCheckScript())
     expect(RESIDENT_STEPS).toContain('check:lines')
-    expect(RESIDENT_STEPS).toContain('contract:api')
+    expect(RESIDENT_STEPS).toContain('change-scope')
+    expect(RESIDENT_STEPS).toContain('contract-check')
     const text = describe_(plan(['docs/development.md']))
     expect(text).toContain(`常驻：${RESIDENT_STEPS.join('、')}`)
   })
