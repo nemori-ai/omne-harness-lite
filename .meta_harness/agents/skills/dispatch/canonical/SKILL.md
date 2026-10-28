@@ -44,7 +44,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post
 node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> --worktree <工作树>
 ```
 
-每次写入读回精确 revision/attempt；未知结果恢复原操作，不用 force 逃避冲突。该入口登记 binding，不等于首次消息 render/validate、打开或转发。
+为线父卡登记一波的 attempt 时，binding 的契约变更取本波队列各卡的最高级，否则批次带破坏性卡时会被 `pnpm run check` 的 change-scope 拦下；线父卡正文的「契约变更」与 `contract:` 标签同步改。每次写入读回精确 revision/attempt；未知结果恢复原操作，不用 force 逃避冲突。该入口登记 binding，不等于首次消息 render/validate、打开或转发。
 
 ## 6. 建分支与工作树，运行 start
 
