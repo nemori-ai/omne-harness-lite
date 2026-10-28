@@ -1,102 +1,181 @@
-这是供 reduce 具体化的模板，不是已获准执行的派发。Reduce 填完并核验后，只将下方“消息正文”写入每线临时文件，打开供人转发。所有 {{…}} 必须被实际值替换；不适用项明确写“不适用”及原因。状态机和生成规则见 [负责人状态机](../../../../docs/engineering/map-reduce-states.md)。
+这是供 reduce 具体化的模板，不是已获准的派发。Reduce 填完全部字段后，只把下方「消息正文」写入每线临时文件，再打开供人转发。协作规则归[集成清单](../../../../docs/engineering/integration.md#集成节点的清单)。派发状态与生成规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
 
-以下模板针对外部里程碑的常驻 Line 会话。首次工作、轮空和中途加入均由当前正式波、assignment、入口及真实 reduce 字段确定。未来参与预案不授予跳波等待。
+填写规则：
+
+- 每个 {{…}} 都替换成实际值。不适用的字段写「不适用」和原因。
+- 分支、taskBase 和写范围只写 binding 的引用，不抄写值。
+- Line 要运行的每条命令都放在 `sh` 代码块里。行内代码只写名字和路径。
+- 命令字段不适用时，在代码块里写一行以 `#` 开头的注释说明原因。
+- 派发前，reduce 在本机同布局运行消息里的每条命令。演练证据是 `validate` 的必需输入，格式见[交付工具](../../../../tools/dev-flow/src/delivery/README.md#首次派发临时消息)。
 
 # 消息正文
 
-你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。在同一个会话中逐波读取正式决定，工作或轮空，直到明确终态。整个里程碑由 {{reduce_owner_ref}} 在唯一 reduce 会话中负责。你负责本域本波的细化、实施和验证；全局设计、消费者迁移、跨线联调、集成冲突和交出后的集成问题归 reduce。
+你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。你在同一个会话里逐波工作或轮空，直到读到明确的 terminal delta。唯一的 reduce 会话是 {{reduce_session_ref}}。你负责本域本波的细化、实施和验证。全局设计、消费者迁移、跨线联调、集成冲突和交回后的问题归 reduce。
 
-## 1 先核对身份与唯一执行
+## 1 身份与唯一执行
 
 | 项目 | 本次值 |
 | --- | --- |
-| 仓库与里程碑 | {{repository_url}}；{{milestone_issue_url}} |
+| 仓库 | {{repository_url}} |
+| 里程碑卡 | {{milestone_issue_url}} |
 | 线父卡 | {{line_parent_issue_url}} |
-| 初始派发身份 | {{dispatch_id}}；修订 {{dispatch_revision}}；有效记录 {{dispatch_record_ref}} |
-| 授权与唯一 binding | {{authority_ref}}；{{binding_ref_and_digest}} |
-| 目标执行环境 | {{harness_and_version}}；{{machine_binding}} |
-| 有效线包 | {{line_pack_ref_revision_digest}} |
-| line skill | {{line_skill_pinned_ref}} |
-| 协作协议与状态规则 | {{collaboration_protocol_ref}}；{{owner_state_machine_ref}} |
+| 首次消息修订 | {{dispatch_revision}} |
+| 机器与宿主 | {{machine_and_host}} |
+| 工作目录 | {{working_directory}} |
+| 任务卡与 binding | {{binding_refs}} |
+| 线包 | {{line_pack_ref}} |
 
-先读回这些来源和有效修订。已存在同一 owner/attempt 时接续它；重复转发不新建执行。不覆盖其他 owner 的认领。消息里的摘要用于定位，branch、F、写范围和权限以 binding 及获准线包为唯一源；不一致时按第 6 节交出非成功结果，不能选一份方便的继续。
+分支、taskBase、工作树和写范围只从 binding 读取。本消息不抄写这些值。同一修订被重复转发时，接续已有执行，不新建执行。本消息与 binding 或线包不一致时，按第 6 节交回 blocked。
 
-## 2 固定两个协调边界
+## 2 先加载
 
-你的协调边界只有两处。每次开工读完整线包或有序 delta，确定本波输入；结束本波执行时交 PR 与结果，移交写权。波中按冻结输入独立自主推进。
+在工作目录运行下列准备命令，然后加载技能。
 
-波中不向人提问，不在 Issue comment 向 reduce 求方案，不等待评论答复，不主动吸收其他线的新提交或设计。Reduce 不监听这类问题。你可以读取冻结输入引用的资料、检查代码和已有相邻机制，在本域本波授权的技术细节内自主决定。既有工具的机器状态回写只记录事实。
+```sh
+{{prepare_commands}}
+```
 
-全局决定缺口不能用猜测填补。先继续无依赖工作；整波已经无法继续时，提前结束本次执行，通过第 6 节的同一交接入口交 blocked/failed。不能用提问或无限等待代替交出。
+按顺序加载：
 
-## 3 读取本线输入与局部裁量
+1. `line` 技能。先读它的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
+2. 每张卡按 `claim` 技能推进。
+3. 交回前加载 `review-code`、`review-docs` 和 `review-delivery`，按风险级别评审。
+4. 改文档前加载 `asd-ste100`。
 
-| 输入 | 来源与采用修订 |
+技能、工具和策略的版本：{{skill_source_ref}}。你只在开工边界采用新版本。
+
+## 3 长程目标
+
+| 项目 | 本次值 |
 | --- | --- |
-| 本波任务顺序、目标、非目标和验收 | {{wave_tasks_and_acceptance_refs}} |
-| 产品、系统、架构和领域边界 | {{accepted_design_refs}} |
-| 公开契约及消费者约束 | {{contract_and_consumer_refs}} |
-| 本线可决定的局部细节及禁止越界范围 | {{local_discretion_ref}} |
-| 基线、分支、写范围和停止条件 | {{binding_scope_and_baseline_ref}} |
-| 必须完成的测试、评审、准入及证据格式 | {{verification_recipe_ref}} |
-| 环境故障恢复和非成功交接办法 | {{recovery_and_failed_handoff_ref}} |
+| 里程碑卡的关闭条件 | {{milestone_close_condition}} |
+| 本线后续波的预案 | {{line_later_wave_plan}} |
 
-从精确修订读取，不用主检出偶然存在的最新文件替代。输入应足以支持自主执行。必要输入缺失时不自行设计全局方案。
+每个局部决定都回到里程碑的关闭条件核对。预案不授予开工。只有 delta 改变本线的分工。
 
-## 4 按当前正式波进入并逐节点续接
+## 4 方法地图
 
-| 波次字段 | 本次值 |
+方法的采用与项目差异归 `docs/engineering/skills.md`。下表只是索引。完整的方法地图在 `line` 技能的 `references/work-paradigm.md`。
+
+本线的主工作类型：{{line_work_kind}}。
+
+| 场合 | 方法 |
 | --- | --- |
-| 当前正式波及计划修订 | {{current_wave_and_revision}} |
-| 当前 active/idle 决定及原因 | {{current_assignment_and_reason}} |
-| 现在的入口及已接受基线 | {{entry_mode_and_gate}} |
-| 当前真实 reduce 卡及等待命令 | {{current_reduce_and_watch_recipe}} |
-| 可选 nextHint；未知时明确省略 | {{optional_known_next_hint}} |
-| 每次醒来读取的 delta 与游标规则 | {{delta_read_range_rule}} |
-| terminal 的判断及最终交接入口 | {{terminal_guard_and_final_handoff_ref}} |
+| 进入一张卡 | pstack `poteto-mode` 按主工作类型选 playbook：feature、bug-fix、refactoring、perf-issue、investigation。没有贴合的 playbook 时用 `figure-it-out` |
+| 改代码前弄清结构 | `pstack:how`。查已有决定的理由用 `pstack:why` |
+| 写本卡的 `spec.md` | Matt `to-spec` |
+| 切本卡的 `plan.md` | Matt `to-tickets` |
+| 核对类型以外的承诺 | Matt `codebase-design` |
+| 写 TypeScript | `pstack:typescript-best-practices` |
+| 评审 | `review-code`、`review-docs`、`review-delivery`。Matt `code-review` 分开判断 Standards 与 Spec |
+| 写子代理简报 | Matt `writing-for-agents` |
 
-若入口是 NOW 且 active，核对当前基线与准入后准备开工。NOW 且 idle 时，读取本次 delta 并挂当前真实 reduce，不建任务分支、不交空 PR。入口已具备有效 terminal release 时，仍以 WAIT_REDUCE 指向当前真实收口，经 L02 进入 ENTRY_WAIT；读回有效 terminal release 与本线 delta 后，经 L31 按第 7 节做最终交接，不新建执行。该等待可立即返回，不能绕过读回守卫。WAIT_REDUCE 只等待当前正式入口收口，返回后根据 active/idle/terminal 分支推进。Issue 关闭或没有任务本身均不足以决定开工或结束。
+Matt 的方法，项目自己的模板。`spec.md` 与 `plan.md` 的格式用 `claim` 技能的 `references/spec-template.md` 和 `references/plan-template.md`。
 
-{{entry_wait_recipe_or_now_instruction}}
+进度按固定格式记录。格式归下列拥有者，本消息不复述：
 
-active 准备完成后，保存并挂当前 R(w)，从获准 F 建本波批次。已挂等待即使提前返回，也只保存结果；本波交接前不得消费下一波输入。idle 每次醒来都读 delta 并重挂直接后继，不能一次跳到预计下次工作对应的远期收口。
+- 卡级：按 `claim` 技能 plan 模板的「进度更新」，维护 `tmp/issue-<号>/plan.md` 的进度总览。
+- 线级：按 `line` 范式的「进度记录」，维护 `tmp/line-<线>/state.md` 开头的「本波进度」。
+- 每个切片完成和每张卡交付时都更新，不攒到交回。
 
-## 5 使用固定工具和宿主默认
+项目规矩各有拥有者：
 
-运行工具来自 {{tool_revision_and_install_ref}}。角色策略为 {{policy_revision_and_profile_ref}}，解析后的派发配置位于 {{resolved_role_dispatch_ref}}。按角色配置使用本宿主默认模型和 effort，不逐项重新猜测，不覆盖固定角色约束。工具、技能和策略只在下次开工边界采用新版本。
-
-本机运行绑定如下。路径由本机配置解析；密钥和频道值不写入本消息。
-
-| 项目 | 本机配置或已验证值 |
+| 规矩 | 拥有者 |
 | --- | --- |
-| 工作目录与隔离树准备方式 | {{working_directory_and_prepare_recipe}} |
-| 目标 repo、事件文件、接收器拥有者 | {{runtime_repo_eventfile_receiver_owner}} |
-| 受限频道配置位置 | {{receiver_config_ref_no_secrets}} |
-| 接收器自检与角色解析操作 | {{preflight_recipe}} |
-| 原 shell 工具结果的接续方式 | {{tool_session_wait_resume_recipe}} |
+| 方法采用与项目差异 | `docs/engineering/skills.md` |
+| 风险级别、评审力度与升级阶梯 | `docs/engineering/quality.md` |
+| 认卡、证据与接受 | `docs/engineering/agent-delivery.md`。证据规则在第 5 节 |
+| 隔离、单写与工作树清理 | `docs/engineering/workflow.md` |
+| 演进政策、提交与权限 | `docs/engineering/publication.md` |
+| 验证能声称什么 | `docs/verification.md` |
+| 署名、分支与来源 trailer | `CONTRIBUTING.md` |
+| 角色模型 | `.meta_harness/agents/roles/README.md`「模型配置与本次派发」 |
 
-上面的命令必须由 reduce 按已验证的工具版本具体化。原 shell tool call 的 stdout/stderr 是结果通路；若宿主需要 wait/read 接续，用给定操作。不要通过宿主 CLI 给自己注入消息。只启动或停止自己拥有的接收资源。
+### 按宿主选择角色模型
 
-## 6 结束本波并交出
+角色策略与解析结果：{{role_policy_ref}}。
 
-正常结束时完成全部本线检查和评审，固定 head，先备齐报告，最后提交 outcome=ready 的 PR/申请。交接报告固定五节：做了什么、没做什么、发现的冲突、给集成节点的提示、评审闭合。逐项列验证证据、剩余责任、候选身份与局部决定；没有评审或返工时明确说明。
+1. 先写下自己的宿主与版本。
+2. 按卡的工作类型与风险取角色模型。拿不准时上调一档。
+3. Claude Code：每次调用 Agent 工具都传 `model` 参数。
+4. Codex：developer 与 qa 的角色文件不钉模型。派发这两个角色时，你必须显式给模型。不给模型时，子代理继承父会话的模型，宿主不报错。
+5. requested 与 observed 分开记录。宿主不报告 observed 时写 unknown。
 
-blocked/failed 也走同一结束入口。报告真实原因、已经完成的工作、未完成/未验证项及安全停写事实。已有代码差异交 PR/head，可保持草稿；零差异按协议交无 PR 的结果记录，不伪造空 PR。报告是结束交接，不是向 reduce 求方案的评论。
+### 开发为主的线：工程准则
 
-{{ready_and_failed_submit_recipes}}
+下列准则各有拥有者。本消息不复述规则。各准则落在哪一层、由什么检查，见 `work-paradigm.md`。
 
-提交开始就冻结候选。登记结果未知时保持冻结，用同一 requestId 恢复读回，不新建申请。登记成功后停止修改候选；集成、改后验证和问题处置由 reduce 接管。申请成功不等于本线已合入，本线合入也不等于下一波获准。
+- 顶层架构：`docs/orientation.md`、`docs/architecture/README.md`。
+- 研发品味与维度分解：`.meta_harness/agents/roles/engineering-taste.md`「维度分解与正交」。
+- 领域边界：`docs/architecture/layers-and-dependencies.md`「领域语义依赖与模型边界」。
+- 面向契约实现：`.meta_harness/agents/roles/developer-contract.md`「采用的接口与行为承诺是实际输入」。
+- SOLID 与 DDD：`docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」。
+- TypeScript：`pstack:typescript-best-practices`，以及 `engineering-taste.md`「TS/JS 代码」。
+- 防御与失败语义：`docs/defensive-patterns.md`。
+- 结构读数与差分变异：`docs/clean-loop.md`「回路怎么转」。
 
-ready 登记后按正常收口链等待。blocked/failed 登记后先等待匹配 requestId/旧 attempt 的有效处置。reduce 接管或调整范围时，核对责任和新等待计划后继续停写。只有完整新输入、旧执行停写、写权交接和新 attempt 授权齐备的 redispatch 才允许同波重新进入 PREPARE。不要把普通评论当作处置，不要只等尚依赖你完成的 reduce 卡关闭。
+## 5 当前分工与冻结点
 
-{{post_handoff_wait_recipe}}
+| 项目 | 本次值 |
+| --- | --- |
+| 当前波与收口卡 | {{current_wave_and_closeout}} |
+| assignment 与原因 | {{assignment_and_reason}} |
+| 收口点 F | {{frozen_point_f}} |
+| 本波任务队列 | {{wave_queue_ref}} |
+| 写范围 | {{write_set_ref}} |
 
-若登记通路完全不可用，按给定恢复规则保存完整非成功交接文件并打开供人带回 reduce；不声称登记成功，也不向人问实现方案。
+binding 齐全且任务卡开放时，你就可以开工。事件接收器的健康状态和自检结果不阻止开工。
 
-## 7 续接或最终交接
+- active：从 F 建本波批次分支，按队列逐卡推进。
+- idle：不建分支，不交空 PR。直接进入第 6 节的等待。
 
-处置等待返回时先按第 6 节处理。正常收口返回后完整读取本线 delta 和当前计划修订，核对 reduce 修改、消费者迁移和最终 F。active 时读取新任务、验收与工具策略，保存并挂下一真实 reduce，再从 F 建新批次；不要重放旧补丁。idle 时保存变化与游标，立即重挂下一真实 reduce。terminal 才进入最终交接。nextHint 未知、任务列表为空或预案暂不包含本线都不能停止监听。
+波中输入冻结。你不向人提问，不用普通评论向 reduce 求方案，不读取别线未集成的产出。
 
-本线已到终态时，按 {{final_line_report_recipe}} 交出最终报告并读回。明确完成、限定接受或取消，不把停止写成完成。只有有效 release 明确 terminal 才不再挂脚本；非终态缺少下一 reduce 是发布错误。
+## 6 交回与等待
 
-现在按上述入口自行推进。不要向人或普通 Issue 评论请求方案。只有本消息引用的有效任务授权和来源控制你能做什么。
+交回规则归 `docs/engineering/integration.md`「线怎样工作」。
+
+1. 一张卡做完后，把它合入本线批次分支。在卡上发五节交接报告。五节归 `claim` 技能的 `references/task-pack.md`。
+2. 本线本波全部交完后，开批次 PR。零差异时没有 PR。
+3. 在线父卡发一条交回记录。首行是 `<!-- line-handoff -->`。固定项归 `integration.md`「线会话记录」。
+4. 交回记录发布后，你停写。
+
+交回记录用下列命令发布：
+
+```sh
+{{handoff_post_command}}
+```
+
+做不了时，用同一个入口交回 blocked 或 failed。写清原因、已完成部分和剩余工作，然后停写。没有远端通路时，在本机保存交回记录并打开供人带回。不声称记录已发布。
+
+用下列命令等线父卡上的下一条 delta：
+
+```sh
+{{wait_command}}
+```
+
+1. 用宿主的 shell 或 bash 工具运行等待命令。这是一次前台阻塞的工具调用。
+2. 不加 `nohup`、`&`、`setsid` 或 `disown`。不用任何后台任务模式，例如 Claude Code 的 `run_in_background`。
+3. 等待命令带 `--timeout`。值略小于宿主单次工具调用的时长上限。
+4. 退出码 3 表示超时，不表示条件不成立。在新的前台调用里立即重跑同一条命令。起点 `--since` 不变。命令带 operation-id 时，operation-id 也不变。
+5. 退出码 2 表示等待失败。在 {{line_state_path}} 写明等待状态是 unknown，然后等人转告。等待失败不算轮空，也不算成功。
+6. 等待返回后，按 delta 处理。active 开工，idle 再次前台等待，redo 按新 attempt 重开，terminal 交最终报告。
+7. 只有读到明确的 terminal delta 并交完最终报告，你才结束会话。超时、空队列和预案里没有后续任务都不结束会话。
+8. 等自己派出的子代理时，前台没有别的工作就阻塞等它，不结束回合。
+
+唯一允许的后台进程是本机事件接收器。每台机器只有一个接收器，由本机第一个开工的会话启动。接收器命令：
+
+```sh
+{{events_receiver_commands}}
+```
+
+每次交回、停下或压缩上下文前，更新 {{line_state_path}}：开头的「本波进度」、身份、已消费的 delta、当前 attempt 与 head、未完成的操作、等待命令、下一步。替换会话只读它和线父卡就能接续。
+
+## 7 停止条件
+
+- 缺必要的全局输入、授权或共享物修改时，暂停依赖部分，继续无依赖工作。
+- 没有工作可继续时，按第 6 节交回 blocked 或 failed，然后停写。
+- 普通评论、超时和旧 attempt 都不授予返工。只有 redo delta 使本线同波重做。
+- 只有明确的 terminal delta 结束本线。最终报告：{{final_report_ref}}。写明完成、限定接受或取消。停止不写成完成。
+
+现在开始。先加载技能，完成会话级准备，再按第 5 节进入执行或等待。

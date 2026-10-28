@@ -466,16 +466,42 @@ pnpm --filter @omne-harness/dev-flow typecheck
 
 ## 首次派发临时消息
 
-Reduce 从有效 binding、线包、计划、宿主策略和目标机配置填写输入。使用 `pnpm initial-dispatch fields` 取得固定模板的完整字段名。JSON 包含 schemaVersion=1、milestone、line、revision 和 fields；line 只允许小写字母、数字及连字符，fields 是全部字段的非空字符串映射。
+Reduce 从 binding、线包、里程碑计划、宿主策略和目标机配置填写输入。`pnpm initial-dispatch fields` 列出模板的全部字段名。输入 JSON 含 schemaVersion=1、milestone、line、revision 和 fields。line 只允许小写字母、数字和连字符。fields 是全部字段的非空字符串映射。
 
 ```sh
 pnpm initial-dispatch render --input tmp/<task>/initial-dispatch.json --root <目标检出>
-pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --root <目标检出>
+pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --rehearsal-evidence tmp/<task>/rehearsal.json --root <目标检出>
 ```
 
-消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。同修订相同内容复用，不同内容拒绝覆盖。修改输出文件后 validate 拒绝。工具不会执行填写的命令、开窗口、转发消息或认领任务。
+render 把消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`，并返回消息的 sha256。同一修订、相同内容时复用文件。内容不同时拒绝覆盖，需要新修订。工具不执行填写的命令，不开窗口，不转发消息，不认领任务。
 
-GENERATED 仅证明文件已生成。STRUCTURE_CHECKED 仅证明字段、修订、常见敏感模式及字节检查通过。Reduce 按返回的 remainingGuards 逐项读回授权、固定输入、目标机实际命令和当前收口链，并检查秘密及矛盾后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+render 之后、validate 之前，reduce 在本机同布局运行消息里的每条命令。演练证据是 validate 的必需输入，用 `--rehearsal-evidence` 传入：
+
+```json
+{
+  "schemaVersion": 1,
+  "messageSha256": "<render 返回的 sha256>",
+  "commands": [
+    {
+      "command": "<消息里的命令原文，含占位符>",
+      "executed": "<可选：替换占位符后实际运行的命令>",
+      "exitCode": 0,
+      "outputSummary": "<输出摘要>"
+    }
+  ]
+}
+```
+
+validate 按下列规则检查，任一项不满足就退出 2，不输出 STRUCTURE_CHECKED：
+
+- 缺 `--rehearsal-evidence`，或证据文件格式不符。exitCode 是 0 到 255 的整数。不认识的字段被拒绝。
+- 消息文件与按输入重新生成的内容不同。
+- `messageSha256` 与消息文件的 sha256 不同。证据必须针对这一份消息。
+- 消息里有命令没有证据条目。命令指 `sh`、`bash`、`shell` 或 `zsh` 代码块里的每一行。空行和 `#` 注释行跳过，行尾反斜杠连接下一行，比较前合并连续空白。行内代码不算命令。
+
+证据里多出的条目（例如线包里的命令）不报错。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出。例如带 `--timeout` 的等待命令演练时退出 3。Reduce 逐条说明这些退出码。
+
+GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
 
 
 ## Reduce 操作与后台监督
