@@ -1,0 +1,102 @@
+[
+  {
+    "name": "positive-gap",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "positive-gap-no-custody-authority",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": false
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "negative-gap-old-publish",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "old-publish",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "OldPreparedIsolated",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-gap-new-normal",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "new-normal",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NewInterpreterIsolated",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-gap-new-command",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "new-command",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NewCommandIsolated",
+    "kind": "negative"
+  },
+  {
+    "name": "witness-gap-stale",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NoStaleWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-gap-both-stale",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NoBothStaleWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-gap-new-actors",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NoNewActorWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-gap-custody",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NoCustodyWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-gap-prior-commit",
+    "module": "GapIsolation",
+    "constants": {
+      "Bug": "none",
+      "CustodyAuthorized": true
+    },
+    "expected_invariant": "NoPriorCommitWitness",
+    "kind": "witness"
+  }
+]

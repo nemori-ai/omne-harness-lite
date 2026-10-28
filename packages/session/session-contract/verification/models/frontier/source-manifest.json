@@ -1,0 +1,677 @@
+{
+  "product_baseline": "55f9d3e31afe07b9938e61034e0ac31d0c7070ca",
+  "method_baseline": "eb62dc8c2c3a92d95101172431f4c4ba635fca7b",
+  "adopted_manifests": {
+    "frontier-model-r1": "905ee8b892d71eed226534651da42be860e87e8afc600195b682d04ade52e514",
+    "frontier-model-r2": "b56af08b3bcef7121ab2b35562a76ab53f20213189c5d89d1e47e1b1ed20edbf",
+    "frontier-model-r2-repair1": "26be65641723d484b4115b2ce7e8dd5f8696b5c40e12903b73c85703dc86f1ea",
+    "frontier-model-r2-repair2": "d27b83fe1b6c011ab0a2c2649a8de7981e5560729deda579b351428db5fc2d72"
+  },
+  "artifacts": [
+    {
+      "path": "frontier/Frontier.tla",
+      "source": "frontier-model-r1/Frontier.tla",
+      "sha256": "67aa0495db5e817c3890b751ea5df95b8ee69798475021159c6a75c485b78ad2",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-small.cfg",
+      "source": "frontier-model-r1/cfg/positive-small.cfg",
+      "sha256": "ed7869eee31e12c91b2d67cc06249553ff7887d98e5c8d6576ddc3cf3b3bccdd",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-cancel.cfg",
+      "source": "frontier-model-r1/cfg/positive-cancel.cfg",
+      "sha256": "9204b3354630efeddb0b73c5cae8861f6b4217f6857e16980b39745eb75f05f5",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-finish.cfg",
+      "source": "frontier-model-r1/cfg/positive-finish.cfg",
+      "sha256": "b6702ff5505581a1a2963a9af55b581028bae9aabf162fe8d60c1f1cca2c315b",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-archive.cfg",
+      "source": "frontier-model-r1/cfg/positive-archive.cfg",
+      "sha256": "362e578dcd1e50353ee36b0b66bcf3274d0170e398dfb116b6a8d162c0cf6432",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-ended.cfg",
+      "source": "frontier-model-r1/cfg/positive-ended.cfg",
+      "sha256": "71bef6ea2baee3e5b36f44a5870462e55dbdef878eceff731203337c682b8f1d",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-freeze.cfg",
+      "source": "frontier-model-r1/cfg/positive-freeze.cfg",
+      "sha256": "b1bb3f1d36ba456140afdb13d120d9e57890a2c84ce16d510cd1f58567265167",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-batch.cfg",
+      "source": "frontier-model-r1/cfg/positive-batch.cfg",
+      "sha256": "5c5507d06ab88371f2f457d55f18152d48e39f31d33850e46a39888c18916e60",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-successor.cfg",
+      "source": "frontier-model-r1/cfg/positive-successor.cfg",
+      "sha256": "e58ad83d1c7465144368b7c83e4e8b6848948fdc1e9332190a3b0c62e7f291b8",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-race.cfg",
+      "source": "frontier-model-r1/cfg/positive-race.cfg",
+      "sha256": "2e9d82b0c71af9905480de1f17aac4de5e05751243d542b2a7b05a2d5c363ac1",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-recovery.cfg",
+      "source": "frontier-model-r1/cfg/positive-recovery.cfg",
+      "sha256": "4ceb464634e015c56878b73f8526231f99779943e0dcb5781ea4fab9945aeca4",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-plain.cfg",
+      "source": "frontier-model-r1/cfg/positive-plain.cfg",
+      "sha256": "2b58d1a368ec8dedeaae55eaf457219d52185466750ceb73452fcde06222dc55",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-accept-race.cfg",
+      "source": "frontier-model-r1/cfg/positive-accept-race.cfg",
+      "sha256": "b2b39039611acffe0d88b9ae15cc840d56eaac948baa38aa5846d031666bd9af",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-multiple-relations.cfg",
+      "source": "frontier-model-r1/cfg/positive-multiple-relations.cfg",
+      "sha256": "d3179a35a45c78cffe7657b959f3d51e245f4a53b633010f74fbc51ba6a8783e",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-event-counts.cfg",
+      "source": "frontier-model-r1/cfg/positive-event-counts.cfg",
+      "sha256": "b25383fc03c368410110cf00507cb3886718ed908105b2c107112fb9587ee837",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-partial-batch.cfg",
+      "source": "frontier-model-r1/cfg/negative-partial-batch.cfg",
+      "sha256": "4d6343f4e3c6473fab837a79151aa4073e175bcc23e247c4a0dc4b8ae81f2ef2",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-revision-cursor.cfg",
+      "source": "frontier-model-r1/cfg/negative-revision-cursor.cfg",
+      "sha256": "e45cdbf2f8fd6665a194706aaf60d571cb0ea8098e5c6c0b2990031dd8661512",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-foreign.cfg",
+      "source": "frontier-model-r1/cfg/negative-foreign.cfg",
+      "sha256": "14a5fe7b50137deb7a3be235432a14add05dde25c5bf39dd088dd69536c97de4",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-history-clear.cfg",
+      "source": "frontier-model-r1/cfg/negative-history-clear.cfg",
+      "sha256": "d3c45f0293282081d209c5703347cacf09b73b230ad9bbb4699cc16b82cb12c5",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-no-prefix.cfg",
+      "source": "frontier-model-r1/cfg/negative-no-prefix.cfg",
+      "sha256": "65b7341be2c8749f6646fcfee0bc34c628dc6129ab93b29d73956c625ab84845",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-prepare-ended.cfg",
+      "source": "frontier-model-r1/cfg/negative-prepare-ended.cfg",
+      "sha256": "494170ea614e4a1475769d265c4a72ea2c3e8a12788f8111852c1c5dfbe73292",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-no-root.cfg",
+      "source": "frontier-model-r1/cfg/negative-no-root.cfg",
+      "sha256": "fc8f9d718b44bee755dafa16b06d3c7560e6d8816d168198c2f09e41c9535d60",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-no-grant.cfg",
+      "source": "frontier-model-r1/cfg/negative-no-grant.cfg",
+      "sha256": "04d16653e80ad7786b0c60182dd1a96ec8aa3cbf468a5dc5f411221d67bcf54e",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-missing-empty.cfg",
+      "source": "frontier-model-r1/cfg/negative-missing-empty.cfg",
+      "sha256": "569901c564c52be96485e08db25ca4c2575cb483ecf936f65e8a7025cc345839",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-cursor-first.cfg",
+      "source": "frontier-model-r1/cfg/negative-cursor-first.cfg",
+      "sha256": "28adac0a02c4914aaacb3aa9c27ed1b8c057db081999728af202a519275d0464",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-half-batch.cfg",
+      "source": "frontier-model-r1/cfg/negative-half-batch.cfg",
+      "sha256": "fb4fba6839e528aa3c9b67a0a5b0bed91f5ea745a3ecbf5c0a97d971f657607a",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-scan-old.cfg",
+      "source": "frontier-model-r1/cfg/negative-scan-old.cfg",
+      "sha256": "5823e53e0153d52c7cca7f5ede2099a5f2105cedb2682f89c0f39878b5964c54",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-successor.cfg",
+      "source": "frontier-model-r1/cfg/negative-successor.cfg",
+      "sha256": "fc75add18f1b3f572f0650eb9b02143ca87ae846491a89b5f336737e1f66834c",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-cancel.cfg",
+      "source": "frontier-model-r1/cfg/witness-cancel.cfg",
+      "sha256": "6b81626156b7054346e1f8e67a2a611f36241b8dcaa1808b6877772c1cc633e1",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-independent.cfg",
+      "source": "frontier-model-r1/cfg/witness-independent.cfg",
+      "sha256": "d4c36b0c5ca6dd2c8052ab2f9ecf682913f6b3be575e470812d40fa81e3ff11f",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-shrink.cfg",
+      "source": "frontier-model-r1/cfg/witness-shrink.cfg",
+      "sha256": "8d190817b090390a83a306f43c6cca1a3748f4a68b63bdba5008c5e7df28091b",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-recovery.cfg",
+      "source": "frontier-model-r1/cfg/witness-recovery.cfg",
+      "sha256": "38b063a3aa1dec34be7fc53e7386f9661491ca89f70e83d8d605c1da19a001d6",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-custody.cfg",
+      "source": "frontier-model-r1/cfg/witness-custody.cfg",
+      "sha256": "e0b5ebf7e112e08b4bdf729832e4d44dbb7416f5ee6360eebd5352e12e55c5bb",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-plain-cancel.cfg",
+      "source": "frontier-model-r1/cfg/witness-plain-cancel.cfg",
+      "sha256": "b400898db297545e24c5ad7ceedb6e306d30c71002caf1f211987633e6a1ce9a",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-active-freeze.cfg",
+      "source": "frontier-model-r1/cfg/witness-active-freeze.cfg",
+      "sha256": "2bc1353161f52ed2a6c2dd2de5cb06d417bdf31f8b32773c804daf655bbaee1a",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-accept-race.cfg",
+      "source": "frontier-model-r1/cfg/witness-accept-race.cfg",
+      "sha256": "3e1183677237511fa1d6c9c32d1063ee6fb7930a8aa598d44d08248c7f22f739",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-two-runs.cfg",
+      "source": "frontier-model-r1/cfg/witness-two-runs.cfg",
+      "sha256": "2da1e87d10ea64e047a2cfff6c92005f6f562da19cdc1cae59323334fafa3dca",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/witness-event-counts.cfg",
+      "source": "frontier-model-r1/cfg/witness-event-counts.cfg",
+      "sha256": "7f4788a592fb1479ba6eb949a9296a8e2e560cb4e7e234f433e8b86a6fcf5c7e",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/negative-drop-captured.cfg",
+      "source": "frontier-model-r1/cfg/negative-drop-captured.cfg",
+      "sha256": "c522874aeed6c057012c4b24cbaf50ee12f8c45315ab20f10ee54cb7b704bf53",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-successor-broad.cfg",
+      "source": "frontier-model-r1/cfg/positive-successor-broad.cfg",
+      "sha256": "3ef44c805a96a725da01bd683e2e90e1ea1f126f8f42ce4c51d7598b9e1a02a4",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cfg/positive-race-broad.cfg",
+      "source": "frontier-model-r1/cfg/positive-race-broad.cfg",
+      "sha256": "b535d7daa246c4e2776a34bca245f320eb9b4378e13be76558aa7705c734b309",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frontier/cases.json",
+      "source": "frontier-model-r1/cases.json",
+      "source_sha256": "f24025bb611ecd935f60bec134d312e439686a0cdc018040300cf952ecc95cc8",
+      "sha256": "8a0b7c34e9f153bd2288afb291357400eb785f45b27bc3d2ac733fef1f2ec183",
+      "relation": "module partition; fields preserved; Frontier module made explicit"
+    },
+    {
+      "path": "pm02/PM02.tla",
+      "source": "frontier-model-r2-repair1/PM02.tla",
+      "sha256": "cb8647f4846ca23b3b40d4723ca43a5ce4c147a73e77f2f616bf09eefeac3131",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/positive-pm02-single.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-pm02-single.cfg",
+      "sha256": "5cde0bb5328bc16d0442e6ffb5a4af86a264d69190bcfdca064fd6455558d73d",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/positive-pm02-frozen.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-pm02-frozen.cfg",
+      "sha256": "e2963e8c05c06b12432f9afcf17a0edfa13685f2f6e731417ddb49701a181f38",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/positive-pm02-open.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-pm02-open.cfg",
+      "sha256": "837994799498e4ace5d962025d727a1896dc5fd15ca5edd3f7d539d579ec4892",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/positive-pm02-race.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-pm02-race.cfg",
+      "sha256": "a8762ee3d5e7316be53073071143cfa07ce1fb6d055e5e8543298f1031c574d3",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/positive-pm02-open-accept.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-pm02-open-accept.cfg",
+      "sha256": "ad91dd15d3e632fc20c34bb5bdfe4523eb119f40089c4e8b01bbef13331579fe",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/positive-pm02-frozen-accept.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-pm02-frozen-accept.cfg",
+      "sha256": "449ca4d47999b141e0f49e011d760e38541b66811b5fa67be7b302850acf89fb",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-half-batch.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-half-batch.cfg",
+      "sha256": "1a7e1119673099edd3af8df60704ccd2f55bc6b0de176cc98a8578121224cb48",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-first-se38.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-first-se38.cfg",
+      "sha256": "11aea5bdbbe43fa6f349df6218140434e336ddb92bebe58c359e62d1eb6f9aa1",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-wrong-remaining.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-wrong-remaining.cfg",
+      "sha256": "eef6117fbfc2dd904a2ffa7ac64e62ea8086e09ce421c703fd32d0ed8b80ef8d",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-replay-release.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-replay-release.cfg",
+      "sha256": "c2ad390aea3cf9e02854647ea30fd0ba16cfa94a10ec3b94de77881205cf4caf",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-rejected-as-taken.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-rejected-as-taken.cfg",
+      "sha256": "18feb824ec2d5b889405fa2fce00d37a4ddf9d1b300cb45c80eecff5dfea5878",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-open-release.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-open-release.cfg",
+      "sha256": "d1fe9eb45e3e94a05d9870928c6b55877dfc12975e7fa7779a1f053efc7111f2",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-stale-root.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-stale-root.cfg",
+      "sha256": "b5ef6f0b526788ccaf17cf76af76ef607e3fde49d94954c0433a216d4001910b",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/negative-pm02-frozen-stale-root.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-pm02-frozen-stale-root.cfg",
+      "sha256": "4f76c9454b7697d30f5d054755b38aa72d4e6899302ebe3eb7b4a687039096ce",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/witness-pm02-frozen-accept-race.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-pm02-frozen-accept-race.cfg",
+      "sha256": "83e726567e36e1bd5bec663d203b47454a279260193abfc2c830f4bcb45b5d78",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/witness-pm02-recovery.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-pm02-recovery.cfg",
+      "sha256": "b09b95f1376eeb8df6b2f267b1a73afed1e8f7a2719bbd721de19571dffa8f43",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/witness-pm02-open.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-pm02-open.cfg",
+      "sha256": "9be24830ba1277b31ed4c78bac803ab03098372c1fcee5427933096d18bc730a",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/witness-pm02-frozen.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-pm02-frozen.cfg",
+      "sha256": "292b98e7407c9dcf69bea3d984ff7b0bc993ee0293a467bf0c333ba6f3fcd863",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cfg/witness-pm02-race.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-pm02-race.cfg",
+      "sha256": "3f590a0847de3c8beaf03c069999ba9646151e917804a0a9a77913d3fefb2c0f",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "pm02/cases.json",
+      "source": "frontier-model-r2-repair1/cases.json",
+      "source_sha256": "e15fbfc0595bf370230eca4b036dc507b235c2e48c281eba6045e68951162816",
+      "sha256": "a2b7d52c66b18f0294f729579543a08a1871290abe2e6ea65baf0ddbe4de0fef",
+      "relation": "module partition; fields preserved; Frontier module made explicit"
+    },
+    {
+      "path": "gap-isolation/GapIsolation.tla",
+      "source": "frontier-model-r2-repair1/GapIsolation.tla",
+      "sha256": "6856fad151e6c6ded994971d228d6d9839897ebe4032a198461b460aebc8c82b",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/positive-gap.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-gap.cfg",
+      "sha256": "fd401a47d750f92b23b4243249580196b43ca9a3eddee58b4bd88cef4a2a2bf0",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/positive-gap-no-custody-authority.cfg",
+      "source": "frontier-model-r2-repair1/cfg/positive-gap-no-custody-authority.cfg",
+      "sha256": "4be10a83f433045284f3bbf32f07d66038673829aa910fb31b2457e9a1460e4d",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/negative-gap-old-publish.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-gap-old-publish.cfg",
+      "sha256": "0a9772fb62654ea47580e366c015e282c97720138c9f58fc3a74a4865ed81876",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/negative-gap-new-normal.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-gap-new-normal.cfg",
+      "sha256": "2499e40be3c0b16a13866e325da0c701171f9b00929d54389e0eaae9f8c423cf",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/negative-gap-new-command.cfg",
+      "source": "frontier-model-r2-repair1/cfg/negative-gap-new-command.cfg",
+      "sha256": "31b1e1f94d58981446299c57a316a4fd4709ca2ccd6e6904ab5c3a773d127880",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/witness-gap-stale.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-gap-stale.cfg",
+      "sha256": "ba6335b5fb919488d15b4aac3ea893d5a09bccfd98beb0facbf3f35ca04c223e",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/witness-gap-both-stale.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-gap-both-stale.cfg",
+      "sha256": "bc08f454ab2a4f947d90dcbb23f3a377cee4c0fc26c3f5d75baff6307f35b30d",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/witness-gap-new-actors.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-gap-new-actors.cfg",
+      "sha256": "868b73f7105638890147b8350be64d6f4addb6dfa71ee8d33e3b66d4bc5a4dab",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/witness-gap-custody.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-gap-custody.cfg",
+      "sha256": "0ba1d6a8b79cacc8673909bb640263ff2e755b500d53af104f691d5cc0b762ae",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cfg/witness-gap-prior-commit.cfg",
+      "source": "frontier-model-r2-repair1/cfg/witness-gap-prior-commit.cfg",
+      "sha256": "d032a600fcf056bf3d416e40f21e3b2e3df4ac6dc1c82fc0bb9bf14a95fc99d5",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "gap-isolation/cases.json",
+      "source": "frontier-model-r2-repair1/cases.json",
+      "source_sha256": "e15fbfc0595bf370230eca4b036dc507b235c2e48c281eba6045e68951162816",
+      "sha256": "7ebc274b7ac773c1e92005e4adf7f470cb6dfff399fb74da3ce946f6288addca",
+      "relation": "module partition; fields preserved; Frontier module made explicit"
+    },
+    {
+      "path": "frozen-active/FrozenActive.tla",
+      "source": "frontier-model-r2-repair2/FrozenActive.tla",
+      "sha256": "91b20b77e101070c41a8c1387c8332dc1391fcec7f8376329f1ab91852950598",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/positive-core.cfg",
+      "source": "frontier-model-r2-repair2/cfg/positive-core.cfg",
+      "sha256": "7c22c96782cb7ff20359cd2c6d6e67b986cd7650aacda49cc34a62e1af5c4ff6",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/positive-pending.cfg",
+      "source": "frontier-model-r2-repair2/cfg/positive-pending.cfg",
+      "sha256": "5192df115a3f3d62b0564783d1902cf62dab353e4249d6bf06d3766b5e4910a8",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/positive-normal-ended.cfg",
+      "source": "frontier-model-r2-repair2/cfg/positive-normal-ended.cfg",
+      "sha256": "83414ea81bdf67d80d1b31cec1fa4aa0a877a9540fde610670b6e98083a285bf",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/negative-old-root.cfg",
+      "source": "frontier-model-r2-repair2/cfg/negative-old-root.cfg",
+      "sha256": "297b545ad4fc8f133d0f5a6e71c34055d1aa4f4858c17fd2670e077fbbf6abd5",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/negative-old-coverage-taken.cfg",
+      "source": "frontier-model-r2-repair2/cfg/negative-old-coverage-taken.cfg",
+      "sha256": "4352b190c2d3c3092bb362fba967ffb521814aa9887ff34e313b2e040693558a",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/negative-old-coverage-history.cfg",
+      "source": "frontier-model-r2-repair2/cfg/negative-old-coverage-history.cfg",
+      "sha256": "8f0da725ace722f034dfef437bb5a4afe3d917a71979ce2bf3ee2d86ea279e43",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/negative-drop-tail.cfg",
+      "source": "frontier-model-r2-repair2/cfg/negative-drop-tail.cfg",
+      "sha256": "13175d88f2e6eab942aef569d5325720cbdfb2b2ca22cb8cc482489b9f060158",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/negative-half-release.cfg",
+      "source": "frontier-model-r2-repair2/cfg/negative-half-release.cfg",
+      "sha256": "091c2d21e2c9d451c6928eb9ec908bf60f9ef48bba592c318bb40376f09ffe74",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/negative-postterminal-take.cfg",
+      "source": "frontier-model-r2-repair2/cfg/negative-postterminal-take.cfg",
+      "sha256": "465635f5aa23dbb8e4291605f08cdab3a24d4e21426c439135a637449b351b2d",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/witness-new-taken.cfg",
+      "source": "frontier-model-r2-repair2/cfg/witness-new-taken.cfg",
+      "sha256": "f8a7d51922b6a2338961295551387e0812cf2133707f9deec08533afc0ddc7ba",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/witness-new-pending.cfg",
+      "source": "frontier-model-r2-repair2/cfg/witness-new-pending.cfg",
+      "sha256": "11d5297260a4a0ba3e188f828f03f6b07b1a9e44fdaec50a9b5928300b5143f0",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/witness-final-agent-wins.cfg",
+      "source": "frontier-model-r2-repair2/cfg/witness-final-agent-wins.cfg",
+      "sha256": "6f79cd527fbfe4807627fded9403a17898023dc788816c9eaf36bf9ecabd28fd",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/witness-final-session-wins.cfg",
+      "source": "frontier-model-r2-repair2/cfg/witness-final-session-wins.cfg",
+      "sha256": "aeac1a809de5e74f65d38b430f408206d661e42a4f6e2c94f805f193a60904de",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/witness-normal-ended-wins.cfg",
+      "source": "frontier-model-r2-repair2/cfg/witness-normal-ended-wins.cfg",
+      "sha256": "7d4094ae7ba31bb907f5b53b9f2ecfb68f8ddbd1a73c8979e40cb2f669fe6cf3",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/witness-cancel-before-ended.cfg",
+      "source": "frontier-model-r2-repair2/cfg/witness-cancel-before-ended.cfg",
+      "sha256": "4f62f36189c31106881e9dbae5ecbb39180015881c1ea8a0690e1a4c9f56a461",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/sensitivity-old-guard-taken.cfg",
+      "source": "frontier-model-r2-repair2/cfg/sensitivity-old-guard-taken.cfg",
+      "sha256": "1738ff0a68b60bba5ffb3c52d676bfc8b29c0e0d24c43b237bf7d3addf02931a",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cfg/sensitivity-old-guard-pending.cfg",
+      "source": "frontier-model-r2-repair2/cfg/sensitivity-old-guard-pending.cfg",
+      "sha256": "3f3530cd0e09684b12fb27d84d03403ac98015c519a1632284bc7cc86bfe8d8e",
+      "relation": "byte-identical"
+    },
+    {
+      "path": "frozen-active/cases.json",
+      "source": "frontier-model-r2-repair2/cases.json",
+      "source_sha256": "0b4a725f7b78ea879af8589666c1be1e6d92f2c27c606d765bd73454586f6ea7",
+      "sha256": "0b4a725f7b78ea879af8589666c1be1e6d92f2c27c606d765bd73454586f6ea7",
+      "relation": "module partition; fields preserved; Frontier module made explicit"
+    }
+  ],
+  "fixture_origins": [
+    {
+      "case": "witness-pm02-race",
+      "source": "frontier-model-r2/runs/20261028T193152.697626Z/witness-pm02-race/tlc.log",
+      "source_sha256": "4482b1554db8bd8dfa72d2918272351e3eff31e5efb45c806e0501973d57e747"
+    },
+    {
+      "case": "negative-pm02-stale-root",
+      "source": "frontier-model-r2/runs/20261028T193152.697626Z/negative-pm02-stale-root/tlc.log",
+      "source_sha256": "29ea3331cbb22040668dab342d1e14d2d84252c46fb8424eb58ceeb5186f9a95"
+    }
+  ],
+  "measurement_sources": {
+    "classifier": {
+      "source": "frontier-model-r2-repair2/rerun.py",
+      "sha256": "ca571d43a5a9bd52d0ed47659969e6e533fd72dd27a03fd37eeec86b8e789dc3",
+      "packaged_sha256": "768f9ecbddeec82dbc70312ac99ea0bdbd5d8be0e71688874088adf7662097d6",
+      "adaptation": "Require sequential action-bearing state blocks after the counterexample banner, equal nonempty variable sets, and complete values in the four adopted models printed format. Positive classification and named-target requirements are unchanged."
+    },
+    "classifier_selftest": {
+      "source": "frontier-model-r2-repair2/runner_selftest.py",
+      "sha256": "f020e68b48cf4fd5b44ccd9b36f42f6ee820a684ecc9a4c34a3f41999cecd7ab",
+      "packaged_sha256": "05d913e4b97a36cd35aa050315cc67b68c57c96161208525e56edba88a1cbbc8",
+      "adaptation": "All original 19 assertions retained; 18 appended state-completeness regression cases."
+    },
+    "audit_pm02": {
+      "source": "frontier-model-r2-repair1/audit_traces.py",
+      "sha256": "3603d419d6d6aca5bd3e96dae1cfa722a190b9b5653f94c56a997a32666b92af"
+    },
+    "audit_frozen_active": {
+      "source": "frontier-model-r2-repair2/audit_traces.py",
+      "sha256": "6fb7c281895ce7943486ad4a72cc548dfb331c2c28f59e44674a5779fc5029a3"
+    }
+  },
+  "fixture_extraction": {
+    "path": "fixtures/pm02-rejected-traces.json",
+    "sha256": "d59b65165a22a8e2ff5cb3a5b2a75dade1d34ad41113e82109ef8f0dced668f2",
+    "retained": "action, prep and only state fields consumed by the reviewed PM02 assertions; source line numbers and unused state fields removed",
+    "evidence_kind": "measurement rejection fixture, not a product scenario or model run"
+  },
+  "contract_source": {
+    "path": "packages/session/session-contract/SPEC.md",
+    "revision": "55f9d3e31afe07b9938e61034e0ac31d0c7070ca",
+    "sha256": "afdb2a48287e093be6d57d9390c99011bf6e914592a00e0516593c889fcd74f4",
+    "scope": [
+      "FR-01",
+      "FR-02",
+      "FR-03",
+      "FR-04",
+      "FR-05",
+      "FR-06",
+      "FR-07",
+      "PM-02",
+      "PA-07",
+      "PA-08",
+      "PA-09",
+      "EC-01",
+      "EC-02",
+      "SL12",
+      "SL13",
+      "SL14",
+      "I-F3",
+      "I-F4"
+    ]
+  },
+  "method_sources": [
+    {
+      "path": "docs/verification.md",
+      "revision": "eb62dc8c2c3a92d95101172431f4c4ba635fca7b",
+      "sha256": "2d6b8f0e1e8e2e8c618672ed6fd9b67b58e48f6a41c2130e09f207697041b6bb"
+    },
+    {
+      "path": "docs/engineering/quality.md",
+      "revision": "eb62dc8c2c3a92d95101172431f4c4ba635fca7b",
+      "sha256": "1360c9e8bded381444c3503fdd88c915312f8099f1b7d91f3390fdaed8614fcf"
+    },
+    {
+      "path": "docs/engineering/workflow.md",
+      "revision": "eb62dc8c2c3a92d95101172431f4c4ba635fca7b",
+      "sha256": "b92d5fafa7e554375c4adbffefc171d7327decbc821cf1f4e0e995b8869c313e"
+    },
+    {
+      "path": ".meta_harness/agents/skills/verification-facility/canonical/SKILL.md",
+      "revision": "eb62dc8c2c3a92d95101172431f4c4ba635fca7b",
+      "sha256": "26d1e1402bde75fcc7dfbdbb21233d1447bfe2847be2f913117df944e8b75a7a"
+    },
+    {
+      "path": ".meta_harness/agents/roles/developer/role.md",
+      "revision": "eb62dc8c2c3a92d95101172431f4c4ba635fca7b",
+      "sha256": "7bba3a2525a913ecdde930f4aee7bd121a0d563d5d9e6f0118dc35fddeb9bda7"
+    }
+  ],
+  "measurement_wrapper_selftest": {
+    "packaged_sha256": "50d13d3faa2c1e28928052ddf0e58c944e1fdcffc1a6ff04d91727f63bd0627b",
+    "prior_package_manifest_sha256": "a528510baf6683b7673b7714cd1202ce4f01a77c92251fcd1fdc5e755750141a",
+    "adaptation": "All prior assertions retained; empty and truncated state evidence additionally rejected through the unchanged runner."
+  }
+}

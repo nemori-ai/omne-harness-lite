@@ -1,0 +1,798 @@
+{
+  "witness-pm02-race": [
+    {
+      "action": "Initial predicate",
+      "s": {
+        "root": 0,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "absent",
+        "rejectKnown": false,
+        "invokeCount": 0,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "InvokeReject",
+      "s": {
+        "root": 0,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Prepare",
+      "s": {
+        "root": 0,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "ready",
+          "root": 0,
+          "pending": {
+            "$set": [
+              1,
+              2
+            ]
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Accept",
+      "s": {
+        "root": 1,
+        "pending": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "ready",
+          "root": 0,
+          "pending": {
+            "$set": [
+              1,
+              2
+            ]
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Freeze",
+      "s": {
+        "root": 2,
+        "pending": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "frozen": true,
+        "accepted": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "ready",
+          "root": 0,
+          "pending": {
+            "$set": [
+              1,
+              2
+            ]
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Conflict",
+      "s": {
+        "root": 2,
+        "pending": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "frozen": true,
+        "accepted": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Prepare",
+      "s": {
+        "root": 2,
+        "pending": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "frozen": true,
+        "accepted": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "ready",
+          "root": 2,
+          "pending": {
+            "$set": [
+              1,
+              2,
+              3
+            ]
+          },
+          "frozen": true
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Publish",
+      "s": {
+        "root": 3,
+        "pending": {
+          "$set": []
+        },
+        "frozen": true,
+        "accepted": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "run": "failed",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 1,
+        "terminalCount": 1,
+        "release": [
+          0,
+          1,
+          1
+        ],
+        "truth": true,
+        "published": 1,
+        "beforePending": {
+          "$set": [
+            1,
+            2,
+            3
+          ]
+        },
+        "beforeFrozen": true
+      },
+      "prep": [
+        {
+          "stage": "done",
+          "root": 2,
+          "pending": {
+            "$set": [
+              1,
+              2,
+              3
+            ]
+          },
+          "frozen": true
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    }
+  ],
+  "negative-pm02-stale-root": [
+    {
+      "action": "Initial predicate",
+      "s": {
+        "root": 0,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "absent",
+        "rejectKnown": false,
+        "invokeCount": 0,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "InvokeReject",
+      "s": {
+        "root": 0,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Prepare",
+      "s": {
+        "root": 0,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": false,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "ready",
+          "root": 0,
+          "pending": {
+            "$set": [
+              1,
+              2
+            ]
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Freeze",
+      "s": {
+        "root": 1,
+        "pending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "frozen": true,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "active",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 0,
+        "terminalCount": 0,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": false,
+        "published": 0,
+        "beforePending": {
+          "$set": []
+        },
+        "beforeFrozen": false
+      },
+      "prep": [
+        {
+          "stage": "ready",
+          "root": 0,
+          "pending": {
+            "$set": [
+              1,
+              2
+            ]
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    },
+    {
+      "action": "Publish",
+      "s": {
+        "root": 2,
+        "pending": {
+          "$set": [
+            2
+          ]
+        },
+        "frozen": true,
+        "accepted": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "run": "failed",
+        "original": "invalid",
+        "rejectKnown": true,
+        "invokeCount": 1,
+        "executionCreated": false,
+        "taken": {
+          "$set": []
+        },
+        "se35": 1,
+        "terminalCount": 1,
+        "release": [
+          0,
+          0,
+          0
+        ],
+        "truth": true,
+        "published": 1,
+        "beforePending": {
+          "$set": [
+            1,
+            2
+          ]
+        },
+        "beforeFrozen": true
+      },
+      "prep": [
+        {
+          "stage": "done",
+          "root": 0,
+          "pending": {
+            "$set": [
+              1,
+              2
+            ]
+          },
+          "frozen": false
+        },
+        {
+          "stage": "idle",
+          "root": 0,
+          "pending": {
+            "$set": []
+          },
+          "frozen": false
+        }
+      ]
+    }
+  ]
+}

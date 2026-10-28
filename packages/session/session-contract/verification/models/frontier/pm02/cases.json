@@ -1,0 +1,230 @@
+[
+  {
+    "name": "positive-pm02-single",
+    "module": "PM02",
+    "constants": {
+      "N": 1,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "none"
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "positive-pm02-frozen",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "none"
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "positive-pm02-open",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "open",
+      "DynamicInput": false,
+      "Bug": "none"
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "positive-pm02-race",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "race",
+      "DynamicInput": true,
+      "Bug": "none"
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "positive-pm02-open-accept",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "open",
+      "DynamicInput": true,
+      "Bug": "none"
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "positive-pm02-frozen-accept",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": true,
+      "Bug": "none"
+    },
+    "expected_invariant": null,
+    "kind": "positive"
+  },
+  {
+    "name": "negative-pm02-half-batch",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "half-batch"
+    },
+    "expected_invariant": "AtomicRejection",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-first-se38",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "first-se38"
+    },
+    "expected_invariant": "FirstOnlyRejected",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-wrong-remaining",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "wrong-remaining"
+    },
+    "expected_invariant": "RemainingExact",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-replay-release",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "replay-release"
+    },
+    "expected_invariant": "ReleaseAtMostOnce",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-rejected-as-taken",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "rejected-as-taken"
+    },
+    "expected_invariant": "FirstOnlyRejected",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-open-release",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "open",
+      "DynamicInput": false,
+      "Bug": "unfrozen-release"
+    },
+    "expected_invariant": "RemainingExact",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-stale-root",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "race",
+      "DynamicInput": true,
+      "Bug": "no-root"
+    },
+    "expected_invariant": "RemainingExact",
+    "kind": "negative"
+  },
+  {
+    "name": "negative-pm02-frozen-stale-root",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": true,
+      "Bug": "no-root"
+    },
+    "expected_invariant": "RemainingExact",
+    "kind": "negative"
+  },
+  {
+    "name": "witness-pm02-frozen-accept-race",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "race",
+      "DynamicInput": true,
+      "Bug": "none"
+    },
+    "expected_invariant": "NoFrozenAcceptRaceWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-pm02-recovery",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "none"
+    },
+    "expected_invariant": "NoRecoveryWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-pm02-open",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "open",
+      "DynamicInput": false,
+      "Bug": "none"
+    },
+    "expected_invariant": "NoOpenWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-pm02-frozen",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "frozen",
+      "DynamicInput": false,
+      "Bug": "none"
+    },
+    "expected_invariant": "NoFrozenWitness",
+    "kind": "witness"
+  },
+  {
+    "name": "witness-pm02-race",
+    "module": "PM02",
+    "constants": {
+      "N": 3,
+      "FreezeMode": "race",
+      "DynamicInput": true,
+      "Bug": "none"
+    },
+    "expected_invariant": "NoRaceWitness",
+    "kind": "witness"
+  }
+]
