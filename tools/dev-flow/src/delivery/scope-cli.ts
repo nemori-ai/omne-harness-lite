@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
-import { IntegrationError } from '../integration/parse.ts'
+import { git } from '../integration/git.ts'
+import { IntegrationError, json } from '../integration/parse.ts'
 import { runGhCommand } from './github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from './lines.ts'
 import { InputError, issueNumberArgument, parseConfig } from './protocol.ts'
@@ -11,6 +12,9 @@ import {
   parseReadSetFile,
   readOverlap,
   readSets,
+  REGISTERED_READ_PATTERNS,
+  registeredReadPatterns,
+  type ReadBasis,
   type ReadSetFile,
 } from './read-set.ts'
 import { readJson, repositoryFile } from './repository-files.ts'
@@ -53,6 +57,30 @@ function options(args: string[]): {
     includeClosed,
   }
 }
+/**
+ * Reads the registered patterns and the tracked files at `HEAD` of this checkout, which the
+ * dispatcher runs on the freeze point. A failure gives the reason, and every conflict stops.
+ */
+function readBasis(root: string): ReadBasis {
+  try {
+    const config = git(root, ['show', `HEAD:${REGISTERED_READ_PATTERNS.config}`])
+    return {
+      registered: registeredReadPatterns(
+        json(config, REGISTERED_READ_PATTERNS.config),
+        REGISTERED_READ_PATTERNS.config,
+      ),
+      tracked: git(root, ['ls-tree', '-r', '-z', '--name-only', 'HEAD'])
+        .split('\0')
+        .filter(file => file !== ''),
+    }
+  } catch (error) {
+    return {
+      unknown: `cannot read ${REGISTERED_READ_PATTERNS.config} or the tracked files at HEAD: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    }
+  }
+}
 try {
   const args = options(process.argv.slice(2)),
     repository = parseConfig(readJson(args.config)).repository,
@@ -80,8 +108,10 @@ try {
       overlap.cards.map(card => ({ ...card, pages: pages.get(card.source) ?? [] })),
       members,
     ),
+    crossings = readOverlap(overlap.cards, sets),
     { stopping: readConflicts, frozen: frozenReadConflicts } = classifyReadConflicts(
-      readOverlap(overlap.cards, sets),
+      crossings,
+      crossings.length === 0 ? { registered: [], tracked: [] } : readBasis(repositoryFile('')),
     )
   const result = { ...overlap, readSets: sets, readConflicts, frozenReadConflicts }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
@@ -89,14 +119,14 @@ try {
     process.stderr.write(
       `scope-overlap: ${conflict.first} ${conflict.firstPath} <-> ${conflict.second} ${conflict.secondPath}\n`,
     )
-  for (const [label, list] of [
-    ['read-overlap', readConflicts],
-    ['read-overlap-frozen', frozenReadConflicts],
-  ] as const)
-    for (const conflict of list)
-      process.stderr.write(
-        `${label}: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
-      )
+  for (const conflict of readConflicts)
+    process.stderr.write(
+      `read-overlap: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath} (${conflict.reason})\n`,
+    )
+  for (const conflict of frozenReadConflicts)
+    process.stderr.write(
+      `read-overlap-frozen: ${conflict.writer} ${conflict.writePath} -> ${conflict.reader} ${conflict.readPath}\n`,
+    )
   if (result.conflicts.length > 0 || readConflicts.length > 0) process.exitCode = 1
 } catch (error) {
   const message =

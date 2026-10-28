@@ -107,23 +107,23 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 
 - 含 `reads` 字段的 JSON 对象按读集文件读，其他文件按 binding 文件读。`source` 是同一次参数里的卡号（`#` 加数字）或 binding 文件路径，路径按当前目录解析后比较。`reads` 是仓库相对路径，可以为空。
 - 每对不同的卡两个方向各比较一次，路径比较规则与写范围求交相同。同一张卡的写与读不比较。
-- 每个读写交叉按写路径与读路径中较长的那条分类，分类表是 [read-set.ts](read-set.ts) 的 `FROZEN_READ_PATHS`：
+- 每个读写交叉按写路径与读路径中较长的那条分类。规则表是 [read-set.ts](read-set.ts) 的 `FROZEN_READ_PATHS` 与 `REGISTERED_READ_PATTERNS`：
 
   | 类 | 路径 | 标准错误的行首 | JSON 字段 |
   | --- | --- | --- | --- |
-  | 工程方法与验证正文 | `.meta_harness/agents`、`docs/engineering` 及其下的路径，`docs/development.md`、`docs/verification.md`，以及 `tools`、`scripts` 下以 `.md` 结尾的路径 | `read-overlap-frozen:` | `frozenReadConflicts` |
-  | 产品语义正文 | 其他全部路径，包括 `tools`、`scripts` 下的源码与配置 | `read-overlap:` | `readConflicts` |
+  | 工程方法与验证正文 | 同时满足三项的文件：在 `.meta_harness/agents`、`docs/engineering`、`docs/development.md`、`docs/verification.md`、`tools`、`scripts` 上或下面；以 `.md` 结尾，或匹配 `.meta_harness/agents/skills/*/adapters/**/strategy.yaml`；不匹配 `tools/test-runner/test-runs.config.json` 中读者规则的 `paths` 与 `globalPaths` 的任何模式 | `read-overlap-frozen:` | `frozenReadConflicts` |
+  | 产品语义正文 | 其他全部文件，包括 `tools`、`scripts` 下的源码与配置，以及被登记为代码读取的 `.md` 文件 | `read-overlap:` | `readConflicts` |
 
-  只按路径分类，不读文件内容。规则与处置见[读写交叉的两类](../../../../docs/engineering/integration.md#读写交叉的两类)。
-- 标准输出的 JSON 另有 `readSets`（每张卡的 `members` 与 `pages`）、`readConflicts` 与 `frozenReadConflicts`，两个列表的项形状相同。每个读写交叉另向标准错误写一行 `<行首> <写方> <写路径> -> <读方> <读路径>`，先写全部 `read-overlap` 行，再写全部 `read-overlap-frozen` 行。
-- 写交集或产品语义读写交叉任一存在时退出1。只有工程方法与验证正文的读写交叉时退出0。读集文件的 `source` 不对应任何卡参数、同一张卡给了两份读集文件时退出2。
+  较长的路径在 `HEAD` 上有被跟踪的文件在它下面时，它是目录，命令逐个判定这些文件。全部是第一类时交叉才是第一类，否则按第一个不是的文件归第二类。`HEAD` 上没有这个路径时，按路径本身判定。模式用 `node:path` 的 `matchesGlob` 匹配。`affected.pythonPaths` 不算登记。规则与处置见[读写交叉的两类](../../../../docs/engineering/integration.md#读写交叉的两类)。
+- 标准输出的 JSON 另有 `readSets`（每张卡的 `members` 与 `pages`）、`readConflicts` 与 `frozenReadConflicts`。`readConflicts` 的项另有 `reason`，写明停止的原因，知道是哪个文件时还有 `file`。每个读写交叉另向标准错误写一行 `<行首> <写方> <写路径> -> <读方> <读路径>`，`read-overlap` 行在末尾加 ` (<reason>)`。先写全部 `read-overlap` 行，再写全部 `read-overlap-frozen` 行。
+- 写交集或产品语义读写交叉任一存在时退出1。只有工程方法与验证正文的读写交叉时退出0。命令读不到 `HEAD` 上的配置或文件清单时，每个读写交叉都归产品语义，`reason` 写明读不到的原因。读集文件的 `source` 不对应任何卡参数、同一张卡给了两份读集文件时退出2。
 
 调度者在登记 attempt 前运行这个检查：
 
 - 调度者从任务信息包引用的正文页整理每张卡的读集文件，与卡号或 binding 文件一起传入。读集用独立的 JSON 文件，不写进 binding，因为 binding 的字段集是严格的，增加字段要改 `parseTaskBinding` 与 `start`。
-- 命令读运行它的检出的工作树来取成员清单与依赖。所以要在冻结头（收口点或批次分支头）的检出上运行。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
+- 命令读运行它的检出的工作树来取成员清单与依赖，读这个检出的 `HEAD` 来取分类用的配置与文件清单。所以要在冻结头（收口点或批次分支头）的检出上运行，这时 `HEAD` 就是 taskBase。命令不读 binding 中的 `taskBase`。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
 - 同一条线顺序推进的几张卡，把写范围之并与读集之并作为一张卡传入，与写范围求交的做法相同。
-- 两条线写同一成员中不同的文件时，双方都读这个成员，所以总是报读写交叉。一方写的是 `tools`、`scripts` 下成员中的 `.md` 说明页时，这个方向的交叉归工程方法与验证正文。其他文件按 `WS(a) ∩ RS(b) = ∅` 判，这两张卡不能在同一波，调度者改分解。
+- 两条线写同一成员中不同的文件时，双方都读这个成员，所以总是报读写交叉。一方写的是 `tools`、`scripts` 下成员中没有登记的 `.md` 说明页时，这个方向的交叉归工程方法与验证正文。其他文件按 `WS(a) ∩ RS(b) = ∅` 判，这两张卡不能在同一波，调度者改分解。
 
 `--config` 与 `--lines` 指定交付配置与线归属表，缺省为本检出中的文件。经 `pnpm --filter @omne-harness/dev-flow run scope-overlap` 运行时，文件参数相对 `tools/dev-flow` 解析。
 
