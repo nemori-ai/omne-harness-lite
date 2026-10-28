@@ -485,7 +485,7 @@ describe('immutable REST acceptance source', () => {
       encoding: 'base64',
       content: Buffer.from(text).toString('base64'),
     }
-    response[field] = 'changed'
+    response[field] = field === 'content' ? Buffer.from(`${text}\n`).toString('base64') : 'changed'
     expect(() => readAcceptanceSourcesRest('owner/repo', source, () => response)).toThrow(
       'source-changed',
     )
