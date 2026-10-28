@@ -120,11 +120,15 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 读集检查在 `read-set.ts`。`read-set.ts` 的函数都是纯函数，成员清单与解析路径的基准目录由调用方传入。`readSets(cards, members)` 给出每张卡的读集：计入的写范围路径各自所在的成员（路径等于成员目录，或在成员目录下面时取最深的成员），按成员声明的 `workspace:` 依赖求传递闭包，再加上读集文件的正文页。路径不在任何成员下时不贡献成员；写范围条目是成员目录的父目录（例如 `tools`）时也不贡献成员，因为它不在任何成员下。闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析，与影响面选择一致。`readOverlap(entries, readSets)` 对每对不同的卡 a、b，比较 a 计入的写范围路径与 b 的读集路径，比较规则与写范围求交相同，两个方向各算一次。同一张卡的写与读不比较。不计入的写范围路径不参与比较。
 
+`classifyReadConflicts(conflicts, basis)` 把读写交叉分成 `stopping` 与 `frozen` 两组，各保持输入顺序。每个交叉先由 `narrowerReadPath` 取写路径与读路径中较长的那条，也就是被另一条包含的那条，两条相同时取任一条。两条路径互不包含时 `narrowerReadPath` 抛 `invariant` 错误，`readOverlap` 不会产出这种输入。`basis` 由调用方传入：`registered` 是登记的模式，`tracked` 是冻结点上全部被跟踪的文件。`tracked` 中有文件在较长路径上或下面时逐个判定这些文件，没有时判定路径本身。全部判定为说明页时交叉归 `frozen`。否则交叉归 `stopping`，项中加 `file`（第一个不是说明页的文件）与 `reason`（`<file>: <原因>`）。`basis` 是 `{ unknown }` 时全部交叉归 `stopping`，`reason` 写明原因，没有 `file`。
+
+`frozenPageStop(file, registered)` 返回 `file` 不是说明页的原因，是说明页时返回 undefined。说明页同时满足三项：在 `FROZEN_READ_PATHS.areas` 的某一项上或下面；以 `FROZEN_READ_PATHS.pageSuffix`（`.md`）结尾，或匹配 `FROZEN_READ_PATHS.skillStrategy`；不匹配 `registered` 的任何模式（按 `matchesRegistered`）。区的比较按 `/` 分段，`docs/engineering-old` 不在 `docs/engineering` 下，`toolsets` 不在 `tools` 下。`matchesRegistered(file, pattern)` 先把两者中每段开头的 `.` 换成同一个其他字符，再调用 `node:path` 的 `matchesGlob`，所以 `*` 与 `**` 也匹配以 `.` 开头的段，与 test-runner 的 `patternToRegExp` 相同。`?`、`[`、`]`、`{`、`}` 的语义两者仍不同，两边共用一个导出的匹配函数是剩余责任。技能包装的匹配直接用 `matchesGlob`，以 `.` 开头的段不算技能包装，偏向停止。`registeredReadPatterns(value, path)` 从 `REGISTERED_READ_PATTERNS.config` 的内容取 `affected.readers[].paths` 与 `affected.globalPaths`，不取 `affected.pythonPaths`，形状不合格时抛 `input-error`。规则与处置归[读写交叉的两类](../../../../docs/engineering/integration.md#读写交叉的两类)。
+
 `parseReadSetFile` 只认含 `reads` 字段的 JSON 对象，其他内容交给 `fileScope`。字段只能是 `source` 与 `reads`：`source` 为非空字符串，`reads` 为仓库相对路径数组，可以为空，不合格时拒绝。`assignReadSets` 把读集文件挂到卡上：`source` 是 `#` 加数字时按卡号匹配，否则把两边都按调用方给的基准目录（`scope-cli.ts` 传当前目录）解析成绝对路径后，匹配 binding 文件参数。`source` 不对应任何卡参数，或同一张卡有两份读集文件时拒绝。关闭而不参与求交的卡，其读集文件不参与比较。
 
 读集用独立的 JSON 文件，不扩展 binding：binding 的字段集是严格的，增加字段要改 `parseTaskBinding` 与 `start`。
 
-命令只读。成员清单读运行它的检出的工作树。有写冲突对或读写交叉时退出1，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
+命令只读。成员清单读运行它的检出的工作树。有读写交叉时，`scope-cli.ts` 先用 `git rev-parse` 取这个检出 `HEAD` 的提交，再用 `git show <提交>:<配置>` 与 `git ls-tree -r <提交>` 读出 `basis`。任一项失败时传 `{ unknown }`，不退回只按路径判定。JSON 的 `readBasis` 是 `{ commit }`、`{ unknown }`，没有读写交叉时是 `null`。JSON 结果的 `readConflicts` 是 `stopping`，`frozenReadConflicts` 是 `frozen`。标准错误先写 `read-overlap:` 行，每行末尾加 ` (<reason>)`，再写 `read-overlap-frozen:` 行。有写冲突对或 `stopping` 非空时退出1，只有 `frozen` 时退出0，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
 
 ## 里程碑命令
 
