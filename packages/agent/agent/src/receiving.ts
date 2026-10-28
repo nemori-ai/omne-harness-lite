@@ -253,7 +253,6 @@ export function createAgentModelReceiver<P>(
     inspect: report,
     async push(original) {
       const input = { ...original, access: { ...original.access } }
-      // Retain a complete owned envelope before any asynchronous authorization or I/O.
       const delivery = freeze(structuredClone(input.delivery))
       const ref = resolveModelInvocationRef(delivery.key.reference, input.access.tenant)
       if ('failure' in ref)

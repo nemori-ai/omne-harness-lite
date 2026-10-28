@@ -1,7 +1,3 @@
-// Producer receiving surface of the Agent contract (SPEC "生产者接收面"): the receiving entries
-// of the Journal, the port that records them, and the account outlet toward Request Context. Types
-// only; no function runs here. The receipt types of Model and Tool keep their one
-// definition in their owners; this file only refers to them.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'

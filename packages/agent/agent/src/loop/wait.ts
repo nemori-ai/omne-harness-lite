@@ -1,5 +1,3 @@
-// One execution's W0 notification window. Streams provide hints; only the original Journal slots,
-// snapshot and the original failed read establish progress. Closing this window stops no business work.
 import { setImmediate as yieldTurn } from 'node:timers/promises'
 import type {
   Access,
