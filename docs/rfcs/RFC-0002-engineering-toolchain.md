@@ -1,14 +1,14 @@
 ---
 id: RFC-0002
 title: 工程工具链
-revision: 2
+revision: 3
 status: accepted
 owner: PanQiWei
 ---
 
 # RFC-0002：工程工具链
 
-规则与维护责任见[RFC入口](README.md)。PanQiWei 于 2026-10-14 接受 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781)。同日接受 revision 2 的影响面选择。补充来源是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164742162)，接受记录是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011)。尚未验证的两项不在接受里。工具尚未切换。
+规则与维护责任见[RFC入口](README.md)。PanQiWei 于 2026-10-14 接受 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781)。同日接受 revision 2 的影响面选择。补充来源是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164742162)，接受记录是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011)。调度者按[授权](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6450139917)于 2026-10-28 代 PanQiWei 接受 revision 3 对影响面选择的补记，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/882)。补记依据是 [#793 的交接报告](https://github.com/nemori-ai/omne-harness-lite/issues/793#issuecomment-6454088482)和[授权](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6450139917)。尚未验证的两项不在接受里。工具尚未切换。
 
 > **更正标注（2026-10-19）**：原文与 status 不变。第 1 项是部分取代，同时记在「后继关系与维护」；第 2 项更正写回表的读法。依据是 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2 与 D6。
 >
@@ -47,7 +47,7 @@ owner: PanQiWei
 
 ### 影响面选择
 
-这一节是 revision 2，已于 2026-10-14 接受。#227 只写了影响面计算有一部分可以交给 turborepo，没有给出机制，也没有在工作树里验证。`tools/ts-checks/src/testing/affected.ts` 手写的原因是，pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到任何包，而实施都在工作树里进行。
+这一节是 revision 2，已于 2026-10-14 接受。revision 3 于 2026-10-28 补记两处：「责任这样分」第二条之后，和约束 4 之末。两处都以「revision 3 补记」开头。本节已接受的原文不改。#227 只写了影响面计算有一部分可以交给 turborepo，没有给出机制，也没有在工作树里验证。`tools/ts-checks/src/testing/affected.ts` 手写的原因是，pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到任何包，而实施都在工作树里进行。
 
 建议用 `turbo run <task> --affected` 替换这份手写计算。AIEPhoenix 在 macOS arm64、turbo 2.11.7、pnpm 10.28.1 上，从 main `6d0e6ee0` 的干净工作树做了一次对照。被测的仍是旧成员。结果只说明选择机制，不代表新包的规模。pnpm 在这三行里仍是 0 个包。第三行的 pnpm 没有测。
 
@@ -63,6 +63,15 @@ owner: PanQiWei
 
 - turbo 负责反向依赖闭包和按包运行的任务调度，包括构建、类型检查、测试和 knip。
 - 仓库配置保留这些规则，不再另写选择算法。全局路径、测试读取成员目录以外的文件、Python 工具、常驻检查、legacy 排除、未识别文件转全量，以及每次选择的原因说明。读取成员目录以外文件的规则可以评估改写成 turbo 的 `inputs`。`--affected` 是否参考 `inputs`，还没有验证。
+- revision 3 补记。仓库配置另有两项规则：只改了成员根目录文档的成员不选中，也不作下游种子；turbo 选中的成员里有解释不了的，判全量。它们是 turbo `--affected` 结果之上的集合差，不是另一套选择算法。
+  - 成员根目录文档指命中 `memberDocuments` 的文件：成员根目录的 `.md`，以及 `apps/*/deploy/` 下的 `.md`。这类文件的改动不算成员改动。成员目录里改了这类文档以外的文件，包括 `tests/` 下的 `.md` 夹具，就算成员有代码改动。
+  - turbo 按包计改动。只改了这类文档的成员也会被 `--affected` 选中，连同它的全部下游。仓库配置从这个结果里拿掉两类成员：只改了文档的成员，以及它们的下游中不是代码改动成员下游的成员。代码改动成员自己也算在它的下游里。
+  - 反向依赖闭包仍由 turbo 给出。仓库配置用 turbo 的包依赖图（`turbo ls --filter=...<包>`）取下游，自己不遍历依赖，只对集合做差。有只改了文档的成员而没有取得依赖图时，计划报错，不照 turbo 多选，也不猜着少选。
+  - 拿掉之前先核对：turbo 选中的每个成员，都在代码改动成员或只改了文档的成员的下游里，含它们自己。有一个不在，说明 turbo 的种子里有仓库配置没认出的改动。这时不拿，整份计划判全量，理由点名这些成员。没有只改了文档的成员时，不核对也不拿。
+  - 同一成员既改文档又改代码，照旧选中它和它的全部下游。只改了文档的成员同时是别的代码改动成员的下游时，照旧作为下游选中。
+  - 成员的测试读自己的成员根目录文档时，由读者规则点名那个成员。改这份文档只选被点名的成员，不带下游。
+  - 限制：测试读了成员根目录文档却没有读者规则时，改这份文档会漏选。新增这样的读取要同时补一条读者规则。
+  - 两条硬线不变，即[改代码跑那个成员及其下游的测试，没有规则认得的文件判全量](../development.md#迭代中的受影响测试)。成员根目录文档不是代码，也是规则认得的文件，所以只改它不触发全量。未识别文件的判断先于上面两项规则。
 - dependency-cruiser 要整张依赖图，建议始终全量运行。在旧成员上全量约 1.8 秒，带 `--cache` 约 0.7 秒。它的 `--affected` 和 `--reaches` 只缩小报告范围，不减少解析量。跨包解析必须启用类型检查用的源码条件。这次实测把条件名写成 `source`。2026-10-14 按通行写法采用这个名字，发布时去掉该条件。不启用该条件时，没有 `dist` 的情况下，改 identity-values 的影响面只有 9 个模块，规则会空跑。
 - knip 可以用 `--workspace` 按包运行。抽查 identity-values 时，单包结果与全量结果里该包的部分一致。原因是 knip 默认不检查公开入口的导出。
 
@@ -71,7 +80,7 @@ owner: PanQiWei
 1. 选择规则不能由 PR 修改。turbo 从检出的工作树读取 `turbo.json`。`globalDependencies` 和 `inputs` 决定选择范围。PR 改 `turbo.json` 就能缩小自己的检查范围。至少把 `turbo.json` 和其他选择配置列为全局文件，改动即全量。或者由受信检查器提供配置。turbo 能否从工作树以外指定配置，还没有验证。
 2. 基线从平台取得，并显式传入。准入时用 `TURBO_SCM_BASE` 和 `TURBO_SCM_HEAD` 传入 RFC-0004 规定的基线。PR 阶段是与目标分支的共同祖先。合并队列阶段是队列组合的目标提交。不依赖 turbo 自己推断。检出深度要能取到基线提交。
 3. 准入不信任缓存。缓存命中时任务不会真正运行。持有密钥的 job 不恢复缓存。检查 job 若读取 PR 能写入的缓存，就可能显示通过而实际没有运行。准入时应关闭缓存读取，或只读取受信运行写入的缓存。具体策略还要和 RFC-0004 一起决定。
-4. 不能凭「没修改那个包」跳过它的消费者。`--affected` 包含全部下游包，满足这一条。上面的仓库特有规则仍要保留，否则会漏检。
+4. 不能凭「没修改那个包」跳过它的消费者。`--affected` 包含全部下游包，满足这一条。上面的仓库特有规则仍要保留，否则会漏检。revision 3 补记：成员根目录文档的改动不算本条的「修改」。只改了文档的成员，其下游按上面的集合差处理。代码改动成员的下游仍全部选中，本条对它们不变。
 
 暂不使用 `vitest --changed` 按文件选择测试。现在包 B 的测试经包导出读取包 A 的 `dist`，A 的源码不在 B 的模块图里。turbo 会选中 B，但 B 可能一个测试都不跑并报告成功。至少等测试改为直接读源码之后再评估。
 
@@ -100,8 +109,8 @@ owner: PanQiWei
 ## 决定范围
 
 - 有权决定者：PanQiWei。
-- 决定日期及对应 revision：2026-10-14。revision 1 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781 。revision 2 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011 。
-- 采用范围：revision 1 的建议方案。通用检查交给成熟工具。Cordis 服务关系和领域知识继续自写。编译和类型检查用 TypeScript 7。旧编程接口从 `@typescript/typescript6` 导入。格式化换 oxfmt，选项沿用现有 Prettier 选项。任务缓存用 turborepo。上了 turborepo 就不再把 pnpm 并发调到核数。oxlint 的正确性规则作门禁，测试风格只报告。dependency-cruiser 检查方向和循环，配置保留 `dist` 但不深入它。knip 先只报告。类型检查用源码条件、全仓一次完成。revision 2 采用 `turbo run <task> --affected` 作为影响面目标。替换完成前保留现行选择器。未识别文件转全量。`turbo.json` 和其他选择配置的改动按全量。准入基线显式传入。准入不读取 PR 能写入的缓存。dependency-cruiser 始终全量，并启用源码条件。不使用 `vitest --changed`。
+- 决定日期及对应 revision：2026-10-14。revision 1 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781 。revision 2 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011 。revision 3 于 2026-10-28 接受，记录为 https://github.com/nemori-ai/omne-harness-lite/issues/882 。
+- 采用范围：revision 1 的建议方案。通用检查交给成熟工具。Cordis 服务关系和领域知识继续自写。编译和类型检查用 TypeScript 7。旧编程接口从 `@typescript/typescript6` 导入。格式化换 oxfmt，选项沿用现有 Prettier 选项。任务缓存用 turborepo。上了 turborepo 就不再把 pnpm 并发调到核数。oxlint 的正确性规则作门禁，测试风格只报告。dependency-cruiser 检查方向和循环，配置保留 `dist` 但不深入它。knip 先只报告。类型检查用源码条件、全仓一次完成。revision 2 采用 `turbo run <task> --affected` 作为影响面目标。替换完成前保留现行选择器。未识别文件转全量。`turbo.json` 和其他选择配置的改动按全量。准入基线显式传入。准入不读取 PR 能写入的缓存。dependency-cruiser 始终全量，并启用源码条件。不使用 `vitest --changed`。revision 3 采用：只改了成员根目录文档的成员不选中，也不作下游种子；有只改了文档的成员时，turbo 选中的成员里有解释不了的，判全量。这两项是 turbo `--affected` 结果之上的集合差，不是另一套选择算法。两条硬线不变。
 - 不采用范围及必要理由：不采用继续把 TypeScript 6 当作编译和类型检查的编译器。不采用把编程接口直接改到 TypeScript 7 根入口。不采用 #227 的测量作为新工程的性能保证。不采用在本次接受时实施工具切换或改写技术基础页。
 - 未决与依赖停止点：
   - 依赖层数的上限。裁定者是 PanQiWei。恢复输入是新包依赖图。
@@ -126,6 +135,7 @@ owner: PanQiWei
 | 影响面选择 | [开发指南](../development.md#迭代中的受影响测试) | 已写回 | 2026-10-14 接受 revision 2。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 替换：成员选择用 `turbo ls --affected`，构建用 `turbo run build`；读者、全局、Python、常驻与未识别文件的规则留在 `test-runs.config.json`。turbo 2.11.7 实测：`--affected` 默认不参考任务 `inputs`（只在 `futureFlags.affectedUsingTaskInputs` 下参考，未采用）；`TURBO_ROOT_TURBO_JSON` 能从检出之外读根配置，但成员目录下的 `turbo.json` 仍会生效，因此一律拒绝。四条约束的落实见开发指南。更正标注（2026-10-19）：成员目录下 `turbo.json` 的处理按 #390 的 D6 修订，见开头的更正标注 |
 | 任务调度与构建缓存 | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) | 已写回 | 2026-10-19 由 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 切换：构建、类型检查与成员测试都是 turbo 任务（`build`、`typecheck`、`test:fast`、`test:slow`、`test`），层由 vitest 的 mode 选择。构建读写本地缓存，准入时只写不读。测试任务不缓存。远程缓存仍未决定 |
 | 按输入缓存类型检查 | 同上 | 已写回 | 2026-10-19 由 [#416](https://github.com/nemori-ai/omne-harness-lite/issues/416) 切换：`typecheck` 依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；成员类型检查经相对路径读到、又不在 `workspace:` 依赖里的文件列入 `globalDependencies`（仓库根 `vitest.tiers.mts`、`tools/repo-toolchain` 的源码与测试夹具）。单独运行读写本地缓存，准入时只写不读。此前不缓存的原因见 #390 的判据 C3 |
+| 只改了成员根目录文档的成员不选中、不作下游种子，以及解释不了判全量（revision 3） | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) | 已写回 | 2026-10-28 由调度者按授权代为接受。实现由 [#793](https://github.com/nemori-ai/omne-harness-lite/issues/793) 的 [PR #870](https://github.com/nemori-ai/omne-harness-lite/pull/870) 入轨，规则在 `tools/test-runner` 的 `scope.ts` 与 `test-runs.config.json` 的 `memberDocuments`。开发指南与测试运行器说明已写这两项。本提案正文由 [#882](https://github.com/nemori-ai/omne-harness-lite/issues/882) 补记 |
 
 ## 后继关系与维护
 
@@ -134,3 +144,4 @@ owner: PanQiWei
 | 本提案 revision 1，2026-10-14 接受 | 只取代 RFC-0001 revision 4「编译与构建」中「保留 catalog 的 TypeScript 6」这一条款。其余条款不动。RFC-0001 的 status 不改。目标已写入技术基础页。2026-10-15 由 #310 切换实现 | [技术基础](../architecture/technical-foundations.md) |
 | [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2（2026-10-19），依据 [RFC-0007](RFC-0007-source-packages-and-templates.md) revision 1（2026-10-16 采用） | 只取代「决定范围」中「类型检查用源码条件、全仓一次完成」这一句。类型检查改为逐成员运行，见 RFC-0007「类型检查的入口」。其余条款不动，本提案的 status 不改 | [开发指南](../development.md#迭代中的受影响测试) |
 | [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1，2026-10-20 接受 | 只取代「决定范围」中“准入缓存只读受信运行，还是完全关闭读取，仍要和 RFC-0004 一起定具体策略”，以及「影响面选择」约束 3 的“具体策略还要和 RFC-0004 一起决定”：进入任何一条主干之前的检查不读 turbo 任务缓存，只写本地缓存。准入检查是否写远程缓存，随远程缓存是否启用，仍是本提案的未决项。其余条款不动，本提案的 status 不改 | [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) 写回表“准入缓存策略”一行所列的现行源 |
+| 本提案 revision 3，2026-10-28 由调度者按授权代为接受，依据 [#793 的交接报告](https://github.com/nemori-ai/omne-harness-lite/issues/793#issuecomment-6454088482)和 [#882](https://github.com/nemori-ai/omne-harness-lite/issues/882) | 补充「影响面选择」责任划分的第二条。revision 2 的条款一条不取代，本提案的 status 不改 | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) |

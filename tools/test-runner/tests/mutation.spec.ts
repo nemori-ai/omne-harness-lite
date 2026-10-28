@@ -801,7 +801,8 @@ function cliAt(root: string, ...args: string[]) {
 }
 
 describe('入口的参数', () => {
-  it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', () => {
+  // 归慢层：起变异入口 CLI 子进程。全量准入快层账本里这条 2.7 秒，超过单条预算 2.5 秒（负载下 7.1 秒）（tools/test-runner/README_ZH.md「归层」）。
+  it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', { tags: ['slow'] }, () => {
     expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
     expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
     expect(cli('run', '--plan', 'plan.json', '--members', 'apps/cli', '--plan-only').status).toBe(2)
@@ -831,22 +832,36 @@ describe('入口的参数', () => {
     expect(ran.stdout).toMatch(/变异范围：基线 |没有可变异的改动：基线 /u)
   })
 
-  it('--plan 读准入检查的计划：变异计划里的成员；有计划外的改动、或计划不是当前提交算的就拒绝', () => {
-    const root = cliFixture()
-    writeFileSync(join(root, 'packages/core/canary/src/index.ts'), 'export const value = 2\n')
-    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-    const planFile = (test: string[], at = head) => writePlan(at, head, test)
-    const selected = cliAt(root, 'run', '--plan', planFile(['packages/core/canary']), '--plan-only')
-    expect(selected.status, selected.stderr).toBe(0)
-    expect(selected.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
-    // 计划算完后工作树又改了计划外的成员：不静默跳过，要求重算。
-    const outside = cliAt(root, 'run', '--plan', planFile([]), '--plan-only')
-    expect(outside.status).toBe(2)
-    expect(outside.stderr).toContain('计划外的成员：packages/core/canary')
-    const stale = cliAt(root, 'run', '--plan', planFile([], '0'.repeat(40)), '--plan-only')
-    expect(stale.status).toBe(2)
-    expect(stale.stderr).toContain('重新算计划')
-  })
+  // 归慢层：在临时 git 仓库里起变异入口 CLI 子进程。全量准入快层账本里这条 2.2 秒，负载下 5.8 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '--plan 读准入检查的计划：变异计划里的成员；有计划外的改动、或计划不是当前提交算的就拒绝',
+    { tags: ['slow'] },
+    () => {
+      const root = cliFixture()
+      writeFileSync(join(root, 'packages/core/canary/src/index.ts'), 'export const value = 2\n')
+      const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: root,
+        encoding: 'utf8',
+      }).trim()
+      const planFile = (test: string[], at = head) => writePlan(at, head, test)
+      const selected = cliAt(
+        root,
+        'run',
+        '--plan',
+        planFile(['packages/core/canary']),
+        '--plan-only',
+      )
+      expect(selected.status, selected.stderr).toBe(0)
+      expect(selected.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
+      // 计划算完后工作树又改了计划外的成员：不静默跳过，要求重算。
+      const outside = cliAt(root, 'run', '--plan', planFile([]), '--plan-only')
+      expect(outside.status).toBe(2)
+      expect(outside.stderr).toContain('计划外的成员：packages/core/canary')
+      const stale = cliAt(root, 'run', '--plan', planFile([], '0'.repeat(40)), '--plan-only')
+      expect(stale.status).toBe(2)
+      expect(stale.stderr).toContain('重新算计划')
+    },
+  )
 })
 
 // 真起 Stryker：一次约十几到几十秒，归慢层。

@@ -11,7 +11,14 @@ import {
   renderDiff,
   writeSnapshots,
 } from '../src/declarations/contract-api.ts'
-import { CONFIG, contractCheckout, setDist, write } from './fixtures/contract-api.ts'
+import {
+  CONFIG,
+  committedCheckout,
+  contractCheckout,
+  MEMBERS,
+  setContracts,
+  setDist,
+} from './fixtures/contract-api.ts'
 import {
   commit,
   removeTemporaries,
@@ -22,34 +29,6 @@ import {
 afterEach(removeTemporaries)
 
 const CLI = fileURLToPath(new URL('../src/declarations/api-cli.ts', import.meta.url))
-
-const MEMBERS = {
-  'packages/x/a': {
-    name: '@fixture/a',
-    exports: { '.': 'index.d.ts' },
-    dist: { 'index.d.ts': 'export interface A {\n    a: string;\n}\n' },
-  },
-  'packages/x/b': {
-    name: '@fixture/b',
-    exports: { '.': 'index.d.ts' },
-    dist: { 'index.d.ts': 'export type B = 1;\n' },
-  },
-}
-
-/** A committed checkout whose snapshots match its dist. */
-function committedCheckout(): { root: string; base: string } {
-  const root = contractCheckout(MEMBERS, Object.keys(MEMBERS), repository())
-  writeSnapshots(root, CONFIG)
-  return { root, base: commit(root, 'snapshots') }
-}
-
-function setContracts(root: string, contracts: readonly string[]): void {
-  write(
-    root,
-    CONFIG.members,
-    JSON.stringify({ schemaVersion: 1, lines: [{ id: 'line', contracts }] }),
-  )
-}
 
 function cli(root: string, ...args: string[]) {
   return spawnSync(process.execPath, ['--experimental-strip-types', CLI, '--root', root, ...args], {

@@ -78,7 +78,7 @@ Line 首次进入和恢复必须读 `docs/engineering/map-reduce-states.md` 的 
 ## 交回
 
 1. 推送候选，开 PR：线内的卡 base 是批次分支。不在线内的卡 base 按 binding 的 route。正文按 `integration.md`「进轨道 PR 的说明」写「所含的卡」与「契约变化」，署名与 trailer 按 `CONTRIBUTING.md`。
-2. 在卡评论发交接报告（线内的卡模板在 `.meta_harness/human/map-reduce-delivery/templates/handoff-report.md`）：固定 head、逐项卡判据的证据与未覆盖、准入日志位置、评审结论与处置、剩余责任。
+2. 在卡评论发交接报告（线内的卡模板在 `.meta_harness/human/map-reduce-delivery/templates/handoff-report.md`）：固定 head、逐项卡判据的证据与未覆盖、准入日志摘要与位置、评审结论与处置、剩余责任。判据要求的证据贴在卡评论里，只放在任务 tmp 的证据接受者不据它判断。原件太大时贴摘要和关键行，并写明原件位置与哈希。规则归 `agent-delivery.md`「5. 提交成果供接受」。
 3. 回填卡正文「成果交回」，Stage 改为 delivered。线内由线会话运行 `board-cli.ts delivered`。不在线内的卡由调度者改，执行者在交回评论里请求。
 4. 不自己接受，不自己合入批次分支以外的分支。接受归有权者。线内的卡合入批次归 line 技能，批次合入轨道归 integrate 技能。不在线内的卡进轨道由调度者按 `branch-integration` 技能处理。
 

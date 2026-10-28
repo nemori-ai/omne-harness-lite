@@ -22,31 +22,36 @@ import { renderPage } from '../src/report/render.ts'
 import { buildReport } from '../src/metrics/report.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }
-it('rejects JSON output paths that would overwrite report artifacts before writing', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'n2-output-')))
-  try {
-    for (const name of ['report.html', 'graph.json', 'summary.md']) {
-      const result = spawnSync(
-        process.execPath,
-        [
-          '--experimental-strip-types',
-          fileURLToPath(new URL('../src/arch/cli.ts', import.meta.url)),
-          '--report',
-          dir,
-          '--out',
-          join(dir, name),
-        ],
-        { encoding: 'utf8' },
-      )
-      expect(result.status).toBe(2)
-      expect(result.stderr).toContain('--out must not overwrite a report file')
-      expect(result.stdout).toBe('')
-      expect(readdirSync(dir)).toEqual([])
+// Slow: runs the architecture view CLI as a child process. 2.1 s on the full-admission fast-tier ledger, 4.4 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+it(
+  'rejects JSON output paths that would overwrite report artifacts before writing',
+  { tags: ['slow'] },
+  () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'n2-output-')))
+    try {
+      for (const name of ['report.html', 'graph.json', 'summary.md']) {
+        const result = spawnSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            fileURLToPath(new URL('../src/arch/cli.ts', import.meta.url)),
+            '--report',
+            dir,
+            '--out',
+            join(dir, name),
+          ],
+          { encoding: 'utf8' },
+        )
+        expect(result.status).toBe(2)
+        expect(result.stderr).toContain('--out must not overwrite a report file')
+        expect(result.stdout).toBe('')
+        expect(readdirSync(dir)).toEqual([])
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+  },
+)
 const selection: ViewSelection = {
   group: '',
   focus: '',
@@ -400,50 +405,55 @@ describe('architecture view projection', () => {
     expect(added.edges[0]?.kind).toBe('type-import')
     expect(added.edges[0]?.evidence.every(item => item.version === 'current')).toBe(true)
   })
-  it('embeds an inert payload and preserves the existing metric page without external resources', () => {
-    const doc = document({
-      'packages/infra/evil': plugin(
-        'evil',
-        "ctx.provide('</script><img src=x onerror=alert(1)>',{})",
-      ),
-    })
-    const view = buildArchitectureView(doc, bands)
-    const html = renderPage(
-      buildReport({
-        files: [],
-        graph: { members: [], modules: [], edges: [], dependencies: [], findings: [] },
-        thresholds: { warn: 10, alert: 12 },
-        bands,
-      }),
-      {
-        head: 'head',
-        shortHead: 'head',
-        branch: 'b',
-        dirty: false,
-        generatedAt: doc.generatedAt,
-        summary: [],
-        changedEdgeLimit: 24,
-      },
-      view,
-    )
-    // 架构数据以 gzip + base64 内联，解压后与渲染前的投影逐字节一致。
-    const packed =
-      /<script type="application\/gzip" id="architecture-data" data-encoding="base64">([A-Za-z0-9+/=]+)<\/script>/u.exec(
-        html,
-      )?.[1]
-    expect(packed).toBeDefined()
-    expect(gunzipSync(Buffer.from(packed ?? '', 'base64')).toString('utf8')).toBe(
-      JSON.stringify(view),
-    )
-    expect(html).toContain('new DecompressionStream(')
-    expect(html).not.toContain('<img src=x')
-    expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
-    expect(html).toContain('architecture-pane')
-    expect(html).toContain('metrics-pane')
-    expect(html).toContain('确认配置选择与实际运行绑定：未观测')
-    // elkjs, the React Flow island, the embedded data, the metrics script and the page script.
-    expect(html.match(/<\/script>/gu)).toHaveLength(6)
-    expect(html).toContain('window.ArchitectureFlow')
-    expect(html).toContain('.react-flow')
-  })
+  // Slow: renders the whole view page and reads the existing metric page. 1.5 s on the full-admission fast-tier ledger, 3.9 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  it(
+    'embeds an inert payload and preserves the existing metric page without external resources',
+    { tags: ['slow'] },
+    () => {
+      const doc = document({
+        'packages/infra/evil': plugin(
+          'evil',
+          "ctx.provide('</script><img src=x onerror=alert(1)>',{})",
+        ),
+      })
+      const view = buildArchitectureView(doc, bands)
+      const html = renderPage(
+        buildReport({
+          files: [],
+          graph: { members: [], modules: [], edges: [], dependencies: [], findings: [] },
+          thresholds: { warn: 10, alert: 12 },
+          bands,
+        }),
+        {
+          head: 'head',
+          shortHead: 'head',
+          branch: 'b',
+          dirty: false,
+          generatedAt: doc.generatedAt,
+          summary: [],
+          changedEdgeLimit: 24,
+        },
+        view,
+      )
+      // 架构数据以 gzip + base64 内联，解压后与渲染前的投影逐字节一致。
+      const packed =
+        /<script type="application\/gzip" id="architecture-data" data-encoding="base64">([A-Za-z0-9+/=]+)<\/script>/u.exec(
+          html,
+        )?.[1]
+      expect(packed).toBeDefined()
+      expect(gunzipSync(Buffer.from(packed ?? '', 'base64')).toString('utf8')).toBe(
+        JSON.stringify(view),
+      )
+      expect(html).toContain('new DecompressionStream(')
+      expect(html).not.toContain('<img src=x')
+      expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
+      expect(html).toContain('architecture-pane')
+      expect(html).toContain('metrics-pane')
+      expect(html).toContain('确认配置选择与实际运行绑定：未观测')
+      // elkjs, the React Flow island, the embedded data, the metrics script and the page script.
+      expect(html.match(/<\/script>/gu)).toHaveLength(6)
+      expect(html).toContain('window.ArchitectureFlow')
+      expect(html).toContain('.react-flow')
+    },
+  )
 })
