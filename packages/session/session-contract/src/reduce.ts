@@ -5,7 +5,10 @@ import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import { SESSION_INTERPRETER, decodeEntry, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
+import { applyExtended } from './reduce-extended.ts'
+import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
+import { applyParticipation } from './result-state.ts'
 
 /** The evidence of one committed batch: the session, its revision and the digest of the entry ids. */
 export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
@@ -27,8 +30,7 @@ function quarantined(diagnostic: string): ReduceResult {
 
 function lifecycleOf(draft: Draft): WorkSnapshot['lifecycle'] {
   if (draft.lifecycle === 'archived') return 'archived'
-  if (draft.tasks.some(task => task.kind === 'initialization' && task.state !== 'failed'))
-    return 'initializing'
+  if (draft.tasks.some(task => task.kind === 'initialization')) return 'initializing'
   if (draft.run.kind === 'active') return 'active'
   if (draft.frozen !== null) return 'frozen'
   return 'dormant'
@@ -40,7 +42,7 @@ function without(list: readonly InputId[], removed: readonly InputId[]): readonl
 }
 
 /** Applies one decoded entry. Returns a diagnostic when the entry contradicts the state. */
-function apply(draft: Draft, entry: SessionEntry): string | null {
+function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): string | null {
   switch (entry.kind) {
     case 'session.created':
       return 'session.created after the first entry'
@@ -60,6 +62,8 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
     }
     case 'session.adoption':
       draft.definition = { name: draft.definition.name, adopted: entry.adopted }
+      if (draft.run.kind === 'active') draft.run = { ...draft.run, adoption: entry.adopted }
+      if (entry.residentKeys !== undefined) draft.residentKeys = entry.residentKeys
       return null
     case 'message.user':
     case 'message.assistant':
@@ -67,22 +71,16 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
     case 'message.tool_internal':
     case 'message.system_reminder':
     case 'message.compaction': {
-      if (entry.participation !== null && draft.run.kind === 'active') {
-        const { participation } = entry
-        draft.run = {
-          ...draft.run,
-          execution: {
-            ...draft.run.execution,
-            revision: participation.written,
-            evidence: participation.handover,
-          },
-        }
-      }
-      return null
+      return entry.participation === null ? null : applyParticipation(draft, entry.participation)
     }
     case 'intake.routed':
+      if ('task' in entry) {
+        draft.tasks = [...draft.tasks, entry.task]
+        return null
+      }
       if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
       draft.pending = [...draft.pending, entry.input]
+      draft.idle = null
       return null
     case 'intake.handed-over': {
       if (!draft.pending.includes(entry.input)) return `hand-over of an input that is not pending`
@@ -106,6 +104,11 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
         ordinal: '0',
         execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
       }
+      draft.executions = [
+        ...(draft.executions ?? []),
+        { run: entry.run, execution: draft.run.execution, terminal: null },
+      ]
+      draft.idle = null
       return null
     }
     case 'run.attempt-started': {
@@ -135,10 +138,17 @@ function apply(draft: Draft, entry: SessionEntry): string | null {
       if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
       // The hand-over state belongs to the execution of the Run: a successor Run re-hands every
       // input that kept its eligibility (PA-08 item 2), so the terminal releases `handed`.
+      draft.executions = (draft.executions ?? []).map(item =>
+        item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
+      )
       draft.run = { kind: 'terminal', terminal: entry.terminal }
       draft.handed = []
+      draft.taken = []
+      draft.waiting = []
       return null
     }
+    default:
+      return applyExtended(draft, entry, source)
   }
 }
 
@@ -180,6 +190,12 @@ function created(
       diagnostic: null,
     })),
     idle: null,
+    executions: [],
+    residentKeys: [],
+    autoArchive: { kind: 'disabled' },
+    contextScopes: [
+      scopeBinding({ tenant: entry.tenant, session: entry.session }, entry.operation),
+    ],
   }
 }
 
@@ -209,7 +225,7 @@ export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): Re
       draft = created(entry, batch, row.origin.source, SESSION_INTERPRETER)
       continue
     }
-    const diagnostic = apply(draft, entry)
+    const diagnostic = apply(draft, entry, row.origin.source)
     if (diagnostic !== null) return quarantined(`${row.kind} at ${row.id}: ${diagnostic}`)
   }
   if (draft === null) return quarantined('the batch created nothing')

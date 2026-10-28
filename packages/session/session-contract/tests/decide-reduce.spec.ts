@@ -117,7 +117,7 @@ describe('create and completeInitialization', () => {
     expect(failed.tasks).toEqual([
       expect.objectContaining({ state: 'failed', diagnostic: 'no login' }),
     ])
-    expect(failed.lifecycle).toBe('dormant')
+    expect(failed.lifecycle).toBe('initializing')
   })
 
   it('an item that is not pending is invalid', () => {
@@ -362,7 +362,7 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     })
   })
 
-  it('the workspace dimension of change is judged the same way before change is refused naming #756', () => {
+  it('workspace changes use the same validation and valid declarations commit', () => {
     const created = commit(null, createCommand())
     expect(decisionOf(changeWorkspace(WORKSPACE_TEXT, workspaceAttachment), created)).toMatchObject(
       { failure: { kind: 'invalid', field: 'declaration.value' } },
@@ -391,7 +391,7 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
       } satisfies SessionCommand,
     ])
       expect(decisionOf(legal, created)).toMatchObject({
-        failure: { kind: 'unavailable', diagnostic: expect.stringContaining('#756') },
+        kind: 'entries',
       })
   })
 })
@@ -653,11 +653,11 @@ describe('the pure judgments at their edges', () => {
     })
   })
 
-  it('judgeIdle answers unavailable naming #756; resolveControlScope and resolveCascade throw naming it', () => {
+  it('disabled idle and empty cascade have explicit decisions', () => {
     const snapshot = dormant()
-    expect(() =>
+    expect(
       resolveControlScope(snapshot, { kind: 'control', value: { kind: 'archive' } }),
-    ).toThrow(/#756/u)
+    ).toMatchObject({ kind: 'scope', scopeRelease: true })
     expect(
       judgeIdle(snapshot, {
         observation: {
@@ -675,11 +675,11 @@ describe('the pure judgments at their edges', () => {
           completeScope: evidence('c'),
         },
       }),
-    ).toEqual({ kind: 'unavailable', reason: expect.stringContaining('#756') })
-    expect(() => resolveCascade(snapshot, [])).toThrow(/#756/u)
+    ).toEqual({ kind: 'disabled' })
+    expect(resolveCascade(snapshot, [])).toEqual([])
   })
 
-  it('a rejected hand-over removes the eligibility, and a fact off the path is refused naming #756', () => {
+  it('a rejected hand-over removes eligibility while exit reports remain observations', () => {
     const active = started()
     if (active.run.kind !== 'active') throw new Error('no run')
     const decision = decide(
@@ -697,8 +697,7 @@ describe('the pure judgments at their edges', () => {
       { compaction: null },
     )
     expect(decision).toMatchObject({
-      kind: 'rejected',
-      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('#756') },
+      kind: 'entries',
     })
     const rejected = commit(active, {
       kind: 'receive',

@@ -11,6 +11,7 @@ import type {
   ConsumptionId,
   DurableEvidence,
   InputId,
+  ResidentKey,
   BatchId,
   RunId,
   SessionId,
@@ -225,6 +226,7 @@ export type SessionCreation = Readonly<{
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
+  residentAdoption?: ResidentAdoption
 }>
 export type InitializationResult = Readonly<{
   item: string
@@ -334,4 +336,34 @@ export type WorkSnapshot = Readonly<{
   creation: SessionCreation
   tasks: readonly RecoveryTask[]
   idle: Readonly<{ observation: IdleObservation; commit: DurableEvidence }> | null
+  /** Missing optional projections represent no previously committed facts of that kind. */
+  executions?: readonly RunExecution[]
+  residentKeys?: ResidentAdoption['keys']
+  relation?: Relation
+  children?: readonly SessionId[]
+  autoArchive?: AutoArchivePolicy
+  taken?: readonly InputId[]
+  backgroundPlaceholders?: readonly ConsumptionId[]
+  releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
+  contextScopes?: readonly ContextScopeBinding[]
+  contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
+  changes?: readonly DeclarationChange[]
+}>
+
+/** Optional adoption material: omission preserves the existing resident keys and adds no definitions. */
+export type ResidentAdoption = Readonly<{
+  residents: readonly ResidentTool[]
+  keys: readonly Readonly<{ capability: string; key: ResidentKey }>[]
+}>
+/** A historical execution remains bound to its original Run after successors start. */
+export type RunExecution = Readonly<{
+  run: RunId
+  execution: ExecutionRef
+  terminal: RunTerminal | null
+}>
+export type ContextScopeBinding = Readonly<{
+  generation: string
+  scope: string
+  operation: SessionOperationId
+  ended: DurableEvidence | null
 }>

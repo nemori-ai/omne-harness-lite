@@ -1,9 +1,5 @@
-// The `./testing` entry: the conformance suite of the transaction port that a storage provider
-// implements, a non-durable double that passes it, and doubles of the construction ports that the
-// first tenant path needs (identity bridge, evidence bridge, Context input, clock). A suite returns
-// a list of cases and does not depend on a test framework; a case fails with a `node:assert`
-// AssertionError. Each double declares `durability: 'none'` and must not be assembled into
-// production. The doubles prove nothing about durability, cross-process commits or a real store.
+// Framework-independent conformance cases and non-durable provider doubles. A passing double
+// proves the tested in-memory behavior, not durability or a production assembly.
 export {
   NotApplicable,
   assertIndistinguishable,
@@ -24,6 +20,7 @@ export {
   pendingReasonsOf,
   sessionTransactionsConformance,
   type MemorySessionTransactions,
+  type MemorySessionLogTransactions,
   type SessionTransactionsFixture,
 } from './testing-transactions.ts'
 export {
@@ -55,3 +52,16 @@ export {
   testingWorkspace,
   userMessage,
 } from './testing-values.ts'
+
+export * from './testing-providers.ts'
+export type { MemorySessionTransactionOptions } from './testing-transactions.ts'
+export {
+  sessionIdentityBridgeConformance,
+  sessionEvidenceBridgeConformance,
+  sessionContextInputConformance,
+  sessionClockConformance,
+  sessionIdleInputConformance,
+  sessionNotifierConformance,
+  scopeReleaseConformance,
+  agentDriveConformance,
+} from './testing-provider-conformance.ts'

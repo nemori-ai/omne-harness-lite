@@ -29,6 +29,19 @@ import type {
   RecoveryTask,
   RunTerminal,
   SessionCreation,
+  ResidentAdoption,
+  ResidentTool,
+  DeclarationChange,
+  Relation,
+  AutoArchivePolicy,
+  IdleObservation,
+  ControlProgress,
+  ContextScopeBinding,
+  CallBinding,
+  ProducedResult,
+  InputBatch,
+  Waiting,
+  ExecutionRef,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
 import type { EncodedEntry } from './judgments.ts'
@@ -50,7 +63,6 @@ export type InitializationItem = Omit<
   'kind' | 'originalOperation' | 'state' | 'diagnostic'
 >
 
-/** The decoded entries that `reduce` interprets, one per `kind` the first path writes. */
 export type SessionEntry =
   | Readonly<{
       kind: 'session.created'
@@ -61,7 +73,11 @@ export type SessionEntry =
       items: readonly InitializationItem[]
     }>
   | Readonly<{ kind: 'session.initialization-item'; result: InitializationResult }>
-  | Readonly<{ kind: 'session.adoption'; adopted: Adoption }>
+  | Readonly<{
+      kind: 'session.adoption'
+      adopted: Adoption
+      residentKeys?: ResidentAdoption['keys']
+    }>
   | Readonly<{
       kind: `message.${Message['role']}`
       message: Message
@@ -116,6 +132,80 @@ export type SessionEntry =
       disposition: DurableEvidence | null
       bounded: BoundedClose | null
     }>
+  | Readonly<{ kind: 'session.tool-resident-admitted'; resident: ResidentTool }>
+  | Readonly<{
+      kind:
+        | 'session.mode-changed'
+        | 'session.model-selected'
+        | 'session.declaration-adopted'
+        | 'session.context-registration-changed'
+        | 'session.recovery-input-adopted'
+      declaration: DeclarationChange
+      scope: string | null
+    }>
+  | Readonly<{
+      kind: 'session.workspace-changed'
+      workspace: WorkspaceId | null
+      workspaceAttachment: SessionCreation['workspaceAttachment']
+      basis: DurableEvidence
+    }>
+  | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
+  | Readonly<{ kind: 'session.relation' | 'session.resident'; relation: Relation }>
+  | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
+  | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'intake.released'; inputs: readonly InputId[] }>
+  | Readonly<{ kind: 'intake.routed'; task: Extract<RecoveryTask, { kind: 'routed-input' }> }>
+  | Readonly<{
+      kind: 'hitl.decision'
+      value: Extract<import('./values.ts').RoutedInput, { kind: 'card-decision' }>
+    }>
+  | Readonly<{ kind: 'run.attempt-exited'; advance: import('./identity.ts').AdvanceRef }>
+  | Readonly<{ kind: 'run.batch-taken'; run: RunId; batch: InputBatch }>
+  | Readonly<{
+      kind: 'call.bound'
+      consumption: ConsumptionId
+      binding: CallBinding
+      reference: string
+      purpose: 'main' | 'action'
+    }>
+  | Readonly<{
+      kind: 'call.execution-fact' | 'account.linked'
+      fact: import('./faces.ts').ProducerFact
+      consumption?: ConsumptionId
+      result?: ProducedResult | null
+    }>
+  | Readonly<{
+      kind: 'call.result-preserved'
+      consumption: ConsumptionId
+      result: ProducedResult
+      custody: DurableEvidence
+      participation: Participation | null
+    }>
+  | Readonly<{
+      kind: 'call.result-processed'
+      consumption: ConsumptionId
+      result: ProducedResult
+      completion: DurableEvidence
+      participation: Participation | null
+      position: string | null
+    }>
+  | Readonly<{ kind: 'extension.passage'; run: RunId; waiting: readonly Waiting[] }>
+  | Readonly<{ kind: 'control.requested'; progress: ControlProgress }>
+  | Readonly<{
+      kind: 'control.progress'
+      progress: ControlProgress | null
+      fact: import('./faces.ts').ProducerFact | null
+    }>
+  | Readonly<{
+      kind: 'session.archived'
+      operation: SessionOperationId
+      scope: ContextScopeBinding
+      tasks: readonly RecoveryTask[]
+    }>
+  | Readonly<{ kind: 'session.unarchived'; scope: ContextScopeBinding }>
+  | Readonly<{ kind: 'history.annotated'; targets: readonly string[]; source: DurableEvidence }>
+  | Readonly<{ kind: 'history.annotated'; run: RunId; execution: ExecutionRef }>
+  | Readonly<{ kind: 'history.annotated'; run: RunId; terminal: RunTerminal }>
 
 export type SessionEntryKind = SessionEntry['kind']
 
@@ -167,6 +257,8 @@ export function encodeEntry(entry: SessionEntry, origin: HistoryEntry['origin'])
     plain['tenant'] = tenantText(entry.tenant)
     plain['creation'] = { ...entry.creation, workspace: workspaceText(entry.creation.workspace) }
   }
+  if (kind === 'call.bound') plain['kind'] = entry.binding.producer.kind
+  if (kind === 'session.workspace-changed') plain['workspace'] = workspaceText(entry.workspace)
   return { kind, schema: SESSION_INTERPRETER, payload: toJsonValue(plain), origin }
 }
 
@@ -228,6 +320,32 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'run.attempt-started',
   'run.attempt-released',
   'run.terminal',
+  'session.tool-resident-admitted',
+  'session.mode-changed',
+  'session.model-selected',
+  'session.declaration-adopted',
+  'session.context-registration-changed',
+  'session.recovery-input-adopted',
+  'session.workspace-changed',
+  'session.relation',
+  'session.resident',
+  'session.idle-evidence',
+  'session.frozen',
+  'intake.released',
+  'hitl.decision',
+  'run.attempt-exited',
+  'run.batch-taken',
+  'call.bound',
+  'call.execution-fact',
+  'account.linked',
+  'call.result-preserved',
+  'call.result-processed',
+  'extension.passage',
+  'control.requested',
+  'control.progress',
+  'session.archived',
+  'session.unarchived',
+  'history.annotated',
 ])
 
 /**
@@ -256,6 +374,12 @@ export function decodeEntry(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Deco
         creation: creation.ok,
       } as unknown as SessionEntry,
     }
+  }
+  if (entry.kind === 'session.workspace-changed' && payload['workspace'] !== null) {
+    const text = payload['workspace']
+    const parsed = typeof text === 'string' ? workspaceCodec.parse(text) : undefined
+    if (parsed === undefined || !parsed.ok) return { malformed: 'workspace text does not parse' }
+    payload['workspace'] = parsed.value
   }
   return { ok: { ...payload, kind: entry.kind } as unknown as SessionEntry }
 }

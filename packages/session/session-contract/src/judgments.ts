@@ -2,13 +2,8 @@
 // (SPEC「领域服务与归约」). Inputs are the work snapshot and command parameters only: no time,
 // random number, connection or outside state. The outcome sets are closed discriminated unions.
 //
-// Support in this member (card #536 revision 5): the services that the first tenant path calls
-// (`judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`,
-// `resolveOperation`) are implemented to the SPEC. `resolveControlScope`, `resolveCascade` and
-// `judgeIdle` serve only off-path commands: `judgeIdle` answers `unavailable` naming #756;
-// `resolveControlScope` and `resolveCascade` throw an Error naming #756 (`invalid` would read as
-// a judged refusal, an empty cascade as a judged one). `decide` rejects the commands that call
-// them before calling them.
+import { digestOf } from './operations.ts'
+import { deriveSessionOperation } from './operations.ts'
 import type { CompactionContext } from '@omne-harness/message'
 import type {
   AdvanceRef,
@@ -108,12 +103,17 @@ export type Decision =
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
 /** History the storage participant reads inside the transaction. Only commitDerived(compaction) needs it; null otherwise. open holds the entry references of the open work that openWork names. */
-export type DecideReads = Readonly<{ compaction: CompactionContext | null }>
+export type DecideReads = Readonly<{
+  compaction: CompactionContext | null
+  /** Missing material does not assert any external children or idle coverage. */
+  children?: readonly SessionId[]
+  idleObservation?: IdleObservation
+  idleCoverage?: IdleCoverage
+  frozenReceipt?: CommitReceipt
+}>
 
-/** The diagnostic of every outcome that this member leaves to card #756 (S-1b). */
 export const OFF_PATH_DIAGNOSTIC =
   'not on the M2 first tenant path; the judgment lands with #756 (S-1b)'
-/** The `unavailable` failure of an off-path command: the owner is this member, the diagnostic names #756. */
 export const OFF_PATH_FAILURE: Extract<SessionFailure, { kind: 'unavailable' }> = Object.freeze({
   kind: 'unavailable',
   owner: '@omne-harness/session-contract',
@@ -197,16 +197,15 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
 }
 
 /**
- * The open work of one snapshot (EC-03, ST20, ST24b). `taken` and `backgroundPlaceholders` need
- * SE18 and SE21, which the first path does not write; they are empty until #756 lands them.
+ * The open work of one committed snapshot (EC-03, ST20, ST24b).
  */
 export function openWork(snapshot: WorkSnapshot): OpenWork {
   return {
     pending: snapshot.pending,
     handed: snapshot.handed,
-    taken: [],
+    taken: snapshot.taken ?? [],
     waiting: snapshot.waiting,
-    backgroundPlaceholders: [],
+    backgroundPlaceholders: snapshot.backgroundPlaceholders ?? [],
     unresolved: snapshot.unresolved,
     unreadEvents:
       snapshot.run.kind === 'active'
@@ -226,7 +225,9 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
  * terminal answers `terminal`. Without an active Run of this execution nothing of Session blocks.
  */
 export function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment {
-  const terminal = terminalOf(snapshot)
+  const terminal =
+    snapshot.executions?.find(item => item.execution.execution === execution)?.terminal ??
+    (snapshot.executions === undefined ? terminalOf(snapshot) : null)
   if (terminal !== null)
     return terminal.outcome === 'cancelled'
       ? { kind: 'cancelled', terminal }
@@ -238,26 +239,124 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
   return pendingInputs.length === 0 ? { kind: 'allowed' } : { kind: 'blocked', pendingInputs }
 }
 
-export function resolveControlScope(_snapshot: WorkSnapshot, _intent: ControlIntent): ControlScope {
-  throw new Error(`resolveControlScope: ${OFF_PATH_DIAGNOSTIC}`)
+export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope {
+  const control = intent.kind === 'control' ? intent.value : null
+  if (control?.kind === 'unarchive') {
+    if (snapshot.lifecycle !== 'archived')
+      return { kind: 'invalid', reason: 'the session is not archived' }
+    return {
+      kind: 'scope',
+      producers: [],
+      revokes: [],
+      cancelsRun: null,
+      cascade: [],
+      scopeRelease: false,
+    }
+  }
+  if (snapshot.lifecycle === 'archived')
+    return { kind: 'invalid', reason: 'the session is archived' }
+  const archive = intent.kind === 'auto-archive' || control?.kind === 'archive'
+  const run =
+    intent.kind === 'interrupt' ? intent.run : control?.kind === 'cancel-run' ? control.run : null
+  if (run !== null) {
+    const old = snapshot.executions?.find(item => item.run === run)?.terminal
+    if (old != null) return { kind: 'terminal', terminal: old }
+    if (snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run)
+      return { kind: 'terminal', terminal: snapshot.run.terminal }
+    if (snapshot.run.kind !== 'active' || snapshot.run.run !== run)
+      return { kind: 'invalid', reason: 'not the current Run' }
+  }
+  const selected =
+    control?.kind === 'stop-call' || control?.kind === 'background-tool' ? control.producer : null
+  const waiting = snapshot.waiting.flatMap(item =>
+    item.kind === 'producer' ? [item.binding.producer] : [],
+  )
+  const producers =
+    selected === null
+      ? archive
+        ? snapshot.consumptions.map(item => item.binding.producer)
+        : waiting
+      : snapshot.consumptions.some(item => digestOf(item.binding.producer) === digestOf(selected))
+        ? [selected]
+        : null
+  if (producers === null) return { kind: 'invalid', reason: 'the producer is not bound' }
+  const unique = [...new Map(producers.map(producer => [digestOf(producer), producer])).values()]
+  return {
+    kind: 'scope',
+    producers: unique,
+    revokes: archive
+      ? ['advance', 'pending', 'delivery']
+      : control?.kind === 'cancel-run'
+        ? ['advance']
+        : [],
+    cancelsRun:
+      archive && snapshot.run.kind === 'active'
+        ? snapshot.run.run
+        : control?.kind === 'cancel-run'
+          ? control.run
+          : null,
+    cascade: [],
+    scopeRelease: archive,
+  }
 }
 
 export function resolveCascade(
-  _snapshot: WorkSnapshot,
-  _children: readonly SessionId[],
+  snapshot: WorkSnapshot,
+  children: readonly SessionId[],
 ): readonly RecoveryTask[] {
-  throw new Error(`resolveCascade: ${OFF_PATH_DIAGNOSTIC}`)
+  return [...new Set(children)]
+    .filter(child => child !== snapshot.session)
+    .map(child => ({
+      kind: 'cascade',
+      child,
+      parentControl: deriveSessionOperation({
+        kind: 'auto-archive',
+        session: snapshot.session,
+        idleEvidence: snapshot.source,
+      }),
+      childOperation: deriveSessionOperation({
+        kind: 'auto-archive',
+        session: child,
+        idleEvidence: snapshot.source,
+      }),
+      intent: { kind: 'archive' },
+      basis: snapshot.source,
+      state: 'pending',
+    }))
 }
 
 export function judgeIdle(
-  _snapshot: WorkSnapshot,
-  _input: Readonly<{
+  snapshot: WorkSnapshot,
+  input: Readonly<{
     observation: IdleObservation
     policy: AutoArchivePolicy
     coverage: IdleCoverage
   }>,
 ): IdleJudgment {
-  return { kind: 'unavailable', reason: OFF_PATH_DIAGNOSTIC }
+  if (input.policy.kind === 'disabled') return { kind: 'disabled' }
+  if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return { kind: 'exempt' }
+  if (snapshot.lifecycle === 'archived' || snapshot.run.kind === 'active')
+    return { kind: 'not-due' }
+  const work = openWork(snapshot)
+  if (
+    Object.values(work).some(items => items.length > 0) ||
+    snapshot.tasks.length > 0 ||
+    snapshot.controls.some(control => control.state !== 'reconciled') ||
+    snapshot.consumptions.some(
+      item =>
+        item.results.length === 0 || item.results.some(result => result.release !== 'confirmed'),
+    )
+  )
+    return { kind: 'not-due' }
+  if (input.observation.kind !== 'interval')
+    return { kind: 'unavailable', reason: 'continuous idle interval is not confirmed' }
+  if (digestOf(input.coverage) !== digestOf(input.observation.coverage))
+    return { kind: 'unavailable', reason: 'idle coverage changed' }
+  if (!/^\d+$/u.test(input.observation.elapsedMs) || !/^\d+$/u.test(input.policy.idleMs))
+    return { kind: 'unavailable', reason: 'invalid idle duration' }
+  return {
+    kind: BigInt(input.observation.elapsedMs) >= BigInt(input.policy.idleMs) ? 'due' : 'not-due',
+  }
 }
 
 /**

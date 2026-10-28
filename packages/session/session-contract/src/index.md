@@ -21,3 +21,16 @@
 - [testing-values.ts](testing-values.ts)：合法测试值
 - [testing-transactions.ts](testing-transactions.ts)：事务端口的替身与一致性套件
 - [testing-ports.ts](testing-ports.ts)：身份桥、证据桥、Context 输入与时钟的替身
+
+- [decision-support.ts](decision-support.ts)：判定共用的证据、采用与终态批次
+- [decide-management.ts](decide-management.ts)：控制、关系、空闲、冻结与作用域代次
+- [decide-results.ts](decide-results.ts)：原调用绑定、保管与处理
+- [decide-receive.ts](decide-receive.ts)：外部事实与恢复任务对账
+- [projection.ts](projection.ts)：同日志的纯 Session 解释接缝
+- [reduce-extended.ts](reduce-extended.ts)：管理与调用登记归约
+- [model-view.ts](model-view.ts)：提交时维护的模型视图与压缩核对窗口
+- [testing-providers.ts](testing-providers.ts)：空闲、通知、推进与作用域释放替身
+- [testing-provider-conformance.ts](testing-provider-conformance.ts)：有效提供者端口一致性套件
+
+- [reduce-results.ts](reduce-results.ts)：结果保管、完成与释放的归约保护
+- [result-state.ts](result-state.ts)：原 Run 关系与参加提交引用

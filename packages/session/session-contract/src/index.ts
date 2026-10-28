@@ -138,5 +138,12 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide } from './decide.ts'
+export { decide, commandDigest } from './decide.ts'
 export { reduce } from './reduce.ts'
+
+export {
+  projectSessionLog,
+  type SessionLogObservation,
+  type SessionLogConsequence,
+} from './projection.ts'
+export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'

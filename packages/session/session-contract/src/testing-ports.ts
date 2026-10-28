@@ -29,7 +29,7 @@ export interface ScriptedSessionIdentityBridge<P> extends SessionIdentityBridge<
 
 /**
  * An identity bridge that answers by script. `allow` hands over a material that binds the tenant,
- * the session, the operation and the command kind; `deny` refuses the action; `unavailable` names
+ * the session, the operation and the complete command; `deny` refuses the action; `unavailable` names
  * the identity source as the owner that is down.
  */
 export function createScriptedSessionIdentityBridge<P>(
@@ -58,8 +58,7 @@ export function createScriptedSessionIdentityBridge<P>(
               guard('identity-bridge', 'identity', {
                 tenant: input.tenant,
                 session: input.session,
-                operation: command.input.operation,
-                kind: command.kind,
+                command,
               }),
             ),
           )

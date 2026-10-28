@@ -12,3 +12,10 @@
 - [conformance-harness.ts](conformance-harness.ts)：套件自证的运行器
 - [module-graph.ts](module-graph.ts)：构建产物的导入图遍历
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
+
+- [extended-behavior.spec.ts](extended-behavior.spec.ts)：冻结、执行历史、结果与作用域
+- [management-behavior.spec.ts](management-behavior.spec.ts)：管理命令、生产者事实与压缩
+- [providers-conformance.spec.ts](providers-conformance.spec.ts)：提供者套件自证
+- [scene.ts](scene.ts)：测试中的会话操作辅助
+
+- [result-integrity.spec.ts](result-integrity.spec.ts)：原执行与位置、结果依据不变、迟到保管、后继隔离及归档提醒。

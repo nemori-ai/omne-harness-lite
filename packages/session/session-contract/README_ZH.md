@@ -10,17 +10,17 @@ Session 的纯契约成员，不依赖 Cordis。
 
 本成员不拥有执行。Agent、Model、Tool 的执行生命周期归各自成员。本成员不点名任何邻域契约，不拥有存储、调度，也不拥有把服务绑定到 Cordis 的插件。Session 是工作治理服务，Run 与 attempt 是被治理的对象，不是运行实例。
 
-状态：契约成员。[SPEC](SPEC.md) 写明哪些部分由技术接受采用，状态行写明源码支持范围。#536 revision 5 把本次交付限定在 M2 首条租户路径，其余归 #756。
+状态：契约成员。[SPEC](SPEC.md) 写明哪些部分由技术接受采用，状态行写明源码支持范围。源码现已包含首条租户路径之外的判定与非耐久测试替身，具名限制见 SPEC 状态行。
 
-| 范围 | 支持 | 位置 |
-| --- | --- | --- |
-| [公开接口页](docs/public-api.md)的类型：值、身份、固定输入、结果、四个面、端口、领域服务与 `decide`/`reduce` 的签名 | 已导出 | `src/` |
-| `create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）、`finishRun` | `decide` 与 `reduce` 已实现，但普通输入被拒时不写 SE12，见 SPEC 的 SE12-JC03 | `src/decide.ts`、`src/reduce.ts` |
-| `accept`（卡片答复、业务输入）、`claim`、`reload`、`preserveResult`、`completeConsumption`、`completeExternalConsumption`、`bindExternalCall`、`commitDerived`、`release`、`control`、`change`、`setRelation`、`configureAutoArchive`、`considerAutoArchive`、`recordIdle`、`interrupt`、`freeze`；交入回执之外的 `receive` 事实 | 未支持：`decide` 返回 `rejected`，失败为 `unavailable`，诊断指向 #756 | `src/decide.ts` |
-| `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation` | 已实现 | `src/judgments.ts` |
-| `resolveControlScope`、`judgeIdle`、`resolveCascade` | 未支持：返回指向 #756 的 `invalid`/`unavailable`；`resolveCascade` 抛错 | `src/judgments.ts` |
-| `./testing`：`SessionTransactionPort` 的一致性套件与非耐久替身，身份桥、证据桥、Context 输入与时钟的替身 | 已导出；替身通过套件 | `src/testing*.ts` |
-| `ToolStartFencePort`、`DeliveryReleasePort`、`ControlProgress.startFence`、`start-fence` 与 `agent-event` 事实 | 已被替代，不声明 | [SPEC 被替代的协议](SPEC.md#被替代的协议) |
+| 范围                                                                                                                                                                                                                                                                                                                             | 支持                                                                         | 位置                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------- |
+| [公开接口页](docs/public-api.md)的类型：值、身份、固定输入、结果、四个面、端口、领域服务与 `decide`/`reduce` 的签名                                                                                                                                                                                                              | 已导出                                                                       | `src/`                                    |
+| `create`、`completeInitialization`、`accept`（普通输入）、`startRun`、`recordMessage`、`receive`（交入回执）、`finishRun`                                                                                                                                                                                                        | `decide` 与 `reduce` 已实现，但普通输入被拒时不写 SE12，见 SPEC 的 SE12-JC03 | `src/decide.ts`、`src/reduce.ts`          |
+| `accept`（卡片答复、业务输入）、`claim`、`reload`、`preserveResult`、`completeConsumption`、`completeExternalConsumption`、`bindExternalCall`、`commitDerived`、`release`、`control`、`change`、`setRelation`、`configureAutoArchive`、`considerAutoArchive`、`recordIdle`、`interrupt`、`freeze`；交入回执之外的 `receive` 事实 | 已实现；Model release 确认保持具名 `MODEL-ACK-ARRIVAL` 未决                  | `src/decide.ts`                           |
+| `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation`                                                                                                                                                                                                                                 | 已实现                                                                       | `src/judgments.ts`                        |
+| `resolveControlScope`、`judgeIdle`、`resolveCascade`                                                                                                                                                                                                                                                                             | 已实现为纯判定                                                               | `src/judgments.ts`                        |
+| `./testing`：`SessionTransactionPort` 的一致性套件与非耐久替身，身份桥、证据桥、Context 输入、时钟、空闲输入、通知、推进与作用域释放的套件和替身                                                                                                                                                                                 | 已导出；替身通过套件                                                         | `src/testing*.ts`                         |
+| `ToolStartFencePort`、`DeliveryReleasePort`、`ControlProgress.startFence`、`start-fence` 与 `agent-event` 事实                                                                                                                                                                                                                   | 已被替代，不声明                                                             | [SPEC 被替代的协议](SPEC.md#被替代的协议) |
 
 未验证：耐久、跨进程并发、对真实存储的恢复、真实身份源与时钟。替身只在内存里证明判定。
 
@@ -64,10 +64,11 @@ declare function drive<P>(session: SessionFaces<P>): void
 在仓库根执行：
 
 ```sh
-pnpm turbo run test --filter=@omne-harness/session-contract
+pnpm --filter '@omne-harness/session-contract...' build
+node scripts/with-test-slot.mjs pnpm --filter @omne-harness/session-contract test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。测试覆盖导出集合、首条路径种类的 `decide`/`reduce`、边界上的纯判定、事务端口套件的自证与依赖方向，见 [tests/](tests/README.md)。SPEC 其余验证义务还没有测试覆盖，包括[持续验证义务](SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](SPEC.md#候选的持续验证义务)。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。测试覆盖导出集合、命令判定与归约、冻结、历史执行、结果保管、空闲归档、压缩视图和提供者套件，见 [tests/](tests/README.md)。真实后端与完整组合仍未覆盖。持续验证义务见[持续验证义务](SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](SPEC.md#候选的持续验证义务)。结构检查通过不表示行为已验证。
 
 ## 维护
 
