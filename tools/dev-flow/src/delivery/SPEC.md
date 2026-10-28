@@ -120,11 +120,13 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 读集检查在 `read-set.ts`。`read-set.ts` 的函数都是纯函数，成员清单与解析路径的基准目录由调用方传入。`readSets(cards, members)` 给出每张卡的读集：计入的写范围路径各自所在的成员（路径等于成员目录，或在成员目录下面时取最深的成员），按成员声明的 `workspace:` 依赖求传递闭包，再加上读集文件的正文页。路径不在任何成员下时不贡献成员；写范围条目是成员目录的父目录（例如 `tools`）时也不贡献成员，因为它不在任何成员下。闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析，与影响面选择一致。`readOverlap(entries, readSets)` 对每对不同的卡 a、b，比较 a 计入的写范围路径与 b 的读集路径，比较规则与写范围求交相同，两个方向各算一次。同一张卡的写与读不比较。不计入的写范围路径不参与比较。
 
+`classifyReadConflicts(conflicts)` 把读写交叉分成 `stopping` 与 `frozen` 两组，各保持输入顺序。每个交叉取写路径与读路径中较长的那条，也就是被另一条包含的那条，两条相同时取任一条。这条路径满足 `frozenReadPath` 时归 `frozen`，否则归 `stopping`。`frozenReadPath(path)` 只看路径：路径在 `FROZEN_READ_PATHS.trees` 的某一项上或下面（`.meta_harness/agents`、`docs/engineering`、`docs/development.md`、`docs/verification.md`），或者以 `.md` 结尾且在 `FROZEN_READ_PATHS.pageTrees` 的某一项（`tools`、`scripts`）上或下面。比较按 `/` 分段，`docs/engineering-old` 不在 `docs/engineering` 下。表外的路径都按产品语义归 `stopping`。分类表只有 `FROZEN_READ_PATHS` 这一处，规则与处置归[读写交叉的两类](../../../../docs/engineering/integration.md#读写交叉的两类)。
+
 `parseReadSetFile` 只认含 `reads` 字段的 JSON 对象，其他内容交给 `fileScope`。字段只能是 `source` 与 `reads`：`source` 为非空字符串，`reads` 为仓库相对路径数组，可以为空，不合格时拒绝。`assignReadSets` 把读集文件挂到卡上：`source` 是 `#` 加数字时按卡号匹配，否则把两边都按调用方给的基准目录（`scope-cli.ts` 传当前目录）解析成绝对路径后，匹配 binding 文件参数。`source` 不对应任何卡参数，或同一张卡有两份读集文件时拒绝。关闭而不参与求交的卡，其读集文件不参与比较。
 
 读集用独立的 JSON 文件，不扩展 binding：binding 的字段集是严格的，增加字段要改 `parseTaskBinding` 与 `start`。
 
-命令只读。成员清单读运行它的检出的工作树。有写冲突对或读写交叉时退出1，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
+命令只读。成员清单读运行它的检出的工作树。JSON 结果的 `readConflicts` 是 `stopping`，`frozenReadConflicts` 是 `frozen`。标准错误先写 `read-overlap:` 行，再写 `read-overlap-frozen:` 行。有写冲突对或 `stopping` 非空时退出1，只有 `frozen` 时退出0，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
 
 ## 里程碑命令
 

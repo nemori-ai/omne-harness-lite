@@ -20,6 +20,52 @@ export type ReadSet = { source: string; members: string[]; pages: string[] }
 export type ReadConflict = { writer: string; reader: string; writePath: string; readPath: string }
 
 /**
+ * The engineering method and verification text. A read conflict on these paths does not stop:
+ * the reader consumes the version at the wave's freeze point. `trees` are whole directories or
+ * files; `pageTrees` count only their `*.md` pages, so source and configuration below them stay
+ * product semantics. Every other path is product semantics, and a read conflict on it stops.
+ */
+export const FROZEN_READ_PATHS = {
+  trees: [
+    '.meta_harness/agents',
+    'docs/engineering',
+    'docs/development.md',
+    'docs/verification.md',
+  ],
+  pageTrees: ['tools', 'scripts'],
+  pageSuffix: '.md',
+} as const
+
+/** True when `path` lies in the engineering method and verification text of `FROZEN_READ_PATHS`. */
+export function frozenReadPath(path: string): boolean {
+  const { trees, pageTrees, pageSuffix } = FROZEN_READ_PATHS
+  return (
+    trees.some(tree => under(path, tree)) ||
+    (path.endsWith(pageSuffix) && pageTrees.some(tree => under(path, tree)))
+  )
+}
+
+/**
+ * Splits read conflicts by the narrower of the two paths, the range both cards touch. One path
+ * always lies below or equals the other. `stopping` keeps the conflicts on product semantics,
+ * `frozen` the conflicts on engineering method and verification text. Both keep the input order.
+ */
+export function classifyReadConflicts(conflicts: readonly ReadConflict[]): {
+  stopping: ReadConflict[]
+  frozen: ReadConflict[]
+} {
+  const stopping: ReadConflict[] = [],
+    frozen: ReadConflict[] = []
+  for (const conflict of conflicts) {
+    const narrower = under(conflict.writePath, conflict.readPath)
+      ? conflict.writePath
+      : conflict.readPath
+    ;(frozenReadPath(narrower) ? frozen : stopping).push(conflict)
+  }
+  return { stopping, frozen }
+}
+
+/**
  * Reads a read-set file: a JSON object with a `reads` array. Returns undefined for any other
  * content, which the caller reads as a binding file.
  */
