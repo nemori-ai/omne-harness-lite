@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 // 契约 API 快照入口：`--write` 写快照，`--check` 核对快照与 dist，`--diff <基线>` 对比基线提交上的快照并粗分类。
-// `--check` 与 `--diff` 只报告，有发现也退出 0；`--write` 有成员没写成时退出 1；用法、配置、基线或工具出错退出 2。
-// 读 dist：先构建。`--json` 把结果按 JSON 写到标准输出。
+// `--baseline-write <提交>` 生成里程碑基线的机读区块，`--baseline <文件>` 逐成员按登记的提交核对。
+// `--check` 与 `--diff` 只报告，有发现也退出 0；`--write` 有成员没写成时退出 1；`--baseline` 有 review 而没有
+// breakingCards 时退出 1；用法、配置、基线或工具出错退出 2。
+// `--write` 与 `--check` 读 dist：先构建。`--json` 把结果按 JSON 写到标准输出。
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { subjectRoot } from '../core/subject.ts'
+import {
+  checkBaseline,
+  parseBaselineText,
+  renderBaseline,
+  renderBaselineBlock,
+  writeBaseline,
+} from './api-baseline.ts'
 import {
   checkSnapshots,
   diffSnapshots,
@@ -14,17 +24,22 @@ import {
   writeSnapshots,
 } from './contract-api.ts'
 
-const USAGE = '用法：--write | --check | --diff <基线提交或分支>，可加 [--json] [--root <检出目录>]'
+const USAGE =
+  '用法：--write | --check | --diff <基线提交或分支> | --baseline-write <提交> [--milestone <名>] [--member <成员目录>]... | --baseline <区块文件>，可加 [--json] [--root <检出目录>]'
 
 type Action =
   | { readonly kind: 'write' }
   | { readonly kind: 'check' }
   | { readonly kind: 'diff'; readonly base: string }
+  | { readonly kind: 'baseline-write'; readonly commit: string }
+  | { readonly kind: 'baseline'; readonly file: string }
 
 interface Arguments {
   action?: Action
   json: boolean
   root: string
+  milestone?: string
+  members: string[]
 }
 
 function valueAfter(argv: readonly string[], index: number, flag: string): string {
@@ -35,7 +50,8 @@ function valueAfter(argv: readonly string[], index: number, flag: string): strin
 }
 
 function choose(parsed: Arguments, action: Action): void {
-  if (parsed.action !== undefined) throw new Error(`--write、--check、--diff 只能给一个\n${USAGE}`)
+  if (parsed.action !== undefined)
+    throw new Error(`--write、--check、--diff、--baseline-write、--baseline 只能给一个\n${USAGE}`)
   parsed.action = action
 }
 
@@ -56,20 +72,40 @@ function readFlag(argv: readonly string[], index: number, parsed: Arguments): nu
     case '--root':
       parsed.root = resolve(valueAfter(argv, index, flag))
       return 2
+    case '--baseline-write':
+      choose(parsed, { kind: 'baseline-write', commit: valueAfter(argv, index, flag) })
+      return 2
+    case '--baseline':
+      choose(parsed, { kind: 'baseline', file: resolve(valueAfter(argv, index, flag)) })
+      return 2
+    case '--milestone':
+      if (parsed.milestone !== undefined) throw new Error(`--milestone 只能给一次\n${USAGE}`)
+      parsed.milestone = valueAfter(argv, index, flag)
+      return 2
+    case '--member':
+      parsed.members.push(valueAfter(argv, index, flag))
+      return 2
     default:
       throw new Error(`认不出的参数 ${flag ?? ''}\n${USAGE}`)
   }
 }
 
-function parseArguments(argv: readonly string[]): Required<Arguments> {
-  const parsed: Arguments = { json: false, root: subjectRoot() }
+type Parsed = Omit<Arguments, 'action'> & { action: Action }
+
+function parseArguments(argv: readonly string[]): Parsed {
+  const parsed: Arguments = { json: false, root: subjectRoot(), members: [] }
   for (let index = 0; index < argv.length;) index += readFlag(argv, index, parsed)
   if (parsed.action === undefined) throw new Error(USAGE)
-  return { action: parsed.action, json: parsed.json, root: parsed.root }
+  if (
+    parsed.action.kind !== 'baseline-write' &&
+    (parsed.milestone !== undefined || parsed.members.length > 0)
+  )
+    throw new Error(`--milestone 与 --member 只配 --baseline-write\n${USAGE}`)
+  return { ...parsed, action: parsed.action }
 }
 
 function main(argv: readonly string[]): number {
-  const { action, json, root } = parseArguments(argv)
+  const { action, json, root, milestone, members } = parseArguments(argv)
   const config = readContractApiConfig()
   const print = (value: unknown, lines: readonly string[]) => {
     if (json) console.log(JSON.stringify(value, null, 2))
@@ -92,6 +128,20 @@ function main(argv: readonly string[]): number {
       const run = diffSnapshots(root, config, action.base)
       print(run, renderDiff(run))
       return 0
+    }
+    case 'baseline-write': {
+      const baseline = writeBaseline(root, config, action.commit, {
+        milestone: milestone ?? null,
+        ...(members.length > 0 ? { members } : {}),
+      })
+      if (json) console.log(JSON.stringify(baseline, null, 2))
+      else process.stdout.write(renderBaselineBlock(baseline))
+      return 0
+    }
+    case 'baseline': {
+      const run = checkBaseline(root, config, parseBaselineText(readFileSync(action.file, 'utf8')))
+      print(run, renderBaseline(run))
+      return run.refused ? 1 : 0
     }
     default: {
       const _exhaustive: never = action

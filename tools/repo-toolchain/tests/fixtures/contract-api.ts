@@ -10,8 +10,12 @@ import {
   readWorkingFile,
   snapshotContracts,
 } from '../../src/declarations/api-snapshot.ts'
-import type { ContractApiConfig } from '../../src/declarations/contract-api.ts'
-import { temporaryDirectory } from './loop-canary/repository.ts'
+import { writeSnapshots, type ContractApiConfig } from '../../src/declarations/contract-api.ts'
+import {
+  commit,
+  repository as gitRepository,
+  temporaryDirectory,
+} from './loop-canary/repository.ts'
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url))
 
@@ -71,6 +75,36 @@ export function contractCheckout(
     symlinkSync(join(root, path), link, 'dir')
   }
   return root
+}
+
+/** 两个契约成员 `packages/x/a`（接口 A）与 `packages/x/b`（类型 B）。 */
+export const MEMBERS: Readonly<Record<string, FixtureMember>> = {
+  'packages/x/a': {
+    name: '@fixture/a',
+    exports: { '.': 'index.d.ts' },
+    dist: { 'index.d.ts': 'export interface A {\n    a: string;\n}\n' },
+  },
+  'packages/x/b': {
+    name: '@fixture/b',
+    exports: { '.': 'index.d.ts' },
+    dist: { 'index.d.ts': 'export type B = 1;\n' },
+  },
+}
+
+/** A committed Git checkout of `MEMBERS` whose snapshots match its dist. */
+export function committedCheckout(): { root: string; base: string } {
+  const root = contractCheckout(MEMBERS, Object.keys(MEMBERS), gitRepository())
+  writeSnapshots(root, CONFIG)
+  return { root, base: commit(root, 'snapshots') }
+}
+
+/** Rewrites the line table with one line whose contracts are `contracts`. */
+export function setContracts(root: string, contracts: readonly string[]): void {
+  write(
+    root,
+    CONFIG.members,
+    JSON.stringify({ schemaVersion: 1, lines: [{ id: 'line', contracts }] }),
+  )
 }
 
 /** 换掉一个成员的整个 dist；`undefined` 表示没有构建。 */

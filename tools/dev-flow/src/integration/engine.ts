@@ -13,7 +13,14 @@ import { maybeBlob, repository, requireAncestor } from './git.ts'
 import { json, same, IntegrationError } from './parse.ts'
 import type { Policy } from './policy.ts'
 import { observeAdmission, type AdmissionCapture } from '../delivery/admission.ts'
-import { attributeFindings, readCardAttributes } from '../delivery/attributes.ts'
+import {
+  attributeFindings,
+  attributeRefusals,
+  judgeAttributes,
+  readCardAttributes,
+  refusalLine,
+  type AttributeFinding,
+} from '../delivery/attributes.ts'
 import { cardKind, cardLine, recordDispatch } from '../delivery/board.ts'
 import { runGhCommand, type GhCommand } from '../delivery/github-read.ts'
 import type { TaskBinding } from '../delivery/binding.ts'
@@ -115,6 +122,16 @@ async function start(
   requireAncestor(root, task.binding.taskBase, info.head)
   const { ref: target, head: targetBase } = checkUpstream(root, state.policy, task.binding.route)
   confirmConditions(config, capture, task.binding, target, decision.confirmations, state.policy)
+  const attributes = judgeCard({
+    root,
+    commit: state.source.commit,
+    policy: state.policy,
+    config,
+    capture,
+    task,
+  })
+  // Only a new context is refused; a rerun on a tree this task already bound keeps reporting.
+  if (state.context === null && 'findings' in attributes) refuseAttributes(attributes)
   const { context, created } = bind(root, state.context, task.binding, info, targetBase, () =>
     same(
       admissionDigest(currentAdmission(config, scope, facts?.project)),
@@ -122,15 +139,7 @@ async function start(
       'Task inputs changed during dispatch readback',
     ),
   )
-  reportAttributes({
-    root,
-    commit: state.source.commit,
-    policy: state.policy,
-    config,
-    capture,
-    task,
-    report,
-  })
+  reportAttributes(attributes, task, report)
   // Only a new binding stamps Dispatched at; rerunning start on a bound tree keeps the first date.
   if (created) reportBoard({ config, cloud: source === 'workflow', task, report, board })
   return context
@@ -166,19 +175,21 @@ function bind(
   writeContext(root, context)
   return { context, created: true }
 }
+/** The attribute findings of an admitted task with its valid body line, or why there are none. */
+type CardJudgement =
+  | { findings: AttributeFinding[]; line: string | undefined }
+  | { unavailable: string }
 /**
- * Writes the attribute findings of an admitted task, one JSON line each with severity
- * `report`. The line table comes from the same commit as the policy. Any failure becomes one
- * `attribute-rules-unavailable` line: reports never refuse a start or change its result.
+ * Judges the attributes of an admitted task. The line table comes from the same commit as the
+ * policy. A missing table or any failure gives `unavailable`: then nothing refuses.
  */
-function reportAttributes({
+function judgeCard({
   root,
   commit,
   policy,
   config,
   capture,
   task,
-  report,
 }: {
   root: string
   commit: string
@@ -186,38 +197,65 @@ function reportAttributes({
   config: DeliveryConfig
   capture: AdmissionCapture
   task: { binding: TaskBinding; issue: CapturedIssue }
-  report: ReportSink
-}): void {
-  const line = (finding: { code: string; clause?: string; message: string }) => {
+}): CardJudgement {
+  try {
+    const file = maybeBlob(root, commit, LINES_PATH)
+    if (file === null) return { unavailable: `Committed ${LINES_PATH} is missing` }
+    const lines = parseDeliveryLines(json(file.text, LINES_PATH)),
+      conditions = observeAdmission(config, capture, task.issue.url).cards[0]?.conditions ?? [],
+      issues = new Map(capture.issues.map(issue => [issue.url, issue])),
+      card = readCardAttributes(task.issue.body, task.issue)
+    return {
+      findings: attributeFindings({
+        binding: task.binding,
+        card,
+        conditionCards: conditionCardsOf(conditions, issues),
+        lines,
+        registry: policy,
+      }),
+      line: judgeAttributes(card, lines).attributes.line,
+    }
+  } catch (error) {
+    return {
+      unavailable: error instanceof Error ? error.message : 'Attribute findings failed',
+    }
+  }
+}
+/**
+ * Refuses a new context when `attributeRefusals` keeps any finding. The message lists each one
+ * with its code, clause and remedy; nothing is written.
+ */
+function refuseAttributes(judgement: Extract<CardJudgement, { findings: unknown }>): void {
+  const refusals = attributeRefusals(judgement.findings, judgement.line)
+  if (refusals.length > 0)
+    throw new IntegrationError(
+      'refused',
+      [
+        `Attribute findings refuse a new context (${refusals.length}):`,
+        ...refusals.map(refusalLine),
+      ].join('\n'),
+    )
+}
+/**
+ * Writes the attribute findings of a started task, one JSON line each with severity `report`.
+ * Without rules it writes one `attribute-rules-unavailable` line. Reports never change the start
+ * result.
+ */
+function reportAttributes(
+  judgement: CardJudgement,
+  task: { issue: CapturedIssue },
+  report: ReportSink,
+): void {
+  const findings =
+    'findings' in judgement
+      ? judgement.findings
+      : [{ code: 'attribute-rules-unavailable', message: judgement.unavailable }]
+  for (const finding of findings)
     try {
       report(JSON.stringify({ severity: 'report', issue: task.issue.url, ...finding }))
     } catch {
       // A failing report sink loses the report; it must not change the start result.
     }
-  }
-  try {
-    const file = maybeBlob(root, commit, LINES_PATH)
-    if (file === null) {
-      line({ code: 'attribute-rules-unavailable', message: `Committed ${LINES_PATH} is missing` })
-      return
-    }
-    const lines = parseDeliveryLines(json(file.text, LINES_PATH)),
-      conditions = observeAdmission(config, capture, task.issue.url).cards[0]?.conditions ?? [],
-      issues = new Map(capture.issues.map(issue => [issue.url, issue]))
-    for (const finding of attributeFindings({
-      binding: task.binding,
-      card: readCardAttributes(task.issue.body, task.issue),
-      conditionCards: conditionCardsOf(conditions, issues),
-      lines,
-      registry: policy,
-    }))
-      line(finding)
-  } catch (error) {
-    line({
-      code: 'attribute-rules-unavailable',
-      message: error instanceof Error ? error.message : 'Attribute findings failed',
-    })
-  }
 }
 /**
  * Writes the dispatched board fields (Dispatched at, Line, Kind and Wave as the config enables)

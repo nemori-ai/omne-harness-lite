@@ -35,6 +35,13 @@
 
 建卡时按[卡属性与合法组合](delivery.md#卡属性与合法组合)登记交付线、性质与契约变更；调度者在 Issue 上设置里程碑，并打唯一的 `kind:` 与 `line:` 标签，缺任一项时 `start` 拒绝开工。调度者的建卡与派发步骤由 `dispatch` 技能给出，集成节点的步骤由 `integrate` 技能给出；两个技能只引用本页的规则与 dev-flow 的命令，不另立规则。建卡时尚未派发，在执行区写计划路线、最终终点和待定输入，不填占位binding或虚构工作树、开工HEAD及context。接手者须能取得必要输入；仅给另一台机器的tmp路径不足以完成交接。
 
+新建 context 时，`start` 也按属性发现拒绝开工。它拒绝[属性发现](../../tools/dev-flow/src/delivery/README.md#属性发现)的全部代码，派发命令用同一条规则。拒绝消息逐项写代码、条款与改法。下面两项只报告，不拒绝：
+
+- carry 之后，binding 的里程碑与 Issue 的里程碑不同。这是条款为 `binding.milestone` 的 `attribute-binding-drift`。
+- 交付线为 `integration` 的卡带版本 1 的 binding。交付线取正文「身份与责任」。线内的卡带版本 1 的 binding 时拒绝，调度者用 `dispatch-cli.ts` 重新派发，生成版本 2 的 binding。
+
+被拒绝时，调度者按消息中的改法修订卡、同步标签或重新派发，执行者再运行 `start`。工作树已有同绑定的 context 时，重跑 `start` 只报告发现。
+
 调度者用 `milestone-cli.ts create <名称> --due <日期>` 建里程碑，用 `milestone-cli.ts carry --from <A> --to <B> --reason <原因> <卡号>...` 把卡移到另一个里程碑。carry 在每张卡上发一条固定格式的流转评论，不改 binding。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#里程碑命令)。
 
 读回实际Issue、正文、所需关系及主Project归属，再报告操作结果。Project加入或关系写入失败时，保留真实Issue身份及缺口，逐项修复，不把整项说成未创建而盲重建。

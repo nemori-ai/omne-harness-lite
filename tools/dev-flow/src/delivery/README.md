@@ -35,7 +35,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts \
 
 integration 的 `start`、`register` 使用专用准入采集。它只读取任务依赖闭包、授权卡完整评论及目标任务的 Project 状态。最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需读取不完整时拒绝准入。Stage 字段已确认且完整读取后未设值时，Stage 为 `null`。
 
-`start` 与 `register` 另要求卡有唯一的 `kind:` 标签、唯一的 `line:` 标签与里程碑，缺任一项时拒绝并逐项列出缺项。判断由 [protocol.ts](protocol.ts) 的 `dispatchFieldGaps` 给出，派发命令用同一判断。属性发现仍只报告，见下文。
+`start` 与 `register` 另要求卡有唯一的 `kind:` 标签、唯一的 `line:` 标签与里程碑，缺任一项时拒绝并逐项列出缺项。判断由 [protocol.ts](protocol.ts) 的 `dispatchFieldGaps` 给出，派发命令用同一判断。新建 context 时，属性发现也拒绝开工，见下文。
 
 上述 `--live` 全库观察命令及报告范围不变。专用采集不用于离线报告、baseline 或发布检查。详细边界归 [SPEC](SPEC.md#任务准入采集)。
 
@@ -49,7 +49,9 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 
 ## 属性发现
 
-报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。属性发现只报告，不计入 `deviation`，不阻止开工。`stock.attribute` 是这一类的数量。
+报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。观察报告中的属性发现只报告，不计入 `deviation`。`stock.attribute` 是这一类的数量。
+
+`start` 新建 context 与派发命令按 [attributes.ts](attributes.ts) 的 `attributeRefusals` 拒绝。它拒绝全部代码，有两个例外只报告：条款为 `binding.milestone` 的 `attribute-binding-drift`（carry 之后的预期状态），以及正文交付线为 `integration` 时的 `binding-v1`。每个代码的改法在 `ATTRIBUTE_REMEDIES` 中，拒绝消息逐项写出。已有同绑定的 context 时重跑 `start` 只报告。精确条款见[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。
 
 | 代码                      | 意义                                                                                                     |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -129,6 +131,29 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 
 `--config` 与 `--lines` 指定交付配置与线归属表，缺省为本检出中的文件。经 `pnpm --filter @omne-harness/dev-flow run scope-overlap` 运行时，文件参数相对 `tools/dev-flow` 解析。
 
+## 改动的写范围与线归属
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts [--root PATH] [--lines FILE]
+```
+
+命令核对本卡实际改动的文件，只读。`pnpm run check` 每次都运行它，见[自动化入口](../../../../scripts/README.md)。
+
+1. 命令读工作树的 task context。没有 context 时，标准输出写 `{"bound": false, …}`，标准错误写「未绑定」，退出0。
+2. 本卡的改动从 binding 的 `taskBase` 算起，沿 HEAD 的第一父提交链逐个提交计算：
+   - 只有一个父提交的提交，取它改动的全部文件。改名算作删除旧路径与新增新路径。
+   - 合并提交只取 `git diff-tree --cc` 列出的文件，即与每个父提交都不同的文件：冲突的解决与合并时另加的改动。合并带进来的提交不逐个计算，所以同步目标分支与合并同批次别的卡都不计入。
+   - 再加上工作树中与 HEAD 不同的已跟踪文件，以及 Git 不忽略的未跟踪文件。
+   - 不用 context 的 `targetBase`。它是远端目标分支头，可以早于批次头。
+3. `tmp` 下的路径与线归属表 `shared` 中的路径不计入。其余每个文件：
+   - 不在 binding 的 `writeScope` 任一项之下时，为 `change-outside-scope`。
+   - binding 为版本2、交付线不是 `integration` 时，文件归属于别的线或联调轨道为 `change-outside-line`。归属按 [lines.ts](lines.ts) 的 `scopeOwners` 判断。交付线为 `integration` 的卡与版本1的 binding 不做这一项：版本1的 binding 没有交付线字段。
+4. 线归属表取 `taskBase` 提交中的 `docs/engineering/delivery-lines.json`，即派发时的表，本卡对表的修改不改变结果。`--lines` 指定另一个表文件。
+
+标准输出是 JSON：`issue`、`attempt`、`taskBase`、`head`、本卡改动的文件 `files`，以及 `findings`。每项发现有 `code`、`file`、`message` 与 `remedy`，并向标准错误写一行。没有发现退出0，有发现退出1。参数错误、context 不属于本工作树、`taskBase` 不是 HEAD 的祖先，或读不到线归属表时退出2。
+
+同步目标分支时用合并提交。快进同步时，带进来的提交成为第一父提交链的一部分，会算作本卡的改动。
+
 ## 里程碑命令
 
 ```sh
@@ -147,7 +172,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/milestone-cli.ts car
 - 某次写入失败时退出2，消息给出失败的是第几次写入，之前的写入保留。
 - 写入后再读每张卡的里程碑，结果写在 `readback` 与 `verified` 中。有卡读回不是 B 时退出1。
 
-版本2的 binding 记录派发时的里程碑。carry 之后，属性发现报告 `attribute-binding-drift`，流转评论说明原因。
+版本2的 binding 记录派发时的里程碑。carry 之后，属性发现报告 `attribute-binding-drift`，流转评论说明原因。这条发现只报告，不拒绝 `start`。
 
 ## 看板字段写入
 
@@ -207,7 +232,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 4. 卡的准入采集没有协议偏离。采集与 `start` 相同，也确认卡在配置的 Project 中。
 5. 正文属性与交付修订合格。每个 start 条件都有 `confirmations` 一项，`confirmations` 不引用卡上没有的条件。
 6. 卡上没有派发同一修订与 attempt 的评论。有时拒绝并给出那条评论，避免重跑时重复派发；确需重发时加 `--force`。
-7. 拟写的 binding 没有属性发现：路线、写范围归属、跨线条件与 `line:`、`nature:`、`contract:` 标签都与正文一致。标签不一致时先用标签同步命令改正。
+7. 拟写的 binding 没有 `attributeRefusals` 选出的属性发现，规则与 `start` 相同：路线、写范围归属、跨线条件与 `line:`、`nature:`、`contract:` 标签都与正文一致。标签不一致时先用标签同步命令改正。
 
 核对通过后，`post` 先发一条占位评论，再把它改成正式派发评论。正式评论是 `--text` 的文字加上 `omne-integration-authority:v1` 区块，区块中 binding 的 `dispatch` 是这条评论自己的 URL。改写成功后，命令先向标准错误写一行 `{"kind":"dispatch-posted","dispatch":…}`，再按 `--out` 把 binding 写进文件，供 `bind` 使用；写文件失败时退出2，消息给出派发评论 URL。然后读回评论。读回与写入不同时退出1。读回失败时退出2，消息给出已发的派发评论 URL，不要再派发一次。改写占位评论失败时，错误消息给出占位评论的 URL。调度者改写或删除它，再重新派发，命令不重试。`--dry-run` 完成全部核对，输出拟写的 binding 与评论正文，`dispatch` 为占位 URL，不写平台。
 

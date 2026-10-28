@@ -18,7 +18,12 @@ import {
 } from '../integration/parse.ts'
 import { parsePolicy, type Policy } from '../integration/policy.ts'
 import { collectAdmission, observeAdmission, type AdmissionCapture } from './admission.ts'
-import { attributeFindings, judgeAttributes, readCardAttributes } from './attributes.ts'
+import {
+  attributeFindings,
+  attributeRefusals,
+  judgeAttributes,
+  readCardAttributes,
+} from './attributes.ts'
 import {
   BINDING_MARKERS,
   deliveryRevision,
@@ -282,7 +287,10 @@ export function planDispatch({
     lines,
     registry: policy,
   })
-  if (findings.length > 0) refuse(findings.map(finding => `${finding.code}: ${finding.message}`))
+  // The same refusal rule as `start`. A dispatch binding is v2 and takes the current milestone,
+  // so the report-only findings do not occur here.
+  const refusals = attributeRefusals(findings, line)
+  if (refusals.length > 0) refuse(refusals.map(finding => `${finding.code}: ${finding.message}`))
   return { binding, confirmations }
 }
 

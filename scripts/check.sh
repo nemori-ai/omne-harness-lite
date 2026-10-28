@@ -40,6 +40,8 @@ pnpm --silent run check:docs
 pnpm --silent run check:design
 # 常驻：线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置），失败即失败。
 pnpm --silent run check:lines
+# 常驻：本卡自己的改动（逐提交，合并只取冲突解决，加未提交改动）须在 binding 写范围与本线内；没有 task context 时只报告「未绑定」。
+node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts >/dev/null
 # 按计划：Python 工具测试。
 step python
 pnpm run format:check

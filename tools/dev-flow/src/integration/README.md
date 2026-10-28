@@ -98,13 +98,27 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 执行失败不创建部分 context。已有同绑定 context 时照原样返回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发资格。
 
-准入成功后，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+准入成功后、写 context 之前，`start` 与 `register` 判断本卡的属性发现。新建 context 时，有拒绝的发现就以 `refused` 拒绝开工，不写 context，不写看板，退出码为 2。消息逐项写代码、条款、说明与改法，例如：
 
-```json
-{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"label-drift","clause":"line:","message":"line: 标签应为 line:model，实为 无。"}
+```text
+Attribute findings refuse a new context (1):
+- label-drift [nature:] nature: 标签应为 nature:impl，实为 无。 改法：运行 labels-cli.ts --issue <卡号> --apply，按正文同步标签。
 ```
 
-发现只报告，不拒绝开工，不改变标准输出、context 与退出码。版本 1 的 binding 报告 `binding-v1`。线归属表读不到时只报告一行 `attribute-rules-unavailable`。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
+拒绝全部属性代码，有两个例外只报告：
+
+- 条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后 binding 保留派发时的里程碑，这是预期状态。
+- 版本 1 的 binding 的 `binding-v1`，只在正文的交付线为 `integration` 时只报告。线内的卡拒绝，改法是重新派发，生成版本 2 的 binding。
+
+已有同绑定的 context 时重跑不拒绝，全部发现只报告。派发命令用同一条拒绝规则。
+
+开工成功时，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+
+```json
+{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"attribute-binding-drift","clause":"binding.milestone","message":"binding 记录派发时的里程碑 M1，Issue 现为 M2。"}
+```
+
+报告不改变标准输出、context 与退出码。线归属表读不到时只报告一行 `attribute-rules-unavailable`，不拒绝。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
 
 ### 看板字段
 

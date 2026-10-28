@@ -35,7 +35,7 @@
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
 （算不出计划就在这里失败，不改判全量；`pnpm run check:plan` 只打印不跑）。之后的顺序是：
 
-1. 常驻：`check:agents`、`check:docs`、`check:design`；
+1. 常驻：`check:agents`、`check:docs`、`check:design`、`check:lines`，然后是写范围与线归属的核对：`node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts`（根 `package.json` 没有对应的脚本）。它读本工作树的 task context，逐提交算出本卡自己改过的文件，再加上未提交的改动。不在 binding 写范围内的文件为 `change-outside-scope`，线内的卡改到别的线或联调轨道的文件为 `change-outside-line`。有任一项时退出 1，检查失败。标准错误逐项写文件、代码与改法。没有 task context 时只写「未绑定」，检查继续。算法与退出码见 [dev-flow 交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)；
 2. 按计划：`pnpm run test:python`（pytest）；
 3. 常驻：`pnpm run format:check`、`pnpm run test:format`；
 4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；

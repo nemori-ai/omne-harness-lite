@@ -90,7 +90,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 6. `conditionCards` 是目标为 Issue 的交付条件及目标卡的属性。线内的卡引用交付线不是本线也不是 `integration` 的卡为 `condition-cross-line`。目标卡未读到或交付线不合格时不判断。`baseline` 卡没有任何交付条件：`readCardAttributes` 带上「交付条件」章节的文本，它不是「无」时为 `condition-cross-line`，条款为 `交付条件`。
 7. `line:`、`nature:`、`contract:` 三族标签与正文属性的投影不同为 `label-drift`。契约变更为 `none` 时不应有 `contract:` 标签。
 
-准入观察不提供规则，所以准入不产生属性发现，属性发现不改变 `start` 的拒绝条件。`start` 另有派发字段的拒绝，见[派发命令](#派发命令)的 `dispatchFieldGaps`。`start` 的属性报告归[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。
+准入观察不提供规则，所以准入不产生属性发现。`attributeRefusals` 从发现中选出拒绝的项：`REFUSING_ATTRIBUTE_CODES` 现为全部代码，`REPORT_ONLY_FINDINGS` 现只有条款为 `binding.milestone` 的 `attribute-binding-drift`，正文交付线为 `integration` 时 `binding-v1` 也只报告。`ATTRIBUTE_REMEDIES` 给出每个代码的改法。`start` 新建 context 时按它拒绝，见[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。派发命令按它拒绝，见[派发命令](#派发命令)。`start` 另有派发字段的拒绝，见 `dispatchFieldGaps`。
 
 ## 标签同步
 
@@ -130,6 +130,19 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 命令只读。成员清单读运行它的检出的工作树。有读写交叉时，`scope-cli.ts` 先用 `git rev-parse` 取这个检出 `HEAD` 的提交，再用 `git show <提交>:<配置>` 与 `git ls-tree -r <提交>` 读出 `basis`。任一项失败时传 `{ unknown }`，不退回只按路径判定。JSON 的 `readBasis` 是 `{ commit }`、`{ unknown }`，没有读写交叉时是 `null`。JSON 结果的 `readConflicts` 是 `stopping`，`frozenReadConflicts` 是 `frozen`。标准错误先写 `read-overlap:` 行，每行末尾加 ` (<reason>)`，再写 `read-overlap-frozen:` 行。有写冲突对或 `stopping` 非空时退出1，只有 `frozen` 时退出0，输入不可用时退出2，标准输出总是完整的 JSON 结果或没有输出。
 
+## 改动的写范围与线归属
+
+[change-scope.ts](change-scope.ts) 的 `changeScope({ root, linesFile })` 只读，核对已绑定工作树中本卡实际改动的文件。[change-scope-cli.ts](change-scope-cli.ts) 是它的命令行，`scripts/check.sh` 在常驻检查中调用它。
+
+- 没有 task context 时返回 `bound: false`，不读 Git 历史，CLI 退出0。context 不属于本工作树或分支、或没有 `ownerTask` 时读取失败，CLI 退出2。
+- `cardChanges(root, taskBase)` 要求 `taskBase` 是 HEAD 的祖先，否则以 `refused` 失败。它沿 `git rev-list --first-parent taskBase..HEAD` 逐个提交计算：单父提交取 `git diff-tree -r --no-renames` 的全部文件；合并提交只取 `git diff-tree --cc` 的文件；再并入 `git diff --no-renames HEAD` 与 `git ls-files --others --exclude-standard`。结果去重后排序。不读 `targetBase`。
+- `changeFindings(files, binding, lines)` 跳过 `isOpenScope` 为真的文件（`tmp` 与 `shared`）。不在任一 `writeScope` 项之下（按 `under`）的文件为 `change-outside-scope`。版本2、交付线不是 `integration` 的 binding，文件的 `scopeOwners` 含本线以外的归属时为 `change-outside-line`。同一文件两项都有时先列 `change-outside-scope`。每项带固定的 `remedy`。
+- 线归属表缺省取 `taskBase` 提交中的 `docs/engineering/delivery-lines.json`。读不到或不合格时失败。
+
+CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `change-scope: <代码> <文件>: <说明> 改法：<改法>`。退出码：没有发现或未绑定为0，有发现为1，参数、context、Git 或线归属表读取错误为2，错误以一行 JSON `{code, message}` 写到标准错误。
+
+`tests/delivery-change-scope.spec.ts` 在临时真实 Git 仓库与手写 context 上覆盖：范围内放行；本卡提交越界；改名与删除；同步合并带来的文件不计入；合并同批次别的卡的提交不计入；冲突解决越界；`targetBase` 早于 `taskBase` 且其间有别的卡的提交时不计入；未提交与未跟踪的越界改动；`tmp` 与 `shared` 不计入；别的线与联调轨道的路径即使在写范围内也拒绝；`integration` 卡不做线归属；线归属表取 `taskBase` 的版本；CLI 的未绑定、无发现、有发现与两种退出2。
+
 ## 里程碑命令
 
 `createMilestone` 先分页读仓库全部里程碑，按标题精确匹配。同名多于一个时拒绝。同名且截止日的日期部分等于请求日期时返回已有里程碑，不写。同名而日期不同时拒绝。否则以 POST 建里程碑，`due_on` 为请求日期的 `12:00:00Z`，再以响应中的 `due_on` 判断 `verified`。标题须为一行且不含 `-->`。日期须为真实存在的 `YYYY-MM-DD`。
@@ -156,7 +169,7 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 `taskBaseInputs(root, taskBase)` 从 taskBase 提交读 policy、policy 指向的交付配置与线归属表，两者的仓库须相同；taskBase 中 `tools/dev-flow/src/delivery/binding.ts` 不含版本2区块标记时拒绝。`cardAdmission` 以本卡为授权卡位置调用准入采集，因为采集只读授权卡所在的 Issue，不读评论本身。
 
-`planDispatch` 在任何写入之前判断并生成版本2 binding，`dispatch` 为占位 URL。拒绝的条件依次为：卡未开放；`actor` 不等于 `responsible`；`dispatchFieldGaps` 非空；准入观察对本卡有偏离；正文属性不合格或交付修订不唯一；卡上已有评论的 `omne-integration-authority:v1` 区块派发同一修订与 attempt，且没有 `force`；`confirmations` 引用卡上没有的条件；某个 start 条件没有 `confirmations` 项；拟写的 binding 有任何属性发现。交付修订、属性、里程碑与条件 ID 取自采集到的卡。每个 start 条件的确认摘要是 `conditionDigest(condition)`，与 `start` 核对时用同一函数和同一解析。
+`planDispatch` 在任何写入之前判断并生成版本2 binding，`dispatch` 为占位 URL。拒绝的条件依次为：卡未开放；`actor` 不等于 `responsible`；`dispatchFieldGaps` 非空；准入观察对本卡有偏离；正文属性不合格或交付修订不唯一；卡上已有评论的 `omne-integration-authority:v1` 区块派发同一修订与 attempt，且没有 `force`；`confirmations` 引用卡上没有的条件；某个 start 条件没有 `confirmations` 项；拟写的 binding 有 `attributeRefusals` 选出的属性发现。交付修订、属性、里程碑与条件 ID 取自采集到的卡。每个 start 条件的确认摘要是 `conditionDigest(condition)`，与 `start` 核对时用同一函数和同一解析。
 
 `postDispatch` 串行发三个请求：POST 占位评论，PATCH 把它改成 `dispatchComment(prose, decision)`，GET 读回。决定中 binding 的 `dispatch` 是占位评论的 `html_url`。PATCH 失败时错误给出占位评论 URL，不重试、不删除。PATCH 成功后、GET 之前调用 `onPosted`，交出派发 URL 与 binding；GET 失败时错误给出派发评论 URL。`verified` 表示读回的评论正文等于写入的正文。
 

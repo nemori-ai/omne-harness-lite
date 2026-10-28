@@ -124,6 +124,7 @@ node() {
         *) record "$4" "$@" ;;
       esac ;;
     */src/cli.ts) record rules "$@" ;;
+    */change-scope-cli.ts) record change-scope "$@" ;;
     *) command node "$@" ;;
   esac
 }
@@ -178,6 +179,7 @@ it('runs the ordinary local check even when a subject root is set', () => {
   const trace = readFileSync(f.trace, 'utf8')
   expect(trace).toContain(`plan --base ${f.base}`)
   expect(trace).toContain(`loop:status --strict --base ${f.base}`)
+  expect(trace).toMatch(/^change-scope\|.*change-scope-cli\.ts$/mu)
   expect(trace).not.toContain('--scope engineering')
 })
 it('reads the hook root and each worktree own immutable task baseline', async () => {
