@@ -1,5 +1,3 @@
-// Consumer classification of a settled Model result. Raw partial values never become blocks or
-// executable tool suggestions. Replay-bearing output needs producer metadata beyond the received parts.
 import type { ProducedResult, Failure, LoopFacts } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -24,8 +22,6 @@ export function consumeModelResult(
   input: Parameters<typeof replyMessageId>,
   value: Omit<ModelResult, 'kind'>,
 ): Outcome<ModelResult, Failure> {
-  // Model SPEC requires replay scope/format even for thinking-only output. These tags are not
-  // available on the ordinary result read surface. Reject this unsupported replay interpretation.
   if (
     value.parts.some(part =>
       part.kind === 'partial'

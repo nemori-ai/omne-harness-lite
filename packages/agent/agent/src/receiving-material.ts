@@ -106,7 +106,6 @@ export function readModelDeliveryMaterial<P>(
       )
     )
       return null
-    // These four narrowed fields construct the consumer; no stored object is trusted by cast.
     if (
       typeof owner !== 'string' ||
       typeof work !== 'string' ||

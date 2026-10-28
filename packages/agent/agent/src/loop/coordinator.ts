@@ -737,7 +737,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async E3() {
       return step('passed')
     },
-    /** Model reception and ACK belong to the host receiver and producer. */
     async O0() {
       return step('delivered', null)
     },
@@ -1169,7 +1168,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
       })
     },
-    /** M6 admits directly; only an unknown admission or recovery inspects first. */
     async M6() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
@@ -1218,7 +1216,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       state = { kind: 'advancing' }
       return step('admitted', null)
     },
-    /** M1 waits for the original received result in the Journal. */
     async M1() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
@@ -1230,7 +1227,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (received.ok === null) return producerWait('M1', pending)
       return step('settled', null)
     },
-    /** M3 derives the business outcome only from the jointly committed material. */
     async M3() {
       const current = required(iteration, 'iteration')
       const restored = await readCompletion(current)
@@ -1351,7 +1347,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       : fail(converted)
   }
 
-  /** Recheck the actual attachment before admission and material adoption, and adopt its current revision. */
   async function currentAttachment(): Promise<Outcome<void, Failure>> {
     const read = await load()
     if ('failure' in read) return read

@@ -436,7 +436,6 @@ it.each(['observer', 'clock'] as const)(
               if (fault === 'observer') throw new Error('observer cleanup failed')
             }
             try {
-              // Replay an existing durable event as a notification; W0 still rereads authority.
               yield* d.journal.output.events({ ...input, after: null })
             } finally {
               finish()

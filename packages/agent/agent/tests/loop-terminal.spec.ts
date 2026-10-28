@@ -510,7 +510,7 @@ describe('#516 terminal exit', () => {
         [],
       )
       ok(await c.runExecution())
-      expect((await load(assembly)).revision).toBe(before.revision) // No Agent Model release write remains.
+      expect((await load(assembly)).revision).toBe(before.revision)
       expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual(
         [],
       )

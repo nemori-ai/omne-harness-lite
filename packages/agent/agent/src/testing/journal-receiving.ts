@@ -131,7 +131,6 @@ function shape<P>(input: Input<P>): Failure | undefined {
   return undefined
 }
 
-/** All three views publish through the Journal's own synchronous write and operation table. */
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const materials = new Map<string, Stored>()
   const deliveries = new Map<string, Kept>()
