@@ -1,4 +1,3 @@
-"""Exercise complete dispatch against the live role collection, without invoking hosts."""
 import hashlib
 import importlib.util
 import json
@@ -83,7 +82,6 @@ def test_risky_work_uses_top_tier_and_cannot_be_downgraded(role, work, risk, hos
 
 
 def test_qa_claude_top_tier_follows_qa_contract():
-    # QA's top tier is Opus; the developer's top tier is Fable.
     assert resolve("qa", "claude", "terminal")["requested"]["model"] == "claude-opus-5-5"
 
 
@@ -156,7 +154,6 @@ def test_unknown_role_is_rejected(tmp_path):
 
 
 def test_missing_required_model_and_fallback_priority(tmp_path):
-    # A role without a native pin can consume caller-supplied host defaults, but never null.
     shutil.copytree(ROLES, tmp_path / "roles")
     role = tmp_path / "roles/diagnostician"
     path = role / "codex.toml"

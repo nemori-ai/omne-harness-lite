@@ -548,7 +548,6 @@ function releaseFixture(active = false) {
         mode: 'idle',
         tasks: [],
       }
-  // The immutable assignment is an actual canonical authority record, not an injected roster flag.
   const assignmentRecord = {
     schemaVersion: 1 as const,
     kind: 'assignment' as const,

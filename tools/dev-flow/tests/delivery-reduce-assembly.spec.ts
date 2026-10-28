@@ -73,7 +73,6 @@ describe('installed reduce command boundaries', () => {
     const input = { ...f.input, timeoutMs: 1 }
     const inputFile = join(f.root, 'timeout.json')
     writeFileSync(inputFile, JSON.stringify(input))
-    // This local health fixture does not claim a real channel connection.
     const receiver = claimReceiver({
       instanceId: UUID,
       repository: context.repo,
@@ -164,7 +163,6 @@ describe('installed reduce command boundaries', () => {
   )
   it('delivers and persists a real local receiver failure before remote bootstrap can block it', async () => {
     const f = fixture()
-    // Missing receiver ownership is an infrastructure fact, never evidence of an idle remote queue.
     const first = await runInstalledSupervision(f.input)
     expect(first.status).toBe('actionable')
     const signal = first.pending.find(item => item.signal.signalKind === 'infrastructure')

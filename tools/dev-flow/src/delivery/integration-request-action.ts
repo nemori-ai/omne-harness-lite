@@ -157,9 +157,7 @@ export function registerIntegrationRequest(options: {
         ],
         15_000,
       )
-    } catch {
-      /* The durable run and journal permit readback, never a second POST. */
-    }
+    } catch {}
     const receipt = observe()
     return receipt === undefined
       ? { status: 'unknown', errorCode: 'integration-request-post-outcome-unknown' }

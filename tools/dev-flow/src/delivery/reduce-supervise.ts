@@ -106,25 +106,44 @@ export function superviseReduce(
         phase: input.phase,
       },
     })
-    function cleanup() {
+    function cleanup(): unknown[] {
       closed = true
       for (const timer of timers) clearTimeout(timer)
-      subscription?.close()
-      ports.stop?.()
-      input.signal?.removeEventListener('abort', cancel)
+      const errors: unknown[] = []
+      for (const dispose of [
+        () => subscription?.close(),
+        () => ports.stop?.(),
+        () => input.signal?.removeEventListener('abort', cancel),
+      ]) {
+        try {
+          dispose()
+        } catch (error) {
+          errors.push(error)
+        }
+      }
+      return errors
     }
     function fail(error: unknown) {
-      if (!closed) {
-        cleanup()
-        reject(error)
-      }
+      if (closed) return
+      const errors = cleanup()
+      reject(
+        errors.length === 0
+          ? error
+          : new AggregateError([error, ...errors], 'reduce-supervise-cleanup-failed'),
+      )
     }
     function finish(status: SuperviseResult['status']) {
-      if (!closed) {
-        const output = result(status)
-        cleanup()
-        resolve(output)
+      if (closed) return
+      let output: SuperviseResult
+      try {
+        output = result(status)
+      } catch (error) {
+        fail(error)
+        return
       }
+      const errors = cleanup()
+      if (errors.length > 0) reject(new AggregateError(errors, 'reduce-supervise-cleanup-failed'))
+      else resolve(output)
     }
     function cancel() {
       finish('cancelled')

@@ -246,7 +246,6 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       'a"b\\c\tz',
     ]
     const clock = join(dir, 'ledger-clock.mjs')
-    // Keep wall-clock seconds fixed; process.cpuUsage still measures the real command.
     writeFileSync(clock, `Date.now = () => ${Date.now()}\n`)
     const result = slot(args, {
       NODE_OPTIONS: [process.env['NODE_OPTIONS'], `--import=${pathToFileURL(clock).href}`]

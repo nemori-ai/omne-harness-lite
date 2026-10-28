@@ -268,4 +268,4 @@ Project 可由原投影单写者维护可选 Integration target/progress，取�
 
 常驻 Line 与唯一 reduce 的责任、两个协调边界、三问、八类监督及接受顺序归[集成清单](integration.md#集成节点的清单)，完整状态和恢复归[负责人状态](map-reduce-states.md)。本协议的具名接受权限保持；Project、单卡接受、PR 合入或 Issue closed 均不能单独放行下一波。
 
-整波接受前必须读回下一波任务和真实 reduce，以及包括 idle 在内的全部存续线 delta。随后有权接受读回、最终 ReleaseRecord 读回、关闭读回依次执行。非成功交接保持 blocked/failed，处置发布不等于问题已解决。只有显式终态结束 Line；轮空逐收口续接。
+整波接受前，非终态必须读回下一波任务和真实 reduce，以及包括 idle 在内的全部存续线 delta；有权终态必须读回终态决定及全线 terminal delta，不建虚构后继。随后有权接受读回、最终 ReleaseRecord 读回、关闭读回依次执行。非成功交接保持 blocked/failed，处置发布不等于问题已解决。只有显式终态结束 Line；轮空逐收口续接。

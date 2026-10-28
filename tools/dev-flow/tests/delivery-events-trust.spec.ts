@@ -183,7 +183,6 @@ describe('channel evidence', () => {
       timeoutMs: 2000,
     })
     appendFileSync(file, line({ ...closed, receiver }))
-    // Read the appended hint while the first reconciliation is still pending.
     vi.advanceTimersByTime(5000)
     expect(reconcile).toHaveBeenCalledTimes(1)
     release?.()

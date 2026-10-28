@@ -175,7 +175,6 @@ def choose_dispatch_value(key: str, fixed: str | None, layers: list[tuple[str, d
 
 
 def policy_model(source: Path, host: str, reference: str) -> tuple[str, str]:
-    # Read the existing host configuration; the policy contains role references, not model IDs.
     if not re.fullmatch(r"[a-z]+(?:-[a-z]+)*", reference):
         raise ValueError("invalid policy model source")
     config = native_config(render(source.parent / reference), host)

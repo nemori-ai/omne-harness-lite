@@ -5,6 +5,10 @@ import { join } from 'node:path'
 import { exactTextBlob, git } from '../src/integration/git.ts'
 import { digest } from '../src/integration/parse.ts'
 import {
+  githubRequestEvidence,
+  verifyEvidence,
+} from '../src/delivery/integration-request-evidence.ts'
+import {
   ACCEPTANCE_SOURCES_PATH,
   readAcceptanceSources,
   readAcceptanceSourcesRest,
@@ -70,6 +74,61 @@ describe('acceptance source byte identity across transports', () => {
     ])
     const commit = git(f.root, ['rev-parse', 'HEAD'])
     expect(() => exactTextBlob(f.root, commit, ACCEPTANCE_SOURCES_PATH)).toThrow()
+  })
+
+  it('keeps a remote report BOM in its digest and rejects the normalized digest', () => {
+    const text = '\ufefffrozen report\n'
+    const evidence = {
+      url: `https://github.com/owner/repo/blob/${'a'.repeat(40)}/report.md`,
+      sha256: digest(text),
+      description: 'Frozen report',
+    }
+    const reader = githubRequestEvidence(() => ({
+      type: 'file',
+      path: 'report.md',
+      encoding: 'base64',
+      content: Buffer.from(text).toString('base64'),
+    }))
+    expect(reader('owner/repo', evidence)).toBe(text)
+    expect(() => verifyEvidence('owner/repo', evidence, reader)).not.toThrow()
+    expect(() =>
+      verifyEvidence('owner/repo', { ...evidence, sha256: digest(text.slice(1)) }, reader),
+    ).toThrow('evidence-digest-mismatch')
+  })
+
+  it('refuses remote source bytes even when a replacement-text digest matches', () => {
+    const text = JSON.stringify({
+      schemaVersion: 1,
+      entries: [
+        {
+          issue: {
+            repository: 'owner/repo',
+            id: 'I_fixture',
+            url: 'https://github.com/owner/repo/issues/1',
+            number: 1,
+          },
+          revision: 1,
+          authorization: { issue: 1, commentId: 2, sha256: 'b'.repeat(64) },
+          authorNodeId: 'ÿ',
+        },
+      ],
+    })
+    const bytes = Buffer.from(text, 'latin1')
+    const source = {
+      commit: 'a'.repeat(40),
+      path: ACCEPTANCE_SOURCES_PATH,
+      blob: 'c'.repeat(40),
+      digest: digest(bytes.toString('utf8')),
+    }
+    expect(() =>
+      readAcceptanceSourcesRest('owner/repo', source, () => ({
+        type: 'file',
+        path: source.path,
+        sha: source.blob,
+        encoding: 'base64',
+        content: bytes.toString('base64'),
+      })),
+    ).toThrow()
   })
 
   it.each(['', '\n', '\r\n', '\n\n', ' \t\n'])(

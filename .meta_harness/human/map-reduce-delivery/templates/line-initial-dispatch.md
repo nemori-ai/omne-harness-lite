@@ -55,7 +55,7 @@
 | 每次醒来读取的 delta 与游标规则 | {{delta_read_range_rule}} |
 | terminal 的判断及最终交接入口 | {{terminal_guard_and_final_handoff_ref}} |
 
-若入口是 NOW 且 active，核对当前基线与准入后准备开工。NOW 且 idle 时，读取本次 delta 并挂当前真实 reduce，不建任务分支、不交空 PR。入口已具备有效 terminal release 时，直接按第 7 节做最终交接，不新建执行。WAIT_REDUCE 只等待当前正式入口收口，返回后根据 active/idle/terminal 分支推进。Issue 关闭或没有任务本身均不足以决定开工或结束。
+若入口是 NOW 且 active，核对当前基线与准入后准备开工。NOW 且 idle 时，读取本次 delta 并挂当前真实 reduce，不建任务分支、不交空 PR。入口已具备有效 terminal release 时，仍以 WAIT_REDUCE 指向当前真实收口，经 L02 进入 ENTRY_WAIT；读回有效 terminal release 与本线 delta 后，经 L31 按第 7 节做最终交接，不新建执行。该等待可立即返回，不能绕过读回守卫。WAIT_REDUCE 只等待当前正式入口收口，返回后根据 active/idle/terminal 分支推进。Issue 关闭或没有任务本身均不足以决定开工或结束。
 
 {{entry_wait_recipe_or_now_instruction}}
 

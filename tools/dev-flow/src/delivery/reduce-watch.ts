@@ -130,7 +130,6 @@ function load(input: ReduceWatchInput, ports: ReduceWatchPorts): Journal {
   const operations = raw.operations.map(value => {
     const v = fields(value, ['id', 'purpose', 'position', 'result'], 'watch operation')
     const p = fields(v.purpose, ['kind', 'requestId', 'tasks'], 'watch purpose')
-    // Exact request/task parsing is performed by the registered-request reader before use.
     if (p.kind !== 'wave' && p.kind !== 'disposition')
       throw new InputError('watch-journal-purpose-invalid')
     const purpose = p.kind === 'wave' ? { kind: 'wave' as const } : parseDispositionTarget(p)
@@ -141,7 +140,6 @@ function load(input: ReduceWatchInput, ports: ReduceWatchPorts): Journal {
       result: v.result,
     }
   })
-  // Stored results are never authority: recompute from the saved target before returning a replay.
   return {
     schemaVersion: 1,
     repo: input.repo,
@@ -328,7 +326,6 @@ export async function runReduceWatch(
           return result === undefined ? undefined : wakeEvent(context)
         },
       })
-      // Legacy events are also only hints. Read authority after every event-return path.
       if (result === undefined) result = outcome(input, ports, op)
       since = hit.delivery ?? hit.receivedAt
     }
@@ -338,7 +335,9 @@ export async function runReduceWatch(
       result.status !== 'disposition' &&
       result.next?.reduceIssue !== input.nextReduceIssue
     )
-      throw new InputError('watch-next-hint-conflicts-with-release')
+      result.diagnostics.push(
+        `watch-next-hint-changed:${input.nextReduceIssue}->${result.next?.reduceIssue ?? 'terminal'}`,
+      )
     if (op.result !== null) same(op.result, result, 'watch-replayed-result-no-longer-current')
     op.result = result
     if (existing === undefined || canonical(journal.current) === canonical(op.position))

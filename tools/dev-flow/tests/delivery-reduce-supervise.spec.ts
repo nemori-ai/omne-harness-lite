@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -165,6 +165,73 @@ describe('bounded reduce supervision', () => {
     controller.abort()
     expect((await cancelled).status).toBe('cancelled')
     expect(g.close).toHaveBeenCalledOnce()
+  })
+
+  it.each(['timeout', 'abort'] as const)(
+    'rejects corrupt completion state on %s and releases every resource',
+    async completion => {
+      const f = fixture(),
+        controller = new AbortController()
+      f.ports.stop = vi.fn()
+      const pending = superviseReduce({ ...f.input, signal: controller.signal }, f.ports)
+      await vi.advanceTimersByTimeAsync(1)
+      writeFileSync(
+        join(f.input.journalRoot, f.input.operationId, `signal-${'a'.repeat(64)}.json`),
+        '{',
+      )
+      const rejected = expect(pending).rejects.toThrow('collaboration-json-invalid')
+      if (completion === 'abort') controller.abort()
+      else await vi.advanceTimersByTimeAsync(60_000)
+      await rejected
+      expect(f.close).toHaveBeenCalledOnce()
+      expect(f.ports.stop).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
+
+  it('rejects corrupt state at actionable completion without escaping the promise', async () => {
+    const f = fixture()
+    f.ports.stop = vi.fn()
+    f.ports.reconcile = async () => [signal('handoff')]
+    const enqueue = queueMicrotask
+    const queued = vi.spyOn(globalThis, 'queueMicrotask').mockImplementationOnce(callback => {
+      enqueue(() => {
+        writeFileSync(
+          join(f.input.journalRoot, f.input.operationId, `signal-${'a'.repeat(64)}.json`),
+          '{',
+        )
+        callback()
+      })
+    })
+    try {
+      await expect(superviseReduce(f.input, f.ports)).rejects.toThrow('collaboration-json-invalid')
+      expect(f.close).toHaveBeenCalledOnce()
+      expect(f.ports.stop).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      queued.mockRestore()
+    }
+  })
+
+  it('settles completion and stops workers when subscription cleanup fails', async () => {
+    const f = fixture()
+    f.close.mockImplementation(() => {
+      throw new Error('close failed')
+    })
+    f.ports.stop = vi.fn(() => {
+      throw new Error('stop failed')
+    })
+    f.ports.reconcile = async () => [signal('handoff')]
+    const error = await superviseReduce(f.input, f.ports).catch((failure: unknown) => failure)
+    expect(error).toBeInstanceOf(AggregateError)
+    if (!(error instanceof AggregateError)) throw new Error('Expected cleanup errors')
+    expect(error.errors.map((failure: Error) => failure.message)).toEqual([
+      'close failed',
+      'stop failed',
+    ])
+    expect(f.close).toHaveBeenCalledOnce()
+    expect(f.ports.stop).toHaveBeenCalledOnce()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('rejects a new epoch in an old journal and missing deadline configuration', async () => {

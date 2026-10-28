@@ -66,7 +66,7 @@ export function githubRequestEvidence(read: GhRead): RequestEvidenceReader {
       throw new InputError('integration-request-evidence-content-unsupported')
     const bytes = Buffer.from(string(result.content, 'evidence.content'), 'base64')
     try {
-      return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+      return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
     } catch {
       throw new InputError('integration-request-evidence-not-utf8')
     }

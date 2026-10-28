@@ -302,8 +302,8 @@ ready 登记后等当前 R(w) 的有效 release。blocked/failed 登记后先等
 
 1. 准备当前正式波及 R(w)，只预规划后一波，不预建更远卡。核对已接受依据、基线、写集求交、消费者影响、参加交付和全部存续线清单、期限、两宿主角色策略及接收资源。
 2. 持续接收 ready/blocked/failed，完整分页对账并按状态规则选下一可处理项。只读 next 不取得写权。通过 claim 读回 owner/epoch 后接管一个请求，保留原始 head、候选 head、targetBase 和 merge 链。
-3. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，持续收件。同步后先生成宿主投影并运行 `check:agents`。候选或基线变动后重做受影响验证与独立评审。按既有权限发 gate，绑定精确 workflow/ref/head/runId/runAttempt。需要审批时交有权者，监督器不自动批准。以实际 PR/轨道读回记录 merged，回退使原结果重新未解决。
-4. 全部预期项有效解决后验证整体成果，确定最终 F。任一 pending、未知副作用、未解决失败或失效证据都阻止收口。检查失败由 reduce 处置；不把失败标红后仍当成功放行。
+3. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，持续收件。同步后先生成宿主投影并运行 `check:agents`，再执行 `OMNE_ADMISSION=1 pnpm run check`。同一台机器上的准入一次只跑一个。候选或基线变动后重做受影响验证与独立评审。按既有权限发 gate，绑定精确 workflow/ref/head/runId/runAttempt。需要审批时交有权者，监督器不自动批准。以实际 PR/轨道读回记录 merged，回退使原结果重新未解决。
+4. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。任一 pending、未知副作用、未解决失败或失效证据都阻止收口。检查失败由 reduce 处置；不把失败标红后仍当成功放行。
 5. 按下文固定顺序物化后继、发布所有存续线 delta、有权接受、最终 release、关闭。轨道提升和 stable 权限仍沿本页原规则。
 
 ### 冲突即退回分解
@@ -324,7 +324,7 @@ ready 登记后等当前 R(w) 的有效 release。blocked/failed 登记后先等
 
 ### 接受与逐收口续接
 
-接受顺序必须是：验证本波成果，调整后一波预案，创建并读回下一波任务与 R(w+1)，发布并读回所有存续线父卡 delta，检查下一输入齐备，有权接受并读回 R(w)，发布并读回最终 ReleaseRecord，最后关闭并读回 R(w)。稳定操作身份、计划修订及 F 必须一致。任何存续线含 idle 的 delta 缺失或后继无效都不能接受。
+接受顺序必须是：验证本波成果，调整后一波预案；继续推进时创建并读回下一波任务与真实 R(w+1)，有权终态时读回终态决定且不建虚构后继；发布并读回所有存续线父卡 delta，继续推进时检查下一输入齐备，终态时检查全线 terminal delta 齐备；有权接受并读回 R(w)，发布并读回最终 ReleaseRecord，最后关闭并读回 R(w)。稳定操作身份、计划修订及 F 必须一致。任一存续线的 delta 缺失，或非终态后继无效，都不能接受。
 
 Delta 至少给出原候选到最终候选的变化与原因、外域变化、消费者迁移、最终 F、下一任务/验收、工具与策略版本、等待链、active/idle/terminal 及其依据。Line 逐个收口消费，不按未来参与预案跳波。正常 terminal 在有效 release 中明确发布；停止、取消、限定接受和完成分别记录。
 
@@ -360,10 +360,13 @@ Project 可由原单投影写者维护可选 Integration target 与 Integration 
 dev-flow 对平台的写入限于下列范围：
 
 - 派发记录：`dispatch-cli` 写派发评论与卡正文中的 binding。
-- 标签同步：只增删一张卡的 `line:`、`nature:`、`contract:` 三族标签。
+- 标签同步：只增删一张卡的 `kind:`、`line:`、`nature:`、`contract:` 四族标签。
 - 看板日期与属性字段：`start` 新建 task context 后尽力写 Dispatched at、Line、Kind 与 Wave。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
 - Stage：`board-cli.ts` 的 `delivered`、`integrating`、`accepted` 按本地路径把 Stage 改为 In review、Integrating、Accepted。运行者见[交付操作](agent-delivery.md#4-推进和更新状态)。
 - 里程碑流转：`milestone-cli.ts` 建里程碑，改卡的里程碑并发流转评论。
+- 协作记录：申请命令触发已采用 workflow，由 workflow 校验并登记可信回执；授权写者发布 delta、state、claim、处置及请求结果记录。每次写入沿[协作记录合同](../../tools/dev-flow/src/delivery/SPEC.md#协作记录边界)核对权限、序号与持久操作身份。
+- 整波放行：Reduce 沿[接受顺序](#接受与逐收口续接)读回有权接受，发布最终 ReleaseRecord 后关闭 reduce 卡并读回。命令不授予接受权。
+- facts 与事件接入：按已采用部署触发 facts workflow；显式管理事件接收所需的仓库 hook。创建、恢复及清理由[工具安装与事件合同](../../tools/dev-flow/src/delivery/SPEC.md)约束，不从普通等待推断管理权。
 - 部署批准：`gate-cli wait` 按运行者已有权限与本次授权批准 gate 的部署，命令不授予确认资格。
 
 此外，云端会话开工时，`start` 派发 `delivery-facts`。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。

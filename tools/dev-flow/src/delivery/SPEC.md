@@ -286,6 +286,18 @@ recover 模式只读，返回已核对的精确引用或 unknown。完整读取�
 
 [collaboration-requests.ts](collaboration-requests.ts) 只接收已通过权限校验的记录。业务身份为仓库、里程碑、波、线父卡和 requestId；同一身份的规范输入必须相同。Action 重跑或新运行产生的相同申请合并为一项，保留每个评论和运行定位。不同输入复用同一身份时失败。新 requestId 是新申请，不能被传输去重吞掉。待完成和失败的 workflow 回执不进入有效登记集合，由调用方保留诊断并恢复读取。
 
+### 独立线记录命令
+
+[line-inbox-cli.ts](line-inbox-cli.ts) 的 `inbox|delta|state` 是 `line-cli` 的正式同义入口，根包命令为 `pnpm run line`。三种操作均支持 `--protocol-version 1`，省略时取 1；未知版本、未知或重复选项拒绝。生产授权从固定工具安装读取，命令参数不能替换授权来源。
+
+`inbox --repo owner/name --parent N --milestone N [--since comment-id]` 只读线父卡。它先完整分页读取并验证对应里程碑的 delta/state 流、可信来源、连续序号和消费引用，再筛选尚未消费且评论 ID 大于 since 的 delta。since 指父卡中实际存在的评论 ID，不是 revision 或事件游标；省略时不另加评论位置筛选。普通评论可作位置，但不能提供权限或 delta。读取不会发布 state 或推进消费。结果包含 consumedRevision、去重后的 deltas 及其证据；读取失败不返回空收件箱。
+
+`delta|state --repo owner/name --parent N --input record.json --journal DIR` 分别发布完整的 LineDeltaRecord 或 LineConsumptionRecord，公开形状归 [collaboration-records.ts](collaboration-records.ts)。输入须含稳定 operationId、预期 revision、前项、recordedAt 及匹配的仓库/父卡/context。delta 由已授权 Reduce 发布；state 由已授权 Line 发布，并精确引用已消费 delta 的评论、摘要和序号。state 不得倒退，不授予任务写权。命令验证完整记录流，在 POST 前持久保存意图，写后读回。confirmed 只确认该记录，不代表任务接受或整波放行。
+
+首次调用可发布一次；已有同一持久意图时只读恢复。未知结果、超时或崩溃后重复原命令，保留原 input、operationId 和 journal；跨机器接续移交 journal。同 ID 异文拒绝，读回仍未知时不得换 ID 重发。具体发布与恢复守卫沿上面的共享记录合同。
+
+成功读取或 confirmed 向 stdout 输出一个 schemaVersion 1 JSON 并退出 0；unknown 输出诊断并退出 1。输入、权限或读取错误向 stderr 输出结构化 failed 诊断并退出 2，诊断保留副作用未知与 journal 恢复说明，不表示先前写入未发生。`--help` 输出用法并退出 0。
+
 ### 派发授权读回
 
 [collaboration-authority.ts](collaboration-authority.ts) 的 `readCollaborationAuthority` 从实际 reduce 卡的唯一 binding 定位正式派发，复用现有 `readAuthority` 验证资格、精确评论与撤销情况，并要求派发 task 等于当前 binding。完整评论快照同时保存并核对 milestone。读取期间正文、状态、milestone、评论或更新时间变化均失败，不返回部分权限。

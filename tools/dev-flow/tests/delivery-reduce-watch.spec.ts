@@ -722,6 +722,43 @@ describe('one actual reduce per original wait result', () => {
     expect((await cli(f, ['--next-reduce-issue', '300'])).code).toBe(2)
     expect((await cli(f, ['--next-reduce-issue', '200'])).code).toBe(0)
   })
+  it('uses a valid terminal release despite an obsolete successor hint and replays it', async () => {
+    const f = fixture(['terminal', 'terminal']),
+      id = randomUUID()
+    const first = await cli(f, ['--next-reduce-issue', '200'], id)
+    expect(first.code).toBe(0)
+    expect(first.result).toMatchObject({
+      status: 'terminal',
+      next: null,
+      currentAction: 'final-handoff',
+      diagnostics: ['watch-next-hint-changed:200->terminal'],
+    })
+    const saved = JSON.parse(readFileSync(f.input().journal, 'utf8'))
+    expect(saved.current).toMatchObject({ terminal: true, consumedWave: 1 })
+    expect((await cli(f, ['--next-reduce-issue', '200'], id)).result).toEqual(first.result)
+  })
+
+  it('rearms the authoritative successor instead of an existing obsolete hint', async () => {
+    const f = fixture(['idle', 'terminal'])
+    const hint = JSON.parse(
+      JSON.stringify(f.card(200))
+        .replace(/\b2\d\d\b/g, value => String(Number(value) + 50))
+        .replaceAll('I_200', 'I_250'),
+    )
+    f.cards.set(250, hint)
+    const result = await cli(f, ['--next-reduce-issue', '250'])
+    expect(result.code).toBe(0)
+    expect(result.result).toMatchObject({
+      status: 'released',
+      next: { reduceIssue: 200 },
+      currentAction: 'rearm',
+      diagnostics: ['watch-next-hint-changed:250->200'],
+    })
+    expect(JSON.parse(readFileSync(f.input().journal, 'utf8')).current.context.reduceIssue).toBe(
+      200,
+    )
+  })
+
   it('recovers an expired active node, then idle, then a currently authorized active node', async () => {
     const f = fixture(['active', 'idle', 'active', 'terminal'])
     f.card(201).state = 'closed'

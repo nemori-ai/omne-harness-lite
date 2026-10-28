@@ -238,9 +238,7 @@ function submitLocked(
       journal.attemptedDispatch(intent)
       try {
         journal.saveRun(dispatch(intent, call))
-      } catch {
-        /* Recovery below reads authority; it never repeats POST. */
-      }
+      } catch {}
     }
   }
   const id = journal.runId()

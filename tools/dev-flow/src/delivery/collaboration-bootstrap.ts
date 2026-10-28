@@ -55,7 +55,7 @@ function readFile(repo: string, commit: string, path: string, read: GhRead) {
   )
   if (value.type !== 'file' || value.path !== path || value.encoding !== 'base64')
     throw new InputError('collaboration-installation-source-invalid')
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(
+  const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
     Buffer.from(string(value.content, 'source.content'), 'base64'),
   )
   return { text, blob: string(value.sha, 'source.sha') }

@@ -175,8 +175,8 @@ export function readAcceptanceSourcesRest(
     value.encoding !== 'base64'
   )
     throw new InputError('collaboration-acceptance-source-changed')
-  const text = Buffer.from(string(value.content, 'acceptance source.content'), 'base64').toString(
-    'utf8',
+  const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+    Buffer.from(string(value.content, 'acceptance source.content'), 'base64'),
   )
   if (digest(text) !== source.digest)
     throw new InputError('collaboration-acceptance-source-changed')

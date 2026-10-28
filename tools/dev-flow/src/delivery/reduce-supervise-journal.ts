@@ -42,7 +42,6 @@ export function superviseJournal(input: SuperviseInput) {
             return []
           }
           const entry = journal.read(name)
-          // These are exclusively written local records, but corruption is never treated as empty.
           const copy = collaborationJson(canonical(entry))
           if (
             typeof copy !== 'object' ||

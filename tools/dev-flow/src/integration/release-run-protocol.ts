@@ -78,7 +78,6 @@ export function verifyReleaseRun(
     ].includes(string(v.path, 'path'))
   )
     throw new InputError('release-run-identity-mismatch')
-  // The receipt binds all submitted inputs; title alone omits issue and cannot establish ownership.
   if (v.inputs !== undefined && canonical(v.inputs) !== canonical(releaseInputs(input)))
     throw new InputError('release-run-input-mismatch')
   const status = string(v.status, 'status')

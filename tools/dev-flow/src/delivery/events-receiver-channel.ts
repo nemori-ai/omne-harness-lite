@@ -142,9 +142,7 @@ export async function serveChannelReceiver(args: ChannelServeArgs): Promise<numb
     state.reasonCode = reason(error)
     try {
       diagnostic('error', state.reasonCode)
-    } catch {
-      /* The state file and stderr remain separate failure channels. */
-    }
+    } catch {}
     args.log(
       JSON.stringify({
         kind: 'receiver-error',

@@ -153,7 +153,6 @@ export async function serveReceiver(args: ServeArgs): Promise<number> {
   }
 }
 
-/** Stops only the owned child. Legacy hook creation provides no provable ownership receipt. */
 async function runForwarder(
   args: ServeArgs,
   port: number,

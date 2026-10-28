@@ -106,6 +106,19 @@ watch 的 parent、operation ID、journal 和事件文件来自本线实际派�
 
 缺少安装、摘要不符、工具检出变脏或提交变化时，停止并核对安装。不要通过更换来源来绕过拒绝。升级前收回旧安装上的未决写操作，并在安全的波段边界切换到新检出；保存原 journal，不给不确定操作生成新 ID。
 
+## 读取线输入与发布记录
+
+`pnpm run line` 是 `line-inbox-cli.ts` 的包命令，也是 `line-cli` 的正式同义入口。Line 在开工边界读取 delta，在完成交接或消费边界发布 state；Reduce 发布下一输入。使用实际派发值替换下列占位符：
+
+```sh
+pnpm run line inbox --repo owner/repo --parent <line-parent> --milestone <milestone>
+pnpm run line inbox --repo owner/repo --parent <line-parent> --milestone <milestone> --since <comment-id>
+pnpm run line delta --repo owner/repo --parent <line-parent> --input /absolute/delta.json --journal /absolute/line-journal
+pnpm run line state --repo owner/repo --parent <line-parent> --input /absolute/consumption.json --journal /absolute/line-journal
+```
+
+inbox 不推进消费；since 是实际评论 ID，筛选前仍校验完整可信记录流。delta/state 输入使用完整公开记录和稳定 operationId。未知写入重复原输入及 journal 只读恢复，不换 ID 重发。字段、权限、结果和退出码见[独立线记录命令](SPEC.md#独立线记录命令)。
+
 ## 部署申请 workflow
 
 默认分支须先存在 `.github/workflows/integration-request.yml`，GitHub 才能登记手动触发入口。只更新 `github-gate` 不足以完成首次安装。默认分支的占位入口不登记申请；实际执行使用 `--ref github-gate`。默认分支和轨道的运输继续遵守[分支准入](../../../../docs/engineering/integration.md#现行准入)。
