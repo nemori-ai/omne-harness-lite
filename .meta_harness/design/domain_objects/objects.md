@@ -71,9 +71,10 @@
 ### UL-workspace · 工作区
 
 - **宿主**：寿命宿主正文未述。Omne Host 托管工作区的治理所有者为一个[租户](#ul-tenant--租户)，登记外部仓库的工作区则无 Omne 治理所有者、各接入租户均为参与者；治理归属及参与关系不据此成为寿命宿主
-- **身份**：工作区自身的持久逻辑身份；具体格式和命名尚未由正文确定。工作区地址不是身份，工作区实例是它在部署节点上的装载对象
+- **身份**：工作区自身的持久逻辑身份。工作区地址不是身份，工作区实例是它在部署节点上的装载对象
 - **生灭**：跨会话和实例持续存在；Omne Host 托管工作区仅可由创建者或其明确授予工作区超管权限的租户销毁；确认销毁后全部租户关系删除，本地实例内容保留。登记外部仓库的首次参与者不取得销毁外部资源的特权，外部工作区的终结规则正文未述。一次实例卸载或地址不可达不等于工作区消失；组织限制启用时，受限租户装配不认定外部仓库为工作区、不加载其来源，但不因此销毁全局工作区身份、租户关系或本地实例，不热重判正在运行的会话，普通目录访问仍沿原权限
 - **依据**：[PF-020 工作区](../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）；[PF-020 工作区实例](../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）；[PF-020 工作区地址](../product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22）；[PF-002 工作区资产层](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 32）
+- **补充依据**：身份的含义归工作区域，文本形式是 legal-identity 第六族 `WorkspaceId`（前缀 `wsp_`），见 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)
 
 ### UL-workspace-instance · 工作区实例
 
@@ -87,7 +88,7 @@
 - **宿主**：它所属的作用域；本版的作用域持有者是[会话](#ul-session--会话)，作用域结束它随之结束
 - **身份**：作用域加块键
 - **生灭**：作用域创建时持有者固定必需项 → 可选项可增删，必需项不可移除 → 随作用域结束；移除一项只停止该作用域后续使用，不删共享来源
-- **依据**：[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者) · [§2](../product/runtime-context/design.md#2-来源会话选择和历史分别生效)（rev 4）
+- **依据**：[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者) · [§2](../product/runtime-context/design.md#2-来源会话选择和历史分别生效)（rev 5）
 - **并入**：封存 PF-015 §6.18 的「注册声明」——同一身份、同一生灭，当时按属性登记，现按对象立条
 
 ### UL-context-block · runtime context 块
@@ -95,35 +96,35 @@
 - **宿主**：[运行时 context 注册](#ul-runtime-context-registration--运行时-context-注册)——注册移除或作用域结束，它就退出
 - **身份**：作用域引用加块键
 - **生灭**：随注册进入作用域 → 值就地更新（供给块由生产者发布，状态块由步提交）→ 随注册移除或作用域结束退出；能否恢复按块声明的恢复方式
-- **依据**：[运行感知与一次模型请求 §2.1](../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 4）
+- **依据**：[运行感知与一次模型请求 §2.1](../product/runtime-context/design.md#21-两类块供给块与状态块)（rev 5）
 
 ### UL-context-block-descriptor · 块声明
 
 - **宿主**：发布它的包，即值的语义拥有者；不随作用域
 - **身份**：块键，全系统唯一
 - **生灭**：随包发布存在；不在运行期创建或销毁，无删除
-- **依据**：[运行感知与一次模型请求 §2.2](../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 4）
+- **依据**：[运行感知与一次模型请求 §2.2](../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 5）
 
 ### UL-producer-handle · 生产者句柄
 
 - **宿主**：登记供给的那个生产者所在的插件；插件卸载它随之撤销
 - **身份**：代际，登记时取得
 - **生灭**：生产者登记 → 发布新值、使当前值失效 → 撤销或插件卸载；旧代际晚到的发布不被采用
-- **依据**：[运行感知与一次模型请求 §2.2](../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 4）
+- **依据**：[运行感知与一次模型请求 §2.2](../product/runtime-context/design.md#22-块声明归语义拥有者)（rev 5）
 
 ### UL-bound-reader · 绑定读者
 
 - **宿主**：建立它的那份读取资格；资格撤销或失效它就结束
 - **身份**：一次绑定；正文未述标识形式
 - **生灭**：按资格建立 → 读取、取快照、按游标取变化 → 资格撤销或失效结束；游标在授权范围变化、生产者换代、进程重建后失效
-- **依据**：[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）
+- **依据**：[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 5）
 
 ### UL-step-commit · 步提交
 
 - **宿主**：它所属的作用域
 - **身份**：作用域加步引用
 - **生灭**：步边界由持有者合并该步全部上下文更新产生 → 写成作用域事实 → 无删除
-- **依据**：[运行感知与一次模型请求 §2.5](../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 4）
+- **依据**：[运行感知与一次模型请求 §2.5](../product/runtime-context/design.md#25-状态块的更新与步提交)（rev 5）
 
 ## 能力与构成
 
@@ -477,7 +478,7 @@
 - **宿主**：[会话日志](#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭
 - **身份**：会话在受理时铸造，不能从会变的文本、时间戳或日志位置算出。类型是确定的，不靠解析内容。精确编码见[会话与工作](../../../docs/domains/sessions-and-work/README.md#模块角色与事实归属)
 - **生灭**：流式到达期间只是「正在长的块」→ 长成一条完整消息落盘，或按「流断在半路」收场 → 落盘后不改不删；**消息之间没有取代**，状态类提醒也一律追加。后来的压缩若把它放进覆盖范围而不保留，模型之后只看到摘要；那是算出来的，消息本身一字不动。一次工具执行的那条 `ToolInternalMessage` 不论执行怎么收场都照常收尾，一块都没交付过的就没有这条
-- **依据**：[PF-009 §4 消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息)（rev 9）；[PF-009 §4 半条消息不是消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#半条消息不是消息)（rev 9）；[PF-009 §5.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 9）；[PF-009 §5.6](../product.0.0.1.legacy/PF-009-context-message-types/design.md#56-流断在半路)（rev 9）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）；[PF-009 §6.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 9）；[运行感知与一次模型请求 §7](../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 4）
+- **依据**：[PF-009 §4 消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息)（rev 9）；[PF-009 §4 半条消息不是消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#半条消息不是消息)（rev 9）；[PF-009 §5.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 9）；[PF-009 §5.6](../product.0.0.1.legacy/PF-009-context-message-types/design.md#56-流断在半路)（rev 9）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）；[PF-009 §6.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 9）；[运行感知与一次模型请求 §7](../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
 - **并入**：「排队的消息」——待处理与已承接是从日志派生的读法，不另立事实权威，持久投影仍可维护
 
 ### UL-content-block · 内容块
@@ -492,21 +493,21 @@
 - **宿主**：持有它的调用方（会话路径上是发起请求的协调者）；正文未述它在调用方内的寿命边界
 - **身份**：候选编号加输入摘要；同一组输入再算一次给同一份候选
 - **生灭**：一次组装产生 → 被协调者固定成请求、被新候选取代，或被丢弃；装不下的不成为候选
-- **依据**：[运行感知与一次模型请求 §6.1](../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **依据**：[运行感知与一次模型请求 §6.1](../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
 
 ### UL-compaction-plan · 压缩计划
 
 - **宿主**：它所属的[请求候选](#ul-request-candidate--请求候选)；一个候选身份至多一个计划
 - **身份**：计划编号
 - **生灭**：装入裁定为需要压缩时给出 → 逐步执行，进度每步加一 → 压缩转换提交，或宣告装不下；步数上界定下后不变
-- **依据**：[运行感知与一次模型请求 §7.1](../product/runtime-context/design.md#71-压缩计划与步骤)（rev 4）
+- **依据**：[运行感知与一次模型请求 §7.1](../product/runtime-context/design.md#71-压缩计划与步骤)（rev 5）
 
 ### UL-prompt-contribution · 提示词贡献
 
 - **宿主**：登记它的贡献者；贡献者卸载它随之撤销
 - **身份**：名字加作用域；同层重名拒绝
 - **生灭**：贡献者登记即生效 → 作用域内的遮蔽全局的 → 贡献者卸载撤销；无另外的删除动作
-- **依据**：[运行感知与一次模型请求 §6.1](../product/runtime-context/design.md#61-request-context-的派生计算)（rev 4）
+- **依据**：[运行感知与一次模型请求 §6.1](../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
 
 ### UL-todo-item · 待办条目
 

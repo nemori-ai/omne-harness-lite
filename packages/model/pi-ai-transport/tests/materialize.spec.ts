@@ -1,13 +1,11 @@
 import { createHash } from 'node:crypto'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
+import type { FixedModelRequest, ReplayDeclaration, Supplier } from '@omne-harness/model-contract'
 import type {
-  FixedModelRequest,
   MaterializedTransport,
   PreparedTransport,
-  ReplayDeclaration,
-  Supplier,
   TransportDispatch,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'

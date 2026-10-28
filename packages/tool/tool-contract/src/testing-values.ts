@@ -6,7 +6,9 @@ import {
   accountCodec,
   organizationCodec,
   tenant as composeTenant,
+  workspaceCodec,
   type TenantId,
+  type WorkspaceId,
 } from '@omne-harness/legal-identity'
 import type { FixedToolRequest } from './definitions.ts'
 import {
@@ -78,6 +80,13 @@ export function testingTenant(organization: string, account: string): TenantId {
   const acc = accountCodec.parse(account)
   if (!org.ok || !acc.ok) throw new Error(`illegal test tenant text: ${organization} / ${account}`)
   return composeTenant(org.value, acc.value)
+}
+
+/** Mints a real legal-identity workspace for a test: `wsp_` plus the 26-character body. */
+export function testingWorkspace(text: string): WorkspaceId {
+  const parsed = workspaceCodec.parse(text)
+  if (!parsed.ok) throw new Error(`illegal test workspace text: ${text}`)
+  return parsed.value
 }
 
 // Each access mints its tenant when it is built, not when the module loads: an illegal text then

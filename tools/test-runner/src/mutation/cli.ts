@@ -273,7 +273,8 @@ async function run(request: MutationRequest): Promise<number> {
       `[${index + 1}/${targets.length}] ${target.member.path} ${Math.round(seconds)} 秒` +
         `${result.valid ? '' : '，测量无效'}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
         (result.invalid.length > 0 ? `、不计分 ${result.invalid.length}` : '') +
-        (result.rechecked.length > 0 ? `、复核 ${result.rechecked.length}` : ''),
+        (result.rechecked.length > 0 ? `、复核 ${result.rechecked.length}` : '') +
+        (result.unmutated.length > 0 ? `、没有变异体的改动 ${result.unmutated.length} 段` : ''),
     )
   }
 

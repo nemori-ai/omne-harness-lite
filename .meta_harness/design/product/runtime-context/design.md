@@ -76,7 +76,7 @@ runtime context 块是一个作用域里按块键识别的一份当前值。它�
 | Agent 元信息 | `agent.meta` | 供给块，持久保存 | Agent 定义与工作推进 | 模型、工具、扩展 | 稳定 |
 | 环境元信息 | `execution.host-facts` | 供给块，重算 | 执行环境 | 模型、工具、扩展 | 稳定 |
 | 当前落点 | `execution.placement` | 供给块，重算 | 执行环境 | 模型、工具、扩展 | 稳定 |
-| 当前 ModelProfile | `model.current-profile` | 供给块，重读来源 | 模型调用 | 模型、工具、扩展 | 稳定 |
+| 当前 ModelProfile | `model.current-profile` | 供给块，重读来源 | 模型选择的持有方（即提供模型选择端口的集成方，见[领域页](../../../../docs/domains/runtime-context/architecture.md)） | 模型、工具、扩展 | 稳定 |
 | 当前压缩设置 | `context.compaction-settings` | 供给块，重读来源 | Request Context | 模型 | 稳定 |
 | 组织与租户结构化授权 | `authorization.structured` | 供给块，重读来源 | 授权 | 扩展 | 稳定 |
 | 本会话语义授权 | `authorization.expressions` | 状态块，持久保存。按先后只追加。协调者可提更新 | 授权 | 模型、扩展 | 稳定 |

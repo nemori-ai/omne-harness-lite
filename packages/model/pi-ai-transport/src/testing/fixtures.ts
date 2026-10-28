@@ -5,12 +5,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
-import {
-  judgeFixedModelRequest,
-  type Adoption,
-  type Supplier,
-  type TransportFact,
-} from '@omne-harness/model-contract'
+import { type Adoption, type Supplier } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import { sorted } from '../chat-completions/json.ts'
 import { decodeBody, type Progress } from '../fact-stream.ts'
 import { composeFamilies, familyRecords, type PiFamily } from '../family-table.ts'

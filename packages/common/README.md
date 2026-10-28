@@ -27,7 +27,7 @@
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
-合法身份是带家族名的记录。账号、组织和登录状态的正文是家族前缀加 26 位 Crockford 字符。前缀分别是 `acc_`、`org_` 和 `lgn_`。字母表是 `0123456789abcdefghjkmnpqrstvwxyz`。错前缀不能解析成另一家族。单独的 `a` 不合法。租户由已解析的组织与账号组成。`tenant()` 是进程内唯一组合函数。本组不铸造新的账号正文。解析成功不是对象存在、成员有效或授权允许。
+合法身份是带家族名的记录。账号、组织、登录状态和工作区的正文是家族前缀加 26 位 Crockford 字符。前缀分别是 `acc_`、`org_`、`lgn_` 和 `wsp_`（工作区前缀的依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)）。字母表是 `0123456789abcdefghjkmnpqrstvwxyz`。错前缀不能解析成另一家族。单独的 `a` 不合法。租户由已解析的组织与账号组成。`tenant()` 是进程内唯一组合函数。本组不铸造新的账号正文。解析成功不是对象存在、成员有效或授权允许。
 
 时间点是 UTC 日历字段加精确小数。比较函数只有 `compareInstants`。它不调用 `Date` 或 `Number`。时长只表示 SI 秒。`P1D` 不是时长。计划时间是民用日期、时刻和时区，不是时间点。业务期限带规则名。到期判断留在业务拥有者。序号不是时间。观察时间不可用时，调用方不把序号改成上一个加一。
 

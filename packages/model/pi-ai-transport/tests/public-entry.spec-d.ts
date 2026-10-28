@@ -4,11 +4,10 @@ import type {
   Adoption,
   MediaMeasurementFact,
   ModelFault,
-  ModelTransport,
   Supplier,
-  TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { ModelTransport, TransportFact } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   createNetworkResources,

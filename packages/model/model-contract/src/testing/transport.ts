@@ -1,13 +1,12 @@
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { MaterializationReceipt, TransportFailure } from '../index.ts'
 import type {
-  MaterializationReceipt,
   MaterializedTransport,
   ModelTransport,
   PreparedTransport,
   TransportFact,
-  TransportFailure,
   TransportTermination,
-} from '../index.ts'
+} from '../provider/index.ts'
 import { ScriptedModelError } from './error.ts'
 
 export type ScriptedTransportEnding =

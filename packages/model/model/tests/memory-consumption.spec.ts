@@ -3,8 +3,8 @@ import {
   decodeDispatchId,
   decodeResultVersion,
   type ModelBlock,
-  type TransportFact,
 } from '@omne-harness/model-contract'
+import { type TransportFact } from '@omne-harness/model-contract/provider'
 import { judgePart } from '@omne-harness/message'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'

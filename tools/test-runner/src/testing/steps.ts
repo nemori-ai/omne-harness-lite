@@ -8,7 +8,13 @@ import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { changedFiles, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
-import { admissionRequested, affectedMembers, turboBuild, turboTypecheck } from './turbo.ts'
+import {
+  admissionRequested,
+  affectedMembers,
+  dependentMembers,
+  turboBuild,
+  turboTypecheck,
+} from './turbo.ts'
 import { checkTypecheckScopes } from './typecheck-scope.ts'
 import {
   CONFIG_PATH,
@@ -60,13 +66,13 @@ export function computePlan(root: string, baseRef: string, full: boolean): PlanF
   const at = coordinates(root, baseRef)
   if (at.base === undefined) throw new Error(`算不出基线 ${baseRef} 的合并点`)
   const members = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots)
-  const affected = affectedMembers(root, members, at.base.mergeBase)
   const plan = planCheck(
     changedFiles(root, at.base.mergeBase),
     members,
     config.affected,
-    affected,
+    affectedMembers(root, members, at.base.mergeBase),
     full,
+    paths => dependentMembers(root, members, paths),
   )
   return { head: at.head, dirty: at.dirty, base: at.base, plan }
 }

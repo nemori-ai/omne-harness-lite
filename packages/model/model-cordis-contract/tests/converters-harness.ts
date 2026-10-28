@@ -2,14 +2,13 @@
 // stand-in is the qualification authority: it is the provider of ModelConverterAuthorityService
 // in a real assembly and is not part of this package, so `surrogateAuthority` answers in its place.
 import { Context } from '@deepseek-ai/cordis'
+import type { Adoption, ConvertedContent } from '@omne-harness/model-contract'
 import type {
-  Adoption,
   ConversionFailure,
-  ConvertedContent,
   ConverterKey,
   ConverterLookup,
   ModelConverter,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { tenantA } from './identities.ts'
 import type {

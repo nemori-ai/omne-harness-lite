@@ -48,9 +48,14 @@ describe('runFixtures', () => {
   })
 
   it('fails when a required role has no fixture', async () => {
-    const report = await runFixtures([complete], ['independent-caller', 'session-coordinator'])
+    const report = await runFixtures(
+      [complete],
+      ['independent-caller', 'orchestration-coordinator'],
+    )
     expect(report.ok).toBe(false)
-    expect(report.problems).toEqual(['fixture session-coordinator: required role has no fixture'])
+    expect(report.problems).toEqual([
+      'fixture orchestration-coordinator: required role has no fixture',
+    ])
   })
 
   it('fails when two paths of one fixture share a name', async () => {

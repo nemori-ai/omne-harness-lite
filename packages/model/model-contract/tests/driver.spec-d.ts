@@ -8,7 +8,7 @@ import type {
   ModelDriverHost,
   ModelHostAuthority,
   ModelInstanceHost,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { call, evidence, instance, operation, tenant } from './values.ts'
 
 const drive: ModelDriveInput<string> = {

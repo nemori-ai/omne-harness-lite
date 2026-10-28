@@ -2,12 +2,28 @@
 // stops reusing the producer's own key, when an entry of the advancing side can be recorded
 // without an Authority, or when the snapshot field stops being optional.
 import { describe, expectTypeOf, it } from 'vitest'
+import type { ContentBlock } from '@omne-harness/content-block'
+import type {
+  AgentJournalEntriesFixture,
+  RequiredReceivedCommits,
+} from '@omne-harness/agent-contract/testing'
 import type { CallAccount } from '@omne-harness/call-account'
 import type * as M from '@omne-harness/model-contract'
 import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Access,
+  AgentReceivedCommits,
+  AgentReceivedProvider,
+  AgentJournal,
+  AgentMaterials,
+  ExecutionMutation,
+  Material,
+  DurableEvidence,
+  ReceivedCommitInput,
+  ReceivedCommitValue,
+  ReceivedCommitResult,
+  ReceivedCommitQuery,
   AgentAccessOperation,
   AgentAccountHandoff,
   AgentAccountOutcome,
@@ -124,5 +140,60 @@ describe('the account outlet', () => {
     expectTypeOf<AgentAccountOutcome['kind']>().toEqualTypeOf<
       'received' | 'denied' | 'conflict' | 'invalid' | 'unknown' | 'unavailable'
     >()
+  })
+})
+
+describe('the additive joint receiving port', () => {
+  it('takes a draft and complete material without Authority or caller material evidence', () => {
+    type Input = ReceivedCommitInput<string, ContentBlock>
+    expectTypeOf<Input['entry']>().toEqualTypeOf<Omit<ReceivedEntry, 'material'>>()
+    expectTypeOf<Input['material']>().toEqualTypeOf<Material<ContentBlock>>()
+    expectTypeOf<Input>().toExtend<ExecutionMutation<string>>()
+    expectTypeOf<Extract<keyof Input, 'authority'>>().toEqualTypeOf<never>()
+    expectTypeOf<Extract<keyof Input['entry'], 'material'>>().toEqualTypeOf<never>()
+    expectTypeOf<
+      Parameters<AgentReceivedCommits<string, ContentBlock>['commit']>[0]
+    >().toEqualTypeOf<Input>()
+    expectTypeOf<
+      Parameters<AgentReceivedCommits<string, ContentBlock>['query']>[0]
+    >().toEqualTypeOf<ExecutionMutation<string>>()
+  })
+
+  it('keeps the full original receipt, entry and separate saved evidence', () => {
+    expectTypeOf<ReceivedCommitValue>().toEqualTypeOf<
+      Readonly<{
+        receipt: CommandReceipt
+        entry: ReceivedEntry
+        saved: DurableEvidence
+      }>
+    >()
+    expectTypeOf<ReceivedCommitResult['kind']>().toEqualTypeOf<'committed' | 'excluded'>()
+    expectTypeOf<ReceivedCommitQuery['kind']>().toEqualTypeOf<
+      'committed' | 'excluded' | 'unknown'
+    >()
+    expectTypeOf<AgentReceivedCommits<string, ContentBlock>['commit']>().returns.toEqualTypeOf<
+      Reply<ReceivedCommitResult>
+    >()
+    expectTypeOf<AgentReceivedCommits<string, ContentBlock>['query']>().returns.toEqualTypeOf<
+      Reply<ReceivedCommitQuery>
+    >()
+  })
+
+  it('describes one provider without adding requirements to old ports or fixtures', () => {
+    type Provider = AgentReceivedProvider<string, ContentBlock>
+    expectTypeOf<Provider['journal']>().toEqualTypeOf<AgentJournal<string>>()
+    expectTypeOf<Provider['entries']>().toEqualTypeOf<AgentJournalEntries<string>>()
+    expectTypeOf<Provider['materials']>().toEqualTypeOf<AgentMaterials<string, ContentBlock>>()
+    expectTypeOf<Provider['received']>().toEqualTypeOf<AgentReceivedCommits<
+      string,
+      ContentBlock
+    > | null>()
+    expectTypeOf<keyof AgentJournalEntries<string>>().toEqualTypeOf<'record'>()
+    expectTypeOf<
+      Extract<keyof AgentJournalEntriesFixture<string>, 'joint'>
+    >().toEqualTypeOf<never>()
+    expectTypeOf<
+      RequiredReceivedCommits<string, ContentBlock>['received']
+    >().toEqualTypeOf<'required'>()
   })
 })

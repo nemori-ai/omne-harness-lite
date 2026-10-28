@@ -7,9 +7,9 @@ import type {
   ModelConsumption,
   ModelDirectory,
   ModelHandle,
-  ModelProvider,
   Observation,
 } from '@omne-harness/model-contract'
+import type { ModelProvider } from '@omne-harness/model-contract/provider'
 import {
   checkModelProviderConformance,
   type ConformanceHooks,

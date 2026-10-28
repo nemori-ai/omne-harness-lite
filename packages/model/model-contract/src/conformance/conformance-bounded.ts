@@ -1,12 +1,8 @@
 // The view of a subject that the checks use: every step that waits on the subject is limited to
 // `waitMs`, so a provider method, a hook or a transport step that never returns ends the check as
 // a failure instead of ending the suite. A promise that cannot be cancelled is left alone.
-import type {
-  ModelProvider,
-  ModelRuntime,
-  PreparedTransport,
-  MaterializedTransport,
-} from '../index.ts'
+import type { ModelRuntime } from '../index.ts'
+import type { ModelProvider, PreparedTransport, MaterializedTransport } from '../provider/index.ts'
 import { within } from './conformance-kit.ts'
 import type {
   ConformanceHooks,

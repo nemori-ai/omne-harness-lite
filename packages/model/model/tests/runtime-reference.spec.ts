@@ -1,10 +1,9 @@
 import { expect, it, vi } from 'vitest'
+import { encodeModelInvocationRef, type ModelInvocationRef } from '@omne-harness/model-contract'
 import {
-  encodeModelInvocationRef,
   encodeModelOperationRef,
   resolveModelOperationRef,
-  type ModelInvocationRef,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { runtimeFixture } from './runtime-fixture.ts'
 import { settleRuntime, partialParts } from './runtime-consumption-fixture.ts'
 import { identity, op, proof, unbox } from './memory-fixture.ts'

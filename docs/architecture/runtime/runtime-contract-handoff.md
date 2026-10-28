@@ -58,7 +58,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。摘要怎样成为 Session 的品牌值归 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)。
 
-`create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)）。
+`create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，`workspaceAttachment` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)）。
 
 #### 登录到 `Access`
 
@@ -87,18 +87,18 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 - 成功业务访问报告：服务端接入在业务成功后报告（[J53](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)），形状归 identity ID-11，尚未定义。定义之前不报告，会话操作不刷新空闲计时。
 - `startRun` 时再核登录是否仍有效：需要 identity 按 `login` 读有效性，该读口尚未定义。在它就绪之前，登录在受理之后被撤销，已受理的输入仍可能开 Run。
 - Session 对被拒的受理是否在原操作身份下留痕：Session SPEC 变更操作次序写「任一步失败不提交」，命令表写「拒绝时只有 SE12」。前者成立时 `query-send-input` 的 `succeeded` 只表示受理已提交；两处由 Session 拥有者统一。
-- 观察推送与业务控制分开，观察取消不是业务控制。观察脱离与重附着由 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 给出候选归属，见下节；重连不得靠目录为空重发原 Model 或 Tool 调用。
+- 观察推送与业务控制分开，观察取消不是业务控制。观察脱离与重附着由 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 给出归属，见下节。重连不得靠目录为空重发原 Model 或 Tool 调用。
 - 宿主身份、启停与归属、状态目录、重复启动、资源关闭和未知结果，模型准备、选择与切换分责，以及旧实例与数据调查归 [#803](https://github.com/nemori-ai/omne-harness-lite/issues/803)。宿主计划换代先业务交接再撤插件；意外退出保留原身份与结果责任。这些现行约束不因拆卡改变。
 
-#### 观察脱离与重附着候选
+#### 观察脱离与重附着
 
-[#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 候选由公开接入 `server-entry` 承担观察组合，须 PanQiWei 本人接受固定修订。完整边界归[接入行为规格](../../../packages/access/server-entry/SPEC.md#观察脱离与重附着候选746)，取舍归[接入内部设计](../../../packages/access/server-entry/docs/internals.md#观察接入的责任选择候选)。本节不增加公开接口，也不声明已有运行实现。
+[#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 由公开接入 `server-entry` 承担观察组合，已由 PanQiWei [接受](https://github.com/nemori-ai/omne-harness-lite/issues/746#issuecomment-6443957269)。完整边界归[接入行为规格](../../../packages/access/server-entry/SPEC.md#观察脱离与重附着746)，取舍归[接入内部设计](../../../packages/access/server-entry/docs/internals.md#观察接入的责任选择)。公开观察操作归公开契约的[会话观察](../../../packages/access/public-contract/SPEC.md#会话观察)。本节不声明已有运行实现。
 
-接入在当前身份与租户边界下，从 Session 的公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。Agent 不在重附着链路，`stream-reference` 仅作首次挂接缓存。Session 只供日志事实，Model 只供权威调用状态与当前目标，各受保护端口分别核权。
+接入在当前身份与租户边界下，从 Session 的公开日志读面取得稳定 `ModelInvocationRef`，携带观察者自己的 `Access` 查询 Model `current`，再向目标生产者先取快照、后观察增量。Agent 不在重附着链路，会话日志不保存瞬时流引用。Session 只供日志事实，Model 只供权威调用状态与当前目标，各受保护端口分别核权。
 
-`current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理；策略参数待后继明确。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。接入串行查询或只应用最新已发请求的响应，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
+`current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理，策略参数见[刷新策略与资源](../../../packages/access/server-entry/SPEC.md#刷新策略与资源)。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。观察路径串行查询，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
 
-Session 日志读面的引用定位能力若有缺项，交 Session 拥有者；公开订阅形状、连接寿命与传输细节交 public-contract 拥有者。本候选不改写两者契约。#789 消费候选观察通道，#790 H3 负责观察连续的组合运行证据。
+Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](../../../packages/session/session-contract/SPEC.md#稳定调用引用的读取)。公开订阅形状、连接寿命与传输细节见公开契约的[会话观察](../../../packages/access/public-contract/SPEC.md#会话观察)。[#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 消费这条观察通道，[#790](https://github.com/nemori-ai/omne-harness-lite/issues/790) H3 负责观察连续的组合运行证据。
 
 ## 仍需补齐的业务增量
 

@@ -1,16 +1,15 @@
 import { expectTypeOf, it } from 'vitest'
 import type { Modality } from '@omne-harness/modality'
+import type { ConversionResult, ConvertedContent } from '@omne-harness/model-contract'
 import type {
   ConversionFailure,
   ConversionReply,
-  ConversionResult,
-  ConvertedContent,
   ConverterKey,
   ConverterLookup,
   ModelConverter,
   ModelConverterCatalog,
   ModelMessageConversion,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { adoption, block, evidence } from './values.ts'
 
 const converted: ConvertedContent = {

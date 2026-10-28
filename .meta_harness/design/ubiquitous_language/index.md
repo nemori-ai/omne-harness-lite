@@ -60,6 +60,7 @@
 | [UL-source-layer](terms/scope-and-resolution.md#ul-source-layer--来源层--source-layer) | 来源层 | Source Layer | 资产归属层序上的一格：官方、组织、租户或工作区；**不是作用域层**，Tool 登记键的一个分量 |
 | [UL-workspace](terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 工作区 | Workspace | 带身份、跨会话持续的完整资源聚合包；Host 有治理所有者，登记外部仓库均为参与者，可有多个地址与实例 |
 | [UL-workspace-instance](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 工作区实例 | Workspace Instance | 工作区在部署节点上的装载结果，供会话和 agent 工作；同一工作区可有多个 |
+| [UL-workspace-attachment](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment) | 工作区附着 | Workspace Attachment | 工作区在某部署节点上一次装载的引用：实例标识与装载依据；**不是附件，不许简称 attachment** |
 | [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址；有提供者类型，不是工作区身份或访问凭据 |
 | [UL-workspace-category](terms/scope-and-resolution.md#ul-workspace-category--工作区类别--workspace-category) | 工作区类别 | Workspace Category | 工作区的资源与治理语义类别，不等于地址提供者 |
 | [UL-workspace-address-provider](terms/scope-and-resolution.md#ul-workspace-address-provider--工作区地址提供者--workspace-address-provider) | 工作区地址提供者 | Workspace Address Provider | 提供地址的 Omne Host、GitHub、Obsidian、Office 365 等外部系统或宿主类型 |

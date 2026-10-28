@@ -11,13 +11,11 @@ import type {
   ModelCallId,
   ModelInstanceId,
   ModelOperationId,
-  ModelProvider,
-  ModelTransport,
   ResultCapacity,
   Supplier,
   Termination,
-  TransportFact,
 } from '../index.ts'
+import type { ModelProvider, ModelTransport, TransportFact } from '../provider/index.ts'
 
 /** A call of one tenant. */
 export type ConformanceCall = Readonly<{ tenant: TenantId; call: ModelCallId }>

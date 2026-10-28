@@ -3,7 +3,6 @@ import { encodedBytes, MAX_TERMINATION_BYTES } from './pages.ts'
 import { checkedOutcome, checkedEvidence } from './value.ts'
 import { decodeDispatchId } from '@omne-harness/model-contract'
 import type {
-  ModelCommands,
   FixedModelRequest,
   MaterializationReceipt,
   Supplier,
@@ -12,8 +11,8 @@ import type {
   ModelFailure,
   Revision,
   Snapshot,
-  WriteContext,
 } from '@omne-harness/model-contract'
+import type { ModelCommands, WriteContext } from '@omne-harness/model-contract/provider'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { isReplayTag } from '@omne-harness/message'
 import { accountFact, completionOf, reduceFacts } from './arrival.ts'

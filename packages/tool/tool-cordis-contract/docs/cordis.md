@@ -113,7 +113,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, shape }>, unavailable>`，分页，不返回正文，与 Session 契约的 `references` 形状一致；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
 | toolResidencyActions | `freeze({ session, cause: 'tool-shape-lost', evidence })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`，与 Session 契约的 `freeze` 同形：`session` 是会话引用，租户由 Session 按会话目录取得；幂等，会话已冻结时返回原回执。它代表该会话的租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
 
-协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。
+协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。`toolResidencyReader` 的提供者撤除时尚未返回的读取由它的撤除路径结算为 `unavailable`。协调者按引用不可读处理：`reopen(key)` 并返回 `retained`。协调者重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen`，再按 `unload` 的顺序从 `close(key)` 与引用核对重新开始，不跳过保留义务。
 
 `unload` 与 `sweep` 是系统作用域操作。冻结判定只在采用点由 `planAdoption` 产出，交付路径见契约的[采用点判定](../../tool-contract/SPEC.md#采用点判定)。
 
@@ -153,6 +153,23 @@ Tool 门面只把 Commands/Reads 作为持久操作的静态必需依赖。Catal
 每个实际插件的inject使用定义键常量数组字面量。局部阶段适配器由本域提供者实现，方法在所需子fiber内取能力，等待依赖与业务等人分开；阶段结束释放该子fiber。公开纯工厂不接收Cordis Context，适配器负责把阶段失败变为根契约的精确结果。服务换代不能把旧在途对象悄悄换成新对象。
 
 `programmable` 属于每个工具的定义，`invocation` 属于每次调用的固定输入，两者都不是 ToolConfiguration 或 Cordis 插件配置。toolBindings 保留合法定义上的原声明，toolCommands 的准入适配器核验可信调用来源及当前许可。脚本桥接只暴露经该准入边界的窄调用能力，不向脚本注入 ToolCommands、executor、来源签发能力或 Cordis Context。外部脚本环境及动作桥接方接入时也须兑现此边界，具体提供者未验证前不能声称防绕过已成立。
+
+## 两个动态服务键的 IC-6 映射
+
+本节是 [#802](https://github.com/nemori-ai/omne-harness-lite/issues/802) 的规则映射候选，尚待 PanQiWei 或其授权的 M1.5 reduce 会话接受，见[接受权限](https://github.com/nemori-ai/omne-harness-lite/issues/802#issuecomment-6450209047)。它只说明既有服务职责怎样受 [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 约束，不选择具体提供者或 isolate 拓扑。[#618 的接受](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)明确不含这两个新服务键的 IC-6 评审，本节不改变该历史接受范围。
+
+两个服务定义均由本成员 `./cordis` 唯一维护，具体提供者由应用装配选择。它们按各自承担的操作形成两个接缝，不能只因键名不同就推定责任独立。
+
+| 服务键 | 既有职责与生命周期拥有者 | IC-6 的适用范围及验证边界 |
+| --- | --- | --- |
+| `toolContributionAuthority` | 核验贡献的 `ToolAuthority` 来源与来源层，并核登记资格。绑定登记消费它，见[绑定登记表的登记输入](#绑定登记表的登记输入)与[依赖与定义拥有者](#依赖与定义拥有者)。权威内容由原来源拥有者维护，提供者适配该来源 | 同一 isolate 标签下，这个来源核验与登记资格接缝只有一个提供者在场。多个来源层是业务输入，不据此推定多个服务提供者。具体来源适配器、装配可见范围及替换证据仍由 Tool 提供者与应用装配交付 |
+| `toolGenerations` | Tool 宿主的换代协调接缝，唯一持有作者插件的 `ctx.plugin` 句柄。`ensureLoaded`、`unload`、`sweep` 及保留义务归[换代协调者契约](#换代协调者契约)，作者贡献的排空与撤除由它协调 | 同一 isolate 标签下，这个协调接缝只有一个提供者在场。具体宿主的提供者选择、换代时旧责任的交接及消费者可见范围仍待提供者和装配验证，不能由三动词的定义推定已经合规 |
+
+若同一接缝需要两份提供者并存，按 IC-6 分到不同 isolate 标签，并由装配拥有者的行为规格写明谁看见哪一份。这里不新增标签划分，也不指定多个宿主之间的拓扑。提供者替换仍须遵守[配置、通知和撤除](#配置通知和撤除)中的原绑定、排空及外部效果边界，装载新提供者不能代替原责任交接。
+
+作者工具贡献和这两个基础服务接缝分别判断。新旧资产版本的贡献登记在 `toolBindings` 的不同键下，作者实现不各自提供这两个键。它们并存不等于同一接缝有两个提供者，见 [RFC-0012 的实质备选](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#实质备选)对“新旧实现分 isolate 并存”的取舍。
+
+本节没有服务图、实际提供者选择或换代测试的运行证据。当前页首所列“提供者尚未交付”仍有效。后续验证由具体 Tool 提供者与应用装配在其交付范围内承担，不能用本节或本包的服务定义测试声称真实组合已满足 IC-6。
 
 ## 配置、通知和撤除
 

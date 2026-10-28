@@ -66,7 +66,7 @@ registry 的 `parent` 是投影，取值为 `main` 或上游轨道的名称。`i
 ```mermaid
 flowchart TD
   main["main"] --> LR["integration/legacy-refactor<br/>联调轨道"]
-  main -.-> ET["integration/engineering-toolchain<br/>paused"]
+  main --> ET["integration/engineering-toolchain<br/>paused"]
   LR -->|"从收口点切出"| B1["线 1 的批次分支<br/>个人分支"]
   LR -->|"从收口点切出"| BN["线 N 的批次分支<br/>个人分支"]
   B1 -->|"批次 PR"| LR
@@ -83,7 +83,7 @@ flowchart TD
 
 - 表列出每条线的 ID、名称、owner、线轨道、拥有的路径与契约成员，联调轨道拥有的路径，以及共享路径 `shared`。共享路径不计入归属：其中的路径仍按各线与联调轨道的路径判定归属，任何卡只可在其中写入由本卡其他改动生成或登记的变化，写法见[交付协议](delivery.md#卡属性与合法组合)。
 - 路径按目录前缀匹配。每个工作区成员恰好属于一条线或联调轨道。表中没有列出的路径归联调轨道。
-- 本线的目标轨道是本线的卡进入的轨道。本页不建线轨道，所以每条线的 `track` 都是 `null`，目标轨道都是联调轨道。表保留 `track` 字段：将来改变这一条时，改本页，并在同一个 PR 中把 `track` 改为 registry 中以联调轨道为上游的轨道 ID。registry 拥有轨道的状态、owner 与上游，本表只拥有归属，两者不重复。
+- 本线的目标轨道是本线的卡进入的轨道。本页不建线轨道，所以每条线的 `track` 都是 `null`，目标轨道都是联调轨道。表保留 `track` 字段：将来改变这一条时，改本页，并在同一个 PR 中把 `track` 改为 registry 中以联调轨道为上游的轨道 ID。registry 登记轨道的状态、轨道负责人（`tracks[].owner`）与上游；线归属表登记交付线负责人（`lines[].owner`）、路径与契约成员归属。两类 owner 属于不同对象，不能因负责人相同而合并。
 - 改变线的划分或归属由负责人决定，改动经 PR 进入联调轨道。
 - 契约成员由 `contracts` 列出。common 共享包按主要改动方归入各线，并列为契约成员，所以线内的卡对它们只做可加改动。
 
@@ -108,11 +108,13 @@ flowchart TD
 
 ## 里程碑与契约基线
 
-里程碑是一段交付期，用 GitHub Milestone 表达。负责人创建 Milestone 并在描述中写明范围与结束标志，里程碑即开始；关闭 Milestone 即里程碑结束。卡所属的里程碑是 Issue 的 milestone 字段，由调度者设置。调度者可以把里程碑镜像到 Project 的 Iteration；镜像不改变 Milestone 的权威，也不取代[当前迭代](agent-delivery.md#2-建卡或修订卡)的节奏规则。契约成员由[线归属表](delivery-lines.json)的 `contracts` 列出。
+里程碑是一段交付期，用 GitHub Milestone 表达。负责人创建 Milestone 并在描述中写明范围与结束标志，里程碑即开始；关闭 Milestone 即里程碑结束。卡所属的里程碑是 Issue 的 milestone 字段，由调度者设置。Project 的 Wave 字段记录卡所属的波，不镜像里程碑。Milestone 仍由 Issue 字段拥有，Wave 的节奏沿[当前迭代](agent-delivery.md#2-建卡或修订卡)。契约成员由[线归属表](delivery-lines.json)的 `contracts` 列出。
 
 ### 可加改动
 
-构造一个值的一方是写方，读取它的一方是读方。一个契约类型的写方包括它的每个提供者与替身。消费者传入的回调，参数由提供者写、消费者读，返回值由消费者写、提供者读。可加改动是不破坏任何已有写方或读方的改动，按下表判断：
+构造一个值的一方是写方，读取它的一方是读方。一个契约类型的写方包括它的每个提供者与替身。消费者传入的回调，参数由提供者写、消费者读，返回值由消费者写、提供者读。可加改动是不破坏任何已有写方或读方的改动。卡级按本卡 `taskBase` 到候选 head 的改动判断；里程碑级按[已登记基线](#里程碑内的规则)到候选 head 的累计改动核对。
+
+下表列出常见形状，不穷举。未列出的改动也按是否破坏任一既有写方或读方判断：
 
 | 改动 | 对写方 | 对读方 |
 | --- | --- | --- |
@@ -129,10 +131,14 @@ flowchart TD
 
 ### 里程碑内的规则
 
-1. 里程碑开始后，联调轨道上一张性质为 `baseline` 的卡在卡的评论中登记本里程碑的基线，再派发本里程碑的其他卡：一个联调轨道上的基线提交，以及该提交上线归属表 `contracts` 列出的契约成员。契约成员有 API 快照时，基线同时登记快照摘要。可加与破坏按相对基线提交的改动判断。
-2. 线内的卡对契约成员只做可加改动。
-3. 破坏性改动由联调轨道上性质为 `integration` 的卡完成。这张卡在一次交付里修改提供者、同步全部消费者并删除旧形状，与[完整集成](#完整集成)的要求一致。改动完成后，这张卡在 baseline 卡上补登记受影响契约成员的新基线提交。
-4. 消费者分布在多条并行的线、无法在一次交付里同步时，负责人可以在承接的 `integration` 卡上明确要求分步迁移：提供者所在的线先加新形状，各消费者所在的线分别迁移，最后由这张卡删除旧形状。这项明确要求就是[当前演进政策](publication.md#当前演进与消费者)允许新旧形状并存的依据。旧形状在里程碑结束前删除；没有删除时，承接卡不接受，负责人不关闭 Milestone。
+1. 里程碑起点，联调轨道上一张性质为 `baseline` 的卡在评论中登记本里程碑的基线，再派发其他卡。登记包括联调轨道上的基线提交，以及该提交上线归属表 `contracts` 列出的契约成员；成员有 API 快照时，同时登记快照摘要。每次收口与 reduce 只推进代码收口点，不重建契约基线。之后的破坏性改动只补登记受影响成员，其他成员继续沿用原基线。集成节点以各成员已登记的基线提交为参照，用 `contract:api` 快照核对累计变化；累计为 breaking 的改动必须对应一张已登记的 `integration` 卡。API 快照反映公开形状，不能替代完整行为兼容性的核对。
+2. 线内的卡对契约成员只做可加改动，卡级比较范围是本卡 `taskBase` 到候选 head。自 M2 起，非重构型里程碑内只允许可加改动。里程碑类型取 Milestone 描述，唯一源见[交付协议第 4 条](delivery.md#契约变更与里程碑类型)。
+3. 不得不做破坏性改动时，执行者先停止依赖该改动的工作，调度者置 Needs decision，由人拍板，具体责任见[交付协议](delivery.md#契约变更与里程碑类型)。裁定同意后分两阶段执行：
+   - 原线内卡只做兼容开发，新旧形状共存，契约变更仍为 `none` 或 `additive`。这项裁定是[当前演进政策](publication.md#当前演进与消费者)允许新旧形状暂时共存的依据。
+   - reduce 时，由联调轨道上一张性质为 `integration` 的卡一次切换提供者、同步全部消费者并删除旧形状，见[完整集成](#完整集成)。完成后在 baseline 卡上只补登记受影响成员的新基线提交。旧形状未删除时，承接卡不接受，负责人不关闭 Milestone。
+4. 基线登记后才加入的契约成员，首次入轨的卡将它申报为 `additive`；baseline 卡补登记该成员的首份 API 快照。
+5. 没设里程碑的卡由 `start` 拒绝，沿用[字段总表后的开工规则](delivery.md#字段总表)，不另设例外。
+6. 本规则登记前已派发的在途卡，仍按本卡 `taskBase` 到候选 head 申报卡级「契约变化」，不追溯修改派发。
 
 ## 进轨道 PR 的说明
 
@@ -146,7 +152,11 @@ flowchart TD
 - <契约成员在线归属表中的路径>：<none、additive 或 breaking>。additive 写新增的导出或字段；breaking 写承接它的卡
 ```
 
-「所含的卡」的行格式照录 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」，以它为准。PR 没有改动契约成员时，「契约变化」一节写「无」。第一阶段由确认者核对：「所含的卡」与 PR 实际带入的卡一致；「契约变化」中每一项的级别不超过所含卡的契约变更；breaking 只出现在进入联调轨道或 main 的 PR 中。
+「所含的卡」的行格式照录 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」，以它为准。PR 没有改动契约成员时，「契约变化」一节写「无」。第一阶段由确认者核对：「所含的卡」与 PR 实际带入的卡一致；每张卡的契约变化按本卡 `taskBase` 到候选 head 判断。
+
+多卡 PR 按每个契约成员汇总所含卡对它的变化，按 `none < additive < breaking` 取最高级别，不相互抵消；每张卡对成员的级别仍不超过这张卡的契约变更。breaking 只出现在进入联调轨道或 main 的 PR 中。
+
+里程碑累计核对仍以各成员已登记的基线提交为参照，见[里程碑内的规则](#里程碑内的规则)，不以 PR 的卡级申报代替。
 
 ## 完整集成
 
@@ -263,6 +273,12 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 - 卡在线内顺序合入批次，批次承载本线本波结果。ready、blocked、failed 都必须交出明确结果；零差异不造空 PR。
 - 交出登记、实际合入、本波接受和整波放行分别读回。Action 成功、PR ready、单卡接受和队列暂空都不能代替其中任何一步。
 
+### 线会话记录
+
+线父卡承载 `line-delta` 与 `line-state`。Reduce 发布连续 delta，Line 只在开工或有效 release 后消费并写回 state。工具核对作者权限、binding、修订、前项与引用闭包；普通评论和 HTML 标记不能授予放行。记录格式和读写命令归[交付工具](../../tools/dev-flow/src/delivery/README.md)，状态与恢复规则归[负责人状态](map-reduce-states.md)。
+
+delta 传达已登记事实，不登记 attempt，也不改写在途卡的 taskBase。state 保存已消费位置及恢复所需事实。恢复时先核对当前执行、写权与可信 state，再按序补读，不能在波内逐卡吸收新的输入。技能与信息包消费上述唯一协议，不另立记录格式。
+
 ### 不变量
 
 1. 波内输入冻结。Line 不读取别线未集成产出，不主动升级工具、技能或策略。
@@ -286,7 +302,7 @@ ready 登记后等当前 R(w) 的有效 release。blocked/failed 登记后先等
 
 1. 准备当前正式波及 R(w)，只预规划后一波，不预建更远卡。核对已接受依据、基线、写集求交、消费者影响、参加交付和全部存续线清单、期限、两宿主角色策略及接收资源。
 2. 持续接收 ready/blocked/failed，完整分页对账并按状态规则选下一可处理项。只读 next 不取得写权。通过 claim 读回 owner/epoch 后接管一个请求，保留原始 head、候选 head、targetBase 和 merge 链。
-3. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，持续收件。候选或基线变动后重做受影响验证与独立评审。按既有权限发 gate，绑定精确 workflow/ref/head/runId/runAttempt。需要审批时交有权者，监督器不自动批准。以实际 PR/轨道读回记录 merged，回退使原结果重新未解决。
+3. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，持续收件。同步后先生成宿主投影并运行 `check:agents`。候选或基线变动后重做受影响验证与独立评审。按既有权限发 gate，绑定精确 workflow/ref/head/runId/runAttempt。需要审批时交有权者，监督器不自动批准。以实际 PR/轨道读回记录 merged，回退使原结果重新未解决。
 4. 全部预期项有效解决后验证整体成果，确定最终 F。任一 pending、未知副作用、未解决失败或失效证据都阻止收口。检查失败由 reduce 处置；不把失败标红后仍当成功放行。
 5. 按下文固定顺序物化后继、发布所有存续线 delta、有权接受、最终 release、关闭。轨道提升和 stable 权限仍沿本页原规则。
 
@@ -341,12 +357,14 @@ Reduce 向人提设计或方案问题前先检查：是否当前里程碑所必�
 
 Project 可由原单投影写者维护可选 Integration target 与 Integration progress 视图，来源为 Issue 的声明和实际 Git unit/checkpoint。视图只报告 declared/observed 及 unknown/inconsistent，不能作第二可编辑队列、改变 Stage 或产生 Accepted/Closes。未配置真实字段时不造字段 ID。
 
-dev-flow 对平台的写入限于下面四项：
+dev-flow 对平台的写入限于下列范围：
 
+- 派发记录：`dispatch-cli` 写派发评论与卡正文中的 binding。
 - 标签同步：只增删一张卡的 `line:`、`nature:`、`contract:` 三族标签。
-- 看板日期与 Line 字段：`start` 新建 task context 后尽力写 Dispatched at 与 Line。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
+- 看板日期与属性字段：`start` 新建 task context 后尽力写 Dispatched at、Line、Kind 与 Wave。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
 - Stage：`board-cli.ts` 的 `delivered`、`integrating`、`accepted` 按本地路径把 Stage 改为 In review、Integrating、Accepted。运行者见[交付操作](agent-delivery.md#4-推进和更新状态)。
 - 里程碑流转：`milestone-cli.ts` 建里程碑，改卡的里程碑并发流转评论。
+- 部署批准：`gate-cli wait` 按运行者已有权限与本次授权批准 gate 的部署，命令不授予确认资格。
 
 此外，云端会话开工时，`start` 派发 `delivery-facts`。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
 

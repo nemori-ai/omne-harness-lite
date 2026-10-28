@@ -68,6 +68,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'shapeOf',
     'succeeded',
     'testingTenant',
+    'testingWorkspace',
     'userMessage',
   ])
 })

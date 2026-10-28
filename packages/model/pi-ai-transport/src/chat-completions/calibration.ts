@@ -7,10 +7,10 @@
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
 import type {
   AnchorMiss,
-  MeterCalibration,
   MeterRepresentation,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type { MeterCalibration } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ChatMessageId } from './vocabulary.ts'
 

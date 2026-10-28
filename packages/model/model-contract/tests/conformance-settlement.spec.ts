@@ -2,9 +2,9 @@ import { referenceParts } from './reference-input.ts'
 import {
   decodeModelCallId,
   decodeModelOperationId,
-  decodeReadId,
   decodeResultVersion,
 } from '@omne-harness/model-contract'
+import { decodeReadId } from '@omne-harness/model-contract/provider'
 import type {
   AckInput,
   AckReceipt,

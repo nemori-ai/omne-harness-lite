@@ -1,10 +1,10 @@
 import { Tiktoken } from 'js-tiktoken/lite'
+import type { TokenizerDefinition } from '@omne-harness/model-contract'
 import type {
   ModelTextTokenizer,
   TokenizationFailure,
   TokenizationSegment,
-  TokenizerDefinition,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { ranksDigest, resourceDigest, ResourceShapeError } from './digest.ts'
 import { installedEngineVersion } from './engine-version.ts'

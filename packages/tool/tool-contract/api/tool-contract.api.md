@@ -111,7 +111,6 @@
 - `WaitIntent` · `records.d.ts`
 - `WaitRecord` · `records.d.ts`
 - `WaitState` · `results.d.ts`
-- `WorkspaceId` · `definitions.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
 - `decodeToolOperationId` · `identity.d.ts`
 - `encodeToolInvocationRef` · `reference.d.ts`
@@ -369,6 +368,7 @@
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
 - `testingTenant` · `testing-values.d.ts`
+- `testingWorkspace` · `testing-values.d.ts`
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolDecisionBridgeConformance` · `testing-decision-bridge.d.ts`
 - `toolEnvironmentConformance` · `testing-environment.d.ts`
@@ -1008,7 +1008,7 @@ export interface ToolOffloader<P, B extends ContentBlock> {
 
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
-import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
+import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { SchemaRef } from '@omne-harness/schema-provider';
 import type { ToolDeclarations } from './authoring.ts';
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts';
@@ -1086,10 +1086,6 @@ export type ToolDefinition = Readonly<{
     programmable?: boolean;
     declarations: ToolDeclarations;
 }> & ToolImplementationShape;
-declare const workspaceIdBrand: unique symbol;
-export type WorkspaceId = string & {
-    readonly [workspaceIdBrand]: true;
-};
 export type SourceLayer = Readonly<{
     kind: 'official';
 }> | Readonly<{
@@ -1133,7 +1129,7 @@ export type FixedToolRequest = Readonly<{
     arguments: ToolArguments;
     settings: Adoption;
     context: Adoption;
-    workspace: Adoption | null;
+    workspace: WorkspaceId | null;
     environment: Adoption;
     resources: readonly Adoption[];
     scope: ResourceScope;
@@ -1146,7 +1142,6 @@ export type FixedToolRequest = Readonly<{
         backgroundAfterMs: number | null;
     }>;
 }>;
-export {};
 ```
 
 ## 声明文件 `dynamics.d.ts`
@@ -1533,7 +1528,7 @@ export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationParts, ToolInvocationRef, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, WorkspaceId, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -3993,7 +3988,7 @@ export {};
 
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
-import { type TenantId } from '@omne-harness/legal-identity';
+import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { FixedToolRequest } from './definitions.ts';
 import { type Access, type Adoption, type DurableEvidence, type ToolCallId, type ToolInstanceId, type ToolOperationId, type ToolWaitId } from './identity.ts';
 import type { ToolStartRecord } from './ports.ts';
@@ -4007,6 +4002,7 @@ export declare function mintEvidence(record: string, content: unknown): DurableE
 export declare function tenantKey(tenant: TenantId): string;
 export declare function identifyingValues(tenant: TenantId, ...evidences: readonly DurableEvidence[]): readonly unknown[];
 export declare function testingTenant(organization: string, account: string): TenantId;
+export declare function testingWorkspace(text: string): WorkspaceId;
 export declare function memoryAccess<P>(principal: P): Access<P>;
 export declare function memoryOtherAccess<P>(principal: P): Access<P>;
 export declare const callId: (text: string) => ToolCallId;
@@ -4047,16 +4043,18 @@ export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCu
 export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockConformance, type MemoryToolClock, type ToolClockFixture, } from './testing-clock.ts';
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
-export { testingTenant } from './testing-values.ts';
+export { testingTenant, testingWorkspace } from './testing-values.ts';
 ```
 
 ## 声明文件 `value-shapes.d.ts`
 
 ```ts
 import { type ContentReference } from '@omne-harness/content-block';
+import type { WorkspaceId } from '@omne-harness/legal-identity';
 import type { SourceLayer, ToolSchemaIdentity } from './definitions.ts';
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts';
 import { type Check } from './shape.ts';
+export declare const workspaceId: Check<WorkspaceId>;
 export declare const sourceLayer: Check<SourceLayer>;
 export declare const adoption: Check<Adoption>;
 export declare const durableEvidence: Check<DurableEvidence>;

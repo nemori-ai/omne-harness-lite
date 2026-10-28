@@ -118,9 +118,15 @@ interface Queued {
   readonly stdout: () => string
   readonly stderr: () => string
   readonly exited: Promise<number | null>
-  /** 等到标准错误里出现 `text`；进程先退出则失败。 */
-  readonly until: (text: string) => Promise<void>
+  /**
+   * 等到标准错误里出现 `text`（字符串或正则）；进程先退出、或等了 `UNTIL_LIMIT_MS` 还没出现则失败。
+   * 脚本一次报告分几次写出（位置一行、每个占用者一行），父进程可能分几次收到：要断言哪一行，就等哪一行。
+   */
+  readonly until: (text: string | RegExp) => Promise<void>
 }
+
+/** `until` 最多等多久：比用例时限短，超时时报出已收到的输出，而不是只报用例超时。 */
+const UNTIL_LIMIT_MS = 20_000
 
 /** 在后台经名额执行命令，边跑边收集输出；默认每秒看一次队列。 */
 function queue(args: readonly string[], env: Record<string, string> = {}): Queued {
@@ -147,8 +153,12 @@ function queue(args: readonly string[], env: Record<string, string> = {}): Queue
     stderr: () => stderr,
     exited,
     until: async text => {
-      while (!stderr.includes(text)) {
-        if (done) throw new Error(`进程已退出，没等到「${text}」：\n${stderr}`)
+      const deadline = Date.now() + UNTIL_LIMIT_MS
+      const seen = () => (typeof text === 'string' ? stderr.includes(text) : text.test(stderr))
+      while (!seen()) {
+        if (done) throw new Error(`进程已退出，没等到「${String(text)}」：\n${stderr}`)
+        if (Date.now() > deadline)
+          throw new Error(`等了 ${UNTIL_LIMIT_MS} 毫秒没等到「${String(text)}」：\n${stderr}`)
         await new Promise(tick => setTimeout(tick, 50))
       }
     },
@@ -417,20 +427,23 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
   })
 
   it('排队时报出前面还有几个、谁占着名额、占了多久，位置变了再报', async () => {
+    const heldBy = (name: string) =>
+      new RegExp(`名额 1/1 正由「env SLOT_TEST=${name} [^」]*」占着，已 \\d+ 秒`, 'u')
     const holder = await hold()
     const first = blocker('first')
     await first.queued.until('排队中')
+    // 占用者行在位置行之后另行写出：等它到了再断言（#737）。
+    await first.queued.until(heldBy('holder'))
     const second = queue(['true'])
     await second.until('排队中')
     expect(first.queued.stderr()).toContain('前面还有 0 个')
-    expect(first.queued.stderr()).toMatch(
-      /名额 1\/1 正由「env SLOT_TEST=holder [^」]*」占着，已 \d+ 秒/,
-    )
+    expect(first.queued.stderr()).toMatch(heldBy('holder'))
     expect(second.stderr()).toContain('前面还有 1 个')
     await holder.release()
     await first.started()
     await second.until('前面还有 0 个')
-    expect(second.stderr()).toMatch(/名额 1\/1 正由「env SLOT_TEST=first [^」]*」占着，已 \d+ 秒/)
+    await second.until(heldBy('first'))
+    expect(second.stderr()).toMatch(heldBy('first'))
     await first.release()
     expect(await second.exited).toBe(0)
   })

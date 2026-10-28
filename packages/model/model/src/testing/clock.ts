@@ -1,5 +1,5 @@
 import { compareInstants, parseInstant, type Instant } from '@omne-harness/utc-instant'
-import type { ModelClock } from '@omne-harness/model-contract'
+import type { ModelClock } from '@omne-harness/model-contract/provider'
 import { positiveLimit } from './value.ts'
 
 function instant(text: string): Instant {

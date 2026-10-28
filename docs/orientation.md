@@ -106,7 +106,7 @@ flowchart TB
 
 ### 核心四项的方向
 
-这张图只回答一个问题：Session、Agent、Model、Tool 与执行环境之间，源码可以依赖哪个方向，运行时结果送到哪里，哪些反向耦合被禁止。
+这张图只回答一个问题：Session、Agent、Model、Tool 与执行环境之间，源码可以依赖哪个方向，运行时结果送到哪里，哪些源码依赖被禁止。
 
 ```mermaid
 flowchart LR
@@ -128,19 +128,21 @@ flowchart LR
   tool --x|"DIR-TOOL-AGENT"| agent
   model --x|"DIR-MODEL-SESSION"| session
   tool --x|"DIR-TOOL-SESSION"| session
+  session --x|"DIR-SESSION-MODEL"| model
+  session --x|"DIR-SESSION-TOOL"| tool
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
   class session,agent,model loaded
-  linkStyle 7,8,9,10,11 stroke:#c62828,stroke-dasharray:4 3
+  linkStyle 7,8,9,10,11,12,13 stroke:#c62828,stroke-dasharray:4 3
 ```
 
 三种线的含义不同。
 
 - 实线是允许的源码依赖。外层认识内层，并且只用内层公开的契约。
 - 虚线是运行时交付。Model 和 Tool 按受理时保存的 `ConsumerRef` 交付结果。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存它，不解释它的业务含义。所以运行时有箭头，源码上没有 Model 到 Agent 的依赖。Agent 到 Session 的虚线是 session-adapters 的两个插件在运行时接收 Agent 的事件与提交参加。
-- 末端带叉、标着 `DIR-*` 的线是被禁止的反向依赖。契约层不得认识外层的状态、生命周期或治理。
+- 末端带叉、标着 `DIR-*` 的线是被禁止的源码依赖。前五条是反向依赖：契约层不得认识外层的状态、生命周期或治理。后两条（`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`）禁止 Session 的两个契约成员导入 Model 或 Tool 的契约成员，类型导入也算；session-adapters 与 session-cordis 不在其中，两者对 Model、Tool 的限制仍靠评审，见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。
 
-Session 与 Model、Tool 之间只画了禁止线。[会话与工作](domains/sessions-and-work/README.md#协作与依赖)写两者之间有两种关系：资格的参加，即 Session 是 Tool 启动围栏的资格版本拥有者；以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成。
+Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会话与工作](domains/sessions-and-work/README.md#协作与依赖)写两者之间有两种关系：资格的参加，即 Session 是 Tool 启动围栏的资格版本拥有者；以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成。
 
 | 状态 | 元素 |
 | --- | --- |
@@ -158,7 +160,7 @@ Session 与 Model、Tool 之间只画了禁止线。[会话与工作](domains/se
 出处如下。
 
 - 来源职责与禁止的反向耦合：[产品包组织](package-organization.md#依赖方向与cordis集成)「依赖方向与Cordis集成」。
-- 五条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`。
+- 九条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`，范围与未覆盖见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。本图只画核心四项之间的七条；public-contract、sdk 与公共流契约到 Model、Tool 的两条（`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`）不在本图。
 - 集成方认识被集成方：[系统分层](architecture/layers-and-dependencies.md#领域语义依赖与模型边界)「领域语义依赖与模型边界」。
 - Session 与 Model、Tool 的关系：[会话与工作](domains/sessions-and-work/README.md#协作与依赖)「协作与依赖」。
 - 服务键名与 Agent 到 Session 的运行时关系：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」；`toolEnvironments` 见 [Tool 的 Cordis 说明](../packages/tool/tool-cordis-contract/docs/cordis.md)。
@@ -166,7 +168,7 @@ Session 与 Model、Tool 之间只画了禁止线。[会话与工作](domains/se
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - 三条流表一行：[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)「三条流不逐块进会话日志」；[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)「流引用与自身事件」。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `115bd78b`（integration/legacy-refactor）；「九条方向约束」一项核对于 `eebb3cc77`。
 
 ## 顶层架构
 

@@ -32,11 +32,11 @@ pnpm --filter @omne-harness/dev-flow run ledger derive \
   --admission <主检出的 tmp/test-ledger> \
   --slots <名额账本 ledger.jsonl> \
   --board <Project 字段的导出文件 board.json> \
-  --milestone M1.5 \
+  --milestone "M1.5 契约与装配对齐架构" \
   --out docs/engineering/ledger/m1.5/
 ```
 
-`--capture` 与 `--out` 是必需选项，其他输入可以省略；省略的输入使对应的列缺失。捕获用 `delivery/cli.ts --live --save-capture` 生成，见[用法](../../../../tools/dev-flow/src/ledger/README.md#用法)。派生定义升版本后，集成节点用新版本和保留的原始输入重新运行同一命令，再与其他里程碑比较。
+`--milestone` 按里程碑的完整标题全等匹配（捕获里存的是完整标题）；标题不符时派生得到 0 张卡，命令仍退出 0，所以重算后先核对 stdout 的 `cards` 数。`--capture` 与 `--out` 是必需选项，其他输入可以省略；省略的输入使对应的列缺失。捕获用 `delivery/cli.ts --live --save-capture` 生成，见[用法](../../../../tools/dev-flow/src/ledger/README.md#用法)。派生定义升版本后，集成节点用新版本和保留的原始输入重新运行同一命令，再与其他里程碑比较。
 
 ## 版本 1 缺失的字段
 

@@ -1,7 +1,7 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and waits for
 // real connect timeouts and physical socket closure.
 import { IncomingMessage, type ServerResponse } from 'node:http'
-import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract'
+import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract/provider'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { NetworkInternals } from '../src/network.ts'
 import { network, settle, watch } from './support/exchange.ts'

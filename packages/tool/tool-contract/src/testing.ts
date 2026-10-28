@@ -100,4 +100,4 @@ export {
   type ToolResourceResponsesFixture,
 } from './testing-resource-responses.ts'
 
-export { testingTenant } from './testing-values.ts'
+export { testingTenant, testingWorkspace } from './testing-values.ts'

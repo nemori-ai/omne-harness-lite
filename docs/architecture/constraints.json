@@ -380,6 +380,38 @@
       "domains": ["session"],
       "status": "candidate",
       "source": "packages/session/session-adapters/SPEC.md"
+    },
+    {
+      "id": "packages/common/stream-arrival",
+      "paths": ["packages/common/stream-arrival/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": "packages/common/stream-arrival/README.md"
+    },
+    {
+      "id": "packages/access/public-contract",
+      "paths": ["packages/access/public-contract/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": "packages/access/public-contract/SPEC.md"
+    },
+    {
+      "id": "packages/access/sdk",
+      "paths": ["packages/access/sdk/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/access/sdk/SPEC.md"
+    },
+    {
+      "id": "packages/access/server-entry",
+      "paths": ["packages/access/server-entry/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/access/server-entry/SPEC.md"
     }
   ],
   "rules": [
@@ -410,6 +442,22 @@
     {
       "id": "IC-5",
       "source": "docs/architecture/cordis-integration-conventions.md"
+    },
+    {
+      "id": "H1-SESSION-FACTS",
+      "source": "docs/architecture/runtime/session-and-run.md#h1-session-facts"
+    },
+    {
+      "id": "H1-AGENT-REASSEMBLY",
+      "source": "docs/architecture/runtime/agent-runtime.md#h1-agent-reassembly"
+    },
+    {
+      "id": "H1-MODEL-LIFETIME",
+      "source": "docs/architecture/runtime/model-runtime.md#h1-model-lifetime"
+    },
+    {
+      "id": "H1-OBSERVATION-CONTINUITY",
+      "source": "docs/architecture/runtime/streaming-and-consumption.md#h1-observation-continuity"
     }
   ],
   "directions": [
@@ -441,6 +489,30 @@
       "id": "DIR-TOOL-AGENT",
       "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-SESSION-MODEL",
+      "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-SESSION-TOOL",
+      "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-ACCESS-MODEL",
+      "from": ["packages/access/public-contract", "packages/access/sdk", "packages/common/stream-arrival"],
+      "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-ACCESS-TOOL",
+      "from": ["packages/access/public-contract", "packages/access/sdk", "packages/common/stream-arrival"],
+      "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "source": "docs/package-organization.md#依赖方向与cordis集成"
     }
   ]

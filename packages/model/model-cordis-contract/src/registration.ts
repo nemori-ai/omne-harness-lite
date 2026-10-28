@@ -1,12 +1,11 @@
 // Registration types that the root entry declares and `./cordis` re-exports. They have no Cordis
 // dependency, so a consumer can name them without installing the framework.
+import type { Adoption, DurableEvidence } from '@omne-harness/model-contract'
 import type {
-  Adoption,
   ConverterKey,
-  DurableEvidence,
   ModelConverter,
   ModelInstanceHost,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 
 export type ModelRegistrationFailure =

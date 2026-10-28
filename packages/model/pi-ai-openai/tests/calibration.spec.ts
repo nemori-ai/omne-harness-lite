@@ -18,10 +18,10 @@ import {
   type ModelFailure,
   type ModelInputMeter,
   type ModelPreparationLease,
-  type ModelTextTokenizer,
   type PreparationLineage,
   type RequestBudget,
 } from '@omne-harness/model-contract'
+import { type ModelTextTokenizer } from '@omne-harness/model-contract/provider'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import type { Outcome } from '@omne-harness/operation-result'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'

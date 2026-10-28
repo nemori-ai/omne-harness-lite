@@ -7,7 +7,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  judgeFixedModelRequest,
   type DispatchRecord,
   type FixedModelRequest,
   type ModelBlock,
@@ -15,6 +14,7 @@ import {
   type ParameterAdoption,
   type ResultPart,
 } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer } from './https-server.ts'

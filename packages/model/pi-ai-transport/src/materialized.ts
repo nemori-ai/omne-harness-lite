@@ -3,14 +3,16 @@
 import type {
   FixedModelRequest,
   MaterializationReceipt,
-  MaterializedTransport,
-  ProviderDiagnostic,
   ReplayDeclaration,
   Supplier,
-  TransportDispatch,
-  TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
+import type {
+  MaterializedTransport,
+  ProviderDiagnostic,
+  TransportDispatch,
+  TransportFact,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ConnectionReservation } from './capacity.ts'
 import type { CheckedConfig, CheckedRoute } from './config.ts'

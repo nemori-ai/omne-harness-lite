@@ -3,14 +3,13 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeModelOperationId,
   decodeOutputCursor,
-  decodeReadId,
   decodeResultVersion,
   decodeRevision,
-  type ActorRef,
   type DurableEvidence,
   type ModelFailure,
   type Revision,
 } from '@omne-harness/model-contract'
+import { decodeReadId, type ActorRef } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 
 export function take<T, F>(result: Outcome<T, F>): T {

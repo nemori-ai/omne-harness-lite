@@ -1,4 +1,4 @@
-import type { ModelConverter } from '@omne-harness/model-contract'
+import type { ModelConverter } from '@omne-harness/model-contract/provider'
 import { expect, it } from 'vitest'
 import {
   converter,

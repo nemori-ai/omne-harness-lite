@@ -3,9 +3,20 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 193 个类型和 34 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 14 个名字，以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 16 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出三个入口的名字，没有 `pending` 名字。
+公开名字分根入口与 `./provider` 两个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出 121 个类型和 20 个运行值：身份解码函数与常量、`compareOutputCursors`、调用引用的 codec、`deriveGuardControlOperation`、`judgeModelDelivery`，以及投影纯值 `diffModelStream` 与 `applyModelStreamDelta`。`./provider` 入口导出 72 个类型和 14 个运行值：操作引用的 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 27 个名字（替代提供者、替代传输与三个公开替身），以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 29 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
+
+## 提供者协议入口
+
+本包有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./testing` 是受控替身入口，`./conformance` 是符合性套件入口。分组规则沿用 tool-contract 的 [SPEC「公开入口的分组」](../../../tool/tool-contract/SPEC.md#公开入口的分组)规则 1–7。依据是谁消费一个名字，不是它在哪个源码文件。
+
+- 根入口 = 有 Model 组外导入者的名字 ∪ 这些名字的声明直接或间接引用到的名字 ∪ 按规则 3 判为消费侧的名字：[结果推送与保存](#结果失败和状态)、[显示投影](#model-显示投影纯值)与[当前目标与公共观察](#model-当前目标与公共观察)的名字，身份与调用引用，`ModelRuntime` 的闭包，以及[供应商尝试诊断](#供应商尝试诊断)的读面。Model 组外是 `packages/model` 之外的包与应用，含它们的测试与示例。根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。
+- `./provider` = 只被 Model 组实现成员（`model`、`model-host-local`、`pi-ai-*`、`tokenizer-tiktoken`、`model-cordis-contract`，含本包自己的测试）使用的提供者协议：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`，受信宿主驱动，档案维护、请求准备与计量校准，转换件与转换目录，分词接口，档案来源与内容权威，凭据解析端口与 `MODEL_SEND`，消费者 owner 的装配声明，以及只有提供者调用的契约函数：共享输入 judge 与限额常量、操作引用的 codec、`decodeReadId`、`compareRevisions`、回放的声明与投影函数。
+- 一个名字只从一个入口导出，两个入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员，不导出 `./testing` 与 `./conformance` 的名字。
+- 根入口不能为空；组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。`./provider` 的名字后来有了组外消费者时移回根入口：根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。导入扫描与闭包计算表列在改变分组的交付 PR 说明中，不进入本页。
+
+下文各章用「入口」一行注明哪些名字在 `./provider`；没有这一行的章全部在根入口。精确归属以 [`src/index.ts`](../src/index.ts) 与 [`src/provider/index.ts`](../src/provider/index.ts) 为准。[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts) 核对两个入口的运行时键与「一名一入口」，[导出清单](../tests/fixtures/exports.json)按入口逐名列出。
 
 ## 导出归属与落地前置
 
@@ -41,16 +52,17 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 - 再导出：`Adoption` 与 `ConsumerRef` 的唯一定义在 [exchange-refs](../../../common/exchange-refs/SPEC.md)，`Access` 的唯一定义在 legal-identity。root.ts 以原名再导出它们。封闭判断与 64 位小写十六进制的摘要规则留在本包。
 - 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)、[`src/judge-request.ts`](../src/judge-request.ts)、[`src/input-tree.ts`](../src/input-tree.ts)。
+- 入口：`ActorRef`、`ModelOperationRef`、`ModelOperationParts`、`encodeModelOperationRef`、`decodeModelOperationRef`、`resolveModelOperationRef`、`ModelAdmitCandidate`、`ModelInputRejection`、`MODEL_INPUT_LIMITS`、`judgeFixedModelRequest`、`judgeAdmit`、`decodeReadId` 与 `compareRevisions` 在 `./provider`：操作引用由提供者铸造与解析，封闭输入判断由受理提供者调用，读取身份由提供者铸造，修订的先后只有提供者比较。其余在根入口。
 - 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)、[`tests/reference.spec-d.ts`](../tests/reference.spec-d.ts)、[`tests/judge-request.spec-d.ts`](../tests/judge-request.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)、[`tests/reference.spec.ts`](../tests/reference.spec.ts)、[`tests/judge-request.spec.ts`](../tests/judge-request.spec.ts)。
 
 可保存引用的格式、失败顺序与恢复责任见 [SPEC](../SPEC.md#可保存调用引用)。三个普通入口使用 ModelReferenceAccess，底层 ModelInstanceDirectory 仍使用 CallAccess。
 
 身份和序列的文本规则如下，行为条款归[根入口的值与请求](../SPEC.md#342-根入口的值与请求)。
 
-- 每个品牌在根入口有一个解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。`CredentialId` 的解码函数 `decodeCredentialId` 在[凭据引用与解析端口](#凭据引用与解析端口)一节，与该品牌同处。
+- 每个品牌有一个解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ReadId` 的解码函数 `decodeReadId` 在 `./provider`，其余在根入口。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。`CredentialId` 的解码函数 `decodeCredentialId` 在[凭据引用与解析端口](#凭据引用与解析端口)一节，与该品牌同处。
 - 解码只核格式。成功只得到品牌，不证明对象存在、属于某租户或可以使用。所属租户与已有关系由处理该操作的提供者核验。
 - 身份类（`ModelCallId`、`DispatchId`、`ModelInstanceId`、`ModelOperationId`、`ResultVersion`、`ReadId`、`ModelDiagnosticId`、`ModelDiagnosticCursor`）是固定前缀加主体。前缀见 `MODEL_IDENTITY_PREFIXES`，主体是 1 个以上 `[A-Za-z0-9_-]` 字符。只比较相等，用 `===`。
-- 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions` 与 `compareOutputCursors`，按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
+- 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions`（`./provider`）与 `compareOutputCursors`（根入口），按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
 - 无前缀类（只有 `CredentialId`）由人在凭据保管的配置路径上命名，不由 Model 铸造，所以没有前缀。它的字符规则不同，见[凭据引用与解析端口](#凭据引用与解析端口)。
 - 上述单一身份品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
 - 失败值的 `field` 是品牌键 `ModelIdentityKey`（例如 `'ModelDispatchId'`），不是导出类型名（`DispatchId`）。品牌键带领域前缀，跨领域日志中不会与 Tool 的同名身份混淆。
@@ -82,9 +94,9 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 ## Model 当前目标与公共观察
 
 - 声明：[`src/model-stream.ts`](../src/model-stream.ts)。
-- 公共入口类型探针：[`tests/model-stream-selection.spec-d.ts`](../tests/model-stream-selection.spec-d.ts)。受控查询行为：[`tests/model-stream-selection.spec.ts`](../tests/model-stream-selection.spec.ts)。
+- 公共入口类型探针：[`tests/model-stream-selection.spec-d.ts`](../tests/model-stream-selection.spec-d.ts)。受控查询行为：[`tests/testing-stream-references.spec.ts`](../tests/testing-stream-references.spec.ts)，经 `./testing` 的 `current` 替身。
 
-`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和私有测试替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
+`ModelStreamReferences` 供提供者实现当前显示目标查询，`ModelStreamSelection` 将同次权威读取的调用状态与当前目标一起返回。`ModelStreamObservation` 为公共 `StreamObserver` 绑定 Model 投影与差分；公共观察协议由 [stream-arrival](../../../common/stream-arrival/README.md#public-observation-contract) 拥有。查询资格、失败顺序、目标退役和回复乱序规则归 [SPEC](../SPEC.md#current-的权威含义)。这些声明和 `./testing` 的替身不提供真实查询或发布服务，也不证明真实提供者的资格与披露围栏。
 
 ## 普通调用面与实例观察
 
@@ -113,7 +125,8 @@ ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)
 
 本章给提供者作者和宿主装配者：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`。
 
-- 声明：[`src/provider.ts`](../src/provider.ts)。
+- 声明：[`src/provider-protocol.ts`](../src/provider-protocol.ts)。
+- 入口：`TransportFailure`、`MaterializationReceipt`、`RetryDecision`、`RetryPosition` 与 `RetryResolution` 在根入口，因为组外消费者导入它们或根入口的声明引用它们。其余在 `./provider`。
 - 类型探针：[`tests/provider.spec-d.ts`](../tests/provider.spec-d.ts)。
 
 ModelSendBoundary 的 started 结果同时包含已确认的原 window 和唯一 facts 流。消费者将返回的 window 用于 preserve；Commands 仍核原调用、执行、分派与租户绑定。未知记录认回沿 [接收窗口行为](../SPEC.md#342-重试失联与恢复)，不再次 start。
@@ -145,6 +158,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 本章给消费者拥有者：声明受理资格的值，以及派生守卫控制 operation 的纯函数。
 
 - 声明：[`src/consumer-owner.ts`](../src/consumer-owner.ts)、[`src/guard-control.ts`](../src/guard-control.ts)。
+- 入口：`ModelConsumerOwnerDeclaration` 在 `./provider`，因为当前只有承载受理提交的实现持有它；`deriveGuardControlOperation` 在根入口。
 - 类型探针：[`tests/consumer-owner.spec-d.ts`](../tests/consumer-owner.spec-d.ts)。派生函数的行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)。
 
 - `consumerOwner` 与 `ConsumerRef.owner` 按文本相等比较。字段不叫 `owner`，以免与 `Adoption.owner` 混淆。
@@ -173,6 +187,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 本章给档案维护入口、选择列表的调用方和请求组装者：档案、请求准备、计量与预算的接口。计量接口供请求组装方在请求前使用，请求准备与发送不调用它。
 
 - 声明：[`src/profile.ts`](../src/profile.ts)。
+- 入口：`ModelChoices`、`ModelProfiles`、`ProfileChange`、`ModelProfileMaintenance`、`ModelRequestPreparation`、`OutputWithheld`、`MeterCalibration`、`CalibratedInputMeter`、`ReplayTreatment`、`ReplayDiagnostic`、`ReplayProjectionInput` 与 `ReplayProjection` 在 `./provider`。其余在根入口。
 - 类型探针：[`tests/profile.spec-d.ts`](../tests/profile.spec-d.ts)。
 
 这些接口不扩展 ModelRuntime 的控制权限。规则及准备/发送两阶段区别见 [准备协议](../SPEC.md#档案与请求准备协议)。
@@ -192,6 +207,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 本章给档案维护方、Model 适配器作者和输入计量器作者：回放声明的读取、展开与校验，以及适配器与计量器共用的回放投影。类型在[档案与请求准备](#档案与请求准备)一章。
 
 - 声明：[`src/replay-values.ts`](../src/replay-values.ts)。
+- 入口：三个函数都在 `./provider`。
 - 行为测试：[`tests/replay.spec.ts`](../tests/replay.spec.ts)。
 
 - `judgeReplayDeclaration(supplier, index)` 读取并展开供应商的回放声明，再按 SPEC 检查，返回 `Outcome`，成功值是展开后的完整声明（冻结）。`supplier.replay` 的类型是 `unknown`，因为它从存储或配置读来：只有 `undefined`（或没有该键）取全部默认值；否则必须是原型为 `Object.prototype` 或 `null` 的普通对象，自有键只能是 `produces`、`accepts`、`foreignThinking`，每个键是可枚举的数据属性，每个字段只读一次，访问器从不调用，原型链上的键不读；值为 `undefined` 的键视为未声明，取该项默认值。失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `replay`（不满足上述读取规则）、`produces`（不是文本、为空或过长，包括默认值过长）、`accepts`（不是数组，或有一项是空洞、访问器、空文本或超长文本）、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking`（不是三个取值之一，包括 `null`）中第一个不满足的项。展开函数不对外导出。
@@ -203,6 +219,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 本章给消息准入者和转换件作者：转换目录、转换件与消息转换的接口。
 
 - 声明：[`src/conversion.ts`](../src/conversion.ts)。
+- 入口：`ConvertedContent` 与 `ConversionResult` 在根入口。其余在 `./provider`。
 - 类型探针：[`tests/conversion.spec-d.ts`](../tests/conversion.spec-d.ts)。
 
 消息准入使用 ModelMessageConversion。`ConverterKey` 与 `acquire` 的模态用 `Modality`，所以视频转换件是合法的。系统装配提供 ModelConverterCatalog 和本地 ModelConverter；Model runtime 不永久依赖转换目录。共享块保持原身份，转换结果随消息准入者的原块一起接纳，不能拼成额外消息。消费行为见 [转换契约](../SPEC.md#转换与历史投影协议)。
@@ -214,6 +231,7 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 本章给计量提供者作者：窄的分词接口和计量依据的值。
 
 - 声明：[`src/tokenizer.ts`](../src/tokenizer.ts)。
+- 入口：`TokenizerDefinition` 与 `ModelCountingBasis` 在根入口；`TokenizationSegment`、`TokenizationFailure` 与 `ModelTextTokenizer` 在 `./provider`。
 - 类型探针：[`tests/tokenizer.spec-d.ts`](../tests/tokenizer.spec-d.ts)。
 
 ModelTextTokenizer 是具体计量提供者可注入的窄算法接口。普通请求调用者继续使用 ModelRequestPreparation 或 ModelInputMeter，不取得 tokenizer。模板、模型和供应商适用性归计量提供者，精度归 Measurement；本接口不承诺完整请求 token 数。行为见 [分词与计量](../SPEC.md#分词与完整请求计量)。
@@ -229,6 +247,7 @@ RequestBudget.counting 保存所有参与当前报告的计量依据；相同供
 本章给提供者作者和执行宿主：驱动、宿主权威与驱动绑定。
 
 - 声明：[`src/driver.ts`](../src/driver.ts)。
+- 入口：全部在 `./provider`。
 - 类型探针：[`tests/driver.spec-d.ts`](../tests/driver.spec-d.ts)。
 
 ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime。ModelDriverHost 在宿主本地绑定该能力，跨线程桥只运输 `ModelDriveInput` 里的身份值，不能序列化 driver、Context 或闭包。独立替代提供者可采用自己的调度构造，仍满足共同协议。
@@ -240,6 +259,7 @@ ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime�
 本章给替代提供者作者和装配者：档案来源、请求规则、准备资源与内容权威。
 
 - 声明：[`src/profile-source.ts`](../src/profile-source.ts)。
+- 入口：`ModelProfileSnapshot`、`ModelProfileSource` 与 `ModelContentAuthority` 在 `./provider`。其余在根入口。
 - 类型探针：[`tests/profile-source.spec-d.ts`](../tests/profile-source.spec-d.ts)。
 
 普通消费者继续使用 ModelProfiles、ModelRequestPreparation 和 ModelMessageConversion。写入档案的权威提供者直接实现 ModelProfileMaintenance，不增加只转发 change 的工厂层。
@@ -255,6 +275,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 本章给凭据的判定方、保管方和替代提供者作者：凭据引用、查询、存在性与解析结果，以及两个函数。
 
 - 声明：[`src/credential.ts`](../src/credential.ts)、[`src/credential-values.ts`](../src/credential-values.ts)。
+- 入口：`CredentialId` 在根入口。其余，含 `MODEL_SEND`、`decodeCredentialId` 与 `sameCredentialHolder`，在 `./provider`。
 - 类型探针：[`tests/credential.spec-d.ts`](../tests/credential.spec-d.ts)。解码与持有者比较的行为测试：[`tests/credential.spec.ts`](../tests/credential.spec.ts)。
 
 - `CredentialId` 是由人命名的不透明身份。它在凭据保管的配置路径上命名（本地保管的管理操作，或外部密钥管理的引用名），不由 Model 运行时铸造。所以它没有前缀：误混由类型阻止，运行时的误用走 `absent`、`denied` 这类失败分支。
@@ -279,9 +300,9 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 本章给领域外协调者的测试作者。名字由 `./testing` 入口导出。
 
-- 声明：[`src/testing/provider.ts`](../src/testing/provider.ts)、[`src/testing/controller.ts`](../src/testing/controller.ts)、[`src/testing/core.ts`](../src/testing/core.ts)、[`src/testing/transport.ts`](../src/testing/transport.ts)、[`src/testing/error.ts`](../src/testing/error.ts)。
+- 声明：[`src/testing/provider.ts`](../src/testing/provider.ts)、[`src/testing/controller.ts`](../src/testing/controller.ts)、[`src/testing/core.ts`](../src/testing/core.ts)、[`src/testing/transport.ts`](../src/testing/transport.ts)、[`src/testing/error.ts`](../src/testing/error.ts)；三个公开替身：[`src/testing/pusher.ts`](../src/testing/pusher.ts)、[`src/testing/stream-references.ts`](../src/testing/stream-references.ts)、[`src/testing/stream-observation.ts`](../src/testing/stream-observation.ts)，共用的控制面决策 [`src/testing/access.ts`](../src/testing/access.ts)。
 - `ScriptedWriteAction` 是 `src/testing/writes.ts` 里 `WriteAction` 的导出别名，由 [`src/testing/index.ts`](../src/testing/index.ts) 声明。
-- 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
+- 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)；三个替身：[`tests/testing-pusher.spec.ts`](../tests/testing-pusher.spec.ts)、[`tests/testing-stream-references.spec.ts`](../tests/testing-stream-references.spec.ts)、[`tests/testing-stream-observation.spec.ts`](../tests/testing-stream-observation.spec.ts)。
 
 `@omne-harness/model-contract/testing` 入口给领域外的协调者测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。符合性断言在另一个入口 `./conformance`（见[符合性断言](#符合性断言)），任何提供者都可以用它检查自己；本入口只带一个把替代提供者接成被测方的函数。
 
@@ -296,6 +317,34 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 `commitUnknown` 让下一次同租户、同动作、同 operation 的写操作回答 `commit-unknown`。`applied` 使写操作实际生效，`dropped` 不留下任何东西；之后同 operation 重发，前者认回原结果，后者成为首次受理。`stays-unknown` 使 `queryCommit` 在那次重发之前一直回答 `unknown`。那次重发指发出该 operation 的调用再发这个 operation：该调用以这个 operation 发出的写，无论认回还是 `conflict`，都解除保持，因为 `conflict` 本身已表明该 operation 生效，之后答 `committed` 是真话，不造成重复执行。同租户另一个调用用同名 operation 的写得到 `conflict`，不解除保持。脚本属于它所指名的租户：别的租户用同名 operation 发写操作，既不消耗这条脚本，也不解除保持。替代件不区分更细的未知种类。
 
 `queryCommit` 把 operation 当作发出它的那个调用的东西：别的租户来问、同租户用别的调用或不存在的调用来问，得到的回答与问一个从未发出过的 operation 深相等。失权按所问的调用判断，换一个调用名不能绕过 `denied`。`not-started`、物化提交未知与实例代次的写入失败属于真实提供者的深接缝（`ModelCommands`），替代件不实现它。
+
+### 三个公开替身
+
+本入口另有[结果推送与保存](../SPEC.md#结果推送与保存)和[公共内容观察与当前目标](../SPEC.md#公共内容观察与当前目标)两个协议的三个公开替身，供契约骨架与消费方的契约测试使用；公开的理由与边界归 [SPEC](../SPEC.md#公开替身与受控替身)。三个替身状态都在闭包里，不读系统时钟，不导入任何接收方实现。`current` 替身与观察替身带测试控制面 `setAccess`：按真实租户与主体身份（`Object.is`）设 `ScriptedAccessDecision` 的 `allow`、`deny` 或 `unavailable`，没有设过的访问一律 `deny`；它不是生产 AccessCheck。推送生产者替身没有自己的控制面，它以构造时给出的 `principal` 行事，资格由被包的提供者与使用方注入的接收端口各自核验。
+
+`createScriptedResultPusher` 包住一个替代提供者。下面按交付的先后列出它的行为。
+
+- 受理：使用方经它返回的 `provider` 受理调用，替身在 `admit` 处记下调用的受理 operation 与引用。`mop_ack-` 与 `mop_push-read-` 是替身保留的两个 operation 前缀，调用方不得用它们铸造自己的 operation。受理 operation 以其中一个前缀开头时，`admit` 抛 `ScriptedModelError('invalid-script')`，不转发给内层提供者。只有 `admit` 核对保留前缀：`cancel` 与消费面的方法原样转发，带保留前缀的 operation 撞上替身自己的 operation 时，由内层提供者按 operation 的 `conflict` 规则回答。
+- 驱动：使用方经它返回的 `controller` 驱动脚本。`settle` 与 `recordDispatch` 的行为见下面各项，`controller` 的其余方法原样转发。
+- operation 铸造：`settle` 在转发之前铸造两个固定专用 operation。读取结果用 `mop_push-read-` 加调用去掉 `mcall_` 前缀后的主体，取 ACK 用 `mop_ack-` 加同一主体。同一调用重投得到同一 operation，可以认回。主体不以 `--` 开头，与 `deriveGuardControlOperation` 的保留规则不冲突。先铸的是 `mop_push-read-`（14 个字符）：主体超过 242 个字符时，它超出身份长度上限 256，`settle` 抛 `ScriptedModelError('invalid-script')`，不转发给内层控制器，调用保持 `accepted`。`mop_ack-` 的上限 248 因此不会先到。
+- 冻结：`settle` 转发给内层控制器后，替身只经公开面（`inspect`、`dispatches`、`beginRead`/`readNext`/`closeRead`）读出 `CallState`、每个 dispatch 的账目快照（没有报告的写 null）与全部有序 `ResultPart`，组成 result 交付并深复制、深冻结。之后改脚本输入不改变载荷。任一步读取失败时，交付记为 `failed`，失败是 `not-frozen`（`step` 为 `inspect`、`dispatches` 或 `read`），不推送，不取 ACK。
+- 推送：替身按 `resolveReceiver(consumer.owner)` 取接收端口推送，并按回答记录。
+  - 解析结果为 null：记 `no-receiver`。
+  - saved：核回执 key 与原 key 结构相等，不等记 `receipt-key-mismatch`。
+  - `outcome-unknown`：按原 key 与同一冻结载荷立即重投，最多 `maxRedeliveries`（默认 3）次，之后记 `unknown` 并保留载荷。
+  - 其余失败：记 `rejected`，带接收方的失败值，不自动重投。`backpressured`、`unavailable` 由测试经 `redeliver` 驱动。
+  - 解析函数或接收端口抛出：记 `threw`，`error` 是抛出的那个值本身。替身不复制它，也不冻结它。
+- saved 不可回退：saved 是调用级事实。一次交付 saved 之后，`deliveries()` 与 `settled()` 一直给出 saved 和原回执。之后每次 `redeliver` 照常累计尝试次数（含 `outcome-unknown` 时的立即重投），并以返回值给出这一次 `redeliver` 的结果：saved（带这一次的回执）、带 `PushFailure` 的 `failed` 或 `unknown`。它不改写 saved，不清除原回执。ACK 与晚账的放行都以这个 saved 事实为准。
+- `unknown` 不被后来的失败抹去：记为 `unknown` 的交付，之后的 `redeliver` 得到 denied、unavailable、`backpressured` 等失败时，记录仍是 `unknown`，这一次的失败只以返回值给出；只有后来的 saved 取代它。在途时它也仍显示 `unknown`。其余尚未 saved 的交付，`redeliver` 的结果就是它新的记录。没有这个 key 的交付、载荷从未冻结或这次交付正在重投时，`redeliver` 抛 `ScriptedModelError('invalid-script')`。
+- ACK：saved 之后替身自己取 ACK，用 `mop_ack-` operation 与 `{kind:'retained', custody: receipt.evidence}` 调用内层 `acknowledge`。`commit-unknown` 时同 operation 重发，上限同 `maxRedeliveries`。其余失败只记进 `acknowledgements()`，不改 result 的 saved 事实。
+- 晚账：`recordDispatch` 转发后，带非 null 账目的记录按到达顺序排队。result saved 之后，revision 比冻结快照里该 dispatch 新（或快照为 null）的账目组成 account 交付推送。同 dispatch 同 revision 不重复推送。
+- 读数：`deliveries()` 按 key 给出 `pending`、`saved`、`failed`、`unknown` 与尝试次数。`settled(call)` 在该调用的 result 交付、它的 ACK 与排在它之前的账目交付都到终态后兑现。受理过但从未 `settle` 的调用，`settled(call)` 永不兑现。替身自己的工作抛错时（例如接收方回答的回执或失败值不能深复制），`settled(call)` 以该错误拒绝；这一拒绝对该调用之后的每次 `settled(call)` 都有效，出错的那条交付记录显示 `pending`。这是「saved 不可回退」一项的唯一例外，它只在接收方违反纯值约定时出现；saved 事实、ACK 与晚账的放行不受影响。
+
+替身不执行每租户与全局限额及背压、正文释放后的晚账恢复扫描、持久交付待办。它不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+
+`createScriptedStreamReferences` 从一个确认记录给出 `ModelStreamSelection`：`confirmSelection` 登记 state 与当前目标，`establishWithoutTarget` 登记没有目标的确认，`withdrawTarget` 退役无后继；`setSource('unavailable')` 使读取返回 `unavailable(stream-references)`；`holdResponse`/`reached`/`releaseResponse` 让一次响应等待，等待后重核资格并重读来源。失败顺序按 [current 的失败与读取顺序](../SPEC.md#current-的失败与读取顺序)；`events()` 记录每次通过前置检查的来源读取。登记的记录与返回的 selection 都是深复制、深冻结的纯值。
+
+`createScriptedStreamObservation` 按 `StreamRef` 提供内存中的 `ModelStreamObservation`。`publish` 登记一条新流的首个已确认快照，`advance` 登记同一 ref 的下一个快照并用 `diffModelStream` 得出 delta（失败抛 `ScriptedModelError`）；两者都推进该流的公共位置（从 1 起每次加 1，state-only 变化也推进），返回 `encodeStreamCursor` 的游标。`observe` 按 [stream-arrival 的失败顺序](../../../common/stream-arrival/README.md#failure-order-and-iterator-completion)检查：未铸造或他租户以 `denied` 结束，引用文本不可读以 `stale-stream` 结束，然后查控制面（`deny`→`denied`，`unavailable`→`unavailable`），然后流不存在以 `stale-stream` 结束、已 `end` 的流以 `end` 给出的 reason 结束。通过后先给当前快照，之后每个 `advance` 给一帧 delta，`from` 是该观察者上一帧的游标；取得快照与登记订阅在同一同步临界区完成。signal 中止以 `observer-closed` 结束并退订，已排定的终止帧也让位给它；中止之后交出前仍重核，撤权或控制面不可用时下一帧是 `denied` 或 `unavailable`，优先于 `observer-closed`；同一 ref 再次观察先给当时的完整快照，再给后续 delta，不重放旧 delta。撤权与控制面不可用对所有已开的观察立即生效：替身当场重核每个已开的观察，排队的帧不会在核对失败之后交出。`end` 也立即生效：替身丢弃该流每个已开观察者未取的快照与 delta，之后只交出终止帧。已排定的终止帧在交出前再重核引用、租户与控制面。撤权后的下一帧是 `denied`，控制面不可用后的下一帧是 `unavailable`，二者优先于已排定的终止帧。已排定的终止帧不被之后的 `end` 改写，`end(stale-stream)` 也不例外：替身只重核引用、租户与控制面，不模拟发布代次的核对。`capacity` 是每个观察者待取帧数的上限。加入一帧会超出上限时，替身先移除该观察者的订阅并清空待取帧，再排定一个终止 `gap`：`reason` 为 `buffer`，`after` 是最后交出给该观察者的游标。按[公共契约](../../../common/stream-arrival/README.md#failure-order-and-iterator-completion)，以 `capacity` 结束的情形是快照超限、观察者准入因数量或总资源失败、生产者结束值超限。本替身只限每个观察者的待取帧数（`capacity` 须为正整数，否则构造时抛 `ScriptedModelError('invalid-script')`），不限观察者数与字节，快照总是空队列的第一帧，所以本替身不给 `capacity`。输出帧是深复制、深冻结的纯值；替身不发布真实来源，不持久化，也不模拟目标来源不可用。
 
 ## 符合性断言
 

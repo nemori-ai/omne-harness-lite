@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
-import { decodeResultVersion, decodeReadId, type ModelCommands } from '@omne-harness/model-contract'
+import { decodeResultVersion } from '@omne-harness/model-contract'
+import { decodeReadId, type ModelCommands } from '@omne-harness/model-contract/provider'
 import { runtimeFixture } from './runtime-fixture.ts'
 import { settleRuntime } from './runtime-consumption-fixture.ts'
 import { completionRecords } from './completion-records.ts'

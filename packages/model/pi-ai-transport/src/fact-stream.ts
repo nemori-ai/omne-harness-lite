@@ -1,11 +1,11 @@
 // The fact stream of one started send: SSE events, then protocol frames, then the family decoder,
 // and exactly one `ended` at the end, after the exchange has physically stopped.
+import type { ModelFault } from '@omne-harness/model-contract'
 import type {
-  ModelFault,
   ProviderDiagnostic,
   TransportFact,
   TransportTermination,
-} from '@omne-harness/model-contract'
+} from '@omne-harness/model-contract/provider'
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
 import { readProtocolFrames } from './frames.ts'

@@ -4,7 +4,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { judgeFixedModelRequest, type FixedModelRequest } from '@omne-harness/model-contract'
+import { type FixedModelRequest } from '@omne-harness/model-contract'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 
 export type FamilyName = 'pi-ai-openai' | 'pi-ai-anthropic'

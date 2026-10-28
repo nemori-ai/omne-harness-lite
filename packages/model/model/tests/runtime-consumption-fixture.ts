@@ -1,4 +1,5 @@
-import type { ResultPart, TransportTermination } from '@omne-harness/model-contract'
+import type { ResultPart } from '@omne-harness/model-contract'
+import type { TransportTermination } from '@omne-harness/model-contract/provider'
 import type { runtimeFixture } from './runtime-fixture.ts'
 import { eventually } from './runtime-fixture.ts'
 import { resultFacts } from './runtime-settlement-facts.ts'
